@@ -48,6 +48,12 @@ code += String.raw`
   assert(issuedPartsCell.includes('checked'), 'Received/issued Parts tick should remain checked');
   assert(!pdcJobTableCell(basePartsVehicle, PDC_JOB_BY_KEY.get('build')).includes('parts-visual-'), 'Parts visual classes must not leak onto other job ticks');
 
+  const stalePmbVehicle = { ...basePartsVehicle, pdcLocation: 'PMB', pmbStage: 'SUBLET', pmbStageEnteredAt: '2000-01-01T00:00:00.000Z', pdcRequiresSublet: true, pdcBlockReason: 'Waiting on contractor' };
+  const visibility = operationalVisibilityMetrics([basePartsVehicle, stalePmbVehicle]);
+  assert(visibility.openThirdParty === 1, 'Operational visibility should count open third-party work');
+  assert(visibility.stagnant === 1, 'Operational visibility should count stagnant or blocked workflow');
+  assert(visibility.rftGateIssues === 1, 'Operational visibility should count manual RFT gate issues');
+
   app.data = [basePartsVehicle];
   elementFor('#parts-search').value = 'Sales Person';
   elementFor('#parts-status-filter').value = 'all';

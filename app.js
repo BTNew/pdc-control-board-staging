@@ -1503,7 +1503,65 @@ function renderKpis() {
   `;
   }).join('');
   $$('[data-kpi-filter]').forEach(card => card.addEventListener('click', () => applyQuickFilter(card.dataset.kpiFilter)));
+  renderOperationalVisibility();
   renderPmbBranchTiles();
+}
+
+function isOpenThirdPartyVehicle(vehicle = {}) {
+  const thirdPartyJobKeys = new Set(['tint', 'sublet', 'fabrication', 'electrical']);
+  const hasOpenExternalJob = PDC_JOB_DEFS.some(def => thirdPartyJobKeys.has(def.key) && pdcJobRequired(vehicle, def) && !pdcJobComplete(vehicle, def));
+  const stage = inferredPmbStage(vehicle);
+  return hasOpenExternalJob || ['TINT', 'SUBLET', 'FABRICATION', 'ELECTRICAL'].includes(stage);
+}
+
+function isWorkflowStagnant(vehicle = {}) {
+  if (isActivePartsStoppage(vehicle) || isPdcBlocked(vehicle)) return true;
+  if (statusCategory(vehicle) !== 'pmb') return false;
+  const days = pmbStageAgeDays(vehicle);
+  if (days === null) return false;
+  return days > pmbLaneAgeLimit(inferredPmbStage(vehicle));
+}
+
+function operationalVisibilityMetrics(rows = []) {
+  const pmbRows = rows.filter(vehicle => statusCategory(vehicle) === 'pmb');
+  const rftGateIssues = vehiclesWithRftGateIssues(pmbRows);
+  const stages = ['', ...PMB_STAGE_DEFS.map(def => def.value)];
+  const capacityAlerts = stages.map(stage => {
+    const vehicles = pmbRows.filter(vehicle => stage ? inferredPmbStage(vehicle) === stage : !inferredPmbStage(vehicle));
+    return { stage, vehicles, metrics: pmbLaneMetrics(stage, vehicles) };
+  }).filter(row => row.metrics.overLimit || row.metrics.atLimit || row.metrics.blockedCount || row.metrics.oldestStageDays > pmbLaneAgeLimit(row.stage));
+  const openThirdPartyRows = rows.filter(isOpenThirdPartyVehicle);
+  return {
+    openThirdParty: openThirdPartyRows.length,
+    assignedThirdParty: openThirdPartyRows.filter(vehicle => pmbBaySubletProvider(vehicle) || pmbBayMechanic(vehicle)).length,
+    stagnant: rows.filter(isWorkflowStagnant).length,
+    activeBlockers: rows.filter(vehicle => isPdcBlocked(vehicle) || isActivePartsStoppage(vehicle)).length,
+    capacityAlerts: capacityAlerts.length,
+    rftGateIssues: rftGateIssues.length,
+    historyEvents: loadAuditLog().length,
+    pmbRows: pmbRows.length,
+  };
+}
+
+function renderOperationalVisibility() {
+  const host = $('#operational-visibility-grid');
+  if (!host) return;
+  const rows = filteredVehiclesIgnoringQuickFilter();
+  const metrics = operationalVisibilityMetrics(rows);
+  const cards = [
+    { label: 'Third-party work', value: metrics.openThirdParty, detail: `${metrics.assignedThirdParty} assigned · tint / fabrication / electrical / sublet` },
+    { label: 'Stagnation & blockers', value: metrics.stagnant, detail: `${metrics.activeBlockers} active blockers or Parts stoppages` },
+    { label: 'Capacity alerts', value: metrics.capacityAlerts, detail: `${metrics.pmbRows} PMB vehicles checked against WIP and ageing limits` },
+    { label: 'RFT gate issues', value: metrics.rftGateIssues, detail: 'Manual QC remains required before Ready for Transport' },
+    { label: 'History events', value: metrics.historyEvents, detail: 'Local timestamped audit records for reporting review' },
+  ];
+  host.innerHTML = cards.map(card => `
+    <article class="visibility-card">
+      <span>${escapeHtml(card.label)}</span>
+      <strong>${escapeHtml(card.value)}</strong>
+      <small>${escapeHtml(card.detail)}</small>
+    </article>
+  `).join('');
 }
 
 function renderPmbBranchTiles() {
