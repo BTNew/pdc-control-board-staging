@@ -68,13 +68,12 @@ function pdcLocationSelectOptions(current = '') {
 const PMB_STAGE_OPTIONS = [
   { value: '', label: 'Not assigned' },
   { value: 'TINT', label: 'Tint (internal)' },
-  { value: 'EXPRESS_HOIST', label: 'Express hoist/pits hoist' },
-  { value: 'EXPRESS_FITOUT', label: 'Express fitout' },
   { value: 'HOIST', label: 'Hoist' },
   { value: 'FITTING', label: 'Fitting' },
   { value: 'FABRICATION', label: 'Fabrication' },
   { value: 'ELECTRICAL', label: 'Electrical' },
   { value: 'TYRE', label: 'Tyre bay' },
+  { value: 'PIT_INSPECTION', label: 'Pit Inspection' },
 ];
 
 const PMB_STAGE_DEFS = PMB_STAGE_OPTIONS.filter(option => option.value);
@@ -84,24 +83,22 @@ const PMB_STAGE_LABELS = new Map(PMB_STAGE_OPTIONS.map(option => [option.value, 
 const PMB_WIP_LIMITS = {
   '': 12,
   TINT: 2,
-  EXPRESS_HOIST: 1,
-  EXPRESS_FITOUT: 1,
   HOIST: 3,
   FITTING: 5,
   FABRICATION: Number.POSITIVE_INFINITY,
   ELECTRICAL: 10,
   TYRE: 2,
+  PIT_INSPECTION: 1,
 };
 
 const PMB_STAGE_BAY_COUNTS = {
   TINT: 2,
-  EXPRESS_HOIST: 1,
-  EXPRESS_FITOUT: 1,
   HOIST: 3,
   FITTING: 5,
   FABRICATION: 0,
   ELECTRICAL: 10,
   TYRE: 2,
+  PIT_INSPECTION: 1,
 };
 
 const PMB_STAGE_CAPACITY_LABELS = {
@@ -112,26 +109,24 @@ const PMB_STAGE_CAPACITY_LABELS = {
 const PMB_STAGE_AGE_LIMITS = {
   '': 1,
   TINT: 2,
-  EXPRESS_HOIST: 1,
-  EXPRESS_FITOUT: 1,
   HOIST: 2,
   FITTING: 3,
   FABRICATION: 4,
   ELECTRICAL: 2,
   TYRE: 2,
+  PIT_INSPECTION: 1,
 };
 
 const PMB_BAY_MAX_COUNT = 10;
-const PMB_BAY_STATION_SEQUENCE = ['TINT', 'EXPRESS_HOIST', 'EXPRESS_FITOUT', 'HOIST', 'FITTING', 'FABRICATION', 'ELECTRICAL', 'TYRE'];
+const PMB_BAY_STATION_SEQUENCE = ['TINT', 'HOIST', 'FITTING', 'FABRICATION', 'ELECTRICAL', 'TYRE', 'PIT_INSPECTION'];
 const PRODUCTION_FLOW_DEFS = [
   { key: 'TINT', label: 'Tint (internal)', short: 'T', jobKey: 'tint', stage: 'TINT', search: /\b(tint|tinting|window tint)\b/i },
-  { key: 'EXPRESS_HOIST', label: 'Express hoist/pits hoist', short: 'EH', jobKey: 'build', stage: 'EXPRESS_HOIST', search: /\b(express\s+(hoist|pit|pits)|pits?\s+hoist|quick\s+hoist)\b/i },
-  { key: 'EXPRESS_FITOUT', label: 'Express fitout', short: 'EF', jobKey: 'build', stage: 'EXPRESS_FITOUT', search: /\b(express\s+fit(?:out|ment|ting)|quick\s+fit(?:out|ment|ting))\b/i },
   { key: 'HOIST', label: 'Hoist', short: 'H', jobKey: 'build', stage: 'HOIST', search: /\b(hoist|suspension|gvm|lift kit|lift|underbody|towbar|tow bar)\b/i },
   { key: 'FITTING', label: 'Fitting', short: 'F', jobKey: 'build', stage: 'FITTING', search: /\b(fit|fitting|build|pdi|pre delivery|pre-delivery|accessor(?:y|ies)|job card|workshop)\b/i },
   { key: 'FABRICATION', label: 'Fabrication', short: 'Fa', jobKey: 'fabrication', stage: 'FABRICATION', search: /\b(fab|fabricat|tray|canopy|body builder|bodybuilder|steel tray|aluminium tray|tub body|bullbar|bar work)\b/i },
   { key: 'ELECTRICAL', label: 'Electrical', short: 'E', jobKey: 'electrical', stage: 'ELECTRICAL', search: /\b(electrical|auto electrical|auto-elec|12v|dual battery|battery system|uhf|spotlight|light bar|beacon|compressor|anderson|redarc|brake controller|dc dc|dcdc|dash cam|camera|reverse camera|power outlet|usb)\b/i },
   { key: 'TYRE', label: 'Tyre bay', short: 'Ty', jobKey: 'build', stage: 'TYRE', search: /\b(tyre|tire|wheel|wheels|alloy|rotation|balance|alignment)\b/i },
+  { key: 'PIT_INSPECTION', label: 'Pit Inspection', short: 'PI', jobKey: 'pitInspection', stage: 'PIT_INSPECTION', search: /\b(pit inspection|pit|inspection)\b/i },
 ];
 
 const PDC_JOB_DEFS = [
@@ -149,13 +144,12 @@ const PDC_JOB_BY_KEY = new Map(PDC_JOB_DEFS.map(def => [def.key, def]));
 
 const PMB_STAGE_TO_JOB_KEY = {
   TINT: 'tint',
-  EXPRESS_HOIST: 'build',
-  EXPRESS_FITOUT: 'build',
   HOIST: 'build',
   FITTING: 'build',
   FABRICATION: 'fabrication',
   ELECTRICAL: 'electrical',
   TYRE: 'build',
+  PIT_INSPECTION: 'pitInspection',
 };
 
 function pmbStageJobDef(stage = '') {
@@ -190,13 +184,14 @@ function normalizePmbStage(value = '') {
   const clean = String(value || '').trim().toUpperCase();
   if (!clean) return '';
   if (clean.includes('TINT')) return 'TINT';
-  if ((clean.includes('EXPRESS') && clean.includes('HOIST')) || clean.includes('PITS HOIST') || clean.includes('PIT HOIST')) return 'EXPRESS_HOIST';
-  if (clean.includes('EXPRESS') && (clean.includes('FITOUT') || clean.includes('FIT OUT') || clean.includes('FITTING') || clean.includes('FITMENT'))) return 'EXPRESS_FITOUT';
+  if ((clean.includes('EXPRESS') && clean.includes('HOIST')) || clean.includes('PITS HOIST') || clean.includes('PIT HOIST')) return 'HOIST';
+  if (clean.includes('EXPRESS') && (clean.includes('FITOUT') || clean.includes('FIT OUT') || clean.includes('FITTING') || clean.includes('FITMENT'))) return 'FITTING';
   if (clean.includes('HOIST') || clean.includes('SUSPENSION') || clean.includes('LIFT')) return 'HOIST';
   if (clean.includes('FITTING') || clean.includes('FITMENT') || clean.includes('FITOUT') || clean.includes('FIT OUT') || clean.includes('BUILD') || clean.includes('PDI') || clean.includes('PRE DELIVERY') || clean.includes('PRE-DELIVERY')) return 'FITTING';
   if (clean.includes('FAB') || clean.includes('TRAY') || clean.includes('BODY')) return 'FABRICATION';
   if (clean.includes('ELECTRICAL') || clean.includes('AUTO ELEC') || clean.includes('AUTO-ELEC') || clean.includes('12V') || clean.includes('UHF')) return 'ELECTRICAL';
   if (clean.includes('TYRE') || clean.includes('TIRE') || clean.includes('WHEEL')) return 'TYRE';
+  if (clean.includes('PIT') || clean.includes('INSPECTION')) return 'PIT_INSPECTION';
   if (clean.includes('SUBLET') || clean.includes('SUB-LET') || clean.includes('SUB LET') || clean.includes('OUTSOURCE') || clean.includes('EXTERNAL')) return '';
   return '';
 }
@@ -1707,7 +1702,7 @@ function renderPmbBranchTiles() {
   const allActive = !app.pmbSubFilter;
   host.innerHTML = `
     <div class="branch-header">
-      <div><strong>PMB control board</strong><span>All PMB vehicles land in Unallocated first. Drag into Tint, Express hoist/pits hoist, Express fitout, Hoist, Fitting, Fabrication, Electrical or Tyre bay only when that department is ready to own the work.</span></div>
+      <div><strong>PMB control board</strong><span>All PMB vehicles land in Unallocated first. Drag into Tint (internal), Hoist, Fitting, Fabrication, Electrical, Tyre bay or Pit Inspection only when that department is ready to own the work.</span></div>
       <div class="branch-header-actions">
         <button class="small-button ${allActive ? 'active-lite' : ''}" type="button" data-pmb-sub-filter="">Show all PMB (${pmbRows.length})</button>
         <button class="small-button ${app.pmbSubFilter === PMB_STAGE_UNASSIGNED_FILTER ? 'active-lite' : ''}" type="button" data-pmb-sub-filter="${PMB_STAGE_UNASSIGNED_FILTER}">Unallocated (${unassignedRows.length})</button>
@@ -2432,8 +2427,6 @@ function pmbStageOperatorGuidance(stage = '') {
   const label = pmbStageLabel(stage);
   return {
     TINT: 'Tint (internal) view: confirm tint work, planned hours, bay and technician only. Use Parts or other station pages for their own blockers and sign-offs.',
-    EXPRESS_HOIST: 'Express hoist/pits hoist view: confirm express/pit hoist work, planned hours, bay and technician only.',
-    EXPRESS_FITOUT: 'Express fitout view: confirm quick fitout work, planned hours, bay and technician only.',
     HOIST: 'Hoist view: confirm hoist work, planned hours, bay and technician only.',
     FITTING: 'Fitting view: confirm accessory fitment/build work, planned hours, bay and technician only. Do not use this page for Parts or external sublet updates.',
     FABRICATION: 'Fabrication view: confirm fabrication work, planned hours, bay and technician only. Leave Tint / Electrical / Parts sign-off to their own pages.',
@@ -2694,6 +2687,44 @@ function bindPmbDropTarget(dropTarget) {
   });
 }
 
+function pmbMovementResolutionUpdates(vehicle = {}, fromStage = '', toStage = '') {
+  const currentStage = normalizePmbStage(fromStage);
+  const nextStage = normalizePmbStage(toStage);
+  if (!currentStage || currentStage === nextStage) return {};
+  const jobDef = pmbStageJobDef(currentStage);
+  if (!jobDef || pdcJobComplete(vehicle, jobDef)) return {};
+  const stock = displayStockNumber(vehicle) || vehicle.order || 'this vehicle';
+  const area = pmbStageLabel(currentStage) || 'the current area';
+  const answer = window.prompt(
+    `${stock} is leaving ${area}.\n\nType COMPLETE if the work in ${area} is finished.\nType STOPPAGE if it is moving because of a stoppage.\nType MOVE to move without changing the work tick.`,
+    'COMPLETE'
+  );
+  if (answer === null) return null;
+  const choice = String(answer || '').trim().toLowerCase();
+  const now = nowIsoString();
+  const operator = getCurrentOperatorName();
+  if (choice.startsWith('stop')) {
+    const reason = cleanNavisionText(window.prompt('Enter stoppage reason:', `${area} stoppage`) || '');
+    if (!reason) return null;
+    recordVehicleAudit(vehicle, 'PMB movement stoppage recorded', { stage: area, reason, by: operator });
+    return { pdcBlocked: true, pdcBlockReason: reason, pdcBlockedAt: now, pdcBlockedBy: operator };
+  }
+  if (choice.startsWith('comp') || choice === 'done' || choice === 'yes' || choice === 'y') {
+    recordVehicleAudit(vehicle, 'Job signed off by PMB movement', { job: jobDef.label, from: area, to: pmbStageLabel(nextStage) || 'Unallocated', by: operator });
+    return {
+      [jobDef.requireKey]: true,
+      [jobDef.completeKey]: true,
+      [jobDef.completeAtKey]: now,
+      [jobDef.completeByKey]: operator,
+      pdcBlocked: false,
+      pdcBlockReason: '',
+    };
+  }
+  if (choice === 'move' || choice === 'skip' || choice === 'no' || choice === 'n') return {};
+  window.alert('Move cancelled. Use COMPLETE, STOPPAGE, or MOVE.');
+  return null;
+}
+
 function movePmbVehicleToStage(key, stage) {
   const cleanKey = String(key || '').trim();
   if (!cleanKey) return;
@@ -2707,8 +2738,11 @@ function movePmbVehicleToStage(key, stage) {
   const currentStage = normalizePmbStage(vehicle.pmbStage || vehicle.pdcWorkStage || vehicle.workStage || '');
   if (currentStage === nextStage) return;
   const now = nowIsoString();
+  const resolutionUpdates = pmbMovementResolutionUpdates(vehicle, currentStage, nextStage);
+  if (resolutionUpdates === null) return;
   recordVehicleAudit(vehicle, 'PMB bucket moved', { from: pmbStageLabel(currentStage) || 'Unallocated', to: pmbStageLabel(nextStage) || 'Unallocated' });
   saveVehicleEdits(vehicleKey(vehicle), {
+    ...resolutionUpdates,
     pdcLocation: 'PMB',
     manualLocation: 'PMB',
     pdcLocationLocked: true,
@@ -2824,7 +2858,10 @@ function assignPmbVehicleToBay(key, stage, bay, requestedStartIso = '') {
   const currentStage = normalizePmbStage(vehicle.pmbStage || vehicle.pdcWorkStage || vehicle.workStage || '');
   const now = nowIsoString();
   const bayLabel = bayNumber ? `Bay ${bayNumber}` : 'No bay';
+  const resolutionUpdates = pmbMovementResolutionUpdates(vehicle, currentStage, nextStage);
+  if (resolutionUpdates === null) return;
   const updates = {
+    ...resolutionUpdates,
     pdcLocation: 'PMB',
     manualLocation: 'PMB',
     pdcLocationLocked: true,
@@ -5002,33 +5039,38 @@ function renderScheduleBoard() {
   if (!host) return;
   const rows = scheduleRows();
   const count = $('#schedule-count');
-  if (count) count.textContent = `${rows.length} vehicle${rows.length === 1 ? '' : 's'}`;
+  if (count) count.textContent = `${rows.length} vehicle${rows.length === 1 ? '' : 's'} · earliest Kewdale ETA first`;
   if (!rows.length) {
-    host.innerHTML = '<div class="empty-state"><strong>No vehicles match this schedule filter</strong><span>Clear search or choose another department.</span></div>';
+    host.innerHTML = '<div class="empty-state"><strong>No production / in transit vehicles match this filter</strong><span>Clear search or choose another department.</span></div>';
     return;
   }
-  const bucketOrder = ['overdue', 'today', 'week', 'later', 'unknown'];
-  const bucketLabels = new Map(rows.map(row => [row.bucket.key, row.bucket.label]));
-  host.innerHTML = bucketOrder.filter(key => rows.some(row => row.bucket.key === key)).map(key => {
-    const bucketRows = rows.filter(row => row.bucket.key === key);
-    return `<section class="schedule-bucket schedule-bucket-${escapeHtml(key)}">
-      <div class="schedule-bucket-header"><h3>${escapeHtml(bucketLabels.get(key) || key)}</h3><span class="badge neutral">${bucketRows.length}</span></div>
-      <div class="schedule-card-grid">${bucketRows.map(({ vehicle, departments, readiness }) => `
-        <article class="schedule-card" data-stock="${escapeHtml(vehicleKey(vehicle))}">
-          <div class="schedule-card-main">
+  host.innerHTML = `<section class="schedule-list-panel">
+    <div class="schedule-list-header">
+      <strong>Production / In Transit</strong>
+      <span>Sorted by earliest ETA At Kewdale Yard first</span>
+    </div>
+    <div class="schedule-list" role="list">
+      ${rows.map(({ vehicle, departments, readiness }, index) => `
+        <article class="schedule-list-item" role="listitem" data-stock="${escapeHtml(vehicleKey(vehicle))}">
+          <div class="schedule-list-rank">${escapeHtml(String(index + 1).padStart(2, '0'))}</div>
+          <div class="schedule-list-main">
             <strong>${escapeHtml(displayStockNumber(vehicle) || vehicle.order || 'No stock')}</strong>
             <span>${escapeHtml(vehicle.client || vehicle.toyotaCustomer || 'Customer TBA')}</span>
             <small>${escapeHtml(displayVehicle(vehicle))}</small>
           </div>
-          <div class="schedule-card-meta">
-            <span>${escapeHtml(kewdaleEtaValue(vehicle) || 'No ETA')}</span>
-            <span>${escapeHtml(statusCategoryLabel(vehicle))}${inferredPmbStage(vehicle) ? ` · ${escapeHtml(pmbStageLabel(inferredPmbStage(vehicle)))}` : ''}</span>
+          <div class="schedule-list-eta">
+            <span>ETA Kewdale</span>
+            <strong>${escapeHtml(kewdaleEtaValue(vehicle) || 'No ETA')}</strong>
+            <small>${escapeHtml(pmbAgeLabel(vehicle))}</small>
           </div>
-          <div class="schedule-dept-row">${scheduleDepartmentPillsHtml(departments)}</div>
-          <div class="schedule-ready-row">${scheduleReadinessHtml(readiness)}</div>
-        </article>`).join('')}</div>
-    </section>`;
-  }).join('');
+          <div class="schedule-list-status">
+            <span>${escapeHtml(statusCategoryLabel(vehicle))}${inferredPmbStage(vehicle) ? ` · ${escapeHtml(pmbStageLabel(inferredPmbStage(vehicle)))}` : ''}</span>
+            <div class="schedule-dept-row">${scheduleDepartmentPillsHtml(departments)}</div>
+            <div class="schedule-ready-row">${scheduleReadinessHtml(readiness)}</div>
+          </div>
+        </article>`).join('')}
+    </div>
+  </section>`;
   $$('[data-stock]', host).forEach(card => card.addEventListener('click', () => openVehicleModal(card.dataset.stock)));
 }
 

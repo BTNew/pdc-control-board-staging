@@ -482,6 +482,56 @@ input:focus, select:focus, textarea:focus { border-color: #94a3b8; box-shadow: 0
   .kpi-grid, .visibility-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .advanced-toolbar { grid-template-columns: 1fr 1fr 1fr; }
 }
+
+.schedule-list-panel {
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  overflow: hidden;
+  background: #fff;
+  box-shadow: 0 12px 30px rgba(15, 23, 42, .06);
+}
+.schedule-list-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--line);
+  background: #f8fafc;
+}
+.schedule-list-header strong { color: #0f172a; }
+.schedule-list-header span { color: var(--muted); font-size: .82rem; }
+.schedule-list { display: grid; }
+.schedule-list-item {
+  display: grid;
+  grid-template-columns: 48px minmax(180px, 1.4fr) minmax(140px, .7fr) minmax(240px, 1.6fr);
+  gap: 12px;
+  align-items: center;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--line);
+  cursor: pointer;
+}
+.schedule-list-item:hover { background: #f8fafc; }
+.schedule-list-item:last-child { border-bottom: 0; }
+.schedule-list-rank {
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  background: #eff6ff;
+  color: #1d4ed8;
+  font-weight: 900;
+  font-size: .78rem;
+}
+.schedule-list-main, .schedule-list-eta, .schedule-list-status { display: grid; gap: 3px; min-width: 0; }
+.schedule-list-main strong, .schedule-list-eta strong { color: #0f172a; }
+.schedule-list-main span, .schedule-list-main small, .schedule-list-eta span, .schedule-list-eta small, .schedule-list-status > span { color: var(--muted); font-size: .78rem; }
+@media (max-width: 900px) {
+  .schedule-list-item { grid-template-columns: 40px 1fr; }
+  .schedule-list-eta, .schedule-list-status { grid-column: 2; }
+}
+
 @media (max-width: 900px) {
   .advanced-toolbar, .two-col { grid-template-columns: 1fr; }
   .panel-actions, .customer-actions { width: 100%; }
@@ -3264,8 +3314,8 @@ body.vehicle-table-header-pinned #vehicle-table thead {
 }
 .pmb-drop-board {
   display: grid;
-  grid-template-columns: repeat(6, minmax(132px, 1fr));
-  gap: 8px;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 10px;
   align-items: stretch;
 }
 .pmb-drop-lane {
@@ -3417,6 +3467,14 @@ body.vehicle-table-header-pinned #vehicle-table thead {
 .pmb-req-build { background: #f5f3ff; color: #5b21b6; border-color: rgba(139, 92, 246, .35); }
 .pmb-req-electrical { background: #f0fdf4; color: #166534; border-color: rgba(34, 197, 94, .35); }
 .pmb-req-sublet { background: #f8fafc; color: #334155; border-color: rgba(100, 116, 139, .35); }
+.pmb-req-pitInspection { background: #ecfdf5; color: #047857; border-color: rgba(16, 185, 129, .42); }
+.pmb-req-marker.is-complete {
+  border-radius: 999px;
+  border: 2px solid #16a34a;
+  color: #166534;
+  background: #dcfce7;
+  box-shadow: 0 0 0 2px rgba(34, 197, 94, .18), inset 0 0 0 1px rgba(255, 255, 255, .6);
+}
 .pmb-req-none {
   width: auto;
   padding: 0 6px;
