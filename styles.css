@@ -3299,6 +3299,9 @@ body.vehicle-table-header-pinned #vehicle-table thead {
 @media (max-width: 900px) {
   .branch-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .branch-header { align-items: flex-start; flex-direction: column; }
+  .pmb-drop-lane { grid-template-columns: 1fr; }
+  .pmb-lane-title { border-right: 0; border-bottom: 1px solid var(--line); }
+  .pmb-vehicle-card { flex-basis: 100%; max-width: none; }
 }
 @media (max-width: 560px) {
   .branch-cards { grid-template-columns: 1fr; }
@@ -3313,8 +3316,8 @@ body.vehicle-table-header-pinned #vehicle-table thead {
   flex-wrap: wrap;
 }
 .pmb-drop-board {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  display: flex;
+  flex-direction: column;
   gap: 10px;
   align-items: stretch;
 }
@@ -3327,6 +3330,9 @@ body.vehicle-table-header-pinned #vehicle-table thead {
   box-shadow: 0 8px 20px rgba(15, 23, 42, .05);
   overflow: hidden;
   transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease, background .15s ease;
+  display: grid;
+  grid-template-columns: minmax(185px, 240px) minmax(0, 1fr);
+  align-items: stretch;
 }
 .pmb-drop-lane.active {
   outline: 2px solid rgba(139, 92, 246, .2);
@@ -3342,9 +3348,9 @@ body.vehicle-table-header-pinned #vehicle-table thead {
   width: 100%;
   appearance: none;
   border: 0;
-  border-bottom: 1px solid var(--line);
+  border-right: 1px solid var(--line);
   background: rgba(248, 250, 252, .9);
-  padding: 8px 9px;
+  padding: 10px 12px;
   text-align: left;
   cursor: pointer;
   display: grid;
@@ -3372,11 +3378,13 @@ body.vehicle-table-header-pinned #vehicle-table thead {
   line-height: 1.2;
 }
 .pmb-lane-dropzone {
-  min-height: 112px;
-  padding: 7px;
-  display: grid;
-  align-content: start;
-  gap: 6px;
+  min-height: 92px;
+  padding: 8px;
+  display: flex;
+  align-content: flex-start;
+  align-items: stretch;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 .pmb-empty-drop {
   min-height: 58px;
@@ -3401,6 +3409,8 @@ body.vehicle-table-header-pinned #vehicle-table thead {
   cursor: grab;
   box-shadow: 0 4px 10px rgba(15, 23, 42, .055);
   user-select: none;
+  flex: 0 1 220px;
+  max-width: 260px;
 }
 .pmb-vehicle-card:active { cursor: grabbing; }
 .pmb-card-top {

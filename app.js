@@ -1640,7 +1640,11 @@ function renderOperationalVisibility() {
 function renderPmbBranchTiles() {
   const host = $('#pmb-branch-grid');
   if (!host) return;
-  if (app.quickFilter !== 'pmb') {
+  const vehicleTable = $('#vehicle-table');
+  const trackerPanel = typeof vehicleTable?.closest === 'function' ? vehicleTable.closest('.panel') : null;
+  const showPmbBuckets = app.quickFilter === 'pmb';
+  if (trackerPanel) trackerPanel.hidden = showPmbBuckets;
+  if (!showPmbBuckets) {
     host.hidden = true;
     host.innerHTML = '';
     app.activePmbBayStage = '';
