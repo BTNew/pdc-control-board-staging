@@ -67,11 +67,13 @@ function pdcLocationSelectOptions(current = '') {
 
 const PMB_STAGE_OPTIONS = [
   { value: '', label: 'Not assigned' },
+  { value: 'TINT', label: 'Tint (internal)' },
+  { value: 'HOIST', label: 'Hoist' },
+  { value: 'FITTING', label: 'Fitting' },
   { value: 'FABRICATION', label: 'Fabrication' },
-  { value: 'TINT', label: 'Tint' },
-  { value: 'BUILD', label: 'Build' },
   { value: 'ELECTRICAL', label: 'Electrical' },
-  { value: 'SUBLET', label: 'Sublet' },
+  { value: 'TYRE', label: 'Tyre bay' },
+  { value: 'PIT_INSPECTION', label: 'Pit Inspection' },
 ];
 
 const PMB_STAGE_DEFS = PMB_STAGE_OPTIONS.filter(option => option.value);
@@ -80,31 +82,36 @@ const PMB_STAGE_LABELS = new Map(PMB_STAGE_OPTIONS.map(option => [option.value, 
 
 const PMB_WIP_LIMITS = {
   '': 12,
-  FABRICATION: 6,
   TINT: 8,
-  BUILD: 10,
+  HOIST: 6,
+  FITTING: 10,
+  FABRICATION: 6,
   ELECTRICAL: 6,
-  SUBLET: 5,
+  TYRE: 5,
+  PIT_INSPECTION: 4,
 };
 
 const PMB_STAGE_AGE_LIMITS = {
   '': 1,
-  FABRICATION: 4,
   TINT: 2,
-  BUILD: 3,
+  HOIST: 2,
+  FITTING: 3,
+  FABRICATION: 4,
   ELECTRICAL: 2,
-  SUBLET: 3,
+  TYRE: 2,
+  PIT_INSPECTION: 1,
 };
 
 const PMB_BAY_COUNT = 15;
-const PMB_BAY_STATION_SEQUENCE = ['FABRICATION', 'TINT', 'BUILD', 'ELECTRICAL', 'SUBLET'];
+const PMB_BAY_STATION_SEQUENCE = ['TINT', 'HOIST', 'FITTING', 'FABRICATION', 'ELECTRICAL', 'TYRE', 'PIT_INSPECTION'];
 const PRODUCTION_FLOW_DEFS = [
-  { key: 'TINT', label: 'Tint', short: 'T', jobKey: 'tint', stage: 'TINT', search: /\b(tint|tinting|window tint)\b/i },
-  { key: 'HOIST', label: 'Hoist', short: 'H', jobKey: 'build', stage: 'BUILD', search: /\b(hoist|suspension|gvm|lift kit|lift|underbody|towbar|tow bar)\b/i },
-  { key: 'FITTING', label: 'Fitting', short: 'F', jobKey: 'build', stage: 'BUILD', search: /\b(fit|fitting|build|pdi|pre delivery|pre-delivery|accessor(?:y|ies)|job card|workshop)\b/i },
+  { key: 'TINT', label: 'Tint (internal)', short: 'T', jobKey: 'tint', stage: 'TINT', search: /\b(tint|tinting|window tint)\b/i },
+  { key: 'HOIST', label: 'Hoist', short: 'H', jobKey: 'build', stage: 'HOIST', search: /\b(hoist|suspension|gvm|lift kit|lift|underbody|towbar|tow bar)\b/i },
+  { key: 'FITTING', label: 'Fitting', short: 'F', jobKey: 'build', stage: 'FITTING', search: /\b(fit|fitting|build|pdi|pre delivery|pre-delivery|accessor(?:y|ies)|job card|workshop)\b/i },
   { key: 'FABRICATION', label: 'Fabrication', short: 'Fa', jobKey: 'fabrication', stage: 'FABRICATION', search: /\b(fab|fabricat|tray|canopy|body builder|bodybuilder|steel tray|aluminium tray|tub body|bullbar|bar work)\b/i },
   { key: 'ELECTRICAL', label: 'Electrical', short: 'E', jobKey: 'electrical', stage: 'ELECTRICAL', search: /\b(electrical|auto electrical|auto-elec|12v|dual battery|battery system|uhf|spotlight|light bar|beacon|compressor|anderson|redarc|brake controller|dc dc|dcdc|dash cam|camera|reverse camera|power outlet|usb)\b/i },
-  { key: 'TYRE', label: 'Tyre bay', short: 'Ty', jobKey: 'build', stage: 'BUILD', search: /\b(tyre|tire|wheel|wheels|alloy|rotation|balance|alignment)\b/i },
+  { key: 'TYRE', label: 'Tyre bay', short: 'Ty', jobKey: 'build', stage: 'TYRE', search: /\b(tyre|tire|wheel|wheels|alloy|rotation|balance|alignment)\b/i },
+  { key: 'PIT_INSPECTION', label: 'Pit Inspection', short: 'PI', jobKey: 'pitInspection', stage: 'PIT_INSPECTION', search: /\b(pit inspection|pit|inspection|qc|quality control|final check)\b/i },
 ];
 
 const PDC_JOB_DEFS = [
@@ -121,11 +128,13 @@ const PDC_JOB_BY_COMPLETE_KEY = new Map(PDC_JOB_DEFS.map(def => [def.completeKey
 const PDC_JOB_BY_KEY = new Map(PDC_JOB_DEFS.map(def => [def.key, def]));
 
 const PMB_STAGE_TO_JOB_KEY = {
-  FABRICATION: 'fabrication',
   TINT: 'tint',
-  BUILD: 'build',
+  HOIST: 'build',
+  FITTING: 'build',
+  FABRICATION: 'fabrication',
   ELECTRICAL: 'electrical',
-  SUBLET: 'sublet',
+  TYRE: 'build',
+  PIT_INSPECTION: 'pitInspection',
 };
 
 function pmbStageJobDef(stage = '') {
@@ -159,11 +168,14 @@ function pdcJobHours(vehicle = {}, def = {}) {
 function normalizePmbStage(value = '') {
   const clean = String(value || '').trim().toUpperCase();
   if (!clean) return '';
-  if (clean.includes('FAB') || clean.includes('TRAY') || clean.includes('BODY')) return 'FABRICATION';
   if (clean.includes('TINT')) return 'TINT';
-  if (clean.includes('BUILD') || clean.includes('PDI') || clean.includes('PRE DELIVERY') || clean.includes('PRE-DELIVERY')) return 'BUILD';
+  if (clean.includes('HOIST') || clean.includes('SUSPENSION') || clean.includes('LIFT')) return 'HOIST';
+  if (clean.includes('FITTING') || clean.includes('FITMENT') || clean.includes('BUILD') || clean.includes('PDI') || clean.includes('PRE DELIVERY') || clean.includes('PRE-DELIVERY')) return 'FITTING';
+  if (clean.includes('FAB') || clean.includes('TRAY') || clean.includes('BODY')) return 'FABRICATION';
   if (clean.includes('ELECTRICAL') || clean.includes('AUTO ELEC') || clean.includes('AUTO-ELEC') || clean.includes('12V') || clean.includes('UHF')) return 'ELECTRICAL';
-  if (clean.includes('SUBLET') || clean.includes('SUB-LET') || clean.includes('SUB LET') || clean.includes('OUTSOURCE') || clean.includes('EXTERNAL')) return 'SUBLET';
+  if (clean.includes('TYRE') || clean.includes('TIRE') || clean.includes('WHEEL')) return 'TYRE';
+  if (clean.includes('PIT') || clean.includes('INSPECTION') || clean.includes('QC')) return 'PIT_INSPECTION';
+  if (clean.includes('SUBLET') || clean.includes('SUB-LET') || clean.includes('SUB LET') || clean.includes('OUTSOURCE') || clean.includes('EXTERNAL')) return '';
   return '';
 }
 
@@ -384,7 +396,7 @@ function pdcJobFallbackRequired(vehicle = {}, def = {}) {
     case 'tint':
       return legacyVehicleFlag(vehicle, 'tintRaised') || /\b(tint|tinting|window tint)\b/.test(source) || stage === 'TINT';
     case 'build':
-      return legacyVehicleFlag(vehicle, 'buildPoRaised') || legacyVehicleFlag(vehicle, 'buildComplete') || /\b(build|pdi|pre delivery|pre-delivery|job card|workshop)\b/.test(source) || stage === 'BUILD';
+      return legacyVehicleFlag(vehicle, 'buildPoRaised') || legacyVehicleFlag(vehicle, 'buildComplete') || /\b(build|pdi|pre delivery|pre-delivery|job card|workshop|hoist|tyre|tire|wheel|fitting|fitment)\b/.test(source) || ['HOIST', 'FITTING', 'TYRE'].includes(stage);
     case 'parts':
       return normalizeJita(jitaDisplay(vehicle)) === 'Yes' || /\b(parts?|jita|accessor(?:y|ies)|ordered parts|parts ordered)\b/.test(source);
     case 'electrical':
@@ -393,6 +405,8 @@ function pdcJobFallbackRequired(vehicle = {}, def = {}) {
       return /\b(sublet|sub-let|sub let|outsourced|external contractor|external work|outside contractor)\b/.test(source) || stage === 'SUBLET';
     case 'fabrication':
       return legacyVehicleFlag(vehicle, 'trayOrdered') || legacyVehicleFlag(vehicle, 'trayFitmentComplete') || /\b(fab|fabricat|tray|canopy|body builder|bodybuilder|steel tray|aluminium tray|tub body|bullbar|bar work)\b/.test(source) || stage === 'FABRICATION';
+    case 'pitInspection':
+      return /\b(pit inspection|pit|inspection|qc|quality control|final check)\b/.test(source) || stage === 'PIT_INSPECTION';
     default:
       return false;
   }
@@ -1426,7 +1440,7 @@ function renderAdminLists() {
 function showView(view) {
   $$('.view').forEach(el => el.classList.toggle('active', el.id === view));
   $$('.nav-item').forEach(el => el.classList.toggle('active', el.dataset.view === view));
-  const titleMap = { dashboard: 'Dashboard', pipeline: 'Vehicle Pipeline', visibility: 'Operational Visibility', tv: 'PDC TV Board', schedule: 'Production Schedule', parts: 'Parts Department', lists: 'PDC Lists', import: 'Uploads', zpl: 'ZPL Labels' };
+  const titleMap = { dashboard: 'Dashboard', pipeline: 'Vehicle Pipeline', visibility: 'Operational Visibility', tv: 'PDC TV Board', schedule: 'Production', parts: 'Parts Department', lists: 'PDC Lists', import: 'Uploads', zpl: 'ZPL Labels' };
   $('#page-title').textContent = titleMap[view] || 'Dashboard';
   if (view !== 'dashboard' && app.frozenHeaderCleanup) {
     app.frozenHeaderCleanup();
@@ -1523,7 +1537,13 @@ function renderKpis() {
     </button>
   `;
   }).join('');
-  $$('[data-kpi-filter]').forEach(card => card.addEventListener('click', () => applyQuickFilter(card.dataset.kpiFilter)));
+  $$('[data-kpi-filter]').forEach(card => card.addEventListener('click', () => {
+    if (card.dataset.kpiFilter === 'prodtransit') {
+      showView('schedule');
+      return;
+    }
+    applyQuickFilter(card.dataset.kpiFilter);
+  }));
   renderOperationalVisibility();
   renderPmbBranchTiles();
 }
@@ -1532,7 +1552,7 @@ function isOpenThirdPartyVehicle(vehicle = {}) {
   const thirdPartyJobKeys = new Set(['tint', 'sublet', 'fabrication', 'electrical', 'pitInspection']);
   const hasOpenExternalJob = PDC_JOB_DEFS.some(def => thirdPartyJobKeys.has(def.key) && pdcJobRequired(vehicle, def) && !pdcJobComplete(vehicle, def));
   const stage = inferredPmbStage(vehicle);
-  return hasOpenExternalJob || ['TINT', 'SUBLET', 'FABRICATION', 'ELECTRICAL'].includes(stage);
+  return hasOpenExternalJob || ['TINT', 'FABRICATION', 'ELECTRICAL', 'PIT_INSPECTION'].includes(stage);
 }
 
 function isWorkflowStagnant(vehicle = {}) {
@@ -2371,11 +2391,13 @@ function renderPmbBayControlSection(v = {}) {
 function pmbStageOperatorGuidance(stage = '') {
   const label = pmbStageLabel(stage);
   return {
+    TINT: 'Tint (internal) view: confirm tint work, planned hours, bay and technician only. Use Parts or other station pages for their own blockers and sign-offs.',
+    HOIST: 'Hoist view: confirm hoist work, planned hours, bay and technician only.',
+    FITTING: 'Fitting view: confirm accessory fitment/build work, planned hours, bay and technician only. Do not use this page for Parts or external sublet updates.',
     FABRICATION: 'Fabrication view: confirm fabrication work, planned hours, bay and technician only. Leave Tint / Electrical / Parts sign-off to their own pages.',
-    TINT: 'Tint view: confirm tint work, bay and technician only. Use Parts or other station pages for their own blockers and sign-offs.',
-    BUILD: 'Build view: confirm build/accessory fitment, bay and technician only. Do not use this page for Parts or Sublet updates.',
     ELECTRICAL: 'Electrical view: confirm electrical work, planned hours, bay and technician only. Escalate non-electrical blockers instead of clearing other departments here.',
-    SUBLET: 'Sublet view: assign provider, planned time and completion only. Internal departments keep their own sign-offs.'
+    TYRE: 'Tyre bay view: confirm tyre/wheel work, planned hours, bay and technician only.',
+    PIT_INSPECTION: 'Pit Inspection view: confirm final pit inspection only after required production work is complete.'
   }[normalizePmbStage(stage)] || `${label} view: complete this station's work only.`;
 }
 
@@ -4242,7 +4264,7 @@ function getCurrentOperatorName() {
 function getCurrentOperatorRole() {
   const saved = String(localStorage.getItem(OPERATOR_ROLE_KEY) || '').trim();
   if (saved) return saved;
-  const entered = window.prompt('Enter your department/role for the PDC audit trail (Fabrication, Tint, Build, Electrical, Parts, Sublet, Manager):', '') || '';
+  const entered = window.prompt('Enter your department/role for the PDC audit trail (Tint, Hoist, Fitting, Fabrication, Electrical, Tyre bay, Pit Inspection, Parts, Manager):', '') || '';
   const clean = entered.trim() || 'Unassigned role';
   try { localStorage.setItem(OPERATOR_ROLE_KEY, clean); } catch {}
   return clean;
@@ -4868,7 +4890,7 @@ function productionDepartmentRequired(vehicle = {}, def = {}) {
   const job = PDC_JOB_BY_KEY.get(def.jobKey);
   const stage = inferredPmbStage(vehicle);
   const source = productionFlowSource(vehicle);
-  if (stage && stage === def.stage && ['TINT', 'FABRICATION', 'ELECTRICAL'].includes(def.key)) return true;
+  if (stage && stage === def.stage) return true;
   if (def.search?.test(source)) return true;
   return Boolean(job && pdcJobRequired(vehicle, job) && def.key === 'FITTING');
 }

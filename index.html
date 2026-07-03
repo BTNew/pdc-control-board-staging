@@ -23,7 +23,7 @@
         <button class="nav-item" data-view="pipeline" data-short="P">Pipeline</button>
         <button class="nav-item" data-view="visibility" data-short="V">Visibility</button>
         <button class="nav-item" data-view="tv" data-short="TV">TV Board</button>
-        <button class="nav-item" data-view="schedule" data-short="SC">Schedule</button>
+        <button class="nav-item" data-view="schedule" data-short="PR">Production</button>
         <button class="nav-item" data-view="parts" data-short="PA">Parts</button>
         <button class="nav-item" data-view="lists" data-short="L">PDC Lists</button>
         <button class="nav-item" data-view="import" data-short="U">Uploads</button>
@@ -152,8 +152,8 @@
           <section class="panel schedule-panel">
             <div class="panel-header">
               <div>
-                <h2>Production schedule</h2>
-                <p>Calendar-style PMB view by due window, department readiness and production flow: Tint → Hoist → Fitting → Fabrication → Electrical → Tyre bay.</p>
+                <h2>Production</h2>
+                <p>PMB production bay view by due window, department readiness and production flow: Tint (internal) → Hoist → Fitting → Fabrication → Electrical → Tyre bay → Pit Inspection. No Navision tracker is shown here.</p>
               </div>
               <span class="badge neutral" id="schedule-count">0 vehicles</span>
             </div>
@@ -166,12 +166,13 @@
                 <span>Department</span>
                 <select id="schedule-department-filter">
                   <option value="">All departments</option>
-                  <option value="TINT">Tint</option>
+                  <option value="TINT">Tint (internal)</option>
                   <option value="HOIST">Hoist</option>
                   <option value="FITTING">Fitting</option>
                   <option value="FABRICATION">Fabrication</option>
                   <option value="ELECTRICAL">Electrical</option>
                   <option value="TYRE">Tyre bay</option>
+                  <option value="PIT_INSPECTION">Pit Inspection</option>
                 </select>
               </label>
             </div>

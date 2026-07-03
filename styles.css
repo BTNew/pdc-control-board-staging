@@ -3225,11 +3225,13 @@ body.vehicle-table-header-pinned #vehicle-table thead {
   color: var(--muted);
   font-size: .62rem;
 }
-.pmb-branch-fabrication { border-left-color: #f59e0b; background: #fffbeb; }
 .pmb-branch-tint { border-left-color: #06b6d4; background: #ecfeff; }
-.pmb-branch-build { border-left-color: #8b5cf6; background: #f5f3ff; }
+.pmb-branch-hoist { border-left-color: #8b5cf6; background: #f5f3ff; }
+.pmb-branch-fitting { border-left-color: #a855f7; background: #faf5ff; }
+.pmb-branch-fabrication { border-left-color: #f59e0b; background: #fffbeb; }
 .pmb-branch-electrical { border-left-color: #22c55e; background: #f0fdf4; }
-.pmb-branch-sublet { border-left-color: #64748b; background: #f8fafc; }
+.pmb-branch-tyre { border-left-color: #0f766e; background: #f0fdfa; }
+.pmb-branch-pit_inspection { border-left-color: #64748b; background: #f8fafc; }
 .pmb-stage-cell { margin-top: 4px; }
 .pmb-stage-badge {
   font-size: .66rem !important;
@@ -3509,11 +3511,13 @@ body.pmb-dragging .pmb-drop-lane {
 }
 .pmb-branch-unassigned { border-left-color: #94a3b8; background: #f8fafc; }
 .pmb-branch-unassigned .pmb-lane-title { background: #f8fafc; }
-.pmb-branch-fabrication .pmb-lane-title { background: #fffbeb; }
 .pmb-branch-tint .pmb-lane-title { background: #ecfeff; }
-.pmb-branch-build .pmb-lane-title { background: #f5f3ff; }
+.pmb-branch-hoist .pmb-lane-title { background: #f5f3ff; }
+.pmb-branch-fitting .pmb-lane-title { background: #faf5ff; }
+.pmb-branch-fabrication .pmb-lane-title { background: #fffbeb; }
 .pmb-branch-electrical .pmb-lane-title { background: #f0fdf4; }
-.pmb-branch-sublet .pmb-lane-title { background: #f8fafc; }
+.pmb-branch-tyre .pmb-lane-title { background: #f0fdfa; }
+.pmb-branch-pit_inspection .pmb-lane-title { background: #f8fafc; }
 @media (max-width: 1320px) {
   .pmb-drop-board { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
