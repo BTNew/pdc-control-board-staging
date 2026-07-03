@@ -5883,3 +5883,54 @@ body.pmb-schedule-adjusting .pmb-schedule-chip-slim {
   .schedule-toolbar { grid-template-columns: 1fr; }
   .schedule-card-grid { grid-template-columns: 1fr; }
 }
+
+
+.pmb-keytag-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  width: fit-content;
+  border-radius: 999px;
+  padding: 0.15rem 0.55rem;
+  background: #fef3c7;
+  color: #92400e;
+  font-size: 0.76rem;
+  font-weight: 800;
+  border: 1px solid rgba(146, 64, 14, 0.18);
+}
+
+.pmb-requirement-modal-card {
+  max-width: min(1040px, calc(100vw - 2rem));
+  width: 100%;
+}
+
+.pmb-requirement-modal-body {
+  display: grid;
+  gap: 0.85rem;
+  max-height: min(68vh, 720px);
+  overflow: auto;
+  padding-right: 0.25rem;
+}
+
+.pmb-requirement-row {
+  display: grid;
+  gap: 0.65rem;
+  padding: 0.85rem;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--panel-soft);
+}
+
+.pmb-requirement-row small {
+  display: block;
+  color: var(--muted);
+  margin-top: 0.2rem;
+}
+
+.slim-job-grid {
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+}
+
+.pmb-requirement-actions {
+  margin-top: 1rem;
+}

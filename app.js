@@ -10,7 +10,7 @@ const OPERATOR_ROLE_KEY = 'vehicleTrackingCoreCurrentOperatorRole:v1';
 const MECHANICS_KEY = 'vehicleTrackingCorePdcMechanics:v1';
 const SUBLET_PROVIDERS_KEY = 'vehicleTrackingCorePdcSubletProviders:v1';
 const VEHICLE_TABLE_COLUMN_ORDER_KEY = 'vehicleTrackingCoreColumnOrder:v2';
-const VEHICLE_TABLE_DEFAULT_COLUMN_IDS = ['sp', 'stock', 'prodMth', 'client', 'vehicle', 'tint', 'build', 'parts', 'electrical', 'sublet', 'fabrication', 'status', 'eta', 'navisionNotes', 'jita', 'action'];
+const VEHICLE_TABLE_DEFAULT_COLUMN_IDS = ['sp', 'stock', 'prodMth', 'client', 'vehicle', 'tint', 'build', 'parts', 'electrical', 'sublet', 'fabrication', 'pitInspection', 'status', 'eta', 'navisionNotes', 'jita', 'action'];
 const PO_TASKS_KEY = 'vehicleTrackingCoreNavisionOnlyPoTasks:v1';
 const PO_FILES_KEY = 'vehicleTrackingCoreNavisionOnlyPoFiles:v1';
 const DELETED_KEY = 'vehicleTrackingCoreNavisionOnlyDeleted:v1';
@@ -114,6 +114,7 @@ const PDC_JOB_DEFS = [
   { key: 'electrical', label: 'Electrical', short: 'E', requireKey: 'pdcRequiresElectrical', completeKey: 'pdcCompleteElectrical', completeAtKey: 'pdcCompleteElectricalAt', completeByKey: 'pdcCompleteElectricalBy' },
   { key: 'sublet', label: 'Sublet', short: 'S', requireKey: 'pdcRequiresSublet', completeKey: 'pdcCompleteSublet', completeAtKey: 'pdcCompleteSubletAt', completeByKey: 'pdcCompleteSubletBy' },
   { key: 'fabrication', label: 'Fabrication', short: 'F', requireKey: 'pdcRequiresFabrication', completeKey: 'pdcCompleteFabrication', completeAtKey: 'pdcCompleteFabricationAt', completeByKey: 'pdcCompleteFabricationBy' },
+  { key: 'pitInspection', label: 'Pit Inspection', short: 'PI', requireKey: 'pdcRequiresPitInspection', completeKey: 'pdcCompletePitInspection', completeAtKey: 'pdcCompletePitInspectionAt', completeByKey: 'pdcCompletePitInspectionBy' },
 ];
 const PDC_JOB_BY_REQUIRE_KEY = new Map(PDC_JOB_DEFS.map(def => [def.requireKey, def]));
 const PDC_JOB_BY_COMPLETE_KEY = new Map(PDC_JOB_DEFS.map(def => [def.completeKey, def]));
@@ -1046,6 +1047,25 @@ function vehicleKeyNumber(vehicle = {}) {
   );
 }
 
+function vehiclePmbKeyNumber(vehicle = {}) {
+  return statusCategory(vehicle) === 'pmb' ? vehicleKeyNumber(vehicle) : '';
+}
+
+function activePmbVehicleWithKeyNumber(keyNumber = '', currentKey = '') {
+  const cleanKeyNumber = cleanNavisionText(keyNumber).toLowerCase();
+  const cleanCurrentKey = String(currentKey || '').trim();
+  if (!cleanKeyNumber) return null;
+  return (app.data || []).find(vehicle => {
+    const key = vehicleKey(vehicle);
+    return key !== cleanCurrentKey && statusCategory(vehicle) === 'pmb' && vehicleKeyNumber(vehicle).toLowerCase() === cleanKeyNumber;
+  }) || null;
+}
+
+function pmbKeyNumberPillHtml(vehicle = {}) {
+  const keyNumber = vehiclePmbKeyNumber(vehicle);
+  return keyNumber ? `<span class="pmb-keytag-pill" title="PMB key tag number">Key ${escapeHtml(keyNumber)}</span>` : '';
+}
+
 function stockOrderSubline(vehicle) {
   const stock = String(vehicle?.stock || '').trim();
   const order = String(vehicle?.order || '').trim();
@@ -1406,7 +1426,7 @@ function renderAdminLists() {
 function showView(view) {
   $$('.view').forEach(el => el.classList.toggle('active', el.id === view));
   $$('.nav-item').forEach(el => el.classList.toggle('active', el.dataset.view === view));
-  const titleMap = { dashboard: 'Dashboard', pipeline: 'Vehicle Pipeline', tv: 'PDC TV Board', schedule: 'Production Schedule', parts: 'Parts Department', lists: 'PDC Lists', import: 'Uploads', zpl: 'ZPL Labels' };
+  const titleMap = { dashboard: 'Dashboard', pipeline: 'Vehicle Pipeline', visibility: 'Operational Visibility', tv: 'PDC TV Board', schedule: 'Production Schedule', parts: 'Parts Department', lists: 'PDC Lists', import: 'Uploads', zpl: 'ZPL Labels' };
   $('#page-title').textContent = titleMap[view] || 'Dashboard';
   if (view !== 'dashboard' && app.frozenHeaderCleanup) {
     app.frozenHeaderCleanup();
@@ -1509,7 +1529,7 @@ function renderKpis() {
 }
 
 function isOpenThirdPartyVehicle(vehicle = {}) {
-  const thirdPartyJobKeys = new Set(['tint', 'sublet', 'fabrication', 'electrical']);
+  const thirdPartyJobKeys = new Set(['tint', 'sublet', 'fabrication', 'electrical', 'pitInspection']);
   const hasOpenExternalJob = PDC_JOB_DEFS.some(def => thirdPartyJobKeys.has(def.key) && pdcJobRequired(vehicle, def) && !pdcJobComplete(vehicle, def));
   const stage = inferredPmbStage(vehicle);
   return hasOpenExternalJob || ['TINT', 'SUBLET', 'FABRICATION', 'ELECTRICAL'].includes(stage);
@@ -1550,7 +1570,7 @@ function renderOperationalVisibility() {
   const rows = filteredVehiclesIgnoringQuickFilter();
   const metrics = operationalVisibilityMetrics(rows);
   const cards = [
-    { label: 'Third-party work', value: metrics.openThirdParty, detail: `${metrics.assignedThirdParty} assigned · tint / fabrication / electrical / sublet` },
+    { label: 'Third-party work', value: metrics.openThirdParty, detail: `${metrics.assignedThirdParty} assigned · tint / fabrication / electrical / sublet / pit inspection` },
     { label: 'Stagnation & blockers', value: metrics.stagnant, detail: `${metrics.activeBlockers} active blockers or Parts stoppages` },
     { label: 'Capacity alerts', value: metrics.capacityAlerts, detail: `${metrics.pmbRows} PMB vehicles checked against WIP and ageing limits` },
     { label: 'RFT gate issues', value: metrics.rftGateIssues, detail: 'Manual QC remains required before Ready for Transport' },
@@ -2396,6 +2416,7 @@ function pmbBayVehicleCardHtml(vehicle = {}, stage = '') {
         <button type="button" class="text-button" data-open-stock="${escapeHtml(key)}">Open</button>
       </div>
       <span class="pmb-bay-card-client">${escapeHtml(truncate(vehicle.client || vehicle.toyotaCustomer || 'Dealer Order', 32))}</span>
+      ${pmbKeyNumberPillHtml(vehicle)}
       <small>${escapeHtml(truncate(displayVehicle(vehicle), 42))}</small>
       <div class="pmb-bay-card-status single-station-status">
         ${pmbCurrentStageStatusHtml(vehicle, normalizedStage)}
@@ -2459,6 +2480,7 @@ function pmbVehicleCardHtml(vehicle = {}) {
       </div>
       <div class="pmb-card-meta-row secondary">
         <span class="pmb-stage-age pmb-age-${escapeHtml(pmbStageAgeClass(vehicle))}" title="${escapeHtml(stageAgeTitle)}">${escapeHtml(pmbStageAgeLabel(vehicle))}</span>
+        ${pmbKeyNumberPillHtml(vehicle)}
         ${pmbBaySummary(vehicle) ? `<span class="pmb-bay-summary-pill">${escapeHtml(pmbBaySummary(vehicle))}</span>` : ''}
         ${isPdcBlocked(vehicle) ? `<span class="pmb-blocked-pill" title="${escapeHtml(pdcBlockReason(vehicle))}">Blocked</span>` : ''}
       </div>
@@ -3190,7 +3212,7 @@ function renderVehicleTable() {
     const emptyHtml = app.data.length
       ? $('#empty-state').innerHTML
       : '<div class="empty-state"><strong>No Navision vehicles loaded yet</strong><span>Upload or paste your first Navision export to populate the tracker.</span><button class="primary" type="button" data-empty-navision-upload>Upload Navision text</button></div>';
-    table.innerHTML = `<tbody><tr><td colspan="16">${emptyHtml}</td></tr></tbody>`;
+    table.innerHTML = `<tbody><tr><td colspan="17">${emptyHtml}</td></tr></tbody>`;
     $('[data-empty-navision-upload]', table)?.addEventListener('click', () => showView('import'));
     updateBulkSelectionPanel([]);
     return;
@@ -3208,6 +3230,7 @@ function renderVehicleTable() {
       <th class="flag-col pdc-job-col pdc-col-electrical" data-col-id="electrical" title="Electrical required">${emptyColumnFilterSlot()}${sortableTh('E', 'pdcRequiresElectrical')}</th>
       <th class="flag-col pdc-job-col pdc-col-sublet" data-col-id="sublet" title="Sublet required">${emptyColumnFilterSlot()}${sortableTh('S', 'pdcRequiresSublet')}</th>
       <th class="flag-col pdc-job-col pdc-col-fabrication" data-col-id="fabrication" title="Fabrication required">${emptyColumnFilterSlot()}${sortableTh('F', 'pdcRequiresFabrication')}</th>
+      <th class="flag-col pdc-job-col pdc-col-pitInspection" data-col-id="pitInspection" title="Pit Inspection required">${emptyColumnFilterSlot()}${sortableTh('PI', 'pdcRequiresPitInspection')}</th>
       <th data-col-id="status">${columnFilterSlot('status', app.filterOptions.statuses, app.columnFilters.status, 'All statuses')}${sortableTh('Toyota Status', 'toyotaStatus')}</th>
       <th data-col-id="eta">${emptyColumnFilterSlot()}${sortableTh('ETA', 'eta')}</th>
       <th class="navision-notes-full-col" data-col-id="navisionNotes" title="Full Navision Notes from Dealer Comments">${emptyColumnFilterSlot()}${sortableTh('Navision Notes', 'navisionNotes')}</th>
@@ -3237,6 +3260,7 @@ function renderVehicleTable() {
           <td class="flag-cell pdc-job-cell" data-col-id="electrical">${pdcJobTableCell(v, PDC_JOB_BY_KEY.get('electrical'))}</td>
           <td class="flag-cell pdc-job-cell" data-col-id="sublet">${pdcJobTableCell(v, PDC_JOB_BY_KEY.get('sublet'))}</td>
           <td class="flag-cell pdc-job-cell" data-col-id="fabrication">${pdcJobTableCell(v, PDC_JOB_BY_KEY.get('fabrication'))}</td>
+          <td class="flag-cell pdc-job-cell" data-col-id="pitInspection">${pdcJobTableCell(v, PDC_JOB_BY_KEY.get('pitInspection'))}</td>
           <td data-col-id="status">${formatStatus(v)}${isPdcBlocked(v) ? `<div class="pdc-blocked-inline">Blocked: ${escapeHtml(truncate(pdcBlockReason(v), 42))}</div>` : ''}${statusCategory(v) === 'pmb' ? `<div class="pmb-stage-cell">${pmbStageBadge(v) || '<span class="subtle">PMB stage not allocated</span>'}</div>` : ''}${!isCustomerMatch(v) ? '<div class="subtle review-warning">Check customer match</div>' : ''}</td>
           <td data-col-id="eta">${formatEta(v.etaAtDealer)}</td>
           <td class="navision-notes-full-cell" data-col-id="navisionNotes"><span title="${escapeHtml(navisionDealerNoteText(v))}">${escapeHtml(truncate(navisionDealerNoteText(v), 90))}</span></td>
@@ -3556,7 +3580,69 @@ function canTransferVehicleToPmb(vehicle) {
   return app.quickFilter === 'yardhold';
 }
 
-function transferSelectedYhVehiclesToPmb() {
+
+function pmbRequirementChecklistModal(vehicles = []) {
+  const rows = vehicles.filter(Boolean);
+  if (!rows.length) return Promise.resolve(null);
+  return new Promise(resolve => {
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay pmb-requirement-modal-overlay';
+    overlay.setAttribute('role', 'dialog');
+    overlay.setAttribute('aria-modal', 'true');
+    overlay.setAttribute('aria-labelledby', 'pmb-requirement-modal-title');
+    const previewRows = rows.map((vehicle, index) => {
+      const key = vehicleKey(vehicle);
+      const checks = PDC_JOB_DEFS.map(def => {
+        const checked = pdcJobRequired(vehicle, def) ? 'checked' : '';
+        return `<label class="check-option pdc-toggle-chip pdc-toggle-${escapeHtml(def.key)} ${checked ? 'is-on' : ''}"><input type="checkbox" data-pmb-requirement-row="${index}" data-pmb-requirement-key="${escapeHtml(def.key)}" ${checked} /> <span><b>${escapeHtml(def.short)}</b>${escapeHtml(def.label)}</span></label>`;
+      }).join('');
+      return `<article class="pmb-requirement-row" data-pmb-requirement-vehicle="${escapeHtml(key)}"><div><strong>${escapeHtml(displayStockNumber(vehicle) || vehicle.order || 'No stock')}</strong><small>${escapeHtml(vehicle.client || vehicle.toyotaCustomer || 'Dealer Order')} · ${escapeHtml(truncate(displayVehicle(vehicle), 52))}</small></div><div class="form-row six-col check-grid slim-job-grid">${checks}</div></article>`;
+    }).join('');
+    overlay.innerHTML = `
+      <section class="modal-card pmb-requirement-modal-card">
+        <button class="modal-close" type="button" data-pmb-requirement-cancel aria-label="Cancel PMB transfer">×</button>
+        <div class="panel-header">
+          <div>
+            <h2 id="pmb-requirement-modal-title">Confirm PMB required work</h2>
+            <p>Before releasing Yard Hold vehicles into PMB, tick what each vehicle needs: Tint, Sublet, Pit Inspection, Parts, Build, Electrical or Fabrication.</p>
+          </div>
+          <span class="badge neutral">${rows.length} vehicle${rows.length === 1 ? '' : 's'}</span>
+        </div>
+        <div class="pmb-requirement-modal-body">${previewRows}</div>
+        <div class="edit-actions pmb-requirement-actions">
+          <button class="primary" type="button" data-pmb-requirement-confirm>Confirm and transfer to PMB</button>
+          <button class="ghost" type="button" data-pmb-requirement-cancel>Cancel</button>
+        </div>
+      </section>`;
+    const cleanup = result => {
+      overlay.remove();
+      document.body.classList.remove('modal-open');
+      resolve(result);
+    };
+    overlay.addEventListener('click', event => {
+      if (event.target === overlay || event.target.closest('[data-pmb-requirement-cancel]')) cleanup(null);
+      const checkbox = event.target.closest('[data-pmb-requirement-key]');
+      if (checkbox) checkbox.closest('.pdc-toggle-chip')?.classList.toggle('is-on', checkbox.checked);
+      if (event.target.closest('[data-pmb-requirement-confirm]')) {
+        const selections = new Map();
+        rows.forEach((vehicle, index) => {
+          const updates = {};
+          PDC_JOB_DEFS.forEach(def => {
+            const input = overlay.querySelector(`[data-pmb-requirement-row="${index}"][data-pmb-requirement-key="${def.key}"]`);
+            updates[def.requireKey] = Boolean(input?.checked);
+          });
+          selections.set(vehicleKey(vehicle), updates);
+        });
+        cleanup(selections);
+      }
+    });
+    document.body.appendChild(overlay);
+    document.body.classList.add('modal-open');
+    overlay.querySelector('[data-pmb-requirement-confirm]')?.focus();
+  });
+}
+
+async function transferSelectedYhVehiclesToPmb() {
   const selected = selectedVehiclesForBulkEmail();
   if (!selected.length) return;
 
@@ -3571,6 +3657,9 @@ function transferSelectedYhVehiclesToPmb() {
   const preview = transferable.slice(0, 10).map(vehicle => `• ${displayStockNumber(vehicle) || vehicle.order || 'No stock'} - ${vehicle.client || vehicle.toyotaCustomer || 'Unknown customer'}`).join('\n');
   const more = transferable.length > 10 ? `\n• plus ${transferable.length - 10} more` : '';
   if (!window.confirm(`Transfer ${transferable.length} Yard Hold vehicle${transferable.length === 1 ? '' : 's'} to Vehicles at PMB?\n\n${preview}${more}\n\nThis is a manual PDC location change. Future Navision uploads will not move these vehicles back.`)) return;
+
+  const requirementSelections = await pmbRequirementChecklistModal(transferable);
+  if (!requirementSelections) return;
 
   const transferTime = nowIsoString();
   const edits = loadVehicleEdits();
@@ -3601,6 +3690,7 @@ function transferSelectedYhVehiclesToPmb() {
       pmbBayCompletedStage: '',
       pmbBayMechanic: '',
       pmbSubletProvider: '',
+      ...(requirementSelections.get(key) || {}),
     };
 
     Object.assign(vehicle, updates);
@@ -4314,8 +4404,9 @@ function renderDetail() {
             <input name="client" value="${escapeHtml(v.client || '')}" placeholder="Client name" />
           </label>
           <label>
-            <span class="muted-label">Key number</span>
-            <input name="keyNumber" value="${escapeHtml(vehicleKeyNumber(v))}" placeholder="Key tag / key number" />
+            <span class="muted-label">Key tag number</span>
+            ${statusCategory(v) === 'pmb' ? `<input name="keyNumber" value="${escapeHtml(vehicleKeyNumber(v))}" placeholder="One active PMB key tag number" />` : `<input name="keyNumber" value="" placeholder="Available once allocated into PMB" readonly />`}
+            <span class="field-help">Shown and editable only while the vehicle is allocated into PMB.</span>
           </label>
         </div>
         <div class="form-row two-col">
@@ -4386,7 +4477,7 @@ function renderDetail() {
       <div class="detail-metrics">
         <div class="metric"><span>SP</span><strong title="${escapeHtml(consultantName(v))}">${escapeHtml(salesPersonInitials(consultantName(v)))}</strong></div>
         <div class="metric"><span>Toyota Order #</span><strong>${escapeHtml(v.order || 'Not matched')}</strong></div>
-        <div class="metric"><span>Key number</span><strong>${escapeHtml(vehicleKeyNumber(v) || 'Not set')}</strong></div>
+        ${statusCategory(v) === 'pmb' ? `<div class="metric"><span>Key tag number</span><strong>${escapeHtml(vehiclePmbKeyNumber(v) || 'Not set')}</strong></div>` : ''}
         <div class="metric"><span>Contact</span><strong>${escapeHtml(v.contact || 'Not on Excel')}</strong></div>
         <div class="metric"><span>Navision ETA</span>${formatEta(v.etaAtDealer)}</div>
         <div class="metric"><span>PDC location</span><strong>${escapeHtml(pdcLocationLabel(v.pdcLocation) || 'Follow Navision')}</strong></div>
@@ -4438,7 +4529,7 @@ function renderDetail() {
     e.preventDefault();
     const form = e.currentTarget;
     const client = form.client.value.trim() || v.client;
-    const keyNumber = cleanNavisionText(form.keyNumber?.value || '');
+    const keyNumber = statusCategory(v) === 'pmb' ? cleanNavisionText(form.keyNumber?.value || '') : vehicleKeyNumber(v);
     const consultant = form.consultant.value.trim();
     const internalStatus = form.internalStatus.value.trim();
     const pdcLocation = normalizePdcLocation(form.pdcLocation.value);
@@ -4454,6 +4545,11 @@ function renderDetail() {
     });
     const previousPdcLocation = vehiclePdcLocation(v);
     const previousPmbStage = normalizePmbStage(v.pmbStage || '');
+    const duplicateKeyVehicle = pdcLocation === 'PMB' ? activePmbVehicleWithKeyNumber(keyNumber, key) : null;
+    if (duplicateKeyVehicle) {
+      window.alert(`Key tag ${keyNumber} is already assigned to ${displayStockNumber(duplicateKeyVehicle) || duplicateKeyVehicle.order || 'another PMB vehicle'}. Only one active PMB vehicle can use a key tag number at a time.`);
+      return;
+    }
     const updates = { client, keyNumber, consultant, internalStatus, pdcLocation, pmbStage, jitaPartsOrdered, pdcBlocked, pdcBlockReason: pdcBlockReasonValue, ...requirementUpdates, ...completionUpdates };
     const changedCompletions = PDC_JOB_DEFS.filter(def => pdcJobComplete(v, def) !== completionUpdates[def.completeKey]);
     if (changedCompletions.length) {
