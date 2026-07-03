@@ -20,6 +20,7 @@
 
       <nav class="nav">
         <button class="nav-item active" data-view="dashboard" data-short="D">Dashboard</button>
+        <button class="nav-item" data-view="workflow" data-short="WF">Workflow</button>
         <button class="nav-item" data-view="pipeline" data-short="P">Pipeline</button>
         <button class="nav-item" data-view="visibility" data-short="V">Visibility</button>
         <button class="nav-item" data-view="tv" data-short="TV">TV Board</button>
@@ -52,6 +53,16 @@
 
       <section id="dashboard" class="view active">
         <div class="kpi-grid" id="kpi-grid"></div>
+        <section class="panel span-12 workflow-board-panel dashboard-workflow-panel">
+          <div class="panel-header">
+            <div>
+              <h2>Simple workflow board</h2>
+              <p>Best-practice flow from import to RFT: fix blockers first, order parts early, release to PMB only when ready, then quality-gate before transport.</p>
+            </div>
+            <button class="small-button" type="button" data-view-target="workflow">Open workflow</button>
+          </div>
+          <div class="workflow-board" id="dashboard-workflow-board"></div>
+        </section>
         <div class="pmb-branch-grid" id="pmb-branch-grid" hidden></div>
         <section class="panel span-12">
           <div class="panel-header">
@@ -102,6 +113,18 @@
         </section>
       </section>
 
+      <section id="workflow" class="view">
+        <section class="panel span-12 workflow-board-panel">
+          <div class="panel-header">
+            <div>
+              <h2>Best-practice workflow board</h2>
+              <p>One simple operating path: import/match → parts readiness → Yard Hold release → PMB bay work → Pit/QC → RFT. The red and amber items are the first jobs to clear.</p>
+            </div>
+            <span class="badge neutral">Simplified flow</span>
+          </div>
+          <div class="workflow-board" id="workflow-board"></div>
+        </section>
+      </section>
 
       <section id="visibility" class="view">
         <section class="panel span-12 operational-visibility-panel" aria-labelledby="operational-visibility-heading">

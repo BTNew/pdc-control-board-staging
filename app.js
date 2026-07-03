@@ -1472,7 +1472,7 @@ function renderAdminLists() {
 function showView(view) {
   $$('.view').forEach(el => el.classList.toggle('active', el.id === view));
   $$('.nav-item').forEach(el => el.classList.toggle('active', el.dataset.view === view));
-  const titleMap = { dashboard: 'Dashboard', pipeline: 'Vehicle Pipeline', visibility: 'Operational Visibility', tv: 'PDC TV Board', schedule: 'Production', parts: 'Parts Department', lists: 'PDC Lists', import: 'Uploads', zpl: 'ZPL Labels' };
+  const titleMap = { dashboard: 'Dashboard', workflow: 'Workflow Board', pipeline: 'Vehicle Pipeline', visibility: 'Operational Visibility', tv: 'PDC TV Board', schedule: 'Production', parts: 'Parts Department', lists: 'PDC Lists', import: 'Uploads', zpl: 'ZPL Labels' };
   $('#page-title').textContent = titleMap[view] || 'Dashboard';
   if (view !== 'dashboard' && app.frozenHeaderCleanup) {
     app.frozenHeaderCleanup();
@@ -1486,6 +1486,9 @@ function showView(view) {
   }
   if (view === 'schedule') {
     window.setTimeout(() => renderScheduleBoard(), 0);
+  }
+  if (view === 'workflow') {
+    window.setTimeout(() => renderWorkflowBoard(), 0);
   }
 }
 
@@ -1521,6 +1524,7 @@ function renderAll() {
   updateSidebarStats();
   populateFilters();
   renderKpis();
+  renderWorkflowBoard();
   renderVehicleTable();
   renderKanban();
   renderTvBoard();
@@ -1577,6 +1581,7 @@ function renderKpis() {
     applyQuickFilter(card.dataset.kpiFilter);
   }));
   renderOperationalVisibility();
+  renderWorkflowBoard();
   renderPmbBranchTiles();
 }
 
@@ -1635,6 +1640,136 @@ function renderOperationalVisibility() {
       <small>${escapeHtml(card.detail)}</small>
     </article>
   `).join('');
+}
+
+
+function workflowVehiclesForStep(step = '') {
+  const rows = app.data.filter(vehicleHasBatchNumber);
+  switch (step) {
+    case 'import': return rows.filter(vehicle => statusCategory(vehicle) === 'batchmatched');
+    case 'arrival': return rows.filter(vehicle => statusCategory(vehicle) === 'prodtransit');
+    case 'yardhold': return rows.filter(vehicle => statusCategory(vehicle) === 'yardhold');
+    case 'parts': return rows.filter(vehicle => ['notordered', 'onorder', 'stoppage', 'miscacc'].includes(partsDepartmentStatus(vehicle)));
+    case 'pmb': return rows.filter(vehicle => statusCategory(vehicle) === 'pmb');
+    case 'rft': return rows.filter(vehicle => statusCategory(vehicle) === 'rft');
+    default: return rows;
+  }
+}
+
+function workflowPriorityRows() {
+  const pmbRows = workflowVehiclesForStep('pmb');
+  const issueRows = [];
+  workflowVehiclesForStep('parts')
+    .filter(vehicle => partsDepartmentStatus(vehicle) === 'stoppage')
+    .forEach(vehicle => issueRows.push({ vehicle, label: 'Parts stoppage', severity: 'danger', detail: partsStoppageReason(vehicle) }));
+  pmbRows
+    .filter(isPdcBlocked)
+    .forEach(vehicle => issueRows.push({ vehicle, label: 'PMB stoppage', severity: 'danger', detail: pdcBlockReason(vehicle) }));
+  vehiclesWithRftGateIssues(pmbRows)
+    .forEach(row => issueRows.push({ vehicle: row.vehicle, label: 'RFT gate', severity: 'warning', detail: row.issues[0] || 'Gate issue' }));
+  pmbRows
+    .filter(vehicle => !inferredPmbStage(vehicle))
+    .forEach(vehicle => issueRows.push({ vehicle, label: 'Unallocated PMB', severity: 'warning', detail: 'Assign to Tint, Hoist, Fitting, Fabrication, Electrical, Tyre bay or Pit Inspection' }));
+  pmbRows
+    .map(vehicle => ({ vehicle, days: pmbStageAgeDays(vehicle), limit: pmbLaneAgeLimit(inferredPmbStage(vehicle)) }))
+    .filter(row => row.days !== null && row.days > row.limit)
+    .forEach(row => issueRows.push({ vehicle: row.vehicle, label: 'Overdue bay', severity: 'warning', detail: pmbStageAgeLabel(row.vehicle) }));
+  const seen = new Set();
+  return issueRows.filter(row => {
+    const key = `${vehicleKey(row.vehicle)}:${row.label}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  }).slice(0, 8);
+}
+
+function workflowBoardStats() {
+  const rows = app.data.filter(vehicleHasBatchNumber);
+  const pmbRows = workflowVehiclesForStep('pmb');
+  const partsRows = workflowVehiclesForStep('parts');
+  const partsStoppages = partsRows.filter(vehicle => partsDepartmentStatus(vehicle) === 'stoppage').length;
+  const partsNotOrdered = partsRows.filter(vehicle => partsDepartmentStatus(vehicle) === 'notordered').length;
+  const pmbBlocked = pmbRows.filter(isPdcBlocked).length;
+  const gateIssues = vehiclesWithRftGateIssues(pmbRows).length;
+  const unallocated = pmbRows.filter(vehicle => !inferredPmbStage(vehicle)).length;
+  const rftRows = workflowVehiclesForStep('rft');
+  return {
+    total: rows.length,
+    partsStoppages,
+    partsNotOrdered,
+    pmbBlocked,
+    gateIssues,
+    unallocated,
+    steps: [
+      { key: 'import', number: '1', title: 'Import & match', count: workflowVehiclesForStep('import').length, detail: 'Keep Navision/PO data clean before work starts.', rule: 'Only matched Batch/Stock records move forward.', action: 'Uploads', target: 'import', state: 'neutral' },
+      { key: 'arrival', number: '2', title: 'Arrival watch', count: workflowVehiclesForStep('arrival').length, detail: 'Production/In Transit sorted by earliest Kewdale ETA.', rule: 'Plan early; do not wait for vehicles to hit the yard.', action: 'Production', target: 'schedule', state: 'neutral' },
+      { key: 'parts', number: '3', title: 'Parts readiness', count: partsRows.length, detail: `${partsStoppages} stoppage · ${partsNotOrdered} not ordered`, rule: 'Order parts early. Parts stoppages block RFT.', action: 'Parts', target: 'parts', state: partsStoppages ? 'danger' : partsNotOrdered ? 'warning' : 'ready' },
+      { key: 'yardhold', number: '4', title: 'Yard Hold release', count: workflowVehiclesForStep('yardhold').length, detail: 'Confirm required work before releasing to PMB.', rule: 'Use the checklist: Tint, Fitting/Build, Parts, Electrical, Sublet, Fabrication, Pit.', action: 'YH list', target: 'yardhold', state: 'neutral' },
+      { key: 'pmb', number: '5', title: 'PMB bay work', count: pmbRows.length, detail: `${unallocated} unallocated · ${pmbBlocked} stoppage`, rule: 'Use bay buckets and tick-box outcomes: complete, stoppage or move only.', action: 'PMB board', target: 'pmb', state: pmbBlocked || unallocated ? 'warning' : 'ready' },
+      { key: 'rft', number: '6', title: 'Pit / QC / RFT', count: rftRows.length, detail: `${gateIssues} PMB gate issue${gateIssues === 1 ? '' : 's'}`, rule: 'No RFT until required jobs, Parts and Pit Inspection are signed off.', action: 'RFT list', target: 'rft', state: gateIssues ? 'danger' : 'ready' },
+    ],
+  };
+}
+
+function workflowAction(target = '') {
+  if (target === 'import' || target === 'schedule' || target === 'parts' || target === 'visibility') {
+    showView(target);
+    if (target === 'parts') renderPartsHome();
+    if (target === 'schedule') renderScheduleBoard();
+    return;
+  }
+  if (['yardhold', 'pmb', 'rft', 'batchmatched'].includes(target)) {
+    applyQuickFilter(target);
+    return;
+  }
+  showView('workflow');
+}
+
+function renderWorkflowBoard() {
+  const hosts = ['workflow-board', 'dashboard-workflow-board'].map(id => $('#' + id)).filter(Boolean);
+  if (!hosts.length) return;
+  const stats = workflowBoardStats();
+  const priorities = workflowPriorityRows();
+  const stepsHtml = stats.steps.map(step => `
+    <article class="workflow-step workflow-${escapeHtml(step.state)}">
+      <div class="workflow-step-number">${escapeHtml(step.number)}</div>
+      <div class="workflow-step-body">
+        <span class="workflow-step-label">${escapeHtml(step.title)}</span>
+        <strong>${escapeHtml(step.count)}</strong>
+        <small>${escapeHtml(step.detail)}</small>
+        <p>${escapeHtml(step.rule)}</p>
+      </div>
+      <button class="small-button" type="button" data-workflow-action="${escapeHtml(step.target)}">${escapeHtml(step.action)}</button>
+    </article>
+  `).join('');
+  const prioritiesHtml = priorities.length ? priorities.map(row => `
+    <button class="workflow-priority-row workflow-${escapeHtml(row.severity)}" type="button" data-open-stock="${escapeHtml(vehicleKey(row.vehicle))}">
+      <span>${escapeHtml(row.label)}</span>
+      <strong>${escapeHtml(displayStockNumber(row.vehicle) || row.vehicle.order || 'No stock')}</strong>
+      <small>${escapeHtml(truncate(row.detail, 72))}</small>
+    </button>
+  `).join('') : '<div class="empty-state compact-empty"><strong>No urgent blockers</strong><span>Parts, PMB and RFT gate checks are clear.</span></div>';
+  const html = `
+    <div class="workflow-summary-strip">
+      <span><strong>${stats.total}</strong> active vehicles</span>
+      <span><strong>${stats.partsStoppages}</strong> parts stoppage</span>
+      <span><strong>${stats.pmbBlocked}</strong> PMB stoppage</span>
+      <span><strong>${stats.gateIssues}</strong> RFT gate issue</span>
+    </div>
+    <div class="workflow-step-grid">${stepsHtml}</div>
+    <section class="workflow-priority-panel">
+      <div class="workflow-priority-header">
+        <div><strong>Fix first</strong><span>Best-practice priority list: clear stoppages and gate issues before pushing more vehicles into PMB.</span></div>
+        <button class="small-button" type="button" data-workflow-action="visibility">Statistics</button>
+      </div>
+      <div class="workflow-priority-list">${prioritiesHtml}</div>
+    </section>
+  `;
+  hosts.forEach(host => {
+    host.innerHTML = html;
+    $$('[data-workflow-action]', host).forEach(button => button.addEventListener('click', () => workflowAction(button.dataset.workflowAction)));
+    $$('[data-open-stock]', host).forEach(button => button.addEventListener('click', () => openVehicleModal(button.dataset.openStock)));
+  });
 }
 
 function renderPmbBranchTiles() {
