@@ -2687,33 +2687,121 @@ function bindPmbDropTarget(dropTarget) {
     const key = event.dataTransfer?.getData('application/x-vehicle-key') || event.dataTransfer?.getData('text/plain') || app.pmbDraggingKey;
     const stage = dropTarget.dataset.pmbDropStage || '';
     dropTarget.closest('.pmb-drop-lane')?.classList.remove('drag-over');
-    movePmbVehicleToStage(key, stage);
+    void movePmbVehicleToStage(key, stage);
   });
 }
 
-function pmbMovementResolutionUpdates(vehicle = {}, fromStage = '', toStage = '') {
+function pmbMovementResolutionChoiceModal(vehicle = {}, currentStage = '', nextStage = '') {
+  const stock = displayStockNumber(vehicle) || vehicle.order || 'this vehicle';
+  const area = pmbStageLabel(currentStage) || 'the current area';
+  const nextArea = pmbStageLabel(nextStage) || 'Unallocated';
+  return new Promise(resolve => {
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay pmb-resolution-modal-overlay';
+    overlay.setAttribute('role', 'dialog');
+    overlay.setAttribute('aria-modal', 'true');
+    overlay.setAttribute('aria-labelledby', 'pmb-resolution-modal-title');
+    overlay.innerHTML = `
+      <section class="modal-card pmb-resolution-modal-card">
+        <button class="modal-close" type="button" data-pmb-resolution-cancel aria-label="Cancel movement">×</button>
+        <div class="panel-header">
+          <div>
+            <h2 id="pmb-resolution-modal-title">Confirm movement</h2>
+            <p>${escapeHtml(stock)} is leaving ${escapeHtml(area)} for ${escapeHtml(nextArea)}. Tick what applies.</p>
+          </div>
+        </div>
+        <div class="pmb-resolution-options" role="group" aria-label="Movement outcome">
+          <label class="pmb-resolution-option is-complete">
+            <input type="checkbox" value="complete" data-pmb-resolution-choice checked>
+            <span>
+              <strong>Work complete</strong>
+              <small>Tick off ${escapeHtml(area)} and move the vehicle.</small>
+            </span>
+          </label>
+          <label class="pmb-resolution-option is-stoppage">
+            <input type="checkbox" value="stoppage" data-pmb-resolution-choice>
+            <span>
+              <strong>Stoppage</strong>
+              <small>Move the vehicle and mark it as stopped.</small>
+            </span>
+          </label>
+          <label class="pmb-resolution-option is-move">
+            <input type="checkbox" value="move" data-pmb-resolution-choice>
+            <span>
+              <strong>Move only</strong>
+              <small>Move without changing the work tick.</small>
+            </span>
+          </label>
+        </div>
+        <label class="pmb-resolution-reason" data-pmb-resolution-reason-wrap hidden>
+          <span>Stoppage reason</span>
+          <input type="text" value="${escapeHtml(area)} stoppage" data-pmb-resolution-reason>
+        </label>
+        <div class="edit-actions pmb-resolution-actions">
+          <button class="secondary" type="button" data-pmb-resolution-cancel>Cancel</button>
+          <button class="primary" type="button" data-pmb-resolution-save>Apply</button>
+        </div>
+      </section>
+    `;
+    const finish = value => {
+      document.removeEventListener('keydown', onKeydown);
+      overlay.remove();
+      resolve(value);
+    };
+    const selectedChoice = () => overlay.querySelector('[data-pmb-resolution-choice]:checked')?.value || '';
+    const syncReason = () => {
+      const showReason = selectedChoice() === 'stoppage';
+      overlay.querySelector('[data-pmb-resolution-reason-wrap]').hidden = !showReason;
+    };
+    const onKeydown = event => {
+      if (event.key === 'Escape') finish(null);
+    };
+    overlay.querySelectorAll('[data-pmb-resolution-choice]').forEach(input => {
+      input.addEventListener('change', () => {
+        if (input.checked) {
+          overlay.querySelectorAll('[data-pmb-resolution-choice]').forEach(other => {
+            if (other !== input) other.checked = false;
+          });
+        } else if (!selectedChoice()) {
+          input.checked = true;
+        }
+        syncReason();
+      });
+    });
+    overlay.querySelectorAll('[data-pmb-resolution-cancel]').forEach(btn => btn.addEventListener('click', () => finish(null)));
+    overlay.addEventListener('click', event => {
+      if (event.target === overlay) finish(null);
+    });
+    overlay.querySelector('[data-pmb-resolution-save]').addEventListener('click', () => {
+      const choice = selectedChoice();
+      const reason = cleanNavisionText(overlay.querySelector('[data-pmb-resolution-reason]')?.value || `${area} stoppage`);
+      finish({ choice, reason: reason || `${area} stoppage` });
+    });
+    document.body.appendChild(overlay);
+    document.addEventListener('keydown', onKeydown);
+    syncReason();
+    overlay.querySelector('[data-pmb-resolution-save]')?.focus();
+  });
+}
+
+async function pmbMovementResolutionUpdates(vehicle = {}, fromStage = '', toStage = '') {
   const currentStage = normalizePmbStage(fromStage);
   const nextStage = normalizePmbStage(toStage);
   if (!currentStage || currentStage === nextStage) return {};
   const jobDef = pmbStageJobDef(currentStage);
   if (!jobDef || pdcJobComplete(vehicle, jobDef)) return {};
-  const stock = displayStockNumber(vehicle) || vehicle.order || 'this vehicle';
-  const area = pmbStageLabel(currentStage) || 'the current area';
-  const answer = window.prompt(
-    `${stock} is leaving ${area}.\n\nType COMPLETE if the work in ${area} is finished.\nType STOPPAGE if it is moving because of a stoppage.\nType MOVE to move without changing the work tick.`,
-    'COMPLETE'
-  );
-  if (answer === null) return null;
-  const choice = String(answer || '').trim().toLowerCase();
+  const result = await pmbMovementResolutionChoiceModal(vehicle, currentStage, nextStage);
+  if (!result) return null;
+  const choice = String(result.choice || '').trim().toLowerCase();
   const now = nowIsoString();
   const operator = getCurrentOperatorName();
-  if (choice.startsWith('stop')) {
-    const reason = cleanNavisionText(window.prompt('Enter stoppage reason:', `${area} stoppage`) || '');
-    if (!reason) return null;
+  const area = pmbStageLabel(currentStage) || 'the current area';
+  if (choice === 'stoppage') {
+    const reason = cleanNavisionText(result.reason || `${area} stoppage`);
     recordVehicleAudit(vehicle, 'PMB movement stoppage recorded', { stage: area, reason, by: operator });
     return { pdcBlocked: true, pdcBlockReason: reason, pdcBlockedAt: now, pdcBlockedBy: operator };
   }
-  if (choice.startsWith('comp') || choice === 'done' || choice === 'yes' || choice === 'y') {
+  if (choice === 'complete') {
     recordVehicleAudit(vehicle, 'Job signed off by PMB movement', { job: jobDef.label, from: area, to: pmbStageLabel(nextStage) || 'Unallocated', by: operator });
     return {
       [jobDef.requireKey]: true,
@@ -2724,12 +2812,10 @@ function pmbMovementResolutionUpdates(vehicle = {}, fromStage = '', toStage = ''
       pdcBlockReason: '',
     };
   }
-  if (choice === 'move' || choice === 'skip' || choice === 'no' || choice === 'n') return {};
-  window.alert('Move cancelled. Use COMPLETE, STOPPAGE, or MOVE.');
-  return null;
+  return {};
 }
 
-function movePmbVehicleToStage(key, stage) {
+async function movePmbVehicleToStage(key, stage) {
   const cleanKey = String(key || '').trim();
   if (!cleanKey) return;
   const vehicle = app.data.find(v => vehicleKey(v) === cleanKey || v.stock === cleanKey || v.order === cleanKey || v.id === cleanKey);
@@ -2742,7 +2828,7 @@ function movePmbVehicleToStage(key, stage) {
   const currentStage = normalizePmbStage(vehicle.pmbStage || vehicle.pdcWorkStage || vehicle.workStage || '');
   if (currentStage === nextStage) return;
   const now = nowIsoString();
-  const resolutionUpdates = pmbMovementResolutionUpdates(vehicle, currentStage, nextStage);
+  const resolutionUpdates = await pmbMovementResolutionUpdates(vehicle, currentStage, nextStage);
   if (resolutionUpdates === null) return;
   recordVehicleAudit(vehicle, 'PMB bucket moved', { from: pmbStageLabel(currentStage) || 'Unallocated', to: pmbStageLabel(nextStage) || 'Unallocated' });
   saveVehicleEdits(vehicleKey(vehicle), {
@@ -2817,7 +2903,7 @@ function bindPmbBayDropTarget(dropTarget) {
       }
     }
     dropTarget.classList.remove('drag-over');
-    assignPmbVehicleToBay(key, stage, bay, scheduledStartIso);
+    void assignPmbVehicleToBay(key, stage, bay, scheduledStartIso);
   });
 }
 
@@ -2848,7 +2934,7 @@ function pmbSuggestedBayStartIso(stage = '', bay = '', vehicle = null, requested
   return (latestEnd || pmbNextProductionSlotDate()).toISOString();
 }
 
-function assignPmbVehicleToBay(key, stage, bay, requestedStartIso = '') {
+async function assignPmbVehicleToBay(key, stage, bay, requestedStartIso = '') {
   const cleanKey = String(key || '').trim();
   const nextStage = normalizePmbStage(stage);
   if (!cleanKey || !nextStage) return;
@@ -2862,7 +2948,7 @@ function assignPmbVehicleToBay(key, stage, bay, requestedStartIso = '') {
   const currentStage = normalizePmbStage(vehicle.pmbStage || vehicle.pdcWorkStage || vehicle.workStage || '');
   const now = nowIsoString();
   const bayLabel = bayNumber ? `Bay ${bayNumber}` : 'No bay';
-  const resolutionUpdates = pmbMovementResolutionUpdates(vehicle, currentStage, nextStage);
+  const resolutionUpdates = await pmbMovementResolutionUpdates(vehicle, currentStage, nextStage);
   if (resolutionUpdates === null) return;
   const updates = {
     ...resolutionUpdates,

@@ -6010,3 +6010,72 @@ body.pmb-schedule-adjusting .pmb-schedule-chip-slim {
 .pmb-requirement-actions {
   margin-top: 1rem;
 }
+
+.pmb-resolution-modal-card {
+  max-width: min(620px, calc(100vw - 2rem));
+  width: 100%;
+}
+
+.pmb-resolution-options {
+  display: grid;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.pmb-resolution-option {
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-start;
+  padding: 0.85rem;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--panel-soft);
+  cursor: pointer;
+}
+
+.pmb-resolution-option:has(input:checked) {
+  border-color: rgba(37, 99, 235, 0.55);
+  background: #eff6ff;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.08);
+}
+
+.pmb-resolution-option input {
+  width: 1.15rem;
+  height: 1.15rem;
+  margin-top: 0.1rem;
+  accent-color: var(--primary);
+}
+
+.pmb-resolution-option strong {
+  display: block;
+  color: var(--text);
+  font-size: 0.95rem;
+}
+
+.pmb-resolution-option small {
+  display: block;
+  margin-top: 0.15rem;
+  color: var(--muted);
+}
+
+.pmb-resolution-reason {
+  display: grid;
+  gap: 0.35rem;
+  margin-top: 0.85rem;
+  font-weight: 800;
+}
+
+.pmb-resolution-reason[hidden] {
+  display: none;
+}
+
+.pmb-resolution-reason input {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 0.7rem 0.8rem;
+  font: inherit;
+}
+
+.pmb-resolution-actions {
+  margin-top: 1rem;
+}
