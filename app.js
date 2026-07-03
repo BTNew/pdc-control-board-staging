@@ -4721,9 +4721,10 @@ function draftTintPoEmail(stock) {
 }
 
 function renderKanban() {
-  const stages = ['Production / In Transit', 'Yard Hold', 'PMB', 'RFT', 'Needs Matching'];
-  const grouped = groupBy(app.data, getStage);
-  $('#pipeline-count').textContent = `${app.data.length} vehicles`;
+  const stages = ['Production / In Transit', 'Yard Hold', 'PMB', 'RFT'];
+  const pipelineVehicles = app.data.filter(vehicle => getStage(vehicle) !== 'Needs Matching');
+  const grouped = groupBy(pipelineVehicles, getStage);
+  $('#pipeline-count').textContent = `${pipelineVehicles.length} vehicles`;
   $('#kanban').innerHTML = stages.map(stage => {
     const vehicles = (grouped[stage] || []).slice().sort((a, b) => toyotaStatusRank(a.toyotaStatus) - toyotaStatusRank(b.toyotaStatus) || String(displayStockNumber(a)).localeCompare(String(displayStockNumber(b)), 'en-AU', { numeric: true }));
     return `<details class="pipeline-section" open>
