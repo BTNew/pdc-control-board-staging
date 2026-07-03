@@ -25,6 +25,13 @@
         <button class="nav-item" data-view="visibility" data-short="V">Visibility</button>
         <button class="nav-item" data-view="tv" data-short="TV">TV Board</button>
         <button class="nav-item" data-view="schedule" data-short="PR">Production</button>
+        <button class="nav-item production-nav-item" data-view="dept-tint" data-short="TI">Tint</button>
+        <button class="nav-item production-nav-item" data-view="dept-hoist" data-short="HO">Hoist</button>
+        <button class="nav-item production-nav-item" data-view="dept-fitting" data-short="FI">Fitting</button>
+        <button class="nav-item production-nav-item" data-view="dept-fabrication" data-short="FA">Fabrication</button>
+        <button class="nav-item production-nav-item" data-view="dept-electrical" data-short="EL">Electrical</button>
+        <button class="nav-item production-nav-item" data-view="dept-tyre" data-short="TY">Tyre Bay</button>
+        <button class="nav-item production-nav-item" data-view="dept-pit-inspection" data-short="PI">Pit Inspection</button>
         <button class="nav-item" data-view="parts" data-short="PA">Parts</button>
         <button class="nav-item" data-view="lists" data-short="L">PDC Lists</button>
         <button class="nav-item" data-view="import" data-short="U">Uploads</button>
@@ -200,6 +207,37 @@
               </label>
             </div>
             <div id="schedule-content" class="schedule-content"></div>
+          </section>
+        </div>
+      </section>
+
+      <section id="department" class="view">
+        <div class="department-layout">
+          <section class="panel department-panel">
+            <div class="panel-header">
+              <div>
+                <h2 id="department-heading">Production department</h2>
+                <p id="department-description">Focused bay work list. No Navision tracker is shown here; teams only see vehicles for this station and the actions needed to move them forward.</p>
+              </div>
+              <span class="badge neutral" id="department-count">0 vehicles</span>
+            </div>
+            <div class="table-toolbar advanced-toolbar wide-toolbar department-toolbar">
+              <label>
+                <span>Search</span>
+                <input id="department-search" type="search" placeholder="Stock, client, vehicle, blocker..." />
+              </label>
+              <label>
+                <span>Status</span>
+                <select id="department-status-filter">
+                  <option value="open">Open work</option>
+                  <option value="blocked">Stoppages</option>
+                  <option value="complete">Completed</option>
+                  <option value="all">All for this station</option>
+                </select>
+              </label>
+            </div>
+            <div class="department-help-strip" id="department-help-strip"></div>
+            <div id="department-content" class="department-content"></div>
           </section>
         </div>
       </section>

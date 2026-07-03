@@ -6191,3 +6191,120 @@ body.pmb-schedule-adjusting .pmb-schedule-chip-slim {
   .workflow-step-grid { grid-template-columns: 1fr; }
   .workflow-priority-row { grid-template-columns: 1fr; }
 }
+
+.production-nav-item {
+  padding-left: 1.4rem;
+  font-size: 0.88rem;
+}
+
+.department-layout {
+  display: grid;
+  gap: 1rem;
+}
+
+.department-panel {
+  min-height: 60vh;
+}
+
+.department-toolbar {
+  margin-bottom: 0.85rem;
+}
+
+.department-help-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  align-items: center;
+  padding: 0.75rem 0.9rem;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: rgba(15, 23, 42, 0.03);
+  color: var(--muted);
+  margin-bottom: 1rem;
+}
+
+.department-help-strip strong {
+  color: var(--text);
+}
+
+.department-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 0.9rem;
+}
+
+.department-job-card {
+  display: grid;
+  gap: 0.75rem;
+  padding: 1rem;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--panel);
+  box-shadow: var(--shadow-sm);
+}
+
+.department-job-card.blocked {
+  border-color: rgba(220, 38, 38, 0.35);
+  background: rgba(254, 242, 242, 0.9);
+}
+
+.department-job-card.complete {
+  border-color: rgba(22, 163, 74, 0.28);
+  background: rgba(240, 253, 244, 0.8);
+}
+
+.department-job-main strong,
+.department-job-main span,
+.department-job-main small,
+.department-job-meta span {
+  display: block;
+}
+
+.department-job-main strong {
+  font-size: 1.05rem;
+}
+
+.department-job-main small,
+.department-job-meta {
+  color: var(--muted);
+}
+
+.department-job-meta {
+  display: grid;
+  gap: 0.25rem;
+  font-size: 0.86rem;
+}
+
+.department-status-badge {
+  display: inline-flex;
+  width: fit-content;
+  padding: 0.22rem 0.55rem;
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: 0.78rem;
+}
+
+.department-status-badge.open {
+  color: #92400e;
+  background: #fef3c7;
+}
+
+.department-status-badge.blocked {
+  color: #991b1b;
+  background: #fee2e2;
+}
+
+.department-status-badge.complete {
+  color: #166534;
+  background: #dcfce7;
+}
+
+.department-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.department-actions button {
+  min-height: 2.1rem;
+}
