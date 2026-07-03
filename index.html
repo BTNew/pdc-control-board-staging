@@ -352,10 +352,14 @@
                 <textarea id="navision-paste" rows="8" spellcheck="false" placeholder="Order&#9;Batch&#9;Production Month&#9;Compliance Date&#9;Model Description&#9;Suffix Description&#9;..."></textarea>
               </label>
               <label class="sync-option">
+                <input id="navision-pmb-only" type="checkbox" checked />
+                <span><strong>Only import PMB work / PO rows</strong> — keeps the board focused on vehicles we have a purchase order or clear PMB/body-builder work signal for. Untick only when doing a full Navision refresh.</span>
+              </label>
+              <label class="sync-option">
                 <input id="navision-remove-missing" type="checkbox" />
                 <span><strong>Offer cleanup for missing vehicles</strong> — after this import, show vehicles already in the tracker that were not on the new Navision list. PMB/RFT vehicles are protected from this cleanup. Tick this to remove eligible missing vehicles automatically during import.</span>
               </label>
-              <div class="subtle navision-note">Matching priority: Batch / stock number first, then Toyota order number, then VIN when WMI + VDS Number + Frame are available. For existing vehicles, Navision updates source data only until Yard Hold. PMB/RFT movement is manual in the vehicle popup and will not be overwritten by future imports. Dealer Comments appear in Navision Notes. Rows marked as Cut But Vehicle are highlighted light blue. Optional spreadsheet columns: TINT, BUILD, PARTS, SUBLET, FABRICATION, PMB Bucket, PDC Location, Blocked, Blocked Reason.</div>
+              <div class="subtle navision-note">Matching priority: Batch / stock number first, then Toyota order number, then VIN when WMI + VDS Number + Frame are available. For existing vehicles, Navision updates source data only until Yard Hold. PMB/RFT movement is manual in the vehicle popup and will not be overwritten by future imports. Dealer Comments appear in Navision Notes. Rows marked as Cut But Vehicle are highlighted light blue. Optional spreadsheet columns: TINT, BUILD, PARTS, SUBLET, FABRICATION, PMB Bucket, PDC Location or Blocked can deliberately update PDC controls. PMB-only import accepts rows with Body Builder, PMB/PDC Location, PMB Bucket, tray ordered, or explicit job columns such as TINT/BUILD/PARTS/ELECTRICAL/SUBLET/FABRICATION.</div>
             </div>
             <div class="navision-status-list" id="navision-status-list">
               <div class="empty-state compact-empty"><strong>No Navision text imported</strong><span>Paste copied Navision rows, or upload a text/CSV/XLSX file, then click Import vehicle updates.</span></div>

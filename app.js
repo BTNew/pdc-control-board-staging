@@ -1318,6 +1318,7 @@ function bindNav() {
   $('#autocare-upload')?.addEventListener('change', handleAutocareSelect);
   $('#navision-upload')?.addEventListener('change', handleNavisionFileSelect);
   $('#navision-paste')?.addEventListener('input', updateNavisionImportButton);
+  $('#navision-pmb-only')?.addEventListener('change', updateNavisionImportButton);
   $('#import-navision')?.addEventListener('click', importNavisionVehicles);
   $('#navision-clear')?.addEventListener('click', clearNavisionImport);
   $('#add-mechanic-list-button')?.addEventListener('click', addMechanicFromAdminInput);
@@ -6164,7 +6165,7 @@ function updateNavisionControlStats(result = null) {
   if (!card) return;
   const raw = ($('#navision-paste')?.value || '').trim();
   const fileName = app.navisionFileName || (raw ? 'Pasted text' : 'Waiting for text');
-  const preview = raw && !result ? parseNavisionInput(raw) : null;
+  const preview = raw && !result ? parseNavisionInput(raw, navisionImportOptionsFromDom()) : null;
   const rowCount = result?.parsed?.vehicles?.length ?? preview?.vehicles?.length ?? 0;
   const changed = result ? ((result.added?.length || 0) + (result.updated?.length || 0)) : 0;
   const fileEl = card.querySelector('.navision-file strong');
@@ -6688,6 +6689,51 @@ function buildExplicitPdcUpdatesFromImport(row, headerMap) {
   return updates;
 }
 
+function navisionTruthyWorkValue(value = '') {
+  const text = cleanNavisionText(value);
+  if (!text) return false;
+  const bool = pdcBooleanFromText(text);
+  if (bool !== undefined) return bool;
+  return !/^(0|none|no|n|false|na|n\/a|not required)$/i.test(text);
+}
+
+function navisionHasExplicitPmbWorkSignal(row, headerMap) {
+  const updates = buildExplicitPdcUpdatesFromImport(row, headerMap);
+  if (normalizePdcLocation(updates.pdcLocation || '') === 'PMB' || normalizePdcLocation(updates.pdcLocation || '') === 'RFT') return true;
+  if (normalizePmbStage(updates.pmbStage || '')) return true;
+  const requireKeys = ['pdcRequiresTint', 'pdcRequiresBuild', 'pdcRequiresElectrical', 'pdcRequiresParts', 'pdcRequiresSublet', 'pdcRequiresFabrication'];
+  return requireKeys.some(key => updates[key] === true);
+}
+
+function navisionHasPmbWorkSignal(row, headerMap, vehicle = {}) {
+  if (navisionHasExplicitPmbWorkSignal(row, headerMap)) return true;
+  if (navisionTruthyWorkValue(getNavisionValue(row, headerMap, ['Body Builder', 'Bodybuilder', 'Body Builder Code']))) return true;
+  if (vehicle.trayOrdered === true) return true;
+
+  const locationText = [
+    vehicle.navisionLocationStatus,
+    vehicle.navisionSubLocationDescription,
+    vehicle.toyotaStatus,
+  ].map(normalizeToyotaStatus).join(' ');
+  if (/\bpmb\b/.test(locationText) || /\brft\b/.test(locationText) || locationText.includes('perth motor bodies') || locationText.includes('body builder')) return true;
+
+  const workText = [
+    vehicle.navisionDealerComments,
+    vehicle.navisionVehicleNote,
+    getNavisionValue(row, headerMap, 'Instructions'),
+  ].map(cleanNavisionText).join(' ').toLowerCase();
+  return /\b(pmb|perth motor bodies|body builder|purchase order|\bpo\b|tint|tray|electrical|fabrication|sublet|accessory|fitment)\b/i.test(workText);
+}
+
+function navisionImportOptionsFromDom() {
+  return { pmbOnly: Boolean($('#navision-pmb-only')?.checked) };
+}
+
+function pmbWorkSkipMessage(vehicle = {}, excelRow) {
+  const identity = displayStockNumber(vehicle) || vehicle.order || `row ${excelRow}`;
+  return `Row ${excelRow}${identity ? ` / ${identity}` : ''}: skipped because PMB-only import is on and no PMB work / PO signal was found.`;
+}
+
 function protectPmbFirstLandingFromImport(payload = {}, existing = {}) {
   const incomingLocation = normalizePdcLocation(payload.pdcLocation || '');
   const existingLocation = vehiclePdcLocation(existing);
@@ -6892,11 +6938,11 @@ function postYardHoldReason(vehicle = {}) {
   return cleanNavisionText(vehicle.navisionLocationStatus || vehicle.navisionSubLocationDescription || vehicle.toyotaStatus || 'past Yard Hold');
 }
 
-function parseNavisionInput(text) {
+function parseNavisionInput(text, options = {}) {
   const prepared = prepareNavisionText(text);
   const detected = detectDelimitedRows(prepared);
   const rows = detected.rows;
-  if (!rows.length) return { vehicles: [], warnings: ['Paste the Navision export with the header row first.'], missing: [], delimiter: detected.delimiter };
+  if (!rows.length) return { vehicles: [], warnings: ['Paste the Navision export with the header row first.'], missing: [], delimiter: detected.delimiter, options };
   const headers = rows[0].map(header => cleanNavisionText(header).replace(/^\uFEFF/, ''));
   const headerMap = buildNavisionHeaderMap(headers);
   const hasIdentityColumn = ['Batch', 'Stock', 'Stock Number', 'SN', 'Stock No'].some(column => hasNavisionColumn(headerMap, column));
@@ -6910,12 +6956,17 @@ function parseNavisionInput(text) {
       warnings: [`Missing required columns: ${missing.join(', ')}. This tracker now only imports rows that have a real Batch / Stock number.`],
       missing,
       delimiter: detected.delimiter,
+      options,
     };
   }
 
+  const importOptions = { pmbOnly: false, ...options };
   const warnings = [];
   if (!hasNavisionColumn(headerMap, 'Sub Location Description')) {
     warnings.push('Sub Location Description column was not found, so Toyota Status will be blank for this import.');
+  }
+  if (importOptions.pmbOnly) {
+    warnings.push('PMB-only import is on: rows without Body Builder, PMB/PDC Location, PMB Bucket, tray ordered, or explicit PMB job columns are skipped.');
   }
   const vehicles = [];
   rows.slice(1).forEach((row, index) => {
@@ -6925,14 +6976,16 @@ function parseNavisionInput(text) {
       warnings.push(`Row ${excelRow}${vehicle.order ? ` / Order ${vehicle.order}` : ''}: skipped because Batch / Stock number is blank. This tracker only imports vehicles with batch numbers.`);
       return;
     }
+    if (importOptions.pmbOnly && !navisionHasPmbWorkSignal(row, headerMap, vehicle)) {
+      warnings.push(pmbWorkSkipMessage(vehicle, excelRow));
+      return;
+    }
     if (!vehicle.vehicle && !vehicle.toyotaVehicle) {
       warnings.push(`Row ${excelRow}${vehicle.order ? ` / Order ${vehicle.order}` : ''}: vehicle description is blank.`);
     }
-    // Import every row with a real Batch / Stock number. The top Batch Matched tile
-    // decides what to show; PMB/RFT/YH manual locations remain protected after import.
     vehicles.push(vehicle);
   });
-  return { vehicles, warnings, missing: [], delimiter: detected.delimiter };
+  return { vehicles, warnings, missing: [], delimiter: detected.delimiter, options: importOptions };
 }
 
 function navisionMatchKeys(vehicle = {}) {
@@ -7178,7 +7231,7 @@ function buildNavisionImportPlan(parsed) {
 function importNavisionVehicles() {
   const input = $('#navision-paste');
   const text = input?.value || '';
-  const parsed = parseNavisionInput(text);
+  const parsed = parseNavisionInput(text, navisionImportOptionsFromDom());
   if (!parsed.vehicles.length) {
     app.pendingNavisionImport = null;
     renderNavisionSummary({ parsed, added: [], updated: [], unchanged: [], stockNumberUpdates: [], restored: [], skipped: parsed.warnings });

@@ -64,6 +64,16 @@ code += String.raw`
   app.data = buildVehicleData();
   assert(app.data.find(v => v.stock === '12345678').toyotaStatus === 'Waiting PD1', 'Unselected existing update should not apply');
   assert(app.data.some(v => v.stock === '87654321'), 'New vehicle should still be added after selected-only confirmation');
+
+  // PMB-only import should accept rows with a Body Builder signal and skip plain Navision rows.
+  const pmbOnlyHeader = row(['Order','Batch','Production Month','Model Description','Body Builder','Tray Fitment Ordered']);
+  const pmbOnlyMatch = row(['ORD3','33333333','202610','Landcruiser','2','No']);
+  const pmbOnlySkip = row(['ORD4','44444444','202610','Corolla','','No']);
+  const parsedPmbOnly = parseNavisionInput(pmbOnlyHeader + '\n' + pmbOnlyMatch + '\n' + pmbOnlySkip, { pmbOnly: true });
+  assert(parsedPmbOnly.vehicles.length === 1, 'PMB-only import should keep only rows with PMB/body-builder work signals');
+  assert(parsedPmbOnly.vehicles[0].stock === '33333333', 'PMB-only import should keep the body-builder row');
+  assert(parsedPmbOnly.warnings.some(warning => warning.includes('44444444') && warning.includes('skipped')), 'PMB-only import should report skipped non-PMB rows');
+
   console.log('Navision confirmation tests passed');
 })();
 `;
