@@ -68,12 +68,13 @@ function pdcLocationSelectOptions(current = '') {
 const PMB_STAGE_OPTIONS = [
   { value: '', label: 'Not assigned' },
   { value: 'TINT', label: 'Tint (internal)' },
+  { value: 'EXPRESS_HOIST', label: 'Express hoist/pits hoist' },
+  { value: 'EXPRESS_FITOUT', label: 'Express fitout' },
   { value: 'HOIST', label: 'Hoist' },
   { value: 'FITTING', label: 'Fitting' },
   { value: 'FABRICATION', label: 'Fabrication' },
   { value: 'ELECTRICAL', label: 'Electrical' },
   { value: 'TYRE', label: 'Tyre bay' },
-  { value: 'PIT_INSPECTION', label: 'Pit Inspection' },
 ];
 
 const PMB_STAGE_DEFS = PMB_STAGE_OPTIONS.filter(option => option.value);
@@ -82,36 +83,55 @@ const PMB_STAGE_LABELS = new Map(PMB_STAGE_OPTIONS.map(option => [option.value, 
 
 const PMB_WIP_LIMITS = {
   '': 12,
-  TINT: 8,
-  HOIST: 6,
-  FITTING: 10,
-  FABRICATION: 6,
-  ELECTRICAL: 6,
-  TYRE: 5,
-  PIT_INSPECTION: 4,
+  TINT: 2,
+  EXPRESS_HOIST: 1,
+  EXPRESS_FITOUT: 1,
+  HOIST: 3,
+  FITTING: 5,
+  FABRICATION: Number.POSITIVE_INFINITY,
+  ELECTRICAL: 10,
+  TYRE: 2,
+};
+
+const PMB_STAGE_BAY_COUNTS = {
+  TINT: 2,
+  EXPRESS_HOIST: 1,
+  EXPRESS_FITOUT: 1,
+  HOIST: 3,
+  FITTING: 5,
+  FABRICATION: 0,
+  ELECTRICAL: 10,
+  TYRE: 2,
+};
+
+const PMB_STAGE_CAPACITY_LABELS = {
+  FABRICATION: 'Refer Dan',
+  TYRE: '2 bays · 1 wheel alignment bay',
 };
 
 const PMB_STAGE_AGE_LIMITS = {
   '': 1,
   TINT: 2,
+  EXPRESS_HOIST: 1,
+  EXPRESS_FITOUT: 1,
   HOIST: 2,
   FITTING: 3,
   FABRICATION: 4,
   ELECTRICAL: 2,
   TYRE: 2,
-  PIT_INSPECTION: 1,
 };
 
-const PMB_BAY_COUNT = 15;
-const PMB_BAY_STATION_SEQUENCE = ['TINT', 'HOIST', 'FITTING', 'FABRICATION', 'ELECTRICAL', 'TYRE', 'PIT_INSPECTION'];
+const PMB_BAY_MAX_COUNT = 10;
+const PMB_BAY_STATION_SEQUENCE = ['TINT', 'EXPRESS_HOIST', 'EXPRESS_FITOUT', 'HOIST', 'FITTING', 'FABRICATION', 'ELECTRICAL', 'TYRE'];
 const PRODUCTION_FLOW_DEFS = [
   { key: 'TINT', label: 'Tint (internal)', short: 'T', jobKey: 'tint', stage: 'TINT', search: /\b(tint|tinting|window tint)\b/i },
+  { key: 'EXPRESS_HOIST', label: 'Express hoist/pits hoist', short: 'EH', jobKey: 'build', stage: 'EXPRESS_HOIST', search: /\b(express\s+(hoist|pit|pits)|pits?\s+hoist|quick\s+hoist)\b/i },
+  { key: 'EXPRESS_FITOUT', label: 'Express fitout', short: 'EF', jobKey: 'build', stage: 'EXPRESS_FITOUT', search: /\b(express\s+fit(?:out|ment|ting)|quick\s+fit(?:out|ment|ting))\b/i },
   { key: 'HOIST', label: 'Hoist', short: 'H', jobKey: 'build', stage: 'HOIST', search: /\b(hoist|suspension|gvm|lift kit|lift|underbody|towbar|tow bar)\b/i },
   { key: 'FITTING', label: 'Fitting', short: 'F', jobKey: 'build', stage: 'FITTING', search: /\b(fit|fitting|build|pdi|pre delivery|pre-delivery|accessor(?:y|ies)|job card|workshop)\b/i },
   { key: 'FABRICATION', label: 'Fabrication', short: 'Fa', jobKey: 'fabrication', stage: 'FABRICATION', search: /\b(fab|fabricat|tray|canopy|body builder|bodybuilder|steel tray|aluminium tray|tub body|bullbar|bar work)\b/i },
   { key: 'ELECTRICAL', label: 'Electrical', short: 'E', jobKey: 'electrical', stage: 'ELECTRICAL', search: /\b(electrical|auto electrical|auto-elec|12v|dual battery|battery system|uhf|spotlight|light bar|beacon|compressor|anderson|redarc|brake controller|dc dc|dcdc|dash cam|camera|reverse camera|power outlet|usb)\b/i },
   { key: 'TYRE', label: 'Tyre bay', short: 'Ty', jobKey: 'build', stage: 'TYRE', search: /\b(tyre|tire|wheel|wheels|alloy|rotation|balance|alignment)\b/i },
-  { key: 'PIT_INSPECTION', label: 'Pit Inspection', short: 'PI', jobKey: 'pitInspection', stage: 'PIT_INSPECTION', search: /\b(pit inspection|pit|inspection|qc|quality control|final check)\b/i },
 ];
 
 const PDC_JOB_DEFS = [
@@ -129,12 +149,13 @@ const PDC_JOB_BY_KEY = new Map(PDC_JOB_DEFS.map(def => [def.key, def]));
 
 const PMB_STAGE_TO_JOB_KEY = {
   TINT: 'tint',
+  EXPRESS_HOIST: 'build',
+  EXPRESS_FITOUT: 'build',
   HOIST: 'build',
   FITTING: 'build',
   FABRICATION: 'fabrication',
   ELECTRICAL: 'electrical',
   TYRE: 'build',
-  PIT_INSPECTION: 'pitInspection',
 };
 
 function pmbStageJobDef(stage = '') {
@@ -169,12 +190,13 @@ function normalizePmbStage(value = '') {
   const clean = String(value || '').trim().toUpperCase();
   if (!clean) return '';
   if (clean.includes('TINT')) return 'TINT';
+  if ((clean.includes('EXPRESS') && clean.includes('HOIST')) || clean.includes('PITS HOIST') || clean.includes('PIT HOIST')) return 'EXPRESS_HOIST';
+  if (clean.includes('EXPRESS') && (clean.includes('FITOUT') || clean.includes('FIT OUT') || clean.includes('FITTING') || clean.includes('FITMENT'))) return 'EXPRESS_FITOUT';
   if (clean.includes('HOIST') || clean.includes('SUSPENSION') || clean.includes('LIFT')) return 'HOIST';
-  if (clean.includes('FITTING') || clean.includes('FITMENT') || clean.includes('BUILD') || clean.includes('PDI') || clean.includes('PRE DELIVERY') || clean.includes('PRE-DELIVERY')) return 'FITTING';
+  if (clean.includes('FITTING') || clean.includes('FITMENT') || clean.includes('FITOUT') || clean.includes('FIT OUT') || clean.includes('BUILD') || clean.includes('PDI') || clean.includes('PRE DELIVERY') || clean.includes('PRE-DELIVERY')) return 'FITTING';
   if (clean.includes('FAB') || clean.includes('TRAY') || clean.includes('BODY')) return 'FABRICATION';
   if (clean.includes('ELECTRICAL') || clean.includes('AUTO ELEC') || clean.includes('AUTO-ELEC') || clean.includes('12V') || clean.includes('UHF')) return 'ELECTRICAL';
   if (clean.includes('TYRE') || clean.includes('TIRE') || clean.includes('WHEEL')) return 'TYRE';
-  if (clean.includes('PIT') || clean.includes('INSPECTION') || clean.includes('QC')) return 'PIT_INSPECTION';
   if (clean.includes('SUBLET') || clean.includes('SUB-LET') || clean.includes('SUB LET') || clean.includes('OUTSOURCE') || clean.includes('EXTERNAL')) return '';
   return '';
 }
@@ -326,6 +348,20 @@ function pmbLaneLimit(stage = '') {
   return PMB_WIP_LIMITS[normalized] ?? PMB_WIP_LIMITS[''];
 }
 
+function pmbStageBayCount(stage = '') {
+  const normalized = normalizePmbStage(stage);
+  return PMB_STAGE_BAY_COUNTS[normalized] ?? PMB_BAY_MAX_COUNT;
+}
+
+function pmbStageCapacityLabel(stage = '') {
+  const normalized = normalizePmbStage(stage);
+  const explicit = PMB_STAGE_CAPACITY_LABELS[normalized];
+  if (explicit) return explicit;
+  const count = pmbStageBayCount(normalized);
+  if (!count) return 'Refer Dan';
+  return `${count} bay${count === 1 ? '' : 's'}`;
+}
+
 function pmbLaneAgeLimit(stage = '') {
   const normalized = normalizePmbStage(stage);
   return PMB_STAGE_AGE_LIMITS[normalized] ?? PMB_STAGE_AGE_LIMITS[''];
@@ -340,8 +376,9 @@ function pmbLaneMetrics(stage = '', vehicles = []) {
   const blockedCount = vehicles.filter(isPdcBlocked).length;
   return {
     limit,
-    overLimit: vehicles.length > limit,
-    atLimit: vehicles.length === limit,
+    limitLabel: Number.isFinite(limit) ? String(limit) : 'Refer Dan',
+    overLimit: Number.isFinite(limit) && vehicles.length > limit,
+    atLimit: Number.isFinite(limit) && vehicles.length === limit,
     blockedCount,
     oldestStageDays,
   };
@@ -1647,9 +1684,10 @@ function renderPmbBranchTiles() {
       metrics.blockedCount ? 'has-blocked' : '',
     ].filter(Boolean).join(' ');
     const cards = vehicles.map(pmbVehicleCardHtml).join('') || `<div class="pmb-empty-drop">${lane.value ? 'Drop vehicles here' : 'No unallocated PMB vehicles'}</div>`;
+    const capacityLabel = lane.value ? pmbStageCapacityLabel(lane.value) : `${metrics.limitLabel} vehicle limit`;
     const hint = metrics.overLimit
-      ? `OVER LIMIT ${vehicles.length}/${metrics.limit}`
-      : `Limit ${vehicles.length}/${metrics.limit} · oldest ${metrics.oldestStageDays}d${metrics.blockedCount ? ` · blocked ${metrics.blockedCount}` : ''}`;
+      ? `OVER LIMIT ${vehicles.length}/${metrics.limitLabel}`
+      : `${capacityLabel} · ${vehicles.length} in queue · oldest ${metrics.oldestStageDays}d${metrics.blockedCount ? ` · blocked ${metrics.blockedCount}` : ''}`;
     const titleAttrs = lane.value
       ? `data-open-pmb-bays="${escapeHtml(lane.value)}" title="Open ${escapeHtml(lane.label)} bays"`
       : `data-pmb-sub-filter="${escapeHtml(lane.filter)}" title="Show unallocated PMB vehicles"`;
@@ -1658,7 +1696,7 @@ function renderPmbBranchTiles() {
         <button class="pmb-lane-title" type="button" ${titleAttrs} aria-pressed="${active}">
           <span>${escapeHtml(lane.label)}</span>
           <strong>${vehicles.length}</strong>
-          <small>${escapeHtml(lane.value ? `${hint} · click for 15 bay line` : hint)}</small>
+          <small>${escapeHtml(lane.value ? `${hint} · click for bay line` : hint)}</small>
         </button>
         <div class="pmb-lane-dropzone" data-pmb-drop-stage="${escapeHtml(lane.value)}">
           ${cards}
@@ -1669,7 +1707,7 @@ function renderPmbBranchTiles() {
   const allActive = !app.pmbSubFilter;
   host.innerHTML = `
     <div class="branch-header">
-      <div><strong>PMB control board</strong><span>All PMB vehicles land in Unallocated first. Drag into Fabrication, Tint, Build, Electrical or Sublet only when that department is ready to own the work.</span></div>
+      <div><strong>PMB control board</strong><span>All PMB vehicles land in Unallocated first. Drag into Tint, Express hoist/pits hoist, Express fitout, Hoist, Fitting, Fabrication, Electrical or Tyre bay only when that department is ready to own the work.</span></div>
       <div class="branch-header-actions">
         <button class="small-button ${allActive ? 'active-lite' : ''}" type="button" data-pmb-sub-filter="">Show all PMB (${pmbRows.length})</button>
         <button class="small-button ${app.pmbSubFilter === PMB_STAGE_UNASSIGNED_FILTER ? 'active-lite' : ''}" type="button" data-pmb-sub-filter="${PMB_STAGE_UNASSIGNED_FILTER}">Unallocated (${unassignedRows.length})</button>
@@ -1683,15 +1721,16 @@ function renderPmbBranchTiles() {
 }
 
 
-function normalizePmbBayNumber(value = '') {
+function normalizePmbBayNumber(value = '', stage = '') {
   const parsed = Number.parseInt(String(value || '').trim(), 10);
-  return Number.isInteger(parsed) && parsed >= 1 && parsed <= PMB_BAY_COUNT ? parsed : '';
+  const max = stage ? pmbStageBayCount(stage) : PMB_BAY_MAX_COUNT;
+  return Number.isInteger(parsed) && parsed >= 1 && parsed <= max ? parsed : '';
 }
 
 function pmbBayNumber(vehicle = {}, stage = '') {
   const currentStage = normalizePmbStage(stage || inferredPmbStage(vehicle));
   const bayStage = normalizePmbStage(vehicle.pmbBayStage || '');
-  const bay = normalizePmbBayNumber(vehicle.pmbBayNumber);
+  const bay = normalizePmbBayNumber(vehicle.pmbBayNumber, currentStage);
   if (!bay) return '';
   if (currentStage && bayStage && bayStage !== currentStage) return '';
   return bay;
@@ -2061,7 +2100,8 @@ function renderPmbBayBoardHtml(stage = '') {
   const baylessVehicles = vehicles.filter(vehicle => !pmbBayNumber(vehicle, normalizedStage));
   const workStarted = baylessVehicles.filter(vehicle => jobDef && pdcJobComplete(vehicle, jobDef));
   const unassigned = baylessVehicles.filter(vehicle => !(jobDef && pdcJobComplete(vehicle, jobDef)));
-  const bayTiles = Array.from({ length: PMB_BAY_COUNT }, (_, index) => {
+  const bayCount = pmbStageBayCount(normalizedStage);
+  const bayTiles = Array.from({ length: bayCount }, (_, index) => {
     const bay = index + 1;
     const bayText = String(bay).padStart(2, '0');
     const bayVehicles = vehicles.filter(vehicle => pmbBayNumber(vehicle, normalizedStage) === bay);
@@ -2083,7 +2123,7 @@ function renderPmbBayBoardHtml(stage = '') {
       <div class="pmb-bay-board-header">
         <div>
           <strong>${escapeHtml(label)} bays</strong>
-          <span>15 bays · ${vehicles.length} vehicle${vehicles.length === 1 ? '' : 's'} · ${completedCount} complete · ${totalHours.toFixed(totalHours % 1 ? 1 : 0)} planned hour${totalHours === 1 ? '' : 's'}</span>
+          <span>${escapeHtml(pmbStageCapacityLabel(normalizedStage))} · ${vehicles.length} vehicle${vehicles.length === 1 ? '' : 's'} · ${completedCount} complete · ${totalHours.toFixed(totalHours % 1 ? 1 : 0)} planned hour${totalHours === 1 ? '' : 's'}</span>
         </div>
         <div class="pmb-bay-board-actions">
           <button class="small-button" type="button" data-close-pmb-bays>Back to PMB buckets</button>
@@ -2392,12 +2432,13 @@ function pmbStageOperatorGuidance(stage = '') {
   const label = pmbStageLabel(stage);
   return {
     TINT: 'Tint (internal) view: confirm tint work, planned hours, bay and technician only. Use Parts or other station pages for their own blockers and sign-offs.',
+    EXPRESS_HOIST: 'Express hoist/pits hoist view: confirm express/pit hoist work, planned hours, bay and technician only.',
+    EXPRESS_FITOUT: 'Express fitout view: confirm quick fitout work, planned hours, bay and technician only.',
     HOIST: 'Hoist view: confirm hoist work, planned hours, bay and technician only.',
     FITTING: 'Fitting view: confirm accessory fitment/build work, planned hours, bay and technician only. Do not use this page for Parts or external sublet updates.',
     FABRICATION: 'Fabrication view: confirm fabrication work, planned hours, bay and technician only. Leave Tint / Electrical / Parts sign-off to their own pages.',
     ELECTRICAL: 'Electrical view: confirm electrical work, planned hours, bay and technician only. Escalate non-electrical blockers instead of clearing other departments here.',
-    TYRE: 'Tyre bay view: confirm tyre/wheel work, planned hours, bay and technician only.',
-    PIT_INSPECTION: 'Pit Inspection view: confirm final pit inspection only after required production work is complete.'
+    TYRE: 'Tyre bay view: confirm tyre/wheel work, planned hours, bay and technician only. One of the two bays is the wheel-alignment bay.'
   }[normalizePmbStage(stage)] || `${label} view: complete this station's work only.`;
 }
 
@@ -2744,7 +2785,7 @@ function bindPmbBayDropTarget(dropTarget) {
 
 function pmbSuggestedBayStartIso(stage = '', bay = '', vehicle = null, requestedStartIso = '') {
   const normalizedStage = normalizePmbStage(stage);
-  const bayNumber = normalizePmbBayNumber(bay);
+  const bayNumber = normalizePmbBayNumber(bay, normalizedStage);
   if (!normalizedStage || !bayNumber) return '';
   const existingStart = vehicle && pmbBayNumber(vehicle, normalizedStage) === bayNumber ? parseIsoTimestamp(vehicle.pmbBayScheduledStartAt || '') : null;
   if (existingStart && !requestedStartIso) return existingStart.toISOString();
@@ -2779,7 +2820,7 @@ function assignPmbVehicleToBay(key, stage, bay, requestedStartIso = '') {
     window.alert('That vehicle is not currently in PMB. Transfer it from Yard Hold to PMB first.');
     return;
   }
-  const bayNumber = normalizePmbBayNumber(bay);
+  const bayNumber = normalizePmbBayNumber(bay, nextStage);
   const currentStage = normalizePmbStage(vehicle.pmbStage || vehicle.pdcWorkStage || vehicle.workStage || '');
   const now = nowIsoString();
   const bayLabel = bayNumber ? `Bay ${bayNumber}` : 'No bay';
@@ -5292,7 +5333,7 @@ function renderTvBoard() {
     const oldest = metrics.oldestStageDays ? `${metrics.oldestStageDays}d oldest` : 'No ageing';
     const className = metrics.overLimit ? 'over-limit' : metrics.blockedCount ? 'has-blocked' : metrics.atLimit ? 'at-limit' : 'normal';
     return `<article class="tv-lane-card ${escapeHtml(className)}">
-      <div><span>${escapeHtml(lane.label)}</span><strong>${vehicles.length}/${metrics.limit}</strong></div>
+      <div><span>${escapeHtml(lane.label)}</span><strong>${vehicles.length}/${escapeHtml(metrics.limitLabel)}</strong></div>
       <small>${escapeHtml(oldest)} · ${metrics.blockedCount} blocked · ${vehiclesWithRftGateIssues(vehicles).length} gate issue${vehiclesWithRftGateIssues(vehicles).length === 1 ? '' : 's'}</small>
     </article>`;
   }).join('');

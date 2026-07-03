@@ -3842,6 +3842,10 @@ body.pmb-dragging .pmb-drop-lane {
 }
 .pmb-bay-board-fabrication { border-top: 5px solid #f59e0b; }
 .pmb-bay-board-tint { border-top: 5px solid #06b6d4; }
+.pmb-bay-board-express_hoist { border-top: 5px solid #0ea5e9; }
+.pmb-bay-board-express_fitout { border-top: 5px solid #a855f7; }
+.pmb-bay-board-hoist { border-top: 5px solid #3b82f6; }
+.pmb-bay-board-fitting { border-top: 5px solid #8b5cf6; }
 .pmb-bay-board-build { border-top: 5px solid #8b5cf6; }
 .pmb-bay-board-electrical { border-top: 5px solid #22c55e; }
 .pmb-bay-board-sublet { border-top: 5px solid #64748b; }
