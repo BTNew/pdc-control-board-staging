@@ -6491,7 +6491,7 @@ body.pmb-schedule-adjusting .pmb-schedule-chip-slim {
 .incoming-vehicle-card[open] { box-shadow: 0 8px 22px rgba(15, 23, 42, .06); }
 .incoming-vehicle-summary {
   display: grid;
-  grid-template-columns: 14px 100px minmax(220px, 1.2fr) minmax(420px, 1.6fr) minmax(140px, .7fr) 100px 74px 150px;
+  grid-template-columns: 14px 100px minmax(220px, 1.2fr) minmax(420px, 1.6fr) minmax(140px, .7fr) 100px 74px 220px;
   gap: 10px;
   align-items: center;
   padding: 8px 10px;
@@ -6570,13 +6570,23 @@ body.pmb-schedule-adjusting .pmb-schedule-chip-slim {
 }
 .incoming-card-meta { display: grid; gap: 1px; font-size: .75rem; color: #334155; }
 .incoming-card-meta b { color: #94a3b8; font-size: .62rem; text-transform: uppercase; letter-spacing: .05em; }
-.incoming-card-action { display: flex; justify-content: flex-end; }
+.incoming-card-action { display: flex; justify-content: flex-end; gap: 6px; flex-wrap: wrap; }
 .incoming-card-action .primary,
 .incoming-card-action .small-button {
   padding: 6px 9px;
   border-radius: 8px;
   font-size: .72rem;
   white-space: nowrap;
+}
+.incoming-delete-button {
+  border-color: #fecaca;
+  background: #fff5f5;
+  color: #b91c1c;
+}
+.incoming-delete-button:hover {
+  background: #fee2e2;
+  border-color: #fca5a5;
+  color: #991b1b;
 }
 .incoming-vehicle-detail-grid {
   border-top: 1px solid #e5edf5;
@@ -6603,7 +6613,7 @@ body.pmb-schedule-adjusting .pmb-schedule-chip-slim {
 .incoming-transfer-pmb { background: #16a34a; box-shadow: 0 8px 18px rgba(22, 163, 74, .18); }
 .incoming-transfer-pmb:hover { background: #15803d; }
 @media (max-width: 1200px) {
-  .incoming-vehicle-summary { grid-template-columns: 14px 86px minmax(180px, 1fr) minmax(320px, 1.4fr) minmax(120px, .7fr) 90px 66px 132px; }
+  .incoming-vehicle-summary { grid-template-columns: 14px 86px minmax(180px, 1fr) minmax(320px, 1.4fr) minmax(120px, .7fr) 90px 66px 190px; }
   .incoming-vehicle-detail-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
 @media (max-width: 820px) {

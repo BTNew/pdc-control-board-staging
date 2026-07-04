@@ -1888,9 +1888,10 @@ function incomingVehicleDetailRow(vehicle = {}, bucketKey = '') {
   const age = pmbAgeLabel(vehicle);
   const workChecks = incomingWorkChecklistHtml(vehicle);
   const required = pmbRequiredWorkLabels(vehicle).join(', ') || 'No PMB work flagged';
-  const transferButton = bucketKey === 'yardhold'
+  const primaryAction = bucketKey === 'yardhold'
     ? `<button class="primary incoming-transfer-pmb" type="button" data-yh-transfer-pmb="${escapeHtml(key)}">Transfer YH → PMB</button>`
     : `<button class="small-button incoming-open-button" type="button" data-open-stock="${escapeHtml(key)}">Open vehicle</button>`;
+  const deleteAction = `<button class="small-button incoming-delete-button" type="button" data-incoming-delete="${escapeHtml(key)}" title="Delete this vehicle from the main screen">Delete</button>`;
   return `
     <details class="incoming-vehicle-card incoming-${escapeHtml(bucketKey)}-row" data-incoming-row="${escapeHtml(key)}">
       <summary class="incoming-vehicle-summary">
@@ -1903,7 +1904,7 @@ function incomingVehicleDetailRow(vehicle = {}, bucketKey = '') {
         <span class="incoming-card-status">${escapeHtml(truncate(status, 30))}</span>
         <span class="incoming-card-meta"><b>ETA</b>${escapeHtml(eta)}</span>
         <span class="incoming-card-meta"><b>Key</b>${escapeHtml(keyNo)}</span>
-        <span class="incoming-card-action">${transferButton}</span>
+        <span class="incoming-card-action">${primaryAction}${deleteAction}</span>
       </summary>
       <div class="incoming-vehicle-detail-grid">
         <div><b>Deal / Order</b><span>${escapeHtml(order)}</span></div>
@@ -1948,11 +1949,27 @@ function renderIncomingDashboardBoard() {
       <div class="incoming-bucket-list incoming-vertical-list">${shown}</div>
     </details>`;
   }).join('');
-  $$('[data-open-stock]', host).forEach(button => button.addEventListener('click', () => openVehicleModal(button.dataset.openStock)));
+  $$('[data-open-stock]', host).forEach(button => button.addEventListener('click', event => {
+    event.stopPropagation();
+    openVehicleModal(button.dataset.openStock);
+  }));
+  $$('[data-incoming-delete]', host).forEach(button => button.addEventListener('click', event => {
+    event.stopPropagation();
+    deleteIncomingVehicleFromMain(button.dataset.incomingDelete);
+  }));
   $$('[data-yh-transfer-pmb]', host).forEach(button => button.addEventListener('click', event => {
     event.stopPropagation();
     transferYhVehicleToPmb(button.dataset.yhTransferPmb);
   }));
+}
+
+function deleteIncomingVehicleFromMain(key = '') {
+  const vehicle = app.data.find(row => vehicleKey(row) === key || row.stock === key || row.order === key || row.id === key);
+  if (!vehicle) return;
+  const label = `${displayStockNumber(vehicle) || vehicle.order || 'No stock'} - ${vehicle.client || vehicle.toyotaCustomer || 'Unknown customer'}`;
+  if (!window.confirm(`Delete this vehicle from the main screen?\n\n${label}\n\nThis hides it from this browser's tracker and keeps the delete in local storage.`)) return;
+  removeVehiclesFromTracker([vehicle]);
+  refreshAfterVehicleRemoval();
 }
 
 function updateDashboardNavisionPasteButtons() {
