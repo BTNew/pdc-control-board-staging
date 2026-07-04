@@ -1405,6 +1405,8 @@ function bindNav() {
   $('#incoming-rep-filter')?.addEventListener('change', renderIncomingDashboardBoard);
   $('#incoming-find')?.addEventListener('click', renderIncomingDashboardBoard);
   $('#incoming-clear-filters')?.addEventListener('click', clearIncomingDashboardFilters);
+  $('#incoming-collapse-all')?.addEventListener('click', collapseMainScreenRows);
+  $('#workflow-collapse-all')?.addEventListener('click', collapseWorkflowRows);
   bindDashboardPdDropZone();
   $('#navision-pmb-only')?.addEventListener('change', updateNavisionImportButton);
   $('#import-navision')?.addEventListener('click', importNavisionVehicles);
@@ -1759,18 +1761,31 @@ function renderWorkflowBoard() {
     setupPmbScheduleClock();
     return;
   }
-  const stepsHtml = stats.steps.map(step => `
-    <article class="workflow-step workflow-${escapeHtml(step.state)}">
-      <div class="workflow-step-number">${escapeHtml(step.number)}</div>
-      <div class="workflow-step-body">
-        <span class="workflow-step-label">${escapeHtml(step.title)}</span>
-        <strong>${escapeHtml(step.count)}</strong>
-        <small>${escapeHtml(step.detail)}</small>
-        <p>${escapeHtml(step.rule)}</p>
-      </div>
-      <button class="small-button" type="button" data-workflow-action="${escapeHtml(step.target)}">${escapeHtml(step.action)}</button>
-    </article>
-  `).join('');
+  const pmbRows = workflowVehiclesForStep('pmb');
+  const stageDefs = [
+    { value: '', filter: PMB_STAGE_UNASSIGNED_FILTER, label: 'Unallocated', hint: 'PMB vehicles needing a category', open: true },
+    ...PMB_STAGE_DEFS.map(def => ({ ...def, filter: def.value, hint: `${pmbStageCapacityLabel(def.value)} · click Open bays for bay board`, open: true }))
+  ];
+  const bucketsHtml = stageDefs.map(def => {
+    const vehicles = pmbRows
+      .filter(vehicle => def.value ? inferredPmbStage(vehicle) === def.value : !inferredPmbStage(vehicle))
+      .sort((a, b) => (pmbStageAgeDays(b) ?? -1) - (pmbStageAgeDays(a) ?? -1) || String(displayStockNumber(a)).localeCompare(String(displayStockNumber(b))));
+    const metrics = pmbLaneMetrics(def.value, vehicles);
+    const stateClass = metrics.overLimit || metrics.blockedCount ? 'workflow-warning' : 'workflow-ready';
+    const bayAction = def.value
+      ? `<button class="small-button" type="button" data-workflow-action="${escapeHtml(def.filter)}">Open bays</button>`
+      : '';
+    const shown = vehicles.map(vehicle => incomingVehicleDetailRow(vehicle, 'workflow', { hideDelete: true })).join('') || '<div class="pmb-empty-drop">No PMB vehicles in this category</div>';
+    return `<details class="incoming-bucket workflow-stage-bucket ${stateClass}" open>
+      <summary class="incoming-bucket-title workflow-bucket-title">
+        <span>${escapeHtml(def.label)}</span>
+        <strong>${vehicles.length}</strong>
+        <small>${escapeHtml(def.hint)}${vehicles.length ? ` · oldest ${metrics.oldestStageDays}d${metrics.blockedCount ? ` · blocked ${metrics.blockedCount}` : ''}` : ''}</small>
+        <span class="workflow-bucket-actions">${bayAction}</span>
+      </summary>
+      <div class="incoming-bucket-list incoming-vertical-list workflow-vertical-list">${shown}</div>
+    </details>`;
+  }).join('');
   host.innerHTML = `
     <div class="workflow-summary-strip">
       <span><strong>${stats.total}</strong> PMB vehicles</span>
@@ -1778,9 +1793,16 @@ function renderWorkflowBoard() {
       <span><strong>${stats.pmbBlocked}</strong> PMB stoppage</span>
       <span><strong>${stats.gateIssues}</strong> RFT gate issue</span>
     </div>
-    <div class="workflow-step-grid">${stepsHtml}</div>
+    <div class="workflow-collapsible-board">${bucketsHtml}</div>
   `;
-  $$('[data-workflow-action]', host).forEach(button => button.addEventListener('click', () => workflowAction(button.dataset.workflowAction)));
+  $$('[data-workflow-action]', host).forEach(button => button.addEventListener('click', event => {
+    event.stopPropagation();
+    workflowAction(button.dataset.workflowAction);
+  }));
+  $$('[data-open-stock]', host).forEach(button => button.addEventListener('click', event => {
+    event.stopPropagation();
+    openVehicleModal(button.dataset.openStock);
+  }));
 }
 
 function incomingBucketForVehicle(vehicle = {}) {
@@ -1846,6 +1868,19 @@ function updateIncomingDashboardFilterOptions(rows = []) {
   setSelectOptions($('#incoming-rep-filter'), reps, 'All reps');
 }
 
+function collapseVehicleRowsWithin(host) {
+  if (!host) return;
+  $$('.incoming-vehicle-card', host).forEach(row => { row.open = false; });
+}
+
+function collapseMainScreenRows() {
+  collapseVehicleRowsWithin($('#incoming-main-board'));
+}
+
+function collapseWorkflowRows() {
+  collapseVehicleRowsWithin($('#workflow-board'));
+}
+
 function clearIncomingDashboardFilters() {
   ['#incoming-search', '#incoming-status-filter', '#incoming-bucket-filter', '#incoming-rep-filter'].forEach(selector => {
     const input = $(selector);
@@ -1872,7 +1907,7 @@ function incomingWorkChecklistHtml(vehicle = {}) {
   }).join('')}</div>`;
 }
 
-function incomingVehicleDetailRow(vehicle = {}, bucketKey = '') {
+function incomingVehicleDetailRow(vehicle = {}, bucketKey = '', options = {}) {
   const key = vehicleKey(vehicle);
   const eta = navisionEtaForVehicle(vehicle) || 'No ETA';
   const stock = displayStockNumber(vehicle) || vehicle.order || 'No stock';
@@ -1891,11 +1926,12 @@ function incomingVehicleDetailRow(vehicle = {}, bucketKey = '') {
   const primaryAction = bucketKey === 'yardhold'
     ? `<button class="primary incoming-transfer-pmb" type="button" data-yh-transfer-pmb="${escapeHtml(key)}">Transfer YH → PMB</button>`
     : `<button class="small-button incoming-open-button" type="button" data-open-stock="${escapeHtml(key)}">Open</button>`;
-  const deleteAction = `<button class="small-button incoming-delete-button" type="button" data-incoming-delete="${escapeHtml(key)}" title="Delete this vehicle from the main screen">Delete</button>`;
+  const deleteAction = options.hideDelete ? '' : `<button class="small-button incoming-delete-button" type="button" data-incoming-delete="${escapeHtml(key)}" title="Delete this vehicle from the main screen">Delete</button>`;
+  const keyBadge = keyNo && keyNo !== '—' ? `<small>Key ${escapeHtml(keyNo)}</small>` : '';
   return `
     <details class="incoming-vehicle-card incoming-${escapeHtml(bucketKey)}-row" data-incoming-row="${escapeHtml(key)}">
       <summary class="incoming-vehicle-summary">
-        <span class="incoming-card-stock">${escapeHtml(stock)}</span>
+        <span class="incoming-card-stock"><b>${escapeHtml(stock)}</b>${keyBadge}</span>
         <span class="incoming-card-main">
           <strong>${escapeHtml(truncate(customer, 46))}</strong>
           <small>${escapeHtml(truncate(unit, 72))}</small>
@@ -1903,11 +1939,12 @@ function incomingVehicleDetailRow(vehicle = {}, bucketKey = '') {
         <span class="incoming-card-work-wrap">${workChecks}</span>
         <span class="incoming-card-status">${escapeHtml(truncate(status, 30))}</span>
         <span class="incoming-card-meta"><b>ETA</b>${escapeHtml(eta)}</span>
-        <span class="incoming-card-meta"><b>Key</b>${escapeHtml(keyNo)}</span>
+        <span class="incoming-card-meta"><b>Order</b>${escapeHtml(order)}</span>
         <span class="incoming-card-action">${primaryAction}${deleteAction}</span>
       </summary>
       <div class="incoming-vehicle-detail-grid">
         <div><b>Deal / Order</b><span>${escapeHtml(order)}</span></div>
+        <div><b>Key number</b><span>${escapeHtml(keyNo)}</span></div>
         <div><b>Rego</b><span>${escapeHtml(rego)}</span></div>
         <div><b>VIN / Chassis</b><span>${escapeHtml(vin)}</span></div>
         <div><b>Sales rep</b><span>${escapeHtml(consultant)}</span></div>

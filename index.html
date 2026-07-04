@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Vehicle Tracking Core</title>
-  <link rel="stylesheet" href="styles.css?v=main-delete-2" />
+  <link rel="stylesheet" href="styles.css?v=workflow-collapsible-75" />
 </head>
 <body>
   <div class="app-shell" id="app-shell">
@@ -55,7 +55,8 @@
               <h2>Professional main vehicle list</h2>
               <p>Main screen: searchable, filterable vertical collapsible vehicle details in the order PMB, Yard Hold, In Transit, then Overseas/Other. Use Yard Hold rows to transfer straight to PMB.</p>
             </div>
-            <button class="small-button" type="button" data-view-target="workflow">Open PMB workflow</button>
+            <button class="small-button" id="incoming-collapse-all" type="button">Collapse all rows</button>
+              <button class="small-button" type="button" data-view-target="workflow">Open PMB workflow</button>
           </div>
           <div class="incoming-search-panel" aria-label="Main screen vehicle search and filters">
             <div class="incoming-filter-row primary-filter-row">
@@ -180,7 +181,10 @@
               <h2>PMB workflow board</h2>
               <p>Only vehicles currently at PMB. Click a PMB category to open its bay board.</p>
             </div>
-            <span class="badge neutral">PMB only</span>
+            <div class="panel-actions">
+              <button class="small-button" id="workflow-collapse-all" type="button">Collapse all rows</button>
+              <span class="badge neutral">PMB only</span>
+            </div>
           </div>
           <div class="workflow-board" id="workflow-board"></div>
         </section>
