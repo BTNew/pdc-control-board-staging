@@ -1877,17 +1877,17 @@ function updateIncomingDashboardFilterOptions(rows = []) {
   setSelectOptions($('#incoming-rep-filter'), reps, 'All reps');
 }
 
-function collapseVehicleRowsWithin(host) {
+function collapseDetailsWithin(host) {
   if (!host) return;
-  $$('.incoming-vehicle-card', host).forEach(row => { row.open = false; });
+  $$('details', host).forEach(row => { row.open = false; });
 }
 
 function collapseMainScreenRows() {
-  collapseVehicleRowsWithin($('#incoming-main-board'));
+  collapseDetailsWithin($('#incoming-main-board'));
 }
 
 function collapseWorkflowRows() {
-  collapseVehicleRowsWithin($('#workflow-board'));
+  collapseDetailsWithin($('#workflow-board'));
 }
 
 function clearIncomingDashboardFilters() {
