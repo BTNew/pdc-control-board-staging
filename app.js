@@ -1854,35 +1854,52 @@ function clearIncomingDashboardFilters() {
   renderIncomingDashboardBoard();
 }
 
+function pmbRequiredWorkLabels(vehicle = {}) {
+  return pdcRequirementDefinitions(vehicle).map(item => `${item.label}${pdcJobComplete(vehicle, item) ? ' done' : ' required'}`);
+}
+
 function incomingVehicleDetailRow(vehicle = {}, bucketKey = '') {
   const key = vehicleKey(vehicle);
   const eta = navisionEtaForVehicle(vehicle) || 'No ETA';
   const stock = displayStockNumber(vehicle) || vehicle.order || 'No stock';
   const customer = vehicle.client || vehicle.toyotaCustomer || 'Unknown customer';
+  const unit = displayVehicle(vehicle) || 'Vehicle not listed';
   const status = navisionStatusText(vehicle) || pdcLocationLabel(vehiclePdcLocation(vehicle)) || 'No status';
-  const order = vehicle.order || vehicle.toyotaOrder || vehicle.salesOrder || '';
-  const consultant = consultantName(vehicle) || vehicle.salesperson || vehicle.salesPerson || '';
+  const order = vehicle.order || vehicle.toyotaOrder || vehicle.salesOrder || '—';
+  const consultant = consultantName(vehicle) || vehicle.salesperson || vehicle.salesPerson || '—';
   const keyNo = vehicleKeyNumber(vehicle) || '—';
   const rego = vehicle.rego || vehicle.registration || '—';
+  const vin = vehicle.vin || vehicle.VIN || vehicle.chassis || vehicle.chassisNo || '—';
   const notes = vehicle.dealerComments || vehicle.navisionNotes || vehicle.notes || '';
+  const age = pmbAgeLabel(vehicle);
+  const required = pmbRequiredWorkLabels(vehicle).join(', ') || 'No PMB work flagged';
   const transferButton = bucketKey === 'yardhold'
-    ? `<button class="small-button primary incoming-transfer-pmb" type="button" data-yh-transfer-pmb="${escapeHtml(key)}">Transfer YH → PMB</button>`
-    : `<button class="small-button incoming-open-button" type="button" data-open-stock="${escapeHtml(key)}">Open</button>`;
+    ? `<button class="primary incoming-transfer-pmb" type="button" data-yh-transfer-pmb="${escapeHtml(key)}">Transfer YH → PMB</button>`
+    : `<button class="small-button incoming-open-button" type="button" data-open-stock="${escapeHtml(key)}">Open vehicle</button>`;
   return `
-    <article class="incoming-detail-row incoming-crm-row" data-incoming-row="${escapeHtml(key)}">
-      <button class="incoming-row-menu" type="button" data-open-stock="${escapeHtml(key)}" title="Open vehicle">☰</button>
-      <button class="incoming-row-link incoming-stock-cell" type="button" data-open-stock="${escapeHtml(key)}" title="Open vehicle">${escapeHtml(stock)}</button>
-      <span class="incoming-order-cell">${escapeHtml(order || '—')}</span>
-      <span class="incoming-key-cell">${escapeHtml(keyNo)}</span>
-      <span class="incoming-rego-cell">${escapeHtml(rego)}</span>
-      <button class="incoming-row-link incoming-customer-cell" type="button" data-open-stock="${escapeHtml(key)}" title="Open vehicle">${escapeHtml(truncate(customer, 42))}</button>
-      <span class="incoming-unit-cell" title="${escapeHtml(displayVehicle(vehicle))}">${escapeHtml(truncate(displayVehicle(vehicle), 54))}</span>
-      <span class="incoming-status-cell">${escapeHtml(truncate(status, 34))}</span>
-      <span class="incoming-rep-cell">${escapeHtml(truncate(consultant || '—', 16))}</span>
-      <span class="incoming-eta-cell">${escapeHtml(eta)}</span>
-      <span class="incoming-notes-cell" title="${escapeHtml(notes)}">${escapeHtml(truncate(notes || '—', 40))}</span>
-      <span class="incoming-action-cell">${transferButton}</span>
-    </article>`;
+    <details class="incoming-vehicle-card incoming-${escapeHtml(bucketKey)}-row" data-incoming-row="${escapeHtml(key)}">
+      <summary class="incoming-vehicle-summary">
+        <span class="incoming-card-stock">${escapeHtml(stock)}</span>
+        <span class="incoming-card-main">
+          <strong>${escapeHtml(truncate(customer, 46))}</strong>
+          <small>${escapeHtml(truncate(unit, 72))}</small>
+        </span>
+        <span class="incoming-card-status">${escapeHtml(truncate(status, 30))}</span>
+        <span class="incoming-card-meta"><b>ETA</b>${escapeHtml(eta)}</span>
+        <span class="incoming-card-meta"><b>Key</b>${escapeHtml(keyNo)}</span>
+        <span class="incoming-card-action">${transferButton}</span>
+      </summary>
+      <div class="incoming-vehicle-detail-grid">
+        <div><b>Deal / Order</b><span>${escapeHtml(order)}</span></div>
+        <div><b>Rego</b><span>${escapeHtml(rego)}</span></div>
+        <div><b>VIN / Chassis</b><span>${escapeHtml(vin)}</span></div>
+        <div><b>Sales rep</b><span>${escapeHtml(consultant)}</span></div>
+        <div><b>Age</b><span>${escapeHtml(age)}</span></div>
+        <div><b>Bucket</b><span>${escapeHtml(incomingBucketLabel(bucketKey))}</span></div>
+        <div class="wide"><b>PMB work required</b><span>${escapeHtml(required)}</span></div>
+        <div class="wide"><b>Notes</b><span>${escapeHtml(notes || '—')}</span></div>
+      </div>
+    </details>`;
 }
 
 function renderIncomingDashboardBoard() {
@@ -1907,13 +1924,12 @@ function renderIncomingDashboardBoard() {
     if (filters.bucket && filters.bucket !== def.key) return '';
     const vehicles = filteredRows.filter(vehicle => incomingBucketForVehicle(vehicle) === def.key)
       .sort((a, b) => (parseDateAU(navisionEtaForVehicle(a))?.getTime() || 9999999999999) - (parseDateAU(navisionEtaForVehicle(b))?.getTime() || 9999999999999));
-    const header = `<div class="incoming-list-header" aria-hidden="true"><span></span><span>Stock</span><span>Deal/Order</span><span>Key</span><span>Rego</span><span>Customer Name</span><span>Unit Description</span><span>Status</span><span>Rep</span><span>ETA</span><span>Notes</span><span>Action</span></div>`;
     const shown = vehicles.map(vehicle => incomingVehicleDetailRow(vehicle, def.key)).join('') || '<div class="pmb-empty-drop">No vehicles match the current filters</div>';
     return `<details class="incoming-bucket incoming-${escapeHtml(def.key)}" ${def.open ? 'open' : ''}>
       <summary class="incoming-bucket-title">
         <span>${escapeHtml(def.label)}</span><strong>${vehicles.length}</strong><small>${escapeHtml(def.hint)}</small>
       </summary>
-      <div class="incoming-bucket-list incoming-crm-list">${header}${shown}</div>
+      <div class="incoming-bucket-list incoming-vertical-list">${shown}</div>
     </details>`;
   }).join('');
   $$('[data-open-stock]', host).forEach(button => button.addEventListener('click', () => openVehicleModal(button.dataset.openStock)));
