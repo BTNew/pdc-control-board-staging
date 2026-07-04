@@ -55,8 +55,10 @@
               <h2>Professional main vehicle list</h2>
               <p>Main screen: searchable, filterable vertical collapsible vehicle details in the order PMB, Yard Hold, In Transit, then Overseas/Other. Use Yard Hold rows to transfer straight to PMB.</p>
             </div>
-            <button class="small-button" id="incoming-collapse-all" type="button">Collapse all rows</button>
+            <div class="panel-actions">
+              <button class="small-button" id="incoming-collapse-all" type="button">Collapse all rows</button>
               <button class="small-button" type="button" data-view-target="workflow">Open PMB workflow</button>
+            </div>
           </div>
           <div class="incoming-search-panel" aria-label="Main screen vehicle search and filters">
             <div class="incoming-filter-row primary-filter-row">
@@ -86,6 +88,15 @@
               <button class="small-button" id="incoming-clear-filters" type="button">Clear</button>
             </div>
             <div class="incoming-filter-meta" id="incoming-filter-summary">All active incoming vehicles</div>
+          </div>
+          <div class="inline-selection-bar" id="incoming-selection-bar" aria-live="polite">
+            <strong id="incoming-selection-count">0 selected</strong>
+            <span class="subtle">Tick vehicles below to bulk transfer Yard Hold to PMB or delete selected rows.</span>
+            <div class="inline-selection-actions">
+              <button class="small-button primary" id="incoming-transfer-selected-pmb" type="button" disabled>Transfer selected YH → PMB</button>
+              <button class="small-button danger-button" id="incoming-delete-selected" type="button" disabled>Delete selected</button>
+              <button class="small-button" id="incoming-clear-selected" type="button" disabled>Clear selected</button>
+            </div>
           </div>
           <div class="incoming-board" id="incoming-main-board"></div>
         </section>
@@ -184,6 +195,15 @@
             <div class="panel-actions">
               <button class="small-button" id="workflow-collapse-all" type="button">Collapse all rows</button>
               <span class="badge neutral">PMB only</span>
+            </div>
+          </div>
+          <div class="inline-selection-bar" id="workflow-selection-bar" aria-live="polite">
+            <strong id="workflow-selection-count">0 selected</strong>
+            <span class="subtle">Tick PMB vehicles below to transfer selected vehicles to RFT or delete selected rows.</span>
+            <div class="inline-selection-actions">
+              <button class="small-button primary" id="workflow-transfer-selected-rft" type="button" disabled>Transfer selected to RFT</button>
+              <button class="small-button danger-button" id="workflow-delete-selected" type="button" disabled>Delete selected</button>
+              <button class="small-button" id="workflow-clear-selected" type="button" disabled>Clear selected</button>
             </div>
           </div>
           <div class="workflow-board" id="workflow-board"></div>

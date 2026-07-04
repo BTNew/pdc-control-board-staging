@@ -1407,6 +1407,12 @@ function bindNav() {
   $('#incoming-clear-filters')?.addEventListener('click', clearIncomingDashboardFilters);
   $('#incoming-collapse-all')?.addEventListener('click', collapseMainScreenRows);
   $('#workflow-collapse-all')?.addEventListener('click', collapseWorkflowRows);
+  $('#incoming-transfer-selected-pmb')?.addEventListener('click', transferSelectedMainYhVehiclesToPmb);
+  $('#incoming-delete-selected')?.addEventListener('click', deleteSelectedVehicles);
+  $('#incoming-clear-selected')?.addEventListener('click', clearSelectedRows);
+  $('#workflow-transfer-selected-rft')?.addEventListener('click', transferSelectedPmbVehiclesToRft);
+  $('#workflow-delete-selected')?.addEventListener('click', deleteSelectedVehicles);
+  $('#workflow-clear-selected')?.addEventListener('click', clearSelectedRows);
   bindDashboardPdDropZone();
   $('#navision-pmb-only')?.addEventListener('change', updateNavisionImportButton);
   $('#import-navision')?.addEventListener('click', importNavisionVehicles);
@@ -1759,6 +1765,7 @@ function renderWorkflowBoard() {
     host.innerHTML = renderPmbBayBoardHtml(activeStationStage);
     bindPmbDragBoard(host);
     setupPmbScheduleClock();
+    updateInlineSelectionBars();
     return;
   }
   const pmbRows = workflowVehiclesForStep('pmb');
@@ -1803,6 +1810,8 @@ function renderWorkflowBoard() {
     event.stopPropagation();
     openVehicleModal(button.dataset.openStock);
   }));
+  bindIncomingCardSelection(host);
+  updateInlineSelectionBars(pmbRows);
 }
 
 function incomingBucketForVehicle(vehicle = {}) {
@@ -1928,9 +1937,11 @@ function incomingVehicleDetailRow(vehicle = {}, bucketKey = '', options = {}) {
     : `<button class="small-button incoming-open-button" type="button" data-open-stock="${escapeHtml(key)}">Open</button>`;
   const deleteAction = options.hideDelete ? '' : `<button class="small-button incoming-delete-button" type="button" data-incoming-delete="${escapeHtml(key)}" title="Delete this vehicle from the main screen">Delete</button>`;
   const keyBadge = keyNo && keyNo !== '—' ? `<small>Key ${escapeHtml(keyNo)}</small>` : '';
+  const selectBox = `<label class="incoming-card-select" title="Select ${escapeHtml(stock)}"><input type="checkbox" data-select-stock="${escapeHtml(key)}" ${app.selectedRows.has(key) ? 'checked' : ''} /><span aria-hidden="true"></span></label>`;
   return `
-    <details class="incoming-vehicle-card incoming-${escapeHtml(bucketKey)}-row" data-incoming-row="${escapeHtml(key)}">
+    <details class="incoming-vehicle-card incoming-${escapeHtml(bucketKey)}-row ${app.selectedRows.has(key) ? 'is-selected' : ''}" data-incoming-row="${escapeHtml(key)}">
       <summary class="incoming-vehicle-summary">
+        ${selectBox}
         <span class="incoming-card-stock"><b>${escapeHtml(stock)}</b>${keyBadge}</span>
         <span class="incoming-card-main">
           <strong>${escapeHtml(truncate(customer, 46))}</strong>
@@ -1998,6 +2009,66 @@ function renderIncomingDashboardBoard() {
     event.stopPropagation();
     transferYhVehicleToPmb(button.dataset.yhTransferPmb);
   }));
+  bindIncomingCardSelection(host);
+  updateInlineSelectionBars(filteredRows);
+}
+
+function bindIncomingCardSelection(host = document) {
+  $$('[data-select-stock]', host).forEach(input => input.addEventListener('click', event => event.stopPropagation()));
+  $$('[data-select-stock]', host).forEach(input => input.addEventListener('change', event => {
+    const key = input.dataset.selectStock;
+    if (!key) return;
+    if (input.checked) app.selectedRows.add(key);
+    else app.selectedRows.delete(key);
+    const card = input.closest('.incoming-vehicle-card');
+    if (card) card.classList.toggle('is-selected', input.checked);
+    updateInlineSelectionBars();
+    updateBulkSelectionPanel();
+  }));
+}
+
+function updateInlineSelectionBars(visibleRows = []) {
+  const validKeys = new Set(app.data.map(vehicleKey));
+  [...app.selectedRows].forEach(key => { if (!validKeys.has(key)) app.selectedRows.delete(key); });
+  const selected = selectedVehiclesForBulkEmail();
+  const count = selected.length;
+  const yhCount = selected.filter(canTransferVehicleToPmb).length;
+  const pmbCount = selected.filter(vehicle => statusCategory(vehicle) === 'pmb').length;
+  const gateIssueRows = vehiclesWithRftGateIssues(selected);
+  ['incoming-selection-bar', 'workflow-selection-bar'].forEach(id => {
+    const bar = $(`#${id}`);
+    if (bar) bar.classList.toggle('active', count > 0);
+  });
+  const incomingCount = $('#incoming-selection-count');
+  if (incomingCount) incomingCount.textContent = `${count} selected`;
+  const workflowCount = $('#workflow-selection-count');
+  if (workflowCount) workflowCount.textContent = `${count} selected`;
+  const incomingTransfer = $('#incoming-transfer-selected-pmb');
+  if (incomingTransfer) {
+    incomingTransfer.disabled = !(count > 0 && yhCount === count);
+    incomingTransfer.title = !count ? 'Select one or more Yard Hold vehicles first' : yhCount === count ? `Transfer ${count} selected Yard Hold vehicle${count === 1 ? '' : 's'} to PMB` : 'Only Yard Hold vehicles can be transferred to PMB';
+  }
+  const workflowTransfer = $('#workflow-transfer-selected-rft');
+  if (workflowTransfer) {
+    workflowTransfer.disabled = !(count > 0 && pmbCount === count && gateIssueRows.length === 0);
+    workflowTransfer.title = !count ? 'Select one or more PMB vehicles first' : pmbCount !== count ? 'Only PMB vehicles can transfer to RFT' : gateIssueRows.length ? 'RFT locked: all required boxes must be signed off first' : `Transfer ${count} selected PMB vehicle${count === 1 ? '' : 's'} to RFT`;
+  }
+  ['incoming-delete-selected', 'workflow-delete-selected', 'incoming-clear-selected', 'workflow-clear-selected'].forEach(id => {
+    const button = $(`#${id}`);
+    if (button) button.disabled = count === 0;
+  });
+}
+
+async function transferSelectedMainYhVehiclesToPmb() {
+  const selected = selectedVehiclesForBulkEmail();
+  if (!selected.length) return;
+  const notYh = selected.filter(vehicle => !canTransferVehicleToPmb(vehicle));
+  if (notYh.length) {
+    window.alert('Only Yard Hold vehicles can be transferred to PMB from the main screen. Untick any PMB, transit or overseas rows first.');
+    return;
+  }
+  await transferVehiclesToPmb(selected);
+  updateInlineSelectionBars();
 }
 
 function deleteIncomingVehicleFromMain(key = '') {
@@ -2256,6 +2327,7 @@ function renderPmbBranchTiles() {
     host.innerHTML = renderPmbBayBoardHtml(activeStationStage);
     bindPmbDragBoard(host);
     setupPmbScheduleClock();
+    updateInlineSelectionBars();
     return;
   }
   const pmbRows = filteredPmbVehiclesIgnoringSubFilter();
@@ -4281,7 +4353,8 @@ function updateBulkSelectionPanel(visibleRows = []) {
 
 function clearSelectedRows() {
   app.selectedRows.clear();
-  renderVehicleTable();
+  renderAll();
+  updateInlineSelectionBars();
 }
 
 function deleteSelectedVehicles() {
@@ -4293,6 +4366,7 @@ function deleteSelectedVehicles() {
   if (!window.confirm(`Delete ${label} from the tracker?\n\n${preview}${more}\n\nThis hides them from the prototype and keeps the delete list in this browser.`)) return;
 
   removeVehiclesFromTracker(vehicles);
+  app.selectedRows.clear();
   refreshAfterVehicleRemoval();
 }
 
