@@ -52,10 +52,39 @@
         <section class="panel span-12 incoming-board-panel">
           <div class="panel-header">
             <div>
-              <h2>Incoming vehicle board</h2>
-              <p>Main screen only: vertical collapsible detail lists in the order PMB, Yard Hold, In Transit, then Overseas/Other. Use the YH rows to transfer straight to PMB.</p>
+              <h2>Deal Maintenance style vehicle list</h2>
+              <p>Main screen: searchable, filterable vertical detail lists in the order PMB, Yard Hold, In Transit, then Overseas/Other. Use Yard Hold rows to transfer straight to PMB.</p>
             </div>
             <button class="small-button" type="button" data-view-target="workflow">Open PMB workflow</button>
+          </div>
+          <div class="incoming-search-panel" aria-label="Main screen vehicle search and filters">
+            <div class="incoming-filter-row primary-filter-row">
+              <label>
+                <span>Name / Stock / Key</span>
+                <input id="incoming-search" type="search" placeholder="Customer, stock, order, rego, key number, vehicle..." />
+              </label>
+              <label>
+                <span>Status</span>
+                <select id="incoming-status-filter"><option value="">All statuses</option></select>
+              </label>
+              <label>
+                <span>Bucket</span>
+                <select id="incoming-bucket-filter">
+                  <option value="">All buckets</option>
+                  <option value="pmb">PMB</option>
+                  <option value="yardhold">Yard Hold</option>
+                  <option value="transit">In Transit</option>
+                  <option value="overseas">Overseas / Other</option>
+                </select>
+              </label>
+              <label>
+                <span>Sales rep</span>
+                <select id="incoming-rep-filter"><option value="">All reps</option></select>
+              </label>
+              <button class="primary incoming-find-button" id="incoming-find" type="button">Find</button>
+              <button class="small-button" id="incoming-clear-filters" type="button">Clear</button>
+            </div>
+            <div class="incoming-filter-meta" id="incoming-filter-summary">All active incoming vehicles</div>
           </div>
           <div class="incoming-board" id="incoming-main-board"></div>
         </section>

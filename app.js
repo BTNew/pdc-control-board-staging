@@ -1399,6 +1399,12 @@ function bindNav() {
   $('#dashboard-pd-upload')?.addEventListener('change', handleDashboardPdFileSelect);
   $('#dashboard-import-pd')?.addEventListener('click', importDashboardPdWork);
   $('#dashboard-clear-pd')?.addEventListener('click', clearDashboardPdImport);
+  $('#incoming-search')?.addEventListener('input', renderIncomingDashboardBoard);
+  $('#incoming-status-filter')?.addEventListener('change', renderIncomingDashboardBoard);
+  $('#incoming-bucket-filter')?.addEventListener('change', renderIncomingDashboardBoard);
+  $('#incoming-rep-filter')?.addEventListener('change', renderIncomingDashboardBoard);
+  $('#incoming-find')?.addEventListener('click', renderIncomingDashboardBoard);
+  $('#incoming-clear-filters')?.addEventListener('click', clearIncomingDashboardFilters);
   bindDashboardPdDropZone();
   $('#navision-pmb-only')?.addEventListener('change', updateNavisionImportButton);
   $('#import-navision')?.addEventListener('click', importNavisionVehicles);
@@ -1787,6 +1793,67 @@ function incomingBucketForVehicle(vehicle = {}) {
   return 'overseas';
 }
 
+function incomingBucketLabel(bucketKey = '') {
+  return ({ pmb: 'PMB', yardhold: 'Yard Hold', transit: 'In Transit', overseas: 'Overseas / Other' })[bucketKey] || bucketKey || 'Other';
+}
+
+function incomingSearchText(vehicle = {}, bucketKey = '') {
+  return [
+    displayStockNumber(vehicle), vehicle.stock, vehicle.batch, vehicle.order, vehicle.toyotaOrder, vehicle.salesOrder,
+    vehicleKeyNumber(vehicle), vehicle.rego, vehicle.registration, vehicle.client, vehicle.toyotaCustomer,
+    vehicle.vehicle, vehicle.toyotaVehicle, displayVehicle(vehicle), navisionStatusText(vehicle), incomingBucketLabel(bucketKey),
+    vehicle.consultant, vehicle.salesperson, vehicle.salesPerson, vehicle.owner, vehicle.navisionNotes, vehicle.dealerComments,
+    vehicle.notes, vehicle.keyNumber, vehicle.keyNo, vehicle.pmbKeyNumber, vehicle.vehicleKeyNumber,
+  ].filter(Boolean).join(' ').toLowerCase();
+}
+
+function incomingDashboardFilterValues() {
+  return {
+    search: String($('#incoming-search')?.value || '').trim().toLowerCase(),
+    status: String($('#incoming-status-filter')?.value || '').trim(),
+    bucket: String($('#incoming-bucket-filter')?.value || '').trim(),
+    rep: String($('#incoming-rep-filter')?.value || '').trim(),
+  };
+}
+
+function incomingVehicleMatchesFilters(vehicle = {}, filters = incomingDashboardFilterValues()) {
+  const bucket = incomingBucketForVehicle(vehicle);
+  if (!bucket) return false;
+  const status = navisionStatusText(vehicle) || pdcLocationLabel(vehiclePdcLocation(vehicle)) || '';
+  const rep = consultantName(vehicle) || vehicle.salesperson || vehicle.salesPerson || '';
+  if (filters.bucket && bucket !== filters.bucket) return false;
+  if (filters.status && status !== filters.status) return false;
+  if (filters.rep && rep !== filters.rep) return false;
+  if (filters.search && !incomingSearchText(vehicle, bucket).includes(filters.search)) return false;
+  return true;
+}
+
+function setSelectOptions(select, options = [], placeholder = 'All') {
+  if (!select) return;
+  const current = select.value;
+  select.innerHTML = `<option value="">${escapeHtml(placeholder)}</option>` + options
+    .filter(Boolean)
+    .sort((a, b) => String(a).localeCompare(String(b), undefined, { sensitivity: 'base' }))
+    .map(value => `<option value="${escapeHtml(value)}">${escapeHtml(value)}</option>`)
+    .join('');
+  if (options.includes(current)) select.value = current;
+}
+
+function updateIncomingDashboardFilterOptions(rows = []) {
+  const statuses = [...new Set(rows.map(vehicle => navisionStatusText(vehicle) || pdcLocationLabel(vehiclePdcLocation(vehicle)) || '').filter(Boolean))];
+  const reps = [...new Set(rows.map(vehicle => consultantName(vehicle) || vehicle.salesperson || vehicle.salesPerson || '').filter(Boolean))];
+  setSelectOptions($('#incoming-status-filter'), statuses, 'All statuses');
+  setSelectOptions($('#incoming-rep-filter'), reps, 'All reps');
+}
+
+function clearIncomingDashboardFilters() {
+  ['#incoming-search', '#incoming-status-filter', '#incoming-bucket-filter', '#incoming-rep-filter'].forEach(selector => {
+    const input = $(selector);
+    if (input) input.value = '';
+  });
+  renderIncomingDashboardBoard();
+}
+
 function incomingVehicleDetailRow(vehicle = {}, bucketKey = '') {
   const key = vehicleKey(vehicle);
   const eta = navisionEtaForVehicle(vehicle) || 'No ETA';
@@ -1794,26 +1861,27 @@ function incomingVehicleDetailRow(vehicle = {}, bucketKey = '') {
   const customer = vehicle.client || vehicle.toyotaCustomer || 'Unknown customer';
   const status = navisionStatusText(vehicle) || pdcLocationLabel(vehiclePdcLocation(vehicle)) || 'No status';
   const order = vehicle.order || vehicle.toyotaOrder || vehicle.salesOrder || '';
-  const consultant = vehicle.consultant || vehicle.salesperson || vehicle.salesPerson || '';
+  const consultant = consultantName(vehicle) || vehicle.salesperson || vehicle.salesPerson || '';
+  const keyNo = vehicleKeyNumber(vehicle) || '—';
+  const rego = vehicle.rego || vehicle.registration || '—';
   const notes = vehicle.dealerComments || vehicle.navisionNotes || vehicle.notes || '';
   const transferButton = bucketKey === 'yardhold'
     ? `<button class="small-button primary incoming-transfer-pmb" type="button" data-yh-transfer-pmb="${escapeHtml(key)}">Transfer YH → PMB</button>`
-    : '';
+    : `<button class="small-button incoming-open-button" type="button" data-open-stock="${escapeHtml(key)}">Open</button>`;
   return `
-    <article class="incoming-detail-row" data-incoming-row="${escapeHtml(key)}">
-      <button class="incoming-row-open" type="button" data-open-stock="${escapeHtml(key)}" title="Open vehicle">
-        <strong>${escapeHtml(stock)}</strong>
-        <span>${escapeHtml(truncate(customer, 34))}</span>
-        <small>${escapeHtml(truncate(displayVehicle(vehicle), 42))}</small>
-        <em>${escapeHtml(eta)}</em>
-      </button>
-      <div class="incoming-row-details">
-        <span><b>Status</b>${escapeHtml(truncate(status, 42))}</span>
-        <span><b>Order</b>${escapeHtml(order || '—')}</span>
-        <span><b>Consultant</b>${escapeHtml(truncate(consultant || '—', 24))}</span>
-        <span><b>Notes</b>${escapeHtml(truncate(notes || '—', 48))}</span>
-      </div>
-      ${transferButton}
+    <article class="incoming-detail-row incoming-crm-row" data-incoming-row="${escapeHtml(key)}">
+      <button class="incoming-row-menu" type="button" data-open-stock="${escapeHtml(key)}" title="Open vehicle">☰</button>
+      <button class="incoming-row-link incoming-stock-cell" type="button" data-open-stock="${escapeHtml(key)}" title="Open vehicle">${escapeHtml(stock)}</button>
+      <span class="incoming-order-cell">${escapeHtml(order || '—')}</span>
+      <span class="incoming-key-cell">${escapeHtml(keyNo)}</span>
+      <span class="incoming-rego-cell">${escapeHtml(rego)}</span>
+      <button class="incoming-row-link incoming-customer-cell" type="button" data-open-stock="${escapeHtml(key)}" title="Open vehicle">${escapeHtml(truncate(customer, 42))}</button>
+      <span class="incoming-unit-cell" title="${escapeHtml(displayVehicle(vehicle))}">${escapeHtml(truncate(displayVehicle(vehicle), 54))}</span>
+      <span class="incoming-status-cell">${escapeHtml(truncate(status, 34))}</span>
+      <span class="incoming-rep-cell">${escapeHtml(truncate(consultant || '—', 16))}</span>
+      <span class="incoming-eta-cell">${escapeHtml(eta)}</span>
+      <span class="incoming-notes-cell" title="${escapeHtml(notes)}">${escapeHtml(truncate(notes || '—', 40))}</span>
+      <span class="incoming-action-cell">${transferButton}</span>
     </article>`;
 }
 
@@ -1821,6 +1889,14 @@ function renderIncomingDashboardBoard() {
   const host = $('#incoming-main-board');
   if (!host) return;
   const rows = app.data.filter(vehicle => incomingBucketForVehicle(vehicle));
+  updateIncomingDashboardFilterOptions(rows);
+  const filters = incomingDashboardFilterValues();
+  const filteredRows = rows.filter(vehicle => incomingVehicleMatchesFilters(vehicle, filters));
+  const summary = $('#incoming-filter-summary');
+  if (summary) {
+    const active = [filters.search && `search “${filters.search}”`, filters.status, filters.bucket && incomingBucketLabel(filters.bucket), filters.rep].filter(Boolean);
+    summary.textContent = `${filteredRows.length} of ${rows.length} vehicles shown${active.length ? ` · ${active.join(' · ')}` : ''}`;
+  }
   const defs = [
     { key: 'pmb', label: 'PMB', hint: 'Vehicles currently at PMB', open: true },
     { key: 'yardhold', label: 'Yard Hold', hint: 'Yard Hold vehicles — release to PMB from here', open: true },
@@ -1828,14 +1904,16 @@ function renderIncomingDashboardBoard() {
     { key: 'overseas', label: 'Overseas / Other', hint: 'All other non-RFT vehicles not yet in transit/YH/PMB', open: true },
   ];
   host.innerHTML = defs.map(def => {
-    const vehicles = rows.filter(vehicle => incomingBucketForVehicle(vehicle) === def.key)
+    if (filters.bucket && filters.bucket !== def.key) return '';
+    const vehicles = filteredRows.filter(vehicle => incomingBucketForVehicle(vehicle) === def.key)
       .sort((a, b) => (parseDateAU(navisionEtaForVehicle(a))?.getTime() || 9999999999999) - (parseDateAU(navisionEtaForVehicle(b))?.getTime() || 9999999999999));
-    const shown = vehicles.map(vehicle => incomingVehicleDetailRow(vehicle, def.key)).join('') || '<div class="pmb-empty-drop">No vehicles</div>';
+    const header = `<div class="incoming-list-header" aria-hidden="true"><span></span><span>Stock</span><span>Deal/Order</span><span>Key</span><span>Rego</span><span>Customer Name</span><span>Unit Description</span><span>Status</span><span>Rep</span><span>ETA</span><span>Notes</span><span>Action</span></div>`;
+    const shown = vehicles.map(vehicle => incomingVehicleDetailRow(vehicle, def.key)).join('') || '<div class="pmb-empty-drop">No vehicles match the current filters</div>';
     return `<details class="incoming-bucket incoming-${escapeHtml(def.key)}" ${def.open ? 'open' : ''}>
       <summary class="incoming-bucket-title">
         <span>${escapeHtml(def.label)}</span><strong>${vehicles.length}</strong><small>${escapeHtml(def.hint)}</small>
       </summary>
-      <div class="incoming-bucket-list">${shown}</div>
+      <div class="incoming-bucket-list incoming-crm-list">${header}${shown}</div>
     </details>`;
   }).join('');
   $$('[data-open-stock]', host).forEach(button => button.addEventListener('click', () => openVehicleModal(button.dataset.openStock)));
