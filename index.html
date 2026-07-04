@@ -53,7 +53,7 @@
           <div class="panel-header">
             <div>
               <h2>Incoming vehicle board</h2>
-              <p>Main screen only: vertical collapsible detail lists for vehicles not at PMB/RFT, split into Production, In Transit / Coming In, and Yard Hold. Use the YH rows to transfer straight to PMB.</p>
+              <p>Main screen only: vertical collapsible detail lists in the order PMB, Yard Hold, In Transit, then Overseas/Other. Use the YH rows to transfer straight to PMB.</p>
             </div>
             <button class="small-button" type="button" data-view-target="workflow">Open PMB workflow</button>
           </div>
@@ -72,6 +72,27 @@
             </div>
           </div>
           <textarea id="dashboard-navision-paste" class="quick-navision-textarea" rows="5" spellcheck="false" placeholder="Order&#9;Batch&#9;Production Month&#9;Model Description&#9;Sub Location Description&#9;ETA At Kewdale Yard..."></textarea>
+        </section>
+        <section class="panel span-12 pd-import-panel">
+          <div class="panel-header compact">
+            <div>
+              <h2>Quick import PD check-form</h2>
+              <p>Drop a PD check-form PDF or paste its text to attach accessories/build work to the matching vehicle.</p>
+            </div>
+            <div class="panel-actions">
+              <button class="primary" id="dashboard-import-pd" type="button" disabled>Import PD work</button>
+              <button class="small-button" id="dashboard-clear-pd" type="button" disabled>Clear</button>
+            </div>
+          </div>
+          <div class="pd-import-grid">
+            <label class="drop-zone pd-drop-zone" id="dashboard-pd-drop">
+              <input id="dashboard-pd-upload" type="file" accept=".pdf,.txt,text/plain,application/pdf" multiple />
+              <strong>Drop PD PDF here</strong>
+              <span>or click to choose files</span>
+            </label>
+            <textarea id="dashboard-pd-paste" class="quick-navision-textarea" rows="5" spellcheck="false" placeholder="Paste PD check-form text here..."></textarea>
+          </div>
+          <div id="dashboard-pd-status" class="po-status-list pd-status-list"></div>
         </section>
         <div class="pmb-branch-grid" id="pmb-branch-grid" hidden></div>
         <section class="panel span-12 legacy-incoming-table-panel" hidden>

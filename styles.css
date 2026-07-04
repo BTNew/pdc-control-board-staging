@@ -750,6 +750,26 @@ input:focus, select:focus, textarea:focus { border-color: #94a3b8; box-shadow: 0
 .incoming-transfer-pmb { white-space: nowrap; }
 .incoming-more { padding: 6px 8px; color: var(--muted); font-size: .75rem; font-weight: 800; }
 .quick-navision-textarea { width: 100%; min-height: 110px; resize: vertical; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: .82rem; }
+.pd-import-grid {
+  display: grid;
+  grid-template-columns: minmax(220px, .42fr) minmax(280px, 1fr);
+  gap: 12px;
+  align-items: stretch;
+}
+.pd-drop-zone {
+  min-height: 110px;
+  padding: 14px;
+}
+.pd-drop-zone.is-dragover {
+  border-color: var(--toyota-red);
+  background: #fff1f2;
+}
+.pd-status-list {
+  margin-top: 10px;
+}
+@media (max-width: 820px) {
+  .pd-import-grid { grid-template-columns: 1fr; }
+}
 @media (max-width: 1100px) {
   .incoming-detail-row { grid-template-columns: 1fr; }
   .incoming-row-details { grid-template-columns: repeat(2, minmax(0, 1fr)); }

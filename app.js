@@ -1395,6 +1395,11 @@ function bindNav() {
   $('#dashboard-navision-paste')?.addEventListener('input', updateDashboardNavisionPasteButtons);
   $('#dashboard-import-navision')?.addEventListener('click', importDashboardNavisionPaste);
   $('#dashboard-clear-navision')?.addEventListener('click', clearDashboardNavisionPaste);
+  $('#dashboard-pd-paste')?.addEventListener('input', updateDashboardPdImportButtons);
+  $('#dashboard-pd-upload')?.addEventListener('change', handleDashboardPdFileSelect);
+  $('#dashboard-import-pd')?.addEventListener('click', importDashboardPdWork);
+  $('#dashboard-clear-pd')?.addEventListener('click', clearDashboardPdImport);
+  bindDashboardPdDropZone();
   $('#navision-pmb-only')?.addEventListener('change', updateNavisionImportButton);
   $('#import-navision')?.addEventListener('click', importNavisionVehicles);
   $('#navision-clear')?.addEventListener('click', clearNavisionImport);
@@ -1775,11 +1780,11 @@ function renderWorkflowBoard() {
 function incomingBucketForVehicle(vehicle = {}) {
   const category = statusCategory(vehicle);
   const status = normalizeToyotaStatus(navisionStatusText(vehicle));
+  if (category === 'rft') return '';
+  if (category === 'pmb') return 'pmb';
   if (category === 'yardhold') return 'yardhold';
-  if (category === 'prodtransit' && status.includes('production') && !status.includes('transit')) return 'production';
   if (category === 'prodtransit') return 'transit';
-  if (!['pmb', 'rft'].includes(category)) return 'incoming';
-  return '';
+  return 'overseas';
 }
 
 function incomingVehicleDetailRow(vehicle = {}, bucketKey = '') {
@@ -1817,10 +1822,10 @@ function renderIncomingDashboardBoard() {
   if (!host) return;
   const rows = app.data.filter(vehicle => incomingBucketForVehicle(vehicle));
   const defs = [
-    { key: 'incoming', label: 'Incoming / not PMB', hint: 'Batch matched and other pre-yard vehicles', open: true },
-    { key: 'production', label: 'Production', hint: 'Planned / in production', open: true },
-    { key: 'transit', label: 'In transit', hint: 'Wharf, shipment and WA transit', open: true },
-    { key: 'yardhold', label: 'YH', hint: 'Yard Hold vehicles — release to PMB from here', open: true },
+    { key: 'pmb', label: 'PMB', hint: 'Vehicles currently at PMB', open: true },
+    { key: 'yardhold', label: 'Yard Hold', hint: 'Yard Hold vehicles — release to PMB from here', open: true },
+    { key: 'transit', label: 'In Transit', hint: 'Wharf, shipment and WA transit', open: true },
+    { key: 'overseas', label: 'Overseas / Other', hint: 'All other non-RFT vehicles not yet in transit/YH/PMB', open: true },
   ];
   host.innerHTML = defs.map(def => {
     const vehicles = rows.filter(vehicle => incomingBucketForVehicle(vehicle) === def.key)
@@ -1865,6 +1870,203 @@ function importDashboardNavisionPaste() {
   showView('import');
   updateNavisionImportButton();
   importNavisionVehicles();
+}
+
+function updateDashboardPdImportButtons() {
+  const hasText = Boolean(($('#dashboard-pd-paste')?.value || '').trim());
+  const hasFiles = Boolean(app.dashboardPdFiles && app.dashboardPdFiles.length);
+  const importButton = $('#dashboard-import-pd');
+  const clearButton = $('#dashboard-clear-pd');
+  if (importButton) importButton.disabled = !(hasText || hasFiles);
+  if (clearButton) clearButton.disabled = !(hasText || hasFiles);
+}
+
+function setDashboardPdStatus(results = []) {
+  const host = $('#dashboard-pd-status');
+  if (!host) return;
+  host.innerHTML = results.map(result => `<div class="po-status-row ${result.ok ? 'ok' : 'warn'}"><strong>${escapeHtml(result.title || 'PD import')}</strong><span>${escapeHtml(result.message || '')}</span></div>`).join('');
+}
+
+function clearDashboardPdImport() {
+  app.dashboardPdFiles = [];
+  const upload = $('#dashboard-pd-upload');
+  const paste = $('#dashboard-pd-paste');
+  if (upload) upload.value = '';
+  if (paste) paste.value = '';
+  setDashboardPdStatus([]);
+  updateDashboardPdImportButtons();
+}
+
+function handleDashboardPdFileSelect(event) {
+  app.dashboardPdFiles = [...(event.target.files || [])];
+  setDashboardPdStatus(app.dashboardPdFiles.length ? [{ ok: true, title: `${app.dashboardPdFiles.length} PD file${app.dashboardPdFiles.length === 1 ? '' : 's'} ready`, message: 'Click Import PD work to attach the work list.' }] : []);
+  updateDashboardPdImportButtons();
+}
+
+function bindDashboardPdDropZone() {
+  const zone = $('#dashboard-pd-drop');
+  if (!zone) return;
+  ['dragenter', 'dragover'].forEach(type => zone.addEventListener(type, event => {
+    event.preventDefault();
+    zone.classList.add('is-dragover');
+  }));
+  ['dragleave', 'drop'].forEach(type => zone.addEventListener(type, event => {
+    event.preventDefault();
+    zone.classList.remove('is-dragover');
+  }));
+  zone.addEventListener('drop', event => {
+    app.dashboardPdFiles = [...(event.dataTransfer?.files || [])];
+    setDashboardPdStatus(app.dashboardPdFiles.length ? [{ ok: true, title: `${app.dashboardPdFiles.length} PD file${app.dashboardPdFiles.length === 1 ? '' : 's'} ready`, message: 'Click Import PD work to attach the work list.' }] : []);
+    updateDashboardPdImportButtons();
+  });
+}
+
+function parsePdCheckFormText(text = '', filenames = []) {
+  const source = `${String(text || '')}\n${(filenames || []).join('\n')}`;
+  const squashed = source.replace(/\s+/g, ' ').trim();
+  const stock = (squashed.match(/\bstock\s*(?:no\.?|number|#)?\s*[:#-]?\s*(\d{6,8})\b/i) || squashed.match(/\b(\d{8})\b/) || [])[1] || '';
+  const order = (squashed.match(/\border\s*(?:no\.?|number|#)?\s*[:#-]?\s*(\d{4,8})\b/i) || squashed.match(/\bpd\s*document\s*(\d{4,8})\b/i) || [])[1] || '';
+  const vin = (squashed.match(/\b[A-HJ-NPR-Z0-9]{17}\b/i) || [''])[0].toUpperCase();
+  const itemPatterns = [
+    ['Bull bar', /bull\s*bar|bullbar/i],
+    ['Light bar', /light\s*bar|lightbar|spot\s*light|spotlight/i],
+    ['Tray body', /tray\s*body|steel\s*tray|alloy\s*tray|\btray\b/i],
+    ['Seat covers', /seat\s*covers?/i],
+    ['Tow bar', /tow\s*bar|towbar/i],
+    ['Rear rack', /rear\s*rack/i],
+    ['Long range tank', /long\s*range\s*(?:fuel\s*)?tank/i],
+    ['Ladder rack', /ladder\s*rack/i],
+    ['Roof rack', /roof\s*rack/i],
+    ['Window tint', /window\s*tint|\btint\b/i],
+    ['UHF / radio', /\buhf\b|radio|antenna/i],
+    ['Dual battery / 12V', /dual\s*battery|\b12v\b|dcdc|dc\s*dc|redarc|anderson/i],
+    ['Canopy', /canopy/i],
+    ['Tyre / wheel upgrade', /tyre|tire|wheel\s*upgrade|sunraysia|ko2|ko3/i],
+    ['GVM upgrade', /\bgvm\b/i],
+    ['Winch', /winch/i],
+  ];
+  const tasks = itemPatterns.filter(([, pattern]) => pattern.test(squashed)).map(([label]) => label);
+  return { stock, order, vin, tasks: [...new Set(tasks)], filenames };
+}
+
+function findVehicleForPd(parsed = {}) {
+  const stock = String(parsed.stock || '').trim();
+  const order = String(parsed.order || '').trim();
+  const vin = String(parsed.vin || '').trim().toLowerCase();
+  return app.data.find(vehicle =>
+    (stock && String(vehicle.stock || '') === stock) ||
+    (order && [vehicle.order, vehicle.toyotaOrder, vehicle.salesOrder].some(value => String(value || '') === order)) ||
+    (vin && [vehicle.vin, vehicle.autocareVin].some(value => String(value || '').toLowerCase() === vin))
+  ) || null;
+}
+
+function ensureVehicleForPd(parsed = {}) {
+  const found = findVehicleForPd(parsed);
+  if (found) return found;
+  const stock = parsed.stock || (parsed.order ? `PD-${parsed.order}` : `PD-${Date.now().toString().slice(-6)}`);
+  const vehicle = {
+    id: `pd-${stock}`,
+    sourceRow: '',
+    stock,
+    client: 'Customer from PD check-form',
+    internalStatus: '',
+    deliveryDate: '',
+    vehicle: '',
+    financeNote: '',
+    group: 'PD check-form upload',
+    source: 'PD check-form',
+    order: parsed.order || '',
+    toyotaCustomer: '',
+    contact: '',
+    toyotaVehicle: '',
+    suffix: '',
+    colour: '',
+    trim: '',
+    origMth: '',
+    prodMth: '',
+    compPlate: '',
+    arrivalPort: '',
+    toyotaStatus: '',
+    etaAtDealer: '',
+    epodReceipt: '',
+    jitQty: '',
+    jitaPartsOrdered: 'Unknown',
+    consultant: '',
+    poTasks: [],
+    poFiles: [],
+  };
+  const added = loadAddedVehicles();
+  added.unshift(vehicle);
+  saveAddedVehicles(added);
+  app.data.unshift(vehicle);
+  return vehicle;
+}
+
+function pdFlagsFromTasks(tasks = []) {
+  const text = tasks.join(' ').toLowerCase();
+  return {
+    buildPoRaised: Boolean(tasks.length),
+    pdcRequiresBuild: Boolean(tasks.length),
+    pdcRequiresTint: /tint/.test(text),
+    pdcRequiresElectrical: /light|uhf|radio|12v|battery|redarc|anderson/.test(text),
+    pdcRequiresFabrication: /tray|bar|rack|tank|canopy|winch|gvm/.test(text),
+    pdcRequiresParts: Boolean(tasks.length),
+    pdcRequiresSublet: /tray|bull|canopy|gvm|tank/.test(text),
+  };
+}
+
+function applyPdCheckFormImport(parsed = {}) {
+  const vehicle = ensureVehicleForPd(parsed);
+  const key = vehicleKey(vehicle);
+  const taskStore = loadPoTasks();
+  const fileStore = loadPoFiles();
+  const currentTasks = taskStore[key] || taskStore[vehicle.stock] || vehicle.poTasks || [];
+  const importedTasks = (parsed.tasks || []).map(task => `PD check-form: ${task}`);
+  const combinedTasks = [...new Set(currentTasks.concat(importedTasks))];
+  taskStore[key] = combinedTasks;
+  const currentFiles = fileStore[key] || fileStore[vehicle.stock] || vehicle.poFiles || [];
+  const combinedFiles = [...new Set(currentFiles.concat(parsed.filenames || []))];
+  fileStore[key] = combinedFiles;
+  savePoTasks(taskStore);
+  savePoFiles(fileStore);
+  const updates = { ...pdFlagsFromTasks(combinedTasks) };
+  if (parsed.order && !vehicle.order) updates.order = parsed.order;
+  saveVehicleEdits(key, updates);
+  return { vehicle, taskCount: importedTasks.length, totalTasks: combinedTasks.length };
+}
+
+async function importDashboardPdWork() {
+  const files = app.dashboardPdFiles || [];
+  const pastedText = ($('#dashboard-pd-paste')?.value || '').trim();
+  const results = [];
+  const texts = [];
+  for (const file of files) {
+    try {
+      const isPdf = /\.pdf$/i.test(file.name) || file.type === 'application/pdf';
+      const text = isPdf ? await extractTextFromPdfFile(file) : await file.text();
+      texts.push({ text, filenames: [file.name] });
+    } catch (error) {
+      results.push({ ok: false, title: file.name, message: error.message || String(error) });
+    }
+  }
+  if (pastedText) texts.push({ text: pastedText, filenames: ['pasted PD text'] });
+  texts.forEach(item => {
+    const parsed = parsePdCheckFormText(item.text, item.filenames);
+    if (!parsed.stock && !parsed.order && !parsed.vin) {
+      results.push({ ok: false, title: item.filenames.join(', '), message: 'No stock, order or VIN found.' });
+      return;
+    }
+    if (!parsed.tasks.length) {
+      results.push({ ok: false, title: parsed.stock || parsed.order || parsed.vin, message: 'Vehicle found, but no accessory/build items were detected.' });
+      return;
+    }
+    const applied = applyPdCheckFormImport(parsed);
+    results.push({ ok: true, title: displayStockNumber(applied.vehicle) || parsed.order || parsed.vin, message: `${applied.taskCount} PD work item${applied.taskCount === 1 ? '' : 's'} imported; ${applied.totalTasks} total attached.` });
+  });
+  app.data = buildVehicleData();
+  renderAll();
+  setDashboardPdStatus(results.length ? results : [{ ok: false, title: 'PD import', message: 'Add a PD PDF or paste PD text first.' }]);
+  updateDashboardPdImportButtons();
 }
 
 function renderPmbBranchTiles() {
