@@ -1782,15 +1782,34 @@ function incomingBucketForVehicle(vehicle = {}) {
   return '';
 }
 
-function incomingVehicleMiniRow(vehicle = {}) {
+function incomingVehicleDetailRow(vehicle = {}, bucketKey = '') {
+  const key = vehicleKey(vehicle);
   const eta = navisionEtaForVehicle(vehicle) || 'No ETA';
+  const stock = displayStockNumber(vehicle) || vehicle.order || 'No stock';
+  const customer = vehicle.client || vehicle.toyotaCustomer || 'Unknown customer';
+  const status = navisionStatusText(vehicle) || pdcLocationLabel(vehiclePdcLocation(vehicle)) || 'No status';
+  const order = vehicle.order || vehicle.toyotaOrder || vehicle.salesOrder || '';
+  const consultant = vehicle.consultant || vehicle.salesperson || vehicle.salesPerson || '';
+  const notes = vehicle.dealerComments || vehicle.navisionNotes || vehicle.notes || '';
+  const transferButton = bucketKey === 'yardhold'
+    ? `<button class="small-button primary incoming-transfer-pmb" type="button" data-yh-transfer-pmb="${escapeHtml(key)}">Transfer YH → PMB</button>`
+    : '';
   return `
-    <button class="incoming-mini-row" type="button" data-open-stock="${escapeHtml(vehicleKey(vehicle))}">
-      <strong>${escapeHtml(displayStockNumber(vehicle) || vehicle.order || 'No stock')}</strong>
-      <span>${escapeHtml(truncate(vehicle.client || vehicle.toyotaCustomer || 'Unknown customer', 24))}</span>
-      <small>${escapeHtml(truncate(displayVehicle(vehicle), 28))}</small>
-      <em>${escapeHtml(eta)}</em>
-    </button>`;
+    <article class="incoming-detail-row" data-incoming-row="${escapeHtml(key)}">
+      <button class="incoming-row-open" type="button" data-open-stock="${escapeHtml(key)}" title="Open vehicle">
+        <strong>${escapeHtml(stock)}</strong>
+        <span>${escapeHtml(truncate(customer, 34))}</span>
+        <small>${escapeHtml(truncate(displayVehicle(vehicle), 42))}</small>
+        <em>${escapeHtml(eta)}</em>
+      </button>
+      <div class="incoming-row-details">
+        <span><b>Status</b>${escapeHtml(truncate(status, 42))}</span>
+        <span><b>Order</b>${escapeHtml(order || '—')}</span>
+        <span><b>Consultant</b>${escapeHtml(truncate(consultant || '—', 24))}</span>
+        <span><b>Notes</b>${escapeHtml(truncate(notes || '—', 48))}</span>
+      </div>
+      ${transferButton}
+    </article>`;
 }
 
 function renderIncomingDashboardBoard() {
@@ -1798,24 +1817,27 @@ function renderIncomingDashboardBoard() {
   if (!host) return;
   const rows = app.data.filter(vehicle => incomingBucketForVehicle(vehicle));
   const defs = [
-    { key: 'incoming', label: 'Incoming / not PMB', hint: 'Batch matched and other pre-yard vehicles' },
-    { key: 'production', label: 'Production', hint: 'Planned / in production' },
-    { key: 'transit', label: 'In transit', hint: 'Wharf, shipment and WA transit' },
-    { key: 'yardhold', label: 'YH', hint: 'Yard Hold vehicles' },
+    { key: 'incoming', label: 'Incoming / not PMB', hint: 'Batch matched and other pre-yard vehicles', open: true },
+    { key: 'production', label: 'Production', hint: 'Planned / in production', open: true },
+    { key: 'transit', label: 'In transit', hint: 'Wharf, shipment and WA transit', open: true },
+    { key: 'yardhold', label: 'YH', hint: 'Yard Hold vehicles — release to PMB from here', open: true },
   ];
   host.innerHTML = defs.map(def => {
     const vehicles = rows.filter(vehicle => incomingBucketForVehicle(vehicle) === def.key)
       .sort((a, b) => (parseDateAU(navisionEtaForVehicle(a))?.getTime() || 9999999999999) - (parseDateAU(navisionEtaForVehicle(b))?.getTime() || 9999999999999));
-    const shown = vehicles.slice(0, 12).map(incomingVehicleMiniRow).join('') || '<div class="pmb-empty-drop">No vehicles</div>';
-    return `<section class="incoming-bucket incoming-${escapeHtml(def.key)}">
-      <button class="incoming-bucket-title" type="button" data-kpi-filter="${def.key === 'yardhold' ? 'yardhold' : def.key === 'incoming' ? 'incoming' : 'prodtransit'}">
+    const shown = vehicles.map(vehicle => incomingVehicleDetailRow(vehicle, def.key)).join('') || '<div class="pmb-empty-drop">No vehicles</div>';
+    return `<details class="incoming-bucket incoming-${escapeHtml(def.key)}" ${def.open ? 'open' : ''}>
+      <summary class="incoming-bucket-title">
         <span>${escapeHtml(def.label)}</span><strong>${vehicles.length}</strong><small>${escapeHtml(def.hint)}</small>
-      </button>
-      <div class="incoming-bucket-list">${shown}${vehicles.length > 12 ? `<div class="incoming-more">+${vehicles.length - 12} more</div>` : ''}</div>
-    </section>`;
+      </summary>
+      <div class="incoming-bucket-list">${shown}</div>
+    </details>`;
   }).join('');
   $$('[data-open-stock]', host).forEach(button => button.addEventListener('click', () => openVehicleModal(button.dataset.openStock)));
-  $$('[data-kpi-filter]', host).forEach(button => button.addEventListener('click', () => applyQuickFilter(button.dataset.kpiFilter)));
+  $$('[data-yh-transfer-pmb]', host).forEach(button => button.addEventListener('click', event => {
+    event.stopPropagation();
+    transferYhVehicleToPmb(button.dataset.yhTransferPmb);
+  }));
 }
 
 function updateDashboardNavisionPasteButtons() {
@@ -1851,7 +1873,7 @@ function renderPmbBranchTiles() {
   const vehicleTable = $('#vehicle-table');
   const trackerPanel = typeof vehicleTable?.closest === 'function' ? vehicleTable.closest('.panel') : null;
   const showPmbBuckets = app.quickFilter === 'pmb';
-  if (trackerPanel) trackerPanel.hidden = showPmbBuckets;
+  if (trackerPanel) trackerPanel.hidden = showPmbBuckets || trackerPanel.classList.contains('legacy-incoming-table-panel');
   if (!showPmbBuckets) {
     host.hidden = true;
     host.innerHTML = '';
@@ -4102,6 +4124,64 @@ async function transferSelectedYhVehiclesToPmb() {
 
   saveJson(EDITS_KEY, edits);
   app.selectedRows.clear();
+  app.quickFilter = 'pmb';
+  app.pmbSubFilter = '';
+  app.activePmbBayStage = '';
+  app.data = buildVehicleData();
+  populateFilters();
+  renderAll();
+}
+
+async function transferYhVehicleToPmb(key = '') {
+  const vehicle = app.data.find(v => vehicleKey(v) === key || v.stock === key || v.order === key || v.id === key);
+  if (!vehicle) return;
+  if (!canTransferVehicleToPmb(vehicle)) {
+    window.alert('Only Yard Hold vehicles can be transferred to PMB from this button.');
+    return;
+  }
+  const stock = displayStockNumber(vehicle) || vehicle.order || 'No stock';
+  const customer = vehicle.client || vehicle.toyotaCustomer || 'Unknown customer';
+  if (!window.confirm(`Transfer ${stock} - ${customer} from Yard Hold to PMB?\n\nThis is a manual PDC location change. Future Navision uploads will not move it back.`)) return;
+
+  const requirementSelections = await pmbRequirementChecklistModal([vehicle]);
+  if (!requirementSelections) return;
+
+  const transferTime = nowIsoString();
+  const edits = loadVehicleEdits();
+  const rowKey = vehicleKey(vehicle);
+  const updates = {
+    pdcLocation: 'PMB',
+    manualLocation: 'PMB',
+    pdcLocationLocked: true,
+    navisionLocationLocked: true,
+    pmbEnteredAt: pmbEnteredTimestamp(vehicle) || transferTime,
+    pmbTransferredAt: vehicle.pmbTransferredAt || transferTime,
+    pdcLocationUpdatedAt: transferTime,
+    pmbStage: '',
+    pdcWorkStage: '',
+    workStage: '',
+    pmbStageEnteredAt: '',
+    pmbStageUpdatedAt: '',
+    pmbBayStage: '',
+    pmbBayNumber: '',
+    pmbBayEstimatedHours: '',
+    pmbBayEnteredAt: '',
+    pmbBayScheduledStartAt: '',
+    pmbBayCompletedAt: '',
+    pmbBayCompletedBy: '',
+    pmbBayCompletedStage: '',
+    pmbBayMechanic: '',
+    pmbSubletProvider: '',
+    ...(requirementSelections.get(rowKey) || {}),
+  };
+
+  Object.assign(vehicle, updates);
+  edits[rowKey] = { ...(edits[rowKey] || {}), ...updates };
+  if (vehicle.stock && vehicle.stock !== rowKey) edits[vehicle.stock] = { ...(edits[vehicle.stock] || {}), ...updates };
+  if (vehicle.order && vehicle.order !== rowKey) edits[vehicle.order] = { ...(edits[vehicle.order] || {}), ...updates };
+  recordVehicleAudit(vehicle, 'Transferred to PMB', { from: 'Yard Hold', to: 'PMB - Unallocated', protectedFromNavision: 'Yes' });
+
+  saveJson(EDITS_KEY, edits);
   app.quickFilter = 'pmb';
   app.pmbSubFilter = '';
   app.activePmbBayStage = '';

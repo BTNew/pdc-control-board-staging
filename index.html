@@ -53,7 +53,7 @@
           <div class="panel-header">
             <div>
               <h2>Incoming vehicle board</h2>
-              <p>Main screen only: vehicles not at PMB/RFT, split into Production, In Transit / Coming In, and Yard Hold.</p>
+              <p>Main screen only: vertical collapsible detail lists for vehicles not at PMB/RFT, split into Production, In Transit / Coming In, and Yard Hold. Use the YH rows to transfer straight to PMB.</p>
             </div>
             <button class="small-button" type="button" data-view-target="workflow">Open PMB workflow</button>
           </div>
@@ -74,11 +74,11 @@
           <textarea id="dashboard-navision-paste" class="quick-navision-textarea" rows="5" spellcheck="false" placeholder="Order&#9;Batch&#9;Production Month&#9;Model Description&#9;Sub Location Description&#9;ETA At Kewdale Yard..."></textarea>
         </section>
         <div class="pmb-branch-grid" id="pmb-branch-grid" hidden></div>
-        <section class="panel span-12">
+        <section class="panel span-12 legacy-incoming-table-panel" hidden>
           <div class="panel-header">
             <div>
               <h2>Detailed incoming vehicle list</h2>
-              <p>Compact list for incoming / non-PMB vehicles. PMB work is now handled inside Workflow Board. Drag the ↔ handle in any column header to move columns left or right.</p>
+              <p>Hidden legacy tracker kept for internal table logic. Main Screen now uses the vertical collapsible incoming board above.</p>
             </div>
             <div class="panel-actions">
               <button class="small-button" id="show-all-priority" type="button">Show Batch Matched</button>

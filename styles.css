@@ -676,8 +676,8 @@ input:focus, select:focus, textarea:focus { border-color: #94a3b8; box-shadow: 0
 
 .incoming-board {
   display: grid;
-  grid-template-columns: repeat(4, minmax(220px, 1fr));
-  gap: 12px;
+  grid-template-columns: 1fr;
+  gap: 10px;
 }
 .incoming-bucket {
   border: 1px solid var(--line);
@@ -693,35 +693,69 @@ input:focus, select:focus, textarea:focus { border-color: #94a3b8; box-shadow: 0
   padding: 10px 12px;
   text-align: left;
   display: grid;
-  grid-template-columns: 1fr auto;
+  grid-template-columns: auto 1fr auto;
   gap: 2px 10px;
   cursor: pointer;
+  list-style: none;
 }
+.incoming-bucket-title::-webkit-details-marker { display: none; }
+.incoming-bucket-title::before {
+  content: '▾';
+  grid-row: 1 / 3;
+  align-self: center;
+  color: var(--muted);
+  font-size: .8rem;
+  margin-right: 8px;
+}
+.incoming-bucket:not([open]) .incoming-bucket-title::before { content: '▸'; }
 .incoming-bucket-title span { font-weight: 900; color: var(--ink); }
 .incoming-bucket-title strong { font-size: 1.25rem; color: var(--toyota-red); }
-.incoming-bucket-title small { grid-column: 1 / -1; color: var(--muted); font-size: .72rem; }
+.incoming-bucket-title small { grid-column: 2 / -1; color: var(--muted); font-size: .72rem; }
 .incoming-bucket-list { padding: 8px; display: grid; gap: 6px; }
-.incoming-mini-row {
+.incoming-detail-row {
   border: 1px solid #e5e7eb;
-  border-radius: 10px;
+  border-radius: 12px;
   background: #fff;
   padding: 7px 8px;
   display: grid;
-  grid-template-columns: auto 1fr auto;
+  grid-template-columns: minmax(260px, 1.1fr) minmax(360px, 2fr) auto;
+  gap: 8px;
+  align-items: center;
+}
+.incoming-detail-row:hover { border-color: #fca5a5; background: #fff7f7; }
+.incoming-row-open {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  display: grid;
+  grid-template-columns: 92px 1fr auto;
   gap: 2px 8px;
   text-align: left;
   cursor: pointer;
   align-items: center;
 }
-.incoming-mini-row:hover { border-color: #fca5a5; background: #fff7f7; }
-.incoming-mini-row strong { color: var(--toyota-red); font-size: .82rem; }
-.incoming-mini-row span { font-weight: 800; font-size: .78rem; color: var(--ink); }
-.incoming-mini-row small { grid-column: 1 / 3; color: var(--muted); font-size: .7rem; }
-.incoming-mini-row em { grid-column: 3; grid-row: 1 / 3; font-style: normal; color: var(--muted); font-size: .68rem; white-space: nowrap; }
+.incoming-row-open strong { color: var(--toyota-red); font-size: .84rem; }
+.incoming-row-open span { font-weight: 800; font-size: .8rem; color: var(--ink); }
+.incoming-row-open small { grid-column: 1 / 3; color: var(--muted); font-size: .7rem; }
+.incoming-row-open em { grid-column: 3; grid-row: 1 / 3; font-style: normal; color: var(--muted); font-size: .7rem; white-space: nowrap; }
+.incoming-row-details {
+  display: grid;
+  grid-template-columns: 1.2fr .8fr .8fr 1.2fr;
+  gap: 6px;
+  color: var(--muted);
+  font-size: .72rem;
+}
+.incoming-row-details span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.incoming-row-details b { display: block; color: #475569; font-size: .58rem; letter-spacing: .04em; text-transform: uppercase; }
+.incoming-transfer-pmb { white-space: nowrap; }
 .incoming-more { padding: 6px 8px; color: var(--muted); font-size: .75rem; font-weight: 800; }
 .quick-navision-textarea { width: 100%; min-height: 110px; resize: vertical; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: .82rem; }
-@media (max-width: 1400px) { .incoming-board { grid-template-columns: repeat(2, minmax(220px, 1fr)); } }
-@media (max-width: 720px) { .incoming-board { grid-template-columns: 1fr; } }
+@media (max-width: 1100px) {
+  .incoming-detail-row { grid-template-columns: 1fr; }
+  .incoming-row-details { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .incoming-transfer-pmb { justify-self: start; }
+}
+@media (max-width: 720px) { .incoming-row-details { grid-template-columns: 1fr; } }
 
 /* Extra compact CRM updates */
 .app-shell.sidebar-collapsed .main { padding-left: 20px; padding-right: 20px; }
