@@ -1890,7 +1890,7 @@ function incomingVehicleDetailRow(vehicle = {}, bucketKey = '') {
   const required = pmbRequiredWorkLabels(vehicle).join(', ') || 'No PMB work flagged';
   const primaryAction = bucketKey === 'yardhold'
     ? `<button class="primary incoming-transfer-pmb" type="button" data-yh-transfer-pmb="${escapeHtml(key)}">Transfer YH → PMB</button>`
-    : `<button class="small-button incoming-open-button" type="button" data-open-stock="${escapeHtml(key)}">Open vehicle</button>`;
+    : `<button class="small-button incoming-open-button" type="button" data-open-stock="${escapeHtml(key)}">Open</button>`;
   const deleteAction = `<button class="small-button incoming-delete-button" type="button" data-incoming-delete="${escapeHtml(key)}" title="Delete this vehicle from the main screen">Delete</button>`;
   return `
     <details class="incoming-vehicle-card incoming-${escapeHtml(bucketKey)}-row" data-incoming-row="${escapeHtml(key)}">

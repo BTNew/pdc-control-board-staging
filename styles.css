@@ -6491,7 +6491,7 @@ body.pmb-schedule-adjusting .pmb-schedule-chip-slim {
 .incoming-vehicle-card[open] { box-shadow: 0 8px 22px rgba(15, 23, 42, .06); }
 .incoming-vehicle-summary {
   display: grid;
-  grid-template-columns: 14px 100px minmax(220px, 1.2fr) minmax(420px, 1.6fr) minmax(140px, .7fr) 100px 74px 220px;
+  grid-template-columns: 14px 76px minmax(160px, .95fr) minmax(250px, 1.35fr) minmax(96px, .6fr) 56px 44px 108px;
   gap: 10px;
   align-items: center;
   padding: 8px 10px;
@@ -6613,7 +6613,7 @@ body.pmb-schedule-adjusting .pmb-schedule-chip-slim {
 .incoming-transfer-pmb { background: #16a34a; box-shadow: 0 8px 18px rgba(22, 163, 74, .18); }
 .incoming-transfer-pmb:hover { background: #15803d; }
 @media (max-width: 1200px) {
-  .incoming-vehicle-summary { grid-template-columns: 14px 86px minmax(180px, 1fr) minmax(320px, 1.4fr) minmax(120px, .7fr) 90px 66px 190px; }
+  .incoming-vehicle-summary { grid-template-columns: 14px 70px minmax(140px, .9fr) minmax(220px, 1.25fr) minmax(90px, .6fr) 52px 40px 104px; }
   .incoming-vehicle-detail-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
 @media (max-width: 820px) {
