@@ -674,6 +674,55 @@ input:focus, select:focus, textarea:focus { border-color: #94a3b8; box-shadow: 0
 }
 
 
+.incoming-board {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(220px, 1fr));
+  gap: 12px;
+}
+.incoming-bucket {
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: #fff;
+  overflow: hidden;
+}
+.incoming-bucket-title {
+  width: 100%;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  background: #f8fafc;
+  padding: 10px 12px;
+  text-align: left;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 2px 10px;
+  cursor: pointer;
+}
+.incoming-bucket-title span { font-weight: 900; color: var(--ink); }
+.incoming-bucket-title strong { font-size: 1.25rem; color: var(--toyota-red); }
+.incoming-bucket-title small { grid-column: 1 / -1; color: var(--muted); font-size: .72rem; }
+.incoming-bucket-list { padding: 8px; display: grid; gap: 6px; }
+.incoming-mini-row {
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  background: #fff;
+  padding: 7px 8px;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 2px 8px;
+  text-align: left;
+  cursor: pointer;
+  align-items: center;
+}
+.incoming-mini-row:hover { border-color: #fca5a5; background: #fff7f7; }
+.incoming-mini-row strong { color: var(--toyota-red); font-size: .82rem; }
+.incoming-mini-row span { font-weight: 800; font-size: .78rem; color: var(--ink); }
+.incoming-mini-row small { grid-column: 1 / 3; color: var(--muted); font-size: .7rem; }
+.incoming-mini-row em { grid-column: 3; grid-row: 1 / 3; font-style: normal; color: var(--muted); font-size: .68rem; white-space: nowrap; }
+.incoming-more { padding: 6px 8px; color: var(--muted); font-size: .75rem; font-weight: 800; }
+.quick-navision-textarea { width: 100%; min-height: 110px; resize: vertical; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: .82rem; }
+@media (max-width: 1400px) { .incoming-board { grid-template-columns: repeat(2, minmax(220px, 1fr)); } }
+@media (max-width: 720px) { .incoming-board { grid-template-columns: 1fr; } }
+
 /* Extra compact CRM updates */
 .app-shell.sidebar-collapsed .main { padding-left: 20px; padding-right: 20px; }
 .data-table th { white-space: nowrap; }

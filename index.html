@@ -19,19 +19,8 @@
       </div>
 
       <nav class="nav">
-        <button class="nav-item active" data-view="dashboard" data-short="D">Dashboard</button>
-        <button class="nav-item" data-view="workflow" data-short="WF">Workflow</button>
-        <button class="nav-item" data-view="pipeline" data-short="P">Pipeline</button>
-        <button class="nav-item" data-view="visibility" data-short="V">Visibility</button>
-        <button class="nav-item" data-view="tv" data-short="TV">TV Board</button>
-        <button class="nav-item" data-view="schedule" data-short="PR">Production</button>
-        <button class="nav-item production-nav-item" data-view="dept-tint" data-short="TI">Tint</button>
-        <button class="nav-item production-nav-item" data-view="dept-hoist" data-short="HO">Hoist</button>
-        <button class="nav-item production-nav-item" data-view="dept-fitting" data-short="FI">Fitting</button>
-        <button class="nav-item production-nav-item" data-view="dept-fabrication" data-short="FA">Fabrication</button>
-        <button class="nav-item production-nav-item" data-view="dept-electrical" data-short="EL">Electrical</button>
-        <button class="nav-item production-nav-item" data-view="dept-tyre" data-short="TY">Tyre Bay</button>
-        <button class="nav-item production-nav-item" data-view="dept-pit-inspection" data-short="PI">Pit Inspection</button>
+        <button class="nav-item active" data-view="dashboard" data-short="D">Main Screen</button>
+        <button class="nav-item" data-view="workflow" data-short="WF">Workflow Board</button>
         <button class="nav-item" data-view="parts" data-short="PA">Parts</button>
         <button class="nav-item" data-view="lists" data-short="L">PDC Lists</button>
         <button class="nav-item" data-view="import" data-short="U">Uploads</button>
@@ -60,22 +49,36 @@
 
       <section id="dashboard" class="view active">
         <div class="kpi-grid" id="kpi-grid"></div>
-        <section class="panel span-12 workflow-board-panel dashboard-workflow-panel">
+        <section class="panel span-12 incoming-board-panel">
           <div class="panel-header">
             <div>
-              <h2>Simple workflow board</h2>
-              <p>Best-practice flow from import to RFT: fix blockers first, order parts early, release to PMB only when ready, then quality-gate before transport.</p>
+              <h2>Incoming vehicle board</h2>
+              <p>Main screen only: vehicles not at PMB/RFT, split into Production, In Transit / Coming In, and Yard Hold.</p>
             </div>
-            <button class="small-button" type="button" data-view-target="workflow">Open workflow</button>
+            <button class="small-button" type="button" data-view-target="workflow">Open PMB workflow</button>
           </div>
-          <div class="workflow-board" id="dashboard-workflow-board"></div>
+          <div class="incoming-board" id="incoming-main-board"></div>
+        </section>
+        <section class="panel span-12 quick-navision-panel">
+          <div class="panel-header compact">
+            <div>
+              <h2>Quick paste Navision incoming vehicles</h2>
+              <p>Paste copied Navision rows here for vehicles coming in. PMB and RFT locations remain protected/manual.</p>
+            </div>
+            <div class="panel-actions">
+              <button class="primary" id="dashboard-import-navision" type="button" disabled>Import pasted rows</button>
+              <button class="small-button" id="dashboard-clear-navision" type="button" disabled>Clear</button>
+              <button class="small-button" type="button" data-view-target="import">Full uploads</button>
+            </div>
+          </div>
+          <textarea id="dashboard-navision-paste" class="quick-navision-textarea" rows="5" spellcheck="false" placeholder="Order&#9;Batch&#9;Production Month&#9;Model Description&#9;Sub Location Description&#9;ETA At Kewdale Yard..."></textarea>
         </section>
         <div class="pmb-branch-grid" id="pmb-branch-grid" hidden></div>
         <section class="panel span-12">
           <div class="panel-header">
             <div>
-              <h2>Navision vehicle tracker</h2>
-              <p>Clean dashboard for Navision uploads up to Yard Hold. PMB and RFT are controlled manually by the PDC team. Drag the ↔ handle in any column header to move columns left or right.</p>
+              <h2>Detailed incoming vehicle list</h2>
+              <p>Compact list for incoming / non-PMB vehicles. PMB work is now handled inside Workflow Board. Drag the ↔ handle in any column header to move columns left or right.</p>
             </div>
             <div class="panel-actions">
               <button class="small-button" id="show-all-priority" type="button">Show Batch Matched</button>
@@ -124,10 +127,10 @@
         <section class="panel span-12 workflow-board-panel">
           <div class="panel-header">
             <div>
-              <h2>Best-practice workflow board</h2>
-              <p>One simple operating path: import/match → parts readiness → Yard Hold release → PMB bay work → Pit/QC → RFT. The red and amber items are the first jobs to clear.</p>
+              <h2>PMB workflow board</h2>
+              <p>Only vehicles currently at PMB. Click a PMB category to open its bay board.</p>
             </div>
-            <span class="badge neutral">Simplified flow</span>
+            <span class="badge neutral">PMB only</span>
           </div>
           <div class="workflow-board" id="workflow-board"></div>
         </section>

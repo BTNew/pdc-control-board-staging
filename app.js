@@ -729,7 +729,7 @@ const app = {
   report: window.VEHICLE_TRACKING_DATA.report || {},
   selectedStock: null,
   reviewed: false,
-  quickFilter: 'batchmatched',
+  quickFilter: 'incoming',
   pmbSubFilter: '',
   activePmbBayStage: '',
   pmbDraggingKey: '',
@@ -912,12 +912,9 @@ function getStage(vehicle) {
 }
 
 const STATUS_TAB_DEFS = [
-  { key: 'partsstoppage', label: 'Parts Stoppage', className: 'status-tab-partsstoppage', sub: 'Stopped by Parts blocker' },
-  { key: 'batchmatched', label: 'Batch Matched', className: 'status-tab-batchmatched', sub: 'Batch numbers matched · not in transit' },
-  { key: 'prodtransit', label: 'Production / In Transit', className: 'status-tab-prodtransit', sub: 'Navision before arrival' },
-  { key: 'yardhold', label: 'Vehicles at YH', className: 'status-tab-yardhold', sub: 'Navision Yard Hold / manual YH' },
-  { key: 'pmb', label: 'Vehicles at PMB', className: 'status-tab-pmb', sub: 'Manual PDC location' },
-  { key: 'rft', label: 'Vehicles RFT', className: 'status-tab-rft', sub: 'Manual PDC location' },
+  { key: 'incoming', label: 'All incoming', className: 'status-tab-batchmatched', sub: 'Not at PMB/RFT' },
+  { key: 'prodtransit', label: 'Production / In Transit', className: 'status-tab-prodtransit', sub: 'Vehicles coming in' },
+  { key: 'yardhold', label: 'Vehicles at YH', className: 'status-tab-yardhold', sub: 'Ready to release to PMB' },
 ];
 const STATUS_TABS = STATUS_TAB_DEFS;
 
@@ -1395,6 +1392,9 @@ function bindNav() {
   $('#autocare-upload')?.addEventListener('change', handleAutocareSelect);
   $('#navision-upload')?.addEventListener('change', handleNavisionFileSelect);
   $('#navision-paste')?.addEventListener('input', updateNavisionImportButton);
+  $('#dashboard-navision-paste')?.addEventListener('input', updateDashboardNavisionPasteButtons);
+  $('#dashboard-import-navision')?.addEventListener('click', importDashboardNavisionPaste);
+  $('#dashboard-clear-navision')?.addEventListener('click', clearDashboardNavisionPaste);
   $('#navision-pmb-only')?.addEventListener('change', updateNavisionImportButton);
   $('#import-navision')?.addEventListener('click', importNavisionVehicles);
   $('#navision-clear')?.addEventListener('click', clearNavisionImport);
@@ -1542,6 +1542,7 @@ function renderAll() {
   populateFilters();
   renderKpis();
   renderWorkflowBoard();
+  renderIncomingDashboardBoard();
   renderVehicleTable();
   renderKanban();
   renderTvBoard();
@@ -1592,15 +1593,12 @@ function renderKpis() {
   `;
   }).join('');
   $$('[data-kpi-filter]').forEach(card => card.addEventListener('click', () => {
-    if (card.dataset.kpiFilter === 'prodtransit') {
-      showView('schedule');
-      return;
-    }
     applyQuickFilter(card.dataset.kpiFilter);
   }));
   renderOperationalVisibility();
   renderWorkflowBoard();
   renderPmbBranchTiles();
+  renderIncomingDashboardBoard();
 }
 
 function isOpenThirdPartyVehicle(vehicle = {}) {
@@ -1702,52 +1700,54 @@ function workflowPriorityRows() {
 }
 
 function workflowBoardStats() {
-  const rows = app.data.filter(vehicleHasBatchNumber);
   const pmbRows = workflowVehiclesForStep('pmb');
-  const partsRows = workflowVehiclesForStep('parts');
-  const partsStoppages = partsRows.filter(vehicle => partsDepartmentStatus(vehicle) === 'stoppage').length;
-  const partsNotOrdered = partsRows.filter(vehicle => partsDepartmentStatus(vehicle) === 'notordered').length;
   const pmbBlocked = pmbRows.filter(isPdcBlocked).length;
   const gateIssues = vehiclesWithRftGateIssues(pmbRows).length;
   const unallocated = pmbRows.filter(vehicle => !inferredPmbStage(vehicle)).length;
-  const rftRows = workflowVehiclesForStep('rft');
+  const stageSteps = [
+    { value: '', filter: PMB_STAGE_UNASSIGNED_FILTER, number: '0', title: 'Unallocated', action: 'Open list' },
+    ...PMB_STAGE_DEFS.map((def, index) => ({ value: def.value, filter: def.value, number: String(index + 1), title: def.label, action: 'Open bays' }))
+  ];
   return {
-    total: rows.length,
-    partsStoppages,
-    partsNotOrdered,
+    total: pmbRows.length,
     pmbBlocked,
     gateIssues,
     unallocated,
-    steps: [
-      { key: 'import', number: '1', title: 'Import & match', count: workflowVehiclesForStep('import').length, detail: 'Keep Navision/PO data clean before work starts.', rule: 'Only matched Batch/Stock records move forward.', action: 'Uploads', target: 'import', state: 'neutral' },
-      { key: 'arrival', number: '2', title: 'Arrival watch', count: workflowVehiclesForStep('arrival').length, detail: 'Production/In Transit sorted by earliest Kewdale ETA.', rule: 'Plan early; do not wait for vehicles to hit the yard.', action: 'Production', target: 'schedule', state: 'neutral' },
-      { key: 'parts', number: '3', title: 'Parts readiness', count: partsRows.length, detail: `${partsStoppages} stoppage · ${partsNotOrdered} not ordered`, rule: 'Order parts early. Parts stoppages block RFT.', action: 'Parts', target: 'parts', state: partsStoppages ? 'danger' : partsNotOrdered ? 'warning' : 'ready' },
-      { key: 'yardhold', number: '4', title: 'Yard Hold release', count: workflowVehiclesForStep('yardhold').length, detail: 'Confirm required work before releasing to PMB.', rule: 'Use the checklist: Tint, Fitting/Build, Parts, Electrical, Sublet, Fabrication, Pit.', action: 'YH list', target: 'yardhold', state: 'neutral' },
-      { key: 'pmb', number: '5', title: 'PMB bay work', count: pmbRows.length, detail: `${unallocated} unallocated · ${pmbBlocked} stoppage`, rule: 'Use bay buckets and tick-box outcomes: complete, stoppage or move only.', action: 'PMB board', target: 'pmb', state: pmbBlocked || unallocated ? 'warning' : 'ready' },
-      { key: 'rft', number: '6', title: 'Pit / QC / RFT', count: rftRows.length, detail: `${gateIssues} PMB gate issue${gateIssues === 1 ? '' : 's'}`, rule: 'No RFT until required jobs, Parts and Pit Inspection are signed off.', action: 'RFT list', target: 'rft', state: gateIssues ? 'danger' : 'ready' },
-    ],
+    steps: stageSteps.map(step => {
+      const vehicles = step.value ? pmbRows.filter(vehicle => inferredPmbStage(vehicle) === step.value) : pmbRows.filter(vehicle => !inferredPmbStage(vehicle));
+      const metrics = pmbLaneMetrics(step.value, vehicles);
+      return {
+        ...step,
+        count: vehicles.length,
+        detail: step.value ? `${vehicles.length} in queue · oldest ${metrics.oldestStageDays}d${metrics.blockedCount ? ` · blocked ${metrics.blockedCount}` : ''}` : 'Vehicles need a PMB category',
+        rule: step.value ? 'Click to open the bay board for this PMB category.' : 'Assign these vehicles to the correct PMB category first.',
+        target: step.filter,
+        state: metrics.overLimit || metrics.blockedCount ? 'warning' : 'ready',
+      };
+    }),
   };
 }
 
 function workflowAction(target = '') {
-  if (target === 'import' || target === 'schedule' || target === 'parts' || target === 'visibility') {
-    showView(target);
-    if (target === 'parts') renderPartsHome();
-    if (target === 'schedule') renderScheduleBoard();
-    return;
-  }
-  if (['yardhold', 'pmb', 'rft', 'batchmatched'].includes(target)) {
-    applyQuickFilter(target);
-    return;
-  }
+  app.quickFilter = 'pmb';
+  app.pmbSubFilter = normalizePmbSubFilter(target);
+  app.activePmbBayStage = normalizePmbStage(target);
   showView('workflow');
+  renderWorkflowBoard();
 }
 
 function renderWorkflowBoard() {
-  const hosts = ['workflow-board', 'dashboard-workflow-board'].map(id => $('#' + id)).filter(Boolean);
-  if (!hosts.length) return;
+  const host = $('#workflow-board');
+  if (!host) return;
   const stats = workflowBoardStats();
-  const priorities = workflowPriorityRows();
+  const activeStationStage = normalizePmbStage(app.activePmbBayStage);
+  document.body.classList.toggle('pmb-station-mode', Boolean(activeStationStage));
+  if (activeStationStage) {
+    host.innerHTML = renderPmbBayBoardHtml(activeStationStage);
+    bindPmbDragBoard(host);
+    setupPmbScheduleClock();
+    return;
+  }
   const stepsHtml = stats.steps.map(step => `
     <article class="workflow-step workflow-${escapeHtml(step.state)}">
       <div class="workflow-step-number">${escapeHtml(step.number)}</div>
@@ -1760,34 +1760,89 @@ function renderWorkflowBoard() {
       <button class="small-button" type="button" data-workflow-action="${escapeHtml(step.target)}">${escapeHtml(step.action)}</button>
     </article>
   `).join('');
-  const prioritiesHtml = priorities.length ? priorities.map(row => `
-    <button class="workflow-priority-row workflow-${escapeHtml(row.severity)}" type="button" data-open-stock="${escapeHtml(vehicleKey(row.vehicle))}">
-      <span>${escapeHtml(row.label)}</span>
-      <strong>${escapeHtml(displayStockNumber(row.vehicle) || row.vehicle.order || 'No stock')}</strong>
-      <small>${escapeHtml(truncate(row.detail, 72))}</small>
-    </button>
-  `).join('') : '<div class="empty-state compact-empty"><strong>No urgent blockers</strong><span>Parts, PMB and RFT gate checks are clear.</span></div>';
-  const html = `
+  host.innerHTML = `
     <div class="workflow-summary-strip">
-      <span><strong>${stats.total}</strong> active vehicles</span>
-      <span><strong>${stats.partsStoppages}</strong> parts stoppage</span>
+      <span><strong>${stats.total}</strong> PMB vehicles</span>
+      <span><strong>${stats.unallocated}</strong> unallocated</span>
       <span><strong>${stats.pmbBlocked}</strong> PMB stoppage</span>
       <span><strong>${stats.gateIssues}</strong> RFT gate issue</span>
     </div>
     <div class="workflow-step-grid">${stepsHtml}</div>
-    <section class="workflow-priority-panel">
-      <div class="workflow-priority-header">
-        <div><strong>Fix first</strong><span>Best-practice priority list: clear stoppages and gate issues before pushing more vehicles into PMB.</span></div>
-        <button class="small-button" type="button" data-workflow-action="visibility">Statistics</button>
-      </div>
-      <div class="workflow-priority-list">${prioritiesHtml}</div>
-    </section>
   `;
-  hosts.forEach(host => {
-    host.innerHTML = html;
-    $$('[data-workflow-action]', host).forEach(button => button.addEventListener('click', () => workflowAction(button.dataset.workflowAction)));
-    $$('[data-open-stock]', host).forEach(button => button.addEventListener('click', () => openVehicleModal(button.dataset.openStock)));
-  });
+  $$('[data-workflow-action]', host).forEach(button => button.addEventListener('click', () => workflowAction(button.dataset.workflowAction)));
+}
+
+function incomingBucketForVehicle(vehicle = {}) {
+  const category = statusCategory(vehicle);
+  const status = normalizeToyotaStatus(navisionStatusText(vehicle));
+  if (category === 'yardhold') return 'yardhold';
+  if (category === 'prodtransit' && status.includes('production') && !status.includes('transit')) return 'production';
+  if (category === 'prodtransit') return 'transit';
+  if (!['pmb', 'rft'].includes(category)) return 'incoming';
+  return '';
+}
+
+function incomingVehicleMiniRow(vehicle = {}) {
+  const eta = navisionEtaForVehicle(vehicle) || 'No ETA';
+  return `
+    <button class="incoming-mini-row" type="button" data-open-stock="${escapeHtml(vehicleKey(vehicle))}">
+      <strong>${escapeHtml(displayStockNumber(vehicle) || vehicle.order || 'No stock')}</strong>
+      <span>${escapeHtml(truncate(vehicle.client || vehicle.toyotaCustomer || 'Unknown customer', 24))}</span>
+      <small>${escapeHtml(truncate(displayVehicle(vehicle), 28))}</small>
+      <em>${escapeHtml(eta)}</em>
+    </button>`;
+}
+
+function renderIncomingDashboardBoard() {
+  const host = $('#incoming-main-board');
+  if (!host) return;
+  const rows = app.data.filter(vehicle => incomingBucketForVehicle(vehicle));
+  const defs = [
+    { key: 'incoming', label: 'Incoming / not PMB', hint: 'Batch matched and other pre-yard vehicles' },
+    { key: 'production', label: 'Production', hint: 'Planned / in production' },
+    { key: 'transit', label: 'In transit', hint: 'Wharf, shipment and WA transit' },
+    { key: 'yardhold', label: 'YH', hint: 'Yard Hold vehicles' },
+  ];
+  host.innerHTML = defs.map(def => {
+    const vehicles = rows.filter(vehicle => incomingBucketForVehicle(vehicle) === def.key)
+      .sort((a, b) => (parseDateAU(navisionEtaForVehicle(a))?.getTime() || 9999999999999) - (parseDateAU(navisionEtaForVehicle(b))?.getTime() || 9999999999999));
+    const shown = vehicles.slice(0, 12).map(incomingVehicleMiniRow).join('') || '<div class="pmb-empty-drop">No vehicles</div>';
+    return `<section class="incoming-bucket incoming-${escapeHtml(def.key)}">
+      <button class="incoming-bucket-title" type="button" data-kpi-filter="${def.key === 'yardhold' ? 'yardhold' : def.key === 'incoming' ? 'incoming' : 'prodtransit'}">
+        <span>${escapeHtml(def.label)}</span><strong>${vehicles.length}</strong><small>${escapeHtml(def.hint)}</small>
+      </button>
+      <div class="incoming-bucket-list">${shown}${vehicles.length > 12 ? `<div class="incoming-more">+${vehicles.length - 12} more</div>` : ''}</div>
+    </section>`;
+  }).join('');
+  $$('[data-open-stock]', host).forEach(button => button.addEventListener('click', () => openVehicleModal(button.dataset.openStock)));
+  $$('[data-kpi-filter]', host).forEach(button => button.addEventListener('click', () => applyQuickFilter(button.dataset.kpiFilter)));
+}
+
+function updateDashboardNavisionPasteButtons() {
+  const hasText = Boolean(($('#dashboard-navision-paste')?.value || '').trim());
+  const importButton = $('#dashboard-import-navision');
+  const clearButton = $('#dashboard-clear-navision');
+  if (importButton) importButton.disabled = !hasText;
+  if (clearButton) clearButton.disabled = !hasText;
+}
+
+function clearDashboardNavisionPaste() {
+  const input = $('#dashboard-navision-paste');
+  if (input) input.value = '';
+  updateDashboardNavisionPasteButtons();
+}
+
+function importDashboardNavisionPaste() {
+  const source = $('#dashboard-navision-paste');
+  const text = source?.value || '';
+  if (!text.trim()) return;
+  const target = $('#navision-paste');
+  if (target) target.value = text;
+  const pmbOnly = $('#navision-pmb-only');
+  if (pmbOnly) pmbOnly.checked = false;
+  showView('import');
+  updateNavisionImportButton();
+  importNavisionVehicles();
 }
 
 function renderPmbBranchTiles() {
@@ -3012,18 +3067,18 @@ function openPmbStageBayBoard(stage = '') {
   const normalizedStage = normalizePmbStage(stage);
   if (!normalizedStage) return;
   app.quickFilter = 'pmb';
+  app.pmbSubFilter = normalizedStage;
   app.activePmbBayStage = normalizedStage;
-  showView('dashboard');
-  renderKpis();
-  renderVehicleTable();
+  showView('workflow');
+  renderWorkflowBoard();
 }
 
 function closePmbStageBayBoard() {
   app.activePmbBayStage = '';
   app.pmbSubFilter = '';
   document.body.classList.remove('pmb-station-mode');
-  renderKpis();
-  renderVehicleTable();
+  showView('workflow');
+  renderWorkflowBoard();
 }
 
 function bindPmbBayDropTarget(dropTarget) {
@@ -3326,6 +3381,7 @@ function filteredPmbVehiclesIgnoringSubFilter() {
 function matchesQuickFilter(filter) {
   return (vehicle) => {
     if (!filter) return true;
+    if (filter === 'incoming') return !['pmb', 'rft'].includes(statusCategory(vehicle));
     if (filter === 'batchmatched') return statusCategory(vehicle) === 'batchmatched';
     if (filter === 'partsstoppage') return isActivePartsStoppage(vehicle);
     if (filter === 'partsrequired') {
@@ -3338,6 +3394,7 @@ function matchesQuickFilter(filter) {
 
 function quickFilterLabel() {
   const base = {
+    incoming: 'Incoming / non-PMB vehicles',
     batchmatched: 'Batch Matched vehicles',
     partsstoppage: 'Parts Stoppage vehicles',
     prodtransit: 'Production / In Transit vehicles',
@@ -3345,7 +3402,7 @@ function quickFilterLabel() {
     pmb: 'Vehicles at PMB',
     rft: 'Vehicles RFT',
     partsrequired: 'Parts Required',
-  }[app.quickFilter || 'batchmatched'] || '';
+  }[app.quickFilter || 'incoming'] || '';
   if (app.quickFilter === 'pmb' && app.pmbSubFilter) {
     return `${base} · ${pmbSubFilterLabel(app.pmbSubFilter)}`;
   }
@@ -3363,8 +3420,8 @@ function applyQuickFilter(filter) {
     renderPartsHome();
     return;
   }
-  const requestedFilter = filter || 'batchmatched';
-  const nextFilter = app.quickFilter === requestedFilter ? 'batchmatched' : requestedFilter;
+  const requestedFilter = filter || 'incoming';
+  const nextFilter = app.quickFilter === requestedFilter ? 'incoming' : requestedFilter;
   app.quickFilter = nextFilter;
   if (nextFilter !== 'pmb') {
     app.pmbSubFilter = '';
@@ -3386,14 +3443,14 @@ function applyPmbSubFilter(filter = '') {
 }
 
 function clearQuickFilter(render = true) {
-  app.quickFilter = 'batchmatched';
+  app.quickFilter = 'incoming';
   app.pmbSubFilter = '';
   app.activePmbBayStage = '';
   if (render) renderKpis();
 }
 
 function clearAllFilters() {
-  app.quickFilter = 'batchmatched';
+  app.quickFilter = 'incoming';
   app.pmbSubFilter = '';
   app.activePmbBayStage = '';
   app.columnFilters = { sales: '', production: '', status: '', jita: '' };
@@ -7913,7 +7970,7 @@ function applyNavisionImportPlan(plan, selectedUpdateKeys = null) {
     result.missingFromUpload = [];
   }
 
-  app.quickFilter = 'batchmatched';
+  app.quickFilter = 'incoming';
   app.pmbSubFilter = '';
   app.columnFilters = { sales: '', production: '', status: '', jita: '' };
   const searchInput = $('#search');
@@ -8201,7 +8258,7 @@ function clearDashboard() {
   if (autocarePaste) autocarePaste.value = '';
   if (autocareUpload) autocareUpload.value = '';
   app.data = buildVehicleData();
-  app.quickFilter = 'batchmatched';
+  app.quickFilter = 'incoming';
   app.pmbSubFilter = '';
   app.sort = { key: '', dir: 'asc' };
   populateFilters();
@@ -8378,7 +8435,7 @@ function restoreCrmBackup(text, fileName = 'backup file') {
   app.navisionImport = loadJson(NAVISION_IMPORT_RESULTS_KEY, null);
   app.navisionFileName = '';
   app.pendingNavisionImport = null;
-  app.quickFilter = 'batchmatched';
+  app.quickFilter = 'incoming';
   app.pmbSubFilter = '';
   app.sort = { key: '', dir: 'asc' };
   app.selectedRows.clear();
