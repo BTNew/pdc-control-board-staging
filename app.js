@@ -1858,6 +1858,20 @@ function pmbRequiredWorkLabels(vehicle = {}) {
   return pdcRequirementDefinitions(vehicle).map(item => `${item.label}${pdcJobComplete(vehicle, item) ? ' done' : ' required'}`);
 }
 
+function incomingWorkChecklistHtml(vehicle = {}) {
+  return `<div class="incoming-work-checks" aria-label="Required work checklist">${PDC_JOB_DEFS.map(def => {
+    const required = pdcJobRequired(vehicle, def);
+    const complete = required && pdcJobComplete(vehicle, def);
+    const classes = ['incoming-work-check'];
+    if (required) classes.push('is-required');
+    if (complete) classes.push('is-complete');
+    return `<span class="${classes.join(' ')}" title="${escapeHtml(required ? pdcJobCompletionTitle(vehicle, def) : `${def.label} not required`)}">
+      <span class="incoming-work-box" aria-hidden="true">${complete ? '✓' : required ? '•' : ''}</span>
+      <span>${escapeHtml(def.label)}</span>
+    </span>`;
+  }).join('')}</div>`;
+}
+
 function incomingVehicleDetailRow(vehicle = {}, bucketKey = '') {
   const key = vehicleKey(vehicle);
   const eta = navisionEtaForVehicle(vehicle) || 'No ETA';
@@ -1872,6 +1886,7 @@ function incomingVehicleDetailRow(vehicle = {}, bucketKey = '') {
   const vin = vehicle.vin || vehicle.VIN || vehicle.chassis || vehicle.chassisNo || '—';
   const notes = vehicle.dealerComments || vehicle.navisionNotes || vehicle.notes || '';
   const age = pmbAgeLabel(vehicle);
+  const workChecks = incomingWorkChecklistHtml(vehicle);
   const required = pmbRequiredWorkLabels(vehicle).join(', ') || 'No PMB work flagged';
   const transferButton = bucketKey === 'yardhold'
     ? `<button class="primary incoming-transfer-pmb" type="button" data-yh-transfer-pmb="${escapeHtml(key)}">Transfer YH → PMB</button>`
@@ -1884,6 +1899,7 @@ function incomingVehicleDetailRow(vehicle = {}, bucketKey = '') {
           <strong>${escapeHtml(truncate(customer, 46))}</strong>
           <small>${escapeHtml(truncate(unit, 72))}</small>
         </span>
+        <span class="incoming-card-work-wrap">${workChecks}</span>
         <span class="incoming-card-status">${escapeHtml(truncate(status, 30))}</span>
         <span class="incoming-card-meta"><b>ETA</b>${escapeHtml(eta)}</span>
         <span class="incoming-card-meta"><b>Key</b>${escapeHtml(keyNo)}</span>

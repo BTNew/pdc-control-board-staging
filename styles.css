@@ -6491,7 +6491,7 @@ body.pmb-schedule-adjusting .pmb-schedule-chip-slim {
 .incoming-vehicle-card[open] { box-shadow: 0 8px 22px rgba(15, 23, 42, .06); }
 .incoming-vehicle-summary {
   display: grid;
-  grid-template-columns: 14px 100px minmax(260px, 1.5fr) minmax(140px, .75fr) 100px 74px 150px;
+  grid-template-columns: 14px 100px minmax(220px, 1.2fr) minmax(420px, 1.6fr) minmax(140px, .7fr) 100px 74px 150px;
   gap: 10px;
   align-items: center;
   padding: 8px 10px;
@@ -6515,6 +6515,50 @@ body.pmb-schedule-adjusting .pmb-schedule-chip-slim {
 .incoming-card-main { min-width: 0; display: grid; gap: 1px; }
 .incoming-card-main strong { font-size: .84rem; color: #111827; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .incoming-card-main small { color: #64748b; font-size: .75rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.incoming-card-work-wrap { min-width: 0; }
+.incoming-work-checks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+}
+.incoming-work-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 24px;
+  padding: 3px 6px;
+  border: 1px solid #dbe4ee;
+  border-radius: 999px;
+  background: #f8fafc;
+  color: #94a3b8;
+  font-size: .68rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+.incoming-work-check.is-required {
+  border-color: #fca5a5;
+  background: #fff1f2;
+  color: #9f1239;
+}
+.incoming-work-check.is-complete {
+  border-color: #86efac;
+  background: #f0fdf4;
+  color: #166534;
+}
+.incoming-work-box {
+  width: 14px;
+  height: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1.5px solid currentColor;
+  border-radius: 4px;
+  font-size: .64rem;
+  line-height: 1;
+  background: #fff;
+}
+.incoming-work-check:not(.is-required) .incoming-work-box { opacity: .45; }
 .incoming-card-status {
   color: #9f1239;
   font-weight: 850;
@@ -6559,7 +6603,7 @@ body.pmb-schedule-adjusting .pmb-schedule-chip-slim {
 .incoming-transfer-pmb { background: #16a34a; box-shadow: 0 8px 18px rgba(22, 163, 74, .18); }
 .incoming-transfer-pmb:hover { background: #15803d; }
 @media (max-width: 1200px) {
-  .incoming-vehicle-summary { grid-template-columns: 14px 86px minmax(220px, 1fr) minmax(120px, .7fr) 90px 66px 132px; }
+  .incoming-vehicle-summary { grid-template-columns: 14px 86px minmax(180px, 1fr) minmax(320px, 1.4fr) minmax(120px, .7fr) 90px 66px 132px; }
   .incoming-vehicle-detail-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
 @media (max-width: 820px) {
