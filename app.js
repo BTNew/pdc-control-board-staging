@@ -489,9 +489,6 @@ function pmbRequirementDefinitions(vehicle = {}) {
 }
 
 function pdcJobCompletionTitle(vehicle = {}, def = {}) {
-  if (def?.key === 'parts') {
-    return `Parts status: ${partsDepartmentStatusLabel(partsDepartmentStatus(vehicle))}. Change this from the Parts selection only.`;
-  }
   const complete = pdcJobComplete(vehicle, def);
   const bits = [`${def.label} required`];
   if (complete) {
@@ -512,14 +509,8 @@ function pdcJobMarkersHtml(vehicle = {}, interactive = false) {
   }
   return `<div class="pmb-card-requirements" aria-label="PMB requirements">${required.map(def => {
     const complete = pdcJobComplete(vehicle, def);
-    const canToggle = interactive && def.key !== 'parts';
-    const attrs = canToggle ? ` role="button" tabindex="0" data-toggle-pdc-job-complete="${escapeHtml(def.key)}" data-job-stock="${escapeHtml(vehicleKey(vehicle))}"` : ' role="status"';
-    let markerText = complete ? `${def.short}✓` : def.short;
-    if (def.key === 'parts' && !complete) {
-      const partsStatus = partsDepartmentStatus(vehicle);
-      if (partsStatus === 'stoppage') markerText = `${def.short}!`;
-      if (partsStatus === 'onorder') markerText = `${def.short}…`;
-    }
+    const attrs = interactive ? ` role="button" tabindex="0" data-toggle-pdc-job-complete="${escapeHtml(def.key)}" data-job-stock="${escapeHtml(vehicleKey(vehicle))}"` : '';
+    const markerText = complete ? `${def.short}✓` : def.short;
     return `<span class="pmb-req-marker pmb-req-${escapeHtml(def.key)} ${complete ? 'is-complete' : 'is-pending'}" title="${escapeHtml(pdcJobCompletionTitle(vehicle, def))}"${attrs}>${escapeHtml(markerText)}</span>`;
   }).join('')}</div>`;
 }
@@ -875,27 +866,12 @@ function pdcJobPartsVisualStatus(vehicle = {}, def = {}) {
   if (def?.key !== 'parts') return '';
   if (!pdcJobRequired(vehicle, def)) return '';
   if (pdcJobComplete(vehicle, def) || vehicle.pdcPartsReceived === true) return 'issued';
-  if (isActivePartsStoppage(vehicle)) return 'stoppage';
   if (partsOrdered(vehicle)) return 'onorder';
   return 'notordered';
 }
 
-function partsStatusDisplayHtml(vehicle = {}, options = {}) {
-  const def = partsJobDef();
-  const status = partsDepartmentStatus(vehicle);
-  const label = partsDepartmentStatusLabel(status);
-  const short = options.short || def?.short || 'P';
-  const title = options.title || `Parts: ${label}. Change this from the Parts selection only.`;
-  const className = options.className || 'mini-check';
-  return `<span class="${escapeHtml(className)} pdc-mini-parts parts-visual-${escapeHtml(status)} parts-status-readonly" role="status" title="${escapeHtml(title)}"><span><b>${escapeHtml(short)}</b>${escapeHtml(options.includeLabel ? ` ${label}` : '')}</span></span>`;
-}
-
 function pdcJobTableCell(vehicle, def) {
   if (!def) return '';
-  const partsVisualStatus = pdcJobPartsVisualStatus(vehicle, def);
-  if (partsVisualStatus) {
-    return partsStatusDisplayHtml(vehicle, { title: `${def.label} required · ${partsDepartmentStatusLabel(partsDepartmentStatus(vehicle))}. Change Parts from the Parts selection only.` });
-  }
   if (statusCategory(vehicle) === 'rft') {
     const checked = pdcJobComplete(vehicle, def);
     const mechanic = pdcJobMechanic(vehicle, def);
@@ -905,11 +881,17 @@ function pdcJobTableCell(vehicle, def) {
       : `${def.label} has not been signed off before RFT`;
     return `<label class="mini-check pdc-mini-${escapeHtml(def.key)} rft-completion-check ${checked ? 'is-complete' : 'is-missing'}" title="${escapeHtml(title)}"><input type="checkbox" data-flag-stock="${escapeHtml(vehicleKey(vehicle))}" data-flag-key="${escapeHtml(def.completeKey)}"${checked ? ' checked' : ''} /><span>${escapeHtml(def.short)}</span></label>`;
   }
+  const partsVisualStatus = pdcJobPartsVisualStatus(vehicle, def);
+  if (partsVisualStatus) {
+    const checked = vehicleFlag(vehicle, def.requireKey) ? ' checked' : '';
+    const statusLabel = partsVisualStatus === 'issued' ? 'Parts received/there' : partsVisualStatus === 'onorder' ? 'Parts confirmed/ordered' : 'Parts required - not ordered';
+    return `<label class="mini-check pdc-mini-${escapeHtml(def.key)} parts-visual-${escapeHtml(partsVisualStatus)}" title="${escapeHtml(`${def.label} required · ${statusLabel}`)}"><input type="checkbox" data-flag-stock="${escapeHtml(vehicleKey(vehicle))}" data-flag-key="${escapeHtml(def.requireKey)}"${checked} /><span>${escapeHtml(def.short)}</span></label>`;
+  }
   return checkboxCell(vehicle, def.requireKey, `${def.label} required`, def.short);
 }
 
 function flagGroupCell(vehicle) {
-  return `<div class="flag-group" aria-label="PDC required jobs">${PDC_JOB_DEFS.map(def => pdcJobTableCell(vehicle, def)).join('')}</div>`;
+  return `<div class="flag-group" aria-label="PDC required jobs">${PDC_JOB_DEFS.map(def => checkboxCell(vehicle, def.requireKey, `${def.label} required`, def.short)).join('')}</div>`;
 }
 
 function getStage(vehicle) {
@@ -4473,9 +4455,6 @@ function pmbRequirementChecklistModal(vehicles = []) {
     const previewRows = rows.map((vehicle, index) => {
       const key = vehicleKey(vehicle);
       const checks = PDC_JOB_DEFS.map(def => {
-        if (def.key === 'parts') {
-          return partsStatusDisplayHtml(vehicle, { className: 'check-option pdc-toggle-chip pdc-toggle-parts is-readonly', includeLabel: true, title: 'Parts are assumed required for every job. Only the Parts selection can change Ordered / Stoppage / Complete.' });
-        }
         const checked = pdcJobRequired(vehicle, def) ? 'checked' : '';
         return `<label class="check-option pdc-toggle-chip pdc-toggle-${escapeHtml(def.key)} ${checked ? 'is-on' : ''}"><input type="checkbox" data-pmb-requirement-row="${index}" data-pmb-requirement-key="${escapeHtml(def.key)}" ${checked} /> <span><b>${escapeHtml(def.short)}</b>${escapeHtml(def.label)}</span></label>`;
       }).join('');
@@ -4487,7 +4466,7 @@ function pmbRequirementChecklistModal(vehicles = []) {
         <div class="panel-header">
           <div>
             <h2 id="pmb-requirement-modal-title">Confirm PMB required work</h2>
-            <p>Before releasing Yard Hold vehicles into PMB, tick the PMB work required. Parts are assumed required and shown as status only; change Parts from the Parts selection.</p>
+            <p>Before releasing Yard Hold vehicles into PMB, tick what each vehicle needs: Tint, Sublet, Pit Inspection, Parts, Build, Electrical or Fabrication.</p>
           </div>
           <span class="badge neutral">${rows.length} vehicle${rows.length === 1 ? '' : 's'}</span>
         </div>
@@ -4512,7 +4491,7 @@ function pmbRequirementChecklistModal(vehicles = []) {
           const updates = {};
           PDC_JOB_DEFS.forEach(def => {
             const input = overlay.querySelector(`[data-pmb-requirement-row="${index}"][data-pmb-requirement-key="${def.key}"]`);
-            updates[def.requireKey] = def.key === 'parts' ? true : Boolean(input?.checked);
+            updates[def.requireKey] = Boolean(input?.checked);
           });
           selections.set(vehicleKey(vehicle), updates);
         });

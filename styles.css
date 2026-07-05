@@ -5815,12 +5815,6 @@ body.pmb-schedule-adjusting .pmb-schedule-chip-slim {
 #vehicle-table .mini-check.pdc-mini-parts.parts-visual-onorder input {
   accent-color: #2563eb !important;
 }
-#vehicle-table .mini-check.pdc-mini-parts.parts-visual-stoppage {
-  background: #fff7ed !important;
-  border: 2px solid #f97316 !important;
-  box-shadow: 0 0 0 1px rgba(249, 115, 22, .18) !important;
-  opacity: 1;
-}
 #vehicle-table .mini-check.pdc-mini-parts.parts-visual-issued {
   background: #f0fdf4 !important;
   border: 2px solid #22c55e !important;
@@ -5833,21 +5827,6 @@ body.pmb-schedule-adjusting .pmb-schedule-chip-slim {
 #vehicle-table .mini-check.pdc-mini-electrical input { accent-color: #22c55e !important; }
 #vehicle-table .mini-check.pdc-mini-sublet input { accent-color: #64748b !important; }
 #vehicle-table .mini-check.pdc-mini-fabrication input { accent-color: #f59e0b !important; }
-
-.parts-status-readonly {
-  cursor: default !important;
-}
-
-.pdc-toggle-chip.parts-status-readonly {
-  background: #f8fafc !important;
-  border: 1px solid currentColor !important;
-  opacity: .9;
-}
-
-.pdc-toggle-chip.parts-status-readonly.parts-visual-onorder { color: #2563eb !important; }
-.pdc-toggle-chip.parts-status-readonly.parts-visual-stoppage { color: #ea580c !important; }
-.pdc-toggle-chip.parts-status-readonly.parts-visual-issued { color: #16a34a !important; }
-.pdc-toggle-chip.parts-status-readonly.parts-visual-notordered { color: #64748b !important; }
 
 #vehicle-table .mini-check.pdc-mini-tint:has(input:checked) { background: #ecfeff !important; }
 #vehicle-table .mini-check.pdc-mini-build:has(input:checked) { background: #f5f3ff !important; }
