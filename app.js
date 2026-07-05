@@ -1765,7 +1765,6 @@ function workflowAction(target = '') {
 function renderWorkflowBoard() {
   const host = $('#workflow-board');
   if (!host) return;
-  const stats = workflowBoardStats();
   const activeStationStage = normalizePmbStage(app.activePmbBayStage);
   document.body.classList.toggle('pmb-station-mode', Boolean(activeStationStage));
   if (activeStationStage) {
@@ -1776,48 +1775,56 @@ function renderWorkflowBoard() {
     return;
   }
   const pmbRows = workflowVehiclesForStep('pmb');
-  const stageDefs = [
-    { value: '', filter: PMB_STAGE_UNASSIGNED_FILTER, label: 'Unallocated', hint: 'PMB vehicles needing a category', open: true },
-    ...PMB_STAGE_DEFS.map(def => ({ ...def, filter: def.value, hint: `${pmbStageCapacityLabel(def.value)} · click Open bays for bay board`, open: true }))
+  const unassignedRows = pmbRows.filter(vehicle => !inferredPmbStage(vehicle));
+  const lanes = [
+    { value: '', filter: PMB_STAGE_UNASSIGNED_FILTER, label: 'Unallocated', className: 'pmb-branch-unassigned', hint: 'Needs bucket' },
+    ...PMB_STAGE_DEFS.map(def => ({ ...def, filter: def.value, className: `pmb-branch-${def.value.toLowerCase()}`, hint: 'Open bays' }))
   ];
-  const bucketsHtml = stageDefs.map(def => {
-    const vehicles = pmbRows
-      .filter(vehicle => def.value ? inferredPmbStage(vehicle) === def.value : !inferredPmbStage(vehicle))
-      .sort((a, b) => (pmbStageAgeDays(b) ?? -1) - (pmbStageAgeDays(a) ?? -1) || String(displayStockNumber(a)).localeCompare(String(displayStockNumber(b))));
-    const metrics = pmbLaneMetrics(def.value, vehicles);
-    const stateClass = metrics.overLimit || metrics.blockedCount ? 'workflow-warning' : 'workflow-ready';
-    const bayAction = def.value
-      ? `<button class="small-button" type="button" data-workflow-action="${escapeHtml(def.filter)}">Open bays</button>`
-      : '';
-    const shown = vehicles.map(vehicle => incomingVehicleDetailRow(vehicle, 'workflow', { hideDelete: true })).join('') || '<div class="pmb-empty-drop">No PMB vehicles in this category</div>';
-    return `<details class="incoming-bucket workflow-stage-bucket ${stateClass}" open>
-      <summary class="incoming-bucket-title workflow-bucket-title">
-        <span>${escapeHtml(def.label)}</span>
-        <strong>${vehicles.length}</strong>
-        <small>${escapeHtml(def.hint)}${vehicles.length ? ` · oldest ${metrics.oldestStageDays}d${metrics.blockedCount ? ` · blocked ${metrics.blockedCount}` : ''}` : ''}</small>
-        <span class="workflow-bucket-actions">${bayAction}</span>
-      </summary>
-      <div class="incoming-bucket-list incoming-vertical-list workflow-vertical-list">${shown}</div>
-    </details>`;
+  const laneHtml = lanes.map(lane => {
+    const vehicles = lane.value
+      ? pmbRows.filter(vehicle => inferredPmbStage(vehicle) === lane.value)
+      : unassignedRows;
+    const active = app.pmbSubFilter === lane.filter || (lane.value && normalizePmbStage(app.activePmbBayStage) === lane.value);
+    const metrics = pmbLaneMetrics(lane.value, vehicles);
+    const laneClasses = [
+      active ? 'active' : '',
+      lane.className,
+      metrics.overLimit ? 'is-over-limit' : '',
+      metrics.atLimit ? 'is-at-limit' : '',
+      metrics.blockedCount ? 'has-blocked' : '',
+    ].filter(Boolean).join(' ');
+    const cards = vehicles.map(pmbVehicleCardHtml).join('') || `<div class="pmb-empty-drop">${lane.value ? 'Drop vehicles here' : 'No unallocated PMB vehicles'}</div>`;
+    const capacityLabel = lane.value ? pmbStageCapacityLabel(lane.value) : `${metrics.limitLabel} vehicle limit`;
+    const hint = metrics.overLimit
+      ? `OVER LIMIT ${vehicles.length}/${metrics.limitLabel}`
+      : `${capacityLabel} · ${vehicles.length} in queue · oldest ${metrics.oldestStageDays}d${metrics.blockedCount ? ` · blocked ${metrics.blockedCount}` : ''}`;
+    const titleAttrs = lane.value
+      ? `data-open-pmb-bays="${escapeHtml(lane.value)}" title="Open ${escapeHtml(lane.label)} bays"`
+      : `data-pmb-sub-filter="${escapeHtml(lane.filter)}" title="Show unallocated PMB vehicles"`;
+    return `
+      <section class="pmb-drop-lane ${escapeHtml(laneClasses)}" data-pmb-drop-stage="${escapeHtml(lane.value)}" aria-label="${escapeHtml(lane.label)} PMB bucket">
+        <button class="pmb-lane-title" type="button" ${titleAttrs} aria-pressed="${active}">
+          <span>${escapeHtml(lane.label)}</span>
+          <strong>${vehicles.length}</strong>
+          <small>${escapeHtml(lane.value ? `${hint} · click for bay line` : hint)}</small>
+        </button>
+        <div class="pmb-lane-dropzone" data-pmb-drop-stage="${escapeHtml(lane.value)}">
+          ${cards}
+        </div>
+      </section>`;
   }).join('');
+  const allActive = !app.pmbSubFilter;
   host.innerHTML = `
-    <div class="workflow-summary-strip">
-      <span><strong>${stats.total}</strong> PMB vehicles</span>
-      <span><strong>${stats.unallocated}</strong> unallocated</span>
-      <span><strong>${stats.pmbBlocked}</strong> PMB stoppage</span>
-      <span><strong>${stats.gateIssues}</strong> RFT gate issue</span>
+    <div class="branch-header workflow-pmb-header">
+      <div><strong>PMB control board</strong><span>All PMB vehicles land in Unallocated first. Drag into Tint (internal), Hoist, Fitting, Fabrication, Electrical, Tyre bay or Pit Inspection only when that department is ready to own the work.</span></div>
+      <div class="branch-header-actions">
+        <button class="small-button ${allActive ? 'active-lite' : ''}" type="button" data-pmb-sub-filter="">Show all PMB (${pmbRows.length})</button>
+        <button class="small-button ${app.pmbSubFilter === PMB_STAGE_UNASSIGNED_FILTER ? 'active-lite' : ''}" type="button" data-pmb-sub-filter="${PMB_STAGE_UNASSIGNED_FILTER}">Unallocated (${unassignedRows.length})</button>
+      </div>
     </div>
-    <div class="workflow-collapsible-board">${bucketsHtml}</div>
+    <div class="pmb-drop-board workflow-pmb-drop-board" data-pmb-board>${laneHtml}</div>
   `;
-  $$('[data-workflow-action]', host).forEach(button => button.addEventListener('click', event => {
-    event.stopPropagation();
-    workflowAction(button.dataset.workflowAction);
-  }));
-  $$('[data-open-stock]', host).forEach(button => button.addEventListener('click', event => {
-    event.stopPropagation();
-    openVehicleModal(button.dataset.openStock);
-  }));
-  bindIncomingCardSelection(host);
+  bindPmbDragBoard(host);
   updateInlineSelectionBars(pmbRows);
 }
 
@@ -1894,6 +1901,10 @@ function collapseMainScreenRows() {
 }
 
 function collapseWorkflowRows() {
+  if (normalizePmbStage(app.activePmbBayStage)) {
+    closePmbStageBayBoard();
+    return;
+  }
   collapseDetailsWithin($('#workflow-board'));
 }
 
