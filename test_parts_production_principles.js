@@ -45,7 +45,9 @@ code += String.raw`
   assert(pdcJobTableCell({ ...basePartsVehicle, pdcPartsOrdered: true }, partsDef).includes('parts-visual-onorder'), 'Dashboard Parts tick should show ordered/confirmed state');
   const issuedPartsCell = pdcJobTableCell({ ...basePartsVehicle, pdcCompleteParts: true }, partsDef);
   assert(issuedPartsCell.includes('parts-visual-issued'), 'Dashboard Parts tick should show received/issued state');
-  assert(issuedPartsCell.includes('checked'), 'Received/issued Parts tick should remain checked');
+  assert(issuedPartsCell.includes('role="status"'), 'Parts status should be display-only outside Parts selection');
+  assert(!issuedPartsCell.includes('data-flag-key="pdcCompleteParts"') && !issuedPartsCell.includes('data-flag-key="pdcRequiresParts"'), 'Parts status must not be directly tickable in PDC work confirmations');
+  assert(pdcJobTableCell({ ...basePartsVehicle, pdcPartsStoppage: true }, partsDef).includes('parts-visual-stoppage'), 'Dashboard Parts status should show active stoppage state');
   assert(!pdcJobTableCell(basePartsVehicle, PDC_JOB_BY_KEY.get('build')).includes('parts-visual-'), 'Parts visual classes must not leak onto other job ticks');
 
   const stalePmbVehicle = { ...basePartsVehicle, pdcLocation: 'PMB', pmbStage: 'SUBLET', pmbStageEnteredAt: '2000-01-01T00:00:00.000Z', pdcRequiresSublet: true, pdcBlockReason: 'Waiting on contractor' };
