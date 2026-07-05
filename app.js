@@ -739,6 +739,7 @@ const app = {
   activePmbBayStage: '',
   pmbDraggingKey: '',
   pmbScheduleClockTimer: null,
+  workflowSearch: '',
   sort: { key: '', dir: 'asc' },
   selectedRows: new Set(),
   columnFilters: { sales: '', production: '', status: '', jita: '' },
@@ -1413,6 +1414,9 @@ function bindNav() {
   $('#incoming-clear-filters')?.addEventListener('click', clearIncomingDashboardFilters);
   $('#incoming-collapse-all')?.addEventListener('click', collapseMainScreenRows);
   $('#workflow-collapse-all')?.addEventListener('click', collapseWorkflowRows);
+  $('#workflow-search')?.addEventListener('input', event => { app.workflowSearch = String(event.target.value || '').trim().toLowerCase(); renderWorkflowBoard(); });
+  $('#workflow-find')?.addEventListener('click', () => { app.workflowSearch = String($('#workflow-search')?.value || '').trim().toLowerCase(); renderWorkflowBoard(); });
+  $('#workflow-clear-search')?.addEventListener('click', clearWorkflowSearch);
   $('#incoming-transfer-selected-pmb')?.addEventListener('click', transferSelectedMainYhVehiclesToPmb);
   $('#incoming-delete-selected')?.addEventListener('click', deleteSelectedVehicles);
   $('#incoming-clear-selected')?.addEventListener('click', clearSelectedRows);
@@ -1775,17 +1779,21 @@ function renderWorkflowBoard() {
     return;
   }
   const pmbRows = workflowVehiclesForStep('pmb');
+  const search = workflowSearchValue();
+  app.workflowSearch = search;
+  const searchedRows = pmbRows.filter(vehicle => workflowVehicleMatchesSearch(vehicle, search));
   const unassignedRows = pmbRows.filter(vehicle => !inferredPmbStage(vehicle));
   const lanes = [
     { value: '', filter: PMB_STAGE_UNASSIGNED_FILTER, label: 'UNALLOCATED', className: 'pmb-branch-unassigned', hint: 'Needs bucket' },
     ...PMB_STAGE_DEFS.map(def => ({ ...def, filter: def.value, className: `pmb-branch-${def.value.toLowerCase()}`, hint: 'Open bays' }))
   ];
   const laneHtml = lanes.map(lane => {
-    const vehicles = lane.value
+    const allVehicles = lane.value
       ? pmbRows.filter(vehicle => inferredPmbStage(vehicle) === lane.value)
       : unassignedRows;
+    const vehicles = search ? allVehicles.filter(vehicle => workflowVehicleMatchesSearch(vehicle, search)) : allVehicles;
     const active = app.pmbSubFilter === lane.filter || (lane.value && normalizePmbStage(app.activePmbBayStage) === lane.value);
-    const metrics = pmbLaneMetrics(lane.value, vehicles);
+    const metrics = pmbLaneMetrics(lane.value, allVehicles);
     const laneClasses = [
       active ? 'active' : '',
       lane.className,
@@ -1793,39 +1801,44 @@ function renderWorkflowBoard() {
       metrics.atLimit ? 'is-at-limit' : '',
       metrics.blockedCount ? 'has-blocked' : '',
     ].filter(Boolean).join(' ');
-    const cards = vehicles.map(pmbVehicleCardHtml).join('') || `<div class="pmb-empty-drop">${lane.value ? 'Drop vehicles here' : 'No unallocated PMB vehicles'}</div>`;
+    const cards = vehicles.map(vehicle => lane.value
+      ? pmbVehicleCardHtml(vehicle)
+      : incomingVehicleDetailRow(vehicle, 'pmb', { draggable: true, hideDelete: true })
+    ).join('') || `<div class="pmb-empty-drop">${search ? 'No matching vehicles here — bucket still accepts drops' : lane.value ? 'Drop vehicles here' : 'No unallocated PMB vehicles'}</div>`;
     const capacityLabel = lane.value ? pmbStageCapacityLabel(lane.value) : `${metrics.limitLabel} vehicle limit`;
+    const countLabel = search ? `${vehicles.length}/${allVehicles.length}` : `${allVehicles.length}`;
     const hint = metrics.overLimit
-      ? `OVER LIMIT ${vehicles.length}/${metrics.limitLabel}`
-      : `${capacityLabel} · ${vehicles.length} in queue · oldest ${metrics.oldestStageDays}d${metrics.blockedCount ? ` · blocked ${metrics.blockedCount}` : ''}`;
-    const titleAttrs = lane.value
-      ? `data-open-pmb-bays="${escapeHtml(lane.value)}" title="Open ${escapeHtml(lane.label)} bays"`
-      : `data-pmb-sub-filter="${escapeHtml(lane.filter)}" title="Show unallocated PMB vehicles"`;
+      ? `OVER LIMIT ${allVehicles.length}/${metrics.limitLabel}`
+      : `${capacityLabel} · ${allVehicles.length} in queue · oldest ${metrics.oldestStageDays}d${metrics.blockedCount ? ` · blocked ${metrics.blockedCount}` : ''}`;
+    const openAttr = ' open';
+    const actions = lane.value
+      ? `<button class="small-button" type="button" data-open-pmb-bays="${escapeHtml(lane.value)}" title="Open ${escapeHtml(lane.label)} bay line">Open bays</button>`
+      : '';
     return `
-      <section class="pmb-drop-lane ${escapeHtml(laneClasses)}" data-pmb-drop-stage="${escapeHtml(lane.value)}" aria-label="${escapeHtml(lane.label)} PMB bucket">
-        <button class="pmb-lane-title" type="button" ${titleAttrs} aria-pressed="${active}">
+      <details class="incoming-bucket workflow-stage-bucket pmb-drop-lane ${escapeHtml(laneClasses)}" data-pmb-drop-stage="${escapeHtml(lane.value)}" aria-label="${escapeHtml(lane.label)} PMB bucket"${openAttr}>
+        <summary class="incoming-bucket-title workflow-bucket-title">
           <span>${escapeHtml(lane.label)}</span>
-          <strong>${vehicles.length}</strong>
-          <small>${escapeHtml(lane.value ? `${hint} · click for bay line` : hint)}</small>
-        </button>
-        <div class="pmb-lane-dropzone" data-pmb-drop-stage="${escapeHtml(lane.value)}">
+          <strong>${escapeHtml(countLabel)}</strong>
+          <small>${escapeHtml(lane.value ? `${hint} · drop vehicles here or open bays` : `${hint} · drag these rows into a bucket`)}</small>
+          <span class="workflow-bucket-actions">${actions}</span>
+        </summary>
+        <div class="incoming-bucket-list incoming-vertical-list workflow-vertical-list" data-pmb-drop-stage="${escapeHtml(lane.value)}">
           ${cards}
         </div>
-      </section>`;
+      </details>`;
   }).join('');
-  const allActive = !app.pmbSubFilter;
+  const summaryText = search
+    ? `${searchedRows.length} of ${pmbRows.length} PMB vehicles match “${search}” · all buckets stay visible for dragging`
+    : `${pmbRows.length} PMB vehicles · ${unassignedRows.length} unallocated`;
   host.innerHTML = `
     <div class="branch-header workflow-pmb-header">
-      <div><strong>PMB control board</strong><span>All PMB vehicles land in UNALLOCATED first. Drag into TINT, HOIST, FITTING, FAB, ELEC, TYRE or PIT when that department is ready.</span></div>
-      <div class="branch-header-actions">
-        <button class="small-button ${allActive ? 'active-lite' : ''}" type="button" data-pmb-sub-filter="">Show all PMB (${pmbRows.length})</button>
-        <button class="small-button ${app.pmbSubFilter === PMB_STAGE_UNASSIGNED_FILTER ? 'active-lite' : ''}" type="button" data-pmb-sub-filter="${PMB_STAGE_UNASSIGNED_FILTER}">UNALLOCATED (${unassignedRows.length})</button>
-      </div>
+      <div><strong>PMB control board</strong><span>Unallocated vehicles are full rows like the main screen. Drag rows into TINT, HOIST, FITTING, FAB, ELEC, TYRE or PIT; use Open bays for station bay scheduling.</span></div>
+      <div class="branch-header-actions"><span class="badge neutral">${escapeHtml(summaryText)}</span></div>
     </div>
-    <div class="pmb-drop-board workflow-pmb-drop-board" data-pmb-board>${laneHtml}</div>
+    <div class="workflow-collapsible-board" data-pmb-board>${laneHtml}</div>
   `;
   bindPmbDragBoard(host);
-  updateInlineSelectionBars(pmbRows);
+  updateInlineSelectionBars(search ? searchedRows : pmbRows);
 }
 
 function incomingBucketForVehicle(vehicle = {}) {
@@ -1920,6 +1933,27 @@ function clearIncomingDashboardFilters() {
   renderIncomingDashboardBoard();
 }
 
+function workflowSearchText(vehicle = {}) {
+  return incomingSearchText(vehicle, 'pmb');
+}
+
+function workflowVehicleMatchesSearch(vehicle = {}, search = '') {
+  const needle = String(search || '').trim().toLowerCase();
+  if (!needle) return true;
+  return workflowSearchText(vehicle).includes(needle);
+}
+
+function workflowSearchValue() {
+  return String($('#workflow-search')?.value || app.workflowSearch || '').trim().toLowerCase();
+}
+
+function clearWorkflowSearch() {
+  app.workflowSearch = '';
+  const input = $('#workflow-search');
+  if (input) input.value = '';
+  renderWorkflowBoard();
+}
+
 function pmbRequiredWorkLabels(vehicle = {}) {
   return pdcRequirementDefinitions(vehicle).map(item => `${item.label}${pdcJobComplete(vehicle, item) ? ' done' : ' required'}`);
 }
@@ -1958,8 +1992,10 @@ function incomingVehicleDetailRow(vehicle = {}, bucketKey = '', options = {}) {
   const deleteAction = options.hideDelete ? '' : `<button class="small-button incoming-delete-button" type="button" data-incoming-delete="${escapeHtml(key)}" title="Delete this vehicle from the main screen">Delete</button>`;
   const keyBadge = keyNo && keyNo !== '—' ? `<small>Key ${escapeHtml(keyNo)}</small>` : '';
   const selectBox = `<label class="incoming-card-select" title="Select ${escapeHtml(stock)}"><input type="checkbox" data-select-stock="${escapeHtml(key)}" ${app.selectedRows.has(key) ? 'checked' : ''} /><span aria-hidden="true"></span></label>`;
+  const dragAttrs = options.draggable ? ` draggable="true" data-pmb-drag-key="${escapeHtml(key)}"` : '';
+  const dragClass = options.draggable ? ' workflow-draggable-row' : '';
   return `
-    <details class="incoming-vehicle-card incoming-${escapeHtml(bucketKey)}-row ${app.selectedRows.has(key) ? 'is-selected' : ''}" data-incoming-row="${escapeHtml(key)}">
+    <details class="incoming-vehicle-card incoming-${escapeHtml(bucketKey)}-row${dragClass} ${app.selectedRows.has(key) ? 'is-selected' : ''}" data-incoming-row="${escapeHtml(key)}"${dragAttrs}>
       <summary class="incoming-vehicle-summary">
         ${selectBox}
         <span class="incoming-card-stock"><b>${escapeHtml(stock)}</b>${keyBadge}</span>
@@ -3265,7 +3301,11 @@ function togglePdcJobCompletionFromCard(stockKey, jobKey) {
 
 function bindPmbDragBoard(host) {
   $$('[data-pmb-sub-filter]', host).forEach(button => button.addEventListener('click', () => applyPmbSubFilter(button.dataset.pmbSubFilter || '')));
-  $$('[data-open-pmb-bays]', host).forEach(button => button.addEventListener('click', () => openPmbStageBayBoard(button.dataset.openPmbBays || '')));
+  $$('[data-open-pmb-bays]', host).forEach(button => button.addEventListener('click', event => {
+    event.preventDefault();
+    event.stopPropagation();
+    openPmbStageBayBoard(button.dataset.openPmbBays || '');
+  }));
   $$('[data-close-pmb-bays]', host).forEach(button => button.addEventListener('click', closePmbStageBayBoard));
   $$('[data-add-pmb-mechanic]', host).forEach(button => button.addEventListener('click', addMechanicFromPrompt));
   $$('[data-add-sublet-provider]', host).forEach(button => button.addEventListener('click', addSubletProviderFromPrompt));

@@ -6675,6 +6675,11 @@ body.pmb-schedule-adjusting .pmb-schedule-chip-slim {
   font-weight: 800;
 }
 .workflow-summary-strip strong { color: #0f172a; }
+.workflow-search-panel { margin-bottom: 12px; }
+.workflow-filter-row {
+  grid-template-columns: minmax(280px, 1fr) auto auto;
+  align-items: end;
+}
 .workflow-collapsible-board {
   display: grid;
   gap: 10px;
@@ -6682,16 +6687,26 @@ body.pmb-schedule-adjusting .pmb-schedule-chip-slim {
 .workflow-stage-bucket {
   border-color: #dbe4ee;
 }
+.workflow-stage-bucket[open] {
+  box-shadow: 0 8px 20px rgba(15, 23, 42, .05);
+}
 .workflow-stage-bucket.workflow-warning {
   border-color: #fbbf24;
   box-shadow: 0 8px 20px rgba(251, 191, 36, .12);
 }
 .workflow-bucket-title {
-  grid-template-columns: 1fr auto minmax(240px, 1.5fr) auto;
+  grid-template-columns: auto minmax(190px, .7fr) auto minmax(320px, 1.3fr) auto;
+  align-items: center;
+  cursor: pointer;
 }
 .workflow-bucket-title small {
+  grid-column: auto;
+  min-width: 0;
   color: #64748b;
-  font-weight: 700;
+}
+.workflow-bucket-title > span:first-of-type {
+  white-space: nowrap;
+  overflow: visible;
 }
 .workflow-bucket-actions {
   display: inline-flex;
@@ -6701,8 +6716,19 @@ body.pmb-schedule-adjusting .pmb-schedule-chip-slim {
 }
 .workflow-vertical-list {
   background: #f8fafc;
+  min-height: 70px;
+}
+.workflow-draggable-row {
+  cursor: grab;
+}
+.workflow-draggable-row:active {
+  cursor: grabbing;
+}
+.workflow-stage-bucket .pmb-vehicle-card {
+  max-width: none;
 }
 @media (max-width: 820px) {
+  .workflow-filter-row { grid-template-columns: 1fr; }
   .workflow-bucket-title { grid-template-columns: 1fr; align-items: start; }
   .workflow-bucket-actions { justify-content: flex-start; }
 }

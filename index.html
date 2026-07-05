@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Vehicle Tracking Core</title>
-  <link rel="stylesheet" href="styles.css?v=workflow-collapse-fix-1" />
+  <link rel="stylesheet" href="styles.css?v=workflow-search-drag-1" />
 </head>
 <body>
   <div class="app-shell" id="app-shell">
@@ -205,6 +205,17 @@
               <button class="small-button danger-button" id="workflow-delete-selected" type="button" disabled>Delete selected</button>
               <button class="small-button" id="workflow-clear-selected" type="button" disabled>Clear selected</button>
             </div>
+          </div>
+          <div class="incoming-search-panel workflow-search-panel">
+            <div class="incoming-filter-row workflow-filter-row">
+              <label>
+                <span>Search PMB vehicles</span>
+                <input id="workflow-search" type="search" autocomplete="off" placeholder="Stock, key number or customer" />
+              </label>
+              <button class="incoming-find-button primary" id="workflow-find" type="button">Find</button>
+              <button class="small-button" id="workflow-clear-search" type="button">Clear</button>
+            </div>
+            <div class="incoming-filter-meta">Search narrows the vehicle rows only — all PMB buckets stay visible so you can still drag into the correct bay/category.</div>
           </div>
           <div class="workflow-board" id="workflow-board"></div>
         </section>
@@ -642,6 +653,6 @@
   <script src="https://cdn.jsdelivr.net/npm/qz-tray@2.2.4/qz-tray.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
   <script src="data.js?v=d70c2d4"></script>
-  <script src="app.js?v=workflow-collapse-fix-1"></script>
+  <script src="app.js?v=workflow-search-drag-1"></script>
 </body>
 </html>
