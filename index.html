@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Vehicle Tracking Core</title>
-  <link rel="stylesheet" href="styles.css?v=review-update-20260705" />
+  <link rel="stylesheet" href="styles.css?v=rft-board-20260706" />
 </head>
 <body>
   <div class="app-shell" id="app-shell">
@@ -67,7 +67,7 @@
           <div class="panel-header">
             <div>
               <h2>Control Board vehicle list</h2>
-              <p>Searchable daily vehicle board ordered by PMB, Yard Hold, In Transit, then Overseas/Other. Use Yard Hold rows to transfer straight to PMB.</p>
+              <p>Searchable daily vehicle board ordered by RFT, PMB, Yard Hold, In Transit, then Overseas/Other. Use Yard Hold rows to transfer straight to PMB and PMB rows to transfer to RFT.</p>
             </div>
             <div class="panel-actions">
               <button class="small-button" id="incoming-collapse-all" type="button">Collapse all rows</button>
@@ -88,6 +88,7 @@
                 <span>Bucket</span>
                 <select id="incoming-bucket-filter">
                   <option value="">All buckets</option>
+                  <option value="rft">RFT</option>
                   <option value="pmb">PMB</option>
                   <option value="yardhold">Yard Hold</option>
                   <option value="transit">In Transit</option>
@@ -105,7 +106,7 @@
           </div>
           <div class="inline-selection-bar" id="incoming-selection-bar" aria-live="polite">
             <strong id="incoming-selection-count">0 selected</strong>
-            <span class="subtle">Tick vehicles below to bulk transfer Yard Hold to PMB or delete selected rows.</span>
+            <span class="subtle">Tick vehicles below to bulk transfer Yard Hold to PMB, transfer PMB to RFT, or delete selected rows.</span>
             <div class="inline-selection-actions">
               <button class="small-button primary" id="incoming-transfer-selected-pmb" type="button" disabled>Transfer selected YH → PMB</button>
               <button class="small-button danger-button" id="incoming-delete-selected" type="button" disabled>Delete selected</button>
@@ -703,6 +704,6 @@
   </template>
 
   <script src="data.js?v=d70c2d4"></script>
-  <script src="app.js?v=review-update-20260705"></script>
+  <script src="app.js?v=rft-board-20260706"></script>
 </body>
 </html>

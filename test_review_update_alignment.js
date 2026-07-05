@@ -31,6 +31,12 @@ code += String.raw`
   assert(!csv.includes('Requires Build'), 'CSV export should not include stale Build required header');
   assert(!csv.includes('Requires Sublet'), 'CSV export should not include stale Sublet required header');
 
+  const rftVehicle = { stock: 'RFT001', pdcLocation: 'RFT', manualLocation: 'RFT' };
+  const pmbVehicle = { stock: 'PMB001', pdcLocation: 'PMB', manualLocation: 'PMB', pdcRequiresTint: true, pdcCompleteTint: true };
+  assert(incomingBucketForVehicle(rftVehicle) === 'rft', 'Control Board should include RFT vehicles in their own bucket');
+  assert(incomingBucketLabel('rft') === 'RFT', 'Control Board RFT bucket label should be RFT');
+  assert(incomingVehicleDetailRow(pmbVehicle, 'pmb').includes('data-transfer-rft-stock="PMB001"'), 'PMB workflow/control-board rows should expose transfer to RFT action');
+
   console.log('Review update alignment tests passed');
 })();
 `;

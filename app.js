@@ -1967,7 +1967,7 @@ function renderWorkflowBoard() {
 function incomingBucketForVehicle(vehicle = {}) {
   const category = statusCategory(vehicle);
   const status = normalizeToyotaStatus(navisionStatusText(vehicle));
-  if (category === 'rft') return '';
+  if (category === 'rft') return 'rft';
   if (category === 'pmb') return 'pmb';
   if (category === 'yardhold') return 'yardhold';
   if (category === 'prodtransit') return 'transit';
@@ -1975,7 +1975,7 @@ function incomingBucketForVehicle(vehicle = {}) {
 }
 
 function incomingBucketLabel(bucketKey = '') {
-  return ({ pmb: 'PMB', yardhold: 'Yard Hold', transit: 'In Transit', overseas: 'Overseas / Other' })[bucketKey] || bucketKey || 'Other';
+  return ({ rft: 'RFT', pmb: 'PMB', yardhold: 'Yard Hold', transit: 'In Transit', overseas: 'Overseas / Other' })[bucketKey] || bucketKey || 'Other';
 }
 
 function incomingSearchText(vehicle = {}, bucketKey = '') {
@@ -2110,9 +2110,12 @@ function incomingVehicleDetailRow(vehicle = {}, bucketKey = '', options = {}) {
   const age = pmbAgeLabel(vehicle);
   const workChecks = incomingWorkChecklistHtml(vehicle);
   const required = pmbRequiredWorkLabels(vehicle).join(', ') || 'No PMB work flagged';
+  const gateIssues = bucketKey === 'pmb' ? vehiclesWithRftGateIssues([vehicle]).flatMap(row => row.issues || []) : [];
   const primaryAction = bucketKey === 'yardhold'
     ? `<button class="primary incoming-transfer-pmb" type="button" data-yh-transfer-pmb="${escapeHtml(key)}">Transfer YH → PMB</button>`
-    : `<button class="small-button incoming-open-button" type="button" data-open-stock="${escapeHtml(key)}">Open</button>`;
+    : bucketKey === 'pmb'
+      ? `<button class="primary incoming-transfer-rft" type="button" data-transfer-rft-stock="${escapeHtml(key)}" ${gateIssues.length ? 'disabled' : ''} title="${escapeHtml(gateIssues.length ? `RFT locked: ${gateIssues.join(' | ')}` : 'Transfer PMB vehicle to RFT')}">Transfer to RFT</button><button class="small-button incoming-open-button" type="button" data-open-stock="${escapeHtml(key)}">Open</button>`
+      : `<button class="small-button incoming-open-button" type="button" data-open-stock="${escapeHtml(key)}">Open</button>`;
   const deleteAction = options.hideDelete ? '' : `<button class="small-button incoming-delete-button" type="button" data-incoming-delete="${escapeHtml(key)}" title="Delete this vehicle from the main screen">Delete</button>`;
   const keyBadge = keyNo && keyNo !== '—' ? `<small>Key ${escapeHtml(keyNo)}</small>` : '';
   const selectBox = `<label class="incoming-card-select" title="Select ${escapeHtml(stock)}"><input type="checkbox" data-select-stock="${escapeHtml(key)}" ${app.selectedRows.has(key) ? 'checked' : ''} /><span aria-hidden="true"></span></label>`;
@@ -2158,6 +2161,7 @@ function renderIncomingDashboardBoard() {
     summary.textContent = `${filteredRows.length} of ${rows.length} vehicles shown${active.length ? ` · ${active.join(' · ')}` : ''}`;
   }
   const defs = [
+    { key: 'rft', label: 'RFT', hint: 'Vehicles ready for transport', open: true },
     { key: 'pmb', label: 'PMB', hint: 'Vehicles currently at PMB', open: true },
     { key: 'yardhold', label: 'Yard Hold', hint: 'Yard Hold vehicles — release to PMB from here', open: true },
     { key: 'transit', label: 'In Transit', hint: 'Wharf, shipment and WA transit', open: true },
@@ -2186,6 +2190,10 @@ function renderIncomingDashboardBoard() {
   $$('[data-yh-transfer-pmb]', host).forEach(button => button.addEventListener('click', event => {
     event.stopPropagation();
     transferYhVehicleToPmb(button.dataset.yhTransferPmb);
+  }));
+  $$('[data-transfer-rft-stock]', host).forEach(button => button.addEventListener('click', event => {
+    event.stopPropagation();
+    transferVehicleToRftFromCard(button.dataset.transferRftStock);
   }));
   bindIncomingCardSelection(host);
   updateInlineSelectionBars(filteredRows);
