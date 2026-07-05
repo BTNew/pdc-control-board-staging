@@ -10,7 +10,7 @@ const OPERATOR_ROLE_KEY = 'vehicleTrackingCoreCurrentOperatorRole:v1';
 const MECHANICS_KEY = 'vehicleTrackingCorePdcMechanics:v1';
 const SUBLET_PROVIDERS_KEY = 'vehicleTrackingCorePdcSubletProviders:v1';
 const VEHICLE_TABLE_COLUMN_ORDER_KEY = 'vehicleTrackingCoreColumnOrder:v2';
-const VEHICLE_TABLE_DEFAULT_COLUMN_IDS = ['sp', 'stock', 'prodMth', 'client', 'vehicle', 'tint', 'build', 'parts', 'electrical', 'sublet', 'fabrication', 'pitInspection', 'status', 'eta', 'navisionNotes', 'jita', 'action'];
+const VEHICLE_TABLE_DEFAULT_COLUMN_IDS = ['sp', 'stock', 'prodMth', 'client', 'vehicle', 'tint', 'build', 'parts', 'electrical', 'sublet', 'fabrication', 'pitInspection', 'status', 'eta', 'jita', 'action'];
 const PO_TASKS_KEY = 'vehicleTrackingCoreNavisionOnlyPoTasks:v1';
 const PO_FILES_KEY = 'vehicleTrackingCoreNavisionOnlyPoFiles:v1';
 const DELETED_KEY = 'vehicleTrackingCoreNavisionOnlyDeleted:v1';
@@ -66,14 +66,14 @@ function pdcLocationSelectOptions(current = '') {
 }
 
 const PMB_STAGE_OPTIONS = [
-  { value: '', label: 'Not assigned' },
-  { value: 'TINT', label: 'Tint (internal)' },
-  { value: 'HOIST', label: 'Hoist' },
-  { value: 'FITTING', label: 'Fitting' },
-  { value: 'FABRICATION', label: 'Fabrication' },
-  { value: 'ELECTRICAL', label: 'Electrical' },
-  { value: 'TYRE', label: 'Tyre bay' },
-  { value: 'PIT_INSPECTION', label: 'Pit Inspection' },
+  { value: '', label: 'UNALLOCATED' },
+  { value: 'TINT', label: 'TINT' },
+  { value: 'HOIST', label: 'HOIST' },
+  { value: 'FITTING', label: 'FITTING' },
+  { value: 'FABRICATION', label: 'FAB' },
+  { value: 'ELECTRICAL', label: 'ELEC' },
+  { value: 'TYRE', label: 'TYRE' },
+  { value: 'PIT_INSPECTION', label: 'PIT' },
 ];
 
 const PMB_STAGE_DEFS = PMB_STAGE_OPTIONS.filter(option => option.value);
@@ -120,13 +120,13 @@ const PMB_STAGE_AGE_LIMITS = {
 const PMB_BAY_MAX_COUNT = 10;
 const PMB_BAY_STATION_SEQUENCE = ['TINT', 'HOIST', 'FITTING', 'FABRICATION', 'ELECTRICAL', 'TYRE', 'PIT_INSPECTION'];
 const PRODUCTION_FLOW_DEFS = [
-  { key: 'TINT', label: 'Tint (internal)', short: 'T', jobKey: 'tint', stage: 'TINT', search: /\b(tint|tinting|window tint)\b/i },
-  { key: 'HOIST', label: 'Hoist', short: 'H', jobKey: 'build', stage: 'HOIST', search: /\b(hoist|suspension|gvm|lift kit|lift|underbody|towbar|tow bar)\b/i },
-  { key: 'FITTING', label: 'Fitting', short: 'F', jobKey: 'build', stage: 'FITTING', search: /\b(fit|fitting|build|pdi|pre delivery|pre-delivery|accessor(?:y|ies)|job card|workshop)\b/i },
-  { key: 'FABRICATION', label: 'Fabrication', short: 'Fa', jobKey: 'fabrication', stage: 'FABRICATION', search: /\b(fab|fabricat|tray|canopy|body builder|bodybuilder|steel tray|aluminium tray|tub body|bullbar|bar work)\b/i },
-  { key: 'ELECTRICAL', label: 'Electrical', short: 'E', jobKey: 'electrical', stage: 'ELECTRICAL', search: /\b(electrical|auto electrical|auto-elec|12v|dual battery|battery system|uhf|spotlight|light bar|beacon|compressor|anderson|redarc|brake controller|dc dc|dcdc|dash cam|camera|reverse camera|power outlet|usb)\b/i },
-  { key: 'TYRE', label: 'Tyre bay', short: 'Ty', jobKey: 'build', stage: 'TYRE', search: /\b(tyre|tire|wheel|wheels|alloy|rotation|balance|alignment)\b/i },
-  { key: 'PIT_INSPECTION', label: 'Pit Inspection', short: 'PI', jobKey: 'pitInspection', stage: 'PIT_INSPECTION', search: /\b(pit inspection|pit|inspection)\b/i },
+  { key: 'TINT', label: 'TINT', short: 'T', jobKey: 'tint', stage: 'TINT', search: /\b(tint|tinting|window tint)\b/i },
+  { key: 'HOIST', label: 'HOIST', short: 'H', jobKey: 'build', stage: 'HOIST', search: /\b(hoist|suspension|gvm|lift kit|lift|underbody|towbar|tow bar)\b/i },
+  { key: 'FITTING', label: 'FITTING', short: 'F', jobKey: 'build', stage: 'FITTING', search: /\b(fit|fitting|build|pdi|pre delivery|pre-delivery|accessor(?:y|ies)|job card|workshop)\b/i },
+  { key: 'FABRICATION', label: 'FAB', short: 'Fa', jobKey: 'fabrication', stage: 'FABRICATION', search: /\b(fab|fabricat|tray|canopy|body builder|bodybuilder|steel tray|aluminium tray|tub body|bullbar|bar work)\b/i },
+  { key: 'ELECTRICAL', label: 'ELEC', short: 'E', jobKey: 'electrical', stage: 'ELECTRICAL', search: /\b(electrical|auto electrical|auto-elec|12v|dual battery|battery system|uhf|spotlight|light bar|beacon|compressor|anderson|redarc|brake controller|dc dc|dcdc|dash cam|camera|reverse camera|power outlet|usb)\b/i },
+  { key: 'TYRE', label: 'TYRE', short: 'Ty', jobKey: 'build', stage: 'TYRE', search: /\b(tyre|tire|wheel|wheels|alloy|rotation|balance|alignment)\b/i },
+  { key: 'PIT_INSPECTION', label: 'PIT', short: 'PI', jobKey: 'pitInspection', stage: 'PIT_INSPECTION', search: /\b(pit inspection|pit|inspection)\b/i },
 ];
 const PRODUCTION_DEPARTMENT_VIEWS = {
   'dept-tint': 'TINT',
@@ -139,14 +139,14 @@ const PRODUCTION_DEPARTMENT_VIEWS = {
 };
 
 const PDC_JOB_DEFS = [
-  { key: 'tint', label: 'Tint', short: 'T', requireKey: 'pdcRequiresTint', completeKey: 'pdcCompleteTint', completeAtKey: 'pdcCompleteTintAt', completeByKey: 'pdcCompleteTintBy' },
-  { key: 'hoist', label: 'Hoist', short: 'H', requireKey: 'pdcRequiresHoist', completeKey: 'pdcCompleteHoist', completeAtKey: 'pdcCompleteHoistAt', completeByKey: 'pdcCompleteHoistBy' },
-  { key: 'fitting', label: 'Fitting', short: 'F', requireKey: 'pdcRequiresFitting', completeKey: 'pdcCompleteFitting', completeAtKey: 'pdcCompleteFittingAt', completeByKey: 'pdcCompleteFittingBy' },
-  { key: 'fabrication', label: 'Fabrication', short: 'Fa', requireKey: 'pdcRequiresFabrication', completeKey: 'pdcCompleteFabrication', completeAtKey: 'pdcCompleteFabricationAt', completeByKey: 'pdcCompleteFabricationBy' },
-  { key: 'electrical', label: 'Electrical', short: 'E', requireKey: 'pdcRequiresElectrical', completeKey: 'pdcCompleteElectrical', completeAtKey: 'pdcCompleteElectricalAt', completeByKey: 'pdcCompleteElectricalBy' },
-  { key: 'tyre', label: 'Tyre', short: 'Ty', requireKey: 'pdcRequiresTyre', completeKey: 'pdcCompleteTyre', completeAtKey: 'pdcCompleteTyreAt', completeByKey: 'pdcCompleteTyreBy' },
-  { key: 'pitInspection', label: 'Pit Inspection', short: 'PI', requireKey: 'pdcRequiresPitInspection', completeKey: 'pdcCompletePitInspection', completeAtKey: 'pdcCompletePitInspectionAt', completeByKey: 'pdcCompletePitInspectionBy' },
-  { key: 'parts', label: 'Parts', short: 'P', requireKey: 'pdcRequiresParts', completeKey: 'pdcCompleteParts', completeAtKey: 'pdcCompletePartsAt', completeByKey: 'pdcCompletePartsBy' },
+  { key: 'tint', label: 'TINT', short: 'T', requireKey: 'pdcRequiresTint', completeKey: 'pdcCompleteTint', completeAtKey: 'pdcCompleteTintAt', completeByKey: 'pdcCompleteTintBy' },
+  { key: 'hoist', label: 'HOIST', short: 'H', requireKey: 'pdcRequiresHoist', completeKey: 'pdcCompleteHoist', completeAtKey: 'pdcCompleteHoistAt', completeByKey: 'pdcCompleteHoistBy' },
+  { key: 'fitting', label: 'FITTING', short: 'F', requireKey: 'pdcRequiresFitting', completeKey: 'pdcCompleteFitting', completeAtKey: 'pdcCompleteFittingAt', completeByKey: 'pdcCompleteFittingBy' },
+  { key: 'fabrication', label: 'FAB', short: 'Fa', requireKey: 'pdcRequiresFabrication', completeKey: 'pdcCompleteFabrication', completeAtKey: 'pdcCompleteFabricationAt', completeByKey: 'pdcCompleteFabricationBy' },
+  { key: 'electrical', label: 'ELEC', short: 'E', requireKey: 'pdcRequiresElectrical', completeKey: 'pdcCompleteElectrical', completeAtKey: 'pdcCompleteElectricalAt', completeByKey: 'pdcCompleteElectricalBy' },
+  { key: 'tyre', label: 'TYRE', short: 'Ty', requireKey: 'pdcRequiresTyre', completeKey: 'pdcCompleteTyre', completeAtKey: 'pdcCompleteTyreAt', completeByKey: 'pdcCompleteTyreBy' },
+  { key: 'pitInspection', label: 'PIT', short: 'PI', requireKey: 'pdcRequiresPitInspection', completeKey: 'pdcCompletePitInspection', completeAtKey: 'pdcCompletePitInspectionAt', completeByKey: 'pdcCompletePitInspectionBy' },
+  { key: 'parts', label: 'PARTS', short: 'P', requireKey: 'pdcRequiresParts', completeKey: 'pdcCompleteParts', completeAtKey: 'pdcCompletePartsAt', completeByKey: 'pdcCompletePartsBy' },
 ];
 const PDC_JOB_BY_REQUIRE_KEY = new Map(PDC_JOB_DEFS.map(def => [def.requireKey, def]));
 const PDC_JOB_BY_COMPLETE_KEY = new Map(PDC_JOB_DEFS.map(def => [def.completeKey, def]));
@@ -1777,7 +1777,7 @@ function renderWorkflowBoard() {
   const pmbRows = workflowVehiclesForStep('pmb');
   const unassignedRows = pmbRows.filter(vehicle => !inferredPmbStage(vehicle));
   const lanes = [
-    { value: '', filter: PMB_STAGE_UNASSIGNED_FILTER, label: 'Unallocated', className: 'pmb-branch-unassigned', hint: 'Needs bucket' },
+    { value: '', filter: PMB_STAGE_UNASSIGNED_FILTER, label: 'UNALLOCATED', className: 'pmb-branch-unassigned', hint: 'Needs bucket' },
     ...PMB_STAGE_DEFS.map(def => ({ ...def, filter: def.value, className: `pmb-branch-${def.value.toLowerCase()}`, hint: 'Open bays' }))
   ];
   const laneHtml = lanes.map(lane => {
@@ -1816,10 +1816,10 @@ function renderWorkflowBoard() {
   const allActive = !app.pmbSubFilter;
   host.innerHTML = `
     <div class="branch-header workflow-pmb-header">
-      <div><strong>PMB control board</strong><span>All PMB vehicles land in Unallocated first. Drag into Tint (internal), Hoist, Fitting, Fabrication, Electrical, Tyre bay or Pit Inspection only when that department is ready to own the work.</span></div>
+      <div><strong>PMB control board</strong><span>All PMB vehicles land in UNALLOCATED first. Drag into TINT, HOIST, FITTING, FAB, ELEC, TYRE or PIT when that department is ready.</span></div>
       <div class="branch-header-actions">
         <button class="small-button ${allActive ? 'active-lite' : ''}" type="button" data-pmb-sub-filter="">Show all PMB (${pmbRows.length})</button>
-        <button class="small-button ${app.pmbSubFilter === PMB_STAGE_UNASSIGNED_FILTER ? 'active-lite' : ''}" type="button" data-pmb-sub-filter="${PMB_STAGE_UNASSIGNED_FILTER}">Unallocated (${unassignedRows.length})</button>
+        <button class="small-button ${app.pmbSubFilter === PMB_STAGE_UNASSIGNED_FILTER ? 'active-lite' : ''}" type="button" data-pmb-sub-filter="${PMB_STAGE_UNASSIGNED_FILTER}">UNALLOCATED (${unassignedRows.length})</button>
       </div>
     </div>
     <div class="pmb-drop-board workflow-pmb-drop-board" data-pmb-board>${laneHtml}</div>
@@ -1901,8 +1901,12 @@ function collapseMainScreenRows() {
 }
 
 function collapseWorkflowRows() {
-  if (normalizePmbStage(app.activePmbBayStage)) {
-    closePmbStageBayBoard();
+  if (normalizePmbStage(app.activePmbBayStage) || app.pmbSubFilter) {
+    app.activePmbBayStage = '';
+    app.pmbSubFilter = '';
+    document.body.classList.remove('pmb-station-mode');
+    showView('workflow');
+    renderWorkflowBoard();
     return;
   }
   collapseDetailsWithin($('#workflow-board'));
@@ -1940,14 +1944,11 @@ function incomingVehicleDetailRow(vehicle = {}, bucketKey = '', options = {}) {
   const stock = displayStockNumber(vehicle) || vehicle.order || 'No stock';
   const customer = vehicle.client || vehicle.toyotaCustomer || 'Unknown customer';
   const unit = displayVehicle(vehicle) || 'Vehicle not listed';
-  const rawStatus = navisionStatusText(vehicle) || pdcLocationLabel(vehiclePdcLocation(vehicle)) || 'No status';
-  const status = rawStatus === 'Batch Matched' ? 'Matched' : rawStatus;
   const order = vehicle.order || vehicle.toyotaOrder || vehicle.salesOrder || '—';
   const consultant = consultantName(vehicle) || vehicle.salesperson || vehicle.salesPerson || '—';
   const keyNo = vehicleKeyNumber(vehicle) || '—';
   const rego = vehicle.rego || vehicle.registration || '—';
   const vin = vehicle.vin || vehicle.VIN || vehicle.chassis || vehicle.chassisNo || '—';
-  const notes = vehicle.dealerComments || vehicle.navisionNotes || vehicle.notes || '';
   const age = pmbAgeLabel(vehicle);
   const workChecks = incomingWorkChecklistHtml(vehicle);
   const required = pmbRequiredWorkLabels(vehicle).join(', ') || 'No PMB work flagged';
@@ -1967,7 +1968,6 @@ function incomingVehicleDetailRow(vehicle = {}, bucketKey = '', options = {}) {
           <small>${escapeHtml(truncate(unit, 72))}</small>
         </span>
         <span class="incoming-card-work-wrap">${workChecks}</span>
-        <span class="incoming-card-status">${escapeHtml(truncate(status, 30))}</span>
         <span class="incoming-card-meta"><b>ETA</b>${escapeHtml(eta)}</span>
         <span class="incoming-card-meta"><b>Order</b>${escapeHtml(order)}</span>
         <span class="incoming-card-action">${primaryAction}${deleteAction}</span>
@@ -1981,7 +1981,6 @@ function incomingVehicleDetailRow(vehicle = {}, bucketKey = '', options = {}) {
         <div><b>Age</b><span>${escapeHtml(age)}</span></div>
         <div><b>Bucket</b><span>${escapeHtml(incomingBucketLabel(bucketKey))}</span></div>
         <div class="wide"><b>PMB work required</b><span>${escapeHtml(required)}</span></div>
-        <div class="wide"><b>Notes</b><span>${escapeHtml(notes || '—')}</span></div>
       </div>
     </details>`;
 }
@@ -2352,7 +2351,7 @@ function renderPmbBranchTiles() {
   const pmbRows = filteredPmbVehiclesIgnoringSubFilter();
   const unassignedRows = pmbRows.filter(vehicle => !inferredPmbStage(vehicle));
   const lanes = [
-    { value: '', filter: PMB_STAGE_UNASSIGNED_FILTER, label: 'Unallocated', className: 'pmb-branch-unassigned', hint: 'Needs bucket' },
+    { value: '', filter: PMB_STAGE_UNASSIGNED_FILTER, label: 'UNALLOCATED', className: 'pmb-branch-unassigned', hint: 'Needs bucket' },
     ...PMB_STAGE_DEFS.map(def => ({ ...def, filter: def.value, className: `pmb-branch-${def.value.toLowerCase()}`, hint: 'Open bays' }))
   ];
 
@@ -2393,10 +2392,10 @@ function renderPmbBranchTiles() {
   const allActive = !app.pmbSubFilter;
   host.innerHTML = `
     <div class="branch-header">
-      <div><strong>PMB control board</strong><span>All PMB vehicles land in Unallocated first. Drag into Tint (internal), Hoist, Fitting, Fabrication, Electrical, Tyre bay or Pit Inspection only when that department is ready to own the work.</span></div>
+      <div><strong>PMB control board</strong><span>All PMB vehicles land in UNALLOCATED first. Drag into TINT, HOIST, FITTING, FAB, ELEC, TYRE or PIT when that department is ready.</span></div>
       <div class="branch-header-actions">
         <button class="small-button ${allActive ? 'active-lite' : ''}" type="button" data-pmb-sub-filter="">Show all PMB (${pmbRows.length})</button>
-        <button class="small-button ${app.pmbSubFilter === PMB_STAGE_UNASSIGNED_FILTER ? 'active-lite' : ''}" type="button" data-pmb-sub-filter="${PMB_STAGE_UNASSIGNED_FILTER}">Unallocated (${unassignedRows.length})</button>
+        <button class="small-button ${app.pmbSubFilter === PMB_STAGE_UNASSIGNED_FILTER ? 'active-lite' : ''}" type="button" data-pmb-sub-filter="${PMB_STAGE_UNASSIGNED_FILTER}">UNALLOCATED (${unassignedRows.length})</button>
       </div>
     </div>
     <div class="pmb-drop-board" data-pmb-board>${laneHtml}</div>
