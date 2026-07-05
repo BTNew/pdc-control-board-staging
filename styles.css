@@ -4092,7 +4092,8 @@ body.pmb-dragging .pmb-drop-lane {
 }
 .pmb-bay-unassigned-list {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(150px, 150px));
+  align-items: stretch;
   gap: 8px;
 }
 .pmb-bay-grid {
@@ -4164,10 +4165,12 @@ body.pmb-dragging .pmb-drop-lane {
   background: #fff7ed;
 }
 .pmb-bay-vehicle-pill {
-  gap: 4px;
-  border-radius: 999px;
-  padding: 6px 8px;
-  min-height: 44px;
+  gap: 5px;
+  border-radius: 12px;
+  padding: 8px;
+  min-height: 150px;
+  aspect-ratio: 1 / 1;
+  align-content: space-between;
   box-shadow: 0 4px 10px rgba(15, 23, 42, .06);
 }
 .pmb-bay-pill-main,
@@ -6822,8 +6825,9 @@ body.pmb-schedule-adjusting .pmb-schedule-chip-slim {
   flex: 1 1 calc((100% - 42px) / 8);
   max-width: calc((100% - 42px) / 8);
   min-width: 74px;
-  padding: 3px 5px;
-  gap: 1px;
+  min-height: 56px;
+  padding: 7px 7px;
+  gap: 3px;
   border-radius: 12px;
   box-shadow: 0 3px 8px rgba(15, 23, 42, .05);
 }
