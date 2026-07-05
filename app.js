@@ -9,8 +9,8 @@ const OPERATOR_NAME_KEY = 'vehicleTrackingCoreCurrentOperator:v1';
 const OPERATOR_ROLE_KEY = 'vehicleTrackingCoreCurrentOperatorRole:v1';
 const MECHANICS_KEY = 'vehicleTrackingCorePdcMechanics:v1';
 const SUBLET_PROVIDERS_KEY = 'vehicleTrackingCorePdcSubletProviders:v1';
-const VEHICLE_TABLE_COLUMN_ORDER_KEY = 'vehicleTrackingCoreColumnOrder:v2';
-const VEHICLE_TABLE_DEFAULT_COLUMN_IDS = ['sp', 'stock', 'prodMth', 'client', 'vehicle', 'tint', 'build', 'parts', 'electrical', 'sublet', 'fabrication', 'pitInspection', 'status', 'eta', 'jita', 'action'];
+const VEHICLE_TABLE_COLUMN_ORDER_KEY = 'vehicleTrackingCoreColumnOrder:v3';
+const VEHICLE_TABLE_DEFAULT_COLUMN_IDS = ['sp', 'stock', 'prodMth', 'client', 'vehicle', 'tint', 'hoist', 'fitting', 'fabrication', 'electrical', 'tyre', 'pitInspection', 'status', 'eta', 'navisionNotes', 'jita', 'action'];
 const PO_TASKS_KEY = 'vehicleTrackingCoreNavisionOnlyPoTasks:v1';
 const PO_FILES_KEY = 'vehicleTrackingCoreNavisionOnlyPoFiles:v1';
 const DELETED_KEY = 'vehicleTrackingCoreNavisionOnlyDeleted:v1';
@@ -121,11 +121,11 @@ const PMB_BAY_MAX_COUNT = 10;
 const PMB_BAY_STATION_SEQUENCE = ['TINT', 'HOIST', 'FITTING', 'FABRICATION', 'ELECTRICAL', 'TYRE', 'PIT_INSPECTION'];
 const PRODUCTION_FLOW_DEFS = [
   { key: 'TINT', label: 'TINT', short: 'T', jobKey: 'tint', stage: 'TINT', search: /\b(tint|tinting|window tint)\b/i },
-  { key: 'HOIST', label: 'HOIST', short: 'H', jobKey: 'build', stage: 'HOIST', search: /\b(hoist|suspension|gvm|lift kit|lift|underbody|towbar|tow bar)\b/i },
-  { key: 'FITTING', label: 'FITTING', short: 'F', jobKey: 'build', stage: 'FITTING', search: /\b(fit|fitting|build|pdi|pre delivery|pre-delivery|accessor(?:y|ies)|job card|workshop)\b/i },
+  { key: 'HOIST', label: 'HOIST', short: 'H', jobKey: 'hoist', stage: 'HOIST', search: /\b(hoist|suspension|gvm|lift kit|lift|underbody|towbar|tow bar)\b/i },
+  { key: 'FITTING', label: 'FITTING', short: 'F', jobKey: 'fitting', stage: 'FITTING', search: /\b(fit|fitting|build|pdi|pre delivery|pre-delivery|accessor(?:y|ies)|job card|workshop)\b/i },
   { key: 'FABRICATION', label: 'FAB', short: 'Fa', jobKey: 'fabrication', stage: 'FABRICATION', search: /\b(fab|fabricat|tray|canopy|body builder|bodybuilder|steel tray|aluminium tray|tub body|bullbar|bar work)\b/i },
   { key: 'ELECTRICAL', label: 'ELEC', short: 'E', jobKey: 'electrical', stage: 'ELECTRICAL', search: /\b(electrical|auto electrical|auto-elec|12v|dual battery|battery system|uhf|spotlight|light bar|beacon|compressor|anderson|redarc|brake controller|dc dc|dcdc|dash cam|camera|reverse camera|power outlet|usb)\b/i },
-  { key: 'TYRE', label: 'TYRE', short: 'Ty', jobKey: 'build', stage: 'TYRE', search: /\b(tyre|tire|wheel|wheels|alloy|rotation|balance|alignment)\b/i },
+  { key: 'TYRE', label: 'TYRE', short: 'Ty', jobKey: 'tyre', stage: 'TYRE', search: /\b(tyre|tire|wheel|wheels|alloy|rotation|balance|alignment)\b/i },
   { key: 'PIT_INSPECTION', label: 'PIT', short: 'PI', jobKey: 'pitInspection', stage: 'PIT_INSPECTION', search: /\b(pit inspection|pit|inspection)\b/i },
 ];
 const PRODUCTION_DEPARTMENT_VIEWS = {
@@ -148,9 +148,22 @@ const PDC_JOB_DEFS = [
   { key: 'pitInspection', label: 'PIT', short: 'PI', requireKey: 'pdcRequiresPitInspection', completeKey: 'pdcCompletePitInspection', completeAtKey: 'pdcCompletePitInspectionAt', completeByKey: 'pdcCompletePitInspectionBy' },
   { key: 'parts', label: 'PARTS', short: 'P', requireKey: 'pdcRequiresParts', completeKey: 'pdcCompleteParts', completeAtKey: 'pdcCompletePartsAt', completeByKey: 'pdcCompletePartsBy' },
 ];
+function currentPdcJobLabelList() {
+  return PDC_JOB_DEFS.map(def => def.label).join(', ');
+}
+
+function currentPdcJobColumnList() {
+  return PDC_JOB_DEFS.map(def => def.label).join('/');
+}
+
 const PDC_JOB_BY_REQUIRE_KEY = new Map(PDC_JOB_DEFS.map(def => [def.requireKey, def]));
 const PDC_JOB_BY_COMPLETE_KEY = new Map(PDC_JOB_DEFS.map(def => [def.completeKey, def]));
 const PDC_JOB_BY_KEY = new Map(PDC_JOB_DEFS.map(def => [def.key, def]));
+const PDC_IMPORT_CONTROL_COLUMNS_TEXT = 'TINT, HOIST, FITTING, FABRICATION, ELECTRICAL, TYRE, PIT INSPECTION, PARTS';
+
+function currentPdcJobLabelsText() {
+  return PDC_JOB_DEFS.map(def => def.label).join(', ');
+}
 
 const PMB_STAGE_TO_JOB_KEY = {
   TINT: 'tint',
@@ -246,7 +259,7 @@ function pmbStageSourceText(vehicle = {}) {
 
 function inferredPmbStage(vehicle = {}) {
   // Only a manually assigned PMB work stream should place a vehicle into
-  // Fabrication / Tint / Build / Electrical / Sublet.
+  // Required work ticks do not allocate vehicles into Tint / Hoist / Fitting / Fabrication / Electrical / Tyre / Pit Inspection.
   // Required work ticks do not allocate the vehicle into a production bucket.
   return normalizePmbStage(vehicle.pmbStage || '');
 }
@@ -762,6 +775,7 @@ const app = {
   data: buildVehicleData(),
   matches: TOYOTA_MATCHES,
   report: window.VEHICLE_TRACKING_DATA.report || {},
+  currentView: 'dashboard',
   selectedStock: null,
   reviewed: false,
   quickFilter: 'incoming',
@@ -1175,7 +1189,7 @@ function actionSelectHtml(stock) {
     <option value="">Select action...</option>
     <option value="released">Vehicle Released</option>
     <option value="update">Request Update</option>
-    <option value="build">New Vehicle Build</option>
+    <option value="build">New PMB Work Order</option>
     <option value="tint">Tint PO Email</option>
   </select>`;
 }
@@ -1538,42 +1552,44 @@ function renderAdminList(host, items, removeAttr, emptyText) {
 
 function renderAdminLists() {
   renderAdminList($('#mechanic-list-admin'), loadMechanics(), 'data-remove-mechanic', 'Add mechanics so they appear in the bay assignment dropdowns.');
-  renderAdminList($('#sublet-provider-list-admin'), loadSubletProviders(), 'data-remove-provider', 'Add outside providers so they appear in the Sublet bay dropdown.');
+  renderAdminList($('#sublet-provider-list-admin'), loadSubletProviders(), 'data-remove-provider', 'Add outside providers for specialist work records.');
   $$('[data-remove-mechanic]').forEach(button => button.addEventListener('click', () => removeMechanicFromAdminList(button.dataset.removeMechanic)));
   $$('[data-remove-provider]').forEach(button => button.addEventListener('click', () => removeSubletProviderFromAdminList(button.dataset.removeProvider)));
 }
 
 function showView(view) {
-  const departmentStage = PRODUCTION_DEPARTMENT_VIEWS[view] || '';
+  const requestedView = view || 'dashboard';
+  const departmentStage = PRODUCTION_DEPARTMENT_VIEWS[requestedView] || '';
   if (departmentStage) app.activeProductionDepartment = departmentStage;
-  $$('.view').forEach(el => el.classList.toggle('active', el.id === view || (departmentStage && el.id === 'department')));
-  $$('.nav-item').forEach(el => el.classList.toggle('active', el.dataset.view === view));
+  app.currentView = departmentStage ? 'department' : requestedView;
+  $$('.view').forEach(el => el.classList.toggle('active', el.id === requestedView || (departmentStage && el.id === 'department')));
+  $$('.nav-item').forEach(el => el.classList.toggle('active', el.dataset.view === requestedView));
   const departmentDef = departmentStage ? PRODUCTION_FLOW_DEFS.find(def => def.key === departmentStage) : null;
-  const titleMap = { dashboard: 'Dashboard', workflow: 'Workflow Board', pipeline: 'Vehicle Pipeline', visibility: 'Operational Visibility', tv: 'PDC TV Board', schedule: 'Production', parts: 'Parts Department', rft: 'RFT Home', lists: 'PDC Lists', import: 'Uploads', zpl: 'ZPL Labels' };
-  $('#page-title').textContent = departmentDef ? departmentDef.label : (titleMap[view] || 'Dashboard');
-  if (view !== 'dashboard' && app.frozenHeaderCleanup) {
+  const titleMap = {
+    dashboard: 'Control Board',
+    workflow: 'PMB Workflow',
+    pipeline: 'Vehicle Pipeline',
+    visibility: 'Operational Visibility',
+    tv: 'PDC TV Board',
+    schedule: 'Production',
+    parts: 'Parts',
+    rft: 'RFT',
+    lists: 'Reports / Admin',
+    import: 'Uploads',
+    zpl: 'Label Tools'
+  };
+  const pageTitle = $('#page-title');
+  if (pageTitle) pageTitle.textContent = departmentDef ? departmentDef.label : (titleMap[requestedView] || 'Control Board');
+  if (requestedView !== 'dashboard' && app.frozenHeaderCleanup) {
     app.frozenHeaderCleanup();
     app.frozenHeaderCleanup = null;
   }
-  if (view === 'dashboard') {
+  renderActiveView();
+  if (requestedView === 'dashboard') {
     window.setTimeout(() => setupFrozenVehicleHeader($('#vehicle-table')), 0);
   }
-  if (view === 'parts') {
-    window.setTimeout(() => renderPartsHome(), 0);
-  }
-  if (view === 'rft') {
-    window.setTimeout(() => renderRftHome(), 0);
-  }
-  if (view === 'schedule') {
-    window.setTimeout(() => renderScheduleBoard(), 0);
-  }
-  if (departmentStage) {
-    window.setTimeout(() => renderProductionDepartmentBoard(), 0);
-  }
-  if (view === 'workflow') {
-    window.setTimeout(() => renderWorkflowBoard(), 0);
-  }
 }
+
 
 function populateFilters() {
   const statuses = sortToyotaStatuses([...new Set(app.data.map(v => v.toyotaStatus).filter(Boolean))]);
@@ -1606,23 +1622,57 @@ function updateSidebarStats() {
 function renderAll() {
   updateSidebarStats();
   populateFilters();
-  renderKpis();
-  renderWorkflowBoard();
-  renderIncomingDashboardBoard();
-  renderVehicleTable();
-  renderKanban();
-  renderTvBoard();
-  renderScheduleBoard();
-  renderProductionDepartmentBoard();
-  renderPartsHome();
-  renderRftHome();
-  renderAdminLists();
-  renderCustomers();
-  renderReviewTable(false);
-  renderScotSummary(false);
-  renderAutocareResults(app.autocareScan);
+  renderActiveView();
   updateNavisionImportButton();
 }
+
+function renderActiveView() {
+  const view = app.currentView || 'dashboard';
+  switch (view) {
+    case 'dashboard':
+      renderKpis();
+      renderFixFirstGrid();
+      renderIncomingDashboardBoard();
+      renderVehicleTable();
+      break;
+    case 'workflow':
+      renderWorkflowBoard();
+      break;
+    case 'parts':
+      renderPartsHome();
+      break;
+    case 'rft':
+      renderRftHome();
+      break;
+    case 'lists':
+      renderAdminLists();
+      break;
+    case 'import':
+      renderReviewTable(false);
+      renderScotSummary(false);
+      renderAutocareResults(app.autocareScan);
+      if (app.navisionImport) renderNavisionSummary(app.navisionImport);
+      break;
+    case 'schedule':
+      renderScheduleBoard();
+      break;
+    case 'department':
+      renderProductionDepartmentBoard();
+      break;
+    case 'pipeline':
+      renderKanban();
+      break;
+    case 'visibility':
+      renderOperationalVisibility();
+      break;
+    case 'tv':
+      renderTvBoard();
+      break;
+    default:
+      break;
+  }
+}
+
 
 
 
@@ -1662,10 +1712,6 @@ function renderKpis() {
   $$('[data-kpi-filter]').forEach(card => card.addEventListener('click', () => {
     applyQuickFilter(card.dataset.kpiFilter);
   }));
-  renderOperationalVisibility();
-  renderWorkflowBoard();
-  renderPmbBranchTiles();
-  renderIncomingDashboardBoard();
 }
 
 function isOpenThirdPartyVehicle(vehicle = {}) {
@@ -1711,7 +1757,7 @@ function renderOperationalVisibility() {
   const rows = filteredVehiclesIgnoringQuickFilter();
   const metrics = operationalVisibilityMetrics(rows);
   const cards = [
-    { label: 'Third-party work', value: metrics.openThirdParty, detail: `${metrics.assignedThirdParty} assigned · tint / fabrication / electrical / sublet / pit inspection` },
+    { label: 'External/specialist work', value: metrics.openThirdParty, detail: `${metrics.assignedThirdParty} assigned · tint / fabrication / electrical / pit inspection` },
     { label: 'Stagnation & blockers', value: metrics.stagnant, detail: `${metrics.activeBlockers} active blockers or Parts stoppages` },
     { label: 'Capacity alerts', value: metrics.capacityAlerts, detail: `${metrics.pmbRows} PMB vehicles checked against WIP and ageing limits` },
     { label: 'RFT gate issues', value: metrics.rftGateIssues, detail: 'Manual QC remains required before Ready for Transport' },
@@ -1765,6 +1811,41 @@ function workflowPriorityRows() {
     seen.add(key);
     return true;
   }).slice(0, 8);
+}
+
+function fixFirstCardsHtml(rows = [], emptyText = 'No urgent production exceptions right now.') {
+  if (!rows.length) return `<div class="empty-state compact-empty fix-first-empty"><strong>Clear</strong><span>${escapeHtml(emptyText)}</span></div>`;
+  return rows.map(row => {
+    const vehicle = row.vehicle || {};
+    const key = vehicleKey(vehicle);
+    const stock = displayStockNumber(vehicle) || vehicle.order || 'No stock';
+    const client = vehicle.client || vehicle.toyotaCustomer || 'Dealer Order';
+    const unit = displayVehicle(vehicle) || 'Vehicle not listed';
+    const stage = pmbStageLabel(inferredPmbStage(vehicle)) || pdcLocationLabel(vehiclePdcLocation(vehicle)) || incomingBucketLabel(incomingBucketForVehicle(vehicle));
+    const severity = row.severity || 'warning';
+    return `<button class="fix-first-card fix-first-${escapeHtml(severity)}" type="button" data-open-stock="${escapeHtml(key)}">
+      <span class="fix-first-label">${escapeHtml(row.label || 'Action needed')}</span>
+      <strong>${escapeHtml(stock)}</strong>
+      <small>${escapeHtml(truncate(client, 34))} · ${escapeHtml(truncate(unit, 44))}</small>
+      <em>${escapeHtml(truncate(row.detail || stage || 'Open vehicle for details', 72))}</em>
+    </button>`;
+  }).join('');
+}
+
+function bindFixFirstCards(root = document) {
+  $$('.fix-first-card[data-open-stock]', root).forEach(button => {
+    if (button.dataset.fixFirstBound === 'true') return;
+    button.dataset.fixFirstBound = 'true';
+    button.addEventListener('click', () => openVehicleModal(button.dataset.openStock));
+  });
+}
+
+function renderFixFirstGrid() {
+  const host = $('#fix-first-grid');
+  if (!host) return;
+  const rows = workflowPriorityRows();
+  host.innerHTML = fixFirstCardsHtml(rows);
+  bindFixFirstCards(host);
 }
 
 function workflowBoardStats() {
@@ -1868,7 +1949,10 @@ function renderWorkflowBoard() {
   const summaryText = search
     ? `${searchedRows.length} of ${pmbRows.length} PMB vehicles match “${search}” · all buckets stay visible for dragging`
     : `${pmbRows.length} PMB vehicles · ${unassignedRows.length} unallocated`;
+  const priorityRows = workflowPriorityRows();
+  const priorityHtml = `<section class="workflow-fix-first-strip"><div class="branch-header workflow-pmb-header"><div><strong>Fix First</strong><span>Blockers, RFT gates, unallocated PMB vehicles and overdue bay ageing.</span></div><div class="branch-header-actions"><span class="badge neutral">${priorityRows.length} item${priorityRows.length === 1 ? '' : 's'}</span></div></div><div class="fix-first-grid workflow-fix-first-grid">${fixFirstCardsHtml(priorityRows, 'No PMB exceptions need action right now.')}</div></section>`;
   host.innerHTML = `
+    ${priorityHtml}
     <div class="branch-header workflow-pmb-header">
       <div><strong>PMB control board</strong><span>Unallocated vehicles are full rows like the main screen. Drag rows into TINT, HOIST, FITTING, FAB, ELEC, TYRE or PIT; use Open bays for station bay scheduling.</span></div>
       <div class="branch-header-actions"><span class="badge neutral">${escapeHtml(summaryText)}</span></div>
@@ -1876,6 +1960,7 @@ function renderWorkflowBoard() {
     <div class="workflow-collapsible-board" data-pmb-board>${laneHtml}</div>
   `;
   bindPmbDragBoard(host);
+  bindFixFirstCards(host);
   updateInlineSelectionBars(search ? searchedRows : pmbRows);
 }
 
@@ -2385,7 +2470,7 @@ async function importDashboardPdWork() {
       return;
     }
     if (!parsed.tasks.length) {
-      results.push({ ok: false, title: parsed.stock || parsed.order || parsed.vin, message: 'Vehicle found, but no accessory/build items were detected.' });
+      results.push({ ok: false, title: parsed.stock || parsed.order || parsed.vin, message: 'Vehicle found, but no accessory / fitting work items were detected.' });
       return;
     }
     const applied = applyPdCheckFormImport(parsed);
@@ -2564,7 +2649,7 @@ function addMechanicFromPrompt() {
 }
 
 function addSubletProviderFromPrompt() {
-  const entered = cleanNavisionText(window.prompt('Enter sublet provider name:', '') || '');
+  const entered = cleanNavisionText(window.prompt('Enter external provider name:', '') || '');
   if (!entered) return;
   saveSubletProviders([...loadSubletProviders(), entered]);
   renderKpis();
@@ -3193,7 +3278,7 @@ function pmbStageOperatorGuidance(stage = '') {
   return {
     TINT: 'Tint (internal) view: confirm tint work, planned hours, bay and technician only. Use Parts or other station pages for their own blockers and sign-offs.',
     HOIST: 'Hoist view: confirm hoist work, planned hours, bay and technician only.',
-    FITTING: 'Fitting view: confirm accessory fitment/build work, planned hours, bay and technician only. Do not use this page for Parts or external sublet updates.',
+    FITTING: 'Fitting view: confirm accessory fitment work, planned hours, bay and technician only. Do not use this page for Parts or external specialist updates.',
     FABRICATION: 'Fabrication view: confirm fabrication work, planned hours, bay and technician only. Leave Tint / Electrical / Parts sign-off to their own pages.',
     ELECTRICAL: 'Electrical view: confirm electrical work, planned hours, bay and technician only. Escalate non-electrical blockers instead of clearing other departments here.',
     TYRE: 'Tyre bay view: confirm tyre/wheel work, planned hours, bay and technician only. One of the two bays is the wheel-alignment bay.'
@@ -3279,6 +3364,7 @@ function pmbVehicleCardHtml(vehicle = {}) {
       </div>
       <span class="pmb-card-client" title="${escapeHtml(vehicle.client || vehicle.toyotaCustomer || '')}">${escapeHtml(truncate(vehicle.client || vehicle.toyotaCustomer || 'Dealer Order', 28))}</span>
       <small title="${escapeHtml(displayVehicle(vehicle))}">${escapeHtml(truncate(displayVehicle(vehicle), 36))}</small>
+      <div class="pmb-next-action"><b>Next:</b> ${escapeHtml(truncate(nextActionForVehicle(vehicle), 74))}</div>
       ${gateIssues.length ? `<div class="pmb-rft-gate-warning">RFT gate: ${escapeHtml(truncate(gateIssues.join(' · '), 60))}</div>` : ''}
     </article>`;
 }
@@ -3831,7 +3917,7 @@ function updatePmbBaySubletProvider(key, stage, value) {
   if (!vehicle || !normalizedStage) return;
   const provider = cleanNavisionText(value || '');
   if (provider) saveSubletProviders([...loadSubletProviders(), provider]);
-  recordVehicleAudit(vehicle, 'Sublet provider assigned', { stage: pmbStageLabel(normalizedStage), provider: provider || 'Unassigned' });
+  recordVehicleAudit(vehicle, 'External provider assigned', { stage: pmbStageLabel(normalizedStage), provider: provider || 'Unassigned' });
   saveVehicleEdits(vehicleKey(vehicle), { pmbSubletProvider: provider });
 }
 
@@ -4004,6 +4090,112 @@ function clearAllFilters() {
   renderVehicleTable();
 }
 
+function nextActionForVehicle(vehicle = {}) {
+  const category = statusCategory(vehicle);
+  if (isActivePartsStoppage(vehicle)) return `Fix parts stoppage: ${partsStoppageReason(vehicle)}`;
+  if (isPdcBlocked(vehicle)) return `Clear blocker: ${pdcBlockReason(vehicle)}`;
+  if (category === 'yardhold') return 'Transfer Yard Hold → PMB';
+  if (category === 'pmb') {
+    const stage = inferredPmbStage(vehicle);
+    if (!stage) return 'Assign PMB stage and bay';
+    const stageDef = pmbStageJobDef(stage);
+    if (stageDef && pdcJobRequired(vehicle, stageDef) && !pdcJobComplete(vehicle, stageDef)) return `Complete ${stageDef.label}`;
+    const nextStage = nextOutstandingPmbStage(vehicle, stage);
+    if (nextStage) return `Move to ${pmbStageLabel(nextStage)}`;
+    const issues = vehicleRftGateIssues(vehicle);
+    if (issues.length) return `Fix before RFT: ${issues.join(' · ')}`;
+    return 'Transfer to RFT';
+  }
+  if (category === 'rft') {
+    const issues = vehicleRftGateIssues(vehicle);
+    return issues.length ? `Fix RFT gate: ${issues.join(' · ')}` : 'Notify salesperson / final handover';
+  }
+  return 'Watch ETA / update from Navision';
+}
+
+function controlBoardIssueCounts() {
+  const pmbRows = app.data.filter(vehicle => statusCategory(vehicle) === 'pmb');
+  const rftRows = app.data.filter(vehicle => statusCategory(vehicle) === 'rft');
+  return {
+    partsStoppage: app.data.filter(isActivePartsStoppage).length,
+    pmbBlocked: pmbRows.filter(isPdcBlocked).length,
+    rftBlocked: rftRows.filter(vehicle => vehicleRftGateIssues(vehicle).length).length,
+    pmbUnallocated: pmbRows.filter(vehicle => !inferredPmbStage(vehicle)).length,
+    yardHoldReady: app.data.filter(canTransferVehicleToPmb).length,
+  };
+}
+
+function issueStripButtonHtml(action, label, value, detail, tone = '') {
+  return `<button class="exception-card ${escapeHtml(tone)}" type="button" data-control-issue="${escapeHtml(action)}"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong><small>${escapeHtml(detail)}</small></button>`;
+}
+
+function renderControlBoardIssueStripHtml(counts = controlBoardIssueCounts()) {
+  return `
+    <div class="exception-strip" aria-label="Fix first queues">
+      ${issueStripButtonHtml('parts-stoppage', 'Parts stoppages', counts.partsStoppage, 'Blocking production now', counts.partsStoppage ? 'danger' : '')}
+      ${issueStripButtonHtml('pmb-blocked', 'PMB blockers', counts.pmbBlocked, 'Blocked PMB vehicles', counts.pmbBlocked ? 'danger' : '')}
+      ${issueStripButtonHtml('rft-blocked', 'RFT blocked', counts.rftBlocked, 'Missing gate sign-offs', counts.rftBlocked ? 'warning' : '')}
+      ${issueStripButtonHtml('pmb-unallocated', 'PMB unallocated', counts.pmbUnallocated, 'Needs stage / bay decision', counts.pmbUnallocated ? 'warning' : '')}
+      ${issueStripButtonHtml('yardhold-ready', 'Yard Hold ready', counts.yardHoldReady, 'Can move to PMB', counts.yardHoldReady ? 'ready' : '')}
+    </div>`;
+}
+
+function renderControlBoardFixFirst() {
+  const host = $('#control-board-fix-first');
+  if (!host) return;
+  host.innerHTML = `
+    <div class="panel-header compact exception-header">
+      <div>
+        <h2>Fix first</h2>
+        <p>Start with blockers and queues that need action now.</p>
+      </div>
+      <span class="badge neutral">Exception-led</span>
+    </div>
+    ${renderControlBoardIssueStripHtml()}`;
+  bindControlBoardIssueActions(host);
+}
+
+function bindControlBoardIssueActions(root = document) {
+  $$('[data-control-issue]', root).forEach(button => button.addEventListener('click', () => handleControlBoardIssueAction(button.dataset.controlIssue)));
+}
+
+function handleControlBoardIssueAction(action = '') {
+  if (action === 'parts-stoppage') {
+    showView('parts');
+    const select = $('#parts-status-filter');
+    if (select) select.value = 'stoppage';
+    renderPartsHome();
+    return;
+  }
+  if (action === 'rft-blocked') {
+    showView('rft');
+    const select = $('#rft-status-filter');
+    if (select) select.value = 'blocked';
+    renderRftHome();
+    return;
+  }
+  if (action === 'pmb-unallocated') {
+    app.quickFilter = 'pmb';
+    app.pmbSubFilter = PMB_STAGE_UNASSIGNED_FILTER;
+    app.activePmbBayStage = '';
+    showView('workflow');
+    return;
+  }
+  if (action === 'pmb-blocked') {
+    app.quickFilter = 'pmb';
+    app.pmbSubFilter = '';
+    app.activePmbBayStage = '';
+    showView('workflow');
+    return;
+  }
+  if (action === 'yardhold-ready') {
+    showView('dashboard');
+    const bucket = $('#incoming-bucket-filter');
+    if (bucket) bucket.value = 'yardhold';
+    renderIncomingDashboardBoard();
+  }
+}
+
 function filteredVehicles() {
   const q = ($('#search')?.value || '').trim().toLowerCase();
   const columnFilters = app.columnFilters || {};
@@ -4142,6 +4334,7 @@ function makeVehicleColumnsReorderable(table) {
 function resetVehicleTableColumnOrder() {
   localStorage.removeItem('vehicleTrackingCoreColumnOrder:v1');
   localStorage.removeItem('vehicleTrackingCoreColumnOrder:v2');
+  localStorage.removeItem('vehicleTrackingCoreColumnOrder:v3');
   localStorage.removeItem('vehicleTrackingCoreColumnWidths:v1:vehicle-table');
   localStorage.removeItem('vehicleTrackingCoreColumnWidths:v3:vehicle-table');
   renderVehicleTable();
@@ -4551,7 +4744,7 @@ function pmbRequirementChecklistModal(vehicles = []) {
         <div class="panel-header">
           <div>
             <h2 id="pmb-requirement-modal-title">Confirm PMB required work</h2>
-            <p>Before releasing Yard Hold vehicles into PMB, tick what each vehicle needs: Tint, Sublet, Pit Inspection, Parts, Build, Electrical or Fabrication.</p>
+            <p>Before releasing Yard Hold vehicles into PMB, tick what each vehicle needs: ${escapeHtml(currentPdcJobLabelList())}.</p>
           </div>
           <span class="badge neutral">${rows.length} vehicle${rows.length === 1 ? '' : 's'}</span>
         </div>
@@ -4750,12 +4943,11 @@ function transferVehiclesToRft(vehicles = [], options = {}) {
   if (!gate.allowed) return;
   const preview = selected.slice(0, 10).map(vehicle => `• ${displayStockNumber(vehicle) || vehicle.order || 'No stock'} - ${vehicle.client || vehicle.toyotaCustomer || 'Unknown customer'} - ${pmbStageLabel(inferredPmbStage(vehicle)) || 'Unallocated'}`).join('\n');
   const more = selected.length > 10 ? `\n• plus ${selected.length - 10} more` : '';
-  const gateText = gate.overridden ? `\n\nRFT gate override will be logged: ${gate.reason}` : '';
-  if (!window.confirm(`Transfer ${selected.length} PMB vehicle${selected.length === 1 ? '' : 's'} to Vehicles RFT?\n\n${preview}${more}\n\nThis marks the vehicle as Ready for Transport and keeps it protected from Navision location changes.${gateText}`)) return;
+  if (!window.confirm(`Transfer ${selected.length} PMB vehicle${selected.length === 1 ? '' : 's'} to Vehicles RFT?\n\n${preview}${more}\n\nThis marks the vehicle as Ready for Transport and keeps it protected from Navision location changes.`)) return;
 
   const transferTime = nowIsoString();
   selected.forEach(vehicle => {
-    recordVehicleAudit(vehicle, gate.overridden ? 'Transferred to RFT - gate override' : 'Transferred to RFT', { from: pmbStageLabel(inferredPmbStage(vehicle)) || 'PMB - Unallocated', to: 'RFT', completedJobs: pdcCompletedJobsText(vehicle), outstandingJobs: pdcOutstandingJobsText(vehicle), blocked: isPdcBlocked(vehicle) ? pdcBlockReason(vehicle) : '', overrideReason: gate.overridden ? gate.reason : '' });
+    recordVehicleAudit(vehicle, 'Transferred to RFT', { from: pmbStageLabel(inferredPmbStage(vehicle)) || 'PMB - Unallocated', to: 'RFT', completedJobs: pdcCompletedJobsText(vehicle), outstandingJobs: pdcOutstandingJobsText(vehicle), blocked: isPdcBlocked(vehicle) ? pdcBlockReason(vehicle) : '' });
     saveVehicleEdits(vehicleKey(vehicle), {
       pdcLocation: 'RFT',
       manualLocation: 'RFT',
@@ -4763,9 +4955,6 @@ function transferVehiclesToRft(vehicles = [], options = {}) {
       rftTransferredAt: transferTime,
       pdcLocationUpdatedAt: transferTime,
       pmbEnteredAt: pmbEnteredTimestamp(vehicle) || transferTime,
-      rftGateOverrideReason: gate.overridden ? gate.reason : '',
-      rftGateOverrideBy: gate.overridden ? getCurrentOperatorName() : '',
-      rftGateOverrideAt: gate.overridden ? transferTime : '',
     });
   });
   if (options.clearSelection) app.selectedRows.clear();
@@ -5444,7 +5633,7 @@ function renderDetail() {
           <label>
             <span class="muted-label">PMB work stream</span>
             <select name="pmbStage">${pmbStageSelectOptions(v.pmbStage)}</select>
-            <span class="field-help">Used by the PMB branch tiles: Fabrication, Tint, Build, Electrical and Sublet.</span>
+            <span class="field-help">Used by the PMB workflow tiles: Tint, Hoist, Fitting, Fabrication, Electrical, Tyre bay and Pit Inspection.</span>
           </label>
           <label>
             <span class="muted-label">Current PMB tile</span>
@@ -5666,7 +5855,7 @@ function renderNavisionDetailSection(vehicle = {}) {
     ['Location Status', vehicle.navisionLocationStatus],
     ['Build Status', vehicle.navisionBuildStatus],
     ['Transport Load No.', vehicle.navisionTransportLoadNo],
-    ['Dashboard ETA', scotEtaOnly(vehicle.etaAtDealer)],
+    ['Control Board ETA', scotEtaOnly(vehicle.etaAtDealer)],
     ['ETA At Kewdale Yard', vehicle.navisionKewdaleEta],
     ['ETA Date (not used for dashboard ETA)', vehicle.navisionEtaDate],
     ['Port/Plant ETA Date (not used for dashboard ETA)', vehicle.navisionPortPlantEta],
@@ -5697,7 +5886,7 @@ function renderPoUploadSection(vehicle) {
       <input type="file" accept="application/pdf,.pdf" multiple data-vehicle-po-upload data-po-stock="${escapeHtml(key)}" />
       <span>Upload PO PDF for this vehicle</span>
     </label>
-    <div class="subtle">Uploading a PO automatically ticks Build PO. ${files.length ? `${files.length} file${files.length === 1 ? '' : 's'} attached.` : 'No PO file attached yet.'}</div>
+    <div class="subtle">Uploading a PO records a PMB fitment PO. ${files.length ? `${files.length} file${files.length === 1 ? '' : 's'} attached.` : 'No PO file attached yet.'}</div>
   </section>`;
 }
 
@@ -5754,11 +5943,11 @@ function draftRequestUpdateEmail(stock) {
 
 function poAttachmentLines(vehicle) {
   const files = vehicle.poFiles || [];
-  if (!files.length) return ['Parts Order (131)', 'PMG Sublet PO'];
+  if (!files.length) return ['Parts Order (131)', 'PMG work order PO'];
   return files.map(file => {
     const lower = String(file).toLowerCase();
     if (lower.includes('131') || lower.includes('parts order')) return `Parts Order (131) - ${file}`;
-    if (lower.includes('pmg') || lower.includes('sublet')) return `PMG Sublet PO - ${file}`;
+    if (lower.includes('pmg') || lower.includes('sublet')) return `PMG work order PO - ${file}`;
     return file;
   });
 }
@@ -5789,7 +5978,7 @@ function draftNewVehicleBuildEmail(stock) {
     '',
     'Dealer to supply all parts on 131 Parts PO',
     '',
-    'PMG to supply parts listed on the PMG sublet order and Fit all items to the vehicle',
+    'PMG to supply parts listed on the PMG work order and fit all listed items to the vehicle',
     '',
     'Vehicle is having a TWA Steel tray fitted with underbody and head board tyre hangers.',
     '',
@@ -5799,7 +5988,7 @@ function draftNewVehicleBuildEmail(stock) {
     '',
     'Kind Regards,'
   ].join('\n');
-  const subject = `New vehicle order for ${displayStockNumber(v) || 'TBA'} - PMG Build`;
+  const subject = `New PMB work order for ${displayStockNumber(v) || 'TBA'}`;
   if ((v.poFiles || []).length) {
     window.alert('Your email draft will open now. Browser email links cannot attach PDF files automatically, so please attach the uploaded PO PDFs listed in the email body.');
   }
@@ -6508,7 +6697,7 @@ function renderRftHome() {
         <td><span class="rft-blocker-text" title="${escapeHtml(blocker)}">${escapeHtml(truncate(blocker, 72))}</span></td>
         <td><div class="parts-action-group rft-action-group">
           <button class="small-button" type="button" data-open-stock="${escapeHtml(key)}">Open</button>
-          <button class="small-button primary" type="button" data-rft-email="${escapeHtml(key)}" ${status === 'blocked' ? 'disabled' : ''}>Email salesperson</button>
+          <button class="small-button primary" type="button" data-rft-email="${escapeHtml(key)}" ${status === 'blocked' ? `disabled title="Cannot email: ${escapeHtml(blocker)}"` : 'title="Email salesperson: all required jobs are signed off"'}>Email salesperson</button>
         </div></td>
         <td><span title="${escapeHtml(vehicle.client || vehicle.toyotaCustomer || '')}">${escapeHtml(truncate(vehicle.client || vehicle.toyotaCustomer || 'Dealer Order', 34))}</span></td>
         <td><span title="${escapeHtml(displayVehicle(vehicle))}">${escapeHtml(truncate(displayVehicle(vehicle), 48))}</span></td>
@@ -8069,6 +8258,7 @@ function buildExplicitPdcUpdatesFromImport(row, headerMap) {
     ['pdcRequiresElectrical', ['ELECTRICAL', 'Electrical', 'Auto Electrical', 'Auto-Electrical', 'Requires Electrical', 'Electrical Required']],
     ['pdcRequiresTyre', ['TYRE', 'Tyre', 'Tire', 'Wheel', 'Requires Tyre', 'Tyre Required']],
     ['pdcRequiresPitInspection', ['Pit Inspection', 'PIT INSPECTION', 'PI', 'Requires Pit Inspection', 'Pit Inspection Required']],
+    ['pdcRequiresParts', ['PARTS', 'Parts', 'Requires Parts', 'Parts Required', 'Parts Needed', 'Parts To Order']],
     ['pdcCompleteTint', ['Tint Complete', 'Tint Completed', 'Tint Done', 'TINT DONE']],
     ['pdcCompleteHoist', ['Hoist Complete', 'Hoist Completed', 'Hoist Done', 'HOIST DONE']],
     ['pdcCompleteFitting', ['Fitting Complete', 'Fitting Completed', 'Fitting Done', 'Fitment Complete', 'BUILD DONE', 'Build Complete', 'Build Completed', 'Build Done']],
@@ -8076,6 +8266,7 @@ function buildExplicitPdcUpdatesFromImport(row, headerMap) {
     ['pdcCompleteElectrical', ['Electrical Complete', 'Electrical Completed', 'Electrical Done', 'ELECTRICAL DONE']],
     ['pdcCompleteTyre', ['Tyre Complete', 'Tyre Completed', 'Tyre Done', 'Tire Complete', 'TYRE DONE']],
     ['pdcCompletePitInspection', ['Pit Inspection Complete', 'Pit Inspection Completed', 'Pit Inspection Done', 'PI DONE']],
+    ['pdcCompleteParts', ['Parts Complete', 'Parts Completed', 'Parts Done', 'PARTS DONE', 'Parts Issued', 'Parts Received']],
     ['pdcBlocked', ['Blocked', 'PDC Blocked', 'Problem Vehicle']],
   ];
   pairs.forEach(([key, columns]) => {
@@ -8143,7 +8334,7 @@ function protectPmbFirstLandingFromImport(payload = {}, existing = {}) {
 
   // Import sheets may identify a vehicle as PMB, but the control-board rule is
   // that the first PMB entry lands in Unallocated. Required jobs and PMB Bucket
-  // columns must not silently allocate Fabrication/Tint/Build/Electrical/Sublet.
+  // columns must not silently allocate Tint/Hoist/Fitting/Fabrication/Electrical/Tyre/Pit Inspection.
   payload.pmbStage = '';
   payload.pdcWorkStage = '';
   payload.workStage = '';
@@ -8780,7 +8971,7 @@ function renderNavisionPendingReview(result) {
     <div class="navision-confirm-banner">
       <div>
         <strong>Review Navision changes before applying</strong>
-        <span>Nothing has been written to the tracker yet. Manual team notes and PO uploads are protected. Spreadsheet columns named TINT/BUILD/PARTS/SUBLET/FABRICATION, PMB Bucket, PDC Location or Blocked can deliberately update those PDC controls.</span>
+        <span>Nothing has been written to the tracker yet. Manual team notes and PO uploads are protected. Spreadsheet columns named ${PDC_IMPORT_CONTROL_COLUMNS_TEXT}, PMB Bucket, PDC Location or Blocked can deliberately update those PDC controls.</span>
       </div>
       <div class="navision-confirm-actions">
         <button class="primary" id="navision-apply-all" type="button">Apply all Navision updates</button>
@@ -8810,7 +9001,7 @@ function renderNavisionPendingReview(result) {
       <div class="subtle">These are not removed until you apply the import. If the cleanup checkbox is ticked, they will be removed after confirmation.</div>
     </div>
     ${warningList}
-    <div class="subtle">Navision can update stock/order/VIN, P/Month, Toyota Status, ETA, JITA, Tray, Dealer Comments/Navision Notes and related location fields. Excel update sheets can also update explicit PDC control columns such as TINT, BUILD, PARTS, SUBLET, FABRICATION, PMB Bucket, PDC Location and Blocked.</div>
+    <div class="subtle">Navision can update stock/order/VIN, P/Month, Toyota Status, ETA, JITA, Tray, Dealer Comments/Navision Notes and related location fields. Excel update sheets can also update explicit PDC control columns such as TINT, HOIST, FITTING, FABRICATION, ELECTRICAL, TYRE, PIT INSPECTION, PARTS, PMB Bucket, PDC Location and Blocked.</div>
   `;
   $('#navision-apply-all')?.addEventListener('click', () => applyPendingNavisionImport('all'));
   $('#navision-apply-selected')?.addEventListener('click', () => applyPendingNavisionImport('selected'));
@@ -9246,9 +9437,10 @@ function teamNotesText(vehicle) {
 }
 
 function exportCsv() {
-  const headers = ['SP','Stock','Toyota Order','Key Number','P/Month','Client','Vehicle','PDC Location','PMB Work Stream','PMB Bay','PMB Bay Hours','PMB Bay Scheduled Start','PMB Bay Started','PMB Bay Completed','PMB Requirements','PMB Completed','PMB Outstanding','Blocked','Blocked Reason','Bucket Days','Days Since Kewdale ETA','RFT Gate Issues','RFT Override','RFT Date','Navision Notes','Team Notes','Task','Requires Tint','Tint Complete','Requires Build','Build Complete','Requires Electrical','Electrical Complete','Requires Parts','Parts Complete','Requires Sublet','Sublet Complete','Requires Fabrication','Fabrication Complete','PO Tasks','PO Files','Toyota Status (Sub Location)','Navision ETA','Delivery Date','JITA Parts Ordered','JITA Qty','Contact','Source','Autocare VIN','Autocare Batch','Autocare Load','Match Warning'];
+  const jobHeaders = PDC_JOB_DEFS.flatMap(def => [`Requires ${def.label}`, `${def.label} Complete`]);
+  const headers = ['SP','Stock','Toyota Order','Key Number','P/Month','Client','Vehicle','PDC Location','PMB Work Stream','PMB Bay','PMB Bay Hours','PMB Bay Scheduled Start','PMB Bay Started','PMB Bay Completed','PMB Requirements','PMB Completed','PMB Outstanding','Blocked','Blocked Reason','Bucket Days','Days Since Kewdale ETA','RFT Gate Issues','RFT Date','Navision Notes','Team Notes','Task', ...jobHeaders, 'PO Tasks','PO Files','Toyota Status (Sub Location)','Navision ETA','Delivery Date','JITA Parts Ordered','JITA Qty','Contact','Source','Autocare VIN','Autocare Batch','Autocare Load','Match Warning'];
   const lines = [headers.join(',')].concat(app.data.map(v => [
-    salesPersonInitials(consultantName(v)), displayStockNumber(v), v.order || '', vehicleKeyNumber(v), productionMonthLabel(v.prodMth || v.productionMonth || ''), v.client, displayVehicle(v), pdcLocationLabel(v.pdcLocation), pmbStageLabel(inferredPmbStage(v)), pmbBayNumber(v, inferredPmbStage(v)) || '', pmbBayHours(v) === '' ? '' : pmbBayHours(v), v.pmbBayScheduledStartAt ? new Date(v.pmbBayScheduledStartAt).toLocaleString('en-AU', { dateStyle: 'short', timeStyle: 'short' }) : '', v.pmbBayEnteredAt ? new Date(v.pmbBayEnteredAt).toLocaleString('en-AU', { dateStyle: 'short', timeStyle: 'short' }) : '', v.pmbBayCompletedAt ? new Date(v.pmbBayCompletedAt).toLocaleString('en-AU', { dateStyle: 'short', timeStyle: 'short' }) : '', pmbRequirementText(v), pdcCompletedJobsText(v), pdcOutstandingJobsText(v), isPdcBlocked(v) ? 'Yes' : 'No', pdcBlockReason(v), pmbStageAgeDays(v) === null ? '' : pmbStageAgeDays(v), pmbAgeDays(v) === null ? '' : pmbAgeDays(v), vehicleRftGateIssues(v).join('; '), v.rftGateOverrideReason || '', v.rftTransferredAt ? new Date(v.rftTransferredAt).toLocaleString('en-AU', { dateStyle: 'short', timeStyle: 'short' }) : '', navisionDealerNoteText(v), teamNotesText(v), v.internalStatus || '', ...PDC_JOB_DEFS.flatMap(def => [pdcJobRequired(v, def) ? 'Yes' : 'No', pdcJobComplete(v, def) ? 'Yes' : 'No']), (v.poTasks || []).join('; '), (v.poFiles || []).join('; '), v.toyotaStatus || '', scotEtaOnly(v.etaAtDealer), v.deliveryDate || '', jitaDisplay(v), v.jitQty || '', v.contact || '', v.source || '', v.autocareVin || '', v.autocareBatch || '', v.autocareLoadNumber || '', isCustomerMatch(v) ? '' : 'Customer mismatch'
+    salesPersonInitials(consultantName(v)), displayStockNumber(v), v.order || '', vehicleKeyNumber(v), productionMonthLabel(v.prodMth || v.productionMonth || ''), v.client, displayVehicle(v), pdcLocationLabel(v.pdcLocation), pmbStageLabel(inferredPmbStage(v)), pmbBayNumber(v, inferredPmbStage(v)) || '', pmbBayHours(v) === '' ? '' : pmbBayHours(v), v.pmbBayScheduledStartAt ? new Date(v.pmbBayScheduledStartAt).toLocaleString('en-AU', { dateStyle: 'short', timeStyle: 'short' }) : '', v.pmbBayEnteredAt ? new Date(v.pmbBayEnteredAt).toLocaleString('en-AU', { dateStyle: 'short', timeStyle: 'short' }) : '', v.pmbBayCompletedAt ? new Date(v.pmbBayCompletedAt).toLocaleString('en-AU', { dateStyle: 'short', timeStyle: 'short' }) : '', pmbRequirementText(v), pdcCompletedJobsText(v), pdcOutstandingJobsText(v), isPdcBlocked(v) ? 'Yes' : 'No', pdcBlockReason(v), pmbStageAgeDays(v) === null ? '' : pmbStageAgeDays(v), pmbAgeDays(v) === null ? '' : pmbAgeDays(v), vehicleRftGateIssues(v).join('; '), v.rftTransferredAt ? new Date(v.rftTransferredAt).toLocaleString('en-AU', { dateStyle: 'short', timeStyle: 'short' }) : '', navisionDealerNoteText(v), teamNotesText(v), v.internalStatus || '', ...PDC_JOB_DEFS.flatMap(def => [pdcJobRequired(v, def) ? 'Yes' : 'No', pdcJobComplete(v, def) ? 'Yes' : 'No']), (v.poTasks || []).join('; '), (v.poFiles || []).join('; '), v.toyotaStatus || '', scotEtaOnly(v.etaAtDealer), v.deliveryDate || '', jitaDisplay(v), v.jitQty || '', v.contact || '', v.source || '', v.autocareVin || '', v.autocareBatch || '', v.autocareLoadNumber || '', isCustomerMatch(v) ? '' : 'Customer mismatch'
   ].map(csvEscape).join(',')));
   const blob = new Blob([lines.join('\n')], { type: 'text/csv' });
   const url = URL.createObjectURL(blob);

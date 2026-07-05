@@ -43,7 +43,7 @@ code += String.raw`
   assert(updated.trayOrdered === true, 'Confirmed import should apply Tray Fitment Ordered');
   assert(updated.trayFitmentComplete === true, 'Confirmed import should apply Tray Fitment Complete');
   assert(plan.updated[0].changes.some(change => change.key === 'trayFitmentComplete'), 'Pending review should show Tray Fitment Complete change');
-  assert(updated.buildPoRaised === true && updated.tintRaised === true, 'Protected Build PO and Tint should survive Navision update');
+  assert(updated.buildPoRaised === true && updated.tintRaised === true, 'Protected PMB PO and Tint should survive Navision update');
   assert(updated.internalStatus === 'Manual salesperson task', 'Manual Task should survive Navision update');
 
   // If Kewdale is blank, leave dashboard ETA blank. Do not use ETA Date, Port/Plant or Dealer/BB.

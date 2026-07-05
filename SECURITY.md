@@ -11,6 +11,17 @@ This is a static GitHub Pages/localStorage application. It should not require se
 - Do not add destructive data-clearing behaviour without explicit approval and backup/export wording.
 - Keep all workflow changes small, reviewable and tested before deployment.
 
+## Browser scripts and network calls
+
+This package does not load third-party CDN scripts, analytics, trackers, or hidden network calls.
+
+Optional integrations remain defensive:
+
+- QZ Tray/Zebra printing only runs when a local QZ Tray object is already available in the browser environment; otherwise the app shows a clear unavailable message.
+- PDF text extraction uses the app's existing fallback path when PDF.js is not available.
+
+Do not add third-party scripts, analytics, trackers, or hidden network calls without explicit approval. If QZ Tray or PDF.js are required later, vendor approved pinned files locally rather than loading them from a public CDN.
+
 ## Data handling
 - Vehicle data is stored in browser localStorage on the device using the site.
 - Users should export backups before clearing browser data or switching PCs.

@@ -1,5 +1,17 @@
 # Changelog
 
+## 2026-07-05 — Review recommendations applied
+
+- Renamed staff-facing navigation to Control Board, PMB Workflow, Reports, Parts, RFT, and Uploads.
+- Added exception-led Fix First cards to Control Board and PMB Workflow.
+- Hid dashboard quick-import panels so import work is focused under Uploads.
+- Updated default vehicle table columns to current stage IDs and bumped saved column-order storage to v3.
+- Added explicit Parts required/complete import mappings.
+- Changed main CSV export to generate job columns dynamically from current PDC job definitions.
+- Updated mobile stage/job model to Tint, Hoist, Fitting, Fabrication, Electrical, Tyre bay, Pit Inspection, and Parts.
+- Cleaned visible old-stage wording and updated import guidance text.
+- Removed CDN script tags for QZ Tray/PDF.js so the package stays self-contained; printing/PDF extraction now use existing graceful fallbacks when those libraries are unavailable.
+
 ## 2026-06-23 — Dashboard Parts stoppage bucket
 - Added a dashboard Parts Stoppage bucket for vehicles with an active Parts stoppage flag or blocker reason.
 - Kept completed Parts vehicles out of the active stoppage bucket and added regression coverage.
@@ -19,7 +31,7 @@
 - Reordered Parts summary cards to surface Stoppages first, then open/order/waiting/complete work.
 - Reordered Parts table columns around actionability: status, stock, ETA/age, blocker, actions, then supporting context.
 - Highlighted stoppage rows and cards more strongly so blockers are visible first.
-- Added focused PMB bay guidance per work stream: Fabrication, Tint, Build, Electrical and Sublet.
+- Added focused PMB bay guidance per work stream; current visible stages are Tint, Hoist, Fitting, Fabrication, Electrical, Tyre bay and Pit Inspection.
 - Simplified PMB bay cards to show the current station status rather than all department job markers.
 - Clarified PMB board guidance that vehicles land in Unallocated first and are manually assigned to production streams.
 - Added documentation set: PROJECT_BRIEF, CHANGELOG, TODO, BUGS and SECURITY.
@@ -27,5 +39,5 @@
 ## 2026-06-20 — Startup and PMB landing fixes
 - Fixed missing runtime references for status tabs/header mapping/status category labels.
 - Preserved PMB first-landing behaviour so imported requirements do not auto-bucket vehicles.
-- Reordered job markers to T, B, P, E, S, F.
+- Historical note: older releases used the previous job-marker order; current marker/job order is T, H, F, Fa, E, Ty, PI, P.
 - Added local browser console and Navision/PMB validation helpers.

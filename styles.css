@@ -2778,7 +2778,7 @@ body.vehicle-table-header-pinned #vehicle-table thead {
 }
 
 
-/* 2026-06 Navision locked table order: Select/SP, SN, P/Month, !, Client, Vehicle, Task, Tint, Build PO, Tray, Toyota Status, ETA, JITA, Action */
+/* 2026-07 control-board table order: Select/SP, SN, P/Month, Client, Vehicle, Tint, Hoist, Fitting, Fabrication, Electrical, Tyre, Pit, Status, ETA, Navision Notes, JITA, Action */
 #vehicle-table {
   min-width: 1480px !important;
   table-layout: fixed !important;
@@ -3033,7 +3033,7 @@ body.vehicle-table-header-pinned #vehicle-table thead {
   .check-grid.four-col { grid-template-columns: 1fr; }
 }
 
-/* 2026-06-18: remove Task/! columns, add Build Complete, tighten two-line headers */
+/* 2026-06-18: remove Task/! columns, tighten two-line headers */
 #vehicle-table {
   min-width: 1510px !important;
   table-layout: fixed !important;
@@ -6945,4 +6945,73 @@ body.pmb-schedule-adjusting .pmb-schedule-chip-slim {
 }
 .rft-blocker-text {
   color: #475569;
+}
+
+/* Review update 2026-07-05: exception-led Control Board / PMB Workflow strip. */
+.fix-first-panel {
+  border-color: rgba(239, 68, 68, .22);
+}
+
+.fix-first-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.fix-first-card {
+  text-align: left;
+  border: 1px solid rgba(148, 163, 184, .28);
+  border-radius: 14px;
+  padding: 12px 14px;
+  background: #fff;
+  box-shadow: 0 8px 22px rgba(15, 23, 42, .06);
+  cursor: pointer;
+  display: grid;
+  gap: 4px;
+}
+
+.fix-first-card:hover,
+.fix-first-card:focus-visible {
+  border-color: rgba(37, 99, 235, .42);
+  box-shadow: 0 10px 26px rgba(15, 23, 42, .10);
+  outline: none;
+}
+
+.fix-first-label {
+  display: inline-flex;
+  width: max-content;
+  max-width: 100%;
+  border-radius: 999px;
+  padding: 3px 8px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .03em;
+  text-transform: uppercase;
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.fix-first-danger .fix-first-label {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.fix-first-card strong {
+  font-size: 18px;
+  color: #0f172a;
+}
+
+.fix-first-card small,
+.fix-first-card em {
+  color: #475569;
+  font-style: normal;
+  line-height: 1.35;
+}
+
+.workflow-fix-first-strip {
+  margin-bottom: 16px;
+}
+
+.workflow-fix-first-grid {
+  margin-top: 10px;
 }

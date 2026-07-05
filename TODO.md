@@ -1,21 +1,20 @@
 # TODO
 
 ## High priority
-- Re-test import/paste workflow after every production-board change.
-- Continue refining department-specific views so each team sees only fields and actions they own.
-- Add clear WIP limit indicators per PMB stream once Craig confirms preferred limits.
+- Re-test Navision upload/paste workflow after every production-board change.
+- Validate the new **Fix First** cards with the workshop team using real active vehicles.
+- Confirm whether every imported stock vehicle should continue to require Parts sign-off by default.
+- Keep Parts, RFT, and PMB screens role-focused so each team sees only fields and actions they can act on.
 
 ## Next visual improvements
-- Validate the dashboard Parts tick colour palette with Craig after live review.
-- Validate the dashboard Parts Stoppage bucket wording/position with Craig after live review.
+- Tune the Control Board card density after live review on the actual workshop screen.
 - Add stronger ageing bands on PMB and Parts views.
-- Add compact exception lane for vehicles blocked by Parts, missing bay assignment or RFT gate issues.
-- Improve mobile/tablet spacing for the Parts table and PMB bay cards.
-- Add print-friendly views only after the core browser view stays stable.
+- Improve mobile/tablet spacing for Parts and PMB bay cards.
+- Add print-friendly views only after the browser workflow stays stable.
 
 ## Keep stable
 - PMB transfer lands in Unallocated.
-- Job ticks do not auto-allocate PMB production buckets.
+- Job ticks do not auto-allocate PMB production buckets or bays.
 - Manual PMB `pmbStage` remains the only production bucket assignment.
-- Marker order remains T, B, P, E, S, F.
+- Current marker/job order remains T, H, F, Fa, E, Ty, PI, P.
 - Parts must stay production-focused: no salesperson or finance fields in Parts views/exports.

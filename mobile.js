@@ -4,12 +4,16 @@ const DELETED_KEY = 'vehicleTrackingCoreNavisionOnlyDeleted:v1';
 
 const JOB_DEFS = [
   { key: 'tint', label: 'Tint', requireKey: 'pdcRequiresTint', completeKey: 'pdcCompleteTint' },
-  { key: 'build', label: 'Build', requireKey: 'pdcRequiresBuild', completeKey: 'pdcCompleteBuild' },
-  { key: 'parts', label: 'Parts', requireKey: 'pdcRequiresParts', completeKey: 'pdcCompleteParts' },
-  { key: 'electrical', label: 'Electrical', requireKey: 'pdcRequiresElectrical', completeKey: 'pdcCompleteElectrical' },
-  { key: 'sublet', label: 'Sublet', requireKey: 'pdcRequiresSublet', completeKey: 'pdcCompleteSublet' },
+  { key: 'hoist', label: 'Hoist', requireKey: 'pdcRequiresHoist', completeKey: 'pdcCompleteHoist' },
+  { key: 'fitting', label: 'Fitting', requireKey: 'pdcRequiresFitting', completeKey: 'pdcCompleteFitting', legacyRequireKey: 'pdcRequiresBuild', legacyCompleteKey: 'pdcCompleteBuild' },
   { key: 'fabrication', label: 'Fabrication', requireKey: 'pdcRequiresFabrication', completeKey: 'pdcCompleteFabrication' },
+  { key: 'electrical', label: 'Electrical', requireKey: 'pdcRequiresElectrical', completeKey: 'pdcCompleteElectrical' },
+  { key: 'tyre', label: 'Tyre bay', requireKey: 'pdcRequiresTyre', completeKey: 'pdcCompleteTyre' },
+  { key: 'pitInspection', label: 'Pit Inspection', requireKey: 'pdcRequiresPitInspection', completeKey: 'pdcCompletePitInspection' },
+  { key: 'parts', label: 'Parts', requireKey: 'pdcRequiresParts', completeKey: 'pdcCompleteParts' },
 ];
+
+const PMB_STAGES = ['PMB', 'TINT', 'HOIST', 'FITTING', 'FABRICATION', 'ELECTRICAL', 'TYRE', 'PIT_INSPECTION'];
 
 const state = {
   filter: 'all',
@@ -62,11 +66,14 @@ function buildVehicleData() {
 function normalizeStage(value = '') {
   const text = clean(value).toUpperCase();
   if (!text) return '';
-  if (text.includes('FAB') || text.includes('TRAY') || text.includes('BODY')) return 'FABRICATION';
   if (text.includes('TINT')) return 'TINT';
-  if (text.includes('BUILD') || text.includes('PDI') || text.includes('PRE DELIVERY') || text.includes('PRE-DELIVERY')) return 'BUILD';
+  if ((text.includes('EXPRESS') && text.includes('HOIST')) || text.includes('PITS HOIST') || text.includes('PIT HOIST')) return 'HOIST';
+  if (text.includes('HOIST') || text.includes('SUSPENSION') || text.includes('LIFT')) return 'HOIST';
+  if (text.includes('FITTING') || text.includes('FITMENT') || text.includes('FITOUT') || text.includes('FIT OUT') || text.includes('BUILD') || text.includes('PDI') || text.includes('PRE DELIVERY') || text.includes('PRE-DELIVERY')) return 'FITTING';
+  if (text.includes('FAB') || text.includes('TRAY') || text.includes('BODY')) return 'FABRICATION';
   if (text.includes('ELECTRICAL') || text.includes('AUTO ELEC') || text.includes('AUTO-ELEC') || text.includes('12V') || text.includes('UHF')) return 'ELECTRICAL';
-  if (text.includes('SUBLET') || text.includes('SUB-LET') || text.includes('SUB LET') || text.includes('OUTSOURCE') || text.includes('EXTERNAL')) return 'SUBLET';
+  if (text.includes('TYRE') || text.includes('TIRE') || text.includes('WHEEL')) return 'TYRE';
+  if (text.includes('PIT') || text.includes('INSPECTION')) return 'PIT_INSPECTION';
   return '';
 }
 
@@ -88,10 +95,12 @@ function stageLabel(stage = '') {
     PMB: 'PMB',
     RFT: 'RFT',
     TINT: 'Tint',
-    BUILD: 'Build',
+    HOIST: 'Hoist',
+    FITTING: 'Fitting',
     FABRICATION: 'Fabrication',
     ELECTRICAL: 'Electrical',
-    SUBLET: 'Sublet',
+    TYRE: 'Tyre bay',
+    PIT_INSPECTION: 'Pit Inspection',
     NAVISION: 'Navision',
   })[stage] || stage || 'Unallocated';
 }
@@ -101,20 +110,20 @@ function isBlocked(vehicle = {}) {
 }
 
 function pdcJobRequired(vehicle = {}, def = {}) {
-  if (vehicle[def.requireKey] === true) return true;
-  if (vehicle[def.completeKey] === true) return true;
-  if (def.key === 'parts') return vehicle.pdcPartsOrdered === true || vehicle.pdcPartsReceived === true || vehicle.pdcCompleteParts === true;
+  if (vehicle[def.requireKey] === true || (def.legacyRequireKey && vehicle[def.legacyRequireKey] === true)) return true;
+  if (vehicle[def.completeKey] === true || (def.legacyCompleteKey && vehicle[def.legacyCompleteKey] === true)) return true;
+  if (def.key === 'parts') return !isBlankStock(vehicle.stock || vehicle.batch || vehicle.toyotaBatch) || vehicle.pdcPartsOrdered === true || vehicle.pdcPartsReceived === true || vehicle.pdcCompleteParts === true;
   if (def.key === 'tint') return vehicle.tintRequired === true;
-  if (def.key === 'build') return vehicle.pdcBuildRequired === true;
+  if (def.key === 'fitting') return vehicle.pdcBuildRequired === true;
   if (def.key === 'electrical') return vehicle.electricalRequired === true;
-  if (def.key === 'sublet') return vehicle.subletRequired === true;
-  if (def.key === 'fabrication') return vehicle.fabricationRequired === true;
+  if (def.key === 'fabrication') return vehicle.fabricationRequired === true || vehicle.trayOrdered === true || vehicle.trayFitmentComplete === true;
   return false;
 }
 
 function pdcJobComplete(vehicle = {}, def = {}) {
-  if (vehicle[def.completeKey] === true) return true;
+  if (vehicle[def.completeKey] === true || (def.legacyCompleteKey && vehicle[def.legacyCompleteKey] === true)) return true;
   if (def.key === 'parts') return vehicle.pdcPartsReceived === true;
+  if (def.key === 'fabrication') return vehicle.trayFitmentComplete === true;
   return false;
 }
 
@@ -123,18 +132,22 @@ function statusClass(vehicle = {}) {
   const stage = vehicleStage(vehicle);
   if (stage === 'RFT') return 'rft';
   if (stage === 'YH') return 'yh';
-  if (['PMB', 'TINT', 'BUILD', 'FABRICATION', 'ELECTRICAL', 'SUBLET'].includes(stage)) return 'pmb';
+  if (PMB_STAGES.includes(stage)) return 'pmb';
   return '';
 }
 
 function matchesFilter(vehicle = {}) {
   const stage = vehicleStage(vehicle);
-  if (state.filter === 'pmb' && !['PMB', 'TINT', 'BUILD', 'FABRICATION', 'ELECTRICAL', 'SUBLET'].includes(stage)) return false;
+  if (state.filter === 'pmb' && !PMB_STAGES.includes(stage)) return false;
   if (state.filter === 'blocked' && !isBlocked(vehicle)) return false;
   if (state.filter === 'rft' && stage !== 'RFT') return false;
   if (state.stage) {
-    if (state.stage === 'PMB' && !['PMB', 'TINT', 'BUILD', 'FABRICATION', 'ELECTRICAL', 'SUBLET'].includes(stage)) return false;
-    else if (state.stage !== 'PMB' && stage !== state.stage) return false;
+    if (state.stage === 'PMB' && !PMB_STAGES.includes(stage)) return false;
+    else if (state.stage === 'PARTS') {
+      const partsDef = JOB_DEFS.find(def => def.key === 'parts');
+      if (!partsDef || !pdcJobRequired(vehicle, partsDef) || pdcJobComplete(vehicle, partsDef)) return false;
+    }
+    else if (stage !== state.stage) return false;
   }
   if (state.search) {
     const haystack = [vehicle.stock, vehicle.batch, vehicle.order, vehicle.client, vehicle.toyotaCustomer, vehicle.vehicle, vehicle.toyotaVehicle, vehicle.colour, vehicle.prodMth, vehicle.toyotaStatus, vehicle.navisionSubLocationDescription].join(' ').toLowerCase();
@@ -146,7 +159,7 @@ function matchesFilter(vehicle = {}) {
 function renderCounts() {
   const vehicles = state.vehicles;
   $('#count-all').textContent = vehicles.length;
-  $('#count-pmb').textContent = vehicles.filter(v => ['PMB', 'TINT', 'BUILD', 'FABRICATION', 'ELECTRICAL', 'SUBLET'].includes(vehicleStage(v))).length;
+  $('#count-pmb').textContent = vehicles.filter(v => PMB_STAGES.includes(vehicleStage(v))).length;
   $('#count-blocked').textContent = vehicles.filter(isBlocked).length;
   $('#count-rft').textContent = vehicles.filter(v => vehicleStage(v) === 'RFT').length;
 }

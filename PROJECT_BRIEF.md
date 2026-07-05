@@ -20,11 +20,11 @@ The board follows service-management and lean visual-control principles:
 - Preserve a single source of truth in local browser data with backup/export controls.
 
 ## Role-focused pages
-- Dashboard: full Navision/PDC overview and bulk movement controls.
-- PMB control board: manual work-stream allocation and WIP visibility.
+- Control Board: daily vehicle overview, Fix First exceptions and bulk movement controls.
+- PMB Workflow: manual PMB stage allocation and WIP visibility.
 - PMB bay views: station-specific bay assignment, planned hours, assignee and completion.
 - Parts: parts status, ETA/age, stoppages/blockers and parts actions only.
-- TV board: large-screen flow, WIP and exception visibility.
+- Reports/supporting views: PDC lists, backups and supporting operational exports.
 
 ## Safety constraints
 This is a static localStorage app. Do not add external trackers, hidden network calls, credentials, analytics, destructive data handling, or workflow changes without explicit approval.

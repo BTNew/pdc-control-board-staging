@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Vehicle Tracking Core</title>
-  <link rel="stylesheet" href="styles.css?v=rft-home-1" />
+  <link rel="stylesheet" href="styles.css?v=review-update-20260705" />
 </head>
 <body>
   <div class="app-shell" id="app-shell">
@@ -19,11 +19,11 @@
       </div>
 
       <nav class="nav">
-        <button class="nav-item active" data-view="dashboard" data-short="D">Main Screen</button>
-        <button class="nav-item" data-view="workflow" data-short="WF">Workflow Board</button>
+        <button class="nav-item active" data-view="dashboard" data-short="CB">Control Board</button>
+        <button class="nav-item" data-view="workflow" data-short="PMB">PMB Workflow</button>
         <button class="nav-item" data-view="parts" data-short="PA">Parts</button>
         <button class="nav-item" data-view="rft" data-short="RFT">RFT</button>
-        <button class="nav-item" data-view="lists" data-short="L">PDC Lists</button>
+        <button class="nav-item" data-view="lists" data-short="R">Reports</button>
         <button class="nav-item" data-view="import" data-short="U">Uploads</button>
       </nav>
 
@@ -38,7 +38,7 @@
       <header class="topbar">
         <div>
           <div class="eyebrow">Vehicle Tracking Core</div>
-          <h1 id="page-title">Dashboard</h1>
+          <h1 id="page-title">Control Board</h1>
         </div>
         <div class="topbar-actions">
           <button class="ghost" id="operator-profile" type="button">Set Operator</button>
@@ -50,11 +50,24 @@
 
       <section id="dashboard" class="view active">
         <div class="kpi-grid" id="kpi-grid"></div>
+        <section class="panel span-12 fix-first-panel">
+          <div class="panel-header compact">
+            <div>
+              <h2>Fix First</h2>
+              <p>Production blockers, unallocated PMB vehicles, and RFT gate issues that need action before normal queue work.</p>
+            </div>
+            <div class="panel-actions">
+              <button class="small-button" type="button" data-view-target="workflow">Open PMB workflow</button>
+              <button class="small-button" type="button" data-view-target="rft">Open RFT</button>
+            </div>
+          </div>
+          <div class="fix-first-grid" id="fix-first-grid"></div>
+        </section>
         <section class="panel span-12 incoming-board-panel">
           <div class="panel-header">
             <div>
-              <h2>Professional main vehicle list</h2>
-              <p>Main screen: searchable, filterable vertical collapsible vehicle details in the order PMB, Yard Hold, In Transit, then Overseas/Other. Use Yard Hold rows to transfer straight to PMB.</p>
+              <h2>Control Board vehicle list</h2>
+              <p>Searchable daily vehicle board ordered by PMB, Yard Hold, In Transit, then Overseas/Other. Use Yard Hold rows to transfer straight to PMB.</p>
             </div>
             <div class="panel-actions">
               <button class="small-button" id="incoming-collapse-all" type="button">Collapse all rows</button>
@@ -101,7 +114,7 @@
           </div>
           <div class="incoming-board" id="incoming-main-board"></div>
         </section>
-        <section class="panel span-12 quick-navision-panel">
+        <section class="panel span-12 quick-navision-panel" hidden>
           <div class="panel-header compact">
             <div>
               <h2>Quick paste Navision incoming vehicles</h2>
@@ -115,11 +128,11 @@
           </div>
           <textarea id="dashboard-navision-paste" class="quick-navision-textarea" rows="5" spellcheck="false" placeholder="Order&#9;Batch&#9;Production Month&#9;Model Description&#9;Sub Location Description&#9;ETA At Kewdale Yard..."></textarea>
         </section>
-        <section class="panel span-12 pd-import-panel">
+        <section class="panel span-12 pd-import-panel" hidden>
           <div class="panel-header compact">
             <div>
               <h2>Quick import PD check-form</h2>
-              <p>Drop a PD check-form PDF or paste its text to attach accessories/build work to the matching vehicle.</p>
+              <p>Drop a PD check-form PDF or paste its text to attach accessory fitment work to the matching vehicle.</p>
             </div>
             <div class="panel-actions">
               <button class="primary" id="dashboard-import-pd" type="button" disabled>Import PD work</button>
@@ -141,7 +154,7 @@
           <div class="panel-header">
             <div>
               <h2>Detailed incoming vehicle list</h2>
-              <p>Hidden legacy tracker kept for internal table logic. Main Screen now uses the vertical collapsible incoming board above.</p>
+              <p>Hidden legacy tracker kept for internal table logic. Control Board now uses the vertical collapsible incoming board above.</p>
             </div>
             <div class="panel-actions">
               <button class="small-button" id="show-all-priority" type="button">Show Batch Matched</button>
@@ -461,7 +474,7 @@
           <section class="panel pdc-list-panel">
             <div class="panel-header">
               <div>
-                <h2>Sublet providers</h2>
+                <h2>External providers</h2>
                 <p>Add tint, fabrication, tray, electrical, upholstery or other outside providers used by the PDC team.</p>
               </div>
             </div>
@@ -490,7 +503,7 @@
                 <input id="backup-upload" type="file" accept="application/json,.json" />
                 <div class="drop-icon backup-icon">JSON</div>
                 <strong>Restore CRM backup</strong>
-                <span>Select a backup JSON exported from this tracker to reload your saved dashboard later.</span>
+                <span>Select a backup JSON exported from this tracker to reload your saved Control Board later.</span>
               </label>
             </div>
           </section>
@@ -499,7 +512,7 @@
             <div class="panel-header">
               <div>
                 <h2>Backup status</h2>
-                <p>Recommended workflow: export a backup before downloading a new ChatGPT build, then restore it in the new version.</p>
+                <p>Recommended workflow: export a backup before downloading a new ChatGPT package, then restore it in the new version.</p>
               </div>
             </div>
             <div class="backup-status-list" id="backup-status-list">
@@ -553,7 +566,7 @@
                 <input id="navision-remove-missing" type="checkbox" />
                 <span><strong>Offer cleanup for missing vehicles</strong> — after this import, show vehicles already in the tracker that were not on the new Navision list. PMB/RFT vehicles are protected from this cleanup. Tick this to remove eligible missing vehicles automatically during import.</span>
               </label>
-              <div class="subtle navision-note">Matching priority: Batch / stock number first, then Toyota order number, then VIN when WMI + VDS Number + Frame are available. For existing vehicles, Navision updates source data only until Yard Hold. PMB/RFT movement is manual in the vehicle popup and will not be overwritten by future imports. Dealer Comments appear in Navision Notes. Rows marked as Cut But Vehicle are highlighted light blue. Optional spreadsheet columns: TINT, BUILD, PARTS, SUBLET, FABRICATION, PMB Bucket, PDC Location or Blocked can deliberately update PDC controls. PMB-only import accepts rows with Body Builder, PMB/PDC Location, PMB Bucket, tray ordered, or explicit job columns such as TINT/BUILD/PARTS/ELECTRICAL/SUBLET/FABRICATION.</div>
+              <div class="subtle navision-note">Matching priority: Batch / stock number first, then Toyota order number, then VIN when WMI + VDS Number + Frame are available. For existing vehicles, Navision updates source data only until Yard Hold. PMB/RFT movement is manual in the vehicle popup and will not be overwritten by future imports. Dealer Comments appear in Navision Notes. Rows marked as Cut But Vehicle are highlighted light blue. Optional spreadsheet columns: TINT, HOIST, FITTING, FABRICATION, ELECTRICAL, TYRE, PIT INSPECTION, PARTS, PMB Bucket, PDC Location or Blocked can deliberately update PDC controls. PMB-only import accepts rows with Body Builder, PMB/PDC Location, PMB Bucket, tray ordered, or explicit job columns such as TINT/HOIST/FITTING/FABRICATION/ELECTRICAL/TYRE/PIT INSPECTION/PARTS.</div>
             </div>
             <div class="navision-status-list" id="navision-status-list">
               <div class="empty-state compact-empty"><strong>No Navision text imported</strong><span>Paste copied Navision rows, or upload a text/CSV/XLSX file, then click Import vehicle updates.</span></div>
@@ -613,7 +626,7 @@
             <div class="panel-header compact">
               <div>
                 <h2>Upload purchase orders</h2>
-                <p>Uploading a PO automatically ticks Build PO for the matched vehicle.</p>
+                <p>Uploading a PO automatically records a PMB fitment PO for the matched vehicle.</p>
               </div>
             </div>
             <label class="drop-zone" for="po-upload">
@@ -689,9 +702,7 @@
     </div>
   </template>
 
-  <script src="https://cdn.jsdelivr.net/npm/qz-tray@2.2.4/qz-tray.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
   <script src="data.js?v=d70c2d4"></script>
-  <script src="app.js?v=rft-home-1"></script>
+  <script src="app.js?v=review-update-20260705"></script>
 </body>
 </html>
