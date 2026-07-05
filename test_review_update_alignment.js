@@ -32,9 +32,17 @@ code += String.raw`
   assert(!csv.includes('Requires Sublet'), 'CSV export should not include stale Sublet required header');
 
   const rftVehicle = { stock: 'RFT001', pdcLocation: 'RFT', manualLocation: 'RFT' };
+  const completedRftVehicle = { stock: 'RFT002', pdcLocation: 'RFT', manualLocation: 'RFT', rftCollected: true, rftCollectedAt: '2026-07-06T01:00:00.000Z' };
   const pmbVehicle = { stock: 'PMB001', pdcLocation: 'PMB', manualLocation: 'PMB', pdcRequiresTint: true, pdcCompleteTint: true };
   assert(incomingBucketForVehicle(rftVehicle) === 'rft', 'Control Board should include RFT vehicles in their own bucket');
   assert(incomingBucketLabel('rft') === 'RFT', 'Control Board RFT bucket label should be RFT');
+  assert(vehicleCollectedFromRft(completedRftVehicle), 'Collected RFT vehicles should be marked completed');
+  assert(statusCategory(completedRftVehicle) === 'completed', 'Collected RFT vehicles should move out of live RFT status');
+  assert(incomingBucketForVehicle(completedRftVehicle) === 'completed', 'Collected RFT vehicles should be assigned to completed bucket');
+  app.data = [rftVehicle, completedRftVehicle];
+  assert(rftHomeRows().length === 1 && rftHomeRows()[0].stock === 'RFT001', 'RFT home should hide vehicles collected from RFT');
+  assert(completedVehicleRows().length === 1 && completedVehicleRows()[0].stock === 'RFT002', 'Completed vehicles side menu should show collected RFT vehicles');
+  assert(incomingVehicleDetailRow(rftVehicle, 'rft').includes('data-rft-collected-key="RFT001"'), 'RFT rows should expose a collected checkbox');
   assert(incomingVehicleDetailRow(pmbVehicle, 'pmb').includes('data-transfer-rft-stock="PMB001"'), 'PMB workflow/control-board rows should expose transfer to RFT action');
 
   console.log('Review update alignment tests passed');

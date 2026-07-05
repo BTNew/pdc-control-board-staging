@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Vehicle Tracking Core</title>
-  <link rel="stylesheet" href="styles.css?v=rft-board-20260706" />
+  <link rel="stylesheet" href="styles.css?v=completed-rft-20260706" />
 </head>
 <body>
   <div class="app-shell" id="app-shell">
@@ -23,6 +23,7 @@
         <button class="nav-item" data-view="workflow" data-short="PMB">PMB Workflow</button>
         <button class="nav-item" data-view="parts" data-short="PA">Parts</button>
         <button class="nav-item" data-view="rft" data-short="RFT">RFT</button>
+        <button class="nav-item" data-view="completed" data-short="DONE">Completed vehicles</button>
         <button class="nav-item" data-view="lists" data-short="R">Reports</button>
         <button class="nav-item" data-view="import" data-short="U">Uploads</button>
       </nav>
@@ -424,6 +425,33 @@
         </div>
       </section>
 
+      <section id="completed" class="view">
+        <div class="parts-home-layout completed-home-layout">
+          <section class="panel parts-home-panel completed-home-panel">
+            <div class="panel-header">
+              <div>
+                <h2>Completed vehicles</h2>
+                <p>Vehicles ticked as collected from RFT. They stay off the live RFT board and remain available here for lookup.</p>
+              </div>
+              <div class="panel-actions">
+                <button class="small-button" id="completed-export-csv" type="button">Export completed CSV</button>
+              </div>
+            </div>
+            <div class="table-toolbar advanced-toolbar wide-toolbar parts-toolbar completed-toolbar">
+              <label>
+                <span>Search</span>
+                <input id="completed-search" type="search" placeholder="Stock, client, vehicle, key, collected by..." />
+              </label>
+            </div>
+            <div class="parts-help-strip completed-help-strip">
+              <strong>Collected:</strong>
+              <span>Untick a row here if it was marked collected by mistake; it will return to the RFT board.</span>
+            </div>
+            <div id="completed-vehicles-content" class="parts-home-content completed-home-content"></div>
+          </section>
+        </div>
+      </section>
+
 
       <section id="zpl" class="view">
         <div class="panel zpl-panel">
@@ -704,6 +732,6 @@
   </template>
 
   <script src="data.js?v=d70c2d4"></script>
-  <script src="app.js?v=rft-board-20260706"></script>
+  <script src="app.js?v=completed-rft-20260706"></script>
 </body>
 </html>

@@ -984,8 +984,13 @@ function vehiclePdcLocation(vehicle = {}) {
   return normalizePdcLocation(vehicle.pdcLocation || vehicle.pdcStatus || vehicle.manualLocation || '');
 }
 
+function vehicleCollectedFromRft(vehicle = {}) {
+  return Boolean(vehicle.rftCollected || vehicle.rftCollectedAt || vehicle.completedVehicle);
+}
+
 function statusCategory(vehicleOrStatus = '') {
   const isVehicle = vehicleOrStatus && typeof vehicleOrStatus === 'object';
+  if (isVehicle && vehicleCollectedFromRft(vehicleOrStatus)) return 'completed';
   if (isVehicle && !vehicleHasBatchNumber(vehicleOrStatus)) return 'other';
 
   if (isVehicle) {
@@ -1420,6 +1425,8 @@ function bindNav() {
   $('#rft-export-csv')?.addEventListener('click', exportRftCsv);
   $('#rft-search')?.addEventListener('input', renderRftHome);
   $('#rft-status-filter')?.addEventListener('change', renderRftHome);
+  $('#completed-export-csv')?.addEventListener('click', exportCompletedVehiclesCsv);
+  $('#completed-search')?.addEventListener('input', renderCompletedVehicles);
   $('#customer-search')?.addEventListener('input', renderCustomers);
   $('#clear-table-filters')?.addEventListener('click', () => clearAllFilters());
   $('#reset-table-columns')?.addEventListener('click', resetVehicleTableColumnOrder);
@@ -1643,6 +1650,9 @@ function renderActiveView() {
       break;
     case 'rft':
       renderRftHome();
+      break;
+    case 'completed':
+      renderCompletedVehicles();
       break;
     case 'lists':
       renderAdminLists();
@@ -1967,6 +1977,7 @@ function renderWorkflowBoard() {
 function incomingBucketForVehicle(vehicle = {}) {
   const category = statusCategory(vehicle);
   const status = normalizeToyotaStatus(navisionStatusText(vehicle));
+  if (category === 'completed') return 'completed';
   if (category === 'rft') return 'rft';
   if (category === 'pmb') return 'pmb';
   if (category === 'yardhold') return 'yardhold';
@@ -1975,7 +1986,7 @@ function incomingBucketForVehicle(vehicle = {}) {
 }
 
 function incomingBucketLabel(bucketKey = '') {
-  return ({ rft: 'RFT', pmb: 'PMB', yardhold: 'Yard Hold', transit: 'In Transit', overseas: 'Overseas / Other' })[bucketKey] || bucketKey || 'Other';
+  return ({ completed: 'Completed vehicles', rft: 'RFT', pmb: 'PMB', yardhold: 'Yard Hold', transit: 'In Transit', overseas: 'Overseas / Other' })[bucketKey] || bucketKey || 'Other';
 }
 
 function incomingSearchText(vehicle = {}, bucketKey = '') {
@@ -2115,7 +2126,9 @@ function incomingVehicleDetailRow(vehicle = {}, bucketKey = '', options = {}) {
     ? `<button class="primary incoming-transfer-pmb" type="button" data-yh-transfer-pmb="${escapeHtml(key)}">Transfer YH → PMB</button>`
     : bucketKey === 'pmb'
       ? `<button class="primary incoming-transfer-rft" type="button" data-transfer-rft-stock="${escapeHtml(key)}" ${gateIssues.length ? 'disabled' : ''} title="${escapeHtml(gateIssues.length ? `RFT locked: ${gateIssues.join(' | ')}` : 'Transfer PMB vehicle to RFT')}">Transfer to RFT</button><button class="small-button incoming-open-button" type="button" data-open-stock="${escapeHtml(key)}">Open</button>`
-      : `<button class="small-button incoming-open-button" type="button" data-open-stock="${escapeHtml(key)}">Open</button>`;
+      : bucketKey === 'rft'
+        ? `<label class="rft-collected-check incoming-collected-check" title="Tick once the vehicle has been collected"><input type="checkbox" data-rft-collected-key="${escapeHtml(key)}" /> <span>Collected</span></label><button class="small-button incoming-open-button" type="button" data-open-stock="${escapeHtml(key)}">Open</button>`
+        : `<button class="small-button incoming-open-button" type="button" data-open-stock="${escapeHtml(key)}">Open</button>`;
   const deleteAction = options.hideDelete ? '' : `<button class="small-button incoming-delete-button" type="button" data-incoming-delete="${escapeHtml(key)}" title="Delete this vehicle from the main screen">Delete</button>`;
   const keyBadge = keyNo && keyNo !== '—' ? `<small>Key ${escapeHtml(keyNo)}</small>` : '';
   const selectBox = `<label class="incoming-card-select" title="Select ${escapeHtml(stock)}"><input type="checkbox" data-select-stock="${escapeHtml(key)}" ${app.selectedRows.has(key) ? 'checked' : ''} /><span aria-hidden="true"></span></label>`;
@@ -2151,7 +2164,7 @@ function incomingVehicleDetailRow(vehicle = {}, bucketKey = '', options = {}) {
 function renderIncomingDashboardBoard() {
   const host = $('#incoming-main-board');
   if (!host) return;
-  const rows = app.data.filter(vehicle => incomingBucketForVehicle(vehicle));
+  const rows = app.data.filter(vehicle => incomingBucketForVehicle(vehicle) && !vehicleCollectedFromRft(vehicle));
   updateIncomingDashboardFilterOptions(rows);
   const filters = incomingDashboardFilterValues();
   const filteredRows = rows.filter(vehicle => incomingVehicleMatchesFilters(vehicle, filters));
@@ -2195,6 +2208,7 @@ function renderIncomingDashboardBoard() {
     event.stopPropagation();
     transferVehicleToRftFromCard(button.dataset.transferRftStock);
   }));
+  bindRftCollectedInputs(host);
   bindIncomingCardSelection(host);
   updateInlineSelectionBars(filteredRows);
 }
@@ -5522,6 +5536,8 @@ function saveVehicleEdits(key, updates) {
   renderScheduleBoard();
   renderPartsHome();
   renderRftHome();
+  renderCompletedVehicles();
+  renderIncomingDashboardBoard();
   renderAdminLists();
   renderCustomers();
   renderReviewTable(app.reviewed);
@@ -6608,7 +6624,7 @@ function rftHomeRows() {
   const q = ($('#rft-search')?.value || '').trim().toLowerCase();
   const filter = $('#rft-status-filter')?.value || 'open';
   return app.data
-    .filter(vehicle => statusCategory(vehicle) === 'rft')
+    .filter(vehicle => statusCategory(vehicle) === 'rft' && !vehicleCollectedFromRft(vehicle))
     .filter(vehicle => {
       const status = rftHomeStatus(vehicle);
       const matchesStatus = filter === 'all'
@@ -6635,7 +6651,7 @@ function rftHomeRows() {
 }
 
 function renderRftSummary() {
-  const all = app.data.filter(vehicle => statusCategory(vehicle) === 'rft');
+  const all = app.data.filter(vehicle => statusCategory(vehicle) === 'rft' && !vehicleCollectedFromRft(vehicle));
   const counts = all.reduce((acc, vehicle) => {
     const status = rftHomeStatus(vehicle);
     acc[status] = (acc[status] || 0) + 1;
@@ -6704,6 +6720,7 @@ function renderRftHome() {
         <td>${rftCompletionTicksHtml(vehicle)}</td>
         <td><span class="rft-blocker-text" title="${escapeHtml(blocker)}">${escapeHtml(truncate(blocker, 72))}</span></td>
         <td><div class="parts-action-group rft-action-group">
+          <label class="rft-collected-check" title="Tick once the vehicle has been collected"><input type="checkbox" data-rft-collected-key="${escapeHtml(key)}" /> <span>Collected</span></label>
           <button class="small-button" type="button" data-open-stock="${escapeHtml(key)}">Open</button>
           <button class="small-button primary" type="button" data-rft-email="${escapeHtml(key)}" ${status === 'blocked' ? `disabled title="Cannot email: ${escapeHtml(blocker)}"` : 'title="Email salesperson: all required jobs are signed off"'}>Email salesperson</button>
         </div></td>
@@ -6717,6 +6734,118 @@ function renderRftHome() {
     togglePdcJobCompletionFromCard(input.dataset.rftCompletionKey, input.dataset.rftCompletionJob);
   }));
   $$('[data-rft-email]', host).forEach(button => button.addEventListener('click', () => draftRftSalespersonNotificationEmail([button.dataset.rftEmail])));
+  bindRftCollectedInputs(host);
+}
+
+
+function markRftVehicleCollected(key, collected = true) {
+  const vehicle = selectedVehicle(key);
+  if (!vehicle) return;
+  const now = new Date().toISOString();
+  const operator = getCurrentOperatorName();
+  if (collected) {
+    recordVehicleAudit(vehicle, 'Collected from RFT', { by: operator || 'Unknown' });
+    saveVehicleEdits(vehicleKey(vehicle), {
+      rftCollected: true,
+      completedVehicle: true,
+      rftCollectedAt: now,
+      rftCollectedBy: operator,
+    });
+  } else {
+    recordVehicleAudit(vehicle, 'Returned to RFT board', { by: operator || 'Unknown' });
+    saveVehicleEdits(vehicleKey(vehicle), {
+      rftCollected: false,
+      completedVehicle: false,
+      rftCollectedAt: '',
+      rftCollectedBy: '',
+    });
+  }
+  renderActiveView();
+}
+
+function bindRftCollectedInputs(root = document) {
+  $$('[data-rft-collected-key]', root).forEach(input => input.addEventListener('click', event => event.stopPropagation()));
+  $$('[data-rft-collected-key]', root).forEach(input => input.addEventListener('change', () => {
+    const key = input.dataset.rftCollectedKey;
+    if (!key) return;
+    markRftVehicleCollected(key, input.checked);
+  }));
+}
+
+function completedVehicleRows() {
+  const q = ($('#completed-search')?.value || '').trim().toLowerCase();
+  return app.data
+    .filter(vehicleCollectedFromRft)
+    .filter(vehicle => {
+      if (!q) return true;
+      const hay = [
+        displayStockNumber(vehicle), vehicle.order, vehicleKeyNumber(vehicle), vehicle.client, vehicle.toyotaCustomer,
+        displayVehicle(vehicle), vehicle.rftCollectedBy || '', vehicle.rftCollectedAt || '', pdcCompletedJobsText(vehicle),
+      ].join(' ').toLowerCase();
+      return hay.includes(q);
+    })
+    .sort((a, b) => {
+      const timeA = parseIsoTimestamp(a.rftCollectedAt || '')?.getTime() || 0;
+      const timeB = parseIsoTimestamp(b.rftCollectedAt || '')?.getTime() || 0;
+      if (timeA !== timeB) return timeB - timeA;
+      return String(displayStockNumber(a) || '').localeCompare(String(displayStockNumber(b) || ''), undefined, { numeric: true });
+    });
+}
+
+function renderCompletedVehicles() {
+  const host = $('#completed-vehicles-content');
+  if (!host) return;
+  const rows = completedVehicleRows();
+  if (!rows.length) {
+    host.innerHTML = '<div class="empty-state"><strong>No completed vehicles yet</strong><span>Tick Collected on the RFT screen after a vehicle has been picked up.</span></div>';
+    return;
+  }
+  host.innerHTML = `<div class="parts-table-wrap completed-table-wrap"><table class="data-table compact-table parts-table completed-table">
+    <thead><tr>
+      <th>Collected</th>
+      <th>SN</th>
+      <th>Client</th>
+      <th>Vehicle</th>
+      <th>Key</th>
+      <th>Collected time</th>
+      <th>Collected by</th>
+      <th>Actions</th>
+    </tr></thead>
+    <tbody>${rows.map(vehicle => {
+      const key = vehicleKey(vehicle);
+      const collectedAt = parseIsoTimestamp(vehicle.rftCollectedAt || '');
+      const collectedLabel = collectedAt ? collectedAt.toLocaleString('en-AU', { dateStyle: 'short', timeStyle: 'short' }) : '';
+      return `<tr class="completed-vehicle-row">
+        <td><label class="rft-collected-check completed-collected-check" title="Untick to return this vehicle to RFT"><input type="checkbox" data-rft-collected-key="${escapeHtml(key)}" checked /> <span>Collected</span></label></td>
+        <td><button class="stock-link stock-button" type="button" data-open-stock="${escapeHtml(key)}">${escapeHtml(displayStockNumber(vehicle) || vehicle.order || 'No stock')}</button>${stockOrderSubline(vehicle)}</td>
+        <td><span title="${escapeHtml(vehicle.client || vehicle.toyotaCustomer || '')}">${escapeHtml(truncate(vehicle.client || vehicle.toyotaCustomer || 'Dealer Order', 34))}</span></td>
+        <td><span title="${escapeHtml(displayVehicle(vehicle))}">${escapeHtml(truncate(displayVehicle(vehicle), 48))}</span></td>
+        <td>${escapeHtml(vehicleKeyNumber(vehicle) || '')}</td>
+        <td>${escapeHtml(collectedLabel)}</td>
+        <td>${escapeHtml(vehicle.rftCollectedBy || '')}</td>
+        <td><button class="small-button" type="button" data-open-stock="${escapeHtml(key)}">Open</button></td>
+      </tr>`;
+    }).join('')}</tbody></table></div>`;
+  $$('[data-open-stock]', host).forEach(button => button.addEventListener('click', () => openVehicleModal(button.dataset.openStock)));
+  bindRftCollectedInputs(host);
+}
+
+function exportCompletedVehiclesCsv() {
+  const rows = completedVehicleRows();
+  const headers = ['Stock','Toyota Order','Key','Client','Vehicle','Collected At','Collected By','Completed Jobs'];
+  const lines = [headers.join(',')].concat(rows.map(vehicle => [
+    displayStockNumber(vehicle), vehicle.order || '', vehicleKeyNumber(vehicle), vehicle.client || vehicle.toyotaCustomer || '',
+    displayVehicle(vehicle), vehicle.rftCollectedAt || '', vehicle.rftCollectedBy || '', pdcCompletedJobsText(vehicle),
+  ].map(csvEscape).join(',')));
+  const blob = new Blob([lines.join('\n')], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'pdc-completed-vehicles-export.csv';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
 }
 
 function exportRftCsv() {
