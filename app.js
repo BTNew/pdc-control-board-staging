@@ -367,6 +367,36 @@ function pmbStageCapacityLabel(stage = '') {
   return `${count} bay${count === 1 ? '' : 's'}`;
 }
 
+function pmbBayVehiclesForStage(stage = '') {
+  const normalized = normalizePmbStage(stage);
+  if (!normalized) return [];
+  return app.data.filter(vehicle => statusCategory(vehicle) === 'pmb'
+    && normalizePmbStage(inferredPmbStage(vehicle)) === normalized
+    && pmbBayNumber(vehicle, normalized));
+}
+
+function pmbBayOccupants(stage = '', bay = '', excludeKey = '') {
+  const normalized = normalizePmbStage(stage);
+  const bayNumber = normalizePmbBayNumber(bay, normalized);
+  const cleanExclude = String(excludeKey || '').trim();
+  if (!normalized || !bayNumber) return [];
+  return app.data.filter(vehicle => {
+    if (cleanExclude && vehicleKey(vehicle) === cleanExclude) return false;
+    if (statusCategory(vehicle) !== 'pmb') return false;
+    if (normalizePmbStage(inferredPmbStage(vehicle)) !== normalized) return false;
+    return pmbBayNumber(vehicle, normalized) === bayNumber;
+  });
+}
+
+function pmbStageHasBayCapacity(stage = '', excludeKey = '') {
+  const normalized = normalizePmbStage(stage);
+  const bayCount = pmbStageBayCount(normalized);
+  if (!normalized || !bayCount) return true;
+  const cleanExclude = String(excludeKey || '').trim();
+  const occupied = pmbBayVehiclesForStage(normalized).filter(vehicle => vehicleKey(vehicle) !== cleanExclude).length;
+  return occupied < bayCount;
+}
+
 function pmbLaneAgeLimit(stage = '') {
   const normalized = normalizePmbStage(stage);
   return PMB_STAGE_AGE_LIMITS[normalized] ?? PMB_STAGE_AGE_LIMITS[''];
@@ -1920,7 +1950,6 @@ function collapseWorkflowRows() {
     document.body.classList.remove('pmb-station-mode');
     showView('workflow');
     renderWorkflowBoard();
-    return;
   }
   collapseDetailsWithin($('#workflow-board'));
 }
@@ -3178,52 +3207,24 @@ function pmbBayVehicleCardHtml(vehicle = {}, stage = '') {
   const jobDef = pmbStageJobDef(normalizedStage);
   const bay = pmbBayNumber(vehicle, normalizedStage);
   const complete = jobDef ? pdcJobComplete(vehicle, jobDef) : false;
-  const required = jobDef ? pdcJobRequired(vehicle, jobDef) : false;
-  const hours = pmbBayHours(vehicle);
-  const mechanic = pmbBayMechanic(vehicle);
-  const subletProvider = pmbBaySubletProvider(vehicle);
-  const isSubletStage = normalizedStage === 'SUBLET';
-  const assigneeLabel = isSubletStage ? 'Provider' : 'Mechanic';
-  const assigneeValue = isSubletStage ? subletProvider : mechanic;
-  const assigneeOptions = isSubletStage ? subletProviderOptionsHtml(subletProvider) : mechanicOptionsHtml(mechanic);
-  const assigneeDataAttr = isSubletStage ? 'data-pmb-bay-provider-key' : 'data-pmb-bay-mechanic-key';
-  const assigneeStageAttr = isSubletStage ? 'data-pmb-bay-provider-stage' : 'data-pmb-bay-mechanic-stage';
-  const bayEnteredAt = parseIsoTimestamp(vehicle.pmbBayEnteredAt || '');
-  const bayAge = bayEnteredAt ? daysSinceTimestamp(vehicle.pmbBayEnteredAt) : null;
-  const title = `${displayStockNumber(vehicle) || vehicle.order || 'Vehicle'} · ${pmbStageLabel(normalizedStage)}${bay ? ` · Bay ${bay}` : ' · no bay'}`;
+  const keyNo = vehicleKeyNumber(vehicle) || '—';
+  const stock = displayStockNumber(vehicle) || vehicle.order || 'No stock';
+  const customer = vehicle.client || vehicle.toyotaCustomer || 'Dealer Order';
+  const bayLabel = bay ? `Bay ${bay}` : 'No bay';
+  const statusLabel = complete ? `${jobDef?.label || 'Work'} complete` : `${jobDef?.label || 'Work'} open`;
+  const title = `Key ${keyNo} · ${stock} · ${customer} · ${pmbStageLabel(normalizedStage)} ${bayLabel}`;
   return `
-    <article class="pmb-bay-vehicle-card ${complete ? 'is-complete' : ''} ${isPdcBlocked(vehicle) ? 'is-blocked' : ''}" draggable="true" data-pmb-drag-key="${escapeHtml(key)}" title="${escapeHtml(title)}">
-      <div class="pmb-bay-card-top">
-        <strong>${escapeHtml(displayStockNumber(vehicle) || vehicle.order || 'No stock')}</strong>
-        <button type="button" class="text-button" data-open-stock="${escapeHtml(key)}">Open</button>
+    <article class="pmb-bay-vehicle-card pmb-bay-vehicle-pill ${complete ? 'is-complete' : ''} ${isPdcBlocked(vehicle) ? 'is-blocked' : ''}" draggable="true" data-pmb-drag-key="${escapeHtml(key)}" data-open-stock="${escapeHtml(key)}" title="${escapeHtml(title)}">
+      <div class="pmb-bay-pill-main">
+        <span class="pmb-bay-pill-key">Key ${escapeHtml(keyNo)}</span>
+        <strong>${escapeHtml(stock)}</strong>
+        <span class="pmb-bay-pill-customer">${escapeHtml(truncate(customer, 26))}</span>
       </div>
-      <span class="pmb-bay-card-client">${escapeHtml(truncate(vehicle.client || vehicle.toyotaCustomer || 'Dealer Order', 32))}</span>
-      ${pmbKeyNumberPillHtml(vehicle)}
-      <small>${escapeHtml(truncate(displayVehicle(vehicle), 42))}</small>
-      <div class="pmb-bay-card-status single-station-status">
-        ${pmbCurrentStageStatusHtml(vehicle, normalizedStage)}
+      <div class="pmb-bay-pill-bottom">
+        ${pmbRequirementMarkersHtml(vehicle)}
+        <span class="pmb-bay-pill-stage">${escapeHtml(bayLabel)} · ${escapeHtml(statusLabel)}</span>
         ${isPdcBlocked(vehicle) ? `<span class="pmb-bay-chip blocked">Blocked</span>` : ''}
       </div>
-      <div class="pmb-bay-card-inputs">
-        <label class="pmb-bay-hours">
-          <span>Hours</span>
-          <input type="number" min="0" step="0.25" inputmode="decimal" value="${hours === '' ? '' : escapeHtml(hours)}" placeholder="0" data-pmb-bay-hours-key="${escapeHtml(key)}" data-pmb-bay-hours-stage="${escapeHtml(normalizedStage)}" />
-        </label>
-        <label class="pmb-bay-mechanic">
-          <span>${escapeHtml(assigneeLabel)}</span>
-          <select ${assigneeDataAttr}="${escapeHtml(key)}" ${assigneeStageAttr}="${escapeHtml(normalizedStage)}">${assigneeOptions}</select>
-        </label>
-      </div>
-      <div class="pmb-bay-card-meta">
-        <span>${bay ? `Bay ${bay}` : 'No bay'}</span>
-        <span>${bayAge === null ? 'Bay age unknown' : `${bayAge}d in bay`}</span>
-        <span>${escapeHtml(pmbBayHoursLabel(vehicle))}</span>
-        <span>${escapeHtml(assigneeValue || `${assigneeLabel} not assigned`)}</span>
-      </div>
-      <div class="pmb-bay-card-actions">
-        <button type="button" class="small-button ${complete ? 'active-lite' : ''}" data-complete-pmb-bay-work="${escapeHtml(key)}" data-complete-pmb-bay-stage="${escapeHtml(normalizedStage)}" ${complete ? 'disabled aria-disabled="true"' : ''}>${complete ? 'Complete ✓' : `Complete ${escapeHtml(jobDef?.label || 'work')}`}</button>
-      </div>
-      ${required ? '' : `<div class="pmb-bay-note">${escapeHtml(jobDef?.label || 'This work')} was not marked as required; completing here will add it as required and signed off.</div>`}
     </article>`;
 }
 
@@ -3672,6 +3673,17 @@ async function assignPmbVehicleToBay(key, stage, bay, requestedStartIso = '') {
   }
   const bayNumber = normalizePmbBayNumber(bay, nextStage);
   const currentStage = normalizePmbStage(vehicle.pmbStage || vehicle.pdcWorkStage || vehicle.workStage || '');
+  if (bayNumber) {
+    const occupied = pmbBayOccupants(nextStage, bayNumber, cleanKey);
+    if (occupied.length) {
+      window.alert(`${pmbStageLabel(nextStage)} Bay ${bayNumber} already has a vehicle. Move that vehicle out before assigning another one.`);
+      return;
+    }
+    if (!pmbStageHasBayCapacity(nextStage, cleanKey)) {
+      window.alert(`${pmbStageLabel(nextStage)} is full. It only has ${pmbStageBayCount(nextStage)} bay${pmbStageBayCount(nextStage) === 1 ? '' : 's'}. Move a vehicle out before adding another.`);
+      return;
+    }
+  }
   const now = nowIsoString();
   const bayLabel = bayNumber ? `Bay ${bayNumber}` : 'No bay';
   const resolutionUpdates = await pmbMovementResolutionUpdates(vehicle, currentStage, nextStage);

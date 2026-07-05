@@ -4163,6 +4163,67 @@ body.pmb-dragging .pmb-drop-lane {
   border-color: rgba(220, 38, 38, .42);
   background: #fff7ed;
 }
+.pmb-bay-vehicle-pill {
+  gap: 4px;
+  border-radius: 999px;
+  padding: 6px 8px;
+  min-height: 44px;
+  box-shadow: 0 4px 10px rgba(15, 23, 42, .06);
+}
+.pmb-bay-pill-main,
+.pmb-bay-pill-bottom {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+}
+.pmb-bay-pill-main {
+  font-size: .66rem;
+  font-weight: 900;
+}
+.pmb-bay-pill-main strong,
+.pmb-bay-pill-customer {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pmb-bay-pill-main strong {
+  color: #0f172a;
+  flex: 0 1 auto;
+  max-width: 86px;
+}
+.pmb-bay-pill-key {
+  flex: 0 0 auto;
+  color: #1d4ed8;
+  background: #eff6ff;
+  border: 1px solid rgba(37, 99, 235, .18);
+  border-radius: 999px;
+  padding: 1px 5px;
+}
+.pmb-bay-pill-customer {
+  color: #475569;
+  flex: 1 1 auto;
+}
+.pmb-bay-pill-bottom {
+  color: #64748b;
+  font-size: .56rem;
+  font-weight: 850;
+}
+.pmb-bay-pill-bottom .pmb-card-requirements {
+  gap: 2px;
+  margin: 0;
+}
+.pmb-bay-pill-bottom .pmb-req-marker {
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  font-size: .5rem;
+}
+.pmb-bay-pill-stage {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .pmb-bay-card-top {
   display: flex;
   align-items: center;
