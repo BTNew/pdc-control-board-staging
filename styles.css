@@ -3576,10 +3576,11 @@ body.vehicle-table-header-pinned #vehicle-table thead {
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .4);
 }
 .pmb-req-tint { background: #ecfeff; color: #155e75; border-color: rgba(6, 182, 212, .3); }
+.pmb-req-hoist { background: #f5f3ff; color: #5b21b6; border-color: rgba(139, 92, 246, .35); }
+.pmb-req-fitting { background: #eff6ff; color: #1d4ed8; border-color: rgba(37, 99, 235, .35); }
 .pmb-req-fabrication { background: #fffbeb; color: #92400e; border-color: rgba(245, 158, 11, .35); }
-.pmb-req-build { background: #f5f3ff; color: #5b21b6; border-color: rgba(139, 92, 246, .35); }
 .pmb-req-electrical { background: #f0fdf4; color: #166534; border-color: rgba(34, 197, 94, .35); }
-.pmb-req-sublet { background: #f8fafc; color: #334155; border-color: rgba(100, 116, 139, .35); }
+.pmb-req-tyre { background: #fef2f2; color: #991b1b; border-color: rgba(239, 68, 68, .4); }
 .pmb-req-pitInspection { background: #ecfdf5; color: #047857; border-color: rgba(16, 185, 129, .42); }
 .pmb-req-marker.is-complete {
   border-radius: 999px;
@@ -5478,26 +5479,32 @@ body.pmb-schedule-adjusting .pmb-schedule-chip-slim {
 }
 
 #vehicle-table [data-flag-key="pdcRequiresTint"],
-#vehicle-table [data-flag-key="pdcTintComplete"] { accent-color: #06b6d4 !important; }
+#vehicle-table [data-flag-key="pdcCompleteTint"] { accent-color: #06b6d4 !important; }
 
-#vehicle-table [data-flag-key="pdcRequiresBuild"],
-#vehicle-table [data-flag-key="pdcBuildComplete"] { accent-color: #8b5cf6 !important; }
+#vehicle-table [data-flag-key="pdcRequiresHoist"],
+#vehicle-table [data-flag-key="pdcCompleteHoist"] { accent-color: #8b5cf6 !important; }
 
-#vehicle-table [data-flag-key="pdcRequiresParts"],
-#vehicle-table [data-flag-key="pdcPartsComplete"] { accent-color: #ef4444 !important; }
-
-#vehicle-table [data-flag-key="pdcRequiresElectrical"],
-#vehicle-table [data-flag-key="pdcElectricalComplete"] { accent-color: #22c55e !important; }
-
-#vehicle-table [data-flag-key="pdcRequiresSublet"],
-#vehicle-table [data-flag-key="pdcSubletComplete"] { accent-color: #64748b !important; }
+#vehicle-table [data-flag-key="pdcRequiresFitting"],
+#vehicle-table [data-flag-key="pdcCompleteFitting"] { accent-color: #0ea5e9 !important; }
 
 #vehicle-table [data-flag-key="pdcRequiresFabrication"],
-#vehicle-table [data-flag-key="pdcFabricationComplete"] { accent-color: #f59e0b !important; }
+#vehicle-table [data-flag-key="pdcCompleteFabrication"] { accent-color: #f59e0b !important; }
+
+#vehicle-table [data-flag-key="pdcRequiresElectrical"],
+#vehicle-table [data-flag-key="pdcCompleteElectrical"] { accent-color: #22c55e !important; }
+
+#vehicle-table [data-flag-key="pdcRequiresTyre"],
+#vehicle-table [data-flag-key="pdcCompleteTyre"] { accent-color: #f97316 !important; }
+
+#vehicle-table [data-flag-key="pdcRequiresPitInspection"],
+#vehicle-table [data-flag-key="pdcCompletePitInspection"] { accent-color: #64748b !important; }
+
+#vehicle-table [data-flag-key="pdcRequiresParts"],
+#vehicle-table [data-flag-key="pdcCompleteParts"] { accent-color: #ef4444 !important; }
 
 .pdc-requirement-grid.slim-job-grid,
 .pdc-completion-grid.slim-job-grid {
-  grid-template-columns: repeat(6, minmax(58px, 1fr)) !important;
+  grid-template-columns: repeat(8, minmax(58px, 1fr)) !important;
   gap: 5px !important;
 }
 
@@ -5797,43 +5804,20 @@ body.pmb-schedule-adjusting .pmb-schedule-chip-slim {
 }
 
 #vehicle-table .mini-check.pdc-mini-tint input { accent-color: #06b6d4 !important; }
-#vehicle-table .mini-check.pdc-mini-build input { accent-color: #8b5cf6 !important; }
-#vehicle-table .mini-check.pdc-mini-parts input { accent-color: #ef4444 !important; }
-#vehicle-table .mini-check.pdc-mini-parts.parts-visual-notordered {
-  background: #f1f5f9 !important;
-  border: 1px solid #cbd5e1 !important;
-  opacity: .62;
-}
-#vehicle-table .mini-check.pdc-mini-parts.parts-visual-notordered input {
-  accent-color: #94a3b8 !important;
-}
-#vehicle-table .mini-check.pdc-mini-parts.parts-visual-onorder {
-  background: #eff6ff !important;
-  border: 1px solid #60a5fa !important;
-  opacity: 1;
-}
-#vehicle-table .mini-check.pdc-mini-parts.parts-visual-onorder input {
-  accent-color: #2563eb !important;
-}
-#vehicle-table .mini-check.pdc-mini-parts.parts-visual-issued {
-  background: #f0fdf4 !important;
-  border: 2px solid #22c55e !important;
-  box-shadow: 0 0 0 1px rgba(34, 197, 94, .18) !important;
-  opacity: 1;
-}
-#vehicle-table .mini-check.pdc-mini-parts.parts-visual-issued input {
-  accent-color: #dc2626 !important;
-}
-#vehicle-table .mini-check.pdc-mini-electrical input { accent-color: #22c55e !important; }
-#vehicle-table .mini-check.pdc-mini-sublet input { accent-color: #64748b !important; }
+#vehicle-table .mini-check.pdc-mini-hoist input { accent-color: #8b5cf6 !important; }
+#vehicle-table .mini-check.pdc-mini-fitting input { accent-color: #2563eb !important; }
 #vehicle-table .mini-check.pdc-mini-fabrication input { accent-color: #f59e0b !important; }
+#vehicle-table .mini-check.pdc-mini-electrical input { accent-color: #22c55e !important; }
+#vehicle-table .mini-check.pdc-mini-tyre input { accent-color: #ef4444 !important; }
+#vehicle-table .mini-check.pdc-mini-pitInspection input { accent-color: #10b981 !important; }
 
 #vehicle-table .mini-check.pdc-mini-tint:has(input:checked) { background: #ecfeff !important; }
-#vehicle-table .mini-check.pdc-mini-build:has(input:checked) { background: #f5f3ff !important; }
-#vehicle-table .mini-check.pdc-mini-parts:has(input:checked) { background: #fef2f2 !important; }
-#vehicle-table .mini-check.pdc-mini-electrical:has(input:checked) { background: #f0fdf4 !important; }
-#vehicle-table .mini-check.pdc-mini-sublet:has(input:checked) { background: #f8fafc !important; }
+#vehicle-table .mini-check.pdc-mini-hoist:has(input:checked) { background: #f5f3ff !important; }
+#vehicle-table .mini-check.pdc-mini-fitting:has(input:checked) { background: #eff6ff !important; }
 #vehicle-table .mini-check.pdc-mini-fabrication:has(input:checked) { background: #fffbeb !important; }
+#vehicle-table .mini-check.pdc-mini-electrical:has(input:checked) { background: #f0fdf4 !important; }
+#vehicle-table .mini-check.pdc-mini-tyre:has(input:checked) { background: #fef2f2 !important; }
+#vehicle-table .mini-check.pdc-mini-pitInspection:has(input:checked) { background: #ecfdf5 !important; }
 
 /* Keep other main fields compact after reducing job columns */
 #vehicle-table th[data-col-id="client"],

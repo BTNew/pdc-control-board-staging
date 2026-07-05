@@ -140,12 +140,13 @@ const PRODUCTION_DEPARTMENT_VIEWS = {
 
 const PDC_JOB_DEFS = [
   { key: 'tint', label: 'Tint', short: 'T', requireKey: 'pdcRequiresTint', completeKey: 'pdcCompleteTint', completeAtKey: 'pdcCompleteTintAt', completeByKey: 'pdcCompleteTintBy' },
-  { key: 'build', label: 'Build', short: 'B', requireKey: 'pdcRequiresBuild', completeKey: 'pdcCompleteBuild', completeAtKey: 'pdcCompleteBuildAt', completeByKey: 'pdcCompleteBuildBy' },
-  { key: 'parts', label: 'Parts', short: 'P', requireKey: 'pdcRequiresParts', completeKey: 'pdcCompleteParts', completeAtKey: 'pdcCompletePartsAt', completeByKey: 'pdcCompletePartsBy' },
+  { key: 'hoist', label: 'Hoist', short: 'H', requireKey: 'pdcRequiresHoist', completeKey: 'pdcCompleteHoist', completeAtKey: 'pdcCompleteHoistAt', completeByKey: 'pdcCompleteHoistBy' },
+  { key: 'fitting', label: 'Fitting', short: 'F', requireKey: 'pdcRequiresFitting', completeKey: 'pdcCompleteFitting', completeAtKey: 'pdcCompleteFittingAt', completeByKey: 'pdcCompleteFittingBy' },
+  { key: 'fabrication', label: 'Fabrication', short: 'Fa', requireKey: 'pdcRequiresFabrication', completeKey: 'pdcCompleteFabrication', completeAtKey: 'pdcCompleteFabricationAt', completeByKey: 'pdcCompleteFabricationBy' },
   { key: 'electrical', label: 'Electrical', short: 'E', requireKey: 'pdcRequiresElectrical', completeKey: 'pdcCompleteElectrical', completeAtKey: 'pdcCompleteElectricalAt', completeByKey: 'pdcCompleteElectricalBy' },
-  { key: 'sublet', label: 'Sublet', short: 'S', requireKey: 'pdcRequiresSublet', completeKey: 'pdcCompleteSublet', completeAtKey: 'pdcCompleteSubletAt', completeByKey: 'pdcCompleteSubletBy' },
-  { key: 'fabrication', label: 'Fabrication', short: 'F', requireKey: 'pdcRequiresFabrication', completeKey: 'pdcCompleteFabrication', completeAtKey: 'pdcCompleteFabricationAt', completeByKey: 'pdcCompleteFabricationBy' },
+  { key: 'tyre', label: 'Tyre', short: 'Ty', requireKey: 'pdcRequiresTyre', completeKey: 'pdcCompleteTyre', completeAtKey: 'pdcCompleteTyreAt', completeByKey: 'pdcCompleteTyreBy' },
   { key: 'pitInspection', label: 'Pit Inspection', short: 'PI', requireKey: 'pdcRequiresPitInspection', completeKey: 'pdcCompletePitInspection', completeAtKey: 'pdcCompletePitInspectionAt', completeByKey: 'pdcCompletePitInspectionBy' },
+  { key: 'parts', label: 'Parts', short: 'P', requireKey: 'pdcRequiresParts', completeKey: 'pdcCompleteParts', completeAtKey: 'pdcCompletePartsAt', completeByKey: 'pdcCompletePartsBy' },
 ];
 const PDC_JOB_BY_REQUIRE_KEY = new Map(PDC_JOB_DEFS.map(def => [def.requireKey, def]));
 const PDC_JOB_BY_COMPLETE_KEY = new Map(PDC_JOB_DEFS.map(def => [def.completeKey, def]));
@@ -153,11 +154,11 @@ const PDC_JOB_BY_KEY = new Map(PDC_JOB_DEFS.map(def => [def.key, def]));
 
 const PMB_STAGE_TO_JOB_KEY = {
   TINT: 'tint',
-  HOIST: 'build',
-  FITTING: 'build',
+  HOIST: 'hoist',
+  FITTING: 'fitting',
   FABRICATION: 'fabrication',
   ELECTRICAL: 'electrical',
-  TYRE: 'build',
+  TYRE: 'tyre',
   PIT_INSPECTION: 'pitInspection',
 };
 
@@ -436,12 +437,14 @@ function pdcJobFallbackRequired(vehicle = {}, def = {}) {
   switch (def.key) {
     case 'tint':
       return legacyVehicleFlag(vehicle, 'tintRaised') || /\b(tint|tinting|window tint)\b/.test(source) || stage === 'TINT';
-    case 'build':
-      return legacyVehicleFlag(vehicle, 'buildPoRaised') || legacyVehicleFlag(vehicle, 'buildComplete') || /\b(build|pdi|pre delivery|pre-delivery|job card|workshop|hoist|tyre|tire|wheel|fitting|fitment)\b/.test(source) || ['HOIST', 'FITTING', 'TYRE'].includes(stage);
-    case 'parts':
-      return normalizeJita(jitaDisplay(vehicle)) === 'Yes' || /\b(parts?|jita|accessor(?:y|ies)|ordered parts|parts ordered)\b/.test(source);
+    case 'hoist':
+      return legacyVehicleFlag(vehicle, 'buildPoRaised') || /\b(hoist|suspension|gvm|lift kit|lift|underbody|towbar|tow bar)\b/.test(source) || stage === 'HOIST';
+    case 'fitting':
+      return legacyVehicleFlag(vehicle, 'buildPoRaised') || legacyVehicleFlag(vehicle, 'buildComplete') || /\b(fit|fitting|fitment|fitout|fit out|build|pdi|pre delivery|pre-delivery|job card|workshop|accessor(?:y|ies))\b/.test(source) || stage === 'FITTING';
     case 'electrical':
       return /\b(electrical|auto electrical|auto-elec|12v|dual battery|battery system|uhf|spotlight|light bar|beacon|compressor|anderson|redarc|brake controller|dc dc|dcdc|dash cam|camera|reverse camera|power outlet|usb)\b/.test(source) || stage === 'ELECTRICAL';
+    case 'tyre':
+      return /\b(tyre|tire|wheel|wheels|alloy|rotation|balance|alignment)\b/.test(source) || stage === 'TYRE';
     case 'sublet':
       return /\b(sublet|sub-let|sub let|outsourced|external contractor|external work|outside contractor)\b/.test(source) || stage === 'SUBLET';
     case 'fabrication':
@@ -458,6 +461,7 @@ function pdcJobRequired(vehicle = {}, def = {}) {
   // Parts is not an optional work bucket in this PDC flow.
   // Every imported vehicle with a real batch / stock number requires Parts to order and sign off before RFT.
   if (def.key === 'parts') return vehicleHasBatchNumber(vehicle);
+  if (def.key === 'fitting' && vehicle.pdcRequiresBuild === true) return true;
   if (vehicle[def.requireKey] === true) return true;
   if (vehicle[def.requireKey] === false) return false;
   return pdcJobFallbackRequired(vehicle, def);
@@ -467,6 +471,7 @@ function pdcJobComplete(vehicle = {}, def = {}) {
   if (!def?.completeKey) return false;
   if (vehicle[def.completeKey] === true) return true;
   if (vehicle[def.completeKey] === false) return false;
+  if (def.key === 'fitting') return legacyVehicleFlag(vehicle, 'buildComplete') || vehicle.pdcCompleteBuild === true;
   if (def.key === 'build') return legacyVehicleFlag(vehicle, 'buildComplete');
   if (def.key === 'fabrication') return legacyVehicleFlag(vehicle, 'trayFitmentComplete');
   return false;
@@ -1242,11 +1247,12 @@ function sortValue(vehicle, key) {
     case 'eta': return parseDateAU(vehicle.etaAtDealer)?.getTime() || 9999999999999;
     case 'jita': return normalizeJita(jitaDisplay(vehicle));
     case 'pdcRequiresTint': return vehicleFlag(vehicle, 'pdcRequiresTint') ? 'Yes' : 'No';
-    case 'pdcRequiresBuild': return vehicleFlag(vehicle, 'pdcRequiresBuild') ? 'Yes' : 'No';
-    case 'pdcRequiresElectrical': return vehicleFlag(vehicle, 'pdcRequiresElectrical') ? 'Yes' : 'No';
-    case 'pdcRequiresParts': return vehicleFlag(vehicle, 'pdcRequiresParts') ? 'Yes' : 'No';
-    case 'pdcRequiresSublet': return vehicleFlag(vehicle, 'pdcRequiresSublet') ? 'Yes' : 'No';
+    case 'pdcRequiresHoist': return vehicleFlag(vehicle, 'pdcRequiresHoist') ? 'Yes' : 'No';
+    case 'pdcRequiresFitting': return vehicleFlag(vehicle, 'pdcRequiresFitting') ? 'Yes' : 'No';
     case 'pdcRequiresFabrication': return vehicleFlag(vehicle, 'pdcRequiresFabrication') ? 'Yes' : 'No';
+    case 'pdcRequiresElectrical': return vehicleFlag(vehicle, 'pdcRequiresElectrical') ? 'Yes' : 'No';
+    case 'pdcRequiresTyre': return vehicleFlag(vehicle, 'pdcRequiresTyre') ? 'Yes' : 'No';
+    case 'pdcRequiresPitInspection': return vehicleFlag(vehicle, 'pdcRequiresPitInspection') ? 'Yes' : 'No';
     case 'tintRaised': return legacyVehicleFlag(vehicle, 'tintRaised') ? 'Yes' : 'No';
     case 'buildPoRaised': return legacyVehicleFlag(vehicle, 'buildPoRaised') ? 'Yes' : 'No';
     case 'buildComplete': return legacyVehicleFlag(vehicle, 'buildComplete') ? 'Yes' : 'No';
@@ -1621,10 +1627,11 @@ function renderKpis() {
 }
 
 function isOpenThirdPartyVehicle(vehicle = {}) {
-  const thirdPartyJobKeys = new Set(['tint', 'sublet', 'fabrication', 'electrical', 'pitInspection']);
+  const thirdPartyJobKeys = new Set(['tint', 'fabrication', 'electrical', 'pitInspection']);
   const hasOpenExternalJob = PDC_JOB_DEFS.some(def => thirdPartyJobKeys.has(def.key) && pdcJobRequired(vehicle, def) && !pdcJobComplete(vehicle, def));
+  const hasOpenLegacySublet = vehicle.pdcRequiresSublet === true && vehicle.pdcCompleteSublet !== true;
   const stage = inferredPmbStage(vehicle);
-  return hasOpenExternalJob || ['TINT', 'FABRICATION', 'ELECTRICAL', 'PIT_INSPECTION'].includes(stage);
+  return hasOpenExternalJob || hasOpenLegacySublet || ['TINT', 'FABRICATION', 'ELECTRICAL', 'PIT_INSPECTION'].includes(stage);
 }
 
 function isWorkflowStagnant(vehicle = {}) {
@@ -1922,7 +1929,8 @@ function incomingVehicleDetailRow(vehicle = {}, bucketKey = '', options = {}) {
   const stock = displayStockNumber(vehicle) || vehicle.order || 'No stock';
   const customer = vehicle.client || vehicle.toyotaCustomer || 'Unknown customer';
   const unit = displayVehicle(vehicle) || 'Vehicle not listed';
-  const status = navisionStatusText(vehicle) || pdcLocationLabel(vehiclePdcLocation(vehicle)) || 'No status';
+  const rawStatus = navisionStatusText(vehicle) || pdcLocationLabel(vehiclePdcLocation(vehicle)) || 'No status';
+  const status = rawStatus === 'Batch Matched' ? 'Matched' : rawStatus;
   const order = vehicle.order || vehicle.toyotaOrder || vehicle.salesOrder || '—';
   const consultant = consultantName(vehicle) || vehicle.salesperson || vehicle.salesPerson || '—';
   const keyNo = vehicleKeyNumber(vehicle) || '—';
@@ -2241,12 +2249,12 @@ function pdFlagsFromTasks(tasks = []) {
   const text = tasks.join(' ').toLowerCase();
   return {
     buildPoRaised: Boolean(tasks.length),
-    pdcRequiresBuild: Boolean(tasks.length),
     pdcRequiresTint: /tint/.test(text),
-    pdcRequiresElectrical: /light|uhf|radio|12v|battery|redarc|anderson/.test(text),
-    pdcRequiresFabrication: /tray|bar|rack|tank|canopy|winch|gvm/.test(text),
-    pdcRequiresParts: Boolean(tasks.length),
-    pdcRequiresSublet: /tray|bull|canopy|gvm|tank/.test(text),
+    pdcRequiresHoist: /hoist|suspension|gvm|lift|tow/.test(text),
+    pdcRequiresFitting: Boolean(tasks.length) || /fit|fitment|build|pdi|accessor/.test(text),
+    pdcRequiresFabrication: /tray|bar|rack|tank|canopy|winch|gvm|fabricat/.test(text),
+    pdcRequiresElectrical: /light|uhf|radio|12v|battery|redarc|anderson|electrical|auto.?elec/.test(text),
+    pdcRequiresTyre: /tyre|tire|wheel/.test(text),
   };
 }
 
@@ -3887,7 +3895,7 @@ function applyQuickFilter(filter) {
     app.pmbSubFilter = '';
     app.activePmbBayStage = '';
   }
-  showView('dashboard');
+  showView(nextFilter === 'pmb' ? 'workflow' : 'dashboard');
   renderKpis();
   renderVehicleTable();
 }
@@ -3897,7 +3905,7 @@ function applyPmbSubFilter(filter = '') {
   app.quickFilter = 'pmb';
   app.pmbSubFilter = app.pmbSubFilter === normalizedFilter ? '' : normalizedFilter;
   app.activePmbBayStage = normalizePmbStage(normalizedFilter) || app.activePmbBayStage;
-  showView('dashboard');
+  showView('workflow');
   renderKpis();
   renderVehicleTable();
 }
@@ -4085,11 +4093,11 @@ function renderVehicleTable() {
       <th data-col-id="client">${emptyColumnFilterSlot()}${sortableTh('Client', 'client')}</th>
       <th data-col-id="vehicle">${emptyColumnFilterSlot()}${sortableTh('Vehicle', 'vehicle')}</th>
       <th class="flag-col pdc-job-col pdc-col-tint" data-col-id="tint" title="Tint required">${emptyColumnFilterSlot()}${sortableTh('T', 'pdcRequiresTint')}</th>
-      <th class="flag-col pdc-job-col pdc-col-build" data-col-id="build" title="Build required">${emptyColumnFilterSlot()}${sortableTh('B', 'pdcRequiresBuild')}</th>
-      <th class="flag-col pdc-job-col pdc-col-parts" data-col-id="parts" title="Parts required">${emptyColumnFilterSlot()}${sortableTh('P', 'pdcRequiresParts')}</th>
+      <th class="flag-col pdc-job-col pdc-col-hoist" data-col-id="hoist" title="Hoist required">${emptyColumnFilterSlot()}${sortableTh('H', 'pdcRequiresHoist')}</th>
+      <th class="flag-col pdc-job-col pdc-col-fitting" data-col-id="fitting" title="Fitting required">${emptyColumnFilterSlot()}${sortableTh('F', 'pdcRequiresFitting')}</th>
+      <th class="flag-col pdc-job-col pdc-col-fabrication" data-col-id="fabrication" title="Fabrication required">${emptyColumnFilterSlot()}${sortableTh('Fa', 'pdcRequiresFabrication')}</th>
       <th class="flag-col pdc-job-col pdc-col-electrical" data-col-id="electrical" title="Electrical required">${emptyColumnFilterSlot()}${sortableTh('E', 'pdcRequiresElectrical')}</th>
-      <th class="flag-col pdc-job-col pdc-col-sublet" data-col-id="sublet" title="Sublet required">${emptyColumnFilterSlot()}${sortableTh('S', 'pdcRequiresSublet')}</th>
-      <th class="flag-col pdc-job-col pdc-col-fabrication" data-col-id="fabrication" title="Fabrication required">${emptyColumnFilterSlot()}${sortableTh('F', 'pdcRequiresFabrication')}</th>
+      <th class="flag-col pdc-job-col pdc-col-tyre" data-col-id="tyre" title="Tyre required">${emptyColumnFilterSlot()}${sortableTh('Ty', 'pdcRequiresTyre')}</th>
       <th class="flag-col pdc-job-col pdc-col-pitInspection" data-col-id="pitInspection" title="Pit Inspection required">${emptyColumnFilterSlot()}${sortableTh('PI', 'pdcRequiresPitInspection')}</th>
       <th data-col-id="status">${columnFilterSlot('status', app.filterOptions.statuses, app.columnFilters.status, 'All statuses')}${sortableTh('Toyota Status', 'toyotaStatus')}</th>
       <th data-col-id="eta">${emptyColumnFilterSlot()}${sortableTh('ETA', 'eta')}</th>
@@ -4115,11 +4123,11 @@ function renderVehicleTable() {
           <td class="client-cell" data-col-id="client"><span title="${escapeHtml(v.client || v.toyotaCustomer || '')}">${escapeHtml(v.client || v.toyotaCustomer || '')}</span></td>
           <td data-col-id="vehicle"><span class="vehicle-cell">${escapeHtml(displayVehicle(v))}</span></td>
           <td class="flag-cell pdc-job-cell" data-col-id="tint">${pdcJobTableCell(v, PDC_JOB_BY_KEY.get('tint'))}</td>
-          <td class="flag-cell pdc-job-cell" data-col-id="build">${pdcJobTableCell(v, PDC_JOB_BY_KEY.get('build'))}</td>
-          <td class="flag-cell pdc-job-cell" data-col-id="parts">${pdcJobTableCell(v, PDC_JOB_BY_KEY.get('parts'))}</td>
-          <td class="flag-cell pdc-job-cell" data-col-id="electrical">${pdcJobTableCell(v, PDC_JOB_BY_KEY.get('electrical'))}</td>
-          <td class="flag-cell pdc-job-cell" data-col-id="sublet">${pdcJobTableCell(v, PDC_JOB_BY_KEY.get('sublet'))}</td>
+          <td class="flag-cell pdc-job-cell" data-col-id="hoist">${pdcJobTableCell(v, PDC_JOB_BY_KEY.get('hoist'))}</td>
+          <td class="flag-cell pdc-job-cell" data-col-id="fitting">${pdcJobTableCell(v, PDC_JOB_BY_KEY.get('fitting'))}</td>
           <td class="flag-cell pdc-job-cell" data-col-id="fabrication">${pdcJobTableCell(v, PDC_JOB_BY_KEY.get('fabrication'))}</td>
+          <td class="flag-cell pdc-job-cell" data-col-id="electrical">${pdcJobTableCell(v, PDC_JOB_BY_KEY.get('electrical'))}</td>
+          <td class="flag-cell pdc-job-cell" data-col-id="tyre">${pdcJobTableCell(v, PDC_JOB_BY_KEY.get('tyre'))}</td>
           <td class="flag-cell pdc-job-cell" data-col-id="pitInspection">${pdcJobTableCell(v, PDC_JOB_BY_KEY.get('pitInspection'))}</td>
           <td data-col-id="status">${formatStatus(v)}${isPdcBlocked(v) ? `<div class="pdc-blocked-inline">Blocked: ${escapeHtml(truncate(pdcBlockReason(v), 42))}</div>` : ''}${statusCategory(v) === 'pmb' ? `<div class="pmb-stage-cell">${pmbStageBadge(v) || '<span class="subtle">PMB stage not allocated</span>'}</div>` : ''}${!isCustomerMatch(v) ? '<div class="subtle review-warning">Check customer match</div>' : ''}</td>
           <td data-col-id="eta">${formatEta(v.etaAtDealer)}</td>
@@ -6481,10 +6489,12 @@ function handleVehiclePoSelect(key, event) {
   const lowerNames = combinedFiles.join(' ').toLowerCase();
   saveVehicleEdits(editKey, {
     buildPoRaised: true,
-    pdcRequiresBuild: true,
     pdcRequiresTint: pdcJobRequired(vehicle, PDC_JOB_BY_KEY.get('tint')) || lowerNames.includes('tint'),
+    pdcRequiresHoist: pdcJobRequired(vehicle, PDC_JOB_BY_KEY.get('hoist')) || /hoist|suspension|gvm|lift|tow/.test(lowerNames),
+    pdcRequiresFitting: pdcJobRequired(vehicle, PDC_JOB_BY_KEY.get('fitting')) || Boolean(combinedFiles.length),
+    pdcRequiresFabrication: pdcJobRequired(vehicle, PDC_JOB_BY_KEY.get('fabrication')) || /tray|bar|rack|tank|canopy|winch|gvm|fabricat/.test(lowerNames),
     pdcRequiresElectrical: pdcJobRequired(vehicle, PDC_JOB_BY_KEY.get('electrical')) || /electrical|auto.?elec|12v|uhf|battery|compressor|spotlight|light bar|anderson|redarc/i.test(lowerNames),
-    pdcRequiresFabrication: pdcJobRequired(vehicle, PDC_JOB_BY_KEY.get('fabrication')) || lowerNames.includes('tray'),
+    pdcRequiresTyre: pdcJobRequired(vehicle, PDC_JOB_BY_KEY.get('tyre')) || /tyre|tire|wheel/.test(lowerNames),
   });
   app.data = buildVehicleData();
   renderAll();
@@ -6598,12 +6608,12 @@ function handlePoSelect(e) {
     const combinedText = combined.join(' ').toLowerCase();
     const inferredFlags = {
       buildPoRaised: Boolean(combinedFiles.length || combined.length),
-      pdcRequiresBuild: Boolean(combinedFiles.length || combined.length),
       pdcRequiresTint: combinedText.includes('window tint') || combinedText.includes('tint'),
-      pdcRequiresSublet: combinedText.includes('sublet') || combinedText.includes('pmg'),
-      pdcRequiresElectrical: /electrical|auto.?elec|12v|dual battery|battery system|uhf|spotlight|light bar|beacon|compressor|anderson|redarc|brake controller|dc dc|dcdc|dash cam|camera|reverse camera|power outlet|usb/.test(combinedText),
+      pdcRequiresHoist: /hoist|suspension|gvm|lift|tow/.test(combinedText),
+      pdcRequiresFitting: Boolean(combinedFiles.length || combined.length) || /fit|fitment|build|pdi|accessor/.test(combinedText),
       pdcRequiresFabrication: combinedText.includes('tray') || combinedText.includes('fabricat') || combinedText.includes('bullbar') || combinedText.includes('bar work'),
-      pdcRequiresParts: combinedText.includes('parts') || combinedText.includes('accessor') || combinedText.includes('jita')
+      pdcRequiresElectrical: /electrical|auto.?elec|12v|dual battery|battery system|uhf|spotlight|light bar|beacon|compressor|anderson|redarc|brake controller|dc dc|dcdc|dash cam|camera|reverse camera|power outlet|usb/.test(combinedText),
+      pdcRequiresTyre: /tyre|tire|wheel/.test(combinedText)
     };
     saveVehicleEdits(stock, { internalStatus: '', ...inferredFlags });
     results.push({ file: file.name, stock, count: newTasks.length, message: `${combined.length} total task${combined.length === 1 ? '' : 's'} loaded` });
@@ -7820,17 +7830,19 @@ function buildExplicitPdcUpdatesFromImport(row, headerMap) {
   const updates = {};
   const pairs = [
     ['pdcRequiresTint', ['TINT', 'Tint', 'Requires Tint', 'Tint Required']],
-    ['pdcRequiresBuild', ['BUILD', 'Build', 'Requires Build', 'Build Required']],
-    ['pdcRequiresElectrical', ['ELECTRICAL', 'Electrical', 'Auto Electrical', 'Auto-Electrical', 'Requires Electrical', 'Electrical Required']],
-    ['pdcRequiresParts', ['PARTS', 'Parts', 'Requires Parts', 'Parts Required']],
-    ['pdcRequiresSublet', ['SUBLET', 'Sublet', 'Requires Sublet', 'Sublet Required']],
+    ['pdcRequiresHoist', ['HOIST', 'Hoist', 'Requires Hoist', 'Hoist Required']],
+    ['pdcRequiresFitting', ['FITTING', 'Fitting', 'Fitment', 'Requires Fitting', 'Fitting Required', 'BUILD', 'Build', 'Requires Build', 'Build Required']],
     ['pdcRequiresFabrication', ['FABRICATION', 'Fabrication', 'FAB', 'Fab', 'Requires Fabrication', 'Fabrication Required']],
+    ['pdcRequiresElectrical', ['ELECTRICAL', 'Electrical', 'Auto Electrical', 'Auto-Electrical', 'Requires Electrical', 'Electrical Required']],
+    ['pdcRequiresTyre', ['TYRE', 'Tyre', 'Tire', 'Wheel', 'Requires Tyre', 'Tyre Required']],
+    ['pdcRequiresPitInspection', ['Pit Inspection', 'PIT INSPECTION', 'PI', 'Requires Pit Inspection', 'Pit Inspection Required']],
     ['pdcCompleteTint', ['Tint Complete', 'Tint Completed', 'Tint Done', 'TINT DONE']],
-    ['pdcCompleteBuild', ['Build Complete', 'Build Completed', 'Build Done', 'BUILD DONE']],
-    ['pdcCompleteElectrical', ['Electrical Complete', 'Electrical Completed', 'Electrical Done', 'ELECTRICAL DONE']],
-    ['pdcCompleteParts', ['Parts Complete', 'Parts Completed', 'Parts Done', 'PARTS DONE']],
-    ['pdcCompleteSublet', ['Sublet Complete', 'Sublet Completed', 'Sublet Done', 'SUBLET DONE']],
+    ['pdcCompleteHoist', ['Hoist Complete', 'Hoist Completed', 'Hoist Done', 'HOIST DONE']],
+    ['pdcCompleteFitting', ['Fitting Complete', 'Fitting Completed', 'Fitting Done', 'Fitment Complete', 'BUILD DONE', 'Build Complete', 'Build Completed', 'Build Done']],
     ['pdcCompleteFabrication', ['Fabrication Complete', 'Fabrication Completed', 'Fabrication Done', 'Fab Complete', 'FAB DONE']],
+    ['pdcCompleteElectrical', ['Electrical Complete', 'Electrical Completed', 'Electrical Done', 'ELECTRICAL DONE']],
+    ['pdcCompleteTyre', ['Tyre Complete', 'Tyre Completed', 'Tyre Done', 'Tire Complete', 'TYRE DONE']],
+    ['pdcCompletePitInspection', ['Pit Inspection Complete', 'Pit Inspection Completed', 'Pit Inspection Done', 'PI DONE']],
     ['pdcBlocked', ['Blocked', 'PDC Blocked', 'Problem Vehicle']],
   ];
   pairs.forEach(([key, columns]) => {
@@ -7858,7 +7870,7 @@ function navisionHasExplicitPmbWorkSignal(row, headerMap) {
   const updates = buildExplicitPdcUpdatesFromImport(row, headerMap);
   if (normalizePdcLocation(updates.pdcLocation || '') === 'PMB' || normalizePdcLocation(updates.pdcLocation || '') === 'RFT') return true;
   if (normalizePmbStage(updates.pmbStage || '')) return true;
-  const requireKeys = ['pdcRequiresTint', 'pdcRequiresBuild', 'pdcRequiresElectrical', 'pdcRequiresParts', 'pdcRequiresSublet', 'pdcRequiresFabrication'];
+  const requireKeys = PDC_JOB_DEFS.map(def => def.requireKey);
   return requireKeys.some(key => updates[key] === true);
 }
 
@@ -7919,8 +7931,7 @@ function protectPmbFirstLandingFromImport(payload = {}, existing = {}) {
 
 function applyExplicitPdcImportFields(payload, incoming = {}, existing = {}) {
   const keys = [
-    'pdcRequiresTint','pdcRequiresBuild','pdcRequiresElectrical','pdcRequiresParts','pdcRequiresSublet','pdcRequiresFabrication',
-    'pdcCompleteTint','pdcCompleteBuild','pdcCompleteElectrical','pdcCompleteParts','pdcCompleteSublet','pdcCompleteFabrication',
+    ...PDC_JOB_DEFS.flatMap(def => [def.requireKey, def.completeKey]),
     'pdcBlocked','pdcBlockReason','pdcLocation','pmbStage'
   ];
   let hasAny = false;
@@ -8313,18 +8324,10 @@ function navisionFieldChanges(existing = {}, payload = {}) {
     ['pmbStage', 'PMB Work Stream'],
     ['pdcBlocked', 'Blocked'],
     ['pdcBlockReason', 'Blocked Reason'],
-    ['pdcRequiresTint', 'Requires Tint'],
-    ['pdcRequiresBuild', 'Requires Build'],
-    ['pdcRequiresElectrical', 'Requires Electrical'],
-    ['pdcRequiresParts', 'Requires Parts'],
-    ['pdcRequiresSublet', 'Requires Sublet'],
-    ['pdcRequiresFabrication', 'Requires Fabrication'],
-    ['pdcCompleteTint', 'Tint Complete'],
-    ['pdcCompleteBuild', 'Build Complete'],
-    ['pdcCompleteElectrical', 'Electrical Complete'],
-    ['pdcCompleteParts', 'Parts Complete'],
-    ['pdcCompleteSublet', 'Sublet Complete'],
-    ['pdcCompleteFabrication', 'Fabrication Complete'],
+    ...PDC_JOB_DEFS.flatMap(def => [
+      [def.requireKey, `Requires ${def.label}`],
+      [def.completeKey, `${def.label} Complete`],
+    ]),
     ['vin', 'VIN'],
     ['frame', 'Frame'],
   ];
