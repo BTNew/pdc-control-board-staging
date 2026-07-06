@@ -3364,16 +3364,25 @@ function pmbBayVehicleCardHtml(vehicle = {}, stage = '') {
   const statusLabel = complete ? `${jobDef?.label || 'Work'} complete` : `${jobDef?.label || 'Work'} open`;
   const title = `Key ${keyNo} · ${stock} · ${customer} · ${pmbStageLabel(normalizedStage)} ${bayLabel}`;
   const bayCount = pmbStageBayCount(normalizedStage);
-  const bayAssignButtons = !bay && bayCount
+  const bayAssignButtons = bayCount
     ? Array.from({ length: bayCount }, (_, index) => {
       const bayNumber = index + 1;
-      const occupied = pmbBayOccupants(normalizedStage, bayNumber, key).length > 0;
-      return `<button class="pmb-bay-assign-button" type="button" data-assign-pmb-bay-key="${escapeHtml(key)}" data-assign-pmb-bay-stage="${escapeHtml(normalizedStage)}" data-assign-pmb-bay-number="${escapeHtml(String(bayNumber))}" ${occupied ? 'disabled' : ''} title="${escapeHtml(occupied ? `Bay ${bayNumber} is occupied` : `Assign to Bay ${String(bayNumber).padStart(2, '0')}`)}">Bay ${String(bayNumber).padStart(2, '0')}</button>`;
+      const isCurrentBay = bay === bayNumber;
+      const occupied = !isCurrentBay && pmbBayOccupants(normalizedStage, bayNumber, key).length > 0;
+      const label = `Bay ${String(bayNumber).padStart(2, '0')}`;
+      return `<button class="pmb-bay-assign-button${isCurrentBay ? ' is-current' : ''}" type="button" data-assign-pmb-bay-key="${escapeHtml(key)}" data-assign-pmb-bay-stage="${escapeHtml(normalizedStage)}" data-assign-pmb-bay-number="${escapeHtml(String(bayNumber))}" ${occupied || isCurrentBay ? 'disabled' : ''} title="${escapeHtml(isCurrentBay ? `Already in ${label}` : occupied ? `${label} is occupied` : `Move to ${label}`)}">${escapeHtml(label)}</button>`;
     }).join('')
     : '';
-  const bayActions = bay
-    ? `<button class="pmb-bay-assign-button secondary" type="button" data-assign-pmb-bay-key="${escapeHtml(key)}" data-assign-pmb-bay-stage="${escapeHtml(normalizedStage)}" data-assign-pmb-bay-number="" title="Move back to Not in a bay">No bay</button>`
-    : bayAssignButtons;
+  const stageMoveButtons = PMB_STAGE_DEFS
+    .filter(option => option.value !== normalizedStage)
+    .map(option => `<button class="pmb-bay-assign-button secondary" type="button" data-move-pmb-stage-key="${escapeHtml(key)}" data-move-pmb-stage-value="${escapeHtml(option.value)}" title="Move to ${escapeHtml(option.label)} bucket">${escapeHtml(option.label)}</button>`)
+    .join('');
+  const bayActions = [
+    bay ? `<button class="pmb-bay-assign-button secondary" type="button" data-move-pmb-stage-key="${escapeHtml(key)}" data-move-pmb-stage-value="" title="Move back to PMB Unallocated">Unallocated</button>` : '',
+    bay ? `<button class="pmb-bay-assign-button secondary" type="button" data-assign-pmb-bay-key="${escapeHtml(key)}" data-assign-pmb-bay-stage="${escapeHtml(normalizedStage)}" data-assign-pmb-bay-number="" title="Keep in ${escapeHtml(pmbStageLabel(normalizedStage))} but remove the bay number">No bay</button>` : '',
+    bayAssignButtons,
+    stageMoveButtons,
+  ].filter(Boolean).join('');
   return `
     <article class="pmb-bay-vehicle-card pmb-bay-vehicle-pill ${complete ? 'is-complete' : ''} ${isPdcBlocked(vehicle) ? 'is-blocked' : ''}" draggable="true" data-pmb-drag-key="${escapeHtml(key)}" data-open-stock="${escapeHtml(key)}" title="${escapeHtml(title)}">
       <div class="pmb-bay-pill-main">
@@ -3514,6 +3523,13 @@ function bindPmbDragBoard(host) {
         button.dataset.assignPmbBayStage,
         button.dataset.assignPmbBayNumber || '',
       );
+    });
+  });
+  $$('[data-move-pmb-stage-key]', host).forEach(button => {
+    button.addEventListener('click', event => {
+      event.preventDefault();
+      event.stopPropagation();
+      void movePmbVehicleToStage(button.dataset.movePmbStageKey, button.dataset.movePmbStageValue || '');
     });
   });
   $$('[data-pmb-bay-hours-key]', host).forEach(input => {
