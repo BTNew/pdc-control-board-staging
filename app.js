@@ -691,6 +691,24 @@ function saveJson(key, value) {
   localStorage.setItem(key, JSON.stringify(value));
 }
 
+function clearLocalDataFromUrl() {
+  const params = new URLSearchParams(window.location.search || '');
+  const resetRequested = params.has('clearLocalData') || params.has('resetLocalData') || params.has('freshData');
+  if (!resetRequested) return;
+  try {
+    CRM_BACKUP_STORAGE_KEYS.forEach(key => localStorage.removeItem(key));
+    localStorage.removeItem('vehicleTrackingCoreColumnOrder:v1');
+    localStorage.removeItem('vehicleTrackingCoreColumnOrder:v2');
+    localStorage.removeItem('vehicleTrackingCoreColumnWidths:v1:vehicle-table');
+    localStorage.removeItem('vehicleTrackingCoreColumnWidths:v3:vehicle-table');
+    window.PDC_LOCAL_DATA_CLEARED = true;
+  } catch (error) {
+    console.warn('Unable to clear local PDC data', error);
+  }
+}
+
+clearLocalDataFromUrl();
+
 function loadVehicleEdits() { return loadJson(EDITS_KEY, {}); }
 function loadAddedVehicles() { return loadJson(ADDED_KEY, []); }
 function saveAddedVehicles(vehicles) { saveJson(ADDED_KEY, vehicles); }
