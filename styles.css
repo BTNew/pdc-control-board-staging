@@ -4227,6 +4227,64 @@ body.pmb-dragging .pmb-drop-lane {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.pmb-bay-pill-actions,
+.pmb-bay-stage-tabs {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex-wrap: wrap;
+}
+.pmb-bay-pill-actions {
+  margin-top: 2px;
+}
+.pmb-bay-assign-button,
+.pmb-bay-stage-tab {
+  border: 1px solid rgba(37, 99, 235, .18);
+  background: #eff6ff;
+  color: #1d4ed8;
+  border-radius: 999px;
+  padding: 4px 7px;
+  font-size: .56rem;
+  font-weight: 900;
+  line-height: 1.1;
+  cursor: pointer;
+}
+.pmb-bay-assign-button.secondary {
+  border-color: rgba(148, 163, 184, .35);
+  background: #f8fafc;
+  color: #475569;
+}
+.pmb-bay-assign-button:disabled {
+  cursor: not-allowed;
+  opacity: .45;
+}
+.pmb-bay-stage-tabs {
+  margin: 8px 0 2px;
+}
+.pmb-bay-stage-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 9px;
+  font-size: .62rem;
+}
+.pmb-bay-stage-tab strong {
+  min-width: 18px;
+  height: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: #dbeafe;
+}
+.pmb-bay-stage-tab.active {
+  background: #1d4ed8;
+  color: #fff;
+  border-color: #1d4ed8;
+}
+.pmb-bay-stage-tab.active strong {
+  background: rgba(255, 255, 255, .22);
+}
 .pmb-bay-card-top {
   display: flex;
   align-items: center;

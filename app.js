@@ -2985,6 +2985,13 @@ function renderPmbBayBoardHtml(stage = '') {
       </section>`;
   }).join('');
 
+  const stageTabs = PMB_STAGE_DEFS.map(def => {
+    const tabStage = normalizePmbStage(def.value);
+    const tabVehicles = pmbBayStageVehicles(tabStage);
+    const activeClass = tabStage === normalizedStage ? ' active' : '';
+    return `<button class="pmb-bay-stage-tab${activeClass}" type="button" data-open-pmb-bays="${escapeHtml(tabStage)}" aria-pressed="${tabStage === normalizedStage ? 'true' : 'false'}"><span>${escapeHtml(def.label)}</span><strong>${tabVehicles.length}</strong></button>`;
+  }).join('');
+
   return `
     <section class="pmb-bay-board pmb-bay-board-${escapeHtml(normalizedStage.toLowerCase())}" data-pmb-bay-board-stage="${escapeHtml(normalizedStage)}">
       <div class="pmb-bay-board-header">
@@ -2996,6 +3003,7 @@ function renderPmbBayBoardHtml(stage = '') {
           <button class="small-button" type="button" data-close-pmb-bays>Back to PMB buckets</button>
         </div>
       </div>
+      <div class="pmb-bay-stage-tabs" aria-label="PMB buckets">${stageTabs}</div>
       <div class="pmb-bay-help"><strong>${escapeHtml(label)} station focus:</strong> ${escapeHtml(pmbStageOperatorGuidance(normalizedStage))}</div>
       <div class="pmb-bay-holding-grid">
         <section class="pmb-bay-unassigned" data-pmb-bay-drop-stage="${escapeHtml(normalizedStage)}" data-pmb-bay-drop-number="">
@@ -3330,6 +3338,17 @@ function pmbBayVehicleCardHtml(vehicle = {}, stage = '') {
   const bayLabel = bay ? `Bay ${bay}` : 'No bay';
   const statusLabel = complete ? `${jobDef?.label || 'Work'} complete` : `${jobDef?.label || 'Work'} open`;
   const title = `Key ${keyNo} · ${stock} · ${customer} · ${pmbStageLabel(normalizedStage)} ${bayLabel}`;
+  const bayCount = pmbStageBayCount(normalizedStage);
+  const bayAssignButtons = !bay && bayCount
+    ? Array.from({ length: bayCount }, (_, index) => {
+      const bayNumber = index + 1;
+      const occupied = pmbBayOccupants(normalizedStage, bayNumber, key).length > 0;
+      return `<button class="pmb-bay-assign-button" type="button" data-assign-pmb-bay-key="${escapeHtml(key)}" data-assign-pmb-bay-stage="${escapeHtml(normalizedStage)}" data-assign-pmb-bay-number="${escapeHtml(String(bayNumber))}" ${occupied ? 'disabled' : ''} title="${escapeHtml(occupied ? `Bay ${bayNumber} is occupied` : `Assign to Bay ${String(bayNumber).padStart(2, '0')}`)}">Bay ${String(bayNumber).padStart(2, '0')}</button>`;
+    }).join('')
+    : '';
+  const bayActions = bay
+    ? `<button class="pmb-bay-assign-button secondary" type="button" data-assign-pmb-bay-key="${escapeHtml(key)}" data-assign-pmb-bay-stage="${escapeHtml(normalizedStage)}" data-assign-pmb-bay-number="" title="Move back to Not in a bay">No bay</button>`
+    : bayAssignButtons;
   return `
     <article class="pmb-bay-vehicle-card pmb-bay-vehicle-pill ${complete ? 'is-complete' : ''} ${isPdcBlocked(vehicle) ? 'is-blocked' : ''}" draggable="true" data-pmb-drag-key="${escapeHtml(key)}" data-open-stock="${escapeHtml(key)}" title="${escapeHtml(title)}">
       <div class="pmb-bay-pill-main">
@@ -3342,6 +3361,7 @@ function pmbBayVehicleCardHtml(vehicle = {}, stage = '') {
         <span class="pmb-bay-pill-stage">${escapeHtml(bayLabel)} · ${escapeHtml(statusLabel)}</span>
         ${isPdcBlocked(vehicle) ? `<span class="pmb-bay-chip blocked">Blocked</span>` : ''}
       </div>
+      ${bayActions ? `<div class="pmb-bay-pill-actions" aria-label="Assign bay">${bayActions}</div>` : ''}
     </article>`;
 }
 
@@ -3458,6 +3478,17 @@ function bindPmbDragBoard(host) {
     button.addEventListener('click', event => {
       event.stopPropagation();
       transferVehicleToRftFromCard(button.dataset.transferRftStock);
+    });
+  });
+  $$('[data-assign-pmb-bay-key]', host).forEach(button => {
+    button.addEventListener('click', event => {
+      event.preventDefault();
+      event.stopPropagation();
+      void assignPmbVehicleToBay(
+        button.dataset.assignPmbBayKey,
+        button.dataset.assignPmbBayStage,
+        button.dataset.assignPmbBayNumber || '',
+      );
     });
   });
   $$('[data-pmb-bay-hours-key]', host).forEach(input => {

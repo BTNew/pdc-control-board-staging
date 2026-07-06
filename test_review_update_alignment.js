@@ -45,6 +45,20 @@ code += String.raw`
   assert(incomingVehicleDetailRow(rftVehicle, 'rft').includes('data-rft-collected-key="RFT001"'), 'RFT rows should expose a collected checkbox');
   assert(incomingVehicleDetailRow(pmbVehicle, 'pmb').includes('data-transfer-rft-stock="PMB001"'), 'PMB workflow/control-board rows should expose transfer to RFT action');
 
+  const stageValues = PMB_STAGE_DEFS.map(def => def.value);
+  ['TINT', 'HOIST', 'FITTING', 'FABRICATION', 'ELECTRICAL', 'TYRE', 'PIT_INSPECTION'].forEach(stage => {
+    assert(stageValues.includes(stage), 'PMB bucket coverage missing ' + stage);
+  });
+  const bayBoardHtml = renderPmbBayBoardHtml('HOIST');
+  assert(bayBoardHtml.includes('data-open-pmb-bays="TINT"'), 'PMB bay board should expose Tint bucket tab');
+  assert(bayBoardHtml.includes('data-open-pmb-bays="PIT_INSPECTION"'), 'PMB bay board should expose Pit bucket tab');
+  assert(bayBoardHtml.includes('pmb-bay-stage-tabs'), 'PMB bay board should include bucket navigation tabs');
+  const bayActionVehicle = { stock: 'PMB002', pdcLocation: 'PMB', manualLocation: 'PMB', pmbStage: 'HOIST', pdcRequiresHoist: true };
+  app.data = [bayActionVehicle];
+  const bayCardHtml = pmbBayVehicleCardHtml(bayActionVehicle, 'HOIST');
+  assert(bayCardHtml.includes('data-assign-pmb-bay-number="1"'), 'Unassigned PMB bay card should expose Bay 01 assignment action');
+  assert(bayCardHtml.includes('data-assign-pmb-bay-number="3"'), 'Hoist bay card should expose all three hoist bay assignment actions');
+
   console.log('Review update alignment tests passed');
 })();
 `;
