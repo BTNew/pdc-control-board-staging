@@ -550,16 +550,21 @@ function pdcJobCompletionTitle(vehicle = {}, def = {}) {
   return bits.join(' - ');
 }
 
+function pdcJobMarkerTitle(vehicle = {}, def = {}) {
+  const required = pdcJobRequired(vehicle, def);
+  const complete = pdcJobComplete(vehicle, def);
+  if (!required && !complete) return `${def.label} not required`;
+  return pdcJobCompletionTitle(vehicle, def);
+}
+
 function pdcJobMarkersHtml(vehicle = {}, interactive = false) {
-  const required = pdcRequirementDefinitions(vehicle);
-  if (!required.length) {
-    return '<div class="pmb-card-requirements" aria-label="PMB requirements"><span class="pmb-req-marker pmb-req-none" title="No PDC requirements set">None</span></div>';
-  }
-  return `<div class="pmb-card-requirements" aria-label="PMB requirements">${required.map(def => {
+  return `<div class="pmb-card-requirements" aria-label="PMB requirements">${PDC_JOB_DEFS.map(def => {
+    const required = pdcJobRequired(vehicle, def);
     const complete = pdcJobComplete(vehicle, def);
+    const stateClass = complete ? 'is-complete' : required ? 'is-pending' : 'is-not-required';
     const attrs = interactive ? ` role="button" tabindex="0" data-toggle-pdc-job-complete="${escapeHtml(def.key)}" data-job-stock="${escapeHtml(vehicleKey(vehicle))}"` : '';
     const markerText = complete ? `${def.short}✓` : def.short;
-    return `<span class="pmb-req-marker pmb-req-${escapeHtml(def.key)} ${complete ? 'is-complete' : 'is-pending'}" title="${escapeHtml(pdcJobCompletionTitle(vehicle, def))}"${attrs}>${escapeHtml(markerText)}</span>`;
+    return `<span class="pmb-req-marker pmb-req-${escapeHtml(def.key)} ${stateClass}" title="${escapeHtml(pdcJobMarkerTitle(vehicle, def))}"${attrs}>${escapeHtml(markerText)}</span>`;
   }).join('')}</div>`;
 }
 
@@ -1465,6 +1470,7 @@ function bindNav() {
   $('#incoming-status-filter')?.addEventListener('change', renderIncomingDashboardBoard);
   $('#incoming-bucket-filter')?.addEventListener('change', renderIncomingDashboardBoard);
   $('#incoming-rep-filter')?.addEventListener('change', renderIncomingDashboardBoard);
+  $('#incoming-work-filter')?.addEventListener('change', renderIncomingDashboardBoard);
   $('#incoming-find')?.addEventListener('click', renderIncomingDashboardBoard);
   $('#incoming-clear-filters')?.addEventListener('click', clearIncomingDashboardFilters);
   $('#incoming-collapse-all')?.addEventListener('click', collapseMainScreenRows);
@@ -1805,15 +1811,6 @@ function workflowPriorityRows() {
   pmbRows
     .filter(isPdcBlocked)
     .forEach(vehicle => issueRows.push({ vehicle, label: 'PMB stoppage', severity: 'danger', detail: pdcBlockReason(vehicle) }));
-  vehiclesWithRftGateIssues(pmbRows)
-    .forEach(row => issueRows.push({ vehicle: row.vehicle, label: 'RFT gate', severity: 'warning', detail: row.issues[0] || 'Gate issue' }));
-  pmbRows
-    .filter(vehicle => !inferredPmbStage(vehicle))
-    .forEach(vehicle => issueRows.push({ vehicle, label: 'Unallocated PMB', severity: 'warning', detail: 'Assign to Tint, Hoist, Fitting, Fabrication, Electrical, Tyre bay or Pit Inspection' }));
-  pmbRows
-    .map(vehicle => ({ vehicle, days: pmbStageAgeDays(vehicle), limit: pmbLaneAgeLimit(inferredPmbStage(vehicle)) }))
-    .filter(row => row.days !== null && row.days > row.limit)
-    .forEach(row => issueRows.push({ vehicle: row.vehicle, label: 'Overdue bay', severity: 'warning', detail: pmbStageAgeLabel(row.vehicle) }));
   const seen = new Set();
   return issueRows.filter(row => {
     const key = `${vehicleKey(row.vehicle)}:${row.label}`;
@@ -1960,7 +1957,7 @@ function renderWorkflowBoard() {
     ? `${searchedRows.length} of ${pmbRows.length} PMB vehicles match “${search}” · all buckets stay visible for dragging`
     : `${pmbRows.length} PMB vehicles · ${unassignedRows.length} unallocated`;
   const priorityRows = workflowPriorityRows();
-  const priorityHtml = `<section class="workflow-fix-first-strip"><div class="branch-header workflow-pmb-header"><div><strong>Fix First</strong><span>Blockers, RFT gates, unallocated PMB vehicles and overdue bay ageing.</span></div><div class="branch-header-actions"><span class="badge neutral">${priorityRows.length} item${priorityRows.length === 1 ? '' : 's'}</span></div></div><div class="fix-first-grid workflow-fix-first-grid">${fixFirstCardsHtml(priorityRows, 'No PMB exceptions need action right now.')}</div></section>`;
+  const priorityHtml = `<section class="workflow-fix-first-strip"><div class="branch-header workflow-pmb-header"><div><strong>Fix First</strong><span>Only vehicles with a PMB stoppage or Parts stoppage.</span></div><div class="branch-header-actions"><span class="badge neutral">${priorityRows.length} item${priorityRows.length === 1 ? '' : 's'}</span></div></div><div class="fix-first-grid workflow-fix-first-grid">${fixFirstCardsHtml(priorityRows, 'No PMB exceptions need action right now.')}</div></section>`;
   host.innerHTML = `
     ${priorityHtml}
     <div class="branch-header workflow-pmb-header">
@@ -2005,7 +2002,16 @@ function incomingDashboardFilterValues() {
     status: String($('#incoming-status-filter')?.value || '').trim(),
     bucket: String($('#incoming-bucket-filter')?.value || '').trim(),
     rep: String($('#incoming-rep-filter')?.value || '').trim(),
+    work: String($('#incoming-work-filter')?.value || '').trim(),
   };
+}
+
+function incomingWorkFilterMatches(vehicle = {}, workKey = '') {
+  const key = String(workKey || '').trim().toLowerCase();
+  if (!key) return true;
+  const def = PDC_JOB_BY_KEY.get(key);
+  if (!def) return true;
+  return pdcJobRequired(vehicle, def) || pdcJobComplete(vehicle, def);
 }
 
 function incomingVehicleMatchesFilters(vehicle = {}, filters = incomingDashboardFilterValues()) {
@@ -2016,6 +2022,7 @@ function incomingVehicleMatchesFilters(vehicle = {}, filters = incomingDashboard
   if (filters.bucket && bucket !== filters.bucket) return false;
   if (filters.status && status !== filters.status) return false;
   if (filters.rep && rep !== filters.rep) return false;
+  if (filters.work && !incomingWorkFilterMatches(vehicle, filters.work)) return false;
   if (filters.search && !incomingSearchText(vehicle, bucket).includes(filters.search)) return false;
   return true;
 }
@@ -2061,7 +2068,7 @@ function collapseWorkflowRows() {
 }
 
 function clearIncomingDashboardFilters() {
-  ['#incoming-search', '#incoming-status-filter', '#incoming-bucket-filter', '#incoming-rep-filter'].forEach(selector => {
+  ['#incoming-search', '#incoming-status-filter', '#incoming-bucket-filter', '#incoming-rep-filter', '#incoming-work-filter'].forEach(selector => {
     const input = $(selector);
     if (input) input.value = '';
   });
@@ -2232,7 +2239,7 @@ function updateInlineSelectionBars(visibleRows = []) {
   [...app.selectedRows].forEach(key => { if (!validKeys.has(key)) app.selectedRows.delete(key); });
   const selected = selectedVehiclesForBulkEmail();
   const count = selected.length;
-  const yhCount = selected.filter(canTransferVehicleToPmb).length;
+  const incomingPmbReadyCount = selected.filter(canTransferVehicleToPmb).length;
   const pmbCount = selected.filter(vehicle => statusCategory(vehicle) === 'pmb').length;
   const gateIssueRows = vehiclesWithRftGateIssues(selected);
   ['incoming-selection-bar', 'workflow-selection-bar'].forEach(id => {
@@ -2245,8 +2252,8 @@ function updateInlineSelectionBars(visibleRows = []) {
   if (workflowCount) workflowCount.textContent = `${count} selected`;
   const incomingTransfer = $('#incoming-transfer-selected-pmb');
   if (incomingTransfer) {
-    incomingTransfer.disabled = !(count > 0 && yhCount === count);
-    incomingTransfer.title = !count ? 'Select one or more Yard Hold vehicles first' : yhCount === count ? `Transfer ${count} selected Yard Hold vehicle${count === 1 ? '' : 's'} to PMB` : 'Only Yard Hold vehicles can be transferred to PMB';
+    incomingTransfer.disabled = !(count > 0 && incomingPmbReadyCount === count);
+    incomingTransfer.title = !count ? 'Select one or more Yard Hold or In Transit vehicles first' : incomingPmbReadyCount === count ? `Transfer ${count} selected Yard Hold/In Transit vehicle${count === 1 ? '' : 's'} to PMB` : 'Only Yard Hold or In Transit vehicles can be transferred to PMB';
   }
   const workflowTransfer = $('#workflow-transfer-selected-rft');
   if (workflowTransfer) {
@@ -2264,7 +2271,7 @@ async function transferSelectedMainYhVehiclesToPmb() {
   if (!selected.length) return;
   const notYh = selected.filter(vehicle => !canTransferVehicleToPmb(vehicle));
   if (notYh.length) {
-    window.alert('Only Yard Hold vehicles can be transferred to PMB from the main screen. Untick any PMB, transit or overseas rows first.');
+    window.alert('Only Yard Hold or In Transit vehicles can be transferred to PMB from the main screen. Untick any PMB, RFT, completed or overseas rows first.');
     return;
   }
   await transferVehiclesToPmb(selected);
@@ -4649,15 +4656,15 @@ function updateBulkSelectionPanel(visibleRows = []) {
   });
   const pmbSelectedCount = selected.filter(vehicle => statusCategory(vehicle) === 'pmb').length;
   const rftSelectedCount = selected.filter(vehicle => statusCategory(vehicle) === 'rft').length;
-  const yhSelectedCount = selected.filter(canTransferVehicleToPmb).length;
-  const canTransferSelectedToPmb = count > 0 && pmbSelectedCount === 0 && rftSelectedCount === 0 && (yhSelectedCount === count || app.quickFilter === 'yardhold');
+  const incomingPmbReadyCount = selected.filter(canTransferVehicleToPmb).length;
+  const canTransferSelectedToPmb = count > 0 && pmbSelectedCount === 0 && rftSelectedCount === 0 && incomingPmbReadyCount === count;
   transferButtons.forEach(button => {
     button.disabled = !canTransferSelectedToPmb;
     button.title = !count
-      ? 'Select one or more Yard Hold vehicles first'
+      ? 'Select one or more Yard Hold or In Transit vehicles first'
       : canTransferSelectedToPmb
         ? `Transfer ${count} selected vehicle${count === 1 ? '' : 's'} to PMB`
-        : 'Only vehicles currently at Yard Hold can be bulk-transferred to PMB';
+        : 'Only vehicles currently at Yard Hold or In Transit can be bulk-transferred to PMB';
   });
   transferRftButtons.forEach(button => {
     const gateIssueRows = vehiclesWithRftGateIssues(selected);
@@ -4756,21 +4763,16 @@ function overrideSelectedVehiclesToYh() {
 function canTransferVehicleToPmb(vehicle) {
   if (!vehicle) return false;
   const current = statusCategory(vehicle);
-  if (current === 'pmb' || current === 'rft') return false;
-  if (current === 'yardhold') return true;
-  const pdc = vehiclePdcLocation(vehicle);
-  if (pdc === 'YH') return true;
+  if (current === 'pmb' || current === 'rft' || current === 'completed') return false;
+  if (current === 'yardhold' || current === 'prodtransit') return true;
   const text = [
     navisionStatusText(vehicle),
-    vehicle.navisionLocationStatus,
-    vehicle.locationStatus,
-    vehicle.navisionSubLocationDescription,
+    vehicle.status,
     vehicle.toyotaStatus,
   ].map(value => String(value || '').toLowerCase()).join(' ');
   if (text.includes('yard hold') || text.includes('vehicle in yard hold') || text.includes('vehicle yard hold') || /\byh\b/.test(text)) return true;
-  // When the Yard Hold pill is active, every visible selected row is intended to transfer to PMB.
-  // This protects against small wording differences in Toyota/Navision Yard Hold statuses.
-  return app.quickFilter === 'yardhold';
+  if (text.includes('in transit') || text.includes('production transit') || /\bit\b/.test(text)) return true;
+  return app.quickFilter === 'yardhold' || app.quickFilter === 'prodtransit';
 }
 
 
@@ -4797,7 +4799,7 @@ function pmbRequirementChecklistModal(vehicles = []) {
         <div class="panel-header">
           <div>
             <h2 id="pmb-requirement-modal-title">Confirm PMB required work</h2>
-            <p>Before releasing Yard Hold vehicles into PMB, tick what each vehicle needs: ${escapeHtml(currentPdcJobLabelList())}.</p>
+            <p>Before releasing Yard Hold/In Transit vehicles into PMB, tick what each vehicle needs: ${escapeHtml(currentPdcJobLabelList())}.</p>
           </div>
           <span class="badge neutral">${rows.length} vehicle${rows.length === 1 ? '' : 's'}</span>
         </div>
@@ -4842,14 +4844,14 @@ async function transferSelectedYhVehiclesToPmb() {
   const transferable = selected.filter(canTransferVehicleToPmb);
   const nonYh = selected.filter(vehicle => !canTransferVehicleToPmb(vehicle));
   if (!transferable.length) {
-    window.alert('No selected Yard Hold vehicles could be transferred. Clear selection, open Vehicles at YH, then select the rows again.');
+    window.alert('No selected Yard Hold or In Transit vehicles could be transferred. Clear selection, open Yard Hold/In Transit, then select the rows again.');
     return;
   }
-  if (nonYh.length && !window.confirm(`${nonYh.length} selected vehicle${nonYh.length === 1 ? ' is' : 's are'} not at Yard Hold and will be skipped.\n\nTransfer the ${transferable.length} Yard Hold vehicle${transferable.length === 1 ? '' : 's'} to PMB?`)) return;
+  if (nonYh.length && !window.confirm(`${nonYh.length} selected vehicle${nonYh.length === 1 ? ' is' : 's are'} not at Yard Hold/In Transit and will be skipped.\n\nTransfer the ${transferable.length} Yard Hold/In Transit vehicle${transferable.length === 1 ? '' : 's'} to PMB?`)) return;
 
   const preview = transferable.slice(0, 10).map(vehicle => `• ${displayStockNumber(vehicle) || vehicle.order || 'No stock'} - ${vehicle.client || vehicle.toyotaCustomer || 'Unknown customer'}`).join('\n');
   const more = transferable.length > 10 ? `\n• plus ${transferable.length - 10} more` : '';
-  if (!window.confirm(`Transfer ${transferable.length} Yard Hold vehicle${transferable.length === 1 ? '' : 's'} to Vehicles at PMB?\n\n${preview}${more}\n\nThis is a manual PDC location change. Future Navision uploads will not move these vehicles back.`)) return;
+  if (!window.confirm(`Transfer ${transferable.length} Yard Hold/In Transit vehicle${transferable.length === 1 ? '' : 's'} to Vehicles at PMB?\n\n${preview}${more}\n\nThis is a manual PDC location change. Future Navision uploads will not move these vehicles back.`)) return;
 
   const requirementSelections = await pmbRequirementChecklistModal(transferable);
   if (!requirementSelections) return;
@@ -4890,7 +4892,7 @@ async function transferSelectedYhVehiclesToPmb() {
     edits[key] = { ...(edits[key] || {}), ...updates };
     if (vehicle.stock && vehicle.stock !== key) edits[vehicle.stock] = { ...(edits[vehicle.stock] || {}), ...updates };
     if (vehicle.order && vehicle.order !== key) edits[vehicle.order] = { ...(edits[vehicle.order] || {}), ...updates };
-    recordVehicleAudit(vehicle, 'Transferred to PMB', { from: 'Yard Hold', to: 'PMB - Unallocated', protectedFromNavision: 'Yes' });
+    recordVehicleAudit(vehicle, 'Transferred to PMB', { from: pdcLocationLabel(vehiclePdcLocation(vehicle)) || 'Incoming', to: 'PMB - Unallocated', protectedFromNavision: 'Yes' });
   });
 
   saveJson(EDITS_KEY, edits);
@@ -4907,12 +4909,12 @@ async function transferYhVehicleToPmb(key = '') {
   const vehicle = app.data.find(v => vehicleKey(v) === key || v.stock === key || v.order === key || v.id === key);
   if (!vehicle) return;
   if (!canTransferVehicleToPmb(vehicle)) {
-    window.alert('Only Yard Hold vehicles can be transferred to PMB from this button.');
+    window.alert('Only Yard Hold or In Transit vehicles can be transferred to PMB from this button.');
     return;
   }
   const stock = displayStockNumber(vehicle) || vehicle.order || 'No stock';
   const customer = vehicle.client || vehicle.toyotaCustomer || 'Unknown customer';
-  if (!window.confirm(`Transfer ${stock} - ${customer} from Yard Hold to PMB?\n\nThis is a manual PDC location change. Future Navision uploads will not move it back.`)) return;
+  if (!window.confirm(`Transfer ${stock} - ${customer} to PMB?\n\nThis is a manual PDC location change. Future Navision uploads will not move it back.`)) return;
 
   const requirementSelections = await pmbRequirementChecklistModal([vehicle]);
   if (!requirementSelections) return;
@@ -4950,7 +4952,7 @@ async function transferYhVehicleToPmb(key = '') {
   edits[rowKey] = { ...(edits[rowKey] || {}), ...updates };
   if (vehicle.stock && vehicle.stock !== rowKey) edits[vehicle.stock] = { ...(edits[vehicle.stock] || {}), ...updates };
   if (vehicle.order && vehicle.order !== rowKey) edits[vehicle.order] = { ...(edits[vehicle.order] || {}), ...updates };
-  recordVehicleAudit(vehicle, 'Transferred to PMB', { from: 'Yard Hold', to: 'PMB - Unallocated', protectedFromNavision: 'Yes' });
+  recordVehicleAudit(vehicle, 'Transferred to PMB', { from: pdcLocationLabel(vehiclePdcLocation(vehicle)) || 'Incoming', to: 'PMB - Unallocated', protectedFromNavision: 'Yes' });
 
   saveJson(EDITS_KEY, edits);
   app.quickFilter = 'pmb';
@@ -5686,13 +5688,9 @@ function renderDetail() {
         </div>
         <div class="form-row two-col">
           <label>
-            <span class="muted-label">PMB work stream</span>
-            <select name="pmbStage">${pmbStageSelectOptions(v.pmbStage)}</select>
-            <span class="field-help">Used by the PMB workflow tiles: Tint, Hoist, Fitting, Fabrication, Electrical, Tyre bay and Pit Inspection.</span>
-          </label>
-          <label>
             <span class="muted-label">Current PMB tile</span>
-            <input value="${escapeHtml(pmbStageLabel(inferredPmbStage(v)) || 'Not assigned')}" readonly />
+            <input value="${escapeHtml(pmbStageLabel(inferredPmbStage(v)) || 'Unallocated')}" readonly />
+            <span class="field-help">Move vehicles between PMB buckets from the Workflow Board only, so bay movement stays consistent.</span>
           </label>
           <label>
             <span class="muted-label">Bucket age</span>
@@ -5783,7 +5781,7 @@ function renderDetail() {
     const consultant = form.consultant.value.trim();
     const internalStatus = form.internalStatus.value.trim();
     const pdcLocation = normalizePdcLocation(form.pdcLocation.value);
-    const pmbStage = normalizePmbStage(form.pmbStage.value);
+    const pmbStage = previousPmbStage;
     const jitaPartsOrdered = form.jitaPartsOrdered.value;
     const pdcBlocked = Boolean(form.pdcBlocked?.checked);
     const pdcBlockReasonValue = cleanNavisionText(form.pdcBlockReason?.value || '');
@@ -6433,9 +6431,10 @@ function partsDepartmentRows() {
     .filter(vehicleHasBatchNumber)
     .filter(vehicle => {
       const status = partsDepartmentStatus(vehicle);
-      const matchesStatus = filter === 'all'
+      const matchesStatus = (filter === 'all' && status !== 'issued')
+        || (filter === 'issued' && status === 'issued')
         || (filter === 'open' && !['issued', 'notrequired'].includes(status))
-        || status === filter;
+        || (!['all', 'open', 'issued'].includes(filter) && status === filter);
       if (!matchesStatus) return false;
       if (!q) return true;
       const productionLabel = productionMonthLabel(vehicle.prodMth || vehicle.productionMonth || '');
@@ -6471,7 +6470,7 @@ function renderPartsSummary(rows = []) {
     ['open', 'Open parts', counts.open, 'All incomplete parts work'],
     ['notordered', 'Not Ordered', counts.notordered, 'Required parts not ordered yet'],
     ['onorder', 'On Order', counts.onorder, 'Waiting on parts arrival'],
-    ['issued', 'Issued', counts.issued, 'Issued and signed off by Parts'],
+    ['issued', 'Issued', counts.issued, 'Signed off and hidden from the active Parts queue'],
     ['miscacc', 'Misc Acc', counts.miscacc, 'Misc accessory override'],
   ];
   const host = $('#parts-summary-grid');
@@ -6772,26 +6771,20 @@ function renderRftHome() {
 function markRftVehicleCollected(key, collected = true) {
   const vehicle = selectedVehicle(key);
   if (!vehicle) return;
-  const now = new Date().toISOString();
-  const operator = getCurrentOperatorName();
-  if (collected) {
-    recordVehicleAudit(vehicle, 'Collected from RFT', { by: operator || 'Unknown' });
-    saveVehicleEdits(vehicleKey(vehicle), {
-      rftCollected: true,
-      completedVehicle: true,
-      rftCollectedAt: now,
-      rftCollectedBy: operator,
-    });
-  } else {
-    recordVehicleAudit(vehicle, 'Returned to RFT board', { by: operator || 'Unknown' });
-    saveVehicleEdits(vehicleKey(vehicle), {
-      rftCollected: false,
-      completedVehicle: false,
-      rftCollectedAt: '',
-      rftCollectedBy: '',
-    });
+  if (!collected && vehicleCollectedFromRft(vehicle)) {
+    window.alert('Completed vehicles are locked once collected. Open the vehicle and contact an admin if this was marked collected in error.');
+    renderAll();
+    return;
   }
-  renderActiveView();
+  const operator = getCurrentOperatorName();
+  const now = nowIsoString();
+  recordVehicleAudit(vehicle, 'Collected from RFT', { by: operator || 'Unknown' });
+  saveVehicleEdits(vehicleKey(vehicle), {
+    rftCollected: true,
+    completedVehicle: true,
+    rftCollectedAt: vehicle.rftCollectedAt || now,
+    rftCollectedBy: vehicle.rftCollectedBy || operator,
+  });
 }
 
 function bindRftCollectedInputs(root = document) {
@@ -6847,7 +6840,7 @@ function renderCompletedVehicles() {
       const collectedAt = parseIsoTimestamp(vehicle.rftCollectedAt || '');
       const collectedLabel = collectedAt ? collectedAt.toLocaleString('en-AU', { dateStyle: 'short', timeStyle: 'short' }) : '';
       return `<tr class="completed-vehicle-row">
-        <td><label class="rft-collected-check completed-collected-check" title="Untick to return this vehicle to RFT"><input type="checkbox" data-rft-collected-key="${escapeHtml(key)}" checked /> <span>Collected</span></label></td>
+        <td><label class="rft-collected-check completed-collected-check is-locked" title="Collected vehicles are locked"><input type="checkbox" checked disabled /> <span>Collected</span></label></td>
         <td><button class="stock-link stock-button" type="button" data-open-stock="${escapeHtml(key)}">${escapeHtml(displayStockNumber(vehicle) || vehicle.order || 'No stock')}</button>${stockOrderSubline(vehicle)}</td>
         <td><span title="${escapeHtml(vehicle.client || vehicle.toyotaCustomer || '')}">${escapeHtml(truncate(vehicle.client || vehicle.toyotaCustomer || 'Dealer Order', 34))}</span></td>
         <td><span title="${escapeHtml(displayVehicle(vehicle))}">${escapeHtml(truncate(displayVehicle(vehicle), 48))}</span></td>

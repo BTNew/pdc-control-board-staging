@@ -3561,7 +3561,8 @@ body.vehicle-table-header-pinned #vehicle-table thead {
   align-items: center;
   gap: 3px;
   min-width: 0;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  white-space: nowrap;
 }
 .pmb-req-marker {
   width: 16px;
@@ -3751,6 +3752,22 @@ body.pmb-dragging .pmb-drop-lane {
 }
 .pmb-req-marker.is-pending {
   opacity: .9;
+}
+.pmb-req-marker.is-not-required {
+  background: #f1f5f9 !important;
+  color: #94a3b8 !important;
+  border-color: rgba(148, 163, 184, .35) !important;
+  opacity: .72;
+}
+.pmb-req-marker.is-pending {
+  background: #fee2e2 !important;
+  color: #991b1b !important;
+  border-color: rgba(220, 38, 38, .45) !important;
+}
+.pmb-req-marker.is-complete {
+  background: #dcfce7 !important;
+  color: #166534 !important;
+  border-color: rgba(22, 163, 74, .65) !important;
 }
 .audit-log-list {
   display: grid;
@@ -7072,4 +7089,63 @@ body.pmb-schedule-adjusting .pmb-schedule-chip-slim {
 
 .workflow-fix-first-grid {
   margin-top: 10px;
+}
+
+
+/* 2026 PMB/Parts workflow refinements */
+.pmb-bay-vehicle-card {
+  gap: 4px;
+  padding: 7px 8px;
+}
+.pmb-bay-pill-main {
+  gap: 5px;
+}
+.pmb-bay-pill-bottom {
+  align-items: center;
+  gap: 5px;
+  flex-wrap: nowrap;
+  overflow: hidden;
+}
+.pmb-bay-pill-bottom .pmb-card-requirements {
+  flex: 0 0 auto;
+  flex-wrap: nowrap;
+  max-width: 100%;
+}
+.pmb-bay-pill-bottom .pmb-req-marker {
+  width: 17px;
+  min-width: 17px;
+  height: 17px;
+  font-size: .5rem;
+}
+.pmb-bay-pill-stage {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.parts-page,
+.completed-vehicles-page,
+.rft-page,
+#parts-view,
+#completed-view,
+#rft-view {
+  max-width: none;
+}
+.parts-table-wrap,
+.completed-table-wrap,
+.rft-table-wrap {
+  width: 100%;
+}
+.parts-table,
+.completed-table,
+.rft-table {
+  width: max-content;
+  min-width: 100%;
+}
+.completed-collected-check.is-locked {
+  opacity: .72;
+  cursor: not-allowed;
+}
+.completed-collected-check.is-locked input {
+  cursor: not-allowed;
 }

@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Vehicle Tracking Core</title>
-  <link rel="stylesheet" href="styles.css?v=pmb-bays-20260706" />
+  <link rel="stylesheet" href="styles.css?v=pmb-fixes-20260706" />
 </head>
 <body>
   <div class="app-shell" id="app-shell">
@@ -99,6 +99,20 @@
               <label>
                 <span>Sales rep</span>
                 <select id="incoming-rep-filter"><option value="">All reps</option></select>
+              </label>
+              <label>
+                <span>Work type</span>
+                <select id="incoming-work-filter">
+                  <option value="">All work</option>
+                  <option value="tint">Tint</option>
+                  <option value="hoist">Hoist</option>
+                  <option value="fitting">Fitting</option>
+                  <option value="fabrication">Fabrication</option>
+                  <option value="electrical">Electrical</option>
+                  <option value="tyre">Tyre bay</option>
+                  <option value="pitinspection">Pit Inspection</option>
+                  <option value="parts">Parts</option>
+                </select>
               </label>
               <button class="primary incoming-find-button" id="incoming-find" type="button">Find</button>
               <button class="small-button" id="incoming-clear-filters" type="button">Clear</button>
@@ -445,7 +459,7 @@
             </div>
             <div class="parts-help-strip completed-help-strip">
               <strong>Collected:</strong>
-              <span>Untick a row here if it was marked collected by mistake; it will return to the RFT board.</span>
+              <span>Collected vehicles are locked once marked complete, so rows cannot be unticked back to RFT from this screen.</span>
             </div>
             <div id="completed-vehicles-content" class="parts-home-content completed-home-content"></div>
           </section>
@@ -732,6 +746,6 @@
   </template>
 
   <script src="data.js?v=d70c2d4"></script>
-  <script src="app.js?v=pmb-bays-20260706"></script>
+  <script src="app.js?v=pmb-fixes-20260706"></script>
 </body>
 </html>
