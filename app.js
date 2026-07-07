@@ -1,3 +1,4 @@
+const APP_VERSION = '2026.07.08.3';
 const EDITS_KEY = 'vehicleTrackingCoreNavisionOnlyEdits:v1';
 const ADDED_KEY = 'vehicleTrackingCoreNavisionOnlyVehicles:v1';
 const AMY_EMAIL = 'amy.elkington@broometoyota.com.au';
@@ -307,24 +308,30 @@ function kewdaleEtaValue(vehicle = {}) {
   return scotEtaOnly(vehicle.navisionKewdaleEta || vehicle.etaAtDealer || '');
 }
 
+function pmbEnteredDateValue(vehicle = {}) {
+  const timestamp = pmbEnteredTimestamp(vehicle);
+  if (!timestamp) return '';
+  const parsed = parseIsoTimestamp(timestamp);
+  if (!parsed) return scotEtaOnly(timestamp);
+  return parsed.toISOString().slice(0, 10);
+}
+
 function pmbAgeDays(vehicle = {}) {
-  return daysSinceDateValue(kewdaleEtaValue(vehicle));
+  return daysSinceTimestamp(pmbEnteredTimestamp(vehicle));
 }
 
 function pmbAgeLabel(vehicle = {}) {
   const days = pmbAgeDays(vehicle);
-  if (days === null) return 'Kewdale ETA unknown';
-  if (days < 0) return `Kewdale ETA in ${Math.abs(days)}d`;
-  if (days === 0) return 'Kewdale ETA today';
-  return `Kewdale +${days}d`;
+  if (days === null) return 'PMB entry unknown';
+  if (days === 0) return 'PMB today';
+  return `PMB +${days}d`;
 }
 
 function pmbAgeDetailText(vehicle = {}) {
   const days = pmbAgeDays(vehicle);
-  if (days === null) return 'Kewdale ETA unknown';
-  if (days < 0) return `${Math.abs(days)} day${Math.abs(days) === 1 ? '' : 's'} until Kewdale ETA`;
-  if (days === 0) return 'Kewdale ETA is today';
-  return `${days} day${days === 1 ? '' : 's'} since Kewdale ETA`;
+  if (days === null) return 'PMB entry date unknown';
+  if (days === 0) return 'Transferred to PMB today';
+  return `${days} day${days === 1 ? '' : 's'} at PMB`;
 }
 
 function pmbAgeClass(vehicle = {}) {
@@ -514,9 +521,6 @@ function pdcJobComplete(vehicle = {}, def = {}) {
   if (!def?.completeKey) return false;
   if (vehicle[def.completeKey] === true) return true;
   if (vehicle[def.completeKey] === false) return false;
-  if (def.key === 'fitting') return legacyVehicleFlag(vehicle, 'buildComplete') || vehicle.pdcCompleteBuild === true;
-  if (def.key === 'build') return legacyVehicleFlag(vehicle, 'buildComplete');
-  if (def.key === 'fabrication') return legacyVehicleFlag(vehicle, 'trayFitmentComplete');
   return false;
 }
 
@@ -692,8 +696,11 @@ function saveJson(key, value) {
 }
 
 function clearLocalDataFromUrl() {
-  const params = new URLSearchParams(window.location.search || '');
-  const resetRequested = params.has('clearLocalData') || params.has('resetLocalData') || params.has('freshData');
+  const search = String(window.location?.search || '');
+  const ParamsCtor = window.URLSearchParams || (typeof URLSearchParams !== 'undefined' ? URLSearchParams : null);
+  const resetRequested = ParamsCtor
+    ? new ParamsCtor(search).has('clearLocalData') || new ParamsCtor(search).has('resetLocalData') || new ParamsCtor(search).has('freshData')
+    : /[?&](clearLocalData|resetLocalData|freshData)(=|&|$)/.test(search);
   if (!resetRequested) return;
   try {
     CRM_BACKUP_STORAGE_KEYS.forEach(key => localStorage.removeItem(key));
@@ -1178,6 +1185,19 @@ function vehicleKeyNumber(vehicle = {}) {
   );
 }
 
+function vehicleJobcardNumber(vehicle = {}) {
+  return cleanNavisionText(
+    vehicle.pdcJobcard ||
+    vehicle.jobcard ||
+    vehicle.jobCard ||
+    vehicle.jobcardNumber ||
+    vehicle.jobCardNumber ||
+    vehicle.jcJobcard ||
+    vehicle.jc ||
+    ''
+  );
+}
+
 function vehiclePmbKeyNumber(vehicle = {}) {
   return statusCategory(vehicle) === 'pmb' ? vehicleKeyNumber(vehicle) : '';
 }
@@ -1419,11 +1439,17 @@ function updateNavisionSidebarMeta() {
 }
 
 function init() {
+  renderAppVersionMarker();
   updateNavisionSidebarMeta();
   app.selectedStock = vehicleKey(app.data.find(v => v.toyotaStatus) || app.data[0]);
   bindNav();
   populateFilters();
   renderAll();
+}
+
+function renderAppVersionMarker() {
+  const host = $('#app-version');
+  if (host) host.textContent = `Version ${APP_VERSION}`;
 }
 
 function bindNav() {
@@ -1488,7 +1514,7 @@ function bindNav() {
   $('#incoming-status-filter')?.addEventListener('change', renderIncomingDashboardBoard);
   $('#incoming-bucket-filter')?.addEventListener('change', renderIncomingDashboardBoard);
   $('#incoming-rep-filter')?.addEventListener('change', renderIncomingDashboardBoard);
-  $('#incoming-work-filter')?.addEventListener('change', renderIncomingDashboardBoard);
+  $$('input[name="incoming-work-filter"]').forEach(input => input.addEventListener('change', renderIncomingDashboardBoard));
   $('#incoming-find')?.addEventListener('click', renderIncomingDashboardBoard);
   $('#incoming-clear-filters')?.addEventListener('click', clearIncomingDashboardFilters);
   $('#incoming-collapse-all')?.addEventListener('click', collapseMainScreenRows);
@@ -1838,7 +1864,7 @@ function workflowPriorityRows() {
   }).slice(0, 8);
 }
 
-function fixFirstCardsHtml(rows = [], emptyText = 'No urgent production exceptions right now.') {
+function fixFirstRowsHtml(rows = [], emptyText = 'No urgent production exceptions right now.') {
   if (!rows.length) return `<div class="empty-state compact-empty fix-first-empty"><strong>Clear</strong><span>${escapeHtml(emptyText)}</span></div>`;
   return rows.map(row => {
     const vehicle = row.vehicle || {};
@@ -1848,7 +1874,7 @@ function fixFirstCardsHtml(rows = [], emptyText = 'No urgent production exceptio
     const unit = displayVehicle(vehicle) || 'Vehicle not listed';
     const stage = pmbStageLabel(inferredPmbStage(vehicle)) || pdcLocationLabel(vehiclePdcLocation(vehicle)) || incomingBucketLabel(incomingBucketForVehicle(vehicle));
     const severity = row.severity || 'warning';
-    return `<button class="fix-first-card fix-first-${escapeHtml(severity)}" type="button" data-open-stock="${escapeHtml(key)}">
+    return `<button class="fix-first-row fix-first-${escapeHtml(severity)}" type="button" data-open-stock="${escapeHtml(key)}">
       <span class="fix-first-label">${escapeHtml(row.label || 'Action needed')}</span>
       <strong>${escapeHtml(stock)}</strong>
       <small>${escapeHtml(truncate(client, 34))} · ${escapeHtml(truncate(unit, 44))}</small>
@@ -1857,8 +1883,8 @@ function fixFirstCardsHtml(rows = [], emptyText = 'No urgent production exceptio
   }).join('');
 }
 
-function bindFixFirstCards(root = document) {
-  $$('.fix-first-card[data-open-stock]', root).forEach(button => {
+function bindFixFirstRows(root = document) {
+  $$('.fix-first-row[data-open-stock]', root).forEach(button => {
     if (button.dataset.fixFirstBound === 'true') return;
     button.dataset.fixFirstBound = 'true';
     button.addEventListener('click', () => openVehicleModal(button.dataset.openStock));
@@ -1869,8 +1895,8 @@ function renderFixFirstGrid() {
   const host = $('#fix-first-grid');
   if (!host) return;
   const rows = workflowPriorityRows();
-  host.innerHTML = fixFirstCardsHtml(rows);
-  bindFixFirstCards(host);
+  host.innerHTML = `<details class="fix-first-list" open><summary>Show stoppages</summary><div class="fix-first-list-body">${fixFirstRowsHtml(rows)}</div></details>`;
+  bindFixFirstRows(host);
 }
 
 function workflowBoardStats() {
@@ -1975,7 +2001,7 @@ function renderWorkflowBoard() {
     ? `${searchedRows.length} of ${pmbRows.length} PMB vehicles match “${search}” · all buckets stay visible for dragging`
     : `${pmbRows.length} PMB vehicles · ${unassignedRows.length} unallocated`;
   const priorityRows = workflowPriorityRows();
-  const priorityHtml = `<section class="workflow-fix-first-strip"><div class="branch-header workflow-pmb-header"><div><strong>Fix First</strong><span>Only vehicles with a PMB stoppage or Parts stoppage.</span></div><div class="branch-header-actions"><span class="badge neutral">${priorityRows.length} item${priorityRows.length === 1 ? '' : 's'}</span></div></div><div class="fix-first-grid workflow-fix-first-grid">${fixFirstCardsHtml(priorityRows, 'No PMB exceptions need action right now.')}</div></section>`;
+  const priorityHtml = `<section class="workflow-fix-first-strip"><div class="branch-header workflow-pmb-header"><div><strong>Fix First</strong><span>Only vehicles with a PMB stoppage or Parts stoppage.</span></div><div class="branch-header-actions"><span class="badge neutral">${priorityRows.length} item${priorityRows.length === 1 ? '' : 's'}</span></div></div><details class="fix-first-list workflow-fix-first-list" open><summary>Show stoppages</summary><div class="fix-first-list-body">${fixFirstRowsHtml(priorityRows, 'No PMB exceptions need action right now.')}</div></details></section>`;
   host.innerHTML = `
     ${priorityHtml}
     <div class="branch-header workflow-pmb-header">
@@ -1985,7 +2011,7 @@ function renderWorkflowBoard() {
     <div class="workflow-collapsible-board" data-pmb-board>${laneHtml}</div>
   `;
   bindPmbDragBoard(host);
-  bindFixFirstCards(host);
+  bindFixFirstRows(host);
   updateInlineSelectionBars(search ? searchedRows : pmbRows);
 }
 
@@ -2007,11 +2033,18 @@ function incomingBucketLabel(bucketKey = '') {
 function incomingSearchText(vehicle = {}, bucketKey = '') {
   return [
     displayStockNumber(vehicle), vehicle.stock, vehicle.batch, vehicle.order, vehicle.toyotaOrder, vehicle.salesOrder,
-    vehicleKeyNumber(vehicle), vehicle.rego, vehicle.registration, vehicle.client, vehicle.toyotaCustomer,
+    vehicleKeyNumber(vehicle), vehicleJobcardNumber(vehicle), vehicle.rego, vehicle.registration, vehicle.client, vehicle.toyotaCustomer,
     vehicle.vehicle, vehicle.toyotaVehicle, displayVehicle(vehicle), navisionStatusText(vehicle), incomingBucketLabel(bucketKey),
     vehicle.consultant, vehicle.salesperson, vehicle.salesPerson, vehicle.owner, vehicle.navisionNotes, vehicle.dealerComments,
-    vehicle.notes, vehicle.keyNumber, vehicle.keyNo, vehicle.pmbKeyNumber, vehicle.vehicleKeyNumber,
+    vehicle.notes, vehicle.keyNumber, vehicle.keyNo, vehicle.pmbKeyNumber, vehicle.vehicleKeyNumber, vehicle.pdcJobcard, vehicle.jobcard, vehicle.jobCardNumber,
   ].filter(Boolean).join(' ').toLowerCase();
+}
+
+function incomingWorkFilterValues() {
+  return $$('input[name="incoming-work-filter"]')
+    .filter(input => input.checked)
+    .map(input => String(input.value || '').trim().toLowerCase())
+    .filter(Boolean);
 }
 
 function incomingDashboardFilterValues() {
@@ -2020,7 +2053,7 @@ function incomingDashboardFilterValues() {
     status: String($('#incoming-status-filter')?.value || '').trim(),
     bucket: String($('#incoming-bucket-filter')?.value || '').trim(),
     rep: String($('#incoming-rep-filter')?.value || '').trim(),
-    work: String($('#incoming-work-filter')?.value || '').trim(),
+    work: incomingWorkFilterValues(),
   };
 }
 
@@ -2040,7 +2073,8 @@ function incomingVehicleMatchesFilters(vehicle = {}, filters = incomingDashboard
   if (filters.bucket && bucket !== filters.bucket) return false;
   if (filters.status && status !== filters.status) return false;
   if (filters.rep && rep !== filters.rep) return false;
-  if (filters.work && !incomingWorkFilterMatches(vehicle, filters.work)) return false;
+  const workFilters = Array.isArray(filters.work) ? filters.work : (filters.work ? [filters.work] : []);
+  if (workFilters.length && !workFilters.some(work => incomingWorkFilterMatches(vehicle, work))) return false;
   if (filters.search && !incomingSearchText(vehicle, bucket).includes(filters.search)) return false;
   return true;
 }
@@ -2086,10 +2120,11 @@ function collapseWorkflowRows() {
 }
 
 function clearIncomingDashboardFilters() {
-  ['#incoming-search', '#incoming-status-filter', '#incoming-bucket-filter', '#incoming-rep-filter', '#incoming-work-filter'].forEach(selector => {
+  ['#incoming-search', '#incoming-status-filter', '#incoming-bucket-filter', '#incoming-rep-filter'].forEach(selector => {
     const input = $(selector);
     if (input) input.value = '';
   });
+  $$('input[name="incoming-work-filter"]').forEach(input => { input.checked = false; });
   renderIncomingDashboardBoard();
 }
 
@@ -5669,6 +5704,8 @@ function renderDetail() {
   const notes = getNotes(key);
   const customerWarning = !isCustomerMatch(v);
   const workshopTask = v.internalStatus || '';
+  const isCompletedVehicle = statusCategory(v) === 'completed';
+  const completedLockAttr = isCompletedVehicle ? 'disabled' : '';
   panel.innerHTML = `
     <div class="panel-header"><div><h2 id="vehicle-modal-title">Vehicle detail</h2><p>${stockLabel(v)} ${escapeHtml(displayStockNumber(v))}${v.order && v.order !== displayStockNumber(v) ? ` · Toyota Order ${escapeHtml(v.order)}` : ''}</p></div>${formatStatus(v)}</div>
     <div class="detail-body">
@@ -5696,6 +5733,10 @@ function renderDetail() {
           </label>
         </div>
         <div class="form-row two-col">
+          <label>
+            <span class="muted-label">JC Jobcard Number</span>
+            <input name="pdcJobcard" value="${escapeHtml(vehicleJobcardNumber(v))}" placeholder="Workshop jobcard #" />
+          </label>
           <label>
             <span class="muted-label">Navision ETA</span>
             <input value="${escapeHtml(scotEtaOnly(v.etaAtDealer))}" placeholder="No Navision ETA" readonly />
@@ -5741,11 +5782,11 @@ function renderDetail() {
         </div>
         <div class="muted-label section-label">Required work before RFT</div>
         <div class="form-row six-col check-grid pdc-requirement-grid slim-job-grid">
-          ${PDC_JOB_DEFS.map(def => `<label class="check-option pdc-toggle-chip pdc-toggle-${escapeHtml(def.key)} ${pdcJobRequired(v, def) ? 'is-on' : ''}"><input name="${escapeHtml(def.requireKey)}" type="checkbox" ${pdcJobRequired(v, def) ? 'checked' : ''} /> <span><b>${escapeHtml(def.short)}</b>${escapeHtml(def.label)}</span></label>`).join('')}
+          ${PDC_JOB_DEFS.map(def => `<label class="check-option pdc-toggle-chip pdc-toggle-${escapeHtml(def.key)} ${pdcJobRequired(v, def) ? 'is-on' : ''}"><input name="${escapeHtml(def.requireKey)}" type="checkbox" ${pdcJobRequired(v, def) ? 'checked' : ''} ${completedLockAttr} /> <span><b>${escapeHtml(def.short)}</b>${escapeHtml(def.label)}</span></label>`).join('')}
         </div>
         <div class="muted-label section-label">Department sign-off / completed</div>
         <div class="form-row six-col check-grid pdc-completion-grid slim-job-grid">
-          ${PDC_JOB_DEFS.map(def => `<label class="check-option pdc-toggle-chip completion-option pdc-toggle-${escapeHtml(def.key)} ${pdcJobComplete(v, def) ? 'is-complete' : ''}"><input name="${escapeHtml(def.completeKey)}" type="checkbox" ${pdcJobComplete(v, def) ? 'checked' : ''} /> <span><b>${pdcJobComplete(v, def) ? '✓' : escapeHtml(def.short)}</b>${escapeHtml(def.label)}</span></label>`).join('')}
+          ${PDC_JOB_DEFS.map(def => `<label class="check-option pdc-toggle-chip completion-option pdc-toggle-${escapeHtml(def.key)} ${pdcJobComplete(v, def) ? 'is-complete' : ''} ${isCompletedVehicle ? 'is-locked' : ''}"><input name="${escapeHtml(def.completeKey)}" type="checkbox" ${pdcJobComplete(v, def) ? 'checked' : ''} ${completedLockAttr} /> <span><b>${pdcJobComplete(v, def) ? '✓' : escapeHtml(def.short)}</b>${escapeHtml(def.label)}</span></label>`).join('')}
         </div>
         <div class="edit-actions">
           <button class="primary" type="submit">Save changes</button>
@@ -5760,6 +5801,7 @@ function renderDetail() {
         <div class="metric"><span>SP</span><strong title="${escapeHtml(consultantName(v))}">${escapeHtml(salesPersonInitials(consultantName(v)))}</strong></div>
         <div class="metric"><span>Toyota Order #</span><strong>${escapeHtml(v.order || 'Not matched')}</strong></div>
         ${statusCategory(v) === 'pmb' ? `<div class="metric"><span>Key tag number</span><strong>${escapeHtml(vehiclePmbKeyNumber(v) || 'Not set')}</strong></div>` : ''}
+        <div class="metric"><span>JC Jobcard</span><strong>${escapeHtml(vehicleJobcardNumber(v) || 'Not set')}</strong></div>
         <div class="metric"><span>Contact</span><strong>${escapeHtml(v.contact || 'Not on Excel')}</strong></div>
         <div class="metric"><span>Navision ETA</span>${formatEta(v.etaAtDealer)}</div>
         <div class="metric"><span>PDC location</span><strong>${escapeHtml(pdcLocationLabel(v.pdcLocation) || 'Follow Navision')}</strong></div>
@@ -5769,7 +5811,7 @@ function renderDetail() {
         <div class="metric"><span>PMB completed</span><strong>${escapeHtml(pdcCompletedJobsText(v))}</strong></div>
         <div class="metric"><span>PMB outstanding</span><strong>${escapeHtml(pdcOutstandingJobsText(v))}</strong></div>
         <div class="metric"><span>Blocked</span><strong>${isPdcBlocked(v) ? escapeHtml(pdcBlockReason(v)) : 'No'}</strong></div>
-        <div class="metric"><span>Kewdale ETA age</span><strong>${statusCategory(v) === 'pmb' ? escapeHtml(pmbAgeDetailText(v)) : 'Not in PMB'}</strong></div>
+        <div class="metric"><span>PMB age</span><strong>${statusCategory(v) === 'pmb' ? escapeHtml(pmbAgeDetailText(v)) : 'Not in PMB'}</strong></div>
         <div class="metric"><span>Production</span><strong>${escapeHtml(v.prodMth || v.group || 'Not shown')}</strong></div>
         <div class="metric"><span>Port</span><strong>${escapeHtml(v.arrivalPort || 'Not shown')}</strong></div>
         <div class="metric"><span>Autocare VIN</span><strong>${escapeHtml(v.autocareVin || v.vin || 'Not despatched')}</strong></div>
@@ -5814,25 +5856,26 @@ function renderDetail() {
     const keyNumber = statusCategory(v) === 'pmb' ? cleanNavisionText(form.keyNumber?.value || '') : vehicleKeyNumber(v);
     const consultant = form.consultant.value.trim();
     const internalStatus = form.internalStatus.value.trim();
-    const pdcLocation = normalizePdcLocation(form.pdcLocation.value);
+    const previousPdcLocation = vehiclePdcLocation(v);
+    const previousPmbStage = normalizePmbStage(v.pmbStage || '');
+    const pdcLocation = isCompletedVehicle ? previousPdcLocation : normalizePdcLocation(form.pdcLocation.value);
     const pmbStage = previousPmbStage;
+    const pdcJobcard = cleanNavisionText(form.pdcJobcard?.value || '');
     const jitaPartsOrdered = form.jitaPartsOrdered.value;
     const pdcBlocked = Boolean(form.pdcBlocked?.checked);
     const pdcBlockReasonValue = cleanNavisionText(form.pdcBlockReason?.value || '');
     const requirementUpdates = {};
     const completionUpdates = {};
     PDC_JOB_DEFS.forEach(def => {
-      requirementUpdates[def.requireKey] = Boolean(form[def.requireKey]?.checked);
-      completionUpdates[def.completeKey] = Boolean(form[def.completeKey]?.checked);
+      requirementUpdates[def.requireKey] = isCompletedVehicle ? pdcJobRequired(v, def) : Boolean(form[def.requireKey]?.checked);
+      completionUpdates[def.completeKey] = isCompletedVehicle ? pdcJobComplete(v, def) : Boolean(form[def.completeKey]?.checked);
     });
-    const previousPdcLocation = vehiclePdcLocation(v);
-    const previousPmbStage = normalizePmbStage(v.pmbStage || '');
     const duplicateKeyVehicle = pdcLocation === 'PMB' ? activePmbVehicleWithKeyNumber(keyNumber, key) : null;
     if (duplicateKeyVehicle) {
       window.alert(`Key tag ${keyNumber} is already assigned to ${displayStockNumber(duplicateKeyVehicle) || duplicateKeyVehicle.order || 'another PMB vehicle'}. Only one active PMB vehicle can use a key tag number at a time.`);
       return;
     }
-    const updates = { client, keyNumber, consultant, internalStatus, pdcLocation, pmbStage, jitaPartsOrdered, pdcBlocked, pdcBlockReason: pdcBlockReasonValue, ...requirementUpdates, ...completionUpdates };
+    const updates = { client, keyNumber, pdcJobcard, consultant, internalStatus, pdcLocation, pmbStage, jitaPartsOrdered, pdcBlocked, pdcBlockReason: pdcBlockReasonValue, ...requirementUpdates, ...completionUpdates };
     const changedCompletions = PDC_JOB_DEFS.filter(def => pdcJobComplete(v, def) !== completionUpdates[def.completeKey]);
     if (changedCompletions.length) {
       const operator = getCurrentOperatorName();
@@ -6407,7 +6450,7 @@ function isActivePartsStoppage(vehicle = {}) {
 }
 
 function partsOrdered(vehicle = {}) {
-  return vehicle.pdcPartsOrdered === true || Boolean(cleanNavisionText(vehicle.pdcPartsOrderedAt || vehicle.partsOrderedAt || '')) || normalizeJita(jitaDisplay(vehicle)) === 'Yes';
+  return vehicle.pdcPartsOrdered === true || Boolean(cleanNavisionText(vehicle.pdcPartsOrderedAt || vehicle.partsOrderedAt || ''));
 }
 
 function partsMiscAcc(vehicle = {}) {
@@ -6697,7 +6740,7 @@ function rftHomeRows() {
       if (!matchesStatus) return false;
       if (!q) return true;
       const hay = [
-        displayStockNumber(vehicle), vehicle.order, vehicleKeyNumber(vehicle), vehicle.client, vehicle.toyotaCustomer,
+        displayStockNumber(vehicle), vehicle.order, vehicleKeyNumber(vehicle), vehicleJobcardNumber(vehicle), vehicle.client, vehicle.toyotaCustomer,
         displayVehicle(vehicle), pdcCompletedJobsText(vehicle), pdcOutstandingJobsText(vehicle),
         vehicleRftGateIssues(vehicle).join(' '), rftHomeStatusLabel(status), vehicle.rftTransferredBy || '',
       ].join(' ').toLowerCase();
@@ -6837,7 +6880,7 @@ function completedVehicleRows() {
     .filter(vehicle => {
       if (!q) return true;
       const hay = [
-        displayStockNumber(vehicle), vehicle.order, vehicleKeyNumber(vehicle), vehicle.client, vehicle.toyotaCustomer,
+        displayStockNumber(vehicle), vehicle.order, vehicleKeyNumber(vehicle), vehicleJobcardNumber(vehicle), vehicle.client, vehicle.toyotaCustomer,
         displayVehicle(vehicle), vehicle.rftCollectedBy || '', vehicle.rftCollectedAt || '', pdcCompletedJobsText(vehicle),
       ].join(' ').toLowerCase();
       return hay.includes(q);
@@ -7074,6 +7117,7 @@ function addCustomerFromForm(e) {
     epodReceipt: '',
     jitQty: '',
     jitaPartsOrdered: data.jitaPartsOrdered || 'Unknown',
+    pdcJobcard: (data.pdcJobcard || '').trim(),
     consultant: (data.consultant || '').trim(),
   };
   const added = loadAddedVehicles();

@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Vehicle Tracking Core</title>
-  <link rel="stylesheet" href="styles.css?v=pmb-fixes-20260707-reset" />
+  <link rel="stylesheet" href="styles.css?v=2026.07.08.3" />
 </head>
 <body>
   <div class="app-shell" id="app-shell">
@@ -14,6 +14,7 @@
         <div class="brand-text">
           <div class="brand-title">Vehicle Tracking</div>
           <div class="brand-subtitle">Core Tracker</div>
+          <div class="app-version" id="app-version">Version 2026.07.08.3</div>
         </div>
         <button class="sidebar-toggle" id="sidebar-toggle" type="button" aria-label="Collapse sidebar" title="Collapse sidebar">‹</button>
       </div>
@@ -55,7 +56,7 @@
           <div class="panel-header compact">
             <div>
               <h2>Fix First</h2>
-              <p>Production blockers, unallocated PMB vehicles, and RFT gate issues that need action before normal queue work.</p>
+              <p>Only PMB stoppages and Parts stoppages that need action before normal queue work.</p>
             </div>
             <div class="panel-actions">
               <button class="small-button" type="button" data-view-target="workflow">Open PMB workflow</button>
@@ -100,20 +101,16 @@
                 <span>Sales rep</span>
                 <select id="incoming-rep-filter"><option value="">All reps</option></select>
               </label>
-              <label>
-                <span>Work type</span>
-                <select id="incoming-work-filter">
-                  <option value="">All work</option>
-                  <option value="tint">Tint</option>
-                  <option value="hoist">Hoist</option>
-                  <option value="fitting">Fitting</option>
-                  <option value="fabrication">Fabrication</option>
-                  <option value="electrical">Electrical</option>
-                  <option value="tyre">Tyre bay</option>
-                  <option value="pitinspection">Pit Inspection</option>
-                  <option value="parts">Parts</option>
-                </select>
-              </label>
+              <fieldset class="incoming-work-filter-checks" aria-label="Work type filters">
+                <legend>Work type</legend>
+                <label><input type="checkbox" name="incoming-work-filter" value="tint" /> TINT</label>
+                <label><input type="checkbox" name="incoming-work-filter" value="hoist" /> HOIST</label>
+                <label><input type="checkbox" name="incoming-work-filter" value="fitting" /> FITTING</label>
+                <label><input type="checkbox" name="incoming-work-filter" value="fabrication" /> FAB</label>
+                <label><input type="checkbox" name="incoming-work-filter" value="electrical" /> ELEC</label>
+                <label><input type="checkbox" name="incoming-work-filter" value="tyre" /> TYRE</label>
+                <label><input type="checkbox" name="incoming-work-filter" value="pitinspection" /> PIT</label>
+              </fieldset>
               <button class="primary incoming-find-button" id="incoming-find" type="button">Find</button>
               <button class="small-button" id="incoming-clear-filters" type="button">Clear</button>
             </div>
@@ -725,8 +722,9 @@
           <label><span class="muted-label">Contact</span><input name="contact" placeholder="Phone or email" /></label>
         </div>
         <label><span class="muted-label">Vehicle</span><input name="vehicle" required placeholder="Vehicle type / grade only" /></label>
-        <div class="form-row two-col">
+        <div class="form-row three-col">
           <label><span class="muted-label">Task</span><select name="internalStatus" id="new-customer-task"></select></label>
+          <label><span class="muted-label">JC Jobcard Number</span><input name="pdcJobcard" placeholder="Workshop jobcard #" /></label>
           <label><span class="muted-label">JITA</span><select name="jitaPartsOrdered"><option>Unknown</option><option>Yes</option><option>No</option></select></label>
         </div>
         <div class="edit-actions">
@@ -746,6 +744,6 @@
   </template>
 
   <script src="data.js?v=d70c2d4"></script>
-  <script src="app.js?v=pmb-bay-move-20260707"></script>
+  <script src="app.js?v=2026.07.08.3"></script>
 </body>
 </html>

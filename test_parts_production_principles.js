@@ -73,7 +73,7 @@ code += String.raw`
   renderAll = () => {};
   populateFilters = () => {};
   window.alert = message => { throw new Error('Unexpected alert: ' + message); };
-  const rftVehicle = { ...basePartsVehicle, pdcLocation: 'PMB', manualLocation: 'PMB', pmbStage: 'BUILD', pdcCompleteParts: true, pdcCompleteBuild: true };
+  const rftVehicle = { ...basePartsVehicle, pdcLocation: 'PMB', manualLocation: 'PMB', pmbStage: 'BUILD', pdcCompleteParts: true, pdcCompleteBuild: true, pdcCompleteFitting: true };
   transferVehiclesToRft([rftVehicle], { clearSelection: false });
   assert(confirms.length === 1, 'RFT transfer should only ask for transfer confirmation');
   assert(!confirms.some(message => /sales\s*person|salesperson/i.test(message)), 'RFT transfer must not prompt for salesperson notification');
