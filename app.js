@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.07.08.4';
+const APP_VERSION = '2026.07.08.5';
 const EDITS_KEY = 'vehicleTrackingCoreNavisionOnlyEdits:v1';
 const ADDED_KEY = 'vehicleTrackingCoreNavisionOnlyVehicles:v1';
 const AMY_EMAIL = 'amy.elkington@broometoyota.com.au';
@@ -2503,7 +2503,7 @@ function pdFlagsFromTasks(tasks = []) {
     buildPoRaised: Boolean(tasks.length),
     pdcRequiresTint: /tint/.test(text),
     pdcRequiresHoist: /hoist|suspension|gvm|lift|tow/.test(text),
-    pdcRequiresFitting: Boolean(tasks.length) || /fit|fitment|build|pdi|accessor/.test(text),
+    pdcRequiresFitting: /\bfit\b|fitment|fitting|pdi|accessor|bullbar|towbar|canopy|tray/.test(text),
     pdcRequiresFabrication: /tray|bar|rack|tank|canopy|winch|gvm|fabricat/.test(text),
     pdcRequiresElectrical: /light|uhf|radio|12v|battery|redarc|anderson|electrical|auto.?elec/.test(text),
     pdcRequiresTyre: /tyre|tire|wheel/.test(text),
@@ -3494,17 +3494,18 @@ function togglePdcJobCompletionFromCard(stockKey, jobKey) {
   if (!cleanKey || !def) return;
   const vehicle = app.data.find(v => vehicleKey(v) === cleanKey || v.stock === cleanKey || v.order === cleanKey || v.id === cleanKey);
   if (!vehicle) return;
-  if (!pdcJobRequired(vehicle, def)) {
-    window.alert(`${def.label} is not marked as required for this vehicle yet. Tick it in the main table or vehicle popup first.`);
+  const currentlyComplete = pdcJobComplete(vehicle, def);
+  if (currentlyComplete && vehicleCollectedFromRft(vehicle)) {
+    window.alert('Completed / collected vehicles are locked. This sign-off cannot be removed from a completed vehicle.');
     return;
   }
-  const currentlyComplete = pdcJobComplete(vehicle, def);
   const actionText = currentlyComplete ? 'remove the sign-off from' : 'sign off';
   if (!window.confirm(`${actionText.charAt(0).toUpperCase()}${actionText.slice(1)} ${def.label} for ${displayStockNumber(vehicle) || vehicle.order || 'this vehicle'}?`)) return;
   const now = nowIsoString();
   const operator = getCurrentOperatorName();
   const updates = { [def.completeKey]: !currentlyComplete };
   if (!currentlyComplete) {
+    updates[def.requireKey] = true;
     updates[def.completeAtKey] = now;
     updates[def.completeByKey] = operator;
   } else {
@@ -7160,7 +7161,7 @@ function handleVehiclePoSelect(key, event) {
     buildPoRaised: true,
     pdcRequiresTint: pdcJobRequired(vehicle, PDC_JOB_BY_KEY.get('tint')) || lowerNames.includes('tint'),
     pdcRequiresHoist: pdcJobRequired(vehicle, PDC_JOB_BY_KEY.get('hoist')) || /hoist|suspension|gvm|lift|tow/.test(lowerNames),
-    pdcRequiresFitting: pdcJobRequired(vehicle, PDC_JOB_BY_KEY.get('fitting')) || Boolean(combinedFiles.length),
+    pdcRequiresFitting: pdcJobRequired(vehicle, PDC_JOB_BY_KEY.get('fitting')) || /\bfit\b|fitment|fitting|pdi|accessor|bullbar|towbar|canopy|tray/.test(lowerNames),
     pdcRequiresFabrication: pdcJobRequired(vehicle, PDC_JOB_BY_KEY.get('fabrication')) || /tray|bar|rack|tank|canopy|winch|gvm|fabricat/.test(lowerNames),
     pdcRequiresElectrical: pdcJobRequired(vehicle, PDC_JOB_BY_KEY.get('electrical')) || /electrical|auto.?elec|12v|uhf|battery|compressor|spotlight|light bar|anderson|redarc/i.test(lowerNames),
     pdcRequiresTyre: pdcJobRequired(vehicle, PDC_JOB_BY_KEY.get('tyre')) || /tyre|tire|wheel/.test(lowerNames),
@@ -7279,7 +7280,7 @@ function handlePoSelect(e) {
       buildPoRaised: Boolean(combinedFiles.length || combined.length),
       pdcRequiresTint: combinedText.includes('window tint') || combinedText.includes('tint'),
       pdcRequiresHoist: /hoist|suspension|gvm|lift|tow/.test(combinedText),
-      pdcRequiresFitting: Boolean(combinedFiles.length || combined.length) || /fit|fitment|build|pdi|accessor/.test(combinedText),
+      pdcRequiresFitting: /\bfit\b|fitment|fitting|pdi|accessor|bullbar|towbar|canopy|tray/.test(combinedText),
       pdcRequiresFabrication: combinedText.includes('tray') || combinedText.includes('fabricat') || combinedText.includes('bullbar') || combinedText.includes('bar work'),
       pdcRequiresElectrical: /electrical|auto.?elec|12v|dual battery|battery system|uhf|spotlight|light bar|beacon|compressor|anderson|redarc|brake controller|dc dc|dcdc|dash cam|camera|reverse camera|power outlet|usb/.test(combinedText),
       pdcRequiresTyre: /tyre|tire|wheel/.test(combinedText)
