@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.07.08.3';
+const APP_VERSION = '2026.07.08.4';
 const EDITS_KEY = 'vehicleTrackingCoreNavisionOnlyEdits:v1';
 const ADDED_KEY = 'vehicleTrackingCoreNavisionOnlyVehicles:v1';
 const AMY_EMAIL = 'amy.elkington@broometoyota.com.au';
@@ -2005,7 +2005,7 @@ function renderWorkflowBoard() {
   host.innerHTML = `
     ${priorityHtml}
     <div class="branch-header workflow-pmb-header">
-      <div><strong>PMB control board</strong><span>Unallocated vehicles are full rows like the main screen. Drag rows into TINT, HOIST, FITTING, FAB, ELEC, TYRE or PIT; use Open bays for station bay scheduling.</span></div>
+      <div><strong>PMB control board</strong><span>Unallocated vehicles are full rows like the main screen. Use the Move buttons on each vehicle to send it to TINT, HOIST, FITTING, FAB, ELEC, TYRE, PIT or Unallocated; use Open bays for numbered bay scheduling.</span></div>
       <div class="branch-header-actions"><span class="badge neutral">${escapeHtml(summaryText)}</span></div>
     </div>
     <div class="workflow-collapsible-board" data-pmb-board>${laneHtml}</div>
@@ -3413,8 +3413,8 @@ function pmbBayVehicleCardHtml(vehicle = {}, stage = '') {
     .map(option => `<button class="pmb-bay-assign-button secondary" type="button" data-move-pmb-stage-key="${escapeHtml(key)}" data-move-pmb-stage-value="${escapeHtml(option.value)}" title="Move to ${escapeHtml(option.label)} bucket">${escapeHtml(option.label)}</button>`)
     .join('');
   const bayActions = [
-    bay ? `<button class="pmb-bay-assign-button secondary" type="button" data-move-pmb-stage-key="${escapeHtml(key)}" data-move-pmb-stage-value="" title="Move back to PMB Unallocated">Unallocated</button>` : '',
-    bay ? `<button class="pmb-bay-assign-button secondary" type="button" data-assign-pmb-bay-key="${escapeHtml(key)}" data-assign-pmb-bay-stage="${escapeHtml(normalizedStage)}" data-assign-pmb-bay-number="" title="Keep in ${escapeHtml(pmbStageLabel(normalizedStage))} but remove the bay number">No bay</button>` : '',
+    `<button class="pmb-bay-assign-button secondary" type="button" data-move-pmb-stage-key="${escapeHtml(key)}" data-move-pmb-stage-value="" title="Move back to PMB Unallocated / waiting for another bay">Unallocated</button>`,
+    `<button class="pmb-bay-assign-button secondary" type="button" data-assign-pmb-bay-key="${escapeHtml(key)}" data-assign-pmb-bay-stage="${escapeHtml(normalizedStage)}" data-assign-pmb-bay-number="" title="Keep in ${escapeHtml(pmbStageLabel(normalizedStage))} but remove the bay number">No bay</button>`,
     bayAssignButtons,
     stageMoveButtons,
   ].filter(Boolean).join('');
@@ -3436,6 +3436,7 @@ function pmbBayVehicleCardHtml(vehicle = {}, stage = '') {
 
 function pmbVehicleCardHtml(vehicle = {}) {
   const key = vehicleKey(vehicle);
+  const currentStage = normalizePmbStage(inferredPmbStage(vehicle));
   const doneJobs = pdcCompletedJobs(vehicle).map(job => `${job.label} done`);
   const outstandingJobs = pdcRequirementDefinitions(vehicle).filter(job => !pdcJobComplete(vehicle, job)).map(job => `${job.label} open`);
   const gateIssues = vehicleRftGateIssues(vehicle);
@@ -3454,6 +3455,12 @@ function pmbVehicleCardHtml(vehicle = {}) {
   const stageAgeTitle = stageEnteredAt
     ? `Current bucket started ${new Date(stageEnteredAt).toLocaleString('en-AU', { dateStyle: 'short', timeStyle: 'short' })}`
     : 'Bucket start time has not been recorded yet';
+  const directMoveButtons = [
+    currentStage ? `<button class="pmb-card-move-button secondary" type="button" data-move-pmb-stage-key="${escapeHtml(key)}" data-move-pmb-stage-value="" title="Move to PMB Unallocated while waiting for another bay">Unallocated</button>` : '',
+    ...PMB_STAGE_DEFS
+      .filter(option => option.value !== currentStage)
+      .map(option => `<button class="pmb-card-move-button" type="button" data-move-pmb-stage-key="${escapeHtml(key)}" data-move-pmb-stage-value="${escapeHtml(option.value)}" title="Move to ${escapeHtml(option.label)}">${escapeHtml(option.label)}</button>`),
+  ].filter(Boolean).join('');
   return `
     <article class="pmb-vehicle-card pmb-age-card-${escapeHtml(ageClass)} ${isPdcBlocked(vehicle) ? 'is-blocked' : ''} ${gateIssues.length ? 'has-rft-gate-issues' : ''}" draggable="true" data-pmb-drag-key="${escapeHtml(key)}" title="Drag ${escapeHtml(displayStockNumber(vehicle) || vehicle.order || 'vehicle')} to another PMB bucket">
       <div class="pmb-card-top">
@@ -3476,6 +3483,7 @@ function pmbVehicleCardHtml(vehicle = {}) {
       <span class="pmb-card-client" title="${escapeHtml(vehicle.client || vehicle.toyotaCustomer || '')}">${escapeHtml(truncate(vehicle.client || vehicle.toyotaCustomer || 'Dealer Order', 28))}</span>
       <small title="${escapeHtml(displayVehicle(vehicle))}">${escapeHtml(truncate(displayVehicle(vehicle), 36))}</small>
       <div class="pmb-next-action"><b>Next:</b> ${escapeHtml(truncate(nextActionForVehicle(vehicle), 74))}</div>
+      ${directMoveButtons ? `<div class="pmb-card-move-actions" aria-label="Move PMB vehicle"><span>Move:</span>${directMoveButtons}</div>` : ''}
       ${gateIssues.length ? `<div class="pmb-rft-gate-warning">RFT gate: ${escapeHtml(truncate(gateIssues.join(' · '), 60))}</div>` : ''}
     </article>`;
 }

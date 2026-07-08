@@ -4245,17 +4245,31 @@ body.pmb-dragging .pmb-drop-lane {
   white-space: nowrap;
 }
 .pmb-bay-pill-actions,
-.pmb-bay-stage-tabs {
+.pmb-bay-stage-tabs,
+.pmb-card-move-actions {
   display: flex;
   align-items: center;
   gap: 5px;
   flex-wrap: wrap;
 }
+.pmb-card-move-actions {
+  margin-top: 6px;
+  padding-top: 5px;
+  border-top: 1px dashed rgba(148, 163, 184, .35);
+}
+.pmb-card-move-actions span {
+  font-size: .56rem;
+  font-weight: 900;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
 .pmb-bay-pill-actions {
   margin-top: 2px;
 }
 .pmb-bay-assign-button,
-.pmb-bay-stage-tab {
+.pmb-bay-stage-tab,
+.pmb-card-move-button {
   border: 1px solid rgba(37, 99, 235, .18);
   background: #eff6ff;
   color: #1d4ed8;
@@ -4266,7 +4280,8 @@ body.pmb-dragging .pmb-drop-lane {
   line-height: 1.1;
   cursor: pointer;
 }
-.pmb-bay-assign-button.secondary {
+.pmb-bay-assign-button.secondary,
+.pmb-card-move-button.secondary {
   border-color: rgba(148, 163, 184, .35);
   background: #f8fafc;
   color: #475569;
