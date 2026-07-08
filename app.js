@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.07.08.5';
+const APP_VERSION = '2026.07.08.6';
 const EDITS_KEY = 'vehicleTrackingCoreNavisionOnlyEdits:v1';
 const ADDED_KEY = 'vehicleTrackingCoreNavisionOnlyVehicles:v1';
 const AMY_EMAIL = 'amy.elkington@broometoyota.com.au';
@@ -325,6 +325,21 @@ function pmbAgeLabel(vehicle = {}) {
   if (days === null) return 'PMB entry unknown';
   if (days === 0) return 'PMB today';
   return `PMB +${days}d`;
+}
+
+function partsEtaCounterLabel(vehicle = {}) {
+  if (pmbAgeDays(vehicle) !== null) return pmbAgeLabel(vehicle);
+  const eta = kewdaleEtaValue(vehicle);
+  return dateHelper(eta) || 'No ETA counter';
+}
+
+function partsEtaCounterClass(vehicle = {}) {
+  if (pmbAgeDays(vehicle) !== null) return pmbAgeClass(vehicle);
+  const eta = etaDeltaText(kewdaleEtaValue(vehicle));
+  if (eta.cls === 'negative') return 'overdue';
+  if (eta.cls === 'positive') return 'future';
+  if (eta.cls === 'neutral' && eta.label) return 'fresh';
+  return 'unknown';
 }
 
 function pmbAgeDetailText(vehicle = {}) {
@@ -6528,7 +6543,7 @@ function partsDepartmentRows() {
         displayStockNumber(vehicle), vehicle.order, vehicle.client, vehicle.toyotaCustomer, displayVehicle(vehicle),
         pdcLocationLabel(vehiclePdcLocation(vehicle)),
         statusCategoryLabel(vehicle), partsDepartmentStatusLabel(status), partsStoppageReason(vehicle), productionLabel,
-        kewdaleEtaValue(vehicle), pmbAgeLabel(vehicle)
+        kewdaleEtaValue(vehicle), partsEtaCounterLabel(vehicle)
       ].join(' ').toLowerCase();
       return hay.includes(q);
     })
@@ -6597,13 +6612,13 @@ function renderPartsHome() {
       const status = partsDepartmentStatus(vehicle);
       const complete = ['issued', 'notrequired'].includes(status);
       const eta = kewdaleEtaValue(vehicle);
-      const ageClass = pmbAgeClass(vehicle);
+      const ageClass = partsEtaCounterClass(vehicle);
       const stage = statusCategoryLabel(vehicle);
       const pmbStage = inferredPmbStage(vehicle) ? ` · ${pmbStageLabel(inferredPmbStage(vehicle))}` : '';
       return `<tr class="parts-row ${escapeHtml(partsDepartmentStatusClass(status))}">
         <td><span class="parts-status-pill ${escapeHtml(partsDepartmentStatusClass(status))}">${escapeHtml(partsDepartmentStatusLabel(status))}</span></td>
         <td><button class="stock-link stock-button" type="button" data-open-stock="${escapeHtml(key)}">${escapeHtml(displayStockNumber(vehicle) || vehicle.order || 'No stock')}</button>${stockOrderSubline(vehicle)}</td>
-        <td><div class="parts-eta"><strong>${escapeHtml(eta || 'No ETA')}</strong><span class="pmb-age ${escapeHtml('pmb-age-' + ageClass)}">${escapeHtml(pmbAgeLabel(vehicle))}</span></div></td>
+        <td><div class="parts-eta"><strong>${escapeHtml(eta || 'No ETA')}</strong><span class="pmb-age ${escapeHtml('pmb-age-' + ageClass)}">${escapeHtml(partsEtaCounterLabel(vehicle))}</span></div></td>
         <td>${status === 'stoppage' ? `<span class="parts-stoppage-text" title="${escapeHtml(partsStoppageReason(vehicle))}">${escapeHtml(truncate(partsStoppageReason(vehicle), 50))}</span>` : '<span class="subtle">No blocker recorded</span>'}</td>
         <td><div class="parts-action-group">
           <button class="small-button danger-button" type="button" data-parts-stoppage="${escapeHtml(key)}" ${complete ? 'disabled' : ''}>Stoppage</button>
