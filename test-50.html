@@ -382,20 +382,18 @@
               <label>
                 <span>Parts status</span>
                 <select id="parts-status-filter">
-                  <option value="open">Open parts</option>
-                  <option value="all">All parts vehicles</option>
+                  <option value="open">Active parts</option>
+                  <option value="all">All active parts vehicles</option>
                   <option value="notordered">Not Ordered</option>
                   <option value="onorder">On Order</option>
                   <option value="stoppage">Stoppages</option>
-                  <option value="issued">Issued</option>
                   <option value="miscacc">Misc Acc</option>
-                  <option value="notrequired">Not Required</option>
                 </select>
               </label>
             </div>
             <div class="parts-help-strip">
               <strong>Parts rule:</strong>
-              <span>Parts works this queue only: Not Ordered blocks progress, On Order tracks waiting parts, Issued means Parts has signed off. RFT remains blocked until Parts is issued or not required.</span>
+              <span>Parts shows only what is coming, stoppages, and what is on order. Issued/signed-off vehicles are removed from this screen. RFT remains blocked until Parts is issued or not required.</span>
             </div>
             <div id="parts-home-content" class="parts-home-content"></div>
           </section>

@@ -32,6 +32,7 @@ code += String.raw`
   assert(partsDepartmentStatus(basePartsVehicle) === 'notordered', 'Parts with no order should show Not Ordered');
   assert(partsDepartmentStatus({ ...basePartsVehicle, pdcPartsOrdered: true }) === 'onorder', 'Ordered parts should show On Order');
   assert(partsDepartmentStatus({ ...basePartsVehicle, pdcCompleteParts: true }) === 'issued', 'Signed-off parts should show Issued');
+  assert(partsDepartmentStatus({ ...basePartsVehicle, pdcPartsReceived: true }) === 'issued', 'Received parts should be treated as Issued and removed from the Parts queue');
   assert(partsDepartmentStatus({ ...basePartsVehicle, pdcCompleteParts: true, pdcPartsMiscAcc: true }) === 'miscacc', 'Misc Acc must override other Parts statuses');
   assert(matchesQuickFilter('partsstoppage')({ ...basePartsVehicle, pdcPartsStoppage: true }), 'Parts stoppage dashboard bucket should include vehicles with a parts stoppage flag');
   assert(matchesQuickFilter('partsstoppage')({ ...basePartsVehicle, pdcPartsStoppageReason: 'Waiting on bullbar' }), 'Parts stoppage dashboard bucket should include vehicles with a parts stoppage reason');
@@ -54,14 +55,20 @@ code += String.raw`
   assert(visibility.stagnant === 1, 'Operational visibility should count stagnant or blocked workflow');
   assert(visibility.rftGateIssues === 1, 'Operational visibility should count manual RFT gate issues');
 
-  app.data = [basePartsVehicle];
+  app.data = [basePartsVehicle, { ...basePartsVehicle, id: 'parts-issued', stock: '87654321', batch: '87654321', pdcCompleteParts: true }, { ...basePartsVehicle, id: 'parts-received', stock: '11223344', batch: '11223344', pdcPartsReceived: true }];
   elementFor('#parts-search').value = 'Sales Person';
   elementFor('#parts-status-filter').value = 'all';
   assert(partsDepartmentRows().length === 0, 'Parts search must not match salesperson/staff fields');
 
   elementFor('#parts-search').value = '';
+  assert(partsDepartmentRows().length === 1, 'Issued/received Parts vehicles must be removed from the Parts screen active/all filters');
+  elementFor('#parts-status-filter').value = 'issued';
+  assert(partsDepartmentRows().length === 1, 'Legacy Issued filter must not reveal issued Parts vehicles on the Parts screen');
+  elementFor('#parts-status-filter').value = 'open';
   renderPartsHome();
   const partsHtml = elementFor('#parts-home-content').innerHTML;
+  const partsSummaryHtml = elementFor('#parts-summary-grid').innerHTML;
+  assert(!partsSummaryHtml.includes('Issued'), 'Parts page summary must not show an Issued shortcut/card');
   assert(!/<th>Sales<\/th>/.test(partsHtml), 'Parts page must not render a Sales column');
   assert(!partsHtml.includes('Sales Person'), 'Parts page must not render salesperson names');
 

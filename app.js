@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.07.09.1';
+const APP_VERSION = '2026.07.09.2';
 const EDITS_KEY = 'vehicleTrackingCoreNavisionOnlyEdits:v1';
 const ADDED_KEY = 'vehicleTrackingCoreNavisionOnlyVehicles:v1';
 const AMY_EMAIL = 'amy.elkington@broometoyota.com.au';
@@ -6550,7 +6550,7 @@ function partsDepartmentStatus(vehicle = {}) {
   const def = partsJobDef();
   if (!pdcJobRequired(vehicle, def)) return 'notrequired';
   if (partsMiscAcc(vehicle)) return 'miscacc';
-  if (def && pdcJobComplete(vehicle, def)) return 'issued';
+  if (def && (pdcJobComplete(vehicle, def) || vehicle.pdcPartsReceived === true)) return 'issued';
   if (isActivePartsStoppage(vehicle)) return 'stoppage';
   if (partsOrdered(vehicle)) return 'onorder';
   return 'notordered';
@@ -6591,15 +6591,15 @@ function partsLastUpdateLabel(vehicle = {}) {
 
 function partsDepartmentRows() {
   const q = ($('#parts-search')?.value || '').trim().toLowerCase();
-  const filter = $('#parts-status-filter')?.value || 'open';
+  const selectedFilter = $('#parts-status-filter')?.value || 'open';
+  const filter = ['issued', 'notrequired'].includes(selectedFilter) ? 'open' : selectedFilter;
   return app.data
     .filter(vehicleHasBatchNumber)
     .filter(vehicle => {
       const status = partsDepartmentStatus(vehicle);
-      const matchesStatus = (filter === 'all' && status !== 'issued')
-        || (filter === 'issued' && status === 'issued')
+      const matchesStatus = (filter === 'all' && !['issued', 'notrequired'].includes(status))
         || (filter === 'open' && !['issued', 'notrequired'].includes(status))
-        || (!['all', 'open', 'issued'].includes(filter) && status === filter);
+        || (!['all', 'open'].includes(filter) && status === filter);
       if (!matchesStatus) return false;
       if (!q) return true;
       const productionLabel = productionMonthLabel(vehicle.prodMth || vehicle.productionMonth || '');
@@ -6632,10 +6632,9 @@ function renderPartsSummary(rows = []) {
   }, { open: 0, notordered: 0, onorder: 0, stoppage: 0, issued: 0, miscacc: 0, notrequired: 0 });
   const cards = [
     ['stoppage', 'Stoppages', counts.stoppage, 'Fix first — blocks RFT handover'],
-    ['open', 'Open parts', counts.open, 'All incomplete parts work'],
+    ['open', 'Active parts', counts.open, 'Coming, stoppages and on-order only'],
     ['notordered', 'Not Ordered', counts.notordered, 'Required parts not ordered yet'],
     ['onorder', 'On Order', counts.onorder, 'Waiting on parts arrival'],
-    ['issued', 'Issued', counts.issued, 'Signed off and hidden from the active Parts queue'],
     ['miscacc', 'Misc Acc', counts.miscacc, 'Misc accessory override'],
   ];
   const host = $('#parts-summary-grid');

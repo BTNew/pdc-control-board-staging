@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>PDC Control Board — 75 Vehicle Test</title>
-  <link rel="stylesheet" href="styles.css?v=2026.07.09.1" />
+  <link rel="stylesheet" href="styles.css?v=2026.07.09.2" />
 </head>
 <body>
   <div class="test-data-banner" style="position:sticky;top:0;z-index:9999;background:#6d28d9;color:#fff;padding:8px 14px;text-align:center;font-weight:700;letter-spacing:.02em;">TEST DATASET — 75 SAMPLE VEHICLES ONLY — separate from live board</div>
@@ -379,20 +379,18 @@
               <label>
                 <span>Parts status</span>
                 <select id="parts-status-filter">
-                  <option value="open">Open parts</option>
-                  <option value="all">All parts vehicles</option>
+                  <option value="open">Active parts</option>
+                  <option value="all">All active parts vehicles</option>
                   <option value="notordered">Not Ordered</option>
                   <option value="onorder">On Order</option>
                   <option value="stoppage">Stoppages</option>
-                  <option value="issued">Issued</option>
                   <option value="miscacc">Misc Acc</option>
-                  <option value="notrequired">Not Required</option>
                 </select>
               </label>
             </div>
             <div class="parts-help-strip">
               <strong>Parts rule:</strong>
-              <span>Parts works this queue only: Not Ordered blocks progress, On Order tracks waiting parts, Issued means Parts has signed off. RFT remains blocked until Parts is issued or not required.</span>
+              <span>Parts shows only what is coming, stoppages, and what is on order. Issued/signed-off vehicles are removed from this screen. RFT remains blocked until Parts is issued or not required.</span>
             </div>
             <div id="parts-home-content" class="parts-home-content"></div>
           </section>
@@ -774,6 +772,6 @@
     }());
   </script>
   <script src="data-test-75.js?v=test75-20260708"></script>
-  <script src="app.js?v=2026.07.09.1-test75-20260708"></script>
+  <script src="app.js?v=2026.07.09.2-test75-20260709"></script>
 </body>
 </html>
