@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.07.09.23-workflow-tight-wide';
+const APP_VERSION = '2026.07.09.24-pmb-toggle-one-row';
 window.VEHICLE_TRACKING_DATA = window.VEHICLE_TRACKING_DATA || { report: {}, vehicles: [], toyotaMatches: {} };
 const EDITS_KEY = 'vehicleTrackingCoreNavisionOnlyEdits:v1';
 const ADDED_KEY = 'vehicleTrackingCoreNavisionOnlyVehicles:v1';
@@ -606,8 +606,15 @@ function pdcJobMarkerTitle(vehicle = {}, def = {}) {
   return pdcJobCompletionTitle(vehicle, def);
 }
 
+function pdcJobDefsPartsFirst() {
+  return [
+    ...PDC_JOB_DEFS.filter(def => def.key === 'parts'),
+    ...PDC_JOB_DEFS.filter(def => def.key !== 'parts'),
+  ];
+}
+
 function pdcJobMarkersHtml(vehicle = {}, interactive = false) {
-  return `<div class="pmb-card-requirements" aria-label="PMB requirements">${PDC_JOB_DEFS.map(def => {
+  return `<div class="pmb-card-requirements" aria-label="PMB requirements">${pdcJobDefsPartsFirst().map(def => {
     const required = pdcJobRequired(vehicle, def);
     const complete = pdcJobComplete(vehicle, def);
     const stateClass = complete ? 'is-complete' : required ? 'is-pending' : 'is-not-required';
@@ -622,7 +629,9 @@ function pmbRequirementMarkersHtml(vehicle = {}) {
 }
 
 function pmbOutstandingStationChipsHtml(vehicle = {}) {
-  const outstanding = pdcRequirementDefinitions(vehicle).filter(job => !pdcJobComplete(vehicle, job));
+  const outstanding = pdcRequirementDefinitions(vehicle)
+    .filter(job => !pdcJobComplete(vehicle, job))
+    .sort((a, b) => (a.key === 'parts' ? -1 : b.key === 'parts' ? 1 : 0));
   const chips = outstanding.length
     ? outstanding.map(job => `<span class="pmb-outstanding-station" title="${escapeHtml(`${job.label} outstanding`)}">${escapeHtml(job.short || job.label)}</span>`)
     : ['<span class="pmb-outstanding-station is-clear">All clear</span>'];
@@ -1679,7 +1688,7 @@ function bindNav() {
   on($('#incoming-find'), 'click', renderIncomingDashboardBoard);
   on($('#incoming-clear-filters'), 'click', clearIncomingDashboardFilters);
   on($('#incoming-collapse-all'), 'click', collapseMainScreenRows);
-  on($('#workflow-collapse-all'), 'click', collapseWorkflowRows);
+  on($('#workflow-collapse-all'), 'click', toggleWorkflowRows);
   on($('#workflow-width-mode'), 'change', event => setWorkflowWidthMode(event.target.value));
   on($('#workflow-search'), 'input', event => { app.workflowSearch = String(event.target.value || '').trim().toLowerCase(); renderWorkflowBoard(); });
   on($('#workflow-find'), 'click', () => { app.workflowSearch = String($('#workflow-search')?.value || '').trim().toLowerCase(); renderWorkflowBoard(); });
@@ -2279,17 +2288,19 @@ function collapseMainScreenRows() {
   collapseDetailsWithin($('#incoming-main-board'));
 }
 
-function collapseWorkflowRows() {
-  app.workflowBucketsCollapsed = true;
+function toggleWorkflowRows() {
+  const host = $('#workflow-board');
+  const buckets = host ? $$('.workflow-stage-bucket', host) : [];
+  const anyOpen = buckets.some(bucket => bucket.open);
+  app.workflowBucketsCollapsed = anyOpen;
   if (normalizePmbStage(app.activePmbBayStage) || app.pmbSubFilter) {
     app.activePmbBayStage = '';
     app.pmbSubFilter = '';
     document.body.classList.remove('pmb-station-mode');
     showView('workflow');
-    renderWorkflowBoard();
   }
   renderWorkflowBoard();
-  collapseDetailsWithin($('#workflow-board'));
+  if (app.workflowBucketsCollapsed) collapseDetailsWithin($('#workflow-board'));
 }
 
 function clearIncomingDashboardFilters() {
@@ -2351,7 +2362,7 @@ function pmbRequiredWorkLabels(vehicle = {}) {
 }
 
 function incomingWorkChecklistHtml(vehicle = {}) {
-  return `<div class="incoming-work-checks" aria-label="Required work checklist">${PDC_JOB_DEFS.map(def => {
+  return `<div class="incoming-work-checks" aria-label="Required work checklist">${pdcJobDefsPartsFirst().map(def => {
     const required = pdcJobRequired(vehicle, def);
     const complete = required && pdcJobComplete(vehicle, def);
     const classes = ['incoming-work-check'];
@@ -2399,7 +2410,6 @@ function incomingVehicleDetailRow(vehicle = {}, bucketKey = '', options = {}) {
         <span class="incoming-card-stock">${identitySummary}</span>
         <span class="incoming-card-main">
           <strong>${escapeHtml(truncate(unit, 72))}</strong>
-          <small>${escapeHtml(truncate(customer, 46))}</small>
         </span>
         <span class="incoming-card-work-wrap">${workChecks}</span>
         <span class="incoming-card-meta incoming-card-age ${escapeHtml('pmb-age-' + onSiteDaysClass(vehicle))}"><b>${bucketKey === 'pmb' ? 'PMB' : bucketKey === 'yardhold' ? 'YH' : 'ETA'}</b>${escapeHtml(eta)}</span>
@@ -3603,14 +3613,12 @@ function pmbBayVehicleCardHtml(vehicle = {}, stage = '') {
   const complete = jobDef ? pdcJobComplete(vehicle, jobDef) : false;
   const bayLabel = bay ? `Bay ${bay}` : 'No bay';
   const identityHtml = pmbBayPillIdentityHtml(vehicle);
-  const customerLine = vehicleCustomerName(vehicle) || 'Dealer Order';
   const title = `${vehicleIdentityTitle(vehicle)} · ${pmbStageLabel(normalizedStage)} ${bayLabel}`;
 
   return `
     <article class="pmb-bay-vehicle-card pmb-bay-vehicle-pill ${complete ? 'is-complete' : ''} ${isPdcBlocked(vehicle) ? 'is-blocked' : ''}" draggable="true" data-pmb-drag-key="${escapeHtml(key)}" data-open-stock="${escapeHtml(key)}" title="${escapeHtml(title)}">
       <div class="pmb-bay-pill-main">
         ${identityHtml}
-        <span class="pmb-bay-pill-customer">${escapeHtml(truncate(customerLine, 30))}</span>
         ${pmbCardDetailHtml(vehicle)}
       </div>
       <div class="pmb-bay-pill-bottom">
@@ -3622,13 +3630,11 @@ function pmbBayVehicleCardHtml(vehicle = {}, stage = '') {
 
 function pmbVehicleCardHtml(vehicle = {}) {
   const key = vehicleKey(vehicle);
-  const customerLine = vehicleCustomerName(vehicle) || 'Dealer Order';
   const title = `Drag ${vehicleIdentityTitle(vehicle) || 'vehicle'} to another PMB bucket`;
   return `
     <article class="pmb-vehicle-card pmb-vehicle-pill ${isPdcBlocked(vehicle) ? 'is-blocked' : ''}" draggable="true" data-pmb-drag-key="${escapeHtml(key)}" data-open-stock="${escapeHtml(key)}" title="${escapeHtml(title)}">
       <div class="pmb-pill-main">
         ${pmbBayPillIdentityHtml(vehicle)}
-        <span class="pmb-pill-customer">${escapeHtml(truncate(customerLine, 30))}</span>
         ${pmbCardDetailHtml(vehicle)}
       </div>
       <div class="pmb-pill-bottom">

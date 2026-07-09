@@ -6742,14 +6742,16 @@ body.pmb-schedule-adjusting .pmb-schedule-chip-slim {
   white-space: nowrap;
 }
 .incoming-card-main { min-width: 0; display: grid; gap: 1px; }
-.incoming-card-main strong { font-size: .84rem; color: #111827; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.incoming-card-main small { color: #64748b; font-size: .75rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.incoming-card-work-wrap { min-width: 0; }
+.incoming-card-main strong { font-size: .9rem; color: #111827; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.incoming-card-main small { color: #64748b; font-size: .78rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.incoming-card-work-wrap { min-width: 0; overflow: hidden; }
 .incoming-work-checks {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 4px;
   align-items: center;
+  overflow-x: auto;
+  scrollbar-width: thin;
 }
 .incoming-work-check {
   display: inline-flex;
@@ -6761,7 +6763,7 @@ body.pmb-schedule-adjusting .pmb-schedule-chip-slim {
   border-radius: 999px;
   background: #f8fafc;
   color: #94a3b8;
-  font-size: .68rem;
+  font-size: .72rem;
   font-weight: 800;
   white-space: nowrap;
 }
@@ -7864,18 +7866,27 @@ input, select, textarea, button {
 .pmb-bay-pill-bottom {
   align-self: end !important;
   display: flex !important;
-  align-items: flex-end !important;
+  align-items: center !important;
   gap: 4px !important;
-  flex-wrap: wrap !important;
-  overflow: hidden !important;
+  flex-wrap: nowrap !important;
+  overflow-x: auto !important;
+  overflow-y: hidden !important;
+  scrollbar-width: thin !important;
+}
+
+.pmb-pill-bottom .pmb-card-requirements,
+.pmb-bay-pill-bottom .pmb-card-requirements {
+  flex-wrap: nowrap !important;
+  white-space: nowrap !important;
 }
 
 .pmb-outstanding-stations {
   display: flex !important;
-  flex-wrap: wrap !important;
+  flex-wrap: nowrap !important;
   align-items: center !important;
   gap: 3px !important;
   min-width: 0 !important;
+  white-space: nowrap !important;
 }
 
 .pmb-outstanding-station {
@@ -7889,7 +7900,7 @@ input, select, textarea, button {
   border: 1px solid rgba(220, 38, 38, .24) !important;
   background: #fef2f2 !important;
   color: #991b1b !important;
-  font-size: .54rem !important;
+  font-size: .62rem !important;
   font-weight: 950 !important;
   line-height: 1 !important;
 }
@@ -7923,8 +7934,8 @@ input, select, textarea, button {
 .pmb-pill-sales {
   color: #64748b;
   display: block;
-  font-size: .64rem;
-  font-weight: 800;
+  font-size: .72rem;
+  font-weight: 850;
   line-height: 1.15;
   overflow: hidden;
   text-overflow: ellipsis;
