@@ -7994,3 +7994,69 @@ input, select, textarea, button {
 .incoming-card-main small {
   white-space: nowrap;
 }
+
+/* 2026-07-09: slim collapsed PMB Workflow rows and floating collapse control. */
+#workflow.view.active #workflow-collapse-all {
+  position: fixed;
+  top: 76px;
+  right: 28px;
+  z-index: 120;
+  box-shadow: 0 10px 26px rgba(15, 23, 42, .18);
+}
+#workflow.view.active .panel-actions {
+  padding-right: 152px;
+}
+.workflow-stage-bucket:not([open]) {
+  margin-bottom: 4px;
+  border-radius: 10px;
+}
+.workflow-stage-bucket:not([open]) .workflow-bucket-title {
+  display: grid;
+  grid-template-columns: auto minmax(112px, .45fr) 44px minmax(280px, 1fr) auto;
+  gap: 6px;
+  align-items: center;
+  min-height: 34px;
+  padding: 4px 9px;
+  border-bottom: 0;
+}
+.workflow-stage-bucket:not([open]) .workflow-bucket-title::before {
+  grid-row: auto;
+  margin-right: 2px;
+}
+.workflow-stage-bucket:not([open]) .workflow-bucket-title > span:first-of-type {
+  font-size: .78rem;
+  line-height: 1;
+}
+.workflow-stage-bucket:not([open]) .workflow-bucket-title strong {
+  font-size: .78rem;
+  justify-self: start;
+}
+.workflow-stage-bucket:not([open]) .workflow-bucket-title small {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: .66rem;
+  grid-column: auto;
+}
+.workflow-stage-bucket:not([open]) .workflow-bucket-actions {
+  min-width: 82px;
+}
+.workflow-stage-bucket:not([open]) .workflow-bucket-actions .small-button {
+  padding: 4px 7px;
+  font-size: .66rem;
+}
+@media (max-width: 820px) {
+  #workflow.view.active #workflow-collapse-all {
+    top: auto;
+    right: 14px;
+    bottom: 18px;
+  }
+  #workflow.view.active .panel-actions {
+    padding-right: 0;
+  }
+  .workflow-stage-bucket:not([open]) .workflow-bucket-title {
+    grid-template-columns: auto minmax(94px, 1fr) 38px auto;
+  }
+  .workflow-stage-bucket:not([open]) .workflow-bucket-title small { display: none; }
+}
