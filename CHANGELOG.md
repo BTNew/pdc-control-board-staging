@@ -1,5 +1,10 @@
 # Changelog
 
+## 2026-07-10 — Worker review clean version
+
+- Prepared a cache-busted worker review version after the Vehicle Locations and Control Board row-chip alignment update.
+- Re-verified JavaScript syntax, core regression checks, whitespace checks, live asset loading, and the main worker-facing pages.
+
 ## 2026-07-09 — Coding and visual stability fix
 
 - Added defensive startup/data guards so the board does not silently fail if data loading is delayed or malformed.
