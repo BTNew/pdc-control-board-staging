@@ -4109,13 +4109,13 @@ body.pmb-dragging .pmb-drop-lane {
 }
 .pmb-bay-unassigned-list {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(150px, 150px));
+  grid-template-columns: repeat(auto-fit, minmax(320px, 380px));
   align-items: stretch;
   gap: 8px;
 }
 .pmb-bay-grid {
   display: grid;
-  grid-template-columns: repeat(5, minmax(170px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
   gap: 10px;
 }
 .pmb-bay {
@@ -4182,25 +4182,28 @@ body.pmb-dragging .pmb-drop-lane {
   background: #fff7ed;
 }
 .pmb-bay-vehicle-pill {
-  gap: 6px;
-  border-radius: 12px;
-  padding: 8px;
-  min-height: 120px;
-  width: 360px;
-  max-width: 360px;
+  position: relative;
+  gap: 2px;
+  border-radius: 10px;
+  padding: 6px 14px 6px 8px;
+  min-height: 62px;
+  height: 62px;
+  width: 100%;
+  max-width: 380px;
   aspect-ratio: auto;
-  align-content: space-between;
+  align-content: center;
+  overflow: visible;
   box-shadow: 0 4px 10px rgba(15, 23, 42, .06);
 }
 .pmb-bay-pill-main,
 .pmb-bay-pill-bottom {
   display: flex;
   align-items: center;
-  gap: 5px;
+  gap: 4px;
   min-width: 0;
 }
 .pmb-bay-pill-main {
-  font-size: .66rem;
+  font-size: .76rem;
   font-weight: 900;
 }
 .pmb-bay-pill-main strong,
@@ -4412,10 +4415,10 @@ body.pmb-dragging .pmb-bay-unassigned {
   outline-offset: -4px;
 }
 @media (max-width: 1500px) {
-  .pmb-bay-grid { grid-template-columns: repeat(4, minmax(170px, 1fr)); }
+  .pmb-bay-grid { grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); }
 }
 @media (max-width: 1180px) {
-  .pmb-bay-grid { grid-template-columns: repeat(3, minmax(170px, 1fr)); }
+  .pmb-bay-grid { grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); }
   .pmb-bay-board-header { align-items: flex-start; flex-direction: column; }
   .pmb-bay-board-actions { justify-content: flex-start; }
 }
@@ -7126,14 +7129,42 @@ body.pmb-schedule-adjusting .pmb-schedule-chip-slim {
   gap: 4px;
   padding: 7px 8px;
 }
+.pmb-bay-vehicle-card.pmb-bay-vehicle-pill {
+  gap: 2px;
+  padding: 6px 14px 6px 8px;
+}
 .pmb-bay-pill-main {
-  gap: 5px;
+  gap: 4px;
 }
 .pmb-bay-pill-bottom {
   align-items: center;
-  gap: 5px;
+  gap: 4px;
   flex-wrap: nowrap;
   overflow: hidden;
+}
+.pmb-bay-vehicle-pill .pmb-bay-pill-actions {
+  position: absolute;
+  z-index: 15;
+  left: 0;
+  right: auto;
+  top: calc(100% + 4px);
+  width: max-content;
+  max-width: min(520px, 86vw);
+  padding: 6px;
+  border: 1px solid rgba(148, 163, 184, .35);
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: 0 14px 28px rgba(15, 23, 42, .16);
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-3px);
+  transition: opacity .12s ease, transform .12s ease;
+}
+.pmb-bay-vehicle-pill:hover .pmb-bay-pill-actions,
+.pmb-bay-vehicle-pill:focus-within .pmb-bay-pill-actions {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0);
 }
 .pmb-bay-pill-bottom .pmb-card-requirements {
   flex: 0 0 auto;
@@ -7329,12 +7360,23 @@ body.pmb-schedule-adjusting .pmb-schedule-chip-slim {
   padding: 0;
 }
 .pmb-bay-identity.vehicle-identity-columns {
-  grid-template-columns: minmax(42px, .55fr) minmax(72px, .9fr) minmax(86px, 1fr) minmax(92px, 1.15fr);
+  grid-template-columns: 42px 74px 92px minmax(90px, 1fr);
+  gap: 3px;
 }
 .pmb-card-identity .vehicle-identity-cell,
-.pmb-bay-identity .vehicle-identity-cell,
 .incoming-identity .vehicle-identity-cell {
   padding: 4px 4px;
+}
+.pmb-bay-identity .vehicle-identity-cell {
+  min-height: 18px;
+  padding: 3px 5px;
+}
+.pmb-bay-identity .vehicle-identity-value,
+.pmb-bay-identity .vehicle-identity-primary {
+  font-size: .64rem;
+}
+.pmb-bay-identity .identity-key .vehicle-identity-value {
+  font-size: .72rem;
 }
 @media (max-width: 760px) {
   .vehicle-identity-columns {

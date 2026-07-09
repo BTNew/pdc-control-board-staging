@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.07.09.6';
+const APP_VERSION = '2026.07.09.7';
 const EDITS_KEY = 'vehicleTrackingCoreNavisionOnlyEdits:v1';
 const ADDED_KEY = 'vehicleTrackingCoreNavisionOnlyVehicles:v1';
 const AMY_EMAIL = 'amy.elkington@broometoyota.com.au';
