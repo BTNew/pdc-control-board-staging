@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>PDC Control Board — Random 100 Vehicle Test</title>
-  <link rel="stylesheet" href="styles.css?v=2026.07.09.26-rft-deleted-rows" />
+  <link rel="stylesheet" href="styles.css?v=2026.07.09.27-row-expand-toggle" />
 </head>
 <body>
   <div class="test-data-banner" style="position:sticky;top:0;z-index:9999;background:#6d28d9;color:#fff;padding:8px 14px;text-align:center;font-weight:700;letter-spacing:.02em;">TEST DATASET — 100 SAMPLE VEHICLES ONLY — separate from live board</div>
@@ -416,6 +416,7 @@
                 <p>Focused Ready For Truck handover screen. Tick final completion jobs here, fix blockers first, then notify the salesperson when all required work is signed off.</p>
               </div>
               <div class="panel-actions">
+                <button class="small-button" id="rft-collapse-all" type="button">Expand all rows</button>
                 <button class="small-button" id="rft-export-csv" type="button">Export RFT CSV</button>
               </div>
             </div>
@@ -482,6 +483,7 @@
                 <p>Vehicles removed from the board. Deleted rows are locked here and include the movement/deletion audit trail.</p>
               </div>
               <div class="panel-actions">
+                <button class="small-button" id="deleted-collapse-all" type="button">Expand all rows</button>
                 <button class="small-button" id="deleted-export-csv" type="button">Export deleted CSV</button>
               </div>
             </div>
@@ -808,7 +810,7 @@
       }
     }());
   </script>
-  <script src="data-test-100.js?v=2026.07.09.26-rft-deleted-rows"></script>
-  <script src="app.js?v=2026.07.09.26-rft-deleted-rows"></script>
+  <script src="data-test-100.js?v=2026.07.09.27-row-expand-toggle"></script>
+  <script src="app.js?v=2026.07.09.27-row-expand-toggle"></script>
 </body>
 </html>

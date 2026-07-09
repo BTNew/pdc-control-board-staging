@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Vehicle Tracking Core</title>
-  <link rel="stylesheet" href="styles.css?v=2026.07.09.26-rft-deleted-rows" />
+  <link rel="stylesheet" href="styles.css?v=2026.07.09.27-row-expand-toggle" />
 </head>
 <body>
   <div class="app-shell" id="app-shell">
@@ -14,7 +14,7 @@
         <div class="brand-text">
           <div class="brand-title">Vehicle Tracking</div>
           <div class="brand-subtitle">Core Tracker</div>
-          <div class="app-version" id="app-version">Version 2026.07.09.26-rft-deleted-rows</div>
+          <div class="app-version" id="app-version">Version 2026.07.09.27-row-expand-toggle</div>
         </div>
         <button class="sidebar-toggle" id="sidebar-toggle" type="button" aria-label="Collapse sidebar" title="Collapse sidebar">‹</button>
       </div>
@@ -415,6 +415,7 @@
                 <p>Focused Ready For Truck handover screen. Tick final completion jobs here, fix blockers first, then notify the salesperson when all required work is signed off.</p>
               </div>
               <div class="panel-actions">
+                <button class="small-button" id="rft-collapse-all" type="button">Expand all rows</button>
                 <button class="small-button" id="rft-export-csv" type="button">Export RFT CSV</button>
               </div>
             </div>
@@ -480,6 +481,7 @@
                 <p>Vehicles removed from the board. Deleted rows are locked here and include the movement/deletion audit trail.</p>
               </div>
               <div class="panel-actions">
+                <button class="small-button" id="deleted-collapse-all" type="button">Expand all rows</button>
                 <button class="small-button" id="deleted-export-csv" type="button">Export deleted CSV</button>
               </div>
             </div>
@@ -778,7 +780,7 @@
     </div>
   </template>
 
-  <script src="data.js?v=2026.07.09.26-rft-deleted-rows"></script>
-  <script src="app.js?v=2026.07.09.26-rft-deleted-rows"></script>
+  <script src="data.js?v=2026.07.09.27-row-expand-toggle"></script>
+  <script src="app.js?v=2026.07.09.27-row-expand-toggle"></script>
 </body>
 </html>

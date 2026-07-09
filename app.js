@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.07.09.26-rft-deleted-rows';
+const APP_VERSION = '2026.07.09.27-row-expand-toggle';
 window.VEHICLE_TRACKING_DATA = window.VEHICLE_TRACKING_DATA || { report: {}, vehicles: [], toyotaMatches: {} };
 const EDITS_KEY = 'vehicleTrackingCoreNavisionOnlyEdits:v1';
 const ADDED_KEY = 'vehicleTrackingCoreNavisionOnlyVehicles:v1';
@@ -1723,8 +1723,11 @@ function bindNav() {
   $$('input[name="incoming-work-filter"]').forEach(input => input.addEventListener('change', renderIncomingDashboardBoard));
   on($('#incoming-find'), 'click', renderIncomingDashboardBoard);
   on($('#incoming-clear-filters'), 'click', clearIncomingDashboardFilters);
-  on($('#incoming-collapse-all'), 'click', collapseMainScreenRows);
+  on($('#incoming-collapse-all'), 'click', toggleMainScreenRows);
   on($('#workflow-collapse-all'), 'click', toggleWorkflowRows);
+  on($('#rft-collapse-all'), 'click', toggleRftRows);
+  on($('#completed-collapse-all'), 'click', toggleCompletedRows);
+  on($('#deleted-collapse-all'), 'click', toggleDeletedRows);
   on($('#workflow-width-mode'), 'change', event => setWorkflowWidthMode(event.target.value));
   on($('#workflow-search'), 'input', event => { app.workflowSearch = String(event.target.value || '').trim().toLowerCase(); renderWorkflowBoard(); });
   on($('#workflow-find'), 'click', () => { app.workflowSearch = String($('#workflow-search')?.value || '').trim().toLowerCase(); renderWorkflowBoard(); });
@@ -2234,6 +2237,7 @@ function renderWorkflowBoard() {
   bindPmbDragBoard(host);
   bindFixFirstRows(host);
   updateInlineSelectionBars(search ? searchedRows : pmbRows);
+  updateCollapseToggleButtons();
 }
 
 function incomingBucketForVehicle(vehicle = {}) {
@@ -2318,20 +2322,61 @@ function updateIncomingDashboardFilterOptions(rows = []) {
   setSelectOptions($('#incoming-rep-filter'), reps, 'All reps');
 }
 
-function collapseDetailsWithin(host) {
-  if (!host) return;
-  $$('details', host).forEach(row => { row.open = false; });
+function setCollapseToggleLabel(button, expanded) {
+  if (button) button.textContent = expanded ? 'Collapse all rows' : 'Expand all rows';
 }
 
-function collapseMainScreenRows() {
-  collapseDetailsWithin($('#incoming-main-board'));
+function detailsWithin(host) {
+  return host ? $$('details', host) : [];
+}
+
+function setDetailsWithin(host, open) {
+  detailsWithin(host).forEach(row => { row.open = open; });
+}
+
+function toggleDetailsWithin(host, button) {
+  const rows = detailsWithin(host);
+  if (!rows.length) return;
+  const shouldExpand = rows.some(row => !row.open);
+  rows.forEach(row => { row.open = shouldExpand; });
+  setCollapseToggleLabel(button, shouldExpand);
+}
+
+function updateCollapseToggleButtons() {
+  [
+    ['#incoming-main-board', '#incoming-collapse-all'],
+    ['#rft-home-content', '#rft-collapse-all'],
+    ['#completed-vehicles-content', '#completed-collapse-all'],
+    ['#deleted-vehicles-content', '#deleted-collapse-all'],
+  ].forEach(([hostSelector, buttonSelector]) => {
+    const rows = detailsWithin($(hostSelector));
+    if (rows.length) setCollapseToggleLabel($(buttonSelector), rows.some(row => row.open));
+  });
+  const workflowRows = detailsWithin($('#workflow-board'));
+  if (workflowRows.length) setCollapseToggleLabel($('#workflow-collapse-all'), workflowRows.some(row => row.open));
+}
+
+function toggleMainScreenRows() {
+  toggleDetailsWithin($('#incoming-main-board'), $('#incoming-collapse-all'));
+}
+
+function toggleRftRows() {
+  toggleDetailsWithin($('#rft-home-content'), $('#rft-collapse-all'));
+}
+
+function toggleCompletedRows() {
+  toggleDetailsWithin($('#completed-vehicles-content'), $('#completed-collapse-all'));
+}
+
+function toggleDeletedRows() {
+  toggleDetailsWithin($('#deleted-vehicles-content'), $('#deleted-collapse-all'));
 }
 
 function toggleWorkflowRows() {
   const host = $('#workflow-board');
-  const buckets = host ? $$('.workflow-stage-bucket', host) : [];
-  const anyOpen = buckets.some(bucket => bucket.open);
-  app.workflowBucketsCollapsed = anyOpen;
+  const rows = detailsWithin(host);
+  const shouldExpand = rows.some(row => !row.open);
+  app.workflowBucketsCollapsed = !shouldExpand;
   if (normalizePmbStage(app.activePmbBayStage) || app.pmbSubFilter) {
     app.activePmbBayStage = '';
     app.pmbSubFilter = '';
@@ -2339,7 +2384,8 @@ function toggleWorkflowRows() {
     showView('workflow');
   }
   renderWorkflowBoard();
-  if (app.workflowBucketsCollapsed) collapseDetailsWithin($('#workflow-board'));
+  setDetailsWithin($('#workflow-board'), shouldExpand);
+  setCollapseToggleLabel($('#workflow-collapse-all'), shouldExpand);
 }
 
 function clearIncomingDashboardFilters() {
@@ -2517,6 +2563,7 @@ function renderIncomingDashboardBoard() {
   bindRftCollectedInputs(host);
   bindIncomingCardSelection(host);
   updateInlineSelectionBars(filteredRows);
+  updateCollapseToggleButtons();
 }
 
 function bindIncomingCardSelection(host = document) {
@@ -7046,6 +7093,7 @@ function renderRftHome() {
     deleteIncomingVehicleFromMain(button.dataset.rftDelete);
   }));
   bindRftCollectedInputs(host);
+  updateCollapseToggleButtons();
 }
 
 function rftVehicleDetailRow(vehicle = {}) {
@@ -7230,6 +7278,7 @@ function renderDeletedVehicles() {
         </div>
       </details>`;
   }).join('')}</div>`;
+  updateCollapseToggleButtons();
 }
 
 function exportDeletedVehiclesCsv() {
