@@ -1,0 +1,101 @@
+﻿Stock,Batch,Key,Jobcard,Customer,Model,Status,Location,Kewdale ETA,PMB Required Work,PMB Completed Work,Parts Status,Sales Rep,Notes
+10048643,10048643,942,JC13934850,Watson Transport,Hilux SR5,Vehicle Yard Hold,Yard Hold,10/07/2026,"Tint, Fitting, Fabrication, Electrical",,Issued,CW,Random test vehicle 001
+10048644,10048644,623,JC13934851,Maddington Hire,Fortuner GXL,In Transit to WA,In Transit,02/07/2026,"Tint, Tyre",,Issued,JT,Random test vehicle 002
+10048645,10048645,340,JC13934852,Ridgeway Construction,HiLux Rogue,Vehicle Yard Hold,Yard Hold,31/07/2026,"Electrical, Tint, Fabrication, Hoist",,Ordered,AM,Random test vehicle 003
+10048646,10048646,222,JC13934853,Ridgeway Construction,LandCruiser 79,RFT,RFT,18/07/2026,"Hoist, Fabrication","Hoist, Fabrication",Not required,LS,Random test vehicle 004
+10048647,10048647,620,JC13934854,Western Rescue,Camry Hybrid,PMB,PMB,30/07/2026,"Electrical, Tyre, Tint","Electrical, Tyre",Not required,AM,Random test vehicle 005
+10048648,10048648,564,JC13934855,Watson Transport,Fortuner GXL,PMB,PMB,24/07/2026,Tint,Tint,Issued,CW,Random test vehicle 006
+10048649,10048649,905,JC13934856,Mandurah Civil,HiLux Rogue,In Transit to WA,In Transit,19/07/2026,Tyre,,Not required,AM,Random test vehicle 007
+10048650,10048650,179,JC13934857,Wheatbelt Transport,Fortuner GXL,Vehicle Yard Hold,Yard Hold,27/07/2026,"Pit Inspection, Hoist",,Issued,BG,Random test vehicle 008
+10048651,10048651,109,JC13934858,Fremantle Council,Yaris Cross,Batch Matched,Overseas,17/07/2026,Tint,,Issued,AM,Random test vehicle 009
+10048652,10048652,546,JC13934859,Ridgeway Construction,LandCruiser 79,Planned for Production,Overseas,05/07/2026,Tyre,,Issued,JT,Random test vehicle 010
+10048653,10048653,960,JC13934860,Wheatbelt Transport,HiAce LWB,In Transit to WA,In Transit,08/07/2026,"Fitting, Hoist, Tyre, Pit Inspection",,Not ordered,JT,Random test vehicle 011
+10048654,10048654,744,JC13934861,Watson Transport,RAV4 Cruiser,In Transit to WA,In Transit,04/07/2026,"Pit Inspection, Tint, Fitting",,Issued,RD,Random test vehicle 012
+10048655,10048655,499,JC13934862,Oceanic Utilities,Coaster Bus,Vehicle Yard Hold,Yard Hold,03/08/2026,"Tyre, Fabrication, Fitting, Electrical",,Not required,BG,Random test vehicle 013
+10048656,10048656,597,JC13934863,Kewdale Civil,Corolla Cross,PMB,PMB,03/07/2026,"Pit Inspection, Tint",,Not required,JT,Random test vehicle 014
+10048657,10048657,140,JC13934864,Western Rescue,Hilux SR5,Vehicle Yard Hold,Yard Hold,05/07/2026,"Fitting, Tyre, Fabrication",,Not ordered,LS,Random test vehicle 015
+10048658,10048658,566,JC13934865,Horizon Builders,Yaris Cross,In Transit to WA,In Transit,22/07/2026,"Electrical, Fitting, Tint",,Not ordered,CW,Random test vehicle 016
+10048659,10048659,491,JC13934866,Western Rescue,Prado VX,PMB,PMB,28/07/2026,"Tint, Hoist, Tyre, Fabrication","Tint, Hoist, Tyre, Fabrication",Not ordered,JT,Random test vehicle 017
+10048660,10048660,369,JC13934867,Watson Transport,HiLux Rogue,PMB,PMB,04/07/2026,"Fitting, Tint, Pit Inspection, Hoist","Fitting, Tint",Issued,JT,Random test vehicle 018
+10048661,10048661,462,JC13934868,Fremantle Council,LandCruiser 79,Batch Matched,Overseas,12/07/2026,Electrical,,Issued,LS,Random test vehicle 019
+10048662,10048662,654,JC13934869,Horizon Builders,Yaris Cross,Planned for Production,Overseas,03/07/2026,Fabrication,,Issued,RD,Random test vehicle 020
+10048663,10048663,803,JC13934870,Western Rescue,LandCruiser 79,PMB,PMB,03/08/2026,"Electrical, Hoist",,Not ordered,AM,Random test vehicle 021
+10048664,10048664,122,JC13934871,Kewdale Civil,RAV4 Cruiser,Planned for Production,Overseas,22/07/2026,"Fabrication, Pit Inspection",,Issued,LS,Random test vehicle 022
+10048665,10048665,868,JC13934872,Watson Transport,Corolla Cross,Vehicle Yard Hold,Yard Hold,04/07/2026,Pit Inspection,,Stoppage,JT,Random test vehicle 023
+10048666,10048666,972,JC13934873,Wheatbelt Transport,Fortuner GXL,PMB,PMB,02/08/2026,"Fabrication, Hoist","Fabrication, Hoist",Issued,BG,Random test vehicle 024
+10048667,10048667,666,JC13934874,Metro Maintenance,Fortuner GXL,In Transit to WA,In Transit,31/07/2026,Electrical,,Ordered,AM,Random test vehicle 025
+10048668,10048668,963,JC13934875,Canning Vale Plumbing,LandCruiser 79,Batch Matched,Overseas,03/08/2026,"Pit Inspection, Tyre",,Issued,LS,Random test vehicle 026
+10048669,10048669,347,JC13934876,Fremantle Council,LandCruiser 300,Vehicle Yard Hold,Yard Hold,02/08/2026,"Fitting, Tyre, Tint, Hoist",,Stoppage,RD,Random test vehicle 027
+10048670,10048670,176,JC13934877,Red Dirt Contracting,Camry Hybrid,In Transit to WA,In Transit,02/08/2026,"Tyre, Electrical, Pit Inspection",,Not ordered,RD,Random test vehicle 028
+10048671,10048671,759,JC13934878,Fleetcare WA,Coaster Bus,PMB,PMB,28/07/2026,Tyre,Tyre,Not required,AM,Random test vehicle 029
+10048672,10048672,470,JC13934879,Horizon Builders,Yaris Cross,PMB,PMB,03/07/2026,"Fabrication, Fitting, Tint",,Stoppage,JT,Random test vehicle 030
+10048673,10048673,637,JC13934880,Mandurah Civil,Hilux SR5,Batch Matched,Overseas,07/07/2026,"Electrical, Tint, Fabrication",,Issued,CW,Random test vehicle 031
+10048674,10048674,390,JC13934881,Ridgeway Construction,Fortuner GXL,Vehicle Yard Hold,Yard Hold,08/07/2026,"Fabrication, Tint, Tyre, Fitting",,Issued,LS,Random test vehicle 032
+10048675,10048675,531,JC13934882,Kewdale Civil,Yaris Cross,Planned for Production,Overseas,02/08/2026,Fitting,,Not required,BG,Random test vehicle 033
+10048676,10048676,762,JC13934883,Western Rescue,HiAce LWB,RFT,RFT,02/08/2026,"Hoist, Fitting, Tyre, Fabrication","Hoist, Fitting, Tyre, Fabrication",Issued,RD,Random test vehicle 034
+10048677,10048677,493,JC13934884,Northwest Plumbing,Coaster Bus,In Transit to WA,In Transit,31/07/2026,Pit Inspection,,Not required,CW,Random test vehicle 035
+10048678,10048678,445,JC13934885,Northwest Plumbing,Hilux SR5,Batch Matched,Overseas,06/07/2026,"Hoist, Electrical, Fitting",,Not ordered,AM,Random test vehicle 036
+10048679,10048679,895,JC13934886,Fleetcare WA,HiAce LWB,In Transit to WA,In Transit,03/07/2026,Pit Inspection,,Not ordered,AM,Random test vehicle 037
+10048680,10048680,633,JC13934887,Bayswater Electrical,Camry Hybrid,RFT,RFT,02/07/2026,Tyre,Tyre,Not required,CW,Random test vehicle 038
+10048681,10048681,581,JC13934888,Kimberley Tours,Coaster Bus,PMB,PMB,14/07/2026,"Pit Inspection, Tyre","Pit Inspection, Tyre",Ordered,CW,Random test vehicle 039
+10048682,10048682,967,JC13934889,Fremantle Council,Fortuner GXL,PMB,PMB,20/07/2026,"Tyre, Pit Inspection, Fabrication, Electrical",,Not ordered,BG,Random test vehicle 040
+10048683,10048683,102,JC13934890,Kimberley Tours,HiAce LWB,RFT,RFT,16/07/2026,"Electrical, Tyre","Electrical, Tyre",Issued,CW,Random test vehicle 041
+10048684,10048684,583,JC13934891,Kimberley Tours,Hilux SR5,In Transit to WA,In Transit,11/07/2026,"Tint, Fitting, Electrical",,Not required,RD,Random test vehicle 042
+10048685,10048685,876,JC13934892,Coastal Hire,HiAce LWB,Vehicle Yard Hold,Yard Hold,31/07/2026,"Fitting, Tint",,Not ordered,LS,Random test vehicle 043
+10048686,10048686,715,JC13934893,Canning Vale Plumbing,Prado VX,PMB,PMB,14/07/2026,"Electrical, Fitting","Electrical, Fitting",Not required,BG,Random test vehicle 044
+10048687,10048687,603,JC13934894,Horizon Builders,Hilux SR5,PMB,PMB,24/07/2026,"Fitting, Tint, Fabrication",,Stoppage,AM,Random test vehicle 045
+10048688,10048688,191,JC13934895,Northwest Plumbing,HiLux Rogue,Planned for Production,Overseas,29/07/2026,"Fitting, Tint, Hoist, Pit Inspection",,Stoppage,BG,Random test vehicle 046
+10048689,10048689,588,JC13934896,Wheatbelt Transport,HiLux Rogue,PMB,PMB,28/07/2026,"Tint, Tyre, Fitting, Hoist","Tint, Tyre, Fitting, Hoist",Stoppage,CW,Random test vehicle 047
+10048690,10048690,586,JC13934897,Maddington Hire,Fortuner GXL,Completed,Completed,10/07/2026,Electrical,Electrical,Not required,RD,Random test vehicle 048
+10048691,10048691,679,JC13934898,Fremantle Council,Camry Hybrid,Planned for Production,Overseas,20/07/2026,"Electrical, Tint, Hoist, Pit Inspection",,Issued,BG,Random test vehicle 049
+10048692,10048692,672,JC13934899,Outback Energy,Fortuner GXL,Vehicle Yard Hold,Yard Hold,16/07/2026,"Hoist, Fabrication, Tint",,Ordered,CW,Random test vehicle 050
+10048693,10048693,211,JC13934900,Bayswater Electrical,Corolla Cross,Batch Matched,Overseas,11/07/2026,"Fabrication, Fitting",,Stoppage,AM,Random test vehicle 051
+10048694,10048694,394,JC13934901,Red Dirt Contracting,RAV4 Cruiser,In Transit to WA,In Transit,25/07/2026,"Tint, Tyre, Hoist",,Not required,CW,Random test vehicle 052
+10048695,10048695,595,JC13934902,Goldfields Mining,Coaster Bus,Completed,Completed,25/07/2026,"Electrical, Tyre, Fitting","Electrical, Tyre, Fitting",Issued,LS,Random test vehicle 053
+10048696,10048696,571,JC13934903,Karratha Services,Prado VX,PMB,PMB,13/07/2026,"Hoist, Pit Inspection, Fitting, Fabrication","Hoist, Pit Inspection",Stoppage,JT,Random test vehicle 054
+10048697,10048697,247,JC13934904,Pilbara Electrical,HiLux Rogue,RFT,RFT,18/07/2026,Tyre,Tyre,Not required,LS,Random test vehicle 055
+10048698,10048698,806,JC13934905,Horizon Builders,Hilux SR5,Planned for Production,Overseas,13/07/2026,Electrical,,Stoppage,CW,Random test vehicle 056
+10048699,10048699,844,JC13934906,Coastal Hire,Camry Hybrid,In Transit to WA,In Transit,31/07/2026,Fabrication,,Ordered,CW,Random test vehicle 057
+10048700,10048700,279,JC13934907,Kewdale Civil,LandCruiser 79,Vehicle Yard Hold,Yard Hold,09/07/2026,"Tint, Hoist, Tyre",,Ordered,AM,Random test vehicle 058
+10048701,10048701,101,JC13934908,Horizon Builders,LandCruiser 79,PMB,PMB,05/07/2026,Fabrication,,Not ordered,JT,Random test vehicle 059
+10048702,10048702,871,JC13934909,Oceanic Utilities,Fortuner GXL,Vehicle Yard Hold,Yard Hold,23/07/2026,"Electrical, Pit Inspection, Hoist, Fitting",,Stoppage,AM,Random test vehicle 060
+10048703,10048703,593,JC13934910,Kewdale Civil,LandCruiser 79,PMB,PMB,13/07/2026,Fitting,,Not required,CW,Random test vehicle 061
+10048704,10048704,487,JC13934911,Goldfields Mining,Camry Hybrid,Completed,Completed,18/07/2026,"Tint, Tyre, Pit Inspection","Tint, Tyre, Pit Inspection",Issued,AM,Random test vehicle 062
+10048705,10048705,890,JC13934912,Goldfields Mining,Yaris Cross,Planned for Production,Overseas,17/07/2026,"Tint, Pit Inspection, Tyre, Electrical",,Stoppage,RD,Random test vehicle 063
+10048706,10048706,324,JC13934913,Ridgeway Construction,HiAce LWB,In Transit to WA,In Transit,01/08/2026,"Tyre, Fitting, Electrical, Pit Inspection",,Ordered,LS,Random test vehicle 064
+10048707,10048707,992,JC13934914,Ridgeway Construction,LandCruiser 79,PMB,PMB,22/07/2026,"Electrical, Pit Inspection","Electrical, Pit Inspection",Not ordered,BG,Random test vehicle 065
+10048708,10048708,496,JC13934915,Fleetcare WA,Hilux SR5,PMB,PMB,19/07/2026,"Tyre, Electrical, Tint",Tyre,Ordered,LS,Random test vehicle 066
+10048709,10048709,226,JC13934916,Bayswater Electrical,Prado VX,PMB,PMB,06/07/2026,"Tint, Fabrication, Hoist, Fitting","Tint, Fabrication, Hoist, Fitting",Not required,JT,Random test vehicle 067
+10048710,10048710,760,JC13934917,Mandurah Civil,LandCruiser 300,Batch Matched,Overseas,19/07/2026,"Tyre, Fitting, Fabrication",,Stoppage,LS,Random test vehicle 068
+10048711,10048711,275,JC13934918,Northwest Plumbing,Prado VX,In Transit to WA,In Transit,05/07/2026,"Fabrication, Hoist, Tint",,Ordered,JT,Random test vehicle 069
+10048712,10048712,320,JC13934919,Western Rescue,HiLux Rogue,PMB,PMB,30/07/2026,"Electrical, Hoist, Fabrication","Electrical, Hoist, Fabrication",Not ordered,RD,Random test vehicle 070
+10048713,10048713,498,JC13934920,Mandurah Civil,RAV4 Cruiser,Completed,Completed,10/07/2026,"Electrical, Fabrication, Hoist","Electrical, Fabrication, Hoist",Not required,AM,Random test vehicle 071
+10048714,10048714,902,JC13934921,Kewdale Civil,Corolla Cross,RFT,RFT,02/08/2026,Fitting,Fitting,Not required,CW,Random test vehicle 072
+10048715,10048715,411,JC13934922,Metro Maintenance,Hilux SR5,PMB,PMB,09/07/2026,Pit Inspection,Pit Inspection,Ordered,LS,Random test vehicle 073
+10048716,10048716,735,JC13934923,Swan Valley Electrical,HiLux Rogue,Vehicle Yard Hold,Yard Hold,23/07/2026,"Hoist, Pit Inspection, Tint, Tyre",,Stoppage,JT,Random test vehicle 074
+10048717,10048717,667,JC13934924,Canning Vale Plumbing,Hilux SR5,PMB,PMB,09/07/2026,Fabrication,,Issued,LS,Random test vehicle 075
+10048718,10048718,274,JC13934925,Mandurah Civil,Camry Hybrid,In Transit to WA,In Transit,15/07/2026,"Fitting, Pit Inspection",,Not ordered,BG,Random test vehicle 076
+10048719,10048719,132,JC13934926,Perth Landscapes,Hilux SR5,PMB,PMB,07/07/2026,"Tyre, Fitting",Tyre,Issued,CW,Random test vehicle 077
+10048720,10048720,863,JC13934927,Canning Vale Plumbing,Hilux SR5,Planned for Production,Overseas,07/07/2026,"Tint, Fitting",,Not required,RD,Random test vehicle 078
+10048721,10048721,758,JC13934928,Fremantle Council,HiLux Rogue,Batch Matched,Overseas,18/07/2026,"Tyre, Fitting, Tint",,Not required,RD,Random test vehicle 079
+10048722,10048722,327,JC13934929,Summit Mining,Yaris Cross,Planned for Production,Overseas,03/08/2026,Fabrication,,Ordered,JT,Random test vehicle 080
+10048723,10048723,662,JC13934930,Kewdale Civil,Yaris Cross,Vehicle Yard Hold,Yard Hold,01/08/2026,Tyre,,Ordered,CW,Random test vehicle 081
+10048724,10048724,199,JC13934931,Northwest Plumbing,Coaster Bus,RFT,RFT,18/07/2026,"Tyre, Hoist","Tyre, Hoist",Issued,JT,Random test vehicle 082
+10048725,10048725,364,JC13934932,Red Dirt Contracting,LandCruiser 79,PMB,PMB,09/07/2026,"Pit Inspection, Fabrication, Hoist","Pit Inspection, Fabrication",Stoppage,LS,Random test vehicle 083
+10048726,10048726,718,JC13934933,Wheatbelt Transport,RAV4 Cruiser,PMB,PMB,08/07/2026,Fitting,,Stoppage,AM,Random test vehicle 084
+10048727,10048727,313,JC13934934,Karratha Services,HiAce LWB,PMB,PMB,03/07/2026,"Tyre, Tint, Pit Inspection","Tyre, Tint",Issued,RD,Random test vehicle 085
+10048728,10048728,435,JC13934935,Maddington Hire,Coaster Bus,PMB,PMB,28/07/2026,"Tyre, Electrical, Hoist, Fitting",Tyre,Issued,CW,Random test vehicle 086
+10048729,10048729,188,JC13934936,Summit Mining,Yaris Cross,RFT,RFT,30/07/2026,"Tint, Hoist, Tyre, Electrical","Tint, Hoist, Tyre, Electrical",Issued,AM,Random test vehicle 087
+10048730,10048730,611,JC13934937,Red Dirt Contracting,RAV4 Cruiser,Batch Matched,Overseas,25/07/2026,"Fitting, Hoist, Fabrication",,Stoppage,JT,Random test vehicle 088
+10048731,10048731,366,JC13934938,Oceanic Utilities,Yaris Cross,RFT,RFT,30/07/2026,"Hoist, Fitting, Pit Inspection","Hoist, Fitting, Pit Inspection",Not required,LS,Random test vehicle 089
+10048732,10048732,781,JC13934939,Karratha Services,Coaster Bus,PMB,PMB,31/07/2026,"Tyre, Hoist, Electrical","Tyre, Hoist, Electrical",Not required,LS,Random test vehicle 090
+10048733,10048733,823,JC13934940,Maddington Hire,HiLux Rogue,Vehicle Yard Hold,Yard Hold,19/07/2026,"Fabrication, Tyre, Tint, Electrical",,Stoppage,LS,Random test vehicle 091
+10048734,10048734,881,JC13934941,Fremantle Council,HiAce LWB,PMB,PMB,29/07/2026,Electrical,,Stoppage,BG,Random test vehicle 092
+10048735,10048735,887,JC13934942,Kimberley Tours,Corolla Cross,PMB,PMB,29/07/2026,"Fabrication, Fitting, Hoist, Electrical","Fabrication, Fitting, Hoist",Stoppage,AM,Random test vehicle 093
+10048736,10048736,449,JC13934943,Mandurah Civil,LandCruiser 300,RFT,RFT,28/07/2026,"Electrical, Pit Inspection","Electrical, Pit Inspection",Not required,JT,Random test vehicle 094
+10048737,10048737,845,JC13934944,Red Dirt Contracting,HiLux Rogue,PMB,PMB,05/07/2026,Hoist,Hoist,Stoppage,AM,Random test vehicle 095
+10048738,10048738,675,JC13934945,Kewdale Civil,RAV4 Cruiser,RFT,RFT,23/07/2026,"Fitting, Hoist, Fabrication","Fitting, Hoist, Fabrication",Not required,RD,Random test vehicle 096
+10048739,10048739,378,JC13934946,Northwest Plumbing,Prado VX,RFT,RFT,19/07/2026,"Tint, Tyre","Tint, Tyre",Not required,JT,Random test vehicle 097
+10048740,10048740,157,JC13934947,Watson Transport,Camry Hybrid,Batch Matched,Overseas,29/07/2026,"Tyre, Hoist, Fitting, Electrical",,Not ordered,JT,Random test vehicle 098
+10048741,10048741,984,JC13934948,Coastal Hire,Prado VX,In Transit to WA,In Transit,02/08/2026,"Hoist, Electrical, Tyre, Pit Inspection",,Issued,RD,Random test vehicle 099
+10048742,10048742,852,JC13934949,Red Dirt Contracting,Yaris Cross,PMB,PMB,07/07/2026,"Tyre, Fitting, Hoist","Tyre, Fitting, Hoist",Not ordered,AM,Random test vehicle 100
