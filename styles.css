@@ -4027,6 +4027,7 @@ body.pmb-dragging .pmb-drop-lane {
   box-shadow: 0 14px 34px rgba(15, 23, 42, .08);
   padding: 14px;
   display: grid;
+  align-content: start;
   gap: 12px;
 }
 .pmb-bay-board-fabrication { border-top: 5px solid #f59e0b; }
@@ -4068,7 +4069,7 @@ body.pmb-dragging .pmb-drop-lane {
   background: #eff6ff;
   color: #1e3a8a;
   border-radius: 12px;
-  padding: 9px 11px;
+  padding: 7px 10px;
   font-size: .76rem;
   font-weight: 750;
 }
@@ -4115,11 +4116,11 @@ body.pmb-dragging .pmb-drop-lane {
 }
 .pmb-bay-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 8px;
 }
 .pmb-bay {
-  min-height: 118px;
+  min-height: 102px;
   border: 1px solid rgba(148, 163, 184, .45);
   border-radius: 14px;
   background: #fff;
@@ -4141,13 +4142,13 @@ body.pmb-dragging .pmb-drop-lane {
   box-shadow: 0 8px 20px rgba(22, 163, 74, .12);
 }
 .pmb-bay-slot {
-  min-height: 54px;
+  min-height: 42px;
   display: grid;
   align-content: start;
   gap: 6px;
 }
 .pmb-bay-empty {
-  min-height: 48px;
+  min-height: 38px;
   border: 1px dashed rgba(148, 163, 184, .68);
   border-radius: 12px;
   display: grid;
@@ -4160,7 +4161,7 @@ body.pmb-dragging .pmb-drop-lane {
   background: rgba(255, 255, 255, .65);
 }
 .pmb-bay-empty.compact {
-  min-height: 46px;
+  min-height: 34px;
 }
 .pmb-bay-vehicle-card {
   display: grid;
@@ -4423,10 +4424,10 @@ body.pmb-dragging .pmb-bay-unassigned {
   outline-offset: -4px;
 }
 @media (max-width: 1500px) {
-  .pmb-bay-grid { grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); }
+  .pmb-bay-grid { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
 }
 @media (max-width: 1180px) {
-  .pmb-bay-grid { grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); }
+  .pmb-bay-grid { grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
   .pmb-bay-board-header { align-items: flex-start; flex-direction: column; }
   .pmb-bay-board-actions { justify-content: flex-start; }
 }
@@ -4448,7 +4449,7 @@ body.pmb-station-mode .pmb-branch-grid {
 }
 body.pmb-station-mode .pmb-bay-board {
   margin-top: 0;
-  min-height: calc(100vh - 150px);
+  min-height: 0;
 }
 body.pmb-station-mode .pmb-bay-board-header strong {
   font-size: 1.25rem;
@@ -4888,6 +4889,7 @@ body {
 .pmb-bay-holding-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
   gap: 10px;
 }
 .pmb-bay-work-started {
