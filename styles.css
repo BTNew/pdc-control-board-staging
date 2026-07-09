@@ -7383,3 +7383,355 @@ body.pmb-schedule-adjusting .pmb-schedule-chip-slim {
     grid-template-columns: repeat(2, minmax(70px, 1fr));
   }
 }
+
+
+/* 2026-07-09.8: coding/visual stability pass — proportions, overflow and staff-board readability */
+:root {
+  --pdc-card-radius: 14px;
+}
+
+html, body {
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+.app-shell, .main, .view, .content-grid, .panel, .span-12 {
+  min-width: 0 !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+.main {
+  padding: clamp(12px, 1.5vw, 22px) !important;
+}
+
+/* Keep summary / status boxes from becoming oversized or uneven. */
+.kpi-grid,
+.summary-grid,
+.status-grid,
+.exception-strip,
+.control-board-summary,
+.workflow-step-grid,
+.pmb-drop-board,
+.production-department-grid,
+.parts-summary-grid,
+.rft-summary-grid,
+.completed-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)) !important;
+  gap: 10px !important;
+  align-items: stretch !important;
+  min-width: 0 !important;
+}
+
+.kpi-card,
+.status-tab,
+.summary-card,
+.exception-card,
+.workflow-step-card,
+.pmb-drop-lane,
+.production-department-card,
+.parts-summary-card,
+.rft-summary-card,
+.completed-summary-card {
+  min-width: 0 !important;
+  max-width: 100% !important;
+  border-radius: var(--pdc-card-radius) !important;
+  padding: 10px 12px !important;
+  box-sizing: border-box !important;
+  overflow: hidden !important;
+}
+
+.kpi-card strong,
+.status-tab strong,
+.summary-card strong,
+.exception-card strong,
+.workflow-step-card strong {
+  font-size: clamp(1.05rem, 2vw, 1.8rem) !important;
+  line-height: 1 !important;
+}
+
+.kpi-card span,
+.status-tab span,
+.summary-card span,
+.exception-card span,
+.workflow-step-card span,
+.kpi-card small,
+.status-tab small,
+.summary-card small,
+.exception-card small,
+.workflow-step-card small {
+  min-width: 0 !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+
+/* Only the lower table should scroll horizontally. */
+.table-wrap {
+  max-width: 100% !important;
+  overflow-x: auto !important;
+  overflow-y: auto !important;
+  border-radius: 16px !important;
+}
+
+#vehicle-table {
+  table-layout: fixed !important;
+  width: max-content !important;
+  min-width: 1360px !important;
+  font-size: .72rem !important;
+}
+
+#vehicle-table th,
+#vehicle-table td {
+  padding: 5px 5px !important;
+  line-height: 1.15 !important;
+  vertical-align: middle !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+
+#vehicle-table thead th {
+  height: 42px !important;
+  vertical-align: bottom !important;
+}
+
+#vehicle-table th[data-col-id="sp"], #vehicle-table td[data-col-id="sp"] { width: 42px !important; min-width: 42px !important; max-width: 42px !important; }
+#vehicle-table th[data-col-id="stock"], #vehicle-table td[data-col-id="stock"] { width: 108px !important; min-width: 108px !important; max-width: 108px !important; }
+#vehicle-table th[data-col-id="prodMth"], #vehicle-table td[data-col-id="prodMth"] { width: 76px !important; min-width: 76px !important; max-width: 76px !important; }
+#vehicle-table th[data-col-id="client"], #vehicle-table td[data-col-id="client"] { width: 185px !important; min-width: 185px !important; max-width: 185px !important; }
+#vehicle-table th[data-col-id="vehicle"], #vehicle-table td[data-col-id="vehicle"] { width: 150px !important; min-width: 150px !important; max-width: 150px !important; }
+#vehicle-table th[data-col-id="status"], #vehicle-table td[data-col-id="status"] { width: 180px !important; min-width: 180px !important; max-width: 180px !important; }
+#vehicle-table th[data-col-id="eta"], #vehicle-table td[data-col-id="eta"] { width: 100px !important; min-width: 100px !important; max-width: 100px !important; }
+#vehicle-table th[data-col-id="navisionNotes"], #vehicle-table td[data-col-id="navisionNotes"] { width: 130px !important; min-width: 130px !important; max-width: 130px !important; }
+#vehicle-table th[data-col-id="jita"], #vehicle-table td[data-col-id="jita"] { width: 52px !important; min-width: 52px !important; max-width: 52px !important; }
+#vehicle-table th[data-col-id="action"], #vehicle-table td[data-col-id="action"] { width: 135px !important; min-width: 135px !important; max-width: 135px !important; }
+
+#vehicle-table th.pdc-job-col,
+#vehicle-table td.pdc-job-cell,
+#vehicle-table th.flag-col,
+#vehicle-table td.flag-cell {
+  width: 34px !important;
+  min-width: 34px !important;
+  max-width: 34px !important;
+  padding-left: 1px !important;
+  padding-right: 1px !important;
+  text-align: center !important;
+}
+
+#vehicle-table th.pdc-job-col .sort-header,
+#vehicle-table th.flag-col .sort-header {
+  justify-content: center !important;
+  width: 100% !important;
+  font-size: .68rem !important;
+  font-weight: 950 !important;
+  line-height: 1 !important;
+  padding: 2px 0 !important;
+  letter-spacing: 0 !important;
+}
+
+#vehicle-table .mini-check {
+  width: 16px !important;
+  height: 16px !important;
+  min-width: 16px !important;
+  padding: 0 !important;
+  margin: 0 auto !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  border-radius: 5px !important;
+  overflow: visible !important;
+}
+
+#vehicle-table .mini-check input {
+  width: 12px !important;
+  height: 12px !important;
+  margin: 0 !important;
+}
+
+#vehicle-table .status-pill,
+#vehicle-table .badge {
+  max-width: 100% !important;
+  font-size: .62rem !important;
+  padding: 3px 7px !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+
+#vehicle-table .action-select,
+#vehicle-table select {
+  max-width: 100% !important;
+}
+
+/* PMB board proportions: keep buckets compact and aligned. */
+.pmb-drop-board {
+  grid-template-columns: repeat(auto-fit, minmax(155px, 1fr)) !important;
+  align-items: stretch !important;
+}
+
+.pmb-drop-lane {
+  min-height: 180px !important;
+  padding: 8px !important;
+}
+
+.pmb-lane-title {
+  min-height: 58px !important;
+  padding: 8px 9px !important;
+  gap: 3px !important;
+}
+
+.pmb-lane-title span,
+.pmb-lane-title small {
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+
+.pmb-lane-dropzone,
+.pmb-bay-card-list,
+.pmb-bay-unassigned-list {
+  display: grid !important;
+  gap: 6px !important;
+  align-content: start !important;
+  min-width: 0 !important;
+}
+
+.pmb-vehicle-card,
+.pmb-bay-vehicle-card,
+.incoming-card,
+.incoming-detail-row,
+.workflow-vehicle-card,
+.rft-vehicle-card,
+.parts-row-card {
+  min-width: 0 !important;
+  max-width: 100% !important;
+  padding: 7px 8px !important;
+  border-radius: 11px !important;
+  box-sizing: border-box !important;
+  overflow: hidden !important;
+}
+
+.pmb-card-main strong,
+.pmb-card-client,
+.pmb-bay-card-client,
+.incoming-card-main strong,
+.incoming-card-main small,
+.vehicle-identity-main,
+.vehicle-identity-sub {
+  min-width: 0 !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+
+.pmb-req-marker,
+.pmb-job-marker,
+.pdc-toggle-chip {
+  min-width: 22px !important;
+  min-height: 20px !important;
+  padding: 2px 5px !important;
+  border-radius: 999px !important;
+  font-size: .62rem !important;
+  line-height: 1 !important;
+}
+
+.pmb-req-marker.is-complete,
+.pmb-job-marker.is-complete,
+.pdc-toggle-chip.is-complete {
+  outline-width: 1px !important;
+  outline-offset: 1px !important;
+}
+
+/* Bay screens should be tile based and not sprawl off the page. */
+.pmb-bay-board,
+.pmb-bay-grid,
+.pmb-bay-board-body {
+  min-width: 0 !important;
+  max-width: 100% !important;
+}
+
+.pmb-bay-grid,
+.bay-grid,
+.station-bay-grid {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)) !important;
+  gap: 10px !important;
+}
+
+.pmb-bay,
+.station-bay,
+.bay-card {
+  min-height: 135px !important;
+  padding: 9px !important;
+  border-radius: 13px !important;
+  min-width: 0 !important;
+  overflow: hidden !important;
+}
+
+.pmb-bay-card-inputs,
+.pmb-bay-card-meta,
+.pmb-bay-card-actions {
+  gap: 5px !important;
+  flex-wrap: wrap !important;
+}
+
+.pmb-bay-card-inputs input,
+.pmb-bay-card-inputs select {
+  min-width: 0 !important;
+  max-width: 100% !important;
+}
+
+/* Forms/modals: avoid fields pushing the popup wider than the viewport. */
+.modal-card,
+.vehicle-modal-card,
+.detail-body,
+.edit-form,
+.form-row {
+  min-width: 0 !important;
+  max-width: 100% !important;
+}
+
+.form-row,
+.form-row.two-col,
+.form-row.three-col {
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)) !important;
+}
+
+input, select, textarea, button {
+  max-width: 100%;
+}
+
+.startup-error-banner {
+  display: grid;
+  gap: 4px;
+  padding: 12px 14px;
+  margin: 10px 0;
+  border: 1px solid #fecaca;
+  background: #fff1f2;
+  color: #991b1b;
+  border-radius: 12px;
+}
+.startup-error-banner strong { font-size: .9rem; }
+.startup-error-banner span, .startup-error-banner small { font-size: .75rem; }
+
+@media (max-width: 900px) {
+  .main { padding: 10px !important; }
+  .kpi-grid,
+  .summary-grid,
+  .exception-strip,
+  .pmb-drop-board {
+    grid-template-columns: repeat(auto-fit, minmax(135px, 1fr)) !important;
+  }
+  .panel-header,
+  .branch-header,
+  .bulk-selection-bar {
+    align-items: stretch !important;
+  }
+  .panel-actions,
+  .branch-header-actions,
+  .bulk-selection-actions {
+    width: 100% !important;
+    justify-content: flex-start !important;
+  }
+}

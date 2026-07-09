@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026-07-09 — Coding and visual stability fix
+
+- Added defensive startup/data guards so the board does not silently fail if data loading is delayed or malformed.
+- Added visible startup error banner for runtime failures instead of leaving blank panels.
+- Exposed `window.PDC_APP` / `window.app` for debugging from the browser console.
+- Bumped saved table column storage keys so old wide column settings do not distort the refreshed layout.
+- Tightened dashboard tables, PMB buckets, bay tiles, cards, markers and modal forms to stop boxes from overflowing or becoming disproportionate.
+- Updated test page cache-busting references.
+
+
 ## 2026-07-05 — Review recommendations applied
 
 - Renamed staff-facing navigation to Control Board, PMB Workflow, Reports, Parts, RFT, and Uploads.

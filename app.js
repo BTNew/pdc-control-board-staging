@@ -1,4 +1,5 @@
-const APP_VERSION = '2026.07.09.7';
+const APP_VERSION = '2026.07.09.8-fix';
+window.VEHICLE_TRACKING_DATA = window.VEHICLE_TRACKING_DATA || { report: {}, vehicles: [], toyotaMatches: {} };
 const EDITS_KEY = 'vehicleTrackingCoreNavisionOnlyEdits:v1';
 const ADDED_KEY = 'vehicleTrackingCoreNavisionOnlyVehicles:v1';
 const AMY_EMAIL = 'amy.elkington@broometoyota.com.au';
@@ -10,7 +11,7 @@ const OPERATOR_NAME_KEY = 'vehicleTrackingCoreCurrentOperator:v1';
 const OPERATOR_ROLE_KEY = 'vehicleTrackingCoreCurrentOperatorRole:v1';
 const MECHANICS_KEY = 'vehicleTrackingCorePdcMechanics:v1';
 const SUBLET_PROVIDERS_KEY = 'vehicleTrackingCorePdcSubletProviders:v1';
-const VEHICLE_TABLE_COLUMN_ORDER_KEY = 'vehicleTrackingCoreColumnOrder:v3';
+const VEHICLE_TABLE_COLUMN_ORDER_KEY = 'vehicleTrackingCoreColumnOrder:v4';
 const VEHICLE_TABLE_DEFAULT_COLUMN_IDS = ['sp', 'stock', 'prodMth', 'client', 'vehicle', 'tint', 'hoist', 'fitting', 'fabrication', 'electrical', 'tyre', 'pitInspection', 'status', 'eta', 'navisionNotes', 'jita', 'action'];
 const PO_TASKS_KEY = 'vehicleTrackingCoreNavisionOnlyPoTasks:v1';
 const PO_FILES_KEY = 'vehicleTrackingCoreNavisionOnlyPoFiles:v1';
@@ -721,8 +722,11 @@ function clearLocalDataFromUrl() {
     CRM_BACKUP_STORAGE_KEYS.forEach(key => localStorage.removeItem(key));
     localStorage.removeItem('vehicleTrackingCoreColumnOrder:v1');
     localStorage.removeItem('vehicleTrackingCoreColumnOrder:v2');
+    localStorage.removeItem('vehicleTrackingCoreColumnOrder:v3');
+    localStorage.removeItem('vehicleTrackingCoreColumnOrder:v4');
     localStorage.removeItem('vehicleTrackingCoreColumnWidths:v1:vehicle-table');
     localStorage.removeItem('vehicleTrackingCoreColumnWidths:v3:vehicle-table');
+    localStorage.removeItem('vehicleTrackingCoreColumnWidths:v4:vehicle-table');
     window.PDC_LOCAL_DATA_CLEARED = true;
   } catch (error) {
     console.warn('Unable to clear local PDC data', error);
@@ -819,7 +823,7 @@ function buildVehicleData() {
 const app = {
   data: buildVehicleData(),
   matches: TOYOTA_MATCHES,
-  report: window.VEHICLE_TRACKING_DATA.report || {},
+  report: window.VEHICLE_TRACKING_DATA?.report || {},
   currentView: 'dashboard',
   selectedStock: null,
   reviewed: false,
@@ -841,8 +845,34 @@ const app = {
   navisionFileName: '',
 };
 
+
+window.PDC_APP = app;
+window.app = app;
+
+function ensureAppDataAvailable() {
+  if (!window.VEHICLE_TRACKING_DATA) window.VEHICLE_TRACKING_DATA = { report: {}, vehicles: [], toyotaMatches: {} };
+  if (!Array.isArray(window.VEHICLE_TRACKING_DATA.vehicles)) window.VEHICLE_TRACKING_DATA.vehicles = [];
+  if (!app.data.length && window.VEHICLE_TRACKING_DATA.vehicles.length) {
+    app.data = buildVehicleData();
+    app.selectedStock = vehicleKey(app.data.find(v => v.toyotaStatus) || app.data[0]);
+  }
+  return app.data;
+}
+
+function showStartupError(error) {
+  console.error('PDC Control Board startup error', error);
+  const message = error?.message || String(error || 'Unknown startup error');
+  const target = document.querySelector('#fix-first-grid') || document.querySelector('#kpi-grid') || document.querySelector('main') || document.body;
+  if (target && typeof target.insertAdjacentHTML === 'function') {
+    target.insertAdjacentHTML('afterbegin', `<div class="startup-error-banner"><strong>Website error</strong><span>${escapeHtml(message)}</span><small>Open the browser console and send the error to the builder.</small></div>`);
+  }
+}
+
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
+const on = (target, eventName, handler, options) => {
+  if (target && typeof target.addEventListener === 'function') target.addEventListener(eventName, handler, options);
+};
 
 function cleanName(value = '') {
   return String(value)
@@ -1525,6 +1555,7 @@ function updateNavisionSidebarMeta() {
 }
 
 function init() {
+  ensureAppDataAvailable();
   renderAppVersionMarker();
   updateNavisionSidebarMeta();
   app.selectedStock = vehicleKey(app.data.find(v => v.toyotaStatus) || app.data[0]);
@@ -1540,106 +1571,106 @@ function renderAppVersionMarker() {
 
 function bindNav() {
   $$('.nav-item').forEach(btn => btn.addEventListener('click', () => showView(btn.dataset.view)));
-  $('#sidebar-toggle')?.addEventListener('click', toggleSidebar);
-  $('#operator-profile')?.addEventListener('click', setOperatorProfile);
-  $('#tv-set-operator-top')?.addEventListener('click', setOperatorProfile);
+  on($('#sidebar-toggle'), 'click', toggleSidebar);
+  on($('#operator-profile'), 'click', setOperatorProfile);
+  on($('#tv-set-operator-top'), 'click', setOperatorProfile);
   $$('[data-view-target]').forEach(btn => btn.addEventListener('click', () => showView(btn.dataset.viewTarget)));
-  $('#search')?.addEventListener('input', () => { renderKpis(); renderVehicleTable(); });
-  $('#status-filter')?.addEventListener('change', () => { renderKpis(); renderVehicleTable(); });
-  $('#sales-filter')?.addEventListener('change', () => { renderKpis(); renderVehicleTable(); });
-  $('#production-filter')?.addEventListener('change', () => { renderKpis(); renderVehicleTable(); });
-  $('#source-filter')?.addEventListener('change', () => { renderKpis(); renderVehicleTable(); });
-  $('#jita-filter')?.addEventListener('change', () => { renderKpis(); renderVehicleTable(); });
-  $('#parts-search')?.addEventListener('input', renderPartsHome);
-  $('#parts-status-filter')?.addEventListener('change', renderPartsHome);
-  $('#schedule-search')?.addEventListener('input', renderScheduleBoard);
-  $('#schedule-department-filter')?.addEventListener('change', renderScheduleBoard);
-  $('#department-search')?.addEventListener('input', renderProductionDepartmentBoard);
-  $('#department-status-filter')?.addEventListener('change', renderProductionDepartmentBoard);
-  $('#parts-export-csv')?.addEventListener('click', exportPartsCsv);
-  $('#rft-export-csv')?.addEventListener('click', exportRftCsv);
-  $('#rft-search')?.addEventListener('input', renderRftHome);
-  $('#rft-status-filter')?.addEventListener('change', renderRftHome);
-  $('#completed-export-csv')?.addEventListener('click', exportCompletedVehiclesCsv);
-  $('#completed-search')?.addEventListener('input', renderCompletedVehicles);
-  $('#customer-search')?.addEventListener('input', renderCustomers);
-  $('#clear-table-filters')?.addEventListener('click', () => clearAllFilters());
-  $('#reset-table-columns')?.addEventListener('click', resetVehicleTableColumnOrder);
-  $('#show-all-priority')?.addEventListener('click', () => clearAllFilters());
-  $('#export-csv')?.addEventListener('click', exportCsv);
-  $('#export-backup')?.addEventListener('click', exportCrmBackup);
-  $('#export-backup-top')?.addEventListener('click', exportCrmBackup);
-  $('#backup-upload')?.addEventListener('change', handleCrmBackupFileSelect);
-  $('#email-selected-amy')?.addEventListener('click', draftSelectedArrivingVehicleEmail);
-  $('#email-selected-amy-bar')?.addEventListener('click', draftSelectedArrivingVehicleEmail);
+  on($('#search'), 'input', () => { renderKpis(); renderVehicleTable(); });
+  on($('#status-filter'), 'change', () => { renderKpis(); renderVehicleTable(); });
+  on($('#sales-filter'), 'change', () => { renderKpis(); renderVehicleTable(); });
+  on($('#production-filter'), 'change', () => { renderKpis(); renderVehicleTable(); });
+  on($('#source-filter'), 'change', () => { renderKpis(); renderVehicleTable(); });
+  on($('#jita-filter'), 'change', () => { renderKpis(); renderVehicleTable(); });
+  on($('#parts-search'), 'input', renderPartsHome);
+  on($('#parts-status-filter'), 'change', renderPartsHome);
+  on($('#schedule-search'), 'input', renderScheduleBoard);
+  on($('#schedule-department-filter'), 'change', renderScheduleBoard);
+  on($('#department-search'), 'input', renderProductionDepartmentBoard);
+  on($('#department-status-filter'), 'change', renderProductionDepartmentBoard);
+  on($('#parts-export-csv'), 'click', exportPartsCsv);
+  on($('#rft-export-csv'), 'click', exportRftCsv);
+  on($('#rft-search'), 'input', renderRftHome);
+  on($('#rft-status-filter'), 'change', renderRftHome);
+  on($('#completed-export-csv'), 'click', exportCompletedVehiclesCsv);
+  on($('#completed-search'), 'input', renderCompletedVehicles);
+  on($('#customer-search'), 'input', renderCustomers);
+  on($('#clear-table-filters'), 'click', () => clearAllFilters());
+  on($('#reset-table-columns'), 'click', resetVehicleTableColumnOrder);
+  on($('#show-all-priority'), 'click', () => clearAllFilters());
+  on($('#export-csv'), 'click', exportCsv);
+  on($('#export-backup'), 'click', exportCrmBackup);
+  on($('#export-backup-top'), 'click', exportCrmBackup);
+  on($('#backup-upload'), 'change', handleCrmBackupFileSelect);
+  on($('#email-selected-amy'), 'click', draftSelectedArrivingVehicleEmail);
+  on($('#email-selected-amy-bar'), 'click', draftSelectedArrivingVehicleEmail);
   $$('[data-print-selected-zpl]').forEach(button => button.addEventListener('click', printZplFromSelectedRows));
-  $('#override-selected-to-yh-bar')?.addEventListener('click', overrideSelectedVehiclesToYh);
-  $('#override-selected-to-yh-top')?.addEventListener('click', overrideSelectedVehiclesToYh);
-  $('#transfer-selected-to-pmb-bar')?.addEventListener('click', transferSelectedYhVehiclesToPmb);
-  $('#transfer-selected-to-pmb-top')?.addEventListener('click', transferSelectedYhVehiclesToPmb);
-  $('#transfer-selected-to-rft-bar')?.addEventListener('click', transferSelectedPmbVehiclesToRft);
-  $('#delete-selected-vehicles')?.addEventListener('click', deleteSelectedVehicles);
-  $('#delete-selected-vehicles-bar')?.addEventListener('click', deleteSelectedVehicles);
-  $('#clear-selected-rows')?.addEventListener('click', clearSelectedRows);
-  $('#clear-selected-rows-bar')?.addEventListener('click', clearSelectedRows);
-  $('#zpl-generate')?.addEventListener('click', generateZplFromInput);
-  $('#zpl-copy')?.addEventListener('click', copyZplOutput);
-  $('#zpl-print')?.addEventListener('click', printCurrentZplOutput);
-  $('#zpl-clear')?.addEventListener('click', clearZplGenerator);
-  $('#autocare-upload')?.addEventListener('change', handleAutocareSelect);
-  $('#navision-upload')?.addEventListener('change', handleNavisionFileSelect);
-  $('#navision-paste')?.addEventListener('input', updateNavisionImportButton);
-  $('#dashboard-navision-paste')?.addEventListener('input', updateDashboardNavisionPasteButtons);
-  $('#dashboard-import-navision')?.addEventListener('click', importDashboardNavisionPaste);
-  $('#dashboard-clear-navision')?.addEventListener('click', clearDashboardNavisionPaste);
-  $('#dashboard-pd-paste')?.addEventListener('input', updateDashboardPdImportButtons);
-  $('#dashboard-pd-upload')?.addEventListener('change', handleDashboardPdFileSelect);
-  $('#dashboard-import-pd')?.addEventListener('click', importDashboardPdWork);
-  $('#dashboard-clear-pd')?.addEventListener('click', clearDashboardPdImport);
-  $('#incoming-search')?.addEventListener('input', renderIncomingDashboardBoard);
-  $('#incoming-status-filter')?.addEventListener('change', renderIncomingDashboardBoard);
-  $('#incoming-bucket-filter')?.addEventListener('change', renderIncomingDashboardBoard);
-  $('#incoming-rep-filter')?.addEventListener('change', renderIncomingDashboardBoard);
+  on($('#override-selected-to-yh-bar'), 'click', overrideSelectedVehiclesToYh);
+  on($('#override-selected-to-yh-top'), 'click', overrideSelectedVehiclesToYh);
+  on($('#transfer-selected-to-pmb-bar'), 'click', transferSelectedYhVehiclesToPmb);
+  on($('#transfer-selected-to-pmb-top'), 'click', transferSelectedYhVehiclesToPmb);
+  on($('#transfer-selected-to-rft-bar'), 'click', transferSelectedPmbVehiclesToRft);
+  on($('#delete-selected-vehicles'), 'click', deleteSelectedVehicles);
+  on($('#delete-selected-vehicles-bar'), 'click', deleteSelectedVehicles);
+  on($('#clear-selected-rows'), 'click', clearSelectedRows);
+  on($('#clear-selected-rows-bar'), 'click', clearSelectedRows);
+  on($('#zpl-generate'), 'click', generateZplFromInput);
+  on($('#zpl-copy'), 'click', copyZplOutput);
+  on($('#zpl-print'), 'click', printCurrentZplOutput);
+  on($('#zpl-clear'), 'click', clearZplGenerator);
+  on($('#autocare-upload'), 'change', handleAutocareSelect);
+  on($('#navision-upload'), 'change', handleNavisionFileSelect);
+  on($('#navision-paste'), 'input', updateNavisionImportButton);
+  on($('#dashboard-navision-paste'), 'input', updateDashboardNavisionPasteButtons);
+  on($('#dashboard-import-navision'), 'click', importDashboardNavisionPaste);
+  on($('#dashboard-clear-navision'), 'click', clearDashboardNavisionPaste);
+  on($('#dashboard-pd-paste'), 'input', updateDashboardPdImportButtons);
+  on($('#dashboard-pd-upload'), 'change', handleDashboardPdFileSelect);
+  on($('#dashboard-import-pd'), 'click', importDashboardPdWork);
+  on($('#dashboard-clear-pd'), 'click', clearDashboardPdImport);
+  on($('#incoming-search'), 'input', renderIncomingDashboardBoard);
+  on($('#incoming-status-filter'), 'change', renderIncomingDashboardBoard);
+  on($('#incoming-bucket-filter'), 'change', renderIncomingDashboardBoard);
+  on($('#incoming-rep-filter'), 'change', renderIncomingDashboardBoard);
   $$('input[name="incoming-work-filter"]').forEach(input => input.addEventListener('change', renderIncomingDashboardBoard));
-  $('#incoming-find')?.addEventListener('click', renderIncomingDashboardBoard);
-  $('#incoming-clear-filters')?.addEventListener('click', clearIncomingDashboardFilters);
-  $('#incoming-collapse-all')?.addEventListener('click', collapseMainScreenRows);
-  $('#workflow-collapse-all')?.addEventListener('click', collapseWorkflowRows);
-  $('#workflow-search')?.addEventListener('input', event => { app.workflowSearch = String(event.target.value || '').trim().toLowerCase(); renderWorkflowBoard(); });
-  $('#workflow-find')?.addEventListener('click', () => { app.workflowSearch = String($('#workflow-search')?.value || '').trim().toLowerCase(); renderWorkflowBoard(); });
-  $('#workflow-clear-search')?.addEventListener('click', clearWorkflowSearch);
-  $('#incoming-transfer-selected-pmb')?.addEventListener('click', transferSelectedMainYhVehiclesToPmb);
-  $('#incoming-delete-selected')?.addEventListener('click', deleteSelectedVehicles);
-  $('#incoming-clear-selected')?.addEventListener('click', clearSelectedRows);
-  $('#workflow-transfer-selected-rft')?.addEventListener('click', transferSelectedPmbVehiclesToRft);
-  $('#workflow-delete-selected')?.addEventListener('click', deleteSelectedVehicles);
-  $('#workflow-clear-selected')?.addEventListener('click', clearSelectedRows);
+  on($('#incoming-find'), 'click', renderIncomingDashboardBoard);
+  on($('#incoming-clear-filters'), 'click', clearIncomingDashboardFilters);
+  on($('#incoming-collapse-all'), 'click', collapseMainScreenRows);
+  on($('#workflow-collapse-all'), 'click', collapseWorkflowRows);
+  on($('#workflow-search'), 'input', event => { app.workflowSearch = String(event.target.value || '').trim().toLowerCase(); renderWorkflowBoard(); });
+  on($('#workflow-find'), 'click', () => { app.workflowSearch = String($('#workflow-search')?.value || '').trim().toLowerCase(); renderWorkflowBoard(); });
+  on($('#workflow-clear-search'), 'click', clearWorkflowSearch);
+  on($('#incoming-transfer-selected-pmb'), 'click', transferSelectedMainYhVehiclesToPmb);
+  on($('#incoming-delete-selected'), 'click', deleteSelectedVehicles);
+  on($('#incoming-clear-selected'), 'click', clearSelectedRows);
+  on($('#workflow-transfer-selected-rft'), 'click', transferSelectedPmbVehiclesToRft);
+  on($('#workflow-delete-selected'), 'click', deleteSelectedVehicles);
+  on($('#workflow-clear-selected'), 'click', clearSelectedRows);
   bindDashboardPdDropZone();
-  $('#navision-pmb-only')?.addEventListener('change', updateNavisionImportButton);
-  $('#import-navision')?.addEventListener('click', importNavisionVehicles);
-  $('#navision-clear')?.addEventListener('click', clearNavisionImport);
-  $('#add-mechanic-list-button')?.addEventListener('click', addMechanicFromAdminInput);
-  $('#mechanic-name-input')?.addEventListener('keydown', event => { if (event.key === 'Enter') { event.preventDefault(); addMechanicFromAdminInput(); } });
-  $('#add-sublet-provider-button')?.addEventListener('click', addSubletProviderFromAdminInput);
-  $('#sublet-provider-name-input')?.addEventListener('keydown', event => { if (event.key === 'Enter') { event.preventDefault(); addSubletProviderFromAdminInput(); } });
-  $('#scan-autocare')?.addEventListener('click', scanAutocareNotice);
-  $('#autocare-clear')?.addEventListener('click', clearAutocareResults);
-  $('#autocare-zpl-all')?.addEventListener('click', () => generateZplFromAutocareResults('all'));
-  $('#autocare-zpl-unmatched')?.addEventListener('click', () => generateZplFromAutocareResults('unmatched'));
-  $('#autocare-paste')?.addEventListener('input', updateAutocareScanButton);
-  $('#pdf-upload')?.addEventListener('change', handlePdfSelect);
-  $('#po-upload')?.addEventListener('change', handlePoSelect);
-  $('#scan-report')?.addEventListener('click', scanReport);
-  $('#approve-all')?.addEventListener('click', approveCleanMatches);
-  $('#modal-close')?.addEventListener('click', closeVehicleModal);
-  $('#vehicle-modal')?.addEventListener('click', (e) => { if (e.target.id === 'vehicle-modal') closeVehicleModal(); });
-  $('#add-customer-open')?.addEventListener('click', openCustomerModal);
-  $('#add-customer-top')?.addEventListener('click', openCustomerModal);
-  $('#add-customer-customers')?.addEventListener('click', openCustomerModal);
-  $('#customer-modal-close')?.addEventListener('click', closeCustomerModal);
-  $('#customer-modal-cancel')?.addEventListener('click', closeCustomerModal);
-  $('#customer-modal')?.addEventListener('click', (e) => { if (e.target.id === 'customer-modal') closeCustomerModal(); });
-  $('#new-customer-form')?.addEventListener('submit', addCustomerFromForm);
+  on($('#navision-pmb-only'), 'change', updateNavisionImportButton);
+  on($('#import-navision'), 'click', importNavisionVehicles);
+  on($('#navision-clear'), 'click', clearNavisionImport);
+  on($('#add-mechanic-list-button'), 'click', addMechanicFromAdminInput);
+  on($('#mechanic-name-input'), 'keydown', event => { if (event.key === 'Enter') { event.preventDefault(); addMechanicFromAdminInput(); } });
+  on($('#add-sublet-provider-button'), 'click', addSubletProviderFromAdminInput);
+  on($('#sublet-provider-name-input'), 'keydown', event => { if (event.key === 'Enter') { event.preventDefault(); addSubletProviderFromAdminInput(); } });
+  on($('#scan-autocare'), 'click', scanAutocareNotice);
+  on($('#autocare-clear'), 'click', clearAutocareResults);
+  on($('#autocare-zpl-all'), 'click', () => generateZplFromAutocareResults('all'));
+  on($('#autocare-zpl-unmatched'), 'click', () => generateZplFromAutocareResults('unmatched'));
+  on($('#autocare-paste'), 'input', updateAutocareScanButton);
+  on($('#pdf-upload'), 'change', handlePdfSelect);
+  on($('#po-upload'), 'change', handlePoSelect);
+  on($('#scan-report'), 'click', scanReport);
+  on($('#approve-all'), 'click', approveCleanMatches);
+  on($('#modal-close'), 'click', closeVehicleModal);
+  on($('#vehicle-modal'), 'click', (e) => { if (e.target.id === 'vehicle-modal') closeVehicleModal(); });
+  on($('#add-customer-open'), 'click', openCustomerModal);
+  on($('#add-customer-top'), 'click', openCustomerModal);
+  on($('#add-customer-customers'), 'click', openCustomerModal);
+  on($('#customer-modal-close'), 'click', closeCustomerModal);
+  on($('#customer-modal-cancel'), 'click', closeCustomerModal);
+  on($('#customer-modal'), 'click', (e) => { if (e.target.id === 'customer-modal') closeCustomerModal(); });
+  on($('#new-customer-form'), 'submit', addCustomerFromForm);
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') { closeVehicleModal(); closeCustomerModal(); }
   });
@@ -1763,6 +1794,7 @@ function updateSidebarStats() {
 }
 
 function renderAll() {
+  ensureAppDataAvailable();
   updateSidebarStats();
   populateFilters();
   renderActiveView();
@@ -1770,6 +1802,7 @@ function renderAll() {
 }
 
 function renderActiveView() {
+  ensureAppDataAvailable();
   const view = app.currentView || 'dashboard';
   switch (view) {
     case 'dashboard':
@@ -4566,7 +4599,8 @@ function resetVehicleTableColumnOrder() {
   localStorage.removeItem('vehicleTrackingCoreColumnOrder:v2');
   localStorage.removeItem('vehicleTrackingCoreColumnOrder:v3');
   localStorage.removeItem('vehicleTrackingCoreColumnWidths:v1:vehicle-table');
-  localStorage.removeItem('vehicleTrackingCoreColumnWidths:v3:vehicle-table');
+  localStorage.removeItem('vehicleTrackingCoreColumnWidths:v4:vehicle-table');
+    localStorage.removeItem('vehicleTrackingCoreColumnWidths:v4:vehicle-table');
   renderVehicleTable();
 }
 
@@ -4581,7 +4615,7 @@ function renderVehicleTable() {
       ? $('#empty-state').innerHTML
       : '<div class="empty-state"><strong>No Navision vehicles loaded yet</strong><span>Upload or paste your first Navision export to populate the tracker.</span><button class="primary" type="button" data-empty-navision-upload>Upload Navision text</button></div>';
     table.innerHTML = `<tbody><tr><td colspan="17">${emptyHtml}</td></tr></tbody>`;
-    $('[data-empty-navision-upload]', table)?.addEventListener('click', () => showView('import'));
+    on($('[data-empty-navision-upload]', table), 'click', () => showView('import'));
     updateBulkSelectionPanel([]);
     return;
   }
@@ -5424,7 +5458,7 @@ function generateZplFromSelectedRows() {
 
 function makeTableResizable(table) {
   if (!table) return;
-  const storageKey = `vehicleTrackingCoreColumnWidths:v3:${table.id || 'vehicle-table'}`;
+  const storageKey = `vehicleTrackingCoreColumnWidths:v4:${table.id || 'vehicle-table'}`;
   let saved = {};
   try { saved = JSON.parse(localStorage.getItem(storageKey) || '{}'); } catch { saved = {}; }
   const headers = Array.from(table.querySelectorAll('thead th'));
@@ -5487,7 +5521,7 @@ function setupFrozenVehicleHeader(table) {
   frozenWrap.appendChild(frozenTable);
   document.body.appendChild(frozenWrap);
 
-  const storageKey = `vehicleTrackingCoreColumnWidths:v3:${table.id || 'vehicle-table'}`;
+  const storageKey = `vehicleTrackingCoreColumnWidths:v4:${table.id || 'vehicle-table'}`;
   let saved = {};
   try { saved = JSON.parse(localStorage.getItem(storageKey) || '{}'); } catch { saved = {}; }
 
@@ -5949,8 +5983,8 @@ function renderDetail() {
     handleVehicleAction(key, e.currentTarget.value);
     e.currentTarget.value = '';
   });
-  $('[data-remove-vehicle]', panel)?.addEventListener('click', () => removeVehicle(key));
-  $('[data-vehicle-po-upload]', panel)?.addEventListener('change', (event) => handleVehiclePoSelect(key, event));
+  on($('[data-remove-vehicle]', panel), 'click', () => removeVehicle(key));
+  on($('[data-vehicle-po-upload]', panel), 'change', (event) => handleVehiclePoSelect(key, event));
   $('[data-vehicle-edit-form]', panel).addEventListener('submit', (e) => {
     e.preventDefault();
     const form = e.currentTarget;
@@ -7129,7 +7163,7 @@ function renderTvBoard() {
       <section class="tv-panel"><h3>RFT gate / blocked work</h3><div class="tv-issue-list">${issueList}</div></section>
       <section class="tv-panel"><h3>Overdue bucket ageing</h3><div class="tv-issue-list">${overdueList}</div></section>
     </div>`;
-  $('#tv-set-operator')?.addEventListener('click', setOperatorProfile);
+  on($('#tv-set-operator'), 'click', setOperatorProfile);
   $$('[data-tv-filter]', host).forEach(button => button.addEventListener('click', () => applyQuickFilter(button.dataset.tvFilter)));
   $$('[data-open-stock]', host).forEach(button => button.addEventListener('click', () => openVehicleModal(button.dataset.openStock)));
 }
@@ -9339,9 +9373,9 @@ function renderNavisionPendingReview(result) {
     ${warningList}
     <div class="subtle">Navision can update stock/order/VIN, P/Month, Toyota Status, ETA, JITA, Tray, Dealer Comments/Navision Notes and related location fields. Excel update sheets can also update explicit PDC control columns such as TINT, HOIST, FITTING, FABRICATION, ELECTRICAL, TYRE, PIT INSPECTION, PARTS, PMB Bucket, PDC Location and Blocked.</div>
   `;
-  $('#navision-apply-all')?.addEventListener('click', () => applyPendingNavisionImport('all'));
-  $('#navision-apply-selected')?.addEventListener('click', () => applyPendingNavisionImport('selected'));
-  $('#navision-cancel-import')?.addEventListener('click', cancelPendingNavisionImport);
+  on($('#navision-apply-all'), 'click', () => applyPendingNavisionImport('all'));
+  on($('#navision-apply-selected'), 'click', () => applyPendingNavisionImport('selected'));
+  on($('#navision-cancel-import'), 'click', cancelPendingNavisionImport);
   $('#navision-toggle-all-updates')?.addEventListener('change', event => {
     $$('[data-navision-apply-update]', host).forEach(input => { input.checked = event.currentTarget.checked; });
   });
@@ -9405,7 +9439,7 @@ function renderNavisionSummary(result) {
     ${warningList}
     <div class="subtle">Toyota Status is taken only from Navision Sub Location Description. Existing rows keep manual CRM fields; Navision refreshes Tray, Dealer Comments/Navision Notes, JITA, Navision ETA, Production Month and location/status fields. Rows marked as Cut But Vehicle are highlighted light blue.</div>
   `;
-  $('#navision-remove-missing-now')?.addEventListener('click', removeMissingFromLastNavisionImport);
+  on($('#navision-remove-missing-now'), 'click', removeMissingFromLastNavisionImport);
 }
 
 function removeMissingFromLastNavisionImport() {
@@ -9660,7 +9694,7 @@ function normalizeIncomingBackupKey(key) {
     return key.replace('notes:', 'vehicleTrackingCoreNotes:');
   }
   if (key.startsWith('columnWidths:v10:')) {
-    return key.replace('columnWidths:v10:', 'vehicleTrackingCoreColumnWidths:v3:');
+    return key.replace('columnWidths:v10:', 'vehicleTrackingCoreColumnWidths:v4:');
   }
   return key;
 }
@@ -9992,4 +10026,16 @@ function clearZplGenerator() {
 function getNotes(stock) { return loadJson(`vehicleTrackingCoreNotes:${stock}`, []); }
 function setNotes(stock, notes) { saveJson(`vehicleTrackingCoreNotes:${stock}`, notes); }
 
-init();
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', () => { try { init(); } catch (error) { showStartupError(error); } });
+} else {
+  try { init(); } catch (error) { showStartupError(error); }
+}
+
+
+on(window, 'error', event => {
+  if (event?.error) showStartupError(event.error);
+});
+on(window, 'unhandledrejection', event => {
+  showStartupError(event?.reason || new Error('Unhandled promise rejection'));
+});

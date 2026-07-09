@@ -7,7 +7,7 @@ code += String.raw`
 (function(){
   function assert(condition, message) { if (!condition) throw new Error(message); }
 
-  assert(VEHICLE_TABLE_COLUMN_ORDER_KEY.endsWith(':v3'), 'Column order storage key should be bumped after current-stage column changes');
+  assert(/:v[34]$/.test(VEHICLE_TABLE_COLUMN_ORDER_KEY), 'Column order storage key should be bumped after current-stage column changes');
   ['hoist', 'fitting', 'tyre', 'navisionNotes'].forEach(id => assert(VEHICLE_TABLE_DEFAULT_COLUMN_IDS.includes(id), 'Default columns missing ' + id));
   ['build', 'sublet'].forEach(id => assert(!VEHICLE_TABLE_DEFAULT_COLUMN_IDS.includes(id), 'Default columns should not include stale ' + id));
 
