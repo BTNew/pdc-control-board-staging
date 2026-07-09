@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.07.09.4';
+const APP_VERSION = '2026.07.09.5';
 const EDITS_KEY = 'vehicleTrackingCoreNavisionOnlyEdits:v1';
 const ADDED_KEY = 'vehicleTrackingCoreNavisionOnlyVehicles:v1';
 const AMY_EMAIL = 'amy.elkington@broometoyota.com.au';
@@ -1247,16 +1247,25 @@ function vehicleIdentitySecondaryText(vehicle = {}) {
 }
 
 function vehicleIdentityStackHtml(vehicle = {}, options = {}) {
-  const primary = vehicleIdentityPrimary(vehicle);
-  const primaryText = vehicleIdentityLabelText(primary);
-  const secondary = vehicleIdentitySecondaryText(vehicle);
+  const stock = displayStockNumber(vehicle) || String(vehicle.order || '').trim();
+  const cells = [
+    { label: 'Key', className: 'identity-key', value: vehicleKeyNumber(vehicle) },
+    { label: 'SN', className: 'identity-stock', value: stock },
+    { label: 'JC', className: 'identity-jc', value: vehicleJobcardNumber(vehicle) },
+    { label: 'Name', className: 'identity-name', value: vehicleCustomerName(vehicle) },
+  ];
   const key = vehicleKey(vehicle);
   const title = vehicleIdentityTitle(vehicle);
-  const classes = ['vehicle-identity-stack', options.className || ''].filter(Boolean).join(' ');
-  const primaryHtml = options.button
-    ? `<button class="stock-link stock-button vehicle-identity-primary" type="button" data-open-stock="${escapeHtml(key)}" title="${escapeHtml(title)}">${escapeHtml(primaryText)}</button>`
-    : `<strong class="vehicle-identity-primary" title="${escapeHtml(title)}">${escapeHtml(primaryText)}</strong>`;
-  return `<div class="${escapeHtml(classes)}">${primaryHtml}${secondary ? `<small class="vehicle-identity-secondary" title="${escapeHtml(secondary)}">${escapeHtml(secondary)}</small>` : ''}</div>`;
+  const classes = ['vehicle-identity-stack', 'vehicle-identity-columns', options.className || ''].filter(Boolean).join(' ');
+  const html = cells.map((cell, index) => {
+    const rawValue = cleanNavisionText(cell.value) || '—';
+    const value = truncate(rawValue, cell.label === 'Name' ? 28 : 16);
+    const valueHtml = options.button && index === 0
+      ? `<button class="stock-link stock-button vehicle-identity-value vehicle-identity-primary" type="button" data-open-stock="${escapeHtml(key)}" title="${escapeHtml(title)}">${escapeHtml(value)}</button>`
+      : `<span class="vehicle-identity-value ${index === 0 ? 'vehicle-identity-primary' : ''}" title="${escapeHtml(rawValue)}">${escapeHtml(value)}</span>`;
+    return `<span class="vehicle-identity-cell ${escapeHtml(cell.className)}"><b>${escapeHtml(cell.label)}</b>${valueHtml}</span>`;
+  }).join('');
+  return `<div class="${escapeHtml(classes)}" title="${escapeHtml(title)}">${html}</div>`;
 }
 
 function vehiclePmbKeyNumber(vehicle = {}) {
@@ -2066,7 +2075,7 @@ function renderWorkflowBoard() {
   host.innerHTML = `
     ${priorityHtml}
     <div class="branch-header workflow-pmb-header">
-      <div><strong>PMB control board</strong><span>Unallocated vehicles are full rows like the main screen. Use the Move buttons on each vehicle to send it to TINT, HOIST, FITTING, FAB, ELEC, TYRE, PIT or Unallocated; use Open bays for numbered bay scheduling.</span></div>
+      <div><strong>PMB control board</strong><span>Unallocated vehicles are full rows like the main screen. Drag vehicles into TINT, HOIST, FITTING, FAB, ELEC, TYRE or PIT; use Open bays for numbered bay scheduling.</span></div>
       <div class="branch-header-actions"><span class="badge neutral">${escapeHtml(summaryText)}</span></div>
     </div>
     <div class="workflow-collapsible-board" data-pmb-board>${laneHtml}</div>
@@ -3151,22 +3160,18 @@ function pmbBayTimelineVehicleCardHtml(vehicle = {}, stage = '', rowType = '', c
   const jobDef = pmbStageJobDef(normalizedStage);
   const bay = pmbBayNumber(vehicle, normalizedStage);
   const complete = jobDef ? pdcJobComplete(vehicle, jobDef) : false;
-  const widthPx = rowType === 'bay' ? pmbScheduleChipWidthPx(vehicle) : 174;
+  const widthPx = rowType === 'bay' ? Math.max(pmbScheduleChipWidthPx(vehicle), 340) : 360;
   const leftPx = rowType === 'bay' ? pmbScheduleChipLeftPx(vehicle, config) : 0;
   const title = `${vehicleIdentityTitle(vehicle) || 'Vehicle'} · ${pmbStageLabel(normalizedStage)}${bay ? ` · Bay ${bay}` : rowType === 'work-started' ? ' · Work Started' : ' · no bay'} · click for details`;
   const draggableAttr = complete || rowType === 'bay' ? '' : `draggable="true" data-pmb-drag-key="${escapeHtml(key)}"`;
-  const stock = displayStockNumber(vehicle) || vehicle.order || 'No stock';
-  const keyNo = vehicleKeyNumber(vehicle) || 'No key #';
-  const customer = vehicleCustomerName(vehicle) || 'Dealer Order';
+  const identityHtml = vehicleIdentityStackHtml(vehicle, { className: 'pmb-bay-identity pmb-schedule-identity' });
   const timeLabel = rowType === 'bay' ? pmbScheduleVehicleTimeLabel(vehicle) : '';
   const adjustAttrs = rowType === 'bay'
     ? `data-pmb-schedule-chip="1" data-pmb-schedule-chip-key="${escapeHtml(key)}" data-pmb-schedule-chip-stage="${escapeHtml(normalizedStage)}" data-pmb-schedule-chip-bay="${escapeHtml(bay)}"`
     : '';
   return `
     <article class="pmb-bay-vehicle-card pmb-schedule-chip pmb-schedule-chip-slim ${complete ? 'is-complete' : ''} ${isPdcBlocked(vehicle) ? 'is-blocked' : ''}" ${draggableAttr} ${adjustAttrs} data-open-stock="${escapeHtml(key)}" style="--chip-width:${widthPx}px; --chip-left:${leftPx}px; --chip-stack:${index};" title="${escapeHtml(title)}">
-      <strong class="slim-stock">${escapeHtml(vehicleIdentityLabelText(vehicleIdentityPrimary(vehicle)))}</strong>
-      <span class="slim-key">${escapeHtml(vehicleIdentitySecondaryText(vehicle) || `Key ${keyNo}`)}</span>
-      <span class="slim-customer">${escapeHtml(truncate(customer, 34))}</span>
+      ${identityHtml}
       ${rowType === 'bay' ? `<span class="pmb-schedule-chip-time" data-pmb-chip-time-label>${escapeHtml(timeLabel)}</span><span class="pmb-schedule-chip-resize-handle" data-pmb-chip-resize-handle title="Drag to change planned hours"></span>` : ''}
     </article>`;
 }
@@ -3472,15 +3477,10 @@ function pmbBayVehicleCardHtml(vehicle = {}, stage = '') {
       return `<button class="pmb-bay-assign-button${isCurrentBay ? ' is-current' : ''}${occupied ? ' is-occupied' : ''}" type="button" data-assign-pmb-bay-key="${escapeHtml(key)}" data-assign-pmb-bay-stage="${escapeHtml(normalizedStage)}" data-assign-pmb-bay-number="${escapeHtml(String(bayNumber))}" ${isCurrentBay ? 'disabled' : ''} title="${escapeHtml(isCurrentBay ? `Already in ${label}` : occupied ? `Swap into ${label}` : `Move to ${label}`)}">${escapeHtml(label)}${occupied ? ' ↔' : ''}</button>`;
     }).join('')
     : '';
-  const stageMoveButtons = PMB_STAGE_DEFS
-    .filter(option => option.value !== normalizedStage)
-    .map(option => `<button class="pmb-bay-assign-button secondary" type="button" data-move-pmb-stage-key="${escapeHtml(key)}" data-move-pmb-stage-value="${escapeHtml(option.value)}" title="Move to ${escapeHtml(option.label)} bucket">${escapeHtml(option.label)}</button>`)
-    .join('');
   const bayActions = [
     `<button class="pmb-bay-assign-button secondary" type="button" data-move-pmb-stage-key="${escapeHtml(key)}" data-move-pmb-stage-value="" title="Move back to PMB Unallocated / waiting for another bay">Unallocated</button>`,
     `<button class="pmb-bay-assign-button secondary" type="button" data-assign-pmb-bay-key="${escapeHtml(key)}" data-assign-pmb-bay-stage="${escapeHtml(normalizedStage)}" data-assign-pmb-bay-number="" title="Keep in ${escapeHtml(pmbStageLabel(normalizedStage))} but remove the bay number">No bay</button>`,
     bayAssignButtons,
-    stageMoveButtons,
   ].filter(Boolean).join('');
   return `
     <article class="pmb-bay-vehicle-card pmb-bay-vehicle-pill ${complete ? 'is-complete' : ''} ${isPdcBlocked(vehicle) ? 'is-blocked' : ''}" draggable="true" data-pmb-drag-key="${escapeHtml(key)}" data-open-stock="${escapeHtml(key)}" title="${escapeHtml(title)}">
@@ -3499,7 +3499,6 @@ function pmbBayVehicleCardHtml(vehicle = {}, stage = '') {
 
 function pmbVehicleCardHtml(vehicle = {}) {
   const key = vehicleKey(vehicle);
-  const currentStage = normalizePmbStage(vehicle.pmbBayStage || inferredPmbStage(vehicle));
   const doneJobs = pdcCompletedJobs(vehicle).map(job => `${job.label} done`);
   const outstandingJobs = pdcRequirementDefinitions(vehicle).filter(job => !pdcJobComplete(vehicle, job)).map(job => `${job.label} open`);
   const gateIssues = vehicleRftGateIssues(vehicle);
@@ -3518,12 +3517,6 @@ function pmbVehicleCardHtml(vehicle = {}) {
   const stageAgeTitle = stageEnteredAt
     ? `Current bucket started ${new Date(stageEnteredAt).toLocaleString('en-AU', { dateStyle: 'short', timeStyle: 'short' })}`
     : 'Bucket start time has not been recorded yet';
-  const directMoveButtons = [
-    currentStage ? `<button class="pmb-card-move-button secondary" type="button" data-move-pmb-stage-key="${escapeHtml(key)}" data-move-pmb-stage-value="" title="Move to PMB Unallocated while waiting for another bay">Unallocated</button>` : '',
-    ...PMB_STAGE_DEFS
-      .filter(option => option.value !== currentStage)
-      .map(option => `<button class="pmb-card-move-button" type="button" data-move-pmb-stage-key="${escapeHtml(key)}" data-move-pmb-stage-value="${escapeHtml(option.value)}" title="Move to ${escapeHtml(option.label)}">${escapeHtml(option.label)}</button>`),
-  ].filter(Boolean).join('');
   return `
     <article class="pmb-vehicle-card pmb-age-card-${escapeHtml(ageClass)} ${isPdcBlocked(vehicle) ? 'is-blocked' : ''} ${gateIssues.length ? 'has-rft-gate-issues' : ''}" draggable="true" data-pmb-drag-key="${escapeHtml(key)}" title="Drag ${escapeHtml(vehicleIdentityTitle(vehicle) || 'vehicle')} to another PMB bucket">
       <div class="pmb-card-top">
@@ -3545,8 +3538,6 @@ function pmbVehicleCardHtml(vehicle = {}) {
       </div>
       <span class="pmb-card-client" title="${escapeHtml(vehicleCustomerName(vehicle) || '')}">${escapeHtml(truncate(vehicleCustomerName(vehicle) || 'Dealer Order', 28))}</span>
       <small title="${escapeHtml(displayVehicle(vehicle))}">${escapeHtml(truncate(displayVehicle(vehicle), 36))}</small>
-      <div class="pmb-next-action"><b>Next:</b> ${escapeHtml(truncate(nextActionForVehicle(vehicle), 74))}</div>
-      ${directMoveButtons ? `<div class="pmb-card-move-actions" aria-label="Move PMB vehicle"><span>Move:</span>${directMoveButtons}</div>` : ''}
       ${gateIssues.length ? `<div class="pmb-rft-gate-warning">RFT gate: ${escapeHtml(truncate(gateIssues.join(' · '), 60))}</div>` : ''}
     </article>`;
 }
