@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.07.09.8-fix';
+const APP_VERSION = '2026.07.09.9-cache';
 window.VEHICLE_TRACKING_DATA = window.VEHICLE_TRACKING_DATA || { report: {}, vehicles: [], toyotaMatches: {} };
 const EDITS_KEY = 'vehicleTrackingCoreNavisionOnlyEdits:v1';
 const ADDED_KEY = 'vehicleTrackingCoreNavisionOnlyVehicles:v1';
