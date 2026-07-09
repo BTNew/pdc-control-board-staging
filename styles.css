@@ -8411,3 +8411,50 @@ html[data-row-width="xl"] {
     display: none;
   }
 }
+
+/* 2026.07.10.01: move PMB work chips right and keep full chip strip intact on Vehicle Locations + Control Board rows. */
+html {
+  --pdc-row-main-min: 430px;
+  --pdc-row-work-min: 145px;
+  --pdc-row-meta-min: 520px;
+  --pdc-row-action-min: 146px;
+}
+html[data-row-width="compact"] {
+  --pdc-row-main-min: 340px;
+  --pdc-row-work-min: 130px;
+  --pdc-row-meta-min: 420px;
+  --pdc-row-action-min: 130px;
+}
+html[data-row-width="wide"] {
+  --pdc-row-main-min: 560px;
+  --pdc-row-work-min: 155px;
+  --pdc-row-meta-min: 560px;
+  --pdc-row-action-min: 154px;
+}
+html[data-row-width="xl"] {
+  --pdc-row-main-min: 700px;
+  --pdc-row-work-min: 165px;
+  --pdc-row-meta-min: 600px;
+  --pdc-row-action-min: 162px;
+}
+.incoming-card-work-wrap {
+  min-width: max-content;
+  overflow: visible;
+}
+.incoming-work-checks {
+  justify-content: flex-end;
+  min-width: max-content;
+  overflow-x: visible;
+}
+#workflow .incoming-vehicle-summary {
+  grid-template-columns: 12px 20px minmax(560px, 650px) minmax(150px, 175px) minmax(520px, 1fr) minmax(62px, max-content) minmax(150px, max-content) !important;
+}
+#workflow .incoming-identity.vehicle-identity-columns {
+  grid-template-columns: 42px 84px 106px minmax(220px, 340px) !important;
+}
+#workflow .incoming-card-work-wrap {
+  min-width: 520px;
+}
+#workflow .incoming-work-checks {
+  width: 100%;
+}
