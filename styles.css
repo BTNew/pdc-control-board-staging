@@ -8412,49 +8412,54 @@ html[data-row-width="xl"] {
   }
 }
 
-/* 2026.07.10.01: move PMB work chips right and keep full chip strip intact on Vehicle Locations + Control Board rows. */
+/* 2026.07.10.03: keep row chips to the right, but contain the chip strip so rows do not overflow/clobber customer names. */
 html {
-  --pdc-row-main-min: 430px;
-  --pdc-row-work-min: 145px;
-  --pdc-row-meta-min: 520px;
+  --pdc-row-main-min: 360px;
+  --pdc-row-work-min: 120px;
+  --pdc-row-meta-min: 310px;
   --pdc-row-action-min: 146px;
 }
 html[data-row-width="compact"] {
-  --pdc-row-main-min: 340px;
-  --pdc-row-work-min: 130px;
-  --pdc-row-meta-min: 420px;
+  --pdc-row-main-min: 300px;
+  --pdc-row-work-min: 105px;
+  --pdc-row-meta-min: 260px;
   --pdc-row-action-min: 130px;
 }
 html[data-row-width="wide"] {
-  --pdc-row-main-min: 560px;
-  --pdc-row-work-min: 155px;
-  --pdc-row-meta-min: 560px;
+  --pdc-row-main-min: 500px;
+  --pdc-row-work-min: 135px;
+  --pdc-row-meta-min: 360px;
   --pdc-row-action-min: 154px;
 }
 html[data-row-width="xl"] {
-  --pdc-row-main-min: 700px;
-  --pdc-row-work-min: 165px;
-  --pdc-row-meta-min: 600px;
+  --pdc-row-main-min: 640px;
+  --pdc-row-work-min: 145px;
+  --pdc-row-meta-min: 420px;
   --pdc-row-action-min: 162px;
 }
 .incoming-card-work-wrap {
-  min-width: max-content;
-  overflow: visible;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: thin;
 }
 .incoming-work-checks {
   justify-content: flex-end;
   min-width: max-content;
-  overflow-x: visible;
+  overflow: visible;
 }
 #workflow .incoming-vehicle-summary {
-  grid-template-columns: 12px 20px minmax(560px, 650px) minmax(150px, 175px) minmax(520px, 1fr) minmax(62px, max-content) minmax(150px, max-content) !important;
+  grid-template-columns: 12px 20px minmax(260px, 1.7fr) minmax(82px, .45fr) minmax(260px, .95fr) minmax(54px, max-content) minmax(128px, max-content) !important;
 }
 #workflow .incoming-identity.vehicle-identity-columns {
-  grid-template-columns: 42px 84px 106px minmax(220px, 340px) !important;
+  grid-template-columns: 42px 84px 106px minmax(120px, 1fr) !important;
 }
 #workflow .incoming-card-work-wrap {
-  min-width: 520px;
+  min-width: 0;
+  width: 100%;
+  max-width: 100%;
 }
 #workflow .incoming-work-checks {
-  width: 100%;
+  width: max-content;
+  margin-left: auto;
 }
