@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>PDC Control Board — Random 100 Vehicle Test</title>
-  <link rel="stylesheet" href="styles.css?v=2026.07.09.27-row-expand-toggle" />
+  <link rel="stylesheet" href="styles.css?v=2026.07.09.28-ui-cleanup" />
 </head>
 <body>
   <div class="test-data-banner" style="position:sticky;top:0;z-index:9999;background:#6d28d9;color:#fff;padding:8px 14px;text-align:center;font-weight:700;letter-spacing:.02em;">TEST DATASET — 100 SAMPLE VEHICLES ONLY — separate from live board</div>
@@ -21,8 +21,8 @@
       </div>
 
       <nav class="nav">
-        <button class="nav-item active" data-view="dashboard" data-short="CB">Control Board</button>
-        <button class="nav-item" data-view="workflow" data-short="PMB">PMB Workflow</button>
+        <button class="nav-item active" data-view="dashboard" data-short="LOC">Vehicle Locations</button>
+        <button class="nav-item" data-view="workflow" data-short="CB">Control Board</button>
         <button class="nav-item" data-view="parts" data-short="PA">Parts</button>
         <button class="nav-item" data-view="rft" data-short="RFT">RFT</button>
         <button class="nav-item" data-view="completed" data-short="DONE">Completed vehicles</button>
@@ -42,7 +42,7 @@
       <header class="topbar">
         <div>
           <div class="eyebrow">Vehicle Tracking Core</div>
-          <h1 id="page-title">Control Board</h1>
+          <h1 id="page-title">Vehicle Locations</h1>
         </div>
         <div class="topbar-actions">
           <button class="ghost" id="operator-profile" type="button">Set Operator</button>
@@ -61,7 +61,7 @@
               <p>Only PMB stoppages and Parts stoppages that need action before normal queue work.</p>
             </div>
             <div class="panel-actions">
-              <button class="small-button" type="button" data-view-target="workflow">Open PMB workflow</button>
+              <button class="small-button" type="button" data-view-target="workflow">Open Control Board</button>
               <button class="small-button" type="button" data-view-target="rft">Open RFT</button>
             </div>
           </div>
@@ -70,12 +70,12 @@
         <section class="panel span-12 incoming-board-panel">
           <div class="panel-header">
             <div>
-              <h2>Control Board vehicle list</h2>
+              <h2>Vehicle Locations list</h2>
               <p>Searchable daily vehicle board ordered by RFT, PMB, Yard Hold, In Transit, then Overseas/Other. Use Yard Hold rows to transfer straight to PMB and PMB rows to transfer to RFT.</p>
             </div>
             <div class="panel-actions">
               <button class="small-button" id="incoming-collapse-all" type="button">Collapse all rows</button>
-              <button class="small-button" type="button" data-view-target="workflow">Open PMB workflow</button>
+              <button class="small-button" type="button" data-view-target="workflow">Open Control Board</button>
             </div>
           </div>
           <div class="incoming-search-panel" aria-label="Main screen vehicle search and filters">
@@ -169,7 +169,7 @@
           <div class="panel-header">
             <div>
               <h2>Detailed incoming vehicle list</h2>
-              <p>Hidden legacy tracker kept for internal table logic. Control Board now uses the vertical collapsible incoming board above.</p>
+              <p>Hidden legacy tracker kept for internal table logic. Vehicle Locations now uses the vertical collapsible incoming board above.</p>
             </div>
             <div class="panel-actions">
               <button class="small-button" id="show-all-priority" type="button">Show Batch Matched</button>
@@ -222,7 +222,7 @@
               <p>Only vehicles currently at PMB. Click a PMB category to open its bay board.</p>
             </div>
             <div class="panel-actions workflow-panel-actions">
-              <label class="workflow-width-control" title="Adjust open PMB Workflow card width for larger monitors">
+              <label class="workflow-width-control" title="Adjust open Control Board card width for larger monitors">
                 <span>Columns</span>
                 <select id="workflow-width-mode" aria-label="Workflow column width">
                   <option value="compact">Compact</option>
@@ -581,7 +581,7 @@
                 <input id="backup-upload" type="file" accept="application/json,.json" />
                 <div class="drop-icon backup-icon">JSON</div>
                 <strong>Restore CRM backup</strong>
-                <span>Select a backup JSON exported from this tracker to reload your saved Control Board later.</span>
+                <span>Select a backup JSON exported from this tracker to reload your saved Vehicle Locations later.</span>
               </label>
             </div>
           </section>
@@ -810,7 +810,7 @@
       }
     }());
   </script>
-  <script src="data-test-100.js?v=2026.07.09.27-row-expand-toggle"></script>
-  <script src="app.js?v=2026.07.09.27-row-expand-toggle"></script>
+  <script src="data-test-100.js?v=2026.07.09.28-ui-cleanup"></script>
+  <script src="app.js?v=2026.07.09.28-ui-cleanup"></script>
 </body>
 </html>

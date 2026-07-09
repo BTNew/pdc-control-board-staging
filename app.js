@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.07.09.27-row-expand-toggle';
+const APP_VERSION = '2026.07.09.28-ui-cleanup';
 window.VEHICLE_TRACKING_DATA = window.VEHICLE_TRACKING_DATA || { report: {}, vehicles: [], toyotaMatches: {} };
 const EDITS_KEY = 'vehicleTrackingCoreNavisionOnlyEdits:v1';
 const ADDED_KEY = 'vehicleTrackingCoreNavisionOnlyVehicles:v1';
@@ -1840,8 +1840,8 @@ function showView(view) {
   $$('.nav-item').forEach(el => el.classList.toggle('active', el.dataset.view === requestedView));
   const departmentDef = departmentStage ? PRODUCTION_FLOW_DEFS.find(def => def.key === departmentStage) : null;
   const titleMap = {
-    dashboard: 'Control Board',
-    workflow: 'PMB Workflow',
+    dashboard: 'Vehicle Locations',
+    workflow: 'Control Board',
     pipeline: 'Vehicle Pipeline',
     visibility: 'Operational Visibility',
     tv: 'PDC TV Board',
@@ -2194,10 +2194,7 @@ function renderWorkflowBoard() {
       metrics.atLimit ? 'is-at-limit' : '',
       metrics.blockedCount ? 'has-blocked' : '',
     ].filter(Boolean).join(' ');
-    const cards = vehicles.map(vehicle => lane.value
-      ? pmbVehicleCardHtml(vehicle)
-      : incomingVehicleDetailRow(vehicle, 'pmb', { draggable: true, hideDelete: true })
-    ).join('') || `<div class="pmb-empty-drop">${search ? 'No matching vehicles here — bucket still accepts drops' : lane.value ? 'Drop vehicles here' : 'No unallocated PMB vehicles'}</div>`;
+    const cards = vehicles.map(vehicle => incomingVehicleDetailRow(vehicle, 'pmb', { draggable: true, hideDelete: true })).join('') || `<div class="pmb-empty-drop">${search ? 'No matching vehicles here — bucket still accepts drops' : lane.value ? 'Drop vehicles here' : 'No unallocated PMB vehicles'}</div>`;
     const capacityLabel = lane.value ? pmbStageCapacityLabel(lane.value) : `${metrics.limitLabel} vehicle limit`;
     const countLabel = search ? `${vehicles.length}/${allVehicles.length}` : `${allVehicles.length}`;
     const hint = metrics.overLimit
@@ -2225,14 +2222,13 @@ function renderWorkflowBoard() {
     ? `${searchedRows.length} of ${pmbRows.length} PMB vehicles match “${search}” · all buckets stay visible for dragging`
     : `${pmbRows.length} PMB vehicles · ${unassignedRows.length} unallocated`;
   const priorityRows = workflowPriorityRows();
-  const priorityHtml = `<section class="workflow-fix-first-strip"><div class="branch-header workflow-pmb-header"><div><strong>Fix First</strong><span>Only vehicles with a PMB stoppage or Parts stoppage.</span></div><div class="branch-header-actions"><span class="badge neutral">${priorityRows.length} item${priorityRows.length === 1 ? '' : 's'}</span></div></div><details class="fix-first-list workflow-fix-first-list" open><summary>Show stoppages</summary><div class="fix-first-list-body">${fixFirstRowsHtml(priorityRows, 'No PMB exceptions need action right now.')}</div></details></section>`;
+  const priorityHtml = `<details class="incoming-bucket workflow-stage-bucket workflow-fix-first-bucket pmb-branch-fix-first" open><summary class="incoming-bucket-title workflow-bucket-title"><span>FIX FIRST</span><strong>${priorityRows.length}</strong><small>Only vehicles with a PMB stoppage or Parts stoppage</small><span class="workflow-bucket-actions"><span class="badge danger">Red priority</span></span></summary><div class="incoming-bucket-list incoming-vertical-list workflow-vertical-list fix-first-list-body">${fixFirstRowsHtml(priorityRows, 'No PMB exceptions need action right now.')}</div></details>`;
   host.innerHTML = `
-    ${priorityHtml}
     <div class="branch-header workflow-pmb-header">
-      <div><strong>PMB control board</strong><span>Unallocated vehicles are full rows like the main screen. Drag vehicles into TINT, HOIST, FITTING, FAB, ELEC, TYRE or PIT; use Open bays for numbered bay scheduling.</span></div>
+      <div><strong>PMB control board</strong><span>All station rows match Vehicle Locations rows. Drag vehicles into TINT, HOIST, FITTING, FAB, ELEC, TYRE or PIT; use Open bays for numbered bay scheduling.</span></div>
       <div class="branch-header-actions"><span class="badge neutral">${escapeHtml(summaryText)}</span></div>
     </div>
-    <div class="workflow-collapsible-board" data-pmb-board>${laneHtml}</div>
+    <div class="workflow-collapsible-board" data-pmb-board>${priorityHtml}${laneHtml}</div>
   `;
   bindPmbDragBoard(host);
   bindFixFirstRows(host);
@@ -2327,7 +2323,19 @@ function setCollapseToggleLabel(button, expanded) {
 }
 
 function detailsWithin(host) {
-  return host ? $$('details', host) : [];
+  if (!host) return [];
+  const directSelectors = [
+    ':scope > details',
+    ':scope > .incoming-vertical-list > details',
+    ':scope > .rft-compact-list > details',
+    ':scope > .deleted-compact-list > details',
+    ':scope > .workflow-collapsible-board > details',
+  ];
+  const rows = directSelectors.flatMap(selector => {
+    try { return $$(selector, host); } catch (error) { return []; }
+  });
+  const unique = [...new Set(rows)];
+  return unique.length ? unique : $$('details', host).filter(row => row.parentElement === host);
 }
 
 function setDetailsWithin(host, open) {
@@ -2337,7 +2345,7 @@ function setDetailsWithin(host, open) {
 function toggleDetailsWithin(host, button) {
   const rows = detailsWithin(host);
   if (!rows.length) return;
-  const shouldExpand = rows.some(row => !row.open);
+  const shouldExpand = !rows.some(row => row.open);
   rows.forEach(row => { row.open = shouldExpand; });
   setCollapseToggleLabel(button, shouldExpand);
 }
@@ -2375,7 +2383,7 @@ function toggleDeletedRows() {
 function toggleWorkflowRows() {
   const host = $('#workflow-board');
   const rows = detailsWithin(host);
-  const shouldExpand = rows.some(row => !row.open);
+  const shouldExpand = !rows.some(row => row.open);
   app.workflowBucketsCollapsed = !shouldExpand;
   if (normalizePmbStage(app.activePmbBayStage) || app.pmbSubFilter) {
     app.activePmbBayStage = '';

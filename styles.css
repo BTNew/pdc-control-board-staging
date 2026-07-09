@@ -6904,7 +6904,8 @@ body.pmb-schedule-adjusting .pmb-schedule-chip-slim {
 .workflow-stage-bucket.pmb-branch-fabrication { border-left-color: #f59e0b; background: #fffbeb; }
 .workflow-stage-bucket.pmb-branch-electrical { border-left-color: #22c55e; background: #f0fdf4; }
 .workflow-stage-bucket.pmb-branch-tyre { border-left-color: #0f766e; background: #f0fdfa; }
-.workflow-stage-bucket.pmb-branch-pit_inspection { border-left-color: #64748b; background: #f8fafc; }
+.workflow-stage-bucket.pmb-branch-pit_inspection { border-left-color: #1d4ed8; background: #eff6ff; }
+.workflow-stage-bucket.pmb-branch-fix-first { border-left-color: #dc2626; background: #fef2f2; }
 .workflow-bucket-title {
   grid-template-columns: auto minmax(150px, .55fr) auto minmax(260px, 1.2fr) auto;
   align-items: center;
@@ -6930,11 +6931,8 @@ body.pmb-schedule-adjusting .pmb-schedule-chip-slim {
   min-height: 70px;
 }
 .workflow-stage-bucket:not(.pmb-branch-unassigned) .workflow-vertical-list {
-  display: flex !important;
-  align-content: flex-start;
-  align-items: stretch;
-  flex-wrap: wrap;
-  gap: 6px;
+  display: grid;
+  gap: 0;
 }
 .workflow-stage-bucket.pmb-branch-tint .workflow-bucket-title,
 .workflow-stage-bucket.pmb-branch-tint .workflow-vertical-list { background: #ecfeff; }
@@ -6949,7 +6947,10 @@ body.pmb-schedule-adjusting .pmb-schedule-chip-slim {
 .workflow-stage-bucket.pmb-branch-tyre .workflow-bucket-title,
 .workflow-stage-bucket.pmb-branch-tyre .workflow-vertical-list { background: #f0fdfa; }
 .workflow-stage-bucket.pmb-branch-pit_inspection .workflow-bucket-title,
-.workflow-stage-bucket.pmb-branch-pit_inspection .workflow-vertical-list { background: #f8fafc; }
+.workflow-stage-bucket.pmb-branch-pit_inspection .workflow-vertical-list { background: #eff6ff; }
+.workflow-stage-bucket.pmb-branch-fix-first .workflow-bucket-title,
+.workflow-stage-bucket.pmb-branch-fix-first .workflow-vertical-list { background: #fef2f2; }
+.workflow-stage-bucket.pmb-branch-fix-first .workflow-bucket-title { color: #991b1b; }
 .workflow-draggable-row {
   cursor: grab;
 }
@@ -8281,4 +8282,36 @@ html[data-workflow-width="xl"] #workflow {
 .rft-completion-summary-pill.is-pending {
   background: #fef3c7;
   color: #92400e;
+}
+
+
+/* 2026-07-09 UI cleanup: workflow rows, station colours, RFT/deleted alignment */
+.workflow-stage-bucket.pmb-branch-fix-first {
+  border-color: rgba(220, 38, 38, .42);
+}
+.workflow-stage-bucket.pmb-branch-fix-first .fix-first-row {
+  background: #fff;
+  border-left: 4px solid #dc2626;
+}
+.workflow-stage-bucket.pmb-branch-fix-first .fix-first-row:hover { background: #fff1f2; }
+.workflow-stage-bucket:not(.pmb-branch-unassigned) .workflow-vertical-list .incoming-vehicle-card {
+  width: 100%;
+}
+.workflow-stage-bucket:not(.pmb-branch-unassigned) .workflow-vertical-list .incoming-vehicle-summary {
+  background: rgba(255, 255, 255, .82);
+}
+.incoming-rft-row,
+.deleted-vehicle-row {
+  border-left-width: 6px;
+}
+.incoming-rft-row.rft-status-blocked,
+.deleted-vehicle-row {
+  border-left-color: #dc2626;
+}
+.incoming-rft-row.rft-status-ready { border-left-color: #2563eb; }
+.incoming-rft-row.rft-status-complete { border-left-color: #16a34a; }
+.deleted-vehicle-summary .incoming-card-action,
+.rft-vehicle-summary .incoming-card-action {
+  justify-content: flex-end;
+  white-space: nowrap;
 }
