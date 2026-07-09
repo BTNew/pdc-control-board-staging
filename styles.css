@@ -4116,11 +4116,15 @@ body.pmb-dragging .pmb-drop-lane {
 }
 .pmb-bay-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 8px;
+  grid-template-columns: repeat(auto-fit, minmax(276px, 276px));
+  justify-content: start;
+  align-items: start;
+  gap: 10px;
 }
 .pmb-bay {
-  min-height: 102px;
+  min-height: 204px;
+  width: 276px;
+  max-width: 276px;
   border: 1px solid rgba(148, 163, 184, .45);
   border-radius: 14px;
   background: #fff;
@@ -7673,7 +7677,14 @@ html, body {
   max-width: 100% !important;
 }
 
-.pmb-bay-grid,
+.pmb-bay-grid {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fit, 276px) !important;
+  justify-content: start !important;
+  align-items: start !important;
+  gap: 10px !important;
+}
+
 .bay-grid,
 .station-bay-grid {
   display: grid !important;
@@ -7681,7 +7692,15 @@ html, body {
   gap: 10px !important;
 }
 
-.pmb-bay,
+.pmb-bay {
+  width: 276px !important;
+  max-width: 276px !important;
+  min-height: 204px !important;
+  padding: 9px !important;
+  border-radius: 13px !important;
+  overflow: hidden !important;
+}
+
 .station-bay,
 .bay-card {
   min-height: 135px !important;

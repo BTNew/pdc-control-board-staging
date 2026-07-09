@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.07.09.15-fix-pmb-pills';
+const APP_VERSION = '2026.07.09.16-compact-bay-tiles';
 window.VEHICLE_TRACKING_DATA = window.VEHICLE_TRACKING_DATA || { report: {}, vehicles: [], toyotaMatches: {} };
 const EDITS_KEY = 'vehicleTrackingCoreNavisionOnlyEdits:v1';
 const ADDED_KEY = 'vehicleTrackingCoreNavisionOnlyVehicles:v1';
