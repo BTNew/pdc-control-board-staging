@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.07.09.16-compact-bay-tiles';
+const APP_VERSION = '2026.07.09.17-fix-bay-nav';
 window.VEHICLE_TRACKING_DATA = window.VEHICLE_TRACKING_DATA || { report: {}, vehicles: [], toyotaMatches: {} };
 const EDITS_KEY = 'vehicleTrackingCoreNavisionOnlyEdits:v1';
 const ADDED_KEY = 'vehicleTrackingCoreNavisionOnlyVehicles:v1';
@@ -1752,6 +1752,13 @@ function renderAdminLists() {
 function showView(view) {
   const requestedView = view || 'dashboard';
   const departmentStage = PRODUCTION_DEPARTMENT_VIEWS[requestedView] || '';
+  if (requestedView !== 'workflow') {
+    app.activePmbBayStage = '';
+    app.pmbSubFilter = '';
+    document.body.classList.remove('pmb-station-mode');
+    const pmbWorkflowHost = $('#pmb-workflow-board');
+    if (pmbWorkflowHost) pmbWorkflowHost.classList.remove('station-only');
+  }
   if (departmentStage) app.activeProductionDepartment = departmentStage;
   app.currentView = departmentStage ? 'department' : requestedView;
   $$('.view').forEach(el => el.classList.toggle('active', el.id === requestedView || (departmentStage && el.id === 'department')));
