@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.07.09.18-density-jita-days';
+const APP_VERSION = '2026.07.09.19-no-identity-headers';
 window.VEHICLE_TRACKING_DATA = window.VEHICLE_TRACKING_DATA || { report: {}, vehicles: [], toyotaMatches: {} };
 const EDITS_KEY = 'vehicleTrackingCoreNavisionOnlyEdits:v1';
 const ADDED_KEY = 'vehicleTrackingCoreNavisionOnlyVehicles:v1';
@@ -1340,8 +1340,7 @@ function vehicleIdentityCells(vehicle = {}) {
 }
 
 function vehicleIdentityHeaderHtml(className = '') {
-  const cells = VEHICLE_IDENTITY_COLUMNS.map(cell => `<span class="vehicle-identity-heading ${escapeHtml(cell.className)}">${escapeHtml(cell.label)}</span>`).join('');
-  return `<div class="vehicle-identity-header vehicle-identity-columns ${escapeHtml(className)}" aria-hidden="true">${cells}</div>`;
+  return '';
 }
 
 function vehicleIdentityStackHtml(vehicle = {}, options = {}) {
