@@ -7239,3 +7239,35 @@ body.pmb-schedule-adjusting .pmb-schedule-chip-slim {
 .fix-first-row small, .fix-first-row em { color: #475569; font-style: normal; overflow-wrap: anywhere; }
 .pdc-toggle-chip.is-locked { opacity: .8; cursor: not-allowed; }
 .pdc-toggle-chip.is-locked input { cursor: not-allowed; }
+
+.vehicle-identity-stack {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.vehicle-identity-primary {
+  font-weight: 950;
+  line-height: 1.15;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.vehicle-identity-secondary {
+  color: #64748b;
+  font-size: .72rem;
+  font-weight: 800;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.stock-button.vehicle-identity-primary {
+  display: inline-block;
+  max-width: 100%;
+  text-align: left;
+}
+.pmb-bay-identity .vehicle-identity-secondary,
+.pmb-card-identity .vehicle-identity-secondary,
+.incoming-identity .vehicle-identity-secondary {
+  font-size: .68rem;
+}

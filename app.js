@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.07.08.7';
+const APP_VERSION = '2026.07.09.1';
 const EDITS_KEY = 'vehicleTrackingCoreNavisionOnlyEdits:v1';
 const ADDED_KEY = 'vehicleTrackingCoreNavisionOnlyVehicles:v1';
 const AMY_EMAIL = 'amy.elkington@broometoyota.com.au';
@@ -1213,6 +1213,52 @@ function vehicleJobcardNumber(vehicle = {}) {
   );
 }
 
+function vehicleCustomerName(vehicle = {}) {
+  return cleanNavisionText(vehicle.client || vehicle.toyotaCustomer || vehicle.dealerCustomer || '');
+}
+
+function vehicleIdentityParts(vehicle = {}) {
+  const stock = displayStockNumber(vehicle) || String(vehicle.order || '').trim();
+  return [
+    { label: 'Key', value: vehicleKeyNumber(vehicle) },
+    { label: 'Stock', value: stock },
+    { label: 'JC', value: vehicleJobcardNumber(vehicle) },
+    { label: 'Customer', value: vehicleCustomerName(vehicle) },
+  ].filter(part => cleanNavisionText(part.value));
+}
+
+function vehicleIdentityLabelText(part = {}) {
+  return `${part.label} ${part.value}`.trim();
+}
+
+function vehicleIdentityPrimary(vehicle = {}) {
+  return vehicleIdentityParts(vehicle)[0] || { label: 'Vehicle', value: displayVehicle(vehicle) || 'Vehicle' };
+}
+
+function vehicleIdentityTitle(vehicle = {}) {
+  const parts = vehicleIdentityParts(vehicle).map(vehicleIdentityLabelText);
+  const unit = displayVehicle(vehicle);
+  if (unit) parts.push(unit);
+  return parts.join(' · ');
+}
+
+function vehicleIdentitySecondaryText(vehicle = {}) {
+  return vehicleIdentityParts(vehicle).slice(1).map(vehicleIdentityLabelText).join(' · ');
+}
+
+function vehicleIdentityStackHtml(vehicle = {}, options = {}) {
+  const primary = vehicleIdentityPrimary(vehicle);
+  const primaryText = vehicleIdentityLabelText(primary);
+  const secondary = vehicleIdentitySecondaryText(vehicle);
+  const key = vehicleKey(vehicle);
+  const title = vehicleIdentityTitle(vehicle);
+  const classes = ['vehicle-identity-stack', options.className || ''].filter(Boolean).join(' ');
+  const primaryHtml = options.button
+    ? `<button class="stock-link stock-button vehicle-identity-primary" type="button" data-open-stock="${escapeHtml(key)}" title="${escapeHtml(title)}">${escapeHtml(primaryText)}</button>`
+    : `<strong class="vehicle-identity-primary" title="${escapeHtml(title)}">${escapeHtml(primaryText)}</strong>`;
+  return `<div class="${escapeHtml(classes)}">${primaryHtml}${secondary ? `<small class="vehicle-identity-secondary" title="${escapeHtml(secondary)}">${escapeHtml(secondary)}</small>` : ''}</div>`;
+}
+
 function vehiclePmbKeyNumber(vehicle = {}) {
   return statusCategory(vehicle) === 'pmb' ? vehicleKeyNumber(vehicle) : '';
 }
@@ -1884,15 +1930,15 @@ function fixFirstRowsHtml(rows = [], emptyText = 'No urgent production exception
   return rows.map(row => {
     const vehicle = row.vehicle || {};
     const key = vehicleKey(vehicle);
-    const stock = displayStockNumber(vehicle) || vehicle.order || 'No stock';
-    const client = vehicle.client || vehicle.toyotaCustomer || 'Dealer Order';
+    const identityHtml = vehicleIdentityStackHtml(vehicle);
+    const client = vehicleCustomerName(vehicle) || 'Dealer Order';
     const unit = displayVehicle(vehicle) || 'Vehicle not listed';
     const stage = pmbStageLabel(inferredPmbStage(vehicle)) || pdcLocationLabel(vehiclePdcLocation(vehicle)) || incomingBucketLabel(incomingBucketForVehicle(vehicle));
     const severity = row.severity || 'warning';
     return `<button class="fix-first-row fix-first-${escapeHtml(severity)}" type="button" data-open-stock="${escapeHtml(key)}">
       <span class="fix-first-label">${escapeHtml(row.label || 'Action needed')}</span>
-      <strong>${escapeHtml(stock)}</strong>
-      <small>${escapeHtml(truncate(client, 34))} · ${escapeHtml(truncate(unit, 44))}</small>
+      ${identityHtml}
+      <small>${escapeHtml(truncate(unit, 44))}</small>
       <em>${escapeHtml(truncate(row.detail || stage || 'Open vehicle for details', 72))}</em>
     </button>`;
   }).join('');
@@ -2186,7 +2232,7 @@ function incomingVehicleDetailRow(vehicle = {}, bucketKey = '', options = {}) {
   const key = vehicleKey(vehicle);
   const eta = navisionEtaForVehicle(vehicle) || 'No ETA';
   const stock = displayStockNumber(vehicle) || vehicle.order || 'No stock';
-  const customer = vehicle.client || vehicle.toyotaCustomer || 'Unknown customer';
+  const customer = vehicleCustomerName(vehicle) || 'Unknown customer';
   const unit = displayVehicle(vehicle) || 'Vehicle not listed';
   const order = vehicle.order || vehicle.toyotaOrder || vehicle.salesOrder || '—';
   const consultant = consultantName(vehicle) || vehicle.salesperson || vehicle.salesPerson || '—';
@@ -2205,6 +2251,7 @@ function incomingVehicleDetailRow(vehicle = {}, bucketKey = '', options = {}) {
         ? `<label class="rft-collected-check incoming-collected-check" title="Tick once the vehicle has been collected"><input type="checkbox" data-rft-collected-key="${escapeHtml(key)}" /> <span>Collected</span></label><button class="small-button incoming-open-button" type="button" data-open-stock="${escapeHtml(key)}">Open</button>`
         : `<button class="small-button incoming-open-button" type="button" data-open-stock="${escapeHtml(key)}">Open</button>`;
   const deleteAction = options.hideDelete ? '' : `<button class="small-button incoming-delete-button" type="button" data-incoming-delete="${escapeHtml(key)}" title="Delete this vehicle from the main screen">Delete</button>`;
+  const identitySummary = vehicleIdentityStackHtml(vehicle, { className: 'incoming-identity' });
   const keyBadge = keyNo && keyNo !== '—' ? `<small>Key ${escapeHtml(keyNo)}</small>` : '';
   const selectBox = `<label class="incoming-card-select" title="Select ${escapeHtml(stock)}"><input type="checkbox" data-select-stock="${escapeHtml(key)}" ${app.selectedRows.has(key) ? 'checked' : ''} /><span aria-hidden="true"></span></label>`;
   const dragAttrs = options.draggable ? ` draggable="true" data-pmb-drag-key="${escapeHtml(key)}"` : '';
@@ -2213,10 +2260,10 @@ function incomingVehicleDetailRow(vehicle = {}, bucketKey = '', options = {}) {
     <details class="incoming-vehicle-card incoming-${escapeHtml(bucketKey)}-row${dragClass} ${app.selectedRows.has(key) ? 'is-selected' : ''}" data-incoming-row="${escapeHtml(key)}"${dragAttrs}>
       <summary class="incoming-vehicle-summary">
         ${selectBox}
-        <span class="incoming-card-stock"><b>${escapeHtml(stock)}</b>${keyBadge}</span>
+        <span class="incoming-card-stock">${identitySummary}</span>
         <span class="incoming-card-main">
-          <strong>${escapeHtml(truncate(customer, 46))}</strong>
-          <small>${escapeHtml(truncate(unit, 72))}</small>
+          <strong>${escapeHtml(truncate(unit, 72))}</strong>
+          <small>${escapeHtml(truncate(customer, 46))}</small>
         </span>
         <span class="incoming-card-work-wrap">${workChecks}</span>
         <span class="incoming-card-meta"><b>ETA</b>${escapeHtml(eta)}</span>
@@ -2349,7 +2396,7 @@ async function transferSelectedMainYhVehiclesToPmb() {
 function deleteIncomingVehicleFromMain(key = '') {
   const vehicle = app.data.find(row => vehicleKey(row) === key || row.stock === key || row.order === key || row.id === key);
   if (!vehicle) return;
-  const label = `${displayStockNumber(vehicle) || vehicle.order || 'No stock'} - ${vehicle.client || vehicle.toyotaCustomer || 'Unknown customer'}`;
+  const label = `${vehicleIdentityTitle(vehicle) || 'No stock'} - ${vehicleCustomerName(vehicle) || 'Unknown customer'}`;
   if (!window.confirm(`Delete this vehicle from the main screen?\n\n${label}\n\nThis hides it from this browser's tracker and keeps the delete in local storage.`)) return;
   removeVehiclesFromTracker([vehicle]);
   refreshAfterVehicleRemoval();
@@ -3106,19 +3153,19 @@ function pmbBayTimelineVehicleCardHtml(vehicle = {}, stage = '', rowType = '', c
   const complete = jobDef ? pdcJobComplete(vehicle, jobDef) : false;
   const widthPx = rowType === 'bay' ? pmbScheduleChipWidthPx(vehicle) : 174;
   const leftPx = rowType === 'bay' ? pmbScheduleChipLeftPx(vehicle, config) : 0;
-  const title = `${displayStockNumber(vehicle) || vehicle.order || 'Vehicle'} · ${pmbStageLabel(normalizedStage)}${bay ? ` · Bay ${bay}` : rowType === 'work-started' ? ' · Work Started' : ' · no bay'} · click for details`;
+  const title = `${vehicleIdentityTitle(vehicle) || 'Vehicle'} · ${pmbStageLabel(normalizedStage)}${bay ? ` · Bay ${bay}` : rowType === 'work-started' ? ' · Work Started' : ' · no bay'} · click for details`;
   const draggableAttr = complete || rowType === 'bay' ? '' : `draggable="true" data-pmb-drag-key="${escapeHtml(key)}"`;
   const stock = displayStockNumber(vehicle) || vehicle.order || 'No stock';
   const keyNo = vehicleKeyNumber(vehicle) || 'No key #';
-  const customer = vehicle.client || vehicle.toyotaCustomer || 'Dealer Order';
+  const customer = vehicleCustomerName(vehicle) || 'Dealer Order';
   const timeLabel = rowType === 'bay' ? pmbScheduleVehicleTimeLabel(vehicle) : '';
   const adjustAttrs = rowType === 'bay'
     ? `data-pmb-schedule-chip="1" data-pmb-schedule-chip-key="${escapeHtml(key)}" data-pmb-schedule-chip-stage="${escapeHtml(normalizedStage)}" data-pmb-schedule-chip-bay="${escapeHtml(bay)}"`
     : '';
   return `
     <article class="pmb-bay-vehicle-card pmb-schedule-chip pmb-schedule-chip-slim ${complete ? 'is-complete' : ''} ${isPdcBlocked(vehicle) ? 'is-blocked' : ''}" ${draggableAttr} ${adjustAttrs} data-open-stock="${escapeHtml(key)}" style="--chip-width:${widthPx}px; --chip-left:${leftPx}px; --chip-stack:${index};" title="${escapeHtml(title)}">
-      <strong class="slim-stock">${escapeHtml(stock)}</strong>
-      <span class="slim-key">Key ${escapeHtml(keyNo)}</span>
+      <strong class="slim-stock">${escapeHtml(vehicleIdentityLabelText(vehicleIdentityPrimary(vehicle)))}</strong>
+      <span class="slim-key">${escapeHtml(vehicleIdentitySecondaryText(vehicle) || `Key ${keyNo}`)}</span>
       <span class="slim-customer">${escapeHtml(truncate(customer, 34))}</span>
       ${rowType === 'bay' ? `<span class="pmb-schedule-chip-time" data-pmb-chip-time-label>${escapeHtml(timeLabel)}</span><span class="pmb-schedule-chip-resize-handle" data-pmb-chip-resize-handle title="Drag to change planned hours"></span>` : ''}
     </article>`;
@@ -3409,10 +3456,11 @@ function pmbBayVehicleCardHtml(vehicle = {}, stage = '') {
   const complete = jobDef ? pdcJobComplete(vehicle, jobDef) : false;
   const keyNo = vehicleKeyNumber(vehicle) || '—';
   const stock = displayStockNumber(vehicle) || vehicle.order || 'No stock';
-  const customer = vehicle.client || vehicle.toyotaCustomer || 'Dealer Order';
+  const customer = vehicleCustomerName(vehicle) || 'Dealer Order';
   const bayLabel = bay ? `Bay ${bay}` : 'No bay';
   const statusLabel = complete ? `${jobDef?.label || 'Work'} complete` : `${jobDef?.label || 'Work'} open`;
-  const title = `Key ${keyNo} · ${stock} · ${customer} · ${pmbStageLabel(normalizedStage)} ${bayLabel}`;
+  const identityHtml = vehicleIdentityStackHtml(vehicle, { className: 'pmb-bay-identity' });
+  const title = `${vehicleIdentityTitle(vehicle)} · ${pmbStageLabel(normalizedStage)} ${bayLabel}`;
   const bayCount = pmbStageBayCount(normalizedStage);
   const bayAssignButtons = bayCount
     ? Array.from({ length: bayCount }, (_, index) => {
@@ -3437,8 +3485,7 @@ function pmbBayVehicleCardHtml(vehicle = {}, stage = '') {
   return `
     <article class="pmb-bay-vehicle-card pmb-bay-vehicle-pill ${complete ? 'is-complete' : ''} ${isPdcBlocked(vehicle) ? 'is-blocked' : ''}" draggable="true" data-pmb-drag-key="${escapeHtml(key)}" data-open-stock="${escapeHtml(key)}" title="${escapeHtml(title)}">
       <div class="pmb-bay-pill-main">
-        <span class="pmb-bay-pill-key">Key ${escapeHtml(keyNo)}</span>
-        <strong>${escapeHtml(stock)}</strong>
+        ${identityHtml}
         <span class="pmb-bay-pill-customer">${escapeHtml(truncate(customer, 26))}</span>
       </div>
       <div class="pmb-bay-pill-bottom">
@@ -3478,9 +3525,9 @@ function pmbVehicleCardHtml(vehicle = {}) {
       .map(option => `<button class="pmb-card-move-button" type="button" data-move-pmb-stage-key="${escapeHtml(key)}" data-move-pmb-stage-value="${escapeHtml(option.value)}" title="Move to ${escapeHtml(option.label)}">${escapeHtml(option.label)}</button>`),
   ].filter(Boolean).join('');
   return `
-    <article class="pmb-vehicle-card pmb-age-card-${escapeHtml(ageClass)} ${isPdcBlocked(vehicle) ? 'is-blocked' : ''} ${gateIssues.length ? 'has-rft-gate-issues' : ''}" draggable="true" data-pmb-drag-key="${escapeHtml(key)}" title="Drag ${escapeHtml(displayStockNumber(vehicle) || vehicle.order || 'vehicle')} to another PMB bucket">
+    <article class="pmb-vehicle-card pmb-age-card-${escapeHtml(ageClass)} ${isPdcBlocked(vehicle) ? 'is-blocked' : ''} ${gateIssues.length ? 'has-rft-gate-issues' : ''}" draggable="true" data-pmb-drag-key="${escapeHtml(key)}" title="Drag ${escapeHtml(vehicleIdentityTitle(vehicle) || 'vehicle')} to another PMB bucket">
       <div class="pmb-card-top">
-        <strong>${escapeHtml(displayStockNumber(vehicle) || vehicle.order || 'No stock')}</strong>
+        ${vehicleIdentityStackHtml(vehicle, { className: 'pmb-card-identity' })}
         <div class="pmb-card-actions">
           <button type="button" class="text-button pmb-card-open" data-open-stock="${escapeHtml(key)}">Open</button>
           <button type="button" class="text-button pmb-card-rft" data-transfer-rft-stock="${escapeHtml(key)}" ${gateIssues.length ? 'disabled' : ''} title="${escapeHtml(gateIssues.length ? `RFT locked: ${gateIssues.join(' | ')}` : 'Transfer to RFT')}">RFT</button>
@@ -3496,7 +3543,7 @@ function pmbVehicleCardHtml(vehicle = {}) {
         ${pmbBaySummary(vehicle) ? `<span class="pmb-bay-summary-pill">${escapeHtml(pmbBaySummary(vehicle))}</span>` : ''}
         ${isPdcBlocked(vehicle) ? `<span class="pmb-blocked-pill" title="${escapeHtml(pdcBlockReason(vehicle))}">Blocked</span>` : ''}
       </div>
-      <span class="pmb-card-client" title="${escapeHtml(vehicle.client || vehicle.toyotaCustomer || '')}">${escapeHtml(truncate(vehicle.client || vehicle.toyotaCustomer || 'Dealer Order', 28))}</span>
+      <span class="pmb-card-client" title="${escapeHtml(vehicleCustomerName(vehicle) || '')}">${escapeHtml(truncate(vehicleCustomerName(vehicle) || 'Dealer Order', 28))}</span>
       <small title="${escapeHtml(displayVehicle(vehicle))}">${escapeHtml(truncate(displayVehicle(vehicle), 36))}</small>
       <div class="pmb-next-action"><b>Next:</b> ${escapeHtml(truncate(nextActionForVehicle(vehicle), 74))}</div>
       ${directMoveButtons ? `<div class="pmb-card-move-actions" aria-label="Move PMB vehicle"><span>Move:</span>${directMoveButtons}</div>` : ''}
@@ -4100,7 +4147,7 @@ function completePmbBayWork(key, stage) {
   const def = pmbStageJobDef(normalizedStage);
   if (!vehicle || !def) return;
   const alreadyComplete = pdcJobComplete(vehicle, def);
-  const label = `${displayStockNumber(vehicle) || vehicle.order || 'this vehicle'} - ${vehicle.client || vehicle.toyotaCustomer || 'Unknown customer'}`;
+  const label = `${vehicleIdentityTitle(vehicle) || 'this vehicle'} - ${vehicleCustomerName(vehicle) || 'Unknown customer'}`;
   if (alreadyComplete) {
     window.alert(`${def.label} is already signed off for ${label}. Use the job marker or vehicle popup if you need to remove the sign-off.`);
     return;
@@ -4560,9 +4607,9 @@ function renderVehicleTable() {
         return `
         <tr class="${rowClasses}" data-stock="${escapeHtml(key)}"${pmbDragAttrs}>
           <td class="sp-cell" data-col-id="sp"><label class="row-selector" title="Select ${escapeHtml(displayStockNumber(v) || v.order || 'vehicle')}"><input type="checkbox" data-select-stock="${escapeHtml(key)}" ${app.selectedRows.has(key) ? 'checked' : ''} /><span><strong title="${escapeHtml(consultantName(v))}">${escapeHtml(salesPersonInitials(consultantName(v)))}</strong></span></label></td>
-          <td class="stock-cell" data-col-id="stock"><button class="stock-link stock-button" type="button" data-open-stock="${escapeHtml(key)}" title="Open ${escapeHtml(displayStockNumber(v))}">${escapeHtml(displayStockNumber(v))}</button>${stockOrderSubline(v)}${v.toyotaCustomer && !isCustomerMatch(v) ? `<div class="subtle review-warning">Check customer</div>` : ''}</td>
+          <td class="stock-cell" data-col-id="stock">${vehicleIdentityStackHtml(v, { button: true })}${stockOrderSubline(v)}${v.toyotaCustomer && !isCustomerMatch(v) ? `<div class="subtle review-warning">Check customer</div>` : ''}</td>
           <td class="production-month-cell" data-col-id="prodMth"><span>${escapeHtml(productionMonthLabel(v.prodMth || v.productionMonth || ''))}</span></td>
-          <td class="client-cell" data-col-id="client"><span title="${escapeHtml(v.client || v.toyotaCustomer || '')}">${escapeHtml(v.client || v.toyotaCustomer || '')}</span></td>
+          <td class="client-cell" data-col-id="client"><span title="${escapeHtml(vehicleCustomerName(v) || '')}">${escapeHtml(vehicleCustomerName(v) || '')}</span></td>
           <td data-col-id="vehicle"><span class="vehicle-cell">${escapeHtml(displayVehicle(v))}</span></td>
           <td class="flag-cell pdc-job-cell" data-col-id="tint">${pdcJobTableCell(v, PDC_JOB_BY_KEY.get('tint'))}</td>
           <td class="flag-cell pdc-job-cell" data-col-id="hoist">${pdcJobTableCell(v, PDC_JOB_BY_KEY.get('hoist'))}</td>
@@ -4811,7 +4858,7 @@ function deleteSelectedVehicles() {
   const vehicles = selectedVehiclesForBulkEmail();
   if (!vehicles.length) return;
   const label = `${vehicles.length} selected vehicle${vehicles.length === 1 ? '' : 's'}`;
-  const preview = vehicles.slice(0, 8).map(vehicle => `• ${displayStockNumber(vehicle) || vehicle.order || 'No stock'} - ${vehicle.client || vehicle.toyotaCustomer || 'Unknown customer'}`).join('\n');
+  const preview = vehicles.slice(0, 8).map(vehicle => `• ${vehicleIdentityTitle(vehicle) || 'No stock'} - ${vehicleCustomerName(vehicle) || 'Unknown customer'}`).join('\n');
   const more = vehicles.length > 8 ? `\n• plus ${vehicles.length - 8} more` : '';
   if (!window.confirm(`Delete ${label} from the tracker?\n\n${preview}${more}\n\nThis hides them from the prototype and keeps the delete list in this browser.`)) return;
 
@@ -4824,7 +4871,7 @@ function deleteSelectedVehicles() {
 function overrideSelectedVehiclesToYh() {
   const selected = selectedVehiclesForBulkEmail();
   if (!selected.length) return;
-  const preview = selected.slice(0, 10).map(vehicle => `• ${displayStockNumber(vehicle) || vehicle.order || 'No stock'} - ${vehicle.client || vehicle.toyotaCustomer || 'Unknown customer'} - ${pdcLocationLabel(vehiclePdcLocation(vehicle)) || statusCategory(vehicle)}`).join('\n');
+  const preview = selected.slice(0, 10).map(vehicle => `• ${vehicleIdentityTitle(vehicle) || 'No stock'} - ${vehicleCustomerName(vehicle) || 'Unknown customer'} - ${pdcLocationLabel(vehiclePdcLocation(vehicle)) || statusCategory(vehicle)}`).join('\n');
   const more = selected.length > 10 ? `\n• plus ${selected.length - 10} more` : '';
   if (!window.confirm(`Manually override ${selected.length} selected vehicle${selected.length === 1 ? '' : 's'} to Vehicles at YH?\n\n${preview}${more}\n\nThis lets you move them to PMB and protects the manual Yard Hold location from future Navision location changes until you change it again.`)) return;
 
@@ -4903,7 +4950,7 @@ function pmbRequirementChecklistModal(vehicles = []) {
         const checked = pdcJobRequired(vehicle, def) ? 'checked' : '';
         return `<label class="check-option pdc-toggle-chip pdc-toggle-${escapeHtml(def.key)} ${checked ? 'is-on' : ''}"><input type="checkbox" data-pmb-requirement-row="${index}" data-pmb-requirement-key="${escapeHtml(def.key)}" ${checked} /> <span><b>${escapeHtml(def.short)}</b>${escapeHtml(def.label)}</span></label>`;
       }).join('');
-      return `<article class="pmb-requirement-row" data-pmb-requirement-vehicle="${escapeHtml(key)}"><div><strong>${escapeHtml(displayStockNumber(vehicle) || vehicle.order || 'No stock')}</strong><small>${escapeHtml(vehicle.client || vehicle.toyotaCustomer || 'Dealer Order')} · ${escapeHtml(truncate(displayVehicle(vehicle), 52))}</small></div><div class="form-row six-col check-grid slim-job-grid">${checks}</div></article>`;
+      return `<article class="pmb-requirement-row" data-pmb-requirement-vehicle="${escapeHtml(key)}"><div>${vehicleIdentityStackHtml(vehicle)}<small>${escapeHtml(truncate(displayVehicle(vehicle), 52))}</small></div><div class="form-row six-col check-grid slim-job-grid">${checks}</div></article>`;
     }).join('');
     overlay.innerHTML = `
       <section class="modal-card pmb-requirement-modal-card">
@@ -4961,7 +5008,7 @@ async function transferSelectedYhVehiclesToPmb() {
   }
   if (nonYh.length && !window.confirm(`${nonYh.length} selected vehicle${nonYh.length === 1 ? ' is' : 's are'} not at Yard Hold/In Transit and will be skipped.\n\nTransfer the ${transferable.length} Yard Hold/In Transit vehicle${transferable.length === 1 ? '' : 's'} to PMB?`)) return;
 
-  const preview = transferable.slice(0, 10).map(vehicle => `• ${displayStockNumber(vehicle) || vehicle.order || 'No stock'} - ${vehicle.client || vehicle.toyotaCustomer || 'Unknown customer'}`).join('\n');
+  const preview = transferable.slice(0, 10).map(vehicle => `• ${vehicleIdentityTitle(vehicle) || 'No stock'} - ${vehicleCustomerName(vehicle) || 'Unknown customer'}`).join('\n');
   const more = transferable.length > 10 ? `\n• plus ${transferable.length - 10} more` : '';
   if (!window.confirm(`Transfer ${transferable.length} Yard Hold/In Transit vehicle${transferable.length === 1 ? '' : 's'} to Vehicles at PMB?\n\n${preview}${more}\n\nThis is a manual PDC location change. Future Navision uploads will not move these vehicles back.`)) return;
 
@@ -5025,7 +5072,7 @@ async function transferYhVehicleToPmb(key = '') {
     return;
   }
   const stock = displayStockNumber(vehicle) || vehicle.order || 'No stock';
-  const customer = vehicle.client || vehicle.toyotaCustomer || 'Unknown customer';
+  const customer = vehicleCustomerName(vehicle) || 'Unknown customer';
   if (!window.confirm(`Transfer ${stock} - ${customer} to PMB?\n\nThis is a manual PDC location change. Future Navision uploads will not move it back.`)) return;
 
   const requirementSelections = await pmbRequirementChecklistModal([vehicle]);
@@ -5108,7 +5155,7 @@ function transferVehiclesToRft(vehicles = [], options = {}) {
   }
   const gate = confirmRftGateOverride(selected);
   if (!gate.allowed) return;
-  const preview = selected.slice(0, 10).map(vehicle => `• ${displayStockNumber(vehicle) || vehicle.order || 'No stock'} - ${vehicle.client || vehicle.toyotaCustomer || 'Unknown customer'} - ${pmbStageLabel(inferredPmbStage(vehicle)) || 'Unallocated'}`).join('\n');
+  const preview = selected.slice(0, 10).map(vehicle => `• ${vehicleIdentityTitle(vehicle) || 'No stock'} - ${vehicleCustomerName(vehicle) || 'Unknown customer'} - ${pmbStageLabel(inferredPmbStage(vehicle)) || 'Unallocated'}`).join('\n');
   const more = selected.length > 10 ? `\n• plus ${selected.length - 10} more` : '';
   if (!window.confirm(`Transfer ${selected.length} PMB vehicle${selected.length === 1 ? '' : 's'} to Vehicles RFT?\n\n${preview}${more}\n\nThis marks the vehicle as Ready for Transport and keeps it protected from Navision location changes.`)) return;
 
@@ -5160,7 +5207,7 @@ function draftRftSalespersonNotificationEmail(vehicles = []) {
       return [
         `Stock number: ${displayStockNumber(vehicle) || 'TBA'}`,
         `Toyota Order: ${vehicle.order || 'TBA'}`,
-        `Customer Name: ${vehicle.client || vehicle.toyotaCustomer || 'TBA'}`,
+        `Customer Name: ${vehicleCustomerName(vehicle) || 'TBA'}`,
         `Vehicle: ${displayVehicle(vehicle) || 'TBA'}`,
         `Salesperson: ${consultantName(vehicle) || 'Unassigned'}`,
         `PMB bucket: ${pmbStageLabel(inferredPmbStage(vehicle)) || 'Unallocated'}`,
@@ -5709,7 +5756,7 @@ function closeVehicleModal() {
 function removeVehicle(stock) {
   const vehicle = selectedVehicle(stock);
   if (!vehicle) return;
-  const label = `${displayStockNumber(vehicle) || vehicle.order || 'this vehicle'} - ${vehicle.client || vehicle.toyotaCustomer || 'Unknown customer'}`;
+  const label = `${vehicleIdentityTitle(vehicle) || 'this vehicle'} - ${vehicleCustomerName(vehicle) || 'Unknown customer'}`;
   if (!window.confirm(`Remove ${label} from the tracker? This will hide it from the prototype dashboard.`)) return;
 
   const key = vehicleDeleteKey(vehicle);
@@ -6083,7 +6130,7 @@ function poTasksForEmail(vehicle) {
 function vehicleEmailLines(vehicle) {
   return [
     `Stock number: ${displayStockNumber(vehicle) || 'TBA'}`,
-    `Customer Name: ${vehicle.client || vehicle.toyotaCustomer || 'TBA'}`,
+    `Customer Name: ${vehicleCustomerName(vehicle) || 'TBA'}`,
     `Vehicle: ${displayVehicle(vehicle) || 'TBA'}`,
   ];
 }
@@ -6144,7 +6191,7 @@ function draftNewVehicleBuildEmail(stock) {
     '',
     'For',
     '',
-    `${v.client || v.toyotaCustomer || 'Customer TBA'}`,
+    `${vehicleCustomerName(v) || 'Customer TBA'}`,
     '',
     'Please find attached',
     '',
@@ -6197,8 +6244,7 @@ function renderKanban() {
       <summary class="pipeline-summary"><strong>${escapeHtml(stage)}</strong><span class="badge neutral">${vehicles.length}</span></summary>
       <div class="pipeline-list">
         ${vehicles.map(v => `<article class="kanban-card pipeline-card" data-stock="${escapeHtml(vehicleKey(v))}">
-          <strong>${escapeHtml(displayStockNumber(v) || v.order || 'No stock')}</strong>
-          <span>${escapeHtml(v.client || v.toyotaCustomer || 'Customer TBA')}</span>
+          ${vehicleIdentityStackHtml(v)}
           <span>${escapeHtml(salesPersonInitials(consultantName(v)))} · Toyota ${escapeHtml(v.order || 'No order')}</span>
           <span>${escapeHtml(displayVehicle(v))}</span>
           <span>${escapeHtml(pdcLocationLabel(v.pdcLocation) || v.toyotaStatus || 'Not matched')}${statusCategory(v) === 'pmb' && inferredPmbStage(v) ? ` · ${escapeHtml(pmbStageLabel(inferredPmbStage(v)))}` : ''}${scotEtaOnly(v.etaAtDealer) ? ` · ETA ${escapeHtml(scotEtaOnly(v.etaAtDealer))}` : ''}</span>
@@ -6323,8 +6369,7 @@ function renderScheduleBoard() {
         <article class="schedule-list-item" role="listitem" data-stock="${escapeHtml(vehicleKey(vehicle))}">
           <div class="schedule-list-rank">${escapeHtml(String(index + 1).padStart(2, '0'))}</div>
           <div class="schedule-list-main">
-            <strong>${escapeHtml(displayStockNumber(vehicle) || vehicle.order || 'No stock')}</strong>
-            <span>${escapeHtml(vehicle.client || vehicle.toyotaCustomer || 'Customer TBA')}</span>
+            ${vehicleIdentityStackHtml(vehicle)}
             <small>${escapeHtml(displayVehicle(vehicle))}</small>
           </div>
           <div class="schedule-list-eta">
@@ -6415,8 +6460,7 @@ function renderProductionDepartmentBoard() {
       const complete = productionDepartmentComplete(vehicle, def);
       return `<article class="department-job-card ${departmentVehicleStatus(vehicle, def)}" role="listitem">
         <div class="department-job-main">
-          <strong>${escapeHtml(displayStockNumber(vehicle) || vehicle.order || 'No stock')}</strong>
-          <span>${escapeHtml(vehicle.client || vehicle.toyotaCustomer || 'Customer TBA')}</span>
+          ${vehicleIdentityStackHtml(vehicle)}
           <small>${escapeHtml(displayVehicle(vehicle))}</small>
         </div>
         <div class="department-job-meta">
@@ -6637,7 +6681,7 @@ function renderPartsHome() {
       const pmbStage = inferredPmbStage(vehicle) ? ` · ${pmbStageLabel(inferredPmbStage(vehicle))}` : '';
       return `<tr class="parts-row ${escapeHtml(partsDepartmentStatusClass(status))}">
         <td><span class="parts-status-pill ${escapeHtml(partsDepartmentStatusClass(status))}">${escapeHtml(partsDepartmentStatusLabel(status))}</span></td>
-        <td><button class="stock-link stock-button" type="button" data-open-stock="${escapeHtml(key)}">${escapeHtml(displayStockNumber(vehicle) || vehicle.order || 'No stock')}</button>${stockOrderSubline(vehicle)}</td>
+        <td>${vehicleIdentityStackHtml(vehicle, { button: true })}${stockOrderSubline(vehicle)}</td>
         <td><div class="parts-eta"><strong>${escapeHtml(eta || 'No ETA')}</strong><span class="pmb-age ${escapeHtml('pmb-age-' + ageClass)}">${escapeHtml(partsEtaCounterLabel(vehicle))}</span></div></td>
         <td>${status === 'stoppage' ? `<span class="parts-stoppage-text" title="${escapeHtml(partsStoppageReason(vehicle))}">${escapeHtml(truncate(partsStoppageReason(vehicle), 50))}</span>` : '<span class="subtle">No blocker recorded</span>'}</td>
         <td><div class="parts-action-group">
@@ -6646,7 +6690,7 @@ function renderPartsHome() {
           <button class="small-button primary" type="button" data-parts-complete="${escapeHtml(key)}">Complete</button>
           ${status === 'stoppage' ? `<button class="small-button" type="button" data-parts-clear-stoppage="${escapeHtml(key)}">Clear stoppage</button>` : ''}
         </div></td>
-        <td><span title="${escapeHtml(vehicle.client || vehicle.toyotaCustomer || '')}">${escapeHtml(truncate(vehicle.client || vehicle.toyotaCustomer || 'Dealer Order', 34))}</span></td>
+        <td><span title="${escapeHtml(vehicleCustomerName(vehicle) || '')}">${escapeHtml(truncate(vehicleCustomerName(vehicle) || 'Dealer Order', 34))}</span></td>
         <td><span title="${escapeHtml(displayVehicle(vehicle))}">${escapeHtml(truncate(displayVehicle(vehicle), 48))}</span></td>
         <td>${escapeHtml(stage + pmbStage)}</td>
         <td>${escapeHtml(partsLastUpdateLabel(vehicle) || '')}</td>
@@ -6867,7 +6911,7 @@ function renderRftHome() {
       const blocker = issues.length ? issues.join(' · ') : pdcOutstandingJobsText(vehicle);
       return `<tr class="rft-row ${escapeHtml(rftHomeStatusClass(status))}">
         <td><span class="parts-status-pill ${escapeHtml(rftHomeStatusClass(status))}">${escapeHtml(rftHomeStatusLabel(status))}</span></td>
-        <td><button class="stock-link stock-button" type="button" data-open-stock="${escapeHtml(key)}">${escapeHtml(displayStockNumber(vehicle) || vehicle.order || 'No stock')}</button>${stockOrderSubline(vehicle)}${vehicleKeyNumber(vehicle) ? `<div class="subtle">Key ${escapeHtml(vehicleKeyNumber(vehicle))}</div>` : ''}</td>
+        <td>${vehicleIdentityStackHtml(vehicle, { button: true })}${stockOrderSubline(vehicle)}</td>
         <td>${rftCompletionTicksHtml(vehicle)}</td>
         <td><span class="rft-blocker-text" title="${escapeHtml(blocker)}">${escapeHtml(truncate(blocker, 72))}</span></td>
         <td><div class="parts-action-group rft-action-group">
@@ -6875,7 +6919,7 @@ function renderRftHome() {
           <button class="small-button" type="button" data-open-stock="${escapeHtml(key)}">Open</button>
           <button class="small-button primary" type="button" data-rft-email="${escapeHtml(key)}" ${status === 'blocked' ? `disabled title="Cannot email: ${escapeHtml(blocker)}"` : 'title="Email salesperson: all required jobs are signed off"'}>Email salesperson</button>
         </div></td>
-        <td><span title="${escapeHtml(vehicle.client || vehicle.toyotaCustomer || '')}">${escapeHtml(truncate(vehicle.client || vehicle.toyotaCustomer || 'Dealer Order', 34))}</span></td>
+        <td><span title="${escapeHtml(vehicleCustomerName(vehicle) || '')}">${escapeHtml(truncate(vehicleCustomerName(vehicle) || 'Dealer Order', 34))}</span></td>
         <td><span title="${escapeHtml(displayVehicle(vehicle))}">${escapeHtml(truncate(displayVehicle(vehicle), 48))}</span></td>
         <td>${escapeHtml(transferredLabel || '')}</td>
       </tr>`;
@@ -6962,8 +7006,8 @@ function renderCompletedVehicles() {
       const collectedLabel = collectedAt ? collectedAt.toLocaleString('en-AU', { dateStyle: 'short', timeStyle: 'short' }) : '';
       return `<tr class="completed-vehicle-row">
         <td><label class="rft-collected-check completed-collected-check is-locked" title="Collected vehicles are locked"><input type="checkbox" checked disabled /> <span>Collected</span></label></td>
-        <td><button class="stock-link stock-button" type="button" data-open-stock="${escapeHtml(key)}">${escapeHtml(displayStockNumber(vehicle) || vehicle.order || 'No stock')}</button>${stockOrderSubline(vehicle)}</td>
-        <td><span title="${escapeHtml(vehicle.client || vehicle.toyotaCustomer || '')}">${escapeHtml(truncate(vehicle.client || vehicle.toyotaCustomer || 'Dealer Order', 34))}</span></td>
+        <td>${vehicleIdentityStackHtml(vehicle, { button: true })}${stockOrderSubline(vehicle)}</td>
+        <td><span title="${escapeHtml(vehicleCustomerName(vehicle) || '')}">${escapeHtml(truncate(vehicleCustomerName(vehicle) || 'Dealer Order', 34))}</span></td>
         <td><span title="${escapeHtml(displayVehicle(vehicle))}">${escapeHtml(truncate(displayVehicle(vehicle), 48))}</span></td>
         <td>${escapeHtml(vehicleKeyNumber(vehicle) || '')}</td>
         <td>${escapeHtml(collectedLabel)}</td>
@@ -7055,13 +7099,12 @@ function renderTvBoard() {
     .slice(0, 12);
 
   const issueList = gateIssues.slice(0, 12).map(vehicle => `<button class="tv-issue-row" type="button" data-open-stock="${escapeHtml(vehicleKey(vehicle))}">
-    <strong>${escapeHtml(displayStockNumber(vehicle) || vehicle.order || 'No stock')}</strong>
-    <span>${escapeHtml(truncate(vehicle.client || vehicle.toyotaCustomer || 'Dealer Order', 30))}</span>
+    ${vehicleIdentityStackHtml(vehicle)}
     <small>${escapeHtml(vehicleRftGateIssues(vehicle).join(' · '))}</small>
   </button>`).join('') || '<div class="subtle">No active RFT gate issues.</div>';
 
   const overdueList = overdue.map(row => `<button class="tv-issue-row" type="button" data-open-stock="${escapeHtml(vehicleKey(row.vehicle))}">
-    <strong>${escapeHtml(displayStockNumber(row.vehicle) || row.vehicle.order || 'No stock')}</strong>
+    ${vehicleIdentityStackHtml(row.vehicle)}
     <span>${escapeHtml(pmbStageLabel(inferredPmbStage(row.vehicle)) || 'Unallocated')}</span>
     <small>${escapeHtml(row.days)} days in bucket · limit ${escapeHtml(row.limit)} day${row.limit === 1 ? '' : 's'}</small>
   </button>`).join('') || '<div class="subtle">No overdue PMB bucket ageing.</div>';
@@ -7727,7 +7770,7 @@ function renderAutocareResults(result) {
   const matchedList = result.matched.length ? result.matched.map((row, index) => {
     const current = app.data.find(vehicle => vehicleKey(vehicle) === vehicleKey(row.vehicle)) || row.vehicle;
     const key = autocareResultItemKey(row.item, index);
-    return `<div class="summary-row ok autocare-result-row"><div><strong>${escapeHtml(displayStockNumber(current) || current.order || row.item.batch || row.item.vin)}</strong><span>${escapeHtml(current.client || current.toyotaCustomer || 'Customer TBA')} · ${escapeHtml(displayVehicle(current) || row.item.model || 'Vehicle')} · matched by ${escapeHtml(row.matchedBy)}${row.previousStatus ? ` · was ${escapeHtml(row.previousStatus)}` : ''}</span></div><button class="small-button" type="button" data-autocare-zpl-single="matched:${escapeHtml(key)}">Print label</button></div>`;
+    return `<div class="summary-row ok autocare-result-row"><div>${vehicleIdentityStackHtml(current)}<span>${escapeHtml(displayVehicle(current) || row.item.model || 'Vehicle')} · matched by ${escapeHtml(row.matchedBy)}${row.previousStatus ? ` · was ${escapeHtml(row.previousStatus)}` : ''}</span></div><button class="small-button" type="button" data-autocare-zpl-single="matched:${escapeHtml(key)}">Print label</button></div>`;
   }).join('') : `<div class="summary-row"><strong>None matched</strong><span>No vehicles in the CRM matched the VINs or batches on this notice.</span></div>`;
 
   const unmatchedList = result.unmatched.length ? result.unmatched.map((item, index) => {
@@ -8007,7 +8050,7 @@ function renderScotSummary(scanned = false) {
     <div class="summary-row important"><strong>${escapeHtml(item.stock)}</strong><span>Toyota order ${escapeHtml(item.order)} · ${escapeHtml(item.client)} · ${escapeHtml(item.vehicle)}</span></div>
   `).join('') || `<div class="summary-row"><strong>None detected</strong><span>No order-only vehicles received a new stock number in this sample scan.</span></div>`;
   const scotOnlyList = summary.scotOnly.slice(0, 10).map(v => `
-    <div class="summary-row warn"><strong>${escapeHtml(displayStockNumber(v) || v.order || 'Order only')}</strong><span>${escapeHtml(v.client || v.toyotaCustomer || 'Unknown customer')} · ${escapeHtml(displayVehicle(v))}${v.toyotaStatus ? ` · ${escapeHtml(v.toyotaStatus)}` : ''}</span></div>
+    <div class="summary-row warn">${vehicleIdentityStackHtml(v)}<span>${escapeHtml(displayVehicle(v))}${v.toyotaStatus ? ` · ${escapeHtml(v.toyotaStatus)}` : ''}</span></div>
   `).join('') || `<div class="summary-row"><strong>None detected</strong><span>No new Navision-only vehicles found.</span></div>`;
 
   host.innerHTML = `
@@ -9232,7 +9275,7 @@ function renderNavisionChangeRows(rows = []) {
     return `<div class="summary-row navision-review-row">
       <label class="navision-review-select">
         <input type="checkbox" data-navision-apply-update="${escapeHtml(key)}" checked />
-        <span><strong>${escapeHtml(displayStockNumber(row.incoming) || displayStockNumber(row.existing) || row.incoming.order || 'Order only')}</strong>${navisionVehicleSummary(row.incoming)}</span>
+        <span>${vehicleIdentityStackHtml(row.incoming || row.existing)}${navisionVehicleSummary(row.incoming)}</span>
       </label>
       <table class="navision-change-table">
         <thead><tr><th>Field</th><th>Current CRM</th><th>New Navision</th></tr></thead>
@@ -9295,14 +9338,14 @@ function renderNavisionPendingReview(result) {
 }
 
 function navisionVehicleSummary(vehicle) {
-  return `${vehicle.order ? `Order ${escapeHtml(vehicle.order)} · ` : ''}${escapeHtml(vehicle.client || vehicle.toyotaCustomer || '(Dealer Order)')} · ${escapeHtml(displayVehicle(vehicle) || vehicle.vehicle || vehicle.toyotaVehicle || 'Vehicle')}`;
+  return `${vehicleIdentityTitle(vehicle) || (vehicle.order ? `Order ${escapeHtml(vehicle.order)}` : '')} · ${escapeHtml(displayVehicle(vehicle) || vehicle.vehicle || vehicle.toyotaVehicle || 'Vehicle')}`;
 }
 
 function renderNavisionRows(rows, cssClass, emptyText) {
   if (!rows.length) return `<div class="summary-row"><strong>None</strong><span>${escapeHtml(emptyText)}</span></div>`;
   return rows.slice(0, 12).map(row => {
     const vehicle = row.incoming || row;
-    return `<div class="summary-row ${cssClass}"><strong>${escapeHtml(displayStockNumber(vehicle) || vehicle.order || vehicle.stock || 'Order only')}</strong><span>${navisionVehicleSummary(vehicle)}${vehicle.toyotaStatus ? ` · ${escapeHtml(vehicle.toyotaStatus)}` : ''}</span></div>`;
+    return `<div class="summary-row ${cssClass}">${vehicleIdentityStackHtml(vehicle)}<span>${navisionVehicleSummary(vehicle)}${vehicle.toyotaStatus ? ` · ${escapeHtml(vehicle.toyotaStatus)}` : ''}</span></div>`;
   }).join('') + (rows.length > 12 ? `<div class="subtle">Showing first 12 of ${rows.length}.</div>` : '');
 }
 
@@ -9359,7 +9402,7 @@ function removeMissingFromLastNavisionImport() {
   const result = app.navisionImport || loadJson(NAVISION_IMPORT_RESULTS_KEY, null);
   const missing = result?.missingFromUpload || [];
   if (!missing.length) return;
-  const preview = missing.slice(0, 10).map(vehicle => `• ${displayStockNumber(vehicle) || vehicle.order || 'No stock'} - ${vehicle.client || vehicle.toyotaCustomer || 'Unknown customer'}`).join('\n');
+  const preview = missing.slice(0, 10).map(vehicle => `• ${vehicleIdentityTitle(vehicle) || 'No stock'} - ${vehicleCustomerName(vehicle) || 'Unknown customer'}`).join('\n');
   const more = missing.length > 10 ? `\n• plus ${missing.length - 10} more` : '';
   if (!window.confirm(`Remove ${missing.length} vehicle${missing.length === 1 ? '' : 's'} that were not found in the latest Navision upload?\n\n${preview}${more}`)) return;
   const removed = removeVehiclesFromTracker(missing);
@@ -9431,8 +9474,8 @@ function renderReviewTable(scanned = false) {
     <thead><tr><th>Stock #</th><th>Current tracker</th><th>Toyota PDF</th><th>Proposed changes</th><th>Review</th></tr></thead>
     <tbody>${rows.map(r => `
       <tr>
-        <td><button class="stock-link stock-button" type="button" data-open-stock="${escapeHtml(vehicleKey(r.vehicle))}">${escapeHtml(displayStockNumber(r.vehicle))}</button>${stockOrderSubline(r.vehicle)}</td>
-        <td><div class="review-block"><strong>${escapeHtml(r.vehicle.client)}</strong><span class="subtle">${escapeHtml(displayVehicle(r.vehicle))}</span>${scotEtaOnly(r.vehicle.etaAtDealer) ? `<span class="subtle">ETA ${escapeHtml(scotEtaOnly(r.vehicle.etaAtDealer))}</span>` : ''}</div></td>
+        <td>${vehicleIdentityStackHtml(r.vehicle, { button: true })}${stockOrderSubline(r.vehicle)}</td>
+        <td><div class="review-block"><strong>${escapeHtml(vehicleCustomerName(r.vehicle) || 'Customer TBA')}</strong><span class="subtle">${escapeHtml(displayVehicle(r.vehicle))}</span>${scotEtaOnly(r.vehicle.etaAtDealer) ? `<span class="subtle">ETA ${escapeHtml(scotEtaOnly(r.vehicle.etaAtDealer))}</span>` : ''}</div></td>
         <td><div class="review-block"><strong>${escapeHtml(r.match.toyotaCustomer || '')}</strong><span class="subtle">Order ${escapeHtml(r.match.order || '')}</span><span class="subtle">${escapeHtml(displayVehicle(r.match))}</span><span>${formatStatus(r.match)}</span></div></td>
         <td>${r.changed.map(([field, oldVal, newVal]) => `<div><strong>${escapeHtml(field)}</strong><div class="subtle">${escapeHtml(oldVal)} -> ${escapeHtml(newVal)}</div></div>`).join('') || '<span class="subtle">No changes</span>'}</td>
         <td>${r.ok ? '<span class="review-ok">Clean match</span>' : '<span class="review-warning">Needs manual review</span>'}</td>
