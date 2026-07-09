@@ -5234,14 +5234,11 @@ body.pmb-station-mode .pmb-bay-schedule-board {
   gap: 3px;
 }
 .pmb-schedule-chip-slim .vehicle-identity-cell {
-  min-height: 22px;
-  padding: 2px 5px;
-}
-.pmb-schedule-chip-slim .vehicle-identity-label {
-  font-size: .45rem;
+  min-height: 18px;
+  padding: 3px 5px;
 }
 .pmb-schedule-chip-slim .vehicle-identity-value {
-  font-size: .62rem;
+  font-size: .64rem;
 }
 
 .pmb-schedule-chip-slim .slim-stock {
@@ -7238,7 +7235,7 @@ body.pmb-schedule-adjusting .pmb-schedule-chip-slim {
 .fix-first-list-body { display: grid; gap: 0; }
 .fix-first-row {
   display: grid;
-  grid-template-columns: minmax(105px, .45fr) minmax(90px, .35fr) minmax(180px, 1fr) minmax(180px, 1.1fr);
+  grid-template-columns: minmax(112px, .4fr) minmax(420px, 1.6fr) minmax(130px, .55fr) minmax(260px, 1.2fr);
   align-items: center;
   gap: 10px;
   width: 100%;
@@ -7271,19 +7268,46 @@ body.pmb-schedule-adjusting .pmb-schedule-chip-slim {
 .vehicle-identity-cell {
   min-width: 0;
   display: grid;
-  gap: 1px;
-  padding: 2px 4px;
+  align-items: center;
+  padding: 4px 5px;
   border: 1px solid rgba(148, 163, 184, .22);
   border-radius: 7px;
   background: rgba(248, 250, 252, .82);
 }
-.vehicle-identity-cell b {
-  color: #94a3b8;
-  font-size: .52rem;
+.vehicle-identity-header {
+  display: grid;
+  width: 100%;
+  align-items: center;
+  column-gap: 4px;
+  margin: 0 0 4px;
+  padding: 0 4px;
+}
+.vehicle-identity-heading {
+  color: #64748b;
+  font-size: .58rem;
   font-weight: 950;
-  letter-spacing: .04em;
+  letter-spacing: .05em;
   line-height: 1;
   text-transform: uppercase;
+}
+.workflow-identity-header,
+.incoming-board-identity-header {
+  margin: 2px 0 3px;
+}
+.fix-first-identity-header {
+  grid-template-columns: minmax(42px, .55fr) minmax(76px, .95fr) minmax(88px, 1fr) minmax(110px, 1.35fr);
+  margin: 0 0 3px 112px;
+  max-width: 470px;
+}
+.pmb-schedule-identity-header {
+  margin: 0 0 3px;
+  padding-left: 4px;
+}
+@media (max-width: 760px) {
+  .fix-first-identity-header {
+    margin-left: 0;
+    max-width: none;
+  }
 }
 .vehicle-identity-value,
 .vehicle-identity-primary {
@@ -7310,7 +7334,7 @@ body.pmb-schedule-adjusting .pmb-schedule-chip-slim {
 .pmb-card-identity .vehicle-identity-cell,
 .pmb-bay-identity .vehicle-identity-cell,
 .incoming-identity .vehicle-identity-cell {
-  padding: 2px 3px;
+  padding: 4px 4px;
 }
 @media (max-width: 760px) {
   .vehicle-identity-columns {

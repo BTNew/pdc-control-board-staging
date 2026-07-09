@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.07.09.5';
+const APP_VERSION = '2026.07.09.6';
 const EDITS_KEY = 'vehicleTrackingCoreNavisionOnlyEdits:v1';
 const ADDED_KEY = 'vehicleTrackingCoreNavisionOnlyVehicles:v1';
 const AMY_EMAIL = 'amy.elkington@broometoyota.com.au';
@@ -1246,14 +1246,30 @@ function vehicleIdentitySecondaryText(vehicle = {}) {
   return vehicleIdentityParts(vehicle).slice(1).map(vehicleIdentityLabelText).join(' · ');
 }
 
-function vehicleIdentityStackHtml(vehicle = {}, options = {}) {
+const VEHICLE_IDENTITY_COLUMNS = [
+  { label: 'Key', className: 'identity-key' },
+  { label: 'SN', className: 'identity-stock' },
+  { label: 'JC', className: 'identity-jc' },
+  { label: 'Name', className: 'identity-name' },
+];
+
+function vehicleIdentityCells(vehicle = {}) {
   const stock = displayStockNumber(vehicle) || String(vehicle.order || '').trim();
-  const cells = [
-    { label: 'Key', className: 'identity-key', value: vehicleKeyNumber(vehicle) },
-    { label: 'SN', className: 'identity-stock', value: stock },
-    { label: 'JC', className: 'identity-jc', value: vehicleJobcardNumber(vehicle) },
-    { label: 'Name', className: 'identity-name', value: vehicleCustomerName(vehicle) },
+  return [
+    { ...VEHICLE_IDENTITY_COLUMNS[0], value: vehicleKeyNumber(vehicle) },
+    { ...VEHICLE_IDENTITY_COLUMNS[1], value: stock },
+    { ...VEHICLE_IDENTITY_COLUMNS[2], value: vehicleJobcardNumber(vehicle) },
+    { ...VEHICLE_IDENTITY_COLUMNS[3], value: vehicleCustomerName(vehicle) },
   ];
+}
+
+function vehicleIdentityHeaderHtml(className = '') {
+  const cells = VEHICLE_IDENTITY_COLUMNS.map(cell => `<span class="vehicle-identity-heading ${escapeHtml(cell.className)}">${escapeHtml(cell.label)}</span>`).join('');
+  return `<div class="vehicle-identity-header vehicle-identity-columns ${escapeHtml(className)}" aria-hidden="true">${cells}</div>`;
+}
+
+function vehicleIdentityStackHtml(vehicle = {}, options = {}) {
+  const cells = vehicleIdentityCells(vehicle);
   const key = vehicleKey(vehicle);
   const title = vehicleIdentityTitle(vehicle);
   const classes = ['vehicle-identity-stack', 'vehicle-identity-columns', options.className || ''].filter(Boolean).join(' ');
@@ -1261,9 +1277,9 @@ function vehicleIdentityStackHtml(vehicle = {}, options = {}) {
     const rawValue = cleanNavisionText(cell.value) || '—';
     const value = truncate(rawValue, cell.label === 'Name' ? 28 : 16);
     const valueHtml = options.button && index === 0
-      ? `<button class="stock-link stock-button vehicle-identity-value vehicle-identity-primary" type="button" data-open-stock="${escapeHtml(key)}" title="${escapeHtml(title)}">${escapeHtml(value)}</button>`
-      : `<span class="vehicle-identity-value ${index === 0 ? 'vehicle-identity-primary' : ''}" title="${escapeHtml(rawValue)}">${escapeHtml(value)}</span>`;
-    return `<span class="vehicle-identity-cell ${escapeHtml(cell.className)}"><b>${escapeHtml(cell.label)}</b>${valueHtml}</span>`;
+      ? `<button class="stock-link stock-button vehicle-identity-value vehicle-identity-primary" type="button" data-open-stock="${escapeHtml(key)}" title="${escapeHtml(title)}" aria-label="${escapeHtml(`${cell.label} ${rawValue}`)}">${escapeHtml(value)}</button>`
+      : `<span class="vehicle-identity-value ${index === 0 ? 'vehicle-identity-primary' : ''}" title="${escapeHtml(rawValue)}" aria-label="${escapeHtml(`${cell.label} ${rawValue}`)}">${escapeHtml(value)}</span>`;
+    return `<span class="vehicle-identity-cell ${escapeHtml(cell.className)}" data-label="${escapeHtml(cell.label)}">${valueHtml}</span>`;
   }).join('');
   return `<div class="${escapeHtml(classes)}" title="${escapeHtml(title)}">${html}</div>`;
 }
@@ -1936,7 +1952,7 @@ function workflowPriorityRows() {
 
 function fixFirstRowsHtml(rows = [], emptyText = 'No urgent production exceptions right now.') {
   if (!rows.length) return `<div class="empty-state compact-empty fix-first-empty"><strong>Clear</strong><span>${escapeHtml(emptyText)}</span></div>`;
-  return rows.map(row => {
+  const rowHtml = rows.map(row => {
     const vehicle = row.vehicle || {};
     const key = vehicleKey(vehicle);
     const identityHtml = vehicleIdentityStackHtml(vehicle);
@@ -1951,6 +1967,7 @@ function fixFirstRowsHtml(rows = [], emptyText = 'No urgent production exception
       <em>${escapeHtml(truncate(row.detail || stage || 'Open vehicle for details', 72))}</em>
     </button>`;
   }).join('');
+  return `${vehicleIdentityHeaderHtml('fix-first-identity-header')}${rowHtml}`;
 }
 
 function bindFixFirstRows(root = document) {
@@ -2063,6 +2080,7 @@ function renderWorkflowBoard() {
           <span class="workflow-bucket-actions">${actions}</span>
         </summary>
         <div class="incoming-bucket-list incoming-vertical-list workflow-vertical-list" data-pmb-drop-stage="${escapeHtml(lane.value)}">
+          ${vehicles.length ? vehicleIdentityHeaderHtml('workflow-identity-header') : ''}
           ${cards}
         </div>
       </details>`;
@@ -2316,11 +2334,12 @@ function renderIncomingDashboardBoard() {
     const vehicles = filteredRows.filter(vehicle => incomingBucketForVehicle(vehicle) === def.key)
       .sort((a, b) => (parseDateAU(navisionEtaForVehicle(a))?.getTime() || 9999999999999) - (parseDateAU(navisionEtaForVehicle(b))?.getTime() || 9999999999999));
     const shown = vehicles.map(vehicle => incomingVehicleDetailRow(vehicle, def.key)).join('') || '<div class="pmb-empty-drop">No vehicles match the current filters</div>';
+    const identityHeader = vehicles.length ? vehicleIdentityHeaderHtml('incoming-board-identity-header') : '';
     return `<details class="incoming-bucket incoming-${escapeHtml(def.key)}" ${def.open ? 'open' : ''}>
       <summary class="incoming-bucket-title">
         <span>${escapeHtml(def.label)}</span><strong>${vehicles.length}</strong><small>${escapeHtml(def.hint)}</small>
       </summary>
-      <div class="incoming-bucket-list incoming-vertical-list">${shown}</div>
+      <div class="incoming-bucket-list incoming-vertical-list">${identityHeader}${shown}</div>
     </details>`;
   }).join('');
   $$('[data-open-stock]', host).forEach(button => button.addEventListener('click', event => {
@@ -3080,6 +3099,7 @@ function renderPmbScheduleRowHtml({ label = '', sub = '', vehicles = [], stage =
         <small>${escapeHtml(`${vehicles.length} vehicle${vehicles.length === 1 ? '' : 's'} · ${plannedHours.toFixed(plannedHours % 1 ? 1 : 0)}h planned`)}</small>
       </div>
       <div class="pmb-schedule-lane" ${dropAttrs}>
+        ${vehicles.length ? vehicleIdentityHeaderHtml('pmb-schedule-identity-header') : ''}
         <div class="pmb-schedule-lane-inner">
           ${vehicles.map((vehicle, index) => pmbBayTimelineVehicleCardHtml(vehicle, normalizedStage, type, config, index)).join('') || `<div class="pmb-schedule-empty">${escapeHtml(emptyText)}</div>`}
         </div>
