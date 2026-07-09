@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.07.09.10-fab13';
+const APP_VERSION = '2026.07.09.11-bay-layout';
 window.VEHICLE_TRACKING_DATA = window.VEHICLE_TRACKING_DATA || { report: {}, vehicles: [], toyotaMatches: {} };
 const EDITS_KEY = 'vehicleTrackingCoreNavisionOnlyEdits:v1';
 const ADDED_KEY = 'vehicleTrackingCoreNavisionOnlyVehicles:v1';
@@ -3173,7 +3173,9 @@ function renderPmbBayBoardHtml(stage = '') {
     const tabStage = normalizePmbStage(def.value);
     const tabVehicles = pmbBayStageVehicles(tabStage);
     const activeClass = tabStage === normalizedStage ? ' active' : '';
-    return `<button class="pmb-bay-stage-tab${activeClass}" type="button" data-open-pmb-bays="${escapeHtml(tabStage)}" aria-pressed="${tabStage === normalizedStage ? 'true' : 'false'}"><span>${escapeHtml(def.label)}</span><strong>${tabVehicles.length}</strong></button>`;
+    const capacityText = pmbStageCapacityLabel(tabStage);
+    const vehicleText = `${tabVehicles.length} veh`;
+    return `<button class="pmb-bay-stage-tab${activeClass}" type="button" data-open-pmb-bays="${escapeHtml(tabStage)}" aria-pressed="${tabStage === normalizedStage ? 'true' : 'false'}"><span>${escapeHtml(def.label)}</span><strong>${escapeHtml(capacityText)}</strong><em>${escapeHtml(vehicleText)}</em></button>`;
   }).join('');
 
   return `

@@ -4115,18 +4115,18 @@ body.pmb-dragging .pmb-drop-lane {
 }
 .pmb-bay-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
-  gap: 10px;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 8px;
 }
 .pmb-bay {
-  min-height: 192px;
+  min-height: 118px;
   border: 1px solid rgba(148, 163, 184, .45);
-  border-radius: 16px;
+  border-radius: 14px;
   background: #fff;
-  padding: 9px;
+  padding: 8px;
   display: grid;
   grid-template-rows: auto 1fr;
-  gap: 8px;
+  gap: 6px;
   transition: background .15s ease, border-color .15s ease, box-shadow .15s ease, transform .15s ease;
 }
 .pmb-bay.is-empty {
@@ -4141,13 +4141,13 @@ body.pmb-dragging .pmb-drop-lane {
   box-shadow: 0 8px 20px rgba(22, 163, 74, .12);
 }
 .pmb-bay-slot {
-  min-height: 110px;
+  min-height: 54px;
   display: grid;
   align-content: start;
-  gap: 8px;
+  gap: 6px;
 }
 .pmb-bay-empty {
-  min-height: 100px;
+  min-height: 48px;
   border: 1px dashed rgba(148, 163, 184, .68);
   border-radius: 12px;
   display: grid;
@@ -4301,26 +4301,34 @@ body.pmb-dragging .pmb-drop-lane {
 .pmb-bay-stage-tab {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
   padding: 6px 9px;
   font-size: .62rem;
 }
 .pmb-bay-stage-tab strong {
-  min-width: 18px;
+  min-width: auto;
   height: 18px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   border-radius: 999px;
   background: #dbeafe;
+  padding: 0 6px;
+}
+.pmb-bay-stage-tab em {
+  font-style: normal;
+  color: #475569;
+  font-weight: 900;
 }
 .pmb-bay-stage-tab.active {
   background: #1d4ed8;
   color: #fff;
   border-color: #1d4ed8;
 }
-.pmb-bay-stage-tab.active strong {
+.pmb-bay-stage-tab.active strong,
+.pmb-bay-stage-tab.active em {
   background: rgba(255, 255, 255, .22);
+  color: #fff;
 }
 .pmb-bay-card-top {
   display: flex;
