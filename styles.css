@@ -8160,7 +8160,9 @@ html[data-workflow-width="xl"] #workflow {
   gap: 4px !important;
 }
 #workflow .incoming-identity.vehicle-identity-columns {
-  grid-template-columns: 42px 84px 106px minmax(150px, 1fr) !important;
+  width: fit-content !important;
+  max-width: 100% !important;
+  grid-template-columns: 42px 84px 106px minmax(150px, 185px) !important;
   gap: 2px !important;
 }
 #workflow .incoming-identity .vehicle-identity-cell {
@@ -8361,7 +8363,7 @@ html[data-row-width="xl"] {
   grid-template-columns: 12px 22px minmax(var(--pdc-row-main-min), 1.35fr) minmax(var(--pdc-row-work-min), .75fr) minmax(var(--pdc-row-meta-min), 1fr) minmax(54px, auto) minmax(var(--pdc-row-action-min), max-content) !important;
 }
 #workflow .incoming-vehicle-summary {
-  grid-template-columns: 12px 20px minmax(calc(var(--pdc-row-main-min) + 160px), 1.7fr) minmax(var(--pdc-row-work-min), .55fr) minmax(var(--pdc-row-meta-min), 1fr) minmax(54px, auto) minmax(var(--pdc-row-action-min), max-content) !important;
+  grid-template-columns: 12px 20px minmax(360px, 420px) minmax(110px, 150px) minmax(300px, 1fr) minmax(62px, max-content) minmax(150px, max-content) !important;
 }
 .rft-vehicle-summary,
 .deleted-vehicle-summary {
