@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Vehicle Tracking Core</title>
-  <link rel="stylesheet" href="styles.css?v=2026.07.09.30-setup-deleted-row-width" />
+  <link rel="stylesheet" href="styles.css?v=2026.07.09.31-csv-download-link" />
 </head>
 <body>
   <div class="app-shell" id="app-shell">
@@ -14,7 +14,7 @@
         <div class="brand-text">
           <div class="brand-title">Vehicle Tracking</div>
           <div class="brand-subtitle">Core Tracker</div>
-          <div class="app-version" id="app-version">Version 2026.07.09.30-setup-deleted-row-width</div>
+          <div class="app-version" id="app-version">Version 2026.07.09.31-csv-download-link</div>
         </div>
         <button class="sidebar-toggle" id="sidebar-toggle" type="button" aria-label="Collapse sidebar" title="Collapse sidebar">‹</button>
       </div>
@@ -605,6 +605,9 @@
                 <h2>Upload Navision text or Excel</h2>
                 <p>Paste tab-separated rows copied from Navision, or upload .txt / .tsv / .csv / .xlsx. Navision is used only up to Yard Hold; explicit spreadsheet columns can update PDC controls.</p>
               </div>
+              <div class="panel-actions">
+                <a class="small-button" href="random-100-vehicles.csv" download>Download random 100-vehicle CSV</a>
+              </div>
             </div>
             <label class="drop-zone navision-drop-zone" for="navision-upload">
               <input id="navision-upload" type="file" accept=".txt,.tsv,.csv,.xlsx,text/plain,text/tab-separated-values,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" />
@@ -780,7 +783,7 @@
     </div>
   </template>
 
-  <script src="data.js?v=2026.07.09.30-setup-deleted-row-width"></script>
-  <script src="app.js?v=2026.07.09.30-setup-deleted-row-width"></script>
+  <script src="data.js?v=2026.07.09.31-csv-download-link"></script>
+  <script src="app.js?v=2026.07.09.31-csv-download-link"></script>
 </body>
 </html>
