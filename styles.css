@@ -7745,3 +7745,119 @@ input, select, textarea, button {
     justify-content: flex-start !important;
   }
 }
+
+
+/* Rectangular bay vehicle pills: 60x40-style ratio, concise identity, outstanding stations only. */
+.pmb-bay-slot,
+.pmb-bay-unassigned-list {
+  justify-items: start !important;
+}
+
+.pmb-bay-vehicle-card.pmb-bay-vehicle-pill {
+  width: min(100%, 240px) !important;
+  max-width: 240px !important;
+  min-height: 0 !important;
+  height: auto !important;
+  aspect-ratio: 3 / 2 !important;
+  display: grid !important;
+  grid-template-rows: auto 1fr auto !important;
+  align-content: stretch !important;
+  gap: 6px !important;
+  padding: 8px !important;
+  border-radius: 10px !important;
+  overflow: visible !important;
+}
+
+.pmb-bay-pill-main {
+  display: grid !important;
+  grid-template-rows: auto auto !important;
+  align-content: start !important;
+  gap: 4px !important;
+  min-width: 0 !important;
+}
+
+.pmb-bay-pill-ids {
+  display: grid !important;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  gap: 4px !important;
+  min-width: 0 !important;
+}
+
+.pmb-bay-id-cell {
+  display: block !important;
+  min-width: 0 !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+  padding: 3px 4px !important;
+  border-radius: 6px !important;
+  background: #f8fafc !important;
+  border: 1px solid rgba(148, 163, 184, .28) !important;
+  color: #0f172a !important;
+  font-size: .56rem !important;
+  font-weight: 900 !important;
+  line-height: 1.05 !important;
+  text-align: center !important;
+}
+
+.pmb-bay-id-key {
+  color: #1d4ed8 !important;
+  background: #eff6ff !important;
+  border-color: rgba(37, 99, 235, .22) !important;
+}
+
+.pmb-bay-pill-customer {
+  display: block !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+  color: #334155 !important;
+  font-size: .68rem !important;
+  font-weight: 850 !important;
+  line-height: 1.12 !important;
+}
+
+.pmb-bay-pill-bottom {
+  align-self: end !important;
+  display: flex !important;
+  align-items: flex-end !important;
+  gap: 4px !important;
+  flex-wrap: wrap !important;
+  overflow: hidden !important;
+}
+
+.pmb-outstanding-stations {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  align-items: center !important;
+  gap: 3px !important;
+  min-width: 0 !important;
+}
+
+.pmb-outstanding-station {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  min-width: 20px !important;
+  min-height: 18px !important;
+  padding: 2px 5px !important;
+  border-radius: 999px !important;
+  border: 1px solid rgba(220, 38, 38, .24) !important;
+  background: #fef2f2 !important;
+  color: #991b1b !important;
+  font-size: .54rem !important;
+  font-weight: 950 !important;
+  line-height: 1 !important;
+}
+
+.pmb-outstanding-station.is-clear {
+  border-color: rgba(22, 163, 74, .24) !important;
+  background: #ecfdf5 !important;
+  color: #166534 !important;
+}
+
+.pmb-bay-pill-stage {
+  display: none !important;
+}

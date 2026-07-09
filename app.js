@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.07.09.12-compact-bays';
+const APP_VERSION = '2026.07.09.13-rect-pills';
 window.VEHICLE_TRACKING_DATA = window.VEHICLE_TRACKING_DATA || { report: {}, vehicles: [], toyotaMatches: {} };
 const EDITS_KEY = 'vehicleTrackingCoreNavisionOnlyEdits:v1';
 const ADDED_KEY = 'vehicleTrackingCoreNavisionOnlyVehicles:v1';
@@ -590,6 +590,24 @@ function pdcJobMarkersHtml(vehicle = {}, interactive = false) {
 
 function pmbRequirementMarkersHtml(vehicle = {}) {
   return pdcJobMarkersHtml(vehicle, true);
+}
+
+function pmbOutstandingStationChipsHtml(vehicle = {}) {
+  const outstanding = pdcRequirementDefinitions(vehicle).filter(job => !pdcJobComplete(vehicle, job));
+  const chips = outstanding.length
+    ? outstanding.map(job => `<span class="pmb-outstanding-station" title="${escapeHtml(`${job.label} outstanding`)}">${escapeHtml(job.short || job.label)}</span>`)
+    : ['<span class="pmb-outstanding-station is-clear">All clear</span>'];
+  return `<div class="pmb-outstanding-stations" aria-label="Outstanding PMB stations">${chips.join('')}</div>`;
+}
+
+function pmbBayPillIdentityHtml(vehicle = {}) {
+  const stock = displayStockNumber(vehicle) || String(vehicle.order || '').trim() || '—';
+  const cells = [
+    { label: 'Key', value: vehicleKeyNumber(vehicle) || '—' },
+    { label: 'Stock', value: stock },
+    { label: 'JC', value: vehicleJobcardNumber(vehicle) || '—' },
+  ].map(cell => `<span class="pmb-bay-id-cell pmb-bay-id-${escapeHtml(cell.label.toLowerCase())}" aria-label="${escapeHtml(`${cell.label} ${cell.value}`)}" title="${escapeHtml(cell.value)}">${escapeHtml(truncate(cell.value, 14))}</span>`).join('');
+  return `<div class="pmb-bay-pill-ids">${cells}</div>`;
 }
 
 function pmbRequirementText(vehicle = {}) {
@@ -3514,12 +3532,9 @@ function pmbBayVehicleCardHtml(vehicle = {}, stage = '') {
   const jobDef = pmbStageJobDef(normalizedStage);
   const bay = pmbBayNumber(vehicle, normalizedStage);
   const complete = jobDef ? pdcJobComplete(vehicle, jobDef) : false;
-  const keyNo = vehicleKeyNumber(vehicle) || '—';
-  const stock = displayStockNumber(vehicle) || vehicle.order || 'No stock';
-  const customer = vehicleCustomerName(vehicle) || 'Dealer Order';
   const bayLabel = bay ? `Bay ${bay}` : 'No bay';
-  const statusLabel = complete ? `${jobDef?.label || 'Work'} complete` : `${jobDef?.label || 'Work'} open`;
-  const identityHtml = vehicleIdentityStackHtml(vehicle, { className: 'pmb-bay-identity' });
+  const identityHtml = pmbBayPillIdentityHtml(vehicle);
+  const customerLine = vehicleCustomerName(vehicle) || 'Dealer Order';
   const title = `${vehicleIdentityTitle(vehicle)} · ${pmbStageLabel(normalizedStage)} ${bayLabel}`;
   const bayCount = pmbStageBayCount(normalizedStage);
   const bayAssignButtons = bayCount
@@ -3541,11 +3556,10 @@ function pmbBayVehicleCardHtml(vehicle = {}, stage = '') {
     <article class="pmb-bay-vehicle-card pmb-bay-vehicle-pill ${complete ? 'is-complete' : ''} ${isPdcBlocked(vehicle) ? 'is-blocked' : ''}" draggable="true" data-pmb-drag-key="${escapeHtml(key)}" data-open-stock="${escapeHtml(key)}" title="${escapeHtml(title)}">
       <div class="pmb-bay-pill-main">
         ${identityHtml}
-        <span class="pmb-bay-pill-customer">${escapeHtml(truncate(customer, 26))}</span>
+        <span class="pmb-bay-pill-customer">${escapeHtml(truncate(customerLine, 30))}</span>
       </div>
       <div class="pmb-bay-pill-bottom">
-        ${pmbRequirementMarkersHtml(vehicle)}
-        <span class="pmb-bay-pill-stage">${escapeHtml(bayLabel)} · ${escapeHtml(statusLabel)}</span>
+        ${pmbOutstandingStationChipsHtml(vehicle)}
         ${isPdcBlocked(vehicle) ? `<span class="pmb-bay-chip blocked">Blocked</span>` : ''}
       </div>
       ${bayActions ? `<div class="pmb-bay-pill-actions" aria-label="Assign bay">${bayActions}</div>` : ''}
