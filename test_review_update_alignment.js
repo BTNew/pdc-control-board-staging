@@ -53,14 +53,16 @@ code += String.raw`
   assert(bayBoardHtml.includes('data-open-pmb-bays="TINT"'), 'PMB bay board should expose Tint bucket tab');
   assert(bayBoardHtml.includes('data-open-pmb-bays="PIT_INSPECTION"'), 'PMB bay board should expose Pit bucket tab');
   assert(bayBoardHtml.includes('pmb-bay-stage-tabs'), 'PMB bay board should include bucket navigation tabs');
-  const bayActionVehicle = { stock: 'PMB002', pdcLocation: 'PMB', manualLocation: 'PMB', pmbStage: 'HOIST', pdcRequiresHoist: true };
+  const bayActionVehicle = { stock: '10015802', keyNumber: '202', jobCardNumber: 'JC13920002', client: 'Kewdale Fleet', pdcLocation: 'PMB', manualLocation: 'PMB', pmbStage: 'HOIST', pdcRequiresHoist: true };
   app.data = [bayActionVehicle];
   const bayCardHtml = pmbBayVehicleCardHtml(bayActionVehicle, 'HOIST');
-  assert(bayCardHtml.includes('data-assign-pmb-bay-number="1"'), 'Unassigned PMB bay card should expose Bay 01 assignment action');
-  assert(bayCardHtml.includes('data-assign-pmb-bay-number="3"'), 'Hoist bay card should expose all three hoist bay assignment actions');
+  assert(bayCardHtml.includes('pmb-bay-vehicle-pill'), 'PMB bay card should render as the rectangular pill variant');
+  assert(bayCardHtml.includes('10015802') && bayCardHtml.includes('202') && bayCardHtml.includes('JC13920002'), 'PMB bay pill should show Key, Stock and JC identifiers');
+  assert(bayCardHtml.includes('Kewdale Fleet'), 'PMB bay pill should show customer name under identifiers');
+  assert(!bayCardHtml.includes('data-assign-pmb-bay-number='), 'PMB bay pill surface should not include bay assignment controls');
   assert(pmbStageBayCount('FABRICATION') === 13, 'Fabrication should expose thirteen physical bays');
-  const fabCardHtml = pmbBayVehicleCardHtml({ stock: 'PMB003', pdcLocation: 'PMB', manualLocation: 'PMB', pmbStage: 'FABRICATION' }, 'FABRICATION');
-  assert(fabCardHtml.includes('data-assign-pmb-bay-number="13"'), 'Fabrication bay card should expose Bay 13 assignment action');
+  const fabCardHtml = pmbBayVehicleCardHtml({ stock: '10015803', keyNumber: '203', jobCardNumber: 'JC13920003', client: 'Fremantle Council', pdcLocation: 'PMB', manualLocation: 'PMB', pmbStage: 'FABRICATION' }, 'FABRICATION');
+  assert(!fabCardHtml.includes('data-assign-pmb-bay-number='), 'Fabrication bay pill should stay clean without bay assignment controls');
 
   console.log('Review update alignment tests passed');
 })();

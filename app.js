@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.07.09.13-rect-pills';
+const APP_VERSION = '2026.07.09.14-clean-rect-pills';
 window.VEHICLE_TRACKING_DATA = window.VEHICLE_TRACKING_DATA || { report: {}, vehicles: [], toyotaMatches: {} };
 const EDITS_KEY = 'vehicleTrackingCoreNavisionOnlyEdits:v1';
 const ADDED_KEY = 'vehicleTrackingCoreNavisionOnlyVehicles:v1';
@@ -3536,22 +3536,7 @@ function pmbBayVehicleCardHtml(vehicle = {}, stage = '') {
   const identityHtml = pmbBayPillIdentityHtml(vehicle);
   const customerLine = vehicleCustomerName(vehicle) || 'Dealer Order';
   const title = `${vehicleIdentityTitle(vehicle)} · ${pmbStageLabel(normalizedStage)} ${bayLabel}`;
-  const bayCount = pmbStageBayCount(normalizedStage);
-  const bayAssignButtons = bayCount
-    ? Array.from({ length: bayCount }, (_, index) => {
-      const bayNumber = index + 1;
-      const bayValue = String(bayNumber);
-      const isCurrentBay = String(bay || '') === bayValue;
-      const occupied = !isCurrentBay && pmbBayOccupants(normalizedStage, bayValue, key).length > 0;
-      const label = `Bay ${String(bayNumber).padStart(2, '0')}`;
-      return `<button class="pmb-bay-assign-button${isCurrentBay ? ' is-current' : ''}${occupied ? ' is-occupied' : ''}" type="button" data-assign-pmb-bay-key="${escapeHtml(key)}" data-assign-pmb-bay-stage="${escapeHtml(normalizedStage)}" data-assign-pmb-bay-number="${escapeHtml(String(bayNumber))}" ${isCurrentBay ? 'disabled' : ''} title="${escapeHtml(isCurrentBay ? `Already in ${label}` : occupied ? `Swap into ${label}` : `Move to ${label}`)}">${escapeHtml(label)}${occupied ? ' ↔' : ''}</button>`;
-    }).join('')
-    : '';
-  const bayActions = [
-    `<button class="pmb-bay-assign-button secondary" type="button" data-move-pmb-stage-key="${escapeHtml(key)}" data-move-pmb-stage-value="" title="Move back to PMB Unallocated / waiting for another bay">Unallocated</button>`,
-    `<button class="pmb-bay-assign-button secondary" type="button" data-assign-pmb-bay-key="${escapeHtml(key)}" data-assign-pmb-bay-stage="${escapeHtml(normalizedStage)}" data-assign-pmb-bay-number="" title="Keep in ${escapeHtml(pmbStageLabel(normalizedStage))} but remove the bay number">No bay</button>`,
-    bayAssignButtons,
-  ].filter(Boolean).join('');
+
   return `
     <article class="pmb-bay-vehicle-card pmb-bay-vehicle-pill ${complete ? 'is-complete' : ''} ${isPdcBlocked(vehicle) ? 'is-blocked' : ''}" draggable="true" data-pmb-drag-key="${escapeHtml(key)}" data-open-stock="${escapeHtml(key)}" title="${escapeHtml(title)}">
       <div class="pmb-bay-pill-main">
@@ -3562,7 +3547,6 @@ function pmbBayVehicleCardHtml(vehicle = {}, stage = '') {
         ${pmbOutstandingStationChipsHtml(vehicle)}
         ${isPdcBlocked(vehicle) ? `<span class="pmb-bay-chip blocked">Blocked</span>` : ''}
       </div>
-      ${bayActions ? `<div class="pmb-bay-pill-actions" aria-label="Assign bay">${bayActions}</div>` : ''}
     </article>`;
 }
 
