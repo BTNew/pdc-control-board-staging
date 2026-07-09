@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.07.08.6';
+const APP_VERSION = '2026.07.08.7';
 const EDITS_KEY = 'vehicleTrackingCoreNavisionOnlyEdits:v1';
 const ADDED_KEY = 'vehicleTrackingCoreNavisionOnlyVehicles:v1';
 const AMY_EMAIL = 'amy.elkington@broometoyota.com.au';
@@ -3417,10 +3417,11 @@ function pmbBayVehicleCardHtml(vehicle = {}, stage = '') {
   const bayAssignButtons = bayCount
     ? Array.from({ length: bayCount }, (_, index) => {
       const bayNumber = index + 1;
-      const isCurrentBay = bay === bayNumber;
-      const occupied = !isCurrentBay && pmbBayOccupants(normalizedStage, bayNumber, key).length > 0;
+      const bayValue = String(bayNumber);
+      const isCurrentBay = String(bay || '') === bayValue;
+      const occupied = !isCurrentBay && pmbBayOccupants(normalizedStage, bayValue, key).length > 0;
       const label = `Bay ${String(bayNumber).padStart(2, '0')}`;
-      return `<button class="pmb-bay-assign-button${isCurrentBay ? ' is-current' : ''}" type="button" data-assign-pmb-bay-key="${escapeHtml(key)}" data-assign-pmb-bay-stage="${escapeHtml(normalizedStage)}" data-assign-pmb-bay-number="${escapeHtml(String(bayNumber))}" ${occupied || isCurrentBay ? 'disabled' : ''} title="${escapeHtml(isCurrentBay ? `Already in ${label}` : occupied ? `${label} is occupied` : `Move to ${label}`)}">${escapeHtml(label)}</button>`;
+      return `<button class="pmb-bay-assign-button${isCurrentBay ? ' is-current' : ''}${occupied ? ' is-occupied' : ''}" type="button" data-assign-pmb-bay-key="${escapeHtml(key)}" data-assign-pmb-bay-stage="${escapeHtml(normalizedStage)}" data-assign-pmb-bay-number="${escapeHtml(String(bayNumber))}" ${isCurrentBay ? 'disabled' : ''} title="${escapeHtml(isCurrentBay ? `Already in ${label}` : occupied ? `Swap into ${label}` : `Move to ${label}`)}">${escapeHtml(label)}${occupied ? ' ↔' : ''}</button>`;
     }).join('')
     : '';
   const stageMoveButtons = PMB_STAGE_DEFS
@@ -3926,17 +3927,35 @@ async function assignPmbVehicleToBay(key, stage, bay, requestedStartIso = '') {
     return;
   }
   const bayNumber = normalizePmbBayNumber(bay, nextStage);
-  const currentStage = normalizePmbStage(vehicle.pmbStage || vehicle.pdcWorkStage || vehicle.workStage || '');
+  const currentStage = normalizePmbStage(inferredPmbStage(vehicle));
   if (bayNumber) {
     const occupied = pmbBayOccupants(nextStage, bayNumber, cleanKey);
     if (occupied.length) {
-      window.alert(`${pmbStageLabel(nextStage)} Bay ${bayNumber} already has a vehicle. Move that vehicle out before assigning another one.`);
-      return;
+      const currentBay = pmbBayNumber(vehicle, nextStage);
+      const currentStageForSwap = normalizePmbStage(inferredPmbStage(vehicle));
+      if (occupied.length !== 1 || currentStageForSwap !== nextStage || !currentBay) {
+        window.alert(`${pmbStageLabel(nextStage)} Bay ${bayNumber} already has a vehicle. Move that vehicle out first, or use bay-to-bay swap from another numbered bay.`);
+        return;
+      }
+      const other = occupied[0];
+      const otherKey = vehicleKey(other);
+      saveVehicleEdits(otherKey, {
+        pdcLocation: 'PMB',
+        manualLocation: 'PMB',
+        pdcLocationLocked: true,
+        pmbStage: nextStage,
+        pmbBayStage: nextStage,
+        pmbBayNumber: currentBay,
+        pmbBayEnteredAt: nowIsoString(),
+        pmbBayCompletedAt: '',
+        pmbBayCompletedBy: '',
+        pmbBayCompletedStage: '',
+      }, { render: false });
+      recordVehicleAudit(other, 'Swapped PMB bay', { stage: pmbStageLabel(nextStage), bay: `Bay ${currentBay}` });
     }
-    if (!pmbStageHasBayCapacity(nextStage, cleanKey)) {
-      window.alert(`${pmbStageLabel(nextStage)} is full. It only has ${pmbStageBayCount(nextStage)} bay${pmbStageBayCount(nextStage) === 1 ? '' : 's'}. Move a vehicle out before adding another.`);
-      return;
-    }
+    // Bay assignment is already limited by the specific bay number above. Do not also block
+    // moves because the PMB bucket is over its row/queue limit; that made valid bay-to-bay
+    // and unallocated-to-empty-bay moves fail on busy days.
   }
   const now = nowIsoString();
   const bayLabel = bayNumber ? `Bay ${bayNumber}` : 'No bay';
@@ -5658,6 +5677,7 @@ function saveVehicleEdits(key, updates) {
   renderKpis();
   renderVehicleTable();
   renderKanban();
+  renderWorkflowBoard();
   renderTvBoard();
   renderScheduleBoard();
   renderPartsHome();
