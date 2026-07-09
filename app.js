@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.07.09.22-workflow-slim-sticky';
+const APP_VERSION = '2026.07.09.23-workflow-tight-wide';
 window.VEHICLE_TRACKING_DATA = window.VEHICLE_TRACKING_DATA || { report: {}, vehicles: [], toyotaMatches: {} };
 const EDITS_KEY = 'vehicleTrackingCoreNavisionOnlyEdits:v1';
 const ADDED_KEY = 'vehicleTrackingCoreNavisionOnlyVehicles:v1';
@@ -12,6 +12,7 @@ const OPERATOR_ROLE_KEY = 'vehicleTrackingCoreCurrentOperatorRole:v1';
 const MECHANICS_KEY = 'vehicleTrackingCorePdcMechanics:v1';
 const SUBLET_PROVIDERS_KEY = 'vehicleTrackingCorePdcSubletProviders:v1';
 const VEHICLE_TABLE_COLUMN_ORDER_KEY = 'vehicleTrackingCoreColumnOrder:v4';
+const WORKFLOW_WIDTH_MODE_KEY = 'vehicleTrackingCoreWorkflowWidthMode:v1';
 const VEHICLE_TABLE_DEFAULT_COLUMN_IDS = ['sp', 'stock', 'prodMth', 'client', 'vehicle', 'tint', 'hoist', 'fitting', 'fabrication', 'electrical', 'tyre', 'pitInspection', 'status', 'eta', 'navisionNotes', 'jita', 'action'];
 const PO_TASKS_KEY = 'vehicleTrackingCoreNavisionOnlyPoTasks:v1';
 const PO_FILES_KEY = 'vehicleTrackingCoreNavisionOnlyPoFiles:v1';
@@ -880,6 +881,7 @@ const app = {
   pmbScheduleClockTimer: null,
   workflowBucketsCollapsed: true,
   workflowSearch: '',
+  workflowWidthMode: 'standard',
   sort: { key: '', dir: 'asc' },
   selectedRows: new Set(),
   columnFilters: { sales: '', production: '', status: '', jita: '' },
@@ -1598,6 +1600,7 @@ function updateNavisionSidebarMeta() {
 function init() {
   ensureAppDataAvailable();
   renderAppVersionMarker();
+  applyWorkflowWidthMode(loadWorkflowWidthMode());
   updateNavisionSidebarMeta();
   app.selectedStock = vehicleKey(app.data.find(v => v.toyotaStatus) || app.data[0]);
   bindNav();
@@ -1677,6 +1680,7 @@ function bindNav() {
   on($('#incoming-clear-filters'), 'click', clearIncomingDashboardFilters);
   on($('#incoming-collapse-all'), 'click', collapseMainScreenRows);
   on($('#workflow-collapse-all'), 'click', collapseWorkflowRows);
+  on($('#workflow-width-mode'), 'change', event => setWorkflowWidthMode(event.target.value));
   on($('#workflow-search'), 'input', event => { app.workflowSearch = String(event.target.value || '').trim().toLowerCase(); renderWorkflowBoard(); });
   on($('#workflow-find'), 'click', () => { app.workflowSearch = String($('#workflow-search')?.value || '').trim().toLowerCase(); renderWorkflowBoard(); });
   on($('#workflow-clear-search'), 'click', clearWorkflowSearch);
@@ -2316,6 +2320,30 @@ function clearWorkflowSearch() {
   const input = $('#workflow-search');
   if (input) input.value = '';
   renderWorkflowBoard();
+}
+
+
+function loadWorkflowWidthMode() {
+  try {
+    const value = localStorage.getItem(WORKFLOW_WIDTH_MODE_KEY) || 'standard';
+    return ['compact', 'standard', 'wide', 'xl'].includes(value) ? value : 'standard';
+  } catch (error) {
+    return 'standard';
+  }
+}
+
+function applyWorkflowWidthMode(mode = 'standard') {
+  const normalized = ['compact', 'standard', 'wide', 'xl'].includes(mode) ? mode : 'standard';
+  app.workflowWidthMode = normalized;
+  if (document.documentElement?.dataset) document.documentElement.dataset.workflowWidth = normalized;
+  const select = $('#workflow-width-mode');
+  if (select) select.value = normalized;
+}
+
+function setWorkflowWidthMode(mode = 'standard') {
+  const normalized = ['compact', 'standard', 'wide', 'xl'].includes(mode) ? mode : 'standard';
+  try { localStorage.setItem(WORKFLOW_WIDTH_MODE_KEY, normalized); } catch (error) {}
+  applyWorkflowWidthMode(normalized);
 }
 
 function pmbRequiredWorkLabels(vehicle = {}) {

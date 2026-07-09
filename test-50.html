@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>PDC Control Board — 50 Vehicle Test</title>
-  <link rel="stylesheet" href="styles.css?v=2026.07.09.22-workflow-slim-sticky" />
+  <link rel="stylesheet" href="styles.css?v=2026.07.09.23-workflow-tight-wide" />
 </head>
 <body>
   <div class="test-data-banner" style="position:sticky;top:0;z-index:9999;background:#7c2d12;color:#fff;padding:8px 14px;text-align:center;font-weight:700;letter-spacing:.02em;">TEST DATASET — 50 SAMPLE VEHICLES ONLY</div>
@@ -223,7 +223,16 @@
               <h2>PMB workflow board</h2>
               <p>Only vehicles currently at PMB. Click a PMB category to open its bay board.</p>
             </div>
-            <div class="panel-actions">
+            <div class="panel-actions workflow-panel-actions">
+              <label class="workflow-width-control" title="Adjust open PMB Workflow card width for larger monitors">
+                <span>Columns</span>
+                <select id="workflow-width-mode" aria-label="Workflow column width">
+                  <option value="compact">Compact</option>
+                  <option value="standard" selected>Standard</option>
+                  <option value="wide">Wide</option>
+                  <option value="xl">XL</option>
+                </select>
+              </label>
               <button class="small-button" id="workflow-collapse-all" type="button">Collapse all rows</button>
               <span class="badge neutral">PMB only</span>
             </div>
@@ -769,7 +778,7 @@
       }
     }());
   </script>
-  <script src="data-test-50.js?v=2026.07.09.22-workflow-slim-sticky-test50"></script>
-  <script src="app.js?v=2026.07.09.22-workflow-slim-sticky"></script>
+  <script src="data-test-50.js?v=2026.07.09.23-workflow-tight-wide-test50"></script>
+  <script src="app.js?v=2026.07.09.23-workflow-tight-wide"></script>
 </body>
 </html>

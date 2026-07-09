@@ -8060,3 +8060,84 @@ input, select, textarea, button {
   }
   .workflow-stage-bucket:not([open]) .workflow-bucket-title small { display: none; }
 }
+
+
+/* 2026-07-09.23: make closed PMB Workflow buckets truly slim and add wide-monitor column sizing. */
+#workflow {
+  --workflow-card-width: 320px;
+  --workflow-card-max-width: 340px;
+}
+html[data-workflow-width="compact"] #workflow {
+  --workflow-card-width: 260px;
+  --workflow-card-max-width: 280px;
+}
+html[data-workflow-width="wide"] #workflow {
+  --workflow-card-width: 390px;
+  --workflow-card-max-width: 430px;
+}
+html[data-workflow-width="xl"] #workflow {
+  --workflow-card-width: 480px;
+  --workflow-card-max-width: 540px;
+}
+.workflow-panel-actions {
+  gap: 8px;
+  align-items: center;
+}
+.workflow-width-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: .68rem;
+  font-weight: 800;
+  color: #64748b;
+  white-space: nowrap;
+}
+.workflow-width-control select {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fff;
+  color: var(--ink);
+  padding: 5px 8px;
+  font-size: .7rem;
+  font-weight: 800;
+}
+.workflow-stage-bucket:not([open]) {
+  min-height: 0 !important;
+  display: block !important;
+  padding: 0 !important;
+  margin-bottom: 0 !important;
+}
+.workflow-stage-bucket:not([open]) > .workflow-vertical-list,
+.workflow-stage-bucket:not([open]) > .incoming-bucket-list {
+  display: none !important;
+  min-height: 0 !important;
+  height: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  overflow: hidden !important;
+}
+.workflow-stage-bucket:not([open]) .workflow-bucket-title {
+  min-height: 32px;
+  padding-top: 3px;
+  padding-bottom: 3px;
+}
+.workflow-stage-bucket:not(.pmb-branch-unassigned) .pmb-vehicle-card {
+  flex: 0 0 var(--workflow-card-width) !important;
+  flex-basis: var(--workflow-card-width) !important;
+  width: var(--workflow-card-width) !important;
+  min-width: var(--workflow-card-width) !important;
+  max-width: var(--workflow-card-max-width) !important;
+}
+.workflow-stage-bucket:not(.pmb-branch-unassigned) .workflow-vertical-list {
+  overflow-x: auto;
+  scrollbar-gutter: stable;
+}
+@media (min-width: 1700px) {
+  .workflow-stage-bucket:not(.pmb-branch-unassigned) .workflow-vertical-list {
+    gap: 8px;
+  }
+}
+@media (max-width: 820px) {
+  .workflow-width-control span { display: none; }
+  .workflow-width-control select { max-width: 94px; }
+}
