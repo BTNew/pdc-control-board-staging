@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.07.09.29-rft-row-fix';
+const APP_VERSION = '2026.07.09.30-setup-deleted-row-width';
 window.VEHICLE_TRACKING_DATA = window.VEHICLE_TRACKING_DATA || { report: {}, vehicles: [], toyotaMatches: {} };
 const EDITS_KEY = 'vehicleTrackingCoreNavisionOnlyEdits:v1';
 const ADDED_KEY = 'vehicleTrackingCoreNavisionOnlyVehicles:v1';
@@ -13,6 +13,7 @@ const MECHANICS_KEY = 'vehicleTrackingCorePdcMechanics:v1';
 const SUBLET_PROVIDERS_KEY = 'vehicleTrackingCorePdcSubletProviders:v1';
 const VEHICLE_TABLE_COLUMN_ORDER_KEY = 'vehicleTrackingCoreColumnOrder:v4';
 const WORKFLOW_WIDTH_MODE_KEY = 'vehicleTrackingCoreWorkflowWidthMode:v1';
+const ROW_WIDTH_MODE_KEY = 'vehicleTrackingCoreRowWidthMode:v1';
 const VEHICLE_TABLE_DEFAULT_COLUMN_IDS = ['sp', 'stock', 'prodMth', 'client', 'vehicle', 'tint', 'hoist', 'fitting', 'fabrication', 'electrical', 'tyre', 'pitInspection', 'status', 'eta', 'navisionNotes', 'jita', 'action'];
 const PO_TASKS_KEY = 'vehicleTrackingCoreNavisionOnlyPoTasks:v1';
 const PO_FILES_KEY = 'vehicleTrackingCoreNavisionOnlyPoFiles:v1';
@@ -1848,7 +1849,9 @@ function showView(view) {
     schedule: 'Production',
     parts: 'Parts',
     rft: 'RFT',
-    lists: 'Reports / Admin',
+    completed: 'Completed vehicles',
+    deleted: 'Deleted vehicles',
+    lists: 'Setup',
     import: 'Uploads',
     zpl: 'Label Tools'
   };
@@ -2429,7 +2432,7 @@ function clearWorkflowSearch() {
 
 function loadWorkflowWidthMode() {
   try {
-    const value = localStorage.getItem(WORKFLOW_WIDTH_MODE_KEY) || 'standard';
+    const value = localStorage.getItem(ROW_WIDTH_MODE_KEY) || localStorage.getItem(WORKFLOW_WIDTH_MODE_KEY) || 'standard';
     return ['compact', 'standard', 'wide', 'xl'].includes(value) ? value : 'standard';
   } catch (error) {
     return 'standard';
@@ -2439,14 +2442,20 @@ function loadWorkflowWidthMode() {
 function applyWorkflowWidthMode(mode = 'standard') {
   const normalized = ['compact', 'standard', 'wide', 'xl'].includes(mode) ? mode : 'standard';
   app.workflowWidthMode = normalized;
-  if (document.documentElement?.dataset) document.documentElement.dataset.workflowWidth = normalized;
+  if (document.documentElement?.dataset) {
+    document.documentElement.dataset.workflowWidth = normalized;
+    document.documentElement.dataset.rowWidth = normalized;
+  }
   const select = $('#workflow-width-mode');
   if (select) select.value = normalized;
 }
 
 function setWorkflowWidthMode(mode = 'standard') {
   const normalized = ['compact', 'standard', 'wide', 'xl'].includes(mode) ? mode : 'standard';
-  try { localStorage.setItem(WORKFLOW_WIDTH_MODE_KEY, normalized); } catch (error) {}
+  try {
+    localStorage.setItem(WORKFLOW_WIDTH_MODE_KEY, normalized);
+    localStorage.setItem(ROW_WIDTH_MODE_KEY, normalized);
+  } catch (error) {}
   applyWorkflowWidthMode(normalized);
 }
 
@@ -7119,7 +7128,6 @@ function rftVehicleDetailRow(vehicle = {}) {
   return `
     <details class="incoming-vehicle-card incoming-rft-row rft-compact-row ${escapeHtml(statusClass)}" data-rft-row="${escapeHtml(key)}">
       <summary class="incoming-vehicle-summary rft-vehicle-summary">
-        <span></span>
         <span class="incoming-card-stock">${vehicleIdentityStackHtml(vehicle, { className: 'incoming-identity' })}</span>
         <span class="incoming-card-main">
           <strong>${escapeHtml(truncate(unit, 72))}</strong>
@@ -7269,7 +7277,6 @@ function renderDeletedVehicles() {
     return `
       <details class="incoming-vehicle-card deleted-vehicle-row" data-deleted-row="${escapeHtml(key)}">
         <summary class="incoming-vehicle-summary deleted-vehicle-summary">
-          <span></span>
           <span class="incoming-card-stock">${vehicleIdentityStackHtml(vehicle, { className: 'incoming-identity' })}</span>
           <span class="incoming-card-main"><strong>${escapeHtml(truncate(unit, 72))}</strong><small>${escapeHtml(truncate(customer, 44))}</small></span>
           <span class="incoming-card-work-wrap"><span class="parts-status-pill blocked">Deleted</span></span>

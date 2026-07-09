@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Vehicle Tracking Core</title>
-  <link rel="stylesheet" href="styles.css?v=2026.07.09.29-rft-row-fix" />
+  <link rel="stylesheet" href="styles.css?v=2026.07.09.30-setup-deleted-row-width" />
 </head>
 <body>
   <div class="app-shell" id="app-shell">
@@ -14,7 +14,7 @@
         <div class="brand-text">
           <div class="brand-title">Vehicle Tracking</div>
           <div class="brand-subtitle">Core Tracker</div>
-          <div class="app-version" id="app-version">Version 2026.07.09.29-rft-row-fix</div>
+          <div class="app-version" id="app-version">Version 2026.07.09.30-setup-deleted-row-width</div>
         </div>
         <button class="sidebar-toggle" id="sidebar-toggle" type="button" aria-label="Collapse sidebar" title="Collapse sidebar">‹</button>
       </div>
@@ -26,7 +26,7 @@
         <button class="nav-item" data-view="rft" data-short="RFT">RFT</button>
         <button class="nav-item" data-view="completed" data-short="DONE">Completed vehicles</button>
         <button class="nav-item" data-view="deleted" data-short="DEL">Deleted vehicles</button>
-        <button class="nav-item" data-view="lists" data-short="R">Reports</button>
+        <button class="nav-item" data-view="lists" data-short="SET">Setup</button>
         <button class="nav-item" data-view="import" data-short="U">Uploads</button>
       </nav>
 
@@ -222,12 +222,12 @@
             </div>
             <div class="panel-actions workflow-panel-actions">
               <label class="workflow-width-control" title="Adjust open Control Board card width for larger monitors">
-                <span>Columns</span>
-                <select id="workflow-width-mode" aria-label="Workflow column width">
-                  <option value="compact">Compact</option>
+                <span>Row width</span>
+                <select id="workflow-width-mode" aria-label="Vehicle row and PMB card width">
+                  <option value="compact">Short rows</option>
                   <option value="standard" selected>Standard</option>
-                  <option value="wide">Wide</option>
-                  <option value="xl">XL</option>
+                  <option value="wide">Wider</option>
+                  <option value="xl">Extra wide</option>
                 </select>
               </label>
               <button class="small-button" id="workflow-collapse-all" type="button">Collapse all rows</button>
@@ -780,7 +780,7 @@
     </div>
   </template>
 
-  <script src="data.js?v=2026.07.09.29-rft-row-fix"></script>
-  <script src="app.js?v=2026.07.09.29-rft-row-fix"></script>
+  <script src="data.js?v=2026.07.09.30-setup-deleted-row-width"></script>
+  <script src="app.js?v=2026.07.09.30-setup-deleted-row-width"></script>
 </body>
 </html>
