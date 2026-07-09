@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.07.09.17-fix-bay-nav';
+const APP_VERSION = '2026.07.09.18-density-jita-days';
 window.VEHICLE_TRACKING_DATA = window.VEHICLE_TRACKING_DATA || { report: {}, vehicles: [], toyotaMatches: {} };
 const EDITS_KEY = 'vehicleTrackingCoreNavisionOnlyEdits:v1';
 const ADDED_KEY = 'vehicleTrackingCoreNavisionOnlyVehicles:v1';
@@ -306,7 +306,35 @@ function daysSinceDateValue(value = '') {
 }
 
 function kewdaleEtaValue(vehicle = {}) {
-  return scotEtaOnly(vehicle.navisionKewdaleEta || vehicle.etaAtDealer || '');
+  return scotEtaOnly(vehicle.navisionKewdaleEta || vehicle.etaAtKewdale || vehicle.etaAtDealer || '');
+}
+
+function onSiteDays(vehicle = {}) {
+  return daysSinceDateValue(kewdaleEtaValue(vehicle));
+}
+
+function onSiteDaysLabel(vehicle = {}) {
+  const days = onSiteDays(vehicle);
+  if (days === null) return 'Days on site unknown';
+  if (days < 0) return `Due in ${Math.abs(days)}d`;
+  if (days === 0) return 'On site today';
+  return `${days}d on site`;
+}
+
+function onSiteDaysClass(vehicle = {}) {
+  const days = onSiteDays(vehicle);
+  if (days === null) return 'unknown';
+  if (days < 0) return 'future';
+  if (days > 21) return 'critical';
+  if (days > 10) return 'warning';
+  return 'fresh';
+}
+
+function locationAgeLabel(vehicle = {}) {
+  const status = statusCategory(vehicle);
+  if (status === 'pmb') return onSiteDaysLabel(vehicle).replace('on site', 'at PMB');
+  if (status === 'yardhold') return onSiteDaysLabel(vehicle).replace('on site', 'at YH');
+  return navisionEtaForVehicle(vehicle) || 'No ETA';
 }
 
 function pmbEnteredDateValue(vehicle = {}) {
@@ -811,7 +839,7 @@ function getToyotaMatch(vehicle) {
 function navisionEtaForVehicle(vehicle) {
   // Dashboard ETA must be Kewdale-only.
   // Do not fall back to ETA Date, Port/Plant ETA Date, or ETA At Dealer/BB.
-  return scotEtaOnly(vehicle?.navisionKewdaleEta || '');
+  return scotEtaOnly(vehicle?.navisionKewdaleEta || vehicle?.etaAtKewdale || '');
 }
 
 function buildVehicleData() {
@@ -850,7 +878,7 @@ const app = {
   activePmbBayStage: '',
   pmbDraggingKey: '',
   pmbScheduleClockTimer: null,
-  workflowBucketsCollapsed: false,
+  workflowBucketsCollapsed: true,
   workflowSearch: '',
   sort: { key: '', dir: 'asc' },
   selectedRows: new Set(),
@@ -1352,11 +1380,7 @@ function pmbKeyNumberPillHtml(vehicle = {}) {
 }
 
 function stockOrderSubline(vehicle) {
-  const stock = String(vehicle?.stock || '').trim();
-  const order = String(vehicle?.order || '').trim();
-  const shown = displayStockNumber(vehicle);
-  if (!order || order === shown) return '';
-  return `<div class="subtle stock-order" title="Toyota Order ${escapeHtml(order)}">Toyota ${escapeHtml(order)}</div>`;
+  return '';
 }
 
 function stockLabel(vehicle) {
@@ -2315,12 +2339,12 @@ function incomingWorkChecklistHtml(vehicle = {}) {
 
 function incomingVehicleDetailRow(vehicle = {}, bucketKey = '', options = {}) {
   const key = vehicleKey(vehicle);
-  const eta = navisionEtaForVehicle(vehicle) || 'No ETA';
-  const stock = displayStockNumber(vehicle) || vehicle.order || 'No stock';
+  const eta = locationAgeLabel(vehicle);
+  const stock = displayStockNumber(vehicle) || vehicleKey(vehicle) || 'No stock';
   const customer = vehicleCustomerName(vehicle) || 'Unknown customer';
   const unit = displayVehicle(vehicle) || 'Vehicle not listed';
-  const order = vehicle.order || vehicle.toyotaOrder || vehicle.salesOrder || '—';
   const consultant = consultantName(vehicle) || vehicle.salesperson || vehicle.salesPerson || '—';
+
   const keyNo = vehicleKeyNumber(vehicle) || '—';
   const rego = vehicle.rego || vehicle.registration || '—';
   const vin = vehicle.vin || vehicle.VIN || vehicle.chassis || vehicle.chassisNo || '—';
@@ -2351,13 +2375,11 @@ function incomingVehicleDetailRow(vehicle = {}, bucketKey = '', options = {}) {
           <small>${escapeHtml(truncate(customer, 46))}</small>
         </span>
         <span class="incoming-card-work-wrap">${workChecks}</span>
-        <span class="incoming-card-meta"><b>ETA</b>${escapeHtml(eta)}</span>
-        <span class="incoming-card-meta"><b>Order</b>${escapeHtml(order)}</span>
+        <span class="incoming-card-meta incoming-card-age ${escapeHtml('pmb-age-' + onSiteDaysClass(vehicle))}"><b>${bucketKey === 'pmb' ? 'PMB' : bucketKey === 'yardhold' ? 'YH' : 'ETA'}</b>${escapeHtml(eta)}</span>
         <span class="incoming-card-action">${primaryAction}${deleteAction}</span>
       </summary>
       <div class="incoming-vehicle-detail-grid">
-        <div><b>Deal / Order</b><span>${escapeHtml(order)}</span></div>
-        <div><b>Key number</b><span>${escapeHtml(keyNo)}</span></div>
+
         <div><b>Rego</b><span>${escapeHtml(rego)}</span></div>
         <div><b>VIN / Chassis</b><span>${escapeHtml(vin)}</span></div>
         <div><b>Sales rep</b><span>${escapeHtml(consultant)}</span></div>
@@ -2381,11 +2403,11 @@ function renderIncomingDashboardBoard() {
     summary.textContent = `${filteredRows.length} of ${rows.length} vehicles shown${active.length ? ` · ${active.join(' · ')}` : ''}`;
   }
   const defs = [
-    { key: 'rft', label: 'RFT', hint: 'Vehicles ready for transport', open: true },
-    { key: 'pmb', label: 'PMB', hint: 'Vehicles currently at PMB', open: true },
-    { key: 'yardhold', label: 'Yard Hold', hint: 'Yard Hold vehicles — release to PMB from here', open: true },
-    { key: 'transit', label: 'In Transit', hint: 'Wharf, shipment and WA transit', open: true },
-    { key: 'overseas', label: 'Overseas / Other', hint: 'All other non-RFT vehicles not yet in transit/YH/PMB', open: true },
+    { key: 'rft', label: 'RFT', hint: 'Vehicles ready for transport', open: false },
+    { key: 'pmb', label: 'PMB', hint: 'Vehicles currently at PMB', open: false },
+    { key: 'yardhold', label: 'Yard Hold', hint: 'Yard Hold vehicles — release to PMB from here', open: false },
+    { key: 'transit', label: 'In Transit', hint: 'Wharf, shipment and WA transit', open: false },
+    { key: 'overseas', label: 'Overseas / Other', hint: 'All other non-RFT vehicles not yet in transit/YH/PMB', open: false },
   ];
   host.innerHTML = defs.map(def => {
     if (filters.bucket && filters.bucket !== def.key) return '';
@@ -3533,6 +3555,19 @@ function pmbCurrentStageStatusHtml(vehicle = {}, stage = '') {
   return `<span class="pmb-bay-chip ${escapeHtml(className)}">${escapeHtml(label)}</span>`;
 }
 
+function pmbCardDetailHtml(vehicle = {}) {
+  const unit = displayVehicle(vehicle) || 'Vehicle not listed';
+  const consultant = consultantName(vehicle) || vehicle.salesperson || vehicle.salesPerson || 'No sales rep';
+  const blocked = isPdcBlocked(vehicle) || partsDepartmentStatus(vehicle) === 'stoppage';
+  const blocker = blocked ? (partsStoppageReason(vehicle) || vehicle.pdcBlockedReason || 'Parts/PMB stoppage') : 'No parts stoppage';
+  return `<span class="pmb-pill-vehicle" title="${escapeHtml(unit)}">${escapeHtml(truncate(unit, 34))}</span>
+    <span class="pmb-pill-meta">
+      <span class="pmb-card-age pmb-age-${escapeHtml(onSiteDaysClass(vehicle))}">${escapeHtml(onSiteDaysLabel(vehicle).replace('on site', 'at PMB'))}</span>
+      <span class="pmb-pill-blocker ${blocked ? 'is-blocked' : ''}" title="${escapeHtml(blocker)}">${escapeHtml(blocked ? 'Parts stoppage' : 'No stoppage')}</span>
+    </span>
+    <span class="pmb-pill-sales" title="${escapeHtml(consultant)}">${escapeHtml(truncate(consultant, 30))}</span>`;
+}
+
 function pmbBayVehicleCardHtml(vehicle = {}, stage = '') {
   const normalizedStage = normalizePmbStage(stage || inferredPmbStage(vehicle));
   const key = vehicleKey(vehicle);
@@ -3549,6 +3584,7 @@ function pmbBayVehicleCardHtml(vehicle = {}, stage = '') {
       <div class="pmb-bay-pill-main">
         ${identityHtml}
         <span class="pmb-bay-pill-customer">${escapeHtml(truncate(customerLine, 30))}</span>
+        ${pmbCardDetailHtml(vehicle)}
       </div>
       <div class="pmb-bay-pill-bottom">
         ${pmbOutstandingStationChipsHtml(vehicle)}
@@ -3566,6 +3602,7 @@ function pmbVehicleCardHtml(vehicle = {}) {
       <div class="pmb-pill-main">
         ${pmbBayPillIdentityHtml(vehicle)}
         <span class="pmb-pill-customer">${escapeHtml(truncate(customerLine, 30))}</span>
+        ${pmbCardDetailHtml(vehicle)}
       </div>
       <div class="pmb-pill-bottom">
         ${pmbOutstandingStationChipsHtml(vehicle)}
@@ -5821,7 +5858,7 @@ function renderDetail() {
   const isCompletedVehicle = statusCategory(v) === 'completed';
   const completedLockAttr = isCompletedVehicle ? 'disabled' : '';
   panel.innerHTML = `
-    <div class="panel-header"><div><h2 id="vehicle-modal-title">Vehicle detail</h2><p>${stockLabel(v)} ${escapeHtml(displayStockNumber(v))}${v.order && v.order !== displayStockNumber(v) ? ` · Toyota Order ${escapeHtml(v.order)}` : ''}</p></div>${formatStatus(v)}</div>
+    <div class="panel-header"><div><h2 id="vehicle-modal-title">Vehicle detail</h2><p>${stockLabel(v)} ${escapeHtml(displayStockNumber(v))}</p></div>${formatStatus(v)}</div>
     <div class="detail-body">
       <div class="detail-title">
         <div><h3>${escapeHtml(v.client || 'New customer')}</h3><p>${escapeHtml(displayVehicle(v))}</p></div>
@@ -5913,7 +5950,6 @@ function renderDetail() {
       ${renderNavisionDetailSection(v)}
       <div class="detail-metrics">
         <div class="metric"><span>SP</span><strong title="${escapeHtml(consultantName(v))}">${escapeHtml(salesPersonInitials(consultantName(v)))}</strong></div>
-        <div class="metric"><span>Toyota Order #</span><strong>${escapeHtml(v.order || 'Not matched')}</strong></div>
         ${statusCategory(v) === 'pmb' ? `<div class="metric"><span>Key tag number</span><strong>${escapeHtml(vehiclePmbKeyNumber(v) || 'Not set')}</strong></div>` : ''}
         <div class="metric"><span>JC Jobcard</span><strong>${escapeHtml(vehicleJobcardNumber(v) || 'Not set')}</strong></div>
         <div class="metric"><span>Contact</span><strong>${escapeHtml(v.contact || 'Not on Excel')}</strong></div>
@@ -5938,7 +5974,7 @@ function renderDetail() {
           <div class="timeline-item"><span class="dot"></span><div><strong>Task</strong><br>${escapeHtml(v.internalStatus || 'No task selected')}</div></div>
           ${vehiclePdcLocation(v) ? `<div class="timeline-item"><span class="dot"></span><div><strong>PDC location</strong><br>${escapeHtml(pdcLocationLabel(v.pdcLocation))}</div></div>` : ''}
           ${inferredPmbStage(v) ? `<div class="timeline-item"><span class="dot"></span><div><strong>PMB work stream</strong><br>${escapeHtml(pmbStageLabel(inferredPmbStage(v)))}${pmbBaySummary(v) ? ` · ${escapeHtml(pmbBaySummary(v))}` : ''}</div></div>` : ''}
-          ${v.toyotaStatus ? `<div class="timeline-item"><span class="dot"></span><div><strong>Navision Sub Location Description</strong><br>${escapeHtml(v.toyotaStatus)}${scotEtaOnly(v.etaAtDealer) ? ` · ETA ${escapeHtml(scotEtaOnly(v.etaAtDealer))}` : ''}${v.order ? ` · Toyota Order ${escapeHtml(v.order)}` : ''}</div></div>` : ''}
+          ${v.toyotaStatus ? `<div class="timeline-item"><span class="dot"></span><div><strong>Navision Sub Location Description</strong><br>${escapeHtml(v.toyotaStatus)}${scotEtaOnly(v.etaAtDealer) ? ` · ETA ${escapeHtml(scotEtaOnly(v.etaAtDealer))}` : ''}</div></div>` : ''}
           ${(v.poTasks || []).length ? `<div class="timeline-item"><span class="dot"></span><div><strong>Purchase order tasks loaded</strong><br>${(v.poTasks || []).length} workshop / accessory task${(v.poTasks || []).length === 1 ? '' : 's'} attached.</div></div>` : ''}
           ${isAutocareDespatched(v) ? `<div class="timeline-item autocare-timeline"><span class="dot"></span><div><strong>Autocare despatch notice matched</strong><br>${v.autocareLoadNumber ? `Load ${escapeHtml(v.autocareLoadNumber)} · ` : ''}${v.autocareBatch ? `Batch ${escapeHtml(v.autocareBatch)} · ` : ''}${v.autocareVin ? `VIN ${escapeHtml(v.autocareVin)}` : 'Marked as despatched from Autocare notice'}</div></div>` : ''}
           ${customerWarning ? `<div class="timeline-item"><span class="dot"></span><div><strong>Customer mismatch warning</strong><br>Tracker says ${escapeHtml(v.client)}; Toyota says ${escapeHtml(v.toyotaCustomer)}.</div></div>` : ''}
@@ -6684,6 +6720,7 @@ function renderPartsHome() {
   host.innerHTML = `<div class="parts-table-wrap"><table class="data-table compact-table parts-table">
     <thead><tr>
       <th>Parts status</th>
+      <th>JITA</th>
       <th>SN</th>
       <th>ETA / age</th>
       <th>Stoppage / blocker</th>
@@ -6703,7 +6740,8 @@ function renderPartsHome() {
       const pmbStage = inferredPmbStage(vehicle) ? ` · ${pmbStageLabel(inferredPmbStage(vehicle))}` : '';
       return `<tr class="parts-row ${escapeHtml(partsDepartmentStatusClass(status))}">
         <td><span class="parts-status-pill ${escapeHtml(partsDepartmentStatusClass(status))}">${escapeHtml(partsDepartmentStatusLabel(status))}</span></td>
-        <td>${vehicleIdentityStackHtml(vehicle, { button: true })}${stockOrderSubline(vehicle)}</td>
+        <td class="parts-jita-cell"><span class="parts-jita-label">JITA</span>${jitaIndicator(vehicle)}</td>
+        <td>${vehicleIdentityStackHtml(vehicle, { button: true })}</td>
         <td><div class="parts-eta"><strong>${escapeHtml(eta || 'No ETA')}</strong><span class="pmb-age ${escapeHtml('pmb-age-' + ageClass)}">${escapeHtml(partsEtaCounterLabel(vehicle))}</span></div></td>
         <td>${status === 'stoppage' ? `<span class="parts-stoppage-text" title="${escapeHtml(partsStoppageReason(vehicle))}">${escapeHtml(truncate(partsStoppageReason(vehicle), 50))}</span>` : '<span class="subtle">No blocker recorded</span>'}</td>
         <td><div class="parts-action-group">
@@ -6933,7 +6971,7 @@ function renderRftHome() {
       const blocker = issues.length ? issues.join(' · ') : pdcOutstandingJobsText(vehicle);
       return `<tr class="rft-row ${escapeHtml(rftHomeStatusClass(status))}">
         <td><span class="parts-status-pill ${escapeHtml(rftHomeStatusClass(status))}">${escapeHtml(rftHomeStatusLabel(status))}</span></td>
-        <td>${vehicleIdentityStackHtml(vehicle, { button: true })}${stockOrderSubline(vehicle)}</td>
+        <td>${vehicleIdentityStackHtml(vehicle, { button: true })}</td>
         <td>${rftCompletionTicksHtml(vehicle)}</td>
         <td><span class="rft-blocker-text" title="${escapeHtml(blocker)}">${escapeHtml(truncate(blocker, 72))}</span></td>
         <td><div class="parts-action-group rft-action-group">
@@ -7028,7 +7066,7 @@ function renderCompletedVehicles() {
       const collectedLabel = collectedAt ? collectedAt.toLocaleString('en-AU', { dateStyle: 'short', timeStyle: 'short' }) : '';
       return `<tr class="completed-vehicle-row">
         <td><label class="rft-collected-check completed-collected-check is-locked" title="Collected vehicles are locked"><input type="checkbox" checked disabled /> <span>Collected</span></label></td>
-        <td>${vehicleIdentityStackHtml(vehicle, { button: true })}${stockOrderSubline(vehicle)}</td>
+        <td>${vehicleIdentityStackHtml(vehicle, { button: true })}</td>
         <td><span title="${escapeHtml(vehicleCustomerName(vehicle) || '')}">${escapeHtml(truncate(vehicleCustomerName(vehicle) || 'Dealer Order', 34))}</span></td>
         <td><span title="${escapeHtml(displayVehicle(vehicle))}">${escapeHtml(truncate(displayVehicle(vehicle), 48))}</span></td>
         <td>${escapeHtml(vehicleKeyNumber(vehicle) || '')}</td>

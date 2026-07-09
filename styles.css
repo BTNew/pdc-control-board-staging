@@ -7897,3 +7897,76 @@ input, select, textarea, button {
 .pmb-bay-pill-stage {
   display: none !important;
 }
+
+
+/* Density / JITA / on-site age refinements */
+.parts-jita-cell {
+  text-align: center;
+  white-space: nowrap;
+}
+.parts-jita-label {
+  display: block;
+  color: #64748b;
+  font-size: .55rem;
+  font-weight: 900;
+  letter-spacing: .08em;
+  line-height: 1;
+  margin-bottom: 2px;
+}
+.pmb-pill-vehicle,
+.pmb-pill-sales {
+  color: #64748b;
+  display: block;
+  font-size: .64rem;
+  font-weight: 800;
+  line-height: 1.15;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pmb-pill-meta {
+  align-items: center;
+  display: flex;
+  gap: 4px;
+  min-width: 0;
+}
+.pmb-pill-blocker {
+  border: 1px solid rgba(34, 197, 94, .24);
+  border-radius: 999px;
+  color: #166534;
+  font-size: .54rem;
+  font-weight: 900;
+  line-height: 1;
+  overflow: hidden;
+  padding: 3px 5px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pmb-pill-blocker.is-blocked {
+  background: #fef2f2;
+  border-color: rgba(220, 38, 38, .35);
+  color: #991b1b;
+}
+.incoming-bucket:not([open]) .incoming-bucket-title {
+  padding-block: 5px;
+}
+.incoming-bucket:not([open]) .incoming-bucket-title small {
+  display: none;
+}
+.workflow-search-panel .panel-actions,
+#workflow-collapse-all {
+  position: sticky;
+  top: 8px;
+  z-index: 30;
+}
+#workflow-collapse-all {
+  box-shadow: 0 8px 22px rgba(15, 23, 42, .12);
+}
+.incoming-vehicle-summary {
+  grid-template-columns: auto minmax(118px, .6fr) minmax(220px, 1.1fr) minmax(220px, 1fr) minmax(115px, auto) auto;
+  min-height: 38px;
+}
+.incoming-card-main strong,
+.incoming-card-main small {
+  white-space: nowrap;
+}
