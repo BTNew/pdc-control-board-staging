@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.07.10.07-blank-full-import';
+const APP_VERSION = '2026.07.10.08-backend-full-navision';
 window.VEHICLE_TRACKING_DATA = window.VEHICLE_TRACKING_DATA || { report: {}, vehicles: [], toyotaMatches: {} };
 const EDITS_KEY = 'vehicleTrackingCoreNavisionOnlyEdits:v1';
 const ADDED_KEY = 'vehicleTrackingCoreNavisionOnlyVehicles:v1';
@@ -1852,6 +1852,7 @@ function showView(view) {
     rft: 'RFT',
     completed: 'Completed vehicles',
     deleted: 'Deleted vehicles',
+    backend: 'Back End Data',
     lists: 'Setup',
     import: 'Uploads',
     zpl: 'Label Tools'
@@ -1929,6 +1930,9 @@ function renderActiveView() {
       break;
     case 'deleted':
       renderDeletedVehicles();
+      break;
+    case 'backend':
+      renderBackEndData();
       break;
     case 'lists':
       renderAdminLists();
@@ -7297,6 +7301,52 @@ function renderDeletedVehicles() {
   updateCollapseToggleButtons();
 }
 
+function backEndDataRows() {
+  const deletedRecords = deletedVehicleRecords().map(record => ({
+    vehicle: record.vehicle || {},
+    state: 'Deleted',
+    detail: record.reason || 'Removed from current Navision / dashboard data',
+    deletedAt: record.deletedAt || '',
+  }));
+  const activeRows = app.data.map(vehicle => ({
+    vehicle,
+    state: 'Current',
+    detail: vehicle.source || (vehicle.importedAt ? 'Navision' : 'Tracker'),
+    deletedAt: '',
+  }));
+  return activeRows.concat(deletedRecords).sort((a, b) => String(displayStockNumber(a.vehicle) || vehicleKey(a.vehicle) || '').localeCompare(String(displayStockNumber(b.vehicle) || vehicleKey(b.vehicle) || ''), 'en-AU', { numeric: true }));
+}
+
+function renderBackEndData() {
+  const host = $('#backend-data-content');
+  if (!host) return;
+  const rows = backEndDataRows();
+  const current = rows.filter(row => row.state === 'Current').length;
+  const deleted = rows.length - current;
+  const count = $('#backend-data-count');
+  if (count) count.textContent = `${current} current · ${deleted} deleted`;
+  if (!rows.length) {
+    host.innerHTML = '<div class="empty-state"><strong>No back end data loaded</strong><span>Upload the latest Navision dump to populate this page.</span></div>';
+    return;
+  }
+  host.innerHTML = `<div class="responsive-table"><table class="data-table backend-data-table">
+    <thead><tr><th>Stock / order</th><th>Customer</th><th>Vehicle</th><th>Status</th><th>Source / note</th><th>Updated</th></tr></thead>
+    <tbody>${rows.map(row => {
+      const v = row.vehicle || {};
+      const isDeleted = row.state === 'Deleted';
+      return `<tr class="${isDeleted ? 'deleted-row' : ''}">
+        <td>${vehicleIdentityStackHtml(v, { button: !isDeleted })}${stockOrderSubline(v)}</td>
+        <td>${escapeHtml(vehicleCustomerName(v) || 'Customer TBA')}</td>
+        <td>${escapeHtml(displayVehicle(v) || v.vehicle || v.toyotaVehicle || '')}</td>
+        <td><span class="badge ${isDeleted ? 'danger' : 'neutral'}">${escapeHtml(row.state)}</span>${v.toyotaStatus ? ` <span class="subtle">${escapeHtml(v.toyotaStatus)}</span>` : ''}</td>
+        <td>${escapeHtml(row.detail || '')}</td>
+        <td>${escapeHtml(isDeleted ? (parseIsoTimestamp(row.deletedAt)?.toLocaleString('en-AU', { dateStyle: 'short', timeStyle: 'short' }) || '') : (parseIsoTimestamp(v.importedAt || v.updatedAt || '')?.toLocaleString('en-AU', { dateStyle: 'short', timeStyle: 'short' }) || ''))}</td>
+      </tr>`;
+    }).join('')}</tbody>
+  </table></div>`;
+  $$('[data-open-stock]', host).forEach(btn => btn.addEventListener('click', () => openVehicleModal(btn.dataset.openStock)));
+}
+
 function exportDeletedVehiclesCsv() {
   const rows = deletedVehicleRows();
   const headers = ['Stock','Toyota Order','Key','Client','Vehicle','Deleted At','Deleted By','Deleted Role','Audit Events'];
@@ -7663,7 +7713,7 @@ function handlePoSelect(e) {
       pdcRequiresElectrical: /electrical|auto.?elec|12v|dual battery|battery system|uhf|spotlight|light bar|beacon|compressor|anderson|redarc|brake controller|dc dc|dcdc|dash cam|camera|reverse camera|power outlet|usb/.test(combinedText),
       pdcRequiresTyre: /tyre|tire|wheel/.test(combinedText)
     };
-    saveVehicleEdits(stock, { internalStatus: '', ...inferredFlags });
+    saveVehicleEdits(stock, { internalStatus: '', pdcLocation: 'PMB', ...inferredFlags });
     results.push({ file: file.name, stock, count: newTasks.length, message: `${combined.length} total task${combined.length === 1 ? '' : 's'} loaded` });
   });
   savePoTasks(tasksStore);
@@ -7676,7 +7726,9 @@ function handlePoSelect(e) {
   if (statusList) {
     statusList.innerHTML = results.map(r => `<div class="po-status-row ${r.stock ? 'ok' : 'warn'}"><strong>${escapeHtml(r.stock || 'Unmatched')}</strong><span>${escapeHtml(r.file)} - ${escapeHtml(r.message)}</span></div>`).join('');
   }
+  app.quickFilter = 'incoming';
   renderAll();
+  showView('dashboard');
 }
 
 
@@ -8948,6 +9000,10 @@ function navisionImportOptionsFromDom() {
   return { pmbOnly: Boolean($('#navision-pmb-only')?.checked) };
 }
 
+function navisionImportIsFullRefresh() {
+  return !Boolean($('#navision-pmb-only')?.checked);
+}
+
 function pmbWorkSkipMessage(vehicle = {}, excelRow) {
   const identity = displayStockNumber(vehicle) || vehicle.order || `row ${excelRow}`;
   return `Row ${excelRow}${identity ? ` / ${identity}` : ''}: skipped because PMB-only import is on and no PMB work / PO signal was found.`;
@@ -9256,8 +9312,9 @@ function isProtectedPdcVehicle(vehicle = {}) {
   return statusCategory(vehicle) === 'yardhold';
 }
 
-function vehiclesMissingFromNavisionImport(existingRows = [], incomingRows = []) {
-  const candidates = existingRows.filter(vehicle => !isProtectedPdcVehicle(vehicle));
+function vehiclesMissingFromNavisionImport(existingRows = [], incomingRows = [], options = {}) {
+  const fullRefresh = options.fullRefresh !== false;
+  const candidates = fullRefresh ? existingRows.slice() : existingRows.filter(vehicle => !isProtectedPdcVehicle(vehicle));
   if (!candidates.length) return [];
   if (!incomingRows.length) return candidates.slice();
   return candidates.filter(vehicle => !incomingRows.some(incoming => navisionVehiclesOverlap(incoming, vehicle)));
@@ -9393,7 +9450,8 @@ function navisionFieldChanges(existing = {}, payload = {}) {
 function buildNavisionImportPlan(parsed) {
   const deleted = new Set(loadDeletedVehicles());
   const activeBeforeImport = app.data.slice();
-  const removeMissingChecked = Boolean($('#navision-remove-missing')?.checked);
+  const fullRefresh = navisionImportIsFullRefresh();
+  const removeMissingChecked = Boolean($('#navision-remove-missing')?.checked) && fullRefresh;
   const result = {
     parsed,
     added: [],
@@ -9407,6 +9465,7 @@ function buildNavisionImportPlan(parsed) {
     removeMissingChecked,
     importedAt: new Date().toISOString(),
     fileName: app.navisionFileName || 'Pasted text',
+    fullRefresh,
     requiresConfirmation: false,
     confirmed: false,
   };
@@ -9433,7 +9492,7 @@ function buildNavisionImportPlan(parsed) {
     }
   });
 
-  result.missingFromUpload = vehiclesMissingFromNavisionImport(activeBeforeImport, parsed.vehicles);
+  result.missingFromUpload = vehiclesMissingFromNavisionImport(activeBeforeImport, parsed.vehicles, { fullRefresh: navisionImportIsFullRefresh() });
   result.requiresConfirmation = Boolean(result.updated.length || result.stockNumberUpdates.length);
   return result;
 }
@@ -9531,7 +9590,7 @@ function applyNavisionImportPlan(plan, selectedUpdateKeys = null) {
     }
   });
 
-  const missingFromUpload = vehiclesMissingFromNavisionImport(activeBeforeImport, parsed.vehicles);
+  const missingFromUpload = vehiclesMissingFromNavisionImport(activeBeforeImport, parsed.vehicles, { fullRefresh: plan.fullRefresh !== false });
   result.missingFromUpload = missingFromUpload;
 
   saveAddedVehicles(added);

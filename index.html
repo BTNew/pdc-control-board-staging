@@ -26,6 +26,7 @@
         <button class="nav-item" data-view="rft" data-short="RFT">RFT</button>
         <button class="nav-item" data-view="completed" data-short="DONE">Completed vehicles</button>
         <button class="nav-item" data-view="deleted" data-short="DEL">Deleted vehicles</button>
+        <button class="nav-item" data-view="backend" data-short="DATA">Back End Data</button>
         <button class="nav-item" data-view="lists" data-short="SET">Setup</button>
         <button class="nav-item" data-view="import" data-short="U">Uploads</button>
       </nav>
@@ -500,6 +501,28 @@
         </div>
       </section>
 
+      <section id="backend" class="view">
+        <div class="parts-home-layout backend-data-layout">
+          <section class="panel parts-home-panel backend-data-panel">
+            <div class="panel-header">
+              <div>
+                <h2>Back End Data</h2>
+                <p>All imported/current tracker vehicles plus rows moved to Deleted after a later Navision dump no longer contains them.</p>
+              </div>
+              <div class="panel-actions">
+                <span class="status-pill" id="backend-data-count">0 current · 0 deleted</span>
+                <button class="small-button" type="button" data-view-target="import">Upload Navision dump</button>
+              </div>
+            </div>
+            <div class="parts-help-strip">
+              <strong>Navision refresh:</strong>
+              <span>Full Navision imports now bring in every row. If cleanup is enabled, vehicles missing from the new dump move to Deleted and no longer show on Vehicle Locations.</span>
+            </div>
+            <div id="backend-data-content" class="parts-home-content backend-data-content"></div>
+          </section>
+        </div>
+      </section>
+
 
       <section id="zpl" class="view">
         <div class="panel zpl-panel">
@@ -639,12 +662,12 @@
                 <textarea id="navision-paste" rows="8" spellcheck="false" placeholder="Order&#9;Batch&#9;Production Month&#9;Compliance Date&#9;Model Description&#9;Suffix Description&#9;..."></textarea>
               </label>
               <label class="sync-option">
-                <input id="navision-pmb-only" type="checkbox" checked />
-                <span><strong>Only import PMB work / PO rows</strong> — keeps the board focused on vehicles we have a purchase order or clear PMB/body-builder work signal for. Untick only when doing a full Navision refresh.</span>
+                <input id="navision-pmb-only" type="checkbox" />
+                <span><strong>Only import PMB work / PO rows</strong> — optional filter for partial checks. Leave unticked for the normal full Navision refresh so every vehicle is imported/updated.</span>
               </label>
               <label class="sync-option">
-                <input id="navision-remove-missing" type="checkbox" />
-                <span><strong>Offer cleanup for missing vehicles</strong> — after this import, show vehicles already in the tracker that were not on the new Navision list. PMB/RFT vehicles are protected from this cleanup. Tick this to remove eligible missing vehicles automatically during import.</span>
+                <input id="navision-remove-missing" type="checkbox" checked />
+                <span><strong>Move vehicles missing from full dump to Deleted</strong> — after a current full Navision dump is uploaded, any tracker vehicle not present in the dump is removed from Vehicle Locations and kept in Deleted.</span>
               </label>
               <div class="subtle navision-note">Matching priority: Batch / stock number first, then Toyota order number, then VIN when WMI + VDS Number + Frame are available. For existing vehicles, Navision updates source data only until Yard Hold. PMB/RFT movement is manual in the vehicle popup and will not be overwritten by future imports. Dealer Comments appear in Navision Notes. Rows marked as Cut But Vehicle are highlighted light blue. Optional spreadsheet columns: TINT, HOIST, FITTING, FABRICATION, ELECTRICAL, TYRE, PIT INSPECTION, PARTS, PMB Bucket, PDC Location or Blocked can deliberately update PDC controls. PMB-only import accepts rows with Body Builder, PMB/PDC Location, PMB Bucket, tray ordered, or explicit job columns such as TINT/HOIST/FITTING/FABRICATION/ELECTRICAL/TYRE/PIT INSPECTION/PARTS.</div>
             </div>
@@ -783,7 +806,7 @@
     </div>
   </template>
 
-  <script src="data.js?v=2026.07.10.04-data-integrity"></script>
-  <script src="app.js?v=2026.07.10.04-data-integrity"></script>
+  <script src="data.js?v=2026.07.10.08-backend-full-navision"></script>
+  <script src="app.js?v=2026.07.10.08-backend-full-navision"></script>
 </body>
 </html>
