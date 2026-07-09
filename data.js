@@ -2,7 +2,7 @@ window.VEHICLE_TRACKING_DATA = {
   "report": {
     "title": "Vehicle Tracking Core",
     "dealer": "Vehicle Tracking",
-    "asOf": "Synthetic test import - 100 vehicles",
+    "asOf": "Synthetic test import - 100 vehicles (realistic IDs)",
     "pages": 0,
     "totalSalesOrders": 100,
     "source": "Synthetic Navision test data"
@@ -10,9 +10,9 @@ window.VEHICLE_TRACKING_DATA = {
   "vehicles": [
     {
       "id": "test-vehicle-001",
-      "stock": "90000001",
-      "batch": "BATCH-TST-1001",
-      "toyotaBatch": "BATCH-TST-1001",
+      "stock": "10015578",
+      "batch": "10015578",
+      "toyotaBatch": "10015578",
       "order": "SO-TST-5001",
       "client": "Orbit Transit Test 001",
       "toyotaCustomer": "Orbit Transit Test 001",
@@ -38,13 +38,15 @@ window.VEHICLE_TRACKING_DATA = {
       "fabricationRequired": false,
       "pdcPartsOrdered": false,
       "pdcPartsReceived": false,
-      "pdcLocation": ""
+      "pdcLocation": "",
+      "keyNumber": "100",
+      "pdcJobcard": "JC13910025"
     },
     {
       "id": "test-vehicle-002",
-      "stock": "90000002",
-      "batch": "BATCH-TST-1002",
-      "toyotaBatch": "BATCH-TST-1002",
+      "stock": "10015579",
+      "batch": "10015579",
+      "toyotaBatch": "10015579",
       "order": "SO-TST-5002",
       "client": "Falcon Build Test 002",
       "toyotaCustomer": "Falcon Build Test 002",
@@ -70,13 +72,15 @@ window.VEHICLE_TRACKING_DATA = {
       "fabricationRequired": false,
       "pdcPartsOrdered": false,
       "pdcPartsReceived": false,
-      "pdcLocation": ""
+      "pdcLocation": "",
+      "keyNumber": "101",
+      "pdcJobcard": "JC13910026"
     },
     {
       "id": "test-vehicle-003",
-      "stock": "90000003",
-      "batch": "BATCH-TST-1003",
-      "toyotaBatch": "BATCH-TST-1003",
+      "stock": "10015580",
+      "batch": "10015580",
+      "toyotaBatch": "10015580",
       "order": "SO-TST-5003",
       "client": "Summit Trail Test 003",
       "toyotaCustomer": "Summit Trail Test 003",
@@ -102,13 +106,15 @@ window.VEHICLE_TRACKING_DATA = {
       "fabricationRequired": false,
       "pdcPartsOrdered": false,
       "pdcPartsReceived": false,
-      "pdcLocation": ""
+      "pdcLocation": "",
+      "keyNumber": "102",
+      "pdcJobcard": "JC13910027"
     },
     {
       "id": "test-vehicle-004",
-      "stock": "90000004",
-      "batch": "BATCH-TST-1004",
-      "toyotaBatch": "BATCH-TST-1004",
+      "stock": "10015581",
+      "batch": "10015581",
+      "toyotaBatch": "10015581",
       "order": "SO-TST-5004",
       "client": "Harbour Forge Test 004",
       "toyotaCustomer": "Harbour Forge Test 004",
@@ -134,13 +140,15 @@ window.VEHICLE_TRACKING_DATA = {
       "fabricationRequired": false,
       "pdcPartsOrdered": false,
       "pdcPartsReceived": false,
-      "pdcLocation": ""
+      "pdcLocation": "",
+      "keyNumber": "103",
+      "pdcJobcard": "JC13910028"
     },
     {
       "id": "test-vehicle-005",
-      "stock": "90000005",
-      "batch": "BATCH-TST-1005",
-      "toyotaBatch": "BATCH-TST-1005",
+      "stock": "10015582",
+      "batch": "10015582",
+      "toyotaBatch": "10015582",
       "order": "SO-TST-5005",
       "client": "Prairie Vista Test 005",
       "toyotaCustomer": "Prairie Vista Test 005",
@@ -166,13 +174,15 @@ window.VEHICLE_TRACKING_DATA = {
       "fabricationRequired": false,
       "pdcPartsOrdered": false,
       "pdcPartsReceived": false,
-      "pdcLocation": ""
+      "pdcLocation": "",
+      "keyNumber": "104",
+      "pdcJobcard": "JC13910029"
     },
     {
       "id": "test-vehicle-006",
-      "stock": "90000006",
-      "batch": "BATCH-TST-1006",
-      "toyotaBatch": "BATCH-TST-1006",
+      "stock": "10015583",
+      "batch": "10015583",
+      "toyotaBatch": "10015583",
       "order": "SO-TST-5006",
       "client": "Solar Ridge Test 006",
       "toyotaCustomer": "Solar Ridge Test 006",
@@ -198,13 +208,15 @@ window.VEHICLE_TRACKING_DATA = {
       "fabricationRequired": false,
       "pdcPartsOrdered": false,
       "pdcPartsReceived": false,
-      "pdcLocation": ""
+      "pdcLocation": "",
+      "keyNumber": "105",
+      "pdcJobcard": "JC13910030"
     },
     {
       "id": "test-vehicle-007",
-      "stock": "90000007",
-      "batch": "BATCH-TST-1007",
-      "toyotaBatch": "BATCH-TST-1007",
+      "stock": "10015584",
+      "batch": "10015584",
+      "toyotaBatch": "10015584",
       "order": "SO-TST-5007",
       "client": "Copper Depot Test 007",
       "toyotaCustomer": "Copper Depot Test 007",
@@ -230,13 +242,15 @@ window.VEHICLE_TRACKING_DATA = {
       "fabricationRequired": false,
       "pdcPartsOrdered": false,
       "pdcPartsReceived": false,
-      "pdcLocation": ""
+      "pdcLocation": "",
+      "keyNumber": "106",
+      "pdcJobcard": "JC13910031"
     },
     {
       "id": "test-vehicle-008",
-      "stock": "90000008",
-      "batch": "BATCH-TST-1008",
-      "toyotaBatch": "BATCH-TST-1008",
+      "stock": "10015585",
+      "batch": "10015585",
+      "toyotaBatch": "10015585",
       "order": "SO-TST-5008",
       "client": "Marble Point Test 008",
       "toyotaCustomer": "Marble Point Test 008",
@@ -262,13 +276,15 @@ window.VEHICLE_TRACKING_DATA = {
       "fabricationRequired": false,
       "pdcPartsOrdered": false,
       "pdcPartsReceived": false,
-      "pdcLocation": ""
+      "pdcLocation": "",
+      "keyNumber": "107",
+      "pdcJobcard": "JC13910032"
     },
     {
       "id": "test-vehicle-009",
-      "stock": "90000009",
-      "batch": "BATCH-TST-1009",
-      "toyotaBatch": "BATCH-TST-1009",
+      "stock": "10015586",
+      "batch": "10015586",
+      "toyotaBatch": "10015586",
       "order": "SO-TST-5009",
       "client": "Cedar Range Test 009",
       "toyotaCustomer": "Cedar Range Test 009",
@@ -294,13 +310,15 @@ window.VEHICLE_TRACKING_DATA = {
       "fabricationRequired": false,
       "pdcPartsOrdered": false,
       "pdcPartsReceived": false,
-      "pdcLocation": ""
+      "pdcLocation": "",
+      "keyNumber": "108",
+      "pdcJobcard": "JC13910033"
     },
     {
       "id": "test-vehicle-010",
-      "stock": "90000010",
-      "batch": "BATCH-TST-1010",
-      "toyotaBatch": "BATCH-TST-1010",
+      "stock": "10015587",
+      "batch": "10015587",
+      "toyotaBatch": "10015587",
       "order": "SO-TST-5010",
       "client": "Maple Trail Test 010",
       "toyotaCustomer": "Maple Trail Test 010",
@@ -326,13 +344,15 @@ window.VEHICLE_TRACKING_DATA = {
       "fabricationRequired": false,
       "pdcPartsOrdered": false,
       "pdcPartsReceived": false,
-      "pdcLocation": ""
+      "pdcLocation": "",
+      "keyNumber": "109",
+      "pdcJobcard": "JC13910034"
     },
     {
       "id": "test-vehicle-011",
-      "stock": "90000011",
-      "batch": "BATCH-TST-1011",
-      "toyotaBatch": "BATCH-TST-1011",
+      "stock": "10015588",
+      "batch": "10015588",
+      "toyotaBatch": "10015588",
       "order": "SO-TST-5011",
       "client": "Falcon Transit Test 011",
       "toyotaCustomer": "Falcon Transit Test 011",
@@ -358,13 +378,15 @@ window.VEHICLE_TRACKING_DATA = {
       "fabricationRequired": false,
       "pdcPartsOrdered": false,
       "pdcPartsReceived": false,
-      "pdcLocation": ""
+      "pdcLocation": "",
+      "keyNumber": "110",
+      "pdcJobcard": "JC13910035"
     },
     {
       "id": "test-vehicle-012",
-      "stock": "90000012",
-      "batch": "BATCH-TST-1012",
-      "toyotaBatch": "BATCH-TST-1012",
+      "stock": "10015589",
+      "batch": "10015589",
+      "toyotaBatch": "10015589",
       "order": "SO-TST-5012",
       "client": "Summit Loop Test 012",
       "toyotaCustomer": "Summit Loop Test 012",
@@ -390,13 +412,15 @@ window.VEHICLE_TRACKING_DATA = {
       "fabricationRequired": false,
       "pdcPartsOrdered": false,
       "pdcPartsReceived": false,
-      "pdcLocation": ""
+      "pdcLocation": "",
+      "keyNumber": "111",
+      "pdcJobcard": "JC13910036"
     },
     {
       "id": "test-vehicle-013",
-      "stock": "90000013",
-      "batch": "BATCH-TST-1013",
-      "toyotaBatch": "BATCH-TST-1013",
+      "stock": "10015590",
+      "batch": "10015590",
+      "toyotaBatch": "10015590",
       "order": "SO-TST-5013",
       "client": "Maple Trail Test 013",
       "toyotaCustomer": "Maple Trail Test 013",
@@ -422,13 +446,15 @@ window.VEHICLE_TRACKING_DATA = {
       "fabricationRequired": false,
       "pdcPartsOrdered": false,
       "pdcPartsReceived": false,
-      "pdcLocation": ""
+      "pdcLocation": "",
+      "keyNumber": "112",
+      "pdcJobcard": "JC13910037"
     },
     {
       "id": "test-vehicle-014",
-      "stock": "90000014",
-      "batch": "BATCH-TST-1014",
-      "toyotaBatch": "BATCH-TST-1014",
+      "stock": "10015591",
+      "batch": "10015591",
+      "toyotaBatch": "10015591",
       "order": "SO-TST-5014",
       "client": "Nimbus Harbor Test 014",
       "toyotaCustomer": "Nimbus Harbor Test 014",
@@ -454,13 +480,15 @@ window.VEHICLE_TRACKING_DATA = {
       "fabricationRequired": false,
       "pdcPartsOrdered": false,
       "pdcPartsReceived": false,
-      "pdcLocation": ""
+      "pdcLocation": "",
+      "keyNumber": "113",
+      "pdcJobcard": "JC13910038"
     },
     {
       "id": "test-vehicle-015",
-      "stock": "90000015",
-      "batch": "BATCH-TST-1015",
-      "toyotaBatch": "BATCH-TST-1015",
+      "stock": "10015592",
+      "batch": "10015592",
+      "toyotaBatch": "10015592",
       "order": "SO-TST-5015",
       "client": "Copper Group Test 015",
       "toyotaCustomer": "Copper Group Test 015",
@@ -486,13 +514,15 @@ window.VEHICLE_TRACKING_DATA = {
       "fabricationRequired": false,
       "pdcPartsOrdered": false,
       "pdcPartsReceived": false,
-      "pdcLocation": ""
+      "pdcLocation": "",
+      "keyNumber": "114",
+      "pdcJobcard": "JC13910039"
     },
     {
       "id": "test-vehicle-016",
-      "stock": "90000016",
-      "batch": "BATCH-TST-1016",
-      "toyotaBatch": "BATCH-TST-1016",
+      "stock": "10015593",
+      "batch": "10015593",
+      "toyotaBatch": "10015593",
       "order": "SO-TST-5016",
       "client": "Granite Line Test 016",
       "toyotaCustomer": "Granite Line Test 016",
@@ -518,13 +548,15 @@ window.VEHICLE_TRACKING_DATA = {
       "fabricationRequired": false,
       "pdcPartsOrdered": false,
       "pdcPartsReceived": false,
-      "pdcLocation": ""
+      "pdcLocation": "",
+      "keyNumber": "115",
+      "pdcJobcard": "JC13910040"
     },
     {
       "id": "test-vehicle-017",
-      "stock": "90000017",
-      "batch": "BATCH-TST-1017",
-      "toyotaBatch": "BATCH-TST-1017",
+      "stock": "10015594",
+      "batch": "10015594",
+      "toyotaBatch": "10015594",
       "order": "SO-TST-5017",
       "client": "Lagoon Vista Test 017",
       "toyotaCustomer": "Lagoon Vista Test 017",
@@ -550,13 +582,15 @@ window.VEHICLE_TRACKING_DATA = {
       "fabricationRequired": false,
       "pdcPartsOrdered": false,
       "pdcPartsReceived": false,
-      "pdcLocation": ""
+      "pdcLocation": "",
+      "keyNumber": "116",
+      "pdcJobcard": "JC13910041"
     },
     {
       "id": "test-vehicle-018",
-      "stock": "90000018",
-      "batch": "BATCH-TST-1018",
-      "toyotaBatch": "BATCH-TST-1018",
+      "stock": "10015595",
+      "batch": "10015595",
+      "toyotaBatch": "10015595",
       "order": "SO-TST-5018",
       "client": "Granite Vista Test 018",
       "toyotaCustomer": "Granite Vista Test 018",
@@ -582,13 +616,15 @@ window.VEHICLE_TRACKING_DATA = {
       "fabricationRequired": false,
       "pdcPartsOrdered": false,
       "pdcPartsReceived": false,
-      "pdcLocation": ""
+      "pdcLocation": "",
+      "keyNumber": "117",
+      "pdcJobcard": "JC13910042"
     },
     {
       "id": "test-vehicle-019",
-      "stock": "90000019",
-      "batch": "BATCH-TST-1019",
-      "toyotaBatch": "BATCH-TST-1019",
+      "stock": "10015596",
+      "batch": "10015596",
+      "toyotaBatch": "10015596",
       "order": "SO-TST-5019",
       "client": "Breeze Bay Test 019",
       "toyotaCustomer": "Breeze Bay Test 019",
@@ -614,13 +650,15 @@ window.VEHICLE_TRACKING_DATA = {
       "fabricationRequired": false,
       "pdcPartsOrdered": false,
       "pdcPartsReceived": false,
-      "pdcLocation": ""
+      "pdcLocation": "",
+      "keyNumber": "118",
+      "pdcJobcard": "JC13910043"
     },
     {
       "id": "test-vehicle-020",
-      "stock": "90000020",
-      "batch": "BATCH-TST-1020",
-      "toyotaBatch": "BATCH-TST-1020",
+      "stock": "10015597",
+      "batch": "10015597",
+      "toyotaBatch": "10015597",
       "order": "SO-TST-5020",
       "client": "Maple Motors Test 020",
       "toyotaCustomer": "Maple Motors Test 020",
@@ -646,13 +684,15 @@ window.VEHICLE_TRACKING_DATA = {
       "fabricationRequired": false,
       "pdcPartsOrdered": false,
       "pdcPartsReceived": false,
-      "pdcLocation": ""
+      "pdcLocation": "",
+      "keyNumber": "119",
+      "pdcJobcard": "JC13910044"
     },
     {
       "id": "test-vehicle-021",
-      "stock": "90000021",
-      "batch": "BATCH-TST-1021",
-      "toyotaBatch": "BATCH-TST-1021",
+      "stock": "10015598",
+      "batch": "10015598",
+      "toyotaBatch": "10015598",
       "order": "SO-TST-5021",
       "client": "Cobalt Depot Test 021",
       "toyotaCustomer": "Cobalt Depot Test 021",
@@ -678,13 +718,15 @@ window.VEHICLE_TRACKING_DATA = {
       "fabricationRequired": false,
       "pdcPartsOrdered": false,
       "pdcPartsReceived": false,
-      "pdcLocation": ""
+      "pdcLocation": "",
+      "keyNumber": "120",
+      "pdcJobcard": "JC13910045"
     },
     {
       "id": "test-vehicle-022",
-      "stock": "90000022",
-      "batch": "BATCH-TST-1022",
-      "toyotaBatch": "BATCH-TST-1022",
+      "stock": "10015599",
+      "batch": "10015599",
+      "toyotaBatch": "10015599",
       "order": "SO-TST-5022",
       "client": "Summit Drift Test 022",
       "toyotaCustomer": "Summit Drift Test 022",
@@ -710,13 +752,15 @@ window.VEHICLE_TRACKING_DATA = {
       "fabricationRequired": false,
       "pdcPartsOrdered": false,
       "pdcPartsReceived": false,
-      "pdcLocation": ""
+      "pdcLocation": "",
+      "keyNumber": "121",
+      "pdcJobcard": "JC13910046"
     },
     {
       "id": "test-vehicle-023",
-      "stock": "90000023",
-      "batch": "BATCH-TST-1023",
-      "toyotaBatch": "BATCH-TST-1023",
+      "stock": "10015600",
+      "batch": "10015600",
+      "toyotaBatch": "10015600",
       "order": "SO-TST-5023",
       "client": "Solar Drift Test 023",
       "toyotaCustomer": "Solar Drift Test 023",
@@ -742,13 +786,15 @@ window.VEHICLE_TRACKING_DATA = {
       "fabricationRequired": false,
       "pdcPartsOrdered": false,
       "pdcPartsReceived": false,
-      "pdcLocation": ""
+      "pdcLocation": "",
+      "keyNumber": "122",
+      "pdcJobcard": "JC13910047"
     },
     {
       "id": "test-vehicle-024",
-      "stock": "90000024",
-      "batch": "BATCH-TST-1024",
-      "toyotaBatch": "BATCH-TST-1024",
+      "stock": "10015601",
+      "batch": "10015601",
+      "toyotaBatch": "10015601",
       "order": "SO-TST-5024",
       "client": "Tundra Works Test 024",
       "toyotaCustomer": "Tundra Works Test 024",
@@ -774,13 +820,15 @@ window.VEHICLE_TRACKING_DATA = {
       "fabricationRequired": false,
       "pdcPartsOrdered": false,
       "pdcPartsReceived": false,
-      "pdcLocation": ""
+      "pdcLocation": "",
+      "keyNumber": "123",
+      "pdcJobcard": "JC13910048"
     },
     {
       "id": "test-vehicle-025",
-      "stock": "90000025",
-      "batch": "BATCH-TST-1025",
-      "toyotaBatch": "BATCH-TST-1025",
+      "stock": "10015602",
+      "batch": "10015602",
+      "toyotaBatch": "10015602",
       "order": "SO-TST-5025",
       "client": "Tundra Harbor Test 025",
       "toyotaCustomer": "Tundra Harbor Test 025",
@@ -806,13 +854,15 @@ window.VEHICLE_TRACKING_DATA = {
       "fabricationRequired": false,
       "pdcPartsOrdered": false,
       "pdcPartsReceived": false,
-      "pdcLocation": ""
+      "pdcLocation": "",
+      "keyNumber": "124",
+      "pdcJobcard": "JC13910049"
     },
     {
       "id": "test-vehicle-026",
-      "stock": "90000026",
-      "batch": "BATCH-TST-1026",
-      "toyotaBatch": "BATCH-TST-1026",
+      "stock": "10015603",
+      "batch": "10015603",
+      "toyotaBatch": "10015603",
       "order": "SO-TST-5026",
       "client": "Ember Build Test 026",
       "toyotaCustomer": "Ember Build Test 026",
@@ -838,13 +888,15 @@ window.VEHICLE_TRACKING_DATA = {
       "fabricationRequired": false,
       "pdcPartsOrdered": false,
       "pdcPartsReceived": false,
-      "pdcLocation": ""
+      "pdcLocation": "",
+      "keyNumber": "125",
+      "pdcJobcard": "JC13910050"
     },
     {
       "id": "test-vehicle-027",
-      "stock": "90000027",
-      "batch": "BATCH-TST-1027",
-      "toyotaBatch": "BATCH-TST-1027",
+      "stock": "10015604",
+      "batch": "10015604",
+      "toyotaBatch": "10015604",
       "order": "SO-TST-5027",
       "client": "Nimbus Harbor Test 027",
       "toyotaCustomer": "Nimbus Harbor Test 027",
@@ -870,13 +922,15 @@ window.VEHICLE_TRACKING_DATA = {
       "fabricationRequired": false,
       "pdcPartsOrdered": false,
       "pdcPartsReceived": false,
-      "pdcLocation": ""
+      "pdcLocation": "",
+      "keyNumber": "126",
+      "pdcJobcard": "JC13910051"
     },
     {
       "id": "test-vehicle-028",
-      "stock": "90000028",
-      "batch": "BATCH-TST-1028",
-      "toyotaBatch": "BATCH-TST-1028",
+      "stock": "10015605",
+      "batch": "10015605",
+      "toyotaBatch": "10015605",
       "order": "SO-TST-5028",
       "client": "Cobalt Bay Test 028",
       "toyotaCustomer": "Cobalt Bay Test 028",
@@ -902,13 +956,15 @@ window.VEHICLE_TRACKING_DATA = {
       "fabricationRequired": false,
       "pdcPartsOrdered": false,
       "pdcPartsReceived": false,
-      "pdcLocation": ""
+      "pdcLocation": "",
+      "keyNumber": "127",
+      "pdcJobcard": "JC13910052"
     },
     {
       "id": "test-vehicle-029",
-      "stock": "90000029",
-      "batch": "BATCH-TST-1029",
-      "toyotaBatch": "BATCH-TST-1029",
+      "stock": "10015606",
+      "batch": "10015606",
+      "toyotaBatch": "10015606",
       "order": "SO-TST-5029",
       "client": "Cedar Works Test 029",
       "toyotaCustomer": "Cedar Works Test 029",
@@ -934,13 +990,15 @@ window.VEHICLE_TRACKING_DATA = {
       "fabricationRequired": false,
       "pdcPartsOrdered": false,
       "pdcPartsReceived": false,
-      "pdcLocation": ""
+      "pdcLocation": "",
+      "keyNumber": "128",
+      "pdcJobcard": "JC13910053"
     },
     {
       "id": "test-vehicle-030",
-      "stock": "90000030",
-      "batch": "BATCH-TST-1030",
-      "toyotaBatch": "BATCH-TST-1030",
+      "stock": "10015607",
+      "batch": "10015607",
+      "toyotaBatch": "10015607",
       "order": "SO-TST-5030",
       "client": "Marble Loop Test 030",
       "toyotaCustomer": "Marble Loop Test 030",
@@ -966,13 +1024,15 @@ window.VEHICLE_TRACKING_DATA = {
       "fabricationRequired": false,
       "pdcPartsOrdered": false,
       "pdcPartsReceived": false,
-      "pdcLocation": ""
+      "pdcLocation": "",
+      "keyNumber": "129",
+      "pdcJobcard": "JC13910054"
     },
     {
       "id": "test-vehicle-031",
-      "stock": "90000031",
-      "batch": "BATCH-TST-1031",
-      "toyotaBatch": "BATCH-TST-1031",
+      "stock": "10015608",
+      "batch": "10015608",
+      "toyotaBatch": "10015608",
       "order": "SO-TST-5031",
       "client": "Aurora Group Test 031",
       "toyotaCustomer": "Aurora Group Test 031",
@@ -998,13 +1058,15 @@ window.VEHICLE_TRACKING_DATA = {
       "fabricationRequired": false,
       "pdcPartsOrdered": false,
       "pdcPartsReceived": false,
-      "pdcLocation": ""
+      "pdcLocation": "",
+      "keyNumber": "130",
+      "pdcJobcard": "JC13910055"
     },
     {
       "id": "test-vehicle-032",
-      "stock": "90000032",
-      "batch": "BATCH-TST-1032",
-      "toyotaBatch": "BATCH-TST-1032",
+      "stock": "10015609",
+      "batch": "10015609",
+      "toyotaBatch": "10015609",
       "order": "SO-TST-5032",
       "client": "Prairie Point Test 032",
       "toyotaCustomer": "Prairie Point Test 032",
@@ -1030,13 +1092,15 @@ window.VEHICLE_TRACKING_DATA = {
       "fabricationRequired": false,
       "pdcPartsOrdered": false,
       "pdcPartsReceived": false,
-      "pdcLocation": ""
+      "pdcLocation": "",
+      "keyNumber": "131",
+      "pdcJobcard": "JC13910056"
     },
     {
       "id": "test-vehicle-033",
-      "stock": "90000033",
-      "batch": "BATCH-TST-1033",
-      "toyotaBatch": "BATCH-TST-1033",
+      "stock": "10015610",
+      "batch": "10015610",
+      "toyotaBatch": "10015610",
       "order": "SO-TST-5033",
       "client": "Granite Transit Test 033",
       "toyotaCustomer": "Granite Transit Test 033",
@@ -1062,13 +1126,15 @@ window.VEHICLE_TRACKING_DATA = {
       "fabricationRequired": false,
       "pdcPartsOrdered": false,
       "pdcPartsReceived": false,
-      "pdcLocation": ""
+      "pdcLocation": "",
+      "keyNumber": "132",
+      "pdcJobcard": "JC13910057"
     },
     {
       "id": "test-vehicle-034",
-      "stock": "90000034",
-      "batch": "BATCH-TST-1034",
-      "toyotaBatch": "BATCH-TST-1034",
+      "stock": "10015611",
+      "batch": "10015611",
+      "toyotaBatch": "10015611",
       "order": "SO-TST-5034",
       "client": "Lagoon Build Test 034",
       "toyotaCustomer": "Lagoon Build Test 034",
@@ -1094,13 +1160,15 @@ window.VEHICLE_TRACKING_DATA = {
       "fabricationRequired": false,
       "pdcPartsOrdered": false,
       "pdcPartsReceived": false,
-      "pdcLocation": ""
+      "pdcLocation": "",
+      "keyNumber": "133",
+      "pdcJobcard": "JC13910058"
     },
     {
       "id": "test-vehicle-035",
-      "stock": "90000035",
-      "batch": "BATCH-TST-1035",
-      "toyotaBatch": "BATCH-TST-1035",
+      "stock": "10015612",
+      "batch": "10015612",
+      "toyotaBatch": "10015612",
       "order": "SO-TST-5035",
       "client": "Cobalt Range Test 035",
       "toyotaCustomer": "Cobalt Range Test 035",
@@ -1126,13 +1194,15 @@ window.VEHICLE_TRACKING_DATA = {
       "fabricationRequired": false,
       "pdcPartsOrdered": false,
       "pdcPartsReceived": false,
-      "pdcLocation": ""
+      "pdcLocation": "",
+      "keyNumber": "134",
+      "pdcJobcard": "JC13910059"
     },
     {
       "id": "test-vehicle-036",
-      "stock": "90000036",
-      "batch": "BATCH-TST-1036",
-      "toyotaBatch": "BATCH-TST-1036",
+      "stock": "10015613",
+      "batch": "10015613",
+      "toyotaBatch": "10015613",
       "order": "SO-TST-5036",
       "client": "River Forge Test 036",
       "toyotaCustomer": "River Forge Test 036",
@@ -1158,13 +1228,15 @@ window.VEHICLE_TRACKING_DATA = {
       "fabricationRequired": false,
       "pdcPartsOrdered": false,
       "pdcPartsReceived": false,
-      "pdcLocation": ""
+      "pdcLocation": "",
+      "keyNumber": "135",
+      "pdcJobcard": "JC13910060"
     },
     {
       "id": "test-vehicle-037",
-      "stock": "90000037",
-      "batch": "BATCH-TST-1037",
-      "toyotaBatch": "BATCH-TST-1037",
+      "stock": "10015614",
+      "batch": "10015614",
+      "toyotaBatch": "10015614",
       "order": "SO-TST-5037",
       "client": "Copper Vista Test 037",
       "toyotaCustomer": "Copper Vista Test 037",
@@ -1190,13 +1262,15 @@ window.VEHICLE_TRACKING_DATA = {
       "fabricationRequired": false,
       "pdcPartsOrdered": false,
       "pdcPartsReceived": false,
-      "pdcLocation": ""
+      "pdcLocation": "",
+      "keyNumber": "136",
+      "pdcJobcard": "JC13910061"
     },
     {
       "id": "test-vehicle-038",
-      "stock": "90000038",
-      "batch": "BATCH-TST-1038",
-      "toyotaBatch": "BATCH-TST-1038",
+      "stock": "10015615",
+      "batch": "10015615",
+      "toyotaBatch": "10015615",
       "order": "SO-TST-5038",
       "client": "Summit Loop Test 038",
       "toyotaCustomer": "Summit Loop Test 038",
@@ -1222,13 +1296,15 @@ window.VEHICLE_TRACKING_DATA = {
       "fabricationRequired": false,
       "pdcPartsOrdered": false,
       "pdcPartsReceived": false,
-      "pdcLocation": ""
+      "pdcLocation": "",
+      "keyNumber": "137",
+      "pdcJobcard": "JC13910062"
     },
     {
       "id": "test-vehicle-039",
-      "stock": "90000039",
-      "batch": "BATCH-TST-1039",
-      "toyotaBatch": "BATCH-TST-1039",
+      "stock": "10015616",
+      "batch": "10015616",
+      "toyotaBatch": "10015616",
       "order": "SO-TST-5039",
       "client": "Cedar Group Test 039",
       "toyotaCustomer": "Cedar Group Test 039",
@@ -1254,13 +1330,15 @@ window.VEHICLE_TRACKING_DATA = {
       "fabricationRequired": false,
       "pdcPartsOrdered": false,
       "pdcPartsReceived": false,
-      "pdcLocation": ""
+      "pdcLocation": "",
+      "keyNumber": "138",
+      "pdcJobcard": "JC13910063"
     },
     {
       "id": "test-vehicle-040",
-      "stock": "90000040",
-      "batch": "BATCH-TST-1040",
-      "toyotaBatch": "BATCH-TST-1040",
+      "stock": "10015617",
+      "batch": "10015617",
+      "toyotaBatch": "10015617",
       "order": "SO-TST-5040",
       "client": "Ember Yard Test 040",
       "toyotaCustomer": "Ember Yard Test 040",
@@ -1286,13 +1364,15 @@ window.VEHICLE_TRACKING_DATA = {
       "fabricationRequired": false,
       "pdcPartsOrdered": false,
       "pdcPartsReceived": false,
-      "pdcLocation": ""
+      "pdcLocation": "",
+      "keyNumber": "139",
+      "pdcJobcard": "JC13910064"
     },
     {
       "id": "test-vehicle-041",
-      "stock": "90000041",
-      "batch": "BATCH-TST-1041",
-      "toyotaBatch": "BATCH-TST-1041",
+      "stock": "10015618",
+      "batch": "10015618",
+      "toyotaBatch": "10015618",
       "order": "SO-TST-5041",
       "client": "Cobalt Vista Test 041",
       "toyotaCustomer": "Cobalt Vista Test 041",
@@ -1318,13 +1398,15 @@ window.VEHICLE_TRACKING_DATA = {
       "fabricationRequired": false,
       "pdcPartsOrdered": false,
       "pdcPartsReceived": false,
-      "pdcLocation": ""
+      "pdcLocation": "",
+      "keyNumber": "140",
+      "pdcJobcard": "JC13910065"
     },
     {
       "id": "test-vehicle-042",
-      "stock": "90000042",
-      "batch": "BATCH-TST-1042",
-      "toyotaBatch": "BATCH-TST-1042",
+      "stock": "10015619",
+      "batch": "10015619",
+      "toyotaBatch": "10015619",
       "order": "SO-TST-5042",
       "client": "Ember Depot Test 042",
       "toyotaCustomer": "Ember Depot Test 042",
@@ -1350,13 +1432,15 @@ window.VEHICLE_TRACKING_DATA = {
       "fabricationRequired": false,
       "pdcPartsOrdered": false,
       "pdcPartsReceived": false,
-      "pdcLocation": ""
+      "pdcLocation": "",
+      "keyNumber": "141",
+      "pdcJobcard": "JC13910066"
     },
     {
       "id": "test-vehicle-043",
-      "stock": "90000043",
-      "batch": "BATCH-TST-1043",
-      "toyotaBatch": "BATCH-TST-1043",
+      "stock": "10015620",
+      "batch": "10015620",
+      "toyotaBatch": "10015620",
       "order": "SO-TST-5043",
       "client": "Quartz Field Test 043",
       "toyotaCustomer": "Quartz Field Test 043",
@@ -1382,13 +1466,15 @@ window.VEHICLE_TRACKING_DATA = {
       "fabricationRequired": false,
       "pdcPartsOrdered": false,
       "pdcPartsReceived": false,
-      "pdcLocation": ""
+      "pdcLocation": "",
+      "keyNumber": "142",
+      "pdcJobcard": "JC13910067"
     },
     {
       "id": "test-vehicle-044",
-      "stock": "90000044",
-      "batch": "BATCH-TST-1044",
-      "toyotaBatch": "BATCH-TST-1044",
+      "stock": "10015621",
+      "batch": "10015621",
+      "toyotaBatch": "10015621",
       "order": "SO-TST-5044",
       "client": "Maple Point Test 044",
       "toyotaCustomer": "Maple Point Test 044",
@@ -1414,13 +1500,15 @@ window.VEHICLE_TRACKING_DATA = {
       "fabricationRequired": false,
       "pdcPartsOrdered": false,
       "pdcPartsReceived": false,
-      "pdcLocation": ""
+      "pdcLocation": "",
+      "keyNumber": "143",
+      "pdcJobcard": "JC13910068"
     },
     {
       "id": "test-vehicle-045",
-      "stock": "90000045",
-      "batch": "BATCH-TST-1045",
-      "toyotaBatch": "BATCH-TST-1045",
+      "stock": "10015622",
+      "batch": "10015622",
+      "toyotaBatch": "10015622",
       "order": "SO-TST-5045",
       "client": "Nimbus Ridge Test 045",
       "toyotaCustomer": "Nimbus Ridge Test 045",
@@ -1446,13 +1534,15 @@ window.VEHICLE_TRACKING_DATA = {
       "fabricationRequired": false,
       "pdcPartsOrdered": false,
       "pdcPartsReceived": false,
-      "pdcLocation": ""
+      "pdcLocation": "",
+      "keyNumber": "144",
+      "pdcJobcard": "JC13910069"
     },
     {
       "id": "test-vehicle-046",
-      "stock": "90000046",
-      "batch": "BATCH-TST-1046",
-      "toyotaBatch": "BATCH-TST-1046",
+      "stock": "10015623",
+      "batch": "10015623",
+      "toyotaBatch": "10015623",
       "order": "SO-TST-5046",
       "client": "Copper Motors Test 046",
       "toyotaCustomer": "Copper Motors Test 046",
@@ -1478,13 +1568,15 @@ window.VEHICLE_TRACKING_DATA = {
       "fabricationRequired": false,
       "pdcPartsOrdered": false,
       "pdcPartsReceived": false,
-      "pdcLocation": ""
+      "pdcLocation": "",
+      "keyNumber": "145",
+      "pdcJobcard": "JC13910070"
     },
     {
       "id": "test-vehicle-047",
-      "stock": "90000047",
-      "batch": "BATCH-TST-1047",
-      "toyotaBatch": "BATCH-TST-1047",
+      "stock": "10015624",
+      "batch": "10015624",
+      "toyotaBatch": "10015624",
       "order": "SO-TST-5047",
       "client": "Maple Loop Test 047",
       "toyotaCustomer": "Maple Loop Test 047",
@@ -1510,13 +1602,15 @@ window.VEHICLE_TRACKING_DATA = {
       "fabricationRequired": false,
       "pdcPartsOrdered": false,
       "pdcPartsReceived": false,
-      "pdcLocation": ""
+      "pdcLocation": "",
+      "keyNumber": "146",
+      "pdcJobcard": "JC13910071"
     },
     {
       "id": "test-vehicle-048",
-      "stock": "90000048",
-      "batch": "BATCH-TST-1048",
-      "toyotaBatch": "BATCH-TST-1048",
+      "stock": "10015625",
+      "batch": "10015625",
+      "toyotaBatch": "10015625",
       "order": "SO-TST-5048",
       "client": "River Depot Test 048",
       "toyotaCustomer": "River Depot Test 048",
@@ -1542,13 +1636,15 @@ window.VEHICLE_TRACKING_DATA = {
       "fabricationRequired": false,
       "pdcPartsOrdered": false,
       "pdcPartsReceived": false,
-      "pdcLocation": ""
+      "pdcLocation": "",
+      "keyNumber": "147",
+      "pdcJobcard": "JC13910072"
     },
     {
       "id": "test-vehicle-049",
-      "stock": "90000049",
-      "batch": "BATCH-TST-1049",
-      "toyotaBatch": "BATCH-TST-1049",
+      "stock": "10015626",
+      "batch": "10015626",
+      "toyotaBatch": "10015626",
       "order": "SO-TST-5049",
       "client": "Cobalt Trail Test 049",
       "toyotaCustomer": "Cobalt Trail Test 049",
@@ -1574,13 +1670,15 @@ window.VEHICLE_TRACKING_DATA = {
       "fabricationRequired": false,
       "pdcPartsOrdered": false,
       "pdcPartsReceived": false,
-      "pdcLocation": ""
+      "pdcLocation": "",
+      "keyNumber": "148",
+      "pdcJobcard": "JC13910073"
     },
     {
       "id": "test-vehicle-050",
-      "stock": "90000050",
-      "batch": "BATCH-TST-1050",
-      "toyotaBatch": "BATCH-TST-1050",
+      "stock": "10015627",
+      "batch": "10015627",
+      "toyotaBatch": "10015627",
       "order": "SO-TST-5050",
       "client": "Quartz Vista Test 050",
       "toyotaCustomer": "Quartz Vista Test 050",
@@ -1606,13 +1704,15 @@ window.VEHICLE_TRACKING_DATA = {
       "fabricationRequired": false,
       "pdcPartsOrdered": false,
       "pdcPartsReceived": false,
-      "pdcLocation": ""
+      "pdcLocation": "",
+      "keyNumber": "149",
+      "pdcJobcard": "JC13910074"
     },
     {
       "id": "test-vehicle-051",
-      "stock": "90000051",
-      "batch": "BATCH-TST-1051",
-      "toyotaBatch": "BATCH-TST-1051",
+      "stock": "10015628",
+      "batch": "10015628",
+      "toyotaBatch": "10015628",
       "order": "SO-TST-5051",
       "client": "Maple Fleet Test 051",
       "toyotaCustomer": "Maple Fleet Test 051",
@@ -1638,13 +1738,15 @@ window.VEHICLE_TRACKING_DATA = {
       "fabricationRequired": false,
       "pdcPartsOrdered": false,
       "pdcPartsReceived": false,
-      "pdcLocation": ""
+      "pdcLocation": "",
+      "keyNumber": "150",
+      "pdcJobcard": "JC13910075"
     },
     {
       "id": "test-vehicle-052",
-      "stock": "90000052",
-      "batch": "BATCH-TST-1052",
-      "toyotaBatch": "BATCH-TST-1052",
+      "stock": "10015629",
+      "batch": "10015629",
+      "toyotaBatch": "10015629",
       "order": "SO-TST-5052",
       "client": "Ember Point Test 052",
       "toyotaCustomer": "Ember Point Test 052",
@@ -1670,13 +1772,15 @@ window.VEHICLE_TRACKING_DATA = {
       "fabricationRequired": false,
       "pdcPartsOrdered": false,
       "pdcPartsReceived": false,
-      "pdcLocation": ""
+      "pdcLocation": "",
+      "keyNumber": "151",
+      "pdcJobcard": "JC13910076"
     },
     {
       "id": "test-vehicle-053",
-      "stock": "90000053",
-      "batch": "BATCH-TST-1053",
-      "toyotaBatch": "BATCH-TST-1053",
+      "stock": "10015630",
+      "batch": "10015630",
+      "toyotaBatch": "10015630",
       "order": "SO-TST-5053",
       "client": "Harbour Build Test 053",
       "toyotaCustomer": "Harbour Build Test 053",
@@ -1702,13 +1806,15 @@ window.VEHICLE_TRACKING_DATA = {
       "fabricationRequired": false,
       "pdcPartsOrdered": false,
       "pdcPartsReceived": false,
-      "pdcLocation": ""
+      "pdcLocation": "",
+      "keyNumber": "152",
+      "pdcJobcard": "JC13910077"
     },
     {
       "id": "test-vehicle-054",
-      "stock": "90000054",
-      "batch": "BATCH-TST-1054",
-      "toyotaBatch": "BATCH-TST-1054",
+      "stock": "10015631",
+      "batch": "10015631",
+      "toyotaBatch": "10015631",
       "order": "SO-TST-5054",
       "client": "Cedar Depot Test 054",
       "toyotaCustomer": "Cedar Depot Test 054",
@@ -1734,13 +1840,15 @@ window.VEHICLE_TRACKING_DATA = {
       "fabricationRequired": false,
       "pdcPartsOrdered": false,
       "pdcPartsReceived": false,
-      "pdcLocation": ""
+      "pdcLocation": "",
+      "keyNumber": "153",
+      "pdcJobcard": "JC13910078"
     },
     {
       "id": "test-vehicle-055",
-      "stock": "90000055",
-      "batch": "BATCH-TST-1055",
-      "toyotaBatch": "BATCH-TST-1055",
+      "stock": "10015632",
+      "batch": "10015632",
+      "toyotaBatch": "10015632",
       "order": "SO-TST-5055",
       "client": "Marble Trail Test 055",
       "toyotaCustomer": "Marble Trail Test 055",
@@ -1766,13 +1874,15 @@ window.VEHICLE_TRACKING_DATA = {
       "fabricationRequired": false,
       "pdcPartsOrdered": false,
       "pdcPartsReceived": false,
-      "pdcLocation": ""
+      "pdcLocation": "",
+      "keyNumber": "154",
+      "pdcJobcard": "JC13910079"
     },
     {
       "id": "test-vehicle-056",
-      "stock": "90000056",
-      "batch": "BATCH-TST-1056",
-      "toyotaBatch": "BATCH-TST-1056",
+      "stock": "10015633",
+      "batch": "10015633",
+      "toyotaBatch": "10015633",
       "order": "SO-TST-5056",
       "client": "River Yard Test 056",
       "toyotaCustomer": "River Yard Test 056",
@@ -1798,13 +1908,15 @@ window.VEHICLE_TRACKING_DATA = {
       "fabricationRequired": false,
       "pdcPartsOrdered": false,
       "pdcPartsReceived": false,
-      "pdcLocation": ""
+      "pdcLocation": "",
+      "keyNumber": "155",
+      "pdcJobcard": "JC13910080"
     },
     {
       "id": "test-vehicle-057",
-      "stock": "90000057",
-      "batch": "BATCH-TST-1057",
-      "toyotaBatch": "BATCH-TST-1057",
+      "stock": "10015634",
+      "batch": "10015634",
+      "toyotaBatch": "10015634",
       "order": "SO-TST-5057",
       "client": "Aurora Range Test 057",
       "toyotaCustomer": "Aurora Range Test 057",
@@ -1830,13 +1942,15 @@ window.VEHICLE_TRACKING_DATA = {
       "fabricationRequired": false,
       "pdcPartsOrdered": false,
       "pdcPartsReceived": false,
-      "pdcLocation": ""
+      "pdcLocation": "",
+      "keyNumber": "156",
+      "pdcJobcard": "JC13910081"
     },
     {
       "id": "test-vehicle-058",
-      "stock": "90000058",
-      "batch": "BATCH-TST-1058",
-      "toyotaBatch": "BATCH-TST-1058",
+      "stock": "10015635",
+      "batch": "10015635",
+      "toyotaBatch": "10015635",
       "order": "SO-TST-5058",
       "client": "Prairie Depot Test 058",
       "toyotaCustomer": "Prairie Depot Test 058",
@@ -1862,13 +1976,15 @@ window.VEHICLE_TRACKING_DATA = {
       "fabricationRequired": false,
       "pdcPartsOrdered": false,
       "pdcPartsReceived": false,
-      "pdcLocation": ""
+      "pdcLocation": "",
+      "keyNumber": "157",
+      "pdcJobcard": "JC13910082"
     },
     {
       "id": "test-vehicle-059",
-      "stock": "90000059",
-      "batch": "BATCH-TST-1059",
-      "toyotaBatch": "BATCH-TST-1059",
+      "stock": "10015636",
+      "batch": "10015636",
+      "toyotaBatch": "10015636",
       "order": "SO-TST-5059",
       "client": "Breeze Line Test 059",
       "toyotaCustomer": "Breeze Line Test 059",
@@ -1894,13 +2010,15 @@ window.VEHICLE_TRACKING_DATA = {
       "fabricationRequired": false,
       "pdcPartsOrdered": false,
       "pdcPartsReceived": false,
-      "pdcLocation": ""
+      "pdcLocation": "",
+      "keyNumber": "158",
+      "pdcJobcard": "JC13910083"
     },
     {
       "id": "test-vehicle-060",
-      "stock": "90000060",
-      "batch": "BATCH-TST-1060",
-      "toyotaBatch": "BATCH-TST-1060",
+      "stock": "10015637",
+      "batch": "10015637",
+      "toyotaBatch": "10015637",
       "order": "SO-TST-5060",
       "client": "Breeze Point Test 060",
       "toyotaCustomer": "Breeze Point Test 060",
@@ -1926,13 +2044,15 @@ window.VEHICLE_TRACKING_DATA = {
       "fabricationRequired": false,
       "pdcPartsOrdered": false,
       "pdcPartsReceived": false,
-      "pdcLocation": ""
+      "pdcLocation": "",
+      "keyNumber": "159",
+      "pdcJobcard": "JC13910084"
     },
     {
       "id": "test-vehicle-061",
-      "stock": "90000061",
-      "batch": "BATCH-TST-1061",
-      "toyotaBatch": "BATCH-TST-1061",
+      "stock": "10015638",
+      "batch": "10015638",
+      "toyotaBatch": "10015638",
       "order": "SO-TST-5061",
       "client": "Marble Range Test 061",
       "toyotaCustomer": "Marble Range Test 061",
@@ -1958,13 +2078,15 @@ window.VEHICLE_TRACKING_DATA = {
       "fabricationRequired": false,
       "pdcPartsOrdered": false,
       "pdcPartsReceived": false,
-      "pdcLocation": ""
+      "pdcLocation": "",
+      "keyNumber": "160",
+      "pdcJobcard": "JC13910085"
     },
     {
       "id": "test-vehicle-062",
-      "stock": "90000062",
-      "batch": "BATCH-TST-1062",
-      "toyotaBatch": "BATCH-TST-1062",
+      "stock": "10015639",
+      "batch": "10015639",
+      "toyotaBatch": "10015639",
       "order": "SO-TST-5062",
       "client": "Prairie Motors Test 062",
       "toyotaCustomer": "Prairie Motors Test 062",
@@ -1990,13 +2112,15 @@ window.VEHICLE_TRACKING_DATA = {
       "fabricationRequired": false,
       "pdcPartsOrdered": false,
       "pdcPartsReceived": false,
-      "pdcLocation": ""
+      "pdcLocation": "",
+      "keyNumber": "161",
+      "pdcJobcard": "JC13910086"
     },
     {
       "id": "test-vehicle-063",
-      "stock": "90000063",
-      "batch": "BATCH-TST-1063",
-      "toyotaBatch": "BATCH-TST-1063",
+      "stock": "10015640",
+      "batch": "10015640",
+      "toyotaBatch": "10015640",
       "order": "SO-TST-5063",
       "client": "Cobalt Ridge Test 063",
       "toyotaCustomer": "Cobalt Ridge Test 063",
@@ -2022,13 +2146,15 @@ window.VEHICLE_TRACKING_DATA = {
       "fabricationRequired": false,
       "pdcPartsOrdered": false,
       "pdcPartsReceived": false,
-      "pdcLocation": ""
+      "pdcLocation": "",
+      "keyNumber": "162",
+      "pdcJobcard": "JC13910087"
     },
     {
       "id": "test-vehicle-064",
-      "stock": "90000064",
-      "batch": "BATCH-TST-1064",
-      "toyotaBatch": "BATCH-TST-1064",
+      "stock": "10015641",
+      "batch": "10015641",
+      "toyotaBatch": "10015641",
       "order": "SO-TST-5064",
       "client": "Nimbus Drift Test 064",
       "toyotaCustomer": "Nimbus Drift Test 064",
@@ -2054,13 +2180,15 @@ window.VEHICLE_TRACKING_DATA = {
       "fabricationRequired": false,
       "pdcPartsOrdered": false,
       "pdcPartsReceived": false,
-      "pdcLocation": ""
+      "pdcLocation": "",
+      "keyNumber": "163",
+      "pdcJobcard": "JC13910088"
     },
     {
       "id": "test-vehicle-065",
-      "stock": "90000065",
-      "batch": "BATCH-TST-1065",
-      "toyotaBatch": "BATCH-TST-1065",
+      "stock": "10015642",
+      "batch": "10015642",
+      "toyotaBatch": "10015642",
       "order": "SO-TST-5065",
       "client": "Maple Transit Test 065",
       "toyotaCustomer": "Maple Transit Test 065",
@@ -2086,13 +2214,15 @@ window.VEHICLE_TRACKING_DATA = {
       "fabricationRequired": false,
       "pdcPartsOrdered": false,
       "pdcPartsReceived": false,
-      "pdcLocation": ""
+      "pdcLocation": "",
+      "keyNumber": "164",
+      "pdcJobcard": "JC13910089"
     },
     {
       "id": "test-vehicle-066",
-      "stock": "90000066",
-      "batch": "BATCH-TST-1066",
-      "toyotaBatch": "BATCH-TST-1066",
+      "stock": "10015643",
+      "batch": "10015643",
+      "toyotaBatch": "10015643",
       "order": "SO-TST-5066",
       "client": "Harbour Vista Test 066",
       "toyotaCustomer": "Harbour Vista Test 066",
@@ -2118,13 +2248,15 @@ window.VEHICLE_TRACKING_DATA = {
       "fabricationRequired": false,
       "pdcPartsOrdered": false,
       "pdcPartsReceived": false,
-      "pdcLocation": ""
+      "pdcLocation": "",
+      "keyNumber": "165",
+      "pdcJobcard": "JC13910090"
     },
     {
       "id": "test-vehicle-067",
-      "stock": "90000067",
-      "batch": "BATCH-TST-1067",
-      "toyotaBatch": "BATCH-TST-1067",
+      "stock": "10015644",
+      "batch": "10015644",
+      "toyotaBatch": "10015644",
       "order": "SO-TST-5067",
       "client": "Lagoon Field Test 067",
       "toyotaCustomer": "Lagoon Field Test 067",
@@ -2150,13 +2282,15 @@ window.VEHICLE_TRACKING_DATA = {
       "fabricationRequired": false,
       "pdcPartsOrdered": false,
       "pdcPartsReceived": false,
-      "pdcLocation": ""
+      "pdcLocation": "",
+      "keyNumber": "166",
+      "pdcJobcard": "JC13910091"
     },
     {
       "id": "test-vehicle-068",
-      "stock": "90000068",
-      "batch": "BATCH-TST-1068",
-      "toyotaBatch": "BATCH-TST-1068",
+      "stock": "10015645",
+      "batch": "10015645",
+      "toyotaBatch": "10015645",
       "order": "SO-TST-5068",
       "client": "Harbour Line Test 068",
       "toyotaCustomer": "Harbour Line Test 068",
@@ -2182,13 +2316,15 @@ window.VEHICLE_TRACKING_DATA = {
       "fabricationRequired": false,
       "pdcPartsOrdered": false,
       "pdcPartsReceived": false,
-      "pdcLocation": ""
+      "pdcLocation": "",
+      "keyNumber": "167",
+      "pdcJobcard": "JC13910092"
     },
     {
       "id": "test-vehicle-069",
-      "stock": "90000069",
-      "batch": "BATCH-TST-1069",
-      "toyotaBatch": "BATCH-TST-1069",
+      "stock": "10015646",
+      "batch": "10015646",
+      "toyotaBatch": "10015646",
       "order": "SO-TST-5069",
       "client": "Cobalt Yard Test 069",
       "toyotaCustomer": "Cobalt Yard Test 069",
@@ -2214,13 +2350,15 @@ window.VEHICLE_TRACKING_DATA = {
       "fabricationRequired": false,
       "pdcPartsOrdered": false,
       "pdcPartsReceived": false,
-      "pdcLocation": ""
+      "pdcLocation": "",
+      "keyNumber": "168",
+      "pdcJobcard": "JC13910093"
     },
     {
       "id": "test-vehicle-070",
-      "stock": "90000070",
-      "batch": "BATCH-TST-1070",
-      "toyotaBatch": "BATCH-TST-1070",
+      "stock": "10015647",
+      "batch": "10015647",
+      "toyotaBatch": "10015647",
       "order": "SO-TST-5070",
       "client": "Aurora Harbor Test 070",
       "toyotaCustomer": "Aurora Harbor Test 070",
@@ -2246,13 +2384,15 @@ window.VEHICLE_TRACKING_DATA = {
       "fabricationRequired": false,
       "pdcPartsOrdered": false,
       "pdcPartsReceived": false,
-      "pdcLocation": ""
+      "pdcLocation": "",
+      "keyNumber": "169",
+      "pdcJobcard": "JC13910094"
     },
     {
       "id": "test-vehicle-071",
-      "stock": "90000071",
-      "batch": "BATCH-TST-1071",
-      "toyotaBatch": "BATCH-TST-1071",
+      "stock": "10015648",
+      "batch": "10015648",
+      "toyotaBatch": "10015648",
       "order": "SO-TST-5071",
       "client": "Cedar Transit Test 071",
       "toyotaCustomer": "Cedar Transit Test 071",
@@ -2278,13 +2418,15 @@ window.VEHICLE_TRACKING_DATA = {
       "fabricationRequired": false,
       "pdcPartsOrdered": false,
       "pdcPartsReceived": false,
-      "pdcLocation": ""
+      "pdcLocation": "",
+      "keyNumber": "170",
+      "pdcJobcard": "JC13910095"
     },
     {
       "id": "test-vehicle-072",
-      "stock": "90000072",
-      "batch": "BATCH-TST-1072",
-      "toyotaBatch": "BATCH-TST-1072",
+      "stock": "10015649",
+      "batch": "10015649",
+      "toyotaBatch": "10015649",
       "order": "SO-TST-5072",
       "client": "Cedar Fleet Test 072",
       "toyotaCustomer": "Cedar Fleet Test 072",
@@ -2310,13 +2452,15 @@ window.VEHICLE_TRACKING_DATA = {
       "fabricationRequired": false,
       "pdcPartsOrdered": false,
       "pdcPartsReceived": false,
-      "pdcLocation": ""
+      "pdcLocation": "",
+      "keyNumber": "171",
+      "pdcJobcard": "JC13910096"
     },
     {
       "id": "test-vehicle-073",
-      "stock": "90000073",
-      "batch": "BATCH-TST-1073",
-      "toyotaBatch": "BATCH-TST-1073",
+      "stock": "10015650",
+      "batch": "10015650",
+      "toyotaBatch": "10015650",
       "order": "SO-TST-5073",
       "client": "Lagoon Bay Test 073",
       "toyotaCustomer": "Lagoon Bay Test 073",
@@ -2342,13 +2486,15 @@ window.VEHICLE_TRACKING_DATA = {
       "fabricationRequired": false,
       "pdcPartsOrdered": false,
       "pdcPartsReceived": false,
-      "pdcLocation": ""
+      "pdcLocation": "",
+      "keyNumber": "172",
+      "pdcJobcard": "JC13910097"
     },
     {
       "id": "test-vehicle-074",
-      "stock": "90000074",
-      "batch": "BATCH-TST-1074",
-      "toyotaBatch": "BATCH-TST-1074",
+      "stock": "10015651",
+      "batch": "10015651",
+      "toyotaBatch": "10015651",
       "order": "SO-TST-5074",
       "client": "Summit Fleet Test 074",
       "toyotaCustomer": "Summit Fleet Test 074",
@@ -2374,13 +2520,15 @@ window.VEHICLE_TRACKING_DATA = {
       "fabricationRequired": false,
       "pdcPartsOrdered": false,
       "pdcPartsReceived": false,
-      "pdcLocation": ""
+      "pdcLocation": "",
+      "keyNumber": "173",
+      "pdcJobcard": "JC13910098"
     },
     {
       "id": "test-vehicle-075",
-      "stock": "90000075",
-      "batch": "BATCH-TST-1075",
-      "toyotaBatch": "BATCH-TST-1075",
+      "stock": "10015652",
+      "batch": "10015652",
+      "toyotaBatch": "10015652",
       "order": "SO-TST-5075",
       "client": "Aurora Group Test 075",
       "toyotaCustomer": "Aurora Group Test 075",
@@ -2406,13 +2554,15 @@ window.VEHICLE_TRACKING_DATA = {
       "fabricationRequired": false,
       "pdcPartsOrdered": false,
       "pdcPartsReceived": false,
-      "pdcLocation": ""
+      "pdcLocation": "",
+      "keyNumber": "174",
+      "pdcJobcard": "JC13910099"
     },
     {
       "id": "test-vehicle-076",
-      "stock": "90000076",
-      "batch": "BATCH-TST-1076",
-      "toyotaBatch": "BATCH-TST-1076",
+      "stock": "10015653",
+      "batch": "10015653",
+      "toyotaBatch": "10015653",
       "order": "SO-TST-5076",
       "client": "Solar Build Test 076",
       "toyotaCustomer": "Solar Build Test 076",
@@ -2438,13 +2588,15 @@ window.VEHICLE_TRACKING_DATA = {
       "fabricationRequired": false,
       "pdcPartsOrdered": false,
       "pdcPartsReceived": false,
-      "pdcLocation": ""
+      "pdcLocation": "",
+      "keyNumber": "175",
+      "pdcJobcard": "JC13910100"
     },
     {
       "id": "test-vehicle-077",
-      "stock": "90000077",
-      "batch": "BATCH-TST-1077",
-      "toyotaBatch": "BATCH-TST-1077",
+      "stock": "10015654",
+      "batch": "10015654",
+      "toyotaBatch": "10015654",
       "order": "SO-TST-5077",
       "client": "Orbit Depot Test 077",
       "toyotaCustomer": "Orbit Depot Test 077",
@@ -2470,13 +2622,15 @@ window.VEHICLE_TRACKING_DATA = {
       "fabricationRequired": false,
       "pdcPartsOrdered": false,
       "pdcPartsReceived": false,
-      "pdcLocation": ""
+      "pdcLocation": "",
+      "keyNumber": "176",
+      "pdcJobcard": "JC13910101"
     },
     {
       "id": "test-vehicle-078",
-      "stock": "90000078",
-      "batch": "BATCH-TST-1078",
-      "toyotaBatch": "BATCH-TST-1078",
+      "stock": "10015655",
+      "batch": "10015655",
+      "toyotaBatch": "10015655",
       "order": "SO-TST-5078",
       "client": "Granite Loop Test 078",
       "toyotaCustomer": "Granite Loop Test 078",
@@ -2502,13 +2656,15 @@ window.VEHICLE_TRACKING_DATA = {
       "fabricationRequired": false,
       "pdcPartsOrdered": false,
       "pdcPartsReceived": false,
-      "pdcLocation": ""
+      "pdcLocation": "",
+      "keyNumber": "177",
+      "pdcJobcard": "JC13910102"
     },
     {
       "id": "test-vehicle-079",
-      "stock": "90000079",
-      "batch": "BATCH-TST-1079",
-      "toyotaBatch": "BATCH-TST-1079",
+      "stock": "10015656",
+      "batch": "10015656",
+      "toyotaBatch": "10015656",
       "order": "SO-TST-5079",
       "client": "Aurora Build Test 079",
       "toyotaCustomer": "Aurora Build Test 079",
@@ -2534,13 +2690,15 @@ window.VEHICLE_TRACKING_DATA = {
       "fabricationRequired": false,
       "pdcPartsOrdered": false,
       "pdcPartsReceived": false,
-      "pdcLocation": ""
+      "pdcLocation": "",
+      "keyNumber": "178",
+      "pdcJobcard": "JC13910103"
     },
     {
       "id": "test-vehicle-080",
-      "stock": "90000080",
-      "batch": "BATCH-TST-1080",
-      "toyotaBatch": "BATCH-TST-1080",
+      "stock": "10015657",
+      "batch": "10015657",
+      "toyotaBatch": "10015657",
       "order": "SO-TST-5080",
       "client": "Solar Range Test 080",
       "toyotaCustomer": "Solar Range Test 080",
@@ -2566,13 +2724,15 @@ window.VEHICLE_TRACKING_DATA = {
       "fabricationRequired": false,
       "pdcPartsOrdered": false,
       "pdcPartsReceived": false,
-      "pdcLocation": ""
+      "pdcLocation": "",
+      "keyNumber": "179",
+      "pdcJobcard": "JC13910104"
     },
     {
       "id": "test-vehicle-081",
-      "stock": "90000081",
-      "batch": "BATCH-TST-1081",
-      "toyotaBatch": "BATCH-TST-1081",
+      "stock": "10015658",
+      "batch": "10015658",
+      "toyotaBatch": "10015658",
       "order": "SO-TST-5081",
       "client": "Ember Yard Test 081",
       "toyotaCustomer": "Ember Yard Test 081",
@@ -2598,13 +2758,15 @@ window.VEHICLE_TRACKING_DATA = {
       "fabricationRequired": false,
       "pdcPartsOrdered": false,
       "pdcPartsReceived": false,
-      "pdcLocation": ""
+      "pdcLocation": "",
+      "keyNumber": "180",
+      "pdcJobcard": "JC13910105"
     },
     {
       "id": "test-vehicle-082",
-      "stock": "90000082",
-      "batch": "BATCH-TST-1082",
-      "toyotaBatch": "BATCH-TST-1082",
+      "stock": "10015659",
+      "batch": "10015659",
+      "toyotaBatch": "10015659",
       "order": "SO-TST-5082",
       "client": "Marble Vista Test 082",
       "toyotaCustomer": "Marble Vista Test 082",
@@ -2630,13 +2792,15 @@ window.VEHICLE_TRACKING_DATA = {
       "fabricationRequired": false,
       "pdcPartsOrdered": false,
       "pdcPartsReceived": false,
-      "pdcLocation": ""
+      "pdcLocation": "",
+      "keyNumber": "181",
+      "pdcJobcard": "JC13910106"
     },
     {
       "id": "test-vehicle-083",
-      "stock": "90000083",
-      "batch": "BATCH-TST-1083",
-      "toyotaBatch": "BATCH-TST-1083",
+      "stock": "10015660",
+      "batch": "10015660",
+      "toyotaBatch": "10015660",
       "order": "SO-TST-5083",
       "client": "Lagoon Line Test 083",
       "toyotaCustomer": "Lagoon Line Test 083",
@@ -2662,13 +2826,15 @@ window.VEHICLE_TRACKING_DATA = {
       "fabricationRequired": false,
       "pdcPartsOrdered": false,
       "pdcPartsReceived": false,
-      "pdcLocation": ""
+      "pdcLocation": "",
+      "keyNumber": "182",
+      "pdcJobcard": "JC13910107"
     },
     {
       "id": "test-vehicle-084",
-      "stock": "90000084",
-      "batch": "BATCH-TST-1084",
-      "toyotaBatch": "BATCH-TST-1084",
+      "stock": "10015661",
+      "batch": "10015661",
+      "toyotaBatch": "10015661",
       "order": "SO-TST-5084",
       "client": "Granite Yard Test 084",
       "toyotaCustomer": "Granite Yard Test 084",
@@ -2694,13 +2860,15 @@ window.VEHICLE_TRACKING_DATA = {
       "fabricationRequired": false,
       "pdcPartsOrdered": false,
       "pdcPartsReceived": false,
-      "pdcLocation": ""
+      "pdcLocation": "",
+      "keyNumber": "183",
+      "pdcJobcard": "JC13910108"
     },
     {
       "id": "test-vehicle-085",
-      "stock": "90000085",
-      "batch": "BATCH-TST-1085",
-      "toyotaBatch": "BATCH-TST-1085",
+      "stock": "10015662",
+      "batch": "10015662",
+      "toyotaBatch": "10015662",
       "order": "SO-TST-5085",
       "client": "Quartz Harbor Test 085",
       "toyotaCustomer": "Quartz Harbor Test 085",
@@ -2726,13 +2894,15 @@ window.VEHICLE_TRACKING_DATA = {
       "fabricationRequired": false,
       "pdcPartsOrdered": false,
       "pdcPartsReceived": false,
-      "pdcLocation": ""
+      "pdcLocation": "",
+      "keyNumber": "184",
+      "pdcJobcard": "JC13910109"
     },
     {
       "id": "test-vehicle-086",
-      "stock": "90000086",
-      "batch": "BATCH-TST-1086",
-      "toyotaBatch": "BATCH-TST-1086",
+      "stock": "10015663",
+      "batch": "10015663",
+      "toyotaBatch": "10015663",
       "order": "SO-TST-5086",
       "client": "Lagoon Loop Test 086",
       "toyotaCustomer": "Lagoon Loop Test 086",
@@ -2758,13 +2928,15 @@ window.VEHICLE_TRACKING_DATA = {
       "fabricationRequired": false,
       "pdcPartsOrdered": false,
       "pdcPartsReceived": false,
-      "pdcLocation": ""
+      "pdcLocation": "",
+      "keyNumber": "185",
+      "pdcJobcard": "JC13910110"
     },
     {
       "id": "test-vehicle-087",
-      "stock": "90000087",
-      "batch": "BATCH-TST-1087",
-      "toyotaBatch": "BATCH-TST-1087",
+      "stock": "10015664",
+      "batch": "10015664",
+      "toyotaBatch": "10015664",
       "order": "SO-TST-5087",
       "client": "Harbour Group Test 087",
       "toyotaCustomer": "Harbour Group Test 087",
@@ -2790,13 +2962,15 @@ window.VEHICLE_TRACKING_DATA = {
       "fabricationRequired": false,
       "pdcPartsOrdered": false,
       "pdcPartsReceived": false,
-      "pdcLocation": ""
+      "pdcLocation": "",
+      "keyNumber": "186",
+      "pdcJobcard": "JC13910111"
     },
     {
       "id": "test-vehicle-088",
-      "stock": "90000088",
-      "batch": "BATCH-TST-1088",
-      "toyotaBatch": "BATCH-TST-1088",
+      "stock": "10015665",
+      "batch": "10015665",
+      "toyotaBatch": "10015665",
       "order": "SO-TST-5088",
       "client": "Falcon Line Test 088",
       "toyotaCustomer": "Falcon Line Test 088",
@@ -2822,13 +2996,15 @@ window.VEHICLE_TRACKING_DATA = {
       "fabricationRequired": false,
       "pdcPartsOrdered": false,
       "pdcPartsReceived": false,
-      "pdcLocation": ""
+      "pdcLocation": "",
+      "keyNumber": "187",
+      "pdcJobcard": "JC13910112"
     },
     {
       "id": "test-vehicle-089",
-      "stock": "90000089",
-      "batch": "BATCH-TST-1089",
-      "toyotaBatch": "BATCH-TST-1089",
+      "stock": "10015666",
+      "batch": "10015666",
+      "toyotaBatch": "10015666",
       "order": "SO-TST-5089",
       "client": "Solar Point Test 089",
       "toyotaCustomer": "Solar Point Test 089",
@@ -2854,13 +3030,15 @@ window.VEHICLE_TRACKING_DATA = {
       "fabricationRequired": false,
       "pdcPartsOrdered": false,
       "pdcPartsReceived": false,
-      "pdcLocation": ""
+      "pdcLocation": "",
+      "keyNumber": "188",
+      "pdcJobcard": "JC13910113"
     },
     {
       "id": "test-vehicle-090",
-      "stock": "90000090",
-      "batch": "BATCH-TST-1090",
-      "toyotaBatch": "BATCH-TST-1090",
+      "stock": "10015667",
+      "batch": "10015667",
+      "toyotaBatch": "10015667",
       "order": "SO-TST-5090",
       "client": "Maple Depot Test 090",
       "toyotaCustomer": "Maple Depot Test 090",
@@ -2886,13 +3064,15 @@ window.VEHICLE_TRACKING_DATA = {
       "fabricationRequired": false,
       "pdcPartsOrdered": false,
       "pdcPartsReceived": false,
-      "pdcLocation": ""
+      "pdcLocation": "",
+      "keyNumber": "189",
+      "pdcJobcard": "JC13910114"
     },
     {
       "id": "test-vehicle-091",
-      "stock": "90000091",
-      "batch": "BATCH-TST-1091",
-      "toyotaBatch": "BATCH-TST-1091",
+      "stock": "10015668",
+      "batch": "10015668",
+      "toyotaBatch": "10015668",
       "order": "SO-TST-5091",
       "client": "Cedar Range Test 091",
       "toyotaCustomer": "Cedar Range Test 091",
@@ -2918,13 +3098,15 @@ window.VEHICLE_TRACKING_DATA = {
       "fabricationRequired": false,
       "pdcPartsOrdered": false,
       "pdcPartsReceived": false,
-      "pdcLocation": ""
+      "pdcLocation": "",
+      "keyNumber": "190",
+      "pdcJobcard": "JC13910115"
     },
     {
       "id": "test-vehicle-092",
-      "stock": "90000092",
-      "batch": "BATCH-TST-1092",
-      "toyotaBatch": "BATCH-TST-1092",
+      "stock": "10015669",
+      "batch": "10015669",
+      "toyotaBatch": "10015669",
       "order": "SO-TST-5092",
       "client": "Solar Motors Test 092",
       "toyotaCustomer": "Solar Motors Test 092",
@@ -2950,13 +3132,15 @@ window.VEHICLE_TRACKING_DATA = {
       "fabricationRequired": false,
       "pdcPartsOrdered": false,
       "pdcPartsReceived": false,
-      "pdcLocation": ""
+      "pdcLocation": "",
+      "keyNumber": "191",
+      "pdcJobcard": "JC13910116"
     },
     {
       "id": "test-vehicle-093",
-      "stock": "90000093",
-      "batch": "BATCH-TST-1093",
-      "toyotaBatch": "BATCH-TST-1093",
+      "stock": "10015670",
+      "batch": "10015670",
+      "toyotaBatch": "10015670",
       "order": "SO-TST-5093",
       "client": "Aurora Fleet Test 093",
       "toyotaCustomer": "Aurora Fleet Test 093",
@@ -2982,13 +3166,15 @@ window.VEHICLE_TRACKING_DATA = {
       "fabricationRequired": false,
       "pdcPartsOrdered": false,
       "pdcPartsReceived": false,
-      "pdcLocation": ""
+      "pdcLocation": "",
+      "keyNumber": "192",
+      "pdcJobcard": "JC13910117"
     },
     {
       "id": "test-vehicle-094",
-      "stock": "90000094",
-      "batch": "BATCH-TST-1094",
-      "toyotaBatch": "BATCH-TST-1094",
+      "stock": "10015671",
+      "batch": "10015671",
+      "toyotaBatch": "10015671",
       "order": "SO-TST-5094",
       "client": "Harbour Transit Test 094",
       "toyotaCustomer": "Harbour Transit Test 094",
@@ -3014,13 +3200,15 @@ window.VEHICLE_TRACKING_DATA = {
       "fabricationRequired": false,
       "pdcPartsOrdered": false,
       "pdcPartsReceived": false,
-      "pdcLocation": ""
+      "pdcLocation": "",
+      "keyNumber": "193",
+      "pdcJobcard": "JC13910118"
     },
     {
       "id": "test-vehicle-095",
-      "stock": "90000095",
-      "batch": "BATCH-TST-1095",
-      "toyotaBatch": "BATCH-TST-1095",
+      "stock": "10015672",
+      "batch": "10015672",
+      "toyotaBatch": "10015672",
       "order": "SO-TST-5095",
       "client": "Prairie Bay Test 095",
       "toyotaCustomer": "Prairie Bay Test 095",
@@ -3046,13 +3234,15 @@ window.VEHICLE_TRACKING_DATA = {
       "fabricationRequired": false,
       "pdcPartsOrdered": false,
       "pdcPartsReceived": false,
-      "pdcLocation": ""
+      "pdcLocation": "",
+      "keyNumber": "194",
+      "pdcJobcard": "JC13910119"
     },
     {
       "id": "test-vehicle-096",
-      "stock": "90000096",
-      "batch": "BATCH-TST-1096",
-      "toyotaBatch": "BATCH-TST-1096",
+      "stock": "10015673",
+      "batch": "10015673",
+      "toyotaBatch": "10015673",
       "order": "SO-TST-5096",
       "client": "Breeze Bay Test 096",
       "toyotaCustomer": "Breeze Bay Test 096",
@@ -3078,13 +3268,15 @@ window.VEHICLE_TRACKING_DATA = {
       "fabricationRequired": false,
       "pdcPartsOrdered": false,
       "pdcPartsReceived": false,
-      "pdcLocation": ""
+      "pdcLocation": "",
+      "keyNumber": "195",
+      "pdcJobcard": "JC13910120"
     },
     {
       "id": "test-vehicle-097",
-      "stock": "90000097",
-      "batch": "BATCH-TST-1097",
-      "toyotaBatch": "BATCH-TST-1097",
+      "stock": "10015674",
+      "batch": "10015674",
+      "toyotaBatch": "10015674",
       "order": "SO-TST-5097",
       "client": "Solar Bay Test 097",
       "toyotaCustomer": "Solar Bay Test 097",
@@ -3110,13 +3302,15 @@ window.VEHICLE_TRACKING_DATA = {
       "fabricationRequired": false,
       "pdcPartsOrdered": false,
       "pdcPartsReceived": false,
-      "pdcLocation": ""
+      "pdcLocation": "",
+      "keyNumber": "196",
+      "pdcJobcard": "JC13910121"
     },
     {
       "id": "test-vehicle-098",
-      "stock": "90000098",
-      "batch": "BATCH-TST-1098",
-      "toyotaBatch": "BATCH-TST-1098",
+      "stock": "10015675",
+      "batch": "10015675",
+      "toyotaBatch": "10015675",
       "order": "SO-TST-5098",
       "client": "Harbour Group Test 098",
       "toyotaCustomer": "Harbour Group Test 098",
@@ -3142,13 +3336,15 @@ window.VEHICLE_TRACKING_DATA = {
       "fabricationRequired": false,
       "pdcPartsOrdered": false,
       "pdcPartsReceived": false,
-      "pdcLocation": ""
+      "pdcLocation": "",
+      "keyNumber": "197",
+      "pdcJobcard": "JC13910122"
     },
     {
       "id": "test-vehicle-099",
-      "stock": "90000099",
-      "batch": "BATCH-TST-1099",
-      "toyotaBatch": "BATCH-TST-1099",
+      "stock": "10015676",
+      "batch": "10015676",
+      "toyotaBatch": "10015676",
       "order": "SO-TST-5099",
       "client": "Ember Transit Test 099",
       "toyotaCustomer": "Ember Transit Test 099",
@@ -3174,13 +3370,15 @@ window.VEHICLE_TRACKING_DATA = {
       "fabricationRequired": false,
       "pdcPartsOrdered": false,
       "pdcPartsReceived": false,
-      "pdcLocation": ""
+      "pdcLocation": "",
+      "keyNumber": "198",
+      "pdcJobcard": "JC13910123"
     },
     {
       "id": "test-vehicle-100",
-      "stock": "90000100",
-      "batch": "BATCH-TST-1100",
-      "toyotaBatch": "BATCH-TST-1100",
+      "stock": "10015677",
+      "batch": "10015677",
+      "toyotaBatch": "10015677",
       "order": "SO-TST-5100",
       "client": "Copper Transit Test 100",
       "toyotaCustomer": "Copper Transit Test 100",
@@ -3206,7 +3404,9 @@ window.VEHICLE_TRACKING_DATA = {
       "fabricationRequired": false,
       "pdcPartsOrdered": false,
       "pdcPartsReceived": false,
-      "pdcLocation": ""
+      "pdcLocation": "",
+      "keyNumber": "199",
+      "pdcJobcard": "JC13910124"
     }
   ],
   "toyotaMatches": {}
