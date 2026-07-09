@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.07.09.24-pmb-toggle-one-row';
+const APP_VERSION = '2026.07.09.25-pmb-identity-fonts';
 window.VEHICLE_TRACKING_DATA = window.VEHICLE_TRACKING_DATA || { report: {}, vehicles: [], toyotaMatches: {} };
 const EDITS_KEY = 'vehicleTrackingCoreNavisionOnlyEdits:v1';
 const ADDED_KEY = 'vehicleTrackingCoreNavisionOnlyVehicles:v1';
@@ -646,6 +646,11 @@ function pmbBayPillIdentityHtml(vehicle = {}) {
     { label: 'JC', value: vehicleJobcardNumber(vehicle) || '—' },
   ].map(cell => `<span class="pmb-bay-id-cell pmb-bay-id-${escapeHtml(cell.label.toLowerCase())}" aria-label="${escapeHtml(`${cell.label} ${cell.value}`)}" title="${escapeHtml(cell.value)}">${escapeHtml(truncate(cell.value, 14))}</span>`).join('');
   return `<div class="pmb-bay-pill-ids">${cells}</div>`;
+}
+
+function pmbPillCustomerHtml(vehicle = {}) {
+  const customer = vehicleCustomerName(vehicle) || 'Unknown customer';
+  return `<span class="pmb-pill-customer" title="${escapeHtml(customer)}">${escapeHtml(truncate(customer, 34))}</span>`;
 }
 
 function pmbRequirementText(vehicle = {}) {
@@ -3619,6 +3624,7 @@ function pmbBayVehicleCardHtml(vehicle = {}, stage = '') {
     <article class="pmb-bay-vehicle-card pmb-bay-vehicle-pill ${complete ? 'is-complete' : ''} ${isPdcBlocked(vehicle) ? 'is-blocked' : ''}" draggable="true" data-pmb-drag-key="${escapeHtml(key)}" data-open-stock="${escapeHtml(key)}" title="${escapeHtml(title)}">
       <div class="pmb-bay-pill-main">
         ${identityHtml}
+        ${pmbPillCustomerHtml(vehicle)}
         ${pmbCardDetailHtml(vehicle)}
       </div>
       <div class="pmb-bay-pill-bottom">
@@ -3635,6 +3641,7 @@ function pmbVehicleCardHtml(vehicle = {}) {
     <article class="pmb-vehicle-card pmb-vehicle-pill ${isPdcBlocked(vehicle) ? 'is-blocked' : ''}" draggable="true" data-pmb-drag-key="${escapeHtml(key)}" data-open-stock="${escapeHtml(key)}" title="${escapeHtml(title)}">
       <div class="pmb-pill-main">
         ${pmbBayPillIdentityHtml(vehicle)}
+        ${pmbPillCustomerHtml(vehicle)}
         ${pmbCardDetailHtml(vehicle)}
       </div>
       <div class="pmb-pill-bottom">

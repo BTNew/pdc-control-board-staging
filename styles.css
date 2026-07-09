@@ -8152,3 +8152,57 @@ html[data-workflow-width="xl"] #workflow {
   .workflow-width-control span { display: none; }
   .workflow-width-control select { max-width: 94px; }
 }
+
+/* 2026-07-09.25: bigger PMB identity text, tighter one-row identity, customer restored on vehicle pills. */
+#workflow .incoming-vehicle-summary {
+  grid-template-columns: 12px 20px minmax(490px, 1.7fr) minmax(170px, .55fr) minmax(220px, 1fr) minmax(54px, auto) minmax(92px, max-content) !important;
+  gap: 4px !important;
+}
+#workflow .incoming-identity.vehicle-identity-columns {
+  grid-template-columns: 42px 84px 106px minmax(150px, 1fr) !important;
+  gap: 2px !important;
+}
+#workflow .incoming-identity .vehicle-identity-cell {
+  min-height: 25px !important;
+  padding: 2px 3px !important;
+  border-radius: 6px !important;
+}
+#workflow .incoming-identity .vehicle-identity-value,
+#workflow .incoming-identity .vehicle-identity-primary,
+#workflow .incoming-identity .identity-key .vehicle-identity-value,
+#workflow .incoming-identity .identity-name .vehicle-identity-value {
+  font-size: .9rem !important;
+  font-weight: 950 !important;
+  line-height: 1 !important;
+  letter-spacing: -.015em !important;
+}
+#workflow .incoming-card-main strong {
+  font-size: .9rem !important;
+}
+.pmb-pill-main,
+.pmb-bay-pill-main {
+  gap: 5px !important;
+  grid-template-rows: none !important;
+}
+.pmb-bay-pill-ids {
+  gap: 3px !important;
+}
+.pmb-bay-id-cell {
+  padding: 3px 5px !important;
+  font-size: .74rem !important;
+  line-height: 1.05 !important;
+}
+.pmb-pill-customer,
+.pmb-bay-pill-customer {
+  display: block !important;
+  color: #0f172a !important;
+  font-size: .84rem !important;
+  font-weight: 950 !important;
+  line-height: 1.05 !important;
+}
+.pmb-pill-vehicle,
+.pmb-pill-sales {
+  font-size: .82rem !important;
+  font-weight: 900 !important;
+  line-height: 1.08 !important;
+}
