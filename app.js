@@ -3452,7 +3452,7 @@ function pmbBayVehicleCardHtml(vehicle = {}, stage = '') {
 
 function pmbVehicleCardHtml(vehicle = {}) {
   const key = vehicleKey(vehicle);
-  const currentStage = normalizePmbStage(inferredPmbStage(vehicle));
+  const currentStage = normalizePmbStage(vehicle.pmbBayStage || inferredPmbStage(vehicle));
   const doneJobs = pdcCompletedJobs(vehicle).map(job => `${job.label} done`);
   const outstandingJobs = pdcRequirementDefinitions(vehicle).filter(job => !pdcJobComplete(vehicle, job)).map(job => `${job.label} open`);
   const gateIssues = vehicleRftGateIssues(vehicle);
@@ -3927,12 +3927,12 @@ async function assignPmbVehicleToBay(key, stage, bay, requestedStartIso = '') {
     return;
   }
   const bayNumber = normalizePmbBayNumber(bay, nextStage);
-  const currentStage = normalizePmbStage(inferredPmbStage(vehicle));
+  const currentStage = normalizePmbStage(vehicle.pmbBayStage || inferredPmbStage(vehicle));
   if (bayNumber) {
     const occupied = pmbBayOccupants(nextStage, bayNumber, cleanKey);
     if (occupied.length) {
       const currentBay = pmbBayNumber(vehicle, nextStage);
-      const currentStageForSwap = normalizePmbStage(inferredPmbStage(vehicle));
+      const currentStageForSwap = normalizePmbStage(vehicle.pmbBayStage || inferredPmbStage(vehicle));
       if (occupied.length !== 1 || currentStageForSwap !== nextStage || !currentBay) {
         window.alert(`${pmbStageLabel(nextStage)} Bay ${bayNumber} already has a vehicle. Move that vehicle out first, or use bay-to-bay swap from another numbered bay.`);
         return;
