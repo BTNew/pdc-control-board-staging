@@ -7392,6 +7392,12 @@ body.pmb-schedule-adjusting .pmb-schedule-chip-slim {
 .pmb-card-identity .vehicle-identity-cell,
 .incoming-identity .vehicle-identity-cell {
   padding: 4px 4px;
+  overflow: hidden;
+}
+.incoming-identity .vehicle-identity-value,
+.incoming-identity .vehicle-identity-primary {
+  min-width: 0;
+  max-width: 100%;
 }
 .pmb-bay-identity .vehicle-identity-cell {
   min-height: 18px;
@@ -7963,8 +7969,26 @@ input, select, textarea, button {
   box-shadow: 0 8px 22px rgba(15, 23, 42, .12);
 }
 .incoming-vehicle-summary {
-  grid-template-columns: auto minmax(118px, .6fr) minmax(220px, 1.1fr) minmax(220px, 1fr) minmax(115px, auto) auto;
+  grid-template-columns: 12px 22px minmax(250px, 1.35fr) minmax(135px, .75fr) minmax(220px, 1fr) minmax(54px, auto) minmax(92px, max-content);
+  gap: 6px;
   min-height: 38px;
+}
+.incoming-identity.vehicle-identity-columns {
+  grid-template-columns: 44px 74px 86px minmax(62px, 1fr);
+  gap: 3px;
+}
+.incoming-card-action {
+  gap: 4px;
+  justify-content: flex-end;
+}
+.incoming-card-action .small-button,
+.incoming-card-action .primary {
+  padding: 5px 7px;
+  font-size: .68rem;
+}
+.incoming-collected-check {
+  font-size: .68rem;
+  gap: 3px;
 }
 .incoming-card-main strong,
 .incoming-card-main small {
