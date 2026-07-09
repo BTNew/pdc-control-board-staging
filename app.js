@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.07.09.25-pmb-identity-fonts';
+const APP_VERSION = '2026.07.09.26-rft-deleted-rows';
 window.VEHICLE_TRACKING_DATA = window.VEHICLE_TRACKING_DATA || { report: {}, vehicles: [], toyotaMatches: {} };
 const EDITS_KEY = 'vehicleTrackingCoreNavisionOnlyEdits:v1';
 const ADDED_KEY = 'vehicleTrackingCoreNavisionOnlyVehicles:v1';
@@ -805,6 +805,35 @@ function loadPoFiles() { return loadJson(PO_FILES_KEY, {}); }
 function savePoFiles(files) { saveJson(PO_FILES_KEY, files); }
 function loadDeletedVehicles() { return loadJson(DELETED_KEY, []); }
 function saveDeletedVehicles(stockList) { saveJson(DELETED_KEY, stockList); }
+function deletedVehicleKeyFromRecord(record) {
+  return typeof record === 'string' ? record : String(record?.key || record?.vehicleKey || record?.stock || record?.order || record?.id || '').trim();
+}
+function deletedVehicleKeys(records = loadDeletedVehicles()) {
+  const keys = new Set();
+  (Array.isArray(records) ? records : []).forEach(record => {
+    const primary = deletedVehicleKeyFromRecord(record);
+    if (primary) keys.add(primary);
+    if (record && typeof record === 'object' && Array.isArray(record.keys)) {
+      record.keys.map(value => String(value || '').trim()).filter(Boolean).forEach(value => keys.add(value));
+    }
+  });
+  return keys;
+}
+function deletedVehicleRecords() {
+  return (Array.isArray(loadDeletedVehicles()) ? loadDeletedVehicles() : []).map(record => {
+    if (typeof record === 'string') return { key: record, deletedAt: '', deletedBy: '', vehicle: { stock: record } };
+    return {
+      key: deletedVehicleKeyFromRecord(record),
+      deletedAt: record.deletedAt || '',
+      deletedBy: record.deletedBy || '',
+      deletedRole: record.deletedRole || '',
+      reason: record.reason || '',
+      vehicle: record.vehicle || { stock: record.stock || record.key || '' },
+      keys: Array.isArray(record.keys) ? record.keys : [],
+    };
+  }).filter(record => record.key);
+}
+function saveDeletedVehicleRecords(records = []) { saveDeletedVehicles(records); }
 function loadMechanics() { return loadJson(MECHANICS_KEY, []); }
 function saveMechanics(names) {
   const cleaned = [...new Set((Array.isArray(names) ? names : []).map(name => cleanNavisionText(name)).filter(Boolean))]
@@ -840,7 +869,7 @@ function vehicleDeleteKey(vehicleOrStock) {
 }
 function isDeletedVehicle(vehicle) {
   const key = vehicleDeleteKey(vehicle);
-  return Boolean(key && loadDeletedVehicles().includes(key));
+  return Boolean(key && deletedVehicleKeys().has(key));
 }
 
 function getToyotaMatch(vehicle) {
@@ -861,7 +890,7 @@ function buildVehicleData() {
   const edits = loadVehicleEdits();
   const poTasks = loadPoTasks();
   const poFiles = loadPoFiles();
-  const deleted = new Set(loadDeletedVehicles());
+  const deleted = deletedVehicleKeys();
   const base = JSON.parse(JSON.stringify(window.VEHICLE_TRACKING_DATA.vehicles || []));
   const added = loadAddedVehicles();
   return base.concat(added).filter(vehicle => !deleted.has(vehicleDeleteKey(vehicle))).map(vehicle => {
@@ -1651,6 +1680,8 @@ function bindNav() {
   on($('#rft-status-filter'), 'change', renderRftHome);
   on($('#completed-export-csv'), 'click', exportCompletedVehiclesCsv);
   on($('#completed-search'), 'input', renderCompletedVehicles);
+  on($('#deleted-export-csv'), 'click', exportDeletedVehiclesCsv);
+  on($('#deleted-search'), 'input', renderDeletedVehicles);
   on($('#customer-search'), 'input', renderCustomers);
   on($('#clear-table-filters'), 'click', () => clearAllFilters());
   on($('#reset-table-columns'), 'click', resetVehicleTableColumnOrder);
@@ -1888,6 +1919,9 @@ function renderActiveView() {
       break;
     case 'completed':
       renderCompletedVehicles();
+      break;
+    case 'deleted':
+      renderDeletedVehicles();
       break;
     case 'lists':
       renderAdminLists();
@@ -4806,13 +4840,19 @@ function renderVehicleTable() {
 function removeVehiclesFromTracker(vehicles = []) {
   const list = vehicles.filter(Boolean);
   if (!list.length) return [];
-  const deleted = new Set(loadDeletedVehicles());
+  const deletedRecords = deletedVehicleRecords();
+  const existingRecordsByKey = new Map();
+  deletedRecords.forEach(record => {
+    [record.key].concat(record.keys || []).filter(Boolean).forEach(key => existingRecordsByKey.set(String(key), record));
+  });
   let added = loadAddedVehicles();
   const edits = loadVehicleEdits();
   const poTasks = loadPoTasks();
   const poFiles = loadPoFiles();
-  const removedKeys = new Set();
   const exactRemovalKeys = new Set();
+  const operator = getCurrentOperatorName();
+  const role = getCurrentOperatorRole();
+  const deletedAt = nowIsoString();
 
   list.forEach(vehicle => {
     const exactKeys = [
@@ -4825,16 +4865,29 @@ function removeVehiclesFromTracker(vehicles = []) {
     ].map(value => String(value || '').trim()).filter(Boolean);
 
     const vin = normalizeVin(vehicle.vin || vehicle.fullVin || vehicle.frameVin || vehicle.autocareVin || '');
-    const allDeleteKeys = exactKeys.concat(vin ? [vin] : []);
+    const allDeleteKeys = [...new Set(exactKeys.concat(vin ? [vin] : []))];
+    const key = exactKeys[0] || vin;
 
-    exactKeys.forEach(key => exactRemovalKeys.add(key));
-    allDeleteKeys.forEach(key => {
-      deleted.add(key);
-      removedKeys.add(key);
-      delete edits[key];
-      delete poTasks[key];
-      delete poFiles[key];
+    exactKeys.forEach(value => exactRemovalKeys.add(value));
+    allDeleteKeys.forEach(value => {
+      delete edits[value];
+      delete poTasks[value];
+      delete poFiles[value];
     });
+
+    if (key && !allDeleteKeys.some(value => existingRecordsByKey.has(value))) {
+      const record = {
+        key,
+        keys: allDeleteKeys,
+        deletedAt,
+        deletedBy: operator || 'Unknown operator',
+        deletedRole: role || 'Unassigned role',
+        vehicle: JSON.parse(JSON.stringify(vehicle)),
+      };
+      deletedRecords.unshift(record);
+      allDeleteKeys.forEach(value => existingRecordsByKey.set(value, record));
+      recordVehicleAudit(vehicle, 'Deleted from board', { by: operator || 'Unknown operator', role: role || 'Unassigned role' });
+    }
   });
 
   // Do not use broad Navision comparable keys here. Frame/order fragments can overlap
@@ -4852,7 +4905,7 @@ function removeVehiclesFromTracker(vehicles = []) {
     return !keys.some(key => exactRemovalKeys.has(key));
   });
 
-  saveDeletedVehicles([...deleted]);
+  saveDeletedVehicleRecords(deletedRecords);
   saveAddedVehicles(added);
   saveJson(EDITS_KEY, edits);
   savePoTasks(poTasks);
@@ -5859,32 +5912,9 @@ function removeVehicle(stock) {
   const label = `${vehicleIdentityTitle(vehicle) || 'this vehicle'} - ${vehicleCustomerName(vehicle) || 'Unknown customer'}`;
   if (!window.confirm(`Remove ${label} from the tracker? This will hide it from the prototype dashboard.`)) return;
 
-  const key = vehicleDeleteKey(vehicle);
-  if (key) {
-    const deleted = new Set(loadDeletedVehicles());
-    deleted.add(key);
-    saveDeletedVehicles([...deleted]);
-  }
-
-  const added = loadAddedVehicles().filter(v => vehicleDeleteKey(v) !== key && v.stock !== stock);
-  saveAddedVehicles(added);
-
-  const edits = loadVehicleEdits();
-  delete edits[stock];
-  saveJson(EDITS_KEY, edits);
-
-  const poTasks = loadPoTasks();
-  const poFiles = loadPoFiles();
-  delete poTasks[stock];
-  delete poFiles[stock];
-  savePoTasks(poTasks);
-  savePoFiles(poFiles);
-
-  app.data = buildVehicleData();
-  app.selectedStock = app.data[0] ? vehicleKey(app.data[0]) : null;
+  removeVehiclesFromTracker([vehicle]);
+  refreshAfterVehicleRemoval();
   closeVehicleModal();
-  populateFilters();
-  renderAll();
 }
 
 function renderDetail() {
@@ -6980,6 +7010,14 @@ function rftCompletionTicksHtml(vehicle = {}) {
   }).join('')}</div>`;
 }
 
+function rftCompletionSummaryHtml(vehicle = {}) {
+  const required = pdcRequiredJobs(vehicle);
+  if (!required.length) return '<span class="subtle">No jobs</span>';
+  const done = required.filter(def => pdcJobComplete(vehicle, def)).length;
+  const pending = required.length - done;
+  return `<span class="rft-completion-summary-pill ${pending ? 'is-pending' : 'is-complete'}">${done}/${required.length} jobs${pending ? ` · ${pending} open` : ' · done'}</span>`;
+}
+
 function renderRftHome() {
   const host = $('#rft-home-content');
   const summaryHost = $('#rft-summary-grid');
@@ -6991,47 +7029,65 @@ function renderRftHome() {
     host.innerHTML = '<div class="empty-state"><strong>No RFT vehicles match the current filter</strong><span>Clear search or change the RFT status filter.</span></div>';
     return;
   }
-  host.innerHTML = `<div class="parts-table-wrap rft-table-wrap"><table class="data-table compact-table parts-table rft-table">
-    <thead><tr>
-      <th>RFT status</th>
-      <th>SN</th>
-      <th>Completion ticks</th>
-      <th>Blocker / outstanding</th>
-      <th>Actions</th>
-      <th>Client</th>
-      <th>Vehicle</th>
-      <th>Transferred</th>
-    </tr></thead>
-    <tbody>${rows.map(vehicle => {
-      const key = vehicleKey(vehicle);
-      const status = rftHomeStatus(vehicle);
-      const issues = vehicleRftGateIssues(vehicle);
-      const transferredAt = parseIsoTimestamp(vehicle.rftTransferredAt || vehicle.pdcLocationUpdatedAt || '');
-      const transferredLabel = transferredAt ? transferredAt.toLocaleString('en-AU', { dateStyle: 'short', timeStyle: 'short' }) : '';
-      const blocker = issues.length ? issues.join(' · ') : pdcOutstandingJobsText(vehicle);
-      return `<tr class="rft-row ${escapeHtml(rftHomeStatusClass(status))}">
-        <td><span class="parts-status-pill ${escapeHtml(rftHomeStatusClass(status))}">${escapeHtml(rftHomeStatusLabel(status))}</span></td>
-        <td>${vehicleIdentityStackHtml(vehicle, { button: true })}</td>
-        <td>${rftCompletionTicksHtml(vehicle)}</td>
-        <td><span class="rft-blocker-text" title="${escapeHtml(blocker)}">${escapeHtml(truncate(blocker, 72))}</span></td>
-        <td><div class="parts-action-group rft-action-group">
-          <label class="rft-collected-check" title="Tick once the vehicle has been collected"><input type="checkbox" data-rft-collected-key="${escapeHtml(key)}" /> <span>Collected</span></label>
-          <button class="small-button" type="button" data-open-stock="${escapeHtml(key)}">Open</button>
-          <button class="small-button primary" type="button" data-rft-email="${escapeHtml(key)}" ${status === 'blocked' ? `disabled title="Cannot email: ${escapeHtml(blocker)}"` : 'title="Email salesperson: all required jobs are signed off"'}>Email salesperson</button>
-        </div></td>
-        <td><span title="${escapeHtml(vehicleCustomerName(vehicle) || '')}">${escapeHtml(truncate(vehicleCustomerName(vehicle) || 'Dealer Order', 34))}</span></td>
-        <td><span title="${escapeHtml(displayVehicle(vehicle))}">${escapeHtml(truncate(displayVehicle(vehicle), 48))}</span></td>
-        <td>${escapeHtml(transferredLabel || '')}</td>
-      </tr>`;
-    }).join('')}</tbody></table></div>`;
-  $$('[data-open-stock]', host).forEach(button => button.addEventListener('click', () => openVehicleModal(button.dataset.openStock)));
+  host.innerHTML = `<div class="incoming-vertical-list rft-compact-list">${vehicleIdentityHeaderHtml('incoming-board-identity-header rft-identity-header')}${rows.map(vehicle => rftVehicleDetailRow(vehicle)).join('')}</div>`;
+  $$('[data-open-stock]', host).forEach(button => button.addEventListener('click', event => {
+    event.stopPropagation();
+    openVehicleModal(button.dataset.openStock);
+  }));
   $$('[data-rft-completion-key]', host).forEach(input => input.addEventListener('change', () => {
     togglePdcJobCompletionFromCard(input.dataset.rftCompletionKey, input.dataset.rftCompletionJob);
   }));
-  $$('[data-rft-email]', host).forEach(button => button.addEventListener('click', () => draftRftSalespersonNotificationEmail([button.dataset.rftEmail])));
+  $$('[data-rft-email]', host).forEach(button => button.addEventListener('click', event => {
+    event.stopPropagation();
+    draftRftSalespersonNotificationEmail([button.dataset.rftEmail]);
+  }));
+  $$('[data-rft-delete]', host).forEach(button => button.addEventListener('click', event => {
+    event.stopPropagation();
+    deleteIncomingVehicleFromMain(button.dataset.rftDelete);
+  }));
   bindRftCollectedInputs(host);
 }
 
+function rftVehicleDetailRow(vehicle = {}) {
+  const key = vehicleKey(vehicle);
+  const status = rftHomeStatus(vehicle);
+  const statusClass = rftHomeStatusClass(status);
+  const issues = vehicleRftGateIssues(vehicle);
+  const transferredAt = parseIsoTimestamp(vehicle.rftTransferredAt || vehicle.pdcLocationUpdatedAt || '');
+  const transferredLabel = transferredAt ? transferredAt.toLocaleString('en-AU', { dateStyle: 'short', timeStyle: 'short' }) : '—';
+  const blocker = issues.length ? issues.join(' · ') : pdcOutstandingJobsText(vehicle);
+  const stock = displayStockNumber(vehicle) || key || 'No stock';
+  const unit = displayVehicle(vehicle) || 'Vehicle not listed';
+  const customer = vehicleCustomerName(vehicle) || 'Dealer Order';
+  const keyNo = vehicleKeyNumber(vehicle) || '—';
+  return `
+    <details class="incoming-vehicle-card incoming-rft-row rft-compact-row ${escapeHtml(statusClass)}" data-rft-row="${escapeHtml(key)}">
+      <summary class="incoming-vehicle-summary rft-vehicle-summary">
+        <span></span>
+        <span class="incoming-card-stock">${vehicleIdentityStackHtml(vehicle, { className: 'incoming-identity' })}</span>
+        <span class="incoming-card-main">
+          <strong>${escapeHtml(truncate(unit, 72))}</strong>
+          <small>${escapeHtml(truncate(customer, 44))}</small>
+        </span>
+        <span class="incoming-card-work-wrap rft-card-work-wrap">${rftCompletionSummaryHtml(vehicle)}</span>
+        <span class="incoming-card-meta incoming-card-age"><b>RFT</b>${escapeHtml(transferredLabel)}</span>
+        <span class="incoming-card-meta"><b>Status</b><span class="parts-status-pill ${escapeHtml(statusClass)}">${escapeHtml(rftHomeStatusLabel(status))}</span></span>
+        <span class="incoming-card-action rft-card-actions">
+          <label class="rft-collected-check" title="Tick once the vehicle has been collected"><input type="checkbox" data-rft-collected-key="${escapeHtml(key)}" /> <span>Collected</span></label>
+          <button class="small-button incoming-open-button" type="button" data-open-stock="${escapeHtml(key)}">Open</button>
+          <button class="small-button incoming-delete-button" type="button" data-rft-delete="${escapeHtml(key)}" title="Delete this RFT vehicle from the board">Delete</button>
+        </span>
+      </summary>
+      <div class="incoming-vehicle-detail-grid">
+        <div><b>RFT status</b><span>${escapeHtml(rftHomeStatusLabel(status))}</span></div>
+        <div><b>SN</b><span>${escapeHtml(stock)}</span></div>
+        <div><b>Key</b><span>${escapeHtml(keyNo)}</span></div>
+        <div><b>Client</b><span>${escapeHtml(customer)}</span></div>
+        <div class="wide"><b>Blocker / outstanding</b><span>${escapeHtml(blocker || 'No outstanding RFT blockers')}</span></div>
+        <div class="wide"><b>Completion ticks</b><span>${rftCompletionTicksHtml(vehicle)}</span></div>
+      </div>
+    </details>`;
+}
 
 function markRftVehicleCollected(key, collected = true) {
   const vehicle = selectedVehicle(key);
@@ -7117,6 +7173,85 @@ function renderCompletedVehicles() {
     }).join('')}</tbody></table></div>`;
   $$('[data-open-stock]', host).forEach(button => button.addEventListener('click', () => openVehicleModal(button.dataset.openStock)));
   bindRftCollectedInputs(host);
+}
+
+function deletedVehiclesSearchText(record = {}) {
+  const vehicle = record.vehicle || {};
+  return [
+    record.key, record.deletedAt, record.deletedBy, record.deletedRole,
+    displayStockNumber(vehicle), vehicle.order, vehicleKeyNumber(vehicle), vehicleJobcardNumber(vehicle),
+    vehicle.client, vehicle.toyotaCustomer, displayVehicle(vehicle), auditTrailForVehicle(vehicle).map(entry => `${entry.action} ${entry.by} ${entry.at}`).join(' '),
+  ].join(' ').toLowerCase();
+}
+
+function deletedVehicleRows() {
+  const q = ($('#deleted-search')?.value || '').trim().toLowerCase();
+  return deletedVehicleRecords()
+    .filter(record => !q || deletedVehiclesSearchText(record).includes(q))
+    .sort((a, b) => {
+      const timeA = parseIsoTimestamp(a.deletedAt || '')?.getTime() || 0;
+      const timeB = parseIsoTimestamp(b.deletedAt || '')?.getTime() || 0;
+      return timeB - timeA;
+    });
+}
+
+function renderDeletedVehicles() {
+  const host = $('#deleted-vehicles-content');
+  if (!host) return;
+  const rows = deletedVehicleRows();
+  if (!rows.length) {
+    host.innerHTML = '<div class="empty-state"><strong>No deleted vehicles saved</strong><span>Vehicles deleted from the Control Board or RFT will appear here with their audit trail.</span></div>';
+    return;
+  }
+  host.innerHTML = `<div class="incoming-vertical-list deleted-compact-list">${vehicleIdentityHeaderHtml('incoming-board-identity-header deleted-identity-header')}${rows.map(record => {
+    const vehicle = record.vehicle || { stock: record.key };
+    const key = record.key || vehicleKey(vehicle);
+    const deletedAt = parseIsoTimestamp(record.deletedAt || '');
+    const deletedLabel = deletedAt ? deletedAt.toLocaleString('en-AU', { dateStyle: 'short', timeStyle: 'short' }) : 'Unknown time';
+    const customer = vehicleCustomerName(vehicle) || 'Unknown customer';
+    const unit = displayVehicle(vehicle) || 'Vehicle not listed';
+    return `
+      <details class="incoming-vehicle-card deleted-vehicle-row" data-deleted-row="${escapeHtml(key)}">
+        <summary class="incoming-vehicle-summary deleted-vehicle-summary">
+          <span></span>
+          <span class="incoming-card-stock">${vehicleIdentityStackHtml(vehicle, { className: 'incoming-identity' })}</span>
+          <span class="incoming-card-main"><strong>${escapeHtml(truncate(unit, 72))}</strong><small>${escapeHtml(truncate(customer, 44))}</small></span>
+          <span class="incoming-card-work-wrap"><span class="parts-status-pill blocked">Deleted</span></span>
+          <span class="incoming-card-meta incoming-card-age"><b>Deleted</b>${escapeHtml(deletedLabel)}</span>
+          <span class="incoming-card-meta"><b>By</b>${escapeHtml(record.deletedBy || 'Unknown')}</span>
+          <span class="incoming-card-action deleted-card-actions"><button class="small-button" type="button" disabled title="Deleted vehicle records cannot be deleted again">Delete locked</button></span>
+        </summary>
+        <div class="incoming-vehicle-detail-grid deleted-vehicle-detail-grid">
+          <div><b>Stock</b><span>${escapeHtml(displayStockNumber(vehicle) || key)}</span></div>
+          <div><b>Order</b><span>${escapeHtml(vehicle.order || '—')}</span></div>
+          <div><b>Key</b><span>${escapeHtml(vehicleKeyNumber(vehicle) || '—')}</span></div>
+          <div><b>Deleted by</b><span>${escapeHtml(record.deletedBy || 'Unknown')}${record.deletedRole ? ` (${escapeHtml(record.deletedRole)})` : ''}</span></div>
+          <div class="wide"><b>Movement / deletion log</b>${renderAuditTrailSection(vehicle)}</div>
+        </div>
+      </details>`;
+  }).join('')}</div>`;
+}
+
+function exportDeletedVehiclesCsv() {
+  const rows = deletedVehicleRows();
+  const headers = ['Stock','Toyota Order','Key','Client','Vehicle','Deleted At','Deleted By','Deleted Role','Audit Events'];
+  const lines = [headers.join(',')].concat(rows.map(record => {
+    const vehicle = record.vehicle || { stock: record.key };
+    const audit = auditTrailForVehicle(vehicle).map(entry => `${entry.at || ''} ${entry.action || ''} ${entry.by || ''}`).join(' | ');
+    return [
+      displayStockNumber(vehicle) || record.key || '', vehicle.order || '', vehicleKeyNumber(vehicle), vehicle.client || vehicle.toyotaCustomer || '',
+      displayVehicle(vehicle), record.deletedAt || '', record.deletedBy || '', record.deletedRole || '', audit,
+    ].map(csvEscape).join(',');
+  }));
+  const blob = new Blob([lines.join('\n')], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'pdc-deleted-vehicles-export.csv';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
 }
 
 function exportCompletedVehiclesCsv() {

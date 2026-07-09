@@ -8206,3 +8206,79 @@ html[data-workflow-width="xl"] #workflow {
   font-weight: 900 !important;
   line-height: 1.08 !important;
 }
+
+/* 2026-07-09: compact RFT rows and locked Deleted Vehicles view. */
+.rft-compact-list,
+.deleted-compact-list {
+  gap: 6px;
+}
+.rft-vehicle-summary,
+.deleted-vehicle-summary {
+  grid-template-columns: 12px minmax(220px, 1.25fr) minmax(250px, 1.25fr) minmax(230px, 1fr) minmax(92px, auto) minmax(102px, auto) minmax(230px, max-content);
+  min-height: 34px;
+}
+.rft-card-actions,
+.deleted-card-actions {
+  justify-content: flex-end;
+  flex-wrap: nowrap;
+  white-space: nowrap;
+  min-width: max-content;
+}
+.rft-card-work-wrap {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  overflow: hidden;
+}
+.incoming-rft-row.blocked {
+  border-left-color: #ef4444;
+}
+.incoming-rft-row.ready {
+  border-left-color: #22c55e;
+}
+.incoming-rft-row.complete {
+  border-left-color: #14b8a6;
+}
+.deleted-vehicle-row {
+  border-left: 4px solid #64748b;
+  background: #f8fafc;
+}
+.deleted-card-actions .small-button:disabled {
+  opacity: .72;
+  cursor: not-allowed;
+}
+.deleted-vehicle-detail-grid .audit-log-list {
+  margin-top: 4px;
+}
+@media (max-width: 1180px) {
+  .rft-vehicle-summary,
+  .deleted-vehicle-summary {
+    grid-template-columns: 10px minmax(180px, 1fr) minmax(220px, 1fr) minmax(180px, 1fr) minmax(210px, max-content);
+  }
+  .rft-vehicle-summary .incoming-card-age,
+  .deleted-vehicle-summary .incoming-card-age {
+    display: none;
+  }
+}
+
+.rft-completion-summary-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  padding: 3px 9px;
+  font-size: .78rem;
+  font-weight: 800;
+  white-space: nowrap;
+  background: #fee2e2;
+  color: #991b1b;
+}
+.rft-completion-summary-pill.is-complete {
+  background: #dcfce7;
+  color: #166534;
+}
+.rft-completion-summary-pill.is-pending {
+  background: #fef3c7;
+  color: #92400e;
+}

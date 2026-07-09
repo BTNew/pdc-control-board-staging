@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>PDC Control Board — Random 75 Vehicle Test</title>
-  <link rel="stylesheet" href="styles.css?v=2026.07.09.25-pmb-identity-fonts" />
+  <link rel="stylesheet" href="styles.css?v=2026.07.09.26-rft-deleted-rows" />
 </head>
 <body>
   <div class="test-data-banner" style="position:sticky;top:0;z-index:9999;background:#6d28d9;color:#fff;padding:8px 14px;text-align:center;font-weight:700;letter-spacing:.02em;">TEST DATASET — 75 SAMPLE VEHICLES ONLY — separate from live board</div>
@@ -26,6 +26,7 @@
         <button class="nav-item" data-view="parts" data-short="PA">Parts</button>
         <button class="nav-item" data-view="rft" data-short="RFT">RFT</button>
         <button class="nav-item" data-view="completed" data-short="DONE">Completed vehicles</button>
+        <button class="nav-item" data-view="deleted" data-short="DEL">Deleted vehicles</button>
         <button class="nav-item" data-view="lists" data-short="R">Reports</button>
         <button class="nav-item" data-view="import" data-short="U">Uploads</button>
       </nav>
@@ -472,6 +473,33 @@
       </section>
 
 
+      <section id="deleted" class="view">
+        <div class="parts-home-layout deleted-home-layout">
+          <section class="panel parts-home-panel deleted-home-panel">
+            <div class="panel-header">
+              <div>
+                <h2>Deleted vehicles</h2>
+                <p>Vehicles removed from the board. Deleted rows are locked here and include the movement/deletion audit trail.</p>
+              </div>
+              <div class="panel-actions">
+                <button class="small-button" id="deleted-export-csv" type="button">Export deleted CSV</button>
+              </div>
+            </div>
+            <div class="table-toolbar advanced-toolbar wide-toolbar parts-toolbar deleted-toolbar">
+              <label>
+                <span>Search</span>
+                <input id="deleted-search" type="search" placeholder="Stock, client, vehicle, key, deleted by, audit event..." />
+              </label>
+            </div>
+            <div class="parts-help-strip deleted-help-strip">
+              <strong>Deleted:</strong>
+              <span>Deleted vehicle records cannot be deleted again. Open a row to see the movement/deletion log and who removed it.</span>
+            </div>
+            <div id="deleted-vehicles-content" class="parts-home-content deleted-home-content"></div>
+          </section>
+        </div>
+      </section>
+
       <section id="zpl" class="view">
         <div class="panel zpl-panel">
           <div class="panel-header">
@@ -780,7 +808,7 @@
       }
     }());
   </script>
-  <script src="data-test-75.js?v=2026.07.09.25-pmb-identity-fonts"></script>
-  <script src="app.js?v=2026.07.09.25-pmb-identity-fonts"></script>
+  <script src="data-test-75.js?v=2026.07.09.26-rft-deleted-rows"></script>
+  <script src="app.js?v=2026.07.09.26-rft-deleted-rows"></script>
 </body>
 </html>

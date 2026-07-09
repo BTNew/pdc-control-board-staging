@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Vehicle Tracking Core</title>
-  <link rel="stylesheet" href="styles.css?v=2026.07.09.25-pmb-identity-fonts" />
+  <link rel="stylesheet" href="styles.css?v=2026.07.09.26-rft-deleted-rows" />
 </head>
 <body>
   <div class="app-shell" id="app-shell">
@@ -14,7 +14,7 @@
         <div class="brand-text">
           <div class="brand-title">Vehicle Tracking</div>
           <div class="brand-subtitle">Core Tracker</div>
-          <div class="app-version" id="app-version">Version 2026.07.09.25-pmb-identity-fonts</div>
+          <div class="app-version" id="app-version">Version 2026.07.09.26-rft-deleted-rows</div>
         </div>
         <button class="sidebar-toggle" id="sidebar-toggle" type="button" aria-label="Collapse sidebar" title="Collapse sidebar">‹</button>
       </div>
@@ -25,6 +25,7 @@
         <button class="nav-item" data-view="parts" data-short="PA">Parts</button>
         <button class="nav-item" data-view="rft" data-short="RFT">RFT</button>
         <button class="nav-item" data-view="completed" data-short="DONE">Completed vehicles</button>
+        <button class="nav-item" data-view="deleted" data-short="DEL">Deleted vehicles</button>
         <button class="nav-item" data-view="lists" data-short="R">Reports</button>
         <button class="nav-item" data-view="import" data-short="U">Uploads</button>
       </nav>
@@ -470,6 +471,33 @@
         </div>
       </section>
 
+      <section id="deleted" class="view">
+        <div class="parts-home-layout deleted-home-layout">
+          <section class="panel parts-home-panel deleted-home-panel">
+            <div class="panel-header">
+              <div>
+                <h2>Deleted vehicles</h2>
+                <p>Vehicles removed from the board. Deleted rows are locked here and include the movement/deletion audit trail.</p>
+              </div>
+              <div class="panel-actions">
+                <button class="small-button" id="deleted-export-csv" type="button">Export deleted CSV</button>
+              </div>
+            </div>
+            <div class="table-toolbar advanced-toolbar wide-toolbar parts-toolbar deleted-toolbar">
+              <label>
+                <span>Search</span>
+                <input id="deleted-search" type="search" placeholder="Stock, client, vehicle, key, deleted by, audit event..." />
+              </label>
+            </div>
+            <div class="parts-help-strip deleted-help-strip">
+              <strong>Deleted:</strong>
+              <span>Deleted vehicle records cannot be deleted again. Open a row to see the movement/deletion log and who removed it.</span>
+            </div>
+            <div id="deleted-vehicles-content" class="parts-home-content deleted-home-content"></div>
+          </section>
+        </div>
+      </section>
+
 
       <section id="zpl" class="view">
         <div class="panel zpl-panel">
@@ -750,7 +778,7 @@
     </div>
   </template>
 
-  <script src="data.js?v=2026.07.09.25-pmb-identity-fonts"></script>
-  <script src="app.js?v=2026.07.09.25-pmb-identity-fonts"></script>
+  <script src="data.js?v=2026.07.09.26-rft-deleted-rows"></script>
+  <script src="app.js?v=2026.07.09.26-rft-deleted-rows"></script>
 </body>
 </html>
