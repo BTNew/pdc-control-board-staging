@@ -9,7 +9,7 @@ Use this file to brief another ChatGPT/developer on the current PDC Control Boar
 - Branch: `main`
 - Live site: `https://btnew.github.io/pdc-control-board/`
 - 75-vehicle test board: `https://btnew.github.io/pdc-control-board/test-75.html?clearLocalData=1`
-- Fresh main-board URL for current visibility/fitting fix: `https://btnew.github.io/pdc-control-board/?v=2026.07.08.5`
+- Fresh main-board URL for current visibility/fitting fix: `https://btnew.github.io/pdc-control-board/?v=2026.07.10.04-data-integrity`
 
 ## Current confirmed commit state
 
@@ -21,7 +21,7 @@ Latest commits:
 
 Visible app version after the movement fix should be:
 
-- `2026.07.08.5`
+- `2026.07.10.04-data-integrity`
 
 ## What Craig wants preserved
 
@@ -108,12 +108,12 @@ Craig reported the updates were not visible even after Ctrl+F5. The likely cause
 - PO upload inference still marked `FITTING` required for any uploaded file/task.
 - PMB card job sign-off still blocked completion unless the job was already marked required.
 
-Patch applied for version `2026.07.08.5`:
+Patch applied for version `2026.07.10.04-data-integrity`:
 
 - Removed broad “any task/file means fitting” inference.
 - PMB card sign-off can now mark the job required and complete in one confirmed action.
 - Completed/RFT-collected vehicles remain locked from removing sign-offs.
-- Cache-busted `index.html`, `test-75.html`, and `app.js` to visible version `2026.07.08.5`.
+- Cache-busted `index.html`, `test-75.html`, and `app.js` to visible version `2026.07.10.04-data-integrity`.
 
 ## Files most likely involved
 

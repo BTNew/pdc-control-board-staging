@@ -343,7 +343,7 @@ window.VEHICLE_TRACKING_DATA = {
       "pmbEnteredAt": "2026-07-09T08:00:00Z",
       "pmbStage": "TINT",
       "pmbStageUpdatedAt": "2026-07-09T10:00:00Z",
-      "pmbBayNumber": "03"
+      "pmbBayNumber": "01"
     },
     {
       "id": "random-live-007",
@@ -763,7 +763,7 @@ window.VEHICLE_TRACKING_DATA = {
       "pmbEnteredAt": "2026-07-09T08:00:00Z",
       "pmbStage": "TINT",
       "pmbStageUpdatedAt": "2026-07-09T10:00:00Z",
-      "pmbBayNumber": "02"
+      "pmbBayNumber": ""
     },
     {
       "id": "random-live-015",
@@ -1157,7 +1157,7 @@ window.VEHICLE_TRACKING_DATA = {
       "pmbEnteredAt": "2026-07-09T08:00:00Z",
       "pmbStage": "HOIST",
       "pmbStageUpdatedAt": "2026-07-09T10:00:00Z",
-      "pmbBayNumber": "03"
+      "pmbBayNumber": ""
     },
     {
       "id": "random-live-022",
@@ -1323,7 +1323,7 @@ window.VEHICLE_TRACKING_DATA = {
       "pmbEnteredAt": "2026-07-09T08:00:00Z",
       "pmbStage": "HOIST",
       "pmbStageUpdatedAt": "2026-07-09T10:00:00Z",
-      "pmbBayNumber": "03"
+      "pmbBayNumber": ""
     },
     {
       "id": "random-live-025",
@@ -1646,7 +1646,7 @@ window.VEHICLE_TRACKING_DATA = {
       "pmbEnteredAt": "2026-07-09T08:00:00Z",
       "pmbStage": "TINT",
       "pmbStageUpdatedAt": "2026-07-09T10:00:00Z",
-      "pmbBayNumber": "03"
+      "pmbBayNumber": ""
     },
     {
       "id": "random-live-031",
@@ -2143,7 +2143,7 @@ window.VEHICLE_TRACKING_DATA = {
       "pmbEnteredAt": "2026-07-09T08:00:00Z",
       "pmbStage": "TYRE",
       "pmbStageUpdatedAt": "2026-07-09T10:00:00Z",
-      "pmbBayNumber": "03"
+      "pmbBayNumber": "01"
     },
     {
       "id": "random-live-040",
@@ -2481,7 +2481,7 @@ window.VEHICLE_TRACKING_DATA = {
       "pmbEnteredAt": "2026-07-09T08:00:00Z",
       "pmbStage": "TINT",
       "pmbStageUpdatedAt": "2026-07-09T10:00:00Z",
-      "pmbBayNumber": "03"
+      "pmbBayNumber": ""
     },
     {
       "id": "random-live-046",
@@ -3266,7 +3266,7 @@ window.VEHICLE_TRACKING_DATA = {
       "pmbEnteredAt": "2026-07-09T08:00:00Z",
       "pmbStage": "FABRICATION",
       "pmbStageUpdatedAt": "2026-07-09T10:00:00Z",
-      "pmbBayNumber": "02"
+      "pmbBayNumber": "04"
     },
     {
       "id": "random-live-060",
@@ -3606,7 +3606,7 @@ window.VEHICLE_TRACKING_DATA = {
       "pmbEnteredAt": "2026-07-09T08:00:00Z",
       "pmbStage": "PIT_INSPECTION",
       "pmbStageUpdatedAt": "2026-07-09T10:00:00Z",
-      "pmbBayNumber": "02"
+      "pmbBayNumber": ""
     },
     {
       "id": "random-live-066",
@@ -3665,7 +3665,7 @@ window.VEHICLE_TRACKING_DATA = {
       "pmbEnteredAt": "2026-07-09T08:00:00Z",
       "pmbStage": "TINT",
       "pmbStageUpdatedAt": "2026-07-09T10:00:00Z",
-      "pmbBayNumber": "03"
+      "pmbBayNumber": ""
     },
     {
       "id": "random-live-067",
@@ -3733,7 +3733,7 @@ window.VEHICLE_TRACKING_DATA = {
       "pmbEnteredAt": "2026-07-09T08:00:00Z",
       "pmbStage": "FITTING",
       "pmbStageUpdatedAt": "2026-07-09T10:00:00Z",
-      "pmbBayNumber": "01"
+      "pmbBayNumber": "04"
     },
     {
       "id": "random-live-068",
@@ -3902,7 +3902,7 @@ window.VEHICLE_TRACKING_DATA = {
       "pmbEnteredAt": "2026-07-09T08:00:00Z",
       "pmbStage": "FABRICATION",
       "pmbStageUpdatedAt": "2026-07-09T10:00:00Z",
-      "pmbBayNumber": "01"
+      "pmbBayNumber": "05"
     },
     {
       "id": "random-live-071",
@@ -4303,7 +4303,7 @@ window.VEHICLE_TRACKING_DATA = {
       "pmbEnteredAt": "2026-07-09T08:00:00Z",
       "pmbStage": "FITTING",
       "pmbStageUpdatedAt": "2026-07-09T10:00:00Z",
-      "pmbBayNumber": "02"
+      "pmbBayNumber": "05"
     },
     {
       "id": "random-live-078",
@@ -4633,7 +4633,7 @@ window.VEHICLE_TRACKING_DATA = {
       "pmbEnteredAt": "2026-07-09T08:00:00Z",
       "pmbStage": "HOIST",
       "pmbStageUpdatedAt": "2026-07-09T10:00:00Z",
-      "pmbBayNumber": "02"
+      "pmbBayNumber": ""
     },
     {
       "id": "random-live-084",
@@ -4689,7 +4689,7 @@ window.VEHICLE_TRACKING_DATA = {
       "pmbEnteredAt": "2026-07-09T08:00:00Z",
       "pmbStage": "FITTING",
       "pmbStageUpdatedAt": "2026-07-09T10:00:00Z",
-      "pmbBayNumber": "03"
+      "pmbBayNumber": ""
     },
     {
       "id": "random-live-085",
@@ -4751,7 +4751,7 @@ window.VEHICLE_TRACKING_DATA = {
       "pmbEnteredAt": "2026-07-09T08:00:00Z",
       "pmbStage": "PIT_INSPECTION",
       "pmbStageUpdatedAt": "2026-07-09T10:00:00Z",
-      "pmbBayNumber": "01"
+      "pmbBayNumber": ""
     },
     {
       "id": "random-live-086",
@@ -4810,7 +4810,7 @@ window.VEHICLE_TRACKING_DATA = {
       "pmbEnteredAt": "2026-07-09T08:00:00Z",
       "pmbStage": "HOIST",
       "pmbStageUpdatedAt": "2026-07-09T10:00:00Z",
-      "pmbBayNumber": "02"
+      "pmbBayNumber": ""
     },
     {
       "id": "random-live-087",
@@ -5229,7 +5229,7 @@ window.VEHICLE_TRACKING_DATA = {
       "pmbEnteredAt": "2026-07-09T08:00:00Z",
       "pmbStage": "ELECTRICAL",
       "pmbStageUpdatedAt": "2026-07-09T10:00:00Z",
-      "pmbBayNumber": "03"
+      "pmbBayNumber": "01"
     },
     {
       "id": "random-live-094",
@@ -5348,7 +5348,7 @@ window.VEHICLE_TRACKING_DATA = {
       "pmbEnteredAt": "2026-07-09T08:00:00Z",
       "pmbStage": "HOIST",
       "pmbStageUpdatedAt": "2026-07-09T10:00:00Z",
-      "pmbBayNumber": "02"
+      "pmbBayNumber": ""
     },
     {
       "id": "random-live-096",

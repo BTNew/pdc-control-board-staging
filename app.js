@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.07.10.03-worker-review';
+const APP_VERSION = '2026.07.10.04-data-integrity';
 window.VEHICLE_TRACKING_DATA = window.VEHICLE_TRACKING_DATA || { report: {}, vehicles: [], toyotaMatches: {} };
 const EDITS_KEY = 'vehicleTrackingCoreNavisionOnlyEdits:v1';
 const ADDED_KEY = 'vehicleTrackingCoreNavisionOnlyVehicles:v1';
@@ -509,7 +509,8 @@ function vehicleRftGateIssues(vehicle = {}) {
   }
   const outstanding = pdcRequirementDefinitions(vehicle).filter(job => !pdcJobComplete(vehicle, job)).map(job => job.label);
   if (outstanding.length) issues.push(`Outstanding jobs: ${outstanding.join(', ')}`);
-  if (!inferredPmbStage(vehicle)) issues.push('No PMB bucket assigned');
+  const alreadyTransferredToRft = vehiclePdcLocation(vehicle) === 'RFT' || statusCategory(vehicle) === 'rft' || vehicleCollectedFromRft(vehicle);
+  if (!alreadyTransferredToRft && !inferredPmbStage(vehicle)) issues.push('No PMB bucket assigned');
   return issues;
 }
 
@@ -7441,7 +7442,7 @@ function renderCustomers() {
         <h3>${escapeHtml(name)}</h3>
         <div class="customer-meta">
           <span class="badge neutral">${vehicles.length} vehicle${vehicles.length > 1 ? 's' : ''}</span>
-          
+
         </div>
         <div class="subtle">SP: ${escapeHtml(salesPeople || '--')}</div>
         <div class="subtle">Contact: ${escapeHtml(first.contact || 'Add contact')}</div>
@@ -9722,7 +9723,7 @@ function handlePdfSelect(e) {
   if (!file) return;
   $('#scan-report').disabled = false;
   $('#scan-card .scan-line:nth-child(1) strong').textContent = file.name.includes('SCOT') ? 'Toyota Navision report detected' : 'PDF selected';
-  $('#scan-card .scan-line:nth-child(2) strong').textContent = `${app.report.totalSalesOrders || app.data.length} rows in sample parser`; 
+  $('#scan-card .scan-line:nth-child(2) strong').textContent = `${app.report.totalSalesOrders || app.data.length} rows in sample parser`;
   $('#scan-card .scan-line:nth-child(3) strong').textContent = `${Object.keys(app.matches).length} matched to current tracker`;
   $('#progress-bar').style.width = '14%';
   renderScotSummary(false);

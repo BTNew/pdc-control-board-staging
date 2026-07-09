@@ -1,4 +1,3 @@
-// Test-only sample data: 100 vehicles randomised across Control Board, PMB, Parts, RFT and Completed.
 window.VEHICLE_TRACKING_DATA = {
   "report": {
     "title": "Random 100 Vehicle Test Board",
@@ -3409,7 +3408,7 @@ window.VEHICLE_TRACKING_DATA = {
       "pmbStage": "FITTING",
       "pmbStageUpdatedAt": "2026-07-02T09:15:00Z",
       "pdcRequiresFitting": true,
-      "pmbBayNumber": "02",
+      "pmbBayNumber": "01",
       "pdcCompleteTyre": true,
       "pdcCompleteTyreAt": "2026-07-08T14:15:00Z",
       "pdcCompleteTyreBy": "Test Tech",
@@ -3592,7 +3591,7 @@ window.VEHICLE_TRACKING_DATA = {
       "pdcLocationUpdatedAt": "2026-07-01T08:15:00Z",
       "pmbStage": "FITTING",
       "pmbStageUpdatedAt": "2026-07-01T09:15:00Z",
-      "pmbBayNumber": "03",
+      "pmbBayNumber": "",
       "randomTestPosition": 83,
       "jobcard": "JC13920019",
       "jc": "JC13920019"
@@ -4300,7 +4299,7 @@ window.VEHICLE_TRACKING_DATA = {
       "pmbStage": "FITTING",
       "pmbStageUpdatedAt": "2026-07-01T09:15:00Z",
       "pdcRequiresFitting": true,
-      "pmbBayNumber": "04",
+      "pmbBayNumber": "",
       "pdcCompleteFitting": true,
       "pdcCompleteFittingAt": "2026-07-08T14:15:00Z",
       "pdcCompleteFittingBy": "Test Tech",
