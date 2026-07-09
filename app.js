@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.07.09.9-cache';
+const APP_VERSION = '2026.07.09.10-fab13';
 window.VEHICLE_TRACKING_DATA = window.VEHICLE_TRACKING_DATA || { report: {}, vehicles: [], toyotaMatches: {} };
 const EDITS_KEY = 'vehicleTrackingCoreNavisionOnlyEdits:v1';
 const ADDED_KEY = 'vehicleTrackingCoreNavisionOnlyVehicles:v1';
@@ -87,7 +87,7 @@ const PMB_WIP_LIMITS = {
   TINT: 2,
   HOIST: 3,
   FITTING: 5,
-  FABRICATION: Number.POSITIVE_INFINITY,
+  FABRICATION: 13,
   ELECTRICAL: 10,
   TYRE: 2,
   PIT_INSPECTION: 1,
@@ -97,14 +97,14 @@ const PMB_STAGE_BAY_COUNTS = {
   TINT: 2,
   HOIST: 3,
   FITTING: 5,
-  FABRICATION: 0,
+  FABRICATION: 13,
   ELECTRICAL: 10,
   TYRE: 2,
   PIT_INSPECTION: 1,
 };
 
 const PMB_STAGE_CAPACITY_LABELS = {
-  FABRICATION: 'Refer Dan',
+  FABRICATION: '13 bays',
   TYRE: '2 bays · 1 wheel alignment bay',
 };
 
@@ -119,7 +119,7 @@ const PMB_STAGE_AGE_LIMITS = {
   PIT_INSPECTION: 1,
 };
 
-const PMB_BAY_MAX_COUNT = 10;
+const PMB_BAY_MAX_COUNT = 13;
 const PMB_BAY_STATION_SEQUENCE = ['TINT', 'HOIST', 'FITTING', 'FABRICATION', 'ELECTRICAL', 'TYRE', 'PIT_INSPECTION'];
 const PRODUCTION_FLOW_DEFS = [
   { key: 'TINT', label: 'TINT', short: 'T', jobKey: 'tint', stage: 'TINT', search: /\b(tint|tinting|window tint)\b/i },

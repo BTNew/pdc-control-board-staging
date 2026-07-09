@@ -58,6 +58,9 @@ code += String.raw`
   const bayCardHtml = pmbBayVehicleCardHtml(bayActionVehicle, 'HOIST');
   assert(bayCardHtml.includes('data-assign-pmb-bay-number="1"'), 'Unassigned PMB bay card should expose Bay 01 assignment action');
   assert(bayCardHtml.includes('data-assign-pmb-bay-number="3"'), 'Hoist bay card should expose all three hoist bay assignment actions');
+  assert(pmbStageBayCount('FABRICATION') === 13, 'Fabrication should expose thirteen physical bays');
+  const fabCardHtml = pmbBayVehicleCardHtml({ stock: 'PMB003', pdcLocation: 'PMB', manualLocation: 'PMB', pmbStage: 'FABRICATION' }, 'FABRICATION');
+  assert(fabCardHtml.includes('data-assign-pmb-bay-number="13"'), 'Fabrication bay card should expose Bay 13 assignment action');
 
   console.log('Review update alignment tests passed');
 })();
