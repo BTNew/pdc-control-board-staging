@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Vehicle Tracking Core - No Vehicle Details</title>
-  <link rel="stylesheet" href="styles.css?v=2026.07.10.06-no-vehicles" />
+  <link rel="stylesheet" href="styles.css?v=2026.07.10.07-blank-full-import" />
 </head>
 <body>
   <div class="app-shell" id="app-shell">
@@ -14,7 +14,7 @@
         <div class="brand-text">
           <div class="brand-title">Vehicle Tracking</div>
           <div class="brand-subtitle">Clean Review Board</div>
-          <div class="app-version" id="app-version">Version 2026.07.10.06-no-vehicles</div>
+          <div class="app-version" id="app-version">Version 2026.07.10.07-blank-full-import</div>
         </div>
         <button class="sidebar-toggle" id="sidebar-toggle" type="button" aria-label="Collapse sidebar" title="Collapse sidebar">‹</button>
       </div>
@@ -639,8 +639,8 @@
                 <textarea id="navision-paste" rows="8" spellcheck="false" placeholder="Order&#9;Batch&#9;Production Month&#9;Compliance Date&#9;Model Description&#9;Suffix Description&#9;..."></textarea>
               </label>
               <label class="sync-option">
-                <input id="navision-pmb-only" type="checkbox" checked />
-                <span><strong>Only import PMB work / PO rows</strong> — keeps the board focused on vehicles we have a purchase order or clear PMB/body-builder work signal for. Untick only when doing a full Navision refresh.</span>
+                <input id="navision-pmb-only" type="checkbox" />
+                <span><strong>Only import PMB work / PO rows</strong> — optional filter for PMB purchase-order/body-builder work only. Leave unticked on this blank site when loading a full Navision list.</span>
               </label>
               <label class="sync-option">
                 <input id="navision-remove-missing" type="checkbox" />
@@ -794,7 +794,7 @@
       console.warn('Unable to clear local review data', error);
     }
   </script>
-  <script src="data-no-vehicles.js?v=2026.07.10.06-no-vehicles"></script>
-  <script src="app.js?v=2026.07.10.06-no-vehicles"></script>
+  <script src="data-no-vehicles.js?v=2026.07.10.07-blank-full-import"></script>
+  <script src="app.js?v=2026.07.10.07-blank-full-import"></script>
 </body>
 </html>

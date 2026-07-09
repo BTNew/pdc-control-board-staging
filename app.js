@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.07.10.06-no-vehicles';
+const APP_VERSION = '2026.07.10.07-blank-full-import';
 window.VEHICLE_TRACKING_DATA = window.VEHICLE_TRACKING_DATA || { report: {}, vehicles: [], toyotaMatches: {} };
 const EDITS_KEY = 'vehicleTrackingCoreNavisionOnlyEdits:v1';
 const ADDED_KEY = 'vehicleTrackingCoreNavisionOnlyVehicles:v1';
