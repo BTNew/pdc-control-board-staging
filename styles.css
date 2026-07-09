@@ -4182,36 +4182,49 @@ body.pmb-dragging .pmb-drop-lane {
   border-color: rgba(220, 38, 38, .42);
   background: #fff7ed;
 }
+.pmb-vehicle-pill,
 .pmb-bay-vehicle-pill {
   position: relative;
-  gap: 2px;
-  border-radius: 10px;
-  padding: 6px 14px 6px 8px;
-  min-height: 62px;
-  height: 62px;
-  width: 100%;
-  max-width: 380px;
-  aspect-ratio: auto;
-  align-content: center;
-  overflow: visible;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 8px;
+  border-radius: 12px;
+  padding: 10px;
+  width: 240px;
+  height: 160px;
+  flex: 0 0 240px;
+  max-width: 240px;
+  aspect-ratio: 3 / 2;
+  overflow: hidden;
   box-shadow: 0 4px 10px rgba(15, 23, 42, .06);
 }
-.pmb-bay-pill-main,
-.pmb-bay-pill-bottom {
+.pmb-pill-main,
+.pmb-bay-pill-main {
   display: flex;
-  align-items: center;
-  gap: 4px;
+  flex-direction: column;
+  gap: 8px;
   min-width: 0;
 }
+.pmb-pill-bottom,
+.pmb-bay-pill-bottom {
+  display: flex;
+  align-items: flex-end;
+  min-width: 0;
+}
+.pmb-pill-main,
 .pmb-bay-pill-main {
   font-size: .76rem;
   font-weight: 900;
 }
-.pmb-bay-pill-main strong,
+.pmb-pill-customer,
 .pmb-bay-pill-customer {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  color: #334155;
+  font-size: .82rem;
+  font-weight: 900;
 }
 .pmb-bay-pill-main strong {
   color: #0f172a;
@@ -4226,19 +4239,18 @@ body.pmb-dragging .pmb-drop-lane {
   border-radius: 999px;
   padding: 1px 5px;
 }
-.pmb-bay-pill-customer {
-  color: #475569;
-  flex: 1 1 auto;
-}
+.pmb-pill-bottom,
 .pmb-bay-pill-bottom {
   color: #64748b;
   font-size: .56rem;
   font-weight: 850;
 }
+.pmb-pill-bottom .pmb-card-requirements,
 .pmb-bay-pill-bottom .pmb-card-requirements {
   gap: 2px;
   margin: 0;
 }
+.pmb-pill-bottom .pmb-req-marker,
 .pmb-bay-pill-bottom .pmb-req-marker {
   min-width: 18px;
   height: 18px;
@@ -7747,32 +7759,35 @@ input, select, textarea, button {
 }
 
 
-/* Rectangular bay vehicle pills: 60x40-style ratio, concise identity, outstanding stations only. */
+/* Rectangular PMB vehicle pills: 60x40-style ratio, concise identity, outstanding stations only. */
 .pmb-bay-slot,
 .pmb-bay-unassigned-list {
   justify-items: start !important;
 }
 
+.pmb-vehicle-card.pmb-vehicle-pill,
 .pmb-bay-vehicle-card.pmb-bay-vehicle-pill {
-  width: min(100%, 240px) !important;
+  width: 240px !important;
   max-width: 240px !important;
-  min-height: 0 !important;
-  height: auto !important;
+  min-width: 240px !important;
+  height: 160px !important;
+  min-height: 160px !important;
   aspect-ratio: 3 / 2 !important;
   display: grid !important;
   grid-template-rows: auto 1fr auto !important;
   align-content: stretch !important;
-  gap: 6px !important;
-  padding: 8px !important;
-  border-radius: 10px !important;
-  overflow: visible !important;
+  gap: 8px !important;
+  padding: 10px !important;
+  border-radius: 12px !important;
+  overflow: hidden !important;
 }
 
+.pmb-pill-main,
 .pmb-bay-pill-main {
   display: grid !important;
   grid-template-rows: auto auto !important;
   align-content: start !important;
-  gap: 4px !important;
+  gap: 8px !important;
   min-width: 0 !important;
 }
 
@@ -7789,13 +7804,13 @@ input, select, textarea, button {
   overflow: hidden !important;
   text-overflow: ellipsis !important;
   white-space: nowrap !important;
-  padding: 3px 4px !important;
-  border-radius: 6px !important;
+  padding: 4px 5px !important;
+  border-radius: 7px !important;
   background: #f8fafc !important;
   border: 1px solid rgba(148, 163, 184, .28) !important;
   color: #0f172a !important;
-  font-size: .56rem !important;
-  font-weight: 900 !important;
+  font-size: .62rem !important;
+  font-weight: 950 !important;
   line-height: 1.05 !important;
   text-align: center !important;
 }
@@ -7806,6 +7821,7 @@ input, select, textarea, button {
   border-color: rgba(37, 99, 235, .22) !important;
 }
 
+.pmb-pill-customer,
 .pmb-bay-pill-customer {
   display: block !important;
   min-width: 0 !important;
@@ -7814,11 +7830,12 @@ input, select, textarea, button {
   text-overflow: ellipsis !important;
   white-space: nowrap !important;
   color: #334155 !important;
-  font-size: .68rem !important;
-  font-weight: 850 !important;
+  font-size: .78rem !important;
+  font-weight: 900 !important;
   line-height: 1.12 !important;
 }
 
+.pmb-pill-bottom,
 .pmb-bay-pill-bottom {
   align-self: end !important;
   display: flex !important;

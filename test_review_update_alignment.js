@@ -60,6 +60,12 @@ code += String.raw`
   assert(bayCardHtml.includes('10015802') && bayCardHtml.includes('202') && bayCardHtml.includes('JC13920002'), 'PMB bay pill should show Key, Stock and JC identifiers');
   assert(bayCardHtml.includes('Kewdale Fleet'), 'PMB bay pill should show customer name under identifiers');
   assert(!bayCardHtml.includes('data-assign-pmb-bay-number='), 'PMB bay pill surface should not include bay assignment controls');
+  const workflowCardHtml = pmbVehicleCardHtml(bayActionVehicle);
+  assert(workflowCardHtml.includes('pmb-vehicle-pill'), 'PMB workflow cards should use the rectangular pill surface');
+  assert(workflowCardHtml.includes('pmb-bay-pill-ids') && workflowCardHtml.includes('Kewdale Fleet'), 'PMB workflow pill should show only ID row plus customer');
+  assert(workflowCardHtml.includes('pmb-outstanding-stations'), 'PMB workflow pill should show outstanding station chips');
+  assert(!workflowCardHtml.includes('pmb-card-actions') && !workflowCardHtml.includes('RFT gate:'), 'PMB workflow pill should not show old action/meta/RFT gate clutter');
+  assert(!workflowCardHtml.includes('pmb-card-requirements'), 'PMB workflow pill should not show the old all-job tick row');
   assert(pmbStageBayCount('FABRICATION') === 13, 'Fabrication should expose thirteen physical bays');
   const fabCardHtml = pmbBayVehicleCardHtml({ stock: '10015803', keyNumber: '203', jobCardNumber: 'JC13920003', client: 'Fremantle Council', pdcLocation: 'PMB', manualLocation: 'PMB', pmbStage: 'FABRICATION' }, 'FABRICATION');
   assert(!fabCardHtml.includes('data-assign-pmb-bay-number='), 'Fabrication bay pill should stay clean without bay assignment controls');

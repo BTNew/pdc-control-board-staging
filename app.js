@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.07.09.14-clean-rect-pills';
+const APP_VERSION = '2026.07.09.15-fix-pmb-pills';
 window.VEHICLE_TRACKING_DATA = window.VEHICLE_TRACKING_DATA || { report: {}, vehicles: [], toyotaMatches: {} };
 const EDITS_KEY = 'vehicleTrackingCoreNavisionOnlyEdits:v1';
 const ADDED_KEY = 'vehicleTrackingCoreNavisionOnlyVehicles:v1';
@@ -3552,46 +3552,17 @@ function pmbBayVehicleCardHtml(vehicle = {}, stage = '') {
 
 function pmbVehicleCardHtml(vehicle = {}) {
   const key = vehicleKey(vehicle);
-  const doneJobs = pdcCompletedJobs(vehicle).map(job => `${job.label} done`);
-  const outstandingJobs = pdcRequirementDefinitions(vehicle).filter(job => !pdcJobComplete(vehicle, job)).map(job => `${job.label} open`);
-  const gateIssues = vehicleRftGateIssues(vehicle);
-  const flagText = doneJobs.concat(outstandingJobs).filter(Boolean);
-  const ageLabel = pmbAgeLabel(vehicle);
-  const ageClass = pmbAgeClass(vehicle);
-  const kewdaleEta = kewdaleEtaValue(vehicle);
-  const transferredAt = pmbEnteredTimestamp(vehicle);
-  const transferText = transferredAt
-    ? `Transferred to PMB ${new Date(transferredAt).toLocaleString('en-AU', { dateStyle: 'short', timeStyle: 'short' })}`
-    : 'PMB transfer date has not been recorded yet';
-  const ageTitle = kewdaleEta
-    ? `ETA At Kewdale Yard ${kewdaleEta} · ${pmbAgeDetailText(vehicle)} · ${transferText}`
-    : `ETA At Kewdale Yard has not been imported · ${transferText}`;
-  const stageEnteredAt = pmbStageEnteredTimestamp(vehicle);
-  const stageAgeTitle = stageEnteredAt
-    ? `Current bucket started ${new Date(stageEnteredAt).toLocaleString('en-AU', { dateStyle: 'short', timeStyle: 'short' })}`
-    : 'Bucket start time has not been recorded yet';
+  const customerLine = vehicleCustomerName(vehicle) || 'Dealer Order';
+  const title = `Drag ${vehicleIdentityTitle(vehicle) || 'vehicle'} to another PMB bucket`;
   return `
-    <article class="pmb-vehicle-card pmb-age-card-${escapeHtml(ageClass)} ${isPdcBlocked(vehicle) ? 'is-blocked' : ''} ${gateIssues.length ? 'has-rft-gate-issues' : ''}" draggable="true" data-pmb-drag-key="${escapeHtml(key)}" title="Drag ${escapeHtml(vehicleIdentityTitle(vehicle) || 'vehicle')} to another PMB bucket">
-      <div class="pmb-card-top">
-        ${vehicleIdentityStackHtml(vehicle, { className: 'pmb-card-identity' })}
-        <div class="pmb-card-actions">
-          <button type="button" class="text-button pmb-card-open" data-open-stock="${escapeHtml(key)}">Open</button>
-          <button type="button" class="text-button pmb-card-rft" data-transfer-rft-stock="${escapeHtml(key)}" ${gateIssues.length ? 'disabled' : ''} title="${escapeHtml(gateIssues.length ? `RFT locked: ${gateIssues.join(' | ')}` : 'Transfer to RFT')}">RFT</button>
-        </div>
+    <article class="pmb-vehicle-card pmb-vehicle-pill ${isPdcBlocked(vehicle) ? 'is-blocked' : ''}" draggable="true" data-pmb-drag-key="${escapeHtml(key)}" data-open-stock="${escapeHtml(key)}" title="${escapeHtml(title)}">
+      <div class="pmb-pill-main">
+        ${pmbBayPillIdentityHtml(vehicle)}
+        <span class="pmb-pill-customer">${escapeHtml(truncate(customerLine, 30))}</span>
       </div>
-      <div class="pmb-card-meta-row">
-        ${pmbRequirementMarkersHtml(vehicle)}
-        <span class="pmb-card-age pmb-age-${escapeHtml(ageClass)}" title="${escapeHtml(ageTitle)}">${escapeHtml(ageLabel)}</span>
+      <div class="pmb-pill-bottom">
+        ${pmbOutstandingStationChipsHtml(vehicle)}
       </div>
-      <div class="pmb-card-meta-row secondary">
-        <span class="pmb-stage-age pmb-age-${escapeHtml(pmbStageAgeClass(vehicle))}" title="${escapeHtml(stageAgeTitle)}">${escapeHtml(pmbStageAgeLabel(vehicle))}</span>
-        ${pmbKeyNumberPillHtml(vehicle)}
-        ${pmbBaySummary(vehicle) ? `<span class="pmb-bay-summary-pill">${escapeHtml(pmbBaySummary(vehicle))}</span>` : ''}
-        ${isPdcBlocked(vehicle) ? `<span class="pmb-blocked-pill" title="${escapeHtml(pdcBlockReason(vehicle))}">Blocked</span>` : ''}
-      </div>
-      <span class="pmb-card-client" title="${escapeHtml(vehicleCustomerName(vehicle) || '')}">${escapeHtml(truncate(vehicleCustomerName(vehicle) || 'Dealer Order', 28))}</span>
-      <small title="${escapeHtml(displayVehicle(vehicle))}">${escapeHtml(truncate(displayVehicle(vehicle), 36))}</small>
-      ${gateIssues.length ? `<div class="pmb-rft-gate-warning">RFT gate: ${escapeHtml(truncate(gateIssues.join(' · '), 60))}</div>` : ''}
     </article>`;
 }
 
