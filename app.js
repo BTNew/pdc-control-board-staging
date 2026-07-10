@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.07.10.09-parts-stoppage-eta';
+const APP_VERSION = '2026.07.10.10-completed-pmb-days';
 window.VEHICLE_TRACKING_DATA = window.VEHICLE_TRACKING_DATA || { report: {}, vehicles: [], toyotaMatches: {} };
 const EDITS_KEY = 'vehicleTrackingCoreNavisionOnlyEdits:v1';
 const ADDED_KEY = 'vehicleTrackingCoreNavisionOnlyVehicles:v1';
@@ -387,6 +387,41 @@ function pmbAgeClass(vehicle = {}) {
   if (days > 90) return 'warning';
   if (days < 0) return 'future';
   return 'fresh';
+}
+
+function completedPmbStartDate(vehicle = {}) {
+  return parseDateAU(kewdaleEtaValue(vehicle));
+}
+
+function completedRftDate(vehicle = {}) {
+  return parseIsoTimestamp(vehicle.rftTransferredAt || vehicle.pdcLocationUpdatedAt || vehicle.rftCollectedAt || '');
+}
+
+function dateOnly(value) {
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  date.setHours(0, 0, 0, 0);
+  return date;
+}
+
+function completedPmbDays(vehicle = {}) {
+  const start = dateOnly(completedPmbStartDate(vehicle));
+  const end = dateOnly(completedRftDate(vehicle));
+  if (!start || !end) return null;
+  return Math.max(0, Math.floor((end - start) / (1000 * 60 * 60 * 24)));
+}
+
+function completedPmbDaysLabel(vehicle = {}) {
+  const days = completedPmbDays(vehicle);
+  if (days === null) return 'Unknown';
+  if (days === 0) return 'Same day';
+  return `${days} day${days === 1 ? '' : 's'}`;
+}
+
+function shortDateAu(date) {
+  if (!date) return '';
+  return date.toLocaleDateString('en-AU', { day: '2-digit', month: '2-digit', year: 'numeric' });
 }
 
 function pmbStageEnteredTimestamp(vehicle = {}) {
@@ -7268,7 +7303,8 @@ function completedVehicleRows() {
       if (!q) return true;
       const hay = [
         displayStockNumber(vehicle), vehicle.order, vehicleKeyNumber(vehicle), vehicleJobcardNumber(vehicle), vehicle.client, vehicle.toyotaCustomer,
-        displayVehicle(vehicle), vehicle.rftCollectedBy || '', vehicle.rftCollectedAt || '', pdcCompletedJobsText(vehicle),
+        displayVehicle(vehicle), vehicle.rftCollectedBy || '', vehicle.rftCollectedAt || '', vehicle.rftTransferredAt || '',
+        shortDateAu(completedPmbStartDate(vehicle)), shortDateAu(completedRftDate(vehicle)), completedPmbDaysLabel(vehicle), pdcCompletedJobsText(vehicle),
       ].join(' ').toLowerCase();
       return hay.includes(q);
     })
@@ -7296,6 +7332,9 @@ function renderCompletedVehicles() {
       <th>Vehicle</th>
       <th>Key</th>
       <th>Collected time</th>
+      <th>PMB start</th>
+      <th>RFT date</th>
+      <th>Days at PMB</th>
       <th>Collected by</th>
       <th>Actions</th>
     </tr></thead>
@@ -7303,6 +7342,9 @@ function renderCompletedVehicles() {
       const key = vehicleKey(vehicle);
       const collectedAt = parseIsoTimestamp(vehicle.rftCollectedAt || '');
       const collectedLabel = collectedAt ? collectedAt.toLocaleString('en-AU', { dateStyle: 'short', timeStyle: 'short' }) : '';
+      const pmbStartLabel = shortDateAu(completedPmbStartDate(vehicle)) || '—';
+      const rftDateLabel = shortDateAu(completedRftDate(vehicle)) || '—';
+      const pmbDaysLabel = completedPmbDaysLabel(vehicle);
       return `<tr class="completed-vehicle-row">
         <td><label class="rft-collected-check completed-collected-check is-locked" title="Collected vehicles are locked"><input type="checkbox" checked disabled /> <span>Collected</span></label></td>
         <td>${vehicleIdentityStackHtml(vehicle, { button: true })}</td>
@@ -7310,6 +7352,9 @@ function renderCompletedVehicles() {
         <td><span title="${escapeHtml(displayVehicle(vehicle))}">${escapeHtml(truncate(displayVehicle(vehicle), 48))}</span></td>
         <td>${escapeHtml(vehicleKeyNumber(vehicle) || '')}</td>
         <td>${escapeHtml(collectedLabel)}</td>
+        <td>${escapeHtml(pmbStartLabel)}</td>
+        <td>${escapeHtml(rftDateLabel)}</td>
+        <td>${escapeHtml(pmbDaysLabel)}</td>
         <td>${escapeHtml(vehicle.rftCollectedBy || '')}</td>
         <td><button class="small-button" type="button" data-open-stock="${escapeHtml(key)}">Open</button></td>
       </tr>`;
@@ -7445,10 +7490,10 @@ function exportDeletedVehiclesCsv() {
 
 function exportCompletedVehiclesCsv() {
   const rows = completedVehicleRows();
-  const headers = ['Stock','Toyota Order','Key','Client','Vehicle','Collected At','Collected By','Completed Jobs'];
+  const headers = ['Stock','Toyota Order','Key','Client','Vehicle','Collected At','PMB Start ETA to Kewdale','RFT Date','Days at PMB','Collected By','Completed Jobs'];
   const lines = [headers.join(',')].concat(rows.map(vehicle => [
     displayStockNumber(vehicle), vehicle.order || '', vehicleKeyNumber(vehicle), vehicle.client || vehicle.toyotaCustomer || '',
-    displayVehicle(vehicle), vehicle.rftCollectedAt || '', vehicle.rftCollectedBy || '', pdcCompletedJobsText(vehicle),
+    displayVehicle(vehicle), vehicle.rftCollectedAt || '', shortDateAu(completedPmbStartDate(vehicle)), shortDateAu(completedRftDate(vehicle)), completedPmbDays(vehicle) ?? '', vehicle.rftCollectedBy || '', pdcCompletedJobsText(vehicle),
   ].map(csvEscape).join(',')));
   const blob = new Blob([lines.join('\n')], { type: 'text/csv' });
   const url = URL.createObjectURL(blob);
