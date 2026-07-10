@@ -8846,3 +8846,202 @@ html[data-row-width="xl"] {
 .incoming-card-main strong {
   font-weight: 800;
 }
+
+
+/* 2026-07-10.19: apply the flat table-row treatment to remaining row surfaces on every page. */
+.parts-home-content,
+.rft-home-content,
+.completed-vehicles-content,
+.deleted-vehicles-content,
+.backend-data-content {
+  min-width: 0;
+}
+.parts-table-wrap,
+.completed-table-wrap,
+.rft-table-wrap,
+.responsive-table,
+.backend-data-content .table-wrap {
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  background: #fff !important;
+  overflow-x: auto !important;
+}
+.parts-table,
+.completed-table,
+.rft-table,
+.backend-data-table,
+.responsive-table .data-table {
+  border-collapse: collapse !important;
+  border-spacing: 0 !important;
+  background: #fff !important;
+}
+.parts-table thead th,
+.completed-table thead th,
+.rft-table thead th,
+.backend-data-table thead th,
+.data-table.compact-table thead th {
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  background: #f8fafc !important;
+  border-bottom: 1px solid #cbd5e1 !important;
+}
+.parts-table tbody tr,
+.completed-table tbody tr,
+.rft-table tbody tr,
+.backend-data-table tbody tr,
+.data-table.compact-table tbody tr {
+  border: 0 !important;
+  border-top: 1px solid #e2e8f0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  background: #fff !important;
+}
+.parts-table tbody tr:first-child,
+.completed-table tbody tr:first-child,
+.rft-table tbody tr:first-child,
+.backend-data-table tbody tr:first-child,
+.data-table.compact-table tbody tr:first-child {
+  border-top: 0 !important;
+}
+.parts-table tbody tr:hover,
+.completed-table tbody tr:hover,
+.rft-table tbody tr:hover,
+.backend-data-table tbody tr:hover,
+.data-table.compact-table tbody tr:hover,
+.incoming-vehicle-card:hover,
+.deleted-vehicle-row:hover,
+.incoming-rft-row:hover {
+  background: #f8fafc !important;
+}
+.parts-table td,
+.completed-table td,
+.rft-table td,
+.backend-data-table td,
+.data-table.compact-table td {
+  border-top: 1px solid #e2e8f0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  background: transparent !important;
+}
+.parts-table td:first-child,
+.completed-table td:first-child,
+.rft-table td:first-child,
+.backend-data-table td:first-child,
+.data-table.compact-table td:first-child {
+  border-left: 0 !important;
+}
+.parts-table .vehicle-identity-cell,
+.parts-table .vehicle-identity-value,
+.completed-table .vehicle-identity-cell,
+.completed-table .vehicle-identity-value,
+.backend-data-table .vehicle-identity-cell,
+.backend-data-table .vehicle-identity-value,
+.rft-table .vehicle-identity-cell,
+.rft-table .vehicle-identity-value {
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  min-height: 0 !important;
+}
+.parts-status-pill,
+.rft-completion-summary-pill,
+.parts-worst-eta-label,
+.pmb-age,
+.badge,
+.note-pill,
+.vehicle-chip {
+  border-radius: 4px !important;
+  box-shadow: none !important;
+}
+.parts-action-group .small-button,
+.completed-table .small-button,
+.deleted-card-actions .small-button,
+.rft-card-actions .small-button,
+.rft-collected-check,
+.parts-worst-eta input,
+.table-task-select,
+.action-select {
+  border-radius: 4px !important;
+  box-shadow: none !important;
+}
+.parts-summary-card,
+.rft-summary-card,
+.kpi-card {
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+.po-status-row,
+.customer-card,
+.kanban-card,
+.empty-state,
+.check-option {
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+.incoming-bucket-list.incoming-vertical-list,
+.workflow-vertical-list,
+.rft-compact-list,
+.deleted-compact-list {
+  border-radius: 0 !important;
+}
+.incoming-priority-stoppages {
+  border-radius: 0 !important;
+}
+
+
+/* Keep every vehicle row flat and usable on narrower screens. */
+.incoming-bucket,
+.incoming-bucket[open],
+.incoming-bucket > summary,
+.fix-first-list,
+.fix-first-list > summary,
+.vehicle-list-shell,
+.vehicle-list-section,
+.parts-page-panel,
+.rft-page-panel,
+.completed-page-panel,
+.deleted-page-panel,
+.import-card,
+.import-results-card {
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+.incoming-vehicle-card,
+.deleted-vehicle-row,
+.incoming-rft-row,
+.workflow-vehicle-row {
+  overflow-x: auto !important;
+  overflow-y: hidden !important;
+  scrollbar-width: thin;
+}
+.incoming-vehicle-card > summary,
+.deleted-vehicle-row > summary,
+.incoming-rft-row > summary,
+.workflow-vehicle-row > summary {
+  min-width: max-content;
+}
+.incoming-vehicle-card[open],
+.deleted-vehicle-row[open],
+.incoming-rft-row[open] {
+  overflow-y: visible !important;
+}
+.incoming-vehicle-detail-grid,
+.deleted-vehicle-detail-grid {
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+.incoming-card-meta,
+.incoming-card-work-wrap,
+.incoming-card-action,
+.incoming-work-checks,
+.rft-card-actions,
+.deleted-card-actions,
+.status-progress-cell,
+.location-pill,
+.age-pill {
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
