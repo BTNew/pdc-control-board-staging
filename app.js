@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.07.11.01-short-stage-headers';
+const APP_VERSION = '2026.07.11.02-pmb-completed-unallocate';
 window.VEHICLE_TRACKING_DATA = window.VEHICLE_TRACKING_DATA || { report: {}, vehicles: [], toyotaMatches: {} };
 const EDITS_KEY = 'vehicleTrackingCoreNavisionOnlyEdits:v1';
 const ADDED_KEY = 'vehicleTrackingCoreNavisionOnlyVehicles:v1';
@@ -3532,10 +3532,10 @@ function renderPmbBayBoardHtml(stage = '') {
             ${unassigned.map(vehicle => pmbBayVehicleCardHtml(vehicle, normalizedStage)).join('') || '<div class="pmb-bay-empty compact">All vehicles are assigned to bays.</div>'}
           </div>
         </section>
-        <section class="pmb-bay-work-started">
-          <div class="pmb-bay-unassigned-title"><strong>Work Started / Complete</strong><span>${workStarted.length} complete</span></div>
+        <section class="pmb-bay-work-started" data-pmb-complete-drop-stage="${escapeHtml(normalizedStage)}">
+          <div class="pmb-bay-unassigned-title"><strong>Completed / return to unallocated</strong><span>${workStarted.length} complete</span></div>
           <div class="pmb-bay-unassigned-list">
-            ${workStarted.map(vehicle => pmbBayVehicleCardHtml(vehicle, normalizedStage)).join('') || '<div class="pmb-bay-empty compact">No completed vehicles waiting here.</div>'}
+            ${workStarted.map(vehicle => pmbBayVehicleCardHtml(vehicle, normalizedStage)).join('') || '<div class="pmb-bay-empty compact">Drop a vehicle here to choose Complete, Stoppage, or Move only.</div>'}
           </div>
         </section>
       </div>
@@ -3856,7 +3856,7 @@ function pmbCardDetailHtml(vehicle = {}) {
 }
 
 function pmbBayVehicleCardHtml(vehicle = {}, stage = '') {
-  const normalizedStage = normalizePmbStage(stage || inferredPmbStage(vehicle));
+  const normalizedStage = normalizePmbStage(stage || vehicle.pmbBayStage || inferredPmbStage(vehicle));
   const key = vehicleKey(vehicle);
   const jobDef = pmbStageJobDef(normalizedStage);
   const bay = pmbBayNumber(vehicle, normalizedStage);
@@ -3864,6 +3864,9 @@ function pmbBayVehicleCardHtml(vehicle = {}, stage = '') {
   const bayLabel = bay ? `Bay ${bay}` : 'No bay';
   const identityHtml = pmbBayPillIdentityHtml(vehicle);
   const title = `${vehicleIdentityTitle(vehicle)} · ${pmbStageLabel(normalizedStage)} ${bayLabel}`;
+  const finishButton = normalizedStage
+    ? `<button class="small-button pmb-finish-button" type="button" data-move-pmb-stage-key="${escapeHtml(key)}" data-move-pmb-stage-value="" title="Choose Complete, Stoppage, or Move only, then return this vehicle to PMB unallocated">Finish / unallocate</button>`
+    : '';
 
   return `
     <article class="pmb-bay-vehicle-card pmb-bay-vehicle-pill ${complete ? 'is-complete' : ''} ${isPdcBlocked(vehicle) ? 'is-blocked' : ''}" draggable="true" data-pmb-drag-key="${escapeHtml(key)}" data-open-stock="${escapeHtml(key)}" title="${escapeHtml(title)}">
@@ -3875,13 +3878,18 @@ function pmbBayVehicleCardHtml(vehicle = {}, stage = '') {
       <div class="pmb-bay-pill-bottom">
         ${pmbOutstandingStationChipsHtml(vehicle)}
         ${isPdcBlocked(vehicle) ? `<span class="pmb-bay-chip blocked">Blocked</span>` : ''}
+        ${finishButton}
       </div>
     </article>`;
 }
 
 function pmbVehicleCardHtml(vehicle = {}) {
   const key = vehicleKey(vehicle);
+  const stage = normalizePmbStage(vehicle.pmbBayStage || inferredPmbStage(vehicle));
   const title = `Drag ${vehicleIdentityTitle(vehicle) || 'vehicle'} to another PMB bucket`;
+  const finishButton = stage
+    ? `<button class="small-button pmb-finish-button" type="button" data-move-pmb-stage-key="${escapeHtml(key)}" data-move-pmb-stage-value="" title="Choose Complete, Stoppage, or Move only, then return this vehicle to PMB unallocated">Finish / unallocate</button>`
+    : '';
   return `
     <article class="pmb-vehicle-card pmb-vehicle-pill ${isPdcBlocked(vehicle) ? 'is-blocked' : ''}" draggable="true" data-pmb-drag-key="${escapeHtml(key)}" data-open-stock="${escapeHtml(key)}" title="${escapeHtml(title)}">
       <div class="pmb-pill-main">
@@ -3891,6 +3899,7 @@ function pmbVehicleCardHtml(vehicle = {}) {
       </div>
       <div class="pmb-pill-bottom">
         ${pmbOutstandingStationChipsHtml(vehicle)}
+        ${finishButton}
       </div>
     </article>`;
 }
@@ -4012,6 +4021,7 @@ function bindPmbDragBoard(host) {
   $$('[data-pmb-drag-key]', host).forEach(card => bindPmbDraggable(card, card.dataset.pmbDragKey));
   $$('[data-pmb-drop-stage]', host).forEach(dropZone => bindPmbDropTarget(dropZone));
   $$('[data-pmb-bay-drop-stage]', host).forEach(dropZone => bindPmbBayDropTarget(dropZone));
+  $$('[data-pmb-complete-drop-stage]', host).forEach(dropZone => bindPmbCompletionDropTarget(dropZone));
   bindPmbScheduleChips(host);
 }
 
@@ -4198,7 +4208,7 @@ async function movePmbVehicleToStage(key, stage) {
     return;
   }
   const nextStage = normalizePmbStage(stage);
-  const currentStage = normalizePmbStage(vehicle.pmbStage || vehicle.pdcWorkStage || vehicle.workStage || '');
+  const currentStage = normalizePmbStage(vehicle.pmbBayStage || vehicle.pmbStage || inferredPmbStage(vehicle) || vehicle.pdcWorkStage || vehicle.workStage || '');
   if (currentStage === nextStage) return;
   const now = nowIsoString();
   const resolutionUpdates = await pmbMovementResolutionUpdates(vehicle, currentStage, nextStage);
@@ -4277,6 +4287,27 @@ function bindPmbBayDropTarget(dropTarget) {
     }
     dropTarget.classList.remove('drag-over');
     void assignPmbVehicleToBay(key, stage, bay, scheduledStartIso);
+  });
+}
+
+function bindPmbCompletionDropTarget(dropTarget) {
+  if (!dropTarget) return;
+  dropTarget.addEventListener('dragover', event => {
+    if (!app.pmbDraggingKey && !event.dataTransfer) return;
+    event.preventDefault();
+    event.stopPropagation();
+    if (event.dataTransfer) event.dataTransfer.dropEffect = 'move';
+    dropTarget.classList.add('drag-over');
+  });
+  dropTarget.addEventListener('dragleave', event => {
+    if (!dropTarget.contains(event.relatedTarget)) dropTarget.classList.remove('drag-over');
+  });
+  dropTarget.addEventListener('drop', event => {
+    event.preventDefault();
+    event.stopPropagation();
+    const key = event.dataTransfer?.getData('application/x-vehicle-key') || event.dataTransfer?.getData('text/plain') || app.pmbDraggingKey;
+    dropTarget.classList.remove('drag-over');
+    void movePmbVehicleToStage(key, '');
   });
 }
 
@@ -4511,6 +4542,9 @@ function completePmbBayWork(key, stage) {
     pmbBayCompletedAt: now,
     pmbBayCompletedBy: operator,
     pmbBayCompletedStage: normalizedStage,
+    pmbStage: '',
+    pmbStageUpdatedAt: now,
+    pmbStageEnteredAt: now,
     [pdcJobMechanicKey(def)]: mechanic,
     [pdcJobBayKey(def)]: bay || '',
     [pdcJobHoursKey(def)]: hours === '' ? '' : String(hours),
@@ -4523,7 +4557,7 @@ function completePmbBayWork(key, stage) {
     pmbBayMechanic: '',
     pmbSubletProvider: '',
   };
-  recordVehicleAudit(vehicle, 'Bay work completed', { stage: pmbStageLabel(normalizedStage), job: def.label, bay: bay || 'No bay', hours: hours === '' ? '' : hours, mechanic: mechanic || 'Unassigned', provider: normalizedStage === 'SUBLET' ? (subletProvider || 'Unassigned') : '', by: operator, returnedTo: 'Work Started' });
+  recordVehicleAudit(vehicle, 'Bay work completed', { stage: pmbStageLabel(normalizedStage), job: def.label, bay: bay || 'No bay', hours: hours === '' ? '' : hours, mechanic: mechanic || 'Unassigned', provider: normalizedStage === 'SUBLET' ? (subletProvider || 'Unassigned') : '', by: operator, returnedTo: 'PMB unallocated' });
   saveVehicleEdits(vehicleKey(vehicle), updates);
 }
 
