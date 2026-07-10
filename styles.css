@@ -6635,12 +6635,13 @@ body.pmb-schedule-adjusting .pmb-schedule-chip-slim {
 }
 .incoming-filter-row {
   display: grid;
-  grid-template-columns: minmax(260px, 1.8fr) minmax(160px, .8fr) minmax(150px, .75fr) minmax(150px, .75fr) auto auto;
+  grid-template-columns: minmax(220px, 1.4fr) repeat(3, minmax(140px, .75fr)) auto auto;
   gap: 8px 10px;
   align-items: end;
 }
 .incoming-filter-row label {
   display: grid;
+  min-width: 0;
   gap: 3px;
   font-size: .72rem;
   font-weight: 800;
@@ -7267,13 +7268,14 @@ body.pmb-schedule-adjusting .pmb-schedule-chip-slim {
 
 
 .incoming-work-filter-checks {
+  grid-column: 1 / -1;
   border: 1px solid #dbe3ef;
   border-radius: 12px;
   padding: 6px 8px 8px;
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
-  min-width: 300px;
+  min-width: 0;
   background: #fff;
 }
 .incoming-work-filter-checks legend {
