@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.07.10.13-backend-align';
+const APP_VERSION = '2026.07.10.14-tristate-work';
 window.VEHICLE_TRACKING_DATA = window.VEHICLE_TRACKING_DATA || { report: {}, vehicles: [], toyotaMatches: {} };
 const EDITS_KEY = 'vehicleTrackingCoreNavisionOnlyEdits:v1';
 const ADDED_KEY = 'vehicleTrackingCoreNavisionOnlyVehicles:v1';
@@ -158,6 +158,25 @@ function currentPdcJobLabelList() {
 
 function currentPdcJobColumnList() {
   return PDC_JOB_DEFS.map(def => def.label).join('/');
+}
+
+function pdcJobTriState(vehicle = {}, def = {}) {
+  if (pdcJobComplete(vehicle, def)) return 'complete';
+  if (pdcJobRequired(vehicle, def)) return 'required';
+  return 'none';
+}
+
+function pdcJobTriStateControl(vehicle = {}, def = {}, locked = false) {
+  const state = pdcJobTriState(vehicle, def);
+  const stateLabel = state === 'complete' ? 'Completed' : state === 'required' ? 'To be completed' : 'Not required';
+  const disabled = locked ? ' disabled' : '';
+  return `<button class="pdc-work-state pdc-work-state-${escapeHtml(state)} pdc-toggle-${escapeHtml(def.key)}" type="button" data-pdc-work-state="${escapeHtml(def.key)}" data-state="${escapeHtml(state)}" aria-label="${escapeHtml(def.label)} - ${stateLabel}" title="${escapeHtml(def.label)} - ${stateLabel}. Click to cycle: grey not required, red to complete, green completed."${disabled}>
+    <span class="pdc-work-state-code">${escapeHtml(def.short)}</span>
+    <span class="pdc-work-state-label">${escapeHtml(def.label)}</span>
+    <span class="pdc-work-state-status">${escapeHtml(stateLabel)}</span>
+  </button>
+  <input type="hidden" data-pdc-work-require="${escapeHtml(def.key)}" name="${escapeHtml(def.requireKey)}" value="${state === 'none' ? '0' : '1'}" />
+  <input type="hidden" data-pdc-work-complete="${escapeHtml(def.key)}" name="${escapeHtml(def.completeKey)}" value="${state === 'complete' ? '1' : '0'}" />`;
 }
 
 const PDC_JOB_BY_REQUIRE_KEY = new Map(PDC_JOB_DEFS.map(def => [def.requireKey, def]));
@@ -6042,7 +6061,6 @@ function renderDetail() {
   const key = vehicleKey(v);
   const notes = getNotes(key);
   const customerWarning = !isCustomerMatch(v);
-  const workshopTask = v.internalStatus || '';
   const isCompletedVehicle = statusCategory(v) === 'completed';
   const completedLockAttr = isCompletedVehicle ? 'disabled' : '';
   panel.innerHTML = `
@@ -6089,11 +6107,7 @@ function renderDetail() {
             </select>
           </label>
         </div>
-        <div class="form-row two-col">
-          <label>
-            <span class="muted-label">Task selection</span>
-            <select name="internalStatus">${taskOptionsHtml(workshopTask)}</select>
-          </label>
+        <div class="form-row one-col">
           <label>
             <span class="muted-label">PDC location</span>
             <select name="pdcLocation">${pdcLocationSelectOptions(v.pdcLocation)}</select>
@@ -6120,13 +6134,10 @@ function renderDetail() {
           </label>
         </div>
         <div class="muted-label section-label">Required work before RFT</div>
-        <div class="form-row six-col check-grid pdc-requirement-grid slim-job-grid">
-          ${PDC_JOB_DEFS.map(def => `<label class="check-option pdc-toggle-chip pdc-toggle-${escapeHtml(def.key)} ${pdcJobRequired(v, def) ? 'is-on' : ''}"><input name="${escapeHtml(def.requireKey)}" type="checkbox" ${pdcJobRequired(v, def) ? 'checked' : ''} ${completedLockAttr} /> <span><b>${escapeHtml(def.short)}</b>${escapeHtml(def.label)}</span></label>`).join('')}
+        <div class="pdc-work-state-grid" data-pdc-work-state-grid>
+          ${PDC_JOB_DEFS.map(def => pdcJobTriStateControl(v, def, isCompletedVehicle)).join('')}
         </div>
-        <div class="muted-label section-label">Department sign-off / completed</div>
-        <div class="form-row six-col check-grid pdc-completion-grid slim-job-grid">
-          ${PDC_JOB_DEFS.map(def => `<label class="check-option pdc-toggle-chip completion-option pdc-toggle-${escapeHtml(def.key)} ${pdcJobComplete(v, def) ? 'is-complete' : ''} ${isCompletedVehicle ? 'is-locked' : ''}"><input name="${escapeHtml(def.completeKey)}" type="checkbox" ${pdcJobComplete(v, def) ? 'checked' : ''} ${completedLockAttr} /> <span><b>${pdcJobComplete(v, def) ? '✓' : escapeHtml(def.short)}</b>${escapeHtml(def.label)}</span></label>`).join('')}
-        </div>
+        <div class="field-help pdc-work-state-help">Click each work item to cycle: grey = not required, red = to be completed, green = completed.</div>
         <div class="edit-actions">
           <button class="primary" type="submit">Save changes</button>
           <span class="save-message" data-save-message></span>
@@ -6187,13 +6198,34 @@ function renderDetail() {
   });
   on($('[data-remove-vehicle]', panel), 'click', () => removeVehicle(key));
   on($('[data-vehicle-po-upload]', panel), 'change', (event) => handleVehiclePoSelect(key, event));
+  $$('[data-pdc-work-state]', panel).forEach(button => {
+    button.addEventListener('click', () => {
+      if (button.disabled) return;
+      const current = button.dataset.state || 'none';
+      const next = current === 'none' ? 'required' : current === 'required' ? 'complete' : 'none';
+      button.dataset.state = next;
+      button.classList.remove('pdc-work-state-none', 'pdc-work-state-required', 'pdc-work-state-complete');
+      button.classList.add(`pdc-work-state-${next}`);
+      const statusText = next === 'complete' ? 'Completed' : next === 'required' ? 'To be completed' : 'Not required';
+      const status = button.querySelector('.pdc-work-state-status');
+      if (status) status.textContent = statusText;
+      const jobKey = button.dataset.pdcWorkState || '';
+      const requireInput = panel.querySelector(`input[data-pdc-work-require="${jobKey}"]`);
+      const completeInput = panel.querySelector(`input[data-pdc-work-complete="${jobKey}"]`);
+      if (requireInput) requireInput.value = next === 'none' ? '0' : '1';
+      if (completeInput) completeInput.value = next === 'complete' ? '1' : '0';
+      const label = button.querySelector('.pdc-work-state-label')?.textContent || 'Work item';
+      button.setAttribute('aria-label', `${label} - ${statusText}`);
+      button.title = `${label} - ${statusText}. Click to cycle: grey not required, red to complete, green completed.`;
+    });
+  });
   $('[data-vehicle-edit-form]', panel).addEventListener('submit', (e) => {
     e.preventDefault();
     const form = e.currentTarget;
     const client = form.client.value.trim() || v.client;
     const keyNumber = statusCategory(v) === 'pmb' ? cleanNavisionText(form.keyNumber?.value || '') : vehicleKeyNumber(v);
     const consultant = form.consultant.value.trim();
-    const internalStatus = form.internalStatus.value.trim();
+    const internalStatus = v.internalStatus || '';
     const previousPdcLocation = vehiclePdcLocation(v);
     const previousPmbStage = normalizePmbStage(v.pmbStage || '');
     const pdcLocation = isCompletedVehicle ? previousPdcLocation : normalizePdcLocation(form.pdcLocation.value);
@@ -6205,8 +6237,8 @@ function renderDetail() {
     const requirementUpdates = {};
     const completionUpdates = {};
     PDC_JOB_DEFS.forEach(def => {
-      requirementUpdates[def.requireKey] = isCompletedVehicle ? pdcJobRequired(v, def) : Boolean(form[def.requireKey]?.checked);
-      completionUpdates[def.completeKey] = isCompletedVehicle ? pdcJobComplete(v, def) : Boolean(form[def.completeKey]?.checked);
+      requirementUpdates[def.requireKey] = isCompletedVehicle ? pdcJobRequired(v, def) : form[def.requireKey]?.value === '1';
+      completionUpdates[def.completeKey] = isCompletedVehicle ? pdcJobComplete(v, def) : form[def.completeKey]?.value === '1';
     });
     const duplicateKeyVehicle = pdcLocation === 'PMB' ? activePmbVehicleWithKeyNumber(keyNumber, key) : null;
     if (duplicateKeyVehicle) {
