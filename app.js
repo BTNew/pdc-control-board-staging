@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.07.10.11-layout-smoke-fixes';
+const APP_VERSION = '2026.07.10.12-layout-smoke-fixes';
 window.VEHICLE_TRACKING_DATA = window.VEHICLE_TRACKING_DATA || { report: {}, vehicles: [], toyotaMatches: {} };
 const EDITS_KEY = 'vehicleTrackingCoreNavisionOnlyEdits:v1';
 const ADDED_KEY = 'vehicleTrackingCoreNavisionOnlyVehicles:v1';
