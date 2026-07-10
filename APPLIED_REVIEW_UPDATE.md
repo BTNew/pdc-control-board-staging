@@ -13,7 +13,7 @@ This package applies the practical recommendations from the review pass.
 - Explicit import parsing now accepts Parts required and Parts complete columns.
 - Main CSV export now generates job columns from `PDC_JOB_DEFS` instead of hard-coded old headers.
 - RFT email action now explains why the button is disabled when gate issues remain.
-- Mobile quick view now uses the current stage/job model.
+- Separate mobile page has been removed; the main board is the maintained interface.
 - Visible documentation and user-facing wording have been updated to the current stage list.
 - External CDN script tags removed from the packaged site.
 
@@ -39,7 +39,6 @@ External CDN script tags for QZ Tray and PDF.js have been removed from `index.ht
 ```bash
 node --check app.js
 node --check data.js
-node --check mobile.js
 node test_navision_confirm.js
 node test_parts_production_principles.js
 node test_review_update_alignment.js

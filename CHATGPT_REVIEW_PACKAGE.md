@@ -72,7 +72,6 @@ Suggested checks after changes:
 ```bash
 node --check app.js
 node --check data.js
-node --check mobile.js
 node test_navision_confirm.js
 node test_parts_production_principles.js
 ```
@@ -179,7 +178,7 @@ Applied in this package:
 - Default vehicle table columns aligned to Tint, Hoist, Fitting, Fabrication, Electrical, Tyre, Pit Inspection, Navision Notes, JITA and Action.
 - Explicit Parts import columns added.
 - Main CSV export job columns generated from current PDC job definitions.
-- Mobile quick view aligned to current stages.
+- Separate mobile page removed; the main board is the maintained interface.
 - External CDN script tags were removed; optional browser integrations now rely on graceful fallbacks unless local approved libraries are provided.
 
 Remaining watch items:

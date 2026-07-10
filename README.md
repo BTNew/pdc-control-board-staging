@@ -34,7 +34,7 @@ Then open `http://127.0.0.1:8765/?v=review-update`.
 
 ## Current required job model
 
-The app uses these PDC job definitions consistently for the main board, PMB workflow, imports, CSV export, mobile view, and RFT gate:
+The app uses these PDC job definitions consistently for the main board, PMB workflow, imports, CSV export, and RFT gate:
 
 - Tint
 - Hoist
@@ -76,7 +76,7 @@ CSV export is for reporting only. It is not a full restore backup.
 - Bumped the saved column-order key to avoid stale old column layouts.
 - Added explicit Parts import support for required and completed columns.
 - Made CSV export job headers dynamic from the current PDC job definitions.
-- Updated mobile view to use Hoist, Fitting, Tyre bay, Pit Inspection, and Parts.
+- Removed the separate mobile page; the main board is the single maintained interface.
 - Updated visible wording away from the older stage model.
 - Removed external CDN script tags so the package remains self-contained; optional QZ/PDF integrations fail gracefully when not available.
 
@@ -87,7 +87,6 @@ Run these after code changes:
 ```bash
 node --check app.js
 node --check data.js
-node --check mobile.js
 node test_navision_confirm.js
 node test_parts_production_principles.js
 node test_review_update_alignment.js
