@@ -9045,3 +9045,1591 @@ html[data-row-width="xl"] {
   border-radius: 0 !important;
   box-shadow: none !important;
 }
+
+/* 2026-07-10.20: unified readable vehicle rows
+   One comfortable type scale, one row rhythm, one scrollbar per list/table,
+   and customer names may wrap instead of being squeezed or silently cut off. */
+html {
+  --pdc-readable-row-font: 14px;
+  --pdc-readable-row-small: 12px;
+  --pdc-readable-row-line: 1.32;
+  --pdc-readable-row-pad-y: 9px;
+  --pdc-readable-row-pad-x: 12px;
+  --pdc-readable-row-min: 1490px;
+  --pdc-readable-rft-row-min: 1470px;
+  --pdc-readable-identity-min: 500px;
+  --pdc-readable-name-min: 210px;
+  --pdc-readable-vehicle-min: 175px;
+  --pdc-readable-work-min: 390px;
+  --pdc-readable-action-min: 158px;
+}
+
+html[data-row-width="compact"] {
+  --pdc-readable-row-min: 1350px;
+  --pdc-readable-rft-row-min: 1360px;
+  --pdc-readable-identity-min: 445px;
+  --pdc-readable-name-min: 160px;
+  --pdc-readable-vehicle-min: 155px;
+  --pdc-readable-work-min: 330px;
+  --pdc-readable-action-min: 142px;
+}
+
+html[data-row-width="wide"] {
+  --pdc-readable-row-min: 1650px;
+  --pdc-readable-rft-row-min: 1600px;
+  --pdc-readable-identity-min: 575px;
+  --pdc-readable-name-min: 280px;
+  --pdc-readable-vehicle-min: 195px;
+  --pdc-readable-work-min: 430px;
+  --pdc-readable-action-min: 170px;
+}
+
+html[data-row-width="xl"] {
+  --pdc-readable-row-min: 1840px;
+  --pdc-readable-rft-row-min: 1780px;
+  --pdc-readable-identity-min: 665px;
+  --pdc-readable-name-min: 365px;
+  --pdc-readable-vehicle-min: 220px;
+  --pdc-readable-work-min: 500px;
+  --pdc-readable-action-min: 180px;
+}
+
+/* The list owns horizontal scrolling. Individual vehicle rows must never grow
+   their own scrollbar; that was making every row look broken and misaligned. */
+.incoming-bucket-list.incoming-vertical-list,
+.workflow-vertical-list,
+.rft-compact-list,
+.deleted-compact-list {
+  overflow-x: auto !important;
+  overflow-y: visible !important;
+  scrollbar-gutter: stable;
+}
+
+.incoming-bucket-list.incoming-vertical-list > .incoming-vehicle-card,
+.workflow-vertical-list > .incoming-vehicle-card {
+  min-width: var(--pdc-readable-row-min) !important;
+  width: 100% !important;
+}
+
+.rft-compact-list > .incoming-vehicle-card,
+.deleted-compact-list > .incoming-vehicle-card {
+  min-width: var(--pdc-readable-rft-row-min) !important;
+  width: 100% !important;
+}
+
+.incoming-vehicle-card,
+.deleted-vehicle-row,
+.incoming-rft-row,
+.workflow-vehicle-row {
+  overflow: visible !important;
+}
+
+.incoming-vehicle-card > summary,
+.deleted-vehicle-row > summary,
+.incoming-rft-row > summary,
+.workflow-vehicle-row > summary {
+  min-width: 0 !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+/* Shared card-row layout for Vehicle Locations and PMB Workflow. */
+.incoming-vehicle-summary,
+#workflow .incoming-vehicle-summary {
+  grid-template-columns:
+    14px
+    24px
+    minmax(var(--pdc-readable-identity-min), 1.45fr)
+    minmax(var(--pdc-readable-vehicle-min), .55fr)
+    minmax(var(--pdc-readable-work-min), 1.05fr)
+    minmax(82px, max-content)
+    minmax(var(--pdc-readable-action-min), max-content) !important;
+  gap: 10px !important;
+  align-items: center !important;
+  min-height: 52px !important;
+  padding: var(--pdc-readable-row-pad-y) var(--pdc-readable-row-pad-x) !important;
+  font-size: var(--pdc-readable-row-font) !important;
+  line-height: var(--pdc-readable-row-line) !important;
+}
+
+/* RFT and Deleted have no selection checkbox and use two status/meta columns. */
+.rft-vehicle-summary,
+.deleted-vehicle-summary {
+  grid-template-columns:
+    14px
+    minmax(var(--pdc-readable-identity-min), 1.45fr)
+    minmax(220px, .75fr)
+    minmax(150px, max-content)
+    minmax(120px, max-content)
+    minmax(150px, max-content)
+    minmax(220px, max-content) !important;
+  gap: 10px !important;
+  align-items: center !important;
+  min-height: 52px !important;
+  padding: var(--pdc-readable-row-pad-y) var(--pdc-readable-row-pad-x) !important;
+  font-size: var(--pdc-readable-row-font) !important;
+  line-height: var(--pdc-readable-row-line) !important;
+}
+
+/* Shared identity proportions. Name is the flexible field and may wrap. */
+.incoming-identity.vehicle-identity-columns {
+  width: 100% !important;
+  max-width: none !important;
+  grid-template-columns: 54px 92px 116px minmax(var(--pdc-readable-name-min), 1fr) !important;
+  gap: 8px !important;
+  align-items: center !important;
+}
+
+.incoming-vehicle-summary .vehicle-identity-cell,
+.rft-vehicle-summary .vehicle-identity-cell,
+.deleted-vehicle-summary .vehicle-identity-cell {
+  min-height: 0 !important;
+  align-items: center !important;
+}
+
+.incoming-vehicle-summary .vehicle-identity-value,
+.rft-vehicle-summary .vehicle-identity-value,
+.deleted-vehicle-summary .vehicle-identity-value,
+#workflow .incoming-identity .vehicle-identity-value,
+#workflow .incoming-identity .vehicle-identity-primary,
+#workflow .incoming-identity .identity-key .vehicle-identity-value,
+#workflow .incoming-identity .identity-name .vehicle-identity-value {
+  font-size: 13px !important;
+  font-weight: 800 !important;
+  line-height: 1.22 !important;
+  letter-spacing: 0 !important;
+}
+
+.incoming-vehicle-summary .identity-key .vehicle-identity-value,
+.rft-vehicle-summary .identity-key .vehicle-identity-value,
+.deleted-vehicle-summary .identity-key .vehicle-identity-value {
+  font-size: 14px !important;
+  font-weight: 900 !important;
+}
+
+.incoming-vehicle-summary .identity-name .vehicle-identity-value,
+.rft-vehicle-summary .identity-name .vehicle-identity-value,
+.deleted-vehicle-summary .identity-name .vehicle-identity-value {
+  display: block !important;
+  max-width: none !important;
+  white-space: normal !important;
+  overflow: visible !important;
+  text-overflow: clip !important;
+  overflow-wrap: anywhere !important;
+  word-break: normal !important;
+  font-size: 14px !important;
+  font-weight: 850 !important;
+  line-height: 1.25 !important;
+}
+
+.incoming-card-main strong,
+.incoming-card-main small {
+  font-size: 14px !important;
+  line-height: 1.25 !important;
+}
+
+.incoming-card-main strong {
+  white-space: normal !important;
+  overflow: visible !important;
+  text-overflow: clip !important;
+  overflow-wrap: anywhere !important;
+}
+
+.incoming-card-meta {
+  font-size: 13px !important;
+  line-height: 1.25 !important;
+}
+
+.incoming-card-meta b {
+  font-size: 10px !important;
+  line-height: 1.1 !important;
+}
+
+/* Work chips wrap into a second line when needed instead of creating a cramped
+   miniature scrollbar inside the row. */
+.incoming-card-work-wrap,
+#workflow .incoming-card-work-wrap {
+  width: 100% !important;
+  max-width: none !important;
+  min-width: 0 !important;
+  overflow: visible !important;
+}
+
+.incoming-work-checks,
+#workflow .incoming-work-checks {
+  width: 100% !important;
+  min-width: 0 !important;
+  margin-left: 0 !important;
+  justify-content: flex-start !important;
+  align-items: center !important;
+  flex-wrap: wrap !important;
+  overflow: visible !important;
+  gap: 5px !important;
+}
+
+.incoming-work-check {
+  min-height: 24px !important;
+  padding: 4px 7px !important;
+  gap: 5px !important;
+  font-size: 12px !important;
+  line-height: 1.1 !important;
+}
+
+.incoming-work-box {
+  width: 15px !important;
+  height: 15px !important;
+  font-size: 10px !important;
+}
+
+.incoming-card-action {
+  align-items: center !important;
+  gap: 6px !important;
+}
+
+.incoming-card-action .primary,
+.incoming-card-action .small-button,
+.rft-card-actions .small-button,
+.deleted-card-actions .small-button,
+.rft-collected-check {
+  padding: 6px 9px !important;
+  font-size: 12px !important;
+  line-height: 1.15 !important;
+}
+
+/* Table pages use the same comfortable type and vertical rhythm. */
+.data-table.compact-table thead th,
+.parts-table thead th,
+.completed-table thead th,
+.backend-data-table thead th {
+  padding: 9px 12px !important;
+  font-size: 12px !important;
+  line-height: 1.18 !important;
+  vertical-align: middle !important;
+}
+
+.data-table.compact-table td,
+.parts-table td,
+.completed-table td,
+.backend-data-table td {
+  padding: 10px 12px !important;
+  font-size: var(--pdc-readable-row-font) !important;
+  line-height: var(--pdc-readable-row-line) !important;
+  vertical-align: middle !important;
+}
+
+.table-identity.vehicle-identity-no-name {
+  width: 100% !important;
+  min-width: 0 !important;
+  grid-template-columns: 58px 96px 122px !important;
+  gap: 10px !important;
+  align-items: center !important;
+}
+
+.table-identity .vehicle-identity-cell,
+.table-identity .vehicle-identity-value,
+.table-identity .vehicle-identity-primary {
+  min-width: 0 !important;
+  padding: 0 !important;
+  font-size: 13px !important;
+  font-weight: 800 !important;
+  line-height: 1.22 !important;
+}
+
+.table-identity .identity-key .vehicle-identity-value,
+.table-identity .identity-key .vehicle-identity-primary {
+  font-size: 14px !important;
+  font-weight: 900 !important;
+}
+
+.pdc-name-cell,
+.pdc-name-cell > span,
+.pdc-vehicle-cell,
+.pdc-vehicle-cell > span,
+.pdc-note-cell {
+  white-space: normal !important;
+  overflow: visible !important;
+  text-overflow: clip !important;
+  overflow-wrap: anywhere !important;
+  word-break: normal !important;
+}
+
+.pdc-name-cell {
+  font-weight: 700 !important;
+  color: #17212b !important;
+}
+
+.pdc-status-cell .subtle {
+  display: inline !important;
+  margin-left: 6px !important;
+  font-size: 12px !important;
+  line-height: 1.25 !important;
+  white-space: normal !important;
+}
+
+.parts-status-pill,
+.rft-completion-summary-pill,
+.badge,
+.pmb-age,
+.parts-worst-eta-label {
+  font-size: 12px !important;
+  line-height: 1.15 !important;
+}
+
+/* Parts: identity, customer and vehicle are grouped at the front; action buttons
+   have enough room to remain aligned on one line. */
+.parts-table {
+  table-layout: fixed !important;
+  width: 2350px !important;
+  min-width: 2350px !important;
+}
+.parts-table th:nth-child(1), .parts-table td:nth-child(1) { width: 120px !important; }
+.parts-table th:nth-child(2), .parts-table td:nth-child(2) { width: 70px !important; }
+.parts-table th:nth-child(3), .parts-table td:nth-child(3) { width: 320px !important; }
+.parts-table th:nth-child(4), .parts-table td:nth-child(4) { width: 260px !important; }
+.parts-table th:nth-child(5), .parts-table td:nth-child(5) { width: 190px !important; }
+.parts-table th:nth-child(6), .parts-table td:nth-child(6) { width: 190px !important; }
+.parts-table th:nth-child(7), .parts-table td:nth-child(7) { width: 250px !important; }
+.parts-table th:nth-child(8), .parts-table td:nth-child(8) { width: 260px !important; }
+.parts-table th:nth-child(9), .parts-table td:nth-child(9) { width: 350px !important; }
+.parts-table th:nth-child(10), .parts-table td:nth-child(10) { width: 180px !important; }
+.parts-table th:nth-child(11), .parts-table td:nth-child(11) { width: 160px !important; }
+
+.parts-action-group {
+  min-width: 0 !important;
+  flex-wrap: nowrap !important;
+  align-items: center !important;
+  gap: 6px !important;
+}
+
+.parts-action-group .small-button {
+  flex: 0 0 auto !important;
+  padding: 6px 9px !important;
+  font-size: 12px !important;
+  line-height: 1.15 !important;
+}
+
+.parts-stoppage-text {
+  display: block !important;
+  white-space: normal !important;
+  overflow-wrap: anywhere !important;
+  line-height: 1.28 !important;
+}
+
+.parts-eta,
+.parts-worst-eta-wrap {
+  flex-wrap: wrap !important;
+  row-gap: 4px !important;
+}
+
+.parts-worst-eta input {
+  min-height: 34px !important;
+  font-size: 13px !important;
+}
+
+/* Completed overrides the shared Parts table widths. */
+.completed-table {
+  table-layout: fixed !important;
+  width: 1800px !important;
+  min-width: 1800px !important;
+}
+.completed-table th:nth-child(1), .completed-table td:nth-child(1) { width: 125px !important; }
+.completed-table th:nth-child(2), .completed-table td:nth-child(2) { width: 310px !important; }
+.completed-table th:nth-child(3), .completed-table td:nth-child(3) { width: 260px !important; }
+.completed-table th:nth-child(4), .completed-table td:nth-child(4) { width: 190px !important; }
+.completed-table th:nth-child(5), .completed-table td:nth-child(5) { width: 80px !important; }
+.completed-table th:nth-child(6), .completed-table td:nth-child(6) { width: 170px !important; }
+.completed-table th:nth-child(7), .completed-table td:nth-child(7) { width: 120px !important; }
+.completed-table th:nth-child(8), .completed-table td:nth-child(8) { width: 120px !important; }
+.completed-table th:nth-child(9), .completed-table td:nth-child(9) { width: 115px !important; }
+.completed-table th:nth-child(10), .completed-table td:nth-child(10) { width: 160px !important; }
+.completed-table th:nth-child(11), .completed-table td:nth-child(11) { width: 100px !important; }
+
+/* Back End Data is wide enough for the full customer name and source note, but
+   remains a single table with one horizontal scrollbar on smaller screens. */
+.backend-data-table {
+  table-layout: fixed !important;
+  width: 100% !important;
+  min-width: 1540px !important;
+}
+.backend-data-table th:nth-child(1), .backend-data-table td:nth-child(1) { width: 320px !important; }
+.backend-data-table th:nth-child(2), .backend-data-table td:nth-child(2) { width: 280px !important; }
+.backend-data-table th:nth-child(3), .backend-data-table td:nth-child(3) { width: 210px !important; }
+.backend-data-table th:nth-child(4), .backend-data-table td:nth-child(4) { width: 220px !important; }
+.backend-data-table th:nth-child(6), .backend-data-table td:nth-child(6) { width: 155px !important; }
+
+@media (max-width: 820px) {
+  .incoming-vehicle-summary,
+  #workflow .incoming-vehicle-summary,
+  .rft-vehicle-summary,
+  .deleted-vehicle-summary {
+    min-width: 0 !important;
+  }
+}
+
+/* ==========================================================================
+   2026.07.10.22 — Production Grid V2
+   A single, aligned vehicle-row system across Vehicle Locations, Control
+   Board, Pipeline, Schedule, Departments, RFT and Deleted. Full station names
+   stay in one line. Customer names are the flexible field and may wrap.
+   ========================================================================== */
+
+html {
+  --pdc-grid-min: 1560px;
+  --pdc-grid-identity-min: 400px;
+  --pdc-grid-vehicle-width: 140px;
+  --pdc-grid-stations-width: 574px;
+  --pdc-grid-meta-width: 84px;
+  --pdc-grid-status-width: 94px;
+  --pdc-grid-actions-width: 170px;
+  --pdc-grid-gap: 6px;
+  --pdc-grid-template:
+    16px
+    24px
+    minmax(var(--pdc-grid-identity-min), 1fr)
+    var(--pdc-grid-vehicle-width)
+    var(--pdc-grid-stations-width)
+    var(--pdc-grid-meta-width)
+    var(--pdc-grid-status-width)
+    var(--pdc-grid-actions-width);
+  --pdc-identity-template: 48px 82px 104px minmax(160px, 1fr);
+  --pdc-station-template: 58px 50px 58px 64px 82px 80px 64px 90px;
+  --pdc-row-font: 13px;
+  --pdc-row-small: 11px;
+  --pdc-row-header: 10px;
+  --pdc-row-line: 1.25;
+  --pdc-row-height: 46px;
+  --pdc-grid-border: #d9e0e7;
+  --pdc-grid-header-bg: #eef2f6;
+  --pdc-grid-alt-bg: #f8fafc;
+  --pdc-grid-hover-bg: #fff8f8;
+}
+
+html[data-row-width="compact"] {
+  --pdc-grid-min: 1495px;
+  --pdc-grid-identity-min: 350px;
+  --pdc-grid-vehicle-width: 132px;
+  --pdc-grid-actions-width: 160px;
+  --pdc-row-font: 12.5px;
+  --pdc-row-height: 43px;
+}
+
+html[data-row-width="wide"] {
+  --pdc-grid-min: 1740px;
+  --pdc-grid-identity-min: 545px;
+  --pdc-grid-vehicle-width: 170px;
+  --pdc-grid-actions-width: 190px;
+}
+
+html[data-row-width="xl"] {
+  --pdc-grid-min: 1940px;
+  --pdc-grid-identity-min: 690px;
+  --pdc-grid-vehicle-width: 190px;
+  --pdc-grid-actions-width: 205px;
+}
+
+/* Recover useful screen width without making controls difficult to use. */
+.app-shell {
+  grid-template-columns: 220px minmax(0, 1fr) !important;
+}
+
+.sidebar {
+  padding: 17px 14px !important;
+  gap: 15px !important;
+}
+
+.brand {
+  gap: 10px !important;
+}
+
+.brand-logo-wrap,
+.brand-logo,
+.brand-logo-fallback {
+  width: 40px !important;
+  height: 40px !important;
+}
+
+.brand-title { font-size: .95rem !important; }
+.brand-subtitle { font-size: .76rem !important; }
+.app-version { font-size: .61rem !important; }
+.nav { gap: 4px !important; margin-top: 4px !important; }
+.nav-item {
+  padding: 9px 10px !important;
+  border-radius: 7px !important;
+  font-size: .84rem !important;
+}
+.sidebar-card {
+  border-radius: 8px !important;
+  padding: 11px !important;
+  gap: 4px !important;
+}
+
+.main {
+  padding: 16px !important;
+  min-width: 0 !important;
+  overflow: hidden !important;
+}
+
+.topbar {
+  margin-bottom: 13px !important;
+  gap: 12px !important;
+}
+
+.topbar h1,
+h1 {
+  font-size: clamp(1.65rem, 2.4vw, 2.15rem) !important;
+  letter-spacing: -.035em !important;
+}
+
+.topbar-actions { gap: 7px !important; flex-wrap: wrap !important; justify-content: flex-end !important; }
+.topbar-actions .primary,
+.topbar-actions .ghost,
+.topbar-actions .small-button,
+.panel-actions .primary,
+.panel-actions .ghost,
+.panel-actions .small-button {
+  min-height: 34px !important;
+  padding: 7px 10px !important;
+  border-radius: 7px !important;
+  font-size: .78rem !important;
+  line-height: 1.15 !important;
+}
+
+.panel,
+.kpi-card,
+.parts-summary-card,
+.rft-summary-card,
+.schedule-list-panel,
+.pdc-grid-page-section {
+  border-radius: 9px !important;
+  box-shadow: 0 4px 16px rgba(18, 31, 46, .055) !important;
+}
+
+.panel-header {
+  padding: 12px 14px !important;
+  gap: 10px !important;
+}
+
+.panel-header h2 { font-size: 1rem !important; }
+.panel-header p { font-size: .79rem !important; line-height: 1.35 !important; }
+
+.kpi-grid {
+  gap: 9px !important;
+  margin-bottom: 10px !important;
+}
+.kpi-card {
+  min-height: 78px !important;
+  padding: 11px 13px !important;
+}
+.kpi-card strong { margin-top: 4px !important; font-size: 1.55rem !important; }
+.kpi-card span, .kpi-card small { font-size: .72rem !important; }
+
+input,
+select,
+textarea {
+  border-radius: 7px !important;
+}
+
+.incoming-search-panel,
+.workflow-search-panel,
+.parts-filter-bar,
+.rft-filter-bar,
+.completed-filter-bar,
+.deleted-filter-bar,
+.backend-data-toolbar,
+.schedule-toolbar,
+.department-toolbar {
+  padding: 9px 12px !important;
+}
+
+.incoming-filter-row,
+.workflow-filter-row,
+.parts-filter-row,
+.rft-filter-row,
+.schedule-filter-row,
+.department-filter-row {
+  gap: 8px !important;
+}
+
+.incoming-filter-row input,
+.incoming-filter-row select,
+.workflow-filter-row input,
+.workflow-filter-row select,
+.parts-filter-row input,
+.parts-filter-row select,
+.rft-filter-row input,
+.rft-filter-row select,
+.schedule-filter-row input,
+.schedule-filter-row select,
+.department-filter-row input,
+.department-filter-row select {
+  min-height: 34px !important;
+  padding: 6px 8px !important;
+  font-size: .78rem !important;
+}
+
+/* One horizontal scrollbar per list, never one scrollbar per vehicle. */
+.incoming-board,
+#workflow-board,
+#kanban,
+#schedule-content,
+#department-content,
+#rft-home-content,
+#deleted-vehicles-content,
+.pdc-production-grid-scroll,
+.incoming-bucket-list.incoming-vertical-list,
+.workflow-vertical-list,
+.rft-compact-list,
+.deleted-compact-list,
+.pdc-grid-table-wrap,
+.parts-table-wrap,
+.completed-table-wrap,
+.responsive-table {
+  max-width: 100% !important;
+  overflow-x: auto !important;
+  overflow-y: visible !important;
+  scrollbar-gutter: stable;
+}
+
+.incoming-vehicle-card,
+.workflow-vehicle-row,
+.incoming-rft-row,
+.deleted-vehicle-row,
+.pdc-production-grid-card {
+  min-width: var(--pdc-grid-min) !important;
+  width: 100% !important;
+  max-width: none !important;
+  overflow: visible !important;
+  border-radius: 0 !important;
+  border: 0 !important;
+  border-bottom: 1px solid var(--pdc-grid-border) !important;
+  box-shadow: none !important;
+  background: #fff !important;
+}
+
+.pdc-production-grid-scroll > .pdc-production-grid-header,
+.pdc-production-grid-scroll > .pdc-production-grid-body,
+.pdc-production-grid-body > .pdc-production-grid-row,
+.incoming-bucket-list > .pdc-production-grid-header,
+.rft-compact-list > .pdc-production-grid-header,
+.deleted-compact-list > .pdc-production-grid-header {
+  min-width: var(--pdc-grid-min) !important;
+}
+
+.pdc-production-grid-body {
+  width: 100% !important;
+}
+
+/* Shared outer grid. */
+.pdc-production-grid-header,
+.pdc-production-grid-row,
+.incoming-vehicle-summary,
+#workflow .incoming-vehicle-summary,
+.rft-vehicle-summary,
+.deleted-vehicle-summary,
+.pdc-production-grid-static-row {
+  display: grid !important;
+  grid-template-columns: var(--pdc-grid-template) !important;
+  column-gap: var(--pdc-grid-gap) !important;
+  row-gap: 2px !important;
+  align-items: center !important;
+  width: 100% !important;
+  min-width: var(--pdc-grid-min) !important;
+  max-width: none !important;
+  box-sizing: border-box !important;
+}
+
+.pdc-production-grid-header {
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 25 !important;
+  min-height: 33px !important;
+  padding: 5px 8px !important;
+  border-top: 1px solid var(--pdc-grid-border) !important;
+  border-bottom: 1px solid #cbd4de !important;
+  background: var(--pdc-grid-header-bg) !important;
+  color: #566372 !important;
+  font-size: var(--pdc-row-header) !important;
+  font-weight: 850 !important;
+  line-height: 1.12 !important;
+  letter-spacing: .045em !important;
+  text-transform: uppercase !important;
+}
+
+.incoming-vehicle-summary,
+#workflow .incoming-vehicle-summary,
+.rft-vehicle-summary,
+.deleted-vehicle-summary,
+.pdc-production-grid-static-row {
+  min-height: var(--pdc-row-height) !important;
+  padding: 5px 8px !important;
+  font-size: var(--pdc-row-font) !important;
+  line-height: var(--pdc-row-line) !important;
+  color: #17212b !important;
+  background: transparent !important;
+  text-align: left !important;
+}
+
+.pdc-production-grid-static-row {
+  border: 0 !important;
+  border-bottom: 1px solid var(--pdc-grid-border) !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  cursor: pointer !important;
+}
+
+.pdc-production-grid-body > :nth-child(even),
+.incoming-bucket-list > .incoming-vehicle-card:nth-of-type(odd),
+.rft-compact-list > .incoming-vehicle-card:nth-of-type(odd),
+.deleted-compact-list > .incoming-vehicle-card:nth-of-type(odd) {
+  background: var(--pdc-grid-alt-bg) !important;
+}
+
+.incoming-vehicle-card:hover,
+.pdc-production-grid-static-row:hover,
+.pdc-production-grid-body > :hover {
+  background: var(--pdc-grid-hover-bg) !important;
+}
+
+.incoming-vehicle-card.is-selected,
+.incoming-vehicle-card.is-selected .incoming-vehicle-summary {
+  background: #eef6ff !important;
+}
+
+.incoming-vehicle-summary::-webkit-details-marker,
+.rft-vehicle-summary::-webkit-details-marker,
+.deleted-vehicle-summary::-webkit-details-marker { display: none !important; }
+
+.incoming-vehicle-summary::before,
+.rft-vehicle-summary::before,
+.deleted-vehicle-summary::before {
+  width: 14px !important;
+  margin: 0 !important;
+  color: #718096 !important;
+  font-size: 10px !important;
+  text-align: center !important;
+}
+
+.pdc-grid-control,
+.pdc-grid-control-heading,
+.pdc-grid-select-spacer,
+.pdc-grid-select-heading {
+  min-width: 0 !important;
+  color: #718096 !important;
+  text-align: center !important;
+}
+
+.pdc-grid-rank {
+  font-size: 9px !important;
+  font-weight: 800 !important;
+  color: #7a8794 !important;
+}
+
+.incoming-card-select {
+  width: 24px !important;
+  display: grid !important;
+  place-items: center !important;
+  margin: 0 !important;
+}
+.incoming-card-select input {
+  width: 15px !important;
+  height: 15px !important;
+  margin: 0 !important;
+}
+
+/* Header identity cells and vehicle identity values use the same tracks. */
+.pdc-grid-identity-heading,
+.vehicle-identity-stack.vehicle-identity-columns,
+.incoming-identity.vehicle-identity-columns {
+  display: grid !important;
+  grid-template-columns: var(--pdc-identity-template) !important;
+  gap: 6px !important;
+  align-items: center !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: none !important;
+}
+
+.pdc-grid-identity-heading > span,
+.pdc-grid-vehicle-heading,
+.pdc-grid-meta-heading,
+.pdc-grid-status-heading,
+.pdc-grid-action-heading {
+  min-width: 0 !important;
+  white-space: normal !important;
+  overflow-wrap: anywhere !important;
+}
+
+.vehicle-identity-cell {
+  min-width: 0 !important;
+  display: block !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.vehicle-identity-cell::before,
+.vehicle-identity-cell::after {
+  content: none !important;
+  display: none !important;
+}
+
+.vehicle-identity-value,
+.vehicle-identity-primary,
+.incoming-vehicle-summary .vehicle-identity-value,
+.rft-vehicle-summary .vehicle-identity-value,
+.deleted-vehicle-summary .vehicle-identity-value,
+#workflow .incoming-identity .vehicle-identity-value,
+#workflow .incoming-identity .vehicle-identity-primary {
+  display: block !important;
+  min-width: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+  color: #17212b !important;
+  font-size: 12.5px !important;
+  font-weight: 700 !important;
+  line-height: 1.22 !important;
+  letter-spacing: 0 !important;
+  text-align: left !important;
+}
+
+.identity-key .vehicle-identity-value,
+.identity-key .vehicle-identity-primary,
+.identity-stock .vehicle-identity-value,
+.identity-jc .vehicle-identity-value {
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: clip !important;
+  font-variant-numeric: tabular-nums !important;
+}
+
+.identity-key .vehicle-identity-value,
+.identity-key .vehicle-identity-primary {
+  color: #1d4ed8 !important;
+  font-size: 13px !important;
+  font-weight: 850 !important;
+}
+
+.identity-stock .vehicle-identity-value,
+.identity-jc .vehicle-identity-value {
+  font-weight: 780 !important;
+}
+
+.identity-name .vehicle-identity-value,
+.incoming-vehicle-summary .identity-name .vehicle-identity-value,
+.rft-vehicle-summary .identity-name .vehicle-identity-value,
+.deleted-vehicle-summary .identity-name .vehicle-identity-value {
+  max-width: none !important;
+  white-space: normal !important;
+  overflow: visible !important;
+  text-overflow: clip !important;
+  overflow-wrap: anywhere !important;
+  word-break: normal !important;
+  color: #111827 !important;
+  font-size: var(--pdc-row-font) !important;
+  font-weight: 720 !important;
+  line-height: 1.24 !important;
+}
+
+.incoming-card-stock,
+.incoming-card-main,
+.incoming-card-work-wrap,
+.incoming-card-meta,
+.incoming-card-action {
+  min-width: 0 !important;
+  max-width: none !important;
+}
+
+.incoming-card-main {
+  display: block !important;
+  color: #17212b !important;
+}
+
+.incoming-card-main strong,
+.incoming-card-main small {
+  display: block !important;
+  max-width: none !important;
+  white-space: normal !important;
+  overflow: visible !important;
+  text-overflow: clip !important;
+  overflow-wrap: anywhere !important;
+  word-break: normal !important;
+  font-size: var(--pdc-row-font) !important;
+  font-weight: 650 !important;
+  line-height: 1.24 !important;
+}
+
+/* Full station names, fixed tracks, one row. */
+.pdc-grid-stations-heading,
+.pdc-station-strip,
+.incoming-work-checks,
+#workflow .incoming-work-checks {
+  display: grid !important;
+  grid-template-columns: var(--pdc-station-template) !important;
+  gap: 4px !important;
+  align-items: center !important;
+  width: var(--pdc-grid-stations-width) !important;
+  min-width: var(--pdc-grid-stations-width) !important;
+  max-width: var(--pdc-grid-stations-width) !important;
+  margin: 0 !important;
+  overflow: visible !important;
+  flex-wrap: nowrap !important;
+}
+
+.pdc-grid-station-heading {
+  display: block !important;
+  min-width: 0 !important;
+  text-align: center !important;
+  white-space: normal !important;
+  overflow: visible !important;
+  text-overflow: clip !important;
+  font-size: 9px !important;
+  font-weight: 900 !important;
+  line-height: 1.08 !important;
+  letter-spacing: .02em !important;
+}
+
+.incoming-work-check {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 3px !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  min-height: 26px !important;
+  padding: 3px 4px !important;
+  border: 1px solid #d8e0e8 !important;
+  border-radius: 4px !important;
+  background: #f3f5f7 !important;
+  color: #7b8794 !important;
+  box-shadow: none !important;
+  font-size: 10px !important;
+  font-weight: 780 !important;
+  line-height: 1.05 !important;
+  white-space: nowrap !important;
+}
+
+.incoming-work-label {
+  display: inline !important;
+  min-width: 0 !important;
+  white-space: nowrap !important;
+  overflow: visible !important;
+  text-overflow: clip !important;
+  font-size: 10px !important;
+  line-height: 1 !important;
+}
+
+.incoming-work-box {
+  flex: 0 0 auto !important;
+  width: 13px !important;
+  height: 13px !important;
+  border-width: 1px !important;
+  border-radius: 3px !important;
+  font-size: 9px !important;
+  line-height: 1 !important;
+  background: #fff !important;
+}
+
+.incoming-work-check.is-not-required {
+  border-color: #dbe2e9 !important;
+  background: #f5f7f9 !important;
+  color: #94a0ad !important;
+}
+.incoming-work-check.is-required {
+  border-color: #f0a7b5 !important;
+  background: #fff1f3 !important;
+  color: #a4153d !important;
+}
+.incoming-work-check.is-complete {
+  border-color: #79c89a !important;
+  background: #edf9f1 !important;
+  color: #16723f !important;
+}
+.incoming-work-check.is-blocked {
+  border-color: #e45b5b !important;
+  background: #fff0f0 !important;
+  color: #a11212 !important;
+  box-shadow: inset 0 0 0 1px rgba(185, 28, 28, .08) !important;
+}
+.incoming-work-check:not(.is-required):not(.is-complete):not(.is-blocked) .incoming-work-box {
+  opacity: .35 !important;
+}
+
+/* Compact, readable status and action tracks. */
+.incoming-card-meta {
+  display: grid !important;
+  align-content: center !important;
+  gap: 1px !important;
+  color: #334155 !important;
+  font-size: 11.5px !important;
+  line-height: 1.18 !important;
+  white-space: normal !important;
+  overflow-wrap: anywhere !important;
+}
+.incoming-card-meta b {
+  color: #7a8794 !important;
+  font-size: 9px !important;
+  font-weight: 850 !important;
+  line-height: 1.05 !important;
+  letter-spacing: .04em !important;
+  text-transform: uppercase !important;
+}
+.incoming-card-meta span,
+.incoming-card-meta small {
+  min-width: 0 !important;
+  color: #334155 !important;
+  font-size: 11.5px !important;
+  line-height: 1.18 !important;
+  white-space: normal !important;
+  overflow-wrap: anywhere !important;
+}
+
+.incoming-card-action,
+.rft-card-actions,
+.deleted-card-actions,
+.department-actions,
+.schedule-grid-readiness {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-end !important;
+  gap: 4px !important;
+  flex-wrap: wrap !important;
+}
+
+.incoming-card-action .primary,
+.incoming-card-action .small-button,
+.rft-card-actions .small-button,
+.deleted-card-actions .small-button,
+.department-actions .primary,
+.department-actions .small-button,
+.schedule-grid-readiness .schedule-ready-pill,
+.rft-collected-check {
+  min-height: 27px !important;
+  padding: 4px 7px !important;
+  border-radius: 5px !important;
+  font-size: 10.5px !important;
+  line-height: 1.1 !important;
+  white-space: nowrap !important;
+}
+
+.rft-collected-check {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 3px !important;
+  background: #f4f6f8 !important;
+  border: 1px solid #d8e0e8 !important;
+}
+.rft-collected-check input { width: 14px !important; height: 14px !important; margin: 0 !important; }
+
+/* Expanded information belongs below the aligned row and may use the full width. */
+.incoming-vehicle-detail-grid,
+.deleted-vehicle-detail-grid {
+  min-width: var(--pdc-grid-min) !important;
+  padding: 9px 44px 11px 54px !important;
+  border-top: 1px dashed #d8e0e8 !important;
+  background: #fbfcfd !important;
+  font-size: 12px !important;
+  line-height: 1.35 !important;
+}
+
+/* Bucket/page headers become compact separators rather than oversized cards. */
+.incoming-bucket,
+.workflow-stage-bucket,
+.pipeline-section {
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  margin: 0 0 10px !important;
+  overflow: visible !important;
+}
+
+.incoming-bucket-title,
+.workflow-bucket-title,
+.pipeline-summary,
+.schedule-list-header {
+  min-height: 42px !important;
+  padding: 8px 12px !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+
+.incoming-bucket-title > span:first-child,
+.workflow-bucket-title > span:first-child,
+.pipeline-summary strong {
+  font-size: .92rem !important;
+  font-weight: 880 !important;
+}
+
+.incoming-bucket-title small,
+.workflow-bucket-title small,
+.schedule-list-header span {
+  font-size: .72rem !important;
+  line-height: 1.25 !important;
+}
+
+.incoming-bucket-list.incoming-vertical-list,
+.workflow-vertical-list,
+.rft-compact-list,
+.deleted-compact-list {
+  padding: 0 !important;
+  gap: 0 !important;
+  border-radius: 0 !important;
+  background: #fff !important;
+}
+
+.pdc-grid-empty-row,
+.pmb-empty-drop {
+  min-width: var(--pdc-grid-min) !important;
+  padding: 14px !important;
+  border-radius: 0 !important;
+  font-size: 12px !important;
+}
+
+/* Production-grid static pages. */
+.pipeline-production-grid,
+.department-production-grid,
+.schedule-list-panel .pdc-production-grid-scroll {
+  width: 100% !important;
+}
+
+.kanban,
+#kanban {
+  display: block !important;
+  padding: 0 !important;
+  overflow-x: visible !important;
+}
+
+.pipeline-section {
+  background: #fff !important;
+  border: 1px solid var(--pdc-grid-border) !important;
+}
+.pipeline-list,
+.pdc-production-grid-body {
+  display: block !important;
+  padding: 0 !important;
+  gap: 0 !important;
+}
+
+.pipeline-card,
+.schedule-production-row,
+.department-job-card {
+  margin: 0 !important;
+}
+
+.schedule-ready-pill,
+.schedule-dept-pill,
+.department-status-badge {
+  display: inline-flex !important;
+  max-width: 100% !important;
+  border-radius: 4px !important;
+  font-size: 10px !important;
+  line-height: 1.15 !important;
+  white-space: normal !important;
+  overflow-wrap: anywhere !important;
+}
+
+/* True data-grid tables on Parts, Completed and Back End Data. */
+.pdc-grid-table-wrap,
+.parts-table-wrap,
+.completed-table-wrap,
+.responsive-table {
+  border-top: 1px solid var(--pdc-grid-border) !important;
+  background: #fff !important;
+}
+
+.pdc-grid-table,
+.parts-table,
+.completed-table,
+.backend-data-table {
+  border-collapse: collapse !important;
+  border-spacing: 0 !important;
+  table-layout: fixed !important;
+  background: #fff !important;
+}
+
+.pdc-grid-table thead th,
+.parts-table thead th,
+.completed-table thead th,
+.backend-data-table thead th,
+.data-table.compact-table thead th {
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 20 !important;
+  height: 34px !important;
+  padding: 6px 8px !important;
+  border-right: 1px solid #e1e6eb !important;
+  border-bottom: 1px solid #cbd4de !important;
+  background: var(--pdc-grid-header-bg) !important;
+  color: #566372 !important;
+  font-size: 10px !important;
+  font-weight: 850 !important;
+  line-height: 1.12 !important;
+  letter-spacing: .045em !important;
+  text-transform: uppercase !important;
+  vertical-align: middle !important;
+}
+
+.pdc-grid-table tbody td,
+.parts-table tbody td,
+.completed-table tbody td,
+.backend-data-table tbody td,
+.data-table.compact-table tbody td {
+  min-height: 42px !important;
+  padding: 7px 8px !important;
+  border-top: 0 !important;
+  border-right: 1px solid #edf0f3 !important;
+  border-bottom: 1px solid var(--pdc-grid-border) !important;
+  color: #17212b !important;
+  font-size: 12.5px !important;
+  line-height: 1.24 !important;
+  vertical-align: middle !important;
+  white-space: normal !important;
+  overflow-wrap: anywhere !important;
+}
+
+.pdc-grid-table tbody tr:nth-child(even),
+.parts-table tbody tr:nth-child(even),
+.completed-table tbody tr:nth-child(even),
+.backend-data-table tbody tr:nth-child(even) {
+  background: var(--pdc-grid-alt-bg) !important;
+}
+.pdc-grid-table tbody tr:hover,
+.parts-table tbody tr:hover,
+.completed-table tbody tr:hover,
+.backend-data-table tbody tr:hover {
+  background: var(--pdc-grid-hover-bg) !important;
+}
+
+.pdc-id-cell {
+  font-weight: 750 !important;
+  white-space: nowrap !important;
+  overflow-wrap: normal !important;
+  font-variant-numeric: tabular-nums !important;
+}
+.pdc-key-cell { color: #1d4ed8 !important; font-weight: 850 !important; }
+.pdc-name-cell,
+.pdc-name-cell > span,
+.pdc-vehicle-cell,
+.pdc-vehicle-cell > span,
+.pdc-note-cell,
+.pdc-completed-stations-cell {
+  max-width: none !important;
+  white-space: normal !important;
+  overflow: visible !important;
+  text-overflow: clip !important;
+  overflow-wrap: anywhere !important;
+  word-break: normal !important;
+}
+.pdc-name-cell { font-weight: 680 !important; }
+
+.parts-status-pill,
+.rft-completion-summary-pill,
+.badge,
+.pmb-age,
+.parts-worst-eta-label {
+  border-radius: 4px !important;
+  font-size: 10.5px !important;
+  line-height: 1.12 !important;
+}
+
+.parts-action-group {
+  display: flex !important;
+  align-items: center !important;
+  gap: 4px !important;
+  flex-wrap: wrap !important;
+}
+.parts-action-group .small-button {
+  min-height: 27px !important;
+  padding: 4px 7px !important;
+  border-radius: 5px !important;
+  font-size: 10.5px !important;
+  line-height: 1.1 !important;
+}
+.parts-worst-eta input {
+  min-height: 30px !important;
+  padding: 4px 6px !important;
+  font-size: 11.5px !important;
+}
+.parts-eta,
+.parts-worst-eta-wrap {
+  gap: 3px !important;
+}
+
+/* Parts — 13 explicit columns. */
+.parts-table {
+  width: 1980px !important;
+  min-width: 1980px !important;
+}
+.parts-table th:nth-child(1), .parts-table td:nth-child(1) { width: 105px !important; }
+.parts-table th:nth-child(2), .parts-table td:nth-child(2) { width: 58px !important; }
+.parts-table th:nth-child(3), .parts-table td:nth-child(3) { width: 54px !important; }
+.parts-table th:nth-child(4), .parts-table td:nth-child(4) { width: 92px !important; }
+.parts-table th:nth-child(5), .parts-table td:nth-child(5) { width: 112px !important; }
+.parts-table th:nth-child(6), .parts-table td:nth-child(6) { width: 280px !important; }
+.parts-table th:nth-child(7), .parts-table td:nth-child(7) { width: 165px !important; }
+.parts-table th:nth-child(8), .parts-table td:nth-child(8) { width: 140px !important; }
+.parts-table th:nth-child(9), .parts-table td:nth-child(9) { width: 150px !important; }
+.parts-table th:nth-child(10), .parts-table td:nth-child(10) { width: 265px !important; }
+.parts-table th:nth-child(11), .parts-table td:nth-child(11) { width: 145px !important; }
+.parts-table th:nth-child(12), .parts-table td:nth-child(12) { width: 125px !important; }
+.parts-table th:nth-child(13), .parts-table td:nth-child(13) { width: 289px !important; }
+
+/* Completed — 13 explicit columns. */
+.completed-table {
+  width: 1730px !important;
+  min-width: 1730px !important;
+}
+.completed-table th:nth-child(1), .completed-table td:nth-child(1) { width: 112px !important; }
+.completed-table th:nth-child(2), .completed-table td:nth-child(2) { width: 54px !important; }
+.completed-table th:nth-child(3), .completed-table td:nth-child(3) { width: 92px !important; }
+.completed-table th:nth-child(4), .completed-table td:nth-child(4) { width: 112px !important; }
+.completed-table th:nth-child(5), .completed-table td:nth-child(5) { width: 290px !important; }
+.completed-table th:nth-child(6), .completed-table td:nth-child(6) { width: 165px !important; }
+.completed-table th:nth-child(7), .completed-table td:nth-child(7) { width: 145px !important; }
+.completed-table th:nth-child(8), .completed-table td:nth-child(8) { width: 105px !important; }
+.completed-table th:nth-child(9), .completed-table td:nth-child(9) { width: 105px !important; }
+.completed-table th:nth-child(10), .completed-table td:nth-child(10) { width: 92px !important; }
+.completed-table th:nth-child(11), .completed-table td:nth-child(11) { width: 125px !important; }
+.completed-table th:nth-child(12), .completed-table td:nth-child(12) { width: 260px !important; }
+.completed-table th:nth-child(13), .completed-table td:nth-child(13) { width: 73px !important; }
+
+/* Back End Data — 8 explicit columns. */
+.backend-data-table {
+  width: 1490px !important;
+  min-width: 1490px !important;
+}
+.backend-data-table th:nth-child(1), .backend-data-table td:nth-child(1) { width: 58px !important; }
+.backend-data-table th:nth-child(2), .backend-data-table td:nth-child(2) { width: 96px !important; }
+.backend-data-table th:nth-child(3), .backend-data-table td:nth-child(3) { width: 116px !important; }
+.backend-data-table th:nth-child(4), .backend-data-table td:nth-child(4) { width: 360px !important; }
+.backend-data-table th:nth-child(5), .backend-data-table td:nth-child(5) { width: 185px !important; }
+.backend-data-table th:nth-child(6), .backend-data-table td:nth-child(6) { width: 225px !important; }
+.backend-data-table th:nth-child(7), .backend-data-table td:nth-child(7) { width: 300px !important; }
+.backend-data-table th:nth-child(8), .backend-data-table td:nth-child(8) { width: 150px !important; }
+
+/* Long names and full station names on PMB bay tiles as well. */
+.pmb-pill-customer,
+.pmb-card-customer,
+.pmb-bay-pill .pmb-pill-customer,
+.pmb-card-detail .pmb-card-customer {
+  max-width: none !important;
+  white-space: normal !important;
+  overflow: visible !important;
+  text-overflow: clip !important;
+  overflow-wrap: anywhere !important;
+  word-break: normal !important;
+}
+
+.pmb-outstanding-stations {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  gap: 4px !important;
+}
+.pmb-outstanding-station {
+  border-radius: 4px !important;
+  padding: 3px 5px !important;
+  font-size: 10px !important;
+  white-space: nowrap !important;
+}
+
+/* Keep the aligned grid on small screens; the page/list scrolls horizontally. */
+@media (max-width: 1100px) {
+  .app-shell { grid-template-columns: 184px minmax(0, 1fr) !important; }
+  .main { padding: 11px !important; }
+  .topbar { align-items: flex-start !important; }
+  .topbar-actions { max-width: 58% !important; }
+}
+
+@media (max-width: 820px) {
+  .app-shell { grid-template-columns: 72px minmax(0, 1fr) !important; }
+  .sidebar { padding: 12px 8px !important; }
+  .brand-text,
+  .sidebar-card { display: none !important; }
+  .nav-item { padding: 9px 6px !important; font-size: 0 !important; text-align: center !important; }
+  .nav-item::after { content: attr(data-short); font-size: 10px !important; font-weight: 800 !important; }
+  .main { padding: 8px !important; }
+  .topbar { display: grid !important; }
+  .topbar-actions { max-width: none !important; justify-content: flex-start !important; }
+  .incoming-vehicle-summary,
+  #workflow .incoming-vehicle-summary,
+  .rft-vehicle-summary,
+  .deleted-vehicle-summary,
+  .pdc-production-grid-row,
+  .pdc-production-grid-header {
+    min-width: var(--pdc-grid-min) !important;
+    grid-template-columns: var(--pdc-grid-template) !important;
+  }
+}
+
+
+/* ==========================================================================
+   2026.07.10.23 — Uniform Stage Matrix
+   Equal stage columns on every production-grid page. Full station names live
+   once in a 45-degree header; vehicle rows use compact, equally sized status
+   cells with accessible labels and native hover tooltips.
+   ========================================================================== */
+
+html {
+  --pdc-grid-min: 1430px;
+  --pdc-grid-stations-width: 444px;
+  --pdc-station-template: repeat(8, 52px);
+}
+
+html[data-row-width="compact"] {
+  --pdc-grid-min: 1365px;
+}
+
+html[data-row-width="wide"] {
+  --pdc-grid-min: 1620px;
+}
+
+html[data-row-width="xl"] {
+  --pdc-grid-min: 1815px;
+}
+
+/* The taller header is paid once; every vehicle row then stays compact. */
+.pdc-production-grid-header {
+  min-height: 78px !important;
+  align-items: end !important;
+  padding-top: 6px !important;
+  padding-bottom: 7px !important;
+}
+
+.pdc-grid-control-heading,
+.pdc-grid-select-heading,
+.pdc-grid-identity-heading,
+.pdc-grid-vehicle-heading,
+.pdc-grid-meta-heading,
+.pdc-grid-status-heading,
+.pdc-grid-action-heading {
+  align-self: end !important;
+  padding-bottom: 3px !important;
+}
+
+/* All eight stage tracks are identical: 52px wide with a 4px gap. */
+.pdc-grid-stations-heading,
+.pdc-station-strip,
+.incoming-work-checks,
+#workflow .incoming-work-checks {
+  grid-template-columns: repeat(8, 52px) !important;
+  gap: 4px !important;
+  width: 444px !important;
+  min-width: 444px !important;
+  max-width: 444px !important;
+}
+
+/* Full names appear once, angled over their matching status columns. */
+.pdc-grid-stations-heading {
+  position: relative !important;
+  height: 64px !important;
+  align-self: end !important;
+  align-items: end !important;
+  overflow: visible !important;
+}
+
+.pdc-grid-station-heading {
+  position: relative !important;
+  display: block !important;
+  width: 52px !important;
+  height: 64px !important;
+  min-width: 52px !important;
+  overflow: visible !important;
+  text-align: left !important;
+}
+
+.pdc-grid-station-heading > span {
+  position: absolute !important;
+  left: 10px !important;
+  bottom: 3px !important;
+  display: block !important;
+  max-width: none !important;
+  white-space: nowrap !important;
+  transform: rotate(-45deg) !important;
+  transform-origin: left bottom !important;
+  color: #4c5a69 !important;
+  font-size: 9.5px !important;
+  font-weight: 850 !important;
+  line-height: 1 !important;
+  letter-spacing: 0 !important;
+  text-transform: none !important;
+}
+
+/* Row labels stay in the DOM for accessibility, but are not repeated visually. */
+.incoming-work-label {
+  display: none !important;
+}
+
+.incoming-work-check {
+  position: relative !important;
+  display: grid !important;
+  place-items: center !important;
+  width: 52px !important;
+  min-width: 52px !important;
+  max-width: 52px !important;
+  height: 30px !important;
+  min-height: 30px !important;
+  padding: 0 !important;
+  gap: 0 !important;
+  border-radius: 4px !important;
+  cursor: help !important;
+  font-variant-numeric: tabular-nums !important;
+}
+
+.incoming-work-box {
+  display: grid !important;
+  place-items: center !important;
+  width: 100% !important;
+  height: 100% !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  color: inherit !important;
+  opacity: 1 !important;
+  font-size: 15px !important;
+  font-weight: 950 !important;
+  line-height: 1 !important;
+}
+
+.incoming-work-check.is-not-required {
+  border-color: #d8e0e8 !important;
+  background: #f4f6f8 !important;
+  color: #9aa5b1 !important;
+}
+
+.incoming-work-check.is-required {
+  border-color: #ee9caf !important;
+  background: #fff0f3 !important;
+  color: #a3133b !important;
+}
+
+.incoming-work-check.is-complete {
+  border-color: #75c795 !important;
+  background: #edf9f1 !important;
+  color: #146c3b !important;
+}
+
+.incoming-work-check.is-blocked {
+  border-color: #d93434 !important;
+  background: #ffe8e8 !important;
+  color: #9f1111 !important;
+  box-shadow: inset 0 0 0 1px rgba(159, 17, 17, .12) !important;
+}
+
+.incoming-work-check:hover {
+  filter: brightness(.98) !important;
+  box-shadow: 0 0 0 2px rgba(29, 78, 216, .14) !important;
+}
+
+/* Keep the matrix identical in all row-width modes and on narrow screens. */
+@media (max-width: 820px) {
+  .pdc-grid-stations-heading,
+  .pdc-station-strip,
+  .incoming-work-checks,
+  #workflow .incoming-work-checks {
+    grid-template-columns: repeat(8, 52px) !important;
+    width: 444px !important;
+    min-width: 444px !important;
+    max-width: 444px !important;
+  }
+}

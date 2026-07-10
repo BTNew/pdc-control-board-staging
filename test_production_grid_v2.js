@@ -1,0 +1,53 @@
+'use strict';
+
+const fs = require('fs');
+const path = require('path');
+const assert = require('assert');
+
+const root = __dirname;
+const app = fs.readFileSync(path.join(root, 'app.js'), 'utf8');
+const css = fs.readFileSync(path.join(root, 'styles.css'), 'utf8');
+const htmlFiles = ['index.html', 'no-vehicles.html', 'test-50.html', 'test-75.html', 'test-100.html'];
+
+assert.match(app, /const APP_VERSION = '2026\.07\.10\.23-uniform-stage-matrix';/);
+assert.match(app, /function productionGridHeaderHtml\(/);
+assert.match(app, /function incomingWorkChecklistHtml\(/);
+assert.match(app, /class="incoming-work-checks pdc-station-strip"/);
+assert.match(app, /pdc-production-grid-row/);
+assert.match(app, /pdc-production-grid-static-row/);
+assert.match(app, /<span>Key<\/span><span>Stock<\/span><span>Job Card<\/span><span>Customer<\/span>/);
+
+for (const station of ['Parts', 'Tint', 'Hoist', 'Fitting', 'Fabrication', 'Electrical', 'Tyre Bay', 'Pit Inspection']) {
+  assert.ok(app.includes(`'${station}'`) || app.includes(`\`${station}`) || app.includes(`>${station}<`) || app.includes(station), `Missing full station label: ${station}`);
+}
+
+assert.doesNotMatch(app, /truncate\(\s*(?:customer|vehicleCustomerName)/i, 'Customer names must not be truncated');
+assert.match(app, /<th>Parts status<\/th><th>JITA<\/th><th>Key<\/th><th>Stock<\/th><th>Job Card<\/th><th>Customer<\/th><th>Vehicle<\/th>/);
+assert.match(app, /<th>Collected<\/th><th>Key<\/th><th>Stock<\/th><th>Job Card<\/th><th>Customer<\/th><th>Vehicle<\/th>/);
+assert.match(app, /<thead><tr><th>Key<\/th><th>Stock<\/th><th>Job Card<\/th><th>Customer<\/th><th>Vehicle<\/th>/);
+
+const v2Css = css.slice(css.indexOf('2026.07.10.22 — Production Grid V2'));
+assert.ok(v2Css.length > 1000, 'Production Grid V2 CSS block is missing');
+assert.match(v2Css, /--pdc-grid-template:/);
+assert.match(v2Css, /--pdc-station-template:/);
+assert.match(v2Css, /\.pdc-production-grid-header,[\s\S]*?grid-template-columns:\s*var\(--pdc-grid-template\)/);
+assert.match(v2Css, /\.pdc-grid-stations-heading,[\s\S]*?grid-template-columns:\s*var\(--pdc-station-template\)/);
+assert.match(v2Css, /\.identity-name \.vehicle-identity-value,[\s\S]*?white-space:\s*normal\s*!important/);
+assert.match(v2Css, /\.incoming-work-label[\s\S]*?white-space:\s*nowrap\s*!important/);
+assert.match(v2Css, /\.incoming-vehicle-card,[\s\S]*?overflow:\s*visible\s*!important/);
+assert.match(v2Css, /\.parts-table\s*\{[\s\S]*?width:\s*1980px\s*!important/);
+assert.match(v2Css, /\.completed-table\s*\{[\s\S]*?width:\s*1730px\s*!important/);
+assert.match(v2Css, /\.backend-data-table\s*\{[\s\S]*?width:\s*1490px\s*!important/);
+
+for (const file of htmlFiles) {
+  const html = fs.readFileSync(path.join(root, file), 'utf8');
+  assert.ok(html.includes('2026.07.10.23-uniform-stage-matrix'), `${file} has stale cache-busting/version text`);
+  assert.ok(html.includes('data-view="backend"'), `${file} is missing Back End Data navigation`);
+  assert.ok(html.includes('id="backend"'), `${file} is missing the Back End Data view`);
+  assert.ok(html.includes('Fabrication'), `${file} is missing the full Fabrication label`);
+  assert.ok(html.includes('Electrical'), `${file} is missing the full Electrical label`);
+  assert.ok(html.includes('Tyre Bay'), `${file} is missing the full Tyre Bay label`);
+  assert.ok(html.includes('Pit Inspection'), `${file} is missing the full Pit Inspection label`);
+}
+
+console.log('Production Grid V2 regression checks passed');

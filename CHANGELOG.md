@@ -1,5 +1,24 @@
 # Changelog
 
+## 2026-07-10 — Uniform Stage Matrix
+
+- Standardised all eight vehicle-stage cells to the same 52 px × 30 px size across the shared production-grid pages.
+- Moved the full station names into the sticky header and angled them at 45 degrees, so labels are shown once rather than repeated in every row.
+- Replaced blank not-required cells with a restrained dash and retained clear symbols for complete, outstanding and blocked states.
+- Reduced the station strip from 574 px to 444 px, returning the saved width to the flexible Customer column.
+- Kept full accessible station/status labels and hover tooltips; no vowel-stripped labels or ambiguous abbreviations were introduced.
+- Added `test_uniform_stage_matrix.js` and browser-computed validation across Vehicle Locations, Control Board, Pipeline, Schedule, Department and RFT views.
+
+## 2026-07-10 — Production Grid V2
+
+- Replaced card-style vehicle rows with one aligned production-grid row across Vehicle Locations, Control Board, Pipeline, Schedule, Department, RFT and Deleted views.
+- Added full named station columns for Parts, Tint, Hoist, Fitting, Fabrication, Electrical, Tyre Bay and Pit Inspection.
+- Made Customer the flexible identity column; long organisation names remain complete and wrap while Key, Stock and Job Card stay aligned.
+- Rebuilt Parts, Completed and Back End Data as compact data-grid tables with separate identity, customer and vehicle columns.
+- Removed horizontal scrolling from individual vehicle rows; each list or table now owns one scrollbar when the screen is narrower than the grid.
+- Tightened page chrome, filters, KPI cards and buttons to recover usable screen space without reducing the main row text below 13 px.
+- Added `test_production_grid_v2.js` and browser-render validation for all principal and supporting production views.
+
 ## 2026-07-10 — Worker review clean version
 
 - Tightened the worker review build so row chips stay contained on the right instead of overflowing off-screen on narrower desktop views.
@@ -24,7 +43,7 @@
 - Updated default vehicle table columns to current stage IDs and bumped saved column-order storage to v3.
 - Added explicit Parts required/complete import mappings.
 - Changed main CSV export to generate job columns dynamically from current PDC job definitions.
-- Updated mobile stage/job model to Tint, Hoist, Fitting, Fabrication, Electrical, Tyre bay, Pit Inspection, and Parts.
+- Updated mobile stage/job model to Tint, Hoist, Fitting, Fabrication, Electrical, Tyre Bay, Pit Inspection, and Parts.
 - Cleaned visible old-stage wording and updated import guidance text.
 - Removed CDN script tags for QZ Tray/PDF.js so the package stays self-contained; printing/PDF extraction now use existing graceful fallbacks when those libraries are unavailable.
 
@@ -47,7 +66,7 @@
 - Reordered Parts summary cards to surface Stoppages first, then open/order/waiting/complete work.
 - Reordered Parts table columns around actionability: status, stock, ETA/age, blocker, actions, then supporting context.
 - Highlighted stoppage rows and cards more strongly so blockers are visible first.
-- Added focused PMB bay guidance per work stream; current visible stages are Tint, Hoist, Fitting, Fabrication, Electrical, Tyre bay and Pit Inspection.
+- Added focused PMB bay guidance per work stream; current visible stages are Tint, Hoist, Fitting, Fabrication, Electrical, Tyre Bay and Pit Inspection.
 - Simplified PMB bay cards to show the current station status rather than all department job markers.
 - Clarified PMB board guidance that vehicles land in Unallocated first and are manually assigned to production streams.
 - Added documentation set: PROJECT_BRIEF, CHANGELOG, TODO, BUGS and SECURITY.

@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>PDC Control Board — Random 100 Vehicle Test</title>
-  <link rel="stylesheet" href="styles.css?v=2026.07.10.19-flat-all-pages" />
+  <link rel="stylesheet" href="styles.css?v=2026.07.10.23-uniform-stage-matrix" />
 </head>
 <body>
   <div class="test-data-banner" style="position:sticky;top:0;z-index:9999;background:#6d28d9;color:#fff;padding:8px 14px;text-align:center;font-weight:700;letter-spacing:.02em;">TEST DATASET — 100 SAMPLE VEHICLES ONLY — separate from live board</div>
@@ -27,6 +27,7 @@
         <button class="nav-item" data-view="rft" data-short="RFT">RFT</button>
         <button class="nav-item" data-view="completed" data-short="DONE">Completed vehicles</button>
         <button class="nav-item" data-view="deleted" data-short="DEL">Deleted vehicles</button>
+        <button class="nav-item" data-view="backend" data-short="DATA">Back End Data</button>
         <button class="nav-item" data-view="lists" data-short="SET">Setup</button>
         <button class="nav-item" data-view="import" data-short="U">Uploads</button>
       </nav>
@@ -105,13 +106,13 @@
               </label>
               <fieldset class="incoming-work-filter-checks" aria-label="Work type filters">
                 <legend>Work type</legend>
-                <label><input type="checkbox" name="incoming-work-filter" value="tint" /> TINT</label>
-                <label><input type="checkbox" name="incoming-work-filter" value="hoist" /> HOIST</label>
-                <label><input type="checkbox" name="incoming-work-filter" value="fitting" /> FITTING</label>
-                <label><input type="checkbox" name="incoming-work-filter" value="fabrication" /> FAB</label>
-                <label><input type="checkbox" name="incoming-work-filter" value="electrical" /> ELEC</label>
-                <label><input type="checkbox" name="incoming-work-filter" value="tyre" /> TYRE</label>
-                <label><input type="checkbox" name="incoming-work-filter" value="pitinspection" /> PIT</label>
+                <label><input type="checkbox" name="incoming-work-filter" value="tint" /> Tint</label>
+                <label><input type="checkbox" name="incoming-work-filter" value="hoist" /> Hoist</label>
+                <label><input type="checkbox" name="incoming-work-filter" value="fitting" /> Fitting</label>
+                <label><input type="checkbox" name="incoming-work-filter" value="fabrication" /> Fabrication</label>
+                <label><input type="checkbox" name="incoming-work-filter" value="electrical" /> Electrical</label>
+                <label><input type="checkbox" name="incoming-work-filter" value="tyre" /> Tyre Bay</label>
+                <label><input type="checkbox" name="incoming-work-filter" value="pitinspection" /> Pit Inspection</label>
               </fieldset>
               <button class="primary incoming-find-button" id="incoming-find" type="button">Find</button>
               <button class="small-button" id="incoming-clear-filters" type="button">Clear</button>
@@ -309,7 +310,7 @@
             <div class="panel-header">
               <div>
                 <h2>Production</h2>
-                <p>Production / In Transit list sorted by earliest Kewdale arrival first. PMB bay work uses Tint (internal), Hoist, Fitting, Fabrication, Electrical, Tyre bay and Pit Inspection. No Navision tracker is shown here.</p>
+                <p>Production / In Transit list sorted by earliest Kewdale arrival first. PMB bay work uses Tint (internal), Hoist, Fitting, Fabrication, Electrical, Tyre Bay and Pit Inspection. No Navision tracker is shown here.</p>
               </div>
               <span class="badge neutral" id="schedule-count">0 vehicles</span>
             </div>
@@ -327,7 +328,7 @@
                   <option value="FITTING">Fitting</option>
                   <option value="FABRICATION">Fabrication</option>
                   <option value="ELECTRICAL">Electrical</option>
-                  <option value="TYRE">Tyre bay</option>
+                  <option value="TYRE">Tyre Bay</option>
                   <option value="PIT_INSPECTION">Pit Inspection</option>
                 </select>
               </label>
@@ -501,6 +502,29 @@
           </section>
         </div>
       </section>
+
+      <section id="backend" class="view">
+        <div class="parts-home-layout backend-data-layout">
+          <section class="panel parts-home-panel backend-data-panel">
+            <div class="panel-header">
+              <div>
+                <h2>Back End Data</h2>
+                <p>All imported/current tracker vehicles plus rows moved to Deleted after a later Navision dump no longer contains them.</p>
+              </div>
+              <div class="panel-actions">
+                <span class="status-pill" id="backend-data-count">0 current · 0 deleted</span>
+                <button class="small-button" type="button" data-view-target="import">Upload Navision dump</button>
+              </div>
+            </div>
+            <div class="parts-help-strip">
+              <strong>Navision refresh:</strong>
+              <span>Full Navision imports now bring in every row. If cleanup is enabled, vehicles missing from the new dump move to Deleted and no longer show on Vehicle Locations.</span>
+            </div>
+            <div id="backend-data-content" class="parts-home-content backend-data-content"></div>
+          </section>
+        </div>
+      </section>
+
 
       <section id="zpl" class="view">
         <div class="panel zpl-panel">
@@ -810,7 +834,7 @@
       }
     }());
   </script>
-  <script src="data-test-100.js?v=2026.07.10.19-flat-all-pages"></script>
-  <script src="app.js?v=2026.07.10.19-flat-all-pages"></script>
+  <script src="data-test-100.js?v=2026.07.10.23-uniform-stage-matrix"></script>
+  <script src="app.js?v=2026.07.10.23-uniform-stage-matrix"></script>
 </body>
 </html>

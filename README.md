@@ -10,17 +10,21 @@ Open `index.html` directly, or serve the folder with a static file server:
 python -m http.server 8765 --bind 127.0.0.1
 ```
 
-Then open `http://127.0.0.1:8765/?v=review-update`.
+Then open `http://127.0.0.1:8765/?v=2026.07.10.23-uniform-stage-matrix`.
 
 ## Main workflow
 
-1. Go to **Uploads** and import/paste the latest Navision export.
-2. Use **Control Board** for the daily vehicle list and the **Fix First** exception strip.
+1. Go to **Uploads** and import or paste the latest Navision export.
+2. Use **Vehicle Locations** for the daily location list, search, filters and bulk movement controls.
 3. Transfer Yard Hold vehicles into PMB. They must land in **Unallocated** first.
-4. Use **PMB Workflow** to manually assign the PMB stage and, when ready, the physical bay.
-5. Use **Parts** to order/sign off parts and manage parts stoppages.
-6. Use **RFT** to review final gate readiness and notify only when all required jobs are complete.
-7. Use **Reports** for supporting PDC lists and backup/export tools.
+4. Use **Control Board** to assign the PMB station, drag vehicles between station queues and open physical bay scheduling.
+5. Use **Parts** to order or sign off parts and manage parts stoppages.
+6. Use **RFT** to review final gate readiness and mark collection only after all required jobs are complete.
+7. Use **Completed vehicles**, **Deleted vehicles** and **Back End Data** for history and supporting records.
+
+## Production Grid V2
+
+Build `2026.07.10.23-uniform-stage-matrix` uses one aligned vehicle-row system throughout the application. Key, Stock and Job Card use fixed tracks; Customer uses the flexible track and wraps without truncation. The eight station columns are identical 52 px × 30 px status cells, while their full names appear once in a 45-degree sticky header. Individual vehicle rows do not have their own horizontal scrollbars. See `PRODUCTION_GRID_V2_UPDATE.md` and `UNIFORM_STAGE_MATRIX_UPDATE.md` for the implementation and validation record.
 
 ## Current PMB stages and capacities
 
@@ -29,7 +33,7 @@ Then open `http://127.0.0.1:8765/?v=review-update`.
 - Fitting: 5 bays
 - Fabrication: Refer Dan / non-fixed capacity
 - Electrical: 10 bays
-- Tyre bay: 2 bays, including 1 wheel-alignment bay
+- Tyre Bay: 2 bays, including 1 wheel-alignment bay
 - Pit Inspection: 1 bay
 
 ## Current required job model
@@ -41,7 +45,7 @@ The app uses these PDC job definitions consistently for the main board, PMB work
 - Fitting
 - Fabrication
 - Electrical
-- Tyre bay
+- Tyre Bay
 - Pit Inspection
 - Parts
 
@@ -90,6 +94,8 @@ node --check data.js
 node test_navision_confirm.js
 node test_parts_production_principles.js
 node test_review_update_alignment.js
+node test_production_grid_v2.js
+node test_uniform_stage_matrix.js
 ```
 
 ## Known limitations
