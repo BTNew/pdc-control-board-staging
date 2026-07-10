@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.07.10.16-pmb-parts-navision-fixes';
+const APP_VERSION = '2026.07.10.17-remove-top-fix-first';
 window.VEHICLE_TRACKING_DATA = window.VEHICLE_TRACKING_DATA || { report: {}, vehicles: [], toyotaMatches: {} };
 const EDITS_KEY = 'vehicleTrackingCoreNavisionOnlyEdits:v1';
 const ADDED_KEY = 'vehicleTrackingCoreNavisionOnlyVehicles:v1';
@@ -1965,7 +1965,6 @@ function renderActiveView() {
   switch (view) {
     case 'dashboard':
       renderKpis();
-      renderFixFirstGrid();
       renderIncomingDashboardBoard();
       renderVehicleTable();
       break;
