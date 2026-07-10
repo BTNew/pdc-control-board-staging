@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>PDC Control Board — Random 100 Vehicle Test</title>
-  <link rel="stylesheet" href="styles.css?v=2026.07.10.23-uniform-stage-matrix" />
+  <link rel="stylesheet" href="styles.css?v=2026.07.11.01-short-stage-headers" />
 </head>
 <body>
   <div class="test-data-banner" style="position:sticky;top:0;z-index:9999;background:#6d28d9;color:#fff;padding:8px 14px;text-align:center;font-weight:700;letter-spacing:.02em;">TEST DATASET — 100 SAMPLE VEHICLES ONLY — separate from live board</div>
@@ -109,10 +109,10 @@
                 <label><input type="checkbox" name="incoming-work-filter" value="tint" /> Tint</label>
                 <label><input type="checkbox" name="incoming-work-filter" value="hoist" /> Hoist</label>
                 <label><input type="checkbox" name="incoming-work-filter" value="fitting" /> Fitting</label>
-                <label><input type="checkbox" name="incoming-work-filter" value="fabrication" /> Fabrication</label>
-                <label><input type="checkbox" name="incoming-work-filter" value="electrical" /> Electrical</label>
-                <label><input type="checkbox" name="incoming-work-filter" value="tyre" /> Tyre Bay</label>
-                <label><input type="checkbox" name="incoming-work-filter" value="pitinspection" /> Pit Inspection</label>
+                <label><input type="checkbox" name="incoming-work-filter" value="fabrication" /> Fab</label>
+                <label><input type="checkbox" name="incoming-work-filter" value="electrical" /> Elec</label>
+                <label><input type="checkbox" name="incoming-work-filter" value="tyre" /> Tyre</label>
+                <label><input type="checkbox" name="incoming-work-filter" value="pitinspection" /> Pit</label>
               </fieldset>
               <button class="primary incoming-find-button" id="incoming-find" type="button">Find</button>
               <button class="small-button" id="incoming-clear-filters" type="button">Clear</button>
@@ -326,10 +326,10 @@
                   <option value="TINT">Tint (internal)</option>
                   <option value="HOIST">Hoist</option>
                   <option value="FITTING">Fitting</option>
-                  <option value="FABRICATION">Fabrication</option>
-                  <option value="ELECTRICAL">Electrical</option>
-                  <option value="TYRE">Tyre Bay</option>
-                  <option value="PIT_INSPECTION">Pit Inspection</option>
+                  <option value="FABRICATION">Fab</option>
+                  <option value="ELECTRICAL">Elec</option>
+                  <option value="TYRE">Tyre</option>
+                  <option value="PIT_INSPECTION">Pit</option>
                 </select>
               </label>
             </div>
@@ -834,7 +834,7 @@
       }
     }());
   </script>
-  <script src="data-test-100.js?v=2026.07.10.23-uniform-stage-matrix"></script>
-  <script src="app.js?v=2026.07.10.23-uniform-stage-matrix"></script>
+  <script src="data-test-100.js?v=2026.07.11.01-short-stage-headers"></script>
+  <script src="app.js?v=2026.07.11.01-short-stage-headers"></script>
 </body>
 </html>

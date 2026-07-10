@@ -8,13 +8,13 @@ const root = __dirname;
 const app = fs.readFileSync(path.join(root, 'app.js'), 'utf8');
 const css = fs.readFileSync(path.join(root, 'styles.css'), 'utf8');
 const htmlFiles = ['index.html', 'no-vehicles.html', 'test-50.html', 'test-75.html', 'test-100.html'];
-const version = '2026.07.10.23-uniform-stage-matrix';
+const version = '2026.07.11.01-short-stage-headers';
 
 assert.match(app, new RegExp(`const APP_VERSION = '${version.replaceAll('.', '\\.')}'`));
 assert.match(app, /pdc-grid-station-heading[^`]*title="\$\{escapeHtml\(label\)\}"><span>\$\{escapeHtml\(label\)\}<\/span>/);
 assert.match(app, /const marker = complete \? '✓' : blocked \? '!' : required \? '•' : '–';/);
 
-for (const label of ['Parts', 'Tint', 'Hoist', 'Fitting', 'Fabrication', 'Electrical', 'Tyre Bay', 'Pit Inspection']) {
+for (const label of ['Parts', 'Tint', 'Hoist', 'Fitting', 'Fab', 'Elec', 'Tyre', 'Pit']) {
   assert.ok(app.includes(label), `Missing full stage label: ${label}`);
 }
 

@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.07.10.23-uniform-stage-matrix';
+const APP_VERSION = '2026.07.11.01-short-stage-headers';
 window.VEHICLE_TRACKING_DATA = window.VEHICLE_TRACKING_DATA || { report: {}, vehicles: [], toyotaMatches: {} };
 const EDITS_KEY = 'vehicleTrackingCoreNavisionOnlyEdits:v1';
 const ADDED_KEY = 'vehicleTrackingCoreNavisionOnlyVehicles:v1';
@@ -74,10 +74,10 @@ const PMB_STAGE_OPTIONS = [
   { value: 'TINT', label: 'Tint' },
   { value: 'HOIST', label: 'Hoist' },
   { value: 'FITTING', label: 'Fitting' },
-  { value: 'FABRICATION', label: 'Fabrication' },
-  { value: 'ELECTRICAL', label: 'Electrical' },
-  { value: 'TYRE', label: 'Tyre Bay' },
-  { value: 'PIT_INSPECTION', label: 'Pit Inspection' },
+  { value: 'FABRICATION', label: 'Fab' },
+  { value: 'ELECTRICAL', label: 'Elec' },
+  { value: 'TYRE', label: 'Tyre' },
+  { value: 'PIT_INSPECTION', label: 'Pit' },
   { value: 'SUBLET', label: 'Sublet' },
 ];
 
@@ -130,10 +130,10 @@ const PRODUCTION_FLOW_DEFS = [
   { key: 'TINT', label: 'Tint', short: 'T', jobKey: 'tint', stage: 'TINT', search: /\b(tint|tinting|window tint)\b/i },
   { key: 'HOIST', label: 'Hoist', short: 'H', jobKey: 'hoist', stage: 'HOIST', search: /\b(hoist|suspension|gvm|lift kit|lift|underbody|towbar|tow bar)\b/i },
   { key: 'FITTING', label: 'Fitting', short: 'F', jobKey: 'fitting', stage: 'FITTING', search: /\b(fit|fitting|build|pdi|pre delivery|pre-delivery|accessor(?:y|ies)|job card|workshop)\b/i },
-  { key: 'FABRICATION', label: 'Fabrication', short: 'Fa', jobKey: 'fabrication', stage: 'FABRICATION', search: /\b(fab|fabricat|tray|canopy|body builder|bodybuilder|steel tray|aluminium tray|tub body|bullbar|bar work)\b/i },
-  { key: 'ELECTRICAL', label: 'Electrical', short: 'E', jobKey: 'electrical', stage: 'ELECTRICAL', search: /\b(electrical|auto electrical|auto-elec|12v|dual battery|battery system|uhf|spotlight|light bar|beacon|compressor|anderson|redarc|brake controller|dc dc|dcdc|dash cam|camera|reverse camera|power outlet|usb)\b/i },
-  { key: 'TYRE', label: 'Tyre Bay', short: 'Ty', jobKey: 'tyre', stage: 'TYRE', search: /\b(tyre|tire|wheel|wheels|alloy|rotation|balance|alignment)\b/i },
-  { key: 'PIT_INSPECTION', label: 'Pit Inspection', short: 'PI', jobKey: 'pitInspection', stage: 'PIT_INSPECTION', search: /\b(pit inspection|pit|inspection)\b/i },
+  { key: 'FABRICATION', label: 'Fab', short: 'Fa', jobKey: 'fabrication', stage: 'FABRICATION', search: /\b(fab|fabricat|tray|canopy|body builder|bodybuilder|steel tray|aluminium tray|tub body|bullbar|bar work)\b/i },
+  { key: 'ELECTRICAL', label: 'Elec', short: 'E', jobKey: 'electrical', stage: 'ELECTRICAL', search: /\b(electrical|auto electrical|auto-elec|12v|dual battery|battery system|uhf|spotlight|light bar|beacon|compressor|anderson|redarc|brake controller|dc dc|dcdc|dash cam|camera|reverse camera|power outlet|usb)\b/i },
+  { key: 'TYRE', label: 'Tyre', short: 'Ty', jobKey: 'tyre', stage: 'TYRE', search: /\b(tyre|tire|wheel|wheels|alloy|rotation|balance|alignment)\b/i },
+  { key: 'PIT_INSPECTION', label: 'Pit', short: 'PI', jobKey: 'pitInspection', stage: 'PIT_INSPECTION', search: /\b(pit inspection|pit|inspection)\b/i },
 ];
 const PRODUCTION_DEPARTMENT_VIEWS = {
   'dept-tint': 'TINT',
@@ -678,10 +678,10 @@ const PDC_GRID_JOB_LABELS = {
   tint: 'Tint',
   hoist: 'Hoist',
   fitting: 'Fitting',
-  fabrication: 'Fabrication',
-  electrical: 'Electrical',
-  tyre: 'Tyre Bay',
-  pitInspection: 'Pit Inspection',
+  fabrication: 'Fab',
+  electrical: 'Elec',
+  tyre: 'Tyre',
+  pitInspection: 'Pit',
 };
 
 function pdcGridJobLabel(def = {}) {
