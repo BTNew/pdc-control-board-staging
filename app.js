@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.07.10.17-remove-top-fix-first';
+const APP_VERSION = '2026.07.10.18-flat-table-rows';
 window.VEHICLE_TRACKING_DATA = window.VEHICLE_TRACKING_DATA || { report: {}, vehicles: [], toyotaMatches: {} };
 const EDITS_KEY = 'vehicleTrackingCoreNavisionOnlyEdits:v1';
 const ADDED_KEY = 'vehicleTrackingCoreNavisionOnlyVehicles:v1';
