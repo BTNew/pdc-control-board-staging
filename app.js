@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.07.10.14-tristate-work';
+const APP_VERSION = '2026.07.10.15-sublet-stoppage-eta';
 window.VEHICLE_TRACKING_DATA = window.VEHICLE_TRACKING_DATA || { report: {}, vehicles: [], toyotaMatches: {} };
 const EDITS_KEY = 'vehicleTrackingCoreNavisionOnlyEdits:v1';
 const ADDED_KEY = 'vehicleTrackingCoreNavisionOnlyVehicles:v1';
@@ -78,6 +78,7 @@ const PMB_STAGE_OPTIONS = [
   { value: 'ELECTRICAL', label: 'ELEC' },
   { value: 'TYRE', label: 'TYRE' },
   { value: 'PIT_INSPECTION', label: 'PIT' },
+  { value: 'SUBLET', label: 'SUBLET' },
 ];
 
 const PMB_STAGE_DEFS = PMB_STAGE_OPTIONS.filter(option => option.value);
@@ -93,6 +94,7 @@ const PMB_WIP_LIMITS = {
   ELECTRICAL: 10,
   TYRE: 2,
   PIT_INSPECTION: 1,
+  SUBLET: 12,
 };
 
 const PMB_STAGE_BAY_COUNTS = {
@@ -108,6 +110,7 @@ const PMB_STAGE_BAY_COUNTS = {
 const PMB_STAGE_CAPACITY_LABELS = {
   FABRICATION: '13 bays',
   TYRE: '2 bays · 1 wheel alignment bay',
+  SUBLET: 'Provider queue',
 };
 
 const PMB_STAGE_AGE_LIMITS = {
@@ -238,7 +241,7 @@ function normalizePmbStage(value = '') {
   if (clean.includes('ELECTRICAL') || clean.includes('AUTO ELEC') || clean.includes('AUTO-ELEC') || clean.includes('12V') || clean.includes('UHF')) return 'ELECTRICAL';
   if (clean.includes('TYRE') || clean.includes('TIRE') || clean.includes('WHEEL')) return 'TYRE';
   if (clean.includes('PIT') || clean.includes('INSPECTION')) return 'PIT_INSPECTION';
-  if (clean.includes('SUBLET') || clean.includes('SUB-LET') || clean.includes('SUB LET') || clean.includes('OUTSOURCE') || clean.includes('EXTERNAL')) return '';
+  if (clean.includes('SUBLET') || clean.includes('SUB-LET') || clean.includes('SUB LET') || clean.includes('OUTSOURCE') || clean.includes('EXTERNAL')) return 'SUBLET';
   return '';
 }
 
@@ -1184,11 +1187,7 @@ function getStage(vehicle) {
   return 'Needs Matching';
 }
 
-const STATUS_TAB_DEFS = [
-  { key: 'incoming', label: 'All incoming', className: 'status-tab-batchmatched', sub: 'Not at PMB/RFT' },
-  { key: 'prodtransit', label: 'Production / In Transit', className: 'status-tab-prodtransit', sub: 'Vehicles coming in' },
-  { key: 'yardhold', label: 'Vehicles at YH', className: 'status-tab-yardhold', sub: 'Ready to release to PMB' },
-];
+const STATUS_TAB_DEFS = [];
 const STATUS_TABS = STATUS_TAB_DEFS;
 
 function vehicleHasBatchNumber(vehicle = {}) {
@@ -2194,7 +2193,7 @@ function renderFixFirstGrid() {
   const host = $('#fix-first-grid');
   if (!host) return;
   const rows = workflowPriorityRows();
-  host.innerHTML = `<details class="fix-first-list" open><summary>Show stoppages</summary><div class="fix-first-list-body">${fixFirstRowsHtml(rows)}</div></details>`;
+  host.innerHTML = `<details class="fix-first-list"><summary>Show stoppages</summary><div class="fix-first-list-body">${fixFirstRowsHtml(rows)}</div></details>`;
   bindFixFirstRows(host);
 }
 
@@ -2205,7 +2204,7 @@ function workflowBoardStats() {
   const unallocated = pmbRows.filter(vehicle => !inferredPmbStage(vehicle)).length;
   const stageSteps = [
     { value: '', filter: PMB_STAGE_UNASSIGNED_FILTER, number: '0', title: 'Unallocated', action: 'Open list' },
-    ...PMB_STAGE_DEFS.map((def, index) => ({ value: def.value, filter: def.value, number: String(index + 1), title: def.label, action: 'Open bays' }))
+    ...PMB_STAGE_DEFS.map((def, index) => ({ value: def.value, filter: def.value, number: String(index + 1), title: def.label, action: def.value === 'SUBLET' ? 'Provider queue' : 'Open bays' }))
   ];
   return {
     total: pmbRows.length,
@@ -2219,7 +2218,7 @@ function workflowBoardStats() {
         ...step,
         count: vehicles.length,
         detail: step.value ? `${vehicles.length} in queue · oldest ${metrics.oldestStageDays}d${metrics.blockedCount ? ` · blocked ${metrics.blockedCount}` : ''}` : 'Vehicles need a PMB category',
-        rule: step.value ? 'Click to open the bay board for this PMB category.' : 'Assign these vehicles to the correct PMB category first.',
+        rule: step.value === 'SUBLET' ? 'Assign provider and track outsourced work in the SUBLET row.' : step.value ? 'Click to open the bay board for this PMB category.' : 'Assign these vehicles to the correct PMB category first.',
         target: step.filter,
         state: metrics.overLimit || metrics.blockedCount ? 'warning' : 'ready',
       };
@@ -2278,14 +2277,14 @@ function renderWorkflowBoard() {
       : `${capacityLabel} · ${allVehicles.length} in queue · oldest ${metrics.oldestStageDays}d${metrics.blockedCount ? ` · blocked ${metrics.blockedCount}` : ''}`;
     const openAttr = app.workflowBucketsCollapsed ? '' : ' open';
     const actions = lane.value
-      ? `<button class="small-button" type="button" data-open-pmb-bays="${escapeHtml(lane.value)}" title="Open ${escapeHtml(lane.label)} bay line">Open bays</button>`
+      ? (lane.value === 'SUBLET' ? `<span class="badge pmb-stage-badge pmb-stage-sublet">Provider dropdowns</span>` : `<button class="small-button" type="button" data-open-pmb-bays="${escapeHtml(lane.value)}" title="Open ${escapeHtml(lane.label)} bay line">Open bays</button>`)
       : '';
     return `
       <details class="incoming-bucket workflow-stage-bucket pmb-drop-lane ${escapeHtml(laneClasses)}" data-pmb-drop-stage="${escapeHtml(lane.value)}" aria-label="${escapeHtml(lane.label)} PMB bucket"${openAttr}>
         <summary class="incoming-bucket-title workflow-bucket-title">
           <span>${escapeHtml(lane.label)}</span>
           <strong>${escapeHtml(countLabel)}</strong>
-          <small>${escapeHtml(lane.value ? `${hint} · drop vehicles here or open bays` : `${hint} · drag these rows into a bucket`)}</small>
+          <small>${escapeHtml(lane.value ? `${hint} · ${lane.value === 'SUBLET' ? 'assign provider or drop vehicles here' : 'drop vehicles here or open bays'}` : `${hint} · drag these rows into a bucket`)}</small>
           <span class="workflow-bucket-actions">${actions}</span>
         </summary>
         <div class="incoming-bucket-list incoming-vertical-list workflow-vertical-list" data-pmb-drop-stage="${escapeHtml(lane.value)}">
@@ -2564,6 +2563,11 @@ function incomingVehicleDetailRow(vehicle = {}, bucketKey = '', options = {}) {
   const age = pmbAgeLabel(vehicle);
   const workChecks = incomingWorkChecklistHtml(vehicle);
   const required = pmbRequiredWorkLabels(vehicle).join(', ') || 'No PMB work flagged';
+  const stage = inferredPmbStage(vehicle);
+  const subletProvider = pmbBaySubletProvider(vehicle);
+  const subletProviderField = bucketKey === 'pmb' && stage === 'SUBLET'
+    ? `<div class="wide incoming-sublet-provider"><b>SUBLET provider</b><span><select data-pmb-bay-provider-key="${escapeHtml(key)}" data-pmb-bay-provider-stage="SUBLET" aria-label="SUBLET provider for ${escapeHtml(stock)}">${subletProviderOptionsHtml(subletProvider)}</select></span></div>`
+    : '';
   const gateIssues = bucketKey === 'pmb' ? vehiclesWithRftGateIssues([vehicle]).flatMap(row => row.issues || []) : [];
   const primaryAction = bucketKey === 'yardhold'
     ? `<button class="primary incoming-transfer-pmb" type="button" data-yh-transfer-pmb="${escapeHtml(key)}">Transfer YH → PMB</button>`
@@ -2597,6 +2601,7 @@ function incomingVehicleDetailRow(vehicle = {}, bucketKey = '', options = {}) {
         <div><b>Sales rep</b><span>${escapeHtml(consultant)}</span></div>
         <div><b>Age</b><span>${escapeHtml(age)}</span></div>
         <div><b>Bucket</b><span>${escapeHtml(incomingBucketLabel(bucketKey))}</span></div>
+        ${subletProviderField}
         <div class="wide"><b>PMB work required</b><span>${escapeHtml(required)}</span></div>
       </div>
     </details>`;
@@ -2621,7 +2626,12 @@ function renderIncomingDashboardBoard() {
     { key: 'transit', label: 'In Transit', hint: 'Wharf, shipment and WA transit', open: false },
     { key: 'overseas', label: 'Overseas / Other', hint: 'All other non-RFT vehicles not yet in transit/YH/PMB', open: false },
   ];
-  host.innerHTML = defs.map(def => {
+  const priorityRows = workflowPriorityRows();
+  const priorityHtml = filters.bucket ? '' : `<section class="incoming-priority-stoppages" aria-label="Parts and PMB stoppages">
+    <div class="incoming-priority-stoppages-head"><strong>Stoppages / Fix First</strong><span>${priorityRows.length} active</span><small>Red priority list before RFT. Sort Parts stoppages by Parts ETA so long-delay items fall lower.</small></div>
+    <details class="fix-first-list incoming-priority-list"><summary>Show stoppages</summary><div class="fix-first-list-body">${fixFirstRowsHtml(priorityRows)}</div></details>
+  </section>`;
+  host.innerHTML = priorityHtml + defs.map(def => {
     if (filters.bucket && filters.bucket !== def.key) return '';
     const vehicles = filteredRows.filter(vehicle => incomingBucketForVehicle(vehicle) === def.key)
       .sort((a, b) => (parseDateAU(navisionEtaForVehicle(a))?.getTime() || 9999999999999) - (parseDateAU(navisionEtaForVehicle(b))?.getTime() || 9999999999999));
@@ -2650,6 +2660,11 @@ function renderIncomingDashboardBoard() {
     event.stopPropagation();
     transferVehicleToRftFromCard(button.dataset.transferRftStock);
   }));
+  $$('[data-pmb-bay-provider-key]', host).forEach(select => {
+    select.addEventListener('click', event => event.stopPropagation());
+    select.addEventListener('change', () => updatePmbBaySubletProvider(select.dataset.pmbBayProviderKey, select.dataset.pmbBayProviderStage, select.value));
+  });
+  bindFixFirstRows(host);
   bindRftCollectedInputs(host);
   bindIncomingCardSelection(host);
   updateInlineSelectionBars(filteredRows);
@@ -10274,9 +10289,9 @@ function teamNotesText(vehicle) {
 
 function exportCsv() {
   const jobHeaders = PDC_JOB_DEFS.flatMap(def => [`Requires ${def.label}`, `${def.label} Complete`]);
-  const headers = ['SP','Stock','Toyota Order','Key Number','P/Month','Client','Vehicle','PDC Location','PMB Work Stream','PMB Bay','PMB Bay Hours','PMB Bay Scheduled Start','PMB Bay Started','PMB Bay Completed','PMB Requirements','PMB Completed','PMB Outstanding','Blocked','Blocked Reason','Bucket Days','Days Since Kewdale ETA','RFT Gate Issues','RFT Date','Navision Notes','Team Notes','Task', ...jobHeaders, 'PO Tasks','PO Files','Toyota Status (Sub Location)','Navision ETA','Delivery Date','JITA Parts Ordered','JITA Qty','Contact','Source','Autocare VIN','Autocare Batch','Autocare Load','Match Warning'];
+  const headers = ['SP','Stock','Toyota Order','Key Number','P/Month','Client','Vehicle','PDC Location','PMB Work Stream','SUBLET Provider','PMB Bay','PMB Bay Hours','PMB Bay Scheduled Start','PMB Bay Started','PMB Bay Completed','PMB Requirements','PMB Completed','PMB Outstanding','Blocked','Blocked Reason','Bucket Days','Days Since Kewdale ETA','Parts Status','Parts ETA','Parts Worst ETA','RFT Gate Issues','RFT Date','Navision Notes','Team Notes','Task', ...jobHeaders, 'PO Tasks','PO Files','Toyota Status (Sub Location)','Navision ETA','Delivery Date','JITA Parts Ordered','JITA Qty','Contact','Source','Autocare VIN','Autocare Batch','Autocare Load','Match Warning'];
   const lines = [headers.join(',')].concat(app.data.map(v => [
-    salesPersonInitials(consultantName(v)), displayStockNumber(v), v.order || '', vehicleKeyNumber(v), productionMonthLabel(v.prodMth || v.productionMonth || ''), v.client, displayVehicle(v), pdcLocationLabel(v.pdcLocation), pmbStageLabel(inferredPmbStage(v)), pmbBayNumber(v, inferredPmbStage(v)) || '', pmbBayHours(v) === '' ? '' : pmbBayHours(v), v.pmbBayScheduledStartAt ? new Date(v.pmbBayScheduledStartAt).toLocaleString('en-AU', { dateStyle: 'short', timeStyle: 'short' }) : '', v.pmbBayEnteredAt ? new Date(v.pmbBayEnteredAt).toLocaleString('en-AU', { dateStyle: 'short', timeStyle: 'short' }) : '', v.pmbBayCompletedAt ? new Date(v.pmbBayCompletedAt).toLocaleString('en-AU', { dateStyle: 'short', timeStyle: 'short' }) : '', pmbRequirementText(v), pdcCompletedJobsText(v), pdcOutstandingJobsText(v), isPdcBlocked(v) ? 'Yes' : 'No', pdcBlockReason(v), pmbStageAgeDays(v) === null ? '' : pmbStageAgeDays(v), pmbAgeDays(v) === null ? '' : pmbAgeDays(v), vehicleRftGateIssues(v).join('; '), v.rftTransferredAt ? new Date(v.rftTransferredAt).toLocaleString('en-AU', { dateStyle: 'short', timeStyle: 'short' }) : '', navisionDealerNoteText(v), teamNotesText(v), v.internalStatus || '', ...PDC_JOB_DEFS.flatMap(def => [pdcJobRequired(v, def) ? 'Yes' : 'No', pdcJobComplete(v, def) ? 'Yes' : 'No']), (v.poTasks || []).join('; '), (v.poFiles || []).join('; '), v.toyotaStatus || '', scotEtaOnly(v.etaAtDealer), v.deliveryDate || '', jitaDisplay(v), v.jitQty || '', v.contact || '', v.source || '', v.autocareVin || '', v.autocareBatch || '', v.autocareLoadNumber || '', isCustomerMatch(v) ? '' : 'Customer mismatch'
+    salesPersonInitials(consultantName(v)), displayStockNumber(v), v.order || '', vehicleKeyNumber(v), productionMonthLabel(v.prodMth || v.productionMonth || ''), v.client, displayVehicle(v), pdcLocationLabel(v.pdcLocation), pmbStageLabel(inferredPmbStage(v)), pmbBaySubletProvider(v), pmbBayNumber(v, inferredPmbStage(v)) || '', pmbBayHours(v) === '' ? '' : pmbBayHours(v), v.pmbBayScheduledStartAt ? new Date(v.pmbBayScheduledStartAt).toLocaleString('en-AU', { dateStyle: 'short', timeStyle: 'short' }) : '', v.pmbBayEnteredAt ? new Date(v.pmbBayEnteredAt).toLocaleString('en-AU', { dateStyle: 'short', timeStyle: 'short' }) : '', v.pmbBayCompletedAt ? new Date(v.pmbBayCompletedAt).toLocaleString('en-AU', { dateStyle: 'short', timeStyle: 'short' }) : '', pmbRequirementText(v), pdcCompletedJobsText(v), pdcOutstandingJobsText(v), isPdcBlocked(v) ? 'Yes' : 'No', pdcBlockReason(v), pmbStageAgeDays(v) === null ? '' : pmbStageAgeDays(v), pmbAgeDays(v) === null ? '' : pmbAgeDays(v), partsDepartmentStatusLabel(partsDepartmentStatus(v)), kewdaleEtaValue(v), partsWorstEtaLabel(v), vehicleRftGateIssues(v).join('; '), v.rftTransferredAt ? new Date(v.rftTransferredAt).toLocaleString('en-AU', { dateStyle: 'short', timeStyle: 'short' }) : '', navisionDealerNoteText(v), teamNotesText(v), v.internalStatus || '', ...PDC_JOB_DEFS.flatMap(def => [pdcJobRequired(v, def) ? 'Yes' : 'No', pdcJobComplete(v, def) ? 'Yes' : 'No']), (v.poTasks || []).join('; '), (v.poFiles || []).join('; '), v.toyotaStatus || '', scotEtaOnly(v.etaAtDealer), v.deliveryDate || '', jitaDisplay(v), v.jitQty || '', v.contact || '', v.source || '', v.autocareVin || '', v.autocareBatch || '', v.autocareLoadNumber || '', isCustomerMatch(v) ? '' : 'Customer mismatch'
   ].map(csvEscape).join(',')));
   const blob = new Blob([lines.join('\n')], { type: 'text/csv' });
   const url = URL.createObjectURL(blob);
