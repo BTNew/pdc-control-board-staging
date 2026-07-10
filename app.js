@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.07.10.15-sublet-stoppage-eta';
+const APP_VERSION = '2026.07.10.16-pmb-parts-navision-fixes';
 window.VEHICLE_TRACKING_DATA = window.VEHICLE_TRACKING_DATA || { report: {}, vehicles: [], toyotaMatches: {} };
 const EDITS_KEY = 'vehicleTrackingCoreNavisionOnlyEdits:v1';
 const ADDED_KEY = 'vehicleTrackingCoreNavisionOnlyVehicles:v1';
@@ -306,7 +306,7 @@ function parseIsoTimestamp(value = '') {
 }
 
 function pmbEnteredTimestamp(vehicle = {}) {
-  return vehicle.pmbEnteredAt || vehicle.pmbTransferredAt || vehicle.pdcLocationUpdatedAt || vehicle.pmbStageUpdatedAt || '';
+  return vehicle.pmbEnteredAt || vehicle.pmbTransferredAt || '';
 }
 
 function daysSinceTimestamp(value = '') {
@@ -405,8 +405,8 @@ function pmbAgeDetailText(vehicle = {}) {
 function pmbAgeClass(vehicle = {}) {
   const days = pmbAgeDays(vehicle);
   if (days === null) return 'unknown';
-  if (days > 150) return 'critical';
-  if (days > 90) return 'warning';
+  if (days > 30) return 'critical';
+  if (days > 15) return 'warning';
   if (days < 0) return 'future';
   return 'fresh';
 }
@@ -4028,22 +4028,22 @@ function pmbMovementResolutionChoiceModal(vehicle = {}, currentStage = '', nextS
           <label class="pmb-resolution-option is-complete">
             <input type="checkbox" value="complete" data-pmb-resolution-choice checked>
             <span>
-              <strong>Work complete</strong>
-              <small>Tick off ${escapeHtml(area)} and move the vehicle.</small>
+              <strong>${escapeHtml(area)} complete</strong>
+              <small>Sign off this PMB job and move the vehicle.</small>
             </span>
           </label>
           <label class="pmb-resolution-option is-stoppage">
             <input type="checkbox" value="stoppage" data-pmb-resolution-choice>
             <span>
-              <strong>Stoppage</strong>
-              <small>Move the vehicle and mark it as stopped.</small>
+              <strong>Parts / job stoppage</strong>
+              <small>Move the vehicle and record why this PMB job is stopped.</small>
             </span>
           </label>
           <label class="pmb-resolution-option is-move">
             <input type="checkbox" value="move" data-pmb-resolution-choice>
             <span>
-              <strong>Move only</strong>
-              <small>Move without changing the work tick.</small>
+              <strong>Move only - keep job open</strong>
+              <small>Move or unallocate the vehicle without ticking off the PMB job.</small>
             </span>
           </label>
         </div>
@@ -7021,7 +7021,7 @@ function renderPartsHome() {
         <td class="parts-jita-cell"><span class="parts-jita-label">JITA</span>${jitaIndicator(vehicle)}</td>
         <td>${vehicleIdentityStackHtml(vehicle, { button: true })}</td>
         <td><div class="parts-eta"><strong>${escapeHtml(eta || 'No ETA')}</strong><span class="pmb-age ${escapeHtml('pmb-age-' + ageClass)}">${escapeHtml(partsEtaCounterLabel(vehicle))}</span></div></td>
-        <td><label class="parts-worst-eta"><span class="sr-only">Parts worst ETA</span><input type="date" data-parts-worst-eta="${escapeHtml(key)}" value="${escapeHtml(worstEtaInput)}" ${complete ? 'disabled' : ''} /></label>${worstEtaLabel ? `<span class="parts-worst-eta-label">${escapeHtml(worstEtaLabel)}</span>` : '<span class="subtle">Set worst ETA</span>'}</td>
+        <td><div class="parts-worst-eta-wrap"><label class="parts-worst-eta"><span class="sr-only">Parts worst ETA</span><input type="date" data-parts-worst-eta="${escapeHtml(key)}" value="${escapeHtml(worstEtaInput)}" ${complete ? 'disabled' : ''} /></label>${worstEtaLabel ? `<span class="parts-worst-eta-label">${escapeHtml(worstEtaLabel)}</span>` : '<span class="subtle parts-worst-eta-label">Set worst ETA</span>'}</div></td>
         <td>${status === 'stoppage' ? `<span class="parts-stoppage-text" title="${escapeHtml(partsStoppageReason(vehicle))}">${escapeHtml(truncate(partsStoppageReason(vehicle), 50))}</span>` : '<span class="subtle">No blocker recorded</span>'}</td>
         <td><div class="parts-action-group">
           <button class="small-button danger-button" type="button" data-parts-stoppage="${escapeHtml(key)}" ${complete ? 'disabled' : ''}>Stoppage</button>
@@ -9242,6 +9242,55 @@ function navisionPrimaryEta(row, headerMap) {
   return scotEtaOnly(getNavisionValue(row, headerMap, ['ETA At Kewdale Yard', 'ETA to Kewdale', 'ETA To Kewdale']) || '');
 }
 
+function navisionAutoPdcLocation(vehicle = {}) {
+  const locationStatus = normalizeToyotaStatus(vehicle.navisionLocationStatus || '');
+  const subLocation = normalizeToyotaStatus(vehicle.navisionSubLocationDescription || vehicle.toyotaStatus || '');
+  const text = `${locationStatus} ${subLocation}`.trim();
+  if (!text) return '';
+  if (locationStatus === 'yh' || subLocation.includes('yard hold') || /\byh\b/.test(text)) return '';
+  if (locationStatus === 'pmb' || /\bpmb\b/.test(text) || text.includes('perth motor bodies') || text.includes('body builder') || text.includes('delivered - at body builder') || text.includes('on consignment') || text.includes('out on consignment')) return 'PMB';
+  if (locationStatus === 'rft' || /\brft\b/.test(text) || text.includes('ready for transport') || text.includes('ready for transfer')) return 'RFT';
+  return '';
+}
+
+function applyNavisionAutoPdcLocation(payload = {}, incoming = {}, existing = {}) {
+  const autoLocation = navisionAutoPdcLocation(incoming);
+  if (!autoLocation) return payload;
+  if (existing && (existing.pdcLocationLocked || existing.manualLocation || vehiclePdcLocation(existing))) return payload;
+  if (normalizePdcLocation(payload.pdcLocation || '')) return payload;
+  const now = nowIsoString();
+  payload.pdcLocation = autoLocation;
+  payload.pdcLocationUpdatedAt = now;
+  if (autoLocation === 'PMB') {
+    payload.pmbEnteredAt = pmbEnteredTimestamp(existing) || now;
+    payload.pmbTransferredAt = existing.pmbTransferredAt || now;
+    protectPmbFirstLandingFromImport(payload, existing);
+  }
+  if (autoLocation === 'RFT') {
+    payload.rftTransferredAt = existing.rftTransferredAt || now;
+  }
+  return payload;
+}
+
+function vehicleLooksNonToyota(vehicle = {}) {
+  const text = [vehicle.make, vehicle.manufacturer, vehicle.brand, vehicle.vehicleMake, vehicle.vehicleManufacturer, vehicle.vehicle, vehicle.toyotaVehicle, vehicle.model, vehicle.modelDescription, vehicle.navisionDealerComments, vehicle.financeNote]
+    .map(value => cleanNavisionText(value || '').toLowerCase())
+    .filter(Boolean)
+    .join(' ');
+  return /\b(nissan|isuzu|ford|mazda|mitsubishi|subaru|hyundai|kia|volkswagen|vw|ldv|gwm|haval|ram|chevrolet|holden|hino|fuso|mercedes|benz|iveco)\b/.test(text);
+}
+
+function vehicleLooksToyota(vehicle = {}) {
+  if (vehicleLooksNonToyota(vehicle)) return false;
+  const text = [vehicle.make, vehicle.manufacturer, vehicle.brand, vehicle.vehicleMake, vehicle.vehicleManufacturer, vehicle.vehicle, vehicle.toyotaVehicle, vehicle.model, vehicle.modelDescription, vehicle.source, vehicle.group, vehicle.toyotaStatus]
+    .map(value => cleanNavisionText(value || '').toLowerCase())
+    .filter(Boolean)
+    .join(' ');
+  if (/\btoyota\b/.test(text)) return true;
+  if (vehicle.toyotaStatus || vehicle.toyotaVehicle || vehicle.toyotaCustomer || vehicle.order || vehicle.navisionSubLocationDescription || /navision/.test(text)) return true;
+  return false;
+}
+
 function buildNavisionVehicle(row, headerMap, excelRow) {
   const order = getNavisionValue(row, headerMap, ['Order', 'Toyota Order', 'Toyota Order Number', 'Order Number']);
   const batch = getNavisionValue(row, headerMap, ['Batch', 'Stock', 'Stock Number', 'SN', 'Stock No']);
@@ -9272,7 +9321,7 @@ function buildNavisionVehicle(row, headerMap, excelRow) {
   const navisionEtaDate = getNavisionValue(row, headerMap, 'ETA Date');
   const keyNumber = getNavisionValue(row, headerMap, ['Key Number', 'Key No', 'Key No.', 'Key #', 'Key', 'Key Tag']);
   const navisionEta = scotEtaOnly(navisionKewdaleEta);
-  return {
+  const payload = {
     id: `navision-${mainId || excelRow}`,
     sourceRow: excelRow,
     stock,
@@ -9333,6 +9382,7 @@ function buildNavisionVehicle(row, headerMap, excelRow) {
     ...protectPmbFirstLandingFromImport(buildExplicitPdcUpdatesFromImport(row, headerMap), {}),
     importedAt: new Date().toISOString(),
   };
+  return applyNavisionAutoPdcLocation(payload, payload, {});
 }
 
 function prepareNavisionText(text = '') {
@@ -9480,7 +9530,8 @@ function isProtectedPdcVehicle(vehicle = {}) {
 
 function vehiclesMissingFromNavisionImport(existingRows = [], incomingRows = [], options = {}) {
   const fullRefresh = options.fullRefresh !== false;
-  const candidates = fullRefresh ? existingRows.slice() : existingRows.filter(vehicle => !isProtectedPdcVehicle(vehicle));
+  const baseCandidates = fullRefresh ? existingRows.slice() : existingRows.filter(vehicle => !isProtectedPdcVehicle(vehicle));
+  const candidates = baseCandidates.filter(vehicleLooksToyota);
   if (!candidates.length) return [];
   if (!incomingRows.length) return candidates.slice();
   return candidates.filter(vehicle => !incomingRows.some(incoming => navisionVehiclesOverlap(incoming, vehicle)));
@@ -9567,7 +9618,8 @@ function navisionEditPayload(incoming, existing = {}) {
     navisionCutButVehicle: Boolean(incoming.navisionCutButVehicle),
     navisionCutButVehicleSource: incoming.navisionCutButVehicleSource || '',
   };
-  return applyExplicitPdcImportFields(payload, incoming, existing);
+  const explicitPayload = applyExplicitPdcImportFields(payload, incoming, existing);
+  return applyNavisionAutoPdcLocation(explicitPayload, incoming, existing);
 }
 
 function navisionComparableValue(value) {
@@ -9658,7 +9710,7 @@ function buildNavisionImportPlan(parsed) {
     }
   });
 
-  result.missingFromUpload = vehiclesMissingFromNavisionImport(activeBeforeImport, parsed.vehicles, { fullRefresh: navisionImportIsFullRefresh() });
+  result.missingFromUpload = vehiclesMissingFromNavisionImport(activeBeforeImport, parsed.vehicles, { fullRefresh });
   result.requiresConfirmation = Boolean(result.updated.length || result.stockNumberUpdates.length);
   return result;
 }

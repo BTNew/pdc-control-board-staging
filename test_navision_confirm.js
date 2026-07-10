@@ -74,6 +74,23 @@ code += String.raw`
   assert(parsedPmbOnly.vehicles[0].stock === '33333333', 'PMB-only import should keep the body-builder row');
   assert(parsedPmbOnly.warnings.some(warning => warning.includes('44444444') && warning.includes('skipped')), 'PMB-only import should report skipped non-PMB rows');
 
+  // Body Builder / consignment location statuses should auto-land in PMB without manual override.
+  localStorage.clear();
+  app.data = buildVehicleData();
+  const bodyBuilderHeader = row(['Order','Batch','Production Month','Model Description','Sub Location Description']);
+  const bodyBuilderRow = row(['ORD5','55555555','202610','Prado','Delivered - At Body Builder']);
+  const consignmentRow = row(['ORD6','66666666','202610','Hilux','On Consignment']);
+  const parsedBodyBuilder = parseNavisionInput(bodyBuilderHeader + '\n' + bodyBuilderRow + '\n' + consignmentRow);
+  assert(parsedBodyBuilder.vehicles.length === 2, 'Body builder status rows should import');
+  assert(parsedBodyBuilder.vehicles.every(vehicle => vehicle.pdcLocation === 'PMB'), 'Body builder/consignment statuses should auto-map to PMB');
+  assert(parsedBodyBuilder.vehicles.every(vehicle => vehicle.pmbStage === ''), 'First PMB landing should stay Unallocated');
+
+  // Missing cleanup on a full refresh should protect non-Toyota records.
+  const toyotaExisting = { id: 'toyota-1', stock: '77777777', batch: '77777777', vehicle: 'Toyota Prado', toyotaVehicle: 'Prado', source: 'Navision' };
+  const nissanExisting = { id: 'nissan-1', stock: '88888888', batch: '88888888', vehicle: 'Nissan Patrol', source: 'Manual' };
+  const missingToyotaOnly = vehiclesMissingFromNavisionImport([toyotaExisting, nissanExisting], [], { fullRefresh: true });
+  assert(missingToyotaOnly.length === 1 && missingToyotaOnly[0].stock === '77777777', 'Full Navision cleanup should only remove Toyota vehicles');
+
   console.log('Navision confirmation tests passed');
 })();
 `;
