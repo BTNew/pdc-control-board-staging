@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.07.11.02-pmb-completed-unallocate';
+const APP_VERSION = '2026.07.11.03-parts-eta-sales-email';
 window.VEHICLE_TRACKING_DATA = window.VEHICLE_TRACKING_DATA || { report: {}, vehicles: [], toyotaMatches: {} };
 const EDITS_KEY = 'vehicleTrackingCoreNavisionOnlyEdits:v1';
 const ADDED_KEY = 'vehicleTrackingCoreNavisionOnlyVehicles:v1';
@@ -6947,6 +6947,32 @@ function partsWorstEtaLabel(vehicle = {}) {
   return value;
 }
 
+function partsWorstEtaDaysUntil(vehicle = {}) {
+  const date = partsWorstEtaDate(vehicle);
+  if (!date) return null;
+  const target = new Date(date);
+  target.setHours(0, 0, 0, 0);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return Math.round((target - today) / (1000 * 60 * 60 * 24));
+}
+
+function partsWorstEtaCountdownLabel(vehicle = {}) {
+  const days = partsWorstEtaDaysUntil(vehicle);
+  if (days === null) return '';
+  if (days < 0) return `${Math.abs(days)} day${Math.abs(days) === 1 ? '' : 's'} overdue`;
+  if (days === 0) return 'Due today';
+  return `${days} day${days === 1 ? '' : 's'} to Parts ETA`;
+}
+
+function partsWorstEtaCountdownClass(vehicle = {}) {
+  const days = partsWorstEtaDaysUntil(vehicle);
+  if (days === null) return 'unset';
+  if (days < 0) return 'overdue';
+  if (days <= 7) return 'soon';
+  return 'later';
+}
+
 function partsWorstEtaSortValue(vehicle = {}) {
   const date = partsWorstEtaDate(vehicle);
   return date ? date.getTime() : -8640000000000000;
@@ -7098,6 +7124,8 @@ function renderPartsHome() {
       const pmbStage = inferredPmbStage(vehicle) ? ` · ${pmbStageLabel(inferredPmbStage(vehicle))}` : '';
       const worstEtaInput = partsWorstEtaInputValue(vehicle);
       const worstEtaLabel = partsWorstEtaLabel(vehicle);
+      const worstEtaCountdown = partsWorstEtaCountdownLabel(vehicle);
+      const worstEtaCountdownClass = partsWorstEtaCountdownClass(vehicle);
       return `<tr class="parts-row ${escapeHtml(partsDepartmentStatusClass(status))}">
         <td><span class="parts-status-pill ${escapeHtml(partsDepartmentStatusClass(status))}">${escapeHtml(partsDepartmentStatusLabel(status))}</span></td>
         <td class="parts-jita-cell">${jitaIndicator(vehicle)}</td>
@@ -7107,7 +7135,7 @@ function renderPartsHome() {
         <td class="pdc-name-cell"><span title="${escapeHtml(vehicleCustomerName(vehicle) || '')}">${escapeHtml(vehicleCustomerName(vehicle) || 'Dealer Order')}</span></td>
         <td class="pdc-vehicle-cell"><span title="${escapeHtml(displayVehicle(vehicle))}">${escapeHtml(displayVehicle(vehicle) || 'Vehicle not listed')}</span></td>
         <td><div class="parts-eta"><strong>${escapeHtml(eta || 'No ETA')}</strong><span class="pmb-age ${escapeHtml('pmb-age-' + ageClass)}">${escapeHtml(partsEtaCounterLabel(vehicle))}</span></div></td>
-        <td><div class="parts-worst-eta-wrap"><label class="parts-worst-eta"><span class="sr-only">Parts worst ETA</span><input type="date" data-parts-worst-eta="${escapeHtml(key)}" value="${escapeHtml(worstEtaInput)}" ${complete ? 'disabled' : ''} /></label>${worstEtaLabel ? `<span class="parts-worst-eta-label">${escapeHtml(worstEtaLabel)}</span>` : '<span class="subtle parts-worst-eta-label">Set worst ETA</span>'}</div></td>
+        <td><div class="parts-worst-eta-wrap"><label class="parts-worst-eta"><span class="sr-only">Parts worst ETA</span><input type="date" data-parts-worst-eta="${escapeHtml(key)}" value="${escapeHtml(worstEtaInput)}" ${complete ? 'disabled' : ''} /></label><span class="parts-worst-eta-details">${worstEtaLabel ? `<span class="parts-worst-eta-label">${escapeHtml(worstEtaLabel)}</span>${worstEtaCountdown ? `<span class="parts-worst-eta-countdown ${escapeHtml(worstEtaCountdownClass)}">${escapeHtml(worstEtaCountdown)}</span>` : ''}` : '<span class="subtle parts-worst-eta-label">Set worst ETA</span>'}</span>${worstEtaLabel ? `<button class="small-button parts-email-sales-button" type="button" data-parts-eta-email="${escapeHtml(key)}" ${complete ? 'disabled' : ''}>Email sales</button>` : ''}</div></td>
         <td>${status === 'stoppage' ? `<span class="parts-stoppage-text" title="${escapeHtml(partsStoppageReason(vehicle))}">${escapeHtml(partsStoppageReason(vehicle))}</span>` : '<span class="subtle">No blocker recorded</span>'}</td>
         <td>${escapeHtml(stage + pmbStage)}</td>
         <td>${escapeHtml(partsLastUpdateLabel(vehicle) || '')}</td>
@@ -7125,6 +7153,7 @@ function renderPartsHome() {
   $$('[data-parts-stoppage]', host).forEach(button => button.addEventListener('click', () => markVehiclePartsStoppage(button.dataset.partsStoppage)));
   $$('[data-parts-clear-stoppage]', host).forEach(button => button.addEventListener('click', () => clearVehiclePartsStoppage(button.dataset.partsClearStoppage)));
   $$('[data-parts-worst-eta]', host).forEach(input => input.addEventListener('change', () => updateVehiclePartsWorstEta(input.dataset.partsWorstEta, input.value)));
+  $$('[data-parts-eta-email]', host).forEach(button => button.addEventListener('click', () => draftPartsEtaSalesEmail(button.dataset.partsEtaEmail)));
 }
 
 function markVehiclePartsOrdered(key = '') {
@@ -7197,6 +7226,38 @@ function updateVehiclePartsWorstEta(key = '', value = '') {
   });
 }
 
+function draftPartsEtaSalesEmail(key = '') {
+  const vehicle = selectedVehicle(key);
+  if (!vehicle) return;
+  const eta = partsWorstEtaLabel(vehicle);
+  if (!eta) {
+    window.alert('Set a Parts ETA before emailing sales.');
+    return;
+  }
+  const salesperson = consultantName(vehicle) || 'Sales';
+  const countdown = partsWorstEtaCountdownLabel(vehicle);
+  const blocker = partsStoppageReason(vehicle);
+  const body = [
+    `Hi ${salesperson},`,
+    '',
+    'Parts have updated the expected ETA for the vehicle below.',
+    '',
+    ...vehicleEmailLines(vehicle),
+    `Toyota Order: ${vehicle.order || 'TBA'}`,
+    `Job Card: ${vehicleJobcardNumber(vehicle) || 'TBA'}`,
+    `Current stage: ${statusCategoryLabel(vehicle)}${inferredPmbStage(vehicle) ? ` / ${pmbStageLabel(inferredPmbStage(vehicle))}` : ''}`,
+    `Parts ETA: ${eta}${countdown ? ` (${countdown})` : ''}`,
+    blocker ? `Parts note: ${blocker}` : '',
+    '',
+    'Please update the customer/delivery expectation as required.',
+    '',
+    'Kind Regards,',
+  ].filter(line => line !== '').join('\n');
+  const subject = `Parts ETA update - ${displayStockNumber(vehicle) || vehicle.order || 'TBA'}`;
+  recordVehicleAudit(vehicle, 'Parts ETA sales email drafted', { eta, countdown, salesperson });
+  window.location.href = `mailto:${salespersonEmail(vehicle)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+}
+
 function clearVehiclePartsStoppage(key = '') {
   const vehicle = selectedVehicle(key);
   if (!vehicle) return;
@@ -7213,12 +7274,12 @@ function clearVehiclePartsStoppage(key = '') {
 
 function exportPartsCsv() {
   const rows = partsDepartmentRows();
-  const headers = ['Parts Status','Stock','Toyota Order','Client','Vehicle','Kewdale ETA','Kewdale ETA Age','Parts Worst ETA','Current Stage','PMB Stage','Parts Ordered','Parts Ordered By','Parts Issued','Parts Issued By','Parts Stoppage','Parts Stoppage Reason','Last Parts Update'];
+  const headers = ['Parts Status','Stock','Toyota Order','Client','Vehicle','Kewdale ETA','Kewdale ETA Age','Parts Worst ETA','Parts Worst ETA Countdown','Current Stage','PMB Stage','Parts Ordered','Parts Ordered By','Parts Issued','Parts Issued By','Parts Stoppage','Parts Stoppage Reason','Last Parts Update'];
   const def = partsJobDef();
   const lines = [headers.join(',')].concat(rows.map(vehicle => [
     partsDepartmentStatusLabel(partsDepartmentStatus(vehicle)),
     displayStockNumber(vehicle), vehicle.order || '', vehicle.client || vehicle.toyotaCustomer || '', displayVehicle(vehicle),
-    kewdaleEtaValue(vehicle), pmbAgeLabel(vehicle), partsWorstEtaLabel(vehicle), statusCategoryLabel(vehicle), pmbStageLabel(inferredPmbStage(vehicle)),
+    kewdaleEtaValue(vehicle), pmbAgeLabel(vehicle), partsWorstEtaLabel(vehicle), partsWorstEtaCountdownLabel(vehicle), statusCategoryLabel(vehicle), pmbStageLabel(inferredPmbStage(vehicle)),
     partsOrdered(vehicle) ? 'Yes' : 'No', vehicle.pdcPartsOrderedBy || '', def && pdcJobComplete(vehicle, def) ? 'Yes' : 'No', def ? (vehicle[def.completeByKey] || '') : '',
     vehicle.pdcPartsStoppage === true ? 'Yes' : 'No', partsStoppageReason(vehicle), partsLastUpdateLabel(vehicle)
   ].map(csvEscape).join(',')));

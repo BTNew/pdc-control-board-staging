@@ -72,6 +72,14 @@ code += String.raw`
   assert(!/<th>Sales<\/th>/.test(partsHtml), 'Parts page must not render a Sales column');
   assert(!partsHtml.includes('Sales Person'), 'Parts page must not render salesperson names');
 
+  const etaVehicle = { ...basePartsVehicle, pdcPartsWorstEta: '2099-01-01' };
+  assert(partsWorstEtaCountdownLabel(etaVehicle).includes('to Parts ETA'), 'Parts worst ETA should show a countdown label');
+  assert(partsWorstEtaCountdownClass(etaVehicle) === 'later', 'Future Parts ETA countdown should be classed as later');
+  app.data = [{ ...basePartsVehicle, pdcPartsWorstEta: '2099-01-01' }];
+  elementFor('#parts-status-filter').value = 'open';
+  renderPartsHome();
+  assert(elementFor('#parts-home-content').innerHTML.includes('Email sales'), 'Parts ETA rows with a worst ETA should show an Email sales action');
+
   const confirms = [];
   window.confirm = message => { confirms.push(String(message)); return true; };
   window.prompt = () => 'Parts';
