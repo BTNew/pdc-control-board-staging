@@ -9,19 +9,18 @@ Use this file to brief another ChatGPT/developer on the current PDC Control Boar
 - Branch: `main`
 - Live site: `https://btnew.github.io/pdc-control-board/`
 - 75-vehicle test board: `https://btnew.github.io/pdc-control-board/test-75.html?clearLocalData=1`
-- Fresh main-board URL for current visibility/fitting fix: `https://btnew.github.io/pdc-control-board/?v=2026.07.10.04-data-integrity`
+- Current package URL after deployment: `https://btnew.github.io/pdc-control-board/?v=2026.07.13.07-zero-filter-recovery`
 
-## Current confirmed commit state
+## Current package state
 
-Latest commits:
+- Package version: `2026.07.13.07-zero-filter-recovery`.
+- Package source commit: `e97f98d36996d9dc5ee47555139dd0bdb16b4285`.
+- The package changes have been validated locally but are not committed, pushed or deployed from this handover ZIP.
+- The bundled live dataset now contains 321 current vehicles from `Master2021 (1).xlsx` / visible `EOS` worksheet.
+- The Control Board column-heading row itself is selectable for PMB age order, buckets, work status, Required Yes/No and stoppages, and floats while scrolling.
+- Read `MASTER_SHEET_IMPORT.md` and `master-import-audit.json` before changing the migration mapping.
 
-- `24509a9 Fix PMB bay move controls`
-- `aa35b66 Add 75 vehicle test board`
-- `8075f8a Finish checklist cache-bust and workflow UI updates`
-
-Visible app version after the movement fix should be:
-
-- `2026.07.10.04-data-integrity`
+Historical commit notes later in this file describe earlier PMB movement work and should not be mistaken for the current package version.
 
 ## What Craig wants preserved
 
@@ -120,6 +119,7 @@ Patch applied for version `2026.07.10.04-data-integrity`:
 - `index.html` — shell, version marker, asset cache-busting, UI fields.
 - `app.js` — core PMB/Parts workflow logic, movement functions, renderers.
 - `styles.css` — PMB card/button/status styling.
+- `desktop-operations.css` — desktop monitor layout, Parts queue, modal and accessibility refinements.
 - `data.js` — live/default data source.
 - `test-75.html` — separate 75-vehicle test board page.
 - `data-test-75.js` — 75-vehicle synthetic fixture data.
@@ -135,6 +135,10 @@ node --check data-test-75.js
 node test_navision_confirm.js
 node test_parts_production_principles.js
 node test_review_update_alignment.js
+node test_production_grid_v2.js
+node test_uniform_stage_matrix.js
+node test_desktop_operations.js
+node test_master_sheet_import.js
 git diff --check
 git status --short --branch
 ```

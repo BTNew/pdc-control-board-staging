@@ -4,7 +4,8 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Vehicle Tracking Core - No Vehicle Details</title>
-  <link rel="stylesheet" href="styles.css?v=2026.07.13.02-parts-eta-handover" />
+  <link rel="stylesheet" href="styles.css?v=2026.07.13.07-zero-filter-recovery" />
+  <link rel="stylesheet" href="desktop-operations.css?v=2026.07.13.07-zero-filter-recovery" />
 </head>
 <body>
   <div class="app-shell" id="app-shell">
@@ -14,7 +15,7 @@
         <div class="brand-text">
           <div class="brand-title">Vehicle Tracking</div>
           <div class="brand-subtitle">Clean Review Board</div>
-          <div class="app-version" id="app-version">Version 2026.07.13.02-parts-eta-handover</div>
+          <div class="app-version" id="app-version">Version 2026.07.13.07-zero-filter-recovery</div>
         </div>
         <button class="sidebar-toggle" id="sidebar-toggle" type="button" aria-label="Collapse sidebar" title="Collapse sidebar">‹</button>
       </div>
@@ -32,7 +33,7 @@
       </nav>
 
       <div class="sidebar-card">
-        <div class="muted-label">Navision data</div>
+        <div class="muted-label">Source data</div>
         <strong id="report-date">Loading...</strong>
         <span id="report-meta">Loading report data</span>
       </div>
@@ -54,19 +55,6 @@
 
       <section id="dashboard" class="view active">
         <div class="kpi-grid" id="kpi-grid"></div>
-        <section class="panel span-12 fix-first-panel">
-          <div class="panel-header compact">
-            <div>
-              <h2>Fix First</h2>
-              <p>Only PMB stoppages and Parts stoppages that need action before normal queue work.</p>
-            </div>
-            <div class="panel-actions">
-              <button class="small-button" type="button" data-view-target="workflow">Open Control Board</button>
-              <button class="small-button" type="button" data-view-target="rft">Open RFT</button>
-            </div>
-          </div>
-          <div class="fix-first-grid" id="fix-first-grid"></div>
-        </section>
         <section class="panel span-12 incoming-board-panel">
           <div class="panel-header">
             <div>
@@ -374,7 +362,7 @@
             <div class="panel-header">
               <div>
                 <h2>Parts department home</h2>
-                <p>Focused view for parts ordering, parts completion and parts stoppages. It hides Navision notes and production-only noise so Parts can work from status, stock, ETA, blockers and actions.</p>
+                <p>Prioritised work queue for ordering, supplier ETA, stoppages and issue completion. Use the status cards to focus the list.</p>
               </div>
               <div class="panel-actions">
                 <button class="small-button" id="parts-export-csv" type="button">Export parts CSV</button>
@@ -384,7 +372,7 @@
             <div class="table-toolbar advanced-toolbar wide-toolbar parts-toolbar">
               <label>
                 <span>Search</span>
-                <input id="parts-search" type="search" placeholder="Stock, client, vehicle, production status..." />
+                <input id="parts-search" type="search" placeholder="Stock, customer, vehicle, key or job card..." />
               </label>
               <label>
                 <span>Parts status</span>
@@ -818,7 +806,7 @@
       console.warn('Unable to clear local review data', error);
     }
   </script>
-  <script src="data-no-vehicles.js?v=2026.07.13.02-parts-eta-handover"></script>
-  <script src="app.js?v=2026.07.13.02-parts-eta-handover"></script>
+  <script src="data-no-vehicles.js?v=2026.07.13.07-zero-filter-recovery"></script>
+  <script src="app.js?v=2026.07.13.07-zero-filter-recovery"></script>
 </body>
 </html>

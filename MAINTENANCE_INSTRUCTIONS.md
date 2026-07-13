@@ -25,7 +25,7 @@ Use this as the canonical maintenance workflow for the PDC Control Board project
 10. Report changed files, tests, live status and any remaining risks.
 
 ## Files with matching version numbers
-Current version identifier: `2026.07.13.02-parts-eta-handover`
+Current version identifier: `2026.07.13.07-zero-filter-recovery`
 
 When bumping version, update all references in:
 - `app.js` (`APP_VERSION`)
@@ -52,6 +52,10 @@ node test_navision_confirm.js
 node test_parts_production_principles.js
 node test_data_integrity.js
 node test_review_update_alignment.js
+node test_production_grid_v2.js
+node test_uniform_stage_matrix.js
+node test_desktop_operations.js
+node test_master_sheet_import.js
 git diff --check
 ```
 If relevant files changed, also run any additional `test_*.js` files that match the area changed. At handover, these extra tests also exist and are useful:

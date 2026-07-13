@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.07.13.02-parts-eta-handover';
+const APP_VERSION = '2026.07.13.07-zero-filter-recovery';
 window.VEHICLE_TRACKING_DATA = window.VEHICLE_TRACKING_DATA || { report: {}, vehicles: [], toyotaMatches: {} };
 const EDITS_KEY = 'vehicleTrackingCoreNavisionOnlyEdits:v1';
 const ADDED_KEY = 'vehicleTrackingCoreNavisionOnlyVehicles:v1';
@@ -693,16 +693,88 @@ function pdcGridCompletedJobsText(vehicle = {}) {
   return jobs.length ? jobs.map(pdcGridJobLabel).join(', ') : 'No station sign-offs';
 }
 
+function workflowHeaderOptionsHtml(options = [], current = '') {
+  return options.map(option => `<option value="${escapeHtml(option.value)}"${option.value === current ? ' selected' : ''}>${escapeHtml(option.label)}</option>`).join('');
+}
+
+function workflowHeaderFilterHtml(label = '', filterType = '', options = [], current = '', className = '', dataAttributes = '') {
+  const selected = options.find(option => option.value === current);
+  const activeText = current ? (selected?.short || selected?.label || current) : '';
+  const classes = ['workflow-column-filter', className, current ? 'is-active' : ''].filter(Boolean).join(' ');
+  return `<label class="${escapeHtml(classes)}" title="${escapeHtml(`Filter or sort ${label}`)}">
+    <span>${escapeHtml(label)}</span>
+    ${activeText ? `<small>${escapeHtml(activeText)}</small>` : ''}
+    <select data-workflow-header-filter="${escapeHtml(filterType)}" ${dataAttributes} aria-label="${escapeHtml(`Filter or sort ${label}`)}">${workflowHeaderOptionsHtml(options, current)}</select>
+  </label>`;
+}
+
 function productionGridHeaderHtml(className = '', options = {}) {
   const meta1Label = options.meta1Label || 'Age / ETA';
   const meta2Label = options.meta2Label || 'Status';
   const actionLabel = options.actionLabel || 'Actions';
   const classes = ['pdc-production-grid-header', className || ''].filter(Boolean).join(' ');
+  const workflowFilters = options.workflowFilters || null;
+  if (workflowFilters) {
+    const sortOptions = {
+      key: [{ value: '', label: 'No key sort' }, { value: 'key-asc', label: 'Key low to high', short: '↑' }, { value: 'key-desc', label: 'Key high to low', short: '↓' }],
+      stock: [{ value: '', label: 'No stock sort' }, { value: 'stock-asc', label: 'Stock A to Z', short: 'A–Z' }, { value: 'stock-desc', label: 'Stock Z to A', short: 'Z–A' }],
+      jobcard: [{ value: '', label: 'No job card sort' }, { value: 'jobcard-asc', label: 'Job card A to Z', short: 'A–Z' }, { value: 'jobcard-desc', label: 'Job card Z to A', short: 'Z–A' }],
+      customer: [{ value: '', label: 'No customer sort' }, { value: 'customer-asc', label: 'Customer A to Z', short: 'A–Z' }, { value: 'customer-desc', label: 'Customer Z to A', short: 'Z–A' }],
+      vehicle: [{ value: '', label: 'No vehicle sort' }, { value: 'vehicle-asc', label: 'Vehicle A to Z', short: 'A–Z' }, { value: 'vehicle-desc', label: 'Vehicle Z to A', short: 'Z–A' }],
+    };
+    const sortValueFor = key => sortOptions[key].some(option => option.value === workflowFilters.sort) ? workflowFilters.sort : '';
+    const workOptions = [
+      { value: '', label: 'All vehicles' },
+      { value: 'yes', label: 'Yes — required', short: 'Yes' },
+      { value: 'no', label: 'No — not required', short: 'No' },
+      { value: 'outstanding', label: 'Outstanding work', short: 'Open' },
+      { value: 'complete', label: 'Completed work', short: 'Done' },
+    ];
+    const stationHeaders = pdcJobDefsPartsFirst().map(def => {
+      let current = '';
+      if (workflowFilters.work === def.key) {
+        if (workflowFilters.required === 'yes') current = 'yes';
+        else if (workflowFilters.required === 'no') current = 'no';
+        else if (workflowFilters.completion === 'outstanding') current = 'outstanding';
+        else if (workflowFilters.completion === 'complete') current = 'complete';
+      }
+      const stationOptions = def.key === 'parts' ? workOptions.filter(option => option.value !== 'no') : workOptions;
+      return workflowHeaderFilterHtml(pdcGridJobLabel(def), 'work', stationOptions, current, `pdc-grid-station-heading pdc-grid-station-${def.key}`, `data-workflow-work-key="${escapeHtml(def.key)}"`);
+    }).join('');
+    const statusOptions = [
+      { value: '', label: 'All PMB statuses' },
+      { value: 'bucket:UNALLOCATED', label: 'Unallocated', short: 'Unalloc.' },
+      ...PMB_STAGE_DEFS.map(def => ({ value: `bucket:${def.value}`, label: def.label, short: def.label })),
+      { value: 'stoppage:yes', label: 'Stoppage only', short: 'Stopped' },
+      { value: 'stoppage:no', label: 'No stoppage', short: 'Clear' },
+    ];
+    const statusValue = workflowFilters.bucket ? `bucket:${workflowFilters.bucket}` : workflowFilters.stoppage ? `stoppage:${workflowFilters.stoppage}` : '';
+    const ageOptions = [
+      { value: 'oldest', label: 'Oldest at PMB first', short: 'Oldest' },
+      { value: 'newest', label: 'Newest at PMB first', short: 'Newest' },
+    ];
+    const hasColumnFilters = Boolean(workflowFilters.bucket || workflowFilters.work || workflowFilters.required || workflowFilters.completion || workflowFilters.stoppage || !['oldest', 'newest'].includes(workflowFilters.sort));
+    return `<div class="${escapeHtml(classes)}">
+      <span class="pdc-grid-control-heading" aria-hidden="true"></span>
+      <span class="pdc-grid-select-heading" aria-hidden="true"></span>
+      <span class="pdc-grid-identity-heading">
+        ${workflowHeaderFilterHtml('Key', 'sort', sortOptions.key, sortValueFor('key'), 'workflow-identity-filter')}
+        ${workflowHeaderFilterHtml('Stock', 'sort', sortOptions.stock, sortValueFor('stock'), 'workflow-identity-filter')}
+        ${workflowHeaderFilterHtml('Job Card', 'sort', sortOptions.jobcard, sortValueFor('jobcard'), 'workflow-identity-filter')}
+        ${workflowHeaderFilterHtml('Customer', 'sort', sortOptions.customer, sortValueFor('customer'), 'workflow-identity-filter')}
+      </span>
+      ${workflowHeaderFilterHtml('Vehicle', 'sort', sortOptions.vehicle, sortValueFor('vehicle'), 'pdc-grid-vehicle-heading')}
+      <span class="pdc-grid-stations-heading">${stationHeaders}</span>
+      ${workflowHeaderFilterHtml(meta1Label, 'sort', ageOptions, ['newest'].includes(workflowFilters.sort) ? 'newest' : 'oldest', 'pdc-grid-meta-heading workflow-age-filter')}
+      ${workflowHeaderFilterHtml(meta2Label, 'status', statusOptions, statusValue, 'pdc-grid-status-heading')}
+      <span class="pdc-grid-action-heading workflow-header-actions"><span>${escapeHtml(actionLabel)}</span>${hasColumnFilters ? '<button type="button" data-workflow-clear-column-filters>Clear</button>' : ''}</span>
+    </div>`;
+  }
   const stationHeaders = pdcJobDefsPartsFirst().map(def => {
     const label = pdcGridJobLabel(def);
     return `<span class="pdc-grid-station-heading pdc-grid-station-${escapeHtml(def.key)}" title="${escapeHtml(label)}"><span>${escapeHtml(label)}</span></span>`;
   }).join('');
-  return `<div class="${escapeHtml(classes)}" role="row">
+  return `<div class="${escapeHtml(classes)}">
     <span class="pdc-grid-control-heading" aria-hidden="true"></span>
     <span class="pdc-grid-select-heading" aria-hidden="true"></span>
     <span class="pdc-grid-identity-heading">
@@ -891,6 +963,12 @@ function clearLocalDataFromUrl() {
     ? new ParamsCtor(search).has('clearLocalData') || new ParamsCtor(search).has('resetLocalData') || new ParamsCtor(search).has('freshData')
     : /[?&](clearLocalData|resetLocalData|freshData)(=|&|$)/.test(search);
   if (!resetRequested) return;
+  const path = String(window.location?.pathname || '');
+  const resetAllowed = /(?:test-\d+|no-vehicles)\.html$/i.test(path) || window.PDC_ALLOW_LOCAL_RESET === true;
+  if (!resetAllowed) {
+    console.warn('Local data reset was ignored on the live board. Use the Back End Data reset controls instead.');
+    return;
+  }
   try {
     CRM_BACKUP_STORAGE_KEYS.forEach(key => localStorage.removeItem(key));
     localStorage.removeItem('vehicleTrackingCoreColumnOrder:v1');
@@ -1036,6 +1114,14 @@ const app = {
   pmbScheduleClockTimer: null,
   workflowBucketsCollapsed: true,
   workflowSearch: '',
+  workflowFilters: {
+    sort: 'oldest',
+    bucket: '',
+    work: '',
+    required: '',
+    completion: '',
+    stoppage: '',
+  },
   workflowWidthMode: 'standard',
   sort: { key: '', dir: 'asc' },
   selectedRows: new Set(),
@@ -1160,7 +1246,8 @@ function jitaIndicator(vehicle) {
   const state = normalizeJita(jitaDisplay(vehicle));
   const detail = jitaDisplay(vehicle);
   if (state === 'Yes') return `<span class="jita-icon jita-yes" title="${escapeHtml(detail)}">✓</span>`;
-  return `<span class="jita-icon jita-no" title="${escapeHtml(detail)}">×</span>`;
+  if (state === 'No') return `<span class="jita-icon jita-no" title="${escapeHtml(detail)}">×</span>`;
+  return `<span class="jita-icon jita-unknown" title="${escapeHtml(detail)}">?</span>`;
 }
 
 function legacyVehicleFlag(vehicle, key) {
@@ -1742,19 +1829,24 @@ function toggleSidebar() {
 
 function updateNavisionSidebarMeta() {
   const importedAt = app.navisionImport?.importedAt ? new Date(app.navisionImport.importedAt) : null;
+  const masterImport = window.VEHICLE_TRACKING_DATA?.report?.masterImport || null;
+  const masterDate = masterImport?.importedAt ? parseDateAU(String(masterImport.importedAt).split('-').reverse().join('/')) : null;
   const dateLabel = importedAt && !Number.isNaN(importedAt.getTime())
     ? importedAt.toLocaleString('en-AU', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
-    : 'No Navision import yet';
+    : masterImport
+      ? `Master EOS · ${masterDate && !Number.isNaN(masterDate.getTime()) ? masterDate.toLocaleDateString('en-AU') : masterImport.importedAt}`
+      : 'No Navision import yet';
   const reportDate = $('#report-date');
   const reportMeta = $('#report-meta');
   if (reportDate) reportDate.textContent = dateLabel;
-  if (reportMeta) reportMeta.textContent = `${app.data.length} vehicle${app.data.length === 1 ? '' : 's'} · Navision only`;
+  if (reportMeta) reportMeta.textContent = `${app.data.length} vehicle${app.data.length === 1 ? '' : 's'} · ${masterImport && !app.navisionImport ? 'Master sheet' : 'Navision only'}`;
 }
 
 function init() {
   ensureAppDataAvailable();
   renderAppVersionMarker();
   applyWorkflowWidthMode(loadWorkflowWidthMode());
+  if (document.body?.dataset) document.body.dataset.currentView = app.currentView || 'dashboard';
   updateNavisionSidebarMeta();
   app.selectedStock = vehicleKey(app.data.find(v => v.toyotaStatus) || app.data[0]);
   bindNav();
@@ -1843,6 +1935,23 @@ function bindNav() {
   on($('#workflow-search'), 'input', event => { app.workflowSearch = String(event.target.value || '').trim().toLowerCase(); renderWorkflowBoard(); });
   on($('#workflow-find'), 'click', () => { app.workflowSearch = String($('#workflow-search')?.value || '').trim().toLowerCase(); renderWorkflowBoard(); });
   on($('#workflow-clear-search'), 'click', clearWorkflowSearch);
+  document.addEventListener('change', event => {
+    const select = event.target?.closest?.('[data-workflow-header-filter]');
+    if (!select) return;
+    applyWorkflowHeaderFilter(select.dataset.workflowHeaderFilter, select.value, select.dataset.workflowWorkKey || '');
+  });
+  document.addEventListener('click', event => {
+    const clear = event.target?.closest?.('[data-workflow-clear-column-filters]');
+    if (!clear) return;
+    event.preventDefault();
+    event.stopPropagation();
+    clearWorkflowFilters();
+  });
+  if (window.addEventListener) {
+    window.addEventListener('scroll', scheduleWorkflowFloatingHeaderUpdate, { passive: true });
+    window.addEventListener('resize', scheduleWorkflowFloatingHeaderUpdate, { passive: true });
+  }
+  document.addEventListener('scroll', scheduleWorkflowFloatingHeaderUpdate, true);
   on($('#incoming-transfer-selected-pmb'), 'click', transferSelectedMainYhVehiclesToPmb);
   on($('#incoming-delete-selected'), 'click', deleteSelectedVehicles);
   on($('#incoming-clear-selected'), 'click', clearSelectedRows);
@@ -1947,6 +2056,7 @@ function showView(view) {
   }
   if (departmentStage) app.activeProductionDepartment = departmentStage;
   app.currentView = departmentStage ? 'department' : requestedView;
+  if (document.body?.dataset) document.body.dataset.currentView = requestedView;
   $$('.view').forEach(el => el.classList.toggle('active', el.id === requestedView || (departmentStage && el.id === 'department')));
   $$('.nav-item').forEach(el => el.classList.toggle('active', el.dataset.view === requestedView));
   const departmentDef = departmentStage ? PRODUCTION_FLOW_DEFS.find(def => def.key === departmentStage) : null;
@@ -1973,6 +2083,7 @@ function showView(view) {
     app.frozenHeaderCleanup = null;
   }
   renderActiveView();
+  scheduleWorkflowFloatingHeaderUpdate();
   if (requestedView === 'dashboard') {
     window.setTimeout(() => setupFrozenVehicleHeader($('#vehicle-table')), 0);
   }
@@ -2299,12 +2410,15 @@ function renderWorkflowBoard() {
     bindPmbDragBoard(host);
     setupPmbScheduleClock();
     updateInlineSelectionBars();
+    scheduleWorkflowFloatingHeaderUpdate();
     return;
   }
   const pmbRows = workflowVehiclesForStep('pmb');
-  const search = workflowSearchValue();
-  app.workflowSearch = search;
-  const searchedRows = pmbRows.filter(vehicle => workflowVehicleMatchesSearch(vehicle, search));
+  const filters = workflowFilterValues();
+  app.workflowSearch = filters.search;
+  const filteredRows = workflowFilterAndSortRows(pmbRows, filters);
+  const filtering = workflowFiltersNarrowRows(filters);
+  const columnFiltering = workflowColumnFiltersActive(filters);
   const unassignedRows = pmbRows.filter(vehicle => !inferredPmbStage(vehicle));
   const lanes = [
     { value: '', filter: PMB_STAGE_UNASSIGNED_FILTER, label: 'UNALLOCATED', className: 'pmb-branch-unassigned', hint: 'Needs bucket' },
@@ -2314,7 +2428,7 @@ function renderWorkflowBoard() {
     const allVehicles = lane.value
       ? pmbRows.filter(vehicle => inferredPmbStage(vehicle) === lane.value)
       : unassignedRows;
-    const vehicles = search ? allVehicles.filter(vehicle => workflowVehicleMatchesSearch(vehicle, search)) : allVehicles;
+    const vehicles = workflowFilterAndSortRows(allVehicles, filters);
     const active = app.pmbSubFilter === lane.filter || (lane.value && normalizePmbStage(app.activePmbBayStage) === lane.value);
     const metrics = pmbLaneMetrics(lane.value, allVehicles);
     const laneClasses = [
@@ -2324,15 +2438,20 @@ function renderWorkflowBoard() {
       metrics.atLimit ? 'is-at-limit' : '',
       metrics.blockedCount ? 'has-blocked' : '',
     ].filter(Boolean).join(' ');
-    const cards = vehicles.map(vehicle => incomingVehicleDetailRow(vehicle, 'pmb', { draggable: true, hideDelete: true })).join('') || `<div class="pmb-empty-drop">${search ? 'No matching vehicles here — bucket still accepts drops' : lane.value ? 'Drop vehicles here' : 'No unallocated PMB vehicles'}</div>`;
+    const emptyMessage = filtering ? 'No matching vehicles here — bucket still accepts drops' : lane.value ? 'Drop vehicles here' : 'No unallocated PMB vehicles';
+    const emptyClear = columnFiltering ? '<button class="small-button workflow-empty-filter-action" type="button" data-workflow-clear-column-filters>Clear column filters</button>' : '';
+    const cards = vehicles.map(vehicle => incomingVehicleDetailRow(vehicle, 'pmb', { draggable: true, hideDelete: true })).join('') || `<div class="pmb-empty-drop"><span>${escapeHtml(emptyMessage)}</span>${emptyClear}</div>`;
     const capacityLabel = lane.value ? pmbStageCapacityLabel(lane.value) : `${metrics.limitLabel} vehicle limit`;
-    const countLabel = search ? `${vehicles.length}/${allVehicles.length}` : `${allVehicles.length}`;
+    const countLabel = filtering ? `${vehicles.length}/${allVehicles.length}` : `${allVehicles.length}`;
     const hint = metrics.overLimit
       ? `OVER LIMIT ${allVehicles.length}/${metrics.limitLabel}`
       : `${capacityLabel} · ${allVehicles.length} in queue · oldest ${metrics.oldestStageDays}d${metrics.blockedCount ? ` · blocked ${metrics.blockedCount}` : ''}`;
     const openAttr = app.workflowBucketsCollapsed ? '' : ' open';
     const actions = lane.value
-      ? (lane.value === 'SUBLET' ? `<span class="badge pmb-stage-badge pmb-stage-sublet">Provider dropdowns</span>` : `<button class="small-button" type="button" data-open-pmb-bays="${escapeHtml(lane.value)}" title="Open ${escapeHtml(lane.label)} bay line">Open bays</button>`)
+      ? (lane.value === 'SUBLET' ? `<span class="badge pmb-stage-badge pmb-stage-sublet">Provider queue</span>` : `<span class="badge neutral">Expand for bays</span>`)
+      : '';
+    const expandedAction = lane.value && lane.value !== 'SUBLET'
+      ? `<div class="workflow-expanded-actions"><button class="small-button primary" type="button" data-open-pmb-bays="${escapeHtml(lane.value)}" title="Open ${escapeHtml(lane.label)} numbered bays">Open ${escapeHtml(lane.label)} numbered bays</button></div>`
       : '';
     return `
       <details class="incoming-bucket workflow-stage-bucket pmb-drop-lane ${escapeHtml(laneClasses)}" data-pmb-drop-stage="${escapeHtml(lane.value)}" aria-label="${escapeHtml(lane.label)} PMB bucket"${openAttr}>
@@ -2343,27 +2462,32 @@ function renderWorkflowBoard() {
           <span class="workflow-bucket-actions">${actions}</span>
         </summary>
         <div class="incoming-bucket-list incoming-vertical-list workflow-vertical-list" data-pmb-drop-stage="${escapeHtml(lane.value)}">
-          ${vehicles.length ? productionGridHeaderHtml('workflow-production-grid-header') : ''}
+          ${expandedAction}
+          ${productionGridHeaderHtml('workflow-production-grid-header', { workflowFilters: filters })}
           ${cards}
         </div>
       </details>`;
   }).join('');
-  const summaryText = search
-    ? `${searchedRows.length} of ${pmbRows.length} PMB vehicles match “${search}” · all buckets stay visible for dragging`
-    : `${pmbRows.length} PMB vehicles · ${unassignedRows.length} unallocated`;
-  const priorityRows = workflowPriorityRows();
-  const priorityHtml = `<details class="incoming-bucket workflow-stage-bucket workflow-fix-first-bucket pmb-branch-fix-first" open><summary class="incoming-bucket-title workflow-bucket-title"><span>FIX FIRST</span><strong>${priorityRows.length}</strong><small>Only vehicles with a PMB stoppage or Parts stoppage</small><span class="workflow-bucket-actions"><span class="badge danger">Red priority</span></span></summary><div class="incoming-bucket-list incoming-vertical-list workflow-vertical-list fix-first-list-body">${fixFirstRowsHtml(priorityRows, 'No PMB exceptions need action right now.')}</div></details>`;
+  const summaryText = `${workflowFilterSummary(filters, filteredRows.length, pmbRows.length)} · all buckets stay visible for dragging`;
+  const priorityRows = workflowPriorityRows()
+    .filter(row => workflowVehicleMatchesFilters(row.vehicle, filters))
+    .map((row, index) => ({ row, index }))
+    .sort((a, b) => workflowCompareVehicles(a.row.vehicle, b.row.vehicle, filters.sort) || a.index - b.index)
+    .map(item => item.row);
+  const priorityHtml = `<details class="incoming-bucket workflow-stage-bucket workflow-fix-first-bucket pmb-branch-fix-first" open><summary class="incoming-bucket-title workflow-bucket-title"><span>FIX FIRST</span><strong>${priorityRows.length}</strong><small>Only matching vehicles with a PMB stoppage or Parts stoppage</small><span class="workflow-bucket-actions"><span class="badge danger">Red priority</span></span></summary><div class="incoming-bucket-list incoming-vertical-list workflow-vertical-list fix-first-list-body">${fixFirstRowsHtml(priorityRows, filtering ? 'No matching PMB exceptions need action right now.' : 'No PMB exceptions need action right now.')}</div></details>`;
   host.innerHTML = `
+    ${workStatusLegendHtml()}
     <div class="branch-header workflow-pmb-header">
       <div><strong>PMB control board</strong><span>All station rows match Vehicle Locations rows. Drag vehicles into TINT, HOIST, FITTING, FAB, ELEC, TYRE or PIT; use Open bays for numbered bay scheduling.</span></div>
-      <div class="branch-header-actions"><span class="badge neutral">${escapeHtml(summaryText)}</span></div>
+      <div class="branch-header-actions"><span class="badge neutral">${escapeHtml(summaryText)}</span>${columnFiltering ? '<button class="small-button" type="button" data-workflow-clear-column-filters>Clear column filters</button>' : ''}</div>
     </div>
     <div class="workflow-collapsible-board" data-pmb-board>${priorityHtml}${laneHtml}</div>
   `;
   bindPmbDragBoard(host);
   bindFixFirstRows(host);
-  updateInlineSelectionBars(search ? searchedRows : pmbRows);
+  updateInlineSelectionBars(filteredRows);
   updateCollapseToggleButtons();
+  scheduleWorkflowFloatingHeaderUpdate();
 }
 
 function incomingBucketForVehicle(vehicle = {}) {
@@ -2556,6 +2680,222 @@ function clearWorkflowSearch() {
   renderWorkflowBoard();
 }
 
+function workflowFilterValues() {
+  const previous = app.workflowFilters || {};
+  const filters = {
+    search: workflowSearchValue(),
+    sort: String(previous.sort || 'oldest').trim() || 'oldest',
+    bucket: String(previous.bucket || '').trim(),
+    work: String(previous.work || '').trim(),
+    required: String(previous.required || '').trim(),
+    completion: String(previous.completion || '').trim(),
+    stoppage: String(previous.stoppage || '').trim(),
+  };
+  if (!filters.work) {
+    filters.required = '';
+    filters.completion = '';
+  }
+  if (filters.required === 'no') {
+    filters.completion = '';
+  }
+  app.workflowFilters = {
+    sort: filters.sort,
+    bucket: filters.bucket,
+    work: filters.work,
+    required: filters.required,
+    completion: filters.completion,
+    stoppage: filters.stoppage,
+  };
+  return filters;
+}
+
+function workflowFiltersNarrowRows(filters = {}) {
+  return Boolean(filters.search || filters.bucket || filters.work || filters.required || filters.completion || filters.stoppage);
+}
+
+function workflowColumnFiltersActive(filters = {}) {
+  return Boolean(filters.bucket || filters.work || filters.required || filters.completion || filters.stoppage);
+}
+
+function workflowVehicleHasStoppage(vehicle = {}) {
+  return Boolean(isPdcBlocked(vehicle) || partsDepartmentStatus(vehicle) === 'stoppage');
+}
+
+function workflowVehicleMatchesFilters(vehicle = {}, filters = {}) {
+  if (filters.search && !workflowVehicleMatchesSearch(vehicle, filters.search)) return false;
+  const stage = inferredPmbStage(vehicle);
+  if (filters.bucket === 'UNALLOCATED' && stage) return false;
+  if (filters.bucket && filters.bucket !== 'UNALLOCATED' && stage !== filters.bucket) return false;
+
+  const workDef = filters.work ? PDC_JOB_BY_KEY.get(filters.work) : null;
+  if (workDef) {
+    const required = pdcJobRequired(vehicle, workDef) || pdcJobComplete(vehicle, workDef);
+    const complete = pdcJobComplete(vehicle, workDef);
+    if (filters.required === 'yes' && !required) return false;
+    if (filters.required === 'no' && required) return false;
+    if (filters.completion === 'outstanding' && !(required && !complete)) return false;
+    if (filters.completion === 'complete' && !complete) return false;
+  }
+
+  const stopped = workflowVehicleHasStoppage(vehicle);
+  if (filters.stoppage === 'yes' && !stopped) return false;
+  if (filters.stoppage === 'no' && stopped) return false;
+  return true;
+}
+
+function workflowVehicleSortTimestamp(vehicle = {}) {
+  const entered = parseIsoTimestamp(pmbEnteredTimestamp(vehicle));
+  if (entered) return entered.getTime();
+  const kewdaleDate = parseDateAU(kewdaleEtaValue(vehicle));
+  return kewdaleDate ? kewdaleDate.getTime() : null;
+}
+
+function workflowCompareVehicles(a = {}, b = {}, sort = 'oldest') {
+  const textCompare = (left, right) => String(left || '').localeCompare(String(right || ''), undefined, { numeric: true, sensitivity: 'base' });
+  if (sort === 'key-asc' || sort === 'key-desc') {
+    const direction = sort === 'key-desc' ? -1 : 1;
+    return direction * textCompare(vehicleKeyNumber(a), vehicleKeyNumber(b));
+  }
+  if (sort === 'stock-asc' || sort === 'stock-desc') {
+    const direction = sort === 'stock-desc' ? -1 : 1;
+    return direction * textCompare(displayStockNumber(a) || vehicleKey(a), displayStockNumber(b) || vehicleKey(b));
+  }
+  if (sort === 'customer-asc') {
+    const customerDiff = textCompare(vehicleCustomerName(a), vehicleCustomerName(b));
+    return customerDiff || textCompare(displayStockNumber(a) || vehicleKey(a), displayStockNumber(b) || vehicleKey(b));
+  }
+  if (sort === 'customer-desc') {
+    const customerDiff = textCompare(vehicleCustomerName(b), vehicleCustomerName(a));
+    return customerDiff || textCompare(displayStockNumber(a) || vehicleKey(a), displayStockNumber(b) || vehicleKey(b));
+  }
+  if (sort === 'jobcard-asc' || sort === 'jobcard-desc') {
+    const direction = sort === 'jobcard-desc' ? -1 : 1;
+    return direction * textCompare(vehicleJobcardNumber(a), vehicleJobcardNumber(b));
+  }
+  if (sort === 'vehicle-asc' || sort === 'vehicle-desc') {
+    const direction = sort === 'vehicle-desc' ? -1 : 1;
+    return direction * textCompare(displayVehicle(a), displayVehicle(b));
+  }
+  const aDate = workflowVehicleSortTimestamp(a);
+  const bDate = workflowVehicleSortTimestamp(b);
+  if (aDate === null && bDate !== null) return 1;
+  if (aDate !== null && bDate === null) return -1;
+  if (aDate !== null && bDate !== null && aDate !== bDate) return sort === 'newest' ? bDate - aDate : aDate - bDate;
+  return textCompare(displayStockNumber(a) || vehicleKey(a), displayStockNumber(b) || vehicleKey(b));
+}
+
+function workflowFilterAndSortRows(rows = [], filters = {}) {
+  return rows
+    .filter(vehicle => workflowVehicleMatchesFilters(vehicle, filters))
+    .map((vehicle, index) => ({ vehicle, index }))
+    .sort((a, b) => workflowCompareVehicles(a.vehicle, b.vehicle, filters.sort || 'oldest') || a.index - b.index)
+    .map(item => item.vehicle);
+}
+
+function workflowFilterSummary(filters = {}, matched = 0, total = 0) {
+  const parts = [`Showing ${matched} of ${total}`];
+  const sortLabels = { oldest: 'oldest first', newest: 'newest first', 'key-asc': 'key low–high', 'key-desc': 'key high–low', 'stock-asc': 'stock A–Z', 'stock-desc': 'stock Z–A', 'jobcard-asc': 'job card A–Z', 'jobcard-desc': 'job card Z–A', 'customer-asc': 'customer A–Z', 'customer-desc': 'customer Z–A', 'vehicle-asc': 'vehicle A–Z', 'vehicle-desc': 'vehicle Z–A' };
+  const bucketLabels = { UNALLOCATED: 'Unallocated', TINT: 'Tint', HOIST: 'Hoist', FITTING: 'Fitting', FABRICATION: 'Fab', ELECTRICAL: 'Elec', TYRE: 'Tyre', PIT_INSPECTION: 'Pit', SUBLET: 'Sublet' };
+  if (filters.search) parts.push(`search “${filters.search}”`);
+  if (filters.bucket) parts.push(`bucket ${bucketLabels[filters.bucket] || filters.bucket}`);
+  if (filters.work) parts.push(`work ${PDC_JOB_BY_KEY.get(filters.work)?.label || filters.work}`);
+  if (filters.required) parts.push(`required ${filters.required}`);
+  if (filters.completion) parts.push(filters.completion);
+  if (filters.stoppage) parts.push(filters.stoppage === 'yes' ? 'stoppage only' : 'no stoppage');
+  parts.push(sortLabels[filters.sort] || 'oldest first');
+  return parts.join(' · ');
+}
+
+function applyWorkflowHeaderFilter(type = '', value = '', workKey = '') {
+  const filters = { ...(app.workflowFilters || {}) };
+  if (type === 'sort') {
+    filters.sort = value || 'oldest';
+  } else if (type === 'status') {
+    filters.bucket = '';
+    filters.stoppage = '';
+    const [kind, selected] = String(value || '').split(':');
+    if (kind === 'bucket') filters.bucket = selected || '';
+    if (kind === 'stoppage') filters.stoppage = selected || '';
+  } else if (type === 'work') {
+    filters.work = value ? workKey : '';
+    filters.required = value === 'yes' ? 'yes' : value === 'no' ? 'no' : '';
+    filters.completion = value === 'outstanding' ? 'outstanding' : value === 'complete' ? 'complete' : '';
+  }
+  app.workflowFilters = filters;
+  renderWorkflowBoard();
+}
+
+function clearWorkflowFilters() {
+  app.workflowFilters = { sort: 'oldest', bucket: '', work: '', required: '', completion: '', stoppage: '' };
+  renderWorkflowBoard();
+}
+
+let workflowFloatingHeaderFrame = 0;
+
+function scheduleWorkflowFloatingHeaderUpdate() {
+  if (workflowFloatingHeaderFrame || !window.requestAnimationFrame) return;
+  workflowFloatingHeaderFrame = window.requestAnimationFrame(() => {
+    workflowFloatingHeaderFrame = 0;
+    updateWorkflowFloatingHeader();
+  });
+}
+
+function workflowFloatingHeaderHost() {
+  let floating = $('#workflow-floating-column-header');
+  if (floating) return floating;
+  floating = document.createElement('div');
+  floating.id = 'workflow-floating-column-header';
+  floating.className = 'workflow-floating-column-header';
+  floating.hidden = true;
+  floating.addEventListener('scroll', () => {
+    const sourceList = floating.__sourceList;
+    if (sourceList && Math.abs(sourceList.scrollLeft - floating.scrollLeft) > 1) sourceList.scrollLeft = floating.scrollLeft;
+  }, { passive: true });
+  document.body.appendChild(floating);
+  return floating;
+}
+
+function updateWorkflowFloatingHeader() {
+  const floating = $('#workflow-floating-column-header');
+  if (document.body?.dataset?.currentView !== 'workflow' || document.body.classList.contains('pmb-station-mode')) {
+    if (floating) floating.hidden = true;
+    return;
+  }
+  const headers = $$('.workflow-production-grid-header', $('#workflow-board'));
+  const top = 8;
+  let source = null;
+  headers.forEach(header => {
+    const lane = header.closest('.workflow-stage-bucket');
+    if (!lane?.open) return;
+    const headerRect = header.getBoundingClientRect();
+    const laneRect = lane.getBoundingClientRect();
+    if (headerRect.top < top && laneRect.bottom > top + headerRect.height) source = header;
+  });
+  if (!source) {
+    if (floating) floating.hidden = true;
+    return;
+  }
+  const sourceList = source.closest('.workflow-vertical-list');
+  if (!sourceList) return;
+  const listRect = sourceList.getBoundingClientRect();
+  const visibleLeft = Math.max(0, listRect.left);
+  const visibleRight = Math.min(window.innerWidth, listRect.right);
+  const host = workflowFloatingHeaderHost();
+  if (host.__sourceHeader !== source) {
+    host.innerHTML = '';
+    const clone = source.cloneNode(true);
+    clone.classList.add('is-floating-copy');
+    clone.removeAttribute('id');
+    host.appendChild(clone);
+    host.__sourceHeader = source;
+  }
+  host.__sourceList = sourceList;
+  host.style.left = `${Math.round(visibleLeft)}px`;
+  host.style.width = `${Math.max(0, Math.round(visibleRight - visibleLeft))}px`;
+  host.hidden = false;
+  if (Math.abs(host.scrollLeft - sourceList.scrollLeft) > 1) host.scrollLeft = sourceList.scrollLeft;
+}
+
 
 function loadWorkflowWidthMode() {
   try {
@@ -2612,6 +2952,16 @@ function incomingWorkChecklistHtml(vehicle = {}) {
   }).join('')}</div>`;
 }
 
+function workStatusLegendHtml() {
+  return `<div class="work-status-legend" aria-label="Work status legend">
+    <strong>Work status</strong>
+    <span class="work-status-key status-none"><b>—</b> Not required</span>
+    <span class="work-status-key status-required"><b>●</b> Required</span>
+    <span class="work-status-key status-complete"><b>✓</b> Complete</span>
+    <span class="work-status-key status-blocked"><b>!</b> Stoppage</span>
+  </div>`;
+}
+
 function incomingVehicleDetailRow(vehicle = {}, bucketKey = '', options = {}) {
   const key = vehicleKey(vehicle);
   const eta = locationAgeLabel(vehicle);
@@ -2638,7 +2988,7 @@ function incomingVehicleDetailRow(vehicle = {}, bucketKey = '', options = {}) {
       : bucketKey === 'rft'
         ? `<label class="rft-collected-check incoming-collected-check" title="Tick once the vehicle has been collected"><input type="checkbox" data-rft-collected-key="${escapeHtml(key)}" /> <span>Collected</span></label><button class="small-button incoming-open-button" type="button" data-open-stock="${escapeHtml(key)}">Open</button>`
         : `<button class="small-button incoming-open-button" type="button" data-open-stock="${escapeHtml(key)}">Open</button>`;
-  const deleteAction = options.hideDelete ? '' : `<button class="small-button incoming-delete-button" type="button" data-incoming-delete="${escapeHtml(key)}" title="Delete this vehicle from the main screen">Delete</button>`;
+  const deleteAction = options.showDelete ? `<button class="small-button incoming-delete-button" type="button" data-incoming-delete="${escapeHtml(key)}" title="Move this vehicle to Deleted vehicles">Delete</button>` : '';
   const identitySummary = vehicleIdentityStackHtml(vehicle, { className: 'incoming-identity' });
   const selectBox = `<label class="incoming-card-select" title="Select ${escapeHtml(stock)}"><input type="checkbox" data-select-stock="${escapeHtml(key)}" ${app.selectedRows.has(key) ? 'checked' : ''} /><span aria-hidden="true"></span></label>`;
   const dragAttrs = options.draggable ? ` draggable="true" data-pmb-drag-key="${escapeHtml(key)}"` : '';
@@ -2690,7 +3040,7 @@ function renderIncomingDashboardBoard() {
     <div class="incoming-priority-stoppages-head"><strong>Stoppages / Fix First</strong><span>${priorityRows.length} active</span><small>Red priority list before RFT. Sort Parts stoppages by Parts ETA so long-delay items fall lower.</small></div>
     <details class="fix-first-list incoming-priority-list"><summary>Show stoppages</summary><div class="fix-first-list-body">${fixFirstRowsHtml(priorityRows)}</div></details>
   </section>`;
-  host.innerHTML = priorityHtml + defs.map(def => {
+  host.innerHTML = workStatusLegendHtml() + priorityHtml + defs.map(def => {
     if (filters.bucket && filters.bucket !== def.key) return '';
     const vehicles = filteredRows.filter(vehicle => incomingBucketForVehicle(vehicle) === def.key)
       .sort((a, b) => (parseDateAU(navisionEtaForVehicle(a))?.getTime() || 9999999999999) - (parseDateAU(navisionEtaForVehicle(b))?.getTime() || 9999999999999));
@@ -3936,6 +4286,7 @@ function bindPmbDragBoard(host) {
   $$('.workflow-stage-bucket', host).forEach(bucket => {
     bucket.addEventListener('toggle', () => {
       if (bucket.open) app.workflowBucketsCollapsed = false;
+      scheduleWorkflowFloatingHeaderUpdate();
     });
   });
   $$('[data-pmb-sub-filter]', host).forEach(button => button.addEventListener('click', () => applyPmbSubFilter(button.dataset.pmbSubFilter || '')));
@@ -6155,7 +6506,7 @@ function removeVehicle(stock) {
   const vehicle = selectedVehicle(stock);
   if (!vehicle) return;
   const label = `${vehicleIdentityTitle(vehicle) || 'this vehicle'} - ${vehicleCustomerName(vehicle) || 'Unknown customer'}`;
-  if (!window.confirm(`Remove ${label} from the tracker? This will hide it from the prototype dashboard.`)) return;
+  if (!window.confirm(`Move ${label} to Deleted vehicles?\n\nThe record can still be reviewed on the Deleted vehicles screen.`)) return;
 
   removeVehiclesFromTracker([vehicle]);
   refreshAfterVehicleRemoval();
@@ -6178,7 +6529,6 @@ function renderDetail() {
         <div><h3>${escapeHtml(v.client || 'New customer')}</h3><p>${escapeHtml(displayVehicle(v))}</p></div>
         <div class="detail-actions">
           ${actionSelectHtml(key)}
-          <button class="danger ghost" type="button" data-remove-vehicle="${escapeHtml(key)}">Remove vehicle</button>
         </div>
       </div>
       <form class="edit-form" data-vehicle-edit-form>
@@ -6248,7 +6598,8 @@ function renderDetail() {
         <div class="field-help pdc-work-state-help">Click each work item to cycle: grey = not required, red = to be completed, green = completed.</div>
         <div class="edit-actions">
           <button class="primary" type="submit">Save changes</button>
-          <span class="save-message" data-save-message></span>
+          <button class="ghost" type="button" data-modal-cancel>Cancel</button>
+          <span class="save-message" data-save-message role="status" aria-live="polite"></span>
         </div>
       </form>
       ${renderPmbBayControlSection(v)}
@@ -6297,6 +6648,10 @@ function renderDetail() {
         <button class="primary" type="submit">Add note</button>
       </form>
       <div class="notes-list">${notes.map(n => `<div class="note-pill">${escapeHtml(n)}</div>`).join('') || '<div class="subtle">No notes added yet.</div>'}</div>
+      <div class="detail-danger-zone">
+        <div><strong>Move vehicle to Deleted vehicles</strong><span>Use this only for duplicate, cancelled or incorrectly imported records.</span></div>
+        <button class="danger ghost" type="button" data-remove-vehicle="${escapeHtml(key)}">Delete vehicle</button>
+      </div>
     </div>
   `;
   $('[data-action-stock]', panel)?.addEventListener('change', (e) => {
@@ -6305,6 +6660,7 @@ function renderDetail() {
     e.currentTarget.value = '';
   });
   on($('[data-remove-vehicle]', panel), 'click', () => removeVehicle(key));
+  on($('[data-modal-cancel]', panel), 'click', closeVehicleModal);
   on($('[data-vehicle-po-upload]', panel), 'change', (event) => handleVehiclePoSelect(key, event));
   $$('[data-pdc-work-state]', panel).forEach(button => {
     button.addEventListener('click', () => {
@@ -7098,6 +7454,51 @@ function renderPartsSummary(rows = []) {
   }));
 }
 
+function partsQueueRowHtml(vehicle = {}) {
+  const key = vehicleKey(vehicle);
+  const status = partsDepartmentStatus(vehicle);
+  const complete = ['issued', 'notrequired'].includes(status);
+  const eta = kewdaleEtaValue(vehicle);
+  const ageClass = partsEtaCounterClass(vehicle);
+  const stage = statusCategoryLabel(vehicle);
+  const pmbStage = inferredPmbStage(vehicle) ? ` · ${pmbStageLabel(inferredPmbStage(vehicle))}` : '';
+  const worstEtaInput = partsWorstEtaInputValue(vehicle);
+  const worstEtaLabel = partsWorstEtaLabel(vehicle);
+  const worstEtaCountdown = partsWorstEtaCountdownLabel(vehicle);
+  const worstEtaCountdownClass = partsWorstEtaCountdownClass(vehicle);
+  const customer = vehicleCustomerName(vehicle) || 'Dealer Order';
+  const unit = displayVehicle(vehicle) || 'Vehicle not listed';
+  const blocker = status === 'stoppage' ? partsStoppageReason(vehicle) : '';
+  const orderAction = !complete && !partsOrdered(vehicle)
+    ? `<button class="small-button" type="button" data-parts-ordered="${escapeHtml(key)}" aria-label="Mark parts ordered for ${escapeHtml(displayStockNumber(vehicle) || key)}">Ordered</button>`
+    : '';
+  const stoppageAction = status === 'stoppage'
+    ? `<button class="small-button" type="button" data-parts-clear-stoppage="${escapeHtml(key)}" aria-label="Clear parts stoppage for ${escapeHtml(displayStockNumber(vehicle) || key)}">Clear stoppage</button>`
+    : `<button class="small-button danger-button" type="button" data-parts-stoppage="${escapeHtml(key)}" ${complete ? 'disabled' : ''} aria-label="Record parts stoppage for ${escapeHtml(displayStockNumber(vehicle) || key)}">Stoppage</button>`;
+  return `<tr class="parts-row parts-queue-row ${escapeHtml(partsDepartmentStatusClass(status))}">
+    <td><div class="parts-queue-status-cell">
+      <span class="parts-status-pill ${escapeHtml(partsDepartmentStatusClass(status))}">${escapeHtml(partsDepartmentStatusLabel(status))}</span>
+      <span class="parts-queue-jita"><b>JITA</b>${jitaIndicator(vehicle)}</span>
+    </div></td>
+    <td><div class="parts-queue-identity">
+      <span><b>Key</b>${escapeHtml(vehicleKeyNumber(vehicle) || '—')}</span>
+      <span><b>Stock</b><button class="stock-link stock-button" type="button" data-open-stock="${escapeHtml(key)}">${escapeHtml(displayStockNumber(vehicle) || vehicle.order || '—')}</button></span>
+      <span><b>JC</b>${escapeHtml(vehicleJobcardNumber(vehicle) || '—')}</span>
+    </div></td>
+    <td><div class="parts-queue-customer"><strong title="${escapeHtml(customer)}">${escapeHtml(customer)}</strong><span title="${escapeHtml(unit)}">${escapeHtml(unit)}</span></div></td>
+    <td><div class="parts-eta"><strong>${escapeHtml(eta || 'No ETA')}</strong><span class="pmb-age ${escapeHtml('pmb-age-' + ageClass)}">${escapeHtml(partsEtaCounterLabel(vehicle))}</span></div></td>
+    <td><div class="parts-worst-eta-wrap"><label class="parts-worst-eta"><span class="sr-only">Parts worst ETA</span><input type="date" data-parts-worst-eta="${escapeHtml(key)}" value="${escapeHtml(worstEtaInput)}" ${complete ? 'disabled' : ''} /></label><span class="parts-worst-eta-details">${worstEtaLabel ? `<span class="parts-worst-eta-label">${escapeHtml(worstEtaLabel)}</span>${worstEtaCountdown ? `<span class="parts-worst-eta-countdown ${escapeHtml(worstEtaCountdownClass)}">${escapeHtml(worstEtaCountdown)}</span>` : ''}` : '<span class="subtle parts-worst-eta-label">Set worst ETA</span>'}</span>${worstEtaLabel ? `<button class="small-button parts-email-sales-button" type="button" data-parts-eta-email="${escapeHtml(key)}" ${complete ? 'disabled' : ''}>Email sales</button>` : ''}</div></td>
+    <td class="parts-queue-blocker">${blocker ? `<strong title="${escapeHtml(blocker)}">${escapeHtml(blocker)}</strong>` : '<span class="subtle">No blocker recorded</span>'}</td>
+    <td><div class="parts-queue-stage"><strong>${escapeHtml(stage + pmbStage)}</strong><span>${escapeHtml(partsLastUpdateLabel(vehicle) || 'No update recorded')}</span></div></td>
+    <td><div class="parts-action-group">
+      ${orderAction}
+      <button class="small-button primary" type="button" data-parts-complete="${escapeHtml(key)}" aria-label="Complete parts for ${escapeHtml(displayStockNumber(vehicle) || key)}">Complete</button>
+      ${stoppageAction}
+      <button class="small-button" type="button" data-open-stock="${escapeHtml(key)}">Open</button>
+    </div></td>
+  </tr>`;
+}
+
 function renderPartsHome() {
   const host = $('#parts-home-content');
   const summaryHost = $('#parts-summary-grid');
@@ -7109,44 +7510,11 @@ function renderPartsHome() {
     host.innerHTML = '<div class="empty-state"><strong>No vehicles match the current parts filter</strong><span>Clear search or change the Parts status filter.</span></div>';
     return;
   }
-  host.innerHTML = `<div class="parts-table-wrap pdc-grid-table-wrap"><table class="data-table compact-table parts-table pdc-grid-table">
+  host.innerHTML = `<div class="parts-table-wrap parts-queue-wrap"><table class="data-table compact-table parts-queue-table">
     <thead><tr>
-      <th>Parts status</th><th>JITA</th><th>Key</th><th>Stock</th><th>Job Card</th><th>Customer</th><th>Vehicle</th>
-      <th>Kewdale ETA / age</th><th>Parts ETA</th><th>Stoppage / blocker</th><th>Current stage</th><th>Updated</th><th>Actions</th>
+      <th>Status</th><th>Vehicle ID</th><th>Customer / vehicle</th><th>Kewdale ETA</th><th>Parts ETA</th><th>Blocker</th><th>Stage / update</th><th>Actions</th>
     </tr></thead>
-    <tbody>${rows.map(vehicle => {
-      const key = vehicleKey(vehicle);
-      const status = partsDepartmentStatus(vehicle);
-      const complete = ['issued', 'notrequired'].includes(status);
-      const eta = kewdaleEtaValue(vehicle);
-      const ageClass = partsEtaCounterClass(vehicle);
-      const stage = statusCategoryLabel(vehicle);
-      const pmbStage = inferredPmbStage(vehicle) ? ` · ${pmbStageLabel(inferredPmbStage(vehicle))}` : '';
-      const worstEtaInput = partsWorstEtaInputValue(vehicle);
-      const worstEtaLabel = partsWorstEtaLabel(vehicle);
-      const worstEtaCountdown = partsWorstEtaCountdownLabel(vehicle);
-      const worstEtaCountdownClass = partsWorstEtaCountdownClass(vehicle);
-      return `<tr class="parts-row ${escapeHtml(partsDepartmentStatusClass(status))}">
-        <td><span class="parts-status-pill ${escapeHtml(partsDepartmentStatusClass(status))}">${escapeHtml(partsDepartmentStatusLabel(status))}</span></td>
-        <td class="parts-jita-cell">${jitaIndicator(vehicle)}</td>
-        <td class="pdc-id-cell pdc-key-cell">${escapeHtml(vehicleKeyNumber(vehicle) || '—')}</td>
-        <td class="pdc-id-cell pdc-stock-cell"><button class="stock-link stock-button" type="button" data-open-stock="${escapeHtml(key)}">${escapeHtml(displayStockNumber(vehicle) || vehicle.order || '—')}</button></td>
-        <td class="pdc-id-cell pdc-jc-cell">${escapeHtml(vehicleJobcardNumber(vehicle) || '—')}</td>
-        <td class="pdc-name-cell"><span title="${escapeHtml(vehicleCustomerName(vehicle) || '')}">${escapeHtml(vehicleCustomerName(vehicle) || 'Dealer Order')}</span></td>
-        <td class="pdc-vehicle-cell"><span title="${escapeHtml(displayVehicle(vehicle))}">${escapeHtml(displayVehicle(vehicle) || 'Vehicle not listed')}</span></td>
-        <td><div class="parts-eta"><strong>${escapeHtml(eta || 'No ETA')}</strong><span class="pmb-age ${escapeHtml('pmb-age-' + ageClass)}">${escapeHtml(partsEtaCounterLabel(vehicle))}</span></div></td>
-        <td><div class="parts-worst-eta-wrap"><label class="parts-worst-eta"><span class="sr-only">Parts worst ETA</span><input type="date" data-parts-worst-eta="${escapeHtml(key)}" value="${escapeHtml(worstEtaInput)}" ${complete ? 'disabled' : ''} /></label><span class="parts-worst-eta-details">${worstEtaLabel ? `<span class="parts-worst-eta-label">${escapeHtml(worstEtaLabel)}</span>${worstEtaCountdown ? `<span class="parts-worst-eta-countdown ${escapeHtml(worstEtaCountdownClass)}">${escapeHtml(worstEtaCountdown)}</span>` : ''}` : '<span class="subtle parts-worst-eta-label">Set worst ETA</span>'}</span>${worstEtaLabel ? `<button class="small-button parts-email-sales-button" type="button" data-parts-eta-email="${escapeHtml(key)}" ${complete ? 'disabled' : ''}>Email sales</button>` : ''}</div></td>
-        <td>${status === 'stoppage' ? `<span class="parts-stoppage-text" title="${escapeHtml(partsStoppageReason(vehicle))}">${escapeHtml(partsStoppageReason(vehicle))}</span>` : '<span class="subtle">No blocker recorded</span>'}</td>
-        <td>${escapeHtml(stage + pmbStage)}</td>
-        <td>${escapeHtml(partsLastUpdateLabel(vehicle) || '')}</td>
-        <td><div class="parts-action-group">
-          <button class="small-button danger-button" type="button" data-parts-stoppage="${escapeHtml(key)}" ${complete ? 'disabled' : ''}>Stoppage</button>
-          <button class="small-button" type="button" data-parts-ordered="${escapeHtml(key)}" ${complete ? 'disabled' : ''}>Ordered</button>
-          <button class="small-button primary" type="button" data-parts-complete="${escapeHtml(key)}">Complete</button>
-          ${status === 'stoppage' ? `<button class="small-button" type="button" data-parts-clear-stoppage="${escapeHtml(key)}">Clear</button>` : ''}
-        </div></td>
-      </tr>`;
-    }).join('')}</tbody></table></div>`;
+    <tbody>${rows.map(partsQueueRowHtml).join('')}</tbody></table></div>`;
   $$('[data-open-stock]', host).forEach(button => button.addEventListener('click', () => openVehicleModal(button.dataset.openStock)));
   $$('[data-parts-ordered]', host).forEach(button => button.addEventListener('click', () => markVehiclePartsOrdered(button.dataset.partsOrdered)));
   $$('[data-parts-complete]', host).forEach(button => button.addEventListener('click', () => markVehiclePartsComplete(button.dataset.partsComplete)));
@@ -7447,9 +7815,7 @@ function rftVehicleDetailRow(vehicle = {}) {
         <span class="incoming-card-meta incoming-card-age"><b>RFT</b><span>${escapeHtml(transferredLabel)}</span></span>
         <span class="incoming-card-meta"><b>Status</b><span class="parts-status-pill ${escapeHtml(statusClass)}">${escapeHtml(rftHomeStatusLabel(status))}</span></span>
         <span class="incoming-card-action rft-card-actions">
-          <label class="rft-collected-check" title="Tick once the vehicle has been collected"><input type="checkbox" data-rft-collected-key="${escapeHtml(key)}" /> <span>Collected</span></label>
-          <button class="small-button incoming-open-button" type="button" data-open-stock="${escapeHtml(key)}">Open</button>
-          <button class="small-button incoming-delete-button" type="button" data-rft-delete="${escapeHtml(key)}" title="Delete this RFT vehicle from the board">Delete</button>
+          ${rftCompletionSummaryHtml(vehicle)}
         </span>
       </summary>
       <div class="incoming-vehicle-detail-grid">
@@ -7459,6 +7825,7 @@ function rftVehicleDetailRow(vehicle = {}) {
         <div><b>Customer</b><span>${escapeHtml(customer)}</span></div>
         <div class="wide"><b>Blocker / outstanding</b><span>${escapeHtml(blocker || 'No outstanding RFT blockers')}</span></div>
         <div class="wide"><b>Completion ticks</b><span>${rftCompletionTicksHtml(vehicle)}</span></div>
+        <div class="wide rft-detail-actions"><b>Handover actions</b><span><label class="rft-collected-check" title="Tick once the vehicle has been collected"><input type="checkbox" data-rft-collected-key="${escapeHtml(key)}" /> <span>Collected</span></label><button class="small-button incoming-open-button" type="button" data-open-stock="${escapeHtml(key)}">Open vehicle</button></span></div>
       </div>
     </details>`;
 }

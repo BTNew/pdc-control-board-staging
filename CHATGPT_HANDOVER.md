@@ -8,6 +8,7 @@ PDC Control Board is a static browser application for tracking Toyota/Navision v
 ## Current architecture
 - Static site hosted on GitHub Pages.
 - Main application logic: `app.js`.
+- Desktop operations refinements: `desktop-operations.css`, loaded after `styles.css`.
 - Baseline vehicle data: `data.js` loaded as `window.VEHICLE_TRACKING_DATA`.
 - HTML entrypoint: `index.html`.
 - Test/demo entrypoints: `test-50.html`, `test-75.html`, `test-100.html`, `no-vehicles.html`.
@@ -20,8 +21,8 @@ PDC Control Board is a static browser application for tracking Toyota/Navision v
 - Live site: `https://btnew.github.io/pdc-control-board/`
 - Current branch: `main`
 - Handover package source branch: `main`
-- Latest commit hash: `FINAL_COMMIT_HASH_FILLED_IN_ZIP`
-- Current version/cache-busting identifier: `2026.07.13.02-parts-eta-handover`
+- Latest commit hash: `e97f98d36996d9dc5ee47555139dd0bdb16b4285`
+- Current version/cache-busting identifier: `2026.07.13.07-zero-filter-recovery`
 
 ## Local setup
 1. Open a shell in the repo folder:
@@ -34,9 +35,9 @@ PDC Control Board is a static browser application for tracking Toyota/Navision v
    ```
 3. Open:
    ```text
-   http://127.0.0.1:8025/index.html?v=2026.07.13.02-parts-eta-handover
+   http://127.0.0.1:8025/index.html?v=2026.07.13.07-zero-filter-recovery
    ```
-4. Do not use `?clearLocalData=1` unless you intentionally want to clear app localStorage in that test browser.
+4. Use `?clearLocalData=1` only on a test page when you intentionally want to clear app localStorage in that test browser. The live index ignores it by default.
 
 ## Test commands and expected results
 Run from repo root:
@@ -49,6 +50,8 @@ node test_data_integrity.js
 node test_review_update_alignment.js
 node test_production_grid_v2.js
 node test_uniform_stage_matrix.js
+node test_desktop_operations.js
+node test_master_sheet_import.js
 git diff --check
 ```
 Expected success includes:
@@ -60,6 +63,8 @@ Expected success includes:
 - `Review update alignment tests passed`
 - `Production grid v2 tests passed` if that test remains unchanged
 - `Uniform stage matrix tests passed` if that test remains unchanged
+- `Desktop operations regression checks passed`
+- `Master sheet import regression checks passed`
 - no output/error from `git diff --check`
 
 ## Deploy instructions
@@ -257,9 +262,18 @@ See `BUSINESS_RULES.md`. Critical highlights:
 - Preserve 75-vehicle fixture/test expectations where applicable.
 
 ## Recent completed changes
-- Replaced live bundled dataset with exactly 200 random/test vehicles.
-- Removed previous online vehicle dataset from bundled live data.
-- Version bumped to `2026.07.13.02-parts-eta-handover`.
+- Made the Control Board column-heading row selectable, with oldest/newest sorting in Age / ETA and Yes/No/outstanding/complete filtering in each work heading.
+- Added a synchronized floating copy of the column headings for vertical and horizontal scrolling; the separate filter toolbar was removed.
+- Zero-result column filters keep the headings and Clear buttons visible. Parts does not offer `Not required` because all PMB rows require Parts.
+- Kept real lane capacity totals visible while filtered/total row counts show exactly what is on screen.
+- Replaced the random live dataset with 321 current vehicles from `Master2021 (1).xlsx` / visible `EOS` sheet.
+- Imported PMB, WPC/RFT and IT/in-transit location groups plus current work and blocker states.
+- Refined the desktop operational layout at 1920×1080 and 1440×900.
+- Rebuilt Parts as an eight-column internally scrolling work queue.
+- Added work-state guidance, stronger exception visibility and safer modal-based deletion.
+- Corrected accessibility issues involving ARIA nesting, nested controls and contrast.
+- Excluded the workbook's test row, empty key placeholders and hidden historical/test sheets.
+- Version bumped to `2026.07.13.07-zero-filter-recovery`.
 - Added/captured previous Parts ETA when Parts ETA is updated.
 - Parts ETA email now explicitly includes previous ETA, new ETA and revised countdown.
 - Added handover documentation files.

@@ -70,6 +70,32 @@ code += String.raw`
   const fabCardHtml = pmbBayVehicleCardHtml({ stock: '10015803', keyNumber: '203', jobCardNumber: 'JC13920003', client: 'Fremantle Council', pdcLocation: 'PMB', manualLocation: 'PMB', pmbStage: 'FABRICATION' }, 'FABRICATION');
   assert(!fabCardHtml.includes('data-assign-pmb-bay-number='), 'Fabrication bay pill should stay clean without bay assignment controls');
 
+  const tyreRequiredOld = { stock: '1001', batch: '1001', client: 'Alpha', pdcLocation: 'PMB', pmbStage: 'TYRE', pmbEnteredAt: '2026-01-01T00:00:00.000Z', pdcRequiresTyre: true, pdcCompleteTyre: false };
+  const tyreRequiredNew = { stock: '1002', batch: '1002', client: 'Bravo', pdcLocation: 'PMB', pmbStage: '', pmbEnteredAt: '2026-06-01T00:00:00.000Z', pdcRequiresTyre: true, pdcCompleteTyre: true, pdcBlocked: true };
+  const tyreNotRequired = { stock: '1003', batch: '1003', client: 'Charlie', pdcLocation: 'PMB', pmbStage: 'FITTING', pmbEnteredAt: '2026-03-01T00:00:00.000Z', pdcRequiresTyre: false, pdcCompleteTyre: false };
+  const filterRows = [tyreRequiredNew, tyreNotRequired, tyreRequiredOld];
+  assert(workflowFilterAndSortRows(filterRows, { work: 'tyre', required: 'yes', sort: 'oldest' }).map(row => row.stock).join(',') === '1001,1002', 'Tyre required filter should include Yes rows oldest first');
+  assert(workflowFilterAndSortRows(filterRows, { work: 'tyre', required: 'yes', sort: 'newest' }).map(row => row.stock).join(',') === '1002,1001', 'Newest sort should reverse PMB date order');
+  assert(workflowFilterAndSortRows(filterRows, { work: 'tyre', required: 'no', sort: 'oldest' }).map(row => row.stock).join(',') === '1003', 'Tyre Required: No should show not-required rows');
+  assert(workflowFilterAndSortRows(filterRows, { work: 'tyre', completion: 'outstanding', sort: 'oldest' }).map(row => row.stock).join(',') === '1001', 'Outstanding filter should exclude completed work');
+  assert(workflowFilterAndSortRows(filterRows, { bucket: 'UNALLOCATED', sort: 'oldest' }).map(row => row.stock).join(',') === '1002', 'Unallocated bucket filter should match rows without a PMB stage');
+  assert(workflowFilterAndSortRows(filterRows, { stoppage: 'yes', sort: 'oldest' }).map(row => row.stock).join(',') === '1002', 'Stoppage-only filter should match blocked rows');
+  const filterHeaderHtml = productionGridHeaderHtml('workflow-production-grid-header', { workflowFilters: { sort: 'oldest', bucket: '', work: 'tyre', required: 'yes', completion: '', stoppage: '' } });
+  assert(filterHeaderHtml.includes('data-workflow-header-filter="work"'), 'Workflow column row should contain selectable work filters');
+  assert(filterHeaderHtml.includes('data-workflow-work-key="tyre"'), 'Tyre heading should expose its own filter selector');
+  assert(filterHeaderHtml.includes('Yes</small>'), 'Active Tyre Yes filter should be visible in the heading');
+  assert(filterHeaderHtml.includes('Oldest</small>'), 'Age / ETA heading should expose the active oldest sort');
+  const partsHeaderStart = filterHeaderHtml.indexOf('pdc-grid-station-parts');
+  const tintHeaderStart = filterHeaderHtml.indexOf('pdc-grid-station-tint');
+  const partsHeaderHtml = filterHeaderHtml.slice(partsHeaderStart, tintHeaderStart);
+  assert(!partsHeaderHtml.includes('value="no"'), 'Parts heading should not offer an impossible Not required filter');
+  assert(filterHeaderHtml.includes('data-workflow-clear-column-filters'), 'Active column filters should expose a clear action in the heading row');
+  app.workflowFilters = { sort: 'oldest', bucket: '', work: '', required: '', completion: '', stoppage: '' };
+  applyWorkflowHeaderFilter('work', 'no', 'tyre');
+  assert(app.workflowFilters.work === 'tyre' && app.workflowFilters.required === 'no', 'Selecting No from the Tyre heading should apply the Tyre no filter');
+  applyWorkflowHeaderFilter('sort', 'newest');
+  assert(app.workflowFilters.sort === 'newest', 'Selecting Newest from Age / ETA should update row order');
+
   console.log('Review update alignment tests passed');
 })();
 `;

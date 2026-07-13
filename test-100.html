@@ -4,7 +4,8 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>PDC Control Board — Random 100 Vehicle Test</title>
-  <link rel="stylesheet" href="styles.css?v=2026.07.13.02-parts-eta-handover" />
+  <link rel="stylesheet" href="styles.css?v=2026.07.13.07-zero-filter-recovery" />
+  <link rel="stylesheet" href="desktop-operations.css?v=2026.07.13.07-zero-filter-recovery" />
 </head>
 <body>
   <div class="test-data-banner" style="position:sticky;top:0;z-index:9999;background:#6d28d9;color:#fff;padding:8px 14px;text-align:center;font-weight:700;letter-spacing:.02em;">TEST DATASET — 100 SAMPLE VEHICLES ONLY — separate from live board</div>
@@ -33,7 +34,7 @@
       </nav>
 
       <div class="sidebar-card">
-        <div class="muted-label">Navision data</div>
+        <div class="muted-label">Source data</div>
         <strong id="report-date">Loading...</strong>
         <span id="report-meta">Loading report data</span>
       </div>
@@ -55,19 +56,6 @@
 
       <section id="dashboard" class="view active">
         <div class="kpi-grid" id="kpi-grid"></div>
-        <section class="panel span-12 fix-first-panel">
-          <div class="panel-header compact">
-            <div>
-              <h2>Fix First</h2>
-              <p>Only PMB stoppages and Parts stoppages that need action before normal queue work.</p>
-            </div>
-            <div class="panel-actions">
-              <button class="small-button" type="button" data-view-target="workflow">Open Control Board</button>
-              <button class="small-button" type="button" data-view-target="rft">Open RFT</button>
-            </div>
-          </div>
-          <div class="fix-first-grid" id="fix-first-grid"></div>
-        </section>
         <section class="panel span-12 incoming-board-panel">
           <div class="panel-header">
             <div>
@@ -375,7 +363,7 @@
             <div class="panel-header">
               <div>
                 <h2>Parts department home</h2>
-                <p>Focused view for parts ordering, parts completion and parts stoppages. It hides Navision notes and production-only noise so Parts can work from status, stock, ETA, blockers and actions.</p>
+                <p>Prioritised work queue for ordering, supplier ETA, stoppages and issue completion. Use the status cards to focus the list.</p>
               </div>
               <div class="panel-actions">
                 <button class="small-button" id="parts-export-csv" type="button">Export parts CSV</button>
@@ -385,7 +373,7 @@
             <div class="table-toolbar advanced-toolbar wide-toolbar parts-toolbar">
               <label>
                 <span>Search</span>
-                <input id="parts-search" type="search" placeholder="Stock, client, vehicle, production status..." />
+                <input id="parts-search" type="search" placeholder="Stock, customer, vehicle, key or job card..." />
               </label>
               <label>
                 <span>Parts status</span>
@@ -834,7 +822,7 @@
       }
     }());
   </script>
-  <script src="data-test-100.js?v=2026.07.13.02-parts-eta-handover"></script>
-  <script src="app.js?v=2026.07.13.02-parts-eta-handover"></script>
+  <script src="data-test-100.js?v=2026.07.13.07-zero-filter-recovery"></script>
+  <script src="app.js?v=2026.07.13.07-zero-filter-recovery"></script>
 </body>
 </html>

@@ -7,8 +7,9 @@ const assert = require('assert');
 const root = __dirname;
 const app = fs.readFileSync(path.join(root, 'app.js'), 'utf8');
 const css = fs.readFileSync(path.join(root, 'styles.css'), 'utf8');
+const desktopCss = fs.readFileSync(path.join(root, 'desktop-operations.css'), 'utf8');
 const htmlFiles = ['index.html', 'no-vehicles.html', 'test-50.html', 'test-75.html', 'test-100.html'];
-const expectedVersion = '2026.07.13.02-parts-eta-handover';
+const expectedVersion = '2026.07.13.07-zero-filter-recovery';
 
 assert.ok(app.includes(`const APP_VERSION = '${expectedVersion}';`));
 assert.match(app, /function productionGridHeaderHtml\(/);
@@ -23,7 +24,7 @@ for (const station of ['Parts', 'Tint', 'Hoist', 'Fitting', 'Fabrication', 'Elec
 }
 
 assert.doesNotMatch(app, /truncate\(\s*(?:customer|vehicleCustomerName)/i, 'Customer names must not be truncated');
-assert.match(app, /<th>Parts status<\/th><th>JITA<\/th><th>Key<\/th><th>Stock<\/th><th>Job Card<\/th><th>Customer<\/th><th>Vehicle<\/th>/);
+assert.match(app, /<th>Status<\/th><th>Vehicle ID<\/th><th>Customer \/ vehicle<\/th><th>Kewdale ETA<\/th><th>Parts ETA<\/th><th>Blocker<\/th><th>Stage \/ update<\/th><th>Actions<\/th>/);
 assert.match(app, /<th>Collected<\/th><th>Key<\/th><th>Stock<\/th><th>Job Card<\/th><th>Customer<\/th><th>Vehicle<\/th>/);
 assert.match(app, /<thead><tr><th>Key<\/th><th>Stock<\/th><th>Job Card<\/th><th>Customer<\/th><th>Vehicle<\/th>/);
 
@@ -36,13 +37,14 @@ assert.match(v2Css, /\.pdc-grid-stations-heading,[\s\S]*?grid-template-columns:\
 assert.match(v2Css, /\.identity-name \.vehicle-identity-value,[\s\S]*?white-space:\s*normal\s*!important/);
 assert.match(v2Css, /\.incoming-work-label[\s\S]*?white-space:\s*nowrap\s*!important/);
 assert.match(v2Css, /\.incoming-vehicle-card,[\s\S]*?overflow:\s*visible\s*!important/);
-assert.match(v2Css, /\.parts-table\s*\{[\s\S]*?width:\s*1980px\s*!important/);
+assert.match(desktopCss, /\.parts-queue-table\s*\{[\s\S]*?min-width:\s*1480px/);
 assert.match(v2Css, /\.completed-table\s*\{[\s\S]*?width:\s*1730px\s*!important/);
 assert.match(v2Css, /\.backend-data-table\s*\{[\s\S]*?width:\s*1490px\s*!important/);
 
 for (const file of htmlFiles) {
   const html = fs.readFileSync(path.join(root, file), 'utf8');
   assert.ok(html.includes(expectedVersion), `${file} has stale cache-busting/version text`);
+  assert.ok(html.includes('desktop-operations.css'), `${file} is missing the desktop operations stylesheet`);
   assert.ok(html.includes('data-view="backend"'), `${file} is missing Back End Data navigation`);
   assert.ok(html.includes('id="backend"'), `${file} is missing the Back End Data view`);
   assert.ok(html.includes('Fabrication'), `${file} is missing the full Fabrication label`);

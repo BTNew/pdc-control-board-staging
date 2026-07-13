@@ -1,0 +1,28 @@
+{
+  "sourceWorkbook": "Master2021 (1).xlsx",
+  "sourceWorksheet": "EOS",
+  "asOf": "2026-07-13",
+  "importedVehicles": 321,
+  "excludedTestRows": [
+    4
+  ],
+  "excludedPlaceholderRows": 85,
+  "duplicateStocks": [],
+  "locationCounts": {
+    "PMB": 276,
+    "WPC/RFT": 17,
+    "In Transit": 28
+  },
+  "pmbStageCounts": {
+    "UNALLOCATED": 239,
+    "SUBLET": 9,
+    "FITTING": 7,
+    "FABRICATION": 21
+  },
+  "blockedVehicles": 10,
+  "partsStatusCounts": {
+    "Blank": 28,
+    "Complete": 69,
+    "Ordered": 224
+  }
+}

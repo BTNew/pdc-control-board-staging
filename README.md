@@ -10,7 +10,9 @@ Open `index.html` directly, or serve the folder with a static file server:
 python -m http.server 8765 --bind 127.0.0.1
 ```
 
-Then open `http://127.0.0.1:8765/?v=2026.07.10.23-uniform-stage-matrix`.
+Then open `http://127.0.0.1:8765/?v=2026.07.13.07-zero-filter-recovery`.
+
+The bundled live dataset contains 321 current vehicles imported from the visible `EOS` worksheet of `Master2021 (1).xlsx`. See `MASTER_SHEET_IMPORT.md` and `master-import-audit.json` for the migration rules and counts.
 
 ## Main workflow
 
@@ -24,7 +26,7 @@ Then open `http://127.0.0.1:8765/?v=2026.07.10.23-uniform-stage-matrix`.
 
 ## Production Grid V2
 
-Build `2026.07.10.23-uniform-stage-matrix` uses one aligned vehicle-row system throughout the application. Key, Stock and Job Card use fixed tracks; Customer uses the flexible track and wraps without truncation. The eight station columns are identical 52 px × 30 px status cells, while their full names appear once in a 45-degree sticky header. Individual vehicle rows do not have their own horizontal scrollbars. See `PRODUCTION_GRID_V2_UPDATE.md` and `UNIFORM_STAGE_MATRIX_UPDATE.md` for the implementation and validation record.
+The current package keeps the aligned vehicle-row system throughout the application. Key, Stock and Job Card use fixed tracks; Customer uses the flexible track and wraps without truncation. The eight station columns are identical 52 px × 30 px status cells, while their full names appear once in a 45-degree sticky header. Individual vehicle rows do not have their own horizontal scrollbars. See `PRODUCTION_GRID_V2_UPDATE.md` and `UNIFORM_STAGE_MATRIX_UPDATE.md` for the implementation and validation record.
 
 ## Current PMB stages and capacities
 
@@ -96,6 +98,8 @@ node test_parts_production_principles.js
 node test_review_update_alignment.js
 node test_production_grid_v2.js
 node test_uniform_stage_matrix.js
+node test_desktop_operations.js
+node test_master_sheet_import.js
 ```
 
 ## Known limitations

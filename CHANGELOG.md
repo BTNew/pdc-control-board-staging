@@ -1,5 +1,38 @@
 # Changelog
 
+## 2026-07-13 — Selectable Sticky Column Filters
+
+- Made the Control Board column-heading row itself selectable instead of using a separate filter toolbar.
+- Age / ETA now selects oldest/newest PMB ordering; Key, Stock, Job Card, Customer and Vehicle select their own sort order.
+- Parts, Tint, Hoist, Fitting, Fab, Elec, Tyre and Pit headings select Yes, No, Outstanding or Complete.
+- Status selects a PMB bucket or stoppage state, and Actions provides a column-filter clear button.
+- Added a synchronized floating copy of the heading row that stays visible while scrolling and follows horizontal row scrolling.
+- Kept the heading row and Clear controls visible when a filter returns zero matches, so users can always recover without reloading.
+- Removed the impossible Parts `Not required` choice because every PMB vehicle in this board has a real batch and therefore requires Parts.
+- Applied the same filter and sort rules to every PMB lane and the Fix First list while preserving the real capacity totals.
+- Bumped the application/cache version to `2026.07.13.07-zero-filter-recovery`.
+
+## 2026-07-13 — Current Master Sheet Import
+
+- Replaced the random live dataset with 321 real vehicle rows from the visible `EOS` worksheet in `Master2021 (1).xlsx`.
+- Imported 276 numbered-key PMB vehicles, 17 WPC/RFT vehicles and 28 IT/in-transit vehicles.
+- Preserved customer, stock, key, date-in, model, suffix, colour, salesperson, work statuses, sublet providers and blocker signals.
+- Mapped the master work columns into the current Tint, Hoist, Fitting, Fab, Elec, Tyre, Pit and Parts status model.
+- Excluded the workbook's `Test` row, empty numbered placeholders and hidden copy/test worksheets.
+- Added an import audit file, mapping notes and regression coverage for vehicle counts, uniqueness, locations and representative statuses.
+
+## 2026-07-13 — Desktop Operations Refinement
+
+- Rebuilt Parts as a focused eight-column work queue with a fixed-height, internally scrolling desktop table and clearer row actions.
+- Added a shared work-status legend to Vehicle Locations and Control Board so required, complete, stopped and not-required states are explicit.
+- Strengthened over-capacity and blocker warnings on Control Board while improving vehicle identity and work-cell readability for workshop monitors.
+- Simplified operational top-bar controls and removed duplicate Fix First content from the supporting data pages.
+- Reworked vehicle details with a persistent Save/Cancel footer and a separated danger zone for deletion.
+- Removed direct row-delete controls from Parts and RFT; vehicle removal now requires opening the vehicle and confirming the action.
+- Protected the live page from the test-only `?clearLocalData=1` reset parameter.
+- Corrected ARIA nesting, nested interactive controls and contrast issues found during desktop accessibility checks.
+- Verified the principal views at 1920×1080 and 1440×900 with no page-level horizontal overflow or browser-console errors.
+
 ## 2026-07-10 — Uniform Stage Matrix
 
 - Standardised all eight vehicle-stage cells to the same 52 px × 30 px size across the shared production-grid pages.

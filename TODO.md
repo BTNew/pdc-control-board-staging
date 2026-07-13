@@ -9,7 +9,7 @@
 ## Next visual improvements
 - Tune the Control Board card density after live review on the actual workshop screen.
 - Add stronger ageing bands on PMB and Parts views.
-- Improve mobile/tablet spacing for Parts and PMB bay cards.
+- Keep layout work focused on the desktop and workshop-monitor sizes in use; mobile/tablet support is out of scope.
 - Add print-friendly views only after the browser workflow stays stable.
 
 ## Keep stable
