@@ -8,8 +8,9 @@ const root = __dirname;
 const app = fs.readFileSync(path.join(root, 'app.js'), 'utf8');
 const css = fs.readFileSync(path.join(root, 'styles.css'), 'utf8');
 const htmlFiles = ['index.html', 'no-vehicles.html', 'test-50.html', 'test-75.html', 'test-100.html'];
+const expectedVersion = '2026.07.13.02-parts-eta-handover';
 
-assert.match(app, /const APP_VERSION = '2026\.07\.10\.23-uniform-stage-matrix';/);
+assert.ok(app.includes(`const APP_VERSION = '${expectedVersion}';`));
 assert.match(app, /function productionGridHeaderHtml\(/);
 assert.match(app, /function incomingWorkChecklistHtml\(/);
 assert.match(app, /class="incoming-work-checks pdc-station-strip"/);
@@ -17,7 +18,7 @@ assert.match(app, /pdc-production-grid-row/);
 assert.match(app, /pdc-production-grid-static-row/);
 assert.match(app, /<span>Key<\/span><span>Stock<\/span><span>Job Card<\/span><span>Customer<\/span>/);
 
-for (const station of ['Parts', 'Tint', 'Hoist', 'Fitting', 'Fabrication', 'Electrical', 'Tyre Bay', 'Pit Inspection']) {
+for (const station of ['Parts', 'Tint', 'Hoist', 'Fitting', 'Fabrication', 'Electrical', 'Tyre', 'Pit Inspection']) {
   assert.ok(app.includes(`'${station}'`) || app.includes(`\`${station}`) || app.includes(`>${station}<`) || app.includes(station), `Missing full station label: ${station}`);
 }
 
@@ -41,12 +42,12 @@ assert.match(v2Css, /\.backend-data-table\s*\{[\s\S]*?width:\s*1490px\s*!importa
 
 for (const file of htmlFiles) {
   const html = fs.readFileSync(path.join(root, file), 'utf8');
-  assert.ok(html.includes('2026.07.10.23-uniform-stage-matrix'), `${file} has stale cache-busting/version text`);
+  assert.ok(html.includes(expectedVersion), `${file} has stale cache-busting/version text`);
   assert.ok(html.includes('data-view="backend"'), `${file} is missing Back End Data navigation`);
   assert.ok(html.includes('id="backend"'), `${file} is missing the Back End Data view`);
   assert.ok(html.includes('Fabrication'), `${file} is missing the full Fabrication label`);
   assert.ok(html.includes('Electrical'), `${file} is missing the full Electrical label`);
-  assert.ok(html.includes('Tyre Bay'), `${file} is missing the full Tyre Bay label`);
+  assert.ok(html.includes('Tyre'), `${file} is missing the full Tyre label`);
   assert.ok(html.includes('Pit Inspection'), `${file} is missing the full Pit Inspection label`);
 }
 

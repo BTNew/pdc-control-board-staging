@@ -79,6 +79,16 @@ code += String.raw`
   elementFor('#parts-status-filter').value = 'open';
   renderPartsHome();
   assert(elementFor('#parts-home-content').innerHTML.includes('Email sales'), 'Parts ETA rows with a worst ETA should show an Email sales action');
+  let mailtoHref = '';
+  window.prompt = () => 'Parts';
+  Object.defineProperty(window.location, 'href', { set(value) { mailtoHref = String(value); }, get() { return mailtoHref; }, configurable: true });
+  app.data = [{ ...basePartsVehicle, pdcPartsWorstEta: '2099-01-01', pdcPartsPreviousWorstEta: '2098-12-20' }];
+  draftPartsEtaSalesEmail('12345678');
+  const decodedMail = decodeURIComponent(mailtoHref);
+  assert(decodedMail.includes('Previous Parts ETA:'), 'Parts ETA sales email must include previous ETA');
+  assert(decodedMail.includes('New Parts ETA:'), 'Parts ETA sales email must include new ETA');
+  assert(decodedMail.includes('Revised countdown:'), 'Parts ETA sales email must include revised countdown');
+  assert(decodedMail.includes('Stock number: 12345678'), 'Parts ETA sales email must include vehicle details');
 
   const confirms = [];
   window.confirm = message => { confirms.push(String(message)); return true; };
@@ -100,7 +110,7 @@ code += String.raw`
 const storage = new Map();
 const context = {
   console,
-  window: { VEHICLE_TRACKING_DATA: { vehicles: [], toyotaMatches: {}, report: {} } },
+  window: { VEHICLE_TRACKING_DATA: { vehicles: [], toyotaMatches: {}, report: {} }, location: {} },
   localStorage: {
     getItem: key => storage.has(key) ? storage.get(key) : null,
     setItem: (key, value) => storage.set(key, String(value)),

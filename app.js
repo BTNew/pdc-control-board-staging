@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.07.13.01-random-200-vehicles';
+const APP_VERSION = '2026.07.13.02-parts-eta-handover';
 window.VEHICLE_TRACKING_DATA = window.VEHICLE_TRACKING_DATA || { report: {}, vehicles: [], toyotaMatches: {} };
 const EDITS_KEY = 'vehicleTrackingCoreNavisionOnlyEdits:v1';
 const ADDED_KEY = 'vehicleTrackingCoreNavisionOnlyVehicles:v1';
@@ -7217,9 +7217,11 @@ function updateVehiclePartsWorstEta(key = '', value = '') {
   const vehicle = selectedVehicle(key);
   if (!vehicle) return;
   const eta = cleanNavisionText(value || '');
+  const previousEta = partsWorstEtaValue(vehicle);
   const operator = getCurrentOperatorName();
-  recordVehicleAudit(vehicle, eta ? 'Parts worst ETA updated' : 'Parts worst ETA cleared', { eta, by: operator });
+  recordVehicleAudit(vehicle, eta ? 'Parts worst ETA updated' : 'Parts worst ETA cleared', { eta, previousEta, by: operator });
   saveVehicleEdits(key, {
+    pdcPartsPreviousWorstEta: previousEta,
     pdcPartsWorstEta: eta,
     pdcPartsWorstEtaUpdatedAt: nowIsoString(),
     pdcPartsWorstEtaUpdatedBy: operator,
@@ -7236,6 +7238,8 @@ function draftPartsEtaSalesEmail(key = '') {
   }
   const salesperson = consultantName(vehicle) || 'Sales';
   const countdown = partsWorstEtaCountdownLabel(vehicle);
+  const previousEta = cleanNavisionText(vehicle.pdcPartsPreviousWorstEta || vehicle.previousPartsWorstEta || '');
+  const previousEtaLabel = previousEta ? partsWorstEtaLabel({ pdcPartsWorstEta: previousEta }) : '';
   const blocker = partsStoppageReason(vehicle);
   const body = [
     `Hi ${salesperson},`,
@@ -7246,9 +7250,11 @@ function draftPartsEtaSalesEmail(key = '') {
     `Toyota Order: ${vehicle.order || 'TBA'}`,
     `Job Card: ${vehicleJobcardNumber(vehicle) || 'TBA'}`,
     `Current stage: ${statusCategoryLabel(vehicle)}${inferredPmbStage(vehicle) ? ` / ${pmbStageLabel(inferredPmbStage(vehicle))}` : ''}`,
-    `Parts ETA: ${eta}${countdown ? ` (${countdown})` : ''}`,
+    `Previous Parts ETA: ${previousEtaLabel || 'Not recorded'}`,
+    `New Parts ETA: ${eta}`,
+    `Revised countdown: ${countdown || 'No countdown available'}`,
     blocker ? `Parts note: ${blocker}` : '',
-    '',
+
     'Please update the customer/delivery expectation as required.',
     '',
     'Kind Regards,',
