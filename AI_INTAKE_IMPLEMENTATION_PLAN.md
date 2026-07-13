@@ -177,5 +177,18 @@ Service functions/endpoints should later implement:
 - No external customer replies are sent automatically in version 1.
 - Existing static/localStorage app remains the manual fallback during rollout.
 
+## Local Outlook bridge pilot
+Craig approved using the Outlook account already configured on this PC (`nwmgreception@outlook.com`) as a pilot intake source instead of waiting for Microsoft Graph tenant/admin setup.
+
+Pilot approach:
+- Use classic Outlook desktop COM automation from a local backend script.
+- Do not store mailbox username/password in code or the website.
+- Insert received emails into `ai_email_intake` with `graph_message_id` prefixed as `outlook-com:`.
+- Keep attachment copies in ignored local runtime storage.
+- Do not directly create/update vehicles from the bridge; downstream validation/review still applies.
+
+Known limitation:
+- The new web-based Outlook for Windows does not expose COM automation. If only new Outlook is installed, install/configure classic Outlook desktop or switch back to Microsoft Graph/another inbound mail service.
+
 ## Current next step
-Apply the Stage 1 AI-intake migration and keep building backend/service files behind environment variables. Do not add frontend AI calls until the data/API foundation exists.
+Get the local Outlook bridge probe working on this PC, then wire the received intake records into the AI extraction/review pipeline. Do not add frontend AI calls until the data/API foundation exists.
