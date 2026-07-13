@@ -18,6 +18,7 @@ const VEHICLE_TABLE_DEFAULT_COLUMN_IDS = ['sp', 'stock', 'prodMth', 'client', 'v
 const PO_TASKS_KEY = 'vehicleTrackingCoreNavisionOnlyPoTasks:v1';
 const PO_FILES_KEY = 'vehicleTrackingCoreNavisionOnlyPoFiles:v1';
 const DELETED_KEY = 'vehicleTrackingCoreNavisionOnlyDeleted:v1';
+const NAVISION_BACKEND_KEY = 'vehicleTrackingCoreNavisionOnlyBackEnd:v1';
 const TOYOTA_MATCHES = window.VEHICLE_TRACKING_DATA?.toyotaMatches || {};
 const AUTOCARE_DESPATCH_STATUS = 'AUTOCARE DESPATCHED';
 const AUTOCARE_RESULTS_KEY = 'vehicleTrackingCoreNavisionOnlyAutocareDispatch:v1';
@@ -30,6 +31,7 @@ const CRM_BACKUP_STORAGE_KEYS = [
   PO_TASKS_KEY,
   PO_FILES_KEY,
   DELETED_KEY,
+  NAVISION_BACKEND_KEY,
   AUTOCARE_RESULTS_KEY,
   NAVISION_IMPORT_RESULTS_KEY,
   AUDIT_LOG_KEY,
@@ -989,6 +991,8 @@ clearLocalDataFromUrl();
 function loadVehicleEdits() { return loadJson(EDITS_KEY, {}); }
 function loadAddedVehicles() { return loadJson(ADDED_KEY, []); }
 function saveAddedVehicles(vehicles) { saveJson(ADDED_KEY, vehicles); }
+function loadNavisionBackEndVehicles() { return loadJson(NAVISION_BACKEND_KEY, []); }
+function saveNavisionBackEndVehicles(vehicles) { saveJson(NAVISION_BACKEND_KEY, vehicles); }
 function loadPoTasks() { return loadJson(PO_TASKS_KEY, {}); }
 function savePoTasks(tasks) { saveJson(PO_TASKS_KEY, tasks); }
 function loadPoFiles() { return loadJson(PO_FILES_KEY, {}); }
@@ -3262,9 +3266,30 @@ function findVehicleForPd(parsed = {}) {
   ) || null;
 }
 
+function findNavisionBackEndVehicleForPd(parsed = {}) {
+  const stock = String(parsed.stock || '').trim();
+  const order = String(parsed.order || '').trim();
+  const vin = String(parsed.vin || '').trim().toLowerCase();
+  return loadNavisionBackEndVehicles().find(vehicle =>
+    (stock && String(vehicle.stock || '') === stock) ||
+    (order && [vehicle.order, vehicle.toyotaOrder, vehicle.salesOrder].some(value => String(value || '') === order)) ||
+    (vin && [vehicle.vin, vehicle.autocareVin, vehicle.fullVin].some(value => String(value || '').toLowerCase() === vin))
+  ) || null;
+}
+
 function ensureVehicleForPd(parsed = {}) {
   const found = findVehicleForPd(parsed);
   if (found) return found;
+  const backend = findNavisionBackEndVehicleForPd(parsed);
+  if (backend) {
+    removeNavisionBackEndVehicle(backend);
+    const vehicle = { ...backend, backendOnly: false, source: mergeNavisionSource(backend.source || 'Navision') };
+    const added = loadAddedVehicles();
+    added.unshift(vehicle);
+    saveAddedVehicles(added);
+    app.data.unshift(vehicle);
+    return vehicle;
+  }
   const stock = parsed.stock || (parsed.order ? `PD-${parsed.order}` : `PD-${Date.now().toString().slice(-6)}`);
   const vehicle = {
     id: `pd-${stock}`,
@@ -7981,13 +8006,19 @@ function backEndDataRows() {
     detail: record.reason || 'Removed from current Navision / dashboard data',
     deletedAt: record.deletedAt || '',
   }));
+  const backendRows = loadNavisionBackEndVehicles().map(vehicle => ({
+    vehicle,
+    state: 'Back End',
+    detail: 'Navision only - hidden until a PO / PD upload is loaded',
+    deletedAt: '',
+  }));
   const activeRows = app.data.map(vehicle => ({
     vehicle,
     state: 'Current',
     detail: vehicle.source || (vehicle.importedAt ? 'Navision' : 'Tracker'),
     deletedAt: '',
   }));
-  return activeRows.concat(deletedRecords).sort((a, b) => String(displayStockNumber(a.vehicle) || vehicleKey(a.vehicle) || '').localeCompare(String(displayStockNumber(b.vehicle) || vehicleKey(b.vehicle) || ''), 'en-AU', { numeric: true }));
+  return activeRows.concat(backendRows, deletedRecords).sort((a, b) => String(displayStockNumber(a.vehicle) || vehicleKey(a.vehicle) || '').localeCompare(String(displayStockNumber(b.vehicle) || vehicleKey(b.vehicle) || ''), 'en-AU', { numeric: true }));
 }
 
 function renderBackEndData() {
@@ -7995,9 +8026,10 @@ function renderBackEndData() {
   if (!host) return;
   const rows = backEndDataRows();
   const current = rows.filter(row => row.state === 'Current').length;
-  const deleted = rows.length - current;
+  const backend = rows.filter(row => row.state === 'Back End').length;
+  const deleted = rows.filter(row => row.state === 'Deleted').length;
   const count = $('#backend-data-count');
-  if (count) count.textContent = `${current} current · ${deleted} deleted`;
+  if (count) count.textContent = `${current} current · ${backend} back end · ${deleted} deleted`;
   if (!rows.length) {
     host.innerHTML = '<div class="empty-state"><strong>No back end data loaded</strong><span>Upload the latest Navision dump to populate this page.</span></div>';
     return;
@@ -8008,9 +8040,10 @@ function renderBackEndData() {
       const v = row.vehicle || {};
       const key = vehicleKey(v);
       const isDeleted = row.state === 'Deleted';
+      const isCurrent = row.state === 'Current';
       return `<tr class="${isDeleted ? 'deleted-row' : ''}">
         <td class="pdc-id-cell pdc-key-cell">${escapeHtml(vehicleKeyNumber(v) || '—')}</td>
-        <td class="pdc-id-cell pdc-stock-cell">${isDeleted ? escapeHtml(displayStockNumber(v) || v.order || '—') : `<button class="stock-link stock-button" type="button" data-open-stock="${escapeHtml(key)}">${escapeHtml(displayStockNumber(v) || v.order || '—')}</button>`}</td>
+        <td class="pdc-id-cell pdc-stock-cell">${isCurrent ? `<button class="stock-link stock-button" type="button" data-open-stock="${escapeHtml(key)}">${escapeHtml(displayStockNumber(v) || v.order || '—')}</button>` : escapeHtml(displayStockNumber(v) || v.order || '—')}</td>
         <td class="pdc-id-cell pdc-jc-cell">${escapeHtml(vehicleJobcardNumber(v) || '—')}</td>
         <td class="pdc-name-cell">${escapeHtml(vehicleCustomerName(v) || 'Customer TBA')}</td>
         <td class="pdc-vehicle-cell">${escapeHtml(displayVehicle(v) || v.vehicle || v.toyotaVehicle || '')}</td>
@@ -10032,6 +10065,43 @@ function navisionVehiclesOverlap(a = {}, b = {}) {
   return navisionComparableKeys(b).some(key => keys.has(key));
 }
 
+function findNavisionBackEndIndex(rows = [], incoming = {}, existing = {}) {
+  const matchSource = incoming || existing || {};
+  return rows.findIndex(row => navisionVehiclesOverlap(row, matchSource));
+}
+
+function removeNavisionBackEndVehicle(match = {}) {
+  const backend = loadNavisionBackEndVehicles();
+  const index = findNavisionBackEndIndex(backend, match);
+  if (index < 0) return null;
+  const [vehicle] = backend.splice(index, 1);
+  saveNavisionBackEndVehicles(backend);
+  return vehicle || null;
+}
+
+function saveNavisionBackEndVehicle(vehicle = {}) {
+  if (!vehicle || !navisionComparableKeys(vehicle).length) return;
+  const backend = loadNavisionBackEndVehicles();
+  const index = findNavisionBackEndIndex(backend, vehicle);
+  const row = { ...vehicle, backendOnly: true, backendUpdatedAt: new Date().toISOString() };
+  if (index >= 0) backend[index] = { ...backend[index], ...row };
+  else backend.unshift(row);
+  saveNavisionBackEndVehicles(backend);
+}
+
+function hasLoadedPurchaseOrder(vehicle = {}) {
+  const key = vehicleKey(vehicle);
+  const poTasks = loadPoTasks();
+  const poFiles = loadPoFiles();
+  return Boolean(
+    (key && ((poTasks[key] || []).length || (poFiles[key] || []).length)) ||
+    (vehicle.stock && ((poTasks[vehicle.stock] || []).length || (poFiles[vehicle.stock] || []).length)) ||
+    (vehicle.poTasks || []).length ||
+    (vehicle.poFiles || []).length ||
+    vehicle.buildPoRaised === true
+  );
+}
+
 function isProtectedPdcVehicle(vehicle = {}) {
   const manualPdcLocation = vehiclePdcLocation(vehicle);
   if (manualPdcLocation === 'YH' || manualPdcLocation === 'PMB' || manualPdcLocation === 'RFT') return true;
@@ -10183,6 +10253,7 @@ function buildNavisionImportPlan(parsed) {
   const result = {
     parsed,
     added: [],
+    backEndOnly: [],
     updated: [],
     unchanged: [],
     stockNumberUpdates: [],
@@ -10216,7 +10287,8 @@ function buildNavisionImportPlan(parsed) {
       if (changes.length || stockChanged) result.updated.push(row);
       else result.unchanged.push(row);
     } else {
-      result.added.push(incoming);
+      if (hasLoadedPurchaseOrder(incoming)) result.added.push(incoming);
+      else result.backEndOnly.push(incoming);
     }
   });
 
@@ -10276,11 +10348,12 @@ function cancelPendingNavisionImport() {
 function applyNavisionImportPlan(plan, selectedUpdateKeys = null) {
   const parsed = plan.parsed;
   const added = loadAddedVehicles();
+  const backend = loadNavisionBackEndVehicles();
   const edits = loadVehicleEdits();
   const deleted = new Set(loadDeletedVehicles());
   const activeBeforeImport = app.data.slice();
   const removeMissingChecked = Boolean(plan.removeMissingChecked);
-  const result = { ...plan, added: [], updated: [], unchanged: [], stockNumberUpdates: [], restored: [], missingFromUpload: [], removedMissing: [], confirmed: true, appliedAt: new Date().toISOString() };
+  const result = { ...plan, added: [], backEndOnly: [], updated: [], unchanged: [], stockNumberUpdates: [], restored: [], missingFromUpload: [], removedMissing: [], confirmed: true, appliedAt: new Date().toISOString() };
 
   parsed.vehicles.forEach(incoming => {
     const existing = findVehicleForNavision(incoming);
@@ -10290,6 +10363,8 @@ function applyNavisionImportPlan(plan, selectedUpdateKeys = null) {
     });
 
     if (existing) {
+      const backendIndex = findNavisionBackEndIndex(backend, incoming, existing);
+      if (backendIndex >= 0) backend.splice(backendIndex, 1);
       const existingKey = vehicleKey(existing) || vehicleKey(incoming);
       const incomingHasStock = incoming.stock && !isBlankStock(incoming.stock);
       const existingHadNoStock = isBlankStock(existing.stock);
@@ -10313,8 +10388,17 @@ function applyNavisionImportPlan(plan, selectedUpdateKeys = null) {
       if (changes.length || stockChanged) result.updated.push(row);
       else result.unchanged.push(row);
     } else {
-      added.unshift(incoming);
-      result.added.push(incoming);
+      const backendIndex = findNavisionBackEndIndex(backend, incoming);
+      if (hasLoadedPurchaseOrder(incoming)) {
+        if (backendIndex >= 0) backend.splice(backendIndex, 1);
+        added.unshift({ ...incoming, backendOnly: false });
+        result.added.push(incoming);
+      } else {
+        const backendRow = { ...incoming, backendOnly: true, backendUpdatedAt: new Date().toISOString() };
+        if (backendIndex >= 0) backend[backendIndex] = { ...backend[backendIndex], ...backendRow };
+        else backend.unshift(backendRow);
+        result.backEndOnly.push(backendRow);
+      }
     }
   });
 
@@ -10322,6 +10406,7 @@ function applyNavisionImportPlan(plan, selectedUpdateKeys = null) {
   result.missingFromUpload = missingFromUpload;
 
   saveAddedVehicles(added);
+  saveNavisionBackEndVehicles(backend);
   saveJson(EDITS_KEY, edits);
   saveDeletedVehicles([...deleted]);
 
@@ -10395,6 +10480,7 @@ function renderNavisionPendingReview(result) {
     <div class="scot-summary-grid">
       <div class="summary-stat"><span>Rows detected</span><strong>${result.parsed.vehicles.length}</strong></div>
       <div class="summary-stat"><span>New vehicles pending</span><strong>${result.added.length}</strong></div>
+      <div class="summary-stat"><span>Back end only</span><strong>${(result.backEndOnly || []).length}</strong></div>
       <div class="summary-stat"><span>Existing changes</span><strong>${result.updated.length}</strong></div>
       <div class="summary-stat"><span>Unchanged existing</span><strong>${result.unchanged.length}</strong></div>
       <div class="summary-stat"><span>Not in upload</span><strong>${result.missingFromUpload.length}</strong></div>
@@ -10406,7 +10492,12 @@ function renderNavisionPendingReview(result) {
     </div>
     <div class="summary-section">
       <h3>New vehicles that will be added after confirmation</h3>
-      ${renderNavisionRows(result.added || [], 'navision-new', 'No new vehicles will be added.')}
+      ${renderNavisionRows(result.added || [], 'navision-new', 'No new PO-loaded vehicles will be added to the PDC sheet.')}
+    </div>
+    <div class="summary-section">
+      <h3>Navision rows saved to Back End Data only</h3>
+      ${renderNavisionRows(result.backEndOnly || [], 'navision-backend', 'No Navision-only rows will be hidden in Back End Data.')}
+      <div class="subtle">These stay hidden from the PDC Sheet until a matching PO / PD upload is loaded.</div>
     </div>
     <div class="summary-section">
       <h3>Vehicles not found in this Navision upload</h3>
@@ -10461,6 +10552,7 @@ function renderNavisionSummary(result) {
     <div class="scot-summary-grid">
       <div class="summary-stat"><span>Rows detected</span><strong>${parsed.vehicles.length}</strong></div>
       <div class="summary-stat"><span>New vehicles</span><strong>${result?.added?.length || 0}</strong></div>
+      <div class="summary-stat"><span>Back end only</span><strong>${result?.backEndOnly?.length || 0}</strong></div>
       <div class="summary-stat"><span>Updated</span><strong>${result?.updated?.length || 0}</strong></div>
       <div class="summary-stat"><span>New stock #</span><strong>${stockUpdates.length}</strong></div>
       <div class="summary-stat"><span>Not in upload</span><strong>${missingFromUpload.length}</strong></div>
@@ -10469,8 +10561,12 @@ function renderNavisionSummary(result) {
       <div class="summary-stat"><span>Warnings</span><strong>${warnings.length}</strong></div>
     </div>
     <div class="summary-section">
-      <h3>New vehicles added from Navision</h3>
-      ${renderNavisionRows(result?.added || [], 'navision-new', 'No new vehicles were added.')}
+      <h3>New vehicles added to PDC Sheet</h3>
+      ${renderNavisionRows(result?.added || [], 'navision-new', 'No new PO-loaded vehicles were added to the PDC Sheet.')}
+    </div>
+    <div class="summary-section">
+      <h3>Navision rows saved to Back End Data only</h3>
+      ${renderNavisionRows(result?.backEndOnly || [], 'navision-backend', 'No Navision-only rows were hidden in Back End Data.')}
     </div>
     <div class="summary-section">
       <h3>Existing vehicles updated</h3>

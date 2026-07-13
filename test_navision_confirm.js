@@ -63,7 +63,15 @@ code += String.raw`
   applyNavisionImportPlan(plan2, new Set());
   app.data = buildVehicleData();
   assert(app.data.find(v => v.stock === '12345678').toyotaStatus === 'Waiting PD1', 'Unselected existing update should not apply');
-  assert(app.data.some(v => v.stock === '87654321'), 'New vehicle should still be added after selected-only confirmation');
+  assert(!app.data.some(v => v.stock === '87654321'), 'New Navision-only vehicle should stay off the PDC sheet without a PO upload');
+  assert(loadNavisionBackEndVehicles().some(v => v.stock === '87654321'), 'New Navision-only vehicle should be saved to Back End Data');
+
+  // Loading a matching PO / PD form later should promote a back-end-only Navision row onto the PDC Sheet.
+  const promoted = applyPdCheckFormImport({ stock: '87654321', order: 'ORD2', vin: '', tasks: ['Bull bar'], filenames: ['ORD2-PO.pdf'] });
+  app.data = buildVehicleData();
+  assert(promoted.vehicle.stock === '87654321', 'PO upload should reuse the matching back-end Navision vehicle');
+  assert(app.data.some(v => v.stock === '87654321'), 'PO-loaded vehicle should appear on the PDC sheet');
+  assert(!loadNavisionBackEndVehicles().some(v => v.stock === '87654321'), 'Promoted PO vehicle should be removed from Back End Data');
 
   // PMB-only import should accept rows with a Body Builder signal and skip plain Navision rows.
   const pmbOnlyHeader = row(['Order','Batch','Production Month','Model Description','Body Builder','Tray Fitment Ordered']);
