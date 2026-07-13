@@ -7,6 +7,9 @@ pdc-supabase-config.js
 # Local backup exports / operational data packages
 PDC_Control_Board_Backup_*.zip
 
-# Local Outlook intake bridge runtime files
+# Local email intake bridge runtime files
 backend/.outlook_bridge_processed.json
 backend/.outlook_attachments/
+backend/.imap_bridge_processed.json
+backend/.imap_attachments/
+backend/.env

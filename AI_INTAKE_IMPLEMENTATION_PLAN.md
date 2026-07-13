@@ -177,18 +177,20 @@ Service functions/endpoints should later implement:
 - No external customer replies are sent automatically in version 1.
 - Existing static/localStorage app remains the manual fallback during rollout.
 
-## Local Outlook bridge pilot
-Craig approved using the Outlook account already configured on this PC (`nwmgreception@outlook.com`) as a pilot intake source instead of waiting for Microsoft Graph tenant/admin setup.
+## Local IMAP bridge pilot
+Craig approved using `nwmgreception@outlook.com` as the pilot intake mailbox without waiting for Microsoft Graph tenant/admin setup.
+
+The PC has New Outlook for Windows, not classic Outlook desktop. New Outlook can be used manually, but it does not expose the classic COM/MAPI automation API. The active pilot path is therefore IMAP, not local Outlook automation.
 
 Pilot approach:
-- Use classic Outlook desktop COM automation from a local backend script.
-- Do not store mailbox username/password in code or the website.
-- Insert received emails into `ai_email_intake` with `graph_message_id` prefixed as `outlook-com:`.
+- Use `backend/imap_bridge.py` with IMAP SSL against `outlook.office365.com`.
+- Store mailbox credentials only in ignored local `backend/.env`; do not commit them or paste them into chat.
+- Insert received emails into `ai_email_intake` with `graph_message_id` prefixed as `imap:`.
 - Keep attachment copies in ignored local runtime storage.
 - Do not directly create/update vehicles from the bridge; downstream validation/review still applies.
 
 Known limitation:
-- The new web-based Outlook for Windows does not expose COM automation. If only new Outlook is installed, install/configure classic Outlook desktop or switch back to Microsoft Graph/another inbound mail service.
+- Outlook.com may require IMAP to be enabled and may require an app password when two-step verification is enabled. If Microsoft blocks password-based IMAP for this account, the fallback is OAuth/Graph or another inbound mailbox provider.
 
 ## Current next step
-Get the local Outlook bridge probe working on this PC, then wire the received intake records into the AI extraction/review pipeline. Do not add frontend AI calls until the data/API foundation exists.
+Probe IMAP login locally, then dry-run parse unread mailbox messages before posting received intake records into Supabase. Do not add frontend AI calls until the data/API foundation exists.

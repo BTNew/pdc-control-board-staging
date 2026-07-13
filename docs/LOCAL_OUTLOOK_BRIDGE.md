@@ -1,6 +1,15 @@
-# Local Outlook bridge pilot
+# Local Outlook bridge pilot — legacy path
 
-This pilot reads the Outlook profile already configured on this Windows computer and writes received emails into the PMB AI Intake database tables.
+This document is kept for reference only.
+
+Craig confirmed the PC uses **New Outlook for Windows** and classic Outlook is no longer bundled by default on new Windows 11 PCs. New Outlook can be used manually, but it does not expose the classic Outlook COM/MAPI automation interface required by `backend/outlook_bridge.py`.
+
+For the current pilot, use the IMAP bridge instead:
+
+```text
+docs/LOCAL_IMAP_BRIDGE.md
+backend/imap_bridge.py
+```
 
 Pilot mailbox:
 
@@ -8,104 +17,34 @@ Pilot mailbox:
 nwmgreception@outlook.com
 ```
 
-## Important limitation
+## Why this legacy path is not active
 
-This works only with **classic Microsoft Outlook desktop** because the bridge uses Outlook COM automation.
+`backend/outlook_bridge.py` requires:
 
-The newer web-based **Outlook for Windows** app does not expose the classic COM API. If only the new Outlook app is installed, the bridge will fail safely with a message like:
+- classic Microsoft Outlook desktop;
+- a configured local Outlook profile;
+- COM automation availability.
 
-```text
-Classic Outlook COM automation is unavailable
-```
+This does not work with New Outlook for Windows.
 
-In that case the options are:
+## Active pilot path
 
-1. install/configure classic Outlook desktop on this PC, or
-2. use Microsoft Graph later, or
-3. use another email provider/inbound parsing service.
-
-## Why this avoids Microsoft Tenant ID
-
-The bridge does not authenticate to Microsoft directly. It asks the local Outlook desktop profile for messages. That means:
-
-- no Microsoft tenant ID is needed for the pilot
-- no mailbox password is stored in the repo
-- no mailbox password is stored in the frontend
-- Outlook must remain configured and signed in on this computer
-
-## Runtime files
-
-Ignored local files:
+The active path is now:
 
 ```text
-backend/.outlook_bridge_processed.json
-backend/.outlook_attachments/
+Outlook.com mailbox → IMAP SSL → backend/imap_bridge.py → Supabase ai_email_intake
 ```
 
-## Environment
-
-Copy `backend/.env.example` to a local backend environment file and fill only backend values.
-
-Required for real posting to Supabase:
+See:
 
 ```text
-SUPABASE_URL=
-SUPABASE_SERVICE_ROLE_KEY=
+docs/LOCAL_IMAP_BRIDGE.md
 ```
 
-Outlook pilot defaults:
+## Security rule
+
+Do not paste mailbox passwords, app passwords, recovery codes, MFA codes or Supabase service keys into chat. Put any required secret only in ignored local file:
 
 ```text
-OUTLOOK_BRIDGE_MAILBOX=nwmgreception@outlook.com
-OUTLOOK_BRIDGE_FOLDER=Inbox
-OUTLOOK_BRIDGE_UNREAD_ONLY=true
-OUTLOOK_BRIDGE_SAVE_ATTACHMENTS=true
-OUTLOOK_BRIDGE_MARK_READ=false
-OUTLOOK_BRIDGE_LIMIT=10
+backend/.env
 ```
-
-Do not commit the real `.env` file.
-
-## Commands
-
-Probe Outlook without storing emails:
-
-```bash
-python backend/outlook_bridge.py --probe --mailbox nwmgreception@outlook.com
-```
-
-Dry-run email extraction without posting to Supabase:
-
-```bash
-python backend/outlook_bridge.py --dry-run --limit 3 --mailbox nwmgreception@outlook.com
-```
-
-Post unread messages into Supabase AI Intake:
-
-```bash
-python backend/outlook_bridge.py --limit 10 --mailbox nwmgreception@outlook.com
-```
-
-The bridge does not mark messages read unless `OUTLOOK_BRIDGE_MARK_READ=true` or `--mark-read` is used.
-
-## Scheduling later
-
-For the pilot, run manually first. After it works, schedule it with Windows Task Scheduler to run every few minutes while the PC is on.
-
-The scheduled task should run in the same Windows user profile where Outlook is configured.
-
-## AI processing flow
-
-This bridge only performs the safe first step:
-
-```text
-Outlook inbox → ai_email_intake received record
-```
-
-The next backend stage should:
-
-```text
-received record → attachment text extraction → AI structured extraction → validation → review/apply
-```
-
-The bridge must not directly create/update/delete vehicles.
