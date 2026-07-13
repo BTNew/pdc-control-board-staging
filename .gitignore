@@ -1,0 +1,8 @@
+# Local Supabase/browser config generated for a specific environment.
+# Keep publishable keys out of git until the deployment target is confirmed.
+pdc-supabase-config.js
+.env
+.env.*
+
+# Local backup exports / operational data packages
+PDC_Control_Board_Backup_*.zip
