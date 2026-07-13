@@ -10,9 +10,9 @@ Open `index.html` directly, or serve the folder with a static file server:
 python -m http.server 8765 --bind 127.0.0.1
 ```
 
-Then open `http://127.0.0.1:8765/?v=2026.07.13.07-zero-filter-recovery`.
+Then open `http://127.0.0.1:8765/?v=2026.07.13.21-autocare-pmb`.
 
-The bundled live dataset contains 321 current vehicles imported from the visible `EOS` worksheet of `Master2021 (1).xlsx`. See `MASTER_SHEET_IMPORT.md` and `master-import-audit.json` for the migration rules and counts.
+The bundled main dataset contains 321 operational vehicles imported from the visible `EOS` worksheet of `Master2021 (1).xlsx`. It is for controlled/private use only and must not be served from unauthenticated GitHub Pages. See `MASTER_SHEET_IMPORT.md` and `master-import-audit.json` for the migration rules and counts.
 
 ## Main workflow
 
@@ -24,6 +24,22 @@ The bundled live dataset contains 321 current vehicles imported from the visible
 6. Use **RFT** to review final gate readiness and mark collection only after all required jobs are complete.
 7. Use **Completed vehicles**, **Deleted vehicles** and **Back End Data** for history and supporting records.
 
+## Zebra labels
+
+Vehicle rows, vehicle details, selected rows and Autocare despatch results can print two 68 mm × 45 mm Zebra labels through QZ Tray. QZ Tray must be installed and running on the Windows printing PC. See `ZEBRA_LABEL_PRINTING.md` for setup and troubleshooting.
+
+## Daily Navision lifecycle
+
+- A normal full Navision upload updates every matched active vehicle, including back-end-only rows, with Kewdale ETA, JITA and other approved Navision fields.
+- Every new normal Navision row is retained as **Back end only** and hidden from the PDC operational sheets until a job/work file, PO, PD form or operator promotes it.
+- A separate job/work file, manual vehicle entry, PD check-form upload or purchase-order PDF upload makes the vehicle visible on the PDC Sheet; Navision wording alone does not.
+- PO PDFs are read from inside the file. If Stock # is not in Navision, the importer creates a protected active PO vehicle and fills the available vehicle, salesperson, department and PMB work details.
+- PO and job-card/PD uploads open an editable review card before saving. Detected work is listed in plain language and can be preselected or replaced with manual work choices.
+- A matched AutoCare despatch notice is an authoritative PMB arrival: it activates the vehicle at PMB Unallocated, while preserving an existing PMB bucket and never moving RFT/Completed vehicles backwards.
+- Manual, PO, PD check-form, master-sheet and already-promoted PDC vehicles are protected if absent from a later Navision upload.
+- Only unpromoted Navision-only back-end vehicles may be automatically retired when they disappear from a later full dump.
+- A Navision-only vehicle retired for being absent may return if it reappears. A vehicle explicitly deleted by an operator is not recreated by Navision.
+
 ## Production Grid V2
 
 The current package keeps the aligned vehicle-row system throughout the application. Key, Stock and Job Card use fixed tracks; Customer uses the flexible track and wraps without truncation. The eight station columns are identical 52 px × 30 px status cells, while their full names appear once in a 45-degree sticky header. Individual vehicle rows do not have their own horizontal scrollbars. See `PRODUCTION_GRID_V2_UPDATE.md` and `UNIFORM_STAGE_MATRIX_UPDATE.md` for the implementation and validation record.
@@ -33,10 +49,13 @@ The current package keeps the aligned vehicle-row system throughout the applicat
 - Tint: 2 bays
 - Hoist: 3 bays
 - Fitting: 5 bays
-- Fabrication: Refer Dan / non-fixed capacity
+- Fabrication: 13 bays
 - Electrical: 10 bays
 - Tyre Bay: 2 bays, including 1 wheel-alignment bay
 - Pit Inspection: 1 bay
+- Sublet: external provider queue with a 12-vehicle WIP target and no numbered internal bays
+
+Unallocated uses a 12-vehicle triage target for attention only; it is not a physical bay-capacity limit.
 
 ## Current required job model
 
@@ -55,7 +74,16 @@ Legacy spreadsheet aliases for older Fitting wording are still accepted during i
 
 ## Business rules to preserve
 
-- Navision drives source vehicle data up to Yard Hold.
+- A normal daily Navision upload stores all new vehicles in Back End Data and refreshes approved source fields on matching records.
+- Navision status, PMB, tray or PO wording alone never promotes a new vehicle to the PDC Sheet.
+- A separate PDC work/job file, purchase order, PD check-form or manual PDC update promotes the matching vehicle.
+- The Uploads screen presents daily Navision first, followed by job-card/PD work and PO uploads.
+- Back End Data includes identity/customer search, state filtering and a confirmed Move to active button for back-end-only vehicles.
+- A single Vehicle Locations or Control Board search match opens and highlights automatically for quick movement.
+- The Sublet provider dropdown is seeded with the approved outside-work list using normal company-name casing and uppercase acronyms.
+- Kewdale age uses a fixed blue/yellow/orange/red scale and never flashes.
+- Move to active uses the latest Navision location: Body Builder / PMB goes to PMB Unallocated, Yard Hold goes to YH, and ready/dealer states go to RFT. A later manual staff location remains protected.
+- Navision notes, dealer comments and location descriptions do not infer non-Parts work requirements. Work boxes come from explicit files, purchase orders or operator choices.
 - Manual Yard Hold / PMB / RFT decisions override imported status.
 - PMB transfer lands in Unallocated.
 - Job ticks do not auto-allocate PMB stages or numbered bays.
@@ -66,12 +94,21 @@ Legacy spreadsheet aliases for older Fitting wording are still accepted during i
 - Duplicate active PMB key tags are blocked.
 - RFT is blocked until every required job is signed off, including Parts and Pit Inspection when required.
 - Parts stays production-focused and avoids salesperson/finance clutter.
+- Setup includes an editable salesperson directory. An explicit vehicle email is preferred, followed by the saved salesperson mapping and then an editable fallback.
+- Stoppages, completed work, Parts ETA changes and a successful single-vehicle RFT transfer open a separate review box with a prepared salesperson email draft. **EMAIL UPDATE** on one selected vehicle or in Vehicle Detail prepares a full update with Parts ETA and workshop/bay history.
+- Sales drafts omit Toyota order numbers, prominently label the triggering change and are never sent silently by the browser.
+- A missing or ambiguous vehicle identity must stop safely; it must never fall back to or update the first vehicle in the dataset.
+- Multi-key Navision, PO/job-card, vehicle-removal and restore operations use a recovery journal and roll back to the previous saved state if a write fails.
+- Operational health shows the last Navision import, work/PO import and backup. The management view summarizes third-party work, stagnant vehicles, capacity alerts, RFT gate issues and recent history.
+- Sales Rep and Work Type are under **More filters**; PMB Unallocated overflow is presented as a triage backlog rather than a permanent critical failure.
 
 ## Backup / restore
 
 Use **Export Backup** before replacing the website files. Restore the JSON backup in the new package to reload saved vehicles, edits, notes, PO records, Autocare results, deleted vehicles, column order, and column widths.
 
 CSV export is for reporting only. It is not a full restore backup.
+
+Imports and restores involve several saved application keys. The current build journals the pre-change values and rolls them back if a write fails; startup also recovers an interrupted transaction before loading the board. A failed operation leaves the prior saved state available and reports an error instead of success.
 
 ## Applied review update — 2026-07-05
 
@@ -93,17 +130,14 @@ Run these after code changes:
 ```bash
 node --check app.js
 node --check data.js
-node test_navision_confirm.js
-node test_parts_production_principles.js
-node test_review_update_alignment.js
-node test_production_grid_v2.js
-node test_uniform_stage_matrix.js
-node test_desktop_operations.js
-node test_master_sheet_import.js
+node test_all.js
 ```
+
+The runner discovers `test_*.js` automatically and reports a summary. The real-PO PDF integration test reports an optional skip when its three external fixtures or `pdftotext` are unavailable, so an extracted handover package can still complete its core suite.
 
 ## Known limitations
 
 - This remains a static localStorage app. It is suitable for a controlled workstation or lightweight internal workflow, but not a true multi-user source of truth.
 - Browser/device storage can be lost or diverge. Use backup JSON exports regularly.
-- A backend with login, shared database, permissions, server-side audit log, and central backups is the later-phase option once multiple staff need simultaneous editing.
+- The bundled operational dataset must not be published through unauthenticated GitHub Pages. Azure Static Web Apps configuration is not enforced by GitHub Pages.
+- The production target is an authenticated hosted backend with a shared database, permissions, server-side audit log, conflict-safe writes and central backups. No vendor has been selected; see `BACKEND_MIGRATION_PLAN.md`.

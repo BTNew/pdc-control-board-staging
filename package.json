@@ -1,0 +1,10 @@
+{
+  "name": "pdc-control-board",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Dependency-free regression checks for the PDC Control Board static application.",
+  "scripts": {
+    "test": "node test_all.js",
+    "check": "node --check app.js && node --check test_all.js && node test_all.js"
+  }
+}

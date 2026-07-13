@@ -4,7 +4,7 @@
 
 This is a static website/app for managing vehicle flow through PDC / PMB / Yard Hold / Parts / RFT operations.
 
-Live site:
+Historical public/demo URL (unauthenticated; do not serve operational data here):
 - https://btnew.github.io/pdc-control-board/?v=12cca86-rft-live
 
 Repository:
@@ -225,7 +225,7 @@ Please answer these after inspecting/running it:
 
 ## Please avoid
 
-- Do not recommend a full backend unless it is clearly separated as a later-phase option.
+- Treat the authenticated backend as a separately planned production migration. Follow `BACKEND_MIGRATION_PLAN.md` and do not select a vendor without the requirements/security decision.
 - Do not suggest public exposure of customer/business data without authentication.
 - Do not introduce analytics/tracking.
 - Do not change PMB/RFT/manual override rules.

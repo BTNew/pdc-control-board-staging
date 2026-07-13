@@ -17,7 +17,8 @@ The board follows service-management and lean visual-control principles:
 - Keep each department page focused on the decisions that department can act on.
 - Avoid showing unrelated notes or fields on role-specific pages.
 - Keep high-frequency actions close to the status and blocker information.
-- Preserve a single source of truth in local browser data with backup/export controls.
+- Preserve one coherent source of truth on a controlled workstation with backup/export controls while the app remains browser-local.
+- Treat an authenticated shared backend as the production source-of-truth target; do not describe `localStorage` as shared or multi-user storage.
 
 ## Role-focused pages
 - Control Board: daily vehicle overview, Fix First exceptions and bulk movement controls.
@@ -28,3 +29,5 @@ The board follows service-management and lean visual-control principles:
 
 ## Safety constraints
 This is a static localStorage app. Do not add external trackers, hidden network calls, credentials, analytics, destructive data handling, or workflow changes without explicit approval.
+
+An explicit missing/ambiguous vehicle lookup must fail safely, and multi-key imports/restores must be recoverable. Real operational data must not be deployed to unauthenticated GitHub Pages. The vendor-neutral production migration is defined in `BACKEND_MIGRATION_PLAN.md`.

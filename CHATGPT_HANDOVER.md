@@ -1,4 +1,4 @@
-# ChatGPT/Codex Handover — PDC Control Board
+# ChatGPT/Codex/Hermes Handover — PDC Control Board
 
 This package is intended to allow a new ChatGPT/Codex session to continue development without access to prior conversation memory.
 
@@ -6,7 +6,7 @@ This package is intended to allow a new ChatGPT/Codex session to continue develo
 PDC Control Board is a static browser application for tracking Toyota/Navision vehicles through Yard Hold, PDC/PMB work, Parts blockers, and Ready For Transport (RFT). It is used to visualise vehicle status, manage manual workflow overrides, import Navision data, track production bay/work completion, and prepare operational emails.
 
 ## Current architecture
-- Static site hosted on GitHub Pages.
+- Static browser application. GitHub Pages may host a non-sensitive demonstration, but it is not authenticated production hosting.
 - Main application logic: `app.js`.
 - Desktop operations refinements: `desktop-operations.css`, loaded after `styles.css`.
 - Baseline vehicle data: `data.js` loaded as `window.VEHICLE_TRACKING_DATA`.
@@ -15,14 +15,15 @@ PDC Control Board is a static browser application for tracking Toyota/Navision v
 - Automated tests: `test_*.js` files run with Node.
 - User edits and operational state are stored in browser `localStorage`, layered over bundled Navision/static data.
 - No build step is required. No package install is required for current tests.
+- The vendor-neutral authenticated production target is documented in `BACKEND_MIGRATION_PLAN.md`.
 
 ## Repository, live site and branch
 - Repository: `https://github.com/BTNew/pdc-control-board`
-- Live site: `https://btnew.github.io/pdc-control-board/`
+- Public/demo URL only: `https://btnew.github.io/pdc-control-board/` — do not serve the operational dataset there.
 - Current branch: `main`
 - Handover package source branch: `main`
-- Latest commit hash: `e97f98d36996d9dc5ee47555139dd0bdb16b4285`
-- Current version/cache-busting identifier: `2026.07.13.07-zero-filter-recovery`
+- Snapshot commit: not recorded in this standalone working-copy package; inspect repository status after placing the files.
+- Current version/cache-busting identifier: `2026.07.13.21-autocare-pmb`
 
 ## Local setup
 1. Open a shell in the repo folder:
@@ -31,11 +32,11 @@ PDC Control Board is a static browser application for tracking Toyota/Navision v
    ```
 2. Serve the static site:
    ```bash
-   python -m http.server 8025 --bind 127.0.0.1
+   python -m http.server 8124 --bind 127.0.0.1
    ```
 3. Open:
    ```text
-   http://127.0.0.1:8025/index.html?v=2026.07.13.07-zero-filter-recovery
+   http://127.0.0.1:8124/index.html?v=2026.07.13.21-autocare-pmb
    ```
 4. Use `?clearLocalData=1` only on a test page when you intentionally want to clear app localStorage in that test browser. The live index ignores it by default.
 
@@ -44,20 +45,16 @@ Run from repo root:
 ```bash
 node --check app.js
 node --check data.js
-node test_navision_confirm.js
-node test_parts_production_principles.js
-node test_data_integrity.js
-node test_review_update_alignment.js
-node test_production_grid_v2.js
-node test_uniform_stage_matrix.js
-node test_desktop_operations.js
-node test_master_sheet_import.js
+node test_all.js
 git diff --check
 ```
 Expected success includes:
 - no syntax output/errors from `node --check app.js`
 - no syntax output/errors from `node --check data.js`
 - `Navision confirmation tests passed`
+- `Navision lifecycle tests passed`
+- `Back End Data search and activation regression checks passed`
+- `Vehicle status email tests passed`
 - `Parts/production principle tests passed`
 - `Data integrity checks passed`
 - `Review update alignment tests passed`
@@ -65,7 +62,20 @@ Expected success includes:
 - `Uniform stage matrix tests passed` if that test remains unchanged
 - `Desktop operations regression checks passed`
 - `Master sheet import regression checks passed`
+- `Vehicle lookup safety checks passed`
+- `Storage transaction and recovery checks passed`
+- `Operational hardening checks passed`
+- a final `Test summary` with zero failures; the external real-PO PDF test may be skipped when its fixtures or `pdftotext` are unavailable
 - no output/error from `git diff --check`
+
+The packaged snapshot produced 22 passed, 0 failed and 0 skipped in `node test_all.js`.
+
+## Latest additions in this snapshot
+
+- Zebra label printing builds the documented raw ZPL and sends it through QZ Tray, with row/detail actions, selected-row printing, VIN warnings, printer discovery and two labels per vehicle.
+- A matched AutoCare despatch is authoritative PMB arrival evidence: the vehicle is activated, placed in PMB `Unallocated`, location-locked against Navision regression and given a PMB arrival time.
+- Repeat AutoCare scans preserve the current PMB bay/bucket and original arrival time. RFT/Completed vehicles are not reopened, and unmatched notices remain review-only.
+- Read `HERMES_START_HERE.md` first for the concise continuation checklist and current guardrails.
 
 ## Deploy instructions
 1. Make code/docs changes.
@@ -220,7 +230,7 @@ Important keys defined in `app.js`:
 - Production-bay grid/UI is sensitive to CSS/table widths; run production grid tests if touching layout.
 
 ## Parts-page rules and email behaviour
-Current status: completed, tested locally, pushed live after this handover commit.
+Current status: implemented and tested locally. Deployment with operational data requires authenticated private hosting.
 
 Implemented behaviour:
 - Parts page shows Parts ETA countdown using `partsWorstEtaCountdownLabel(vehicle)`:
@@ -233,22 +243,24 @@ Implemented behaviour:
 - Email draft uses `mailto:` and includes:
   - greeting to salesperson/consultant name
   - stock/customer/vehicle details
-  - Toyota order
   - job card
   - current stage
   - previous Parts ETA or `Not recorded`
   - new Parts ETA
   - revised countdown
   - Parts blocker note when present
+  - a prominent description of the change that triggered the draft
 - Automated coverage is in `test_parts_production_principles.js`.
 
-Caveat:
-- The recipient currently comes from `salespersonEmail(vehicle)`, which returns the configured central RFT salesperson email constant. If per-salesperson emails are needed, add a safe mapping/field and tests.
+Recipient routing:
+- Prefer an explicit vehicle email, then the editable salesperson directory by known code/name/email, then an editable fallback.
+- Unknown or ambiguous initials must not be guessed.
+- Setup currently seeds SL, CW, BG, CF and JB and allows additional salesperson records.
 
 ## RFT rules
 - RFT requires required jobs complete, including Parts.
-- RFT transfer must not prompt for salesperson notification confirmation.
-- RFT email includes completed/outstanding job detail and uses the RFT salesperson email constant.
+- RFT uses its normal operational transfer confirmation. A successful single-vehicle transfer then opens a separate, dismissible salesperson email review box; it never sends silently or blocks the completed transfer.
+- RFT email includes completed/outstanding job detail and follows the salesperson directory/editable-fallback routing rule.
 
 ## Important business rules from Craig
 See `BUSINESS_RULES.md`. Critical highlights:
@@ -256,12 +268,14 @@ See `BUSINESS_RULES.md`. Critical highlights:
 - Inspect before edits.
 - Keep changes small/reviewable.
 - Verify local site, console, imports, buckets/statuses before commit when relevant.
-- Push verified updates to GitHub for Craig to view.
+- Push verified source updates only through the approved repository workflow. A source push does not authorize publishing operational data on unauthenticated GitHub Pages.
 - Do not change DNS, Pages source/domain/CNAME, repo visibility/access, secrets, dependencies, destructive git/file operations, analytics/tracking, privacy-sensitive storage or dangerous settings without explicit approval.
 - Preserve compact UI.
 - Preserve 75-vehicle fixture/test expectations where applicable.
 
 ## Recent completed changes
+- Separated daily Navision source refresh from PDC Sheet visibility. Non-PDC Navision rows remain back-end-only, while manual/PD/PO/PDC-promoted rows are protected from missing-dump cleanup.
+- Typed automatic Navision retirement separately from operator deletion so only automatically retired rows may return on a later upload.
 - Made the Control Board column-heading row selectable, with oldest/newest sorting in Age / ETA and Yes/No/outstanding/complete filtering in each work heading.
 - Added a synchronized floating copy of the column headings for vertical and horizontal scrolling; the separate filter toolbar was removed.
 - Zero-result column filters keep the headings and Clear buttons visible. Parts does not offer `Not required` because all PMB rows require Parts.
@@ -273,25 +287,27 @@ See `BUSINESS_RULES.md`. Critical highlights:
 - Added work-state guidance, stronger exception visibility and safer modal-based deletion.
 - Corrected accessibility issues involving ARIA nesting, nested controls and contrast.
 - Excluded the workbook's test row, empty key placeholders and hidden historical/test sheets.
-- Version bumped to `2026.07.13.07-zero-filter-recovery`.
+- Version bumped to `2026.07.13.12-backend-activation`.
 - Added/captured previous Parts ETA when Parts ETA is updated.
 - Parts ETA email now explicitly includes previous ETA, new ETA and revised countdown.
 - Added handover documentation files.
 
 ## Known bugs and incomplete work
 - No known failing tests at package creation.
-- Per-salesperson email routing is not implemented; current routing is centralised.
 - The app is static/localStorage-based, so simultaneous multi-user edits are not synchronised.
+- Missing/ambiguous vehicle lookup now fails closed. Navision, PO/job-card, removal and restore operations use a storage recovery journal with rollback/startup recovery tests.
+- The 321-vehicle operational baseline must not be exposed through unauthenticated GitHub Pages.
 - `app.js` is large and should be refactored carefully only with strong tests.
 
 ## Recommended next work, priority order
-1. Confirm whether Parts ETA emails should go to a central contact or actual per-salesperson addresses.
-2. If per-salesperson routing is needed, add an explicit safe mapping and tests.
-3. Refactor duplicated Parts/PMB/RFT helper code only after adding coverage.
-4. Add more browser-level regression tests for import → PMB → Parts → RFT workflows.
-5. Consider private/authenticated hosting before using real customer data publicly.
+1. Remove/block the operational baseline from unauthenticated public hosting.
+2. Add browser-level coverage for import → PMB → Parts → RFT plus backup/restore failure paths.
+3. Define canonical permanent vehicle IDs and alias-conflict migration as part of the shared backend design.
+4. Refactor duplicated Parts/PMB/RFT and import/storage code only after behavioral coverage exists.
+5. Work through `BACKEND_MIGRATION_PLAN.md` and approve authentication, hosting, support and recovery requirements before selecting a vendor or deploying operational data.
 
 ## Browser-cache and GitHub Pages troubleshooting
+- Treat the GitHub Pages URL as a non-sensitive demo only; its copy of `staticwebapp.config.json` does not provide authentication.
 - Always bump version/cache query strings when changing JS/data/CSS/HTML.
 - Use `?v=<commit-or-version>` on the live URL.
 - GitHub Pages can serve mixed old/new files during propagation; poll until `index.html`, `app.js`, and `data.js` all show the expected version.
@@ -309,6 +325,7 @@ See `BUSINESS_RULES.md`. Critical highlights:
 - localStorage schema has no migration framework beyond constants and compatibility aliases.
 - Parts/RFT/PMB business rules overlap; change one area only with test coverage.
 - GitHub Pages propagation/caching can mislead verification if not cache-busted.
+- The static and clean-test builds are near-duplicates; move toward one configured codebase after regression coverage is strong enough.
 
 ## Handover package contents
 - Source code, HTML, CSS, JS and data files.

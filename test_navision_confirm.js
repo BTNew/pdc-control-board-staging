@@ -63,26 +63,18 @@ code += String.raw`
   applyNavisionImportPlan(plan2, new Set());
   app.data = buildVehicleData();
   assert(app.data.find(v => v.stock === '12345678').toyotaStatus === 'Waiting PD1', 'Unselected existing update should not apply');
-  assert(!app.data.some(v => v.stock === '87654321'), 'New Navision-only vehicle should stay off the PDC sheet without a PO upload');
-  assert(loadNavisionBackEndVehicles().some(v => v.stock === '87654321'), 'New Navision-only vehicle should be saved to Back End Data');
+  assert(app.data.some(v => v.stock === '87654321'), 'New vehicle should still be added after selected-only confirmation');
 
-  // Loading a matching PO / PD form later should promote a back-end-only Navision row onto the PDC Sheet.
-  const promoted = applyPdCheckFormImport({ stock: '87654321', order: 'ORD2', vin: '', tasks: ['Bull bar'], filenames: ['ORD2-PO.pdf'] });
-  app.data = buildVehicleData();
-  assert(promoted.vehicle.stock === '87654321', 'PO upload should reuse the matching back-end Navision vehicle');
-  assert(app.data.some(v => v.stock === '87654321'), 'PO-loaded vehicle should appear on the PDC sheet');
-  assert(!loadNavisionBackEndVehicles().some(v => v.stock === '87654321'), 'Promoted PO vehicle should be removed from Back End Data');
-
-  // PMB-only import should accept rows with a Body Builder signal and skip plain Navision rows.
+  // PDC work/job-file mode should accept rows with a Body Builder signal and skip plain Navision rows.
   const pmbOnlyHeader = row(['Order','Batch','Production Month','Model Description','Body Builder','Tray Fitment Ordered']);
   const pmbOnlyMatch = row(['ORD3','33333333','202610','Landcruiser','2','No']);
   const pmbOnlySkip = row(['ORD4','44444444','202610','Corolla','','No']);
   const parsedPmbOnly = parseNavisionInput(pmbOnlyHeader + '\n' + pmbOnlyMatch + '\n' + pmbOnlySkip, { pmbOnly: true });
-  assert(parsedPmbOnly.vehicles.length === 1, 'PMB-only import should keep only rows with PMB/body-builder work signals');
-  assert(parsedPmbOnly.vehicles[0].stock === '33333333', 'PMB-only import should keep the body-builder row');
-  assert(parsedPmbOnly.warnings.some(warning => warning.includes('44444444') && warning.includes('skipped')), 'PMB-only import should report skipped non-PMB rows');
+  assert(parsedPmbOnly.vehicles.length === 1, 'Work/job-file mode should keep only rows with PDC work signals');
+  assert(parsedPmbOnly.vehicles[0].stock === '33333333' && parsedPmbOnly.vehicles[0].pdcSheetVisible === true, 'Work/job-file mode should promote the body-builder row');
+  assert(parsedPmbOnly.warnings.some(warning => warning.includes('44444444') && warning.includes('skipped')), 'Work/job-file mode should report skipped rows without work signals');
 
-  // Body Builder / consignment location statuses should auto-land in PMB without manual override.
+  // Normal Navision never promotes Body Builder / consignment statuses; work/job-file mode may do so.
   localStorage.clear();
   app.data = buildVehicleData();
   const bodyBuilderHeader = row(['Order','Batch','Production Month','Model Description','Sub Location Description']);
@@ -90,8 +82,35 @@ code += String.raw`
   const consignmentRow = row(['ORD6','66666666','202610','Hilux','On Consignment']);
   const parsedBodyBuilder = parseNavisionInput(bodyBuilderHeader + '\n' + bodyBuilderRow + '\n' + consignmentRow);
   assert(parsedBodyBuilder.vehicles.length === 2, 'Body builder status rows should import');
-  assert(parsedBodyBuilder.vehicles.every(vehicle => vehicle.pdcLocation === 'PMB'), 'Body builder/consignment statuses should auto-map to PMB');
-  assert(parsedBodyBuilder.vehicles.every(vehicle => vehicle.pmbStage === ''), 'First PMB landing should stay Unallocated');
+  assert(parsedBodyBuilder.vehicles.every(vehicle => vehicle.pdcSheetVisible === false && !vehicle.pdcLocation), 'Normal Navision Body Builder/consignment rows should stay in Back End Data only');
+  const parsedBodyBuilderWork = parseNavisionInput(bodyBuilderHeader + '\n' + bodyBuilderRow + '\n' + consignmentRow, { pmbOnly: true });
+  assert(parsedBodyBuilderWork.vehicles.every(vehicle => vehicle.pdcSheetVisible === true && vehicle.pdcLocation === 'PMB'), 'Work/job-file mode may promote Body Builder/consignment rows to PMB');
+  assert(parsedBodyBuilderWork.vehicles.every(vehicle => vehicle.pmbStage === ''), 'First PMB landing should stay Unallocated');
+
+  // Report title lines, header aliases and order-only vehicles should import cleanly.
+  const titledCsv = 'Navision Vehicle Report\nGenerated 13/07/2026\nToyota Order,Stock No.,Model Desc.,ETA To Kewdale\nORD7,77770000,Camry,01/08/2026';
+  const parsedTitledCsv = parseNavisionInput(titledCsv);
+  assert(parsedTitledCsv.vehicles.length === 1 && parsedTitledCsv.vehicles[0].stock === '77770000', 'CSV headings below report title lines should be detected');
+  assert(parsedTitledCsv.warnings.some(warning => warning.includes('headings were detected on row 3')), 'Import should explain that report title rows were ignored');
+  const orderOnly = parseNavisionInput(row(['Toyota Order','Model Description']) + '\n' + row(['ORDER-ONLY-1','HiAce']));
+  assert(orderOnly.vehicles.length === 1 && orderOnly.vehicles[0].order === 'ORDER-ONLY-1', 'An order-only Navision vehicle should remain available in Back End Data until a stock number arrives');
+
+  // Navision browser copy uses U+2002 EN SPACE separators rather than tabs.
+  const enSpace = '\u2002';
+  const expandTabs = line => {
+    let column = 0;
+    return line.split('').map(character => {
+      if (character !== '\t') { column += 1; return character; }
+      const spaces = 6 - (column % 6 || 0);
+      column += spaces;
+      return enSpace.repeat(spaces);
+    }).join('');
+  };
+  const unicodeHeader = expandTabs(row(['Order','Batch','Production Month','Compliance Date','Model Description','Customer Surname','Sub Location Description','ETA At Kewdale Yard','JITA PreOrder']));
+  const unicodeVehicle = expandTabs(row(['250038414','13056889','202607','','Prado 2.8L 48V Dsl Wgn 8AT','NINDILINGARRI CULTURAL HEALTH','Planned for Production','20/07/2026','2']));
+  const parsedUnicodePaste = parseNavisionInput(unicodeHeader + '\n' + unicodeVehicle);
+  assert(parsedUnicodePaste.vehicles.length === 1, 'Unicode EN SPACE separated Navision paste should import');
+  assert(parsedUnicodePaste.vehicles[0].stock === '13056889' && parsedUnicodePaste.vehicles[0].order === '250038414', 'Unicode Navision paste should preserve Order and Batch columns');
 
   // Missing cleanup on a full refresh should protect non-Toyota records.
   const toyotaExisting = { id: 'toyota-1', stock: '77777777', batch: '77777777', vehicle: 'Toyota Prado', toyotaVehicle: 'Prado', source: 'Navision' };

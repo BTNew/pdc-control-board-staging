@@ -26,6 +26,15 @@ Do not add third-party scripts, analytics, trackers, or hidden network calls wit
 - Vehicle data is stored in browser localStorage on the device using the site.
 - Users should export backups before clearing browser data or switching PCs.
 - The live GitHub Pages site only hosts static files; it does not provide shared server-side storage.
+- GitHub Pages does not enforce `staticwebapp.config.json`; that configuration applies only when served by Azure Static Web Apps.
+- The bundled `data.js` baseline contains operational business/customer information. Do not deploy that baseline to an unauthenticated public host.
+- Use the zero-vehicle import-test build, synthetic fixtures or anonymized data for public demonstrations.
+
+## Production hosting direction
+
+- Production access requires centrally managed authentication and authorization before HTML, API data, attachments or exports containing operational information are returned.
+- The shared backend must enforce server-side validation, permanent vehicle identity, transactional writes, concurrency conflict handling, audit events and tested backups.
+- Do not select or embed a vendor-specific production dependency until the requirements and security review in `BACKEND_MIGRATION_PLAN.md` are approved.
 
 ## Deployment checks
 Before any live deployment:

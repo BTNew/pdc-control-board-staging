@@ -272,6 +272,15 @@ input:focus, select:focus, textarea:focus { border-color: #94a3b8; box-shadow: 0
 .vehicle-chip { background: #f8fafc; border: 1px solid var(--line); border-radius: 999px; padding: 6px 9px; font-size: .77rem; color: #334155; }
 
 .import-layout { display: grid; grid-template-columns: 360px 1fr; gap: 16px; align-items: start; }
+#import.view.active {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+#import .navision-layout { order: 1; }
+#import .po-job-layout { order: 2; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+#import .autocare-layout { order: 3; }
+#import .backup-layout { order: 4; }
 .import-card { padding-bottom: 18px; }
 .drop-zone {
   margin: 12px 18px 18px;
@@ -869,6 +878,7 @@ input:focus, select:focus, textarea:focus { border-color: #94a3b8; box-shadow: 0
 }
 .po-status-row strong { font-size: .84rem; }
 .po-status-row span { color: var(--muted); font-size: .76rem; }
+.po-status-row span small { display: block; margin-top: 3px; color: #64748b; }
 .po-status-row.ok { border-color: rgba(31, 138, 90, .25); background: #f0fdf4; }
 .po-status-row.warn { border-color: rgba(183, 121, 31, .25); background: #fffbeb; }
 .po-task-panel {
@@ -3328,6 +3338,13 @@ body.vehicle-table-header-pinned #vehicle-table thead {
 #zpl-print.primary {
   box-shadow: 0 10px 22px rgba(31, 138, 90, .16);
 }
+[data-print-selected-zpl][hidden] { display: none !important; }
+.vehicle-label-button {
+  border-color: rgba(31, 138, 90, .34) !important;
+  color: #166534 !important;
+  background: #f0fdf4 !important;
+}
+.vehicle-label-button:hover { background: #dcfce7 !important; }
 .qz-print-ok {
   border-color: rgba(31, 138, 90, .24) !important;
   background: #f0fdf4 !important;
@@ -3781,38 +3798,30 @@ body.vehicle-table-header-pinned #vehicle-table thead {
   color: #475569;
   white-space: nowrap;
 }
-.pmb-age-fresh { background: #f0fdf4; color: #166534; border-color: rgba(22, 163, 74, .24); }
-.pmb-age-future { background: #eff6ff; color: #1d4ed8; border-color: rgba(59, 130, 246, .25); }
-.pmb-age-watch { background: #fffbeb; color: #92400e; border-color: rgba(245, 158, 11, .28); }
+.pmb-age-fresh { background: #e0f2fe; color: #075985; border-color: rgba(14, 165, 233, .32); }
+.pmb-age-future { background: #f0f9ff; color: #0369a1; border-color: rgba(56, 189, 248, .28); }
+.pmb-age-watch { background: #fef9c3; color: #854d0e; border-color: rgba(234, 179, 8, .38); }
 .pmb-age-overdue { background: #fef2f2; color: #991b1b; border-color: rgba(220, 38, 38, .28); }
-.pmb-age-warning { background: #ffedd5; color: #9a3412; border-color: rgba(249, 115, 22, .45); animation: pdcFlashOrange 1.15s ease-in-out infinite; }
-.pmb-age-critical { background: #fee2e2; color: #7f1d1d; border-color: rgba(220, 38, 38, .55); animation: pdcFlashRed .9s ease-in-out infinite; }
+.pmb-age-warning { background: #ffedd5; color: #9a3412; border-color: rgba(249, 115, 22, .48); }
+.pmb-age-critical { background: #fee2e2; color: #7f1d1d; border-color: rgba(220, 38, 38, .58); }
 .pmb-age-unknown { background: #f8fafc; color: #64748b; border-color: rgba(148, 163, 184, .35); }
 .pmb-age-card-warning {
+  background: #fff7ed;
   border-color: rgba(249, 115, 22, .55);
   box-shadow: 0 8px 20px rgba(249, 115, 22, .16);
-  animation: pdcCardFlashOrange 1.15s ease-in-out infinite;
 }
 .pmb-age-card-critical {
+  background: #fef2f2;
   border-color: rgba(220, 38, 38, .65);
   box-shadow: 0 8px 20px rgba(220, 38, 38, .18);
-  animation: pdcCardFlashRed .9s ease-in-out infinite;
 }
-@keyframes pdcFlashOrange {
-  0%, 100% { background: #ffedd5; color: #9a3412; }
-  50% { background: #fb923c; color: #fff7ed; }
+.vehicle-search-highlight {
+  border-color: #0ea5e9 !important;
+  background: #f0f9ff !important;
+  box-shadow: 0 0 0 3px rgba(14, 165, 233, .28), 0 12px 28px rgba(2, 132, 199, .16) !important;
 }
-@keyframes pdcFlashRed {
-  0%, 100% { background: #fee2e2; color: #7f1d1d; }
-  50% { background: #dc2626; color: #fff; }
-}
-@keyframes pdcCardFlashOrange {
-  0%, 100% { background: #fff; }
-  50% { background: #fff7ed; }
-}
-@keyframes pdcCardFlashRed {
-  0%, 100% { background: #fff; }
-  50% { background: #fef2f2; }
+.vehicle-search-highlight > summary {
+  background: #e0f2fe !important;
 }
 .pmb-card-client {
   font-size: .66rem;
@@ -6599,6 +6608,84 @@ body.pmb-schedule-adjusting .pmb-schedule-chip-slim {
 .pmb-resolution-actions {
   margin-top: 1rem;
 }
+
+.sales-change-email-overlay { z-index: 180; }
+.sales-change-email-card {
+  width: min(580px, calc(100vw - 2rem));
+  padding: 24px;
+  display: grid;
+  gap: 16px;
+}
+.sales-change-email-heading {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding-right: 44px;
+}
+.sales-change-email-heading h2 { margin: 0 0 4px; }
+.sales-change-email-heading p { margin: 0; color: var(--muted); }
+.sales-change-email-icon {
+  display: grid;
+  place-items: center;
+  flex: 0 0 42px;
+  height: 42px;
+  border-radius: 12px;
+  background: #e8f2ff;
+  color: #174ea6;
+  font-size: 20px;
+  font-weight: 900;
+}
+.sales-change-email-summary {
+  display: grid;
+  gap: 4px;
+  padding: 13px 14px;
+  border: 1px solid #bdd7f4;
+  border-radius: 12px;
+  background: #f5faff;
+}
+.sales-change-email-summary span,
+.sales-change-email-summary small { color: var(--muted); }
+.sales-change-email-summary > strong {
+  display: inline-flex;
+  width: max-content;
+  max-width: 100%;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: #fff1f2;
+  color: #9f1239;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+.sales-change-email-fields {
+  display: grid;
+  grid-template-columns: minmax(130px, .7fr) minmax(240px, 1.3fr);
+  gap: 12px;
+}
+.sales-change-email-fields label { display: grid; gap: 5px; font-weight: 800; }
+.sales-change-email-fields input {
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 10px 11px;
+  background: #fff;
+}
+.sales-change-email-fields input[readonly] { background: #f5f7f9; color: var(--muted); }
+.sales-change-email-actions { margin-top: 0; }
+
+@media (max-width: 620px) {
+  .sales-change-email-fields { grid-template-columns: 1fr; }
+  .sales-change-email-card { padding: 20px; }
+}
+
+.salesperson-list-panel { grid-column: 1 / -1; }
+.salesperson-admin-form {
+  grid-template-columns: 140px minmax(180px, 1fr) minmax(260px, 1.4fr) auto;
+}
+.salesperson-admin-chip {
+  align-items: center;
+  border-radius: 12px;
+}
+.salesperson-admin-chip small { color: var(--muted); font-weight: 600; }
 
 
 /* Best-practice workflow board */
@@ -10561,10 +10648,10 @@ textarea {
 .completed-table th:nth-child(12), .completed-table td:nth-child(12) { width: 260px !important; }
 .completed-table th:nth-child(13), .completed-table td:nth-child(13) { width: 73px !important; }
 
-/* Back End Data — 8 explicit columns. */
+/* Back End Data — 9 explicit columns. */
 .backend-data-table {
-  width: 1490px !important;
-  min-width: 1490px !important;
+  width: 1640px !important;
+  min-width: 1640px !important;
 }
 .backend-data-table th:nth-child(1), .backend-data-table td:nth-child(1) { width: 58px !important; }
 .backend-data-table th:nth-child(2), .backend-data-table td:nth-child(2) { width: 96px !important; }
@@ -10574,6 +10661,8 @@ textarea {
 .backend-data-table th:nth-child(6), .backend-data-table td:nth-child(6) { width: 225px !important; }
 .backend-data-table th:nth-child(7), .backend-data-table td:nth-child(7) { width: 300px !important; }
 .backend-data-table th:nth-child(8), .backend-data-table td:nth-child(8) { width: 150px !important; }
+.backend-data-table th:nth-child(9), .backend-data-table td:nth-child(9) { width: 150px !important; }
+.backend-action-cell .small-button { width: 100%; white-space: nowrap; }
 
 /* Long names and full station names on PMB bay tiles as well. */
 .pmb-pill-customer,
@@ -10799,4 +10888,140 @@ html[data-row-width="xl"] {
     min-width: 444px !important;
     max-width: 444px !important;
   }
+}
+
+/* PO / job-card import review: parse first, save only after operator confirmation. */
+.work-import-review-card {
+  width: min(1120px, calc(100vw - 48px));
+  max-height: min(92vh, 980px);
+  padding-bottom: 20px;
+}
+
+.work-import-review-heading {
+  border-bottom: 1px solid var(--line);
+  background: linear-gradient(135deg, #f8fbff, #fff);
+}
+
+.work-import-review-heading h2 { margin: 3px 0 5px; }
+
+.work-import-review-form {
+  display: grid;
+  gap: 16px;
+  padding: 18px;
+}
+
+.work-import-vehicle-card,
+.work-import-detection-card,
+.work-import-requirements,
+.work-import-task-details {
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: #fff;
+}
+
+.work-import-vehicle-card { padding: 16px; }
+
+.work-import-vehicle-identity {
+  display: grid;
+  grid-template-columns: max-content minmax(120px, max-content) minmax(180px, 1fr);
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 14px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--line);
+}
+
+.work-import-vehicle-identity span {
+  border-radius: 999px;
+  padding: 5px 9px;
+  color: #1d4ed8;
+  background: #eff6ff;
+  font-size: .76rem;
+  font-weight: 900;
+}
+
+.work-import-vehicle-identity strong { font-size: 1rem; }
+.work-import-vehicle-identity small { color: var(--muted); text-align: right; overflow-wrap: anywhere; }
+
+.work-import-fields { margin-top: 10px; }
+.work-import-fields label { display: grid; gap: 6px; }
+.work-import-fields label > span {
+  color: var(--muted);
+  font-size: .72rem;
+  font-weight: 850;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+
+.work-import-fields input,
+.work-import-fields select { min-width: 0; width: 100%; }
+
+.work-import-fields input[readonly] {
+  background: #f1f5f9;
+  color: #475569;
+}
+
+.work-import-detection-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) max-content;
+  gap: 18px;
+  align-items: center;
+  padding: 15px 16px;
+}
+
+.work-import-detection-card.has-detections {
+  border-color: #7dd3fc;
+  background: #f0f9ff;
+}
+
+.work-import-detection-card.no-detections {
+  border-color: #fbbf24;
+  background: #fffbeb;
+}
+
+.work-import-detection-card strong { display: block; margin: 3px 0; color: #0f172a; font-size: 1rem; }
+.work-import-detection-card p { margin: 0; color: #475569; font-size: .85rem; }
+.work-import-detection-actions { display: flex; gap: 8px; align-items: center; }
+.work-import-detection-actions button.is-active { box-shadow: 0 0 0 3px rgba(29, 78, 216, .2); }
+
+.work-import-requirements { margin: 0; padding: 14px 15px 16px; }
+.work-import-requirements legend { padding: 0 6px; color: #0f172a; font-weight: 900; }
+
+.work-import-check-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(150px, 1fr));
+  gap: 10px;
+}
+
+.work-import-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  min-height: 62px;
+  padding: 10px;
+  border: 2px solid #d8e0e8;
+  border-radius: 13px;
+  background: #f8fafc;
+  cursor: pointer;
+}
+
+.work-import-check > input { margin-top: 5px; }
+.work-import-check > span { display: grid; grid-template-columns: 30px 1fr; grid-template-areas: "code label" "code status"; gap: 2px 7px; align-items: center; }
+.work-import-check b { grid-area: code; display: grid; place-items: center; width: 28px; height: 28px; border-radius: 999px; background: #e2e8f0; font-size: .68rem; }
+.work-import-check strong { grid-area: label; font-size: .78rem; }
+.work-import-check small { grid-area: status; color: var(--muted); font-size: .7rem; }
+.work-import-check.is-detected { border-style: dashed; border-color: #38bdf8; }
+.work-import-check.is-selected { border-style: solid; border-color: #ef4444; background: #fff1f2; }
+.work-import-check.is-selected b { background: #fecdd3; color: #9f1239; }
+.work-import-check.is-locked { border-color: #94a3b8; background: #f1f5f9; cursor: not-allowed; }
+
+.work-import-task-details { padding: 11px 14px; }
+.work-import-task-details summary { cursor: pointer; color: #334155; font-weight: 850; }
+.work-import-task-details ul { columns: 2; margin: 10px 0 0; padding-left: 20px; color: #475569; font-size: .82rem; }
+.work-import-task-details li { break-inside: avoid; margin-bottom: 5px; }
+.work-import-review-actions { justify-content: flex-end; }
+
+@media (max-width: 1050px) {
+  .work-import-check-grid { grid-template-columns: repeat(2, minmax(150px, 1fr)); }
+  .work-import-detection-card { grid-template-columns: 1fr; }
 }

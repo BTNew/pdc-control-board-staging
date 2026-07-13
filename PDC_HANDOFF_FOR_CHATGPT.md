@@ -1,4 +1,4 @@
-# PDC Control Board handoff for another ChatGPT
+# PDC Control Board handoff for another ChatGPT/Hermes
 
 Use this file to brief another ChatGPT/developer on the current PDC Control Board work.
 
@@ -7,17 +7,30 @@ Use this file to brief another ChatGPT/developer on the current PDC Control Boar
 - Local repo: `C:\Users\nwmgr\pdc-control-board`
 - GitHub repo: `https://github.com/BTNew/pdc-control-board`
 - Branch: `main`
-- Live site: `https://btnew.github.io/pdc-control-board/`
-- 75-vehicle test board: `https://btnew.github.io/pdc-control-board/test-75.html?clearLocalData=1`
-- Current package URL after deployment: `https://btnew.github.io/pdc-control-board/?v=2026.07.13.07-zero-filter-recovery`
+- Public/demo URL only: `https://btnew.github.io/pdc-control-board/` — GitHub Pages is unauthenticated and must not serve the operational baseline.
+- Synthetic 75-vehicle test board: `https://btnew.github.io/pdc-control-board/test-75.html?clearLocalData=1`
+- Package demo URL after an explicitly approved synthetic-data deployment: `https://btnew.github.io/pdc-control-board/?v=2026.07.13.21-autocare-pmb`
 
 ## Current package state
 
-- Package version: `2026.07.13.07-zero-filter-recovery`.
-- Package source commit: `e97f98d36996d9dc5ee47555139dd0bdb16b4285`.
+- Package version: `2026.07.13.21-autocare-pmb`.
+- Package source commit: not recorded in this standalone working-copy snapshot; inspect repository status after placing the files.
 - The package changes have been validated locally but are not committed, pushed or deployed from this handover ZIP.
 - The bundled live dataset now contains 321 current vehicles from `Master2021 (1).xlsx` / visible `EOS` worksheet.
 - The Control Board column-heading row itself is selectable for PMB age order, buckets, work status, Required Yes/No and stoppages, and floats while scrolling.
+- Daily full Navision uploads update visible and back-end-only vehicles. Non-PDC Navision rows remain back-end-only; manual/PD/PO/PDC-promoted rows are protected from missing-dump cleanup.
+- Broome Toyota PO PDFs are read from inside the document. Unknown stock numbers create active protected PO vehicles; matching back-end rows are promoted and enriched with the PO vehicle and work details.
+- Back End Data activation follows the latest Navision location, with Body Builder / PMB landing in PMB Unallocated. Navision-derived locations refresh until staff manually lock the vehicle's location.
+- Navision free text no longer infers non-Parts work ticks. **EMAIL UPDATE** prepares a salesperson status draft with Parts ETA and workshop/bay history for one selected vehicle. The saved salesperson directory resolves known staff, Toyota order is omitted and the triggering change is prominent.
+- Sublet providers are seeded from `DEFAULT_SUBLET_PROVIDERS`; preserve casing normalization/deduplication and the one-time seed migration.
+- Exactly one vehicle search match auto-opens/highlights. Kewdale age colours are fixed blue→yellow→orange→red with no animation.
+- Missing/ambiguous vehicle lookups fail closed. Multi-key imports, removal and restore use a recovery journal with rollback and startup recovery.
+- Operational health shows the latest imports/backup; management visibility shows third-party work, stagnation, capacity, RFT gate and history metrics. Secondary filters are grouped under **More filters**.
+- `test_all.js` auto-discovers regressions and reports fixture-dependent tests as skipped when appropriate.
+- Zebra/QZ label printing is implemented from vehicle rows, Vehicle Detail and selected-row actions. It uses the bundled QZ client, validates VIN length and prints two 68 mm × 45 mm labels per vehicle.
+- A matched AutoCare despatch activates the vehicle at PMB `Unallocated`, starts its PMB arrival time and locks the PMB location against later Navision regression. Repeat scans preserve an existing PMB bay/bucket and do not reopen RFT/Completed vehicles. Unknown notices remain review-only.
+- The full packaged regression result is 22 passed, 0 failed and 0 skipped.
+- Hermes should read `HERMES_START_HERE.md` before this longer historical handoff.
 - Read `MASTER_SHEET_IMPORT.md` and `master-import-audit.json` before changing the migration mapping.
 
 Historical commit notes later in this file describe earlier PMB movement work and should not be mistaken for the current package version.
@@ -29,7 +42,15 @@ Craig uses this as a live PMB/PDC control board. Keep reports concise: changed f
 Important workflow rules:
 
 - Navision import drives the main tracker.
+- Navision storage and PDC Sheet visibility are separate: unpromoted Navision-only rows stay in Back End Data until promoted or retired by a later full dump.
+- Manual, PD check-form, PO and PDC-promoted vehicles must never be removed merely because they are absent from Navision.
 - Manual Yard Hold / PMB / RFT overrides take priority over Navision.
+- Back End activation must use the most current Navision location; Body Builder / PMB must enter PMB Unallocated.
+- Navision comments/location wording must not automatically tick non-Parts work boxes.
+- Keep **EMAIL UPDATE** available for one selected vehicle and inside Vehicle Detail.
+- After a successful single-vehicle RFT transfer, offer a separate reviewable salesperson draft without silently sending or blocking the completed transfer.
+- Missing or ambiguous vehicle lookups must stop safely and must never update the first/wrong row.
+- Imports and backup restore must be recoverable across all affected saved keys; a failed operation must roll back and report an error.
 - PMB transfer lands in `Unallocated`.
 - PMB vehicles must be movable between work buckets/bays and back to `Unallocated`.
 - Craig specifically needs to move a vehicle back to `Unallocated` when work is done and it is waiting for another bay/process.
@@ -132,16 +153,12 @@ From `C:\Users\nwmgr\pdc-control-board`, run:
 node --check app.js
 node --check data.js
 node --check data-test-75.js
-node test_navision_confirm.js
-node test_parts_production_principles.js
-node test_review_update_alignment.js
-node test_production_grid_v2.js
-node test_uniform_stage_matrix.js
-node test_desktop_operations.js
-node test_master_sheet_import.js
+node test_all.js
 git diff --check
 git status --short --branch
 ```
+
+The runner auto-discovers regressions. The external real-PO PDF integration test reports an optional skip when its fixtures or `pdftotext` are unavailable.
 
 For UI changes:
 
@@ -160,7 +177,7 @@ http://127.0.0.1:8765/test-75.html?clearLocalData=1
 3. Browser-test movement between PMB stages/bays and `Unallocated`.
 4. Check browser console for errors.
 5. Push only after tests pass.
-6. Verify GitHub Pages live URL with a cache-busted query string.
+6. Verify a GitHub Pages URL only when it contains synthetic/non-sensitive data. Operational data requires authenticated private hosting.
 
 ## Reporting to Craig
 
@@ -173,3 +190,5 @@ Keep responses short. Include only:
 - any next step needed
 
 Do not give long internal reasoning unless asked.
+
+For production architecture and cutover requirements, read `BACKEND_MIGRATION_PLAN.md`. It intentionally does not select a vendor.

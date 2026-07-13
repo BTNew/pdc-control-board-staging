@@ -24,4 +24,6 @@ The server serves the current folder. After editing `index.html`, `styles.css`, 
 
 ## Current prototype limits
 
-This is still a static localStorage-only prototype. It is good for local preview and workflow validation, but it is not yet a shared multi-user production system. A live shared version needs backend login, permissions, database storage, realtime updates, server-side audit logs, file storage, and backups.
+This is still a static localStorage-only prototype. It is good for controlled local preview and workflow validation, but it is not a shared multi-user production system. Because this copy contains an operational baseline, do not serve it through unauthenticated public hosting.
+
+A live shared version needs authentication, permissions, database/API storage, concurrency handling, server-side audit logs, file storage and tested backups. See `BACKEND_MIGRATION_PLAN.md`; no vendor has been selected.

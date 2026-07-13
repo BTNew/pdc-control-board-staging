@@ -2,13 +2,13 @@
 
 Use this as the canonical maintenance workflow for the PDC Control Board project.
 
-## Repository and live site
+## Repository and public demo
 - Local repo: `C:\Users\nwmgr\pdc-control-board`
 - GitHub repo: `https://github.com/BTNew/pdc-control-board`
-- Live site: `https://btnew.github.io/pdc-control-board/`
+- Public/demo URL: `https://btnew.github.io/pdc-control-board/` — GitHub Pages is unauthenticated; do not deploy the operational dataset there.
 - Branch: `main`
 
-## Required workflow: inspect → modify → test → browser-check → commit → push → live-verify
+## Required workflow: inspect → modify → test → browser-check → commit → push → approved-environment verify
 1. Inspect first:
    - `git status --short`
    - `git branch --show-current`
@@ -21,11 +21,11 @@ Use this as the canonical maintenance workflow for the PDC Control Board project
 6. Review `git diff` and `git diff --check`.
 7. Commit with a clear message.
 8. Push `main` to origin.
-9. Poll GitHub Pages and verify the deployed live site is serving the new version.
+9. Verify the approved environment. GitHub Pages verification is permitted only with synthetic/non-sensitive data.
 10. Report changed files, tests, live status and any remaining risks.
 
 ## Files with matching version numbers
-Current version identifier: `2026.07.13.07-zero-filter-recovery`
+Current version identifier: `2026.07.13.18-production-hardening`
 
 When bumping version, update all references in:
 - `app.js` (`APP_VERSION`)
@@ -48,27 +48,20 @@ Run from `C:\Users\nwmgr\pdc-control-board`:
 ```bash
 node --check app.js
 node --check data.js
-node test_navision_confirm.js
-node test_parts_production_principles.js
-node test_data_integrity.js
-node test_review_update_alignment.js
-node test_production_grid_v2.js
-node test_uniform_stage_matrix.js
-node test_desktop_operations.js
-node test_master_sheet_import.js
+node test_all.js
 git diff --check
 ```
-If relevant files changed, also run any additional `test_*.js` files that match the area changed. At handover, these extra tests also exist and are useful:
-```bash
-node test_production_grid_v2.js
-node test_uniform_stage_matrix.js
-```
+
+`test_all.js` discovers every `test_*.js` file and summarizes pass/fail/skip results. The real-PO PDF integration test is optional and reports a skip when its three external fixtures or `pdftotext` are unavailable.
 
 Expected success messages include:
 - `Navision confirmation tests passed`
 - `Parts/production principle tests passed`
 - `Data integrity checks passed`
 - `Review update alignment tests passed`
+- `Vehicle lookup safety checks passed`
+- `Storage transaction and recovery checks passed`
+- `Operational hardening checks passed`
 
 ## Local browser checks
 1. Start a local static server:
@@ -89,8 +82,10 @@ http://127.0.0.1:8025/index.html?v=<version>
 
 Use `?clearLocalData=1` only for isolated test sessions where clearing app localStorage is intended. Do not use it against a real user’s production browser unless explicitly approved.
 
-## Live GitHub Pages verification
-After push, GitHub Pages may serve mixed old/new assets for a short period. Poll until both `index.html` and referenced assets show the new version.
+## Deployment verification
+GitHub Pages may be checked only as a non-sensitive demonstration. It ignores `staticwebapp.config.json` and must not host the operational `data.js` baseline. Production verification requires the approved authenticated environment.
+
+After an approved synthetic-data Pages push, the service may serve mixed old/new assets briefly. Poll until both `index.html` and referenced assets show the new version.
 
 Useful live cache-busted link:
 ```text
@@ -104,7 +99,7 @@ window.VEHICLE_TRACKING_DATA.vehicles.length
 performance.getEntriesByType('resource').map(r => r.name).filter(n => /app\.js|data\.js/.test(n))
 ```
 
-Do not rely only on localhost. Confirm the deployed live URL is serving the expected version.
+Do not treat a successful Pages check as production security or backend validation.
 
 ## Preserving user data
 - Do not wipe `localStorage` as part of normal changes.
@@ -112,6 +107,7 @@ Do not rely only on localhost. Confirm the deployed live URL is serving the expe
 - Bundled `data.js` is baseline/static data; live users may have local edits layered over it.
 - Manual local overrides must remain higher priority than Navision/bundled values.
 - Do not commit private user/customer data, credentials, or generated backups.
+- Never deploy the operational bundled baseline to unauthenticated GitHub Pages. Use the zero-vehicle or synthetic fixture for public demonstrations.
 
 ## Avoiding regressions
 - Preserve compact UI and existing workflows unless asked.
@@ -120,6 +116,8 @@ Do not rely only on localhost. Confirm the deployed live URL is serving the expe
 - Preserve first-PMB-transfer-to-Unallocated rule.
 - Preserve Parts/RFT gates; RFT requires required jobs including Parts.
 - Preserve PMB bay capacity constants and internal stage keys.
+- Explicit missing/ambiguous vehicle lookups must stop without mutating another vehicle.
+- Multi-key imports and restores must validate before mutation and roll back fully on a write/rebuild failure.
 - Add/update tests whenever a business rule changes.
 
 ## Fragile areas
@@ -128,6 +126,7 @@ Do not rely only on localhost. Confirm the deployed live URL is serving the expe
 - `localStorage` schema is implicit in constants and save/load helpers.
 - Parts and PMB workflow rules are tightly coupled to tests; update tests with code.
 - GitHub Pages can temporarily serve old `index.html` with new assets or vice versa.
+- Read `BACKEND_MIGRATION_PLAN.md` before introducing authentication, API, database or deployment-platform dependencies.
 
 ## Packaging handovers
 Create clean zips outside the repo or with excluded patterns. Exclude:

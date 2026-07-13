@@ -306,3 +306,234 @@
   #import .drop-icon { color: #991b1b !important; }
   .jita-unknown { color: #475569 !important; }
 }
+
+/* 2026-07-13 operational clarity: compact filters, calm queue pressure and
+   status-led Parts actions. These rules intentionally sit after the desktop
+   baseline so the current operational screens win over legacy red treatments. */
+@media (min-width: 1100px) {
+  /* A short morning-health readout in the sidebar. */
+  .operational-health-card {
+    gap: 8px !important;
+    padding: 12px !important;
+  }
+  #operational-health-summary {
+    display: grid;
+    gap: 5px;
+  }
+  #operational-health-summary .health-line {
+    display: grid;
+    gap: 1px;
+    min-width: 0;
+    padding: 5px 7px;
+    border-left: 3px solid #64748b;
+    border-radius: 4px;
+    background: rgba(255, 255, 255, .055);
+  }
+  #operational-health-summary .health-line b {
+    color: #f8fafc;
+    font-size: 11px;
+    line-height: 1.2;
+  }
+  #operational-health-summary .health-line small {
+    overflow: hidden;
+    color: #cbd5e1;
+    font-size: 10.5px;
+    line-height: 1.25;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  #operational-health-summary .health-line.ok { border-left-color: #22c55e; }
+  #operational-health-summary .health-line.watch { border-left-color: #eab308; }
+  #operational-health-summary .health-line.warn { border-left-color: #f59e0b; }
+  #operational-health-summary .health-line.neutral { border-left-color: #64748b; }
+
+  .hosting-security-warning[hidden] { display: none !important; }
+  .hosting-security-warning:not([hidden]) {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: -2px 0 12px;
+    padding: 8px 11px;
+    border: 1px solid #f2c36b;
+    border-left: 4px solid #d97706;
+    border-radius: 7px;
+    background: #fffbeb;
+    color: #78350f;
+    font-size: 12px;
+    line-height: 1.3;
+  }
+  .hosting-security-warning strong {
+    flex: 0 0 auto;
+    color: #92400e;
+    font-size: 12px;
+  }
+  .hosting-security-warning span { min-width: 0; }
+
+  /* Search, Status and Bucket remain immediately available. Less-used filters
+     live in the native More filters disclosure without changing their fields. */
+  .incoming-filter-row.primary-filter-row {
+    grid-template-columns: minmax(360px, 2fr) minmax(180px, 1fr) minmax(170px, .85fr) auto auto !important;
+    gap: 8px 10px !important;
+  }
+  .incoming-more-filters {
+    margin-top: 7px;
+    border: 1px solid #d7e0e9;
+    border-radius: 7px;
+    background: #fff;
+  }
+  .incoming-more-filters > summary {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    min-height: 34px;
+    padding: 6px 9px;
+    color: #475569;
+    font-size: 12px;
+    font-weight: 800;
+    list-style: none;
+    cursor: pointer;
+  }
+  .incoming-more-filters > summary::-webkit-details-marker { display: none; }
+  .incoming-more-filters > summary::before {
+    content: '+';
+    display: inline-grid;
+    width: 18px;
+    height: 18px;
+    place-items: center;
+    border: 1px solid #cbd5e1;
+    border-radius: 4px;
+    background: #f8fafc;
+    color: #334155;
+    font-size: 13px;
+    line-height: 1;
+  }
+  .incoming-more-filters[open] > summary {
+    border-bottom: 1px solid #d7e0e9;
+    background: #f8fafc;
+  }
+  .incoming-more-filters[open] > summary::before { content: '\2212'; }
+  .incoming-more-filters.has-active-filters > summary {
+    background: #eff6ff;
+    color: #1d4ed8;
+  }
+  .incoming-more-filter-grid {
+    display: grid;
+    grid-template-columns: minmax(190px, 230px) minmax(0, 1fr);
+    gap: 10px;
+    align-items: end;
+    padding: 8px 10px 10px;
+  }
+  .incoming-more-filter-grid > label {
+    display: grid;
+    min-width: 0;
+    gap: 3px;
+    color: #4b5563;
+    font-size: 12px;
+    font-weight: 800;
+  }
+  .incoming-more-filter-grid > label select { min-height: 38px !important; }
+  .incoming-more-filter-grid .incoming-work-filter-checks {
+    grid-column: auto !important;
+    margin: 0;
+    padding: 5px 7px 7px;
+    border-radius: 7px;
+  }
+
+  /* Unallocated is a triage queue, not a physical bay-capacity failure. Keep
+     it neutral even while legacy code also supplies is-over-limit. */
+  .workflow-stage-bucket.pmb-branch-unassigned > summary,
+  .workflow-stage-bucket.pmb-branch-unassigned.is-over-limit > summary,
+  .workflow-stage-bucket.has-triage-backlog > summary,
+  .pmb-drop-lane.has-triage-backlog .pmb-lane-title {
+    background: #f8fafc !important;
+    box-shadow: inset 5px 0 #64748b !important;
+  }
+  .workflow-stage-bucket.pmb-branch-unassigned > summary strong,
+  .workflow-stage-bucket.pmb-branch-unassigned > summary small,
+  .workflow-stage-bucket.has-triage-backlog > summary strong,
+  .workflow-stage-bucket.has-triage-backlog > summary small {
+    color: #475569 !important;
+  }
+
+  /* Capacity pressure is amber. Red remains reserved for individual ageing or
+     stoppage exceptions in Fix First rather than painting an entire queue. */
+  .workflow-stage-bucket.is-over-limit:not(.pmb-branch-unassigned) > summary,
+  .workflow-stage-bucket.has-capacity-pressure > summary,
+  .workflow-stage-bucket.is-capacity-pressure > summary,
+  .pmb-drop-lane.has-capacity-pressure .pmb-lane-title,
+  .pmb-drop-lane.is-capacity-pressure .pmb-lane-title {
+    background: #fffbeb !important;
+    box-shadow: inset 5px 0 #d97706 !important;
+  }
+  .workflow-stage-bucket.is-over-limit:not(.pmb-branch-unassigned) > summary strong,
+  .workflow-stage-bucket.is-over-limit:not(.pmb-branch-unassigned) > summary small,
+  .workflow-stage-bucket.has-capacity-pressure > summary strong,
+  .workflow-stage-bucket.has-capacity-pressure > summary small,
+  .workflow-stage-bucket.is-capacity-pressure > summary strong,
+  .workflow-stage-bucket.is-capacity-pressure > summary small {
+    color: #92400e !important;
+  }
+  .workflow-stage-bucket.has-urgent-exception > summary {
+    background: #fff !important;
+    box-shadow: inset 5px 0 #dc2626 !important;
+  }
+  .workflow-bucket-actions .capacity-badge {
+    border-color: #f2c36b !important;
+    background: #fef3c7 !important;
+    color: #92400e !important;
+  }
+
+  /* One status-led action stays visible; secondary Parts actions expand in the
+     table cell so they are not clipped by the queue's scrolling container. */
+  .parts-queue-table .parts-action-group {
+    align-items: start !important;
+  }
+  .parts-row-more {
+    min-width: 0;
+  }
+  .parts-row-more > summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+    min-height: 34px;
+    padding: 7px 9px;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    background: #f8fafc;
+    color: #334155;
+    font-size: 11.5px;
+    font-weight: 800;
+    line-height: 1.15;
+    list-style: none;
+    cursor: pointer;
+  }
+  .parts-row-more > summary::-webkit-details-marker { display: none; }
+  .parts-row-more > summary::after { content: '\25be'; color: #64748b; }
+  .parts-row-more[open] {
+    grid-column: 1 / -1;
+  }
+  .parts-row-more[open] > summary {
+    border-color: #94a3b8;
+    background: #eef2f7;
+  }
+  .parts-row-more[open] > summary::after { content: '\25b4'; }
+  .parts-row-more-actions,
+  .parts-row-more-menu,
+  .parts-row-more > div {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 5px;
+    margin-top: 5px;
+    padding: 5px;
+    border: 1px solid #d7e0e9;
+    border-radius: 6px;
+    background: #fff;
+  }
+  .parts-row-more-actions .small-button,
+  .parts-row-more-menu .small-button,
+  .parts-row-more > div .small-button {
+    width: 100%;
+    min-height: 32px !important;
+  }
+}

@@ -9,7 +9,7 @@ const app = fs.readFileSync(path.join(root, 'app.js'), 'utf8');
 const css = fs.readFileSync(path.join(root, 'styles.css'), 'utf8');
 const desktopCss = fs.readFileSync(path.join(root, 'desktop-operations.css'), 'utf8');
 const htmlFiles = ['index.html', 'no-vehicles.html', 'test-50.html', 'test-75.html', 'test-100.html'];
-const expectedVersion = '2026.07.13.08-navision-po-visibility';
+const expectedVersion = '2026.07.13.21-autocare-pmb';
 
 assert.ok(app.includes(`const APP_VERSION = '${expectedVersion}';`));
 assert.match(app, /function productionGridHeaderHtml\(/);
@@ -39,7 +39,7 @@ assert.match(v2Css, /\.incoming-work-label[\s\S]*?white-space:\s*nowrap\s*!impor
 assert.match(v2Css, /\.incoming-vehicle-card,[\s\S]*?overflow:\s*visible\s*!important/);
 assert.match(desktopCss, /\.parts-queue-table\s*\{[\s\S]*?min-width:\s*1480px/);
 assert.match(v2Css, /\.completed-table\s*\{[\s\S]*?width:\s*1730px\s*!important/);
-assert.match(v2Css, /\.backend-data-table\s*\{[\s\S]*?width:\s*1490px\s*!important/);
+assert.match(v2Css, /\.backend-data-table\s*\{[\s\S]*?width:\s*1640px\s*!important/);
 
 for (const file of htmlFiles) {
   const html = fs.readFileSync(path.join(root, file), 'utf8');

@@ -1,6 +1,6 @@
 # Azure Static Web App setup
 
-This project is prepared for Azure Static Web Apps with Microsoft login protection.
+This project contains an optional Azure Static Web Apps configuration with Microsoft login protection. Its presence is not a production platform decision. Evaluate it alongside other supported options using the requirements in `BACKEND_MIGRATION_PLAN.md`.
 
 ## What is already in the repo
 
@@ -8,7 +8,7 @@ This project is prepared for Azure Static Web Apps with Microsoft login protecti
 - Unauthenticated users are redirected to Microsoft login at `/.auth/login/aad`.
 - The config is ignored by GitHub Pages, so the existing GitHub Pages site is not changed.
 
-## Recommended Azure setup
+## Optional Azure setup reference
 
 1. Create an Azure Static Web App.
 2. Deployment source: GitHub.
@@ -37,3 +37,4 @@ For proper business security:
 - The Azure Static Web App URL should become the private staff link.
 - Shared saving should be added later using a protected backend such as SharePoint Lists, Dataverse, Azure SQL, or another private database.
 - Do not store customer/business data directly in public JavaScript files.
+- Do not deploy this option as production until authentication scope, data storage, audit, backup, support and recovery requirements have been approved.

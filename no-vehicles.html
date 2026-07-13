@@ -4,8 +4,8 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Vehicle Tracking Core - No Vehicle Details</title>
-  <link rel="stylesheet" href="styles.css?v=2026.07.13.08-navision-po-visibility" />
-  <link rel="stylesheet" href="desktop-operations.css?v=2026.07.13.08-navision-po-visibility" />
+  <link rel="stylesheet" href="styles.css?v=2026.07.13.21-autocare-pmb" />
+  <link rel="stylesheet" href="desktop-operations.css?v=2026.07.13.21-autocare-pmb" />
 </head>
 <body>
   <div class="app-shell" id="app-shell">
@@ -15,7 +15,7 @@
         <div class="brand-text">
           <div class="brand-title">Vehicle Tracking</div>
           <div class="brand-subtitle">Clean Review Board</div>
-          <div class="app-version" id="app-version">Version 2026.07.13.08-navision-po-visibility</div>
+          <div class="app-version" id="app-version">Version 2026.07.13.21-autocare-pmb</div>
         </div>
         <button class="sidebar-toggle" id="sidebar-toggle" type="button" aria-label="Collapse sidebar" title="Collapse sidebar">‹</button>
       </div>
@@ -55,6 +55,7 @@
 
       <section id="dashboard" class="view active">
         <div class="kpi-grid" id="kpi-grid"></div>
+
         <section class="panel span-12 incoming-board-panel">
           <div class="panel-header">
             <div>
@@ -108,8 +109,10 @@
           </div>
           <div class="inline-selection-bar" id="incoming-selection-bar" aria-live="polite">
             <strong id="incoming-selection-count">0 selected</strong>
-            <span class="subtle">Tick vehicles below to bulk transfer Yard Hold to PMB, transfer PMB to RFT, or delete selected rows.</span>
+            <span class="subtle">Tick vehicles below to transfer them, delete them, or select one vehicle to email its salesperson an update.</span>
             <div class="inline-selection-actions">
+              <button class="small-button primary print-labels-button" data-print-selected-zpl type="button" hidden disabled>Print Labels</button>
+              <button class="small-button" id="incoming-email-selected-update" type="button" disabled>EMAIL UPDATE</button>
               <button class="small-button primary" id="incoming-transfer-selected-pmb" type="button" disabled>Transfer selected YH → PMB</button>
               <button class="small-button danger-button" id="incoming-delete-selected" type="button" disabled>Delete selected</button>
               <button class="small-button" id="incoming-clear-selected" type="button" disabled>Clear selected</button>
@@ -188,10 +191,11 @@
             </div>
             <div class="bulk-selection-actions">
               <button class="small-button" id="email-selected-amy-bar" type="button" disabled>Email PDC</button>
+              <button class="small-button" id="email-selected-update-bar" type="button" disabled>EMAIL UPDATE</button>
               <button class="small-button" id="override-selected-to-yh-bar" type="button" disabled>Override to YH</button>
               <button class="small-button primary" id="transfer-selected-to-pmb-bar" type="button" disabled>Transfer to PMB</button>
               <button class="small-button primary" id="transfer-selected-to-rft-bar" type="button" disabled>Transfer to RFT</button>
-              <button class="small-button primary print-labels-button" data-print-selected-zpl type="button" disabled>Print Labels</button>
+              <button class="small-button primary print-labels-button" data-print-selected-zpl type="button" hidden disabled>Print Labels</button>
               <button class="small-button danger-button" id="delete-selected-vehicles-bar" type="button" disabled>Delete selected</button>
               <button class="small-button" id="clear-selected-rows-bar" type="button" disabled>Clear</button>
             </div>
@@ -225,8 +229,10 @@
           </div>
           <div class="inline-selection-bar" id="workflow-selection-bar" aria-live="polite">
             <strong id="workflow-selection-count">0 selected</strong>
-            <span class="subtle">Tick PMB vehicles below to transfer selected vehicles to RFT or delete selected rows.</span>
+            <span class="subtle">Tick PMB vehicles below to transfer them, delete them, or select one vehicle to email its salesperson an update.</span>
             <div class="inline-selection-actions">
+              <button class="small-button primary print-labels-button" data-print-selected-zpl type="button" hidden disabled>Print Labels</button>
+              <button class="small-button" id="workflow-email-selected-update" type="button" disabled>EMAIL UPDATE</button>
               <button class="small-button primary" id="workflow-transfer-selected-rft" type="button" disabled>Transfer selected to RFT</button>
               <button class="small-button danger-button" id="workflow-delete-selected" type="button" disabled>Delete selected</button>
               <button class="small-button" id="workflow-clear-selected" type="button" disabled>Clear selected</button>
@@ -521,6 +527,7 @@
               <p>Paste rows only when troubleshooting. Normal workflow is tick vehicles on the dashboard and click Print Labels.</p>
             </div>
             <div class="panel-actions">
+              <button class="primary" id="zpl-print" type="button" disabled>Print with QZ Tray</button>
               <button class="small-button" id="zpl-generate" type="button">Preview ZPL</button>
               <button class="small-button" id="zpl-copy" type="button" disabled>Copy ZPL</button>
               <button class="small-button" id="zpl-clear" type="button">Clear</button>
@@ -615,7 +622,7 @@
             <div class="panel-header compact">
               <div>
                 <h2>Upload Navision text or Excel</h2>
-                <p>Paste tab-separated rows copied from Navision, or upload .txt / .tsv / .csv / .xlsx. Navision is used only up to Yard Hold; explicit spreadsheet columns can update PDC controls.</p>
+                <p>Paste tab-separated rows copied from Navision, or upload .txt / .tsv / .csv / .xlsx. a normal daily Navision upload stores every vehicle in Back End Data without placing new vehicles on the PDC Sheet.</p>
               </div>
               <div class="panel-actions">
                 <a class="small-button" href="random-100-vehicles.csv" download>Download random 100-vehicle CSV</a>
@@ -625,7 +632,7 @@
               <input id="navision-upload" type="file" accept=".txt,.tsv,.csv,.xlsx,text/plain,text/tab-separated-values,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" />
               <div class="drop-icon navision-icon">XLSX</div>
               <strong>Select Navision text or Excel</strong>
-              <span>Uses Order and Batch to update existing rows or add new vehicles up to Yard Hold. PMB/RFT are manual PDC locations. XLSX files are converted in the browser.</span>
+              <span>Uses Batch/stock, order or VIN to update existing rows and store new vehicles in Back End Data. XLSX files are converted in the browser.</span>
             </label>
             <div class="scan-card">
               <div class="scan-line navision-file"><span>File / paste</span><strong>Waiting for text</strong></div>
@@ -638,7 +645,7 @@
             <div class="panel-header">
               <div>
                 <h2>Navision import results</h2>
-                <p>Batch becomes the stock number, Order is stored underneath in SN, and Toyota Status comes only from Sub Location Description. Navision updates locations only up to Yard Hold; PMB/RFT are protected manual PDC locations.</p>
+                <p>Daily Navision data refreshes ETA to Kewdale, JITA, status and identifiers in Back End Data. Separate work files and manual inputs promote matching vehicles to the PDC Sheet.</p>
               </div>
               <div class="panel-actions">
                 <button class="primary" id="import-navision" type="button" disabled>Import vehicle updates</button>
@@ -652,11 +659,11 @@
               </label>
               <label class="sync-option">
                 <input id="navision-pmb-only" type="checkbox" />
-                <span><strong>Only import PMB work / PO rows</strong> — optional filter for PMB purchase-order/body-builder work only. Leave unticked on this blank site when loading a full Navision list.</span>
+                <span><strong>This is a PDC work / job file</strong> — optional filter for PMB purchase-order/body-builder work only. Leave unticked on this blank site when loading a full Navision list.</span>
               </label>
               <label class="sync-option">
                 <input id="navision-remove-missing" type="checkbox" />
-                <span><strong>Offer cleanup for missing vehicles</strong> — after this import, show vehicles already in the tracker that were not on the new Navision list. PMB/RFT vehicles are protected from this cleanup. Tick this to remove eligible missing vehicles automatically during import.</span>
+                <span><strong>Retire missing Navision-only back-end vehicles</strong> — only unpromoted Navision back-end rows that disappear from a full dump are eligible. Manual, PO, PD check-form and PDC Sheet vehicles are protected.</span>
               </label>
               <div class="subtle navision-note">Matching priority: Batch / stock number first, then Toyota order number, then VIN when WMI + VDS Number + Frame are available. For existing vehicles, Navision updates source data only until Yard Hold. PMB/RFT movement is manual in the vehicle popup and will not be overwritten by future imports. Dealer Comments appear in Navision Notes. Rows marked as Cut But Vehicle are highlighted light blue. Optional spreadsheet columns: TINT, HOIST, FITTING, FABRICATION, ELECTRICAL, TYRE, PIT INSPECTION, PARTS, PMB Bucket, PDC Location or Blocked can deliberately update PDC controls. PMB-only import accepts rows with Body Builder, PMB/PDC Location, PMB Bucket, tray ordered, or explicit job columns such as TINT/HOIST/FITTING/FABRICATION/ELECTRICAL/TYRE/PIT INSPECTION/PARTS.</div>
             </div>
@@ -672,7 +679,7 @@
             <div class="panel-header compact">
               <div>
                 <h2>Upload Autocare despatch notice</h2>
-                <p>Scans Autocare ePOD despatch notices, marks matched vehicles as Autocare despatched, and highlights those rows orange without replacing the Navision Sub Location status.</p>
+                <p>Scans Autocare ePOD despatch notices. A matched vehicle becomes active at PMB and lands in Unallocated; an existing PMB bucket is retained, and RFT or Completed vehicles are never moved backwards.</p>
               </div>
             </div>
             <label class="drop-zone autocare-drop-zone" for="autocare-upload">
@@ -684,7 +691,7 @@
             <div class="scan-card">
               <div class="scan-line autocare-files"><span>Files selected</span><strong>0 files</strong></div>
               <div class="scan-line autocare-detected"><span>Vehicles detected</span><strong>0 detected</strong></div>
-              <div class="scan-line autocare-matched"><span>Matched and marked</span><strong>0 matched</strong></div>
+              <div class="scan-line autocare-matched"><span>Matched / PMB arrival</span><strong>0 matched</strong></div>
               <button class="primary full" id="scan-autocare" type="button" disabled>Scan Autocare notice</button>
             </div>
           </section>
@@ -806,7 +813,8 @@
       console.warn('Unable to clear local review data', error);
     }
   </script>
-  <script src="data-no-vehicles.js?v=2026.07.13.08-navision-po-visibility"></script>
-  <script src="app.js?v=2026.07.13.08-navision-po-visibility"></script>
+  <script src="vendor/qz/qz-tray.js?v=2.2.6"></script>
+  <script src="data-no-vehicles.js?v=2026.07.13.21-autocare-pmb"></script>
+  <script src="app.js?v=2026.07.13.21-autocare-pmb"></script>
 </body>
 </html>

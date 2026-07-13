@@ -1,5 +1,120 @@
 # Changelog
 
+## 2026-07-13 — AutoCare Means Arrived at PMB
+
+- A matched AutoCare despatch vehicle is now promoted from Back End Data to the active PDC Sheet and placed at PMB Unallocated.
+- Previously scanned AutoCare vehicles that are still before PMB are migrated to PMB automatically when this version first loads.
+- An AutoCare scan starts the PMB arrival clock and locks the PMB location against later daily Navision location changes.
+- Repeat notices preserve an existing PMB work bucket and original PMB arrival time.
+- Late notices record the AutoCare event without moving RFT or Completed vehicles backwards.
+- AutoCare results now state the PMB-arrival outcome, and the change is written to the vehicle audit trail.
+- Bumped the version to `2026.07.13.21-autocare-pmb`.
+
+## 2026-07-13 — Zebra Labels via QZ Tray
+
+- Bundled the QZ Tray 2.2.6 browser connector locally and added direct raw-ZPL printing to the configured Zebra printer names, with Zebra-only fallback.
+- Added **Label** to vehicle rows and vehicle details, plus selection-only **Print Labels** controls on Vehicle Locations, Control Board and the tracker.
+- Autocare notice label controls now print directly; unmatched Autocare vehicles use Batch, VIN, Model and Version with an optional customer or `(Dealer Order)`.
+- Enforced the 68 mm × 45 mm template, two copies through `^PQ2`, ZPL control-character cleaning and an informed VIN warning before printing.
+- Kept the ZPL troubleshooting screen and added setup documentation and regression coverage.
+- Bumped the version to `2026.07.13.20-zebra-labels`.
+
+## 2026-07-13 — PO and Job-Card Import Review
+
+- PO and job-card/PD files are now parsed into a vehicle review card before any tracker data is changed.
+- The review card shows matched/new status and editable customer, vehicle, salesperson, job card, order, VIN, colour and trim fields.
+- Detected work is summarized in plain language, for example `Tint, Tray, Electrical / 12V`, and asks whether to tick the matching work areas automatically.
+- Detected work remains a suggestion: operators can accept it, choose manually or amend any non-locked work requirement before confirming.
+- Cancel closes the review without saving; a confirmed import still returns to Vehicle Locations and highlights the imported vehicle.
+- Added regression coverage and bumped the version to `2026.07.13.19-import-review`.
+
+## 2026-07-13 — Production Hardening and Operational Clarity
+
+- Vehicle lookup now fails closed when an identifier is missing or ambiguous, removing the unsafe fallback that could target the first vehicle.
+- Navision, purchase-order, PD/job-card, vehicle-removal, dashboard-clear and backup-restore writes now use a rollback journal; interrupted transactions recover safely at startup.
+- Added operational health for the latest Navision import, work-file/PO import and backup, and exposed the existing Operations visibility screen in the main navigation.
+- Simplified the main filter bar with Sales rep and Work type under **More filters**, made Unallocated a neutral triage queue, changed capacity pressure to amber and reduced Parts rows to one primary action plus **More**.
+- Added a public-static-hosting warning for bundled vehicle data, plus a vendor-neutral authenticated backend migration plan.
+- Replaced repeated full-board rendering after an individual edit with active-view rendering.
+- Added a self-discovering test runner and behavior coverage for lookup safety, storage rollback, operational hardening and version consistency.
+- Bumped the application/cache version to `2026.07.13.18-production-hardening`.
+
+## 2026-07-13 — Post-Import Vehicle Focus
+
+- Successful purchase-order and job-card/work-file imports now return to Vehicle Locations with all unrelated buckets and rows collapsed.
+- The imported vehicle's bucket and row open automatically, receive the existing blue focus highlight and scroll into view.
+- Multi-file imports focus every successfully imported vehicle while leaving unrelated rows closed.
+- Added regression coverage and bumped the version to `2026.07.13.17-import-focus`.
+
+## 2026-07-13 — Body Builder Activation, Salesperson Directory and Flagged Emails
+
+- Hardened Back End Data activation so `At Body Builder`, BodyBuilder/build-status variants, PMB and Perth Motor Bodies all land in PMB Unallocated instead of Other.
+- Added a salesperson directory in Setup with editable initials, full name and email, seeded with SL, CW, BG, CF and JB; vehicle and manual-entry forms now use that directory as a dropdown.
+- Sales email drafts now resolve the selected salesperson, omit Toyota order numbers and place a prominent `IMPORTANT UPDATE` banner around the triggering change such as Parts delay or RFT.
+- A single vehicle moved to RFT now offers the reviewed salesperson email prompt automatically.
+- Added regression coverage and bumped the version to `2026.07.13.16-location-sales-email`.
+
+## 2026-07-13 — Sublet Providers, Search Reveal and Fixed Age Colours
+
+- Added the supplied outside-work providers to the Sublet dropdown, normalized readable company casing, preserved acronyms such as ARB/PTE/MMT, and merged repeated spelling/location variants.
+- Existing saved provider lists are upgraded once and merged with the defaults; staff can still add or remove providers afterward.
+- Vehicle Locations and Control Board searches now auto-open the bucket and row, apply a strong blue highlight and scroll once when exactly one vehicle matches.
+- Replaced flashing Kewdale/PMB ages with fixed colours: 0–5 days light blue, 6–10 yellow, 11–21 orange and 22+ red.
+- Added regression coverage and bumped the version to `2026.07.13.15-sublet-search-age`.
+
+## 2026-07-13 — Current-Location Activation and Vehicle Update Email
+
+- Back End Data activation now reads the vehicle's latest Navision location: Body Builder / PMB lands in PMB Unallocated, Yard Hold lands in YH, and ready/dealer states land in RFT.
+- A Navision-derived active location continues to refresh from the daily file until an operator manually transfers or places the vehicle, after which the manual location remains locked.
+- Removed keyword inference from Navision notes, dealer comments and location descriptions so those fields no longer tick Tint, Hoist, Fitting, Fab, Elec, Tyre or Pit automatically. Explicit work files, purchase orders and operator choices still set work requirements; Parts remains the standard batch gate.
+- Added **EMAIL UPDATE** for exactly one selected vehicle and in Vehicle Detail. It opens a reviewed salesperson draft containing current location, Kewdale ETA, Parts status/ETA, stoppages, bay history, completed work and outstanding work.
+- Added regression coverage for activation mapping, later Navision location refresh, unwanted tick prevention and the detailed email body.
+- Bumped the application/cache version to `2026.07.13.14-location-email`.
+
+## 2026-07-13 — Broome Toyota PO PDF Import
+
+- Added an embedded PDF reader so PO import works locally without a CDN or stock number in the filename.
+- The importer now reads Stock #, PO number/due date, issuing salesperson, Broome department, vehicle/model, colour/trim, factory option, alternate model, VIN/engine/build date when present, total and all PMB work lines across multiple pages.
+- A matching Navision back-end vehicle is promoted and enriched; an unknown stock number creates a protected active purchase-order vehicle in PMB Unallocated.
+- Added PO metadata to vehicle details and made PO number/reference searchable.
+- Verified all three supplied Broome Toyota POs, including 24 work lines and a page-two continuation, and added regression coverage.
+- Bumped the application/cache version to `2026.07.13.13-po-pdf-import`.
+
+## 2026-07-13 — Back-End Search and Manual Activation
+
+- Added Back End Data search across stock/batch, Toyota order, VIN/frame, customer, vehicle, job card, salesperson, source and status.
+- Added an All / Back end only / Active / Deleted state filter and a one-click Clear action.
+- Added a confirmed **Move to active** action on back-end-only rows.
+- Manual activation promotes the existing record to the PDC Sheet at its latest Navision-derived location and protects it from later missing-dump retirement.
+- Added lifecycle and UI regression coverage and bumped the application/cache version to `2026.07.13.12-backend-activation`.
+
+## 2026-07-13 — Navision Pasted-Text Repair and Upload Order
+
+- Fixed Navision browser-copy text that expands tab characters into `U+2002` EN SPACE runs; the importer now reconstructs the original tab stops and blank columns.
+- Verified the supplied 176-vehicle Navision paste with zero parser warnings and correct Order, Batch, model, customer and status alignment.
+- Moved the daily Navision importer to the top of Uploads.
+- Added dedicated job-card/PD work and PO upload cards immediately below Navision, followed by Autocare and backup/restore.
+- Bumped the application/cache version to `2026.07.13.12-backend-activation`.
+
+## 2026-07-13 — Salesperson Change Notifications
+
+- Added an automatic notification box after production/Parts stoppages, PMB job completion, Parts completion, Parts ETA changes and RFT collection completion.
+- The box identifies the salesperson, shows what changed and opens a prepared email draft for review.
+- Vehicle-specific salesperson email fields are used when available; otherwise the configured sales email is shown as an editable fallback.
+- Added regression coverage and bumped the application/cache version to `2026.07.13.12-backend-activation`.
+
+## 2026-07-13 — Back-End-First Navision Import
+
+- Changed normal Navision imports so every new Navision vehicle is stored in Back End Data and none are promoted by Navision wording or status alone.
+- Kept daily Kewdale ETA, JITA and approved Navision source fields refreshing for both visible and back-end-only vehicles.
+- Added a distinct PDC work/job-file mode; job cards, work signals, PO uploads, PD check-forms and manual PDC updates promote matching vehicles to the PDC Sheet.
+- Made CSV/TSV/XLSX imports find headings below report-title rows, recognize more stock/model aliases and accept order-only Navision records.
+- Added immediate row-count and parse-warning feedback after file selection plus a direct View Back End Data result action.
+- Scoped full-dump cleanup to unpromoted Navision-only back-end records; manual, PO, PD, master-sheet and PDC-managed vehicles are protected.
+- Distinguished automatic Navision retirement from operator deletion: automatically retired rows can return, while operator-deleted rows stay deleted.
+- Added PDC Sheet / Back end only labels and counts to Back End Data.
+- Added `test_navision_lifecycle.js` and bumped the application/cache version to `2026.07.13.12-backend-activation`.
+
 ## 2026-07-13 — Selectable Sticky Column Filters
 
 - Made the Control Board column-heading row itself selectable instead of using a separate filter toolbar.
