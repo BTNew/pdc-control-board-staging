@@ -47,6 +47,28 @@ window.VEHICLE_TRACKING_DATA = {
       "pdcCompleteFabrication": true,
       "pdcCompleteFabricationAt": "2026-07-08T14:15:00Z",
       "pdcCompleteFabricationBy": "Test Tech",
+      "pdcJobLines": [
+        {
+          "id": "jobline-test-ss177hf",
+          "code": "SS177HF",
+          "description": "Safari snorkel",
+          "quantity": 1,
+          "estimatedHours": 3.5,
+          "estimateStatus": "provisional",
+          "estimateSource": "DRT20260201.1 · SS177HF · page 100 · $560 ÷ $160/h (rate p6)",
+          "source": "Synthetic email attachment"
+        },
+        {
+          "id": "jobline-test-tint",
+          "code": "",
+          "description": "M1 Tint",
+          "quantity": 1,
+          "estimatedHours": null,
+          "estimateStatus": "review-required",
+          "estimateSource": "",
+          "source": "Synthetic email attachment"
+        }
+      ],
       "randomTestPosition": 1
     },
     {

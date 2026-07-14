@@ -15,6 +15,7 @@ runs email-supplied commands, or changes PC/Hermes configuration.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import re
@@ -24,7 +25,7 @@ import sys
 import urllib.error
 import urllib.parse
 import urllib.request
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass, asdict, field
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -33,6 +34,7 @@ ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_ENV = ROOT / "backend" / ".env"
 DEFAULT_OUTPUT = ROOT / "email-board-data.js"
 DEFAULT_ATTACHMENT_DIR = ROOT / "backend" / ".imap_attachments"
+DEFAULT_ARB_CATALOG = ROOT / "backend" / "arb_labor_catalog.json"
 DEFAULT_LIMIT = 200
 MAX_ATTACHMENT_BYTES = 25 * 1024 * 1024
 
@@ -138,6 +140,7 @@ class ParsedVehicle:
     pdcCompleteTyre: bool = False
     pdcCompletePitInspection: bool = False
     pdcCompleteParts: bool = False
+    pdcJobLines: list[dict[str, Any]] = field(default_factory=list)
 
 
 def load_dotenv(path: Path) -> None:
@@ -270,7 +273,7 @@ def attachment_text_for_path(path: Path) -> str:
         try:
             # Fixed executable and argv list only: no shell and no email-derived command.
             result = subprocess.run(
-                [pdftotext_command(), str(path), "-"],
+                [pdftotext_command(), "-layout", str(path), "-"],
                 text=True,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.DEVNULL,
@@ -345,6 +348,126 @@ def infer_work_flags(text: str) -> dict[str, bool]:
     return flags
 
 
+def load_arb_catalog(path: Path = DEFAULT_ARB_CATALOG) -> dict[str, Any]:
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+        return data if isinstance(data, dict) else {}
+    except (OSError, json.JSONDecodeError):
+        return {}
+
+
+def job_line_id(code: str, description: str, quantity: float) -> str:
+    normalized = "|".join([
+        re.sub(r"[^A-Z0-9-]", "", (code or "").upper()),
+        re.sub(r"\s+", " ", (description or "").strip().upper()),
+        f"{quantity:g}",
+    ])
+    return f"jobline-{hashlib.sha256(normalized.encode('utf-8')).hexdigest()[:16]}"
+
+
+def extract_job_lines(text: str, catalog: dict[str, Any] | None = None) -> list[dict[str, Any]]:
+    """Extract bounded business job lines and attach conservative ARB estimates.
+
+    Plain attachment text is accepted only when it is either a structured PO row,
+    contains a catalogue product code, or contains a known workshop-work keyword.
+    Ambiguous catalogue codes never receive an automatic hour estimate.
+    """
+    catalog = catalog if catalog is not None else load_arb_catalog()
+    entries = catalog.get("entries") if isinstance(catalog.get("entries"), dict) else {}
+    ambiguous = catalog.get("ambiguous") if isinstance(catalog.get("ambiguous"), dict) else {}
+    source_code = clean(str(catalog.get("sourceCode") or "ARB catalogue"))
+    labour_rate = float(catalog.get("labourRate") or 160)
+    labour_rate_page = int(catalog.get("labourRateSourcePage") or 0)
+    raw_lines = str(text or "").replace(chr(13), "\n").replace("\f", "\n").split("\n")
+    lines = [re.sub(r"\s+", " ", line).strip() for line in raw_lines]
+    excluded = re.compile(
+        r"^(?:CUSTOMER|VEHICLE|MONTH/YEAR|STOCK(?: NO)?\.?|JOB CARD|JOBCARD|J\.O\.|P\.?O\.?|"
+        r"PURCHASE ORDER|TOTAL|GST|PRINTED|DELIVER TO|VIN|COLOUR|TRIM|ENGINE|BUILD DATE|"
+        r"DEALER PRICE|FITTING|DEALER FITTED|ARB RETAIL|DESCRIPTION|ITEM DESCRIPTION)\s*:?(?:\s|$)",
+        re.I,
+    )
+    work_pattern = re.compile(
+        r"\b(?:tint|hoist|lift kit|suspension|gvm|bull\s*bar|nudge\s*bar|tow\s*bar|winch|canopy|"
+        r"seat covers?|floor mats?|fit(?:ting)?|fabricat|tray|service body|mine bar|weld|electrical|"
+        r"driving lights?|solis|brake controller|dual battery|uhf|reverse alarm|wire|wiring|tyres?|"
+        r"wheel alignment|pit inspection|quality check|snorkel|recovery point|roof rack|side steps?)\b",
+        re.I,
+    )
+    structured = re.compile(
+        r"^([!A-Z0-9][A-Z0-9_*!-]{1,40})\s+(.+?)\s+(\d+(?:\.\d+)?)\s+\$?([\d,.]+)\s+\$?([\d,.]+)$"
+    )
+    results: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for line in lines:
+        if not line or len(line) < 3 or len(line) > 240 or excluded.search(line):
+            continue
+        code = ""
+        description = line
+        quantity = 1.0
+        match = structured.match(line)
+        if match and not re.fullmatch(r"PO\d{6,}", match.group(1), flags=re.I):
+            code = match.group(1).upper()
+            description = match.group(2).strip()
+            quantity = float(match.group(3))
+        else:
+            tokens = [token.upper() for token in re.findall(r"\b[A-Z0-9][A-Z0-9-]{2,39}\b", line, flags=re.I)]
+            known_codes = [token for token in tokens if token in entries or token in ambiguous]
+            if known_codes:
+                code = known_codes[0]
+                description = re.sub(rf"^\s*{re.escape(code)}\s*[-:]?\s*", "", line, flags=re.I).strip() or line
+            elif not work_pattern.search(line):
+                continue
+        description = clean(description)
+        if not description or description.isdigit():
+            continue
+        identity = job_line_id(code, description, quantity)
+        if identity in seen:
+            continue
+        seen.add(identity)
+
+        matched_codes = []
+        if code in entries:
+            matched_codes.append(code)
+        for token in re.findall(r"\b[A-Z0-9][A-Z0-9-]{2,39}\b", line.upper()):
+            if token in entries and token not in matched_codes:
+                matched_codes.append(token)
+        candidate_hours = {float(entries[token].get("hours") or 0) for token in matched_codes if float(entries[token].get("hours") or 0) > 0}
+        catalog_entry = entries.get(matched_codes[0]) if matched_codes else None
+        estimated_hours = round(next(iter(candidate_hours)) * quantity, 4) if len(matched_codes) == 1 and len(candidate_hours) == 1 else None
+        source_text = ""
+        if estimated_hours is not None and catalog_entry:
+            source_text = f"{source_code} · {matched_codes[0]} · page {catalog_entry.get('page') or '?'}"
+            fitting_charge = float(catalog_entry.get("fittingCharge") or 0)
+            source_text += f" · ${fitting_charge:g} ÷ ${labour_rate:g}/h (rate p{labour_rate_page or '?'})" if fitting_charge else " · explicit catalogue fit time"
+        elif code in ambiguous:
+            source_text = f"{source_code} · {code} has vehicle-dependent fitting times"
+        elif len(matched_codes) > 1:
+            source_text = f"{source_code} · multiple product codes require line-by-line review"
+        results.append({
+            "id": identity,
+            "code": code,
+            "description": description,
+            "quantity": quantity,
+            "estimatedHours": estimated_hours,
+            "estimateStatus": "provisional" if estimated_hours is not None else "review-required",
+            "estimateSource": source_text,
+            "estimateMethod": str(catalog_entry.get("method") or "") if catalog_entry and estimated_hours is not None else "",
+            "catalogHoursEach": float(catalog_entry.get("hours") or 0) if catalog_entry and estimated_hours is not None else None,
+            "source": "Email attachment",
+        })
+    return results[:120]
+
+
+def merge_job_lines(previous: Any, incoming: Any) -> list[dict[str, Any]]:
+    merged: dict[str, dict[str, Any]] = {}
+    for line in list(previous or []) + list(incoming or []):
+        if not isinstance(line, dict):
+            continue
+        identity = str(line.get("id") or job_line_id(str(line.get("code") or ""), str(line.get("description") or ""), float(line.get("quantity") or 1)))
+        merged[identity] = {**merged.get(identity, {}), **line, "id": identity}
+    return list(merged.values())
+
+
 def parse_vehicle_from_text(record: dict[str, Any], subject: str, body: str, attachments: str, stock_hint: str = "") -> ParsedVehicle | None:
     text = f"{subject}\n{body}\n{attachments}"
     stock = normal_stock(stock_hint or first_match(text, FIELD_PATTERNS["stock"]))
@@ -380,6 +503,7 @@ def parse_vehicle_from_text(record: dict[str, Any], subject: str, body: str, att
     record_id = str(record.get("id") or record.get("graph_message_id") or stock)
     source_id = f"email-{stock}-{record_id[:8]}".replace(" ", "-")
     flags = infer_work_flags(text)
+    job_lines = extract_job_lines(attachments)
     vehicle = ParsedVehicle(
         id=source_id,
         stock=stock,
@@ -411,6 +535,7 @@ def parse_vehicle_from_text(record: dict[str, Any], subject: str, body: str, att
         sourceRow="Email intake",
         sourceEmailId=record_id,
         sourceEmailReceivedAt=str(record.get("received_at") or record.get("created_at") or ""),
+        pdcJobLines=job_lines,
         **flags,
     )
     return vehicle
@@ -479,7 +604,9 @@ def merge_vehicles(existing: list[dict[str, Any]], incoming: list[dict[str, Any]
         if not key:
             continue
         prior = merged.get(key, {})
-        merged[key] = sanitize_public_vehicle({**prior, **item})
+        combined = {**prior, **item}
+        combined["pdcJobLines"] = merge_job_lines(prior.get("pdcJobLines"), item.get("pdcJobLines"))
+        merged[key] = sanitize_public_vehicle(combined)
     return sorted(merged.values(), key=lambda v: (str(v.get("sourceEmailReceivedAt") or ""), vehicle_key(v)))
 
 

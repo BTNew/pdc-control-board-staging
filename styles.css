@@ -895,6 +895,45 @@ input:focus, select:focus, textarea:focus { border-color: #94a3b8; box-shadow: 0
   color: #334155;
   font-size: .86rem;
 }
+.pdc-job-lines-panel {
+  border: 1px solid rgba(249, 115, 22, .34);
+  border-radius: 16px;
+  padding: 14px;
+  background: #fffaf5;
+  display: grid;
+  gap: 10px;
+}
+.pdc-job-lines-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+.pdc-job-lines-header > strong { color: #9a3412; white-space: nowrap; }
+.pdc-job-line-list { display: grid; gap: 8px; }
+.pdc-job-line {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) minmax(92px, 110px) auto;
+  align-items: end;
+  gap: 10px;
+  border: 1px solid var(--line);
+  border-left: 5px solid var(--orange);
+  border-radius: 12px;
+  padding: 10px;
+  background: #ffedd5;
+}
+.pdc-job-line.is-confirmed { border-left-color: #16a34a; background: #f0fdf4; }
+.pdc-job-line-copy { display: grid; gap: 3px; min-width: 0; }
+.pdc-job-line-copy strong { overflow-wrap: anywhere; }
+.pdc-job-line-copy strong span { color: #9a3412; }
+.pdc-job-line-copy small { color: #64748b; line-height: 1.35; }
+.pdc-job-line label { display: grid; gap: 4px; }
+.pdc-job-line label span { color: var(--muted); font-size: .7rem; font-weight: 800; text-transform: uppercase; }
+.pdc-job-line input { width: 100%; }
+@media (max-width: 760px) {
+  .pdc-job-lines-header { display: grid; }
+  .pdc-job-line { grid-template-columns: 1fr; align-items: stretch; }
+}
 
 @media (max-width: 720px) {
   .action-select { max-width: 100%; }

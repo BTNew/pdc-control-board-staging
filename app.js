@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.07.14.15-workshop-overtime-atomic';
+const APP_VERSION = '2026.07.14.16-job-line-hours';
 window.VEHICLE_TRACKING_DATA = window.VEHICLE_TRACKING_DATA || { report: {}, vehicles: [], toyotaMatches: {} };
 const EDITS_KEY = 'vehicleTrackingCoreNavisionOnlyEdits:v1';
 const ADDED_KEY = 'vehicleTrackingCoreNavisionOnlyVehicles:v1';
@@ -25,6 +25,7 @@ const ROW_WIDTH_MODE_KEY = 'vehicleTrackingCoreRowWidthMode:v1';
 const VEHICLE_TABLE_DEFAULT_COLUMN_IDS = ['sp', 'stock', 'prodMth', 'client', 'vehicle', 'bus4x4', 'tint', 'hoist', 'fitting', 'fabrication', 'electrical', 'tyre', 'pitInspection', 'status', 'eta', 'navisionNotes', 'jita', 'action'];
 const PO_TASKS_KEY = 'vehicleTrackingCoreNavisionOnlyPoTasks:v1';
 const PO_FILES_KEY = 'vehicleTrackingCoreNavisionOnlyPoFiles:v1';
+const ARB_LABOUR_CATALOG = window.ARB_LABOUR_CATALOG || { entries: {}, ambiguous: {}, labourRate: 160, sourceCode: 'DRT20260201.1' };
 const DELETED_KEY = 'vehicleTrackingCoreNavisionOnlyDeleted:v1';
 const TOYOTA_MATCHES = window.VEHICLE_TRACKING_DATA?.toyotaMatches || {};
 const AUTOCARE_DESPATCH_STATUS = 'AUTOCARE DESPATCHED';
@@ -8030,6 +8031,7 @@ function renderDetail() {
       ${renderPmbBayControlSection(v)}
       ${renderPoUploadSection(v)}
       ${renderPoTasksSection(v)}
+      ${renderPdcJobLinesSection(v)}
       ${renderPurchaseOrderDetailSection(v)}
       ${renderNavisionDetailSection(v)}
       <div class="detail-metrics">
@@ -8090,6 +8092,13 @@ function renderDetail() {
   on($('[data-remove-vehicle]', panel), 'click', () => removeVehicle(key));
   on($('[data-modal-cancel]', panel), 'click', closeVehicleModal);
   on($('[data-vehicle-po-upload]', panel), 'change', (event) => handleVehiclePoSelect(key, event));
+  $$('[data-confirm-pdc-job-line]', panel).forEach(button => {
+    button.addEventListener('click', () => {
+      const lineId = button.dataset.confirmPdcJobLine || '';
+      const input = panel.querySelector(`[data-pdc-job-line-hours="${lineId}"]`);
+      confirmPdcJobLineHours(key, lineId, input?.value || '');
+    });
+  });
   $$('[data-pdc-work-state]', panel).forEach(button => {
     button.addEventListener('click', () => {
       if (button.disabled) return;
@@ -8303,6 +8312,173 @@ function renderPoUploadSection(vehicle) {
     </label>
     <div class="subtle">Uploading a PO records a PMB fitment PO. ${files.length ? `${files.length} file${files.length === 1 ? '' : 's'} attached.` : 'No PO file attached yet.'}</div>
   </section>`;
+}
+
+function pdcJobLineIdentity(line = {}) {
+  if (cleanNavisionText(line.id || '')) return cleanNavisionText(line.id);
+  const source = [line.code, line.description, Number(line.quantity || 1)].join('|').toUpperCase();
+  let hash = 5381;
+  for (let index = 0; index < source.length; index += 1) hash = ((hash << 5) + hash) ^ source.charCodeAt(index);
+  return `jobline-${(hash >>> 0).toString(16).padStart(8, '0')}`;
+}
+
+function mergePdcJobLines(...groups) {
+  const merged = new Map();
+  groups.flat().filter(line => line && typeof line === 'object').forEach(line => {
+    const id = pdcJobLineIdentity(line);
+    merged.set(id, { ...(merged.get(id) || {}), ...line, id });
+  });
+  return [...merged.values()];
+}
+
+function arbEstimateForJobLine(code = '', description = '', quantity = 1) {
+  const entries = ARB_LABOUR_CATALOG.entries || {};
+  const ambiguous = ARB_LABOUR_CATALOG.ambiguous || {};
+  const tokens = [code, description].join(' ').toUpperCase().match(/\b[A-Z0-9][A-Z0-9-]{2,39}\b/g) || [];
+  const matchedCodes = [...new Set(tokens.filter(token => entries[token]))];
+  const candidateHours = [...new Set(matchedCodes.map(token => Number(entries[token]?.hours || 0)).filter(hours => hours > 0))];
+  const normalizedQuantity = Math.max(0.01, Number(quantity || 1));
+  if (matchedCodes.length === 1 && candidateHours.length === 1) {
+    const matchedCode = matchedCodes[0];
+    const entry = entries[matchedCode];
+    const fittingCharge = Number(entry.fittingCharge || 0);
+    const rateDetail = fittingCharge
+      ? ` · $${fittingCharge} ÷ $${Number(ARB_LABOUR_CATALOG.labourRate || 160)}/h (rate p${ARB_LABOUR_CATALOG.labourRateSourcePage || '?'})`
+      : ' · explicit catalogue fit time';
+    return {
+      estimatedHours: Number((candidateHours[0] * normalizedQuantity).toFixed(4)),
+      estimateStatus: 'provisional',
+      estimateSource: `${ARB_LABOUR_CATALOG.sourceCode || 'ARB catalogue'} · ${matchedCode} · page ${entry.page || '?'}${rateDetail}`,
+      estimateMethod: entry.method || 'catalogue',
+      catalogHoursEach: candidateHours[0],
+    };
+  }
+  const ambiguousCode = tokens.find(token => ambiguous[token]);
+  return {
+    estimatedHours: null,
+    estimateStatus: 'review-required',
+    estimateSource: ambiguousCode
+      ? `${ARB_LABOUR_CATALOG.sourceCode || 'ARB catalogue'} · ${ambiguousCode} has vehicle-dependent fitting times`
+      : (matchedCodes.length > 1 ? `${ARB_LABOUR_CATALOG.sourceCode || 'ARB catalogue'} · multiple product codes require line-by-line review` : ''),
+    estimateMethod: '',
+    catalogHoursEach: null,
+  };
+}
+
+function pdcJobLineFromPurchaseOrderItem(item = {}) {
+  const code = cleanNavisionText(item.item || item.code || '').toUpperCase();
+  const description = cleanNavisionText(item.description || 'Purchase order work item');
+  const quantity = Math.max(0.01, Number(item.quantity || 1));
+  const estimate = arbEstimateForJobLine(code, description, quantity);
+  const line = {
+    code,
+    description,
+    quantity,
+    source: 'Reviewed PO upload',
+    ...estimate,
+  };
+  line.id = pdcJobLineIdentity(line);
+  return line;
+}
+
+function vehiclePdcJobLines(vehicle = {}) {
+  const reviews = vehicle.pdcJobLineReviews && typeof vehicle.pdcJobLineReviews === 'object' ? vehicle.pdcJobLineReviews : {};
+  return mergePdcJobLines(vehicle.pdcJobLines || [], vehicle.pdcManualJobLines || []).map(line => {
+    const review = reviews[pdcJobLineIdentity(line)] || {};
+    return { ...line, ...review, id: pdcJobLineIdentity(line) };
+  });
+}
+
+function validPdcJobLineHours(value) {
+  const hours = Number(value);
+  return Number.isFinite(hours) && hours >= (1 / 12) && hours <= 40 ? Number(hours.toFixed(2)) : null;
+}
+
+function renderPdcJobLinesSection(vehicle) {
+  const lines = vehiclePdcJobLines(vehicle);
+  if (!lines.length) return '';
+  const completedLocked = vehicleCollectedFromRft(vehicle);
+  const confirmed = lines.filter(line => line.confirmed === true).length;
+  const total = lines.reduce((sum, line) => sum + (Number(line.confirmedHours ?? line.estimatedHours) || 0), 0);
+  return `<section class="pdc-job-lines-panel">
+    <div class="pdc-job-lines-header">
+      <div><div class="muted-label">Job card / PO work and estimated hours</div><div class="subtle">${completedLocked ? 'Completed vehicle — job-line hours are locked.' : 'Orange estimates require confirmation. Adjust the hours beside each job line, then confirm.'}</div></div>
+      <strong>${confirmed}/${lines.length} confirmed · ${total.toFixed(2).replace(/\.00$/, '')}h total</strong>
+    </div>
+    <div class="pdc-job-line-list">${lines.map(line => {
+      const isConfirmed = line.confirmed === true;
+      const hours = isConfirmed ? line.confirmedHours : line.estimatedHours;
+      const source = cleanNavisionText(line.estimateSource || (line.estimatedHours == null ? 'No safe catalogue match — enter hours for review' : 'ARB catalogue estimate'));
+      return `<div class="pdc-job-line ${isConfirmed ? 'is-confirmed' : 'is-provisional'}" data-pdc-job-line="${escapeHtml(line.id)}">
+        <div class="pdc-job-line-copy">
+          <strong>${line.code ? `<span>${escapeHtml(line.code)}</span> · ` : ''}${escapeHtml(line.description || 'Work item')}</strong>
+          <small>Qty ${escapeHtml(String(line.quantity || 1))} · ${escapeHtml(source)}</small>
+        </div>
+        <label><span>Hours</span><input type="number" min="0.08" max="40" step="0.25" value="${hours == null ? '' : escapeHtml(String(hours))}" placeholder="Enter" data-pdc-job-line-hours="${escapeHtml(line.id)}" ${completedLocked ? 'disabled' : ''} /></label>
+        <button class="${isConfirmed ? 'ghost' : 'primary'}" type="button" data-confirm-pdc-job-line="${escapeHtml(line.id)}" ${completedLocked ? 'disabled' : ''}>${isConfirmed ? 'Update confirmed' : 'Confirm hours'}</button>
+      </div>`;
+    }).join('')}</div>
+  </section>`;
+}
+
+function confirmPdcJobLineHours(vehicleKeyValue, lineId, rawHours) {
+  const vehicle = selectedVehicle(vehicleKeyValue);
+  if (!vehicle) return false;
+  if (vehicleCollectedFromRft(vehicle)) {
+    window.alert('This vehicle is completed/collected. Job-line hours are locked and were not changed.');
+    return false;
+  }
+  const line = vehiclePdcJobLines(vehicle).find(item => item.id === lineId);
+  if (!line) return false;
+  const hours = validPdcJobLineHours(rawHours);
+  if (hours == null) {
+    window.alert('Enter estimated hours from 0.08 to 40 before confirming this job line.');
+    return false;
+  }
+  const operator = getCurrentOperatorName();
+  if (!operator || operator === 'Unknown operator') {
+    window.alert('Set an operator name before confirming job-line hours. No hours were saved.');
+    return false;
+  }
+  const role = getCurrentOperatorRole();
+  const key = vehicleKey(vehicle);
+  const previousReviews = vehicle.pdcJobLineReviews;
+  const nextReviews = {
+    ...(previousReviews || {}),
+    [lineId]: {
+      confirmed: true,
+      confirmedHours: hours,
+      confirmedAt: nowIsoString(),
+      confirmedBy: operator,
+      estimateStatus: 'confirmed',
+    },
+  };
+  try {
+    runStorageTransaction('Confirm job-line hours', [EDITS_KEY, AUDIT_LOG_KEY], () => {
+      vehicle.pdcJobLineReviews = nextReviews;
+      const edits = loadVehicleEdits();
+      edits[key] = { ...(edits[key] || {}), pdcJobLineReviews: nextReviews };
+      saveJson(EDITS_KEY, edits);
+      recordVehicleAudit(vehicle, line.confirmed === true ? 'Confirmed job-line hours updated' : 'Provisional job-line hours confirmed', {
+        job: line.description || line.code || 'Work item',
+        code: line.code || '',
+        hours,
+        previousHours: line.confirmedHours ?? line.estimatedHours ?? '',
+        by: operator,
+        role,
+      });
+    });
+  } catch (error) {
+    if (previousReviews === undefined) delete vehicle.pdcJobLineReviews;
+    else vehicle.pdcJobLineReviews = previousReviews;
+    window.alert(error.message || String(error));
+    return false;
+  }
+  app.data = buildVehicleData();
+  app.selectedStock = key;
+  renderAll();
+  renderDetail();
+  return true;
 }
 
 function renderPoTasksSection(vehicle) {
@@ -10166,6 +10342,7 @@ function ensureVehicleForPo(stockOrParsed) {
 function purchaseOrderVehicleUpdates(vehicle, parsed, combinedTasks, combinedFiles) {
   const flags = workImportRequirementUpdates(parsed, vehicle, combinedTasks);
   const wasReviewed = Boolean(parsed.reviewRequirementUpdates && typeof parsed.reviewRequirementUpdates === 'object');
+  const importedJobLines = (parsed.lineItems || []).map(pdcJobLineFromPurchaseOrderItem);
   const updates = {
     purchaseOrderNumber: parsed.purchaseOrderNumber,
     purchaseOrderDueDate: parsed.dueDate,
@@ -10184,6 +10361,7 @@ function purchaseOrderVehicleUpdates(vehicle, parsed, combinedTasks, combinedFil
     purchaseOrderEngine: parsed.engine,
     purchaseOrderBuildDate: parsed.buildDate,
     purchaseOrderLineItems: parsed.lineItems,
+    pdcManualJobLines: mergePdcJobLines(vehicle.pdcManualJobLines || [], importedJobLines),
     poTasks: combinedTasks,
     poFiles: combinedFiles,
     buildPoRaised: true,

@@ -1,5 +1,13 @@
 # TODO
 
+## Completed — Email job lines and ARB provisional hours (14 July 2026)
+- [x] Email job-card/PO attachments import bounded structured work lines onto the matched vehicle card.
+- [x] ARB February 2026 catalogue fitting charges are converted to hours only when one exact product code has one unambiguous catalogue fitting time.
+- [x] Catalogue provenance shows product code, catalogue page, fitting charge, and the $160/hour rate from catalogue page 6.
+- [x] Ambiguous vehicle-dependent codes, multiple product codes on one line, and unmatched work are never guessed; they remain orange and require review.
+- [x] Vehicle cards show editable hours beside every imported job line; confirmation records operator, time, adjusted hours, and an audit event atomically.
+- [x] Release version `2026.07.14.16-job-line-hours`.
+
 ## Completed — Workshop Planner hard-block release (14 July 2026)
 - [x] Same-bay overlapping bookings are rejected; exact back-to-back bookings remain allowed.
 - [x] Collision checks cover daily drag/drop, detail edits, resize, weekly moves, starting work, and job-allocation duration recalculation.

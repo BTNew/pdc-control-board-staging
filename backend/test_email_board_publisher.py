@@ -60,6 +60,48 @@ WIRE PARKING SENSOR EXTENSION
         self.assertEqual(vehicle.client, "North Regional Tafe")
         self.assertEqual(vehicle.purchaseOrderNumber, "GP10223986")
         self.assertFalse(vehicle.pdcRequiresPitInspection)
+        self.assertEqual([line["description"] for line in vehicle.pdcJobLines], [
+            "M1 Tint", "Nudge Bar - Black", "WIRE PARKING SENSOR EXTENSION",
+        ])
+        self.assertTrue(all(line["estimateStatus"] == "review-required" for line in vehicle.pdcJobLines))
+
+    def test_arb_catalog_creates_orange_provisional_hours_only_for_unambiguous_code(self):
+        catalog = {
+            "sourceCode": "DRT20260201.1",
+            "labourRate": 160,
+            "labourRateSourcePage": 6,
+            "entries": {
+                "SS177HF": {"hours": 3.5, "page": 100, "fittingCharge": 560, "method": "catalog-fitting-charge-at-160"},
+                "SS178HF": {"hours": 3.5, "page": 101, "method": "catalog-fitting-charge-at-160"},
+            },
+            "ambiguous": {"LX110": [{"hours": 3}, {"hours": 4}]},
+        }
+        lines = publisher.extract_job_lines(
+            "SS177HF Safari snorkel 2 578.85 1157.70\nLX110 LINX interface 1 803.25 803.25",
+            catalog,
+        )
+        self.assertEqual(len(lines), 2)
+        snorkel = next(line for line in lines if line["code"] == "SS177HF")
+        linx = next(line for line in lines if line["code"] == "LX110")
+        self.assertEqual(snorkel["estimatedHours"], 7.0)
+        self.assertEqual(snorkel["estimateStatus"], "provisional")
+        self.assertIn("page 100", snorkel["estimateSource"])
+        self.assertIn("$560 ÷ $160/h", snorkel["estimateSource"])
+        self.assertIn("rate p6", snorkel["estimateSource"])
+        self.assertIsNone(linx["estimatedHours"])
+        self.assertEqual(linx["estimateStatus"], "review-required")
+        bundle = publisher.extract_job_lines("SS177HF SS178HF Snorkel bundle 1 1000.00 1000.00", catalog)[0]
+        self.assertIsNone(bundle["estimatedHours"])
+        self.assertIn("multiple product codes", bundle["estimateSource"])
+
+    def test_job_lines_merge_without_deleting_previous_email_work(self):
+        previous = [{"id": "jobline-old", "description": "Existing tint", "estimatedHours": None}]
+        incoming = [{"id": "jobline-new", "description": "New snorkel", "estimatedHours": 3.5}]
+        merged = publisher.merge_vehicles(
+            [{"stock": "13037843", "pdcJobLines": previous}],
+            [{"stock": "13037843", "pdcJobLines": incoming}],
+        )
+        self.assertEqual({line["id"] for line in merged[0]["pdcJobLines"]}, {"jobline-old", "jobline-new"})
 
     def test_public_vehicle_removes_raw_mailbox_fields(self):
         sanitized = publisher.sanitize_public_vehicle({
