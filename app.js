@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.07.14.12-workshop-weekly-safe';
+const APP_VERSION = '2026.07.14.13-workshop-safety-hardening';
 window.VEHICLE_TRACKING_DATA = window.VEHICLE_TRACKING_DATA || { report: {}, vehicles: [], toyotaMatches: {} };
 const EDITS_KEY = 'vehicleTrackingCoreNavisionOnlyEdits:v1';
 const ADDED_KEY = 'vehicleTrackingCoreNavisionOnlyVehicles:v1';
@@ -595,11 +595,16 @@ function pmbLaneMetrics(stage = '', vehicles = []) {
 }
 
 function isPdcBlocked(vehicle = {}) {
-  return vehicle.pdcBlocked === true || Boolean(cleanNavisionText(vehicle.pdcBlockReason || ''));
+  return vehicle.pdcBlocked === true
+    || Boolean(cleanNavisionText(vehicle.pdcBlockReason || ''))
+    || vehicle.pdcWorkshopBlocked === true
+    || Boolean(cleanNavisionText(vehicle.pdcWorkshopBlockReason || ''));
 }
 
 function pdcBlockReason(vehicle = {}) {
-  return cleanNavisionText(vehicle.pdcBlockReason || '') || 'Blocked';
+  return cleanNavisionText(vehicle.pdcBlockReason || '')
+    || cleanNavisionText(vehicle.pdcWorkshopBlockReason || '')
+    || 'Blocked';
 }
 
 function pdcBooleanFromText(value) {
@@ -5452,11 +5457,9 @@ async function pmbMovementResolutionUpdates(vehicle = {}, fromStage = '', toStag
   const area = pmbStageLabel(currentStage) || 'the current area';
   if (choice === 'stoppage') {
     const reason = cleanNavisionText(result.reason || `${area} stoppage`);
-    recordVehicleAudit(vehicle, 'PMB movement stoppage recorded', { stage: area, reason, by: operator });
     return { pdcBlocked: true, pdcBlockReason: reason, pdcBlockedAt: now, pdcBlockedBy: operator };
   }
   if (choice === 'complete') {
-    recordVehicleAudit(vehicle, 'Job signed off by PMB movement', { job: jobDef.label, from: area, to: pmbStageLabel(nextStage) || 'Unallocated', by: operator });
     return {
       [jobDef.requireKey]: true,
       [jobDef.completeKey]: true,
@@ -5469,14 +5472,50 @@ async function pmbMovementResolutionUpdates(vehicle = {}, fromStage = '', toStag
   return {};
 }
 
+function recordPmbMovementResolutionAudit(vehicle = {}, fromStage = '', toStage = '', updates = {}) {
+  const currentStage = normalizePmbStage(fromStage);
+  const nextStage = normalizePmbStage(toStage);
+  const operator = getCurrentOperatorName();
+  if (updates.pdcBlocked === true) {
+    recordVehicleAudit(vehicle, 'PMB movement stoppage recorded', { stage: pmbStageLabel(currentStage), reason: updates.pdcBlockReason || 'Stoppage', by: operator });
+    return;
+  }
+  const jobDef = pmbStageJobDef(currentStage);
+  if (jobDef && updates[jobDef.completeKey] === true) {
+    recordVehicleAudit(vehicle, 'Job signed off by PMB movement', { job: jobDef.label, from: pmbStageLabel(currentStage), to: pmbStageLabel(nextStage) || 'Unallocated', by: operator });
+  }
+}
+
 function partsIncompleteMovementStage(stage = '') {
   return ['BUS_4X4', 'TINT', 'HOIST', 'FITTING', 'FABRICATION', 'ELECTRICAL', 'TYRE', 'PIT_INSPECTION'].includes(normalizePmbStage(stage));
+}
+
+function partsMovementOverrideRoleAllowed(role = '') {
+  return /(^|[^a-z])(manager|admin|administrator)([^a-z]|$)/i.test(cleanNavisionText(role));
+}
+
+function pmbPhysicalBayEntry(currentStage = '', currentBay = '', nextStage = '', nextBay = '') {
+  const normalizedCurrent = normalizePmbStage(currentStage);
+  const normalizedNext = normalizePmbStage(nextStage);
+  const normalizedNextBay = normalizePmbBayNumber(nextBay, normalizedNext);
+  if (!normalizedNext || !normalizedNextBay) return false;
+  return normalizedCurrent !== normalizedNext || !normalizePmbBayNumber(currentBay, normalizedCurrent);
 }
 
 function confirmPartsIncompleteMovement(vehicle = {}, stage = '') {
   const nextStage = normalizePmbStage(stage);
   const partsStatus = partsDepartmentStatus(vehicle);
-  if (!partsIncompleteMovementStage(nextStage) || ['issued', 'notrequired'].includes(partsStatus)) return {};
+  if (!partsIncompleteMovementStage(nextStage) || ['issued', 'notrequired'].includes(partsStatus)) return { updates: {}, audit: null };
+  const operator = cleanNavisionText(localStorage.getItem(OPERATOR_NAME_KEY) || '');
+  const role = cleanNavisionText(localStorage.getItem(OPERATOR_ROLE_KEY) || '');
+  if (!operator || !role) {
+    window.alert('Set your operator name and role before moving a Parts-incomplete vehicle into a physical bay. No vehicle was changed.');
+    return null;
+  }
+  if (!partsMovementOverrideRoleAllowed(role)) {
+    window.alert('Parts are not complete. Only a Manager or Admin can authorise entry into a physical bay. No vehicle was changed.');
+    return null;
+  }
   const stock = displayStockNumber(vehicle) || vehicle.order || 'this vehicle';
   const destination = pmbStageLabel(nextStage);
   return new Promise(resolve => {
@@ -5514,9 +5553,10 @@ function confirmPartsIncompleteMovement(vehicle = {}, stage = '') {
         overlay.querySelector('[data-parts-override-reason]')?.focus();
         return;
       }
-      const operator = getCurrentOperatorName();
-      recordVehicleAudit(vehicle, 'Parts-incomplete movement override', { stage: destination, reason, by: operator });
-      finish({ pdcPartsMovementOverrideReason: reason, pdcPartsMovementOverrideAt: nowIsoString(), pdcPartsMovementOverrideBy: operator });
+      finish({
+        updates: { pdcPartsMovementOverrideReason: reason, pdcPartsMovementOverrideAt: nowIsoString(), pdcPartsMovementOverrideBy: operator },
+        audit: { stage: destination, reason, by: operator, role },
+      });
     });
     document.body.appendChild(overlay);
     document.addEventListener('keydown', onKeydown);
@@ -5527,7 +5567,7 @@ function confirmPartsIncompleteMovement(vehicle = {}, stage = '') {
 async function movePmbVehicleToStage(key, stage) {
   const cleanKey = String(key || '').trim();
   if (!cleanKey) return;
-  const vehicle = app.data.find(v => vehicleKey(v) === cleanKey || v.stock === cleanKey || v.order === cleanKey || v.id === cleanKey);
+  const vehicle = selectedVehicle(cleanKey);
   if (!vehicle) return;
   if (statusCategory(vehicle) !== 'pmb') {
     window.alert('That vehicle is not currently in PMB. Transfer it from Yard Hold to PMB first.');
@@ -5537,13 +5577,9 @@ async function movePmbVehicleToStage(key, stage) {
   const currentStage = normalizePmbStage(vehicle.pmbBayStage || vehicle.pmbStage || inferredPmbStage(vehicle) || vehicle.pdcWorkStage || vehicle.workStage || '');
   if (currentStage === nextStage) return;
   const now = nowIsoString();
-  const partsOverrideUpdates = await confirmPartsIncompleteMovement(vehicle, nextStage);
-  if (partsOverrideUpdates === null) return;
   const resolutionUpdates = await pmbMovementResolutionUpdates(vehicle, currentStage, nextStage);
   if (resolutionUpdates === null) return;
-  recordVehicleAudit(vehicle, 'PMB bucket moved', { from: pmbStageLabel(currentStage) || 'Unallocated', to: pmbStageLabel(nextStage) || 'Unallocated' });
-  saveVehicleEdits(vehicleKey(vehicle), {
-    ...partsOverrideUpdates,
+  const updates = {
     ...resolutionUpdates,
     pdcLocation: 'PMB',
     manualLocation: 'PMB',
@@ -5563,7 +5599,20 @@ async function movePmbVehicleToStage(key, stage) {
     pmbBayCompletedBy: '',
     pmbBayCompletedStage: '',
     pmbBayMechanic: '',
-  });
+  };
+  const snapshot = { ...vehicle };
+  try {
+    runStorageTransaction('Move PMB vehicle to stage', [EDITS_KEY, AUDIT_LOG_KEY], () => {
+      recordPmbMovementResolutionAudit(vehicle, currentStage, nextStage, resolutionUpdates);
+      recordVehicleAudit(vehicle, 'PMB bucket moved', { from: pmbStageLabel(currentStage) || 'Unallocated', to: pmbStageLabel(nextStage) || 'Unallocated' });
+      if (!saveVehicleEdits(vehicleKey(vehicle), updates)) throw new Error('The PMB stage update failed.');
+    });
+  } catch (error) {
+    Object.keys(vehicle).forEach(field => { if (!Object.prototype.hasOwnProperty.call(snapshot, field)) delete vehicle[field]; });
+    Object.assign(vehicle, snapshot);
+    window.alert(error.message || String(error));
+    return;
+  }
   const completedDef = pmbStageJobDef(currentStage);
   if (resolutionUpdates.pdcBlocked === true) {
     offerSalespersonChangeEmail(vehicle, {
@@ -5681,11 +5730,11 @@ function pmbSuggestedBayStartIso(stage = '', bay = '', vehicle = null, requested
   return (latestEnd || pmbNextProductionSlotDate()).toISOString();
 }
 
-async function assignPmbVehicleToBay(key, stage, bay, requestedStartIso = '') {
+async function assignPmbVehicleToBay(key, stage, bay, requestedStartIso = '', transactionOptions = {}) {
   const cleanKey = String(key || '').trim();
   const nextStage = normalizePmbStage(stage);
   if (!cleanKey || !nextStage) return;
-  const vehicle = app.data.find(v => vehicleKey(v) === cleanKey || v.stock === cleanKey || v.order === cleanKey || v.id === cleanKey);
+  const vehicle = selectedVehicle(cleanKey);
   if (!vehicle) return;
   if (statusCategory(vehicle) !== 'pmb') {
     window.alert('That vehicle is not currently in PMB. Transfer it from Yard Hold to PMB first.');
@@ -5693,44 +5742,32 @@ async function assignPmbVehicleToBay(key, stage, bay, requestedStartIso = '') {
   }
   const bayNumber = normalizePmbBayNumber(bay, nextStage);
   const currentStage = normalizePmbStage(vehicle.pmbBayStage || inferredPmbStage(vehicle));
-  const stageChanges = currentStage !== nextStage;
-  const partsOverrideUpdates = stageChanges ? await confirmPartsIncompleteMovement(vehicle, nextStage) : {};
-  if (partsOverrideUpdates === null) return;
+  const currentBay = pmbBayNumber(vehicle, currentStage);
+  const entersNumberedBay = pmbPhysicalBayEntry(currentStage, currentBay, nextStage, bayNumber);
+  let swap = null;
   if (bayNumber) {
     const occupied = pmbBayOccupants(nextStage, bayNumber, cleanKey);
     if (occupied.length) {
-      const currentBay = pmbBayNumber(vehicle, nextStage);
       const currentStageForSwap = normalizePmbStage(vehicle.pmbBayStage || inferredPmbStage(vehicle));
       if (occupied.length !== 1 || currentStageForSwap !== nextStage || !currentBay) {
         window.alert(`${pmbStageLabel(nextStage)} Bay ${bayNumber} already has a vehicle. Move that vehicle out first, or use bay-to-bay swap from another numbered bay.`);
         return;
       }
       const other = occupied[0];
-      const otherKey = vehicleKey(other);
-      saveVehicleEdits(otherKey, {
-        pdcLocation: 'PMB',
-        manualLocation: 'PMB',
-        pdcLocationLocked: true,
-        pmbStage: nextStage,
-        pmbBayStage: nextStage,
-        pmbBayNumber: currentBay,
-        pmbBayEnteredAt: nowIsoString(),
-        pmbBayCompletedAt: '',
-        pmbBayCompletedBy: '',
-        pmbBayCompletedStage: '',
-      }, { render: false });
-      recordVehicleAudit(other, 'Swapped PMB bay', { stage: pmbStageLabel(nextStage), bay: `Bay ${currentBay}` });
+      swap = { other, otherKey: vehicleKey(other) };
     }
     // Bay assignment is already limited by the specific bay number above. Do not also block
     // moves because the PMB bucket is over its row/queue limit; that made valid bay-to-bay
     // and unallocated-to-empty-bay moves fail on busy days.
   }
-  const now = nowIsoString();
-  const bayLabel = bayNumber ? `Bay ${bayNumber}` : 'No bay';
+  const partsDecision = entersNumberedBay ? await confirmPartsIncompleteMovement(vehicle, nextStage) : { updates: {}, audit: null };
+  if (partsDecision === null) return;
   const resolutionUpdates = await pmbMovementResolutionUpdates(vehicle, currentStage, nextStage);
   if (resolutionUpdates === null) return;
+  const now = nowIsoString();
+  const bayLabel = bayNumber ? `Bay ${bayNumber}` : 'No bay';
   const updates = {
-    ...partsOverrideUpdates,
+    ...partsDecision.updates,
     ...resolutionUpdates,
     pdcLocation: 'PMB',
     manualLocation: 'PMB',
@@ -5751,14 +5788,39 @@ async function assignPmbVehicleToBay(key, stage, bay, requestedStartIso = '') {
   if (currentStage !== nextStage) {
     updates.pmbStageUpdatedAt = now;
     updates.pmbStageEnteredAt = now;
-    recordVehicleAudit(vehicle, 'PMB bucket moved', { from: pmbStageLabel(currentStage) || 'Unallocated', to: pmbStageLabel(nextStage) || 'Unallocated' });
   }
-
-
-
+  const vehicleSnapshot = { ...vehicle };
+  const swapSnapshot = swap ? { ...swap.other } : null;
+  const extraTransactionKeys = Array.isArray(transactionOptions.keys) ? transactionOptions.keys : [];
+  try {
+    runStorageTransaction('Assign vehicle to PMB bay', [EDITS_KEY, AUDIT_LOG_KEY, ...extraTransactionKeys], () => {
+      if (swap) {
+        saveVehicleEdits(swap.otherKey, {
+          pdcLocation: 'PMB', manualLocation: 'PMB', pdcLocationLocked: true,
+          pmbStage: nextStage, pmbBayStage: nextStage, pmbBayNumber: currentBay,
+          pmbBayEnteredAt: now, pmbBayCompletedAt: '', pmbBayCompletedBy: '', pmbBayCompletedStage: '',
+        }, { render: false });
+        recordVehicleAudit(swap.other, 'Swapped PMB bay', { stage: pmbStageLabel(nextStage), bay: `Bay ${currentBay}` });
+      }
+      recordPmbMovementResolutionAudit(vehicle, currentStage, nextStage, resolutionUpdates);
+      if (currentStage !== nextStage) recordVehicleAudit(vehicle, 'PMB bucket moved', { from: pmbStageLabel(currentStage) || 'Unallocated', to: pmbStageLabel(nextStage) || 'Unallocated' });
+      if (partsDecision.audit) recordVehicleAudit(vehicle, 'Parts-incomplete movement override', partsDecision.audit);
+      recordVehicleAudit(vehicle, bayNumber ? 'Assigned to PMB bay' : 'Removed from PMB bay', { stage: pmbStageLabel(nextStage), bay: bayLabel });
+      if (!saveVehicleEdits(vehicleKey(vehicle), updates)) throw new Error('The vehicle bay update failed.');
+      if (typeof transactionOptions.afterAssign === 'function') transactionOptions.afterAssign(vehicle, updates);
+    });
+  } catch (error) {
+    Object.keys(vehicle).forEach(field => { if (!Object.prototype.hasOwnProperty.call(vehicleSnapshot, field)) delete vehicle[field]; });
+    Object.assign(vehicle, vehicleSnapshot);
+    if (swap && swapSnapshot) {
+      Object.keys(swap.other).forEach(field => { if (!Object.prototype.hasOwnProperty.call(swapSnapshot, field)) delete swap.other[field]; });
+      Object.assign(swap.other, swapSnapshot);
+    }
+    window.alert(error.message || String(error));
+    return false;
+  }
   app.activePmbBayStage = nextStage;
-  recordVehicleAudit(vehicle, bayNumber ? 'Assigned to PMB bay' : 'Removed from PMB bay', { stage: pmbStageLabel(nextStage), bay: bayLabel });
-  saveVehicleEdits(vehicleKey(vehicle), updates);
+  return true;
 }
 
 function updatePmbBayHours(key, stage, value) {
@@ -5862,9 +5924,9 @@ function updatePmbBaySubletProvider(key, stage, value) {
   saveVehicleEdits(vehicleKey(vehicle), { pmbSubletProvider: provider });
 }
 
-function completePmbBayWork(key, stage) {
+function completePmbBayWork(key, stage, transactionOptions = {}) {
   const cleanKey = String(key || '').trim();
-  const vehicle = app.data.find(v => vehicleKey(v) === cleanKey || v.stock === cleanKey || v.order === cleanKey || v.id === cleanKey);
+  const vehicle = selectedVehicle(cleanKey);
   const normalizedStage = normalizePmbStage(stage || inferredPmbStage(vehicle));
   const def = pmbStageJobDef(normalizedStage);
   if (!vehicle || !def) return;
@@ -5904,8 +5966,20 @@ function completePmbBayWork(key, stage) {
     pmbBayMechanic: '',
     pmbSubletProvider: '',
   };
-  recordVehicleAudit(vehicle, 'Bay work completed', { stage: pmbStageLabel(normalizedStage), job: def.label, bay: bay || 'No bay', hours: hours === '' ? '' : hours, mechanic: mechanic || 'Unassigned', provider: normalizedStage === 'SUBLET' ? (subletProvider || 'Unassigned') : '', by: operator, returnedTo: 'PMB unallocated' });
-  saveVehicleEdits(vehicleKey(vehicle), updates);
+  const snapshot = { ...vehicle };
+  const extraTransactionKeys = Array.isArray(transactionOptions.keys) ? transactionOptions.keys : [];
+  try {
+    runStorageTransaction('Complete PMB bay work', [EDITS_KEY, AUDIT_LOG_KEY, ...extraTransactionKeys], () => {
+      recordVehicleAudit(vehicle, 'Bay work completed', { stage: pmbStageLabel(normalizedStage), job: def.label, bay: bay || 'No bay', hours: hours === '' ? '' : hours, mechanic: mechanic || 'Unassigned', provider: normalizedStage === 'SUBLET' ? (subletProvider || 'Unassigned') : '', by: operator, returnedTo: 'PMB unallocated' });
+      if (!saveVehicleEdits(vehicleKey(vehicle), updates)) throw new Error('The completed bay work could not be saved.');
+      if (typeof transactionOptions.afterComplete === 'function') transactionOptions.afterComplete(vehicle, def, updates);
+    });
+  } catch (error) {
+    Object.keys(vehicle).forEach(field => { if (!Object.prototype.hasOwnProperty.call(snapshot, field)) delete vehicle[field]; });
+    Object.assign(vehicle, snapshot);
+    window.alert(error.message || String(error));
+    return false;
+  }
   offerSalespersonChangeEmail(vehicle, {
     title: `${def.label} completed`,
     subject: 'PDC work completed',
@@ -5915,6 +5989,7 @@ function completePmbBayWork(key, stage) {
       mechanic ? `Mechanic: ${mechanic}.` : '',
     ],
   });
+  return true;
 }
 
 function moveVehicleToNextPmbStageFromBay(key, fromStage) {

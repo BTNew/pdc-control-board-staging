@@ -246,18 +246,82 @@ function workshopSavePlans(rows = []) {
   }
 }
 
+function workshopRequireOperatorProfile() {
+  const name = typeof OPERATOR_NAME_KEY !== 'undefined' ? String(localStorage.getItem(OPERATOR_NAME_KEY) || '').trim() : '';
+  const role = typeof OPERATOR_ROLE_KEY !== 'undefined' ? String(localStorage.getItem(OPERATOR_ROLE_KEY) || '').trim() : '';
+  if (name && role) return { name, role };
+  window.alert('Set your operator name and role before changing the Workshop Planner. No workshop data was changed.');
+  return null;
+}
+
 function workshopPersistPlanAction(label = 'Workshop planner update', rows = [], vehicle = null, action = '', details = {}) {
+  const operator = workshopRequireOperatorProfile();
+  if (!operator) return false;
   const keys = [WORKSHOP_PLAN_STORAGE_KEY];
   if (typeof AUDIT_LOG_KEY !== 'undefined') keys.push(AUDIT_LOG_KEY);
   const operation = () => {
-    const auditDetails = { ...details };
-    if (!auditDetails.by && typeof getCurrentOperatorName === 'function') auditDetails.by = getCurrentOperatorName();
-    if (!auditDetails.role && typeof getCurrentOperatorRole === 'function') auditDetails.role = getCurrentOperatorRole();
+    const auditDetails = { by: operator.name, role: operator.role, ...details };
     if (vehicle && action && typeof recordVehicleAudit === 'function') recordVehicleAudit(vehicle, action, auditDetails);
     workshopSavePlans(rows);
   };
   if (typeof runStorageTransaction === 'function') return runStorageTransaction(label, keys, operation);
   return operation();
+}
+
+function workshopRunVehiclePlanTransaction(label = 'Workshop live update', vehicle = null, operation = () => undefined) {
+  const keys = [WORKSHOP_PLAN_STORAGE_KEY];
+  if (typeof EDITS_KEY !== 'undefined') keys.push(EDITS_KEY);
+  if (typeof AUDIT_LOG_KEY !== 'undefined') keys.push(AUDIT_LOG_KEY);
+  const snapshot = vehicle && typeof vehicle === 'object' ? { ...vehicle } : null;
+  try {
+    if (typeof runStorageTransaction === 'function') runStorageTransaction(label, keys, operation);
+    else operation();
+    return true;
+  } catch (error) {
+    if (snapshot && vehicle) {
+      Object.keys(vehicle).forEach(key => { if (!Object.prototype.hasOwnProperty.call(snapshot, key)) delete vehicle[key]; });
+      Object.assign(vehicle, snapshot);
+    }
+    window.alert(error.message || String(error));
+    return false;
+  }
+}
+
+function workshopPersistVehiclePlanAction(label = 'Workshop live update', rows = [], vehicle = null, vehicleUpdates = {}, action = '', details = {}) {
+  const operator = workshopRequireOperatorProfile();
+  if (!operator) return false;
+  return workshopRunVehiclePlanTransaction(label, vehicle, () => {
+    if (vehicle && Object.keys(vehicleUpdates || {}).length && !saveVehicleEdits(vehicleKey(vehicle), vehicleUpdates, { render: false })) {
+      throw new Error('The vehicle update failed.');
+    }
+    if (vehicle && action) recordVehicleAudit(vehicle, action, { by: operator.name, role: operator.role, ...details });
+    workshopSavePlans(rows);
+  });
+}
+
+function workshopOwnedBlockUpdates(entry = {}, reason = '', now = '', operator = '') {
+  const clean = value => String(value || '').trim();
+  return {
+    pdcWorkshopBlocked: true,
+    pdcWorkshopBlockPlanId: clean(entry.id),
+    pdcWorkshopBlockReason: clean(reason),
+    pdcWorkshopBlockedAt: now,
+    pdcWorkshopBlockedBy: operator,
+  };
+}
+
+function workshopOwnedBlockClearUpdates(entry = {}, vehicle = {}, now = '', operator = '') {
+  const clean = value => String(value || '').trim();
+  if (!vehicle.pdcWorkshopBlocked || clean(vehicle.pdcWorkshopBlockPlanId) !== clean(entry.id)) return {};
+  return {
+    pdcWorkshopBlocked: false,
+    pdcWorkshopBlockPlanId: '',
+    pdcWorkshopBlockReason: '',
+    pdcWorkshopBlockedAt: '',
+    pdcWorkshopBlockedBy: '',
+    pdcWorkshopBlockClearedAt: now,
+    pdcWorkshopBlockClearedBy: operator,
+  };
 }
 
 function workshopLoadBaySetup() {
@@ -1041,6 +1105,7 @@ async function returnWorkshopPlanToUnallocated(planId = '') {
   }
   const vehicle = workshopVehicle(entry.vehicleKey);
   if (!vehicle) return;
+  if (!workshopRequireOperatorProfile()) return;
   if (entry.status === 'planned') {
     if (!window.confirm(`Return ${displayStockNumber(vehicle) || 'this vehicle'} to the unscheduled ${pmbStageLabel(entry.stage)} queue?\n\nThe vehicle stays in PMB and is not deleted.`)) return;
     const latestRows = workshopLoadPlans();
@@ -1066,7 +1131,7 @@ async function returnWorkshopPlanToUnallocated(planId = '') {
   const now = nowIsoString();
   const operator = getCurrentOperatorName();
   const stoppage = result.choice === 'stoppage';
-  saveVehicleEdits(entry.vehicleKey, {
+  const vehicleUpdates = {
     pdcLocation: 'PMB',
     manualLocation: 'PMB',
     pdcLocationLocked: true,
@@ -1080,13 +1145,19 @@ async function returnWorkshopPlanToUnallocated(planId = '') {
     pmbBayScheduledStartAt: '',
     pmbBayMechanic: '',
     pmbSubletProvider: '',
-    pdcBlocked: stoppage,
-    pdcBlockReason: stoppage ? result.reason : '',
-    pdcBlockedAt: stoppage ? now : '',
-    pdcBlockedBy: stoppage ? operator : '',
-  }, { render: false });
-  recordVehicleAudit(vehicle, stoppage ? 'Workshop job returned to Unallocated with stoppage' : 'Workshop job returned to Unallocated', { stage: pmbStageLabel(entry.stage), bay: entry.bay, reason: stoppage ? result.reason : 'Just move', by: operator });
-  workshopSavePlans(rows.filter(row => row.id !== entry.id));
+    ...(stoppage
+      ? workshopOwnedBlockUpdates(entry, result.reason, now, operator)
+      : workshopOwnedBlockClearUpdates(entry, vehicle, now, operator)),
+  };
+  const persisted = workshopPersistVehiclePlanAction(
+    'Return workshop job to Unallocated',
+    rows.filter(row => row.id !== entry.id),
+    vehicle,
+    vehicleUpdates,
+    stoppage ? 'Workshop job returned to Unallocated with stoppage' : 'Workshop job returned to Unallocated',
+    { stage: pmbStageLabel(entry.stage), bay: entry.bay, reason: stoppage ? result.reason : 'Just move', by: operator },
+  );
+  if (!persisted) return;
   workshopState().selectedPlanId = '';
   workshopState().highlightVehicleKey = '';
   if (stoppage) {
@@ -1214,35 +1285,48 @@ async function startWorkshopPlan(planId = '') {
   const entry = rows.find(row => row.id === planId);
   const vehicle = entry ? workshopVehicle(entry.vehicleKey) : null;
   if (!entry || !vehicle) return;
+  if (!workshopRequireOperatorProfile()) return;
   const currentStart = workshopNormalizeStartDate(new Date());
   const next = { ...entry, startAt: currentStart.toISOString(), status: 'started', startedAt: nowIsoString(), updatedAt: nowIsoString() };
   if (!workshopRequireAvailableAssignee(next, rows.filter(row => row.id !== next.id))) return;
-  if (entry.stage === 'SUBLET') {
-    saveVehicleEdits(entry.vehicleKey, {
-      pdcLocation: 'PMB',
-      manualLocation: 'PMB',
-      pdcLocationLocked: true,
-      pmbStage: 'SUBLET',
-      pmbStageUpdatedAt: nowIsoString(),
-      pmbBayScheduledStartAt: next.startAt,
-      pmbBayEstimatedHours: String(next.hours),
-      pmbSubletProvider: cleanNavisionText(next.assignee || ''),
-    }, { render: false });
-  } else {
-    await assignPmbVehicleToBay(entry.vehicleKey, entry.stage, entry.bay, next.startAt);
-    const refreshed = workshopVehicle(entry.vehicleKey);
-    if (!refreshed || Number(pmbBayNumber(refreshed, entry.stage)) !== Number(entry.bay)) return;
-    saveVehicleEdits(entry.vehicleKey, {
-      pmbBayScheduledStartAt: next.startAt,
-      pmbBayEstimatedHours: String(next.hours),
-      pmbBayMechanic: cleanNavisionText(next.assignee || ''),
-    }, { render: false });
-  }
   const nextRows = workshopCascadePlans(rows.map(row => row.id === entry.id ? next : row)).rows;
-  workshopSavePlans(nextRows);
+  const auditDetails = { stage: pmbStageLabel(entry.stage), bay: entry.stage === 'SUBLET' ? 'Sublet' : `Bay ${entry.bay}`, hours: entry.hours, assignee: entry.assignee || 'Unassigned' };
+  let persisted = false;
+  if (entry.stage === 'SUBLET') {
+    persisted = workshopPersistVehiclePlanAction(
+      'Start Sublet workshop job',
+      nextRows,
+      vehicle,
+      {
+        pdcLocation: 'PMB',
+        manualLocation: 'PMB',
+        pdcLocationLocked: true,
+        pmbStage: 'SUBLET',
+        pmbStageUpdatedAt: nowIsoString(),
+        pmbBayScheduledStartAt: next.startAt,
+        pmbBayEstimatedHours: String(next.hours),
+        pmbSubletProvider: cleanNavisionText(next.assignee || ''),
+      },
+      'Workshop job started',
+      auditDetails,
+    );
+  } else {
+    persisted = await assignPmbVehicleToBay(entry.vehicleKey, entry.stage, entry.bay, next.startAt, {
+      keys: [WORKSHOP_PLAN_STORAGE_KEY],
+      afterAssign: assignedVehicle => {
+        if (!saveVehicleEdits(entry.vehicleKey, {
+          pmbBayScheduledStartAt: next.startAt,
+          pmbBayEstimatedHours: String(next.hours),
+          pmbBayMechanic: cleanNavisionText(next.assignee || ''),
+        }, { render: false })) throw new Error('The workshop start details could not be saved.');
+        workshopSavePlans(nextRows);
+        recordVehicleAudit(assignedVehicle, 'Workshop job started', auditDetails);
+      },
+    });
+  }
+  if (!persisted) return;
   workshopState().date = workshopDateKey(currentStart);
   workshopSaveView(workshopState());
-  recordVehicleAudit(vehicle, 'Workshop job started', { stage: pmbStageLabel(entry.stage), bay: entry.stage === 'SUBLET' ? 'Sublet' : `Bay ${entry.bay}`, hours: entry.hours, assignee: entry.assignee || 'Unassigned' });
   offerSalespersonChangeEmail(vehicle, {
     title: `${pmbStageLabel(entry.stage)} job started`,
     subject: 'PDC workshop job started',
@@ -1260,6 +1344,7 @@ function completeWorkshopPlan(planId = '') {
   const entry = rows.find(row => row.id === planId);
   const vehicle = entry ? workshopVehicle(entry.vehicleKey) : null;
   if (!entry || !vehicle) return;
+  if (!workshopRequireOperatorProfile()) return;
   if (!['started', 'stoppage'].includes(entry.status)) {
     window.alert('Use “Start job” first so the workshop start time and salesperson update are recorded.');
     return;
@@ -1278,28 +1363,30 @@ function completeWorkshopPlan(planId = '') {
   if (entry.stage === 'SUBLET') {
     const completedAt = nowIsoString();
     const operator = getCurrentOperatorName();
-    saveVehicleEdits(entry.vehicleKey, {
-      pmbStage: '',
-      pmbStageUpdatedAt: completedAt,
-      pmbStageEnteredAt: completedAt,
-      pmbBayStage: '',
-      pmbBayNumber: '',
-      pmbBayEstimatedHours: '',
-      pmbBayEnteredAt: '',
-      pmbBayScheduledStartAt: '',
-      pmbBayMechanic: '',
-      pmbSubletActualReturnDate: workshopDateKey(new Date()),
-      pmbSubletUpdatedAt: completedAt,
-      pmbSubletUpdatedBy: operator,
-    }, { render: false });
     const next = { ...entry, status: 'completed', completedAt, actualHours: Number(actualHours.toFixed(2)), updatedAt: completedAt };
-    workshopPersistPlanAction(
+    const persisted = workshopPersistVehiclePlanAction(
       'Sublet workshop plan completed',
       workshopCascadePlans(rows.map(row => row.id === entry.id ? next : row)).rows,
       vehicle,
+      {
+        pmbStage: '',
+        pmbStageUpdatedAt: completedAt,
+        pmbStageEnteredAt: completedAt,
+        pmbBayStage: '',
+        pmbBayNumber: '',
+        pmbBayEstimatedHours: '',
+        pmbBayEnteredAt: '',
+        pmbBayScheduledStartAt: '',
+        pmbBayMechanic: '',
+        pmbSubletActualReturnDate: workshopDateKey(new Date()),
+        pmbSubletUpdatedAt: completedAt,
+        pmbSubletUpdatedBy: operator,
+        ...workshopOwnedBlockClearUpdates(entry, vehicle, completedAt, operator),
+      },
       'Sublet work completed',
       { provider: entry.assignee || 'Unassigned', estimatedHours: entry.hours, actualHours: next.actualHours, by: operator, returnedTo: 'PMB unallocated' },
     );
+    if (!persisted) return;
     offerSalespersonChangeEmail(vehicle, {
       title: 'Sublet work completed',
       subject: 'PDC sublet work completed',
@@ -1308,13 +1395,21 @@ function completeWorkshopPlan(planId = '') {
     renderWorkshopPlanner();
     return;
   }
-  completePmbBayWork(entry.vehicleKey, entry.stage);
-  const refreshed = workshopVehicle(entry.vehicleKey);
-  const def = refreshed ? pmbStageJobDef(entry.stage) : null;
-  if (!refreshed || !def || !pdcJobComplete(refreshed, def)) return;
-  const next = { ...entry, status: 'completed', completedAt: refreshed[def.completeAtKey] || nowIsoString(), actualHours: Number(actualHours.toFixed(2)), updatedAt: nowIsoString() };
-  recordVehicleAudit(refreshed, 'Workshop actual time recorded', { stage: pmbStageLabel(entry.stage), estimatedHours: entry.hours, actualHours: next.actualHours });
-  workshopSavePlans(workshopCascadePlans(rows.map(row => row.id === entry.id ? next : row)).rows);
+  const completed = completePmbBayWork(entry.vehicleKey, entry.stage, {
+    keys: [WORKSHOP_PLAN_STORAGE_KEY],
+    afterComplete: (refreshed, def) => {
+      const completedAt = refreshed[def.completeAtKey] || nowIsoString();
+      const operator = getCurrentOperatorName();
+      const clearUpdates = workshopOwnedBlockClearUpdates(entry, refreshed, completedAt, operator);
+      if (Object.keys(clearUpdates).length && !saveVehicleEdits(entry.vehicleKey, clearUpdates, { render: false })) {
+        throw new Error('The workshop stoppage could not be cleared safely.');
+      }
+      const next = { ...entry, status: 'completed', completedAt, actualHours: Number(actualHours.toFixed(2)), updatedAt: nowIsoString() };
+      recordVehicleAudit(refreshed, 'Workshop actual time recorded', { stage: pmbStageLabel(entry.stage), estimatedHours: entry.hours, actualHours: next.actualHours, by: operator });
+      workshopSavePlans(workshopCascadePlans(rows.map(row => row.id === entry.id ? next : row)).rows);
+    },
+  });
+  if (!completed) return;
   renderWorkshopPlanner();
 }
 
@@ -1356,6 +1451,7 @@ async function stopWorkshopPlan(planId = '') {
   const entry = rows.find(row => row.id === planId);
   const vehicle = entry ? workshopVehicle(entry.vehicleKey) : null;
   if (!entry || !vehicle) return;
+  if (!workshopRequireOperatorProfile()) return;
   if (entry.status !== 'started') {
     window.alert('Start the job before recording a workshop stoppage.');
     return;
@@ -1364,15 +1460,16 @@ async function stopWorkshopPlan(planId = '') {
   if (!reason) return;
   const now = nowIsoString();
   const operator = getCurrentOperatorName();
-  saveVehicleEdits(entry.vehicleKey, {
-    pdcBlocked: true,
-    pdcBlockReason: reason,
-    pdcBlockedAt: now,
-    pdcBlockedBy: operator,
-  }, { render: false });
   const next = { ...entry, status: 'stoppage', stoppageReason: reason, stoppageAt: now, updatedAt: now };
-  workshopSavePlans(workshopCascadePlans(rows.map(row => row.id === entry.id ? next : row)).rows);
-  recordVehicleAudit(vehicle, 'Workshop job stoppage recorded', { stage: pmbStageLabel(entry.stage), reason, by: operator });
+  const persisted = workshopPersistVehiclePlanAction(
+    'Record workshop stoppage',
+    workshopCascadePlans(rows.map(row => row.id === entry.id ? next : row)).rows,
+    vehicle,
+    workshopOwnedBlockUpdates(entry, reason, now, operator),
+    'Workshop job stoppage recorded',
+    { stage: pmbStageLabel(entry.stage), reason, by: operator },
+  );
+  if (!persisted) return;
   offerSalespersonChangeEmail(vehicle, {
     title: `${pmbStageLabel(entry.stage)} job stoppage`,
     subject: 'PDC workshop stoppage',
@@ -1386,19 +1483,22 @@ function resumeWorkshopPlan(planId = '') {
   const entry = rows.find(row => row.id === planId);
   const vehicle = entry ? workshopVehicle(entry.vehicleKey) : null;
   if (!entry || !vehicle || entry.status !== 'stoppage') return;
+  if (!workshopRequireOperatorProfile()) return;
   const now = nowIsoString();
   const stoppageMinutes = Number(entry.stoppageMinutes || 0) + (entry.stoppageAt
     ? workshopWorkMinutesBetween(parseIsoTimestamp(entry.stoppageAt), parseIsoTimestamp(now))
     : 0);
-  saveVehicleEdits(entry.vehicleKey, {
-    pdcBlocked: false,
-    pdcBlockReason: '',
-    pdcBlockedClearedAt: now,
-    pdcBlockedClearedBy: getCurrentOperatorName(),
-  }, { render: false });
+  const operator = getCurrentOperatorName();
   const next = { ...entry, status: 'started', resumedAt: now, stoppageAt: '', stoppageMinutes: Number(stoppageMinutes.toFixed(2)), updatedAt: now };
-  workshopSavePlans(workshopCascadePlans(rows.map(row => row.id === entry.id ? next : row)).rows);
-  recordVehicleAudit(vehicle, 'Workshop job resumed', { stage: pmbStageLabel(entry.stage), by: getCurrentOperatorName() });
+  const persisted = workshopPersistVehiclePlanAction(
+    'Resume workshop job',
+    workshopCascadePlans(rows.map(row => row.id === entry.id ? next : row)).rows,
+    vehicle,
+    workshopOwnedBlockClearUpdates(entry, vehicle, now, operator),
+    'Workshop job resumed',
+    { stage: pmbStageLabel(entry.stage), by: operator },
+  );
+  if (!persisted) return;
   renderWorkshopPlanner();
 }
 
@@ -1762,5 +1862,8 @@ if (typeof module !== 'undefined' && module.exports) {
     workshopEntryIsOvertime,
     workshopEntryHasAssigneeConflict,
     workshopAssigneeConflict,
+    workshopOwnedBlockUpdates,
+    workshopOwnedBlockClearUpdates,
+    workshopRunVehiclePlanTransaction,
   };
 }

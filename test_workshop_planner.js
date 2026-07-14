@@ -107,6 +107,7 @@ assert.ok(source.includes('workshopJobLineAssignments'), 'Imported job-line work
 assert.ok(source.includes('workshopAdditionalHoursByStage'), 'Manual per-area additional hours are missing');
 assert.ok(source.includes('function workshopReturnChoiceModal('), 'Live-job return choice is missing');
 assert.ok(source.includes('function workshopStoppageReasonModal('), 'In-app stoppage reason capture is missing');
+assert.ok(source.includes('function workshopRequireOperatorProfile('), 'Planner mutations must require a saved operator profile before transactions begin');
 assert.ok(!source.includes('window.prompt('), 'Workshop actions must not use browser prompt dialogs');
 assert.ok(source.includes('value="move" checked'), 'Just move return option is missing');
 assert.ok(source.includes('value="stoppage"'), 'Stoppage return option is missing');
@@ -126,8 +127,8 @@ for (const file of htmlFiles) {
   const html = fs.readFileSync(path.join(root, file), 'utf8');
   assert.ok(html.includes('data-view="workshop"'), `${file} is missing the Workshop Planner navigation item`);
   assert.ok(html.includes('id="workshop-planner-root"'), `${file} is missing the Workshop Planner host`);
-  assert.ok(html.includes('workshop-planner.css?v=2026.07.14.12-workshop-weekly-safe'), `${file} is missing the planner stylesheet`);
-  assert.ok(html.includes('workshop-planner.js?v=2026.07.14.12-workshop-weekly-safe'), `${file} is missing the planner script`);
+  assert.ok(html.includes('workshop-planner.css?v=2026.07.14.13-workshop-safety-hardening'), `${file} is missing the planner stylesheet`);
+  assert.ok(html.includes('workshop-planner.js?v=2026.07.14.13-workshop-safety-hardening'), `${file} is missing the planner script`);
 }
 
 console.log('Workshop planner regression checks passed');
