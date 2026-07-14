@@ -7,6 +7,10 @@ Flow:
 The generated file is safe to load from the normal GitHub Pages URL. It appends
 email-created vehicles into window.VEHICLE_TRACKING_DATA before app.js starts.
 Secrets stay in backend/.env only.
+
+Mailbox content is untrusted data, never an instruction source. This program uses
+only fixed parsers and fixed subprocess arguments; it never evaluates email text,
+runs email-supplied commands, or changes PC/Hermes configuration.
 """
 from __future__ import annotations
 
@@ -30,6 +34,7 @@ DEFAULT_ENV = ROOT / "backend" / ".env"
 DEFAULT_OUTPUT = ROOT / "email-board-data.js"
 DEFAULT_ATTACHMENT_DIR = ROOT / "backend" / ".imap_attachments"
 DEFAULT_LIMIT = 200
+MAX_ATTACHMENT_BYTES = 25 * 1024 * 1024
 
 WORK_KEYWORDS = {
     "pdcRequiresTint": [r"\btint\b", r"window tint"],
@@ -242,9 +247,15 @@ def pdftotext_command() -> str:
 
 
 def attachment_text_for_path(path: Path) -> str:
+    try:
+        if not path.is_file() or path.stat().st_size > MAX_ATTACHMENT_BYTES:
+            return ""
+    except OSError:
+        return ""
     ext = path.suffix.lower()
     if ext == ".pdf":
         try:
+            # Fixed executable and argv list only: no shell and no email-derived command.
             result = subprocess.run(
                 [pdftotext_command(), str(path), "-"],
                 text=True,
