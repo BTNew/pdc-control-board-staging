@@ -12,7 +12,7 @@ const qzSource = fs.readFileSync(path.join(root, 'vendor', 'qz', 'qz-tray.js'), 
 
 assert.match(qzSource, /@version 2\.2\.6/, 'The bundled QZ Tray connector should be version 2.2.6');
 assert.ok(indexSource.indexOf('vendor/qz/qz-tray.js?v=2.2.6') < indexSource.indexOf('app.js?v='), 'QZ Tray must load before app.js');
-assert.ok((indexSource.match(/data-print-selected-zpl/g) || []).length >= 3, 'Vehicle Locations, Control Board and tracker selections should expose Print Labels');
+assert.ok((indexSource.match(/data-print-selected-zpl/g) || []).length >= 2, 'Vehicle Locations and tracker selections should expose Print Labels while Control Board remains a read-only work overview');
 assert.ok(indexSource.includes('id="zpl-print"'), 'The hidden/admin ZPL troubleshooting screen should keep a QZ print button');
 assert.ok(appSource.includes('data-label-vehicle='), 'Vehicle rows and the vehicle detail card should expose a Label action');
 assert.ok(appSource.includes("on($('#autocare-zpl-all'), 'click', () => printZplFromAutocareResults('all'))"), 'The top Autocare label action should print directly through QZ Tray');

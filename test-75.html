@@ -6,9 +6,9 @@
   <meta name="description" content="PDC vehicle locations, workshop workflow, Parts and scheduling control board." />
   <title>PDC Control Board — Random 75 Vehicle Test</title>
   <link rel="icon" href="favicon.svg" type="image/svg+xml" />
-  <link rel="stylesheet" href="styles.css?v=2026.07.15.02-private-cutover-hold" />
-  <link rel="stylesheet" href="desktop-operations.css?v=2026.07.15.02-private-cutover-hold" />
-  <link rel="stylesheet" href="workshop-planner.css?v=2026.07.15.02-private-cutover-hold" />
+  <link rel="stylesheet" href="styles.css?v=2026.07.15.03-control-board-planner-links" />
+  <link rel="stylesheet" href="desktop-operations.css?v=2026.07.15.03-control-board-planner-links" />
+  <link rel="stylesheet" href="workshop-planner.css?v=2026.07.15.03-control-board-planner-links" />
 </head>
 <body>
   <div class="test-data-banner" style="position:sticky;top:0;z-index:9999;background:#6d28d9;color:#fff;padding:8px 14px;text-align:center;font-weight:700;letter-spacing:.02em;">TEST DATASET — 75 SAMPLE VEHICLES ONLY — separate from live board</div>
@@ -217,31 +217,12 @@
         <section class="panel span-12 workflow-board-panel">
           <div class="panel-header">
             <div>
-              <h2>PMB workflow board</h2>
-              <p>Only vehicles currently at PMB. Click a PMB category to open its bay board.</p>
+              <h2>Control Board</h2>
+              <p>Vehicles currently at PMB, grouped into every station where required work is still outstanding.</p>
             </div>
             <div class="panel-actions workflow-panel-actions">
-              <label class="workflow-width-control" title="Adjust open Control Board card width for larger monitors">
-                <span>Row width</span>
-                <select id="workflow-width-mode" aria-label="Vehicle row and PMB card width">
-                  <option value="compact">Short rows</option>
-                  <option value="standard" selected>Standard</option>
-                  <option value="wide">Wider</option>
-                  <option value="xl">Extra wide</option>
-                </select>
-              </label>
               <button class="small-button" id="workflow-collapse-all" type="button">Collapse all rows</button>
               <span class="badge neutral">PMB only</span>
-            </div>
-          </div>
-          <div class="inline-selection-bar" id="workflow-selection-bar" aria-live="polite">
-            <strong id="workflow-selection-count">0 selected</strong>
-            <span class="subtle">Tick PMB vehicles below to transfer them, delete them, or select one vehicle to email its salesperson an update.</span>
-            <div class="inline-selection-actions">
-              <button class="small-button" id="workflow-email-selected-update" type="button" disabled>EMAIL UPDATE</button>
-              <button class="small-button primary" id="workflow-transfer-selected-rft" type="button" disabled>Transfer selected to RFT</button>
-              <button class="small-button danger-button" id="workflow-delete-selected" type="button" disabled>Delete selected</button>
-              <button class="small-button" id="workflow-clear-selected" type="button" disabled>Clear selected</button>
             </div>
           </div>
           <div class="incoming-search-panel workflow-search-panel">
@@ -253,11 +234,12 @@
               <button class="incoming-find-button primary" id="workflow-find" type="button">Find</button>
               <button class="small-button" id="workflow-clear-search" type="button">Clear</button>
             </div>
-            <div class="incoming-filter-meta">Search narrows the vehicle rows only — all PMB buckets stay visible so you can still drag into the correct bay/category.</div>
+            <div class="incoming-filter-meta">A vehicle can appear in more than one station row when several required jobs remain outstanding.</div>
           </div>
           <div class="workflow-board" id="workflow-board"></div>
         </section>
       </section>
+
 
       <section id="workshop" class="view">
         <div class="panel workshop-planner-panel">
@@ -866,9 +848,9 @@
     }());
   </script>
 
-  <script src="data-test-75.js?v=2026.07.15.02-private-cutover-hold"></script>
-  <script src="arb-labor-catalog.js?v=2026.07.15.02-private-cutover-hold"></script>
-  <script src="app.js?v=2026.07.15.02-private-cutover-hold"></script>
+  <script src="data-test-75.js?v=2026.07.15.03-control-board-planner-links"></script>
+  <script src="arb-labor-catalog.js?v=2026.07.15.03-control-board-planner-links"></script>
+  <script src="app.js?v=2026.07.15.03-control-board-planner-links"></script>
 
 </body>
 </html>

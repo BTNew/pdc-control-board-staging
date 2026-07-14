@@ -45,6 +45,26 @@ code += String.raw`
   assert(incomingVehicleDetailRow(rftVehicle, 'rft').includes('data-rft-collected-key="RFT001"'), 'RFT rows should expose a collected checkbox');
   assert(incomingVehicleDetailRow(pmbVehicle, 'pmb').includes('data-transfer-rft-stock="PMB001"'), 'PMB workflow/control-board rows should expose transfer to RFT action');
 
+  const multiStationVehicle = {
+    stock: 'PMB-MULTI',
+    pdcLocation: 'PMB',
+    manualLocation: 'PMB',
+    pdcRequiresTint: true,
+    pdcCompleteTint: false,
+    pdcRequiresHoist: true,
+    pdcCompleteHoist: false,
+  };
+  const completedTintVehicle = { ...multiStationVehicle, stock: 'PMB-DONE', pdcCompleteTint: true, pdcRequiresHoist: false };
+  const yardVehicle = { ...multiStationVehicle, stock: 'YARD-MULTI', pdcLocation: 'Yard Hold', manualLocation: 'Yard Hold' };
+  app.data = [multiStationVehicle, completedTintVehicle, yardVehicle];
+  assert(pmbVehicleNeedsStationWork(multiStationVehicle, 'TINT'), 'Required unfinished Tint work should appear on the Control Board');
+  assert(pmbVehicleNeedsStationWork(multiStationVehicle, 'HOIST'), 'One PMB vehicle should appear in every station row where work remains');
+  assert(!pmbVehicleNeedsStationWork(completedTintVehicle, 'TINT'), 'Completed station work must not remain on the Control Board');
+  assert(!pmbVehicleNeedsStationWork(yardVehicle, 'TINT'), 'Only vehicles currently at PMB belong on the Control Board');
+  assert(pmbVehiclesNeedingStationWork('TINT').map(vehicle => vehicle.stock).join(',') === 'PMB-MULTI', 'Tint row should contain only PMB vehicles needing Tint work');
+  assert(controlBoardStationVehicleHtml(multiStationVehicle, 'TINT').includes('data-open-stock="PMB-MULTI"'), 'Control Board station rows should open the vehicle');
+  assert(renderWorkflowBoard.toString().includes('data-open-workshop-stage'), 'Each Control Board station must expose an Open Bays route to Workshop Planner');
+
   const stageValues = PMB_STAGE_DEFS.map(def => def.value);
   ['BUS_4X4', 'TINT', 'HOIST', 'FITTING', 'FABRICATION', 'ELECTRICAL', 'TYRE', 'PIT_INSPECTION'].forEach(stage => {
     assert(stageValues.includes(stage), 'PMB bucket coverage missing ' + stage);

@@ -33,8 +33,9 @@ for (const metric of ['openThirdParty', 'stagnant', 'capacityAlerts', 'rftGateIs
   assert.ok(app.includes(metric), `Operational visibility is missing the ${metric} metric`);
 }
 
-assert.ok(app.includes("'has-triage-backlog'"), 'PMB unallocated overflow should use a distinct triage-backlog state');
-assert.ok(app.includes('badge neutral'), 'Triage backlog should use neutral treatment rather than permanent critical-red treatment');
+assert.ok(app.includes('function pmbVehicleNeedsStationWork('), 'Control Board should derive rows from outstanding PMB station work');
+assert.ok(app.includes('data-open-workshop-stage='), 'Control Board station rows should link directly to Workshop Planner bays');
+assert.ok(index.includes('A vehicle can appear in more than one station row'), 'Control Board should explain that multi-station work appears in every applicable row');
 assert.ok(styles.includes('.operational-visibility-panel'), 'Operational visibility styling is missing');
 
 console.log('Operational hardening checks passed');

@@ -26,7 +26,7 @@ Use this as the canonical maintenance workflow for the PDC Control Board project
 10. Report changed files, tests, live status and any remaining risks.
 
 ## Files with matching version numbers
-Current version identifier: `2026.07.15.02-private-cutover-hold`
+Current version identifier: `2026.07.15.03-control-board-planner-links`
 
 When bumping version, update all references in:
 - `app.js` (`APP_VERSION`)

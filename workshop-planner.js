@@ -599,6 +599,9 @@ function workshopSyncCompletedPlans(rows = workshopLoadPlans()) {
 
 function workshopStageVehicles(stage = '') {
   const normalizedStage = normalizePmbStage(stage);
+  if (typeof pmbVehiclesNeedingStationWork === 'function' && normalizedStage !== 'SUBLET') {
+    return pmbVehiclesNeedingStationWork(normalizedStage);
+  }
   const def = pmbStageJobDef(normalizedStage);
   return app.data.filter(vehicle => {
     if (statusCategory(vehicle) !== 'pmb') return false;
@@ -857,6 +860,12 @@ function renderWorkshopPlanner() {
   const root = document.querySelector('#workshop-planner-root');
   if (!root) return;
   const state = workshopState();
+  const requestedStage = normalizePmbStage(app.pendingWorkshopStage || '');
+  if (WORKSHOP_STAGE_SEQUENCE.includes(requestedStage)) {
+    state.stage = requestedStage;
+    state.selectedPlanId = '';
+    app.pendingWorkshopStage = '';
+  }
   let plans = workshopCascadeAndSave(workshopSyncCompletedPlans());
   if (state.selectedPlanId && !plans.some(entry => entry.id === state.selectedPlanId)) state.selectedPlanId = '';
   const selected = plans.find(entry => entry.id === state.selectedPlanId) || null;

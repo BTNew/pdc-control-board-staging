@@ -9,7 +9,7 @@ const app = fs.readFileSync(path.join(root, 'app.js'), 'utf8');
 const css = fs.readFileSync(path.join(root, 'styles.css'), 'utf8');
 const desktopCss = fs.readFileSync(path.join(root, 'desktop-operations.css'), 'utf8');
 const htmlFiles = ['index.html', 'no-vehicles.html', 'test-50.html', 'test-75.html', 'test-100.html'];
-const expectedVersion = '2026.07.15.02-private-cutover-hold';
+const expectedVersion = '2026.07.15.03-control-board-planner-links';
 
 assert.ok(app.includes(`const APP_VERSION = '${expectedVersion}';`));
 assert.match(app, /function productionGridHeaderHtml\(/);
