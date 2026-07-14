@@ -126,4 +126,21 @@ Next backend stages handle:
 received record → attachment text extraction → AI structured extraction → validation → review/apply
 ```
 
-Every actual vehicle mutation must go through controlled backend validation/RPC and audit history.
+Every actual vehicle mutation must go through controlled validation and audit history.
+
+## Reviewed Parts update format
+
+Parts staff can send one or more explicit blocks in an email:
+
+```text
+Stock: 12666620
+Parts: complete
+Notes: Towbar kit arrived
+
+Stock: 13010530
+Parts: stoppage
+Reason: Waiting on supplier backorder
+ETA: 25/07/2026
+```
+
+Accepted `Parts` actions are `complete`, `stoppage`, and `note`. The publisher creates a review proposal only. Staff must open **AI Intake Review** and choose **Apply reviewed update** or **Reject**; email never mutates a vehicle automatically. Applied and rejected decisions record operator and timestamp in the board audit history.

@@ -4,8 +4,8 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>PDC Control Board — 50 Vehicle Test</title>
-  <link rel="stylesheet" href="styles.css?v=2026.07.14.08-stage1-staff-feedback" />
-  <link rel="stylesheet" href="desktop-operations.css?v=2026.07.14.08-stage1-staff-feedback" />
+  <link rel="stylesheet" href="styles.css?v=2026.07.14.09-stage2-staff-automation" />
+  <link rel="stylesheet" href="desktop-operations.css?v=2026.07.14.09-stage2-staff-automation" />
 </head>
 <body>
   <div class="test-data-banner" style="position:sticky;top:0;z-index:9999;background:#7c2d12;color:#fff;padding:8px 14px;text-align:center;font-weight:700;letter-spacing:.02em;">TEST DATASET — 50 SAMPLE VEHICLES ONLY</div>
@@ -24,6 +24,8 @@
         <button class="nav-item active" data-view="dashboard" data-short="LOC">Vehicle Locations</button>
         <button class="nav-item" data-view="workflow" data-short="CB">Control Board</button>
         <button class="nav-item" data-view="parts" data-short="PA">Parts</button>
+        <button class="nav-item" data-view="emailreview" data-short="AI">AI Intake Review</button>
+        <button class="nav-item" data-view="sublet" data-short="SUB">Sublet</button>
         <button class="nav-item" data-view="rft" data-short="RFT">RFT</button>
         <button class="nav-item" data-view="completed" data-short="DONE">Completed vehicles</button>
         <button class="nav-item" data-view="deleted" data-short="DEL">Deleted vehicles</button>
@@ -404,6 +406,28 @@
               <span>Parts shows only what is coming, stoppages, and what is on order. Issued/signed-off vehicles are removed from this screen. RFT remains blocked until Parts is issued or not required.</span>
             </div>
             <div id="parts-home-content" class="parts-home-content"></div>
+          </section>
+        </div>
+      </section>
+
+      <section id="emailreview" class="view">
+        <div class="parts-home-layout email-review-layout">
+          <section class="panel parts-home-panel email-review-panel">
+            <div class="panel-header"><div><h2>AI Intake Review</h2><p>Structured Parts emails are proposals only. Review each stock number and action before applying it to the board.</p></div><span class="badge warning" id="email-review-count">0 pending</span></div>
+            <div class="table-toolbar"><label><span>Status</span><select id="email-review-status-filter"><option value="pending">Pending review</option><option value="applied">Applied</option><option value="rejected">Rejected</option><option value="all">All proposals</option></select></label></div>
+            <div class="parts-help-strip"><strong>Safety rule:</strong><span>Email never edits a vehicle directly. Apply and reject actions are recorded with operator and timestamp.</span></div>
+            <div id="email-intake-review-content"></div>
+          </section>
+        </div>
+      </section>
+
+      <section id="sublet" class="view">
+        <div class="parts-home-layout sublet-home-layout">
+          <section class="panel parts-home-panel sublet-home-panel">
+            <div class="panel-header"><div><h2>Sublet bookings</h2><p>Provider queue, purchase-order dates, bookings, expected returns, stoppage notes and controlled email drafts.</p></div><span class="badge neutral" id="sublet-summary">0 shown</span></div>
+            <div class="table-toolbar advanced-toolbar wide-toolbar"><label><span>Search</span><input id="sublet-search" type="search" placeholder="Stock, customer, provider or notes..."></label><label><span>Status</span><select id="sublet-status-filter"><option value="active">Active bookings</option><option value="overdue">Overdue</option><option value="returned">Returned</option><option value="all">All</option></select></label></div>
+            <div class="parts-help-strip"><strong>Sublet rule:</strong><span>SUBLET is a provider queue, not a numbered physical bay. Email actions open reviewed drafts and never send automatically.</span></div>
+            <div id="sublet-home-content"></div>
           </section>
         </div>
       </section>
@@ -830,7 +854,7 @@
     }());
   </script>
   <script src="vendor/qz/qz-tray.js?v=2.2.6"></script>
-  <script src="data-test-50.js?v=2026.07.14.08-stage1-staff-feedback"></script>
-  <script src="app.js?v=2026.07.14.08-stage1-staff-feedback"></script>
+  <script src="data-test-50.js?v=2026.07.14.09-stage2-staff-automation"></script>
+  <script src="app.js?v=2026.07.14.09-stage2-staff-automation"></script>
 </body>
 </html>

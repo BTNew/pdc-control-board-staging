@@ -93,6 +93,13 @@ code += String.raw`
   const riskVehicle = { stock: 'RISK001', pdcLocation: 'PMB', pdcRequiresParts: true, pdcPartsWorstEta: '25/07/2026', navisionKewdaleEta: '20/07/2026' };
   assert(partsEtaRisk(riskVehicle), 'Parts ETA after Kewdale ETA should be flagged as risk');
   assert(incomingVehicleDetailRow(riskVehicle, 'pmb').includes('PARTS RISK'), 'Vehicle Locations / Control Board row should display Parts risk');
+  const reviewVehicle = { stock: 'EMAIL001', pdcLocation: 'PMB', pdcRequiresParts: true, pdcPartsStoppage: true, pdcPartsStoppageReason: 'Old delay' };
+  const completeUpdates = emailReviewApplyUpdates(reviewVehicle, { id: 'email:1', intakeId: 'email', action: 'complete', notes: 'Parts arrived' });
+  assert(completeUpdates.pdcCompleteParts === true && completeUpdates.pdcPartsStoppage === false, 'Reviewed Parts complete email should prepare controlled completion updates');
+  const stoppageUpdates = emailReviewApplyUpdates(reviewVehicle, { id: 'email:2', intakeId: 'email', action: 'stoppage', reason: 'Supplier backorder', eta: '25/07/2026' });
+  assert(stoppageUpdates.pdcPartsStoppage === true && stoppageUpdates.pdcPartsWorstEta === '25/07/2026', 'Reviewed Parts stoppage email should prepare reason and ETA updates');
+  assert(subletIsOverdue({ pmbSubletExpectedReturnDate: '2000-01-01' }), 'Past Sublet expected return should be overdue');
+  assert(!subletIsOverdue({ pmbSubletExpectedReturnDate: '2000-01-01', pmbSubletActualReturnDate: '2000-01-02' }), 'Returned Sublet work should not remain overdue');
   assert(filterHeaderHtml.includes('data-workflow-clear-column-filters'), 'Active column filters should expose a clear action in the heading row');
   app.workflowFilters = { sort: 'oldest', bucket: '', work: '', required: '', completion: '', stoppage: '' };
   applyWorkflowHeaderFilter('work', 'no', 'tyre');
@@ -147,6 +154,7 @@ const context = {
   __lastBlobText,
 };
 context.window.alert = () => {};
+context.window.prompt = () => 'Test Operator';
 context.window.confirm = () => true;
 context.window.setTimeout = setTimeout;
 context.window.requestAnimationFrame = fn => fn();
