@@ -787,6 +787,7 @@ def write_generated(path: Path, vehicles: list[dict[str, Any]], reviews: list[di
   });
 }());
 """.replace("PAYLOAD", json.dumps(payload, indent=2, ensure_ascii=False))
+    path.parent.mkdir(parents=True, exist_ok=True)
     old = path.read_text(encoding="utf-8", errors="replace") if path.exists() else ""
     if old == content:
         return False

@@ -9,11 +9,14 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import subprocess
 import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+PRIVATE_GENERATED_OUTPUT = ROOT / "backend" / ".generated" / "email-board-data.js"
+STATIC_PUBLISH_CONFIRMATION = "YES_I_UNDERSTAND_THIS_COMMITS_OPERATIONAL_DATA"
 
 
 def run(cmd: list[str]) -> tuple[int, str]:
@@ -25,8 +28,12 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Pull pmbcontroller@gmail.com emails and update the website data file")
     parser.add_argument("--limit", type=int, default=10)
     parser.add_argument("--dry-run", action="store_true", help="Preview emails and generated records without posting/pushing")
-    parser.add_argument("--no-push", action="store_true", help="Generate email-board-data.js but do not commit/push")
+    parser.add_argument("--publish-static", action="store_true", help="Dangerous legacy mode: generate and push static operational data")
     args = parser.parse_args()
+
+    if args.publish_static and os.environ.get("PDC_ALLOW_STATIC_PUBLICATION") != STATIC_PUBLISH_CONFIRMATION:
+        print(json.dumps({"ok": False, "error": "Static publication is locked. Use authenticated shared persistence."}))
+        return 2
 
     bridge_cmd = [sys.executable, "backend/imap_bridge.py", "--limit", str(args.limit)]
     if args.dry_run:
@@ -37,8 +44,10 @@ def main() -> int:
         return bridge_code
 
     publisher_cmd = [sys.executable, "backend/email_board_publisher.py"]
-    if not args.dry_run and not args.no_push:
+    if args.publish_static and not args.dry_run:
         publisher_cmd.append("--commit-push")
+    else:
+        publisher_cmd.extend(["--output", str(PRIVATE_GENERATED_OUTPUT)])
     pub_code, pub_out = run(publisher_cmd)
     if pub_code != 0:
         print(pub_out)
@@ -47,8 +56,8 @@ def main() -> int:
     print(json.dumps({
         "ok": True,
         "email_bridge": bridge_out,
-        "website_publish": pub_out,
-        "normal_url": "https://btnew.github.io/pdc-control-board/"
+        "private_intake_generation": pub_out,
+        "static_publication_enabled": bool(args.publish_static)
     }, indent=2))
     return 0
 

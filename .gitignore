@@ -16,3 +16,4 @@ backend/.env
 backend/email_publish.log
 backend/.vehicle_order_email_monitor.lock
 backend/.vehicle_order_email_monitor_status.json
+backend/.generated/

@@ -2,10 +2,11 @@
 
 Use this as the canonical maintenance workflow for the PDC Control Board project.
 
-## Repository and public demo
+## Repository and deployment status
 - Local repo: `C:\Users\nwmgr\pdc-control-board`
-- GitHub repo: `https://github.com/BTNew/pdc-control-board`
-- Public/demo URL: `https://btnew.github.io/pdc-control-board/` — GitHub Pages is unauthenticated; do not deploy the operational dataset there.
+- GitHub repo: `https://github.com/BTNew/pdc-control-board` — **private as of 15 July 2026**.
+- Former Pages URL: `https://btnew.github.io/pdc-control-board/` — disabled and returning 404.
+- The operational website remains offline until authenticated shared hosting is ready.
 - Branch: `main`
 
 ## Required workflow: inspect → modify → test → browser-check → commit → push → approved-environment verify
@@ -25,7 +26,7 @@ Use this as the canonical maintenance workflow for the PDC Control Board project
 10. Report changed files, tests, live status and any remaining risks.
 
 ## Files with matching version numbers
-Current version identifier: `2026.07.15.01-audit-correctness-performance`
+Current version identifier: `2026.07.15.02-private-cutover-hold`
 
 When bumping version, update all references in:
 - `app.js` (`APP_VERSION`)
@@ -110,6 +111,8 @@ Do not treat a successful Pages check as production security or backend validati
 - Manual local overrides must remain higher priority than Navision/bundled values.
 - Do not commit private user/customer data, credentials, or generated backups.
 - Never deploy the operational bundled baseline to unauthenticated GitHub Pages. Use the zero-vehicle or synthetic fixture for public demonstrations.
+- `data.js` and `email-board-data.js` are sanitised zero-record fallbacks. Do not restore operational records to either file.
+- Windows task `PDC Email Website Updater` is disabled. Static publication additionally requires both `--publish-static` and the exact local `PDC_ALLOW_STATIC_PUBLICATION` safety gate; normal runs write only to ignored `backend/.generated/`.
 
 ## Avoiding regressions
 - Preserve compact UI and existing workflows unless asked.
