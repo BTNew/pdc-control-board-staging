@@ -14,6 +14,7 @@ import argparse
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 import urllib.error
@@ -228,17 +229,29 @@ def attachment_candidates(filename: str, attachment_dir: Path = DEFAULT_ATTACHME
     )
 
 
+def pdftotext_command() -> str:
+    candidates = [
+        shutil.which("pdftotext"),
+        r"C:\Program Files\Git\mingw64\bin\pdftotext.exe",
+        r"C:\Program Files\Git\usr\bin\pdftotext.exe",
+    ]
+    for candidate in candidates:
+        if candidate and Path(candidate).exists():
+            return candidate
+    return "pdftotext"
+
+
 def attachment_text_for_path(path: Path) -> str:
     ext = path.suffix.lower()
     if ext == ".pdf":
         try:
             result = subprocess.run(
-                ["pdftotext", str(path), "-"],
+                [pdftotext_command(), str(path), "-"],
                 text=True,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.DEVNULL,
                 timeout=20,
-                check=False,
+
             )
             return result.stdout if result.returncode == 0 else ""
         except Exception:
