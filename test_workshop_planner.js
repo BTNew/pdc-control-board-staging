@@ -71,7 +71,34 @@ assert.ok(!unchanged.changed, 'Hard-block policy must not silently cascade exist
 assert.strictEqual(unchanged.rows.find(row => row.vehicleKey === 'next').startAt, nextStart.toISOString(), 'A conflicting booking must never be moved automatically');
 assert.strictEqual(unchanged.rows.find(row => row.vehicleKey === 'next').hours, 3, 'Collision handling must retain the three-hour minimum estimate');
 const backToBack = { id: 'FABRICATION::back-to-back', vehicleKey: 'next', stage: 'FABRICATION', bay: 1, startAt: new Date(2026, 6, 14, 11, 0).toISOString(), hours: 3, status: 'planned' };
-assert.strictEqual(planner.workshopHasConflict(backToBack, [collisionRows[0]]), null, 'Back-to-back same-bay bookings must remain allowed');
+assert.strictEqual(planner.workshopHasConflict(backToBack, [{ ...collisionRows[0], status: 'planned' }]), null, 'Back-to-back same-bay bookings must remain allowed');
+
+global.selectedVehicle = key => ({ id: key });
+global.pmbBayNumber = () => 1;
+const overtimeNow = new Date(2026, 6, 14, 12, 0);
+const overtimeLiveRow = {
+  id: 'FABRICATION::overtime',
+  vehicleKey: 'overtime',
+  stage: 'FABRICATION',
+  bay: 1,
+  startAt: new Date(2026, 6, 14, 8, 0).toISOString(),
+  hours: 3,
+  status: 'started',
+};
+const overtimeCandidate = {
+  id: 'FABRICATION::after-overtime',
+  vehicleKey: 'after-overtime',
+  stage: 'FABRICATION',
+  bay: 1,
+  startAt: new Date(2026, 6, 14, 11, 0).toISOString(),
+  hours: 3,
+  status: 'planned',
+};
+assert.strictEqual(
+  planner.workshopHasConflict(overtimeCandidate, [overtimeLiveRow], overtimeNow),
+  overtimeLiveRow,
+  'An overtime live job must keep its physical bay blocked beyond its planned end',
+);
 const mechanicClashRows = [
   { id: 'FABRICATION::one', vehicleKey: 'one', stage: 'FABRICATION', bay: 1, startAt: new Date(2026, 6, 14, 8, 0).toISOString(), hours: 2, status: 'planned', assignee: 'Alex' },
   { id: 'FABRICATION::two', vehicleKey: 'two', stage: 'FABRICATION', bay: 2, startAt: new Date(2026, 6, 14, 9, 0).toISOString(), hours: 1, status: 'planned', assignee: 'Alex' },
@@ -155,6 +182,15 @@ for (const [startName, nextName, pathLabel] of [
   assert.ok(section.includes('workshopRequireNoBayConflict('), `${pathLabel} must hard-block same-bay overlaps before persistence`);
   assert.ok(section.includes('workshopRequireAvailableAssignee('), `${pathLabel} must reject overlapping mechanic assignments across bays`);
 }
+for (const [startName, nextName, pathLabel] of [
+  ['saveWorkshopDetailForm', 'startWorkshopPlan', 'detail edit'],
+  ['startWorkshopResize', 'workshopWeeklyCardHtml', 'duration resize'],
+]) {
+  const section = workshopFunctionSection(startName, nextName);
+  assert.ok(section.includes('workshopPersistVehiclePlanAction('), `${pathLabel} must commit planner, vehicle estimate and audit atomically`);
+  assert.ok(section.includes('if (!persisted)'), `${pathLabel} must stop when operator gating or transactional persistence fails`);
+  assert.ok(!section.includes('saveVehicleEdits('), `${pathLabel} must not write vehicle estimates outside the shared transaction`);
+}
 
 for (const selector of ['.workshop-board-shell', '.workshop-bay-lane', '.workshop-plan-chip', '.workshop-now-line', '.workshop-plan-chip.is-overtime', '.workshop-plan-chip.has-assignee-conflict', '.workshop-plan-chip.is-search-match', '.workshop-unallocated-drop', '.workshop-week-grid', '.workshop-week-card', '.workshop-return-card', '.workshop-job-line-row']) {
   assert.ok(css.includes(selector), `Workshop CSS is missing ${selector}`);
@@ -165,8 +201,8 @@ for (const file of htmlFiles) {
   const html = fs.readFileSync(path.join(root, file), 'utf8');
   assert.ok(html.includes('data-view="workshop"'), `${file} is missing the Workshop Planner navigation item`);
   assert.ok(html.includes('id="workshop-planner-root"'), `${file} is missing the Workshop Planner host`);
-  assert.ok(html.includes('workshop-planner.css?v=2026.07.14.14-workshop-hard-block-overlaps'), `${file} is missing the planner stylesheet`);
-  assert.ok(html.includes('workshop-planner.js?v=2026.07.14.14-workshop-hard-block-overlaps'), `${file} is missing the planner script`);
+  assert.ok(html.includes('workshop-planner.css?v=2026.07.14.15-workshop-overtime-atomic'), `${file} is missing the planner stylesheet`);
+  assert.ok(html.includes('workshop-planner.js?v=2026.07.14.15-workshop-overtime-atomic'), `${file} is missing the planner script`);
 }
 
 console.log('Workshop planner regression checks passed');

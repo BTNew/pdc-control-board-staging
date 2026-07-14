@@ -469,14 +469,16 @@ function workshopEntryInterval(entry = {}) {
   return { startDate, endDate, start: workshopMinuteOffset(startDate), hours };
 }
 
-function workshopHasConflict(candidate = {}, rows = workshopLoadPlans()) {
+function workshopHasConflict(candidate = {}, rows = workshopLoadPlans(), now = new Date()) {
   if (!candidate.bay || candidate.status === 'completed') return null;
-  const interval = workshopEntryInterval(candidate);
+  const candidateStart = workshopEntryStart(candidate);
+  const candidateEnd = workshopEntryEffectiveEnd(candidate, now);
   return rows.find(row => {
     if (row.id === candidate.id || row.status === 'completed') return false;
     if (row.stage !== candidate.stage || Number(row.bay) !== Number(candidate.bay)) return false;
-    const other = workshopEntryInterval(row);
-    return workshopIntervalsOverlap(interval.startDate.getTime(), interval.endDate.getTime(), other.startDate.getTime(), other.endDate.getTime());
+    const otherStart = workshopEntryStart(row);
+    const otherEnd = workshopEntryEffectiveEnd(row, now);
+    return workshopIntervalsOverlap(candidateStart.getTime(), candidateEnd.getTime(), otherStart.getTime(), otherEnd.getTime());
   }) || null;
 }
 
@@ -1252,18 +1254,17 @@ function saveWorkshopDetailForm(event) {
   if (!workshopRequireAvailableAssignee(candidate, otherRows)) return;
   const updatedRows = workshopCascadePlans(latestRows.map(row => row.id === entry.id ? candidate : row)).rows;
   const vehicle = workshopVehicle(entry.vehicleKey);
-  workshopPersistPlanAction(
+  const hoursMap = vehicle ? workshopEstimatedHoursMap(vehicle) : {};
+  if (vehicle) hoursMap[entry.stage] = candidate.hours;
+  const persisted = workshopPersistVehiclePlanAction(
     'Workshop plan details updated',
     updatedRows,
     vehicle,
+    vehicle ? { workshopEstimatedHoursByStage: hoursMap } : {},
     'Workshop plan details updated',
     { stage: pmbStageLabel(entry.stage), startAt: candidate.startAt, hours: candidate.hours, assignee: candidate.assignee || 'Unassigned' },
   );
-  if (vehicle) {
-    const hoursMap = workshopEstimatedHoursMap(vehicle);
-    hoursMap[entry.stage] = candidate.hours;
-    saveVehicleEdits(entry.vehicleKey, { workshopEstimatedHoursByStage: hoursMap }, { render: false });
-  }
+  if (!persisted) return;
   const state = workshopState();
   state.date = workshopEntryDate(candidate);
   workshopSaveView(state);
@@ -1537,17 +1538,19 @@ function startWorkshopResize(handle, event) {
     }
     const updatedRows = workshopCascadePlans(latestRows.map(row => row.id === entry.id ? candidate : row)).rows;
     const vehicle = workshopVehicle(entry.vehicleKey);
-    workshopPersistPlanAction(
+    const hoursMap = vehicle ? workshopEstimatedHoursMap(vehicle) : {};
+    if (vehicle) hoursMap[entry.stage] = candidate.hours;
+    const persisted = workshopPersistVehiclePlanAction(
       'Workshop plan duration changed',
       updatedRows,
       vehicle,
+      vehicle ? { workshopEstimatedHoursByStage: hoursMap } : {},
       'Workshop plan duration changed',
       { stage: pmbStageLabel(entry.stage), hours: candidate.hours },
     );
-    if (vehicle) {
-      const hoursMap = workshopEstimatedHoursMap(vehicle);
-      hoursMap[entry.stage] = candidate.hours;
-      saveVehicleEdits(entry.vehicleKey, { workshopEstimatedHoursByStage: hoursMap }, { render: false });
+    if (!persisted) {
+      renderWorkshopPlanner();
+      return;
     }
     workshopState().selectedPlanId = entry.id;
     renderWorkshopPlanner();

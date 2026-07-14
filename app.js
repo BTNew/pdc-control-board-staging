@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.07.14.14-workshop-hard-block-overlaps';
+const APP_VERSION = '2026.07.14.15-workshop-overtime-atomic';
 window.VEHICLE_TRACKING_DATA = window.VEHICLE_TRACKING_DATA || { report: {}, vehicles: [], toyotaMatches: {} };
 const EDITS_KEY = 'vehicleTrackingCoreNavisionOnlyEdits:v1';
 const ADDED_KEY = 'vehicleTrackingCoreNavisionOnlyVehicles:v1';

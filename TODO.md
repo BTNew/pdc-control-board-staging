@@ -6,9 +6,11 @@
 - [x] Mechanic overlaps across different bays are rejected separately from same-bay conflicts.
 - [x] Conflict alerts identify the occupied bay/vehicle and direct staff to choose another bay or time.
 - [x] Automatic cascade was removed; existing booking start times are never silently shifted.
+- [x] Overtime live jobs continue to occupy their physical bay until their effective live end, preventing unsafe bookings against a still-occupied bay.
+- [x] Detail edits and resize changes commit planner, vehicle estimate and audit state atomically; failed operator gating or persistence writes nothing.
 - [x] Parts-entry protection, planner blocker ownership, operator attribution, and atomic planner/vehicle/audit rollback remain covered by safety regressions.
 - [x] Full verification: Node 24 passed / 0 failed / 1 optional fixture skipped; backend 15 passed; local browser QA passed with no console errors.
-- [x] Release version `2026.07.14.14-workshop-hard-block-overlaps`; hard-block code commit `aa840d99b7ce2cd500f4f3ab35a193e3819e4d40`.
+- [x] Release version `2026.07.14.15-workshop-overtime-atomic`; hard-block code commit `aa840d99b7ce2cd500f4f3ab35a193e3819e4d40`.
 
 ## High priority
 - Add browser-level import → PMB → Parts → RFT and backup/restore failure-path coverage at the supported desktop sizes.
