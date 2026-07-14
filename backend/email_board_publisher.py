@@ -27,14 +27,15 @@ from typing import Any
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_ENV = ROOT / "backend" / ".env"
 DEFAULT_OUTPUT = ROOT / "email-board-data.js"
+DEFAULT_ATTACHMENT_DIR = ROOT / "backend" / ".imap_attachments"
 DEFAULT_LIMIT = 200
 
 WORK_KEYWORDS = {
     "pdcRequiresTint": [r"\btint\b", r"window tint"],
-    "pdcRequiresHoist": [r"\bhoist\b", r"lift kit", r"suspension"],
+    "pdcRequiresHoist": [r"\bhoist\b", r"lift kit", r"suspension", r"\bgvm\b", r"weight upgrade"],
     "pdcRequiresFitting": [
         r"\bfitting\b", r"bull\s*bar", r"tow\s*bar", r"winch", r"canopy", r"seat covers?",
-        r"floor mats?", r"accessor(?:y|ies)", r"fit\b",
+        r"floor mats?", r"accessor(?:y|ies)", r"fit\b", r"pdi\b", r"pre[- ]?delivery",
     ],
     "pdcRequiresFabrication": [r"fabricat", r"tray\b", r"service body", r"mine bar", r"weld"],
     "pdcRequiresElectrical": [
@@ -42,26 +43,33 @@ WORK_KEYWORDS = {
         r"\buhf\b", r"reverse alarm", r"wire\b", r"wiring",
     ],
     "pdcRequiresTyre": [r"\btyre\b", r"\btire\b", r"wheel alignment", r"alignment"],
-    "pdcRequiresPitInspection": [r"pit inspection", r"\bpit\b", r"qc\b", r"quality check"],
+    "pdcRequiresPitInspection": [r"pit inspection", r"pit and weigh", r"\bpit\b", r"qc\b", r"quality check"],
     "pdcRequiresParts": [r"parts?", r"ordered", r"purchase order", r"\bpo\b"],
 }
 
 FIELD_PATTERNS = {
     "stock": [
-        r"(?:stock(?:\s*(?:no|number))?|stock\s*#|sn)\s*[:#\-]\s*([A-Z0-9][A-Z0-9\-]{4,24})",
+        r"\bref\.?[ \t]*[:#\-]?[ \t]*(\d{5,12})\b",
+        r"\bstock(?:[ \t]*(?:no\.?|number)|[ \t]*#)?[ \t]*[:#\-]?[ \t]*(?:\r?\n[ \t]*)?([A-Z0-9][A-Z0-9\-]{4,24})",
         r"\b((?:IS|NS|TY|PMB|PDC)\d{5,12})\b",
     ],
     "jobCard": [
-        r"(?:job\s*card|jobcard|jc)\s*[:#\-]\s*(JC?\s*\d{4,12}|[A-Z]{0,3}\d{5,12})",
+        r"(?:repair\s*order\s*no\.?|job\s*card|jobcard|jc)\s*[:#\-]?\s*(JC?\s*\d{4,12}|J\s*\d{5,12}|[A-Z]{0,3}\d{5,12})",
     ],
     "keyNumber": [
-        r"(?:key(?:\s*(?:no|number|tag))?|tag)\s*[:#\-]\s*(\d{1,4})",
+        r"(?:key(?:\s*(?:no|number|tag))?|tag(?:\s*no)?)\s*[:#\-]\s*(\d{1,4})",
     ],
     "customer": [
-        r"(?:customer|client|name)\s*[:#\-]\s*([^\r\n]{2,80})",
+        r"Customer\s*[:#\-]\s*([^\r\n]{2,120})",
+        r"CUSTOMER\s*[:#\-]?\s*(?:\r?\n\s*\d+)?(?:\r?\n\s*Cash)?\s*\r?\n\s*([^\r\n]{2,120})",
+        r"(?:client|name)\s*[:#\-]\s*([^\r\n]{2,80})",
     ],
     "vehicle": [
-        r"(?:vehicle|model)\s*[:#\-]\s*([^\r\n]{2,100})",
+        r"VEHICLE\s*[:#\-]?\s*\r?\n\s*([^\r\n]{2,120})",
+        r"\b(Nissan\s+[^\r\n]{8,100})",
+        r"\b(Isuzu\s+[^\r\n]{8,100})",
+        r"\b(Toyota\s+[^\r\n]{8,100})",
+        r"(?:vehicle|model)\s*[:#\-]\s*([^\r\n]{2,120})",
     ],
     "rego": [
         r"(?:rego|registration)\s*[:#\-]\s*([A-Z0-9\- ]{2,12})",
@@ -168,6 +176,60 @@ def clean(value: str) -> str:
     return value[:120]
 
 
+def normalize_attachment_names(value: Any) -> list[str]:
+    if isinstance(value, list):
+        return [str(item or "").strip() for item in value if str(item or "").strip()]
+    if isinstance(value, str) and value.strip():
+        try:
+            parsed = json.loads(value)
+            if isinstance(parsed, list):
+                return [str(item or "").strip() for item in parsed if str(item or "").strip()]
+        except Exception:
+            return [item.strip() for item in value.split(",") if item.strip()]
+    return []
+
+
+def attachment_candidates(filename: str, attachment_dir: Path = DEFAULT_ATTACHMENT_DIR) -> list[Path]:
+    safe = Path(filename).name
+    if not safe or not attachment_dir.exists():
+        return []
+    return sorted(
+        (path for path in attachment_dir.glob(f"*_{safe}") if path.is_file()),
+        key=lambda path: path.stat().st_mtime,
+        reverse=True,
+    )
+
+
+def attachment_text_for_path(path: Path) -> str:
+    ext = path.suffix.lower()
+    if ext == ".pdf":
+        try:
+            result = subprocess.run(
+                ["pdftotext", str(path), "-"],
+                text=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.DEVNULL,
+                timeout=20,
+                check=False,
+            )
+            return result.stdout if result.returncode == 0 else ""
+        except Exception:
+            return ""
+    if ext in {".txt", ".csv"}:
+        return path.read_text(encoding="utf-8", errors="replace")[:20000]
+    return ""
+
+
+def attachment_text(record: dict[str, Any]) -> str:
+    chunks: list[str] = []
+    for filename in normalize_attachment_names(record.get("attachment_names")):
+        for path in attachment_candidates(filename)[:1]:
+            text = attachment_text_for_path(path)
+            if text.strip():
+                chunks.append(f"\n--- Attachment: {filename} ---\n{text}")
+    return "\n".join(chunks)[:50000]
+
+
 def normal_stock(value: str) -> str:
     return re.sub(r"[^A-Z0-9\-]", "", (value or "").upper())[:32]
 
@@ -193,14 +255,15 @@ def infer_work_flags(text: str) -> dict[str, bool]:
 def parse_vehicle(record: dict[str, Any]) -> ParsedVehicle | None:
     subject = clean(str(record.get("subject") or ""))
     body = str(record.get("parsed_text") or record.get("raw_body") or "")
-    text = f"{subject}\n{body}"
+    attachments = attachment_text(record)
+    text = f"{subject}\n{body}\n{attachments}"
     stock = normal_stock(first_match(text, FIELD_PATTERNS["stock"]))
-    job = normal_job(first_match(text, FIELD_PATTERNS["jobCard"]))
-    key_no = clean(first_match(text, FIELD_PATTERNS["keyNumber"]))
-    customer = clean(first_match(text, FIELD_PATTERNS["customer"]))
-    model = clean(first_match(text, FIELD_PATTERNS["vehicle"]))
-    rego = clean(first_match(text, FIELD_PATTERNS["rego"])).upper()
-    eta = clean(first_match(text, FIELD_PATTERNS["eta"]))
+    job = normal_job(first_match(attachments, FIELD_PATTERNS["jobCard"]) or first_match(text, FIELD_PATTERNS["jobCard"]))
+    key_no = clean(first_match(attachments, FIELD_PATTERNS["keyNumber"]) or first_match(text, FIELD_PATTERNS["keyNumber"]))
+    customer = clean(first_match(attachments, FIELD_PATTERNS["customer"]) or first_match(text, FIELD_PATTERNS["customer"]))
+    model = clean(first_match(attachments, FIELD_PATTERNS["vehicle"]) or first_match(text, FIELD_PATTERNS["vehicle"]))
+    rego = clean(first_match(attachments, FIELD_PATTERNS["rego"]) or first_match(text, FIELD_PATTERNS["rego"])).upper()
+    eta = clean(first_match(attachments, FIELD_PATTERNS["eta"]) or first_match(text, FIELD_PATTERNS["eta"]))
 
     # Require at least one durable vehicle identifier. Ignore Google/security/setup emails.
     if not stock and not job:
@@ -353,7 +416,7 @@ def main() -> int:
         raise RuntimeError("SUPABASE_SERVICE_ROLE_KEY is required in backend/.env")
 
     records = supabase_get("ai_email_intake", {
-        "select": "id,subject,sender_email,received_at,created_at,parsed_text,raw_body,status,graph_message_id",
+        "select": "id,subject,sender_email,received_at,created_at,parsed_text,raw_body,status,graph_message_id,attachment_names",
         "order": "created_at.desc",
         "limit": str(args.limit),
     }, key)
