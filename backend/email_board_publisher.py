@@ -61,10 +61,11 @@ FIELD_PATTERNS = {
     ],
     "customer": [
         r"Customer\s*[:#\-]\s*([^\r\n]{2,120})",
-        r"CUSTOMER\s*[:#\-]?\s*(?:\r?\n\s*\d+)?(?:\r?\n\s*Cash)?\s*\r?\n\s*([^\r\n]{2,120})",
+        r"CUSTOMER\s*[:#\-]?\s*\r?\n\s*([^\r\n]{2,120})",
         r"(?:client|name)\s*[:#\-]\s*([^\r\n]{2,80})",
     ],
     "vehicle": [
+        r"Make\s*&\s*([^\r\n]{2,120})",
         r"VEHICLE\s*[:#\-]?\s*\r?\n\s*([^\r\n]{2,120})",
         r"\b(Nissan\s+[^\r\n]{8,100})",
         r"\b(Isuzu\s+[^\r\n]{8,100})",
@@ -270,8 +271,14 @@ def parse_vehicle(record: dict[str, Any]) -> ParsedVehicle | None:
         return None
     if not stock:
         stock = f"PENDING-{job}"
-    if not customer:
-        customer = "Email intake - review"
+    subject_customer = re.sub(r"\s+[-–−]\s*\d{5,12}.*$", "", subject).strip()
+    bad_customer = (
+        not customer
+        or customer.isdigit()
+        or customer.lower().rstrip(":") in {"price group", "fleet customer", "fleet amount", "customer"}
+    )
+    if bad_customer:
+        customer = subject_customer if subject_customer and subject_customer != subject else "Email intake - review"
     if not model:
         model = "Vehicle from email intake"
 
