@@ -245,7 +245,9 @@ def load_processed(path: Path) -> set[str]:
 
 def save_processed(path: Path, processed: set[str]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps({"processed": sorted(processed)}, indent=2), encoding="utf-8")
+    temporary = path.with_suffix(path.suffix + ".tmp")
+    temporary.write_text(json.dumps({"processed": sorted(processed)}, indent=2), encoding="utf-8")
+    os.replace(temporary, path)
 
 
 def connect_imap(host: str, port: int, username: str, password: str) -> imaplib.IMAP4_SSL:

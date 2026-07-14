@@ -52,6 +52,13 @@ class EmailIntakeSecurityTests(unittest.TestCase):
                 self.assertEqual(publisher.attachment_text_for_path(path), "")
         finally:
             publisher.MAX_ATTACHMENT_BYTES = original_limit
+    def test_processed_message_ids_round_trip_atomically(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            state = Path(tmp) / "processed.json"
+            expected = {"imap:<one@example>", "imap:<two@example>"}
+            imap_bridge.save_processed(state, expected)
+            self.assertEqual(imap_bridge.load_processed(state), expected)
+            self.assertFalse(state.with_suffix(state.suffix + ".tmp").exists())
 
 
 if __name__ == "__main__":

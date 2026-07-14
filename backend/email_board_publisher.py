@@ -590,7 +590,7 @@ def git_commit_push(message: str, paths: list[Path]) -> bool:
     status = run(["git", "status", "--short", "--", *[str(p.relative_to(ROOT)).replace("\\", "/") for p in paths]])
     if not status:
         return False
-    run(["git", "commit", "-m", message])
+    run(["git", "commit", "--only", "-m", message, "--", *[str(p.relative_to(ROOT)).replace("\\", "/") for p in paths]])
     run(["git", "push", "origin", "main"])
     return True
 

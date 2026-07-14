@@ -1,6 +1,7 @@
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 import email_board_publisher as publisher
 
@@ -73,6 +74,13 @@ WIRE PARKING SENSOR EXTENSION
         self.assertNotIn("sourceEmailSubject", sanitized)
         self.assertNotIn("sourceEmailSender", sanitized)
         self.assertEqual(sanitized["source"], "Email intake")
+    def test_git_commit_is_scoped_to_generated_paths(self):
+        output = publisher.ROOT / "email-board-data.js"
+        with mock.patch.object(publisher, "run", side_effect=["", "M email-board-data.js", "", ""]) as run:
+            self.assertTrue(publisher.git_commit_push("publish", [output]))
+        commit_cmd = run.call_args_list[2].args[0]
+        self.assertEqual(commit_cmd[:3], ["git", "commit", "--only"])
+        self.assertEqual(commit_cmd[-2:], ["--", "email-board-data.js"])
 
 
 if __name__ == "__main__":
