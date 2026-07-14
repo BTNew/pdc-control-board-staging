@@ -10250,10 +10250,11 @@ textarea {
   align-items: center !important;
   justify-content: center !important;
   gap: 3px !important;
+  position: relative !important;
   width: 100% !important;
   min-width: 0 !important;
   min-height: 26px !important;
-  padding: 3px 4px !important;
+  padding: 3px 17px 3px 4px !important;
   border: 1px solid #d8e0e8 !important;
   border-radius: 4px !important;
   background: #f3f5f7 !important;
@@ -10309,6 +10310,31 @@ textarea {
 }
 .incoming-work-check:not(.is-required):not(.is-complete):not(.is-blocked) .incoming-work-box {
   opacity: .35 !important;
+}
+.incoming-work-transfer {
+  position: absolute !important;
+  right: 2px !important;
+  bottom: 2px !important;
+  width: 14px !important;
+  height: 14px !important;
+  min-width: 14px !important;
+  padding: 0 !important;
+  border: 2px solid #dc2626 !important;
+  border-radius: 2px !important;
+  background: #fff !important;
+  color: transparent !important;
+  cursor: pointer !important;
+  appearance: auto !important;
+}
+.incoming-work-transfer:focus {
+  outline: 2px solid rgba(220, 38, 38, .35) !important;
+  outline-offset: 1px !important;
+}
+.incoming-work-check.is-current-stage .incoming-work-transfer {
+  border-color: #16a34a !important;
+}
+.incoming-work-check.is-current-stage {
+  box-shadow: inset 0 0 0 1px rgba(22, 163, 74, .2) !important;
 }
 
 /* Compact, readable status and action tracks. */

@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.07.14.02-email-board-sync';
+const APP_VERSION = '2026.07.14.03-work-transfer-dropdown';
 window.VEHICLE_TRACKING_DATA = window.VEHICLE_TRACKING_DATA || { report: {}, vehicles: [], toyotaMatches: {} };
 const EDITS_KEY = 'vehicleTrackingCoreNavisionOnlyEdits:v1';
 const ADDED_KEY = 'vehicleTrackingCoreNavisionOnlyVehicles:v1';
@@ -217,6 +217,10 @@ function pmbStageJobDef(stage = '') {
   return key ? PDC_JOB_BY_KEY.get(key) : null;
 }
 
+function pmbStageForPdcJob(def = {}) {
+  const match = PRODUCTION_FLOW_DEFS.find(item => item.jobKey === def?.key);
+  return match ? normalizePmbStage(match.stage) : '';
+}
 
 function pdcJobFieldSuffix(def = {}) {
   const clean = String(def.key || '').trim();
@@ -2940,6 +2944,7 @@ function renderWorkflowBoard() {
     <div class="workflow-collapsible-board" data-pmb-board>${priorityHtml}${laneHtml}</div>
   `;
   bindPmbDragBoard(host);
+  bindPmbWorkTransferSelects(host);
   bindFixFirstRows(host);
   revealSingleVehicleSearchResult(host, filteredRows, filters.search, 'workflow');
   updateInlineSelectionBars(filteredRows);
@@ -3443,11 +3448,15 @@ function pmbRequiredWorkLabels(vehicle = {}) {
   return pdcRequirementDefinitions(vehicle).map(item => `${item.label}${pdcJobComplete(vehicle, item) ? ' done' : ' required'}`);
 }
 
-function incomingWorkChecklistHtml(vehicle = {}) {
+function incomingWorkChecklistHtml(vehicle = {}, options = {}) {
+  const key = vehicleKey(vehicle);
+  const showStationTransfer = options.stationTransfer === true && statusCategory(vehicle) === 'pmb';
+  const currentStage = normalizePmbStage(inferredPmbStage(vehicle));
   return `<div class="incoming-work-checks pdc-station-strip" aria-label="Required work stations">${pdcJobDefsPartsFirst().map(def => {
     const required = pdcJobRequired(vehicle, def);
     const complete = pdcJobComplete(vehicle, def);
-    const stageJobKey = PMB_STAGE_TO_JOB_KEY[normalizePmbStage(inferredPmbStage(vehicle))] || '';
+    const stage = pmbStageForPdcJob(def);
+    const stageJobKey = PMB_STAGE_TO_JOB_KEY[currentStage] || '';
     const blocked = def.key === 'parts'
       ? isActivePartsStoppage(vehicle)
       : Boolean(isPdcBlocked(vehicle) && stageJobKey === def.key);
@@ -3456,10 +3465,18 @@ function incomingWorkChecklistHtml(vehicle = {}) {
     if (required) classes.push('is-required');
     if (complete) classes.push('is-complete');
     if (blocked) classes.push('is-blocked');
+    if (stage && currentStage === stage) classes.push('is-current-stage');
     const state = complete ? 'complete' : blocked ? 'blocked' : required ? 'required' : 'not required';
     const marker = complete ? '✓' : blocked ? '!' : required ? '•' : '–';
+    const transfer = showStationTransfer && stage
+      ? `<select class="incoming-work-transfer" data-pmb-work-transfer-key="${escapeHtml(key)}" data-pmb-work-transfer-stage="${escapeHtml(stage)}" aria-label="Move ${escapeHtml(displayStockNumber(vehicle) || key)} to ${escapeHtml(pmbStageLabel(stage))}">
+          <option value="">↧</option>
+          <option value="${escapeHtml(stage)}">To ${escapeHtml(pmbStageLabel(stage))}</option>
+        </select>`
+      : '';
     return `<span class="${classes.join(' ')}" title="${escapeHtml(required || complete ? pdcJobCompletionTitle(vehicle, def) : `${pdcGridJobLabel(def)} not required`)}" aria-label="${escapeHtml(`${pdcGridJobLabel(def)} ${state}`)}">
       <span class="incoming-work-box" aria-hidden="true">${marker}</span>
+      ${transfer}
       <span class="incoming-work-label">${escapeHtml(pdcGridJobLabel(def))}</span>
     </span>`;
   }).join('')}</div>`;
@@ -3485,7 +3502,7 @@ function incomingVehicleDetailRow(vehicle = {}, bucketKey = '', options = {}) {
   const rego = vehicle.rego || vehicle.registration || '—';
   const vin = vehicle.vin || vehicle.VIN || vehicle.chassis || vehicle.chassisNo || '—';
   const age = pmbAgeLabel(vehicle);
-  const workChecks = incomingWorkChecklistHtml(vehicle);
+  const workChecks = incomingWorkChecklistHtml(vehicle, { stationTransfer: bucketKey === 'pmb' && options.stationTransfer !== false });
   const required = pmbRequiredWorkLabels(vehicle).join(', ') || 'No PMB work flagged';
   const stage = inferredPmbStage(vehicle);
   const rowStatus = incomingGridStatusLabel(vehicle, bucketKey);
@@ -3590,12 +3607,26 @@ function renderIncomingDashboardBoard() {
     select.addEventListener('click', event => event.stopPropagation());
     select.addEventListener('change', () => updatePmbBaySubletProvider(select.dataset.pmbBayProviderKey, select.dataset.pmbBayProviderStage, select.value));
   });
+  bindPmbWorkTransferSelects(host);
   bindFixFirstRows(host);
   bindRftCollectedInputs(host);
   bindIncomingCardSelection(host);
   revealSingleVehicleSearchResult(host, filteredRows, filters.search, 'incoming');
   updateInlineSelectionBars(filteredRows);
   updateCollapseToggleButtons();
+}
+
+function bindPmbWorkTransferSelects(host = document) {
+  $$('[data-pmb-work-transfer-key]', host).forEach(select => {
+    select.addEventListener('click', event => event.stopPropagation());
+    select.addEventListener('change', event => {
+      event.stopPropagation();
+      const stage = select.value || select.dataset.pmbWorkTransferStage || '';
+      if (!stage) return;
+      void movePmbVehicleToStage(select.dataset.pmbWorkTransferKey, stage);
+      select.value = '';
+    });
+  });
 }
 
 function bindIncomingCardSelection(host = document) {

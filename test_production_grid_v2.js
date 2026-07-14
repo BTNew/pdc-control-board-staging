@@ -9,11 +9,14 @@ const app = fs.readFileSync(path.join(root, 'app.js'), 'utf8');
 const css = fs.readFileSync(path.join(root, 'styles.css'), 'utf8');
 const desktopCss = fs.readFileSync(path.join(root, 'desktop-operations.css'), 'utf8');
 const htmlFiles = ['index.html', 'no-vehicles.html', 'test-50.html', 'test-75.html', 'test-100.html'];
-const expectedVersion = '2026.07.14.02-email-board-sync';
+const expectedVersion = '2026.07.14.03-work-transfer-dropdown';
 
 assert.ok(app.includes(`const APP_VERSION = '${expectedVersion}';`));
 assert.match(app, /function productionGridHeaderHtml\(/);
 assert.match(app, /function incomingWorkChecklistHtml\(/);
+assert.match(app, /data-pmb-work-transfer-key/);
+assert.match(app, /function bindPmbWorkTransferSelects\(/);
+assert.match(app, /movePmbVehicleToStage\(select\.dataset\.pmbWorkTransferKey, stage\)/);
 assert.match(app, /class="incoming-work-checks pdc-station-strip"/);
 assert.match(app, /pdc-production-grid-row/);
 assert.match(app, /pdc-production-grid-static-row/);
