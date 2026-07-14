@@ -1,5 +1,15 @@
 # TODO
 
+## Completed — Workshop Planner hard-block release (14 July 2026)
+- [x] Same-bay overlapping bookings are rejected; exact back-to-back bookings remain allowed.
+- [x] Collision checks cover daily drag/drop, detail edits, resize, weekly moves, starting work, and job-allocation duration recalculation.
+- [x] Mechanic overlaps across different bays are rejected separately from same-bay conflicts.
+- [x] Conflict alerts identify the occupied bay/vehicle and direct staff to choose another bay or time.
+- [x] Automatic cascade was removed; existing booking start times are never silently shifted.
+- [x] Parts-entry protection, planner blocker ownership, operator attribution, and atomic planner/vehicle/audit rollback remain covered by safety regressions.
+- [x] Full verification: Node 24 passed / 0 failed / 1 optional fixture skipped; backend 15 passed; local browser QA passed with no console errors.
+- [x] Release version `2026.07.14.14-workshop-hard-block-overlaps`; hard-block code commit `aa840d99b7ce2cd500f4f3ab35a193e3819e4d40`.
+
 ## High priority
 - Add browser-level import → PMB → Parts → RFT and backup/restore failure-path coverage at the supported desktop sizes.
 - Plan permanent canonical vehicle IDs and alias-conflict migration as part of the shared backend rather than changing live identities piecemeal.

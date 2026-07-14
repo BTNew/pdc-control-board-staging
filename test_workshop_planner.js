@@ -80,6 +80,22 @@ assert.ok(planner.workshopEntryHasAssigneeConflict(mechanicClashRows[0], mechani
 const sameBayCascadeRows = mechanicClashRows.map(row => ({ ...row, stage: 'FABRICATION', bay: 1 }));
 assert.ok(!planner.workshopEntryHasAssigneeConflict(sameBayCascadeRows[0], sameBayCascadeRows), 'Same-bay work should rely on the bay collision rule instead of a duplicate mechanic warning');
 
+global.displayStockNumber = vehicle => vehicle.id || '';
+global.vehicleJobcardNumber = vehicle => vehicle.jobcard || '';
+global.pmbStageLabel = stage => stage === 'FABRICATION' ? 'Fab' : stage;
+const conflictAlerts = [];
+global.window = { alert: message => conflictAlerts.push(String(message)) };
+assert.strictEqual(
+  planner.workshopRequireNoBayConflict(collisionRows[1], collisionRows),
+  false,
+  'The same-bay hard-block helper must reject an overlapping booking',
+);
+assert.match(
+  conflictAlerts.at(-1) || '',
+  /Fab Bay 1 already has active booked during that time\. Overlapping workshop bookings are blocked; choose another bay or time\./,
+  'The operator must receive a clear bay, vehicle and resolution message',
+);
+
 assert.ok(app.includes("case 'workshop':"), 'Main renderer is missing the Workshop Planner view');
 assert.ok(app.includes("workshop: 'Workshop Planner'"), 'Workshop Planner page title is missing');
 assert.ok(app.includes('const PMB_SCHEDULE_WORK_START_HOUR = 8;'), 'Legacy PMB schedule start should match the workshop day');
@@ -120,6 +136,25 @@ assert.ok(!source.includes('max="8"'), 'Workshop hours must not be capped at eig
 assert.ok(!source.includes('Scheduled other days'), 'The Scheduled other days box should be removed');
 assert.ok(!source.includes('A started, stopped or completed job cannot be removed from the planner'), 'Live jobs should be returnable through the protected choice flow');
 assert.ok(source.includes('data-workshop-resize-plan'), 'Duration resize control is missing');
+
+const workshopFunctionSection = (startName, nextName) => {
+  const start = source.indexOf(`function ${startName}`);
+  const end = source.indexOf(`function ${nextName}`, start + 1);
+  assert.ok(start >= 0 && end > start, `Could not isolate ${startName} for collision-path verification`);
+  return source.slice(start, end);
+};
+for (const [startName, nextName, pathLabel] of [
+  ['scheduleWorkshopVehicle', 'saveWorkshopDetailForm', 'daily drag/drop'],
+  ['saveWorkshopDetailForm', 'startWorkshopPlan', 'detail edit'],
+  ['startWorkshopPlan', 'completeWorkshopPlan', 'start work'],
+  ['startWorkshopResize', 'workshopWeeklyCardHtml', 'duration resize'],
+  ['moveWorkshopWeeklyPlan', 'openWorkshopWeeklyView', 'weekly move'],
+  ['openWorkshopVehicleJob', 'setupWorkshopPlannerClock', 'job-allocation duration'],
+]) {
+  const section = workshopFunctionSection(startName, nextName);
+  assert.ok(section.includes('workshopRequireNoBayConflict('), `${pathLabel} must hard-block same-bay overlaps before persistence`);
+  assert.ok(section.includes('workshopRequireAvailableAssignee('), `${pathLabel} must reject overlapping mechanic assignments across bays`);
+}
 
 for (const selector of ['.workshop-board-shell', '.workshop-bay-lane', '.workshop-plan-chip', '.workshop-now-line', '.workshop-plan-chip.is-overtime', '.workshop-plan-chip.has-assignee-conflict', '.workshop-plan-chip.is-search-match', '.workshop-unallocated-drop', '.workshop-week-grid', '.workshop-week-card', '.workshop-return-card', '.workshop-job-line-row']) {
   assert.ok(css.includes(selector), `Workshop CSS is missing ${selector}`);
