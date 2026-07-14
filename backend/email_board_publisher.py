@@ -248,13 +248,18 @@ def attachment_text_for_path(path: Path) -> str:
     return ""
 
 
-def attachment_text(record: dict[str, Any]) -> str:
-    chunks: list[str] = []
+def attachment_text_chunks(record: dict[str, Any]) -> list[tuple[str, str]]:
+    chunks: list[tuple[str, str]] = []
     for filename in normalize_attachment_names(record.get("attachment_names")):
         for path in attachment_candidates(filename)[:1]:
             text = attachment_text_for_path(path)
             if text.strip():
-                chunks.append(f"\n--- Attachment: {filename} ---\n{text}")
+                chunks.append((filename, text))
+    return chunks
+
+
+def attachment_text(record: dict[str, Any]) -> str:
+    chunks = [f"\n--- Attachment: {filename} ---\n{text}" for filename, text in attachment_text_chunks(record)]
     return "\n".join(chunks)[:50000]
 
 
@@ -266,7 +271,30 @@ def normal_job(value: str) -> str:
     value = re.sub(r"\s+", "", (value or "").upper())
     if value and value.isdigit():
         return f"JC{value}"
+    if value.startswith("J") and not value.startswith("JC") and value[1:].isdigit():
+        return f"JC{value[1:]}"
     return value[:32]
+
+
+def extract_stocks(text: str) -> list[str]:
+    stocks: list[str] = []
+    for pattern in FIELD_PATTERNS["stock"]:
+        for match in re.finditer(pattern, text or "", flags=re.IGNORECASE):
+            stock = normal_stock(match.group(1))
+            if stock and stock not in stocks:
+                stocks.append(stock)
+    return stocks
+
+
+def extract_jobs(text: str) -> list[str]:
+    jobs: list[str] = []
+    patterns = FIELD_PATTERNS["jobCard"] + [r"\b(JC\s*\d{5,12}|J\s*\d{5,12})\s*/\s*\d+"]
+    for pattern in patterns:
+        for match in re.finditer(pattern, text or "", flags=re.IGNORECASE):
+            job = normal_job(match.group(1))
+            if job and job not in jobs:
+                jobs.append(job)
+    return jobs
 
 
 def infer_work_flags(text: str) -> dict[str, bool]:
@@ -280,13 +308,10 @@ def infer_work_flags(text: str) -> dict[str, bool]:
     return flags
 
 
-def parse_vehicle(record: dict[str, Any]) -> ParsedVehicle | None:
-    subject = clean(str(record.get("subject") or ""))
-    body = str(record.get("parsed_text") or record.get("raw_body") or "")
-    attachments = attachment_text(record)
+def parse_vehicle_from_text(record: dict[str, Any], subject: str, body: str, attachments: str, stock_hint: str = "") -> ParsedVehicle | None:
     text = f"{subject}\n{body}\n{attachments}"
-    stock = normal_stock(first_match(text, FIELD_PATTERNS["stock"]))
-    job = normal_job(first_match(attachments, FIELD_PATTERNS["jobCard"]) or first_match(text, FIELD_PATTERNS["jobCard"]))
+    stock = normal_stock(stock_hint or first_match(text, FIELD_PATTERNS["stock"]))
+    job = normal_job(first_match(attachments, FIELD_PATTERNS["jobCard"]) or first_match(text, FIELD_PATTERNS["jobCard"]) or (extract_jobs(attachments) or extract_jobs(text) or [""])[0])
     key_no = clean(first_match(attachments, FIELD_PATTERNS["keyNumber"]) or first_match(text, FIELD_PATTERNS["keyNumber"]))
     customer = clean(first_match(attachments, FIELD_PATTERNS["customer"]) or first_match(text, FIELD_PATTERNS["customer"]))
     model = clean(first_match(attachments, FIELD_PATTERNS["vehicle"]) or first_match(text, FIELD_PATTERNS["vehicle"]))
@@ -349,6 +374,47 @@ def parse_vehicle(record: dict[str, Any]) -> ParsedVehicle | None:
         **flags,
     )
     return vehicle
+
+
+def parse_vehicles(record: dict[str, Any]) -> list[ParsedVehicle]:
+    subject = clean(str(record.get("subject") or ""))
+    body = str(record.get("parsed_text") or record.get("raw_body") or "")
+    chunks = attachment_text_chunks(record)
+
+    grouped: dict[str, list[str]] = {}
+    unkeyed: list[str] = []
+    for filename, chunk_text in chunks:
+        attachment_block = f"\n--- Attachment: {filename} ---\n{chunk_text}"
+        stocks = extract_stocks(chunk_text)
+        if stocks:
+            for stock in stocks:
+                grouped.setdefault(stock, []).append(attachment_block)
+        else:
+            unkeyed.append(attachment_block)
+
+    vehicles: list[ParsedVehicle] = []
+    if grouped:
+        # Attach unkeyed cover/companion attachments to every stock-specific group, but keep
+        # different stock PDFs separate so one email can create multiple jobs.
+        for stock, parts in grouped.items():
+            vehicle = parse_vehicle_from_text(record, subject, body, "\n".join(parts + unkeyed), stock_hint=stock)
+            if vehicle:
+                vehicles.append(vehicle)
+    else:
+        vehicle = parse_vehicle_from_text(record, subject, body, "\n".join(unkeyed))
+        if vehicle:
+            vehicles.append(vehicle)
+
+    # De-duplicate any repeated stock inside the same email while preserving the richest/latest parse.
+    by_key: dict[str, ParsedVehicle] = {}
+    for vehicle in vehicles:
+        by_key[vehicle.stock or vehicle.jobCardNumber or vehicle.id] = vehicle
+    return list(by_key.values())
+
+
+def parse_vehicle(record: dict[str, Any]) -> ParsedVehicle | None:
+    vehicles = parse_vehicles(record)
+    return vehicles[0] if vehicles else None
 
 
 def vehicle_key(vehicle: dict[str, Any]) -> str:
@@ -455,9 +521,10 @@ def main() -> int:
         "order": "created_at.desc",
         "limit": str(args.limit),
     }, key)
-    parsed = [parse_vehicle(record) for record in records]
+    parsed = [vehicle for record in records for vehicle in parse_vehicles(record)]
     incoming = [asdict(vehicle) for vehicle in parsed if vehicle]
     output = Path(args.output)
+
     existing = read_existing_generated(output)
     vehicles = merge_vehicles(existing, incoming)
     changed = write_generated(output, vehicles)
