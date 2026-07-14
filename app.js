@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.07.13.21-autocare-pmb';
+const APP_VERSION = '2026.07.14.01-bay-pill-cleanup';
 window.VEHICLE_TRACKING_DATA = window.VEHICLE_TRACKING_DATA || { report: {}, vehicles: [], toyotaMatches: {} };
 const EDITS_KEY = 'vehicleTrackingCoreNavisionOnlyEdits:v1';
 const ADDED_KEY = 'vehicleTrackingCoreNavisionOnlyVehicles:v1';
@@ -5045,7 +5045,6 @@ function pmbBayVehicleCardHtml(vehicle = {}, stage = '') {
       <div class="pmb-bay-pill-main">
         ${identityHtml}
         ${pmbPillCustomerHtml(vehicle)}
-        ${pmbCardDetailHtml(vehicle)}
       </div>
       <div class="pmb-bay-pill-bottom">
         ${pmbOutstandingStationChipsHtml(vehicle)}
@@ -5067,7 +5066,6 @@ function pmbVehicleCardHtml(vehicle = {}) {
       <div class="pmb-pill-main">
         ${pmbBayPillIdentityHtml(vehicle)}
         ${pmbPillCustomerHtml(vehicle)}
-        ${pmbCardDetailHtml(vehicle)}
       </div>
       <div class="pmb-pill-bottom">
         ${pmbOutstandingStationChipsHtml(vehicle)}

@@ -11025,3 +11025,94 @@ html[data-row-width="xl"] {
   .work-import-check-grid { grid-template-columns: repeat(2, minmax(150px, 1fr)); }
   .work-import-detection-card { grid-template-columns: 1fr; }
 }
+
+/* 2026.07.14.01 — Clean PMB bay/workflow pills. */
+.pmb-vehicle-pill,
+.pmb-bay-vehicle-pill {
+  height: 154px !important;
+  min-height: 154px !important;
+  padding: 8px !important;
+  gap: 7px !important;
+}
+
+.pmb-pill-main,
+.pmb-bay-pill-main {
+  display: grid !important;
+  grid-template-rows: auto minmax(0, 1fr) !important;
+  gap: 7px !important;
+}
+
+.pmb-pill-customer,
+.pmb-bay-pill .pmb-pill-customer,
+.pmb-bay-pill-customer {
+  min-height: 32px !important;
+  max-height: 36px !important;
+  overflow: hidden !important;
+  display: -webkit-box !important;
+  -webkit-line-clamp: 2 !important;
+  -webkit-box-orient: vertical !important;
+  white-space: normal !important;
+  overflow-wrap: anywhere !important;
+  font-size: .86rem !important;
+  line-height: 1.05 !important;
+}
+
+.pmb-pill-bottom,
+.pmb-bay-pill-bottom {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) auto !important;
+  align-items: end !important;
+  gap: 6px !important;
+  overflow: hidden !important;
+  scrollbar-width: none !important;
+}
+
+.pmb-pill-bottom::-webkit-scrollbar,
+.pmb-bay-pill-bottom::-webkit-scrollbar {
+  display: none !important;
+}
+
+.pmb-outstanding-stations {
+  min-width: 0 !important;
+  max-width: 100% !important;
+  display: flex !important;
+  flex-wrap: wrap !important;
+  align-items: flex-end !important;
+  align-content: flex-end !important;
+  gap: 3px !important;
+  overflow: hidden !important;
+  max-height: 44px !important;
+}
+
+.pmb-outstanding-station,
+.pmb-bay-chip.blocked {
+  flex: 0 0 auto !important;
+  border-radius: 5px !important;
+  padding: 3px 5px !important;
+  font-size: 10px !important;
+  line-height: 1 !important;
+}
+
+.pmb-finish-button {
+  align-self: end !important;
+  min-width: 76px !important;
+  max-width: 80px !important;
+  padding: 6px 7px !important;
+  white-space: normal !important;
+  line-height: 1.08 !important;
+  text-align: center !important;
+}
+
+.pmb-bay-pill-bottom .pmb-outstanding-stations {
+  grid-column: 1 !important;
+}
+
+.pmb-bay-pill-bottom .pmb-bay-chip.blocked {
+  grid-column: 1 !important;
+  justify-self: start !important;
+}
+
+.pmb-bay-pill-bottom .pmb-finish-button {
+  grid-column: 2 !important;
+  grid-row: 1 / span 2 !important;
+}
