@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.07.14.05-multi-email-jobs';
+const APP_VERSION = '2026.07.14.06-pdf-extraction-stable';
 window.VEHICLE_TRACKING_DATA = window.VEHICLE_TRACKING_DATA || { report: {}, vehicles: [], toyotaMatches: {} };
 const EDITS_KEY = 'vehicleTrackingCoreNavisionOnlyEdits:v1';
 const ADDED_KEY = 'vehicleTrackingCoreNavisionOnlyVehicles:v1';
