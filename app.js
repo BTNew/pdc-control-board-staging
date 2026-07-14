@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.07.14.09-stage2-staff-automation';
+const APP_VERSION = '2026.07.14.10-workshop-planner-stage2';
 window.VEHICLE_TRACKING_DATA = window.VEHICLE_TRACKING_DATA || { report: {}, vehicles: [], toyotaMatches: {} };
 const EDITS_KEY = 'vehicleTrackingCoreNavisionOnlyEdits:v1';
 const ADDED_KEY = 'vehicleTrackingCoreNavisionOnlyVehicles:v1';
@@ -2560,6 +2560,7 @@ function showView(view) {
   const titleMap = {
     dashboard: 'Vehicle Locations',
     workflow: 'Control Board',
+    workshop: 'Workshop Planner',
     pipeline: 'Vehicle Pipeline',
     visibility: 'Operational Visibility',
     tv: 'PDC TV Board',
@@ -2638,6 +2639,9 @@ function renderActiveView() {
       break;
     case 'workflow':
       renderWorkflowBoard();
+      break;
+    case 'workshop':
+      if (typeof renderWorkshopPlanner === 'function') renderWorkshopPlanner();
       break;
     case 'parts':
       renderPartsHome();
@@ -4489,8 +4493,8 @@ function nextOutstandingPmbStage(vehicle = {}, currentStage = '') {
 
 
 const PMB_SCHEDULE_DAYS = 5;
-const PMB_SCHEDULE_WORK_START_HOUR = 7;
-const PMB_SCHEDULE_WORK_END_HOUR = 17;
+const PMB_SCHEDULE_WORK_START_HOUR = 8;
+const PMB_SCHEDULE_WORK_END_HOUR = 16;
 const PMB_SCHEDULE_WORK_HOURS_PER_DAY = PMB_SCHEDULE_WORK_END_HOUR - PMB_SCHEDULE_WORK_START_HOUR;
 const PMB_SCHEDULE_HOUR_SCALE = 72;
 const PMB_SCHEDULE_LEFT_COL = 150;

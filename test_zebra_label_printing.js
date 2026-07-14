@@ -16,11 +16,11 @@ assert.ok((indexSource.match(/data-print-selected-zpl/g) || []).length >= 3, 'Ve
 assert.ok(indexSource.includes('id="zpl-print"'), 'The hidden/admin ZPL troubleshooting screen should keep a QZ print button');
 assert.ok(appSource.includes('data-label-vehicle='), 'Vehicle rows and the vehicle detail card should expose a Label action');
 assert.ok(appSource.includes("on($('#autocare-zpl-all'), 'click', () => printZplFromAutocareResults('all'))"), 'The top Autocare label action should print directly through QZ Tray');
-assert.ok(appSource.includes('Print two Zebra labels for each vehicle now?'), 'A successful Autocare scan should offer to print its labels immediately');
+assert.ok(appSource.includes('Print one Zebra label for each vehicle now?'), 'A successful Autocare scan should offer the approved single label immediately');
 assert.ok(appSource.includes('const arrival = autocarePmbArrivalUpdates(match.vehicle, updatedAt)') && appSource.includes('...arrival.updates'), 'AutoCare matches should apply the PMB-arrival updates');
 assert.ok(appSource.includes('migrateLegacyAutocareArrivalsToPmb();'), 'Previously scanned AutoCare vehicles should be migrated on startup');
 assert.ok(appSource.includes('button.hidden = count === 0'), 'Print Labels should stay hidden until one or more rows are selected');
-assert.ok(appSource.includes('copies: 1') && appSource.includes('scaleContent: false'), 'QZ should send one raw job and let ^PQ2 control the two label copies');
+assert.ok(appSource.includes('copies: 1') && appSource.includes('scaleContent: false') && appSource.includes("'^PQ1'"), 'QZ should send one raw job containing the approved single-copy ZPL');
 
 const storage = new Map();
 const context = {
@@ -82,13 +82,14 @@ assert.deepStrictEqual(JSON.parse(JSON.stringify(parsed.vehicles[0])), {
 const zpl = context.vehicleToZplBlock(parsed.vehicles[0]);
 for (const command of [
   '^PW540', '^LL360', '^LH0,0', '^CI28',
-  '^FO20,20^A0N,50,50^FB500,1,0,L,0^FD12654321^FS',
-  '^FO20,90^A0N,25,25^FB500,1,0,L,0^FDBroome Toyota^FS',
-  '^FO20,125^A0N,25,25^FB500,1,0,L,0^FDHilux DCC^FS',
-  '^FO20,160^A0N,25,25^FB500,1,0,L,0^FDSR5 48V Black Fabric Glacier White^FS',
-  '^FO20,195^A0N,25,25^FB500,1,0,L,0^FDMR0BA3FS201361094^FS',
-  '^FO20,300^A0N,50,50^FB500,1,0,L,0^FD12654321^FS',
-  '^PQ2',
+  '^FO18,12^A0N,62,62^FB504,1,0,L,0^FD12654321^FS',
+  '^FO18,82^A0N,28,28^FB504,1,0,L,0^FDSTOCK —^FS',
+  '^FO18,116^A0N,25,25^FB504,1,0,L,0^FDJOB CARD —^FS',
+  '^FO18,150^A0N,27,27^FB504,2,2,L,0^FDBroome Toyota^FS',
+  '^FO18,210^A0N,25,25^FB504,2,2,L,0^FDHilux DCC^FS',
+  '^FO18,276^A0N,23,23^FB504,1,0,L,0^FDSALES —^FS',
+  '^FO18,308^A0N,22,22^FB504,1,0,L,0^FDPDC^FS',
+  '^PQ1',
 ]) {
   assert.ok(zpl.includes(command), `ZPL is missing ${command}`);
 }

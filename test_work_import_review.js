@@ -105,7 +105,7 @@ const source = fs.readFileSync(path.join(__dirname, 'app.js'), 'utf8');
 assert.ok(source.includes('function showWorkImportReviewModal'), 'Shared PO / job-card review modal is missing');
 assert.ok(source.includes('No changes have been saved yet'), 'Review modal must clearly state that parsing has not saved anything');
 assert.ok(source.includes('Would you like us to tick the matching work areas automatically?'), 'Detected-work confirmation question is missing');
-assert.ok(source.includes("await showWorkImportReviewModal({\n        kind: 'jobcard'"), 'Job-card upload must wait for review');
-assert.ok(source.includes("await showWorkImportReviewModal({\n        kind: 'po'"), 'PO upload must wait for review');
+assert.ok(/await\s+showWorkImportReviewModal\(\{[\s\S]{0,180}?kind:\s*'jobcard'/.test(source), 'Job-card upload must wait for review');
+assert.ok(/await\s+showWorkImportReviewModal\(\{[\s\S]{0,180}?kind:\s*'po'/.test(source), 'PO upload must wait for review');
 assert.ok(source.includes('focusVehiclesAfterWorkImport(successfulImports.map(result => result.vehicleKey))'), 'Reviewed job-card imports must reveal and highlight the vehicle');
 

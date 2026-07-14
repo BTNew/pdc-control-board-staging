@@ -4,8 +4,9 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>PDC Control Board — Random 75 Vehicle Test</title>
-  <link rel="stylesheet" href="styles.css?v=2026.07.14.09-stage2-staff-automation" />
-  <link rel="stylesheet" href="desktop-operations.css?v=2026.07.14.09-stage2-staff-automation" />
+  <link rel="stylesheet" href="styles.css?v=2026.07.14.10-workshop-planner-stage2" />
+  <link rel="stylesheet" href="desktop-operations.css?v=2026.07.14.10-workshop-planner-stage2" />
+  <link rel="stylesheet" href="workshop-planner.css?v=2026.07.14.10-workshop-planner-stage2" />
 </head>
 <body>
   <div class="test-data-banner" style="position:sticky;top:0;z-index:9999;background:#6d28d9;color:#fff;padding:8px 14px;text-align:center;font-weight:700;letter-spacing:.02em;">TEST DATASET — 75 SAMPLE VEHICLES ONLY — separate from live board</div>
@@ -24,6 +25,7 @@
       <nav class="nav">
         <button class="nav-item active" data-view="dashboard" data-short="LOC">Vehicle Locations</button>
         <button class="nav-item" data-view="workflow" data-short="CB">Control Board</button>
+        <button class="nav-item" data-view="workshop" data-short="PLAN">Workshop Planner</button>
         <button class="nav-item" data-view="parts" data-short="PA">Parts</button>
         <button class="nav-item" data-view="emailreview" data-short="AI">AI Intake Review</button>
         <button class="nav-item" data-view="sublet" data-short="SUB">Sublet</button>
@@ -253,6 +255,12 @@
           </div>
           <div class="workflow-board" id="workflow-board"></div>
         </section>
+      </section>
+
+      <section id="workshop" class="view">
+        <div class="panel workshop-planner-panel">
+          <div id="workshop-planner-root"></div>
+        </div>
       </section>
 
       <section id="visibility" class="view">
@@ -856,7 +864,8 @@
     }());
   </script>
   <script src="vendor/qz/qz-tray.js?v=2.2.6"></script>
-  <script src="data-test-75.js?v=2026.07.14.09-stage2-staff-automation"></script>
-  <script src="app.js?v=2026.07.14.09-stage2-staff-automation"></script>
+  <script src="data-test-75.js?v=2026.07.14.10-workshop-planner-stage2"></script>
+  <script src="app.js?v=2026.07.14.10-workshop-planner-stage2"></script>
+  <script src="workshop-planner.js?v=2026.07.14.10-workshop-planner-stage2"></script>
 </body>
 </html>
