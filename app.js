@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.07.14.17-ai-intake-category-hours';
+const APP_VERSION = '2026.07.14.18-collapsed-intake-rows';
 window.VEHICLE_TRACKING_DATA = window.VEHICLE_TRACKING_DATA || { report: {}, vehicles: [], toyotaMatches: {} };
 const EDITS_KEY = 'vehicleTrackingCoreNavisionOnlyEdits:v1';
 const ADDED_KEY = 'vehicleTrackingCoreNavisionOnlyVehicles:v1';
@@ -13788,13 +13788,27 @@ function renderEmailIntakeReview() {
     const state = decision.status || 'pending';
     if (review.type === 'vehicle-import') {
       const proposalVehicle = vehicle || review.vehicle || {};
-      return `<article class="email-review-row email-vehicle-review email-review-${escapeHtml(state)}" data-email-vehicle-review="${escapeHtml(review.id)}">
-        <div class="email-review-main"><span class="badge ${state === 'pending' ? 'warning' : state === 'applied' ? 'ready' : 'neutral'}">${escapeHtml(state.toUpperCase())}</span><strong>Stock ${escapeHtml(review.stock || 'Not found')}</strong><b>${escapeHtml(emailReviewActionLabel(review))}</b><small>${escapeHtml(review.receivedAt ? operationalHealthDateLabel(review.receivedAt) : 'Date unavailable')}</small></div>
-        <div class="email-review-vehicle-fields"><label><span>Customer</span><input type="text" data-email-vehicle-customer value="${escapeHtml(vehicleCustomerName(proposalVehicle) || '')}" ${state !== 'pending' ? 'disabled' : ''}></label><label><span>Vehicle details</span><input type="text" data-email-vehicle-description value="${escapeHtml(displayVehicle(proposalVehicle) || proposalVehicle.vehicle || '')}" ${state !== 'pending' ? 'disabled' : ''}></label><label><span>Job card</span><input type="text" data-email-vehicle-job-card value="${escapeHtml(vehicleJobcardNumber(proposalVehicle) || proposalVehicle.jobCardNumber || '')}" ${state !== 'pending' ? 'disabled' : ''}></label></div>
-        <div class="email-review-guidance"><strong>Check every included row.</strong> Correct the description, move it to the workshop category that will perform it, and confirm labour hours. Only approved rows are pushed to the PDC board and Workshop Planner.</div>
-        ${emailVehicleReviewLinesHtml(review, state !== 'pending')}
-        <div class="email-review-actions">${state === 'pending' ? `<button class="primary" type="button" data-email-review-apply="${escapeHtml(review.id)}" ${Array.isArray(review.jobLines) && review.jobLines.length ? '' : 'disabled'}>Approve &amp; push to PDC board</button><button class="small-button" type="button" data-email-review-reject="${escapeHtml(review.id)}">Reject</button>` : `<span class="subtle">${escapeHtml(decision.decidedBy || '')} · ${escapeHtml(decision.decidedAt ? operationalHealthDateLabel(decision.decidedAt) : '')}</span>`}</div>
-      </article>`;
+      const lineCount = Array.isArray(review.jobLines) ? review.jobLines.length : 0;
+      const customer = vehicleCustomerName(proposalVehicle) || 'Customer not supplied';
+      const vehicleDescription = displayVehicle(proposalVehicle) || proposalVehicle.vehicle || 'Vehicle details not supplied';
+      const jobCard = vehicleJobcardNumber(proposalVehicle) || proposalVehicle.jobCardNumber || 'Not supplied';
+      return `<details class="email-review-row email-vehicle-review email-review-${escapeHtml(state)}" data-email-vehicle-review="${escapeHtml(review.id)}">
+        <summary class="email-review-summary">
+          <span class="email-review-summary-identity"><span class="badge ${state === 'pending' ? 'warning' : state === 'applied' ? 'ready' : 'neutral'}">${escapeHtml(state.toUpperCase())}</span><strong>Stock ${escapeHtml(review.stock || 'Not found')}</strong></span>
+          <span class="email-review-summary-cell"><small>Customer</small><b title="${escapeHtml(customer)}">${escapeHtml(customer)}</b></span>
+          <span class="email-review-summary-cell"><small>Vehicle</small><b title="${escapeHtml(vehicleDescription)}">${escapeHtml(vehicleDescription)}</b></span>
+          <span class="email-review-summary-cell"><small>Job card</small><b>${escapeHtml(jobCard)}</b></span>
+          <span class="email-review-summary-meta"><b>${lineCount} job ${lineCount === 1 ? 'line' : 'lines'}</b><small>${escapeHtml(review.receivedAt ? operationalHealthDateLabel(review.receivedAt) : 'Date unavailable')}</small></span>
+          <span class="email-review-open-label" aria-hidden="true"></span>
+        </summary>
+        <div class="email-review-expanded">
+          <div class="email-review-expanded-heading"><b>${escapeHtml(emailReviewActionLabel(review))}</b><small>Review and approve this vehicle only when you are ready.</small></div>
+          <div class="email-review-vehicle-fields"><label><span>Customer</span><input type="text" data-email-vehicle-customer value="${escapeHtml(vehicleCustomerName(proposalVehicle) || '')}" ${state !== 'pending' ? 'disabled' : ''}></label><label><span>Vehicle details</span><input type="text" data-email-vehicle-description value="${escapeHtml(displayVehicle(proposalVehicle) || proposalVehicle.vehicle || '')}" ${state !== 'pending' ? 'disabled' : ''}></label><label><span>Job card</span><input type="text" data-email-vehicle-job-card value="${escapeHtml(vehicleJobcardNumber(proposalVehicle) || proposalVehicle.jobCardNumber || '')}" ${state !== 'pending' ? 'disabled' : ''}></label></div>
+          <div class="email-review-guidance"><strong>Check every included row.</strong> Correct the description, move it to the workshop category that will perform it, and confirm labour hours. Only approved rows are pushed to the PDC board and Workshop Planner.</div>
+          ${emailVehicleReviewLinesHtml(review, state !== 'pending')}
+          <div class="email-review-actions">${state === 'pending' ? `<button class="primary" type="button" data-email-review-apply="${escapeHtml(review.id)}" ${lineCount ? '' : 'disabled'}>Approve &amp; push to PDC board</button><button class="small-button" type="button" data-email-review-reject="${escapeHtml(review.id)}">Reject</button>` : `<span class="subtle">${escapeHtml(decision.decidedBy || '')} · ${escapeHtml(decision.decidedAt ? operationalHealthDateLabel(decision.decidedAt) : '')}</span>`}</div>
+        </div>
+      </details>`;
     }
     return `<article class="email-review-row email-review-${escapeHtml(state)}">
       <div class="email-review-main"><span class="badge ${state === 'pending' ? 'warning' : state === 'applied' ? 'ready' : 'neutral'}">${escapeHtml(state.toUpperCase())}</span><strong>${escapeHtml(review.stock || 'No stock')}</strong><b>${escapeHtml(emailReviewActionLabel(review))}</b><small>${escapeHtml(review.receivedAt ? operationalHealthDateLabel(review.receivedAt) : 'Date unavailable')}</small></div>
@@ -13802,6 +13816,12 @@ function renderEmailIntakeReview() {
       <div class="email-review-actions">${state === 'pending' ? `<button class="primary" type="button" data-email-review-apply="${escapeHtml(review.id)}" ${vehicle ? '' : 'disabled'}>Apply reviewed update</button><button class="small-button" type="button" data-email-review-reject="${escapeHtml(review.id)}">Reject</button>` : `<span class="subtle">${escapeHtml(decision.decidedBy || '')} · ${escapeHtml(decision.decidedAt ? operationalHealthDateLabel(decision.decidedAt) : '')}</span>`}</div>
     </article>`;
   }).join('')}</div>`;
+  $$('[data-email-vehicle-review]', host).forEach(row => row.addEventListener('toggle', () => {
+    if (!row.open) return;
+    $$('[data-email-vehicle-review]', host).forEach(other => {
+      if (other !== row) other.removeAttribute('open');
+    });
+  }));
   $$('[data-email-review-apply]', host).forEach(button => button.addEventListener('click', () => applyEmailReview(button.dataset.emailReviewApply)));
   $$('[data-email-review-reject]', host).forEach(button => button.addEventListener('click', () => rejectEmailReview(button.dataset.emailReviewReject)));
 }

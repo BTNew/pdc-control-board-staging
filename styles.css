@@ -11202,7 +11202,24 @@ html[data-row-width="xl"] {
 .email-review-main small { color: var(--muted); }
 .email-review-details { flex-direction: column; align-items: flex-start; font-size: .82rem; }
 .email-review-actions { justify-content: flex-end; }
-.email-vehicle-review { grid-template-columns: 1fr; align-items: stretch; }
+.email-vehicle-review { display: block; padding: 0; overflow: hidden; }
+.email-review-summary { display: grid; grid-template-columns: minmax(150px, .7fr) minmax(180px, 1.15fr) minmax(190px, 1.3fr) minmax(110px, .65fr) minmax(120px, .65fr) max-content; gap: 12px; align-items: center; padding: 12px 14px; cursor: pointer; list-style: none; }
+.email-review-summary::-webkit-details-marker { display: none; }
+.email-review-summary:hover { background: #f8fafc; }
+.email-vehicle-review[open] > .email-review-summary { background: #fff7ed; border-bottom: 1px solid #fed7aa; }
+.email-review-summary-identity, .email-review-summary-cell, .email-review-summary-meta { min-width: 0; display: grid; gap: 3px; }
+.email-review-summary-identity { grid-template-columns: max-content 1fr; align-items: center; }
+.email-review-summary-cell small, .email-review-summary-meta small { color: var(--muted); font-size: .68rem; font-weight: 750; text-transform: uppercase; letter-spacing: .03em; }
+.email-review-summary-cell b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .82rem; }
+.email-review-summary-meta b { font-size: .8rem; }
+.email-review-open-label { min-width: 94px; color: var(--primary); font-size: .78rem; font-weight: 800; text-align: right; }
+.email-review-open-label::before { content: 'Open review'; }
+.email-review-open-label::after { content: ' ▾'; }
+.email-vehicle-review[open] .email-review-open-label::before { content: 'Close review'; }
+.email-vehicle-review[open] .email-review-open-label::after { content: ' ▴'; }
+.email-review-expanded { display: grid; gap: 12px; padding: 14px; }
+.email-review-expanded-heading { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+.email-review-expanded-heading small { color: var(--muted); }
 .email-review-vehicle-fields { display: grid; grid-template-columns: 1.2fr 1.5fr .7fr; gap: 10px; }
 .email-review-vehicle-fields label { display: grid; gap: 4px; font-size: .78rem; font-weight: 700; color: #475569; }
 .email-review-vehicle-fields input { min-width: 0; width: 100%; }
@@ -11228,4 +11245,4 @@ html[data-row-width="xl"] {
 .sublet-overdue-label { display: block; margin-top: 5px; color: #b91c1c; font-size: .72rem; }
 .sublet-email-check { display: flex; gap: 6px; align-items: center; margin-top: 5px; font-size: .78rem; }
 .sublet-email-check input { width: auto; min-width: 0; }
-@media (max-width: 900px) { .email-review-row, .email-review-vehicle-fields, .email-vehicle-review-line { grid-template-columns: 1fr; } .email-review-actions { justify-content: flex-start; } }
+@media (max-width: 900px) { .email-review-row, .email-review-vehicle-fields, .email-vehicle-review-line { grid-template-columns: 1fr; } .email-review-summary { grid-template-columns: 1fr 1fr; } .email-review-open-label { text-align: left; } .email-review-actions { justify-content: flex-start; } }

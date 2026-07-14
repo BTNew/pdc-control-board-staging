@@ -201,8 +201,8 @@ for (const file of htmlFiles) {
   const html = fs.readFileSync(path.join(root, file), 'utf8');
   assert.ok(html.includes('data-view="workshop"'), `${file} is missing the Workshop Planner navigation item`);
   assert.ok(html.includes('id="workshop-planner-root"'), `${file} is missing the Workshop Planner host`);
-  assert.ok(html.includes('workshop-planner.css?v=2026.07.14.17-ai-intake-category-hours'), `${file} is missing the planner stylesheet`);
-  assert.ok(html.includes('workshop-planner.js?v=2026.07.14.17-ai-intake-category-hours'), `${file} is missing the planner script`);
+  assert.ok(html.includes('workshop-planner.css?v=2026.07.14.18-collapsed-intake-rows'), `${file} is missing the planner stylesheet`);
+  assert.ok(html.includes('workshop-planner.js?v=2026.07.14.18-collapsed-intake-rows'), `${file} is missing the planner script`);
 }
 
 console.log('Workshop planner regression checks passed');

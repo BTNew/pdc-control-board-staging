@@ -4,9 +4,9 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Vehicle Tracking Core</title>
-  <link rel="stylesheet" href="styles.css?v=2026.07.14.17-ai-intake-category-hours" />
-  <link rel="stylesheet" href="desktop-operations.css?v=2026.07.14.17-ai-intake-category-hours" />
-  <link rel="stylesheet" href="workshop-planner.css?v=2026.07.14.17-ai-intake-category-hours" />
+  <link rel="stylesheet" href="styles.css?v=2026.07.14.18-collapsed-intake-rows" />
+  <link rel="stylesheet" href="desktop-operations.css?v=2026.07.14.18-collapsed-intake-rows" />
+  <link rel="stylesheet" href="workshop-planner.css?v=2026.07.14.18-collapsed-intake-rows" />
 </head>
 <body>
   <div class="app-shell" id="app-shell">
@@ -16,7 +16,7 @@
         <div class="brand-text">
           <div class="brand-title">Vehicle Tracking</div>
           <div class="brand-subtitle">Core Tracker</div>
-          <div class="app-version" id="app-version">Version 2026.07.14.17-ai-intake-category-hours</div>
+          <div class="app-version" id="app-version">Version 2026.07.14.18-collapsed-intake-rows</div>
         </div>
         <button class="sidebar-toggle" id="sidebar-toggle" type="button" aria-label="Collapse sidebar" title="Collapse sidebar">‹</button>
       </div>
@@ -412,7 +412,7 @@
       <section id="emailreview" class="view">
         <div class="parts-home-layout email-review-layout">
           <section class="panel parts-home-panel email-review-panel">
-            <div class="panel-header"><div><h2>AI Intake Review</h2><p>Email vehicles and Parts updates are proposals only. Confirm vehicle details, included job lines, labour hours and workshop categories before pushing approved work to the PDC board.</p></div><span class="badge warning" id="email-review-count">0 pending</span></div>
+            <div class="panel-header"><div><h2>AI Intake Review</h2><p>Email vehicles arrive as collapsed rows. Open one vehicle at a time to confirm its details, job lines, labour hours and workshop categories before pushing approved work to the PDC board.</p></div><span class="badge warning" id="email-review-count">0 pending</span></div>
             <div class="table-toolbar"><label><span>Status</span><select id="email-review-status-filter"><option value="pending">Pending review</option><option value="applied">Applied</option><option value="rejected">Rejected</option><option value="all">All proposals</option></select></label></div>
             <div class="parts-help-strip"><strong>Safety rule:</strong><span>Email never edits a vehicle directly. Apply and reject actions are recorded with operator and timestamp.</span></div>
             <div id="email-intake-review-content"></div>
@@ -879,10 +879,10 @@
   <script src="vendor/pdfjs/pdf.min.js?v=3.11.174"></script>
   <script>if (window.pdfjsLib) window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'vendor/pdfjs/pdf.worker.min.js?v=3.11.174';</script>
   <script src="vendor/qz/qz-tray.js?v=2.2.6"></script>
-  <script src="data.js?v=2026.07.14.17-ai-intake-category-hours"></script>
-  <script src="email-board-data.js?v=2026.07.14.17-ai-intake-category-hours"></script>
-  <script src="arb-labor-catalog.js?v=2026.07.14.17-ai-intake-category-hours"></script>
-  <script src="app.js?v=2026.07.14.17-ai-intake-category-hours"></script>
-  <script src="workshop-planner.js?v=2026.07.14.17-ai-intake-category-hours"></script>
+  <script src="data.js?v=2026.07.14.18-collapsed-intake-rows"></script>
+  <script src="email-board-data.js?v=2026.07.14.18-collapsed-intake-rows"></script>
+  <script src="arb-labor-catalog.js?v=2026.07.14.18-collapsed-intake-rows"></script>
+  <script src="app.js?v=2026.07.14.18-collapsed-intake-rows"></script>
+  <script src="workshop-planner.js?v=2026.07.14.18-collapsed-intake-rows"></script>
 </body>
 </html>

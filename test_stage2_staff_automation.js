@@ -10,7 +10,7 @@ for (const file of ['index.html', 'no-vehicles.html', 'test-50.html', 'test-75.h
   assert.ok(html.includes('id="email-intake-review-content"'), `${file} missing AI Intake Review host`);
   assert.ok(html.includes('data-view="sublet"'), `${file} missing Sublet navigation`);
   assert.ok(html.includes('id="sublet-home-content"'), `${file} missing Sublet booking host`);
-  assert.ok(html.includes('2026.07.14.17-ai-intake-category-hours'), `${file} has stale cache key`);
+  assert.ok(html.includes('2026.07.14.18-collapsed-intake-rows'), `${file} has stale cache key`);
 }
 assert.ok(app.includes('function applyEmailReview('));
 assert.ok(app.includes("'Reviewed Parts email applied'"));
@@ -18,6 +18,10 @@ assert.ok(app.includes('function renderSubletHome('));
 assert.ok(app.includes('pmbSubletExpectedReturnDate'));
 assert.ok(app.includes('function draftSubletProviderEmail('));
 assert.ok(app.includes('function draftSubletSalesUpdate('));
-assert.ok(css.includes('.email-review-row'));
+assert.ok(app.includes('data-email-vehicle-review'));
+assert.ok(app.includes('<details class="email-review-row email-vehicle-review'));
+assert.ok(app.includes("row.addEventListener('toggle'"));
+assert.ok(css.includes('.email-review-summary'));
+assert.ok(css.includes("content: 'Open review'"));
 assert.ok(css.includes('.sublet-row.sublet-overdue'));
 console.log('Stage 2 staff automation checks passed');
