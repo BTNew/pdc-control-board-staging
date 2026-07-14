@@ -13,3 +13,4 @@ backend/.outlook_attachments/
 backend/.imap_bridge_processed.json
 backend/.imap_attachments/
 backend/.env
+backend/email_publish.log
