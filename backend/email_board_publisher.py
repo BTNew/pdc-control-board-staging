@@ -88,6 +88,9 @@ class ParsedVehicle:
     navisionSubLocationDescription: str
     navisionLocationStatus: str
     internalStatus: str
+    pdcLocation: str
+    pdcStatus: str
+    manualLocation: str
     pmbStage: str
     pmbKeyNumber: str
     jobCardNumber: str
@@ -229,7 +232,10 @@ def parse_vehicle(record: dict[str, Any]) -> ParsedVehicle | None:
         navisionSubLocationDescription="At PMB",
         navisionLocationStatus="PMB",
         internalStatus="PMB",
-        pmbStage="UNALLOCATED",
+        pdcLocation="PMB",
+        pdcStatus="PMB",
+        manualLocation="PMB",
+        pmbStage="",
         pmbKeyNumber=key_no,
         jobCardNumber=job,
         navisionKewdaleEta=eta,
