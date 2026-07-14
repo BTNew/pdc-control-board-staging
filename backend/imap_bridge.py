@@ -315,12 +315,12 @@ def post_to_supabase(intake: IntakeMessage) -> None:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Read Outlook.com/IMAP email into PMB AI Intake")
     parser.add_argument("--env-file", default="backend/.env", help="Optional local env file; must stay git-ignored")
-    parser.add_argument("--host", default=os.environ.get("IMAP_BRIDGE_HOST", DEFAULT_IMAP_HOST))
-    parser.add_argument("--port", type=int, default=int(os.environ.get("IMAP_BRIDGE_PORT", DEFAULT_IMAP_PORT)))
-    parser.add_argument("--username", default=os.environ.get("IMAP_BRIDGE_USERNAME") or os.environ.get("OUTLOOK_IMAP_EMAIL") or "")
-    parser.add_argument("--password", default=os.environ.get("IMAP_BRIDGE_PASSWORD") or os.environ.get("OUTLOOK_IMAP_PASSWORD") or "")
-    parser.add_argument("--folder", default=os.environ.get("IMAP_BRIDGE_FOLDER", "Inbox"))
-    parser.add_argument("--limit", type=int, default=int(os.environ.get("IMAP_BRIDGE_LIMIT", "10")))
+    parser.add_argument("--host", default=None)
+    parser.add_argument("--port", type=int, default=None)
+    parser.add_argument("--username", default=None)
+    parser.add_argument("--password", default=None)
+    parser.add_argument("--folder", default=None)
+    parser.add_argument("--limit", type=int, default=None)
     parser.add_argument("--state", default=str(DEFAULT_STATE))
     parser.add_argument("--attachment-dir", default=str(DEFAULT_ATTACHMENT_DIR))
     parser.add_argument("--max-body-chars", type=int, default=int(os.environ.get("IMAP_BRIDGE_MAX_BODY_CHARS", "50000")))
@@ -337,8 +337,12 @@ def main() -> int:
     args = parser.parse_args()
     load_dotenv(Path(args.env_file))
     # Re-read env-backed args after loading .env, unless explicitly provided.
+    args.host = args.host or os.environ.get("IMAP_BRIDGE_HOST") or DEFAULT_IMAP_HOST
+    args.port = args.port or int(os.environ.get("IMAP_BRIDGE_PORT", DEFAULT_IMAP_PORT))
     args.username = args.username or os.environ.get("IMAP_BRIDGE_USERNAME") or os.environ.get("OUTLOOK_IMAP_EMAIL") or ""
     args.password = args.password or os.environ.get("IMAP_BRIDGE_PASSWORD") or os.environ.get("OUTLOOK_IMAP_PASSWORD") or ""
+    args.folder = args.folder or os.environ.get("IMAP_BRIDGE_FOLDER", "Inbox")
+    args.limit = args.limit or int(os.environ.get("IMAP_BRIDGE_LIMIT", "10"))
     if not args.username or not args.password:
         safe_print("Missing IMAP credentials. Set IMAP_BRIDGE_USERNAME and IMAP_BRIDGE_PASSWORD in backend/.env or the environment.")
         return 2
@@ -346,7 +350,7 @@ def main() -> int:
         client = connect_imap(args.host, args.port, args.username, args.password)
     except imaplib.IMAP4.error as exc:
         safe_print(f"IMAP login failed: {exc}")
-        safe_print("For Outlook.com this may require IMAP to be enabled and/or an app password if MFA is enabled.")
+        safe_print("For Gmail this usually requires IMAP access plus a Google App Password. For Outlook.com this may require IMAP to be enabled and/or an app password if MFA is enabled.")
         return 3
     try:
         uids = search_uids(client, args.folder, unread_only=not args.all, limit=args.limit)
