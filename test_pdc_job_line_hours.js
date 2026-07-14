@@ -4,7 +4,7 @@ const assert = require('assert');
 const fs = require('fs');
 const vm = require('vm');
 
-let code = fs.readFileSync('app.js', 'utf8');
+let code = `${fs.readFileSync('app.js', 'utf8')}\n${fs.readFileSync('workshop-planner.js', 'utf8')}`;
 code += String.raw`
 (function runPdcJobLineHourTests() {
   function check(condition, message) { if (!condition) throw new Error(message); }
@@ -35,12 +35,38 @@ code += String.raw`
 
   localStorage.setItem(OPERATOR_NAME_KEY, 'CW');
   localStorage.setItem(OPERATOR_ROLE_KEY, 'Manager');
-  check(confirmPdcJobLineHours('13037843', 'jobline-email-1', '4.25') === true, 'Adjusted hours should confirm');
+  check(confirmPdcJobLineHours('13037843', 'jobline-email-1', '4.25', 'FITTING') === true, 'Adjusted hours and category should confirm');
   check(vehicle.pdcJobLineReviews['jobline-email-1'].confirmedHours === 4.25, 'Confirmed adjusted hours must be retained on the vehicle');
+  check(vehicle.pdcJobLineReviews['jobline-email-1'].category === 'FITTING', 'Confirmed category must be retained on the vehicle');
   const edits = JSON.parse(localStorage.getItem(EDITS_KEY));
   check(edits['13037843'].pdcJobLineReviews['jobline-email-1'].confirmed === true, 'Confirmation must persist in vehicle edits');
   const audits = JSON.parse(localStorage.getItem(AUDIT_LOG_KEY));
   check(audits[0].action === 'Provisional job-line hours confirmed' && audits[0].details.hours === 4.25, 'Confirmation must be audited with hours');
+
+  const intakeReview = {
+    id: 'email-123:13047064:vehicle-import', type: 'vehicle-import', stock: '13047064',
+    jobLines: [
+      { id: 'snorkel', description: 'ARB Safari Snorkel', estimatedHours: 3.5, suggestedStage: 'FITTING' },
+      { id: 'battery', description: 'Dual Battery System', estimatedHours: 6, suggestedStage: 'ELECTRICAL' },
+      { id: 'tyres', description: 'BFG KO3 Tyre Upgrade', estimatedHours: 2.5, suggestedStage: 'TYRE' },
+      { id: 'discard', description: 'Vehicle identity row', estimatedHours: null, suggestedStage: 'FITTING' },
+    ]
+  };
+  const reviewed = reviewedEmailJobLines(intakeReview, [
+    { id: 'snorkel', included: true, description: 'ARB Safari Snorkel', hours: '3.5', category: 'FITTING' },
+    { id: 'battery', included: true, description: 'Dual Battery System', hours: '6', category: 'ELECTRICAL' },
+    { id: 'tyres', included: true, description: 'BFG KO3 Tyre Upgrade', hours: '2.5', category: 'TYRE' },
+    { id: 'discard', included: false },
+  ], 'CW');
+  check(reviewed.length === 3 && reviewed.every(line => line.confirmed), 'AI Intake Review must only publish included, confirmed rows');
+  const reviewedUpdates = reviewedEmailVehicleUpdates({}, intakeReview, reviewed, 'CW');
+  check(reviewedUpdates.pdcRequiresFitting && reviewedUpdates.pdcRequiresElectrical && reviewedUpdates.pdcRequiresTyre, 'Reviewed categories must set the matching PDC requirements');
+  const plannerVehicle = { pdcManualJobLines: reviewed.concat([{ id: 'unconfirmed', description: 'Unconfirmed fabrication', category: 'FABRICATION', estimatedHours: 10, confirmed: false }]) };
+  check(workshopCalculatedStageHours(plannerVehicle, 'FITTING') === 3.5, 'Fitting bay must load only fitting hours');
+  check(workshopCalculatedStageHours(plannerVehicle, 'ELECTRICAL') === 6, 'Electrical bay must load only electrical hours');
+  const tyreStageHours = workshopCalculatedStageHours(plannerVehicle, 'TYRE');
+  check(tyreStageHours === 2.5, 'Tyre bay must load only tyre hours (got ' + tyreStageHours + ')');
+  check(workshopStageJobLines(plannerVehicle, 'FABRICATION').length === 0, 'Unconfirmed lines must not load into any bay');
 
   const completedVehicle = {
     id: 'vehicle-completed', stock: '13037845', pdcLocation: 'RFT', rftCollectedAt: '2026-07-14T10:00:00.000Z',
@@ -110,6 +136,7 @@ const context = {
   URL: { createObjectURL: () => 'blob:test', revokeObjectURL: () => {} },
   Intl, Date, Map, Set, JSON, String, Number, Boolean, Array, Object, RegExp, Math, Error, Promise, setTimeout, clearTimeout,
 };
+context.window.addEventListener = () => {};
 context.window.alert = () => {};
 context.window.confirm = () => true;
 context.window.prompt = () => 'QA';

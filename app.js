@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.07.14.16-job-line-hours';
+const APP_VERSION = '2026.07.14.17-ai-intake-category-hours';
 window.VEHICLE_TRACKING_DATA = window.VEHICLE_TRACKING_DATA || { report: {}, vehicles: [], toyotaMatches: {} };
 const EDITS_KEY = 'vehicleTrackingCoreNavisionOnlyEdits:v1';
 const ADDED_KEY = 'vehicleTrackingCoreNavisionOnlyVehicles:v1';
@@ -97,6 +97,7 @@ const PMB_STAGE_OPTIONS = [
 ];
 
 const PMB_STAGE_DEFS = PMB_STAGE_OPTIONS.filter(option => option.value);
+const PDC_JOB_LINE_STAGE_OPTIONS = PMB_STAGE_OPTIONS.filter(option => option.value && option.value !== 'SUBLET');
 const PMB_STAGE_UNASSIGNED_FILTER = '__UNASSIGNED__';
 const PMB_STAGE_LABELS = new Map(PMB_STAGE_OPTIONS.map(option => [option.value, option.label]));
 
@@ -8096,7 +8097,8 @@ function renderDetail() {
     button.addEventListener('click', () => {
       const lineId = button.dataset.confirmPdcJobLine || '';
       const input = panel.querySelector(`[data-pdc-job-line-hours="${lineId}"]`);
-      confirmPdcJobLineHours(key, lineId, input?.value || '');
+      const stage = panel.querySelector(`[data-pdc-job-line-stage="${lineId}"]`);
+      confirmPdcJobLineHours(key, lineId, input?.value || '', stage?.value || '');
     });
   });
   $$('[data-pdc-work-state]', panel).forEach(button => {
@@ -8322,6 +8324,26 @@ function pdcJobLineIdentity(line = {}) {
   return `jobline-${(hash >>> 0).toString(16).padStart(8, '0')}`;
 }
 
+function pdcJobLineStage(line = {}) {
+  const requested = normalizePmbStage(line.category || line.stage || line.suggestedStage || '');
+  if (PDC_JOB_LINE_STAGE_OPTIONS.some(option => option.value === requested)) return requested;
+  const value = `${line.code || ''} ${line.description || ''}`;
+  if (/\btint\b/i.test(value)) return 'TINT';
+  if (/\b(?:tyres?|tires?|wheel alignment|alignment)\b/i.test(value)) return 'TYRE';
+  if (/\b(?:electrical|driving lights?|light bar|dual battery|battery system|uhf|antenna|reverse alarm|brake controller|wiring|solis)\b/i.test(value)) return 'ELECTRICAL';
+  if (/\b(?:bull\s*bar|nudge\s*bar|tow\s*bar|winch|canopy|snorkel|side rails?|side steps?|seat covers?|floor mats?|dash mat|recovery point|roof rack|fold step|fit(?:ting)?)\b/i.test(value)) return 'FITTING';
+  if (/\b(?:fabricat|tray|module|service body|rops|tool ?box|jacking points?|water tank|mine bar|weld)\b/i.test(value)) return 'FABRICATION';
+  if (/\b(?:suspension|gvm|lift kit|weight upgrade)\b/i.test(value)) return 'HOIST';
+  if (/\b(?:pit inspection|pit and weigh|quality check)\b/i.test(value)) return 'PIT_INSPECTION';
+  if (/\bbus\s*4\s*x\s*4\b/i.test(value)) return 'BUS_4X4';
+  return 'FITTING';
+}
+
+function pdcJobLineStageOptionsHtml(current = '') {
+  const selected = normalizePmbStage(current);
+  return PDC_JOB_LINE_STAGE_OPTIONS.map(option => `<option value="${escapeHtml(option.value)}"${option.value === selected ? ' selected' : ''}>${escapeHtml(option.label)}</option>`).join('');
+}
+
 function mergePdcJobLines(...groups) {
   const merged = new Map();
   groups.flat().filter(line => line && typeof line === 'object').forEach(line => {
@@ -8414,6 +8436,7 @@ function renderPdcJobLinesSection(vehicle) {
           <strong>${line.code ? `<span>${escapeHtml(line.code)}</span> · ` : ''}${escapeHtml(line.description || 'Work item')}</strong>
           <small>Qty ${escapeHtml(String(line.quantity || 1))} · ${escapeHtml(source)}</small>
         </div>
+        <label><span>Category</span><select data-pdc-job-line-stage="${escapeHtml(line.id)}" ${completedLocked ? 'disabled' : ''}>${pdcJobLineStageOptionsHtml(pdcJobLineStage(line))}</select></label>
         <label><span>Hours</span><input type="number" min="0.08" max="40" step="0.25" value="${hours == null ? '' : escapeHtml(String(hours))}" placeholder="Enter" data-pdc-job-line-hours="${escapeHtml(line.id)}" ${completedLocked ? 'disabled' : ''} /></label>
         <button class="${isConfirmed ? 'ghost' : 'primary'}" type="button" data-confirm-pdc-job-line="${escapeHtml(line.id)}" ${completedLocked ? 'disabled' : ''}>${isConfirmed ? 'Update confirmed' : 'Confirm hours'}</button>
       </div>`;
@@ -8421,7 +8444,7 @@ function renderPdcJobLinesSection(vehicle) {
   </section>`;
 }
 
-function confirmPdcJobLineHours(vehicleKeyValue, lineId, rawHours) {
+function confirmPdcJobLineHours(vehicleKeyValue, lineId, rawHours, rawStage = '') {
   const vehicle = selectedVehicle(vehicleKeyValue);
   if (!vehicle) return false;
   if (vehicleCollectedFromRft(vehicle)) {
@@ -8433,6 +8456,11 @@ function confirmPdcJobLineHours(vehicleKeyValue, lineId, rawHours) {
   const hours = validPdcJobLineHours(rawHours);
   if (hours == null) {
     window.alert('Enter estimated hours from 0.08 to 40 before confirming this job line.');
+    return false;
+  }
+  const stage = normalizePmbStage(rawStage || pdcJobLineStage(line));
+  if (!PDC_JOB_LINE_STAGE_OPTIONS.some(option => option.value === stage)) {
+    window.alert('Choose a workshop category before confirming this job line.');
     return false;
   }
   const operator = getCurrentOperatorName();
@@ -8451,6 +8479,7 @@ function confirmPdcJobLineHours(vehicleKeyValue, lineId, rawHours) {
       confirmedAt: nowIsoString(),
       confirmedBy: operator,
       estimateStatus: 'confirmed',
+      category: stage,
     },
   };
   try {
@@ -8464,6 +8493,7 @@ function confirmPdcJobLineHours(vehicleKeyValue, lineId, rawHours) {
         code: line.code || '',
         hours,
         previousHours: line.confirmedHours ?? line.estimatedHours ?? '',
+        category: stage,
         by: operator,
         role,
       });
@@ -13518,6 +13548,7 @@ function vehicleForEmailReview(review = {}) {
 }
 
 function emailReviewActionLabel(review = {}) {
+  if (review.type === 'vehicle-import') return 'Review vehicle, labour and workshop categories';
   return review.action === 'complete' ? 'Mark Parts complete' : review.action === 'stoppage' ? 'Record Parts stoppage' : 'Add Parts note';
 }
 
@@ -13561,9 +13592,134 @@ function emailReviewApplyUpdates(vehicle = {}, review = {}) {
   return updates;
 }
 
+function emailVehicleReviewDetailValues(reviewId = '') {
+  const row = $$('[data-email-vehicle-review]').find(item => item.dataset.emailVehicleReview === reviewId);
+  if (!row) return {};
+  return {
+    client: cleanNavisionText($('[data-email-vehicle-customer]', row)?.value || ''),
+    vehicle: cleanNavisionText($('[data-email-vehicle-description]', row)?.value || ''),
+    jobCardNumber: cleanNavisionText($('[data-email-vehicle-job-card]', row)?.value || ''),
+  };
+}
+
+function emailVehicleReviewLineValues(reviewId = '') {
+  const row = $$('[data-email-vehicle-review]').find(item => item.dataset.emailVehicleReview === reviewId);
+  if (!row) return [];
+  return $$('[data-email-review-line]', row).map(lineRow => ({
+    id: lineRow.dataset.emailReviewLine || '',
+    included: Boolean($('[data-email-line-include]', lineRow)?.checked),
+    description: $('[data-email-line-description]', lineRow)?.value || '',
+    hours: $('[data-email-line-hours]', lineRow)?.value || '',
+    category: $('[data-email-line-stage]', lineRow)?.value || '',
+  }));
+}
+
+function reviewedEmailJobLines(review = {}, values = [], operator = getCurrentOperatorName()) {
+  const valueMap = new Map((Array.isArray(values) ? values : []).map(value => [String(value.id || ''), value]));
+  const now = nowIsoString();
+  return (Array.isArray(review.jobLines) ? review.jobLines : []).map(sourceLine => {
+    const id = pdcJobLineIdentity(sourceLine);
+    const value = valueMap.get(id) || { id, included: true, description: sourceLine.description, hours: sourceLine.estimatedHours, category: pdcJobLineStage(sourceLine) };
+    if (!value.included) return null;
+    const description = cleanNavisionText(value.description || sourceLine.description || '');
+    const hours = validPdcJobLineHours(value.hours);
+    const category = normalizePmbStage(value.category || pdcJobLineStage(sourceLine));
+    if (!description) throw new Error('Every included job line needs a description.');
+    if (hours == null) throw new Error(`Enter valid labour hours for “${description}” before pushing to the PDC board.`);
+    if (!PDC_JOB_LINE_STAGE_OPTIONS.some(option => option.value === category)) throw new Error(`Choose a workshop category for “${description}”.`);
+    return {
+      ...sourceLine,
+      id,
+      description,
+      category,
+      confirmed: true,
+      confirmedHours: hours,
+      estimatedHours: Number(sourceLine.estimatedHours ?? hours),
+      estimateStatus: 'confirmed',
+      confirmedAt: now,
+      confirmedBy: operator,
+      source: 'AI Intake Review',
+    };
+  }).filter(Boolean);
+}
+
+function reviewedEmailVehicleUpdates(vehicle = {}, review = {}, lines = [], operator = getCurrentOperatorName(), details = {}) {
+  const mergedLines = mergePdcJobLines(vehicle.pdcManualJobLines || [], lines);
+  const updates = {
+    ...Object.fromEntries(Object.entries(details || {}).filter(([, value]) => cleanNavisionText(value || ''))),
+    pdcManualJobLines: mergedLines,
+    pdcLastEmailReviewId: review.id || '',
+    pdcLastEmailReviewAt: nowIsoString(),
+    pdcLastEmailReviewBy: operator,
+  };
+  lines.forEach(line => {
+    const def = pmbStageJobDef(line.category);
+    if (def?.requireKey) updates[def.requireKey] = true;
+  });
+  return updates;
+}
+
+function applyVehicleImportReview(review = {}) {
+  const operator = getCurrentOperatorName();
+  if (!operator || operator === 'Unknown operator') {
+    window.alert('Set an operator name before approving an email import. Nothing was changed.');
+    return false;
+  }
+  let lines;
+  try {
+    lines = reviewedEmailJobLines(review, emailVehicleReviewLineValues(review.id), operator);
+  } catch (error) {
+    window.alert(error.message || String(error));
+    return false;
+  }
+  if (!lines.length) {
+    window.alert('Select at least one valid work line before pushing this vehicle to the PDC board.');
+    return false;
+  }
+  const existing = vehicleForEmailReview(review);
+  const details = emailVehicleReviewDetailValues(review.id);
+  const baseVehicle = existing || { ...(review.vehicle || {}), ...details, stock: review.stock || review.vehicle?.stock || '' };
+  const updates = reviewedEmailVehicleUpdates(baseVehicle, review, lines, operator, details);
+  const key = vehicleKey(baseVehicle) || cleanNavisionText(review.stock || '');
+  if (!key) {
+    window.alert('This proposal has no safe stock/job-card identity and cannot be pushed.');
+    return false;
+  }
+  try {
+    runStorageTransaction('Approve email vehicle import', [ADDED_KEY, EDITS_KEY, AUDIT_LOG_KEY, EMAIL_REVIEW_DECISIONS_KEY], () => {
+      if (existing) {
+        const edits = loadVehicleEdits();
+        edits[key] = { ...(edits[key] || {}), ...updates };
+        saveJson(EDITS_KEY, edits);
+      } else {
+        const added = loadAddedVehicles();
+        const nextVehicle = { ...baseVehicle, ...updates, id: baseVehicle.id || `reviewed-email-${key}`, stock: baseVehicle.stock || key };
+        const nextAdded = [...added.filter(item => vehicleKey(item) !== key), nextVehicle];
+        saveAddedVehicles(nextAdded);
+      }
+      recordVehicleAudit(baseVehicle, 'Email vehicle import approved and pushed to PDC board', {
+        intakeId: review.intakeId || '',
+        jobLineCount: lines.length,
+        categories: [...new Set(lines.map(line => line.category))],
+        by: operator,
+      });
+      saveEmailReviewDecision(review.id, 'applied', { stock: review.stock, action: 'vehicle-import', jobLineCount: lines.length });
+    });
+  } catch (error) {
+    window.alert(error.message || String(error));
+    return false;
+  }
+  app.data = buildVehicleData();
+  populateFilters();
+  renderAll();
+  renderEmailIntakeReview();
+  return true;
+}
+
 function applyEmailReview(id = '') {
   const review = emailReviewItems().find(item => String(item.id || '') === String(id || ''));
   if (!review) return;
+  if (review.type === 'vehicle-import') return applyVehicleImportReview(review);
   const vehicle = vehicleForEmailReview(review);
   if (!vehicle) {
     window.alert(`No vehicle matching stock ${review.stock || 'unknown'} was found. Keep this proposal pending until the vehicle exists.`);
@@ -13592,6 +13748,23 @@ function rejectEmailReview(id = '') {
   renderEmailIntakeReview();
 }
 
+function emailVehicleReviewLinesHtml(review = {}, disabled = false) {
+  const lines = Array.isArray(review.jobLines) ? review.jobLines : [];
+  if (!lines.length) return '<div class="empty-state compact-empty"><strong>No safe job lines were extracted</strong><span>Reject this proposal or add the vehicle manually.</span></div>';
+  return `<div class="email-vehicle-review-lines">${lines.map(line => {
+    const id = pdcJobLineIdentity(line);
+    const stage = pdcJobLineStage(line);
+    const hours = line.estimatedHours == null ? '' : line.estimatedHours;
+    const source = cleanNavisionText(line.estimateSource || 'Starting estimate requires staff confirmation');
+    return `<div class="email-vehicle-review-line" data-email-review-line="${escapeHtml(id)}">
+      <label class="email-line-include"><input type="checkbox" data-email-line-include checked ${disabled ? 'disabled' : ''}> Include</label>
+      <label class="email-line-description"><span>Job line</span><input type="text" data-email-line-description value="${escapeHtml(line.description || '')}" ${disabled ? 'disabled' : ''}><small>${line.code ? `${escapeHtml(line.code)} · ` : ''}${escapeHtml(source)}</small></label>
+      <label><span>Category</span><select data-email-line-stage ${disabled ? 'disabled' : ''}>${pdcJobLineStageOptionsHtml(stage)}</select></label>
+      <label><span>Labour hours</span><input type="number" min="0.08" max="40" step="0.25" data-email-line-hours value="${escapeHtml(String(hours))}" placeholder="Enter" ${disabled ? 'disabled' : ''}></label>
+    </div>`;
+  }).join('')}</div>`;
+}
+
 function renderEmailIntakeReview() {
   const host = $('#email-intake-review-content');
   if (!host) return;
@@ -13606,13 +13779,23 @@ function renderEmailIntakeReview() {
   const countHost = $('#email-review-count');
   if (countHost) countHost.textContent = `${pending} pending · ${all.length} total`;
   if (!rows.length) {
-    host.innerHTML = '<div class="empty-state"><strong>No email updates match this filter</strong><span>Structured Parts emails will appear here for approval before any vehicle changes are made.</span></div>';
+    host.innerHTML = '<div class="empty-state"><strong>No email proposals match this filter</strong><span>Email vehicles, job lines, labour and structured Parts updates appear here for approval before any PDC-board changes are made.</span></div>';
     return;
   }
   host.innerHTML = `<div class="email-review-list">${rows.map(review => {
     const decision = decisions[review.id] || {};
     const vehicle = vehicleForEmailReview(review);
     const state = decision.status || 'pending';
+    if (review.type === 'vehicle-import') {
+      const proposalVehicle = vehicle || review.vehicle || {};
+      return `<article class="email-review-row email-vehicle-review email-review-${escapeHtml(state)}" data-email-vehicle-review="${escapeHtml(review.id)}">
+        <div class="email-review-main"><span class="badge ${state === 'pending' ? 'warning' : state === 'applied' ? 'ready' : 'neutral'}">${escapeHtml(state.toUpperCase())}</span><strong>Stock ${escapeHtml(review.stock || 'Not found')}</strong><b>${escapeHtml(emailReviewActionLabel(review))}</b><small>${escapeHtml(review.receivedAt ? operationalHealthDateLabel(review.receivedAt) : 'Date unavailable')}</small></div>
+        <div class="email-review-vehicle-fields"><label><span>Customer</span><input type="text" data-email-vehicle-customer value="${escapeHtml(vehicleCustomerName(proposalVehicle) || '')}" ${state !== 'pending' ? 'disabled' : ''}></label><label><span>Vehicle details</span><input type="text" data-email-vehicle-description value="${escapeHtml(displayVehicle(proposalVehicle) || proposalVehicle.vehicle || '')}" ${state !== 'pending' ? 'disabled' : ''}></label><label><span>Job card</span><input type="text" data-email-vehicle-job-card value="${escapeHtml(vehicleJobcardNumber(proposalVehicle) || proposalVehicle.jobCardNumber || '')}" ${state !== 'pending' ? 'disabled' : ''}></label></div>
+        <div class="email-review-guidance"><strong>Check every included row.</strong> Correct the description, move it to the workshop category that will perform it, and confirm labour hours. Only approved rows are pushed to the PDC board and Workshop Planner.</div>
+        ${emailVehicleReviewLinesHtml(review, state !== 'pending')}
+        <div class="email-review-actions">${state === 'pending' ? `<button class="primary" type="button" data-email-review-apply="${escapeHtml(review.id)}" ${Array.isArray(review.jobLines) && review.jobLines.length ? '' : 'disabled'}>Approve &amp; push to PDC board</button><button class="small-button" type="button" data-email-review-reject="${escapeHtml(review.id)}">Reject</button>` : `<span class="subtle">${escapeHtml(decision.decidedBy || '')} · ${escapeHtml(decision.decidedAt ? operationalHealthDateLabel(decision.decidedAt) : '')}</span>`}</div>
+      </article>`;
+    }
     return `<article class="email-review-row email-review-${escapeHtml(state)}">
       <div class="email-review-main"><span class="badge ${state === 'pending' ? 'warning' : state === 'applied' ? 'ready' : 'neutral'}">${escapeHtml(state.toUpperCase())}</span><strong>${escapeHtml(review.stock || 'No stock')}</strong><b>${escapeHtml(emailReviewActionLabel(review))}</b><small>${escapeHtml(review.receivedAt ? operationalHealthDateLabel(review.receivedAt) : 'Date unavailable')}</small></div>
       <div class="email-review-details"><span><b>Vehicle:</b> ${escapeHtml(vehicle ? `${vehicleCustomerName(vehicle)} · ${displayVehicle(vehicle)}` : 'No matching vehicle')}</span>${review.reason ? `<span><b>Reason:</b> ${escapeHtml(review.reason)}</span>` : ''}${review.notes ? `<span><b>Notes:</b> ${escapeHtml(review.notes)}</span>` : ''}${review.eta ? `<span><b>ETA:</b> ${escapeHtml(review.eta)}</span>` : ''}<span><b>Sender:</b> ${escapeHtml(review.sender || 'Unknown')}</span></div>

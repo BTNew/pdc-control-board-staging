@@ -63,7 +63,42 @@ WIRE PARKING SENSOR EXTENSION
         self.assertEqual([line["description"] for line in vehicle.pdcJobLines], [
             "M1 Tint", "Nudge Bar - Black", "WIRE PARKING SENSOR EXTENSION",
         ])
-        self.assertTrue(all(line["estimateStatus"] == "review-required" for line in vehicle.pdcJobLines))
+        self.assertEqual(vehicle.pdcJobLines[0]["estimatedHours"], 3.0)
+        self.assertEqual([line["suggestedStage"] for line in vehicle.pdcJobLines], ["TINT", "FITTING", "ELECTRICAL"])
+        self.assertTrue(all(line["estimateStatus"] == "review-required" for line in vehicle.pdcJobLines[1:]))
+
+    def test_generic_email_rows_get_review_only_starting_hours_and_categories(self):
+        lines = publisher.extract_job_lines(
+            "MISC Hilux 4x4 2.8L Dsl D/C/C 6AT SR 48V 2U24100 001 1 1.00 1.00\n"
+            "!ARBGVM ARB Safari Snorkel 1 500.00 500.00\n"
+            "!ELEC ARB Slimline Lithium Dual Battery System 1 1000.00 1000.00\n"
+            "TEXT BFG KO3 AT Tyre Upgrade x 5",
+            {"sourceCode": "DRT20260201.1", "entries": {}, "ambiguous": {}},
+        )
+        self.assertNotIn("Hilux 4x4 2.8L Dsl D/C/C 6AT SR 48V 2U24100 001", [line["description"] for line in lines])
+        snorkel = next(line for line in lines if "Snorkel" in line["description"])
+        battery = next(line for line in lines if "Battery" in line["description"])
+        tyres = next(line for line in lines if "Tyre" in line["description"])
+        self.assertEqual((snorkel["estimatedHours"], snorkel["suggestedStage"]), (3.5, "FITTING"))
+        self.assertEqual((battery["estimatedHours"], battery["suggestedStage"]), (6.0, "ELECTRICAL"))
+        self.assertEqual((tyres["estimatedHours"], tyres["suggestedStage"]), (2.5, "TYRE"))
+        self.assertTrue(all(line["estimateMethod"] == "review-starting-estimate" for line in [snorkel, battery, tyres]))
+
+    def test_vehicle_email_becomes_review_proposal_not_board_vehicle(self):
+        vehicle = {
+            "stock": "13047064",
+            "jobCardNumber": "J123",
+            "sourceEmailId": "email-123",
+            "pdcJobLines": [{"id": "line-1", "description": "Tray module", "estimatedHours": 12, "suggestedStage": "FABRICATION"}],
+        }
+        proposal = publisher.vehicle_import_review(vehicle)
+        self.assertEqual(proposal["type"], "vehicle-import")
+        self.assertEqual(proposal["stock"], "13047064")
+        self.assertEqual(proposal["vehicle"]["pdcLocation"], "PMB")
+        self.assertEqual(proposal["jobLines"][0]["suggestedStage"], "FABRICATION")
+        self.assertNotIn("pdcJobLines", proposal["vehicle"])
+        self.assertIsNone(publisher.vehicle_import_review({"stock": "SELLING", "sourceEmailId": "bad"}))
+        self.assertIsNone(publisher.vehicle_import_review({"stock": "ABC123", "sourceEmailId": "bad"}))
 
     def test_arb_catalog_creates_orange_provisional_hours_only_for_unambiguous_code(self):
         catalog = {

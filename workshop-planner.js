@@ -85,7 +85,7 @@ function workshopClampLineHours(value = 1) {
 }
 
 function workshopClampDurationHours(value = WORKSHOP_DEFAULT_HOURS) {
-  return Math.max(WORKSHOP_DEFAULT_HOURS, workshopClampLineHours(value || WORKSHOP_DEFAULT_HOURS));
+  return workshopClampLineHours(value || WORKSHOP_DEFAULT_HOURS);
 }
 
 function workshopIntervalsOverlap(startA, endA, startB, endB) {
@@ -376,8 +376,23 @@ function workshopJobLineId(text = '', index = 0) {
 }
 
 function workshopImportedJobLines(vehicle = {}) {
+  const structured = typeof vehiclePdcJobLines === 'function'
+    ? vehiclePdcJobLines(vehicle).filter(line => line.confirmed === true && Number(line.confirmedHours) > 0 && WORKSHOP_STAGE_SEQUENCE.includes(normalizePmbStage(line.category || line.stage || '')))
+    : [];
+  const confirmed = structured.map((line, index) => ({
+    id: String(line.id || workshopJobLineId(line.description, index)),
+    text: cleanNavisionText(line.description || line.code || 'Reviewed work item'),
+    index,
+    stage: normalizePmbStage(line.category || line.stage),
+    hours: workshopClampLineHours(Number(line.confirmedHours)),
+    confirmed: true,
+    source: 'reviewed-job-line',
+  }));
+  const confirmedDescriptions = new Set(confirmed.map(line => line.text.toLowerCase()));
   const tasks = Array.isArray(vehicle.poTasks) ? vehicle.poTasks : [];
-  return tasks.map((text, index) => ({ id: workshopJobLineId(text, index), text: cleanNavisionText(text || ''), index })).filter(line => line.text);
+  const legacy = tasks.map((text, index) => ({ id: workshopJobLineId(text, index), text: cleanNavisionText(text || ''), index, source: 'legacy-po-task' }))
+    .filter(line => line.text && !confirmedDescriptions.has(line.text.toLowerCase()));
+  return [...confirmed, ...legacy];
 }
 
 function workshopDetectedStageForLine(text = '', vehicle = {}) {
@@ -403,12 +418,19 @@ function workshopResolvedJobLines(vehicle = {}) {
     const saved = assignments[line.id] || {};
     const stage = WORKSHOP_STAGE_SEQUENCE.includes(normalizePmbStage(saved.stage))
       ? normalizePmbStage(saved.stage)
-      : workshopDetectedStageForLine(line.text, vehicle);
+      : WORKSHOP_STAGE_SEQUENCE.includes(normalizePmbStage(line.stage))
+        ? normalizePmbStage(line.stage)
+        : workshopDetectedStageForLine(line.text, vehicle);
     const savedHours = Number(saved.hours);
+    const importedHours = Number(line.hours);
     return {
       ...line,
       stage,
-      hours: Number.isFinite(savedHours) && savedHours > 0 ? workshopClampLineHours(savedHours) : workshopJobLineHours(line.text),
+      hours: Number.isFinite(savedHours) && savedHours > 0
+        ? workshopClampLineHours(savedHours)
+        : Number.isFinite(importedHours) && importedHours > 0
+          ? workshopClampLineHours(importedHours)
+          : workshopJobLineHours(line.text),
     };
   });
 }
@@ -423,7 +445,7 @@ function workshopCalculatedStageHours(vehicle = {}, stage = '') {
   const importedHours = workshopStageJobLines(vehicle, normalizedStage).reduce((sum, line) => sum + Number(line.hours || 0), 0);
   const additionalHours = Number(workshopAdditionalHoursMap(vehicle)[normalizedStage] || 0);
   const total = importedHours + (Number.isFinite(additionalHours) ? Math.max(0, additionalHours) : 0);
-  if (total > 0) return workshopClampDurationHours(Math.max(WORKSHOP_DEFAULT_HOURS, total));
+  if (total > 0) return workshopClampDurationHours(total);
   return workshopEstimatedHours(vehicle, normalizedStage) || WORKSHOP_DEFAULT_HOURS;
 }
 
@@ -1763,7 +1785,7 @@ function openWorkshopVehicleJob(key = '', requestedStage = '') {
     });
     WORKSHOP_STAGE_SEQUENCE.forEach(workArea => {
       const total = Number(stageTotals[workArea] || 0) + Number(additionalMap[workArea] || 0);
-      if (total > 0) hoursMap[workArea] = workshopClampDurationHours(Math.max(WORKSHOP_DEFAULT_HOURS, total));
+      if (total > 0) hoursMap[workArea] = workshopClampDurationHours(total);
     });
     const updatedPlans = workshopLoadPlans().map(entry => entry.vehicleKey === vehicleKey(vehicle) && entry.status !== 'completed' && Number(hoursMap[entry.stage]) > 0
       ? { ...entry, hours: workshopClampDurationHours(hoursMap[entry.stage]), updatedAt: nowIsoString() }

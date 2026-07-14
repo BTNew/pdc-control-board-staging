@@ -1,5 +1,16 @@
 # TODO
 
+## Completed — AI Intake Review category-hours release (14 July 2026)
+- [x] Email-derived vehicles and job lines are proposals only; the generated payload contains zero automatically published vehicles.
+- [x] AI Intake Review allows staff to correct customer, vehicle, job card, included rows, descriptions, workshop categories and labour hours.
+- [x] A single explicit **Approve & push to PDC board** action publishes only included, fully reviewed rows and records operator/time/audit data atomically.
+- [x] Email descriptions receive orange starting estimates for known work types; exact ARB product codes still retain catalogue/rate/page provenance, while unsafe code bundles remain blank.
+- [x] Electrical work defaults to Elec, tray/module/accessories to Fab, tyres to Tyre, GVM/suspension to Hoist, tint to Tint, and fitting work to Fitting; every category remains editable.
+- [x] Workshop Planner loads only confirmed job-line hours assigned to its selected category; unconfirmed and other-category work is excluded.
+- [x] Category durations retain reviewed quarter-hour values instead of forcing every booking to a three-hour minimum; new work without reviewed hours still defaults to three hours.
+- [x] Invalid stock identities such as free-text `SELLING` or test-style `ABC123` fail closed and are not published as proposals.
+- [x] Release version `2026.07.14.17-ai-intake-category-hours`.
+
 ## Completed — Email job lines and ARB provisional hours (14 July 2026)
 - [x] Email job-card/PO attachments import bounded structured work lines onto the matched vehicle card.
 - [x] ARB February 2026 catalogue fitting charges are converted to hours only when one exact product code has one unambiguous catalogue fitting time.

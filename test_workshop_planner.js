@@ -37,7 +37,7 @@ assert.strictEqual(planner.workshopSnapMinutes(22), 15, 'Times should snap to 15
 assert.strictEqual(planner.workshopSnapMinutes(23), 30, 'Times should snap to the nearest 15 minutes');
 assert.strictEqual(planner.workshopClampStartMinutes(500), 465, 'Latest start must be 3:45pm');
 assert.strictEqual(planner.workshopClampLineHours(0.5), 0.5, 'Imported job lines may retain sub-three-hour estimates');
-assert.strictEqual(planner.workshopClampDurationHours(0.5), 3, 'A planner booking must not shrink below three hours');
+assert.strictEqual(planner.workshopClampDurationHours(0.5), 0.5, 'A reviewed category booking must retain its confirmed labour hours');
 assert.strictEqual(planner.workshopClampDurationHours(20), 20, 'Workshop jobs must not have a maximum-hour limit');
 const longJobEnd = planner.workshopAddWorkMinutes(new Date(2026, 6, 17, 14, 0, 0, 0), 12 * 60);
 assert.strictEqual(longJobEnd.getDay(), 2, 'A 12-hour Friday job should carry through Monday into Tuesday');
@@ -201,8 +201,8 @@ for (const file of htmlFiles) {
   const html = fs.readFileSync(path.join(root, file), 'utf8');
   assert.ok(html.includes('data-view="workshop"'), `${file} is missing the Workshop Planner navigation item`);
   assert.ok(html.includes('id="workshop-planner-root"'), `${file} is missing the Workshop Planner host`);
-  assert.ok(html.includes('workshop-planner.css?v=2026.07.14.16-job-line-hours'), `${file} is missing the planner stylesheet`);
-  assert.ok(html.includes('workshop-planner.js?v=2026.07.14.16-job-line-hours'), `${file} is missing the planner script`);
+  assert.ok(html.includes('workshop-planner.css?v=2026.07.14.17-ai-intake-category-hours'), `${file} is missing the planner stylesheet`);
+  assert.ok(html.includes('workshop-planner.js?v=2026.07.14.17-ai-intake-category-hours'), `${file} is missing the planner script`);
 }
 
 console.log('Workshop planner regression checks passed');

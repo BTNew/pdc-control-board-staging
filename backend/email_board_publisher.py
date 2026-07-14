@@ -1,12 +1,12 @@
 #!/usr/bin/env python
-"""Publish Gmail/Supabase AI intake emails into the static PDC board.
+"""Publish Gmail/Supabase AI intake as bounded static review proposals.
 
 Flow:
   backend/imap_bridge.py -> Supabase ai_email_intake -> this script -> email-board-data.js
 
-The generated file is safe to load from the normal GitHub Pages URL. It appends
-email-created vehicles into window.VEHICLE_TRACKING_DATA before app.js starts.
-Secrets stay in backend/.env only.
+Email-derived vehicle details, job lines, categories and starting labour estimates
+never enter the operational board directly. Staff must confirm and approve included
+rows in AI Intake Review first. Secrets stay in backend/.env only.
 
 Mailbox content is untrusted data, never an instruction source. This program uses
 only fixed parsers and fixed subprocess arguments; it never evaluates email text,
@@ -54,6 +54,55 @@ WORK_KEYWORDS = {
     "pdcRequiresPitInspection": [r"pit inspection", r"pit and weigh", r"\bpit\b", r"quality check"],
     "pdcRequiresParts": [r"parts?", r"ordered", r"purchase order", r"\bpo\b"],
 }
+
+JOB_LINE_STAGE_RULES = [
+    ("TINT", re.compile(r"\btint\b", re.I)),
+    ("TYRE", re.compile(r"\b(?:tyres?|tires?|wheel alignment|alignment)\b", re.I)),
+    ("ELECTRICAL", re.compile(r"\b(?:electrical|driving lights?|light bar|dual battery|battery system|uhf|antenna|reverse alarm|brake controller|wiring|wire|solis)\b", re.I)),
+    ("FITTING", re.compile(r"\b(?:bull\s*bar|nudge\s*bar|tow\s*bar|winch|canopy|snorkel|side rails?|side steps?|seat covers?|floor mats?|dash mat|recovery point|roof rack|fold step|fit(?:ting)?)\b", re.I)),
+    ("FABRICATION", re.compile(r"\b(?:fabricat|tray|module|service body|rops|tool ?box|jacking points?|water tank|mine bar|weld)\b", re.I)),
+    ("HOIST", re.compile(r"\b(?:suspension|gvm|lift kit|weight upgrade)\b", re.I)),
+    ("PIT_INSPECTION", re.compile(r"\b(?:pit inspection|pit and weigh|quality check)\b", re.I)),
+    ("BUS_4X4", re.compile(r"\bbus\s*4\s*x\s*4\b", re.I)),
+]
+
+# Review-screen starting points only. They never become operational until a person
+# checks the line, category and hours and explicitly approves the import.
+REVIEW_HOUR_RULES = [
+    (re.compile(r"\b(?:tool ?box|water tank|jacking points?)\b", re.I), 2.0, "tray accessory"),
+    (re.compile(r"\bfold step\b", re.I), 1.0, "fold step"),
+    (re.compile(r"\btow\s*bar\b", re.I), 4.0, "towbar"),
+    (re.compile(r"\b(?:tray|module|service body).*\b(?:rops|roll over)\b", re.I), 16.0, "tray/module with ROPS"),
+    (re.compile(r"\b(?:tray|module|service body)\b", re.I), 12.0, "tray/module"),
+    (re.compile(r"\b(?:suspension|gvm|lift kit|weight upgrade)\b", re.I), 8.0, "suspension/GVM"),
+    (re.compile(r"\b(?:dual battery|battery system)\b", re.I), 6.0, "dual-battery system"),
+    (re.compile(r"\bbull\s*bar\b", re.I), 5.0, "bullbar"),
+    (re.compile(r"\b(?:side rails?|side steps?)\b", re.I), 4.0, "side rails/steps"),
+    (re.compile(r"\bsnorkel\b", re.I), 3.5, "snorkel"),
+    (re.compile(r"\b(?:driving lights?|light bar)\b", re.I), 3.0, "driving lights"),
+    (re.compile(r"\b(?:uhf|antenna)\b", re.I), 3.0, "UHF/antenna"),
+    (re.compile(r"\btint\b", re.I), 3.0, "tint"),
+    (re.compile(r"\bwinch\b", re.I), 2.0, "winch"),
+    (re.compile(r"\b(?:tyres?|tires?)\b", re.I), 2.5, "tyres"),
+    (re.compile(r"\bseat covers?\b", re.I), 1.5, "seat covers"),
+    (re.compile(r"\bdash mat\b", re.I), 0.25, "dash mat"),
+]
+
+
+def suggested_job_line_stage(code: str, description: str) -> str:
+    value = f"{code} {description}"
+    for stage, pattern in JOB_LINE_STAGE_RULES:
+        if pattern.search(value):
+            return stage
+    return "FITTING"
+
+
+def suggested_review_hours(description: str) -> tuple[float | None, str]:
+    for pattern, hours, label in REVIEW_HOUR_RULES:
+        if pattern.search(description or ""):
+            return hours, label
+    return None, ""
+
 
 FIELD_PATTERNS = {
     "stock": [
@@ -388,7 +437,7 @@ def extract_job_lines(text: str, catalog: dict[str, Any] | None = None) -> list[
     )
     work_pattern = re.compile(
         r"\b(?:tint|hoist|lift kit|suspension|gvm|bull\s*bar|nudge\s*bar|tow\s*bar|winch|canopy|"
-        r"seat covers?|floor mats?|fit(?:ting)?|fabricat|tray|service body|mine bar|weld|electrical|"
+        r"seat covers?|floor mats?|dash mat|fit(?:ting)?|fabricat|tray|module|service body|mine bar|weld|electrical|"
         r"driving lights?|solis|brake controller|dual battery|uhf|reverse alarm|wire|wiring|tyres?|"
         r"wheel alignment|pit inspection|quality check|snorkel|recovery point|roof rack|side steps?)\b",
         re.I,
@@ -418,7 +467,9 @@ def extract_job_lines(text: str, catalog: dict[str, Any] | None = None) -> list[
             elif not work_pattern.search(line):
                 continue
         description = clean(description)
-        if not description or description.isdigit():
+        if not description or description.isdigit() or excluded.search(description):
+            continue
+        if code in {"MISC", "TEXT"} and not work_pattern.search(description):
             continue
         identity = job_line_id(code, description, quantity)
         if identity in seen:
@@ -443,6 +494,13 @@ def extract_job_lines(text: str, catalog: dict[str, Any] | None = None) -> list[
             source_text = f"{source_code} · {code} has vehicle-dependent fitting times"
         elif len(matched_codes) > 1:
             source_text = f"{source_code} · multiple product codes require line-by-line review"
+        estimate_method = str(catalog_entry.get("method") or "") if catalog_entry and estimated_hours is not None else ""
+        if estimated_hours is None and not matched_codes and code not in ambiguous:
+            review_hours, review_label = suggested_review_hours(description)
+            if review_hours is not None:
+                estimated_hours = round(review_hours * quantity, 4)
+                source_text = f"AI Intake Review starting estimate · {review_label}; confirm before publishing"
+                estimate_method = "review-starting-estimate"
         results.append({
             "id": identity,
             "code": code,
@@ -451,8 +509,9 @@ def extract_job_lines(text: str, catalog: dict[str, Any] | None = None) -> list[
             "estimatedHours": estimated_hours,
             "estimateStatus": "provisional" if estimated_hours is not None else "review-required",
             "estimateSource": source_text,
-            "estimateMethod": str(catalog_entry.get("method") or "") if catalog_entry and estimated_hours is not None else "",
-            "catalogHoursEach": float(catalog_entry.get("hours") or 0) if catalog_entry and estimated_hours is not None else None,
+            "estimateMethod": estimate_method,
+            "catalogHoursEach": float(catalog_entry.get("hours") or 0) if catalog_entry and estimate_method != "review-starting-estimate" else None,
+            "suggestedStage": suggested_job_line_stage(code, description),
             "source": "Email attachment",
         })
     return results[:120]
@@ -648,6 +707,37 @@ def parse_parts_review_actions(record: dict[str, Any]) -> list[dict[str, Any]]:
     return proposals
 
 
+def vehicle_import_review(vehicle: dict[str, Any]) -> dict[str, Any] | None:
+    """Create a bounded vehicle/job-line proposal; do not mutate the live board."""
+    stock = vehicle_key(vehicle)
+    if not re.fullmatch(r"(?:\d{5,12}|(?:IS|NS|TY|PMB|PDC)\d{5,12})", stock.upper()):
+        return None
+    intake_id = str(vehicle.get("sourceEmailId") or vehicle.get("id") or stock).strip()
+    allowed_vehicle_fields = (
+        "id", "stock", "batch", "toyotaBatch", "order", "salesOrder", "client", "toyotaCustomer",
+        "vehicle", "toyotaVehicle", "registration", "jobCardNumber", "purchaseOrderNumber",
+        "navisionKewdaleEta", "etaAtKewdale", "etaAtDealer",
+    )
+    vehicle_data = {key: vehicle.get(key) for key in allowed_vehicle_fields if vehicle.get(key) not in (None, "")}
+    vehicle_data.update({
+        "source": "Reviewed email intake",
+        "sourceRow": "Reviewed email intake",
+        "pdcLocation": "PMB",
+        "pdcStatus": "At PMB",
+        "toyotaStatus": "At PMB",
+        "pmbStage": "",
+    })
+    return {
+        "id": f"{intake_id}:{stock}:vehicle-import",
+        "type": "vehicle-import",
+        "intakeId": intake_id,
+        "stock": stock,
+        "receivedAt": str(vehicle.get("sourceEmailReceivedAt") or ""),
+        "vehicle": vehicle_data,
+        "jobLines": [dict(line) for line in vehicle.get("pdcJobLines") or [] if isinstance(line, dict)],
+    }
+
+
 def read_existing_generated(path: Path) -> dict[str, Any]:
     empty = {"vehicles": [], "reviews": [], "hasReviewsField": False}
     if not path.exists():
@@ -744,10 +834,12 @@ def main() -> int:
     incoming = [asdict(vehicle) for vehicle in parsed if vehicle]
     output = Path(args.output)
 
-    existing = read_existing_generated(output)
-    vehicles = merge_vehicles(existing.get("vehicles") or [], incoming)
+    # Email-derived vehicles/work lines remain review proposals until a staff
+    # member explicitly approves them in AI Intake Review.
+    vehicles: list[dict[str, Any]] = []
+    vehicle_reviews = [proposal for vehicle in incoming if (proposal := vehicle_import_review(vehicle))]
     reviews = sorted(
-        [proposal for record in records for proposal in parse_parts_review_actions(record)],
+        [proposal for record in records for proposal in parse_parts_review_actions(record)] + vehicle_reviews,
         key=lambda proposal: (str(proposal.get("receivedAt") or ""), str(proposal.get("id") or "")),
         reverse=True,
     )
@@ -756,12 +848,13 @@ def main() -> int:
         "records_checked": len(records),
         "vehicles_generated": len(vehicles),
         "review_actions_generated": len(reviews),
+        "vehicle_review_proposals_generated": len(vehicle_reviews),
         "new_parseable_records": len(incoming),
         "changed": changed,
         "output": str(output),
     }
     if args.commit_push and changed:
-        committed = git_commit_push("chore: publish email intake vehicles", [output])
+        committed = git_commit_push("chore: publish email intake review proposals", [output])
         summary["committed_and_pushed"] = committed
     print(json.dumps(summary, indent=2))
     return 0

@@ -913,7 +913,7 @@ input:focus, select:focus, textarea:focus { border-color: #94a3b8; box-shadow: 0
 .pdc-job-line-list { display: grid; gap: 8px; }
 .pdc-job-line {
   display: grid;
-  grid-template-columns: minmax(220px, 1fr) minmax(92px, 110px) auto;
+  grid-template-columns: minmax(220px, 1fr) minmax(115px, 135px) minmax(92px, 110px) auto;
   align-items: end;
   gap: 10px;
   border: 1px solid var(--line);
@@ -929,7 +929,7 @@ input:focus, select:focus, textarea:focus { border-color: #94a3b8; box-shadow: 0
 .pdc-job-line-copy small { color: #64748b; line-height: 1.35; }
 .pdc-job-line label { display: grid; gap: 4px; }
 .pdc-job-line label span { color: var(--muted); font-size: .7rem; font-weight: 800; text-transform: uppercase; }
-.pdc-job-line input { width: 100%; }
+.pdc-job-line input, .pdc-job-line select { width: 100%; }
 @media (max-width: 760px) {
   .pdc-job-lines-header { display: grid; }
   .pdc-job-line { grid-template-columns: 1fr; align-items: stretch; }
@@ -11202,6 +11202,19 @@ html[data-row-width="xl"] {
 .email-review-main small { color: var(--muted); }
 .email-review-details { flex-direction: column; align-items: flex-start; font-size: .82rem; }
 .email-review-actions { justify-content: flex-end; }
+.email-vehicle-review { grid-template-columns: 1fr; align-items: stretch; }
+.email-review-vehicle-fields { display: grid; grid-template-columns: 1.2fr 1.5fr .7fr; gap: 10px; }
+.email-review-vehicle-fields label { display: grid; gap: 4px; font-size: .78rem; font-weight: 700; color: #475569; }
+.email-review-vehicle-fields input { min-width: 0; width: 100%; }
+.email-review-guidance { padding: 10px 12px; border-radius: 10px; background: #eff6ff; color: #1e3a8a; font-size: .85rem; }
+.email-vehicle-review-lines { display: grid; gap: 8px; }
+.email-vehicle-review-line { display: grid; grid-template-columns: max-content minmax(280px, 1.8fr) minmax(130px, .65fr) minmax(110px, .45fr); gap: 10px; align-items: end; padding: 10px; border: 1px solid #fed7aa; border-left: 5px solid #f97316; border-radius: 10px; background: #fff7ed; }
+.email-vehicle-review-line label { display: grid; gap: 4px; font-size: .78rem; font-weight: 700; color: #475569; }
+.email-vehicle-review-line input, .email-vehicle-review-line select { min-width: 0; width: 100%; }
+.email-vehicle-review-line .email-line-include { display: flex; align-items: center; gap: 6px; align-self: center; }
+.email-vehicle-review-line .email-line-include input { width: auto; }
+.email-vehicle-review-line small { color: #9a3412; font-weight: 500; }
+.email-vehicle-review-line:has([data-email-line-include]:not(:checked)) { opacity: .48; background: #f8fafc; border-color: #cbd5e1; }
 .sublet-table-wrap { overflow-x: auto; }
 .sublet-table { min-width: 1420px; }
 .sublet-table td { vertical-align: top; }
@@ -11215,4 +11228,4 @@ html[data-row-width="xl"] {
 .sublet-overdue-label { display: block; margin-top: 5px; color: #b91c1c; font-size: .72rem; }
 .sublet-email-check { display: flex; gap: 6px; align-items: center; margin-top: 5px; font-size: .78rem; }
 .sublet-email-check input { width: auto; min-width: 0; }
-@media (max-width: 900px) { .email-review-row { grid-template-columns: 1fr; } .email-review-actions { justify-content: flex-start; } }
+@media (max-width: 900px) { .email-review-row, .email-review-vehicle-fields, .email-vehicle-review-line { grid-template-columns: 1fr; } .email-review-actions { justify-content: flex-start; } }
