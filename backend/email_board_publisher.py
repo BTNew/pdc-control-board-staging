@@ -172,6 +172,33 @@ def first_match(text: str, patterns: list[str]) -> str:
     return ""
 
 
+def all_matches(text: str, patterns: list[str]) -> list[str]:
+    values: list[str] = []
+    for pattern in patterns:
+        for match in re.finditer(pattern, text, flags=re.IGNORECASE):
+            value = re.sub(r"\s+", " ", match.group(1)).strip(" .;,\t")
+            if value:
+                values.append(value[:120])
+    return values
+
+
+def bad_customer_value(value: str) -> bool:
+    normalized = re.sub(r"\s+", " ", value or "").strip().lower().rstrip(":")
+    return (
+        not normalized
+        or normalized.isdigit()
+        or normalized in {"price group", "fleet customer", "fleet amount", "customer"}
+    )
+
+
+def clean_customer(value: str) -> str:
+    value = re.sub(r"\s+", " ", value or "").strip(" .;,\t")
+    company = re.match(r"^(.+?\b(?:Pty Ltd|Ltd|Limited|Inc|Corporation|Corp)\b)", value, flags=re.I)
+    if company:
+        return company.group(1).strip()[:120]
+    return value[:120]
+
+
 def clean(value: str) -> str:
     value = re.sub(r"\s+", " ", value or "").strip()
     return value[:120]
@@ -272,13 +299,14 @@ def parse_vehicle(record: dict[str, Any]) -> ParsedVehicle | None:
     if not stock:
         stock = f"PENDING-{job}"
     subject_customer = re.sub(r"\s+[-–−]\s*\d{5,12}.*$", "", subject).strip()
-    bad_customer = (
-        not customer
-        or customer.isdigit()
-        or customer.lower().rstrip(":") in {"price group", "fleet customer", "fleet amount", "customer"}
-    )
-    if bad_customer:
+    if bad_customer_value(customer):
+        customer = next((value for value in all_matches(attachments, FIELD_PATTERNS["customer"]) if not bad_customer_value(value)), "")
+    if bad_customer_value(customer):
+        customer = next((value for value in all_matches(text, FIELD_PATTERNS["customer"]) if not bad_customer_value(value)), "")
+    if bad_customer_value(customer):
         customer = subject_customer if subject_customer and subject_customer != subject else "Email intake - review"
+    else:
+        customer = clean_customer(customer)
     if not model:
         model = "Vehicle from email intake"
 
