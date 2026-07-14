@@ -46,7 +46,7 @@ code += String.raw`
   assert(incomingVehicleDetailRow(pmbVehicle, 'pmb').includes('data-transfer-rft-stock="PMB001"'), 'PMB workflow/control-board rows should expose transfer to RFT action');
 
   const stageValues = PMB_STAGE_DEFS.map(def => def.value);
-  ['TINT', 'HOIST', 'FITTING', 'FABRICATION', 'ELECTRICAL', 'TYRE', 'PIT_INSPECTION'].forEach(stage => {
+  ['BUS_4X4', 'TINT', 'HOIST', 'FITTING', 'FABRICATION', 'ELECTRICAL', 'TYRE', 'PIT_INSPECTION'].forEach(stage => {
     assert(stageValues.includes(stage), 'PMB bucket coverage missing ' + stage);
   });
   const bayBoardHtml = renderPmbBayBoardHtml('HOIST');
@@ -67,6 +67,7 @@ code += String.raw`
   assert(!workflowCardHtml.includes('pmb-card-actions') && !workflowCardHtml.includes('RFT gate:'), 'PMB workflow pill should not show old action/meta/RFT gate clutter');
   assert(!workflowCardHtml.includes('pmb-card-requirements'), 'PMB workflow pill should not show the old all-job tick row');
   assert(pmbStageBayCount('FABRICATION') === 13, 'Fabrication should expose thirteen physical bays');
+  assert(pmbStageBayCount('BUS_4X4') === 1, 'Bus 4x4 should expose its own physical bay');
   const fabCardHtml = pmbBayVehicleCardHtml({ stock: '10015803', keyNumber: '203', jobCardNumber: 'JC13920003', client: 'Fremantle Council', pdcLocation: 'PMB', manualLocation: 'PMB', pmbStage: 'FABRICATION' }, 'FABRICATION');
   assert(!fabCardHtml.includes('data-assign-pmb-bay-number='), 'Fabrication bay pill should stay clean without bay assignment controls');
 
@@ -86,9 +87,12 @@ code += String.raw`
   assert(filterHeaderHtml.includes('Yes</small>'), 'Active Tyre Yes filter should be visible in the heading');
   assert(filterHeaderHtml.includes('Oldest</small>'), 'Age / ETA heading should expose the active oldest sort');
   const partsHeaderStart = filterHeaderHtml.indexOf('pdc-grid-station-parts');
-  const tintHeaderStart = filterHeaderHtml.indexOf('pdc-grid-station-tint');
-  const partsHeaderHtml = filterHeaderHtml.slice(partsHeaderStart, tintHeaderStart);
+  const busHeaderStart = filterHeaderHtml.indexOf('pdc-grid-station-bus4x4');
+  const partsHeaderHtml = filterHeaderHtml.slice(partsHeaderStart, busHeaderStart);
   assert(!partsHeaderHtml.includes('value="no"'), 'Parts heading should not offer an impossible Not required filter');
+  const riskVehicle = { stock: 'RISK001', pdcLocation: 'PMB', pdcRequiresParts: true, pdcPartsWorstEta: '25/07/2026', navisionKewdaleEta: '20/07/2026' };
+  assert(partsEtaRisk(riskVehicle), 'Parts ETA after Kewdale ETA should be flagged as risk');
+  assert(incomingVehicleDetailRow(riskVehicle, 'pmb').includes('PARTS RISK'), 'Vehicle Locations / Control Board row should display Parts risk');
   assert(filterHeaderHtml.includes('data-workflow-clear-column-filters'), 'Active column filters should expose a clear action in the heading row');
   app.workflowFilters = { sort: 'oldest', bucket: '', work: '', required: '', completion: '', stoppage: '' };
   applyWorkflowHeaderFilter('work', 'no', 'tyre');

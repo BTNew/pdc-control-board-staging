@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.07.14.06-pdf-extraction-stable';
+const APP_VERSION = '2026.07.14.08-stage1-staff-feedback';
 window.VEHICLE_TRACKING_DATA = window.VEHICLE_TRACKING_DATA || { report: {}, vehicles: [], toyotaMatches: {} };
 const EDITS_KEY = 'vehicleTrackingCoreNavisionOnlyEdits:v1';
 const ADDED_KEY = 'vehicleTrackingCoreNavisionOnlyVehicles:v1';
@@ -21,7 +21,7 @@ const STORAGE_TRANSACTION_JOURNAL_KEY = 'vehicleTrackingCoreStorageTransaction:v
 const VEHICLE_TABLE_COLUMN_ORDER_KEY = 'vehicleTrackingCoreColumnOrder:v4';
 const WORKFLOW_WIDTH_MODE_KEY = 'vehicleTrackingCoreWorkflowWidthMode:v1';
 const ROW_WIDTH_MODE_KEY = 'vehicleTrackingCoreRowWidthMode:v1';
-const VEHICLE_TABLE_DEFAULT_COLUMN_IDS = ['sp', 'stock', 'prodMth', 'client', 'vehicle', 'tint', 'hoist', 'fitting', 'fabrication', 'electrical', 'tyre', 'pitInspection', 'status', 'eta', 'navisionNotes', 'jita', 'action'];
+const VEHICLE_TABLE_DEFAULT_COLUMN_IDS = ['sp', 'stock', 'prodMth', 'client', 'vehicle', 'bus4x4', 'tint', 'hoist', 'fitting', 'fabrication', 'electrical', 'tyre', 'pitInspection', 'status', 'eta', 'navisionNotes', 'jita', 'action'];
 const PO_TASKS_KEY = 'vehicleTrackingCoreNavisionOnlyPoTasks:v1';
 const PO_FILES_KEY = 'vehicleTrackingCoreNavisionOnlyPoFiles:v1';
 const DELETED_KEY = 'vehicleTrackingCoreNavisionOnlyDeleted:v1';
@@ -82,6 +82,7 @@ function pdcLocationSelectOptions(current = '') {
 
 const PMB_STAGE_OPTIONS = [
   { value: '', label: 'UNALLOCATED' },
+  { value: 'BUS_4X4', label: 'Bus 4x4' },
   { value: 'TINT', label: 'Tint' },
   { value: 'HOIST', label: 'Hoist' },
   { value: 'FITTING', label: 'Fitting' },
@@ -98,6 +99,7 @@ const PMB_STAGE_LABELS = new Map(PMB_STAGE_OPTIONS.map(option => [option.value, 
 
 const PMB_WIP_LIMITS = {
   '': 12,
+  BUS_4X4: 1,
   TINT: 2,
   HOIST: 3,
   FITTING: 5,
@@ -109,6 +111,7 @@ const PMB_WIP_LIMITS = {
 };
 
 const PMB_STAGE_BAY_COUNTS = {
+  BUS_4X4: 1,
   TINT: 2,
   HOIST: 3,
   FITTING: 5,
@@ -119,6 +122,7 @@ const PMB_STAGE_BAY_COUNTS = {
 };
 
 const PMB_STAGE_CAPACITY_LABELS = {
+  BUS_4X4: '1 bay',
   FABRICATION: '13 bays',
   TYRE: '2 bays · 1 wheel alignment bay',
   SUBLET: 'Provider queue',
@@ -126,6 +130,7 @@ const PMB_STAGE_CAPACITY_LABELS = {
 
 const PMB_STAGE_AGE_LIMITS = {
   '': 1,
+  BUS_4X4: 2,
   TINT: 2,
   HOIST: 2,
   FITTING: 3,
@@ -136,8 +141,9 @@ const PMB_STAGE_AGE_LIMITS = {
 };
 
 const PMB_BAY_MAX_COUNT = 13;
-const PMB_BAY_STATION_SEQUENCE = ['TINT', 'HOIST', 'FITTING', 'FABRICATION', 'ELECTRICAL', 'TYRE', 'PIT_INSPECTION'];
+const PMB_BAY_STATION_SEQUENCE = ['BUS_4X4', 'TINT', 'HOIST', 'FITTING', 'FABRICATION', 'ELECTRICAL', 'TYRE', 'PIT_INSPECTION'];
 const PRODUCTION_FLOW_DEFS = [
+  { key: 'BUS_4X4', label: 'Bus 4x4', short: 'B4', jobKey: 'bus4x4', stage: 'BUS_4X4', department: '138', search: /\b(bus\s*4x4|4x4 bus|department\s*138)\b/i },
   { key: 'TINT', label: 'Tint', short: 'T', jobKey: 'tint', stage: 'TINT', search: /\b(tint|tinting|window tint)\b/i },
   { key: 'HOIST', label: 'Hoist', short: 'H', jobKey: 'hoist', stage: 'HOIST', search: /\b(hoist|suspension|gvm|lift kit|lift|underbody|towbar|tow bar)\b/i },
   { key: 'FITTING', label: 'Fitting', short: 'F', jobKey: 'fitting', stage: 'FITTING', search: /\b(fit|fitting|build|pdi|pre delivery|pre-delivery|accessor(?:y|ies)|job card|workshop)\b/i },
@@ -147,6 +153,7 @@ const PRODUCTION_FLOW_DEFS = [
   { key: 'PIT_INSPECTION', label: 'Pit', short: 'PI', jobKey: 'pitInspection', stage: 'PIT_INSPECTION', search: /\b(pit inspection|pit|inspection)\b/i },
 ];
 const PRODUCTION_DEPARTMENT_VIEWS = {
+  'dept-bus-4x4': 'BUS_4X4',
   'dept-tint': 'TINT',
   'dept-hoist': 'HOIST',
   'dept-fitting': 'FITTING',
@@ -157,6 +164,7 @@ const PRODUCTION_DEPARTMENT_VIEWS = {
 };
 
 const PDC_JOB_DEFS = [
+  { key: 'bus4x4', label: 'BUS 4X4', short: 'B4', requireKey: 'pdcRequiresBus4x4', completeKey: 'pdcCompleteBus4x4', completeAtKey: 'pdcCompleteBus4x4At', completeByKey: 'pdcCompleteBus4x4By' },
   { key: 'tint', label: 'TINT', short: 'T', requireKey: 'pdcRequiresTint', completeKey: 'pdcCompleteTint', completeAtKey: 'pdcCompleteTintAt', completeByKey: 'pdcCompleteTintBy' },
   { key: 'hoist', label: 'HOIST', short: 'H', requireKey: 'pdcRequiresHoist', completeKey: 'pdcCompleteHoist', completeAtKey: 'pdcCompleteHoistAt', completeByKey: 'pdcCompleteHoistBy' },
   { key: 'fitting', label: 'FITTING', short: 'F', requireKey: 'pdcRequiresFitting', completeKey: 'pdcCompleteFitting', completeAtKey: 'pdcCompleteFittingAt', completeByKey: 'pdcCompleteFittingBy' },
@@ -196,13 +204,14 @@ function pdcJobTriStateControl(vehicle = {}, def = {}, locked = false) {
 const PDC_JOB_BY_REQUIRE_KEY = new Map(PDC_JOB_DEFS.map(def => [def.requireKey, def]));
 const PDC_JOB_BY_COMPLETE_KEY = new Map(PDC_JOB_DEFS.map(def => [def.completeKey, def]));
 const PDC_JOB_BY_KEY = new Map(PDC_JOB_DEFS.map(def => [def.key, def]));
-const PDC_IMPORT_CONTROL_COLUMNS_TEXT = 'TINT, HOIST, FITTING, FABRICATION, ELECTRICAL, TYRE, PIT INSPECTION, PARTS';
+const PDC_IMPORT_CONTROL_COLUMNS_TEXT = 'BUS 4X4, TINT, HOIST, FITTING, FABRICATION, ELECTRICAL, TYRE, PIT INSPECTION, PARTS';
 
 function currentPdcJobLabelsText() {
   return PDC_JOB_DEFS.map(def => def.label).join(', ');
 }
 
 const PMB_STAGE_TO_JOB_KEY = {
+  BUS_4X4: 'bus4x4',
   TINT: 'tint',
   HOIST: 'hoist',
   FITTING: 'fitting',
@@ -247,6 +256,7 @@ function pdcJobHours(vehicle = {}, def = {}) {
 function normalizePmbStage(value = '') {
   const clean = String(value || '').trim().toUpperCase();
   if (!clean) return '';
+  if (/\bBUS[ _-]*4X4\b|\b4X4[ _-]*BUS\b|\b(?:DEPT|DEPARTMENT)[ _-]*138\b/.test(clean)) return 'BUS_4X4';
   if (clean.includes('TINT')) return 'TINT';
   if ((clean.includes('EXPRESS') && clean.includes('HOIST')) || clean.includes('PITS HOIST') || clean.includes('PIT HOIST')) return 'HOIST';
   if (clean.includes('EXPRESS') && (clean.includes('FITOUT') || clean.includes('FIT OUT') || clean.includes('FITTING') || clean.includes('FITMENT'))) return 'FITTING';
@@ -346,6 +356,29 @@ function daysSinceDateValue(value = '') {
 
 function kewdaleEtaValue(vehicle = {}) {
   return scotEtaOnly(vehicle.navisionKewdaleEta || vehicle.etaAtKewdale || vehicle.etaAtDealer || '');
+}
+
+const PDC_DEPARTMENT_LABELS = { '138': 'Bus 4x4', '137': 'Fab', '139': 'PD' };
+
+function vehicleDepartmentCode(vehicle = {}) {
+  const raw = cleanNavisionText(vehicle.pdcDepartmentCode || vehicle.departmentCode || vehicle.navisionDepartmentCode || vehicle.department || vehicle.dept || '');
+  const match = raw.match(/\b(137|138|139)\b/);
+  if (match) return match[1];
+  const text = raw.toLowerCase();
+  if (/bus\s*4x4|4x4\s*bus/.test(text)) return '138';
+  if (/\bfab(?:rication)?\b/.test(text)) return '137';
+  if (/\bpd\b|pre.?delivery/.test(text)) return '139';
+  return '';
+}
+
+function vehicleDepartmentLabel(vehicle = {}) {
+  const code = vehicleDepartmentCode(vehicle);
+  return code ? `${code} ${PDC_DEPARTMENT_LABELS[code]}` : '';
+}
+
+function vehicleDepartmentBadge(vehicle = {}) {
+  const label = vehicleDepartmentLabel(vehicle);
+  return label ? `<span class="badge pdc-department-badge pdc-department-${escapeHtml(vehicleDepartmentCode(vehicle))}">${escapeHtml(label)}</span>` : '';
 }
 
 function onSiteDays(vehicle = {}) {
@@ -581,6 +614,7 @@ function vehicleRftGateIssues(vehicle = {}) {
   if (vehicle.pdcPartsStoppage === true || cleanNavisionText(vehicle.pdcPartsStoppageReason || '')) {
     issues.push(`Parts stoppage: ${partsStoppageReason(vehicle)}`);
   }
+  if (partsEtaRisk(vehicle)) issues.push(`PARTS RISK: Parts ETA ${partsWorstEtaLabel(vehicle)} is later than Kewdale ETA ${kewdaleEtaValue(vehicle)}`);
   const outstanding = pdcRequirementDefinitions(vehicle).filter(job => !pdcJobComplete(vehicle, job)).map(job => job.label);
   if (outstanding.length) issues.push(`Outstanding jobs: ${outstanding.join(', ')}`);
   const alreadyTransferredToRft = vehiclePdcLocation(vehicle) === 'RFT' || statusCategory(vehicle) === 'rft' || vehicleCollectedFromRft(vehicle);
@@ -612,6 +646,7 @@ function pdcStageMatchesJob(stage = '', def = {}) {
   const normalized = normalizePmbStage(stage);
   if (!normalized || !def?.key) return false;
   return ({
+    bus4x4: 'BUS_4X4',
     tint: 'TINT',
     hoist: 'HOIST',
     fitting: 'FITTING',
@@ -632,6 +667,8 @@ function pdcJobFallbackRequired(vehicle = {}, def = {}) {
   // PMB bay/stage assignment may still show its matching work item as required.
   if (navisionVehicleRequiresExplicitPdcWork(vehicle)) return pdcStageMatchesJob(stage, def);
   switch (def.key) {
+    case 'bus4x4':
+      return /\b(bus\s*4x4|4x4\s*bus|department\s*138)\b/.test(source) || stage === 'BUS_4X4' || vehicleDepartmentCode(vehicle) === '138';
     case 'tint':
       return legacyVehicleFlag(vehicle, 'tintRaised') || /\b(tint|tinting|window tint)\b/.test(source) || stage === 'TINT';
     case 'hoist':
@@ -2273,6 +2310,9 @@ function bindNav() {
   on($('#jita-filter'), 'change', () => { renderKpis(); renderVehicleTable(); });
   on($('#parts-search'), 'input', renderPartsHome);
   on($('#parts-status-filter'), 'change', renderPartsHome);
+  on($('#parts-eta-filter'), 'change', renderPartsHome);
+  on($('#parts-eta-sort'), 'change', renderPartsHome);
+  on($('#parts-department-filter'), 'change', renderPartsHome);
   on($('#schedule-search'), 'input', renderScheduleBoard);
   on($('#schedule-department-filter'), 'change', renderScheduleBoard);
   on($('#department-search'), 'input', renderProductionDepartmentBoard);
@@ -3518,21 +3558,22 @@ function incomingVehicleDetailRow(vehicle = {}, bucketKey = '', options = {}) {
       : bucketKey === 'rft'
         ? `<label class="rft-collected-check incoming-collected-check" title="Tick once the vehicle has been collected"><input type="checkbox" data-rft-collected-key="${escapeHtml(key)}" /> <span>Collected</span></label><button class="small-button incoming-open-button" type="button" data-open-stock="${escapeHtml(key)}">Open</button>`
         : `<button class="small-button incoming-open-button" type="button" data-open-stock="${escapeHtml(key)}">Open</button>`;
-  const labelAction = `<button class="small-button vehicle-label-button" type="button" data-label-vehicle="${escapeHtml(key)}" title="Print two Zebra labels for ${escapeHtml(stock)}">Label</button>`;
+  const labelAction = `<button class="small-button vehicle-label-button" type="button" data-label-vehicle="${escapeHtml(key)}" title="Print one Zebra label for ${escapeHtml(stock)}">Label</button>`;
   const deleteAction = options.showDelete ? `<button class="small-button incoming-delete-button" type="button" data-incoming-delete="${escapeHtml(key)}" title="Move this vehicle to Deleted vehicles">Delete</button>` : '';
   const identitySummary = vehicleIdentityStackHtml(vehicle, { className: 'incoming-identity' });
   const selectBox = `<label class="incoming-card-select" title="Select ${escapeHtml(stock)}"><input type="checkbox" data-select-stock="${escapeHtml(key)}" ${app.selectedRows.has(key) ? 'checked' : ''} /><span aria-hidden="true"></span></label>`;
   const dragAttrs = options.draggable ? ` draggable="true" data-pmb-drag-key="${escapeHtml(key)}"` : '';
   const dragClass = options.draggable ? ' workflow-draggable-row' : '';
+  const risk = partsEtaRisk(vehicle);
   return `
-    <details class="incoming-vehicle-card pdc-production-grid-card incoming-${escapeHtml(bucketKey)}-row${dragClass} ${app.selectedRows.has(key) ? 'is-selected' : ''}" data-incoming-row="${escapeHtml(key)}"${dragAttrs}>
+    <details class="incoming-vehicle-card pdc-production-grid-card incoming-${escapeHtml(bucketKey)}-row${dragClass} ${app.selectedRows.has(key) ? 'is-selected' : ''}${risk ? ' has-parts-risk' : ''}" data-incoming-row="${escapeHtml(key)}"${dragAttrs}>
       <summary class="incoming-vehicle-summary pdc-production-grid-row">
         ${selectBox}
         <span class="incoming-card-stock">${identitySummary}</span>
         <span class="incoming-card-main"><strong title="${escapeHtml(unit)}">${escapeHtml(unit)}</strong></span>
         <span class="incoming-card-work-wrap">${workChecks}</span>
         <span class="incoming-card-meta incoming-card-age ${escapeHtml('pmb-age-' + onSiteDaysClass(vehicle))}"><b>${bucketKey === 'pmb' ? 'PMB' : bucketKey === 'yardhold' ? 'YH' : 'ETA'}</b><span>${escapeHtml(eta)}</span></span>
-        <span class="incoming-card-meta incoming-card-status"><b>Status</b><span>${escapeHtml(rowStatus)}</span></span>
+        <span class="incoming-card-meta incoming-card-status"><b>Status</b><span>${partsRiskBadge(vehicle)}${vehicleDepartmentBadge(vehicle)}${escapeHtml(rowStatus)}</span></span>
         <span class="incoming-card-action">${primaryAction}${labelAction}${deleteAction}</span>
       </summary>
       <div class="incoming-vehicle-detail-grid">
@@ -3541,6 +3582,7 @@ function incomingVehicleDetailRow(vehicle = {}, bucketKey = '', options = {}) {
         <div><b>Sales rep</b><span>${escapeHtml(consultant)}</span></div>
         <div><b>Age</b><span>${escapeHtml(age)}</span></div>
         <div><b>Bucket</b><span>${escapeHtml(incomingBucketLabel(bucketKey))}</span></div>
+        ${risk ? `<div class="wide parts-risk-detail"><b>PARTS RISK</b><span>Parts ETA ${escapeHtml(partsWorstEtaLabel(vehicle))} is later than Kewdale ETA ${escapeHtml(kewdaleEtaValue(vehicle))}</span></div>` : ''}
         ${subletProviderField}
         <div class="wide"><b>PMB work required</b><span>${escapeHtml(required)}</span></div>
       </div>
@@ -3893,6 +3935,7 @@ function pdFlagsFromTasks(tasks = []) {
   const text = tasks.join(' ').toLowerCase();
   return {
     buildPoRaised: Boolean(tasks.length),
+    pdcRequiresBus4x4: /\bbus\s*4x4\b|\b4x4\s*bus\b|\bdepartment\s*138\b/.test(text),
     pdcRequiresTint: /tint/.test(text),
     pdcRequiresHoist: /hoist|suspension|gvm|lift|tow/.test(text),
     pdcRequiresFitting: /\bfit\b|fitment|fitting|pdi|pre.?delivery|accessor|bull ?bar|tow ?bar|canopy|tray/.test(text),
@@ -5409,6 +5452,61 @@ async function pmbMovementResolutionUpdates(vehicle = {}, fromStage = '', toStag
   return {};
 }
 
+function partsIncompleteMovementStage(stage = '') {
+  return ['BUS_4X4', 'TINT', 'HOIST', 'FITTING', 'FABRICATION', 'ELECTRICAL', 'TYRE', 'PIT_INSPECTION'].includes(normalizePmbStage(stage));
+}
+
+function confirmPartsIncompleteMovement(vehicle = {}, stage = '') {
+  const nextStage = normalizePmbStage(stage);
+  const partsStatus = partsDepartmentStatus(vehicle);
+  if (!partsIncompleteMovementStage(nextStage) || ['issued', 'notrequired'].includes(partsStatus)) return {};
+  const stock = displayStockNumber(vehicle) || vehicle.order || 'this vehicle';
+  const destination = pmbStageLabel(nextStage);
+  return new Promise(resolve => {
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-backdrop pmb-resolution-modal';
+    overlay.innerHTML = `
+      <section class="modal-card pmb-resolution-modal-card">
+        <button class="modal-close" type="button" data-parts-override-cancel aria-label="Cancel movement">×</button>
+        <div class="panel-header"><div>
+          <h2>Parts not complete</h2>
+          <p>${escapeHtml(stock)} is ${escapeHtml(partsDepartmentStatusLabel(partsStatus))}. Moving it into ${escapeHtml(destination)} requires an authorised exception and a reason.</p>
+        </div></div>
+        <label class="pmb-resolution-reason">
+          <span>Manager / admin override reason</span>
+          <input type="text" data-parts-override-reason maxlength="180" placeholder="Enter the operational reason" autocomplete="off">
+        </label>
+        <p class="form-error" data-parts-override-error hidden>Enter an override reason before continuing.</p>
+        <div class="edit-actions pmb-resolution-actions">
+          <button class="secondary" type="button" data-parts-override-cancel>Cancel</button>
+          <button class="primary" type="button" data-parts-override-save>Confirm override</button>
+        </div>
+      </section>`;
+    const finish = value => {
+      document.removeEventListener('keydown', onKeydown);
+      overlay.remove();
+      resolve(value);
+    };
+    const onKeydown = event => { if (event.key === 'Escape') finish(null); };
+    overlay.querySelectorAll('[data-parts-override-cancel]').forEach(button => button.addEventListener('click', () => finish(null)));
+    overlay.addEventListener('click', event => { if (event.target === overlay) finish(null); });
+    overlay.querySelector('[data-parts-override-save]').addEventListener('click', () => {
+      const reason = cleanNavisionText(overlay.querySelector('[data-parts-override-reason]')?.value || '');
+      if (!reason) {
+        overlay.querySelector('[data-parts-override-error]').hidden = false;
+        overlay.querySelector('[data-parts-override-reason]')?.focus();
+        return;
+      }
+      const operator = getCurrentOperatorName();
+      recordVehicleAudit(vehicle, 'Parts-incomplete movement override', { stage: destination, reason, by: operator });
+      finish({ pdcPartsMovementOverrideReason: reason, pdcPartsMovementOverrideAt: nowIsoString(), pdcPartsMovementOverrideBy: operator });
+    });
+    document.body.appendChild(overlay);
+    document.addEventListener('keydown', onKeydown);
+    overlay.querySelector('[data-parts-override-reason]')?.focus();
+  });
+}
+
 async function movePmbVehicleToStage(key, stage) {
   const cleanKey = String(key || '').trim();
   if (!cleanKey) return;
@@ -5422,10 +5520,13 @@ async function movePmbVehicleToStage(key, stage) {
   const currentStage = normalizePmbStage(vehicle.pmbBayStage || vehicle.pmbStage || inferredPmbStage(vehicle) || vehicle.pdcWorkStage || vehicle.workStage || '');
   if (currentStage === nextStage) return;
   const now = nowIsoString();
+  const partsOverrideUpdates = await confirmPartsIncompleteMovement(vehicle, nextStage);
+  if (partsOverrideUpdates === null) return;
   const resolutionUpdates = await pmbMovementResolutionUpdates(vehicle, currentStage, nextStage);
   if (resolutionUpdates === null) return;
   recordVehicleAudit(vehicle, 'PMB bucket moved', { from: pmbStageLabel(currentStage) || 'Unallocated', to: pmbStageLabel(nextStage) || 'Unallocated' });
   saveVehicleEdits(vehicleKey(vehicle), {
+    ...partsOverrideUpdates,
     ...resolutionUpdates,
     pdcLocation: 'PMB',
     manualLocation: 'PMB',
@@ -5575,6 +5676,9 @@ async function assignPmbVehicleToBay(key, stage, bay, requestedStartIso = '') {
   }
   const bayNumber = normalizePmbBayNumber(bay, nextStage);
   const currentStage = normalizePmbStage(vehicle.pmbBayStage || inferredPmbStage(vehicle));
+  const stageChanges = currentStage !== nextStage;
+  const partsOverrideUpdates = stageChanges ? await confirmPartsIncompleteMovement(vehicle, nextStage) : {};
+  if (partsOverrideUpdates === null) return;
   if (bayNumber) {
     const occupied = pmbBayOccupants(nextStage, bayNumber, cleanKey);
     if (occupied.length) {
@@ -5609,6 +5713,7 @@ async function assignPmbVehicleToBay(key, stage, bay, requestedStartIso = '') {
   const resolutionUpdates = await pmbMovementResolutionUpdates(vehicle, currentStage, nextStage);
   if (resolutionUpdates === null) return;
   const updates = {
+    ...partsOverrideUpdates,
     ...resolutionUpdates,
     pdcLocation: 'PMB',
     manualLocation: 'PMB',
@@ -7208,12 +7313,22 @@ function confirmZplWarnings(warnings = [], description = 'labels') {
   return window.confirm(`VIN / label warning before printing ${description}:\n\n${preview}${more}\n\nThe label can still be printed. Continue?`);
 }
 
+function selectedVehicleLabelData(vehicle = {}) {
+  return {
+    keyNumber: cleanZplField(vehicleKeyNumber(vehicle) || getSelectedZplBatch(vehicle)),
+    stock: cleanZplField(displayStockNumber(vehicle) || vehicle.order || ''),
+    jobCard: cleanZplField(vehicleJobcardNumber(vehicle) || ''),
+    customer: cleanZplField(vehicleCustomerName(vehicle) || vehicle.client || 'Dealer Order'),
+    model: cleanZplField(displayVehicle(vehicle) || vehicle.vehicle || ''),
+    sales: cleanZplField(consultantName(vehicle) || vehicle.salesperson || vehicle.salesPerson || ''),
+    department: cleanZplField(vehicleDepartmentLabel(vehicle) || vehicle.dealershipDepartment || vehicle.dealership || 'PDC'),
+  };
+}
+
 function vehiclesToZpl(vehicles = []) {
   if (!vehicles.length) return { zpl: '', count: 0, warnings: ['Select one or more vehicles first.'] };
-  const tsv = [ZPL_REQUIRED_COLUMNS.join('\t'), ...vehicles.map(selectedVehicleToZplRow)].join('\n');
-  const parsed = parseZplInput(tsv);
-  const zpl = parsed.vehicles.map(vehicleToZplBlock).join('\n\n');
-  return { zpl, count: parsed.vehicles.length, warnings: parsed.warnings };
+  const zpl = vehicles.map(vehicle => vehicleToZplBlock(selectedVehicleLabelData(vehicle))).join('\n\n');
+  return { zpl, count: vehicles.length, warnings: [] };
 }
 
 function selectedVehiclesToZpl() {
@@ -8611,6 +8726,19 @@ function partsWorstEtaSortValue(vehicle = {}) {
   return date ? date.getTime() : -8640000000000000;
 }
 
+function partsEtaRisk(vehicle = {}) {
+  const partsDate = partsWorstEtaDate(vehicle);
+  const kewdaleDate = parseDateAU(kewdaleEtaValue(vehicle));
+  if (!partsDate || !kewdaleDate) return false;
+  const partsDay = new Date(partsDate); partsDay.setHours(0, 0, 0, 0);
+  const kewdaleDay = new Date(kewdaleDate); kewdaleDay.setHours(0, 0, 0, 0);
+  return partsDay > kewdaleDay;
+}
+
+function partsRiskBadge(vehicle = {}) {
+  return partsEtaRisk(vehicle) ? `<span class="badge parts-risk-badge" title="Parts ETA is later than Kewdale ETA">PARTS RISK</span>` : '';
+}
+
 function isActivePartsStoppage(vehicle = {}) {
   const parts = PDC_JOB_BY_KEY.get('parts');
   const hasStoppage = vehicle.pdcPartsStoppage === true || Boolean(cleanNavisionText(vehicle.pdcPartsStoppageReason || ''));
@@ -8672,6 +8800,9 @@ function partsLastUpdateLabel(vehicle = {}) {
 function partsDepartmentRows() {
   const q = ($('#parts-search')?.value || '').trim().toLowerCase();
   const selectedFilter = $('#parts-status-filter')?.value || 'open';
+  const etaFilter = $('#parts-eta-filter')?.value || 'all';
+  const departmentFilter = $('#parts-department-filter')?.value || '';
+  const etaSort = $('#parts-eta-sort')?.value || 'status';
   const filter = ['issued', 'notrequired'].includes(selectedFilter) ? 'open' : selectedFilter;
   return pdcSheetVehicles()
     .filter(vehicleHasBatchNumber)
@@ -8681,17 +8812,29 @@ function partsDepartmentRows() {
         || (filter === 'open' && !['issued', 'notrequired'].includes(status))
         || (!['all', 'open'].includes(filter) && status === filter);
       if (!matchesStatus) return false;
+      if (departmentFilter && vehicleDepartmentCode(vehicle) !== departmentFilter) return false;
+      const etaDays = partsWorstEtaDaysUntil(vehicle);
+      if (etaFilter === 'risk' && !partsEtaRisk(vehicle)) return false;
+      if (etaFilter === 'overdue' && !(etaDays !== null && etaDays < 0)) return false;
+      if (etaFilter === 'none' && partsWorstEtaValue(vehicle)) return false;
       if (!q) return true;
       const productionLabel = productionMonthLabel(vehicle.prodMth || vehicle.productionMonth || '');
       const hay = [
         displayStockNumber(vehicle), vehicle.order, vehicle.client, vehicle.toyotaCustomer, displayVehicle(vehicle),
         pdcLocationLabel(vehiclePdcLocation(vehicle)),
         statusCategoryLabel(vehicle), partsDepartmentStatusLabel(status), partsStoppageReason(vehicle), productionLabel,
-        kewdaleEtaValue(vehicle), partsEtaCounterLabel(vehicle), partsWorstEtaLabel(vehicle), partsWorstEtaValue(vehicle)
+        kewdaleEtaValue(vehicle), partsEtaCounterLabel(vehicle), partsWorstEtaLabel(vehicle), partsWorstEtaValue(vehicle),
+        vehicleDepartmentLabel(vehicle), partsEtaRisk(vehicle) ? 'parts risk' : ''
       ].join(' ').toLowerCase();
       return hay.includes(q);
     })
     .sort((a, b) => {
+      if (etaSort === 'nearest' || etaSort === 'latest') {
+        const missing = etaSort === 'nearest' ? 8640000000000000 : -8640000000000000;
+        const aEta = partsWorstEtaDate(a)?.getTime() ?? missing;
+        const bEta = partsWorstEtaDate(b)?.getTime() ?? missing;
+        if (aEta !== bEta) return etaSort === 'nearest' ? aEta - bEta : bEta - aEta;
+      }
       const rank = { miscacc: 0, stoppage: 1, notordered: 2, onorder: 3, issued: 4, notrequired: 5 };
       const rankDiff = (rank[partsDepartmentStatus(a)] ?? 9) - (rank[partsDepartmentStatus(b)] ?? 9);
       if (rankDiff) return rankDiff;
@@ -8774,7 +8917,7 @@ function partsQueueRowHtml(vehicle = {}) {
   const blocker = status === 'stoppage' ? partsStoppageReason(vehicle) : '';
   return `<tr class="parts-row parts-queue-row ${escapeHtml(partsDepartmentStatusClass(status))}">
     <td><div class="parts-queue-status-cell">
-      <span class="parts-status-pill ${escapeHtml(partsDepartmentStatusClass(status))}">${escapeHtml(partsDepartmentStatusLabel(status))}</span>
+      <span class="parts-status-pill ${escapeHtml(partsDepartmentStatusClass(status))}">${escapeHtml(partsDepartmentStatusLabel(status))}</span>${partsRiskBadge(vehicle)}${vehicleDepartmentBadge(vehicle)}
       <span class="parts-queue-jita"><b>JITA</b>${jitaIndicator(vehicle)}</span>
     </div></td>
     <td><div class="parts-queue-identity">
@@ -10193,7 +10336,7 @@ async function scanAutocareNotice() {
     button.textContent = 'Scan Autocare notice';
     updateAutocareScanButton();
   }
-  if (result.vehicles?.length && window.confirm(`Autocare notice loaded ${result.vehicles.length} vehicle${result.vehicles.length === 1 ? '' : 's'}.\n\nPrint two Zebra labels for each vehicle now?`)) {
+  if (result.vehicles?.length && window.confirm(`Autocare notice loaded ${result.vehicles.length} vehicle${result.vehicles.length === 1 ? '' : 's'}.\n\nPrint one Zebra label for each vehicle now?`)) {
     await printZplFromAutocareResults('all');
   }
 }
@@ -11442,6 +11585,7 @@ function explicitImportBoolean(row, headerMap, columns) {
 function buildExplicitPdcUpdatesFromImport(row, headerMap) {
   const updates = {};
   const pairs = [
+    ['pdcRequiresBus4x4', ['BUS 4X4', 'Bus 4x4', 'BUS_4X4', 'Requires Bus 4x4', 'Bus 4x4 Required', 'Department 138']],
     ['pdcRequiresTint', ['TINT', 'Tint', 'Requires Tint', 'Tint Required']],
     ['pdcRequiresHoist', ['HOIST', 'Hoist', 'Requires Hoist', 'Hoist Required']],
     ['pdcRequiresFitting', ['FITTING', 'Fitting', 'Fitment', 'Requires Fitting', 'Fitting Required', 'BUILD', 'Build', 'Requires Build', 'Build Required']],
@@ -12958,27 +13102,23 @@ function getTsvValue(row, headerMap, column) {
 }
 
 function vehicleToZplBlock(vehicle) {
-  const batch = cleanZplField(vehicle.batch);
-  const customer = cleanZplField(vehicle.customer);
-  const model = cleanZplField(vehicle.model);
-  const specLine = cleanZplField(vehicle.specLine);
-  const vin = cleanZplField(vehicle.vin).replace(/\s+/g, '');
+  const keyNumber = cleanZplField(vehicle.keyNumber || vehicle.batch || 'NO KEY');
+  const stock = cleanZplField(vehicle.stock || '—');
+  const jobCard = cleanZplField(vehicle.jobCard || '—');
+  const customer = cleanZplField(vehicle.customer || '(Dealer Order)');
+  const model = cleanZplField(vehicle.model || 'Vehicle not listed');
+  const sales = cleanZplField(vehicle.sales || '—');
+  const department = cleanZplField(vehicle.department || 'PDC');
   return [
-    '^XA',
-    '^PW540',
-    '^LL360',
-    '^LH0,0',
-    '^CI28',
-    '',
-    `^FO20,20^A0N,50,50^FB500,1,0,L,0^FD${batch}^FS`,
-    `^FO20,90^A0N,25,25^FB500,1,0,L,0^FD${customer}^FS`,
-    `^FO20,125^A0N,25,25^FB500,1,0,L,0^FD${model}^FS`,
-    `^FO20,160^A0N,25,25^FB500,1,0,L,0^FD${specLine}^FS`,
-    `^FO20,195^A0N,25,25^FB500,1,0,L,0^FD${vin}^FS`,
-    `^FO20,300^A0N,50,50^FB500,1,0,L,0^FD${batch}^FS`,
-    '',
-    '^PQ2',
-    '^XZ'
+    '^XA', '^PW540', '^LL360', '^LH0,0', '^CI28',
+    `^FO18,12^A0N,62,62^FB504,1,0,L,0^FD${keyNumber}^FS`,
+    `^FO18,82^A0N,28,28^FB504,1,0,L,0^FDSTOCK ${stock}^FS`,
+    `^FO18,116^A0N,25,25^FB504,1,0,L,0^FDJOB CARD ${jobCard}^FS`,
+    `^FO18,150^A0N,27,27^FB504,2,2,L,0^FD${customer}^FS`,
+    `^FO18,210^A0N,25,25^FB504,2,2,L,0^FD${model}^FS`,
+    `^FO18,276^A0N,23,23^FB504,1,0,L,0^FDSALES ${sales}^FS`,
+    `^FO18,308^A0N,22,22^FB504,1,0,L,0^FD${department}^FS`,
+    '^PQ1', '^XZ'
   ].join('\n');
 }
 
@@ -13042,7 +13182,7 @@ function renderZplSummary(parsed, zpl) {
   summary.innerHTML = `
     <div class="zpl-summary-grid">
       <div class="summary-stat"><span>Vehicles processed</span><strong>${count}</strong></div>
-      <div class="summary-stat"><span>Label copies</span><strong>${count * 2}</strong></div>
+      <div class="summary-stat"><span>Label copies</span><strong>${count}</strong></div>
       <div class="summary-stat"><span>ZPL blocks</span><strong>${zpl ? count : 0}</strong></div>
     </div>
     ${parsed.warnings.length ? `<div class="zpl-warning"><strong>Review before printing</strong><ul>${warningList}</ul></div>` : '<div class="zpl-ok">Ready to print. No incomplete VINs detected.</div>'}

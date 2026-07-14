@@ -10754,8 +10754,8 @@ textarea {
 
 html {
   --pdc-grid-min: 1430px;
-  --pdc-grid-stations-width: 444px;
-  --pdc-station-template: repeat(8, 52px);
+  --pdc-grid-stations-width: 500px;
+  --pdc-station-template: repeat(9, 52px);
 }
 
 html[data-row-width="compact"] {
@@ -10789,16 +10789,16 @@ html[data-row-width="xl"] {
   padding-bottom: 3px !important;
 }
 
-/* All eight stage tracks are identical: 52px wide with a 4px gap. */
+/* All nine work tracks are identical: 52px wide with a 4px gap. */
 .pdc-grid-stations-heading,
 .pdc-station-strip,
 .incoming-work-checks,
 #workflow .incoming-work-checks {
-  grid-template-columns: repeat(8, 52px) !important;
+  grid-template-columns: repeat(9, 52px) !important;
   gap: 4px !important;
-  width: 444px !important;
-  min-width: 444px !important;
-  max-width: 444px !important;
+  width: 500px !important;
+  min-width: 500px !important;
+  max-width: 500px !important;
 }
 
 /* Full names appear once, angled over their matching status columns. */
@@ -10909,10 +10909,10 @@ html[data-row-width="xl"] {
   .pdc-station-strip,
   .incoming-work-checks,
   #workflow .incoming-work-checks {
-    grid-template-columns: repeat(8, 52px) !important;
-    width: 444px !important;
-    min-width: 444px !important;
-    max-width: 444px !important;
+    grid-template-columns: repeat(9, 52px) !important;
+    width: 500px !important;
+    min-width: 500px !important;
+    max-width: 500px !important;
   }
 }
 
@@ -11051,6 +11051,16 @@ html[data-row-width="xl"] {
   .work-import-check-grid { grid-template-columns: repeat(2, minmax(150px, 1fr)); }
   .work-import-detection-card { grid-template-columns: 1fr; }
 }
+
+/* 2026.07.14.08-stage1-staff-feedback */
+.parts-risk-badge { background: #b91c1c; color: #fff; font-weight: 900; letter-spacing: .04em; }
+.pdc-department-badge { background: #e0f2fe; color: #075985; white-space: nowrap; }
+.parts-queue-status-cell { gap: 6px; flex-wrap: wrap; }
+.parts-toolbar { align-items: end; flex-wrap: wrap; }
+.incoming-vehicle-card.has-parts-risk { border-left: 5px solid #dc2626 !important; background: #fff7ed; }
+.incoming-card-status .parts-risk-badge { margin-right: 4px; }
+.parts-risk-detail { border: 1px solid #fecaca; background: #fef2f2; color: #991b1b; border-radius: 8px; padding: 8px 10px; }
+.form-error { color: #b91c1c; font-weight: 800; margin: 0; }
 
 /* 2026.07.14.01 — Clean PMB bay/workflow pills. */
 .pmb-vehicle-pill,

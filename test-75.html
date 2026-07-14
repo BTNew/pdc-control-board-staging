@@ -4,8 +4,8 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>PDC Control Board — Random 75 Vehicle Test</title>
-  <link rel="stylesheet" href="styles.css?v=2026.07.14.06-pdf-extraction-stable" />
-  <link rel="stylesheet" href="desktop-operations.css?v=2026.07.14.06-pdf-extraction-stable" />
+  <link rel="stylesheet" href="styles.css?v=2026.07.14.08-stage1-staff-feedback" />
+  <link rel="stylesheet" href="desktop-operations.css?v=2026.07.14.08-stage1-staff-feedback" />
 </head>
 <body>
   <div class="test-data-banner" style="position:sticky;top:0;z-index:9999;background:#6d28d9;color:#fff;padding:8px 14px;text-align:center;font-weight:700;letter-spacing:.02em;">TEST DATASET — 75 SAMPLE VEHICLES ONLY — separate from live board</div>
@@ -95,6 +95,7 @@
               </label>
               <fieldset class="incoming-work-filter-checks" aria-label="Work type filters">
                 <legend>Work type</legend>
+                <label><input type="checkbox" name="incoming-work-filter" value="bus4x4" /> Bus 4x4</label>
                 <label><input type="checkbox" name="incoming-work-filter" value="tint" /> Tint</label>
                 <label><input type="checkbox" name="incoming-work-filter" value="hoist" /> Hoist</label>
                 <label><input type="checkbox" name="incoming-work-filter" value="fitting" /> Fitting</label>
@@ -315,6 +316,7 @@
                 <span>Department</span>
                 <select id="schedule-department-filter">
                   <option value="">All departments</option>
+                  <option value="BUS_4X4">Bus 4x4 (138)</option>
                   <option value="TINT">Tint (internal)</option>
                   <option value="HOIST">Hoist</option>
                   <option value="FITTING">Fitting</option>
@@ -390,6 +392,9 @@
                   <option value="miscacc">Misc Acc</option>
                 </select>
               </label>
+              <label><span>ETA view</span><select id="parts-eta-filter"><option value="all">All ETAs</option><option value="risk">PARTS RISK only</option><option value="overdue">Overdue</option><option value="none">No ETA</option></select></label>
+              <label><span>ETA sort</span><select id="parts-eta-sort"><option value="status">Status priority</option><option value="nearest">Nearest ETA</option><option value="latest">Latest ETA</option></select></label>
+              <label><span>Department</span><select id="parts-department-filter"><option value="">All departments</option><option value="138">138 Bus 4x4</option><option value="137">137 Fab</option><option value="139">139 PD</option></select></label>
             </div>
             <div class="parts-help-strip">
               <strong>Parts rule:</strong>
@@ -827,7 +832,7 @@
     }());
   </script>
   <script src="vendor/qz/qz-tray.js?v=2.2.6"></script>
-  <script src="data-test-75.js?v=2026.07.14.06-pdf-extraction-stable"></script>
-  <script src="app.js?v=2026.07.14.06-pdf-extraction-stable"></script>
+  <script src="data-test-75.js?v=2026.07.14.08-stage1-staff-feedback"></script>
+  <script src="app.js?v=2026.07.14.08-stage1-staff-feedback"></script>
 </body>
 </html>
