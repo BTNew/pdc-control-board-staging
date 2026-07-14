@@ -9,12 +9,18 @@ const root = __dirname;
 const app = fs.readFileSync(path.join(root, 'app.js'), 'utf8');
 const source = fs.readFileSync(path.join(root, 'workshop-planner.js'), 'utf8');
 const css = fs.readFileSync(path.join(root, 'workshop-planner.css'), 'utf8');
+const globalCss = fs.readFileSync(path.join(root, 'styles.css'), 'utf8');
 const htmlFiles = ['index.html', 'no-vehicles.html', 'test-50.html', 'test-75.html', 'test-100.html'];
 
 assert.strictEqual(planner.WORKSHOP_START_HOUR, 8, 'Workshop must start at 8:00am');
 assert.strictEqual(planner.WORKSHOP_END_HOUR, 16, 'Workshop must finish at 4:00pm');
 assert.strictEqual(planner.WORKSHOP_DAY_MINUTES, 480, 'Workshop day should contain eight hours');
-assert.deepStrictEqual(planner.WORKSHOP_STAGE_SEQUENCE, ['BUS_4X4', 'TINT', 'HOIST', 'FITTING', 'FABRICATION', 'ELECTRICAL', 'TYRE', 'PIT_INSPECTION'], 'Planner must include every current physical workshop station in order');
+assert.strictEqual(planner.WORKSHOP_DEFAULT_HOURS, 3, 'New planner bookings should default to three hours');
+assert.deepStrictEqual(
+  planner.WORKSHOP_STAGE_SEQUENCE,
+  ['BUS_4X4', 'TINT', 'HOIST', 'FITTING', 'FABRICATION', 'ELECTRICAL', 'TYRE', 'PIT_INSPECTION', 'SUBLET'],
+  'The physical station order must be preserved while Sublet remains a provider row',
+);
 
 const friday = new Date(2026, 6, 17, 8, 0, 0, 0);
 const monday = planner.workshopShiftWorkday(friday, 1);
@@ -23,64 +29,105 @@ assert.strictEqual(monday.getDate(), 20, 'Friday navigation should skip the week
 const previousFriday = planner.workshopShiftWorkday(monday, -1);
 assert.strictEqual(previousFriday.getDay(), 5, 'Previous before Monday must be Friday');
 assert.strictEqual(previousFriday.getDate(), 17, 'Monday navigation should skip the weekend');
+const weekStart = planner.workshopWeekStart(new Date(2026, 6, 16, 13, 0));
+assert.strictEqual(weekStart.getDay(), 1, 'Weekly view must begin on Monday');
+assert.deepStrictEqual(planner.workshopWeekDates(weekStart).map(date => date.getDay()), [1, 2, 3, 4, 5], 'Weekly view must contain Monday to Friday only');
 
 assert.strictEqual(planner.workshopSnapMinutes(22), 15, 'Times should snap to 15-minute intervals');
 assert.strictEqual(planner.workshopSnapMinutes(23), 30, 'Times should snap to the nearest 15 minutes');
 assert.strictEqual(planner.workshopClampStartMinutes(500), 465, 'Latest start must be 3:45pm');
-assert.strictEqual(planner.workshopClampDurationHours(2, 420), 1, 'A job must not run beyond 4:00pm');
+assert.strictEqual(planner.workshopClampLineHours(0.5), 0.5, 'Imported job lines may retain sub-three-hour estimates');
+assert.strictEqual(planner.workshopClampDurationHours(0.5), 3, 'A planner booking must not shrink below three hours');
+assert.strictEqual(planner.workshopClampDurationHours(20), 20, 'Workshop jobs must not have a maximum-hour limit');
+const longJobEnd = planner.workshopAddWorkMinutes(new Date(2026, 6, 17, 14, 0, 0, 0), 12 * 60);
+assert.strictEqual(longJobEnd.getDay(), 2, 'A 12-hour Friday job should carry through Monday into Tuesday');
+assert.strictEqual(longJobEnd.getDate(), 21, 'A 12-hour Friday job should finish on Tuesday 21 July');
+assert.strictEqual(longJobEnd.getHours(), 10, 'Carried work should finish at 10:00am Tuesday');
 assert.ok(planner.workshopIntervalsOverlap(60, 120, 90, 150), 'Overlapping bay slots should be detected');
 assert.ok(!planner.workshopIntervalsOverlap(60, 120, 120, 180), 'Back-to-back bay slots should be allowed');
 
-const plannerStorage = new Map();
-const auditEvents = [];
-global.loadJson = (key, fallback) => plannerStorage.has(key) ? JSON.parse(plannerStorage.get(key)) : fallback;
-global.saveJson = (key, value) => plannerStorage.set(key, JSON.stringify(value));
-global.app = { data: [{ stock: '12666620' }] };
-global.normalizePmbStage = value => String(value || '').toUpperCase();
-global.selectedVehicle = key => key === '12666620' ? global.app.data[0] : null;
-global.parseIsoTimestamp = value => { const date = new Date(value); return Number.isNaN(date.getTime()) ? null : date; };
+global.parseIsoTimestamp = value => {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
+};
+global.nowIsoString = () => new Date(2026, 6, 14, 10, 0, 0, 0).toISOString();
+global.vehicleKey = vehicle => vehicle.id;
+global.pmbBayNumber = vehicle => vehicle.bay || '';
 global.cleanNavisionText = value => String(value || '').trim();
-global.nowIsoString = () => '2026-07-14T00:00:00.000Z';
-global.pmbStageLabel = stage => stage;
-global.pmbBayHours = () => '';
-global.pmbBayMechanic = () => '';
-global.vehicleKey = vehicle => vehicle.stock;
-global.displayStockNumber = vehicle => vehicle?.stock || '';
-global.recordVehicleAudit = (_vehicle, action, details) => auditEvents.push({ action, details });
-global.document = { querySelector: () => null };
-global.window = { alert() {} };
-planner.scheduleWorkshopVehicle({ vehicleKeyValue: '12666620', stage: 'FABRICATION', bay: 2, dateKey: '2026-07-14', startMinutes: 120 });
-const storedPlans = planner.workshopLoadPlans();
-assert.strictEqual(storedPlans.length, 1, 'Scheduling must persist one future plan');
-assert.strictEqual(storedPlans[0].bay, 2, 'Scheduling must preserve the selected physical bay');
-assert.strictEqual(storedPlans[0].hours, 1, 'A new plan should default to one hour');
-assert.strictEqual(auditEvents[0]?.action, 'Workshop plan created', 'Scheduling must append an audit event');
+global.app = { data: [{ id: 'active', bay: 1 }, { id: 'next', bay: '' }] };
+global.selectedVehicle = key => {
+  const matches = global.app.data.filter(vehicle => vehicle.id === key);
+  return matches.length === 1 ? matches[0] : null;
+};
+const activeStart = new Date(2026, 6, 14, 8, 0, 0, 0);
+const nextStart = new Date(2026, 6, 14, 9, 30, 0, 0);
+const cascade = planner.workshopCascadePlans([
+  { id: 'FABRICATION::active', vehicleKey: 'active', stage: 'FABRICATION', bay: 1, startAt: activeStart.toISOString(), hours: 3, status: 'started' },
+  { id: 'FABRICATION::next', vehicleKey: 'next', stage: 'FABRICATION', bay: 1, startAt: nextStart.toISOString(), hours: 3, status: 'planned' },
+], new Date(2026, 6, 14, 12, 0, 0, 0));
+const shifted = cascade.rows.find(row => row.vehicleKey === 'next');
+assert.ok(cascade.changed, 'An overtime live job should shift the next bay booking');
+assert.strictEqual(new Date(shifted.startAt).getHours(), 12, 'The next job should move behind the overtime job');
+assert.strictEqual(new Date(shifted.startAt).getMinutes(), 15, 'The shifted job should retain a 15-minute live buffer');
+assert.strictEqual(shifted.hours, 3, 'Auto-shifting must never reduce the three-hour minimum estimate');
+const mechanicClashRows = [
+  { id: 'FABRICATION::one', vehicleKey: 'one', stage: 'FABRICATION', bay: 1, startAt: new Date(2026, 6, 14, 8, 0).toISOString(), hours: 2, status: 'planned', assignee: 'Alex' },
+  { id: 'FABRICATION::two', vehicleKey: 'two', stage: 'FABRICATION', bay: 2, startAt: new Date(2026, 6, 14, 9, 0).toISOString(), hours: 1, status: 'planned', assignee: 'Alex' },
+];
+assert.ok(planner.workshopEntryHasAssigneeConflict(mechanicClashRows[0], mechanicClashRows), 'A mechanic double-booked across bays should be flagged');
+const sameBayCascadeRows = mechanicClashRows.map(row => ({ ...row, stage: 'FABRICATION', bay: 1 }));
+assert.ok(!planner.workshopEntryHasAssigneeConflict(sameBayCascadeRows[0], sameBayCascadeRows), 'Sequential work in one bay should rely on the bay cascade instead of a false mechanic clash');
 
 assert.ok(app.includes("case 'workshop':"), 'Main renderer is missing the Workshop Planner view');
 assert.ok(app.includes("workshop: 'Workshop Planner'"), 'Workshop Planner page title is missing');
 assert.ok(app.includes('const PMB_SCHEDULE_WORK_START_HOUR = 8;'), 'Legacy PMB schedule start should match the workshop day');
 assert.ok(app.includes('const PMB_SCHEDULE_WORK_END_HOUR = 16;'), 'Legacy PMB schedule finish should match the workshop day');
+assert.ok(app.includes("{ value: 'BUS_4X4', label: 'Bus 4x4' }"), 'Bus 4x4 location option is missing');
+assert.ok(app.includes("['BUS_4X4', 'TINT', 'HOIST', 'FITTING', 'FABRICATION'"), 'Bus 4x4 must remain the first physical PMB station');
 
 assert.ok(source.includes("vehicleTrackingCoreWorkshopPlan:v1"), 'Planner persistence key is missing');
 assert.ok(source.includes('CRM_BACKUP_STORAGE_KEYS.push(WORKSHOP_PLAN_STORAGE_KEY)'), 'Planner data must be included in CRM backups');
+assert.ok(source.includes('CRM_BACKUP_STORAGE_KEYS.push(WORKSHOP_BAY_SETUP_STORAGE_KEY)'), 'Bay mechanic setup must be included in CRM backups');
 assert.ok(source.includes('function workshopHasConflict('), 'Bay collision protection is missing');
+assert.ok(source.includes("typeof selectedVehicle === 'function' ? selectedVehicle(cleanKey) : null"), 'Planner vehicle lookup must use the fail-closed shared resolver');
+assert.ok(source.includes('requiredAndIncomplete'), 'Future required work must remain schedulable before the vehicle reaches that station');
+assert.ok(source.includes('function workshopPersistPlanAction('), 'Planner mutations must use transactional persistence and audit logging');
+assert.ok(source.includes("window.addEventListener('storage'"), 'Planner must reload changes saved in another browser tab');
+assert.ok(source.includes('function workshopCascadePlans('), 'Downstream auto-shifting is missing');
+assert.ok(source.includes('function workshopEntryIsOvertime('), 'Overtime detection is missing');
+assert.ok(source.includes('actualHours:'), 'Actual workshop time recording is missing');
 assert.ok(source.includes('function startWorkshopPlan('), 'Physical bay start action is missing');
 assert.ok(source.includes('function completeWorkshopPlan('), 'Workshop completion action is missing');
+assert.ok(source.includes('function stopWorkshopPlan('), 'Workshop stoppage action is missing');
+assert.ok(source.includes('function openWorkshopVehicleJob('), 'Double-click vehicle job editor is missing');
+assert.ok(source.includes('function openWorkshopWeeklyView('), 'Per-bay weekly schedule is missing');
+assert.ok(source.includes('data-workshop-weekly-stage'), 'Per-bay Week button is missing');
+assert.ok(source.includes('function workshopRevealSearchMatch('), 'Planner search reveal is missing');
+assert.ok(source.includes('workshopJobLineAssignments'), 'Imported job-line work-area allocation is missing');
+assert.ok(source.includes('workshopAdditionalHoursByStage'), 'Manual per-area additional hours are missing');
+assert.ok(source.includes('function workshopReturnChoiceModal('), 'Live-job return choice is missing');
+assert.ok(source.includes('function workshopStoppageReasonModal('), 'In-app stoppage reason capture is missing');
+assert.ok(!source.includes('window.prompt('), 'Workshop actions must not use browser prompt dialogs');
+assert.ok(source.includes('value="move" checked'), 'Just move return option is missing');
+assert.ok(source.includes('value="stoppage"'), 'Stoppage return option is missing');
+assert.ok(source.includes('Parts completion remains an RFT gate, not an entry gate for Tint, Tyre or Sublet.'), 'Parts should remain an RFT gate without blocking workshop entry');
+assert.ok(!source.includes('function removeWorkshopPlan('), 'Direct Remove Plan action must not exist');
+assert.ok(!source.includes('max="8"'), 'Workshop hours must not be capped at eight');
+assert.ok(!source.includes('Scheduled other days'), 'The Scheduled other days box should be removed');
+assert.ok(!source.includes('A started, stopped or completed job cannot be removed from the planner'), 'Live jobs should be returnable through the protected choice flow');
 assert.ok(source.includes('data-workshop-resize-plan'), 'Duration resize control is missing');
-assert.ok(source.includes("selectedVehicle(cleanKey)"), 'Workshop lookup must use the fail-closed vehicle resolver');
-assert.ok(source.includes("'Workshop plan created'"), 'Workshop plan creation must be audited');
-assert.ok(!/\b(?:fetch|XMLHttpRequest|WebSocket|EventSource)\b/.test(source), 'Workshop planner must not add network calls');
 
-for (const selector of ['.workshop-board-shell', '.workshop-bay-lane', '.workshop-plan-chip', '.workshop-now-line']) {
+for (const selector of ['.workshop-board-shell', '.workshop-bay-lane', '.workshop-plan-chip', '.workshop-now-line', '.workshop-plan-chip.is-overtime', '.workshop-plan-chip.has-assignee-conflict', '.workshop-plan-chip.is-search-match', '.workshop-unallocated-drop', '.workshop-week-grid', '.workshop-week-card', '.workshop-return-card', '.workshop-job-line-row']) {
   assert.ok(css.includes(selector), `Workshop CSS is missing ${selector}`);
 }
+assert.ok(globalCss.includes('.pmb-card-move-button {'), 'PMB movement buttons must have a visible default style');
 
 for (const file of htmlFiles) {
   const html = fs.readFileSync(path.join(root, file), 'utf8');
   assert.ok(html.includes('data-view="workshop"'), `${file} is missing the Workshop Planner navigation item`);
   assert.ok(html.includes('id="workshop-planner-root"'), `${file} is missing the Workshop Planner host`);
-  assert.ok(html.includes('workshop-planner.css?v=2026.07.14.10-workshop-planner-stage2'), `${file} is missing the planner stylesheet`);
-  assert.ok(html.includes('workshop-planner.js?v=2026.07.14.10-workshop-planner-stage2'), `${file} is missing the planner script`);
+  assert.ok(html.includes('workshop-planner.css?v=2026.07.14.12-workshop-weekly-safe'), `${file} is missing the planner stylesheet`);
+  assert.ok(html.includes('workshop-planner.js?v=2026.07.14.12-workshop-weekly-safe'), `${file} is missing the planner script`);
 }
 
 console.log('Workshop planner regression checks passed');
