@@ -61,22 +61,24 @@ global.selectedVehicle = key => {
 };
 const activeStart = new Date(2026, 6, 14, 8, 0, 0, 0);
 const nextStart = new Date(2026, 6, 14, 9, 30, 0, 0);
-const cascade = planner.workshopCascadePlans([
+const collisionRows = [
   { id: 'FABRICATION::active', vehicleKey: 'active', stage: 'FABRICATION', bay: 1, startAt: activeStart.toISOString(), hours: 3, status: 'started' },
   { id: 'FABRICATION::next', vehicleKey: 'next', stage: 'FABRICATION', bay: 1, startAt: nextStart.toISOString(), hours: 3, status: 'planned' },
-], new Date(2026, 6, 14, 12, 0, 0, 0));
-const shifted = cascade.rows.find(row => row.vehicleKey === 'next');
-assert.ok(cascade.changed, 'An overtime live job should shift the next bay booking');
-assert.strictEqual(new Date(shifted.startAt).getHours(), 12, 'The next job should move behind the overtime job');
-assert.strictEqual(new Date(shifted.startAt).getMinutes(), 15, 'The shifted job should retain a 15-minute live buffer');
-assert.strictEqual(shifted.hours, 3, 'Auto-shifting must never reduce the three-hour minimum estimate');
+];
+assert.strictEqual(planner.workshopHasConflict(collisionRows[1], collisionRows), collisionRows[0], 'An overlapping booking in the same bay must be detected');
+const unchanged = planner.workshopCascadePlans(collisionRows, new Date(2026, 6, 14, 12, 0, 0, 0));
+assert.ok(!unchanged.changed, 'Hard-block policy must not silently cascade existing bookings');
+assert.strictEqual(unchanged.rows.find(row => row.vehicleKey === 'next').startAt, nextStart.toISOString(), 'A conflicting booking must never be moved automatically');
+assert.strictEqual(unchanged.rows.find(row => row.vehicleKey === 'next').hours, 3, 'Collision handling must retain the three-hour minimum estimate');
+const backToBack = { id: 'FABRICATION::back-to-back', vehicleKey: 'next', stage: 'FABRICATION', bay: 1, startAt: new Date(2026, 6, 14, 11, 0).toISOString(), hours: 3, status: 'planned' };
+assert.strictEqual(planner.workshopHasConflict(backToBack, [collisionRows[0]]), null, 'Back-to-back same-bay bookings must remain allowed');
 const mechanicClashRows = [
   { id: 'FABRICATION::one', vehicleKey: 'one', stage: 'FABRICATION', bay: 1, startAt: new Date(2026, 6, 14, 8, 0).toISOString(), hours: 2, status: 'planned', assignee: 'Alex' },
   { id: 'FABRICATION::two', vehicleKey: 'two', stage: 'FABRICATION', bay: 2, startAt: new Date(2026, 6, 14, 9, 0).toISOString(), hours: 1, status: 'planned', assignee: 'Alex' },
 ];
 assert.ok(planner.workshopEntryHasAssigneeConflict(mechanicClashRows[0], mechanicClashRows), 'A mechanic double-booked across bays should be flagged');
 const sameBayCascadeRows = mechanicClashRows.map(row => ({ ...row, stage: 'FABRICATION', bay: 1 }));
-assert.ok(!planner.workshopEntryHasAssigneeConflict(sameBayCascadeRows[0], sameBayCascadeRows), 'Sequential work in one bay should rely on the bay cascade instead of a false mechanic clash');
+assert.ok(!planner.workshopEntryHasAssigneeConflict(sameBayCascadeRows[0], sameBayCascadeRows), 'Same-bay work should rely on the bay collision rule instead of a duplicate mechanic warning');
 
 assert.ok(app.includes("case 'workshop':"), 'Main renderer is missing the Workshop Planner view');
 assert.ok(app.includes("workshop: 'Workshop Planner'"), 'Workshop Planner page title is missing');
@@ -93,7 +95,8 @@ assert.ok(source.includes("typeof selectedVehicle === 'function' ? selectedVehic
 assert.ok(source.includes('requiredAndIncomplete'), 'Future required work must remain schedulable before the vehicle reaches that station');
 assert.ok(source.includes('function workshopPersistPlanAction('), 'Planner mutations must use transactional persistence and audit logging');
 assert.ok(source.includes("window.addEventListener('storage'"), 'Planner must reload changes saved in another browser tab');
-assert.ok(source.includes('function workshopCascadePlans('), 'Downstream auto-shifting is missing');
+assert.ok(source.includes('function workshopRequireNoBayConflict('), 'Hard-block bay collision protection is missing');
+assert.ok(source.includes('Overlapping workshop bookings are blocked'), 'Collision rejection must explain that overlapping bookings are blocked');
 assert.ok(source.includes('function workshopEntryIsOvertime('), 'Overtime detection is missing');
 assert.ok(source.includes('actualHours:'), 'Actual workshop time recording is missing');
 assert.ok(source.includes('function startWorkshopPlan('), 'Physical bay start action is missing');
@@ -127,8 +130,8 @@ for (const file of htmlFiles) {
   const html = fs.readFileSync(path.join(root, file), 'utf8');
   assert.ok(html.includes('data-view="workshop"'), `${file} is missing the Workshop Planner navigation item`);
   assert.ok(html.includes('id="workshop-planner-root"'), `${file} is missing the Workshop Planner host`);
-  assert.ok(html.includes('workshop-planner.css?v=2026.07.14.13-workshop-safety-hardening'), `${file} is missing the planner stylesheet`);
-  assert.ok(html.includes('workshop-planner.js?v=2026.07.14.13-workshop-safety-hardening'), `${file} is missing the planner script`);
+  assert.ok(html.includes('workshop-planner.css?v=2026.07.14.14-workshop-hard-block-overlaps'), `${file} is missing the planner stylesheet`);
+  assert.ok(html.includes('workshop-planner.js?v=2026.07.14.14-workshop-hard-block-overlaps'), `${file} is missing the planner script`);
 }
 
 console.log('Workshop planner regression checks passed');

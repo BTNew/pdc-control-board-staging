@@ -480,6 +480,16 @@ function workshopHasConflict(candidate = {}, rows = workshopLoadPlans()) {
   }) || null;
 }
 
+function workshopRequireNoBayConflict(candidate = {}, rows = workshopLoadPlans()) {
+  const conflict = workshopHasConflict(candidate, rows);
+  if (!conflict) return true;
+  const vehicle = workshopVehicle(conflict.vehicleKey);
+  const identity = vehicle ? (displayStockNumber(vehicle) || vehicleJobcardNumber(vehicle) || 'another vehicle') : 'another vehicle';
+  const area = candidate.stage === 'SUBLET' ? 'the Sublet provider row' : `${pmbStageLabel(candidate.stage)} Bay ${candidate.bay}`;
+  window.alert(`${area} already has ${identity} booked during that time. Overlapping workshop bookings are blocked; choose another bay or time.`);
+  return false;
+}
+
 function workshopAssigneeConflict(entry = {}, rows = workshopLoadPlans()) {
   const assignee = cleanNavisionText(entry.assignee || '').toLowerCase();
   if (!assignee || entry.stage === 'SUBLET' || entry.status === 'completed') return null;
@@ -515,33 +525,10 @@ function workshopEntryIsLive(entry = {}) {
   return Boolean(vehicle && Number(pmbBayNumber(vehicle, entry.stage)) === Number(entry.bay));
 }
 
-function workshopCascadePlans(rows = workshopLoadPlans(), now = new Date()) {
-  const result = rows.map(entry => ({ ...entry, hours: entry.status === 'completed' ? entry.hours : workshopClampDurationHours(entry.hours) }));
-  const groups = new Map();
-  result.filter(entry => entry.status !== 'completed').forEach(entry => {
-    const key = `${entry.stage}:${entry.bay}`;
-    if (!groups.has(key)) groups.set(key, []);
-    groups.get(key).push(entry);
-  });
-  let changed = false;
-  groups.forEach(entries => {
-    const live = entries.filter(workshopEntryIsLive).sort((a, b) => workshopEntryStart(a) - workshopEntryStart(b));
-    const planned = entries.filter(entry => !workshopEntryIsLive(entry)).sort((a, b) => workshopEntryStart(a) - workshopEntryStart(b));
-    const ordered = live.concat(planned);
-    let available = null;
-    ordered.forEach(entry => {
-      const desired = workshopEntryStart(entry);
-      if (available && desired < available) {
-        entry.startAt = workshopNormalizeStartDate(available).toISOString();
-        entry.autoShiftedAt = nowIsoString();
-        entry.autoShiftReason = live.length ? 'Active or overtime job moved later bookings' : 'Earlier booking duration moved this job';
-        entry.updatedAt = nowIsoString();
-        changed = true;
-      }
-      available = workshopEntryEffectiveEnd(entry, now);
-    });
-  });
-  return { rows: result, changed };
+function workshopCascadePlans(rows = workshopLoadPlans()) {
+  // Collision policy: never move another booking implicitly. All newly created or edited
+  // overlaps are rejected before persistence, while existing imported/legacy rows remain visible.
+  return { rows: rows.map(entry => ({ ...entry, hours: entry.status === 'completed' ? entry.hours : workshopClampDurationHours(entry.hours) })), changed: false };
 }
 
 function workshopCascadeAndSave(rows = workshopLoadPlans(), now = new Date()) {
@@ -865,7 +852,7 @@ function renderWorkshopPlanner() {
   const stageTabs = WORKSHOP_STAGE_SEQUENCE.map(value => `<button type="button" class="workshop-stage-tab ${value === stage ? 'active' : ''}" data-workshop-stage="${escapeHtml(value)}"><span>${escapeHtml(pmbStageLabel(value))}</span><strong>${workshopStageVehicles(value).length}</strong></button>`).join('');
   root.innerHTML = `<div class="workshop-planner">
     <header class="workshop-planner-header">
-      <div><h2>Workshop bay planner</h2><p>Monday–Friday, 8:00am–4:00pm. Long jobs carry into the next workday and later bookings move automatically.</p></div>
+      <div><h2>Workshop bay planner</h2><p>Monday–Friday, 8:00am–4:00pm. Long jobs carry into the next workday; overlapping bay bookings are blocked.</p></div>
       <div class="workshop-date-controls">
         <button class="small-button" type="button" data-workshop-manage-mechanics>Manage mechanics</button>
         <button class="small-button" type="button" data-workshop-date-shift="-1">‹ Previous</button>
@@ -896,7 +883,7 @@ function renderWorkshopPlanner() {
         <div class="workshop-side-list">${completed.map(workshopCompletedCardHtml).join('') || '<div class="workshop-empty">Nothing completed on this board date.</div>'}</div>
       </aside>
     </div>
-    <footer class="workshop-board-note"><strong>How to use:</strong> drag a waiting vehicle onto a bay and time. Double-click any vehicle to open its job. Starting moves it to the current time without changing its estimated hours. Long and overtime work carries into later workdays and shifts following jobs automatically.</footer>
+    <footer class="workshop-board-note"><strong>How to use:</strong> drag a waiting vehicle onto a bay and time. Double-click any vehicle to open its job. Starting moves it to the current time without changing its estimated hours. Overlapping bay bookings are blocked, so choose another bay or time when a slot is occupied.</footer>
   </div>`;
   bindWorkshopPlanner(root);
   updateWorkshopNowLine(root);
@@ -1206,6 +1193,7 @@ function scheduleWorkshopVehicle({ planId = '', vehicleKeyValue = '', stage = ''
     return;
   }
   const conflictRows = latestRows.filter(row => row.id !== candidate.id);
+  if (!workshopRequireNoBayConflict(candidate, conflictRows)) return;
   if (!workshopRequireAvailableAssignee(candidate, conflictRows)) return;
   const nextRows = latestExisting ? latestRows.map(entry => entry.id === latestExisting.id ? candidate : entry) : [...latestRows, candidate];
   const cascaded = workshopCascadePlans(nextRows).rows;
@@ -1259,7 +1247,9 @@ function saveWorkshopDetailForm(event) {
     renderWorkshopPlanner();
     return;
   }
-  if (!workshopRequireAvailableAssignee(candidate, latestRows.filter(row => row.id !== candidate.id))) return;
+  const otherRows = latestRows.filter(row => row.id !== candidate.id);
+  if (!workshopRequireNoBayConflict(candidate, otherRows)) return;
+  if (!workshopRequireAvailableAssignee(candidate, otherRows)) return;
   const updatedRows = workshopCascadePlans(latestRows.map(row => row.id === entry.id ? candidate : row)).rows;
   const vehicle = workshopVehicle(entry.vehicleKey);
   workshopPersistPlanAction(
@@ -1288,7 +1278,9 @@ async function startWorkshopPlan(planId = '') {
   if (!workshopRequireOperatorProfile()) return;
   const currentStart = workshopNormalizeStartDate(new Date());
   const next = { ...entry, startAt: currentStart.toISOString(), status: 'started', startedAt: nowIsoString(), updatedAt: nowIsoString() };
-  if (!workshopRequireAvailableAssignee(next, rows.filter(row => row.id !== next.id))) return;
+  const otherRows = rows.filter(row => row.id !== next.id);
+  if (!workshopRequireNoBayConflict(next, otherRows)) return;
+  if (!workshopRequireAvailableAssignee(next, otherRows)) return;
   const nextRows = workshopCascadePlans(rows.map(row => row.id === entry.id ? next : row)).rows;
   const auditDetails = { stage: pmbStageLabel(entry.stage), bay: entry.stage === 'SUBLET' ? 'Sublet' : `Bay ${entry.bay}`, hours: entry.hours, assignee: entry.assignee || 'Unassigned' };
   let persisted = false;
@@ -1534,7 +1526,12 @@ function startWorkshopResize(handle, event) {
       renderWorkshopPlanner();
       return;
     }
-    if (!workshopRequireAvailableAssignee(candidate, latestRows.filter(row => row.id !== candidate.id))) {
+    const otherRows = latestRows.filter(row => row.id !== candidate.id);
+    if (!workshopRequireNoBayConflict(candidate, otherRows)) {
+      renderWorkshopPlanner();
+      return;
+    }
+    if (!workshopRequireAvailableAssignee(candidate, otherRows)) {
       renderWorkshopPlanner();
       return;
     }
@@ -1599,7 +1596,9 @@ function moveWorkshopWeeklyPlan(planId = '', stage = '', bay = 0, dateKey = '', 
     openWorkshopWeeklyView(stage, bay, weekKey || dateKey);
     return;
   }
-  if (!workshopRequireAvailableAssignee(candidate, latestRows.filter(row => row.id !== candidate.id))) return;
+  const otherRows = latestRows.filter(row => row.id !== candidate.id);
+  if (!workshopRequireNoBayConflict(candidate, otherRows)) return;
+  if (!workshopRequireAvailableAssignee(candidate, otherRows)) return;
   const updated = workshopCascadePlans(latestRows.map(row => row.id === candidate.id ? candidate : row)).rows;
   workshopPersistPlanAction(
     'Workshop weekly plan moved',
@@ -1735,6 +1734,7 @@ function openWorkshopVehicleJob(key = '', requestedStage = '') {
   });
   overlay.querySelector('[data-workshop-job-form]')?.addEventListener('submit', event => {
     event.preventDefault();
+    if (!workshopRequireOperatorProfile()) return;
     const form = event.currentTarget;
     const data = new FormData(form);
     const currentStage = normalizePmbStage(form.dataset.workshopJobStage);
@@ -1765,6 +1765,11 @@ function openWorkshopVehicleJob(key = '', requestedStage = '') {
     const updatedPlans = workshopLoadPlans().map(entry => entry.vehicleKey === vehicleKey(vehicle) && entry.status !== 'completed' && Number(hoursMap[entry.stage]) > 0
       ? { ...entry, hours: workshopClampDurationHours(hoursMap[entry.stage]), updatedAt: nowIsoString() }
       : entry);
+    const conflictingBayPlan = updatedPlans.find(entry => entry.vehicleKey === vehicleKey(vehicle) && workshopHasConflict(entry, updatedPlans.filter(other => other.id !== entry.id)));
+    if (conflictingBayPlan) {
+      workshopRequireNoBayConflict(conflictingBayPlan, updatedPlans.filter(entry => entry.id !== conflictingBayPlan.id));
+      return;
+    }
     const conflictingPlan = updatedPlans.find(entry => entry.vehicleKey === vehicleKey(vehicle) && workshopEntryHasAssigneeConflict(entry, updatedPlans));
     if (conflictingPlan) {
       workshopRequireAvailableAssignee(conflictingPlan, updatedPlans.filter(entry => entry.id !== conflictingPlan.id));
@@ -1852,6 +1857,8 @@ if (typeof module !== 'undefined' && module.exports) {
     workshopClampStartMinutes,
     workshopClampDurationHours,
     workshopIntervalsOverlap,
+    workshopHasConflict,
+    workshopRequireNoBayConflict,
     workshopDateKey,
     workshopDateFromKey,
     workshopNormalizeStartDate,
