@@ -49,7 +49,7 @@ WORK_KEYWORDS = {
         r"\buhf\b", r"reverse alarm", r"wire\b", r"wiring",
     ],
     "pdcRequiresTyre": [r"\btyre\b", r"\btire\b", r"wheel alignment", r"alignment"],
-    "pdcRequiresPitInspection": [r"pit inspection", r"pit and weigh", r"\bpit\b", r"qc\b", r"quality check"],
+    "pdcRequiresPitInspection": [r"pit inspection", r"pit and weigh", r"\bpit\b", r"quality check"],
     "pdcRequiresParts": [r"parts?", r"ordered", r"purchase order", r"\bpo\b"],
 }
 
@@ -62,17 +62,21 @@ FIELD_PATTERNS = {
     "jobCard": [
         r"(?:repair\s*order\s*no\.?|job\s*card|jobcard|jc)\s*[:#\-]?\s*(JC?\s*\d{4,12}|J\s*\d{5,12}|[A-Z]{0,3}\d{5,12})",
     ],
+    "purchaseOrder": [
+        r"\bP\s*[./]?\s*O\.?\s*(?:No\.?)?\s*[:#\-]?\s*([A-Z]{1,5}\d{5,12})\b",
+        r"\bpurchase\s*order(?:\s*(?:no\.?|number))?\s*[:#\-]?\s*([A-Z]{1,5}\d{5,12})\b",
+    ],
     "keyNumber": [
         r"(?:key(?:\s*(?:no|number|tag))?|tag(?:\s*no)?)\s*[:#\-]\s*(\d{1,4})",
     ],
     "customer": [
         r"Customer\s*[:#\-]\s*([^\r\n]{2,120})",
-        r"CUSTOMER\s*[:#\-]?\s*\r?\n\s*([^\r\n]{2,120})",
+        r"CUSTOMER[ \t]*[:#\-]?[ \t]*(?:\r?\n[ \t]*){1,3}([^\r\n]{2,120})",
         r"(?:client|name)\s*[:#\-]\s*([^\r\n]{2,80})",
     ],
     "vehicle": [
         r"Make\s*&\s*([^\r\n]{2,120})",
-        r"VEHICLE\s*[:#\-]?\s*\r?\n\s*([^\r\n]{2,120})",
+        r"VEHICLE[ \t]*[:#\-]?[ \t]*(?:\r?\n[ \t]*){1,3}([^\r\n]{2,120})",
         r"\b(Nissan\s+[^\r\n]{8,100})",
         r"\b(Isuzu\s+[^\r\n]{8,100})",
         r"\b(Toyota\s+[^\r\n]{8,100})",
@@ -109,6 +113,7 @@ class ParsedVehicle:
     pmbStage: str
     pmbKeyNumber: str
     jobCardNumber: str
+    purchaseOrderNumber: str
     navisionKewdaleEta: str
     etaAtKewdale: str
     etaAtDealer: str
@@ -116,8 +121,6 @@ class ParsedVehicle:
     notes: str
     sourceRow: str
     sourceEmailId: str
-    sourceEmailSubject: str
-    sourceEmailSender: str
     sourceEmailReceivedAt: str
     pdcRequiresTint: bool = False
     pdcRequiresHoist: bool = False
@@ -199,6 +202,9 @@ def bad_customer_value(value: str) -> bool:
 
 def clean_customer(value: str) -> str:
     value = re.sub(r"\s+", " ", value or "").strip(" .;,\t")
+    comma_parts = [part.strip() for part in value.split(",") if part.strip()]
+    if len(comma_parts) == 2 and comma_parts[0].casefold() == comma_parts[1].casefold():
+        value = comma_parts[0]
     company = re.match(r"^(.+?\b(?:Pty Ltd|Ltd|Limited|Inc|Corporation|Corp)\b)", value, flags=re.I)
     if company:
         return company.group(1).strip()[:120]
@@ -208,6 +214,13 @@ def clean_customer(value: str) -> str:
 def clean(value: str) -> str:
     value = re.sub(r"\s+", " ", value or "").strip()
     return value[:120]
+
+
+def bad_vehicle_value(value: str) -> bool:
+    normalized = re.sub(r"\s+", " ", value or "").strip().lower().rstrip(":")
+    return not normalized or normalized in {
+        "month/year", "air", "model no", "registration", "stock no", "selling dealer", "vehicle"
+    }
 
 
 def normalize_attachment_names(value: Any) -> list[str]:
@@ -336,9 +349,14 @@ def parse_vehicle_from_text(record: dict[str, Any], subject: str, body: str, att
     text = f"{subject}\n{body}\n{attachments}"
     stock = normal_stock(stock_hint or first_match(text, FIELD_PATTERNS["stock"]))
     job = normal_job(first_match(attachments, FIELD_PATTERNS["jobCard"]) or first_match(text, FIELD_PATTERNS["jobCard"]) or (extract_jobs(attachments) or extract_jobs(text) or [""])[0])
+    purchase_order = clean(first_match(attachments, FIELD_PATTERNS["purchaseOrder"]) or first_match(text, FIELD_PATTERNS["purchaseOrder"])).upper()
     key_no = clean(first_match(attachments, FIELD_PATTERNS["keyNumber"]) or first_match(text, FIELD_PATTERNS["keyNumber"]))
     customer = clean(first_match(attachments, FIELD_PATTERNS["customer"]) or first_match(text, FIELD_PATTERNS["customer"]))
     model = clean(first_match(attachments, FIELD_PATTERNS["vehicle"]) or first_match(text, FIELD_PATTERNS["vehicle"]))
+    if bad_vehicle_value(model):
+        model = next((value for value in all_matches(attachments, FIELD_PATTERNS["vehicle"]) if not bad_vehicle_value(value)), "")
+    if bad_vehicle_value(model):
+        model = next((value for value in all_matches(text, FIELD_PATTERNS["vehicle"]) if not bad_vehicle_value(value)), "")
     rego = clean(first_match(attachments, FIELD_PATTERNS["rego"]) or first_match(text, FIELD_PATTERNS["rego"])).upper()
     eta = clean(first_match(attachments, FIELD_PATTERNS["eta"]) or first_match(text, FIELD_PATTERNS["eta"]))
 
@@ -362,7 +380,6 @@ def parse_vehicle_from_text(record: dict[str, Any], subject: str, body: str, att
     record_id = str(record.get("id") or record.get("graph_message_id") or stock)
     source_id = f"email-{stock}-{record_id[:8]}".replace(" ", "-")
     flags = infer_work_flags(text)
-    notes = clean(" ".join(line.strip() for line in text.splitlines() if line.strip())[:500])
     vehicle = ParsedVehicle(
         id=source_id,
         stock=stock,
@@ -385,15 +402,14 @@ def parse_vehicle_from_text(record: dict[str, Any], subject: str, body: str, att
         pmbStage="",
         pmbKeyNumber=key_no,
         jobCardNumber=job,
+        purchaseOrderNumber=purchase_order,
         navisionKewdaleEta=eta,
         etaAtKewdale=eta,
         etaAtDealer=eta,
-        source="Email intake · pmbcontroller@gmail.com",
-        notes=notes,
+        source="Email intake",
+        notes="",
         sourceRow="Email intake",
         sourceEmailId=record_id,
-        sourceEmailSubject=subject,
-        sourceEmailSender=clean(str(record.get("sender_email") or "")),
         sourceEmailReceivedAt=str(record.get("received_at") or record.get("created_at") or ""),
         **flags,
     )
@@ -445,14 +461,25 @@ def vehicle_key(vehicle: dict[str, Any]) -> str:
     return str(vehicle.get("stock") or vehicle.get("jobCardNumber") or vehicle.get("id") or "").strip().upper()
 
 
+def sanitize_public_vehicle(vehicle: dict[str, Any]) -> dict[str, Any]:
+    """Remove mailbox-private/raw fields before generating the public static payload."""
+    clean_vehicle = dict(vehicle)
+    clean_vehicle.pop("sourceEmailSubject", None)
+    clean_vehicle.pop("sourceEmailSender", None)
+    if str(clean_vehicle.get("sourceRow") or "").strip().lower() == "email intake":
+        clean_vehicle.pop("notes", None)
+        clean_vehicle["source"] = "Email intake"
+    return clean_vehicle
+
+
 def merge_vehicles(existing: list[dict[str, Any]], incoming: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    merged = {vehicle_key(v): dict(v) for v in existing if vehicle_key(v)}
+    merged = {vehicle_key(v): sanitize_public_vehicle(v) for v in existing if isinstance(v, dict) and vehicle_key(v)}
     for item in incoming:
         key = vehicle_key(item)
         if not key:
             continue
         prior = merged.get(key, {})
-        merged[key] = {**prior, **item}
+        merged[key] = sanitize_public_vehicle({**prior, **item})
     return sorted(merged.values(), key=lambda v: (str(v.get("sourceEmailReceivedAt") or ""), vehicle_key(v)))
 
 

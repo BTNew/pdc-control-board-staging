@@ -38,6 +38,42 @@ class EmailBoardPublisherTests(unittest.TestCase):
             self.assertEqual(loaded["reviews"], reviews)
             self.assertFalse(publisher.write_generated(path, [], reviews))
 
+    def test_repair_order_labels_do_not_override_vehicle_or_create_pit_work(self):
+        record = {"id": "mail-1", "received_at": "2026-07-14T06:45:02Z"}
+        attachments = """
+CUSTOMER:\n\n67401
+VEHICLE:\n\nMONTH/YEAR:
+EWN QC Time Required:
+VEHICLE:\n\nRAV4 AWD 2.5L Hyb CVT GX (SS) 7460930 001
+STOCK No.: 13037843
+JOB CARD No.: J139125129
+P.O. No. GP10223986
+Customer: North Regional Tafe, North Regional Tafe
+M1 Tint
+Nudge Bar - Black
+WIRE PARKING SENSOR EXTENSION
+"""
+        vehicle = publisher.parse_vehicle_from_text(record, "Order 13037843", "", attachments)
+        self.assertIsNotNone(vehicle)
+        self.assertEqual(vehicle.vehicle, "RAV4 AWD 2.5L Hyb CVT GX (SS) 7460930 001")
+        self.assertEqual(vehicle.client, "North Regional Tafe")
+        self.assertEqual(vehicle.purchaseOrderNumber, "GP10223986")
+        self.assertFalse(vehicle.pdcRequiresPitInspection)
+
+    def test_public_vehicle_removes_raw_mailbox_fields(self):
+        sanitized = publisher.sanitize_public_vehicle({
+            "stock": "13037843",
+            "sourceRow": "Email intake",
+            "source": "Email intake · mailbox@example.com",
+            "notes": "raw email body",
+            "sourceEmailSubject": "private subject",
+            "sourceEmailSender": "sender@example.com",
+        })
+        self.assertNotIn("notes", sanitized)
+        self.assertNotIn("sourceEmailSubject", sanitized)
+        self.assertNotIn("sourceEmailSender", sanitized)
+        self.assertEqual(sanitized["source"], "Email intake")
+
 
 if __name__ == "__main__":
     unittest.main()
