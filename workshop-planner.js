@@ -880,7 +880,7 @@ function renderWorkshopPlanner() {
       <div class="workshop-date-controls">
         <button class="small-button" type="button" data-workshop-manage-mechanics>Manage mechanics</button>
         <button class="small-button" type="button" data-workshop-date-shift="-1">‹ Previous</button>
-        <input type="date" data-workshop-date value="${escapeHtml(dateKey)}" />
+        <input type="date" data-workshop-date aria-label="Workshop planner date" value="${escapeHtml(dateKey)}" />
         <button class="small-button" type="button" data-workshop-today>Today</button>
         <button class="small-button" type="button" data-workshop-date-shift="1">Next ›</button>
       </div>

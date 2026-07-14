@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.07.14.18-collapsed-intake-rows';
+const APP_VERSION = '2026.07.15.01-audit-correctness-performance';
 window.VEHICLE_TRACKING_DATA = window.VEHICLE_TRACKING_DATA || { report: {}, vehicles: [], toyotaMatches: {} };
 const EDITS_KEY = 'vehicleTrackingCoreNavisionOnlyEdits:v1';
 const ADDED_KEY = 'vehicleTrackingCoreNavisionOnlyVehicles:v1';
@@ -2305,6 +2305,16 @@ function renderAppVersionMarker() {
   if (host) host.textContent = `Version ${APP_VERSION}`;
 }
 
+let incomingSearchRenderTimer = null;
+
+function queueIncomingDashboardRender() {
+  if (incomingSearchRenderTimer) clearTimeout(incomingSearchRenderTimer);
+  incomingSearchRenderTimer = setTimeout(() => {
+    incomingSearchRenderTimer = null;
+    renderIncomingDashboardBoard();
+  }, 160);
+}
+
 function bindNav() {
   $$('.nav-item').forEach(btn => btn.addEventListener('click', () => showView(btn.dataset.view)));
   on($('#sidebar-toggle'), 'click', toggleSidebar);
@@ -2372,7 +2382,7 @@ function bindNav() {
   on($('#dashboard-pd-upload'), 'change', handleDashboardPdFileSelect);
   on($('#dashboard-import-pd'), 'click', importDashboardPdWork);
   on($('#dashboard-clear-pd'), 'click', clearDashboardPdImport);
-  on($('#incoming-search'), 'input', renderIncomingDashboardBoard);
+  on($('#incoming-search'), 'input', queueIncomingDashboardRender);
   on($('#incoming-status-filter'), 'change', renderIncomingDashboardBoard);
   on($('#incoming-bucket-filter'), 'change', renderIncomingDashboardBoard);
   on($('#incoming-rep-filter'), 'change', renderIncomingDashboardBoard);
@@ -2551,6 +2561,8 @@ function renderAdminLists() {
 function showView(view) {
   const requestedView = view || 'dashboard';
   const departmentStage = PRODUCTION_DEPARTMENT_VIEWS[requestedView] || '';
+  const nextView = departmentStage ? 'department' : requestedView;
+  releaseHeavyViewDom(app.currentView, nextView);
   if (requestedView !== 'workflow') {
     app.activePmbBayStage = '';
     app.pmbSubFilter = '';
@@ -2559,7 +2571,7 @@ function showView(view) {
     if (pmbWorkflowHost) pmbWorkflowHost.classList.remove('station-only');
   }
   if (departmentStage) app.activeProductionDepartment = departmentStage;
-  app.currentView = departmentStage ? 'department' : requestedView;
+  app.currentView = nextView;
   if (document.body?.dataset) document.body.dataset.currentView = requestedView;
   $$('.view').forEach(el => el.classList.toggle('active', el.id === requestedView || (departmentStage && el.id === 'department')));
   $$('.nav-item').forEach(el => el.classList.toggle('active', el.dataset.view === requestedView));
@@ -2591,9 +2603,32 @@ function showView(view) {
   }
   renderActiveView();
   scheduleWorkflowFloatingHeaderUpdate();
-  if (requestedView === 'dashboard') {
-    window.setTimeout(() => setupFrozenVehicleHeader($('#vehicle-table')), 0);
-  }
+}
+
+const HEAVY_VIEW_HOSTS = Object.freeze({
+  dashboard: ['incoming-main-board', 'kpi-grid', 'vehicle-table'],
+  workflow: ['workflow-board'],
+  workshop: ['workshop-planner-root'],
+  parts: ['parts-home-content', 'parts-summary-grid'],
+  emailreview: ['email-intake-review-content'],
+  sublet: ['sublet-home-content'],
+  rft: ['rft-home-content', 'rft-summary-grid'],
+  completed: ['completed-vehicles-content'],
+  deleted: ['deleted-vehicles-content'],
+  backend: ['backend-data-content'],
+  department: ['department-content'],
+  schedule: ['schedule-content'],
+  pipeline: ['kanban'],
+  visibility: ['visibility-content'],
+  tv: ['tv-content'],
+});
+
+function releaseHeavyViewDom(previousView = '', nextView = '') {
+  if (!previousView || previousView === nextView) return;
+  (HEAVY_VIEW_HOSTS[previousView] || []).forEach(id => {
+    const host = document.getElementById(id);
+    if (host) host.replaceChildren();
+  });
 }
 
 
@@ -2635,6 +2670,25 @@ function renderAll() {
   updateNavisionImportButton();
 }
 
+function renderWorkshopPlannerWhenReady() {
+  if (typeof renderWorkshopPlanner === 'function') {
+    renderWorkshopPlanner();
+    return;
+  }
+  const root = $('#workshop-planner-root');
+  if (root) root.innerHTML = '<div class="empty-state"><strong>Loading Workshop Planner</strong><span>Preparing scheduling controls…</span></div>';
+  loadExternalScript(`workshop-planner.js?v=${encodeURIComponent(APP_VERSION)}`, 'workshop-planner-script')
+    .then(() => {
+      if (app.currentView === 'workshop' && typeof renderWorkshopPlanner === 'function') renderWorkshopPlanner();
+    })
+    .catch(error => {
+      if (!root) return;
+      root.innerHTML = '<div class="empty-state"><strong>Workshop Planner could not load</strong><span></span></div>';
+      const message = root.querySelector('span');
+      if (message) message.textContent = error.message || String(error);
+    });
+}
+
 function renderActiveView() {
   ensureAppDataAvailable();
   const view = app.currentView || 'dashboard';
@@ -2642,13 +2696,12 @@ function renderActiveView() {
     case 'dashboard':
       renderKpis();
       renderIncomingDashboardBoard();
-      renderVehicleTable();
       break;
     case 'workflow':
       renderWorkflowBoard();
       break;
     case 'workshop':
-      if (typeof renderWorkshopPlanner === 'function') renderWorkshopPlanner();
+      renderWorkshopPlannerWhenReady();
       break;
     case 'parts':
       renderPartsHome();
@@ -3585,7 +3638,7 @@ function incomingVehicleDetailRow(vehicle = {}, bucketKey = '', options = {}) {
   const labelAction = `<button class="small-button vehicle-label-button" type="button" data-label-vehicle="${escapeHtml(key)}" title="Print one Zebra label for ${escapeHtml(stock)}">Label</button>`;
   const deleteAction = options.showDelete ? `<button class="small-button incoming-delete-button" type="button" data-incoming-delete="${escapeHtml(key)}" title="Move this vehicle to Deleted vehicles">Delete</button>` : '';
   const identitySummary = vehicleIdentityStackHtml(vehicle, { className: 'incoming-identity' });
-  const selectBox = `<label class="incoming-card-select" title="Select ${escapeHtml(stock)}"><input type="checkbox" data-select-stock="${escapeHtml(key)}" ${app.selectedRows.has(key) ? 'checked' : ''} /><span aria-hidden="true"></span></label>`;
+  const selectBox = `<label class="incoming-card-select" title="Select ${escapeHtml(stock)}"><input type="checkbox" data-select-stock="${escapeHtml(key)}" aria-label="Select ${escapeHtml(stock)}" ${app.selectedRows.has(key) ? 'checked' : ''} /><span aria-hidden="true"></span></label>`;
   const dragAttrs = options.draggable ? ` draggable="true" data-pmb-drag-key="${escapeHtml(key)}"` : '';
   const dragClass = options.draggable ? ' workflow-draggable-row' : '';
   const risk = partsEtaRisk(vehicle);
@@ -7317,6 +7370,32 @@ function draftSelectedArrivingVehicleEmail() {
 
 const QZ_DEFAULT_PRINTER_NAMES = ['BT-Zebra-EricComp', 'dc-01\\BT-Zebra-EricComp', '192.168.0.164'];
 let qzLastPrinterName = localStorage.getItem('vehicleTrackingCoreQzPrinter:v1') || '';
+const externalScriptLoads = new Map();
+
+function loadExternalScript(src = '', id = '') {
+  const cleanSrc = String(src || '').trim();
+  if (!cleanSrc) return Promise.reject(new Error('No script source was supplied.'));
+  if (externalScriptLoads.has(cleanSrc)) return externalScriptLoads.get(cleanSrc);
+  const existing = id ? document.getElementById(id) : null;
+  if (existing?.dataset.loaded === 'true') return Promise.resolve(existing);
+  const promise = new Promise((resolve, reject) => {
+    const script = existing || document.createElement('script');
+    if (id) script.id = id;
+    script.src = cleanSrc;
+    script.async = true;
+    script.addEventListener('load', () => {
+      script.dataset.loaded = 'true';
+      resolve(script);
+    }, { once: true });
+    script.addEventListener('error', () => {
+      externalScriptLoads.delete(cleanSrc);
+      reject(new Error(`Could not load ${cleanSrc}.`));
+    }, { once: true });
+    if (!existing) document.head.appendChild(script);
+  });
+  externalScriptLoads.set(cleanSrc, promise);
+  return promise;
+}
 
 function qzAvailable() {
   return typeof window.qz !== 'undefined' && window.qz.websocket && window.qz.printers && window.qz.configs;
@@ -7324,7 +7403,10 @@ function qzAvailable() {
 
 async function ensureQzConnected() {
   if (!qzAvailable()) {
-    throw new Error('The QZ Tray browser connector did not load. Reload this page, then check QZ Tray is installed and running.');
+    await loadExternalScript('vendor/qz/qz-tray.js?v=2.2.6', 'qz-tray-script');
+  }
+  if (!qzAvailable()) {
+    throw new Error('The QZ Tray browser connector did not load. Check QZ Tray is installed and running.');
   }
   if (!qz.websocket.isActive()) {
     await qz.websocket.connect({ retries: 2, delay: 1 });
@@ -7873,7 +7955,7 @@ function selectedVehicle(key = app.selectedStock) {
   return null;
 }
 
-function saveVehicleEdits(key, updates) {
+function saveVehicleEdits(key, updates, options = {}) {
   const vehicle = selectedVehicle(key);
   if (!vehicle) return false;
   const editKey = vehicleKey(vehicle);
@@ -7900,7 +7982,7 @@ function saveVehicleEdits(key, updates) {
     window.alert(error.message || String(error));
     return false;
   }
-  renderAll();
+  if (options.render !== false) renderAll();
   return true;
 }
 
@@ -10642,6 +10724,14 @@ async function scanAutocareNotice() {
 }
 
 async function extractTextFromPdfFile(file) {
+  if (!window.pdfjsLib) {
+    try {
+      await loadExternalScript('vendor/pdfjs/pdf.min.js?v=3.11.174', 'pdfjs-script');
+      if (window.pdfjsLib) window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'vendor/pdfjs/pdf.worker.min.js?v=3.11.174';
+    } catch (_) {
+      // The built-in lightweight reader below remains available when PDF.js cannot load.
+    }
+  }
   if (window.pdfjsLib) {
     try {
       const data = new Uint8Array(await file.arrayBuffer());
@@ -13543,8 +13633,12 @@ function saveEmailReviewDecision(id = '', status = '', details = {}) {
 
 function vehicleForEmailReview(review = {}) {
   const stock = cleanNavisionText(review.stock || '').toUpperCase();
-  return app.data.find(vehicle => [vehicleKey(vehicle), displayStockNumber(vehicle), vehicle.order, vehicle.batch]
-    .map(value => cleanNavisionText(value).toUpperCase()).includes(stock)) || null;
+  if (!stock) return null;
+  const matches = app.data.filter(vehicle => [vehicleKey(vehicle), displayStockNumber(vehicle), vehicle.order, vehicle.batch]
+    .map(value => cleanNavisionText(value).toUpperCase()).includes(stock));
+  if (matches.length === 1) return matches[0];
+  if (matches.length > 1) console.warn('Email review vehicle lookup was ambiguous; no vehicle was selected.', { stock, matchCount: matches.length });
+  return null;
 }
 
 function emailReviewActionLabel(review = {}) {
@@ -13727,9 +13821,20 @@ function applyEmailReview(id = '') {
   }
   const updates = emailReviewApplyUpdates(vehicle, review);
   const operator = getCurrentOperatorName();
-  recordVehicleAudit(vehicle, 'Reviewed Parts email applied', { action: review.action, reason: review.reason || '', notes: review.notes || '', eta: review.eta || '', intakeId: review.intakeId || '', by: operator });
-  saveVehicleEdits(vehicleKey(vehicle), updates);
-  saveEmailReviewDecision(review.id, 'applied', { stock: review.stock, action: review.action });
+  const vehicleSnapshot = { ...vehicle };
+  try {
+    runStorageTransaction('Apply reviewed Parts email', [EDITS_KEY, AUDIT_LOG_KEY, EMAIL_REVIEW_DECISIONS_KEY], () => {
+      if (!saveVehicleEdits(vehicleKey(vehicle), updates, { render: false })) throw new Error('The vehicle update failed.');
+      recordVehicleAudit(vehicle, 'Reviewed Parts email applied', { action: review.action, reason: review.reason || '', notes: review.notes || '', eta: review.eta || '', intakeId: review.intakeId || '', by: operator });
+      saveEmailReviewDecision(review.id, 'applied', { stock: review.stock, action: review.action });
+    });
+  } catch (error) {
+    Object.keys(vehicle).forEach(key => { if (!Object.prototype.hasOwnProperty.call(vehicleSnapshot, key)) delete vehicle[key]; });
+    Object.assign(vehicle, vehicleSnapshot);
+    window.alert(error.message || String(error));
+    return false;
+  }
+  renderAll();
   const freshVehicle = selectedVehicle(vehicleKey(vehicle)) || vehicle;
   offerSalespersonChangeEmail(freshVehicle, {
     title: review.action === 'complete' ? 'Parts completed from reviewed email' : review.action === 'stoppage' ? 'Parts stoppage from reviewed email' : 'Parts note received',
@@ -13737,15 +13842,24 @@ function applyEmailReview(id = '') {
     details: [review.reason && `Reason: ${review.reason}`, review.notes && `Notes: ${review.notes}`, review.eta && `Parts ETA: ${review.eta}`].filter(Boolean),
   });
   renderEmailIntakeReview();
+  return true;
 }
 
 function rejectEmailReview(id = '') {
   const review = emailReviewItems().find(item => String(item.id || '') === String(id || ''));
-  if (!review || !window.confirm(`Reject this proposed update for ${review.stock}?`)) return;
-  saveEmailReviewDecision(review.id, 'rejected', { stock: review.stock, action: review.action });
+  if (!review || !window.confirm(`Reject this proposed update for ${review.stock}?`)) return false;
   const vehicle = vehicleForEmailReview(review);
-  if (vehicle) recordVehicleAudit(vehicle, 'Reviewed Parts email rejected', { action: review.action, intakeId: review.intakeId || '', by: getCurrentOperatorName() });
+  try {
+    runStorageTransaction('Reject reviewed email update', [AUDIT_LOG_KEY, EMAIL_REVIEW_DECISIONS_KEY], () => {
+      saveEmailReviewDecision(review.id, 'rejected', { stock: review.stock, action: review.action });
+      if (vehicle) recordVehicleAudit(vehicle, 'Reviewed Parts email rejected', { action: review.action, intakeId: review.intakeId || '', by: getCurrentOperatorName() });
+    });
+  } catch (error) {
+    window.alert(error.message || String(error));
+    return false;
+  }
   renderEmailIntakeReview();
+  return true;
 }
 
 function emailVehicleReviewLinesHtml(review = {}, disabled = false) {
@@ -13904,8 +14018,10 @@ function renderSubletHome() {
   }
   host.innerHTML = `<div class="sublet-table-wrap"><table class="data-table compact-table sublet-table"><thead><tr><th>Vehicle</th><th>Provider</th><th>PO sent</th><th>Booking</th><th>Expected return</th><th>Actual return</th><th>Notes / email</th><th>Actions</th></tr></thead><tbody>${rows.map(vehicle => {
     const key = vehicleKey(vehicle);
+    const stock = displayStockNumber(vehicle) || vehicle.order || 'vehicle';
+    const accessibleStock = escapeHtml(stock);
     const overdueClass = subletIsOverdue(vehicle) ? ' sublet-overdue' : '';
-    return `<tr class="sublet-row${overdueClass}"><td><strong>${escapeHtml(displayStockNumber(vehicle) || vehicle.order || '—')}</strong><span>${escapeHtml(vehicleCustomerName(vehicle) || 'Dealer Order')}</span><small>${escapeHtml(displayVehicle(vehicle) || '')}</small></td><td><select data-sublet-field="pmbSubletProvider" data-sublet-key="${escapeHtml(key)}">${subletProviderOptionsHtml(pmbBaySubletProvider(vehicle))}</select><input type="email" placeholder="Provider email" value="${escapeHtml(vehicle.pmbSubletProviderEmail || '')}" data-sublet-field="pmbSubletProviderEmail" data-sublet-key="${escapeHtml(key)}"></td><td><input type="date" value="${escapeHtml(plainDateValue(vehicle.pmbSubletPoSentDate))}" data-sublet-field="pmbSubletPoSentDate" data-sublet-key="${escapeHtml(key)}"></td><td><input type="date" value="${escapeHtml(plainDateValue(vehicle.pmbSubletBookingDate))}" data-sublet-field="pmbSubletBookingDate" data-sublet-key="${escapeHtml(key)}"></td><td><input type="date" value="${escapeHtml(plainDateValue(vehicle.pmbSubletExpectedReturnDate))}" data-sublet-field="pmbSubletExpectedReturnDate" data-sublet-key="${escapeHtml(key)}">${subletIsOverdue(vehicle) ? '<b class="sublet-overdue-label">OVERDUE</b>' : ''}</td><td><input type="date" value="${escapeHtml(plainDateValue(vehicle.pmbSubletActualReturnDate))}" data-sublet-field="pmbSubletActualReturnDate" data-sublet-key="${escapeHtml(key)}"></td><td><textarea rows="2" data-sublet-field="pmbSubletNotes" data-sublet-key="${escapeHtml(key)}">${escapeHtml(vehicle.pmbSubletNotes || '')}</textarea><label class="sublet-email-check"><input type="checkbox" data-sublet-email-sent="${escapeHtml(key)}" ${vehicle.pmbSubletEmailSent ? 'checked' : ''}> Email sent</label></td><td><button class="small-button" type="button" data-sublet-provider-email="${escapeHtml(key)}">Draft provider email</button><button class="small-button" type="button" data-sublet-sales-email="${escapeHtml(key)}">Draft sales update</button></td></tr>`;
+    return `<tr class="sublet-row${overdueClass}"><td><strong>${escapeHtml(stock === 'vehicle' ? '—' : stock)}</strong><span>${escapeHtml(vehicleCustomerName(vehicle) || 'Dealer Order')}</span><small>${escapeHtml(displayVehicle(vehicle) || '')}</small></td><td><select aria-label="Sublet provider for ${accessibleStock}" data-sublet-field="pmbSubletProvider" data-sublet-key="${escapeHtml(key)}">${subletProviderOptionsHtml(pmbBaySubletProvider(vehicle))}</select><input type="email" aria-label="Sublet provider email for ${accessibleStock}" placeholder="Provider email" value="${escapeHtml(vehicle.pmbSubletProviderEmail || '')}" data-sublet-field="pmbSubletProviderEmail" data-sublet-key="${escapeHtml(key)}"></td><td><input type="date" aria-label="PO sent date for ${accessibleStock}" value="${escapeHtml(plainDateValue(vehicle.pmbSubletPoSentDate))}" data-sublet-field="pmbSubletPoSentDate" data-sublet-key="${escapeHtml(key)}"></td><td><input type="date" aria-label="Sublet booking date for ${accessibleStock}" value="${escapeHtml(plainDateValue(vehicle.pmbSubletBookingDate))}" data-sublet-field="pmbSubletBookingDate" data-sublet-key="${escapeHtml(key)}"></td><td><input type="date" aria-label="Expected sublet return for ${accessibleStock}" value="${escapeHtml(plainDateValue(vehicle.pmbSubletExpectedReturnDate))}" data-sublet-field="pmbSubletExpectedReturnDate" data-sublet-key="${escapeHtml(key)}">${subletIsOverdue(vehicle) ? '<b class="sublet-overdue-label">OVERDUE</b>' : ''}</td><td><input type="date" aria-label="Actual sublet return for ${accessibleStock}" value="${escapeHtml(plainDateValue(vehicle.pmbSubletActualReturnDate))}" data-sublet-field="pmbSubletActualReturnDate" data-sublet-key="${escapeHtml(key)}"></td><td><textarea rows="2" aria-label="Sublet notes for ${accessibleStock}" data-sublet-field="pmbSubletNotes" data-sublet-key="${escapeHtml(key)}">${escapeHtml(vehicle.pmbSubletNotes || '')}</textarea><label class="sublet-email-check"><input type="checkbox" data-sublet-email-sent="${escapeHtml(key)}" ${vehicle.pmbSubletEmailSent ? 'checked' : ''}> Email sent</label></td><td><button class="small-button" type="button" data-sublet-provider-email="${escapeHtml(key)}">Draft provider email</button><button class="small-button" type="button" data-sublet-sales-email="${escapeHtml(key)}">Draft sales update</button></td></tr>`;
   }).join('')}</tbody></table></div>`;
   $$('[data-sublet-field]', host).forEach(input => input.addEventListener('change', () => updateSubletField(input.dataset.subletKey, input.dataset.subletField, input.value)));
   $$('[data-sublet-email-sent]', host).forEach(input => input.addEventListener('change', () => setSubletEmailSent(input.dataset.subletEmailSent, input.checked)));

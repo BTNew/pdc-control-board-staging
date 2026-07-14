@@ -79,7 +79,42 @@ code += String.raw`
   assert(app.data[0].internalStatus === 'Original', 'A failed vehicle edit must restore its in-memory field value');
   assert(JSON.parse(localStorage.getItem(EDITS_KEY))['safe-row'].internalStatus === 'Original', 'A failed vehicle edit must retain its previous saved value');
 
-  console.log('Storage transaction and recovery checks passed');
+  app.data = [
+    { id: 'email-a', stock: 'EMAIL-A', order: 'SHARED-EMAIL-ORDER', pdcRequiresParts: false },
+    { id: 'email-b', stock: 'EMAIL-B', order: 'SHARED-EMAIL-ORDER', pdcRequiresParts: false },
+  ];
+  assert(vehicleForEmailReview({ stock: 'SHARED-EMAIL-ORDER' }) === null, 'Email review lookup must fail closed when an alias matches more than one vehicle');
+  assert(vehicleForEmailReview({ stock: 'EMAIL-A' }) === app.data[0], 'Email review lookup should return a uniquely matched vehicle');
+
+  localStorage.setItem(OPERATOR_NAME_KEY, 'QA Operator');
+  localStorage.setItem(EDITS_KEY, JSON.stringify({}));
+  localStorage.setItem(AUDIT_LOG_KEY, JSON.stringify([]));
+  localStorage.setItem(EMAIL_REVIEW_DECISIONS_KEY, JSON.stringify({}));
+  window.PDC_EMAIL_BOARD_DATA = { reviews: [{ id: 'parts-apply-review', stock: 'EMAIL-A', type: 'parts-update', action: 'note', notes: 'Atomic apply test' }] };
+  localStorage.failNextSetFor(EMAIL_REVIEW_DECISIONS_KEY);
+  const applyResult = applyEmailReview('parts-apply-review');
+  assert(applyResult === false, 'A failed Parts-email Apply should report failure');
+  assert(Object.keys(JSON.parse(localStorage.getItem(EDITS_KEY))).length === 0, 'Failed Parts-email Apply must roll back vehicle edits');
+  assert(JSON.parse(localStorage.getItem(AUDIT_LOG_KEY)).length === 0, 'Failed Parts-email Apply must roll back audit writes');
+  assert(Object.keys(JSON.parse(localStorage.getItem(EMAIL_REVIEW_DECISIONS_KEY))).length === 0, 'Failed Parts-email Apply must leave no decision');
+
+  window.PDC_EMAIL_BOARD_DATA = { reviews: [{ id: 'parts-reject-review', stock: 'EMAIL-A', type: 'parts-update', action: 'note' }] };
+  localStorage.failNextSetFor(AUDIT_LOG_KEY);
+  const rejectResult = rejectEmailReview('parts-reject-review');
+  assert(rejectResult === false, 'A failed Parts-email Reject should report failure');
+  assert(Object.keys(JSON.parse(localStorage.getItem(EMAIL_REVIEW_DECISIONS_KEY))).length === 0, 'Failed Parts-email Reject must roll back its decision');
+  assert(JSON.parse(localStorage.getItem(AUDIT_LOG_KEY)).length === 0, 'Failed Parts-email Reject must leave no audit');
+
+  app.data = [{ id: 'render-row', stock: 'RENDER-1', internalStatus: 'Original' }];
+  localStorage.setItem(EDITS_KEY, JSON.stringify({}));
+  let renderCalls = 0;
+  const originalRenderAll = renderAll;
+  renderAll = () => { renderCalls += 1; };
+  assert(saveVehicleEdits('render-row', { internalStatus: 'Updated' }, { render: false }) === true, 'No-render vehicle edit should still save successfully');
+  assert(renderCalls === 0, 'saveVehicleEdits({ render: false }) must not trigger a broad render');
+  renderAll = originalRenderAll;
+
+  console.log('Storage transaction, email-review atomicity and recovery checks passed');
 })();
 `;
 

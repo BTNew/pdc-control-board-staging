@@ -8,7 +8,7 @@ const root = __dirname;
 const app = fs.readFileSync(path.join(root, 'app.js'), 'utf8');
 const css = fs.readFileSync(path.join(root, 'styles.css'), 'utf8');
 const htmlFiles = ['index.html', 'no-vehicles.html', 'test-50.html', 'test-75.html', 'test-100.html'];
-const version = '2026.07.14.18-collapsed-intake-rows';
+const version = '2026.07.15.01-audit-correctness-performance';
 
 assert.match(app, new RegExp(`const APP_VERSION = '${version.replaceAll('.', '\\.')}'`));
 assert.match(app, /pdc-grid-station-heading[^`]*title="\$\{escapeHtml\(label\)\}"><span>\$\{escapeHtml\(label\)\}<\/span>/);

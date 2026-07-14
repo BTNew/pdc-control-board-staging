@@ -25,7 +25,7 @@ Use this as the canonical maintenance workflow for the PDC Control Board project
 10. Report changed files, tests, live status and any remaining risks.
 
 ## Files with matching version numbers
-Current version identifier: `2026.07.13.18-production-hardening`
+Current version identifier: `2026.07.15.01-audit-correctness-performance`
 
 When bumping version, update all references in:
 - `app.js` (`APP_VERSION`)
@@ -79,6 +79,8 @@ http://127.0.0.1:8025/index.html?v=<version>
    - Control Board view opens.
    - Parts page opens if Parts code changed.
    - Browser console has no uncaught errors.
+   - Workshop Planner loads on first use (its script is intentionally lazy-loaded).
+   - PDF.js loads only when a PDF is processed; QZ Tray loads only when printing is requested.
 
 Use `?clearLocalData=1` only for isolated test sessions where clearing app localStorage is intended. Do not use it against a real user’s production browser unless explicitly approved.
 

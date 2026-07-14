@@ -9828,6 +9828,9 @@ html[data-row-width="xl"] {
 .sidebar {
   padding: 17px 14px !important;
   gap: 15px !important;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
 }
 
 .brand {
@@ -11246,3 +11249,26 @@ html[data-row-width="xl"] {
 .sublet-email-check { display: flex; gap: 6px; align-items: center; margin-top: 5px; font-size: .78rem; }
 .sublet-email-check input { width: auto; min-width: 0; }
 @media (max-width: 900px) { .email-review-row, .email-review-vehicle-fields, .email-vehicle-review-line { grid-template-columns: 1fr; } .email-review-summary { grid-template-columns: 1fr 1fr; } .email-review-open-label { text-align: left; } .email-review-actions { justify-content: flex-start; } }
+
+/* 2026.07.15 audit fixes — contrast, touch targets and compact mobile actions. */
+.eyebrow { color: #ad1118; }
+.fix-first-list summary,
+.email-review-summary { min-height: 44px; }
+#incoming-more-filters > summary {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  margin-top: 6px;
+}
+
+@media (max-width: 820px) {
+  .nav-item { min-height: 44px; }
+  .topbar-actions {
+    width: 100%;
+    flex-wrap: nowrap !important;
+    justify-content: flex-start !important;
+    overflow-x: auto;
+    padding-bottom: 3px;
+  }
+  .topbar-actions button { min-height: 44px !important; white-space: nowrap; }
+}

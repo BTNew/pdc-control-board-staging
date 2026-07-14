@@ -3,10 +3,12 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="PDC vehicle locations, workshop workflow, Parts and scheduling control board." />
   <title>PDC Control Board — Random 75 Vehicle Test</title>
-  <link rel="stylesheet" href="styles.css?v=2026.07.14.18-collapsed-intake-rows" />
-  <link rel="stylesheet" href="desktop-operations.css?v=2026.07.14.18-collapsed-intake-rows" />
-  <link rel="stylesheet" href="workshop-planner.css?v=2026.07.14.18-collapsed-intake-rows" />
+  <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="styles.css?v=2026.07.15.01-audit-correctness-performance" />
+  <link rel="stylesheet" href="desktop-operations.css?v=2026.07.15.01-audit-correctness-performance" />
+  <link rel="stylesheet" href="workshop-planner.css?v=2026.07.15.01-audit-correctness-performance" />
 </head>
 <body>
   <div class="test-data-banner" style="position:sticky;top:0;z-index:9999;background:#6d28d9;color:#fff;padding:8px 14px;text-align:center;font-weight:700;letter-spacing:.02em;">TEST DATASET — 75 SAMPLE VEHICLES ONLY — separate from live board</div>
@@ -23,18 +25,18 @@
       </div>
 
       <nav class="nav">
-        <button class="nav-item active" data-view="dashboard" data-short="LOC">Vehicle Locations</button>
-        <button class="nav-item" data-view="workflow" data-short="CB">Control Board</button>
-        <button class="nav-item" data-view="workshop" data-short="PLAN">Workshop Planner</button>
-        <button class="nav-item" data-view="parts" data-short="PA">Parts</button>
-        <button class="nav-item" data-view="emailreview" data-short="AI">AI Intake Review</button>
-        <button class="nav-item" data-view="sublet" data-short="SUB">Sublet</button>
-        <button class="nav-item" data-view="rft" data-short="RFT">RFT</button>
-        <button class="nav-item" data-view="completed" data-short="DONE">Completed vehicles</button>
-        <button class="nav-item" data-view="deleted" data-short="DEL">Deleted vehicles</button>
-        <button class="nav-item" data-view="backend" data-short="DATA">Back End Data</button>
-        <button class="nav-item" data-view="lists" data-short="SET">Setup</button>
-        <button class="nav-item" data-view="import" data-short="U">Uploads</button>
+        <button type="button" class="nav-item active" data-view="dashboard" data-short="LOC">Vehicle Locations</button>
+        <button type="button" class="nav-item" data-view="workflow" data-short="CB">Control Board</button>
+        <button type="button" class="nav-item" data-view="workshop" data-short="PLAN">Workshop Planner</button>
+        <button type="button" class="nav-item" data-view="parts" data-short="PA">Parts</button>
+        <button type="button" class="nav-item" data-view="emailreview" data-short="AI">AI Intake Review</button>
+        <button type="button" class="nav-item" data-view="sublet" data-short="SUB">Sublet</button>
+        <button type="button" class="nav-item" data-view="rft" data-short="RFT">RFT</button>
+        <button type="button" class="nav-item" data-view="completed" data-short="DONE">Completed vehicles</button>
+        <button type="button" class="nav-item" data-view="deleted" data-short="DEL">Deleted vehicles</button>
+        <button type="button" class="nav-item" data-view="backend" data-short="DATA">Back End Data</button>
+        <button type="button" class="nav-item" data-view="lists" data-short="SET">Setup</button>
+        <button type="button" class="nav-item" data-view="import" data-short="U">Uploads</button>
       </nav>
 
       <div class="sidebar-card">
@@ -72,7 +74,7 @@
               <button class="small-button" type="button" data-view-target="workflow">Open Control Board</button>
             </div>
           </div>
-          <div class="incoming-search-panel" aria-label="Main screen vehicle search and filters">
+          <div class="incoming-search-panel" role="search" aria-label="Main screen vehicle search and filters">
             <div class="incoming-filter-row primary-filter-row">
               <label>
                 <span>Name / Stock / Key</span>
@@ -156,7 +158,7 @@
               <strong>Drop PD PDF here</strong>
               <span>or click to choose files</span>
             </label>
-            <textarea id="dashboard-pd-paste" class="quick-navision-textarea" rows="5" spellcheck="false" placeholder="Paste PD check-form text here..."></textarea>
+            <textarea id="dashboard-pd-paste" class="quick-navision-textarea" rows="5" spellcheck="false" aria-label="PD check-form text" placeholder="Paste PD check-form text here..."></textarea>
           </div>
           <div id="dashboard-pd-status" class="po-status-list pd-status-list"></div>
         </section>
@@ -596,7 +598,7 @@
               </div>
             </div>
             <div class="list-admin-form">
-              <input id="mechanic-name-input" type="text" placeholder="Mechanic name or initials" />
+              <input id="mechanic-name-input" type="text" aria-label="Mechanic name or initials" placeholder="Mechanic name or initials" />
               <button class="primary" id="add-mechanic-list-button" type="button">Add mechanic</button>
             </div>
             <div class="admin-chip-list" id="mechanic-list-admin"></div>
@@ -610,7 +612,7 @@
               </div>
             </div>
             <div class="list-admin-form">
-              <input id="sublet-provider-name-input" type="text" placeholder="Provider name" />
+              <input id="sublet-provider-name-input" type="text" aria-label="External provider name" placeholder="Provider name" />
               <button class="primary" id="add-sublet-provider-button" type="button">Add provider</button>
             </div>
             <div class="admin-chip-list" id="sublet-provider-list-admin"></div>
@@ -632,7 +634,7 @@
               <button class="primary full" id="export-backup" type="button">Export CRM backup JSON</button>
               <label class="drop-zone backup-drop-zone" for="backup-upload">
                 <input id="backup-upload" type="file" accept="application/json,.json" />
-                <div class="drop-icon backup-icon">JSON</div>
+                <span class="drop-icon backup-icon">JSON</span>
                 <strong>Restore CRM backup</strong>
                 <span>Select a backup JSON exported from this tracker to reload your saved Vehicle Locations later.</span>
               </label>
@@ -662,7 +664,7 @@
             </div>
             <label class="drop-zone navision-drop-zone" for="navision-upload">
               <input id="navision-upload" type="file" accept=".txt,.tsv,.csv,.xlsx,text/plain,text/tab-separated-values,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" />
-              <div class="drop-icon navision-icon">XLSX</div>
+              <span class="drop-icon navision-icon">XLSX</span>
               <strong>Select Navision text or Excel</strong>
               <span>Uses Batch/stock, order or VIN to update existing rows and store new vehicles in Back End Data. XLSX files are converted in the browser.</span>
             </label>
@@ -716,7 +718,7 @@
             </div>
             <label class="drop-zone autocare-drop-zone" for="autocare-upload">
               <input id="autocare-upload" type="file" accept="application/pdf,.pdf" multiple />
-              <div class="drop-icon autocare-icon">DN</div>
+              <span class="drop-icon autocare-icon">DN</span>
               <strong>Drop or select Autocare notice PDFs</strong>
               <span>Matches by VIN first, then Batch / Stock / Toyota batch where available.</span>
             </label>
@@ -762,7 +764,7 @@
             </div>
             <label class="drop-zone" for="po-upload">
               <input id="po-upload" type="file" accept="application/pdf,.pdf" multiple />
-              <div class="drop-icon">PO</div>
+              <span class="drop-icon">PO</span>
               <strong>Drop or select PO PDFs</strong>
               <span>Use stock number in the filename for automatic matching, or upload from a vehicle popup.</span>
             </label>
@@ -806,16 +808,16 @@
       <form class="new-customer-form customer-form" id="new-customer-form">
         <div class="form-row two-col">
           <label><span class="muted-label">SP</span><input name="consultant" placeholder="e.g. BG" /></label>
-          <label><span class="muted-label">Stock number</span><input name="stock" placeholder="TBA or stock #" /></label>
+          <label><span class="muted-label">Stock number</span><input type="text" name="stock" placeholder="TBA or stock #" /></label>
         </div>
         <div class="form-row two-col">
-          <label><span class="muted-label">Client</span><input name="client" required placeholder="Customer name" /></label>
-          <label><span class="muted-label">Contact</span><input name="contact" placeholder="Phone or email" /></label>
+          <label><span class="muted-label">Client</span><input type="text" name="client" required placeholder="Customer name" /></label>
+          <label><span class="muted-label">Contact</span><input type="text" name="contact" placeholder="Phone or email" /></label>
         </div>
-        <label><span class="muted-label">Vehicle</span><input name="vehicle" required placeholder="Vehicle type / grade only" /></label>
+        <label><span class="muted-label">Vehicle</span><input type="text" name="vehicle" required placeholder="Vehicle type / grade only" /></label>
         <div class="form-row three-col">
           <label><span class="muted-label">Task</span><select name="internalStatus" id="new-customer-task"></select></label>
-          <label><span class="muted-label">JC Jobcard Number</span><input name="pdcJobcard" placeholder="Workshop jobcard #" /></label>
+          <label><span class="muted-label">JC Jobcard Number</span><input type="text" name="pdcJobcard" placeholder="Workshop jobcard #" /></label>
           <label><span class="muted-label">JITA</span><select name="jitaPartsOrdered"><option>Unknown</option><option>Yes</option><option>No</option></select></label>
         </div>
         <div class="edit-actions">
@@ -863,10 +865,10 @@
       }
     }());
   </script>
-  <script src="vendor/qz/qz-tray.js?v=2.2.6"></script>
-  <script src="data-test-75.js?v=2026.07.14.18-collapsed-intake-rows"></script>
-  <script src="arb-labor-catalog.js?v=2026.07.14.18-collapsed-intake-rows"></script>
-  <script src="app.js?v=2026.07.14.18-collapsed-intake-rows"></script>
-  <script src="workshop-planner.js?v=2026.07.14.18-collapsed-intake-rows"></script>
+
+  <script src="data-test-75.js?v=2026.07.15.01-audit-correctness-performance"></script>
+  <script src="arb-labor-catalog.js?v=2026.07.15.01-audit-correctness-performance"></script>
+  <script src="app.js?v=2026.07.15.01-audit-correctness-performance"></script>
+
 </body>
 </html>
