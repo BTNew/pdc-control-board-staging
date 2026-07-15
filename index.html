@@ -6,25 +6,30 @@
   <meta name="description" content="PDC vehicle locations, workshop workflow, Parts and scheduling control board." />
   <title>Vehicle Tracking Core</title>
   <link rel="icon" href="favicon.svg" type="image/svg+xml" />
-  <link rel="stylesheet" href="styles.css?v=2026.07.15.04-microsoft-auth" />
-  <link rel="stylesheet" href="desktop-operations.css?v=2026.07.15.04-microsoft-auth" />
-  <link rel="stylesheet" href="workshop-planner.css?v=2026.07.15.04-microsoft-auth" />
+  <link rel="stylesheet" href="styles.css?v=2026.07.15.05-password-auth" />
+  <link rel="stylesheet" href="desktop-operations.css?v=2026.07.15.05-password-auth" />
+  <link rel="stylesheet" href="workshop-planner.css?v=2026.07.15.05-password-auth" />
 </head>
 <body class="auth-pending" data-auth-state="checking">
   <main class="pdc-auth-gate" id="pdc-auth-gate" aria-labelledby="pdc-auth-title">
     <section class="pdc-auth-card">
       <div class="pdc-auth-brand" aria-hidden="true">PDC</div>
       <p class="eyebrow">Vehicle Tracking Core</p>
-      <h1 id="pdc-auth-title">Checking Microsoft sign-in…</h1>
+      <h1 id="pdc-auth-title">Checking secure sign-in…</h1>
       <p id="pdc-auth-detail">Checking for an existing approved staff session.</p>
       <div class="pdc-auth-actions">
+        <form class="pdc-password-form" id="pdc-password-form" hidden>
+          <label><span>Email address</span><input id="pdc-login-email" type="email" autocomplete="username" required /></label>
+          <label><span>Password</span><input id="pdc-login-password" type="password" autocomplete="current-password" required /></label>
+          <button class="primary" id="pdc-password-login" type="submit">Sign in</button>
+        </form>
         <button class="primary" id="pdc-microsoft-login" type="button" hidden>Sign in with Microsoft</button>
-        <button class="ghost" id="pdc-auth-denied-signout" type="button" hidden>Use another Microsoft account</button>
+        <button class="ghost" id="pdc-auth-denied-signout" type="button" hidden>Use another account</button>
       </div>
-      <small>Only Microsoft accounts on the approved PDC staff list can load operational data.</small>
+      <small>Only individually approved staff accounts can load operational data. Public account registration is disabled.</small>
     </section>
   </main>
-  <noscript><div class="pdc-auth-noscript">JavaScript is required for secure Microsoft sign-in.</div></noscript>
+  <noscript><div class="pdc-auth-noscript">JavaScript is required for secure staff sign-in.</div></noscript>
 
   <div class="app-shell" id="app-shell" inert aria-hidden="true">
     <aside class="sidebar" aria-label="Application navigation">
@@ -33,7 +38,7 @@
         <div class="brand-text">
           <div class="brand-title">Vehicle Tracking</div>
           <div class="brand-subtitle">Core Tracker</div>
-          <div class="app-version" id="app-version">Version 2026.07.15.04-microsoft-auth</div>
+          <div class="app-version" id="app-version">Version 2026.07.15.05-password-auth</div>
         </div>
         <button class="sidebar-toggle" id="sidebar-toggle" type="button" aria-label="Collapse sidebar" title="Collapse sidebar">‹</button>
       </div>
@@ -879,10 +884,10 @@
 
   <script src="vendor/supabase/supabase-2.110.5.js"></script>
   <script src="pdc-supabase-config.js"></script>
-  <script src="pdc-auth.js?v=2026.07.15.04-microsoft-auth"></script>
-  <script src="data.js?v=2026.07.15.04-microsoft-auth"></script>
-  <script src="email-board-data.js?v=2026.07.15.04-microsoft-auth"></script>
-  <script src="arb-labor-catalog.js?v=2026.07.15.04-microsoft-auth"></script>
-  <script src="app.js?v=2026.07.15.04-microsoft-auth"></script>
+  <script src="pdc-auth.js?v=2026.07.15.05-password-auth"></script>
+  <script src="data.js?v=2026.07.15.05-password-auth"></script>
+  <script src="email-board-data.js?v=2026.07.15.05-password-auth"></script>
+  <script src="arb-labor-catalog.js?v=2026.07.15.05-password-auth"></script>
+  <script src="app.js?v=2026.07.15.05-password-auth"></script>
 </body>
 </html>

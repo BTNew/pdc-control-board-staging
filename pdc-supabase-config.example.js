@@ -7,6 +7,7 @@ window.PDC_SUPABASE_CONFIG = {
   url: 'https://vjdtsswhroyguxyfjdkt.supabase.co',
   publishableKey: 'PASTE_SUPABASE_SB_PUBLISHABLE_KEY_HERE',
   auth: {
+    mode: 'password',
     provider: 'azure',
     redirectTo: window.location.origin + window.location.pathname
   }

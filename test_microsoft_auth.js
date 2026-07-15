@@ -13,14 +13,18 @@ const vendor = fs.readFileSync(path.join(root, 'vendor', 'supabase', 'supabase-2
 
 assert.ok(index.includes('<body class="auth-pending"'), 'Production shell must start locked');
 assert.ok(index.includes('id="app-shell" inert aria-hidden="true"'), 'Production application must be inert before authorization');
-assert.ok(index.includes('id="pdc-microsoft-login"'), 'Microsoft sign-in action is missing');
+assert.ok(index.includes('id="pdc-password-form"'), 'Temporary individual email/password form is missing');
+assert.ok(index.includes('autocomplete="username"') && index.includes('autocomplete="current-password"'), 'Login fields need password-manager-compatible autocomplete values');
 assert.ok(index.includes('id="pdc-auth-signout"'), 'Sign-out action is missing');
 assert.ok(index.indexOf('vendor/supabase/supabase-2.110.5.js') < index.indexOf('pdc-auth.js'), 'Supabase client must load before the auth gate');
 assert.ok(index.indexOf('pdc-supabase-config.js') < index.indexOf('pdc-auth.js'), 'Browser config must load before the auth gate');
 assert.ok(index.indexOf('pdc-auth.js') < index.indexOf('app.js'), 'Auth gate must initialize before application code');
 assert.ok(vendor.includes('supabase') && vendor.length > 150000, 'Pinned Supabase browser bundle is missing or incomplete');
 assert.ok(configExample.includes("provider: 'azure'"), 'Microsoft/Azure must be the configured provider');
+assert.ok(configExample.includes("mode: 'password'"), 'Temporary production login mode should be individual email/password');
 assert.ok(!authSource.includes('URLSearchParams') && !authSource.includes('AUTH_BYPASS'), 'Production auth must not support a query-string bypass');
+assert.ok(authSource.includes('signInWithPassword({ email, password })'), 'Email/password sign-in handler is missing');
+assert.ok(!authSource.includes('.signUp('), 'The production browser must not expose public account registration');
 assert.ok(authSource.includes("scopes: 'email'"), 'Azure OAuth must request the email scope required by Supabase');
 assert.ok(authSource.includes(".from('pdc_user_roles')"), 'Authorization must check the protected PDC role table');
 assert.ok(authSource.indexOf(".from('pdc_user_roles')") < authSource.indexOf('unlockApplication(session, role)'), 'Role authorization must occur before unlocking the app');
@@ -69,4 +73,4 @@ assert.ok(!helpers.approvedRole({ email: 'other@example.com', role: 'administrat
 assert.strictEqual(helpers.safeRedirectTo('https://evil.example/login'), 'http://localhost:8765/index.html', 'OAuth redirect must stay on the current origin');
 assert.strictEqual(helpers.safeRedirectTo('/index.html'), 'http://localhost:8765/index.html', 'Same-origin OAuth redirect should be accepted');
 
-console.log('Microsoft authentication gate checks passed');
+console.log('PDC authentication gate checks passed');

@@ -55,6 +55,8 @@ The pilot must keep two modes separate:
 
 ### Phase 2 — Auth foundation
 
+- Temporary individual email/password mode is implemented for initial controlled access. Public signup is disabled, account creation is administrator-only, and every authenticated email must also have an active `pdc_user_roles` row.
+- Current password policy: minimum 12 characters with lower/upper-case letters, a digit and a symbol. TOTP enrolment remains enabled for later enforcement.
 - Configure Supabase Authentication → Providers → Azure/Microsoft.
 - Redirect URI in Microsoft Entra app:
   - `https://vjdtsswhroyguxyfjdkt.supabase.co/auth/v1/callback`

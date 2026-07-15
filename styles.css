@@ -11369,6 +11369,11 @@ html[data-row-width="xl"] {
 .pdc-auth-card small { color: #687588; line-height: 1.45; }
 .pdc-auth-actions { display: grid; gap: 10px; margin-top: 8px; }
 .pdc-auth-actions button { width: 100%; min-height: 48px; }
+.pdc-password-form { display: grid; gap: 12px; text-align: left; }
+.pdc-password-form[hidden] { display: none; }
+.pdc-password-form label { display: grid; gap: 5px; color: #334155; font-size: 12px; font-weight: 700; }
+.pdc-password-form input { width: 100%; min-height: 46px; padding: 10px 12px; border: 1px solid #b8c3d1; border-radius: 6px; background: #fff; color: #172033; font: inherit; }
+.pdc-password-form input:focus { outline: 3px solid rgba(37, 99, 235, .2); border-color: #2563eb; }
 .pdc-auth-user {
   max-width: 260px;
   color: #334155;
