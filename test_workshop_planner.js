@@ -171,6 +171,8 @@ assert.deepStrictEqual(
 );
 assert.ok(source.includes("scheduleWorkshopVehicle({ planId, vehicleKeyValue, stage, bay, dateKey, startMinutes, preferRequestedTime: true });"), 'Queue-card lane drops must keep the requested drop time and ask to push later planned work when needed');
 assert.ok(source.includes("moveWorkshopDroppedPlan(planId, stage, bay, dateKey, startMinutes, { preferRequestedTime: true })"), 'Dragged planned bookings must keep the requested drop time and route through queue shifting');
+assert.ok(source.includes('function workshopUpdateLanePreview('), 'Daily and weekly planner lanes should expose a live drag preview helper');
+assert.ok(source.includes('workshopDropPreviewHtml({ vertical: true })'), 'Weekly planner lanes should render a vertical ghost preview for drag insertion');
 assert.ok(source.includes('workshopFirstAvailableStartSlot(normalizedStage, Number(form.elements.bay.value), safeDate'), 'The direct Schedule form must also suggest a future workday when the selected day is full');
 assert.ok(source.includes('maxWorkdays = 260'), 'Automatic scheduling must keep a roughly one-year workday horizon');
 assert.ok(source.includes("querySelector('[name=\"hours\"]')?.addEventListener('change', suggestAvailableTime)"), 'Changing planned hours in the Schedule form must recalculate the first available start');
@@ -339,7 +341,7 @@ for (const [startName, nextName, pathLabel] of [
   assert.ok(!section.includes('saveVehicleEdits('), `${pathLabel} must not write vehicle estimates outside the shared transaction`);
 }
 
-for (const selector of ['.workshop-board-shell', '.workshop-bay-lane', '.workshop-plan-chip', '.workshop-now-line', '.workshop-plan-chip.is-overtime', '.workshop-plan-chip.has-assignee-conflict', '.workshop-plan-chip.is-search-match', '.workshop-unallocated-drop', '.workshop-week-grid', '.workshop-week-card', '.workshop-return-card', '.workshop-job-line-row', '.workshop-status-legend', '.workshop-queue-actions', '.workshop-slot-hint']) {
+for (const selector of ['.workshop-board-shell', '.workshop-bay-lane', '.workshop-plan-chip', '.workshop-now-line', '.workshop-plan-chip.is-overtime', '.workshop-plan-chip.has-assignee-conflict', '.workshop-plan-chip.is-search-match', '.workshop-unallocated-drop', '.workshop-week-grid', '.workshop-week-card', '.workshop-return-card', '.workshop-job-line-row', '.workshop-status-legend', '.workshop-queue-actions', '.workshop-slot-hint', '.workshop-drop-preview', '.workshop-drop-preview-pill']) {
   assert.ok(css.includes(selector), `Workshop CSS is missing ${selector}`);
 }
 assert.ok(globalCss.includes('.pmb-card-move-button {'), 'PMB movement buttons must have a visible default style');
@@ -348,7 +350,7 @@ for (const file of htmlFiles) {
   const html = fs.readFileSync(path.join(root, file), 'utf8');
   assert.ok(html.includes('data-view="workshop"'), `${file} is missing the Workshop Planner navigation item`);
   assert.ok(html.includes('id="workshop-planner-root"'), `${file} is missing the Workshop Planner host`);
-  assert.ok(html.includes('workshop-planner.css?v=2026.07.16.22-workshop-drop-time'), `${file} is missing the planner stylesheet`);
+  assert.ok(html.includes('workshop-planner.css?v=2026.07.16.23-workshop-drop-preview'), `${file} is missing the planner stylesheet`);
   assert.ok(!html.includes('<script src="workshop-planner.js'), `${file} must not eagerly load the planner script`);
 }
 assert.ok(app.includes("loadExternalScript(`workshop-planner.js?v=${encodeURIComponent(APP_VERSION)}`"), 'app.js must lazy-load the Workshop Planner with the active release version');

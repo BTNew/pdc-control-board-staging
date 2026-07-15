@@ -515,6 +515,68 @@ body[data-current-view="workshop"] .content {
   box-shadow: inset 0 0 0 3px #3b82f6;
 }
 
+.workshop-drop-preview {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  pointer-events: none;
+}
+
+.workshop-drop-preview-line {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: var(--drop-preview-left, 0%);
+  width: 3px;
+  background: #1d4ed8;
+  box-shadow: 0 0 0 1px rgba(255,255,255,.55), 0 0 12px rgba(37,99,235,.35);
+}
+
+.workshop-drop-preview-pill {
+  position: absolute;
+  top: 10px;
+  left: var(--drop-preview-left, 0%);
+  width: max(var(--drop-preview-width, 5%), 68px);
+  height: 64px;
+  border: 2px dashed #1d4ed8;
+  border-left: 6px solid #1d4ed8;
+  border-radius: 7px;
+  background: rgba(219,234,254,.7);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.7), 0 4px 12px rgba(37,99,235,.18);
+}
+
+.workshop-drop-preview-pill::after {
+  content: attr(data-preview-label);
+  position: absolute;
+  left: 6px;
+  top: 6px;
+  display: inline-flex;
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: rgba(30,64,175,.96);
+  color: #fff;
+  font-size: .56rem;
+  font-weight: 950;
+  white-space: nowrap;
+}
+
+.workshop-drop-preview.is-vertical .workshop-drop-preview-line {
+  top: var(--drop-preview-top, 0%);
+  bottom: auto;
+  left: 0;
+  right: 0;
+  width: auto;
+  height: 3px;
+}
+
+.workshop-drop-preview.is-vertical .workshop-drop-preview-pill {
+  top: var(--drop-preview-top, 0%);
+  left: 34px;
+  right: 6px;
+  width: auto;
+  height: max(var(--drop-preview-height, 8%), 44px);
+}
+
 .workshop-plan-chip {
   position: absolute;
   z-index: 5;

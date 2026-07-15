@@ -950,6 +950,10 @@ function workshopTimeAxisHtml() {
   }).join('');
 }
 
+function workshopDropPreviewHtml({ vertical = false } = {}) {
+  return `<div class="workshop-drop-preview${vertical ? ' is-vertical' : ''}" hidden aria-hidden="true"><span class="workshop-drop-preview-line"></span><span class="workshop-drop-preview-pill"></span></div>`;
+}
+
 function workshopBayRowsHtml(stage = '', dateKey = '', rows = []) {
   const count = workshopStageBayCount(stage);
   return Array.from({ length: count }, (_, index) => {
@@ -962,6 +966,7 @@ function workshopBayRowsHtml(stage = '', dateKey = '', rows = []) {
     return `<div class="workshop-bay-row">
       <div class="workshop-bay-label"><div class="workshop-bay-label-heading"><strong>${escapeHtml(bayLabel)}</strong><button type="button" data-workshop-weekly-stage="${escapeHtml(stage)}" data-workshop-weekly-bay="${bay}">Week</button></div><span>${escapeHtml(stage === 'TYRE' && bay === 2 ? 'Wheel alignment' : plans.length ? `${plans.length} planned` : 'Available')}</span><label><small>${escapeHtml(assigneeLabel)}</small><select data-workshop-bay-mechanic-stage="${escapeHtml(stage)}" data-workshop-bay-mechanic-number="${bay}">${workshopAssigneeOptions(stage, defaultAssignee)}</select></label></div>
       <div class="workshop-bay-lane" data-workshop-drop-bay="${bay}" data-workshop-drop-stage="${escapeHtml(stage)}">
+        ${workshopDropPreviewHtml()}
         ${plans.map(entry => workshopPlanChipHtml(entry, dateKey, rows)).join('')}
       </div>
     </div>`;
@@ -977,6 +982,51 @@ function workshopMechanicOptions(selected = '') {
 
 function workshopAssigneeOptions(stage = '', selected = '') {
   return normalizePmbStage(stage) === 'SUBLET' ? subletProviderOptionsHtml(selected) : workshopMechanicOptions(selected);
+}
+
+function workshopCurrentDragPreview() {
+  return app.workshopDragPreview || null;
+}
+
+function workshopSetDragPreview(preview = null) {
+  app.workshopDragPreview = preview || null;
+}
+
+function workshopClearLanePreviews(scope = document) {
+  scope.querySelectorAll('.workshop-drop-preview').forEach(preview => {
+    preview.hidden = true;
+    preview.style.removeProperty('--drop-preview-left');
+    preview.style.removeProperty('--drop-preview-width');
+    preview.style.removeProperty('--drop-preview-top');
+    preview.style.removeProperty('--drop-preview-height');
+    preview.querySelector('.workshop-drop-preview-pill')?.removeAttribute('data-preview-label');
+  });
+}
+
+function workshopPreviewLabel(minutes = 0, hours = 0) {
+  const time = workshopTimeLabelFromMinutes(minutes);
+  const duration = Number(hours || 0);
+  return duration > 0 ? `${time} · ${duration}h` : time;
+}
+
+function workshopUpdateLanePreview(lane, startMinutes = 0) {
+  const preview = lane?.querySelector('.workshop-drop-preview');
+  if (!preview) return;
+  const dragPreview = workshopCurrentDragPreview();
+  const hours = Math.max(0.25, Number(dragPreview?.hours || WORKSHOP_DEFAULT_HOURS));
+  const safeMinutes = workshopClampStartMinutes(startMinutes);
+  const label = workshopPreviewLabel(safeMinutes, hours);
+  preview.hidden = false;
+  if (preview.classList.contains('is-vertical')) {
+    const height = Math.max((hours * 60 / WORKSHOP_DAY_MINUTES) * 100, 8);
+    preview.style.setProperty('--drop-preview-top', `${(safeMinutes / WORKSHOP_DAY_MINUTES) * 100}%`);
+    preview.style.setProperty('--drop-preview-height', `${Math.min(height, 100 - ((safeMinutes / WORKSHOP_DAY_MINUTES) * 100))}%`);
+  } else {
+    const width = Math.max((hours * 60 / WORKSHOP_DAY_MINUTES) * 100, 5);
+    preview.style.setProperty('--drop-preview-left', `${(safeMinutes / WORKSHOP_DAY_MINUTES) * 100}%`);
+    preview.style.setProperty('--drop-preview-width', `${Math.min(width, 100 - ((safeMinutes / WORKSHOP_DAY_MINUTES) * 100))}%`);
+  }
+  preview.querySelector('.workshop-drop-preview-pill')?.setAttribute('data-preview-label', label);
 }
 
 function workshopProgressSummary(entry = {}, now = new Date()) {
@@ -1179,6 +1229,15 @@ function bindWorkshopPlanner(root) {
     event.dataTransfer.effectAllowed = 'copy';
     event.dataTransfer.setData('application/x-workshop-vehicle-key', card.dataset.workshopVehicleKey);
     event.dataTransfer.setData('text/plain', card.dataset.workshopVehicleKey);
+    const vehicle = workshopVehicle(card.dataset.workshopVehicleKey);
+    workshopSetDragPreview({
+      type: 'queue',
+      hours: workshopCalculatedStageHours(vehicle, workshopState().stage) || pmbBayHours(vehicle) || WORKSHOP_DEFAULT_HOURS,
+    });
+  }));
+  root.querySelectorAll('[data-workshop-vehicle-key]').forEach(card => card.addEventListener('dragend', () => {
+    workshopSetDragPreview(null);
+    workshopClearLanePreviews(root);
   }));
   root.querySelectorAll('[data-workshop-schedule-vehicle]').forEach(button => button.addEventListener('click', event => {
     event.preventDefault();
@@ -1200,6 +1259,12 @@ function bindWorkshopPlanner(root) {
   root.querySelectorAll('[data-workshop-plan-id]').forEach(chip => chip.addEventListener('dragstart', event => {
     event.dataTransfer.effectAllowed = 'move';
     event.dataTransfer.setData('application/x-workshop-plan-id', chip.dataset.workshopPlanId);
+    const entry = workshopLoadPlans().find(row => row.id === chip.dataset.workshopPlanId);
+    workshopSetDragPreview({ type: 'plan', hours: workshopClampDurationHours(entry?.hours) || WORKSHOP_DEFAULT_HOURS });
+  }));
+  root.querySelectorAll('[data-workshop-plan-id]').forEach(chip => chip.addEventListener('dragend', () => {
+    workshopSetDragPreview(null);
+    workshopClearLanePreviews(root);
   }));
   root.querySelectorAll('[data-workshop-job-vehicle]').forEach(card => card.addEventListener('dblclick', event => {
     event.preventDefault();
@@ -1258,13 +1323,20 @@ function bindWorkshopLane(lane) {
   lane.addEventListener('dragover', event => {
     event.preventDefault();
     lane.classList.add('drag-over');
+    const rect = lane.getBoundingClientRect();
+    const requestedStartMinutes = workshopClampStartMinutes(((event.clientX - rect.left) / Math.max(1, rect.width)) * WORKSHOP_DAY_MINUTES);
+    workshopUpdateLanePreview(lane, requestedStartMinutes);
   });
   lane.addEventListener('dragleave', event => {
-    if (!lane.contains(event.relatedTarget)) lane.classList.remove('drag-over');
+    if (!lane.contains(event.relatedTarget)) {
+      lane.classList.remove('drag-over');
+      workshopClearLanePreviews(lane);
+    }
   });
   lane.addEventListener('drop', event => {
     event.preventDefault();
     lane.classList.remove('drag-over');
+    workshopClearLanePreviews(lane);
     const rect = lane.getBoundingClientRect();
     const requestedStartMinutes = workshopClampStartMinutes(((event.clientX - rect.left) / Math.max(1, rect.width)) * WORKSHOP_DAY_MINUTES);
     const planId = event.dataTransfer.getData('application/x-workshop-plan-id');
@@ -2275,7 +2347,7 @@ function openWorkshopWeeklyView(stage = '', bay = 1, anchorDate = '') {
     }, 0);
     return `<section class="workshop-week-day">
       <header><strong>${escapeHtml(date.toLocaleDateString('en-AU', { weekday: 'short' }))}</strong><span>${escapeHtml(date.toLocaleDateString('en-AU', { day: '2-digit', month: '2-digit' }))}</span><small>${escapeHtml(bookedHours.toFixed(bookedHours % 1 ? 1 : 0))}/8h booked</small></header>
-      <div class="workshop-week-day-lane" data-workshop-week-drop-date="${escapeHtml(dateKey)}">${workshopWeeklyTimeGuideHtml()}${dayPlans.map(entry => workshopWeeklyCardHtml(entry, dateKey)).join('')}</div>
+      <div class="workshop-week-day-lane" data-workshop-week-drop-date="${escapeHtml(dateKey)}">${workshopWeeklyTimeGuideHtml()}${workshopDropPreviewHtml({ vertical: true })}${dayPlans.map(entry => workshopWeeklyCardHtml(entry, dateKey)).join('')}</div>
     </section>`;
   }).join('');
   const overlay = document.createElement('div');
@@ -2298,13 +2370,31 @@ function openWorkshopWeeklyView(stage = '', bay = 1, anchorDate = '') {
   overlay.querySelectorAll('[data-workshop-week-plan][draggable="true"]').forEach(card => card.addEventListener('dragstart', event => {
     event.dataTransfer.effectAllowed = 'move';
     event.dataTransfer.setData('application/x-workshop-plan-id', card.dataset.workshopWeekPlan);
+    const entry = workshopLoadPlans().find(row => row.id === card.dataset.workshopWeekPlan);
+    workshopSetDragPreview({ type: 'week-plan', hours: workshopClampDurationHours(entry?.hours) || WORKSHOP_DEFAULT_HOURS });
+  }));
+  overlay.querySelectorAll('[data-workshop-week-plan][draggable="true"]').forEach(card => card.addEventListener('dragend', () => {
+    workshopSetDragPreview(null);
+    workshopClearLanePreviews(overlay);
   }));
   overlay.querySelectorAll('[data-workshop-week-drop-date]').forEach(lane => {
-    lane.addEventListener('dragover', event => { event.preventDefault(); lane.classList.add('drag-over'); });
-    lane.addEventListener('dragleave', event => { if (!lane.contains(event.relatedTarget)) lane.classList.remove('drag-over'); });
+    lane.addEventListener('dragover', event => {
+      event.preventDefault();
+      lane.classList.add('drag-over');
+      const rect = lane.getBoundingClientRect();
+      const startMinutes = workshopClampStartMinutes(((event.clientY - rect.top) / Math.max(1, rect.height)) * WORKSHOP_DAY_MINUTES);
+      workshopUpdateLanePreview(lane, startMinutes);
+    });
+    lane.addEventListener('dragleave', event => {
+      if (!lane.contains(event.relatedTarget)) {
+        lane.classList.remove('drag-over');
+        workshopClearLanePreviews(lane);
+      }
+    });
     lane.addEventListener('drop', event => {
       event.preventDefault();
       lane.classList.remove('drag-over');
+      workshopClearLanePreviews(lane);
       const planId = event.dataTransfer.getData('application/x-workshop-plan-id');
       const rect = lane.getBoundingClientRect();
       const startMinutes = workshopClampStartMinutes(((event.clientY - rect.top) / Math.max(1, rect.height)) * WORKSHOP_DAY_MINUTES);
