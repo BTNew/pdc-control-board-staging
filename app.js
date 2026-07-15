@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.07.15.11-back-to-back-drop';
+const APP_VERSION = '2026.07.15.12-mechanic-roster';
 window.VEHICLE_TRACKING_DATA = window.VEHICLE_TRACKING_DATA || { report: {}, vehicles: [], toyotaMatches: {} };
 const EDITS_KEY = 'vehicleTrackingCoreNavisionOnlyEdits:v1';
 const ADDED_KEY = 'vehicleTrackingCoreNavisionOnlyVehicles:v1';
@@ -10,6 +10,8 @@ const AUDIT_LOG_KEY = 'vehicleTrackingCoreNavisionOnlyAuditLog:v1';
 const OPERATOR_NAME_KEY = 'vehicleTrackingCoreCurrentOperator:v1';
 const OPERATOR_ROLE_KEY = 'vehicleTrackingCoreCurrentOperatorRole:v1';
 const MECHANICS_KEY = 'vehicleTrackingCorePdcMechanics:v1';
+const MECHANICS_ROSTER_SEED_KEY = 'vehicleTrackingCorePdcMechanicsRosterSeed:v1';
+const MECHANICS_ROSTER_SEED_VERSION = '2026-07-15-departments-138-139-v1';
 const SUBLET_PROVIDERS_KEY = 'vehicleTrackingCorePdcSubletProviders:v1';
 const SUBLET_PROVIDERS_SEED_KEY = 'vehicleTrackingCorePdcSubletProvidersSeed:v2';
 const SUBLET_PROVIDERS_SEED_VERSION = '2026-07-13-v2';
@@ -43,6 +45,7 @@ const CRM_BACKUP_STORAGE_KEYS = [
   NAVISION_IMPORT_RESULTS_KEY,
   AUDIT_LOG_KEY,
   MECHANICS_KEY,
+  MECHANICS_ROSTER_SEED_KEY,
   SUBLET_PROVIDERS_KEY,
   SUBLET_PROVIDERS_SEED_KEY,
   SALESPERSONS_KEY,
@@ -1167,10 +1170,53 @@ function deletedVehicleRecords() {
   }).filter(record => record.key);
 }
 function saveDeletedVehicleRecords(records = []) { saveDeletedVehicles(records); }
-function loadMechanics() { return loadJson(MECHANICS_KEY, []); }
-function saveMechanics(names) {
-  const cleaned = [...new Set((Array.isArray(names) ? names : []).map(name => cleanNavisionText(name)).filter(Boolean))]
+const DEFAULT_MECHANICS = [
+  'Ajafari Abdelkrim',
+  'Andrew McCormick',
+  'Ben Palmer',
+  'Chelsea Rees # 2',
+  'Daniel Evelyn',
+  'Gurmohan Singh',
+  'James Ierino',
+  'Jamie Bello',
+  'Joe Izzi',
+  'John Castagna',
+  'Jundullah Sharif Ramli',
+  'Kade Bailey',
+  'Luke Walton',
+  'Nick Darker',
+  'Ratchapool Jaumorn',
+  'Ravindra Singh',
+  'Richard Tatov',
+  'Robert Celenza',
+  'Samuel Sherratt',
+  'Simon Duncan',
+  'Simon Fraser',
+  'Thanh Truong',
+  'Wilfredo Aquionos',
+  'Winn Chiu Pang',
+  'Zachary King',
+];
+
+function normalizedMechanicList(names = []) {
+  return [...new Set((Array.isArray(names) ? names : []).map(name => cleanNavisionText(name)).filter(Boolean))]
     .sort((a, b) => a.localeCompare(b));
+}
+
+function loadMechanics() {
+  const saved = normalizedMechanicList(loadJson(MECHANICS_KEY, []));
+  let rosterVersion = '';
+  try { rosterVersion = localStorage.getItem(MECHANICS_ROSTER_SEED_KEY) || ''; } catch {}
+  if (rosterVersion !== MECHANICS_ROSTER_SEED_VERSION) {
+    const roster = normalizedMechanicList(DEFAULT_MECHANICS);
+    saveJson(MECHANICS_KEY, roster);
+    try { localStorage.setItem(MECHANICS_ROSTER_SEED_KEY, MECHANICS_ROSTER_SEED_VERSION); } catch {}
+    return roster;
+  }
+  return saved;
+}
+function saveMechanics(names) {
+  const cleaned = normalizedMechanicList(names);
   saveJson(MECHANICS_KEY, cleaned);
   return cleaned;
 }
