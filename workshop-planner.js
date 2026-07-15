@@ -1111,10 +1111,20 @@ function bindWorkshopLane(lane) {
     event.preventDefault();
     lane.classList.remove('drag-over');
     const rect = lane.getBoundingClientRect();
-    const startMinutes = workshopClampStartMinutes(((event.clientX - rect.left) / Math.max(1, rect.width)) * WORKSHOP_DAY_MINUTES);
+    const requestedStartMinutes = workshopClampStartMinutes(((event.clientX - rect.left) / Math.max(1, rect.width)) * WORKSHOP_DAY_MINUTES);
     const planId = event.dataTransfer.getData('application/x-workshop-plan-id');
     const vehicleKeyValue = event.dataTransfer.getData('application/x-workshop-vehicle-key') || event.dataTransfer.getData('text/plain');
-    scheduleWorkshopVehicle({ planId, vehicleKeyValue, stage: lane.dataset.workshopDropStage, bay: Number(lane.dataset.workshopDropBay), dateKey: workshopState().date, startMinutes });
+    const stage = lane.dataset.workshopDropStage;
+    const bay = Number(lane.dataset.workshopDropBay);
+    const dateKey = workshopState().date;
+    let startMinutes = requestedStartMinutes;
+    if (!planId && vehicleKeyValue) {
+      const vehicle = workshopVehicle(vehicleKeyValue);
+      const hours = vehicle ? (workshopCalculatedStageHours(vehicle, stage) || pmbBayHours(vehicle) || WORKSHOP_DEFAULT_HOURS) : WORKSHOP_DEFAULT_HOURS;
+      const availableStart = workshopFirstAvailableStartMinutes(stage, bay, dateKey, hours, workshopLoadPlans(), requestedStartMinutes);
+      if (availableStart !== null) startMinutes = availableStart;
+    }
+    scheduleWorkshopVehicle({ planId, vehicleKeyValue, stage, bay, dateKey, startMinutes });
   });
 }
 
@@ -1278,10 +1288,11 @@ async function returnWorkshopPlanToUnallocated(planId = '') {
   renderWorkshopPlanner();
 }
 
-function workshopFirstAvailableStartMinutes(stage = '', bay = 1, dateKey = '', hours = WORKSHOP_DEFAULT_HOURS, rows = workshopLoadPlans()) {
+function workshopFirstAvailableStartMinutes(stage = '', bay = 1, dateKey = '', hours = WORKSHOP_DEFAULT_HOURS, rows = workshopLoadPlans(), notBeforeMinutes = 0) {
   const normalizedStage = normalizePmbStage(stage);
   const duration = workshopClampDurationHours(hours);
-  for (let startMinutes = 0; startMinutes < WORKSHOP_DAY_MINUTES; startMinutes += 15) {
+  const firstStart = workshopClampStartMinutes(notBeforeMinutes);
+  for (let startMinutes = firstStart; startMinutes < WORKSHOP_DAY_MINUTES; startMinutes += 15) {
     const candidate = {
       id: '__availability_check__',
       vehicleKey: '__availability_check__',
@@ -1293,7 +1304,7 @@ function workshopFirstAvailableStartMinutes(stage = '', bay = 1, dateKey = '', h
     };
     if (!workshopHasConflict(candidate, rows)) return startMinutes;
   }
-  return 0;
+  return null;
 }
 
 function workshopScheduleTimeOptions(selectedMinutes = 0) {
@@ -1309,7 +1320,7 @@ function openWorkshopScheduleModal(vehicleKeyValue = '', stage = '', dateKey = '
   const hours = workshopCalculatedStageHours(vehicle, normalizedStage) || pmbBayHours(vehicle) || WORKSHOP_DEFAULT_HOURS;
   const bay = 1;
   const selectedDate = workshopDateKey(workshopCoerceWorkDate(workshopDateFromKey(dateKey) || new Date(), 1));
-  const startMinutes = workshopFirstAvailableStartMinutes(normalizedStage, bay, selectedDate, hours);
+  const startMinutes = workshopFirstAvailableStartMinutes(normalizedStage, bay, selectedDate, hours) ?? 0;
   const bayOptions = Array.from({ length: workshopStageBayCount(normalizedStage) }, (_, index) => `<option value="${index + 1}">${normalizedStage === 'SUBLET' ? 'Provider row' : `Bay ${workshopPad(index + 1)}`}</option>`).join('');
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay workshop-schedule-overlay';
@@ -1341,11 +1352,12 @@ function openWorkshopScheduleModal(vehicleKeyValue = '', stage = '', dateKey = '
     const safeDate = workshopDateKey(workshopCoerceWorkDate(selected, 1));
     form.elements.date.value = safeDate;
     const suggested = workshopFirstAvailableStartMinutes(normalizedStage, Number(form.elements.bay.value), safeDate, Number(form.elements.hours.value) || hours);
-    form.elements.startMinutes.value = String(suggested);
+    if (suggested !== null) form.elements.startMinutes.value = String(suggested);
   };
   overlay.querySelectorAll('[data-workshop-schedule-cancel]').forEach(button => button.addEventListener('click', finish));
   overlay.querySelector('[name="bay"]')?.addEventListener('change', suggestAvailableTime);
   overlay.querySelector('[name="date"]')?.addEventListener('change', suggestAvailableTime);
+  overlay.querySelector('[name="hours"]')?.addEventListener('change', suggestAvailableTime);
   overlay.querySelector('[data-workshop-schedule-form]').addEventListener('submit', event => {
     event.preventDefault();
     const form = event.currentTarget;

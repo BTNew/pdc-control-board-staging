@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.07.15.10-parts-current-location';
+const APP_VERSION = '2026.07.15.11-back-to-back-drop';
 window.VEHICLE_TRACKING_DATA = window.VEHICLE_TRACKING_DATA || { report: {}, vehicles: [], toyotaMatches: {} };
 const EDITS_KEY = 'vehicleTrackingCoreNavisionOnlyEdits:v1';
 const ADDED_KEY = 'vehicleTrackingCoreNavisionOnlyVehicles:v1';

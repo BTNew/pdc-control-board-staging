@@ -140,6 +140,12 @@ const firstLaterSlot = planner.workshopFirstAvailableStartMinutes('FITTING', 1, 
   { id: 'FITTING::occupied', vehicleKey: 'occupied', stage: 'FITTING', bay: 1, startAt: new Date(2026, 6, 16, 8, 0).toISOString(), hours: 3, status: 'planned' },
 ]);
 assert.strictEqual(firstLaterSlot, 180, 'The direct scheduler should suggest 11:00am after an 8:00am–11:00am booking in the same bay');
+const queueDropBackToBackSlot = planner.workshopFirstAvailableStartMinutes('TINT', 2, '2026-06-17', 3, [
+  { id: 'TINT::12544489', vehicleKey: '12544489', stage: 'TINT', bay: 2, startAt: new Date(2026, 5, 17, 9, 30).toISOString(), hours: 3, status: 'planned' },
+], 120);
+assert.strictEqual(queueDropBackToBackSlot, 270, 'A queue card dropped during a 9:30am–12:30pm booking should snap to the valid 12:30pm back-to-back start');
+assert.ok(source.includes('workshopFirstAvailableStartMinutes(stage, bay, dateKey, hours, workshopLoadPlans(), requestedStartMinutes)'), 'Queue-card lane drops must search for the first open time at or after the drop point');
+assert.ok(source.includes("querySelector('[name=\"hours\"]')?.addEventListener('change', suggestAvailableTime)"), 'Changing planned hours in the Schedule form must recalculate the first available start');
 const nextDayRows = [
   { id: 'FITTING::parts-open', vehicleKey: 'parts-open', stage: 'FITTING', bay: 1, startAt: new Date(2026, 6, 16, 8, 0).toISOString(), hours: 3, status: 'planned' },
   { id: 'FITTING::parts-confirmed', vehicleKey: 'parts-confirmed', stage: 'FITTING', bay: 2, startAt: new Date(2026, 6, 16, 9, 0).toISOString(), hours: 3, status: 'planned' },
@@ -257,7 +263,7 @@ for (const file of htmlFiles) {
   const html = fs.readFileSync(path.join(root, file), 'utf8');
   assert.ok(html.includes('data-view="workshop"'), `${file} is missing the Workshop Planner navigation item`);
   assert.ok(html.includes('id="workshop-planner-root"'), `${file} is missing the Workshop Planner host`);
-  assert.ok(html.includes('workshop-planner.css?v=2026.07.15.10-parts-current-location'), `${file} is missing the planner stylesheet`);
+  assert.ok(html.includes('workshop-planner.css?v=2026.07.15.11-back-to-back-drop'), `${file} is missing the planner stylesheet`);
   assert.ok(!html.includes('<script src="workshop-planner.js'), `${file} must not eagerly load the planner script`);
 }
 assert.ok(app.includes("loadExternalScript(`workshop-planner.js?v=${encodeURIComponent(APP_VERSION)}`"), 'app.js must lazy-load the Workshop Planner with the active release version');

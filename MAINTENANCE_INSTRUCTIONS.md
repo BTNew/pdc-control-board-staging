@@ -14,7 +14,7 @@ Use this as the canonical maintenance workflow for the PDC Control Board project
 - Rebuild the deployment bundle with `python backend/build_login_static.py`, run the sanitisation/auth tests, then commit and push from ignored folder `backend/.generated/pdc-control-board-login`.
 - Workshop Planner authenticated moves use `window.PDC_AUTH_CONTEXT` for the audit identity; do not reintroduce a separate local operator-profile requirement for signed-in users.
 - `Draft next-day parts warning` creates an unaddressed, reviewable email for the next workday's Fitting bookings whose Parts status is Not Ordered, Stoppage or Misc Acc. On Order, Issued and Not Required count as confirmed. No recipient is assumed and the website never sends it automatically.
-- Workshop queue cards have a direct `Schedule` action in addition to drag/drop. It selects bay, workday, 15-minute start, planned hours and technician; the first free same-bay time is suggested. Back-to-back bookings are valid, overlaps remain blocked, and selected bookings can be extended with +15m, +30m or +1h controls.
+- Workshop queue cards have a direct `Schedule` action in addition to drag/drop. It selects bay, workday, 15-minute start, planned hours and technician; the first free same-bay time is suggested. When a new queue card is dropped during an occupied period, it uses the first open time at or after the drop point so it can sit exactly back-to-back without moving the existing booking. Back-to-back bookings are valid, overlaps remain blocked, and selected bookings can be extended with +15m, +30m or +1h controls.
 - The Parts `Stage / Update` column shows the vehicle's current operational location. PMB vehicles show the assigned station and numbered bay, or `No bay`/`Unallocated` when applicable; Yard Hold and RFT are shown directly. The timestamp is the latest recorded location/station movement, not a later Parts-status action.
 - The PMB Perth Motor Bodies logo is stored at `assets/pmb-logo.png` and included in the sanitised deployment bundle.
 - Branch: `main`
@@ -36,7 +36,7 @@ Use this as the canonical maintenance workflow for the PDC Control Board project
 10. Report changed files, tests, live status and any remaining risks.
 
 ## Files with matching version numbers
-Current version identifier: `2026.07.15.10-parts-current-location`
+Current version identifier: `2026.07.15.11-back-to-back-drop`
 
 When bumping version, update all references in:
 - `app.js` (`APP_VERSION`)
