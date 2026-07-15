@@ -11324,3 +11324,64 @@ html[data-row-width="xl"] {
   .control-board-work-location,
   .control-board-work-age { display: none; }
 }
+
+/* Microsoft-authenticated production gate. Operational data remains behind Supabase RLS. */
+.pdc-auth-gate {
+  min-height: 100vh;
+  display: none;
+  place-items: center;
+  padding: 24px;
+  background:
+    radial-gradient(circle at top left, rgba(220, 38, 38, .13), transparent 32rem),
+    linear-gradient(145deg, #f8fafc 0%, #edf2f7 100%);
+}
+.auth-pending .pdc-auth-gate { display: grid; }
+.auth-pending .app-shell { display: none !important; }
+.auth-approved .pdc-auth-gate { display: none; }
+.pdc-auth-card {
+  width: min(100%, 470px);
+  display: grid;
+  gap: 14px;
+  padding: 34px;
+  border: 1px solid #d7dee8;
+  border-top: 6px solid #c81e2b;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 22px 70px rgba(15, 23, 42, .14);
+  text-align: center;
+}
+.pdc-auth-brand {
+  width: 64px;
+  height: 64px;
+  display: grid;
+  place-items: center;
+  justify-self: center;
+  border-radius: 16px;
+  background: #c81e2b;
+  color: #fff;
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: .08em;
+}
+.pdc-auth-card .eyebrow { margin: 2px 0 -6px; }
+.pdc-auth-card h1 { margin: 0; color: #172033; font-size: clamp(1.55rem, 4vw, 2rem); }
+.pdc-auth-card p { margin: 0; color: #536174; line-height: 1.55; }
+.pdc-auth-card small { color: #687588; line-height: 1.45; }
+.pdc-auth-actions { display: grid; gap: 10px; margin-top: 8px; }
+.pdc-auth-actions button { width: 100%; min-height: 48px; }
+.pdc-auth-user {
+  max-width: 260px;
+  color: #334155;
+  font-size: 12px;
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pdc-auth-noscript { padding: 18px; background: #fee2e2; color: #991b1b; text-align: center; font-weight: 700; }
+
+@media (max-width: 600px) {
+  .pdc-auth-gate { padding: 14px; }
+  .pdc-auth-card { padding: 26px 20px; }
+  .pdc-auth-user { max-width: 160px; }
+}

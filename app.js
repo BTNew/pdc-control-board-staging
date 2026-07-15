@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.07.15.03-control-board-planner-links';
+const APP_VERSION = '2026.07.15.04-microsoft-auth';
 window.VEHICLE_TRACKING_DATA = window.VEHICLE_TRACKING_DATA || { report: {}, vehicles: [], toyotaMatches: {} };
 const EDITS_KEY = 'vehicleTrackingCoreNavisionOnlyEdits:v1';
 const ADDED_KEY = 'vehicleTrackingCoreNavisionOnlyVehicles:v1';
@@ -7837,6 +7837,8 @@ function loadAuditLog() { return loadJson(AUDIT_LOG_KEY, []); }
 function saveAuditLog(log) { saveJson(AUDIT_LOG_KEY, Array.isArray(log) ? log.slice(0, 1500) : []); }
 
 function getCurrentOperatorName() {
+  const authenticated = String(window.PDC_AUTH_CONTEXT?.displayName || window.PDC_AUTH_CONTEXT?.email || '').trim();
+  if (authenticated) return authenticated;
   const saved = String(localStorage.getItem(OPERATOR_NAME_KEY) || '').trim();
   if (saved) return saved;
   const entered = window.prompt('Enter your name or initials for the PDC audit trail:', '') || '';
@@ -7846,6 +7848,8 @@ function getCurrentOperatorName() {
 }
 
 function getCurrentOperatorRole() {
+  const authenticated = String(window.PDC_AUTH_CONTEXT?.role || '').trim();
+  if (authenticated) return authenticated;
   const saved = String(localStorage.getItem(OPERATOR_ROLE_KEY) || '').trim();
   if (saved) return saved;
   const entered = window.prompt('Enter your department/role for the PDC audit trail (Tint, Hoist, Fitting, Fabrication, Electrical, Tyre bay, Pit Inspection, Parts, Manager):', '') || '';
@@ -7855,6 +7859,10 @@ function getCurrentOperatorRole() {
 }
 
 function setOperatorProfile() {
+  if (window.PDC_AUTH_CONTEXT?.email) {
+    window.alert(`Signed in as ${window.PDC_AUTH_CONTEXT.displayName || window.PDC_AUTH_CONTEXT.email} (${window.PDC_AUTH_CONTEXT.role}).`);
+    return;
+  }
   const currentName = String(localStorage.getItem(OPERATOR_NAME_KEY) || '').trim();
   const currentRole = String(localStorage.getItem(OPERATOR_ROLE_KEY) || '').trim();
   const name = window.prompt('Name or initials for the audit trail:', currentName || '') || currentName;

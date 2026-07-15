@@ -6,19 +6,34 @@
   <meta name="description" content="PDC vehicle locations, workshop workflow, Parts and scheduling control board." />
   <title>Vehicle Tracking Core</title>
   <link rel="icon" href="favicon.svg" type="image/svg+xml" />
-  <link rel="stylesheet" href="styles.css?v=2026.07.15.03-control-board-planner-links" />
-  <link rel="stylesheet" href="desktop-operations.css?v=2026.07.15.03-control-board-planner-links" />
-  <link rel="stylesheet" href="workshop-planner.css?v=2026.07.15.03-control-board-planner-links" />
+  <link rel="stylesheet" href="styles.css?v=2026.07.15.04-microsoft-auth" />
+  <link rel="stylesheet" href="desktop-operations.css?v=2026.07.15.04-microsoft-auth" />
+  <link rel="stylesheet" href="workshop-planner.css?v=2026.07.15.04-microsoft-auth" />
 </head>
-<body>
-  <div class="app-shell" id="app-shell">
+<body class="auth-pending" data-auth-state="checking">
+  <main class="pdc-auth-gate" id="pdc-auth-gate" aria-labelledby="pdc-auth-title">
+    <section class="pdc-auth-card">
+      <div class="pdc-auth-brand" aria-hidden="true">PDC</div>
+      <p class="eyebrow">Vehicle Tracking Core</p>
+      <h1 id="pdc-auth-title">Checking Microsoft sign-in…</h1>
+      <p id="pdc-auth-detail">Checking for an existing approved staff session.</p>
+      <div class="pdc-auth-actions">
+        <button class="primary" id="pdc-microsoft-login" type="button" hidden>Sign in with Microsoft</button>
+        <button class="ghost" id="pdc-auth-denied-signout" type="button" hidden>Use another Microsoft account</button>
+      </div>
+      <small>Only Microsoft accounts on the approved PDC staff list can load operational data.</small>
+    </section>
+  </main>
+  <noscript><div class="pdc-auth-noscript">JavaScript is required for secure Microsoft sign-in.</div></noscript>
+
+  <div class="app-shell" id="app-shell" inert aria-hidden="true">
     <aside class="sidebar" aria-label="Application navigation">
       <div class="brand">
         <div class="brand-logo-wrap" aria-hidden="true"><img class="brand-logo" src="assets/brand-logo.svg" alt="" onerror="this.hidden=true; this.nextElementSibling.hidden=false" /><span class="brand-logo-fallback" hidden>VT</span></div>
         <div class="brand-text">
           <div class="brand-title">Vehicle Tracking</div>
           <div class="brand-subtitle">Core Tracker</div>
-          <div class="app-version" id="app-version">Version 2026.07.15.03-control-board-planner-links</div>
+          <div class="app-version" id="app-version">Version 2026.07.15.04-microsoft-auth</div>
         </div>
         <button class="sidebar-toggle" id="sidebar-toggle" type="button" aria-label="Collapse sidebar" title="Collapse sidebar">‹</button>
       </div>
@@ -57,7 +72,9 @@
           <h1 id="page-title">Vehicle Locations</h1>
         </div>
         <div class="topbar-actions">
-          <button class="ghost" id="operator-profile" type="button">Set Operator</button>
+          <span class="pdc-auth-user" id="pdc-auth-user" hidden></span>
+          <button class="ghost" id="pdc-auth-signout" type="button" hidden>Sign out</button>
+          <button class="ghost" id="operator-profile" type="button" hidden>Set Operator</button>
           <button class="ghost" id="export-backup-top" type="button">Export Backup</button>
           <button class="ghost" id="add-customer-top" type="button">Add vehicle</button>
           <button class="primary" type="button" data-view-target="import">Upload Excel / Navision / PO</button>
@@ -860,9 +877,12 @@
   </template>
 
 
-  <script src="data.js?v=2026.07.15.03-control-board-planner-links"></script>
-  <script src="email-board-data.js?v=2026.07.15.03-control-board-planner-links"></script>
-  <script src="arb-labor-catalog.js?v=2026.07.15.03-control-board-planner-links"></script>
-  <script src="app.js?v=2026.07.15.03-control-board-planner-links"></script>
+  <script src="vendor/supabase/supabase-2.110.5.js"></script>
+  <script src="pdc-supabase-config.js"></script>
+  <script src="pdc-auth.js?v=2026.07.15.04-microsoft-auth"></script>
+  <script src="data.js?v=2026.07.15.04-microsoft-auth"></script>
+  <script src="email-board-data.js?v=2026.07.15.04-microsoft-auth"></script>
+  <script src="arb-labor-catalog.js?v=2026.07.15.04-microsoft-auth"></script>
+  <script src="app.js?v=2026.07.15.04-microsoft-auth"></script>
 </body>
 </html>
