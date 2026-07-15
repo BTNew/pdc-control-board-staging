@@ -40,6 +40,16 @@ code += String.raw`
 
   let operationRan = false;
   localStorage.failNextSetFor(STORAGE_TRANSACTION_JOURNAL_KEY);
+  runStorageTransaction('Fallback journal', ['tx-a'], () => {
+    operationRan = true;
+    localStorage.setItem('tx-a', 'fallback-saved');
+  });
+  assert(operationRan === true && localStorage.getItem('tx-a') === 'fallback-saved', 'A full localStorage journal should fall back to sessionStorage');
+  assert(sessionStorage.getItem(STORAGE_TRANSACTION_JOURNAL_KEY) === null, 'A successful fallback transaction must clear its session journal');
+
+  operationRan = false;
+  localStorage.failNextSetFor(STORAGE_TRANSACTION_JOURNAL_KEY);
+  sessionStorage.failNextSetFor(STORAGE_TRANSACTION_JOURNAL_KEY);
   let startError = null;
   try {
     runStorageTransaction('Unsafe start', ['tx-a'], () => {
@@ -49,8 +59,8 @@ code += String.raw`
   } catch (error) {
     startError = error;
   }
-  assert(startError && /could not start safely/i.test(startError.message), 'A journal failure should abort before writes begin');
-  assert(operationRan === false && localStorage.getItem('tx-a') === 'old-a', 'No operation may run without a recovery snapshot');
+  assert(startError && /could not start safely/i.test(startError.message), 'Failure of both journal stores should abort before writes begin');
+  assert(operationRan === false && localStorage.getItem('tx-a') === 'fallback-saved', 'No operation may run without a recovery snapshot');
 
   localStorage.setItem('recover-existing', 'damaged');
   localStorage.setItem('recover-new', 'partial');
@@ -66,6 +76,18 @@ code += String.raw`
   assert(localStorage.getItem('recover-existing') === 'safe-value', 'Startup recovery should restore existing values');
   assert(localStorage.getItem('recover-new') === null, 'Startup recovery should remove keys created by the interrupted operation');
   assert(localStorage.getItem(STORAGE_TRANSACTION_JOURNAL_KEY) === null, 'Startup recovery should clear its completed journal');
+
+  localStorage.setItem('recover-session', 'damaged');
+  sessionStorage.setItem(STORAGE_TRANSACTION_JOURNAL_KEY, JSON.stringify({
+    version: 1,
+    label: 'Interrupted session fallback test',
+    snapshot: {
+      'recover-session': { exists: true, value: 'safe-session-value' },
+    },
+  }));
+  assert(recoverInterruptedStorageTransaction() === true, 'Startup recovery should detect a sessionStorage fallback journal');
+  assert(localStorage.getItem('recover-session') === 'safe-session-value', 'Session fallback recovery should restore saved values');
+  assert(sessionStorage.getItem(STORAGE_TRANSACTION_JOURNAL_KEY) === null, 'Session fallback recovery should clear its completed journal');
 
   localStorage.setItem(STORAGE_TRANSACTION_JOURNAL_KEY, '{not-json');
   assert(recoverInterruptedStorageTransaction() === false, 'An invalid journal should be rejected safely');
@@ -120,7 +142,8 @@ code += String.raw`
 
 const storage = new Map();
 const failures = new Map();
-const localStorage = {
+function createStorage(storage, failures) {
+  return {
   getItem(key) {
     return storage.has(key) ? storage.get(key) : null;
   },
@@ -148,7 +171,10 @@ const localStorage = {
   get length() {
     return storage.size;
   },
-};
+  };
+}
+const localStorage = createStorage(storage, failures);
+const sessionStorage = createStorage(new Map(), new Map());
 
 const context = {
   console,
@@ -162,6 +188,7 @@ const context = {
     requestAnimationFrame: callback => callback(),
   },
   localStorage,
+  sessionStorage,
   document: {
     querySelector: () => null,
     querySelectorAll: () => [],

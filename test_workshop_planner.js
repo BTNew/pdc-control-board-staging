@@ -140,11 +140,17 @@ const firstLaterSlot = planner.workshopFirstAvailableStartMinutes('FITTING', 1, 
   { id: 'FITTING::occupied', vehicleKey: 'occupied', stage: 'FITTING', bay: 1, startAt: new Date(2026, 6, 16, 8, 0).toISOString(), hours: 3, status: 'planned' },
 ]);
 assert.strictEqual(firstLaterSlot, 180, 'The direct scheduler should suggest 11:00am after an 8:00am–11:00am booking in the same bay');
-const queueDropBackToBackSlot = planner.workshopFirstAvailableStartMinutes('TINT', 2, '2026-06-17', 3, [
+const queueDropBackToBackSlot = planner.workshopFirstAvailableStartSlot('TINT', 2, '2026-06-17', 3, [
   { id: 'TINT::12544489', vehicleKey: '12544489', stage: 'TINT', bay: 2, startAt: new Date(2026, 5, 17, 9, 30).toISOString(), hours: 3, status: 'planned' },
-], 120);
-assert.strictEqual(queueDropBackToBackSlot, 270, 'A queue card dropped during a 9:30am–12:30pm booking should snap to the valid 12:30pm back-to-back start');
-assert.ok(source.includes('workshopFirstAvailableStartMinutes(stage, bay, dateKey, hours, workshopLoadPlans(), requestedStartMinutes)'), 'Queue-card lane drops must search for the first open time at or after the drop point');
+]);
+assert.deepStrictEqual(queueDropBackToBackSlot, { dateKey: '2026-06-17', startMinutes: 270 }, 'A new queue card should start at 12:30pm directly after the existing 9:30am–12:30pm booking');
+const nextWorkdaySequenceSlot = planner.workshopFirstAvailableStartSlot('TINT', 2, '2026-06-17', 3, [
+  { id: 'TINT::full-day', vehicleKey: 'full-day', stage: 'TINT', bay: 2, startAt: new Date(2026, 5, 17, 8, 0).toISOString(), hours: 8, status: 'planned' },
+]);
+assert.deepStrictEqual(nextWorkdaySequenceSlot, { dateKey: '2026-06-18', startMinutes: 0 }, 'A full bay day should advance the next vehicle to 8:00am on the following workday');
+assert.ok(source.includes('workshopFirstAvailableStartSlot(stage, bay, dateKey, hours, workshopLoadPlans())'), 'Queue-card lane drops must use the earliest continuous sequence slot rather than the pointer time');
+assert.ok(source.includes('dateKey = availableSlot.dateKey;') && source.includes('startMinutes = availableSlot.startMinutes;'), 'Queue-card drops must apply both a future workday and its start time');
+assert.ok(source.includes('workshopFirstAvailableStartSlot(normalizedStage, Number(form.elements.bay.value), safeDate'), 'The direct Schedule form must also suggest a future workday when the selected day is full');
 assert.ok(source.includes("querySelector('[name=\"hours\"]')?.addEventListener('change', suggestAvailableTime)"), 'Changing planned hours in the Schedule form must recalculate the first available start');
 const nextDayRows = [
   { id: 'FITTING::parts-open', vehicleKey: 'parts-open', stage: 'FITTING', bay: 1, startAt: new Date(2026, 6, 16, 8, 0).toISOString(), hours: 3, status: 'planned' },
@@ -225,6 +231,13 @@ assert.ok(source.includes('data-workshop-schedule-form'), 'The direct booking mo
 assert.ok(source.includes('data-workshop-extend-plan'), 'Quick +15m/+30m/+1h controls are missing');
 assert.ok(source.includes('name="hours" type="number" min="0.25"'), 'Reviewed sub-three-hour bookings must remain valid and extendable');
 assert.ok(source.includes('Back-to-back bookings are allowed; overlapping times are blocked.'), 'The scheduling modal must explain later same-bay booking behavior');
+assert.ok(source.includes('function workshopConfirmOtherDepartmentPlans('), 'Cross-department planning warning is missing');
+assert.ok(source.includes('This vehicle is also planned by another department:'), 'Cross-department warning must identify the other plan');
+assert.ok(app.includes('function vehicleReadyForQualityControl('), 'The final QC eligibility gate is missing');
+assert.ok(app.includes('data-qc-complete'), 'The Control Board QC row/action is missing');
+assert.ok(app.includes('QC sign-off required'), 'RFT must remain gated until QC is complete');
+assert.ok(!app.includes("issues.push('No PMB bucket assigned')"), 'PMB Unallocated must not block RFT');
+assert.ok(app.includes('is-in-bay'), 'Control Board work rows must highlight a vehicle that is physically in a numbered bay');
 
 const workshopFunctionSection = (startName, nextName) => {
   const start = source.indexOf(`function ${startName}`);
@@ -245,6 +258,15 @@ for (const [startName, nextName, pathLabel] of [
   assert.ok(section.includes('workshopRequireAvailableAssignee('), `${pathLabel} must reject overlapping mechanic assignments across bays`);
 }
 for (const [startName, nextName, pathLabel] of [
+  ['scheduleWorkshopVehicle', 'saveWorkshopDetailForm', 'daily drag/drop'],
+  ['saveWorkshopDetailForm', 'startWorkshopPlan', 'detail edit'],
+  ['moveWorkshopWeeklyPlan', 'openWorkshopWeeklyView', 'weekly move'],
+]) {
+  const section = workshopFunctionSection(startName, nextName);
+  assert.ok(section.includes('workshopConfirmOtherDepartmentPlans('), `${pathLabel} must warn before persisting a plan when another department has the same vehicle planned`);
+}
+
+for (const [startName, nextName, pathLabel] of [
   ['saveWorkshopDetailForm', 'startWorkshopPlan', 'detail edit'],
   ['startWorkshopResize', 'workshopWeeklyCardHtml', 'duration resize'],
 ]) {
@@ -263,7 +285,7 @@ for (const file of htmlFiles) {
   const html = fs.readFileSync(path.join(root, file), 'utf8');
   assert.ok(html.includes('data-view="workshop"'), `${file} is missing the Workshop Planner navigation item`);
   assert.ok(html.includes('id="workshop-planner-root"'), `${file} is missing the Workshop Planner host`);
-  assert.ok(html.includes('workshop-planner.css?v=2026.07.15.12-mechanic-roster'), `${file} is missing the planner stylesheet`);
+  assert.ok(html.includes('workshop-planner.css?v=2026.07.15.15-storage-journal-fallback'), `${file} is missing the planner stylesheet`);
   assert.ok(!html.includes('<script src="workshop-planner.js'), `${file} must not eagerly load the planner script`);
 }
 assert.ok(app.includes("loadExternalScript(`workshop-planner.js?v=${encodeURIComponent(APP_VERSION)}`"), 'app.js must lazy-load the Workshop Planner with the active release version');

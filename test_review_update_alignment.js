@@ -107,8 +107,8 @@ code += String.raw`
   assert(filterHeaderHtml.includes('Yes</small>'), 'Active Tyre Yes filter should be visible in the heading');
   assert(filterHeaderHtml.includes('Oldest</small>'), 'Age / ETA heading should expose the active oldest sort');
   const partsHeaderStart = filterHeaderHtml.indexOf('pdc-grid-station-parts');
-  const busHeaderStart = filterHeaderHtml.indexOf('pdc-grid-station-bus4x4');
-  const partsHeaderHtml = filterHeaderHtml.slice(partsHeaderStart, busHeaderStart);
+  const tintHeaderStart = filterHeaderHtml.indexOf('pdc-grid-station-tint');
+  const partsHeaderHtml = filterHeaderHtml.slice(partsHeaderStart, tintHeaderStart);
   assert(!partsHeaderHtml.includes('value="no"'), 'Parts heading should not offer an impossible Not required filter');
   const riskVehicle = { stock: 'RISK001', pdcLocation: 'PMB', pdcRequiresParts: true, pdcPartsWorstEta: '25/07/2026', navisionKewdaleEta: '20/07/2026' };
   assert(partsEtaRisk(riskVehicle), 'Parts ETA after Kewdale ETA should be flagged as risk');

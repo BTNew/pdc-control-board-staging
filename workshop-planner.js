@@ -994,7 +994,7 @@ function renderWorkshopPlanner() {
         <div class="workshop-side-list">${completed.map(workshopCompletedCardHtml).join('') || '<div class="workshop-empty">Nothing completed on this board date.</div>'}</div>
       </aside>
     </div>
-    <footer class="workshop-board-note"><strong>How to use:</strong> drag a waiting vehicle onto a bay and time. Double-click any vehicle to open its job. Starting moves it to the current time without changing its estimated hours. Overlapping bay bookings are blocked, so choose another bay or time when a slot is occupied.</footer>
+    <footer class="workshop-board-note"><strong>How to use:</strong> drag a waiting vehicle onto a bay to add it at the earliest open sequence time, or use Schedule for a specific date and time. If the day is full, automatic sequencing continues on the next workday. Double-click any vehicle to open its job. Existing bookings are never moved and overlaps remain blocked.</footer>
   </div>`;
   bindWorkshopPlanner(root);
   updateWorkshopNowLine(root);
@@ -1116,13 +1116,18 @@ function bindWorkshopLane(lane) {
     const vehicleKeyValue = event.dataTransfer.getData('application/x-workshop-vehicle-key') || event.dataTransfer.getData('text/plain');
     const stage = lane.dataset.workshopDropStage;
     const bay = Number(lane.dataset.workshopDropBay);
-    const dateKey = workshopState().date;
+    let dateKey = workshopState().date;
     let startMinutes = requestedStartMinutes;
     if (!planId && vehicleKeyValue) {
       const vehicle = workshopVehicle(vehicleKeyValue);
       const hours = vehicle ? (workshopCalculatedStageHours(vehicle, stage) || pmbBayHours(vehicle) || WORKSHOP_DEFAULT_HOURS) : WORKSHOP_DEFAULT_HOURS;
-      const availableStart = workshopFirstAvailableStartMinutes(stage, bay, dateKey, hours, workshopLoadPlans(), requestedStartMinutes);
-      if (availableStart !== null) startMinutes = availableStart;
+      const availableSlot = workshopFirstAvailableStartSlot(stage, bay, dateKey, hours, workshopLoadPlans());
+      if (!availableSlot) {
+        window.alert('No open sequence slot was found in this bay during the next 20 workdays. Choose another bay or use Schedule to select a later date.');
+        return;
+      }
+      dateKey = availableSlot.dateKey;
+      startMinutes = availableSlot.startMinutes;
     }
     scheduleWorkshopVehicle({ planId, vehicleKeyValue, stage, bay, dateKey, startMinutes });
   });
@@ -1307,6 +1312,19 @@ function workshopFirstAvailableStartMinutes(stage = '', bay = 1, dateKey = '', h
   return null;
 }
 
+function workshopFirstAvailableStartSlot(stage = '', bay = 1, dateKey = '', hours = WORKSHOP_DEFAULT_HOURS, rows = workshopLoadPlans(), notBeforeMinutes = 0, maxWorkdays = 20) {
+  const requestedDate = workshopDateFromKey(dateKey) || new Date();
+  let workDate = workshopCoerceWorkDate(requestedDate, 1);
+  for (let dayIndex = 0; dayIndex < Math.max(1, Number(maxWorkdays) || 20); dayIndex += 1) {
+    const candidateDateKey = workshopDateKey(workDate);
+    const firstMinutes = dayIndex === 0 ? notBeforeMinutes : 0;
+    const startMinutes = workshopFirstAvailableStartMinutes(stage, bay, candidateDateKey, hours, rows, firstMinutes);
+    if (startMinutes !== null) return { dateKey: candidateDateKey, startMinutes };
+    workDate = workshopNextWorkdayDate(workDate);
+  }
+  return null;
+}
+
 function workshopScheduleTimeOptions(selectedMinutes = 0) {
   return Array.from({ length: WORKSHOP_DAY_MINUTES / 15 }, (_, index) => index * 15)
     .map(minutes => `<option value="${minutes}"${minutes === Number(selectedMinutes) ? ' selected' : ''}>${escapeHtml(workshopTimeLabelFromMinutes(minutes))}</option>`)
@@ -1320,7 +1338,9 @@ function openWorkshopScheduleModal(vehicleKeyValue = '', stage = '', dateKey = '
   const hours = workshopCalculatedStageHours(vehicle, normalizedStage) || pmbBayHours(vehicle) || WORKSHOP_DEFAULT_HOURS;
   const bay = 1;
   const selectedDate = workshopDateKey(workshopCoerceWorkDate(workshopDateFromKey(dateKey) || new Date(), 1));
-  const startMinutes = workshopFirstAvailableStartMinutes(normalizedStage, bay, selectedDate, hours) ?? 0;
+  const firstSlot = workshopFirstAvailableStartSlot(normalizedStage, bay, selectedDate, hours);
+  const scheduledDate = firstSlot?.dateKey || selectedDate;
+  const startMinutes = firstSlot?.startMinutes ?? 0;
   const bayOptions = Array.from({ length: workshopStageBayCount(normalizedStage) }, (_, index) => `<option value="${index + 1}">${normalizedStage === 'SUBLET' ? 'Provider row' : `Bay ${workshopPad(index + 1)}`}</option>`).join('');
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay workshop-schedule-overlay';
@@ -1332,12 +1352,12 @@ function openWorkshopScheduleModal(vehicleKeyValue = '', stage = '', dateKey = '
     <form data-workshop-schedule-form>
       <div class="workshop-schedule-grid">
         <label><span>${normalizedStage === 'SUBLET' ? 'Row' : 'Bay'}</span><select name="bay">${bayOptions}</select></label>
-        <label><span>Date</span><input name="date" type="date" value="${escapeHtml(selectedDate)}" required></label>
+        <label><span>Date</span><input name="date" type="date" value="${escapeHtml(scheduledDate)}" required></label>
         <label><span>Start time</span><select name="startMinutes">${workshopScheduleTimeOptions(startMinutes)}</select></label>
         <label><span>Planned hours</span><input name="hours" type="number" min="0.25" step="0.25" value="${escapeHtml(workshopClampDurationHours(hours))}" required></label>
         <label><span>${normalizedStage === 'SUBLET' ? 'Provider' : 'Technician'}</span><select name="assignee">${workshopAssigneeOptions(normalizedStage, workshopBayMechanic(normalizedStage, bay) || pmbBayMechanic(vehicle))}</select></label>
       </div>
-      <p class="workshop-schedule-note">The same bay can hold another vehicle later. Back-to-back bookings are allowed; overlapping times are blocked.</p>
+      <p class="workshop-schedule-note">The first open sequence time is selected automatically and may advance to the next workday. Back-to-back bookings are allowed; overlapping times are blocked.</p>
       <div class="edit-actions"><button class="secondary" type="button" data-workshop-schedule-cancel>Cancel</button><button class="primary" type="submit">Add to planner</button></div>
     </form>
   </section>`;
@@ -1351,8 +1371,11 @@ function openWorkshopScheduleModal(vehicleKeyValue = '', stage = '', dateKey = '
     if (!selected) return;
     const safeDate = workshopDateKey(workshopCoerceWorkDate(selected, 1));
     form.elements.date.value = safeDate;
-    const suggested = workshopFirstAvailableStartMinutes(normalizedStage, Number(form.elements.bay.value), safeDate, Number(form.elements.hours.value) || hours);
-    if (suggested !== null) form.elements.startMinutes.value = String(suggested);
+    const suggested = workshopFirstAvailableStartSlot(normalizedStage, Number(form.elements.bay.value), safeDate, Number(form.elements.hours.value) || hours);
+    if (suggested) {
+      form.elements.date.value = suggested.dateKey;
+      form.elements.startMinutes.value = String(suggested.startMinutes);
+    }
   };
   overlay.querySelectorAll('[data-workshop-schedule-cancel]').forEach(button => button.addEventListener('click', finish));
   overlay.querySelector('[name="bay"]')?.addEventListener('change', suggestAvailableTime);
@@ -1415,6 +1438,22 @@ function extendWorkshopPlan(planId = '', additionalHours = 0) {
   return true;
 }
 
+function workshopConfirmOtherDepartmentPlans(candidate = {}, rows = []) {
+  if (!candidate.vehicleKey || candidate.status !== 'planned') return true;
+  const otherPlans = rows.filter(row => row.id !== candidate.id
+    && row.vehicleKey === candidate.vehicleKey
+    && row.stage !== candidate.stage
+    && row.status !== 'completed');
+  if (!otherPlans.length) return true;
+  const details = otherPlans.slice(0, 8).map(row => {
+    const when = parseIsoTimestamp(row.startAt);
+    const whenLabel = when ? when.toLocaleString('en-AU', { dateStyle: 'short', timeStyle: 'short' }) : 'time not set';
+    const place = row.stage === 'SUBLET' ? 'Provider row' : `Bay ${workshopPad(row.bay)}`;
+    return `• ${pmbStageLabel(row.stage)} · ${place} · ${whenLabel}`;
+  }).join('\n');
+  return window.confirm(`This vehicle is also planned by another department:\n\n${details}\n\nContinue with the ${pmbStageLabel(candidate.stage)} booking?`);
+}
+
 function scheduleWorkshopVehicle({ planId = '', vehicleKeyValue = '', stage = '', bay = 0, dateKey = '', startMinutes = 0, hoursValue = null, assigneeValue = null } = {}) {
   const rows = workshopLoadPlans();
   const existing = rows.find(entry => entry.id === planId) || rows.find(entry => entry.id === workshopPlanId(vehicleKeyValue, stage));
@@ -1462,6 +1501,7 @@ function scheduleWorkshopVehicle({ planId = '', vehicleKeyValue = '', stage = ''
   const conflictRows = latestRows.filter(row => row.id !== candidate.id);
   if (!workshopRequireNoBayConflict(candidate, conflictRows)) return false;
   if (!workshopRequireAvailableAssignee(candidate, conflictRows)) return false;
+  if (!workshopConfirmOtherDepartmentPlans(candidate, latestRows)) return false;
   const nextRows = latestExisting ? latestRows.map(entry => entry.id === latestExisting.id ? candidate : entry) : [...latestRows, candidate];
   const persisted = workshopPersistPlanAction(
     existing ? 'Workshop plan rescheduled' : 'Workshop plan created',
@@ -1518,6 +1558,7 @@ function saveWorkshopDetailForm(event) {
   const otherRows = latestRows.filter(row => row.id !== candidate.id);
   if (!workshopRequireNoBayConflict(candidate, otherRows)) return;
   if (!workshopRequireAvailableAssignee(candidate, otherRows)) return;
+  if (!workshopConfirmOtherDepartmentPlans(candidate, latestRows)) return;
   const updatedRows = workshopCascadePlans(latestRows.map(row => row.id === entry.id ? candidate : row)).rows;
   const vehicle = workshopVehicle(entry.vehicleKey);
   const hoursMap = vehicle ? workshopEstimatedHoursMap(vehicle) : {};
@@ -1868,6 +1909,7 @@ function moveWorkshopWeeklyPlan(planId = '', stage = '', bay = 0, dateKey = '', 
   const otherRows = latestRows.filter(row => row.id !== candidate.id);
   if (!workshopRequireNoBayConflict(candidate, otherRows)) return;
   if (!workshopRequireAvailableAssignee(candidate, otherRows)) return;
+  if (!workshopConfirmOtherDepartmentPlans(candidate, latestRows)) return;
   const updated = workshopCascadePlans(latestRows.map(row => row.id === candidate.id ? candidate : row)).rows;
   workshopPersistPlanAction(
     'Workshop weekly plan moved',
@@ -2146,5 +2188,6 @@ if (typeof module !== 'undefined' && module.exports) {
     workshopNextDayFittingPartsWarnings,
     workshopNextDayFittingWarningEmailBody,
     workshopFirstAvailableStartMinutes,
+    workshopFirstAvailableStartSlot,
   };
 }

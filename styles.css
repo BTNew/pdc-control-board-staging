@@ -10795,21 +10795,21 @@ textarea {
    ========================================================================== */
 
 html {
-  --pdc-grid-min: 1430px;
-  --pdc-grid-stations-width: 500px;
-  --pdc-station-template: repeat(9, 52px);
+  --pdc-grid-min: 1486px;
+  --pdc-grid-stations-width: 556px;
+  --pdc-station-template: repeat(10, 52px);
 }
 
 html[data-row-width="compact"] {
-  --pdc-grid-min: 1365px;
+  --pdc-grid-min: 1421px;
 }
 
 html[data-row-width="wide"] {
-  --pdc-grid-min: 1620px;
+  --pdc-grid-min: 1676px;
 }
 
 html[data-row-width="xl"] {
-  --pdc-grid-min: 1815px;
+  --pdc-grid-min: 1871px;
 }
 
 /* The taller header is paid once; every vehicle row then stays compact. */
@@ -10831,16 +10831,16 @@ html[data-row-width="xl"] {
   padding-bottom: 3px !important;
 }
 
-/* All nine work tracks are identical: 52px wide with a 4px gap. */
+/* All ten work tracks are identical: 52px wide with a 4px gap. */
 .pdc-grid-stations-heading,
 .pdc-station-strip,
 .incoming-work-checks,
 #workflow .incoming-work-checks {
-  grid-template-columns: repeat(9, 52px) !important;
+  grid-template-columns: repeat(10, 52px) !important;
   gap: 4px !important;
-  width: 500px !important;
-  min-width: 500px !important;
-  max-width: 500px !important;
+  width: 556px !important;
+  min-width: 556px !important;
+  max-width: 556px !important;
 }
 
 /* Full names appear once, angled over their matching status columns. */
@@ -10951,10 +10951,10 @@ html[data-row-width="xl"] {
   .pdc-station-strip,
   .incoming-work-checks,
   #workflow .incoming-work-checks {
-    grid-template-columns: repeat(9, 52px) !important;
-    width: 500px !important;
-    min-width: 500px !important;
-    max-width: 500px !important;
+    grid-template-columns: repeat(10, 52px) !important;
+    width: 556px !important;
+    min-width: 556px !important;
+    max-width: 556px !important;
   }
 }
 
@@ -11300,6 +11300,21 @@ html[data-row-width="xl"] {
 }
 .control-board-work-vehicle:hover { border-color: #9db0c4; background: #f8fafc; }
 .control-board-work-vehicle.is-blocked { border-left-color: #dc2626; background: #fff7f7; }
+.control-board-work-vehicle.is-in-bay {
+  border-color: #7c3aed;
+  border-left-color: #7c3aed;
+  background: #f5f3ff;
+  animation: control-board-bay-pulse 1.8s ease-in-out infinite;
+}
+.control-board-qc-row { border-left-color: #0f766e !important; }
+.control-board-qc-vehicle { border-left-color: #0f766e; background: #f0fdfa; }
+@keyframes control-board-bay-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(124, 58, 237, 0); }
+  50% { box-shadow: 0 0 0 3px rgba(124, 58, 237, .22); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .control-board-work-vehicle.is-in-bay { animation: none; }
+}
 .control-board-work-identity .pmb-identity-stack,
 .control-board-work-identity .incoming-identity { margin: 0; }
 .control-board-work-main,

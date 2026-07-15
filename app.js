@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.07.15.12-mechanic-roster';
+const APP_VERSION = '2026.07.15.15-storage-journal-fallback';
 window.VEHICLE_TRACKING_DATA = window.VEHICLE_TRACKING_DATA || { report: {}, vehicles: [], toyotaMatches: {} };
 const EDITS_KEY = 'vehicleTrackingCoreNavisionOnlyEdits:v1';
 const ADDED_KEY = 'vehicleTrackingCoreNavisionOnlyVehicles:v1';
@@ -178,6 +178,7 @@ const PDC_JOB_DEFS = [
   { key: 'fabrication', label: 'FAB', short: 'Fa', requireKey: 'pdcRequiresFabrication', completeKey: 'pdcCompleteFabrication', completeAtKey: 'pdcCompleteFabricationAt', completeByKey: 'pdcCompleteFabricationBy' },
   { key: 'electrical', label: 'ELEC', short: 'E', requireKey: 'pdcRequiresElectrical', completeKey: 'pdcCompleteElectrical', completeAtKey: 'pdcCompleteElectricalAt', completeByKey: 'pdcCompleteElectricalBy' },
   { key: 'tyre', label: 'TYRE', short: 'Ty', requireKey: 'pdcRequiresTyre', completeKey: 'pdcCompleteTyre', completeAtKey: 'pdcCompleteTyreAt', completeByKey: 'pdcCompleteTyreBy' },
+  { key: 'sublet', label: 'SUBLET', short: 'S', requireKey: 'pdcRequiresSublet', completeKey: 'pdcCompleteSublet', completeAtKey: 'pdcCompleteSubletAt', completeByKey: 'pdcCompleteSubletBy' },
   { key: 'pitInspection', label: 'PIT', short: 'PI', requireKey: 'pdcRequiresPitInspection', completeKey: 'pdcCompletePitInspection', completeAtKey: 'pdcCompletePitInspectionAt', completeByKey: 'pdcCompletePitInspectionBy' },
   { key: 'parts', label: 'PARTS', short: 'P', requireKey: 'pdcRequiresParts', completeKey: 'pdcCompleteParts', completeAtKey: 'pdcCompletePartsAt', completeByKey: 'pdcCompletePartsBy' },
 ];
@@ -211,7 +212,7 @@ function pdcJobTriStateControl(vehicle = {}, def = {}, locked = false) {
 const PDC_JOB_BY_REQUIRE_KEY = new Map(PDC_JOB_DEFS.map(def => [def.requireKey, def]));
 const PDC_JOB_BY_COMPLETE_KEY = new Map(PDC_JOB_DEFS.map(def => [def.completeKey, def]));
 const PDC_JOB_BY_KEY = new Map(PDC_JOB_DEFS.map(def => [def.key, def]));
-const PDC_IMPORT_CONTROL_COLUMNS_TEXT = 'BUS 4X4, TINT, HOIST, FITTING, FABRICATION, ELECTRICAL, TYRE, PIT INSPECTION, PARTS';
+const PDC_IMPORT_CONTROL_COLUMNS_TEXT = 'BUS 4X4, TINT, HOIST, FITTING, FABRICATION, ELECTRICAL, TYRE, SUBLET, PIT INSPECTION, PARTS';
 
 function currentPdcJobLabelsText() {
   return PDC_JOB_DEFS.map(def => def.label).join(', ');
@@ -630,7 +631,12 @@ function vehicleRftGateIssues(vehicle = {}) {
   const outstanding = pdcRequirementDefinitions(vehicle).filter(job => !pdcJobComplete(vehicle, job)).map(job => job.label);
   if (outstanding.length) issues.push(`Outstanding jobs: ${outstanding.join(', ')}`);
   const alreadyTransferredToRft = vehiclePdcLocation(vehicle) === 'RFT' || statusCategory(vehicle) === 'rft' || vehicleCollectedFromRft(vehicle);
-  if (!alreadyTransferredToRft && !inferredPmbStage(vehicle)) issues.push('No PMB bucket assigned');
+  if (!alreadyTransferredToRft && statusCategory(vehicle) === 'pmb') {
+    const currentStage = normalizePmbStage(inferredPmbStage(vehicle));
+    const currentBay = currentStage ? pmbBayNumber(vehicle, currentStage) : '';
+    if (currentBay) issues.push(`Currently in ${pmbStageLabel(currentStage)} Bay ${currentBay}`);
+    if (!outstanding.length && vehicle.pdcQcComplete !== true) issues.push('QC sign-off required');
+  }
   return issues;
 }
 
@@ -758,21 +764,21 @@ function pdcJobMarkerTitle(vehicle = {}, def = {}) {
 }
 
 function pdcJobDefsPartsFirst() {
-  return [
-    ...PDC_JOB_DEFS.filter(def => def.key === 'parts'),
-    ...PDC_JOB_DEFS.filter(def => def.key !== 'parts'),
-  ];
+  const rowOrder = ['parts', 'tint', 'bus4x4', 'hoist', 'fitting', 'fabrication', 'electrical', 'tyre', 'sublet', 'pitInspection'];
+  return rowOrder.map(key => PDC_JOB_BY_KEY.get(key)).filter(Boolean);
 }
 
 
 const PDC_GRID_JOB_LABELS = {
   parts: 'Parts',
+  bus4x4: 'Bus 4x4',
   tint: 'Tint',
   hoist: 'Hoist',
   fitting: 'Fitting',
   fabrication: 'Fab',
   electrical: 'Elec',
   tyre: 'Tyre',
+  sublet: 'Sublet',
   pitInspection: 'Pit',
 };
 
@@ -1050,18 +1056,37 @@ function saveJson(key, value) {
 
 let storageTransactionDepth = 0;
 
+function storageTransactionJournalStores() {
+  const stores = [localStorage];
+  try {
+    if (typeof sessionStorage !== 'undefined' && sessionStorage && sessionStorage !== localStorage) stores.push(sessionStorage);
+  } catch {}
+  return stores;
+}
+
+function clearStorageTransactionJournals() {
+  storageTransactionJournalStores().forEach(store => {
+    try { store.removeItem(STORAGE_TRANSACTION_JOURNAL_KEY); } catch {}
+  });
+}
+
 function recoverInterruptedStorageTransaction() {
   let journal = null;
-  try { journal = JSON.parse(localStorage.getItem(STORAGE_TRANSACTION_JOURNAL_KEY) || 'null'); } catch {}
-  if (!journal?.snapshot || typeof journal.snapshot !== 'object') {
-    try { localStorage.removeItem(STORAGE_TRANSACTION_JOURNAL_KEY); } catch {}
-    return false;
+  for (const store of storageTransactionJournalStores()) {
+    let candidate = null;
+    try { candidate = JSON.parse(store.getItem(STORAGE_TRANSACTION_JOURNAL_KEY) || 'null'); } catch {}
+    if (candidate?.snapshot && typeof candidate.snapshot === 'object') {
+      journal = candidate;
+      break;
+    }
+    try { store.removeItem(STORAGE_TRANSACTION_JOURNAL_KEY); } catch {}
   }
+  if (!journal) return false;
   Object.entries(journal.snapshot).forEach(([key, entry]) => {
     if (entry?.exists) localStorage.setItem(key, String(entry.value ?? ''));
     else localStorage.removeItem(key);
   });
-  localStorage.removeItem(STORAGE_TRANSACTION_JOURNAL_KEY);
+  clearStorageTransactionJournals();
   return true;
 }
 
@@ -1074,22 +1099,29 @@ function runStorageTransaction(label = 'Tracker update', keys = [], operation = 
     return [key, { exists: value !== null, value }];
   }));
   const journal = { version: 1, label, startedAt: nowIsoString(), snapshot };
-  try {
-    localStorage.setItem(STORAGE_TRANSACTION_JOURNAL_KEY, JSON.stringify(journal));
-  } catch (error) {
+  const serializedJournal = JSON.stringify(journal);
+  let journalStore = null;
+  for (const store of storageTransactionJournalStores()) {
+    try {
+      store.setItem(STORAGE_TRANSACTION_JOURNAL_KEY, serializedJournal);
+      journalStore = store;
+      break;
+    } catch {}
+  }
+  if (!journalStore) {
     throw new Error(`${label} could not start safely because the browser storage recovery snapshot could not be saved. Export a backup and free browser storage before trying again.`);
   }
   storageTransactionDepth += 1;
   try {
     const result = operation();
-    localStorage.removeItem(STORAGE_TRANSACTION_JOURNAL_KEY);
+    journalStore.removeItem(STORAGE_TRANSACTION_JOURNAL_KEY);
     return result;
   } catch (error) {
     Object.entries(snapshot).forEach(([key, entry]) => {
       if (entry.exists) localStorage.setItem(key, entry.value);
       else localStorage.removeItem(key);
     });
-    localStorage.removeItem(STORAGE_TRANSACTION_JOURNAL_KEY);
+    journalStore.removeItem(STORAGE_TRANSACTION_JOURNAL_KEY);
     throw new Error(`${label} was not saved. The previous tracker data was restored. ${error?.message || error}`);
   } finally {
     storageTransactionDepth = Math.max(0, storageTransactionDepth - 1);
@@ -3033,19 +3065,70 @@ function pmbVehiclesNeedingStationWork(stage = '') {
     .sort((a, b) => String(displayStockNumber(a) || vehicleKey(a) || '').localeCompare(String(displayStockNumber(b) || vehicleKey(b) || '')));
 }
 
+function vehicleReadyForQualityControl(vehicle = {}) {
+  if (statusCategory(vehicle) !== 'pmb' || vehicle.pdcQcComplete === true || isPdcBlocked(vehicle) || isActivePartsStoppage(vehicle)) return false;
+  if (pdcRequirementDefinitions(vehicle).some(job => !pdcJobComplete(vehicle, job))) return false;
+  return !normalizePmbStage(inferredPmbStage(vehicle));
+}
+
+function qualityControlVehicleHtml(vehicle = {}) {
+  const key = vehicleKey(vehicle);
+  const stock = displayStockNumber(vehicle) || key || 'No stock';
+  return `<button class="control-board-work-vehicle control-board-qc-vehicle" type="button" data-qc-complete="${escapeHtml(key)}" aria-label="Complete QC for ${escapeHtml(stock)}">
+    <span class="control-board-work-identity">${vehicleIdentityStackHtml(vehicle)}</span>
+    <span class="control-board-work-main"><strong>${escapeHtml(displayVehicle(vehicle) || 'Vehicle not listed')}</strong></span>
+    <span class="control-board-work-location"><b>Now</b><span>Unallocated</span></span>
+    <span class="control-board-work-age"><b>PMB</b><span>${escapeHtml(pmbAgeLabel(vehicle))}</span></span>
+    <span class="badge warning">Complete QC</span>
+  </button>`;
+}
+
+function completeVehicleQualityControl(key = '') {
+  const vehicle = selectedVehicle(key);
+  if (!vehicle) return false;
+  if (!vehicleReadyForQualityControl(vehicle)) {
+    window.alert('QC is available only when all required work is complete and the vehicle is back in PMB Unallocated.');
+    return false;
+  }
+  const operator = cleanNavisionText(window.PDC_AUTH_CONTEXT?.displayName || window.PDC_AUTH_CONTEXT?.email || localStorage.getItem(OPERATOR_NAME_KEY) || '');
+  const role = cleanNavisionText(window.PDC_AUTH_CONTEXT?.role || localStorage.getItem(OPERATOR_ROLE_KEY) || '');
+  if (!operator || !role) {
+    window.alert('Set your operator name and role before completing QC. No vehicle was changed.');
+    return false;
+  }
+  const label = vehicleIdentityTitle(vehicle) || displayStockNumber(vehicle) || 'this vehicle';
+  if (!window.confirm(`Mark QC complete for ${label}?\n\nThis will unlock Transfer to RFT while the vehicle remains in Unallocated.`)) return false;
+  const now = nowIsoString();
+  try {
+    runStorageTransaction('Complete vehicle QC', [EDITS_KEY, AUDIT_LOG_KEY], () => {
+      recordVehicleAudit(vehicle, 'Vehicle QC completed', { by: operator, role, location: 'PMB Unallocated' });
+      if (!saveVehicleEdits(vehicleKey(vehicle), { pdcQcComplete: true, pdcQcCompleteAt: now, pdcQcCompleteBy: operator })) {
+        throw new Error('The QC sign-off could not be saved.');
+      }
+    });
+  } catch (error) {
+    window.alert(error.message || String(error));
+    return false;
+  }
+  renderAll();
+  return true;
+}
+
 function controlBoardStationVehicleHtml(vehicle = {}, stage = '') {
   const key = vehicleKey(vehicle);
   const stock = displayStockNumber(vehicle) || key || 'No stock';
   const unit = displayVehicle(vehicle) || 'Vehicle not listed';
   const currentStage = normalizePmbStage(inferredPmbStage(vehicle));
-  const currentLabel = currentStage ? pmbStageLabel(currentStage) : 'Unallocated';
+  const currentBay = currentStage ? pmbBayNumber(vehicle, currentStage) : '';
+  const inBay = Boolean(currentStage && currentBay);
+  const currentLabel = inBay ? `${pmbStageLabel(currentStage)} · Bay ${currentBay}` : currentStage ? `${pmbStageLabel(currentStage)} queue` : 'Unallocated';
   const blocked = isPdcBlocked(vehicle) || isActivePartsStoppage(vehicle);
-  return `<button class="control-board-work-vehicle${blocked ? ' is-blocked' : ''}" type="button" data-open-stock="${escapeHtml(key)}" aria-label="Open ${escapeHtml(stock)} for ${escapeHtml(pmbStageLabel(stage))} work">
+  return `<button class="control-board-work-vehicle${blocked ? ' is-blocked' : ''}${inBay ? ' is-in-bay' : ''}" type="button" data-open-stock="${escapeHtml(key)}" aria-label="Open ${escapeHtml(stock)} for ${escapeHtml(pmbStageLabel(stage))} work">
     <span class="control-board-work-identity">${vehicleIdentityStackHtml(vehicle)}</span>
     <span class="control-board-work-main"><strong>${escapeHtml(unit)}</strong></span>
     <span class="control-board-work-location"><b>Now</b><span>${escapeHtml(currentLabel)}</span></span>
     <span class="control-board-work-age"><b>PMB</b><span>${escapeHtml(pmbAgeLabel(vehicle))}</span></span>
-    ${blocked ? '<span class="badge danger">Stopped</span>' : '<span class="badge warning">Work required</span>'}
+    ${blocked ? '<span class="badge danger">Stopped</span>' : inBay ? `<span class="badge info">IN ${escapeHtml(pmbStageLabel(currentStage).toUpperCase())} BAY ${escapeHtml(currentBay)}</span>` : '<span class="badge warning">Work required</span>'}
   </button>`;
 }
 
@@ -3076,7 +3159,8 @@ function renderWorkflowBoard() {
     return { stage, allVehicles, vehicles };
   });
   const totalPmb = workflowVehiclesForStep('pmb').length;
-  const outstandingVehicleKeys = new Set(stationRows.flatMap(row => row.allVehicles.map(vehicleKey)));
+  const qualityControlVehicles = workflowVehiclesForStep('pmb').filter(vehicleReadyForQualityControl);
+  const outstandingVehicleKeys = new Set([...stationRows.flatMap(row => row.allVehicles.map(vehicleKey)), ...qualityControlVehicles.map(vehicleKey)]);
   const stationHtml = stationRows.map(({ stage, allVehicles, vehicles }) => {
     const label = pmbStageLabel(stage);
     const countLabel = search ? `${vehicles.length}/${allVehicles.length}` : `${allVehicles.length}`;
@@ -3093,12 +3177,22 @@ function renderWorkflowBoard() {
       <div class="control-board-work-list">${rows}</div>
     </details>`;
   }).join('');
+  const qualityControlRows = qualityControlVehicles.filter(vehicle => !search || incomingSearchText(vehicle, 'pmb').includes(search));
+  const qualityControlHtml = `<details class="incoming-bucket workflow-stage-bucket control-board-station-row control-board-qc-row" open>
+    <summary class="incoming-bucket-title workflow-bucket-title">
+      <span>QC</span>
+      <strong>${escapeHtml(search ? `${qualityControlRows.length}/${qualityControlVehicles.length}` : qualityControlVehicles.length)}</strong>
+      <small>All required work complete · final quality check before RFT</small>
+      <span class="workflow-bucket-actions"><span class="badge neutral">Final gate</span></span>
+    </summary>
+    <div class="control-board-work-list">${qualityControlRows.map(qualityControlVehicleHtml).join('') || '<div class="pmb-empty-drop">No vehicles are waiting for QC.</div>'}</div>
+  </details>`;
   host.innerHTML = `
     <div class="branch-header workflow-pmb-header">
       <div><strong>PMB work overview</strong><span>Vehicles appear in every station row where required work is still outstanding. Open Bays goes directly to that station in Workshop Planner.</span></div>
       <div class="branch-header-actions"><span class="badge neutral">${outstandingVehicleKeys.size} needing work · ${totalPmb} at PMB</span></div>
     </div>
-    <div class="workflow-collapsible-board control-board-station-list">${stationHtml}</div>
+    <div class="workflow-collapsible-board control-board-station-list">${stationHtml}${qualityControlHtml}</div>
   `;
   $$('[data-open-workshop-stage]', host).forEach(button => button.addEventListener('click', event => {
     event.preventDefault();
@@ -3106,6 +3200,7 @@ function renderWorkflowBoard() {
     openWorkshopPlannerForStage(button.dataset.openWorkshopStage);
   }));
   $$('[data-open-stock]', host).forEach(button => button.addEventListener('click', () => openVehicleModal(button.dataset.openStock)));
+  $$('[data-qc-complete]', host).forEach(button => button.addEventListener('click', () => completeVehicleQualityControl(button.dataset.qcComplete)));
   updateCollapseToggleButtons();
   scheduleWorkflowFloatingHeaderUpdate();
 }
@@ -5281,7 +5376,7 @@ function togglePdcJobCompletionFromCard(stockKey, jobKey) {
   if (!window.confirm(`${actionText.charAt(0).toUpperCase()}${actionText.slice(1)} ${def.label} for ${displayStockNumber(vehicle) || vehicle.order || 'this vehicle'}?`)) return;
   const now = nowIsoString();
   const operator = getCurrentOperatorName();
-  const updates = { [def.completeKey]: !currentlyComplete };
+  const updates = { [def.completeKey]: !currentlyComplete, pdcQcComplete: false, pdcQcCompleteAt: '', pdcQcCompleteBy: '' };
   if (!currentlyComplete) {
     updates[def.requireKey] = true;
     updates[def.completeAtKey] = now;
@@ -5561,6 +5656,9 @@ async function pmbMovementResolutionUpdates(vehicle = {}, fromStage = '', toStag
       [jobDef.completeKey]: true,
       [jobDef.completeAtKey]: now,
       [jobDef.completeByKey]: operator,
+      pdcQcComplete: false,
+      pdcQcCompleteAt: '',
+      pdcQcCompleteBy: '',
       pdcBlocked: false,
       pdcBlockReason: '',
     };
@@ -5880,6 +5978,7 @@ async function assignPmbVehicleToBay(key, stage, bay, requestedStartIso = '', tr
     pmbBayCompletedAt: '',
     pmbBayCompletedBy: '',
     pmbBayCompletedStage: '',
+    ...(entersNumberedBay ? { pdcQcComplete: false, pdcQcCompleteAt: '', pdcQcCompleteBy: '' } : {}),
   };
   if (currentStage !== nextStage) {
     updates.pmbStageUpdatedAt = now;
@@ -6044,6 +6143,9 @@ function completePmbBayWork(key, stage, transactionOptions = {}) {
     [def.completeKey]: true,
     [def.completeAtKey]: now,
     [def.completeByKey]: operator,
+    pdcQcComplete: false,
+    pdcQcCompleteAt: '',
+    pdcQcCompleteBy: '',
     pmbBayCompletedAt: now,
     pmbBayCompletedBy: operator,
     pmbBayCompletedStage: normalizedStage,
@@ -6588,6 +6690,7 @@ function renderVehicleTable() {
         updates[def.requireKey] = true;
         updates[def.completeAtKey] = input.checked ? nowIsoString() : '';
         updates[def.completeByKey] = input.checked ? getCurrentOperatorName() : '';
+        Object.assign(updates, { pdcQcComplete: false, pdcQcCompleteAt: '', pdcQcCompleteBy: '' });
       }
       if (vehicle && def) {
         recordVehicleAudit(vehicle, isCompletionFlag ? (input.checked ? 'Job signed off from RFT table' : 'Job sign-off removed from RFT table') : (input.checked ? 'Requirement added' : 'Requirement removed'), { job: def.label });
@@ -8287,6 +8390,10 @@ function renderDetail() {
     );
     if (hasIndependentPdcWork) Object.assign(updates, pdcVisibilityPromotionUpdates(v, pdcJobcard ? 'Operator job card / PDC work update' : 'Operator PDC work update'));
     const changedCompletions = PDC_JOB_DEFS.filter(def => pdcJobComplete(v, def) !== completionUpdates[def.completeKey]);
+    const changedRequirements = PDC_JOB_DEFS.filter(def => pdcJobRequired(v, def) !== requirementUpdates[def.requireKey]);
+    if (changedCompletions.length || changedRequirements.length) {
+      Object.assign(updates, { pdcQcComplete: false, pdcQcCompleteAt: '', pdcQcCompleteBy: '' });
+    }
     if (changedCompletions.length) {
       const operator = getCurrentOperatorName();
       const now = nowIsoString();
@@ -9465,6 +9572,9 @@ function markVehiclePartsComplete(key = '') {
     pdcPartsWorstEta: '',
     pdcPartsStoppageClearedAt: nowIsoString(),
     pdcPartsStoppageClearedBy: operator,
+    pdcQcComplete: false,
+    pdcQcCompleteAt: '',
+    pdcQcCompleteBy: '',
   };
   if (def) {
     updates[def.completeKey] = true;

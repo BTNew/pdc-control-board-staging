@@ -42,6 +42,11 @@ code += String.raw`
   app.quickFilter = 'batchmatched';
 
   const partsDef = PDC_JOB_BY_KEY.get('parts');
+  const subletDef = PDC_JOB_BY_KEY.get('sublet');
+  assert(subletDef && subletDef.requireKey === 'pdcRequiresSublet' && subletDef.completeKey === 'pdcCompleteSublet', 'Sublet must be restored as a required/completed row work control');
+  assert(pdcJobTriState({ pdcRequiresSublet: true }, subletDef) === 'required', 'A required incomplete Sublet must show the red required state');
+  assert(pdcJobTriState({ pdcRequiresSublet: true, pdcCompleteSublet: true }, subletDef) === 'complete', 'A completed Sublet must show the green complete state');
+  assert(JSON.stringify(pdcJobDefsPartsFirst().map(def => def.key)) === JSON.stringify(['parts', 'tint', 'bus4x4', 'hoist', 'fitting', 'fabrication', 'electrical', 'tyre', 'sublet', 'pitInspection']), 'Vehicle rows must use the requested Parts/Tint/Bus 4x4/Hoist/Fitting/Fab/Elec/Tyre/Sublet/Pit order');
   assert(pdcJobTableCell(basePartsVehicle, partsDef).includes('parts-visual-notordered'), 'Dashboard Parts tick should be greyed when parts are required but not ordered');
   assert(pdcJobTableCell({ ...basePartsVehicle, pdcPartsOrdered: true }, partsDef).includes('parts-visual-onorder'), 'Dashboard Parts tick should show ordered/confirmed state');
   const issuedPartsCell = pdcJobTableCell({ ...basePartsVehicle, pdcCompleteParts: true }, partsDef);
@@ -117,7 +122,12 @@ code += String.raw`
   renderAll = () => {};
   populateFilters = () => {};
   window.alert = message => { throw new Error('Unexpected alert: ' + message); };
-  const rftVehicle = { ...basePartsVehicle, pdcLocation: 'PMB', manualLocation: 'PMB', pmbStage: 'BUILD', pdcCompleteParts: true, pdcCompleteBuild: true, pdcCompleteFitting: true };
+  const qcPendingVehicle = { ...basePartsVehicle, pdcLocation: 'PMB', manualLocation: 'PMB', pmbStage: '', pdcCompleteParts: true };
+  const qcPendingIssues = vehicleRftGateIssues(qcPendingVehicle);
+  assert(qcPendingIssues.includes('QC sign-off required'), 'Unallocated vehicles must wait for final QC before RFT');
+  assert(!qcPendingIssues.includes('No PMB bucket assigned'), 'PMB Unallocated must not itself block RFT');
+  const rftVehicle = { ...qcPendingVehicle, pdcQcComplete: true };
+  assert(vehicleRftGateIssues(rftVehicle).length === 0, 'A QC-complete PMB Unallocated vehicle with all required work complete must be RFT eligible');
   transferVehiclesToRft([rftVehicle], { clearSelection: false });
   assert(confirms.length === 1, 'RFT transfer should only ask for transfer confirmation');
   assert(!confirms.some(message => /sales\s*person|salesperson/i.test(message)), 'RFT transfer must not prompt for salesperson notification');

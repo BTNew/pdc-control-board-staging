@@ -14,7 +14,8 @@ Use this as the canonical maintenance workflow for the PDC Control Board project
 - Rebuild the deployment bundle with `python backend/build_login_static.py`, run the sanitisation/auth tests, then commit and push from ignored folder `backend/.generated/pdc-control-board-login`.
 - Workshop Planner authenticated moves use `window.PDC_AUTH_CONTEXT` for the audit identity; do not reintroduce a separate local operator-profile requirement for signed-in users.
 - `Draft next-day parts warning` creates an unaddressed, reviewable email for the next workday's Fitting bookings whose Parts status is Not Ordered, Stoppage or Misc Acc. On Order, Issued and Not Required count as confirmed. No recipient is assumed and the website never sends it automatically.
-- Workshop queue cards have a direct `Schedule` action in addition to drag/drop. It selects bay, workday, 15-minute start, planned hours and technician; the first free same-bay time is suggested. When a new queue card is dropped during an occupied period, it uses the first open time at or after the drop point so it can sit exactly back-to-back without moving the existing booking. Back-to-back bookings are valid, overlaps remain blocked, and selected bookings can be extended with +15m, +30m or +1h controls.
+- Workshop queue cards have a direct `Schedule` action in addition to drag/drop. Dropping a new queue card into a bay fills the earliest continuous non-overlapping slot, ignoring imprecise pointer placement; if that workday is full, the sequence advances to the next Monday-to-Friday workday. Existing bookings are never moved. The direct form still allows a manual bay/date/time and also suggests the first open cross-day slot. Back-to-back bookings are valid, overlaps remain blocked, and selected bookings can be extended with +15m, +30m or +1h controls.
+- Vehicle Location and Control Board work-status rows show `Parts, Tint, Bus 4x4, Hoist, Fitting, Fab, Elec, Tyre, Sublet, Pit`. Sublet uses `pdcRequiresSublet` / `pdcCompleteSublet` and remains a provider queue rather than a numbered physical bay.
 - The mechanic dropdown is seeded from the approved Department 138 and 139 roster. A versioned migration replaces stale browser dropdown names, while an older name already stored on an existing planner booking remains visible on that booking rather than becoming orphaned.
 - The Parts `Stage / Update` column shows the vehicle's current operational location. PMB vehicles show the assigned station and numbered bay, or `No bay`/`Unallocated` when applicable; Yard Hold and RFT are shown directly. The timestamp is the latest recorded location/station movement, not a later Parts-status action.
 - The PMB Perth Motor Bodies logo is stored at `assets/pmb-logo.png` and included in the sanitised deployment bundle.
@@ -37,7 +38,7 @@ Use this as the canonical maintenance workflow for the PDC Control Board project
 10. Report changed files, tests, live status and any remaining risks.
 
 ## Files with matching version numbers
-Current version identifier: `2026.07.15.12-mechanic-roster`
+Current version identifier: `2026.07.15.15-storage-journal-fallback`
 
 When bumping version, update all references in:
 - `app.js` (`APP_VERSION`)
@@ -130,7 +131,10 @@ Do not treat a successful Pages check as production security or backend validati
 - Preserve import rules: only real Batch/Stock rows; no totals/fake rows.
 - Preserve manual YH/PMB/RFT overrides over Navision.
 - Preserve first-PMB-transfer-to-Unallocated rule.
-- Preserve Parts/RFT gates; RFT requires required jobs including Parts.
+- Preserve the Unallocated work flow: future plans do not move vehicles; Start assigns a physical bay; completing work signs off the job and returns the vehicle to PMB Unallocated.
+- Preserve Parts/RFT gates; RFT requires all required jobs including Parts plus final QC. PMB Unallocated must not block RFT after QC.
+- Keep QC as a separate non-bay Control Board row. Any later bay entry or required/completed work change invalidates the previous QC sign-off.
+- Warn before saving a plan when the same vehicle also has a non-completed plan in another department; retain the separate hard block for same-bay overlaps.
 - Preserve PMB bay capacity constants and internal stage keys.
 - Explicit missing/ambiguous vehicle lookups must stop without mutating another vehicle.
 - Multi-key imports and restores must validate before mutation and roll back fully on a write/rebuild failure.
