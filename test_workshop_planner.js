@@ -238,10 +238,13 @@ assert.ok(source.includes('Overlapping workshop bookings are blocked'), 'Collisi
 assert.ok(source.includes('function workshopEntryIsOvertime('), 'Overtime detection is missing');
 assert.ok(source.includes('actualHours:'), 'Actual workshop time recording is missing');
 assert.ok(source.includes('function startWorkshopPlan('), 'Physical bay start action is missing');
+assert.ok(source.includes('async function moveWorkshopLivePlan('), 'Live workshop jobs need a dedicated safe move path');
+assert.ok(source.includes('function moveWorkshopDroppedPlan('), 'Daily drop handling must route planned and live jobs through the correct move path');
 assert.ok(source.includes('function completeWorkshopPlan('), 'Workshop completion action is missing');
 assert.ok(source.includes('function stopWorkshopPlan('), 'Workshop stoppage action is missing');
 assert.ok(source.includes('function openWorkshopVehicleJob('), 'Double-click vehicle job editor is missing');
 assert.ok(source.includes('function openWorkshopWeeklyView('), 'Per-bay weekly schedule is missing');
+assert.ok(source.includes('Started and stoppage jobs can also be moved safely, with audit and bay-state updates.'), 'Weekly planner guidance must explain the safe live-move path');
 assert.ok(source.includes('data-workshop-weekly-stage'), 'Per-bay Week button is missing');
 assert.ok(source.includes('function workshopRevealSearchMatch('), 'Planner search reveal is missing');
 assert.ok(source.includes('workshopJobLineAssignments'), 'Imported job-line work-area allocation is missing');
@@ -285,6 +288,7 @@ const workshopFunctionSection = (startName, nextName) => {
   return source.slice(start, end);
 };
 for (const [startName, nextName, pathLabel] of [
+  ['moveWorkshopLivePlan', 'moveWorkshopDroppedPlan', 'live drag/drop'],
   ['scheduleWorkshopVehicle', 'saveWorkshopDetailForm', 'daily drag/drop'],
   ['saveWorkshopDetailForm', 'startWorkshopPlan', 'detail edit'],
   ['startWorkshopPlan', 'completeWorkshopPlan', 'start work'],
@@ -297,6 +301,7 @@ for (const [startName, nextName, pathLabel] of [
   assert.ok(section.includes('workshopRequireAvailableAssignee('), `${pathLabel} must reject overlapping mechanic assignments across bays`);
 }
 for (const [startName, nextName, pathLabel] of [
+  ['moveWorkshopLivePlan', 'moveWorkshopDroppedPlan', 'live drag/drop'],
   ['scheduleWorkshopVehicle', 'saveWorkshopDetailForm', 'daily drag/drop'],
   ['saveWorkshopDetailForm', 'startWorkshopPlan', 'detail edit'],
   ['moveWorkshopWeeklyPlan', 'openWorkshopWeeklyView', 'weekly move'],
@@ -324,7 +329,7 @@ for (const file of htmlFiles) {
   const html = fs.readFileSync(path.join(root, file), 'utf8');
   assert.ok(html.includes('data-view="workshop"'), `${file} is missing the Workshop Planner navigation item`);
   assert.ok(html.includes('id="workshop-planner-root"'), `${file} is missing the Workshop Planner host`);
-  assert.ok(html.includes('workshop-planner.css?v=2026.07.15.17-ai-file-assistant-phase1'), `${file} is missing the planner stylesheet`);
+  assert.ok(html.includes('workshop-planner.css?v=2026.07.16.18-workshop-live-move'), `${file} is missing the planner stylesheet`);
   assert.ok(!html.includes('<script src="workshop-planner.js'), `${file} must not eagerly load the planner script`);
 }
 assert.ok(app.includes("loadExternalScript(`workshop-planner.js?v=${encodeURIComponent(APP_VERSION)}`"), 'app.js must lazy-load the Workshop Planner with the active release version');

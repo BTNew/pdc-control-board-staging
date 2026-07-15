@@ -880,10 +880,10 @@ function workshopPlanChipHtml(entry = {}, dateKey = '', rows = workshopLoadPlans
   const selected = workshopState().selectedPlanId === entry.id;
   const highlighted = workshopState().highlightVehicleKey === entry.vehicleKey;
   const parts = workshopPartsSummary(vehicle);
-  const draggable = entry.status === 'planned';
+  const draggable = entry.status !== 'completed';
   const classes = [blocked ? 'is-blocked' : '', started ? 'is-started' : '', overtime ? 'is-overtime' : '', assigneeConflict ? 'has-assignee-conflict' : '', entry.status === 'stoppage' ? 'is-stoppage' : '', selected ? 'is-selected' : '', highlighted ? 'is-search-match' : '', segment.continuesFromPrevious ? 'continues-from-previous' : '', segment.continuesNext ? 'continues-next' : ''].filter(Boolean).join(' ');
   const conflictNote = assigneeConflict ? ` · WARNING: ${entry.assignee} is booked on another vehicle at this time` : '';
-  return `<article class="workshop-plan-chip ${classes}" ${draggable ? 'draggable="true"' : ''} data-workshop-plan-id="${escapeHtml(entry.id)}" data-workshop-job-vehicle="${escapeHtml(entry.vehicleKey)}" data-workshop-locate-key="${escapeHtml(entry.vehicleKey)}" style="--plan-left:${left}%;--plan-width:${width}%;" title="${escapeHtml(`${workshopEntryTimeLabel(entry)} · ${entry.hours}h total${conflictNote} · double-click for vehicle job${draggable ? ' · drag to reschedule' : ' · live job stays in its bay'}`)}">
+  return `<article class="workshop-plan-chip ${classes}" ${draggable ? 'draggable="true"' : ''} data-workshop-plan-id="${escapeHtml(entry.id)}" data-workshop-job-vehicle="${escapeHtml(entry.vehicleKey)}" data-workshop-locate-key="${escapeHtml(entry.vehicleKey)}" style="--plan-left:${left}%;--plan-width:${width}%;" title="${escapeHtml(`${workshopEntryTimeLabel(entry)} · ${entry.hours}h total${conflictNote} · double-click for vehicle job${entry.status === 'completed' ? ' · completed history stays fixed' : entry.status === 'planned' ? ' · drag to reschedule' : ' · drag to move this live job safely'}`)}">
     <button type="button" data-workshop-select-plan="${escapeHtml(entry.id)}">
       <strong>JC ${escapeHtml(vehicleJobcardNumber(vehicle) || 'TBA')} · ${escapeHtml(displayStockNumber(vehicle) || vehicle.order || 'No stock')}</strong>
       <span>${escapeHtml(vehicle.vehicle || vehicle.toyotaVehicle || 'Vehicle')}</span>
@@ -1198,6 +1198,10 @@ function bindWorkshopLane(lane) {
       dateKey = availableSlot.dateKey;
       startMinutes = availableSlot.startMinutes;
     }
+    if (planId) {
+      void moveWorkshopDroppedPlan(planId, stage, bay, dateKey, startMinutes);
+      return;
+    }
     scheduleWorkshopVehicle({ planId, vehicleKeyValue, stage, bay, dateKey, startMinutes });
   });
 }
@@ -1392,6 +1396,100 @@ function workshopFirstAvailableStartSlot(stage = '', bay = 1, dateKey = '', hour
     workDate = workshopNextWorkdayDate(workDate);
   }
   return null;
+}
+
+async function moveWorkshopLivePlan(planId = '', stage = '', bay = 0, dateKey = '', startMinutes = 0) {
+  const rows = workshopLoadPlans();
+  const entry = rows.find(row => row.id === planId);
+  const vehicle = entry ? workshopVehicle(entry.vehicleKey) : null;
+  if (!entry || !vehicle) return false;
+  if (!['started', 'stoppage'].includes(entry.status)) return false;
+  if (!workshopRequireOperatorProfile()) return false;
+  const nextStage = normalizePmbStage(stage);
+  const nextBay = Number(bay);
+  const nextStart = workshopDateAtOffset(dateKey, startMinutes).toISOString();
+  const requestedLabel = `${pmbStageLabel(nextStage)} ${nextStage === 'SUBLET' ? 'provider row' : `Bay ${nextBay}`} · ${workshopEntryTimeLabel({ ...entry, stage: nextStage, bay: nextBay, startAt: nextStart })}`;
+  if (!window.confirm(`Move this live workshop job to ${requestedLabel}?\n\nThis updates the live bay allocation and keeps the job started/stoppage history.`)) return false;
+  const candidate = {
+    ...entry,
+    stage: nextStage,
+    bay: nextBay,
+    startAt: nextStart,
+    updatedAt: nowIsoString(),
+  };
+  const otherRows = rows.filter(row => row.id !== candidate.id);
+  let plannedRowsAfterShift = null;
+  if (workshopHasConflict(candidate, otherRows)) {
+    const shifted = workshopShiftTrailingPlannedRows(candidate, otherRows);
+    if (!shifted) {
+      if (!workshopRequireNoBayConflict(candidate, otherRows)) return false;
+      return false;
+    }
+    plannedRowsAfterShift = shifted;
+  }
+  if (!plannedRowsAfterShift && !workshopRequireNoBayConflict(candidate, otherRows)) return false;
+  const conflictCheckRows = plannedRowsAfterShift ? plannedRowsAfterShift.rows.filter(row => row.id !== candidate.id) : otherRows;
+  if (!workshopRequireAvailableAssignee(candidate, conflictCheckRows)) return false;
+  if (!workshopConfirmOtherDepartmentPlans(candidate, rows)) return false;
+  const baseRows = plannedRowsAfterShift
+    ? rows.map(row => plannedRowsAfterShift.moved.find(item => item.id === row.id) || row)
+    : rows;
+  const nextRows = workshopCascadePlans(baseRows.map(row => row.id === entry.id ? candidate : row)).rows;
+  const auditDetails = {
+    from: `${pmbStageLabel(entry.stage)} ${entry.stage === 'SUBLET' ? 'provider row' : `Bay ${entry.bay}`} · ${workshopEntryTimeLabel(entry)}`,
+    to: requestedLabel,
+    status: entry.status,
+    assignee: candidate.assignee || 'Unassigned',
+  };
+  let persisted = false;
+  if (candidate.stage === 'SUBLET') {
+    persisted = workshopPersistVehiclePlanAction(
+      'Move live Sublet workshop job',
+      nextRows,
+      vehicle,
+      {
+        pdcLocation: 'PMB',
+        manualLocation: 'PMB',
+        pdcLocationLocked: true,
+        pmbStage: 'SUBLET',
+        pmbStageUpdatedAt: nowIsoString(),
+        pmbBayScheduledStartAt: candidate.startAt,
+        pmbBayEstimatedHours: String(candidate.hours),
+        pmbSubletProvider: cleanNavisionText(candidate.assignee || ''),
+      },
+      'Live workshop job moved',
+      auditDetails,
+    );
+  } else {
+    persisted = await assignPmbVehicleToBay(entry.vehicleKey, candidate.stage, candidate.bay, candidate.startAt, {
+      keys: [WORKSHOP_PLAN_STORAGE_KEY],
+      afterAssign: assignedVehicle => {
+        if (!saveVehicleEdits(entry.vehicleKey, {
+          pmbBayScheduledStartAt: candidate.startAt,
+          pmbBayEstimatedHours: String(candidate.hours),
+          pmbBayMechanic: cleanNavisionText(candidate.assignee || ''),
+        }, { render: false })) throw new Error('The workshop move details could not be saved.');
+        workshopSavePlans(nextRows);
+        recordVehicleAudit(assignedVehicle, 'Live workshop job moved', auditDetails);
+      },
+    });
+  }
+  if (!persisted) return false;
+  workshopState().selectedPlanId = candidate.id;
+  workshopState().date = workshopEntryDate(candidate);
+  workshopSaveView(workshopState());
+  renderWorkshopPlanner();
+  return true;
+}
+
+function moveWorkshopDroppedPlan(planId = '', stage = '', bay = 0, dateKey = '', startMinutes = 0) {
+  const entry = workshopLoadPlans().find(row => row.id === planId);
+  if (!entry || entry.status === 'completed') {
+    if (entry?.status === 'completed') window.alert('Completed work stays in planner history. It cannot be moved.');
+    return Promise.resolve(false);
+  }
+  if (entry.status === 'planned') return Promise.resolve(scheduleWorkshopVehicle({ planId, stage, bay, dateKey, startMinutes }));
+  return moveWorkshopLivePlan(planId, stage, bay, dateKey, startMinutes);
 }
 
 function workshopScheduleTimeOptions(selectedMinutes = 0) {
@@ -2001,8 +2099,8 @@ function workshopWeeklyCardHtml(entry = {}, dateKey = '') {
   if (!vehicle || !segment) return '';
   const top = (segment.start / WORKSHOP_DAY_MINUTES) * 100;
   const height = ((segment.end - segment.start) / WORKSHOP_DAY_MINUTES) * 100;
-  const draggable = entry.status === 'planned';
-  return `<article class="workshop-week-card ${entry.status !== 'planned' ? 'is-live' : ''}" ${draggable ? 'draggable="true"' : ''} data-workshop-week-plan="${escapeHtml(entry.id)}" data-workshop-job-vehicle="${escapeHtml(entry.vehicleKey)}" style="--week-top:${top}%;--week-height:${height}%;" title="${escapeHtml(`${workshopEntryTimeLabel(entry)} · ${entry.hours} hours${draggable ? ' · drag to another day/time' : ' · live jobs stay fixed'}`)}">
+  const draggable = entry.status !== 'completed';
+  return `<article class="workshop-week-card ${entry.status !== 'planned' ? 'is-live' : ''}" ${draggable ? 'draggable="true"' : ''} data-workshop-week-plan="${escapeHtml(entry.id)}" data-workshop-job-vehicle="${escapeHtml(entry.vehicleKey)}" style="--week-top:${top}%;--week-height:${height}%;" title="${escapeHtml(`${workshopEntryTimeLabel(entry)} · ${entry.hours} hours${entry.status === 'completed' ? ' · completed history stays fixed' : entry.status === 'planned' ? ' · drag to another day/time' : ' · drag to move this live job safely'}`)}">
     <strong>JC ${escapeHtml(vehicleJobcardNumber(vehicle) || 'TBA')}</strong>
     <span>${escapeHtml(vehicle.vehicle || vehicle.toyotaVehicle || 'Vehicle')}</span>
     <small>${escapeHtml(vehicleCustomerName(vehicle) || 'Unknown customer')}</small>
@@ -2017,10 +2115,15 @@ function workshopWeeklyTimeGuideHtml() {
   }).join('');
 }
 
-function moveWorkshopWeeklyPlan(planId = '', stage = '', bay = 0, dateKey = '', startMinutes = 0, weekKey = '') {
+async function moveWorkshopWeeklyPlan(planId = '', stage = '', bay = 0, dateKey = '', startMinutes = 0, weekKey = '') {
   const rows = workshopLoadPlans();
   const entry = rows.find(row => row.id === planId);
-  if (!entry || entry.status !== 'planned') return;
+  if (!entry || entry.status === 'completed') return;
+  if (entry.status !== 'planned') {
+    await moveWorkshopLivePlan(planId, stage, bay, dateKey, startMinutes);
+    openWorkshopWeeklyView(stage, bay, weekKey || dateKey);
+    return;
+  }
   const candidate = {
     ...entry,
     stage: normalizePmbStage(stage),
@@ -2086,7 +2189,7 @@ function openWorkshopWeeklyView(stage = '', bay = 1, anchorDate = '') {
     <button class="modal-close" type="button" data-workshop-week-close aria-label="Close weekly view">×</button>
     <header class="workshop-week-header"><div><h2>${escapeHtml(pmbStageLabel(normalizedStage))} · Bay ${escapeHtml(bay)} weekly schedule</h2><p>${escapeHtml(dates[0].toLocaleDateString('en-AU', { day: 'numeric', month: 'long' }))}–${escapeHtml(dates[4].toLocaleDateString('en-AU', { day: 'numeric', month: 'long', year: 'numeric' }))} · drag a minimised booking to another day or time</p></div><div><button class="small-button" type="button" data-workshop-week-shift="-5">‹ Previous week</button><button class="small-button" type="button" data-workshop-week-shift="5">Next week ›</button></div></header>
     <div class="workshop-week-grid">${columns}</div>
-    <footer><span>Live and stopped jobs are fixed. Planned jobs snap to 15 minutes and update the normal daily board immediately.</span><button class="primary" type="button" data-workshop-week-close>Done</button></footer>
+    <footer><span>Planned jobs snap to 15 minutes and update the daily board immediately. Started and stoppage jobs can also be moved safely, with audit and bay-state updates. Completed jobs stay fixed.</span><button class="primary" type="button" data-workshop-week-close>Done</button></footer>
   </section>`;
   const close = () => {
     overlay.remove();
@@ -2107,7 +2210,7 @@ function openWorkshopWeeklyView(stage = '', bay = 1, anchorDate = '') {
       const planId = event.dataTransfer.getData('application/x-workshop-plan-id');
       const rect = lane.getBoundingClientRect();
       const startMinutes = workshopClampStartMinutes(((event.clientY - rect.top) / Math.max(1, rect.height)) * WORKSHOP_DAY_MINUTES);
-      moveWorkshopWeeklyPlan(planId, normalizedStage, bay, lane.dataset.workshopWeekDropDate, startMinutes, workshopDateKey(weekStart));
+      void moveWorkshopWeeklyPlan(planId, normalizedStage, bay, lane.dataset.workshopWeekDropDate, startMinutes, workshopDateKey(weekStart));
     });
   });
   overlay.querySelectorAll('[data-workshop-job-vehicle]').forEach(card => card.addEventListener('dblclick', () => openWorkshopVehicleJob(card.dataset.workshopJobVehicle, normalizedStage)));
@@ -2324,5 +2427,7 @@ if (typeof module !== 'undefined' && module.exports) {
     workshopNextDayFittingWarningEmailBody,
     workshopFirstAvailableStartMinutes,
     workshopFirstAvailableStartSlot,
+    moveWorkshopLivePlan,
+    moveWorkshopDroppedPlan,
   };
 }

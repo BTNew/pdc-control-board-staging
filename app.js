@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.07.15.17-ai-file-assistant-phase1';
+const APP_VERSION = '2026.07.16.18-workshop-live-move';
 window.VEHICLE_TRACKING_DATA = window.VEHICLE_TRACKING_DATA || { report: {}, vehicles: [], toyotaMatches: {} };
 const EDITS_KEY = 'vehicleTrackingCoreNavisionOnlyEdits:v1';
 const ADDED_KEY = 'vehicleTrackingCoreNavisionOnlyVehicles:v1';
