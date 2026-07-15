@@ -12,6 +12,8 @@ Use this as the canonical maintenance workflow for the PDC Control Board project
 - Public/anonymous account creation is disabled. Passwords require at least 12 characters with lower/upper-case letters, a digit and a symbol; TOTP enrolment remains enabled. Staff accounts must be created or invited administratively.
 - Microsoft/Azure remains the planned identity provider but is not yet enabled. Completion requires a Microsoft Entra app registration and provider configuration.
 - Rebuild the deployment bundle with `python backend/build_login_static.py`, run the sanitisation/auth tests, then commit and push from ignored folder `backend/.generated/pdc-control-board-login`.
+- Workshop Planner authenticated moves use `window.PDC_AUTH_CONTEXT` for the audit identity; do not reintroduce a separate local operator-profile requirement for signed-in users.
+- `Next-day parts warning` drafts a reviewable email to `Newvehiclebuild@pmgwa.com.au` for the next workday's Fitting bookings whose Parts status is not Issued or Not Required. It does not send automatically.
 - Branch: `main`
 
 ## Required workflow: inspect → modify → test → browser-check → commit → push → approved-environment verify
@@ -31,7 +33,7 @@ Use this as the canonical maintenance workflow for the PDC Control Board project
 10. Report changed files, tests, live status and any remaining risks.
 
 ## Files with matching version numbers
-Current version identifier: `2026.07.15.06-online-login`
+Current version identifier: `2026.07.15.07-workshop-planner-fix`
 
 When bumping version, update all references in:
 - `app.js` (`APP_VERSION`)

@@ -247,8 +247,11 @@ function workshopSavePlans(rows = []) {
 }
 
 function workshopRequireOperatorProfile() {
-  const name = typeof OPERATOR_NAME_KEY !== 'undefined' ? String(localStorage.getItem(OPERATOR_NAME_KEY) || '').trim() : '';
-  const role = typeof OPERATOR_ROLE_KEY !== 'undefined' ? String(localStorage.getItem(OPERATOR_ROLE_KEY) || '').trim() : '';
+  const authenticatedName = typeof window !== 'undefined' ? String(window.PDC_AUTH_CONTEXT?.displayName || window.PDC_AUTH_CONTEXT?.email || '').trim() : '';
+  const authenticatedRole = typeof window !== 'undefined' ? String(window.PDC_AUTH_CONTEXT?.role || '').trim() : '';
+  if (authenticatedName && authenticatedRole) return { name: authenticatedName, role: authenticatedRole };
+  const name = typeof localStorage !== 'undefined' && typeof OPERATOR_NAME_KEY !== 'undefined' ? String(localStorage.getItem(OPERATOR_NAME_KEY) || '').trim() : '';
+  const role = typeof localStorage !== 'undefined' && typeof OPERATOR_ROLE_KEY !== 'undefined' ? String(localStorage.getItem(OPERATOR_ROLE_KEY) || '').trim() : '';
   if (name && role) return { name, role };
   window.alert('Set your operator name and role before changing the Workshop Planner. No workshop data was changed.');
   return null;
@@ -701,6 +704,74 @@ function workshopPartsSummary(vehicle = {}) {
   };
 }
 
+function workshopNextWorkdayDate(anchor = new Date()) {
+  const next = anchor instanceof Date ? new Date(anchor) : new Date(anchor);
+  if (Number.isNaN(next.getTime())) return workshopNextWorkdayDate(new Date());
+  next.setDate(next.getDate() + 1);
+  return workshopCoerceWorkDate(next, 1);
+}
+
+function workshopNextDayFittingPartsWarnings(anchor = new Date(), rows = workshopLoadPlans()) {
+  const targetDate = workshopNextWorkdayDate(anchor);
+  const dateKey = workshopDateKey(targetDate);
+  const seen = new Set();
+  const warnings = [];
+  (Array.isArray(rows) ? rows : []).forEach(entry => {
+    if (normalizePmbStage(entry?.stage) !== 'FITTING' || entry.status === 'completed' || !workshopEntrySegmentForDate(entry, dateKey)) return;
+    const vehicle = workshopVehicle(entry.vehicleKey);
+    if (!vehicle || seen.has(entry.vehicleKey)) return;
+    const partsStatus = partsDepartmentStatus(vehicle);
+    if (['issued', 'notrequired'].includes(partsStatus)) return;
+    seen.add(entry.vehicleKey);
+    warnings.push({ entry, vehicle, partsStatus });
+  });
+  warnings.sort((a, b) => workshopEntryStart(a.entry) - workshopEntryStart(b.entry) || Number(a.entry.bay) - Number(b.entry.bay));
+  return { targetDate, dateKey, warnings };
+}
+
+function workshopNextDayFittingWarningEmailBody(result = {}) {
+  const targetDate = result.targetDate instanceof Date ? result.targetDate : workshopNextWorkdayDate();
+  const warnings = Array.isArray(result.warnings) ? result.warnings : [];
+  const dateLabel = targetDate.toLocaleDateString('en-AU', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' });
+  return [
+    'Hi PMG team,',
+    '',
+    'WARNING — the following vehicles are booked into fitting bays on the next workday without parts confirmed:',
+    `Booking date: ${dateLabel}`,
+    '',
+    ...warnings.flatMap(({ entry, vehicle, partsStatus }) => {
+      const segment = workshopEntrySegmentForDate(entry, workshopDateKey(targetDate));
+      const start = segment ? workshopTimeLabelFromMinutes(segment.start) : workshopEntryTimeLabel(entry);
+      const eta = partsWorstEtaLabel(vehicle);
+      return [
+        `- JC ${vehicleJobcardNumber(vehicle) || 'TBA'} · Stock ${displayStockNumber(vehicle) || vehicle.order || 'TBA'}`,
+        `  ${vehicle.vehicle || vehicle.toyotaVehicle || 'Vehicle'} · ${vehicleCustomerName(vehicle) || 'Unknown customer'}`,
+        `  Fitting Bay ${entry.bay} from ${start} · Parts: ${partsDepartmentStatusLabel(partsStatus)}${eta ? ` · ETA ${eta}` : ''}`,
+      ];
+    }),
+    '',
+    'Please confirm the required parts before these vehicles enter the fitting bays, or update the workshop booking.',
+    '',
+    'Kind Regards,',
+  ].join('\n');
+}
+
+function draftWorkshopNextDayFittingWarningEmail() {
+  const result = workshopNextDayFittingPartsWarnings(new Date());
+  if (!result.warnings.length) {
+    window.alert(`No next-workday Fitting bookings were found with unconfirmed parts for ${result.targetDate.toLocaleDateString('en-AU')}.`);
+    return false;
+  }
+  const recipient = typeof PMG_UPDATE_EMAIL !== 'undefined' ? PMG_UPDATE_EMAIL : '';
+  const dateLabel = result.targetDate.toLocaleDateString('en-AU', { weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric' });
+  const subject = `PDC WARNING - Fitting bookings without confirmed parts - ${dateLabel}`;
+  result.warnings.forEach(({ vehicle }) => {
+    if (typeof recordVehicleAudit === 'function') recordVehicleAudit(vehicle, 'Next-day fitting parts warning email drafted', { recipient, bookingDate: result.dateKey });
+  });
+  window.location.href = `mailto:${encodeURIComponent(recipient)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(workshopNextDayFittingWarningEmailBody(result))}`;
+  return true;
+}
+
 function workshopQueueCardHtml(vehicle = {}) {
   const key = vehicleKey(vehicle);
   const blocked = isPdcBlocked(vehicle);
@@ -887,11 +958,12 @@ function renderWorkshopPlanner() {
     <header class="workshop-planner-header">
       <div><h2>Workshop bay planner</h2><p>Monday–Friday, 8:00am–4:00pm. Long jobs carry into the next workday; overlapping bay bookings are blocked.</p></div>
       <div class="workshop-date-controls">
-        <button class="small-button" type="button" data-workshop-manage-mechanics>Manage mechanics</button>
         <button class="small-button" type="button" data-workshop-date-shift="-1">‹ Previous</button>
         <input type="date" data-workshop-date aria-label="Workshop planner date" value="${escapeHtml(dateKey)}" />
-        <button class="small-button" type="button" data-workshop-today>Today</button>
         <button class="small-button" type="button" data-workshop-date-shift="1">Next ›</button>
+        <button class="small-button" type="button" data-workshop-today>Today</button>
+        <button class="small-button" type="button" data-workshop-weekly-view>Weekly view</button>
+        <button class="small-button warning-button" type="button" data-workshop-parts-warning>Next-day parts warning</button>
       </div>
     </header>
     <div class="workshop-date-summary"><strong>${escapeHtml(workshopDateLabel(dateKey))}</strong><span>${todaysPlans.length} planned · ${completed.length} completed · ${queue.length} waiting${assigneeConflicts ? ` · ⚠ ${assigneeConflicts} mechanic clash${assigneeConflicts === 1 ? '' : 'es'}` : ''} · Saved automatically${state.lastSavedAt ? ` ${escapeHtml(new Date(state.lastSavedAt).toLocaleTimeString('en-AU', { hour: 'numeric', minute: '2-digit' }))}` : ''}</span></div>
@@ -970,7 +1042,11 @@ function bindWorkshopPlanner(root) {
     window.clearTimeout(app.workshopPlannerSearchTimer);
     workshopRevealSearchMatch(event.currentTarget.value);
   });
-  root.querySelector('[data-workshop-manage-mechanics]')?.addEventListener('click', () => showView('lists'));
+  root.querySelector('[data-workshop-weekly-view]')?.addEventListener('click', () => {
+    const selected = workshopLoadPlans().find(entry => entry.id === workshopState().selectedPlanId && entry.stage === workshopState().stage);
+    openWorkshopWeeklyView(workshopState().stage, Number(selected?.bay) || 1, workshopState().date);
+  });
+  root.querySelector('[data-workshop-parts-warning]')?.addEventListener('click', draftWorkshopNextDayFittingWarningEmail);
   root.querySelectorAll('[data-workshop-bay-mechanic-stage]').forEach(select => select.addEventListener('change', () => saveWorkshopBayMechanic(select.dataset.workshopBayMechanicStage, Number(select.dataset.workshopBayMechanicNumber), select.value)));
   root.querySelectorAll('[data-workshop-weekly-stage]').forEach(button => button.addEventListener('click', () => openWorkshopWeeklyView(button.dataset.workshopWeeklyStage, Number(button.dataset.workshopWeeklyBay), workshopState().date)));
   root.querySelectorAll('[data-workshop-vehicle-key]').forEach(card => card.addEventListener('dragstart', event => {
@@ -1906,5 +1982,9 @@ if (typeof module !== 'undefined' && module.exports) {
     workshopOwnedBlockUpdates,
     workshopOwnedBlockClearUpdates,
     workshopRunVehiclePlanTransaction,
+    workshopRequireOperatorProfile,
+    workshopNextWorkdayDate,
+    workshopNextDayFittingPartsWarnings,
+    workshopNextDayFittingWarningEmailBody,
   };
 }

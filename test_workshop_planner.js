@@ -112,6 +112,36 @@ global.vehicleJobcardNumber = vehicle => vehicle.jobcard || '';
 global.pmbStageLabel = stage => stage === 'FABRICATION' ? 'Fab' : stage;
 const conflictAlerts = [];
 global.window = { alert: message => conflictAlerts.push(String(message)) };
+global.window.PDC_AUTH_CONTEXT = { displayName: 'Craig Watson', email: 'craig.watson@broometoyota.com.au', role: 'administrator' };
+assert.deepStrictEqual(
+  planner.workshopRequireOperatorProfile(),
+  { name: 'Craig Watson', role: 'administrator' },
+  'Authenticated users must be able to move planner vehicles without a separate local operator profile',
+);
+const nextThursday = planner.workshopNextWorkdayDate(new Date(2026, 6, 15, 10, 0));
+assert.strictEqual(planner.workshopDateKey(nextThursday), '2026-07-16', 'Next-day warnings should use the following workday');
+const nextMonday = planner.workshopNextWorkdayDate(new Date(2026, 6, 17, 10, 0));
+assert.strictEqual(planner.workshopDateKey(nextMonday), '2026-07-20', 'Next-day warnings should skip weekends');
+const warningVehicles = {
+  'parts-open': { id: 'parts-open', jobcard: 'JC-100', stock: 'S-100', client: 'Customer A', vehicle: 'Hilux', partsStatus: 'onorder' },
+  'parts-confirmed': { id: 'parts-confirmed', jobcard: 'JC-200', stock: 'S-200', partsStatus: 'issued' },
+  'wrong-stage': { id: 'wrong-stage', jobcard: 'JC-300', stock: 'S-300', partsStatus: 'notordered' },
+};
+global.normalizePmbStage = value => String(value || '').toUpperCase();
+global.partsDepartmentStatus = vehicle => vehicle.partsStatus;
+global.partsDepartmentStatusLabel = status => ({ onorder: 'On Order', issued: 'Issued', notordered: 'Not Ordered' }[status] || status);
+global.partsWorstEtaLabel = () => '';
+global.vehicleCustomerName = vehicle => vehicle.client || '';
+global.selectedVehicle = key => warningVehicles[key] || null;
+const nextDayRows = [
+  { id: 'FITTING::parts-open', vehicleKey: 'parts-open', stage: 'FITTING', bay: 1, startAt: new Date(2026, 6, 16, 8, 0).toISOString(), hours: 3, status: 'planned' },
+  { id: 'FITTING::parts-confirmed', vehicleKey: 'parts-confirmed', stage: 'FITTING', bay: 2, startAt: new Date(2026, 6, 16, 9, 0).toISOString(), hours: 3, status: 'planned' },
+  { id: 'HOIST::wrong-stage', vehicleKey: 'wrong-stage', stage: 'HOIST', bay: 1, startAt: new Date(2026, 6, 16, 8, 0).toISOString(), hours: 3, status: 'planned' },
+];
+const warningResult = planner.workshopNextDayFittingPartsWarnings(new Date(2026, 6, 15, 10, 0), nextDayRows);
+assert.deepStrictEqual(warningResult.warnings.map(item => item.entry.vehicleKey), ['parts-open'], 'Only next-day Fitting bookings without confirmed parts should be warned');
+assert.match(planner.workshopNextDayFittingWarningEmailBody(warningResult), /JC JC-100 · Stock parts-open/, 'The warning email must identify the affected fitting vehicle');
+global.selectedVehicle = key => ({ id: key });
 assert.strictEqual(
   planner.workshopRequireNoBayConflict(collisionRows[1], collisionRows),
   false,
@@ -156,7 +186,14 @@ assert.ok(source.includes('workshopJobLineAssignments'), 'Imported job-line work
 assert.ok(source.includes('workshopAdditionalHoursByStage'), 'Manual per-area additional hours are missing');
 assert.ok(source.includes('function workshopReturnChoiceModal('), 'Live-job return choice is missing');
 assert.ok(source.includes('function workshopStoppageReasonModal('), 'In-app stoppage reason capture is missing');
-assert.ok(source.includes('function workshopRequireOperatorProfile('), 'Planner mutations must require a saved operator profile before transactions begin');
+assert.ok(source.includes('function workshopRequireOperatorProfile('), 'Planner mutations must require an authenticated or saved operator profile before transactions begin');
+assert.ok(source.includes('window.PDC_AUTH_CONTEXT?.displayName'), 'Authenticated staff identity must satisfy planner audit gating');
+assert.ok(!source.includes('data-workshop-manage-mechanics'), 'Manage Mechanics must be removed from the Workshop Planner header');
+assert.ok(source.includes('data-workshop-weekly-view'), 'The Workshop Planner header is missing the Weekly view button');
+assert.ok(source.includes('data-workshop-parts-warning'), 'The next-day fitting parts warning button is missing');
+const nextButtonIndex = source.indexOf('data-workshop-date-shift="1"');
+const todayButtonIndex = source.indexOf('data-workshop-today');
+assert.ok(nextButtonIndex >= 0 && todayButtonIndex > nextButtonIndex, 'Today must appear to the right of Next in the planner controls');
 assert.ok(!source.includes('window.prompt('), 'Workshop actions must not use browser prompt dialogs');
 assert.ok(source.includes('value="move" checked'), 'Just move return option is missing');
 assert.ok(source.includes('value="stoppage"'), 'Stoppage return option is missing');
@@ -204,7 +241,7 @@ for (const file of htmlFiles) {
   const html = fs.readFileSync(path.join(root, file), 'utf8');
   assert.ok(html.includes('data-view="workshop"'), `${file} is missing the Workshop Planner navigation item`);
   assert.ok(html.includes('id="workshop-planner-root"'), `${file} is missing the Workshop Planner host`);
-  assert.ok(html.includes('workshop-planner.css?v=2026.07.15.06-online-login'), `${file} is missing the planner stylesheet`);
+  assert.ok(html.includes('workshop-planner.css?v=2026.07.15.07-workshop-planner-fix'), `${file} is missing the planner stylesheet`);
   assert.ok(!html.includes('<script src="workshop-planner.js'), `${file} must not eagerly load the planner script`);
 }
 assert.ok(app.includes("loadExternalScript(`workshop-planner.js?v=${encodeURIComponent(APP_VERSION)}`"), 'app.js must lazy-load the Workshop Planner with the active release version');

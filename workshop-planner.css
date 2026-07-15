@@ -42,8 +42,16 @@ body[data-current-view="workshop"] .content {
 .workshop-date-controls {
   display: flex;
   align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
   gap: 7px;
   flex: 0 0 auto;
+}
+
+.workshop-date-controls .warning-button {
+  border-color: #f59e0b;
+  background: #fef3c7;
+  color: #92400e;
 }
 
 .workshop-date-controls input {
