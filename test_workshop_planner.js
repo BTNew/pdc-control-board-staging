@@ -198,6 +198,23 @@ assert.strictEqual(
 );
 assert.match(confirmPrompt, /Move this booking to the next open slot in this bay instead\?/, 'Conflict resolution should ask before moving a plan to the next opening');
 
+// Queue-shift behavior: starting/extending a job over queued PLANNED work offers to push the queue later.
+// Future dates keep the check deterministic: overtime extension only applies to live jobs already past their planned end.
+const shiftBase = { id: 'FABRICATION::live-now', vehicleKey: 'live-now', stage: 'FABRICATION', bay: 1, startAt: new Date(2030, 6, 15, 8, 0).toISOString(), hours: 4, status: 'started' };
+const queuedPlanned = { id: 'FABRICATION::queued', vehicleKey: 'queued', stage: 'FABRICATION', bay: 1, startAt: new Date(2030, 6, 15, 11, 0).toISOString(), hours: 3, status: 'planned' };
+global.window.confirm = message => { confirmPrompt = String(message); return true; };
+const shiftResult = planner.workshopShiftTrailingPlannedRows(shiftBase, [queuedPlanned]);
+assert.ok(shiftResult, 'A start over a queued planned booking must offer to push the queue instead of dead-ending');
+assert.strictEqual(shiftResult.moved.length, 1, 'Exactly the queued planned booking should be moved');
+assert.strictEqual(shiftResult.moved[0].startAt, new Date(2030, 6, 15, 12, 0).toISOString(), 'The queued booking should shift back-to-back after the live job');
+assert.match(confirmPrompt, /Move the queued booking to the next open slot\?/, 'Queue shifting must be confirmed by the operator');
+const liveBlocker = { id: 'FABRICATION::other-live', vehicleKey: 'other-live', stage: 'FABRICATION', bay: 1, startAt: new Date(2030, 6, 15, 9, 0).toISOString(), hours: 3, status: 'started' };
+assert.strictEqual(planner.workshopShiftTrailingPlannedRows(shiftBase, [liveBlocker]), null, 'Live jobs must never be moved by queue shifting');
+global.window.confirm = () => { throw new Error('No confirmation should be requested when nothing needs to move'); };
+const noShift = planner.workshopShiftTrailingPlannedRows(shiftBase, [{ ...queuedPlanned, startAt: new Date(2030, 6, 15, 12, 0).toISOString() }]);
+assert.ok(noShift && noShift.moved.length === 0, 'Back-to-back queued bookings must remain untouched without prompting');
+global.window.confirm = message => { confirmPrompt = String(message); return true; };
+
 assert.ok(app.includes("case 'workshop':"), 'Main renderer is missing the Workshop Planner view');
 assert.ok(app.includes("workshop: 'Workshop Planner'"), 'Workshop Planner page title is missing');
 assert.ok(app.includes('const PMB_SCHEDULE_WORK_START_HOUR = 8;'), 'Legacy PMB schedule start should match the workshop day');
@@ -307,7 +324,7 @@ for (const file of htmlFiles) {
   const html = fs.readFileSync(path.join(root, file), 'utf8');
   assert.ok(html.includes('data-view="workshop"'), `${file} is missing the Workshop Planner navigation item`);
   assert.ok(html.includes('id="workshop-planner-root"'), `${file} is missing the Workshop Planner host`);
-  assert.ok(html.includes('workshop-planner.css?v=2026.07.15.15-storage-journal-fallback'), `${file} is missing the planner stylesheet`);
+  assert.ok(html.includes('workshop-planner.css?v=2026.07.15.17-ai-file-assistant-phase1'), `${file} is missing the planner stylesheet`);
   assert.ok(!html.includes('<script src="workshop-planner.js'), `${file} must not eagerly load the planner script`);
 }
 assert.ok(app.includes("loadExternalScript(`workshop-planner.js?v=${encodeURIComponent(APP_VERSION)}`"), 'app.js must lazy-load the Workshop Planner with the active release version');

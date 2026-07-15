@@ -11260,6 +11260,38 @@ html[data-row-width="xl"] {
 .email-review-details { flex-direction: column; align-items: flex-start; font-size: .82rem; }
 .email-review-actions { justify-content: flex-end; }
 .email-vehicle-review { display: block; padding: 0; overflow: hidden; }
+.email-intake-upload-panel {
+  display: grid;
+  grid-template-columns: minmax(280px, 1.1fr) minmax(280px, .9fr);
+  gap: 16px;
+  margin: 0 18px 14px;
+  padding: 15px 16px;
+  border: 1px solid rgba(37, 99, 235, .16);
+  border-radius: 16px;
+  background: linear-gradient(180deg, #f8fbff 0%, #ffffff 100%);
+}
+.email-intake-upload-copy { display: grid; gap: 6px; align-content: start; }
+.email-intake-upload-copy strong { font-size: 1rem; color: #0f172a; }
+.email-intake-upload-copy p { margin: 0; color: #475569; font-size: .88rem; }
+.email-intake-upload-actions { display: grid; gap: 10px; }
+.email-intake-drop-zone { min-height: 144px; border-color: rgba(37, 99, 235, .28); background: #eff6ff; }
+.email-intake-upload-buttons { display: flex; gap: 8px; justify-content: flex-end; }
+.email-intake-status { margin: 0 18px 14px; }
+.email-intake-status-list { display: grid; gap: 8px; }
+.email-review-analysis-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  margin: 10px 0 2px;
+  color: #475569;
+  font-size: .78rem;
+}
+.email-review-analysis-meta span {
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+}
 .email-review-summary { display: grid; grid-template-columns: minmax(150px, .7fr) minmax(180px, 1.15fr) minmax(190px, 1.3fr) minmax(110px, .65fr) minmax(120px, .65fr) max-content; gap: 12px; align-items: center; padding: 12px 14px; cursor: pointer; list-style: none; }
 .email-review-summary::-webkit-details-marker { display: none; }
 .email-review-summary:hover { background: #f8fafc; }
@@ -11302,7 +11334,7 @@ html[data-row-width="xl"] {
 .sublet-overdue-label { display: block; margin-top: 5px; color: #b91c1c; font-size: .72rem; }
 .sublet-email-check { display: flex; gap: 6px; align-items: center; margin-top: 5px; font-size: .78rem; }
 .sublet-email-check input { width: auto; min-width: 0; }
-@media (max-width: 900px) { .email-review-row, .email-review-vehicle-fields, .email-vehicle-review-line { grid-template-columns: 1fr; } .email-review-summary { grid-template-columns: 1fr 1fr; } .email-review-open-label { text-align: left; } .email-review-actions { justify-content: flex-start; } }
+@media (max-width: 900px) { .email-review-row, .email-review-vehicle-fields, .email-vehicle-review-line, .email-intake-upload-panel { grid-template-columns: 1fr; } .email-review-summary { grid-template-columns: 1fr 1fr; } .email-review-open-label { text-align: left; } .email-review-actions, .email-intake-upload-buttons { justify-content: flex-start; } }
 
 /* 2026.07.15 audit fixes — contrast, touch targets and compact mobile actions. */
 .eyebrow { color: #ad1118; }

@@ -6,9 +6,9 @@
   <meta name="description" content="PDC vehicle locations, workshop workflow, Parts and scheduling control board." />
   <title>PDC Control Board — 50 Vehicle Test</title>
   <link rel="icon" href="favicon.svg" type="image/svg+xml" />
-  <link rel="stylesheet" href="styles.css?v=2026.07.15.15-storage-journal-fallback" />
-  <link rel="stylesheet" href="desktop-operations.css?v=2026.07.15.15-storage-journal-fallback" />
-  <link rel="stylesheet" href="workshop-planner.css?v=2026.07.15.15-storage-journal-fallback" />
+  <link rel="stylesheet" href="styles.css?v=2026.07.15.17-ai-file-assistant-phase1" />
+  <link rel="stylesheet" href="desktop-operations.css?v=2026.07.15.17-ai-file-assistant-phase1" />
+  <link rel="stylesheet" href="workshop-planner.css?v=2026.07.15.17-ai-file-assistant-phase1" />
 </head>
 <body>
   <div class="test-data-banner" style="position:sticky;top:0;z-index:9999;background:#7c2d12;color:#fff;padding:8px 14px;text-align:center;font-weight:700;letter-spacing:.02em;">TEST DATASET — 50 SAMPLE VEHICLES ONLY</div>
@@ -405,9 +405,29 @@
       <section id="emailreview" class="view">
         <div class="parts-home-layout email-review-layout">
           <section class="panel parts-home-panel email-review-panel">
-            <div class="panel-header"><div><h2>AI Intake Review</h2><p>Structured Parts emails are proposals only. Review each stock number and action before applying it to the board.</p></div><span class="badge warning" id="email-review-count">0 pending</span></div>
+            <div class="panel-header"><div><h2>AI Intake Review</h2><p>Email and uploaded files arrive here as review-only proposals. Confirm the vehicle, job lines, labour hours and workshop categories before pushing anything to the PDC board.</p></div><span class="badge warning" id="email-review-count">0 pending</span></div>
+            <section class="email-intake-upload-panel" aria-label="AI file assistant upload">
+              <div class="email-intake-upload-copy">
+                <span class="eyebrow">Phase 1 · AI file assistant</span>
+                <strong>Drop PDFs or text files to analyse into safe review drafts</strong>
+                <p>Uploads are analysed locally and turned into pending proposals only. Nothing writes to vehicles until a staff member approves it.</p>
+              </div>
+              <div class="email-intake-upload-actions">
+                <label class="drop-zone email-intake-drop-zone" for="ai-intake-upload">
+                  <input id="ai-intake-upload" type="file" accept=".pdf,.txt,.csv,.tsv,.json,text/plain,text/csv,application/json,application/pdf" multiple />
+                  <div class="drop-icon navision-icon">AI</div>
+                  <strong>Select files for analysis</strong>
+                  <span>PO PDFs, PD/job card text, parts notes or other file dumps</span>
+                </label>
+                <div class="email-intake-upload-buttons">
+                  <button class="primary" id="ai-intake-analyze" type="button" disabled>Analyse files</button>
+                  <button class="small-button" id="ai-intake-clear" type="button">Clear files</button>
+                </div>
+              </div>
+            </section>
+            <div id="ai-intake-status" class="email-intake-status"><div class="empty-state compact-empty"><strong>No files queued</strong><span>Add one or more files above to create review drafts.</span></div></div>
             <div class="table-toolbar"><label><span>Status</span><select id="email-review-status-filter"><option value="pending">Pending review</option><option value="applied">Applied</option><option value="rejected">Rejected</option><option value="all">All proposals</option></select></label></div>
-            <div class="parts-help-strip"><strong>Safety rule:</strong><span>Email never edits a vehicle directly. Apply and reject actions are recorded with operator and timestamp.</span></div>
+            <div class="parts-help-strip"><strong>Safety rule:</strong><span>Email and uploaded files never edit a vehicle directly. Apply and reject actions are recorded with operator and timestamp.</span></div>
             <div id="email-intake-review-content"></div>
           </section>
         </div>
@@ -846,9 +866,9 @@
     }());
   </script>
 
-  <script src="data-test-50.js?v=2026.07.15.15-storage-journal-fallback"></script>
-  <script src="arb-labor-catalog.js?v=2026.07.15.15-storage-journal-fallback"></script>
-  <script src="app.js?v=2026.07.15.15-storage-journal-fallback"></script>
+  <script src="data-test-50.js?v=2026.07.15.17-ai-file-assistant-phase1"></script>
+  <script src="arb-labor-catalog.js?v=2026.07.15.17-ai-file-assistant-phase1"></script>
+  <script src="app.js?v=2026.07.15.17-ai-file-assistant-phase1"></script>
 
 </body>
 </html>

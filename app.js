@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.07.15.15-storage-journal-fallback';
+const APP_VERSION = '2026.07.15.17-ai-file-assistant-phase1';
 window.VEHICLE_TRACKING_DATA = window.VEHICLE_TRACKING_DATA || { report: {}, vehicles: [], toyotaMatches: {} };
 const EDITS_KEY = 'vehicleTrackingCoreNavisionOnlyEdits:v1';
 const ADDED_KEY = 'vehicleTrackingCoreNavisionOnlyVehicles:v1';
@@ -20,6 +20,7 @@ const SALESPERSONS_SEED_KEY = 'vehicleTrackingCoreSalespersonsSeed:v1';
 const SALESPERSONS_SEED_VERSION = '2026-07-13-v1';
 const OPERATIONAL_HEALTH_KEY = 'vehicleTrackingCoreOperationalHealth:v1';
 const EMAIL_REVIEW_DECISIONS_KEY = 'vehicleTrackingCoreEmailReviewDecisions:v1';
+const AI_FILE_ASSISTANT_REVIEWS_KEY = 'vehicleTrackingCoreAiFileAssistantReviews:v1';
 const STORAGE_TRANSACTION_JOURNAL_KEY = 'vehicleTrackingCoreStorageTransaction:v1';
 const VEHICLE_TABLE_COLUMN_ORDER_KEY = 'vehicleTrackingCoreColumnOrder:v4';
 const WORKFLOW_WIDTH_MODE_KEY = 'vehicleTrackingCoreWorkflowWidthMode:v1';
@@ -52,6 +53,7 @@ const CRM_BACKUP_STORAGE_KEYS = [
   SALESPERSONS_SEED_KEY,
   OPERATIONAL_HEALTH_KEY,
   EMAIL_REVIEW_DECISIONS_KEY,
+  AI_FILE_ASSISTANT_REVIEWS_KEY,
   VEHICLE_TABLE_COLUMN_ORDER_KEY
 ];
 
@@ -1581,6 +1583,8 @@ const app = {
   filterOptions: { statuses: [], consultants: [], productionMonths: [], sources: [] },
   autocareFiles: [],
   autocareScan: loadJson(AUTOCARE_RESULTS_KEY, null),
+  aiIntakeFiles: [],
+  aiIntakeStatus: [],
   navisionImport: loadJson(NAVISION_IMPORT_RESULTS_KEY, null),
   pendingNavisionImport: null,
   navisionFileName: '',
@@ -2457,6 +2461,9 @@ function bindNav() {
   on($('#parts-eta-sort'), 'change', renderPartsHome);
   on($('#parts-department-filter'), 'change', renderPartsHome);
   on($('#email-review-status-filter'), 'change', renderEmailIntakeReview);
+  on($('#ai-intake-upload'), 'change', handleAiFileAssistantSelect);
+  on($('#ai-intake-analyze'), 'click', analyzeAiFileAssistantUploads);
+  on($('#ai-intake-clear'), 'click', () => clearAiFileAssistantUploads());
   on($('#sublet-search'), 'input', renderSubletHome);
   on($('#sublet-status-filter'), 'change', renderSubletHome);
   on($('#schedule-search'), 'input', renderScheduleBoard);
@@ -13872,8 +13879,246 @@ function clearZplGenerator() {
   if (summary) summary.innerHTML = '<div class="empty-state compact-empty"><strong>Ready</strong><span>Paste rows and generate. Incomplete VINs will be flagged before printing.</span></div>';
 }
 
+function loadAiFileAssistantReviews() {
+  const reviews = loadJson(AI_FILE_ASSISTANT_REVIEWS_KEY, []);
+  return Array.isArray(reviews) ? reviews.filter(item => item && typeof item === 'object' && cleanNavisionText(item.id || '')) : [];
+}
+
+function saveAiFileAssistantReviews(reviews = []) {
+  const safeReviews = (Array.isArray(reviews) ? reviews : [])
+    .filter(item => item && typeof item === 'object' && cleanNavisionText(item.id || ''))
+    .slice(-200);
+  saveJson(AI_FILE_ASSISTANT_REVIEWS_KEY, safeReviews);
+}
+
+function aiFileAssistantReviewId(prefix = 'ai-review') {
+  const random = Math.random().toString(36).slice(2, 8);
+  return `${prefix}:${Date.now().toString(36)}:${random}`;
+}
+
+function aiAssistantReviewWarnings(review = {}) {
+  return Array.isArray(review.analysisWarnings) ? review.analysisWarnings.map(item => cleanNavisionText(item)).filter(Boolean) : [];
+}
+
+function aiAssistantReviewSourceFiles(review = {}) {
+  return Array.isArray(review.sourceFiles) ? review.sourceFiles.map(item => cleanNavisionText(item)).filter(Boolean) : [];
+}
+
+function aiAssistantReviewMetaHtml(review = {}) {
+  const warnings = aiAssistantReviewWarnings(review);
+  const files = aiAssistantReviewSourceFiles(review);
+  const confidence = cleanNavisionText(review.analysisConfidence || '');
+  const summary = cleanNavisionText(review.analysisSummary || '');
+  const sourceType = cleanNavisionText(review.sourceType || '');
+  if (!warnings.length && !files.length && !confidence && !summary && !sourceType) return '';
+  return `<div class="email-review-analysis-meta">${[
+    summary ? `<span><b>Analysis:</b> ${escapeHtml(summary)}</span>` : '',
+    sourceType ? `<span><b>Source:</b> ${escapeHtml(sourceType)}</span>` : '',
+    confidence ? `<span><b>Confidence:</b> ${escapeHtml(confidence)}</span>` : '',
+    files.length ? `<span><b>Files:</b> ${escapeHtml(files.join(', '))}</span>` : '',
+    warnings.length ? `<span><b>Warnings:</b> ${escapeHtml(warnings.join(' · '))}</span>` : ''
+  ].filter(Boolean).join('')}</div>`;
+}
+
+function aiAssistantTaskJobLines(tasks = []) {
+  return [...new Set((Array.isArray(tasks) ? tasks : []).map(task => cleanNavisionText(task)).filter(Boolean))].map(description => {
+    const stage = pdcJobLineStage({ description });
+    const line = {
+      description,
+      quantity: 1,
+      estimatedHours: null,
+      estimateStatus: 'review-required',
+      estimateSource: 'Phase 1 file analysis · enter labour hours before pushing to the PDC board',
+      suggestedStage: stage,
+      category: stage,
+      source: 'AI file assistant',
+    };
+    line.id = pdcJobLineIdentity(line);
+    return line;
+  });
+}
+
+function aiAssistantVehicleImportReview(kind = 'jobcard', parsed = {}, files = [], detectedWarnings = []) {
+  const preview = workImportReviewPreviewVehicle(kind, parsed, findVehicleForPurchaseOrder(parsed) || findVehicleForPd(parsed));
+  const sourceFiles = (Array.isArray(files) ? files : []).map(item => cleanNavisionText(item)).filter(Boolean);
+  const warnings = [...new Set((Array.isArray(detectedWarnings) ? detectedWarnings : []).map(item => cleanNavisionText(item)).filter(Boolean))];
+  const id = aiFileAssistantReviewId(kind === 'po' ? 'ai-po' : 'ai-job');
+  const receivedAt = nowIsoString();
+  const stock = cleanNavisionText(parsed.stock || parsed.reference || preview.stock || preview.batch || '');
+  const jobLines = kind === 'po'
+    ? (Array.isArray(parsed.lineItems) ? parsed.lineItems.map(pdcJobLineFromPurchaseOrderItem).filter(line => cleanNavisionText(line.description || '')) : [])
+    : aiAssistantTaskJobLines(parsed.tasks || []);
+  const confidence = kind === 'po'
+    ? ((parsed.purchaseOrderNumber && stock && jobLines.length) ? 'high' : 'medium')
+    : ((parsed.stock || parsed.order || parsed.vin) && jobLines.length ? 'medium' : 'low');
+  return {
+    id,
+    intakeId: id,
+    type: 'vehicle-import',
+    source: 'AI file assistant',
+    sender: 'Local file upload',
+    receivedAt,
+    stock,
+    vehicle: {
+      stock,
+      batch: stock,
+      order: cleanNavisionText(parsed.order || preview.order || ''),
+      vin: normalizeVin(parsed.vin || preview.vin || ''),
+      client: cleanNavisionText(parsed.customer || parsed.client || preview.client || ''),
+      vehicle: cleanNavisionText(parsed.vehicle || preview.vehicle || ''),
+      consultant: cleanNavisionText(parsed.salesperson || preview.consultant || ''),
+      jobCardNumber: cleanNavisionText(parsed.jobcard || preview.pdcJobcard || ''),
+      colour: cleanNavisionText(parsed.colour || preview.colour || ''),
+      trim: cleanNavisionText(parsed.trim || preview.trim || ''),
+    },
+    jobLines,
+    sourceFiles,
+    sourceType: kind === 'po' ? 'Purchase order PDF/text' : 'PD check-form / job file',
+    analysisSummary: kind === 'po'
+      ? `Detected purchase-order work for stock ${stock || 'unknown'}${parsed.purchaseOrderNumber ? ` · ${parsed.purchaseOrderNumber}` : ''}`
+      : `Detected ${jobLines.length || 0} work item${jobLines.length === 1 ? '' : 's'} from the uploaded job file`,
+    analysisConfidence: confidence,
+    analysisWarnings: warnings,
+  };
+}
+
+function parseAiAssistantPartsUpdate(text = '', sourceFilename = '') {
+  const source = String(text || '').replace(/\r/g, '\n');
+  const squashed = source.replace(/\s+/g, ' ').trim();
+  if (!/\bparts?\b|back\s*order|eta|stoppage|received|issued/i.test(squashed)) return null;
+  const stock = (squashed.match(/\bstock\s*(?:no\.?|number|#)?\s*[:#-]?\s*(\d{6,12})\b/i) || squashed.match(/\b(\d{6,12})\b/) || [])[1] || '';
+  if (!stock) return null;
+  const rawEta = (source.match(/\bETA\s*[:#-]?\s*([^\n]+)/i) || source.match(/\b(\d{1,2}[\/.-]\d{1,2}[\/.-]\d{2,4})\b/) || [])[1] || '';
+  const notes = cleanNavisionText(source.split('\n').map(line => cleanNavisionText(line)).filter(Boolean).slice(0, 3).join(' · ')).slice(0, 280);
+  const action = /\breceived\b|\bissued\b|\bcomplete\b/.test(squashed)
+    ? 'complete'
+    : (/\bstoppage\b|back\s*order|awaiting|\beta\b/.test(squashed) ? 'stoppage' : 'note');
+  const warning = action === 'note' ? 'No clear complete/stoppage action was detected; review before applying.' : '';
+  return {
+    id: aiFileAssistantReviewId('ai-parts'),
+    intakeId: aiFileAssistantReviewId('ai-parts-intake'),
+    type: 'parts-update',
+    source: 'AI file assistant',
+    sender: 'Local file upload',
+    receivedAt: nowIsoString(),
+    stock,
+    action,
+    eta: cleanNavisionText(rawEta),
+    notes,
+    reason: action === 'stoppage' ? cleanNavisionText(notes || 'Parts stoppage from uploaded file') : '',
+    sourceFiles: [cleanNavisionText(sourceFilename)].filter(Boolean),
+    sourceType: 'Parts update text file',
+    analysisSummary: `Detected Parts ${action === 'complete' ? 'completion' : action === 'stoppage' ? 'stoppage' : 'note'} for stock ${stock}`,
+    analysisConfidence: action === 'note' ? 'low' : 'medium',
+    analysisWarnings: warning ? [warning] : [],
+  };
+}
+
+function analyzeAiAssistantText(text = '', file = {}) {
+  const filename = cleanNavisionText(file?.name || 'uploaded file');
+  const po = parsePurchaseOrderText(text, filename);
+  if ((cleanNavisionText(po.purchaseOrderNumber || '') || cleanNavisionText(po.stock || '')) && Array.isArray(po.lineItems) && po.lineItems.length) {
+    const warnings = [];
+    if (!cleanNavisionText(po.stock || '')) warnings.push('Purchase order parsed without a stock number. Confirm the vehicle before applying.');
+    return { ok: true, review: aiAssistantVehicleImportReview('po', po, [filename], warnings), message: `${filename}: purchase order draft created with ${po.lineItems.length} job line${po.lineItems.length === 1 ? '' : 's'}.` };
+  }
+  const parts = parseAiAssistantPartsUpdate(text, filename);
+  if (parts) {
+    return { ok: true, review: parts, message: `${filename}: Parts review draft created for stock ${parts.stock}.` };
+  }
+  const pd = parsePdCheckFormText(text, [filename]);
+  if (cleanNavisionText(pd.stock || pd.order || pd.vin || pd.jobcard || '') || (Array.isArray(pd.tasks) && pd.tasks.length)) {
+    const warnings = [];
+    if (!pd.tasks?.length) warnings.push('No safe work lines were detected automatically. Add or amend the review lines before applying.');
+    return { ok: true, review: aiAssistantVehicleImportReview('jobcard', pd, [filename], warnings), message: `${filename}: job-file draft created with ${(pd.tasks || []).length} detected work item${(pd.tasks || []).length === 1 ? '' : 's'}.` };
+  }
+  return { ok: false, message: `${filename}: no safe AI review draft could be created from this file yet.` };
+}
+
+function setAiFileAssistantStatus(rows = []) {
+  const host = $('#ai-intake-status');
+  app.aiIntakeStatus = Array.isArray(rows) ? rows : [];
+  if (!host) return;
+  if (!app.aiIntakeStatus.length) {
+    host.innerHTML = '<div class="empty-state compact-empty"><strong>No files queued</strong><span>Add one or more files above to create review drafts.</span></div>';
+    return;
+  }
+  host.innerHTML = `<div class="email-intake-status-list">${app.aiIntakeStatus.map(row => `<div class="summary-row ${row.ok ? 'navision-updated' : 'navision-skipped'}"><strong>${escapeHtml(row.title || 'AI file analysis')}</strong><span>${escapeHtml(row.message || '')}</span></div>`).join('')}</div>`;
+}
+
+function updateAiFileAssistantButtons() {
+  const files = Array.isArray(app.aiIntakeFiles) ? app.aiIntakeFiles : [];
+  const analyze = $('#ai-intake-analyze');
+  const clear = $('#ai-intake-clear');
+  if (analyze) {
+    analyze.disabled = !files.length;
+    analyze.textContent = files.length ? `Analyse files (${files.length})` : 'Analyse files';
+  }
+  if (clear) clear.disabled = !files.length;
+}
+
+function handleAiFileAssistantSelect(event) {
+  app.aiIntakeFiles = [...(event?.target?.files || [])];
+  updateAiFileAssistantButtons();
+  setAiFileAssistantStatus(app.aiIntakeFiles.length
+    ? [{ ok: true, title: `${app.aiIntakeFiles.length} file${app.aiIntakeFiles.length === 1 ? '' : 's'} ready`, message: app.aiIntakeFiles.map(file => cleanNavisionText(file.name || 'uploaded file')).join(', ') }]
+    : []);
+}
+
+function clearAiFileAssistantUploads(preserveStatus = false) {
+  app.aiIntakeFiles = [];
+  const input = $('#ai-intake-upload');
+  if (input) input.value = '';
+  updateAiFileAssistantButtons();
+  if (!preserveStatus) setAiFileAssistantStatus([]);
+}
+
+async function analyzeAiFileAssistantUploads() {
+  const files = Array.isArray(app.aiIntakeFiles) ? app.aiIntakeFiles : [];
+  if (!files.length) {
+    setAiFileAssistantStatus([{ ok: false, title: 'No files selected', message: 'Choose one or more PDFs or text files first.' }]);
+    return false;
+  }
+  const analyzeButton = $('#ai-intake-analyze');
+  if (analyzeButton) analyzeButton.disabled = true;
+  const results = [];
+  const createdReviews = [];
+  for (const file of files) {
+    try {
+      const isPdf = /\.pdf$/i.test(file.name || '') || file.type === 'application/pdf';
+      const text = isPdf ? await extractTextFromPdfFile(file) : await file.text();
+      const result = analyzeAiAssistantText(text, file);
+      results.push({ ok: result.ok, title: file.name, message: result.message });
+      if (result.ok && result.review) createdReviews.push(result.review);
+    } catch (error) {
+      results.push({ ok: false, title: file.name || 'uploaded file', message: error.message || String(error) });
+    }
+  }
+  if (createdReviews.length) {
+    runStorageTransaction('Save AI file assistant review drafts', [AI_FILE_ASSISTANT_REVIEWS_KEY], () => {
+      const existing = loadAiFileAssistantReviews();
+      const merged = new Map(existing.map(item => [String(item.id || ''), item]));
+      createdReviews.forEach(review => merged.set(String(review.id || ''), review));
+      saveAiFileAssistantReviews([...merged.values()]);
+    });
+    renderEmailIntakeReview();
+  }
+  setAiFileAssistantStatus(results.length ? results : [{ ok: false, title: 'AI file assistant', message: 'No files were analysed.' }]);
+  clearAiFileAssistantUploads(true);
+  return createdReviews.length > 0;
+}
+
 function emailReviewItems() {
-  return Array.isArray(window.PDC_EMAIL_BOARD_DATA?.reviews) ? window.PDC_EMAIL_BOARD_DATA.reviews : [];
+  const seeded = Array.isArray(window.PDC_EMAIL_BOARD_DATA?.reviews) ? window.PDC_EMAIL_BOARD_DATA.reviews : [];
+  const local = loadAiFileAssistantReviews();
+  const merged = new Map();
+  seeded.concat(local).forEach(review => {
+    if (!review || typeof review !== 'object') return;
+    const id = cleanNavisionText(review.id || '');
+    if (!id) return;
+    merged.set(id, review);
+  });
+  return [...merged.values()].sort((a, b) => String(b.receivedAt || '').localeCompare(String(a.receivedAt || '')) || String(a.id || '').localeCompare(String(b.id || '')));
 }
 
 function emailReviewDecisions() {
@@ -14137,6 +14382,7 @@ function emailVehicleReviewLinesHtml(review = {}, disabled = false) {
 function renderEmailIntakeReview() {
   const host = $('#email-intake-review-content');
   if (!host) return;
+  updateAiFileAssistantButtons();
   const decisions = emailReviewDecisions();
   const filter = $('#email-review-status-filter')?.value || 'pending';
   const all = emailReviewItems();
@@ -14148,7 +14394,7 @@ function renderEmailIntakeReview() {
   const countHost = $('#email-review-count');
   if (countHost) countHost.textContent = `${pending} pending · ${all.length} total`;
   if (!rows.length) {
-    host.innerHTML = '<div class="empty-state"><strong>No email proposals match this filter</strong><span>Email vehicles, job lines, labour and structured Parts updates appear here for approval before any PDC-board changes are made.</span></div>';
+    host.innerHTML = '<div class="empty-state"><strong>No review proposals match this filter</strong><span>Email and uploaded-file proposals appear here for approval before any PDC-board changes are made.</span></div>';
     return;
   }
   host.innerHTML = `<div class="email-review-list">${rows.map(review => {
@@ -14161,6 +14407,8 @@ function renderEmailIntakeReview() {
       const customer = vehicleCustomerName(proposalVehicle) || 'Customer not supplied';
       const vehicleDescription = displayVehicle(proposalVehicle) || proposalVehicle.vehicle || 'Vehicle details not supplied';
       const jobCard = vehicleJobcardNumber(proposalVehicle) || proposalVehicle.jobCardNumber || 'Not supplied';
+      const confidence = cleanNavisionText(review.analysisConfidence || '').toUpperCase() || 'REVIEW';
+      const metaHtml = aiAssistantReviewMetaHtml(review);
       return `<details class="email-review-row email-vehicle-review email-review-${escapeHtml(state)}" data-email-vehicle-review="${escapeHtml(review.id)}">
         <summary class="email-review-summary">
           <span class="email-review-summary-identity"><span class="badge ${state === 'pending' ? 'warning' : state === 'applied' ? 'ready' : 'neutral'}">${escapeHtml(state.toUpperCase())}</span><strong>Stock ${escapeHtml(review.stock || 'Not found')}</strong></span>
@@ -14168,10 +14416,12 @@ function renderEmailIntakeReview() {
           <span class="email-review-summary-cell"><small>Vehicle</small><b title="${escapeHtml(vehicleDescription)}">${escapeHtml(vehicleDescription)}</b></span>
           <span class="email-review-summary-cell"><small>Job card</small><b>${escapeHtml(jobCard)}</b></span>
           <span class="email-review-summary-meta"><b>${lineCount} job ${lineCount === 1 ? 'line' : 'lines'}</b><small>${escapeHtml(review.receivedAt ? operationalHealthDateLabel(review.receivedAt) : 'Date unavailable')}</small></span>
+          <span class="email-review-summary-meta"><b>${escapeHtml(confidence)}</b><small>Confidence</small></span>
           <span class="email-review-open-label" aria-hidden="true"></span>
         </summary>
         <div class="email-review-expanded">
           <div class="email-review-expanded-heading"><b>${escapeHtml(emailReviewActionLabel(review))}</b><small>Review and approve this vehicle only when you are ready.</small></div>
+          ${metaHtml}
           <div class="email-review-vehicle-fields"><label><span>Customer</span><input type="text" data-email-vehicle-customer value="${escapeHtml(vehicleCustomerName(proposalVehicle) || '')}" ${state !== 'pending' ? 'disabled' : ''}></label><label><span>Vehicle details</span><input type="text" data-email-vehicle-description value="${escapeHtml(displayVehicle(proposalVehicle) || proposalVehicle.vehicle || '')}" ${state !== 'pending' ? 'disabled' : ''}></label><label><span>Job card</span><input type="text" data-email-vehicle-job-card value="${escapeHtml(vehicleJobcardNumber(proposalVehicle) || proposalVehicle.jobCardNumber || '')}" ${state !== 'pending' ? 'disabled' : ''}></label></div>
           <div class="email-review-guidance"><strong>Check every included row.</strong> Correct the description, move it to the workshop category that will perform it, and confirm labour hours. Only approved rows are pushed to the PDC board and Workshop Planner.</div>
           ${emailVehicleReviewLinesHtml(review, state !== 'pending')}
@@ -14182,6 +14432,7 @@ function renderEmailIntakeReview() {
     return `<article class="email-review-row email-review-${escapeHtml(state)}">
       <div class="email-review-main"><span class="badge ${state === 'pending' ? 'warning' : state === 'applied' ? 'ready' : 'neutral'}">${escapeHtml(state.toUpperCase())}</span><strong>${escapeHtml(review.stock || 'No stock')}</strong><b>${escapeHtml(emailReviewActionLabel(review))}</b><small>${escapeHtml(review.receivedAt ? operationalHealthDateLabel(review.receivedAt) : 'Date unavailable')}</small></div>
       <div class="email-review-details"><span><b>Vehicle:</b> ${escapeHtml(vehicle ? `${vehicleCustomerName(vehicle)} · ${displayVehicle(vehicle)}` : 'No matching vehicle')}</span>${review.reason ? `<span><b>Reason:</b> ${escapeHtml(review.reason)}</span>` : ''}${review.notes ? `<span><b>Notes:</b> ${escapeHtml(review.notes)}</span>` : ''}${review.eta ? `<span><b>ETA:</b> ${escapeHtml(review.eta)}</span>` : ''}<span><b>Sender:</b> ${escapeHtml(review.sender || 'Unknown')}</span></div>
+      ${aiAssistantReviewMetaHtml(review)}
       <div class="email-review-actions">${state === 'pending' ? `<button class="primary" type="button" data-email-review-apply="${escapeHtml(review.id)}" ${vehicle ? '' : 'disabled'}>Apply reviewed update</button><button class="small-button" type="button" data-email-review-reject="${escapeHtml(review.id)}">Reject</button>` : `<span class="subtle">${escapeHtml(decision.decidedBy || '')} · ${escapeHtml(decision.decidedAt ? operationalHealthDateLabel(decision.decidedAt) : '')}</span>`}</div>
     </article>`;
   }).join('')}</div>`;

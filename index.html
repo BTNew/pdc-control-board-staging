@@ -8,9 +8,9 @@
   <meta name="description" content="PDC vehicle locations, workshop workflow, Parts and scheduling control board." />
   <title>PMB PDC Control Board</title>
   <link rel="icon" href="favicon.svg" type="image/svg+xml" />
-  <link rel="stylesheet" href="styles.css?v=2026.07.15.15-storage-journal-fallback" />
-  <link rel="stylesheet" href="desktop-operations.css?v=2026.07.15.15-storage-journal-fallback" />
-  <link rel="stylesheet" href="workshop-planner.css?v=2026.07.15.15-storage-journal-fallback" />
+  <link rel="stylesheet" href="styles.css?v=2026.07.15.17-ai-file-assistant-phase1" />
+  <link rel="stylesheet" href="desktop-operations.css?v=2026.07.15.17-ai-file-assistant-phase1" />
+  <link rel="stylesheet" href="workshop-planner.css?v=2026.07.15.17-ai-file-assistant-phase1" />
 </head>
 <body class="auth-pending" data-auth-state="checking">
   <main class="pdc-auth-gate" id="pdc-auth-gate" aria-labelledby="pdc-auth-title">
@@ -45,7 +45,7 @@
         <div class="brand-text">
           <div class="brand-title">Perth Motor Bodies</div>
           <div class="brand-subtitle">PDC Control Board</div>
-          <div class="app-version" id="app-version">Version 2026.07.15.15-storage-journal-fallback</div>
+          <div class="app-version" id="app-version">Version 2026.07.15.17-ai-file-assistant-phase1</div>
         </div>
         <button class="sidebar-toggle" id="sidebar-toggle" type="button" aria-label="Collapse sidebar" title="Collapse sidebar">‹</button>
       </div>
@@ -425,9 +425,29 @@
       <section id="emailreview" class="view">
         <div class="parts-home-layout email-review-layout">
           <section class="panel parts-home-panel email-review-panel">
-            <div class="panel-header"><div><h2>AI Intake Review</h2><p>Email vehicles arrive as collapsed rows. Open one vehicle at a time to confirm its details, job lines, labour hours and workshop categories before pushing approved work to the PDC board.</p></div><span class="badge warning" id="email-review-count">0 pending</span></div>
+            <div class="panel-header"><div><h2>AI Intake Review</h2><p>Email and uploaded files arrive here as review-only proposals. Confirm the vehicle, job lines, labour hours and workshop categories before pushing anything to the PDC board.</p></div><span class="badge warning" id="email-review-count">0 pending</span></div>
+            <section class="email-intake-upload-panel" aria-label="AI file assistant upload">
+              <div class="email-intake-upload-copy">
+                <span class="eyebrow">Phase 1 · AI file assistant</span>
+                <strong>Drop PDFs or text files to analyse into safe review drafts</strong>
+                <p>Uploads are analysed locally and turned into pending proposals only. Nothing writes to vehicles until a staff member approves it.</p>
+              </div>
+              <div class="email-intake-upload-actions">
+                <label class="drop-zone email-intake-drop-zone" for="ai-intake-upload">
+                  <input id="ai-intake-upload" type="file" accept=".pdf,.txt,.csv,.tsv,.json,text/plain,text/csv,application/json,application/pdf" multiple />
+                  <div class="drop-icon navision-icon">AI</div>
+                  <strong>Select files for analysis</strong>
+                  <span>PO PDFs, PD/job card text, parts notes or other file dumps</span>
+                </label>
+                <div class="email-intake-upload-buttons">
+                  <button class="primary" id="ai-intake-analyze" type="button" disabled>Analyse files</button>
+                  <button class="small-button" id="ai-intake-clear" type="button">Clear files</button>
+                </div>
+              </div>
+            </section>
+            <div id="ai-intake-status" class="email-intake-status"><div class="empty-state compact-empty"><strong>No files queued</strong><span>Add one or more files above to create review drafts.</span></div></div>
             <div class="table-toolbar"><label><span>Status</span><select id="email-review-status-filter"><option value="pending">Pending review</option><option value="applied">Applied</option><option value="rejected">Rejected</option><option value="all">All proposals</option></select></label></div>
-            <div class="parts-help-strip"><strong>Safety rule:</strong><span>Email never edits a vehicle directly. Apply and reject actions are recorded with operator and timestamp.</span></div>
+            <div class="parts-help-strip"><strong>Safety rule:</strong><span>Email and uploaded files never edit a vehicle directly. Apply and reject actions are recorded with operator and timestamp.</span></div>
             <div id="email-intake-review-content"></div>
           </section>
         </div>
@@ -893,10 +913,10 @@
 
   <script src="vendor/supabase/supabase-2.110.5.js"></script>
   <script src="pdc-supabase-config.js"></script>
-  <script src="pdc-auth.js?v=2026.07.15.15-storage-journal-fallback"></script>
-  <script src="data.js?v=2026.07.15.15-storage-journal-fallback"></script>
-  <script src="email-board-data.js?v=2026.07.15.15-storage-journal-fallback"></script>
-  <script src="arb-labor-catalog.js?v=2026.07.15.15-storage-journal-fallback"></script>
-  <script src="app.js?v=2026.07.15.15-storage-journal-fallback"></script>
+  <script src="pdc-auth.js?v=2026.07.15.17-ai-file-assistant-phase1"></script>
+  <script src="data.js?v=2026.07.15.17-ai-file-assistant-phase1"></script>
+  <script src="email-board-data.js?v=2026.07.15.17-ai-file-assistant-phase1"></script>
+  <script src="arb-labor-catalog.js?v=2026.07.15.17-ai-file-assistant-phase1"></script>
+  <script src="app.js?v=2026.07.15.17-ai-file-assistant-phase1"></script>
 </body>
 </html>
