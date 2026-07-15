@@ -123,11 +123,14 @@ assert.strictEqual(planner.workshopDateKey(nextThursday), '2026-07-16', 'Next-da
 const nextMonday = planner.workshopNextWorkdayDate(new Date(2026, 6, 17, 10, 0));
 assert.strictEqual(planner.workshopDateKey(nextMonday), '2026-07-20', 'Next-day warnings should skip weekends');
 const warningVehicles = {
-  'parts-open': { id: 'parts-open', jobcard: 'JC-100', stock: 'S-100', client: 'Customer A', vehicle: 'Hilux', partsStatus: 'onorder' },
+  'parts-open': { id: 'parts-open', jobcard: 'JC-100', stock: 'S-100', client: 'Customer A', vehicle: 'Hilux', partsStatus: 'notordered' },
   'parts-confirmed': { id: 'parts-confirmed', jobcard: 'JC-200', stock: 'S-200', partsStatus: 'issued' },
+  'parts-on-order': { id: 'parts-on-order', jobcard: 'JC-250', stock: 'S-250', partsStatus: 'onorder' },
+  'invalid-bay': { id: 'invalid-bay', jobcard: 'JC-275', stock: 'S-275', partsStatus: 'notordered' },
   'wrong-stage': { id: 'wrong-stage', jobcard: 'JC-300', stock: 'S-300', partsStatus: 'notordered' },
 };
 global.normalizePmbStage = value => String(value || '').toUpperCase();
+global.pmbStageBayCount = stage => global.normalizePmbStage(stage) === 'FITTING' ? 5 : 13;
 global.partsDepartmentStatus = vehicle => vehicle.partsStatus;
 global.partsDepartmentStatusLabel = status => ({ onorder: 'On Order', issued: 'Issued', notordered: 'Not Ordered' }[status] || status);
 global.partsWorstEtaLabel = () => '';
@@ -136,11 +139,15 @@ global.selectedVehicle = key => warningVehicles[key] || null;
 const nextDayRows = [
   { id: 'FITTING::parts-open', vehicleKey: 'parts-open', stage: 'FITTING', bay: 1, startAt: new Date(2026, 6, 16, 8, 0).toISOString(), hours: 3, status: 'planned' },
   { id: 'FITTING::parts-confirmed', vehicleKey: 'parts-confirmed', stage: 'FITTING', bay: 2, startAt: new Date(2026, 6, 16, 9, 0).toISOString(), hours: 3, status: 'planned' },
+  { id: 'FITTING::parts-on-order', vehicleKey: 'parts-on-order', stage: 'FITTING', bay: 1, startAt: new Date(2026, 6, 16, 10, 0).toISOString(), hours: 3, status: 'planned' },
+  { id: 'FITTING::invalid-bay', vehicleKey: 'invalid-bay', stage: 'FITTING', bay: 99, startAt: new Date(2026, 6, 16, 8, 0).toISOString(), hours: 3, status: 'planned' },
   { id: 'HOIST::wrong-stage', vehicleKey: 'wrong-stage', stage: 'HOIST', bay: 1, startAt: new Date(2026, 6, 16, 8, 0).toISOString(), hours: 3, status: 'planned' },
 ];
 const warningResult = planner.workshopNextDayFittingPartsWarnings(new Date(2026, 6, 15, 10, 0), nextDayRows);
 assert.deepStrictEqual(warningResult.warnings.map(item => item.entry.vehicleKey), ['parts-open'], 'Only next-day Fitting bookings without confirmed parts should be warned');
 assert.match(planner.workshopNextDayFittingWarningEmailBody(warningResult), /JC JC-100 · Stock parts-open/, 'The warning email must identify the affected fitting vehicle');
+assert.match(planner.workshopNextDayFittingWarningEmailBody(warningResult), /Affected vehicles: 1/, 'The warning email must include the affected count');
+assert.ok(!planner.workshopNextDayFittingWarningEmailBody(warningResult).includes('S-250'), 'Parts already On Order must count as confirmed');
 global.selectedVehicle = key => ({ id: key });
 assert.strictEqual(
   planner.workshopRequireNoBayConflict(collisionRows[1], collisionRows),
@@ -241,7 +248,7 @@ for (const file of htmlFiles) {
   const html = fs.readFileSync(path.join(root, file), 'utf8');
   assert.ok(html.includes('data-view="workshop"'), `${file} is missing the Workshop Planner navigation item`);
   assert.ok(html.includes('id="workshop-planner-root"'), `${file} is missing the Workshop Planner host`);
-  assert.ok(html.includes('workshop-planner.css?v=2026.07.15.07-workshop-planner-fix'), `${file} is missing the planner stylesheet`);
+  assert.ok(html.includes('workshop-planner.css?v=2026.07.15.08-parts-warning-policy'), `${file} is missing the planner stylesheet`);
   assert.ok(!html.includes('<script src="workshop-planner.js'), `${file} must not eagerly load the planner script`);
 }
 assert.ok(app.includes("loadExternalScript(`workshop-planner.js?v=${encodeURIComponent(APP_VERSION)}`"), 'app.js must lazy-load the Workshop Planner with the active release version');

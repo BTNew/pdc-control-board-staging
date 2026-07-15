@@ -717,15 +717,15 @@ function workshopNextDayFittingPartsWarnings(anchor = new Date(), rows = worksho
   const seen = new Set();
   const warnings = [];
   (Array.isArray(rows) ? rows : []).forEach(entry => {
-    if (normalizePmbStage(entry?.stage) !== 'FITTING' || entry.status === 'completed' || !workshopEntrySegmentForDate(entry, dateKey)) return;
+    if (normalizePmbStage(entry?.stage) !== 'FITTING' || Number(entry.bay) < 1 || Number(entry.bay) > workshopStageBayCount('FITTING') || entry.status === 'completed' || !workshopEntrySegmentForDate(entry, dateKey)) return;
     const vehicle = workshopVehicle(entry.vehicleKey);
     if (!vehicle || seen.has(entry.vehicleKey)) return;
     const partsStatus = partsDepartmentStatus(vehicle);
-    if (['issued', 'notrequired'].includes(partsStatus)) return;
+    if (['onorder', 'issued', 'notrequired'].includes(partsStatus)) return;
     seen.add(entry.vehicleKey);
     warnings.push({ entry, vehicle, partsStatus });
   });
-  warnings.sort((a, b) => workshopEntryStart(a.entry) - workshopEntryStart(b.entry) || Number(a.entry.bay) - Number(b.entry.bay));
+  warnings.sort((a, b) => Number(a.entry.bay) - Number(b.entry.bay) || workshopEntryStart(a.entry) - workshopEntryStart(b.entry));
   return { targetDate, dateKey, warnings };
 }
 
@@ -738,13 +738,14 @@ function workshopNextDayFittingWarningEmailBody(result = {}) {
     '',
     'WARNING — the following vehicles are booked into fitting bays on the next workday without parts confirmed:',
     `Booking date: ${dateLabel}`,
+    `Affected vehicles: ${warnings.length}`,
     '',
     ...warnings.flatMap(({ entry, vehicle, partsStatus }) => {
       const segment = workshopEntrySegmentForDate(entry, workshopDateKey(targetDate));
       const start = segment ? workshopTimeLabelFromMinutes(segment.start) : workshopEntryTimeLabel(entry);
       const eta = partsWorstEtaLabel(vehicle);
       return [
-        `- JC ${vehicleJobcardNumber(vehicle) || 'TBA'} · Stock ${displayStockNumber(vehicle) || vehicle.order || 'TBA'}`,
+        `- JC ${vehicleJobcardNumber(vehicle) || 'TBA'} · Stock ${displayStockNumber(vehicle) || entry.vehicleKey || 'TBA'}`,
         `  ${vehicle.vehicle || vehicle.toyotaVehicle || 'Vehicle'} · ${vehicleCustomerName(vehicle) || 'Unknown customer'}`,
         `  Fitting Bay ${entry.bay} from ${start} · Parts: ${partsDepartmentStatusLabel(partsStatus)}${eta ? ` · ETA ${eta}` : ''}`,
       ];
@@ -762,11 +763,11 @@ function draftWorkshopNextDayFittingWarningEmail() {
     window.alert(`No next-workday Fitting bookings were found with unconfirmed parts for ${result.targetDate.toLocaleDateString('en-AU')}.`);
     return false;
   }
-  const recipient = typeof PMG_UPDATE_EMAIL !== 'undefined' ? PMG_UPDATE_EMAIL : '';
+  const recipient = '';
   const dateLabel = result.targetDate.toLocaleDateString('en-AU', { weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric' });
   const subject = `PDC WARNING - Fitting bookings without confirmed parts - ${dateLabel}`;
   result.warnings.forEach(({ vehicle }) => {
-    if (typeof recordVehicleAudit === 'function') recordVehicleAudit(vehicle, 'Next-day fitting parts warning email drafted', { recipient, bookingDate: result.dateKey });
+    if (typeof recordVehicleAudit === 'function') recordVehicleAudit(vehicle, 'Next-day fitting parts warning email drafted', { recipient: 'Selected in email client', bookingDate: result.dateKey });
   });
   window.location.href = `mailto:${encodeURIComponent(recipient)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(workshopNextDayFittingWarningEmailBody(result))}`;
   return true;
@@ -963,7 +964,7 @@ function renderWorkshopPlanner() {
         <button class="small-button" type="button" data-workshop-date-shift="1">Next ›</button>
         <button class="small-button" type="button" data-workshop-today>Today</button>
         <button class="small-button" type="button" data-workshop-weekly-view>Weekly view</button>
-        <button class="small-button warning-button" type="button" data-workshop-parts-warning>Next-day parts warning</button>
+        <button class="small-button warning-button" type="button" data-workshop-parts-warning>Draft next-day parts warning</button>
       </div>
     </header>
     <div class="workshop-date-summary"><strong>${escapeHtml(workshopDateLabel(dateKey))}</strong><span>${todaysPlans.length} planned · ${completed.length} completed · ${queue.length} waiting${assigneeConflicts ? ` · ⚠ ${assigneeConflicts} mechanic clash${assigneeConflicts === 1 ? '' : 'es'}` : ''} · Saved automatically${state.lastSavedAt ? ` ${escapeHtml(new Date(state.lastSavedAt).toLocaleTimeString('en-AU', { hour: 'numeric', minute: '2-digit' }))}` : ''}</span></div>

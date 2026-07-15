@@ -13,7 +13,7 @@ Use this as the canonical maintenance workflow for the PDC Control Board project
 - Microsoft/Azure remains the planned identity provider but is not yet enabled. Completion requires a Microsoft Entra app registration and provider configuration.
 - Rebuild the deployment bundle with `python backend/build_login_static.py`, run the sanitisation/auth tests, then commit and push from ignored folder `backend/.generated/pdc-control-board-login`.
 - Workshop Planner authenticated moves use `window.PDC_AUTH_CONTEXT` for the audit identity; do not reintroduce a separate local operator-profile requirement for signed-in users.
-- `Next-day parts warning` drafts a reviewable email to `Newvehiclebuild@pmgwa.com.au` for the next workday's Fitting bookings whose Parts status is not Issued or Not Required. It does not send automatically.
+- `Draft next-day parts warning` creates an unaddressed, reviewable email for the next workday's Fitting bookings whose Parts status is Not Ordered, Stoppage or Misc Acc. On Order, Issued and Not Required count as confirmed. No recipient is assumed and the website never sends it automatically.
 - Branch: `main`
 
 ## Required workflow: inspect → modify → test → browser-check → commit → push → approved-environment verify
@@ -33,7 +33,7 @@ Use this as the canonical maintenance workflow for the PDC Control Board project
 10. Report changed files, tests, live status and any remaining risks.
 
 ## Files with matching version numbers
-Current version identifier: `2026.07.15.07-workshop-planner-fix`
+Current version identifier: `2026.07.15.08-parts-warning-policy`
 
 When bumping version, update all references in:
 - `app.js` (`APP_VERSION`)
