@@ -148,6 +148,12 @@ const nextWorkdaySequenceSlot = planner.workshopFirstAvailableStartSlot('TINT', 
   { id: 'TINT::full-day', vehicleKey: 'full-day', stage: 'TINT', bay: 2, startAt: new Date(2026, 5, 17, 8, 0).toISOString(), hours: 8, status: 'planned' },
 ]);
 assert.deepStrictEqual(nextWorkdaySequenceSlot, { dateKey: '2026-06-18', startMinutes: 0 }, 'A full bay day should advance the next vehicle to 8:00am on the following workday');
+const bestFabSlot = planner.workshopBestStageSlot('FABRICATION', '2026-07-16', 3, [
+  { id: 'FABRICATION::bay-1', vehicleKey: 'bay-1', stage: 'FABRICATION', bay: 1, startAt: new Date(2026, 6, 16, 8, 0).toISOString(), hours: 3, status: 'planned' },
+  { id: 'FABRICATION::bay-2', vehicleKey: 'bay-2', stage: 'FABRICATION', bay: 2, startAt: new Date(2026, 6, 16, 11, 0).toISOString(), hours: 3, status: 'planned' },
+]);
+assert.deepStrictEqual(bestFabSlot, { stage: 'FABRICATION', bay: 2, dateKey: '2026-07-16', startMinutes: 0 }, 'Best-slot suggestions should choose the earliest open bay across the stage, not only the current bay');
+assert.match(planner.workshopSlotSummary('FABRICATION', 2, '2026-07-16', 0), /Bay 02 · Thu,? 16\/07,?.*8:00 am/i, 'Slot summaries should show the bay and the suggested work time clearly');
 let horizonDate = new Date(2026, 5, 17, 8, 0, 0, 0);
 const longHorizonRows = [];
 for (let index = 0; index < 25; index += 1) {
@@ -269,8 +275,15 @@ assert.ok(!source.includes('Scheduled other days'), 'The Scheduled other days bo
 assert.ok(!source.includes('A started, stopped or completed job cannot be removed from the planner'), 'Live jobs should be returnable through the protected choice flow');
 assert.ok(source.includes('data-workshop-resize-plan'), 'Duration resize control is missing');
 assert.ok(source.includes('data-workshop-schedule-vehicle'), 'Awaiting vehicles need a direct Schedule button as a reliable alternative to drag/drop');
+assert.ok(source.includes('data-workshop-best-slot-vehicle'), 'Awaiting vehicles need a direct Best slot shortcut for the earliest bay suggestion');
+assert.ok(source.includes('data-workshop-quick-move-plan'), 'Selected jobs need bay-to-bay quick move controls');
+assert.ok(source.includes('data-workshop-best-bay-plan'), 'Selected jobs need a best bay/time shortcut');
+assert.ok(source.includes('data-workshop-open-plan-week'), 'Selected jobs need a direct week-view shortcut');
 assert.ok(source.includes('data-workshop-schedule-form'), 'The direct booking modal is missing');
 assert.ok(source.includes('data-workshop-extend-plan'), 'Quick +15m/+30m/+1h controls are missing');
+assert.ok(source.includes('function workshopBestStageSlot('), 'Stage-wide best-slot helper is missing');
+assert.ok(source.includes('function workshopSlotSummary('), 'Suggested-slot summary helper is missing');
+assert.ok(source.includes('This job is already in the earliest open bay/time for its current stage.'), 'Quick best-bay action must explain when no better move exists');
 assert.ok(source.includes('name="hours" type="number" min="0.25"'), 'Reviewed sub-three-hour bookings must remain valid and extendable');
 assert.ok(source.includes('Back-to-back bookings are allowed; overlapping times are blocked.'), 'The scheduling modal must explain later same-bay booking behavior');
 assert.ok(source.includes('function workshopConfirmOtherDepartmentPlans('), 'Cross-department planning warning is missing');
@@ -320,7 +333,7 @@ for (const [startName, nextName, pathLabel] of [
   assert.ok(!section.includes('saveVehicleEdits('), `${pathLabel} must not write vehicle estimates outside the shared transaction`);
 }
 
-for (const selector of ['.workshop-board-shell', '.workshop-bay-lane', '.workshop-plan-chip', '.workshop-now-line', '.workshop-plan-chip.is-overtime', '.workshop-plan-chip.has-assignee-conflict', '.workshop-plan-chip.is-search-match', '.workshop-unallocated-drop', '.workshop-week-grid', '.workshop-week-card', '.workshop-return-card', '.workshop-job-line-row']) {
+for (const selector of ['.workshop-board-shell', '.workshop-bay-lane', '.workshop-plan-chip', '.workshop-now-line', '.workshop-plan-chip.is-overtime', '.workshop-plan-chip.has-assignee-conflict', '.workshop-plan-chip.is-search-match', '.workshop-unallocated-drop', '.workshop-week-grid', '.workshop-week-card', '.workshop-return-card', '.workshop-job-line-row', '.workshop-status-legend', '.workshop-queue-actions', '.workshop-slot-hint']) {
   assert.ok(css.includes(selector), `Workshop CSS is missing ${selector}`);
 }
 assert.ok(globalCss.includes('.pmb-card-move-button {'), 'PMB movement buttons must have a visible default style');
@@ -329,7 +342,7 @@ for (const file of htmlFiles) {
   const html = fs.readFileSync(path.join(root, file), 'utf8');
   assert.ok(html.includes('data-view="workshop"'), `${file} is missing the Workshop Planner navigation item`);
   assert.ok(html.includes('id="workshop-planner-root"'), `${file} is missing the Workshop Planner host`);
-  assert.ok(html.includes('workshop-planner.css?v=2026.07.16.18-workshop-live-move'), `${file} is missing the planner stylesheet`);
+  assert.ok(html.includes('workshop-planner.css?v=2026.07.16.19-workshop-planner-ux'), `${file} is missing the planner stylesheet`);
   assert.ok(!html.includes('<script src="workshop-planner.js'), `${file} must not eagerly load the planner script`);
 }
 assert.ok(app.includes("loadExternalScript(`workshop-planner.js?v=${encodeURIComponent(APP_VERSION)}`"), 'app.js must lazy-load the Workshop Planner with the active release version');

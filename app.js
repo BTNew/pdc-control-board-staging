@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.07.16.18-workshop-live-move';
+const APP_VERSION = '2026.07.16.19-workshop-planner-ux';
 window.VEHICLE_TRACKING_DATA = window.VEHICLE_TRACKING_DATA || { report: {}, vehicles: [], toyotaMatches: {} };
 const EDITS_KEY = 'vehicleTrackingCoreNavisionOnlyEdits:v1';
 const ADDED_KEY = 'vehicleTrackingCoreNavisionOnlyVehicles:v1';

@@ -157,6 +157,9 @@ body[data-current-view="workshop"] .content {
 .workshop-detail-identity strong { color: #0f172a; font-size: .82rem; }
 .workshop-detail-identity span { color: #64748b; font-size: .68rem; font-weight: 800; }
 .workshop-detail-identity small { color: #475569; font-size: .62rem; font-weight: 850; }
+.workshop-detail-status-line { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.workshop-inline-meta { color: #1e3a8a; font-size: .62rem; font-weight: 900; }
+.workshop-slot-hint { color: #1d4ed8 !important; font-weight: 900 !important; }
 
 .workshop-job-detail label {
   display: grid;
@@ -265,6 +268,30 @@ body[data-current-view="workshop"] .content {
   font-weight: 950;
 }
 
+.workshop-status-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.workshop-status-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: .58rem;
+  font-weight: 950;
+  color: #0f172a;
+  background: #e2e8f0;
+}
+
+.workshop-status-legend .planned { background: #fecdd3; }
+.workshop-status-legend .live { background: #dbeafe; }
+.workshop-status-legend .stoppage { background: #fee2e2; }
+.workshop-status-legend .completed { background: #dcfce7; }
+
 .workshop-search {
   display: grid;
   gap: 3px;
@@ -353,6 +380,9 @@ body[data-current-view="workshop"] .content {
   cursor: pointer;
 }
 .workshop-schedule-button:hover { background: #1e40af; }
+.workshop-queue-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; margin-top: 4px; }
+.workshop-schedule-button.best-slot { border-color: #0f766e; background: #0f766e; }
+.workshop-schedule-button.best-slot:hover { background: #115e59; }
 .workshop-queue-card.is-blocked { border-color: #dc2626; background: #fecaca; }
 .workshop-parts-line { color: #475569 !important; font-weight: 900 !important; }
 .workshop-parts-line.parts-stoppage,
@@ -491,7 +521,7 @@ body[data-current-view="workshop"] .content {
   top: 9px;
   left: var(--plan-left);
   width: max(var(--plan-width), 62px);
-  height: 70px;
+  height: 82px;
   border: 1px solid #fb7185;
   border-left: 5px solid #e11d48;
   border-radius: 5px;
@@ -566,7 +596,7 @@ body[data-current-view="workshop"] .content {
 
 .workshop-plan-chip strong { font-size: .68rem; }
 .workshop-plan-chip span { font-size: .57rem; font-weight: 800; }
-.workshop-plan-chip small { color: #475569; font-size: .53rem; font-weight: 850; }
+.workshop-plan-chip small { color: #475569; font-size: .51rem; font-weight: 850; }
 
 .workshop-plan-resize {
   position: absolute;
@@ -610,6 +640,17 @@ body[data-current-view="workshop"] .content {
   background: #f8fafc;
   color: #475569;
   font-size: .7rem;
+}
+
+.workshop-date-summary {
+  display: grid;
+  gap: 2px;
+}
+
+.workshop-date-summary > span {
+  color: #475569;
+  font-size: .72rem;
+  font-weight: 800;
 }
 
 .workshop-job-card { width: min(920px, calc(100vw - 40px)); max-height: calc(100vh - 40px); overflow: auto; }
@@ -713,7 +754,7 @@ body[data-current-view="workshop"] .content {
   cursor: grab;
   overflow: hidden;
 }
-.workshop-week-card.is-live { border-color: #2563eb; border-left-color: #1d4ed8; background: #dbeafe; cursor: default; }
+.workshop-week-card.is-live { border-color: #2563eb; border-left-color: #1d4ed8; background: #dbeafe; cursor: grab; }
 .workshop-week-card strong,
 .workshop-week-card span,
 .workshop-week-card small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
