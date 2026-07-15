@@ -9,6 +9,7 @@ const WORKSHOP_DAY_MINUTES = (WORKSHOP_END_HOUR - WORKSHOP_START_HOUR) * 60;
 const WORKSHOP_SNAP_MINUTES = 15;
 const WORKSHOP_DEFAULT_HOURS = 3;
 const WORKSHOP_STAGE_SEQUENCE = ['BUS_4X4', 'TINT', 'HOIST', 'FITTING', 'FABRICATION', 'ELECTRICAL', 'TYRE', 'PIT_INSPECTION', 'SUBLET'];
+const WORKSHOP_VISIBLE_STAGE_SEQUENCE = WORKSHOP_STAGE_SEQUENCE.filter(stage => stage !== 'SUBLET');
 
 if (typeof CRM_BACKUP_STORAGE_KEYS !== 'undefined' && !CRM_BACKUP_STORAGE_KEYS.includes(WORKSHOP_PLAN_STORAGE_KEY)) {
   CRM_BACKUP_STORAGE_KEYS.push(WORKSHOP_PLAN_STORAGE_KEY);
@@ -1055,7 +1056,7 @@ function renderWorkshopPlanner() {
   if (!root) return;
   const state = workshopState();
   const requestedStage = normalizePmbStage(app.pendingWorkshopStage || '');
-  if (WORKSHOP_STAGE_SEQUENCE.includes(requestedStage)) {
+  if (WORKSHOP_VISIBLE_STAGE_SEQUENCE.includes(requestedStage)) {
     state.stage = requestedStage;
     state.selectedPlanId = '';
     app.pendingWorkshopStage = '';
@@ -1063,7 +1064,7 @@ function renderWorkshopPlanner() {
   let plans = workshopCascadeAndSave(workshopSyncCompletedPlans());
   if (state.selectedPlanId && !plans.some(entry => entry.id === state.selectedPlanId)) state.selectedPlanId = '';
   const selected = plans.find(entry => entry.id === state.selectedPlanId) || null;
-  const stage = WORKSHOP_STAGE_SEQUENCE.includes(state.stage) ? state.stage : 'FABRICATION';
+  const stage = WORKSHOP_VISIBLE_STAGE_SEQUENCE.includes(state.stage) ? state.stage : 'FABRICATION';
   const dateKey = state.date;
   const search = String(state.search || '').trim().toLowerCase();
   const activePlans = plans.filter(entry => entry.stage === stage && entry.status !== 'completed');
@@ -1077,8 +1078,8 @@ function renderWorkshopPlanner() {
   });
   const todaysPlans = activePlans.filter(entry => workshopEntrySegmentForDate(entry, dateKey));
   const assigneeConflicts = todaysPlans.filter(entry => workshopEntryHasAssigneeConflict(entry, plans)).length;
-  const stageVehicleCounts = new Map(WORKSHOP_STAGE_SEQUENCE.map(value => [value, value === stage ? stageVehicleList.length : workshopStageVehicles(value).length]));
-  const stageTabs = WORKSHOP_STAGE_SEQUENCE.map(value => `<button type="button" class="workshop-stage-tab ${value === stage ? 'active' : ''}" data-workshop-stage="${escapeHtml(value)}"><span>${escapeHtml(pmbStageLabel(value))}</span><strong>${stageVehicleCounts.get(value)}</strong></button>`).join('');
+  const stageVehicleCounts = new Map(WORKSHOP_VISIBLE_STAGE_SEQUENCE.map(value => [value, value === stage ? stageVehicleList.length : workshopStageVehicles(value).length]));
+  const stageTabs = WORKSHOP_VISIBLE_STAGE_SEQUENCE.map(value => `<button type="button" class="workshop-stage-tab ${value === stage ? 'active' : ''}" data-workshop-stage="${escapeHtml(value)}"><span>${escapeHtml(pmbStageLabel(value))}</span><strong>${stageVehicleCounts.get(value)}</strong></button>`).join('');
   root.innerHTML = `<div class="workshop-planner">
     <header class="workshop-planner-header">
       <div><h2>Workshop bay planner</h2><p>Monday–Friday, 8:00am–4:00pm. Long jobs carry into the next workday; overlapping bay bookings are blocked.</p></div>

@@ -21,6 +21,8 @@ assert.deepStrictEqual(
   ['BUS_4X4', 'TINT', 'HOIST', 'FITTING', 'FABRICATION', 'ELECTRICAL', 'TYRE', 'PIT_INSPECTION', 'SUBLET'],
   'The physical station order must be preserved while Sublet remains a provider row',
 );
+assert.ok(source.includes("const WORKSHOP_VISIBLE_STAGE_SEQUENCE = WORKSHOP_STAGE_SEQUENCE.filter(stage => stage !== 'SUBLET');"), 'Workshop planner tabs should exclude Sublet while keeping Sublet support elsewhere');
+assert.ok(source.includes('const stageTabs = WORKSHOP_VISIBLE_STAGE_SEQUENCE.map('), 'Workshop planner should render only visible physical workshop stages as tabs');
 
 const friday = new Date(2026, 6, 17, 8, 0, 0, 0);
 const monday = planner.workshopShiftWorkday(friday, 1);
@@ -344,7 +346,7 @@ for (const file of htmlFiles) {
   const html = fs.readFileSync(path.join(root, file), 'utf8');
   assert.ok(html.includes('data-view="workshop"'), `${file} is missing the Workshop Planner navigation item`);
   assert.ok(html.includes('id="workshop-planner-root"'), `${file} is missing the Workshop Planner host`);
-  assert.ok(html.includes('workshop-planner.css?v=2026.07.16.20-workshop-stage-bays'), `${file} is missing the planner stylesheet`);
+  assert.ok(html.includes('workshop-planner.css?v=2026.07.16.21-workshop-hide-sublet'), `${file} is missing the planner stylesheet`);
   assert.ok(!html.includes('<script src="workshop-planner.js'), `${file} must not eagerly load the planner script`);
 }
 assert.ok(app.includes("loadExternalScript(`workshop-planner.js?v=${encodeURIComponent(APP_VERSION)}`"), 'app.js must lazy-load the Workshop Planner with the active release version');
