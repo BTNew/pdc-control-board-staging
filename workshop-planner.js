@@ -517,6 +517,32 @@ function workshopRequireNoBayConflict(candidate = {}, rows = workshopLoadPlans()
   return false;
 }
 
+function workshopResolveConflictByNextSlot(candidate = {}, rows = workshopLoadPlans()) {
+  const conflict = workshopHasConflict(candidate, rows);
+  if (!conflict) return candidate;
+  const conflictVehicle = workshopVehicle(conflict.vehicleKey);
+  const identity = conflictVehicle ? (displayStockNumber(conflictVehicle) || vehicleJobcardNumber(conflictVehicle) || 'another vehicle') : 'another vehicle';
+  const area = candidate.stage === 'SUBLET' ? 'the Sublet provider row' : `${pmbStageLabel(candidate.stage)} Bay ${candidate.bay}`;
+  const requestedStart = workshopEntryStart(candidate);
+  const requestedMinutes = workshopMinuteOffset(requestedStart);
+  const nextSlot = workshopFirstAvailableStartSlot(
+    candidate.stage,
+    candidate.bay,
+    workshopDateKey(requestedStart),
+    candidate.hours,
+    rows,
+    requestedMinutes,
+  );
+  if (!nextSlot) {
+    window.alert(`${area} already has ${identity} booked during that time. No open sequence slot was found in this bay during the next 260 workdays; choose another bay or a later date.`);
+    return null;
+  }
+  const nextStart = workshopDateAtOffset(nextSlot.dateKey, nextSlot.startMinutes);
+  const nextLabel = nextStart.toLocaleString('en-AU', { weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric', hour: 'numeric', minute: '2-digit' });
+  if (!window.confirm(`${area} already has ${identity} booked during that time.\n\nMove this booking to the next open slot in this bay instead?\n\nNext open slot: ${nextLabel}`)) return null;
+  return { ...candidate, startAt: nextStart.toISOString() };
+}
+
 function workshopAssigneeConflict(entry = {}, rows = workshopLoadPlans()) {
   const assignee = cleanNavisionText(entry.assignee || '').toLowerCase();
   if (!assignee || entry.stage === 'SUBLET' || entry.status === 'completed') return null;
@@ -1512,19 +1538,26 @@ function scheduleWorkshopVehicle({ planId = '', vehicleKeyValue = '', stage = ''
     return false;
   }
   const conflictRows = latestRows.filter(row => row.id !== candidate.id);
-  if (!workshopRequireNoBayConflict(candidate, conflictRows)) return false;
-  if (!workshopRequireAvailableAssignee(candidate, conflictRows)) return false;
-  if (!workshopConfirmOtherDepartmentPlans(candidate, latestRows)) return false;
-  const nextRows = latestExisting ? latestRows.map(entry => entry.id === latestExisting.id ? candidate : entry) : [...latestRows, candidate];
+  let resolvedCandidate = candidate;
+  if (workshopHasConflict(candidate, conflictRows)) {
+    if (!existing) {
+      if (!workshopRequireNoBayConflict(candidate, conflictRows)) return false;
+    }
+    resolvedCandidate = existing ? workshopResolveConflictByNextSlot(candidate, conflictRows) : null;
+    if (!resolvedCandidate) return false;
+  } else if (!workshopRequireNoBayConflict(candidate, conflictRows)) return false;
+  if (!workshopRequireAvailableAssignee(resolvedCandidate, conflictRows)) return false;
+  if (!workshopConfirmOtherDepartmentPlans(resolvedCandidate, latestRows)) return false;
+  const nextRows = latestExisting ? latestRows.map(entry => entry.id === latestExisting.id ? resolvedCandidate : entry) : [...latestRows, resolvedCandidate];
   const persisted = workshopPersistPlanAction(
     existing ? 'Workshop plan rescheduled' : 'Workshop plan created',
     workshopCascadePlans(nextRows).rows,
     vehicle,
     existing ? 'Workshop plan rescheduled' : 'Workshop plan created',
-    { stage: pmbStageLabel(normalizedStage), bay: normalizedStage === 'SUBLET' ? 'Provider row' : `Bay ${bay}`, startAt: candidate.startAt, hours: candidate.hours, assignee: candidate.assignee || 'Unassigned' },
+    { stage: pmbStageLabel(normalizedStage), bay: normalizedStage === 'SUBLET' ? 'Provider row' : `Bay ${resolvedCandidate.bay}`, startAt: resolvedCandidate.startAt, hours: resolvedCandidate.hours, assignee: resolvedCandidate.assignee || 'Unassigned' },
   );
   if (!persisted) return false;
-  workshopState().selectedPlanId = candidate.id;
+  workshopState().selectedPlanId = resolvedCandidate.id;
   renderWorkshopPlanner();
   return true;
 }
@@ -1920,19 +1953,23 @@ function moveWorkshopWeeklyPlan(planId = '', stage = '', bay = 0, dateKey = '', 
     return;
   }
   const otherRows = latestRows.filter(row => row.id !== candidate.id);
-  if (!workshopRequireNoBayConflict(candidate, otherRows)) return;
-  if (!workshopRequireAvailableAssignee(candidate, otherRows)) return;
-  if (!workshopConfirmOtherDepartmentPlans(candidate, latestRows)) return;
-  const updated = workshopCascadePlans(latestRows.map(row => row.id === candidate.id ? candidate : row)).rows;
+  let resolvedCandidate = candidate;
+  if (workshopHasConflict(candidate, otherRows)) {
+    resolvedCandidate = workshopResolveConflictByNextSlot(candidate, otherRows);
+    if (!resolvedCandidate) return;
+  } else if (!workshopRequireNoBayConflict(candidate, otherRows)) return;
+  if (!workshopRequireAvailableAssignee(resolvedCandidate, otherRows)) return;
+  if (!workshopConfirmOtherDepartmentPlans(resolvedCandidate, latestRows)) return;
+  const updated = workshopCascadePlans(latestRows.map(row => row.id === resolvedCandidate.id ? resolvedCandidate : row)).rows;
   workshopPersistPlanAction(
     'Workshop weekly plan moved',
     updated,
     workshopVehicle(entry.vehicleKey),
     'Workshop weekly plan moved',
-    { stage: pmbStageLabel(candidate.stage), bay: candidate.stage === 'SUBLET' ? 'Provider row' : `Bay ${candidate.bay}`, startAt: candidate.startAt },
+    { stage: pmbStageLabel(resolvedCandidate.stage), bay: resolvedCandidate.stage === 'SUBLET' ? 'Provider row' : `Bay ${resolvedCandidate.bay}`, startAt: resolvedCandidate.startAt },
   );
-  workshopState().selectedPlanId = candidate.id;
-  workshopState().date = workshopEntryDate(candidate);
+  workshopState().selectedPlanId = resolvedCandidate.id;
+  workshopState().date = workshopEntryDate(resolvedCandidate);
   workshopSaveView(workshopState());
   renderWorkshopPlanner();
   openWorkshopWeeklyView(stage, bay, weekKey || dateKey);
@@ -2183,6 +2220,7 @@ if (typeof module !== 'undefined' && module.exports) {
     workshopIntervalsOverlap,
     workshopHasConflict,
     workshopRequireNoBayConflict,
+    workshopResolveConflictByNextSlot,
     workshopDateKey,
     workshopDateFromKey,
     workshopNormalizeStartDate,

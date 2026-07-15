@@ -187,6 +187,16 @@ assert.match(
   /Fab Bay 1 already has active booked during that time\. Overlapping workshop bookings are blocked; choose another bay or time\./,
   'The operator must receive a clear bay, vehicle and resolution message',
 );
+let confirmPrompt = '';
+global.window.confirm = message => { confirmPrompt = String(message); return true; };
+const resolvedConflict = planner.workshopResolveConflictByNextSlot(collisionRows[1], [{ ...collisionRows[0], status: 'planned' }]);
+assert.ok(resolvedConflict, 'A planned move into an occupied bay should offer the next open bay slot instead of dead-ending');
+assert.strictEqual(
+  resolvedConflict.startAt,
+  new Date(2026, 6, 14, 11, 0).toISOString(),
+  'The conflict resolver should keep the existing booking fixed and move the dragged plan to the next back-to-back opening',
+);
+assert.match(confirmPrompt, /Move this booking to the next open slot in this bay instead\?/, 'Conflict resolution should ask before moving a plan to the next opening');
 
 assert.ok(app.includes("case 'workshop':"), 'Main renderer is missing the Workshop Planner view');
 assert.ok(app.includes("workshop: 'Workshop Planner'"), 'Workshop Planner page title is missing');
