@@ -72,6 +72,8 @@ assert.strictEqual(unchanged.rows.find(row => row.vehicleKey === 'next').startAt
 assert.strictEqual(unchanged.rows.find(row => row.vehicleKey === 'next').hours, 3, 'Collision handling must retain the three-hour minimum estimate');
 const backToBack = { id: 'FABRICATION::back-to-back', vehicleKey: 'next', stage: 'FABRICATION', bay: 1, startAt: new Date(2026, 6, 14, 11, 0).toISOString(), hours: 3, status: 'planned' };
 assert.strictEqual(planner.workshopHasConflict(backToBack, [{ ...collisionRows[0], status: 'planned' }]), null, 'Back-to-back same-bay bookings must remain allowed');
+const differentStageSameBay = { id: 'HOIST::same-bay-number', vehicleKey: 'same-bay-number', stage: 'HOIST', bay: 1, startAt: nextStart.toISOString(), hours: 3, status: 'planned' };
+assert.strictEqual(planner.workshopHasConflict(differentStageSameBay, collisionRows), null, 'Bay numbers must be isolated by stage so Hoist Bay 1 does not collide with Fab Bay 1');
 
 global.selectedVehicle = key => ({ id: key });
 global.pmbBayNumber = () => 1;
@@ -153,7 +155,7 @@ const bestFabSlot = planner.workshopBestStageSlot('FABRICATION', '2026-07-16', 3
   { id: 'FABRICATION::bay-2', vehicleKey: 'bay-2', stage: 'FABRICATION', bay: 2, startAt: new Date(2026, 6, 16, 11, 0).toISOString(), hours: 3, status: 'planned' },
 ]);
 assert.deepStrictEqual(bestFabSlot, { stage: 'FABRICATION', bay: 2, dateKey: '2026-07-16', startMinutes: 0 }, 'Best-slot suggestions should choose the earliest open bay across the stage, not only the current bay');
-assert.match(planner.workshopSlotSummary('FABRICATION', 2, '2026-07-16', 0), /Bay 02 · Thu,? 16\/07,?.*8:00 am/i, 'Slot summaries should show the bay and the suggested work time clearly');
+assert.match(planner.workshopSlotSummary('FABRICATION', 2, '2026-07-16', 0), /Fab · Bay 02 · Thu,? 16\/07,?.*8:00 am/i, 'Slot summaries should show the stage, bay and suggested work time clearly');
 let horizonDate = new Date(2026, 5, 17, 8, 0, 0, 0);
 const longHorizonRows = [];
 for (let index = 0; index < 25; index += 1) {
@@ -342,7 +344,7 @@ for (const file of htmlFiles) {
   const html = fs.readFileSync(path.join(root, file), 'utf8');
   assert.ok(html.includes('data-view="workshop"'), `${file} is missing the Workshop Planner navigation item`);
   assert.ok(html.includes('id="workshop-planner-root"'), `${file} is missing the Workshop Planner host`);
-  assert.ok(html.includes('workshop-planner.css?v=2026.07.16.19-workshop-planner-ux'), `${file} is missing the planner stylesheet`);
+  assert.ok(html.includes('workshop-planner.css?v=2026.07.16.20-workshop-stage-bays'), `${file} is missing the planner stylesheet`);
   assert.ok(!html.includes('<script src="workshop-planner.js'), `${file} must not eagerly load the planner script`);
 }
 assert.ok(app.includes("loadExternalScript(`workshop-planner.js?v=${encodeURIComponent(APP_VERSION)}`"), 'app.js must lazy-load the Workshop Planner with the active release version');

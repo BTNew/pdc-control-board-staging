@@ -652,8 +652,10 @@ function workshopSlotSummary(stage = '', bay = 1, dateKey = '', startMinutes = 0
   const normalizedStage = normalizePmbStage(stage);
   const start = workshopDateAtOffset(dateKey, startMinutes);
   const when = start.toLocaleString('en-AU', { weekday: 'short', day: '2-digit', month: '2-digit', hour: 'numeric', minute: '2-digit' });
-  const place = normalizedStage === 'SUBLET' ? 'Provider row' : `Bay ${workshopPad(bay)}`;
-  return `${place} · ${when}`;
+  const area = normalizedStage === 'SUBLET'
+    ? `${pmbStageLabel(normalizedStage)} · Provider row`
+    : `${pmbStageLabel(normalizedStage)} · Bay ${workshopPad(bay)}`;
+  return `${area} · ${when}`;
 }
 
 function workshopBestStageSlot(stage = '', dateKey = '', hours = WORKSHOP_DEFAULT_HOURS, rows = workshopLoadPlans(), notBeforeMinutes = 0) {
