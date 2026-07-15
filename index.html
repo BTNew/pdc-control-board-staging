@@ -23,6 +23,11 @@
           <label><span>Password</span><input id="pdc-login-password" type="password" autocomplete="current-password" required /></label>
           <button class="primary" id="pdc-password-login" type="submit">Sign in</button>
         </form>
+        <form class="pdc-password-form" id="pdc-new-password-form" hidden>
+          <label><span>New password</span><input id="pdc-new-password" type="password" autocomplete="new-password" minlength="12" required /></label>
+          <label><span>Confirm new password</span><input id="pdc-confirm-password" type="password" autocomplete="new-password" minlength="12" required /></label>
+          <button class="primary" id="pdc-save-password" type="submit">Save password</button>
+        </form>
         <button class="primary" id="pdc-microsoft-login" type="button" hidden>Sign in with Microsoft</button>
         <button class="ghost" id="pdc-auth-denied-signout" type="button" hidden>Use another account</button>
       </div>

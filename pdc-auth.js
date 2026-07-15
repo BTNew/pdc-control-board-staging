@@ -7,6 +7,7 @@
     user: null,
     role: null,
     initialized: false,
+    passwordSetupRequired: /(?:^|[?#&])type=(?:invite|recovery)(?:[&#]|$)/.test(`${window.location.search}${window.location.hash}`),
   };
 
   const el = id => document.getElementById(id);
@@ -44,12 +45,14 @@
     const detailNode = el('pdc-auth-detail');
     const loginButton = el('pdc-microsoft-login');
     const passwordForm = el('pdc-password-form');
+    const newPasswordForm = el('pdc-new-password-form');
     const deniedSignOut = el('pdc-auth-denied-signout');
     if (titleNode) titleNode.textContent = title;
     if (detailNode) detailNode.textContent = detail;
     const useMicrosoft = authConfig().mode === 'microsoft';
     if (loginButton) loginButton.hidden = mode !== 'signed-out' || !useMicrosoft;
     if (passwordForm) passwordForm.hidden = mode !== 'signed-out' || useMicrosoft;
+    if (newPasswordForm) newPasswordForm.hidden = mode !== 'password-setup';
     if (deniedSignOut) deniedSignOut.hidden = mode !== 'denied';
     document.body.dataset.authState = mode;
   }
@@ -127,6 +130,11 @@
       return;
     }
 
+    if (state.passwordSetupRequired) {
+      setMessage('Create your PDC password', 'Use at least 12 characters with upper and lower-case letters, a number and a symbol.', 'password-setup');
+      return;
+    }
+
     setMessage('Checking PDC access…', 'Your identity is signed in. Checking the approved staff list.', 'checking');
     const { role, error } = await loadApprovedRole(session);
     if (error || !approvedRole(role, session.user.email)) {
@@ -175,6 +183,30 @@
     await applySession(data.session);
   }
 
+  async function saveNewPassword(event) {
+    event?.preventDefault();
+    const password = String(el('pdc-new-password')?.value || '');
+    const confirmation = String(el('pdc-confirm-password')?.value || '');
+    const strongEnough = password.length >= 12 && /[a-z]/.test(password) && /[A-Z]/.test(password) && /\d/.test(password) && /[^A-Za-z0-9]/.test(password);
+    if (!strongEnough || password !== confirmation) {
+      setMessage('Create your PDC password', password !== confirmation ? 'The two passwords do not match.' : 'Use at least 12 characters with upper and lower-case letters, a number and a symbol.', 'password-setup');
+      return;
+    }
+    const button = el('pdc-save-password');
+    if (button) button.disabled = true;
+    const { data, error } = await state.client.auth.updateUser({ password });
+    if (button) button.disabled = false;
+    if (error || !data?.user) {
+      setMessage('Password could not be saved', error?.message || 'Request another invitation and try again.', 'password-setup');
+      return;
+    }
+    if (el('pdc-new-password')) el('pdc-new-password').value = '';
+    if (el('pdc-confirm-password')) el('pdc-confirm-password').value = '';
+    state.passwordSetupRequired = false;
+    window.history.replaceState({}, document.title, window.location.pathname);
+    await applySession(state.session);
+  }
+
   async function signOut() {
     if (state.client) await state.client.auth.signOut();
     await applySession(null);
@@ -199,6 +231,7 @@
 
     el('pdc-microsoft-login')?.addEventListener('click', signInWithMicrosoft);
     el('pdc-password-form')?.addEventListener('submit', signInWithPassword);
+    el('pdc-new-password-form')?.addEventListener('submit', saveNewPassword);
     el('pdc-auth-signout')?.addEventListener('click', signOut);
     el('pdc-auth-denied-signout')?.addEventListener('click', signOut);
 
@@ -208,7 +241,8 @@
       return;
     }
     await applySession(data.session);
-    state.client.auth.onAuthStateChange((_event, session) => {
+    state.client.auth.onAuthStateChange((event, session) => {
+      if (event === 'PASSWORD_RECOVERY') state.passwordSetupRequired = true;
       window.setTimeout(() => applySession(session), 0);
     });
     state.initialized = true;
