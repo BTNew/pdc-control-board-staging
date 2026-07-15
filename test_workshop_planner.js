@@ -148,9 +148,21 @@ const nextWorkdaySequenceSlot = planner.workshopFirstAvailableStartSlot('TINT', 
   { id: 'TINT::full-day', vehicleKey: 'full-day', stage: 'TINT', bay: 2, startAt: new Date(2026, 5, 17, 8, 0).toISOString(), hours: 8, status: 'planned' },
 ]);
 assert.deepStrictEqual(nextWorkdaySequenceSlot, { dateKey: '2026-06-18', startMinutes: 0 }, 'A full bay day should advance the next vehicle to 8:00am on the following workday');
-assert.ok(source.includes('workshopFirstAvailableStartSlot(stage, bay, dateKey, hours, workshopLoadPlans())'), 'Queue-card lane drops must use the earliest continuous sequence slot rather than the pointer time');
+let horizonDate = new Date(2026, 5, 17, 8, 0, 0, 0);
+const longHorizonRows = [];
+for (let index = 0; index < 25; index += 1) {
+  longHorizonRows.push({ id: `HOIST::full-day-${index}`, vehicleKey: `full-day-${index}`, stage: 'HOIST', bay: 1, startAt: horizonDate.toISOString(), hours: 8, status: 'planned' });
+  horizonDate = planner.workshopNextWorkdayDate(horizonDate);
+}
+assert.deepStrictEqual(
+  planner.workshopFirstAvailableStartSlot('HOIST', 1, '2026-06-17', 3, longHorizonRows),
+  { dateKey: planner.workshopDateKey(horizonDate), startMinutes: 0 },
+  'Automatic scheduling must search beyond one month so vehicles can be planned many months ahead',
+);
+assert.ok(source.includes('workshopFirstAvailableStartSlot(stage, bay, dateKey, hours, workshopLoadPlans(), requestedStartMinutes)'), 'Queue-card lane drops must use the pointer time as the earliest requested sequence time');
 assert.ok(source.includes('dateKey = availableSlot.dateKey;') && source.includes('startMinutes = availableSlot.startMinutes;'), 'Queue-card drops must apply both a future workday and its start time');
 assert.ok(source.includes('workshopFirstAvailableStartSlot(normalizedStage, Number(form.elements.bay.value), safeDate'), 'The direct Schedule form must also suggest a future workday when the selected day is full');
+assert.ok(source.includes('maxWorkdays = 260'), 'Automatic scheduling must keep a roughly one-year workday horizon');
 assert.ok(source.includes("querySelector('[name=\"hours\"]')?.addEventListener('change', suggestAvailableTime)"), 'Changing planned hours in the Schedule form must recalculate the first available start');
 const nextDayRows = [
   { id: 'FITTING::parts-open', vehicleKey: 'parts-open', stage: 'FITTING', bay: 1, startAt: new Date(2026, 6, 16, 8, 0).toISOString(), hours: 3, status: 'planned' },

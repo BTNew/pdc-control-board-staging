@@ -1121,9 +1121,9 @@ function bindWorkshopLane(lane) {
     if (!planId && vehicleKeyValue) {
       const vehicle = workshopVehicle(vehicleKeyValue);
       const hours = vehicle ? (workshopCalculatedStageHours(vehicle, stage) || pmbBayHours(vehicle) || WORKSHOP_DEFAULT_HOURS) : WORKSHOP_DEFAULT_HOURS;
-      const availableSlot = workshopFirstAvailableStartSlot(stage, bay, dateKey, hours, workshopLoadPlans());
+      const availableSlot = workshopFirstAvailableStartSlot(stage, bay, dateKey, hours, workshopLoadPlans(), requestedStartMinutes);
       if (!availableSlot) {
-        window.alert('No open sequence slot was found in this bay during the next 20 workdays. Choose another bay or use Schedule to select a later date.');
+        window.alert('No open sequence slot was found in this bay during the next 260 workdays. Choose another bay or use Schedule to select a later date.');
         return;
       }
       dateKey = availableSlot.dateKey;
@@ -1312,10 +1312,10 @@ function workshopFirstAvailableStartMinutes(stage = '', bay = 1, dateKey = '', h
   return null;
 }
 
-function workshopFirstAvailableStartSlot(stage = '', bay = 1, dateKey = '', hours = WORKSHOP_DEFAULT_HOURS, rows = workshopLoadPlans(), notBeforeMinutes = 0, maxWorkdays = 20) {
+function workshopFirstAvailableStartSlot(stage = '', bay = 1, dateKey = '', hours = WORKSHOP_DEFAULT_HOURS, rows = workshopLoadPlans(), notBeforeMinutes = 0, maxWorkdays = 260) {
   const requestedDate = workshopDateFromKey(dateKey) || new Date();
   let workDate = workshopCoerceWorkDate(requestedDate, 1);
-  for (let dayIndex = 0; dayIndex < Math.max(1, Number(maxWorkdays) || 20); dayIndex += 1) {
+  for (let dayIndex = 0; dayIndex < Math.max(1, Number(maxWorkdays) || 260); dayIndex += 1) {
     const candidateDateKey = workshopDateKey(workDate);
     const firstMinutes = dayIndex === 0 ? notBeforeMinutes : 0;
     const startMinutes = workshopFirstAvailableStartMinutes(stage, bay, candidateDateKey, hours, rows, firstMinutes);
@@ -1389,12 +1389,25 @@ function openWorkshopScheduleModal(vehicleKeyValue = '', stage = '', dateKey = '
       window.alert('Choose a Monday-to-Friday workshop date.');
       return;
     }
+    const requestedStartMinutes = Number(form.elements.startMinutes.value);
+    const availableSlot = workshopFirstAvailableStartSlot(
+      normalizedStage,
+      Number(form.elements.bay.value),
+      workshopDateKey(selected),
+      Number(form.elements.hours.value),
+      workshopLoadPlans(),
+      requestedStartMinutes,
+    );
+    if (!availableSlot) {
+      window.alert('No open sequence slot was found in this bay during the next 260 workdays. Choose another bay or a later date.');
+      return;
+    }
     const scheduled = scheduleWorkshopVehicle({
       vehicleKeyValue,
       stage: normalizedStage,
       bay: Number(form.elements.bay.value),
-      dateKey: workshopDateKey(selected),
-      startMinutes: Number(form.elements.startMinutes.value),
+      dateKey: availableSlot.dateKey,
+      startMinutes: availableSlot.startMinutes,
       hoursValue: Number(form.elements.hours.value),
       assigneeValue: form.elements.assignee.value,
     });
