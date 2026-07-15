@@ -499,6 +499,52 @@ function completedPmbDaysLabel(vehicle = {}) {
   return `${days} day${days === 1 ? '' : 's'}`;
 }
 
+function completedPmbStatisticsFromDays(values = []) {
+  const durations = (Array.isArray(values) ? values : [])
+    .filter(value => Number.isFinite(value) && value >= 0)
+    .sort((a, b) => a - b);
+  const midpoint = Math.floor(durations.length / 2);
+  const median = !durations.length
+    ? null
+    : (durations.length % 2 ? durations[midpoint] : (durations[midpoint - 1] + durations[midpoint]) / 2);
+  return {
+    known: durations.length,
+    average: durations.length ? durations.reduce((total, value) => total + value, 0) / durations.length : null,
+    median,
+    fastest: durations.length ? durations[0] : null,
+    longest: durations.length ? durations[durations.length - 1] : null,
+  };
+}
+
+function completedPmbStatistics(vehicles = []) {
+  const rows = Array.isArray(vehicles) ? vehicles : [];
+  const stats = completedPmbStatisticsFromDays(rows.map(completedPmbDays));
+  return { ...stats, total: rows.length, unknown: Math.max(0, rows.length - stats.known) };
+}
+
+function completedPmbStatisticDaysLabel(value) {
+  if (!Number.isFinite(value)) return '—';
+  const rounded = Math.round(value * 10) / 10;
+  return `${rounded} day${rounded === 1 ? '' : 's'}`;
+}
+
+function renderCompletedPmbStatistics() {
+  const host = $('#completed-pmb-statistics');
+  if (!host) return;
+  const stats = completedPmbStatistics(app.data.filter(vehicleCollectedFromRft));
+  host.innerHTML = `<div class="completed-statistics-heading">
+      <div><span>PMB turnaround statistics</span><strong>Collected vehicle history</strong></div>
+      <small>${stats.known} of ${stats.total} vehicle${stats.total === 1 ? '' : 's'} have usable PMB and RFT dates${stats.unknown ? ` · ${stats.unknown} excluded as unknown` : ''}</small>
+    </div>
+    <div class="completed-statistics-grid">
+      <article class="completed-stat-card is-primary"><span>Average time at PMB</span><strong>${escapeHtml(completedPmbStatisticDaysLabel(stats.average))}</strong><small>Mean across vehicles with known dates</small></article>
+      <article class="completed-stat-card"><span>Median time</span><strong>${escapeHtml(completedPmbStatisticDaysLabel(stats.median))}</strong><small>Middle turnaround time</small></article>
+      <article class="completed-stat-card"><span>Fastest</span><strong>${escapeHtml(completedPmbStatisticDaysLabel(stats.fastest))}</strong><small>Shortest recorded turnaround</small></article>
+      <article class="completed-stat-card"><span>Longest</span><strong>${escapeHtml(completedPmbStatisticDaysLabel(stats.longest))}</strong><small>Longest recorded turnaround</small></article>
+      <article class="completed-stat-card"><span>Collected vehicles</span><strong>${stats.total}</strong><small>${stats.known} included in PMB-time statistics</small></article>
+    </div>`;
+}
+
 function shortDateAu(date) {
   if (!date) return '';
   return date.toLocaleDateString('en-AU', { day: '2-digit', month: '2-digit', year: 'numeric' });
@@ -9930,6 +9976,7 @@ function completedVehicleRows() {
 function renderCompletedVehicles() {
   const host = $('#completed-vehicles-content');
   if (!host) return;
+  renderCompletedPmbStatistics();
   const rows = completedVehicleRows();
   if (!rows.length) {
     host.innerHTML = '<div class="empty-state"><strong>No completed vehicles yet</strong><span>Tick Collected on the RFT screen after a vehicle has been picked up.</span></div>';

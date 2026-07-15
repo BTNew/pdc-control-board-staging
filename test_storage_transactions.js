@@ -47,6 +47,13 @@ code += String.raw`
   assert(operationRan === true && localStorage.getItem('tx-a') === 'fallback-saved', 'A full localStorage journal should fall back to sessionStorage');
   assert(sessionStorage.getItem(STORAGE_TRANSACTION_JOURNAL_KEY) === null, 'A successful fallback transaction must clear its session journal');
 
+  const completedStats = completedPmbStatisticsFromDays([0, 10, 20, null, undefined]);
+  assert(completedStats.known === 3, 'Completed PMB statistics should exclude unknown durations');
+  assert(completedStats.average === 10, 'Completed PMB statistics should calculate the mean duration');
+  assert(completedStats.median === 10, 'Completed PMB statistics should calculate the median duration');
+  assert(completedStats.fastest === 0 && completedStats.longest === 20, 'Completed PMB statistics should retain the fastest and longest durations');
+  assert(completedPmbStatisticsFromDays([2, 6]).median === 4, 'Completed PMB statistics should average the two middle values for an even sample');
+
   operationRan = false;
   localStorage.failNextSetFor(STORAGE_TRANSACTION_JOURNAL_KEY);
   sessionStorage.failNextSetFor(STORAGE_TRANSACTION_JOURNAL_KEY);
