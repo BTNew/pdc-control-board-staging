@@ -49,6 +49,22 @@ code += String.raw`
   assert(issuedPartsCell.includes('checked'), 'Received/issued Parts tick should remain checked');
   assert(!pdcJobTableCell(basePartsVehicle, PDC_JOB_BY_KEY.get('build')).includes('parts-visual-'), 'Parts visual classes must not leak onto other job ticks');
 
+  const fittingBayVehicle = {
+    ...basePartsVehicle,
+    pdcLocation: 'PMB',
+    pmbStage: 'FITTING',
+    pmbBayStage: 'FITTING',
+    pmbBayNumber: 3,
+    pmbBayEnteredAt: '2026-07-15T01:30:00.000Z',
+    pdcPartsOrderedAt: '2026-07-15T02:30:00.000Z',
+  };
+  assert(partsCurrentLocationLabel(fittingBayVehicle) === 'Fitting · Bay 03', 'Parts must show the current PMB station and numbered bay');
+  assert(partsCurrentLocationLabel({ ...basePartsVehicle, pdcLocation: 'PMB', pmbStage: '' }) === 'PMB · Unallocated', 'Parts must identify PMB vehicles that are not allocated to a station');
+  assert(partsCurrentLocationLabel({ ...basePartsVehicle, pdcLocation: 'YH' }) === 'Yard Hold', 'Parts must show Yard Hold as the current location');
+  const expectedLocationUpdate = new Date('2026-07-15T01:30:00.000Z').toLocaleString('en-AU', { dateStyle: 'short', timeStyle: 'short' });
+  assert(partsCurrentLocationUpdateLabel(fittingBayVehicle) === expectedLocationUpdate, 'Stage / update must use the station/location movement timestamp');
+  assert(partsCurrentLocationUpdateLabel(fittingBayVehicle) !== partsLastUpdateLabel(fittingBayVehicle), 'A later Parts action must not replace the location movement timestamp');
+
   const stalePmbVehicle = { ...basePartsVehicle, pdcLocation: 'PMB', pmbStage: 'SUBLET', pmbStageEnteredAt: '2000-01-01T00:00:00.000Z', pdcRequiresSublet: true, pdcBlockReason: 'Waiting on contractor' };
   const visibility = operationalVisibilityMetrics([basePartsVehicle, stalePmbVehicle]);
   assert(visibility.openThirdParty === 1, 'Operational visibility should count open third-party work');
@@ -71,6 +87,9 @@ code += String.raw`
   assert(!partsSummaryHtml.includes('Issued'), 'Parts page summary must not show an Issued shortcut/card');
   assert(!/<th>Sales<\/th>/.test(partsHtml), 'Parts page must not render a Sales column');
   assert(!partsHtml.includes('Sales Person'), 'Parts page must not render salesperson names');
+  app.data = [fittingBayVehicle];
+  renderPartsHome();
+  assert(elementFor('#parts-home-content').innerHTML.includes('Fitting · Bay 03'), 'The Parts Stage / Update cell must render the current station and bay');
 
   const etaVehicle = { ...basePartsVehicle, pdcPartsWorstEta: '2099-01-01' };
   assert(partsWorstEtaCountdownLabel(etaVehicle).includes('to Parts ETA'), 'Parts worst ETA should show a countdown label');

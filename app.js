@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.07.15.09-workshop-scheduling-logo';
+const APP_VERSION = '2026.07.15.10-parts-current-location';
 window.VEHICLE_TRACKING_DATA = window.VEHICLE_TRACKING_DATA || { report: {}, vehicles: [], toyotaMatches: {} };
 const EDITS_KEY = 'vehicleTrackingCoreNavisionOnlyEdits:v1';
 const ADDED_KEY = 'vehicleTrackingCoreNavisionOnlyVehicles:v1';
@@ -9180,6 +9180,56 @@ function partsLastUpdateLabel(vehicle = {}) {
   return candidates[0].toLocaleString('en-AU', { dateStyle: 'short', timeStyle: 'short' });
 }
 
+function partsCurrentLocationLabel(vehicle = {}) {
+  if (vehicleCollectedFromRft(vehicle)) return 'Completed';
+  const category = statusCategory(vehicle);
+  const location = vehiclePdcLocation(vehicle);
+  if (location === 'PMB' || category === 'pmb') {
+    const stage = normalizePmbStage(vehicle.pmbBayStage || inferredPmbStage(vehicle));
+    if (!stage) return 'PMB · Unallocated';
+    if (stage === 'SUBLET') {
+      const provider = pmbBaySubletProvider(vehicle);
+      return provider ? `Sublet · ${provider}` : 'Sublet';
+    }
+    const bay = pmbBayNumber(vehicle, stage);
+    return `${pmbStageLabel(stage)} · ${bay ? `Bay ${String(bay).padStart(2, '0')}` : 'No bay'}`;
+  }
+  if (location === 'YH') return 'Yard Hold';
+  if (location === 'RFT') return 'RFT';
+  if (location) return pdcLocationLabel(location);
+  return {
+    yardhold: 'Yard Hold',
+    rft: 'RFT',
+    transit: 'In Transit',
+    overseas: 'Overseas / Other',
+    completed: 'Completed',
+  }[category] || statusCategoryLabel(vehicle) || 'Current location unknown';
+}
+
+function partsCurrentLocationUpdateLabel(vehicle = {}) {
+  const category = statusCategory(vehicle);
+  const location = vehiclePdcLocation(vehicle);
+  let values = [];
+  if (vehicleCollectedFromRft(vehicle)) {
+    values = [vehicle.rftCollectedAt, vehicle.rftTransferredAt, vehicle.pdcLocationUpdatedAt];
+  } else if (location === 'PMB' || category === 'pmb') {
+    values = [
+      vehicle.pmbBayEnteredAt,
+      vehicle.pmbStageUpdatedAt,
+      vehicle.pmbStageEnteredAt,
+      vehicle.pmbEnteredAt,
+      vehicle.pmbTransferredAt,
+      vehicle.pdcLocationUpdatedAt,
+    ];
+  } else if (location === 'RFT' || category === 'rft') {
+    values = [vehicle.rftTransferredAt, vehicle.pdcLocationUpdatedAt];
+  } else {
+    values = [vehicle.pdcLocationUpdatedAt];
+  }
+  const latest = values.map(parseIsoTimestamp).filter(Boolean).sort((a, b) => b - a)[0];
+  return latest ? latest.toLocaleString('en-AU', { dateStyle: 'short', timeStyle: 'short' }) : '';
+}
+
 function partsDepartmentRows() {
   const q = ($('#parts-search')?.value || '').trim().toLowerCase();
   const selectedFilter = $('#parts-status-filter')?.value || 'open';
@@ -9205,7 +9255,7 @@ function partsDepartmentRows() {
       const hay = [
         displayStockNumber(vehicle), vehicle.order, vehicle.client, vehicle.toyotaCustomer, displayVehicle(vehicle),
         pdcLocationLabel(vehiclePdcLocation(vehicle)),
-        statusCategoryLabel(vehicle), partsDepartmentStatusLabel(status), partsStoppageReason(vehicle), productionLabel,
+        partsCurrentLocationLabel(vehicle), statusCategoryLabel(vehicle), partsDepartmentStatusLabel(status), partsStoppageReason(vehicle), productionLabel,
         kewdaleEtaValue(vehicle), partsEtaCounterLabel(vehicle), partsWorstEtaLabel(vehicle), partsWorstEtaValue(vehicle),
         vehicleDepartmentLabel(vehicle), partsEtaRisk(vehicle) ? 'parts risk' : ''
       ].join(' ').toLowerCase();
@@ -9289,8 +9339,7 @@ function partsQueueRowHtml(vehicle = {}) {
   const complete = ['issued', 'notrequired'].includes(status);
   const eta = kewdaleEtaValue(vehicle);
   const ageClass = partsEtaCounterClass(vehicle);
-  const stage = statusCategoryLabel(vehicle);
-  const pmbStage = inferredPmbStage(vehicle) ? ` · ${pmbStageLabel(inferredPmbStage(vehicle))}` : '';
+  const currentLocation = partsCurrentLocationLabel(vehicle);
   const worstEtaInput = partsWorstEtaInputValue(vehicle);
   const worstEtaLabel = partsWorstEtaLabel(vehicle);
   const worstEtaCountdown = partsWorstEtaCountdownLabel(vehicle);
@@ -9312,7 +9361,7 @@ function partsQueueRowHtml(vehicle = {}) {
     <td><div class="parts-eta"><strong>${escapeHtml(eta || 'No ETA')}</strong><span class="pmb-age ${escapeHtml('pmb-age-' + ageClass)}">${escapeHtml(partsEtaCounterLabel(vehicle))}</span></div></td>
     <td><div class="parts-worst-eta-wrap"><label class="parts-worst-eta"><span class="sr-only">Parts worst ETA</span><input type="date" data-parts-worst-eta="${escapeHtml(key)}" value="${escapeHtml(worstEtaInput)}" ${complete ? 'disabled' : ''} /></label><span class="parts-worst-eta-details">${worstEtaLabel ? `<span class="parts-worst-eta-label">${escapeHtml(worstEtaLabel)}</span>${worstEtaCountdown ? `<span class="parts-worst-eta-countdown ${escapeHtml(worstEtaCountdownClass)}">${escapeHtml(worstEtaCountdown)}</span>` : ''}` : '<span class="subtle parts-worst-eta-label">Set worst ETA</span>'}</span>${worstEtaLabel ? `<button class="small-button parts-email-sales-button" type="button" data-parts-eta-email="${escapeHtml(key)}" ${complete ? 'disabled' : ''}>Email sales</button>` : ''}</div></td>
     <td class="parts-queue-blocker">${blocker ? `<strong title="${escapeHtml(blocker)}">${escapeHtml(blocker)}</strong>` : '<span class="subtle">No blocker recorded</span>'}</td>
-    <td><div class="parts-queue-stage"><strong>${escapeHtml(stage + pmbStage)}</strong><span>${escapeHtml(partsLastUpdateLabel(vehicle) || 'No update recorded')}</span></div></td>
+    <td><div class="parts-queue-stage"><strong>${escapeHtml(currentLocation)}</strong><span>${escapeHtml(partsCurrentLocationUpdateLabel(vehicle) || 'No location update recorded')}</span></div></td>
     <td>${partsQueueActionsHtml(vehicle, status)}</td>
   </tr>`;
 }
