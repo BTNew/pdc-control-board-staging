@@ -6,10 +6,12 @@ Use this as the canonical maintenance workflow for the PDC Control Board project
 - Local repo: `C:\Users\nwmgr\pdc-control-board`
 - GitHub repo: `https://github.com/BTNew/pdc-control-board` — **private as of 15 July 2026**.
 - Former Pages URL: `https://btnew.github.io/pdc-control-board/` — disabled and returning 404.
-- The operational website remains offline until authenticated shared hosting is ready.
+- Authenticated login URL: `https://btnew.github.io/pdc-control-board-login/`.
+- The login host is a separate clean deployment repository (`BTNew/pdc-control-board-login`) containing only the sanitised zero-vehicle browser bundle and browser publishable key. The operational source repository remains private and GitHub Pages remains disabled there.
 - The production shell starts locked behind `pdc-auth.js`. The temporary mode is individual Supabase email/password plus an active `pdc_user_roles` allowlist row; both authentication and authorization are required before the application unlocks.
 - Public/anonymous account creation is disabled. Passwords require at least 12 characters with lower/upper-case letters, a digit and a symbol; TOTP enrolment remains enabled. Staff accounts must be created or invited administratively.
 - Microsoft/Azure remains the planned identity provider but is not yet enabled. Completion requires a Microsoft Entra app registration and provider configuration.
+- Rebuild the deployment bundle with `python backend/build_login_static.py`, run the sanitisation/auth tests, then commit and push from ignored folder `backend/.generated/pdc-control-board-login`.
 - Branch: `main`
 
 ## Required workflow: inspect → modify → test → browser-check → commit → push → approved-environment verify
@@ -29,7 +31,7 @@ Use this as the canonical maintenance workflow for the PDC Control Board project
 10. Report changed files, tests, live status and any remaining risks.
 
 ## Files with matching version numbers
-Current version identifier: `2026.07.15.05-password-auth`
+Current version identifier: `2026.07.15.06-online-login`
 
 When bumping version, update all references in:
 - `app.js` (`APP_VERSION`)
