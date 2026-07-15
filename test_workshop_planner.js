@@ -171,6 +171,8 @@ assert.deepStrictEqual(
 );
 assert.ok(source.includes("scheduleWorkshopVehicle({ planId, vehicleKeyValue, stage, bay, dateKey, startMinutes, preferRequestedTime: true });"), 'Queue-card lane drops must keep the requested drop time and ask to push later planned work when needed');
 assert.ok(source.includes("moveWorkshopDroppedPlan(planId, stage, bay, dateKey, startMinutes, { preferRequestedTime: true })"), 'Dragged planned bookings must keep the requested drop time and route through queue shifting');
+assert.ok(source.includes("const previewMinutes = Number(lane.dataset.workshopRequestedStartMinutes);"), 'Daily lane drops must reuse the live preview time so drop coordinates stay exact');
+assert.ok(source.includes("lane.dataset.workshopRequestedStartMinutes = String(safeMinutes);"), 'Lane previews must persist the last hovered planner time for reliable dropping');
 assert.ok(source.includes('function workshopUpdateLanePreview('), 'Daily and weekly planner lanes should expose a live drag preview helper');
 assert.ok(source.includes('workshopDropPreviewHtml({ vertical: true })'), 'Weekly planner lanes should render a vertical ghost preview for drag insertion');
 assert.ok(source.includes('workshopFirstAvailableStartSlot(normalizedStage, Number(form.elements.bay.value), safeDate'), 'The direct Schedule form must also suggest a future workday when the selected day is full');
@@ -253,7 +255,8 @@ assert.ok(source.includes('function startWorkshopPlan('), 'Physical bay start ac
 assert.ok(source.includes('async function moveWorkshopLivePlan('), 'Live workshop jobs need a dedicated safe move path');
 assert.ok(source.includes('function moveWorkshopDroppedPlan('), 'Daily drop handling must route planned and live jobs through the correct move path');
 assert.ok(source.includes('preferRequestedTime = false'), 'Planner scheduling should distinguish drop-to-time insertion from next-open-slot scheduling');
-assert.ok(source.includes('The red current-time line appears on Today during workshop hours.'), 'Planner guidance should explain when the red current-time line is visible');
+assert.ok(source.includes('On Today, the red current-time line stays visible and clamps to the workshop edge outside work hours.'), 'Planner guidance should explain the current-time line visibility and edge clamping');
+assert.ok(source.includes('const clampedOffset = Math.min(Math.max(offset, 0), WORKSHOP_DAY_MINUTES);'), 'The current-time line should clamp to the planner edge before and after workshop hours');
 assert.ok(source.includes('function completeWorkshopPlan('), 'Workshop completion action is missing');
 assert.ok(source.includes('function stopWorkshopPlan('), 'Workshop stoppage action is missing');
 assert.ok(source.includes('function openWorkshopVehicleJob('), 'Double-click vehicle job editor is missing');
@@ -294,6 +297,7 @@ assert.ok(source.includes('function workshopSlotSummary('), 'Suggested-slot summ
 assert.ok(source.includes('This job is already in the earliest open bay/time for its current stage.'), 'Quick best-bay action must explain when no better move exists');
 assert.ok(source.includes('name="hours" type="number" min="0.25"'), 'Reviewed sub-three-hour bookings must remain valid and extendable');
 assert.ok(source.includes('Back-to-back bookings are allowed; overlapping times are blocked.'), 'The scheduling modal must explain later same-bay booking behavior');
+assert.ok(css.includes('display: block;') && css.includes('overflow: visible;') && css.includes('z-index: 6;'), 'The workshop time axis should stay visibly layered above the planner header');
 assert.ok(source.includes('function workshopConfirmOtherDepartmentPlans('), 'Cross-department planning warning is missing');
 assert.ok(source.includes('This vehicle is also planned by another department:'), 'Cross-department warning must identify the other plan');
 assert.ok(app.includes('function vehicleReadyForQualityControl('), 'The final QC eligibility gate is missing');
@@ -350,7 +354,7 @@ for (const file of htmlFiles) {
   const html = fs.readFileSync(path.join(root, file), 'utf8');
   assert.ok(html.includes('data-view="workshop"'), `${file} is missing the Workshop Planner navigation item`);
   assert.ok(html.includes('id="workshop-planner-root"'), `${file} is missing the Workshop Planner host`);
-  assert.ok(html.includes('workshop-planner.css?v=2026.07.16.23-workshop-drop-preview'), `${file} is missing the planner stylesheet`);
+  assert.ok(html.includes('workshop-planner.css?v=2026.07.16.24-workshop-drop-fix'), `${file} is missing the planner stylesheet`);
   assert.ok(!html.includes('<script src="workshop-planner.js'), `${file} must not eagerly load the planner script`);
 }
 assert.ok(app.includes("loadExternalScript(`workshop-planner.js?v=${encodeURIComponent(APP_VERSION)}`"), 'app.js must lazy-load the Workshop Planner with the active release version');

@@ -476,13 +476,17 @@ body[data-current-view="workshop"] .content {
 
 .workshop-time-axis {
   position: relative;
+  display: block;
   min-height: 48px;
+  overflow: visible;
+  z-index: 6;
   background: repeating-linear-gradient(to right, rgba(148,163,184,.35) 0 1px, transparent 1px 6.25%);
 }
 
 .workshop-time-axis span {
   position: absolute;
   top: 7px;
+  z-index: 7;
   transform: translateX(-50%);
   color: #475569;
   font-size: .58rem;

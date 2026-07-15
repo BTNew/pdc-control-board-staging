@@ -1001,6 +1001,7 @@ function workshopClearLanePreviews(scope = document) {
     preview.style.removeProperty('--drop-preview-height');
     preview.querySelector('.workshop-drop-preview-pill')?.removeAttribute('data-preview-label');
   });
+  scope.querySelectorAll('.workshop-bay-lane, .workshop-week-day-lane').forEach(lane => delete lane.dataset.workshopRequestedStartMinutes);
 }
 
 function workshopPreviewLabel(minutes = 0, hours = 0) {
@@ -1015,6 +1016,7 @@ function workshopUpdateLanePreview(lane, startMinutes = 0) {
   const dragPreview = workshopCurrentDragPreview();
   const hours = Math.max(0.25, Number(dragPreview?.hours || WORKSHOP_DEFAULT_HOURS));
   const safeMinutes = workshopClampStartMinutes(startMinutes);
+  lane.dataset.workshopRequestedStartMinutes = String(safeMinutes);
   const label = workshopPreviewLabel(safeMinutes, hours);
   preview.hidden = false;
   if (preview.classList.contains('is-vertical')) {
@@ -1164,7 +1166,7 @@ function renderWorkshopPlanner() {
         <div class="workshop-side-list">${completed.map(workshopCompletedCardHtml).join('') || '<div class="workshop-empty">Nothing completed on this board date.</div>'}</div>
       </aside>
     </div>
-    <footer class="workshop-board-note"><strong>How to use:</strong> drag a waiting vehicle or planned booking onto the exact bay/time you want. If that spot overlaps only queued planned work, the planner keeps your dropped booking there and offers to push the later queue back-to-back behind it. Use Best slot for the fastest bay suggestion, or use Schedule for a specific date and time. If a day is full, automatic sequencing continues on the next workday. Live overlap stays blocked, while live jobs can still be moved safely with the bay quick controls or drag/drop. The red current-time line appears on Today during workshop hours. Double-click any vehicle to open its job.</footer>
+    <div class="workshop-board-note">How to use: drag a waiting vehicle or planned booking onto the exact bay/time you want. If that spot overlaps only queued planned work, the planner keeps your dropped booking there and offers to push the later queue back-to-back behind it. Use Best slot for the fastest bay suggestion, or use Schedule for a specific date and time. If a day is full, automatic sequencing continues on the next workday. Live overlap stays blocked, while live jobs can still be moved safely with the bay quick controls or drag/drop. On Today, the red current-time line stays visible and clamps to the workshop edge outside work hours. Double-click any vehicle to open its job.</div>
   </div>`;
   bindWorkshopPlanner(root);
   updateWorkshopNowLine(root);
@@ -1336,9 +1338,12 @@ function bindWorkshopLane(lane) {
   lane.addEventListener('drop', event => {
     event.preventDefault();
     lane.classList.remove('drag-over');
+    const previewMinutes = Number(lane.dataset.workshopRequestedStartMinutes);
     workshopClearLanePreviews(lane);
     const rect = lane.getBoundingClientRect();
-    const requestedStartMinutes = workshopClampStartMinutes(((event.clientX - rect.left) / Math.max(1, rect.width)) * WORKSHOP_DAY_MINUTES);
+    const requestedStartMinutes = Number.isFinite(previewMinutes)
+      ? previewMinutes
+      : workshopClampStartMinutes(((event.clientX - rect.left) / Math.max(1, rect.width)) * WORKSHOP_DAY_MINUTES);
     const planId = event.dataTransfer.getData('application/x-workshop-plan-id');
     const vehicleKeyValue = event.dataTransfer.getData('application/x-workshop-vehicle-key') || event.dataTransfer.getData('text/plain');
     const stage = lane.dataset.workshopDropStage;
@@ -2557,12 +2562,13 @@ function updateWorkshopNowLine(root = document) {
   const state = workshopState();
   const now = new Date();
   const offset = workshopMinuteOffset(now);
-  const visible = workshopDateKey(now) === state.date && workshopIsWorkday(now) && offset >= 0 && offset <= WORKSHOP_DAY_MINUTES;
+  const visible = workshopDateKey(now) === state.date && workshopIsWorkday(now);
   line.hidden = !visible;
   if (!visible) return;
   const timelineRect = timeline.getBoundingClientRect();
   const axisRect = axis.getBoundingClientRect();
-  const left = axisRect.left - timelineRect.left + (offset / WORKSHOP_DAY_MINUTES) * axisRect.width;
+  const clampedOffset = Math.min(Math.max(offset, 0), WORKSHOP_DAY_MINUTES);
+  const left = axisRect.left - timelineRect.left + (clampedOffset / WORKSHOP_DAY_MINUTES) * axisRect.width;
   line.style.left = `${Math.round(left)}px`;
   line.querySelector('span').textContent = `Now ${now.toLocaleTimeString('en-AU', { hour: 'numeric', minute: '2-digit' })}`;
 }
