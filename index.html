@@ -6,17 +6,17 @@
   <meta name="robots" content="noindex, nofollow, noarchive">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'none'; connect-src 'self' https://vjdtsswhroyguxyfjdkt.supabase.co wss://vjdtsswhroyguxyfjdkt.supabase.co; font-src 'self'; form-action 'self'; img-src 'self' data:; object-src 'none'; script-src 'self'; style-src 'self'; worker-src 'self' blob:">
   <meta name="description" content="PDC vehicle locations, workshop workflow, Parts and scheduling control board." />
-  <title>Vehicle Tracking Core</title>
+  <title>PMB PDC Control Board</title>
   <link rel="icon" href="favicon.svg" type="image/svg+xml" />
-  <link rel="stylesheet" href="styles.css?v=2026.07.15.08-parts-warning-policy" />
-  <link rel="stylesheet" href="desktop-operations.css?v=2026.07.15.08-parts-warning-policy" />
-  <link rel="stylesheet" href="workshop-planner.css?v=2026.07.15.08-parts-warning-policy" />
+  <link rel="stylesheet" href="styles.css?v=2026.07.15.09-workshop-scheduling-logo" />
+  <link rel="stylesheet" href="desktop-operations.css?v=2026.07.15.09-workshop-scheduling-logo" />
+  <link rel="stylesheet" href="workshop-planner.css?v=2026.07.15.09-workshop-scheduling-logo" />
 </head>
 <body class="auth-pending" data-auth-state="checking">
   <main class="pdc-auth-gate" id="pdc-auth-gate" aria-labelledby="pdc-auth-title">
     <section class="pdc-auth-card">
-      <div class="pdc-auth-brand" aria-hidden="true">PDC</div>
-      <p class="eyebrow">Vehicle Tracking Core</p>
+      <img class="pdc-auth-brand" src="assets/pmb-logo.png" alt="Perth Motor Bodies" />
+      <p class="eyebrow">PDC Control Board</p>
       <h1 id="pdc-auth-title">Checking secure sign-in…</h1>
       <p id="pdc-auth-detail">Checking for an existing approved staff session.</p>
       <div class="pdc-auth-actions">
@@ -41,11 +41,11 @@
   <div class="app-shell" id="app-shell" inert aria-hidden="true">
     <aside class="sidebar" aria-label="Application navigation">
       <div class="brand">
-        <div class="brand-logo-wrap" aria-hidden="true"><img class="brand-logo" src="assets/brand-logo.svg" alt="" onerror="this.hidden=true; this.nextElementSibling.hidden=false" /><span class="brand-logo-fallback" hidden>VT</span></div>
+        <div class="brand-logo-wrap" aria-hidden="true"><img class="brand-logo" src="assets/pmb-logo.png" alt="" onerror="this.hidden=true; this.nextElementSibling.hidden=false" /><span class="brand-logo-fallback" hidden>VT</span></div>
         <div class="brand-text">
-          <div class="brand-title">Vehicle Tracking</div>
-          <div class="brand-subtitle">Core Tracker</div>
-          <div class="app-version" id="app-version">Version 2026.07.15.08-parts-warning-policy</div>
+          <div class="brand-title">Perth Motor Bodies</div>
+          <div class="brand-subtitle">PDC Control Board</div>
+          <div class="app-version" id="app-version">Version 2026.07.15.09-workshop-scheduling-logo</div>
         </div>
         <button class="sidebar-toggle" id="sidebar-toggle" type="button" aria-label="Collapse sidebar" title="Collapse sidebar">‹</button>
       </div>
@@ -80,7 +80,7 @@
     <main class="main">
       <header class="topbar">
         <div>
-          <div class="eyebrow">Vehicle Tracking Core</div>
+          <div class="eyebrow">PDC Control Board</div>
           <h1 id="page-title">Vehicle Locations</h1>
         </div>
         <div class="topbar-actions">
@@ -891,10 +891,10 @@
 
   <script src="vendor/supabase/supabase-2.110.5.js"></script>
   <script src="pdc-supabase-config.js"></script>
-  <script src="pdc-auth.js?v=2026.07.15.08-parts-warning-policy"></script>
-  <script src="data.js?v=2026.07.15.08-parts-warning-policy"></script>
-  <script src="email-board-data.js?v=2026.07.15.08-parts-warning-policy"></script>
-  <script src="arb-labor-catalog.js?v=2026.07.15.08-parts-warning-policy"></script>
-  <script src="app.js?v=2026.07.15.08-parts-warning-policy"></script>
+  <script src="pdc-auth.js?v=2026.07.15.09-workshop-scheduling-logo"></script>
+  <script src="data.js?v=2026.07.15.09-workshop-scheduling-logo"></script>
+  <script src="email-board-data.js?v=2026.07.15.09-workshop-scheduling-logo"></script>
+  <script src="arb-labor-catalog.js?v=2026.07.15.09-workshop-scheduling-logo"></script>
+  <script src="app.js?v=2026.07.15.09-workshop-scheduling-logo"></script>
 </body>
 </html>

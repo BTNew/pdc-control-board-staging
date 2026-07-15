@@ -12,7 +12,7 @@ FILES = (
     "desktop-operations.css",
     "workshop-planner.css",
     "random-100-vehicles.csv",
-    "assets/brand-logo.svg",
+    "assets/pmb-logo.png",
     "vendor/supabase/supabase-2.110.5.js",
     "vendor/qz/qz-tray.js",
     "vendor/pdfjs/pdf.min.js",

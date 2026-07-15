@@ -2576,9 +2576,9 @@ body.vehicle-table-header-pinned #vehicle-table thead {
 
 /* Brand logo and Navision plain-text import */
 .brand-logo-wrap {
-  width: 70px;
-  min-width: 70px;
-  height: 54px;
+  width: 100px;
+  min-width: 100px;
+  height: 58px;
   border-radius: 14px;
   background: #fff;
   display: grid;
@@ -2591,7 +2591,7 @@ body.vehicle-table-header-pinned #vehicle-table thead {
   width: 100%;
   height: 100%;
   object-fit: contain;
-  padding: 5px;
+  padding: 2px;
   display: block;
 }
 .app-shell.sidebar-collapsed .brand-logo-wrap {
@@ -2656,7 +2656,7 @@ body.vehicle-table-header-pinned #vehicle-table thead {
   .navision-summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (max-width: 620px) {
-  .brand-logo-wrap { width: 58px; min-width: 58px; height: 48px; }
+  .brand-logo-wrap { width: 82px; min-width: 82px; height: 48px; }
   .navision-summary-grid { grid-template-columns: 1fr; }
 }
 
@@ -11351,17 +11351,12 @@ html[data-row-width="xl"] {
   text-align: center;
 }
 .pdc-auth-brand {
-  width: 64px;
-  height: 64px;
-  display: grid;
-  place-items: center;
+  width: min(260px, 82%);
+  height: auto;
+  max-height: 112px;
+  display: block;
+  object-fit: contain;
   justify-self: center;
-  border-radius: 16px;
-  background: #c81e2b;
-  color: #fff;
-  font-size: 20px;
-  font-weight: 800;
-  letter-spacing: .08em;
 }
 .pdc-auth-card .eyebrow { margin: 2px 0 -6px; }
 .pdc-auth-card h1 { margin: 0; color: #172033; font-size: clamp(1.55rem, 4vw, 2rem); }
