@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.07.16.21-workshop-hide-sublet';
+const APP_VERSION = '2026.07.16.22-workshop-drop-time';
 window.VEHICLE_TRACKING_DATA = window.VEHICLE_TRACKING_DATA || { report: {}, vehicles: [], toyotaMatches: {} };
 const EDITS_KEY = 'vehicleTrackingCoreNavisionOnlyEdits:v1';
 const ADDED_KEY = 'vehicleTrackingCoreNavisionOnlyVehicles:v1';

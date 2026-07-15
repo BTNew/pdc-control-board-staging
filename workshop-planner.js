@@ -1114,7 +1114,7 @@ function renderWorkshopPlanner() {
         <div class="workshop-side-list">${completed.map(workshopCompletedCardHtml).join('') || '<div class="workshop-empty">Nothing completed on this board date.</div>'}</div>
       </aside>
     </div>
-    <footer class="workshop-board-note"><strong>How to use:</strong> drag a waiting vehicle onto a bay to add it at the earliest open sequence time, use Best slot for the fastest bay suggestion, or use Schedule for a specific date and time. If the day is full, automatic sequencing continues on the next workday. Dropping or saving a booking onto a taken time offers the next open slot in that bay. Starting or extending a job over queued planned work offers to push that queue later, while live jobs can be moved safely with the bay quick controls or drag/drop. Double-click any vehicle to open its job.</footer>
+    <footer class="workshop-board-note"><strong>How to use:</strong> drag a waiting vehicle or planned booking onto the exact bay/time you want. If that spot overlaps only queued planned work, the planner keeps your dropped booking there and offers to push the later queue back-to-back behind it. Use Best slot for the fastest bay suggestion, or use Schedule for a specific date and time. If a day is full, automatic sequencing continues on the next workday. Live overlap stays blocked, while live jobs can still be moved safely with the bay quick controls or drag/drop. The red current-time line appears on Today during workshop hours. Double-click any vehicle to open its job.</footer>
   </div>`;
   bindWorkshopPlanner(root);
   updateWorkshopNowLine(root);
@@ -1271,24 +1271,13 @@ function bindWorkshopLane(lane) {
     const vehicleKeyValue = event.dataTransfer.getData('application/x-workshop-vehicle-key') || event.dataTransfer.getData('text/plain');
     const stage = lane.dataset.workshopDropStage;
     const bay = Number(lane.dataset.workshopDropBay);
-    let dateKey = workshopState().date;
-    let startMinutes = requestedStartMinutes;
-    if (!planId && vehicleKeyValue) {
-      const vehicle = workshopVehicle(vehicleKeyValue);
-      const hours = vehicle ? (workshopCalculatedStageHours(vehicle, stage) || pmbBayHours(vehicle) || WORKSHOP_DEFAULT_HOURS) : WORKSHOP_DEFAULT_HOURS;
-      const availableSlot = workshopFirstAvailableStartSlot(stage, bay, dateKey, hours, workshopLoadPlans(), requestedStartMinutes);
-      if (!availableSlot) {
-        window.alert('No open sequence slot was found in this bay during the next 260 workdays. Choose another bay or use Schedule to select a later date.');
-        return;
-      }
-      dateKey = availableSlot.dateKey;
-      startMinutes = availableSlot.startMinutes;
-    }
+    const dateKey = workshopState().date;
+    const startMinutes = requestedStartMinutes;
     if (planId) {
-      void moveWorkshopDroppedPlan(planId, stage, bay, dateKey, startMinutes);
+      void moveWorkshopDroppedPlan(planId, stage, bay, dateKey, startMinutes, { preferRequestedTime: true });
       return;
     }
-    scheduleWorkshopVehicle({ planId, vehicleKeyValue, stage, bay, dateKey, startMinutes });
+    scheduleWorkshopVehicle({ planId, vehicleKeyValue, stage, bay, dateKey, startMinutes, preferRequestedTime: true });
   });
 }
 
@@ -1567,14 +1556,14 @@ async function moveWorkshopLivePlan(planId = '', stage = '', bay = 0, dateKey = 
   renderWorkshopPlanner();
   return true;
 }
-
-function moveWorkshopDroppedPlan(planId = '', stage = '', bay = 0, dateKey = '', startMinutes = 0) {
+function moveWorkshopDroppedPlan(planId = '', stage = '', bay = 0, dateKey = '', startMinutes = 0, { preferRequestedTime = false } = {}) {
   const entry = workshopLoadPlans().find(row => row.id === planId);
-  if (!entry || entry.status === 'completed') {
-    if (entry?.status === 'completed') window.alert('Completed work stays in planner history. It cannot be moved.');
+  if (!entry) return Promise.resolve(false);
+  if (entry.status === 'completed') {
+    window.alert('Completed workshop jobs stay fixed in history.');
     return Promise.resolve(false);
   }
-  if (entry.status === 'planned') return Promise.resolve(scheduleWorkshopVehicle({ planId, stage, bay, dateKey, startMinutes }));
+  if (entry.status === 'planned') return Promise.resolve(scheduleWorkshopVehicle({ planId, stage, bay, dateKey, startMinutes, preferRequestedTime }));
   return moveWorkshopLivePlan(planId, stage, bay, dateKey, startMinutes);
 }
 
@@ -1733,7 +1722,7 @@ function workshopConfirmOtherDepartmentPlans(candidate = {}, rows = []) {
   return window.confirm(`This vehicle is also planned by another department:\n\n${details}\n\nContinue with the ${pmbStageLabel(candidate.stage)} booking?`);
 }
 
-function scheduleWorkshopVehicle({ planId = '', vehicleKeyValue = '', stage = '', bay = 0, dateKey = '', startMinutes = 0, hoursValue = null, assigneeValue = null } = {}) {
+function scheduleWorkshopVehicle({ planId = '', vehicleKeyValue = '', stage = '', bay = 0, dateKey = '', startMinutes = 0, hoursValue = null, assigneeValue = null, preferRequestedTime = false } = {}) {
   const rows = workshopLoadPlans();
   const existing = rows.find(entry => entry.id === planId) || rows.find(entry => entry.id === workshopPlanId(vehicleKeyValue, stage));
   const vehicle = workshopVehicle(existing?.vehicleKey || vehicleKeyValue);
@@ -1779,13 +1768,26 @@ function scheduleWorkshopVehicle({ planId = '', vehicleKeyValue = '', stage = ''
   }
   const conflictRows = latestRows.filter(row => row.id !== candidate.id);
   let resolvedCandidate = candidate;
+  let plannedRowsAfterShift = null;
   if (workshopHasConflict(candidate, conflictRows)) {
-    resolvedCandidate = workshopResolveConflictByNextSlot(candidate, conflictRows);
-    if (!resolvedCandidate) return false;
+    if (preferRequestedTime) {
+      plannedRowsAfterShift = workshopShiftTrailingPlannedRows(candidate, conflictRows);
+      if (!plannedRowsAfterShift) {
+        if (!workshopRequireNoBayConflict(candidate, conflictRows)) return false;
+        return false;
+      }
+    } else {
+      resolvedCandidate = workshopResolveConflictByNextSlot(candidate, conflictRows);
+      if (!resolvedCandidate) return false;
+    }
   } else if (!workshopRequireNoBayConflict(candidate, conflictRows)) return false;
-  if (!workshopRequireAvailableAssignee(resolvedCandidate, conflictRows)) return false;
+  const effectiveRows = plannedRowsAfterShift ? plannedRowsAfterShift.rows.filter(row => row.id !== resolvedCandidate.id) : conflictRows;
+  if (!workshopRequireAvailableAssignee(resolvedCandidate, effectiveRows)) return false;
   if (!workshopConfirmOtherDepartmentPlans(resolvedCandidate, latestRows)) return false;
-  const nextRows = latestExisting ? latestRows.map(entry => entry.id === latestExisting.id ? resolvedCandidate : entry) : [...latestRows, resolvedCandidate];
+  const baseRows = plannedRowsAfterShift
+    ? latestRows.map(entry => plannedRowsAfterShift.moved.find(item => item.id === entry.id) || entry)
+    : latestRows;
+  const nextRows = latestExisting ? baseRows.map(entry => entry.id === latestExisting.id ? resolvedCandidate : entry) : [...baseRows, resolvedCandidate];
   const persisted = workshopPersistPlanAction(
     existing ? 'Workshop plan rescheduled' : 'Workshop plan created',
     workshopCascadePlans(nextRows).rows,
@@ -2228,13 +2230,21 @@ async function moveWorkshopWeeklyPlan(planId = '', stage = '', bay = 0, dateKey 
   }
   const otherRows = latestRows.filter(row => row.id !== candidate.id);
   let resolvedCandidate = candidate;
+  let plannedRowsAfterShift = null;
   if (workshopHasConflict(candidate, otherRows)) {
-    resolvedCandidate = workshopResolveConflictByNextSlot(candidate, otherRows);
-    if (!resolvedCandidate) return;
+    plannedRowsAfterShift = workshopShiftTrailingPlannedRows(candidate, otherRows);
+    if (!plannedRowsAfterShift) {
+      if (!workshopRequireNoBayConflict(candidate, otherRows)) return;
+      return;
+    }
   } else if (!workshopRequireNoBayConflict(candidate, otherRows)) return;
-  if (!workshopRequireAvailableAssignee(resolvedCandidate, otherRows)) return;
+  const effectiveRows = plannedRowsAfterShift ? plannedRowsAfterShift.rows.filter(row => row.id !== resolvedCandidate.id) : otherRows;
+  if (!workshopRequireAvailableAssignee(resolvedCandidate, effectiveRows)) return;
   if (!workshopConfirmOtherDepartmentPlans(resolvedCandidate, latestRows)) return;
-  const updated = workshopCascadePlans(latestRows.map(row => row.id === resolvedCandidate.id ? resolvedCandidate : row)).rows;
+  const baseRows = plannedRowsAfterShift
+    ? latestRows.map(row => plannedRowsAfterShift.moved.find(item => item.id === row.id) || row)
+    : latestRows;
+  const updated = workshopCascadePlans(baseRows.map(row => row.id === resolvedCandidate.id ? resolvedCandidate : row)).rows;
   workshopPersistPlanAction(
     'Workshop weekly plan moved',
     updated,
