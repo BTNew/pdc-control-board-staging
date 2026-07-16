@@ -135,6 +135,70 @@ function extractWorkshopPlannerLegacyState(backup) {
     };
   });
 
+  // Duplicate detection: more than one legacy booking pointing at the same
+  // (vehicle, stage) combination is a data-quality signal, not necessarily
+  // an error -- but it must be surfaced for manual review before import,
+  // not silently imported twice.
+  const activeStatuses = new Set(['planned', 'started', 'stoppage']);
+  const seenVehicleStage = new Map();
+  const duplicateBookings = [];
+  for (const booking of bookings) {
+    if (!activeStatuses.has(booking.status)) continue;
+    const dupKey = `${booking.legacy_vehicle_key}::${booking.stage_code}`;
+    if (seenVehicleStage.has(dupKey)) {
+      duplicateBookings.push({ vehicle_key: booking.legacy_vehicle_key, stage_code: booking.stage_code, plan_ids: [seenVehicleStage.get(dupKey), booking.legacy_plan_id] });
+    } else {
+      seenVehicleStage.set(dupKey, booking.legacy_plan_id);
+    }
+  }
+
+  // Conflicting-booking detection: overlapping scheduled windows in the
+  // same (stage, bay) -- the same check the database RPCs enforce -- so a
+  // conflict already present in the legacy export is caught before import
+  // rather than being rejected one row at a time during a live cutover.
+  function toRange(booking) {
+    const start = booking.scheduled_start_at ? new Date(booking.scheduled_start_at).getTime() : null;
+    const durationMs = Number.isFinite(booking.duration_minutes) ? booking.duration_minutes * 60000 : null;
+    if (start == null || durationMs == null || Number.isNaN(start)) return null;
+    return { start, end: start + durationMs };
+  }
+  const conflictingBookings = [];
+  const byBay = new Map();
+  for (const booking of bookings) {
+    if (!activeStatuses.has(booking.status) || booking.bay_number == null) continue;
+    const bayKey = `${booking.stage_code}::${booking.bay_number}`;
+    const range = toRange(booking);
+    if (!range) continue;
+    const existingList = byBay.get(bayKey) || [];
+    for (const existing of existingList) {
+      if (range.start < existing.range.end && existing.range.start < range.end) {
+        conflictingBookings.push({
+          bay_key: bayKey,
+          plan_ids: [existing.booking.legacy_plan_id, booking.legacy_plan_id],
+        });
+      }
+    }
+    existingList.push({ booking, range });
+    byBay.set(bayKey, existingList);
+  }
+
+  // Orphan detection: bay assignments or mechanic/provider references with
+  // no corresponding active booking are not blocking, but must be reported
+  // per the section-16 requirement to count "orphaned technicians, bays or
+  // work items" before approval.
+  const bookingStageBaySet = new Set(
+    bookings.filter(b => activeStatuses.has(b.status) && b.bay_number != null)
+      .map(b => `${b.stage_code}::${b.bay_number}`)
+  );
+  const orphanedBayAssignments = bayAssignments.filter(a => !bookingStageBaySet.has(`${a.stage_code}::${a.bay_number}`));
+
+  const incompleteWorkItemVehicles = bookings.filter(b => {
+    const edit = b.workshop_vehicle_edit_snapshot || {};
+    return activeStatuses.has(b.status) && edit.pdcWorkshopBlocked === true;
+  }).length;
+  const stoppedBookingCount = statusCounts.stoppage || 0;
+  const completedBookingCount = statusCounts.completed || 0;
+
   return {
     exported_at: backup?.exportedAt || null,
     source_backup_type: backup?.type || null,
@@ -156,6 +220,13 @@ function extractWorkshopPlannerLegacyState(backup) {
       bay_assignment_count: bayAssignments.length,
       mechanic_count: Array.isArray(mechanics) ? mechanics.length : 0,
       sublet_provider_count: Array.isArray(providers) ? providers.length : 0,
+      duplicate_bookings: duplicateBookings,
+      conflicting_bookings: conflictingBookings,
+      orphaned_bay_assignments: orphanedBayAssignments,
+      incomplete_work_item_vehicle_count: incompleteWorkItemVehicles,
+      stopped_booking_count: stoppedBookingCount,
+      completed_booking_count: completedBookingCount,
+      conflicts_requiring_manual_review: duplicateBookings.length + conflictingBookings.length + unmatchedVehicleKeys.length,
     },
   };
 }
