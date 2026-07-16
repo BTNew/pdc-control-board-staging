@@ -10,11 +10,5 @@ window.PDC_SUPABASE_CONFIG = {
     mode: 'password',
     provider: 'azure',
     redirectTo: window.location.origin + window.location.pathname
-  },
-  workshop: {
-    // Enable only after migration 009 and legacy booking reconciliation pass.
-    sharedData: false,
-    realtime: true,
-    refreshDebounceMs: 150
   }
 };
