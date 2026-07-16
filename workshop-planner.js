@@ -1004,6 +1004,12 @@ function workshopClearLanePreviews(scope = document) {
   scope.querySelectorAll('.workshop-bay-lane, .workshop-week-day-lane').forEach(lane => delete lane.dataset.workshopRequestedStartMinutes);
 }
 
+function workshopHideLanePreview(lane) {
+  const preview = lane?.querySelector('.workshop-drop-preview');
+  if (!preview) return;
+  preview.hidden = true;
+}
+
 function workshopPreviewLabel(minutes = 0, hours = 0) {
   const time = workshopTimeLabelFromMinutes(minutes);
   const duration = Number(hours || 0);
@@ -1166,7 +1172,7 @@ function renderWorkshopPlanner() {
         <div class="workshop-side-list">${completed.map(workshopCompletedCardHtml).join('') || '<div class="workshop-empty">Nothing completed on this board date.</div>'}</div>
       </aside>
     </div>
-    <div class="workshop-board-note">How to use: drag a waiting vehicle or planned booking onto the exact bay/time you want. If that spot overlaps only queued planned work, the planner keeps your dropped booking there and offers to push the later queue back-to-back behind it. Use Best slot for the fastest bay suggestion, or use Schedule for a specific date and time. If a day is full, automatic sequencing continues on the next workday. Live overlap stays blocked, while live jobs can still be moved safely with the bay quick controls or drag/drop. On Today, the red current-time line stays visible and clamps to the workshop edge outside work hours. Double-click any vehicle to open its job.</div>
+    <div class="workshop-board-note">How to use: drag a waiting vehicle or planned booking onto the exact bay/time you want. If that spot overlaps only queued planned work, the planner keeps your dropped booking there and offers to push the later queue back-to-back behind it. Use Best slot for the fastest bay suggestion, or use Schedule for a specific date and time. If a day is full, automatic sequencing continues on the next workday. Live overlap stays blocked, while live jobs can still be moved safely with the bay quick controls or drag/drop. The red current-time line stays visible on the planner and clamps to the workshop edge outside work hours. Double-click any vehicle to open its job.</div>
   </div>`;
   bindWorkshopPlanner(root);
   updateWorkshopNowLine(root);
@@ -1332,7 +1338,7 @@ function bindWorkshopLane(lane) {
   lane.addEventListener('dragleave', event => {
     if (!lane.contains(event.relatedTarget)) {
       lane.classList.remove('drag-over');
-      workshopClearLanePreviews(lane);
+      workshopHideLanePreview(lane);
     }
   });
   lane.addEventListener('drop', event => {
@@ -2562,7 +2568,8 @@ function updateWorkshopNowLine(root = document) {
   const state = workshopState();
   const now = new Date();
   const offset = workshopMinuteOffset(now);
-  const visible = workshopDateKey(now) === state.date && workshopIsWorkday(now);
+  const selectedDate = workshopDateFromKey(state.date);
+  const visible = workshopIsWorkday(selectedDate || now);
   line.hidden = !visible;
   if (!visible) return;
   const timelineRect = timeline.getBoundingClientRect();

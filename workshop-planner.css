@@ -423,13 +423,13 @@ body[data-current-view="workshop"] .content {
 
 .workshop-timeline {
   position: relative;
-  min-width: 980px;
+  min-width: 760px;
 }
 
 .workshop-time-header,
 .workshop-bay-row {
   display: grid;
-  grid-template-columns: 170px minmax(810px, 1fr);
+  grid-template-columns: 160px minmax(600px, 1fr);
 }
 
 .workshop-time-header {
@@ -445,7 +445,7 @@ body[data-current-view="workshop"] .content {
   position: sticky;
   left: 0;
   z-index: 8;
-  min-width: 170px;
+  min-width: 160px;
   display: grid;
   align-content: center;
   gap: 2px;
