@@ -174,8 +174,12 @@ assert.ok(source.includes("moveWorkshopDroppedPlan(planId, stage, bay, dateKey, 
 assert.ok(source.includes("const previewMinutes = Number(lane.dataset.workshopRequestedStartMinutes);"), 'Daily lane drops must reuse the live preview time so drop coordinates stay exact');
 assert.ok(source.includes("lane.dataset.workshopRequestedStartMinutes = String(safeMinutes);"), 'Lane previews must persist the last hovered planner time for reliable dropping');
 assert.ok(source.includes('function workshopHideLanePreview(lane)'), 'Daily lane drags should hide the preview without losing the last hovered drop time');
+assert.ok(source.includes('function workshopCurrentDropTarget()'), 'Planner drag/drop should keep a global last-hovered drop target for flaky browser drag event order');
+assert.ok(source.includes('workshopSetDropTarget({ stage, bay, dateKey, startMinutes: safeMinutes });'), 'Lane preview updates must remember the full hovered stage/bay/date target');
+assert.ok(source.includes('setTimeout(() => workshopClearLanePreviews(root), 0);'), 'Daily dragend should defer preview cleanup until the drop event has a chance to read the remembered target');
 assert.ok(source.includes('function workshopUpdateLanePreview('), 'Daily and weekly planner lanes should expose a live drag preview helper');
 assert.ok(source.includes('workshopDropPreviewHtml({ vertical: true })'), 'Weekly planner lanes should render a vertical ghost preview for drag insertion');
+assert.ok(source.includes('setTimeout(() => workshopClearLanePreviews(overlay), 0);'), 'Weekly dragend should also defer preview cleanup until drop completes');
 assert.ok(source.includes('workshopFirstAvailableStartSlot(normalizedStage, Number(form.elements.bay.value), safeDate'), 'The direct Schedule form must also suggest a future workday when the selected day is full');
 assert.ok(source.includes('maxWorkdays = 260'), 'Automatic scheduling must keep a roughly one-year workday horizon');
 assert.ok(source.includes("querySelector('[name=\"hours\"]')?.addEventListener('change', suggestAvailableTime)"), 'Changing planned hours in the Schedule form must recalculate the first available start');
@@ -357,7 +361,7 @@ for (const file of htmlFiles) {
   const html = fs.readFileSync(path.join(root, file), 'utf8');
   assert.ok(html.includes('data-view="workshop"'), `${file} is missing the Workshop Planner navigation item`);
   assert.ok(html.includes('id="workshop-planner-root"'), `${file} is missing the Workshop Planner host`);
-  assert.ok(html.includes('workshop-planner.css?v=2026.07.16.25-workshop-drop-followup'), `${file} is missing the planner stylesheet`);
+  assert.ok(html.includes('workshop-planner.css?v=2026.07.16.26-workshop-drop-last-hover'), `${file} is missing the planner stylesheet`);
   assert.ok(!html.includes('<script src="workshop-planner.js'), `${file} must not eagerly load the planner script`);
 }
 assert.ok(app.includes("loadExternalScript(`workshop-planner.js?v=${encodeURIComponent(APP_VERSION)}`"), 'app.js must lazy-load the Workshop Planner with the active release version');

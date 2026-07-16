@@ -992,6 +992,18 @@ function workshopSetDragPreview(preview = null) {
   app.workshopDragPreview = preview || null;
 }
 
+function workshopCurrentDropTarget() {
+  return app.workshopDropTarget || null;
+}
+
+function workshopSetDropTarget(target = null) {
+  app.workshopDropTarget = target || null;
+}
+
+function workshopClearDropTarget() {
+  app.workshopDropTarget = null;
+}
+
 function workshopClearLanePreviews(scope = document) {
   scope.querySelectorAll('.workshop-drop-preview').forEach(preview => {
     preview.hidden = true;
@@ -1002,6 +1014,7 @@ function workshopClearLanePreviews(scope = document) {
     preview.querySelector('.workshop-drop-preview-pill')?.removeAttribute('data-preview-label');
   });
   scope.querySelectorAll('.workshop-bay-lane, .workshop-week-day-lane').forEach(lane => delete lane.dataset.workshopRequestedStartMinutes);
+  workshopClearDropTarget();
 }
 
 function workshopHideLanePreview(lane) {
@@ -1022,7 +1035,11 @@ function workshopUpdateLanePreview(lane, startMinutes = 0) {
   const dragPreview = workshopCurrentDragPreview();
   const hours = Math.max(0.25, Number(dragPreview?.hours || WORKSHOP_DEFAULT_HOURS));
   const safeMinutes = workshopClampStartMinutes(startMinutes);
+  const stage = lane.dataset.workshopDropStage || lane.dataset.workshopWeekDropStage || '';
+  const bay = Number(lane.dataset.workshopDropBay || lane.dataset.workshopWeekDropBay || 0);
+  const dateKey = lane.dataset.workshopWeekDropDate || workshopState().date;
   lane.dataset.workshopRequestedStartMinutes = String(safeMinutes);
+  workshopSetDropTarget({ stage, bay, dateKey, startMinutes: safeMinutes });
   const label = workshopPreviewLabel(safeMinutes, hours);
   preview.hidden = false;
   if (preview.classList.contains('is-vertical')) {
@@ -1245,7 +1262,7 @@ function bindWorkshopPlanner(root) {
   }));
   root.querySelectorAll('[data-workshop-vehicle-key]').forEach(card => card.addEventListener('dragend', () => {
     workshopSetDragPreview(null);
-    workshopClearLanePreviews(root);
+    setTimeout(() => workshopClearLanePreviews(root), 0);
   }));
   root.querySelectorAll('[data-workshop-schedule-vehicle]').forEach(button => button.addEventListener('click', event => {
     event.preventDefault();
@@ -1272,7 +1289,7 @@ function bindWorkshopPlanner(root) {
   }));
   root.querySelectorAll('[data-workshop-plan-id]').forEach(chip => chip.addEventListener('dragend', () => {
     workshopSetDragPreview(null);
-    workshopClearLanePreviews(root);
+    setTimeout(() => workshopClearLanePreviews(root), 0);
   }));
   root.querySelectorAll('[data-workshop-job-vehicle]').forEach(card => card.addEventListener('dblclick', event => {
     event.preventDefault();
@@ -1344,17 +1361,28 @@ function bindWorkshopLane(lane) {
   lane.addEventListener('drop', event => {
     event.preventDefault();
     lane.classList.remove('drag-over');
+    const rect = lane.getBoundingClientRect();
+    const fallbackStartMinutes = workshopClampStartMinutes(((event.clientX - rect.left) / Math.max(1, rect.width)) * WORKSHOP_DAY_MINUTES);
+    const rememberedTarget = workshopCurrentDropTarget();
+    const targetStage = lane.dataset.workshopDropStage;
+    const targetBay = Number(lane.dataset.workshopDropBay);
+    const targetDate = workshopState().date;
     const previewMinutes = Number(lane.dataset.workshopRequestedStartMinutes);
     workshopClearLanePreviews(lane);
-    const rect = lane.getBoundingClientRect();
-    const requestedStartMinutes = Number.isFinite(previewMinutes)
-      ? previewMinutes
-      : workshopClampStartMinutes(((event.clientX - rect.left) / Math.max(1, rect.width)) * WORKSHOP_DAY_MINUTES);
+    const requestedStartMinutes = rememberedTarget
+      && rememberedTarget.stage === targetStage
+      && Number(rememberedTarget.bay) === targetBay
+      && rememberedTarget.dateKey === targetDate
+      && Number.isFinite(Number(rememberedTarget.startMinutes))
+      ? workshopClampStartMinutes(Number(rememberedTarget.startMinutes))
+      : Number.isFinite(previewMinutes)
+        ? previewMinutes
+        : fallbackStartMinutes;
     const planId = event.dataTransfer.getData('application/x-workshop-plan-id');
     const vehicleKeyValue = event.dataTransfer.getData('application/x-workshop-vehicle-key') || event.dataTransfer.getData('text/plain');
-    const stage = lane.dataset.workshopDropStage;
-    const bay = Number(lane.dataset.workshopDropBay);
-    const dateKey = workshopState().date;
+    const stage = targetStage;
+    const bay = targetBay;
+    const dateKey = targetDate;
     const startMinutes = requestedStartMinutes;
     if (planId) {
       void moveWorkshopDroppedPlan(planId, stage, bay, dateKey, startMinutes, { preferRequestedTime: true });
@@ -2386,7 +2414,7 @@ function openWorkshopWeeklyView(stage = '', bay = 1, anchorDate = '') {
   }));
   overlay.querySelectorAll('[data-workshop-week-plan][draggable="true"]').forEach(card => card.addEventListener('dragend', () => {
     workshopSetDragPreview(null);
-    workshopClearLanePreviews(overlay);
+    setTimeout(() => workshopClearLanePreviews(overlay), 0);
   }));
   overlay.querySelectorAll('[data-workshop-week-drop-date]').forEach(lane => {
     lane.addEventListener('dragover', event => {
@@ -2399,16 +2427,30 @@ function openWorkshopWeeklyView(stage = '', bay = 1, anchorDate = '') {
     lane.addEventListener('dragleave', event => {
       if (!lane.contains(event.relatedTarget)) {
         lane.classList.remove('drag-over');
-        workshopClearLanePreviews(lane);
+        workshopHideLanePreview(lane);
       }
     });
     lane.addEventListener('drop', event => {
       event.preventDefault();
       lane.classList.remove('drag-over');
-      workshopClearLanePreviews(lane);
       const planId = event.dataTransfer.getData('application/x-workshop-plan-id');
       const rect = lane.getBoundingClientRect();
-      const startMinutes = workshopClampStartMinutes(((event.clientY - rect.top) / Math.max(1, rect.height)) * WORKSHOP_DAY_MINUTES);
+      const fallbackStartMinutes = workshopClampStartMinutes(((event.clientY - rect.top) / Math.max(1, rect.height)) * WORKSHOP_DAY_MINUTES);
+      const previewMinutes = Number(lane.dataset.workshopRequestedStartMinutes);
+      const rememberedTarget = workshopCurrentDropTarget();
+      const targetStage = lane.dataset.workshopWeekDropStage || normalizedStage;
+      const targetBay = Number(lane.dataset.workshopWeekDropBay || bay);
+      const targetDate = lane.dataset.workshopWeekDropDate;
+      const startMinutes = rememberedTarget
+        && rememberedTarget.stage === targetStage
+        && Number(rememberedTarget.bay) === targetBay
+        && rememberedTarget.dateKey === targetDate
+        && Number.isFinite(Number(rememberedTarget.startMinutes))
+        ? workshopClampStartMinutes(Number(rememberedTarget.startMinutes))
+        : Number.isFinite(previewMinutes)
+          ? previewMinutes
+          : fallbackStartMinutes;
+      workshopClearLanePreviews(lane);
       void moveWorkshopWeeklyPlan(planId, normalizedStage, bay, lane.dataset.workshopWeekDropDate, startMinutes, workshopDateKey(weekStart));
     });
   });
