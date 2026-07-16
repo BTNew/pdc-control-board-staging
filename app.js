@@ -2808,7 +2808,13 @@ function renderWorkshopPlannerWhenReady() {
   }
   const root = $('#workshop-planner-root');
   if (root) root.innerHTML = '<div class="empty-state"><strong>Loading Workshop Planner</strong><span>Preparing scheduling controls…</span></div>';
-  loadExternalScript(`workshop-planner.js?v=${encodeURIComponent(APP_VERSION)}`, 'workshop-planner-script')
+  // Load the shared-data service module first. It stays completely inert
+  // (no snapshot fetch, no writes) unless window.PDC_SUPABASE_CONFIG.workshop.sharedData
+  // is explicitly set to true; the planner UI/runtime is not modified by
+  // this load and continues to operate exactly as before.
+  loadExternalScript(`workshop-data-service.js?v=${encodeURIComponent(APP_VERSION)}`, 'workshop-data-service-script')
+    .catch(() => { /* non-fatal: shared mode simply stays unavailable */ })
+    .then(() => loadExternalScript(`workshop-planner.js?v=${encodeURIComponent(APP_VERSION)}`, 'workshop-planner-script'))
     .then(() => {
       if (app.currentView === 'workshop' && typeof renderWorkshopPlanner === 'function') renderWorkshopPlanner();
     })
