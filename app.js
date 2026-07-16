@@ -2843,6 +2843,10 @@ function initWorkshopSharedServicesIfEnabled() {
     });
   }
 
+  if (typeof buildWorkshopSharedActions === 'function') {
+    window.__workshopSharedActions = buildWorkshopSharedActions(dataService);
+  }
+
   dataService.loadSnapshot('initial');
 }
 
@@ -2861,6 +2865,7 @@ function renderWorkshopPlannerWhenReady() {
   // continues to operate exactly as before.
   loadExternalScript(`workshop-data-service.js?v=${encodeURIComponent(APP_VERSION)}`, 'workshop-data-service-script')
     .then(() => loadExternalScript(`workshop-realtime.js?v=${encodeURIComponent(APP_VERSION)}`, 'workshop-realtime-script'))
+    .then(() => loadExternalScript(`workshop-shared-actions.js?v=${encodeURIComponent(APP_VERSION)}`, 'workshop-shared-actions-script'))
     .catch(() => { /* non-fatal: shared mode simply stays unavailable */ })
     .then(() => loadExternalScript(`workshop-planner.js?v=${encodeURIComponent(APP_VERSION)}`, 'workshop-planner-script'))
     .then(() => {

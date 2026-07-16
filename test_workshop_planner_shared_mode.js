@@ -175,3 +175,39 @@ function withGlobals(overrides, fn) {
 }
 
 console.log('Workshop planner shared-mode integration seam checks passed');
+
+// --- Section 14 error mapping: never a raw stack trace / DB error ---
+
+{
+  const cases = [
+    ['version_conflict', 'changed by another user'],
+    ['bay_overlap', 'bay is already occupied'],
+    ['technician_overlap', 'already assigned to another booking'],
+    ['parts_incomplete', 'Parts requirements are incomplete'],
+    ['permission_denied', 'do not have permission'],
+    ['missing_expected_version', 'missing required version'],
+    ['totally_unmapped_backend_error_code', 'could not be saved'],
+  ];
+  for (const [error, expectedSubstring] of cases) {
+    const message = planner.workshopDescribeSharedActionError({ ok: false, error });
+    assert.ok(
+      message.toLowerCase().includes(expectedSubstring.toLowerCase()),
+      `error '${error}' should map to a message containing '${expectedSubstring}', got: '${message}'`
+    );
+    assert.ok(!/postgres|pg_|relation "|null value in column|constraint/i.test(message), `error '${error}' message must never leak a raw DB error string`);
+  }
+  console.log('PASS 8: every mapped and unmapped backend error produces a clear, non-technical message');
+}
+
+// 9. Note: workshopDispatchSharedAction() itself is not exported directly
+// (it's an internal dispatch helper used inside each action function), but
+// its gating condition is exactly workshopSharedModeActive(), which IS
+// exported and already covered by tests 1-3 above -- when shared mode is
+// inactive, every action function's existing legacy code path runs
+// completely untouched (proven by the unchanged-behaviour browser smoke
+// test recorded in this stage's commit message). The full guarded
+// lifecycle (start/stop/resume/complete/return-to-queue, real version
+// enforcement, real conflict rejection) is exercised end-to-end against
+// live staging RPCs in _staging_test_tools/test_workshop_staging_integration.py
+// and the manual staging RPC chain recorded in this session, not re-mocked
+// here.

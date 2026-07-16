@@ -349,6 +349,69 @@ function workshopRequireOperatorProfile() {
   return null;
 }
 
+// Single dispatch point every workshop action function checks first when
+// shared mode is active. Routes to the exact protected transactional RPC
+// via window.__workshopSharedActions (see workshop-shared-actions.js),
+// waits for the confirmed database result, and NEVER leaves a rejected
+// change displayed: renderWorkshopPlanner() always re-renders from the
+// data service's own (already-refreshed-by-mutate()) authoritative
+// snapshot afterwards, whether the action succeeded or was rejected.
+//
+// Returns:
+//   null                     shared mode is not active; caller should fall
+//                             through to its existing legacy-mode logic
+//                             unchanged
+//   { ok: true, ... }        action succeeded
+//   { ok: false, error, ... } action rejected (stale version, conflict,
+//                             permission, Parts gate, etc.) -- caller
+//                             should show body.error to the user via
+//                             workshopDescribeSharedActionError() and stop;
+//                             it must NOT apply any further local mutation
+async function workshopDispatchSharedAction(actionName, payload) {
+  if (!workshopSharedModeActive()) return null;
+  const actions = window.__workshopSharedActions;
+  if (!actions || typeof actions[actionName] !== 'function') {
+    window.alert('Shared workshop mode is connected but this action is not yet available. No change was made.');
+    return { ok: false, error: 'action_unavailable' };
+  }
+  const result = await actions[actionName](payload);
+  if (!result || result.ok !== true) {
+    window.alert(workshopDescribeSharedActionError(result));
+  }
+  renderWorkshopPlanner();
+  return result || { ok: false, error: 'no_response' };
+}
+
+// Human-readable, never-a-stack-trace error mapping per section 14 of the
+// project brief. Falls back to a safe generic message for anything not
+// explicitly mapped, so a raw Postgres/PostgREST error is never shown.
+function workshopDescribeSharedActionError(result) {
+  const error = result && result.error;
+  const conflict = result && result.conflict;
+  if (error === 'version_conflict') {
+    return 'This booking was changed by another user. The planner has refreshed to the latest version.';
+  }
+  if (error === 'bay_overlap' || (conflict && conflict.conflict_type === 'bay_overlap')) {
+    return 'That bay is already occupied during this time. The planner has refreshed to the latest version.';
+  }
+  if (error === 'technician_overlap' || (conflict && conflict.conflict_type === 'technician_overlap')) {
+    return 'That technician is already assigned to another booking during this period.';
+  }
+  if (error === 'parts_incomplete' || error === 'parts_incomplete_blocked') {
+    return 'Parts requirements are incomplete. An authorised override and reason are required.';
+  }
+  if (error === 'not_editable' || error === 'permission_denied' || error === 'forbidden') {
+    return 'You do not have permission to make this change.';
+  }
+  if (error === 'missing_expected_version') {
+    return 'This action was missing required version information and was not sent. Please try again.';
+  }
+  if (error === 'action_unavailable' || error === 'no_response') {
+    return 'This action is not currently available in shared mode. No change was made.';
+  }
+  return 'This change could not be saved. The planner has refreshed to the latest version.';
+}
+
 function workshopPersistPlanAction(label = 'Workshop planner update', rows = [], vehicle = null, action = '', details = {}) {
   const operator = workshopRequireOperatorProfile();
   if (!operator) return false;
@@ -2081,6 +2144,13 @@ async function startWorkshopPlan(planId = '') {
   const entry = rows.find(row => row.id === planId);
   const vehicle = entry ? workshopVehicle(entry.vehicleKey) : null;
   if (!entry || !vehicle) return;
+  if (workshopSharedModeActive()) {
+    await workshopDispatchSharedAction('startWork', {
+      bookingId: entry.sharedBookingId || entry.id,
+      expectedVersion: entry.sharedVersion,
+    });
+    return;
+  }
   if (!workshopRequireOperatorProfile()) return;
   const currentStart = workshopNormalizeStartDate(new Date());
   const next = { ...entry, startAt: currentStart.toISOString(), status: 'started', startedAt: nowIsoString(), updatedAt: nowIsoString() };
@@ -2150,11 +2220,19 @@ async function startWorkshopPlan(planId = '') {
   renderWorkshopPlanner();
 }
 
-function completeWorkshopPlan(planId = '') {
+async function completeWorkshopPlan(planId = '') {
   const rows = workshopLoadPlans();
   const entry = rows.find(row => row.id === planId);
   const vehicle = entry ? workshopVehicle(entry.vehicleKey) : null;
   if (!entry || !vehicle) return;
+  if (workshopSharedModeActive()) {
+    await workshopDispatchSharedAction('completeWork', {
+      bookingId: entry.sharedBookingId || entry.id,
+      expectedVersion: entry.sharedVersion,
+      workKey: entry.stage,
+    });
+    return;
+  }
   if (!workshopRequireOperatorProfile()) return;
   if (!['started', 'stoppage'].includes(entry.status)) {
     window.alert('Use “Start job” first so the workshop start time and salesperson update are recorded.');
@@ -2262,6 +2340,20 @@ async function stopWorkshopPlan(planId = '') {
   const entry = rows.find(row => row.id === planId);
   const vehicle = entry ? workshopVehicle(entry.vehicleKey) : null;
   if (!entry || !vehicle) return;
+  if (workshopSharedModeActive()) {
+    if (entry.status !== 'started') {
+      window.alert('Start the job before recording a workshop stoppage.');
+      return;
+    }
+    const reason = await workshopStoppageReasonModal(entry, vehicle);
+    if (!reason) return;
+    await workshopDispatchSharedAction('stopWork', {
+      bookingId: entry.sharedBookingId || entry.id,
+      expectedVersion: entry.sharedVersion,
+      reason,
+    });
+    return;
+  }
   if (!workshopRequireOperatorProfile()) return;
   if (entry.status !== 'started') {
     window.alert('Start the job before recording a workshop stoppage.');
@@ -2289,11 +2381,18 @@ async function stopWorkshopPlan(planId = '') {
   renderWorkshopPlanner();
 }
 
-function resumeWorkshopPlan(planId = '') {
+async function resumeWorkshopPlan(planId = '') {
   const rows = workshopLoadPlans();
   const entry = rows.find(row => row.id === planId);
   const vehicle = entry ? workshopVehicle(entry.vehicleKey) : null;
   if (!entry || !vehicle || entry.status !== 'stoppage') return;
+  if (workshopSharedModeActive()) {
+    await workshopDispatchSharedAction('resumeWork', {
+      bookingId: entry.sharedBookingId || entry.id,
+      expectedVersion: entry.sharedVersion,
+    });
+    return;
+  }
   if (!workshopRequireOperatorProfile()) return;
   const now = nowIsoString();
   const stoppageMinutes = Number(entry.stoppageMinutes || 0) + (entry.stoppageAt
@@ -2775,5 +2874,6 @@ if (typeof module !== 'undefined' && module.exports) {
     workshopSharedModeActive,
     workshopMapSnapshotBookingToLegacyRow,
     workshopConnectionBannerHtml,
+    workshopDescribeSharedActionError,
   };
 }
