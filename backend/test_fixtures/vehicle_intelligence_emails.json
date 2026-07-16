@@ -1,0 +1,112 @@
+[
+  {
+    "fixture_id": "stock-parts-in-stock-001",
+    "mailbox_key": "parts-staging",
+    "message_id": "synthetic:stock-parts-in-stock-001",
+    "thread_id": "synthetic-thread-stock-001",
+    "internet_message_id": "<synthetic-stock-parts-in-stock-001@example.invalid>",
+    "sender_name": "ARB Parts",
+    "sender_email": "parts@arb-synthetic.example.invalid",
+    "recipient_mailbox": "parts-staging@pdc-workshop.example.invalid",
+    "subject": "Stock 48291 parts now in stock",
+    "received_at": "2026-07-16T10:42:00Z",
+    "parsed_text": "Stock 48291\nTow bar kit is now in stock and available for fitting.\nNo freight delay remains on this order.",
+    "expected": {
+      "primary_identifier": {"type": "stock_number", "value": "48291"},
+      "categories": ["Parts update", "Parts in stock"],
+      "review_required": false
+    }
+  },
+  {
+    "fixture_id": "vin-parts-delay-relative-001",
+    "mailbox_key": "supplier-staging",
+    "message_id": "synthetic:vin-parts-delay-relative-001",
+    "thread_id": "synthetic-thread-vin-001",
+    "internet_message_id": "<synthetic-vin-parts-delay-relative-001@example.invalid>",
+    "sender_name": "Roof Rack Supplier",
+    "sender_email": "eta@supplier-synthetic.example.invalid",
+    "recipient_mailbox": "supplier-staging@pdc-workshop.example.invalid",
+    "subject": "VIN JTMSA3FV10D123456 roof rack update",
+    "received_at": "2026-07-17T02:15:00Z",
+    "parsed_text": "VIN JTMSA3FV10D123456\nThe roof rack remains on back order and is about four weeks away from dispatch.\nWe do not have a firm calendar ETA yet.",
+    "expected": {
+      "primary_identifier": {"type": "vin", "value": "JTMSA3FV10D123456"},
+      "categories": ["Parts delayed", "Parts ETA update", "Supplier update"],
+      "review_required": true
+    }
+  },
+  {
+    "fixture_id": "thread-context-jobcard-001",
+    "mailbox_key": "pdc-staging",
+    "message_id": "synthetic:thread-context-jobcard-001",
+    "thread_id": "synthetic-thread-jc-001",
+    "internet_message_id": "<synthetic-thread-context-jobcard-001@example.invalid>",
+    "sender_name": "Internal Workshop",
+    "sender_email": "controller@internal-synthetic.example.invalid",
+    "recipient_mailbox": "pdc-staging@pdc-workshop.example.invalid",
+    "subject": "Re: JC123456 tray wiring",
+    "received_at": "2026-07-17T05:30:00Z",
+    "parsed_text": "Following up on the previous message in this thread. Final tray wiring resumed this morning and testing should occur this afternoon.",
+    "thread_context": "Earlier in the same thread: Job Card JC123456 for stock 48291 remains in Electrical Bay 3 waiting on tray wiring.",
+    "expected": {
+      "primary_identifier": {"type": "job_card_number", "value": "JC123456"},
+      "categories": ["Workshop progress", "Job resumed"],
+      "review_required": false
+    }
+  },
+  {
+    "fixture_id": "ambiguous-stock-customer-001",
+    "mailbox_key": "sales-staging",
+    "message_id": "synthetic:ambiguous-stock-customer-001",
+    "thread_id": "synthetic-thread-ambiguous-001",
+    "internet_message_id": "<synthetic-ambiguous-stock-customer-001@example.invalid>",
+    "sender_name": "Salesperson Synthetic",
+    "sender_email": "salesperson@dealer-synthetic.example.invalid",
+    "recipient_mailbox": "sales-staging@pdc-workshop.example.invalid",
+    "subject": "Need update on stock 4829 customer Watson",
+    "received_at": "2026-07-17T08:05:00Z",
+    "parsed_text": "Can I please get an ETA for stock 4829 for customer Watson? I may have the wrong stock number in my notes.",
+    "expected": {
+      "primary_identifier": {"type": "stock_number", "value": "4829"},
+      "categories": ["Salesperson ETA request"],
+      "review_required": true,
+      "reason": "ambiguous_vehicle_match"
+    }
+  },
+  {
+    "fixture_id": "dispatch-tracking-001",
+    "mailbox_key": "freight-staging",
+    "message_id": "synthetic:dispatch-tracking-001",
+    "thread_id": "synthetic-thread-dispatch-001",
+    "internet_message_id": "<synthetic-dispatch-tracking-001@example.invalid>",
+    "sender_name": "Fast Freight Synthetic",
+    "sender_email": "tracking@fastfreight-synthetic.example.invalid",
+    "recipient_mailbox": "freight-staging@pdc-workshop.example.invalid",
+    "subject": "Dispatch update stock 48291 tracking FF123456",
+    "received_at": "2026-07-18T01:10:00Z",
+    "parsed_text": "Stock 48291\nYour electrical harness has been dispatched today with Fast Freight.\nTracking FF123456. Estimated arrival Monday 2026-07-21.",
+    "expected": {
+      "primary_identifier": {"type": "stock_number", "value": "48291"},
+      "categories": ["Parts dispatched", "Freight update"],
+      "review_required": false
+    }
+  },
+  {
+    "fixture_id": "salesperson-eta-request-001",
+    "mailbox_key": "sales-staging",
+    "message_id": "synthetic:salesperson-eta-request-001",
+    "thread_id": "synthetic-thread-sales-eta-001",
+    "internet_message_id": "<synthetic-salesperson-eta-request-001@example.invalid>",
+    "sender_name": "Salesperson Synthetic",
+    "sender_email": "sales@dealer-synthetic.example.invalid",
+    "recipient_mailbox": "sales-staging@pdc-workshop.example.invalid",
+    "subject": "ETA request for stock 48291",
+    "received_at": "2026-07-18T03:00:00Z",
+    "parsed_text": "Please send me an ETA update for stock 48291 for the customer this morning. They want to know whether the vehicle is still on track this week.",
+    "expected": {
+      "primary_identifier": {"type": "stock_number", "value": "48291"},
+      "categories": ["Salesperson ETA request"],
+      "review_required": true
+    }
+  }
+]
