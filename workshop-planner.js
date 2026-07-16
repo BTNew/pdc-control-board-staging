@@ -229,7 +229,82 @@ function workshopEntrySegmentForDate(entry = {}, dateKey = '', now = new Date())
   };
 }
 
+function workshopSharedModeActive() {
+  return typeof window !== 'undefined'
+    && typeof window.workshopSharedModeEnabled === 'function'
+    && window.workshopSharedModeEnabled(window.PDC_SUPABASE_CONFIG)
+    && window.__workshopDataService
+    && typeof window.__workshopDataService.isEnabled === 'function'
+    && window.__workshopDataService.isEnabled();
+}
+
+// Section 13 fail-closed connection banner. Distinguishes the states the
+// migration plan requires: Connected/editable, Connected/read-only,
+// Reconnecting, Offline/read-only, Backend version incompatible.
+function workshopConnectionBannerHtml() {
+  const ds = window.__workshopDataService;
+  const state = ds && typeof ds.getState === 'function' ? ds.getState() : 'disabled';
+  const CS = window.WORKSHOP_CONNECTION_STATE || {};
+  const copy = {
+    [CS.CONNECTED_EDITABLE]: { cls: 'ok', text: 'Connected · shared workshop data · live editing available once the legacy import is approved' },
+    [CS.CONNECTED_READ_ONLY]: { cls: 'warn', text: 'Connected · read-only (viewer role, or editing is not yet unlocked for this account)' },
+    [CS.RECONNECTING]: { cls: 'warn', text: 'Reconnecting to shared workshop data… showing the last known state' },
+    [CS.OFFLINE_READ_ONLY]: { cls: 'error', text: 'Offline · showing the last known shared state, read-only until the connection recovers' },
+    [CS.INCOMPATIBLE]: { cls: 'error', text: 'Backend version incompatible with this Workshop Planner build. Contact an administrator.' },
+    [CS.CONNECTING]: { cls: 'warn', text: 'Connecting to shared workshop data…' },
+  }[state] || { cls: 'warn', text: 'Shared workshop mode status unknown' };
+  return `<div class="workshop-connection-banner workshop-connection-${copy.cls}" role="status">${escapeHtml(copy.text)}</div>`;
+}
+
+
+// Maps one get_workshop_snapshot() booking DTO (see migration 012) into the
+// same legacy plan-row shape the rest of this file already expects, so the
+// existing rendering/interaction code needs no changes to read shared data.
+function workshopMapSnapshotBookingToLegacyRow(booking = {}) {
+  if (!booking || !booking.booking_id) return null;
+  const vehicle = booking.vehicle || {};
+  const stage = booking.stage || {};
+  const bay = booking.bay || null;
+  const assignment = booking.assignment || null;
+  const legacyStatus = { queued: 'planned', planned: 'planned', started: 'started', stoppage: 'stoppage', completed: 'completed', deleted: 'deleted' }[booking.status] || 'planned';
+  return {
+    id: booking.booking_id,
+    sharedBookingId: booking.booking_id,
+    sharedVersion: booking.version,
+    vehicleKey: vehicle.stock_number || vehicle.permanent_vehicle_id || '',
+    stage: normalizePmbStage(stage.code || ''),
+    bay: bay ? Number(bay.bay_number) || 0 : 0,
+    startAt: booking.scheduled_start_at,
+    hours: Number(booking.default_duration_minutes || 0) / 60 || WORKSHOP_DEFAULT_HOURS,
+    assignee: assignment ? assignment.technician_name || '' : '',
+    status: legacyStatus,
+    stoppageReason: booking.stoppage_reason || '',
+    stoppageAt: booking.stoppage_started_at || '',
+    stoppageMinutes: Number(booking.stoppage_accumulated_minutes || 0),
+    actualHours: booking.actual_duration_minutes != null ? Number(booking.actual_duration_minutes) / 60 : undefined,
+    completedAt: booking.actual_end_at || '',
+    createdAt: booking.created_at,
+    updatedAt: booking.updated_at,
+  };
+}
+
 function workshopLoadPlans() {
+  if (workshopSharedModeActive()) {
+    const snapshot = window.__workshopDataService.getLastSnapshot();
+    const bookings = snapshot && Array.isArray(snapshot.bookings) ? snapshot.bookings : null;
+    if (bookings) {
+      return bookings
+        .map(workshopMapSnapshotBookingToLegacyRow)
+        .filter(row => row && row.id && row.vehicleKey && WORKSHOP_STAGE_SEQUENCE.includes(row.stage))
+        .map(row => row.status === 'completed' ? row : { ...row, hours: workshopClampDurationHours(row.hours) });
+    }
+    // Shared mode is enabled but no snapshot has loaded yet (still
+    // connecting / offline-read-only): fail closed to an empty list rather
+    // than silently reading stale local writes, matching the fail-closed
+    // requirement in the migration plan. The planner's own connection-state
+    // banner (rendered separately) tells the user why nothing is editable.
+    return [];
+  }
   const rows = typeof loadJson === 'function' ? loadJson(WORKSHOP_PLAN_STORAGE_KEY, []) : [];
   return Array.isArray(rows) ? rows
     .filter(row => row && row.id && row.vehicleKey && WORKSHOP_STAGE_SEQUENCE.includes(row.stage))
@@ -237,6 +312,22 @@ function workshopLoadPlans() {
 }
 
 function workshopSavePlans(rows = []) {
+  if (workshopSharedModeActive()) {
+    // Write-path cutover is intentionally NOT enabled yet: today's legacy
+    // rows carry no stable booking_id/version pairing with the RPC layer,
+    // so routing writes through schedule_vehicle_work / move_workshop_booking
+    // etc. here would either invent fake versions or silently no-op. That
+    // requires the approved legacy migration/reconciliation import (see
+    // scripts/workshop_planner_legacy_extract.js and section 16) to run
+    // first so every row has a real booking_id. Until that import is
+    // approved and executed, shared mode is fail-closed for writes: no
+    // operation is silently accepted, and no localStorage write happens
+    // either (which would create a second, contradicting source of truth).
+    if (typeof window !== 'undefined' && typeof window.alert === 'function') {
+      window.alert('Shared workshop mode is connected read-only. Live editing unlocks after the approved legacy data migration runs. No change was saved.');
+    }
+    return;
+  }
   if (typeof saveJson !== 'function') return;
   const operation = () => saveJson(WORKSHOP_PLAN_STORAGE_KEY, rows);
   if (typeof runStorageTransaction === 'function') runStorageTransaction('Workshop planner save', [WORKSHOP_PLAN_STORAGE_KEY], operation);
@@ -628,7 +719,11 @@ function workshopCascadePlans(rows = workshopLoadPlans()) {
 
 function workshopCascadeAndSave(rows = workshopLoadPlans(), now = new Date()) {
   const cascaded = workshopCascadePlans(rows, now);
-  if (cascaded.changed) workshopSavePlans(cascaded.rows);
+  // In shared read-only mode there is nothing to reconcile locally -- the
+  // rows already came from the authoritative snapshot -- and attempting a
+  // save would trip the fail-closed alert on every render. Only ever save
+  // here when this file's own local-storage path is authoritative.
+  if (cascaded.changed && !workshopSharedModeActive()) workshopSavePlans(cascaded.rows);
   return cascaded.rows;
 }
 
@@ -690,7 +785,7 @@ function workshopSyncCompletedPlans(rows = workshopLoadPlans()) {
     changed = true;
     return { ...entry, status: 'completed', completedAt: vehicle[def.completeAtKey] || nowIsoString(), updatedAt: nowIsoString() };
   });
-  if (changed) workshopSavePlans(next);
+  if (changed && !workshopSharedModeActive()) workshopSavePlans(next);
   return next;
 }
 
@@ -1155,7 +1250,10 @@ function renderWorkshopPlanner() {
   const assigneeConflicts = todaysPlans.filter(entry => workshopEntryHasAssigneeConflict(entry, plans)).length;
   const stageVehicleCounts = new Map(WORKSHOP_VISIBLE_STAGE_SEQUENCE.map(value => [value, value === stage ? stageVehicleList.length : workshopStageVehicles(value).length]));
   const stageTabs = WORKSHOP_VISIBLE_STAGE_SEQUENCE.map(value => `<button type="button" class="workshop-stage-tab ${value === stage ? 'active' : ''}" data-workshop-stage="${escapeHtml(value)}"><span>${escapeHtml(pmbStageLabel(value))}</span><strong>${stageVehicleCounts.get(value)}</strong></button>`).join('');
+  const sharedModeActive = workshopSharedModeActive();
+  const sharedBanner = sharedModeActive ? workshopConnectionBannerHtml() : '';
   root.innerHTML = `<div class="workshop-planner">
+    ${sharedBanner}
     <header class="workshop-planner-header">
       <div><h2>Workshop bay planner</h2><p>Monday–Friday, 8:00am–4:00pm. Long jobs carry into the next workday; overlapping bay bookings are blocked.</p></div>
       <div class="workshop-date-controls">
@@ -2674,5 +2772,8 @@ if (typeof module !== 'undefined' && module.exports) {
     workshopSlotSummary,
     moveWorkshopLivePlan,
     moveWorkshopDroppedPlan,
+    workshopSharedModeActive,
+    workshopMapSnapshotBookingToLegacyRow,
+    workshopConnectionBannerHtml,
   };
 }

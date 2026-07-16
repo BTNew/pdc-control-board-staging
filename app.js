@@ -2801,8 +2801,54 @@ function renderAll() {
   updateNavisionImportButton();
 }
 
+// Lazily constructs the shared workshop data service + realtime manager
+// exactly once per page load. No-op (and leaves window.__workshopDataService
+// undefined) unless window.PDC_SUPABASE_CONFIG.workshop.sharedData is
+// explicitly true -- see workshop-data-service.js for the fail-closed
+// opt-in contract. Kept in app.js (not workshop-planner.js) because it owns
+// the actual Supabase client / auth token / realtime subscription
+// wiring, which are already app.js concerns for the rest of the site.
+function initWorkshopSharedServicesIfEnabled() {
+  if (window.__workshopDataService) return; // already initialized this page load
+  if (typeof workshopSharedModeEnabled !== 'function' || !workshopSharedModeEnabled(window.PDC_SUPABASE_CONFIG)) return;
+  if (typeof createWorkshopDataService !== 'function' || typeof createWorkshopSupabaseClient !== 'function') return;
+
+  const client = createWorkshopSupabaseClient(window.PDC_SUPABASE_CONFIG);
+  const dataService = createWorkshopDataService({
+    config: window.PDC_SUPABASE_CONFIG,
+    client,
+    getAccessToken: () => (typeof getPdcSupabaseAccessToken === 'function' ? getPdcSupabaseAccessToken() : null),
+    getRole: () => (typeof window.PDC_AUTH_CONTEXT !== 'undefined' ? window.PDC_AUTH_CONTEXT?.role : null),
+    onStateChange: () => {
+      if (app.currentView === 'workshop' && typeof renderWorkshopPlanner === 'function') renderWorkshopPlanner();
+    },
+    onSnapshot: () => {
+      if (app.currentView === 'workshop' && typeof renderWorkshopPlanner === 'function') renderWorkshopPlanner();
+    }
+  });
+  window.__workshopDataService = dataService;
+
+  if (typeof createWorkshopRealtimeManager === 'function' && typeof createPdcSupabaseRealtimeSubscription === 'function') {
+    window.__workshopRealtimeManager = createWorkshopRealtimeManager({
+      dataService,
+      subscribe: (handlers) => createPdcSupabaseRealtimeSubscription(window.PDC_SUPABASE_CONFIG, handlers),
+      onStatusChange: () => {
+        if (app.currentView === 'workshop' && typeof renderWorkshopPlanner === 'function') renderWorkshopPlanner();
+      }
+    });
+    window.__workshopRealtimeManager.start();
+    window.addEventListener('online', () => window.__workshopRealtimeManager.forceReconnect());
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') dataService.onVisibilityReturn();
+    });
+  }
+
+  dataService.loadSnapshot('initial');
+}
+
 function renderWorkshopPlannerWhenReady() {
   if (typeof renderWorkshopPlanner === 'function') {
+    initWorkshopSharedServicesIfEnabled();
     renderWorkshopPlanner();
     return;
   }
@@ -2818,6 +2864,7 @@ function renderWorkshopPlannerWhenReady() {
     .catch(() => { /* non-fatal: shared mode simply stays unavailable */ })
     .then(() => loadExternalScript(`workshop-planner.js?v=${encodeURIComponent(APP_VERSION)}`, 'workshop-planner-script'))
     .then(() => {
+      initWorkshopSharedServicesIfEnabled();
       if (app.currentView === 'workshop' && typeof renderWorkshopPlanner === 'function') renderWorkshopPlanner();
     })
     .catch(error => {
