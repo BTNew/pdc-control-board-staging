@@ -22,6 +22,7 @@ FILES = (
     "data.js",
     "email-board-data.js",
     "arb-labor-catalog.js",
+    "workshop-data-service.js",
     "workshop-planner.js",
     "app.js",
 )

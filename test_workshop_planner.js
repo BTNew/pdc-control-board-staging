@@ -122,6 +122,9 @@ assert.deepStrictEqual(
   { name: 'Craig Watson', role: 'administrator' },
   'Authenticated users must be able to move planner vehicles without a separate local operator profile',
 );
+global.window.PDC_AUTH_CONTEXT = { displayName: 'Read Only User', email: 'viewer@example.com', role: 'viewer' };
+assert.strictEqual(planner.workshopRequireOperatorProfile(), null, 'Viewer accounts must remain read-only even before shared cutover');
+global.window.PDC_AUTH_CONTEXT = { displayName: 'Craig Watson', email: 'craig.watson@broometoyota.com.au', role: 'administrator' };
 const nextThursday = planner.workshopNextWorkdayDate(new Date(2026, 6, 15, 10, 0));
 assert.strictEqual(planner.workshopDateKey(nextThursday), '2026-07-16', 'Next-day warnings should use the following workday');
 const nextMonday = planner.workshopNextWorkdayDate(new Date(2026, 6, 17, 10, 0));
@@ -361,9 +364,17 @@ for (const file of htmlFiles) {
   const html = fs.readFileSync(path.join(root, file), 'utf8');
   assert.ok(html.includes('data-view="workshop"'), `${file} is missing the Workshop Planner navigation item`);
   assert.ok(html.includes('id="workshop-planner-root"'), `${file} is missing the Workshop Planner host`);
-  assert.ok(html.includes('workshop-planner.css?v=2026.07.16.26-workshop-drop-last-hover'), `${file} is missing the planner stylesheet`);
+  assert.ok(html.includes('workshop-planner.css?v=2026.07.16.27-workshop-realtime'), `${file} is missing the planner stylesheet`);
   assert.ok(!html.includes('<script src="workshop-planner.js'), `${file} must not eagerly load the planner script`);
 }
-assert.ok(app.includes("loadExternalScript(`workshop-planner.js?v=${encodeURIComponent(APP_VERSION)}`"), 'app.js must lazy-load the Workshop Planner with the active release version');
+assert.ok(app.includes("loadExternalScript(`workshop-data-service.js?v=${encodeURIComponent(APP_VERSION)}`"), 'app.js must lazy-load the shared Workshop data service first');
+assert.ok(app.includes(".then(() => loadExternalScript(`workshop-planner.js?v=${encodeURIComponent(APP_VERSION)}`"), 'app.js must load the Workshop Planner after the shared data service');
+assert.ok(source.includes('service.updateBooking(entry'), 'Planner moves, resizes and detail edits must use the atomic shared update RPC');
+assert.ok(source.includes('service.startBooking(entry'), 'Starting a job must use the protected shared start RPC');
+assert.ok(source.includes('service.completeBooking(entry'), 'Completing a job must use the protected shared completion RPC');
+assert.ok(source.includes('service.recordStoppage(entry'), 'Workshop stoppages must use the protected shared RPC');
+assert.ok(source.includes('service.resumeBooking(entry'), 'Workshop resumes must use the protected shared RPC');
+assert.ok(source.includes('workshopSharedDataService().getPlannerVehicles()'), 'Shared mode must build the workshop queue from Supabase vehicles rather than browser-local data');
+assert.ok(source.includes('if (shared?.isReady?.()) return shared.getPlannerVehicle(cleanKey);'), 'Shared bookings must prefer authoritative Supabase vehicle cards over stale browser-local rows');
 
 console.log('Workshop planner regression checks passed');

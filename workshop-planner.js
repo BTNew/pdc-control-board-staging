@@ -9,7 +9,69 @@ const WORKSHOP_DAY_MINUTES = (WORKSHOP_END_HOUR - WORKSHOP_START_HOUR) * 60;
 const WORKSHOP_SNAP_MINUTES = 15;
 const WORKSHOP_DEFAULT_HOURS = 3;
 const WORKSHOP_STAGE_SEQUENCE = ['BUS_4X4', 'TINT', 'HOIST', 'FITTING', 'FABRICATION', 'ELECTRICAL', 'TYRE', 'PIT_INSPECTION', 'SUBLET'];
+
 const WORKSHOP_VISIBLE_STAGE_SEQUENCE = WORKSHOP_STAGE_SEQUENCE.filter(stage => stage !== 'SUBLET');
+
+function workshopSharedDataService() {
+  return typeof window !== 'undefined' ? window.PDC_WORKSHOP_DATA || null : null;
+}
+
+function workshopUsingSharedData() {
+  const service = workshopSharedDataService();
+  return Boolean(service?.isEnabled?.() && service?.isReady?.());
+}
+
+function workshopSharedDataStatus() {
+  const service = workshopSharedDataService();
+  return service?.getStatus?.() || { mode: 'local', realtimeStatus: 'closed', error: '' };
+}
+
+function workshopBindSharedDataEvents() {
+  if (typeof window === 'undefined' || window.__workshopSharedDataBound) return;
+  window.__workshopSharedDataBound = true;
+  window.addEventListener('pdc-workshop-data-changed', () => {
+    if (typeof app !== 'undefined' && app.currentView === 'workshop' && typeof renderWorkshopPlanner === 'function') renderWorkshopPlanner();
+  });
+}
+
+function workshopEnsureSharedDataReady(root) {
+  const service = workshopSharedDataService();
+  if (!service?.isEnabled?.()) return true;
+  workshopBindSharedDataEvents();
+  if (service.isReady()) return true;
+  const status = service.getStatus?.() || {};
+  if (service.hasError?.()) {
+    root.innerHTML = `<div class="empty-state"><strong>Shared Workshop Planner unavailable</strong><span>${escapeHtml(status.error || 'The Supabase workshop tables or connection could not be loaded.')}</span><button class="primary" type="button" data-workshop-shared-retry>Retry shared connection</button></div>`;
+    root.querySelector('[data-workshop-shared-retry]')?.addEventListener('click', () => {
+      root.innerHTML = '<div class="empty-state"><strong>Reconnecting Workshop Planner</strong><span>Loading the shared database…</span></div>';
+      service.retry().then(() => renderWorkshopPlanner()).catch(() => renderWorkshopPlanner());
+    });
+    return false;
+  }
+  root.innerHTML = '<div class="empty-state"><strong>Loading shared Workshop Planner</strong><span>Connecting to Supabase and loading current bookings…</span></div>';
+  service.initialize().then(() => renderWorkshopPlanner()).catch(() => renderWorkshopPlanner());
+  return false;
+}
+
+async function workshopRunSharedMutation(operation, { success = null } = {}) {
+  const service = workshopSharedDataService();
+  if (!service?.isReady?.()) {
+    window.alert('The shared Workshop Planner is not connected. No workshop data was changed.');
+    return false;
+  }
+  try {
+    const result = await operation(service);
+    if (typeof success === 'function') success(result);
+    renderWorkshopPlanner();
+    return result || true;
+  } catch (error) {
+    console.error('Shared workshop mutation failed', error);
+    window.alert(error?.message || 'The shared workshop change was rejected.');
+    try { await service.refresh('mutation-rejected'); } catch (_refreshError) {}
+    renderWorkshopPlanner();
+    return false;
+  }
+}
 
 if (typeof CRM_BACKUP_STORAGE_KEYS !== 'undefined' && !CRM_BACKUP_STORAGE_KEYS.includes(WORKSHOP_PLAN_STORAGE_KEY)) {
   CRM_BACKUP_STORAGE_KEYS.push(WORKSHOP_PLAN_STORAGE_KEY);
@@ -230,6 +292,8 @@ function workshopEntrySegmentForDate(entry = {}, dateKey = '', now = new Date())
 }
 
 function workshopLoadPlans() {
+  const shared = workshopSharedDataService();
+  if (shared?.isReady?.()) return shared.getPlans();
   const rows = typeof loadJson === 'function' ? loadJson(WORKSHOP_PLAN_STORAGE_KEY, []) : [];
   return Array.isArray(rows) ? rows
     .filter(row => row && row.id && row.vehicleKey && WORKSHOP_STAGE_SEQUENCE.includes(row.stage))
@@ -237,6 +301,8 @@ function workshopLoadPlans() {
 }
 
 function workshopSavePlans(rows = []) {
+  const shared = workshopSharedDataService();
+  if (shared?.isEnabled?.()) return;
   if (typeof saveJson !== 'function') return;
   const operation = () => saveJson(WORKSHOP_PLAN_STORAGE_KEY, rows);
   if (typeof runStorageTransaction === 'function') runStorageTransaction('Workshop planner save', [WORKSHOP_PLAN_STORAGE_KEY], operation);
@@ -249,8 +315,14 @@ function workshopSavePlans(rows = []) {
 
 function workshopRequireOperatorProfile() {
   const authenticatedName = typeof window !== 'undefined' ? String(window.PDC_AUTH_CONTEXT?.displayName || window.PDC_AUTH_CONTEXT?.email || '').trim() : '';
-  const authenticatedRole = typeof window !== 'undefined' ? String(window.PDC_AUTH_CONTEXT?.role || '').trim() : '';
-  if (authenticatedName && authenticatedRole) return { name: authenticatedName, role: authenticatedRole };
+  const authenticatedRole = typeof window !== 'undefined' ? String(window.PDC_AUTH_CONTEXT?.role || '').trim().toLowerCase() : '';
+  if (authenticatedName && authenticatedRole) {
+    if (!['operator', 'importer', 'administrator'].includes(authenticatedRole)) {
+      window.alert('Your Workshop Planner access is read-only. No workshop data was changed.');
+      return null;
+    }
+    return { name: authenticatedName, role: authenticatedRole };
+  }
   const name = typeof localStorage !== 'undefined' && typeof OPERATOR_NAME_KEY !== 'undefined' ? String(localStorage.getItem(OPERATOR_NAME_KEY) || '').trim() : '';
   const role = typeof localStorage !== 'undefined' && typeof OPERATOR_ROLE_KEY !== 'undefined' ? String(localStorage.getItem(OPERATOR_ROLE_KEY) || '').trim() : '';
   if (name && role) return { name, role };
@@ -329,11 +401,15 @@ function workshopOwnedBlockClearUpdates(entry = {}, vehicle = {}, now = '', oper
 }
 
 function workshopLoadBaySetup() {
+  const shared = workshopSharedDataService();
+  if (shared?.isReady?.()) return shared.getBaySetup();
   const saved = typeof loadJson === 'function' ? loadJson(WORKSHOP_BAY_SETUP_STORAGE_KEY, {}) : {};
   return saved && typeof saved === 'object' && !Array.isArray(saved) ? saved : {};
 }
 
 function workshopSaveBaySetup(setup = {}) {
+  const shared = workshopSharedDataService();
+  if (shared?.isEnabled?.()) return;
   if (typeof saveJson === 'function') saveJson(WORKSHOP_BAY_SETUP_STORAGE_KEY, setup);
 }
 
@@ -346,7 +422,13 @@ function workshopBayMechanic(stage = '', bay = 0) {
 }
 
 function workshopStageBayCount(stage = '') {
-  return normalizePmbStage(stage) === 'SUBLET' ? 1 : pmbStageBayCount(stage);
+  const normalized = normalizePmbStage(stage);
+  const shared = workshopSharedDataService();
+  if (shared?.isReady?.()) {
+    const count = shared.getBays(normalized).length;
+    if (count) return count;
+  }
+  return normalized === 'SUBLET' ? 1 : pmbStageBayCount(stage);
 }
 
 function workshopEstimatedHoursMap(vehicle = {}) {
@@ -476,7 +558,11 @@ function workshopState() {
 
 function workshopVehicle(key = '') {
   const cleanKey = String(key || '').trim();
-  return cleanKey && typeof selectedVehicle === 'function' ? selectedVehicle(cleanKey) : null;
+  if (!cleanKey) return null;
+  const shared = workshopSharedDataService();
+  if (shared?.isReady?.()) return shared.getPlannerVehicle(cleanKey);
+  const local = typeof selectedVehicle === 'function' ? selectedVehicle(cleanKey) : null;
+  return local || null;
 }
 
 function workshopPlanId(vehicleKeyValue = '', stage = '') {
@@ -615,7 +701,7 @@ function workshopRequireAvailableAssignee(entry = {}, rows = workshopLoadPlans()
 
 function workshopEntryIsLive(entry = {}) {
   if (!['started', 'stoppage'].includes(entry.status)) return false;
-  if (entry.stage === 'SUBLET') return true;
+  if (workshopUsingSharedData() || entry.stage === 'SUBLET') return true;
   const vehicle = workshopVehicle(entry.vehicleKey);
   return Boolean(vehicle && Number(pmbBayNumber(vehicle, entry.stage)) === Number(entry.bay));
 }
@@ -681,6 +767,7 @@ function workshopDateLabel(dateKey = '') {
 }
 
 function workshopSyncCompletedPlans(rows = workshopLoadPlans()) {
+  if (workshopUsingSharedData()) return rows;
   let changed = false;
   const next = rows.map(entry => {
     if (entry.status === 'completed') return entry;
@@ -696,11 +783,13 @@ function workshopSyncCompletedPlans(rows = workshopLoadPlans()) {
 
 function workshopStageVehicles(stage = '') {
   const normalizedStage = normalizePmbStage(stage);
-  if (typeof pmbVehiclesNeedingStationWork === 'function' && normalizedStage !== 'SUBLET') {
+  const sharedVehicles = workshopSharedDataService()?.isReady?.() ? workshopSharedDataService().getPlannerVehicles() : null;
+  if (!sharedVehicles && typeof pmbVehiclesNeedingStationWork === 'function' && normalizedStage !== 'SUBLET') {
     return pmbVehiclesNeedingStationWork(normalizedStage);
   }
   const def = pmbStageJobDef(normalizedStage);
-  return app.data.filter(vehicle => {
+  const sourceVehicles = sharedVehicles || app.data;
+  return sourceVehicles.filter(vehicle => {
     if (statusCategory(vehicle) !== 'pmb') return false;
     const currentStage = normalizePmbStage(inferredPmbStage(vehicle));
     if (normalizedStage === 'SUBLET') {
@@ -736,7 +825,8 @@ function workshopSearchRank(vehicle = {}, query = '') {
 function workshopFindSearchVehicle(query = '') {
   const clean = cleanNavisionText(query || '').toLowerCase();
   if (!clean) return null;
-  return app.data.filter(vehicle => statusCategory(vehicle) === 'pmb' && workshopVehicleSearchText(vehicle).includes(clean))
+  const sourceVehicles = workshopSharedDataService()?.isReady?.() ? workshopSharedDataService().getPlannerVehicles() : app.data;
+  return sourceVehicles.filter(vehicle => statusCategory(vehicle) === 'pmb' && workshopVehicleSearchText(vehicle).includes(clean))
     .sort((a, b) => workshopSearchRank(a, clean) - workshopSearchRank(b, clean))[0] || null;
 }
 
@@ -906,7 +996,7 @@ function workshopPlanChipHtml(entry = {}, dateKey = '', rows = workshopLoadPlans
   const left = (segment.start / WORKSHOP_DAY_MINUTES) * 100;
   const width = ((segment.end - segment.start) / WORKSHOP_DAY_MINUTES) * 100;
   const actualBay = pmbBayNumber(vehicle, entry.stage);
-  const started = entry.stage === 'SUBLET' ? workshopEntryIsLive(entry) : Number(actualBay) === Number(entry.bay);
+  const started = workshopUsingSharedData() ? workshopEntryIsLive(entry) : entry.stage === 'SUBLET' ? workshopEntryIsLive(entry) : Number(actualBay) === Number(entry.bay);
   const blocked = isPdcBlocked(vehicle);
   const overtime = workshopEntryIsOvertime(entry);
   const assigneeConflict = workshopEntryHasAssigneeConflict(entry, rows);
@@ -975,13 +1065,18 @@ function workshopBayRowsHtml(stage = '', dateKey = '', rows = []) {
 
 function workshopMechanicOptions(selected = '') {
   const cleanSelected = cleanNavisionText(selected || '');
-  const names = loadMechanics();
+  const sharedNames = workshopSharedDataService()?.isReady?.() ? workshopSharedDataService().getTechnicians('technician').map(row => row.name) : [];
+  const names = [...new Set([...sharedNames, ...loadMechanics()])].sort((a, b) => a.localeCompare(b));
   const options = cleanSelected && !names.includes(cleanSelected) ? [cleanSelected, ...names] : names;
   return `<option value="">Unassigned</option>${options.map(name => `<option value="${escapeHtml(name)}"${name === cleanSelected ? ' selected' : ''}>${escapeHtml(name)}</option>`).join('')}`;
 }
 
 function workshopAssigneeOptions(stage = '', selected = '') {
-  return normalizePmbStage(stage) === 'SUBLET' ? subletProviderOptionsHtml(selected) : workshopMechanicOptions(selected);
+  if (normalizePmbStage(stage) !== 'SUBLET') return workshopMechanicOptions(selected);
+  const cleanSelected = cleanNavisionText(selected || '');
+  const sharedNames = workshopSharedDataService()?.isReady?.() ? workshopSharedDataService().getTechnicians('provider').map(row => row.name) : [];
+  const names = [...new Set([...sharedNames, ...loadSubletProviders(), ...(cleanSelected ? [cleanSelected] : [])])].sort((a, b) => a.localeCompare(b));
+  return `<option value="">Unassigned</option>${names.map(name => `<option value="${escapeHtml(name)}"${name === cleanSelected ? ' selected' : ''}>${escapeHtml(name)}</option>`).join('')}`;
 }
 
 function workshopCurrentDragPreview() {
@@ -1129,7 +1224,12 @@ function workshopDetailHtml(entry = null) {
 function renderWorkshopPlanner() {
   const root = document.querySelector('#workshop-planner-root');
   if (!root) return;
+  if (!workshopEnsureSharedDataReady(root)) return;
   const state = workshopState();
+  const sharedStatus = workshopSharedDataStatus();
+  const sharedLabel = workshopUsingSharedData()
+    ? `Shared database · ${sharedStatus.realtimeStatus === 'subscribed' ? 'live sync connected' : `live sync ${sharedStatus.realtimeStatus || 'connecting'}`}`
+    : 'Local review mode';
   const requestedStage = normalizePmbStage(app.pendingWorkshopStage || '');
   if (WORKSHOP_VISIBLE_STAGE_SEQUENCE.includes(requestedStage)) {
     state.stage = requestedStage;
@@ -1144,8 +1244,11 @@ function renderWorkshopPlanner() {
   const search = String(state.search || '').trim().toLowerCase();
   const activePlans = plans.filter(entry => entry.stage === stage && entry.status !== 'completed');
   const plannedKeys = new Set(activePlans.map(entry => entry.vehicleKey));
+  const occupiedKeys = workshopUsingSharedData()
+    ? new Set(plans.filter(entry => entry.stage === stage && !['queued', 'deleted'].includes(entry.status)).map(entry => entry.vehicleKey))
+    : plannedKeys;
   const stageVehicleList = workshopStageVehicles(stage);
-  const queue = stageVehicleList.filter(vehicle => !plannedKeys.has(vehicleKey(vehicle)) && (!search || workshopVehicleSearchText(vehicle).includes(search)));
+  const queue = stageVehicleList.filter(vehicle => !occupiedKeys.has(vehicleKey(vehicle)) && (!search || workshopVehicleSearchText(vehicle).includes(search)));
   const completed = plans.filter(entry => {
     if (entry.stage !== stage || entry.status !== 'completed') return false;
     const completedDate = parseIsoTimestamp(entry.completedAt || '');
@@ -1167,7 +1270,7 @@ function renderWorkshopPlanner() {
         <button class="small-button warning-button" type="button" data-workshop-parts-warning>Draft next-day parts warning</button>
       </div>
     </header>
-    <div class="workshop-date-summary"><strong>${escapeHtml(workshopDateLabel(dateKey))}</strong><span>${todaysPlans.length} planned · ${completed.length} completed · ${queue.length} waiting${assigneeConflicts ? ` · ⚠ ${assigneeConflicts} mechanic clash${assigneeConflicts === 1 ? '' : 'es'}` : ''} · Saved automatically${state.lastSavedAt ? ` ${escapeHtml(new Date(state.lastSavedAt).toLocaleTimeString('en-AU', { hour: 'numeric', minute: '2-digit' }))}` : ''}</span><div class="workshop-status-legend"><span class="planned">Planned</span><span class="live">Live</span><span class="stoppage">Stoppage</span><span class="completed">Completed</span></div></div>
+    <div class="workshop-date-summary"><strong>${escapeHtml(workshopDateLabel(dateKey))}</strong><span>${todaysPlans.length} planned · ${completed.length} completed · ${queue.length} waiting${assigneeConflicts ? ` · ⚠ ${assigneeConflicts} mechanic clash${assigneeConflicts === 1 ? '' : 'es'}` : ''} · ${escapeHtml(sharedLabel)}${state.lastSavedAt && !workshopUsingSharedData() ? ` · Saved ${escapeHtml(new Date(state.lastSavedAt).toLocaleTimeString('en-AU', { hour: 'numeric', minute: '2-digit' }))}` : ''}</span><div class="workshop-status-legend"><span class="planned">Planned</span><span class="live">Live</span><span class="stoppage">Stoppage</span><span class="completed">Completed</span></div></div>
     <nav class="workshop-stage-tabs" aria-label="Workshop departments">${stageTabs}</nav>
     ${workshopDetailHtml(selected)}
     <div class="workshop-board-shell">
@@ -1392,7 +1495,11 @@ function bindWorkshopLane(lane) {
   });
 }
 
-function saveWorkshopBayMechanic(stage = '', bay = 0, value = '') {
+async function saveWorkshopBayMechanic(stage = '', bay = 0, value = '') {
+  if (workshopUsingSharedData()) {
+    const assignee = cleanNavisionText(value || '');
+    return workshopRunSharedMutation(service => service.setBayDefault(stage, bay, assignee));
+  }
   const setup = workshopLoadBaySetup();
   const key = workshopBaySetupKey(stage, bay);
   const assignee = cleanNavisionText(value || '');
@@ -1488,6 +1595,35 @@ async function returnWorkshopPlanToUnallocated(planId = '') {
   const vehicle = workshopVehicle(entry.vehicleKey);
   if (!vehicle) return;
   if (!workshopRequireOperatorProfile()) return;
+  if (workshopUsingSharedData()) {
+    let choice = { choice: 'move', reason: '' };
+    if (entry.status === 'planned') {
+      if (!window.confirm(`Return ${displayStockNumber(vehicle) || 'this vehicle'} to the unscheduled ${pmbStageLabel(entry.stage)} queue?
+
+The vehicle stays in PMB and is not deleted.`)) return;
+    } else {
+      choice = await workshopReturnChoiceModal(entry, vehicle);
+      if (!choice) return;
+    }
+    const stoppage = choice.choice === 'stoppage';
+    const result = await workshopRunSharedMutation(
+      service => service.returnBookingToQueue(entry, stoppage ? choice.reason : '', {
+        stage: pmbStageLabel(entry.stage),
+        bay: entry.stage === 'SUBLET' ? 'Provider row' : `Bay ${entry.bay}`,
+        reason: stoppage ? choice.reason : 'Just move',
+        source: 'workshop-planner-ui',
+      }),
+      { success: () => { workshopState().selectedPlanId = ''; workshopState().highlightVehicleKey = ''; } },
+    );
+    if (result && stoppage) {
+      offerSalespersonChangeEmail(vehicle, {
+        title: `${pmbStageLabel(entry.stage)} stoppage`,
+        subject: 'PDC workshop stoppage',
+        details: [`The vehicle was returned to PMB Unallocated with this stoppage: ${choice.reason}.`, `The ${pmbStageLabel(entry.stage)} job remains open.`],
+      });
+    }
+    return;
+  }
   if (entry.status === 'planned') {
     if (!window.confirm(`Return ${displayStockNumber(vehicle) || 'this vehicle'} to the unscheduled ${pmbStageLabel(entry.stage)} queue?\n\nThe vehicle stays in PMB and is not deleted.`)) return;
     const latestRows = workshopLoadPlans();
@@ -1595,7 +1731,9 @@ async function moveWorkshopLivePlan(planId = '', stage = '', bay = 0, dateKey = 
   const nextBay = Number(bay);
   const nextStart = workshopDateAtOffset(dateKey, startMinutes).toISOString();
   const requestedLabel = `${pmbStageLabel(nextStage)} ${nextStage === 'SUBLET' ? 'provider row' : `Bay ${nextBay}`} · ${workshopEntryTimeLabel({ ...entry, stage: nextStage, bay: nextBay, startAt: nextStart })}`;
-  if (!window.confirm(`Move this live workshop job to ${requestedLabel}?\n\nThis updates the live bay allocation and keeps the job started/stoppage history.`)) return false;
+  if (!window.confirm(`Move this live workshop job to ${requestedLabel}?
+
+This updates the live bay allocation and keeps the job started/stoppage history.`)) return false;
   const candidate = {
     ...entry,
     stage: nextStage,
@@ -1604,6 +1742,18 @@ async function moveWorkshopLivePlan(planId = '', stage = '', bay = 0, dateKey = 
     updatedAt: nowIsoString(),
   };
   const otherRows = rows.filter(row => row.id !== candidate.id);
+  if (workshopUsingSharedData()) {
+    if (!workshopRequireNoBayConflict(candidate, otherRows)) return false;
+    if (!workshopRequireAvailableAssignee(candidate, otherRows)) return false;
+    if (!workshopConfirmOtherDepartmentPlans(candidate, rows)) return false;
+    return workshopUpdatePlanShared(entry, candidate, 'live_moved', {
+      from: `${pmbStageLabel(entry.stage)} ${entry.stage === 'SUBLET' ? 'provider row' : `Bay ${entry.bay}`} · ${workshopEntryTimeLabel(entry)}`,
+      to: requestedLabel,
+      status: entry.status,
+      assignee: candidate.assignee || 'Unassigned',
+      source: 'workshop-planner-ui',
+    });
+  }
   let plannedRowsAfterShift = null;
   if (workshopHasConflict(candidate, otherRows)) {
     const shifted = workshopShiftTrailingPlannedRows(candidate, otherRows);
@@ -1734,7 +1884,7 @@ function openWorkshopScheduleModal(vehicleKeyValue = '', stage = '', dateKey = '
   overlay.querySelector('[name="bay"]')?.addEventListener('change', suggestAvailableTime);
   overlay.querySelector('[name="date"]')?.addEventListener('change', suggestAvailableTime);
   overlay.querySelector('[name="hours"]')?.addEventListener('change', suggestAvailableTime);
-  overlay.querySelector('[data-workshop-schedule-form]').addEventListener('submit', event => {
+  overlay.querySelector('[data-workshop-schedule-form]').addEventListener('submit', async event => {
     event.preventDefault();
     const form = event.currentTarget;
     const selected = workshopDateFromKey(form.elements.date.value);
@@ -1755,7 +1905,7 @@ function openWorkshopScheduleModal(vehicleKeyValue = '', stage = '', dateKey = '
       window.alert('No open sequence slot was found in this bay during the next 260 workdays. Choose another bay or a later date.');
       return;
     }
-    const scheduled = scheduleWorkshopVehicle({
+    const scheduled = await scheduleWorkshopVehicle({
       vehicleKeyValue,
       stage: normalizedStage,
       bay: Number(form.elements.bay.value),
@@ -1772,12 +1922,23 @@ function openWorkshopScheduleModal(vehicleKeyValue = '', stage = '', dateKey = '
   overlay.querySelector('[name="bay"]')?.focus();
 }
 
-function extendWorkshopPlan(planId = '', additionalHours = 0) {
+async function extendWorkshopPlan(planId = '', additionalHours = 0) {
   const rows = workshopLoadPlans();
   const entry = rows.find(row => row.id === planId);
   const delta = Number(additionalHours);
   if (!entry || entry.status === 'completed' || !Number.isFinite(delta) || delta <= 0) return false;
   const candidate = { ...entry, hours: workshopClampDurationHours(Number(entry.hours || 0) + delta), updatedAt: nowIsoString() };
+  if (workshopUsingSharedData()) {
+    const otherRows = rows.filter(row => row.id !== entry.id);
+    if (!workshopRequireNoBayConflict(candidate, otherRows)) return false;
+    if (!workshopRequireAvailableAssignee(candidate, otherRows)) return false;
+    return workshopUpdatePlanShared(entry, candidate, 'resized', {
+      stage: pmbStageLabel(entry.stage),
+      addedHours: delta,
+      hours: candidate.hours,
+      source: 'workshop-planner-ui',
+    });
+  }
   const latestRows = workshopLoadPlans();
   const latestEntry = latestRows.find(row => row.id === entry.id);
   if (!latestEntry || latestEntry.updatedAt !== entry.updatedAt) {
@@ -1833,7 +1994,108 @@ function workshopConfirmOtherDepartmentPlans(candidate = {}, rows = []) {
   return window.confirm(`This vehicle is also planned by another department:\n\n${details}\n\nContinue with the ${pmbStageLabel(candidate.stage)} booking?`);
 }
 
+
+async function workshopUpdatePlanShared(entry = {}, changes = {}, eventType = 'moved', metadata = {}) {
+  const candidate = {
+    ...entry,
+    stage: normalizePmbStage(changes.stage || entry.stage),
+    bay: Number(changes.bay || entry.bay) || 1,
+    startAt: changes.startAt || entry.startAt,
+    hours: workshopClampDurationHours(changes.hours || entry.hours),
+    assignee: cleanNavisionText(changes.assignee === undefined ? entry.assignee : changes.assignee),
+  };
+  return workshopRunSharedMutation(
+    service => service.updateBooking(entry, {
+      stage: candidate.stage,
+      bay: candidate.bay,
+      startAt: candidate.startAt,
+      hours: candidate.hours,
+      assignee: candidate.assignee,
+      eventType,
+      metadata,
+    }),
+    {
+      success: updated => {
+        if (!updated?.id) return;
+        const state = workshopState();
+        state.selectedPlanId = updated.id;
+        state.date = workshopEntryDate(updated);
+        workshopSaveView(state);
+      },
+    },
+  );
+}
+
+async function scheduleWorkshopVehicleShared({ planId = '', vehicleKeyValue = '', stage = '', bay = 0, dateKey = '', startMinutes = 0, hoursValue = null, assigneeValue = null, preferRequestedTime = false } = {}) {
+  const rows = workshopLoadPlans();
+  const normalizedStage = normalizePmbStage(stage);
+  const existing = rows.find(entry => entry.id === planId)
+    || rows.find(entry => entry.vehicleKey === vehicleKeyValue && entry.stage === normalizedStage && !['completed', 'deleted'].includes(entry.status));
+  const vehicle = workshopVehicle(existing?.vehicleKey || vehicleKeyValue);
+  if (!vehicle) return false;
+  if (existing && ['started', 'stoppage', 'completed'].includes(existing.status)) {
+    window.alert('Started, stopped and completed jobs stay fixed on the planner. Resolve the live job before rescheduling it.');
+    return false;
+  }
+  if (!WORKSHOP_STAGE_SEQUENCE.includes(normalizedStage) || Number(bay) < 1 || Number(bay) > workshopStageBayCount(normalizedStage)) {
+    window.alert('Choose a valid workshop bay.');
+    return false;
+  }
+  const start = workshopDateAtOffset(dateKey, startMinutes);
+  const requestedHours = Number(hoursValue);
+  const hours = workshopClampDurationHours(Number.isFinite(requestedHours) && requestedHours > 0
+    ? requestedHours
+    : existing?.hours || workshopCalculatedStageHours(vehicle, normalizedStage) || pmbBayHours(vehicle) || WORKSHOP_DEFAULT_HOURS);
+  const candidate = {
+    ...(existing || {}),
+    vehicleKey: vehicleKey(vehicle),
+    stage: normalizedStage,
+    bay: Number(bay),
+    startAt: start.toISOString(),
+    hours,
+    assignee: assigneeValue === null
+      ? existing?.assignee || workshopBayMechanic(normalizedStage, bay) || pmbBayMechanic(vehicle) || ''
+      : cleanNavisionText(assigneeValue || ''),
+    status: 'planned',
+  };
+  const conflictRows = rows.filter(row => row.id !== existing?.id);
+  let resolved = candidate;
+  if (workshopHasConflict(candidate, conflictRows)) {
+    if (preferRequestedTime) {
+      workshopRequireNoBayConflict(candidate, conflictRows);
+      return false;
+    }
+    resolved = workshopResolveConflictByNextSlot(candidate, conflictRows);
+    if (!resolved) return false;
+  }
+  if (!workshopRequireAvailableAssignee(resolved, conflictRows)) return false;
+  if (!workshopConfirmOtherDepartmentPlans(resolved, rows)) return false;
+  const metadata = {
+    stage: pmbStageLabel(normalizedStage),
+    bay: normalizedStage === 'SUBLET' ? 'Provider row' : `Bay ${resolved.bay}`,
+    startAt: resolved.startAt,
+    hours: resolved.hours,
+    assignee: resolved.assignee || 'Unassigned',
+    source: 'workshop-planner-ui',
+  };
+  return workshopRunSharedMutation(
+    service => existing
+      ? service.updateBooking(existing, { ...resolved, eventType: 'rescheduled', metadata })
+      : service.createBooking({ ...resolved, metadata }),
+    {
+      success: updated => {
+        if (!updated?.id) return;
+        const state = workshopState();
+        state.selectedPlanId = updated.id;
+        state.date = workshopEntryDate(updated);
+        workshopSaveView(state);
+      },
+    },
+  );
+}
+
 function scheduleWorkshopVehicle({ planId = '', vehicleKeyValue = '', stage = '', bay = 0, dateKey = '', startMinutes = 0, hoursValue = null, assigneeValue = null, preferRequestedTime = false } = {}) {
+  if (workshopUsingSharedData()) return scheduleWorkshopVehicleShared({ planId, vehicleKeyValue, stage, bay, dateKey, startMinutes, hoursValue, assigneeValue, preferRequestedTime });
   const rows = workshopLoadPlans();
   const existing = rows.find(entry => entry.id === planId) || rows.find(entry => entry.id === workshopPlanId(vehicleKeyValue, stage));
   const vehicle = workshopVehicle(existing?.vehicleKey || vehicleKeyValue);
@@ -1912,7 +2174,7 @@ function scheduleWorkshopVehicle({ planId = '', vehicleKeyValue = '', stage = ''
   return true;
 }
 
-function saveWorkshopDetailForm(event) {
+async function saveWorkshopDetailForm(event) {
   event.preventDefault();
   const form = event.currentTarget;
   const rows = workshopLoadPlans();
@@ -1944,6 +2206,24 @@ function saveWorkshopDetailForm(event) {
     assignee: cleanNavisionText(data.get('assignee') || ''),
     updatedAt: nowIsoString(),
   };
+  if (workshopUsingSharedData()) {
+    const otherRows = rows.filter(row => row.id !== candidate.id);
+    let resolvedDetail = candidate;
+    if (workshopHasConflict(candidate, otherRows)) {
+      resolvedDetail = workshopResolveConflictByNextSlot(candidate, otherRows);
+      if (!resolvedDetail) return;
+    }
+    if (!workshopRequireAvailableAssignee(resolvedDetail, otherRows)) return;
+    if (!workshopConfirmOtherDepartmentPlans(resolvedDetail, rows)) return;
+    await workshopUpdatePlanShared(entry, resolvedDetail, 'details_updated', {
+      stage: pmbStageLabel(entry.stage),
+      startAt: resolvedDetail.startAt,
+      hours: resolvedDetail.hours,
+      assignee: resolvedDetail.assignee || 'Unassigned',
+      source: 'workshop-planner-ui',
+    });
+    return;
+  }
   const latestRows = workshopLoadPlans();
   const latestEntry = latestRows.find(row => row.id === entry.id);
   if (!latestEntry || latestEntry.updatedAt !== entry.updatedAt) {
@@ -1985,6 +2265,38 @@ async function startWorkshopPlan(planId = '') {
   if (!entry || !vehicle) return;
   if (!workshopRequireOperatorProfile()) return;
   const currentStart = workshopNormalizeStartDate(new Date());
+  if (workshopUsingSharedData()) {
+    const result = await workshopRunSharedMutation(
+      service => service.startBooking(entry, {
+        source: 'workshop-planner-ui',
+        stage: entry.stage,
+        bay: entry.bay,
+        assignee: entry.assignee || '',
+        requested_start_at: currentStart.toISOString(),
+      }),
+      {
+        success: updated => {
+          if (!updated?.id) return;
+          const state = workshopState();
+          state.selectedPlanId = updated.id;
+          state.date = workshopEntryDate(updated);
+          workshopSaveView(state);
+        },
+      },
+    );
+    if (result) {
+      offerSalespersonChangeEmail(vehicle, {
+        title: `${pmbStageLabel(entry.stage)} job started`,
+        subject: 'PDC workshop job started',
+        details: [
+          `${pmbStageLabel(entry.stage)} work started at ${currentStart.toLocaleString('en-AU', { dateStyle: 'short', timeStyle: 'short' })}.`,
+          entry.stage === 'SUBLET' ? `Provider: ${entry.assignee || 'Unassigned'}.` : `Bay ${entry.bay}${entry.assignee ? ` · Mechanic: ${entry.assignee}` : ''}.`,
+          `Estimated workshop time: ${entry.hours} hours.`,
+        ],
+      });
+    }
+    return;
+  }
   const next = { ...entry, startAt: currentStart.toISOString(), status: 'started', startedAt: nowIsoString(), updatedAt: nowIsoString() };
   const otherRows = rows.filter(row => row.id !== next.id);
   let plannedRowsAfterShift = null;
@@ -2052,7 +2364,7 @@ async function startWorkshopPlan(planId = '') {
   renderWorkshopPlanner();
 }
 
-function completeWorkshopPlan(planId = '') {
+async function completeWorkshopPlan(planId = '') {
   const rows = workshopLoadPlans();
   const entry = rows.find(row => row.id === planId);
   const vehicle = entry ? workshopVehicle(entry.vehicleKey) : null;
@@ -2060,6 +2372,36 @@ function completeWorkshopPlan(planId = '') {
   if (!workshopRequireOperatorProfile()) return;
   if (!['started', 'stoppage'].includes(entry.status)) {
     window.alert('Use “Start job” first so the workshop start time and salesperson update are recorded.');
+    return;
+  }
+  if (workshopUsingSharedData()) {
+    const result = await workshopRunSharedMutation(
+      service => service.completeBooking(entry, {
+        source: 'workshop-planner-ui',
+        stage: entry.stage,
+        bay: entry.bay,
+        assignee: entry.assignee || '',
+      }),
+      {
+        success: updated => {
+          if (!updated?.id) return;
+          const state = workshopState();
+          state.selectedPlanId = updated.id;
+          state.date = workshopEntryDate(updated);
+          workshopSaveView(state);
+        },
+      },
+    );
+    if (result) {
+      offerSalespersonChangeEmail(vehicle, {
+        title: `${pmbStageLabel(entry.stage)} work completed`,
+        subject: 'PDC workshop work completed',
+        details: [
+          `${pmbStageLabel(entry.stage)} work has been completed.`,
+          entry.stage === 'SUBLET' ? `Provider: ${entry.assignee || 'Unassigned'}.` : `Bay ${entry.bay}${entry.assignee ? ` · Mechanic: ${entry.assignee}` : ''}.`,
+        ],
+      });
+    }
     return;
   }
   if (entry.stage !== 'SUBLET' && Number(pmbBayNumber(vehicle, entry.stage)) !== Number(entry.bay)) {
@@ -2171,6 +2513,31 @@ async function stopWorkshopPlan(planId = '') {
   }
   const reason = await workshopStoppageReasonModal(entry, vehicle);
   if (!reason) return;
+  if (workshopUsingSharedData()) {
+    const result = await workshopRunSharedMutation(
+      service => service.recordStoppage(entry, reason, {
+        source: 'workshop-planner-ui',
+        stage: entry.stage,
+        bay: entry.bay,
+        assignee: entry.assignee || '',
+      }),
+      {
+        success: updated => {
+          if (!updated?.id) return;
+          workshopState().selectedPlanId = updated.id;
+          workshopSaveView(workshopState());
+        },
+      },
+    );
+    if (result) {
+      offerSalespersonChangeEmail(vehicle, {
+        title: `${pmbStageLabel(entry.stage)} job stoppage`,
+        subject: 'PDC workshop stoppage',
+        details: [`The workshop job has stopped: ${reason}.`, entry.stage === 'SUBLET' ? `Provider: ${entry.assignee || 'Unassigned'}.` : `Bay ${entry.bay}${entry.assignee ? ` · Mechanic: ${entry.assignee}` : ''}.`],
+      });
+    }
+    return;
+  }
   const now = nowIsoString();
   const operator = getCurrentOperatorName();
   const next = { ...entry, status: 'stoppage', stoppageReason: reason, stoppageAt: now, updatedAt: now };
@@ -2191,12 +2558,30 @@ async function stopWorkshopPlan(planId = '') {
   renderWorkshopPlanner();
 }
 
-function resumeWorkshopPlan(planId = '') {
+async function resumeWorkshopPlan(planId = '') {
   const rows = workshopLoadPlans();
   const entry = rows.find(row => row.id === planId);
   const vehicle = entry ? workshopVehicle(entry.vehicleKey) : null;
   if (!entry || !vehicle || entry.status !== 'stoppage') return;
   if (!workshopRequireOperatorProfile()) return;
+  if (workshopUsingSharedData()) {
+    await workshopRunSharedMutation(
+      service => service.resumeBooking(entry, {
+        source: 'workshop-planner-ui',
+        stage: entry.stage,
+        bay: entry.bay,
+        assignee: entry.assignee || '',
+      }),
+      {
+        success: updated => {
+          if (!updated?.id) return;
+          workshopState().selectedPlanId = updated.id;
+          workshopSaveView(workshopState());
+        },
+      },
+    );
+    return;
+  }
   const now = nowIsoString();
   const stoppageMinutes = Number(entry.stoppageMinutes || 0) + (entry.stoppageAt
     ? workshopWorkMinutesBetween(parseIsoTimestamp(entry.stoppageAt), parseIsoTimestamp(now))
@@ -2234,12 +2619,25 @@ function startWorkshopResize(handle, event) {
     chip.style.setProperty('--plan-width', `${(visibleMinutes / WORKSHOP_DAY_MINUTES) * 100}%`);
     chip.dataset.previewHours = String(hours);
   };
-  const onUp = () => {
+  const onUp = async () => {
     document.removeEventListener('pointermove', onMove);
     document.removeEventListener('pointerup', onUp);
     const hours = Number(chip.dataset.previewHours || entry.hours);
     delete chip.dataset.previewHours;
     const candidate = { ...entry, hours, updatedAt: nowIsoString() };
+    if (workshopUsingSharedData()) {
+      const otherRows = workshopLoadPlans().filter(row => row.id !== candidate.id);
+      if (!workshopRequireNoBayConflict(candidate, otherRows) || !workshopRequireAvailableAssignee(candidate, otherRows)) {
+        renderWorkshopPlanner();
+        return;
+      }
+      await workshopUpdatePlanShared(entry, candidate, 'resized', {
+        source: 'workshop-planner-ui',
+        previous_duration_hours: entry.hours,
+        duration_hours: candidate.hours,
+      });
+      return;
+    }
     const latestRows = workshopLoadPlans();
     const latestEntry = latestRows.find(row => row.id === entry.id);
     if (!latestEntry || latestEntry.updatedAt !== entry.updatedAt) {
@@ -2332,6 +2730,22 @@ async function moveWorkshopWeeklyPlan(planId = '', stage = '', bay = 0, dateKey 
     startAt: workshopDateAtOffset(dateKey, startMinutes).toISOString(),
     updatedAt: nowIsoString(),
   };
+  if (workshopUsingSharedData()) {
+    const otherRows = workshopLoadPlans().filter(row => row.id !== candidate.id);
+    if (!workshopRequireNoBayConflict(candidate, otherRows) || !workshopRequireAvailableAssignee(candidate, otherRows)) {
+      openWorkshopWeeklyView(stage, bay, weekKey || dateKey);
+      return;
+    }
+    if (!workshopConfirmOtherDepartmentPlans(candidate, workshopLoadPlans())) return;
+    const result = await workshopUpdatePlanShared(entry, candidate, 'weekly_moved', {
+      source: 'workshop-planner-ui',
+      previous_stage: entry.stage,
+      previous_bay: entry.bay,
+      previous_start_at: entry.startAt,
+    });
+    if (result) openWorkshopWeeklyView(stage, bay, weekKey || dateKey);
+    return;
+  }
   const latestRows = workshopLoadPlans();
   const latestEntry = latestRows.find(row => row.id === entry.id);
   if (!latestEntry || latestEntry.updatedAt !== entry.updatedAt) {

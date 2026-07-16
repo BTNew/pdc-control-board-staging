@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.07.16.26-workshop-drop-last-hover';
+const APP_VERSION = '2026.07.16.27-workshop-realtime';
 window.VEHICLE_TRACKING_DATA = window.VEHICLE_TRACKING_DATA || { report: {}, vehicles: [], toyotaMatches: {} };
 const EDITS_KEY = 'vehicleTrackingCoreNavisionOnlyEdits:v1';
 const ADDED_KEY = 'vehicleTrackingCoreNavisionOnlyVehicles:v1';
@@ -2808,7 +2808,8 @@ function renderWorkshopPlannerWhenReady() {
   }
   const root = $('#workshop-planner-root');
   if (root) root.innerHTML = '<div class="empty-state"><strong>Loading Workshop Planner</strong><span>Preparing scheduling controls…</span></div>';
-  loadExternalScript(`workshop-planner.js?v=${encodeURIComponent(APP_VERSION)}`, 'workshop-planner-script')
+  loadExternalScript(`workshop-data-service.js?v=${encodeURIComponent(APP_VERSION)}`, 'workshop-data-service-script')
+    .then(() => loadExternalScript(`workshop-planner.js?v=${encodeURIComponent(APP_VERSION)}`, 'workshop-planner-script'))
     .then(() => {
       if (app.currentView === 'workshop' && typeof renderWorkshopPlanner === 'function') renderWorkshopPlanner();
     })
