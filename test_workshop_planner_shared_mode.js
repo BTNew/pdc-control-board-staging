@@ -211,3 +211,58 @@ console.log('Workshop planner shared-mode integration seam checks passed');
 // live staging RPCs in _staging_test_tools/test_workshop_staging_integration.py
 // and the manual staging RPC chain recorded in this session, not re-mocked
 // here.
+
+// 10. workshopSharedVehicleRef: resolves a vehicle key to its shared
+// Supabase id + version from the last snapshot, using the same
+// stock_number-then-permanent_vehicle_id fallback as
+// workshopMapSnapshotBookingToLegacyRow. Never fabricates an id -- returns
+// null on no match or when shared mode is inactive.
+{
+  withGlobals({}, () => {
+    assert.strictEqual(planner.workshopSharedVehicleRef('STK-1'), null, '10a returns null when shared mode is inactive, never guesses');
+  });
+  const snapshot = { vehicles: [
+    { id: 'veh-a', stock_number: 'STK-1', permanent_vehicle_id: 'perm-1', version: 5 },
+    { id: 'veh-b', stock_number: '', permanent_vehicle_id: 'perm-2', version: 9 },
+  ] };
+  withGlobals({
+    workshopSharedModeEnabled: () => true,
+    PDC_SUPABASE_CONFIG: { workshop: { sharedData: true } },
+    __workshopDataService: { isEnabled: () => true, getLastSnapshot: () => snapshot },
+  }, () => {
+    assert.deepStrictEqual(planner.workshopSharedVehicleRef('STK-1'), { vehicleId: 'veh-a', version: 5 }, '10b resolves by stock_number');
+    assert.deepStrictEqual(planner.workshopSharedVehicleRef('perm-2'), { vehicleId: 'veh-b', version: 9 }, '10c falls back to permanent_vehicle_id when stock_number is blank');
+    assert.strictEqual(planner.workshopSharedVehicleRef('STK-NOT-IN-SNAPSHOT'), null, '10d no match returns null, never a fabricated ref');
+  });
+  console.log('PASS 10: workshopSharedVehicleRef resolves vehicle identity from the snapshot only, never fabricates');
+}
+
+// 11. workshopSharedTechnicianRef: resolves a legacy free-text assignee
+// name to a technician id by scanning bookings/assignments already
+// present in the snapshot (the snapshot has no standalone technician
+// list). Never fabricates an id for an unmatched name.
+{
+  withGlobals({}, () => {
+    assert.strictEqual(planner.workshopSharedTechnicianRef('Alex'), null, '11a returns null when shared mode is inactive');
+  });
+  const snapshot = {
+    bookings: [
+      { assignment: { technician_id: 'tech-alex', technician_name: 'Alex' } },
+      { assignment: null },
+    ],
+    active_stoppages: [
+      { assignment: { technician_id: 'tech-beta', technician_name: 'Beta' } },
+    ],
+  };
+  withGlobals({
+    workshopSharedModeEnabled: () => true,
+    PDC_SUPABASE_CONFIG: { workshop: { sharedData: true } },
+    __workshopDataService: { isEnabled: () => true, getLastSnapshot: () => snapshot },
+  }, () => {
+    assert.deepStrictEqual(planner.workshopSharedTechnicianRef('Alex'), { technicianId: 'tech-alex' }, '11b resolves from the bookings list');
+    assert.deepStrictEqual(planner.workshopSharedTechnicianRef('Beta'), { technicianId: 'tech-beta' }, '11c resolves from the active_stoppages list too');
+    assert.strictEqual(planner.workshopSharedTechnicianRef('Nobody'), null, '11d unmatched name returns null, never fabricated');
+    assert.strictEqual(planner.workshopSharedTechnicianRef(''), null, '11e blank name returns null without scanning');
+  });
+  console.log('PASS 11: workshopSharedTechnicianRef resolves technician identity from booking assignments only, never fabricates');
+}
