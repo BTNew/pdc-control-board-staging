@@ -20,6 +20,12 @@ global.escapeHtml = value => String(value == null ? '' : value)
   .replace(/</g, '&lt;')
   .replace(/>/g, '&gt;')
   .replace(/"/g, '&quot;');
+global.parseIsoTimestamp = value => {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
+};
+global.nowIsoString = () => new Date(2026, 6, 14, 10, 0, 0, 0).toISOString();
+global.pmbStageLabel = value => String(value || '');
 
 const planner = require('./workshop-planner.js');
 
@@ -265,4 +271,93 @@ console.log('Workshop planner shared-mode integration seam checks passed');
     assert.strictEqual(planner.workshopSharedTechnicianRef(''), null, '11e blank name returns null without scanning');
   });
   console.log('PASS 11: workshopSharedTechnicianRef resolves technician identity from booking assignments only, never fabricates');
+}
+
+// 12. workshopOtherDepartmentOverlaps / workshopConfirmOtherDepartmentPlans:
+// real time-overlap detection, not "any other department booking exists".
+// Uses real module execution against workshopEntryStart/End (which apply
+// the actual workshop-day normalization), not string matching.
+{
+  const fitting0800to1100 = { id: 'p1', vehicleKey: 'V1', stage: 'FITTING', bay: 1, startAt: new Date(2026, 6, 17, 8, 0, 0, 0).toISOString(), hours: 3, status: 'planned' };
+  const tint1100to1300 = { id: 'p2', vehicleKey: 'V1', stage: 'TINT', bay: 1, startAt: new Date(2026, 6, 17, 11, 0, 0, 0).toISOString(), hours: 2, status: 'planned' };
+  const tint1000to1200 = { id: 'p3', vehicleKey: 'V1', stage: 'TINT', bay: 1, startAt: new Date(2026, 6, 17, 10, 0, 0, 0).toISOString(), hours: 2, status: 'planned' };
+  const tintTomorrow = { id: 'p4', vehicleKey: 'V1', stage: 'TINT', bay: 1, startAt: new Date(2026, 6, 20, 8, 0, 0, 0).toISOString(), hours: 2, status: 'planned' };
+  const sameStage0900 = { id: 'p5', vehicleKey: 'V1', stage: 'FITTING', bay: 2, startAt: new Date(2026, 6, 17, 9, 0, 0, 0).toISOString(), hours: 2, status: 'planned' };
+  const otherVehicleOverlap = { id: 'p6', vehicleKey: 'V2', stage: 'TINT', bay: 1, startAt: new Date(2026, 6, 17, 9, 0, 0, 0).toISOString(), hours: 2, status: 'planned' };
+
+  // 12a: sequential, back-to-back bookings in different departments must
+  // never be flagged as overlapping.
+  assert.deepStrictEqual(
+    planner.workshopOtherDepartmentOverlaps(fitting0800to1100, [fitting0800to1100, tint1100to1300]),
+    [],
+    '12a Fitting 8-11 and Tint 11-1 must not be treated as overlapping (back-to-back is valid)',
+  );
+
+  // 12b: genuinely overlapping windows in different departments must be
+  // detected and returned.
+  const overlaps = planner.workshopOtherDepartmentOverlaps(fitting0800to1100, [fitting0800to1100, tint1000to1200]);
+  assert.strictEqual(overlaps.length, 1, '12b Fitting 8-11 and Tint 10-12 must be detected as a real overlap');
+  assert.strictEqual(overlaps[0].id, 'p3', '12b overlap result must identify the exact conflicting booking');
+
+  // 12c: a booking on a different day must never trigger today's warning.
+  assert.deepStrictEqual(
+    planner.workshopOtherDepartmentOverlaps(fitting0800to1100, [fitting0800to1100, tintTomorrow]),
+    [],
+    '12c a booking tomorrow in another department must not warn for today',
+  );
+
+  // 12d: bookings in the SAME stage are never a "cross-department" concern,
+  // even if they overlap in time (that is the same-bay/technician conflict
+  // path, handled separately by workshopHasConflict).
+  assert.deepStrictEqual(
+    planner.workshopOtherDepartmentOverlaps(fitting0800to1100, [fitting0800to1100, sameStage0900]),
+    [],
+    '12d same-stage bookings must not be reported as cross-department overlaps',
+  );
+
+  // 12e: a different vehicle's overlapping booking must never be reported
+  // against this vehicle's candidate.
+  assert.deepStrictEqual(
+    planner.workshopOtherDepartmentOverlaps(fitting0800to1100, [fitting0800to1100, otherVehicleOverlap]),
+    [],
+    '12e another vehicle\'s overlapping booking must not be attributed to this vehicle',
+  );
+
+  // 12f: workshopConfirmOtherDepartmentPlans must call window.confirm only
+  // when a real overlap exists, and must not call it for the valid
+  // sequential case.
+  {
+    let confirmCalls = 0;
+    withGlobals({ confirm: () => { confirmCalls += 1; return true; } }, () => {
+      const ok = planner.workshopConfirmOtherDepartmentPlans(fitting0800to1100, [fitting0800to1100, tint1100to1300]);
+      assert.strictEqual(ok, true, '12f sequential departments must be allowed without prompting');
+    });
+    assert.strictEqual(confirmCalls, 0, '12f window.confirm must not be called for a valid non-overlapping sequential booking');
+  }
+  {
+    let confirmCalls = 0;
+    let lastMessage = '';
+    withGlobals({ confirm: message => { confirmCalls += 1; lastMessage = message; return true; } }, () => {
+      const ok = planner.workshopConfirmOtherDepartmentPlans(fitting0800to1100, [fitting0800to1100, tint1000to1200]);
+      assert.strictEqual(ok, true, '12f confirming the overlap warning must allow the booking to proceed');
+    });
+    assert.strictEqual(confirmCalls, 1, '12f window.confirm must be called exactly once when a real overlap exists');
+    assert.ok(lastMessage.includes('TINT'), '12f the warning must name the exact conflicting department');
+    assert.ok(lastMessage.includes('Bay 01'), '12f the warning must name the exact conflicting bay');
+  }
+  console.log('PASS 12: cross-department warning only fires on real time overlap, identifies the exact department/bay/time, and never fires for valid sequential or cross-vehicle bookings');
+}
+
+// 13. workshopDateAtOffset: exact drag/drop time-coordinate calculation.
+// Dropping at 10:30am (150 minutes after 8:00am) must resolve to exactly
+// 10:30, never snap back to the workshop start time.
+{
+  const dateKey = '2026-07-17';
+  const tenThirty = planner.workshopDateAtOffset(dateKey, 150);
+  assert.strictEqual(tenThirty.getHours(), 10, '13a dropping at minute-offset 150 must resolve to 10am, not 8am');
+  assert.strictEqual(tenThirty.getMinutes(), 30, '13b dropping at minute-offset 150 must resolve to :30, not :00');
+  const eightAm = planner.workshopDateAtOffset(dateKey, 0);
+  assert.strictEqual(eightAm.getHours(), 8, '13c minute-offset 0 must still resolve to 8am (the actual start, not an accidental default)');
+  assert.strictEqual(planner.workshopMinuteOffset(tenThirty), 150, '13d workshopMinuteOffset must round-trip back to the same 150-minute offset');
+  console.log('PASS 13: workshopDateAtOffset resolves drag/drop pixel-derived minute offsets to the exact requested time, never snapping to day start');
 }

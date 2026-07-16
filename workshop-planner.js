@@ -2102,20 +2102,37 @@ async function extendWorkshopPlan(planId = '', additionalHours = 0) {
   return true;
 }
 
+// Section 2 fix: a vehicle is allowed to be scheduled in multiple
+// departments at different times. This must only warn when the candidate's
+// proposed time window actually overlaps another department's booking for
+// the same vehicle - never merely because another department also has a
+// booking for this vehicle at some other (non-overlapping) time.
+function workshopOtherDepartmentOverlaps(candidate = {}, rows = []) {
+  if (!candidate.vehicleKey) return [];
+  const candidateStart = workshopEntryStart(candidate).getTime();
+  const candidateEnd = workshopEntryEnd(candidate).getTime();
+  return rows.filter(row => {
+    if (row.id === candidate.id) return false;
+    if (row.vehicleKey !== candidate.vehicleKey) return false;
+    if (row.stage === candidate.stage) return false;
+    if (row.status === 'completed' || row.status === 'deleted') return false;
+    const rowStart = workshopEntryStart(row).getTime();
+    const rowEnd = workshopEntryEnd(row).getTime();
+    return workshopIntervalsOverlap(candidateStart, candidateEnd, rowStart, rowEnd);
+  });
+}
+
 function workshopConfirmOtherDepartmentPlans(candidate = {}, rows = []) {
   if (!candidate.vehicleKey || candidate.status !== 'planned') return true;
-  const otherPlans = rows.filter(row => row.id !== candidate.id
-    && row.vehicleKey === candidate.vehicleKey
-    && row.stage !== candidate.stage
-    && row.status !== 'completed');
-  if (!otherPlans.length) return true;
-  const details = otherPlans.slice(0, 8).map(row => {
+  const overlapping = workshopOtherDepartmentOverlaps(candidate, rows);
+  if (!overlapping.length) return true;
+  const details = overlapping.slice(0, 8).map(row => {
     const when = parseIsoTimestamp(row.startAt);
     const whenLabel = when ? when.toLocaleString('en-AU', { dateStyle: 'short', timeStyle: 'short' }) : 'time not set';
     const place = row.stage === 'SUBLET' ? 'Provider row' : `Bay ${workshopPad(row.bay)}`;
     return `• ${pmbStageLabel(row.stage)} · ${place} · ${whenLabel}`;
   }).join('\n');
-  return window.confirm(`This vehicle is also planned by another department:\n\n${details}\n\nContinue with the ${pmbStageLabel(candidate.stage)} booking?`);
+  return window.confirm(`This vehicle's requested time overlaps another department's booking for the same vehicle:\n\n${details}\n\nContinue with the ${pmbStageLabel(candidate.stage)} booking?`);
 }
 
 async function scheduleWorkshopVehicle({ planId = '', vehicleKeyValue = '', stage = '', bay = 0, dateKey = '', startMinutes = 0, hoursValue = null, assigneeValue = null, preferRequestedTime = false } = {}) {
@@ -3101,5 +3118,9 @@ if (typeof module !== 'undefined' && module.exports) {
     workshopDescribeSharedActionError,
     workshopSharedVehicleRef,
     workshopSharedTechnicianRef,
+    workshopOtherDepartmentOverlaps,
+    workshopConfirmOtherDepartmentPlans,
+    workshopDateAtOffset,
+    workshopMinuteOffset,
   };
 }

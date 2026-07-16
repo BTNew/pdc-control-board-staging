@@ -306,7 +306,9 @@ assert.ok(source.includes('Back-to-back bookings are allowed; overlapping times 
 assert.ok(css.includes('display: block;') && css.includes('overflow: visible;') && css.includes('z-index: 6;'), 'The workshop time axis should stay visibly layered above the planner header');
 assert.ok(css.includes('min-width: 760px;') && css.includes('grid-template-columns: 160px minmax(600px, 1fr);'), 'The planner timeline should fit more of the hour labels on standard laptop widths');
 assert.ok(source.includes('function workshopConfirmOtherDepartmentPlans('), 'Cross-department planning warning is missing');
-assert.ok(source.includes('This vehicle is also planned by another department:'), 'Cross-department warning must identify the other plan');
+assert.ok(source.includes('function workshopOtherDepartmentOverlaps('), 'Cross-department overlap detector is missing');
+assert.ok(source.includes("This vehicle's requested time overlaps another department's booking for the same vehicle:"), 'Cross-department warning must identify the other plan');
+assert.ok(!source.includes('This vehicle is also planned by another department:'), 'Cross-department warning must not fire merely because another department has any booking - only on real time overlap');
 assert.ok(app.includes('function vehicleReadyForQualityControl('), 'The final QC eligibility gate is missing');
 assert.ok(app.includes('data-qc-complete'), 'The Control Board QC row/action is missing');
 assert.ok(app.includes('QC sign-off required'), 'RFT must remain gated until QC is complete');
