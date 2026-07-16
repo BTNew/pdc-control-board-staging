@@ -110,6 +110,9 @@ function extractWorkshopPlannerLegacyState(backup) {
       bay_number: Number(row.bay) || null,
       status,
       scheduled_start_at: row.startAt || null,
+      scheduled_end_at: (row.startAt && Number.isFinite(Number(row.hours)))
+        ? new Date(new Date(row.startAt).getTime() + Math.round(Number(row.hours) * 60) * 60000).toISOString()
+        : null,
       duration_hours: Number(row.hours) || null,
       duration_minutes: Number.isFinite(Number(row.hours)) ? Math.round(Number(row.hours) * 60) : null,
       assignee: String(row.assignee || '').trim() || null,
@@ -122,7 +125,17 @@ function extractWorkshopPlannerLegacyState(backup) {
       stoppage_at: row.stoppageAt || null,
       stoppage_minutes: Number.isFinite(Number(row.stoppageMinutes)) ? Number(row.stoppageMinutes) : null,
       resumed_at: row.resumedAt || null,
+      // Best-effort pointer to a source work-item/job-line reference, kept
+      // separate from the full edit snapshot below so downstream import
+      // tooling can check "does a work item exist for this booking" without
+      // parsing the whole edit blob. Never fabricated: null when unknown.
+      work_item_reference: row.workItemId || row.jobLineId || null,
       workshop_vehicle_edit_snapshot: workshopEdit,
+      // Full original raw legacy record, byte-for-byte as it existed in
+      // browser localStorage, kept verbatim for audit and rollback -- the
+      // import process must never lose the ability to reconstruct exactly
+      // what was there before migration.
+      raw_legacy_record: row,
     });
   }
 

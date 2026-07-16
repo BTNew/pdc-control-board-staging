@@ -77,6 +77,20 @@ assert.deepEqual(extracted.reconciliation.duplicate_bookings, [], 'No duplicate 
 assert.deepEqual(extracted.reconciliation.conflicting_bookings, [], 'No conflicting bookings in the clean fixture');
 assert.equal(extracted.reconciliation.stopped_booking_count, 1, 'Stoppage count reported in reconciliation');
 assert.equal(extracted.reconciliation.completed_booking_count, 0, 'Completed count reported in reconciliation');
+assert.equal(extracted.bookings[0].scheduled_end_at, new Date(new Date('2026-07-17T00:00:00.000Z').getTime() + 180 * 60000).toISOString(), 'scheduled_end_at is derived from start + duration');
+assert.deepEqual(extracted.bookings[0].raw_legacy_record, {
+  id: 'HOIST::STK-100',
+  vehicleKey: 'STK-100',
+  stage: 'HOIST',
+  bay: 2,
+  startAt: '2026-07-17T00:00:00.000Z',
+  hours: 3,
+  assignee: 'Alex',
+  status: 'planned',
+  createdAt: '2026-07-16T08:00:00.000Z',
+  updatedAt: '2026-07-16T08:05:00.000Z'
+}, 'raw_legacy_record preserves the original browser record byte-for-byte for audit/rollback');
+assert.strictEqual(extracted.bookings[0].work_item_reference, null, 'work_item_reference is null (not guessed) when no source pointer exists');
 
 console.log('Workshop planner legacy extraction checks passed');
 
