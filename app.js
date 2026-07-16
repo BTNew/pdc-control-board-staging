@@ -2808,11 +2808,13 @@ function renderWorkshopPlannerWhenReady() {
   }
   const root = $('#workshop-planner-root');
   if (root) root.innerHTML = '<div class="empty-state"><strong>Loading Workshop Planner</strong><span>Preparing scheduling controls…</span></div>';
-  // Load the shared-data service module first. It stays completely inert
-  // (no snapshot fetch, no writes) unless window.PDC_SUPABASE_CONFIG.workshop.sharedData
-  // is explicitly set to true; the planner UI/runtime is not modified by
-  // this load and continues to operate exactly as before.
+  // Load the shared-data service + realtime manager modules first. Both
+  // stay completely inert (no snapshot fetch, no subscription, no writes)
+  // unless window.PDC_SUPABASE_CONFIG.workshop.sharedData is explicitly set
+  // to true; the planner UI/runtime is not modified by this load and
+  // continues to operate exactly as before.
   loadExternalScript(`workshop-data-service.js?v=${encodeURIComponent(APP_VERSION)}`, 'workshop-data-service-script')
+    .then(() => loadExternalScript(`workshop-realtime.js?v=${encodeURIComponent(APP_VERSION)}`, 'workshop-realtime-script'))
     .catch(() => { /* non-fatal: shared mode simply stays unavailable */ })
     .then(() => loadExternalScript(`workshop-planner.js?v=${encodeURIComponent(APP_VERSION)}`, 'workshop-planner-script'))
     .then(() => {
