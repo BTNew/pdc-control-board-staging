@@ -28,6 +28,18 @@ class BuildReviewExportTests(unittest.TestCase):
                 f"expected {p!r} to be flagged as forbidden",
             )
 
+    def test_env_example_is_the_only_named_exception_in_staging_test_tools(self):
+        # Independent-review remediation Stage 10: _staging_test_tools/
+        # is blanket-forbidden (real service-role keys, real staging
+        # test output) EXCEPT for the one reviewed, blank-values-only
+        # .env.example template. Confirm the exception is exactly that
+        # one file and nothing broader.
+        self.assertFalse(exporter.is_forbidden_path("_staging_test_tools/.env.example"))
+        self.assertTrue(exporter.is_forbidden_path("_staging_test_tools/staging_rest.py"))
+        self.assertTrue(exporter.is_forbidden_path("_staging_test_tools/staging_conn.py"))
+        self.assertTrue(exporter.is_forbidden_path("_staging_test_tools/.env"))
+        self.assertTrue(exporter.is_forbidden_path("_staging_test_tools/test_workshop_staging_integration.py"))
+
     def test_forbidden_path_patterns_do_not_flag_normal_source_files(self):
         good_paths = [
             "app.js",
@@ -49,8 +61,13 @@ class BuildReviewExportTests(unittest.TestCase):
         joined = "\n".join(files)
         self.assertNotIn(".imap_attachments", joined)
         self.assertNotIn("email_publish.log", joined)
-        self.assertNotIn("_staging_test_tools", joined)
         self.assertNotIn("PDC_Control_Board_Backup_010e954", joined)
+        # _staging_test_tools/.env.example is the one deliberate,
+        # reviewed exception (blank/fake values only, independent-review
+        # remediation Stage 10) -- confirm it is tracked, but that
+        # nothing else in that directory is.
+        staging_test_tools_entries = [f for f in files if f.startswith("_staging_test_tools/")]
+        self.assertEqual(staging_test_tools_entries, ["_staging_test_tools/.env.example"])
 
     def test_build_export_file_list_is_allow_list_only_and_safe(self):
         file_list = exporter.build_export_file_list()

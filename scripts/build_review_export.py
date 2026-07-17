@@ -68,6 +68,15 @@ ADDITIONAL_ALLOWED_GENERATED_PATHS = [
 
 
 def is_forbidden_path(rel_posix: str) -> bool:
+    # Named, reviewed exception: _staging_test_tools/.env.example
+    # contains only blank/fake placeholder values (independent-review
+    # remediation, Stage 10) and is the only file in that directory
+    # ever intended to be tracked/exported. Checked before the
+    # wildcard blanket-exclusion below, which otherwise correctly
+    # blocks everything else in that directory (real service-role
+    # keys, real staging test output, etc.).
+    if rel_posix in ("_staging_test_tools/.env.example",):
+        return False
     for pattern in FORBIDDEN_PATH_PATTERNS:
         if fnmatch.fnmatch(rel_posix, pattern) or fnmatch.fnmatch("/" + rel_posix, pattern):
             return True
