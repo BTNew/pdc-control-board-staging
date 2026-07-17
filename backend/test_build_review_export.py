@@ -61,15 +61,21 @@ class BuildReviewExportTests(unittest.TestCase):
     def test_content_scan_flags_a_planted_secret_pattern(self):
         # Use a real temp file inside the repo so scan_content_safety's
         # relative-path resolution behaves exactly as it does in
-        # production use, then clean it up.
+        # production use, then clean it up. The fake pattern is built up
+        # from separate string fragments (never a literal contiguous
+        # "sb_secret_..." token anywhere in this test's own source) so
+        # a full-repo content scan of this test file itself never
+        # self-triggers a false "leaked secret" finding.
         planted = exporter.REPO_ROOT / "scripts" / "_test_planted_secret_tmp.txt"
+        fake_secret_prefix = "sb_" + "secret" + "_"
+        fake_secret_value = fake_secret_prefix + "abcdefghijklmnopqrstuvwxyz0123456789"
         try:
-            planted.write_text("sb_secret_abcdefghijklmnopqrstuvwxyz0123456789", encoding="utf-8")
+            planted.write_text(fake_secret_value, encoding="utf-8")
             rel = "scripts/_test_planted_secret_tmp.txt"
             problems = exporter.scan_content_safety([rel])
             self.assertTrue(
-                any("sb_secret_" in p for p in problems),
-                f"expected a planted sb_secret_ pattern to be caught, got: {problems}",
+                any(fake_secret_prefix in p for p in problems),
+                f"expected a planted {fake_secret_prefix!r} pattern to be caught, got: {problems}",
             )
         finally:
             planted.unlink(missing_ok=True)
