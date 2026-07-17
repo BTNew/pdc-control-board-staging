@@ -2830,6 +2830,38 @@ function renderAll() {
   updateNavisionImportButton();
 }
 
+// Bridges to the real Supabase client that pdc-auth.js already creates
+// (window.PDC_SUPABASE) as part of the standard login flow. Kept as thin,
+// dedicated functions (rather than reaching into window.PDC_SUPABASE
+// directly from workshop-data-service.js) so the shared data service
+// module has no hard dependency on pdc-auth.js's internal implementation
+// details, and so a future auth provider swap only touches these two
+// functions.
+function getPdcSupabaseAccessToken() {
+  // supabase-js v2 exposes the session via getSession() (async) but every
+  // caller of getAccessToken() here is synchronous by contract (see
+  // workshop-data-service.js). pdc-auth.js caches the current access
+  // token on window.__pdcCachedAccessToken every time it unlocks the app
+  // or reacts to an auth state change (including silent token refresh),
+  // and clears it immediately on sign-out/session loss -- so this is
+  // always either the live token or null, never stale beyond one tick.
+  return window.PDC_AUTH_CONTEXT ? (window.__pdcCachedAccessToken || null) : null;
+}
+
+function createPdcSupabaseRealtimeSubscription(config, handlers) {
+  const client = window.PDC_SUPABASE;
+  if (!client || typeof client.channel !== 'function') return { unsubscribe: () => {} };
+  const channel = client
+    .channel('workshop-revision')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'workshop_revision' }, payload => {
+      if (typeof handlers?.onChange === 'function') handlers.onChange(payload);
+    })
+    .subscribe(status => {
+      if (typeof handlers?.onStatus === 'function') handlers.onStatus(status);
+    });
+  return { unsubscribe: () => client.removeChannel(channel) };
+}
+
 // Lazily constructs the shared workshop data service + realtime manager
 // exactly once per page load. No-op (and leaves window.__workshopDataService
 // undefined) unless window.PDC_SUPABASE_CONFIG.workshop.sharedData is
@@ -2838,28 +2870,37 @@ function renderAll() {
 // the actual Supabase client / auth token / realtime subscription
 // wiring, which are already app.js concerns for the rest of the site.
 function initWorkshopSharedServicesIfEnabled() {
-  if (window.__workshopDataService) return; // already initialized this page load
   if (typeof workshopSharedModeEnabled !== 'function' || !workshopSharedModeEnabled(window.PDC_SUPABASE_CONFIG)) return;
-  if (typeof createWorkshopDataService !== 'function' || typeof createWorkshopSupabaseClient !== 'function') return;
 
-  const client = createWorkshopSupabaseClient(window.PDC_SUPABASE_CONFIG);
-  const dataService = createWorkshopDataService({
-    config: window.PDC_SUPABASE_CONFIG,
-    client,
-    getAccessToken: () => (typeof getPdcSupabaseAccessToken === 'function' ? getPdcSupabaseAccessToken() : null),
-    getRole: () => (typeof window.PDC_AUTH_CONTEXT !== 'undefined' ? window.PDC_AUTH_CONTEXT?.role : null),
-    onStateChange: () => {
-      if (app.currentView === 'workshop' && typeof renderWorkshopPlanner === 'function') renderWorkshopPlanner();
-    },
-    onSnapshot: () => {
-      if (app.currentView === 'workshop' && typeof renderWorkshopPlanner === 'function') renderWorkshopPlanner();
-    }
-  });
-  window.__workshopDataService = dataService;
+  if (!window.__workshopDataService) {
+    if (typeof createWorkshopDataService !== 'function' || typeof createWorkshopSupabaseClient !== 'function') return;
 
-  if (typeof createWorkshopRealtimeManager === 'function' && typeof createPdcSupabaseRealtimeSubscription === 'function') {
+    const client = createWorkshopSupabaseClient(window.PDC_SUPABASE_CONFIG);
+    const dataService = createWorkshopDataService({
+      config: window.PDC_SUPABASE_CONFIG,
+      client,
+      getAccessToken: () => (typeof getPdcSupabaseAccessToken === 'function' ? getPdcSupabaseAccessToken() : null),
+      getRole: () => (typeof window.PDC_AUTH_CONTEXT !== 'undefined' ? window.PDC_AUTH_CONTEXT?.role : null),
+      onStateChange: () => {
+        if (app.currentView === 'workshop' && typeof renderWorkshopPlanner === 'function') renderWorkshopPlanner();
+      },
+      onSnapshot: () => {
+        if (app.currentView === 'workshop' && typeof renderWorkshopPlanner === 'function') renderWorkshopPlanner();
+      }
+    });
+    window.__workshopDataService = dataService;
+
+    dataService.loadSnapshot('initial');
+  }
+
+  // Deliberately re-checked every call, same reasoning as the shared-
+  // actions block below: workshop-realtime.js is also lazy-loaded
+  // on-demand when the user first opens the Workshop Planner, which can
+  // happen after the data service already exists (e.g. pdc-auth-ready
+  // firing on login before the planner has ever been opened).
+  if (!window.__workshopRealtimeManager && typeof createWorkshopRealtimeManager === 'function' && typeof createPdcSupabaseRealtimeSubscription === 'function') {
     window.__workshopRealtimeManager = createWorkshopRealtimeManager({
-      dataService,
+      dataService: window.__workshopDataService,
       subscribe: (handlers) => createPdcSupabaseRealtimeSubscription(window.PDC_SUPABASE_CONFIG, handlers),
       onStatusChange: () => {
         if (app.currentView === 'workshop' && typeof renderWorkshopPlanner === 'function') renderWorkshopPlanner();
@@ -2868,15 +2909,21 @@ function initWorkshopSharedServicesIfEnabled() {
     window.__workshopRealtimeManager.start();
     window.addEventListener('online', () => window.__workshopRealtimeManager.forceReconnect());
     document.addEventListener('visibilitychange', () => {
-      if (document.visibilityState === 'visible') dataService.onVisibilityReturn();
+      if (document.visibilityState === 'visible') window.__workshopDataService.onVisibilityReturn();
     });
   }
 
-  if (typeof buildWorkshopSharedActions === 'function') {
-    window.__workshopSharedActions = buildWorkshopSharedActions(dataService);
+  // Deliberately re-checked every call (not just inside the "first init"
+  // branch above): workshop-shared-actions.js is lazy-loaded on-demand
+  // when the user first opens the Workshop Planner view, which can easily
+  // happen *after* the data service was already constructed here (e.g.
+  // from the pdc-auth-ready listener firing on login before the user has
+  // ever visited the planner). Without this re-check, window.
+  // __workshopSharedActions would stay null forever once the data service
+  // already existed.
+  if (!window.__workshopSharedActions && typeof buildWorkshopSharedActions === 'function') {
+    window.__workshopSharedActions = buildWorkshopSharedActions(window.__workshopDataService);
   }
-
-  dataService.loadSnapshot('initial');
 }
 
 // Lazily constructs the vehicle-lifecycle shared actions bridge (QC
@@ -2903,6 +2950,16 @@ function vehicleLifecycleSharedModeActive() {
     && vehicleLifecycleSharedModeEnabled(window.PDC_SUPABASE_CONFIG)
     && !!window.__vehicleLifecycleActions;
 }
+
+// pdc-auth.js dispatches 'pdc-auth-ready' every time a session unlocks the
+// app (initial load, token refresh redirect, re-login after sign-out).
+// Re-run the shared-services init so a user who logs in while already on
+// the Workshop Planner view (or returns after a session refresh) gets the
+// data service without needing to navigate away and back.
+window.addEventListener?.('pdc-auth-ready', () => {
+  if (typeof initWorkshopSharedServicesIfEnabled === 'function') initWorkshopSharedServicesIfEnabled();
+  if (typeof initVehicleLifecycleSharedActionsIfEnabled === 'function') initVehicleLifecycleSharedActionsIfEnabled();
+});
 
 function renderWorkshopPlannerWhenReady() {
   if (typeof renderWorkshopPlanner === 'function') {

@@ -76,6 +76,13 @@
       displayName: String(session.user.user_metadata?.full_name || session.user.user_metadata?.name || session.user.email || ''),
       role: roleRow.role,
     });
+    // Cached for synchronous callers (workshop-data-service.js via
+    // getPdcSupabaseAccessToken() in app.js) that need the current access
+    // token without an async round-trip. Cleared on sign-out / session
+    // loss in applySession() below, and refreshed on every auth state
+    // change (including silent token refresh), so it never goes stale for
+    // more than one event loop tick.
+    window.__pdcCachedAccessToken = session.access_token || null;
 
     const shell = el('app-shell');
     if (shell) {
@@ -114,6 +121,7 @@
     state.user = session?.user || null;
     state.role = null;
     delete window.PDC_AUTH_CONTEXT;
+    delete window.__pdcCachedAccessToken;
 
     const userLabel = el('pdc-auth-user');
     const signOut = el('pdc-auth-signout');
