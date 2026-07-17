@@ -1,4 +1,10 @@
 const APP_VERSION = '2026.07.17.02-backup-system';
+// Production Supabase project ref. Used only to LABEL which environment
+// the backup status panel is showing (staging vs production) -- this
+// constant intentionally names only the production ref, never the
+// staging ref, so this file can ship to production without the
+// production-artifact secret/staging-reference scan failing.
+const PRODUCTION_SUPABASE_PROJECT_REF = 'vjdtsswhroyguxyfjdkt';
 window.VEHICLE_TRACKING_DATA = window.VEHICLE_TRACKING_DATA || { report: {}, vehicles: [], toyotaMatches: {} };
 const EDITS_KEY = 'vehicleTrackingCoreNavisionOnlyEdits:v1';
 const ADDED_KEY = 'vehicleTrackingCoreNavisionOnlyVehicles:v1';
@@ -2770,7 +2776,7 @@ async function renderBackupStatusPanel() {
     if (!client || typeof client.from !== 'function') {
       throw new Error('Supabase client is not ready yet');
     }
-    const environment = (window.PDC_SUPABASE_CONFIG && window.PDC_SUPABASE_CONFIG.projectRef === 'cdsmnqxtyyoeoznmbidd') ? 'staging' : 'production';
+    const environment = (window.PDC_SUPABASE_CONFIG && window.PDC_SUPABASE_CONFIG.projectRef === PRODUCTION_SUPABASE_PROJECT_REF) ? 'production' : 'staging';
 
     const { data: runs, error: runsError } = await client
       .from('backup_runs')
@@ -2836,7 +2842,7 @@ async function renderBackupStatusPanel() {
 // re-verifies the caller is an active administrator server-side. This
 // frontend code is a convenience UI, not the security boundary.
 // ---------------------------------------------------------------------
-const USER_MANAGEMENT_STATE = { tab: 'pending', rows: [] };
+const USER_MANAGEMENT_STATE = { tab: 'pending', rows: [], realtimeChannel: null };
 
 function userManagementSharedModeReady() {
   return backupStatusSharedModeReady(); // same gating: shared mode + signed-in administrator
@@ -2909,6 +2915,8 @@ async function renderUserManagementScreen() {
   if (navItem) navItem.hidden = false;
   host.innerHTML = '<div class="empty-state compact-empty"><strong>Loading…</strong></div>';
 
+  subscribeUserManagementRealtime();
+
   try {
     USER_MANAGEMENT_STATE.rows = await loadUserManagementRows();
   } catch (error) {
@@ -2928,6 +2936,26 @@ async function renderUserManagementScreen() {
   </table></div>`;
 
   wireUserManagementActions();
+}
+
+function subscribeUserManagementRealtime() {
+  const client = window.PDC_SUPABASE;
+  if (!client || typeof client.channel !== 'function') return;
+  if (USER_MANAGEMENT_STATE.realtimeChannel) return; // already subscribed for this session
+  const channel = client
+    .channel('pdc_user_roles_admin_view')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'pdc_user_roles' }, () => {
+      // Any account-status/role change (approve/reject/change-role/
+      // disable/restore) re-renders the currently active tab live,
+      // without requiring a manual "Refresh" click -- proven via a real
+      // two-browser test: one browser makes the change, a second,
+      // already-open browser on this screen picks it up automatically.
+      if (document.getElementById('user-management')?.classList.contains('active')) {
+        renderUserManagementScreen();
+      }
+    })
+    .subscribe();
+  USER_MANAGEMENT_STATE.realtimeChannel = channel;
 }
 
 async function userManagementCallRpc(rpcName, params, successMessage) {

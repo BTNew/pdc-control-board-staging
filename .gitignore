@@ -18,3 +18,4 @@ backend/.vehicle_order_email_monitor.lock
 backend/.vehicle_order_email_monitor_status.json
 backend/.generated/
 _staging_test_tools/
+_build/
