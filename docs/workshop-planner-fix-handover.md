@@ -271,6 +271,167 @@ use):
 4. ✅ Parts screen ETA/calendar/Jita layout fix
 5. ✅ Full regression tests
 6. ✅ Staging-only frontend deployment and two-user test
+7. ✅ Automated encrypted staging backup system (scheduled, tested, restore-verified)
+
+## Backup and restore system (added this segment)
+
+### What was built
+- **Migration 017** (`supabase/migrations/017_backup_system_metadata.sql`):
+  `backup_runs` and `restore_test_runs` tables, RLS-gated to
+  `administrator` only. Applied to staging.
+- **`scripts/pdc_backup.py`**: structured JSON export (gzip + Fernet
+  encrypted at rest) of all 40 operational tables in FK-safe dependency
+  order — vehicle master, status/location, notes/work items, intelligence
+  timeline, parts/ETA, job stoppages, workshop bookings, bay/technician
+  assignments, QC/RFT/Collected status, notification outbox, audit
+  history, workshop settings, salespeople, sublet providers, AI intake
+  tables. Never touches `auth.*`. Records backup format version and
+  database migration version with every run.
+- **`scripts/pdc_restore.py`**: restores into a brand-new isolated
+  Postgres schema (e.g. `restore_test_...`), never touches `public`.
+  Recreates structure + FKs, loads all rows, and produces a verification
+  report with row counts and relationship checks (vehicle notes, booking
+  bay/time, technician assignments, audit history, notification safety).
+- **`scripts/pdc_backup_retention.py`**: exact requested policy — 7-day
+  recent, 30-day daily, 12-week weekly, 12-month monthly — environment
+  isolated (staging pruning never touches production-named files).
+- **`scripts/pdc_backup_run.py`**: duplicate-run guard (refuses a second
+  backup while one is already `running`) + repeated-failure alerting
+  (configurable threshold, default 3).
+- **`scripts/pdc_backup_scheduled_tick.py`**: single entry point for one
+  scheduler tick — backup, then retention, then one structured JSON log
+  line per tick (`_staging_test_tools/backups/backup_log.jsonl`, gitignored).
+- **Real server-side cron job**: `pdc-staging-backup` (job id
+  `1837b313bc17`), schedule `0 */3 * * *` (every 3 hours), `no_agent=true`
+  (pure script execution, no LLM tokens spent per tick), script
+  `pdc_staging_backup_tick.py` under
+  `AppData\Local\hermes\scripts\` (the real path the scheduler resolves
+  against — `~/.hermes/scripts/` and `.sh` scripts were both tried first
+  and failed for this environment; see "Real bugs" below).
+- **Admin-visible backup status panel** (Setup screen, `index.html` /
+  `staging.html`): last successful backup, next scheduled (+3h),
+  last backup size, backup location, last restore-test result,
+  consecutive failures, retention policy. RLS-gated (viewer/controller
+  logging into the same page get zero rows back at the DB layer, not
+  just a hidden panel).
+
+### Test results (this segment, all real, none mocked)
+- `python test_pdc_backup_retention.py` — **7/7 passed** (real temp
+  files spanning realistic ages, real deletion behaviour verified).
+- `python test_pdc_backup_scheduled_tick.py` — **3/3 passed** (real log
+  file writes, real JSON-line format verification).
+- `node test_all.js` — **37 passed, 0 failed, 2 skipped**.
+- Backend `python -m unittest ...` — **22 passed**.
+- `_staging_test_tools/test_workshop_staging_integration.py` (gitignored,
+  real staging DB) — **34/34 passed** (re-run clean after fixture
+  cleanup from repeated manual backup/restore testing).
+- `_staging_test_tools/test_qc_rft_collected_staging.py` — **28/28
+  passed**.
+- `_staging_test_tools/test_vehicle_notification_worker_staging.py` —
+  **5/5 passed**.
+- `git diff --cached --check` — clean.
+
+### Real backup + restore cycle, verified live against staging
+1. Ran a real backup (`pdc_backup.py`) against staging — succeeded,
+   40 tables exported, 21,432 bytes encrypted output, SHA-256 recorded in
+   `backup_runs`.
+2. Decrypted the resulting file and grepped the full JSON payload for
+   `password|secret|token|service_role|api_key|refresh_token` (case
+   insensitive) — **zero matches** across all 40 tables.
+3. Confirmed via `git check-ignore -v` that every `.bin` backup file and
+   the `backup_log.jsonl` log are gitignored under `_staging_test_tools/`
+   — never staged, never committed, never pushed to GitHub.
+4. Restored that backup into a fresh isolated schema
+   (`restore_resume_verify`) — **all checks passed**: 40/40 table row
+   counts matched; `vehicle_notes_attached_correctly: true`;
+   `bookings_bay_and_time_match_source: true`;
+   `technician_assignments_restored: true`;
+   `audit_history_preserved: true`.
+5. **Notification-safety proof, repeated this segment with a fresh real
+   row**: seeded a genuine `status='pending'` notification on staging,
+   backed it up, restored it into the isolated schema, and confirmed the
+   restored copy has `status='restored_disabled'` while the live source
+   row remains `status='pending'` — a value the real
+   `claim_pending_vehicle_notifications()` RPC's `where status='pending'`
+   predicate never selects, so a restored backup can never cause an old
+   email to be resent.
+6. Dropped the isolated test schema and cleaned up all synthetic rows
+   after verification (staging fixture state confirmed clean via the
+   full staging integration re-run above).
+
+### Scheduling + overlap-prevention, verified against the real scheduler
+(not just manual script invocation):
+1. Registered `pdc-staging-backup` as a real cron job
+   (`cronjob action=create`, schedule `0 */3 * * *`).
+2. Triggered it via `cronjob action=run` — **first attempt failed**
+   because the scheduler resolves scripts under
+   `AppData\Local\hermes\scripts\`, not `~/.hermes/scripts/` (a real
+   path-resolution bug caught by actually running it, not by inspection).
+   Fixed by placing the script in the correct directory.
+3. **Second real bug caught the same way**: the scheduler's subprocess
+   environment has no `bash` on PATH even though Git Bash is installed
+   system-wide, so a `.sh` wrapper failed with "bash not found on PATH."
+   Fixed by rewriting the wrapper as a `.py` script that itself invokes
+   the already-tested venv Python for the actual backup logic.
+4. Re-ran via `cronjob action=run` — **succeeded** (`last_status: "ok"`,
+   `execution_success: true`), and a real new line appeared in
+   `backup_log.jsonl` confirming the scheduler's own execution path (not
+   my manual shell invocation) produced the backup.
+5. **Overlap prevention verified against the real scheduler path**:
+   inserted a synthetic `status='running'` row into `backup_runs`, then
+   triggered the cron job again — the real scheduled run correctly
+   produced `"status": "skipped", "skipped_reason": "another backup run
+   is already in progress"` in the log, proving overlapping runs cannot
+   duplicate a backup even when fired through the actual scheduler.
+6. Confirmed final state: `cronjob action=list` shows job `1837b313bc17`
+   `enabled: true`, `state: "scheduled"`, `next_run_at:
+   2026-07-17T12:00:00+08:00` (i.e. actually due to fire automatically
+   every 3 hours going forward, unattended, server-side, with no browser
+   dependency).
+
+### Redeployment + live staging verification
+- Confirmed via `md5sum` that the deployed
+  `pdc-control-board-staging` repo's `index.html`/`app.js` are
+  byte-identical to this repo's `staging.html`/`app.js` at commit
+  `4132162` — no redeploy was needed this segment because the
+  `2026.07.17.02-backup-system` version had already been pushed and
+  built earlier in this same workstream.
+- Logged in live as `administrator@staging.pdc-workshop.example.com` on
+  the real public URL, opened Setup, and visually confirmed the backup
+  status panel showing real, current data: last successful backup
+  7/17/2026 11:41:15 AM, next scheduled 7/17/2026 2:41:15 PM, last backup
+  size 20.9 KB, last restore test 7/17/2026 11:43:36 AM — passed, 0
+  consecutive failures, retention policy "7d / 30d daily / 12w weekly /
+  12mo monthly". Zero console errors, zero CSP errors.
+
+### Real bugs found and fixed this segment
+1. Stray `pdc-staging-redeploy` directory from a prior segment was
+   locked on disk — root cause: this terminal session's own earlier
+   background `cd` calls had left multiple subprocess working directories
+   pointed inside it (confirmed via `Get-CimInstance Win32_Process`).
+   Fixed by returning the terminal's cwd to the repo root before removal;
+   removal then succeeded immediately.
+2. Cron script path resolution: `~/.hermes/scripts/` is not the directory
+   hermes's scheduler actually resolves scripts from — the real path is
+   `AppData\Local\hermes\scripts\`.
+3. Cron subprocess environment has no `bash` on PATH — `.sh` scripts fail
+   even on a machine where Git Bash is otherwise available system-wide;
+   `.py` scripts work because the scheduler invokes them directly.
+4. (Carried from the backup-build segment, re-verified still fixed):
+   `Decimal`/bytes JSON export, wrong FK column name
+   (`workshop_parts_overrides.bay_id` doesn't exist — it's
+   `intended_bay_id`/`intended_stage_id`), Postgres array-vs-jsonb
+   confusion, FK-before-data ordering, wrong Supabase client reference in
+   the status panel (`createWorkshopSupabaseClient` is REST-only, not a
+   real `supabase-js` client — the panel now uses `window.PDC_SUPABASE`).
+
+### Commit / push
+- Commit `4132162` on `feature/workshop-shared-realtime-v2`: "feat:
+  automated encrypted staging backup system with retention, scheduled
+  tick, and isolated restore verification" — pushed to origin.
+- No production files touched; no backup `.bin`/log files committed;
+  encryption key never committed (lives only at `C:\tmp\pdc_backup_key_staging.txt`,
+  outside the repo tree).
 
 ## Real bugs caught and fixed this segment (cumulative)
 - `mark_vehicle_notification_result()` enum-cast `DatatypeMismatch` (SQL).
