@@ -3,13 +3,105 @@
 const WORKSHOP_PLAN_STORAGE_KEY = 'vehicleTrackingCoreWorkshopPlan:v1';
 const WORKSHOP_VIEW_STORAGE_KEY = 'vehicleTrackingCoreWorkshopView:v1';
 const WORKSHOP_BAY_SETUP_STORAGE_KEY = 'vehicleTrackingCoreWorkshopBaySetup:v1';
-const WORKSHOP_START_HOUR = 8;
-const WORKSHOP_END_HOUR = 16;
-const WORKSHOP_DAY_MINUTES = (WORKSHOP_END_HOUR - WORKSHOP_START_HOUR) * 60;
-const WORKSHOP_SNAP_MINUTES = 15;
-const WORKSHOP_DEFAULT_HOURS = 3;
+// Independent-review remediation (finding 1): these five were `const`
+// hard-coded values that the planner used for every date/time
+// calculation, while the shared workshop_settings table in Supabase
+// was already the claimed "authoritative" source -- changing a
+// setting in the database had zero effect on planner behaviour. They
+// are now `let` boot-time DEFAULTS ONLY, live-updated by
+// workshopSyncConfigFromSharedSettings() below whenever the shared
+// reference-data service's workshop-configuration cache changes
+// (initial load, Realtime update, or the 2-minute reconciliation
+// backstop). Every call site below is unchanged -- the live-update
+// mechanism replaces these bindings' VALUES, not their usage.
+let WORKSHOP_START_HOUR = 8;
+let WORKSHOP_END_HOUR = 16;
+let WORKSHOP_DAY_MINUTES = (WORKSHOP_END_HOUR - WORKSHOP_START_HOUR) * 60;
+let WORKSHOP_SNAP_MINUTES = 15;
+let WORKSHOP_DEFAULT_HOURS = 3;
+// Working-week days-of-week (0=Sunday..6=Saturday), boot default
+// Monday-Friday, live-updated from the shared 'working_week' setting.
+let WORKSHOP_WORKDAYS = [1, 2, 3, 4, 5];
 const WORKSHOP_STAGE_SEQUENCE = ['BUS_4X4', 'TINT', 'HOIST', 'FITTING', 'FABRICATION', 'ELECTRICAL', 'TYRE', 'PIT_INSPECTION', 'SUBLET'];
 const WORKSHOP_VISIBLE_STAGE_SEQUENCE = WORKSHOP_STAGE_SEQUENCE.filter(stage => stage !== 'SUBLET');
+
+const WORKSHOP_DAY_NAME_TO_INDEX = { sunday: 0, monday: 1, tuesday: 2, wednesday: 3, thursday: 4, friday: 5, saturday: 6 };
+
+// Independent-review remediation (finding 1): reads the shared,
+// database-validated workshop configuration (already loaded/cached
+// by workshop-reference-data-service.js) and applies it to the
+// module-level scheduling constants above. Called once at boot (best
+// effort, only if the service happens to already have a cached
+// value) and again every time the cache changes via
+// workshop-reference-data-service.js's onStateChange callback (see
+// app.js), so a setting change in one browser takes effect in every
+// other connected browser's planner calculations without a refresh.
+// Deliberately conservative: an unavailable/loading/error state, or
+// an individual key that fails validation, LEAVES the current value
+// unchanged rather than resetting to the hard-coded boot default --
+// per the review's explicit requirement that stale configuration must
+// never be silently reintroduced after a valid value was already
+// active.
+function workshopSyncConfigFromSharedSettings() {
+  if (typeof window === 'undefined' || !window.__workshopReferenceDataService) return false;
+  const service = window.__workshopReferenceDataService;
+  if (typeof service.getCachedWorkshopConfiguration !== 'function') return false;
+  const cached = service.getCachedWorkshopConfiguration();
+  if (!cached || cached.state !== 'ready' || !cached.rows) return false;
+  const rows = cached.rows;
+  let changed = false;
+
+  const startRaw = rows.day_start_time && rows.day_start_time.value;
+  const endRaw = rows.day_end_time && rows.day_end_time.value;
+  const startMatch = typeof startRaw === 'string' && startRaw.match(/^([01][0-9]|2[0-3]):([0-5][0-9])$/);
+  const endMatch = typeof endRaw === 'string' && endRaw.match(/^([01][0-9]|2[0-3]):([0-5][0-9])$/);
+  if (startMatch && endMatch) {
+    const startHour = Number(startMatch[1]) + Number(startMatch[2]) / 60;
+    const endHour = Number(endMatch[1]) + Number(endMatch[2]) / 60;
+    if (endHour > startHour) {
+      if (WORKSHOP_START_HOUR !== startHour || WORKSHOP_END_HOUR !== endHour) changed = true;
+      WORKSHOP_START_HOUR = startHour;
+      WORKSHOP_END_HOUR = endHour;
+      WORKSHOP_DAY_MINUTES = (WORKSHOP_END_HOUR - WORKSHOP_START_HOUR) * 60;
+    }
+  }
+
+  const incrementRaw = rows.scheduling_increment_minutes && rows.scheduling_increment_minutes.value;
+  if (Number.isFinite(Number(incrementRaw)) && Number(incrementRaw) > 0) {
+    if (WORKSHOP_SNAP_MINUTES !== Number(incrementRaw)) changed = true;
+    WORKSHOP_SNAP_MINUTES = Number(incrementRaw);
+  }
+
+  const defaultDurationRaw = rows.default_booking_duration_minutes && rows.default_booking_duration_minutes.value;
+  if (Number.isFinite(Number(defaultDurationRaw)) && Number(defaultDurationRaw) > 0) {
+    const defaultHours = Number(defaultDurationRaw) / 60;
+    if (WORKSHOP_DEFAULT_HOURS !== defaultHours) changed = true;
+    WORKSHOP_DEFAULT_HOURS = defaultHours;
+  }
+
+  const workingWeekRaw = rows.working_week && rows.working_week.value;
+  if (Array.isArray(workingWeekRaw) && workingWeekRaw.length > 0) {
+    const indices = workingWeekRaw
+      .map(name => WORKSHOP_DAY_NAME_TO_INDEX[String(name || '').toLowerCase()])
+      .filter(value => Number.isInteger(value));
+    if (indices.length > 0) {
+      const sorted = [...new Set(indices)].sort();
+      if (JSON.stringify(sorted) !== JSON.stringify(WORKSHOP_WORKDAYS)) changed = true;
+      WORKSHOP_WORKDAYS = sorted;
+    }
+  }
+
+  return changed;
+}
+
+if (typeof window !== 'undefined') {
+  // Best-effort boot-time sync (in case the reference-data service
+  // already has a cached value from a previous initialization this
+  // page load); harmless no-op if the service is not yet available --
+  // the primary live-update path is workshopSyncConfigFromSharedSettings()
+  // being called from app.js's onStateChange callback.
+  try { workshopSyncConfigFromSharedSettings(); } catch (_err) { /* ignore -- boot defaults remain in effect */ }
+}
 
 if (typeof CRM_BACKUP_STORAGE_KEYS !== 'undefined' && !CRM_BACKUP_STORAGE_KEYS.includes(WORKSHOP_PLAN_STORAGE_KEY)) {
   CRM_BACKUP_STORAGE_KEYS.push(WORKSHOP_PLAN_STORAGE_KEY);
@@ -35,7 +127,7 @@ function workshopDateFromKey(value = '') {
 
 function workshopIsWorkday(date = new Date()) {
   const day = date.getDay();
-  return day >= 1 && day <= 5;
+  return WORKSHOP_WORKDAYS.includes(day);
 }
 
 function workshopCoerceWorkDate(date = new Date(), direction = 1) {
@@ -512,11 +604,16 @@ function workshopBaySetupKey(stage = '', bay = 0) {
 }
 
 function workshopBayMechanic(stage = '', bay = 0) {
-  // Stage 2A: prefer the shared reference service's default_technician_id
-  // for this bay when available; fall back to the legacy local bay-setup
-  // mapping otherwise. This never overwrites an explicitly-selected
-  // technician on an existing booking -- every call site above only uses
-  // this as a *default* when entry.assignee is empty.
+  // Independent-review remediation (finding 2): in shared mode, the
+  // Supabase-backed default_technician_id is the SOLE authority for a
+  // bay's default technician -- no browser-local fallback is
+  // consulted, even if the shared lookup returns empty (no default
+  // set is a real, valid state, not "value unknown, ask localStorage
+  // instead"). The legacy localStorage fallback below applies ONLY
+  // when shared mode is inactive (no database to read from at all).
+  if (workshopSharedModeActive()) {
+    return workshopBayDefaultTechnicianName(stage, bay);
+  }
   const sharedDefault = workshopBayDefaultTechnicianName(stage, bay);
   if (sharedDefault) return sharedDefault;
   return cleanNavisionText(workshopLoadBaySetup()[workshopBaySetupKey(stage, bay)] || '');
@@ -701,6 +798,33 @@ function workshopSharedTechnicianRef(name = '') {
   return null;
 }
 
+// Independent-review remediation (finding 3): workshopSharedTechnicianRef()
+// above ONLY finds a technician who has already appeared on a current
+// booking/stoppage assignment in the live snapshot -- a valid, active
+// technician who has simply never yet been assigned to anything could
+// not be resolved, and the caller would then send technicianId: null,
+// which UNASSIGNS rather than assigns the selected technician. This
+// resolver instead looks up the STABLE technician reference table
+// (window.__workshopReferenceDataService, populated by
+// list_technicians -- the Stage 2A source of truth for the technician
+// roster), matched by exact name, restricted to ACTIVE technicians
+// only (an inactive technician must never be resolved for a NEW
+// assignment; the assign_booking_technician RPC also independently
+// rejects an inactive technician id, so this is defence in depth, not
+// the only check). Returns { technicianId } on a match, null
+// otherwise -- callers must treat null as "no valid technician found",
+// not as "explicitly unassign".
+function workshopReferenceTechnicianRef(name = '') {
+  const cleanName = String(name || '').trim();
+  if (!cleanName) return null;
+  const service = typeof window !== 'undefined' ? window.__workshopReferenceDataService : null;
+  if (!service || typeof service.getCachedTechnicians !== 'function') return null;
+  const cached = service.getCachedTechnicians();
+  const rows = cached && Array.isArray(cached.rows) ? cached.rows : [];
+  const technician = rows.find(row => row && row.active !== false && String(row.name || '').trim() === cleanName);
+  return technician ? { technicianId: technician.id } : null;
+}
+
 function workshopPlanId(vehicleKeyValue = '', stage = '') {
   return `${normalizePmbStage(stage)}::${String(vehicleKeyValue || '').trim()}`;
 }
@@ -731,12 +855,47 @@ function workshopSharedBayRef(stage = '', bay = 0) {
   return rows.find(row => row && row.code === expectedCode) || null;
 }
 
+// Independent-review remediation (finding 8): workshopBayIsActive()
+// below is a plain boolean that collapsed "confirmed active",
+// "confirmed inactive", "reference data still loading/unavailable",
+// and "unknown bay mapping" into just two outcomes (true/false),
+// failing OPEN (treated as active/schedulable) for the loading and
+// unknown cases. That is unsafe: an inactive or genuinely unknown bay
+// could accept a NEW booking simply because the reference data had
+// not loaded yet. workshopBayAvailabilityStatus() returns the real,
+// distinct state so callers that are about to CREATE new scheduled
+// work can block on anything other than confirmed 'active', while
+// code that only needs a fail-safe default for EXISTING/historical
+// bookings can keep using the boolean workshopBayIsActive() below,
+// unchanged, for backward compatibility.
+function workshopBayAvailabilityStatus(stage = '', bay = 0) {
+  const service = typeof window !== 'undefined' ? window.__workshopReferenceDataService : null;
+  if (!service || typeof service.getCachedWorkshopBays !== 'function') {
+    // No shared service at all (legacy local planner mode, or the
+    // service has not been constructed on this page) -- there is no
+    // shared bay reference to consult, so this genuinely cannot be
+    // "unavailable" in the Stage 2A sense. Treat as active so local
+    // mode continues to work exactly as before Stage 2A.
+    return 'active';
+  }
+  const cached = service.getCachedWorkshopBays();
+  const state = cached && cached.state;
+  const loadingStates = ['connecting', 'reconnecting', 'offline_error', 'permission_denied'];
+  if (!cached || !Array.isArray(cached.rows) || loadingStates.includes(state)) {
+    return 'unavailable';
+  }
+  const ref = workshopSharedBayRef(stage, bay);
+  if (!ref) return 'unknown';
+  return ref.is_active !== false ? 'active' : 'inactive';
+}
+
 function workshopBayIsActive(stage = '', bay = 0) {
   const ref = workshopSharedBayRef(stage, bay);
   // Fail safe: unknown bay (service not loaded, or no matching row yet)
-  // is treated as active so scheduling is never blocked by incomplete
-  // reference data -- the database's own bay/stage validation inside
-  // schedule_vehicle_work remains the actual authority either way.
+  // is treated as active so EXISTING/historical bookings always remain
+  // visible/renderable -- this function is intentionally lenient and
+  // must NOT be used to gate creation of NEW scheduled work (use
+  // workshopBayAvailabilityStatus() for that, which fails closed).
   return ref ? ref.is_active !== false : true;
 }
 
@@ -1668,39 +1827,79 @@ function bindWorkshopLane(lane) {
 }
 
 async function saveWorkshopBayMechanic(stage = '', bay = 0, value = '') {
-  const setup = workshopLoadBaySetup();
-  const key = workshopBaySetupKey(stage, bay);
   const assignee = cleanNavisionText(value || '');
-  if (assignee) setup[key] = assignee;
-  else delete setup[key];
-  // No roster-add call here (Stage 2A): `value` comes from a <select>
-  // populated exclusively from loadSubletProviders()/loadMechanics()
-  // (both Supabase-backed as of Stage 2A), so it can only ever be a name
-  // that already exists -- there is nothing new to add.
-  workshopSaveBaySetup(setup);
   if (workshopSharedModeActive()) {
-    // The bay-default-mechanic preference above is a harmless local
-    // display convenience (section 12), but backfilling it onto any
-    // currently-unassigned planned booking in this bay is an operational
-    // change and must go through the protected RPC, one booking at a
-    // time, with each booking's own expected version.
-    if (!assignee) return;
-    const currentPlans = workshopLoadPlans();
-    const targets = currentPlans.filter(entry => entry.stage === normalizePmbStage(stage) && Number(entry.bay) === Number(bay) && entry.status === 'planned' && !entry.assignee);
-    const technicianRef = workshopSharedTechnicianRef(assignee);
-    let skipped = 0;
-    for (const entry of targets) {
-      const result = await window.__workshopSharedActions.assignBookingTechnician({
-        bookingId: entry.sharedBookingId || entry.id,
-        expectedVersion: entry.sharedVersion,
-        technicianId: technicianRef ? technicianRef.technicianId : null,
-      });
-      if (!result || !result.ok) skipped += 1;
+    // Independent-review remediation (finding 2): the bay default
+    // technician is Stage 2A shared, database-authoritative lookup
+    // data (workshop_bays.default_technician_id via the protected
+    // set_bay_default_technician RPC) -- it must NOT be saved to
+    // localStorage as a parallel, potentially-divergent source of
+    // truth. Resolve the selected name to a stable technician ID via
+    // the reference table (never the booking-snapshot scan, which can
+    // miss a technician who has never been assigned to anything yet)
+    // and call the protected RPC directly. localStorage is untouched
+    // by this path entirely.
+    const bayRef = workshopSharedBayRef(stage, bay);
+    if (!bayRef) {
+      window.alert('This bay could not be matched to a shared bay record, so the default technician could not be saved. Reload the page and try again.');
+      return;
+    }
+    let technicianId = null;
+    if (assignee) {
+      const technicianRef = workshopReferenceTechnicianRef(assignee);
+      if (!technicianRef) {
+        window.alert(`"${assignee}" could not be matched to an active technician in the shared roster. The bay default was not changed.`);
+        return;
+      }
+      technicianId = technicianRef.technicianId;
+    }
+    const service = window.__workshopReferenceDataService;
+    if (!service || typeof service.setBayDefaultTechnician !== 'function') {
+      window.alert('The shared reference-data service is not available, so the bay default could not be saved.');
+      return;
+    }
+    const result = await service.setBayDefaultTechnician(bayRef.id, bayRef.version, technicianId);
+    if (!result || !result.ok) {
+      window.alert(`The bay default technician could not be saved (${(result && result.error) || 'unknown error'}). The shared data will refresh to show the current authoritative value.`);
+      renderWorkshopPlanner();
+      return;
+    }
+
+    // Backfilling the new default onto currently-unassigned planned
+    // bookings in this bay remains a separate, per-booking operational
+    // change through the protected assign_booking_technician RPC (one
+    // booking at a time, with each booking's own expected version) --
+    // unrelated to the bay-default write itself, which is now
+    // complete and authoritative above.
+    if (assignee && technicianId) {
+      const currentPlans = workshopLoadPlans();
+      const targets = currentPlans.filter(entry => entry.stage === normalizePmbStage(stage) && Number(entry.bay) === Number(bay) && entry.status === 'planned' && !entry.assignee);
+      let skipped = 0;
+      for (const entry of targets) {
+        const assignResult = await window.__workshopSharedActions.assignBookingTechnician({
+          bookingId: entry.sharedBookingId || entry.id,
+          expectedVersion: entry.sharedVersion,
+          technicianId,
+        });
+        if (!assignResult || !assignResult.ok) skipped += 1;
+      }
+      renderWorkshopPlanner();
+      if (skipped) window.alert(`${assignee} was saved as the bay default, but ${skipped} overlapping booking${skipped === 1 ? ' was' : 's were'} left unassigned because that mechanic is already booked elsewhere.`);
+      return;
     }
     renderWorkshopPlanner();
-    if (skipped) window.alert(`${assignee} was saved as the bay default, but ${skipped} overlapping booking${skipped === 1 ? ' was' : 's were'} left unassigned because that mechanic is already booked elsewhere.`);
     return;
   }
+
+  // Legacy local (non-shared) planner mode only, below this point:
+  // the browser-local WORKSHOP_BAY_SETUP_STORAGE_KEY mapping remains
+  // the only available store, since there is no shared database to
+  // write to in this mode.
+  const setup = workshopLoadBaySetup();
+  const key = workshopBaySetupKey(stage, bay);
+  if (assignee) setup[key] = assignee;
+  else delete setup[key];
+  workshopSaveBaySetup(setup);
   const currentPlans = workshopLoadPlans();
   let skipped = 0;
   const plans = currentPlans.map(entry => {
@@ -1913,9 +2112,22 @@ async function moveWorkshopLivePlan(planId = '', stage = '', bay = 0, dateKey = 
     // service reports as inactive. Moving within the SAME bay (e.g. a
     // time-only drag) is never blocked by this check.
     const bayIsChanging = nextStage !== normalizePmbStage(entry.stage) || nextBay !== Number(entry.bay);
-    if (bayIsChanging && !workshopBayIsActive(nextStage, nextBay)) {
-      window.alert('This bay is currently marked inactive and cannot accept new bookings. Choose a different bay.');
-      return false;
+    if (bayIsChanging) {
+      // Independent-review remediation (finding 8): fail CLOSED here
+      // -- block the move for 'inactive', 'unavailable' (reference
+      // data not loaded), and 'unknown' (no matching bay row), not
+      // only for a confirmed-inactive bay. Only a confirmed 'active'
+      // status may proceed.
+      const availability = workshopBayAvailabilityStatus(nextStage, nextBay);
+      if (availability !== 'active') {
+        const messages = {
+          inactive: 'This bay is currently marked inactive and cannot accept new bookings. Choose a different bay.',
+          unavailable: 'The shared bay reference data is still loading (or unavailable). Try again in a moment before moving this job to a new bay.',
+          unknown: 'This bay could not be matched to a known shared bay record, so a new booking cannot be placed here. Choose a different bay.',
+        };
+        window.alert(messages[availability] || 'This bay is not currently available for new bookings.');
+        return false;
+      }
     }
     const nextStart = workshopDateAtOffset(dateKey, startMinutes).toISOString();
     const requestedLabel = `${pmbStageLabel(nextStage)} ${nextStage === 'SUBLET' ? 'provider row' : `Bay ${nextBay}`} · ${workshopEntryTimeLabel({ ...entry, stage: nextStage, bay: nextBay, startAt: nextStart })}`;
@@ -2217,13 +2429,24 @@ async function scheduleWorkshopVehicle({ planId = '', vehicleKeyValue = '', stag
   // EXISTING booking already in that bay (existing/historical bookings
   // must keep displaying their original bay even if it is later made
   // inactive) -- only a brand-new schedule into that bay is refused.
-  // Fails safe: an unknown/not-yet-loaded bay is treated as active, so
-  // this never blocks scheduling on incomplete reference data; the
-  // database's own validation inside schedule_vehicle_work remains
-  // authoritative regardless.
-  if (!existing && !workshopBayIsActive(normalizedStage, bay)) {
-    window.alert('This bay is currently marked inactive and cannot accept new bookings. Choose a different bay.');
-    return false;
+  // Independent-review remediation (finding 8): fails CLOSED for a
+  // brand-new schedule -- confirmed inactive, unavailable (reference
+  // data not loaded), or unknown (no matching bay row) are all
+  // blocked, not only confirmed-inactive. The database's own
+  // validation inside schedule_vehicle_work remains authoritative
+  // regardless, but the frontend must not offer to place new work
+  // into a bay it cannot confirm is genuinely active.
+  if (!existing) {
+    const availability = workshopBayAvailabilityStatus(normalizedStage, bay);
+    if (availability !== 'active') {
+      const messages = {
+        inactive: 'This bay is currently marked inactive and cannot accept new bookings. Choose a different bay.',
+        unavailable: 'The shared bay reference data is still loading (or unavailable). Try again in a moment before scheduling into this bay.',
+        unknown: 'This bay could not be matched to a known shared bay record, so a new booking cannot be placed here. Choose a different bay.',
+      };
+      window.alert(messages[availability] || 'This bay is not currently available for new bookings.');
+      return false;
+    }
   }
   const start = workshopDateAtOffset(dateKey, startMinutes);
   const requestedHours = Number(hoursValue);
@@ -2359,12 +2582,27 @@ async function saveWorkshopDetailForm(event) {
     if (!moveResult || !moveResult.ok) return;
     if (nextAssignee !== (entry.assignee || '')) {
       const nextVersion = moveResult.booking && moveResult.booking.version;
-      const technicianRef = workshopSharedTechnicianRef(nextAssignee);
-      await workshopDispatchSharedAction('assignBookingTechnician', {
-        bookingId: entry.sharedBookingId || entry.id,
-        expectedVersion: nextVersion,
-        technicianId: technicianRef ? technicianRef.technicianId : null,
-      });
+      // Independent-review remediation (finding 3): resolve by stable
+      // technician ID from the reference table first (works for any
+      // active technician, not only ones already visible on a current
+      // booking); only fall back to the booking-snapshot scan for a
+      // technician somehow present in the snapshot but not in the
+      // reference cache (should not normally happen, but never worse
+      // than the previous behaviour). If neither resolves, send `null`
+      // explicitly only when the user actually cleared the field --
+      // never as a silent misresolution of a real name.
+      const technicianRef = nextAssignee
+        ? (workshopReferenceTechnicianRef(nextAssignee) || workshopSharedTechnicianRef(nextAssignee))
+        : null;
+      if (nextAssignee && !technicianRef) {
+        window.alert(`"${nextAssignee}" could not be matched to an active technician. The booking was moved, but the technician assignment was not changed. Re-select the technician and save again.`);
+      } else {
+        await workshopDispatchSharedAction('assignBookingTechnician', {
+          bookingId: entry.sharedBookingId || entry.id,
+          expectedVersion: nextVersion,
+          technicianId: technicianRef ? technicianRef.technicianId : null,
+        });
+      }
     }
     return;
   }
@@ -3146,11 +3384,9 @@ if (typeof window !== 'undefined' && !window.__workshopPlannerStorageSyncBound) 
 
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
-    WORKSHOP_START_HOUR,
-    WORKSHOP_END_HOUR,
     WORKSHOP_DAY_MINUTES,
-    WORKSHOP_DEFAULT_HOURS,
     WORKSHOP_STAGE_SEQUENCE,
+    workshopSyncConfigFromSharedSettings,
     workshopIsWorkday,
     workshopCoerceWorkDate,
     workshopShiftWorkday,
@@ -3194,12 +3430,33 @@ if (typeof module !== 'undefined' && module.exports) {
     workshopDescribeSharedActionError,
     workshopSharedVehicleRef,
     workshopSharedTechnicianRef,
+    workshopReferenceTechnicianRef,
     workshopSharedBayRef,
     workshopBayIsActive,
+    workshopBayAvailabilityStatus,
     workshopBayDefaultTechnicianName,
+    workshopBayMechanic,
+    saveWorkshopBayMechanic,
     workshopOtherDepartmentOverlaps,
     workshopConfirmOtherDepartmentPlans,
     workshopDateAtOffset,
     workshopMinuteOffset,
   };
+
+  // Independent-review remediation (finding 1): WORKSHOP_START_HOUR,
+  // WORKSHOP_END_HOUR, WORKSHOP_DEFAULT_HOURS and WORKSHOP_WORKDAYS are
+  // mutable (`let`) module-level bindings that
+  // workshopSyncConfigFromSharedSettings() reassigns at runtime. A
+  // plain object-literal export above would have captured each
+  // primitive's VALUE once at require() time, so callers (including
+  // this file's own test suite) would never see a later live update.
+  // Defined as getters instead so every read reflects the current
+  // value.
+  Object.defineProperties(module.exports, {
+    WORKSHOP_START_HOUR: { enumerable: true, get: () => WORKSHOP_START_HOUR },
+    WORKSHOP_END_HOUR: { enumerable: true, get: () => WORKSHOP_END_HOUR },
+    WORKSHOP_DEFAULT_HOURS: { enumerable: true, get: () => WORKSHOP_DEFAULT_HOURS },
+    WORKSHOP_SNAP_MINUTES: { enumerable: true, get: () => WORKSHOP_SNAP_MINUTES },
+    WORKSHOP_WORKDAYS: { enumerable: true, get: () => WORKSHOP_WORKDAYS },
+  });
 }

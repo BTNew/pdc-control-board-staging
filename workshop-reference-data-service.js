@@ -167,19 +167,37 @@ function createWorkshopReferenceDataService(options) {
     if (onStateChange) onStateChange(resourceKey, state, error || null);
   }
 
+  // Independent-review remediation (finding 6): loadResource()'s
+  // success path already writes rows BEFORE calling setState() (see
+  // the "CRITICAL ORDERING" comment below), but several FAILURE paths
+  // did the opposite -- called setState()/classifyRpcFailure() (which
+  // synchronously fires onStateChange -> triggers a render) BEFORE
+  // updating cache[resourceKey].rows to the new (usually empty) value.
+  // A render triggered during that window would see the OLD rows
+  // still present alongside the NEW failure state, which is exactly
+  // the same class of stale-read bug already fixed on the success
+  // path, just on the failure paths instead. This helper enforces the
+  // same "commit data first, notify second" ordering unconditionally,
+  // for every call site (success or failure), so the ordering
+  // invariant lives in one place instead of being repeated (and
+  // potentially forgotten) at each call site.
+  function commitResourceState(resourceKey, rows, state, error) {
+    cache[resourceKey] = { rows, state, error: error || null };
+    if (onStateChange) onStateChange(resourceKey, state, error || null);
+  }
+
   function classifyRpcFailure(resourceKey, status, body) {
     if (status === 401 || status === 403 || (body && body.code === '42501')) {
-      setState(resourceKey, WORKSHOP_REFERENCE_CONNECTION_STATE.PERMISSION_DENIED, body);
-      return;
+      return WORKSHOP_REFERENCE_CONNECTION_STATE.PERMISSION_DENIED;
     }
-    setState(resourceKey, WORKSHOP_REFERENCE_CONNECTION_STATE.OFFLINE_ERROR, body || { message: `HTTP ${status}` });
+    return WORKSHOP_REFERENCE_CONNECTION_STATE.OFFLINE_ERROR;
   }
 
   async function loadResource(resourceKey, includeInactive) {
     const resource = WORKSHOP_REFERENCE_RESOURCES[resourceKey];
     if (!resource) throw new Error(`workshop-reference-data-service: unknown resource '${resourceKey}'`);
     if (!client) {
-      setState(resourceKey, WORKSHOP_REFERENCE_CONNECTION_STATE.OFFLINE_ERROR, { message: 'no Supabase client configured' });
+      commitResourceState(resourceKey, [], WORKSHOP_REFERENCE_CONNECTION_STATE.OFFLINE_ERROR, { message: 'no Supabase client configured' });
       return [];
     }
 
@@ -200,10 +218,13 @@ function createWorkshopReferenceDataService(options) {
     const token = getAccessToken();
     if (!token) {
       // Never silently fall back to a stale cached list when there is no
-      // authenticated session -- report the real state instead.
+      // authenticated session -- report the real state instead. Uses
+      // commitResourceState() (finding 6) so the empty rows and the
+      // permission_denied state land together, atomically, before any
+      // render triggered by onStateChange can observe an inconsistent
+      // half-updated cache (old rows + new state, or vice versa).
       if (loadGeneration[resourceKey] !== myGeneration) return cache[resourceKey]?.rows || [];
-      setState(resourceKey, WORKSHOP_REFERENCE_CONNECTION_STATE.PERMISSION_DENIED, { message: 'not authenticated' });
-      cache[resourceKey] = { rows: [], state: WORKSHOP_REFERENCE_CONNECTION_STATE.PERMISSION_DENIED, error: { message: 'not authenticated' } };
+      commitResourceState(resourceKey, [], WORKSHOP_REFERENCE_CONNECTION_STATE.PERMISSION_DENIED, { message: 'not authenticated' });
       return [];
     }
 
@@ -217,8 +238,14 @@ function createWorkshopReferenceDataService(options) {
     if (loadGeneration[resourceKey] !== myGeneration) return cache[resourceKey]?.rows || [];
 
     if (!ok || !Array.isArray(body)) {
-      classifyRpcFailure(resourceKey, status, body);
-      cache[resourceKey] = { rows: [], state: cache[resourceKey].state, error: body };
+      // Finding 6: commit the (empty) rows and the failure state
+      // together via commitResourceState() -- previously this called
+      // classifyRpcFailure() (which fired onStateChange synchronously)
+      // BEFORE cache[resourceKey].rows was replaced, so a render
+      // triggered during permission loss or a failed request could
+      // still see the OLD operational rows next to the NEW failure
+      // state.
+      commitResourceState(resourceKey, [], classifyRpcFailure(resourceKey, status, body), body);
       return [];
     }
 
@@ -242,12 +269,13 @@ function createWorkshopReferenceDataService(options) {
     // not yet written), rendering stale data even though the fetch
     // itself succeeded and the state correctly flipped to
     // connected_read_only/editable -- exactly the "cache is right but
-    // the UI never updates" bug this fixes.
+    // the UI never updates" bug this fixes. commitResourceState()
+    // (finding 6) now enforces this same ordering for every call site,
+    // success or failure.
     const nextState = wasEditable
       ? WORKSHOP_REFERENCE_CONNECTION_STATE.CONNECTED_EDITABLE
       : WORKSHOP_REFERENCE_CONNECTION_STATE.CONNECTED_READ_ONLY;
-    cache[resourceKey] = { rows: body, state: nextState, error: null };
-    setState(resourceKey, nextState);
+    commitResourceState(resourceKey, body, nextState, null);
     return body;
   }
 
@@ -344,7 +372,7 @@ function createWorkshopReferenceDataService(options) {
   const SETTINGS_RESOURCE_KEY = 'workshopSettings';
   async function loadWorkshopConfiguration() {
     if (!client) {
-      setState(SETTINGS_RESOURCE_KEY, WORKSHOP_REFERENCE_CONNECTION_STATE.OFFLINE_ERROR, { message: 'no Supabase client configured' });
+      commitResourceState(SETTINGS_RESOURCE_KEY, {}, WORKSHOP_REFERENCE_CONNECTION_STATE.OFFLINE_ERROR, { message: 'no Supabase client configured' });
       return {};
     }
     loadGeneration[SETTINGS_RESOURCE_KEY] = (loadGeneration[SETTINGS_RESOURCE_KEY] || 0) + 1;
@@ -352,23 +380,26 @@ function createWorkshopReferenceDataService(options) {
     const token = getAccessToken();
     if (!token) {
       if (loadGeneration[SETTINGS_RESOURCE_KEY] !== myGeneration) return cache[SETTINGS_RESOURCE_KEY]?.rows || {};
-      cache[SETTINGS_RESOURCE_KEY] = { rows: {}, state: WORKSHOP_REFERENCE_CONNECTION_STATE.PERMISSION_DENIED, error: { message: 'not authenticated' } };
-      setState(SETTINGS_RESOURCE_KEY, WORKSHOP_REFERENCE_CONNECTION_STATE.PERMISSION_DENIED, { message: 'not authenticated' });
+      commitResourceState(SETTINGS_RESOURCE_KEY, {}, WORKSHOP_REFERENCE_CONNECTION_STATE.PERMISSION_DENIED, { message: 'not authenticated' });
       return {};
     }
     const { status, ok, body } = await client.rpc(token, 'get_workshop_configuration', {});
     if (loadGeneration[SETTINGS_RESOURCE_KEY] !== myGeneration) return cache[SETTINGS_RESOURCE_KEY]?.rows || {};
     if (!ok || typeof body !== 'object' || body === null) {
-      classifyRpcFailure(SETTINGS_RESOURCE_KEY, status, body);
-      cache[SETTINGS_RESOURCE_KEY] = { rows: {}, state: cache[SETTINGS_RESOURCE_KEY]?.state, error: body };
+      // Finding 6: commit the (empty) configuration and the failure
+      // state together -- previously classifyRpcFailure() fired the
+      // state-change notification BEFORE cache[SETTINGS_RESOURCE_KEY]
+      // was replaced, so a render during a failed settings load could
+      // still see the OLD configuration alongside the NEW failure
+      // state.
+      commitResourceState(SETTINGS_RESOURCE_KEY, {}, classifyRpcFailure(SETTINGS_RESOURCE_KEY, status, body), body);
       return {};
     }
     // Cache-then-notify ordering (see loadResource() above for why this
     // order matters): write the fresh configuration before firing
     // onStateChange, so any render triggered by the state change reads
     // the new values, not the previous ones.
-    cache[SETTINGS_RESOURCE_KEY] = { rows: body, state: WORKSHOP_REFERENCE_CONNECTION_STATE.CONNECTED_READ_ONLY, error: null };
-    setState(SETTINGS_RESOURCE_KEY, WORKSHOP_REFERENCE_CONNECTION_STATE.CONNECTED_READ_ONLY);
+    commitResourceState(SETTINGS_RESOURCE_KEY, body, WORKSHOP_REFERENCE_CONNECTION_STATE.CONNECTED_READ_ONLY, null);
     return body;
   }
 
@@ -470,7 +501,19 @@ function createWorkshopReferenceDataService(options) {
     // shape as the four above -- it is a fixed set of named settings, read
     // and written as a whole object via get/update RPCs).
     getWorkshopConfiguration: async () => {
+      // Independent-review remediation (finding 7): must report
+      // failure honestly. Previously this always returned
+      // { ok: true, configuration } even when loadWorkshopConfiguration()
+      // failed internally (offline/permission_denied) and returned {}
+      // -- callers had no way to distinguish "empty because there are
+      // genuinely no settings" from "empty because the load failed".
       const configuration = await loadWorkshopConfiguration();
+      const stateAfter = getCached(SETTINGS_RESOURCE_KEY).state;
+      const failed = stateAfter === WORKSHOP_REFERENCE_CONNECTION_STATE.OFFLINE_ERROR
+        || stateAfter === WORKSHOP_REFERENCE_CONNECTION_STATE.PERMISSION_DENIED;
+      if (failed) {
+        return { ok: false, error: stateAfter, configuration, detail: getCached(SETTINGS_RESOURCE_KEY).error };
+      }
       return { ok: true, configuration };
     },
     getCachedWorkshopConfiguration: () => getCached(SETTINGS_RESOURCE_KEY),
@@ -484,6 +527,21 @@ function createWorkshopReferenceDataService(options) {
       });
       if (status === 401 || status === 403 || (body && body.code === '42501')) return { ok: false, error: 'permission_denied', detail: body };
       if (!ok) return { ok: false, error: 'request_failed', detail: body };
+      // Independent-review remediation (finding 7): every OTHER
+      // reference mutation (add/edit/set_active for technicians,
+      // salespeople, sublet providers, bays) already calls
+      // loadResource() again after a successful write via mutate()'s
+      // shared "always re-load after a mutation" behaviour. This
+      // function bypassed mutate() entirely (workshop_settings is not
+      // a list/add/edit resource) and never resynchronised the cache
+      // -- the SAME browser that just made the change could continue
+      // showing the OLD configuration value until a Realtime event or
+      // the periodic reconciliation timer eventually caught up.
+      // Reload immediately after a successful write, same as every
+      // other resource.
+      if (body && body.ok === true) {
+        await loadWorkshopConfiguration();
+      }
       return body || { ok: false, error: 'empty_response' };
     },
 
