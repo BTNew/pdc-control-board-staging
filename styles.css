@@ -11471,6 +11471,17 @@ html[data-row-width="xl"] {
 .pdc-password-form label { display: grid; gap: 5px; color: #334155; font-size: 12px; font-weight: 700; }
 .pdc-password-form input { width: 100%; min-height: 46px; padding: 10px 12px; border: 1px solid #b8c3d1; border-radius: 6px; background: #fff; color: #172033; font: inherit; }
 .pdc-password-form input:focus { outline: 3px solid rgba(37, 99, 235, .2); border-color: #2563eb; }
+.pdc-auth-links { display: flex; justify-content: space-between; gap: 12px; margin-top: 2px; }
+.pdc-auth-links .text-button { min-height: auto; width: auto; font-size: 12px; font-weight: 700; color: #2563eb; background: none; border: none; padding: 4px 0; cursor: pointer; text-decoration: underline; }
+.pdc-auth-form-error { color: #b42318; font-size: 13px; font-weight: 600; margin: 0; }
+.pdc-auth-form-error[hidden] { display: none; }
+.pdc-auth-form-success { color: #067647; font-size: 13px; font-weight: 600; margin: 0; }
+.pdc-auth-form-success[hidden] { display: none; }
+.pdc-auth-pending-notice, .pdc-auth-disabled-notice, .pdc-auth-rejected-notice {
+  display: grid; gap: 12px; text-align: center; padding: 8px 0;
+}
+.pdc-auth-pending-notice[hidden], .pdc-auth-disabled-notice[hidden], .pdc-auth-rejected-notice[hidden] { display: none; }
+.pdc-auth-pending-notice p, .pdc-auth-disabled-notice p, .pdc-auth-rejected-notice p { margin: 0; font-weight: 600; color: #334155; }
 .pdc-auth-user {
   max-width: 260px;
   color: #334155;

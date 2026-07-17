@@ -46,14 +46,24 @@
     const loginButton = el('pdc-microsoft-login');
     const passwordForm = el('pdc-password-form');
     const newPasswordForm = el('pdc-new-password-form');
+    const createAccountForm = el('pdc-create-account-form');
+    const forgotPasswordForm = el('pdc-forgot-password-form');
     const deniedSignOut = el('pdc-auth-denied-signout');
+    const pendingNotice = el('pdc-auth-pending-notice');
+    const disabledNotice = el('pdc-auth-disabled-notice');
+    const rejectedNotice = el('pdc-auth-rejected-notice');
     if (titleNode) titleNode.textContent = title;
     if (detailNode) detailNode.textContent = detail;
     const useMicrosoft = authConfig().mode === 'microsoft';
     if (loginButton) loginButton.hidden = mode !== 'signed-out' || !useMicrosoft;
     if (passwordForm) passwordForm.hidden = mode !== 'signed-out' || useMicrosoft;
     if (newPasswordForm) newPasswordForm.hidden = mode !== 'password-setup';
+    if (createAccountForm) createAccountForm.hidden = mode !== 'create-account';
+    if (forgotPasswordForm) forgotPasswordForm.hidden = mode !== 'forgot-password';
     if (deniedSignOut) deniedSignOut.hidden = mode !== 'denied';
+    if (pendingNotice) pendingNotice.hidden = mode !== 'pending';
+    if (disabledNotice) disabledNotice.hidden = mode !== 'account-disabled';
+    if (rejectedNotice) rejectedNotice.hidden = mode !== 'rejected';
     document.body.dataset.authState = mode;
   }
 
@@ -108,9 +118,8 @@
     if (!email) return { role: null, error: new Error('The signed-in account did not return an email address.') };
     const { data, error } = await state.client
       .from('pdc_user_roles')
-      .select('email,role,active')
+      .select('email,role,active,account_status')
       .eq('email', email)
-      .eq('active', true)
       .maybeSingle();
     return { role: data, error };
   }
@@ -145,11 +154,31 @@
 
     setMessage('Checking PDC access…', 'Your identity is signed in. Checking the approved staff list.', 'checking');
     const { role, error } = await loadApprovedRole(session);
-    if (error || !approvedRole(role, session.user.email)) {
+    if (error || !role) {
+      setMessage('Access not approved', `The account ${session.user.email || 'you used'} is not on the PDC approved staff list.`, 'denied');
+      return;
+    }
+    if (role.account_status === 'pending') {
+      setMessage('Awaiting approval', 'Your account has been created and is awaiting administrator approval.', 'pending');
+      return;
+    }
+    if (role.account_status === 'disabled') {
+      setMessage('Access disabled', 'Your account access has been disabled. Contact an administrator if you believe this is an error.', 'account-disabled');
+      return;
+    }
+    if (role.account_status === 'rejected') {
+      setMessage('Registration not approved', 'Your registration was not approved. Contact an administrator for details.', 'rejected');
+      return;
+    }
+    if (!approvedRole(role, session.user.email)) {
       setMessage('Access not approved', `The account ${session.user.email || 'you used'} is not on the PDC approved staff list.`, 'denied');
       return;
     }
     unlockApplication(session, role);
+    // Fire-and-forget: records the last successful sign-in timestamp for
+    // the administrator user-management screen. Never blocks unlocking
+    // the application on this succeeding.
+    state.client.rpc('record_pdc_login', {}).then(() => {}, () => {});
   }
 
   async function signInWithMicrosoft() {
@@ -220,6 +249,62 @@
     await applySession(null);
   }
 
+  function validatePassword(password) {
+    return password.length >= 12 && /[a-z]/.test(password) && /[A-Z]/.test(password) && /\d/.test(password) && /[^A-Za-z0-9]/.test(password);
+  }
+
+  function showFormError(id, message) {
+    const node = el(id);
+    if (!node) return;
+    node.textContent = message;
+    node.hidden = !message;
+  }
+
+  function showFormSuccess(id, message) {
+    const node = el(id);
+    if (!node) return;
+    node.textContent = message;
+    node.hidden = !message;
+  }
+
+  async function forgotPassword(event) {
+    event?.preventDefault();
+    showFormError('pdc-forgot-error', '');
+    showFormSuccess('pdc-forgot-success', '');
+    const email = String(el('pdc-forgot-email')?.value || '').trim().toLowerCase();
+    if (!email) { showFormError('pdc-forgot-error', 'Enter your work email address.'); return; }
+
+    const button = el('pdc-forgot-submit');
+    if (button) button.disabled = true;
+    const config = authConfig();
+    const { error } = await state.client.auth.resetPasswordForEmail(email, {
+      redirectTo: safeRedirectTo(config.redirectTo),
+    });
+    if (button) button.disabled = false;
+
+    // Deliberately show the same success message whether or not the
+    // email exists, to avoid leaking which addresses are registered.
+    if (error && error.status && error.status >= 500) {
+      showFormError('pdc-forgot-error', 'Could not send the reset email right now. Try again shortly.');
+      return;
+    }
+    showFormSuccess('pdc-forgot-success', 'If that email is registered, a password reset link has been sent.');
+    el('pdc-forgot-email').value = '';
+  }
+
+  function showCreateAccountForm() {
+    setMessage('Create your PDC account', 'Enter your details below. An administrator must approve your account before you can access any data.', 'create-account');
+  }
+
+  function showForgotPasswordForm() {
+    setMessage('Reset your password', 'Enter your work email and we will send you a password reset link.', 'forgot-password');
+  }
+
+  function showSignInForm() {
+    const config = authConfig();
+    setMessage(config.mode === 'microsoft' ? 'Microsoft sign-in required' : 'PDC staff sign-in', config.mode === 'microsoft' ? 'Use your approved work Microsoft account to open the PDC Control Board.' : 'Use your individually assigned PDC email and password.', 'signed-out');
+  }
+
   async function initialize() {
     lockApplication();
     const config = authConfig();
@@ -242,6 +327,14 @@
     el('pdc-new-password-form')?.addEventListener('submit', saveNewPassword);
     el('pdc-auth-signout')?.addEventListener('click', signOut);
     el('pdc-auth-denied-signout')?.addEventListener('click', signOut);
+    el('pdc-forgot-password-form')?.addEventListener('submit', forgotPassword);
+    el('pdc-show-create-account')?.addEventListener('click', showCreateAccountForm);
+    el('pdc-show-forgot-password')?.addEventListener('click', showForgotPasswordForm);
+    el('pdc-signup-back-to-login')?.addEventListener('click', showSignInForm);
+    el('pdc-forgot-back-to-login')?.addEventListener('click', showSignInForm);
+    el('pdc-pending-signout')?.addEventListener('click', signOut);
+    el('pdc-disabled-signout')?.addEventListener('click', signOut);
+    el('pdc-rejected-signout')?.addEventListener('click', signOut);
 
     const { data, error } = await state.client.auth.getSession();
     if (error) {
@@ -266,4 +359,25 @@
   });
 
   window.PDC_AUTH_TEST = Object.freeze({ approvedRole, safeRedirectTo });
+
+  // Exposed only for the OPTIONAL, staging-only self-registration module
+  // (pdc-auth-registration.js). This object exists on every deployment
+  // (including production) but is inert unless that separate script is
+  // also loaded, which it is not on the production entry point. Kept
+  // deliberately narrow: state.client so registration can call
+  // supabase-js auth methods, applySession/authConfig/safeRedirectTo so
+  // the registration module can render the same locked-shell state
+  // machine consistently, and validatePassword/showFormError/
+  // showFormSuccess so both modules render identical password-strength
+  // and error/success UI.
+  window.PDC_AUTH_SHARED = Object.freeze({
+    getClient: () => state.client,
+    applySession,
+    authConfig,
+    safeRedirectTo,
+    validatePassword,
+    showFormError,
+    showFormSuccess,
+    showSignInForm,
+  });
 })();
