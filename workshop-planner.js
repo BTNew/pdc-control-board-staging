@@ -47,7 +47,8 @@ function workshopSyncConfigFromSharedSettings() {
   const service = window.__workshopReferenceDataService;
   if (typeof service.getCachedWorkshopConfiguration !== 'function') return false;
   const cached = service.getCachedWorkshopConfiguration();
-  if (!cached || cached.state !== 'ready' || !cached.rows) return false;
+  const readableStates = new Set(['connected_read_only', 'connected_editable']);
+  if (!cached || !readableStates.has(cached.state) || !cached.rows) return false;
   const rows = cached.rows;
   let changed = false;
 
