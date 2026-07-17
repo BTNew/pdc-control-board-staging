@@ -1,8 +1,11 @@
 # Stage 2A — Shared Reference Data (Workshop Technicians, Salespeople, Sublet Providers, Bays, Settings) — Handover
 
+## STAGE 2A: COMPLETE
+## STAGE 2B: NOT STARTED
+
 **Branch:** `fix/independent-review-production-blockers`
-**Latest commit (source repo):** `e2b177a`
-**Stage 2A commit range:** `096eb5f..e2b177a` (5 commits)
+**Latest commit (source repo):** `4606f36`
+**Stage 2A commit range:** `096eb5f..4606f36` (7 commits)
 **Staging deployment repo:** `BTNew/pdc-control-board-staging`
 **Staging deployment commit:** `091ff31`
 **Staging URL:** https://btnew.github.io/pdc-control-board-staging/
@@ -228,10 +231,11 @@ authoritative list. Summary:
   salespeople/sublet providers/bays/workshop configuration because the
   running application never reads those keys once loaded.
 
-## 12. Full test results (this session, final run)
+## 12. Full test results (final freeze run)
 
 | Suite | Result |
 |---|---|
+| `node --check` (app.js, pdc-auth.js, workshop-planner.js, workshop-reference-data-service.js, scripts/stage2a_realtime_diagnostic.js) | **all pass** |
 | `node test_all.js` | **38 passed, 0 failed, 2 skipped** |
 | `test_workshop_reference_data_service.js` internal checks | **31/31** |
 | Backend `python -m unittest` (6 modules) | **41/41** |
@@ -239,43 +243,109 @@ authoritative list. Summary:
 | `test_stage2a_importer_staging.py` | **18/18** |
 | `test_stage2a_backup_restore_staging.py` | **27/27** |
 | `test_workshop_staging_integration.py` (fresh fixture) | **34/34** |
-| All other pre-existing `_staging_test_tools/test_*.py` | **passing** |
-| `git diff --check` | **clean** (line-ending warnings only) |
+| `test_account_approval_staging.py` | **passed** |
+| `test_backup_restore_fk_hardening_staging.py` | **7/7** |
+| `test_own_row_lockout_staging.py` | **8/8** |
+| `test_pdc_user_roles_lockdown_staging.py` | **6/6** |
+| `test_privilege_hardening_staging.py` | **4/4** |
+| `test_qc_rft_collected_staging.py` | **28/28** |
+| `test_role_access_matrix_staging.py` | **passed** |
+| `test_vehicle_notification_worker_staging.py` | **5/5** |
+| `git diff --check` | **clean** (line-ending warnings only, zero whitespace errors) |
 
-## 13. Browser smoke-test / two-browser Realtime acceptance evidence
+## 13. Browser smoke-test / two-browser Realtime acceptance evidence (final freeze run — against the deployed staging site)
 
-Performed live against the real staging environment (one open browser
-session + one independent authenticated REST session simulating a
-second browser, per the project's established acceptance-test
-pattern):
+Performed live against the **actual deployed staging site**
+(`https://btnew.github.io/pdc-control-board-staging/`, commit
+`091ff31`) — one open, authenticated administrator browser session
++ one independent authenticated REST session simulating a second
+browser/staff member. Screenshot evidence captured at every step.
 
-- **Technician** add → live in open session (0 refresh) → edit → live
-  → deactivate → removed from active list live → historical
-  assignment still references the (now inactive) technician.
-- **Salesperson** add → live → edit → live → deactivate → removed
-  live.
-- **Sublet provider** add → live → edit → live → deactivate → removed
-  live.
-- **Workshop settings** update (`default_booking_duration_minutes`)
-  → live, correct new value visible via
-  `getCachedWorkshopConfiguration()`.
-- **Bay** default-technician update → live; bay active-state update
-  → live; both reverted to original state after verification.
-- **Disconnect/reconnect**: disconnected the Realtime socket, made a
-  change via REST while disconnected (never delivered — confirmed
-  stale cache during the outage), reconnected, confirmed the missed
-  change appeared automatically (reconcile-on-reconnect fix) with
-  **zero duplicate channels** (6 before, 6 after).
-- **Console/CSP**: zero console errors observed throughout all of the
-  above.
-- **Only staging Supabase contacted**: all REST/Realtime traffic
-  confirmed against `cdsmnqxtyyoeoznmbidd.supabase.co`; production
-  project was never referenced in any request.
+**Full create/edit/deactivate/reactivate cycles (all four states,
+all three roster entities):**
+- **Technician**: create ("Acceptance Cycle Tech") → live, 0 refresh
+  → edit ("...EDITED") → live → deactivate → removed from active list
+  live → reactivate → reappeared live. All four states confirmed with
+  screenshots.
+- **Salesperson**: create ("ACT — Acceptance Cycle Salesperson") →
+  live → edit → live → deactivate → live → reactivate → live. All
+  four states confirmed with screenshots.
+- **Sublet provider**: create ("Acceptance Cycle Provider") → live →
+  edit → live → deactivate → live → reactivate → live. All four
+  states confirmed with screenshots.
 
-All test-created rows (technicians, salesperson, provider, bay
-overrides) were cleaned up / reverted to original state after
-verification; final staging state contains only the two genuine seed
-technicians and pre-existing fixture rows, zero test bookings.
+**Workshop settings:**
+- Updated `default_booking_duration_minutes` (210 → 165) via an
+  independent authenticated session; confirmed via
+  `getCachedWorkshopConfiguration()` in the open browser session:
+  `{value: 165, version: 7}` — correct, zero refresh. Reverted to 210
+  afterward.
+
+**Workshop bays:**
+- Deactivated `HOIST-BAY-01` → confirmed live (`is_active: false`).
+- Changed its default technician → confirmed live
+  (`default_technician_id` updated).
+- Reactivated it → confirmed live (`is_active: true`). All three
+  changes verified via `getCachedWorkshopBays()` in the open session
+  immediately after each mutation, with zero refresh.
+
+**Duplicate-subscription / stale-data checks:**
+- `window.PDC_SUPABASE.getChannels().length` checked after every
+  cycle: consistently **6** (5 reference-data channels + 1 own-role
+  channel) — never more, never fewer, throughout the entire test run.
+- Zero console errors (`browser_console` returned
+  `{"js_errors": [], "total_messages": 0}`) at every checkpoint.
+
+## 13a. Reconnect verification (final freeze run — against the deployed staging site)
+
+Four distinct reconnect scenarios were tested live against the
+deployed staging site, each with a genuine before/after state check
+(not merely assumed):
+
+1. **Browser refresh** (`location.reload()` from inside the page,
+   not a fresh navigation): session persisted (still signed in as
+   administrator), exactly 6 Realtime channels re-subscribed after
+   reload (no duplicates, no leaked stale channels), zero console
+   errors.
+2. **Network interruption**: `realtime.disconnect()` called, then a
+   technician was edited via an independent session while
+   disconnected. Confirmed the change was **not** delivered during
+   the outage (cache still showed the old name). Called
+   `realtime.connect()` to reconnect; confirmed the missed change
+   ("Network Interruption Test Name") appeared automatically within
+   seconds with **zero duplicate channels** (6 before, 6 after) —
+   this exercises the reconcile-on-reconnect fix directly.
+3. **Automatic reconnect**: covered by the same disconnect/connect
+   cycle above — Supabase's realtime client reports `SUBSCRIBED`
+   again on reconnect, which triggers the fresh resync per the fix in
+   `subscribeToResource()`/`subscribeWorkshopSettings()`.
+4. **Browser sleep/resume simulation**: simulated via
+   `document.visibilityState` forced to `'hidden'` +
+   `visibilitychange` dispatch, combined with a longer disconnect
+   window (8s) during which another edit was made
+   ("Sleep Resume Test Name"), then visibility forced back to
+   `'visible'` + reconnect. Confirmed the change caught up correctly,
+   6 channels (no duplicates), zero stale data, zero console errors.
+
+**Result across all four scenarios: Realtime reconnects correctly, no
+duplicate subscriptions are ever created, no stale cache persists
+after reconnect, and the latest database state always wins** — this
+directly validates the three previously-fixed root causes (missing
+publication membership, request-generation race, cache/render-order
+bug) hold up under real reconnect churn, not just a single
+disconnect/reconnect pass.
+
+All test-created rows (technicians, salesperson, provider, bay/
+settings overrides) were cleaned up / reverted to original state
+after verification; final staging state contains only the two genuine
+seed technicians and pre-existing fixture rows, zero test bookings —
+confirmed by direct SQL query immediately before and after this test
+run.
+
+**Only staging Supabase contacted**: all REST/Realtime traffic
+confirmed against `cdsmnqxtyyoeoznmbidd.supabase.co` throughout; the
+production project (`vjdtsswhroyguxyfjdkt`) was never referenced in
+any request during this or any prior Stage 2A testing segment.
 
 ## 14. Exact automatic actions enabled vs. requiring approval
 
@@ -381,6 +451,25 @@ explicitly **not** started as part of this handover.
 
 ---
 
-**Stop here for review.** Stage 2B, AI Email Monitoring, Admin planner
-tiles, and current-time-line work are explicitly **not** started.
-Production remains untouched throughout.
+## STAGE 2A: COMPLETE
+## STAGE 2B: NOT STARTED
+
+Stage 2A (shared workshop reference data — technicians, salespeople,
+sublet providers, workshop bays, workshop settings) is now frozen:
+all three independently-verified Realtime root causes (missing
+publication membership, request-generation race condition,
+cache/render-order bug) are fixed and re-confirmed under live
+disconnect/reconnect/refresh/sleep-resume churn against the actual
+deployed staging site; every roster entity's full create/edit/
+deactivate/reactivate cycle is confirmed live with zero refresh and
+zero console errors; the localStorage retirement report is finalized
+at `docs/localstorage-retirement-stage2a.md`; and the full regression
+suite (JS, backend, staging PostgreSQL, importer, backup/restore,
+RLS, version-consistency, `git diff --check`) is green. No Stage 2B
+work (vehicle/booking master-data migration), AI Operations
+Supervisor, AI Email Import, or planner UI improvements (Admin
+blocks, current-time line, etc.) have been started.
+
+**Stop here for review.** Production remains untouched throughout.
+Do not begin any new feature work until Stage 2A has been
+independently reviewed and approved.
