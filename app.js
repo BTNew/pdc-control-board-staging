@@ -2729,7 +2729,8 @@ function backupStatusSharedModeReady() {
   return typeof window !== 'undefined'
     && typeof workshopSharedModeEnabled === 'function'
     && workshopSharedModeEnabled(window.PDC_SUPABASE_CONFIG)
-    && typeof createWorkshopSupabaseClient === 'function'
+    && !!window.PDC_SUPABASE
+    && typeof window.PDC_SUPABASE.from === 'function'
     && window.PDC_AUTH_CONTEXT
     && window.PDC_AUTH_CONTEXT.role === 'administrator';
 }
@@ -2759,7 +2760,10 @@ async function renderBackupStatusPanel() {
   host.innerHTML = '<div class="empty-state compact-empty"><strong>Loading backup status…</strong></div>';
 
   try {
-    const client = createWorkshopSupabaseClient(window.PDC_SUPABASE_CONFIG);
+    const client = window.PDC_SUPABASE;
+    if (!client || typeof client.from !== 'function') {
+      throw new Error('Supabase client is not ready yet');
+    }
     const environment = (window.PDC_SUPABASE_CONFIG && window.PDC_SUPABASE_CONFIG.projectRef === 'cdsmnqxtyyoeoznmbidd') ? 'staging' : 'production';
 
     const { data: runs, error: runsError } = await client
