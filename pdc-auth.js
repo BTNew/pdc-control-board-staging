@@ -7,6 +7,7 @@
     user: null,
     role: null,
     initialized: false,
+    ownRoleChannel: null,
     passwordSetupRequired: /(?:^|[?#&])type=(?:invite|recovery)(?:[&#]|$)/.test(`${window.location.search}${window.location.hash}`),
   };
 
@@ -76,6 +77,93 @@
     document.body.classList.remove('auth-approved');
   }
 
+  // ---------------------------------------------------------------------
+  // Own-row realtime lockout (independent-review remediation, finding #5 /
+  // critical blocker #5).
+  //
+  // Previously this module only re-checked the signed-in user's role/status
+  // on initial load and on Supabase Auth state changes (token refresh,
+  // sign-in, sign-out) -- never on a live database change to their own
+  // pdc_user_roles row. RLS correctly blocked new reads/writes the moment
+  // an account was disabled, but an already-open browser tab could keep
+  // showing previously-loaded operational data and an unlocked application
+  // shell indefinitely, until the user happened to reload or sign out.
+  //
+  // Every signed-in browser now subscribes to postgres_changes on its own
+  // pdc_user_roles row (filtered server-side by email, so a browser never
+  // receives another user's row). On any change, it re-verifies the
+  // account's live account_status/role and, if no longer approved,
+  // immediately locks the shell, clears in-memory/operational state via a
+  // 'pdc-auth-locked' event the rest of the app listens for, and
+  // unsubscribes every operational realtime channel. A role change between
+  // viewer/controller/administrator while still approved updates the
+  // visible label and re-fires 'pdc-auth-ready' without requiring a reload.
+  // ---------------------------------------------------------------------
+  function unsubscribeOwnRoleChannel() {
+    if (state.ownRoleChannel && state.client && typeof state.client.removeChannel === 'function') {
+      try {
+        state.client.removeChannel(state.ownRoleChannel);
+      } catch (_err) {
+        // best-effort; the channel may already be closed
+      }
+    }
+    state.ownRoleChannel = null;
+  }
+
+  function subscribeOwnRoleChannel(email) {
+    unsubscribeOwnRoleChannel();
+    if (!state.client || typeof state.client.channel !== 'function' || !email) return;
+    const channel = state.client
+      .channel(`pdc_user_roles_own_row:${email}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'pdc_user_roles', filter: `email=eq.${email}` },
+        () => {
+          handleOwnRoleRowChanged();
+        }
+      )
+      .subscribe();
+    state.ownRoleChannel = channel;
+  }
+
+  async function handleOwnRoleRowChanged() {
+    if (!state.session) return;
+    const { role, error } = await loadApprovedRole(state.session);
+    if (error || !role || role.account_status !== 'approved' || !approvedRole(role, state.session.user?.email)) {
+      // No longer approved (disabled, rejected, reverted to pending, or the
+      // row vanished). Lock immediately -- do not wait for the user to
+      // reload or sign out, and do not leave previously-rendered
+      // operational data visible in an inert-but-still-DOM-present shell.
+      window.dispatchEvent(new CustomEvent('pdc-auth-locked', { detail: { reason: role ? role.account_status : 'not_found' } }));
+      unsubscribeOwnRoleChannel();
+      state.role = null;
+      delete window.PDC_AUTH_CONTEXT;
+      delete window.__pdcCachedAccessToken;
+      lockApplication();
+      const statusMessages = {
+        pending: ['Awaiting approval', 'Your account has been created and is awaiting administrator approval.', 'pending'],
+        disabled: ['Access disabled', 'Your account access has been disabled. Contact an administrator if you believe this is an error.', 'account-disabled'],
+        rejected: ['Registration not approved', 'Your registration was not approved. Contact an administrator for details.', 'rejected'],
+      };
+      const [title, body, cls] = statusMessages[role?.account_status] || ['Access not approved', 'Your access to the PDC Control Board is no longer approved.', 'denied'];
+      setMessage(title, body, cls);
+      return;
+    }
+    // Still approved -- if the role itself changed (e.g. viewer promoted to
+    // controller), refresh the visible permissions live without requiring
+    // a page reload.
+    if (state.role && state.role.role !== role.role) {
+      state.role = role;
+      window.PDC_AUTH_CONTEXT = Object.freeze({
+        ...window.PDC_AUTH_CONTEXT,
+        role: role.role,
+      });
+      const userLabel = el('pdc-auth-user');
+      if (userLabel) userLabel.textContent = `${window.PDC_AUTH_CONTEXT.displayName} · ${role.role}`;
+      window.dispatchEvent(new CustomEvent('pdc-auth-ready', { detail: window.PDC_AUTH_CONTEXT }));
+    }
+  }
+
   function unlockApplication(session, roleRow) {
     state.session = session;
     state.user = session.user;
@@ -111,6 +199,7 @@
     document.body.classList.add('auth-approved');
     document.body.dataset.authState = 'approved';
     window.dispatchEvent(new CustomEvent('pdc-auth-ready', { detail: window.PDC_AUTH_CONTEXT }));
+    subscribeOwnRoleChannel(window.PDC_AUTH_CONTEXT.email);
   }
 
   async function loadApprovedRole(session) {
@@ -126,6 +215,16 @@
 
   async function applySession(session) {
     lockApplication();
+    unsubscribeOwnRoleChannel();
+    // Stage 2A: stop the shared workshop reference-data realtime
+    // subscriptions and periodic reconciliation timer on every session
+    // teardown path (sign-out, lockout, session expiry) -- this is the
+    // single chokepoint all of those already route through, so it
+    // never polls or holds open channels with a signed-out session.
+    // Only stop on teardown (session === null), never on a real sign-in.
+    if (!session && typeof window.stopWorkshopReferenceDataReconciliationTimer === 'function') {
+      window.stopWorkshopReferenceDataReconciliationTimer();
+    }
     state.session = session || null;
     state.user = session?.user || null;
     state.role = null;

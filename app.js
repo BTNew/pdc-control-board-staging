@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.07.17.03-account-approval';
+const APP_VERSION = '2026.07.17.08-stage2a-reconcile-on-reconnect';
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
 // constant intentionally names only the production ref, never the
@@ -15,6 +15,18 @@ const RFT_SALESPERSON_EMAIL = 'bryce.guthrie@broometoyota.com.au';
 const AUDIT_LOG_KEY = 'vehicleTrackingCoreNavisionOnlyAuditLog:v1';
 const OPERATOR_NAME_KEY = 'vehicleTrackingCoreCurrentOperator:v1';
 const OPERATOR_ROLE_KEY = 'vehicleTrackingCoreCurrentOperatorRole:v1';
+// Stage 2A (independent-review remediation, localStorage-to-Supabase
+// migration): mechanics/salespeople/sublet providers are now
+// authoritative in Supabase (public.workshop_technicians/
+// public.salespeople/public.sublet_providers via
+// workshop-reference-data-service.js). These six key constants are
+// DELIBERATELY KEPT (not deleted) purely so the Stage 2A browser-data
+// importer (scripts/import_stage2a_reference_data.py) can still read
+// whatever a given staff computer's old local roster contained during
+// the one-time import/reconciliation step. No other code path reads
+// from or writes to these keys anymore -- loadMechanics()/
+// loadSalespersons()/loadSubletProviders() read exclusively from
+// workshop-reference-data-service.js's Supabase-backed cache.
 const MECHANICS_KEY = 'vehicleTrackingCorePdcMechanics:v1';
 const MECHANICS_ROSTER_SEED_KEY = 'vehicleTrackingCorePdcMechanicsRosterSeed:v1';
 const MECHANICS_ROSTER_SEED_VERSION = '2026-07-15-departments-138-139-v1';
@@ -51,12 +63,20 @@ const CRM_BACKUP_STORAGE_KEYS = [
   AUTOCARE_RESULTS_KEY,
   NAVISION_IMPORT_RESULTS_KEY,
   AUDIT_LOG_KEY,
-  MECHANICS_KEY,
-  MECHANICS_ROSTER_SEED_KEY,
-  SUBLET_PROVIDERS_KEY,
-  SUBLET_PROVIDERS_SEED_KEY,
-  SALESPERSONS_KEY,
-  SALESPERSONS_SEED_KEY,
+  // MECHANICS_KEY/MECHANICS_ROSTER_SEED_KEY, SUBLET_PROVIDERS_KEY/
+  // SUBLET_PROVIDERS_SEED_KEY, and SALESPERSONS_KEY/SALESPERSONS_SEED_KEY
+  // are intentionally NOT included here as of Stage 2A: mechanics,
+  // sublet providers, and salespeople are now authoritative in Supabase
+  // (public.workshop_technicians/public.sublet_providers/
+  // public.salespeople via workshop-reference-data-service.js), covered
+  // by the real Supabase encrypted backup/restore system, not this
+  // browser-local export mechanism. The key constants and any existing
+  // browser-local data under them are deliberately left untouched on
+  // disk (not deleted, not read from, not written to) so the Stage 2A
+  // browser-data importer can still read a given staff computer's old
+  // local roster during the one-time import/reconciliation step -- see
+  // scripts/import_stage2a_reference_data.py. They are never treated as
+  // an authoritative source by any other code path.
   OPERATIONAL_HEALTH_KEY,
   EMAIL_REVIEW_DECISIONS_KEY,
   AI_FILE_ASSISTANT_REVIEWS_KEY,
@@ -1289,22 +1309,86 @@ function normalizedMechanicList(names = []) {
     .sort((a, b) => a.localeCompare(b));
 }
 
+// Stage 2A: mechanics/technicians are now authoritative in Supabase
+// (public.workshop_technicians via workshop-reference-data-service.js),
+// not localStorage. loadMechanics() keeps its existing synchronous,
+// plain-name-array return shape so every one of its ~10 existing call
+// sites (bay-assignment dropdowns, Setup screen admin list, KPI counts)
+// keeps working unmodified -- but the data itself now comes from the
+// service's disposable in-memory cache, refreshed by realtime, never from
+// MECHANICS_KEY. If the shared service has not loaded yet (e.g. before
+// the first authenticated fetch completes) this returns an empty list
+// rather than falling back to localStorage or the old hard-coded
+// DEFAULT_MECHANICS seed -- a real name list only ever comes from
+// Supabase now.
 function loadMechanics() {
-  const saved = normalizedMechanicList(loadJson(MECHANICS_KEY, []));
-  let rosterVersion = '';
-  try { rosterVersion = localStorage.getItem(MECHANICS_ROSTER_SEED_KEY) || ''; } catch {}
-  if (rosterVersion !== MECHANICS_ROSTER_SEED_VERSION) {
-    const roster = normalizedMechanicList(DEFAULT_MECHANICS);
-    saveJson(MECHANICS_KEY, roster);
-    try { localStorage.setItem(MECHANICS_ROSTER_SEED_KEY, MECHANICS_ROSTER_SEED_VERSION); } catch {}
-    return roster;
-  }
-  return saved;
+  const service = typeof initWorkshopReferenceDataServiceIfAvailable === 'function' ? initWorkshopReferenceDataServiceIfAvailable() : null;
+  if (!service) return [];
+  const cached = service.getCachedTechnicians();
+  return normalizedMechanicList((cached.rows || []).filter(row => row.active).map(row => row.name));
 }
-function saveMechanics(names) {
-  const cleaned = normalizedMechanicList(names);
-  saveJson(MECHANICS_KEY, cleaned);
-  return cleaned;
+// Returns the full technician records (id/name/active/version), not just
+// names -- needed by the Setup screen admin UI to call
+// addTechnician/editTechnician/setTechnicianActive with a real id and
+// expected_version rather than only a display name.
+function loadMechanicRecords(includeInactive = false) {
+  const service = typeof initWorkshopReferenceDataServiceIfAvailable === 'function' ? initWorkshopReferenceDataServiceIfAvailable() : null;
+  if (!service) return [];
+  const cached = service.getCachedTechnicians();
+  const rows = cached.rows || [];
+  return includeInactive ? rows : rows.filter(row => row.active);
+}
+// Triggers an authoritative (re)load from Supabase -- call this once at
+// boot and whenever the admin Setup screen is opened, since loadMechanics()
+// itself only reads the disposable in-memory cache synchronously and never
+// triggers a network fetch on its own (matching the existing synchronous
+// call-site contract every caller of loadMechanics() already relies on).
+function refreshWorkshopReferenceData() {
+  const service = typeof initWorkshopReferenceDataServiceIfAvailable === 'function' ? initWorkshopReferenceDataServiceIfAvailable() : null;
+  if (!service) return;
+  service.listTechnicians(true).catch(() => {});
+  service.listSalespeople(true).catch(() => {});
+  service.listSubletProviders(true).catch(() => {});
+  service.listWorkshopBays(true).catch(() => {});
+  if (typeof service.getWorkshopConfiguration === 'function') service.getWorkshopConfiguration().catch(() => {});
+  service.subscribeTechnicians();
+  service.subscribeSalespeople();
+  service.subscribeSubletProviders();
+  service.subscribeWorkshopBays();
+  if (typeof service.subscribeWorkshopSettings === 'function') service.subscribeWorkshopSettings();
+  startWorkshopReferenceDataReconciliationTimer();
+}
+
+// Periodic lightweight reconciliation while the page is open, as a
+// backstop against any missed/undelivered realtime event (network
+// blips, dropped messages, etc.) -- the realtime subscriptions above
+// are the primary update path and this timer is deliberately low
+// frequency (2 minutes) since it is a safety net, not the main path.
+// Guarded against duplicate timers if this is called more than once
+// per page load (e.g. across the two refreshWorkshopReferenceData()
+// call sites), and stopped on logout/account-lockout so it never
+// polls with a signed-out session.
+function startWorkshopReferenceDataReconciliationTimer() {
+  if (window.__workshopReferenceDataReconcileTimer) return;
+  window.__workshopReferenceDataReconcileTimer = window.setInterval(() => {
+    const service = window.__workshopReferenceDataService;
+    if (!service || !window.PDC_AUTH_CONTEXT) return;
+    service.listTechnicians(true).catch(() => {});
+    service.listSalespeople(true).catch(() => {});
+    service.listSubletProviders(true).catch(() => {});
+    service.listWorkshopBays(true).catch(() => {});
+    if (typeof service.getWorkshopConfiguration === 'function') service.getWorkshopConfiguration().catch(() => {});
+  }, 120000);
+}
+
+function stopWorkshopReferenceDataReconciliationTimer() {
+  if (window.__workshopReferenceDataReconcileTimer) {
+    window.clearInterval(window.__workshopReferenceDataReconcileTimer);
+    window.__workshopReferenceDataReconcileTimer = null;
+  }
+  if (window.__workshopReferenceDataService && typeof window.__workshopReferenceDataService.unsubscribeAll === 'function') {
+    window.__workshopReferenceDataService.unsubscribeAll();
+  }
 }
 
 const DEFAULT_SUBLET_PROVIDERS = [
@@ -1400,23 +1484,22 @@ function normalizedSubletProviderList(names = []) {
   return [...unique.values()].sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
 }
 
+// Stage 2A: sublet providers are now authoritative in Supabase
+// (public.sublet_providers via workshop-reference-data-service.js), not
+// localStorage. loadSubletProviders() keeps its existing synchronous
+// plain-name-array shape for every existing call site.
 function loadSubletProviders() {
-  const saved = normalizedSubletProviderList(loadJson(SUBLET_PROVIDERS_KEY, []));
-  let seedVersion = '';
-  try { seedVersion = localStorage.getItem(SUBLET_PROVIDERS_SEED_KEY) || ''; } catch {}
-  if (seedVersion !== SUBLET_PROVIDERS_SEED_VERSION) {
-    const seeded = normalizedSubletProviderList([...DEFAULT_SUBLET_PROVIDERS, ...saved]);
-    saveJson(SUBLET_PROVIDERS_KEY, seeded);
-    try { localStorage.setItem(SUBLET_PROVIDERS_SEED_KEY, SUBLET_PROVIDERS_SEED_VERSION); } catch {}
-    return seeded;
-  }
-  return saved;
+  const service = typeof initWorkshopReferenceDataServiceIfAvailable === 'function' ? initWorkshopReferenceDataServiceIfAvailable() : null;
+  if (!service) return [];
+  const cached = service.getCachedSubletProviders();
+  return normalizedSubletProviderList((cached.rows || []).filter(row => row.active).map(row => row.name));
 }
-
-function saveSubletProviders(names) {
-  const cleaned = normalizedSubletProviderList(names);
-  saveJson(SUBLET_PROVIDERS_KEY, cleaned);
-  return cleaned;
+function loadSubletProviderRecords(includeInactive = false) {
+  const service = typeof initWorkshopReferenceDataServiceIfAvailable === 'function' ? initWorkshopReferenceDataServiceIfAvailable() : null;
+  if (!service) return [];
+  const cached = service.getCachedSubletProviders();
+  const rows = cached.rows || [];
+  return includeInactive ? rows : rows.filter(row => row.active);
 }
 
 const DEFAULT_SALESPERSONS = [
@@ -1444,23 +1527,23 @@ function normalizedSalespersonList(records = []) {
   return [...unique.values()].sort((a, b) => a.initials.localeCompare(b.initials));
 }
 
+// Stage 2A: salespeople are now authoritative in Supabase
+// (public.salespeople via workshop-reference-data-service.js), not
+// localStorage. loadSalespersons() keeps its existing synchronous
+// {initials, name, email} record shape for every existing call site --
+// 'initials' maps to the database's 'code' column.
 function loadSalespersons() {
-  const saved = normalizedSalespersonList(loadJson(SALESPERSONS_KEY, []));
-  let seedVersion = '';
-  try { seedVersion = localStorage.getItem(SALESPERSONS_SEED_KEY) || ''; } catch {}
-  if (seedVersion !== SALESPERSONS_SEED_VERSION) {
-    const seeded = normalizedSalespersonList([...DEFAULT_SALESPERSONS, ...saved]);
-    saveJson(SALESPERSONS_KEY, seeded);
-    try { localStorage.setItem(SALESPERSONS_SEED_KEY, SALESPERSONS_SEED_VERSION); } catch {}
-    return seeded;
-  }
-  return saved;
+  const service = typeof initWorkshopReferenceDataServiceIfAvailable === 'function' ? initWorkshopReferenceDataServiceIfAvailable() : null;
+  if (!service) return [];
+  const cached = service.getCachedSalespeople();
+  return normalizedSalespersonList((cached.rows || []).filter(row => row.active).map(row => ({ initials: row.code, name: row.name, email: row.email })));
 }
-
-function saveSalespersons(records = []) {
-  const cleaned = normalizedSalespersonList(records);
-  saveJson(SALESPERSONS_KEY, cleaned);
-  return cleaned;
+function loadSalespersonRecords(includeInactive = false) {
+  const service = typeof initWorkshopReferenceDataServiceIfAvailable === 'function' ? initWorkshopReferenceDataServiceIfAvailable() : null;
+  if (!service) return [];
+  const cached = service.getCachedSalespeople();
+  const rows = cached.rows || [];
+  return includeInactive ? rows : rows.filter(row => row.active);
 }
 
 function salespersonRecord(value = '') {
@@ -2433,6 +2516,27 @@ function init() {
   populateFilters();
   renderAll();
   loadVehicleLifecycleSharedActionsIfConfigured();
+  loadWorkshopReferenceDataServiceIfConfigured();
+}
+
+// Loads workshop-reference-data-service.js (Stage 2A) lazily, mirroring
+// the existing lazy-load pattern used for the other shared-data bridges.
+// Unlike those, this one is NOT behind a feature flag -- it loads
+// whenever window.PDC_SUPABASE_CONFIG exists at all, since mechanics/
+// salespeople/sublet-providers/bays/workshop-configuration must be
+// Supabase-authoritative immediately per the Stage 2A instruction. It
+// still requires a real authenticated session before it reports anything
+// other than a clear not-authenticated/offline state (see
+// initWorkshopReferenceDataServiceIfAvailable() and
+// getPdcSupabaseAccessToken()).
+function loadWorkshopReferenceDataServiceIfConfigured() {
+  if (!window.PDC_SUPABASE_CONFIG || typeof loadExternalScript !== 'function') return;
+  loadExternalScript(`workshop-reference-data-service.js?v=${encodeURIComponent(APP_VERSION)}`, 'workshop-reference-data-service-script')
+    .then(() => {
+      initWorkshopReferenceDataServiceIfAvailable();
+      if (typeof refreshWorkshopReferenceData === 'function') refreshWorkshopReferenceData();
+    })
+    .catch(() => { /* non-fatal: renderAdminLists()/loadMechanics() etc. report an explicit offline/error state instead of throwing */ });
 }
 
 // Loads vehicle-lifecycle-actions.js lazily (mirrors the workshop shared
@@ -2639,38 +2743,67 @@ function addMechanicFromAdminInput() {
   const input = $('#mechanic-name-input');
   const entered = cleanNavisionText(input?.value || '');
   if (!entered) return;
-  saveMechanics([...loadMechanics(), entered]);
-  if (input) input.value = '';
-  renderAdminLists();
-  renderKpis();
+  const service = typeof initWorkshopReferenceDataServiceIfAvailable === 'function' ? initWorkshopReferenceDataServiceIfAvailable() : null;
+  if (!service) { window.alert('Cannot reach the shared mechanic list right now. Check your connection and try again.'); return; }
+  service.addTechnician(entered).then(result => {
+    if (!result.ok) {
+      window.alert(result.error === 'duplicate_name' ? `"${entered}" is already on the mechanic list.` : (result.error || 'Could not add mechanic.'));
+      return;
+    }
+    if (input) input.value = '';
+    renderAdminLists();
+    renderKpis();
+  });
 }
 
 function removeMechanicFromAdminList(name = '') {
   const clean = cleanNavisionText(name);
   if (!clean) return;
   if (!window.confirm(`Remove mechanic "${clean}" from the dropdown list? Existing vehicle history will stay on the vehicle.`)) return;
-  saveMechanics(loadMechanics().filter(item => item !== clean));
-  renderAdminLists();
-  renderKpis();
+  const service = typeof initWorkshopReferenceDataServiceIfAvailable === 'function' ? initWorkshopReferenceDataServiceIfAvailable() : null;
+  if (!service) { window.alert('Cannot reach the shared mechanic list right now. Check your connection and try again.'); return; }
+  const record = loadMechanicRecords(true).find(row => row.name === clean);
+  if (!record) { window.alert(`"${clean}" was not found.`); return; }
+  // Deactivate rather than delete -- preserves every historical
+  // workshop_booking_assignments row that already points at this
+  // technician_id, exactly as the Stage 2A requirement specifies.
+  service.setTechnicianActive(record.id, record.version, false).then(result => {
+    if (!result.ok) { window.alert(result.error || 'Could not remove mechanic.'); return; }
+    renderAdminLists();
+    renderKpis();
+  });
 }
 
 function addSubletProviderFromAdminInput() {
   const input = $('#sublet-provider-name-input');
   const entered = cleanNavisionText(input?.value || '');
   if (!entered) return;
-  saveSubletProviders([...loadSubletProviders(), entered]);
-  if (input) input.value = '';
-  renderAdminLists();
-  renderKpis();
+  const service = typeof initWorkshopReferenceDataServiceIfAvailable === 'function' ? initWorkshopReferenceDataServiceIfAvailable() : null;
+  if (!service) { window.alert('Cannot reach the shared provider list right now. Check your connection and try again.'); return; }
+  service.addSubletProvider(entered).then(result => {
+    if (!result.ok) {
+      window.alert(result.error === 'duplicate_name' ? `"${entered}" is already on the provider list.` : (result.error || 'Could not add provider.'));
+      return;
+    }
+    if (input) input.value = '';
+    renderAdminLists();
+    renderKpis();
+  });
 }
 
 function removeSubletProviderFromAdminList(name = '') {
   const clean = cleanNavisionText(name);
   if (!clean) return;
   if (!window.confirm(`Remove provider "${clean}" from the dropdown list? Existing vehicle history will stay on the vehicle.`)) return;
-  saveSubletProviders(loadSubletProviders().filter(item => item !== clean));
-  renderAdminLists();
-  renderKpis();
+  const service = typeof initWorkshopReferenceDataServiceIfAvailable === 'function' ? initWorkshopReferenceDataServiceIfAvailable() : null;
+  if (!service) { window.alert('Cannot reach the shared provider list right now. Check your connection and try again.'); return; }
+  const record = loadSubletProviderRecords(true).find(row => row.name === clean);
+  if (!record) { window.alert(`"${clean}" was not found.`); return; }
+  service.setSubletProviderActive(record.id, record.version, false).then(result => {
+    if (!result.ok) { window.alert(result.error || 'Could not remove provider.'); return; }
+    renderAdminLists();
+    renderKpis();
+  });
 }
 
 function renderHostingSecurityWarning() {
@@ -2690,21 +2823,39 @@ function addSalespersonFromAdminInput() {
     window.alert('Enter salesperson initials, name and a valid email address.');
     return;
   }
-  saveSalespersons([...loadSalespersons().filter(item => item.initials !== record.initials), record]);
-  if (initialsInput) initialsInput.value = '';
-  if (nameInput) nameInput.value = '';
-  if (emailInput) emailInput.value = '';
-  renderAdminLists();
-  renderDetail();
+  const service = typeof initWorkshopReferenceDataServiceIfAvailable === 'function' ? initWorkshopReferenceDataServiceIfAvailable() : null;
+  if (!service) { window.alert('Cannot reach the shared salesperson list right now. Check your connection and try again.'); return; }
+  const finish = () => {
+    if (initialsInput) initialsInput.value = '';
+    if (nameInput) nameInput.value = '';
+    if (emailInput) emailInput.value = '';
+    renderAdminLists();
+    renderDetail();
+  };
+  const existing = loadSalespersonRecords(true).find(row => (row.code || '').toUpperCase() === record.initials);
+  const request = existing
+    ? service.editSalesperson(existing.id, existing.version, { name: record.name, email: record.email, code: record.initials })
+    : service.addSalesperson(record.name, record.email, record.initials);
+  request.then(result => {
+    if (!result.ok) {
+      window.alert(result.error === 'duplicate_code' ? `Salesperson code "${record.initials}" is already in use.` : (result.error || 'Could not save salesperson.'));
+      return;
+    }
+    finish();
+  });
 }
 
 function removeSalespersonFromAdminList(initials = '') {
   const clean = cleanNavisionText(initials).toUpperCase();
-  const record = loadSalespersons().find(item => item.initials === clean);
+  const record = loadSalespersonRecords(true).find(row => (row.code || '').toUpperCase() === clean);
   if (!record) return;
-  if (!window.confirm(`Remove ${record.initials} - ${record.name} from the salesperson dropdown? Existing vehicles keep their saved initials.`)) return;
-  saveSalespersons(loadSalespersons().filter(item => item.initials !== clean));
-  renderAdminLists();
+  if (!window.confirm(`Remove ${record.code} - ${record.name} from the salesperson dropdown? Existing vehicles keep their saved initials.`)) return;
+  const service = typeof initWorkshopReferenceDataServiceIfAvailable === 'function' ? initWorkshopReferenceDataServiceIfAvailable() : null;
+  if (!service) { window.alert('Cannot reach the shared salesperson list right now. Check your connection and try again.'); return; }
+  service.setSalespersonActive(record.id, record.version, false).then(result => {
+    if (!result.ok) { window.alert(result.error || 'Could not remove salesperson.'); return; }
+    renderAdminLists();
+  });
 }
 
 function renderAdminList(host, items, removeAttr, emptyText) {
@@ -3148,6 +3299,57 @@ function createPdcSupabaseRealtimeSubscription(config, handlers) {
   return { unsubscribe: () => client.removeChannel(channel) };
 }
 
+// Generic per-table realtime subscription, used by
+// workshop-reference-data-service.js (Stage 2A) for mechanics/salespeople/
+// sublet-providers/bays/workshop-settings, none of which share the single
+// fixed 'workshop-revision' channel the booking-data path above uses.
+// Each table gets its own named channel so unrelated resources never
+// interfere with each other's subscribe/reconnect lifecycle.
+function createPdcSupabaseTableRealtimeSubscription(tableName, handlers) {
+  const client = window.PDC_SUPABASE;
+  if (!client || typeof client.channel !== 'function') return { unsubscribe: () => {} };
+  const channel = client
+    .channel(`pdc-reference-${tableName}`)
+    .on('postgres_changes', { event: '*', schema: 'public', table: tableName }, payload => {
+      if (typeof handlers?.onChange === 'function') handlers.onChange(payload);
+    })
+    .subscribe(status => {
+      if (typeof handlers?.onStatus === 'function') handlers.onStatus(status);
+    });
+  return { unsubscribe: () => client.removeChannel(channel) };
+}
+
+// Constructs the Stage 2A shared workshop reference/configuration data
+// service exactly once per page load. Unlike
+// initWorkshopSharedServicesIfEnabled() above (which stays behind an
+// explicit opt-in flag while the legacy local-plan booking fallback is
+// retired in a later stage), this service is NOT gated by a feature flag
+// -- per the Stage 2A instruction, Supabase must be authoritative for
+// mechanics/salespeople/sublet-providers/bays/workshop-configuration
+// immediately. It still requires a real, authenticated session
+// (getPdcSupabaseAccessToken()) before it will report anything other than
+// a clear "not authenticated"/offline state -- there is no synchronous
+// path back to localStorage.
+function initWorkshopReferenceDataServiceIfAvailable() {
+  if (window.__workshopReferenceDataService) return window.__workshopReferenceDataService;
+  if (!window.PDC_SUPABASE_CONFIG || typeof createWorkshopReferenceDataService !== 'function' || typeof createWorkshopReferenceSupabaseClient !== 'function') return null;
+
+  const client = createWorkshopReferenceSupabaseClient(window.PDC_SUPABASE_CONFIG);
+  const service = createWorkshopReferenceDataService({
+    config: window.PDC_SUPABASE_CONFIG,
+    client,
+    getAccessToken: () => (typeof getPdcSupabaseAccessToken === 'function' ? getPdcSupabaseAccessToken() : null),
+    subscribeRealtime: (tableName, handlers) => createPdcSupabaseTableRealtimeSubscription(tableName, handlers),
+    onStateChange: () => {
+      renderAdminLists();
+      renderKpis();
+      if (app.currentView === 'workshop' && typeof renderWorkshopPlanner === 'function') renderWorkshopPlanner();
+    }
+  });
+  window.__workshopReferenceDataService = service;
+  return service;
+}
+
 // Lazily constructs the shared workshop data service + realtime manager
 // exactly once per page load. No-op (and leaves window.__workshopDataService
 // undefined) unless window.PDC_SUPABASE_CONFIG.workshop.sharedData is
@@ -3245,8 +3447,60 @@ function vehicleLifecycleSharedModeActive() {
 window.addEventListener?.('pdc-auth-ready', () => {
   if (typeof initWorkshopSharedServicesIfEnabled === 'function') initWorkshopSharedServicesIfEnabled();
   if (typeof initVehicleLifecycleSharedActionsIfEnabled === 'function') initVehicleLifecycleSharedActionsIfEnabled();
+  if (typeof refreshWorkshopReferenceData === 'function') refreshWorkshopReferenceData();
   const navItem = document.getElementById('nav-user-management');
   if (navItem) navItem.hidden = !(typeof backupStatusSharedModeReady === 'function' && backupStatusSharedModeReady());
+});
+
+// Independent-review remediation, finding #5 / critical blocker #5:
+// pdc-auth.js now subscribes every signed-in browser to its own
+// pdc_user_roles row and fires 'pdc-auth-locked' the instant that row
+// shows the account is no longer approved (disabled, rejected, or
+// reverted to pending) -- without waiting for a reload or sign-out.
+// This handler is the operational-data side of that fix: it tears down
+// every shared realtime subscription and drops in-memory shared-mode
+// state so a disabled user's already-open tab cannot continue showing
+// (or silently re-deriving UI from) previously-loaded operational data.
+window.addEventListener?.('pdc-auth-locked', () => {
+  try {
+    if (window.__workshopRealtimeManager && typeof window.__workshopRealtimeManager.stop === 'function') {
+      window.__workshopRealtimeManager.stop();
+    }
+  } catch (_err) { /* best-effort teardown */ }
+  try {
+    if (window.__workshopDataService && typeof window.__workshopDataService.destroy === 'function') {
+      window.__workshopDataService.destroy();
+    }
+  } catch (_err) { /* best-effort teardown */ }
+  try {
+    if (window.__vehicleLifecycleRealtimeManager && typeof window.__vehicleLifecycleRealtimeManager.stop === 'function') {
+      window.__vehicleLifecycleRealtimeManager.stop();
+    }
+  } catch (_err) { /* best-effort teardown */ }
+  try {
+    if (USER_MANAGEMENT_STATE && USER_MANAGEMENT_STATE.realtimeChannel && window.PDC_SUPABASE && typeof window.PDC_SUPABASE.removeChannel === 'function') {
+      window.PDC_SUPABASE.removeChannel(USER_MANAGEMENT_STATE.realtimeChannel);
+      USER_MANAGEMENT_STATE.realtimeChannel = null;
+      USER_MANAGEMENT_STATE.rows = [];
+    }
+  } catch (_err) { /* best-effort teardown */ }
+  try {
+    // Stage 2A: tear down every workshop reference/configuration data
+    // realtime subscription (technicians/salespeople/sublet-providers/
+    // bays) on lockout too, exactly like every other shared-data service
+    // above -- otherwise a disabled user's already-open tab could keep
+    // receiving mechanic/salesperson/provider/bay change events after
+    // being locked out of everything else.
+    if (window.__workshopReferenceDataService && typeof window.__workshopReferenceDataService.unsubscribeAll === 'function') {
+      window.__workshopReferenceDataService.unsubscribeAll();
+    }
+  } catch (_err) { /* best-effort teardown */ }
+  window.__workshopRealtimeManager = null;
+  window.__workshopDataService = null;
+  window.__workshopSharedActions = null;
+  window.__workshopReferenceDataService = null;
+  const navItem = document.getElementById('nav-user-management');
+  if (navItem) navItem.hidden = true;
 });
 
 function renderWorkshopPlannerWhenReady() {
@@ -5226,17 +5480,25 @@ function subletProviderOptionsHtml(current = '') {
 function addMechanicFromPrompt() {
   const entered = cleanNavisionText(window.prompt('Enter mechanic / technician name:', '') || '');
   if (!entered) return;
-  saveMechanics([...loadMechanics(), entered]);
-  renderKpis();
-  renderAdminLists();
+  const service = typeof initWorkshopReferenceDataServiceIfAvailable === 'function' ? initWorkshopReferenceDataServiceIfAvailable() : null;
+  if (!service) { window.alert('Cannot reach the shared mechanic list right now. Check your connection and try again.'); return; }
+  service.addTechnician(entered).then(result => {
+    if (!result.ok && result.error !== 'duplicate_name') { window.alert(result.error || 'Could not add mechanic.'); return; }
+    renderKpis();
+    renderAdminLists();
+  });
 }
 
 function addSubletProviderFromPrompt() {
   const entered = cleanNavisionText(window.prompt('Enter external provider name:', '') || '');
   if (!entered) return;
-  saveSubletProviders([...loadSubletProviders(), entered]);
-  renderKpis();
-  renderAdminLists();
+  const service = typeof initWorkshopReferenceDataServiceIfAvailable === 'function' ? initWorkshopReferenceDataServiceIfAvailable() : null;
+  if (!service) { window.alert('Cannot reach the shared provider list right now. Check your connection and try again.'); return; }
+  service.addSubletProvider(entered).then(result => {
+    if (!result.ok && result.error !== 'duplicate_name') { window.alert(result.error || 'Could not add provider.'); return; }
+    renderKpis();
+    renderAdminLists();
+  });
 }
 
 function pmbBaySummary(vehicle = {}) {
@@ -6666,10 +6928,12 @@ function savePmbBayDetailForm(vehicle, form) {
   };
   if (stage === 'SUBLET') {
     updates.pmbSubletProvider = assignee;
-    if (assignee) saveSubletProviders([...loadSubletProviders(), assignee]);
+    // No roster-add call here: pmbBayAssignee is a <select> populated
+    // exclusively from loadSubletProviders() (Supabase-backed as of
+    // Stage 2A), so `assignee` can only ever be a name that already
+    // exists -- there is nothing new to add.
   } else {
     updates.pmbBayMechanic = assignee;
-    if (assignee) saveMechanics([...loadMechanics(), assignee]);
   }
   recordVehicleAudit(vehicle, 'Bay detail updated', {
     stage: pmbStageLabel(stage),
@@ -6688,7 +6952,9 @@ function updatePmbBayMechanic(key, stage, value) {
   const normalizedStage = normalizePmbStage(stage || inferredPmbStage(vehicle));
   if (!vehicle || !normalizedStage) return;
   const mechanic = cleanNavisionText(value || '');
-  if (mechanic) saveMechanics([...loadMechanics(), mechanic]);
+  // No roster-add call here: `value` comes from a <select> populated
+  // exclusively from loadMechanics() (Supabase-backed as of Stage 2A), so
+  // it can only ever be a name that already exists.
   recordVehicleAudit(vehicle, 'Bay mechanic assigned', { stage: pmbStageLabel(normalizedStage), mechanic: mechanic || 'Unassigned' });
   saveVehicleEdits(vehicleKey(vehicle), { pmbBayMechanic: mechanic });
 }
@@ -6699,7 +6965,9 @@ function updatePmbBaySubletProvider(key, stage, value) {
   const normalizedStage = normalizePmbStage(stage || inferredPmbStage(vehicle));
   if (!vehicle || !normalizedStage) return;
   const provider = cleanNavisionText(value || '');
-  if (provider) saveSubletProviders([...loadSubletProviders(), provider]);
+  // No roster-add call here: `value` comes from a <select> populated
+  // exclusively from loadSubletProviders() (Supabase-backed as of Stage
+  // 2A), so it can only ever be a name that already exists.
   recordVehicleAudit(vehicle, 'External provider assigned', { stage: pmbStageLabel(normalizedStage), provider: provider || 'Unassigned' });
   saveVehicleEdits(vehicleKey(vehicle), { pmbSubletProvider: provider });
 }
