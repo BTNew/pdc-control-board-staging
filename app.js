@@ -9778,7 +9778,6 @@ function partsQueueRowHtml(vehicle = {}) {
   return `<tr class="parts-row parts-queue-row ${escapeHtml(partsDepartmentStatusClass(status))}">
     <td><div class="parts-queue-status-cell">
       <span class="parts-status-pill ${escapeHtml(partsDepartmentStatusClass(status))}">${escapeHtml(partsDepartmentStatusLabel(status))}</span>${partsRiskBadge(vehicle)}${vehicleDepartmentBadge(vehicle)}
-      <span class="parts-queue-jita"><b>JITA</b>${jitaIndicator(vehicle)}</span>
     </div></td>
     <td><div class="parts-queue-identity">
       <span><b>Key</b>${escapeHtml(vehicleKeyNumber(vehicle) || '—')}</span>
@@ -9788,6 +9787,7 @@ function partsQueueRowHtml(vehicle = {}) {
     <td><div class="parts-queue-customer"><strong title="${escapeHtml(customer)}">${escapeHtml(customer)}</strong><span title="${escapeHtml(unit)}">${escapeHtml(unit)}</span></div></td>
     <td><div class="parts-eta"><strong>${escapeHtml(eta || 'No ETA')}</strong><span class="pmb-age ${escapeHtml('pmb-age-' + ageClass)}">${escapeHtml(partsEtaCounterLabel(vehicle))}</span></div></td>
     <td><div class="parts-worst-eta-wrap"><label class="parts-worst-eta"><span class="sr-only">Parts worst ETA</span><input type="date" data-parts-worst-eta="${escapeHtml(key)}" value="${escapeHtml(worstEtaInput)}" ${complete ? 'disabled' : ''} /></label><span class="parts-worst-eta-details">${worstEtaLabel ? `<span class="parts-worst-eta-label">${escapeHtml(worstEtaLabel)}</span>${worstEtaCountdown ? `<span class="parts-worst-eta-countdown ${escapeHtml(worstEtaCountdownClass)}">${escapeHtml(worstEtaCountdown)}</span>` : ''}` : '<span class="subtle parts-worst-eta-label">Set worst ETA</span>'}</span>${worstEtaLabel ? `<button class="small-button parts-email-sales-button" type="button" data-parts-eta-email="${escapeHtml(key)}" ${complete ? 'disabled' : ''}>Email sales</button>` : ''}</div></td>
+    <td class="parts-queue-jita-cell">${jitaIndicator(vehicle)}</td>
     <td class="parts-queue-blocker">${blocker ? `<strong title="${escapeHtml(blocker)}">${escapeHtml(blocker)}</strong>` : '<span class="subtle">No blocker recorded</span>'}</td>
     <td><div class="parts-queue-stage"><strong>${escapeHtml(currentLocation)}</strong><span>${escapeHtml(partsCurrentLocationUpdateLabel(vehicle) || 'No location update recorded')}</span></div></td>
     <td>${partsQueueActionsHtml(vehicle, status)}</td>
@@ -9807,7 +9807,7 @@ function renderPartsHome() {
   }
   host.innerHTML = `<div class="parts-table-wrap parts-queue-wrap"><table class="data-table compact-table parts-queue-table">
     <thead><tr>
-      <th>Status</th><th>Vehicle ID</th><th>Customer / vehicle</th><th>Kewdale ETA</th><th>Parts ETA</th><th>Blocker</th><th>Stage / update</th><th>Actions</th>
+      <th>Status</th><th>Vehicle ID</th><th>Customer / vehicle</th><th>Kewdale ETA</th><th>Parts ETA</th><th>Jita</th><th>Blocker</th><th>Stage / update</th><th>Actions</th>
     </tr></thead>
     <tbody>${rows.map(partsQueueRowHtml).join('')}</tbody></table></div>`;
   $$('[data-open-stock]', host).forEach(button => button.addEventListener('click', () => openVehicleModal(button.dataset.openStock)));

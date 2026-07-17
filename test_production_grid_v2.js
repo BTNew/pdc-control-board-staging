@@ -27,7 +27,7 @@ for (const station of ['Parts', 'Tint', 'Hoist', 'Fitting', 'Fabrication', 'Elec
 }
 
 assert.doesNotMatch(app, /truncate\(\s*(?:customer|vehicleCustomerName)/i, 'Customer names must not be truncated');
-assert.match(app, /<th>Status<\/th><th>Vehicle ID<\/th><th>Customer \/ vehicle<\/th><th>Kewdale ETA<\/th><th>Parts ETA<\/th><th>Blocker<\/th><th>Stage \/ update<\/th><th>Actions<\/th>/);
+assert.match(app, /<th>Status<\/th><th>Vehicle ID<\/th><th>Customer \/ vehicle<\/th><th>Kewdale ETA<\/th><th>Parts ETA<\/th><th>Jita<\/th><th>Blocker<\/th><th>Stage \/ update<\/th><th>Actions<\/th>/);
 assert.match(app, /<th>Collected<\/th><th>Key<\/th><th>Stock<\/th><th>Job Card<\/th><th>Customer<\/th><th>Vehicle<\/th>/);
 assert.match(app, /<thead><tr><th>Key<\/th><th>Stock<\/th><th>Job Card<\/th><th>Customer<\/th><th>Vehicle<\/th>/);
 
