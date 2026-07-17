@@ -2426,6 +2426,35 @@ function init() {
   bindNav();
   populateFilters();
   renderAll();
+  loadVehicleLifecycleSharedActionsIfConfigured();
+}
+
+// Loads vehicle-lifecycle-actions.js lazily (mirrors the workshop shared
+// data service's own lazy-load pattern) and only initializes the bridge
+// once loaded. No-op unless window.PDC_SUPABASE_CONFIG.vehicleLifecycle.
+// sharedData is explicitly true, so pages without that config never fetch
+// the extra script and legacy QC/RFT/Collected behaviour is unaffected.
+function loadVehicleLifecycleSharedActionsIfConfigured() {
+  if (typeof workshopSharedModeEnabled === 'function' && workshopSharedModeEnabled(window.PDC_SUPABASE_CONFIG)) {
+    // Already being loaded by the workshop planner path; createWorkshopSupabaseClient
+    // will already be available once that finishes, so just wait for it below.
+  }
+  if (!window.PDC_SUPABASE_CONFIG || !window.PDC_SUPABASE_CONFIG.vehicleLifecycle || window.PDC_SUPABASE_CONFIG.vehicleLifecycle.sharedData !== true) return;
+  if (typeof loadExternalScript !== 'function') return;
+  loadExternalScript(`vehicle-lifecycle-actions.js?v=${encodeURIComponent(APP_VERSION)}`, 'vehicle-lifecycle-actions-script')
+    .then(() => {
+      // createWorkshopSupabaseClient lives in workshop-data-service.js; load
+      // it too if it is not already present (it may already be loaded by
+      // the workshop planner path, in which case this is a fast no-op).
+      if (typeof createWorkshopSupabaseClient === 'function') {
+        initVehicleLifecycleSharedActionsIfEnabled();
+        return;
+      }
+      loadExternalScript(`workshop-data-service.js?v=${encodeURIComponent(APP_VERSION)}`, 'workshop-data-service-script')
+        .then(() => initVehicleLifecycleSharedActionsIfEnabled())
+        .catch(() => { /* non-fatal: legacy QC/RFT/Collected behaviour stays available */ });
+    })
+    .catch(() => { /* non-fatal: legacy QC/RFT/Collected behaviour stays available */ });
 }
 
 function renderAppVersionMarker() {
@@ -2850,6 +2879,31 @@ function initWorkshopSharedServicesIfEnabled() {
   dataService.loadSnapshot('initial');
 }
 
+// Lazily constructs the vehicle-lifecycle shared actions bridge (QC
+// complete -> RFT -> Collected) exactly once per page load. Independent of
+// initWorkshopSharedServicesIfEnabled(): a site can enable shared workshop
+// scheduling without enabling shared QC/RFT/Collected, or vice versa.
+// Fails closed -- if not enabled/loaded, window.__vehicleLifecycleActions
+// stays undefined and every call site below falls back to the existing
+// legacy localStorage-only behaviour unchanged.
+function initVehicleLifecycleSharedActionsIfEnabled() {
+  if (window.__vehicleLifecycleActions) return;
+  if (typeof vehicleLifecycleSharedModeEnabled !== 'function' || !vehicleLifecycleSharedModeEnabled(window.PDC_SUPABASE_CONFIG)) return;
+  if (typeof createWorkshopSupabaseClient !== 'function' || typeof buildVehicleLifecycleSharedActions !== 'function') return;
+  const client = createWorkshopSupabaseClient(window.PDC_SUPABASE_CONFIG);
+  window.__vehicleLifecycleActions = buildVehicleLifecycleSharedActions(
+    client,
+    () => (typeof getPdcSupabaseAccessToken === 'function' ? getPdcSupabaseAccessToken() : null),
+  );
+}
+
+function vehicleLifecycleSharedModeActive() {
+  return typeof window !== 'undefined'
+    && typeof vehicleLifecycleSharedModeEnabled === 'function'
+    && vehicleLifecycleSharedModeEnabled(window.PDC_SUPABASE_CONFIG)
+    && !!window.__vehicleLifecycleActions;
+}
+
 function renderWorkshopPlannerWhenReady() {
   if (typeof renderWorkshopPlanner === 'function') {
     initWorkshopSharedServicesIfEnabled();
@@ -3178,6 +3232,41 @@ function pmbVehiclesNeedingStationWork(stage = '') {
     .sort((a, b) => String(displayStockNumber(a) || vehicleKey(a) || '').localeCompare(String(displayStockNumber(b) || vehicleKey(b) || '')));
 }
 
+// Resolves a legacy vehicle object to its shared Supabase {vehicleId,
+// version, qcCompletedAt, lifecycleState} via a direct REST select (not the
+// workshop planner snapshot, which may not be loaded on this page/view).
+// Matches by stock_number first, then permanent_vehicle_id, tolerating the
+// same identifier as workshopSharedVehicleRef(). Returns null (never
+// fabricates a ref) when no match is found so callers can show a clear
+// "vehicle not found in shared data" error instead of silently proceeding.
+async function vehicleLifecycleSharedRef(vehicle = {}) {
+  if (!vehicleLifecycleSharedModeActive()) return null;
+  if (typeof createWorkshopSupabaseClient !== 'function') return null;
+  const token = typeof getPdcSupabaseAccessToken === 'function' ? getPdcSupabaseAccessToken() : null;
+  const stock = String(displayStockNumber(vehicle) || vehicle.order || vehicleKey(vehicle) || '').trim();
+  if (!stock) return null;
+  const url = `${window.PDC_SUPABASE_CONFIG.url}/rest/v1/vehicles?select=id,version,qc_completed_at,lifecycle_state&or=(stock_number.eq.${encodeURIComponent(stock)},permanent_vehicle_id.eq.${encodeURIComponent(stock)})&limit=1`;
+  try {
+    const res = await fetch(url, {
+      headers: {
+        apikey: window.PDC_SUPABASE_CONFIG.publishableKey,
+        Authorization: `Bearer ${token || window.PDC_SUPABASE_CONFIG.publishableKey}`,
+      },
+    });
+    if (!res.ok) return null;
+    const rows = await res.json();
+    if (!Array.isArray(rows) || !rows.length) return null;
+    return {
+      vehicleId: rows[0].id,
+      version: rows[0].version,
+      qcCompletedAt: rows[0].qc_completed_at,
+      lifecycleState: rows[0].lifecycle_state,
+    };
+  } catch (_err) {
+    return null;
+  }
+}
+
 function vehicleReadyForQualityControl(vehicle = {}) {
   if (statusCategory(vehicle) !== 'pmb' || vehicle.pdcQcComplete === true || isPdcBlocked(vehicle) || isActivePartsStoppage(vehicle)) return false;
   if (pdcRequirementDefinitions(vehicle).some(job => !pdcJobComplete(vehicle, job))) return false;
@@ -3196,7 +3285,7 @@ function qualityControlVehicleHtml(vehicle = {}) {
   </button>`;
 }
 
-function completeVehicleQualityControl(key = '') {
+async function completeVehicleQualityControl(key = '') {
   const vehicle = selectedVehicle(key);
   if (!vehicle) return false;
   if (!vehicleReadyForQualityControl(vehicle)) {
@@ -3211,6 +3300,41 @@ function completeVehicleQualityControl(key = '') {
   }
   const label = vehicleIdentityTitle(vehicle) || displayStockNumber(vehicle) || 'this vehicle';
   if (!window.confirm(`Mark QC complete for ${label}?\n\nThis will unlock Transfer to RFT while the vehicle remains in Unallocated.`)) return false;
+
+  if (vehicleLifecycleSharedModeActive()) {
+    const ref = await vehicleLifecycleSharedRef(vehicle);
+    if (!ref) {
+      window.alert('This vehicle could not be found in the shared database, so QC was not completed. No change was made.');
+      return false;
+    }
+    if (ref.qcCompletedAt) {
+      window.alert('QC has already been completed for this vehicle.');
+      renderAll();
+      return false;
+    }
+    const result = await window.__vehicleLifecycleActions.qcCompleteVehicle({
+      vehicleId: ref.vehicleId,
+      expectedVersion: ref.version,
+      workItemKey: 'QC',
+      completedSummary: pdcCompletedJobsText(vehicle) || null,
+    });
+    if (!result || result.ok !== true) {
+      const message = typeof describeVehicleLifecycleActionError === 'function'
+        ? describeVehicleLifecycleActionError(result && result.error)
+        : 'The QC sign-off could not be saved.';
+      window.alert(message);
+      if (typeof window.__workshopDataService !== 'undefined' && window.__workshopDataService) window.__workshopDataService.loadSnapshot('qc_complete_rejected');
+      renderAll();
+      return false;
+    }
+    if (result.notification_has_recipient === false) {
+      window.alert('QC complete was saved, but no salesperson email is on file for this vehicle. The "ready for transport" notification could not be queued for sending. Please set the correct salesperson and use Retry from the notification outbox.');
+    }
+    recordVehicleAudit(vehicle, 'Vehicle QC completed', { by: operator, role, location: 'PMB Unallocated', shared: true });
+    renderAll();
+    return true;
+  }
+
   const now = nowIsoString();
   try {
     runStorageTransaction('Complete vehicle QC', [EDITS_KEY, AUDIT_LOG_KEY], () => {
@@ -7319,7 +7443,7 @@ function confirmRftGateOverride(vehicles = []) {
   return { allowed: false, overridden: false, reason: '', issueCount: rows.length, issues: rows };
 }
 
-function transferVehiclesToRft(vehicles = [], options = {}) {
+async function transferVehiclesToRft(vehicles = [], options = {}) {
   const selected = vehicles.filter(Boolean);
   if (!selected.length) return;
   const nonPmb = selected.filter(vehicle => statusCategory(vehicle) !== 'pmb');
@@ -7332,6 +7456,44 @@ function transferVehiclesToRft(vehicles = [], options = {}) {
   const preview = selected.slice(0, 10).map(vehicle => `• ${vehicleIdentityTitle(vehicle) || 'No stock'} - ${vehicleCustomerName(vehicle) || 'Unknown customer'} - ${pmbStageLabel(inferredPmbStage(vehicle)) || 'Unallocated'}`).join('\n');
   const more = selected.length > 10 ? `\n• plus ${selected.length - 10} more` : '';
   if (!window.confirm(`Transfer ${selected.length} PMB vehicle${selected.length === 1 ? '' : 's'} to Vehicles RFT?\n\n${preview}${more}\n\nThis marks the vehicle as Ready for Transport and keeps it protected from Navision location changes.`)) return;
+
+  if (vehicleLifecycleSharedModeActive()) {
+    const failures = [];
+    for (const vehicle of selected) {
+      const ref = await vehicleLifecycleSharedRef(vehicle);
+      if (!ref) {
+        failures.push(`${vehicleIdentityTitle(vehicle) || 'No stock'} - not found in shared database`);
+        continue;
+      }
+      if (!ref.qcCompletedAt) {
+        failures.push(`${vehicleIdentityTitle(vehicle) || 'No stock'} - QC sign-off required first`);
+        continue;
+      }
+      const result = await window.__vehicleLifecycleActions.rftTransferVehicle({ vehicleId: ref.vehicleId, expectedVersion: ref.version });
+      if (!result || result.ok !== true) {
+        const message = typeof describeVehicleLifecycleActionError === 'function' ? describeVehicleLifecycleActionError(result && result.error) : 'The transfer could not be saved.';
+        failures.push(`${vehicleIdentityTitle(vehicle) || 'No stock'} - ${message}`);
+        continue;
+      }
+      recordVehicleAudit(vehicle, 'Transferred to RFT', { from: pmbStageLabel(inferredPmbStage(vehicle)) || 'PMB - Unallocated', to: 'RFT', completedJobs: pdcCompletedJobsText(vehicle), outstandingJobs: pdcOutstandingJobsText(vehicle), shared: true });
+    }
+    if (failures.length) {
+      window.alert(`Some vehicles were not transferred:\n\n${failures.join('\n')}`);
+    }
+    if (options.clearSelection) app.selectedRows.clear();
+    app.quickFilter = 'rft';
+    app.pmbSubFilter = '';
+    if (typeof window.__workshopDataService !== 'undefined' && window.__workshopDataService) window.__workshopDataService.loadSnapshot('rft_transfer');
+    renderAll();
+    if (selected.length === 1 && !failures.length) {
+      offerSalespersonChangeEmail(selected[0], {
+        title: 'Vehicle ready for transport (RFT)',
+        subject: 'Vehicle ready for transport',
+        details: ['The vehicle has moved to RFT and is ready for transport. A notification has been queued for the assigned salesperson.'],
+      });
+    }
+    return;
+  }
 
   const transferTime = nowIsoString();
   selected.forEach(vehicle => {
@@ -9986,7 +10148,7 @@ function rftVehicleDetailRow(vehicle = {}) {
     </details>`;
 }
 
-function markRftVehicleCollected(key, collected = true) {
+async function markRftVehicleCollected(key, collected = true) {
   const vehicle = selectedVehicle(key);
   if (!vehicle) return;
   if (!collected && vehicleCollectedFromRft(vehicle)) {
@@ -9994,7 +10156,45 @@ function markRftVehicleCollected(key, collected = true) {
     renderAll();
     return;
   }
+  if (!collected) return;
+  const label = vehicleIdentityTitle(vehicle) || displayStockNumber(vehicle) || 'this vehicle';
+  if (!window.confirm(`Confirm ${label} has been collected?\n\nThis will move it out of RFT into Completed Vehicles and cannot be undone here.`)) {
+    renderAll();
+    return;
+  }
   const operator = getCurrentOperatorName();
+
+  if (vehicleLifecycleSharedModeActive()) {
+    const ref = await vehicleLifecycleSharedRef(vehicle);
+    if (!ref) {
+      window.alert('This vehicle could not be found in the shared database, so it was not marked collected. No change was made.');
+      renderAll();
+      return;
+    }
+    if (ref.lifecycleState === 'completed') {
+      window.alert('This vehicle has already been collected and moved to Completed Vehicles.');
+      renderAll();
+      return;
+    }
+    const result = await window.__vehicleLifecycleActions.rftCollectVehicle({ vehicleId: ref.vehicleId, expectedVersion: ref.version });
+    if (!result || result.ok !== true) {
+      const message = typeof describeVehicleLifecycleActionError === 'function' ? describeVehicleLifecycleActionError(result && result.error) : 'This vehicle could not be marked collected.';
+      window.alert(message);
+      if (typeof window.__workshopDataService !== 'undefined' && window.__workshopDataService) window.__workshopDataService.loadSnapshot('rft_collect_rejected');
+      renderAll();
+      return;
+    }
+    recordVehicleAudit(vehicle, 'Collected from RFT', { by: operator || 'Unknown', shared: true });
+    offerSalespersonChangeEmail(vehicle, {
+      title: 'Vehicle completed and collected',
+      subject: 'Vehicle collection complete',
+      details: [`Collected from RFT by ${operator || 'Unknown operator'}.`],
+    });
+    if (typeof window.__workshopDataService !== 'undefined' && window.__workshopDataService) window.__workshopDataService.loadSnapshot('rft_collect');
+    renderAll();
+    return;
+  }
+
   const now = nowIsoString();
   recordVehicleAudit(vehicle, 'Collected from RFT', { by: operator || 'Unknown' });
   saveVehicleEdits(vehicleKey(vehicle), {
