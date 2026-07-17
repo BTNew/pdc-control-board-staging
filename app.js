@@ -3249,6 +3249,45 @@ window.addEventListener?.('pdc-auth-ready', () => {
   if (navItem) navItem.hidden = !(typeof backupStatusSharedModeReady === 'function' && backupStatusSharedModeReady());
 });
 
+// Independent-review remediation, finding #5 / critical blocker #5:
+// pdc-auth.js now subscribes every signed-in browser to its own
+// pdc_user_roles row and fires 'pdc-auth-locked' the instant that row
+// shows the account is no longer approved (disabled, rejected, or
+// reverted to pending) -- without waiting for a reload or sign-out.
+// This handler is the operational-data side of that fix: it tears down
+// every shared realtime subscription and drops in-memory shared-mode
+// state so a disabled user's already-open tab cannot continue showing
+// (or silently re-deriving UI from) previously-loaded operational data.
+window.addEventListener?.('pdc-auth-locked', () => {
+  try {
+    if (window.__workshopRealtimeManager && typeof window.__workshopRealtimeManager.stop === 'function') {
+      window.__workshopRealtimeManager.stop();
+    }
+  } catch (_err) { /* best-effort teardown */ }
+  try {
+    if (window.__workshopDataService && typeof window.__workshopDataService.destroy === 'function') {
+      window.__workshopDataService.destroy();
+    }
+  } catch (_err) { /* best-effort teardown */ }
+  try {
+    if (window.__vehicleLifecycleRealtimeManager && typeof window.__vehicleLifecycleRealtimeManager.stop === 'function') {
+      window.__vehicleLifecycleRealtimeManager.stop();
+    }
+  } catch (_err) { /* best-effort teardown */ }
+  try {
+    if (USER_MANAGEMENT_STATE && USER_MANAGEMENT_STATE.realtimeChannel && window.PDC_SUPABASE && typeof window.PDC_SUPABASE.removeChannel === 'function') {
+      window.PDC_SUPABASE.removeChannel(USER_MANAGEMENT_STATE.realtimeChannel);
+      USER_MANAGEMENT_STATE.realtimeChannel = null;
+      USER_MANAGEMENT_STATE.rows = [];
+    }
+  } catch (_err) { /* best-effort teardown */ }
+  window.__workshopRealtimeManager = null;
+  window.__workshopDataService = null;
+  window.__workshopSharedActions = null;
+  const navItem = document.getElementById('nav-user-management');
+  if (navItem) navItem.hidden = true;
+});
+
 function renderWorkshopPlannerWhenReady() {
   if (typeof renderWorkshopPlanner === 'function') {
     initWorkshopSharedServicesIfEnabled();
