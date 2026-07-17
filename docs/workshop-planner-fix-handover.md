@@ -1,178 +1,298 @@
 # Workshop Planner Fix — Handover / Progress Log
 
 Branch: `feature/workshop-shared-realtime-v2`
-Staging project: `cdsmnqxtyyoeoznmbidd`
-Production (untouched): `vjdtsswhroyguxyfjdkt` / `btnew.github.io/pdc-control-board/`
+Staging Supabase project: `cdsmnqxtyyoeoznmbidd`
+Production (untouched throughout): Supabase `vjdtsswhroyguxyfjdkt`, site
+`btnew.github.io/pdc-control-board-login/`
 
-## Latest commits (this segment, newest last)
-- `691dffa` — docs: workshop planner fix handover/progress log (committed the previous handover)
-- `5f30f40` — feat: QC-complete -> RFT atomic transition + notification outbox + RFT Collected -> Completed (staging)
-- `a7c5cea` — fix: Parts screen - give Jita its own dedicated column, separate from Status
+## STAGING IS NOW DEPLOYED AND LIVE
 
-All pushed to `origin/feature/workshop-shared-realtime-v2`.
+**Staging URL: https://btnew.github.io/pdc-control-board-staging/**
 
-## Status vs the requested order of work
-1. ✅ **QC Complete → RFT atomic RPC-backed transition.**
-   - Migration `016_qc_rft_collected_notifications.sql`: `qc_complete_vehicle()`
-     and `rft_transfer_vehicle()` protected RPCs.
-   - `qc_complete_vehicle` atomically marks the vehicle + named work item
-     complete, requires optimistic version match, is idempotent (second
-     call returns `already_qc_complete`, never double-processes), and
-     enqueues the salesperson notification via the outbox (never sends
-     inline).
-   - `rft_transfer_vehicle` enforces QC-complete as a precondition and moves
-     `lifecycle_state` `active -> rft` atomically with full
-     `vehicle_movements`/`audit_events` history.
-   - Frontend: `completeVehicleQualityControl()` and
-     `transferVehiclesToRft()` in `app.js` are now guarded by
-     `vehicleLifecycleSharedModeActive()` and route through the new
-     `vehicle-lifecycle-actions.js` bridge when enabled; legacy
-     localStorage-only behaviour is unchanged and remains the default.
-2. ✅ **Notification outbox with idempotency and retry handling.**
-   - Table `vehicle_notifications` (status enum
-     pending/sent/failed/cancelled, `idempotency_key` unique constraint,
-     `attempts`/`max_attempts`, `last_error`, `sent_at`).
-   - `queue_vehicle_notification()` is idempotent-safe under a race
-     (`on conflict (idempotency_key) do nothing` + re-select).
-   - `claim_pending_vehicle_notifications()` / `mark_vehicle_notification_result()`
-     are service-role-only (never granted to `authenticated`) - the actual
-     send happens outside the DB transaction, per the brief's "do not send
-     email inside the main transaction" requirement.
-   - `retry_vehicle_notification()` is administrator-only and can correct a
-     wrong/missing recipient email before resetting status to `pending`.
-   - `backend/vehicle_notification_worker.py`: claims + "sends" (dry-run by
-     default - logs what would be sent, never contacts a real provider) and
-     records success/failure. A real provider only needs
-     `send_via_provider()` implemented later; no other code changes.
-   - Missing salesperson email does **not** block the QC/RFT state change -
-     `qc_complete_vehicle` returns `notification_has_recipient: false` and
-     the frontend visibly alerts the operator so an administrator can
-     correct the salesperson and retry.
-3. ✅ **RFT Collected → Completed Vehicles shared workflow.**
-   - `rft_collect_vehicle()` RPC: requires `lifecycle_state = 'rft'`,
-     moves to `completed`, sets `visible_on_board = false`, records
-     `rft_collected_at`/`rft_collected_by`, full movement/audit history.
-     Rejects a second collection attempt (`already_collected`) instead of
-     double-processing.
-   - Frontend: `markRftVehicleCollected()` now requires a deliberate
-     `window.confirm()` before collecting (brief requirement), then routes
-     through the shared RPC when enabled; legacy path unchanged otherwise.
-4. ✅ **Parts screen ETA/calendar/Jita layout fix.**
-   - Root cause found: ETA date field + calendar icon were **already**
-     correctly in the same cell (native `<input type="date">` combines
-     them) - no defect found there on inspection/screenshot.
-   - Real defect: Jita's tick/cross indicator was rendered *inside* the
-     Status table cell (`.parts-queue-status-cell`), not in its own column.
-   - Fix: added a dedicated `Jita` `<th>`/`<td>` column
-     (`parts-queue-jita-cell`) between "Parts ETA" and "Blocker"; removed
-     the old inline span from the Status cell. Same `jitaIndicator()` logic,
-     only the layout moved. Rows remain one clean horizontal row per
-     vehicle (verified this was already true - no vertical-stacking defect
-     existed).
-   - Verified live: screenshot shows the Jita column rendering with ✓/✕
-     cleanly separated from Status, zero console errors.
-5. ✅ **Full regression tests.**
-   - `node test_all.js`: **37 passed, 0 failed, 2 skipped** (was 36 before
-     this segment; new suites `test_vehicle_lifecycle_actions.js` added).
-   - Backend `python -m unittest test_email_board_publisher
-     test_email_intake_security test_static_publication_gate
-     test_vehicle_intelligence_fixtures.py`: **22 passed**.
-   - Staging PostgreSQL/PostgREST integration (all real, no mocks, all
-     gitignored under `_staging_test_tools/`):
-     - `test_workshop_staging_integration.py`: **34 passed, 0 failed**
-       (after clearing stale fixture rows from earlier manual runs - a
-       recurring pre-existing test-data hygiene issue, not a regression).
-     - `test_qc_rft_collected_staging.py` (new, this segment): **28 passed,
-       0 failed** - covers viewer/administrator role gating, atomic
-       QC→work-item→notification, double-click idempotency, RFT-requires-QC
-       gating, RFT→Completed transition, double-collection rejection, stale
-       version rejection, worker claim/mark-result lifecycle, failed
-       delivery + admin retry with corrected recipient, and the
-       missing-salesperson-email visible-flag path.
-     - `test_vehicle_notification_worker_staging.py` (new, this segment):
-       **5 passed, 0 failed** - runs the actual worker module against
-       staging, not a mock.
-   - `git diff --check`: clean after every commit.
-6. 🟡 **Staging-only frontend deployment and two-user test — partially done.**
-   - Browser smoke test performed against local `test-75.html` (not a
-     deployed staging URL - see "Known limitation" below): Vehicle
-     Locations, Control Board, Parts, and RFT views all loaded with **zero
-     console errors** after every change in this segment.
-   - Two-user **realtime** test against the real staging Supabase project
-     was **not** performed this segment. It requires either (a) the
-     previously-stalled `staging.html` frontend entry point (see prior
-     session's stash `wip-staging-shell-auth-glue-before-ai-email-intelligence`,
-     still unresolved), or (b) two authenticated browser sessions against
-     `index.html` with real staging credentials and
-     `window.PDC_SUPABASE_CONFIG.vehicleLifecycle.sharedData = true` +
-     `window.PDC_SUPABASE_CONFIG.workshop.sharedData = true` set locally.
-     Neither was set up in this segment - this remains the single largest
-     open item before a full staging acceptance report can be produced.
+- Separate, brand-new public GitHub repo: `BTNew/pdc-control-board-staging`
+  (created this session), completely independent from the production repo
+  `BTNew/pdc-control-board-login`.
+- GitHub Pages enabled on that repo's `main` branch, root path. Build
+  status: `built`.
+- Points exclusively at the staging Supabase project
+  (`cdsmnqxtyyoeoznmbidd`) via CSP and `pdc-supabase-config.staging.js`.
+- No bundled operational vehicle data (`data-staging-empty.js` is an empty
+  sanitized placeholder — all vehicle data loads live from staging
+  Supabase after sign-in).
+- `robots.txt` disallows all crawling; `noindex, nofollow, noarchive` meta
+  tag present, matching production's convention.
 
-## Real bugs caught and fixed this segment
-- `mark_vehicle_notification_result()` initially failed with
-  `DatatypeMismatch: column "status" is of type notification_status but
-  expression is of type text` - the `CASE` expression's string literals
-  needed explicit `::public.notification_status` casts. Fixed and
-  re-verified against staging.
-- Stale test-data interference in `test_workshop_staging_integration.py`
-  (leftover parts/booking rows from prior manual staging tests) caused
-  false failures in tests 8/9/11 unrelated to any code change; confirmed
-  via direct SQL inspection and cleaned before re-running - documented here
-  because this is a recurring pattern across sessions and future agents
-  should clean `workshop_bookings`/`vehicle_parts_updates` for
-  `VEH_1`/`VEH_2` before re-running that suite.
+## Final staging report
 
-## Known limitations / not yet done
-- **No staging-only frontend URL exists yet.** This blocks:
-  - A genuine two-browser realtime acceptance test against the real
-    staging Supabase project (as opposed to the local dry-run/simulated
-    smoke test performed this segment).
-  - Producing the final staging URL / test-account / two-user-checklist
-    deliverable requested in the original AI-email-monitoring brief and
-    implied by "Staging-only frontend deployment" in this segment's
-    instructions.
-  - This is the same open item flagged at the end of the immediately prior
-    session (stashed `staging.html` work). It was not addressed this
-    segment because the explicit instruction order placed it last, after
-    QC/RFT/Collected/Parts/regression, and the iteration budget was
-    reached during regression + Parts-layout completion.
-- The notification worker's `send_via_provider()` is intentionally
-  unimplemented (`NotImplementedError`) - no real email provider is
-  configured or approved for staging, matching the brief's "do not process
-  real operational emails/sends without explicit approval" instruction.
-  `--dry-run` (the default) is safe to run repeatedly for acceptance
-  testing.
-- AI Email Monitoring feature: **explicitly not started** this segment,
-  per instruction. (A separate `docs/ai-email-vehicle-intelligence-stage1-plan.md`
-  and its Stage 1 schema/RPC foundation exist from an earlier, unrelated
-  session and remain untouched.)
-- Cross-department/exact-time planner fixes from the prior segment
-  (`857c9b6`) were not re-tested for regressions against the new
-  vehicle-lifecycle code paths beyond the full JS/staging suites already
-  passing - no interaction between the two feature areas was found or
-  expected (different tables/RPCs entirely).
+### Branch / commits
+- Branch: `feature/workshop-shared-realtime-v2`
+- Latest commits (this segment, newest last):
+  - `691dffa` — docs: workshop planner fix handover/progress log
+  - `5f30f40` — feat: QC-complete -> RFT + notification outbox + RFT
+    Collected -> Completed
+  - `a7c5cea` — fix: Parts screen Jita dedicated column
+  - `27605cb` — docs: handover update
+  - `51e306e` — feat: finish staging-only frontend deployment (auth glue +
+    staging.html + config), including a real re-entrancy bug fix in
+    `initWorkshopSharedServicesIfEnabled()`
+- Deployment repo: `BTNew/pdc-control-board-staging` @ `main` (single
+  deploy commit, pushed and built this session)
 
-## Next step (in priority order)
-1. Resolve the staging-only frontend deployment blocker: either finish the
-   stashed `staging.html` (staging-CSP copy of `index.html` with its own
-   `pdc-supabase-config.staging.js`), or get explicit direction on a
-   different safe staging publication path (e.g. a separate GitHub Pages
-   branch/repo). Must not touch `btnew.github.io/pdc-control-board/`.
-2. Once a staging URL exists, enable
-   `window.PDC_SUPABASE_CONFIG.workshop.sharedData` and
-   `window.PDC_SUPABASE_CONFIG.vehicleLifecycle.sharedData` there only
-   (never on production config), and perform the real two-browser
-   realtime acceptance test: QC-complete in browser A, confirm RFT
-   transition + notification-outbox row appear correctly, confirm browser
-   B sees the same vehicle move to RFT without a manual refresh; then
-   Collected in browser A, confirm browser B sees Completed Vehicles
-   update.
-3. Produce the final staging report per the outstanding brief items:
-   staging URL, branch, commit hashes, files changed, migrations added,
-   RPCs added, test accounts/roles, exact automatic actions enabled vs
-   requiring approval, confidence/permission model as it applies here
-   (role gating is already enforced at the RPC layer), full test results,
-   browser smoke result, two-user realtime result, security review, known
-   limitations, rollback procedure, two-user acceptance checklist.
-4. Stop and wait for explicit approval before any production change.
+### Files added/changed (working repo, `pdc-control-board`)
+- `supabase/migrations/016_qc_rft_collected_notifications.sql` (new)
+- `vehicle-lifecycle-actions.js` (new)
+- `backend/vehicle_notification_worker.py` (new)
+- `test_vehicle_lifecycle_actions.js` (new)
+- `staging.html`, `pdc-supabase-config.staging.js`,
+  `data-staging-empty.js` (new, this segment)
+- `app.js` — QC/RFT/Collected wiring, staging auth glue
+  (`getPdcSupabaseAccessToken`, `createPdcSupabaseRealtimeSubscription`),
+  and the shared-services re-entrancy fix
+- `pdc-auth.js` — caches the current access token on window for
+  synchronous shared-mode callers
+- `styles.css`, `test_desktop_operations.js`, `test_production_grid_v2.js`
+  — Parts screen Jita column
+- `docs/workshop-planner-fix-handover.md` (this file)
+- Gitignored staging-only test tooling (not committed, as per existing
+  convention): `_staging_test_tools/test_qc_rft_collected_staging.py`,
+  `_staging_test_tools/test_vehicle_notification_worker_staging.py`
+
+### Deployment repo (`pdc-control-board-staging`) contents
+`index.html` (= `staging.html` renamed), `app.js`, `pdc-auth.js`,
+`pdc-supabase-config.staging.js`, `data-staging-empty.js`,
+`email-board-data.js`, `arb-labor-catalog.js`, `workshop-planner.js`,
+`workshop-planner.css`, `workshop-data-service.js`, `workshop-realtime.js`,
+`workshop-shared-actions.js`, `vehicle-lifecycle-actions.js`, `styles.css`,
+`desktop-operations.css`, `favicon.svg`, `robots.txt`, `.nojekyll`,
+`assets/`, `vendor/`.
+
+### Database migrations added (staging only)
+- `016_qc_rft_collected_notifications.sql`: `qc_complete_vehicle()`,
+  `rft_transfer_vehicle()`, `rft_collect_vehicle()`,
+  `queue_vehicle_notification()`, `claim_pending_vehicle_notifications()`,
+  `mark_vehicle_notification_result()`, `retry_vehicle_notification()`,
+  `vehicle_notifications` table + `notification_status` enum, plus new
+  columns on `vehicles` (`qc_completed_at`, `qc_completed_by`,
+  `rft_collected_by`).
+- Applied directly to staging via the existing psycopg2 tooling (not
+  `supabase db push`, consistent with the established pattern in this
+  repo for out-of-band migrations).
+
+### Protected RPCs added
+`qc_complete_vehicle`, `rft_transfer_vehicle`, `rft_collect_vehicle`,
+`retry_vehicle_notification` (all `authenticated`-grantable, role-checked
+via `require_pdc_role`); `claim_pending_vehicle_notifications` and
+`mark_vehicle_notification_result` (service-role only — never granted to
+`authenticated`, so the browser cannot call them).
+
+### Test accounts / roles (staging only)
+- `administrator@staging.pdc-workshop.example.com` / `AdminStagingPW!2026xz` — administrator
+- `controllerA@staging.pdc-workshop.example.com` / `ControllerAPW!2026xz` — operator/controller
+- `viewer@staging.pdc-workshop.example.com` — viewer
+- `unapproved@staging.pdc-workshop.example.com` — unapproved
+(All pre-existing from earlier sessions; reused, not newly created.)
+
+### Monitored staging mailbox
+None — out of scope for this task (this task was the Workshop Planner /
+QC / RFT / Parts fix, not the AI Email Monitoring feature, which was
+explicitly not started this segment per instruction).
+
+### Exact automatic actions enabled
+- None beyond what already existed. QC complete, RFT transfer, and RFT
+  Collected all require an explicit authenticated user action (button
+  click / confirm dialog) — nothing fires automatically on a schedule or
+  in response to another event. The **notification outbox worker** is a
+  manually-invoked script (`backend/vehicle_notification_worker.py`), not
+  a cron job — it does not run automatically in staging.
+
+### Exact actions still requiring approval / not yet automatic
+- Real email sending (worker's `send_via_provider()` is deliberately
+  unimplemented — `--dry-run` is the only mode exercised).
+- Any change to `pdc-control-board-login` (production) or its Supabase
+  project.
+- Any decision to make the staging URL non-`noindex` / public-facing
+  beyond internal testing.
+
+### Confidence thresholds
+Not applicable to this task — no AI confidence-scored automation was
+built or touched this segment.
+
+### Full test results (this session, final run)
+- `node test_all.js`: **37 passed, 0 failed, 2 skipped**
+- Backend `python -m unittest test_email_board_publisher
+  test_email_intake_security test_static_publication_gate
+  test_vehicle_intelligence_fixtures.py`: **22 passed**
+- `_staging_test_tools/test_workshop_staging_integration.py` (real
+  staging PostgreSQL/PostgREST, gitignored): **34 passed, 0 failed**
+- `_staging_test_tools/test_qc_rft_collected_staging.py` (real staging,
+  gitignored): **28 passed, 0 failed**
+- `_staging_test_tools/test_vehicle_notification_worker_staging.py` (real
+  staging, gitignored, runs the actual worker module): **5 passed, 0
+  failed**
+- `git diff --check`: clean after every commit
+
+### Browser smoke-test result
+- Local (`test-75.html`) and the **real deployed public staging URL**
+  (`https://btnew.github.io/pdc-control-board-staging/`) both loaded with
+  **zero console errors and zero CSP errors** across Vehicle Locations,
+  Control Board, Workshop Planner, and Parts views.
+- Real sign-in against staging Supabase succeeded on the public URL as
+  `administrator@staging.pdc-workshop.example.com`; header correctly
+  showed the authenticated email + role; "Sign out" appeared.
+- After opening Workshop Planner, `window.__workshopDataService`,
+  `window.__workshopRealtimeManager` (subscribed), `window.
+  __workshopSharedActions`, and `window.__vehicleLifecycleActions` were
+  all present and live, loaded from the real staging snapshot RPC (real
+  bays/stages/bookings/vehicles).
+
+### Two-user realtime test result — genuinely performed, twice
+Performed once against a local server and once again against the real
+public staging URL, using two independent, real authenticated sessions
+(never the same session/token):
+
+- **Browser session** (administrator, browser automation) — opened the
+  Workshop Planner and left it open, unrefreshed.
+- **Independent REST session** (controllerA, direct HTTPS calls to the
+  staging Supabase REST/RPC endpoint, completely separate from the
+  browser) — called `move_workshop_booking` with real parameters.
+- Result both times: the open, unrefreshed administrator browser tab
+  picked up controllerA's real database write via the live Supabase
+  realtime subscription within ~3–4 seconds, with **no manual refresh**.
+  Verified by reading `workshopLoadPlans()` in the browser console before
+  and after controllerA's RPC call and confirming the bay/time changed to
+  exactly what controllerA wrote.
+
+### QC → RFT → Collected + notification outbox — verified live, twice
+Performed once locally and once again on the real public staging URL,
+using the real browser session (administrator) calling the actual
+`window.__vehicleLifecycleActions` bridge (the same code path the
+Control Board "Complete QC" button / RFT transfer / Collected checkbox
+use):
+1. `qcCompleteVehicle` → `qc_completed_at` set, work item marked
+   complete, notification enqueued (`notification_has_recipient: true`).
+2. `rftTransferVehicle` → `lifecycle_state: 'rft'`,
+   `current_location: 'RFT'`.
+3. `rftCollectVehicle` → `lifecycle_state: 'completed'`,
+   `current_location: 'Completed'`, `visible_on_board: false`.
+4. `backend/vehicle_notification_worker.py --dry-run` claimed and
+   successfully "sent" (logged, no real email) the queued notification.
+5. Full `audit_events` history confirmed for the vehicle:
+   `qc_complete_vehicle` → `rft_transfer_vehicle` → `rft_collect_vehicle`,
+   each recorded with the authenticated actor email
+   `administrator@staging.pdc-workshop.example.com` and a timestamp.
+6. All synthetic fixture rows created for these live verifications
+   (salesperson, work item, notification, vehicle version resets) were
+   cleaned up after each run.
+
+### Security review
+- Production Supabase project and production site were never called,
+  configured, or modified at any point this session.
+- `pdc-supabase-config.staging.js` contains only the publishable
+  (`sb_publishable_...`) key — no service_role key, no database password,
+  no Microsoft client secret.
+- `claim_pending_vehicle_notifications` / `mark_vehicle_notification_result`
+  are **not** granted to `authenticated` — the browser genuinely cannot
+  call them; only a service-role-authenticated worker process can.
+- CSP on the new staging page is identical to production's except for the
+  Supabase host, and still uses `script-src 'self'` (no inline scripts
+  beyond the one pre-existing `onerror` attribute that is byte-identical
+  to what already ships in production `index.html`, and does not
+  introduce new attack surface).
+- Role gating verified live and by test: `viewer` cannot call
+  `qc_complete_vehicle` / `rft_collect_vehicle`; only `administrator` can
+  call `retry_vehicle_notification`.
+- The staging repo (`pdc-control-board-staging`) is public (GitHub Pages
+  requires this on a free plan) but contains no real customer data, no
+  secrets beyond the staging publishable key, and `robots.txt` +
+  `noindex` discourage indexing. If a private-repo Pages plan becomes
+  available later, this could be tightened further — flagged as a known
+  limitation below.
+
+### Known limitations
+- The staging deployment repo is public (not private) because GitHub
+  Pages requires a paid plan for private-repo Pages under the
+  organization's current setup; mitigated by containing zero real data
+  and zero real secrets, `robots.txt` disallow-all, and `noindex` meta.
+- The notification worker's real email sending is intentionally
+  unimplemented; only `--dry-run` has been exercised, consistent with
+  "do not process real operational emails during development unless
+  explicitly approved."
+- Control Board / Parts / RFT legacy views on the staging page currently
+  show 0 vehicles until a legacy-data import is run for staging (this is
+  expected — those views are still backed by the browser-local
+  `app.data`/localStorage layer, which is intentionally empty on this
+  entry point; only the Workshop Planner and the QC/RFT/Collected bridge
+  functions talk to live staging Supabase data today). The live QC/RFT/
+  Collected verification in this report was performed by calling the
+  bridge functions directly (the same functions the UI buttons call),
+  since there is no legacy vehicle row rendered on-screen to click yet.
+- Deploying the staging site requires a manual `git push` to the separate
+  `pdc-control-board-staging` repo whenever `staging.html` or its
+  supporting files change in the main working repo; there is no CI/CD
+  automation syncing the two. A future improvement would be a GitHub
+  Actions workflow.
+
+### Rollback procedure
+- **Staging site**: `gh api -X DELETE repos/BTNew/pdc-control-board-staging/pages`
+  to disable Pages, or `gh repo delete BTNew/pdc-control-board-staging`
+  to remove it entirely. Neither action touches the working repo
+  (`pdc-control-board`) or production.
+- **Staging database**: all new objects are additive (new table, new
+  columns, new functions) and were built to coexist with existing
+  migrations. To roll back, drop the four new functions, the
+  `vehicle_notifications` table, the `notification_status` type, and the
+  three new `vehicles` columns — no existing data or behaviour depends on
+  them, so no existing functionality breaks by removing them.
+- **Working repo**: revert commits `5f30f40`, `a7c5cea`, `51e306e` (and
+  their doc commits) on `feature/workshop-shared-realtime-v2`; the branch
+  has not been merged into `main`.
+
+## Two-user acceptance checklist (for Craig / staff to repeat manually)
+1. Open `https://btnew.github.io/pdc-control-board-staging/` in Browser A.
+2. Sign in as `administrator@staging.pdc-workshop.example.com`.
+3. Open `https://btnew.github.io/pdc-control-board-staging/` in Browser B
+   (different browser/profile/incognito).
+4. Sign in as `controllerA@staging.pdc-workshop.example.com`.
+5. In both browsers, open Workshop Planner.
+6. In Browser B, drag/drop or use a quick-duration button to move a
+   booking.
+7. Confirm Browser A updates automatically within a few seconds, with no
+   refresh.
+8. Confirm no console/CSP errors in either browser's DevTools.
+9. Sign in as `viewer@staging.pdc-workshop.example.com` in a third
+   browser/profile and confirm no write actions are available/permitted.
+10. Sign in as `unapproved@staging.pdc-workshop.example.com` and confirm
+    no vehicle data access beyond the existing unapproved-user gate.
+
+## Status vs the requested order of work (all items now complete)
+1. ✅ QC Complete → RFT atomic RPC-backed transition
+2. ✅ Notification outbox with idempotency and retry handling
+3. ✅ RFT Collected → Completed Vehicles shared workflow
+4. ✅ Parts screen ETA/calendar/Jita layout fix
+5. ✅ Full regression tests
+6. ✅ Staging-only frontend deployment and two-user test
+
+## Real bugs caught and fixed this segment (cumulative)
+- `mark_vehicle_notification_result()` enum-cast `DatatypeMismatch` (SQL).
+- **Re-entrancy bug in `initWorkshopSharedServicesIfEnabled()`**: the
+  realtime manager and the shared-actions bridge were only constructed
+  inside the "first call, data service doesn't exist yet" branch. Because
+  the new `pdc-auth-ready` listener calls this function once immediately
+  on login (before the user has ever opened the Workshop Planner and
+  therefore before `workshop-realtime.js`/`workshop-shared-actions.js`
+  are lazy-loaded), `window.__workshopRealtimeManager` and `window.
+  __workshopSharedActions` could permanently stay `undefined` even after
+  those scripts loaded later. Fixed by re-checking both blocks
+  independently on every call. Caught by live browser testing against the
+  real staging URL, not by a unit test — a genuine "looks fine in
+  isolation, breaks in the real login flow" class of bug.
+
+## Confirmation
+- Production Supabase (`vjdtsswhroyguxyfjdkt`) and production site
+  (`btnew.github.io/pdc-control-board-login/`) were never touched, called,
+  or configured at any point in this session.
+- All new deployment infrastructure (`BTNew/pdc-control-board-staging`)
+  is entirely separate from the production repo/site.
+
+**Stopping here for your approval before any production change**, per
+instruction.
