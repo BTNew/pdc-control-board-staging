@@ -1,0 +1,539 @@
+/* Desktop operations refinement. Loaded after the legacy stylesheet so current
+   production screens share one readable, workshop-focused presentation. */
+
+@media (min-width: 1100px) {
+  html,
+  body { overflow-x: clip !important; }
+
+  html {
+    --pdc-grid-min: 1510px;
+    --pdc-grid-identity-min: 430px;
+    --pdc-grid-vehicle-width: 150px;
+    --pdc-grid-actions-width: 160px;
+    --pdc-row-font: 14px;
+    --pdc-row-small: 12px;
+    --pdc-row-header: 11px;
+    --pdc-row-height: 50px;
+  }
+
+  body { font-size: 14px; }
+  .app-shell { grid-template-columns: 220px minmax(0, 1fr) !important; }
+  .sidebar { padding: 18px 14px !important; gap: 18px !important; }
+  .brand { align-items: flex-start !important; }
+  .app-version { display: none !important; }
+  .nav { gap: 5px !important; }
+  .nav-item {
+    min-height: 40px !important;
+    padding: 10px 12px !important;
+    border-radius: 8px !important;
+    font-size: 14px !important;
+  }
+
+  .main { padding: 18px 22px 28px !important; }
+  .topbar { margin-bottom: 14px !important; min-height: 58px; }
+  .topbar h1 { font-size: 34px !important; }
+  .eyebrow { color: #b91c1c !important; font-size: 12px !important; }
+  .topbar-actions { gap: 8px !important; }
+  .topbar-actions button,
+  .primary,
+  .ghost,
+  .small-button {
+    min-height: 38px;
+    border-radius: 8px !important;
+    padding: 8px 12px;
+    font-size: 13px;
+    line-height: 1.2;
+  }
+
+  body[data-current-view="dashboard"] #export-backup-top,
+  body[data-current-view="workflow"] #export-backup-top,
+  body[data-current-view="workflow"] #add-customer-top,
+  body[data-current-view="workflow"] .topbar-actions [data-view-target="import"],
+  body[data-current-view="parts"] #export-backup-top,
+  body[data-current-view="parts"] #add-customer-top,
+  body[data-current-view="parts"] .topbar-actions [data-view-target="import"],
+  body[data-current-view="rft"] #export-backup-top,
+  body[data-current-view="rft"] #add-customer-top,
+  body[data-current-view="rft"] .topbar-actions [data-view-target="import"],
+  body[data-current-view="completed"] #export-backup-top,
+  body[data-current-view="completed"] #add-customer-top,
+  body[data-current-view="completed"] .topbar-actions [data-view-target="import"],
+  body[data-current-view="deleted"] #export-backup-top,
+  body[data-current-view="deleted"] #add-customer-top,
+  body[data-current-view="deleted"] .topbar-actions [data-view-target="import"] {
+    display: none !important;
+  }
+
+  .panel,
+  .incoming-board-panel,
+  .parts-home-panel { border-radius: 10px !important; }
+  .panel-header { padding: 14px 16px !important; }
+  .panel-header h2 { font-size: 17px !important; }
+  .panel-header p { font-size: 13px !important; line-height: 1.35 !important; }
+  .incoming-search-panel,
+  .workflow-search-panel { border-radius: 8px !important; }
+  body[data-current-view="workflow"] .main,
+  body[data-current-view="workflow"] .workflow-board-panel { overflow: visible !important; }
+  input,
+  select,
+  textarea { font-size: 14px; }
+  .incoming-filter-row input,
+  .incoming-filter-row select,
+  .parts-toolbar input,
+  .parts-toolbar select { min-height: 40px !important; }
+
+  .work-status-legend {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 42px;
+    margin: 0 0 10px;
+    padding: 7px 10px;
+    border: 1px solid #d8e0e8;
+    border-radius: 8px;
+    background: #fff;
+    color: #475569;
+    font-size: 12px;
+  }
+  .work-status-legend > strong { margin-right: 4px; color: #17212b; font-size: 13px; }
+  .work-status-key {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    min-height: 28px;
+    padding: 4px 8px;
+    border: 1px solid #d8e0e8;
+    border-radius: 6px;
+    background: #f4f6f8;
+    font-weight: 700;
+  }
+  .work-status-key b { font-size: 15px; }
+  .work-status-key.status-required { border-color: #ee9caf; background: #fff0f3; color: #9f1239; }
+  .work-status-key.status-complete { border-color: #75c795; background: #edf9f1; color: #146c3b; }
+  .work-status-key.status-blocked { border-color: #dc2626; background: #fee2e2; color: #991b1b; }
+
+  .workflow-expanded-actions {
+    display: flex;
+    justify-content: flex-end;
+    padding: 9px 10px;
+    border-bottom: 1px solid #d9e0e7;
+    background: #f8fafc;
+  }
+  #workflow-collapse-all {
+    position: static !important;
+    inset: auto !important;
+    z-index: auto !important;
+    box-shadow: none !important;
+  }
+  .workflow-stage-bucket.is-over-limit > summary {
+    box-shadow: inset 5px 0 #dc2626 !important;
+    background: #fff1f2 !important;
+  }
+  .workflow-stage-bucket.is-over-limit > summary strong,
+  .workflow-stage-bucket.is-over-limit > summary small { color: #991b1b !important; }
+  .workflow-stage-bucket.has-blocked:not(.is-over-limit) > summary { box-shadow: inset 5px 0 #f97316 !important; }
+
+  .pdc-production-grid-header { min-height: 82px !important; }
+  .pdc-grid-station-heading > span {
+    color: #334155 !important;
+    font-size: 11px !important;
+    font-weight: 850 !important;
+  }
+  .incoming-vehicle-summary,
+  #workflow .incoming-vehicle-summary,
+  .rft-vehicle-summary,
+  .deleted-vehicle-summary {
+    min-height: 50px !important;
+    padding-top: 7px !important;
+    padding-bottom: 7px !important;
+  }
+  .vehicle-identity-value,
+  .vehicle-identity-primary,
+  .incoming-card-main strong { font-size: 14px !important; }
+  .incoming-card-meta,
+  .incoming-card-meta span,
+  .incoming-card-meta small { font-size: 12.5px !important; }
+  .incoming-card-meta b { font-size: 10.5px !important; }
+  .incoming-card-meta b { color: #475569 !important; }
+  .workflow-bucket-title small { color: #475569 !important; }
+  .incoming-work-check { min-height: 34px !important; height: 34px !important; }
+  .incoming-work-box { font-size: 17px !important; }
+  .incoming-card-action .primary,
+  .incoming-card-action .small-button,
+  .rft-card-actions .small-button,
+  .rft-collected-check { min-height: 34px !important; font-size: 12px !important; }
+
+  /* Parts is an operational queue rather than a 13-column spreadsheet. */
+  #parts .parts-summary-grid { gap: 10px !important; margin: 0 14px 10px !important; }
+  #parts .parts-summary-card { min-height: 82px !important; padding: 12px 14px !important; }
+  #parts .parts-summary-card strong { font-size: 25px !important; }
+  #parts .parts-toolbar {
+    position: sticky;
+    top: 0;
+    z-index: 35;
+    margin: 0 !important;
+    padding: 10px 14px !important;
+    border-top: 1px solid #d9e0e7;
+    border-bottom: 1px solid #d9e0e7;
+    background: #fff;
+  }
+  #parts .parts-help-strip { margin: 0 !important; border-radius: 0 !important; }
+  .parts-queue-wrap {
+    width: 100%;
+    min-height: 430px;
+    overflow: auto !important;
+    overflow-x: auto !important;
+    overflow-y: auto !important;
+    max-height: calc(100vh - 360px) !important;
+    border-top: 1px solid #cbd4de;
+    background: #fff;
+  }
+  .parts-queue-table {
+    width: 100%;
+    min-width: 1480px;
+    table-layout: fixed;
+    border-collapse: collapse;
+    background: #fff;
+  }
+  .parts-queue-table th:nth-child(1) { width: 105px; }
+  .parts-queue-table th:nth-child(2) { width: 210px; }
+  .parts-queue-table th:nth-child(3) { width: 220px; }
+  .parts-queue-table th:nth-child(4) { width: 140px; }
+  .parts-queue-table th:nth-child(5) { width: 230px; }
+  .parts-queue-table th:nth-child(6) { width: 245px; }
+  .parts-queue-table th:nth-child(7) { width: 150px; }
+  .parts-queue-table th:nth-child(8) { width: 180px; }
+  .parts-queue-table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    height: 40px;
+    padding: 8px 10px;
+    border-right: 1px solid #dce3ea;
+    border-bottom: 1px solid #cbd4de;
+    background: #e9eef3;
+    color: #475569;
+    font-size: 11px;
+    font-weight: 850;
+    letter-spacing: .04em;
+    text-align: left;
+    text-transform: uppercase;
+  }
+  .parts-queue-table tbody td {
+    min-height: 58px;
+    padding: 9px 10px;
+    border-right: 1px solid #edf0f3;
+    border-bottom: 1px solid #dce3ea;
+    color: #17212b;
+    font-size: 13px;
+    line-height: 1.25;
+    vertical-align: middle;
+  }
+  .parts-queue-table tbody tr:nth-child(even) { background: #f8fafc; }
+  .parts-queue-table tbody tr:hover { background: #fff7f7; }
+  .parts-queue-row.parts-status-stoppage td:first-child { box-shadow: inset 5px 0 #dc2626; }
+  .parts-queue-row.parts-status-ordered td:first-child { box-shadow: inset 5px 0 #2563eb; }
+  .parts-queue-status-cell { display: grid; gap: 7px; justify-items: start; }
+  .parts-queue-jita { display: inline-flex; align-items: center; gap: 5px; color: #64748b; font-size: 11px; }
+  .parts-queue-identity { display: grid; gap: 3px; }
+  .parts-queue-identity > span { display: grid; grid-template-columns: 42px minmax(0, 1fr); gap: 6px; align-items: center; }
+  .parts-queue-identity b { color: #64748b; font-size: 10px; text-transform: uppercase; }
+  .parts-queue-customer,
+  .parts-queue-stage { display: grid; gap: 4px; }
+  .parts-queue-customer strong { font-size: 14px; }
+  .parts-queue-customer span,
+  .parts-queue-stage span { color: #64748b; font-size: 12px; }
+  .parts-queue-blocker strong { color: #991b1b; }
+  .parts-queue-table .parts-worst-eta-wrap { display: grid; grid-template-columns: 1fr auto; gap: 5px 7px !important; }
+  .parts-queue-table .parts-worst-eta { grid-column: 1; }
+  .parts-queue-table .parts-worst-eta-details { grid-column: 1; }
+  .parts-queue-table .parts-email-sales-button { grid-column: 2; grid-row: 1 / span 2; align-self: center; }
+  .parts-queue-table .parts-action-group { display: grid !important; grid-template-columns: 1fr 1fr; gap: 5px !important; }
+  .parts-queue-table .parts-action-group .small-button { min-height: 34px !important; font-size: 11.5px !important; }
+
+  /* Vehicle editor: save/cancel stays visible; destructive action is last. */
+  #vehicle-modal .modal-card {
+    width: min(1180px, calc(100vw - 64px)) !important;
+    max-height: calc(100vh - 48px) !important;
+    border-radius: 14px !important;
+  }
+  #vehicle-detail > .panel-header {
+    position: sticky;
+    top: 0;
+    z-index: 40;
+    border-bottom: 1px solid #d9e0e7;
+    background: #fff;
+  }
+  #vehicle-modal .detail-title { align-items: center !important; }
+  #vehicle-modal .edit-form { border-radius: 10px !important; padding-bottom: 0 !important; }
+  #vehicle-modal .edit-form input,
+  #vehicle-modal .edit-form select { min-height: 42px !important; }
+  #vehicle-modal .section-label {
+    margin-top: 8px;
+    padding-top: 12px;
+    border-top: 1px solid #dce3ea;
+    color: #475569 !important;
+  }
+  #vehicle-modal .edit-actions {
+    position: sticky;
+    bottom: 0;
+    z-index: 35;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 4px -14px 0;
+    padding: 10px 14px;
+    border-top: 1px solid #cbd4de;
+    background: rgba(255, 255, 255, .97);
+    box-shadow: 0 -8px 18px rgba(15, 23, 42, .08);
+  }
+  #vehicle-modal .edit-actions button { min-width: 120px; }
+  .detail-danger-zone {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 18px;
+    padding: 14px;
+    border: 1px solid #fecaca;
+    border-radius: 10px;
+    background: #fff7f7;
+  }
+  .detail-danger-zone > div { display: grid; gap: 3px; }
+  .detail-danger-zone strong { color: #991b1b; }
+  .detail-danger-zone span { color: #64748b; font-size: 12px; }
+  .detail-danger-zone .danger { min-width: 140px; border-color: #ef4444; color: #991b1b; }
+  .rft-detail-actions > span { display: flex; align-items: center; gap: 8px; }
+  #import .drop-icon { color: #991b1b !important; }
+  .jita-unknown { color: #475569 !important; }
+}
+
+/* 2026-07-13 operational clarity: compact filters, calm queue pressure and
+   status-led Parts actions. These rules intentionally sit after the desktop
+   baseline so the current operational screens win over legacy red treatments. */
+@media (min-width: 1100px) {
+  /* A short morning-health readout in the sidebar. */
+  .operational-health-card {
+    gap: 8px !important;
+    padding: 12px !important;
+  }
+  #operational-health-summary {
+    display: grid;
+    gap: 5px;
+  }
+  #operational-health-summary .health-line {
+    display: grid;
+    gap: 1px;
+    min-width: 0;
+    padding: 5px 7px;
+    border-left: 3px solid #64748b;
+    border-radius: 4px;
+    background: rgba(255, 255, 255, .055);
+  }
+  #operational-health-summary .health-line b {
+    color: #f8fafc;
+    font-size: 11px;
+    line-height: 1.2;
+  }
+  #operational-health-summary .health-line small {
+    overflow: hidden;
+    color: #cbd5e1;
+    font-size: 10.5px;
+    line-height: 1.25;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  #operational-health-summary .health-line.ok { border-left-color: #22c55e; }
+  #operational-health-summary .health-line.watch { border-left-color: #eab308; }
+  #operational-health-summary .health-line.warn { border-left-color: #f59e0b; }
+  #operational-health-summary .health-line.neutral { border-left-color: #64748b; }
+
+  .hosting-security-warning[hidden] { display: none !important; }
+  .hosting-security-warning:not([hidden]) {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: -2px 0 12px;
+    padding: 8px 11px;
+    border: 1px solid #f2c36b;
+    border-left: 4px solid #d97706;
+    border-radius: 7px;
+    background: #fffbeb;
+    color: #78350f;
+    font-size: 12px;
+    line-height: 1.3;
+  }
+  .hosting-security-warning strong {
+    flex: 0 0 auto;
+    color: #92400e;
+    font-size: 12px;
+  }
+  .hosting-security-warning span { min-width: 0; }
+
+  /* Search, Status and Bucket remain immediately available. Less-used filters
+     live in the native More filters disclosure without changing their fields. */
+  .incoming-filter-row.primary-filter-row {
+    grid-template-columns: minmax(360px, 2fr) minmax(180px, 1fr) minmax(170px, .85fr) auto auto !important;
+    gap: 8px 10px !important;
+  }
+  .incoming-more-filters {
+    margin-top: 7px;
+    border: 1px solid #d7e0e9;
+    border-radius: 7px;
+    background: #fff;
+  }
+  .incoming-more-filters > summary {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    min-height: 34px;
+    padding: 6px 9px;
+    color: #475569;
+    font-size: 12px;
+    font-weight: 800;
+    list-style: none;
+    cursor: pointer;
+  }
+  .incoming-more-filters > summary::-webkit-details-marker { display: none; }
+  .incoming-more-filters > summary::before {
+    content: '+';
+    display: inline-grid;
+    width: 18px;
+    height: 18px;
+    place-items: center;
+    border: 1px solid #cbd5e1;
+    border-radius: 4px;
+    background: #f8fafc;
+    color: #334155;
+    font-size: 13px;
+    line-height: 1;
+  }
+  .incoming-more-filters[open] > summary {
+    border-bottom: 1px solid #d7e0e9;
+    background: #f8fafc;
+  }
+  .incoming-more-filters[open] > summary::before { content: '\2212'; }
+  .incoming-more-filters.has-active-filters > summary {
+    background: #eff6ff;
+    color: #1d4ed8;
+  }
+  .incoming-more-filter-grid {
+    display: grid;
+    grid-template-columns: minmax(190px, 230px) minmax(0, 1fr);
+    gap: 10px;
+    align-items: end;
+    padding: 8px 10px 10px;
+  }
+  .incoming-more-filter-grid > label {
+    display: grid;
+    min-width: 0;
+    gap: 3px;
+    color: #4b5563;
+    font-size: 12px;
+    font-weight: 800;
+  }
+  .incoming-more-filter-grid > label select { min-height: 38px !important; }
+  .incoming-more-filter-grid .incoming-work-filter-checks {
+    grid-column: auto !important;
+    margin: 0;
+    padding: 5px 7px 7px;
+    border-radius: 7px;
+  }
+
+  /* Unallocated is a triage queue, not a physical bay-capacity failure. Keep
+     it neutral even while legacy code also supplies is-over-limit. */
+  .workflow-stage-bucket.pmb-branch-unassigned > summary,
+  .workflow-stage-bucket.pmb-branch-unassigned.is-over-limit > summary,
+  .workflow-stage-bucket.has-triage-backlog > summary,
+  .pmb-drop-lane.has-triage-backlog .pmb-lane-title {
+    background: #f8fafc !important;
+    box-shadow: inset 5px 0 #64748b !important;
+  }
+  .workflow-stage-bucket.pmb-branch-unassigned > summary strong,
+  .workflow-stage-bucket.pmb-branch-unassigned > summary small,
+  .workflow-stage-bucket.has-triage-backlog > summary strong,
+  .workflow-stage-bucket.has-triage-backlog > summary small {
+    color: #475569 !important;
+  }
+
+  /* Capacity pressure is amber. Red remains reserved for individual ageing or
+     stoppage exceptions in Fix First rather than painting an entire queue. */
+  .workflow-stage-bucket.is-over-limit:not(.pmb-branch-unassigned) > summary,
+  .workflow-stage-bucket.has-capacity-pressure > summary,
+  .workflow-stage-bucket.is-capacity-pressure > summary,
+  .pmb-drop-lane.has-capacity-pressure .pmb-lane-title,
+  .pmb-drop-lane.is-capacity-pressure .pmb-lane-title {
+    background: #fffbeb !important;
+    box-shadow: inset 5px 0 #d97706 !important;
+  }
+  .workflow-stage-bucket.is-over-limit:not(.pmb-branch-unassigned) > summary strong,
+  .workflow-stage-bucket.is-over-limit:not(.pmb-branch-unassigned) > summary small,
+  .workflow-stage-bucket.has-capacity-pressure > summary strong,
+  .workflow-stage-bucket.has-capacity-pressure > summary small,
+  .workflow-stage-bucket.is-capacity-pressure > summary strong,
+  .workflow-stage-bucket.is-capacity-pressure > summary small {
+    color: #92400e !important;
+  }
+  .workflow-stage-bucket.has-urgent-exception > summary {
+    background: #fff !important;
+    box-shadow: inset 5px 0 #dc2626 !important;
+  }
+  .workflow-bucket-actions .capacity-badge {
+    border-color: #f2c36b !important;
+    background: #fef3c7 !important;
+    color: #92400e !important;
+  }
+
+  /* One status-led action stays visible; secondary Parts actions expand in the
+     table cell so they are not clipped by the queue's scrolling container. */
+  .parts-queue-table .parts-action-group {
+    align-items: start !important;
+  }
+  .parts-row-more {
+    min-width: 0;
+  }
+  .parts-row-more > summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+    min-height: 34px;
+    padding: 7px 9px;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    background: #f8fafc;
+    color: #334155;
+    font-size: 11.5px;
+    font-weight: 800;
+    line-height: 1.15;
+    list-style: none;
+    cursor: pointer;
+  }
+  .parts-row-more > summary::-webkit-details-marker { display: none; }
+  .parts-row-more > summary::after { content: '\25be'; color: #64748b; }
+  .parts-row-more[open] {
+    grid-column: 1 / -1;
+  }
+  .parts-row-more[open] > summary {
+    border-color: #94a3b8;
+    background: #eef2f7;
+  }
+  .parts-row-more[open] > summary::after { content: '\25b4'; }
+  .parts-row-more-actions,
+  .parts-row-more-menu,
+  .parts-row-more > div {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 5px;
+    margin-top: 5px;
+    padding: 5px;
+    border: 1px solid #d7e0e9;
+    border-radius: 6px;
+    background: #fff;
+  }
+  .parts-row-more-actions .small-button,
+  .parts-row-more-menu .small-button,
+  .parts-row-more > div .small-button {
+    width: 100%;
+    min-height: 32px !important;
+  }
+}
