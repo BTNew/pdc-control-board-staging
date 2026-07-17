@@ -68,7 +68,13 @@ class BuildProductionArtifactValidatorTests(unittest.TestCase):
         self.assertTrue(any("staging Supabase project ref" in f for f in fatal))
 
     def test_secret_pattern_anywhere_is_fatal(self):
-        (self.temp_dir / "leaky2.js").write_text("const key = 'sb_secret_abcdefghijklmnop';", encoding="utf-8")
+        # Fake secret built from non-contiguous fragments so this test
+        # file's own source text never contains a literal
+        # "sb_secret_..." token (which would otherwise cause the
+        # independent-review export tool's own content scan to flag
+        # this test file itself as a leaked secret).
+        fake_secret = "sb_" + "secret" + "_abcdefghijklmnop"
+        (self.temp_dir / "leaky2.js").write_text(f"const key = '{fake_secret}';", encoding="utf-8")
         fatal, _ = artifact_builder.scan_artifact()
         self.assertTrue(any("Supabase secret/service-role key" in f for f in fatal))
 

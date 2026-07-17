@@ -36,43 +36,52 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from pdc_backup import decrypt_backup, TABLES  # noqa: E402
 
-# Same FK graph inspected against the live staging schema (see pdc_backup.py
-# TABLES comment). Re-declared here, independent of the live catalog, so a
-# restore-schema test does not depend on `public`'s current constraints
-# (which could themselves be mid-migration).
-FOREIGN_KEYS = [
-    # (table, column, references_table, references_column)
-    ("vehicles", "salesperson_id", "salespeople", "id"),
-    ("vehicles", "active_workshop_booking_id", "workshop_bookings", "id"),
-    ("vehicle_aliases", "vehicle_id", "vehicles", "id"),
-    ("vehicle_work_items", "vehicle_id", "vehicles", "id"),
-    ("vehicle_movements", "vehicle_id", "vehicles", "id"),
-    ("vehicle_parts_updates", "vehicle_id", "vehicles", "id"),
-    ("vehicle_eta_history", "vehicle_id", "vehicles", "id"),
-    ("vehicle_timeline_events", "vehicle_id", "vehicles", "id"),
-    ("vehicle_intelligence_revisions", "vehicle_id", "vehicles", "id"),
-    ("vehicle_intelligence_summaries", "vehicle_id", "vehicles", "id"),
-    ("vehicle_match_candidates", "vehicle_id", "vehicles", "id"),
-    ("deleted_completed_vehicles", "vehicle_id", "vehicles", "id"),
-    ("workshop_bays", "stage_id", "workshop_stages", "id"),
-    ("workshop_bays", "default_technician_id", "workshop_technicians", "id"),
-    ("workshop_bookings", "vehicle_id", "vehicles", "id"),
-    ("workshop_bookings", "stage_id", "workshop_stages", "id"),
-    ("workshop_bookings", "bay_id", "workshop_bays", "id"),
-    ("workshop_booking_assignments", "booking_id", "workshop_bookings", "id"),
-    ("workshop_booking_assignments", "technician_id", "workshop_technicians", "id"),
-    ("workshop_booking_history", "booking_id", "workshop_bookings", "id"),
-    ("workshop_parts_overrides", "vehicle_id", "vehicles", "id"),
-    ("workshop_parts_overrides", "booking_id", "workshop_bookings", "id"),
-    ("workshop_parts_overrides", "intended_bay_id", "workshop_bays", "id"),
-    ("workshop_parts_overrides", "intended_stage_id", "workshop_stages", "id"),
-    ("vehicle_notifications", "vehicle_id", "vehicles", "id"),
-    ("audit_events", "vehicle_id", "vehicles", "id"),
-]
-
 
 def quote_ident(name):
     return '"' + name.replace('"', '""') + '"'
+
+
+def discover_foreign_keys(cur):
+    """Independent-review remediation (finding #9): the FK graph used
+    to be a short hand-written list (27 entries) that silently drifted
+    out of sync with the real schema and let 'skipped' constraints pass
+    the overall restore check. This now derives the complete FK graph
+    directly from the live public schema's catalog (pg_constraint),
+    so it can never miss a relationship a future migration adds, and a
+    restore run always attempts every real foreign key that exists
+    today -- not a stale snapshot of what existed when this list was
+    last hand-edited.
+
+    Only returns foreign keys where BOTH the referencing and referenced
+    tables are part of the backup payload (TABLES) -- backup-tooling
+    metadata tables like restore_test_runs and backup_runs are
+    intentionally excluded from TABLES because they are not application
+    operational data, so a foreign key pointing at them can never be
+    restored and must not be treated as a failure of the restore
+    itself."""
+    cur.execute(
+        """
+        select
+          tc.table_name,
+          kcu.column_name,
+          ccu.table_name as foreign_table_name,
+          ccu.column_name as foreign_column_name
+        from information_schema.table_constraints tc
+        join information_schema.key_column_usage kcu
+          on tc.constraint_name = kcu.constraint_name and tc.table_schema = kcu.table_schema
+        join information_schema.constraint_column_usage ccu
+          on tc.constraint_name = ccu.constraint_name and tc.table_schema = ccu.table_schema
+        where tc.constraint_type = 'FOREIGN KEY' and tc.table_schema = 'public'
+        order by tc.table_name, kcu.column_name
+        """
+    )
+    all_fks = [tuple(row) for row in cur.fetchall()]
+    return [
+        fk for fk in all_fks
+        if fk[0] in TABLES and fk[2] in TABLES
+    ]
+
+
 
 
 def create_isolated_schema(cur, schema_name):
@@ -89,9 +98,16 @@ def clone_table_structure(cur, schema_name, table_name):
     )
 
 
-def add_foreign_keys(cur, schema_name):
+def add_foreign_keys(cur, schema_name, foreign_keys):
+    """Adds every discovered foreign key NOT VALID, then immediately
+    runs VALIDATE CONSTRAINT on each one (independent-review remediation,
+    finding #9: the previous version added constraints NOT VALID and
+    never validated them, and a 'skipped' constraint did not fail the
+    overall restore check). Any constraint that cannot be added OR
+    cannot be validated is now a hard failure returned in `skipped`,
+    with the two failure modes distinguished in the reason string."""
     added, skipped = [], []
-    for table, column, ref_table, ref_column in FOREIGN_KEYS:
+    for table, column, ref_table, ref_column in foreign_keys:
         if table not in TABLES or ref_table not in TABLES:
             skipped.append((table, column, "table not in backup TABLES list"))
             continue
@@ -105,6 +121,10 @@ def add_foreign_keys(cur, schema_name):
                 f'foreign key ({quote_ident(column)}) '
                 f'references {quote_ident(schema_name)}.{quote_ident(ref_table)} ({quote_ident(ref_column)}) '
                 f'not valid'
+            )
+            cur.execute(
+                f'alter table {quote_ident(schema_name)}.{quote_ident(table)} '
+                f'validate constraint {quote_ident(constraint_name)}'
             )
             cur.execute(f'release savepoint {quote_ident(savepoint)}')
             added.append((table, column))
@@ -324,10 +344,13 @@ def restore_backup(conn, backup_file_path, encryption_key, schema_name=None):
 
     # Foreign keys are added only after every table's data has been
     # loaded (added NOT VALID -- meaning existing rows are not re-checked
-    # -- but Postgres still enforces NOT VALID constraints on any *new*
-    # write, so this must run after, not before, the data load, or every
-    # insert into a table with a not-yet-populated FK target fails).
-    fk_added, fk_skipped = add_foreign_keys(cur, schema_name)
+    # by the ADD step itself -- but the immediate VALIDATE CONSTRAINT
+    # call inside add_foreign_keys() re-checks every row against the
+    # restored data before this function returns, so this must run
+    # after, not before, the data load, or every insert into a table
+    # with a not-yet-populated FK target fails).
+    foreign_keys = discover_foreign_keys(cur)
+    fk_added, fk_skipped = add_foreign_keys(cur, schema_name, foreign_keys)
 
     conn.commit()
 
@@ -335,8 +358,15 @@ def restore_backup(conn, backup_file_path, encryption_key, schema_name=None):
     report["backup_run_id"] = data["backup_run_id"]
     report["backup_environment"] = data["environment"]
     report["migration_version"] = data["migration_version"]
+    report["foreign_keys_discovered"] = len(foreign_keys)
     report["foreign_keys_added"] = len(fk_added)
     report["foreign_keys_skipped"] = fk_skipped
+    # Independent-review remediation (finding #9): a skipped/invalid
+    # foreign key used to be recorded but NOT reflected in
+    # all_checks_passed -- "full restore passed" did not actually prove
+    # every relationship was restored and valid. Now it does: any
+    # skipped constraint fails the overall restore.
+    report["all_checks_passed"] = report["all_checks_passed"] and not fk_skipped
     report["schema_name"] = schema_name
     return report
 
