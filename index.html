@@ -8,9 +8,9 @@
   <meta name="description" content="PDC Workshop Control Board — STAGING (separate Supabase project, synthetic data only)." />
   <title>PDC Control Board — STAGING</title>
   <link rel="icon" href="favicon.svg" type="image/svg+xml" />
-  <link rel="stylesheet" href="styles.css?v=2026.07.17.02-backup-system" />
-  <link rel="stylesheet" href="desktop-operations.css?v=2026.07.17.02-backup-system" />
-  <link rel="stylesheet" href="workshop-planner.css?v=2026.07.17.02-backup-system" />
+  <link rel="stylesheet" href="styles.css?v=2026.07.17.03-account-approval" />
+  <link rel="stylesheet" href="desktop-operations.css?v=2026.07.17.03-account-approval" />
+  <link rel="stylesheet" href="workshop-planner.css?v=2026.07.17.03-account-approval" />
 </head>
 <body class="auth-pending" data-auth-state="checking">
   <main class="pdc-auth-gate" id="pdc-auth-gate" aria-labelledby="pdc-auth-title">
@@ -23,8 +23,37 @@
         <form class="pdc-password-form" id="pdc-password-form" hidden>
           <label><span>Email address</span><input id="pdc-login-email" type="email" autocomplete="username" required /></label>
           <label><span>Password</span><input id="pdc-login-password" type="password" autocomplete="current-password" required /></label>
+          <p class="pdc-auth-form-error" id="pdc-login-error" role="alert" hidden></p>
           <button class="primary" id="pdc-password-login" type="submit">Sign in</button>
+          <div class="pdc-auth-links">
+            <button class="text-button" id="pdc-show-forgot-password" type="button">Forgot password?</button>
+            <button class="text-button" id="pdc-show-create-account" type="button">Create account</button>
+          </div>
         </form>
+
+        <form class="pdc-password-form" id="pdc-create-account-form" hidden>
+          <label><span>Full name</span><input id="pdc-signup-full-name" type="text" autocomplete="name" required /></label>
+          <label><span>Work email</span><input id="pdc-signup-email" type="email" autocomplete="username" required /></label>
+          <label><span>Password</span><input id="pdc-signup-password" type="password" autocomplete="new-password" minlength="12" required /></label>
+          <label><span>Confirm password</span><input id="pdc-signup-confirm-password" type="password" autocomplete="new-password" minlength="12" required /></label>
+          <p class="pdc-auth-form-error" id="pdc-signup-error" role="alert" hidden></p>
+          <p class="pdc-auth-form-success" id="pdc-signup-success" role="status" hidden></p>
+          <button class="primary" id="pdc-signup-submit" type="submit">Create account</button>
+          <div class="pdc-auth-links">
+            <button class="text-button" id="pdc-signup-back-to-login" type="button">Back to sign in</button>
+          </div>
+        </form>
+
+        <form class="pdc-password-form" id="pdc-forgot-password-form" hidden>
+          <label><span>Work email</span><input id="pdc-forgot-email" type="email" autocomplete="username" required /></label>
+          <p class="pdc-auth-form-error" id="pdc-forgot-error" role="alert" hidden></p>
+          <p class="pdc-auth-form-success" id="pdc-forgot-success" role="status" hidden></p>
+          <button class="primary" id="pdc-forgot-submit" type="submit">Send reset link</button>
+          <div class="pdc-auth-links">
+            <button class="text-button" id="pdc-forgot-back-to-login" type="button">Back to sign in</button>
+          </div>
+        </form>
+
         <form class="pdc-password-form" id="pdc-new-password-form" hidden>
           <label><span>New password</span><input id="pdc-new-password" type="password" autocomplete="new-password" minlength="12" required /></label>
           <label><span>Confirm new password</span><input id="pdc-confirm-password" type="password" autocomplete="new-password" minlength="12" required /></label>
@@ -32,8 +61,21 @@
         </form>
         <button class="primary" id="pdc-microsoft-login" type="button" hidden>Sign in with Microsoft</button>
         <button class="ghost" id="pdc-auth-denied-signout" type="button" hidden>Use another account</button>
+
+        <div class="pdc-auth-pending-notice" id="pdc-auth-pending-notice" hidden>
+          <p>Your account has been created and is awaiting administrator approval.</p>
+          <button class="ghost" id="pdc-pending-signout" type="button">Sign out</button>
+        </div>
+        <div class="pdc-auth-disabled-notice" id="pdc-auth-disabled-notice" hidden>
+          <p>Your account access has been disabled. Contact an administrator if you believe this is an error.</p>
+          <button class="ghost" id="pdc-disabled-signout" type="button">Sign out</button>
+        </div>
+        <div class="pdc-auth-rejected-notice" id="pdc-auth-rejected-notice" hidden>
+          <p>Your registration was not approved. Contact an administrator for details.</p>
+          <button class="ghost" id="pdc-rejected-signout" type="button">Sign out</button>
+        </div>
       </div>
-      <small>Only individually approved staff accounts can load operational data. Public account registration is disabled.</small>
+      <small>Only individually approved staff accounts can access operational data. New registrations require administrator approval before any access is granted.</small>
     </section>
   </main>
   <noscript><div class="pdc-auth-noscript">JavaScript is required for secure staff sign-in.</div></noscript>
@@ -45,7 +87,7 @@
         <div class="brand-text">
           <div class="brand-title">Perth Motor Bodies</div>
           <div class="brand-subtitle">PDC Control Board</div>
-          <div class="app-version" id="app-version">Version 2026.07.17.02-backup-system</div>
+          <div class="app-version" id="app-version">Version 2026.07.17.03-account-approval</div>
         </div>
         <button class="sidebar-toggle" id="sidebar-toggle" type="button" aria-label="Collapse sidebar" title="Collapse sidebar">‹</button>
       </div>
@@ -63,6 +105,7 @@
         <button type="button" class="nav-item" data-view="deleted" data-short="DEL">Deleted vehicles</button>
         <button type="button" class="nav-item" data-view="backend" data-short="DATA">Back End Data</button>
         <button type="button" class="nav-item" data-view="lists" data-short="SET">Setup</button>
+        <button type="button" class="nav-item" id="nav-user-management" data-view="user-management" data-short="USR" hidden>User Management</button>
         <button type="button" class="nav-item" data-view="import" data-short="U">Uploads</button>
       </nav>
 
@@ -685,13 +728,34 @@
               <button class="primary" id="add-salesperson-button" type="button">Add salesperson</button>
             </div>
             <div class="admin-chip-list salesperson-chip-list" id="salesperson-list-admin"></div>
-          </section>
-        </div>
-      </section>
+            </section>
+            </div>
+            </section>
 
-      <section id="import" class="view">
+            <section id="user-management" class="view">
+            <div class="pdc-lists-layout">
+            <section class="panel pdc-list-panel" id="user-management-panel">
+              <div class="panel-header">
+                <div>
+                  <h2>User Management</h2>
+                  <p>Approve new registrations, assign roles, and disable or restore staff access. Every change is recorded in the audit history.</p>
+                </div>
+                <button class="small-button" id="user-management-refresh" type="button">Refresh</button>
+              </div>
+              <div class="user-management-tabs" id="user-management-tabs">
+                <button type="button" class="user-management-tab active" data-um-tab="pending">Pending</button>
+                <button type="button" class="user-management-tab" data-um-tab="approved">Approved</button>
+                <button type="button" class="user-management-tab" data-um-tab="disabled">Disabled</button>
+                <button type="button" class="user-management-tab" data-um-tab="rejected">Rejected</button>
+              </div>
+              <div id="user-management-content"><div class="empty-state compact-empty"><strong>Loading…</strong></div></div>
+            </section>
+            </div>
+            </section>
 
-        <div class="import-layout backup-layout">
+            <section id="import" class="view">
+
+            <div class="import-layout backup-layout">
           <section class="panel import-card" id="backup-card">
             <div class="panel-header compact">
               <div>
@@ -924,10 +988,11 @@
 
   <script src="vendor/supabase/supabase-2.110.5.js"></script>
   <script src="pdc-supabase-config.staging.js"></script>
-  <script src="pdc-auth.js?v=2026.07.17.02-backup-system"></script>
-  <script src="data-staging-empty.js?v=2026.07.17.02-backup-system"></script>
-  <script src="email-board-data.js?v=2026.07.17.02-backup-system"></script>
-  <script src="arb-labor-catalog.js?v=2026.07.17.02-backup-system"></script>
-  <script src="app.js?v=2026.07.17.02-backup-system"></script>
+  <script src="pdc-auth.js?v=2026.07.17.03-account-approval"></script>
+  <script src="pdc-auth-registration.js?v=2026.07.17.03-account-approval"></script>
+  <script src="data-staging-empty.js?v=2026.07.17.03-account-approval"></script>
+  <script src="email-board-data.js?v=2026.07.17.03-account-approval"></script>
+  <script src="arb-labor-catalog.js?v=2026.07.17.03-account-approval"></script>
+  <script src="app.js?v=2026.07.17.03-account-approval"></script>
 </body>
 </html>

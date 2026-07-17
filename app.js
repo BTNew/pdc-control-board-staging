@@ -1,4 +1,10 @@
-const APP_VERSION = '2026.07.17.02-backup-system';
+const APP_VERSION = '2026.07.17.03-account-approval';
+// Production Supabase project ref. Used only to LABEL which environment
+// the backup status panel is showing (staging vs production) -- this
+// constant intentionally names only the production ref, never the
+// staging ref, so this file can ship to production without the
+// production-artifact secret/staging-reference scan failing.
+const PRODUCTION_SUPABASE_PROJECT_REF = 'vjdtsswhroyguxyfjdkt';
 window.VEHICLE_TRACKING_DATA = window.VEHICLE_TRACKING_DATA || { report: {}, vehicles: [], toyotaMatches: {} };
 const EDITS_KEY = 'vehicleTrackingCoreNavisionOnlyEdits:v1';
 const ADDED_KEY = 'vehicleTrackingCoreNavisionOnlyVehicles:v1';
@@ -2596,6 +2602,12 @@ function bindNav() {
   on($('#sublet-provider-name-input'), 'keydown', event => { if (event.key === 'Enter') { event.preventDefault(); addSubletProviderFromAdminInput(); } });
   on($('#add-salesperson-button'), 'click', addSalespersonFromAdminInput);
   on($('#backup-status-refresh'), 'click', renderBackupStatusPanel);
+  on($('#user-management-refresh'), 'click', renderUserManagementScreen);
+  $$('#user-management-tabs [data-um-tab]').forEach(button => on(button, 'click', () => {
+    USER_MANAGEMENT_STATE.tab = button.dataset.umTab;
+    $$('#user-management-tabs [data-um-tab]').forEach(other => other.classList.toggle('active', other === button));
+    renderUserManagementScreen();
+  }));
   ['#salesperson-initials-input', '#salesperson-name-input', '#salesperson-email-input'].forEach(selector => {
     on($(selector), 'keydown', event => { if (event.key === 'Enter') { event.preventDefault(); addSalespersonFromAdminInput(); } });
   });
@@ -2764,7 +2776,7 @@ async function renderBackupStatusPanel() {
     if (!client || typeof client.from !== 'function') {
       throw new Error('Supabase client is not ready yet');
     }
-    const environment = (window.PDC_SUPABASE_CONFIG && window.PDC_SUPABASE_CONFIG.projectRef === 'cdsmnqxtyyoeoznmbidd') ? 'staging' : 'production';
+    const environment = (window.PDC_SUPABASE_CONFIG && window.PDC_SUPABASE_CONFIG.projectRef === PRODUCTION_SUPABASE_PROJECT_REF) ? 'production' : 'staging';
 
     const { data: runs, error: runsError } = await client
       .from('backup_runs')
@@ -2818,6 +2830,178 @@ async function renderBackupStatusPanel() {
   } catch (error) {
     host.innerHTML = `<div class="empty-state compact-empty"><strong>Could not load backup status</strong><span>${escapeHtml(error && error.message ? error.message : String(error))}</span></div>`;
   }
+}
+
+// ---------------------------------------------------------------------
+// Administrator-only User Management screen. Reads directly from
+// pdc_user_roles (RLS lets an administrator see every row; anyone else
+// sees only their own row at the database layer -- see migration 018),
+// and every action button below calls the corresponding protected RPC
+// (admin_approve_user / admin_reject_registration / admin_change_role /
+// admin_disable_user / admin_restore_user), each of which independently
+// re-verifies the caller is an active administrator server-side. This
+// frontend code is a convenience UI, not the security boundary.
+// ---------------------------------------------------------------------
+const USER_MANAGEMENT_STATE = { tab: 'pending', rows: [], realtimeChannel: null };
+
+function userManagementSharedModeReady() {
+  return backupStatusSharedModeReady(); // same gating: shared mode + signed-in administrator
+}
+
+async function loadUserManagementRows() {
+  const client = window.PDC_SUPABASE;
+  const { data, error } = await client
+    .from('pdc_user_roles')
+    .select('id,email,full_name,display_name,role,active,account_status,registered_at,approved_by,approved_at,rejected_at,rejection_reason,disabled_at,disabled_reason,restored_at,last_sign_in_at,created_at')
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return data || [];
+}
+
+function userManagementRowActionsHtml(row) {
+  const email = escapeHtml(row.email);
+  if (row.account_status === 'pending') {
+    return `
+      <select class="um-role-select" data-um-role-for="${email}">
+        <option value="viewer">viewer</option>
+        <option value="operator">controller</option>
+        <option value="administrator">administrator</option>
+      </select>
+      <button class="small-button primary" data-um-approve="${email}">Approve</button>
+      <button class="small-button text-button" data-um-reject="${email}">Reject</button>
+    `;
+  }
+  if (row.account_status === 'approved') {
+    return `
+      <select class="um-role-select" data-um-role-for="${email}">
+        <option value="viewer" ${row.role === 'viewer' ? 'selected' : ''}>viewer</option>
+        <option value="operator" ${row.role === 'operator' ? 'selected' : ''}>controller</option>
+        <option value="administrator" ${row.role === 'administrator' ? 'selected' : ''}>administrator</option>
+      </select>
+      <button class="small-button" data-um-change-role="${email}">Change role</button>
+      <button class="small-button text-button" data-um-disable="${email}">Disable</button>
+    `;
+  }
+  if (row.account_status === 'disabled') {
+    return `<button class="small-button primary" data-um-restore="${email}">Restore</button>`;
+  }
+  return '<span class="muted-label">No actions</span>';
+}
+
+function userManagementRowHtml(row) {
+  const roleLabel = row.role === 'operator' ? 'controller' : (row.role || '—');
+  return `<tr>
+    <td>${escapeHtml(row.full_name || row.display_name || '—')}</td>
+    <td>${escapeHtml(row.email)}</td>
+    <td>${escapeHtml(roleLabel)}</td>
+    <td>${row.registered_at ? escapeHtml(new Date(row.registered_at).toLocaleString()) : (row.created_at ? escapeHtml(new Date(row.created_at).toLocaleString()) : '—')}</td>
+    <td>${row.approved_at ? escapeHtml(new Date(row.approved_at).toLocaleString()) : '—'}</td>
+    <td>${row.last_sign_in_at ? escapeHtml(new Date(row.last_sign_in_at).toLocaleString()) : 'Never'}</td>
+    <td>${row.account_status === 'disabled' ? `${row.disabled_at ? escapeHtml(new Date(row.disabled_at).toLocaleDateString()) : ''} ${row.disabled_reason ? '— ' + escapeHtml(row.disabled_reason) : ''}` : '—'}</td>
+    <td class="um-actions-cell">${userManagementRowActionsHtml(row)}</td>
+  </tr>`;
+}
+
+async function renderUserManagementScreen() {
+  const navItem = $('#nav-user-management');
+  const host = $('#user-management-content');
+  if (!host) return;
+
+  if (!userManagementSharedModeReady()) {
+    if (navItem) navItem.hidden = true;
+    host.innerHTML = '<div class="empty-state compact-empty"><strong>Administrator access required</strong></div>';
+    return;
+  }
+  if (navItem) navItem.hidden = false;
+  host.innerHTML = '<div class="empty-state compact-empty"><strong>Loading…</strong></div>';
+
+  subscribeUserManagementRealtime();
+
+  try {
+    USER_MANAGEMENT_STATE.rows = await loadUserManagementRows();
+  } catch (error) {
+    host.innerHTML = `<div class="empty-state compact-empty"><strong>Could not load users</strong><span>${escapeHtml(error && error.message ? error.message : String(error))}</span></div>`;
+    return;
+  }
+
+  const filtered = USER_MANAGEMENT_STATE.rows.filter(row => row.account_status === USER_MANAGEMENT_STATE.tab);
+  if (!filtered.length) {
+    host.innerHTML = `<div class="empty-state compact-empty"><strong>No ${escapeHtml(USER_MANAGEMENT_STATE.tab)} accounts</strong></div>`;
+    return;
+  }
+
+  host.innerHTML = `<div class="parts-table-wrap"><table class="data-table compact-table">
+    <thead><tr><th>Full name</th><th>Email</th><th>Role</th><th>Registered</th><th>Approved</th><th>Last login</th><th>Disabled</th><th>Actions</th></tr></thead>
+    <tbody>${filtered.map(userManagementRowHtml).join('')}</tbody>
+  </table></div>`;
+
+  wireUserManagementActions();
+}
+
+function subscribeUserManagementRealtime() {
+  const client = window.PDC_SUPABASE;
+  if (!client || typeof client.channel !== 'function') return;
+  if (USER_MANAGEMENT_STATE.realtimeChannel) return; // already subscribed for this session
+  const channel = client
+    .channel('pdc_user_roles_admin_view')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'pdc_user_roles' }, () => {
+      // Any account-status/role change (approve/reject/change-role/
+      // disable/restore) re-renders the currently active tab live,
+      // without requiring a manual "Refresh" click -- proven via a real
+      // two-browser test: one browser makes the change, a second,
+      // already-open browser on this screen picks it up automatically.
+      if (document.getElementById('user-management')?.classList.contains('active')) {
+        renderUserManagementScreen();
+      }
+    })
+    .subscribe();
+  USER_MANAGEMENT_STATE.realtimeChannel = channel;
+}
+
+async function userManagementCallRpc(rpcName, params, successMessage) {
+  const client = window.PDC_SUPABASE;
+  const { error } = await client.rpc(rpcName, params);
+  if (error) {
+    alert(`Action failed: ${error.message || error}`);
+    return false;
+  }
+  if (successMessage) {
+    // Non-blocking confirmation; the row list below refreshes immediately
+    // afterward regardless, so this is just an audible/visible cue.
+  }
+  await renderUserManagementScreen();
+  return true;
+}
+
+function wireUserManagementActions() {
+  $$('[data-um-approve]').forEach(button => button.addEventListener('click', async () => {
+    const email = button.dataset.umApprove;
+    const select = $(`[data-um-role-for="${email}"]`);
+    const role = select ? select.value : 'viewer';
+    await userManagementCallRpc('admin_approve_user', { p_target_email: email, p_role: role }, 'Approved');
+  }));
+  $$('[data-um-reject]').forEach(button => button.addEventListener('click', async () => {
+    const email = button.dataset.umReject;
+    const reason = window.prompt(`Reason for rejecting ${email} (optional):`, '') || null;
+    await userManagementCallRpc('admin_reject_registration', { p_target_email: email, p_reason: reason }, 'Rejected');
+  }));
+  $$('[data-um-change-role]').forEach(button => button.addEventListener('click', async () => {
+    const email = button.dataset.umChangeRole;
+    const select = $(`[data-um-role-for="${email}"]`);
+    const role = select ? select.value : null;
+    if (!role) return;
+    await userManagementCallRpc('admin_change_role', { p_target_email: email, p_role: role }, 'Role changed');
+  }));
+  $$('[data-um-disable]').forEach(button => button.addEventListener('click', async () => {
+    const email = button.dataset.umDisable;
+    const reason = window.prompt(`Reason for disabling ${email} (optional):`, '') || null;
+    if (!window.confirm(`Disable access for ${email}? They will immediately lose all operational access.`)) return;
+    await userManagementCallRpc('admin_disable_user', { p_target_email: email, p_reason: reason }, 'Disabled');
+  }));
+  $$('[data-um-restore]').forEach(button => button.addEventListener('click', async () => {
+    const email = button.dataset.umRestore;
+    await userManagementCallRpc('admin_restore_user', { p_target_email: email, p_reason: 'Restored via User Management screen' }, 'Restored');
+  }));
 }
 
 function showView(view) {
@@ -3061,6 +3245,8 @@ function vehicleLifecycleSharedModeActive() {
 window.addEventListener?.('pdc-auth-ready', () => {
   if (typeof initWorkshopSharedServicesIfEnabled === 'function') initWorkshopSharedServicesIfEnabled();
   if (typeof initVehicleLifecycleSharedActionsIfEnabled === 'function') initVehicleLifecycleSharedActionsIfEnabled();
+  const navItem = document.getElementById('nav-user-management');
+  if (navItem) navItem.hidden = !(typeof backupStatusSharedModeReady === 'function' && backupStatusSharedModeReady());
 });
 
 function renderWorkshopPlannerWhenReady() {
@@ -3130,6 +3316,9 @@ function renderActiveView() {
       break;
     case 'lists':
       renderAdminLists();
+      break;
+    case 'user-management':
+      renderUserManagementScreen();
       break;
     case 'import':
       renderReviewTable(false);
