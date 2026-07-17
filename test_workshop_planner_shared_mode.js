@@ -26,6 +26,7 @@ global.parseIsoTimestamp = value => {
 };
 global.nowIsoString = () => new Date(2026, 6, 14, 10, 0, 0, 0).toISOString();
 global.pmbStageLabel = value => String(value || '');
+global.cleanNavisionText = value => String(value == null ? '' : value).trim();
 
 const planner = require('./workshop-planner.js');
 
@@ -360,4 +361,45 @@ console.log('Workshop planner shared-mode integration seam checks passed');
   assert.strictEqual(eightAm.getHours(), 8, '13c minute-offset 0 must still resolve to 8am (the actual start, not an accidental default)');
   assert.strictEqual(planner.workshopMinuteOffset(tenThirty), 150, '13d workshopMinuteOffset must round-trip back to the same 150-minute offset');
   console.log('PASS 13: workshopDateAtOffset resolves drag/drop pixel-derived minute offsets to the exact requested time, never snapping to day start');
+}
+
+// 14. Stage 2A workshop bay behaviour: shared reference service lookup,
+// inactive-bay rejection, default-technician availability, and
+// fail-safe behaviour when the service has not loaded.
+{
+  // 14a. No shared service loaded at all -> fail safe: active, no default.
+  withGlobals({ __workshopReferenceDataService: undefined }, () => {
+    assert.strictEqual(planner.workshopBayIsActive('FABRICATION', 1), true, '14a with no shared service loaded, a bay must be treated as active (fail safe, never block on missing data)');
+    assert.strictEqual(planner.workshopBayDefaultTechnicianName('FABRICATION', 1), '', '14a with no shared service loaded, there is no default technician name');
+    assert.strictEqual(planner.workshopSharedBayRef('FABRICATION', 1), null, '14a with no shared service loaded, workshopSharedBayRef must return null');
+  });
+
+  const technicianRows = [{ id: 'tech-1', name: 'Real Default Tech', active: true }];
+  const bayRows = [
+    { id: 'bay-1', code: 'FABRICATION-BAY-01', is_active: true, default_technician_id: 'tech-1' },
+    { id: 'bay-2', code: 'FABRICATION-BAY-02', is_active: false, default_technician_id: null },
+    { id: 'bay-3', code: 'SUBLET-ROW', is_active: true, default_technician_id: null },
+  ];
+  const referenceService = {
+    getCachedWorkshopBays: () => ({ rows: bayRows }),
+    getCachedTechnicians: () => ({ rows: technicianRows }),
+  };
+
+  withGlobals({ __workshopReferenceDataService: referenceService }, () => {
+    // 14b. Shared service loaded with a real bay row -- active, matched by code.
+    assert.strictEqual(planner.workshopBayIsActive('FABRICATION', 1), true, '14b an active bay (FABRICATION-BAY-01) must report active');
+    assert.strictEqual(planner.workshopBayDefaultTechnicianName('FABRICATION', 1), 'Real Default Tech', '14b an active bay with a default_technician_id must resolve the real technician name');
+
+    // 14c. Inactive bay -- must report inactive, no default technician leaks through.
+    assert.strictEqual(planner.workshopBayIsActive('FABRICATION', 2), false, '14c an inactive bay (FABRICATION-BAY-02) must report inactive');
+    assert.strictEqual(planner.workshopBayDefaultTechnicianName('FABRICATION', 2), '', '14c an inactive bay with no default_technician_id must return an empty default');
+
+    // 14d. SUBLET row matches its distinct 'SUBLET-ROW' code (not '-1' suffixed).
+    assert.strictEqual(planner.workshopBayIsActive('SUBLET', 1), true, "14d the SUBLET row (code SUBLET-ROW) must be matched correctly and report active");
+
+    // 14e. Unknown bay number for a known stage -- fail safe: active, no default.
+    assert.strictEqual(planner.workshopBayIsActive('FABRICATION', 99), true, '14e a bay number with no matching row must fail safe to active');
+  });
+
+  console.log('PASS 14: Stage 2A workshop bay behaviour -- shared reference lookup, inactive-bay detection, default-technician resolution, fail-safe defaults, and SUBLET row code matching all behave correctly');
 }

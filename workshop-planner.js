@@ -512,6 +512,13 @@ function workshopBaySetupKey(stage = '', bay = 0) {
 }
 
 function workshopBayMechanic(stage = '', bay = 0) {
+  // Stage 2A: prefer the shared reference service's default_technician_id
+  // for this bay when available; fall back to the legacy local bay-setup
+  // mapping otherwise. This never overwrites an explicitly-selected
+  // technician on an existing booking -- every call site above only uses
+  // this as a *default* when entry.assignee is empty.
+  const sharedDefault = workshopBayDefaultTechnicianName(stage, bay);
+  if (sharedDefault) return sharedDefault;
   return cleanNavisionText(workshopLoadBaySetup()[workshopBaySetupKey(stage, bay)] || '');
 }
 
@@ -696,6 +703,52 @@ function workshopSharedTechnicianRef(name = '') {
 
 function workshopPlanId(vehicleKeyValue = '', stage = '') {
   return `${normalizePmbStage(stage)}::${String(vehicleKeyValue || '').trim()}`;
+}
+
+// Stage 2A: workshop bay active-state and default-technician lookup.
+// Always reads from the Supabase-backed shared reference service
+// (window.__workshopReferenceDataService) -- independent of the
+// separate workshopSharedModeActive() flag, since bay active/default-
+// technician data is Stage 2A lookup/configuration data, not a
+// transactional workshop write-path action. Matches by the bay's
+// display code, which the migration 022 backfill derives as
+// "<STAGE>-BAY-<NN>" (zero-padded) for ordinary stage bays and
+// "SUBLET-ROW-1" for the single sublet row -- see migration 022.
+// Fails safe: if the shared service has not loaded yet (still
+// connecting, offline, or genuinely has no matching row), a bay is
+// treated as active/no-default-technician rather than blocking
+// scheduling on incomplete data.
+function workshopSharedBayRef(stage = '', bay = 0) {
+  const service = typeof window !== 'undefined' ? window.__workshopReferenceDataService : null;
+  if (!service || typeof service.getCachedWorkshopBays !== 'function') return null;
+  const cached = service.getCachedWorkshopBays();
+  const rows = cached && Array.isArray(cached.rows) ? cached.rows : [];
+  const normalizedStage = normalizePmbStage(stage);
+  const bayNumber = Number(bay) || 1;
+  const expectedCode = normalizedStage === 'SUBLET'
+    ? 'SUBLET-ROW'
+    : `${normalizedStage}-BAY-${String(bayNumber).padStart(2, '0')}`;
+  return rows.find(row => row && row.code === expectedCode) || null;
+}
+
+function workshopBayIsActive(stage = '', bay = 0) {
+  const ref = workshopSharedBayRef(stage, bay);
+  // Fail safe: unknown bay (service not loaded, or no matching row yet)
+  // is treated as active so scheduling is never blocked by incomplete
+  // reference data -- the database's own bay/stage validation inside
+  // schedule_vehicle_work remains the actual authority either way.
+  return ref ? ref.is_active !== false : true;
+}
+
+function workshopBayDefaultTechnicianName(stage = '', bay = 0) {
+  const ref = workshopSharedBayRef(stage, bay);
+  if (!ref || !ref.default_technician_id) return '';
+  const service = typeof window !== 'undefined' ? window.__workshopReferenceDataService : null;
+  if (!service || typeof service.getCachedTechnicians !== 'function') return '';
+  const cached = service.getCachedTechnicians();
+  const rows = cached && Array.isArray(cached.rows) ? cached.rows : [];
+  const technician = rows.find(row => row && row.id === ref.default_technician_id);
+  return technician ? cleanNavisionText(technician.name) : '';
 }
 
 function workshopEntryDate(entry = {}) {
@@ -1620,8 +1673,10 @@ async function saveWorkshopBayMechanic(stage = '', bay = 0, value = '') {
   const assignee = cleanNavisionText(value || '');
   if (assignee) setup[key] = assignee;
   else delete setup[key];
-  if (normalizePmbStage(stage) === 'SUBLET' && assignee) saveSubletProviders([...loadSubletProviders(), assignee]);
-  if (normalizePmbStage(stage) !== 'SUBLET' && assignee) saveMechanics([...loadMechanics(), assignee]);
+  // No roster-add call here (Stage 2A): `value` comes from a <select>
+  // populated exclusively from loadSubletProviders()/loadMechanics()
+  // (both Supabase-backed as of Stage 2A), so it can only ever be a name
+  // that already exists -- there is nothing new to add.
   workshopSaveBaySetup(setup);
   if (workshopSharedModeActive()) {
     // The bay-default-mechanic preference above is a harmless local
@@ -1854,6 +1909,14 @@ async function moveWorkshopLivePlan(planId = '', stage = '', bay = 0, dateKey = 
   if (workshopSharedModeActive()) {
     const nextStage = normalizePmbStage(stage);
     const nextBay = Number(bay);
+    // Stage 2A: block moving into a DIFFERENT bay the shared reference
+    // service reports as inactive. Moving within the SAME bay (e.g. a
+    // time-only drag) is never blocked by this check.
+    const bayIsChanging = nextStage !== normalizePmbStage(entry.stage) || nextBay !== Number(entry.bay);
+    if (bayIsChanging && !workshopBayIsActive(nextStage, nextBay)) {
+      window.alert('This bay is currently marked inactive and cannot accept new bookings. Choose a different bay.');
+      return false;
+    }
     const nextStart = workshopDateAtOffset(dateKey, startMinutes).toISOString();
     const requestedLabel = `${pmbStageLabel(nextStage)} ${nextStage === 'SUBLET' ? 'provider row' : `Bay ${nextBay}`} · ${workshopEntryTimeLabel({ ...entry, stage: nextStage, bay: nextBay, startAt: nextStart })}`;
     if (!window.confirm(`Move this live workshop job to ${requestedLabel}?\n\nThis updates the live bay allocation and keeps the job started/stoppage history.`)) return false;
@@ -2147,6 +2210,19 @@ async function scheduleWorkshopVehicle({ planId = '', vehicleKeyValue = '', stag
   const normalizedStage = normalizePmbStage(stage);
   if (!WORKSHOP_STAGE_SEQUENCE.includes(normalizedStage) || Number(bay) < 1 || Number(bay) > workshopStageBayCount(normalizedStage)) {
     window.alert('Choose a valid workshop bay.');
+    return false;
+  }
+  // Stage 2A: block scheduling NEW work into a bay the shared reference
+  // service reports as inactive. This never blocks moving/resizing an
+  // EXISTING booking already in that bay (existing/historical bookings
+  // must keep displaying their original bay even if it is later made
+  // inactive) -- only a brand-new schedule into that bay is refused.
+  // Fails safe: an unknown/not-yet-loaded bay is treated as active, so
+  // this never blocks scheduling on incomplete reference data; the
+  // database's own validation inside schedule_vehicle_work remains
+  // authoritative regardless.
+  if (!existing && !workshopBayIsActive(normalizedStage, bay)) {
+    window.alert('This bay is currently marked inactive and cannot accept new bookings. Choose a different bay.');
     return false;
   }
   const start = workshopDateAtOffset(dateKey, startMinutes);
@@ -3118,6 +3194,9 @@ if (typeof module !== 'undefined' && module.exports) {
     workshopDescribeSharedActionError,
     workshopSharedVehicleRef,
     workshopSharedTechnicianRef,
+    workshopSharedBayRef,
+    workshopBayIsActive,
+    workshopBayDefaultTechnicianName,
     workshopOtherDepartmentOverlaps,
     workshopConfirmOtherDepartmentPlans,
     workshopDateAtOffset,
