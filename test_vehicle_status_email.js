@@ -7,6 +7,18 @@ let code = fs.readFileSync(path.join(__dirname, 'app.js'), 'utf8').replace(/\nin
 code += String.raw`
 (function(){
   function check(condition, message) { if (!condition) throw new Error(message); }
+  // Stage 2A: salespeople are now Supabase-backed via
+  // workshop-reference-data-service.js, not localStorage. Stub a fake
+  // reference-data service seeded with the same DEFAULT_SALESPERSONS
+  // directory this test previously relied on via SALESPERSONS_KEY
+  // auto-seeding, so salespersonEmail()/loadSalespersons() resolve
+  // through the real production code path.
+  const fakeSalespersonRows = DEFAULT_SALESPERSONS.map((record, index) => ({
+    id: 'fake-salesperson-' + index, name: record.name, email: record.email, code: record.initials, active: true, version: 1, sort_order: index,
+  }));
+  window.__workshopReferenceDataService = {
+    getCachedSalespeople: () => ({ rows: fakeSalespersonRows, state: 'connected_editable', error: null }),
+  };
   const vehicle = {
     id: 'email-vehicle-1',
     stock: '12663543',

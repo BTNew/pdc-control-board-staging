@@ -29,3 +29,11 @@ _build/
 # including any real .env a developer creates locally from this
 # template.
 !_staging_test_tools/.env.example
+
+# Local dev-only Node dependencies (installed for the standalone Stage
+# 2A Realtime diagnostic client's @supabase/supabase-js import) and
+# Python bytecode caches -- neither is part of the shipped artifact.
+node_modules/
+__pycache__/
+*.pyc
+
