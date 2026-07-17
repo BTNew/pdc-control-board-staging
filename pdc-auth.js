@@ -216,6 +216,15 @@
   async function applySession(session) {
     lockApplication();
     unsubscribeOwnRoleChannel();
+    // Stage 2A: stop the shared workshop reference-data realtime
+    // subscriptions and periodic reconciliation timer on every session
+    // teardown path (sign-out, lockout, session expiry) -- this is the
+    // single chokepoint all of those already route through, so it
+    // never polls or holds open channels with a signed-out session.
+    // Only stop on teardown (session === null), never on a real sign-in.
+    if (!session && typeof window.stopWorkshopReferenceDataReconciliationTimer === 'function') {
+      window.stopWorkshopReferenceDataReconciliationTimer();
+    }
     state.session = session || null;
     state.user = session?.user || null;
     state.role = null;
