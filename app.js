@@ -2595,6 +2595,7 @@ function bindNav() {
   on($('#add-sublet-provider-button'), 'click', addSubletProviderFromAdminInput);
   on($('#sublet-provider-name-input'), 'keydown', event => { if (event.key === 'Enter') { event.preventDefault(); addSubletProviderFromAdminInput(); } });
   on($('#add-salesperson-button'), 'click', addSalespersonFromAdminInput);
+  on($('#backup-status-refresh'), 'click', renderBackupStatusPanel);
   ['#salesperson-initials-input', '#salesperson-name-input', '#salesperson-email-input'].forEach(selector => {
     on($(selector), 'keydown', event => { if (event.key === 'Enter') { event.preventDefault(); addSalespersonFromAdminInput(); } });
   });
@@ -2716,6 +2717,103 @@ function renderAdminLists() {
   $$('[data-remove-mechanic]').forEach(button => button.addEventListener('click', () => removeMechanicFromAdminList(button.dataset.removeMechanic)));
   $$('[data-remove-provider]').forEach(button => button.addEventListener('click', () => removeSubletProviderFromAdminList(button.dataset.removeProvider)));
   $$('[data-remove-salesperson]').forEach(button => button.addEventListener('click', () => removeSalespersonFromAdminList(button.dataset.removeSalesperson)));
+  renderBackupStatusPanel();
+}
+
+// Admin-visible backup status widget (Setup screen). Reads only from
+// backup_runs / restore_test_runs, both RLS-gated to administrator role
+// at the database layer -- a viewer/controller loading this same page
+// simply gets zero rows back (see migration 017), so this frontend
+// visibility check is a convenience, not the security boundary.
+function backupStatusSharedModeReady() {
+  return typeof window !== 'undefined'
+    && typeof workshopSharedModeEnabled === 'function'
+    && workshopSharedModeEnabled(window.PDC_SUPABASE_CONFIG)
+    && typeof createWorkshopSupabaseClient === 'function'
+    && window.PDC_AUTH_CONTEXT
+    && window.PDC_AUTH_CONTEXT.role === 'administrator';
+}
+
+function formatBackupBytes(bytes) {
+  if (bytes == null) return '—';
+  const units = ['B', 'KB', 'MB', 'GB'];
+  let value = Number(bytes);
+  let unitIndex = 0;
+  while (value >= 1024 && unitIndex < units.length - 1) {
+    value /= 1024;
+    unitIndex += 1;
+  }
+  return `${value.toFixed(unitIndex === 0 ? 0 : 1)} ${units[unitIndex]}`;
+}
+
+async function renderBackupStatusPanel() {
+  const panel = $('#backup-status-panel');
+  const host = $('#backup-status-content');
+  if (!panel || !host) return;
+
+  if (!backupStatusSharedModeReady()) {
+    panel.hidden = true;
+    return;
+  }
+  panel.hidden = false;
+  host.innerHTML = '<div class="empty-state compact-empty"><strong>Loading backup status…</strong></div>';
+
+  try {
+    const client = createWorkshopSupabaseClient(window.PDC_SUPABASE_CONFIG);
+    const environment = (window.PDC_SUPABASE_CONFIG && window.PDC_SUPABASE_CONFIG.projectRef === 'cdsmnqxtyyoeoznmbidd') ? 'staging' : 'production';
+
+    const { data: runs, error: runsError } = await client
+      .from('backup_runs')
+      .select('id,status,started_at,finished_at,file_size_bytes,file_path,error_message,kind,triggered_by')
+      .eq('environment', environment)
+      .order('started_at', { ascending: false })
+      .limit(20);
+    if (runsError) throw runsError;
+
+    const { data: restoreTests, error: restoreError } = await client
+      .from('restore_test_runs')
+      .select('id,status,started_at,finished_at,row_count_matches,target_schema')
+      .eq('environment', environment)
+      .order('started_at', { ascending: false })
+      .limit(1);
+    if (restoreError) throw restoreError;
+
+    const lastSuccess = (runs || []).find(run => run.status === 'success');
+    let consecutiveFailures = 0;
+    for (const run of (runs || [])) {
+      if (run.status === 'failed') consecutiveFailures += 1;
+      else if (run.status === 'success') break;
+    }
+    const recentFailures = (runs || []).filter(run => run.status === 'failed').slice(0, 5);
+    const lastRestoreTest = (restoreTests || [])[0];
+
+    let nextScheduledLabel = '—';
+    if (lastSuccess && lastSuccess.started_at) {
+      const nextDate = new Date(new Date(lastSuccess.started_at).getTime() + 3 * 60 * 60 * 1000);
+      nextScheduledLabel = nextDate.toLocaleString();
+    }
+
+    const alertBanner = consecutiveFailures >= 3
+      ? `<div class="hosting-security-warning" role="alert"><strong>Backup alert</strong><span>${consecutiveFailures} consecutive backup failures for ${escapeHtml(environment)}. An administrator must investigate.</span></div>`
+      : '';
+
+    host.innerHTML = `
+      ${alertBanner}
+      <div class="visibility-grid backup-status-grid">
+        <div class="visibility-card"><span class="muted-label">Environment</span><strong>${escapeHtml(environment)}</strong></div>
+        <div class="visibility-card"><span class="muted-label">Last successful backup</span><strong>${lastSuccess ? new Date(lastSuccess.started_at).toLocaleString() : 'Never'}</strong></div>
+        <div class="visibility-card"><span class="muted-label">Next scheduled backup</span><strong>${escapeHtml(nextScheduledLabel)}</strong></div>
+        <div class="visibility-card"><span class="muted-label">Last backup size</span><strong>${lastSuccess ? formatBackupBytes(lastSuccess.file_size_bytes) : '—'}</strong></div>
+        <div class="visibility-card"><span class="muted-label">Backup location</span><strong>Encrypted file store (server-side, outside the live database)</strong></div>
+        <div class="visibility-card"><span class="muted-label">Last restore test</span><strong>${lastRestoreTest ? `${new Date(lastRestoreTest.started_at).toLocaleString()} — ${lastRestoreTest.row_count_matches ? 'passed' : 'FAILED'}` : 'Never run'}</strong></div>
+        <div class="visibility-card"><span class="muted-label">Recent failures</span><strong>${consecutiveFailures} consecutive</strong></div>
+        <div class="visibility-card"><span class="muted-label">Retention policy</span><strong>7d / 30d daily / 12w weekly / 12mo monthly</strong></div>
+      </div>
+      ${recentFailures.length ? `<div class="parts-help-strip"><strong>Recent failure detail:</strong><span>${recentFailures.map(run => `${escapeHtml(new Date(run.started_at).toLocaleString())} — ${escapeHtml(run.error_message || 'unknown error')}`).join(' · ')}</span></div>` : ''}
+    `;
+  } catch (error) {
+    host.innerHTML = `<div class="empty-state compact-empty"><strong>Could not load backup status</strong><span>${escapeHtml(error && error.message ? error.message : String(error))}</span></div>`;
+  }
 }
 
 function showView(view) {

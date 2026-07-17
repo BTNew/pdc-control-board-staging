@@ -632,6 +632,17 @@
 
       <section id="lists" class="view">
         <div class="pdc-lists-layout">
+          <section class="panel pdc-list-panel backup-status-panel" id="backup-status-panel" hidden>
+            <div class="panel-header">
+              <div>
+                <h2>Automated backup status</h2>
+                <p>Server-side encrypted backups of all operational data. Administrator-only. Staging and production are tracked completely separately.</p>
+              </div>
+              <button class="small-button" id="backup-status-refresh" type="button">Refresh</button>
+            </div>
+            <div id="backup-status-content"><div class="empty-state compact-empty"><strong>Loading backup status…</strong></div></div>
+          </section>
+
           <section class="panel pdc-list-panel">
             <div class="panel-header">
               <div>
