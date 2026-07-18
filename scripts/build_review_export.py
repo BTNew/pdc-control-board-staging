@@ -84,8 +84,26 @@ def is_forbidden_path(rel_posix: str) -> bool:
 
 
 def tracked_files(repo_root: Path = REPO_ROOT) -> list[str]:
-    output = run("git", "ls-files", cwd=repo_root)
-    return [line.replace("\\", "/") for line in output.splitlines() if line.strip()]
+    if (repo_root / ".git").exists():
+        output = run("git", "ls-files", cwd=repo_root)
+        return [line.replace("\\", "/") for line in output.splitlines() if line.strip()]
+    # Extracted review packages intentionally contain no .git directory.
+    # Their checksum manifest is the immutable allow-list for independent
+    # exporter tests. Exclude exporter-generated metadata and the separate
+    # deployed snapshot when reconstructing the reviewed source list.
+    checksum_file = repo_root / "SHA256SUMS.txt"
+    if checksum_file.is_file():
+        generated = {
+            "FINAL-SOURCE-HEAD.txt", "REVIEW-MANIFEST.json",
+            "STAGING-DEPLOYMENT-COMMIT.txt",
+        }
+        result = []
+        for line in checksum_file.read_text(encoding="utf-8").splitlines():
+            _, rel = line.split("  ", 1)
+            if rel not in generated and not rel.startswith("deployed-staging-snapshot/"):
+                result.append(rel)
+        return result
+    raise RuntimeError("neither a Git checkout nor an extracted package checksum manifest was found")
 
 
 def build_export_file_list(repo_root: Path = REPO_ROOT) -> list[str]:
