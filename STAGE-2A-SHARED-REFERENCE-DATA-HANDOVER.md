@@ -112,10 +112,12 @@ Supabase as the sole authority, with:
   `supabase_realtime` publication (the real root-cause fix for a
   genuine two-browser Realtime gap — see Section 6).
 
-All three applied directly to staging via psycopg2 and verified
-idempotent (safe to re-apply). **Staging can be recreated from these
-migration files** — confirmed by re-running the exact SQL against
-staging with no errors on the second pass.
+Historical note: migrations 022–024 were initially applied directly to
+staging and checked for idempotency. This is not the final migration-ledger,
+clean-build, or rollback authority. For the accepted Stage 2A state, defer to
+`STAGE-2A-INDEPENDENT-REVIEW-REMEDIATION-HANDOVER.md` and
+`review-evidence/final-contained/FINAL-STAGE2A-CONTAINED-VERIFICATION.md`;
+the supported Supabase migration ledger is aligned through migration 027.
 
 ## 4. Protected RPCs added (staging, migration 023)
 
@@ -434,40 +436,24 @@ here).
   bookings and does not clean them up on its own) — this is a
   pre-existing characteristic of that test file, not a Stage 2A
   regression; documented here so it is not mistaken for a new issue.
-- Migration tracking (`supabase_migrations.schema_migrations`) on
-  staging stops at `017` because migrations 018-024 were all applied
-  directly via psycopg2 rather than `supabase db push` — this is a
-  pre-existing project pattern (not introduced this stage) and does
-  not affect actual schema/data correctness, only the CLI's own
-  migration-history bookkeeping. The migration SQL files themselves
-  are the source of truth and have been verified re-appliable.
+- Historical migration-ledger wording in earlier Stage 2A evidence is
+  superseded. The accepted staging ledger is aligned through 027 using the
+  supported Supabase CLI repair workflow. See
+  `STAGE-2A-INDEPENDENT-REVIEW-REMEDIATION-HANDOVER.md` and
+  `review-evidence/final-contained/MIGRATION-LEDGER-027.txt` for the final
+  authority.
 
-## 17. Rollback procedure
+## 17. Rollback procedure (historical; superseded)
 
-- **Frontend:** revert the staging deploy repo
-  (`BTNew/pdc-control-board-staging`) to commit `f258ae9` (the prior
-  deployed state) via `git revert` or a force-push of that commit to
-  `main`; GitHub Pages will redeploy automatically.
-- **Database:** migrations 022-024 are additive (new columns, new
-  RPCs, publication membership, replica identity) and do not drop or
-  rename any existing column/table. A full rollback would require:
-  1. Drop the 17 new RPCs (`drop function` statements, listed in
-     Section 4).
-  2. Revoke the publication membership changes
-     (`alter publication supabase_realtime drop table
-     salespeople, sublet_providers;`) and optionally revert
-     `REPLICA IDENTITY` to `DEFAULT`.
-  3. Drop the added columns (`code`, `sort_order`, `created_by`,
-     `updated_by`, `version`) from the five tables if a hard rollback
-     is required (not recommended — these columns are backward
-     compatible and harmless to leave in place even if the RPCs are
-     removed).
-  4. No data migration/import was performed against real operational
-     data — only synthetic staging fixtures were used throughout, so
-     there is no operational data to roll back.
-- **Source repo:** `git revert` commits `5d689ba..e2b177a` on
-  `fix/independent-review-production-blockers`, or reset the branch to
-  `096eb5f` if a clean rollback point is preferred.
+Do not use the old 022–024-only drop/reset instructions from earlier versions
+of this section. The accepted Stage 2A baseline includes migrations 022–027
+and later security/assignment remediation. Database rollback must be a
+separately reviewed additive forward migration; do not drop active-only viewer
+policies, restore direct browser writes, rewrite applied migrations, or use
+production as a rollback target. For the final staging frontend rollback and
+database recovery procedure, defer to
+`STAGE-2A-INDEPENDENT-REVIEW-REMEDIATION-HANDOVER.md` and
+`review-evidence/final-contained/FINAL-STAGE2A-CONTAINED-VERIFICATION.md`.
 
 ## 18. Recommended Stage 2B scope
 
