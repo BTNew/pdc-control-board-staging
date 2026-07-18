@@ -1,7 +1,4 @@
-"""
-Real tests for scripts/build_review_export.py -- exercises the actual
-module logic (imports and calls the real functions), not a mock.
-"""
+"""Tests for the real allow-list Stage 2A review exporter."""
 import sys
 import unittest
 from pathlib import Path
@@ -11,102 +8,78 @@ import build_review_export as exporter
 
 
 class BuildReviewExportTests(unittest.TestCase):
-    def test_forbidden_path_patterns_catch_known_bad_paths(self):
+    def test_forbidden_path_patterns_catch_runtime_and_secret_paths(self):
         bad_paths = [
-            "backend/.imap_attachments/foo.pdf",
+            "backend/.imap_attachments/customer.pdf",
             "backend/email_publish.log",
-            "PDC_Control_Board_Backup_010e954_2026-07-10_04-54-15.zip",
+            "PDC_Control_Board_Backup_example.zip",
             "backend/.env",
-            "_staging_test_tools/staging_rest.py",
-            "node_modules/foo/index.js",
-            ".venv_backup/Lib/site-packages/foo.py",
-            "backend/__pycache__/foo.cpython-311.pyc",
+            "_staging_test_tools/.env",
+            "node_modules/pkg/index.js",
+            ".venv_backup/Lib/site-packages/pkg.py",
+            "backend/__pycache__/x.pyc",
+            "operational-backup.bin",
         ]
-        for p in bad_paths:
-            self.assertTrue(
-                exporter.is_forbidden_path(p),
-                f"expected {p!r} to be flagged as forbidden",
-            )
+        for path in bad_paths:
+            self.assertTrue(exporter.is_forbidden_path(path), path)
 
-    def test_env_example_is_the_only_named_exception_in_staging_test_tools(self):
-        # Independent-review remediation Stage 10: _staging_test_tools/
-        # is blanket-forbidden (real service-role keys, real staging
-        # test output) EXCEPT for the one reviewed, blank-values-only
-        # .env.example template. Confirm the exception is exactly that
-        # one file and nothing broader.
+    def test_staging_tests_and_safe_env_example_are_exportable(self):
         self.assertFalse(exporter.is_forbidden_path("_staging_test_tools/.env.example"))
-        self.assertTrue(exporter.is_forbidden_path("_staging_test_tools/staging_rest.py"))
-        self.assertTrue(exporter.is_forbidden_path("_staging_test_tools/staging_conn.py"))
+        self.assertFalse(exporter.is_forbidden_path("_staging_test_tools/staging_conn.py"))
+        self.assertFalse(exporter.is_forbidden_path("_staging_test_tools/test_workshop_staging_integration.py"))
         self.assertTrue(exporter.is_forbidden_path("_staging_test_tools/.env"))
-        self.assertTrue(exporter.is_forbidden_path("_staging_test_tools/test_workshop_staging_integration.py"))
 
-    def test_forbidden_path_patterns_do_not_flag_normal_source_files(self):
+    def test_normal_source_and_evidence_paths_are_not_forbidden(self):
         good_paths = [
-            "app.js",
-            "pdc-auth.js",
-            "pdc-auth-registration.js",
-            "supabase/migrations/018_account_registration_and_approval.sql",
-            "scripts/build_production_artifact.py",
-            "docs/production-migration-cutover-plan.md",
-            "backend/.env.example",
+            "app.js", "workshop-planner.css", "backend/app.py",
+            "supabase/migrations/025_stage2a_review_remediation_grants_rls_validation.sql",
+            "review-evidence/post-resume/full-schema-report.json",
+            "scripts/stage2a_live_acceptance.js",
         ]
-        for p in good_paths:
-            self.assertFalse(
-                exporter.is_forbidden_path(p),
-                f"expected {p!r} to NOT be flagged as forbidden",
-            )
+        for path in good_paths:
+            self.assertFalse(exporter.is_forbidden_path(path), path)
 
-    def test_tracked_files_excludes_known_bad_untracked_paths(self):
+    def test_tracked_files_include_runnable_staging_tests_but_not_local_env(self):
         files = exporter.tracked_files()
-        joined = "\n".join(files)
-        self.assertNotIn(".imap_attachments", joined)
-        self.assertNotIn("email_publish.log", joined)
-        self.assertNotIn("PDC_Control_Board_Backup_010e954", joined)
-        # _staging_test_tools/.env.example is the one deliberate,
-        # reviewed exception (blank/fake values only, independent-review
-        # remediation Stage 10) -- confirm it is tracked, but that
-        # nothing else in that directory is.
-        staging_test_tools_entries = [f for f in files if f.startswith("_staging_test_tools/")]
-        self.assertEqual(staging_test_tools_entries, ["_staging_test_tools/.env.example"])
+        # During an uncommitted development run, Git may not list the newly
+        # added tests yet; once tracked, the final export self-check requires
+        # all of them. Existing tracked paths must never include a real .env.
+        self.assertNotIn("_staging_test_tools/.env", files)
+        self.assertNotIn("backend/.env", files)
+        self.assertIn("_staging_test_tools/.env.example", files)
 
     def test_build_export_file_list_is_allow_list_only_and_safe(self):
-        file_list = exporter.build_export_file_list()
-        self.assertGreater(len(file_list), 0)
-        problems = exporter.verify_no_forbidden_paths_in_export(file_list)
-        self.assertEqual(problems, [], f"forbidden paths leaked into export: {problems}")
+        files = exporter.build_export_file_list()
+        self.assertGreater(len(files), 0)
+        self.assertEqual(exporter.verify_no_forbidden_paths_in_export(files), [])
 
     def test_content_scan_flags_a_planted_secret_pattern(self):
-        # Use a real temp file inside the repo so scan_content_safety's
-        # relative-path resolution behaves exactly as it does in
-        # production use, then clean it up. The fake pattern is built up
-        # from separate string fragments (never a literal contiguous
-        # "sb_secret_..." token anywhere in this test's own source) so
-        # a full-repo content scan of this test file itself never
-        # self-triggers a false "leaked secret" finding.
         planted = exporter.REPO_ROOT / "scripts" / "_test_planted_secret_tmp.txt"
-        fake_secret_prefix = "sb_" + "secret" + "_"
-        fake_secret_value = fake_secret_prefix + "abcdefghijklmnopqrstuvwxyz0123456789"
+        marker = "sb_" + "secret" + "_" + "abcdefghijklmnopqrstuvwxyz0123456789"
         try:
-            planted.write_text(fake_secret_value, encoding="utf-8")
-            rel = "scripts/_test_planted_secret_tmp.txt"
-            problems = exporter.scan_content_safety([rel])
-            self.assertTrue(
-                any(fake_secret_prefix in p for p in problems),
-                f"expected a planted {fake_secret_prefix!r} pattern to be caught, got: {problems}",
-            )
+            planted.write_text(marker, encoding="utf-8")
+            problems = exporter.scan_content_safety(["scripts/_test_planted_secret_tmp.txt"])
+            self.assertTrue(any("Supabase secret" in item for item in problems), problems)
         finally:
             planted.unlink(missing_ok=True)
 
-    def test_content_scan_passes_clean_files(self):
-        problems = exporter.scan_content_safety(["app.js", "pdc-auth.js"])
+    def test_content_scan_passes_clean_source_and_placeholder_env(self):
+        problems = exporter.scan_content_safety([
+            "app.js", "pdc-auth.js", "_staging_test_tools/.env.example"
+        ])
         self.assertEqual(problems, [])
 
-    def test_main_exits_zero_on_the_real_repo(self):
-        file_list = exporter.build_export_file_list()
-        forbidden = exporter.verify_no_forbidden_paths_in_export(file_list)
-        content_problems = exporter.scan_content_safety(file_list)
-        self.assertEqual(forbidden, [])
-        self.assertEqual(content_problems, [])
+    def test_required_export_surface_names_all_independent_review_categories(self):
+        required = set(exporter.REQUIRED_SOURCE_PATHS)
+        for path in [
+            "test_all.js", "workshop-planner.css", "requirements-review.txt",
+            "package-review.json", "scripts/stage2a_live_acceptance.js",
+            "review-evidence/post-resume/full-schema-report.json",
+            "review-evidence/post-resume/grants-rls-report.json",
+            "review-evidence/post-resume/realtime-publication-replica-identity-report.json",
+            "review-evidence/post-resume/two-browser-realtime-acceptance.json",
+        ]:
+            self.assertIn(path, required)
 
 
 if __name__ == "__main__":

@@ -1,0 +1,9 @@
+{
+  "name": "pdc-stage2a-independent-review-tools",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Optional browser-acceptance dependency for the Stage 2A review export",
+  "dependencies": {
+    "playwright-core": "1.55.0"
+  }
+}

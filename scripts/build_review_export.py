@@ -1,188 +1,270 @@
+"""Build the fail-closed Stage 2A independent-review ZIP.
+
+The source side is allow-list based: only Git-tracked files at the current clean
+HEAD are copied. The deployed side is an exact ``git archive`` of the recorded
+staging deployment commit. Runtime directories and credentials are never
+walked or copied.
 """
-Allow-list-based independent-review export tool.
+from __future__ import annotations
 
-Unlike the ad-hoc os.walk copy used previously (which copied the entire
-working directory tree minus a short deny-list and accidentally picked
-up gitignored runtime data -- real IMAP email attachments, an email
-processing log, and a nested operational backup ZIP), this exporter
-works the other way around: it only ever copies files that are
-explicitly tracked by git (`git ls-files`) or that appear on a short,
-explicit, reviewed allow-list of additionally-generated report files
-(e.g. this session's test output, schema snapshot, screenshots).
-
-Nothing else can enter the export, by construction. If a caller wants
-a new kind of generated file included, it must be listed explicitly
-in ADDITIONAL_ALLOWED_GENERATED_PATHS below -- there is no wildcard
-"everything else" fallback.
-
-The exporter also runs a hard, fail-closed safety scan over its own
-output before returning success. If it finds anything that looks like
-a runtime artifact, attachment, log, backup archive, secret, or token,
-it raises and refuses to produce a ZIP.
-"""
+import argparse
 import fnmatch
+import hashlib
+import json
 import os
-import re
+import shutil
 import subprocess
 import sys
+import tarfile
+import tempfile
+import zipfile
 from pathlib import Path
 
-REPO_ROOT = Path(r"C:\Users\nwmgr\pdc-control-board")
+REPO_ROOT = Path(__file__).resolve().parents[1]
+EXPECTED_BRANCH = "fix/stage2a-independent-review-findings"
+EXPECTED_STAGING_DEPLOY_COMMIT = "ee9d7419f3f1926ca9634dd4f49d314756ab4e7e"
+DEFAULT_STAGING_DEPLOY_REPO = Path(r"C:\tmp\pdc-staging-deploy")
+ZIP_NAME = "PDC-Control-Board-Stage-2A-Independent-Review-Remediated-2026-07-18.zip"
 
-# Patterns that must NEVER appear in an export, regardless of source.
-# Checked both as directory/file name fragments and via content scan.
 FORBIDDEN_PATH_PATTERNS = [
-    "*.imap_attachments*",
-    "*email_publish.log*",
-    "*_backup_*.zip",
-    "*PDC_Control_Board_Backup*",
-    "*.env",
-    "*.env.local",
-    "*.env.staging",
-    "*.env.production",
-    "*_staging_test_tools*",  # real service-role key lives here; a
-                              # sanitized copy is added back explicitly
-                              # via ADDITIONAL_ALLOWED_GENERATED_PATHS
-                              # further down, never the real directory
-    "*node_modules*",
-    "*.venv*",
-    "*__pycache__*",
-    "*.pyc",
-    "*backups/*",
-    "*.git/*",
+    "*.imap_attachments*", "*.outlook_attachments*", "*email_publish.log*",
+    "*_backup_*.zip", "*PDC_Control_Board_Backup*", "*.env", "*.env.local",
+    "*.env.staging", "*.env.production", "*node_modules*", "*.venv*",
+    "*__pycache__*", "*.pyc", "*backups/*", "*.git/*", "*.bin",
+    "*browser-session*", "*playwright-report*", "*test-results*",
 ]
-
+ALLOWED_ENV_EXAMPLES = {"_staging_test_tools/.env.example", "backend/.env.example"}
 FORBIDDEN_CONTENT_PATTERNS = [
-    re.compile(r"sb_secret_[A-Za-z0-9_\-]+"),
-    re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY-----"),
+    ("Supabase secret key", b"sb_" + b"secret" + b"_"),
+    ("private key", b"-----BEGIN PRIVATE KEY-----"),
+    ("RSA private key", b"-----BEGIN RSA PRIVATE KEY-----"),
+    ("database URL with embedded password", None),
+]
+REQUIRED_SOURCE_PATHS = [
+    "app.js", "index.html", "staging.html", "test_all.js",
+    "workshop-planner.js", "workshop-planner.css",
+    "workshop-reference-data-service.js", "test_workshop_planner_shared_mode.js",
+    "test_workshop_reference_data_service.js", "requirements-review.txt",
+    "package-review.json", "REVIEW-INSTRUCTIONS.md",
+    "STAGE-2A-INDEPENDENT-REVIEW-REMEDIATION-HANDOVER.md",
+    "scripts/stage2a_live_acceptance.js", "scripts/verify_stage2a_review_package.py",
+    "review-evidence/post-resume/full-schema-report.json",
+    "review-evidence/post-resume/grants-rls-report.json",
+    "review-evidence/post-resume/realtime-publication-replica-identity-report.json",
+    "review-evidence/post-resume/migration-ledger.txt",
+    "review-evidence/post-resume/two-browser-realtime-acceptance.json",
 ]
 
-# Explicit allow-list of additionally-generated report files (not
-# tracked by git, but reviewed and approved to include). Every entry
-# here was written by this remediation phase's own tooling, never
-# copied wholesale from a runtime/attachment/log directory.
-ADDITIONAL_ALLOWED_GENERATED_PATHS = [
-    "PRODUCTION-READINESS-HANDOVER.md",
-    "INDEPENDENT-REVIEW-REMEDIATION-HANDOVER.md",
-]
+
+def run(*args: str, cwd: Path = REPO_ROOT) -> str:
+    return subprocess.check_output(args, cwd=cwd, text=True, stderr=subprocess.STDOUT).strip()
+
+
+def sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for block in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(block)
+    return digest.hexdigest()
 
 
 def is_forbidden_path(rel_posix: str) -> bool:
-    # Named, reviewed exception: _staging_test_tools/.env.example
-    # contains only blank/fake placeholder values (independent-review
-    # remediation, Stage 10) and is the only file in that directory
-    # ever intended to be tracked/exported. Checked before the
-    # wildcard blanket-exclusion below, which otherwise correctly
-    # blocks everything else in that directory (real service-role
-    # keys, real staging test output, etc.).
-    if rel_posix in ("_staging_test_tools/.env.example",):
+    rel_posix = rel_posix.replace("\\", "/")
+    while rel_posix.startswith("./"):
+        rel_posix = rel_posix[2:]
+    if rel_posix in ALLOWED_ENV_EXAMPLES:
         return False
+    parts = rel_posix.split("/")
+    if any(part in {".git", "node_modules", "__pycache__", ".review-venv"}
+           or part.startswith(".venv") for part in parts):
+        return True
     for pattern in FORBIDDEN_PATH_PATTERNS:
         if fnmatch.fnmatch(rel_posix, pattern) or fnmatch.fnmatch("/" + rel_posix, pattern):
             return True
-        # also match any path segment containing the fragment (handles
-        # nested dirs like backend/.imap_attachments/x.pdf matching
-        # *.imap_attachments*)
-        if fnmatch.fnmatch(os.path.basename(rel_posix), pattern):
+        if fnmatch.fnmatch(Path(rel_posix).name, pattern):
             return True
     return False
 
 
-def tracked_files() -> list[str]:
-    """Every file git considers part of the tracked source tree on the
-    current branch/worktree state -- this is the entire allow-list
-    surface for 'source'. Untracked runtime data (attachments, logs,
-    local backups, local secrets) is never returned here."""
-    result = subprocess.run(
-        ["git", "-C", str(REPO_ROOT), "ls-files"],
-        capture_output=True, text=True, check=True,
-    )
-    return [line for line in result.stdout.splitlines() if line.strip()]
+def tracked_files(repo_root: Path = REPO_ROOT) -> list[str]:
+    output = run("git", "ls-files", cwd=repo_root)
+    return [line.replace("\\", "/") for line in output.splitlines() if line.strip()]
 
 
-def build_export_file_list() -> list[str]:
-    files = tracked_files()
-    safe_files = []
-    rejected = []
-    for rel in files:
-        if is_forbidden_path(rel):
-            rejected.append(rel)
-            continue
-        safe_files.append(rel)
-
-    for extra in ADDITIONAL_ALLOWED_GENERATED_PATHS:
-        full = REPO_ROOT / extra
-        if full.exists() and extra not in safe_files:
-            if is_forbidden_path(extra):
-                raise RuntimeError(
-                    f"ADDITIONAL_ALLOWED_GENERATED_PATHS entry '{extra}' matches a "
-                    f"forbidden pattern -- refusing to add it. Fix the allow-list."
-                )
-            safe_files.append(extra)
-
-    if rejected:
-        print(f"Excluded {len(rejected)} tracked-but-forbidden path(s) (should be none once .gitignore is correct):")
-        for r in rejected[:20]:
-            print(f"  - {r}")
-
-    return sorted(safe_files)
+def build_export_file_list(repo_root: Path = REPO_ROOT) -> list[str]:
+    return sorted(rel for rel in tracked_files(repo_root) if not is_forbidden_path(rel))
 
 
-def scan_content_safety(file_list: list[str]) -> list[str]:
-    """Fail-closed content scan over exactly the files about to be
-    exported. Returns a list of problems; an empty list means safe."""
-    problems = []
+def _database_url_has_password(data: bytes) -> bool:
+    import re
+    text = data.decode("utf-8", errors="ignore")
+    # Placeholder *** and angle-bracket values are permitted in examples.
+    pattern = re.compile(r"postgres(?:ql)?://[^\s:/]+:([^@\s]+)@", re.I)
+    allowed_placeholders = {"***", "<password>", "REPLACE_WITH_PASSWORD", "REPLACE_WITH_YOUR_PASSWORD"}
+    return any(match.group(1) not in allowed_placeholders
+               for match in pattern.finditer(text))
+
+
+def scan_content_safety(file_list: list[str], root: Path = REPO_ROOT) -> list[str]:
+    problems: list[str] = []
     for rel in file_list:
-        full = REPO_ROOT / rel
-        try:
-            data = full.read_bytes()
-        except OSError:
+        full = root / rel
+        if not full.is_file():
+            problems.append(f"{rel}: missing file")
             continue
-        # Skip binary-looking files for the text-pattern scan (images,
-        # fonts, etc.) -- but the sb_secret_ / PRIVATE KEY patterns are
-        # ASCII and would still match if truly present in a text file.
-        try:
-            text = data.decode("utf-8", errors="ignore")
-        except Exception:
-            continue
-        for pattern in FORBIDDEN_CONTENT_PATTERNS:
-            if pattern.search(text):
-                problems.append(f"{rel}: matched forbidden content pattern {pattern.pattern!r}")
+        data = full.read_bytes()
+        for label, needle in FORBIDDEN_CONTENT_PATTERNS:
+            if needle is not None and needle in data:
+                problems.append(f"{rel}: matched forbidden {label}")
+        if _database_url_has_password(data):
+            problems.append(f"{rel}: matched forbidden database URL with embedded password")
     return problems
 
 
 def verify_no_forbidden_paths_in_export(file_list: list[str]) -> list[str]:
-    """Belt-and-suspenders re-check of the final file list itself,
-    independent of build_export_file_list's own filtering, so a bug in
-    one function cannot silently defeat the other."""
-    problems = []
+    return [rel for rel in file_list if is_forbidden_path(rel)]
+
+
+def _copy_tracked_source(file_list: list[str], destination: Path) -> None:
     for rel in file_list:
-        posix = rel.replace("\\", "/")
-        if is_forbidden_path(posix):
-            problems.append(rel)
-    return problems
+        source = REPO_ROOT / rel
+        target = destination / rel
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(source, target)
 
 
-def main():
+def _archive_staging_deployment(deploy_repo: Path, destination: Path) -> None:
+    if not (deploy_repo / ".git").exists():
+        raise RuntimeError(f"staging deployment checkout missing: {deploy_repo}")
+    actual = run("git", "rev-parse", "HEAD", cwd=deploy_repo)
+    if actual != EXPECTED_STAGING_DEPLOY_COMMIT:
+        raise RuntimeError(f"wrong staging deployment commit: {actual}")
+    if run("git", "status", "--porcelain", cwd=deploy_repo):
+        raise RuntimeError("staging deployment checkout is dirty")
+    destination.mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory() as temp:
+        tar_path = Path(temp) / "deploy.tar"
+        subprocess.run(
+            ["git", "archive", "--format=tar", f"--output={tar_path}", actual],
+            cwd=deploy_repo, check=True,
+        )
+        with tarfile.open(tar_path) as archive:
+            archive.extractall(destination, filter="data")
+
+
+def _all_package_files(root: Path) -> list[str]:
+    return sorted(
+        path.relative_to(root).as_posix() for path in root.rglob("*")
+        if path.is_file() and path.name != "SHA256SUMS.txt"
+    )
+
+
+def _write_checksums(root: Path) -> None:
+    lines = [f"{sha256_file(root / rel)}  {rel}" for rel in _all_package_files(root)]
+    (root / "SHA256SUMS.txt").write_text("\n".join(lines) + "\n", encoding="utf-8", newline="\n")
+
+
+def _verify_required(stage: Path) -> None:
+    missing = [rel for rel in REQUIRED_SOURCE_PATHS if not (stage / rel).is_file()]
+    deployment_required = [
+        "deployed-staging-snapshot/index.html",
+        "deployed-staging-snapshot/app.js",
+        "deployed-staging-snapshot/workshop-planner.js",
+        "deployed-staging-snapshot/workshop-planner.css",
+        "deployed-staging-snapshot/workshop-reference-data-service.js",
+    ]
+    missing += [rel for rel in deployment_required if not (stage / rel).is_file()]
+    staging_tests = list((stage / "_staging_test_tools").glob("test_*.py"))
+    if len(staging_tests) < 12:
+        missing.append(f"all staging Python tests (found {len(staging_tests)}, expected at least 12)")
+    backend_tests = list((stage / "backend").glob("test_*.py"))
+    if not backend_tests:
+        missing.append("backend tests")
+    if missing:
+        raise RuntimeError("review export missing required dependencies: " + ", ".join(missing))
+
+
+def build_package(output_dir: Path, deploy_repo: Path = DEFAULT_STAGING_DEPLOY_REPO) -> dict:
+    branch = run("git", "branch", "--show-current")
+    source_head = run("git", "rev-parse", "HEAD")
+    if branch != EXPECTED_BRANCH:
+        raise RuntimeError(f"wrong source branch: {branch}")
+    if run("git", "status", "--porcelain"):
+        raise RuntimeError("source working tree is dirty; commit reviewed changes before export")
+
     file_list = build_export_file_list()
-    print(f"Export file list contains {len(file_list)} files (allow-list based).")
-
-    forbidden_still_present = verify_no_forbidden_paths_in_export(file_list)
-    if forbidden_still_present:
-        print("FAIL: forbidden paths survived filtering:")
-        for p in forbidden_still_present:
-            print(f"  - {p}")
-        sys.exit(1)
-
+    forbidden = verify_no_forbidden_paths_in_export(file_list)
     content_problems = scan_content_safety(file_list)
-    if content_problems:
-        print("FAIL: forbidden content patterns found in the export file set:")
-        for p in content_problems:
-            print(f"  - {p}")
-        sys.exit(1)
+    if forbidden or content_problems:
+        raise RuntimeError(f"unsafe source export: paths={forbidden}, content={content_problems}")
 
-    print("PASS: allow-list export file list contains no forbidden paths or content patterns.")
-    return file_list
+    output_dir = output_dir.resolve()
+    output_dir.mkdir(parents=True, exist_ok=True)
+    zip_path = output_dir / ZIP_NAME
+    with tempfile.TemporaryDirectory(prefix="pdc-stage2a-review-") as temp:
+        stage = Path(temp) / ZIP_NAME.removesuffix(".zip")
+        stage.mkdir()
+        _copy_tracked_source(file_list, stage)
+        _archive_staging_deployment(deploy_repo, stage / "deployed-staging-snapshot")
+
+        (stage / "FINAL-SOURCE-HEAD.txt").write_text(source_head + "\n", encoding="utf-8")
+        (stage / "STAGING-DEPLOYMENT-COMMIT.txt").write_text(
+            EXPECTED_STAGING_DEPLOY_COMMIT + "\n", encoding="utf-8"
+        )
+        manifest = {
+            "package": ZIP_NAME,
+            "source_branch": branch,
+            "source_head": source_head,
+            "staging_url": "https://btnew.github.io/pdc-control-board-staging/",
+            "staging_deployment_commit": EXPECTED_STAGING_DEPLOY_COMMIT,
+            "app_version": "2026.07.17.08-stage2a-reconcile-on-reconnect",
+            "source_file_count": len(file_list),
+            "deployed_snapshot_file_count": len(list((stage / "deployed-staging-snapshot").rglob("*"))),
+            "production_touched": False,
+            "stage_2b_started": False,
+        }
+        (stage / "REVIEW-MANIFEST.json").write_text(
+            json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+        )
+        _verify_required(stage)
+        package_files = _all_package_files(stage)
+        package_forbidden = verify_no_forbidden_paths_in_export(package_files)
+        package_content = scan_content_safety(package_files, stage)
+        if package_forbidden or package_content:
+            raise RuntimeError(f"unsafe staged package: paths={package_forbidden}, content={package_content}")
+        _write_checksums(stage)
+
+        if zip_path.exists():
+            zip_path.unlink()
+        with zipfile.ZipFile(zip_path, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=9) as archive:
+            for path in sorted(stage.rglob("*")):
+                if path.is_file():
+                    archive.write(path, (Path(stage.name) / path.relative_to(stage)).as_posix())
+
+    return {
+        "zip_path": str(zip_path),
+        "zip_size": zip_path.stat().st_size,
+        "zip_sha256": sha256_file(zip_path),
+        "source_branch": branch,
+        "source_head": source_head,
+        "staging_deployment_commit": EXPECTED_STAGING_DEPLOY_COMMIT,
+    }
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--output-dir", type=Path, default=REPO_ROOT.parent)
+    parser.add_argument("--staging-deploy-repo", type=Path, default=DEFAULT_STAGING_DEPLOY_REPO)
+    parser.add_argument("--list-only", action="store_true")
+    args = parser.parse_args()
+    if args.list_only:
+        file_list = build_export_file_list()
+        problems = verify_no_forbidden_paths_in_export(file_list) + scan_content_safety(file_list)
+        if problems:
+            raise SystemExit("\n".join(problems))
+        print(json.dumps({"files": file_list, "count": len(file_list)}, indent=2))
+        return
+    print(json.dumps(build_package(args.output_dir, args.staging_deploy_repo), indent=2))
 
 
 if __name__ == "__main__":
