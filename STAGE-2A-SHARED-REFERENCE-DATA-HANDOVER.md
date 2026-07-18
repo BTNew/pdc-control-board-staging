@@ -116,8 +116,11 @@ Historical note: migrations 022–024 were initially applied directly to
 staging and checked for idempotency. This is not the final migration-ledger,
 clean-build, or rollback authority. For the accepted Stage 2A state, defer to
 `STAGE-2A-INDEPENDENT-REVIEW-REMEDIATION-HANDOVER.md` and
-`review-evidence/final-contained/FINAL-STAGE2A-CONTAINED-VERIFICATION.md`;
-the supported Supabase migration ledger is aligned through migration 027.
+`review-evidence/final-contained/FINAL-STAGE2A-CONTAINED-VERIFICATION.md`.
+Missing ledger entries 018–025 were reconciled through the supported Supabase
+CLI repair workflow after object verification; migrations 026 and 027 were
+then applied normally. Local and staging ledgers align through 027, as recorded
+in `review-evidence/final-contained/MIGRATION-LEDGER-027.txt`.
 
 ## 4. Protected RPCs added (staging, migration 023)
 
@@ -281,10 +284,17 @@ authoritative list. Summary:
   local rosters; no other code path treats them as authoritative.
 - **Retained harmless UI-preference keys:** column order, layout
   width preferences, legacy operator-name convenience keys.
-- **Not yet retired (Stage 2B scope):** vehicle/booking master data
-  and the local workshop-planner booking rows (`workshopSavePlans()`),
-  which remain browser-local unless `workshopSharedModeActive()` is
-  explicitly enabled — outside Stage 2A's scope.
+- **Not yet retired (Stage 2B scope):** vehicle master data, vehicle-side
+  workshop fields in `vehicleTrackingCoreNavisionOnlyEdits:v1`, manually
+  added vehicles in `vehicleTrackingCoreNavisionOnlyVehicles:v1`, and
+  legacy workshop-plan rows in `vehicleTrackingCoreWorkshopPlan:v1`.
+  The current adapter selects either the shared snapshot or the local plan
+  store according to the explicit shared-mode flag; it must never merge or
+  write both authorities. Shared booking rendering and new-booking lookup
+  still bridge through legacy vehicle keys, so Stage 2B must reconcile each
+  local stock/order/id key to exactly one stable Supabase vehicle UUID before
+  cutover. Until that reconciliation is approved, mixed local/shared
+  operational use is prohibited.
 - Verified: `loadMechanics()`/`loadSalespersons()`/
   `loadSubletProviders()` never read `localStorage` under any code
   path; clearing browser storage cannot affect technicians/
@@ -437,35 +447,53 @@ here).
   pre-existing characteristic of that test file, not a Stage 2A
   regression; documented here so it is not mistaken for a new issue.
 - Historical migration-ledger wording in earlier Stage 2A evidence is
-  superseded. The accepted staging ledger is aligned through 027 using the
-  supported Supabase CLI repair workflow. See
+  superseded. Missing staging ledger entries 018–025 were repaired through
+  the supported Supabase CLI workflow after object verification; migrations
+  026–027 were subsequently applied normally. The accepted local/staging
+  ledger aligns through 027. See
   `STAGE-2A-INDEPENDENT-REVIEW-REMEDIATION-HANDOVER.md` and
   `review-evidence/final-contained/MIGRATION-LEDGER-027.txt` for the final
   authority.
 
 ## 17. Rollback procedure (historical; superseded)
 
-Do not use the old 022–024-only drop/reset instructions from earlier versions
-of this section. The accepted Stage 2A baseline includes migrations 022–027
-and later security/assignment remediation. Database rollback must be a
-separately reviewed additive forward migration; do not drop active-only viewer
-policies, restore direct browser writes, rewrite applied migrations, or use
-production as a rollback target. For the final staging frontend rollback and
-database recovery procedure, defer to
-`STAGE-2A-INDEPENDENT-REVIEW-REMEDIATION-HANDOVER.md` and
+Do not use the earlier 022–024-only drop, reset, force-push, or branch-reset
+instructions. The accepted Stage 2A baseline includes migrations 018–027,
+including security, RLS, validation, and assignment enforcement. Database
+rollback must be a separately reviewed forward migration or an approved
+staging-only recovery plan. Do not drop active-only viewer policies, restore
+direct browser writes, rewrite applied migrations, or use production as a
+rollback or recovery target.
+
+For the authoritative frontend, source-branch, database-recovery, backup, and
+approval procedure, defer to the “Rollback procedure” in
+`STAGE-2A-INDEPENDENT-REVIEW-REMEDIATION-HANDOVER.md` and the final evidence in
 `review-evidence/final-contained/FINAL-STAGE2A-CONTAINED-VERIFICATION.md`.
 
-## 18. Recommended Stage 2B scope
+## 18. Recommended Stage 2B design checkpoint
 
-Per the original localStorage migration plan
-(`docs/localstorage-to-supabase-migration-plan.md`), Stage 2B should
-cover the vehicle/booking master data itself: migrating
-`vehicleTrackingCoreNavisionOnlyEdits:v1` /
-`vehicleTrackingCoreNavisionOnlyVehicles:v1` and the workshop planner's
-local booking rows (`workshopSavePlans()`) to Supabase as the sole
-authority, building on the transactional RPC pattern and shared
-Realtime infrastructure already proven in Stage 2A. This is
-explicitly **not** started as part of this handover.
+Stage 2B must begin with an inventory and reconciliation checkpoint, not an
+immediate write-path change. It must cover:
+
+1. vehicle master records and vehicle-side workshop fields currently held in
+   `vehicleTrackingCoreNavisionOnlyEdits:v1` and
+   `vehicleTrackingCoreNavisionOnlyVehicles:v1`;
+2. legacy workshop bookings in
+   `vehicleTrackingCoreWorkshopPlan:v1`;
+3. every booking-to-vehicle dependency on the browser-local stock/order/id key
+   and its one-to-one mapping to a stable Supabase `vehicles.id`;
+4. missing, ambiguous, duplicate, changed, or orphaned vehicle-key mappings;
+5. per-browser extraction, dry-run validation, conflict reports, import-run
+   audit records, before/after counts, representative record comparison, and
+   preservation of raw legacy rows for recovery;
+6. a coordinated cutover that never leaves local and shared booking stores
+   writable in parallel.
+
+Legacy browser data must remain untouched until the shared import and
+representative samples reconcile. Rollback after database migration must use a
+separately reviewed forward remediation or isolated recovery plan; it must not
+restore browser-local writes as a competing system of record. Stage 2B remains
+explicitly not started by this historical Stage 2A handover.
 
 ## 19. Two-user acceptance checklist (for manual re-verification)
 

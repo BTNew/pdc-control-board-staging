@@ -56,12 +56,41 @@ Existing operational columns may remain on `public.vehicles`; Stage 2B RPCs must
 | `vehicleTrackingCoreNavisionOnlyEdits:v1` (`EDITS_KEY`) | Generic patch map keyed by local `vehicleKey` | merged over base/added records by `buildVehicleData()` (`app.js:1621-1642`) | generic `saveVehicleEdits()` plus import paths (`app.js:9010-9038`, `11646-11651`, `13919-13972`) | extract only the allow-listed core fields; leave all deferred fields in their current source |
 | `vehicleTrackingCoreNavisionOnlyDeleted:v1` (`DELETED_KEY`) | Browser-local deleted snapshots/keys | `deletedVehicleKeys()` and `deletedVehicleRecords()` (`app.js:1247-1278`) | removal/import reconciliation (`app.js:7660-7670`, `13919-13979`) | do not migrate lifecycle/delete state in initial slice; retain as rollback evidence |
 | `vehicleTrackingCoreNavisionOnlyImport:v1` | Last Navision import report | app boot/sidebar (`app.js:1677`) | Navision apply (`app.js:13991-13992`) | source evidence only; import-run metadata may be recorded, but not treated as vehicle authority |
+| `vehicleTrackingCoreNavisionOnlyAutocareDispatch:v1` | Latest Autocare scan/cache | boot/reload and Autocare matching (`app.js:1674`, `12087-12115`, `14485`) | scan/reset (`app.js:11815`, `11860`) | deferred cache/integration; never a Stage 2B authority |
 | static `window.VEHICLE_TRACKING_DATA.vehicles` | Base dataset loaded with page/fixture | cloned by `buildVehicleData()` (`app.js:1626`) | replaced by import/render bootstrap rather than localStorage | included in browser extraction as original evidence; shared snapshot replaces it only at read cutover |
 | `vehicleTrackingCoreWorkshopPlan:v1` | Legacy planner rows referencing `vehicleKey` | `workshopLoadPlans()` (`workshop-planner.js:509-529`) | `workshopSavePlans()` when shared mode is off (`workshop-planner.js:532-557`) | bookings are deferred; only resolve/report linkage to canonical UUIDs in 2B.5 |
 | `vehicleTrackingCoreWorkshopBaySetup:v1` | Local bay default assignee | planner legacy mode | planner legacy mode | Stage 2A reference data; not vehicle master |
 | `vehicleTrackingCoreNotes:<stock>` | Dynamic vehicle notes | detail/export | note form | explicitly deferred; never silently swept into Stage 2B |
 | `vehicleTrackingCoreNavisionOnlyPoTasks:v1` / `...PoFiles:v1` | PO work/file metadata keyed by local vehicle key | `buildVehicleData()` | PO import | deferred |
-| local audit, operational-health, email-review and AI-review keys | local audit/derived/AI state | various | various | deferred or superseded; not part of Stage 2B identity |
+| `vehicleTrackingCoreNavisionOnlyAuditLog:v1` | Browser-local audit entries | transaction/action paths | capped append log | superseded by shared audit; not imported as master history |
+| `vehicleTrackingCoreEmailReviewDecisions:v1` | Applied/rejected email-review decisions | review lookup | reviewed vehicle/parts intake | deferred AI/email intake |
+| `vehicleTrackingCoreAiFileAssistantReviews:v1` | File-derived review proposals | seeded/local review merge | review save | deferred AI intake |
+| `vehicleTrackingCoreOperationalHealth:v1` | Derived import/backup summary | health panel | recomputation/cache | deferred; recompute rather than migrate |
+| `vehicleTrackingCoreStorageTransaction:v1` | Crash-recovery journal for local writes | startup recovery | snapshots/restores/removals for arbitrary listed keys | retained until local operational writes are retired |
+
+### Local-only and retired-reference keys
+
+The following remaining keys are inventoried but are not vehicle-master
+authority:
+
+- `vehicleTrackingCoreColumnOrder:v4`,
+  `vehicleTrackingCoreColumnWidths:v4:<table-id>`,
+  `vehicleTrackingCoreWorkflowWidthMode:v1`,
+  `vehicleTrackingCoreRowWidthMode:v1`,
+  `vehicleTrackingCoreQzPrinter:v1`, and
+  `vehicleTrackingCoreWorkshopView:v1` are harmless per-browser display or
+  machine preferences and remain local.
+- `vehicleTrackingCoreCurrentOperator:v1` and
+  `vehicleTrackingCoreCurrentOperatorRole:v1` are legacy identity fallbacks;
+  shared mutations must use authenticated identity, and retirement is deferred
+  until every fallback path is removed.
+- `vehicleTrackingCorePdcMechanics:v1`,
+  `vehicleTrackingCorePdcMechanicsRosterSeed:v1`,
+  `vehicleTrackingCorePdcSubletProviders:v1`,
+  `vehicleTrackingCorePdcSubletProvidersSeed:v2`,
+  `vehicleTrackingCoreSalespersons:v1`, and
+  `vehicleTrackingCoreSalespersonsSeed:v1` were retired from application
+  authority in Stage 2A but remain untouched for its reconciliation importer.
 
 No browser-local key is deleted or overwritten by preview, apply, cutover or acceptance. Existing reset code is not used for migration.
 
@@ -74,6 +103,9 @@ No browser-local key is deleted or overwritten by preview, apply, cutover or acc
 3. `selectedVehicle()` (`app.js:8993-9007`) first requires one canonical-key match, then one alias match across stock/batch/order/id; multiple matches fail closed.
 4. Search/card/customer/detail views read `app.data`; therefore `app.data` is the cutover seam for the shared identity snapshot.
 5. Workshop local rows store `vehicleKey`. Shared workshop rows already store `workshop_bookings.vehicle_id` UUID, but `workshopMapSnapshotBookingToLegacyRow()` currently converts the shared UUID-backed record back to stock/permanent ID (`workshop-planner.js:480-506`). Stage 2B must retain the UUID in this adapter.
+6. Shared workshop mutations reverse-map that legacy key with a first-match
+   `.find()` (`workshop-planner.js:891-898`), so the adapter does not currently
+   prove uniqueness even when the database booking itself has a stable UUID.
 
 ### Core mutation paths
 
@@ -129,6 +161,10 @@ Classification:
 - `get_workshop_snapshot()` includes UUID-backed vehicle rows (`012_workshop_snapshot_and_revision.sql:64-84`) and can be extended without migrating operational fields.
 - Realtime already publishes `vehicles` (`001_initial_schema.sql:222`); replica identity must be explicitly set to FULL in Stage 2B.
 - Migration 005 already drops direct browser-write policies and revokes browser writes on vehicles, aliases, import runs and audit events (`005_lock_down_direct_writes.sql:7-27`). Stage 2B reasserts this boundary.
+- Existing approved viewers can directly select every `vehicles` column under
+  the broad migration-002 policy. Stage 2B introduces a sanitized core snapshot
+  contract first, then removes broad direct table reads at the final cutover
+  after workshop and board consumers no longer depend on them.
 
 ### Existing protected RPCs retained but outside the initial identity mutation contract
 
@@ -158,7 +194,10 @@ Additive outline:
 8. create `vehicle_master_import_items` only if durable reconciliation evidence is required at apply time; preview itself remains read-only and does not insert rows;
 9. set `REPLICA IDENTITY FULL` on `vehicles` and `vehicle_aliases`, and idempotently add aliases to `supabase_realtime`;
 10. viewer+ read RLS; no browser INSERT/UPDATE/DELETE policies; reassert write revocations and least-privilege grants;
-11. backup/restore metadata coverage and FK-safe restore ordering tests.
+11. add a sanitized, role-aware core snapshot surface without exposing
+    unrestricted `source_payload`; direct table SELECT retirement occurs only
+    after all current consumers have cut over;
+12. backup/restore metadata coverage and FK-safe restore ordering tests.
 
 ### Migration 029 — protected vehicle-master RPCs
 
