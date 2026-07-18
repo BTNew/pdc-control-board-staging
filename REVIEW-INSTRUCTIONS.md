@@ -36,15 +36,18 @@ require no npm install.
 ```bash
 node test_all.js
 node test_workshop_reference_data_service.js
-python -m unittest \
-  backend.test_arb_labor_catalog \
-  backend.test_build_production_artifact \
-  backend.test_build_review_export \
-  backend.test_email_board_publisher \
-  backend.test_email_intake_security \
-  backend.test_static_publication_gate \
-  backend.test_vehicle_intelligence_fixtures \
-  backend.test_vehicle_order_email_monitor -v
+(
+  cd backend
+  python -m unittest \
+    test_arb_labor_catalog \
+    test_build_production_artifact \
+    test_build_review_export \
+    test_email_board_publisher \
+    test_email_intake_security \
+    test_static_publication_gate \
+    test_vehicle_intelligence_fixtures \
+    test_vehicle_order_email_monitor -v
+)
 python test_pdc_backup_retention.py
 python test_pdc_backup_scheduled_tick.py
 python -m unittest backend.test_build_review_export -v
