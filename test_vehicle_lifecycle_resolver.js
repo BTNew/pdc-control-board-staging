@@ -46,12 +46,19 @@ function resolvedBody(version = 3, extras = {}) {
   assert.strictEqual(vehicleLifecycleResolverRollbackEnabled({ vehicleLifecycle: {} }), false);
   assert.strictEqual(vehicleLifecycleResolverRollbackEnabled({
     projectRef: 'cdsmnqxtyyoeoznmbidd',
+    url: 'https://cdsmnqxtyyoeoznmbidd.supabase.co',
     vehicleLifecycle: { resolverRollbackDirectRead: true },
-  }), true);
+  }, { origin: 'https://btnew.github.io', pathname: '/pdc-control-board-staging/' }), true);
+  assert.strictEqual(vehicleLifecycleResolverRollbackEnabled({
+    projectRef: 'cdsmnqxtyyoeoznmbidd',
+    url: 'https://cdsmnqxtyyoeoznmbidd.supabase.co',
+    vehicleLifecycle: { resolverRollbackDirectRead: true },
+  }, { origin: 'https://example.com', pathname: '/pdc-control-board-staging/' }), false);
   assert.strictEqual(vehicleLifecycleResolverRollbackEnabled({
     projectRef: 'vjdtsswhroyguxyfjdkt',
+    url: 'https://vjdtsswhroyguxyfjdkt.supabase.co',
     vehicleLifecycle: { resolverRollbackDirectRead: true },
-  }), false);
+  }, { origin: 'https://btnew.github.io', pathname: '/pdc-control-board-staging/' }), false);
   console.log('PASS 1: rollback direct-read mode is explicit and staging-only');
 
   // 2. Legacy objects are converted into typed resolver inputs without using
@@ -59,8 +66,9 @@ function resolvedBody(version = 3, extras = {}) {
   assert.deepStrictEqual(buildVehicleLifecycleIdentityInput({
     id: 'LOCAL-ROW-7',
     sharedVehicleId: '11111111-1111-4111-8111-111111111111',
+    vehicle_id: '11111111-1111-4111-8111-111111111111',
     stock: ' STK-001 ',
-    VIN: '1HGCM82633A004352',
+    fullVin: '1HGCM82633A004352',
     pdcJobcard: ' JC-9 ',
     permanentVehicleId: ' PERM-1 ',
     toyotaOrder: ' ORD-4 ',
@@ -77,6 +85,13 @@ function resolvedBody(version = 3, extras = {}) {
     p_source_system: 'Navision',
     p_source_record_id: 'ROW-8',
   });
+  const conflictingIdentity = buildVehicleLifecycleIdentityInput({ stock: 'STK-001', stockNumber: 'STK-002' });
+  assert.strictEqual(conflictingIdentity.__invalidIdentityField, 'stock_number');
+  const invalidResolverClient = fakeClient(async () => { throw new Error('must not be called'); });
+  const invalidIdentity = await createVehicleLifecycleIdentityResolver({ client: invalidResolverClient }).resolve(conflictingIdentity);
+  assert.deepStrictEqual(invalidIdentity, { outcome: 'invalid_input', field: 'stock_number' });
+  assert.strictEqual(invalidResolverClient.calls.length, 0);
+  assert.strictEqual(buildVehicleLifecycleIdentityInput({ chassis: 'not-a-vin', frame: 'display-frame' }).p_vin, undefined);
   console.log('PASS 2: typed lifecycle identity input excludes local id and display text');
 
   // 3. Every call performs a fresh narrow RPC resolution. The browser never
@@ -181,8 +196,8 @@ function resolvedBody(version = 3, extras = {}) {
   }
   console.log('PASS 6: one Realtime channel deterministically refreshes tracked inputs');
 
-  // 7. Reconnect transitions trigger an authoritative refresh; initial
-  // SUBSCRIBED does not create a duplicate/extra fetch.
+  // 7. Every SUBSCRIBED transition performs an authoritative refresh so a
+  // revision that lands while the channel is joining cannot be missed.
   {
     let handlers;
     const client = fakeClient(async (_token, _name, _params, index) => ({
@@ -195,12 +210,12 @@ function resolvedBody(version = 3, extras = {}) {
     await resolver.resolve({ p_vin: '1HGCM82633A004352' });
     resolver.start();
     await handlers.onStatus('SUBSCRIBED');
-    assert.strictEqual(client.calls.length, 1);
+    assert.strictEqual(client.calls.length, 2);
     await handlers.onStatus('CHANNEL_ERROR');
     await handlers.onStatus('SUBSCRIBED');
-    assert.strictEqual(client.calls.length, 2);
+    assert.strictEqual(client.calls.length, 3);
   }
-  console.log('PASS 7: reconnect performs one authoritative resolver refresh');
+  console.log('PASS 7: initial subscribe and reconnect both reconcile authoritatively');
 
   // 8. Invalid/malformed resolved bodies fail closed rather than constructing
   // a vehicle reference with a missing UUID or optimistic version.
@@ -210,6 +225,52 @@ function resolvedBody(version = 3, extras = {}) {
     assert.deepStrictEqual(result, { outcome: 'service_unavailable' });
   }
   console.log('PASS 8: malformed resolver payloads fail closed');
+
+  // 9. Stale refresh results are suppressed from both the authoritative cache
+  // and the public onRefresh stream. stop() purges retained session state.
+  {
+    const slow = deferred();
+    const refreshed = [];
+    const client = fakeClient(async (_token, _name, _params, index) => {
+      if (index === 2) return slow.promise;
+      return { ok: true, status: 200, body: resolvedBody(index + 10) };
+    });
+    const input = { p_stock_number: 'STK-001' };
+    const resolver = createVehicleLifecycleIdentityResolver({ client, onRefresh: item => refreshed.push(item) });
+    await resolver.resolve(input);
+    const oldRefresh = resolver.refreshTracked('old');
+    const fresh = await resolver.resolve(input);
+    slow.resolve({ ok: true, status: 200, body: resolvedBody(2) });
+    await oldRefresh;
+    assert.strictEqual(fresh.version, 13);
+    assert.strictEqual(refreshed.length, 0);
+    assert.strictEqual(resolver.getLatest(input).version, 13);
+    assert.ok(resolver.getDiagnostics().some(item => item.stale === true && item.counters.staleSuppressed >= 1));
+    resolver.stop();
+    assert.strictEqual(resolver.getLatest(input), null);
+    assert.deepStrictEqual(resolver.getDiagnostics(), []);
+  }
+  console.log('PASS 9: stale refresh events are suppressed and stop purges resolver state');
+
+  // 10. Bursty reconciliation signals are bounded to one in-flight refresh
+  // followed by one trailing authoritative refresh.
+  {
+    const slow = deferred();
+    const client = fakeClient(async (_token, _name, _params, index) => {
+      if (index === 2) return slow.promise;
+      return { ok: true, status: 200, body: resolvedBody(index) };
+    });
+    const resolver = createVehicleLifecycleIdentityResolver({ client });
+    await resolver.resolve({ p_stock_number: 'STK-001' });
+    const first = resolver.reconcile('event-1');
+    const second = resolver.reconcile('event-2');
+    const third = resolver.reconcile('event-3');
+    slow.resolve({ ok: true, status: 200, body: resolvedBody(2) });
+    await Promise.all([first, second, third]);
+    assert.strictEqual(client.calls.length, 3);
+    assert.ok(resolver.getDiagnostics().some(item => item.counters.coalescedRefreshes >= 2));
+  }
+  console.log('PASS 10: refresh bursts are bounded to one in-flight plus one trailing refresh');
 })().catch(error => {
   console.error(error && error.stack ? error.stack : error);
   process.exit(1);

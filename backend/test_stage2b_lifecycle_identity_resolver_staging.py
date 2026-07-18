@@ -233,6 +233,17 @@ class Stage2BLifecycleIdentityResolverStagingTests(unittest.TestCase):
 
     def test_03_zero_invalid_and_inactive_archived_handling(self):
         self.assertEqual(self._rpc("viewer", p_stock_number=f"MISSING-{self.token}")["outcome"], "not_found")
+        placeholder_id = str(uuid.uuid4())
+        self.cur.execute(
+            """
+            insert into public.vehicles (
+              id, permanent_vehicle_id, stock_number, source_system,
+              source_batch_id, source_record_id, lifecycle_state, version, visible_on_board
+            ) values (%s, %s, 'NEW-123', %s, %s, %s, 'active', 1, false)
+            """,
+            (placeholder_id, f"PERM-PLACEHOLDER-{self.token}", self.source, self.batch, f"PLACEHOLDER-{self.token}"),
+        )
+        self.assertEqual(self._rpc("viewer", p_stock_number="NEW 123")["outcome"], "not_found")
         for params in (
             {},
             {"p_vehicle_id": "not-a-uuid"},

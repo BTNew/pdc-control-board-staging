@@ -155,11 +155,14 @@ begin
     v_stock := public.normalize_vehicle_stock_number(p_stock_number);
     select coalesce(array_agg(v.id order by v.id), '{}'::uuid[])
     into v_stock_canonical
-    from public.vehicles v where v.stock_number_normalized = v_stock;
+    from public.vehicles v
+    where public.is_real_vehicle_stock_number(v.stock_number)
+      and v.stock_number_normalized = v_stock;
     select coalesce(array_agg(distinct a.vehicle_id order by a.vehicle_id), '{}'::uuid[])
     into v_stock_alias
     from public.vehicle_aliases a
     where a.active and a.alias_type_normalized = 'stock_number'
+      and public.is_real_vehicle_stock_number(a.alias_value)
       and a.normalized_alias_value = v_stock;
     select coalesce(array_agg(distinct x order by x), '{}'::uuid[])
     into v_stock_candidates from unnest(v_stock_canonical || v_stock_alias) x;
@@ -271,10 +274,13 @@ begin
   -- An explicit UUID is the highest-precedence identity. If it does not exist,
   -- another identifier is not allowed to silently replace it.
   if v_uuid is not null and cardinality(v_uuid_candidates) = 0 then
-    if cardinality(v_stock_candidates || v_vin_candidates || v_job_candidates ||
-       v_permanent_candidates || v_order_candidates || v_source_candidates) > 0 then
+    select coalesce(array_agg(distinct x order by x), '{}'::uuid[])
+    into v_all_candidates
+    from unnest(v_stock_candidates || v_vin_candidates || v_job_candidates ||
+      v_permanent_candidates || v_order_candidates || v_source_candidates) x;
+    if cardinality(v_all_candidates) > 0 then
       return jsonb_build_object('outcome', 'conflict', 'reason', 'conflicting_identifiers',
-        'candidate_count', 1);
+        'candidate_count', cardinality(v_all_candidates));
     end if;
     return jsonb_build_object('outcome', 'not_found');
   end if;
@@ -282,29 +288,38 @@ begin
   -- A canonical row and an alias/source-evidence row for the same typed input
   -- must never disagree. This is a conflict, not a precedence choice.
   if cardinality(v_stock_candidates) > 1
-     and cardinality(v_stock_canonical) > 0 and cardinality(v_stock_alias) > 0 then
+     and cardinality(v_stock_canonical) > 0 and cardinality(v_stock_alias) > 0
+     and not (v_stock_canonical <@ v_stock_alias and v_stock_alias <@ v_stock_canonical) then
     return jsonb_build_object('outcome', 'conflict', 'reason', 'canonical_alias_conflict',
       'identifier', 'stock_number', 'candidate_count', cardinality(v_stock_candidates));
   end if;
   if cardinality(v_vin_candidates) > 1
-     and cardinality(v_vin_canonical) > 0 and cardinality(v_vin_alias) > 0 then
+     and cardinality(v_vin_canonical) > 0 and cardinality(v_vin_alias) > 0
+     and not (v_vin_canonical <@ v_vin_alias and v_vin_alias <@ v_vin_canonical) then
     return jsonb_build_object('outcome', 'conflict', 'reason', 'canonical_alias_conflict',
       'identifier', 'vin', 'candidate_count', cardinality(v_vin_candidates));
   end if;
   if cardinality(v_job_candidates) > 1
-     and cardinality(v_job_canonical) > 0 and cardinality(v_job_alias) > 0 then
+     and cardinality(v_job_canonical) > 0 and cardinality(v_job_alias) > 0
+     and not (v_job_canonical <@ v_job_alias and v_job_alias <@ v_job_canonical) then
     return jsonb_build_object('outcome', 'conflict', 'reason', 'canonical_alias_conflict',
       'identifier', 'job_card_number', 'candidate_count', cardinality(v_job_candidates));
   end if;
   if cardinality(v_order_candidates) > 1
-     and cardinality(v_order_canonical) > 0 and cardinality(v_order_alias) > 0 then
+     and cardinality(v_order_canonical) > 0 and cardinality(v_order_alias) > 0
+     and not (v_order_canonical <@ v_order_alias and v_order_alias <@ v_order_canonical) then
     return jsonb_build_object('outcome', 'conflict', 'reason', 'canonical_alias_conflict',
       'identifier', 'toyota_order_number', 'candidate_count', cardinality(v_order_candidates));
   end if;
   if cardinality(v_source_candidates) > 1
-     and ((cardinality(v_source_canonical) > 0)::integer
-       + (cardinality(v_source_alias) > 0)::integer
-       + (cardinality(v_source_evidence) > 0)::integer) > 1 then
+     and (
+       (cardinality(v_source_canonical) > 0 and cardinality(v_source_alias) > 0
+         and not (v_source_canonical <@ v_source_alias and v_source_alias <@ v_source_canonical))
+       or (cardinality(v_source_canonical) > 0 and cardinality(v_source_evidence) > 0
+         and not (v_source_canonical <@ v_source_evidence and v_source_evidence <@ v_source_canonical))
+       or (cardinality(v_source_alias) > 0 and cardinality(v_source_evidence) > 0
+         and not (v_source_alias <@ v_source_evidence and v_source_evidence <@ v_source_alias))
+     ) then
     return jsonb_build_object('outcome', 'conflict', 'reason', 'canonical_alias_conflict',
       'identifier', 'source_record_id', 'candidate_count', cardinality(v_source_candidates));
   end if;

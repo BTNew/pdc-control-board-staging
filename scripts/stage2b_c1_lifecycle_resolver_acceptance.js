@@ -118,33 +118,57 @@ function assertResolvedProjection(result, expectedId) {
     before.forEach(result => assertResolvedProjection(result, fixture.id));
     if (before[0].version !== before[1].version) throw new Error('sessions did not start on the same version');
 
-    const editResult = await adminPage.evaluate(async args => {
-      const token = await getPdcSupabaseAccessToken();
-      const client = createWorkshopSupabaseClient(window.PDC_SUPABASE_CONFIG);
-      return client.rpc(token, 'edit_vehicle_master', {
-        p_vehicle_id: args.id,
-        p_expected_version: args.version,
-        p_changes: { key_number: `C1-RT-${args.token}-V2` },
-        p_reason: 'Stage 2B C1 two-session Realtime acceptance',
-        p_idempotency_key: `C1-RT-${args.token}`,
+    const lifecycleResult = await controllerPage.evaluate(async args => {
+      const actions = window.__vehicleLifecycleActions;
+      if (!actions) throw new Error('shared lifecycle action bridge unavailable');
+      const qc = await actions.qcCompleteVehicle({
+        vehicleId: args.id,
+        expectedVersion: args.version,
+        workItemKey: 'QC',
+        completedSummary: 'Synthetic C1 acceptance',
       });
-    }, { id: fixture.id, version: before[0].version, token: fixture.token });
-    if (!editResult?.ok || editResult?.body?.ok !== true) {
-      throw new Error(`administrator synthetic edit failed: ${JSON.stringify(editResult)}`);
+      if (qc?.ok !== true) return { step: 'qc', result: qc };
+      const transferred = await actions.rftTransferVehicle({
+        vehicleId: args.id,
+        expectedVersion: qc.vehicle.version,
+      });
+      if (transferred?.ok !== true) return { step: 'rft_transfer', result: transferred };
+      const collected = await actions.rftCollectVehicle({
+        vehicleId: args.id,
+        expectedVersion: transferred.vehicle.version,
+      });
+      return {
+        step: 'complete',
+        ok: collected?.ok === true,
+        version: collected?.vehicle?.version,
+        lifecycleState: collected?.vehicle?.lifecycle_state,
+      };
+    }, { id: fixture.id, version: before[0].version });
+    if (!lifecycleResult?.ok || lifecycleResult.lifecycleState !== 'completed') {
+      throw new Error(`operator lifecycle action chain failed: ${JSON.stringify(lifecycleResult)}`);
     }
 
+    await Promise.all([adminPage, controllerPage].map(page => page.waitForFunction(({ stock, initialVersion }) => {
+      const latest = window.__vehicleLifecycleIdentityResolver?.getLatest?.({ p_stock_number: stock });
+      const sawRealtime = (window.__vehicleLifecycleResolverDiagnostics || [])
+        .some(item => item.type === 'realtime_change');
+      return sawRealtime && latest?.outcome === 'resolved' && Number(latest.version) > Number(initialVersion);
+    }, { stock: fixture.stock, initialVersion: before[0].version }, { timeout: 30000 })));
+    await Promise.all([adminPage, controllerPage].map(page => page.evaluate(
+      () => window.__vehicleLifecycleIdentityResolver.reconcile('acceptance_final_reconcile'),
+    )));
     await Promise.all([adminPage, controllerPage].map(page => page.waitForFunction(({ stock, version }) => {
       const latest = window.__vehicleLifecycleIdentityResolver?.getLatest?.({ p_stock_number: stock });
-      return latest?.outcome === 'resolved' && Number(latest.version) > Number(version);
-    }, { stock: fixture.stock, version: before[0].version }, { timeout: 30000 })));
+      return latest?.outcome === 'resolved' && Number(latest.version) === Number(version);
+    }, { stock: fixture.stock, version: lifecycleResult.version }, { timeout: 30000 })));
 
     const refreshed = await Promise.all([
       adminPage.evaluate(stock => window.__vehicleLifecycleIdentityResolver.getLatest({ p_stock_number: stock }), fixture.stock),
       controllerPage.evaluate(stock => window.__vehicleLifecycleIdentityResolver.getLatest({ p_stock_number: stock }), fixture.stock),
     ]);
     refreshed.forEach(result => assertResolvedProjection(result, fixture.id));
-    if (refreshed.some(result => result.version !== before[0].version + 1)) {
-      throw new Error(`stale/torn version refresh: ${JSON.stringify(refreshed)}`);
+    if (refreshed.some(result => result.version !== lifecycleResult.version || result.lifecycleState !== 'completed')) {
+      throw new Error(`stale/torn lifecycle refresh: ${JSON.stringify(refreshed)}`);
     }
 
     const afterStorage = await Promise.all([storageSnapshot(adminPage), storageSnapshot(controllerPage)]);
@@ -168,6 +192,7 @@ function assertResolvedProjection(result, expectedId) {
       initialVersion: before[0].version,
       refreshedVersion: refreshed[0].version,
       resolverRevision: refreshed[0].resolverRevision,
+      lifecycleActions: ['qc_complete_vehicle', 'rft_transfer_vehicle', 'rft_collect_vehicle'],
       resolverRequests,
       directVehicleReads: 0,
       productionRequests: 0,

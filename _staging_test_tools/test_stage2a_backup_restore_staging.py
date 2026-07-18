@@ -98,7 +98,7 @@ def main():
         check("1b exactly one manifest produced", len(manifest_files) == 1, manifest_files)
         with open(os.path.join(output_dir, manifest_files[0]), "r", encoding="utf-8") as fh:
             manifest = json.load(fh)
-        for table in ("workshop_technicians", "salespeople", "sublet_providers", "workshop_bays", "workshop_settings"):
+        for table in ("workshop_technicians", "salespeople", "sublet_providers", "workshop_bays", "workshop_settings", "vehicle_lifecycle_resolver_revision"):
             check(f"1c manifest row_counts includes {table}", table in manifest["row_counts"], manifest["row_counts"])
 
         live_before = {
@@ -107,6 +107,7 @@ def main():
             "workshop_settings": fetch_rows(conn, "public", "workshop_settings", ["key", "value", "version"]),
             "salespeople": fetch_rows(conn, "public", "salespeople", ["id", "name", "email", "code", "active", "version"]),
             "sublet_providers": fetch_rows(conn, "public", "sublet_providers", ["id", "name", "active", "version"]),
+            "vehicle_lifecycle_resolver_revision": fetch_rows(conn, "public", "vehicle_lifecycle_resolver_revision", ["singleton", "revision", "updated_at"]),
         }
         for table, rows in live_before.items():
             check(f"1d manifest row_count for {table} matches the live table exactly", manifest["row_counts"][table] == len(rows), (manifest["row_counts"][table], len(rows)))
@@ -136,6 +137,7 @@ def main():
             ("workshop_settings", ["key", "value", "version"]),
             ("salespeople", ["id", "name", "email", "code", "active", "version"]),
             ("sublet_providers", ["id", "name", "active", "version"]),
+            ("vehicle_lifecycle_resolver_revision", ["singleton", "revision", "updated_at"]),
         ]:
             restored_rows = fetch_rows(conn, schema_name, table, cols)
             check(f"2e restored {table} is byte-for-byte identical to the live table at backup time (IDs, active state, version, sort order, codes, creator/updater all preserved)",

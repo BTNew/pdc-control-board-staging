@@ -130,6 +130,15 @@ class Stage2BLifecycleIdentityResolverFoundationTests(unittest.TestCase):
     def test_backup_inventory_includes_resolver_revision(self):
         backup = BACKUP_SCRIPT.read_text(encoding="utf-8")
         self.assertIn('"vehicle_lifecycle_resolver_revision"', backup)
+        restore_test = (ROOT / "_staging_test_tools" / "test_stage2a_backup_restore_staging.py").read_text(encoding="utf-8")
+        self.assertIn('(\"vehicle_lifecycle_resolver_revision\", [\"singleton\", \"revision\", \"updated_at\"])', restore_test)
+
+    def test_placeholder_stock_and_origin_sets_fail_closed_deterministically(self):
+        self.assertIn("public.is_real_vehicle_stock_number(v.stock_number)", self.lower)
+        self.assertIn("public.is_real_vehicle_stock_number(a.alias_value)", self.lower)
+        self.assertIn("v_stock_canonical <@ v_stock_alias", self.lower)
+        self.assertIn("v_source_alias <@ v_source_evidence", self.lower)
+        self.assertRegex(self.lower, r"'candidate_count',\s*cardinality\(v_all_candidates\)")
 
 
 if __name__ == "__main__":
