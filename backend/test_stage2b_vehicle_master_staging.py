@@ -253,6 +253,18 @@ class Stage2BVehicleMasterStagingTests(unittest.TestCase):
         )
         self.assertEqual(self.cur.fetchone(), (missing_id, None, None, None))
 
+        invalid_vin = _savepoint(
+            self.cur,
+            "invalid_vin",
+            """
+            insert into public.vehicles (id, permanent_vehicle_id, vin)
+            values (%s, %s, 'NOT-A-VALID-VIN')
+            """,
+            (str(uuid.uuid4()), f"S2B-PERM-{self.token}-INVALID-VIN"),
+        )
+        self.assertIsNotNone(invalid_vin)
+        self.assertEqual(getattr(invalid_vin, "pgcode", None), "23514")
+
         duplicate_vin = _savepoint(
             self.cur,
             "duplicate_vin",
@@ -287,6 +299,50 @@ class Stage2BVehicleMasterStagingTests(unittest.TestCase):
             """,
             (second_id, f"S2B-PERM-{self.token}-2", f"OTHER-{self.token}", f"ROW-{self.token}-2"),
         )
+
+        canonical_to_alias_conflict = _savepoint(
+            self.cur,
+            "canonical_to_alias_conflict",
+            """
+            insert into public.vehicle_aliases
+              (vehicle_id, alias_type, alias_value, source_system)
+            values (%s, 'stock_number', %s, 'stage2b_test')
+            """,
+            (second_id, stock.lower().replace("-", " ")),
+        )
+        self.assertIsNotNone(canonical_to_alias_conflict)
+        self.assertEqual(getattr(canonical_to_alias_conflict, "pgcode", None), "23505")
+
+        invalid_vin_alias = _savepoint(
+            self.cur,
+            "invalid_vin_alias",
+            """
+            insert into public.vehicle_aliases
+              (vehicle_id, alias_type, alias_value, source_system)
+            values (%s, 'vin', 'NOT-A-VALID-VIN', 'stage2b_test')
+            """,
+            (second_id,),
+        )
+        self.assertIsNotNone(invalid_vin_alias)
+        self.assertEqual(getattr(invalid_vin_alias, "pgcode", None), "23514")
+
+        alias_stock = f"ALIAS-{self.token}"
+        self.cur.execute(
+            """
+            insert into public.vehicle_aliases
+              (vehicle_id, alias_type, alias_value, source_system)
+            values (%s, 'stock_number', %s, 'stage2b_test')
+            """,
+            (first_id, alias_stock),
+        )
+        alias_to_canonical_conflict = _savepoint(
+            self.cur,
+            "alias_to_canonical_conflict",
+            "update public.vehicles set stock_number = %s where id = %s",
+            (alias_stock.lower().replace("-", " "), second_id),
+        )
+        self.assertIsNotNone(alias_to_canonical_conflict)
+        self.assertEqual(getattr(alias_to_canonical_conflict, "pgcode", None), "23505")
         self.cur.execute(
             """
             insert into public.vehicle_aliases
@@ -307,6 +363,37 @@ class Stage2BVehicleMasterStagingTests(unittest.TestCase):
         )
         self.assertIsNotNone(conflicting_alias)
         self.assertEqual(getattr(conflicting_alias, "pgcode", None), "23505")
+
+        provenance_vehicle_id = str(uuid.uuid4())
+        self.cur.execute(
+            """
+            insert into public.vehicles (id, permanent_vehicle_id)
+            values (%s, %s)
+            """,
+            (provenance_vehicle_id, f"S2B-PERM-{self.token}-PROVENANCE"),
+        )
+        self.cur.execute(
+            """
+            insert into public.vehicle_master_source_records
+              (vehicle_id, source_system, original_evidence)
+            values (%s, 'stage2b_test', '{"source":"retained"}'::jsonb)
+            returning id
+            """,
+            (provenance_vehicle_id,),
+        )
+        provenance_record_id = self.cur.fetchone()[0]
+        self.cur.execute("delete from public.vehicles where id = %s", (provenance_vehicle_id,))
+        self.cur.execute(
+            """
+            select vehicle_id, original_evidence
+            from public.vehicle_master_source_records where id = %s
+            """,
+            (provenance_record_id,),
+        )
+        self.assertEqual(
+            self.cur.fetchone(),
+            (None, {"source": "retained"}),
+        )
 
     def test_03_optimistic_version_history_and_snapshot_roles(self):
         first_id = self.vehicle_ids[0]

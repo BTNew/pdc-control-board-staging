@@ -277,7 +277,7 @@ console.log('Workshop planner shared-mode integration seam checks passed');
 {
   const snapshot = { vehicles: [
     { id: 'veh-a', stock_number: 'DUP-1', permanent_vehicle_id: 'perm-a', version: 2 },
-    { id: 'veh-b', stock_number: 'DUP-1', permanent_vehicle_id: 'perm-b', version: 3 },
+    { id: 'veh-b', stock_number: 'd up-1', permanent_vehicle_id: 'perm-b', version: 3 },
     { id: 'veh-c', stock_number: 'STK-C', permanent_vehicle_id: 'perm-c', version: 4 },
   ] };
   withGlobals({

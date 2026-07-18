@@ -134,19 +134,14 @@ alter table public.vehicles
   add column if not exists source_record_id_normalized text
     generated always as (public.normalize_vehicle_source_identifier(source_record_id)) stored;
 
--- NOT VALID surfaces legacy invalid values without rolling back this migration.
--- PostgreSQL still enforces these checks for newly inserted/changed rows.
+-- Reject malformed VINs only when a VIN is inserted or changed. A NOT VALID
+-- CHECK would still reject unrelated workflow updates on legacy rows containing
+-- an old malformed VIN, which would make this additive migration operationally
+-- breaking. Drop the ineffective staging-only check from the earlier 028 draft;
+-- the identity trigger below performs the scoped validation.
 do $$
 begin
-  if not exists (
-    select 1 from pg_constraint
-    where conrelid = 'public.vehicles'::regclass
-      and conname = 'vehicles_master_vin_valid'
-  ) then
-    alter table public.vehicles
-      add constraint vehicles_master_vin_valid
-      check (vin_normalized is null or public.is_valid_vehicle_vin(vin_normalized)) not valid;
-  end if;
+  alter table public.vehicles drop constraint if exists vehicles_master_vin_valid;
 
   if not exists (
     select 1 from pg_constraint
@@ -191,6 +186,9 @@ alter table public.vehicle_aliases
 
 do $$
 begin
+  alter table public.vehicle_aliases
+    drop constraint if exists vehicle_aliases_master_vin_valid;
+
   if not exists (
     select 1 from pg_constraint
     where conrelid = 'public.vehicle_aliases'::regclass
@@ -222,7 +220,7 @@ on conflict (singleton) do nothing;
 -- adding raw JSON columns to either would silently expand viewer exposure.
 create table if not exists public.vehicle_master_source_records (
   id uuid primary key default gen_random_uuid(),
-  vehicle_id uuid not null references public.vehicles(id) on delete cascade,
+  vehicle_id uuid references public.vehicles(id) on delete set null,
   alias_id uuid references public.vehicle_aliases(id) on delete set null,
   source_system text not null,
   source_batch_id text,
@@ -235,6 +233,17 @@ create table if not exists public.vehicle_master_source_records (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+-- Preserve original source evidence after a hard vehicle deletion. This also
+-- corrects an earlier staging-only application of 028 that used CASCADE.
+alter table public.vehicle_master_source_records alter column vehicle_id drop not null;
+alter table public.vehicle_master_source_records
+  drop constraint if exists vehicle_master_source_records_vehicle_id_fkey;
+alter table public.vehicle_master_source_records
+  add constraint vehicle_master_source_records_vehicle_id_fkey
+  foreign key (vehicle_id) references public.vehicles(id) on delete set null not valid;
+alter table public.vehicle_master_source_records
+  validate constraint vehicle_master_source_records_vehicle_id_fkey;
 
 create index if not exists vehicle_master_source_records_vehicle_idx
   on public.vehicle_master_source_records (vehicle_id, created_at desc);
@@ -292,7 +301,9 @@ where conflict_kind in (
   'duplicate_vehicle_stock',
   'duplicate_vehicle_source_record',
   'duplicate_global_alias',
-  'duplicate_source_alias'
+  'duplicate_source_alias',
+  'cross_vehicle_alias_vin',
+  'cross_vehicle_alias_stock'
 );
 
 insert into public.vehicle_master_identity_conflicts (
@@ -386,6 +397,66 @@ where active
   and lower(btrim(alias_type)) in ('source_record_id', 'toyota_order_number', 'job_card_number')
 group by source_system_normalized, lower(btrim(alias_type)), normalized_alias_value
 having count(*) > 1
+on conflict (conflict_kind, scope_key, normalized_value) do update
+set vehicle_ids = excluded.vehicle_ids,
+    occurrence_count = excluded.occurrence_count,
+    evidence = excluded.evidence,
+    last_seen_at = now(),
+    resolved_at = null;
+
+-- Cross-table candidates must also form one identity set. A canonical VIN or
+-- stock number on one vehicle cannot silently coexist as an alias of another.
+with candidates as (
+  select id as vehicle_id, vin_normalized as normalized_value, 'vehicle'::text as origin
+  from public.vehicles
+  where public.is_valid_vehicle_vin(vin)
+  union all
+  select vehicle_id, normalized_alias_value, 'alias'::text
+  from public.vehicle_aliases
+  where active and alias_type_normalized = 'vin'
+    and public.is_valid_vehicle_vin(alias_value)
+)
+insert into public.vehicle_master_identity_conflicts (
+  conflict_kind, scope_key, normalized_value, vehicle_ids, occurrence_count, evidence
+)
+select
+  'cross_vehicle_alias_vin', 'global', normalized_value,
+  array_agg(distinct vehicle_id order by vehicle_id), count(*)::integer,
+  jsonb_build_object('candidates', jsonb_agg(jsonb_build_object(
+    'vehicle_id', vehicle_id, 'origin', origin
+  ) order by vehicle_id, origin))
+from candidates
+group by normalized_value
+having count(distinct vehicle_id) > 1
+on conflict (conflict_kind, scope_key, normalized_value) do update
+set vehicle_ids = excluded.vehicle_ids,
+    occurrence_count = excluded.occurrence_count,
+    evidence = excluded.evidence,
+    last_seen_at = now(),
+    resolved_at = null;
+
+with candidates as (
+  select id as vehicle_id, stock_number_normalized as normalized_value, 'vehicle'::text as origin
+  from public.vehicles
+  where public.is_real_vehicle_stock_number(stock_number)
+  union all
+  select vehicle_id, normalized_alias_value, 'alias'::text
+  from public.vehicle_aliases
+  where active and alias_type_normalized = 'stock_number'
+    and public.is_real_vehicle_stock_number(alias_value)
+)
+insert into public.vehicle_master_identity_conflicts (
+  conflict_kind, scope_key, normalized_value, vehicle_ids, occurrence_count, evidence
+)
+select
+  'cross_vehicle_alias_stock', 'global', normalized_value,
+  array_agg(distinct vehicle_id order by vehicle_id), count(*)::integer,
+  jsonb_build_object('candidates', jsonb_agg(jsonb_build_object(
+    'vehicle_id', vehicle_id, 'origin', origin
+  ) order by vehicle_id, origin))
+from candidates
+group by normalized_value
+having count(distinct vehicle_id) > 1
 on conflict (conflict_kind, scope_key, normalized_value) do update
 set vehicle_ids = excluded.vehicle_ids,
     occurrence_count = excluded.occurrence_count,
@@ -487,6 +558,14 @@ security definer
 set search_path = public
 as $$
 begin
+  if nullif(btrim(new.vin), '') is not null
+     and not public.is_valid_vehicle_vin(new.vin)
+     and (tg_op = 'INSERT' or old.vin is distinct from new.vin) then
+    raise exception 'invalid VIN'
+      using errcode = '23514',
+            detail = public.vehicle_master_response(false, 'invalid_value', jsonb_build_object('field', 'vin'))::text;
+  end if;
+
   if public.is_valid_vehicle_vin(new.vin) then
     perform pg_advisory_xact_lock(hashtextextended(
       'vehicle-master:vin:' || public.normalize_vehicle_vin(new.vin), 0
@@ -501,11 +580,22 @@ begin
         using errcode = '23505',
               detail = public.vehicle_master_response(false, 'duplicate_candidate', jsonb_build_object('field', 'vin'))::text;
     end if;
+    if exists (
+      select 1 from public.vehicle_aliases a
+      where a.vehicle_id <> new.id
+        and a.active
+        and a.alias_type_normalized = 'vin'
+        and a.normalized_alias_value = public.normalize_vehicle_vin(new.vin)
+    ) then
+      raise exception 'canonical VIN conflicts with another vehicle alias'
+        using errcode = '23505',
+              detail = public.vehicle_master_response(false, 'conflicting_candidate', jsonb_build_object('field', 'vin'))::text;
+    end if;
   end if;
 
   if public.is_real_vehicle_stock_number(new.stock_number) then
     perform pg_advisory_xact_lock(hashtextextended(
-      'vehicle-master:stock:' || public.normalize_vehicle_stock_number(new.stock_number), 0
+      'vehicle-master:stock_number:' || public.normalize_vehicle_stock_number(new.stock_number), 0
     ));
     if exists (
       select 1 from public.vehicles v
@@ -516,6 +606,17 @@ begin
       raise exception 'duplicate canonical stock number'
         using errcode = '23505',
               detail = public.vehicle_master_response(false, 'duplicate_candidate', jsonb_build_object('field', 'stock_number'))::text;
+    end if;
+    if exists (
+      select 1 from public.vehicle_aliases a
+      where a.vehicle_id <> new.id
+        and a.active
+        and a.alias_type_normalized = 'stock_number'
+        and a.normalized_alias_value = public.normalize_vehicle_stock_number(new.stock_number)
+    ) then
+      raise exception 'canonical stock number conflicts with another vehicle alias'
+        using errcode = '23505',
+              detail = public.vehicle_master_response(false, 'conflicting_candidate', jsonb_build_object('field', 'stock_number'))::text;
     end if;
   end if;
 
@@ -552,12 +653,23 @@ declare
   v_value text := public.normalize_vehicle_alias_value(new.alias_type, new.alias_value);
   v_source text := public.normalize_vehicle_source_system(new.source_system);
 begin
+  if v_type = 'vin'
+     and nullif(btrim(new.alias_value), '') is not null
+     and not public.is_valid_vehicle_vin(new.alias_value)
+     and (tg_op = 'INSERT'
+       or old.alias_type is distinct from new.alias_type
+       or old.alias_value is distinct from new.alias_value) then
+    raise exception 'invalid VIN alias'
+      using errcode = '23514',
+            detail = public.vehicle_master_response(false, 'invalid_value', jsonb_build_object('field', 'vin'))::text;
+  end if;
+
   if new.active and (
     (v_type = 'vin' and public.is_valid_vehicle_vin(new.alias_value))
     or (v_type = 'stock_number' and public.is_real_vehicle_stock_number(new.alias_value))
   ) then
     perform pg_advisory_xact_lock(hashtextextended(
-      'vehicle-master:alias:' || v_type || ':' || v_value, 0
+      'vehicle-master:' || v_type || ':' || v_value, 0
     ));
     if exists (
       select 1 from public.vehicle_aliases a
@@ -569,6 +681,22 @@ begin
       raise exception 'duplicate global vehicle alias'
         using errcode = '23505',
               detail = public.vehicle_master_response(false, 'duplicate_candidate', jsonb_build_object('field', v_type))::text;
+    end if;
+    if exists (
+      select 1 from public.vehicles v
+      where v.id <> new.vehicle_id
+        and (
+          (v_type = 'vin'
+            and public.is_valid_vehicle_vin(v.vin)
+            and v.vin_normalized = v_value)
+          or (v_type = 'stock_number'
+            and public.is_real_vehicle_stock_number(v.stock_number)
+            and v.stock_number_normalized = v_value)
+        )
+    ) then
+      raise exception 'vehicle alias conflicts with another canonical identity'
+        using errcode = '23505',
+              detail = public.vehicle_master_response(false, 'conflicting_candidate', jsonb_build_object('field', v_type))::text;
     end if;
   end if;
 
@@ -802,10 +930,13 @@ create trigger vehicle_master_source_records_set_updated_at
 before update on public.vehicle_master_source_records
 for each row execute function public.set_updated_at();
 
--- Safe read contract for the vehicle-master cutover. This is an explicit
--- allowlist; raw source evidence and every workflow/operational field remain
--- outside the payload. Archived rows stay addressable by stable UUID and are
--- identified only by a derived flag, without exposing deletion metadata.
+-- Safe read contract for new vehicle-master consumers. This is an explicit
+-- allowlist, but it is not yet the sole database read boundary: the temporary
+-- legacy table SELECT retained below remains until every existing consumer is
+-- inventoried and cut over. Raw source evidence and every workflow/operational
+-- field remain outside this RPC payload. Archived rows stay addressable by
+-- stable UUID and are identified only by a derived flag, without exposing
+-- deletion metadata.
 create or replace function public.get_vehicle_core_snapshot()
 returns jsonb
 language plpgsql

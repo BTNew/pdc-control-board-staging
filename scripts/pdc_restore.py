@@ -41,7 +41,7 @@ def quote_ident(name):
     return '"' + name.replace('"', '""') + '"'
 
 
-def discover_foreign_keys(cur):
+def discover_foreign_keys(cur, payload_tables=None):
     """Independent-review remediation (finding #9): the FK graph used
     to be a short hand-written list (27 entries) that silently drifted
     out of sync with the real schema and let 'skipped' constraints pass
@@ -53,12 +53,11 @@ def discover_foreign_keys(cur):
     last hand-edited.
 
     Only returns foreign keys where BOTH the referencing and referenced
-    tables are part of the backup payload (TABLES) -- backup-tooling
-    metadata tables like restore_test_runs and backup_runs are
-    intentionally excluded from TABLES because they are not application
-    operational data, so a foreign key pointing at them can never be
-    restored and must not be treated as a failure of the restore
-    itself."""
+    tables are present in the concrete backup payload. This keeps retained
+    pre-migration backups restorable after TABLES grows, while still requiring
+    every relationship represented by that payload to be added and validated.
+    Backup-tooling metadata tables like restore_test_runs and backup_runs are
+    intentionally excluded from operational payloads."""
     cur.execute(
         """
         select
@@ -76,9 +75,10 @@ def discover_foreign_keys(cur):
         """
     )
     all_fks = [tuple(row) for row in cur.fetchall()]
+    allowed_tables = set(TABLES if payload_tables is None else payload_tables)
     return [
         fk for fk in all_fks
-        if fk[0] in TABLES and fk[2] in TABLES
+        if fk[0] in allowed_tables and fk[2] in allowed_tables
     ]
 
 
@@ -98,7 +98,7 @@ def clone_table_structure(cur, schema_name, table_name):
     )
 
 
-def add_foreign_keys(cur, schema_name, foreign_keys):
+def add_foreign_keys(cur, schema_name, foreign_keys, payload_tables=None):
     """Adds every discovered foreign key NOT VALID, then immediately
     runs VALIDATE CONSTRAINT on each one (independent-review remediation,
     finding #9: the previous version added constraints NOT VALID and
@@ -107,9 +107,10 @@ def add_foreign_keys(cur, schema_name, foreign_keys):
     cannot be validated is now a hard failure returned in `skipped`,
     with the two failure modes distinguished in the reason string."""
     added, skipped = [], []
+    allowed_tables = set(TABLES if payload_tables is None else payload_tables)
     for table, column, ref_table, ref_column in foreign_keys:
-        if table not in TABLES or ref_table not in TABLES:
-            skipped.append((table, column, "table not in backup TABLES list"))
+        if table not in allowed_tables or ref_table not in allowed_tables:
+            skipped.append((table, column, "table not present in backup payload"))
             continue
         constraint_name = f"fk_{table}_{column}_restore"
         savepoint = f"sp_fk_{table}_{column}"
@@ -318,6 +319,7 @@ def restore_backup(conn, backup_file_path, encryption_key, schema_name=None):
         stamp = re.sub(r"[^0-9a-z]", "", datetime.now(timezone.utc).isoformat().lower())
         schema_name = f"restore_test_{stamp}"
 
+    payload_tables = set(data["tables"])
     cur = conn.cursor()
     create_isolated_schema(cur, schema_name)
 
@@ -366,8 +368,10 @@ def restore_backup(conn, backup_file_path, encryption_key, schema_name=None):
     # restored data before this function returns, so this must run
     # after, not before, the data load, or every insert into a table
     # with a not-yet-populated FK target fails).
-    foreign_keys = discover_foreign_keys(cur)
-    fk_added, fk_skipped = add_foreign_keys(cur, schema_name, foreign_keys)
+    foreign_keys = discover_foreign_keys(cur, payload_tables)
+    fk_added, fk_skipped = add_foreign_keys(
+        cur, schema_name, foreign_keys, payload_tables
+    )
 
     conn.commit()
 

@@ -900,6 +900,18 @@ function workshopVehicle(key = '') {
 // Returns null if shared mode is inactive or the vehicle isn't in the
 // current snapshot window -- callers must treat that as "cannot proceed",
 // never fabricate a version.
+function workshopNormalizeStockIdentity(value = '') {
+  const raw = String(value || '').trim().toUpperCase();
+  const normalized = raw.replace(/[\s-]+/g, '');
+  if (!normalized || ['0', 'TBA', 'TBD', 'UNKNOWN', 'NA', 'N/A', 'NONE', 'UNASSIGNED'].includes(normalized)) return '';
+  if (/^(NEW|PD|PENDING|TEMP)-/.test(raw)) return '';
+  return normalized;
+}
+
+function workshopNormalizeSourceIdentity(value = '') {
+  return String(value || '').trim().toUpperCase();
+}
+
 function workshopSharedVehicleRef(vehicleReference = '') {
   if (!workshopSharedModeActive()) return null;
   const snapshot = window.__workshopDataService.getLastSnapshot();
@@ -917,10 +929,14 @@ function workshopSharedVehicleRef(vehicleReference = '') {
   const byId = requestedVehicleId
     ? vehicles.filter(v => String(v && v.id || '').trim() === requestedVehicleId)
     : [];
+  const requestedStockIdentity = workshopNormalizeStockIdentity(requestedLegacyKey);
+  const requestedSourceIdentity = workshopNormalizeSourceIdentity(requestedLegacyKey);
   const byLegacyKey = requestedLegacyKey
     ? vehicles.filter(v => (
-      String(v && v.stock_number || '').trim() === requestedLegacyKey
-      || String(v && v.permanent_vehicle_id || '').trim() === requestedLegacyKey
+      (requestedStockIdentity
+        && workshopNormalizeStockIdentity(v && v.stock_number) === requestedStockIdentity)
+      || (requestedSourceIdentity
+        && workshopNormalizeSourceIdentity(v && v.permanent_vehicle_id) === requestedSourceIdentity)
     ))
     : [];
   const candidateVehicleIds = [...new Set([...byId, ...byLegacyKey]

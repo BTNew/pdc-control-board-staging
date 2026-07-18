@@ -61,7 +61,11 @@ class Stage2BVehicleMasterFoundationTests(unittest.TestCase):
         self.assertIn("case when public.is_valid_vehicle_vin(vin)", LOWER_SQL)
         self.assertIn("then public.normalize_vehicle_vin(vin)", LOWER_SQL)
         self.assertIn("else null", LOWER_SQL)
-        self.assertIn("constraint vehicles_master_vin_valid", LOWER_SQL)
+        self.assertIn("drop constraint if exists vehicles_master_vin_valid", LOWER_SQL)
+        vin_guard = function_sql("enforce_vehicle_master_identity_uniqueness").lower()
+        self.assertIn("old.vin is distinct from new.vin", vin_guard)
+        self.assertIn("raise exception 'invalid vin'", vin_guard)
+        self.assertIn("errcode = '23514'", vin_guard)
         self.assertIn("constraint vehicles_master_version_positive", LOWER_SQL)
         self.assertGreaterEqual(LOWER_SQL.count("not valid"), 2)
 
@@ -76,6 +80,8 @@ class Stage2BVehicleMasterFoundationTests(unittest.TestCase):
         self.assertIn("duplicate_vehicle_vin", LOWER_SQL)
         self.assertIn("duplicate_vehicle_stock", LOWER_SQL)
         self.assertIn("duplicate_vehicle_source_record", LOWER_SQL)
+        self.assertIn("cross_vehicle_alias_vin", LOWER_SQL)
+        self.assertIn("cross_vehicle_alias_stock", LOWER_SQL)
         pre_guard_sql = LOWER_SQL[: LOWER_SQL.index("function public.enforce_vehicle_master_identity_uniqueness")]
         self.assertNotIn("raise exception", pre_guard_sql)
 
@@ -91,6 +97,10 @@ class Stage2BVehicleMasterFoundationTests(unittest.TestCase):
         self.assertIn("trigger vehicles_enforce_master_identity_uniqueness", LOWER_SQL)
         self.assertIn("trigger vehicle_aliases_enforce_master_identity_uniqueness", LOWER_SQL)
         self.assertIn("pg_advisory_xact_lock", LOWER_SQL)
+        vehicle_guard = function_sql("enforce_vehicle_master_identity_uniqueness").lower()
+        alias_guard = function_sql("enforce_vehicle_alias_identity_uniqueness").lower()
+        self.assertIn("from public.vehicle_aliases a", vehicle_guard)
+        self.assertIn("from public.vehicles v", alias_guard)
 
     def test_alias_metadata_revision_and_audit_support(self):
         for column in (
@@ -113,6 +123,7 @@ class Stage2BVehicleMasterFoundationTests(unittest.TestCase):
         self.assertIn("create table if not exists public.vehicle_master_revision", LOWER_SQL)
         self.assertIn("create table if not exists public.vehicle_master_history", LOWER_SQL)
         self.assertIn("create table if not exists public.vehicle_master_source_records", LOWER_SQL)
+        self.assertIn("vehicle_id uuid references public.vehicles(id) on delete set null", LOWER_SQL)
         self.assertIn("source_metadata jsonb not null default '{}'::jsonb", LOWER_SQL)
         self.assertNotRegex(
             LOWER_SQL,
@@ -296,6 +307,8 @@ class Stage2BVehicleMasterFoundationTests(unittest.TestCase):
             "insert_columns = [column for column in columns if column not in generated_cols]",
             RESTORE_SCRIPT,
         )
+        self.assertIn("payload_tables = set(data[\"tables\"])", RESTORE_SCRIPT)
+        self.assertIn("discover_foreign_keys(cur, payload_tables)", RESTORE_SCRIPT)
 
     def test_no_operational_data_rewrite_or_stage2b_import_evidence_table(self):
         self.assertNotRegex(LOWER_SQL, r"update\s+public\.vehicles\s+set")
