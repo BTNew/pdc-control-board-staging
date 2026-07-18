@@ -403,3 +403,219 @@ console.log('Workshop planner shared-mode integration seam checks passed');
 
   console.log('PASS 14: Stage 2A workshop bay behaviour -- shared reference lookup, inactive-bay detection, default-technician resolution, fail-safe defaults, and SUBLET row code matching all behave correctly');
 }
+
+// 15. Independent-review remediation (finding 1): workshopSyncConfigFromSharedSettings()
+// must actually change the planner's live scheduling constants from
+// the shared, database-validated workshop configuration, and must
+// leave the current values untouched when the cache is not ready or
+// an individual value fails validation (never silently reset to the
+// hard-coded boot default after a valid value was already active).
+{
+  const originalStart = planner.WORKSHOP_START_HOUR;
+  const originalEnd = planner.WORKSHOP_END_HOUR;
+
+  // 15a. Cache not ready (e.g. still loading) -- must return false and
+  // change nothing.
+  withGlobals({
+    __workshopReferenceDataService: {
+      getCachedWorkshopConfiguration: () => ({ state: 'loading', rows: null }),
+    },
+  }, () => {
+    const changed = planner.workshopSyncConfigFromSharedSettings();
+    assert.strictEqual(changed, false, '15a a not-ready cache must report no change');
+  });
+
+  // 15b. Valid configuration -- start/end/increment/default-duration/
+  // working-week all update.
+  withGlobals({
+    __workshopReferenceDataService: {
+      getCachedWorkshopConfiguration: () => ({
+        state: 'connected_read_only',
+        rows: {
+          day_start_time: { value: '07:30' },
+          day_end_time: { value: '15:30' },
+          scheduling_increment_minutes: { value: 30 },
+          default_booking_duration_minutes: { value: 240 },
+          working_week: { value: ['Monday', 'Tuesday', 'Wednesday'] },
+        },
+      }),
+    },
+  }, () => {
+    const changed = planner.workshopSyncConfigFromSharedSettings();
+    assert.strictEqual(changed, true, '15b a genuinely different valid configuration must report a change');
+    assert.strictEqual(planner.WORKSHOP_START_HOUR, 7.5, '15b day_start_time 07:30 must become WORKSHOP_START_HOUR 7.5');
+    assert.strictEqual(planner.WORKSHOP_END_HOUR, 15.5, '15b day_end_time 15:30 must become WORKSHOP_END_HOUR 15.5');
+    assert.strictEqual(planner.WORKSHOP_SNAP_MINUTES, 30, '15b scheduling_increment_minutes 30 must become WORKSHOP_SNAP_MINUTES 30');
+    assert.strictEqual(planner.WORKSHOP_DEFAULT_HOURS, 4, '15b default_booking_duration_minutes 240 must become WORKSHOP_DEFAULT_HOURS 4');
+    assert.deepStrictEqual(planner.WORKSHOP_WORKDAYS, [1, 2, 3], '15b working_week [Monday,Tuesday,Wednesday] must become WORKSHOP_WORKDAYS [1,2,3]');
+  });
+
+  // 15b2. A successful administrator write places the same cache in the
+  // real service's connected_editable state. That state must be treated as
+  // authoritative too; the old fictional 'ready' state is never emitted by
+  // workshop-reference-data-service.js.
+  withGlobals({
+    __workshopReferenceDataService: {
+      getCachedWorkshopConfiguration: () => ({
+        state: 'connected_editable',
+        rows: {
+          day_start_time: { value: '08:00' },
+          day_end_time: { value: '16:00' },
+          scheduling_increment_minutes: { value: 15 },
+          default_booking_duration_minutes: { value: 180 },
+          working_week: { value: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'] },
+        },
+      }),
+    },
+  }, () => {
+    const changed = planner.workshopSyncConfigFromSharedSettings();
+    assert.strictEqual(changed, true, '15b2 connected_editable must be accepted as an authoritative cache state');
+    assert.strictEqual(planner.WORKSHOP_START_HOUR, 8, '15b2 editable state must apply day_start_time');
+    assert.strictEqual(planner.WORKSHOP_DEFAULT_HOURS, 3, '15b2 editable state must apply default duration');
+  });
+
+  // 15c. Malformed/invalid values (start after end, non-string time,
+  // negative increment) must be ignored -- current values remain from
+  // the previous successful sync, never silently reset.
+  withGlobals({
+    __workshopReferenceDataService: {
+      getCachedWorkshopConfiguration: () => ({
+        state: 'connected_editable',
+        rows: {
+          day_start_time: { value: '20:00' },
+          day_end_time: { value: '08:00' }, // end before start -- must be ignored
+          scheduling_increment_minutes: { value: -5 }, // negative -- must be ignored
+          default_booking_duration_minutes: { value: 'banana' }, // not a number -- must be ignored
+          working_week: { value: [] }, // empty -- must be ignored
+        },
+      }),
+    },
+  }, () => {
+    const before = { start: planner.WORKSHOP_START_HOUR, end: planner.WORKSHOP_END_HOUR, snap: planner.WORKSHOP_SNAP_MINUTES, hours: planner.WORKSHOP_DEFAULT_HOURS, days: [...planner.WORKSHOP_WORKDAYS] };
+    const changed = planner.workshopSyncConfigFromSharedSettings();
+    assert.strictEqual(changed, false, '15c an entirely-invalid configuration must report no change');
+    assert.strictEqual(planner.WORKSHOP_START_HOUR, before.start, '15c invalid start/end (end before start) must not change WORKSHOP_START_HOUR');
+    assert.strictEqual(planner.WORKSHOP_END_HOUR, before.end, '15c invalid start/end (end before start) must not change WORKSHOP_END_HOUR');
+    assert.strictEqual(planner.WORKSHOP_SNAP_MINUTES, before.snap, '15c a negative increment must not change WORKSHOP_SNAP_MINUTES');
+    assert.strictEqual(planner.WORKSHOP_DEFAULT_HOURS, before.hours, '15c a non-numeric duration must not change WORKSHOP_DEFAULT_HOURS');
+    assert.deepStrictEqual(planner.WORKSHOP_WORKDAYS, before.days, '15c an empty working_week must not change WORKSHOP_WORKDAYS');
+  });
+
+  console.log('PASS 15: workshopSyncConfigFromSharedSettings() applies valid shared configuration to live planner constants and ignores invalid/not-ready values without silently reverting to boot defaults');
+}
+
+// 16. Independent-review remediation (finding 2 & 3): in shared mode,
+// workshopBayMechanic() must read the shared default ONLY (no
+// localStorage fallback), and workshopReferenceTechnicianRef() must
+// resolve an ACTIVE technician who has never appeared on a booking by
+// their stable reference-table ID, never returning null for a valid
+// name just because the booking-snapshot scan found nothing.
+{
+  const technicianRows = [
+    { id: 'tech-active-1', name: 'Never Booked Active Tech', active: true },
+    { id: 'tech-inactive-1', name: 'Deactivated Tech', active: false },
+  ];
+  const bayRows = [
+    { id: 'bay-shared-1', code: 'FABRICATION-BAY-01', is_active: true, default_technician_id: null, version: 3 },
+  ];
+  const referenceService = {
+    getCachedWorkshopBays: () => ({ rows: bayRows }),
+    getCachedTechnicians: () => ({ rows: technicianRows }),
+  };
+
+  // 16a. workshopReferenceTechnicianRef resolves an active technician
+  // purely from the reference table, even though they appear on no
+  // booking anywhere.
+  withGlobals({ __workshopReferenceDataService: referenceService }, () => {
+    const ref = planner.workshopReferenceTechnicianRef('Never Booked Active Tech');
+    assert.deepStrictEqual(ref, { technicianId: 'tech-active-1' }, '16a an active technician never seen on any booking must still resolve by stable reference-table ID');
+  });
+
+  // 16b. workshopReferenceTechnicianRef must NEVER resolve an inactive
+  // technician for a new assignment.
+  withGlobals({ __workshopReferenceDataService: referenceService }, () => {
+    const ref = planner.workshopReferenceTechnicianRef('Deactivated Tech');
+    assert.strictEqual(ref, null, '16b an inactive technician must never resolve for a new assignment, even if the name matches exactly');
+  });
+
+  // 16c. workshopReferenceTechnicianRef with an unknown name returns
+  // null (never fabricates a match).
+  withGlobals({ __workshopReferenceDataService: referenceService }, () => {
+    const ref = planner.workshopReferenceTechnicianRef('Nobody Real');
+    assert.strictEqual(ref, null, '16c an unknown name must resolve to null, not a fabricated match');
+  });
+
+  // 16d. workshopBayMechanic in shared mode reads the shared default
+  // ONLY -- an empty shared default must return '' (no default set is
+  // a valid state), never falling through to a browser-local mapping.
+  withGlobals({
+    workshopSharedModeEnabled: (cfg) => !!(cfg && cfg.workshop && cfg.workshop.sharedData === true),
+    PDC_SUPABASE_CONFIG: { workshop: { sharedData: true } },
+    __workshopSharedActions: {},
+    __workshopDataService: { isEnabled: () => true, getLastSnapshot: () => ({}) },
+    __workshopReferenceDataService: referenceService,
+  }, () => {
+    assert.strictEqual(planner.workshopBayMechanic('FABRICATION', 1), '', '16d in shared mode, an empty shared default must return empty string, never a localStorage fallback value');
+  });
+
+  console.log('PASS 16: workshopReferenceTechnicianRef resolves active technicians by stable ID regardless of booking history and rejects inactive/unknown names; workshopBayMechanic in shared mode reads the shared default only with no localStorage fallback');
+}
+
+// 17. Independent-review remediation (finding 8): workshopBayAvailabilityStatus()
+// must distinguish active/inactive/unavailable/unknown and fail
+// CLOSED (never 'active') for anything except a confirmed-active bay.
+{
+  const bayRows = [
+    { id: 'bay-1', code: 'FABRICATION-BAY-01', is_active: true, default_technician_id: null },
+    { id: 'bay-2', code: 'FABRICATION-BAY-02', is_active: false, default_technician_id: null },
+  ];
+
+  // 17a. No shared service at all (legacy local mode) -- must report
+  // 'active' so local-mode scheduling behaviour is unaffected by
+  // Stage 2A.
+  withGlobals({ __workshopReferenceDataService: undefined }, () => {
+    assert.strictEqual(planner.workshopBayAvailabilityStatus('FABRICATION', 1), 'active', '17a with no shared service at all (legacy local mode), availability must report active');
+  });
+
+  // 17b. Shared service present but still loading/reconnecting/offline
+  // -- must report 'unavailable', NOT 'active'.
+  ['connecting', 'reconnecting', 'offline_error', 'permission_denied'].forEach((state) => {
+    withGlobals({
+      __workshopReferenceDataService: {
+        getCachedWorkshopBays: () => ({ rows: [], state }),
+      },
+    }, () => {
+      assert.strictEqual(planner.workshopBayAvailabilityStatus('FABRICATION', 1), 'unavailable', `17b a shared service in state '${state}' must report 'unavailable', never 'active'`);
+    });
+  });
+
+  const readyService = {
+    getCachedWorkshopBays: () => ({ rows: bayRows, state: 'connected_read_only' }),
+  };
+
+  // 17c. Confirmed active bay -- reports 'active'.
+  withGlobals({ __workshopReferenceDataService: readyService }, () => {
+    assert.strictEqual(planner.workshopBayAvailabilityStatus('FABRICATION', 1), 'active', '17c a confirmed active bay must report active');
+  });
+
+  // 17d. Confirmed inactive bay -- reports 'inactive', not 'active'.
+  withGlobals({ __workshopReferenceDataService: readyService }, () => {
+    assert.strictEqual(planner.workshopBayAvailabilityStatus('FABRICATION', 2), 'inactive', '17d a confirmed inactive bay must report inactive');
+  });
+
+  // 17e. Unknown bay number with no matching row -- reports 'unknown',
+  // NOT 'active' (this is the core fix -- the OLD workshopBayIsActive()
+  // failed open here).
+  withGlobals({ __workshopReferenceDataService: readyService }, () => {
+    assert.strictEqual(planner.workshopBayAvailabilityStatus('FABRICATION', 99), 'unknown', "17e an unmatched bay number must report 'unknown', not 'active' -- this is the fail-closed fix");
+  });
+
+  // 17f. workshopBayIsActive() (the older, intentionally lenient
+  // boolean used for rendering EXISTING/historical bookings) is left
+  // unchanged and must still fail open for backward compatibility.
+  withGlobals({ __workshopReferenceDataService: readyService }, () => {
+    assert.strictEqual(planner.workshopBayIsActive('FABRICATION', 99), true, '17f workshopBayIsActive() must remain unchanged (fail open) for rendering existing/historical bookings');
+  });
+
+  console.log("PASS 17: workshopBayAvailabilityStatus() distinguishes active/inactive/unavailable/unknown and fails closed for new scheduling, while workshopBayIsActive() remains unchanged for existing/historical bookings");
+}

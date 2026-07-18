@@ -3341,6 +3341,15 @@ function initWorkshopReferenceDataServiceIfAvailable() {
     getAccessToken: () => (typeof getPdcSupabaseAccessToken === 'function' ? getPdcSupabaseAccessToken() : null),
     subscribeRealtime: (tableName, handlers) => createPdcSupabaseTableRealtimeSubscription(tableName, handlers),
     onStateChange: () => {
+      // Independent-review remediation (finding 1): pull the latest
+      // validated workshop configuration into the planner's live
+      // scheduling constants BEFORE re-rendering, so a settings change
+      // made in another browser (or the periodic reconciliation
+      // backstop) actually changes planner behaviour here, not only
+      // the raw cached JSON.
+      if (typeof workshopSyncConfigFromSharedSettings === 'function') {
+        try { workshopSyncConfigFromSharedSettings(); } catch (_err) { /* keep last-known-good config */ }
+      }
       renderAdminLists();
       renderKpis();
       if (app.currentView === 'workshop' && typeof renderWorkshopPlanner === 'function') renderWorkshopPlanner();

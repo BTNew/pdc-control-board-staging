@@ -28,15 +28,33 @@ reconciliation. No code path treats them as authoritative.
 | `vehicleTrackingCorePdcSubletProvidersSeed:v2` | One-time seed marker for providers | n/a |
 | `vehicleTrackingCoreSalespersons:v1` | Salesperson roster | `salespeople` table, `list_salespeople`/`add_salesperson`/`edit_salesperson`/`set_salesperson_active` RPCs |
 | `vehicleTrackingCoreSalespersonsSeed:v1` | One-time seed marker for salespeople | n/a |
+| `vehicleTrackingCoreWorkshopBaySetup:v1` (`WORKSHOP_BAY_SETUP_STORAGE_KEY`) | Bay-default-technician mapping | `workshop_bays.default_technician_id`, `set_bay_default_technician` RPC |
 
-Workshop bays and workshop configuration/settings **never had a
-browser-local key at all** — no `WORKSHOP_BAYS_KEY` or
-`WORKSHOP_SETTINGS_KEY` constant exists anywhere in the codebase, past
-or present. The 38 real `workshop_bays` rows and the
-`workshop_settings` rows were introduced directly in Supabase by
-migrations 022/023 with no local-storage precursor to retire. The
-hardcoded `PMB_STAGE_BAY_COUNTS` structural config (bay *count* per
-stage) is a separate, intentionally-unmigrated concern — see Section 4.
+**Correction (independent-review remediation, finding 2):** an earlier
+version of this document incorrectly stated that workshop bays never
+had a browser-local key at all. That was wrong. `workshop-planner.js`
+has always defined `WORKSHOP_BAY_SETUP_STORAGE_KEY` (browser-local
+key `vehicleTrackingCoreWorkshopBaySetup:v1`) for the bay-default-
+technician mapping, and until this remediation, `saveWorkshopBayMechanic()`
+wrote to it as a second, potentially-divergent source of truth even
+in shared mode, while `workshopBayMechanic()` fell back to reading it
+whenever the shared default was empty. Both have now been fixed:
+in shared mode, `saveWorkshopBayMechanic()` calls the protected
+`set_bay_default_technician` RPC directly and never touches
+`localStorage`, and `workshopBayMechanic()` reads the shared default
+exclusively (an empty shared default is treated as a valid "no
+default set" state, not as a cue to consult `localStorage`). The key
+is now retired as live authority and retained only as potential
+import-only legacy input for devices with a useful pre-migration
+default that a future import pass could read.
+
+Workshop configuration/settings **never had a browser-local key at
+all** — no `WORKSHOP_SETTINGS_KEY` constant exists anywhere in the
+codebase, past or present. The `workshop_settings` rows were
+introduced directly in Supabase by migrations 001/022/023 with no
+local-storage precursor to retire. The hardcoded `PMB_STAGE_BAY_COUNTS`
+structural config (bay *count* per stage) is a separate,
+intentionally-unmigrated concern — see Section 4.
 
 ## 2. Import-only legacy keys
 

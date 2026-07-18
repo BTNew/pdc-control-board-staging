@@ -381,6 +381,126 @@ function makeFakeClient(responses) {
     assert.strictEqual(listCallCount, 2));
 })();
 
+// 17. Independent-review remediation (finding 6): every FAILURE path
+// (no token, RPC failure) must commit the new (empty) rows and the
+// new state ATOMICALLY, in the same order as the success path --
+// never leaving stale operational rows visible alongside a new
+// failure state during the window before onStateChange fires.
+(async () => {
+  let rpcCallCount = 0;
+  let currentToken = 'tok';
+  const client = {
+    rpc: async (token, name) => {
+      rpcCallCount += 1;
+      if (name === 'list_technicians') {
+        if (rpcCallCount === 1) return { status: 200, ok: true, body: [{ id: 't1', name: 'Real Tech', active: true }] };
+        return { status: 403, ok: false, body: { code: '42501', message: 'forbidden' } };
+      }
+      return { status: 200, ok: true, body: {} };
+    }
+  };
+  let observedDuringCallback = null;
+  const service = createWorkshopReferenceDataService({
+    client,
+    getAccessToken: () => currentToken,
+    onStateChange: (resourceKey) => {
+      if (resourceKey === 'technicians') observedDuringCallback = service.getCachedTechnicians().rows;
+    }
+  });
+
+  await service.listTechnicians();
+  check('17a first successful load populates the cache with real rows', () =>
+    assert.strictEqual(service.getCachedTechnicians().rows.length, 1));
+
+  // Second load fails (403) -- the callback must see EMPTY rows
+  // already committed, not the stale rows from the first load.
+  await service.listTechnicians();
+  check('17b onStateChange for a permission_denied failure observes rows already cleared to empty, not the stale previous rows', () =>
+    assert.deepStrictEqual(observedDuringCallback, []));
+  check('17c the cache itself also reflects the cleared rows after the failed load', () =>
+    assert.deepStrictEqual(service.getCachedTechnicians().rows, []));
+  check('17d the state correctly reflects permission_denied after the failure', () =>
+    assert.strictEqual(service.getState('technicians'), WORKSHOP_REFERENCE_CONNECTION_STATE.PERMISSION_DENIED));
+})();
+
+// 18. Independent-review remediation (finding 6, no-token path):
+// losing the access token entirely (e.g. sign-out) between one
+// successful load and the next must also clear cached rows to empty
+// atomically with the state change, not leave the old rows visible.
+(async () => {
+  let hasToken = true;
+  const client = {
+    rpc: async () => ({ status: 200, ok: true, body: [{ id: 't1', name: 'Real Tech', active: true }] })
+  };
+  let observedDuringCallback = null;
+  const service = createWorkshopReferenceDataService({
+    client,
+    getAccessToken: () => (hasToken ? 'tok' : null),
+    onStateChange: (resourceKey) => {
+      if (resourceKey === 'technicians') observedDuringCallback = service.getCachedTechnicians().rows;
+    }
+  });
+
+  await service.listTechnicians();
+  check('18a first load with a real token succeeds and populates rows', () =>
+    assert.strictEqual(service.getCachedTechnicians().rows.length, 1));
+
+  hasToken = false;
+  await service.listTechnicians();
+  check('18b losing the token clears cached rows to empty atomically with the permission_denied state, observed inside onStateChange itself', () =>
+    assert.deepStrictEqual(observedDuringCallback, []));
+  check('18c the state reflects permission_denied after token loss', () =>
+    assert.strictEqual(service.getState('technicians'), WORKSHOP_REFERENCE_CONNECTION_STATE.PERMISSION_DENIED));
+})();
+
+// 19. Independent-review remediation (finding 7): updateWorkshopConfiguration()
+// must resynchronise the cache immediately after a successful write
+// (same behaviour as every other reference mutation), and
+// getWorkshopConfiguration() must report failure honestly rather than
+// always returning ok:true.
+(async () => {
+  let getCallCount = 0;
+  let currentValue = 210;
+  let currentVersion = 1;
+  const client = {
+    rpc: async (token, name, params) => {
+      if (name === 'get_workshop_configuration') {
+        getCallCount += 1;
+        return { status: 200, ok: true, body: { default_booking_duration_minutes: { value: currentValue, version: currentVersion } } };
+      }
+      if (name === 'update_workshop_configuration') {
+        currentValue = params.p_value;
+        currentVersion += 1;
+        return { status: 200, ok: true, body: { ok: true, setting: { key: params.p_key, value: currentValue, version: currentVersion } } };
+      }
+      return { status: 404, ok: false, body: null };
+    }
+  };
+  const service = createWorkshopReferenceDataService({ client, getAccessToken: () => 'tok' });
+
+  await service.getWorkshopConfiguration();
+  check('19a initial load calls get_workshop_configuration once', () => assert.strictEqual(getCallCount, 1));
+  check('19b initial cached value is the original 210', () =>
+    assert.strictEqual(service.getCachedWorkshopConfiguration().rows.default_booking_duration_minutes.value, 210));
+
+  const result = await service.updateWorkshopConfiguration('default_booking_duration_minutes', 1, 165);
+  check('19c updateWorkshopConfiguration reports ok:true on a successful write', () => assert.strictEqual(result.ok, true));
+  check('19d updateWorkshopConfiguration triggers exactly one resync reload after success (2 total get calls)', () =>
+    assert.strictEqual(getCallCount, 2));
+  check('19e the SAME browser session sees the NEW value immediately after its own successful write, without waiting for realtime/reconciliation', () =>
+    assert.strictEqual(service.getCachedWorkshopConfiguration().rows.default_booking_duration_minutes.value, 165));
+
+  // Now force a failure and confirm getWorkshopConfiguration() reports
+  // it honestly instead of always returning ok:true.
+  const failingClient = {
+    rpc: async () => ({ status: 403, ok: false, body: { code: '42501' } })
+  };
+  const failingService = createWorkshopReferenceDataService({ client: failingClient, getAccessToken: () => 'tok' });
+  const failResult = await failingService.getWorkshopConfiguration();
+  check('19f getWorkshopConfiguration reports ok:false when the underlying load actually failed, instead of always claiming ok:true', () =>
+    assert.strictEqual(failResult.ok, false));
+})();
+
 setTimeout(() => {
   console.log();
   console.log(`TOTAL: ${passed} passed, ${failed} failed`);
