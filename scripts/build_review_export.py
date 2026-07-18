@@ -12,7 +12,6 @@ import fnmatch
 import hashlib
 import json
 import os
-import shutil
 import subprocess
 import sys
 import tarfile
@@ -163,24 +162,14 @@ def verify_no_forbidden_paths_in_export(file_list: list[str]) -> list[str]:
 def _copy_tracked_sources(
     files: list[str], destination: Path, repo_root: Path, source_head: str
 ) -> None:
-    """Copy exact Git-blob bytes for the reviewed commit, not autocrlf files."""
-    with tempfile.TemporaryDirectory(prefix="pdc-review-source-") as tmp:
-        tmp_root = Path(tmp)
-        tar_path = tmp_root / "source.tar"
-        with tar_path.open("wb") as handle:
-            subprocess.run(
-                ["git", "-C", str(repo_root), "archive", "--format=tar", source_head],
-                check=True, stdout=handle,
-            )
-        archive_root = tmp_root / "archive"
-        archive_root.mkdir()
-        with tarfile.open(tar_path, "r") as archive:
-            archive.extractall(archive_root, filter="data")
-        for rel in files:
-            source = archive_root / rel
-            target = destination / rel
-            target.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(source, target)
+    """Copy exact Git-blob bytes, bypassing checkout/archive EOL conversion."""
+    for rel in files:
+        data = subprocess.check_output(
+            ["git", "-C", str(repo_root), "cat-file", "blob", f"{source_head}:{rel}"]
+        )
+        target = destination / rel
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(data)
 
 
 def _archive_staging_deployment(deploy_repo: Path, destination: Path) -> None:
