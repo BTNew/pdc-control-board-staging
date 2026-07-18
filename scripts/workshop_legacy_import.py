@@ -28,10 +28,14 @@ USAGE:
   python scripts/workshop_legacy_import.py <extract.json> <reference.json>
       [--apply] [--vehicle-export-rollback]
 
-  reference.json must contain: { "vehicles": [...], "vehicleIdentityExport": {...}, "stages": [...],
-  "bays": [...], "technicians": [...], "workItems": [...],
-  "requireWorkItemForStages": [...] } -- see fetch_reference_data() for a
-  helper that builds this directly from a live staging connection.
+  reference.json must contain the strict C2b envelope:
+  { "vehicleIdentityArtifact": {"schema_version": "pdc.workshop.vehicle-reference/v2", ...},
+    "stages": [...], "bays": [...], "technicians": [...], "workItems": [...],
+    "requireWorkItemForStages": [...] } -- see fetch_reference_data().
+
+  The prior {"vehicles": [...], "vehicleIdentityExport": {...}} envelope is
+  disabled by default and accepted only with the explicit staging/test
+  --vehicle-export-rollback compatibility flag plus exact revision validation.
 """
 
 import hashlib
@@ -40,6 +44,19 @@ import re
 import sys
 import uuid
 from datetime import datetime, timezone
+from pathlib import Path
+
+SCRIPT_DIR = Path(__file__).resolve().parent
+if str(SCRIPT_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPT_DIR))
+
+from workshop_vehicle_reference_artifact import (
+    ARTIFACT_SCHEMA_VERSION,
+    VehicleReferenceArtifactError,
+    VehicleReferenceArtifactStale,
+    build_vehicle_reference_artifact,
+    parse_workshop_reference,
+)
 
 STAGING_PROJECT_REF = 'cdsmnqxtyyoeoznmbidd'
 LEGACY_IMPORT_SOURCE = 'legacy_migration'
@@ -195,6 +212,7 @@ def fetch_vehicle_identity_export_pages(fetch_page, page_size=200, retry_attempt
     conflicts = []
     seen_vehicle_ids = set()
     seen_conflicts = set()
+    page_evidence = []
     pages = 0
     while True:
         pages += 1
@@ -261,6 +279,14 @@ def fetch_vehicle_identity_export_pages(fetch_page, page_size=200, retry_attempt
             raise VehicleIdentityExportInvalid('identity export has_more marker is missing or malformed')
         has_more = response['has_more']
         next_cursor = response.get('next_cursor')
+        end_cursor = page_ids[-1] if page_ids else None
+        page_evidence.append({
+            'after_cursor': cursor,
+            'end_cursor': end_cursor,
+            'item_count': len(page_items),
+            'has_more': has_more,
+            'next_cursor': str(next_cursor) if next_cursor is not None else None,
+        })
         if not has_more:
             if next_cursor is not None:
                 raise VehicleIdentityExportInvalid('complete identity export page has an unexpected cursor')
@@ -283,6 +309,12 @@ def fetch_vehicle_identity_export_pages(fetch_page, page_size=200, retry_attempt
                 str(row.get('normalized_value') or ''),
             ),
         ),
+        'completion': {
+            'complete': True,
+            'page_count': len(page_evidence),
+            'terminal_cursor': items[-1]['vehicle_id'] if items else None,
+            'pages': page_evidence,
+        },
     }
 
 
@@ -308,10 +340,46 @@ def ranges_overlap(a, b):
     return a_start.timestamp() < b_end and b_start.timestamp() < a_end
 
 
-def classify(extract, reference):
+def _parse_reference_data(
+    reference,
+    *,
+    expected_revision,
+    legacy_reference_rollback=False,
+    logger=lambda _message: None,
+):
+    try:
+        return parse_workshop_reference(
+            reference,
+            expected_resolver_revision=expected_revision,
+            allow_legacy_rollback=legacy_reference_rollback,
+            legacy_source_environment=(
+                f'staging:{STAGING_PROJECT_REF}' if legacy_reference_rollback else None
+            ),
+            diagnostic=logger,
+        )
+    except VehicleReferenceArtifactStale as exc:
+        raise VehicleIdentityExportStale(str(exc)) from exc
+    except VehicleReferenceArtifactError as exc:
+        raise VehicleIdentityExportInvalid(str(exc)) from exc
+
+
+def classify(
+    extract,
+    reference,
+    *,
+    expected_revision,
+    legacy_reference_rollback=False,
+    logger=lambda _message: None,
+):
     """Classify scheduling fields compatibly with the offline validator,
     while vehicle identity uses the typed migration-031 export contract.
     The remaining JS validator is intentionally a separate C2b cutover."""
+    reference = _parse_reference_data(
+        reference,
+        expected_revision=expected_revision,
+        legacy_reference_rollback=legacy_reference_rollback,
+        logger=logger,
+    )
     vehicles = reference.get('vehicles', [])
     stages = reference.get('stages', [])
     bays = reference.get('bays', [])
@@ -528,6 +596,7 @@ def fetch_reference_data(
     vehicle_export_rollback=False,
     page_size=200,
     retry_attempts=3,
+    generated_at=None,
     logger=lambda message: print(message, file=sys.stderr),
 ):
     assert_staging_project(conn)
@@ -553,20 +622,32 @@ def fetch_reference_data(
     bays = [{'id': str(r[0]), 'stage_id': str(r[1]), 'bay_number': r[2]} for r in cur.fetchall()]
     cur.execute("select id, name from workshop_technicians where active = true")
     technicians = [{'id': str(r[0]), 'name': r[1]} for r in cur.fetchall()]
-    return {
-        'vehicles': vehicle_export['items'],
-        'vehicleIdentityExport': {
-            'outcome': vehicle_export['outcome'],
-            'export_revision': vehicle_export['export_revision'],
-            'conflicts': vehicle_export['conflicts'],
-            'rollback_used': vehicle_export['rollback_used'],
-        },
+    reference = {
         'stages': stages,
         'bays': bays,
         'technicians': technicians,
         'workItems': [],
         'requireWorkItemForStages': [],
     }
+    if vehicle_export_rollback:
+        # C2a reference shape is retained only for an explicit staging/test
+        # rollback. It is never emitted by the normal C2b path.
+        reference.update({
+            'vehicles': vehicle_export['items'],
+            'vehicleIdentityExport': {
+                'outcome': vehicle_export['outcome'],
+                'export_revision': vehicle_export['export_revision'],
+                'conflicts': vehicle_export['conflicts'],
+                'rollback_used': True,
+            },
+        })
+    else:
+        reference['vehicleIdentityArtifact'] = build_vehicle_reference_artifact(
+            vehicle_export,
+            generated_at=generated_at or datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z'),
+            source_environment=f'staging:{STAGING_PROJECT_REF}',
+        )
+    return reference
 
 
 def assert_staging_project(conn):
@@ -625,6 +706,17 @@ def _lock_vehicle_identity_export_revision(conn, reference, rollback_permitted=F
     return expected_revision
 
 
+def _current_vehicle_identity_export_revision(conn):
+    cur = conn.cursor()
+    cur.execute(
+        "select revision from public.vehicle_lifecycle_resolver_revision where singleton"
+    )
+    rows = cur.fetchall()
+    if len(rows) != 1 or isinstance(rows[0][0], bool) or not isinstance(rows[0][0], int):
+        raise VehicleIdentityExportInvalid('current resolver revision is unavailable')
+    return rows[0][0]
+
+
 def _import_request_fingerprint(extract, reference, buckets):
     safe = []
     for entry in buckets['safely_matched']:
@@ -642,10 +734,13 @@ def _import_request_fingerprint(extract, reference, buckets):
             'duration_minutes': booking.get('duration_minutes'),
             'status': booking.get('status'),
         })
+    export_meta = reference.get('vehicleIdentityExport') or {}
+    artifact = reference.get('vehicleIdentityArtifact') or {}
     payload = {
         'extract': extract,
-        'vehicle_export_revision': (reference.get('vehicleIdentityExport') or {}).get('export_revision'),
-        'rollback_used': (reference.get('vehicleIdentityExport') or {}).get('rollback_used') is True,
+        'vehicle_export_revision': export_meta.get('export_revision', artifact.get('resolver_revision')),
+        'vehicle_artifact_checksum': export_meta.get('artifact_checksum', (artifact.get('checksum') or {}).get('value')),
+        'rollback_used': export_meta.get('rollback_used') is True,
         'safely_matched': sorted(safe, key=lambda row: str(row.get('legacy_plan_id') or '')),
     }
     encoded = json.dumps(payload, sort_keys=True, separators=(',', ':'), ensure_ascii=True).encode('utf-8')
@@ -696,7 +791,23 @@ def run_import(
         "select set_config('request.jwt.claims', %s, true)",
         (json.dumps({'email': 'administrator@staging.pdc-workshop.example.com', 'role': 'authenticated', 'sub': str(admin_user_id)}),),
     )
-    buckets = classify(extract, reference)
+    declared_meta = reference.get('vehicleIdentityArtifact') or reference.get('vehicleIdentityExport') or {}
+    declared_revision = declared_meta.get('resolver_revision', declared_meta.get('export_revision'))
+    if isinstance(declared_revision, bool) or not isinstance(declared_revision, int):
+        raise VehicleIdentityExportInvalid('reference data has no declared resolver revision')
+    reference = _parse_reference_data(
+        reference,
+        expected_revision=declared_revision,
+        legacy_reference_rollback=vehicle_export_rollback,
+        logger=logger,
+    )
+    buckets = classify(
+        extract,
+        reference,
+        expected_revision=declared_revision,
+        legacy_reference_rollback=vehicle_export_rollback,
+        logger=logger,
+    )
     request_fingerprint = _import_request_fingerprint(extract, reference, buckets)
     if apply:
         # Serialize identical requests. If the first caller committed but its
@@ -811,6 +922,19 @@ def run_import(
                 inserted += 1
 
     skipped = sum(len(v) for k, v in buckets.items() if k != 'safely_matched')
+    resolved_vehicles = sorted(({
+        'legacy_plan_id': row['booking'].get('legacy_plan_id'),
+        'vehicle_id': row['resolved']['vehicle_id'],
+        'vehicle_version': row['resolved']['vehicle_version'],
+    } for row in buckets['safely_matched']), key=lambda row: str(row['legacy_plan_id'] or ''))
+    vehicle_reference_summary = {
+        'schema_version': (reference.get('vehicleIdentityExport') or {}).get('artifact_schema_version') or 'legacy-rollback',
+        'resolver_revision': (reference.get('vehicleIdentityExport') or {}).get('export_revision'),
+        'checksum': (reference.get('vehicleIdentityExport') or {}).get('artifact_checksum'),
+        'source_environment': (reference.get('vehicleIdentityArtifact') or {}).get('source_environment')
+            or (f'staging:{STAGING_PROJECT_REF}' if vehicle_export_rollback else None),
+        'item_count': len(reference.get('vehicles') or []),
+    }
 
     if apply:
         cur.execute("select count(*) from workshop_bookings where source = %s", (LEGACY_IMPORT_SOURCE,))
@@ -830,6 +954,8 @@ def run_import(
                     'skipped': skipped,
                     'before_count': before_count,
                     'after_count': after_count,
+                    'vehicle_reference': vehicle_reference_summary,
+                    'resolved_vehicles': resolved_vehicles,
                     'bucket_counts': {k: len(v) for k, v in buckets.items()},
                 }),
             ),
@@ -851,6 +977,8 @@ def run_import(
         'inserted': inserted,
         'updated': updated,
         'skipped': skipped,
+        'vehicle_reference': vehicle_reference_summary,
+        'resolved_vehicles': resolved_vehicles,
         'bucket_counts': {k: len(v) for k, v in buckets.items()},
     }
 

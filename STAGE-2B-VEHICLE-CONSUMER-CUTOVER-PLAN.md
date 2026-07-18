@@ -110,20 +110,11 @@ The export is UUID ordered, cursor paginated (maximum 500 rows), revision pinned
 
 **Proof completed:** importer and administrator access; viewer and operator/controller denial; narrow projection; canonical UUID retention; stock/VIN/job-card/alias/source-evidence normalization; zero/many/canonical-alias/canonical-source conflicts refused; archived handling; deterministic ordering and page retry; malformed completion markers rejected; stale normal and rollback revisions refused; exact apply replay returns one durable receipt with no repeated booking/history write; exact project-ref plus fixture rollback guard; synthetic importer apply with transaction rollback; zero fixture/receipt/source-evidence residue; migration dry run/lint; encrypted backup and isolated restore.
 
-**Next C2b:** update `scripts/workshop_planner_legacy_validate.js` and its offline reference-artifact producer/consumers to accept the migration 031 typed export envelope and reproduce the same complete candidate-set/conflict behavior. Keep `get_workshop_snapshot`, the browser-local workshop dataset and all browser authority unchanged.
+**C2b offline artifact alignment — complete in source.** The migration 031 server contract is sufficient, so no migration 032 is created. `fetch_reference_data` emits `pdc.workshop.vehicle-reference/v2`: resolver revision, UTC generation timestamp, staging/test environment identifier, item count, complete page/cursor evidence, strict typed items/conflicts, and a deterministic SHA-256 over canonical logical content. Python import/dry-run and Node validator consumers independently enforce the same allowlist, SQL-equivalent normalization, canonical/alias/source-evidence distinction, UUID/version retention, checksum/count/pagination integrity, stale-revision refusal and complete candidate-set matching. The former `vehicles` + `vehicleIdentityExport` envelope is disabled by default and requires the explicit staging/test rollback flag, exact revision and a clear warning.
 
-- Keep `get_workshop_snapshot` for bookings/workshop state.
-- Make overlapping core identity fields conform exactly to the core contract and normalization rules.
-- Keep `workshop_legacy_import.py` on the revision-pinned 031 export; update remaining offline validators to consume that same envelope and reject ambiguous normalized identities.
-- Inventory every active caller of the lower-level authenticated booking RPCs. Retire those grants only after transactional wrappers cover the callers and prove identical vehicle-pointer/status/revision/audit behavior.
-- Add a health check that `vehicles.active_workshop_booking_id`, when present, points to a booking for the same vehicle.
-- Keep workshop and vehicle-master revision subscriptions independent.
+No browser workshop file, `get_workshop_snapshot`, browser-local store, main-board path, workshop authority or production artifact changes in C2b.
 
-**RLS/RPC:** no broader table grants. If an offline export RPC is needed, expose only `id`, identities and archived flag to importer/admin.
-
-**Proof:** adapter UUID preservation, duplicate/conflicting identity failures, reconnect resync, workshop mutation expected-version tests, dry-run import report, zero writes for unsafe buckets.
-
-**Rollback:** disable workshop shared mode or use the last approved tool version; unchanged legacy planner/local data remains available.
+**Next after C2b:** C3 is still the reviewed synthetic import/reconciliation pilot described below. It must begin only under a separate explicit instruction; C2b does not authorize it.
 
 ### C3 — reviewed synthetic import/reconciliation pilot
 

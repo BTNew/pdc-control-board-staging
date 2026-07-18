@@ -33,20 +33,27 @@ def vehicle(vehicle_id, identifiers, archived=False, version=1):
 
 
 def reference(items, conflicts=None, revision=7):
+    last = items[-1]["vehicle_id"] if items else None
     return {
-        "vehicles": items,
-        "vehicleIdentityExport": {
-            "outcome": "exported",
-            "export_revision": revision,
-            "conflicts": conflicts or [],
-            "rollback_used": False,
-        },
+        "vehicleIdentityArtifact": importer.build_vehicle_reference_artifact({
+            "outcome": "exported", "export_revision": revision,
+            "items": items, "conflicts": conflicts or [],
+            "completion": {
+                "complete": True, "page_count": 1, "terminal_cursor": last,
+                "pages": [{"after_cursor": None, "end_cursor": last, "item_count": len(items), "has_more": False, "next_cursor": None}],
+            },
+        }, generated_at="2026-07-18T10:00:00Z", source_environment="test:c2b-adapter"),
         "stages": [{"id": "stage-1", "code": "fit"}],
         "bays": [],
         "technicians": [],
         "workItems": [],
         "requireWorkItemForStages": [],
     }
+
+
+def classify(payload, ref):
+    revision = ref["vehicleIdentityArtifact"]["resolver_revision"]
+    return importer.classify(payload, ref, expected_revision=revision)
 
 
 def extract(key, plan_id="plan-1"):
@@ -81,7 +88,7 @@ class ImporterIdentityExportAdapterTests(unittest.TestCase):
             identifier("stock_number", "OLD-12", "OLD12", origin="alias"),
         ], version=4)
         for key in ("ab 12", "1hgcm82633-a004352", " jc-9 ", "old 12"):
-            buckets = importer.classify(extract(key), reference([item]))
+            buckets = classify(extract(key), reference([item]))
             self.assertEqual(len(buckets["safely_matched"]), 1, key)
             resolved = buckets["safely_matched"][0]["resolved"]
             self.assertEqual(resolved["vehicle_id"], UUID_A)
@@ -89,22 +96,26 @@ class ImporterIdentityExportAdapterTests(unittest.TestCase):
 
     def test_zero_duplicate_conflict_and_archived_fail_closed(self):
         a = vehicle(UUID_A, [identifier("stock_number", "AB-12", "AB12")])
-        b = vehicle(UUID_B, [identifier("stock_number", "AB 12", "AB12", origin="alias")])
-        self.assertEqual(len(importer.classify(extract("missing"), reference([a]))["missing_vehicle"]), 1)
-        duplicate = importer.classify(extract("ab-12"), reference([a, b]))
+        cross_typed = vehicle(UUID_B, [identifier("permanent_vehicle_id", "AB-12", "AB-12")])
+        self.assertEqual(len(classify(extract("missing"), reference([a]))["missing_vehicle"]), 1)
+        duplicate = classify(extract("ab-12"), reference([a, cross_typed]))
         self.assertEqual(len(duplicate["duplicate_vehicle_match"]), 1)
+        alias = vehicle(UUID_B, [identifier("stock_number", "AB 12", "AB12", origin="alias")])
         conflict = {
             "classification": "canonical_alias_conflict",
             "identifier_type": "stock_number",
             "normalized_value": "AB12",
             "source_system": None,
             "vehicle_ids": [UUID_A, UUID_B],
-            "candidates": [],
+            "candidates": [
+                {"vehicle_id": UUID_A, "origin": "canonical", "value": "AB-12"},
+                {"vehicle_id": UUID_B, "origin": "alias", "value": "AB 12"},
+            ],
         }
-        conflicted = importer.classify(extract("ab-12"), reference([a, b], [conflict]))
+        conflicted = classify(extract("ab-12"), reference([a, alias], [conflict]))
         self.assertEqual(len(conflicted["conflicting_vehicle_identity"]), 1)
         self.assertEqual(conflicted["conflicting_vehicle_identity"][0]["identity_conflicts"][0]["classification"], "canonical_alias_conflict")
-        archived = importer.classify(extract("ab-12"), reference([vehicle(UUID_A, a["identifiers"], archived=True)]))
+        archived = classify(extract("ab-12"), reference([vehicle(UUID_A, a["identifiers"], archived=True)]))
         self.assertEqual(len(archived["inactive_vehicle"]), 1)
         self.assertEqual(len(archived["safely_matched"]), 0)
 
@@ -220,7 +231,7 @@ class ImporterIdentityExportAdapterTests(unittest.TestCase):
             vehicle(UUID_A, [identifier("stock_number", "AB12", "AB12")])
         ], revision=7)
         payload = extract("AB12")
-        buckets = importer.classify(payload, ref)
+        buckets = classify(payload, ref)
         first = importer._import_request_fingerprint(payload, ref, buckets)
         second = importer._import_request_fingerprint(payload, ref, buckets)
         self.assertEqual(first, second)

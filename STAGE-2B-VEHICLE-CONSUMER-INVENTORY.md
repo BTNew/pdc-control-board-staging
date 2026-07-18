@@ -1,6 +1,6 @@
 # Stage 2B authoritative vehicle-consumer inventory
 
-Status: complete against `feature/stage2b-shared-vehicle-master` at reviewed baseline `7404fb00aa2d5a12b9776814abe60cb3f47827b2`.
+Status: C2b refreshed against `feature/stage2b-shared-vehicle-master` from reviewed baseline `5dade8ae944c8f073c8ebf90ece8ba29b097f294`.
 
 Scope: active runtime code, SQL contracts in migrations `001`-`029`, operational scripts, backup/restore, ingestion/import tooling, checks, and test/browser harnesses. Consumer discovery was completed before migration `029` was created; this final inventory also records the resulting protected 029 operations. This is an inventory only: no existing read or write path is retired or switched by this document.
 
@@ -118,9 +118,23 @@ These are inventory findings, not work authorized for migration 029:
 
 ## Inventory conclusions
 
+### C2b offline workshop reference-artifact closure
+
+The complete repository search found one active typed producer and two active consumers outside the live browser workflow:
+
+| Offline path | C2b disposition |
+|---|---|
+| `scripts/workshop_legacy_import.py::fetch_vehicle_identity_export_pages/fetch_reference_data` | Sole active producer. It consumes migration 031 pages, preserves every cursor transition and terminal cursor, and emits `pdc.workshop.vehicle-reference/v2`. It no longer writes broad `vehicles` rows into the normal reference envelope. |
+| `scripts/workshop_legacy_import.py::classify/run_import` | Python dry-run/apply/reconciliation consumer. It verifies schema, revision, checksum, item count, pagination completion, strict item/conflict allowlists, and the complete typed candidate set before matching. Stale apply is revision locked. |
+| `scripts/workshop_planner_legacy_validate.js::validateLegacyImport` | Node offline validator/diagnostic consumer. It uses the same typed schema and SQL-equivalent normalizers, retains canonical UUID/version, rejects zero/many/conflict/inactive candidates, and exposes a sanitized diagnostic summary rather than raw booking/source payloads. |
+
+Supporting test/fixture consumers are `test_workshop_vehicle_reference_artifact.js`, `test_workshop_planner_legacy_validate.js`, `backend/test_stage2b_offline_vehicle_reference_artifact.py`, `backend/test_stage2b_importer_identity_export_adapter.py`, and `scripts/stage2b_c2a_importer_identity_export_acceptance.py`. The ignored local `_staging_test_tools/synthetic_reference.json` cache was regenerated in the typed format; committed CI coverage builds equivalent fixtures in memory so it does not depend on a machine-local cache. No tracked CSV reference artifact, additional generated lookup cache, diagnostic reader, or reconciliation helper was found. Browser snapshot/service files, browser-local stores, backup/restore full-row payloads, and general workshop staging integration fixtures are not consumers of this offline identity artifact and remain unchanged.
+
+Migration `032` is not required: migration 031 already supplies every server-side field and revision/cursor guarantee needed by C2b. C2b is a strict offline envelope/parser/consumer change only.
+
 1. The only active direct frontend `vehicles` read found is `app.js::vehicleLifecycleSharedRef`; it uses `limit=1` and is the first mandatory cutover target.
 2. `get_workshop_snapshot` and vehicle-intelligence snapshots are purpose-built vehicle-derived contracts and must not be replaced blindly by the core snapshot.
-3. `scripts/workshop_legacy_import.py::fetch_reference_data` is the active non-test direct backend vehicle read; backup/restore and staging tests are privileged direct consumers by design.
+3. `scripts/workshop_legacy_import.py::fetch_reference_data` now consumes the narrow migration 031 export and emits the C2b typed artifact; its historical direct vehicle query is staging/test rollback-only and disabled by default. Backup/restore and staging tests remain privileged direct consumers by design.
 4. The main board remains browser-local and consumes substantially more operational data than the sanitized core contract. Its cutover is deliberately later.
 5. Broad authenticated `SELECT` on `vehicles` and `vehicle_aliases` cannot be retired until the lifecycle resolver, any script/reference lookup, and all undiscovered external PostgREST clients are proven migrated; database statement/log review is part of that proof.
 6. No current email/AI path may call 029 apply automatically. Email and attachments remain untrusted proposals requiring human review.

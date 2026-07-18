@@ -1,0 +1,58 @@
+name: Stage 2B C2b cross-platform verification
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - feature/stage2b-shared-vehicle-master
+
+permissions:
+  contents: read
+
+jobs:
+  offline-reference-artifact:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Typed artifact and offline validator tests
+        run: |
+          node test_workshop_vehicle_reference_artifact.js
+          node test_workshop_planner_legacy_validate.js
+          python -m unittest \
+            backend.test_stage2b_offline_vehicle_reference_artifact \
+            backend.test_stage2b_importer_identity_export_foundation \
+            backend.test_stage2b_importer_identity_export_adapter -v
+      - name: Syntax and prohibited-field scan
+        run: |
+          node --check scripts/workshop_vehicle_reference_artifact.js
+          node --check scripts/workshop_planner_legacy_validate.js
+          python -m py_compile \
+            scripts/workshop_vehicle_reference_artifact.py \
+            scripts/workshop_legacy_import.py \
+            scripts/stage2b_c2a_importer_identity_export_acceptance.py
+          python - <<'PY'
+          from pathlib import Path
+          paths = [
+              Path('scripts/workshop_vehicle_reference_artifact.js'),
+              Path('scripts/workshop_vehicle_reference_artifact.py'),
+          ]
+          prohibited = ('customer_name', 'customer_email', 'notes', 'parts_status',
+                        'workshop_status', 'source_payload', 'ai_analysis')
+          text = '\n'.join(path.read_text(encoding='utf-8').lower() for path in paths)
+          leaked = [field for field in prohibited if field in text]
+          if leaked:
+              raise SystemExit(f'prohibited artifact fields present: {leaked}')
+          PY

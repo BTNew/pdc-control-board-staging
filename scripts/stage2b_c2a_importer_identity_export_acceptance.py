@@ -95,8 +95,7 @@ def main():
             cur.execute("set local session_replication_role=origin")
 
         reference = fetch_reference_data(conn, actor_email=admin_email, page_size=1)
-        if reference["vehicleIdentityExport"]["rollback_used"]:
-            raise AssertionError("normal C2a acceptance unexpectedly used rollback")
+        artifact = reference["vehicleIdentityArtifact"]
         stage_code = reference["stages"][0]["code"]
 
         identity_results = {}
@@ -106,7 +105,7 @@ def main():
             ("job_card", f" jc-{token.lower()}-1 "),
             ("alias", alias_value.lower().replace("-", " ")),
         ):
-            buckets = classify({"bookings": [booking(key, token, stage_code)]}, reference)
+            buckets = classify({"bookings": [booking(key, token, stage_code)]}, reference, expected_revision=artifact["resolver_revision"])
             safe = buckets["safely_matched"]
             if len(safe) != 1 or safe[0]["resolved"]["vehicle_id"] != vehicle_a:
                 raise AssertionError(f"{label} did not retain canonical UUID")
@@ -115,6 +114,7 @@ def main():
         ambiguous = classify(
             {"bookings": [booking(conflict_value, token + "-CONFLICT", stage_code)]},
             reference,
+            expected_revision=artifact["resolver_revision"],
         )
         if len(ambiguous["conflicting_vehicle_identity"]) != 1 or ambiguous["safely_matched"]:
             raise AssertionError("canonical-versus-alias conflict was not refused")
@@ -171,8 +171,9 @@ def main():
             "identity_results": identity_results,
             "ambiguous_refused": True,
             "rollback_used": False,
-            "export_revision": reference["vehicleIdentityExport"]["export_revision"],
-            "exported_vehicle_count": len(reference["vehicles"]),
+            "export_revision": artifact["resolver_revision"],
+            "exported_vehicle_count": artifact["item_count"],
+            "artifact_checksum": artifact["checksum"]["value"],
             "import_result": applied,
             "response_loss_retry": {
                 "replayed": True,
