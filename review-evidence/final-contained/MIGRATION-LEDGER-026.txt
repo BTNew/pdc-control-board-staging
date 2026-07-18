@@ -1,0 +1,5 @@
+Local migration ledger: 001-026
+Staging migration ledger: 001-026
+Post-apply linked dry run: Remote database is up to date.
+Linked project: cdsmnqxtyyoeoznmbidd (staging)
+Production project vjdtsswhroyguxyfjdkt was not linked, queried, migrated, or deployed.

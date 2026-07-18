@@ -9,7 +9,7 @@ const app = fs.readFileSync(path.join(root, 'app.js'), 'utf8');
 const css = fs.readFileSync(path.join(root, 'styles.css'), 'utf8');
 const desktopCss = fs.readFileSync(path.join(root, 'desktop-operations.css'), 'utf8');
 const htmlFiles = ['index.html', 'no-vehicles.html', 'test-50.html', 'test-75.html', 'test-100.html'];
-const expectedVersion = '2026.07.16.26-workshop-drop-last-hover';
+const expectedVersion = '2026.07.18.02-stage2a-final-approval';
 
 assert.ok(app.includes(`const APP_VERSION = '${expectedVersion}';`));
 assert.match(app, /function productionGridHeaderHtml\(/);
@@ -27,7 +27,7 @@ for (const station of ['Parts', 'Tint', 'Hoist', 'Fitting', 'Fabrication', 'Elec
 }
 
 assert.doesNotMatch(app, /truncate\(\s*(?:customer|vehicleCustomerName)/i, 'Customer names must not be truncated');
-assert.match(app, /<th>Status<\/th><th>Vehicle ID<\/th><th>Customer \/ vehicle<\/th><th>Kewdale ETA<\/th><th>Parts ETA<\/th><th>Blocker<\/th><th>Stage \/ update<\/th><th>Actions<\/th>/);
+assert.match(app, /<th>Status<\/th><th>Vehicle ID<\/th><th>Customer \/ vehicle<\/th><th>Kewdale ETA<\/th><th>Parts ETA<\/th><th>Jita<\/th><th>Blocker<\/th><th>Stage \/ update<\/th><th>Actions<\/th>/);
 assert.match(app, /<th>Collected<\/th><th>Key<\/th><th>Stock<\/th><th>Job Card<\/th><th>Customer<\/th><th>Vehicle<\/th>/);
 assert.match(app, /<thead><tr><th>Key<\/th><th>Stock<\/th><th>Job Card<\/th><th>Customer<\/th><th>Vehicle<\/th>/);
 

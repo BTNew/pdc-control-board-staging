@@ -1,0 +1,21 @@
+{
+  "site_url": "https://btnew.github.io/pdc-control-board-staging/",
+  "uri_allow_list": "https://btnew.github.io/pdc-control-board-staging/,https://btnew.github.io/pdc-control-board-staging/index.html,http://127.0.0.1:8270/staging.html,http://localhost:8270/staging.html",
+  "disable_signup": false,
+  "external_email_enabled": true,
+  "mailer_autoconfirm": false,
+  "mailer_secure_email_change_enabled": true,
+  "mailer_otp_exp": 3600,
+  "mailer_otp_length": 8,
+  "jwt_exp": 3600,
+  "password_min_length": 12,
+  "password_required_characters": "abcdefghijklmnopqrstuvwxyz:ABCDEFGHIJKLMNOPQRSTUVWXYZ:0123456789:!@#$%^&*()_+-=[]{};'\\\\:\"|<>?,./`~",
+  "refresh_token_rotation_enabled": true,
+  "security_refresh_token_reuse_interval": 10,
+  "security_manual_linking_enabled": false,
+  "external_anonymous_users_enabled": false,
+  "smtp_host": null,
+  "smtp_port": null,
+  "smtp_sender_name": null,
+  "smtp_admin_email": null
+}

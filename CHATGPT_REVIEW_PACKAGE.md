@@ -1,247 +1,85 @@
-# PDC Control Board — Review Package for Another ChatGPT Session
+# PDC Control Board — Independent Review Package
 
-## What this is
+## Current scope
 
-This is a static website/app for managing vehicle flow through PDC / PMB / Yard Hold / Parts / RFT operations.
+This repository is an authenticated static frontend backed by Supabase. The
+contained review target is **Stage 2A shared reference data and workshop
+configuration remediation** on branch
+`fix/stage2a-independent-review-findings`.
 
-Historical public/demo URL (unauthenticated; do not serve operational data here):
-- https://btnew.github.io/pdc-control-board/?v=12cca86-rft-live
+- Staging URL: <https://btnew.github.io/pdc-control-board-staging/>
+- Staging Supabase project: `cdsmnqxtyyoeoznmbidd`
+- Production project: `vjdtsswhroyguxyfjdkt` (**must not be contacted**)
+- Stage 2B vehicle/booking master-data cutover: **not started**
 
-Repository:
-- https://github.com/BTNew/pdc-control-board
+Do not use the historical unauthenticated demo URL or assume this is a
+browser-local-only application. Operational data must never be placed in a
+public or unauthenticated build.
 
-Original commit included before this review-update pass:
-- `12cca86` — `Add RFT home and fix workflow collapse`
+## Review objective
 
-This package has since had the 2026-07-05 review recommendations applied directly in the static files.
+Independently verify the contained Stage 2A remediation rather than proposing
+an unrelated redesign. Start with:
 
-The app is currently a plain static site using:
-- `index.html`
-- `styles.css`
-- `app.js`
-- `data.js`
-- local browser storage for user-side state/persistence
+1. `REVIEW-INSTRUCTIONS.md`
+2. `STAGE-2A-INDEPENDENT-REVIEW-REMEDIATION-HANDOVER.md`
+3. `STAGE-2A-SHARED-REFERENCE-DATA-HANDOVER.md`
+4. `supabase/migrations/026_stage2a_final_review_remediation.sql`
+5. `review-evidence/`
 
-There is no backend database in this package.
+The final package includes an exact source commit, exact staging deployment
+snapshot, checksums, safe evidence, and credential-free tests.
 
----
+## Stage 2A final-remediation invariants
 
-## Your task
+- Planner configuration authority is one validated object containing integer
+  minutes (`dayStartMinutes`, `dayEndMinutes`, `dayLengthMinutes`, scheduling
+  increment and default duration) plus validated working-day, closure, break,
+  overtime and technician-leave collections.
+- Clock values such as `07:30` are represented as `450`, never `7.5`, and only
+  `workshopSetClock()` applies them to `Date` objects.
+- Closures block new scheduling and are skipped by workday arithmetic, while
+  historical bookings remain visible.
+- Breaks are non-bookable and are skipped by work-duration arithmetic.
+- Overtime is valid only inside configured overtime windows and is visually
+  identified.
+- New assignments during technician leave are rejected in both the planner and
+  the protected database RPC.
+- Viewer list RPCs and direct REST/Realtime SELECT expose active reference rows
+  only. Operator/administrator hierarchy can read inactive rows. Unapproved,
+  disabled and rejected accounts read none.
+- Browser roles retain no direct write grants to protected reference or
+  workshop tables.
+- `update_workshop_configuration` returns structured validation errors for
+  malformed UUIDs and non-exact ISO dates.
+- The mailbox monitor imports on Windows (`msvcrt`) and Unix-like systems
+  (`fcntl`) without discovery-time failure.
 
-Please review this website/app and suggest practical improvements for a real dealership/workshop environment.
+## Safety boundary
 
-Focus on:
-1. Making the workflow simpler for workshop/admin staff.
-2. Improving the UI layout and readability.
-3. Making the PMB workflow board easier to use.
-4. Improving Control Board, Parts, RFT and import flows.
-5. Reducing clutter and confusion.
-6. Making status, blockers and next actions obvious.
-7. Preserving the existing business rules listed below.
+Do not:
 
-Please provide:
-- A concise diagnosis of what is confusing or weak.
-- A prioritised improvement list.
-- Specific UI/UX recommendations.
-- Specific code-level recommendations if you inspect files.
-- Any redesign sketches or layout descriptions that would help.
-- A staged plan: quick fixes, medium improvements, bigger rebuild ideas.
+- merge the review branch;
+- deploy to production;
+- query or link the production project;
+- add credentials, `.env` files, real email/attachment data, backups, browser
+  sessions or operational logs to the package;
+- rewrite migrations 001–025;
+- begin Stage 2B, AI work, planner Admin blocks, current-time feature work or an
+  unrelated planner redesign.
 
-If you edit code, keep changes small and reviewable.
+## Running the review
 
----
+Run every command in `REVIEW-INSTRUCTIONS.md` from a clean package extraction.
+The JavaScript tests require Node but no npm install. Python dependencies are
+pinned in `requirements-review.txt`. Live staging tests are optional and
+require reviewer-supplied **staging-only** credentials.
 
-## How to run locally
+The expected review output is a concise correctness/security report covering:
 
-From the unzipped folder:
-
-```bash
-python -m http.server 8765 --bind 127.0.0.1
-```
-
-Then open:
-
-```text
-http://127.0.0.1:8765/?v=review
-```
-
-If Python is unavailable, use any static file server.
-
-Suggested checks after changes:
-
-```bash
-node --check app.js
-node --check data.js
-node test_navision_confirm.js
-node test_parts_production_principles.js
-```
-
----
-
-## Current navigation / major screens
-
-Main side navigation currently includes:
-- Control Board
-- PMB Workflow
-- Parts
-- RFT
-- Reports
-- Uploads
-
-### Control Board
-Purpose:
-- Operational overview of incoming/non-RFT vehicles.
-- Searchable/filterable vertical collapsible vehicle rows.
-- Ordered buckets: PMB, Yard Hold, In Transit, Overseas / Other.
-- Yard Hold rows can be transferred into PMB.
-- PMB/RFT/manual statuses are protected from Navision import overwrites.
-
-### PMB Workflow
-Purpose:
-- PMB-only workflow board.
-- Buckets/stages: Unallocated, Tint, Hoist, Fitting, Fabrication, Electrical, Tyre, Pit Inspection.
-- Compact collapsible rows.
-- Drag PMB vehicles between stages/buckets.
-- Open bays for detailed bay assignment.
-- Collapse all rows should close all Workflow details.
-
-Recent fix:
-- Workflow zoom/scale should remain normal: CSS zoom should be `1`, transform should be `none`.
-- Collapse all rows now uses explicit collapse state rather than re-opening all buckets on render.
-
-### Parts
-Purpose:
-- Production-focused Parts screen.
-- Shows parts-related blockers/status without salesperson or finance clutter.
-- Parts stoppage means Parts required but not completed, with a stoppage flag/reason.
-
-### RFT
-Purpose:
-- Ready For Transfer / final gate home screen.
-- Shows RFT vehicles, readiness/completion status, blockers and outstanding jobs.
-- Allows completion ticks for required RFT/PDC jobs.
-- RFT requires all required jobs, including Parts and Pit Inspection when present.
-
-### Uploads
-Purpose:
-- Paste/import copied Navision rows.
-- Manual PMB / Yard Hold / RFT states must remain protected from imported data.
-
----
-
-## Business rules that must be preserved
-
-Please do not break these:
-
-1. Navision import drives the main tracker.
-2. Manual Yard Hold / PMB / RFT overrides take priority over Navision.
-3. PMB transfer lands in Unallocated.
-4. Job ticks must not auto-allocate vehicles to bays/stages.
-5. `pmbStage` is the production bucket assignment.
-6. Current PMB/production stages:
-   - Tint internal
-   - Hoist
-   - Fitting
-   - Fabrication
-   - Electrical
-   - Tyre bay
-   - Pit Inspection
-7. Current capacity assumptions:
-   - Tint: 2 bays
-   - Hoist: 3 bays
-   - Fitting: 5 bays
-   - Fabrication: refer Dan / non-fixed
-   - Electrical: 10 bays
-   - Tyre bay: 2 bays, including 1 wheel-alignment bay
-   - Pit Inspection: 1 bay
-8. Numbered bays are physical capacity; do not allow two active vehicles in the same numbered bay.
-9. Waiting/no-bay vehicles should remain unassigned until a bay is available.
-10. Pit Inspection is both a PMB/RFT checklist gate and a production bay.
-11. RFT requires all required jobs, including Parts and Pit Inspection when present.
-12. PMB key tag numbers are only relevant while a vehicle is active in PMB.
-13. Block duplicate active PMB key tags.
-14. Parts view should stay production-focused; no salesperson/finance noise.
-15. Do not add tracking/analytics, hidden network calls, or sensitive customer data storage.
-16. Do not add secrets, API keys or credentials to browser code.
-
----
-
-## Applied review update and remaining improvement target
-
-The app has grown through many iterations, so a fresh UX review would help.
-
-
-Applied in this package:
-- Control Board / PMB Workflow / Reports navigation wording.
-- Fix First exception cards on Control Board and PMB Workflow.
-- Dashboard quick-import panels hidden; Uploads remains the import home.
-- Default vehicle table columns aligned to Tint, Hoist, Fitting, Fabrication, Electrical, Tyre, Pit Inspection, Navision Notes, JITA and Action.
-- Explicit Parts import columns added.
-- Main CSV export job columns generated from current PDC job definitions.
-- Separate mobile page removed; the main board is the maintained interface.
-- External CDN script tags were removed; optional browser integrations now rely on graceful fallbacks unless local approved libraries are provided.
-
-Remaining watch items:
-- It can feel cluttered or overwhelming.
-- PMB Workflow layout has been sensitive to zoom/density changes.
-- Rows/cards must stay aligned without using global CSS zoom or transform tricks.
-- Collapse all rows must actually close every row/detail.
-- Staff need a simple process-led view, not just lots of data.
-- Control Board and PMB Workflow should make next action obvious.
-- PMB cards need to be compact but still readable.
-- Parts/RFT should show blockers clearly and avoid irrelevant fields.
-- Import flow should clearly show what was accepted/skipped and why.
-
----
-
-## Important technical notes
-
-- This is a static app. Most state is stored in browser storage and JS data structures.
-- `app.js` is large and contains most business logic/rendering.
-- `styles.css` contains all layout/styling.
-- `data.js` contains sample/current app data.
-- `test_navision_confirm.js` and `test_parts_production_principles.js` cover some core rules.
-- Keep asset cache-busting query strings updated in `index.html` if changing JS/CSS for GitHub Pages.
-- Do not use global CSS `zoom` or broad transforms to shrink the app; tighten real spacing/layout CSS instead.
-
----
-
-## Suggested review questions
-
-Please answer these after inspecting/running it:
-
-1. What further tuning should the Control Board home screen get for a workshop/admin user?
-2. Which screens or controls are redundant?
-3. What would make the PMB workflow easier to operate during the day?
-4. How should blockers be surfaced?
-5. How should RFT readiness be presented?
-6. Is the current navigation too broad or about right?
-7. Which fields should be hidden by default and only revealed on expand?
-8. How should import results be explained to non-technical staff?
-9. What layout would work best on a large workshop screen vs a desktop user?
-10. What are the top 5 changes to make next?
-
----
-
-## Please avoid
-
-- Treat the authenticated backend as a separately planned production migration. Follow `BACKEND_MIGRATION_PLAN.md` and do not select a vendor without the requirements/security decision.
-- Do not suggest public exposure of customer/business data without authentication.
-- Do not introduce analytics/tracking.
-- Do not change PMB/RFT/manual override rules.
-- Do not make job ticks automatically move vehicles.
-- Do not solve layout by setting browser zoom or global CSS `zoom`.
-
----
-
-## Best output format
-
-Please return:
-
-1. **Executive summary** — 5 to 10 bullets.
-2. **Top-priority fixes** — practical, ranked.
-3. **Screen-by-screen feedback** — Control Board, PMB Workflow, Parts, RFT, Uploads.
-4. **Suggested simplified navigation/layout**.
-5. **Code hotspots / risks**.
-6. **A staged implementation plan**.
-7. Optional: sample wireframe descriptions or HTML/CSS snippets.
+- minute-based scheduling outcomes;
+- closure, break, overtime and leave behavior;
+- migration 026 RLS/RPC behavior;
+- cross-platform backend import/test behavior;
+- source/deployment identity and checksum verification;
+- confirmation that production was untouched and Stage 2B was not started.

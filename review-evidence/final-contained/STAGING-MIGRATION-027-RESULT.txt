@@ -1,0 +1,32 @@
+Stage 2A migration 027 staging result — 2026-07-18
+
+Environment guard
+- Linked project: cdsmnqxtyyoeoznmbidd (approved staging)
+- Production project vjdtsswhroyguxyfjdkt was prohibited and not contacted
+
+Verified encrypted pre-apply backup
+- Backup run: da03db06-2670-4ba8-af1f-9d7d799c81ac
+- Size: 137400 bytes
+- SHA-256: 3499ce5ae0dee5c5e3f0b8f1d3f8b837e755c259afd432401c6961b28b3a3890
+- Migration version inside decrypted backup: 026
+- Structured table exports: 40
+- Decryption, manifest hash, row counts, and migration version all verified
+
+Migration apply
+- Applied: 027_stage2a_assignment_interval_enforcement.sql
+- Supabase CLI result: Finished supabase db push (exit 0)
+- A non-blocking pg-delta catalog cache warning reported unavailable local Docker; the remote migration completed and was independently verified.
+- Local/remote migration ledgers aligned through 027
+- Post-apply dry run: Remote database is up to date.
+- Replaced functions remain SECURITY DEFINER.
+- Required authenticated/service_role EXECUTE grants verified; anon grants absent.
+
+Staging validation
+- Migration 027 focused suite: 22 passed, 0 failed
+- Migration 026 direct REST/RPC suite: 24 passed, 0 failed
+- Workshop live integration: 34 passed, 0 failed
+- Complete documented staging suite passed, including account, role/RLS, privilege, backup/restore, importer, reference-data, notification-worker, and fixture-reset coverage.
+- Configuration values restored exactly.
+- Synthetic technician, booking, assignment, and controlled fixture rows remaining: 0.
+
+Production was untouched.

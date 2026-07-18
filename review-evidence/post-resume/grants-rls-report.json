@@ -1,0 +1,9210 @@
+{
+  "generated_from": "full-schema-report.json",
+  "rls_enabled": {
+    "ai_email_analysis_results": true,
+    "ai_email_attachments": true,
+    "ai_email_intake": true,
+    "ai_extracted_fields": true,
+    "ai_intake_config": true,
+    "ai_mapping_rules": true,
+    "ai_proposed_actions": true,
+    "ai_review_items": true,
+    "ai_trusted_senders": true,
+    "ai_undo_actions": true,
+    "ai_workshop_commands": true,
+    "audit_events": true,
+    "backup_runs": true,
+    "deleted_completed_vehicles": true,
+    "email_response_drafts": true,
+    "import_runs": true,
+    "label_print_events": true,
+    "monitored_mailboxes": true,
+    "pdc_user_roles": true,
+    "restore_test_runs": true,
+    "salespeople": true,
+    "sublet_providers": true,
+    "vehicle_aliases": true,
+    "vehicle_eta_history": true,
+    "vehicle_intelligence_revisions": true,
+    "vehicle_intelligence_summaries": true,
+    "vehicle_match_candidates": true,
+    "vehicle_movements": true,
+    "vehicle_notifications": true,
+    "vehicle_parts_updates": true,
+    "vehicle_timeline_events": true,
+    "vehicle_work_items": true,
+    "vehicles": true,
+    "workshop_bays": true,
+    "workshop_booking_assignments": true,
+    "workshop_booking_history": true,
+    "workshop_bookings": true,
+    "workshop_parts_overrides": true,
+    "workshop_revision": true,
+    "workshop_settings": true,
+    "workshop_stages": true,
+    "workshop_technicians": true
+  },
+  "rls_policies": [
+    {
+      "cmd": "SELECT",
+      "policy": "ai_email_analysis_results_select_operator",
+      "table": "ai_email_analysis_results",
+      "using": "is_pdc_role('operator'::pdc_role)",
+      "with_check": null
+    },
+    {
+      "cmd": "SELECT",
+      "policy": "ai_email_attachments_select_importer",
+      "table": "ai_email_attachments",
+      "using": "is_pdc_role('importer'::pdc_role)",
+      "with_check": null
+    },
+    {
+      "cmd": "SELECT",
+      "policy": "ai_email_intake_select_importer",
+      "table": "ai_email_intake",
+      "using": "is_pdc_role('importer'::pdc_role)",
+      "with_check": null
+    },
+    {
+      "cmd": "SELECT",
+      "policy": "ai_extracted_fields_select_importer",
+      "table": "ai_extracted_fields",
+      "using": "is_pdc_role('importer'::pdc_role)",
+      "with_check": null
+    },
+    {
+      "cmd": "SELECT",
+      "policy": "ai_intake_config_select_approved",
+      "table": "ai_intake_config",
+      "using": "is_pdc_role('viewer'::pdc_role)",
+      "with_check": null
+    },
+    {
+      "cmd": "SELECT",
+      "policy": "ai_mapping_rules_select_approved",
+      "table": "ai_mapping_rules",
+      "using": "is_pdc_role('viewer'::pdc_role)",
+      "with_check": null
+    },
+    {
+      "cmd": "SELECT",
+      "policy": "ai_proposed_actions_select_importer",
+      "table": "ai_proposed_actions",
+      "using": "is_pdc_role('importer'::pdc_role)",
+      "with_check": null
+    },
+    {
+      "cmd": "SELECT",
+      "policy": "ai_review_items_select_operator",
+      "table": "ai_review_items",
+      "using": "is_pdc_role('operator'::pdc_role)",
+      "with_check": null
+    },
+    {
+      "cmd": "SELECT",
+      "policy": "ai_trusted_senders_select_importer",
+      "table": "ai_trusted_senders",
+      "using": "is_pdc_role('importer'::pdc_role)",
+      "with_check": null
+    },
+    {
+      "cmd": "SELECT",
+      "policy": "ai_undo_actions_select_importer",
+      "table": "ai_undo_actions",
+      "using": "is_pdc_role('importer'::pdc_role)",
+      "with_check": null
+    },
+    {
+      "cmd": "SELECT",
+      "policy": "ai_workshop_commands_select_own_or_importer",
+      "table": "ai_workshop_commands",
+      "using": "((submitted_by = auth.uid()) OR is_pdc_role('importer'::pdc_role))",
+      "with_check": null
+    },
+    {
+      "cmd": "SELECT",
+      "policy": "audit_events_select_approved",
+      "table": "audit_events",
+      "using": "is_pdc_role('viewer'::pdc_role)",
+      "with_check": null
+    },
+    {
+      "cmd": "SELECT",
+      "policy": "backup_runs_select_admin",
+      "table": "backup_runs",
+      "using": "is_pdc_role('administrator'::pdc_role)",
+      "with_check": null
+    },
+    {
+      "cmd": "SELECT",
+      "policy": "deleted_completed_select_approved",
+      "table": "deleted_completed_vehicles",
+      "using": "is_pdc_role('viewer'::pdc_role)",
+      "with_check": null
+    },
+    {
+      "cmd": "SELECT",
+      "policy": "email_response_drafts_select_operator",
+      "table": "email_response_drafts",
+      "using": "is_pdc_role('operator'::pdc_role)",
+      "with_check": null
+    },
+    {
+      "cmd": "SELECT",
+      "policy": "import_runs_select_approved",
+      "table": "import_runs",
+      "using": "is_pdc_role('viewer'::pdc_role)",
+      "with_check": null
+    },
+    {
+      "cmd": "SELECT",
+      "policy": "label_print_events_select_approved",
+      "table": "label_print_events",
+      "using": "is_pdc_role('viewer'::pdc_role)",
+      "with_check": null
+    },
+    {
+      "cmd": "SELECT",
+      "policy": "monitored_mailboxes_select_operator",
+      "table": "monitored_mailboxes",
+      "using": "is_pdc_role('operator'::pdc_role)",
+      "with_check": null
+    },
+    {
+      "cmd": "SELECT",
+      "policy": "pdc_user_roles_select_self_or_admin",
+      "table": "pdc_user_roles",
+      "using": "((email = current_actor_email()) OR is_pdc_role('administrator'::pdc_role))",
+      "with_check": null
+    },
+    {
+      "cmd": "SELECT",
+      "policy": "restore_test_runs_select_admin",
+      "table": "restore_test_runs",
+      "using": "is_pdc_role('administrator'::pdc_role)",
+      "with_check": null
+    },
+    {
+      "cmd": "SELECT",
+      "policy": "salespeople_select_approved",
+      "table": "salespeople",
+      "using": "is_pdc_role('viewer'::pdc_role)",
+      "with_check": null
+    },
+    {
+      "cmd": "SELECT",
+      "policy": "sublet_providers_select_approved",
+      "table": "sublet_providers",
+      "using": "is_pdc_role('viewer'::pdc_role)",
+      "with_check": null
+    },
+    {
+      "cmd": "SELECT",
+      "policy": "vehicle_aliases_select_approved",
+      "table": "vehicle_aliases",
+      "using": "is_pdc_role('viewer'::pdc_role)",
+      "with_check": null
+    },
+    {
+      "cmd": "SELECT",
+      "policy": "vehicle_intelligence_summaries_select_viewer",
+      "table": "vehicle_intelligence_summaries",
+      "using": "is_pdc_role('viewer'::pdc_role)",
+      "with_check": null
+    },
+    {
+      "cmd": "SELECT",
+      "policy": "vehicle_match_candidates_select_operator",
+      "table": "vehicle_match_candidates",
+      "using": "is_pdc_role('operator'::pdc_role)",
+      "with_check": null
+    },
+    {
+      "cmd": "SELECT",
+      "policy": "movements_select_approved",
+      "table": "vehicle_movements",
+      "using": "is_pdc_role('viewer'::pdc_role)",
+      "with_check": null
+    },
+    {
+      "cmd": "SELECT",
+      "policy": "vehicle_notifications_select",
+      "table": "vehicle_notifications",
+      "using": "(current_pdc_user_role() = ANY (ARRAY['operator'::pdc_role, 'administrator'::pdc_role, 'importer'::pdc_role]))",
+      "with_check": null
+    },
+    {
+      "cmd": "SELECT",
+      "policy": "parts_select_approved",
+      "table": "vehicle_parts_updates",
+      "using": "is_pdc_role('viewer'::pdc_role)",
+      "with_check": null
+    },
+    {
+      "cmd": "SELECT",
+      "policy": "work_items_select_approved",
+      "table": "vehicle_work_items",
+      "using": "is_pdc_role('viewer'::pdc_role)",
+      "with_check": null
+    },
+    {
+      "cmd": "SELECT",
+      "policy": "vehicles_select_approved",
+      "table": "vehicles",
+      "using": "is_pdc_role('viewer'::pdc_role)",
+      "with_check": null
+    },
+    {
+      "cmd": "SELECT",
+      "policy": "workshop_bays_select_approved",
+      "table": "workshop_bays",
+      "using": "is_pdc_role('viewer'::pdc_role)",
+      "with_check": null
+    },
+    {
+      "cmd": "SELECT",
+      "policy": "workshop_booking_assignments_select_approved",
+      "table": "workshop_booking_assignments",
+      "using": "is_pdc_role('viewer'::pdc_role)",
+      "with_check": null
+    },
+    {
+      "cmd": "SELECT",
+      "policy": "workshop_booking_history_select_approved",
+      "table": "workshop_booking_history",
+      "using": "is_pdc_role('viewer'::pdc_role)",
+      "with_check": null
+    },
+    {
+      "cmd": "SELECT",
+      "policy": "workshop_bookings_select_approved",
+      "table": "workshop_bookings",
+      "using": "is_pdc_role('viewer'::pdc_role)",
+      "with_check": null
+    },
+    {
+      "cmd": "SELECT",
+      "policy": "workshop_parts_overrides_select_approved",
+      "table": "workshop_parts_overrides",
+      "using": "is_pdc_role('viewer'::pdc_role)",
+      "with_check": null
+    },
+    {
+      "cmd": "SELECT",
+      "policy": "workshop_revision_select_approved",
+      "table": "workshop_revision",
+      "using": "is_pdc_role('viewer'::pdc_role)",
+      "with_check": null
+    },
+    {
+      "cmd": "SELECT",
+      "policy": "workshop_settings_select_approved",
+      "table": "workshop_settings",
+      "using": "is_pdc_role('viewer'::pdc_role)",
+      "with_check": null
+    },
+    {
+      "cmd": "SELECT",
+      "policy": "workshop_stages_select_approved",
+      "table": "workshop_stages",
+      "using": "is_pdc_role('viewer'::pdc_role)",
+      "with_check": null
+    },
+    {
+      "cmd": "SELECT",
+      "policy": "workshop_technicians_select_approved",
+      "table": "workshop_technicians",
+      "using": "is_pdc_role('viewer'::pdc_role)",
+      "with_check": null
+    }
+  ],
+  "routine_grants": {
+    "add_salesperson": [
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "add_sublet_provider": [
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "add_technician": [
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "admin_approve_user": [
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "admin_change_role": [
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "admin_disable_user": [
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "admin_reject_registration": [
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "admin_restore_user": [
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "append_vehicle_timeline_event": [
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "approve_ai_review_item": [
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "approve_parts_incomplete_override": [
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "assign_booking_technician": [
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "audit_pdc_event": [
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "bump_vehicle_intelligence_revision": [
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "cancel_workshop_booking": [
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "cash_dist": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "change_booking_bay": [
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "claim_pending_vehicle_notifications": [
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "complete_workshop_work": [
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "create_ai_review_item": [
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "current_actor_email": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "current_pdc_account_status": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "current_pdc_actor_role_id": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "current_pdc_user_role": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "date_dist": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "edit_salesperson": [
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "edit_sublet_provider": [
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "edit_technician": [
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "float4_dist": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "float8_dist": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbt_bit_compress": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbt_bit_consistent": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbt_bit_penalty": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbt_bit_picksplit": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbt_bit_same": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbt_bit_union": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbt_bool_compress": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbt_bool_consistent": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbt_bool_fetch": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbt_bool_penalty": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbt_bool_picksplit": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbt_bool_same": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbt_bool_union": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbt_bpchar_compress": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbt_bpchar_consistent": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbt_bytea_compress": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbt_bytea_consistent": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbt_bytea_penalty": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbt_bytea_picksplit": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbt_bytea_same": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbt_bytea_union": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbt_cash_compress": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbt_cash_consistent": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbt_cash_distance": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbt_cash_fetch": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbt_cash_penalty": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbt_cash_picksplit": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbt_cash_same": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbt_cash_union": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbt_date_compress": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbt_date_consistent": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbt_date_distance": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbt_date_fetch": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbt_date_penalty": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbt_date_picksplit": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbt_date_same": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbt_date_union": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbt_decompress": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbt_enum_compress": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbt_enum_consistent": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbt_enum_fetch": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbt_enum_penalty": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbt_enum_picksplit": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbt_enum_same": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbt_enum_union": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbt_float4_compress": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbt_float4_consistent": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbt_float4_distance": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbt_float4_fetch": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbt_float4_penalty": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbt_float4_picksplit": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbt_float4_same": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbt_float4_union": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbt_float8_compress": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbt_float8_consistent": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbt_float8_distance": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbt_float8_fetch": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbt_float8_penalty": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbt_float8_picksplit": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbt_float8_same": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbt_float8_union": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbt_inet_compress": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbt_inet_consistent": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbt_inet_penalty": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbt_inet_picksplit": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbt_inet_same": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbt_inet_union": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbt_int2_compress": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbt_int2_consistent": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbt_int2_distance": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbt_int2_fetch": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbt_int2_penalty": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbt_int2_picksplit": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbt_int2_same": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbt_int2_union": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbt_int4_compress": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbt_int4_consistent": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbt_int4_distance": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbt_int4_fetch": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbt_int4_penalty": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbt_int4_picksplit": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbt_int4_same": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbt_int4_union": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbt_int8_compress": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbt_int8_consistent": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbt_int8_distance": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbt_int8_fetch": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbt_int8_penalty": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbt_int8_picksplit": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbt_int8_same": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbt_int8_union": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbt_intv_compress": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbt_intv_consistent": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbt_intv_decompress": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbt_intv_distance": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbt_intv_fetch": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbt_intv_penalty": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbt_intv_picksplit": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbt_intv_same": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbt_intv_union": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbt_macad8_compress": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbt_macad8_consistent": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbt_macad8_fetch": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbt_macad8_penalty": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbt_macad8_picksplit": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbt_macad8_same": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbt_macad8_union": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbt_macad_compress": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbt_macad_consistent": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbt_macad_fetch": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbt_macad_penalty": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbt_macad_picksplit": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbt_macad_same": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbt_macad_union": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbt_numeric_compress": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbt_numeric_consistent": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbt_numeric_penalty": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbt_numeric_picksplit": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbt_numeric_same": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbt_numeric_union": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbt_oid_compress": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbt_oid_consistent": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbt_oid_distance": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbt_oid_fetch": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbt_oid_penalty": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbt_oid_picksplit": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbt_oid_same": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbt_oid_union": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbt_text_compress": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbt_text_consistent": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbt_text_penalty": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbt_text_picksplit": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbt_text_same": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbt_text_union": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbt_time_compress": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbt_time_consistent": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbt_time_distance": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbt_time_fetch": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbt_time_penalty": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbt_time_picksplit": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbt_time_same": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbt_time_union": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbt_timetz_compress": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbt_timetz_consistent": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbt_ts_compress": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbt_ts_consistent": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbt_ts_distance": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbt_ts_fetch": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbt_ts_penalty": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbt_ts_picksplit": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbt_ts_same": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbt_ts_union": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbt_tstz_compress": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbt_tstz_consistent": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbt_tstz_distance": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbt_uuid_compress": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbt_uuid_consistent": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbt_uuid_fetch": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbt_uuid_penalty": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbt_uuid_picksplit": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbt_uuid_same": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbt_uuid_union": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbt_var_decompress": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbt_var_fetch": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbtreekey16_in": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbtreekey16_out": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbtreekey2_in": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbtreekey2_out": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbtreekey32_in": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbtreekey32_out": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbtreekey4_in": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbtreekey4_out": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbtreekey8_in": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbtreekey8_out": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbtreekey_var_in": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "gbtreekey_var_out": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "get_vehicle_intelligence_snapshot": [
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "get_workshop_configuration": [
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "get_workshop_snapshot": [
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "handle_new_pdc_auth_user": [
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "int2_dist": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "int4_dist": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "int8_dist": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "interval_dist": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "is_pdc_role": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "list_ai_review_queue": [
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "list_salespeople": [
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "list_sublet_providers": [
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "list_technicians": [
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "list_workshop_bays": [
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "mark_vehicle_deleted": [
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "mark_vehicle_notification_result": [
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "move_vehicle": [
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "move_workshop_booking": [
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "oid_dist": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "qc_complete_vehicle": [
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "queue_vehicle_notification": [
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "rebuild_vehicle_intelligence_summary": [
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "record_import_run": [
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "record_pdc_login": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "record_vehicle_eta_history": [
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "reject_ai_review_item": [
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "require_pdc_role": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "resize_workshop_booking": [
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "restore_vehicle": [
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "restore_workshop_booking": [
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "resume_workshop_work": [
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "retry_vehicle_notification": [
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "return_completed_work": [
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "return_work_to_queue": [
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "rft_collect_vehicle": [
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "rft_transfer_vehicle": [
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "schedule_vehicle_work": [
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "set_bay_default_technician": [
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "set_salesperson_active": [
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "set_sublet_provider_active": [
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "set_technician_active": [
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "set_updated_at": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "set_workshop_bay_active": [
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "start_workshop_work": [
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "stop_workshop_work": [
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "time_dist": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "ts_dist": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "tstz_dist": [
+      {
+        "grantee": "PUBLIC",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "update_workshop_configuration": [
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "workshop_booking_snapshot": [
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "workshop_bump_revision": [
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "workshop_complete_booking": [
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "workshop_conflict_payload": [
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "workshop_create_booking": [
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "workshop_current_revision": [
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "workshop_delete_booking": [
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "workshop_find_bay_conflict": [
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "workshop_find_technician_conflict": [
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "workshop_lock_resources": [
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "workshop_move_booking": [
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "workshop_normalize_start_date": [
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "workshop_parts_ready": [
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "workshop_reassign_booking": [
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "workshop_record_stoppage": [
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "workshop_require_version": [
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "workshop_resize_booking": [
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "workshop_resolve_bay_id": [
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "workshop_resolve_stage_id": [
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "workshop_restore_booking": [
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "workshop_resume_booking": [
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "workshop_return_booking_to_queue": [
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "workshop_start_booking": [
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "workshop_upsert_primary_assignment": [
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ],
+    "workshop_write_history": [
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE"
+      }
+    ]
+  },
+  "table_grants": {
+    "ai_email_analysis_results": [
+      {
+        "grantee": "anon",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "DELETE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "INSERT"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "TRUNCATE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "UPDATE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "DELETE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "INSERT"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "TRUNCATE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "UPDATE"
+      }
+    ],
+    "ai_email_attachments": [
+      {
+        "grantee": "anon",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "DELETE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "INSERT"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "TRUNCATE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "UPDATE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "DELETE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "INSERT"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "TRUNCATE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "UPDATE"
+      }
+    ],
+    "ai_email_intake": [
+      {
+        "grantee": "anon",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "DELETE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "INSERT"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "TRUNCATE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "UPDATE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "DELETE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "INSERT"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "TRUNCATE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "UPDATE"
+      }
+    ],
+    "ai_extracted_fields": [
+      {
+        "grantee": "anon",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "DELETE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "INSERT"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "TRUNCATE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "UPDATE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "DELETE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "INSERT"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "TRUNCATE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "UPDATE"
+      }
+    ],
+    "ai_intake_config": [
+      {
+        "grantee": "anon",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "DELETE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "INSERT"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "TRUNCATE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "UPDATE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "DELETE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "INSERT"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "TRUNCATE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "UPDATE"
+      }
+    ],
+    "ai_mapping_rules": [
+      {
+        "grantee": "anon",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "DELETE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "INSERT"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "TRUNCATE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "UPDATE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "DELETE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "INSERT"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "TRUNCATE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "UPDATE"
+      }
+    ],
+    "ai_proposed_actions": [
+      {
+        "grantee": "anon",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "DELETE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "INSERT"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "TRUNCATE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "UPDATE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "DELETE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "INSERT"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "TRUNCATE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "UPDATE"
+      }
+    ],
+    "ai_review_items": [
+      {
+        "grantee": "anon",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "DELETE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "INSERT"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "TRUNCATE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "UPDATE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "DELETE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "INSERT"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "TRUNCATE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "UPDATE"
+      }
+    ],
+    "ai_trusted_senders": [
+      {
+        "grantee": "anon",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "DELETE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "INSERT"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "TRUNCATE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "UPDATE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "DELETE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "INSERT"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "TRUNCATE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "UPDATE"
+      }
+    ],
+    "ai_undo_actions": [
+      {
+        "grantee": "anon",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "DELETE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "INSERT"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "TRUNCATE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "UPDATE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "DELETE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "INSERT"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "TRUNCATE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "UPDATE"
+      }
+    ],
+    "ai_workshop_commands": [
+      {
+        "grantee": "anon",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "DELETE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "INSERT"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "TRUNCATE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "UPDATE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "DELETE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "INSERT"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "TRUNCATE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "UPDATE"
+      }
+    ],
+    "audit_events": [
+      {
+        "grantee": "anon",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "DELETE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "INSERT"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "TRUNCATE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "UPDATE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "DELETE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "INSERT"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "TRUNCATE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "UPDATE"
+      }
+    ],
+    "backup_runs": [
+      {
+        "grantee": "anon",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "DELETE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "INSERT"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "TRUNCATE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "UPDATE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "DELETE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "INSERT"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "TRUNCATE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "UPDATE"
+      }
+    ],
+    "deleted_completed_vehicles": [
+      {
+        "grantee": "anon",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "DELETE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "INSERT"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "TRUNCATE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "UPDATE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "DELETE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "INSERT"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "TRUNCATE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "UPDATE"
+      }
+    ],
+    "email_response_drafts": [
+      {
+        "grantee": "anon",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "DELETE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "INSERT"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "TRUNCATE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "UPDATE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "DELETE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "INSERT"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "TRUNCATE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "UPDATE"
+      }
+    ],
+    "import_runs": [
+      {
+        "grantee": "anon",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "DELETE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "INSERT"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "TRUNCATE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "UPDATE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "DELETE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "INSERT"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "TRUNCATE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "UPDATE"
+      }
+    ],
+    "label_print_events": [
+      {
+        "grantee": "anon",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "DELETE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "INSERT"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "TRUNCATE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "UPDATE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "DELETE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "INSERT"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "TRUNCATE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "UPDATE"
+      }
+    ],
+    "monitored_mailboxes": [
+      {
+        "grantee": "anon",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "DELETE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "INSERT"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "TRUNCATE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "UPDATE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "DELETE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "INSERT"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "TRUNCATE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "UPDATE"
+      }
+    ],
+    "pdc_user_roles": [
+      {
+        "grantee": "anon",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "DELETE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "INSERT"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "TRUNCATE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "UPDATE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "DELETE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "INSERT"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "TRUNCATE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "UPDATE"
+      }
+    ],
+    "restore_test_runs": [
+      {
+        "grantee": "anon",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "DELETE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "INSERT"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "TRUNCATE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "UPDATE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "DELETE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "INSERT"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "TRUNCATE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "UPDATE"
+      }
+    ],
+    "salespeople": [
+      {
+        "grantee": "anon",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "DELETE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "INSERT"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "TRUNCATE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "UPDATE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "DELETE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "INSERT"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "TRUNCATE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "UPDATE"
+      }
+    ],
+    "sublet_providers": [
+      {
+        "grantee": "anon",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "DELETE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "INSERT"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "TRUNCATE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "UPDATE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "DELETE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "INSERT"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "TRUNCATE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "UPDATE"
+      }
+    ],
+    "vehicle_aliases": [
+      {
+        "grantee": "anon",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "DELETE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "INSERT"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "TRUNCATE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "UPDATE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "DELETE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "INSERT"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "TRUNCATE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "UPDATE"
+      }
+    ],
+    "vehicle_eta_history": [
+      {
+        "grantee": "anon",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "DELETE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "INSERT"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "TRUNCATE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "UPDATE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "DELETE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "INSERT"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "TRUNCATE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "UPDATE"
+      }
+    ],
+    "vehicle_intelligence_revisions": [
+      {
+        "grantee": "anon",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "DELETE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "INSERT"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "TRUNCATE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "UPDATE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "DELETE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "INSERT"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "TRUNCATE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "UPDATE"
+      }
+    ],
+    "vehicle_intelligence_summaries": [
+      {
+        "grantee": "anon",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "DELETE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "INSERT"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "TRUNCATE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "UPDATE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "DELETE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "INSERT"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "TRUNCATE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "UPDATE"
+      }
+    ],
+    "vehicle_match_candidates": [
+      {
+        "grantee": "anon",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "DELETE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "INSERT"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "TRUNCATE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "UPDATE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "DELETE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "INSERT"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "TRUNCATE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "UPDATE"
+      }
+    ],
+    "vehicle_movements": [
+      {
+        "grantee": "anon",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "DELETE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "INSERT"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "TRUNCATE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "UPDATE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "DELETE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "INSERT"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "TRUNCATE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "UPDATE"
+      }
+    ],
+    "vehicle_notifications": [
+      {
+        "grantee": "authenticated",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "DELETE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "INSERT"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "TRUNCATE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "UPDATE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "DELETE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "INSERT"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "TRUNCATE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "UPDATE"
+      }
+    ],
+    "vehicle_parts_updates": [
+      {
+        "grantee": "anon",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "DELETE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "INSERT"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "TRUNCATE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "UPDATE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "DELETE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "INSERT"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "TRUNCATE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "UPDATE"
+      }
+    ],
+    "vehicle_timeline_events": [
+      {
+        "grantee": "anon",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "DELETE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "INSERT"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "TRUNCATE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "UPDATE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "DELETE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "INSERT"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "TRUNCATE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "UPDATE"
+      }
+    ],
+    "vehicle_work_items": [
+      {
+        "grantee": "anon",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "DELETE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "INSERT"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "TRUNCATE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "UPDATE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "DELETE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "INSERT"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "TRUNCATE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "UPDATE"
+      }
+    ],
+    "vehicles": [
+      {
+        "grantee": "anon",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "DELETE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "INSERT"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "TRUNCATE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "UPDATE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "DELETE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "INSERT"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "TRUNCATE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "UPDATE"
+      }
+    ],
+    "workshop_bays": [
+      {
+        "grantee": "anon",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "DELETE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "INSERT"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "TRUNCATE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "UPDATE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "DELETE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "INSERT"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "TRUNCATE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "UPDATE"
+      }
+    ],
+    "workshop_booking_assignments": [
+      {
+        "grantee": "anon",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "DELETE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "INSERT"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "TRUNCATE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "UPDATE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "DELETE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "INSERT"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "TRUNCATE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "UPDATE"
+      }
+    ],
+    "workshop_booking_history": [
+      {
+        "grantee": "anon",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "DELETE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "INSERT"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "TRUNCATE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "UPDATE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "DELETE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "INSERT"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "TRUNCATE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "UPDATE"
+      }
+    ],
+    "workshop_bookings": [
+      {
+        "grantee": "anon",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "DELETE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "INSERT"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "TRUNCATE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "UPDATE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "DELETE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "INSERT"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "TRUNCATE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "UPDATE"
+      }
+    ],
+    "workshop_parts_overrides": [
+      {
+        "grantee": "anon",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "DELETE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "INSERT"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "TRUNCATE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "UPDATE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "DELETE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "INSERT"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "TRUNCATE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "UPDATE"
+      }
+    ],
+    "workshop_revision": [
+      {
+        "grantee": "anon",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "DELETE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "INSERT"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "TRUNCATE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "UPDATE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "DELETE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "INSERT"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "TRUNCATE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "UPDATE"
+      }
+    ],
+    "workshop_settings": [
+      {
+        "grantee": "anon",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "DELETE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "INSERT"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "TRUNCATE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "UPDATE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "DELETE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "INSERT"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "TRUNCATE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "UPDATE"
+      }
+    ],
+    "workshop_stages": [
+      {
+        "grantee": "anon",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "DELETE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "INSERT"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "TRUNCATE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "UPDATE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "DELETE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "INSERT"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "TRUNCATE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "UPDATE"
+      }
+    ],
+    "workshop_technicians": [
+      {
+        "grantee": "anon",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "anon",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "DELETE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "INSERT"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "TRUNCATE"
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "UPDATE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "DELETE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "INSERT"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "REFERENCES"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "SELECT"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "TRIGGER"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "TRUNCATE"
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "UPDATE"
+      }
+    ]
+  }
+}

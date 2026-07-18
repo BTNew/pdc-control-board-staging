@@ -5,7 +5,7 @@ const app = fs.readFileSync('app.js', 'utf8');
 const css = fs.readFileSync('styles.css', 'utf8') + fs.readFileSync('desktop-operations.css', 'utf8');
 const htmlFiles = ['index.html', 'no-vehicles.html', 'test-50.html', 'test-75.html', 'test-100.html'];
 
-assert.ok(app.includes("const APP_VERSION = '2026.07.16.26-workshop-drop-last-hover';"));
+assert.ok(app.includes("const APP_VERSION = '2026.07.18.02-stage2a-final-approval';"));
 assert.ok(app.includes('function workStatusLegendHtml()'));
 assert.ok(app.includes('options.showDelete ?'));
 assert.ok(app.includes('data-modal-cancel'));
@@ -17,10 +17,11 @@ assert.ok(app.includes('window.PDC_ALLOW_LOCAL_RESET === true'));
 assert.ok(app.includes('jita-icon jita-unknown'));
 assert.ok(app.includes('PDC sheet · ${backEndOnlyCount} back end only'));
 
-const partsHeaders = ['Status', 'Vehicle ID', 'Customer / vehicle', 'Kewdale ETA', 'Parts ETA', 'Blocker', 'Stage / update', 'Actions'];
+const partsHeaders = ['Status', 'Vehicle ID', 'Customer / vehicle', 'Kewdale ETA', 'Parts ETA', 'Jita', 'Blocker', 'Stage / update', 'Actions'];
 for (const heading of partsHeaders) {
   assert.ok(app.includes(`<th>${heading}</th>`), `Parts heading missing: ${heading}`);
 }
+assert.ok(app.includes('parts-queue-jita-cell'), 'Jita must have its own dedicated cell/column in the Parts row, not be buried inside the Status cell');
 
 assert.ok(css.includes('.parts-queue-wrap'));
 assert.ok(css.includes('overflow: auto !important'));
@@ -34,7 +35,7 @@ assert.ok(app.includes('function updateWorkflowFloatingHeader()'));
 
 for (const file of htmlFiles) {
   const html = fs.readFileSync(file, 'utf8');
-  assert.ok(html.includes('desktop-operations.css?v=2026.07.16.26-workshop-drop-last-hover'), `${file} is missing the desktop stylesheet`);
+  assert.ok(html.includes('desktop-operations.css?v=2026.07.18.02-stage2a-final-approval'), `${file} is missing the desktop stylesheet`);
   assert.ok(!html.includes('id="workflow-sticky-filters"'), `${file} still contains the separate workflow filter toolbar`);
   assert.ok(html.includes('id="workflow-board"'), `${file} is missing the workflow board host`);
 }

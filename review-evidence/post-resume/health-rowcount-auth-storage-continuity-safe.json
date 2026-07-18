@@ -1,0 +1,238 @@
+{
+  "auth": {
+    "credentials_or_email_values_included": false,
+    "post_resume_count": 6,
+    "pre_pause_count": 6,
+    "user_ids_and_email_identities_unchanged": true
+  },
+  "checked_at": "2026-07-17T22:34:19.366105+00:00",
+  "database_health": {
+    "database": "postgres",
+    "database_now": "2026-07-17T22:34:18.371522+00:00",
+    "postmaster_start_time": "2026-07-17T22:29:03.526355+00:00",
+    "select_ok": true,
+    "user": "postgres",
+    "version": "PostgreSQL 17.6 on x86_64-pc-linux-gnu, compiled by gcc (GCC) 15.2.0, 64-bit"
+  },
+  "expected_deltas": {
+    "audit_events": 23,
+    "audit_explanation": "Expected append-only audit records from controlled Stage 2A remediation tests and migration-ledger repair verification.",
+    "explanation": "Known synthetic workshop fixture present in the encrypted backup was deliberately removed during the documented pre-pause cleanup; final pre-pause and post-resume clean state is zero.",
+    "workshop_booking_history": -1,
+    "workshop_bookings": -1
+  },
+  "migration_count": 25,
+  "pause_resume_version_record": {
+    "confirmed_version_change_due_to_pause_resume": false,
+    "postgres_after": "PostgreSQL 17.6",
+    "postgres_before": "17.6.1.054 / PostgreSQL 17.6"
+  },
+  "realtime_publication_table_count": 22,
+  "row_counts": {
+    "ai_email_analysis_results": {
+      "delta": 0,
+      "post_resume": 0,
+      "pre_pause": 0
+    },
+    "ai_email_attachments": {
+      "delta": 0,
+      "post_resume": 0,
+      "pre_pause": 0
+    },
+    "ai_email_intake": {
+      "delta": 0,
+      "post_resume": 0,
+      "pre_pause": 0
+    },
+    "ai_extracted_fields": {
+      "delta": 0,
+      "post_resume": 0,
+      "pre_pause": 0
+    },
+    "ai_intake_config": {
+      "delta": 0,
+      "post_resume": 1,
+      "pre_pause": 1
+    },
+    "ai_mapping_rules": {
+      "delta": 0,
+      "post_resume": 17,
+      "pre_pause": 17
+    },
+    "ai_proposed_actions": {
+      "delta": 0,
+      "post_resume": 0,
+      "pre_pause": 0
+    },
+    "ai_review_items": {
+      "delta": 0,
+      "post_resume": 0,
+      "pre_pause": 0
+    },
+    "ai_trusted_senders": {
+      "delta": 0,
+      "post_resume": 0,
+      "pre_pause": 0
+    },
+    "ai_undo_actions": {
+      "delta": 0,
+      "post_resume": 0,
+      "pre_pause": 0
+    },
+    "ai_workshop_commands": {
+      "delta": 0,
+      "post_resume": 0,
+      "pre_pause": 0
+    },
+    "audit_events": {
+      "delta": 23,
+      "post_resume": 623,
+      "pre_pause": 600
+    },
+    "deleted_completed_vehicles": {
+      "delta": 0,
+      "post_resume": 0,
+      "pre_pause": 0
+    },
+    "email_response_drafts": {
+      "delta": 0,
+      "post_resume": 0,
+      "pre_pause": 0
+    },
+    "import_runs": {
+      "delta": 0,
+      "post_resume": 0,
+      "pre_pause": 0
+    },
+    "label_print_events": {
+      "delta": 0,
+      "post_resume": 0,
+      "pre_pause": 0
+    },
+    "monitored_mailboxes": {
+      "delta": 0,
+      "post_resume": 0,
+      "pre_pause": 0
+    },
+    "pdc_user_roles": {
+      "delta": 0,
+      "post_resume": 5,
+      "pre_pause": 5
+    },
+    "salespeople": {
+      "delta": 0,
+      "post_resume": 1,
+      "pre_pause": 1
+    },
+    "sublet_providers": {
+      "delta": 0,
+      "post_resume": 1,
+      "pre_pause": 1
+    },
+    "vehicle_aliases": {
+      "delta": 0,
+      "post_resume": 0,
+      "pre_pause": 0
+    },
+    "vehicle_eta_history": {
+      "delta": 0,
+      "post_resume": 0,
+      "pre_pause": 0
+    },
+    "vehicle_intelligence_revisions": {
+      "delta": 0,
+      "post_resume": 0,
+      "pre_pause": 0
+    },
+    "vehicle_intelligence_summaries": {
+      "delta": 0,
+      "post_resume": 0,
+      "pre_pause": 0
+    },
+    "vehicle_match_candidates": {
+      "delta": 0,
+      "post_resume": 0,
+      "pre_pause": 0
+    },
+    "vehicle_movements": {
+      "delta": 0,
+      "post_resume": 0,
+      "pre_pause": 0
+    },
+    "vehicle_notifications": {
+      "delta": 0,
+      "post_resume": 0,
+      "pre_pause": 0
+    },
+    "vehicle_parts_updates": {
+      "delta": 0,
+      "post_resume": 0,
+      "pre_pause": 0
+    },
+    "vehicle_timeline_events": {
+      "delta": 0,
+      "post_resume": 0,
+      "pre_pause": 0
+    },
+    "vehicle_work_items": {
+      "delta": 0,
+      "post_resume": 1,
+      "pre_pause": 1
+    },
+    "vehicles": {
+      "delta": 0,
+      "post_resume": 2,
+      "pre_pause": 2
+    },
+    "workshop_bays": {
+      "delta": 0,
+      "post_resume": 38,
+      "pre_pause": 38
+    },
+    "workshop_booking_assignments": {
+      "delta": 0,
+      "post_resume": 0,
+      "pre_pause": 0
+    },
+    "workshop_booking_history": {
+      "delta": -1,
+      "post_resume": 0,
+      "pre_pause": 1
+    },
+    "workshop_bookings": {
+      "delta": -1,
+      "post_resume": 0,
+      "pre_pause": 1
+    },
+    "workshop_parts_overrides": {
+      "delta": 0,
+      "post_resume": 18,
+      "pre_pause": 18
+    },
+    "workshop_revision": {
+      "delta": 0,
+      "post_resume": 1,
+      "pre_pause": 1
+    },
+    "workshop_settings": {
+      "delta": 0,
+      "post_resume": 9,
+      "pre_pause": 9
+    },
+    "workshop_stages": {
+      "delta": 0,
+      "post_resume": 9,
+      "pre_pause": 9
+    },
+    "workshop_technicians": {
+      "delta": 0,
+      "post_resume": 2,
+      "pre_pause": 2
+    }
+  },
+  "storage": {
+    "bucket_count": 1,
+    "object_count": 0,
+    "unchanged": true
+  }
+}

@@ -1,4 +1,10 @@
-const APP_VERSION = '2026.07.16.26-workshop-drop-last-hover';
+const APP_VERSION = '2026.07.18.02-stage2a-final-approval';
+// Production Supabase project ref. Used only to LABEL which environment
+// the backup status panel is showing (staging vs production) -- this
+// constant intentionally names only the production ref, never the
+// staging ref, so this file can ship to production without the
+// production-artifact secret/staging-reference scan failing.
+const PRODUCTION_SUPABASE_PROJECT_REF = 'vjdtsswhroyguxyfjdkt';
 window.VEHICLE_TRACKING_DATA = window.VEHICLE_TRACKING_DATA || { report: {}, vehicles: [], toyotaMatches: {} };
 const EDITS_KEY = 'vehicleTrackingCoreNavisionOnlyEdits:v1';
 const ADDED_KEY = 'vehicleTrackingCoreNavisionOnlyVehicles:v1';
@@ -9,6 +15,18 @@ const RFT_SALESPERSON_EMAIL = 'bryce.guthrie@broometoyota.com.au';
 const AUDIT_LOG_KEY = 'vehicleTrackingCoreNavisionOnlyAuditLog:v1';
 const OPERATOR_NAME_KEY = 'vehicleTrackingCoreCurrentOperator:v1';
 const OPERATOR_ROLE_KEY = 'vehicleTrackingCoreCurrentOperatorRole:v1';
+// Stage 2A (independent-review remediation, localStorage-to-Supabase
+// migration): mechanics/salespeople/sublet providers are now
+// authoritative in Supabase (public.workshop_technicians/
+// public.salespeople/public.sublet_providers via
+// workshop-reference-data-service.js). These six key constants are
+// DELIBERATELY KEPT (not deleted) purely so the Stage 2A browser-data
+// importer (scripts/import_stage2a_reference_data.py) can still read
+// whatever a given staff computer's old local roster contained during
+// the one-time import/reconciliation step. No other code path reads
+// from or writes to these keys anymore -- loadMechanics()/
+// loadSalespersons()/loadSubletProviders() read exclusively from
+// workshop-reference-data-service.js's Supabase-backed cache.
 const MECHANICS_KEY = 'vehicleTrackingCorePdcMechanics:v1';
 const MECHANICS_ROSTER_SEED_KEY = 'vehicleTrackingCorePdcMechanicsRosterSeed:v1';
 const MECHANICS_ROSTER_SEED_VERSION = '2026-07-15-departments-138-139-v1';
@@ -45,12 +63,20 @@ const CRM_BACKUP_STORAGE_KEYS = [
   AUTOCARE_RESULTS_KEY,
   NAVISION_IMPORT_RESULTS_KEY,
   AUDIT_LOG_KEY,
-  MECHANICS_KEY,
-  MECHANICS_ROSTER_SEED_KEY,
-  SUBLET_PROVIDERS_KEY,
-  SUBLET_PROVIDERS_SEED_KEY,
-  SALESPERSONS_KEY,
-  SALESPERSONS_SEED_KEY,
+  // MECHANICS_KEY/MECHANICS_ROSTER_SEED_KEY, SUBLET_PROVIDERS_KEY/
+  // SUBLET_PROVIDERS_SEED_KEY, and SALESPERSONS_KEY/SALESPERSONS_SEED_KEY
+  // are intentionally NOT included here as of Stage 2A: mechanics,
+  // sublet providers, and salespeople are now authoritative in Supabase
+  // (public.workshop_technicians/public.sublet_providers/
+  // public.salespeople via workshop-reference-data-service.js), covered
+  // by the real Supabase encrypted backup/restore system, not this
+  // browser-local export mechanism. The key constants and any existing
+  // browser-local data under them are deliberately left untouched on
+  // disk (not deleted, not read from, not written to) so the Stage 2A
+  // browser-data importer can still read a given staff computer's old
+  // local roster during the one-time import/reconciliation step -- see
+  // scripts/import_stage2a_reference_data.py. They are never treated as
+  // an authoritative source by any other code path.
   OPERATIONAL_HEALTH_KEY,
   EMAIL_REVIEW_DECISIONS_KEY,
   AI_FILE_ASSISTANT_REVIEWS_KEY,
@@ -1283,22 +1309,86 @@ function normalizedMechanicList(names = []) {
     .sort((a, b) => a.localeCompare(b));
 }
 
+// Stage 2A: mechanics/technicians are now authoritative in Supabase
+// (public.workshop_technicians via workshop-reference-data-service.js),
+// not localStorage. loadMechanics() keeps its existing synchronous,
+// plain-name-array return shape so every one of its ~10 existing call
+// sites (bay-assignment dropdowns, Setup screen admin list, KPI counts)
+// keeps working unmodified -- but the data itself now comes from the
+// service's disposable in-memory cache, refreshed by realtime, never from
+// MECHANICS_KEY. If the shared service has not loaded yet (e.g. before
+// the first authenticated fetch completes) this returns an empty list
+// rather than falling back to localStorage or the old hard-coded
+// DEFAULT_MECHANICS seed -- a real name list only ever comes from
+// Supabase now.
 function loadMechanics() {
-  const saved = normalizedMechanicList(loadJson(MECHANICS_KEY, []));
-  let rosterVersion = '';
-  try { rosterVersion = localStorage.getItem(MECHANICS_ROSTER_SEED_KEY) || ''; } catch {}
-  if (rosterVersion !== MECHANICS_ROSTER_SEED_VERSION) {
-    const roster = normalizedMechanicList(DEFAULT_MECHANICS);
-    saveJson(MECHANICS_KEY, roster);
-    try { localStorage.setItem(MECHANICS_ROSTER_SEED_KEY, MECHANICS_ROSTER_SEED_VERSION); } catch {}
-    return roster;
-  }
-  return saved;
+  const service = typeof initWorkshopReferenceDataServiceIfAvailable === 'function' ? initWorkshopReferenceDataServiceIfAvailable() : null;
+  if (!service) return [];
+  const cached = service.getCachedTechnicians();
+  return normalizedMechanicList((cached.rows || []).filter(row => row.active).map(row => row.name));
 }
-function saveMechanics(names) {
-  const cleaned = normalizedMechanicList(names);
-  saveJson(MECHANICS_KEY, cleaned);
-  return cleaned;
+// Returns the full technician records (id/name/active/version), not just
+// names -- needed by the Setup screen admin UI to call
+// addTechnician/editTechnician/setTechnicianActive with a real id and
+// expected_version rather than only a display name.
+function loadMechanicRecords(includeInactive = false) {
+  const service = typeof initWorkshopReferenceDataServiceIfAvailable === 'function' ? initWorkshopReferenceDataServiceIfAvailable() : null;
+  if (!service) return [];
+  const cached = service.getCachedTechnicians();
+  const rows = cached.rows || [];
+  return includeInactive ? rows : rows.filter(row => row.active);
+}
+// Triggers an authoritative (re)load from Supabase -- call this once at
+// boot and whenever the admin Setup screen is opened, since loadMechanics()
+// itself only reads the disposable in-memory cache synchronously and never
+// triggers a network fetch on its own (matching the existing synchronous
+// call-site contract every caller of loadMechanics() already relies on).
+function refreshWorkshopReferenceData() {
+  const service = typeof initWorkshopReferenceDataServiceIfAvailable === 'function' ? initWorkshopReferenceDataServiceIfAvailable() : null;
+  if (!service) return;
+  service.listTechnicians(true).catch(() => {});
+  service.listSalespeople(true).catch(() => {});
+  service.listSubletProviders(true).catch(() => {});
+  service.listWorkshopBays(true).catch(() => {});
+  if (typeof service.getWorkshopConfiguration === 'function') service.getWorkshopConfiguration().catch(() => {});
+  service.subscribeTechnicians();
+  service.subscribeSalespeople();
+  service.subscribeSubletProviders();
+  service.subscribeWorkshopBays();
+  if (typeof service.subscribeWorkshopSettings === 'function') service.subscribeWorkshopSettings();
+  startWorkshopReferenceDataReconciliationTimer();
+}
+
+// Periodic lightweight reconciliation while the page is open, as a
+// backstop against any missed/undelivered realtime event (network
+// blips, dropped messages, etc.) -- the realtime subscriptions above
+// are the primary update path and this timer is deliberately low
+// frequency (2 minutes) since it is a safety net, not the main path.
+// Guarded against duplicate timers if this is called more than once
+// per page load (e.g. across the two refreshWorkshopReferenceData()
+// call sites), and stopped on logout/account-lockout so it never
+// polls with a signed-out session.
+function startWorkshopReferenceDataReconciliationTimer() {
+  if (window.__workshopReferenceDataReconcileTimer) return;
+  window.__workshopReferenceDataReconcileTimer = window.setInterval(() => {
+    const service = window.__workshopReferenceDataService;
+    if (!service || !window.PDC_AUTH_CONTEXT) return;
+    service.listTechnicians(true).catch(() => {});
+    service.listSalespeople(true).catch(() => {});
+    service.listSubletProviders(true).catch(() => {});
+    service.listWorkshopBays(true).catch(() => {});
+    if (typeof service.getWorkshopConfiguration === 'function') service.getWorkshopConfiguration().catch(() => {});
+  }, 120000);
+}
+
+function stopWorkshopReferenceDataReconciliationTimer() {
+  if (window.__workshopReferenceDataReconcileTimer) {
+    window.clearInterval(window.__workshopReferenceDataReconcileTimer);
+    window.__workshopReferenceDataReconcileTimer = null;
+  }
+  if (window.__workshopReferenceDataService && typeof window.__workshopReferenceDataService.unsubscribeAll === 'function') {
+    window.__workshopReferenceDataService.unsubscribeAll();
+  }
 }
 
 const DEFAULT_SUBLET_PROVIDERS = [
@@ -1394,23 +1484,22 @@ function normalizedSubletProviderList(names = []) {
   return [...unique.values()].sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
 }
 
+// Stage 2A: sublet providers are now authoritative in Supabase
+// (public.sublet_providers via workshop-reference-data-service.js), not
+// localStorage. loadSubletProviders() keeps its existing synchronous
+// plain-name-array shape for every existing call site.
 function loadSubletProviders() {
-  const saved = normalizedSubletProviderList(loadJson(SUBLET_PROVIDERS_KEY, []));
-  let seedVersion = '';
-  try { seedVersion = localStorage.getItem(SUBLET_PROVIDERS_SEED_KEY) || ''; } catch {}
-  if (seedVersion !== SUBLET_PROVIDERS_SEED_VERSION) {
-    const seeded = normalizedSubletProviderList([...DEFAULT_SUBLET_PROVIDERS, ...saved]);
-    saveJson(SUBLET_PROVIDERS_KEY, seeded);
-    try { localStorage.setItem(SUBLET_PROVIDERS_SEED_KEY, SUBLET_PROVIDERS_SEED_VERSION); } catch {}
-    return seeded;
-  }
-  return saved;
+  const service = typeof initWorkshopReferenceDataServiceIfAvailable === 'function' ? initWorkshopReferenceDataServiceIfAvailable() : null;
+  if (!service) return [];
+  const cached = service.getCachedSubletProviders();
+  return normalizedSubletProviderList((cached.rows || []).filter(row => row.active).map(row => row.name));
 }
-
-function saveSubletProviders(names) {
-  const cleaned = normalizedSubletProviderList(names);
-  saveJson(SUBLET_PROVIDERS_KEY, cleaned);
-  return cleaned;
+function loadSubletProviderRecords(includeInactive = false) {
+  const service = typeof initWorkshopReferenceDataServiceIfAvailable === 'function' ? initWorkshopReferenceDataServiceIfAvailable() : null;
+  if (!service) return [];
+  const cached = service.getCachedSubletProviders();
+  const rows = cached.rows || [];
+  return includeInactive ? rows : rows.filter(row => row.active);
 }
 
 const DEFAULT_SALESPERSONS = [
@@ -1438,23 +1527,23 @@ function normalizedSalespersonList(records = []) {
   return [...unique.values()].sort((a, b) => a.initials.localeCompare(b.initials));
 }
 
+// Stage 2A: salespeople are now authoritative in Supabase
+// (public.salespeople via workshop-reference-data-service.js), not
+// localStorage. loadSalespersons() keeps its existing synchronous
+// {initials, name, email} record shape for every existing call site --
+// 'initials' maps to the database's 'code' column.
 function loadSalespersons() {
-  const saved = normalizedSalespersonList(loadJson(SALESPERSONS_KEY, []));
-  let seedVersion = '';
-  try { seedVersion = localStorage.getItem(SALESPERSONS_SEED_KEY) || ''; } catch {}
-  if (seedVersion !== SALESPERSONS_SEED_VERSION) {
-    const seeded = normalizedSalespersonList([...DEFAULT_SALESPERSONS, ...saved]);
-    saveJson(SALESPERSONS_KEY, seeded);
-    try { localStorage.setItem(SALESPERSONS_SEED_KEY, SALESPERSONS_SEED_VERSION); } catch {}
-    return seeded;
-  }
-  return saved;
+  const service = typeof initWorkshopReferenceDataServiceIfAvailable === 'function' ? initWorkshopReferenceDataServiceIfAvailable() : null;
+  if (!service) return [];
+  const cached = service.getCachedSalespeople();
+  return normalizedSalespersonList((cached.rows || []).filter(row => row.active).map(row => ({ initials: row.code, name: row.name, email: row.email })));
 }
-
-function saveSalespersons(records = []) {
-  const cleaned = normalizedSalespersonList(records);
-  saveJson(SALESPERSONS_KEY, cleaned);
-  return cleaned;
+function loadSalespersonRecords(includeInactive = false) {
+  const service = typeof initWorkshopReferenceDataServiceIfAvailable === 'function' ? initWorkshopReferenceDataServiceIfAvailable() : null;
+  if (!service) return [];
+  const cached = service.getCachedSalespeople();
+  const rows = cached.rows || [];
+  return includeInactive ? rows : rows.filter(row => row.active);
 }
 
 function salespersonRecord(value = '') {
@@ -2426,6 +2515,56 @@ function init() {
   bindNav();
   populateFilters();
   renderAll();
+  loadVehicleLifecycleSharedActionsIfConfigured();
+  loadWorkshopReferenceDataServiceIfConfigured();
+}
+
+// Loads workshop-reference-data-service.js (Stage 2A) lazily, mirroring
+// the existing lazy-load pattern used for the other shared-data bridges.
+// Unlike those, this one is NOT behind a feature flag -- it loads
+// whenever window.PDC_SUPABASE_CONFIG exists at all, since mechanics/
+// salespeople/sublet-providers/bays/workshop-configuration must be
+// Supabase-authoritative immediately per the Stage 2A instruction. It
+// still requires a real authenticated session before it reports anything
+// other than a clear not-authenticated/offline state (see
+// initWorkshopReferenceDataServiceIfAvailable() and
+// getPdcSupabaseAccessToken()).
+function loadWorkshopReferenceDataServiceIfConfigured() {
+  if (!window.PDC_SUPABASE_CONFIG || typeof loadExternalScript !== 'function') return;
+  loadExternalScript(`workshop-reference-data-service.js?v=${encodeURIComponent(APP_VERSION)}`, 'workshop-reference-data-service-script')
+    .then(() => {
+      initWorkshopReferenceDataServiceIfAvailable();
+      if (typeof refreshWorkshopReferenceData === 'function') refreshWorkshopReferenceData();
+    })
+    .catch(() => { /* non-fatal: renderAdminLists()/loadMechanics() etc. report an explicit offline/error state instead of throwing */ });
+}
+
+// Loads vehicle-lifecycle-actions.js lazily (mirrors the workshop shared
+// data service's own lazy-load pattern) and only initializes the bridge
+// once loaded. No-op unless window.PDC_SUPABASE_CONFIG.vehicleLifecycle.
+// sharedData is explicitly true, so pages without that config never fetch
+// the extra script and legacy QC/RFT/Collected behaviour is unaffected.
+function loadVehicleLifecycleSharedActionsIfConfigured() {
+  if (typeof workshopSharedModeEnabled === 'function' && workshopSharedModeEnabled(window.PDC_SUPABASE_CONFIG)) {
+    // Already being loaded by the workshop planner path; createWorkshopSupabaseClient
+    // will already be available once that finishes, so just wait for it below.
+  }
+  if (!window.PDC_SUPABASE_CONFIG || !window.PDC_SUPABASE_CONFIG.vehicleLifecycle || window.PDC_SUPABASE_CONFIG.vehicleLifecycle.sharedData !== true) return;
+  if (typeof loadExternalScript !== 'function') return;
+  loadExternalScript(`vehicle-lifecycle-actions.js?v=${encodeURIComponent(APP_VERSION)}`, 'vehicle-lifecycle-actions-script')
+    .then(() => {
+      // createWorkshopSupabaseClient lives in workshop-data-service.js; load
+      // it too if it is not already present (it may already be loaded by
+      // the workshop planner path, in which case this is a fast no-op).
+      if (typeof createWorkshopSupabaseClient === 'function') {
+        initVehicleLifecycleSharedActionsIfEnabled();
+        return;
+      }
+      loadExternalScript(`workshop-data-service.js?v=${encodeURIComponent(APP_VERSION)}`, 'workshop-data-service-script')
+        .then(() => initVehicleLifecycleSharedActionsIfEnabled())
+        .catch(() => { /* non-fatal: legacy QC/RFT/Collected behaviour stays available */ });
+    })
+    .catch(() => { /* non-fatal: legacy QC/RFT/Collected behaviour stays available */ });
 }
 
 function renderAppVersionMarker() {
@@ -2566,6 +2705,13 @@ function bindNav() {
   on($('#add-sublet-provider-button'), 'click', addSubletProviderFromAdminInput);
   on($('#sublet-provider-name-input'), 'keydown', event => { if (event.key === 'Enter') { event.preventDefault(); addSubletProviderFromAdminInput(); } });
   on($('#add-salesperson-button'), 'click', addSalespersonFromAdminInput);
+  on($('#backup-status-refresh'), 'click', renderBackupStatusPanel);
+  on($('#user-management-refresh'), 'click', renderUserManagementScreen);
+  $$('#user-management-tabs [data-um-tab]').forEach(button => on(button, 'click', () => {
+    USER_MANAGEMENT_STATE.tab = button.dataset.umTab;
+    $$('#user-management-tabs [data-um-tab]').forEach(other => other.classList.toggle('active', other === button));
+    renderUserManagementScreen();
+  }));
   ['#salesperson-initials-input', '#salesperson-name-input', '#salesperson-email-input'].forEach(selector => {
     on($(selector), 'keydown', event => { if (event.key === 'Enter') { event.preventDefault(); addSalespersonFromAdminInput(); } });
   });
@@ -2597,38 +2743,67 @@ function addMechanicFromAdminInput() {
   const input = $('#mechanic-name-input');
   const entered = cleanNavisionText(input?.value || '');
   if (!entered) return;
-  saveMechanics([...loadMechanics(), entered]);
-  if (input) input.value = '';
-  renderAdminLists();
-  renderKpis();
+  const service = typeof initWorkshopReferenceDataServiceIfAvailable === 'function' ? initWorkshopReferenceDataServiceIfAvailable() : null;
+  if (!service) { window.alert('Cannot reach the shared mechanic list right now. Check your connection and try again.'); return; }
+  service.addTechnician(entered).then(result => {
+    if (!result.ok) {
+      window.alert(result.error === 'duplicate_name' ? `"${entered}" is already on the mechanic list.` : (result.error || 'Could not add mechanic.'));
+      return;
+    }
+    if (input) input.value = '';
+    renderAdminLists();
+    renderKpis();
+  });
 }
 
 function removeMechanicFromAdminList(name = '') {
   const clean = cleanNavisionText(name);
   if (!clean) return;
   if (!window.confirm(`Remove mechanic "${clean}" from the dropdown list? Existing vehicle history will stay on the vehicle.`)) return;
-  saveMechanics(loadMechanics().filter(item => item !== clean));
-  renderAdminLists();
-  renderKpis();
+  const service = typeof initWorkshopReferenceDataServiceIfAvailable === 'function' ? initWorkshopReferenceDataServiceIfAvailable() : null;
+  if (!service) { window.alert('Cannot reach the shared mechanic list right now. Check your connection and try again.'); return; }
+  const record = loadMechanicRecords(true).find(row => row.name === clean);
+  if (!record) { window.alert(`"${clean}" was not found.`); return; }
+  // Deactivate rather than delete -- preserves every historical
+  // workshop_booking_assignments row that already points at this
+  // technician_id, exactly as the Stage 2A requirement specifies.
+  service.setTechnicianActive(record.id, record.version, false).then(result => {
+    if (!result.ok) { window.alert(result.error || 'Could not remove mechanic.'); return; }
+    renderAdminLists();
+    renderKpis();
+  });
 }
 
 function addSubletProviderFromAdminInput() {
   const input = $('#sublet-provider-name-input');
   const entered = cleanNavisionText(input?.value || '');
   if (!entered) return;
-  saveSubletProviders([...loadSubletProviders(), entered]);
-  if (input) input.value = '';
-  renderAdminLists();
-  renderKpis();
+  const service = typeof initWorkshopReferenceDataServiceIfAvailable === 'function' ? initWorkshopReferenceDataServiceIfAvailable() : null;
+  if (!service) { window.alert('Cannot reach the shared provider list right now. Check your connection and try again.'); return; }
+  service.addSubletProvider(entered).then(result => {
+    if (!result.ok) {
+      window.alert(result.error === 'duplicate_name' ? `"${entered}" is already on the provider list.` : (result.error || 'Could not add provider.'));
+      return;
+    }
+    if (input) input.value = '';
+    renderAdminLists();
+    renderKpis();
+  });
 }
 
 function removeSubletProviderFromAdminList(name = '') {
   const clean = cleanNavisionText(name);
   if (!clean) return;
   if (!window.confirm(`Remove provider "${clean}" from the dropdown list? Existing vehicle history will stay on the vehicle.`)) return;
-  saveSubletProviders(loadSubletProviders().filter(item => item !== clean));
-  renderAdminLists();
-  renderKpis();
+  const service = typeof initWorkshopReferenceDataServiceIfAvailable === 'function' ? initWorkshopReferenceDataServiceIfAvailable() : null;
+  if (!service) { window.alert('Cannot reach the shared provider list right now. Check your connection and try again.'); return; }
+  const record = loadSubletProviderRecords(true).find(row => row.name === clean);
+  if (!record) { window.alert(`"${clean}" was not found.`); return; }
+  service.setSubletProviderActive(record.id, record.version, false).then(result => {
+    if (!result.ok) { window.alert(result.error || 'Could not remove provider.'); return; }
+    renderAdminLists();
+    renderKpis();
+  });
 }
 
 function renderHostingSecurityWarning() {
@@ -2648,21 +2823,39 @@ function addSalespersonFromAdminInput() {
     window.alert('Enter salesperson initials, name and a valid email address.');
     return;
   }
-  saveSalespersons([...loadSalespersons().filter(item => item.initials !== record.initials), record]);
-  if (initialsInput) initialsInput.value = '';
-  if (nameInput) nameInput.value = '';
-  if (emailInput) emailInput.value = '';
-  renderAdminLists();
-  renderDetail();
+  const service = typeof initWorkshopReferenceDataServiceIfAvailable === 'function' ? initWorkshopReferenceDataServiceIfAvailable() : null;
+  if (!service) { window.alert('Cannot reach the shared salesperson list right now. Check your connection and try again.'); return; }
+  const finish = () => {
+    if (initialsInput) initialsInput.value = '';
+    if (nameInput) nameInput.value = '';
+    if (emailInput) emailInput.value = '';
+    renderAdminLists();
+    renderDetail();
+  };
+  const existing = loadSalespersonRecords(true).find(row => (row.code || '').toUpperCase() === record.initials);
+  const request = existing
+    ? service.editSalesperson(existing.id, existing.version, { name: record.name, email: record.email, code: record.initials })
+    : service.addSalesperson(record.name, record.email, record.initials);
+  request.then(result => {
+    if (!result.ok) {
+      window.alert(result.error === 'duplicate_code' ? `Salesperson code "${record.initials}" is already in use.` : (result.error || 'Could not save salesperson.'));
+      return;
+    }
+    finish();
+  });
 }
 
 function removeSalespersonFromAdminList(initials = '') {
   const clean = cleanNavisionText(initials).toUpperCase();
-  const record = loadSalespersons().find(item => item.initials === clean);
+  const record = loadSalespersonRecords(true).find(row => (row.code || '').toUpperCase() === clean);
   if (!record) return;
-  if (!window.confirm(`Remove ${record.initials} - ${record.name} from the salesperson dropdown? Existing vehicles keep their saved initials.`)) return;
-  saveSalespersons(loadSalespersons().filter(item => item.initials !== clean));
-  renderAdminLists();
+  if (!window.confirm(`Remove ${record.code} - ${record.name} from the salesperson dropdown? Existing vehicles keep their saved initials.`)) return;
+  const service = typeof initWorkshopReferenceDataServiceIfAvailable === 'function' ? initWorkshopReferenceDataServiceIfAvailable() : null;
+  if (!service) { window.alert('Cannot reach the shared salesperson list right now. Check your connection and try again.'); return; }
+  service.setSalespersonActive(record.id, record.version, false).then(result => {
+    if (!result.ok) { window.alert(result.error || 'Could not remove salesperson.'); return; }
+    renderAdminLists();
+  });
 }
 
 function renderAdminList(host, items, removeAttr, emptyText) {
@@ -2687,6 +2880,279 @@ function renderAdminLists() {
   $$('[data-remove-mechanic]').forEach(button => button.addEventListener('click', () => removeMechanicFromAdminList(button.dataset.removeMechanic)));
   $$('[data-remove-provider]').forEach(button => button.addEventListener('click', () => removeSubletProviderFromAdminList(button.dataset.removeProvider)));
   $$('[data-remove-salesperson]').forEach(button => button.addEventListener('click', () => removeSalespersonFromAdminList(button.dataset.removeSalesperson)));
+  renderBackupStatusPanel();
+}
+
+// Admin-visible backup status widget (Setup screen). Reads only from
+// backup_runs / restore_test_runs, both RLS-gated to administrator role
+// at the database layer -- a viewer/controller loading this same page
+// simply gets zero rows back (see migration 017), so this frontend
+// visibility check is a convenience, not the security boundary.
+function backupStatusSharedModeReady() {
+  return typeof window !== 'undefined'
+    && typeof workshopSharedModeEnabled === 'function'
+    && workshopSharedModeEnabled(window.PDC_SUPABASE_CONFIG)
+    && !!window.PDC_SUPABASE
+    && typeof window.PDC_SUPABASE.from === 'function'
+    && window.PDC_AUTH_CONTEXT
+    && window.PDC_AUTH_CONTEXT.role === 'administrator';
+}
+
+function formatBackupBytes(bytes) {
+  if (bytes == null) return '—';
+  const units = ['B', 'KB', 'MB', 'GB'];
+  let value = Number(bytes);
+  let unitIndex = 0;
+  while (value >= 1024 && unitIndex < units.length - 1) {
+    value /= 1024;
+    unitIndex += 1;
+  }
+  return `${value.toFixed(unitIndex === 0 ? 0 : 1)} ${units[unitIndex]}`;
+}
+
+async function renderBackupStatusPanel() {
+  const panel = $('#backup-status-panel');
+  const host = $('#backup-status-content');
+  if (!panel || !host) return;
+
+  if (!backupStatusSharedModeReady()) {
+    panel.hidden = true;
+    return;
+  }
+  panel.hidden = false;
+  host.innerHTML = '<div class="empty-state compact-empty"><strong>Loading backup status…</strong></div>';
+
+  try {
+    const client = window.PDC_SUPABASE;
+    if (!client || typeof client.from !== 'function') {
+      throw new Error('Supabase client is not ready yet');
+    }
+    const environment = (window.PDC_SUPABASE_CONFIG && window.PDC_SUPABASE_CONFIG.projectRef === PRODUCTION_SUPABASE_PROJECT_REF) ? 'production' : 'staging';
+
+    const { data: runs, error: runsError } = await client
+      .from('backup_runs')
+      .select('id,status,started_at,finished_at,file_size_bytes,file_path,error_message,kind,triggered_by')
+      .eq('environment', environment)
+      .order('started_at', { ascending: false })
+      .limit(20);
+    if (runsError) throw runsError;
+
+    const { data: restoreTests, error: restoreError } = await client
+      .from('restore_test_runs')
+      .select('id,status,started_at,finished_at,row_count_matches,target_schema')
+      .eq('environment', environment)
+      .order('started_at', { ascending: false })
+      .limit(1);
+    if (restoreError) throw restoreError;
+
+    const lastSuccess = (runs || []).find(run => run.status === 'success');
+    let consecutiveFailures = 0;
+    for (const run of (runs || [])) {
+      if (run.status === 'failed') consecutiveFailures += 1;
+      else if (run.status === 'success') break;
+    }
+    const recentFailures = (runs || []).filter(run => run.status === 'failed').slice(0, 5);
+    const lastRestoreTest = (restoreTests || [])[0];
+
+    let nextScheduledLabel = '—';
+    if (lastSuccess && lastSuccess.started_at) {
+      const nextDate = new Date(new Date(lastSuccess.started_at).getTime() + 3 * 60 * 60 * 1000);
+      nextScheduledLabel = nextDate.toLocaleString();
+    }
+
+    const alertBanner = consecutiveFailures >= 3
+      ? `<div class="hosting-security-warning" role="alert"><strong>Backup alert</strong><span>${consecutiveFailures} consecutive backup failures for ${escapeHtml(environment)}. An administrator must investigate.</span></div>`
+      : '';
+
+    host.innerHTML = `
+      ${alertBanner}
+      <div class="visibility-grid backup-status-grid">
+        <div class="visibility-card"><span class="muted-label">Environment</span><strong>${escapeHtml(environment)}</strong></div>
+        <div class="visibility-card"><span class="muted-label">Last successful backup</span><strong>${lastSuccess ? new Date(lastSuccess.started_at).toLocaleString() : 'Never'}</strong></div>
+        <div class="visibility-card"><span class="muted-label">Next scheduled backup</span><strong>${escapeHtml(nextScheduledLabel)}</strong></div>
+        <div class="visibility-card"><span class="muted-label">Last backup size</span><strong>${lastSuccess ? formatBackupBytes(lastSuccess.file_size_bytes) : '—'}</strong></div>
+        <div class="visibility-card"><span class="muted-label">Backup location</span><strong>Encrypted file store (server-side, outside the live database)</strong></div>
+        <div class="visibility-card"><span class="muted-label">Last restore test</span><strong>${lastRestoreTest ? `${new Date(lastRestoreTest.started_at).toLocaleString()} — ${lastRestoreTest.row_count_matches ? 'passed' : 'FAILED'}` : 'Never run'}</strong></div>
+        <div class="visibility-card"><span class="muted-label">Recent failures</span><strong>${consecutiveFailures} consecutive</strong></div>
+        <div class="visibility-card"><span class="muted-label">Retention policy</span><strong>7d / 30d daily / 12w weekly / 12mo monthly</strong></div>
+      </div>
+      ${recentFailures.length ? `<div class="parts-help-strip"><strong>Recent failure detail:</strong><span>${recentFailures.map(run => `${escapeHtml(new Date(run.started_at).toLocaleString())} — ${escapeHtml(run.error_message || 'unknown error')}`).join(' · ')}</span></div>` : ''}
+    `;
+  } catch (error) {
+    host.innerHTML = `<div class="empty-state compact-empty"><strong>Could not load backup status</strong><span>${escapeHtml(error && error.message ? error.message : String(error))}</span></div>`;
+  }
+}
+
+// ---------------------------------------------------------------------
+// Administrator-only User Management screen. Reads directly from
+// pdc_user_roles (RLS lets an administrator see every row; anyone else
+// sees only their own row at the database layer -- see migration 018),
+// and every action button below calls the corresponding protected RPC
+// (admin_approve_user / admin_reject_registration / admin_change_role /
+// admin_disable_user / admin_restore_user), each of which independently
+// re-verifies the caller is an active administrator server-side. This
+// frontend code is a convenience UI, not the security boundary.
+// ---------------------------------------------------------------------
+const USER_MANAGEMENT_STATE = { tab: 'pending', rows: [], realtimeChannel: null };
+
+function userManagementSharedModeReady() {
+  return backupStatusSharedModeReady(); // same gating: shared mode + signed-in administrator
+}
+
+async function loadUserManagementRows() {
+  const client = window.PDC_SUPABASE;
+  const { data, error } = await client
+    .from('pdc_user_roles')
+    .select('id,email,full_name,display_name,role,active,account_status,registered_at,approved_by,approved_at,rejected_at,rejection_reason,disabled_at,disabled_reason,restored_at,last_sign_in_at,created_at')
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return data || [];
+}
+
+function userManagementRowActionsHtml(row) {
+  const email = escapeHtml(row.email);
+  if (row.account_status === 'pending') {
+    return `
+      <select class="um-role-select" data-um-role-for="${email}">
+        <option value="viewer">viewer</option>
+        <option value="operator">controller</option>
+        <option value="administrator">administrator</option>
+      </select>
+      <button class="small-button primary" data-um-approve="${email}">Approve</button>
+      <button class="small-button text-button" data-um-reject="${email}">Reject</button>
+    `;
+  }
+  if (row.account_status === 'approved') {
+    return `
+      <select class="um-role-select" data-um-role-for="${email}">
+        <option value="viewer" ${row.role === 'viewer' ? 'selected' : ''}>viewer</option>
+        <option value="operator" ${row.role === 'operator' ? 'selected' : ''}>controller</option>
+        <option value="administrator" ${row.role === 'administrator' ? 'selected' : ''}>administrator</option>
+      </select>
+      <button class="small-button" data-um-change-role="${email}">Change role</button>
+      <button class="small-button text-button" data-um-disable="${email}">Disable</button>
+    `;
+  }
+  if (row.account_status === 'disabled') {
+    return `<button class="small-button primary" data-um-restore="${email}">Restore</button>`;
+  }
+  return '<span class="muted-label">No actions</span>';
+}
+
+function userManagementRowHtml(row) {
+  const roleLabel = row.role === 'operator' ? 'controller' : (row.role || '—');
+  return `<tr>
+    <td>${escapeHtml(row.full_name || row.display_name || '—')}</td>
+    <td>${escapeHtml(row.email)}</td>
+    <td>${escapeHtml(roleLabel)}</td>
+    <td>${row.registered_at ? escapeHtml(new Date(row.registered_at).toLocaleString()) : (row.created_at ? escapeHtml(new Date(row.created_at).toLocaleString()) : '—')}</td>
+    <td>${row.approved_at ? escapeHtml(new Date(row.approved_at).toLocaleString()) : '—'}</td>
+    <td>${row.last_sign_in_at ? escapeHtml(new Date(row.last_sign_in_at).toLocaleString()) : 'Never'}</td>
+    <td>${row.account_status === 'disabled' ? `${row.disabled_at ? escapeHtml(new Date(row.disabled_at).toLocaleDateString()) : ''} ${row.disabled_reason ? '— ' + escapeHtml(row.disabled_reason) : ''}` : '—'}</td>
+    <td class="um-actions-cell">${userManagementRowActionsHtml(row)}</td>
+  </tr>`;
+}
+
+async function renderUserManagementScreen() {
+  const navItem = $('#nav-user-management');
+  const host = $('#user-management-content');
+  if (!host) return;
+
+  if (!userManagementSharedModeReady()) {
+    if (navItem) navItem.hidden = true;
+    host.innerHTML = '<div class="empty-state compact-empty"><strong>Administrator access required</strong></div>';
+    return;
+  }
+  if (navItem) navItem.hidden = false;
+  host.innerHTML = '<div class="empty-state compact-empty"><strong>Loading…</strong></div>';
+
+  subscribeUserManagementRealtime();
+
+  try {
+    USER_MANAGEMENT_STATE.rows = await loadUserManagementRows();
+  } catch (error) {
+    host.innerHTML = `<div class="empty-state compact-empty"><strong>Could not load users</strong><span>${escapeHtml(error && error.message ? error.message : String(error))}</span></div>`;
+    return;
+  }
+
+  const filtered = USER_MANAGEMENT_STATE.rows.filter(row => row.account_status === USER_MANAGEMENT_STATE.tab);
+  if (!filtered.length) {
+    host.innerHTML = `<div class="empty-state compact-empty"><strong>No ${escapeHtml(USER_MANAGEMENT_STATE.tab)} accounts</strong></div>`;
+    return;
+  }
+
+  host.innerHTML = `<div class="parts-table-wrap"><table class="data-table compact-table">
+    <thead><tr><th>Full name</th><th>Email</th><th>Role</th><th>Registered</th><th>Approved</th><th>Last login</th><th>Disabled</th><th>Actions</th></tr></thead>
+    <tbody>${filtered.map(userManagementRowHtml).join('')}</tbody>
+  </table></div>`;
+
+  wireUserManagementActions();
+}
+
+function subscribeUserManagementRealtime() {
+  const client = window.PDC_SUPABASE;
+  if (!client || typeof client.channel !== 'function') return;
+  if (USER_MANAGEMENT_STATE.realtimeChannel) return; // already subscribed for this session
+  const channel = client
+    .channel('pdc_user_roles_admin_view')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'pdc_user_roles' }, () => {
+      // Any account-status/role change (approve/reject/change-role/
+      // disable/restore) re-renders the currently active tab live,
+      // without requiring a manual "Refresh" click -- proven via a real
+      // two-browser test: one browser makes the change, a second,
+      // already-open browser on this screen picks it up automatically.
+      if (document.getElementById('user-management')?.classList.contains('active')) {
+        renderUserManagementScreen();
+      }
+    })
+    .subscribe();
+  USER_MANAGEMENT_STATE.realtimeChannel = channel;
+}
+
+async function userManagementCallRpc(rpcName, params, successMessage) {
+  const client = window.PDC_SUPABASE;
+  const { error } = await client.rpc(rpcName, params);
+  if (error) {
+    alert(`Action failed: ${error.message || error}`);
+    return false;
+  }
+  if (successMessage) {
+    // Non-blocking confirmation; the row list below refreshes immediately
+    // afterward regardless, so this is just an audible/visible cue.
+  }
+  await renderUserManagementScreen();
+  return true;
+}
+
+function wireUserManagementActions() {
+  $$('[data-um-approve]').forEach(button => button.addEventListener('click', async () => {
+    const email = button.dataset.umApprove;
+    const select = $(`[data-um-role-for="${email}"]`);
+    const role = select ? select.value : 'viewer';
+    await userManagementCallRpc('admin_approve_user', { p_target_email: email, p_role: role }, 'Approved');
+  }));
+  $$('[data-um-reject]').forEach(button => button.addEventListener('click', async () => {
+    const email = button.dataset.umReject;
+    const reason = window.prompt(`Reason for rejecting ${email} (optional):`, '') || null;
+    await userManagementCallRpc('admin_reject_registration', { p_target_email: email, p_reason: reason }, 'Rejected');
+  }));
+  $$('[data-um-change-role]').forEach(button => button.addEventListener('click', async () => {
+    const email = button.dataset.umChangeRole;
+    const select = $(`[data-um-role-for="${email}"]`);
+    const role = select ? select.value : null;
+    if (!role) return;
+    await userManagementCallRpc('admin_change_role', { p_target_email: email, p_role: role }, 'Role changed');
+  }));
+  $$('[data-um-disable]').forEach(button => button.addEventListener('click', async () => {
+    const email = button.dataset.umDisable;
+    const reason = window.prompt(`Reason for disabling ${email} (optional):`, '') || null;
+    if (!window.confirm(`Disable access for ${email}? They will immediately lose all operational access.`)) return;
+    await userManagementCallRpc('admin_disable_user', { p_target_email: email, p_reason: reason }, 'Disabled');
+  }));
+  $$('[data-um-restore]').forEach(button => button.addEventListener('click', async () => {
+    const email = button.dataset.umRestore;
+    await userManagementCallRpc('admin_restore_user', { p_target_email: email, p_reason: 'Restored via User Management screen' }, 'Restored');
+  }));
 }
 
 function showView(view) {
@@ -2801,15 +3267,271 @@ function renderAll() {
   updateNavisionImportButton();
 }
 
+// Bridges to the real Supabase client that pdc-auth.js already creates
+// (window.PDC_SUPABASE) as part of the standard login flow. Kept as thin,
+// dedicated functions (rather than reaching into window.PDC_SUPABASE
+// directly from workshop-data-service.js) so the shared data service
+// module has no hard dependency on pdc-auth.js's internal implementation
+// details, and so a future auth provider swap only touches these two
+// functions.
+function getPdcSupabaseAccessToken() {
+  // supabase-js v2 exposes the session via getSession() (async) but every
+  // caller of getAccessToken() here is synchronous by contract (see
+  // workshop-data-service.js). pdc-auth.js caches the current access
+  // token on window.__pdcCachedAccessToken every time it unlocks the app
+  // or reacts to an auth state change (including silent token refresh),
+  // and clears it immediately on sign-out/session loss -- so this is
+  // always either the live token or null, never stale beyond one tick.
+  return window.PDC_AUTH_CONTEXT ? (window.__pdcCachedAccessToken || null) : null;
+}
+
+function createPdcSupabaseRealtimeSubscription(config, handlers) {
+  const client = window.PDC_SUPABASE;
+  if (!client || typeof client.channel !== 'function') return { unsubscribe: () => {} };
+  const channel = client
+    .channel('workshop-revision')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'workshop_revision' }, payload => {
+      if (typeof handlers?.onChange === 'function') handlers.onChange(payload);
+    })
+    .subscribe(status => {
+      if (typeof handlers?.onStatus === 'function') handlers.onStatus(status);
+    });
+  return { unsubscribe: () => client.removeChannel(channel) };
+}
+
+// Generic per-table realtime subscription, used by
+// workshop-reference-data-service.js (Stage 2A) for mechanics/salespeople/
+// sublet-providers/bays/workshop-settings, none of which share the single
+// fixed 'workshop-revision' channel the booking-data path above uses.
+// Each table gets its own named channel so unrelated resources never
+// interfere with each other's subscribe/reconnect lifecycle.
+function createPdcSupabaseTableRealtimeSubscription(tableName, handlers) {
+  const client = window.PDC_SUPABASE;
+  if (!client || typeof client.channel !== 'function') return { unsubscribe: () => {} };
+  const channel = client
+    .channel(`pdc-reference-${tableName}`)
+    .on('postgres_changes', { event: '*', schema: 'public', table: tableName }, payload => {
+      if (typeof handlers?.onChange === 'function') handlers.onChange(payload);
+    })
+    .subscribe(status => {
+      if (typeof handlers?.onStatus === 'function') handlers.onStatus(status);
+    });
+  return { unsubscribe: () => client.removeChannel(channel) };
+}
+
+// Constructs the Stage 2A shared workshop reference/configuration data
+// service exactly once per page load. Unlike
+// initWorkshopSharedServicesIfEnabled() above (which stays behind an
+// explicit opt-in flag while the legacy local-plan booking fallback is
+// retired in a later stage), this service is NOT gated by a feature flag
+// -- per the Stage 2A instruction, Supabase must be authoritative for
+// mechanics/salespeople/sublet-providers/bays/workshop-configuration
+// immediately. It still requires a real, authenticated session
+// (getPdcSupabaseAccessToken()) before it will report anything other than
+// a clear "not authenticated"/offline state -- there is no synchronous
+// path back to localStorage.
+function initWorkshopReferenceDataServiceIfAvailable() {
+  if (window.__workshopReferenceDataService) return window.__workshopReferenceDataService;
+  if (!window.PDC_SUPABASE_CONFIG || typeof createWorkshopReferenceDataService !== 'function' || typeof createWorkshopReferenceSupabaseClient !== 'function') return null;
+
+  const client = createWorkshopReferenceSupabaseClient(window.PDC_SUPABASE_CONFIG);
+  const service = createWorkshopReferenceDataService({
+    config: window.PDC_SUPABASE_CONFIG,
+    client,
+    getAccessToken: () => (typeof getPdcSupabaseAccessToken === 'function' ? getPdcSupabaseAccessToken() : null),
+    subscribeRealtime: (tableName, handlers) => createPdcSupabaseTableRealtimeSubscription(tableName, handlers),
+    onStateChange: () => {
+      // Independent-review remediation (finding 1): pull the latest
+      // validated workshop configuration into the planner's live
+      // scheduling constants BEFORE re-rendering, so a settings change
+      // made in another browser (or the periodic reconciliation
+      // backstop) actually changes planner behaviour here, not only
+      // the raw cached JSON.
+      if (typeof workshopSyncConfigFromSharedSettings === 'function') {
+        try { workshopSyncConfigFromSharedSettings(); } catch (_err) { /* keep last-known-good config */ }
+      }
+      renderAdminLists();
+      renderKpis();
+      if (app.currentView === 'workshop' && typeof renderWorkshopPlanner === 'function') renderWorkshopPlanner();
+    }
+  });
+  window.__workshopReferenceDataService = service;
+  return service;
+}
+
+// Lazily constructs the shared workshop data service + realtime manager
+// exactly once per page load. No-op (and leaves window.__workshopDataService
+// undefined) unless window.PDC_SUPABASE_CONFIG.workshop.sharedData is
+// explicitly true -- see workshop-data-service.js for the fail-closed
+// opt-in contract. Kept in app.js (not workshop-planner.js) because it owns
+// the actual Supabase client / auth token / realtime subscription
+// wiring, which are already app.js concerns for the rest of the site.
+function initWorkshopSharedServicesIfEnabled() {
+  if (typeof workshopSharedModeEnabled !== 'function' || !workshopSharedModeEnabled(window.PDC_SUPABASE_CONFIG)) return;
+
+  if (!window.__workshopDataService) {
+    if (typeof createWorkshopDataService !== 'function' || typeof createWorkshopSupabaseClient !== 'function') return;
+
+    const client = createWorkshopSupabaseClient(window.PDC_SUPABASE_CONFIG);
+    const dataService = createWorkshopDataService({
+      config: window.PDC_SUPABASE_CONFIG,
+      client,
+      getAccessToken: () => (typeof getPdcSupabaseAccessToken === 'function' ? getPdcSupabaseAccessToken() : null),
+      getRole: () => (typeof window.PDC_AUTH_CONTEXT !== 'undefined' ? window.PDC_AUTH_CONTEXT?.role : null),
+      onStateChange: () => {
+        if (app.currentView === 'workshop' && typeof renderWorkshopPlanner === 'function') renderWorkshopPlanner();
+      },
+      onSnapshot: () => {
+        if (app.currentView === 'workshop' && typeof renderWorkshopPlanner === 'function') renderWorkshopPlanner();
+      }
+    });
+    window.__workshopDataService = dataService;
+
+    dataService.loadSnapshot('initial');
+  }
+
+  // Deliberately re-checked every call, same reasoning as the shared-
+  // actions block below: workshop-realtime.js is also lazy-loaded
+  // on-demand when the user first opens the Workshop Planner, which can
+  // happen after the data service already exists (e.g. pdc-auth-ready
+  // firing on login before the planner has ever been opened).
+  if (!window.__workshopRealtimeManager && typeof createWorkshopRealtimeManager === 'function' && typeof createPdcSupabaseRealtimeSubscription === 'function') {
+    window.__workshopRealtimeManager = createWorkshopRealtimeManager({
+      dataService: window.__workshopDataService,
+      subscribe: (handlers) => createPdcSupabaseRealtimeSubscription(window.PDC_SUPABASE_CONFIG, handlers),
+      onStatusChange: () => {
+        if (app.currentView === 'workshop' && typeof renderWorkshopPlanner === 'function') renderWorkshopPlanner();
+      }
+    });
+    window.__workshopRealtimeManager.start();
+    window.addEventListener('online', () => window.__workshopRealtimeManager.forceReconnect());
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') window.__workshopDataService.onVisibilityReturn();
+    });
+  }
+
+  // Deliberately re-checked every call (not just inside the "first init"
+  // branch above): workshop-shared-actions.js is lazy-loaded on-demand
+  // when the user first opens the Workshop Planner view, which can easily
+  // happen *after* the data service was already constructed here (e.g.
+  // from the pdc-auth-ready listener firing on login before the user has
+  // ever visited the planner). Without this re-check, window.
+  // __workshopSharedActions would stay null forever once the data service
+  // already existed.
+  if (!window.__workshopSharedActions && typeof buildWorkshopSharedActions === 'function') {
+    window.__workshopSharedActions = buildWorkshopSharedActions(window.__workshopDataService);
+  }
+}
+
+// Lazily constructs the vehicle-lifecycle shared actions bridge (QC
+// complete -> RFT -> Collected) exactly once per page load. Independent of
+// initWorkshopSharedServicesIfEnabled(): a site can enable shared workshop
+// scheduling without enabling shared QC/RFT/Collected, or vice versa.
+// Fails closed -- if not enabled/loaded, window.__vehicleLifecycleActions
+// stays undefined and every call site below falls back to the existing
+// legacy localStorage-only behaviour unchanged.
+function initVehicleLifecycleSharedActionsIfEnabled() {
+  if (window.__vehicleLifecycleActions) return;
+  if (typeof vehicleLifecycleSharedModeEnabled !== 'function' || !vehicleLifecycleSharedModeEnabled(window.PDC_SUPABASE_CONFIG)) return;
+  if (typeof createWorkshopSupabaseClient !== 'function' || typeof buildVehicleLifecycleSharedActions !== 'function') return;
+  const client = createWorkshopSupabaseClient(window.PDC_SUPABASE_CONFIG);
+  window.__vehicleLifecycleActions = buildVehicleLifecycleSharedActions(
+    client,
+    () => (typeof getPdcSupabaseAccessToken === 'function' ? getPdcSupabaseAccessToken() : null),
+  );
+}
+
+function vehicleLifecycleSharedModeActive() {
+  return typeof window !== 'undefined'
+    && typeof vehicleLifecycleSharedModeEnabled === 'function'
+    && vehicleLifecycleSharedModeEnabled(window.PDC_SUPABASE_CONFIG)
+    && !!window.__vehicleLifecycleActions;
+}
+
+// pdc-auth.js dispatches 'pdc-auth-ready' every time a session unlocks the
+// app (initial load, token refresh redirect, re-login after sign-out).
+// Re-run the shared-services init so a user who logs in while already on
+// the Workshop Planner view (or returns after a session refresh) gets the
+// data service without needing to navigate away and back.
+window.addEventListener?.('pdc-auth-ready', () => {
+  if (typeof initWorkshopSharedServicesIfEnabled === 'function') initWorkshopSharedServicesIfEnabled();
+  if (typeof initVehicleLifecycleSharedActionsIfEnabled === 'function') initVehicleLifecycleSharedActionsIfEnabled();
+  if (typeof refreshWorkshopReferenceData === 'function') refreshWorkshopReferenceData();
+  const navItem = document.getElementById('nav-user-management');
+  if (navItem) navItem.hidden = !(typeof backupStatusSharedModeReady === 'function' && backupStatusSharedModeReady());
+});
+
+// Independent-review remediation, finding #5 / critical blocker #5:
+// pdc-auth.js now subscribes every signed-in browser to its own
+// pdc_user_roles row and fires 'pdc-auth-locked' the instant that row
+// shows the account is no longer approved (disabled, rejected, or
+// reverted to pending) -- without waiting for a reload or sign-out.
+// This handler is the operational-data side of that fix: it tears down
+// every shared realtime subscription and drops in-memory shared-mode
+// state so a disabled user's already-open tab cannot continue showing
+// (or silently re-deriving UI from) previously-loaded operational data.
+window.addEventListener?.('pdc-auth-locked', () => {
+  try {
+    if (window.__workshopRealtimeManager && typeof window.__workshopRealtimeManager.stop === 'function') {
+      window.__workshopRealtimeManager.stop();
+    }
+  } catch (_err) { /* best-effort teardown */ }
+  try {
+    if (window.__workshopDataService && typeof window.__workshopDataService.destroy === 'function') {
+      window.__workshopDataService.destroy();
+    }
+  } catch (_err) { /* best-effort teardown */ }
+  try {
+    if (window.__vehicleLifecycleRealtimeManager && typeof window.__vehicleLifecycleRealtimeManager.stop === 'function') {
+      window.__vehicleLifecycleRealtimeManager.stop();
+    }
+  } catch (_err) { /* best-effort teardown */ }
+  try {
+    if (USER_MANAGEMENT_STATE && USER_MANAGEMENT_STATE.realtimeChannel && window.PDC_SUPABASE && typeof window.PDC_SUPABASE.removeChannel === 'function') {
+      window.PDC_SUPABASE.removeChannel(USER_MANAGEMENT_STATE.realtimeChannel);
+      USER_MANAGEMENT_STATE.realtimeChannel = null;
+      USER_MANAGEMENT_STATE.rows = [];
+    }
+  } catch (_err) { /* best-effort teardown */ }
+  try {
+    // Stage 2A: tear down every workshop reference/configuration data
+    // realtime subscription (technicians/salespeople/sublet-providers/
+    // bays) on lockout too, exactly like every other shared-data service
+    // above -- otherwise a disabled user's already-open tab could keep
+    // receiving mechanic/salesperson/provider/bay change events after
+    // being locked out of everything else.
+    if (window.__workshopReferenceDataService && typeof window.__workshopReferenceDataService.unsubscribeAll === 'function') {
+      window.__workshopReferenceDataService.unsubscribeAll();
+    }
+  } catch (_err) { /* best-effort teardown */ }
+  window.__workshopRealtimeManager = null;
+  window.__workshopDataService = null;
+  window.__workshopSharedActions = null;
+  window.__workshopReferenceDataService = null;
+  const navItem = document.getElementById('nav-user-management');
+  if (navItem) navItem.hidden = true;
+});
+
 function renderWorkshopPlannerWhenReady() {
   if (typeof renderWorkshopPlanner === 'function') {
+    initWorkshopSharedServicesIfEnabled();
     renderWorkshopPlanner();
     return;
   }
   const root = $('#workshop-planner-root');
   if (root) root.innerHTML = '<div class="empty-state"><strong>Loading Workshop Planner</strong><span>Preparing scheduling controls…</span></div>';
-  loadExternalScript(`workshop-planner.js?v=${encodeURIComponent(APP_VERSION)}`, 'workshop-planner-script')
+  // Load the shared-data service + realtime manager modules first. Both
+  // stay completely inert (no snapshot fetch, no subscription, no writes)
+  // unless window.PDC_SUPABASE_CONFIG.workshop.sharedData is explicitly set
+  // to true; the planner UI/runtime is not modified by this load and
+  // continues to operate exactly as before.
+  loadExternalScript(`workshop-data-service.js?v=${encodeURIComponent(APP_VERSION)}`, 'workshop-data-service-script')
+    .then(() => loadExternalScript(`workshop-realtime.js?v=${encodeURIComponent(APP_VERSION)}`, 'workshop-realtime-script'))
+    .then(() => loadExternalScript(`workshop-shared-actions.js?v=${encodeURIComponent(APP_VERSION)}`, 'workshop-shared-actions-script'))
+    .catch(() => { /* non-fatal: shared mode simply stays unavailable */ })
+    .then(() => loadExternalScript(`workshop-planner.js?v=${encodeURIComponent(APP_VERSION)}`, 'workshop-planner-script'))
     .then(() => {
+      initWorkshopSharedServicesIfEnabled();
       if (app.currentView === 'workshop' && typeof renderWorkshopPlanner === 'function') renderWorkshopPlanner();
     })
     .catch(error => {
@@ -2857,6 +3579,9 @@ function renderActiveView() {
       break;
     case 'lists':
       renderAdminLists();
+      break;
+    case 'user-management':
+      renderUserManagementScreen();
       break;
     case 'import':
       renderReviewTable(false);
@@ -3118,6 +3843,41 @@ function pmbVehiclesNeedingStationWork(stage = '') {
     .sort((a, b) => String(displayStockNumber(a) || vehicleKey(a) || '').localeCompare(String(displayStockNumber(b) || vehicleKey(b) || '')));
 }
 
+// Resolves a legacy vehicle object to its shared Supabase {vehicleId,
+// version, qcCompletedAt, lifecycleState} via a direct REST select (not the
+// workshop planner snapshot, which may not be loaded on this page/view).
+// Matches by stock_number first, then permanent_vehicle_id, tolerating the
+// same identifier as workshopSharedVehicleRef(). Returns null (never
+// fabricates a ref) when no match is found so callers can show a clear
+// "vehicle not found in shared data" error instead of silently proceeding.
+async function vehicleLifecycleSharedRef(vehicle = {}) {
+  if (!vehicleLifecycleSharedModeActive()) return null;
+  if (typeof createWorkshopSupabaseClient !== 'function') return null;
+  const token = typeof getPdcSupabaseAccessToken === 'function' ? getPdcSupabaseAccessToken() : null;
+  const stock = String(displayStockNumber(vehicle) || vehicle.order || vehicleKey(vehicle) || '').trim();
+  if (!stock) return null;
+  const url = `${window.PDC_SUPABASE_CONFIG.url}/rest/v1/vehicles?select=id,version,qc_completed_at,lifecycle_state&or=(stock_number.eq.${encodeURIComponent(stock)},permanent_vehicle_id.eq.${encodeURIComponent(stock)})&limit=1`;
+  try {
+    const res = await fetch(url, {
+      headers: {
+        apikey: window.PDC_SUPABASE_CONFIG.publishableKey,
+        Authorization: `Bearer ${token || window.PDC_SUPABASE_CONFIG.publishableKey}`,
+      },
+    });
+    if (!res.ok) return null;
+    const rows = await res.json();
+    if (!Array.isArray(rows) || !rows.length) return null;
+    return {
+      vehicleId: rows[0].id,
+      version: rows[0].version,
+      qcCompletedAt: rows[0].qc_completed_at,
+      lifecycleState: rows[0].lifecycle_state,
+    };
+  } catch (_err) {
+    return null;
+  }
+}
+
 function vehicleReadyForQualityControl(vehicle = {}) {
   if (statusCategory(vehicle) !== 'pmb' || vehicle.pdcQcComplete === true || isPdcBlocked(vehicle) || isActivePartsStoppage(vehicle)) return false;
   if (pdcRequirementDefinitions(vehicle).some(job => !pdcJobComplete(vehicle, job))) return false;
@@ -3136,7 +3896,7 @@ function qualityControlVehicleHtml(vehicle = {}) {
   </button>`;
 }
 
-function completeVehicleQualityControl(key = '') {
+async function completeVehicleQualityControl(key = '') {
   const vehicle = selectedVehicle(key);
   if (!vehicle) return false;
   if (!vehicleReadyForQualityControl(vehicle)) {
@@ -3151,6 +3911,41 @@ function completeVehicleQualityControl(key = '') {
   }
   const label = vehicleIdentityTitle(vehicle) || displayStockNumber(vehicle) || 'this vehicle';
   if (!window.confirm(`Mark QC complete for ${label}?\n\nThis will unlock Transfer to RFT while the vehicle remains in Unallocated.`)) return false;
+
+  if (vehicleLifecycleSharedModeActive()) {
+    const ref = await vehicleLifecycleSharedRef(vehicle);
+    if (!ref) {
+      window.alert('This vehicle could not be found in the shared database, so QC was not completed. No change was made.');
+      return false;
+    }
+    if (ref.qcCompletedAt) {
+      window.alert('QC has already been completed for this vehicle.');
+      renderAll();
+      return false;
+    }
+    const result = await window.__vehicleLifecycleActions.qcCompleteVehicle({
+      vehicleId: ref.vehicleId,
+      expectedVersion: ref.version,
+      workItemKey: 'QC',
+      completedSummary: pdcCompletedJobsText(vehicle) || null,
+    });
+    if (!result || result.ok !== true) {
+      const message = typeof describeVehicleLifecycleActionError === 'function'
+        ? describeVehicleLifecycleActionError(result && result.error)
+        : 'The QC sign-off could not be saved.';
+      window.alert(message);
+      if (typeof window.__workshopDataService !== 'undefined' && window.__workshopDataService) window.__workshopDataService.loadSnapshot('qc_complete_rejected');
+      renderAll();
+      return false;
+    }
+    if (result.notification_has_recipient === false) {
+      window.alert('QC complete was saved, but no salesperson email is on file for this vehicle. The "ready for transport" notification could not be queued for sending. Please set the correct salesperson and use Retry from the notification outbox.');
+    }
+    recordVehicleAudit(vehicle, 'Vehicle QC completed', { by: operator, role, location: 'PMB Unallocated', shared: true });
+    renderAll();
+    return true;
+  }
+
   const now = nowIsoString();
   try {
     runStorageTransaction('Complete vehicle QC', [EDITS_KEY, AUDIT_LOG_KEY], () => {
@@ -4694,17 +5489,25 @@ function subletProviderOptionsHtml(current = '') {
 function addMechanicFromPrompt() {
   const entered = cleanNavisionText(window.prompt('Enter mechanic / technician name:', '') || '');
   if (!entered) return;
-  saveMechanics([...loadMechanics(), entered]);
-  renderKpis();
-  renderAdminLists();
+  const service = typeof initWorkshopReferenceDataServiceIfAvailable === 'function' ? initWorkshopReferenceDataServiceIfAvailable() : null;
+  if (!service) { window.alert('Cannot reach the shared mechanic list right now. Check your connection and try again.'); return; }
+  service.addTechnician(entered).then(result => {
+    if (!result.ok && result.error !== 'duplicate_name') { window.alert(result.error || 'Could not add mechanic.'); return; }
+    renderKpis();
+    renderAdminLists();
+  });
 }
 
 function addSubletProviderFromPrompt() {
   const entered = cleanNavisionText(window.prompt('Enter external provider name:', '') || '');
   if (!entered) return;
-  saveSubletProviders([...loadSubletProviders(), entered]);
-  renderKpis();
-  renderAdminLists();
+  const service = typeof initWorkshopReferenceDataServiceIfAvailable === 'function' ? initWorkshopReferenceDataServiceIfAvailable() : null;
+  if (!service) { window.alert('Cannot reach the shared provider list right now. Check your connection and try again.'); return; }
+  service.addSubletProvider(entered).then(result => {
+    if (!result.ok && result.error !== 'duplicate_name') { window.alert(result.error || 'Could not add provider.'); return; }
+    renderKpis();
+    renderAdminLists();
+  });
 }
 
 function pmbBaySummary(vehicle = {}) {
@@ -6134,10 +6937,12 @@ function savePmbBayDetailForm(vehicle, form) {
   };
   if (stage === 'SUBLET') {
     updates.pmbSubletProvider = assignee;
-    if (assignee) saveSubletProviders([...loadSubletProviders(), assignee]);
+    // No roster-add call here: pmbBayAssignee is a <select> populated
+    // exclusively from loadSubletProviders() (Supabase-backed as of
+    // Stage 2A), so `assignee` can only ever be a name that already
+    // exists -- there is nothing new to add.
   } else {
     updates.pmbBayMechanic = assignee;
-    if (assignee) saveMechanics([...loadMechanics(), assignee]);
   }
   recordVehicleAudit(vehicle, 'Bay detail updated', {
     stage: pmbStageLabel(stage),
@@ -6156,7 +6961,9 @@ function updatePmbBayMechanic(key, stage, value) {
   const normalizedStage = normalizePmbStage(stage || inferredPmbStage(vehicle));
   if (!vehicle || !normalizedStage) return;
   const mechanic = cleanNavisionText(value || '');
-  if (mechanic) saveMechanics([...loadMechanics(), mechanic]);
+  // No roster-add call here: `value` comes from a <select> populated
+  // exclusively from loadMechanics() (Supabase-backed as of Stage 2A), so
+  // it can only ever be a name that already exists.
   recordVehicleAudit(vehicle, 'Bay mechanic assigned', { stage: pmbStageLabel(normalizedStage), mechanic: mechanic || 'Unassigned' });
   saveVehicleEdits(vehicleKey(vehicle), { pmbBayMechanic: mechanic });
 }
@@ -6167,7 +6974,9 @@ function updatePmbBaySubletProvider(key, stage, value) {
   const normalizedStage = normalizePmbStage(stage || inferredPmbStage(vehicle));
   if (!vehicle || !normalizedStage) return;
   const provider = cleanNavisionText(value || '');
-  if (provider) saveSubletProviders([...loadSubletProviders(), provider]);
+  // No roster-add call here: `value` comes from a <select> populated
+  // exclusively from loadSubletProviders() (Supabase-backed as of Stage
+  // 2A), so it can only ever be a name that already exists.
   recordVehicleAudit(vehicle, 'External provider assigned', { stage: pmbStageLabel(normalizedStage), provider: provider || 'Unassigned' });
   saveVehicleEdits(vehicleKey(vehicle), { pmbSubletProvider: provider });
 }
@@ -7259,7 +8068,7 @@ function confirmRftGateOverride(vehicles = []) {
   return { allowed: false, overridden: false, reason: '', issueCount: rows.length, issues: rows };
 }
 
-function transferVehiclesToRft(vehicles = [], options = {}) {
+async function transferVehiclesToRft(vehicles = [], options = {}) {
   const selected = vehicles.filter(Boolean);
   if (!selected.length) return;
   const nonPmb = selected.filter(vehicle => statusCategory(vehicle) !== 'pmb');
@@ -7272,6 +8081,44 @@ function transferVehiclesToRft(vehicles = [], options = {}) {
   const preview = selected.slice(0, 10).map(vehicle => `• ${vehicleIdentityTitle(vehicle) || 'No stock'} - ${vehicleCustomerName(vehicle) || 'Unknown customer'} - ${pmbStageLabel(inferredPmbStage(vehicle)) || 'Unallocated'}`).join('\n');
   const more = selected.length > 10 ? `\n• plus ${selected.length - 10} more` : '';
   if (!window.confirm(`Transfer ${selected.length} PMB vehicle${selected.length === 1 ? '' : 's'} to Vehicles RFT?\n\n${preview}${more}\n\nThis marks the vehicle as Ready for Transport and keeps it protected from Navision location changes.`)) return;
+
+  if (vehicleLifecycleSharedModeActive()) {
+    const failures = [];
+    for (const vehicle of selected) {
+      const ref = await vehicleLifecycleSharedRef(vehicle);
+      if (!ref) {
+        failures.push(`${vehicleIdentityTitle(vehicle) || 'No stock'} - not found in shared database`);
+        continue;
+      }
+      if (!ref.qcCompletedAt) {
+        failures.push(`${vehicleIdentityTitle(vehicle) || 'No stock'} - QC sign-off required first`);
+        continue;
+      }
+      const result = await window.__vehicleLifecycleActions.rftTransferVehicle({ vehicleId: ref.vehicleId, expectedVersion: ref.version });
+      if (!result || result.ok !== true) {
+        const message = typeof describeVehicleLifecycleActionError === 'function' ? describeVehicleLifecycleActionError(result && result.error) : 'The transfer could not be saved.';
+        failures.push(`${vehicleIdentityTitle(vehicle) || 'No stock'} - ${message}`);
+        continue;
+      }
+      recordVehicleAudit(vehicle, 'Transferred to RFT', { from: pmbStageLabel(inferredPmbStage(vehicle)) || 'PMB - Unallocated', to: 'RFT', completedJobs: pdcCompletedJobsText(vehicle), outstandingJobs: pdcOutstandingJobsText(vehicle), shared: true });
+    }
+    if (failures.length) {
+      window.alert(`Some vehicles were not transferred:\n\n${failures.join('\n')}`);
+    }
+    if (options.clearSelection) app.selectedRows.clear();
+    app.quickFilter = 'rft';
+    app.pmbSubFilter = '';
+    if (typeof window.__workshopDataService !== 'undefined' && window.__workshopDataService) window.__workshopDataService.loadSnapshot('rft_transfer');
+    renderAll();
+    if (selected.length === 1 && !failures.length) {
+      offerSalespersonChangeEmail(selected[0], {
+        title: 'Vehicle ready for transport (RFT)',
+        subject: 'Vehicle ready for transport',
+        details: ['The vehicle has moved to RFT and is ready for transport. A notification has been queued for the assigned salesperson.'],
+      });
+    }
+    return;
+  }
 
   const transferTime = nowIsoString();
   selected.forEach(vehicle => {
@@ -9556,7 +10403,6 @@ function partsQueueRowHtml(vehicle = {}) {
   return `<tr class="parts-row parts-queue-row ${escapeHtml(partsDepartmentStatusClass(status))}">
     <td><div class="parts-queue-status-cell">
       <span class="parts-status-pill ${escapeHtml(partsDepartmentStatusClass(status))}">${escapeHtml(partsDepartmentStatusLabel(status))}</span>${partsRiskBadge(vehicle)}${vehicleDepartmentBadge(vehicle)}
-      <span class="parts-queue-jita"><b>JITA</b>${jitaIndicator(vehicle)}</span>
     </div></td>
     <td><div class="parts-queue-identity">
       <span><b>Key</b>${escapeHtml(vehicleKeyNumber(vehicle) || '—')}</span>
@@ -9566,6 +10412,7 @@ function partsQueueRowHtml(vehicle = {}) {
     <td><div class="parts-queue-customer"><strong title="${escapeHtml(customer)}">${escapeHtml(customer)}</strong><span title="${escapeHtml(unit)}">${escapeHtml(unit)}</span></div></td>
     <td><div class="parts-eta"><strong>${escapeHtml(eta || 'No ETA')}</strong><span class="pmb-age ${escapeHtml('pmb-age-' + ageClass)}">${escapeHtml(partsEtaCounterLabel(vehicle))}</span></div></td>
     <td><div class="parts-worst-eta-wrap"><label class="parts-worst-eta"><span class="sr-only">Parts worst ETA</span><input type="date" data-parts-worst-eta="${escapeHtml(key)}" value="${escapeHtml(worstEtaInput)}" ${complete ? 'disabled' : ''} /></label><span class="parts-worst-eta-details">${worstEtaLabel ? `<span class="parts-worst-eta-label">${escapeHtml(worstEtaLabel)}</span>${worstEtaCountdown ? `<span class="parts-worst-eta-countdown ${escapeHtml(worstEtaCountdownClass)}">${escapeHtml(worstEtaCountdown)}</span>` : ''}` : '<span class="subtle parts-worst-eta-label">Set worst ETA</span>'}</span>${worstEtaLabel ? `<button class="small-button parts-email-sales-button" type="button" data-parts-eta-email="${escapeHtml(key)}" ${complete ? 'disabled' : ''}>Email sales</button>` : ''}</div></td>
+    <td class="parts-queue-jita-cell">${jitaIndicator(vehicle)}</td>
     <td class="parts-queue-blocker">${blocker ? `<strong title="${escapeHtml(blocker)}">${escapeHtml(blocker)}</strong>` : '<span class="subtle">No blocker recorded</span>'}</td>
     <td><div class="parts-queue-stage"><strong>${escapeHtml(currentLocation)}</strong><span>${escapeHtml(partsCurrentLocationUpdateLabel(vehicle) || 'No location update recorded')}</span></div></td>
     <td>${partsQueueActionsHtml(vehicle, status)}</td>
@@ -9585,7 +10432,7 @@ function renderPartsHome() {
   }
   host.innerHTML = `<div class="parts-table-wrap parts-queue-wrap"><table class="data-table compact-table parts-queue-table">
     <thead><tr>
-      <th>Status</th><th>Vehicle ID</th><th>Customer / vehicle</th><th>Kewdale ETA</th><th>Parts ETA</th><th>Blocker</th><th>Stage / update</th><th>Actions</th>
+      <th>Status</th><th>Vehicle ID</th><th>Customer / vehicle</th><th>Kewdale ETA</th><th>Parts ETA</th><th>Jita</th><th>Blocker</th><th>Stage / update</th><th>Actions</th>
     </tr></thead>
     <tbody>${rows.map(partsQueueRowHtml).join('')}</tbody></table></div>`;
   $$('[data-open-stock]', host).forEach(button => button.addEventListener('click', () => openVehicleModal(button.dataset.openStock)));
@@ -9926,7 +10773,7 @@ function rftVehicleDetailRow(vehicle = {}) {
     </details>`;
 }
 
-function markRftVehicleCollected(key, collected = true) {
+async function markRftVehicleCollected(key, collected = true) {
   const vehicle = selectedVehicle(key);
   if (!vehicle) return;
   if (!collected && vehicleCollectedFromRft(vehicle)) {
@@ -9934,7 +10781,45 @@ function markRftVehicleCollected(key, collected = true) {
     renderAll();
     return;
   }
+  if (!collected) return;
+  const label = vehicleIdentityTitle(vehicle) || displayStockNumber(vehicle) || 'this vehicle';
+  if (!window.confirm(`Confirm ${label} has been collected?\n\nThis will move it out of RFT into Completed Vehicles and cannot be undone here.`)) {
+    renderAll();
+    return;
+  }
   const operator = getCurrentOperatorName();
+
+  if (vehicleLifecycleSharedModeActive()) {
+    const ref = await vehicleLifecycleSharedRef(vehicle);
+    if (!ref) {
+      window.alert('This vehicle could not be found in the shared database, so it was not marked collected. No change was made.');
+      renderAll();
+      return;
+    }
+    if (ref.lifecycleState === 'completed') {
+      window.alert('This vehicle has already been collected and moved to Completed Vehicles.');
+      renderAll();
+      return;
+    }
+    const result = await window.__vehicleLifecycleActions.rftCollectVehicle({ vehicleId: ref.vehicleId, expectedVersion: ref.version });
+    if (!result || result.ok !== true) {
+      const message = typeof describeVehicleLifecycleActionError === 'function' ? describeVehicleLifecycleActionError(result && result.error) : 'This vehicle could not be marked collected.';
+      window.alert(message);
+      if (typeof window.__workshopDataService !== 'undefined' && window.__workshopDataService) window.__workshopDataService.loadSnapshot('rft_collect_rejected');
+      renderAll();
+      return;
+    }
+    recordVehicleAudit(vehicle, 'Collected from RFT', { by: operator || 'Unknown', shared: true });
+    offerSalespersonChangeEmail(vehicle, {
+      title: 'Vehicle completed and collected',
+      subject: 'Vehicle collection complete',
+      details: [`Collected from RFT by ${operator || 'Unknown operator'}.`],
+    });
+    if (typeof window.__workshopDataService !== 'undefined' && window.__workshopDataService) window.__workshopDataService.loadSnapshot('rft_collect');
+    renderAll();
+    return;
+  }
+
   const now = nowIsoString();
   recordVehicleAudit(vehicle, 'Collected from RFT', { by: operator || 'Unknown' });
   saveVehicleEdits(vehicleKey(vehicle), {

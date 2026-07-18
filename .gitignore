@@ -17,3 +17,21 @@ backend/email_publish.log
 backend/.vehicle_order_email_monitor.lock
 backend/.vehicle_order_email_monitor_status.json
 backend/.generated/
+# Staging review tools are tracked and credential-free. Ignore only local
+# secrets, generated results, and caches inside that directory.
+_staging_test_tools/*
+!_staging_test_tools/*.py
+!_staging_test_tools/.env.example
+_build/
+
+# The committed Python tests and blank/fake template make the staging suite
+# independently reproducible. A populated .env remains ignored by the global
+# .env rules above and is never exported.
+
+# Local dev-only Node dependencies (installed for the standalone Stage
+# 2A Realtime diagnostic client's @supabase/supabase-js import) and
+# Python bytecode caches -- neither is part of the shipped artifact.
+node_modules/
+__pycache__/
+*.pyc
+
