@@ -11,11 +11,11 @@
   `d4839e186e53aeaa7c2aee1e5a7689dd81f99713`
 - **Staging deployment repository:** `BTNew/pdc-control-board-staging`
 - **Staging deployment commit:**
-  `ee9d7419f3f1926ca9634dd4f49d314756ab4e7e`
+  `505c524915d9a567078d08f73dfd63229f178d06`
 - **Staging URL:** <https://btnew.github.io/pdc-control-board-staging/>
 - **Staging project:** `cdsmnqxtyyoeoznmbidd`
 - **Production project:** `vjdtsswhroyguxyfjdkt` — untouched
-- **APP_VERSION:** `2026.07.17.08-stage2a-reconcile-on-reconnect`
+- **APP_VERSION:** `2026.07.18.01-stage2a-final-contained`
 
 The final source commit cannot literally contain its own SHA because changing
 that file would create a different commit. The exporter therefore resolves the
@@ -33,6 +33,43 @@ Admin blocks, current-time planner changes, or a production deployment.
 
 Production was never used as a link target, test target, recovery target,
 request host, migration target, or deployment target during this remediation.
+
+## Final contained remediation (2026-07-18)
+
+Migration 026 and the minute-based planner adapter close the final contained
+review findings without changing the Stage 2A boundary:
+
+- one authoritative planner configuration object stores integer minute clocks,
+  integer durations/increments, and validated working-week, closure, break,
+  overtime, and technician-leave collections;
+- every planner clock Date is created through `workshopSetClock`; no fractional
+  clock hour is stored or passed to Date APIs;
+- closures, breaks, overtime, leave, and configurable three-to-six-day weeks
+  alter real scheduling outcomes, not only mutable constants;
+- historical bookings remain renderable after later closure/leave changes;
+- viewer list/direct REST/Realtime reads are active-only, while
+  operator/administrator hierarchy retains required inactive-row reads;
+- protected assignment RPCs reject technician leave server-side;
+- malformed UUID and non-exact/non-round-tripping dates return structured JSON;
+- email-monitor discovery and locking are portable across Windows, Linux, and
+  macOS.
+
+Final current evidence is authoritative over historical totals later in this
+handover:
+`review-evidence/final-contained/FINAL-STAGE2A-CONTAINED-VERIFICATION.md`.
+
+Cross-platform CI passed on Windows, Ubuntu, and macOS: JavaScript 39/0/2 and
+the exact backend command 54/0 on each OS. Staging migration-026 checks passed
+24/0, reference-data checks 33/0, workshop live integration 34/0, and the
+actual two-browser planner acceptance passed with both settings fully restored.
+Console, CSP, page, network, HTTP, and production-request errors were all zero.
+
+A new isolated 001–026 clean build was not run because the account contained
+only staging and prohibited production, and Docker was unavailable locally.
+The prior isolated 001–025 clean build remains valid for those immutable
+migrations; 026 was verified by staging apply, ledger parity, post-apply dry
+run, static tests, direct role matrix, strict validation tests, and protected
+RPC leave enforcement.
 
 ## Independent-review findings and disposition
 
@@ -70,6 +107,7 @@ Migrations involved:
 6. `023_stage2a_workshop_reference_rpcs.sql`
 7. `024_stage2a_realtime_publication_fix.sql`
 8. `025_stage2a_review_remediation_grants_rls_validation.sql`
+9. `026_stage2a_final_review_remediation.sql`
 
 Staging already contained the objects for 018–025, but its Supabase migration
 ledger ended at 017. After object-by-object schema verification, only missing
@@ -81,6 +119,11 @@ and remote ledgers align exactly through 025, and the linked dry run returned:
 ```text
 Remote database is up to date.
 ```
+
+Migration 026 was subsequently applied normally with `supabase db push` to the
+explicitly linked staging project after an encrypted pre-change backup. Local
+and staging ledgers now align through 026; the post-apply dry run again returned
+`Remote database is up to date.`
 
 Evidence:
 
@@ -157,7 +200,7 @@ Schema evidence:
 - `review-evidence/post-resume/auth-redirect-settings-safe.json`
 - `review-evidence/post-resume/project-storage-realtime-config-safe.json`
 
-## Final regression totals
+## Earlier 001–025 regression totals (historical)
 
 | Suite | Final result |
 |---|---:|
@@ -181,7 +224,7 @@ after the final run. Final packaging/documentation changes did not alter
 application runtime behavior; only affected exporter/package tests and syntax
 checks were rerun.
 
-## Two-browser acceptance and exact hosts
+## Earlier two-browser acceptance and exact hosts (historical)
 
 Two independently authenticated Chromium contexts joined all five Stage 2A
 reference-data channels. The administrator changed
@@ -226,7 +269,7 @@ The final allow-list package contains:
 - all credential-free staging Python tests and safe `.env.example`;
 - pinned dependency files and exact test commands;
 - exact staging deployment Git archive at commit
-  `ee9d7419f3f1926ca9634dd4f49d314756ab4e7e`, including deployed
+  `505c524915d9a567078d08f73dfd63229f178d06`, including deployed
   `index.html`, JavaScript and CSS assets;
 - final source/deployment commit records;
 - full schema, grants/RLS, Realtime/replica-identity, migration-ledger,
@@ -266,7 +309,7 @@ compatibility commits in reverse order, review the diff, push only staging
 `main`, and wait for GitHub Pages to report the resulting commit built:
 
 ```bash
-git revert ee9d7419f3f1926ca9634dd4f49d314756ab4e7e
+`git revert 505c524915d9a567078d08f73dfd63229f178d06`
 git revert e24d819966ac0c31ab9850ba77c704b95c88e3bd
 git push origin main
 ```
@@ -284,7 +327,7 @@ push to production branches. The preserved pre-finalization status/diff is in
 
 ### Database
 
-Migrations 018–025 are additive or security-hardening changes. Do not
+Migrations 018–026 are additive or security-hardening changes. Do not
 mechanically reverse grants/RLS/constraints because that would reopen reviewed
 security findings. For a staging-only recovery:
 

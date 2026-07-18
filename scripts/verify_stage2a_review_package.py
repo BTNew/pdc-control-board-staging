@@ -8,7 +8,7 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-EXPECTED_DEPLOY = "ee9d7419f3f1926ca9634dd4f49d314756ab4e7e"
+EXPECTED_DEPLOY = "505c524915d9a567078d08f73dfd63229f178d06"
 EXPECTED_BRANCH = "fix/stage2a-independent-review-findings"
 FORBIDDEN_PARTS = {
     ".git", "node_modules", "__pycache__", ".review-venv", "backups",
@@ -19,8 +19,13 @@ REQUIRED = [
     "FINAL-SOURCE-HEAD.txt", "STAGING-DEPLOYMENT-COMMIT.txt",
     "REVIEW-MANIFEST.json", "SHA256SUMS.txt", "REVIEW-INSTRUCTIONS.md",
     "STAGE-2A-INDEPENDENT-REVIEW-REMEDIATION-HANDOVER.md",
+    "STAGE-2A-SHARED-REFERENCE-DATA-HANDOVER.md",
     "app.js", "test_all.js", "workshop-planner.js", "workshop-planner.css",
     "workshop-reference-data-service.js", "requirements-review.txt",
+    "test_workshop_planner_configuration.js",
+    "supabase/migrations/026_stage2a_final_review_remediation.sql",
+    "backend/test_stage2a_final_remediation.py",
+    "_staging_test_tools/test_stage2a_final_remediation_staging.py",
     "backend", "_staging_test_tools/.env.example",
     "deployed-staging-snapshot/index.html",
     "deployed-staging-snapshot/app.js",
@@ -32,6 +37,11 @@ REQUIRED = [
     "review-evidence/post-resume/realtime-publication-replica-identity-report.json",
     "review-evidence/post-resume/migration-ledger.txt",
     "review-evidence/post-resume/two-browser-realtime-acceptance.json",
+    "review-evidence/final-contained/FINAL-STAGE2A-CONTAINED-VERIFICATION.md",
+    "review-evidence/final-contained/MIGRATION-LEDGER-026.txt",
+    "review-evidence/final-contained/STAGING-MIGRATION-026-RESULT.txt",
+    "review-evidence/final-contained/cross-platform-ci-run.json",
+    "review-evidence/final-contained/two-browser-planner-acceptance.json",
 ]
 
 

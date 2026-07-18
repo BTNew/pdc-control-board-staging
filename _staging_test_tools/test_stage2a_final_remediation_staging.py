@@ -36,7 +36,7 @@ def token(email, password):
 def create_inactive_rows():
     conn = get_conn()
     cur = conn.cursor()
-    cur.execute("insert into public.workshop_technicians(name, active) values (%s, false) returning id", (PREFIX + " Technician",))
+    cur.execute("insert into public.workshop_technicians(name, role_type, active) values (%s, 'technician', false) returning id", (PREFIX + " Technician",))
     technician = str(cur.fetchone()[0])
     cur.execute("insert into public.salespeople(name, active) values (%s, false) returning id", (PREFIX + " Salesperson",))
     salesperson = str(cur.fetchone()[0])
@@ -97,7 +97,7 @@ def strict_validation(admin):
         "p_key": "technician_leave", "p_expected_version": leave_version,
         "p_value": [{"technician_id": "not-a-uuid", "date": "2026-07-20"}],
     })
-    check("malformed technician UUID returns structured invalid_uuid", status == 200 and body.get("ok") is False and body.get("error") == "invalid_uuid", (status, body))
+    check("malformed technician UUID returns a structured validation error", status == 200 and body.get("ok") is False and body.get("error") == "invalid_value" and body.get("reason") == "leave_technician_id_not_valid_uuid", (status, body))
 
     closure_version = int(config["closures"]["version"])
     for value in ("2026-2-03", "2026-02-31"):
@@ -105,7 +105,7 @@ def strict_validation(admin):
             "p_key": "closures", "p_expected_version": closure_version,
             "p_value": [{"date": value}],
         })
-        check(f"non-exact/non-roundtrip date {value} returns structured invalid_date", status == 200 and body.get("ok") is False and body.get("error") == "invalid_date", (status, body))
+        check(f"non-exact/non-roundtrip date {value} returns a structured validation error", status == 200 and body.get("ok") is False and body.get("error") == "invalid_value" and body.get("reason") == "closure_date_not_valid_iso_date", (status, body))
 
 
 def leave_rpc_enforcement(admin):
@@ -145,8 +145,9 @@ def leave_rpc_enforcement(admin):
 
     try:
         status, denied = rpc(admin, "assign_booking_technician", {
-            "p_booking_id": str(booking[0]), "p_expected_booking_version": int(booking[1]),
+            "p_booking_id": str(booking[0]), "p_expected_version": int(booking[1]),
             "p_technician_id": technician_id,
+            "p_metadata": {},
         })
         check("assignment RPC returns structured technician_on_leave", status == 200 and denied.get("ok") is False and denied.get("error") == "technician_on_leave" and denied.get("technician_id") == technician_id, (status, denied))
     finally:

@@ -1,0 +1,4 @@
+Migration 026 direct REST/RPC staging checks: 24 passed, 0 failed.
+Reference-data staging checks: 33 passed, 0 failed (one no-booking historical case reported as an explicit passing skip).
+Workshop live integration: 34 passed, 0 failed.
+Synthetic cleanup: 0 technicians, 0 salespeople, 0 providers, 0 bays, 0 bookings, and 0 leave rows remained.

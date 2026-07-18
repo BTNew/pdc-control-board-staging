@@ -1,0 +1,138 @@
+{
+  "runAt": "2026-07-18T01:39:04.080Z",
+  "url": "https://btnew.github.io/pdc-control-board-staging/",
+  "deploymentCommit": "505c524915d9a567078d08f73dfd63229f178d06",
+  "appVersion": "Version 2026.07.18.01-stage2a-final-contained",
+  "syntheticClosureDate": "2099-01-05",
+  "plannerOutcomes": {
+    "afterStartB": {
+      "firstAxisLabel": "7:30 am",
+      "selectedDate": "2099-01-05",
+      "cachedClosures": [],
+      "weekDates": [
+        {
+          "header": "Mon05/010h booked",
+          "className": "workshop-week-day "
+        },
+        {
+          "header": "Tue06/010h booked",
+          "className": "workshop-week-day "
+        },
+        {
+          "header": "Wed07/010h booked",
+          "className": "workshop-week-day "
+        },
+        {
+          "header": "Thu08/010h booked",
+          "className": "workshop-week-day "
+        },
+        {
+          "header": "Fri09/010h booked",
+          "className": "workshop-week-day "
+        }
+      ],
+      "closureRendered": false,
+      "closureHeader": null,
+      "closureMatchesSyntheticDate": false,
+      "closureDroppable": false
+    },
+    "afterClosureB": {
+      "firstAxisLabel": "7:30 am",
+      "selectedDate": "2099-01-06",
+      "cachedClosures": [
+        {
+          "date": "2099-01-05",
+          "label": "Stage 2A synthetic acceptance closure"
+        }
+      ],
+      "weekDates": [
+        {
+          "header": "Mon05/01CLOSED · historical bookings remain visible",
+          "className": "workshop-week-day is-closure"
+        },
+        {
+          "header": "Tue06/010h booked",
+          "className": "workshop-week-day "
+        },
+        {
+          "header": "Wed07/010h booked",
+          "className": "workshop-week-day "
+        },
+        {
+          "header": "Thu08/010h booked",
+          "className": "workshop-week-day "
+        },
+        {
+          "header": "Fri09/010h booked",
+          "className": "workshop-week-day "
+        }
+      ],
+      "closureRendered": true,
+      "closureHeader": "Mon05/01CLOSED · historical bookings remain visible",
+      "closureMatchesSyntheticDate": true,
+      "closureDroppable": false
+    },
+    "restoredB": {
+      "firstAxisLabel": "8:00 am",
+      "selectedDate": "2099-01-05",
+      "cachedClosures": [],
+      "weekDates": [
+        {
+          "header": "Mon05/010h booked",
+          "className": "workshop-week-day "
+        },
+        {
+          "header": "Tue06/010h booked",
+          "className": "workshop-week-day "
+        },
+        {
+          "header": "Wed07/010h booked",
+          "className": "workshop-week-day "
+        },
+        {
+          "header": "Thu08/010h booked",
+          "className": "workshop-week-day "
+        },
+        {
+          "header": "Fri09/010h booked",
+          "className": "workshop-week-day "
+        }
+      ],
+      "closureRendered": false,
+      "closureHeader": null,
+      "closureMatchesSyntheticDate": false,
+      "closureDroppable": false
+    }
+  },
+  "restored": {
+    "dayStartTime": "08:00",
+    "closures": []
+  },
+  "checks": {
+    "bothAuthenticated": true,
+    "bothOpenedWorkshop": true,
+    "browserBRendered0730": true,
+    "browserBBlockedSyntheticClosure": true,
+    "closureRestored": true,
+    "startTimeRestored": true,
+    "noConsoleErrors": true,
+    "noCspErrors": true,
+    "noPageErrors": true,
+    "noFailedRequests": true,
+    "noHttpErrors": true,
+    "noProductionRequests": true,
+    "stagingSupabaseContacted": true,
+    "stagingPageLoaded": true
+  },
+  "consoleErrors": [],
+  "cspErrors": [],
+  "pageErrors": [],
+  "failedRequests": [],
+  "httpErrors": [],
+  "productionRequests": [],
+  "requestHosts": [
+    "btnew.github.io",
+    "cdsmnqxtyyoeoznmbidd.supabase.co"
+  ],
+  "passed": true
+}

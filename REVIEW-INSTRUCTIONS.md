@@ -2,7 +2,7 @@
 
 The ZIP is an allow-list export of the recorded source commit plus an exact
 archive of staging deployment commit
-`ee9d7419f3f1926ca9634dd4f49d314756ab4e7e` and secret-free evidence.
+`505c524915d9a567078d08f73dfd63229f178d06` and secret-free evidence.
 Run commands from the extracted package root.
 
 ## 1. Verify package integrity
@@ -66,7 +66,7 @@ release/reacquisition on the native backend. Final Windows and Ubuntu CI run
 IDs and totals are recorded in the final evidence report.
 
 Expected final totals are recorded in
-`review-evidence/FINAL-REGRESSION-AND-BROWSER-ACCEPTANCE.md`.
+`review-evidence/final-contained/FINAL-STAGE2A-CONTAINED-VERIFICATION.md`.
 
 ## 4. Optional live staging regression
 
@@ -116,8 +116,8 @@ The script refuses a non-staging site, records every request host, fails on any
 production-project request, verifies actual 07:30 planner behavior plus a
 synthetic closure in a second browser, and restores both settings in `finally`.
 
-The already-completed machine-readable result is
-`review-evidence/post-resume/two-browser-realtime-acceptance.json`.
+The current completed machine-readable result is
+`review-evidence/final-contained/two-browser-planner-acceptance.json`.
 
 ## 6. Rebuild the review ZIP
 

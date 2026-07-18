@@ -65,31 +65,41 @@ async function updateSetting(page, key, version, value) {
   return result;
 }
 
-async function waitForSetting(page, key, predicateArgs, predicateSource) {
-  await page.waitForFunction(({ key: settingKey, predicateArgs: args, predicateSource: source }) => {
+async function waitForSetting(page, key, predicateArgs) {
+  await page.waitForFunction(({ key: settingKey, predicateArgs: args }) => {
     const row = window.__workshopReferenceDataService?.getCachedWorkshopConfiguration?.()?.rows?.[settingKey];
     if (!row) return false;
-    // Predicate source is defined locally by this trusted harness, not external input.
-    return Function('row', 'args', `return (${source})(row, args);`)(row, args);
-  }, { key, predicateArgs, predicateSource }, { timeout: 30000 });
+    if (Number(row.version) < args.version) return false;
+    if (Object.prototype.hasOwnProperty.call(args, 'value')) return row.value === args.value;
+    if (args.date && Array.isArray(row.value)) {
+      const present = row.value.some(item => String(item?.date || item) === args.date);
+      return args.present ? present : !present;
+    }
+    return false;
+  }, { key, predicateArgs }, { timeout: 30000 });
 }
 
 async function renderSyntheticWeek(page) {
-  return page.evaluate(dateKey => {
-    workshopSyncConfigFromSharedSettings();
-    const state = workshopPlannerState();
-    state.mode = 'weekly';
-    state.weekStart = dateKey;
-    renderWorkshopPlanner();
-    const closure = document.querySelector(`.workshop-week-day.is-closure [data-workshop-week-date="${dateKey}"]`);
+  const dateInput = page.locator('[data-workshop-date]');
+  await dateInput.fill(SYNTHETIC_CLOSURE_DATE);
+  await dateInput.dispatchEvent('change');
+  await page.locator('[data-workshop-weekly-stage]').first().click();
+  await page.locator('[data-workshop-week-overlay]').waitFor({ state: 'visible', timeout: 10000 });
+  const result = await page.evaluate(dateKey => {
+    const closure = document.querySelector('.workshop-week-day.is-closure');
     return {
-      configuredDayStartMinutes: WORKSHOP_PLANNER_CONFIG.dayStartMinutes,
       firstAxisLabel: document.querySelector('.workshop-time-axis span')?.textContent?.trim() || null,
+      selectedDate: document.querySelector('[data-workshop-date]')?.value || null,
+      cachedClosures: window.__workshopReferenceDataService?.getCachedWorkshopConfiguration?.()?.rows?.closures?.value || null,
+      weekDates: [...document.querySelectorAll('.workshop-week-day')].map(node => ({ header: node.querySelector('header')?.textContent?.trim() || null, className: node.className })),
       closureRendered: Boolean(closure),
-      closureHeader: closure?.closest('.workshop-week-day')?.querySelector('header')?.textContent?.trim() || null,
-      closureDroppable: Boolean(document.querySelector(`.workshop-week-day.is-closure [data-workshop-week-drop-date="${dateKey}"]`)),
+      closureHeader: closure?.querySelector('header')?.textContent?.trim() || null,
+      closureMatchesSyntheticDate: Boolean(closure?.querySelector('header')?.textContent?.includes('05/01')),
+      closureDroppable: Boolean(closure?.querySelector('[data-workshop-week-drop-date]')),
     };
   }, SYNTHETIC_CLOSURE_DATE);
+  await page.locator('[data-workshop-week-close]').first().click();
+  return result;
 }
 
 (async () => {
@@ -159,14 +169,14 @@ async function renderSyntheticWeek(page) {
       const intermediate = await updateSetting(pages[0], 'day_start_time', startVersion, '08:00');
       startVersion = Number(intermediate.setting.version);
       startChanged = true;
-      await waitForSetting(pages[1], 'day_start_time', { value: '08:00', version: startVersion }, '(row,args) => row.value === args.value && Number(row.version) >= args.version');
+      await waitForSetting(pages[1], 'day_start_time', { value: '08:00', version: startVersion });
     }
     const startResult = await updateSetting(pages[0], 'day_start_time', startVersion, '07:30');
     startVersion = Number(startResult.setting.version);
     startChanged = true;
-    await waitForSetting(pages[1], 'day_start_time', { value: '07:30', version: startVersion }, '(row,args) => row.value === args.value && Number(row.version) >= args.version');
+    await waitForSetting(pages[1], 'day_start_time', { value: '07:30', version: startVersion });
     const afterStartB = await renderSyntheticWeek(pages[1]);
-    if (afterStartB.configuredDayStartMinutes !== 450 || afterStartB.firstAxisLabel !== '07:30') {
+    if (!['07:30', '7:30 am'].includes(String(afterStartB.firstAxisLabel).toLowerCase())) {
       throw new Error(`Browser B did not render/use 07:30: ${JSON.stringify(afterStartB)}`);
     }
 
@@ -174,9 +184,9 @@ async function renderSyntheticWeek(page) {
     const closureResult = await updateSetting(pages[0], 'closures', closureVersion, syntheticClosures);
     closureVersion = Number(closureResult.setting.version);
     closureChanged = true;
-    await waitForSetting(pages[1], 'closures', { date: SYNTHETIC_CLOSURE_DATE, version: closureVersion }, '(row,args) => Array.isArray(row.value) && row.value.some(item => String(item?.date || item) === args.date) && Number(row.version) >= args.version');
+    await waitForSetting(pages[1], 'closures', { date: SYNTHETIC_CLOSURE_DATE, present: true, version: closureVersion });
     const afterClosureB = await renderSyntheticWeek(pages[1]);
-    if (!afterClosureB.closureRendered || afterClosureB.closureDroppable) {
+    if (!afterClosureB.closureRendered || !afterClosureB.closureMatchesSyntheticDate || afterClosureB.closureDroppable) {
       throw new Error(`Browser B did not render a closed/non-droppable planner date: ${JSON.stringify(afterClosureB)}`);
     }
 
@@ -184,19 +194,19 @@ async function renderSyntheticWeek(page) {
     const closureRestore = await updateSetting(pages[0], 'closures', closureVersion, originalClosures);
     closureVersion = Number(closureRestore.setting.version);
     closureChanged = false;
-    await waitForSetting(pages[1], 'closures', { date: SYNTHETIC_CLOSURE_DATE, version: closureVersion }, '(row,args) => Array.isArray(row.value) && !row.value.some(item => String(item?.date || item) === args.date) && Number(row.version) >= args.version');
+    await waitForSetting(pages[1], 'closures', { date: SYNTHETIC_CLOSURE_DATE, present: false, version: closureVersion });
 
     const startRestore = await updateSetting(pages[0], 'day_start_time', startVersion, originalStart);
     startVersion = Number(startRestore.setting.version);
     startChanged = false;
-    await waitForSetting(pages[1], 'day_start_time', { value: originalStart, version: startVersion }, '(row,args) => row.value === args.value && Number(row.version) >= args.version');
+    await waitForSetting(pages[1], 'day_start_time', { value: originalStart, version: startVersion });
     const restoredB = await renderSyntheticWeek(pages[1]);
 
     const checks = {
       bothAuthenticated: beforeA.role === 'administrator' && beforeB.role === 'operator',
       bothOpenedWorkshop: beforeA.currentView === 'workshop' && beforeB.currentView === 'workshop',
-      browserBRendered0730: afterStartB.configuredDayStartMinutes === 450 && afterStartB.firstAxisLabel === '07:30',
-      browserBBlockedSyntheticClosure: afterClosureB.closureRendered && !afterClosureB.closureDroppable,
+      browserBRendered0730: ['07:30', '7:30 am'].includes(String(afterStartB.firstAxisLabel).toLowerCase()),
+      browserBBlockedSyntheticClosure: afterClosureB.closureRendered && afterClosureB.closureMatchesSyntheticDate && !afterClosureB.closureDroppable,
       closureRestored: !restoredB.closureRendered,
       startTimeRestored: (await cacheSnapshot(pages[1])).dayStart.value === originalStart,
       noConsoleErrors: consoleErrors.length === 0,

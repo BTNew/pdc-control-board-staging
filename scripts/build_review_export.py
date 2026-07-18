@@ -22,9 +22,9 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 EXPECTED_BRANCH = "fix/stage2a-independent-review-findings"
-EXPECTED_STAGING_DEPLOY_COMMIT = "ee9d7419f3f1926ca9634dd4f49d314756ab4e7e"
+EXPECTED_STAGING_DEPLOY_COMMIT = "505c524915d9a567078d08f73dfd63229f178d06"
 DEFAULT_STAGING_DEPLOY_REPO = Path(r"C:\tmp\pdc-staging-deploy")
-ZIP_NAME = "PDC-Control-Board-Stage-2A-Independent-Review-Remediated-2026-07-18.zip"
+ZIP_NAME = "PDC-Control-Board-Stage-2A-Final-Contained-Review-2026-07-18.zip"
 
 FORBIDDEN_PATH_PATTERNS = [
     "*.imap_attachments*", "*.outlook_attachments*", "*email_publish.log*",
@@ -44,7 +44,17 @@ REQUIRED_SOURCE_PATHS = [
     "test_workshop_reference_data_service.js", "requirements-review.txt",
     "package-review.json", "REVIEW-INSTRUCTIONS.md",
     "STAGE-2A-INDEPENDENT-REVIEW-REMEDIATION-HANDOVER.md",
+    "STAGE-2A-SHARED-REFERENCE-DATA-HANDOVER.md",
+    "test_workshop_planner_configuration.js",
+    "supabase/migrations/026_stage2a_final_review_remediation.sql",
+    "backend/test_stage2a_final_remediation.py",
+    "_staging_test_tools/test_stage2a_final_remediation_staging.py",
     "scripts/stage2a_live_acceptance.js", "scripts/verify_stage2a_review_package.py",
+    "review-evidence/final-contained/FINAL-STAGE2A-CONTAINED-VERIFICATION.md",
+    "review-evidence/final-contained/MIGRATION-LEDGER-026.txt",
+    "review-evidence/final-contained/STAGING-MIGRATION-026-RESULT.txt",
+    "review-evidence/final-contained/cross-platform-ci-run.json",
+    "review-evidence/final-contained/two-browser-planner-acceptance.json",
     "review-evidence/post-resume/full-schema-report.json",
     "review-evidence/post-resume/grants-rls-report.json",
     "review-evidence/post-resume/realtime-publication-replica-identity-report.json",

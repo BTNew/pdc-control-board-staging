@@ -3,15 +3,56 @@
 ## STAGE 2A: COMPLETE
 ## STAGE 2B: NOT STARTED
 
-**Branch:** `fix/independent-review-production-blockers`
-**Latest commit (source repo):** `4606f36`
-**Stage 2A commit range:** `096eb5f..4606f36` (7 commits)
+**Branch:** `fix/stage2a-independent-review-findings`
+**Final source HEAD:** recorded by the clean exporter in
+`FINAL-SOURCE-HEAD.txt` and `REVIEW-MANIFEST.json`
+**Historical Stage 2A baseline range:** `096eb5f..4606f36`
 **Staging deployment repo:** `BTNew/pdc-control-board-staging`
-**Staging deployment commit:** `091ff31`
+**Staging deployment commit:** `505c524915d9a567078d08f73dfd63229f178d06`
 **Staging URL:** https://btnew.github.io/pdc-control-board-staging/
 **Staging Supabase project:** `cdsmnqxtyyoeoznmbidd`
 **Production Supabase project (untouched):** `vjdtsswhroyguxyfjdkt`
 **Production site (untouched):** `btnew.github.io/pdc-control-board-login/`
+
+---
+
+## Final contained remediation (migration 026)
+
+This section supersedes earlier release-identity and test-total statements
+below while preserving them as historical evidence.
+
+- `026_stage2a_final_review_remediation.sql` replaces broad viewer SELECT
+  policies for technicians, salespeople, providers, and bays. Viewers receive
+  active rows only through list RPCs and direct REST/Realtime RLS;
+  operator/administrator hierarchy can read inactive rows; pending, disabled,
+  and rejected identities read none.
+- `update_workshop_configuration` now validates technician UUID text before
+  casting and requires exact, round-tripping `YYYY-MM-DD` closure/leave dates.
+  Validation failures remain structured JSON and do not bypass version locks
+  or audit behavior.
+- Protected create/reassignment RPCs reject a new active technician assignment
+  during configured leave with `technician_on_leave` and safe date/technician
+  context.
+- Planner authority is one adapter containing integer minute values and
+  validated collections. `07:30` is `450`, never `7.5`; `workshopSetClock()` is
+  the only helper that applies minute-of-day values to Date clock fields.
+- Closures block/skip new scheduling while historical bookings remain visible;
+  breaks split work and cannot receive a start; overtime is valid only inside
+  configured windows and is visibly marked; configured working weeks produce
+  exactly their configured number/date columns.
+- Loading/missing/invalid shared configuration fails closed after valid shared
+  authority has been active; stale boot defaults are never silently restored.
+- The email monitor lock is portable: `msvcrt` on Windows, `fcntl` on
+  Linux/macOS. The exact backend command passed on all three platforms.
+
+Final results and rollback evidence:
+`review-evidence/final-contained/FINAL-STAGE2A-CONTAINED-VERIFICATION.md`.
+
+Migration-026 rollback must be a separately reviewed forward migration. Do not
+drop the active-only viewer policies or restore direct writes. Frontend staging
+rollback is a normal `git revert 505c524915d9a567078d08f73dfd63229f178d06`
+in the staging deployment repository, followed by source-branch consistency
+verification. Never use production as a rollback target.
 
 ---
 
