@@ -45,6 +45,7 @@ import argparse
 import json
 import os
 import sys
+import uuid
 from datetime import datetime, timezone
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "_staging_test_tools"))
@@ -153,7 +154,19 @@ def classify_simple_names(local_names, reference_rows, exported_at):
                         "reason": "supabase_record_updated_after_this_browser_backup_was_exported",
                     })
                 else:
-                    buckets["to_update"].append({"name": name, "matched_id": match["id"], "current_name": match["name"]})
+                    # Independent-review remediation (finding 5): record
+                    # the EXACT version/updated_at seen right now, at
+                    # preview time. apply_import() must use THIS value
+                    # (never re-query "the current version" immediately
+                    # before writing) so the edit RPC's own optimistic-
+                    # lock check can genuinely detect a change made by
+                    # someone else between preview and apply, instead of
+                    # always trivially matching because it was re-fetched
+                    # a moment before the write.
+                    buckets["to_update"].append({
+                        "name": name, "matched_id": match["id"], "current_name": match["name"],
+                        "expected_version": match["version"], "expected_updated_at": match["updated_at"],
+                    })
         else:
             # More than one existing row already normalizes to the same
             # name -- ambiguous, never guess which one the browser
@@ -235,7 +248,14 @@ def classify_salespeople(local_records, reference_rows, exported_at):
                 "reason": "supabase_record_updated_after_this_browser_backup_was_exported",
             })
         else:
-            buckets["to_update"].append({"code": code, "name": name, "email": email, "matched_id": match["id"]})
+            # Independent-review remediation (finding 5): same fix as
+            # classify_simple_names() above -- record the exact
+            # version/updated_at seen at preview time for apply_import()
+            # to use verbatim.
+            buckets["to_update"].append({
+                "code": code, "name": name, "email": email, "matched_id": match["id"],
+                "expected_version": match["version"], "expected_updated_at": match["updated_at"],
+            })
     return buckets
 
 
@@ -288,14 +308,28 @@ def assert_staging_project(conn):
         )
 
 
-def apply_import(conn, preview, source_label):
+def apply_import(conn, preview, source_label, import_run_id):
     """Applies to_create and to_update buckets via the real protected
     RPCs (never a direct table write), impersonating the staging
     administrator so require_pdc_role('administrator') succeeds and the
     audit trail attributes the change to a real account plus this
     importer's source label. Conflicts/duplicates/invalid are never
     applied automatically -- they are always returned unapplied for
-    manual review."""
+    manual review.
+
+    Independent-review remediation (finding 5): every to_update item
+    is applied using the version/updated_at captured AT PREVIEW TIME
+    (preview[entity]["to_update"][i]["expected_version"]), never a
+    version re-fetched immediately before the write. If another
+    administrator changed the row between preview and apply, the
+    edit RPC's own optimistic-lock check (p_expected_version) now
+    genuinely has a chance to reject the stale write with
+    'version_conflict' -- previously this could never happen because
+    the "expected" version was always re-read from the row a moment
+    before the write, so it trivially matched even when the row had
+    already changed since the browser's preview was shown to the
+    user. A conflicting row is skipped and reported, not applied.
+    """
     assert_staging_project(conn)
     admin_user_id = get_admin_user_id(conn)
     cur = conn.cursor()
@@ -307,34 +341,87 @@ def apply_import(conn, preview, source_label):
          "administrator@staging.pdc-workshop.example.com"),
     )
 
-    results = {"technicians": {"created": [], "updated": []}, "sublet_providers": {"created": [], "updated": []}, "salespeople": {"created": [], "updated": []}}
+    results = {
+        "technicians": {"created": [], "updated": [], "version_conflicts": []},
+        "sublet_providers": {"created": [], "updated": [], "version_conflicts": []},
+        "salespeople": {"created": [], "updated": [], "version_conflicts": []},
+    }
+    import_metadata_note = f"stage2a_import run_id={import_run_id} source_file={source_label} exported_at={preview.get('exported_at')}"
 
     for item in preview["technicians"]["to_create"]:
         cur.execute("select public.add_technician(%s, 'technician', null, '{}')", (item["name"],))
         results["technicians"]["created"].append(cur.fetchone()[0])
     for item in preview["technicians"]["to_update"]:
-        cur.execute("select version from public.workshop_technicians where id = %s", (item["matched_id"],))
-        version = cur.fetchone()[0]
-        cur.execute("select public.edit_technician(%s, %s, %s, null, null, null)", (item["matched_id"], version, item["name"]))
-        results["technicians"]["updated"].append(cur.fetchone()[0])
+        cur.execute(
+            "select public.edit_technician(%s, %s, %s, null, null, null)",
+            (item["matched_id"], item["expected_version"], item["name"]),
+        )
+        row = cur.fetchone()[0]
+        if isinstance(row, dict) and row.get("ok") is False and row.get("error") == "version_conflict":
+            results["technicians"]["version_conflicts"].append({"matched_id": item["matched_id"], "expected_version": item["expected_version"], "detail": row})
+        else:
+            results["technicians"]["updated"].append(row)
 
     for item in preview["sublet_providers"]["to_create"]:
         cur.execute("select public.add_sublet_provider(%s, null, null)", (item["name"],))
         results["sublet_providers"]["created"].append(cur.fetchone()[0])
     for item in preview["sublet_providers"]["to_update"]:
-        cur.execute("select version from public.sublet_providers where id = %s", (item["matched_id"],))
-        version = cur.fetchone()[0]
-        cur.execute("select public.edit_sublet_provider(%s, %s, %s, null, null)", (item["matched_id"], version, item["name"]))
-        results["sublet_providers"]["updated"].append(cur.fetchone()[0])
+        cur.execute(
+            "select public.edit_sublet_provider(%s, %s, %s, null, null)",
+            (item["matched_id"], item["expected_version"], item["name"]),
+        )
+        row = cur.fetchone()[0]
+        if isinstance(row, dict) and row.get("ok") is False and row.get("error") == "version_conflict":
+            results["sublet_providers"]["version_conflicts"].append({"matched_id": item["matched_id"], "expected_version": item["expected_version"], "detail": row})
+        else:
+            results["sublet_providers"]["updated"].append(row)
 
     for item in preview["salespeople"]["to_create"]:
         cur.execute("select public.add_salesperson(%s, %s, %s)", (item["name"], item["email"], item["code"]))
         results["salespeople"]["created"].append(cur.fetchone()[0])
     for item in preview["salespeople"]["to_update"]:
-        cur.execute("select version from public.salespeople where id = %s", (item["matched_id"],))
-        version = cur.fetchone()[0]
-        cur.execute("select public.edit_salesperson(%s, %s, null, %s, null)", (item["matched_id"], version, item["email"]))
-        results["salespeople"]["updated"].append(cur.fetchone()[0])
+        cur.execute(
+            "select public.edit_salesperson(%s, %s, null, %s, null)",
+            (item["matched_id"], item["expected_version"], item["email"]),
+        )
+        row = cur.fetchone()[0]
+        if isinstance(row, dict) and row.get("ok") is False and row.get("error") == "version_conflict":
+            results["salespeople"]["version_conflicts"].append({"matched_id": item["matched_id"], "expected_version": item["expected_version"], "detail": row})
+        else:
+            results["salespeople"]["updated"].append(row)
+
+    # Independent-review remediation (finding 5): record source
+    # filename, exported timestamp, and this import run's ID in a
+    # dedicated audit_events row (previously the source_label
+    # parameter was accepted but never actually written anywhere,
+    # despite comments claiming source attribution). audit_events only
+    # grants INSERT to postgres/service_role, not the impersonated
+    # 'authenticated' role used above for the RPC calls (which need to
+    # look like a real authenticated administrator for
+    # require_pdc_role() checks) -- reset the session role back to the
+    # real underlying connection role for this one statement, then
+    # restore the 'authenticated' impersonation afterward so any
+    # future statements added to this function keep the same
+    # behaviour as before.
+    cur.execute("reset role")
+    cur.execute(
+        "insert into public.audit_events (action, table_name, row_id, actor_id, actor_email, before_data, after_data, metadata) "
+        "values (%s, 'stage2a_import_run', %s::uuid, %s, %s, null, %s::jsonb, %s::jsonb)",
+        (
+            "reference_change",
+            import_run_id,
+            admin_user_id,
+            "administrator@staging.pdc-workshop.example.com",
+            json.dumps({
+                "action": "stage2a_browser_data_import",
+                "import_run_id": import_run_id,
+                "source_file": source_label,
+                "exported_at": preview.get("exported_at"),
+                "results": results,
+            }, default=str),
+            json.dumps({"note": import_metadata_note}),
+        ),
+    )
 
     conn.commit()
     return results
@@ -377,7 +464,7 @@ def main():
             print("\nNothing to apply.")
             return
 
-        results = apply_import(conn, preview, backup["source_file"])
+        results = apply_import(conn, preview, backup["source_file"], str(uuid.uuid4()))
         after_reference = fetch_reference(conn)
         print("\nApplied.")
         print(json.dumps({
