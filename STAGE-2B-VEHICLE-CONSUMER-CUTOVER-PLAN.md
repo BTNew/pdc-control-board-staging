@@ -105,6 +105,8 @@ Replace `app.js::vehicleLifecycleSharedRef` direct `vehicles?...limit=1` with a 
 - Keep `get_workshop_snapshot` for bookings/workshop state.
 - Make overlapping core identity fields conform exactly to the core contract and normalization rules.
 - Update `workshop_legacy_import.py`/validators to consume an exported snapshot or shared deterministic resolver and reject ambiguous normalized identities.
+- Inventory every active caller of the lower-level authenticated booking RPCs. Retire those grants only after transactional wrappers cover the callers and prove identical vehicle-pointer/status/revision/audit behavior.
+- Add a health check that `vehicles.active_workshop_booking_id`, when present, points to a booking for the same vehicle.
 - Keep workshop and vehicle-master revision subscriptions independent.
 
 **RLS/RPC:** no broader table grants. If an offline export RPC is needed, expose only `id`, identities and archived flag to importer/admin.
@@ -181,7 +183,10 @@ Before every consumer/domain switch, capture:
 - two-session Realtime and reconnect proof;
 - encrypted pre-switch backup, manifest/hash verification and isolated restore;
 - rollback feature flag/migration and a successful rollback rehearsal;
-- explicit confirmation that browser-local source data is still present and unchanged.
+- explicit confirmation that browser-local source data is still present and unchanged;
+- browser acceptance runs only in an in-memory or dedicated prefixed fixture (`test-50.html`, `test-75.html`, `test-100.html`, or a new Stage 2B prefix); `no-vehicles.html` is prohibited because it deletes `vehicleTrackingCore*` keys;
+- if backup format changes, explicit retained-v1 acceptance, new-version restore proof and unknown-version rejection;
+- explicit decision on shared `vehicles.version`/master-history semantics for any consumer that treats version or history as core authority.
 
 A failed proof blocks the switch; it does not justify a best-effort merge or first-match fallback.
 
