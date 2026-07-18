@@ -229,13 +229,15 @@ including:
 
 ## 10. Bay behaviour
 
-- `workshopBayIsActive()` / `workshopBayDefaultTechnicianName()` /
-  `workshopSharedBayRef()` read from the shared reference service,
-  fail-safe to active/no-default when the service has not loaded (so
-  incomplete reference data never blocks scheduling).
-- `scheduleWorkshopVehicle()` refuses a **brand-new** booking into a
-  bay reported inactive; `moveWorkshopLivePlan()` refuses moving into
-  a **different** inactive bay. Neither blocks an existing booking
+- `workshopSharedBayRef()` reads from the shared reference service and
+  returns no reference while data is unavailable or unmatched. New
+  scheduling fails closed unless `workshopBayAvailabilityStatus()` confirms
+  the bay is active; only existing/historical rendering remains lenient via
+  `workshopBayIsActive()` / `workshopBayDefaultTechnicianName()`.
+- `scheduleWorkshopVehicle()` refuses a **brand-new** booking into an
+  inactive, unavailable, or unknown bay; `moveWorkshopLivePlan()` refuses
+  moving into a **different** bay unless that bay is confirmed active.
+  Neither blocks an existing booking
   already in that bay — historical bookings continue to display
   correctly even after their bay is later deactivated (verified live:
   deactivated a bay with a real assignment, confirmed the historical

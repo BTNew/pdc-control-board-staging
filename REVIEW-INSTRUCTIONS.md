@@ -36,6 +36,7 @@ require no npm install.
 ```bash
 node test_all.js
 node test_workshop_planner_configuration.js
+node test_workshop_shared_scheduling_assignment.js
 node test_workshop_reference_data_service.js
 (
   cd backend
@@ -46,6 +47,7 @@ node test_workshop_reference_data_service.js
     test_email_board_publisher \
     test_email_intake_security \
     test_static_publication_gate \
+    test_stage2a_assignment_interval_enforcement \
     test_stage2a_final_remediation \
     test_vehicle_intelligence_fixtures \
     test_vehicle_order_email_monitor -v
@@ -55,6 +57,7 @@ python test_pdc_backup_scheduled_tick.py
 python -m unittest backend.test_build_review_export -v
 python -m py_compile _staging_test_tools/*.py
 node --check scripts/stage2a_live_acceptance.js
+node --check scripts/stage2a_assignment_live_acceptance.js
 git diff --check  # when reviewing from a Git checkout
 ```
 
@@ -90,16 +93,17 @@ python _staging_test_tools/test_stage2a_backup_restore_staging.py
 python _staging_test_tools/test_stage2a_importer_staging.py
 python _staging_test_tools/test_stage2a_workshop_reference_data_staging.py
 python _staging_test_tools/test_stage2a_final_remediation_staging.py
+python _staging_test_tools/test_stage2a_assignment_interval_enforcement_staging.py
 python _staging_test_tools/test_vehicle_notification_worker_staging.py
 python _staging_test_tools/reset_workshop_test_fixtures.py
 python _staging_test_tools/test_workshop_staging_integration.py
 python _staging_test_tools/reset_workshop_test_fixtures.py
 ```
 
-The final evidence report records the migration-026 staging total, including
+The final evidence report records migration 027 staging totals, including
 direct REST viewer/operator/administrator inactive-row behavior, structured
-invalid UUID/date errors, and RPC technician-leave denial. Do not run any
-command against production.
+invalid UUID/date/scope errors, selected-technician persistence, and leave
+denial for create/move/resize/resume. Do not run any command against production.
 
 ## 5. Optional two-browser acceptance
 
@@ -109,6 +113,7 @@ Install the exact optional dependency without adding it to source:
 npm install --no-save --package-lock=false playwright-core@1.55.0
 set -a; source _staging_test_tools/.env; set +a
 node scripts/stage2a_live_acceptance.js
+node scripts/stage2a_assignment_live_acceptance.js
 ```
 
 Set `PDC_CHROME_EXECUTABLE` if Chrome/Chromium is not at the documented default.

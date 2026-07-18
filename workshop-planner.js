@@ -494,6 +494,7 @@ function workshopMapSnapshotBookingToLegacyRow(booking = {}) {
     startAt: booking.scheduled_start_at,
     hours: Number(booking.default_duration_minutes || 0) / 60 || workshopDefaultBookingHours(),
     assignee: assignment ? assignment.technician_name || '' : '',
+    technicianId: assignment ? assignment.technician_id || '' : '',
     status: legacyStatus,
     stoppageReason: booking.stoppage_reason || '',
     stoppageAt: booking.stoppage_started_at || '',
@@ -903,8 +904,9 @@ function workshopSharedVehicleRef(vehicleKeyValue = '') {
 // the current snapshot (the snapshot RPC does not currently expose a
 // standalone technicians list, only technicians attached to bookings/
 // assignments). Returns null (never fabricates an id) if no match is
-// found -- callers must then send technicianId: null, which
-// assign_booking_technician treats as "unassign", not as an error.
+// found. This is a defensive fallback only; new assignments must first use
+// the authoritative reference roster and must never turn a failed nonblank
+// lookup into an implicit unassignment.
 function workshopSharedTechnicianRef(name = '') {
   if (!workshopSharedModeActive()) return null;
   const cleanName = String(name || '').trim();
@@ -950,6 +952,22 @@ function workshopReferenceTechnicianRef(name = '') {
   return technician ? { technicianId: technician.id } : null;
 }
 
+function workshopSelectedTechnicianRef(name = '') {
+  const cleanName = String(name || '').trim();
+  if (!cleanName) return null;
+  const authoritative = workshopReferenceTechnicianRef(cleanName);
+  if (authoritative) return authoritative;
+  const service = typeof window !== 'undefined' ? window.__workshopReferenceDataService : null;
+  const cached = service && typeof service.getCachedTechnicians === 'function'
+    ? service.getCachedTechnicians()
+    : null;
+  const rows = cached && Array.isArray(cached.rows) ? cached.rows : [];
+  // A known inactive row is authoritative and must not be resurrected by a
+  // stale booking snapshot containing the same technician name.
+  if (rows.some(row => row && row.active === false && String(row.name || '').trim() === cleanName)) return null;
+  return workshopSharedTechnicianRef(cleanName);
+}
+
 function workshopPlanId(vehicleKeyValue = '', stage = '') {
   return `${normalizePmbStage(stage)}::${String(vehicleKeyValue || '').trim()}`;
 }
@@ -963,10 +981,10 @@ function workshopPlanId(vehicleKeyValue = '', stage = '') {
 // display code, which the migration 022 backfill derives as
 // "<STAGE>-BAY-<NN>" (zero-padded) for ordinary stage bays and
 // "SUBLET-ROW-1" for the single sublet row -- see migration 022.
-// Fails safe: if the shared service has not loaded yet (still
-// connecting, offline, or genuinely has no matching row), a bay is
-// treated as active/no-default-technician rather than blocking
-// scheduling on incomplete data.
+// This lookup itself returns null when shared bay data is unavailable or
+// unmatched. New scheduling/move guards interpret that state fail-closed via
+// workshopBayAvailabilityStatus(); only existing/historical rendering uses
+// the intentionally lenient workshopBayIsActive() compatibility helper.
 function workshopSharedBayRef(stage = '', bay = 0) {
   const service = typeof window !== 'undefined' ? window.__workshopReferenceDataService : null;
   if (!service || typeof service.getCachedWorkshopBays !== 'function') return null;
@@ -1141,7 +1159,7 @@ function workshopTechnicianIdForEntry(entry = {}) {
   if (entry.technicianId) return String(entry.technicianId);
   const assignee = cleanNavisionText(entry.assignee || '');
   if (!assignee) return '';
-  const ref = workshopReferenceTechnicianRef(assignee) || workshopSharedTechnicianRef(assignee);
+  const ref = workshopSelectedTechnicianRef(assignee);
   return ref ? String(ref.technicianId || '') : '';
 }
 
@@ -1154,20 +1172,27 @@ function workshopNewBookingValidation(entry = {}) {
   if (!workshopConfigurationAllowsNewScheduling()) return { ok: false, error: 'configuration_unavailable' };
   const start = parseIsoTimestamp(entry.startAt || '');
   if (!start) return { ok: false, error: 'invalid_start' };
-  if (workshopIsClosureDate(start)) return { ok: false, error: 'closure_date', date: workshopDateKey(start) };
-  if (!workshopIsConfiguredWorkingDay(start)) return { ok: false, error: 'non_working_day', date: workshopDateKey(start) };
-  const minute = workshopMinuteOfDay(start);
-  const windows = workshopAvailabilityWindowsForDate(start);
-  const containingWindow = windows.find(window => minute >= window.startMinutes && minute < window.endMinutes);
-  if (!containingWindow) {
-    const inBreak = workshopBreakWindowsForDate(start).some(window => minute >= window.startMinutes && minute < window.endMinutes);
-    return { ok: false, error: inBreak ? 'break_window' : 'outside_work_window', date: workshopDateKey(start), minute };
-  }
+  const durationMinutes = Math.max(1, Math.round(Number(entry.hours || workshopDefaultBookingHours()) * 60));
   const technicianId = workshopTechnicianIdForEntry(entry);
-  if (technicianId && workshopTechnicianIsOnLeave(technicianId, start)) {
-    return { ok: false, error: 'technician_on_leave', date: workshopDateKey(start), technicianId };
+  let usesOvertime = false;
+  for (let offset = 0; offset < durationMinutes; offset += 1) {
+    const proposedMinute = new Date(start.getTime() + offset * 60000);
+    const dateKey = workshopDateKey(proposedMinute);
+    if (workshopIsClosureDate(proposedMinute)) return { ok: false, error: 'closure_date', date: dateKey };
+    if (!workshopIsConfiguredWorkingDay(proposedMinute)) return { ok: false, error: 'non_working_day', date: dateKey };
+    const minute = workshopMinuteOfDay(proposedMinute);
+    const windows = workshopAvailabilityWindowsForDate(proposedMinute);
+    const containingWindow = windows.find(window => minute >= window.startMinutes && minute < window.endMinutes);
+    if (!containingWindow) {
+      const inBreak = workshopBreakWindowsForDate(proposedMinute).some(window => minute >= window.startMinutes && minute < window.endMinutes);
+      return { ok: false, error: inBreak ? 'break_window' : 'outside_work_window', date: dateKey, minute };
+    }
+    usesOvertime = usesOvertime || containingWindow.overtime === true;
+    if (technicianId && workshopTechnicianIsOnLeave(technicianId, proposedMinute)) {
+      return { ok: false, error: 'technician_on_leave', date: dateKey, technicianId };
+    }
   }
-  return { ok: true, usesOvertime: containingWindow.overtime === true };
+  return { ok: true, usesOvertime };
 }
 
 function workshopRequireSchedulableCandidate(entry = {}) {
@@ -1178,9 +1203,9 @@ function workshopRequireSchedulableCandidate(entry = {}) {
     invalid_start: 'Choose a valid workshop start date and time.',
     closure_date: 'That date is configured as a workshop closure and cannot accept a new booking.',
     non_working_day: 'That date is not part of the configured working week.',
-    break_window: 'That start time falls inside a configured non-bookable break window.',
-    outside_work_window: 'That start time is outside regular hours and is not inside a configured overtime window.',
-    technician_on_leave: 'That technician is on configured leave for this booking date and cannot receive a new assignment.',
+    break_window: 'The proposed booking interval overlaps a configured non-bookable break window.',
+    outside_work_window: 'The proposed booking interval extends outside regular hours and configured overtime windows.',
+    technician_on_leave: 'That technician is on configured leave during the proposed booking interval and cannot receive the assignment.',
   };
   if (typeof window !== 'undefined' && typeof window.alert === 'function') window.alert(messages[result.error] || 'That booking is not schedulable under the current shared configuration.');
   return false;
@@ -2306,7 +2331,15 @@ async function moveWorkshopLivePlan(planId = '', stage = '', bay = 0, dateKey = 
       }
     }
     const nextStart = workshopDateAtOffset(dateKey, startMinutes).toISOString();
-    const requestedLabel = `${pmbStageLabel(nextStage)} ${nextStage === 'SUBLET' ? 'provider row' : `Bay ${nextBay}`} · ${workshopEntryTimeLabel({ ...entry, stage: nextStage, bay: nextBay, startAt: nextStart })}`;
+    const candidate = {
+      ...entry,
+      stage: nextStage,
+      bay: nextBay,
+      startAt: nextStart,
+      technicianId: workshopTechnicianIdForEntry(entry),
+    };
+    if (!workshopRequireSchedulableCandidate(candidate)) return false;
+    const requestedLabel = `${pmbStageLabel(nextStage)} ${nextStage === 'SUBLET' ? 'provider row' : `Bay ${nextBay}`} · ${workshopEntryTimeLabel(candidate)}`;
     if (!window.confirm(`Move this live workshop job to ${requestedLabel}?\n\nThis updates the live bay allocation and keeps the job started/stoppage history.`)) return false;
     const result = await workshopDispatchSharedAction('moveBooking', {
       bookingId: entry.sharedBookingId || entry.id,
@@ -2507,6 +2540,12 @@ async function extendWorkshopPlan(planId = '', additionalHours = 0) {
   if (!entry || entry.status === 'completed' || !Number.isFinite(delta) || delta <= 0) return false;
   if (workshopSharedModeActive()) {
     const nextHours = workshopClampDurationHours(Number(entry.hours || 0) + delta);
+    const candidate = {
+      ...entry,
+      hours: nextHours,
+      technicianId: workshopTechnicianIdForEntry(entry),
+    };
+    if (!workshopRequireSchedulableCandidate(candidate)) return false;
     const result = await workshopDispatchSharedAction('resizeBooking', {
       bookingId: entry.sharedBookingId || entry.id,
       expectedVersion: entry.sharedVersion,
@@ -2587,6 +2626,39 @@ function workshopConfirmOtherDepartmentPlans(candidate = {}, rows = []) {
   return window.confirm(`This vehicle's requested time overlaps another department's booking for the same vehicle:\n\n${details}\n\nContinue with the ${pmbStageLabel(candidate.stage)} booking?`);
 }
 
+async function workshopScheduleSharedNewBooking({
+  requestedCandidate = {},
+  vehicleRef = null,
+  stageCode = '',
+  bayNumber = 0,
+  scheduledStartAt = '',
+  durationMinutes = 0,
+} = {}, dispatchAction = workshopDispatchSharedAction) {
+  const assignee = cleanNavisionText(requestedCandidate.assignee || '');
+  const technicianRef = assignee ? workshopSelectedTechnicianRef(assignee) : null;
+  if (assignee && !technicianRef) {
+    window.alert(`"${assignee}" could not be matched to an active technician. Re-select an active technician or clear the selection. No booking was created.`);
+    return false;
+  }
+  const technicianId = technicianRef ? String(technicianRef.technicianId || '') : null;
+  if (assignee && !technicianId) {
+    window.alert(`"${assignee}" does not have a valid stable technician ID. No booking was created.`);
+    return false;
+  }
+  const candidate = { ...requestedCandidate, assignee, technicianId: technicianId || '' };
+  if (!workshopRequireSchedulableCandidate(candidate)) return false;
+  const result = await dispatchAction('scheduleVehicleWork', {
+    vehicleId: vehicleRef.vehicleId,
+    vehicleExpectedVersion: vehicleRef.version,
+    stageCode,
+    bayNumber,
+    scheduledStartAt,
+    durationMinutes,
+    technicianId,
+  });
+  return !!(result && result.ok);
+}
+
 async function scheduleWorkshopVehicle({ planId = '', vehicleKeyValue = '', stage = '', bay = 0, dateKey = '', startMinutes = 0, hoursValue = null, assigneeValue = null, preferRequestedTime = false } = {}) {
   const rows = workshopLoadPlans();
   const existing = rows.find(entry => entry.id === planId) || rows.find(entry => entry.id === workshopPlanId(vehicleKeyValue, stage));
@@ -2639,10 +2711,10 @@ async function scheduleWorkshopVehicle({ planId = '', vehicleKeyValue = '', stag
       ? existing?.assignee || workshopBayMechanic(normalizedStage, bay) || pmbBayMechanic(vehicle) || ''
       : cleanNavisionText(assigneeValue || ''),
   };
-  if (!workshopRequireSchedulableCandidate(requestedCandidate)) return false;
   if (workshopSharedModeActive()) {
     const durationMinutes = Math.round(hours * 60);
     if (existing && existing.sharedBookingId) {
+      if (!workshopRequireSchedulableCandidate(requestedCandidate)) return false;
       const result = await workshopDispatchSharedAction('moveBooking', {
         bookingId: existing.sharedBookingId,
         expectedVersion: existing.sharedVersion,
@@ -2658,17 +2730,16 @@ async function scheduleWorkshopVehicle({ planId = '', vehicleKeyValue = '', stag
       window.alert('This vehicle is not yet available in shared workshop data. No change was made.');
       return false;
     }
-    const result = await workshopDispatchSharedAction('scheduleVehicleWork', {
-      vehicleId: vehicleRef.vehicleId,
-      vehicleExpectedVersion: vehicleRef.version,
+    return workshopScheduleSharedNewBooking({
+      requestedCandidate,
+      vehicleRef,
       stageCode: normalizedStage,
       bayNumber: Number(bay),
       scheduledStartAt: start.toISOString(),
       durationMinutes,
-      technicianId: null,
     });
-    return !!(result && result.ok);
   }
+  if (!workshopRequireSchedulableCandidate(requestedCandidate)) return false;
   // Parts completion remains an RFT gate, not an entry gate for Tint, Tyre or Sublet. Planning itself never moves a vehicle into a physical bay.
   const now = nowIsoString();
   const candidate = {
@@ -3629,6 +3700,8 @@ if (typeof module !== 'undefined' && module.exports) {
     workshopSharedVehicleRef,
     workshopSharedTechnicianRef,
     workshopReferenceTechnicianRef,
+    workshopSelectedTechnicianRef,
+    workshopScheduleSharedNewBooking,
     workshopSharedBayRef,
     workshopBayIsActive,
     workshopBayAvailabilityStatus,
@@ -3639,6 +3712,7 @@ if (typeof module !== 'undefined' && module.exports) {
     workshopConfirmOtherDepartmentPlans,
     workshopDateAtOffset,
     workshopMinuteOffset,
+    extendWorkshopPlan,
   };
   Object.defineProperties(module.exports, {
     WORKSHOP_CONFIG: { enumerable: true, get: () => WORKSHOP_PLANNER_CONFIG },

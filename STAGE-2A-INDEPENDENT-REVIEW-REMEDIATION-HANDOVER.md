@@ -15,7 +15,7 @@
 - **Staging URL:** <https://btnew.github.io/pdc-control-board-staging/>
 - **Staging project:** `cdsmnqxtyyoeoznmbidd`
 - **Production project:** `vjdtsswhroyguxyfjdkt` — untouched
-- **APP_VERSION:** `2026.07.18.01-stage2a-final-contained`
+- **APP_VERSION:** `2026.07.18.02-stage2a-final-approval`
 
 The final source commit cannot literally contain its own SHA because changing
 that file would create a different commit. The exporter therefore resolves the
