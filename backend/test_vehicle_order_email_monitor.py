@@ -1,4 +1,5 @@
 import json
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -18,6 +19,20 @@ class _Response:
 
 
 class VehicleOrderEmailMonitorTests(unittest.TestCase):
+    def test_lock_backend_matches_platform_and_serializes(self):
+        expected = "msvcrt" if sys.platform == "win32" else "fcntl"
+        self.assertEqual(monitor.LOCK_BACKEND, expected)
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "portable.lock"
+            first = monitor.acquire_lock(path, 0)
+            try:
+                with self.assertRaisesRegex(TimeoutError, "still running"):
+                    monitor.acquire_lock(path, 0)
+            finally:
+                monitor.release_lock(first)
+            second = monitor.acquire_lock(path, 0)
+            monitor.release_lock(second)
+
     def test_nested_updater_summary(self):
         output = json.dumps({
             "ok": True,

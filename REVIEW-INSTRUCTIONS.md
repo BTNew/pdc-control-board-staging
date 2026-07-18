@@ -35,6 +35,7 @@ require no npm install.
 
 ```bash
 node test_all.js
+node test_workshop_planner_configuration.js
 node test_workshop_reference_data_service.js
 (
   cd backend
@@ -45,6 +46,7 @@ node test_workshop_reference_data_service.js
     test_email_board_publisher \
     test_email_intake_security \
     test_static_publication_gate \
+    test_stage2a_final_remediation \
     test_vehicle_intelligence_fixtures \
     test_vehicle_order_email_monitor -v
 )
@@ -55,6 +57,13 @@ python -m py_compile _staging_test_tools/*.py
 node --check scripts/stage2a_live_acceptance.js
 git diff --check  # when reviewing from a Git checkout
 ```
+
+`vehicle_order_email_monitor.py` selects `msvcrt` on Windows and `fcntl` on
+Linux/macOS. The exact backend command above is the authoritative portable
+discovery/run command; no platform-specific module is imported on the wrong
+platform. `test_vehicle_order_email_monitor` verifies serialization and lock
+release/reacquisition on the native backend. Final Windows and Ubuntu CI run
+IDs and totals are recorded in the final evidence report.
 
 Expected final totals are recorded in
 `review-evidence/FINAL-REGRESSION-AND-BROWSER-ACCEPTANCE.md`.
@@ -80,14 +89,17 @@ python _staging_test_tools/test_role_access_matrix_staging.py
 python _staging_test_tools/test_stage2a_backup_restore_staging.py
 python _staging_test_tools/test_stage2a_importer_staging.py
 python _staging_test_tools/test_stage2a_workshop_reference_data_staging.py
+python _staging_test_tools/test_stage2a_final_remediation_staging.py
 python _staging_test_tools/test_vehicle_notification_worker_staging.py
 python _staging_test_tools/reset_workshop_test_fixtures.py
 python _staging_test_tools/test_workshop_staging_integration.py
 python _staging_test_tools/reset_workshop_test_fixtures.py
 ```
 
-The final completed staging run was 191 passed, 0 failed, including workshop
-integration at 34 passed, 0 failed. Do not rerun against production.
+The final evidence report records the migration-026 staging total, including
+direct REST viewer/operator/administrator inactive-row behavior, structured
+invalid UUID/date errors, and RPC technician-leave denial. Do not run any
+command against production.
 
 ## 5. Optional two-browser acceptance
 
@@ -101,7 +113,8 @@ node scripts/stage2a_live_acceptance.js
 
 Set `PDC_CHROME_EXECUTABLE` if Chrome/Chromium is not at the documented default.
 The script refuses a non-staging site, records every request host, fails on any
-production-project request, and restores its temporary setting mutation.
+production-project request, verifies actual 07:30 planner behavior plus a
+synthetic closure in a second browser, and restores both settings in `finally`.
 
 The already-completed machine-readable result is
 `review-evidence/post-resume/two-browser-realtime-acceptance.json`.

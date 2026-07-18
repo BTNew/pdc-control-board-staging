@@ -11,7 +11,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import msvcrt
 import os
 import subprocess
 import sys
@@ -21,6 +20,15 @@ import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+
+if sys.platform == "win32":
+    import msvcrt
+    fcntl = None
+    LOCK_BACKEND = "msvcrt"
+else:
+    import fcntl
+    msvcrt = None
+    LOCK_BACKEND = "fcntl"
 
 ROOT = Path(__file__).resolve().parents[1]
 BACKEND = ROOT / "backend"
@@ -48,8 +56,24 @@ def load_env_values(path: Path) -> dict[str, str]:
     return values
 
 
+def _try_lock(handle) -> None:
+    handle.seek(0)
+    if LOCK_BACKEND == "msvcrt":
+        msvcrt.locking(handle.fileno(), msvcrt.LK_NBLCK, 1)
+    else:
+        fcntl.flock(handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+
+
+def _unlock(handle) -> None:
+    handle.seek(0)
+    if LOCK_BACKEND == "msvcrt":
+        msvcrt.locking(handle.fileno(), msvcrt.LK_UNLCK, 1)
+    else:
+        fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
+
+
 def acquire_lock(path: Path, wait_seconds: float):
-    """Acquire an exclusive Windows byte lock, waiting FIFO-style if occupied."""
+    """Acquire a portable exclusive file lock, waiting if occupied."""
     path.parent.mkdir(parents=True, exist_ok=True)
     handle = path.open("a+b")
     handle.seek(0, os.SEEK_END)
@@ -59,8 +83,7 @@ def acquire_lock(path: Path, wait_seconds: float):
     deadline = time.monotonic() + max(0.0, wait_seconds)
     while True:
         try:
-            handle.seek(0)
-            msvcrt.locking(handle.fileno(), msvcrt.LK_NBLCK, 1)
+            _try_lock(handle)
             return handle
         except OSError:
             if time.monotonic() >= deadline:
@@ -71,8 +94,7 @@ def acquire_lock(path: Path, wait_seconds: float):
 
 def release_lock(handle) -> None:
     try:
-        handle.seek(0)
-        msvcrt.locking(handle.fileno(), msvcrt.LK_UNLCK, 1)
+        _unlock(handle)
     finally:
         handle.close()
 

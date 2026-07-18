@@ -3,105 +3,142 @@
 const WORKSHOP_PLAN_STORAGE_KEY = 'vehicleTrackingCoreWorkshopPlan:v1';
 const WORKSHOP_VIEW_STORAGE_KEY = 'vehicleTrackingCoreWorkshopView:v1';
 const WORKSHOP_BAY_SETUP_STORAGE_KEY = 'vehicleTrackingCoreWorkshopBaySetup:v1';
-// Independent-review remediation (finding 1): these five were `const`
-// hard-coded values that the planner used for every date/time
-// calculation, while the shared workshop_settings table in Supabase
-// was already the claimed "authoritative" source -- changing a
-// setting in the database had zero effect on planner behaviour. They
-// are now `let` boot-time DEFAULTS ONLY, live-updated by
-// workshopSyncConfigFromSharedSettings() below whenever the shared
-// reference-data service's workshop-configuration cache changes
-// (initial load, Realtime update, or the 2-minute reconciliation
-// backstop). Every call site below is unchanged -- the live-update
-// mechanism replaces these bindings' VALUES, not their usage.
-let WORKSHOP_START_HOUR = 8;
-let WORKSHOP_END_HOUR = 16;
-let WORKSHOP_DAY_MINUTES = (WORKSHOP_END_HOUR - WORKSHOP_START_HOUR) * 60;
-let WORKSHOP_SNAP_MINUTES = 15;
-let WORKSHOP_DEFAULT_HOURS = 3;
-// Working-week days-of-week (0=Sunday..6=Saturday), boot default
-// Monday-Friday, live-updated from the shared 'working_week' setting.
-let WORKSHOP_WORKDAYS = [1, 2, 3, 4, 5];
+// Stage 2A final remediation: all authoritative planner configuration is
+// integer minutes or validated collections. Fractional clock hours are never
+// stored and are never passed to Date APIs.
 const WORKSHOP_STAGE_SEQUENCE = ['BUS_4X4', 'TINT', 'HOIST', 'FITTING', 'FABRICATION', 'ELECTRICAL', 'TYRE', 'PIT_INSPECTION', 'SUBLET'];
 const WORKSHOP_VISIBLE_STAGE_SEQUENCE = WORKSHOP_STAGE_SEQUENCE.filter(stage => stage !== 'SUBLET');
-
 const WORKSHOP_DAY_NAME_TO_INDEX = { sunday: 0, monday: 1, tuesday: 2, wednesday: 3, thursday: 4, friday: 5, saturday: 6 };
+const WORKSHOP_INDEX_TO_DAY_NAME = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+const WORKSHOP_BOOT_CONFIG = Object.freeze({
+  dayStartMinutes: 8 * 60,
+  dayEndMinutes: 16 * 60,
+  dayLengthMinutes: 8 * 60,
+  schedulingIncrementMinutes: 15,
+  defaultBookingDurationMinutes: 3 * 60,
+  workingDayIndexes: Object.freeze([1, 2, 3, 4, 5]),
+  closureDateKeys: Object.freeze([]),
+  breakWindowsByDateOrScope: Object.freeze([]),
+  overtimeWindowsByDateOrScope: Object.freeze([]),
+  technicianLeaveByTechnicianId: Object.freeze({}),
+});
+let WORKSHOP_PLANNER_CONFIG = { ...WORKSHOP_BOOT_CONFIG, workingDayIndexes: [...WORKSHOP_BOOT_CONFIG.workingDayIndexes] };
+let WORKSHOP_CONFIG_AUTHORITY = 'boot';
 
-// Independent-review remediation (finding 1): reads the shared,
-// database-validated workshop configuration (already loaded/cached
-// by workshop-reference-data-service.js) and applies it to the
-// module-level scheduling constants above. Called once at boot (best
-// effort, only if the service happens to already have a cached
-// value) and again every time the cache changes via
-// workshop-reference-data-service.js's onStateChange callback (see
-// app.js), so a setting change in one browser takes effect in every
-// other connected browser's planner calculations without a refresh.
-// Deliberately conservative: an unavailable/loading/error state, or
-// an individual key that fails validation, LEAVES the current value
-// unchanged rather than resetting to the hard-coded boot default --
-// per the review's explicit requirement that stale configuration must
-// never be silently reintroduced after a valid value was already
-// active.
+function workshopClockMinutes(value) {
+  const match = typeof value === 'string' && value.match(/^([01][0-9]|2[0-3]):([0-5][0-9])$/);
+  return match ? Number(match[1]) * 60 + Number(match[2]) : null;
+}
+
+function workshopSetClock(date, minutesFromMidnight) {
+  const copy = new Date(date);
+  const minutes = Number(minutesFromMidnight);
+  copy.setHours(Math.floor(minutes / 60), minutes % 60, 0, 0);
+  return copy;
+}
+
+function workshopValidDateKey(value) {
+  const match = typeof value === 'string' && value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) return '';
+  const candidate = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+  return candidate.getFullYear() === Number(match[1])
+    && candidate.getMonth() === Number(match[2]) - 1
+    && candidate.getDate() === Number(match[3]) ? value : '';
+}
+
+function workshopNormalizeWindows(value) {
+  if (!Array.isArray(value)) return null;
+  const normalized = [];
+  for (const item of value) {
+    if (!item || typeof item !== 'object' || Array.isArray(item)) return null;
+    const startMinutes = workshopClockMinutes(item.start);
+    const endMinutes = workshopClockMinutes(item.end);
+    if (!Number.isInteger(startMinutes) || !Number.isInteger(endMinutes) || startMinutes >= endMinutes) return null;
+    const dateKey = item.date == null ? '' : workshopValidDateKey(item.date);
+    if (item.date != null && !dateKey) return null;
+    const scope = String(item.scope || item.day || 'global').trim().toLowerCase();
+    if (scope !== 'global' && scope !== 'working_day' && !Object.prototype.hasOwnProperty.call(WORKSHOP_DAY_NAME_TO_INDEX, scope)) return null;
+    normalized.push(Object.freeze({ startMinutes, endMinutes, dateKey, scope }));
+  }
+  return normalized;
+}
+
+function workshopNormalizeLeave(value) {
+  if (!Array.isArray(value)) return null;
+  const byTechnician = {};
+  for (const item of value) {
+    if (!item || typeof item !== 'object' || Array.isArray(item)) return null;
+    const technicianId = String(item.technician_id || '').trim();
+    const dateKey = workshopValidDateKey(item.date);
+    if (!technicianId || !dateKey) return null;
+    if (!byTechnician[technicianId]) byTechnician[technicianId] = [];
+    if (!byTechnician[technicianId].includes(dateKey)) byTechnician[technicianId].push(dateKey);
+  }
+  Object.values(byTechnician).forEach(keys => Object.freeze(keys.sort()));
+  return Object.freeze(byTechnician);
+}
+
+function workshopConfigurationFromRows(rows) {
+  if (!rows || typeof rows !== 'object') return null;
+  const dayStartMinutes = workshopClockMinutes(rows.day_start_time?.value);
+  const dayEndMinutes = workshopClockMinutes(rows.day_end_time?.value);
+  const schedulingIncrementMinutes = Number(rows.scheduling_increment_minutes?.value);
+  const defaultBookingDurationMinutes = Number(rows.default_booking_duration_minutes?.value);
+  const workingWeek = rows.working_week?.value;
+  const closures = rows.closures?.value;
+  const breakWindows = workshopNormalizeWindows(rows.break_windows?.value);
+  const overtimeWindows = workshopNormalizeWindows(rows.overtime_windows?.value);
+  const technicianLeave = workshopNormalizeLeave(rows.technician_leave?.value);
+  if (!Number.isInteger(dayStartMinutes) || !Number.isInteger(dayEndMinutes) || dayStartMinutes >= dayEndMinutes
+      || !Number.isInteger(schedulingIncrementMinutes) || schedulingIncrementMinutes <= 0
+      || !Number.isInteger(defaultBookingDurationMinutes) || defaultBookingDurationMinutes <= 0
+      || !Array.isArray(workingWeek) || workingWeek.length < 1
+      || !Array.isArray(closures) || breakWindows === null || overtimeWindows === null || technicianLeave === null) return null;
+  const workingDayIndexes = workingWeek.map(name => WORKSHOP_DAY_NAME_TO_INDEX[String(name || '').toLowerCase()]);
+  if (workingDayIndexes.some(value => !Number.isInteger(value)) || new Set(workingDayIndexes).size !== workingDayIndexes.length) return null;
+  const closureDateKeys = closures.map(item => workshopValidDateKey(item && item.date));
+  if (closureDateKeys.some(value => !value)) return null;
+  return Object.freeze({
+    dayStartMinutes,
+    dayEndMinutes,
+    dayLengthMinutes: dayEndMinutes - dayStartMinutes,
+    schedulingIncrementMinutes,
+    defaultBookingDurationMinutes,
+    workingDayIndexes: Object.freeze([...workingDayIndexes].sort()),
+    closureDateKeys: Object.freeze([...new Set(closureDateKeys)].sort()),
+    breakWindowsByDateOrScope: Object.freeze(breakWindows),
+    overtimeWindowsByDateOrScope: Object.freeze(overtimeWindows),
+    technicianLeaveByTechnicianId: technicianLeave,
+  });
+}
+
 function workshopSyncConfigFromSharedSettings() {
   if (typeof window === 'undefined' || !window.__workshopReferenceDataService) return false;
   const service = window.__workshopReferenceDataService;
   if (typeof service.getCachedWorkshopConfiguration !== 'function') return false;
   const cached = service.getCachedWorkshopConfiguration();
-  const readableStates = new Set(['connected_read_only', 'connected_editable']);
-  if (!cached || !readableStates.has(cached.state) || !cached.rows) return false;
-  const rows = cached.rows;
-  let changed = false;
-
-  const startRaw = rows.day_start_time && rows.day_start_time.value;
-  const endRaw = rows.day_end_time && rows.day_end_time.value;
-  const startMatch = typeof startRaw === 'string' && startRaw.match(/^([01][0-9]|2[0-3]):([0-5][0-9])$/);
-  const endMatch = typeof endRaw === 'string' && endRaw.match(/^([01][0-9]|2[0-3]):([0-5][0-9])$/);
-  if (startMatch && endMatch) {
-    const startHour = Number(startMatch[1]) + Number(startMatch[2]) / 60;
-    const endHour = Number(endMatch[1]) + Number(endMatch[2]) / 60;
-    if (endHour > startHour) {
-      if (WORKSHOP_START_HOUR !== startHour || WORKSHOP_END_HOUR !== endHour) changed = true;
-      WORKSHOP_START_HOUR = startHour;
-      WORKSHOP_END_HOUR = endHour;
-      WORKSHOP_DAY_MINUTES = (WORKSHOP_END_HOUR - WORKSHOP_START_HOUR) * 60;
-    }
+  if (!cached || !new Set(['connected_read_only', 'connected_editable']).has(cached.state)) {
+    WORKSHOP_CONFIG_AUTHORITY = WORKSHOP_CONFIG_AUTHORITY === 'shared_valid' ? 'shared_stale' : 'shared_unavailable';
+    return false;
   }
-
-  const incrementRaw = rows.scheduling_increment_minutes && rows.scheduling_increment_minutes.value;
-  if (Number.isFinite(Number(incrementRaw)) && Number(incrementRaw) > 0) {
-    if (WORKSHOP_SNAP_MINUTES !== Number(incrementRaw)) changed = true;
-    WORKSHOP_SNAP_MINUTES = Number(incrementRaw);
+  const next = workshopConfigurationFromRows(cached.rows);
+  if (!next) {
+    WORKSHOP_CONFIG_AUTHORITY = WORKSHOP_CONFIG_AUTHORITY === 'shared_valid' ? 'shared_stale' : 'shared_invalid';
+    return false;
   }
-
-  const defaultDurationRaw = rows.default_booking_duration_minutes && rows.default_booking_duration_minutes.value;
-  if (Number.isFinite(Number(defaultDurationRaw)) && Number(defaultDurationRaw) > 0) {
-    const defaultHours = Number(defaultDurationRaw) / 60;
-    if (WORKSHOP_DEFAULT_HOURS !== defaultHours) changed = true;
-    WORKSHOP_DEFAULT_HOURS = defaultHours;
-  }
-
-  const workingWeekRaw = rows.working_week && rows.working_week.value;
-  if (Array.isArray(workingWeekRaw) && workingWeekRaw.length > 0) {
-    const indices = workingWeekRaw
-      .map(name => WORKSHOP_DAY_NAME_TO_INDEX[String(name || '').toLowerCase()])
-      .filter(value => Number.isInteger(value));
-    if (indices.length > 0) {
-      const sorted = [...new Set(indices)].sort();
-      if (JSON.stringify(sorted) !== JSON.stringify(WORKSHOP_WORKDAYS)) changed = true;
-      WORKSHOP_WORKDAYS = sorted;
-    }
-  }
-
+  const changed = JSON.stringify(next) !== JSON.stringify(WORKSHOP_PLANNER_CONFIG);
+  WORKSHOP_PLANNER_CONFIG = next;
+  WORKSHOP_CONFIG_AUTHORITY = 'shared_valid';
   return changed;
 }
 
+function workshopConfigurationAllowsNewScheduling() {
+  if (typeof window === 'undefined' || !window.__workshopReferenceDataService) return true;
+  return WORKSHOP_CONFIG_AUTHORITY === 'shared_valid';
+}
+
 if (typeof window !== 'undefined') {
-  // Best-effort boot-time sync (in case the reference-data service
-  // already has a cached value from a previous initialization this
-  // page load); harmless no-op if the service is not yet available --
-  // the primary live-update path is workshopSyncConfigFromSharedSettings()
-  // being called from app.js's onStateChange callback.
-  try { workshopSyncConfigFromSharedSettings(); } catch (_err) { /* ignore -- boot defaults remain in effect */ }
+  try { workshopSyncConfigFromSharedSettings(); } catch (_err) { WORKSHOP_CONFIG_AUTHORITY = 'shared_invalid'; }
 }
 
 if (typeof CRM_BACKUP_STORAGE_KEYS !== 'undefined' && !CRM_BACKUP_STORAGE_KEYS.includes(WORKSHOP_PLAN_STORAGE_KEY)) {
@@ -120,20 +157,30 @@ function workshopDateKey(date = new Date()) {
 }
 
 function workshopDateFromKey(value = '') {
-  const match = String(value || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  if (!match) return null;
-  const date = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]), WORKSHOP_START_HOUR, 0, 0, 0);
-  return Number.isNaN(date.getTime()) ? null : date;
+  const valid = workshopValidDateKey(String(value || ''));
+  if (!valid) return null;
+  const [year, month, day] = valid.split('-').map(Number);
+  return workshopSetClock(new Date(year, month - 1, day), WORKSHOP_PLANNER_CONFIG.dayStartMinutes);
+}
+
+function workshopDefaultBookingHours() {
+  return WORKSHOP_PLANNER_CONFIG.defaultBookingDurationMinutes / 60;
+}
+
+function workshopIsConfiguredWorkingDay(date = new Date()) {
+  return WORKSHOP_PLANNER_CONFIG.workingDayIndexes.includes(date.getDay());
+}
+
+function workshopIsClosureDate(date = new Date()) {
+  return WORKSHOP_PLANNER_CONFIG.closureDateKeys.includes(workshopDateKey(date));
 }
 
 function workshopIsWorkday(date = new Date()) {
-  const day = date.getDay();
-  return WORKSHOP_WORKDAYS.includes(day);
+  return workshopIsConfiguredWorkingDay(date) && !workshopIsClosureDate(date);
 }
 
 function workshopCoerceWorkDate(date = new Date(), direction = 1) {
-  const next = new Date(date);
-  next.setHours(WORKSHOP_START_HOUR, 0, 0, 0);
+  let next = workshopSetClock(date, WORKSHOP_PLANNER_CONFIG.dayStartMinutes);
   const step = direction < 0 ? -1 : 1;
   while (!workshopIsWorkday(next)) next.setDate(next.getDate() + step);
   return next;
@@ -147,146 +194,223 @@ function workshopShiftWorkday(date = new Date(), amount = 1) {
     next.setDate(next.getDate() + step);
     if (workshopIsWorkday(next)) remaining -= 1;
   }
-  return next;
+  return workshopSetClock(next, WORKSHOP_PLANNER_CONFIG.dayStartMinutes);
 }
 
 function workshopWeekStart(value = new Date()) {
   const date = value instanceof Date ? new Date(value) : (workshopDateFromKey(value) || new Date(value));
-  const safe = Number.isNaN(date.getTime()) ? new Date() : date;
-  safe.setHours(WORKSHOP_START_HOUR, 0, 0, 0);
+  let safe = Number.isNaN(date.getTime()) ? new Date() : date;
+  safe = workshopSetClock(safe, WORKSHOP_PLANNER_CONFIG.dayStartMinutes);
   const day = safe.getDay();
-  const offset = day === 0 ? -6 : 1 - day;
-  safe.setDate(safe.getDate() + offset);
+  safe.setDate(safe.getDate() + (day === 0 ? -6 : 1 - day));
   return safe;
 }
 
 function workshopWeekDates(value = new Date()) {
   const start = workshopWeekStart(value);
-  return Array.from({ length: 5 }, (_, index) => workshopShiftWorkday(start, index));
+  return Array.from({ length: 7 }, (_, index) => {
+    const date = new Date(start);
+    date.setDate(start.getDate() + index);
+    return workshopSetClock(date, WORKSHOP_PLANNER_CONFIG.dayStartMinutes);
+  }).filter(date => workshopIsConfiguredWorkingDay(date));
 }
 
 function workshopSnapMinutes(value = 0) {
-  return Math.round(Number(value || 0) / WORKSHOP_SNAP_MINUTES) * WORKSHOP_SNAP_MINUTES;
+  const increment = WORKSHOP_PLANNER_CONFIG.schedulingIncrementMinutes;
+  return Math.round(Number(value || 0) / increment) * increment;
 }
 
 function workshopClampStartMinutes(value = 0) {
-  return Math.max(0, Math.min(WORKSHOP_DAY_MINUTES - WORKSHOP_SNAP_MINUTES, workshopSnapMinutes(value)));
+  return Math.max(0, Math.min(WORKSHOP_PLANNER_CONFIG.dayLengthMinutes - WORKSHOP_PLANNER_CONFIG.schedulingIncrementMinutes, workshopSnapMinutes(value)));
 }
 
 function workshopClampLineHours(value = 1) {
-  const requestedMinutes = workshopSnapMinutes(Math.max(WORKSHOP_SNAP_MINUTES, Number(value || 1) * 60));
+  const requestedMinutes = workshopSnapMinutes(Math.max(WORKSHOP_PLANNER_CONFIG.schedulingIncrementMinutes, Number(value || 1) * 60));
   return requestedMinutes / 60;
 }
 
-function workshopClampDurationHours(value = WORKSHOP_DEFAULT_HOURS) {
-  return workshopClampLineHours(value || WORKSHOP_DEFAULT_HOURS);
+function workshopClampDurationHours(value = workshopDefaultBookingHours()) {
+  return workshopClampLineHours(value || workshopDefaultBookingHours());
 }
 
 function workshopIntervalsOverlap(startA, endA, startB, endB) {
   return Number(startA) < Number(endB) && Number(startB) < Number(endA);
 }
 
+function workshopMinuteOfDay(date = new Date()) {
+  return date.getHours() * 60 + date.getMinutes();
+}
+
 function workshopMinuteOffset(date = new Date()) {
-  return (date.getHours() - WORKSHOP_START_HOUR) * 60 + date.getMinutes();
+  return workshopMinuteOfDay(date) - WORKSHOP_PLANNER_CONFIG.dayStartMinutes;
+}
+
+function workshopWindowApplies(window, date) {
+  if (window.dateKey) return window.dateKey === workshopDateKey(date);
+  if (window.scope === 'global' || window.scope === 'working_day') return true;
+  return WORKSHOP_DAY_NAME_TO_INDEX[window.scope] === date.getDay();
+}
+
+function workshopSubtractWindows(windows, exclusions) {
+  let result = windows.map(window => ({ ...window }));
+  for (const excluded of exclusions) {
+    const next = [];
+    for (const window of result) {
+      if (!workshopIntervalsOverlap(window.startMinutes, window.endMinutes, excluded.startMinutes, excluded.endMinutes)) {
+        next.push(window);
+        continue;
+      }
+      if (excluded.startMinutes > window.startMinutes) next.push({ ...window, endMinutes: excluded.startMinutes });
+      if (excluded.endMinutes < window.endMinutes) next.push({ ...window, startMinutes: excluded.endMinutes });
+    }
+    result = next;
+  }
+  return result.filter(window => window.endMinutes > window.startMinutes);
+}
+
+function workshopAvailabilityWindowsForDate(dateValue = new Date()) {
+  const date = dateValue instanceof Date ? new Date(dateValue) : workshopDateFromKey(dateValue);
+  if (!date || !workshopIsWorkday(date)) return [];
+  const overtime = WORKSHOP_PLANNER_CONFIG.overtimeWindowsByDateOrScope
+    .filter(window => workshopWindowApplies(window, date))
+    .map(window => ({ ...window, overtime: true }));
+  const regular = [{ startMinutes: WORKSHOP_PLANNER_CONFIG.dayStartMinutes, endMinutes: WORKSHOP_PLANNER_CONFIG.dayEndMinutes, overtime: false }];
+  const breaks = WORKSHOP_PLANNER_CONFIG.breakWindowsByDateOrScope.filter(window => workshopWindowApplies(window, date));
+  const windows = workshopSubtractWindows([...regular, ...overtime], breaks)
+    .sort((a, b) => a.startMinutes - b.startMinutes || a.endMinutes - b.endMinutes);
+  const merged = [];
+  for (const window of windows) {
+    const previous = merged[merged.length - 1];
+    if (previous && previous.endMinutes >= window.startMinutes && previous.overtime === window.overtime) {
+      previous.endMinutes = Math.max(previous.endMinutes, window.endMinutes);
+    } else merged.push({ ...window });
+  }
+  return merged;
+}
+
+function workshopBreakWindowsForDate(dateValue = new Date()) {
+  const date = dateValue instanceof Date ? dateValue : workshopDateFromKey(dateValue);
+  return date ? WORKSHOP_PLANNER_CONFIG.breakWindowsByDateOrScope.filter(window => workshopWindowApplies(window, date)) : [];
 }
 
 function workshopDateAtOffset(dateKey, minuteOffset = 0) {
   const date = workshopDateFromKey(dateKey) || workshopCoerceWorkDate(new Date());
-  date.setHours(WORKSHOP_START_HOUR, 0, 0, 0);
-  date.setMinutes(workshopClampStartMinutes(minuteOffset));
-  return date;
+  return workshopSetClock(date, WORKSHOP_PLANNER_CONFIG.dayStartMinutes + workshopClampStartMinutes(minuteOffset));
 }
 
 function workshopMoveToNextWorkStart(date = new Date()) {
   const next = new Date(date);
   next.setDate(next.getDate() + 1);
-  next.setHours(WORKSHOP_START_HOUR, 0, 0, 0);
-  return workshopCoerceWorkDate(next, 1);
+  return workshopNormalizeStartDate(workshopCoerceWorkDate(next, 1));
 }
 
 function workshopMoveToPreviousWorkEnd(date = new Date()) {
   const previous = new Date(date);
   previous.setDate(previous.getDate() - 1);
-  const coerced = workshopCoerceWorkDate(previous, -1);
-  coerced.setHours(WORKSHOP_END_HOUR, 0, 0, 0);
-  return coerced;
+  const workDate = workshopCoerceWorkDate(previous, -1);
+  const windows = workshopAvailabilityWindowsForDate(workDate);
+  return workshopSetClock(workDate, windows.length ? windows[windows.length - 1].endMinutes : WORKSHOP_PLANNER_CONFIG.dayEndMinutes);
 }
 
 function workshopNormalizeStartDate(value = new Date()) {
   let date = value instanceof Date ? new Date(value) : new Date(value);
   if (Number.isNaN(date.getTime())) date = new Date();
-  if (!workshopIsWorkday(date)) {
-    date = workshopCoerceWorkDate(date, 1);
-    date.setHours(WORKSHOP_START_HOUR, 0, 0, 0);
-    return date;
+  if (!workshopIsWorkday(date)) date = workshopCoerceWorkDate(date, 1);
+  for (let guard = 0; guard < 370; guard += 1) {
+    const windows = workshopAvailabilityWindowsForDate(date);
+    const minute = workshopMinuteOfDay(date);
+    for (const window of windows) {
+      if (minute <= window.startMinutes) return workshopSetClock(date, window.startMinutes);
+      if (minute < window.endMinutes) {
+        const snapped = Math.ceil(minute / WORKSHOP_PLANNER_CONFIG.schedulingIncrementMinutes) * WORKSHOP_PLANNER_CONFIG.schedulingIncrementMinutes;
+        return workshopSetClock(date, Math.min(snapped, window.endMinutes));
+      }
+    }
+    date = workshopCoerceWorkDate(new Date(date.getFullYear(), date.getMonth(), date.getDate() + 1), 1);
   }
-  const offset = workshopMinuteOffset(date);
-  if (offset < 0) {
-    date.setHours(WORKSHOP_START_HOUR, 0, 0, 0);
-    return date;
-  }
-  if (offset >= WORKSHOP_DAY_MINUTES) return workshopMoveToNextWorkStart(date);
-  date.setSeconds(0, 0);
-  const snapped = workshopClampStartMinutes(offset);
-  date.setHours(WORKSHOP_START_HOUR, 0, 0, 0);
-  date.setMinutes(snapped);
-  return date;
+  return workshopSetClock(date, WORKSHOP_PLANNER_CONFIG.dayStartMinutes);
 }
 
 function workshopLatestWorkMoment(value = new Date()) {
   let date = value instanceof Date ? new Date(value) : new Date(value);
   if (Number.isNaN(date.getTime())) date = new Date();
   if (!workshopIsWorkday(date)) return workshopMoveToPreviousWorkEnd(date);
-  const offset = workshopMinuteOffset(date);
-  if (offset < 0) return workshopMoveToPreviousWorkEnd(date);
-  if (offset >= WORKSHOP_DAY_MINUTES) {
-    date.setHours(WORKSHOP_END_HOUR, 0, 0, 0);
-    return date;
+  const windows = workshopAvailabilityWindowsForDate(date);
+  const minute = workshopMinuteOfDay(date);
+  let latest = null;
+  for (const window of windows) {
+    if (minute < window.startMinutes) break;
+    latest = workshopSetClock(date, Math.min(minute, window.endMinutes));
+    if (minute <= window.endMinutes) break;
   }
-  date.setSeconds(0, 0);
-  const snapped = Math.floor(offset / WORKSHOP_SNAP_MINUTES) * WORKSHOP_SNAP_MINUTES;
-  date.setHours(WORKSHOP_START_HOUR, 0, 0, 0);
-  date.setMinutes(snapped);
-  return date;
+  return latest || workshopMoveToPreviousWorkEnd(date);
 }
 
 function workshopAddWorkMinutes(startValue = new Date(), minutes = 0) {
   let current = workshopNormalizeStartDate(startValue);
   let remaining = Math.max(0, Number(minutes) || 0);
-  while (remaining > 0.0001) {
-    const available = Math.max(0, WORKSHOP_DAY_MINUTES - workshopMinuteOffset(current));
-    if (remaining <= available + 0.0001) {
-      current = new Date(current.getTime() + remaining * 60000);
-      return current;
+  while (remaining > 0) {
+    const windows = workshopAvailabilityWindowsForDate(current);
+    const minute = workshopMinuteOfDay(current);
+    const window = windows.find(item => minute >= item.startMinutes && minute < item.endMinutes)
+      || windows.find(item => minute < item.startMinutes);
+    if (!window) {
+      current = workshopMoveToNextWorkStart(current);
+      continue;
     }
+    if (minute < window.startMinutes) current = workshopSetClock(current, window.startMinutes);
+    const available = window.endMinutes - workshopMinuteOfDay(current);
+    if (remaining <= available) return new Date(current.getTime() + remaining * 60000);
     remaining -= available;
-    current = workshopMoveToNextWorkStart(current);
+    const nextWindow = windows.find(item => item.startMinutes >= window.endMinutes && item.endMinutes > window.endMinutes);
+    current = nextWindow ? workshopSetClock(current, nextWindow.startMinutes) : workshopMoveToNextWorkStart(current);
   }
   return current;
 }
 
 function workshopWorkMinutesBetween(startValue, endValue) {
-  let cursor = workshopNormalizeStartDate(startValue);
+  const start = startValue instanceof Date ? new Date(startValue) : new Date(startValue);
   const end = endValue instanceof Date ? new Date(endValue) : new Date(endValue);
-  if (Number.isNaN(end.getTime()) || end <= cursor) return 0;
-  let minutes = 0;
-  while (cursor < end) {
-    const dayEnd = new Date(cursor);
-    dayEnd.setHours(WORKSHOP_END_HOUR, 0, 0, 0);
-    const segmentEnd = end < dayEnd ? end : dayEnd;
-    if (segmentEnd > cursor) minutes += (segmentEnd - cursor) / 60000;
-    if (end <= dayEnd) break;
-    cursor = workshopMoveToNextWorkStart(cursor);
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end <= start) return 0;
+  let date = new Date(start.getFullYear(), start.getMonth(), start.getDate());
+  let total = 0;
+  while (date <= end) {
+    for (const window of workshopAvailabilityWindowsForDate(date)) {
+      const windowStart = workshopSetClock(date, window.startMinutes);
+      const windowEnd = workshopSetClock(date, window.endMinutes);
+      const overlapStart = start > windowStart ? start : windowStart;
+      const overlapEnd = end < windowEnd ? end : windowEnd;
+      if (overlapEnd > overlapStart) total += (overlapEnd - overlapStart) / 60000;
+    }
+    date.setDate(date.getDate() + 1);
   }
-  return minutes;
+  return total;
 }
 
 function workshopEntryStart(entry = {}) {
-  return workshopNormalizeStartDate(parseIsoTimestamp(entry.startAt || '') || new Date());
+  return parseIsoTimestamp(entry.startAt || '') || workshopNormalizeStartDate(new Date());
 }
 
 function workshopEntryEnd(entry = {}) {
-  return workshopAddWorkMinutes(workshopEntryStart(entry), workshopClampDurationHours(entry.hours) * 60);
+  const start = workshopEntryStart(entry);
+  const durationMinutes = workshopClampDurationHours(entry.hours) * 60;
+  // Historical rows on a date that later became closed remain renderable at
+  // their recorded wall-clock position; closure/leave only block new writes.
+  if (!workshopIsWorkday(start)) return new Date(start.getTime() + durationMinutes * 60000);
+  return workshopAddWorkMinutes(start, durationMinutes);
+}
+
+function workshopEntryUsesConfiguredOvertime(entry = {}) {
+  const start = workshopEntryStart(entry);
+  const end = workshopEntryEnd(entry);
+  let date = new Date(start.getFullYear(), start.getMonth(), start.getDate());
+  while (date <= end) {
+    for (const window of workshopAvailabilityWindowsForDate(date).filter(item => item.overtime)) {
+      if (workshopIntervalsOverlap(start, end, workshopSetClock(date, window.startMinutes), workshopSetClock(date, window.endMinutes))) return true;
+    }
+    date.setDate(date.getDate() + 1);
+  }
+  return false;
 }
 
 function workshopEntryIsOvertime(entry = {}, now = new Date()) {
@@ -298,30 +422,30 @@ function workshopEntryEffectiveEnd(entry = {}, now = new Date()) {
   const plannedEnd = workshopEntryEnd(entry);
   if (!workshopEntryIsOvertime(entry, now)) return plannedEnd;
   const latest = workshopLatestWorkMoment(now);
-  return workshopMinuteOffset(latest) >= WORKSHOP_DAY_MINUTES ? latest : workshopAddWorkMinutes(latest, WORKSHOP_SNAP_MINUTES);
+  return workshopAddWorkMinutes(latest, WORKSHOP_PLANNER_CONFIG.schedulingIncrementMinutes);
 }
 
 function workshopEntrySegmentForDate(entry = {}, dateKey = '', now = new Date()) {
-  const dayStart = workshopDateFromKey(dateKey);
-  if (!dayStart || !workshopIsWorkday(dayStart)) return null;
-  dayStart.setHours(WORKSHOP_START_HOUR, 0, 0, 0);
-  const dayEnd = new Date(dayStart);
-  dayEnd.setHours(WORKSHOP_END_HOUR, 0, 0, 0);
+  let dayStart = workshopDateFromKey(dateKey);
+  if (!dayStart || !workshopIsConfiguredWorkingDay(dayStart)) return null;
+  dayStart = workshopSetClock(dayStart, WORKSHOP_PLANNER_CONFIG.dayStartMinutes);
+  const dayEnd = workshopSetClock(dayStart, WORKSHOP_PLANNER_CONFIG.dayEndMinutes);
   const start = workshopEntryStart(entry);
   const end = workshopEntryEffectiveEnd(entry, now);
   if (end <= dayStart || start >= dayEnd) return null;
   const segmentStart = start > dayStart ? start : dayStart;
   const segmentEnd = end < dayEnd ? end : dayEnd;
   const startMinutes = Math.max(0, workshopMinuteOffset(segmentStart));
-  const endMinutes = Math.min(WORKSHOP_DAY_MINUTES, segmentEnd >= dayEnd ? WORKSHOP_DAY_MINUTES : workshopMinuteOffset(segmentEnd));
+  const endMinutes = Math.min(WORKSHOP_PLANNER_CONFIG.dayLengthMinutes, segmentEnd >= dayEnd ? WORKSHOP_PLANNER_CONFIG.dayLengthMinutes : workshopMinuteOffset(segmentEnd));
   return {
     start: startMinutes,
-    end: Math.max(startMinutes + WORKSHOP_SNAP_MINUTES, endMinutes),
+    end: Math.max(startMinutes + WORKSHOP_PLANNER_CONFIG.schedulingIncrementMinutes, endMinutes),
     continuesFromPrevious: start < dayStart,
     continuesNext: end > dayEnd,
+    historicalOnClosure: workshopIsClosureDate(dayStart),
+    usesConfiguredOvertime: workshopEntryUsesConfiguredOvertime(entry),
   };
 }
-
 function workshopSharedModeActive() {
   return typeof window !== 'undefined'
     && typeof window.workshopSharedModeEnabled === 'function'
@@ -368,7 +492,7 @@ function workshopMapSnapshotBookingToLegacyRow(booking = {}) {
     stage: normalizePmbStage(stage.code || ''),
     bay: bay ? Number(bay.bay_number) || 0 : 0,
     startAt: booking.scheduled_start_at,
-    hours: Number(booking.default_duration_minutes || 0) / 60 || WORKSHOP_DEFAULT_HOURS,
+    hours: Number(booking.default_duration_minutes || 0) / 60 || workshopDefaultBookingHours(),
     assignee: assignment ? assignment.technician_name || '' : '',
     status: legacyStatus,
     stoppageReason: booking.stoppage_reason || '',
@@ -725,7 +849,7 @@ function workshopCalculatedStageHours(vehicle = {}, stage = '') {
   const additionalHours = Number(workshopAdditionalHoursMap(vehicle)[normalizedStage] || 0);
   const total = importedHours + (Number.isFinite(additionalHours) ? Math.max(0, additionalHours) : 0);
   if (total > 0) return workshopClampDurationHours(total);
-  return workshopEstimatedHours(vehicle, normalizedStage) || WORKSHOP_DEFAULT_HOURS;
+  return workshopEstimatedHours(vehicle, normalizedStage) || workshopDefaultBookingHours();
 }
 
 function workshopLoadView() {
@@ -1013,6 +1137,55 @@ function workshopShiftTrailingPlannedRows(candidate = {}, otherRows = [], { conf
   return { rows: settled, moved };
 }
 
+function workshopTechnicianIdForEntry(entry = {}) {
+  if (entry.technicianId) return String(entry.technicianId);
+  const assignee = cleanNavisionText(entry.assignee || '');
+  if (!assignee) return '';
+  const ref = workshopReferenceTechnicianRef(assignee) || workshopSharedTechnicianRef(assignee);
+  return ref ? String(ref.technicianId || '') : '';
+}
+
+function workshopTechnicianIsOnLeave(technicianId = '', dateValue = new Date()) {
+  const dates = WORKSHOP_PLANNER_CONFIG.technicianLeaveByTechnicianId[String(technicianId || '')] || [];
+  return dates.includes(workshopDateKey(dateValue));
+}
+
+function workshopNewBookingValidation(entry = {}) {
+  if (!workshopConfigurationAllowsNewScheduling()) return { ok: false, error: 'configuration_unavailable' };
+  const start = parseIsoTimestamp(entry.startAt || '');
+  if (!start) return { ok: false, error: 'invalid_start' };
+  if (workshopIsClosureDate(start)) return { ok: false, error: 'closure_date', date: workshopDateKey(start) };
+  if (!workshopIsConfiguredWorkingDay(start)) return { ok: false, error: 'non_working_day', date: workshopDateKey(start) };
+  const minute = workshopMinuteOfDay(start);
+  const windows = workshopAvailabilityWindowsForDate(start);
+  const containingWindow = windows.find(window => minute >= window.startMinutes && minute < window.endMinutes);
+  if (!containingWindow) {
+    const inBreak = workshopBreakWindowsForDate(start).some(window => minute >= window.startMinutes && minute < window.endMinutes);
+    return { ok: false, error: inBreak ? 'break_window' : 'outside_work_window', date: workshopDateKey(start), minute };
+  }
+  const technicianId = workshopTechnicianIdForEntry(entry);
+  if (technicianId && workshopTechnicianIsOnLeave(technicianId, start)) {
+    return { ok: false, error: 'technician_on_leave', date: workshopDateKey(start), technicianId };
+  }
+  return { ok: true, usesOvertime: containingWindow.overtime === true };
+}
+
+function workshopRequireSchedulableCandidate(entry = {}) {
+  const result = workshopNewBookingValidation(entry);
+  if (result.ok) return true;
+  const messages = {
+    configuration_unavailable: 'Shared planner configuration is loading, unavailable, or invalid. New scheduling is blocked until valid shared settings are confirmed.',
+    invalid_start: 'Choose a valid workshop start date and time.',
+    closure_date: 'That date is configured as a workshop closure and cannot accept a new booking.',
+    non_working_day: 'That date is not part of the configured working week.',
+    break_window: 'That start time falls inside a configured non-bookable break window.',
+    outside_work_window: 'That start time is outside regular hours and is not inside a configured overtime window.',
+    technician_on_leave: 'That technician is on configured leave for this booking date and cannot receive a new assignment.',
+  };
+  if (typeof window !== 'undefined' && typeof window.alert === 'function') window.alert(messages[result.error] || 'That booking is not schedulable under the current shared configuration.');
+  return false;
+}
+
 function workshopAssigneeConflict(entry = {}, rows = workshopLoadPlans()) {
   const assignee = cleanNavisionText(entry.assignee || '').toLowerCase();
   if (!assignee || entry.stage === 'SUBLET' || entry.status === 'completed') return null;
@@ -1065,7 +1238,7 @@ function workshopCascadeAndSave(rows = workshopLoadPlans(), now = new Date()) {
 }
 
 function workshopTimeLabelFromMinutes(minutes = 0) {
-  const total = WORKSHOP_START_HOUR * 60 + Number(minutes || 0);
+  const total = WORKSHOP_PLANNER_CONFIG.dayStartMinutes + Number(minutes || 0);
   const hour = Math.floor(total / 60);
   const minute = total % 60;
   const suffix = hour >= 12 ? 'pm' : 'am';
@@ -1091,7 +1264,7 @@ function workshopSlotSummary(stage = '', bay = 1, dateKey = '', startMinutes = 0
   return `${area} · ${when}`;
 }
 
-function workshopBestStageSlot(stage = '', dateKey = '', hours = WORKSHOP_DEFAULT_HOURS, rows = workshopLoadPlans(), notBeforeMinutes = 0) {
+function workshopBestStageSlot(stage = '', dateKey = '', hours = workshopDefaultBookingHours(), rows = workshopLoadPlans(), notBeforeMinutes = 0) {
   const normalizedStage = normalizePmbStage(stage);
   if (!WORKSHOP_STAGE_SEQUENCE.includes(normalizedStage)) return null;
   let best = null;
@@ -1304,7 +1477,7 @@ function workshopQueueCardHtml(vehicle = {}, stage = workshopState().stage, date
   const blocked = isPdcBlocked(vehicle);
   const parts = workshopPartsSummary(vehicle);
   const highlighted = workshopState().highlightVehicleKey === key;
-  const hours = workshopCalculatedStageHours(vehicle, stage) || pmbBayHours(vehicle) || WORKSHOP_DEFAULT_HOURS;
+  const hours = workshopCalculatedStageHours(vehicle, stage) || pmbBayHours(vehicle) || workshopDefaultBookingHours();
   const bestSlot = workshopBestStageSlot(stage, dateKey, hours, rows);
   return `<article class="workshop-queue-card ${blocked ? 'is-blocked' : ''} ${highlighted ? 'is-search-match' : ''}" draggable="true" data-workshop-vehicle-key="${escapeHtml(key)}" data-workshop-job-vehicle="${escapeHtml(key)}" data-workshop-locate-key="${escapeHtml(key)}" title="Drag onto a bay, use Best slot, or use Schedule">
     <strong>JC ${escapeHtml(vehicleJobcardNumber(vehicle) || 'TBA')} · ${escapeHtml(displayStockNumber(vehicle) || vehicle.order || 'No stock')}</strong>
@@ -1335,8 +1508,8 @@ function workshopPlanChipHtml(entry = {}, dateKey = '', rows = workshopLoadPlans
   if (!vehicle) return '';
   const segment = workshopEntrySegmentForDate(entry, dateKey);
   if (!segment) return '';
-  const left = (segment.start / WORKSHOP_DAY_MINUTES) * 100;
-  const width = ((segment.end - segment.start) / WORKSHOP_DAY_MINUTES) * 100;
+  const left = (segment.start / WORKSHOP_PLANNER_CONFIG.dayLengthMinutes) * 100;
+  const width = ((segment.end - segment.start) / WORKSHOP_PLANNER_CONFIG.dayLengthMinutes) * 100;
   const actualBay = pmbBayNumber(vehicle, entry.stage);
   const started = entry.stage === 'SUBLET' ? workshopEntryIsLive(entry) : Number(actualBay) === Number(entry.bay);
   const blocked = isPdcBlocked(vehicle);
@@ -1348,14 +1521,14 @@ function workshopPlanChipHtml(entry = {}, dateKey = '', rows = workshopLoadPlans
   const draggable = entry.status !== 'completed';
   const assignee = cleanNavisionText(entry.assignee || '') || workshopBayMechanic(entry.stage, entry.bay) || '';
   const statusLabel = entry.status === 'completed' ? 'COMPLETED' : entry.status === 'stoppage' ? 'STOPPAGE' : entry.status === 'started' ? 'LIVE' : 'PLANNED';
-  const classes = [blocked ? 'is-blocked' : '', started ? 'is-started' : '', overtime ? 'is-overtime' : '', assigneeConflict ? 'has-assignee-conflict' : '', entry.status === 'stoppage' ? 'is-stoppage' : '', selected ? 'is-selected' : '', highlighted ? 'is-search-match' : '', segment.continuesFromPrevious ? 'continues-from-previous' : '', segment.continuesNext ? 'continues-next' : ''].filter(Boolean).join(' ');
+  const classes = [blocked ? 'is-blocked' : '', started ? 'is-started' : '', overtime ? 'is-overtime' : '', segment.usesConfiguredOvertime ? 'uses-configured-overtime' : '', segment.historicalOnClosure ? 'historical-on-closure' : '', assigneeConflict ? 'has-assignee-conflict' : '', entry.status === 'stoppage' ? 'is-stoppage' : '', selected ? 'is-selected' : '', highlighted ? 'is-search-match' : '', segment.continuesFromPrevious ? 'continues-from-previous' : '', segment.continuesNext ? 'continues-next' : ''].filter(Boolean).join(' ');
   const conflictNote = assigneeConflict ? ` · WARNING: ${entry.assignee} is booked on another vehicle at this time` : '';
   return `<article class="workshop-plan-chip ${classes}" ${draggable ? 'draggable="true"' : ''} data-workshop-plan-id="${escapeHtml(entry.id)}" data-workshop-job-vehicle="${escapeHtml(entry.vehicleKey)}" data-workshop-locate-key="${escapeHtml(entry.vehicleKey)}" style="--plan-left:${left}%;--plan-width:${width}%;" title="${escapeHtml(`${workshopEntryTimeLabel(entry)} · ${entry.hours}h total${conflictNote} · double-click for vehicle job${entry.status === 'completed' ? ' · completed history stays fixed' : entry.status === 'planned' ? ' · drag to reschedule' : ' · drag to move this live job safely'}`)}">
     <button type="button" data-workshop-select-plan="${escapeHtml(entry.id)}">
       <strong>JC ${escapeHtml(vehicleJobcardNumber(vehicle) || 'TBA')} · ${escapeHtml(displayStockNumber(vehicle) || vehicle.order || 'No stock')}</strong>
       <span>${escapeHtml(vehicle.vehicle || vehicle.toyotaVehicle || 'Vehicle')}</span>
       <small>${escapeHtml(vehicleCustomerName(vehicle) || 'Unknown customer')}</small>
-      <small>${escapeHtml(`${statusLabel}${assignee ? ` · ${assignee}` : ''}`)}</small>
+      <small>${escapeHtml(`${statusLabel}${assignee ? ` · ${assignee}` : ''}${segment.usesConfiguredOvertime ? ' · CONFIGURED OVERTIME' : ''}${segment.historicalOnClosure ? ' · HISTORICAL CLOSURE' : ''}`)}</small>
       <small>${escapeHtml(`${entry.hours}h · Parts ${parts.label}${parts.eta && !['issued', 'notrequired'].includes(parts.status) ? ` · ETA ${parts.eta}` : ''}`)}</small>
     </button>
     <span class="workshop-plan-resize" data-workshop-resize-plan="${escapeHtml(entry.id)}" title="Drag to change duration"></span>
@@ -1376,8 +1549,9 @@ function workshopCompletedCardHtml(entry = {}) {
 }
 
 function workshopTimeAxisHtml() {
-  return Array.from({ length: WORKSHOP_END_HOUR - WORKSHOP_START_HOUR + 1 }, (_, index) => {
-    const left = (index / (WORKSHOP_END_HOUR - WORKSHOP_START_HOUR)) * 100;
+  const tickCount = Math.floor(WORKSHOP_PLANNER_CONFIG.dayLengthMinutes / 60);
+  return Array.from({ length: tickCount + 1 }, (_, index) => {
+    const left = ((index * 60) / WORKSHOP_PLANNER_CONFIG.dayLengthMinutes) * 100;
     return `<span style="left:${left}%">${escapeHtml(workshopTimeLabelFromMinutes(index * 60))}</span>`;
   }).join('');
 }
@@ -1465,7 +1639,7 @@ function workshopUpdateLanePreview(lane, startMinutes = 0) {
   const preview = lane?.querySelector('.workshop-drop-preview');
   if (!preview) return;
   const dragPreview = workshopCurrentDragPreview();
-  const hours = Math.max(0.25, Number(dragPreview?.hours || WORKSHOP_DEFAULT_HOURS));
+  const hours = Math.max(0.25, Number(dragPreview?.hours || workshopDefaultBookingHours()));
   const safeMinutes = workshopClampStartMinutes(startMinutes);
   const stage = lane.dataset.workshopDropStage || lane.dataset.workshopWeekDropStage || '';
   const bay = Number(lane.dataset.workshopDropBay || lane.dataset.workshopWeekDropBay || 0);
@@ -1475,13 +1649,13 @@ function workshopUpdateLanePreview(lane, startMinutes = 0) {
   const label = workshopPreviewLabel(safeMinutes, hours);
   preview.hidden = false;
   if (preview.classList.contains('is-vertical')) {
-    const height = Math.max((hours * 60 / WORKSHOP_DAY_MINUTES) * 100, 8);
-    preview.style.setProperty('--drop-preview-top', `${(safeMinutes / WORKSHOP_DAY_MINUTES) * 100}%`);
-    preview.style.setProperty('--drop-preview-height', `${Math.min(height, 100 - ((safeMinutes / WORKSHOP_DAY_MINUTES) * 100))}%`);
+    const height = Math.max((hours * 60 / WORKSHOP_PLANNER_CONFIG.dayLengthMinutes) * 100, 8);
+    preview.style.setProperty('--drop-preview-top', `${(safeMinutes / WORKSHOP_PLANNER_CONFIG.dayLengthMinutes) * 100}%`);
+    preview.style.setProperty('--drop-preview-height', `${Math.min(height, 100 - ((safeMinutes / WORKSHOP_PLANNER_CONFIG.dayLengthMinutes) * 100))}%`);
   } else {
-    const width = Math.max((hours * 60 / WORKSHOP_DAY_MINUTES) * 100, 5);
-    preview.style.setProperty('--drop-preview-left', `${(safeMinutes / WORKSHOP_DAY_MINUTES) * 100}%`);
-    preview.style.setProperty('--drop-preview-width', `${Math.min(width, 100 - ((safeMinutes / WORKSHOP_DAY_MINUTES) * 100))}%`);
+    const width = Math.max((hours * 60 / WORKSHOP_PLANNER_CONFIG.dayLengthMinutes) * 100, 5);
+    preview.style.setProperty('--drop-preview-left', `${(safeMinutes / WORKSHOP_PLANNER_CONFIG.dayLengthMinutes) * 100}%`);
+    preview.style.setProperty('--drop-preview-width', `${Math.min(width, 100 - ((safeMinutes / WORKSHOP_PLANNER_CONFIG.dayLengthMinutes) * 100))}%`);
   }
   preview.querySelector('.workshop-drop-preview-pill')?.setAttribute('data-preview-label', label);
 }
@@ -1559,6 +1733,7 @@ function workshopDetailHtml(entry = null) {
 }
 
 function renderWorkshopPlanner() {
+  if (workshopSharedModeActive()) workshopSyncConfigFromSharedSettings();
   const root = document.querySelector('#workshop-planner-root');
   if (!root) return;
   const state = workshopState();
@@ -1692,7 +1867,7 @@ function bindWorkshopPlanner(root) {
     const vehicle = workshopVehicle(card.dataset.workshopVehicleKey);
     workshopSetDragPreview({
       type: 'queue',
-      hours: workshopCalculatedStageHours(vehicle, workshopState().stage) || pmbBayHours(vehicle) || WORKSHOP_DEFAULT_HOURS,
+      hours: workshopCalculatedStageHours(vehicle, workshopState().stage) || pmbBayHours(vehicle) || workshopDefaultBookingHours(),
     });
   }));
   root.querySelectorAll('[data-workshop-vehicle-key]').forEach(card => card.addEventListener('dragend', () => {
@@ -1720,7 +1895,7 @@ function bindWorkshopPlanner(root) {
     event.dataTransfer.effectAllowed = 'move';
     event.dataTransfer.setData('application/x-workshop-plan-id', chip.dataset.workshopPlanId);
     const entry = workshopLoadPlans().find(row => row.id === chip.dataset.workshopPlanId);
-    workshopSetDragPreview({ type: 'plan', hours: workshopClampDurationHours(entry?.hours) || WORKSHOP_DEFAULT_HOURS });
+    workshopSetDragPreview({ type: 'plan', hours: workshopClampDurationHours(entry?.hours) || workshopDefaultBookingHours() });
   }));
   root.querySelectorAll('[data-workshop-plan-id]').forEach(chip => chip.addEventListener('dragend', () => {
     workshopSetDragPreview(null);
@@ -1784,7 +1959,7 @@ function bindWorkshopLane(lane) {
     event.preventDefault();
     lane.classList.add('drag-over');
     const rect = lane.getBoundingClientRect();
-    const requestedStartMinutes = workshopClampStartMinutes(((event.clientX - rect.left) / Math.max(1, rect.width)) * WORKSHOP_DAY_MINUTES);
+    const requestedStartMinutes = workshopClampStartMinutes(((event.clientX - rect.left) / Math.max(1, rect.width)) * WORKSHOP_PLANNER_CONFIG.dayLengthMinutes);
     workshopUpdateLanePreview(lane, requestedStartMinutes);
   });
   lane.addEventListener('dragleave', event => {
@@ -1797,7 +1972,7 @@ function bindWorkshopLane(lane) {
     event.preventDefault();
     lane.classList.remove('drag-over');
     const rect = lane.getBoundingClientRect();
-    const fallbackStartMinutes = workshopClampStartMinutes(((event.clientX - rect.left) / Math.max(1, rect.width)) * WORKSHOP_DAY_MINUTES);
+    const fallbackStartMinutes = workshopClampStartMinutes(((event.clientX - rect.left) / Math.max(1, rect.width)) * WORKSHOP_PLANNER_CONFIG.dayLengthMinutes);
     const rememberedTarget = workshopCurrentDropTarget();
     const targetStage = lane.dataset.workshopDropStage;
     const targetBay = Number(lane.dataset.workshopDropBay);
@@ -2068,11 +2243,11 @@ async function returnWorkshopPlanToUnallocated(planId = '') {
   renderWorkshopPlanner();
 }
 
-function workshopFirstAvailableStartMinutes(stage = '', bay = 1, dateKey = '', hours = WORKSHOP_DEFAULT_HOURS, rows = workshopLoadPlans(), notBeforeMinutes = 0) {
+function workshopFirstAvailableStartMinutes(stage = '', bay = 1, dateKey = '', hours = workshopDefaultBookingHours(), rows = workshopLoadPlans(), notBeforeMinutes = 0) {
   const normalizedStage = normalizePmbStage(stage);
   const duration = workshopClampDurationHours(hours);
   const firstStart = workshopClampStartMinutes(notBeforeMinutes);
-  for (let startMinutes = firstStart; startMinutes < WORKSHOP_DAY_MINUTES; startMinutes += 15) {
+  for (let startMinutes = firstStart; startMinutes < WORKSHOP_PLANNER_CONFIG.dayLengthMinutes; startMinutes += WORKSHOP_PLANNER_CONFIG.schedulingIncrementMinutes) {
     const candidate = {
       id: '__availability_check__',
       vehicleKey: '__availability_check__',
@@ -2082,12 +2257,12 @@ function workshopFirstAvailableStartMinutes(stage = '', bay = 1, dateKey = '', h
       hours: duration,
       status: 'planned',
     };
-    if (!workshopHasConflict(candidate, rows)) return startMinutes;
+    if (workshopNewBookingValidation(candidate).ok && !workshopHasConflict(candidate, rows)) return startMinutes;
   }
   return null;
 }
 
-function workshopFirstAvailableStartSlot(stage = '', bay = 1, dateKey = '', hours = WORKSHOP_DEFAULT_HOURS, rows = workshopLoadPlans(), notBeforeMinutes = 0, maxWorkdays = 260) {
+function workshopFirstAvailableStartSlot(stage = '', bay = 1, dateKey = '', hours = workshopDefaultBookingHours(), rows = workshopLoadPlans(), notBeforeMinutes = 0, maxWorkdays = 260) {
   const requestedDate = workshopDateFromKey(dateKey) || new Date();
   let workDate = workshopCoerceWorkDate(requestedDate, 1);
   for (let dayIndex = 0; dayIndex < Math.max(1, Number(maxWorkdays) || 260); dayIndex += 1) {
@@ -2231,7 +2406,8 @@ function moveWorkshopDroppedPlan(planId = '', stage = '', bay = 0, dateKey = '',
 }
 
 function workshopScheduleTimeOptions(selectedMinutes = 0) {
-  return Array.from({ length: WORKSHOP_DAY_MINUTES / 15 }, (_, index) => index * 15)
+  const increment = WORKSHOP_PLANNER_CONFIG.schedulingIncrementMinutes;
+  return Array.from({ length: Math.ceil(WORKSHOP_PLANNER_CONFIG.dayLengthMinutes / increment) }, (_, index) => index * increment)
     .map(minutes => `<option value="${minutes}"${minutes === Number(selectedMinutes) ? ' selected' : ''}>${escapeHtml(workshopTimeLabelFromMinutes(minutes))}</option>`)
     .join('');
 }
@@ -2240,7 +2416,7 @@ function openWorkshopScheduleModal(vehicleKeyValue = '', stage = '', dateKey = '
   const normalizedStage = normalizePmbStage(stage);
   const vehicle = workshopVehicle(vehicleKeyValue);
   if (!vehicle || !WORKSHOP_STAGE_SEQUENCE.includes(normalizedStage)) return;
-  const hours = workshopCalculatedStageHours(vehicle, normalizedStage) || pmbBayHours(vehicle) || WORKSHOP_DEFAULT_HOURS;
+  const hours = workshopCalculatedStageHours(vehicle, normalizedStage) || pmbBayHours(vehicle) || workshopDefaultBookingHours();
   const bay = 1;
   const selectedDate = workshopDateKey(workshopCoerceWorkDate(workshopDateFromKey(dateKey) || new Date(), 1));
   const firstSlot = workshopFirstAvailableStartSlot(normalizedStage, bay, selectedDate, hours);
@@ -2453,8 +2629,17 @@ async function scheduleWorkshopVehicle({ planId = '', vehicleKeyValue = '', stag
   const requestedHours = Number(hoursValue);
   const defaultHours = Number.isFinite(requestedHours) && requestedHours > 0
     ? requestedHours
-    : existing?.hours || workshopCalculatedStageHours(vehicle, normalizedStage) || pmbBayHours(vehicle) || WORKSHOP_DEFAULT_HOURS;
+    : existing?.hours || workshopCalculatedStageHours(vehicle, normalizedStage) || pmbBayHours(vehicle) || workshopDefaultBookingHours();
   const hours = workshopClampDurationHours(defaultHours);
+  const requestedCandidate = {
+    ...(existing || {}),
+    startAt: start.toISOString(),
+    hours,
+    assignee: assigneeValue === null
+      ? existing?.assignee || workshopBayMechanic(normalizedStage, bay) || pmbBayMechanic(vehicle) || ''
+      : cleanNavisionText(assigneeValue || ''),
+  };
+  if (!workshopRequireSchedulableCandidate(requestedCandidate)) return false;
   if (workshopSharedModeActive()) {
     const durationMinutes = Math.round(hours * 60);
     if (existing && existing.sharedBookingId) {
@@ -2487,16 +2672,11 @@ async function scheduleWorkshopVehicle({ planId = '', vehicleKeyValue = '', stag
   // Parts completion remains an RFT gate, not an entry gate for Tint, Tyre or Sublet. Planning itself never moves a vehicle into a physical bay.
   const now = nowIsoString();
   const candidate = {
-    ...(existing || {}),
+    ...requestedCandidate,
     id: existing?.id || workshopPlanId(vehicleKey(vehicle), normalizedStage),
     vehicleKey: vehicleKey(vehicle),
     stage: normalizedStage,
     bay: Number(bay),
-    startAt: start.toISOString(),
-    hours,
-    assignee: assigneeValue === null
-      ? existing?.assignee || workshopBayMechanic(normalizedStage, bay) || pmbBayMechanic(vehicle) || ''
-      : cleanNavisionText(assigneeValue || ''),
     status: 'planned',
     createdAt: existing?.createdAt || now,
     updatedAt: now,
@@ -2551,26 +2731,25 @@ async function saveWorkshopDetailForm(event) {
   if (!entry) return;
   const data = new FormData(form);
   const start = new Date(String(data.get('startAt') || entry.startAt || ''));
-  if (Number.isNaN(start.getTime()) || !workshopIsWorkday(start)) {
-    window.alert('Choose a Monday-to-Friday workshop date.');
+  if (Number.isNaN(start.getTime()) || !workshopIsConfiguredWorkingDay(start)) {
+    window.alert('Choose a date in the configured workshop working week.');
     return;
   }
-  const offset = workshopMinuteOffset(start);
-  if (offset < 0 || offset >= WORKSHOP_DAY_MINUTES) {
-    window.alert('Workshop start times must be between 8:00am and 3:45pm.');
-    return;
-  }
-  const startMinutes = workshopClampStartMinutes(offset);
-  start.setHours(WORKSHOP_START_HOUR, 0, 0, 0);
-  start.setMinutes(startMinutes);
-  const requestedHours = Number(data.get('hours') || entry.hours || WORKSHOP_DEFAULT_HOURS);
+  const normalizedStart = new Date(start);
+  const requestedHours = Number(data.get('hours') || entry.hours || workshopDefaultBookingHours());
   if (!Number.isFinite(requestedHours) || requestedHours <= 0) {
     window.alert('Enter planned hours greater than zero. There is no maximum workshop duration.');
     return;
   }
   const nextAssignee = cleanNavisionText(data.get('assignee') || '');
+  if (!workshopRequireSchedulableCandidate({
+    ...entry,
+    startAt: normalizedStart.toISOString(),
+    hours: requestedHours,
+    assignee: nextAssignee,
+  })) return;
   if (workshopSharedModeActive()) {
-    const nextStartAt = ['started', 'stoppage'].includes(entry.status) ? entry.startAt : start.toISOString();
+    const nextStartAt = ['started', 'stoppage'].includes(entry.status) ? entry.startAt : normalizedStart.toISOString();
     const nextDurationMinutes = Math.round(workshopClampDurationHours(requestedHours) * 60);
     const moveResult = await workshopDispatchSharedAction('moveBooking', {
       bookingId: entry.sharedBookingId || entry.id,
@@ -2609,7 +2788,7 @@ async function saveWorkshopDetailForm(event) {
   }
   const candidate = {
     ...entry,
-    startAt: ['started', 'stoppage'].includes(entry.status) ? entry.startAt : start.toISOString(),
+    startAt: ['started', 'stoppage'].includes(entry.status) ? entry.startAt : normalizedStart.toISOString(),
     hours: workshopClampDurationHours(requestedHours),
     assignee: nextAssignee,
     updatedAt: nowIsoString(),
@@ -2973,10 +3152,10 @@ function startWorkshopResize(handle, event) {
   const originalHours = workshopClampDurationHours(entry.hours);
   const segment = workshopEntrySegmentForDate(entry, workshopState().date);
   const onMove = moveEvent => {
-    const deltaMinutes = workshopSnapMinutes(((moveEvent.clientX - originX) / Math.max(1, lane.getBoundingClientRect().width)) * WORKSHOP_DAY_MINUTES);
+    const deltaMinutes = workshopSnapMinutes(((moveEvent.clientX - originX) / Math.max(1, lane.getBoundingClientRect().width)) * WORKSHOP_PLANNER_CONFIG.dayLengthMinutes);
     const hours = workshopClampDurationHours(originalHours + deltaMinutes / 60);
-    const visibleMinutes = Math.min(WORKSHOP_DAY_MINUTES - (segment?.start || 0), hours * 60);
-    chip.style.setProperty('--plan-width', `${(visibleMinutes / WORKSHOP_DAY_MINUTES) * 100}%`);
+    const visibleMinutes = Math.min(WORKSHOP_PLANNER_CONFIG.dayLengthMinutes - (segment?.start || 0), hours * 60);
+    chip.style.setProperty('--plan-width', `${(visibleMinutes / WORKSHOP_PLANNER_CONFIG.dayLengthMinutes) * 100}%`);
     chip.dataset.previewHours = String(hours);
   };
   const onUp = async () => {
@@ -3049,12 +3228,12 @@ function workshopWeeklyCardHtml(entry = {}, dateKey = '') {
   const vehicle = workshopVehicle(entry.vehicleKey);
   const segment = workshopEntrySegmentForDate(entry, dateKey);
   if (!vehicle || !segment) return '';
-  const top = (segment.start / WORKSHOP_DAY_MINUTES) * 100;
-  const height = ((segment.end - segment.start) / WORKSHOP_DAY_MINUTES) * 100;
+  const top = (segment.start / WORKSHOP_PLANNER_CONFIG.dayLengthMinutes) * 100;
+  const height = ((segment.end - segment.start) / WORKSHOP_PLANNER_CONFIG.dayLengthMinutes) * 100;
   const draggable = entry.status !== 'completed';
   const assignee = cleanNavisionText(entry.assignee || '') || workshopBayMechanic(entry.stage, entry.bay) || '';
   const statusLabel = entry.status === 'stoppage' ? 'STOPPAGE' : entry.status === 'started' ? 'LIVE' : 'PLANNED';
-  return `<article class="workshop-week-card ${entry.status !== 'planned' ? 'is-live' : ''}" ${draggable ? 'draggable="true"' : ''} data-workshop-week-plan="${escapeHtml(entry.id)}" data-workshop-job-vehicle="${escapeHtml(entry.vehicleKey)}" style="--week-top:${top}%;--week-height:${height}%;" title="${escapeHtml(`${workshopEntryTimeLabel(entry)} · ${entry.hours} hours${entry.status === 'completed' ? ' · completed history stays fixed' : entry.status === 'planned' ? ' · drag to another day/time' : ' · drag to move this live job safely'}`)}">
+  return `<article class="workshop-week-card ${entry.status !== 'planned' ? 'is-live' : ''} ${segment.usesConfiguredOvertime ? 'uses-configured-overtime' : ''} ${segment.historicalOnClosure ? 'historical-on-closure' : ''}" ${draggable ? 'draggable="true"' : ''} data-workshop-week-plan="${escapeHtml(entry.id)}" data-workshop-job-vehicle="${escapeHtml(entry.vehicleKey)}" style="--week-top:${top}%;--week-height:${height}%;" title="${escapeHtml(`${workshopEntryTimeLabel(entry)} · ${entry.hours} hours${segment.usesConfiguredOvertime ? ' · configured overtime' : ''}${segment.historicalOnClosure ? ' · historical booking on closure' : ''}${entry.status === 'completed' ? ' · completed history stays fixed' : entry.status === 'planned' ? ' · drag to another day/time' : ' · drag to move this live job safely'}`)}">
     <strong>JC ${escapeHtml(vehicleJobcardNumber(vehicle) || 'TBA')}</strong>
     <span>${escapeHtml(vehicle.vehicle || vehicle.toyotaVehicle || 'Vehicle')}</span>
     <small>${escapeHtml(`${statusLabel}${assignee ? ` · ${assignee}` : ''}`)}</small>
@@ -3063,9 +3242,10 @@ function workshopWeeklyCardHtml(entry = {}, dateKey = '') {
 }
 
 function workshopWeeklyTimeGuideHtml() {
-  return Array.from({ length: 5 }, (_, index) => {
+  const tickCount = Math.floor(WORKSHOP_PLANNER_CONFIG.dayLengthMinutes / 120) + 1;
+  return Array.from({ length: tickCount }, (_, index) => {
     const minutes = index * 120;
-    return `<span style="top:${(minutes / WORKSHOP_DAY_MINUTES) * 100}%">${escapeHtml(workshopTimeLabelFromMinutes(minutes))}</span>`;
+    return `<span style="top:${(minutes / WORKSHOP_PLANNER_CONFIG.dayLengthMinutes) * 100}%">${escapeHtml(workshopTimeLabelFromMinutes(minutes))}</span>`;
   }).join('');
 }
 
@@ -3132,14 +3312,15 @@ function openWorkshopWeeklyView(stage = '', bay = 1, anchorDate = '') {
   const plans = workshopCascadeAndSave(workshopLoadPlans()).filter(entry => entry.stage === normalizedStage && Number(entry.bay) === Number(bay) && entry.status !== 'completed');
   const columns = dates.map(date => {
     const dateKey = workshopDateKey(date);
+    const isClosure = workshopIsClosureDate(date);
     const dayPlans = plans.filter(entry => workshopEntrySegmentForDate(entry, dateKey));
     const bookedHours = dayPlans.reduce((sum, entry) => {
       const segment = workshopEntrySegmentForDate(entry, dateKey);
       return sum + (segment ? (segment.end - segment.start) / 60 : 0);
     }, 0);
-    return `<section class="workshop-week-day">
-      <header><strong>${escapeHtml(date.toLocaleDateString('en-AU', { weekday: 'short' }))}</strong><span>${escapeHtml(date.toLocaleDateString('en-AU', { day: '2-digit', month: '2-digit' }))}</span><small>${escapeHtml(bookedHours.toFixed(bookedHours % 1 ? 1 : 0))}/8h booked</small></header>
-      <div class="workshop-week-day-lane" data-workshop-week-drop-date="${escapeHtml(dateKey)}">${workshopWeeklyTimeGuideHtml()}${workshopDropPreviewHtml({ vertical: true })}${dayPlans.map(entry => workshopWeeklyCardHtml(entry, dateKey)).join('')}</div>
+    return `<section class="workshop-week-day ${isClosure ? 'is-closure' : ''}">
+      <header><strong>${escapeHtml(date.toLocaleDateString('en-AU', { weekday: 'short' }))}</strong><span>${escapeHtml(date.toLocaleDateString('en-AU', { day: '2-digit', month: '2-digit' }))}</span><small>${isClosure ? 'CLOSED · historical bookings remain visible' : `${escapeHtml(bookedHours.toFixed(bookedHours % 1 ? 1 : 0))}h booked`}</small></header>
+      <div class="workshop-week-day-lane" ${isClosure ? 'aria-disabled="true"' : `data-workshop-week-drop-date="${escapeHtml(dateKey)}"`}>${workshopWeeklyTimeGuideHtml()}${isClosure ? '' : workshopDropPreviewHtml({ vertical: true })}${dayPlans.map(entry => workshopWeeklyCardHtml(entry, dateKey)).join('')}</div>
     </section>`;
   }).join('');
   const overlay = document.createElement('div');
@@ -3149,21 +3330,25 @@ function openWorkshopWeeklyView(stage = '', bay = 1, anchorDate = '') {
   overlay.setAttribute('aria-modal', 'true');
   overlay.innerHTML = `<section class="modal-card workshop-week-card-shell">
     <button class="modal-close" type="button" data-workshop-week-close aria-label="Close weekly view">×</button>
-    <header class="workshop-week-header"><div><h2>${escapeHtml(pmbStageLabel(normalizedStage))} · Bay ${escapeHtml(bay)} weekly schedule</h2><p>${escapeHtml(dates[0].toLocaleDateString('en-AU', { day: 'numeric', month: 'long' }))}–${escapeHtml(dates[4].toLocaleDateString('en-AU', { day: 'numeric', month: 'long', year: 'numeric' }))} · drag a minimised booking to another day or time</p></div><div><button class="small-button" type="button" data-workshop-week-shift="-5">‹ Previous week</button><button class="small-button" type="button" data-workshop-week-shift="5">Next week ›</button></div></header>
-    <div class="workshop-week-grid">${columns}</div>
-    <footer><span>Planned jobs snap to 15 minutes and update the daily board immediately. Started and stoppage jobs can also be moved safely, with audit and bay-state updates. Completed jobs stay fixed.</span><button class="primary" type="button" data-workshop-week-close>Done</button></footer>
+    <header class="workshop-week-header"><div><h2>${escapeHtml(pmbStageLabel(normalizedStage))} · Bay ${escapeHtml(bay)} weekly schedule</h2><p>${escapeHtml(dates[0].toLocaleDateString('en-AU', { day: 'numeric', month: 'long' }))}–${escapeHtml(dates[dates.length - 1].toLocaleDateString('en-AU', { day: 'numeric', month: 'long', year: 'numeric' }))} · drag a minimised booking to another day or time</p></div><div><button class="small-button" type="button" data-workshop-week-shift="-7">‹ Previous week</button><button class="small-button" type="button" data-workshop-week-shift="7">Next week ›</button></div></header>
+    <div class="workshop-week-grid" style="--workshop-week-columns:${dates.length};min-width:${Math.max(620, dates.length * 200)}px">${columns}</div>
+    <footer><span>Planned jobs snap to ${escapeHtml(WORKSHOP_PLANNER_CONFIG.schedulingIncrementMinutes)} minutes and update the daily board immediately. Closures are read-only; historical bookings remain visible. Started and stoppage jobs can also be moved safely, with audit and bay-state updates. Completed jobs stay fixed.</span><button class="primary" type="button" data-workshop-week-close>Done</button></footer>
   </section>`;
   const close = () => {
     overlay.remove();
     if (!document.querySelector('.modal-overlay')) document.body.classList.remove('modal-open');
   };
   overlay.querySelectorAll('[data-workshop-week-close]').forEach(button => button.addEventListener('click', close));
-  overlay.querySelectorAll('[data-workshop-week-shift]').forEach(button => button.addEventListener('click', () => openWorkshopWeeklyView(normalizedStage, bay, workshopShiftWorkday(weekStart, Number(button.dataset.workshopWeekShift)))));
+  overlay.querySelectorAll('[data-workshop-week-shift]').forEach(button => button.addEventListener('click', () => {
+    const nextWeek = new Date(weekStart);
+    nextWeek.setDate(nextWeek.getDate() + Number(button.dataset.workshopWeekShift));
+    openWorkshopWeeklyView(normalizedStage, bay, nextWeek);
+  }));
   overlay.querySelectorAll('[data-workshop-week-plan][draggable="true"]').forEach(card => card.addEventListener('dragstart', event => {
     event.dataTransfer.effectAllowed = 'move';
     event.dataTransfer.setData('application/x-workshop-plan-id', card.dataset.workshopWeekPlan);
     const entry = workshopLoadPlans().find(row => row.id === card.dataset.workshopWeekPlan);
-    workshopSetDragPreview({ type: 'week-plan', hours: workshopClampDurationHours(entry?.hours) || WORKSHOP_DEFAULT_HOURS });
+    workshopSetDragPreview({ type: 'week-plan', hours: workshopClampDurationHours(entry?.hours) || workshopDefaultBookingHours() });
   }));
   overlay.querySelectorAll('[data-workshop-week-plan][draggable="true"]').forEach(card => card.addEventListener('dragend', () => {
     workshopSetDragPreview(null);
@@ -3174,7 +3359,7 @@ function openWorkshopWeeklyView(stage = '', bay = 1, anchorDate = '') {
       event.preventDefault();
       lane.classList.add('drag-over');
       const rect = lane.getBoundingClientRect();
-      const startMinutes = workshopClampStartMinutes(((event.clientY - rect.top) / Math.max(1, rect.height)) * WORKSHOP_DAY_MINUTES);
+      const startMinutes = workshopClampStartMinutes(((event.clientY - rect.top) / Math.max(1, rect.height)) * WORKSHOP_PLANNER_CONFIG.dayLengthMinutes);
       workshopUpdateLanePreview(lane, startMinutes);
     });
     lane.addEventListener('dragleave', event => {
@@ -3188,7 +3373,7 @@ function openWorkshopWeeklyView(stage = '', bay = 1, anchorDate = '') {
       lane.classList.remove('drag-over');
       const planId = event.dataTransfer.getData('application/x-workshop-plan-id');
       const rect = lane.getBoundingClientRect();
-      const fallbackStartMinutes = workshopClampStartMinutes(((event.clientY - rect.top) / Math.max(1, rect.height)) * WORKSHOP_DAY_MINUTES);
+      const fallbackStartMinutes = workshopClampStartMinutes(((event.clientY - rect.top) / Math.max(1, rect.height)) * WORKSHOP_PLANNER_CONFIG.dayLengthMinutes);
       const previewMinutes = Number(lane.dataset.workshopRequestedStartMinutes);
       const rememberedTarget = workshopCurrentDropTarget();
       const targetStage = lane.dataset.workshopWeekDropStage || normalizedStage;
@@ -3369,8 +3554,8 @@ function updateWorkshopNowLine(root = document) {
   if (!visible) return;
   const timelineRect = timeline.getBoundingClientRect();
   const axisRect = axis.getBoundingClientRect();
-  const clampedOffset = Math.min(Math.max(offset, 0), WORKSHOP_DAY_MINUTES);
-  const left = axisRect.left - timelineRect.left + (clampedOffset / WORKSHOP_DAY_MINUTES) * axisRect.width;
+  const clampedOffset = Math.min(Math.max(offset, 0), WORKSHOP_PLANNER_CONFIG.dayLengthMinutes);
+  const left = axisRect.left - timelineRect.left + (clampedOffset / WORKSHOP_PLANNER_CONFIG.dayLengthMinutes) * axisRect.width;
   line.style.left = `${Math.round(left)}px`;
   line.querySelector('span').textContent = `Now ${now.toLocaleTimeString('en-AU', { hour: 'numeric', minute: '2-digit' })}`;
 }
@@ -3385,9 +3570,14 @@ if (typeof window !== 'undefined' && !window.__workshopPlannerStorageSyncBound) 
 
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
-    WORKSHOP_DAY_MINUTES,
     WORKSHOP_STAGE_SEQUENCE,
+    workshopClockMinutes,
+    workshopSetClock,
+    workshopConfigurationFromRows,
+    workshopConfigurationAllowsNewScheduling,
     workshopSyncConfigFromSharedSettings,
+    workshopIsConfiguredWorkingDay,
+    workshopIsClosureDate,
     workshopIsWorkday,
     workshopCoerceWorkDate,
     workshopShiftWorkday,
@@ -3398,6 +3588,10 @@ if (typeof module !== 'undefined' && module.exports) {
     workshopClampStartMinutes,
     workshopClampDurationHours,
     workshopIntervalsOverlap,
+    workshopAvailabilityWindowsForDate,
+    workshopBreakWindowsForDate,
+    workshopNewBookingValidation,
+    workshopTechnicianIsOnLeave,
     workshopHasConflict,
     workshopRequireNoBayConflict,
     workshopResolveConflictByNextSlot,
@@ -3409,6 +3603,9 @@ if (typeof module !== 'undefined' && module.exports) {
     workshopWorkMinutesBetween,
     workshopCascadePlans,
     workshopEntrySegmentForDate,
+    workshopEntryStart,
+    workshopEntryEnd,
+    workshopEntryUsesConfiguredOvertime,
     workshopEntryIsOvertime,
     workshopEntryHasAssigneeConflict,
     workshopAssigneeConflict,
@@ -3443,21 +3640,8 @@ if (typeof module !== 'undefined' && module.exports) {
     workshopDateAtOffset,
     workshopMinuteOffset,
   };
-
-  // Independent-review remediation (finding 1): WORKSHOP_START_HOUR,
-  // WORKSHOP_END_HOUR, WORKSHOP_DEFAULT_HOURS and WORKSHOP_WORKDAYS are
-  // mutable (`let`) module-level bindings that
-  // workshopSyncConfigFromSharedSettings() reassigns at runtime. A
-  // plain object-literal export above would have captured each
-  // primitive's VALUE once at require() time, so callers (including
-  // this file's own test suite) would never see a later live update.
-  // Defined as getters instead so every read reflects the current
-  // value.
   Object.defineProperties(module.exports, {
-    WORKSHOP_START_HOUR: { enumerable: true, get: () => WORKSHOP_START_HOUR },
-    WORKSHOP_END_HOUR: { enumerable: true, get: () => WORKSHOP_END_HOUR },
-    WORKSHOP_DEFAULT_HOURS: { enumerable: true, get: () => WORKSHOP_DEFAULT_HOURS },
-    WORKSHOP_SNAP_MINUTES: { enumerable: true, get: () => WORKSHOP_SNAP_MINUTES },
-    WORKSHOP_WORKDAYS: { enumerable: true, get: () => WORKSHOP_WORKDAYS },
+    WORKSHOP_CONFIG: { enumerable: true, get: () => WORKSHOP_PLANNER_CONFIG },
+    WORKSHOP_CONFIG_AUTHORITY: { enumerable: true, get: () => WORKSHOP_CONFIG_AUTHORITY },
   });
 }

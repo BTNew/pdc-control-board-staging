@@ -660,6 +660,16 @@ body[data-current-view="workshop"] .content {
 
 .workshop-plan-chip.is-overtime > button,
 .workshop-plan-chip.is-overtime small { color: #fff !important; }
+.workshop-plan-chip.uses-configured-overtime,
+.workshop-week-card.uses-configured-overtime {
+  border: 3px solid #7c3aed;
+  box-shadow: inset 0 0 0 2px rgba(196,181,253,.65);
+}
+.workshop-plan-chip.historical-on-closure,
+.workshop-week-card.historical-on-closure {
+  background-image: repeating-linear-gradient(135deg, rgba(100,116,139,.18) 0 7px, transparent 7px 14px);
+  border-style: dashed;
+}
 .workshop-plan-chip.continues-from-previous { border-left-style: double; border-left-width: 8px; }
 .workshop-plan-chip.continues-next { border-right: 5px double #1d4ed8; }
 
@@ -817,7 +827,9 @@ body[data-current-view="workshop"] .content {
 .workshop-week-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; margin-bottom: 10px; }
 .workshop-week-header h2 { margin: 0 0 4px; }
 .workshop-week-header > div:last-child { display: flex; gap: 6px; padding-right: 32px; }
-.workshop-week-grid { display: grid; grid-template-columns: repeat(5, minmax(190px, 1fr)); gap: 6px; min-width: 1040px; }
+.workshop-week-grid { display: grid; grid-template-columns: repeat(var(--workshop-week-columns, 5), minmax(190px, 1fr)); gap: 6px; min-width: 1040px; }
+.workshop-week-day.is-closure > header { background: #e2e8f0; color: #334155; }
+.workshop-week-day.is-closure .workshop-week-day-lane { background: repeating-linear-gradient(135deg, #f8fafc 0 10px, #e2e8f0 10px 20px); }
 .workshop-week-day { min-width: 0; border: 1px solid #94a3b8; background: #fff; }
 .workshop-week-day > header { display: grid; grid-template-columns: auto 1fr; gap: 2px 6px; align-items: center; min-height: 48px; padding: 6px 8px; border-bottom: 1px solid #94a3b8; background: #dbeafe; }
 .workshop-week-day > header strong { color: #0f172a; font-size: .78rem; }

@@ -40,6 +40,21 @@ function withGlobals(overrides, fn) {
   }
 }
 
+function completeConfigurationRows(overrides = {}) {
+  return {
+    day_start_time: { value: '08:00' },
+    day_end_time: { value: '16:00' },
+    scheduling_increment_minutes: { value: 15 },
+    default_booking_duration_minutes: { value: 180 },
+    working_week: { value: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'] },
+    closures: { value: [] },
+    break_windows: { value: [] },
+    overtime_windows: { value: [] },
+    technician_leave: { value: [] },
+    ...overrides,
+  };
+}
+
 // 1. No window at all (Node test context, no shared globals defined):
 //    workshopSharedModeActive() must return a falsy value, never throw.
 {
@@ -411,8 +426,8 @@ console.log('Workshop planner shared-mode integration seam checks passed');
 // an individual value fails validation (never silently reset to the
 // hard-coded boot default after a valid value was already active).
 {
-  const originalStart = planner.WORKSHOP_START_HOUR;
-  const originalEnd = planner.WORKSHOP_END_HOUR;
+  const originalStart = planner.WORKSHOP_CONFIG.dayStartMinutes;
+  const originalEnd = planner.WORKSHOP_CONFIG.dayEndMinutes;
 
   // 15a. Cache not ready (e.g. still loading) -- must return false and
   // change nothing.
@@ -431,23 +446,23 @@ console.log('Workshop planner shared-mode integration seam checks passed');
     __workshopReferenceDataService: {
       getCachedWorkshopConfiguration: () => ({
         state: 'connected_read_only',
-        rows: {
+        rows: completeConfigurationRows({
           day_start_time: { value: '07:30' },
           day_end_time: { value: '15:30' },
           scheduling_increment_minutes: { value: 30 },
           default_booking_duration_minutes: { value: 240 },
           working_week: { value: ['Monday', 'Tuesday', 'Wednesday'] },
-        },
+        }),
       }),
     },
   }, () => {
     const changed = planner.workshopSyncConfigFromSharedSettings();
     assert.strictEqual(changed, true, '15b a genuinely different valid configuration must report a change');
-    assert.strictEqual(planner.WORKSHOP_START_HOUR, 7.5, '15b day_start_time 07:30 must become WORKSHOP_START_HOUR 7.5');
-    assert.strictEqual(planner.WORKSHOP_END_HOUR, 15.5, '15b day_end_time 15:30 must become WORKSHOP_END_HOUR 15.5');
-    assert.strictEqual(planner.WORKSHOP_SNAP_MINUTES, 30, '15b scheduling_increment_minutes 30 must become WORKSHOP_SNAP_MINUTES 30');
-    assert.strictEqual(planner.WORKSHOP_DEFAULT_HOURS, 4, '15b default_booking_duration_minutes 240 must become WORKSHOP_DEFAULT_HOURS 4');
-    assert.deepStrictEqual(planner.WORKSHOP_WORKDAYS, [1, 2, 3], '15b working_week [Monday,Tuesday,Wednesday] must become WORKSHOP_WORKDAYS [1,2,3]');
+    assert.strictEqual(planner.WORKSHOP_CONFIG.dayStartMinutes, 450, '15b day_start_time 07:30 must become dayStartMinutes 450');
+    assert.strictEqual(planner.WORKSHOP_CONFIG.dayEndMinutes, 930, '15b day_end_time 15:30 must become dayEndMinutes 930');
+    assert.strictEqual(planner.WORKSHOP_CONFIG.schedulingIncrementMinutes, 30, '15b scheduling_increment_minutes 30 must become schedulingIncrementMinutes 30');
+    assert.strictEqual(planner.WORKSHOP_CONFIG.defaultBookingDurationMinutes, 240, '15b default_booking_duration_minutes 240 must become defaultBookingDurationMinutes 240');
+    assert.deepStrictEqual(planner.WORKSHOP_CONFIG.workingDayIndexes, [1, 2, 3], '15b working_week [Monday,Tuesday,Wednesday] must become workingDayIndexes [1,2,3]');
   });
 
   // 15b2. A successful administrator write places the same cache in the
@@ -458,20 +473,20 @@ console.log('Workshop planner shared-mode integration seam checks passed');
     __workshopReferenceDataService: {
       getCachedWorkshopConfiguration: () => ({
         state: 'connected_editable',
-        rows: {
+        rows: completeConfigurationRows({
           day_start_time: { value: '08:00' },
           day_end_time: { value: '16:00' },
           scheduling_increment_minutes: { value: 15 },
           default_booking_duration_minutes: { value: 180 },
           working_week: { value: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'] },
-        },
+        }),
       }),
     },
   }, () => {
     const changed = planner.workshopSyncConfigFromSharedSettings();
     assert.strictEqual(changed, true, '15b2 connected_editable must be accepted as an authoritative cache state');
-    assert.strictEqual(planner.WORKSHOP_START_HOUR, 8, '15b2 editable state must apply day_start_time');
-    assert.strictEqual(planner.WORKSHOP_DEFAULT_HOURS, 3, '15b2 editable state must apply default duration');
+    assert.strictEqual(planner.WORKSHOP_CONFIG.dayStartMinutes, 480, '15b2 editable state must apply day_start_time');
+    assert.strictEqual(planner.WORKSHOP_CONFIG.defaultBookingDurationMinutes, 180, '15b2 editable state must apply default duration');
   });
 
   // 15c. Malformed/invalid values (start after end, non-string time,
@@ -481,27 +496,27 @@ console.log('Workshop planner shared-mode integration seam checks passed');
     __workshopReferenceDataService: {
       getCachedWorkshopConfiguration: () => ({
         state: 'connected_editable',
-        rows: {
+        rows: completeConfigurationRows({
           day_start_time: { value: '20:00' },
           day_end_time: { value: '08:00' }, // end before start -- must be ignored
           scheduling_increment_minutes: { value: -5 }, // negative -- must be ignored
           default_booking_duration_minutes: { value: 'banana' }, // not a number -- must be ignored
           working_week: { value: [] }, // empty -- must be ignored
-        },
+        }),
       }),
     },
   }, () => {
-    const before = { start: planner.WORKSHOP_START_HOUR, end: planner.WORKSHOP_END_HOUR, snap: planner.WORKSHOP_SNAP_MINUTES, hours: planner.WORKSHOP_DEFAULT_HOURS, days: [...planner.WORKSHOP_WORKDAYS] };
+    const before = { start: planner.WORKSHOP_CONFIG.dayStartMinutes, end: planner.WORKSHOP_CONFIG.dayEndMinutes, snap: planner.WORKSHOP_CONFIG.schedulingIncrementMinutes, hours: planner.WORKSHOP_CONFIG.defaultBookingDurationMinutes, days: [...planner.WORKSHOP_CONFIG.workingDayIndexes] };
     const changed = planner.workshopSyncConfigFromSharedSettings();
     assert.strictEqual(changed, false, '15c an entirely-invalid configuration must report no change');
-    assert.strictEqual(planner.WORKSHOP_START_HOUR, before.start, '15c invalid start/end (end before start) must not change WORKSHOP_START_HOUR');
-    assert.strictEqual(planner.WORKSHOP_END_HOUR, before.end, '15c invalid start/end (end before start) must not change WORKSHOP_END_HOUR');
-    assert.strictEqual(planner.WORKSHOP_SNAP_MINUTES, before.snap, '15c a negative increment must not change WORKSHOP_SNAP_MINUTES');
-    assert.strictEqual(planner.WORKSHOP_DEFAULT_HOURS, before.hours, '15c a non-numeric duration must not change WORKSHOP_DEFAULT_HOURS');
-    assert.deepStrictEqual(planner.WORKSHOP_WORKDAYS, before.days, '15c an empty working_week must not change WORKSHOP_WORKDAYS');
+    assert.strictEqual(planner.WORKSHOP_CONFIG.dayStartMinutes, before.start, '15c invalid start/end (end before start) must not change dayStartMinutes');
+    assert.strictEqual(planner.WORKSHOP_CONFIG.dayEndMinutes, before.end, '15c invalid start/end (end before start) must not change dayEndMinutes');
+    assert.strictEqual(planner.WORKSHOP_CONFIG.schedulingIncrementMinutes, before.snap, '15c a negative increment must not change schedulingIncrementMinutes');
+    assert.strictEqual(planner.WORKSHOP_CONFIG.defaultBookingDurationMinutes, before.hours, '15c a non-numeric duration must not change defaultBookingDurationMinutes');
+    assert.deepStrictEqual(planner.WORKSHOP_CONFIG.workingDayIndexes, before.days, '15c an empty working_week must not change workingDayIndexes');
   });
 
-  console.log('PASS 15: workshopSyncConfigFromSharedSettings() applies valid shared configuration to live planner constants and ignores invalid/not-ready values without silently reverting to boot defaults');
+  console.log('PASS 15: workshopSyncConfigFromSharedSettings() applies valid shared integer-minute configuration and fails closed on invalid/not-ready values without reverting to boot defaults');
 }
 
 // 16. Independent-review remediation (finding 2 & 3): in shared mode,

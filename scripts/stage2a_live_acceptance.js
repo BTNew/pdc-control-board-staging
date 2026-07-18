@@ -8,6 +8,7 @@ const PROD_REF = 'vjdtsswhroyguxyfjdkt';
 const EXPECTED_STAGING_REF = 'cdsmnqxtyyoeoznmbidd';
 const CHROME = process.env.PDC_CHROME_EXECUTABLE || 'C:/Program Files/Google/Chrome/Application/chrome.exe';
 const OUT = process.env.PDC_ACCEPTANCE_OUTPUT || 'two-browser-realtime-acceptance.json';
+const SYNTHETIC_CLOSURE_DATE = '2099-01-05'; // Monday, synthetic and fully restored.
 
 function required(name) {
   const value = String(process.env[name] || '').trim();
@@ -32,27 +33,63 @@ async function login(page, email, password) {
   await page.waitForFunction(() => window.__workshopReferenceDataService && window.PDC_AUTH_CONTEXT?.role, null, { timeout: 30000 });
   await page.waitForFunction(() => {
     const cached = window.__workshopReferenceDataService?.getCachedWorkshopConfiguration?.();
-    return ['connected_read_only', 'connected_editable'].includes(cached?.state) && cached?.rows?.default_booking_duration_minutes;
+    return ['connected_read_only', 'connected_editable'].includes(cached?.state)
+      && cached?.rows?.day_start_time && cached?.rows?.closures;
   }, null, { timeout: 30000 });
   await page.waitForFunction(() => {
     const channels = window.PDC_SUPABASE?.getChannels?.() || [];
-    return channels.filter(channel => channel.topic?.startsWith('realtime:pdc-reference-')).length === 5
-      && channels.filter(channel => channel.topic?.startsWith('realtime:pdc-reference-')).every(channel => channel.state === 'joined');
+    const reference = channels.filter(channel => channel.topic?.startsWith('realtime:pdc-reference-'));
+    return reference.length === 5 && reference.every(channel => channel.state === 'joined');
   }, null, { timeout: 30000 });
 }
 
-async function cachedConfig(page) {
+async function cacheSnapshot(page) {
   return page.evaluate(() => {
     const cached = window.__workshopReferenceDataService.getCachedWorkshopConfiguration();
     return {
       state: cached.state,
       role: window.PDC_AUTH_CONTEXT?.role || null,
-      defaultDuration: cached.rows.default_booking_duration_minutes,
+      dayStart: cached.rows.day_start_time,
+      closures: cached.rows.closures,
       currentView: typeof app !== 'undefined' ? app.currentView : null,
       versionText: document.getElementById('app-version')?.textContent || null,
-      workshopBanner: document.querySelector('.workshop-connection-banner')?.textContent?.trim() || null,
     };
   });
+}
+
+async function updateSetting(page, key, version, value) {
+  const result = await page.evaluate(async args => {
+    return window.__workshopReferenceDataService.updateWorkshopConfiguration(args.key, args.version, args.value);
+  }, { key, version, value });
+  if (!result?.ok) throw new Error(`Administrator ${key} update failed: ${JSON.stringify(result)}`);
+  return result;
+}
+
+async function waitForSetting(page, key, predicateArgs, predicateSource) {
+  await page.waitForFunction(({ key: settingKey, predicateArgs: args, predicateSource: source }) => {
+    const row = window.__workshopReferenceDataService?.getCachedWorkshopConfiguration?.()?.rows?.[settingKey];
+    if (!row) return false;
+    // Predicate source is defined locally by this trusted harness, not external input.
+    return Function('row', 'args', `return (${source})(row, args);`)(row, args);
+  }, { key, predicateArgs, predicateSource }, { timeout: 30000 });
+}
+
+async function renderSyntheticWeek(page) {
+  return page.evaluate(dateKey => {
+    workshopSyncConfigFromSharedSettings();
+    const state = workshopPlannerState();
+    state.mode = 'weekly';
+    state.weekStart = dateKey;
+    renderWorkshopPlanner();
+    const closure = document.querySelector(`.workshop-week-day.is-closure [data-workshop-week-date="${dateKey}"]`);
+    return {
+      configuredDayStartMinutes: WORKSHOP_PLANNER_CONFIG.dayStartMinutes,
+      firstAxisLabel: document.querySelector('.workshop-time-axis span')?.textContent?.trim() || null,
+      closureRendered: Boolean(closure),
+      closureHeader: closure?.closest('.workshop-week-day')?.querySelector('header')?.textContent?.trim() || null,
+      closureDroppable: Boolean(document.querySelector(`.workshop-week-day.is-closure [data-workshop-week-drop-date="${dateKey}"]`)),
+    };
+  }, SYNTHETIC_CLOSURE_DATE);
 }
 
 (async () => {
@@ -61,6 +98,7 @@ async function cachedConfig(page) {
   const pages = [await contexts[0].newPage(), await contexts[1].newPage()];
   const labels = ['Browser A (administrator)', 'Browser B (controller)'];
   const consoleErrors = [];
+  const cspErrors = [];
   const pageErrors = [];
   const failedRequests = [];
   const httpErrors = [];
@@ -69,7 +107,11 @@ async function cachedConfig(page) {
 
   pages.forEach((page, index) => {
     page.on('console', msg => {
-      if (msg.type() === 'error') consoleErrors.push({ browser: labels[index], text: msg.text() });
+      if (msg.type() === 'error') {
+        const item = { browser: labels[index], text: msg.text() };
+        consoleErrors.push(item);
+        if (/content security policy|csp/i.test(item.text)) cspErrors.push(item);
+      }
     });
     page.on('pageerror', err => pageErrors.push({ browser: labels[index], text: String(err) }));
     page.on('request', req => {
@@ -87,125 +129,118 @@ async function cachedConfig(page) {
   const controllerEmail = required('PDC_STAGING_CONTROLLER_A_EMAIL');
   const controllerPassword = required('PDC_STAGING_CONTROLLER_A_PASSWORD');
 
-  let original;
-  let alternate;
-  let changed;
-  let browserBObservedChange = false;
-  let browserBObservedRestore = false;
-  let restored;
-  let failure = null;
+  let originalStart;
+  let originalClosures;
+  let startVersion;
+  let closureVersion;
+  let startChanged = false;
+  let closureChanged = false;
+  let report;
 
   try {
     await login(pages[0], adminEmail, adminPassword);
     await login(pages[1], controllerEmail, controllerPassword);
-    // Supabase reports a channel as joined just before the server-side
-    // postgres_changes binding is consistently ready to receive the first
-    // event. Give both independent sockets a short settle window so the
-    // acceptance mutation cannot race that hand-off.
     await new Promise(resolve => setTimeout(resolve, 3000));
 
-    const beforeA = await cachedConfig(pages[0]);
-    const beforeB = await cachedConfig(pages[1]);
-    original = Number(beforeA.defaultDuration.value);
-    alternate = original === 195 ? 210 : 195;
-    const originalVersion = Number(beforeA.defaultDuration.version);
-    if (beforeB.defaultDuration.value !== beforeA.defaultDuration.value) throw new Error('Browsers did not start from the same configuration value');
+    const beforeA = await cacheSnapshot(pages[0]);
+    const beforeB = await cacheSnapshot(pages[1]);
+    if (beforeB.dayStart.value !== beforeA.dayStart.value) throw new Error('Browsers did not start from the same day_start_time');
 
-    changed = await pages[0].evaluate(async ({ value, version }) => {
-      return window.__workshopReferenceDataService.updateWorkshopConfiguration('default_booking_duration_minutes', version, value);
-    }, { value: alternate, version: originalVersion });
-    if (!changed?.ok) throw new Error(`Administrator update failed: ${JSON.stringify(changed)}`);
-    const changedVersion = Number(changed.setting.version);
+    originalStart = String(beforeA.dayStart.value);
+    originalClosures = JSON.parse(JSON.stringify(beforeA.closures.value || []));
+    startVersion = Number(beforeA.dayStart.version);
+    closureVersion = Number(beforeA.closures.version);
+    if (originalClosures.some(item => String(item?.date || item) === SYNTHETIC_CLOSURE_DATE)) {
+      throw new Error(`Synthetic closure date ${SYNTHETIC_CLOSURE_DATE} already exists; refusing to overwrite it`);
+    }
 
-    await pages[1].waitForFunction(({ value, minVersion }) => {
-      const row = window.__workshopReferenceDataService?.getCachedWorkshopConfiguration?.()?.rows?.default_booking_duration_minutes;
-      return Number(row?.value) === value && Number(row?.version) >= minVersion;
-    }, { value: alternate, minVersion: changedVersion }, { timeout: 30000 });
-    browserBObservedChange = true;
+    // Force an actual transition to 07:30 even if staging already begins there.
+    if (originalStart === '07:30') {
+      const intermediate = await updateSetting(pages[0], 'day_start_time', startVersion, '08:00');
+      startVersion = Number(intermediate.setting.version);
+      startChanged = true;
+      await waitForSetting(pages[1], 'day_start_time', { value: '08:00', version: startVersion }, '(row,args) => row.value === args.value && Number(row.version) >= args.version');
+    }
+    const startResult = await updateSetting(pages[0], 'day_start_time', startVersion, '07:30');
+    startVersion = Number(startResult.setting.version);
+    startChanged = true;
+    await waitForSetting(pages[1], 'day_start_time', { value: '07:30', version: startVersion }, '(row,args) => row.value === args.value && Number(row.version) >= args.version');
+    const afterStartB = await renderSyntheticWeek(pages[1]);
+    if (afterStartB.configuredDayStartMinutes !== 450 || afterStartB.firstAxisLabel !== '07:30') {
+      throw new Error(`Browser B did not render/use 07:30: ${JSON.stringify(afterStartB)}`);
+    }
 
-    restored = await pages[0].evaluate(async ({ value, version }) => {
-      return window.__workshopReferenceDataService.updateWorkshopConfiguration('default_booking_duration_minutes', version, value);
-    }, { value: original, version: changedVersion });
-    if (!restored?.ok) throw new Error(`Administrator restore failed: ${JSON.stringify(restored)}`);
-    const restoredVersion = Number(restored.setting.version);
+    const syntheticClosures = [...originalClosures, { date: SYNTHETIC_CLOSURE_DATE, label: 'Stage 2A synthetic acceptance closure' }];
+    const closureResult = await updateSetting(pages[0], 'closures', closureVersion, syntheticClosures);
+    closureVersion = Number(closureResult.setting.version);
+    closureChanged = true;
+    await waitForSetting(pages[1], 'closures', { date: SYNTHETIC_CLOSURE_DATE, version: closureVersion }, '(row,args) => Array.isArray(row.value) && row.value.some(item => String(item?.date || item) === args.date) && Number(row.version) >= args.version');
+    const afterClosureB = await renderSyntheticWeek(pages[1]);
+    if (!afterClosureB.closureRendered || afterClosureB.closureDroppable) {
+      throw new Error(`Browser B did not render a closed/non-droppable planner date: ${JSON.stringify(afterClosureB)}`);
+    }
 
-    await pages[1].waitForFunction(({ value, minVersion }) => {
-      const row = window.__workshopReferenceDataService?.getCachedWorkshopConfiguration?.()?.rows?.default_booking_duration_minutes;
-      return Number(row?.value) === value && Number(row?.version) >= minVersion;
-    }, { value: original, minVersion: restoredVersion }, { timeout: 30000 });
-    browserBObservedRestore = true;
+    // Restore both settings in reverse order and prove Browser B observes it.
+    const closureRestore = await updateSetting(pages[0], 'closures', closureVersion, originalClosures);
+    closureVersion = Number(closureRestore.setting.version);
+    closureChanged = false;
+    await waitForSetting(pages[1], 'closures', { date: SYNTHETIC_CLOSURE_DATE, version: closureVersion }, '(row,args) => Array.isArray(row.value) && !row.value.some(item => String(item?.date || item) === args.date) && Number(row.version) >= args.version');
 
-    const afterA = await cachedConfig(pages[0]);
-    const afterB = await cachedConfig(pages[1]);
+    const startRestore = await updateSetting(pages[0], 'day_start_time', startVersion, originalStart);
+    startVersion = Number(startRestore.setting.version);
+    startChanged = false;
+    await waitForSetting(pages[1], 'day_start_time', { value: originalStart, version: startVersion }, '(row,args) => row.value === args.value && Number(row.version) >= args.version');
+    const restoredB = await renderSyntheticWeek(pages[1]);
+
     const checks = {
       bothAuthenticated: beforeA.role === 'administrator' && beforeB.role === 'operator',
       bothOpenedWorkshop: beforeA.currentView === 'workshop' && beforeB.currentView === 'workshop',
-      bothReferenceServicesReady: ['connected_read_only', 'connected_editable'].includes(beforeA.state) && ['connected_read_only', 'connected_editable'].includes(beforeB.state),
-      administratorMutationSucceeded: changed?.ok === true,
-      browserBRealtimeObservedChange: browserBObservedChange,
-      restoreSucceeded: restored?.ok === true,
-      browserBRealtimeObservedRestore: browserBObservedRestore,
-      finalValuesMatchOriginal: Number(afterA.defaultDuration.value) === original && Number(afterB.defaultDuration.value) === original,
+      browserBRendered0730: afterStartB.configuredDayStartMinutes === 450 && afterStartB.firstAxisLabel === '07:30',
+      browserBBlockedSyntheticClosure: afterClosureB.closureRendered && !afterClosureB.closureDroppable,
+      closureRestored: !restoredB.closureRendered,
+      startTimeRestored: (await cacheSnapshot(pages[1])).dayStart.value === originalStart,
       noConsoleErrors: consoleErrors.length === 0,
+      noCspErrors: cspErrors.length === 0,
       noPageErrors: pageErrors.length === 0,
       noFailedRequests: failedRequests.length === 0,
       noHttpErrors: httpErrors.length === 0,
       noProductionRequests: productionRequests.length === 0,
-      stagingSupabaseContacted: [...requestHosts].includes('cdsmnqxtyyoeoznmbidd.supabase.co'),
+      stagingSupabaseContacted: [...requestHosts].includes(`${EXPECTED_STAGING_REF}.supabase.co`),
       stagingPageLoaded: [...requestHosts].includes('btnew.github.io'),
     };
-    const passed = Object.values(checks).every(Boolean);
-    const report = {
+    report = {
       runAt: new Date().toISOString(),
       url: STAGING_URL,
-      deploymentCommit: 'ee9d7419f3f1926ca9634dd4f49d314756ab4e7e',
-      browsers: [
-        { label: labels[0], account: 'administrator test account', role: beforeA.role, context: 'independent browser context' },
-        { label: labels[1], account: 'controller A test account', role: beforeB.role, context: 'independent browser context' },
-      ],
-      mutation: {
-        setting: 'default_booking_duration_minutes',
-        originalValue: original,
-        temporaryValue: alternate,
-        changedVersion: changed?.setting?.version || null,
-        restoredVersion: restored?.setting?.version || null,
-        restoredToOriginal: checks.finalValuesMatchOriginal,
-      },
+      deploymentCommit: process.env.PDC_STAGING_DEPLOYMENT_COMMIT || null,
+      appVersion: beforeA.versionText,
+      syntheticClosureDate: SYNTHETIC_CLOSURE_DATE,
+      plannerOutcomes: { afterStartB, afterClosureB, restoredB },
+      restored: { dayStartTime: originalStart, closures: originalClosures },
       checks,
-      consoleErrors,
-      pageErrors,
-      failedRequests,
-      httpErrors,
+      consoleErrors, cspErrors, pageErrors, failedRequests, httpErrors,
       productionRequests,
       requestHosts: [...requestHosts].sort(),
-      passed,
+      passed: Object.values(checks).every(Boolean),
     };
     fs.writeFileSync(OUT, JSON.stringify(report, null, 2) + '\n');
     console.log(JSON.stringify(report, null, 2));
-    if (!passed) process.exitCode = 1;
+    if (!report.passed) process.exitCode = 1;
   } catch (err) {
-    failure = String(err?.stack || err);
-    let emergencyRestore = null;
-    if (changed?.setting?.version && Number.isFinite(Number(original))) {
-      try {
-        emergencyRestore = await pages[0].evaluate(async ({ value, version }) => {
-          return window.__workshopReferenceDataService.updateWorkshopConfiguration('default_booking_duration_minutes', version, value);
-        }, { value: original, version: Number(changed.setting.version) });
-      } catch (restoreError) {
-        emergencyRestore = { ok: false, error: String(restoreError) };
-      }
+    const emergencyRestores = [];
+    if (closureChanged && Number.isFinite(closureVersion) && originalClosures) {
+      try { emergencyRestores.push(await updateSetting(pages[0], 'closures', closureVersion, originalClosures)); } catch (restoreError) { emergencyRestores.push({ ok: false, setting: 'closures', error: String(restoreError) }); }
     }
-    const browserSnapshots = [];
-    for (let index = 0; index < pages.length; index += 1) {
-      try {
-        browserSnapshots.push({ browser: labels[index], cache: await cachedConfig(pages[index]), channels: await pages[index].evaluate(() => window.PDC_SUPABASE?.getChannels?.().map(channel => ({ topic: channel.topic, state: channel.state })) || []) });
-      } catch (snapshotError) {
-        browserSnapshots.push({ browser: labels[index], error: String(snapshotError) });
-      }
+    if (startChanged && Number.isFinite(startVersion) && originalStart) {
+      try { emergencyRestores.push(await updateSetting(pages[0], 'day_start_time', startVersion, originalStart)); } catch (restoreError) { emergencyRestores.push({ ok: false, setting: 'day_start_time', error: String(restoreError) }); }
     }
-    const report = { runAt: new Date().toISOString(), url: STAGING_URL, failure, emergencyRestore, browserSnapshots, consoleErrors, pageErrors, failedRequests, httpErrors, productionRequests, requestHosts: [...requestHosts].sort(), passed: false };
+    report = {
+      runAt: new Date().toISOString(), url: STAGING_URL,
+      failure: String(err?.stack || err), emergencyRestores,
+      consoleErrors, cspErrors, pageErrors, failedRequests, httpErrors,
+      productionRequests, requestHosts: [...requestHosts].sort(), passed: false,
+    };
     fs.writeFileSync(OUT, JSON.stringify(report, null, 2) + '\n');
-    console.error(failure);
+    console.error(report.failure);
     process.exitCode = 1;
   } finally {
     await browser.close();

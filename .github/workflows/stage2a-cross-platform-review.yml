@@ -1,0 +1,46 @@
+name: Stage 2A cross-platform review
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  review-tests:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: python -m pip install -r requirements-review.txt
+      - name: JavaScript aggregate and integer-minute planner tests
+        run: |
+          node test_all.js
+          node test_workshop_planner_configuration.js
+          node test_workshop_reference_data_service.js
+      - name: Exact documented backend command
+        run: |
+          cd backend
+          python -m unittest \
+            test_arb_labor_catalog \
+            test_build_production_artifact \
+            test_build_review_export \
+            test_email_board_publisher \
+            test_email_intake_security \
+            test_static_publication_gate \
+            test_stage2a_final_remediation \
+            test_vehicle_intelligence_fixtures \
+            test_vehicle_order_email_monitor -v

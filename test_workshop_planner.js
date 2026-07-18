@@ -12,10 +12,10 @@ const css = fs.readFileSync(path.join(root, 'workshop-planner.css'), 'utf8');
 const globalCss = fs.readFileSync(path.join(root, 'styles.css'), 'utf8');
 const htmlFiles = ['index.html', 'no-vehicles.html', 'test-50.html', 'test-75.html', 'test-100.html'];
 
-assert.strictEqual(planner.WORKSHOP_START_HOUR, 8, 'Workshop must start at 8:00am');
-assert.strictEqual(planner.WORKSHOP_END_HOUR, 16, 'Workshop must finish at 4:00pm');
-assert.strictEqual(planner.WORKSHOP_DAY_MINUTES, 480, 'Workshop day should contain eight hours');
-assert.strictEqual(planner.WORKSHOP_DEFAULT_HOURS, 3, 'New planner bookings should default to three hours');
+assert.strictEqual(planner.WORKSHOP_CONFIG.dayStartMinutes, 480, 'Workshop boot config must start at integer minute 480');
+assert.strictEqual(planner.WORKSHOP_CONFIG.dayEndMinutes, 960, 'Workshop boot config must finish at integer minute 960');
+assert.strictEqual(planner.WORKSHOP_CONFIG.dayLengthMinutes, 480, 'Workshop day should contain 480 integer minutes');
+assert.strictEqual(planner.WORKSHOP_CONFIG.defaultBookingDurationMinutes, 180, 'New planner bookings should default to 180 integer minutes');
 assert.deepStrictEqual(
   planner.WORKSHOP_STAGE_SEQUENCE,
   ['BUS_4X4', 'TINT', 'HOIST', 'FITTING', 'FABRICATION', 'ELECTRICAL', 'TYRE', 'PIT_INSPECTION', 'SUBLET'],
@@ -262,7 +262,7 @@ assert.ok(source.includes('function moveWorkshopDroppedPlan('), 'Daily drop hand
 assert.ok(source.includes('preferRequestedTime = false'), 'Planner scheduling should distinguish drop-to-time insertion from next-open-slot scheduling');
 assert.ok(source.includes('The red current-time line stays visible on the planner and clamps to the workshop edge outside work hours.'), 'Planner guidance should explain the current-time line visibility and edge clamping');
 assert.ok(source.includes('const selectedDate = workshopDateFromKey(state.date);'), 'The current-time line should also render when reviewing another workday');
-assert.ok(source.includes('const clampedOffset = Math.min(Math.max(offset, 0), WORKSHOP_DAY_MINUTES);'), 'The current-time line should clamp to the planner edge before and after workshop hours');
+assert.ok(source.includes('const clampedOffset = Math.min(Math.max(offset, 0), WORKSHOP_PLANNER_CONFIG.dayLengthMinutes);'), 'The current-time line should clamp with the authoritative integer-minute planner configuration');
 assert.ok(source.includes('function completeWorkshopPlan('), 'Workshop completion action is missing');
 assert.ok(source.includes('function stopWorkshopPlan('), 'Workshop stoppage action is missing');
 assert.ok(source.includes('function openWorkshopVehicleJob('), 'Double-click vehicle job editor is missing');
@@ -363,7 +363,7 @@ for (const file of htmlFiles) {
   const html = fs.readFileSync(path.join(root, file), 'utf8');
   assert.ok(html.includes('data-view="workshop"'), `${file} is missing the Workshop Planner navigation item`);
   assert.ok(html.includes('id="workshop-planner-root"'), `${file} is missing the Workshop Planner host`);
-  assert.ok(html.includes('workshop-planner.css?v=2026.07.17.08-stage2a-reconcile-on-reconnect'), `${file} is missing the planner stylesheet`);
+  assert.ok(html.includes('workshop-planner.css?v=2026.07.18.01-stage2a-final-contained'), `${file} is missing the planner stylesheet`);
   assert.ok(!html.includes('<script src="workshop-planner.js'), `${file} must not eagerly load the planner script`);
 }
 assert.ok(app.includes("loadExternalScript(`workshop-planner.js?v=${encodeURIComponent(APP_VERSION)}`"), 'app.js must lazy-load the Workshop Planner with the active release version');

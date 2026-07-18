@@ -257,7 +257,7 @@ def build_package(output_dir: Path, deploy_repo: Path = DEFAULT_STAGING_DEPLOY_R
             "source_head": source_head,
             "staging_url": "https://btnew.github.io/pdc-control-board-staging/",
             "staging_deployment_commit": EXPECTED_STAGING_DEPLOY_COMMIT,
-            "app_version": "2026.07.17.08-stage2a-reconcile-on-reconnect",
+            "app_version": "2026.07.18.01-stage2a-final-contained",
             "source_file_count": len(file_list),
             "deployed_snapshot_file_count": len(list((stage / "deployed-staging-snapshot").rglob("*"))),
             "production_touched": False,
