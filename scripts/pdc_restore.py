@@ -174,18 +174,35 @@ def get_jsonb_columns(cur, table_name):
     return {row[0] for row in cur.fetchall()}
 
 
+def get_generated_columns(cur, table_name):
+    """Return columns PostgreSQL must compute rather than accept on INSERT.
+
+    Migration 028 introduces stored normalized identity columns. They remain
+    in the encrypted payload for auditability, but an isolated restore must
+    omit them from INSERT and let PostgreSQL regenerate them from raw values.
+    """
+    cur.execute(
+        "select column_name from information_schema.columns "
+        "where table_schema='public' and table_name=%s and is_generated='ALWAYS'",
+        (table_name,),
+    )
+    return {row[0] for row in cur.fetchall()}
+
+
 def load_table_rows(cur, schema_name, table_name, columns, rows):
     if not rows:
         return 0
     jsonb_cols = get_jsonb_columns(cur, table_name)
-    col_list = ", ".join(quote_ident(c) for c in columns)
-    placeholders = ", ".join(["%s"] * len(columns))
+    generated_cols = get_generated_columns(cur, table_name)
+    insert_columns = [column for column in columns if column not in generated_cols]
+    col_list = ", ".join(quote_ident(c) for c in insert_columns)
+    placeholders = ", ".join(["%s"] * len(insert_columns))
     sql = (
         f'insert into {quote_ident(schema_name)}.{quote_ident(table_name)} '
         f'({col_list}) values ({placeholders})'
     )
     values = [
-        [decode_value(row.get(c), is_jsonb_column=c in jsonb_cols) for c in columns]
+        [decode_value(row.get(c), is_jsonb_column=c in jsonb_cols) for c in insert_columns]
         for row in rows
     ]
     savepoint = f"sp_load_{table_name}"

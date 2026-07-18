@@ -117,7 +117,7 @@ async function run() {
   const authoritativeBooking = {
     booking_id: 'booking-uuid',
     version: 1,
-    vehicle: { stock_number: 'SYN-STK-1' },
+    vehicle: { id: 'vehicle-uuid', stock_number: 'SYN-STK-1' },
     stage: { code: 'HOIST' },
     bay: { bay_number: 2 },
     scheduled_start_at: new Date(2026, 6, 20, 9, 0, 0, 0).toISOString(),

@@ -480,6 +480,11 @@ function workshopConnectionBannerHtml() {
 function workshopMapSnapshotBookingToLegacyRow(booking = {}) {
   if (!booking || !booking.booking_id) return null;
   const vehicle = booking.vehicle || {};
+  const sharedVehicleId = String(vehicle.id || booking.vehicle_id || '').trim();
+  // A shared booking without its canonical vehicle UUID is not safe to adapt:
+  // stock/permanent-id text can change or be duplicated. Fail closed instead
+  // of creating a legacy row that later has to reverse-map by first match.
+  if (!sharedVehicleId) return null;
   const stage = booking.stage || {};
   const bay = booking.bay || null;
   const assignment = booking.assignment || null;
@@ -488,6 +493,7 @@ function workshopMapSnapshotBookingToLegacyRow(booking = {}) {
     id: booking.booking_id,
     sharedBookingId: booking.booking_id,
     sharedVersion: booking.version,
+    sharedVehicleId,
     vehicleKey: vehicle.stock_number || vehicle.permanent_vehicle_id || '',
     stage: normalizePmbStage(stage.code || ''),
     bay: bay ? Number(bay.bay_number) || 0 : 0,
@@ -639,6 +645,12 @@ function workshopDescribeSharedActionError(result) {
   }
   if (error === 'missing_expected_version') {
     return 'This action was missing required version information and was not sent. Please try again.';
+  }
+  if (error === 'ambiguous_vehicle_identity' || error === 'conflicting_vehicle_identity') {
+    return 'This vehicle reference matches more than one shared vehicle or conflicts with its saved UUID. No change was made; the identity requires review.';
+  }
+  if (error === 'vehicle_identity_not_found') {
+    return 'This vehicle is not yet linked to one shared vehicle record. No change was made.';
   }
   if (error === 'action_unavailable' || error === 'no_response') {
     return 'This action is not currently available in shared mode. No change was made.';
@@ -888,14 +900,62 @@ function workshopVehicle(key = '') {
 // Returns null if shared mode is inactive or the vehicle isn't in the
 // current snapshot window -- callers must treat that as "cannot proceed",
 // never fabricate a version.
-function workshopSharedVehicleRef(vehicleKeyValue = '') {
+function workshopSharedVehicleRef(vehicleReference = '') {
   if (!workshopSharedModeActive()) return null;
   const snapshot = window.__workshopDataService.getLastSnapshot();
   const vehicles = snapshot && Array.isArray(snapshot.vehicles) ? snapshot.vehicles : [];
-  const cleanKey = String(vehicleKeyValue || '').trim();
-  const match = vehicles.find(v => String(v.stock_number || '').trim() === cleanKey || String(v.permanent_vehicle_id || '').trim() === cleanKey);
-  if (!match) return null;
-  return { vehicleId: match.id, version: match.version };
+  const requestedVehicleId = String(
+    vehicleReference && typeof vehicleReference === 'object'
+      ? vehicleReference.sharedVehicleId || vehicleReference.vehicleId || ''
+      : ''
+  ).trim();
+  const requestedLegacyKey = String(
+    vehicleReference && typeof vehicleReference === 'object'
+      ? vehicleReference.vehicleKey || ''
+      : vehicleReference || ''
+  ).trim();
+  const byId = requestedVehicleId
+    ? vehicles.filter(v => String(v && v.id || '').trim() === requestedVehicleId)
+    : [];
+  const byLegacyKey = requestedLegacyKey
+    ? vehicles.filter(v => (
+      String(v && v.stock_number || '').trim() === requestedLegacyKey
+      || String(v && v.permanent_vehicle_id || '').trim() === requestedLegacyKey
+    ))
+    : [];
+  const candidateVehicleIds = [...new Set([...byId, ...byLegacyKey]
+    .map(v => String(v && v.id || '').trim())
+    .filter(Boolean))].sort();
+  const reviewError = error => ({
+    ok: false,
+    error,
+    requestedVehicleId,
+    requestedLegacyKey,
+    candidateVehicleIds,
+  });
+
+  if (requestedVehicleId) {
+    if (byId.length !== 1) {
+      return reviewError(byId.length > 1
+        ? 'ambiguous_vehicle_identity'
+        : byLegacyKey.length > 0
+          ? 'conflicting_vehicle_identity'
+          : 'vehicle_identity_not_found');
+    }
+    if (requestedLegacyKey && (
+      byLegacyKey.length !== 1
+      || String(byLegacyKey[0].id || '').trim() !== requestedVehicleId
+    )) {
+      return reviewError(byLegacyKey.length > 1 || candidateVehicleIds.length > 1
+        ? 'conflicting_vehicle_identity'
+        : 'vehicle_identity_not_found');
+    }
+    return { vehicleId: byId[0].id, version: byId[0].version };
+  }
+
+  if (byLegacyKey.length === 0) return reviewError('vehicle_identity_not_found');
+  if (byLegacyKey.length > 1) return reviewError('ambiguous_vehicle_identity');
+  return { vehicleId: byLegacyKey[0].id, version: byLegacyKey[0].version };
 }
 
 // Same idea as workshopSharedVehicleRef but for technicians: resolves a
@@ -2726,8 +2786,10 @@ async function scheduleWorkshopVehicle({ planId = '', vehicleKeyValue = '', stag
       return !!(result && result.ok);
     }
     const vehicleRef = workshopSharedVehicleRef(vehicleKey(vehicle));
-    if (!vehicleRef) {
-      window.alert('This vehicle is not yet available in shared workshop data. No change was made.');
+    if (!vehicleRef || vehicleRef.ok === false) {
+      window.alert(vehicleRef && vehicleRef.error
+        ? workshopDescribeSharedActionError(vehicleRef)
+        : 'This vehicle is not yet available in shared workshop data. No change was made.');
       return false;
     }
     return workshopScheduleSharedNewBooking({

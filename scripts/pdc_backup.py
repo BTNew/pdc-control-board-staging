@@ -78,6 +78,10 @@ TABLES = [
     # Vehicle master + everything that hangs off a vehicle
     "vehicles",
     "vehicle_aliases",
+    "vehicle_master_revision",
+    "vehicle_master_source_records",
+    "vehicle_master_history",
+    "vehicle_master_identity_conflicts",
     "vehicle_work_items",
     "vehicle_movements",
     "vehicle_parts_updates",

@@ -105,7 +105,7 @@ function completeConfigurationRows(overrides = {}) {
   const booking = {
     booking_id: 'b-123',
     version: 4,
-    vehicle: { stock_number: 'STK-999', permanent_vehicle_id: 'perm-1' },
+    vehicle: { id: 'veh-123', stock_number: 'STK-999', permanent_vehicle_id: 'perm-1' },
     stage: { code: 'HOIST' },
     bay: { bay_number: 2 },
     status: 'started',
@@ -125,6 +125,7 @@ function completeConfigurationRows(overrides = {}) {
   assert.strictEqual(row.sharedBookingId, 'b-123', '4b sharedBookingId retained for future write-path use');
   assert.strictEqual(row.sharedVersion, 4, '4c version retained for future optimistic-lock writes');
   assert.strictEqual(row.vehicleKey, 'STK-999', '4d vehicle key resolves from stock_number');
+  assert.strictEqual(row.sharedVehicleId, 'veh-123', '4e stable shared vehicle UUID survives the legacy adapter');
   assert.strictEqual(row.stage, 'HOIST', '4e stage code preserved');
   assert.strictEqual(row.bay, 2, '4f bay number preserved as a number');
   assert.strictEqual(row.hours, 3, '4g 180 minutes maps to 3 hours');
@@ -137,7 +138,7 @@ function completeConfigurationRows(overrides = {}) {
 {
   const booking = {
     booking_id: 'b-456',
-    vehicle: { stock_number: '', permanent_vehicle_id: 'perm-2' },
+    vehicle: { id: 'veh-456', stock_number: '', permanent_vehicle_id: 'perm-2' },
     stage: { code: 'FITTING' },
     bay: null,
     status: 'queued',
@@ -151,11 +152,18 @@ function completeConfigurationRows(overrides = {}) {
   console.log('PASS 5: vehicle-identity fallback and null-bay/queued-status mapping are correct');
 }
 
-// 6. A booking with no booking_id is rejected (never silently mapped to a garbage row)
+// 6. A booking with no booking_id or stable vehicle UUID is rejected (never
+//    silently mapped to a garbage/unstable row).
 {
   const row = planner.workshopMapSnapshotBookingToLegacyRow({});
   assert.strictEqual(row, null, '6a booking with no booking_id maps to null, filtered out by callers');
-  console.log('PASS 6: malformed/incomplete snapshot bookings are rejected, not silently mapped');
+  const missingVehicleId = planner.workshopMapSnapshotBookingToLegacyRow({
+    booking_id: 'b-no-vehicle-uuid',
+    vehicle: { stock_number: 'STK-WEAK', permanent_vehicle_id: 'perm-weak' },
+    stage: { code: 'HOIST' },
+  });
+  assert.strictEqual(missingVehicleId, null, '6b shared booking without a stable vehicle UUID is rejected');
+  console.log('PASS 6: malformed/incomplete snapshot bookings and missing vehicle UUIDs are rejected');
 }
 
 // 7. Connection banner renders distinct, human-readable text per state and
@@ -252,11 +260,53 @@ console.log('Workshop planner shared-mode integration seam checks passed');
     PDC_SUPABASE_CONFIG: { workshop: { sharedData: true } },
     __workshopDataService: { isEnabled: () => true, getLastSnapshot: () => snapshot },
   }, () => {
-    assert.deepStrictEqual(planner.workshopSharedVehicleRef('STK-1'), { vehicleId: 'veh-a', version: 5 }, '10b resolves by stock_number');
-    assert.deepStrictEqual(planner.workshopSharedVehicleRef('perm-2'), { vehicleId: 'veh-b', version: 9 }, '10c falls back to permanent_vehicle_id when stock_number is blank');
-    assert.strictEqual(planner.workshopSharedVehicleRef('STK-NOT-IN-SNAPSHOT'), null, '10d no match returns null, never a fabricated ref');
+    assert.deepStrictEqual(planner.workshopSharedVehicleRef('STK-1'), { vehicleId: 'veh-a', version: 5 }, '10b resolves one unique stock_number');
+    assert.deepStrictEqual(planner.workshopSharedVehicleRef('perm-2'), { vehicleId: 'veh-b', version: 9 }, '10c resolves one unique permanent_vehicle_id');
+    assert.deepStrictEqual(
+      planner.workshopSharedVehicleRef('STK-NOT-IN-SNAPSHOT'),
+      { ok: false, error: 'vehicle_identity_not_found', requestedVehicleId: '', requestedLegacyKey: 'STK-NOT-IN-SNAPSHOT', candidateVehicleIds: [] },
+      '10d missing legacy identity returns a reviewable error, never a fabricated ref'
+    );
   });
-  console.log('PASS 10: workshopSharedVehicleRef resolves vehicle identity from the snapshot only, never fabricates');
+  console.log('PASS 10: workshopSharedVehicleRef resolves unique snapshot identity and reports missing identity');
+}
+
+// 10e-10g. Legacy reverse lookup must inspect every candidate. Duplicate keys
+// are ambiguous, and a supplied stable UUID that disagrees with a legacy key
+// is a conflict. Neither case may silently choose the first array element.
+{
+  const snapshot = { vehicles: [
+    { id: 'veh-a', stock_number: 'DUP-1', permanent_vehicle_id: 'perm-a', version: 2 },
+    { id: 'veh-b', stock_number: 'DUP-1', permanent_vehicle_id: 'perm-b', version: 3 },
+    { id: 'veh-c', stock_number: 'STK-C', permanent_vehicle_id: 'perm-c', version: 4 },
+  ] };
+  withGlobals({
+    workshopSharedModeEnabled: () => true,
+    PDC_SUPABASE_CONFIG: { workshop: { sharedData: true } },
+    __workshopDataService: { isEnabled: () => true, getLastSnapshot: () => snapshot },
+  }, () => {
+    assert.deepStrictEqual(
+      planner.workshopSharedVehicleRef('DUP-1'),
+      { ok: false, error: 'ambiguous_vehicle_identity', requestedVehicleId: '', requestedLegacyKey: 'DUP-1', candidateVehicleIds: ['veh-a', 'veh-b'] },
+      '10e duplicate legacy key is refused with every candidate UUID'
+    );
+    assert.deepStrictEqual(
+      planner.workshopSharedVehicleRef({ sharedVehicleId: 'veh-c', vehicleKey: 'DUP-1' }),
+      { ok: false, error: 'conflicting_vehicle_identity', requestedVehicleId: 'veh-c', requestedLegacyKey: 'DUP-1', candidateVehicleIds: ['veh-a', 'veh-b', 'veh-c'] },
+      '10f conflicting stable UUID and legacy key is refused for review'
+    );
+    assert.deepStrictEqual(
+      planner.workshopSharedVehicleRef({ sharedVehicleId: 'veh-c', vehicleKey: 'STK-C' }),
+      { vehicleId: 'veh-c', version: 4 },
+      '10g matching stable UUID and legacy key retains the stable UUID'
+    );
+    assert.deepStrictEqual(
+      planner.workshopSharedVehicleRef({ sharedVehicleId: 'veh-missing', vehicleKey: 'STK-C' }),
+      { ok: false, error: 'conflicting_vehicle_identity', requestedVehicleId: 'veh-missing', requestedLegacyKey: 'STK-C', candidateVehicleIds: ['veh-c'] },
+      '10h stale/missing UUID that points by legacy key to another vehicle is a conflict, not a fallback match'
+    );
+  });
+  console.log('PASS 10e-h: duplicate, missing and conflicting legacy vehicle identities fail closed');
 }
 
 // 11. workshopSharedTechnicianRef: resolves a legacy free-text assignee
