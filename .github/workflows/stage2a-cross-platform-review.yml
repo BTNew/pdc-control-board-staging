@@ -2,6 +2,9 @@ name: Stage 2A cross-platform review
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - fix/stage2a-independent-review-findings
 
 permissions:
   contents: read
