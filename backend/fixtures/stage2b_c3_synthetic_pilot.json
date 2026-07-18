@@ -1,0 +1,37 @@
+{
+  "schema_version": "pdc.stage2b.c3-synthetic-fixtures/v1",
+  "source_system": "stage2b_c3_synthetic_pilot",
+  "source_batch_id": "C3-SYNTHETIC-PILOT-V1",
+  "scenarios": [
+    {"id":"new_stock_only","source_record_id":"C3-NEW-STOCK","payload":{"stock_number":"C3-STK-001"},"expected_outcome":"created","reason_code":"import_inserted"},
+    {"id":"new_vin_only","source_record_id":"C3-NEW-VIN","payload":{"vin":"JTNAA3BB4C5000001"},"expected_outcome":"created","reason_code":"import_inserted"},
+    {"id":"stock_vin_job_match","source_record_id":"C3-COMBINED","payload":{"stock_number":"C3-STK-003","vin":"JTNAA3BB4C5000003","job_card_number":"C3-JC-003"},"expected_outcome":"created","reason_code":"import_inserted"},
+    {"id":"alias_match","source_record_id":"C3-ALIAS-MATCH","payload":{"stock_number":"C3-ALIAS-OLD"},"expected_outcome":"matched","reason_code":"alias_match"},
+    {"id":"retained_source_evidence_match","source_record_id":"C3-SOURCE-EVIDENCE","payload":{},"expected_outcome":"matched","reason_code":"source_evidence_match"},
+    {"id":"manual_edit_after_import","source_record_id":"C3-MANUAL-EDIT","payload":{"stock_number":"C3-STK-EDIT","model":"Synthetic Original"},"expected_outcome":"manual_review_required","reason_code":"manual_edit_divergence"},
+    {"id":"stale_optimistic_version","source_record_id":"C3-STALE-VERSION","payload":{"stock_number":"C3-STK-STALE"},"expected_version":1,"expected_outcome":"stale_version","reason_code":"optimistic_version_mismatch"},
+    {"id":"duplicate_normalized_stock","source_record_id":"C3-DUP-STOCK","payload":{"stock_number":" c3 dup stock "},"expected_outcome":"ambiguous","reason_code":"duplicate_normalized_claim"},
+    {"id":"duplicate_normalized_job_card","source_record_id":"C3-DUP-JOB","payload":{"job_card_number":" c3-dup-job "},"expected_outcome":"ambiguous","reason_code":"duplicate_normalized_claim"},
+    {"id":"canonical_alias_conflict","source_record_id":"C3-CANON-ALIAS","payload":{"stock_number":"C3-CANON-ALIAS"},"expected_outcome":"conflict","reason_code":"canonical_alias_conflict"},
+    {"id":"canonical_source_evidence_conflict","source_record_id":"C3-SOURCE-CONFLICT","payload":{"stock_number":"C3-SOURCE-CONFLICT-STOCK"},"expected_outcome":"conflict","reason_code":"canonical_source_evidence_conflict"},
+    {"id":"archived_vehicle","source_record_id":"C3-ARCHIVED","payload":{"stock_number":"C3-STK-ARCHIVED"},"expected_outcome":"manual_review_required","reason_code":"archived_vehicle"},
+    {"id":"deleted_retained_source_evidence","source_record_id":"C3-DELETED-EVIDENCE","payload":{},"expected_outcome":"missing_in_shared","reason_code":"deleted_retained_source_evidence"},
+    {"id":"malformed_vin","source_record_id":"C3-BAD-VIN","payload":{"vin":"NOT-A-VIN"},"expected_outcome":"invalid_source","reason_code":"malformed_vin"},
+    {"id":"placeholder_stock","source_record_id":"C3-PLACEHOLDER","payload":{"stock_number":"TBA"},"expected_outcome":"invalid_source","reason_code":"placeholder_stock"},
+    {"id":"missing_identity","source_record_id":"C3-MISSING-IDENTITY","payload":{},"expected_outcome":"invalid_source","reason_code":"missing_identity"},
+    {"id":"ambiguous_identity","source_record_id":"C3-AMBIGUOUS","payload":{"job_card_number":"C3-DUP-JOB"},"expected_outcome":"ambiguous","reason_code":"ambiguous_match"},
+    {"id":"unchanged_replay","source_record_id":"C3-UNCHANGED","payload":{"stock_number":"C3-STK-UNCHANGED"},"expected_outcome":"unchanged","reason_code":"no_change"},
+    {"id":"updated_import","source_record_id":"C3-UPDATED","payload":{"stock_number":"C3-STK-UPDATED","model":"Synthetic Updated"},"expected_outcome":"updated","reason_code":"import_updated"},
+    {"id":"missing_in_legacy","source_record_id":"C3-SHARED-ONLY","payload":{"stock_number":"C3-STK-SHARED-ONLY"},"exclude_from_legacy":true,"expected_outcome":"missing_in_legacy","reason_code":"shared_record_has_no_legacy_source"}
+  ],
+  "protocol_scenarios": [
+    "repeated_preview",
+    "repeated_apply",
+    "response_loss_replay",
+    "stale_artifact_revision",
+    "truncated_typed_artifact",
+    "malformed_typed_artifact",
+    "rollback_revision_lock",
+    "stale_rollback_refusal"
+  ]
+}

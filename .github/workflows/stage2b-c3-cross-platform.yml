@@ -1,0 +1,61 @@
+name: Stage 2B C3 cross-platform verification
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - feature/stage2b-shared-vehicle-master
+
+permissions:
+  contents: read
+
+jobs:
+  synthetic-pilot-portable:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Root and Stage 2B portable regressions
+        run: |
+          cp pdc-supabase-config.example.js pdc-supabase-config.js
+          node test_all.js
+          PYTHONPATH=scripts python -m unittest \
+            backend.test_stage2b_offline_vehicle_reference_artifact \
+            backend.test_stage2b_importer_identity_export_foundation \
+            backend.test_stage2b_importer_identity_export_adapter \
+            backend.test_stage2b_c3_reconciliation \
+            backend.test_stage2b_c3_synthetic_pilot -v
+      - name: Syntax, evidence and prohibited-content scans
+        run: |
+          node --check scripts/workshop_vehicle_reference_artifact.js
+          node --check scripts/workshop_planner_legacy_validate.js
+          python -m py_compile \
+            scripts/workshop_vehicle_reference_artifact.py \
+            scripts/workshop_legacy_import.py \
+            scripts/stage2b_c3_reconciliation.py \
+            scripts/stage2b_c3_synthetic_pilot.py
+          python - <<'PY'
+          from pathlib import Path
+          paths = [
+              Path('scripts/stage2b_c3_reconciliation.py'),
+              Path('backend/fixtures/stage2b_c3_synthetic_pilot.json'),
+          ] + sorted(Path('review-evidence/stage2b-c3').glob('*.json'))
+          prohibited = ('customer_name', 'customer_email', 'password', 'database_url',
+                        'postgres://', 'postgresql://', 'source_payload', 'ai_analysis')
+          text = '\n'.join(path.read_text(encoding='utf-8').lower() for path in paths)
+          leaked = [field for field in prohibited if field in text]
+          if leaked:
+              raise SystemExit(f'prohibited C3 fields present: {leaked}')
+          PY
