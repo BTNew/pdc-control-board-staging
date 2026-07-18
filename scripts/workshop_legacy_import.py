@@ -13,7 +13,8 @@ SAFETY:
     on top of the operator only ever pointing it at staging connection
     strings. It is not a substitute for the operator's own diligence.
   - Dry-run is the default. --apply is required to actually write.
-  - Every run (dry-run or apply) is recorded in `import_runs` (apply only)
+  - Every committed apply is recorded in `import_runs`; an exact replay
+    returns the completed receipt without repeating operational writes
     with before/after counts, so imports are auditable and reconciliation
     is possible after the fact.
   - Idempotent: a booking is uniquely identified by
@@ -24,25 +25,254 @@ SAFETY:
     written.
 
 USAGE:
-  python scripts/workshop_legacy_import.py <extract.json> <reference.json> [--apply]
+  python scripts/workshop_legacy_import.py <extract.json> <reference.json>
+      [--apply] [--vehicle-export-rollback]
 
-  reference.json must contain: { "vehicles": [...], "stages": [...],
+  reference.json must contain: { "vehicles": [...], "vehicleIdentityExport": {...}, "stages": [...],
   "bays": [...], "technicians": [...], "workItems": [...],
   "requireWorkItemForStages": [...] } -- see fetch_reference_data() for a
   helper that builds this directly from a live staging connection.
 """
 
+import hashlib
 import json
+import re
 import sys
 import uuid
 from datetime import datetime, timezone
 
 STAGING_PROJECT_REF = 'cdsmnqxtyyoeoznmbidd'
 LEGACY_IMPORT_SOURCE = 'legacy_migration'
+VEHICLE_IDENTITY_EXPORT_RPC = 'export_workshop_legacy_vehicle_identities'
+VEHICLE_IDENTITY_EXPORT_MAX_PAGE_SIZE = 500
+
+
+class VehicleIdentityExportError(RuntimeError):
+    pass
+
+
+class VehicleIdentityExportStale(VehicleIdentityExportError):
+    pass
+
+
+class VehicleIdentityExportInvalid(VehicleIdentityExportError):
+    pass
 
 
 def normalize_key(value):
     return str(value or '').strip().lower()
+
+
+def normalize_vehicle_stock_number(value):
+    normalized = re.sub(r'[\s-]+', '', str(value or '').strip().upper())
+    return normalized or None
+
+
+def is_real_vehicle_stock_number(value):
+    normalized = normalize_vehicle_stock_number(value)
+    raw = str(value or '').strip().upper()
+    return bool(
+        normalized
+        and normalized not in {'0', 'TBA', 'TBD', 'UNKNOWN', 'NA', 'N/A', 'NONE', 'UNASSIGNED'}
+        and not any(raw.startswith(prefix) for prefix in ('NEW-', 'PD-', 'PENDING-', 'TEMP-'))
+    )
+
+
+def normalize_vehicle_vin(value):
+    normalized = re.sub(r'[\s-]+', '', str(value or '').strip().upper())
+    return normalized or None
+
+
+def is_valid_vehicle_vin(value):
+    return bool(re.fullmatch(r'[A-HJ-NPR-Z0-9]{17}', normalize_vehicle_vin(value) or ''))
+
+
+def normalize_vehicle_source_identifier(value):
+    normalized = str(value or '').strip().upper()
+    return normalized or None
+
+
+def _legacy_identity_forms(value):
+    forms = set()
+    if is_real_vehicle_stock_number(value):
+        forms.add(('stock_number', normalize_vehicle_stock_number(value)))
+    if is_valid_vehicle_vin(value):
+        forms.add(('vin', normalize_vehicle_vin(value)))
+    source_value = normalize_vehicle_source_identifier(value)
+    if source_value:
+        for identifier_type in (
+            'job_card_number', 'permanent_vehicle_id',
+            'toyota_order_number', 'source_record_id',
+        ):
+            forms.add((identifier_type, source_value))
+    return forms
+
+
+def _legacy_vehicle_record(item):
+    vehicle_id = str(item.get('vehicle_id') or item.get('id') or '')
+    return {
+        **item,
+        'id': vehicle_id,
+        'vehicle_id': vehicle_id,
+        'version': int(item.get('version') or 1),
+        'is_archived': bool(item.get('is_archived', False)),
+    }
+
+
+def _vehicle_claims(item):
+    claims = list(item.get('identifiers') or [])
+    if not claims:
+        if item.get('stock_number') and is_real_vehicle_stock_number(item.get('stock_number')):
+            claims.append({
+                'identifier_type': 'stock_number',
+                'normalized_value': normalize_vehicle_stock_number(item.get('stock_number')),
+                'value': item.get('stock_number'), 'origin': 'rollback', 'source_system': None,
+            })
+        if item.get('permanent_vehicle_id'):
+            claims.append({
+                'identifier_type': 'permanent_vehicle_id',
+                'normalized_value': normalize_vehicle_source_identifier(item.get('permanent_vehicle_id')),
+                'value': item.get('permanent_vehicle_id'), 'origin': 'rollback', 'source_system': None,
+            })
+    return claims
+
+
+def build_vehicle_identity_index(vehicles, conflicts=None):
+    by_claim = {}
+    by_id = {}
+    for raw_item in vehicles:
+        item = _legacy_vehicle_record(raw_item)
+        vehicle_id = item['id']
+        if not vehicle_id:
+            raise VehicleIdentityExportInvalid('vehicle export item has no canonical UUID')
+        if vehicle_id in by_id:
+            raise VehicleIdentityExportInvalid(f'duplicate vehicle UUID in export: {vehicle_id}')
+        by_id[vehicle_id] = item
+        for claim in _vehicle_claims(item):
+            identifier_type = str(claim.get('identifier_type') or '').strip().lower()
+            normalized_value = str(claim.get('normalized_value') or '').strip().upper()
+            if identifier_type and normalized_value:
+                by_claim.setdefault((identifier_type, normalized_value), set()).add(vehicle_id)
+
+    conflict_by_claim = {}
+    for conflict in conflicts or []:
+        key = (
+            str(conflict.get('identifier_type') or '').strip().lower(),
+            str(conflict.get('normalized_value') or '').strip().upper(),
+        )
+        if key[0] and key[1]:
+            conflict_by_claim.setdefault(key, []).append(conflict)
+    return {'by_claim': by_claim, 'by_id': by_id, 'conflicts': conflict_by_claim}
+
+
+def match_legacy_vehicle_identity(value, index):
+    candidate_ids = set()
+    identity_conflicts = []
+    matched_claims = []
+    for claim_key in sorted(_legacy_identity_forms(value)):
+        ids = index['by_claim'].get(claim_key, set())
+        if ids:
+            candidate_ids.update(ids)
+            matched_claims.append({'identifier_type': claim_key[0], 'normalized_value': claim_key[1]})
+        identity_conflicts.extend(index['conflicts'].get(claim_key, []))
+    vehicles = [index['by_id'][vehicle_id] for vehicle_id in sorted(candidate_ids)]
+    return {
+        'vehicles': vehicles,
+        'matched_claims': matched_claims,
+        'identity_conflicts': identity_conflicts,
+    }
+
+
+def fetch_vehicle_identity_export_pages(fetch_page, page_size=200, retry_attempts=3):
+    if not isinstance(page_size, int) or page_size < 1 or page_size > VEHICLE_IDENTITY_EXPORT_MAX_PAGE_SIZE:
+        raise VehicleIdentityExportInvalid('page size must be between 1 and 500')
+    if not isinstance(retry_attempts, int) or retry_attempts < 1:
+        raise VehicleIdentityExportInvalid('retry attempts must be positive')
+
+    cursor = None
+    expected_revision = None
+    items = []
+    conflicts = []
+    seen_vehicle_ids = set()
+    seen_conflicts = set()
+    pages = 0
+    while True:
+        pages += 1
+        if pages > 10000:
+            raise VehicleIdentityExportInvalid('export exceeded the bounded page limit')
+        response = None
+        last_error = None
+        for attempt in range(retry_attempts):
+            try:
+                response = fetch_page(cursor, page_size, expected_revision)
+                break
+            except Exception as exc:  # read-only retry repeats the exact cursor/revision
+                last_error = exc
+                if attempt + 1 == retry_attempts:
+                    raise VehicleIdentityExportError('identity export page failed after retries') from exc
+        if response is None:
+            raise VehicleIdentityExportError('identity export returned no response') from last_error
+        if not isinstance(response, dict):
+            raise VehicleIdentityExportInvalid('identity export response is not an object')
+        outcome = response.get('outcome')
+        if outcome == 'unauthorized':
+            raise PermissionError('importer or administrator role required for vehicle identity export')
+        if outcome == 'stale_export':
+            raise VehicleIdentityExportStale('vehicle identity export revision changed during pagination')
+        if outcome != 'exported':
+            raise VehicleIdentityExportInvalid(f'identity export failed closed: {outcome or "malformed_response"}')
+
+        revision = response.get('export_revision')
+        if not isinstance(revision, int) or revision < 0:
+            raise VehicleIdentityExportInvalid('identity export revision is invalid')
+        if expected_revision is None:
+            expected_revision = revision
+        elif revision != expected_revision:
+            raise VehicleIdentityExportStale('vehicle identity export page revision mismatch')
+
+        page_items = response.get('items')
+        if not isinstance(page_items, list) or len(page_items) > page_size:
+            raise VehicleIdentityExportInvalid('identity export page is malformed or over limit')
+        page_ids = [str(item.get('vehicle_id') or '') for item in page_items]
+        if page_ids != sorted(page_ids):
+            raise VehicleIdentityExportInvalid('identity export page is not deterministically ordered')
+        if cursor is not None and page_ids and page_ids[0] <= str(cursor):
+            raise VehicleIdentityExportInvalid('identity export page regressed behind its cursor')
+        for item, vehicle_id in zip(page_items, page_ids):
+            if not vehicle_id or vehicle_id in seen_vehicle_ids:
+                raise VehicleIdentityExportInvalid('identity export contains a missing or duplicate vehicle UUID')
+            seen_vehicle_ids.add(vehicle_id)
+            items.append(item)
+
+        for conflict in response.get('conflicts') or []:
+            signature = json.dumps(conflict, sort_keys=True, separators=(',', ':'))
+            if signature not in seen_conflicts:
+                seen_conflicts.add(signature)
+                conflicts.append(conflict)
+
+        has_more = response.get('has_more') is True
+        next_cursor = response.get('next_cursor')
+        if not has_more:
+            break
+        if not next_cursor or (cursor is not None and str(next_cursor) <= str(cursor)):
+            raise VehicleIdentityExportInvalid('identity export cursor did not advance')
+        if not page_items or str(next_cursor) != page_ids[-1]:
+            raise VehicleIdentityExportInvalid('identity export cursor does not match the page boundary')
+        cursor = str(next_cursor)
+
+    return {
+        'outcome': 'exported',
+        'export_revision': expected_revision,
+        'items': items,
+        'conflicts': sorted(
+            conflicts,
+            key=lambda row: (
+                str(row.get('identifier_type') or ''),
+                str(row.get('source_system') or ''),
+                str(row.get('normalized_value') or ''),
+            ),
+        ),
+    }
 
 
 def to_range(start_at, duration_minutes):
@@ -68,12 +298,9 @@ def ranges_overlap(a, b):
 
 
 def classify(extract, reference):
-    """Python re-implementation of workshop_planner_legacy_validate.js,
-    kept logically identical so both layers agree; the JS validator is the
-    one covered by test_workshop_planner_legacy_validate.js and is the
-    source of truth for the reconciliation report shown to the operator.
-    This Python copy exists only so the import tool can run standalone
-    without a Node dependency at import time."""
+    """Classify scheduling fields compatibly with the offline validator,
+    while vehicle identity uses the typed migration-031 export contract.
+    The remaining JS validator is intentionally a separate C2b cutover."""
     vehicles = reference.get('vehicles', [])
     stages = reference.get('stages', [])
     bays = reference.get('bays', [])
@@ -86,14 +313,13 @@ def classify(extract, reference):
     technician_by_name = {}
     for t in technicians:
         technician_by_name.setdefault(normalize_key(t['name']), []).append(t)
-    vehicle_by_key = {}
-    for v in vehicles:
-        for k in filter(None, [v.get('stock_number'), v.get('permanent_vehicle_id')]):
-            vehicle_by_key.setdefault(normalize_key(k), []).append(v)
+    export_meta = reference.get('vehicleIdentityExport') or {}
+    vehicle_identity_index = build_vehicle_identity_index(vehicles, export_meta.get('conflicts') or [])
     work_item_set = {(w['vehicle_id'], normalize_key(w['stage_code'])) for w in work_items}
 
     buckets = {k: [] for k in [
-        'safely_matched', 'missing_vehicle', 'duplicate_vehicle_match', 'missing_bay',
+        'safely_matched', 'missing_vehicle', 'duplicate_vehicle_match',
+        'conflicting_vehicle_identity', 'inactive_vehicle', 'missing_bay',
         'missing_technician', 'missing_work_item', 'overlapping_bay_booking',
         'overlapping_technician_booking', 'invalid_date_or_duration', 'requires_manual_review',
     ]}
@@ -101,7 +327,11 @@ def classify(extract, reference):
     candidates = []
     for booking in extract.get('bookings', []):
         reasons = []
-        vehicle_matches = vehicle_by_key.get(normalize_key(booking.get('legacy_vehicle_key')), [])
+        identity_match = match_legacy_vehicle_identity(booking.get('legacy_vehicle_key'), vehicle_identity_index)
+        vehicle_matches = identity_match['vehicles']
+        matched_vehicle = None
+        if len(vehicle_matches) == 1:
+            (matched_vehicle,) = vehicle_matches
         stage_row = stage_by_code.get(normalize_key(booking.get('stage_code')))
         bay_row = None
         if stage_row and booking.get('bay_number') is not None:
@@ -111,10 +341,14 @@ def classify(extract, reference):
             technician_matches = technician_by_name.get(normalize_key(booking['assignee']), [])
         rng = to_range(booking.get('scheduled_start_at'), booking.get('duration_minutes'))
 
-        if len(vehicle_matches) == 0:
+        if identity_match['identity_conflicts']:
+            reasons.append('conflicting_vehicle_identity')
+        elif len(vehicle_matches) == 0:
             reasons.append('missing_vehicle')
-        if len(vehicle_matches) > 1:
+        elif len(vehicle_matches) > 1:
             reasons.append('duplicate_vehicle_match')
+        elif matched_vehicle.get('is_archived'):
+            reasons.append('inactive_vehicle')
         if not stage_row:
             reasons.append('missing_bay')
         elif booking.get('bay_number') is not None and not bay_row:
@@ -122,7 +356,7 @@ def classify(extract, reference):
         if booking.get('assignee') and len(technician_matches) == 0:
             reasons.append('missing_technician')
         if normalize_key(booking.get('stage_code')) in require_work_item_for:
-            vehicle_id = vehicle_matches[0]['id'] if len(vehicle_matches) == 1 else None
+            vehicle_id = matched_vehicle['id'] if matched_vehicle is not None else None
             if not vehicle_id or (vehicle_id, normalize_key(booking.get('stage_code'))) not in work_item_set:
                 reasons.append('missing_work_item')
         if not rng:
@@ -132,12 +366,19 @@ def classify(extract, reference):
 
         if reasons:
             for reason in reasons:
-                buckets.get(reason, buckets['invalid_date_or_duration']).append({'booking': booking, 'reasons': reasons})
+                buckets.get(reason, buckets['invalid_date_or_duration']).append({
+                    'booking': booking,
+                    'reasons': reasons,
+                    'identity_candidates': [row['id'] for row in vehicle_matches],
+                    'identity_conflicts': identity_match['identity_conflicts'],
+                    'matched_claims': identity_match['matched_claims'],
+                })
         else:
             candidates.append({
                 'booking': booking,
                 'resolved': {
-                    'vehicle_id': vehicle_matches[0]['id'] if vehicle_matches else None,
+                    'vehicle_id': matched_vehicle['id'],
+                    'vehicle_version': matched_vehicle['version'],
                     'stage_id': stage_row['id'],
                     'bay_id': bay_row['id'] if bay_row else None,
                     'technician_id': technician_matches[0]['id'] if technician_matches else None,
@@ -180,10 +421,113 @@ def classify(extract, reference):
     return buckets
 
 
-def fetch_reference_data(conn):
+def _set_export_actor(conn, actor_email):
+    cur = conn.cursor()
+    cur.execute(
+        """
+        select r.role::text, r.email, u.id::text
+        from public.pdc_user_roles r
+        join auth.users u on lower(u.email) = lower(r.email)
+        where lower(r.email) = lower(%s) and r.active
+        """,
+        (actor_email,),
+    )
+    rows = cur.fetchall()
+    if len(rows) != 1:
+        raise PermissionError('vehicle identity export actor is not one active PDC user')
+    (role, email, user_id), = rows
+    if role not in ('importer', 'administrator'):
+        raise PermissionError('vehicle identity export actor must be importer or administrator')
+    cur.execute(
+        "select set_config('request.jwt.claims', %s, true)",
+        (json.dumps({'email': email, 'role': 'authenticated', 'sub': user_id}),),
+    )
+
+
+def _fetch_vehicle_identity_export_page(conn, cursor, page_size, expected_revision):
+    cur = conn.cursor()
+    cur.execute(
+        "select public.export_workshop_legacy_vehicle_identities(%s, %s, %s)",
+        (cursor, page_size, expected_revision),
+    )
+    row = cur.fetchone()
+    if not row:
+        raise VehicleIdentityExportInvalid('vehicle identity export RPC returned no row')
+    return row[0]
+
+
+def _rollback_identity_conflicts(vehicles):
+    claims = {}
+    for raw_vehicle in vehicles:
+        vehicle = _legacy_vehicle_record(raw_vehicle)
+        for claim in _vehicle_claims(vehicle):
+            key = (claim['identifier_type'], claim['normalized_value'])
+            claims.setdefault(key, []).append({
+                'vehicle_id': vehicle['id'], 'origin': 'rollback', 'value': claim['value'],
+            })
+    conflicts = []
+    for (identifier_type, normalized_value), candidates in sorted(claims.items()):
+        vehicle_ids = sorted({row['vehicle_id'] for row in candidates})
+        if len(vehicle_ids) > 1:
+            conflicts.append({
+                'classification': 'ambiguous_normalized_identity',
+                'identifier_type': identifier_type,
+                'normalized_value': normalized_value,
+                'source_system': None,
+                'vehicle_ids': vehicle_ids,
+                'candidates': sorted(candidates, key=lambda row: (row['vehicle_id'], row['value'])),
+            })
+    return conflicts
+
+
+def _fetch_vehicle_identity_export_rollback(conn, logger):
+    assert_staging_project(conn)
+    logger('WARNING: staging-only workshop legacy vehicle identity rollback read is active')
     cur = conn.cursor()
     cur.execute("select id, stock_number, permanent_vehicle_id from vehicles where deleted_at is null")
-    vehicles = [{'id': str(r[0]), 'stock_number': r[1], 'permanent_vehicle_id': r[2]} for r in cur.fetchall()]
+    vehicles = [
+        {
+            'id': str(row[0]), 'vehicle_id': str(row[0]), 'version': 1,
+            'is_archived': False, 'stock_number': row[1], 'permanent_vehicle_id': row[2],
+        }
+        for row in cur.fetchall()
+    ]
+    vehicles.sort(key=lambda row: row['vehicle_id'])
+    return {
+        'outcome': 'exported',
+        'export_revision': None,
+        'items': vehicles,
+        'conflicts': _rollback_identity_conflicts(vehicles),
+        'rollback_used': True,
+    }
+
+
+def fetch_reference_data(
+    conn,
+    *,
+    actor_email=None,
+    vehicle_export_rollback=False,
+    page_size=200,
+    retry_attempts=3,
+    logger=lambda message: print(message, file=sys.stderr),
+):
+    assert_staging_project(conn)
+    if actor_email:
+        _set_export_actor(conn, actor_email)
+
+    if vehicle_export_rollback:
+        vehicle_export = _fetch_vehicle_identity_export_rollback(conn, logger)
+    else:
+        vehicle_export = fetch_vehicle_identity_export_pages(
+            lambda cursor, size, revision: _fetch_vehicle_identity_export_page(
+                conn, cursor, size, revision,
+            ),
+            page_size=page_size,
+            retry_attempts=retry_attempts,
+        )
+        vehicle_export['rollback_used'] = False
+
+    cur = conn.cursor()
     cur.execute("select id, code from workshop_stages")
     stages = [{'id': str(r[0]), 'code': r[1]} for r in cur.fetchall()]
     cur.execute("select id, stage_id, bay_number from workshop_bays where bay_number is not null")
@@ -191,7 +535,13 @@ def fetch_reference_data(conn):
     cur.execute("select id, name from workshop_technicians where active = true")
     technicians = [{'id': str(r[0]), 'name': r[1]} for r in cur.fetchall()]
     return {
-        'vehicles': vehicles,
+        'vehicles': vehicle_export['items'],
+        'vehicleIdentityExport': {
+            'outcome': vehicle_export['outcome'],
+            'export_revision': vehicle_export['export_revision'],
+            'conflicts': vehicle_export['conflicts'],
+            'rollback_used': vehicle_export['rollback_used'],
+        },
         'stages': stages,
         'bays': bays,
         'technicians': technicians,
@@ -230,9 +580,86 @@ def get_admin_user_id(conn):
     return row[0]
 
 
-def run_import(conn, extract, reference, apply=False):
+def _lock_vehicle_identity_export_revision(conn, reference, rollback_permitted=False, logger=lambda _message: None):
+    metadata = reference.get('vehicleIdentityExport')
+    if not isinstance(metadata, dict) or metadata.get('outcome') != 'exported':
+        raise VehicleIdentityExportInvalid('reference data lacks a successful guarded vehicle identity export')
+    if metadata.get('rollback_used') is True:
+        if not rollback_permitted:
+            raise VehicleIdentityExportInvalid('rollback reference requires the explicit staging-only rollback flag')
+        logger('WARNING: import is using staging-only rollback vehicle identity evidence')
+        return None
+    expected_revision = metadata.get('export_revision')
+    if not isinstance(expected_revision, int) or expected_revision < 0:
+        raise VehicleIdentityExportInvalid('reference data has no valid export revision')
+    cur = conn.cursor()
+    cur.execute(
+        "select revision from public.vehicle_lifecycle_resolver_revision where singleton for share"
+    )
+    rows = cur.fetchall()
+    if len(rows) != 1 or rows[0][0] != expected_revision:
+        raise VehicleIdentityExportStale('vehicle identity export is stale; regenerate reference data')
+    return expected_revision
+
+
+def _import_request_fingerprint(extract, reference, buckets):
+    safe = []
+    for entry in buckets['safely_matched']:
+        booking = entry['booking']
+        resolved = entry['resolved']
+        safe.append({
+            'legacy_plan_id': booking.get('legacy_plan_id'),
+            'vehicle_id': resolved.get('vehicle_id'),
+            'vehicle_version': resolved.get('vehicle_version'),
+            'stage_id': resolved.get('stage_id'),
+            'bay_id': resolved.get('bay_id'),
+            'technician_id': resolved.get('technician_id'),
+            'scheduled_start_at': booking.get('scheduled_start_at'),
+            'scheduled_end_at': booking.get('scheduled_end_at'),
+            'duration_minutes': booking.get('duration_minutes'),
+            'status': booking.get('status'),
+        })
+    payload = {
+        'extract': extract,
+        'vehicle_export_revision': (reference.get('vehicleIdentityExport') or {}).get('export_revision'),
+        'rollback_used': (reference.get('vehicleIdentityExport') or {}).get('rollback_used') is True,
+        'safely_matched': sorted(safe, key=lambda row: str(row.get('legacy_plan_id') or '')),
+    }
+    encoded = json.dumps(payload, sort_keys=True, separators=(',', ':'), ensure_ascii=True).encode('utf-8')
+    return hashlib.sha256(encoded).hexdigest()
+
+
+def _find_completed_import_receipt(cur, request_fingerprint):
+    cur.execute(
+        """
+        select id::text, summary
+        from public.import_runs
+        where import_type='backup_baseline'
+          and source_hash=%s
+          and status='completed'
+        order by completed_at, id
+        """,
+        (request_fingerprint,),
+    )
+    rows = cur.fetchall()
+    if len(rows) > 1:
+        raise VehicleIdentityExportInvalid('multiple completed receipts exist for one importer request')
+    if not rows:
+        return None
+    (receipt,) = rows
+    return {'receipt_id': receipt[0], 'summary': receipt[1] or {}}
+
+
+def run_import(
+    conn,
+    extract,
+    reference,
+    apply=False,
+    vehicle_export_rollback=False,
+    commit_apply=True,
+    logger=lambda message: print(message, file=sys.stderr),
+):
     assert_staging_project(conn)
-    buckets = classify(extract, reference)
     admin_user_id = get_admin_user_id(conn)
 
     cur = conn.cursor()
@@ -245,6 +672,31 @@ def run_import(conn, extract, reference, apply=False):
     cur.execute(
         "select set_config('request.jwt.claims', %s, true)",
         (json.dumps({'email': 'administrator@staging.pdc-workshop.example.com', 'role': 'authenticated', 'sub': str(admin_user_id)}),),
+    )
+    buckets = classify(extract, reference)
+    request_fingerprint = _import_request_fingerprint(extract, reference, buckets)
+    if apply:
+        # Serialize identical requests. If the first caller committed but its
+        # response was lost, the retry returns the durable receipt and makes
+        # no second booking/history/assignment mutation.
+        cur.execute(
+            "select pg_advisory_xact_lock(hashtextextended(%s, 0))",
+            (request_fingerprint,),
+        )
+        completed = _find_completed_import_receipt(cur, request_fingerprint)
+        if completed:
+            replay = dict(completed['summary'])
+            replay.update({
+                'apply': True,
+                'replayed': True,
+                'request_fingerprint': request_fingerprint,
+                'receipt_id': completed['receipt_id'],
+            })
+            if commit_apply:
+                conn.commit()
+            return replay
+    _lock_vehicle_identity_export_revision(
+        conn, reference, rollback_permitted=vehicle_export_rollback, logger=logger,
     )
     cur.execute("select count(*) from workshop_bookings where source = %s", (LEGACY_IMPORT_SOURCE,))
     before_count = cur.fetchone()[0]
@@ -345,21 +797,32 @@ def run_import(conn, extract, reference, apply=False):
             (
                 'backup_baseline',
                 extract.get('source_backup_type') or 'workshop_planner_legacy_export',
-                extract.get('exported_at') or '',
+                request_fingerprint,
                 json.dumps({
-                    'inserted': inserted, 'updated': updated, 'skipped': skipped,
-                    'before_count': before_count, 'after_count': after_count,
+                    'apply': True,
+                    'replayed': False,
+                    'request_fingerprint': request_fingerprint,
+                    'inserted': inserted,
+                    'updated': updated,
+                    'skipped': skipped,
+                    'before_count': before_count,
+                    'after_count': after_count,
                     'bucket_counts': {k: len(v) for k, v in buckets.items()},
                 }),
             ),
         )
-        conn.commit()
+        receipt_id = str(cur.fetchone()[0])
+        if commit_apply:
+            conn.commit()
     else:
         conn.rollback()
         after_count = before_count  # dry-run changes nothing
 
     return {
         'apply': apply,
+        'replayed': False,
+        'request_fingerprint': request_fingerprint,
+        'receipt_id': receipt_id if apply else None,
         'before_count': before_count,
         'after_count': after_count,
         'inserted': inserted,
@@ -375,6 +838,7 @@ if __name__ == '__main__':
         sys.exit(1)
     extract_path, reference_path = sys.argv[1], sys.argv[2]
     apply_mode = '--apply' in sys.argv[3:]
+    rollback_mode = '--vehicle-export-rollback' in sys.argv[3:]
 
     sys.path.insert(0, '_staging_test_tools')
     from staging_conn import get_conn  # noqa: E402
@@ -386,7 +850,13 @@ if __name__ == '__main__':
 
     connection = get_conn()
     try:
-        result = run_import(connection, extract_data, reference_data, apply=apply_mode)
+        result = run_import(
+            connection,
+            extract_data,
+            reference_data,
+            apply=apply_mode,
+            vehicle_export_rollback=rollback_mode,
+        )
         print(json.dumps(result, indent=2))
     finally:
         connection.close()

@@ -100,9 +100,21 @@ The resolved allowlist is deliberately limited to canonical UUID, optimistic ver
 
 ### C2 — workshop identity alignment and offline tools
 
+#### C2a — guarded importer/admin identity export — **complete on staging**
+
+Migration `031` adds `export_workshop_legacy_vehicle_identities(text, integer, bigint)`, an authenticated SECURITY DEFINER export available only when `current_pdc_user_role()` is exactly `importer` or `administrator`. Viewer and operator/controller sessions receive `unauthorized`; anon/public have no execute grant. The projection contains only canonical vehicle UUID, optimistic version, archived flag, typed approved canonical/alias identifiers, conflict evidence and the lifecycle resolver/export revision.
+
+The export is UUID ordered, cursor paginated (maximum 500 rows), revision pinned across pages and retry safe because it is read-only. It reuses the 028–030 SQL normalizers, excludes placeholder stock and malformed VINs, emits normalized duplicate and canonical-versus-alias candidate sets, and returns `stale_export` if the expected revision changes.
+
+`scripts/workshop_legacy_import.py::fetch_reference_data` now uses this export by default. Matching evaluates the complete candidate set across stock, VIN, job card, permanent ID, Toyota order, source record and approved aliases; zero, many, conflicting and inactive identities are review buckets, never first-row authority. Apply retains the canonical UUID and locks the accepted export revision for the transaction. The historical direct vehicle query remains only behind the explicit `--vehicle-export-rollback` flag, which is staging guarded, defaults off, logs use and exports ambiguity evidence instead of choosing a row.
+
+**Proof completed:** importer and administrator access; viewer and operator/controller denial; narrow projection; canonical UUID retention; stock/VIN/job-card/alias normalization; zero/many/canonical-alias conflict refusal; archived handling; deterministic ordering and page retry; stale revision refusal; exact apply replay returns one durable receipt with no repeated booking/history write; guarded rollback behavior; synthetic importer apply with transaction rollback; zero fixture/receipt residue; migration dry run/lint; encrypted backup and isolated restore.
+
+**Next C2b:** update `scripts/workshop_planner_legacy_validate.js` and its offline reference-artifact producer/consumers to accept the migration 031 typed export envelope and reproduce the same complete candidate-set/conflict behavior. Keep `get_workshop_snapshot`, the browser-local workshop dataset and all browser authority unchanged.
+
 - Keep `get_workshop_snapshot` for bookings/workshop state.
 - Make overlapping core identity fields conform exactly to the core contract and normalization rules.
-- Update `workshop_legacy_import.py`/validators to consume an exported snapshot or shared deterministic resolver and reject ambiguous normalized identities.
+- Keep `workshop_legacy_import.py` on the revision-pinned 031 export; update remaining offline validators to consume that same envelope and reject ambiguous normalized identities.
 - Inventory every active caller of the lower-level authenticated booking RPCs. Retire those grants only after transactional wrappers cover the callers and prove identical vehicle-pointer/status/revision/audit behavior.
 - Add a health check that `vehicles.active_workshop_booking_id`, when present, points to a booking for the same vehicle.
 - Keep workshop and vehicle-master revision subscriptions independent.
