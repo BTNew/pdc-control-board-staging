@@ -8205,6 +8205,7 @@ async function transferVehiclesToRft(vehicles = [], options = {}) {
       offerSalespersonChangeEmail(selected[0], {
         title: 'Vehicle ready for transport (RFT)',
         subject: 'Vehicle ready for transport',
+        shared: true,
         details: ['The vehicle has moved to RFT and is ready for transport. A notification has been queued for the assigned salesperson.'],
       });
     }
