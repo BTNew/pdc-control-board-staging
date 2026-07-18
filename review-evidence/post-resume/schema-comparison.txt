@@ -1,0 +1,20 @@
+columns: MATCH
+constraints: MATCH
+cron_jobs: MATCH
+foreign_keys: MATCH
+functions: MATCH
+indexes: MATCH
+migration_ledger: MATCH
+realtime_publication_tables: MATCH
+replica_identity: MATCH
+rls_enabled: MATCH
+rls_policies: MATCH
+routine_grants: MATCH
+schemas: MATCH
+table_grants: MATCH
+triggers: MATCH
+views: MATCH
+
+UNEXPECTED_DIFFERENCE_COUNT=0
+DIFFERENT_SECTIONS=[]
+RESULT=PASS

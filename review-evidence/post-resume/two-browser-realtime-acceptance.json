@@ -1,0 +1,54 @@
+{
+  "runAt": "2026-07-17T23:20:52.406Z",
+  "url": "https://btnew.github.io/pdc-control-board-staging/",
+  "deploymentCommit": "ee9d7419f3f1926ca9634dd4f49d314756ab4e7e",
+  "browsers": [
+    {
+      "label": "Browser A (administrator)",
+      "account": "administrator test account",
+      "role": "administrator",
+      "context": "independent browser context"
+    },
+    {
+      "label": "Browser B (controller)",
+      "account": "controller A test account",
+      "role": "operator",
+      "context": "independent browser context"
+    }
+  ],
+  "mutation": {
+    "setting": "default_booking_duration_minutes",
+    "originalValue": 180,
+    "temporaryValue": 195,
+    "changedVersion": 21,
+    "restoredVersion": 22,
+    "restoredToOriginal": true
+  },
+  "checks": {
+    "bothAuthenticated": true,
+    "bothOpenedWorkshop": true,
+    "bothReferenceServicesReady": true,
+    "administratorMutationSucceeded": true,
+    "browserBRealtimeObservedChange": true,
+    "restoreSucceeded": true,
+    "browserBRealtimeObservedRestore": true,
+    "finalValuesMatchOriginal": true,
+    "noConsoleErrors": true,
+    "noPageErrors": true,
+    "noFailedRequests": true,
+    "noHttpErrors": true,
+    "noProductionRequests": true,
+    "stagingSupabaseContacted": true,
+    "stagingPageLoaded": true
+  },
+  "consoleErrors": [],
+  "pageErrors": [],
+  "failedRequests": [],
+  "httpErrors": [],
+  "productionRequests": [],
+  "requestHosts": [
+    "btnew.github.io",
+    "cdsmnqxtyyoeoznmbidd.supabase.co"
+  ],
+  "passed": true
+}
