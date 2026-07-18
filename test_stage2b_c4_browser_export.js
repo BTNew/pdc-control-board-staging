@@ -53,12 +53,14 @@ async function main() {
   const malformedStorage = new ReadOnlyStorage({
     [exporter.KEYS.added]: '[]', [exporter.KEYS.edits]: '{}', [exporter.KEYS.deleted]: '[]',
     [exporter.KEYS.po_tasks]: '[]', [exporter.KEYS.workshop_plans]: '{}',
+    [exporter.KEYS.audit]: '{',
     'vehicleTrackingCoreNotes:BAD': '{}',
   });
   const malformed = await exporter.buildAssessmentExport({ localStorage: malformedStorage, windowObject });
   assert.deepStrictEqual(malformed.parse_errors, [
     { family: 'notes:BAD', reason_code: 'invalid_type' },
     { family: 'po_tasks', reason_code: 'invalid_type' },
+    { family: exporter.KEYS.audit, reason_code: 'invalid_json' },
     { family: 'workshop_plans', reason_code: 'invalid_type' },
   ]);
   assert.strictEqual(malformedStorage.writeAttempts, 0);

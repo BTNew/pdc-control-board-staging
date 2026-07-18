@@ -79,7 +79,7 @@
     if (raw == null) return fallback;
     try { return JSON.parse(raw); }
     catch (_) {
-      parseErrors.push({ family: key, reason_code: 'malformed_local_storage_json' });
+      parseErrors.push({ family: key, reason_code: 'invalid_json' });
       return fallback;
     }
   }

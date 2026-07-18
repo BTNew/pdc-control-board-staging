@@ -2,6 +2,7 @@ import json
 import sys
 import tempfile
 import unittest
+import zipfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -93,6 +94,28 @@ class C4AssessmentTests(unittest.TestCase):
         data["assessment_export_sha256"] = c4.sha256_text(c4.canonical_json({k: v for k, v in data.items() if k != "assessment_export_sha256"}))
         with self.assertRaises(c4.C4AssessmentError): c4.assess_export(data)
 
+    def test_permitted_fields_enforce_narrow_types_order_and_counts(self):
+        mutations = []
+        data = payload([vehicle("added:000001", stock="130001")])
+        data["vehicles"][0]["vin"] = "person@example.com"
+        mutations.append(data)
+        data = payload([vehicle("added:000001", stock="130001")])
+        data["vehicles"][0]["stock_number"] = {"customer": "smuggled"}
+        mutations.append(data)
+        data = payload([vehicle("added:000001", stock="130001")])
+        data["bookings"] = [{"booking_ref": "booking:000001", "legacy_vehicle_key": "130001", "stage_code": {"name": "FITTING"}}]
+        mutations.append(data)
+        data = payload([vehicle("added:000001", stock="130001")])
+        data["families"]["added_vehicle_count"] = 999999
+        mutations.append(data)
+        data = payload([vehicle("added:000001", stock="130001")])
+        data["vehicles"][0]["workflow_field_names"] = ["pmbStage", "pmbStage"]
+        mutations.append(data)
+        for candidate in mutations:
+            candidate["assessment_export_sha256"] = c4.sha256_text(c4.canonical_json({k: v for k, v in candidate.items() if k != "assessment_export_sha256"}))
+            with self.assertRaises(c4.C4AssessmentError):
+                c4.assess_export(candidate)
+
     def test_parse_error_is_a_manual_review_row_without_invalidating_all_vehicles(self):
         data = payload([vehicle("added:000001", stock="130001")])
         data["parse_errors"] = [{"family": "notes", "reason_code": "invalid_json"}]
@@ -114,6 +137,34 @@ class C4AssessmentTests(unittest.TestCase):
             self.assertEqual(verified["zip_sha256"], a["zip_sha256"])
             self.assertFalse(a["summary"]["real_import_performed"])
             self.assertFalse(a["summary"]["production_contacted"])
+
+    def test_verifier_rejects_semantically_substituted_import_plan(self):
+        data = payload([vehicle("added:000001", stock="130001", vin="JTNAA3BB4C5000001")])
+        with tempfile.TemporaryDirectory() as directory:
+            built = c4.build_package(data, Path(directory))
+            with zipfile.ZipFile(built["zip_path"]) as source:
+                files = {name: source.read(name) for name in source.namelist()}
+            plan_name = "STAGE-2B-C4-IMPORT-PLAN.md"
+            files[plan_name] = b"arbitrary substituted plan\n"
+            manifest = json.loads(files["manifest.json"])
+            for row in manifest["files"]:
+                if row["path"] == plan_name:
+                    row["size"] = len(files[plan_name])
+                    row["sha256"] = c4.sha256_bytes(files[plan_name])
+            files["manifest.json"] = (json.dumps(manifest, indent=2, sort_keys=True) + "\n").encode("utf-8")
+            files["SHA256SUMS.txt"] = "".join(
+                f"{c4.sha256_bytes(files[name])}  {name}\n"
+                for name in sorted(files) if name != "SHA256SUMS.txt"
+            ).encode("utf-8")
+            tampered = Path(directory) / "tampered.zip"
+            with zipfile.ZipFile(tampered, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=9) as archive:
+                for name in sorted(files):
+                    info = zipfile.ZipInfo(name, date_time=(1980, 1, 1, 0, 0, 0))
+                    info.compress_type = zipfile.ZIP_DEFLATED
+                    info.external_attr = 0o100644 << 16
+                    archive.writestr(info, files[name])
+            with self.assertRaisesRegex(c4.C4AssessmentError, "import plan does not recompute"):
+                c4.verify_package(tampered)
 
     def test_analyzer_has_no_browser_database_or_network_client(self):
         source = (ROOT / "scripts" / "stage2b_c4_assessment.py").read_text(encoding="utf-8")

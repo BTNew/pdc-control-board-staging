@@ -49,6 +49,10 @@ ROW_SCHEMAS = {
 EXCLUDED_PAYLOADS = ["customer data", "note text", "Parts content", "file content", "audit details", "Navision payload"]
 HEX64 = re.compile(r"[0-9a-f]{64}")
 VIN = re.compile(r"[A-HJ-NPR-Z0-9]{17}")
+SAFE_IDENTITY_TEXT = re.compile(r"[A-Za-z0-9 ._/#:-]{0,128}")
+EMAIL_LIKE = re.compile(r"[^\s@]+@[^\s@]+\.[^\s@]+")
+URL_LIKE = re.compile(r"https?://", re.I)
+WORKFLOW_FIELD = re.compile(r"(?:pmb|pdc|workshop)[A-Za-z0-9_]{0,61}")
 CSV_COLUMNS = [
     "record_type", "record_ref", "legacy_vehicle_key", "stock_number", "vin",
     "job_card_number", "permanent_vehicle_id", "toyota_order_number",
@@ -100,6 +104,21 @@ def _assert_hash(value, label):
         raise C4AssessmentError(f"{label} is not a SHA-256 value")
 
 
+def _validate_identity_text(value, label, *, nullable=True):
+    if value is None and nullable:
+        return
+    if not isinstance(value, str) or not SAFE_IDENTITY_TEXT.fullmatch(value):
+        raise C4AssessmentError(f"{label} is not narrow scalar text")
+    if EMAIL_LIKE.search(value) or URL_LIKE.search(value):
+        raise C4AssessmentError(f"{label} contains prohibited broad data")
+
+
+def _validate_workflow_fields(value, label):
+    if (not isinstance(value, list) or value != sorted(set(value))
+            or not all(isinstance(item, str) and WORKFLOW_FIELD.fullmatch(item) for item in value)):
+        raise C4AssessmentError(f"{label} is invalid")
+
+
 def validate_export(payload):
     if not isinstance(payload, dict) or set(payload) != TOP_KEYS or payload.get("schema") != SCHEMA:
         raise C4AssessmentError("assessment export schema is invalid")
@@ -120,40 +139,76 @@ def validate_export(payload):
         raise C4AssessmentError("excluded payload declaration is invalid")
     for count_key in ("static_vehicle_count", "added_vehicle_count", "deleted_vehicle_count", "edit_row_count", "audit_row_count"):
         value = payload["families"][count_key]
-        if not isinstance(value, int) or isinstance(value, bool) or value < 0:
+        if not isinstance(value, int) or isinstance(value, bool) or not 0 <= value <= 1_000_000:
             raise C4AssessmentError(f"family count is invalid: {count_key}")
     if not isinstance(payload["families"]["navision_import_present"], bool):
         raise C4AssessmentError("Navision presence flag is invalid")
     unknown_keys = payload["families"]["unknown_vehicle_storage_keys"]
-    if not isinstance(unknown_keys, list) or unknown_keys != sorted(set(unknown_keys)) or not all(isinstance(value, str) for value in unknown_keys):
+    if (not isinstance(unknown_keys, list) or unknown_keys != sorted(set(unknown_keys))
+            or not all(isinstance(value, str) and 0 < len(value) <= 256 for value in unknown_keys)):
         raise C4AssessmentError("unknown storage-key inventory is invalid")
     for family, schema in ROW_SCHEMAS.items():
         for row in payload[family]:
             if not isinstance(row, dict) or set(row) != schema:
                 raise C4AssessmentError(f"{family} row schema is invalid")
+    for row in payload["deleted_records"]:
+        if not isinstance(row["record_ref"], str) or not re.fullmatch(r"deleted:\d{6}", row["record_ref"]):
+            raise C4AssessmentError("deleted record_ref is invalid")
+        _validate_identity_text(row["legacy_vehicle_key"], "deleted legacy_vehicle_key", nullable=False)
     for row in payload["notes"]:
-        if not isinstance(row["note_count"], int) or isinstance(row["note_count"], bool) or row["note_count"] < 0:
+        _validate_identity_text(row["legacy_vehicle_key"], "note legacy_vehicle_key", nullable=False)
+        if not isinstance(row["note_count"], int) or isinstance(row["note_count"], bool) or not 0 <= row["note_count"] <= 1_000_000:
             raise C4AssessmentError("note count is invalid")
     for row in payload["parts_records"]:
-        if row["family"] not in {"po_tasks", "po_files"} or not isinstance(row["item_count"], int) or isinstance(row["item_count"], bool) or row["item_count"] < 0:
+        _validate_identity_text(row["legacy_vehicle_key"], "Parts legacy_vehicle_key", nullable=False)
+        if row["family"] not in {"po_tasks", "po_files"} or not isinstance(row["item_count"], int) or isinstance(row["item_count"], bool) or not 0 <= row["item_count"] <= 1_000_000:
             raise C4AssessmentError("Parts row is invalid")
     for row in payload["workflow_records"]:
-        if not isinstance(row["field_names"], list) or row["field_names"] != sorted(set(row["field_names"])) or not all(isinstance(value, str) for value in row["field_names"]):
-            raise C4AssessmentError("workflow field inventory is invalid")
+        _validate_identity_text(row["legacy_vehicle_key"], "workflow legacy_vehicle_key", nullable=False)
+        _validate_workflow_fields(row["field_names"], "workflow field inventory")
+    for row in payload["bookings"]:
+        if not isinstance(row["booking_ref"], str) or not re.fullmatch(r"booking:\d{6}", row["booking_ref"]):
+            raise C4AssessmentError("booking_ref is invalid")
+        _validate_identity_text(row["legacy_vehicle_key"], "booking legacy_vehicle_key", nullable=False)
+        _validate_identity_text(row["stage_code"], "booking stage_code")
+    for row in payload["parse_errors"]:
+        _validate_identity_text(row["family"], "parse-error family", nullable=False)
+        if row["reason_code"] not in {"invalid_json", "invalid_type"}:
+            raise C4AssessmentError("parse-error reason is invalid")
     refs = []
+    source_counts = {"static": 0, "added": 0}
+    identity_fields = (
+        "legacy_vehicle_key", "stock_number", "vin", "job_card_number",
+        "permanent_vehicle_id", "toyota_order_number", "legacy_id",
+    )
     for row in payload["vehicles"]:
         if not isinstance(row, dict) or set(row) != VEHICLE_KEYS:
             raise C4AssessmentError("vehicle assessment row schema is invalid")
-        if not isinstance(row["record_ref"], str) or not row["record_ref"]:
-            raise C4AssessmentError("vehicle record_ref is invalid")
-        if not isinstance(row["workflow_field_names"], list):
-            raise C4AssessmentError("workflow field list is invalid")
+        if row["source_family"] not in source_counts or not isinstance(row["record_ref"], str) or not re.fullmatch(r"(?:static|added):\d{6}", row["record_ref"]):
+            raise C4AssessmentError("vehicle record identity is invalid")
+        if not row["record_ref"].startswith(f"{row['source_family']}:"):
+            raise C4AssessmentError("vehicle source and record_ref disagree")
+        for field in identity_fields:
+            _validate_identity_text(row[field], f"vehicle {field}", nullable=(field != "legacy_vehicle_key"))
+        _validate_workflow_fields(row["workflow_field_names"], "vehicle workflow field list")
         for count_key in ("parts_task_count", "parts_file_count"):
-            if not isinstance(row[count_key], int) or isinstance(row[count_key], bool) or row[count_key] < 0:
+            if not isinstance(row[count_key], int) or isinstance(row[count_key], bool) or not 0 <= row[count_key] <= 1_000_000:
                 raise C4AssessmentError("Parts count is invalid")
+        source_counts[row["source_family"]] += 1
         refs.append(row["record_ref"])
     if len(refs) != len(set(refs)):
         raise C4AssessmentError("vehicle record_ref values are not unique")
+    families = payload["families"]
+    if families["deleted_vehicle_count"] != len(payload["deleted_records"]):
+        raise C4AssessmentError("deleted family count does not match exported records")
+    if source_counts["static"] > families["static_vehicle_count"] or source_counts["added"] > families["added_vehicle_count"]:
+        raise C4AssessmentError("vehicle family counts are smaller than visible records")
+    if families["deleted_vehicle_count"] == 0 and (
+            source_counts["static"] != families["static_vehicle_count"]
+            or source_counts["added"] != families["added_vehicle_count"]):
+        raise C4AssessmentError("vehicle family counts do not match visible records")
+    if families["edit_row_count"] < len(payload["workflow_records"]):
+        raise C4AssessmentError("edit family count is smaller than workflow records")
     expected = dict(payload)
     checksum = expected.pop("assessment_export_sha256")
     if sha256_text(canonical_json(expected)) != checksum:
@@ -530,18 +585,33 @@ def verify_package(zip_path: Path):
         if names != expected: raise C4AssessmentError("assessment ZIP member set/order is invalid")
         data = {name: archive.read(name) for name in names}
     manifest = json.loads(data["manifest.json"])
-    if manifest.get("schema") != MANIFEST_SCHEMA or manifest.get("real_import_performed") is not False or manifest.get("production_contacted") is not False:
+    if (not isinstance(manifest, dict) or set(manifest) != {
+            "schema", "source_assessment_sha256", "summary_sha256", "files",
+            "real_import_performed", "production_contacted",
+        } or manifest.get("schema") != MANIFEST_SCHEMA
+            or manifest.get("real_import_performed") is not False
+            or manifest.get("production_contacted") is not False):
         raise C4AssessmentError("assessment package manifest is invalid")
-    listed = {row["path"]: row for row in manifest.get("files", [])}
-    for name in expected:
-        if name in {"manifest.json", "SHA256SUMS.txt"}: continue
-        row = listed.get(name)
-        if not row or row.get("size") != len(data[name]) or row.get("sha256") != sha256_bytes(data[name]):
+    manifest_files = manifest.get("files")
+    if (not isinstance(manifest_files, list)
+            or len(manifest_files) != len(expected) - 2
+            or any(not isinstance(row, dict) or set(row) != {"path", "size", "sha256"} for row in manifest_files)):
+        raise C4AssessmentError("assessment package manifest file inventory is invalid")
+    listed = {row["path"]: row for row in manifest_files}
+    expected_listed = set(expected) - {"manifest.json", "SHA256SUMS.txt"}
+    if set(listed) != expected_listed or len(listed) != len(manifest_files):
+        raise C4AssessmentError("assessment package manifest member set is invalid")
+    for name in expected_listed:
+        row = listed[name]
+        if row.get("size") != len(data[name]) or row.get("sha256") != sha256_bytes(data[name]):
             raise C4AssessmentError(f"manifest mismatch for {name}")
     expected_sums = "".join(f"{sha256_bytes(data[name])}  {name}\n" for name in sorted(data) if name != "SHA256SUMS.txt").encode("utf-8")
     if data["SHA256SUMS.txt"] != expected_sums: raise C4AssessmentError("SHA256SUMS.txt is invalid")
     source_payload = json.loads(data["STAGE-2B-C4-SANITIZED-ASSESSMENT.json"])
     recomputed_summary, recomputed_details, recomputed_rows = assess_export(source_payload)
+    if (manifest["source_assessment_sha256"] != source_payload["assessment_export_sha256"]
+            or manifest["summary_sha256"] != recomputed_summary["summary_sha256"]):
+        raise C4AssessmentError("manifest source/summary identity does not recompute")
     packaged_assessment = json.loads(data["assessment-summary.json"])
     if packaged_assessment != {
         "summary": recomputed_summary,
@@ -554,6 +624,8 @@ def verify_package(zip_path: Path):
         raise C4AssessmentError("manual-review CSV does not recompute from sanitized input")
     if data["STAGE-2B-C4-REAL-DATA-READINESS-REPORT.md"] != render_report(recomputed_summary, recomputed_details).encode("utf-8"):
         raise C4AssessmentError("readiness report does not recompute from sanitized input")
+    if data["STAGE-2B-C4-IMPORT-PLAN.md"] != render_import_plan(recomputed_summary).encode("utf-8"):
+        raise C4AssessmentError("import plan does not recompute from sanitized input")
     return {"zip_size": zip_path.stat().st_size, "zip_sha256": sha256_bytes(zip_path.read_bytes())}
 
 
