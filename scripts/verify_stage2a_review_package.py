@@ -81,11 +81,13 @@ def verify_prohibited_content() -> list[str]:
         if path.name == ".env" or (path.name.startswith(".env.") and path.name != ".env.example"):
             problems.append(f"real environment file: {rel}")
         data = path.read_bytes()
-        if b"sb_" + b"secret" + b"_" in data:
-            problems.append(f"Supabase secret key marker: {rel}")
-        if b"-----BEGIN PRIVATE KEY-----" in data or b"-----BEGIN RSA PRIVATE KEY-----" in data:
-            problems.append(f"private key marker: {rel}")
         text = data.decode("utf-8", errors="ignore")
+        if re.search(r"sb_secret_[A-Za-z0-9_-]{20,}", text):
+            problems.append(f"Supabase secret key value: {rel}")
+        if re.search(r"-----BEGIN (?:RSA )?PRIVATE KEY-----\s+[A-Za-z0-9+/=\r\n]{100,}", text):
+            problems.append(f"private key material: {rel}")
+        if re.search(r"(?:SERVICE_ROLE_KEY|service_role_key)\s*[=:]\s*['\"](?!REPLACE_|<|\[REDACTED\])[A-Za-z0-9._-]{20,}", text):
+            problems.append(f"service-role credential assignment: {rel}")
         for match in db_url.finditer(text):
             if match.group(1) not in {"***", "<password>", "REPLACE_WITH_PASSWORD", "REPLACE_WITH_YOUR_PASSWORD"}:
                 problems.append(f"database URL with password: {rel}")

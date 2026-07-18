@@ -35,9 +35,6 @@ FORBIDDEN_PATH_PATTERNS = [
 ]
 ALLOWED_ENV_EXAMPLES = {"_staging_test_tools/.env.example", "backend/.env.example"}
 FORBIDDEN_CONTENT_PATTERNS = [
-    ("Supabase secret key", b"sb_" + b"secret" + b"_"),
-    ("private key", b"-----BEGIN PRIVATE KEY-----"),
-    ("RSA private key", b"-----BEGIN RSA PRIVATE KEY-----"),
     ("database URL with embedded password", None),
 ]
 REQUIRED_SOURCE_PATHS = [
@@ -113,6 +110,16 @@ def scan_content_safety(file_list: list[str], root: Path = REPO_ROOT) -> list[st
             problems.append(f"{rel}: missing file")
             continue
         data = full.read_bytes()
+        text = data.decode("utf-8", errors="ignore")
+        # Match credential-shaped values, not documentation/validator source
+        # that merely names the prohibited prefix or PEM delimiter.
+        import re
+        if re.search(r"sb_secret_[A-Za-z0-9_-]{20,}", text):
+            problems.append(f"{rel}: matched forbidden Supabase secret key")
+        if re.search(r"-----BEGIN (?:RSA )?PRIVATE KEY-----\s+[A-Za-z0-9+/=\r\n]{100,}", text):
+            problems.append(f"{rel}: matched forbidden private key material")
+        if re.search(r"(?:SERVICE_ROLE_KEY|service_role_key)\s*[=:]\s*['\"](?!REPLACE_|<|\[REDACTED\])[A-Za-z0-9._-]{20,}", text):
+            problems.append(f"{rel}: matched forbidden service-role credential assignment")
         for label, needle in FORBIDDEN_CONTENT_PATTERNS:
             if needle is not None and needle in data:
                 problems.append(f"{rel}: matched forbidden {label}")
