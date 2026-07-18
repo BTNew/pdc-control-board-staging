@@ -1,0 +1,51 @@
+name: Stage 2B C4 readiness cross-platform verification
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - feature/stage2b-shared-vehicle-master
+
+permissions:
+  contents: read
+
+jobs:
+  c4-readiness-portable:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: C4 focused read-only tests
+        run: |
+          node test_stage2b_c4_browser_export.js
+          python -m unittest backend.test_stage2b_c4_assessment -v
+      - name: C4 syntax and prohibited-operation scan
+        run: |
+          node --check scripts/stage2b_c4_browser_export.js
+          python -m py_compile scripts/stage2b_c4_assessment.py backend/test_stage2b_c4_assessment.py
+          python - <<'PY'
+          from pathlib import Path
+          browser = Path('scripts/stage2b_c4_browser_export.js').read_text(encoding='utf-8')
+          analyzer = Path('scripts/stage2b_c4_assessment.py').read_text(encoding='utf-8')
+          forbidden_browser = ('.setItem(', '.removeItem(', '.clear(', 'fetch(', 'XMLHttpRequest', 'sendBeacon', 'WebSocket')
+          forbidden_analyzer = ('import psycopg', 'import requests', 'from supabase', 'urllib.request', 'create_client(')
+          found = [value for value in forbidden_browser if value in browser]
+          found += [value for value in forbidden_analyzer if value in analyzer]
+          if found:
+              raise SystemExit(f'forbidden C4 operation primitives present: {found}')
+          for root in ('_c4_assessment', '_c4_packages'):
+              if Path(root).exists():
+                  raise SystemExit(f'real-data output directory must not be committed: {root}')
+          PY
