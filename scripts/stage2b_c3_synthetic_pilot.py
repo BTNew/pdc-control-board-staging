@@ -11,6 +11,7 @@ import argparse
 import hashlib
 import json
 import os
+import re
 import subprocess
 import sys
 import tempfile
@@ -26,6 +27,7 @@ PROJECT_REF_PATH = ROOT / "supabase" / ".temp" / "project-ref"
 
 sys.path.insert(0, str(ROOT / "scripts"))
 from stage2b_c3_reconciliation import (  # noqa: E402
+    build_operation_evidence,
     build_reconciliation_report,
     canonical_json,
     validate_reconciliation_report,
@@ -50,6 +52,17 @@ SAFE_SUMMARY_KEYS = {
     "schema_version", "source_system", "source_batch_id", "scenario_count",
     "preview_deterministic", "preview_apply_parity", "exact_apply_replay",
     "response_loss_replay", "validator_cli", "c2b_dry_run", "evidence_files",
+}
+ARTIFACT_EVIDENCE_KEYS = {
+    "schema_version", "resolver_revision", "item_count", "checksum",
+    "deterministic_regeneration", "stale_revision_refused", "malformed_refused", "truncated_refused",
+}
+ROLLBACK_EVIDENCE_KEYS = {
+    "rollback_used", "exact_revision_lock", "stale_rollback_refused", "synthetic_apply_receipt_replayed",
+}
+CLEANUP_EVIDENCE_KEYS = {
+    "baseline_counts", "after_counts", "baseline_restored", "unresolved_synthetic_conflicts",
+    "temp_schemas", "temp_roles", "synthetic_residue_counts",
 }
 COUNT_TABLES = (
     "vehicles", "vehicle_aliases", "vehicle_master_source_records",
@@ -112,17 +125,68 @@ def sanitize_preview(scenario_id, response):
     return {key: safe[key] for key in sorted(SAFE_PREVIEW_KEYS)}
 
 
+def immutable_receipt_projection(response):
+    if not isinstance(response, dict):
+        raise C3PilotRefusal("receipt response is not an object")
+    return {key: value for key, value in response.items() if key != "replayed"}
+
+
 def validate_evidence_bundle(bundle):
-    if set(bundle) != set(EVIDENCE_FILES):
+    if not isinstance(bundle, dict) or set(bundle) != set(EVIDENCE_FILES):
         raise C3PilotRefusal("evidence bundle is incomplete")
     summary = bundle["pilot"]
     if not isinstance(summary, dict) or set(summary) != SAFE_SUMMARY_KEYS:
         raise C3PilotRefusal("pilot evidence schema is invalid")
     if summary["source_system"] != SOURCE_SYSTEM or summary["source_batch_id"] != SOURCE_BATCH_ID:
         raise C3PilotRefusal("pilot evidence escaped synthetic namespace")
+    if summary["scenario_count"] != 20 or summary["evidence_files"] != sorted(EVIDENCE_FILES.values()):
+        raise C3PilotRefusal("pilot evidence inventory is invalid")
+    proof_flags = ("preview_deterministic", "preview_apply_parity", "exact_apply_replay",
+                   "response_loss_replay", "validator_cli", "c2b_dry_run")
+    if not all(summary[key] is True for key in proof_flags):
+        raise C3PilotRefusal("pilot proof flags are incomplete")
     previews = bundle["preview"]
-    if not isinstance(previews, list) or any(set(row) != SAFE_PREVIEW_KEYS for row in previews):
+    if not isinstance(previews, list) or any(not isinstance(row, dict) or set(row) != SAFE_PREVIEW_KEYS for row in previews):
         raise C3PilotRefusal("preview evidence schema is invalid")
+
+    artifact = bundle["artifact"]
+    if not isinstance(artifact, dict) or set(artifact) != ARTIFACT_EVIDENCE_KEYS:
+        raise C3PilotRefusal("artifact evidence schema is invalid")
+    checksum = artifact.get("checksum")
+    artifact_flags = ("deterministic_regeneration", "stale_revision_refused", "malformed_refused", "truncated_refused")
+    if (artifact.get("schema_version") != "pdc.workshop.vehicle-reference/v2"
+            or not isinstance(artifact.get("resolver_revision"), int)
+            or not isinstance(artifact.get("item_count"), int) or artifact["item_count"] < 1
+            or not isinstance(checksum, dict) or set(checksum) != {"algorithm", "value"}
+            or checksum.get("algorithm") != "sha256"
+            or not re.fullmatch(r"[0-9a-f]{64}", str(checksum.get("value") or ""))
+            or not all(artifact[key] is True for key in artifact_flags)):
+        raise C3PilotRefusal("artifact evidence semantics are invalid")
+
+    rollback = bundle["rollback"]
+    if (not isinstance(rollback, dict) or set(rollback) != ROLLBACK_EVIDENCE_KEYS
+            or not isinstance(rollback.get("exact_revision_lock"), int)
+            or rollback["exact_revision_lock"] != artifact["resolver_revision"]
+            or not all(rollback[key] is True for key in (
+                "rollback_used", "stale_rollback_refused", "synthetic_apply_receipt_replayed"))):
+        raise C3PilotRefusal("rollback evidence semantics are invalid")
+
+    cleanup = bundle["cleanup"]
+    if not isinstance(cleanup, dict) or set(cleanup) != CLEANUP_EVIDENCE_KEYS:
+        raise C3PilotRefusal("cleanup evidence schema is invalid")
+    baseline = cleanup.get("baseline_counts")
+    after = cleanup.get("after_counts")
+    residue = cleanup.get("synthetic_residue_counts")
+    if (not isinstance(baseline, dict) or set(baseline) != set(COUNT_TABLES)
+            or not isinstance(after, dict) or set(after) != set(COUNT_TABLES)
+            or baseline != after or cleanup.get("baseline_restored") is not True
+            or any(not isinstance(value, int) or value < 0 for value in [*baseline.values(), *after.values()])
+            or not isinstance(residue, dict) or not residue
+            or any(not isinstance(value, int) or value != 0 for value in residue.values())
+            or cleanup.get("unresolved_synthetic_conflicts") != 0
+            or cleanup.get("temp_schemas") != 0 or cleanup.get("temp_roles") != 0):
+        raise C3PilotRefusal("cleanup evidence semantics are invalid")
+
     validate_reconciliation_report(bundle["reconciliation"])
     encoded = canonical_json(bundle).lower()
     forbidden = ("customer", "email", "password", "database_url", "postgres://", "postgresql://", "source_payload")
@@ -177,6 +241,26 @@ def _counts(conn):
     for table in COUNT_TABLES:
         cur.execute("select count(*) from public." + table)
         result[table] = cur.fetchone()[0]
+    return result
+
+
+def _synthetic_residue_counts(conn):
+    cur = conn.cursor()
+    checks = {
+        "vehicles": ("select count(*) from public.vehicles where source_system=%s or source_batch_id=%s", (SOURCE_SYSTEM, SOURCE_BATCH_ID)),
+        "aliases": ("select count(*) from public.vehicle_aliases where source_system=%s or source_batch_id=%s", (SOURCE_SYSTEM, SOURCE_BATCH_ID)),
+        "source_records": ("select count(*) from public.vehicle_master_source_records where source_system=%s or source_batch_id=%s", (SOURCE_SYSTEM, SOURCE_BATCH_ID)),
+        "receipts": ("select count(*) from public.vehicle_master_operation_receipts where scope_key=%s", (SOURCE_SYSTEM,)),
+        "bookings": ("select count(*) from public.workshop_bookings where metadata_legacy_plan_id like 'C3-PILOT-%%'", ()),
+        "import_runs": ("select count(*) from public.import_runs where summary::text like '%%C3-PILOT-%%'", ()),
+        "history": ("select count(*) from public.vehicle_master_history where coalesce(before_data::text,'')||coalesce(after_data::text,'')||metadata::text ilike any(%s::text[])", (["%" + SOURCE_SYSTEM + "%", "%" + SOURCE_BATCH_ID + "%", "%C3-PILOT-DURABLE-RECEIPT%"],)),
+        "audit": ("select count(*) from public.audit_events where coalesce(before_data::text,'')||coalesce(after_data::text,'')||metadata::text ilike any(%s::text[])", (["%" + SOURCE_SYSTEM + "%", "%" + SOURCE_BATCH_ID + "%", "%C3-PILOT-DURABLE-RECEIPT%"],)),
+        "identity_conflicts": ("select count(*) from public.vehicle_master_identity_conflicts where evidence::text ilike %s", ("%" + SOURCE_SYSTEM + "%",)),
+    }
+    result = {}
+    for name, (sql, params) in checks.items():
+        cur.execute(sql, params)
+        result[name] = cur.fetchone()[0]
     return result
 
 
@@ -383,6 +467,10 @@ def run_pilot(evidence_dir, database_url):
         admin = _admin(conn)
         previews, operation_results = [], {}
 
+        def operation_evidence(scenario_id, **result):
+            record = {**rows[scenario_id], "source_system": SOURCE_SYSTEM}
+            return build_operation_evidence(record, **result)
+
         def apply_scenario(scenario_id, payload=None, expected_version=None,
                            key_suffix=None, response_loss=False, record_id=None):
             nonlocal conn, admin
@@ -394,7 +482,9 @@ def run_pilot(evidence_dir, database_url):
                 conn, admin, scenario_id, rid, body, expected_version, key,
                 previews, captured_ids, response_loss=response_loss, get_conn=get_conn)
             vehicle_id = applied["data"]["vehicle_id"]
-            operation_results[scenario_id] = {"action": preview["data"]["action"], "vehicle_id": vehicle_id}
+            if scenario_id in rows:
+                operation_results[scenario_id] = operation_evidence(
+                    scenario_id, action=preview["data"]["action"], vehicle_id=vehicle_id)
             return vehicle_id
 
         apply_scenario("new_stock_only")
@@ -434,19 +524,22 @@ def run_pilot(evidence_dir, database_url):
         if stale_apply.get("ok") or stale_apply.get("code") != "stale_version":
             raise AssertionError("stale optimistic import was not refused")
         conn.rollback()
-        operation_results["stale_optimistic_version"] = {
-            "code": "stale_version", "vehicle_id": stale_id, "actual_version": 2}
+        operation_results["stale_optimistic_version"] = operation_evidence(
+            "stale_optimistic_version", code="stale_version", vehicle_id=stale_id, actual_version=2)
 
         apply_scenario("unchanged_replay")
         unchanged_id = apply_scenario("unchanged_replay", expected_version=1, key_suffix="unchanged-no-change")
-        operation_results["unchanged_replay"] = {"action": "no_change", "vehicle_id": unchanged_id}
+        operation_results["unchanged_replay"] = operation_evidence(
+            "unchanged_replay", action="no_change", vehicle_id=unchanged_id)
         updated_id = apply_scenario("updated_import", {"stock_number": "C3-STK-UPDATED", "model": "Synthetic Original"})
         apply_scenario("updated_import", expected_version=1, key_suffix="updated-second")
-        operation_results["updated_import"] = {"action": "update", "vehicle_id": updated_id}
+        operation_results["updated_import"] = operation_evidence(
+            "updated_import", action="update", vehicle_id=updated_id)
 
         archived_id = apply_scenario("archived_vehicle")
         deleted_id = apply_scenario("deleted_retained_source_evidence", {"stock_number": "C3-STK-DELETED"})
         apply_scenario("missing_in_legacy")
+        operation_results.pop("missing_in_legacy", None)
         cur = conn.cursor()
         cur.execute("update public.vehicles set deleted_at=now() where id=%s returning id::text", (archived_id,))
         if not cur.fetchone():
@@ -457,8 +550,8 @@ def run_pilot(evidence_dir, database_url):
         previews.append(sanitize_preview("deleted_retained_source_evidence", deleted_preview))
         if deleted_preview.get("code") != "unlinked_source_evidence":
             raise AssertionError("deleted source evidence was not retained")
-        operation_results["deleted_retained_source_evidence"] = {
-            "code": "unlinked_source_evidence", "vehicle_id": None}
+        operation_results["deleted_retained_source_evidence"] = operation_evidence(
+            "deleted_retained_source_evidence", code="unlinked_source_evidence")
 
         apply_scenario("duplicate_normalized_stock", {"stock_number": "C3-DUP-STOCK"})
         dup_stock_b = apply_scenario("setup_dup_stock_b", {"vin": "JTNAA3BB4C5000011"}, record_id="C3-SETUP-DUP-STOCK-B")
@@ -500,7 +593,7 @@ def run_pilot(evidence_dir, database_url):
             previews.append(sanitize_preview(scenario_id, response))
             if response.get("ok") or response.get("code") != "ambiguous_match":
                 raise AssertionError(f"029 did not refuse {scenario_id}")
-            operation_results[scenario_id] = {"code": reason, "vehicle_id": None}
+            operation_results[scenario_id] = operation_evidence(scenario_id, code=reason)
 
         for scenario_id in ("malformed_vin", "placeholder_stock", "missing_identity"):
             row = rows[scenario_id]
@@ -581,7 +674,8 @@ def run_pilot(evidence_dir, database_url):
         conn.close()
         conn=get_conn(); conn.autocommit=False; admin=_admin(conn)
         replay=run_import(conn,extract,reference,apply=True,commit_apply=True)
-        if not replay.get("replayed") or replay.get("receipt_id")!=durable.get("receipt_id"):
+        if durable.get("replayed") or not replay.get("replayed") or (
+                immutable_receipt_projection(replay) != immutable_receipt_projection(durable)):
             raise AssertionError("C2b response-loss replay failed")
 
         bundle={
@@ -614,10 +708,12 @@ def run_pilot(evidence_dir, database_url):
             cur.execute("select count(*) from pg_roles where rolname like 'c3_pilot_%%'")
             temp_roles=cur.fetchone()[0]
             restored=baseline==after
+            residue = _synthetic_residue_counts(conn)
             bundle["cleanup"]={"baseline_counts":baseline,"after_counts":after,
               "baseline_restored":restored,"unresolved_synthetic_conflicts":unresolved,
-              "temp_schemas":temp_schemas,"temp_roles":temp_roles}
-            if not restored or unresolved or temp_schemas or temp_roles:
+              "temp_schemas":temp_schemas,"temp_roles":temp_roles,
+              "synthetic_residue_counts":residue}
+            if not restored or unresolved or temp_schemas or temp_roles or any(residue.values()):
                 bundle=None
                 raise AssertionError("C3 cleanup did not restore baseline")
         conn.close()

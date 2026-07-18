@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build a commit-exact, credential-free Stage 2B C3 review ZIP."""
+"""Build a commit-exact, credential-scanned Stage 2B C3 review ZIP."""
 from __future__ import annotations
 
 import argparse
@@ -10,8 +10,11 @@ import tempfile
 import zipfile
 from pathlib import Path
 
+from verify_stage2b_c3_review_package import scan_text
+
 ROOT = Path(__file__).resolve().parents[1]
 EXPECTED_BRANCH = "feature/stage2b-shared-vehicle-master"
+BASELINE_HEAD = "8239a5db128fb9ccf181232a5a442408cb2ecaf5"
 
 EXACT_FILES = {
     ".github/workflows/stage2b-c3-cross-platform.yml",
@@ -36,6 +39,17 @@ EXACT_FILES = {
     "supabase/migrations/030_stage2b_lifecycle_identity_resolver.sql",
     "supabase/migrations/031_stage2b_importer_identity_export.sql",
 }
+EVIDENCE_FILES = {
+    "review-evidence/stage2b-c3/c3-artifact-metadata.json",
+    "review-evidence/stage2b-c3/c3-backup.json",
+    "review-evidence/stage2b-c3/c3-cleanup.json",
+    "review-evidence/stage2b-c3/c3-pilot-summary.json",
+    "review-evidence/stage2b-c3/c3-preview-actions.json",
+    "review-evidence/stage2b-c3/c3-reconciliation.json",
+    "review-evidence/stage2b-c3/c3-rollback.json",
+    "review-evidence/stage2b-c3/c3-safety.json",
+    "review-evidence/stage2b-c3/c3-test-results.json",
+}
 
 
 def git(*args):
@@ -44,6 +58,10 @@ def git(*args):
 
 def committed_bytes(head, path):
     return subprocess.check_output(["git", "show", f"{head}:{path}"], cwd=ROOT)
+
+
+def sha256(data):
+    return hashlib.sha256(data).hexdigest()
 
 
 def main(argv=None):
@@ -57,8 +75,10 @@ def main(argv=None):
     if git("status", "--porcelain"):
         raise SystemExit("refusing dirty or untracked source tree")
     tracked = set(git("ls-tree", "-r", "--name-only", head).splitlines())
-    selected = set(EXACT_FILES)
-    selected.update(path for path in tracked if path.startswith("review-evidence/stage2b-c3/"))
+    migration_names = sorted(Path(path).name[:3] for path in tracked if path.startswith("supabase/migrations/") and Path(path).name[:3].isdigit())
+    if any(name == "032" for name in migration_names) or migration_names[-1:] != ["031"]:
+        raise SystemExit(f"migration inventory is not exactly capped through 031: {migration_names[-5:]}")
+    selected = EXACT_FILES | EVIDENCE_FILES
     missing = sorted(selected - tracked)
     if missing:
         raise SystemExit(f"review source is not committed: {missing}")
@@ -70,33 +90,50 @@ def main(argv=None):
     with tempfile.TemporaryDirectory(prefix="pdc-c3-review-") as temp:
         package_root = Path(temp) / package_name
         for relative in sorted(selected):
+            data = committed_bytes(head, relative)
+            try:
+                scan_text(relative, data.decode("utf-8"))
+            except UnicodeDecodeError as exc:
+                raise SystemExit(f"non-UTF-8 review source: {relative}") from exc
             destination = package_root / relative
             destination.parent.mkdir(parents=True, exist_ok=True)
-            destination.write_bytes(committed_bytes(head, relative))
-        files = {}
-        for path in sorted(p for p in package_root.rglob("*") if p.is_file()):
-            relative = path.relative_to(package_root).as_posix()
-            files[relative] = hashlib.sha256(path.read_bytes()).hexdigest()
+            destination.write_bytes(data)
+        files = {
+            path.relative_to(package_root).as_posix(): sha256(path.read_bytes())
+            for path in sorted(p for p in package_root.rglob("*") if p.is_file())
+        }
         manifest = {
             "schema_version": "pdc.stage2b.c3-review-package/v1",
             "source_branch": branch,
             "source_head": head,
-            "baseline_head": "8239a5db128fb9ccf181232a5a442408cb2ecaf5",
+            "baseline_head": BASELINE_HEAD,
             "migration_032_required": False,
+            "migration_inventory": ["028", "029", "030", "031"],
             "files": files,
         }
-        (package_root / "REVIEW-MANIFEST.json").write_text(
-            json.dumps(manifest, sort_keys=True, separators=(",", ":")) + "\n", encoding="utf-8")
+        manifest_bytes = (json.dumps(manifest, sort_keys=True, separators=(",", ":")) + "\n").encode("utf-8")
+        (package_root / "REVIEW-MANIFEST.json").write_bytes(manifest_bytes)
         if zip_path.exists():
             zip_path.unlink()
+        expected_members = set()
         with zipfile.ZipFile(zip_path, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=9) as archive:
             for path in sorted(p for p in package_root.rglob("*") if p.is_file()):
                 relative = f"{package_name}/{path.relative_to(package_root).as_posix()}"
+                expected_members.add(relative)
                 info = zipfile.ZipInfo(relative, date_time=(1980, 1, 1, 0, 0, 0))
                 info.compress_type = zipfile.ZIP_DEFLATED
                 info.external_attr = 0o100644 << 16
                 archive.writestr(info, path.read_bytes())
-    digest = hashlib.sha256(zip_path.read_bytes()).hexdigest()
+        with zipfile.ZipFile(zip_path) as archive:
+            names = archive.namelist()
+            if len(names) != len(set(names)) or set(names) != expected_members:
+                raise SystemExit("built ZIP member inventory is unsafe")
+            for name in names:
+                relative = name.removeprefix(package_name + "/")
+                expected_hash = sha256(manifest_bytes) if relative == "REVIEW-MANIFEST.json" else files[relative]
+                if sha256(archive.read(name)) != expected_hash:
+                    raise SystemExit(f"built ZIP byte mismatch: {name}")
+    digest = sha256(zip_path.read_bytes())
     print(json.dumps({"path": str(zip_path), "size_bytes": zip_path.stat().st_size,
                       "sha256": digest, "source_head": head,
                       "file_count": len(files) + 1}, sort_keys=True))

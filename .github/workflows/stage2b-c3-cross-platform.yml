@@ -59,3 +59,18 @@ jobs:
           if leaked:
               raise SystemExit(f'prohibited C3 fields present: {leaked}')
           PY
+      - name: Build, extract and verify commit-exact review package
+        run: |
+          python scripts/build_stage2b_c3_review_package.py
+          python - <<'PY'
+          import glob
+          import zipfile
+          archive = glob.glob('_review_packages/PDC-Stage2B-C3-Synthetic-Pilot-Review-*.zip')
+          if len(archive) != 1:
+              raise SystemExit(f'unexpected review ZIP inventory: {archive}')
+          with zipfile.ZipFile(archive[0]) as source:
+              source.extractall('_review_packages/ci-extract')
+          PY
+          archive="$(python -c "import glob; print(glob.glob('_review_packages/PDC-Stage2B-C3-Synthetic-Pilot-Review-*.zip')[0])")"
+          package="$(python -c "import glob; print(glob.glob('_review_packages/ci-extract/PDC-Stage2B-C3-Synthetic-Pilot-Review-*')[0])")"
+          python "$package/scripts/verify_stage2b_c3_review_package.py" --zip "$archive"

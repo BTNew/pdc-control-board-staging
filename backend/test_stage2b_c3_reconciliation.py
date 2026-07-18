@@ -14,6 +14,7 @@ from stage2b_c3_reconciliation import (  # noqa: E402
     REPORT_SCHEMA_VERSION,
     SYNTHETIC_SOURCE_SYSTEM,
     assert_exact_staging_project_ref,
+    build_operation_evidence,
     build_reconciliation_report,
     validate_reconciliation_report,
 )
@@ -74,6 +75,10 @@ def record(scenario_id, source_record_id, payload, **extra):
             "source_record_id": source_record_id, "payload": payload, **extra}
 
 
+def operation(row, **result):
+    return build_operation_evidence(row, **result)
+
+
 class Stage2BC3ReconciliationTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -108,7 +113,7 @@ class Stage2BC3ReconciliationTests(unittest.TestCase):
         ]
         report = build_reconciliation_report(
             artifact=artifact, legacy_records=legacy,
-            operation_results={"created": {"action": "insert"}},
+            operation_results={"created": operation(legacy[0], action="insert", vehicle_id=IDS[0])},
             expected_resolver_revision=REVISION,
         )
         by_id = {row["scenario_id"]: row for row in report["results"]}
@@ -124,16 +129,16 @@ class Stage2BC3ReconciliationTests(unittest.TestCase):
             record("bad-vin", "C3-BAD-VIN", {"vin": "BAD"}),
             record("placeholder", "C3-PLACEHOLDER", {"stock_number": "TBA"}),
             record("missing", "C3-MISSING", {}),
-            record("stale", "C3-STALE", {"stock_number": "C3-STALE"}, expected_version=1),
-            record("ambiguous", "C3-AMB", {"job_card_number": "C3-DUP"}),
-            record("conflict", "C3-CONFLICT", {"stock_number": "C3-CONFLICT"}),
+            record("stale", "C3-STALE", {"stock_number": "C3-STK-001"}, expected_version=0),
+            record("ambiguous", "C3-SOURCE-EVIDENCE", {"stock_number": "C3-STK-001"}),
+            record("conflict", "C3-SOURCE-EVIDENCE", {"stock_number": "C3-STK-001"}),
             record("deleted", "C3-DELETED", {}, allow_source_evidence_only=True),
         ]
         operations = {
-            "stale": {"code": "stale_version", "vehicle_id": IDS[0], "actual_version": 2},
-            "ambiguous": {"code": "ambiguous_match"},
-            "conflict": {"code": "canonical_alias_conflict"},
-            "deleted": {"code": "unlinked_source_evidence"},
+            "stale": operation(legacy[3], code="stale_version", vehicle_id=IDS[0], actual_version=1),
+            "ambiguous": operation(legacy[4], code="ambiguous_match"),
+            "conflict": operation(legacy[5], code="canonical_alias_conflict"),
+            "deleted": operation(legacy[6], code="unlinked_source_evidence"),
         }
         report = build_reconciliation_report(artifact=artifact, legacy_records=legacy,
                                              operation_results=operations,
@@ -158,7 +163,7 @@ class Stage2BC3ReconciliationTests(unittest.TestCase):
         artifact["checksum"]["value"] = artifact_checksum(artifact)
         report = build_reconciliation_report(
             artifact=artifact, legacy_records=legacy,
-            operation_results={"updated": {"action": "update"}},
+            operation_results={"updated": operation(legacy[1], action="update", vehicle_id=IDS[1])},
             actual_vehicle_fields={IDS[0]: {"model": "Manually changed"}},
             expected_resolver_revision=REVISION,
         )
@@ -226,6 +231,24 @@ class Stage2BC3ReconciliationTests(unittest.TestCase):
         with self.assertRaises(C3ReconciliationError):
             build_reconciliation_report(artifact=make_artifact(), legacy_records=[], operation_results={},
                                         expected_resolver_revision=REVISION, source_system="legacy_migration")
+
+    def test_operation_evidence_is_schema_bound_and_artifact_verified(self):
+        row = record("safe", "C3-NEW-STOCK", {"stock_number": "C3-STK-001"}, expected_version=0)
+        valid = operation(row, code="stale_version", vehicle_id=IDS[0], actual_version=1)
+        build_reconciliation_report(artifact=make_artifact(), legacy_records=[row],
+                                    operation_results={"safe": valid}, expected_resolver_revision=REVISION)
+        mutations = []
+        bad = copy.deepcopy(valid); bad["vehicle_id"] = "not-in-artifact"; mutations.append(bad)
+        bad = copy.deepcopy(valid); bad["actual_version"] = 999; mutations.append(bad)
+        bad = copy.deepcopy(valid); bad["operation_fingerprint"] = "0" * 64; mutations.append(bad)
+        bad = copy.deepcopy(valid); bad["extra"] = True; mutations.append(bad)
+        for bad in mutations:
+            with self.assertRaises(C3ReconciliationError):
+                build_reconciliation_report(artifact=make_artifact(), legacy_records=[row],
+                                            operation_results={"safe": bad}, expected_resolver_revision=REVISION)
+        with self.assertRaises(C3ReconciliationError):
+            build_reconciliation_report(artifact=make_artifact(), legacy_records=[row],
+                                        operation_results={"unknown": valid}, expected_resolver_revision=REVISION)
 
     def test_fixture_declares_required_replay_and_rollback_protocols(self):
         self.assertEqual(set(self.fixture["protocol_scenarios"]), {

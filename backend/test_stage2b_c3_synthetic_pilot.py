@@ -84,18 +84,43 @@ class Stage2BC3SyntheticPilotTests(unittest.TestCase):
                       "exact_apply_replay": True, "response_loss_replay": True, "validator_cli": True,
                       "c2b_dry_run": True, "evidence_files": sorted(pilot.EVIDENCE_FILES.values())},
             "preview": [pilot.sanitize_preview("x", {"ok": True, "code": "preview", "data": {"action": "insert"}})],
-            "artifact": {"schema_version": "typed", "resolver_revision": REVISION, "item_count": 4,
-                         "checksum": {"algorithm": "sha256", "value": "0" * 64}},
+            "artifact": {"schema_version": "pdc.workshop.vehicle-reference/v2", "resolver_revision": REVISION, "item_count": 4,
+                         "checksum": {"algorithm": "sha256", "value": "0" * 64},
+                         "deterministic_regeneration": True, "stale_revision_refused": True,
+                         "malformed_refused": True, "truncated_refused": True},
             "reconciliation": report,
-            "rollback": {"rollback_used": True, "exact_revision_lock": REVISION, "stale_rollback_refused": True},
-            "cleanup": {"baseline_counts": {}, "after_counts": {}, "baseline_restored": True,
-                        "unresolved_synthetic_conflicts": 0, "temp_schemas": 0, "temp_roles": 0},
+            "rollback": {"rollback_used": True, "exact_revision_lock": REVISION,
+                         "stale_rollback_refused": True, "synthetic_apply_receipt_replayed": True},
+            "cleanup": {"baseline_counts": {name: 0 for name in pilot.COUNT_TABLES},
+                        "after_counts": {name: 0 for name in pilot.COUNT_TABLES}, "baseline_restored": True,
+                        "unresolved_synthetic_conflicts": 0, "temp_schemas": 0, "temp_roles": 0,
+                        "synthetic_residue_counts": {"vehicles": 0}},
         }
         self.assertTrue(pilot.validate_evidence_bundle(bundle))
         bad = copy.deepcopy(bundle)
         bad["artifact"]["database_url"] = "postgresql://must-not-leak"
         with self.assertRaises(pilot.C3PilotRefusal):
             pilot.validate_evidence_bundle(bad)
+
+        for section, key, value in (
+            ("artifact", "deterministic_regeneration", False),
+            ("rollback", "stale_rollback_refused", False),
+            ("cleanup", "baseline_restored", False),
+            ("cleanup", "synthetic_residue_counts", {"vehicles": 1}),
+        ):
+            bad = copy.deepcopy(bundle)
+            bad[section][key] = value
+            with self.assertRaises(pilot.C3PilotRefusal):
+                pilot.validate_evidence_bundle(bad)
+
+    def test_receipt_projection_rejects_matching_id_with_changed_content(self):
+        durable = {"receipt_id": "r-1", "request_fingerprint": "f-1", "inserted": 1, "replayed": False}
+        replay = {**durable, "replayed": True}
+        self.assertEqual(pilot.immutable_receipt_projection(durable),
+                         pilot.immutable_receipt_projection(replay))
+        replay["inserted"] = 2
+        self.assertNotEqual(pilot.immutable_receipt_projection(durable),
+                            pilot.immutable_receipt_projection(replay))
 
     def test_import_has_no_connection_or_environment_side_effect(self):
         self.assertTrue(callable(pilot.main))

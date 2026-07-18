@@ -6,7 +6,9 @@ This change proves the migration 029 import chain, migration 031 typed identity 
 
 It does not add migration 032, change browser/frontend authority, retire direct reads, import real vehicles, enable AI, deploy, merge or contact production.
 
-## Portable verification
+## Repository verification
+
+Run these commands from a complete repository checkout:
 
 ```bash
 cp pdc-supabase-config.example.js pdc-supabase-config.js
@@ -20,6 +22,16 @@ PYTHONPATH=scripts python -m unittest \
 python -m py_compile scripts/stage2b_c3_reconciliation.py scripts/stage2b_c3_synthetic_pilot.py
 node --check scripts/workshop_vehicle_reference_artifact.js
 node --check scripts/workshop_planner_legacy_validate.js
+```
+
+## Review ZIP verification
+
+The focused extraction is self-contained for its documented non-secret checks:
+
+```bash
+python scripts/verify_stage2b_c3_review_package.py
+# To verify archive structure, members and extracted bytes too:
+python scripts/verify_stage2b_c3_review_package.py --zip /absolute/path/to/review.zip
 ```
 
 The staging pilot is intentionally excluded from non-secret review execution. It refuses any project other than the exact guarded staging ref and requires an injected staging DSN.

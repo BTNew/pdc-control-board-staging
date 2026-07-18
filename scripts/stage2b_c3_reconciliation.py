@@ -35,6 +35,16 @@ CLAIM_TYPES = {
     "toyota_order_number", "source_record_id",
 }
 PLACEHOLDER_STOCKS = {"0", "TBA", "TBD", "UNKNOWN", "NA", "N/A", "NONE", "UNASSIGNED"}
+OPERATION_EVIDENCE_KEYS = {
+    "scenario_id", "source_system", "source_record_id", "operation_fingerprint",
+    "code", "action", "vehicle_id", "actual_version",
+}
+OPERATION_CODES = {
+    "stale_version", "optimistic_version_mismatch", "ambiguous_match",
+    "duplicate_normalized_claim", "conflicting_match", "canonical_alias_conflict",
+    "canonical_source_evidence_conflict", "unlinked_source_evidence",
+}
+OPERATION_ACTIONS = {"insert", "update", "no_change"}
 
 
 class C3ReconciliationError(RuntimeError):
@@ -47,6 +57,68 @@ def canonical_json(value):
 
 def _canonical_bytes(value):
     return canonical_json(value).encode("utf-8")
+
+
+def operation_fingerprint(record):
+    logical = {
+        "scenario_id": str(record.get("id") or record.get("scenario_id") or ""),
+        "source_system": normalize_source(record.get("source_system")),
+        "source_record_id": normalize_source_identifier(record.get("source_record_id")),
+        "payload": record.get("payload") or {},
+        "expected_version": record.get("expected_version"),
+    }
+    return hashlib.sha256(_canonical_bytes(logical)).hexdigest()
+
+
+def build_operation_evidence(record, *, code=None, action=None, vehicle_id=None, actual_version=None):
+    evidence = {
+        "scenario_id": str(record.get("id") or record.get("scenario_id") or ""),
+        "source_system": normalize_source(record.get("source_system")),
+        "source_record_id": normalize_source_identifier(record.get("source_record_id")),
+        "operation_fingerprint": operation_fingerprint(record),
+        "code": code,
+        "action": action,
+        "vehicle_id": vehicle_id,
+        "actual_version": actual_version,
+    }
+    return evidence
+
+
+def _validate_operation_evidence(record, operation, candidate_ids, items):
+    if not operation:
+        return
+    if not isinstance(operation, dict) or set(operation) != OPERATION_EVIDENCE_KEYS:
+        raise C3ReconciliationError("operation evidence schema is invalid")
+    expected = build_operation_evidence(record)
+    for key in ("scenario_id", "source_system", "source_record_id", "operation_fingerprint"):
+        if operation.get(key) != expected[key]:
+            raise C3ReconciliationError("operation evidence is not bound to its source record")
+    code, action = operation.get("code"), operation.get("action")
+    if (code is None) == (action is None):
+        raise C3ReconciliationError("operation evidence must contain exactly one result kind")
+    if code is not None and code not in OPERATION_CODES:
+        raise C3ReconciliationError("operation evidence code is invalid")
+    if action is not None and action not in OPERATION_ACTIONS:
+        raise C3ReconciliationError("operation evidence action is invalid")
+    vehicle_id, actual_version = operation.get("vehicle_id"), operation.get("actual_version")
+    if actual_version is not None and (not isinstance(actual_version, int) or isinstance(actual_version, bool)
+                                       or actual_version < 1 or actual_version > MAX_SAFE_INTEGER):
+        raise C3ReconciliationError("operation evidence version is invalid")
+    if vehicle_id is not None:
+        if vehicle_id not in items or vehicle_id not in candidate_ids:
+            raise C3ReconciliationError("operation evidence vehicle is not an artifact candidate")
+    if action is not None and (vehicle_id is None or actual_version is not None):
+        raise C3ReconciliationError("successful operation evidence is invalid")
+    if code in {"stale_version", "optimistic_version_mismatch"}:
+        if vehicle_id is None or actual_version != items[vehicle_id]["version"]:
+            raise C3ReconciliationError("stale operation evidence does not match the artifact")
+    elif code in {"ambiguous_match", "duplicate_normalized_claim", "conflicting_match",
+                  "canonical_alias_conflict", "canonical_source_evidence_conflict"}:
+        if vehicle_id is not None or actual_version is not None or len(candidate_ids) < 2:
+            raise C3ReconciliationError("conflict operation evidence is not supported by artifact candidates")
+    elif code == "unlinked_source_evidence":
+        if vehicle_id is not None or actual_version is not None or candidate_ids:
+            raise C3ReconciliationError("unlinked operation evidence conflicts with the artifact")
 
 
 def normalize_source(value):
@@ -185,6 +257,12 @@ def build_reconciliation_report(*, artifact, legacy_records, operation_results,
         raise
     if not isinstance(legacy_records, list) or not isinstance(operation_results, dict):
         raise C3ReconciliationError("legacy records and operation results are required")
+    legacy_ids = [str(record.get("id") or record.get("scenario_id") or "")
+                  for record in legacy_records if isinstance(record, dict)]
+    if len(legacy_ids) != len(legacy_records) or len(set(legacy_ids)) != len(legacy_ids) or not all(legacy_ids):
+        raise C3ReconciliationError("legacy record identities are invalid")
+    if not set(operation_results).issubset(set(legacy_ids)):
+        raise C3ReconciliationError("operation evidence contains an unknown scenario")
     actual_vehicle_fields = actual_vehicle_fields or {}
     owners, items, evidence, conflict_classes = _artifact_index(artifact)
     results = []
@@ -203,6 +281,7 @@ def build_reconciliation_report(*, artifact, legacy_records, operation_results,
         operation_candidates = set()
         for operation_claim in legacy_claims(record):
             operation_candidates.update(owners.get(operation_claim, set()))
+        _validate_operation_evidence(record, operation, operation_candidates, items)
         referenced_vehicle_ids.update(operation_candidates)
         if operation.get("vehicle_id") in items:
             referenced_vehicle_ids.add(operation["vehicle_id"])
