@@ -29,6 +29,7 @@ jobs:
           node-version: '22'
       - name: Typed artifact and offline validator tests
         run: |
+          cp pdc-supabase-config.example.js pdc-supabase-config.js
           node test_all.js
           python -m unittest \
             backend.test_stage2b_offline_vehicle_reference_artifact \
