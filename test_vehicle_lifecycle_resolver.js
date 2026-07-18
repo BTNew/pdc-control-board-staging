@@ -87,6 +87,14 @@ function resolvedBody(version = 3, extras = {}) {
   });
   const conflictingIdentity = buildVehicleLifecycleIdentityInput({ stock: 'STK-001', stockNumber: 'STK-002' });
   assert.strictEqual(conflictingIdentity.__invalidIdentityField, 'stock_number');
+  assert.strictEqual(
+    buildVehicleLifecycleIdentityInput({ stock: 'STK-001', pdcJobcard: 'JC-2' }).__invalidIdentityField,
+    'job_card_source_system',
+  );
+  assert.strictEqual(
+    buildVehicleLifecycleIdentityInput({ stock: 'STK-001', toyotaOrderNumber: 'ORDER-2' }).__invalidIdentityField,
+    'toyota_order_source_system',
+  );
   const invalidResolverClient = fakeClient(async () => { throw new Error('must not be called'); });
   const invalidIdentity = await createVehicleLifecycleIdentityResolver({ client: invalidResolverClient }).resolve(conflictingIdentity);
   assert.deepStrictEqual(invalidIdentity, { outcome: 'invalid_input', field: 'stock_number' });
@@ -158,7 +166,8 @@ function resolvedBody(version = 3, extras = {}) {
     const oldRequest = resolver.resolve(input);
     const fresh = await resolver.resolve(input);
     slow.resolve({ ok: true, status: 200, body: resolvedBody(2) });
-    await oldRequest;
+    const staleResult = await oldRequest;
+    assert.deepStrictEqual(staleResult, { outcome: 'service_unavailable', reason: 'superseded' });
     assert.strictEqual(fresh.version, 9);
     assert.strictEqual(resolver.getLatest(input).version, 9);
   }
@@ -251,6 +260,37 @@ function resolvedBody(version = 3, extras = {}) {
     assert.deepStrictEqual(resolver.getDiagnostics(), []);
   }
   console.log('PASS 9: stale refresh events are suppressed and stop purges resolver state');
+
+  // 9b. A locally invalid typed identity is never stripped and replayed as a
+  // valid tracked RPC request during reconciliation.
+  {
+    const client = fakeClient(async () => ({ ok: true, status: 200, body: resolvedBody(99) }));
+    const resolver = createVehicleLifecycleIdentityResolver({ client });
+    const invalid = buildVehicleLifecycleIdentityInput({ stock: 'A-1', stockNumber: 'B-2' });
+    assert.strictEqual((await resolver.resolve(invalid)).outcome, 'invalid_input');
+    await resolver.reconcile('invalid_replay');
+    assert.strictEqual(client.calls.length, 0);
+    assert.strictEqual(resolver.getLatest({ p_stock_number: 'A-1' }), null);
+  }
+  console.log('PASS 9b: invalid typed identity is never replayed as a tracked request');
+
+  // 9c. Teardown invalidates pending requests and prevents diagnostics from
+  // repopulating after auth lockout.
+  {
+    const slow = deferred();
+    const externalDiagnostics = [];
+    const resolver = createVehicleLifecycleIdentityResolver({
+      client: fakeClient(async () => slow.promise),
+      onDiagnostic: item => externalDiagnostics.push(item),
+    });
+    const pending = resolver.resolve({ p_stock_number: 'STK-LOCK' });
+    resolver.stop();
+    slow.resolve({ ok: true, status: 200, body: resolvedBody(7) });
+    assert.deepStrictEqual(await pending, { outcome: 'service_unavailable', reason: 'resolver_stopped' });
+    assert.deepStrictEqual(resolver.getDiagnostics(), []);
+    assert.strictEqual(externalDiagnostics.length, 0);
+  }
+  console.log('PASS 9c: stop invalidates pending results and suppresses post-lock diagnostics');
 
   // 10. Bursty reconciliation signals are bounded to one in-flight refresh
   // followed by one trailing authoritative refresh.

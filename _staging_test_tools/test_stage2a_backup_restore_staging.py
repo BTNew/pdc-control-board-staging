@@ -73,7 +73,9 @@ def run_restore(backup_file, schema_name=None, drop_after=False):
 
 def fetch_rows(conn, schema, table, cols):
     cur = conn.cursor()
-    cur.execute(f'select {",".join(cols)} from {schema}."{table}" order by id')
+    # Every compared table has a stable first key column (id, key or
+    # singleton); do not assume the resolver-revision singleton has an id.
+    cur.execute(f'select {",".join(cols)} from {schema}."{table}" order by {cols[0]}')
     return cur.fetchall()
 
 
