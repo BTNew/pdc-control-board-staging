@@ -80,6 +80,7 @@ TABLES = [
     "vehicle_aliases",
     "vehicle_master_revision",
     "vehicle_master_source_records",
+    "vehicle_master_operation_receipts",
     "vehicle_master_history",
     "vehicle_master_identity_conflicts",
     "vehicle_work_items",
@@ -211,7 +212,24 @@ def run_backup(conn, environment, output_dir, encryption_key, kind="scheduled", 
     row_counts = {}
 
     try:
-        for table in TABLES:
+        # The source tree may already know about the next additive table while
+        # the required pre-migration backup is still taken at the previous
+        # ledger version. Export the ordered intersection with the concrete
+        # database schema; record absent inventory entries in the manifest.
+        cur.execute(
+            """
+            select table_name
+            from information_schema.tables
+            where table_schema = 'public' and table_name = any(%s)
+            """,
+            (TABLES,),
+        )
+        existing_tables = {row[0] for row in cur.fetchall()}
+        payload_tables = [table for table in TABLES if table in existing_tables]
+        missing_tables = [table for table in TABLES if table not in existing_tables]
+        payload["not_present_tables"] = missing_tables
+
+        for table in payload_tables:
             columns, rows = export_table(cur, table)
             payload["tables"][table] = {"columns": columns, "rows": rows}
             row_counts[table] = len(rows)
@@ -262,6 +280,7 @@ def run_backup(conn, environment, output_dir, encryption_key, kind="scheduled", 
             "file_size_bytes": size_bytes,
             "file_sha256": sha256,
             "row_counts": row_counts,
+            "not_present_tables": missing_tables,
             "encrypted": True,
         }
         (output_dir / f"{file_name}.manifest.json").write_text(
