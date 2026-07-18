@@ -186,7 +186,7 @@ def assignment_and_interval_enforcement(admin, operator, viewer):
     check("selected technician UUID persists", assignment.get("technician_id") == TECH_ACTIVE, assignment)
     check("selected technician name persists", assignment.get("technician_name") == active_name, assignment)
 
-    status, snapshot = rpc(operator, "get_workshop_snapshot", {})
+    status, snapshot = rpc(operator, "get_workshop_snapshot", {"p_date_from": "2097-03-01", "p_date_to": "2097-03-06"})
     snap_booking = next((row for row in snapshot.get("bookings", []) if row.get("booking_id") == booking_id), {}) if isinstance(snapshot, dict) else {}
     check("authoritative snapshot retains selected technician", snap_booking.get("assignment", {}).get("technician_id") == TECH_ACTIVE and snap_booking.get("assignment", {}).get("technician_name") == active_name, snap_booking)
 
