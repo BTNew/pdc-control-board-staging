@@ -110,6 +110,16 @@ begin
 
     union all
     select
+      sr.vehicle_id, 'source_record_id', sr.source_record_id,
+      public.normalize_vehicle_source_identifier(sr.source_record_id),
+      public.normalize_vehicle_source_system(sr.source_system), 'source_evidence'
+    from public.vehicle_master_source_records sr
+    where sr.vehicle_id is not null
+      and public.normalize_vehicle_source_identifier(sr.source_record_id) is not null
+      and public.normalize_vehicle_source_system(sr.source_system) is not null
+
+    union all
+    select
       a.vehicle_id,
       a.alias_type_normalized,
       a.alias_value,
@@ -123,7 +133,7 @@ begin
     from public.vehicle_aliases a
     where a.active
       and a.alias_type_normalized in (
-        'stock_number', 'vin', 'job_card_number', 'permanent_vehicle_id',
+        'stock_number', 'vin', 'job_card_number',
         'toyota_order_number', 'source_record_id'
       )
       and a.normalized_alias_value is not null
@@ -134,7 +144,6 @@ begin
           a.alias_type_normalized in ('job_card_number', 'toyota_order_number', 'source_record_id')
           and a.source_system_normalized is not null
         )
-        or a.alias_type_normalized = 'permanent_vehicle_id'
       )
   ),
   conflict_groups as materialized (
@@ -146,6 +155,8 @@ begin
       case
         when bool_or(origin = 'canonical') and bool_or(origin = 'alias')
           then 'canonical_alias_conflict'
+        when bool_or(origin = 'canonical') and bool_or(origin = 'source_evidence')
+          then 'canonical_source_evidence_conflict'
         else 'ambiguous_normalized_identity'
       end as classification
     from all_claims

@@ -231,7 +231,11 @@ def fetch_vehicle_identity_export_pages(fetch_page, page_size=200, retry_attempt
             raise VehicleIdentityExportStale('vehicle identity export page revision mismatch')
 
         page_items = response.get('items')
-        if not isinstance(page_items, list) or len(page_items) > page_size:
+        if (
+            not isinstance(page_items, list)
+            or len(page_items) > page_size
+            or any(not isinstance(item, dict) for item in page_items)
+        ):
             raise VehicleIdentityExportInvalid('identity export page is malformed or over limit')
         page_ids = [str(item.get('vehicle_id') or '') for item in page_items]
         if page_ids != sorted(page_ids):
@@ -244,15 +248,22 @@ def fetch_vehicle_identity_export_pages(fetch_page, page_size=200, retry_attempt
             seen_vehicle_ids.add(vehicle_id)
             items.append(item)
 
-        for conflict in response.get('conflicts') or []:
+        page_conflicts = response.get('conflicts')
+        if not isinstance(page_conflicts, list) or any(not isinstance(row, dict) for row in page_conflicts):
+            raise VehicleIdentityExportInvalid('identity export conflict evidence is malformed')
+        for conflict in page_conflicts:
             signature = json.dumps(conflict, sort_keys=True, separators=(',', ':'))
             if signature not in seen_conflicts:
                 seen_conflicts.add(signature)
                 conflicts.append(conflict)
 
-        has_more = response.get('has_more') is True
+        if not isinstance(response.get('has_more'), bool):
+            raise VehicleIdentityExportInvalid('identity export has_more marker is missing or malformed')
+        has_more = response['has_more']
         next_cursor = response.get('next_cursor')
         if not has_more:
+            if next_cursor is not None:
+                raise VehicleIdentityExportInvalid('complete identity export page has an unexpected cursor')
             break
         if not next_cursor or (cursor is not None and str(next_cursor) <= str(cursor)):
             raise VehicleIdentityExportInvalid('identity export cursor did not advance')
@@ -484,10 +495,18 @@ def _fetch_vehicle_identity_export_rollback(conn, logger):
     assert_staging_project(conn)
     logger('WARNING: staging-only workshop legacy vehicle identity rollback read is active')
     cur = conn.cursor()
-    cur.execute("select id, stock_number, permanent_vehicle_id from vehicles where deleted_at is null")
+    cur.execute(
+        "select revision from public.vehicle_lifecycle_resolver_revision "
+        "where singleton for share"
+    )
+    revision_rows = cur.fetchall()
+    if len(revision_rows) != 1 or not isinstance(revision_rows[0][0], int):
+        raise VehicleIdentityExportInvalid('rollback could not establish an identity revision')
+    export_revision = revision_rows[0][0]
+    cur.execute("select id, stock_number, permanent_vehicle_id, version from vehicles where deleted_at is null")
     vehicles = [
         {
-            'id': str(row[0]), 'vehicle_id': str(row[0]), 'version': 1,
+            'id': str(row[0]), 'vehicle_id': str(row[0]), 'version': row[3],
             'is_archived': False, 'stock_number': row[1], 'permanent_vehicle_id': row[2],
         }
         for row in cur.fetchall()
@@ -495,7 +514,7 @@ def _fetch_vehicle_identity_export_rollback(conn, logger):
     vehicles.sort(key=lambda row: row['vehicle_id'])
     return {
         'outcome': 'exported',
-        'export_revision': None,
+        'export_revision': export_revision,
         'items': vehicles,
         'conflicts': _rollback_identity_conflicts(vehicles),
         'rollback_used': True,
@@ -551,14 +570,19 @@ def fetch_reference_data(
 
 
 def assert_staging_project(conn):
-    """Defence-in-depth: refuse to run unless connected to the known
-    staging project. The Supabase pooler normalizes current_user to a
-    fixed value regardless of the "postgres.<ref>" login role used to
-    authenticate, so that alone is not a reliable signal. Instead this
-    checks for the known synthetic-only fixture data seeded specifically
-    on the staging project (see _staging_test_tools staging setup) as a
-    stronger staging-vs-production tripwire: production must never
-    contain a technician literally named 'Synthetic Tech Alpha'."""
+    """Refuse unless both connection identity and fixture prove staging."""
+    try:
+        dsn = conn.get_dsn_parameters()
+    except (AttributeError, TypeError) as exc:
+        raise RuntimeError(
+            'Refusing to run: cannot verify the staging project connection identity'
+        ) from exc
+    dsn_identity = ' '.join(str(dsn.get(key) or '') for key in ('user', 'host'))
+    if STAGING_PROJECT_REF not in dsn_identity:
+        raise RuntimeError(
+            f'Refusing to run: connection does not identify staging project {STAGING_PROJECT_REF}'
+        )
+
     cur = conn.cursor()
     cur.execute("select count(*) from workshop_technicians where name = 'Synthetic Tech Alpha'")
     if cur.fetchone()[0] < 1:
@@ -588,7 +612,6 @@ def _lock_vehicle_identity_export_revision(conn, reference, rollback_permitted=F
         if not rollback_permitted:
             raise VehicleIdentityExportInvalid('rollback reference requires the explicit staging-only rollback flag')
         logger('WARNING: import is using staging-only rollback vehicle identity evidence')
-        return None
     expected_revision = metadata.get('export_revision')
     if not isinstance(expected_revision, int) or expected_revision < 0:
         raise VehicleIdentityExportInvalid('reference data has no valid export revision')

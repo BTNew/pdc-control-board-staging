@@ -100,6 +100,15 @@ class Stage2BImporterIdentityExportStagingTests(unittest.TestCase):
             (cls.ids[0], f"ALIAS-{cls.token}", cls.source, cls.batch),
         )
         cls.cur.execute(
+            """
+            insert into public.vehicle_master_source_records (
+              vehicle_id, source_system, source_batch_id, source_record_id,
+              source_metadata, original_evidence
+            ) values (%s,%s,%s,%s,'{}'::jsonb,'{}'::jsonb)
+            """,
+            (cls.ids[1], cls.source, cls.batch, f"ROW-{cls.token}-1"),
+        )
+        cls.cur.execute(
             "update public.vehicles set deleted_at=now(), deleted_reason='synthetic C2a archive test' where id=%s",
             (cls.ids[2],),
         )
@@ -118,10 +127,15 @@ class Stage2BImporterIdentityExportStagingTests(unittest.TestCase):
             vehicles = q.fetchone()[0]
             q.execute("select count(*) from public.vehicle_aliases where source_batch_id=%s", (cls.batch,))
             aliases = q.fetchone()[0]
+            q.execute("select count(*) from public.vehicle_master_source_records where source_batch_id=%s", (cls.batch,))
+            source_records = q.fetchone()[0]
             q.execute("select count(*) from information_schema.schemata where schema_name like 'restore_test_c2a_%'")
             schemas = q.fetchone()[0]
-            if any((vehicles, aliases, schemas)):
-                raise AssertionError(f"031 cleanup failed: vehicles={vehicles}, aliases={aliases}, schemas={schemas}")
+            if any((vehicles, aliases, source_records, schemas)):
+                raise AssertionError(
+                    f"031 cleanup failed: vehicles={vehicles}, aliases={aliases}, "
+                    f"source_records={source_records}, schemas={schemas}"
+                )
         finally:
             verify.close()
 
@@ -172,6 +186,13 @@ class Stage2BImporterIdentityExportStagingTests(unittest.TestCase):
         claim_types = {row["identifier_type"] for row in claims}
         self.assertTrue({"stock_number", "vin", "job_card_number", "permanent_vehicle_id", "toyota_order_number", "source_record_id"}.issubset(claim_types))
         self.assertTrue(any(row["origin"] == "alias" and row["value"] == f"ALIAS-{self.token}" for row in claims))
+        evidence = rows[self.ids[1]]["identifiers"]
+        self.assertTrue(any(
+            row["origin"] == "source_evidence"
+            and row["identifier_type"] == "source_record_id"
+            and row["value"] == f"ROW-{self.token}-1"
+            for row in evidence
+        ))
         forbidden = {"customer_name", "parts_required", "notes", "workshop_status", "current_location", "pmb_stage", "salesperson_id"}
         self.assertFalse(forbidden.intersection(rows[self.ids[0]]))
 
@@ -212,6 +233,7 @@ class Stage2BImporterIdentityExportStagingTests(unittest.TestCase):
         classifications = {row["classification"] for row in relevant}
         self.assertIn("ambiguous_normalized_identity", classifications)
         self.assertIn("canonical_alias_conflict", classifications)
+        self.assertIn("canonical_source_evidence_conflict", classifications)
         for conflict in relevant:
             self.assertEqual(conflict["vehicle_ids"], sorted(conflict["vehicle_ids"]))
             self.assertGreater(len(conflict["vehicle_ids"]), 1)

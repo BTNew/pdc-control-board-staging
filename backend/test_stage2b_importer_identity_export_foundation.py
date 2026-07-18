@@ -42,8 +42,12 @@ class Stage2BImporterIdentityExportFoundationTests(unittest.TestCase):
             "normalize_vehicle_source_identifier", "normalize_vehicle_source_system",
         ):
             self.assertIn(helper, body)
-        for source in ("public.vehicles", "public.vehicle_aliases"):
+        for source in ("public.vehicles", "public.vehicle_aliases", "public.vehicle_master_source_records"):
             self.assertIn(source, body)
+        self.assertIn("'source_evidence'", body)
+        self.assertIn("canonical_source_evidence_conflict", body)
+        alias_branch = body.split("from public.vehicle_aliases a", 1)[1].split("),\n  conflict_groups", 1)[0]
+        self.assertNotIn("or a.alias_type_normalized = 'permanent_vehicle_id'", alias_branch)
         self.assertIn("count(distinct vehicle_id)", body)
         self.assertIn("canonical_alias_conflict", body)
         self.assertIn("ambiguous_normalized_identity", body)
@@ -80,7 +84,7 @@ class Stage2BImporterIdentityExportFoundationTests(unittest.TestCase):
         self.assertIn("vehicle_export_rollback=False", self.importer)
         self.assertIn("STAGING_PROJECT_REF", self.importer)
         self.assertIn("rollback", self.importer.lower())
-        direct = re.findall(r"select id, stock_number, permanent_vehicle_id from vehicles", self.importer.lower())
+        direct = re.findall(r"select id, stock_number, permanent_vehicle_id, version from vehicles", self.importer.lower())
         self.assertEqual(len(direct), 1, "historical vehicle read must exist only in rollback helper")
 
     def test_transitional_broad_select_is_not_retired(self):

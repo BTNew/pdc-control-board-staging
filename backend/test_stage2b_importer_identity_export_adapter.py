@@ -154,6 +154,13 @@ class ImporterIdentityExportAdapterTests(unittest.TestCase):
             importer.fetch_vehicle_identity_export_pages(
                 lambda _c, _s, _r: {"outcome": "exported", "export_revision": 7, "items": [], "conflicts": [], "has_more": True, "next_cursor": None}
             )
+        for malformed in (
+            {"outcome": "exported", "export_revision": 7, "items": [], "conflicts": []},
+            {"outcome": "exported", "export_revision": 7, "items": [], "conflicts": [], "has_more": "false", "next_cursor": None},
+            {"outcome": "exported", "export_revision": 7, "items": [], "conflicts": [], "has_more": False, "next_cursor": UUID_A},
+        ):
+            with self.assertRaises(importer.VehicleIdentityExportInvalid):
+                importer.fetch_vehicle_identity_export_pages(lambda _c, _s, _r, page=malformed: page)
 
     def test_unauthorized_export_fails_without_rollback(self):
         with self.assertRaises(PermissionError):
@@ -175,24 +182,38 @@ class ImporterIdentityExportAdapterTests(unittest.TestCase):
                 raise AssertionError(self.sql)
 
             def fetchall(self):
-                if "select id, stock_number, permanent_vehicle_id from vehicles" in self.sql:
+                if "vehicle_lifecycle_resolver_revision" in self.sql:
+                    return [(7,)]
+                if "select id, stock_number, permanent_vehicle_id, version from vehicles" in self.sql:
                     return [
-                        (UUID_A, "AB-12", "PERM-A"),
-                        (UUID_B, "AB 12", "PERM-B"),
+                        (UUID_A, "AB-12", "PERM-A", 3),
+                        (UUID_B, "AB 12", "PERM-B", 4),
                     ]
                 raise AssertionError(self.sql)
 
         class Conn:
+            def get_dsn_parameters(self):
+                return {"user": f"postgres.{importer.STAGING_PROJECT_REF}", "host": "pooler.supabase.com"}
+
             def cursor(self):
                 return Cursor()
 
         messages = []
         result = importer._fetch_vehicle_identity_export_rollback(Conn(), messages.append)
         self.assertTrue(result["rollback_used"])
+        self.assertEqual(result["export_revision"], 7)
+        self.assertEqual([row["version"] for row in result["items"]], [3, 4])
         self.assertEqual(len(messages), 1)
         self.assertIn("rollback", messages[0].lower())
         self.assertEqual(result["conflicts"][0]["classification"], "ambiguous_normalized_identity")
         self.assertEqual(result["conflicts"][0]["vehicle_ids"], [UUID_A, UUID_B])
+
+        class WrongProjectConn(Conn):
+            def get_dsn_parameters(self):
+                return {"user": "postgres.some-other-project", "host": "pooler.supabase.com"}
+
+        with self.assertRaises(RuntimeError):
+            importer.assert_staging_project(WrongProjectConn())
 
     def test_import_request_fingerprint_is_deterministic_and_revision_bound(self):
         ref = reference([
