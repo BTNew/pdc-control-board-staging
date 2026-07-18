@@ -8,8 +8,13 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-EXPECTED_DEPLOY = "505c524915d9a567078d08f73dfd63229f178d06"
+EXPECTED_RUNTIME = "099fa1e92c3bef7c8d27dade76a95c582b8312ed"
+EXPECTED_TEST_CORRECTION = "293563db8f01f0f3cea5874a4d474aa3a99d4018"
+EXPECTED_DEPLOY = "38f5404b50e0b447f2390a5ef7b2cdbe2112dae6"
 EXPECTED_BRANCH = "fix/stage2a-independent-review-findings"
+EXPECTED_CI_RUN = 29627634599
+EXPECTED_MIGRATION_LEDGER_THROUGH = 27
+EXPECTED_APP_VERSION = "2026.07.18.02-stage2a-final-approval"
 FORBIDDEN_PARTS = {
     ".git", "node_modules", "__pycache__", ".review-venv", "backups",
     ".imap_attachments", ".outlook_attachments", "_build",
@@ -31,6 +36,7 @@ REQUIRED = [
     "_staging_test_tools/test_stage2a_final_remediation_staging.py",
     "_staging_test_tools/test_stage2a_assignment_interval_enforcement_staging.py",
     "_staging_test_tools/cleanup_stage2a_assignment_acceptance.py",
+    "_staging_test_tools/prepare_stage2a_assignment_acceptance.py",
     "scripts/stage2a_assignment_live_acceptance.js",
     "backend", "_staging_test_tools/.env.example",
     "deployed-staging-snapshot/index.html",
@@ -123,8 +129,18 @@ def main() -> None:
     manifest = json.loads((ROOT / "REVIEW-MANIFEST.json").read_text(encoding="utf-8"))
     if manifest.get("source_branch") != EXPECTED_BRANCH:
         problems.append("wrong source branch in manifest")
+    if manifest.get("runtime_correction_commit") != EXPECTED_RUNTIME:
+        problems.append("wrong runtime correction commit in manifest")
+    if manifest.get("test_correction_commit") != EXPECTED_TEST_CORRECTION:
+        problems.append("wrong test correction commit in manifest")
     if manifest.get("staging_deployment_commit") != EXPECTED_DEPLOY:
         problems.append("wrong deployment commit in manifest")
+    if manifest.get("ci_run") != EXPECTED_CI_RUN:
+        problems.append("wrong CI run in manifest")
+    if manifest.get("migration_ledger_through") != EXPECTED_MIGRATION_LEDGER_THROUGH:
+        problems.append("wrong migration ledger version in manifest")
+    if manifest.get("app_version") != EXPECTED_APP_VERSION:
+        problems.append("wrong APP_VERSION in manifest")
     if (ROOT / "STAGING-DEPLOYMENT-COMMIT.txt").read_text().strip() != EXPECTED_DEPLOY:
         problems.append("deployment commit record mismatch")
     if manifest.get("production_touched") is not False or manifest.get("stage_2b_started") is not False:

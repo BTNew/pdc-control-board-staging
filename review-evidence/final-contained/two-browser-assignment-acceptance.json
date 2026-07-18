@@ -1,0 +1,49 @@
+{
+  "runAt": "2026-07-18T03:00:30.034Z",
+  "url": "https://btnew.github.io/pdc-control-board-staging/",
+  "preparedFixture": "{\"booking_id\": \"c4b81990-5e0a-5daf-b8dd-6285a3c828df\", \"prepared\": true, \"vehicle_id\": \"8debaf15-2344-4617-aada-f39728c5c0de\"}",
+  "deploymentCommit": "38f5404b50e0b447f2390a5ef7b2cdbe2112dae6",
+  "appVersion": "Version 2026.07.18.02-stage2a-final-approval",
+  "technician": {
+    "id": "5a7122e3-ba40-4b24-8599-9b7579253ea6",
+    "name": "S2A-ASSIGN-1784343614562 Technician"
+  },
+  "booking": {
+    "id": "e50109ec-3ea9-4cae-ba13-8ac97af2ebd4",
+    "vehicleId": "8debaf15-2344-4617-aada-f39728c5c0de",
+    "technicianId": "5a7122e3-ba40-4b24-8599-9b7579253ea6",
+    "technicianName": "S2A-ASSIGN-1784343614562 Technician"
+  },
+  "leaveDate": "2026-07-21",
+  "moveAlert": "That technician is on configured leave during the proposed booking interval and cannot receive the assignment.",
+  "checks": {
+    "administratorCreatedActiveTechnician": true,
+    "operatorSelectedTechnicianAndScheduled": true,
+    "bothBrowsersRetainedSameAssignmentThroughRealtime": true,
+    "moveOntoLeaveBlockedBeforeRpc": true,
+    "noConsoleErrors": true,
+    "noCspErrors": true,
+    "noPageErrors": true,
+    "noFailedRequests": true,
+    "noHttpErrors": true,
+    "noProductionRequests": true,
+    "stagingSupabaseContacted": true,
+    "stagingPageLoaded": true
+  },
+  "errors": {
+    "console": [],
+    "csp": [],
+    "page": [],
+    "request": [],
+    "http": [],
+    "production": []
+  },
+  "requestHosts": [
+    "btnew.github.io",
+    "cdsmnqxtyyoeoznmbidd.supabase.co"
+  ],
+  "passed": true,
+  "fixtureReset": "{\"assignments_deleted\": 1, \"bookings_deleted\": 2, \"history_deleted\": 1, \"overrides_deleted\": 0, \"parts_updates_deleted\": 0, \"remaining_controlled_bookings\": 0}",
+  "technicianCleanup": "{\"audit_deleted\": 2, \"remaining\": 0, \"technician_deleted\": 1}",
+  "cleanupZero": true
+}

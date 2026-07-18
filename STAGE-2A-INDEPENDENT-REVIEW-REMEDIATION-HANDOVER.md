@@ -7,15 +7,19 @@
 - **Final source HEAD:** the commit containing this handover; the complete
   40-character SHA is generated from the clean committed branch tip into
   `FINAL-SOURCE-HEAD.txt` and `REVIEW-MANIFEST.json` in the review ZIP.
-- **Pre-finalization source baseline:**
-  `d4839e186e53aeaa7c2aee1e5a7689dd81f99713`
+- **Runtime correction commit:**
+  `099fa1e92c3bef7c8d27dade76a95c582b8312ed`
+- **Staging-window test correction commit:**
+  `293563db8f01f0f3cea5874a4d474aa3a99d4018`
 - **Staging deployment repository:** `BTNew/pdc-control-board-staging`
 - **Staging deployment commit:**
-  `505c524915d9a567078d08f73dfd63229f178d06`
+  `38f5404b50e0b447f2390a5ef7b2cdbe2112dae6`
 - **Staging URL:** <https://btnew.github.io/pdc-control-board-staging/>
 - **Staging project:** `cdsmnqxtyyoeoznmbidd`
 - **Production project:** `vjdtsswhroyguxyfjdkt` — untouched
 - **APP_VERSION:** `2026.07.18.02-stage2a-final-approval`
+- **Migration ledger:** local/staging aligned through 027
+- **Cross-platform CI:** run `29627634599` passed on Windows, Ubuntu, and macOS
 
 The final source commit cannot literally contain its own SHA because changing
 that file would create a different commit. The exporter therefore resolves the
@@ -34,10 +38,10 @@ Admin blocks, current-time planner changes, or a production deployment.
 Production was never used as a link target, test target, recovery target,
 request host, migration target, or deployment target during this remediation.
 
-## Final contained remediation (2026-07-18)
+## Final contained and assignment remediation (2026-07-18)
 
-Migration 026 and the minute-based planner adapter close the final contained
-review findings without changing the Stage 2A boundary:
+Migrations 026–027 and the minute-based planner adapter close the final
+contained review findings without changing the Stage 2A boundary:
 
 - one authoritative planner configuration object stores integer minute clocks,
   integer durations/increments, and validated working-week, closure, break,
@@ -50,6 +54,11 @@ review findings without changing the Stage 2A boundary:
 - viewer list/direct REST/Realtime reads are active-only, while
   operator/administrator hierarchy retains required inactive-row reads;
 - protected assignment RPCs reject technician leave server-side;
+- schedule, assigned move, assigned resize, and resume/reschedule enforce the
+  complete configured interval and active-technician/leave rules;
+- shared frontend create/move/resize/extension paths resolve technicians by
+  stable UUID, fail closed, and retain assignment identity after Realtime
+  reconciliation;
 - malformed UUID and non-exact/non-round-tripping dates return structured JSON;
 - email-monitor discovery and locking are portable across Windows, Linux, and
   macOS.
@@ -58,18 +67,21 @@ Final current evidence is authoritative over historical totals later in this
 handover:
 `review-evidence/final-contained/FINAL-STAGE2A-CONTAINED-VERIFICATION.md`.
 
-Cross-platform CI passed on Windows, Ubuntu, and macOS: JavaScript 39/0/2 and
-the exact backend command 54/0 on each OS. Staging migration-026 checks passed
-24/0, reference-data checks 33/0, workshop live integration 34/0, and the
-actual two-browser planner acceptance passed with both settings fully restored.
-Console, CSP, page, network, HTTP, and production-request errors were all zero.
+Cross-platform CI run `29627634599` passed on Windows, Ubuntu, and macOS at
+test-correction commit `293563db8f01f0f3cea5874a4d474aa3a99d4018`.
+Current credential-free totals are JavaScript 40/0/2, reference-data service
+44/0, and the exact backend command 60/0. Staging migration-027 checks passed
+22/0; migration-026 direct REST/RPC checks remained 24/0; reference-data checks
+passed 34/0; workshop live integration passed 34/0. Both preserved two-browser
+flows passed with cleanup/restoration complete and zero console, CSP, page,
+network, HTTP, or production-request errors.
 
-A new isolated 001–026 clean build was not run because the account contained
+A new isolated 001–027 clean build was not run because the account contained
 only staging and prohibited production, and Docker was unavailable locally.
 The prior isolated 001–025 clean build remains valid for those immutable
-migrations; 026 was verified by staging apply, ledger parity, post-apply dry
-run, static tests, direct role matrix, strict validation tests, and protected
-RPC leave enforcement.
+migrations; 026–027 were verified by staging apply, ledger parity, post-apply
+dry run, static tests, direct role/RLS and mutation suites, strict validation,
+function/grant inspection, protected RPC behavior, and browser acceptance.
 
 ## Independent-review findings and disposition
 
@@ -108,6 +120,7 @@ Migrations involved:
 7. `024_stage2a_realtime_publication_fix.sql`
 8. `025_stage2a_review_remediation_grants_rls_validation.sql`
 9. `026_stage2a_final_review_remediation.sql`
+10. `027_stage2a_assignment_interval_enforcement.sql`
 
 Staging already contained the objects for 018–025, but its Supabase migration
 ledger ended at 017. After object-by-object schema verification, only missing
@@ -122,7 +135,9 @@ Remote database is up to date.
 
 Migration 026 was subsequently applied normally with `supabase db push` to the
 explicitly linked staging project after an encrypted pre-change backup. Local
-and staging ledgers now align through 026; the post-apply dry run again returned
+and staging ledgers aligned through 026. Migration 027 was then applied once to
+the same guarded staging project after a new verified encrypted backup. Local
+and staging ledgers now align through 027; the post-apply dry run returned
 `Remote database is up to date.`
 
 Evidence:
@@ -269,7 +284,7 @@ The final allow-list package contains:
 - all credential-free staging Python tests and safe `.env.example`;
 - pinned dependency files and exact test commands;
 - exact staging deployment Git archive at commit
-  `505c524915d9a567078d08f73dfd63229f178d06`, including deployed
+  `38f5404b50e0b447f2390a5ef7b2cdbe2112dae6`, including deployed
   `index.html`, JavaScript and CSS assets;
 - final source/deployment commit records;
 - full schema, grants/RLS, Realtime/replica-identity, migration-ledger,
@@ -309,8 +324,7 @@ compatibility commits in reverse order, review the diff, push only staging
 `main`, and wait for GitHub Pages to report the resulting commit built:
 
 ```bash
-`git revert 505c524915d9a567078d08f73dfd63229f178d06`
-git revert e24d819966ac0c31ab9850ba77c704b95c88e3bd
+git revert 38f5404b50e0b447f2390a5ef7b2cdbe2112dae6
 git push origin main
 ```
 
@@ -327,7 +341,7 @@ push to production branches. The preserved pre-finalization status/diff is in
 
 ### Database
 
-Migrations 018–026 are additive or security-hardening changes. Do not
+Migrations 018–027 are additive or security-hardening changes. Do not
 mechanically reverse grants/RLS/constraints because that would reopen reviewed
 security findings. For a staging-only recovery:
 

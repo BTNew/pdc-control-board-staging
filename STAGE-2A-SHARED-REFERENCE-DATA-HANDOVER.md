@@ -6,17 +6,22 @@
 **Branch:** `fix/stage2a-independent-review-findings`
 **Final source HEAD:** recorded by the clean exporter in
 `FINAL-SOURCE-HEAD.txt` and `REVIEW-MANIFEST.json`
+**Runtime correction commit:** `099fa1e92c3bef7c8d27dade76a95c582b8312ed`
+**Staging-window test correction commit:** `293563db8f01f0f3cea5874a4d474aa3a99d4018`
 **Historical Stage 2A baseline range:** `096eb5f..4606f36`
 **Staging deployment repo:** `BTNew/pdc-control-board-staging`
-**Staging deployment commit:** `505c524915d9a567078d08f73dfd63229f178d06`
+**Staging deployment commit:** `38f5404b50e0b447f2390a5ef7b2cdbe2112dae6`
 **Staging URL:** https://btnew.github.io/pdc-control-board-staging/
 **Staging Supabase project:** `cdsmnqxtyyoeoznmbidd`
 **Production Supabase project (untouched):** `vjdtsswhroyguxyfjdkt`
 **Production site (untouched):** `btnew.github.io/pdc-control-board-login/`
+**APP_VERSION:** `2026.07.18.02-stage2a-final-approval`
+**Migration ledger:** aligned through 027
+**Cross-platform CI:** run `29627634599` passed
 
 ---
 
-## Final contained remediation (migration 026)
+## Final contained and assignment remediation (migrations 026–027)
 
 This section supersedes earlier release-identity and test-total statements
 below while preserving them as historical evidence.
@@ -44,13 +49,23 @@ below while preserving them as historical evidence.
   authority has been active; stale boot defaults are never silently restored.
 - The email monitor lock is portable: `msvcrt` on Windows, `fcntl` on
   Linux/macOS. The exact backend command passed on all three platforms.
+- Migration 027 enforces the complete configured interval plus active
+  technician and leave rules for schedule, assigned move, assigned resize, and
+  resume/reschedule RPC paths while preserving transaction/conflict behavior.
+- Shared frontend create/move/resize/extension paths resolve technician UUIDs,
+  fail closed for invalid assignments, and retain assignment identity after
+  authoritative Realtime reconciliation.
+- CI run `29627634599` passed at test-correction commit
+  `293563db8f01f0f3cea5874a4d474aa3a99d4018`; staging ledgers align through
+  027 and final deployment commit is
+  `38f5404b50e0b447f2390a5ef7b2cdbe2112dae6`.
 
 Final results and rollback evidence:
 `review-evidence/final-contained/FINAL-STAGE2A-CONTAINED-VERIFICATION.md`.
 
-Migration-026 rollback must be a separately reviewed forward migration. Do not
+Migration-026/027 rollback must be a separately reviewed forward migration. Do not
 drop the active-only viewer policies or restore direct writes. Frontend staging
-rollback is a normal `git revert 505c524915d9a567078d08f73dfd63229f178d06`
+rollback is a normal `git revert 38f5404b50e0b447f2390a5ef7b2cdbe2112dae6`
 in the staging deployment repository, followed by source-branch consistency
 verification. Never use production as a rollback target.
 

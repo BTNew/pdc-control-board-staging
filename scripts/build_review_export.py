@@ -21,7 +21,12 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 EXPECTED_BRANCH = "fix/stage2a-independent-review-findings"
-EXPECTED_STAGING_DEPLOY_COMMIT = "505c524915d9a567078d08f73dfd63229f178d06"
+RUNTIME_CORRECTION_COMMIT = "099fa1e92c3bef7c8d27dade76a95c582b8312ed"
+TEST_CORRECTION_COMMIT = "293563db8f01f0f3cea5874a4d474aa3a99d4018"
+EXPECTED_STAGING_DEPLOY_COMMIT = "38f5404b50e0b447f2390a5ef7b2cdbe2112dae6"
+EXPECTED_CI_RUN = 29627634599
+EXPECTED_MIGRATION_LEDGER_THROUGH = 27
+EXPECTED_APP_VERSION = "2026.07.18.02-stage2a-final-approval"
 DEFAULT_STAGING_DEPLOY_REPO = Path(r"C:\tmp\pdc-staging-deploy")
 ZIP_NAME = "PDC-Control-Board-Stage-2A-Final-Approval-Review-2026-07-18.zip"
 
@@ -53,6 +58,7 @@ REQUIRED_SOURCE_PATHS = [
     "_staging_test_tools/test_stage2a_final_remediation_staging.py",
     "_staging_test_tools/test_stage2a_assignment_interval_enforcement_staging.py",
     "scripts/stage2a_live_acceptance.js", "scripts/stage2a_assignment_live_acceptance.js",
+    "_staging_test_tools/prepare_stage2a_assignment_acceptance.py",
     "_staging_test_tools/cleanup_stage2a_assignment_acceptance.py",
     "scripts/verify_stage2a_review_package.py",
     "review-evidence/final-contained/FINAL-STAGE2A-CONTAINED-VERIFICATION.md",
@@ -261,9 +267,13 @@ def build_package(output_dir: Path, deploy_repo: Path = DEFAULT_STAGING_DEPLOY_R
             "package": ZIP_NAME,
             "source_branch": branch,
             "source_head": source_head,
+            "runtime_correction_commit": RUNTIME_CORRECTION_COMMIT,
+            "test_correction_commit": TEST_CORRECTION_COMMIT,
             "staging_url": "https://btnew.github.io/pdc-control-board-staging/",
             "staging_deployment_commit": EXPECTED_STAGING_DEPLOY_COMMIT,
-            "app_version": "2026.07.18.02-stage2a-final-approval",
+            "ci_run": EXPECTED_CI_RUN,
+            "migration_ledger_through": EXPECTED_MIGRATION_LEDGER_THROUGH,
+            "app_version": EXPECTED_APP_VERSION,
             "source_file_count": len(file_list),
             "deployed_snapshot_file_count": len(list((stage / "deployed-staging-snapshot").rglob("*"))),
             "production_touched": False,

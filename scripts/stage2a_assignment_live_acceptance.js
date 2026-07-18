@@ -11,8 +11,9 @@ const CHROME = process.env.PDC_CHROME_EXECUTABLE || 'C:/Program Files/Google/Chr
 const OUT = process.env.PDC_ASSIGNMENT_ACCEPTANCE_OUTPUT || 'review-evidence/final-contained/two-browser-assignment-acceptance.json';
 const VEHICLE_ID = '8debaf15-2344-4617-aada-f39728c5c0de';
 const VEHICLE_STOCK = 'STK-STAGE-001';
-const BOOKING_DATE = '2099-01-05';
-const LEAVE_DATE = '2099-01-06';
+const BOOKING_DATE = '2026-07-20';
+const LEAVE_DATE = '2026-07-21';
+const PYTHON = process.env.PDC_STAGING_PYTHON || 'python3';
 const PREFIX = `S2A-ASSIGN-${Date.now()}`;
 const TECHNICIAN_NAME = `${PREFIX} Technician`;
 
@@ -22,7 +23,7 @@ function required(name) {
   return value;
 }
 function python(script, args = []) {
-  const result = spawnSync('python3', [script, ...args], { cwd: process.cwd(), env: process.env, encoding: 'utf8' });
+  const result = spawnSync(PYTHON, [script, ...args], { cwd: process.cwd(), env: process.env, encoding: 'utf8' });
   if (result.status !== 0) throw new Error(`${script} failed: ${result.stderr || result.stdout}`);
   return String(result.stdout || '').trim();
 }
@@ -69,6 +70,7 @@ async function updateLeave(page, expectedVersion, value) {
 (async () => {
   if (STAGING_URL.includes(PROD_REF) || !STAGING_URL.includes('pdc-control-board-staging')) throw new Error('Refusing non-staging URL');
   python('_staging_test_tools/reset_workshop_test_fixtures.py');
+  const preparedFixture = python('_staging_test_tools/prepare_stage2a_assignment_acceptance.py');
   const browser = await chromium.launch({ executablePath: CHROME, headless: true });
   const contexts = [await browser.newContext(), await browser.newContext()];
   const pages = [await contexts[0].newPage(), await contexts[1].newPage()];
@@ -114,12 +116,45 @@ async function updateLeave(page, expectedVersion, value) {
       return cached?.rows?.some(row => row.id === id && row.name === name && row.active === true);
     }, { id: technicianId, name: TECHNICIAN_NAME }, { timeout: 30000 });
 
+    const injected = await pages[1].evaluate(({ vehicleId, stock }) => {
+      const vehicles = window.app?.data;
+      if (!Array.isArray(vehicles)) return false;
+      if (!vehicles.some(vehicle => String(vehicle.stock || '') === stock)) {
+        vehicles.push({
+          id: vehicleId,
+          permanentVehicleId: 'PDC-STAGE-VEH-001',
+          stock,
+          order: '',
+          vehicle: 'Stage 2A Assignment Acceptance Vehicle',
+          client: 'Synthetic Acceptance',
+          pdcLocation: 'PMB',
+          currentLocation: 'PMB',
+          pmbStage: 'HOIST',
+          visible: true,
+        });
+      }
+      if (typeof renderWorkshopPlanner === 'function') renderWorkshopPlanner();
+      return true;
+    }, { vehicleId: VEHICLE_ID, stock: VEHICLE_STOCK });
+    if (!injected) throw new Error('Could not inject the controlled snapshot vehicle into the zero-data staging browser fixture');
+
     await pages[1].locator('[data-workshop-stage="HOIST"]').click();
     await setPlannerDate(pages[1], BOOKING_DATE);
     const search = pages[1].locator('[data-workshop-search]');
     await search.fill(VEHICLE_STOCK);
     await search.press('Enter');
     const schedule = pages[1].locator(`[data-workshop-vehicle-key] [data-workshop-schedule-vehicle]`).first();
+    await pages[1].waitForTimeout(750);
+    if (await schedule.count() === 0) {
+      const diagnostic = await pages[1].evaluate(() => ({
+        appData: window.app?.data,
+        workshopState: window.app?.workshopPlanner,
+        workshopText: document.querySelector('#workshop-planner')?.textContent?.slice(0, 3000),
+        vehicleKeys: [...document.querySelectorAll('[data-workshop-vehicle-key]')].map(node => node.getAttribute('data-workshop-vehicle-key')),
+        stageButtons: [...document.querySelectorAll('[data-workshop-stage]')].map(node => ({ stage: node.getAttribute('data-workshop-stage'), text: node.textContent })),
+      }));
+      throw new Error(`Controlled vehicle schedule action unavailable: ${JSON.stringify(diagnostic)}`);
+    }
     await schedule.waitFor({ state: 'visible', timeout: 15000 });
     await schedule.click();
     const form = pages[1].locator('[data-workshop-schedule-form]');
@@ -175,7 +210,7 @@ async function updateLeave(page, expectedVersion, value) {
     }, { id: technicianId, version: leaveVersion }, { timeout: 30000 });
 
     report = {
-      runAt: new Date().toISOString(), url: STAGING_URL,
+      runAt: new Date().toISOString(), url: STAGING_URL, preparedFixture,
       deploymentCommit: process.env.PDC_STAGING_DEPLOYMENT_COMMIT || null,
       appVersion: await pages[0].locator('#app-version').textContent(),
       technician: { id: technicianId, name: TECHNICIAN_NAME },

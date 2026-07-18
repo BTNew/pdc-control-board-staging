@@ -1,0 +1,16 @@
+Stage 2A migration ledger verification — 2026-07-18
+
+Approved staging project ref: cdsmnqxtyyoeoznmbidd
+Prohibited production project ref: vjdtsswhroyguxyfjdkt (not contacted)
+
+Before apply:
+Local 001-026 = Remote 001-026
+Local 027 present; Remote 027 absent
+Dry run: would push only 027_stage2a_assignment_interval_enforcement.sql
+
+After apply:
+Local 001-027 = Remote 001-027
+Independent SQL ledger tail: 023, 024, 025, 026, 027
+Post-apply dry run: Remote database is up to date.
+
+Migration 027 was applied to staging only. No repair was required.

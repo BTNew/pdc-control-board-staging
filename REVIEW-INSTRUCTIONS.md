@@ -1,8 +1,15 @@
 # Independently Runnable Stage 2A Review Instructions
 
-The ZIP is an allow-list export of the recorded source commit plus an exact
+The ZIP is an allow-list export of the final clean source HEAD plus an exact
 archive of staging deployment commit
-`505c524915d9a567078d08f73dfd63229f178d06` and secret-free evidence.
+`38f5404b50e0b447f2390a5ef7b2cdbe2112dae6` and secret-free evidence.
+The runtime correction is commit
+`099fa1e92c3bef7c8d27dade76a95c582b8312ed`; the staging-window test
+correction is commit `293563db8f01f0f3cea5874a4d474aa3a99d4018`.
+Migration ledgers align through 027, CI run `29627634599` passed, and the
+reviewed application version is `2026.07.18.02-stage2a-final-approval`.
+The exact final source HEAD is generated into `FINAL-SOURCE-HEAD.txt` and
+`REVIEW-MANIFEST.json` when the clean package is built.
 Run commands from the extracted package root.
 
 ## 1. Verify package integrity
@@ -65,8 +72,8 @@ git diff --check  # when reviewing from a Git checkout
 Linux/macOS. The exact backend command above is the authoritative portable
 discovery/run command; no platform-specific module is imported on the wrong
 platform. `test_vehicle_order_email_monitor` verifies serialization and lock
-release/reacquisition on the native backend. Final Windows and Ubuntu CI run
-IDs and totals are recorded in the final evidence report.
+release/reacquisition on the native backend. Final Windows, Ubuntu, and macOS CI run identity and totals are recorded in
+the final evidence report.
 
 Expected final totals are recorded in
 `review-evidence/final-contained/FINAL-STAGE2A-CONTAINED-VERIFICATION.md`.
@@ -121,8 +128,13 @@ The script refuses a non-staging site, records every request host, fails on any
 production-project request, verifies actual 07:30 planner behavior plus a
 synthetic closure in a second browser, and restores both settings in `finally`.
 
-The current completed machine-readable result is
-`review-evidence/final-contained/two-browser-planner-acceptance.json`.
+The completed machine-readable results are
+`review-evidence/final-contained/two-browser-planner-acceptance.json` and
+`review-evidence/final-contained/two-browser-assignment-acceptance.json`.
+The earlier planner-configuration flow records its then-current deployment;
+the assignment flow records final staging deployment
+`38f5404b50e0b447f2390a5ef7b2cdbe2112dae6`. These preserved live results are
+not rerun during packaging-only finalization.
 
 ## 6. Rebuild the review ZIP
 
