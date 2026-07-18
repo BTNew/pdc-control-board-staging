@@ -3467,6 +3467,18 @@ function initVehicleLifecycleSharedActionsIfEnabled() {
     });
     window.__vehicleLifecycleIdentityResolver.start();
   }
+  if (!window.__vehicleLifecycleResolverReconcileListenersInstalled) {
+    window.addEventListener('online', () => {
+      window.__vehicleLifecycleIdentityResolver?.reconcile?.('online_return');
+    });
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') {
+        window.__vehicleLifecycleIdentityResolver?.reconcile?.('visibility_return');
+      }
+    });
+    window.__vehicleLifecycleResolverReconcileListenersInstalled = true;
+  }
+  window.__vehicleLifecycleIdentityResolver?.reconcile?.('auth_ready');
 }
 
 function vehicleLifecycleSharedModeActive() {
@@ -3538,6 +3550,7 @@ window.addEventListener?.('pdc-auth-locked', () => {
   window.__workshopDataService = null;
   window.__workshopSharedActions = null;
   window.__vehicleLifecycleIdentityResolver = null;
+  window.__vehicleLifecycleResolverDiagnostics = [];
   window.__vehicleLifecycleActions = null;
   window.__workshopReferenceDataService = null;
   const navItem = document.getElementById('nav-user-management');
@@ -3928,10 +3941,7 @@ async function vehicleLifecycleSharedRef(vehicle = {}) {
   if (!window.__vehicleLifecycleIdentityResolver || typeof buildVehicleLifecycleIdentityInput !== 'function') {
     return { outcome: 'service_unavailable' };
   }
-  const input = buildVehicleLifecycleIdentityInput({
-    ...vehicle,
-    stockNumber: displayStockNumber(vehicle) || vehicle.stockNumber || vehicle.stock_number || '',
-  });
+  const input = buildVehicleLifecycleIdentityInput(vehicle);
   const result = await window.__vehicleLifecycleIdentityResolver.resolve(input, { reason: 'lifecycle_consumer' });
   recordVehicleLifecycleResolverDiagnostic({
     type: 'consumer_resolution',
@@ -4020,7 +4030,6 @@ async function completeVehicleQualityControl(key = '') {
     if (result.notification_has_recipient === false) {
       window.alert('QC complete was saved, but no salesperson email is on file for this vehicle. The "ready for transport" notification could not be queued for sending. Please set the correct salesperson and use Retry from the notification outbox.');
     }
-    recordVehicleAudit(vehicle, 'Vehicle QC completed', { by: operator, role, location: 'PMB Unallocated', shared: true });
     renderAll();
     return true;
   }
@@ -8183,7 +8192,6 @@ async function transferVehiclesToRft(vehicles = [], options = {}) {
         failures.push(`${vehicleIdentityTitle(vehicle) || 'No stock'} - ${message}`);
         continue;
       }
-      recordVehicleAudit(vehicle, 'Transferred to RFT', { from: pmbStageLabel(inferredPmbStage(vehicle)) || 'PMB - Unallocated', to: 'RFT', completedJobs: pdcCompletedJobsText(vehicle), outstandingJobs: pdcOutstandingJobsText(vehicle), shared: true });
     }
     if (failures.length) {
       window.alert(`Some vehicles were not transferred:\n\n${failures.join('\n')}`);
@@ -8291,7 +8299,9 @@ function draftSalespersonChangeEmail(vehicle = {}, change = {}, recipient = '') 
   const stock = displayStockNumber(vehicle) || vehicle.order || 'TBA';
   const subject = `${cleanNavisionText(change.subject || change.title || 'PDC vehicle update')} - ${stock}`;
   const body = String(change.body || '').trim() || salespersonChangeEmailBody(vehicle, change);
-  recordVehicleAudit(vehicle, 'Salesperson update email drafted', { change: change.title || 'Vehicle status updated', recipient: email });
+  if (change.shared !== true) {
+    recordVehicleAudit(vehicle, 'Salesperson update email drafted', { change: change.title || 'Vehicle status updated', recipient: email });
+  }
   window.location.href = `mailto:${encodeURIComponent(email)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
   return true;
 }
@@ -10897,10 +10907,10 @@ async function markRftVehicleCollected(key, collected = true) {
       renderAll();
       return;
     }
-    recordVehicleAudit(vehicle, 'Collected from RFT', { by: operator || 'Unknown', shared: true });
     offerSalespersonChangeEmail(vehicle, {
       title: 'Vehicle completed and collected',
       subject: 'Vehicle collection complete',
+      shared: true,
       details: [`Collected from RFT by ${operator || 'Unknown operator'}.`],
     });
     if (typeof window.__workshopDataService !== 'undefined' && window.__workshopDataService) window.__workshopDataService.loadSnapshot('rft_collect');
