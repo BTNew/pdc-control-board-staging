@@ -48,7 +48,7 @@ def resign(value):
 class OfflineVehicleReferenceArtifactTests(unittest.TestCase):
     def test_typed_fields_source_evidence_and_checksum(self):
         value = build(export([item(claims=[
-            claim(), claim("source_record_id", "ROW-1", "ROW-1", "source_evidence", "NAVISION"),
+            claim(), claim("source_record_id", "ROW-1", "ROW-1", "source_evidence", "navision"),
         ])]))
         self.assertEqual(value["items"][0]["vehicle_id"], UUID_A)
         self.assertEqual(value["items"][0]["version"], 2)
@@ -59,6 +59,7 @@ class OfflineVehicleReferenceArtifactTests(unittest.TestCase):
         cases = []
         truncated = build(); truncated["completion"]["complete"] = False; cases.append(truncated)
         missing = build(); del missing["completion"]["terminal_cursor"]; cases.append(missing)
+        missing_page_field = build(); del missing_page_field["completion"]["pages"][0]["next_cursor"]; cases.append(missing_page_field)
         broad = build(); broad["items"][0]["customer"] = "no"; cases.append(broad)
         count = build(); count["item_count"] = 2; cases.append(count)
         for value in cases:
@@ -87,6 +88,32 @@ class OfflineVehicleReferenceArtifactTests(unittest.TestCase):
     def test_malformed_conflicts_rejected(self):
         value = build(); value["conflicts"] = {}
         with self.assertRaises(artifact_module.VehicleReferenceArtifactError):
+            artifact_module.validate_vehicle_reference_artifact(resign(value), expected_resolver_revision=REVISION)
+
+    def test_normalization_stock_vin_scope_and_source_evidence_are_strict(self):
+        cases = [
+            claim(value="STK-100", normalized="FORGED"),
+            claim(value="NEW-123", normalized="NEW123"),
+            claim("vin", "BAD-VIN", "BADVIN"),
+            claim("job_card_number", "JC-1", "JC-1", source_system="NAVISION"),
+            claim("stock_number", "STK-100", "STK100", origin="source_evidence"),
+        ]
+        for invalid_claim in cases:
+            with self.subTest(claim=invalid_claim):
+                with self.assertRaises(artifact_module.VehicleReferenceArtifactError):
+                    build(export([item(claims=[invalid_claim])]))
+
+    def test_forged_conflict_candidates_and_unsafe_integer_rejected(self):
+        duplicate = item(UUID_B, [claim(value="STK 100", normalized="STK100", origin="alias")])
+        conflict = {"classification": "canonical_alias_conflict", "identifier_type": "stock_number",
+                    "normalized_value": "STK100", "source_system": None,
+                    "vehicle_ids": [UUID_A, UUID_B], "candidates": [
+                        {"vehicle_id": UUID_A, "origin": "canonical", "value": "UNRELATED"},
+                        {"vehicle_id": UUID_B, "origin": "alias", "value": "STK 100"}]}
+        with self.assertRaisesRegex(artifact_module.VehicleReferenceArtifactError, "candidates"):
+            build(export([item(), duplicate], [conflict]))
+        value = build(); value["items"][0]["version"] = 2**53
+        with self.assertRaisesRegex(artifact_module.VehicleReferenceArtifactError, "version"):
             artifact_module.validate_vehicle_reference_artifact(resign(value), expected_resolver_revision=REVISION)
 
     def test_duplicate_normalized_identifier_requires_conflict_evidence(self):
@@ -129,7 +156,13 @@ class OfflineVehicleReferenceArtifactTests(unittest.TestCase):
             artifact_module.parse_workshop_reference(legacy, expected_resolver_revision=REVISION + 1, allow_legacy_rollback=True, legacy_source_environment="test:c2b-rollback")
 
     def test_python_and_node_checksum_are_identical(self):
-        value = build()
+        corpus = json.loads((ROOT / "backend" / "fixtures" / "stage2b_c2b_vehicle_reference_semantics.json").read_text(encoding="utf-8"))
+        last = corpus["items"][-1]["vehicle_id"]
+        value = artifact_module.build_vehicle_reference_artifact({
+            "outcome": "exported", "export_revision": corpus["revision"], "items": corpus["items"], "conflicts": corpus["conflicts"],
+            "completion": {"complete": True, "page_count": 1, "terminal_cursor": last,
+                           "pages": [{"after_cursor": None, "end_cursor": last, "item_count": len(corpus["items"]), "has_more": False, "next_cursor": None}]},
+        }, generated_at=corpus["generated_at"], source_environment=corpus["source_environment"])
         script = "const m=require('./scripts/workshop_vehicle_reference_artifact');let s='';process.stdin.on('data',d=>s+=d);process.stdin.on('end',()=>process.stdout.write(m.artifactChecksum(JSON.parse(s))));"
         result = subprocess.run(["node", "-e", script], cwd=ROOT, input=json.dumps(value), text=True, capture_output=True, check=True)
         self.assertEqual(result.stdout, value["checksum"]["value"])

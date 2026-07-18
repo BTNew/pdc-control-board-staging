@@ -28,6 +28,7 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-
 const SHA256_RE = /^[0-9a-f]{64}$/;
 const SOURCE_ENV_RE = /^(staging|test):[a-z0-9][a-z0-9-]{2,127}$/;
 const ISO_UTC_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,6})?Z$/;
+const MAX_SAFE_INTEGER = Number.MAX_SAFE_INTEGER;
 
 class VehicleReferenceArtifactError extends Error {}
 class VehicleReferenceArtifactStaleError extends VehicleReferenceArtifactError {}
@@ -50,6 +51,9 @@ function fail(message) {
 
 function exactKeys(value, allowed, label) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) fail(`${label} must be an object`);
+  for (const key of allowed) {
+    if (!Object.prototype.hasOwnProperty.call(value, key)) fail(`${label} is missing required field: ${key.replaceAll('_', ' ')}`);
+  }
   for (const key of Object.keys(value)) {
     if (!allowed.has(key)) fail(`${label} contains prohibited field: ${key}`);
   }
@@ -59,6 +63,14 @@ function stableStringify(value) {
   if (value === null || typeof value !== 'object') return JSON.stringify(value);
   if (Array.isArray(value)) return `[${value.map(stableStringify).join(',')}]`;
   return `{${Object.keys(value).sort().map(key => `${JSON.stringify(key)}:${stableStringify(value[key])}`).join(',')}}`;
+}
+
+function compareUtf8Text(a, b) {
+  return Buffer.compare(Buffer.from(a, 'utf8'), Buffer.from(b, 'utf8'));
+}
+
+function compareCanonical(a, b) {
+  return compareUtf8Text(stableStringify(a), stableStringify(b));
 }
 
 function artifactLogicalPayload(artifact) {
@@ -95,9 +107,17 @@ function normalizeClaim(claim, itemLabel) {
   if (typeof claim.normalized_value !== 'string' || !claim.normalized_value.trim()) {
     fail(`${itemLabel} normalized identifier is invalid`);
   }
+  const expectedNormalized = ['stock_number', 'vin'].includes(identifierType)
+    ? String(claim.value).trim().toUpperCase().replace(/[\s-]+/g, '')
+    : String(claim.value).trim().toUpperCase();
+  if (claim.normalized_value !== expectedNormalized) fail(`${itemLabel} normalized identifier does not match SQL normalization`);
+  if (identifierType === 'stock_number' && !isRealLegacyStock(claim.value)) fail(`${itemLabel} placeholder stock identifier is invalid`);
+  if (identifierType === 'vin' && !/^[A-HJ-NPR-Z0-9]{17}$/.test(expectedNormalized)) fail(`${itemLabel} VIN identifier is invalid`);
   const scoped = ['job_card_number', 'toyota_order_number', 'source_record_id'].includes(identifierType);
-  if (scoped && typeof claim.source_system !== 'string') fail(`${itemLabel} scoped identifier lacks source_system`);
+  if (scoped && (typeof claim.source_system !== 'string' || !claim.source_system.trim()
+      || claim.source_system !== claim.source_system.trim().toLowerCase())) fail(`${itemLabel} scoped identifier lacks normalized source_system`);
   if (!scoped && claim.source_system !== null) fail(`${itemLabel} unscoped identifier has source_system`);
+  if (origin === 'source_evidence' && identifierType !== 'source_record_id') fail(`${itemLabel} source evidence type is invalid`);
   return {
     identifier_type: identifierType,
     value: claim.value,
@@ -114,7 +134,7 @@ function claimSortKey(claim) {
 function normalizeItem(item) {
   exactKeys(item, ALLOWED_ITEM_KEYS, 'vehicle item');
   if (!UUID_RE.test(String(item.vehicle_id || ''))) fail('vehicle item has no valid canonical UUID');
-  if (!Number.isInteger(item.version) || item.version < 1) fail('vehicle item version is invalid');
+  if (!Number.isSafeInteger(item.version) || item.version < 1 || item.version > MAX_SAFE_INTEGER) fail('vehicle item version is invalid');
   if (typeof item.is_archived !== 'boolean') fail('vehicle item archived state is invalid');
   if (!Array.isArray(item.identifiers)) fail('vehicle item identifiers are malformed');
   const identifiers = item.identifiers.map(claim => normalizeClaim(claim, `vehicle ${item.vehicle_id}`));
@@ -124,7 +144,7 @@ function normalizeItem(item) {
     if (seen.has(key)) fail(`vehicle ${item.vehicle_id} contains duplicate identifier evidence`);
     seen.add(key);
   }
-  identifiers.sort((a, b) => claimSortKey(a).localeCompare(claimSortKey(b)));
+  identifiers.sort((a, b) => compareUtf8Text(claimSortKey(a), claimSortKey(b)));
   return { vehicle_id: item.vehicle_id.toLowerCase(), version: item.version, is_archived: item.is_archived, identifiers };
 }
 
@@ -145,7 +165,7 @@ function normalizeConflict(conflict) {
     if (typeof candidate.value !== 'string' || !candidate.value.trim()) fail('conflict candidate value is invalid');
     return { vehicle_id: candidate.vehicle_id.toLowerCase(), origin: candidate.origin, value: candidate.value };
   });
-  candidates.sort((a, b) => stableStringify(a).localeCompare(stableStringify(b)));
+  candidates.sort(compareCanonical);
   vehicleIds.sort();
   return {
     classification: conflict.classification,
@@ -162,7 +182,7 @@ function validateCompletion(completion, items) {
   exactKeys(completion, allowed, 'completion evidence');
   if (completion.complete !== true) fail('artifact is truncated');
   if (!Number.isInteger(completion.page_count) || completion.page_count < 1) fail('page count is invalid');
-  if (!Object.prototype.hasOwnProperty.call(completion, 'terminal_cursor')) fail('terminal cursor is missing');
+
   if (!Array.isArray(completion.pages) || completion.pages.length !== completion.page_count) fail('page evidence is incomplete');
   let priorEnd = null;
   let total = 0;
@@ -190,14 +210,46 @@ function validateCompletion(completion, items) {
   if (total !== items.length) fail('page item counts do not match artifact items');
 }
 
+function validateConflictSemantics(items, conflicts) {
+  const claimsByKey = new Map();
+  for (const item of items) {
+    for (const claim of item.identifiers) {
+      const key = [claim.identifier_type, claim.source_system || '', claim.normalized_value].join('\u0000');
+      if (!claimsByKey.has(key)) claimsByKey.set(key, []);
+      claimsByKey.get(key).push({ vehicle_id: item.vehicle_id, origin: claim.origin, value: claim.value });
+    }
+  }
+  const seen = new Set();
+  for (const conflict of conflicts) {
+    const key = [conflict.identifier_type, conflict.source_system || '', conflict.normalized_value].join('\u0000');
+    if (seen.has(key)) fail('duplicate conflict evidence group');
+    seen.add(key);
+    const expected = (claimsByKey.get(key) || []).sort(compareCanonical);
+    const actual = [...conflict.candidates].sort(compareCanonical);
+    if (expected.length !== actual.length || expected.some((row, index) => stableStringify(row) !== stableStringify(actual[index]))) {
+      fail('conflict candidates do not match artifact claims');
+    }
+    const expectedIds = [...new Set(expected.map(row => row.vehicle_id))].sort();
+    if (expectedIds.length < 2 || stableStringify(expectedIds) !== stableStringify(conflict.vehicle_ids)) {
+      fail('conflict vehicle IDs do not match artifact claims');
+    }
+    const origins = new Set(expected.map(row => row.origin));
+    const expectedClass = origins.has('canonical') && origins.has('alias')
+      ? 'canonical_alias_conflict'
+      : (origins.has('canonical') && origins.has('source_evidence')
+        ? 'canonical_source_evidence_conflict' : 'ambiguous_normalized_identity');
+    if (conflict.classification !== expectedClass) fail('conflict classification does not match artifact claims');
+  }
+}
+
 function validateVehicleReferenceArtifact(artifact, options = {}) {
   exactKeys(artifact, new Set([
     'schema_version', 'resolver_revision', 'generated_at', 'source_environment',
     'item_count', 'completion', 'items', 'conflicts', 'checksum',
   ]), 'vehicle identity artifact');
   if (artifact.schema_version !== ARTIFACT_SCHEMA_VERSION) fail('unsupported vehicle reference artifact schema');
-  if (!Number.isInteger(artifact.resolver_revision) || artifact.resolver_revision < 0) fail('resolver revision is invalid');
-  if (typeof options.expectedResolverRevision !== 'number' || !Number.isInteger(options.expectedResolverRevision)) {
+  if (!Number.isSafeInteger(artifact.resolver_revision) || artifact.resolver_revision < 0) fail('resolver revision is invalid');
+  if (!Number.isSafeInteger(options.expectedResolverRevision)) {
     fail('current resolver revision is required to validate an offline artifact');
   }
   if (artifact.resolver_revision !== options.expectedResolverRevision) {
@@ -207,16 +259,17 @@ function validateVehicleReferenceArtifact(artifact, options = {}) {
       || !Number.isFinite(Date.parse(artifact.generated_at))) fail('generation timestamp is invalid');
   if (typeof artifact.source_environment !== 'string' || !SOURCE_ENV_RE.test(artifact.source_environment)) fail('source environment identifier is invalid');
   if (!Array.isArray(artifact.items) || !Array.isArray(artifact.conflicts)) fail('artifact items or conflicts are malformed');
-  const items = artifact.items.map(normalizeItem).sort((a, b) => a.vehicle_id.localeCompare(b.vehicle_id));
+  const items = artifact.items.map(normalizeItem).sort((a, b) => compareUtf8Text(a.vehicle_id, b.vehicle_id));
   const ids = items.map(item => item.vehicle_id);
   if (new Set(ids).size !== ids.length) fail('artifact contains duplicate canonical UUIDs');
   if (!Number.isInteger(artifact.item_count) || artifact.item_count !== items.length) fail('artifact item count is incorrect');
   validateCompletion(artifact.completion, items);
-  const conflicts = artifact.conflicts.map(normalizeConflict)
-    .sort((a, b) => stableStringify(a).localeCompare(stableStringify(b)));
+  const conflicts = artifact.conflicts.map(normalizeConflict).sort(compareCanonical);
+  validateConflictSemantics(items, conflicts);
 
   const normalized = { ...artifact, items, conflicts };
-  if (!artifact.checksum || artifact.checksum.algorithm !== 'sha256' || !SHA256_RE.test(String(artifact.checksum.value || ''))) {
+  exactKeys(artifact.checksum, new Set(['algorithm', 'value']), 'artifact checksum');
+  if (artifact.checksum.algorithm !== 'sha256' || !SHA256_RE.test(String(artifact.checksum.value || ''))) {
     fail('artifact checksum metadata is invalid');
   }
   const computed = artifactChecksum(normalized);
@@ -260,8 +313,8 @@ function buildVehicleReferenceArtifact(exportData, options = {}) {
   };
   const normalizedWithoutChecksum = {
     ...artifact,
-    items: artifact.items.map(normalizeItem).sort((a, b) => a.vehicle_id.localeCompare(b.vehicle_id)),
-    conflicts: artifact.conflicts.map(normalizeConflict).sort((a, b) => stableStringify(a).localeCompare(stableStringify(b))),
+    items: artifact.items.map(normalizeItem).sort((a, b) => compareUtf8Text(a.vehicle_id, b.vehicle_id)),
+    conflicts: artifact.conflicts.map(normalizeConflict).sort(compareCanonical),
   };
   validateCompletion(normalizedWithoutChecksum.completion, normalizedWithoutChecksum.items);
   normalizedWithoutChecksum.checksum.value = artifactChecksum(normalizedWithoutChecksum);

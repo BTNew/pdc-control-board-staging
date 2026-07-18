@@ -1,6 +1,7 @@
 'use strict';
 
 const assert = require('assert');
+const fs = require('fs');
 const { validateLegacyImport, diagnosticSummary } = require('./scripts/workshop_planner_legacy_validate');
 const { buildVehicleReferenceArtifact } = require('./scripts/workshop_vehicle_reference_artifact');
 
@@ -216,6 +217,29 @@ function extractWith(bookings) {
   const appearsSomewhere = Object.values(report.buckets).some(list => list.some(item => item.booking.legacy_plan_id === 'q1'));
   assert.ok(appearsSomewhere, '11a a maximally broken record still appears in at least one bucket, never silently vanishes');
   console.log('PASS 11: a maximally invalid record is still classified, never silently dropped');
+}
+
+// 12. Shared Node/Python corpus proves work-item, ambiguity, and source-scope parity.
+{
+  const corpus = JSON.parse(fs.readFileSync('./backend/fixtures/stage2b_c2b_vehicle_reference_semantics.json', 'utf8'));
+  const last = corpus.items.at(-1)?.vehicle_id || null;
+  const sharedArtifact = buildVehicleReferenceArtifact({
+    outcome: 'exported', export_revision: corpus.revision, items: corpus.items, conflicts: corpus.conflicts,
+    completion: { complete: true, page_count: 1, terminal_cursor: last,
+      pages: [{ after_cursor: null, end_cursor: last, item_count: corpus.items.length, has_more: false, next_cursor: null }] },
+  }, { generatedAt: corpus.generated_at, sourceEnvironment: corpus.source_environment });
+  const reference = { vehicleIdentityArtifact: sharedArtifact, ...corpus.reference };
+  for (const row of corpus.cases) {
+    const report = validateLegacyImport({ bookings: [row.booking] }, reference, { expectedResolverRevision: corpus.revision });
+    assert.strictEqual(report.counts[row.expected_bucket], 1, row.name);
+    if (row.expected_vehicle_id) assert.strictEqual(report.buckets[row.expected_bucket][0].resolved.vehicle_id, row.expected_vehicle_id, row.name);
+    if (row.name.includes('source-scoped')) {
+      const evidence = report.buckets[row.expected_bucket][0].matched_claims;
+      assert.deepStrictEqual([...new Set(evidence.map(value => value.source_system))].sort(), ['navision', 'sap']);
+      assert.ok(evidence.every(value => value.origin === 'source_evidence'));
+    }
+  }
+  console.log('PASS 12: shared semantic corpus produces expected fail-closed Node outcomes');
 }
 
 console.log('Workshop legacy import validation checks passed');

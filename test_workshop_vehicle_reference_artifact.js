@@ -23,7 +23,7 @@ function item(id = UUID_A, identifiers = null) {
     is_archived: false,
     identifiers: identifiers || [
       { identifier_type: 'stock_number', value: 'STK-100', normalized_value: 'STK100', source_system: null, origin: 'canonical' },
-      { identifier_type: 'source_record_id', value: 'ROW-100', normalized_value: 'ROW-100', source_system: 'NAVISION', origin: 'source_evidence' },
+      { identifier_type: 'source_record_id', value: 'ROW-100', normalized_value: 'ROW-100', source_system: 'navision', origin: 'source_evidence' },
     ],
   };
 }
@@ -163,6 +163,11 @@ expectError('invalid cursor chain is rejected', () => {
   const value = clone(artifact()); value.completion.pages[0].after_cursor = UUID_B; validateVehicleReferenceArtifact(resign(value), { expectedResolverRevision: REVISION });
 }, VehicleReferenceArtifactError, 'cursor chain');
 
+expectError('page objects missing required cursor fields are rejected', () => {
+  const value = clone(artifact()); delete value.completion.pages[0].next_cursor;
+  validateVehicleReferenceArtifact(resign(value), { expectedResolverRevision: REVISION });
+}, VehicleReferenceArtifactError, 'missing required field');
+
 expectError('prohibited broad vehicle fields do not enter artifacts', () => {
   artifact(exported([{ ...item(), customer_name: 'Secret Customer', notes: 'Secret note' }]));
 }, VehicleReferenceArtifactError, 'prohibited field');
@@ -190,5 +195,59 @@ expectError('legacy rollback refuses missing or changed version', () => parseWor
   expectedResolverRevision: REVISION + 1, allowLegacyRollback: true,
   legacySourceEnvironment: 'test:c2b-rollback',
 }), VehicleReferenceArtifactError, 'version validation');
+
+expectError('forged normalized identity is rejected even when re-signed', () => {
+  const value = clone(artifact());
+  value.items[0].identifiers[0].normalized_value = 'FORGED';
+  validateVehicleReferenceArtifact(resign(value), { expectedResolverRevision: REVISION });
+}, VehicleReferenceArtifactError, 'SQL normalization');
+
+expectError('placeholder stock and malformed VIN claims are rejected', () => {
+  artifact(exported([item(UUID_A, [
+    { identifier_type: 'stock_number', value: 'NEW-123', normalized_value: 'NEW123', source_system: null, origin: 'canonical' },
+  ])]));
+}, VehicleReferenceArtifactError, 'placeholder');
+
+expectError('malformed VIN claim is rejected', () => {
+  artifact(exported([item(UUID_A, [
+    { identifier_type: 'vin', value: 'BAD-VIN', normalized_value: 'BADVIN', source_system: null, origin: 'canonical' },
+  ])]));
+}, VehicleReferenceArtifactError, 'VIN');
+
+expectError('source-scoped claims require normalized source scope', () => {
+  artifact(exported([item(UUID_A, [
+    { identifier_type: 'job_card_number', value: 'JC-1', normalized_value: 'JC-1', source_system: 'NAVISION', origin: 'canonical' },
+  ])]));
+}, VehicleReferenceArtifactError, 'source_system');
+
+expectError('source evidence is restricted to source-record identifiers', () => {
+  artifact(exported([item(UUID_A, [
+    { identifier_type: 'stock_number', value: 'STK-100', normalized_value: 'STK100', source_system: null, origin: 'source_evidence' },
+  ])]));
+}, VehicleReferenceArtifactError, 'source evidence type');
+
+expectError('forged conflict candidates are rejected', () => {
+  const duplicate = item(UUID_B, [
+    { identifier_type: 'stock_number', value: 'STK 100', normalized_value: 'STK100', source_system: null, origin: 'alias' },
+  ]);
+  const conflict = {
+    classification: 'canonical_alias_conflict', identifier_type: 'stock_number', normalized_value: 'STK100', source_system: null,
+    vehicle_ids: [UUID_A, UUID_B], candidates: [
+      { vehicle_id: UUID_A, origin: 'canonical', value: 'UNRELATED' },
+      { vehicle_id: UUID_B, origin: 'alias', value: 'STK 100' },
+    ],
+  };
+  artifact(exported([item(), duplicate], [conflict]));
+}, VehicleReferenceArtifactError, 'candidates');
+
+expectError('checksum metadata rejects extra fields', () => {
+  const value = clone(artifact()); value.checksum.extra = 'forbidden';
+  validateVehicleReferenceArtifact(resign(value), { expectedResolverRevision: REVISION });
+}, VehicleReferenceArtifactError, 'prohibited field');
+
+expectError('unsafe integers are rejected for cross-runtime parity', () => {
+  const value = clone(artifact()); value.items[0].version = 9007199254740992;
+  validateVehicleReferenceArtifact(resign(value), { expectedResolverRevision: REVISION });
+}, VehicleReferenceArtifactError, 'version');
 
 console.log(`Workshop typed vehicle reference artifact checks passed: ${passed}`);

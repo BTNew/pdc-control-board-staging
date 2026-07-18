@@ -29,8 +29,7 @@ jobs:
           node-version: '22'
       - name: Typed artifact and offline validator tests
         run: |
-          node test_workshop_vehicle_reference_artifact.js
-          node test_workshop_planner_legacy_validate.js
+          node test_all.js
           python -m unittest \
             backend.test_stage2b_offline_vehicle_reference_artifact \
             backend.test_stage2b_importer_identity_export_foundation \

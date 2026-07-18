@@ -82,6 +82,7 @@ function legacyIdentityForms(value) {
 
 function buildVehicleIdentityIndex(vehicles, conflicts) {
   const byClaim = new Map();
+  const evidenceByClaim = new Map();
   const byId = new Map();
   for (const vehicle of vehicles) {
     if (byId.has(vehicle.vehicle_id)) throw new Error(`duplicate canonical UUID: ${vehicle.vehicle_id}`);
@@ -90,6 +91,8 @@ function buildVehicleIdentityIndex(vehicles, conflicts) {
       const key = `${claim.identifier_type}\u0000${claim.normalized_value}`;
       if (!byClaim.has(key)) byClaim.set(key, new Set());
       byClaim.get(key).add(vehicle.vehicle_id);
+      if (!evidenceByClaim.has(key)) evidenceByClaim.set(key, []);
+      evidenceByClaim.get(key).push({ vehicle_id: vehicle.vehicle_id, origin: claim.origin, source_system: claim.source_system });
     }
   }
   const conflictByClaim = new Map();
@@ -98,7 +101,7 @@ function buildVehicleIdentityIndex(vehicles, conflicts) {
     if (!conflictByClaim.has(key)) conflictByClaim.set(key, []);
     conflictByClaim.get(key).push(conflict);
   }
-  return { byClaim, byId, conflictByClaim };
+  return { byClaim, byId, conflictByClaim, evidenceByClaim };
 }
 
 function matchLegacyVehicleIdentity(value, index) {
@@ -108,7 +111,9 @@ function matchLegacyVehicleIdentity(value, index) {
   for (const [type, normalized] of legacyIdentityForms(value)) {
     const key = `${type}\u0000${normalized}`;
     for (const id of index.byClaim.get(key) || []) ids.add(id);
-    if ((index.byClaim.get(key) || new Set()).size) matchedClaims.push({ identifier_type: type, normalized_value: normalized });
+    for (const evidence of index.evidenceByClaim.get(key) || []) {
+      matchedClaims.push({ identifier_type: type, normalized_value: normalized, ...evidence });
+    }
     identityConflicts.push(...(index.conflictByClaim.get(key) || []));
   }
   return {
@@ -171,6 +176,7 @@ function validateLegacyImport(extract, referenceData, options = {}) {
     inactive_vehicle: [],
     missing_bay: [],
     missing_technician: [],
+    duplicate_technician_match: [],
     missing_work_item: [],
     overlapping_bay_booking: [],
     overlapping_technician_booking: [],
@@ -198,8 +204,9 @@ function validateLegacyImport(extract, referenceData, options = {}) {
     if (!stageRow) reasons.push('missing_stage');
     if (stageRow && booking.bay_number != null && !bayRow) reasons.push('missing_bay');
     if (booking.assignee && technicianMatches.length === 0) reasons.push('missing_technician');
+    if (booking.assignee && technicianMatches.length > 1) reasons.push('duplicate_technician_match');
     if (requireWorkItemForStages.has(normalizeLookupKey(booking.stage_code))) {
-      const vehicleId = vehicleMatches.length === 1 ? vehicleMatches[0].id : null;
+      const vehicleId = vehicleMatches.length === 1 ? vehicleMatches[0].vehicle_id : null;
       if (!vehicleId || !workItemByVehicleStage.has(`${vehicleId}::${normalizeLookupKey(booking.stage_code)}`)) {
         reasons.push('missing_work_item');
       }
@@ -240,6 +247,7 @@ function validateLegacyImport(extract, referenceData, options = {}) {
           missing_stage: 'missing_bay', // no separate bucket requested; stage absence blocks the same way a missing bay does
           missing_bay: 'missing_bay',
           missing_technician: 'missing_technician',
+          duplicate_technician_match: 'duplicate_technician_match',
           missing_work_item: 'missing_work_item',
           invalid_date_or_duration: 'invalid_date_or_duration',
         }[reason];

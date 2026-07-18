@@ -156,6 +156,7 @@ def _vehicle_claims(item):
 
 def build_vehicle_identity_index(vehicles, conflicts=None):
     by_claim = {}
+    evidence_by_claim = {}
     by_id = {}
     for raw_item in vehicles:
         item = _legacy_vehicle_record(raw_item)
@@ -169,7 +170,12 @@ def build_vehicle_identity_index(vehicles, conflicts=None):
             identifier_type = str(claim.get('identifier_type') or '').strip().lower()
             normalized_value = str(claim.get('normalized_value') or '').strip().upper()
             if identifier_type and normalized_value:
-                by_claim.setdefault((identifier_type, normalized_value), set()).add(vehicle_id)
+                key = (identifier_type, normalized_value)
+                by_claim.setdefault(key, set()).add(vehicle_id)
+                evidence_by_claim.setdefault(key, []).append({
+                    'vehicle_id': vehicle_id, 'origin': claim.get('origin'),
+                    'source_system': claim.get('source_system'),
+                })
 
     conflict_by_claim = {}
     for conflict in conflicts or []:
@@ -179,7 +185,8 @@ def build_vehicle_identity_index(vehicles, conflicts=None):
         )
         if key[0] and key[1]:
             conflict_by_claim.setdefault(key, []).append(conflict)
-    return {'by_claim': by_claim, 'by_id': by_id, 'conflicts': conflict_by_claim}
+    return {'by_claim': by_claim, 'by_id': by_id, 'conflicts': conflict_by_claim,
+            'evidence_by_claim': evidence_by_claim}
 
 
 def match_legacy_vehicle_identity(value, index):
@@ -190,7 +197,9 @@ def match_legacy_vehicle_identity(value, index):
         ids = index['by_claim'].get(claim_key, set())
         if ids:
             candidate_ids.update(ids)
-            matched_claims.append({'identifier_type': claim_key[0], 'normalized_value': claim_key[1]})
+            matched_claims.extend({
+                'identifier_type': claim_key[0], 'normalized_value': claim_key[1], **evidence,
+            } for evidence in index['evidence_by_claim'].get(claim_key, []))
         identity_conflicts.extend(index['conflicts'].get(claim_key, []))
     vehicles = [index['by_id'][vehicle_id] for vehicle_id in sorted(candidate_ids)]
     return {
@@ -239,9 +248,18 @@ def fetch_vehicle_identity_export_pages(fetch_page, page_size=200, retry_attempt
             raise VehicleIdentityExportStale('vehicle identity export revision changed during pagination')
         if outcome != 'exported':
             raise VehicleIdentityExportInvalid(f'identity export failed closed: {outcome or "malformed_response"}')
+        expected_keys = {
+            'outcome', 'export_revision', 'page_size', 'items', 'conflicts',
+            'has_more', 'next_cursor',
+        }
+        if set(response) != expected_keys:
+            raise VehicleIdentityExportInvalid('identity export response envelope is malformed')
+        returned_page_size = response.get('page_size')
+        if isinstance(returned_page_size, bool) or returned_page_size != page_size:
+            raise VehicleIdentityExportInvalid('identity export returned an unexpected page size')
 
         revision = response.get('export_revision')
-        if not isinstance(revision, int) or revision < 0:
+        if isinstance(revision, bool) or not isinstance(revision, int) or not 0 <= revision <= 2**53 - 1:
             raise VehicleIdentityExportInvalid('identity export revision is invalid')
         if expected_revision is None:
             expected_revision = revision
@@ -399,7 +417,7 @@ def classify(
     buckets = {k: [] for k in [
         'safely_matched', 'missing_vehicle', 'duplicate_vehicle_match',
         'conflicting_vehicle_identity', 'inactive_vehicle', 'missing_bay',
-        'missing_technician', 'missing_work_item', 'overlapping_bay_booking',
+        'missing_technician', 'duplicate_technician_match', 'missing_work_item', 'overlapping_bay_booking',
         'overlapping_technician_booking', 'invalid_date_or_duration', 'requires_manual_review',
     ]}
 
@@ -434,6 +452,8 @@ def classify(
             reasons.append('missing_bay')
         if booking.get('assignee') and len(technician_matches) == 0:
             reasons.append('missing_technician')
+        if booking.get('assignee') and len(technician_matches) > 1:
+            reasons.append('duplicate_technician_match')
         if normalize_key(booking.get('stage_code')) in require_work_item_for:
             vehicle_id = matched_vehicle['id'] if matched_vehicle is not None else None
             if not vehicle_id or (vehicle_id, normalize_key(booking.get('stage_code'))) not in work_item_set:

@@ -1,4 +1,5 @@
 import importlib.util
+import json
 from pathlib import Path
 import unittest
 
@@ -72,6 +73,28 @@ def extract(key, plan_id="plan-1"):
 
 
 class ImporterIdentityExportAdapterTests(unittest.TestCase):
+    def test_shared_node_python_semantic_corpus(self):
+        corpus = json.loads((ROOT / "backend" / "fixtures" / "stage2b_c2b_vehicle_reference_semantics.json").read_text(encoding="utf-8"))
+        last = corpus["items"][-1]["vehicle_id"] if corpus["items"] else None
+        artifact = importer.build_vehicle_reference_artifact({
+            "outcome": "exported", "export_revision": corpus["revision"],
+            "items": corpus["items"], "conflicts": corpus["conflicts"],
+            "completion": {"complete": True, "page_count": 1, "terminal_cursor": last,
+                           "pages": [{"after_cursor": None, "end_cursor": last, "item_count": len(corpus["items"]),
+                                      "has_more": False, "next_cursor": None}]},
+        }, generated_at=corpus["generated_at"], source_environment=corpus["source_environment"])
+        ref = {"vehicleIdentityArtifact": artifact, **corpus["reference"]}
+        for row in corpus["cases"]:
+            with self.subTest(row=row["name"]):
+                buckets = importer.classify({"bookings": [row["booking"]]}, ref, expected_revision=corpus["revision"])
+                self.assertEqual(len(buckets[row["expected_bucket"]]), 1)
+                if row["expected_vehicle_id"]:
+                    self.assertEqual(buckets[row["expected_bucket"]][0]["resolved"]["vehicle_id"], row["expected_vehicle_id"])
+                if "source-scoped" in row["name"]:
+                    evidence = buckets[row["expected_bucket"]][0]["matched_claims"]
+                    self.assertEqual({value["source_system"] for value in evidence}, {"navision", "sap"})
+                    self.assertEqual({value["origin"] for value in evidence}, {"source_evidence"})
+
     def test_sql_equivalent_normalization(self):
         self.assertEqual(importer.normalize_vehicle_stock_number(" ab- 12 "), "AB12")
         self.assertEqual(importer.normalize_vehicle_vin("1hgcm82633-a004352"), "1HGCM82633A004352")
@@ -80,19 +103,20 @@ class ImporterIdentityExportAdapterTests(unittest.TestCase):
         self.assertFalse(importer.is_real_vehicle_stock_number("NEW-123"))
         self.assertEqual(importer.normalize_vehicle_source_identifier(" jc-9 "), "JC-9")
 
-    def test_uuid_retention_and_stock_vin_job_alias_matching(self):
+    def test_uuid_retention_and_complete_typed_claim_matching(self):
         item = vehicle(UUID_A, [
             identifier("stock_number", "AB-12", "AB12"),
             identifier("vin", "1HGCM82633A004352", "1HGCM82633A004352"),
             identifier("job_card_number", "JC-9", "JC-9", source_system="navision"),
             identifier("stock_number", "OLD-12", "OLD12", origin="alias"),
         ], version=4)
-        for key in ("ab 12", "1hgcm82633-a004352", " jc-9 ", "old 12"):
+        for key in ("ab 12", "1hgcm82633-a004352", "jc-9", "old 12"):
             buckets = classify(extract(key), reference([item]))
             self.assertEqual(len(buckets["safely_matched"]), 1, key)
             resolved = buckets["safely_matched"][0]["resolved"]
             self.assertEqual(resolved["vehicle_id"], UUID_A)
             self.assertEqual(resolved["vehicle_version"], 4)
+
 
     def test_zero_duplicate_conflict_and_archived_fail_closed(self):
         a = vehicle(UUID_A, [identifier("stock_number", "AB-12", "AB12")])
@@ -122,12 +146,12 @@ class ImporterIdentityExportAdapterTests(unittest.TestCase):
     def test_deterministic_bounded_pagination_and_response_loss_retry(self):
         calls = []
         page_one = {
-            "outcome": "exported", "export_revision": 7,
+            "outcome": "exported", "export_revision": 7, "page_size": 2,
             "items": [vehicle(UUID_A, [identifier("stock_number", "A-1", "A1")])],
             "conflicts": [], "has_more": True, "next_cursor": UUID_A,
         }
         page_two = {
-            "outcome": "exported", "export_revision": 7,
+            "outcome": "exported", "export_revision": 7, "page_size": 2,
             "items": [vehicle(UUID_B, [identifier("stock_number", "B-2", "B2")])],
             "conflicts": [], "has_more": False, "next_cursor": None,
         }
@@ -156,22 +180,30 @@ class ImporterIdentityExportAdapterTests(unittest.TestCase):
                 lambda _c, _s, _r: {"outcome": "stale_export", "export_revision": 8},
             )
         duplicate_pages = iter([
-            {"outcome": "exported", "export_revision": 7, "items": [vehicle(UUID_A, [])], "conflicts": [], "has_more": True, "next_cursor": UUID_A},
-            {"outcome": "exported", "export_revision": 7, "items": [vehicle(UUID_A, [])], "conflicts": [], "has_more": False, "next_cursor": None},
+            {"outcome": "exported", "export_revision": 7, "page_size": 2, "items": [vehicle(UUID_A, [])], "conflicts": [], "has_more": True, "next_cursor": UUID_A},
+            {"outcome": "exported", "export_revision": 7, "page_size": 2, "items": [vehicle(UUID_A, [])], "conflicts": [], "has_more": False, "next_cursor": None},
         ])
         with self.assertRaises(importer.VehicleIdentityExportInvalid):
-            importer.fetch_vehicle_identity_export_pages(lambda _c, _s, _r: next(duplicate_pages))
+            importer.fetch_vehicle_identity_export_pages(lambda _c, _s, _r: next(duplicate_pages), page_size=2)
         with self.assertRaises(importer.VehicleIdentityExportInvalid):
             importer.fetch_vehicle_identity_export_pages(
-                lambda _c, _s, _r: {"outcome": "exported", "export_revision": 7, "items": [], "conflicts": [], "has_more": True, "next_cursor": None}
+                lambda _c, _s, _r: {"outcome": "exported", "export_revision": 7, "page_size": 200, "items": [], "conflicts": [], "has_more": True, "next_cursor": None}
             )
         for malformed in (
             {"outcome": "exported", "export_revision": 7, "items": [], "conflicts": []},
-            {"outcome": "exported", "export_revision": 7, "items": [], "conflicts": [], "has_more": "false", "next_cursor": None},
-            {"outcome": "exported", "export_revision": 7, "items": [], "conflicts": [], "has_more": False, "next_cursor": UUID_A},
+            {"outcome": "exported", "export_revision": 7, "page_size": 200, "items": [], "conflicts": [], "has_more": "false", "next_cursor": None},
+            {"outcome": "exported", "export_revision": 7, "page_size": 200, "items": [], "conflicts": [], "has_more": False, "next_cursor": UUID_A},
         ):
             with self.assertRaises(importer.VehicleIdentityExportInvalid):
                 importer.fetch_vehicle_identity_export_pages(lambda _c, _s, _r, page=malformed: page)
+
+    def test_page_envelope_rejects_extra_fields_and_wrong_returned_size(self):
+        base = {"outcome": "exported", "export_revision": 7, "page_size": 2,
+                "items": [], "conflicts": [], "has_more": False, "next_cursor": None}
+        for response in ({**base, "unexpected": True}, {**base, "page_size": 999}):
+            with self.subTest(response=response):
+                with self.assertRaises(importer.VehicleIdentityExportInvalid):
+                    importer.fetch_vehicle_identity_export_pages(lambda _c, _s, _r, value=response: value, page_size=2)
 
     def test_unauthorized_export_fails_without_rollback(self):
         with self.assertRaises(PermissionError):

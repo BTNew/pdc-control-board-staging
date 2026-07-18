@@ -1,0 +1,114 @@
+{
+  "revision": 31,
+  "generated_at": "2026-07-18T10:00:00Z",
+  "source_environment": "test:c2b-shared-corpus",
+  "items": [
+    {
+      "vehicle_id": "55555555-5555-4555-8555-555555555555",
+      "version": 7,
+      "is_archived": false,
+      "identifiers": [
+        {
+          "identifier_type": "stock_number",
+          "value": "STK-500",
+          "normalized_value": "STK500",
+          "source_system": null,
+          "origin": "canonical"
+        },
+        {
+          "identifier_type": "source_record_id",
+          "value": "Ä-ROW",
+          "normalized_value": "Ä-ROW",
+          "source_system": "navision",
+          "origin": "source_evidence"
+        }
+      ]
+    },
+    {
+      "vehicle_id": "66666666-6666-4666-8666-666666666666",
+      "version": 2,
+      "is_archived": false,
+      "identifiers": [
+        {
+          "identifier_type": "stock_number",
+          "value": "STK-600",
+          "normalized_value": "STK600",
+          "source_system": null,
+          "origin": "canonical"
+        },
+        {
+          "identifier_type": "source_record_id",
+          "value": "Ä-ROW",
+          "normalized_value": "Ä-ROW",
+          "source_system": "sap",
+          "origin": "source_evidence"
+        }
+      ]
+    }
+  ],
+  "conflicts": [],
+  "reference": {
+    "stages": [
+      {"id": "stage-fitting", "code": "FITTING"},
+      {"id": "stage-hoist", "code": "HOIST"}
+    ],
+    "bays": [
+      {"id": "bay-hoist-1", "stage_id": "stage-hoist", "bay_number": 1}
+    ],
+    "technicians": [
+      {"id": "tech-alex-1", "name": "Alex"},
+      {"id": "tech-alex-2", "name": "Alex"}
+    ],
+    "workItems": [
+      {"id": "work-1", "vehicle_id": "55555555-5555-4555-8555-555555555555", "stage_code": "FITTING"}
+    ],
+    "requireWorkItemForStages": ["FITTING"]
+  },
+  "cases": [
+    {
+      "name": "required work item resolves by canonical UUID",
+      "booking": {
+        "legacy_plan_id": "shared-1",
+        "legacy_vehicle_key": "STK-500",
+        "stage_code": "FITTING",
+        "bay_number": null,
+        "assignee": "",
+        "scheduled_start_at": "2026-07-20T00:00:00Z",
+        "duration_minutes": 60,
+        "status": "planned"
+      },
+      "expected_bucket": "safely_matched",
+      "expected_vehicle_id": "55555555-5555-4555-8555-555555555555"
+    },
+    {
+      "name": "duplicate technician fails closed",
+      "booking": {
+        "legacy_plan_id": "shared-2",
+        "legacy_vehicle_key": "STK-500",
+        "stage_code": "HOIST",
+        "bay_number": 1,
+        "assignee": "Alex",
+        "scheduled_start_at": "2026-07-20T02:00:00Z",
+        "duration_minutes": 60,
+        "status": "planned"
+      },
+      "expected_bucket": "duplicate_technician_match",
+      "expected_vehicle_id": null
+    },
+    {
+      "name": "same source-scoped value across systems fails closed",
+      "booking": {
+        "legacy_plan_id": "shared-3",
+        "legacy_vehicle_key": "Ä-ROW",
+        "stage_code": "HOIST",
+        "bay_number": 1,
+        "assignee": "",
+        "scheduled_start_at": "2026-07-20T04:00:00Z",
+        "duration_minutes": 60,
+        "status": "planned"
+      },
+      "expected_bucket": "duplicate_vehicle_match",
+      "expected_vehicle_id": null
+    }
+  ]
+}
