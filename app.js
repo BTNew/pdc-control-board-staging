@@ -2551,7 +2551,8 @@ function loadVehicleLifecycleSharedActionsIfConfigured() {
   }
   if (!window.PDC_SUPABASE_CONFIG || !window.PDC_SUPABASE_CONFIG.vehicleLifecycle || window.PDC_SUPABASE_CONFIG.vehicleLifecycle.sharedData !== true) return;
   if (typeof loadExternalScript !== 'function') return;
-  loadExternalScript(`vehicle-lifecycle-actions.js?v=${encodeURIComponent(APP_VERSION)}`, 'vehicle-lifecycle-actions-script')
+  const lifecycleAssetVersion = window.PDC_SUPABASE_CONFIG.vehicleLifecycle.resolverAssetVersion || APP_VERSION;
+  loadExternalScript(`vehicle-lifecycle-actions.js?v=${encodeURIComponent(lifecycleAssetVersion)}`, 'vehicle-lifecycle-actions-script')
     .then(() => {
       // createWorkshopSupabaseClient lives in workshop-data-service.js; load
       // it too if it is not already present (it may already be loaded by
@@ -2562,9 +2563,9 @@ function loadVehicleLifecycleSharedActionsIfConfigured() {
       }
       loadExternalScript(`workshop-data-service.js?v=${encodeURIComponent(APP_VERSION)}`, 'workshop-data-service-script')
         .then(() => initVehicleLifecycleSharedActionsIfEnabled())
-        .catch(() => { /* non-fatal: legacy QC/RFT/Collected behaviour stays available */ });
+        .catch(() => { /* fail closed: configured shared lifecycle actions report service_unavailable */ });
     })
-    .catch(() => { /* non-fatal: legacy QC/RFT/Collected behaviour stays available */ });
+    .catch(() => { /* fail closed: configured shared lifecycle actions report service_unavailable */ });
 }
 
 function renderAppVersionMarker() {
@@ -3428,24 +3429,50 @@ function initWorkshopSharedServicesIfEnabled() {
 // initWorkshopSharedServicesIfEnabled(): a site can enable shared workshop
 // scheduling without enabling shared QC/RFT/Collected, or vice versa.
 // Fails closed -- if not enabled/loaded, window.__vehicleLifecycleActions
-// stays undefined and every call site below falls back to the existing
-// legacy localStorage-only behaviour unchanged.
+// stays undefined and configured shared lifecycle actions fail closed.
 function initVehicleLifecycleSharedActionsIfEnabled() {
-  if (window.__vehicleLifecycleActions) return;
   if (typeof vehicleLifecycleSharedModeEnabled !== 'function' || !vehicleLifecycleSharedModeEnabled(window.PDC_SUPABASE_CONFIG)) return;
   if (typeof createWorkshopSupabaseClient !== 'function' || typeof buildVehicleLifecycleSharedActions !== 'function') return;
   const client = createWorkshopSupabaseClient(window.PDC_SUPABASE_CONFIG);
-  window.__vehicleLifecycleActions = buildVehicleLifecycleSharedActions(
-    client,
-    () => (typeof getPdcSupabaseAccessToken === 'function' ? getPdcSupabaseAccessToken() : null),
-  );
+  if (!window.__vehicleLifecycleActions) {
+    window.__vehicleLifecycleActions = buildVehicleLifecycleSharedActions(
+      client,
+      () => (typeof getPdcSupabaseAccessToken === 'function' ? getPdcSupabaseAccessToken() : null),
+    );
+  }
+  window.__vehicleLifecycleResolverDiagnostics = window.__vehicleLifecycleResolverDiagnostics || [];
+  const rollback = typeof vehicleLifecycleResolverRollbackEnabled === 'function'
+    && vehicleLifecycleResolverRollbackEnabled(window.PDC_SUPABASE_CONFIG);
+  if (rollback) {
+    window.__vehicleLifecycleResolverDiagnostics.push({
+      type: 'rollback_mode',
+      at: new Date().toISOString(),
+      mode: 'staging_direct_read',
+    });
+    console.warn('PDC C1 lifecycle resolver: explicit staging rollback direct-read mode is active.');
+    return;
+  }
+  if (!window.__vehicleLifecycleIdentityResolver && typeof createVehicleLifecycleIdentityResolver === 'function') {
+    window.__vehicleLifecycleIdentityResolver = createVehicleLifecycleIdentityResolver({
+      client,
+      getAccessToken: () => (typeof getPdcSupabaseAccessToken === 'function' ? getPdcSupabaseAccessToken() : null),
+      subscribe: handlers => createPdcSupabaseTableRealtimeSubscription('vehicle_lifecycle_resolver_revision', handlers),
+      onDiagnostic: item => {
+        window.__vehicleLifecycleResolverDiagnostics.push(item);
+        if (window.__vehicleLifecycleResolverDiagnostics.length > 100) window.__vehicleLifecycleResolverDiagnostics.shift();
+      },
+      onRefresh: item => {
+        window.dispatchEvent?.(new CustomEvent('pdc-vehicle-lifecycle-resolver-refresh', { detail: item }));
+      },
+    });
+    window.__vehicleLifecycleIdentityResolver.start();
+  }
 }
 
 function vehicleLifecycleSharedModeActive() {
   return typeof window !== 'undefined'
     && typeof vehicleLifecycleSharedModeEnabled === 'function'
-    && vehicleLifecycleSharedModeEnabled(window.PDC_SUPABASE_CONFIG)
-    && !!window.__vehicleLifecycleActions;
+    && vehicleLifecycleSharedModeEnabled(window.PDC_SUPABASE_CONFIG);
 }
 
 // pdc-auth.js dispatches 'pdc-auth-ready' every time a session unlocks the
@@ -3482,6 +3509,9 @@ window.addEventListener?.('pdc-auth-locked', () => {
     }
   } catch (_err) { /* best-effort teardown */ }
   try {
+    if (window.__vehicleLifecycleIdentityResolver && typeof window.__vehicleLifecycleIdentityResolver.stop === 'function') {
+      window.__vehicleLifecycleIdentityResolver.stop();
+    }
     if (window.__vehicleLifecycleRealtimeManager && typeof window.__vehicleLifecycleRealtimeManager.stop === 'function') {
       window.__vehicleLifecycleRealtimeManager.stop();
     }
@@ -3507,6 +3537,8 @@ window.addEventListener?.('pdc-auth-locked', () => {
   window.__workshopRealtimeManager = null;
   window.__workshopDataService = null;
   window.__workshopSharedActions = null;
+  window.__vehicleLifecycleIdentityResolver = null;
+  window.__vehicleLifecycleActions = null;
   window.__workshopReferenceDataService = null;
   const navItem = document.getElementById('nav-user-management');
   if (navItem) navItem.hidden = true;
@@ -3843,20 +3875,22 @@ function pmbVehiclesNeedingStationWork(stage = '') {
     .sort((a, b) => String(displayStockNumber(a) || vehicleKey(a) || '').localeCompare(String(displayStockNumber(b) || vehicleKey(b) || '')));
 }
 
-// Resolves a legacy vehicle object to its shared Supabase {vehicleId,
-// version, qcCompletedAt, lifecycleState} via a direct REST select (not the
-// workshop planner snapshot, which may not be loaded on this page/view).
-// Matches by stock_number first, then permanent_vehicle_id, tolerating the
-// same identifier as workshopSharedVehicleRef(). Returns null (never
-// fabricates a ref) when no match is found so callers can show a clear
-// "vehicle not found in shared data" error instead of silently proceeding.
-async function vehicleLifecycleSharedRef(vehicle = {}) {
-  if (!vehicleLifecycleSharedModeActive()) return null;
-  if (typeof createWorkshopSupabaseClient !== 'function') return null;
+// C1 resolves a legacy lifecycle consumer through the narrow deterministic RPC.
+// The old direct table query remains available only through the explicit,
+// staging-project-only rollback flag. Neither path selects a first row when
+// multiple candidates exist.
+function recordVehicleLifecycleResolverDiagnostic(item = {}) {
+  window.__vehicleLifecycleResolverDiagnostics = window.__vehicleLifecycleResolverDiagnostics || [];
+  window.__vehicleLifecycleResolverDiagnostics.push({ at: new Date().toISOString(), ...item });
+  if (window.__vehicleLifecycleResolverDiagnostics.length > 100) window.__vehicleLifecycleResolverDiagnostics.shift();
+}
+
+async function vehicleLifecycleLegacyDirectRef(vehicle = {}) {
   const token = typeof getPdcSupabaseAccessToken === 'function' ? getPdcSupabaseAccessToken() : null;
-  const stock = String(displayStockNumber(vehicle) || vehicle.order || vehicleKey(vehicle) || '').trim();
-  if (!stock) return null;
-  const url = `${window.PDC_SUPABASE_CONFIG.url}/rest/v1/vehicles?select=id,version,qc_completed_at,lifecycle_state&or=(stock_number.eq.${encodeURIComponent(stock)},permanent_vehicle_id.eq.${encodeURIComponent(stock)})&limit=1`;
+  const identity = String(displayStockNumber(vehicle) || vehicle.order || '').trim();
+  if (!identity) return { outcome: 'invalid_input' };
+  const url = `${window.PDC_SUPABASE_CONFIG.url}/rest/v1/vehicles?select=id,version,qc_completed_at,lifecycle_state,deleted_at&or=(stock_number.eq.${encodeURIComponent(identity)},permanent_vehicle_id.eq.${encodeURIComponent(identity)})&limit=2`;
+  recordVehicleLifecycleResolverDiagnostic({ type: 'rollback_direct_read', identityFields: ['legacy_identity'] });
   try {
     const res = await fetch(url, {
       headers: {
@@ -3864,18 +3898,59 @@ async function vehicleLifecycleSharedRef(vehicle = {}) {
         Authorization: `Bearer ${token || window.PDC_SUPABASE_CONFIG.publishableKey}`,
       },
     });
-    if (!res.ok) return null;
+    if (res.status === 401 || res.status === 403) return { outcome: 'unauthorized' };
+    if (!res.ok) return { outcome: 'service_unavailable' };
     const rows = await res.json();
-    if (!Array.isArray(rows) || !rows.length) return null;
+    if (!Array.isArray(rows)) return { outcome: 'service_unavailable' };
+    if (rows.length === 0) return { outcome: 'not_found' };
+    if (rows.length > 1) return { outcome: 'ambiguous' };
+    const row = rows[0];
     return {
-      vehicleId: rows[0].id,
-      version: rows[0].version,
-      qcCompletedAt: rows[0].qc_completed_at,
-      lifecycleState: rows[0].lifecycle_state,
+      outcome: 'resolved',
+      vehicleId: row.id,
+      version: row.version,
+      qcCompletedAt: row.qc_completed_at,
+      lifecycleState: row.lifecycle_state,
+      isArchived: row.deleted_at != null,
+      resolverRevision: null,
+      matchedBy: ['legacy_direct_read'],
     };
   } catch (_err) {
-    return null;
+    return { outcome: 'service_unavailable' };
   }
+}
+
+async function vehicleLifecycleSharedRef(vehicle = {}) {
+  if (!vehicleLifecycleSharedModeActive()) return { outcome: 'service_unavailable' };
+  const rollback = typeof vehicleLifecycleResolverRollbackEnabled === 'function'
+    && vehicleLifecycleResolverRollbackEnabled(window.PDC_SUPABASE_CONFIG);
+  if (rollback) return vehicleLifecycleLegacyDirectRef(vehicle);
+  if (!window.__vehicleLifecycleIdentityResolver || typeof buildVehicleLifecycleIdentityInput !== 'function') {
+    return { outcome: 'service_unavailable' };
+  }
+  const input = buildVehicleLifecycleIdentityInput({
+    ...vehicle,
+    stockNumber: displayStockNumber(vehicle) || vehicle.stockNumber || vehicle.stock_number || '',
+  });
+  const result = await window.__vehicleLifecycleIdentityResolver.resolve(input, { reason: 'lifecycle_consumer' });
+  recordVehicleLifecycleResolverDiagnostic({
+    type: 'consumer_resolution',
+    outcome: result && result.outcome,
+    inputFields: Object.keys(input).sort(),
+  });
+  return result || { outcome: 'service_unavailable' };
+}
+
+function describeVehicleLifecycleResolutionOutcome(result = {}) {
+  const messages = {
+    not_found: 'This vehicle was not found in the shared database.',
+    ambiguous: 'More than one shared vehicle matches this identity. No change was made; an administrator must resolve the duplicate.',
+    conflict: 'The supplied vehicle identifiers point to different shared vehicles. No change was made.',
+    invalid_input: 'This vehicle does not have a valid shared identity. No change was made.',
+    unauthorized: 'Your account is not authorized to resolve shared vehicle identity.',
+    service_unavailable: 'Shared vehicle identity is temporarily unavailable. No change was made.',
+  };
+  return messages[result && result.outcome] || 'This vehicle could not be resolved safely. No change was made.';
 }
 
 function vehicleReadyForQualityControl(vehicle = {}) {
@@ -3914,8 +3989,12 @@ async function completeVehicleQualityControl(key = '') {
 
   if (vehicleLifecycleSharedModeActive()) {
     const ref = await vehicleLifecycleSharedRef(vehicle);
-    if (!ref) {
-      window.alert('This vehicle could not be found in the shared database, so QC was not completed. No change was made.');
+    if (!ref || ref.outcome !== 'resolved') {
+      window.alert(describeVehicleLifecycleResolutionOutcome(ref));
+      return false;
+    }
+    if (ref.isArchived) {
+      window.alert('This vehicle is archived in shared data, so QC was not completed. No change was made.');
       return false;
     }
     if (ref.qcCompletedAt) {
@@ -8086,8 +8165,12 @@ async function transferVehiclesToRft(vehicles = [], options = {}) {
     const failures = [];
     for (const vehicle of selected) {
       const ref = await vehicleLifecycleSharedRef(vehicle);
-      if (!ref) {
-        failures.push(`${vehicleIdentityTitle(vehicle) || 'No stock'} - not found in shared database`);
+      if (!ref || ref.outcome !== 'resolved') {
+        failures.push(`${vehicleIdentityTitle(vehicle) || 'No stock'} - ${describeVehicleLifecycleResolutionOutcome(ref)}`);
+        continue;
+      }
+      if (ref.isArchived) {
+        failures.push(`${vehicleIdentityTitle(vehicle) || 'No stock'} - archived in shared data`);
         continue;
       }
       if (!ref.qcCompletedAt) {
@@ -10791,8 +10874,13 @@ async function markRftVehicleCollected(key, collected = true) {
 
   if (vehicleLifecycleSharedModeActive()) {
     const ref = await vehicleLifecycleSharedRef(vehicle);
-    if (!ref) {
-      window.alert('This vehicle could not be found in the shared database, so it was not marked collected. No change was made.');
+    if (!ref || ref.outcome !== 'resolved') {
+      window.alert(describeVehicleLifecycleResolutionOutcome(ref));
+      renderAll();
+      return;
+    }
+    if (ref.isArchived) {
+      window.alert('This vehicle is archived in shared data, so it was not marked collected. No change was made.');
       renderAll();
       return;
     }

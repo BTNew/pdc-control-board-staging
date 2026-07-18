@@ -88,17 +88,15 @@ Retirement requires all of the following:
 
 **Rollback:** migration remains additive. Before consumer use, rollback is disabling/revoking 029 RPC execution and leaving 028/read paths intact; do not delete audit/source evidence created by legitimate calls.
 
-### C1 — lifecycle identity resolver first
+### C1 — lifecycle identity resolver first — **complete on staging**
 
-Replace `app.js::vehicleLifecycleSharedRef` direct `vehicles?...limit=1` with a protected deterministic resolver or cached core snapshot lookup plus a narrow lifecycle-state RPC. It must evaluate all normalized candidates and fail closed.
+Migration `030` adds `resolve_vehicle_lifecycle_identity`, a viewer-authorized SECURITY DEFINER RPC that accepts text inputs for explicit UUID, canonical stock/VIN/permanent ID, source-scoped job/order identity, approved aliases and permitted source evidence. It reuses the immutable 028/029 normalizers, evaluates every candidate, and returns one of `resolved`, `not_found`, `ambiguous`, `conflict`, `invalid_input` or `unauthorized`; the browser maps transport/auth failures to `service_unavailable`/`unauthorized`.
 
-**Why first:** it is the identified active direct frontend table read and currently uses first-row semantics.
+The resolved allowlist is deliberately limited to canonical UUID, optimistic version, QC timestamp, lifecycle state, archived flag, resolver revision and matched input names. The core snapshot was not widened. `vehicle_lifecycle_resolver_revision` carries only a revision signal; each event and reconnect performs an authoritative RPC refetch, and consumer actions also resolve freshly rather than reusing the cache.
 
-**RLS/RPC:** add a viewer-readable allowlisted lifecycle lookup if needed; never add QC/lifecycle fields to the core snapshot merely for convenience. Keep existing lifecycle mutation RPC grants.
+**Proof completed:** UUID, stock, VIN, source-scoped job card, source evidence and alias resolution; zero/many/canonical-alias/cross-identifier failures; invalid inputs; archived addressability; viewer/operator/administrator role matrix; anon/unapproved denial; narrow projection; stale in-flight suppression; version/revision refresh; two independent browser sessions refreshed from version 1 to 2; zero direct `vehicles` lifecycle reads; browser-local stores unchanged; synthetic fixture cleanup.
 
-**Proof before switch:** zero/one/many/conflicting identifier browser tests, UUID/version retention, viewer read/operator mutation role matrix, stale version rejection, no local edit on failure, two-session refresh.
-
-**Rollback:** feature flag back to the transitional direct resolver while SELECT remains; no data copy or localStorage rewrite.
+**Rollback:** `resolverRollbackDirectRead` is accepted only when the project ref is exactly staging, defaults `false`, is observable in diagnostics and is never selected in response to resolver ambiguity/conflict/failure. The guarded direct read requests at most two rows and itself returns `ambiguous` rather than first-row authority. Transitional authenticated table SELECT remains; remove this flag and code after the agreed C1 observation window.
 
 ### C2 — workshop identity alignment and offline tools
 

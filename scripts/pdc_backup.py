@@ -79,6 +79,7 @@ TABLES = [
     "vehicles",
     "vehicle_aliases",
     "vehicle_master_revision",
+    "vehicle_lifecycle_resolver_revision",
     "vehicle_master_source_records",
     "vehicle_master_operation_receipts",
     "vehicle_master_history",
