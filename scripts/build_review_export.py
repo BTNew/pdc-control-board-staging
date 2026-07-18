@@ -72,7 +72,7 @@ def is_forbidden_path(rel_posix: str) -> bool:
     if rel_posix in ALLOWED_ENV_EXAMPLES:
         return False
     parts = rel_posix.split("/")
-    if any(part in {".git", "node_modules", "__pycache__", ".review-venv"}
+    if any(part in {".git", "node_modules", "__pycache__", ".review-venv", "_build"}
            or part.startswith(".venv") for part in parts):
         return True
     for pattern in FORBIDDEN_PATH_PATTERNS:

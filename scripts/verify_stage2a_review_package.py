@@ -12,7 +12,7 @@ EXPECTED_DEPLOY = "ee9d7419f3f1926ca9634dd4f49d314756ab4e7e"
 EXPECTED_BRANCH = "fix/stage2a-independent-review-findings"
 FORBIDDEN_PARTS = {
     ".git", "node_modules", "__pycache__", ".review-venv", "backups",
-    ".imap_attachments", ".outlook_attachments",
+    ".imap_attachments", ".outlook_attachments", "_build",
 }
 FORBIDDEN_SUFFIXES = {".bin", ".pyc", ".pfx", ".p12", ".key"}
 REQUIRED = [

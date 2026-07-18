@@ -17,6 +17,7 @@ class BuildReviewExportTests(unittest.TestCase):
             "_staging_test_tools/.env",
             "node_modules/pkg/index.js",
             ".venv_backup/Lib/site-packages/pkg.py",
+            "_build/production-artifact/index.html",
             "backend/__pycache__/x.pyc",
             "operational-backup.bin",
         ]
