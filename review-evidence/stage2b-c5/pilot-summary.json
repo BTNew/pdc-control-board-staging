@@ -1,0 +1,1 @@
+{"apply":{"failed":0,"insert":5,"no_change":0,"update":0},"backup_restore_passed":true,"pilot_records_retained":true,"preview":{"insert":5,"no_change":0,"refused":0,"update":0},"reconciled":5,"reconciliation_variance":0,"replay_exact":5,"response_loss_replay_exact":1,"rollback_rehearsal_passed":true,"schema":"pdc.stage2b.c5-pilot-summary/v1","selected_count":5}
