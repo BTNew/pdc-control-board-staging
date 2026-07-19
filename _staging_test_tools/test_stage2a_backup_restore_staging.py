@@ -90,8 +90,14 @@ def main():
     output_dir = tempfile.mkdtemp(prefix="stage2a_backup_test_")
     schema_name = "stage2a_backup_coverage_check"
     conn = get_conn()
+    tech_id = None
+    original_technician = None
+    technician_audit_ids = []
 
     try:
+        cur = conn.cursor()
+        cur.execute("select count(*) from public.vehicle_notifications where status = 'pending'")
+        pending_notifications_before = cur.fetchone()[0]
         # 1. Real backup run succeeds and its manifest includes real row
         #    counts for every Stage 2A table.
         proc = run_backup(output_dir)
@@ -149,7 +155,8 @@ def main():
         cur = conn.cursor()
         cur.execute("select count(*) from public.vehicle_notifications where status = 'pending'")
         pending_notifications = cur.fetchone()[0]
-        check("3a restore triggers zero pending notifications", pending_notifications == 0, pending_notifications)
+        check("3a restore leaves pending notification count unchanged", pending_notifications == pending_notifications_before,
+              {"before": pending_notifications_before, "after": pending_notifications})
 
         # 4. Restore succeeds even when a referenced technician is
         #    inactive (deactivate, backup, restore, verify, reactivate).
@@ -167,8 +174,12 @@ def main():
 
         cur = conn.cursor()
         impersonate_admin()
-        cur.execute("select id, version from public.workshop_technicians order by created_at limit 1")
-        tech_id, tech_version = cur.fetchone()
+        cur.execute("select id, version, to_jsonb(t) from public.workshop_technicians t order by created_at limit 1")
+        tech_id, tech_version, original_technician = cur.fetchone()
+        cur.execute("""select id::text from public.audit_events
+                       where table_name='workshop_technicians' and row_id=%s
+                       order by id""", (tech_id,))
+        technician_audit_ids = [row[0] for row in cur.fetchall()]
         cur.execute("select public.set_technician_active(%s, %s, false)", (tech_id, tech_version))
         deactivate_result = cur.fetchone()[0]
         conn.commit()
@@ -196,7 +207,7 @@ def main():
         cur.execute("select public.set_technician_active(%s, %s, true)", (tech_id, current_version))
         reactivate_result = cur.fetchone()[0]
         conn.commit()
-        check("4e technician successfully reactivated after the test (test left no permanent state change)", reactivate_result.get("technician", {}).get("active") is True, reactivate_result)
+        check("4e technician successfully reactivated after the test", reactivate_result.get("technician", {}).get("active") is True, reactivate_result)
 
         for extra_dir in (output_dir_2,):
             for f in os.listdir(extra_dir):
@@ -209,6 +220,40 @@ def main():
             conn.rollback()  # clear any aborted transaction state before cleanup
         except Exception:
             pass
+        if tech_id is not None and original_technician is not None:
+            cur.execute("""select column_name from information_schema.columns
+                           where table_schema='public' and table_name='workshop_technicians'
+                             and is_generated='NEVER' and is_identity='NO'
+                           order by ordinal_position""")
+            columns = [row[0] for row in cur.fetchall()]
+            quoted = ",".join('"' + column.replace('"', '""') + '"' for column in columns)
+            values = ",".join('restored."' + column.replace('"', '""') + '"' for column in columns)
+            cur.execute("set local session_replication_role = replica")
+            cur.execute(
+                f"""update public.workshop_technicians current
+                    set ({quoted})=({values})
+                    from jsonb_populate_record(null::public.workshop_technicians, %s::jsonb) restored
+                    where current.id=%s""",
+                (json.dumps(original_technician, default=str), tech_id),
+            )
+            cur.execute("set local session_replication_role = origin")
+            cur.execute("select to_jsonb(t) from public.workshop_technicians t where id=%s", (tech_id,))
+            exact_restored = cur.fetchone()[0] == original_technician
+            check("4f technician full row restored exactly after the test", exact_restored)
+            if not exact_restored:
+                raise RuntimeError("backup/restore test could not restore the exact technician row")
+            cur.execute("""delete from public.audit_events
+                           where table_name='workshop_technicians' and row_id=%s
+                             and not (id::text=any(%s::text[]))""",
+                        (tech_id, technician_audit_ids))
+            cur.execute("""select id::text from public.audit_events
+                           where table_name='workshop_technicians' and row_id=%s
+                           order by id""", (tech_id,))
+            exact_audit_restored = [row[0] for row in cur.fetchall()] == technician_audit_ids
+            check("4g technician audit rows restored exactly after the test", exact_audit_restored)
+            if not exact_audit_restored:
+                raise RuntimeError("backup/restore test could not restore the exact technician audit rows")
+            conn.commit()
         cur.execute(f"drop schema if exists {schema_name} cascade")
         conn.commit()
         conn.close()

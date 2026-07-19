@@ -1,7 +1,8 @@
-# Exact Python dependencies for the independently runnable Stage 2A review.
+# Exact Python dependencies for the independently runnable Stage 2A and C6 reviews.
 # Python 3.11 was used for final verification.
 cryptography==46.0.7
 psycopg2-binary==2.9.12
+pglast==8.2
 requests==2.33.0
 # Required only by the Windows Outlook bridge; included because backend source
 # and tests are exported in full.

@@ -98,6 +98,49 @@ def clone_table_structure(cur, schema_name, table_name):
     )
 
 
+def synchronize_non_fk_constraints(cur, schema_name, table_names):
+    """Restore exact names and validation state for local constraints.
+
+    PostgreSQL LIKE copies local constraint semantics but may regenerate UNIQUE
+    names and turns copied NOT VALID checks into validated checks. Reconcile
+    those catalog details before data loading; foreign keys remain a separate
+    post-load operation.
+    """
+    def load(schema):
+        cur.execute("""select c.relname,con.conname,con.contype,con.convalidated,
+                              pg_get_constraintdef(con.oid,true)
+                       from pg_constraint con join pg_class c on c.oid=con.conrelid
+                       join pg_namespace n on n.oid=c.relnamespace
+                       where n.nspname=%s and c.relname=any(%s) and con.contype<>'f'
+                       order by c.relname,con.conname""", (schema, list(table_names)))
+        return [tuple(row) for row in cur.fetchall()]
+
+    source = load("public")
+    restored = load(schema_name)
+    restored_by_name = {(row[0], row[1]): row for row in restored}
+    for table, source_name, contype, validated, definition in source:
+        current = restored_by_name.get((table, source_name))
+        if current and current[2:] == (contype, validated, definition):
+            continue
+        if current:
+            cur.execute(f'alter table {quote_ident(schema_name)}.{quote_ident(table)} drop constraint {quote_ident(source_name)}')
+        else:
+            semantic = definition.removesuffix(" NOT VALID")
+            candidates = [row for row in restored if row[0] == table and row[2] == contype
+                          and row[4].removesuffix(" NOT VALID") == semantic]
+            if len(candidates) != 1:
+                raise RuntimeError(f"cannot map restored constraint {table}.{source_name}")
+            old_name = candidates[0][1]
+            cur.execute(f'alter table {quote_ident(schema_name)}.{quote_ident(table)} rename constraint '
+                        f'{quote_ident(old_name)} to {quote_ident(source_name)}')
+            current = (table, source_name, contype, candidates[0][3], candidates[0][4])
+            if current[2:] == (contype, validated, definition):
+                continue
+            cur.execute(f'alter table {quote_ident(schema_name)}.{quote_ident(table)} drop constraint {quote_ident(source_name)}')
+        cur.execute(f'alter table {quote_ident(schema_name)}.{quote_ident(table)} add constraint '
+                    f'{quote_ident(source_name)} {definition}')
+
+
 def add_foreign_keys(cur, schema_name, foreign_keys, payload_tables=None):
     """Adds every discovered foreign key NOT VALID, then immediately
     runs VALIDATE CONSTRAINT on each one (independent-review remediation,
@@ -112,7 +155,34 @@ def add_foreign_keys(cur, schema_name, foreign_keys, payload_tables=None):
         if table not in allowed_tables or ref_table not in allowed_tables:
             skipped.append((table, column, "table not present in backup payload"))
             continue
-        constraint_name = f"fk_{table}_{column}_restore"
+        cur.execute(
+            """select tc.constraint_name,rc.update_rule,rc.delete_rule,
+                              tc.is_deferrable,tc.initially_deferred
+                       from information_schema.table_constraints tc
+                       join information_schema.key_column_usage kcu
+                         on tc.constraint_name=kcu.constraint_name and tc.table_schema=kcu.table_schema
+                       join information_schema.constraint_column_usage ccu
+                         on tc.constraint_name=ccu.constraint_name and tc.table_schema=ccu.table_schema
+                       join information_schema.referential_constraints rc
+                         on tc.constraint_name=rc.constraint_name and tc.constraint_schema=rc.constraint_schema
+                       where tc.constraint_type='FOREIGN KEY' and tc.table_schema='public'
+                         and tc.table_name=%s and kcu.column_name=%s
+                         and ccu.table_name=%s and ccu.column_name=%s""",
+            (table, column, ref_table, ref_column),
+        )
+        source_constraint = cur.fetchone()
+        if source_constraint is None:
+            skipped.append((table, column, "source foreign-key definition missing"))
+            continue
+        constraint_name, update_rule, delete_rule, is_deferrable, initially_deferred = source_constraint
+        action_sql = ""
+        if update_rule != "NO ACTION":
+            action_sql += f" on update {update_rule}"
+        if delete_rule != "NO ACTION":
+            action_sql += f" on delete {delete_rule}"
+        if is_deferrable == "YES":
+            action_sql += " deferrable"
+            action_sql += " initially deferred" if initially_deferred == "YES" else " initially immediate"
         savepoint = f"sp_fk_{table}_{column}"
         cur.execute(f'savepoint {quote_ident(savepoint)}')
         try:
@@ -120,8 +190,8 @@ def add_foreign_keys(cur, schema_name, foreign_keys, payload_tables=None):
                 f'alter table {quote_ident(schema_name)}.{quote_ident(table)} '
                 f'add constraint {quote_ident(constraint_name)} '
                 f'foreign key ({quote_ident(column)}) '
-                f'references {quote_ident(schema_name)}.{quote_ident(ref_table)} ({quote_ident(ref_column)}) '
-                f'not valid'
+                f'references {quote_ident(schema_name)}.{quote_ident(ref_table)} ({quote_ident(ref_column)})'
+                f'{action_sql} not valid'
             )
             cur.execute(
                 f'alter table {quote_ident(schema_name)}.{quote_ident(table)} '
@@ -326,6 +396,7 @@ def restore_backup(conn, backup_file_path, encryption_key, schema_name=None):
     for table in TABLES:
         if table in data["tables"]:
             clone_table_structure(cur, schema_name, table)
+    synchronize_non_fk_constraints(cur, schema_name, payload_tables)
 
     loaded_counts = {}
     for table in TABLES:

@@ -1,0 +1,218 @@
+{
+  "schema": "pdc.stage2b.c6-browser-realtime/v1",
+  "stagingDeployment": {
+    "url": "https://btnew.github.io/pdc-control-board-staging/",
+    "repository": "BTNew/pdc-control-board-staging",
+    "commit": "35c836a5de76feeeb201d149ea43397c674b322a",
+    "buildId": 1101689672,
+    "status": "built",
+    "indexSha256": "3a145f6eb03558a4461b3f9a1a6fbfb14aaf6ddf528a091a6e553e59a898c9e6",
+    "identityEvidenceSha256": "e4e1b2972e3da98e5820c5989464944cd2c67deeb73f77c5e99b0c240aa8e5a4"
+  },
+  "selectedRecordRef": "added:000009",
+  "vehicleId": "84ddb2c2-a3db-4b9e-a4db-55655f204302",
+  "sessions": 3,
+  "browserProfileIsolation": {
+    "mode": "playwright-ephemeral-incognito-contexts",
+    "persistentUserDataDirUsed": false,
+    "operatorBrowserProfileOpened": false,
+    "authorityCanaryKeys": [
+      "vehicleTrackingCoreNavisionOnlyAuditLog:v1",
+      "vehicleTrackingCoreNavisionOnlyDeleted:v1",
+      "vehicleTrackingCoreNavisionOnlyEdits:v1",
+      "vehicleTrackingCoreNavisionOnlyPoFiles:v1",
+      "vehicleTrackingCoreNavisionOnlyPoTasks:v1",
+      "vehicleTrackingCoreNavisionOnlyVehicles:v1",
+      "vehicleTrackingCoreNotes:C6-AUTHORITY-CANARY",
+      "vehicleTrackingCoreWorkshopPlan:v1"
+    ],
+    "authorityCanariesPresentBeforeBootstrapCompleted": true,
+    "authorityCanariesUnchanged": true
+  },
+  "browserLocalAuthorityObservations": {
+    "canonicalSerialization": "JSON.stringify(sorted [key,value] arrays)",
+    "before": [
+      {
+        "keyCount": 8,
+        "byteCount": 412,
+        "sha256": "20a293f9a43cecc97a997ba1c15dcc4dbc19a30567d5382c1ab4eb0cda91b887"
+      },
+      {
+        "keyCount": 8,
+        "byteCount": 412,
+        "sha256": "20a293f9a43cecc97a997ba1c15dcc4dbc19a30567d5382c1ab4eb0cda91b887"
+      },
+      {
+        "keyCount": 8,
+        "byteCount": 412,
+        "sha256": "20a293f9a43cecc97a997ba1c15dcc4dbc19a30567d5382c1ab4eb0cda91b887"
+      }
+    ],
+    "after": [
+      {
+        "keyCount": 8,
+        "byteCount": 412,
+        "sha256": "20a293f9a43cecc97a997ba1c15dcc4dbc19a30567d5382c1ab4eb0cda91b887"
+      },
+      {
+        "keyCount": 8,
+        "byteCount": 412,
+        "sha256": "20a293f9a43cecc97a997ba1c15dcc4dbc19a30567d5382c1ab4eb0cda91b887"
+      },
+      {
+        "keyCount": 8,
+        "byteCount": 412,
+        "sha256": "20a293f9a43cecc97a997ba1c15dcc4dbc19a30567d5382c1ab4eb0cda91b887"
+      }
+    ],
+    "exactHashKeyAndByteEquality": true
+  },
+  "roles": [
+    "administrator",
+    "operator",
+    "viewer"
+  ],
+  "initialVersion": 69,
+  "changedVersion": 70,
+  "onlinePeerRealtimeVersion": 70,
+  "onlinePeerRealtimeEventDelta": 1,
+  "callbackProbeVersion": 71,
+  "refreshedVersion": 71,
+  "offlineHttpProbe": {
+    "refused": true,
+    "errorName": "TypeError"
+  },
+  "secondOfflineHttpProbe": {
+    "refused": true,
+    "errorName": "TypeError"
+  },
+  "offlineUiState": {
+    "navigatorOnline": false,
+    "connectionState": "offline_disconnected"
+  },
+  "offlineMutationAttempt": {
+    "refused": true,
+    "errorCode": null
+  },
+  "reconnectCycles": 2,
+  "reconnectChannelCountBefore": 7,
+  "reconnectChannelCountAfter": 7,
+  "secondReconnectChannelCountAfter": 7,
+  "realtimeCallbackCountBeforeProbe": 1,
+  "realtimeCallbackCountAfterProbe": 2,
+  "realtimeCallbackDelta": 1,
+  "checks": {
+    "exactStagingProject": true,
+    "stagingDeploymentIdentityBound": true,
+    "administratorRole": true,
+    "controllerRole": true,
+    "viewerRole": true,
+    "viewerPermittedRead": true,
+    "twoIndependentBrowserContexts": true,
+    "initialOnlineStateSynchronized": true,
+    "browserContextActuallyOffline": true,
+    "httpUnavailableDuringOffline": true,
+    "websocketDisconnectedDuringOffline": true,
+    "offlineUiClearlyDisconnected": true,
+    "offlineMutationNotReportedPersisted": true,
+    "postOnlineRefetchExact": true,
+    "twoUserRealtimeRefresh": true,
+    "staleWhileDisconnected": true,
+    "reconnectCaughtMissedUpdate": true,
+    "noDuplicateChannelsAfterReconnect": true,
+    "repeatedOfflineOnlineTransitions": true,
+    "noDuplicateChannelsAfterRepeatedReconnect": true,
+    "noMultipliedRealtimeCallbacks": true,
+    "browserRefreshPreservedUUIDAndVersion": true,
+    "staleEditRejected": true,
+    "operatorBrowserProfileIsolated": true,
+    "authorityCanariesPresentBeforeBootstrapCompleted": true,
+    "browserLocalCanonicalObservationsEqual": true,
+    "browserLocalAuthorityUnchanged": true,
+    "browserLocalDataNotCleared": true,
+    "zeroInstrumentedBrowserProductionProjectRequests": true,
+    "stagingSupabaseContacted": true,
+    "noPageErrors": true,
+    "noUnexpectedConsoleErrors": true,
+    "noCspViolations": true,
+    "noUnexpectedHttpFailures": true
+  },
+  "productionRequests": [],
+  "requestHosts": [
+    "btnew.github.io",
+    "cdsmnqxtyyoeoznmbidd.supabase.co"
+  ],
+  "failedRequestCount": 3,
+  "controlledOfflineFailures": [
+    {
+      "browser": "controller",
+      "phase": "offline-cycle-1",
+      "resourceType": "fetch",
+      "error": "net::ERR_INTERNET_DISCONNECTED"
+    },
+    {
+      "browser": "controller",
+      "phase": "offline-cycle-1",
+      "resourceType": "fetch",
+      "error": "net::ERR_INTERNET_DISCONNECTED"
+    },
+    {
+      "browser": "controller",
+      "phase": "offline-cycle-2",
+      "resourceType": "fetch",
+      "error": "net::ERR_INTERNET_DISCONNECTED"
+    }
+  ],
+  "unexpectedFailedRequests": [],
+  "webSocketEvidence": [
+    {
+      "browser": "viewer",
+      "host": "cdsmnqxtyyoeoznmbidd.supabase.co",
+      "openedPhase": "online",
+      "closedPhase": null,
+      "socketErrors": 0
+    },
+    {
+      "browser": "controller",
+      "host": "cdsmnqxtyyoeoznmbidd.supabase.co",
+      "openedPhase": "online",
+      "closedPhase": null,
+      "socketErrors": 0
+    },
+    {
+      "browser": "administrator",
+      "host": "cdsmnqxtyyoeoznmbidd.supabase.co",
+      "openedPhase": "online",
+      "closedPhase": null,
+      "socketErrors": 0
+    },
+    {
+      "browser": "controller",
+      "host": "cdsmnqxtyyoeoznmbidd.supabase.co",
+      "openedPhase": "online-after-cycle-2",
+      "closedPhase": null,
+      "socketErrors": 0
+    }
+  ],
+  "consoleErrors": [
+    {
+      "browser": "controller",
+      "phase": "offline-cycle-1",
+      "text": "Failed to load resource: net::ERR_INTERNET_DISCONNECTED"
+    },
+    {
+      "browser": "controller",
+      "phase": "offline-cycle-1",
+      "text": "Failed to load resource: net::ERR_INTERNET_DISCONNECTED"
+    },
+    {
+      "browser": "controller",
+      "phase": "offline-cycle-2",
+      "text": "Failed to load resource: net::ERR_INTERNET_DISCONNECTED"
+    }
+  ],
+  "securityPolicyViolations": [],
+  "pageErrors": [],
+  "browserLocalStoresUnchanged": true,
+  "passed": true
+}

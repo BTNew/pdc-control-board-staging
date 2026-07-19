@@ -1,0 +1,10 @@
+{
+  "schema": "pdc.stage2b.c6-staging-dry-run/v1",
+  "exact_staging_project_ref": "cdsmnqxtyyoeoznmbidd",
+  "supabase_cli_version": "2.109.1",
+  "command": "supabase db push --dry-run --linked --include-all",
+  "remote_database_up_to_date": true,
+  "migrations_pushed": 0,
+  "up_to_date": true,
+  "stdout_sha256": "b9e45f9b2b5c243e70aef84577c50061ada32c1775bf389f302b8e91a7cbdaf3"
+}

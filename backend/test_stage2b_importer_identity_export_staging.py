@@ -27,10 +27,12 @@ class Stage2BImporterIdentityExportStagingTests(unittest.TestCase):
         except ImportError as exc:
             raise unittest.SkipTest("psycopg2 is unavailable") from exc
         sys.path.insert(0, str(STAGING_TOOLS))
-        from staging_conn import get_conn
-
-        cls.get_conn = staticmethod(get_conn)
-        cls.conn = get_conn()
+        try:
+            from staging_conn import get_conn
+            cls.get_conn = staticmethod(get_conn)
+            cls.conn = get_conn()
+        except Exception as exc:
+            raise unittest.SkipTest(f"guarded staging connection unavailable: {exc}") from exc
         cls.conn.autocommit = False
         cls.cur = cls.conn.cursor()
         cls.token = uuid.uuid4().hex[:10].upper()
