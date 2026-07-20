@@ -90,6 +90,16 @@ function buildVehicleLifecycleIdentityInput(vehicle = {}) {
   const sourceSystem = chooseLifecycleIdentityText('source_system', [
     vehicle.sourceSystem, vehicle.source_system,
   ], normalizeLifecycleSourceSystem, state);
+  const jobCardNumber = chooseLifecycleIdentityText('job_card_number', [
+    vehicle.pdcJobcard, vehicle.jobcard, vehicle.jobCard, vehicle.jobcardNumber,
+    vehicle.jobCardNumber, vehicle.jcJobcard, vehicle.jc,
+  ], normalizeLifecycleSourceIdentifier, state);
+  const toyotaOrderNumber = chooseLifecycleIdentityText('toyota_order_number', [
+    vehicle.toyotaOrderNumber, vehicle.toyota_order_number, vehicle.toyotaOrder,
+    vehicle.salesOrder, vehicle.order,
+  ], normalizeLifecycleSourceIdentifier, state);
+  if (jobCardNumber && !sourceSystem && !state.invalidField) state.invalidField = 'job_card_source_system';
+  if (toyotaOrderNumber && !sourceSystem && !state.invalidField) state.invalidField = 'toyota_order_source_system';
   const result = {
     p_vehicle_id: chooseLifecycleIdentityText('vehicle_id', [
       vehicle.sharedVehicleId, vehicle.shared_vehicle_id, vehicle.vehicleId,
@@ -102,17 +112,11 @@ function buildVehicleLifecycleIdentityInput(vehicle = {}) {
       vehicle.vin, vehicle.VIN, vehicle.fullVin, vehicle.frameVin,
       vehicle.vinNumber, vehicle.autocareVin,
     ], normalizeLifecycleStockOrVin, state),
-    p_job_card_number: sourceSystem ? chooseLifecycleIdentityText('job_card_number', [
-      vehicle.pdcJobcard, vehicle.jobcard, vehicle.jobCard, vehicle.jobcardNumber,
-      vehicle.jobCardNumber, vehicle.jcJobcard, vehicle.jc,
-    ], normalizeLifecycleSourceIdentifier, state) : null,
+    p_job_card_number: jobCardNumber,
     p_permanent_vehicle_id: chooseLifecycleIdentityText('permanent_vehicle_id', [
       vehicle.permanentVehicleId, vehicle.permanent_vehicle_id, vehicle.sharedPermanentVehicleId,
     ], normalizeLifecycleSourceIdentifier, state),
-    p_toyota_order_number: sourceSystem ? chooseLifecycleIdentityText('toyota_order_number', [
-      vehicle.toyotaOrderNumber, vehicle.toyota_order_number, vehicle.toyotaOrder,
-      vehicle.salesOrder, vehicle.order,
-    ], normalizeLifecycleSourceIdentifier, state) : null,
+    p_toyota_order_number: toyotaOrderNumber,
     p_source_system: sourceSystem,
     p_source_record_id: chooseLifecycleIdentityText('source_record_id', [
       vehicle.sourceRecordId, vehicle.source_record_id,
@@ -192,6 +196,8 @@ function createVehicleLifecycleIdentityResolver(options = {}) {
   let channelState = 'idle';
   let refreshLoop = null;
   let queuedRefreshReason = null;
+  let lifecycleEpoch = 0;
+  let active = true;
 
   function recordDiagnostic(type, detail = {}) {
     const item = {
@@ -208,16 +214,19 @@ function createVehicleLifecycleIdentityResolver(options = {}) {
   }
 
   async function resolve(input = {}, resolveOptions = {}) {
+    if (!active) return { outcome: 'service_unavailable', reason: 'resolver_stopped' };
+    const requestEpoch = lifecycleEpoch;
     const cleanInput = Object.fromEntries(Object.entries(input || {}).filter(([, value]) => value != null && String(value).trim() !== ''));
     const key = lifecycleIdentityCacheKey(cleanInput);
-    if (resolveOptions.track !== false) tracked.set(key, cleanInput);
+    const invalidField = input && input.__invalidIdentityField;
+    if (!invalidField && resolveOptions.track !== false) tracked.set(key, cleanInput);
     const generation = (generations.get(key) || 0) + 1;
     generations.set(key, generation);
     counters.requests += 1;
     let mapped;
     let httpStatus = null;
-    if (input && input.__invalidIdentityField) {
-      mapped = { outcome: 'invalid_input', field: input.__invalidIdentityField };
+    if (invalidField) {
+      mapped = { outcome: 'invalid_input', field: invalidField };
     } else {
       try {
         if (!client || typeof client.rpc !== 'function') throw new Error('resolver client unavailable');
@@ -228,9 +237,12 @@ function createVehicleLifecycleIdentityResolver(options = {}) {
         mapped = { outcome: 'service_unavailable' };
       }
     }
+    if (!active || lifecycleEpoch !== requestEpoch) {
+      return { outcome: 'service_unavailable', reason: 'resolver_stopped' };
+    }
     const stale = generations.get(key) !== generation;
-    if (!stale) latest.set(key, mapped);
-    else counters.staleSuppressed += 1;
+    if (!stale && !invalidField) latest.set(key, mapped);
+    else if (stale) counters.staleSuppressed += 1;
     recordDiagnostic('resolution', {
       reason: resolveOptions.reason || 'consumer',
       outcome: mapped.outcome,
@@ -239,7 +251,7 @@ function createVehicleLifecycleIdentityResolver(options = {}) {
       resolverRevision: mapped.resolverRevision || null,
       inputFields: Object.keys(cleanInput).sort(),
     });
-    return mapped;
+    return stale ? { outcome: 'service_unavailable', reason: 'superseded' } : mapped;
   }
 
   async function refreshTracked(reason = 'realtime') {
@@ -257,6 +269,7 @@ function createVehicleLifecycleIdentityResolver(options = {}) {
   }
 
   function requestRefresh(reason = 'reconcile') {
+    if (!active) return Promise.resolve([]);
     queuedRefreshReason = reason;
     if (refreshLoop) {
       counters.coalescedRefreshes += 1;
@@ -276,6 +289,7 @@ function createVehicleLifecycleIdentityResolver(options = {}) {
 
   function start() {
     if (subscription || typeof subscribe !== 'function') return;
+    active = true;
     channelState = 'joining';
     subscription = subscribe({
       onChange: async payload => {
@@ -296,6 +310,8 @@ function createVehicleLifecycleIdentityResolver(options = {}) {
   }
 
   function stop() {
+    active = false;
+    lifecycleEpoch += 1;
     if (subscription && typeof subscription.unsubscribe === 'function') subscription.unsubscribe();
     subscription = null;
     channelState = 'stopped';

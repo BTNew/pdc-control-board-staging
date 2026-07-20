@@ -883,3 +883,65 @@ body[data-current-view="workshop"] .content {
   .workshop-current-stage-time { grid-template-columns: 1fr; }
   .workshop-job-line-row { grid-template-columns: 1fr; }
 }
+
+
+/* Phase A — compact Job Details and stable-identity planner booking search. */
+.workshop-planner { grid-template-rows: none; grid-auto-rows: auto; }
+.workshop-board-shell { min-height: 500px; }
+.workshop-booking-search {
+  position: relative;
+  z-index: 70;
+  display: grid;
+  grid-template-columns: minmax(260px, 560px) auto;
+  align-items: end;
+  gap: 7px;
+  padding: 7px 12px;
+  border-bottom: 1px solid #cbd5e1;
+  background: #f8fafc;
+}
+.workshop-booking-search > label { display: grid; gap: 3px; color: #334155; font-size: .61rem; font-weight: 900; text-transform: uppercase; letter-spacing: .04em; }
+.workshop-booking-search input { width: 100%; min-height: 34px; padding: 6px 9px; border: 1px solid #94a3b8; border-radius: 7px; background: #fff; color: #0f172a; font-size: .75rem; }
+.workshop-search-results { position: absolute; top: calc(100% - 3px); left: 12px; right: 12px; z-index: 100; max-height: min(520px, 62vh); overflow: auto; padding: 7px; border: 1px solid #94a3b8; border-radius: 0 0 10px 10px; background: #fff; box-shadow: 0 18px 38px rgba(15, 23, 42, .24); }
+.workshop-search-results-list { display: grid; gap: 5px; }
+.workshop-search-result { width: 100%; display: grid; grid-template-columns: minmax(250px, 1fr) minmax(250px, 1fr) max-content; gap: 12px; align-items: center; min-height: 52px; padding: 7px 9px; border: 1px solid #cbd5e1; border-radius: 7px; background: #fff; color: #0f172a; text-align: left; }
+button.workshop-search-result { cursor: pointer; }
+button.workshop-search-result:hover, button.workshop-search-result:focus-visible { border-color: #2563eb; background: #eff6ff; outline: 2px solid rgba(37, 99, 235, .3); outline-offset: 1px; }
+.workshop-search-result-vehicle, .workshop-search-result-booking, .workshop-search-result-state { min-width: 0; display: grid; gap: 2px; }
+.workshop-search-result strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .7rem; }
+.workshop-search-result span { color: #475569; font-size: .64rem; font-weight: 750; }
+.workshop-search-result-flags { display: flex; justify-content: flex-end; gap: 4px; }
+.workshop-search-alert, .workshop-search-closest { display: inline-flex; padding: 3px 6px; border-radius: 999px; white-space: nowrap; color: #92400e !important; background: #fef3c7; font-size: .58rem !important; font-weight: 950 !important; }
+.workshop-search-closest { color: #1e3a8a !important; background: #dbeafe; }
+.workshop-search-result.is-unbooked { border-style: dashed; }
+.workshop-search-state { display: grid; gap: 2px; padding: 9px 10px; color: #475569; font-size: .7rem; }
+.workshop-search-state strong { color: #0f172a; }
+.workshop-search-state.is-warning { margin-bottom: 6px; border-radius: 6px; background: #fffbeb; color: #92400e; }
+
+.workshop-detail-panel { position: relative; z-index: 20; border-bottom: 1px solid #cbd5e1; background: #fff; }
+.workshop-detail-summary { min-height: 40px; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 4px 10px 4px 12px; }
+.workshop-detail-summary > div:first-child { min-width: 0; display: flex; align-items: baseline; gap: 10px; }
+.workshop-detail-summary strong { color: #0f172a; font-size: .76rem; }
+.workshop-detail-summary span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #64748b; font-size: .66rem; }
+.workshop-detail-summary-actions { display: flex; align-items: center; gap: 4px; }
+.workshop-detail-pin, .workshop-detail-toggle { min-height: 28px; padding: 3px 7px; border: 1px solid #cbd5e1; border-radius: 6px; background: #fff; color: #334155; font-size: .64rem; font-weight: 850; }
+.workshop-detail-pin.is-active { border-color: #2563eb; background: #dbeafe; color: #1e3a8a; }
+.workshop-detail-toggle { width: 30px; padding: 2px; font-size: 1rem; }
+.workshop-detail-panel.is-expanded .workshop-detail-toggle span { display: inline-block; transform: rotate(180deg); }
+.workshop-detail-panel.is-collapsed .workshop-detail-content { display: none !important; min-height: 0; height: 0; overflow: hidden; }
+.workshop-detail-content { min-height: 0; }
+.workshop-detail-content > .workshop-job-detail { border-top: 1px solid #e2e8f0; border-bottom: 0; }
+.workshop-detail-content > .workshop-job-detail.is-empty { min-height: 40px; }
+.workshop-booking-navigator { display: grid; grid-template-columns: minmax(210px, 1fr) auto minmax(220px, .8fr) auto; align-items: end; gap: 7px; padding: 6px 12px; border-top: 1px solid #dbeafe; background: #eff6ff; }
+.workshop-booking-navigator > span { align-self: center; color: #1e3a8a; font-size: .67rem; font-weight: 850; }
+.workshop-booking-navigator label { display: grid; gap: 2px; color: #475569; font-size: .57rem; font-weight: 900; text-transform: uppercase; }
+.workshop-booking-navigator select { min-height: 30px; padding: 4px 6px; border: 1px solid #93c5fd; border-radius: 6px; background: #fff; color: #0f172a; font-size: .65rem; }
+.workshop-plan-chip.is-search-match { z-index: 12; outline: 3px solid #f59e0b; outline-offset: 2px; animation: workshop-search-pulse 1.1s ease-in-out 3; }
+@keyframes workshop-search-pulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0); } 50% { box-shadow: 0 0 0 8px rgba(245, 158, 11, .38); } }
+@media (prefers-reduced-motion: reduce) { .workshop-plan-chip.is-search-match { animation: none; } }
+@media (max-width: 900px) {
+  .workshop-booking-search { grid-template-columns: 1fr auto; }
+  .workshop-search-result { grid-template-columns: 1fr; }
+  .workshop-search-result-flags { justify-content: flex-start; }
+  .workshop-booking-navigator { grid-template-columns: 1fr 1fr; }
+  .workshop-booking-navigator > span, .workshop-booking-navigator label { grid-column: 1 / -1; }
+}

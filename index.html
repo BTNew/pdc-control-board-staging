@@ -8,9 +8,9 @@
   <meta name="description" content="PDC Workshop Control Board — STAGING (separate Supabase project, synthetic data only)." />
   <title>PDC Control Board — STAGING</title>
   <link rel="icon" href="favicon.svg" type="image/svg+xml" />
-  <link rel="stylesheet" href="styles.css?v=2026.07.18.02-stage2a-final-approval" />
-  <link rel="stylesheet" href="desktop-operations.css?v=2026.07.18.02-stage2a-final-approval" />
-  <link rel="stylesheet" href="workshop-planner.css?v=2026.07.18.02-stage2a-final-approval" />
+  <link rel="stylesheet" href="styles.css?v=2026.07.20.02-phase-b-advisory-review" />
+  <link rel="stylesheet" href="desktop-operations.css?v=2026.07.20.02-phase-b-advisory-review" />
+  <link rel="stylesheet" href="workshop-planner.css?v=2026.07.20.02-phase-b-advisory-review" />
 </head>
 <body class="auth-pending" data-auth-state="checking">
   <main class="pdc-auth-gate" id="pdc-auth-gate" aria-labelledby="pdc-auth-title">
@@ -87,7 +87,7 @@
         <div class="brand-text">
           <div class="brand-title">Perth Motor Bodies</div>
           <div class="brand-subtitle">PDC Control Board</div>
-          <div class="app-version" id="app-version">Version 2026.07.18.02-stage2a-final-approval</div>
+          <div class="app-version" id="app-version">Version 2026.07.20.02-phase-b-advisory-review</div>
         </div>
         <button class="sidebar-toggle" id="sidebar-toggle" type="button" aria-label="Collapse sidebar" title="Collapse sidebar">‹</button>
       </div>
@@ -469,6 +469,13 @@
         <div class="parts-home-layout email-review-layout">
           <section class="panel parts-home-panel email-review-panel">
             <div class="panel-header"><div><h2>AI Intake Review</h2><p>Email and uploaded files arrive here as review-only proposals. Confirm the vehicle, job lines, labour hours and workshop categories before pushing anything to the PDC board.</p></div><span class="badge warning" id="email-review-count">0 pending</span></div>
+            <section class="ai-board-advisor-panel" aria-labelledby="ai-board-advisor-title">
+              <div class="ai-board-advisor-header">
+                <div><span class="eyebrow">Phase 2 · Board advisor</span><h3 id="ai-board-advisor-title">Workshop and Parts priorities</h3><p>Transparent deterministic checks rank risks for human review. This advisor cannot change vehicles, bookings, Parts, workflow or messages.</p></div>
+                <div class="ai-board-advisor-actions"><span class="badge ready">Advisory only</span><button class="small-button" id="ai-board-refresh" type="button">Refresh advice</button></div>
+              </div>
+              <div id="ai-board-advisor-content"><div class="empty-state compact-empty"><strong>Calculating read-only advice</strong><span>No operational data is changed.</span></div></div>
+            </section>
             <section class="email-intake-upload-panel" aria-label="AI file assistant upload">
               <div class="email-intake-upload-copy">
                 <span class="eyebrow">Phase 1 · AI file assistant</span>
@@ -794,9 +801,6 @@
                 <h2>1. Daily Navision import</h2>
                 <p>Paste rows copied from Navision, or upload .txt / .tsv / .csv / .xlsx. A normal daily Navision upload stores every vehicle in Back End Data without placing new vehicles on the PDC Sheet.</p>
               </div>
-              <div class="panel-actions">
-                <a class="small-button" href="random-100-vehicles.csv" download>Download random 100-vehicle CSV</a>
-              </div>
             </div>
             <label class="drop-zone navision-drop-zone" for="navision-upload">
               <input id="navision-upload" type="file" accept=".txt,.tsv,.csv,.xlsx,text/plain,text/tab-separated-values,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" />
@@ -988,11 +992,13 @@
 
   <script src="vendor/supabase/supabase-2.110.5.js"></script>
   <script src="pdc-supabase-config.staging.js"></script>
-  <script src="pdc-auth.js?v=2026.07.18.02-stage2a-final-approval"></script>
-  <script src="pdc-auth-registration.js?v=2026.07.18.02-stage2a-final-approval"></script>
-  <script src="data-staging-empty.js?v=2026.07.18.02-stage2a-final-approval"></script>
-  <script src="email-board-data.js?v=2026.07.18.02-stage2a-final-approval"></script>
-  <script src="arb-labor-catalog.js?v=2026.07.18.02-stage2a-final-approval"></script>
-  <script src="app.js?v=2026.07.18.04-stage2b-c1-review"></script>
+  <script src="pdc-auth.js?v=2026.07.20.02-phase-b-advisory-review"></script>
+  <script src="pdc-auth-registration.js?v=2026.07.20.02-phase-b-advisory-review"></script>
+  <script src="data-staging-empty.js?v=2026.07.20.02-phase-b-advisory-review"></script>
+  <script src="email-board-data.js?v=2026.07.20.02-phase-b-advisory-review"></script>
+  <script src="arb-labor-catalog.js?v=2026.07.20.02-phase-b-advisory-review"></script>
+  <script src="navision-backend-service.js?v=2026.07.20.02-phase-b-advisory-review"></script>
+  <script src="ai-board-advisor.js?v=2026.07.20.02-phase-b-advisory-review"></script>
+  <script src="app.js?v=2026.07.20.02-phase-b-advisory-review"></script>
 </body>
 </html>
