@@ -11,6 +11,8 @@ const source = fs.readFileSync(path.join(root, 'workshop-planner.js'), 'utf8');
 const css = fs.readFileSync(path.join(root, 'workshop-planner.css'), 'utf8');
 const globalCss = fs.readFileSync(path.join(root, 'styles.css'), 'utf8');
 const htmlFiles = ['index.html', 'no-vehicles.html', 'test-50.html', 'test-75.html', 'test-100.html'];
+const appVersion = (app.match(/const APP_VERSION = '([^']+)'/) || [])[1];
+assert.ok(appVersion, 'app.js must define APP_VERSION');
 
 assert.strictEqual(planner.WORKSHOP_CONFIG.dayStartMinutes, 480, 'Workshop boot config must start at integer minute 480');
 assert.strictEqual(planner.WORKSHOP_CONFIG.dayEndMinutes, 960, 'Workshop boot config must finish at integer minute 960');
@@ -363,7 +365,7 @@ for (const file of htmlFiles) {
   const html = fs.readFileSync(path.join(root, file), 'utf8');
   assert.ok(html.includes('data-view="workshop"'), `${file} is missing the Workshop Planner navigation item`);
   assert.ok(html.includes('id="workshop-planner-root"'), `${file} is missing the Workshop Planner host`);
-  assert.ok(html.includes('workshop-planner.css?v=2026.07.20.01-phase-a-ui-review'), `${file} is missing the planner stylesheet`);
+  assert.ok(html.includes(`workshop-planner.css?v=${appVersion}`), `${file} is missing the planner stylesheet`);
   assert.ok(!html.includes('<script src="workshop-planner.js'), `${file} must not eagerly load the planner script`);
 }
 assert.ok(app.includes("loadExternalScript(`workshop-planner.js?v=${encodeURIComponent(APP_VERSION)}`"), 'app.js must lazy-load the Workshop Planner with the active release version');

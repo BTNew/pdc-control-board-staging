@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.07.20.01-phase-a-ui-review';
+const APP_VERSION = '2026.07.20.02-phase-b-advisory-review';
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
 // constant intentionally names only the production ref, never the
@@ -2602,6 +2602,7 @@ function bindNav() {
   on($('#parts-eta-sort'), 'change', renderPartsHome);
   on($('#parts-department-filter'), 'change', renderPartsHome);
   on($('#email-review-status-filter'), 'change', renderEmailIntakeReview);
+  on($('#ai-board-refresh'), 'click', renderAiBoardAdvisor);
   on($('#ai-intake-upload'), 'change', handleAiFileAssistantSelect);
   on($('#ai-intake-analyze'), 'click', analyzeAiFileAssistantUploads);
   on($('#ai-intake-clear'), 'click', () => clearAiFileAssistantUploads());
@@ -14933,6 +14934,178 @@ function clearZplGenerator() {
   if (summary) summary.innerHTML = '<div class="empty-state compact-empty"><strong>Ready</strong><span>Paste rows and generate. Incomplete VINs will be flagged before printing.</span></div>';
 }
 
+function aiBoardNormalizeStockIdentity(value = '') {
+  const raw = String(value || '').trim().toUpperCase();
+  const normalized = raw.replace(/[\s-]+/g, '');
+  if (!normalized || ['0', 'TBA', 'TBD', 'UNKNOWN', 'NA', 'N/A', 'NONE', 'UNASSIGNED'].includes(normalized)) return '';
+  if (/^(NEW|PD|PENDING|TEMP)-/.test(raw)) return '';
+  return normalized;
+}
+
+function aiBoardSharedModeEnabled() {
+  return window.PDC_SUPABASE_CONFIG?.workshop?.sharedData === true;
+}
+
+function aiBoardSharedSnapshot() {
+  if (!aiBoardSharedModeEnabled()) return null;
+  const service = window.__workshopDataService;
+  if (!service || typeof service.getLastSnapshot !== 'function' || typeof service.getState !== 'function') return null;
+  if (!['connected_read_only', 'connected_editable'].includes(service.getState())) return null;
+  const snapshot = service.getLastSnapshot();
+  return snapshot && typeof snapshot === 'object' ? snapshot : null;
+}
+
+function aiBoardSharedVehicleIdentity(vehicle = {}, snapshot = null) {
+  const rows = snapshot && Array.isArray(snapshot.vehicles) ? snapshot.vehicles : [];
+  const legacyKey = vehicleKey(vehicle);
+  const stockIdentity = aiBoardNormalizeStockIdentity(legacyKey);
+  const sourceIdentity = String(legacyKey || '').trim().toUpperCase();
+  const matches = rows.filter(row => (
+    (stockIdentity && aiBoardNormalizeStockIdentity(row?.stock_number) === stockIdentity)
+    || (sourceIdentity && String(row?.permanent_vehicle_id || '').trim().toUpperCase() === sourceIdentity)
+  ));
+  const ids = [...new Set(matches.map(row => String(row?.id || '').trim()).filter(Boolean))];
+  return ids.length === 1 ? `shared:${ids[0]}` : '';
+}
+
+function aiBoardVehicleIdentity(vehicle = {}, snapshot = null) {
+  if (aiBoardSharedModeEnabled() && snapshot) return aiBoardSharedVehicleIdentity(vehicle, snapshot);
+  const key = String(vehicleKey(vehicle) || '').trim();
+  return key ? `legacy:${key}` : '';
+}
+
+function aiBoardDateIso(value = '') {
+  const direct = parseIsoTimestamp(value);
+  if (direct) return direct.toISOString();
+  const local = parseDateAU(value);
+  return local && !Number.isNaN(local.getTime()) ? local.toISOString() : '';
+}
+
+function aiBoardVehicleDtos(snapshot = null) {
+  return pdcSheetVehicles().map(vehicle => {
+    const required = pdcRequiredJobs(vehicle);
+    const completed = pdcCompletedJobs(vehicle);
+    const parts = partsJobDef();
+    return {
+      identity: aiBoardVehicleIdentity(vehicle, snapshot),
+      stock: displayStockNumber(vehicle) || vehicleKey(vehicle),
+      currentStage: inferredPmbStage(vehicle),
+      stageAgeDays: pmbStageAgeDays(vehicle),
+      deliveryAt: aiBoardDateIso(vehicle.deliveryDate || ''),
+      blocked: isPdcBlocked(vehicle),
+      blockReason: pdcBlockReason(vehicle),
+      requiredStages: required.filter(def => def.key !== 'parts').map(def => pmbStageForPdcJob(def) || def.label),
+      completedStages: completed.filter(def => def.key !== 'parts').map(def => pmbStageForPdcJob(def) || def.label),
+      parts: {
+        required: Boolean(parts && pdcJobRequired(vehicle, parts)),
+        complete: Boolean(parts && pdcJobComplete(vehicle, parts)),
+        stoppage: Boolean(vehicle.pdcPartsStoppage),
+        reason: cleanNavisionText(vehicle.pdcPartsStoppageReason || ''),
+        eta: aiBoardDateIso(vehicle.pdcPartsWorstEta || ''),
+      },
+      jobLines: (Array.isArray(vehicle.pdcManualJobLines) ? vehicle.pdcManualJobLines : []).map(line => ({
+        description: cleanNavisionText(line?.description || ''),
+        hours: line?.confirmedHours ?? line?.estimatedHours ?? null,
+        confirmed: line?.confirmed === true || line?.estimateStatus === 'confirmed',
+      })),
+    };
+  });
+}
+
+function aiBoardBookingDtos(snapshot = null) {
+  if (aiBoardSharedModeEnabled()) {
+    if (!snapshot || !Array.isArray(snapshot.bookings)) return { bookingCoverage: false, bookings: [] };
+    return {
+      bookingCoverage: true,
+      bookings: snapshot.bookings.map(booking => {
+        const duration = Number(booking?.default_duration_minutes || 0);
+        const start = parseIsoTimestamp(booking?.scheduled_start_at || '');
+        const calculatedEnd = start && duration > 0 ? new Date(start.getTime() + duration * 60000).toISOString() : '';
+        return {
+          id: booking?.booking_id || booking?.id || '',
+          vehicleIdentity: booking?.vehicle?.id ? `shared:${booking.vehicle.id}` : '',
+          stage: booking?.stage?.code || booking?.stage_code || '',
+          bay: booking?.bay?.bay_number ?? booking?.bay_number ?? '',
+          status: booking?.status === 'queued' ? 'planned' : booking?.status || '',
+          startAt: booking?.scheduled_start_at || '',
+          endAt: booking?.scheduled_end_at || calculatedEnd,
+          stoppageReason: booking?.stoppage_reason || '',
+        };
+      }),
+    };
+  }
+  const rows = loadJson('vehicleTrackingCoreWorkshopPlan:v1', []);
+  return {
+    bookingCoverage: true,
+    bookings: (Array.isArray(rows) ? rows : []).map(booking => {
+      const start = parseIsoTimestamp(booking?.startAt || '');
+      const hours = Number(booking?.hours || 0);
+      return {
+        id: booking?.id || '',
+        vehicleIdentity: booking?.sharedVehicleId ? `shared:${String(booking.sharedVehicleId).trim()}` : (booking?.vehicleKey ? `legacy:${String(booking.vehicleKey).trim()}` : ''),
+        stage: booking?.stage || '',
+        bay: booking?.bay || booking?.assignee || '',
+        status: booking?.status || '',
+        startAt: booking?.startAt || '',
+        endAt: start && hours > 0 ? new Date(start.getTime() + hours * 3600000).toISOString() : '',
+        stoppageReason: booking?.stoppageReason || '',
+      };
+    }),
+  };
+}
+
+function aiBoardAdvisorInput(nowIso = nowIsoString()) {
+  const snapshot = aiBoardSharedSnapshot();
+  const bookingData = aiBoardBookingDtos(snapshot);
+  return {
+    nowIso,
+    bookingCoverage: bookingData.bookingCoverage,
+    vehicles: aiBoardVehicleDtos(snapshot),
+    bookings: bookingData.bookings,
+  };
+}
+
+function aiBoardSeverityLabel(severity = '') {
+  return ({ critical: 'Critical', high: 'High', medium: 'Review', low: 'Low' })[severity] || 'Review';
+}
+
+function renderAiBoardAdvisor(nowIso = nowIsoString()) {
+  const host = $('#ai-board-advisor-content');
+  if (!host) return null;
+  const api = window.PdcAiBoardAdvisor;
+  if (!api || typeof api.analyze !== 'function') {
+    host.innerHTML = '<div class="empty-state"><strong>Advisor unavailable</strong><span>The read-only advisory engine did not load. No operational data was changed.</span></div>';
+    return null;
+  }
+  const result = api.analyze(aiBoardAdvisorInput(nowIso));
+  const counts = result.counts || { critical: 0, high: 0, medium: 0, low: 0, total: 0 };
+  const coverage = result.bookingCoverage
+    ? '<span class="badge ready">Vehicle + booking coverage</span>'
+    : '<span class="badge warning">Vehicle coverage only</span>';
+  const findings = Array.isArray(result.findings) ? result.findings : [];
+  const priorityFindings = findings.filter(item => item.severity === 'critical' || item.severity === 'high');
+  const visibleFindings = findings.slice(0, Math.max(50, priorityFindings.length));
+  host.innerHTML = `
+    <div class="ai-board-summary" role="status" aria-live="polite">
+      <div class="summary-stat ai-board-critical"><span>Critical</span><strong>${counts.critical || 0}</strong></div>
+      <div class="summary-stat ai-board-high"><span>High</span><strong>${counts.high || 0}</strong></div>
+      <div class="summary-stat"><span>Review</span><strong>${counts.medium || 0}</strong></div>
+      <div class="summary-stat"><span>Total</span><strong>${counts.total || 0}</strong></div>
+    </div>
+    <div class="ai-board-coverage">${coverage}<span>Calculated ${escapeHtml(operationalHealthDateLabel(result.generatedAt) || result.generatedAt || 'now')} · deterministic rules ${escapeHtml(result.version || '')}</span></div>
+    ${result.bookingCoverage ? '' : '<div class="parts-help-strip"><strong>Coverage limit:</strong><span>No authoritative Workshop booking snapshot is available in this session, so booking conflicts and unscheduled-work checks are omitted rather than guessed.</span></div>'}
+    ${findings.length ? `${findings.length > visibleFindings.length ? `<div class="parts-help-strip"><strong>Priority view:</strong><span>Showing the first ${visibleFindings.length} of ${findings.length} deterministically ranked findings. Critical and high risks sort first.</span></div>` : ''}<ol class="ai-board-findings" aria-label="Advisory findings">${visibleFindings.map(item => `
+      <li class="ai-board-finding ai-board-${escapeHtml(item.severity)}">
+        <div class="ai-board-finding-heading"><span class="badge ${item.severity === 'critical' ? 'danger' : item.severity === 'high' ? 'warning' : 'neutral'}">${escapeHtml(aiBoardSeverityLabel(item.severity))}</span><strong>${escapeHtml(item.title)}</strong><code>${escapeHtml(item.rule)}</code></div>
+        <p>${escapeHtml(item.explanation)}</p>
+        ${item.stock ? `<div class="ai-board-identity"><b>Stock:</b> ${escapeHtml(item.stock)}</div>` : ''}
+        <ul>${(Array.isArray(item.evidence) ? item.evidence : []).map(value => `<li>${escapeHtml(value)}</li>`).join('')}</ul>
+        <div class="ai-board-recommendation"><strong>Human review:</strong> ${escapeHtml(item.recommendation)}</div>
+      </li>`).join('')}</ol>` : '<div class="empty-state compact-empty"><strong>No deterministic risks detected</strong><span>This is not an approval or guarantee. Continue normal staff checks and refresh when data changes.</span></div>'}
+  `;
+  return result;
+}
+
 function loadAiFileAssistantReviews() {
   const reviews = loadJson(AI_FILE_ASSISTANT_REVIEWS_KEY, []);
   return Array.isArray(reviews) ? reviews.filter(item => item && typeof item === 'object' && cleanNavisionText(item.id || '')) : [];
@@ -15436,6 +15609,7 @@ function emailVehicleReviewLinesHtml(review = {}, disabled = false) {
 function renderEmailIntakeReview() {
   const host = $('#email-intake-review-content');
   if (!host) return;
+  renderAiBoardAdvisor();
   updateAiFileAssistantButtons();
   const decisions = emailReviewDecisions();
   const filter = $('#email-review-status-filter')?.value || 'pending';
