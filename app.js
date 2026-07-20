@@ -10472,7 +10472,7 @@ function partsQueueActionsHtml(vehicle = {}, status = partsDepartmentStatus(vehi
     moreActions.push(`<button class="small-button danger-button" type="button" data-parts-stoppage="${escapeHtml(key)}">Stoppage</button>`);
     moreActions.push(`<button class="small-button" type="button" data-open-stock="${escapeHtml(key)}">Open vehicle</button>`);
   }
-  const moreMenu = moreActions.length ? `<button class="small-button parts-more-button" type="button" data-parts-more-button aria-haspopup="true" aria-expanded="false">More</button><template data-parts-more-template><div class="parts-more-popover" role="group" aria-label="More parts actions for ${escapeHtml(stock)}">${moreActions.join('')}</div></template>` : '';
+  const moreMenu = moreActions.length ? `<button class="small-button parts-more-button" type="button" data-parts-more-button aria-expanded="false">More</button><template data-parts-more-template><div class="parts-more-popover" role="group" aria-label="More parts actions for ${escapeHtml(stock)}">${moreActions.join('')}</div></template>` : '';
   const emailSales = showEmailSales ? `<div class="parts-email-sales-secondary"><button class="small-button parts-email-sales-button" type="button" data-parts-eta-email="${escapeHtml(key)}">Email sales</button></div>` : '';
   return `<div class="parts-action-group"><div class="parts-action-primary">${primaryAction}${moreMenu}</div>${emailSales}</div>`;
 }
@@ -10537,9 +10537,13 @@ function bindPartsMoreMenus(host) {
     if (!app.partsMoreMenu || app.partsMoreMenu.popover.contains(event.target) || app.partsMoreMenu.trigger.contains(event.target)) return;
     closePartsMoreMenu();
   });
-  document.addEventListener('focusin', event => {
-    if (!app.partsMoreMenu || app.partsMoreMenu.popover.contains(event.target) || app.partsMoreMenu.trigger.contains(event.target)) return;
-    closePartsMoreMenu();
+  document.addEventListener('focusout', () => {
+    window.setTimeout(() => {
+      if (!app.partsMoreMenu) return;
+      const active = document.activeElement;
+      if (app.partsMoreMenu.popover.contains(active) || app.partsMoreMenu.trigger.contains(active)) return;
+      closePartsMoreMenu();
+    }, 0);
   });
   document.addEventListener('keydown', event => {
     if (event.key === 'Escape' && app.partsMoreMenu) {

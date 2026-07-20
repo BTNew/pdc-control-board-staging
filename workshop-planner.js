@@ -1990,10 +1990,10 @@ function workshopDetailPanelHtml(entry = null, plans = []) {
       <div><strong>Job details</strong><span>${entry ? `${escapeHtml(selectedLabel)} selected` : 'Select a planned booking to view, edit or reschedule it.'}</span></div>
       <div class="workshop-detail-summary-actions">
         <button type="button" class="workshop-detail-pin${state.detailPinnedOpen ? ' is-active' : ''}" data-workshop-detail-pin aria-pressed="${state.detailPinnedOpen ? 'true' : 'false'}" title="Keep Job details open when selection is cleared">${state.detailPinnedOpen ? 'Pinned' : 'Pin'}</button>
-        <button type="button" class="workshop-detail-toggle" data-workshop-detail-toggle aria-expanded="${expanded ? 'true' : 'false'}" aria-label="${toggleLabel}" title="${toggleLabel}"><span aria-hidden="true">⌄</span></button>
+        <button type="button" class="workshop-detail-toggle" data-workshop-detail-toggle aria-expanded="${expanded ? 'true' : 'false'}" aria-controls="workshop-detail-content" aria-label="${toggleLabel}" title="${toggleLabel}"><span aria-hidden="true">⌄</span></button>
       </div>
     </header>
-    <div class="workshop-detail-content" ${expanded ? '' : 'hidden'}>
+    <div id="workshop-detail-content" class="workshop-detail-content" ${expanded ? '' : 'hidden'}>
       ${workshopBookingNavigatorHtml(entry, plans)}
       ${workshopDetailHtml(entry)}
     </div>

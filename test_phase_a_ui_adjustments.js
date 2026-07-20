@@ -15,6 +15,7 @@ assert.ok(planner.includes('data-workshop-detail-toggle'), 'Job Details needs an
 assert.ok(planner.includes('data-workshop-detail-pin'), 'Job Details needs a session-scoped pin control');
 assert.ok(planner.includes('workshop-detail-panel is-collapsed'), 'Empty Job Details must render in the compact collapsed state');
 assert.ok(planner.includes('workshop-detail-panel is-expanded'), 'Selected booking Job Details must render expanded');
+assert.ok(planner.includes('aria-controls="workshop-detail-content"') && planner.includes('id="workshop-detail-content"'), 'Job Details disclosure must identify and control its content region');
 assert.ok(plannerCss.includes('min-height: 40px'), 'Collapsed Job Details target height must remain within 36–44px');
 assert.ok(plannerCss.includes('.workshop-detail-panel.is-collapsed .workshop-detail-content'), 'Collapsed details must remove blank content height');
 
@@ -45,9 +46,10 @@ assert.ok(app.includes('parts-email-sales-secondary'), 'Email Sales must move to
 assert.ok(app.includes('data-parts-more-button'), 'Parts More action must use an overlay trigger');
 assert.ok(app.includes('function openPartsMoreMenu('), 'Parts More overlay positioning helper is missing');
 assert.ok(app.includes('role="group"'), 'Parts More overlay must expose a labelled native-button group without incomplete ARIA menu semantics');
+assert.ok(!app.includes('aria-haspopup="true"'), 'Parts More trigger must not claim menu semantics for a native-button group');
 assert.ok(app.includes("event.key === 'Escape'"), 'Parts More overlay must close on Escape');
 assert.ok(app.includes("document.addEventListener('pointerdown'"), 'Parts More overlay must close on outside click');
-assert.ok(app.includes("document.addEventListener('focusin'"), 'Parts More overlay must close when keyboard focus leaves it');
+assert.ok(app.includes("document.addEventListener('focusout'"), 'Parts More overlay must close when keyboard focus leaves it, including focus falling to the document body');
 assert.ok(app.includes("classList.toggle('opens-upward'"), 'Parts More overlay must open upward near the viewport bottom');
 assert.ok(styles.includes('.parts-more-popover'), 'Parts More popover styles are missing');
 assert.ok(styles.includes('position: fixed'), 'Parts More menu must be outside table flow');
