@@ -4,8 +4,9 @@ const assert = require('assert');
 const app = fs.readFileSync('app.js', 'utf8');
 const css = fs.readFileSync('styles.css', 'utf8') + fs.readFileSync('desktop-operations.css', 'utf8');
 const htmlFiles = ['index.html', 'no-vehicles.html', 'test-50.html', 'test-75.html', 'test-100.html'];
+const appVersion = (app.match(/const APP_VERSION = '([^']+)'/) || [])[1];
 
-assert.ok(app.includes("const APP_VERSION = '2026.07.20.01-phase-a-ui-review';"));
+assert.ok(appVersion, 'app.js must define APP_VERSION');
 assert.ok(app.includes('function workStatusLegendHtml()'));
 assert.ok(app.includes('options.showDelete ?'));
 assert.ok(app.includes('data-modal-cancel'));
@@ -35,7 +36,7 @@ assert.ok(app.includes('function updateWorkflowFloatingHeader()'));
 
 for (const file of htmlFiles) {
   const html = fs.readFileSync(file, 'utf8');
-  assert.ok(html.includes('desktop-operations.css?v=2026.07.20.01-phase-a-ui-review'), `${file} is missing the desktop stylesheet`);
+  assert.ok(html.includes(`desktop-operations.css?v=${appVersion}`), `${file} is missing the desktop stylesheet`);
   assert.ok(!html.includes('id="workflow-sticky-filters"'), `${file} still contains the separate workflow filter toolbar`);
   assert.ok(html.includes('id="workflow-board"'), `${file} is missing the workflow board host`);
 }

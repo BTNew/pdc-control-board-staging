@@ -215,6 +215,13 @@
 
   async function applySession(session) {
     lockApplication();
+    // Clear every operational-data surface before validating a replacement
+    // session. This also covers ordinary sign-out/session-expiry, not only a
+    // realtime role lockout, so a subsequent login cannot briefly inherit
+    // rendered advice from the previous account.
+    try {
+      window.dispatchEvent?.(new CustomEvent('pdc-auth-locked', { detail: { reason: session ? 'session-revalidate' : 'session-ended' } }));
+    } catch (_err) { /* best-effort client-data teardown */ }
     unsubscribeOwnRoleChannel();
     // Stage 2A: stop the shared workshop reference-data realtime
     // subscriptions and periodic reconciliation timer on every session

@@ -260,7 +260,87 @@ async function run() {
     assert.strictEqual(timers.pendingCount(), 1, '10a reload scheduled');
     service.destroy();
     assert.strictEqual(timers.pendingCount(), 0, '10b destroy clears pending reload timer');
+    assert.strictEqual(service.getTrustedSnapshot(), null, '10c destroy invalidates advisory snapshot trust');
     console.log('PASS 10: destroy() unsubscribes cleanly, preventing reloads after teardown');
+  }
+
+  // 11. Advisory snapshot trust is narrower than retained planner fallback:
+  //     permission failures and pending revisions fail closed immediately.
+  {
+    const timers = makeTimerHarness();
+    const client = fakeClient([
+      { status: 200, ok: true, body: { revision: 1, vehicles: ['current'] } },
+      { status: 403, ok: false, body: { error: 'forbidden' } },
+      { status: 200, ok: true, body: { revision: 2, vehicles: ['refreshed'] } }
+    ]);
+    const service = createWorkshopDataService({
+      config: { workshop: { sharedData: true } },
+      client,
+      getAccessToken: () => 'tok',
+      getRole: () => 'viewer',
+      scheduleTimeout: timers.scheduleTimeout,
+      clearScheduledTimeout: timers.clearScheduledTimeout
+    });
+    await service.loadSnapshot('initial');
+    assert.strictEqual(service.getTrustedSnapshot().vehicles[0], 'current', '11a successful revision-bearing snapshot is trusted');
+    await service.loadSnapshot('permission-check');
+    assert.strictEqual(service.getLastSnapshot().vehicles[0], 'current', '11b planner may retain the last snapshot after 403');
+    assert.strictEqual(service.getTrustedSnapshot(), null, '11c advisor must reject the retained snapshot after 403');
+    service.onRevisionSignal(2);
+    assert.strictEqual(service.getTrustedSnapshot(), null, '11d pending newer revision remains untrusted during debounce');
+    await timers.flushAll();
+    assert.strictEqual(service.getTrustedSnapshot().vehicles[0], 'refreshed', '11e successful reload restores trust at the new revision');
+    console.log('PASS 11: advisory snapshot trust fails closed for permission errors and pending revisions');
+  }
+
+  // 12. A successful publishable-key response is not authenticated authority.
+  {
+    const client = fakeClient([{ status: 200, ok: true, body: { revision: 9, vehicles: ['must-not-load'] } }]);
+    const service = createWorkshopDataService({
+      config: { workshop: { sharedData: true } },
+      client,
+      getAccessToken: () => null,
+      getRole: () => 'viewer'
+    });
+    const result = await service.loadSnapshot('missing-token');
+    assert.strictEqual(result, null, '12a no-token load returns no snapshot');
+    assert.strictEqual(client.calls.length, 0, '12b no-token load does not call the publishable-key RPC path');
+    assert.strictEqual(service.getTrustedSnapshot(), null, '12c no-token response can never become advisory authority');
+    console.log('PASS 12: advisory trust requires a positive individual access token');
+  }
+
+  // 13. destroy() permanently invalidates an already in-flight load. A late
+  //     response cannot restore trust, retain prior-account rows or callback.
+  {
+    let resolveLoad;
+    let snapshotCallbacks = 0;
+    const client = {
+      calls: [],
+      rpc: async (token, name, params) => {
+        client.calls.push({ token, name, params });
+        return new Promise(resolve => { resolveLoad = resolve; });
+      }
+    };
+    const service = createWorkshopDataService({
+      config: { workshop: { sharedData: true } },
+      client,
+      getAccessToken: () => 'tok',
+      getRole: () => 'viewer',
+      onSnapshot: () => { snapshotCallbacks += 1; }
+    });
+    const pending = service.loadSnapshot('in-flight-at-lock');
+    service.destroy();
+    assert.strictEqual(service.getLastSnapshot(), null, '13a destroy purges retained snapshot state');
+    assert.strictEqual(service.getTrustedSnapshot(), null, '13b destroy immediately removes advisory trust');
+    resolveLoad({ status: 200, ok: true, body: { revision: 77, vehicles: ['PRIOR_ACCOUNT_SENTINEL'] } });
+    await pending;
+    assert.strictEqual(service.getLastSnapshot(), null, '13c late response cannot repopulate retained prior-account data');
+    assert.strictEqual(service.getTrustedSnapshot(), null, '13d late response cannot restore advisory trust');
+    assert.strictEqual(snapshotCallbacks, 0, '13e late response cannot fire a post-lock render callback');
+    const mutation = await service.mutate('start_workshop_work', { p_booking_id: 'x', p_expected_version: 1 });
+    assert.strictEqual(mutation.error, 'destroyed', '13f captured destroyed service exposes no mutation path');
+    assert.strictEqual(client.calls.length, 1, '13g destroyed mutation dispatches no network call');
+    console.log('PASS 13: in-flight responses and captured service calls stay inert after destroy');
   }
 
   console.log('Workshop data service unit tests passed');

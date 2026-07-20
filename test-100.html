@@ -6,9 +6,9 @@
   <meta name="description" content="PDC vehicle locations, workshop workflow, Parts and scheduling control board." />
   <title>PDC Control Board — Random 100 Vehicle Test</title>
   <link rel="icon" href="favicon.svg" type="image/svg+xml" />
-  <link rel="stylesheet" href="styles.css?v=2026.07.20.01-phase-a-ui-review" />
-  <link rel="stylesheet" href="desktop-operations.css?v=2026.07.20.01-phase-a-ui-review" />
-  <link rel="stylesheet" href="workshop-planner.css?v=2026.07.20.01-phase-a-ui-review" />
+  <link rel="stylesheet" href="styles.css?v=2026.07.20.02-phase-b-advisory-review" />
+  <link rel="stylesheet" href="desktop-operations.css?v=2026.07.20.02-phase-b-advisory-review" />
+  <link rel="stylesheet" href="workshop-planner.css?v=2026.07.20.02-phase-b-advisory-review" />
 </head>
 <body>
   <div class="test-data-banner" style="position:sticky;top:0;z-index:9999;background:#6d28d9;color:#fff;padding:8px 14px;text-align:center;font-weight:700;letter-spacing:.02em;">TEST DATASET — 100 SAMPLE VEHICLES ONLY — separate from live board</div>
@@ -404,6 +404,13 @@
         <div class="parts-home-layout email-review-layout">
           <section class="panel parts-home-panel email-review-panel">
             <div class="panel-header"><div><h2>AI Intake Review</h2><p>Email and uploaded files arrive here as review-only proposals. Confirm the vehicle, job lines, labour hours and workshop categories before pushing anything to the PDC board.</p></div><span class="badge warning" id="email-review-count">0 pending</span></div>
+            <section class="ai-board-advisor-panel" aria-labelledby="ai-board-advisor-title">
+              <div class="ai-board-advisor-header">
+                <div><span class="eyebrow">Phase 2 · Board advisor</span><h3 id="ai-board-advisor-title">Workshop and Parts priorities</h3><p>Transparent deterministic checks rank risks for human review. This advisor cannot change vehicles, bookings, Parts, workflow or messages.</p></div>
+                <div class="ai-board-advisor-actions"><span class="badge ready">Advisory only</span><button class="small-button" id="ai-board-refresh" type="button">Refresh advice</button></div>
+              </div>
+              <div id="ai-board-advisor-content"><div class="empty-state compact-empty"><strong>Calculating read-only advice</strong><span>No operational data is changed.</span></div></div>
+            </section>
             <section class="email-intake-upload-panel" aria-label="AI file assistant upload">
               <div class="email-intake-upload-copy">
                 <span class="eyebrow">Phase 1 · AI file assistant</span>
@@ -869,9 +876,10 @@
     }());
   </script>
 
-  <script src="data-test-100.js?v=2026.07.20.01-phase-a-ui-review"></script>
-  <script src="arb-labor-catalog.js?v=2026.07.20.01-phase-a-ui-review"></script>
-  <script src="app.js?v=2026.07.20.01-phase-a-ui-review"></script>
+  <script src="data-test-100.js?v=2026.07.20.02-phase-b-advisory-review"></script>
+  <script src="arb-labor-catalog.js?v=2026.07.20.02-phase-b-advisory-review"></script>
+  <script src="ai-board-advisor.js?v=2026.07.20.02-phase-b-advisory-review"></script>
+  <script src="app.js?v=2026.07.20.02-phase-b-advisory-review"></script>
 
 </body>
 </html>
