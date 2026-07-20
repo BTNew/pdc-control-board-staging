@@ -220,8 +220,12 @@ def selected_context(cur, schema, participant_emails):
     booking_ids = [r[0] for r in cur.fetchall()]
     cur.execute("select id::text from auth.users where lower(email)=any(%s::text[])", ([e.lower() for e in participant_emails],))
     participant_ids = [r[0] for r in cur.fetchall()]
-    if len(participant_ids) != 4:
-        raise c6.C6PilotRefusal("full-schema verifier did not resolve four participant identities")
+    expected_participant_count = len({email.lower() for email in participant_emails})
+    if len(participant_ids) != expected_participant_count:
+        raise c6.C6PilotRefusal(
+            f"full-schema verifier resolved {len(participant_ids)} of "
+            f"{expected_participant_count} distinct configured fixture identities"
+        )
     return selected_ids, booking_ids, participant_ids
 
 def compare_public(conn, restored_schema, output):

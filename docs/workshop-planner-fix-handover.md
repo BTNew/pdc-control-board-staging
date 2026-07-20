@@ -86,11 +86,13 @@ via `require_pdc_role`); `claim_pending_vehicle_notifications` and
 `authenticated`, so the browser cannot call them).
 
 ### Test accounts / roles (staging only)
-- `administrator@staging.pdc-workshop.example.com` / `[REDACTED - stored only in ignored _staging_test_tools/.env]` — administrator
-- `controllerA@staging.pdc-workshop.example.com` / `[REDACTED - stored only in ignored _staging_test_tools/.env]` — operator/controller
+- `administrator@staging.pdc-workshop.example.com` — retired and disabled; credential permanently compromised by reachable Git history
+- `controllerA@staging.pdc-workshop.example.com` — retired and disabled; credential permanently compromised by reachable Git history
+- `administrator2@staging.pdc-workshop.example.com` — active administrator fixture; secret-managed through the ignored local environment only
+- `controllerB@staging.pdc-workshop.example.com` — active operator/controller fixture; secret-managed through the ignored local environment only
 - `viewer@staging.pdc-workshop.example.com` — viewer
 - `unapproved@staging.pdc-workshop.example.com` — unapproved
-(All pre-existing from earlier sessions; reused, not newly created.)
+(No fixture password is retained in tracked source.)
 
 ### Monitored staging mailbox
 None — out of scope for this task (this task was the Workshop Planner /
@@ -249,10 +251,10 @@ use):
 
 ## Two-user acceptance checklist (for Craig / staff to repeat manually)
 1. Open `https://btnew.github.io/pdc-control-board-staging/` in Browser A.
-2. Sign in as `administrator@staging.pdc-workshop.example.com`.
+2. Sign in as `administrator2@staging.pdc-workshop.example.com`.
 3. Open `https://btnew.github.io/pdc-control-board-staging/` in Browser B
    (different browser/profile/incognito).
-4. Sign in as `controllerA@staging.pdc-workshop.example.com`.
+4. Sign in as `controllerB@staging.pdc-workshop.example.com`.
 5. In both browsers, open Workshop Planner.
 6. In Browser B, drag/drop or use a quick-duration button to move a
    booking.

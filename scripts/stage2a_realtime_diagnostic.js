@@ -22,8 +22,7 @@
  *   node scripts/stage2a_realtime_diagnostic.js
  *
  * Requires PDC_STAGING_SUPABASE_URL, PDC_STAGING_ANON_KEY, and a real
- * staging account email/password (defaults to the administrator test
- * account, overridable via env vars).
+ * staging account email/password supplied through environment variables.
  *
  * Runs until Ctrl+C, or for DIAGNOSTIC_DURATION_MS (default 120s) then
  * exits automatically, printing a summary of everything observed.
@@ -33,7 +32,7 @@ const { createClient } = require('@supabase/supabase-js');
 
 const SUPABASE_URL = process.env.PDC_STAGING_SUPABASE_URL;
 const ANON_KEY = process.env.PDC_STAGING_ANON_KEY;
-const EMAIL = process.env.PDC_STAGING_DIAGNOSTIC_EMAIL || 'administrator@staging.pdc-workshop.example.com';
+const EMAIL = process.env.PDC_STAGING_DIAGNOSTIC_EMAIL;
 const PASSWORD = process.env.PDC_STAGING_DIAGNOSTIC_PASSWORD;
 const DURATION_MS = Number(process.env.DIAGNOSTIC_DURATION_MS || 120000);
 
@@ -41,8 +40,8 @@ if (!SUPABASE_URL || !ANON_KEY) {
   console.error('PDC_STAGING_SUPABASE_URL and PDC_STAGING_ANON_KEY must be set.');
   process.exit(1);
 }
-if (!PASSWORD) {
-  console.error('PDC_STAGING_DIAGNOSTIC_PASSWORD must be set (the real password for', EMAIL, ').');
+if (!EMAIL || !PASSWORD) {
+  console.error('PDC_STAGING_DIAGNOSTIC_EMAIL and PDC_STAGING_DIAGNOSTIC_PASSWORD must both be set.');
   process.exit(1);
 }
 

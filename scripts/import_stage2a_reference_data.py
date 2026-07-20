@@ -287,8 +287,11 @@ def summarize(preview):
 
 
 def get_admin_user_id(conn):
+    admin_email = os.environ.get("PDC_STAGING_ADMIN_EMAIL", "").strip().lower()
+    if not admin_email:
+        raise RuntimeError("PDC_STAGING_ADMIN_EMAIL is required for audited staging imports.")
     cur = conn.cursor()
-    cur.execute("select id from auth.users where email = %s", ("administrator@staging.pdc-workshop.example.com",))
+    cur.execute("select id from auth.users where lower(email) = %s", (admin_email,))
     row = cur.fetchone()
     if not row:
         raise RuntimeError("Staging administrator test account not found; cannot attribute import audit rows.")
@@ -332,13 +335,14 @@ def apply_import(conn, preview, source_label, import_run_id):
     """
     assert_staging_project(conn)
     admin_user_id = get_admin_user_id(conn)
+    admin_email = os.environ["PDC_STAGING_ADMIN_EMAIL"].strip().lower()
     cur = conn.cursor()
     cur.execute(
         "select set_config('request.jwt.claims', %s, true), "
         "set_config('request.jwt.claim.email', %s, true), "
         "set_config('role', 'authenticated', true)",
-        (json.dumps({"sub": str(admin_user_id), "email": "administrator@staging.pdc-workshop.example.com", "role": "authenticated"}),
-         "administrator@staging.pdc-workshop.example.com"),
+        (json.dumps({"sub": str(admin_user_id), "email": admin_email, "role": "authenticated"}),
+         admin_email),
     )
 
     results = {
@@ -411,7 +415,7 @@ def apply_import(conn, preview, source_label, import_run_id):
             "reference_change",
             import_run_id,
             admin_user_id,
-            "administrator@staging.pdc-workshop.example.com",
+            admin_email,
             json.dumps({
                 "action": "stage2a_browser_data_import",
                 "import_run_id": import_run_id,

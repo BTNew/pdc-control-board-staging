@@ -33,14 +33,17 @@ def get_conn():
     return psycopg2.connect(dsn)
 
 
-ADM_EMAIL = "administrator@staging.pdc-workshop.example.com"
-OP_EMAIL = "controllera@staging.pdc-workshop.example.com"
+ADM_EMAIL = os.environ.get("PDC_STAGING_ADMIN_EMAIL", "")
+OP_EMAIL = os.environ.get("PDC_STAGING_CONTROLLER_A_EMAIL", "")
 VIEWER_EMAIL = "viewer@staging.pdc-workshop.example.com"
 UNAPPROVED_EMAIL = "unapproved@staging.pdc-workshop.example.com"
 
 OP_PW = os.environ.get("PDC_STAGING_CONTROLLER_A_PASSWORD", "")
 VIEWER_PW = os.environ.get("PDC_STAGING_VIEWER_PASSWORD", "")
 UNAPPROVED_PW = os.environ.get("PDC_STAGING_UNAPPROVED_PASSWORD", "")
+
+if not ADM_EMAIL or not OP_EMAIL:
+    raise RuntimeError("Set PDC_STAGING_ADMIN_EMAIL and PDC_STAGING_CONTROLLER_A_EMAIL")
 
 
 class CheckFailure(RuntimeError):

@@ -231,8 +231,8 @@ def main():
         row = cur.fetchone()
         real_id, real_version = str(row[0]), row[1]
         cur.execute("select set_config('request.jwt.claims', %s, true), set_config('request.jwt.claim.email', %s, true), set_config('role','authenticated', true)",
-                    (json.dumps({"sub": str(importer.get_admin_user_id(conn)), "email": "administrator@staging.pdc-workshop.example.com", "role": "authenticated"}),
-                     "administrator@staging.pdc-workshop.example.com"))
+                    (json.dumps({"sub": str(importer.get_admin_user_id(conn)), "email": os.environ["PDC_STAGING_ADMIN_EMAIL"], "role": "authenticated"}),
+                     os.environ["PDC_STAGING_ADMIN_EMAIL"]))
         cur.execute("select public.edit_technician(%s, %s, %s, null, null, null)", (real_id, real_version, f"{race_name} CHANGED BY SECOND ADMIN"))
         second_admin_result = cur.fetchone()[0]
         conn.commit()

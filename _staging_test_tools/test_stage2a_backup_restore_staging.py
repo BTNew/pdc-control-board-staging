@@ -169,7 +169,7 @@ def main():
             # connection, not just once.
             cur.execute(
                 "select set_config('request.jwt.claims', %s, true), set_config('role','authenticated', true)",
-                (json.dumps({"sub": str(admin_id), "email": "administrator@staging.pdc-workshop.example.com", "role": "authenticated"}),),
+                (json.dumps({"sub": str(admin_id), "email": os.environ["PDC_STAGING_ADMIN_EMAIL"], "role": "authenticated"}),),
             )
 
         cur = conn.cursor()

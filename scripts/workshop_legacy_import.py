@@ -697,8 +697,11 @@ def assert_staging_project(conn):
 
 
 def get_admin_user_id(conn):
+    admin_email = os.environ.get('PDC_STAGING_ADMIN_EMAIL', '').strip().lower()
+    if not admin_email:
+        raise RuntimeError('PDC_STAGING_ADMIN_EMAIL is required for audited staging imports.')
     cur = conn.cursor()
-    cur.execute("select id from auth.users where email = %s", ('administrator@staging.pdc-workshop.example.com',))
+    cur.execute("select id from auth.users where lower(email) = %s", (admin_email,))
     row = cur.fetchone()
     if not row:
         raise RuntimeError("Staging administrator test account not found; cannot attribute import audit rows.")
@@ -799,6 +802,7 @@ def run_import(
 ):
     assert_staging_project(conn)
     admin_user_id = get_admin_user_id(conn)
+    admin_email = os.environ['PDC_STAGING_ADMIN_EMAIL'].strip().lower()
 
     cur = conn.cursor()
     # Impersonate the staging administrator role for this session so
@@ -809,7 +813,7 @@ def run_import(
     # assert_staging_project() above for the staging-only tripwire.
     cur.execute(
         "select set_config('request.jwt.claims', %s, true)",
-        (json.dumps({'email': 'administrator@staging.pdc-workshop.example.com', 'role': 'authenticated', 'sub': str(admin_user_id)}),),
+        (json.dumps({'email': admin_email, 'role': 'authenticated', 'sub': str(admin_user_id)}),),
     )
     declared_meta = reference.get('vehicleIdentityArtifact') or reference.get('vehicleIdentityExport') or {}
     declared_revision = declared_meta.get('resolver_revision', declared_meta.get('export_revision'))
@@ -932,7 +936,7 @@ def run_import(
                 (
                     str(uuid.uuid4()), str(booking_id), 'legacy_migration_import',
                     json.dumps(None), json.dumps({'legacy_plan_id': legacy_id, 'status': db_status}),
-                    metadata, admin_user_id, 'administrator@staging.pdc-workshop.example.com',
+                    metadata, admin_user_id, admin_email,
                 ),
             )
         else:

@@ -140,14 +140,15 @@ under `reference_change` in the audit log.
 
 | Role | Email | Password |
 |---|---|---|
-| administrator | administrator@staging.pdc-workshop.example.com | `[REDACTED — see local secure notes]` |
-| controllerA | controllerA@staging.pdc-workshop.example.com | `[REDACTED]` |
-| controllerB | controllerB@staging.pdc-workshop.example.com | `[REDACTED]` |
+| retired administrator | administrator@staging.pdc-workshop.example.com | `DISABLED — credential permanently compromised` |
+| administrator | administrator2@staging.pdc-workshop.example.com | `[SECRET-MANAGED — local ignored environment only]` |
+| retired controllerA | controllerA@staging.pdc-workshop.example.com | `DISABLED — credential permanently compromised` |
+| controllerB | controllerB@staging.pdc-workshop.example.com | `[SECRET-MANAGED — local ignored environment only]` |
 | viewer | viewer@staging.pdc-workshop.example.com | `[REDACTED]` |
 | unapproved | unapproved@staging.pdc-workshop.example.com | `[REDACTED]` |
 
-(Passwords are recorded in `_staging_test_tools/` locally, gitignored,
-not reproduced here per the no-secrets-in-summaries rule.)
+(Active fixture passwords are stored only in the gitignored
+`_staging_test_tools/.env` environment and are never reproduced in source.)
 
 ## 6. Root cause of the Realtime issue, and the exact fix
 
