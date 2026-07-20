@@ -10,6 +10,7 @@ from pglast import parse_sql
 ROOT = Path(__file__).resolve().parents[1]
 VIEWER_MIGRATION = ROOT / "supabase" / "migrations" / "032_restricted_pilot_viewer_vehicle_contract.sql"
 BROAD_RPC_MIGRATION = ROOT / "supabase" / "migrations" / "033_restrict_broad_vehicle_snapshot_rpc.sql"
+BOUNDARY_MIGRATION = ROOT / "supabase" / "migrations" / "034_complete_restricted_viewer_vehicle_boundary.sql"
 EXPECTED_COLUMNS = [
     "id uuid",
     "version integer",
@@ -33,7 +34,8 @@ class RestrictedPilotAccountPlanMigrationTests(unittest.TestCase):
     def setUpClass(cls):
         cls.viewer_sql = VIEWER_MIGRATION.read_text(encoding="utf-8")
         cls.broad_rpc_sql = BROAD_RPC_MIGRATION.read_text(encoding="utf-8")
-        cls.sql = cls.viewer_sql + "\n" + cls.broad_rpc_sql
+        cls.boundary_sql = BOUNDARY_MIGRATION.read_text(encoding="utf-8")
+        cls.sql = cls.viewer_sql + "\n" + cls.broad_rpc_sql + "\n" + cls.boundary_sql
         cls.normalized = " ".join(cls.sql.lower().split())
 
     def _function(self, name: str) -> str:
@@ -46,7 +48,7 @@ class RestrictedPilotAccountPlanMigrationTests(unittest.TestCase):
         return match.group(0)
 
     def test_migrations_parse_and_are_transactional(self):
-        for sql in (self.viewer_sql, self.broad_rpc_sql):
+        for sql in (self.viewer_sql, self.broad_rpc_sql, self.boundary_sql):
             self.assertGreaterEqual(len(parse_sql(sql)), 5)
             normalized = " ".join(sql.lower().split())
             self.assertIn("begin;", normalized)
@@ -80,6 +82,39 @@ class RestrictedPilotAccountPlanMigrationTests(unittest.TestCase):
         )
         self.assertIn(
             "grant execute on function public.get_vehicle_core_snapshot() to authenticated",
+            self.normalized,
+        )
+
+    def test_other_broad_vehicle_surfaces_are_operator_or_higher_only(self):
+        workshop = " ".join(self._function("get_workshop_snapshot").lower().split())
+        self.assertIn("security definer", workshop)
+        self.assertIn("stable", workshop)
+        self.assertIn("set search_path = public", workshop)
+        self.assertIn("perform public.require_pdc_role('operator')", workshop)
+        self.assertNotIn("require_pdc_role('viewer')", workshop)
+        self.assertIn(
+            "create policy vehicle_aliases_select_operator on public.vehicle_aliases "
+            "for select to authenticated using (public.is_pdc_role('operator'))",
+            self.normalized,
+        )
+        alias_policy = re.search(
+            r"create policy vehicle_aliases_select_operator.*?using\s*\((.*?)\);",
+            self.normalized,
+        )
+        self.assertIsNotNone(alias_policy)
+        self.assertNotIn("'viewer'", alias_policy.group(1))
+        self.assertIn(
+            "revoke all on function public.get_workshop_snapshot(date, date) "
+            "from public, anon, authenticated",
+            self.normalized,
+        )
+        self.assertIn(
+            "grant execute on function public.get_workshop_snapshot(date, date) to authenticated",
+            self.normalized,
+        )
+        self.assertIn(
+            "revoke all on function public.workshop_booking_snapshot(uuid) "
+            "from public, anon, authenticated",
             self.normalized,
         )
 
