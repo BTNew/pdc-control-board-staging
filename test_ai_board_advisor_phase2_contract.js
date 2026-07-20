@@ -7,6 +7,8 @@ const path = require('path');
 const root = __dirname;
 const app = fs.readFileSync(path.join(root, 'app.js'), 'utf8');
 const css = fs.readFileSync(path.join(root, 'styles.css'), 'utf8');
+const dataService = fs.readFileSync(path.join(root, 'workshop-data-service.js'), 'utf8');
+const auth = fs.readFileSync(path.join(root, 'pdc-auth.js'), 'utf8');
 const start = app.indexOf('function aiBoardNormalizeStockIdentity');
 const end = app.indexOf('function loadAiFileAssistantReviews');
 assert.ok(start >= 0 && end > start, 'Phase Two advisor adapter/renderer block must exist');
@@ -14,9 +16,13 @@ const advisorBlock = app.slice(start, end);
 
 assert.ok(advisorBlock.includes('function aiBoardAdvisorInput'), 'read-only DTO adapter must exist');
 assert.ok(advisorBlock.includes('function renderAiBoardAdvisor'), 'advisor renderer must exist');
-assert.ok(advisorBlock.includes("bookingCoverage: false, bookings: []"), 'shared mode without a snapshot must omit booking rules rather than fall back to stale local data');
+assert.ok(advisorBlock.includes("bookingCoverage: false, bookingSource: 'shared'"), 'shared mode without a trusted snapshot must omit booking rules rather than fall back to stale local data');
 assert.ok(advisorBlock.includes("window.PDC_SUPABASE_CONFIG?.workshop?.sharedData === true"), 'shared booking authority must be detected explicitly');
-assert.ok(advisorBlock.includes("!['connected_read_only', 'connected_editable'].includes(service.getState())"), 'stale, loading, offline and permission-denied shared snapshots must be omitted');
+assert.ok(advisorBlock.includes("typeof service.getTrustedSnapshot !== 'function'"), 'shared advice must require the narrow trusted-snapshot API');
+assert.ok(advisorBlock.includes('const snapshot = service.getTrustedSnapshot()'), 'shared advice must never consume the retained planner snapshot directly');
+assert.ok(dataService.includes('let snapshotTrusted = false'), 'data service must track advisory trust separately from retained planner data');
+assert.ok(dataService.includes('getTrustedSnapshot: () => ('), 'data service must expose a fail-closed advisory snapshot accessor');
+assert.ok(dataService.includes('snapshotTrusted = false;\n        setState(WORKSHOP_CONNECTION_STATE.CONNECTED_READ_ONLY)'), '401/403 responses must invalidate advisory snapshot trust');
 assert.ok(advisorBlock.includes("booking?.booking_id || booking?.id"), 'shared booking IDs must use the authoritative snapshot DTO field');
 assert.ok(advisorBlock.includes("booking?.vehicle?.id"), 'shared booking identity must come from its canonical nested vehicle UUID');
 assert.ok(advisorBlock.includes("booking?.default_duration_minutes"), 'shared booking end time must use the authoritative duration when no end timestamp is supplied');
@@ -64,5 +70,9 @@ pages.forEach(file => {
 
 assert.ok(app.includes("on($('#ai-board-refresh'), 'click', renderAiBoardAdvisor);"), 'refresh control must only recalculate advice');
 assert.ok(app.includes('renderAiBoardAdvisor();\n  updateAiFileAssistantButtons();'), 'advisor must render with the existing AI review view');
+assert.ok(auth.includes("new CustomEvent('pdc-auth-locked'"), 'every session revalidation/teardown must dispatch the operational-data lock event');
+const lockHandler = app.slice(app.indexOf("window.addEventListener?.('pdc-auth-locked'"), app.indexOf('function renderWorkshopPlannerWhenReady'));
+assert.ok(lockHandler.includes("document.getElementById('ai-board-advisor-content')"), 'auth lock handler must target the rendered advisor data');
+assert.ok(lockHandler.includes('advisorHost.replaceChildren()'), 'auth lock handler must clear prior-session advisory business data');
 
 console.log('Phase Two advisory AI integration and authority contracts passed');

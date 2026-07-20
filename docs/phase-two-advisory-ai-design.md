@@ -10,7 +10,7 @@ The initial implementation is deliberately deterministic. Every advisory is prod
 
 ## Inputs
 
-The UI adapter builds a minimal read-only DTO from current in-memory vehicle data and, when safely available, the current workshop-plan snapshot:
+The UI adapter builds a minimal read-only DTO from current in-memory vehicle data and, when safely available, a revision-bearing workshop snapshot returned by the data service's narrow `getTrustedSnapshot()` accessor:
 
 - stable vehicle identity and stock label
 - current stage/location and stage age
@@ -36,7 +36,7 @@ Raw email/file contents, credentials, access tokens, notes beyond the explicit r
 10. `BAY_OVERLAP`: two active bookings overlap in the same stage/bay.
 11. `UNSCHEDULED_REQUIRED_STAGE`: outstanding required physical work has no active booking, but only when booking coverage is authoritative and the vehicle identity is unambiguous.
 
-Rules fail closed: ambiguous identities produce data-quality advisories and suppress identity-dependent scheduling advice. Missing/invalid timestamps never become “now”. Booking rules are omitted when shared authority is loading, stale, offline, permission denied, or otherwise has no currently connected snapshot; the UI discloses that coverage limitation.
+Rules fail closed: ambiguous identities produce data-quality advisories and suppress identity-dependent scheduling advice. Missing/invalid timestamps never become “now”. Retained planner fallback data is never advisory authority. Snapshot trust is invalidated before revision reloads, during debounce/in-flight refresh, after permission or network failure, and on service teardown; only a successful authenticated response with a revision restores trust. Booking rules are omitted whenever that trusted snapshot is unavailable, and the UI discloses the coverage limitation and the accepted shared revision.
 
 ## Output contract
 
@@ -61,12 +61,15 @@ The AI Intake Review screen receives a separate “Phase 2 · Board advisor” s
 - rule code and evidence on every finding
 - refresh/recalculate only; no Apply, Move, Complete, Approve, Send or workflow buttons
 - accessible live summary and semantic finding list
+- immediate rendered-data clearing on every auth session revalidation, sign-out, expiry or lockout
 
 ## Verification
 
 - Pure-rule tests use a fixed clock and frozen inputs.
 - Tests prove deterministic ordering, identity fail-closed behavior and no input mutation.
 - Static authority tests prohibit storage writes, network APIs, mutation RPC names and mutating UI controls in the advisor module/surface.
+- Data-service tests prove retained snapshots are rejected after `401/403`, while a newer revision is pending and after teardown.
+- Auth-lock tests prove prior-session advisory business data is removed from the DOM.
 - Browser tests use only synthetic fixture data and block non-local network requests.
 - Aggregate repository tests, syntax checks and independent security/functional review are required before the branch reaches its review stop point.
 

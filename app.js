@@ -3383,9 +3383,11 @@ function initWorkshopSharedServicesIfEnabled() {
       getRole: () => (typeof window.PDC_AUTH_CONTEXT !== 'undefined' ? window.PDC_AUTH_CONTEXT?.role : null),
       onStateChange: () => {
         if (app.currentView === 'workshop' && typeof renderWorkshopPlanner === 'function') renderWorkshopPlanner();
+        if (app.currentView === 'emailreview' && typeof renderAiBoardAdvisor === 'function') renderAiBoardAdvisor();
       },
       onSnapshot: () => {
         if (app.currentView === 'workshop' && typeof renderWorkshopPlanner === 'function') renderWorkshopPlanner();
+        if (app.currentView === 'emailreview' && typeof renderAiBoardAdvisor === 'function') renderAiBoardAdvisor();
       }
     });
     window.__workshopDataService = dataService;
@@ -3500,6 +3502,7 @@ window.addEventListener?.('pdc-auth-ready', () => {
   if (typeof refreshWorkshopReferenceData === 'function') refreshWorkshopReferenceData();
   const navItem = document.getElementById('nav-user-management');
   if (navItem) navItem.hidden = !(typeof backupStatusSharedModeReady === 'function' && backupStatusSharedModeReady());
+  if (app.currentView === 'emailreview' && typeof renderAiBoardAdvisor === 'function') renderAiBoardAdvisor();
 });
 
 // Independent-review remediation, finding #5 / critical blocker #5:
@@ -3512,6 +3515,8 @@ window.addEventListener?.('pdc-auth-ready', () => {
 // state so a disabled user's already-open tab cannot continue showing
 // (or silently re-deriving UI from) previously-loaded operational data.
 window.addEventListener?.('pdc-auth-locked', () => {
+  const advisorHost = document.getElementById('ai-board-advisor-content');
+  if (advisorHost) advisorHost.replaceChildren();
   try {
     if (window.__workshopRealtimeManager && typeof window.__workshopRealtimeManager.stop === 'function') {
       window.__workshopRealtimeManager.stop();
@@ -14949,9 +14954,8 @@ function aiBoardSharedModeEnabled() {
 function aiBoardSharedSnapshot() {
   if (!aiBoardSharedModeEnabled()) return null;
   const service = window.__workshopDataService;
-  if (!service || typeof service.getLastSnapshot !== 'function' || typeof service.getState !== 'function') return null;
-  if (!['connected_read_only', 'connected_editable'].includes(service.getState())) return null;
-  const snapshot = service.getLastSnapshot();
+  if (!service || typeof service.getTrustedSnapshot !== 'function') return null;
+  const snapshot = service.getTrustedSnapshot();
   return snapshot && typeof snapshot === 'object' ? snapshot : null;
 }
 
@@ -15015,9 +15019,11 @@ function aiBoardVehicleDtos(snapshot = null) {
 
 function aiBoardBookingDtos(snapshot = null) {
   if (aiBoardSharedModeEnabled()) {
-    if (!snapshot || !Array.isArray(snapshot.bookings)) return { bookingCoverage: false, bookings: [] };
+    if (!snapshot || snapshot.revision == null || !Array.isArray(snapshot.bookings)) return { bookingCoverage: false, bookingSource: 'shared', bookingRevision: '', bookings: [] };
     return {
       bookingCoverage: true,
+      bookingSource: 'shared',
+      bookingRevision: String(snapshot.revision),
       bookings: snapshot.bookings.map(booking => {
         const duration = Number(booking?.default_duration_minutes || 0);
         const start = parseIsoTimestamp(booking?.scheduled_start_at || '');
@@ -15038,6 +15044,8 @@ function aiBoardBookingDtos(snapshot = null) {
   const rows = loadJson('vehicleTrackingCoreWorkshopPlan:v1', []);
   return {
     bookingCoverage: true,
+    bookingSource: 'local',
+    bookingRevision: '',
     bookings: (Array.isArray(rows) ? rows : []).map(booking => {
       const start = parseIsoTimestamp(booking?.startAt || '');
       const hours = Number(booking?.hours || 0);
@@ -15061,6 +15069,8 @@ function aiBoardAdvisorInput(nowIso = nowIsoString()) {
   return {
     nowIso,
     bookingCoverage: bookingData.bookingCoverage,
+    bookingSource: bookingData.bookingSource,
+    bookingRevision: bookingData.bookingRevision,
     vehicles: aiBoardVehicleDtos(snapshot),
     bookings: bookingData.bookings,
   };
@@ -15081,7 +15091,7 @@ function renderAiBoardAdvisor(nowIso = nowIsoString()) {
   const result = api.analyze(aiBoardAdvisorInput(nowIso));
   const counts = result.counts || { critical: 0, high: 0, medium: 0, low: 0, total: 0 };
   const coverage = result.bookingCoverage
-    ? '<span class="badge ready">Vehicle + booking coverage</span>'
+    ? `<span class="badge ready">Vehicle + ${result.bookingSource === 'shared' ? `booking coverage · revision ${escapeHtml(result.bookingRevision || '')}` : 'local booking coverage'}</span>`
     : '<span class="badge warning">Vehicle coverage only</span>';
   const findings = Array.isArray(result.findings) ? result.findings : [];
   const priorityFindings = findings.filter(item => item.severity === 'critical' || item.severity === 'high');

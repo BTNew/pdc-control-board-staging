@@ -60,6 +60,8 @@
         version: VERSION,
         generatedAt: '',
         bookingCoverage: false,
+        bookingSource: '',
+        bookingRevision: '',
         findings: Object.freeze([finding('DATA_ANALYSIS_CLOCK_INVALID', 'critical', 'data', 'analysis-clock', {
           title: 'Advisor clock is unavailable',
           explanation: 'The advisor cannot rank time-sensitive risks without an explicit valid analysis time.',
@@ -73,6 +75,8 @@
     const vehicles = Array.isArray(source.vehicles) ? source.vehicles : [];
     const bookings = Array.isArray(source.bookings) ? source.bookings : [];
     const bookingCoverage = source.bookingCoverage === true;
+    const bookingSource = ['shared', 'local'].includes(text(source.bookingSource)) ? text(source.bookingSource) : '';
+    const bookingRevision = text(source.bookingRevision);
     const results = [];
     const identities = new Map();
     const duplicateIdentities = new Set();
@@ -333,6 +337,8 @@
       version: VERSION,
       generatedAt: now.toISOString(),
       bookingCoverage,
+      bookingSource,
+      bookingRevision,
       findings: Object.freeze(findings),
       counts: Object.freeze(counts),
     });

@@ -142,6 +142,11 @@ function createWorkshopDataService(options) {
   let state = enabled ? WORKSHOP_CONNECTION_STATE.CONNECTING : WORKSHOP_CONNECTION_STATE.DISABLED;
   let lastSnapshot = null;
   let lastRevision = null;
+  // A retained snapshot can still be useful to the planner while offline,
+  // but advisory rules must never present it as current operational truth.
+  // This flag is cleared before every refresh/revision and on every failure;
+  // only a successful authenticated snapshot response restores trust.
+  let snapshotTrusted = false;
   let pendingReloadTimer = null;
   let reloadInFlight = false;
   let trailingReloadRequested = false;
@@ -158,13 +163,16 @@ function createWorkshopDataService(options) {
 
   async function loadSnapshot(reason) {
     if (!enabled) {
+      snapshotTrusted = false;
       setState(WORKSHOP_CONNECTION_STATE.DISABLED);
       return null;
     }
     if (reloadInFlight) {
+      snapshotTrusted = false;
       trailingReloadRequested = true;
       return lastSnapshot;
     }
+    snapshotTrusted = false;
     reloadInFlight = true;
     try {
       const token = getAccessToken();
@@ -181,6 +189,7 @@ function createWorkshopDataService(options) {
       }
       lastSnapshot = result.body;
       lastRevision = result.body && result.body.revision;
+      snapshotTrusted = Boolean(lastSnapshot && typeof lastSnapshot === 'object' && lastRevision != null);
       const role = getRole();
       setState(role === 'operator' || role === 'administrator'
         ? WORKSHOP_CONNECTION_STATE.CONNECTED_EDITABLE
@@ -203,6 +212,9 @@ function createWorkshopDataService(options) {
 
   function scheduleSnapshotReload(reason) {
     if (!enabled) return;
+    // A newer revision is known to exist, so the retained snapshot is not
+    // current during debounce or reload and must not feed advisory output.
+    snapshotTrusted = false;
     if (pendingReloadTimer) {
       clearScheduledTimeout(pendingReloadTimer);
     }
@@ -257,6 +269,7 @@ function createWorkshopDataService(options) {
     const result = await client.rpc(token, rpcName, params);
     if (!result.ok) {
       if (result.status === 401 || result.status === 403) {
+        snapshotTrusted = false;
         setState(WORKSHOP_CONNECTION_STATE.CONNECTED_READ_ONLY);
       }
       return { ok: false, error: 'request_failed', status: result.status, body: result.body };
@@ -277,6 +290,7 @@ function createWorkshopDataService(options) {
   }
 
   function destroy() {
+    snapshotTrusted = false;
     if (pendingReloadTimer) {
       clearScheduledTimeout(pendingReloadTimer);
       pendingReloadTimer = null;
@@ -287,6 +301,18 @@ function createWorkshopDataService(options) {
     isEnabled: () => enabled,
     getState: () => state,
     getLastSnapshot: () => lastSnapshot,
+    // Advisory consumers use this method rather than getLastSnapshot(). It
+    // deliberately returns null for retained offline, unauthorized, pending,
+    // reconnecting, or superseded snapshots.
+    getTrustedSnapshot: () => (
+      snapshotTrusted
+      && !pendingReloadTimer
+      && !reloadInFlight
+      && !trailingReloadRequested
+      && [WORKSHOP_CONNECTION_STATE.CONNECTED_READ_ONLY, WORKSHOP_CONNECTION_STATE.CONNECTED_EDITABLE].includes(state)
+        ? lastSnapshot
+        : null
+    ),
     getLastRevision: () => lastRevision,
     loadSnapshot,
     onRevisionSignal,

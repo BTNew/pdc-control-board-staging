@@ -260,7 +260,37 @@ async function run() {
     assert.strictEqual(timers.pendingCount(), 1, '10a reload scheduled');
     service.destroy();
     assert.strictEqual(timers.pendingCount(), 0, '10b destroy clears pending reload timer');
+    assert.strictEqual(service.getTrustedSnapshot(), null, '10c destroy invalidates advisory snapshot trust');
     console.log('PASS 10: destroy() unsubscribes cleanly, preventing reloads after teardown');
+  }
+
+  // 11. Advisory snapshot trust is narrower than retained planner fallback:
+  //     permission failures and pending revisions fail closed immediately.
+  {
+    const timers = makeTimerHarness();
+    const client = fakeClient([
+      { status: 200, ok: true, body: { revision: 1, vehicles: ['current'] } },
+      { status: 403, ok: false, body: { error: 'forbidden' } },
+      { status: 200, ok: true, body: { revision: 2, vehicles: ['refreshed'] } }
+    ]);
+    const service = createWorkshopDataService({
+      config: { workshop: { sharedData: true } },
+      client,
+      getAccessToken: () => 'tok',
+      getRole: () => 'viewer',
+      scheduleTimeout: timers.scheduleTimeout,
+      clearScheduledTimeout: timers.clearScheduledTimeout
+    });
+    await service.loadSnapshot('initial');
+    assert.strictEqual(service.getTrustedSnapshot().vehicles[0], 'current', '11a successful revision-bearing snapshot is trusted');
+    await service.loadSnapshot('permission-check');
+    assert.strictEqual(service.getLastSnapshot().vehicles[0], 'current', '11b planner may retain the last snapshot after 403');
+    assert.strictEqual(service.getTrustedSnapshot(), null, '11c advisor must reject the retained snapshot after 403');
+    service.onRevisionSignal(2);
+    assert.strictEqual(service.getTrustedSnapshot(), null, '11d pending newer revision remains untrusted during debounce');
+    await timers.flushAll();
+    assert.strictEqual(service.getTrustedSnapshot().vehicles[0], 'refreshed', '11e successful reload restores trust at the new revision');
+    console.log('PASS 11: advisory snapshot trust fails closed for permission errors and pending revisions');
   }
 
   console.log('Workshop data service unit tests passed');
