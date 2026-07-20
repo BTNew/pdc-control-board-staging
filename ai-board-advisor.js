@@ -161,12 +161,14 @@
       }
 
       const age = Number(vehicle.stageAgeDays);
-      if (Number.isFinite(age) && age >= 3 && outstanding.length) {
-        results.push(finding('STAGE_STALE', age >= 7 ? 'high' : 'medium', 'workshop', identity, {
+      const configuredAgeLimit = Number(vehicle.stageAgeLimitDays);
+      const ageLimit = Number.isFinite(configuredAgeLimit) && configuredAgeLimit >= 0 ? configuredAgeLimit : 3;
+      if (Number.isFinite(age) && age > ageLimit && outstanding.length) {
+        results.push(finding('STAGE_STALE', age > ageLimit + 3 ? 'high' : 'medium', 'workshop', identity, {
           vehicleIdentity: identity, stock,
           title: `${label} has remained in one stage`,
           explanation: 'The current workshop stage has not progressed while required work remains outstanding.',
-          evidence: [`Stage age ${Math.floor(age)} days`, text(vehicle.currentStage) && `Current stage ${text(vehicle.currentStage)}`, `Outstanding stages: ${outstanding.join(', ')}`],
+          evidence: [`Stage age ${Math.floor(age)} days; configured limit ${ageLimit}`, text(vehicle.currentStage) && `Current stage ${text(vehicle.currentStage)}`, `Outstanding stages: ${outstanding.join(', ')}`],
           recommendation: 'Confirm whether the stage, blocker and expected completion are still accurate.',
         }));
       }

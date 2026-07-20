@@ -17,7 +17,7 @@ const input = deepFreeze({
   vehicles: [
     {
       identity: 'shared:vehicle-a', stock: '10000001', customer: 'Test A', description: 'Hilux',
-      currentStage: 'FAB', stageAgeDays: 8, deliveryAt: '2026-07-22T00:00:00.000Z', blocked: true,
+      currentStage: 'FAB', stageAgeDays: 8, stageAgeLimitDays: 3, deliveryAt: '2026-07-22T00:00:00.000Z', blocked: true,
       blockReason: 'Awaiting engineering confirmation', requiredStages: ['FAB', 'ELEC'], completedStages: [],
       parts: { required: true, complete: false, stoppage: true, reason: 'Back order', eta: '2026-07-19T00:00:00.000Z' },
       jobLines: [{ description: 'Fit canopy', hours: null, confirmed: false }],
@@ -44,6 +44,7 @@ assert.ok(first.findings.some(item => item.rule === 'PARTS_STOPPAGE'), 'Parts st
 assert.ok(first.findings.some(item => item.rule === 'PARTS_ETA_OVERDUE'), 'overdue Parts ETA must be detected');
 assert.ok(first.findings.some(item => item.rule === 'DELIVERY_RISK'), 'near delivery with outstanding work must be detected');
 assert.ok(first.findings.some(item => item.rule === 'LABOUR_UNCONFIRMED'), 'unconfirmed labour must be detected');
+assert.ok(first.findings.some(item => item.rule === 'STAGE_STALE' && item.evidence.some(value => value.includes('configured limit 3'))), 'stage ageing must use and expose the configured threshold');
 assert.ok(first.findings.some(item => item.rule === 'BOOKING_STOPPAGE'), 'booking stoppage must be detected');
 assert.ok(first.findings.some(item => item.rule === 'UNSCHEDULED_REQUIRED_STAGE' && item.evidence.some(value => value.includes('elec'))), 'outstanding unscheduled stage must be detected with authoritative coverage');
 assert.strictEqual(first.findings[0].severity, 'critical', 'critical findings must sort first');
@@ -81,6 +82,20 @@ const noCoverage = advisor.analyze({
   bookings: [{ id: 'ignored', vehicleIdentity: 'shared:no-coverage', stage: 'FAB', status: 'stoppage', startAt: 'bad', endAt: 'bad' }],
 });
 assert.ok(!noCoverage.findings.some(item => item.rule.startsWith('BOOKING_') || item.rule === 'BAY_OVERLAP' || item.rule === 'UNSCHEDULED_REQUIRED_STAGE'), 'booking advice must be omitted without authoritative booking coverage');
+
+const atStageLimit = advisor.analyze({
+  nowIso: input.nowIso,
+  bookingCoverage: false,
+  vehicles: [{ identity: 'shared:stage-limit', stock: '5', currentStage: 'FAB', stageAgeDays: 4, stageAgeLimitDays: 4, requiredStages: ['FAB'], completedStages: [] }],
+});
+assert.ok(!atStageLimit.findings.some(item => item.rule === 'STAGE_STALE'), 'a vehicle exactly at its configured stage limit is not overdue');
+
+const overStageLimit = advisor.analyze({
+  nowIso: input.nowIso,
+  bookingCoverage: false,
+  vehicles: [{ identity: 'shared:stage-overdue', stock: '6', currentStage: 'FAB', stageAgeDays: 5, stageAgeLimitDays: 4, requiredStages: ['FAB'], completedStages: [] }],
+});
+assert.ok(overStageLimit.findings.some(item => item.rule === 'STAGE_STALE'), 'a vehicle over its configured stage limit is overdue');
 
 const invalidClock = advisor.analyze({ nowIso: 'not-a-date', vehicles: [], bookings: [], bookingCoverage: true });
 assert.strictEqual(invalidClock.findings.length, 1);

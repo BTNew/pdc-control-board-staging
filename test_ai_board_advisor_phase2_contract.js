@@ -20,6 +20,7 @@ assert.ok(advisorBlock.includes("!['connected_read_only', 'connected_editable'].
 assert.ok(advisorBlock.includes("booking?.booking_id || booking?.id"), 'shared booking IDs must use the authoritative snapshot DTO field');
 assert.ok(advisorBlock.includes("booking?.vehicle?.id"), 'shared booking identity must come from its canonical nested vehicle UUID');
 assert.ok(advisorBlock.includes("booking?.default_duration_minutes"), 'shared booking end time must use the authoritative duration when no end timestamp is supplied');
+assert.ok(advisorBlock.includes('stageAgeLimitDays: pmbLaneAgeLimit(inferredPmbStage(vehicle))'), 'stage ageing must use the existing stage-specific operational threshold');
 assert.ok(advisorBlock.includes("Math.max(50, priorityFindings.length)"), 'priority view must include every critical/high finding before capping review cards');
 assert.ok(advisorBlock.includes('Human review:'), 'recommendations must be labelled as human review');
 assert.ok(advisorBlock.includes('Coverage limit:'), 'missing booking coverage must be disclosed');

@@ -14991,6 +14991,7 @@ function aiBoardVehicleDtos(snapshot = null) {
       stock: displayStockNumber(vehicle) || vehicleKey(vehicle),
       currentStage: inferredPmbStage(vehicle),
       stageAgeDays: pmbStageAgeDays(vehicle),
+      stageAgeLimitDays: pmbLaneAgeLimit(inferredPmbStage(vehicle)),
       deliveryAt: aiBoardDateIso(vehicle.deliveryDate || ''),
       blocked: isPdcBlocked(vehicle),
       blockReason: pdcBlockReason(vehicle),

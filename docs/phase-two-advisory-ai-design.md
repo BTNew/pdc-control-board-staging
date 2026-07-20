@@ -29,7 +29,7 @@ Raw email/file contents, credentials, access tokens, notes beyond the explicit r
 3. `PARTS_ETA_OVERDUE`: incomplete required Parts with an ETA before the analysis clock.
 4. `VEHICLE_BLOCKED`: active operational blocker.
 5. `DELIVERY_RISK`: delivery due within seven days while required work or Parts remains incomplete.
-6. `STAGE_STALE`: active vehicle has remained in one stage for at least three days.
+6. `STAGE_STALE`: active vehicle exceeds the existing configured age limit for its current stage.
 7. `LABOUR_UNCONFIRMED`: manual work exists without staff-confirmed labour hours.
 8. `BOOKING_STOPPAGE`: active Workshop booking is in stoppage.
 9. `BOOKING_OVERDUE`: planned start or started end is materially past the analysis clock.
