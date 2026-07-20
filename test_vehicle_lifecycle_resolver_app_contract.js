@@ -60,6 +60,7 @@ assert(/title: 'Vehicle completed and collected'[\s\S]{0,220}shared: true/.test(
 console.log('PASS 6: shared lifecycle actions do not create browser-local audit authority');
 
 assert(stagingConfig.includes("resolverAssetVersion: 'stage2b-c1-review-20260718'"));
-assert(stagingHtml.includes('app.js?v=2026.07.18.04-stage2b-c1-review'));
+const appVersion = (app.match(/const\s+APP_VERSION\s*=\s*['\"]([^'\"]+)['\"]/) || [])[1];
+assert(appVersion && stagingHtml.includes(`app.js?v=${appVersion}`), 'staging app cache key must match the current APP_VERSION');
 assert(app.includes('vehicleLifecycle.resolverAssetVersion || APP_VERSION'));
 console.log('PASS 7: staging cache busts both app and resolver module without production-file changes');

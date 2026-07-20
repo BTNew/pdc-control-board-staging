@@ -11,7 +11,7 @@ assert.strictEqual(versionMatches.length, 1, 'app.js must define APP_VERSION exa
 const version = versionMatches[0][1];
 assert.match(version, /^\d{4}\.\d{2}\.\d{2}\.\d{2}-[a-z0-9-]+$/i, `APP_VERSION has an unexpected format: ${version}`);
 
-const htmlFiles = ['index.html', 'no-vehicles.html', 'test-50.html', 'test-75.html', 'test-100.html'];
+const htmlFiles = ['index.html', 'no-vehicles.html', 'staging.html', 'test-50.html', 'test-75.html', 'test-100.html'];
 const versionedAssetPattern = /(?:app\.js|styles\.css|desktop-operations\.css|data(?:-no-vehicles|-test-\d+)?\.js)\?v=([^"'&<\s]+)/g;
 
 for (const file of htmlFiles) {
@@ -23,7 +23,7 @@ for (const file of htmlFiles) {
   }
 }
 
-for (const file of ['index.html', 'no-vehicles.html']) {
+for (const file of ['index.html', 'no-vehicles.html', 'staging.html']) {
   const source = fs.readFileSync(path.join(root, file), 'utf8');
   const marker = (source.match(/id="app-version"[^>]*>\s*Version\s+([^<\s]+)/) || [])[1];
   assert.strictEqual(marker, version, `${file} has a stale visible version marker`);

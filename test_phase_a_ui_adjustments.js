@@ -24,8 +24,8 @@ for (const field of ['Key', 'Stock', 'JC', 'Customer', 'Vehicle', 'Station', 'Ba
 assert.ok(planner.includes('function workshopSearchMatches('), 'Planner needs explicit deterministic search results');
 assert.ok(planner.includes('function workshopSelectSearchBooking('), 'Planner result selection must use stable booking identity');
 assert.ok(planner.includes('data-workshop-search-booking-id'), 'Search selection must preserve booking UUID/id');
-assert.ok(planner.includes('data-workshop-search-vehicle-key'), 'Search selection must preserve stable vehicle identity');
-assert.ok(planner.includes('This vehicle has ${bookings.length} bookings. Showing the closest booking.'), 'Multiple bookings need the closest-booking prompt');
+assert.ok(planner.includes('data-workshop-search-vehicle-identity'), 'Search selection must preserve canonical shared or local vehicle identity');
+assert.ok(planner.includes('This vehicle has ${bookings.length} bookings. Showing the selected booking.'), 'Multiple bookings need an explicit selected-booking prompt');
 assert.ok(planner.includes('Previous booking') && planner.includes('Next booking'), 'Multiple booking navigation controls are required');
 assert.ok(planner.includes('workshopSortBookingsClosest'), 'Closest booking selection must be deterministic');
 assert.ok(planner.includes("event.key === 'Escape'"), 'Planner search result overlay must close on Escape');
@@ -44,9 +44,10 @@ assert.ok(!etaCell.includes('data-parts-eta-email'), 'Email Sales must not remai
 assert.ok(app.includes('parts-email-sales-secondary'), 'Email Sales must move to a compact secondary action line');
 assert.ok(app.includes('data-parts-more-button'), 'Parts More action must use an overlay trigger');
 assert.ok(app.includes('function openPartsMoreMenu('), 'Parts More overlay positioning helper is missing');
-assert.ok(app.includes('role="menu"'), 'Parts More overlay must expose menu semantics');
+assert.ok(app.includes('role="group"'), 'Parts More overlay must expose a labelled native-button group without incomplete ARIA menu semantics');
 assert.ok(app.includes("event.key === 'Escape'"), 'Parts More overlay must close on Escape');
 assert.ok(app.includes("document.addEventListener('pointerdown'"), 'Parts More overlay must close on outside click');
+assert.ok(app.includes("document.addEventListener('focusin'"), 'Parts More overlay must close when keyboard focus leaves it');
 assert.ok(app.includes("classList.toggle('opens-upward'"), 'Parts More overlay must open upward near the viewport bottom');
 assert.ok(styles.includes('.parts-more-popover'), 'Parts More popover styles are missing');
 assert.ok(styles.includes('position: fixed'), 'Parts More menu must be outside table flow');
@@ -77,5 +78,20 @@ const tied = plannerApi.workshopSortBookingsClosest([
   { id: 'a', startAt: '2026-07-20T11:00:00+08:00', hours: 1 },
 ], now);
 assert.deepStrictEqual(tied.map(row => row.id), ['b', 'a'], 'Equal-distance bookings must use start time then booking id as deterministic tie-breakers');
+
+const sharedBookings = [
+  { id: 'closest', sharedVehicleId: 'vehicle-a', vehicleKey: 'DUPLICATE', startAt: '2026-07-20T10:15:00+08:00' },
+  { id: 'clicked', sharedVehicleId: 'vehicle-a', vehicleKey: 'DUPLICATE', startAt: '2026-07-22T09:00:00+08:00' },
+  { id: 'other-vehicle', sharedVehicleId: 'vehicle-b', vehicleKey: 'DUPLICATE', startAt: '2026-07-20T10:05:00+08:00' },
+];
+assert.strictEqual(plannerApi.workshopResolveBookingSelection(sharedBookings, 'clicked', 'shared:vehicle-a')?.id, 'clicked', 'Clicking a non-closest result must preserve that exact booking UUID');
+assert.deepStrictEqual(plannerApi.workshopBookingsForEntry(sharedBookings, sharedBookings[0]).map(row => row.id), ['closest', 'clicked'], 'Duplicate legacy keys must not merge different shared vehicle UUIDs');
+assert.strictEqual(plannerApi.workshopResolveBookingSelection(sharedBookings, 'clicked', 'shared:vehicle-b'), null, 'A booking/vehicle UUID mismatch must fail closed');
+assert.strictEqual(plannerApi.workshopResolveBookingSelection([...sharedBookings, { ...sharedBookings[1] }], 'clicked', 'shared:vehicle-a'), null, 'Duplicate booking IDs must fail closed');
+assert.deepStrictEqual(plannerApi.workshopSortBookingsClosest([
+  { id: 'invalid', startAt: 'not-a-date' },
+  { id: 'valid', startAt: '2026-07-20T12:00:00+08:00' },
+], now).map(row => row.id), ['valid', 'invalid'], 'Malformed booking dates must sort after valid bookings rather than becoming closest');
+assert.strictEqual(plannerApi.workshopResolveBookingSelection([{ id: 'invalid', vehicleKey: 'LOCAL', startAt: '' }], 'invalid', 'legacy:LOCAL'), null, 'Malformed booking dates must not become an operational selection');
 
 console.log('Phase A UI adjustment regression contracts passed.');

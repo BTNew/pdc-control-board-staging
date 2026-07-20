@@ -1484,12 +1484,33 @@ function workshopSearchRank(vehicle = {}, query = '') {
 function workshopSortBookingsClosest(rows = [], nowValue = Date.now()) {
   const now = Number(nowValue);
   return [...rows].sort((a, b) => {
-    const aStart = workshopEntryStart(a).getTime();
-    const bStart = workshopEntryStart(b).getTime();
-    const aDistance = Math.abs(aStart - now);
-    const bDistance = Math.abs(bStart - now);
+    const aParsed = parseIsoTimestamp(a?.startAt || '');
+    const bParsed = parseIsoTimestamp(b?.startAt || '');
+    const aStart = aParsed ? aParsed.getTime() : Number.POSITIVE_INFINITY;
+    const bStart = bParsed ? bParsed.getTime() : Number.POSITIVE_INFINITY;
+    const aDistance = Number.isFinite(aStart) ? Math.abs(aStart - now) : Number.POSITIVE_INFINITY;
+    const bDistance = Number.isFinite(bStart) ? Math.abs(bStart - now) : Number.POSITIVE_INFINITY;
     return aDistance - bDistance || aStart - bStart || String(a.id || '').localeCompare(String(b.id || ''));
   });
+}
+
+function workshopPlanVehicleIdentity(entry = {}) {
+  const sharedVehicleId = String(entry.sharedVehicleId || '').trim();
+  return sharedVehicleId ? `shared:${sharedVehicleId}` : `legacy:${String(entry.vehicleKey || '').trim()}`;
+}
+
+function workshopResolveBookingSelection(plans = [], bookingId = '', vehicleIdentity = '') {
+  const matches = (Array.isArray(plans) ? plans : []).filter(plan => (
+    String(plan.id || '') === String(bookingId || '')
+    && workshopPlanVehicleIdentity(plan) === String(vehicleIdentity || '')
+  ));
+  if (matches.length !== 1 || !parseIsoTimestamp(matches[0].startAt || '')) return null;
+  return matches[0];
+}
+
+function workshopBookingsForEntry(plans = [], entry = {}) {
+  const identity = workshopPlanVehicleIdentity(entry);
+  return (Array.isArray(plans) ? plans : []).filter(plan => workshopPlanVehicleIdentity(plan) === identity);
 }
 
 function workshopSearchMatches(query = '', plans = workshopLoadPlans()) {
@@ -1499,10 +1520,13 @@ function workshopSearchMatches(query = '', plans = workshopLoadPlans()) {
     .filter(vehicle => workshopVehicleSearchText(vehicle).includes(clean))
     .map(vehicle => {
       const key = vehicleKey(vehicle);
-      const bookings = workshopSortBookingsClosest((Array.isArray(plans) ? plans : []).filter(entry => entry.vehicleKey === key));
+      const sharedRef = workshopSharedModeActive() ? workshopSharedVehicleRef({ vehicleKey: key }) : null;
+      const vehicleIdentity = sharedRef?.vehicleId ? `shared:${sharedRef.vehicleId}` : `legacy:${key}`;
+      const bookings = workshopSortBookingsClosest((Array.isArray(plans) ? plans : []).filter(entry => workshopPlanVehicleIdentity(entry) === vehicleIdentity));
       return {
         vehicle,
         vehicleKey: key,
+        vehicleIdentity,
         rank: workshopSearchRank(vehicle, clean),
         archived: Boolean(vehicle.isArchived || vehicle.archivedAt || statusCategory(vehicle) === 'deleted'),
         bookings,
@@ -1518,13 +1542,13 @@ function workshopBookingSearchStatus(entry = {}) {
 }
 
 function workshopBookingSearchMeta(entry = {}) {
-  const start = workshopEntryStart(entry);
-  const end = workshopEntryEnd(entry);
+  const start = parseIsoTimestamp(entry.startAt || '');
+  const end = start ? workshopEntryEnd(entry) : null;
   return {
     station: pmbStageLabel(entry.stage) || entry.stage || 'Unknown work group',
     bay: entry.stage === 'SUBLET' ? (entry.assignee || 'Provider unassigned') : `Bay ${entry.bay || '—'}`,
-    date: Number.isNaN(start.getTime()) ? 'Unknown date' : start.toLocaleDateString('en-AU'),
-    time: Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) ? 'Unknown time' : `${start.toLocaleTimeString('en-AU', { hour: 'numeric', minute: '2-digit' })}–${end.toLocaleTimeString('en-AU', { hour: 'numeric', minute: '2-digit' })}`,
+    date: !start ? 'Unknown date' : start.toLocaleDateString('en-AU'),
+    time: !start || !end ? 'Unknown time' : `${start.toLocaleTimeString('en-AU', { hour: 'numeric', minute: '2-digit' })}–${end.toLocaleTimeString('en-AU', { hour: 'numeric', minute: '2-digit' })}`,
     status: workshopBookingSearchStatus(entry),
   };
 }
@@ -1547,7 +1571,7 @@ function workshopSearchResultsHtml(query = '', plans = workshopLoadPlans()) {
     };
     const archived = match.archived ? '<span class="workshop-search-alert">Archived vehicle</span>' : '';
     if (!match.bookings.length) {
-      return `<article class="workshop-search-result is-unbooked" data-workshop-search-vehicle-key="${escapeHtml(match.vehicleKey)}">
+      return `<article class="workshop-search-result is-unbooked" data-workshop-search-vehicle-identity="${escapeHtml(match.vehicleIdentity)}">
         <div><strong>Key ${escapeHtml(identity.key)} · Stock ${escapeHtml(identity.stock)} · JC ${escapeHtml(identity.jobcard)}</strong><span>${escapeHtml(identity.customer)} · ${escapeHtml(identity.description)}</span></div>
         <div class="workshop-search-result-state">${archived}<strong>No booking found</strong><span>This vehicle has no workshop booking.</span></div>
       </article>`;
@@ -1555,7 +1579,7 @@ function workshopSearchResultsHtml(query = '', plans = workshopLoadPlans()) {
     return match.bookings.map((entry, bookingIndex) => {
       const meta = workshopBookingSearchMeta(entry);
       const closest = match.bookings.length > 1 && bookingIndex === 0 ? '<span class="workshop-search-closest">Closest booking</span>' : '';
-      return `<button type="button" class="workshop-search-result" data-workshop-search-booking-id="${escapeHtml(entry.id)}" data-workshop-search-vehicle-key="${escapeHtml(match.vehicleKey)}">
+      return `<button type="button" class="workshop-search-result" data-workshop-search-booking-id="${escapeHtml(entry.id)}" data-workshop-search-vehicle-identity="${escapeHtml(match.vehicleIdentity)}">
         <span class="workshop-search-result-vehicle"><strong>Key ${escapeHtml(identity.key)} · Stock ${escapeHtml(identity.stock)} · JC ${escapeHtml(identity.jobcard)}</strong><span>${escapeHtml(identity.customer)} · ${escapeHtml(identity.description)}</span></span>
         <span class="workshop-search-result-booking"><strong>${escapeHtml(meta.station)} · ${escapeHtml(meta.bay)}</strong><span>${escapeHtml(meta.date)} · ${escapeHtml(meta.time)} · ${escapeHtml(meta.status)}</span></span>
         <span class="workshop-search-result-flags">${archived}${closest}</span>
@@ -1587,36 +1611,34 @@ function workshopScrollToHighlightedVehicle(root = document) {
   });
 }
 
-function workshopSelectSearchBooking(bookingId = '', vehicleKeyValue = '') {
+function workshopSelectSearchBooking(bookingId = '', vehicleIdentity = '') {
   window.clearTimeout(app.workshopPlannerSearchTimer);
   const state = workshopState();
   const plans = workshopLoadPlans();
-  const entry = plans.find(plan => String(plan.id) === String(bookingId) && String(plan.vehicleKey) === String(vehicleKeyValue));
+  const entry = workshopResolveBookingSelection(plans, bookingId, vehicleIdentity);
   if (!entry) {
     state.searchOpen = true;
     renderWorkshopPlanner();
     return false;
   }
-  const bookings = workshopSortBookingsClosest(plans.filter(plan => plan.vehicleKey === vehicleKeyValue));
-  const closest = bookings[0];
-  const selected = bookings.length > 1 && closest ? closest : entry;
-  state.stage = selected.stage;
-  state.date = workshopEntryDate(selected);
-  state.selectedPlanId = selected.id;
-  state.highlightVehicleKey = vehicleKeyValue;
-  state.searchHighlightPlanId = selected.id;
+  const bookings = workshopSortBookingsClosest(workshopBookingsForEntry(plans, entry));
+  state.stage = entry.stage;
+  state.date = workshopEntryDate(entry);
+  state.selectedPlanId = entry.id;
+  state.highlightVehicleKey = entry.vehicleKey;
+  state.searchHighlightPlanId = entry.id;
   state.searchOpen = false;
   state.detailCollapsedForSelection = false;
   state.detailManualOpen = true;
-  state.searchNotice = bookings.length > 1 ? `This vehicle has ${bookings.length} bookings. Showing the closest booking.` : '';
+  state.searchNotice = bookings.length > 1 ? `This vehicle has ${bookings.length} bookings. Showing the selected booking.` : '';
   workshopSaveView(state);
   renderWorkshopPlanner();
   return true;
 }
 
-function workshopOpenBookingById(bookingId = '') {
+function workshopOpenBookingById(bookingId = '', vehicleIdentity = '') {
   const state = workshopState();
-  const entry = workshopLoadPlans().find(plan => String(plan.id) === String(bookingId));
+  const entry = workshopResolveBookingSelection(workshopLoadPlans(), bookingId, vehicleIdentity);
   if (!entry) return false;
   state.stage = entry.stage;
   state.date = workshopEntryDate(entry);
@@ -1935,7 +1957,8 @@ function workshopProgressSummary(entry = {}, now = new Date()) {
 
 function workshopBookingNavigatorHtml(entry = null, plans = []) {
   if (!entry) return '';
-  const bookings = [...plans].filter(plan => plan.vehicleKey === entry.vehicleKey)
+  const vehicleIdentity = workshopPlanVehicleIdentity(entry);
+  const bookings = workshopBookingsForEntry(plans, entry)
     .sort((a, b) => workshopEntryStart(a) - workshopEntryStart(b) || String(a.id || '').localeCompare(String(b.id || '')));
   if (bookings.length < 2) return '';
   const index = bookings.findIndex(plan => plan.id === entry.id);
@@ -1945,12 +1968,12 @@ function workshopBookingNavigatorHtml(entry = null, plans = []) {
   const notice = state.searchNotice || `This vehicle has ${bookings.length} bookings. Showing the selected booking.`;
   return `<nav class="workshop-booking-navigator" aria-label="Bookings for this vehicle">
     <span role="status">${escapeHtml(notice)}</span>
-    <button type="button" class="small-button" data-workshop-booking-nav="${escapeHtml(previous?.id || '')}" ${previous ? '' : 'disabled'}>Previous booking</button>
-    <label><span>All booking dates and times</span><select data-workshop-booking-jump>${bookings.map(plan => {
+    <button type="button" class="small-button" data-workshop-booking-nav="${escapeHtml(previous?.id || '')}" data-workshop-booking-vehicle-identity="${escapeHtml(vehicleIdentity)}" ${previous ? '' : 'disabled'}>Previous booking</button>
+    <label><span>All booking dates and times</span><select data-workshop-booking-jump data-workshop-booking-vehicle-identity="${escapeHtml(vehicleIdentity)}">${bookings.map(plan => {
       const meta = workshopBookingSearchMeta(plan);
       return `<option value="${escapeHtml(plan.id)}" ${plan.id === entry.id ? 'selected' : ''}>${escapeHtml(meta.date)} · ${escapeHtml(meta.time)} · ${escapeHtml(meta.station)} · ${escapeHtml(meta.bay)}</option>`;
     }).join('')}</select></label>
-    <button type="button" class="small-button" data-workshop-booking-nav="${escapeHtml(next?.id || '')}" ${next ? '' : 'disabled'}>Next booking</button>
+    <button type="button" class="small-button" data-workshop-booking-nav="${escapeHtml(next?.id || '')}" data-workshop-booking-vehicle-identity="${escapeHtml(vehicleIdentity)}" ${next ? '' : 'disabled'}>Next booking</button>
   </nav>`;
 }
 
@@ -2170,14 +2193,15 @@ function bindWorkshopPlanner(root) {
     const state = workshopState();
     const matches = workshopSearchMatches(event.currentTarget.value);
     if (matches.length === 1 && matches[0].bookings.length) {
-      workshopSelectSearchBooking(matches[0].bookings[0].id, matches[0].vehicleKey);
+      workshopSelectSearchBooking(matches[0].bookings[0].id, matches[0].vehicleIdentity);
       return;
     }
     workshopRevealSearchMatch(event.currentTarget.value);
   });
   root.querySelector('[data-workshop-search-clear]')?.addEventListener('click', () => workshopRevealSearchMatch(''));
   root.querySelectorAll('[data-workshop-search-booking-id]').forEach(button => button.addEventListener('click', () => {
-    workshopSelectSearchBooking(button.dataset.workshopSearchBookingId, button.dataset.workshopSearchVehicleKey);
+    workshopSelectSearchBooking(button.dataset.workshopSearchBookingId, button.dataset.workshopSearchVehicleIdentity);
+    workshopScrollToHighlightedVehicle(root);
   }));
   root.querySelector('[data-workshop-detail-toggle]')?.addEventListener('click', () => {
     const state = workshopState();
@@ -2194,9 +2218,9 @@ function bindWorkshopPlanner(root) {
     renderWorkshopPlanner();
   });
   root.querySelectorAll('[data-workshop-booking-nav]').forEach(button => button.addEventListener('click', () => {
-    if (button.dataset.workshopBookingNav) workshopOpenBookingById(button.dataset.workshopBookingNav);
+    if (button.dataset.workshopBookingNav) workshopOpenBookingById(button.dataset.workshopBookingNav, button.dataset.workshopBookingVehicleIdentity);
   }));
-  root.querySelector('[data-workshop-booking-jump]')?.addEventListener('change', event => workshopOpenBookingById(event.currentTarget.value));
+  root.querySelector('[data-workshop-booking-jump]')?.addEventListener('change', event => workshopOpenBookingById(event.currentTarget.value, event.currentTarget.dataset.workshopBookingVehicleIdentity));
   root.querySelector('[data-workshop-weekly-view]')?.addEventListener('click', () => {
     const selected = workshopLoadPlans().find(entry => entry.id === workshopState().selectedPlanId && entry.stage === workshopState().stage);
     openWorkshopWeeklyView(workshopState().stage, Number(selected?.bay) || 1, workshopState().date);
@@ -3998,6 +4022,9 @@ if (typeof module !== 'undefined' && module.exports) {
     workshopEntryStart,
     workshopEntryEnd,
     workshopSortBookingsClosest,
+    workshopPlanVehicleIdentity,
+    workshopResolveBookingSelection,
+    workshopBookingsForEntry,
     workshopEntryUsesConfiguredOvertime,
     workshopEntryIsOvertime,
     workshopEntryHasAssigneeConflict,

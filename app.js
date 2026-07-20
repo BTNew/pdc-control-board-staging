@@ -10458,21 +10458,21 @@ function partsQueueActionsHtml(vehicle = {}, status = partsDepartmentStatus(vehi
   const moreActions = [];
   if (status === 'notordered') {
     primaryAction = `<button class="small-button primary" type="button" data-parts-ordered="${escapeHtml(key)}" aria-label="Mark parts ordered for ${escapeHtml(stock)}">Mark ordered</button>`;
-    moreActions.push(`<button class="small-button" role="menuitem" type="button" data-parts-complete="${escapeHtml(key)}">Complete</button>`);
-    moreActions.push(`<button class="small-button danger-button" role="menuitem" type="button" data-parts-stoppage="${escapeHtml(key)}">Stoppage</button>`);
-    moreActions.push(`<button class="small-button" role="menuitem" type="button" data-open-stock="${escapeHtml(key)}">Open vehicle</button>`);
+    moreActions.push(`<button class="small-button" type="button" data-parts-complete="${escapeHtml(key)}">Complete</button>`);
+    moreActions.push(`<button class="small-button danger-button" type="button" data-parts-stoppage="${escapeHtml(key)}">Stoppage</button>`);
+    moreActions.push(`<button class="small-button" type="button" data-open-stock="${escapeHtml(key)}">Open vehicle</button>`);
   } else if (status === 'stoppage') {
     primaryAction = `<button class="small-button primary" type="button" data-open-stock="${escapeHtml(key)}">Review stoppage</button>`;
-    moreActions.push(`<button class="small-button" role="menuitem" type="button" data-parts-clear-stoppage="${escapeHtml(key)}">Clear stoppage</button>`);
-    moreActions.push(`<button class="small-button" role="menuitem" type="button" data-parts-complete="${escapeHtml(key)}">Complete</button>`);
+    moreActions.push(`<button class="small-button" type="button" data-parts-clear-stoppage="${escapeHtml(key)}">Clear stoppage</button>`);
+    moreActions.push(`<button class="small-button" type="button" data-parts-complete="${escapeHtml(key)}">Complete</button>`);
   } else if (complete) {
     primaryAction = `<button class="small-button primary" type="button" data-open-stock="${escapeHtml(key)}">Open vehicle</button>`;
   } else {
     primaryAction = `<button class="small-button primary" type="button" data-parts-complete="${escapeHtml(key)}">Complete</button>`;
-    moreActions.push(`<button class="small-button danger-button" role="menuitem" type="button" data-parts-stoppage="${escapeHtml(key)}">Stoppage</button>`);
-    moreActions.push(`<button class="small-button" role="menuitem" type="button" data-open-stock="${escapeHtml(key)}">Open vehicle</button>`);
+    moreActions.push(`<button class="small-button danger-button" type="button" data-parts-stoppage="${escapeHtml(key)}">Stoppage</button>`);
+    moreActions.push(`<button class="small-button" type="button" data-open-stock="${escapeHtml(key)}">Open vehicle</button>`);
   }
-  const moreMenu = moreActions.length ? `<button class="small-button parts-more-button" type="button" data-parts-more-button aria-haspopup="menu" aria-expanded="false">More</button><template data-parts-more-template><div class="parts-more-popover" role="menu" aria-label="More parts actions for ${escapeHtml(stock)}">${moreActions.join('')}</div></template>` : '';
+  const moreMenu = moreActions.length ? `<button class="small-button parts-more-button" type="button" data-parts-more-button aria-haspopup="true" aria-expanded="false">More</button><template data-parts-more-template><div class="parts-more-popover" role="group" aria-label="More parts actions for ${escapeHtml(stock)}">${moreActions.join('')}</div></template>` : '';
   const emailSales = showEmailSales ? `<div class="parts-email-sales-secondary"><button class="small-button parts-email-sales-button" type="button" data-parts-eta-email="${escapeHtml(key)}">Email sales</button></div>` : '';
   return `<div class="parts-action-group"><div class="parts-action-primary">${primaryAction}${moreMenu}</div>${emailSales}</div>`;
 }
@@ -10521,7 +10521,7 @@ function openPartsMoreMenu(trigger) {
   popover.style.top = `${Math.round(top)}px`;
   popover.style.left = `${Math.round(left)}px`;
   popover.classList.toggle('opens-upward', openUpward);
-  popover.querySelector('[role="menuitem"]')?.focus({ preventScroll: true });
+  popover.querySelector('button')?.focus({ preventScroll: true });
 }
 
 function bindPartsMoreMenus(host) {
@@ -10534,6 +10534,10 @@ function bindPartsMoreMenus(host) {
   if (app.partsMoreMenuDocumentBound) return;
   app.partsMoreMenuDocumentBound = true;
   document.addEventListener('pointerdown', event => {
+    if (!app.partsMoreMenu || app.partsMoreMenu.popover.contains(event.target) || app.partsMoreMenu.trigger.contains(event.target)) return;
+    closePartsMoreMenu();
+  });
+  document.addEventListener('focusin', event => {
     if (!app.partsMoreMenu || app.partsMoreMenu.popover.contains(event.target) || app.partsMoreMenu.trigger.contains(event.target)) return;
     closePartsMoreMenu();
   });
