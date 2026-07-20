@@ -86,8 +86,8 @@ via `require_pdc_role`); `claim_pending_vehicle_notifications` and
 `authenticated`, so the browser cannot call them).
 
 ### Test accounts / roles (staging only)
-- `administrator@staging.pdc-workshop.example.com` / `AdminStagingPW!2026xz` — administrator
-- `controllerA@staging.pdc-workshop.example.com` / `ControllerAPW!2026xz` — operator/controller
+- `administrator@staging.pdc-workshop.example.com` / `[REDACTED - stored only in ignored _staging_test_tools/.env]` — administrator
+- `controllerA@staging.pdc-workshop.example.com` / `[REDACTED - stored only in ignored _staging_test_tools/.env]` — operator/controller
 - `viewer@staging.pdc-workshop.example.com` — viewer
 - `unapproved@staging.pdc-workshop.example.com` — unapproved
 (All pre-existing from earlier sessions; reused, not newly created.)
