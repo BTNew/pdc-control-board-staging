@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.07.20.01-shared-navision-backend-store';
+const APP_VERSION = '2026.07.20.01-phase-a-ui-review';
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
 // constant intentionally names only the production ref, never the
@@ -1937,9 +1937,10 @@ function jitaDisplay(vehicle) {
 function jitaIndicator(vehicle) {
   const state = normalizeJita(jitaDisplay(vehicle));
   const detail = jitaDisplay(vehicle);
-  if (state === 'Yes') return `<span class="jita-icon jita-yes" title="${escapeHtml(detail)}">✓</span>`;
-  if (state === 'No') return `<span class="jita-icon jita-no" title="${escapeHtml(detail)}">×</span>`;
-  return `<span class="jita-icon jita-unknown" title="${escapeHtml(detail)}">?</span>`;
+  const accessible = `JITA ${state}: ${detail || 'No status recorded'}`;
+  if (state === 'Yes') return `<span class="jita-icon jita-yes" role="img" aria-label="${escapeHtml(accessible)}" title="${escapeHtml(detail)}">✓</span>`;
+  if (state === 'No') return `<span class="jita-icon jita-no" role="img" aria-label="${escapeHtml(accessible)}" title="${escapeHtml(detail)}">×</span>`;
+  return `<span class="jita-icon jita-unknown" role="img" aria-label="${escapeHtml(accessible)}" title="${escapeHtml(detail)}">?</span>`;
 }
 
 function legacyVehicleFlag(vehicle, key) {
@@ -9331,7 +9332,6 @@ function renderDetail() {
         <div class="detail-actions">
           <button class="small-button vehicle-label-button" type="button" data-label-vehicle="${escapeHtml(key)}">Label</button>
           <button class="primary" type="button" data-email-vehicle-update="${escapeHtml(key)}">EMAIL UPDATE</button>
-          ${actionSelectHtml(key)}
         </div>
       </div>
       <form class="edit-form" data-vehicle-edit-form>
@@ -9459,11 +9459,6 @@ function renderDetail() {
       </div>
     </div>
   `;
-  $('[data-action-stock]', panel)?.addEventListener('change', (e) => {
-    if (!e.currentTarget.value) return;
-    handleVehicleAction(key, e.currentTarget.value);
-    e.currentTarget.value = '';
-  });
   on($('[data-email-vehicle-update]', panel), 'click', () => draftSelectedVehicleStatusEmail(key));
   bindVehicleLabelButtons(panel);
   on($('[data-remove-vehicle]', panel), 'click', () => removeVehicle(key));
@@ -10606,6 +10601,7 @@ function partsQueueActionsHtml(vehicle = {}, status = partsDepartmentStatus(vehi
   const key = vehicleKey(vehicle);
   const stock = displayStockNumber(vehicle) || key;
   const complete = ['issued', 'notrequired'].includes(status);
+  const showEmailSales = Boolean(partsWorstEtaLabel(vehicle)) && !complete;
   let primaryAction = '';
   const moreActions = [];
   if (status === 'notordered') {
@@ -10624,8 +10620,86 @@ function partsQueueActionsHtml(vehicle = {}, status = partsDepartmentStatus(vehi
     moreActions.push(`<button class="small-button danger-button" type="button" data-parts-stoppage="${escapeHtml(key)}">Stoppage</button>`);
     moreActions.push(`<button class="small-button" type="button" data-open-stock="${escapeHtml(key)}">Open vehicle</button>`);
   }
-  const moreMenu = moreActions.length ? `<details class="parts-row-more"><summary>More</summary><div>${moreActions.join('')}</div></details>` : '';
-  return `<div class="parts-action-group">${primaryAction}${moreMenu}</div>`;
+  const moreMenu = moreActions.length ? `<button class="small-button parts-more-button" type="button" data-parts-more-button aria-expanded="false">More</button><template data-parts-more-template><div class="parts-more-popover" role="group" aria-label="More parts actions for ${escapeHtml(stock)}">${moreActions.join('')}</div></template>` : '';
+  const emailSales = showEmailSales ? `<div class="parts-email-sales-secondary"><button class="small-button parts-email-sales-button" type="button" data-parts-eta-email="${escapeHtml(key)}">Email sales</button></div>` : '';
+  return `<div class="parts-action-group"><div class="parts-action-primary">${primaryAction}${moreMenu}</div>${emailSales}</div>`;
+}
+
+function closePartsMoreMenu({ restoreFocus = false } = {}) {
+  const current = app.partsMoreMenu;
+  if (!current) return;
+  current.popover?.remove();
+  current.trigger?.setAttribute('aria-expanded', 'false');
+  if (restoreFocus) current.trigger?.focus();
+  app.partsMoreMenu = null;
+}
+
+function bindPartsQueueActionButtons(host) {
+  if (!host) return;
+  $$('[data-open-stock]', host).forEach(button => button.addEventListener('click', () => openVehicleModal(button.dataset.openStock)));
+  $$('[data-parts-ordered]', host).forEach(button => button.addEventListener('click', () => markVehiclePartsOrdered(button.dataset.partsOrdered)));
+  $$('[data-parts-complete]', host).forEach(button => button.addEventListener('click', () => markVehiclePartsComplete(button.dataset.partsComplete)));
+  $$('[data-parts-stoppage]', host).forEach(button => button.addEventListener('click', () => markVehiclePartsStoppage(button.dataset.partsStoppage)));
+  $$('[data-parts-clear-stoppage]', host).forEach(button => button.addEventListener('click', () => clearVehiclePartsStoppage(button.dataset.partsClearStoppage)));
+  $$('[data-parts-eta-email]', host).forEach(button => button.addEventListener('click', () => draftPartsEtaSalesEmail(button.dataset.partsEtaEmail)));
+}
+
+function openPartsMoreMenu(trigger) {
+  closePartsMoreMenu();
+  const template = trigger?.parentElement?.querySelector('[data-parts-more-template]');
+  const popover = template?.content?.firstElementChild?.cloneNode(true);
+  if (!popover) return;
+  document.body.appendChild(popover);
+  trigger.setAttribute('aria-expanded', 'true');
+  app.partsMoreMenu = { popover, trigger };
+  bindPartsQueueActionButtons(popover);
+  popover.addEventListener('click', event => {
+    if (event.target.closest('button')) closePartsMoreMenu();
+  });
+  const triggerRect = trigger.getBoundingClientRect();
+  const menuRect = popover.getBoundingClientRect();
+  const margin = 8;
+  const availableBelow = window.innerHeight - triggerRect.bottom - margin;
+  const availableAbove = triggerRect.top - margin;
+  const openUpward = menuRect.height > availableBelow && availableAbove > availableBelow;
+  const top = openUpward
+    ? Math.max(margin, triggerRect.top - menuRect.height - 4)
+    : Math.min(window.innerHeight - menuRect.height - margin, triggerRect.bottom + 4);
+  const left = Math.min(window.innerWidth - menuRect.width - margin, Math.max(margin, triggerRect.right - menuRect.width));
+  popover.style.top = `${Math.round(top)}px`;
+  popover.style.left = `${Math.round(left)}px`;
+  popover.classList.toggle('opens-upward', openUpward);
+  popover.querySelector('button')?.focus({ preventScroll: true });
+}
+
+function bindPartsMoreMenus(host) {
+  $$('[data-parts-more-button]', host).forEach(button => button.addEventListener('click', event => {
+    event.preventDefault();
+    event.stopPropagation();
+    if (app.partsMoreMenu?.trigger === button) closePartsMoreMenu({ restoreFocus: true });
+    else openPartsMoreMenu(button);
+  }));
+  if (app.partsMoreMenuDocumentBound) return;
+  app.partsMoreMenuDocumentBound = true;
+  document.addEventListener('pointerdown', event => {
+    if (!app.partsMoreMenu || app.partsMoreMenu.popover.contains(event.target) || app.partsMoreMenu.trigger.contains(event.target)) return;
+    closePartsMoreMenu();
+  });
+  document.addEventListener('focusout', () => {
+    window.setTimeout(() => {
+      if (!app.partsMoreMenu) return;
+      const active = document.activeElement;
+      if (app.partsMoreMenu.popover.contains(active) || app.partsMoreMenu.trigger.contains(active)) return;
+      closePartsMoreMenu();
+    }, 0);
+  });
+  document.addEventListener('keydown', event => {
+    if (event.key === 'Escape' && app.partsMoreMenu) {
+      event.preventDefault();
+      closePartsMoreMenu({ restoreFocus: true });
+    }
+  });
+  if (window && typeof window.addEventListener === 'function') window.addEventListener('resize', () => closePartsMoreMenu());
 }
 
 function partsQueueRowHtml(vehicle = {}) {
@@ -10653,7 +10727,7 @@ function partsQueueRowHtml(vehicle = {}) {
     </div></td>
     <td><div class="parts-queue-customer"><strong title="${escapeHtml(customer)}">${escapeHtml(customer)}</strong><span title="${escapeHtml(unit)}">${escapeHtml(unit)}</span></div></td>
     <td><div class="parts-eta"><strong>${escapeHtml(eta || 'No ETA')}</strong><span class="pmb-age ${escapeHtml('pmb-age-' + ageClass)}">${escapeHtml(partsEtaCounterLabel(vehicle))}</span></div></td>
-    <td><div class="parts-worst-eta-wrap"><label class="parts-worst-eta"><span class="sr-only">Parts worst ETA</span><input type="date" data-parts-worst-eta="${escapeHtml(key)}" value="${escapeHtml(worstEtaInput)}" ${complete ? 'disabled' : ''} /></label><span class="parts-worst-eta-details">${worstEtaLabel ? `<span class="parts-worst-eta-label">${escapeHtml(worstEtaLabel)}</span>${worstEtaCountdown ? `<span class="parts-worst-eta-countdown ${escapeHtml(worstEtaCountdownClass)}">${escapeHtml(worstEtaCountdown)}</span>` : ''}` : '<span class="subtle parts-worst-eta-label">Set worst ETA</span>'}</span>${worstEtaLabel ? `<button class="small-button parts-email-sales-button" type="button" data-parts-eta-email="${escapeHtml(key)}" ${complete ? 'disabled' : ''}>Email sales</button>` : ''}</div></td>
+    <td><div class="parts-worst-eta-wrap"><label class="parts-worst-eta"><span class="sr-only">Parts worst ETA</span><input type="date" data-parts-worst-eta="${escapeHtml(key)}" value="${escapeHtml(worstEtaInput)}" ${complete ? 'disabled' : ''} /></label><span class="parts-worst-eta-details">${worstEtaLabel ? `<span class="parts-worst-eta-label">${escapeHtml(worstEtaLabel)}</span>${worstEtaCountdown ? `<span class="parts-worst-eta-countdown ${escapeHtml(worstEtaCountdownClass)}">${escapeHtml(worstEtaCountdown)}</span>` : ''}` : '<span class="subtle parts-worst-eta-label">Set worst ETA</span>'}</span></div></td>
     <td class="parts-queue-jita-cell">${jitaIndicator(vehicle)}</td>
     <td class="parts-queue-blocker">${blocker ? `<strong title="${escapeHtml(blocker)}">${escapeHtml(blocker)}</strong>` : '<span class="subtle">No blocker recorded</span>'}</td>
     <td><div class="parts-queue-stage"><strong>${escapeHtml(currentLocation)}</strong><span>${escapeHtml(partsCurrentLocationUpdateLabel(vehicle) || 'No location update recorded')}</span></div></td>
@@ -10677,13 +10751,9 @@ function renderPartsHome() {
       <th>Status</th><th>Vehicle ID</th><th>Customer / vehicle</th><th>Kewdale ETA</th><th>Parts ETA</th><th>Jita</th><th>Blocker</th><th>Stage / update</th><th>Actions</th>
     </tr></thead>
     <tbody>${rows.map(partsQueueRowHtml).join('')}</tbody></table></div>`;
-  $$('[data-open-stock]', host).forEach(button => button.addEventListener('click', () => openVehicleModal(button.dataset.openStock)));
-  $$('[data-parts-ordered]', host).forEach(button => button.addEventListener('click', () => markVehiclePartsOrdered(button.dataset.partsOrdered)));
-  $$('[data-parts-complete]', host).forEach(button => button.addEventListener('click', () => markVehiclePartsComplete(button.dataset.partsComplete)));
-  $$('[data-parts-stoppage]', host).forEach(button => button.addEventListener('click', () => markVehiclePartsStoppage(button.dataset.partsStoppage)));
-  $$('[data-parts-clear-stoppage]', host).forEach(button => button.addEventListener('click', () => clearVehiclePartsStoppage(button.dataset.partsClearStoppage)));
+  bindPartsQueueActionButtons(host);
+  bindPartsMoreMenus(host);
   $$('[data-parts-worst-eta]', host).forEach(input => input.addEventListener('change', () => updateVehiclePartsWorstEta(input.dataset.partsWorstEta, input.value)));
-  $$('[data-parts-eta-email]', host).forEach(button => button.addEventListener('click', () => draftPartsEtaSalesEmail(button.dataset.partsEtaEmail)));
 }
 
 function markVehiclePartsOrdered(key = '') {
