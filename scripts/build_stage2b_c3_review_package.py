@@ -76,8 +76,10 @@ def main(argv=None):
         raise SystemExit("refusing dirty or untracked source tree")
     tracked = set(git("ls-tree", "-r", "--name-only", head).splitlines())
     migration_names = sorted(Path(path).name[:3] for path in tracked if path.startswith("supabase/migrations/") and Path(path).name[:3].isdigit())
-    if any(name == "032" for name in migration_names) or migration_names[-1:] != ["031"]:
-        raise SystemExit(f"migration inventory is not exactly capped through 031: {migration_names[-5:]}")
+    required_c3_migrations = {"028", "029", "030", "031"}
+    missing_c3_migrations = sorted(required_c3_migrations - set(migration_names))
+    if missing_c3_migrations:
+        raise SystemExit(f"required C3 migration inventory is incomplete: {missing_c3_migrations}")
     selected = EXACT_FILES | EVIDENCE_FILES
     missing = sorted(selected - tracked)
     if missing:
