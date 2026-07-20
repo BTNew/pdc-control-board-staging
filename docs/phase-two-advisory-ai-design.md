@@ -36,7 +36,7 @@ Raw email/file contents, credentials, access tokens, notes beyond the explicit r
 10. `BAY_OVERLAP`: two active bookings overlap in the same stage/bay.
 11. `UNSCHEDULED_REQUIRED_STAGE`: outstanding required physical work has no active booking, but only when booking coverage is authoritative and the vehicle identity is unambiguous.
 
-Rules fail closed: ambiguous identities produce data-quality advisories and suppress identity-dependent scheduling advice. Missing/invalid timestamps never become “now”. Retained planner fallback data is never advisory authority. Snapshot trust is invalidated before revision reloads, during debounce/in-flight refresh, after permission or network failure, and on service teardown; only a successful authenticated response with a revision restores trust. Booking rules are omitted whenever that trusted snapshot is unavailable, and the UI discloses the coverage limitation and the accepted shared revision.
+Rules fail closed: ambiguous identities produce data-quality advisories and suppress identity-dependent scheduling advice. Missing/invalid timestamps never become “now”. Retained planner fallback data is never advisory authority. Snapshot trust is invalidated before revision reloads, during debounce/in-flight refresh, after permission or network failure, and on service teardown; only a successful revision-bearing response requested with an individual session access token restores trust. Teardown increments a lifecycle generation, purges retained snapshot data and prevents late in-flight responses or callbacks from restoring prior-session data. Booking rules are omitted whenever that trusted snapshot is unavailable, and the UI discloses the coverage limitation and the accepted shared revision.
 
 ## Output contract
 
@@ -68,7 +68,7 @@ The AI Intake Review screen receives a separate “Phase 2 · Board advisor” s
 - Pure-rule tests use a fixed clock and frozen inputs.
 - Tests prove deterministic ordering, identity fail-closed behavior and no input mutation.
 - Static authority tests prohibit storage writes, network APIs, mutation RPC names and mutating UI controls in the advisor module/surface.
-- Data-service tests prove retained snapshots are rejected after `401/403`, while a newer revision is pending and after teardown.
+- Data-service tests prove retained snapshots are rejected after `401/403`, while a newer revision is pending and after teardown; missing-token and late post-destroy responses cannot restore trust or callbacks.
 - Auth-lock tests prove prior-session advisory business data is removed from the DOM.
 - Browser tests use only synthetic fixture data and block non-local network requests.
 - Aggregate repository tests, syntax checks and independent security/functional review are required before the branch reaches its review stop point.

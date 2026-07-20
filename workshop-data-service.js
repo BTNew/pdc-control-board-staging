@@ -150,6 +150,8 @@ function createWorkshopDataService(options) {
   let pendingReloadTimer = null;
   let reloadInFlight = false;
   let trailingReloadRequested = false;
+  let destroyed = false;
+  let lifecycleGeneration = 0;
 
   function setState(next) {
     if (state === next) return;
@@ -162,9 +164,9 @@ function createWorkshopDataService(options) {
   }
 
   async function loadSnapshot(reason) {
-    if (!enabled) {
+    if (!enabled || destroyed) {
       snapshotTrusted = false;
-      setState(WORKSHOP_CONNECTION_STATE.DISABLED);
+      if (!destroyed) setState(WORKSHOP_CONNECTION_STATE.DISABLED);
       return null;
     }
     if (reloadInFlight) {
@@ -173,10 +175,19 @@ function createWorkshopDataService(options) {
       return lastSnapshot;
     }
     snapshotTrusted = false;
+    const token = getAccessToken();
+    if (!token) {
+      // A publishable-key response is not positive authenticated authority.
+      // Keep ordinary planner fallback but never request or trust advisory
+      // data until an individual session access token is present.
+      setState(WORKSHOP_CONNECTION_STATE.CONNECTED_READ_ONLY);
+      return lastSnapshot;
+    }
+    const generation = lifecycleGeneration;
     reloadInFlight = true;
     try {
-      const token = getAccessToken();
       const result = await client.rpc(token, 'get_workshop_snapshot', {});
+      if (destroyed || generation !== lifecycleGeneration) return null;
       if (!result.ok) {
         if (result.status === 404) {
           setState(WORKSHOP_CONNECTION_STATE.INCOMPATIBLE);
@@ -197,11 +208,12 @@ function createWorkshopDataService(options) {
       onSnapshot(lastSnapshot, reason || 'load');
       return lastSnapshot;
     } catch (_err) {
+      if (destroyed || generation !== lifecycleGeneration) return null;
       setState(WORKSHOP_CONNECTION_STATE.OFFLINE_READ_ONLY);
       return lastSnapshot;
     } finally {
       reloadInFlight = false;
-      if (trailingReloadRequested) {
+      if (!destroyed && generation === lifecycleGeneration && trailingReloadRequested) {
         trailingReloadRequested = false;
         // A newer change arrived while we were mid-fetch; reload again so we
         // never settle on a stale intermediate snapshot.
@@ -211,7 +223,7 @@ function createWorkshopDataService(options) {
   }
 
   function scheduleSnapshotReload(reason) {
-    if (!enabled) return;
+    if (!enabled || destroyed) return;
     // A newer revision is known to exist, so the retained snapshot is not
     // current during debounce or reload and must not feed advisory output.
     snapshotTrusted = false;
@@ -232,23 +244,27 @@ function createWorkshopDataService(options) {
   }
 
   function onReconnect() {
+    if (destroyed) return;
     setState(WORKSHOP_CONNECTION_STATE.RECONNECTING);
     loadSnapshot('reconnect');
   }
 
   function onVisibilityReturn() {
-    if (!enabled) return;
+    if (!enabled || destroyed) return;
     loadSnapshot('visibility_return');
   }
 
   function onTokenRefresh() {
-    if (!enabled) return;
+    if (!enabled || destroyed) return;
     loadSnapshot('token_refresh');
   }
 
   async function mutate(rpcName, params) {
     if (!WORKSHOP_MUTATION_RPCS.includes(rpcName)) {
       throw new Error(`workshop-data-service: unknown mutation RPC ${rpcName}`);
+    }
+    if (destroyed) {
+      return { ok: false, error: 'destroyed', state };
     }
     if (!enabled) {
       throw new Error('workshop-data-service: shared mode is not enabled; no writable operational path exists');
@@ -290,7 +306,13 @@ function createWorkshopDataService(options) {
   }
 
   function destroy() {
+    if (destroyed) return;
+    destroyed = true;
+    lifecycleGeneration += 1;
     snapshotTrusted = false;
+    lastSnapshot = null;
+    lastRevision = null;
+    trailingReloadRequested = false;
     if (pendingReloadTimer) {
       clearScheduledTimeout(pendingReloadTimer);
       pendingReloadTimer = null;
@@ -306,6 +328,7 @@ function createWorkshopDataService(options) {
     // reconnecting, or superseded snapshots.
     getTrustedSnapshot: () => (
       snapshotTrusted
+      && !destroyed
       && !pendingReloadTimer
       && !reloadInFlight
       && !trailingReloadRequested
