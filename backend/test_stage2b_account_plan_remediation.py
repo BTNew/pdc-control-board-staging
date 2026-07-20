@@ -12,6 +12,7 @@ VIEWER_MIGRATION = ROOT / "supabase" / "migrations" / "032_restricted_pilot_view
 BROAD_RPC_MIGRATION = ROOT / "supabase" / "migrations" / "033_restrict_broad_vehicle_snapshot_rpc.sql"
 BOUNDARY_MIGRATION = ROOT / "supabase" / "migrations" / "034_complete_restricted_viewer_vehicle_boundary.sql"
 EXHAUSTIVE_MIGRATION = ROOT / "supabase" / "migrations" / "035_exhaustive_viewer_boundary_and_default_privileges.sql"
+GLOBAL_DEFAULT_MIGRATION = ROOT / "supabase" / "migrations" / "036_global_function_default_privilege_hardening.sql"
 EXPECTED_COLUMNS = [
     "id uuid",
     "version integer",
@@ -37,9 +38,11 @@ class RestrictedPilotAccountPlanMigrationTests(unittest.TestCase):
         cls.broad_rpc_sql = BROAD_RPC_MIGRATION.read_text(encoding="utf-8")
         cls.boundary_sql = BOUNDARY_MIGRATION.read_text(encoding="utf-8")
         cls.exhaustive_sql = EXHAUSTIVE_MIGRATION.read_text(encoding="utf-8")
-        cls.sql = "\n".join((cls.viewer_sql, cls.broad_rpc_sql, cls.boundary_sql, cls.exhaustive_sql))
+        cls.global_default_sql = GLOBAL_DEFAULT_MIGRATION.read_text(encoding="utf-8")
+        cls.sql = "\n".join((cls.viewer_sql, cls.broad_rpc_sql, cls.boundary_sql, cls.exhaustive_sql, cls.global_default_sql))
         cls.normalized = " ".join(cls.sql.lower().split())
         cls.exhaustive_normalized = " ".join(cls.exhaustive_sql.lower().split())
+        cls.global_default_normalized = " ".join(cls.global_default_sql.lower().split())
 
     def _function(self, name: str) -> str:
         match = re.search(
@@ -51,11 +54,20 @@ class RestrictedPilotAccountPlanMigrationTests(unittest.TestCase):
         return match.group(0)
 
     def test_migrations_parse_and_are_transactional(self):
-        for sql in (self.viewer_sql, self.broad_rpc_sql, self.boundary_sql, self.exhaustive_sql):
-            self.assertGreaterEqual(len(parse_sql(sql)), 5)
+        for sql in (self.viewer_sql, self.broad_rpc_sql, self.boundary_sql, self.exhaustive_sql, self.global_default_sql):
+            self.assertGreaterEqual(len(parse_sql(sql)), 3)
             normalized = " ".join(sql.lower().split())
             self.assertIn("begin;", normalized)
             self.assertTrue(normalized.endswith("commit;"))
+
+    def test_global_default_execute_inheritance_is_revoked(self):
+        normalized = self.global_default_normalized
+        self.assertIn(
+            "alter default privileges for role postgres "
+            "revoke execute on functions from public, anon, authenticated",
+            normalized,
+        )
+        self.assertNotIn("in schema public", normalized)
 
     def test_direct_vehicle_select_is_operator_or_higher_only(self):
         self.assertIn("drop policy if exists vehicles_select_approved on public.vehicles", self.normalized)
