@@ -192,6 +192,7 @@ function createWorkshopDataService(options) {
         if (result.status === 404) {
           setState(WORKSHOP_CONNECTION_STATE.INCOMPATIBLE);
         } else if (result.status === 401 || result.status === 403) {
+          snapshotTrusted = false;
           setState(WORKSHOP_CONNECTION_STATE.CONNECTED_READ_ONLY);
         } else {
           setState(WORKSHOP_CONNECTION_STATE.OFFLINE_READ_ONLY);
