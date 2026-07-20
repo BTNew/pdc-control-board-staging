@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.07.18.02-stage2a-final-approval';
+const APP_VERSION = '2026.07.20.01-shared-navision-backend-store';
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
 // constant intentionally names only the production ref, never the
@@ -52,6 +52,10 @@ const TOYOTA_MATCHES = window.VEHICLE_TRACKING_DATA?.toyotaMatches || {};
 const AUTOCARE_DESPATCH_STATUS = 'AUTOCARE DESPATCHED';
 const AUTOCARE_RESULTS_KEY = 'vehicleTrackingCoreNavisionOnlyAutocareDispatch:v1';
 const NAVISION_IMPORT_RESULTS_KEY = 'vehicleTrackingCoreNavisionOnlyImport:v1';
+const NAVISION_LOCAL_STORAGE_SAFE_BUDGET_BYTES = 4 * 1024 * 1024;
+const NAVISION_IMPORT_SUMMARY_VERSION = 2;
+const NAVISION_IMPORT_SUMMARY_MAX_CHARS = 16 * 1024;
+const NAVISION_IMPORT_TOO_LARGE_MESSAGE = 'Import too large—nothing saved';
 const CRM_BACKUP_TYPE = 'vehicle-tracking-core-backup';
 const CRM_BACKUP_VERSION = 1;
 const CRM_BACKUP_STORAGE_KEYS = [
@@ -1128,6 +1132,135 @@ function saveJson(key, value) {
   localStorage.setItem(key, JSON.stringify(value));
 }
 
+function sha256Hex(value = '') {
+  const bytes = [];
+  for (const character of String(value)) {
+    const code = character.codePointAt(0);
+    if (code <= 0x7f) bytes.push(code);
+    else if (code <= 0x7ff) bytes.push(0xc0 | (code >>> 6), 0x80 | (code & 63));
+    else if (code <= 0xffff) bytes.push(0xe0 | (code >>> 12), 0x80 | ((code >>> 6) & 63), 0x80 | (code & 63));
+    else bytes.push(0xf0 | (code >>> 18), 0x80 | ((code >>> 12) & 63), 0x80 | ((code >>> 6) & 63), 0x80 | (code & 63));
+  }
+  const bitLength = bytes.length * 8;
+  bytes.push(0x80);
+  while ((bytes.length % 64) !== 56) bytes.push(0);
+  const high = Math.floor(bitLength / 0x100000000);
+  const low = bitLength >>> 0;
+  for (let shift = 24; shift >= 0; shift -= 8) bytes.push((high >>> shift) & 255);
+  for (let shift = 24; shift >= 0; shift -= 8) bytes.push((low >>> shift) & 255);
+  const k = [
+    0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5,0x3956c25b,0x59f111f1,0x923f82a4,0xab1c5ed5,
+    0xd807aa98,0x12835b01,0x243185be,0x550c7dc3,0x72be5d74,0x80deb1fe,0x9bdc06a7,0xc19bf174,
+    0xe49b69c1,0xefbe4786,0x0fc19dc6,0x240ca1cc,0x2de92c6f,0x4a7484aa,0x5cb0a9dc,0x76f988da,
+    0x983e5152,0xa831c66d,0xb00327c8,0xbf597fc7,0xc6e00bf3,0xd5a79147,0x06ca6351,0x14292967,
+    0x27b70a85,0x2e1b2138,0x4d2c6dfc,0x53380d13,0x650a7354,0x766a0abb,0x81c2c92e,0x92722c85,
+    0xa2bfe8a1,0xa81a664b,0xc24b8b70,0xc76c51a3,0xd192e819,0xd6990624,0xf40e3585,0x106aa070,
+    0x19a4c116,0x1e376c08,0x2748774c,0x34b0bcb5,0x391c0cb3,0x4ed8aa4a,0x5b9cca4f,0x682e6ff3,
+    0x748f82ee,0x78a5636f,0x84c87814,0x8cc70208,0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2,
+  ];
+  const h = [0x6a09e667,0xbb67ae85,0x3c6ef372,0xa54ff53a,0x510e527f,0x9b05688c,0x1f83d9ab,0x5be0cd19];
+  const rotate = (word, bits) => (word >>> bits) | (word << (32 - bits));
+  for (let offset = 0; offset < bytes.length; offset += 64) {
+    const w = new Array(64);
+    for (let i = 0; i < 16; i += 1) {
+      const p = offset + i * 4;
+      w[i] = ((bytes[p] << 24) | (bytes[p + 1] << 16) | (bytes[p + 2] << 8) | bytes[p + 3]) >>> 0;
+    }
+    for (let i = 16; i < 64; i += 1) {
+      const s0 = rotate(w[i - 15], 7) ^ rotate(w[i - 15], 18) ^ (w[i - 15] >>> 3);
+      const s1 = rotate(w[i - 2], 17) ^ rotate(w[i - 2], 19) ^ (w[i - 2] >>> 10);
+      w[i] = (w[i - 16] + s0 + w[i - 7] + s1) >>> 0;
+    }
+    let [a,b,c,d,e,f,g,hh] = h;
+    for (let i = 0; i < 64; i += 1) {
+      const s1 = rotate(e, 6) ^ rotate(e, 11) ^ rotate(e, 25);
+      const ch = (e & f) ^ ((~e) & g);
+      const t1 = (hh + s1 + ch + k[i] + w[i]) >>> 0;
+      const s0 = rotate(a, 2) ^ rotate(a, 13) ^ rotate(a, 22);
+      const maj = (a & b) ^ (a & c) ^ (b & c);
+      const t2 = (s0 + maj) >>> 0;
+      hh = g; g = f; f = e; e = (d + t1) >>> 0; d = c; c = b; b = a; a = (t1 + t2) >>> 0;
+    }
+    h[0]=(h[0]+a)>>>0; h[1]=(h[1]+b)>>>0; h[2]=(h[2]+c)>>>0; h[3]=(h[3]+d)>>>0;
+    h[4]=(h[4]+e)>>>0; h[5]=(h[5]+f)>>>0; h[6]=(h[6]+g)>>>0; h[7]=(h[7]+hh)>>>0;
+  }
+  return h.map(word => word.toString(16).padStart(8, '0')).join('');
+}
+
+function navisionPayloadFingerprint(text = '') {
+  return sha256Hex(String(text || ''));
+}
+
+function localStorageQuotaBytes(key, value) {
+  return 2 * (String(key || '').length + String(value ?? '').length);
+}
+
+function currentLocalStorageValues() {
+  const values = new Map();
+  for (let index = 0; index < localStorage.length; index += 1) {
+    const key = localStorage.key(index);
+    if (key !== null) values.set(key, localStorage.getItem(key));
+  }
+  return values;
+}
+
+function boundedNavisionImportSummary(result = {}) {
+  const parsedVehicles = result?.parsed?.vehicles || [];
+  const allWarnings = (result?.skipped || result?.parsed?.warnings || [])
+    .filter(Boolean).map(value => String(value));
+  const warnings = allWarnings.slice(0, 50).map(value => value.slice(0, 200));
+  const counts = {
+    rows: parsedVehicles.length,
+    added: result?.added?.length || 0,
+    updated: result?.updated?.length || 0,
+    unchanged: result?.unchanged?.length || 0,
+    stockNumberUpdates: result?.stockNumberUpdates?.length || 0,
+    restored: result?.restored?.length || 0,
+    missingFromUpload: result?.missingFromUpload?.length || 0,
+    removedMissing: result?.removedMissing?.length || 0,
+    warnings: allWarnings.length,
+  };
+  const summary = {
+    summaryVersion: NAVISION_IMPORT_SUMMARY_VERSION,
+    fileName: String(result.fileName || app.navisionFileName || 'Pasted text').slice(0, 255),
+    importedAt: String(result.importedAt || '').slice(0, 64),
+    appliedAt: String(result.appliedAt || '').slice(0, 64),
+    fullRefresh: result.fullRefresh !== false,
+    confirmed: result.confirmed === true,
+    counts,
+    sourceFingerprint: /^[a-f0-9]{64}$/i.test(String(result.sourceFingerprint || ''))
+      ? String(result.sourceFingerprint).toLowerCase()
+      : sha256Hex(String(result.sourceFingerprint || '')),
+    vehiclePayloadSha256: sha256Hex(JSON.stringify(parsedVehicles)),
+    warningSha256: sha256Hex(JSON.stringify(allWarnings)),
+    parsed: { vehicleCount: counts.rows, warnings },
+    warningPreviewTruncated: allWarnings.length > warnings.length,
+  };
+  while (JSON.stringify(summary).length > NAVISION_IMPORT_SUMMARY_MAX_CHARS && summary.parsed.warnings.length) {
+    summary.parsed.warnings.pop();
+    summary.warningPreviewTruncated = true;
+  }
+  if (JSON.stringify(summary).length > NAVISION_IMPORT_SUMMARY_MAX_CHARS) {
+    summary.parsed.warnings = [];
+    summary.warningPreviewTruncated = true;
+  }
+  if (JSON.stringify(summary).length > NAVISION_IMPORT_SUMMARY_MAX_CHARS) {
+    const minimal = {
+      summaryVersion: NAVISION_IMPORT_SUMMARY_VERSION,
+      counts,
+      sourceFingerprint: summary.sourceFingerprint,
+      vehiclePayloadSha256: summary.vehiclePayloadSha256,
+      warningSha256: summary.warningSha256,
+      warningPreviewTruncated: true,
+    };
+    if (JSON.stringify(minimal).length > NAVISION_IMPORT_SUMMARY_MAX_CHARS) {
+      throw new Error('Navision import summary exceeds hard serialized ceiling');
+    }
+    return minimal;
+  }
+  return summary;
+}
+
 let storageTransactionDepth = 0;
 
 function storageTransactionJournalStores() {
@@ -1156,6 +1289,7 @@ function recoverInterruptedStorageTransaction() {
     try { store.removeItem(STORAGE_TRANSACTION_JOURNAL_KEY); } catch {}
   }
   if (!journal) return false;
+  Object.keys(journal.snapshot).forEach(key => localStorage.removeItem(key));
   Object.entries(journal.snapshot).forEach(([key, entry]) => {
     if (entry?.exists) localStorage.setItem(key, String(entry.value ?? ''));
     else localStorage.removeItem(key);
@@ -1164,16 +1298,27 @@ function recoverInterruptedStorageTransaction() {
   return true;
 }
 
-function runStorageTransaction(label = 'Tracker update', keys = [], operation = () => undefined) {
-  if (storageTransactionDepth > 0) return operation();
+function prepareStorageTransaction(label = 'Tracker update', keys = [], startedAt = nowIsoString()) {
   const touchedKeys = [...new Set((Array.isArray(keys) ? keys : []).map(key => String(key || '').trim()).filter(Boolean))]
     .filter(key => key !== STORAGE_TRANSACTION_JOURNAL_KEY);
   const snapshot = Object.fromEntries(touchedKeys.map(key => {
     const value = localStorage.getItem(key);
     return [key, { exists: value !== null, value }];
   }));
-  const journal = { version: 1, label, startedAt: nowIsoString(), snapshot };
-  const serializedJournal = JSON.stringify(journal);
+  const journal = { version: 1, label, startedAt, snapshot };
+  return { label, touchedKeys, snapshot, journal, serializedJournal: JSON.stringify(journal) };
+}
+
+function runStorageTransaction(label = 'Tracker update', keys = [], operation = () => undefined, prepared = null) {
+  if (storageTransactionDepth > 0) return operation();
+  const transaction = prepared || prepareStorageTransaction(label, keys);
+  const { touchedKeys, snapshot, serializedJournal } = transaction;
+  const snapshotStillCurrent = touchedKeys.every(key => {
+    const value = localStorage.getItem(key);
+    const entry = snapshot[key];
+    return entry?.exists ? value === entry.value : value === null;
+  });
+  if (!snapshotStillCurrent) throw new Error(`${label} was cancelled because browser storage changed after the safety check.`);
   let journalStore = null;
   for (const store of storageTransactionJournalStores()) {
     try {
@@ -1191,6 +1336,7 @@ function runStorageTransaction(label = 'Tracker update', keys = [], operation = 
     journalStore.removeItem(STORAGE_TRANSACTION_JOURNAL_KEY);
     return result;
   } catch (error) {
+    touchedKeys.forEach(key => localStorage.removeItem(key));
     Object.entries(snapshot).forEach(([key, entry]) => {
       if (entry.exists) localStorage.setItem(key, entry.value);
       else localStorage.removeItem(key);
@@ -1677,6 +1823,7 @@ const app = {
   navisionImport: loadJson(NAVISION_IMPORT_RESULTS_KEY, null),
   pendingNavisionImport: null,
   navisionFileName: '',
+  rejectedNavisionFingerprint: '',
 };
 
 
@@ -2646,6 +2793,7 @@ function bindNav() {
   on($('#autocare-upload'), 'change', handleAutocareSelect);
   on($('#navision-upload'), 'change', handleNavisionFileSelect);
   on($('#navision-paste'), 'input', updateNavisionImportButton);
+  on($('#export-local-navision'), 'click', exportLocalNavisionDataset);
   on($('#dashboard-navision-paste'), 'input', updateDashboardNavisionPasteButtons);
   on($('#dashboard-import-navision'), 'click', importDashboardNavisionPaste);
   on($('#dashboard-clear-navision'), 'click', clearDashboardNavisionPaste);
@@ -13019,7 +13167,6 @@ function clearNavisionImport() {
   app.navisionFileName = '';
   app.navisionImport = null;
   app.pendingNavisionImport = null;
-  saveJson(NAVISION_IMPORT_RESULTS_KEY, null);
   updateNavisionImportButton();
   const summary = $('#navision-status-list');
   if (summary) {
@@ -13958,7 +14105,8 @@ function buildNavisionImportPlan(parsed) {
 function importNavisionVehicles() {
   const input = $('#navision-paste');
   const text = input?.value || '';
-  const parsed = parseNavisionInput(text, navisionImportOptionsFromDom());
+  const options = navisionImportOptionsFromDom();
+  const parsed = parseNavisionInput(text, options);
   if (!parsed.vehicles.length) {
     app.pendingNavisionImport = null;
     renderNavisionSummary({ parsed, added: [], updated: [], unchanged: [], stockNumberUpdates: [], restored: [], skipped: parsed.warnings });
@@ -13966,6 +14114,7 @@ function importNavisionVehicles() {
   }
 
   const result = buildNavisionImportPlan(parsed);
+  result.sourceFingerprint = navisionPayloadFingerprint(text, options);
   if (result.requiresConfirmation) {
     app.pendingNavisionImport = result;
     renderNavisionPendingReview(result);
@@ -14003,26 +14152,33 @@ function cancelPendingNavisionImport() {
   updateNavisionImportButton();
 }
 
-function applyNavisionImportPlan(plan, selectedUpdateKeys = null) {
-  try {
-    return runStorageTransaction('Navision import', trackerTransactionKeys(), () => applyNavisionImportPlanUnsafe(plan, selectedUpdateKeys));
-  } catch (error) {
-    app.data = buildVehicleData();
-    app.pendingNavisionImport = plan;
-    renderAll();
-    window.alert(error.message || String(error));
-    return null;
-  }
+function navisionRemovalAuditEntry(vehicle, action, details, at, index) {
+  return {
+    id: `${Date.parse(at) || Date.now()}-nav-${String(index).padStart(4, '0')}-${sha256Hex(vehicleKey(vehicle) || JSON.stringify(vehicle)).slice(0, 8)}`,
+    at,
+    by: details.by || getCurrentOperatorName(),
+    role: details.role || getCurrentOperatorRole(),
+    action,
+    vehicleKey: vehicleKey(vehicle),
+    stock: displayStockNumber(vehicle) || vehicle.stock || '',
+    order: vehicle.order || '',
+    customer: vehicle.client || vehicle.toyotaCustomer || '',
+    vehicle: displayVehicle(vehicle) || '',
+    details,
+  };
 }
 
-function applyNavisionImportPlanUnsafe(plan, selectedUpdateKeys = null) {
+function buildNavisionImportCommit(plan, selectedUpdateKeys = null, appliedAt = nowIsoString()) {
   const parsed = plan.parsed;
-  const added = loadAddedVehicles();
-  const edits = loadVehicleEdits();
-  let deletedRecords = deletedVehicleRecords();
+  let added = loadAddedVehicles().map(vehicle => ({ ...vehicle }));
+  const edits = JSON.parse(JSON.stringify(loadVehicleEdits()));
+  let deletedRecords = deletedVehicleRecords().map(record => JSON.parse(JSON.stringify(record)));
+  const poTasks = JSON.parse(JSON.stringify(loadPoTasks()));
+  const poFiles = JSON.parse(JSON.stringify(loadPoFiles()));
+  const auditLog = JSON.parse(JSON.stringify(loadAuditLog()));
   const activeBeforeImport = app.data.slice();
   const removeMissingChecked = Boolean(plan.removeMissingChecked);
-  const result = { ...plan, added: [], updated: [], unchanged: [], stockNumberUpdates: [], restored: [], missingFromUpload: [], removedMissing: [], confirmed: true, appliedAt: new Date().toISOString() };
+  const result = { ...plan, added: [], updated: [], unchanged: [], stockNumberUpdates: [], restored: [], missingFromUpload: [], removedMissing: [], confirmed: true, appliedAt };
 
   parsed.vehicles.forEach(incoming => {
     const deletedRecord = deletedRecordForNavision(deletedRecords, incoming);
@@ -14033,7 +14189,6 @@ function applyNavisionImportPlanUnsafe(plan, selectedUpdateKeys = null) {
     }
     const existing = findVehicleForNavision(incoming);
     const keys = navisionMatchKeys(incoming).concat(navisionMatchKeys(existing));
-
     if (existing) {
       const existingKey = vehicleKey(existing) || vehicleKey(incoming);
       const incomingHasStock = incoming.stock && !isBlankStock(incoming.stock);
@@ -14042,17 +14197,13 @@ function applyNavisionImportPlanUnsafe(plan, selectedUpdateKeys = null) {
       const payload = navisionEditPayload(incoming, existing);
       const changes = navisionFieldChanges(existing, payload);
       const row = { incoming, existing: { ...existing }, stockChanged, payload, changes, key: existingKey };
-
       if (selectedUpdateKeys && !selectedUpdateKeys.has(existingKey)) {
         result.unchanged.push({ ...row, skippedByUser: true });
         return;
       }
-
       if (stockChanged) result.stockNumberUpdates.push(row);
       const addedIndex = findAddedVehicleIndex(added, incoming, existing);
-      if (addedIndex >= 0) {
-        added[addedIndex] = { ...added[addedIndex], ...payload, id: added[addedIndex].id || payload.id };
-      }
+      if (addedIndex >= 0) added[addedIndex] = { ...added[addedIndex], ...payload, id: added[addedIndex].id || payload.id };
       const editKeys = new Set(keys.concat([vehicleKey(existing), vehicleKey(incoming)]).filter(Boolean));
       editKeys.forEach(key => { edits[key] = { ...(edits[key] || {}), ...payload }; });
       if (changes.length || stockChanged) result.updated.push(row);
@@ -14065,19 +14216,129 @@ function applyNavisionImportPlanUnsafe(plan, selectedUpdateKeys = null) {
 
   const missingFromUpload = vehiclesMissingFromNavisionImport(activeBeforeImport, parsed.vehicles, { fullRefresh: plan.fullRefresh !== false });
   result.missingFromUpload = missingFromUpload;
-
-  saveAddedVehicles(added);
-  saveJson(EDITS_KEY, edits);
-  saveDeletedVehicleRecords(deletedRecords);
-
+  let removalKeysChanged = false;
   if (removeMissingChecked && missingFromUpload.length) {
-    result.removedMissing = removeVehiclesFromTracker(missingFromUpload, {
-      deletionType: 'navision-missing',
-      reason: 'No longer present in the latest full Navision upload',
+    removalKeysChanged = true;
+    const existingRecordsByKey = new Map();
+    deletedRecords.forEach(record => {
+      [record.key].concat(record.keys || []).filter(Boolean).forEach(key => existingRecordsByKey.set(String(key), record));
     });
+    const exactRemovalKeys = new Set();
+    const operator = getCurrentOperatorName();
+    const role = getCurrentOperatorRole();
+    const reason = 'No longer present in the latest full Navision upload';
+    missingFromUpload.forEach((vehicle, index) => {
+      const exactKeys = [vehicleDeleteKey(vehicle), vehicleKey(vehicle), vehicle.stock, vehicle.batch, vehicle.order, vehicle.id]
+        .map(value => String(value || '').trim()).filter(Boolean);
+      const vin = normalizeVin(vehicle.vin || vehicle.fullVin || vehicle.frameVin || vehicle.autocareVin || '');
+      const allDeleteKeys = [...new Set(exactKeys.concat(vin ? [vin] : []))];
+      const key = exactKeys[0] || vin;
+      exactKeys.forEach(value => exactRemovalKeys.add(value));
+      allDeleteKeys.forEach(value => {
+        delete edits[value];
+        delete poTasks[value];
+        delete poFiles[value];
+      });
+      if (key && !allDeleteKeys.some(value => existingRecordsByKey.has(value))) {
+        const record = {
+          key,
+          keys: allDeleteKeys,
+          deletedAt: appliedAt,
+          deletedBy: operator || 'Unknown operator',
+          deletedRole: role || 'Unassigned role',
+          reason,
+          deletionType: 'navision-missing',
+          vehicle: JSON.parse(JSON.stringify(vehicle)),
+        };
+        deletedRecords.unshift(record);
+        allDeleteKeys.forEach(value => existingRecordsByKey.set(value, record));
+        auditLog.unshift(navisionRemovalAuditEntry(vehicle, 'Retired from Navision back end', {
+          by: operator || 'Unknown operator', role: role || 'Unassigned role', reason,
+        }, appliedAt, index));
+      }
+    });
+    added = added.filter(vehicle => {
+      const keys = [vehicleDeleteKey(vehicle), vehicleKey(vehicle), vehicle.stock, vehicle.batch, vehicle.order, vehicle.id]
+        .map(value => String(value || '').trim()).filter(Boolean);
+      return !keys.some(key => exactRemovalKeys.has(key));
+    });
+    result.removedMissing = missingFromUpload.slice();
     result.missingFromUpload = [];
   }
 
+  const workFileRows = parsed.vehicles.filter(vehicle => vehicle.pdcImportMode === 'work-file');
+  const healthUpdates = workFileRows.length ? {
+    lastWorkImportAt: appliedAt,
+    lastWorkImportType: 'Job card / work file',
+    lastWorkImportRows: workFileRows.length,
+  } : {
+    lastNavisionImportAt: appliedAt,
+    lastNavisionRows: parsed.vehicles.length,
+    lastNavisionAdded: result.added.length,
+    lastNavisionUpdated: result.updated.length,
+    lastNavisionWarnings: (result.skipped || parsed.warnings || []).length,
+  };
+  const finalValues = new Map([
+    [ADDED_KEY, JSON.stringify(added)],
+    [EDITS_KEY, JSON.stringify(edits)],
+    [DELETED_KEY, JSON.stringify(deletedRecords)],
+    [NAVISION_IMPORT_RESULTS_KEY, JSON.stringify(boundedNavisionImportSummary(result))],
+    [OPERATIONAL_HEALTH_KEY, JSON.stringify({ ...loadOperationalHealth(), ...healthUpdates })],
+  ]);
+  if (removalKeysChanged) {
+    finalValues.set(PO_TASKS_KEY, JSON.stringify(poTasks));
+    finalValues.set(PO_FILES_KEY, JSON.stringify(poFiles));
+    finalValues.set(AUDIT_LOG_KEY, JSON.stringify(auditLog.slice(0, 1500)));
+  }
+  return { result, finalValues, workFileRows };
+}
+
+function projectNavisionImportPeakStorage(plan, selectedUpdateKeys = null) {
+  const commit = buildNavisionImportCommit(plan, selectedUpdateKeys);
+  const transaction = prepareStorageTransaction('Navision import', [...commit.finalValues.keys()], commit.result.appliedAt);
+  const current = currentLocalStorageValues();
+  const currentBytes = [...current.entries()].reduce((total, [key, value]) => total + localStorageQuotaBytes(key, value), 0);
+  const existingJournal = current.get(STORAGE_TRANSACTION_JOURNAL_KEY);
+  const existingJournalBytes = existingJournal === undefined ? 0 : localStorageQuotaBytes(STORAGE_TRANSACTION_JOURNAL_KEY, existingJournal);
+  const journalBytes = localStorageQuotaBytes(STORAGE_TRANSACTION_JOURNAL_KEY, transaction.serializedJournal);
+  let runningBytes = currentBytes - existingJournalBytes + journalBytes;
+  let projectedPeakBytes = Math.max(currentBytes, runningBytes);
+  const writeOrder = [...commit.finalValues.entries()].map(([key, value], index) => {
+    const previous = current.get(key);
+    const oldBytes = previous === undefined ? 0 : localStorageQuotaBytes(key, previous);
+    const newBytes = localStorageQuotaBytes(key, value);
+    return { key, value, index, deltaBytes: newBytes - oldBytes, oldBytes, newBytes };
+  }).sort((a, b) => a.deltaBytes - b.deltaBytes || a.index - b.index);
+  writeOrder.forEach(write => {
+    runningBytes += write.deltaBytes;
+    projectedPeakBytes = Math.max(projectedPeakBytes, runningBytes);
+  });
+  const summaryValue = commit.finalValues.get(NAVISION_IMPORT_RESULTS_KEY) || '';
+  return {
+    allowed: projectedPeakBytes <= NAVISION_LOCAL_STORAGE_SAFE_BUDGET_BYTES,
+    budgetBytes: NAVISION_LOCAL_STORAGE_SAFE_BUDGET_BYTES,
+    projectedPeakBytes,
+    currentBytes,
+    journalBytes,
+    finalBytes: runningBytes - journalBytes,
+    summaryBytes: localStorageQuotaBytes(NAVISION_IMPORT_RESULTS_KEY, summaryValue),
+    writeOrder,
+    commit,
+    transaction,
+  };
+}
+
+function renderNavisionQuotaRejection(projection) {
+  const host = $('#navision-status-list');
+  if (host) {
+    host.innerHTML = `<div class="summary-row error"><strong>${NAVISION_IMPORT_TOO_LARGE_MESSAGE}</strong><span>The projected peak is ${projection.projectedPeakBytes.toLocaleString('en-AU')} bytes, above the ${projection.budgetBytes.toLocaleString('en-AU')}-byte safety limit. The existing local Navision dataset was not changed. Select a different file or export the current dataset.</span></div>`;
+  }
+  const button = $('#import-navision');
+  if (button) button.disabled = true;
+}
+
+function finalizeNavisionImportCommit(commit) {
+  const { result, workFileRows } = commit;
   app.quickFilter = 'incoming';
   app.pmbSubFilter = '';
   app.columnFilters = { sales: '', production: '', status: '', jita: '' };
@@ -14086,33 +14347,49 @@ function applyNavisionImportPlanUnsafe(plan, selectedUpdateKeys = null) {
   app.data = buildVehicleData();
   app.selectedRows.clear();
   app.pendingNavisionImport = null;
+  app.rejectedNavisionFingerprint = '';
+  app.rejectedNavisionProjection = null;
   populateFilters();
   app.navisionImport = result;
-  saveJson(NAVISION_IMPORT_RESULTS_KEY, result);
-  const workFileRows = parsed.vehicles.filter(vehicle => vehicle.pdcImportMode === 'work-file');
-  if (workFileRows.length) {
-    updateOperationalHealth({
-      lastWorkImportAt: result.appliedAt,
-      lastWorkImportType: 'Job card / work file',
-      lastWorkImportRows: workFileRows.length,
-    });
-  } else {
-    updateOperationalHealth({
-      lastNavisionImportAt: result.appliedAt,
-      lastNavisionRows: parsed.vehicles.length,
-      lastNavisionAdded: result.added.length,
-      lastNavisionUpdated: result.updated.length,
-      lastNavisionWarnings: (result.skipped || parsed.warnings || []).length,
-    });
-  }
+  renderOperationalHealthSummary();
   renderAll();
   updateNavisionSidebarMeta();
   renderNavisionSummary(result);
   updateNavisionControlStats(result);
   updateNavisionImportButton();
-  const workFileKeys = workFileRows
-    .map(vehicle => vehicleKey(findVehicleForNavision(vehicle) || vehicle));
+  const workFileKeys = workFileRows.map(vehicle => vehicleKey(findVehicleForNavision(vehicle) || vehicle));
   if (workFileKeys.length) focusVehiclesAfterWorkImport(workFileKeys);
+}
+
+function applyNavisionImportPlan(plan, selectedUpdateKeys = null) {
+  const fingerprint = plan?.sourceFingerprint || sha256Hex(JSON.stringify(plan?.parsed?.vehicles || []));
+  if (app.rejectedNavisionFingerprint && app.rejectedNavisionFingerprint === fingerprint) {
+    renderNavisionQuotaRejection(app.rejectedNavisionProjection || { projectedPeakBytes: 0, budgetBytes: NAVISION_LOCAL_STORAGE_SAFE_BUDGET_BYTES });
+    window.alert(NAVISION_IMPORT_TOO_LARGE_MESSAGE);
+    return null;
+  }
+  const projection = projectNavisionImportPeakStorage(plan, selectedUpdateKeys);
+  if (!projection.allowed) {
+    app.rejectedNavisionFingerprint = fingerprint;
+    app.rejectedNavisionProjection = projection;
+    app.pendingNavisionImport = plan;
+    renderNavisionQuotaRejection(projection);
+    window.alert(NAVISION_IMPORT_TOO_LARGE_MESSAGE);
+    return null;
+  }
+  try {
+    runStorageTransaction('Navision import', projection.transaction.touchedKeys, () => {
+      projection.writeOrder.forEach(write => localStorage.setItem(write.key, write.value));
+    }, projection.transaction);
+  } catch (error) {
+    app.data = buildVehicleData();
+    app.pendingNavisionImport = plan;
+    renderAll();
+    window.alert(error.message || String(error));
+    return null;
+  }
+  finalizeNavisionImportCommit(projection.commit);
+  return projection.commit.result;
 }
 
 
@@ -14207,6 +14484,8 @@ function renderNavisionSummary(result) {
   const host = $('#navision-status-list');
   if (!host) return;
   const parsed = result?.parsed || { vehicles: [], warnings: [] };
+  const counts = result?.counts || {};
+  const parsedVehicleCount = parsed.vehicleCount ?? parsed.vehicles?.length ?? counts.rows ?? 0;
   const warnings = (result?.skipped || parsed.warnings || []).filter(Boolean);
   const stockUpdates = result?.stockNumberUpdates || [];
   const missingFromUpload = result?.missingFromUpload || [];
@@ -14226,13 +14505,13 @@ function renderNavisionSummary(result) {
 
   host.innerHTML = `
     <div class="scot-summary-grid">
-      <div class="summary-stat"><span>Rows detected</span><strong>${parsed.vehicles.length}</strong></div>
-      <div class="summary-stat"><span>Back end added</span><strong>${result?.added?.length || 0}</strong></div>
-      <div class="summary-stat"><span>Updated</span><strong>${result?.updated?.length || 0}</strong></div>
-      <div class="summary-stat"><span>New stock #</span><strong>${stockUpdates.length}</strong></div>
-      <div class="summary-stat"><span>Not in upload</span><strong>${missingFromUpload.length}</strong></div>
-      <div class="summary-stat"><span>Removed</span><strong>${removedMissing.length}</strong></div>
-      <div class="summary-stat"><span>Restored</span><strong>${result?.restored?.length || 0}</strong></div>
+      <div class="summary-stat"><span>Rows detected</span><strong>${parsedVehicleCount}</strong></div>
+      <div class="summary-stat"><span>Back end added</span><strong>${result?.added?.length ?? counts.added ?? 0}</strong></div>
+      <div class="summary-stat"><span>Updated</span><strong>${result?.updated?.length ?? counts.updated ?? 0}</strong></div>
+      <div class="summary-stat"><span>New stock #</span><strong>${stockUpdates.length || counts.stockNumberUpdates || 0}</strong></div>
+      <div class="summary-stat"><span>Not in upload</span><strong>${missingFromUpload.length || counts.missingFromUpload || 0}</strong></div>
+      <div class="summary-stat"><span>Removed</span><strong>${removedMissing.length || counts.removedMissing || 0}</strong></div>
+      <div class="summary-stat"><span>Restored</span><strong>${result?.restored?.length ?? counts.restored ?? 0}</strong></div>
       <div class="summary-stat"><span>Warnings</span><strong>${warnings.length}</strong></div>
     </div>
     <div class="summary-section-heading"><h3>Import complete</h3><button class="small-button" id="navision-view-backend" type="button">View Back End Data</button></div>
@@ -14257,25 +14536,9 @@ function renderNavisionSummary(result) {
 
 function removeMissingFromLastNavisionImport() {
   const result = app.navisionImport || loadJson(NAVISION_IMPORT_RESULTS_KEY, null);
-  const missing = result?.missingFromUpload || [];
-  if (!missing.length) return;
-  const preview = missing.slice(0, 10).map(vehicle => `• ${vehicleIdentityTitle(vehicle) || 'No stock'} - ${vehicleCustomerName(vehicle) || 'Unknown customer'}`).join('\n');
-  const more = missing.length > 10 ? `\n• plus ${missing.length - 10} more` : '';
-  if (!window.confirm(`Retire ${missing.length} Navision-only back-end vehicle${missing.length === 1 ? '' : 's'} that were not found in the latest full Navision upload?\n\n${preview}${more}\n\nManual, PO, PD check-form and PDC Sheet vehicles are protected.`)) return;
-  const removed = removeVehiclesFromTracker(missing, {
-    deletionType: 'navision-missing',
-    reason: 'No longer present in the latest full Navision upload',
-  });
-  app.navisionImport = {
-    ...result,
-    removedMissing: (result.removedMissing || []).concat(removed),
-    missingFromUpload: [],
-  };
-  saveJson(NAVISION_IMPORT_RESULTS_KEY, app.navisionImport);
-  refreshAfterVehicleRemoval();
-  renderNavisionSummary(app.navisionImport);
-  updateNavisionControlStats(app.navisionImport);
-  updateNavisionImportButton();
+  const missingCount = Number(result?.missingCount ?? result?.missingFromUpload?.length ?? 0);
+  if (!missingCount) return;
+  window.alert(`For storage safety, no records were changed. Re-select the same Navision source file, choose the reviewed “Retire missing” option in the import confirmation, and apply it through the exact quota preflight (${missingCount} currently missing).`);
 }
 
 function handlePdfSelect(e) {
@@ -14485,6 +14748,34 @@ function safeBackupFileDate() {
   const d = new Date();
   const pad = value => String(value).padStart(2, '0');
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}_${pad(d.getHours())}${pad(d.getMinutes())}`;
+}
+
+function exportLocalNavisionDataset() {
+  const storedValue = localStorage.getItem(ADDED_KEY);
+  const sourceValue = storedValue === null ? '[]' : storedValue;
+  let records = null;
+  try {
+    const parsed = JSON.parse(sourceValue);
+    if (Array.isArray(parsed)) records = parsed.length;
+  } catch {}
+  const exportedAt = new Date().toISOString();
+  const evidence = {
+    sourceKey: ADDED_KEY,
+    exportedAt,
+    records,
+    datasetSha256: sha256Hex(sourceValue),
+    exactStoredBytes: storedValue !== null,
+  };
+  const blob = new Blob([sourceValue], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `pdc-browser-local-navision-${exportedAt.slice(0, 10)}.json`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+  return evidence;
 }
 
 function exportCrmBackup() {

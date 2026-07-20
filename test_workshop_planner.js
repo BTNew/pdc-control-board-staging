@@ -363,7 +363,7 @@ for (const file of htmlFiles) {
   const html = fs.readFileSync(path.join(root, file), 'utf8');
   assert.ok(html.includes('data-view="workshop"'), `${file} is missing the Workshop Planner navigation item`);
   assert.ok(html.includes('id="workshop-planner-root"'), `${file} is missing the Workshop Planner host`);
-  assert.ok(html.includes('workshop-planner.css?v=2026.07.18.02-stage2a-final-approval'), `${file} is missing the planner stylesheet`);
+  assert.ok(html.includes('workshop-planner.css?v=2026.07.20.01-shared-navision-backend-store'), `${file} is missing the planner stylesheet`);
   assert.ok(!html.includes('<script src="workshop-planner.js'), `${file} must not eagerly load the planner script`);
 }
 assert.ok(app.includes("loadExternalScript(`workshop-planner.js?v=${encodeURIComponent(APP_VERSION)}`"), 'app.js must lazy-load the Workshop Planner with the active release version');
