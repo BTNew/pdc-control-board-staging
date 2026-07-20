@@ -444,11 +444,10 @@ class Stage2BVehicleMasterStagingTests(unittest.TestCase):
             self.assertIn(required_role, role_emails, f"staging lacks active {required_role} role fixture")
 
         expected_capabilities = {
-            "viewer": {"can_edit": False, "can_import": False, "can_administer": False},
             "operator": {"can_edit": True, "can_import": False, "can_administer": False},
             "administrator": {"can_edit": True, "can_import": True, "can_administer": True},
         }
-        for role, expected in expected_capabilities.items():
+        for role in ("viewer", "operator", "administrator"):
             self.cur.execute("set local role authenticated")
             self.cur.execute(
                 "select set_config('request.jwt.claims', %s, true)",
@@ -458,10 +457,16 @@ class Stage2BVehicleMasterStagingTests(unittest.TestCase):
             payload = self.cur.fetchone()[0]
             self.cur.execute("reset role")
 
+            if role == "viewer":
+                self.assertFalse(payload["ok"], payload)
+                self.assertEqual(payload["code"], "permission_denied")
+                self.assertEqual(payload["data"], {})
+                continue
+
             self.assertTrue(payload["ok"], payload)
             self.assertEqual(payload["code"], "ok")
             self.assertEqual(payload["data"]["caller_role"], role)
-            self.assertEqual(payload["data"]["capabilities"], expected)
+            self.assertEqual(payload["data"]["capabilities"], expected_capabilities[role])
             row = next(v for v in payload["data"]["vehicles"] if v["id"] == first_id)
             self.assertEqual(set(row), APPROVED_CORE_FIELDS)
             self.assertFalse(FORBIDDEN_SNAPSHOT_FIELDS & set(row))
