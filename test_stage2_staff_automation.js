@@ -12,7 +12,7 @@ for (const file of ['index.html', 'no-vehicles.html', 'test-50.html', 'test-75.h
   assert.ok(html.includes('id="ai-intake-status"'), `${file} missing AI file assistant status host`);
   assert.ok(html.includes('data-view="sublet"'), `${file} missing Sublet navigation`);
   assert.ok(html.includes('id="sublet-home-content"'), `${file} missing Sublet booking host`);
-  assert.ok(html.includes('2026.07.18.02-stage2a-final-approval'), `${file} has stale cache key`);
+  assert.ok(html.includes('2026.07.20.01-phase-a-ui-review'), `${file} has stale cache key`);
 }
 assert.ok(app.includes('function applyEmailReview('));
 assert.ok(app.includes('function analyzeAiFileAssistantUploads('));
