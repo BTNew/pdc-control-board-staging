@@ -72,7 +72,7 @@ pages.forEach(file => {
   });
 });
 
-assert.ok(app.includes("on($('#ai-board-refresh'), 'click', renderAiBoardAdvisor);"), 'refresh control must only recalculate advice');
+assert.ok(app.includes("on($('#ai-board-refresh'), 'click', () => renderAiBoardAdvisor());"), 'refresh control must recalculate with a fresh valid clock rather than passing the click event as nowIso');
 assert.ok(app.includes('renderAiBoardAdvisor();\n  updateAiFileAssistantButtons();'), 'advisor must render with the existing AI review view');
 assert.ok(auth.includes("new CustomEvent('pdc-auth-locked'"), 'every session revalidation/teardown must dispatch the operational-data lock event');
 const lockHandler = app.slice(app.indexOf("window.addEventListener?.('pdc-auth-locked'"), app.indexOf('function renderWorkshopPlannerWhenReady'));

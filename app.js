@@ -2602,7 +2602,8 @@ function bindNav() {
   on($('#parts-eta-sort'), 'change', renderPartsHome);
   on($('#parts-department-filter'), 'change', renderPartsHome);
   on($('#email-review-status-filter'), 'change', renderEmailIntakeReview);
-  on($('#ai-board-refresh'), 'click', renderAiBoardAdvisor);
+  // Do not pass the click event as the explicit analysis clock.
+  on($('#ai-board-refresh'), 'click', () => renderAiBoardAdvisor());
   on($('#ai-intake-upload'), 'change', handleAiFileAssistantSelect);
   on($('#ai-intake-analyze'), 'click', analyzeAiFileAssistantUploads);
   on($('#ai-intake-clear'), 'click', () => clearAiFileAssistantUploads());
