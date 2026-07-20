@@ -8,7 +8,8 @@ from pathlib import Path
 from pglast import parse_sql
 
 ROOT = Path(__file__).resolve().parents[1]
-MIGRATION = ROOT / "supabase" / "migrations" / "032_restricted_pilot_viewer_vehicle_contract.sql"
+VIEWER_MIGRATION = ROOT / "supabase" / "migrations" / "032_restricted_pilot_viewer_vehicle_contract.sql"
+BROAD_RPC_MIGRATION = ROOT / "supabase" / "migrations" / "033_restrict_broad_vehicle_snapshot_rpc.sql"
 EXPECTED_COLUMNS = [
     "id uuid",
     "version integer",
@@ -30,7 +31,9 @@ EXPECTED_SELECT = [
 class RestrictedPilotAccountPlanMigrationTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.sql = MIGRATION.read_text(encoding="utf-8")
+        cls.viewer_sql = VIEWER_MIGRATION.read_text(encoding="utf-8")
+        cls.broad_rpc_sql = BROAD_RPC_MIGRATION.read_text(encoding="utf-8")
+        cls.sql = cls.viewer_sql + "\n" + cls.broad_rpc_sql
         cls.normalized = " ".join(cls.sql.lower().split())
 
     def _function(self, name: str) -> str:
@@ -42,11 +45,12 @@ class RestrictedPilotAccountPlanMigrationTests(unittest.TestCase):
         self.assertIsNotNone(match, name)
         return match.group(0)
 
-    def test_migration_parses_and_is_transactional(self):
-        statements = parse_sql(self.sql)
-        self.assertGreaterEqual(len(statements), 12)
-        self.assertIn("\nbegin;\n", self.sql.lower())
-        self.assertTrue(self.normalized.endswith("commit;"))
+    def test_migrations_parse_and_are_transactional(self):
+        for sql in (self.viewer_sql, self.broad_rpc_sql):
+            self.assertGreaterEqual(len(parse_sql(sql)), 5)
+            normalized = " ".join(sql.lower().split())
+            self.assertIn("begin;", normalized)
+            self.assertTrue(normalized.endswith("commit;"))
 
     def test_direct_vehicle_select_is_operator_or_higher_only(self):
         self.assertIn("drop policy if exists vehicles_select_approved on public.vehicles", self.normalized)
