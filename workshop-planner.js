@@ -957,7 +957,7 @@ function workshopNormalizeSourceIdentity(value = '') {
 const WORKSHOP_BROWSER_LINK_SOURCE_SYSTEM = 'browser_local_c4';
 const WORKSHOP_BROWSER_LINKS_KEY = 'workshopCanonicalVehicleLinks:v1';
 const WORKSHOP_BROWSER_EDITS_KEY = 'vehicleTrackingCoreNavisionOnlyEdits:v1';
-const WORKSHOP_VEHICLE_LINK_OUTCOMES = new Set(['resolved', 'not_found', 'ambiguous', 'conflict', 'invalid_input', 'unauthorized']);
+const WORKSHOP_VEHICLE_LINK_OUTCOMES = new Set(['resolved', 'not_found', 'ambiguous', 'conflict', 'invalid_input', 'unauthorized', 'service_unavailable']);
 const WORKSHOP_UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const WORKSHOP_LINK_ALIAS_PATTERN = /^(?:source:[a-z0-9_-]+|toyota_order:[a-z0-9_-]+|permanent_vehicle_id|vin):[A-Z0-9][A-Z0-9:._/-]*$/;
 const WORKSHOP_LINK_MATCH_FIELDS = new Set(['vehicle_id', 'stock_number', 'vin', 'job_card_number', 'permanent_vehicle_id', 'toyota_order_number', 'source_record_id']);
@@ -1457,7 +1457,9 @@ function workshopRollbackPersistedCanonicalLink(receipt = {}) {
 function workshopVehicleLinkVisibleReason(diagnostic = {}) {
   const outcome = String(diagnostic.outcome || '').trim().toLowerCase();
   const reason = String(diagnostic.rejectedReason || '').trim().toLowerCase();
-  if (outcome === 'stale' || reason.includes('stale')) {
+  const reasonTokens = reason.split(/[^a-z0-9_]+/).filter(Boolean);
+  const staleResolverReasons = new Set(['stale', 'superseded', 'resolver_stopped']);
+  if (outcome === 'stale' || reasonTokens.some(token => staleResolverReasons.has(token))) {
     return 'Stale — the saved vehicle identity or resolver result changed and must be verified again.';
   }
   const messages = {
