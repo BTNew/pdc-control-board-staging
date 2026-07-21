@@ -103,6 +103,9 @@ function createWorkshopRealtimeManager(options) {
     connecting = false;
     releaseSubscription();
     onStatusChange('reconnecting');
+    // Status observers are external code and may synchronously tear down the
+    // owning route/session. Do not leave a retry timer behind after stop().
+    if (destroyed) return;
     if (reconnectTimer) clearScheduledTimeout(reconnectTimer);
     reconnectTimer = scheduleTimeout(() => {
       reconnectTimer = null;
@@ -127,6 +130,10 @@ function createWorkshopRealtimeManager(options) {
       // Complete the authoritative resynchronisation hand-off before
       // reporting healthy or resetting backoff.
       dataService.onReconnect();
+      // The resync hand-off is external code. It can synchronously stop this
+      // manager or replace the subscription, so revalidate ownership before
+      // committing healthy state.
+      if (destroyed || generation !== subscriptionGeneration) return;
       connecting = false;
       subscribed = true;
       currentBackoffMs = initialBackoffMs;
@@ -138,9 +145,14 @@ function createWorkshopRealtimeManager(options) {
 
   function openSubscription() {
     if (destroyed) return;
+    // A healthy channel remains unavailable until its replacement has emitted
+    // SUBSCRIBED and completed authoritative resynchronisation. Clear the old
+    // readiness flag before releasing it so forceReconnect() cannot leak
+    // pre-readiness events from the replacement.
+    subscribed = false;
+    connecting = true;
     releaseSubscription();
     const generation = ++subscriptionGeneration;
-    connecting = true;
     try {
       const cleanup = subscribeFn({
         onChange: row => {

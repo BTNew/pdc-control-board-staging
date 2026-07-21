@@ -317,6 +317,96 @@ function run() {
     console.log('PASS 13: success and unknown statuses remain diagnostic-only');
   }
 
+  {
+    const h = composedHarness();
+    const first = h.records[0];
+    h.manager.forceReconnect();
+    assert.strictEqual(h.records.length, 2, 'healthy force reconnect opens one replacement');
+    assert.strictEqual(h.manager.isSubscribed(), false, 'healthy force reconnect clears stale readiness immediately');
+    h.records[1].change({ new: { revision: 41 } });
+    assert.deepStrictEqual(h.service.revisions, [], 'replacement events are blocked before SUBSCRIBED/resync');
+    h.records[1].status('SUBSCRIBED');
+    assert.strictEqual(h.manager.isSubscribed(), true, 'replacement becomes healthy after resync');
+    h.records[1].change({ new: { revision: 42 } });
+    assert.deepStrictEqual(h.service.revisions, [42], 'replacement events resume after readiness');
+    assert.strictEqual(first.removeCalls, 1, 'healthy predecessor is removed exactly once');
+    console.log('PASS 14: healthy force reconnect clears readiness and gates replacement events');
+  }
+
+  {
+    const timers = timerHarness();
+    const statuses = [];
+    let manager;
+    let cleanupCalls = 0;
+    const service = {
+      onRevisionSignal() {},
+      onReconnect() { manager.stop(); }
+    };
+    manager = createWorkshopRealtimeManager({
+      dataService: service,
+      subscribe: handlers => {
+        handlers.onSubscribed('SUBSCRIBED');
+        return { requiresSubscribedStatus: true, unsubscribe() { cleanupCalls += 1; } };
+      },
+      onStatusChange: status => statuses.push(status),
+      scheduleTimeout: timers.scheduleTimeout,
+      clearScheduledTimeout: timers.clearScheduledTimeout
+    });
+    manager.start();
+    assert.strictEqual(manager.isSubscribed(), false, 'reentrant stop during resync cannot resurrect readiness');
+    assert.deepStrictEqual(statuses, ['closed'], 'reentrant stop cannot emit subscribed after closed');
+    assert.strictEqual(cleanupCalls, 1, 'synchronously returned handle is still disposed');
+    assert.strictEqual(timers.count(), 0, 'reentrant stop leaves no retry timer');
+    console.log('PASS 15: reentrant stop during resync remains closed');
+  }
+
+  {
+    const timers = timerHarness();
+    const statuses = [];
+    let handlers;
+    let cleanupCalls = 0;
+    let manager;
+    manager = createWorkshopRealtimeManager({
+      dataService: serviceHarness(),
+      subscribe: nextHandlers => {
+        handlers = nextHandlers;
+        return { requiresSubscribedStatus: true, unsubscribe() { cleanupCalls += 1; } };
+      },
+      onStatusChange: status => {
+        statuses.push(status);
+        if (status === 'reconnecting') manager.stop();
+      },
+      scheduleTimeout: timers.scheduleTimeout,
+      clearScheduledTimeout: timers.clearScheduledTimeout
+    });
+    manager.start();
+    handlers.onError('CHANNEL_ERROR');
+    assert.strictEqual(manager.isSubscribed(), false, 'observer teardown remains inactive');
+    assert.deepStrictEqual(statuses, ['reconnecting', 'closed'], 'observer teardown reaches closed exactly once');
+    assert.strictEqual(cleanupCalls, 1, 'observer teardown disposes active subscription once');
+    assert.strictEqual(timers.count(), 0, 'stop from reconnecting observer leaves no timer');
+    console.log('PASS 16: reconnecting observer teardown cannot leave a retry timer');
+  }
+
+  {
+    const timers = timerHarness();
+    const service = serviceHarness();
+    const diagnostics = [];
+    const adapter = adapterFactory({ window: { PDC_SUPABASE: null } });
+    const manager = createWorkshopRealtimeManager({
+      dataService: service,
+      subscribe: handlers => adapter({}, { ...handlers, onStatus: status => diagnostics.push(status) }),
+      scheduleTimeout: timers.scheduleTimeout,
+      clearScheduledTimeout: timers.clearScheduledTimeout
+    });
+    manager.start();
+    assert.strictEqual(manager.isSubscribed(), false, 'missing Supabase client cannot report healthy');
+    assert.strictEqual(service.reconnects, 0, 'missing client cannot trigger a false authoritative resync');
+    assert.deepStrictEqual(diagnostics, ['CLIENT_UNAVAILABLE'], 'missing client remains diagnostically observable');
+    assert.strictEqual(timers.count(), 1, 'missing client enters bounded controlled retry');
+    console.log('PASS 17: missing Supabase client fails closed and retries');
+  }
+
   console.log('Workshop production-adapter Realtime status tests passed');
 }
 

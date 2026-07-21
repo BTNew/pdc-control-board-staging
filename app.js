@@ -3530,7 +3530,12 @@ function getPdcSupabaseAccessToken() {
 
 function createPdcSupabaseRealtimeSubscription(config, handlers, scope = null) {
   const client = window.PDC_SUPABASE;
-  if (!client || typeof client.channel !== 'function') return { unsubscribe: () => {} };
+  if (!client || typeof client.channel !== 'function') {
+    const status = 'CLIENT_UNAVAILABLE';
+    if (typeof handlers?.onStatus === 'function') handlers.onStatus(status);
+    if (typeof handlers?.onError === 'function') handlers.onError(status);
+    return { requiresSubscribedStatus: true, unsubscribe: () => {} };
+  }
   const stageCode = String(scope?.stageCode || '').trim().toUpperCase();
   const table = stageCode ? 'workshop_station_revision' : 'workshop_revision';
   const filter = stageCode ? `stage_code=eq.${stageCode}` : undefined;
