@@ -32,8 +32,9 @@ const WORKSHOP_REALTIME_CHANNEL_NAME = 'workshop-revision-changes';
  *   - dataService: an object exposing onRevisionSignal(revision) and
  *     onReconnect() (matches createWorkshopDataService's public API)
  *   - subscribe(handlers): required. Caller-provided function that opens
- *     the actual realtime subscription and returns an unsubscribe
- *     function. handlers = { onChange(newRow), onError(), onClosed() }.
+ *     the actual realtime subscription and returns either a direct cleanup
+ *     function or an object exposing unsubscribe() / destroy(). handlers =
+ *     { onChange(newRow), onError(), onClosed() }.
  *     Kept as an injected function (rather than importing the Supabase JS
  *     client directly) so this module has zero hard dependency on the
  *     Supabase SDK and can be unit tested with a fake transport.
@@ -52,20 +53,45 @@ function createWorkshopRealtimeManager(options) {
   const scheduleTimeout = options.scheduleTimeout || ((fn, ms) => setTimeout(fn, ms));
   const clearScheduledTimeout = options.clearScheduledTimeout || clearTimeout;
 
-  let unsubscribeFn = null;
+  let subscriptionCleanup = null;
+  let subscriptionGeneration = 0;
   let reconnectTimer = null;
   let currentBackoffMs = initialBackoffMs;
   let destroyed = false;
   let subscribed = false;
 
   function handleChange(row) {
+    if (destroyed || !subscribed) return;
     const revision = row && (row.revision != null ? row.revision : (row.new && row.new.revision));
     dataService.onRevisionSignal(revision);
+  }
+
+  function releaseSubscription() {
+    const cleanup = subscriptionCleanup;
+    subscriptionCleanup = null;
+    subscriptionGeneration += 1;
+    if (!cleanup) return;
+    try {
+      if (typeof cleanup === 'function') {
+        cleanup();
+      } else if (typeof cleanup.unsubscribe === 'function') {
+        cleanup.unsubscribe();
+      } else if (typeof cleanup.destroy === 'function') {
+        // destroy() is the other disposal contract used by scoped services
+        // in this codebase; accept it for injected subscription adapters too.
+        cleanup.destroy();
+      }
+    } catch (_err) {
+      // Best effort: references and generations were invalidated before the
+      // adapter was called, so a throwing transport cannot retain callbacks
+      // or prevent timers / sibling route resources from being released.
+    }
   }
 
   function scheduleReconnect() {
     if (destroyed) return;
     subscribed = false;
+    releaseSubscription();
     onStatusChange('reconnecting');
     if (reconnectTimer) clearScheduledTimeout(reconnectTimer);
     reconnectTimer = scheduleTimeout(() => {
@@ -85,11 +111,22 @@ function createWorkshopRealtimeManager(options) {
 
   function openSubscription() {
     if (destroyed) return;
+    releaseSubscription();
+    const generation = ++subscriptionGeneration;
     try {
-      unsubscribeFn = subscribeFn({
-        onChange: handleChange,
-        onError: handleError,
-        onClosed: handleClosed
+      subscriptionCleanup = subscribeFn({
+        onChange: row => {
+          if (generation !== subscriptionGeneration) return;
+          handleChange(row);
+        },
+        onError: () => {
+          if (generation !== subscriptionGeneration) return;
+          handleError();
+        },
+        onClosed: () => {
+          if (generation !== subscriptionGeneration) return;
+          handleClosed();
+        }
       });
       subscribed = true;
       currentBackoffMs = initialBackoffMs;
@@ -103,7 +140,7 @@ function createWorkshopRealtimeManager(options) {
   }
 
   function start() {
-    if (destroyed) return;
+    if (destroyed || subscribed) return;
     openSubscription();
   }
 
@@ -112,20 +149,14 @@ function createWorkshopRealtimeManager(options) {
   }
 
   function stop() {
+    if (destroyed) return;
     destroyed = true;
     subscribed = false;
     if (reconnectTimer) {
       clearScheduledTimeout(reconnectTimer);
       reconnectTimer = null;
     }
-    if (typeof unsubscribeFn === 'function') {
-      try {
-        unsubscribeFn();
-      } catch (_err) {
-        // best-effort cleanup; nothing else to do on logout teardown
-      }
-      unsubscribeFn = null;
-    }
+    releaseSubscription();
     onStatusChange('closed');
   }
 

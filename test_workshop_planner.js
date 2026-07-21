@@ -24,7 +24,7 @@ assert.deepStrictEqual(
   'The physical station order must be preserved while Sublet remains a provider row',
 );
 assert.ok(source.includes("const WORKSHOP_VISIBLE_STAGE_SEQUENCE = WORKSHOP_STAGE_SEQUENCE.filter(stage => stage !== 'SUBLET');"), 'Workshop planner tabs should exclude Sublet while keeping Sublet support elsewhere');
-assert.ok(source.includes('const stageTabs = WORKSHOP_VISIBLE_STAGE_SEQUENCE.map('), 'Workshop planner should render only visible physical workshop stages as tabs');
+assert.ok(source.includes("const stageTabs = dedicatedStage ? '' : WORKSHOP_VISIBLE_STAGE_SEQUENCE.map("), 'Combined planner should retain physical station tabs while dedicated planners render no unrelated tabs');
 
 const friday = new Date(2026, 6, 17, 8, 0, 0, 0);
 const monday = planner.workshopShiftWorkday(friday, 1);
@@ -250,7 +250,7 @@ assert.ok(source.includes('function workshopHasConflict('), 'Bay collision prote
 assert.ok(source.includes("typeof selectedVehicle === 'function' ? selectedVehicle(cleanKey) : null"), 'Planner vehicle lookup must use the fail-closed shared resolver');
 assert.ok(source.includes('requiredAndIncomplete'), 'Future required work must remain schedulable before the vehicle reaches that station');
 assert.ok(source.includes("typeof pmbVehiclesNeedingStationWork === 'function'"), 'Planner awaiting lists must share the Control Board station-work eligibility');
-assert.ok(source.includes("const requestedStage = normalizePmbStage(app.pendingWorkshopStage || '')"), 'Open Bays must be able to open the requested Workshop Planner station');
+assert.ok(source.includes("const requestedStage = dedicatedStage || normalizePmbStage(app.pendingWorkshopStage || '')"), 'Control Board station routes must pin the requested dedicated planner stage');
 assert.ok(app.includes('function openWorkshopPlannerForStage('), 'Control Board Open Bays navigation helper is missing');
 assert.ok(source.includes('function workshopPersistPlanAction('), 'Planner mutations must use transactional persistence and audit logging');
 assert.ok(source.includes("window.addEventListener('storage'"), 'Planner must reload changes saved in another browser tab');

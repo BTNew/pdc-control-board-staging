@@ -59,6 +59,14 @@ body[data-current-view="workshop"] .content {
   color: #0f172a;
 }
 
+.workshop-back-control {
+  margin: 0 0 8px;
+}
+
+.workshop-planner-dedicated .workshop-planner-header {
+  align-items: flex-start;
+}
+
 .workshop-planner-header p {
   margin: 0;
   color: #64748b;
