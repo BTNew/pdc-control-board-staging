@@ -823,6 +823,20 @@ body[data-current-view="workshop"] .content {
 .workshop-return-reason { display: grid; gap: 4px; margin-top: 10px; color: #475569; font-size: .65rem; font-weight: 900; }
 .workshop-return-reason input { min-height: 38px; border: 1px solid #cbd5e1; border-radius: 7px; padding: 6px 8px; }
 
+.workshop-vehicle-link-card { width: min(940px, calc(100vw - 40px)); max-height: calc(100vh - 40px); overflow: auto; }
+.workshop-vehicle-link-card > header { margin-bottom: 12px; }
+.workshop-vehicle-link-card h2, .workshop-vehicle-link-card h3 { margin: 0 0 5px; }
+.workshop-vehicle-link-card h3 { font-size: .78rem; }
+.workshop-link-identity { display: grid; gap: 6px; margin-bottom: 12px; }
+.workshop-link-identity > div { display: grid; grid-template-columns: 170px minmax(0, 1fr); gap: 8px; align-items: baseline; }
+.workshop-link-identity span, .workshop-link-decision span { color: #64748b; font-size: .66rem; font-weight: 900; text-transform: uppercase; letter-spacing: .03em; }
+.workshop-link-identity code, .workshop-link-candidates code { overflow-wrap: anywhere; white-space: normal; }
+.workshop-link-candidates { min-width: 720px; }
+.workshop-link-candidates td { vertical-align: top; }
+.workshop-link-decision { display: grid; gap: 7px; margin-top: 12px; padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px; background: #f8fafc; }
+.workshop-link-decision > div { display: grid; grid-template-columns: 150px minmax(0, 1fr); gap: 8px; }
+.workshop-link-decision strong { font-size: .73rem; overflow-wrap: anywhere; }
+
 .workshop-week-card-shell { width: min(1420px, calc(100vw - 32px)); max-height: calc(100vh - 32px); overflow: auto; }
 .workshop-week-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; margin-bottom: 10px; }
 .workshop-week-header h2 { margin: 0 0 4px; }

@@ -954,6 +954,641 @@ function workshopNormalizeSourceIdentity(value = '') {
   return String(value || '').trim().toUpperCase();
 }
 
+const WORKSHOP_BROWSER_LINK_SOURCE_SYSTEM = 'browser_local_c4';
+const WORKSHOP_BROWSER_LINKS_KEY = 'workshopCanonicalVehicleLinks:v1';
+const WORKSHOP_BROWSER_EDITS_KEY = 'vehicleTrackingCoreNavisionOnlyEdits:v1';
+const WORKSHOP_VEHICLE_LINK_OUTCOMES = new Set(['resolved', 'not_found', 'ambiguous', 'conflict', 'invalid_input', 'unauthorized']);
+const WORKSHOP_UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const WORKSHOP_LINK_ALIAS_PATTERN = /^(?:source:[a-z0-9_-]+|toyota_order:[a-z0-9_-]+|permanent_vehicle_id|vin):[A-Z0-9][A-Z0-9:._/-]*$/;
+const WORKSHOP_LINK_MATCH_FIELDS = new Set(['vehicle_id', 'stock_number', 'vin', 'job_card_number', 'permanent_vehicle_id', 'toyota_order_number', 'source_record_id']);
+const WORKSHOP_LINK_ENTRY_FIELDS = new Set([
+  'sharedVehicleId', 'sharedVehicleLinkSource', 'sharedVehicleLinkVehicleVersion',
+  'sharedVehicleLinkResolverRevision', 'sharedVehicleLinkMatchedBy', 'sharedVehicleLinkVerifiedAt', 'aliases',
+]);
+
+function workshopVehicleLinkIdentityInput(vehicle = {}) {
+  const unavailable = reason => {
+    const result = {};
+    Object.defineProperty(result, '__resolverBuilderMissing', { value: true, enumerable: false });
+    Object.defineProperty(result, '__resolverBuilderFailure', { value: reason, enumerable: false });
+    return result;
+  };
+  const sourceSystem = String(vehicle.sourceSystem || vehicle.source_system || WORKSHOP_BROWSER_LINK_SOURCE_SYSTEM).trim().toLowerCase();
+  if (typeof buildVehicleLifecycleIdentityInput !== 'function') return unavailable('approved_identity_builder_missing');
+  let built;
+  try {
+    built = buildVehicleLifecycleIdentityInput({ ...vehicle, sourceSystem });
+  } catch (_) {
+    return unavailable('approved_identity_builder_threw');
+  }
+  if (!built || typeof built !== 'object' || Array.isArray(built)) return unavailable('approved_identity_builder_invalid_result');
+  const allowed = [
+    'p_vehicle_id', 'p_stock_number', 'p_vin', 'p_job_card_number',
+    'p_permanent_vehicle_id', 'p_toyota_order_number', 'p_source_system', 'p_source_record_id',
+  ];
+  if (allowed.some(key => built[key] != null && typeof built[key] !== 'string')) {
+    return unavailable('approved_identity_builder_invalid_result');
+  }
+  const clean = Object.fromEntries(allowed
+    .map(key => [key, String(built[key] == null ? '' : built[key]).trim()])
+    .filter(([, value]) => value));
+  if (built && built.__invalidIdentityField) {
+    Object.defineProperty(clean, '__invalidIdentityField', {
+      value: built.__invalidIdentityField,
+      enumerable: false,
+      configurable: false,
+    });
+  }
+  return clean;
+}
+
+function workshopVehicleLinkStableAliases(vehicle = {}, input = null) {
+  const identity = input || workshopVehicleLinkIdentityInput(vehicle);
+  if (!identity || identity.__resolverBuilderMissing || identity.__invalidIdentityField) return [];
+  const aliases = [];
+  const add = (kind, value) => {
+    const normalized = String(value || '').trim().toUpperCase();
+    if (normalized) aliases.push(`${kind}:${normalized}`);
+  };
+  const sourceSystem = String(identity.p_source_system || '').trim().toLowerCase();
+  if (sourceSystem && identity.p_source_record_id) add(`source:${sourceSystem}`, identity.p_source_record_id);
+  add('permanent_vehicle_id', identity.p_permanent_vehicle_id);
+  add('vin', identity.p_vin);
+  if (sourceSystem && identity.p_toyota_order_number) add(`toyota_order:${sourceSystem}`, identity.p_toyota_order_number);
+  return [...new Set(aliases)];
+}
+
+function workshopVehicleLinkStorage(storage = null) {
+  if (storage) return storage;
+  if (typeof window !== 'undefined' && window.localStorage) return window.localStorage;
+  return null;
+}
+
+function workshopLoadVehicleLinkStore(storage = null) {
+  const target = workshopVehicleLinkStorage(storage);
+  if (!target) return { entries: {}, valid: true };
+  try {
+    const parsed = JSON.parse(target.getItem(WORKSHOP_BROWSER_LINKS_KEY) || '{"entries":{}}');
+    if (!parsed || !parsed.entries || typeof parsed.entries !== 'object' || Array.isArray(parsed.entries)
+        || Object.keys(parsed).length !== 1 || !Object.prototype.hasOwnProperty.call(parsed, 'entries')) {
+      return { entries: {}, valid: false };
+    }
+    const entries = { ...parsed.entries };
+    const valid = Object.entries(entries).every(([key, entry]) => {
+      const aliases = Array.isArray(entry?.aliases) ? entry.aliases : [];
+      const matchedBy = Array.isArray(entry?.sharedVehicleLinkMatchedBy) ? entry.sharedVehicleLinkMatchedBy : [];
+      const verifiedAt = entry?.sharedVehicleLinkVerifiedAt;
+      return String(key).trim()
+        && entry && typeof entry === 'object' && !Array.isArray(entry)
+        && Object.keys(entry).length === WORKSHOP_LINK_ENTRY_FIELDS.size
+        && Object.keys(entry).every(field => WORKSHOP_LINK_ENTRY_FIELDS.has(field))
+        && typeof entry.sharedVehicleId === 'string' && WORKSHOP_UUID_PATTERN.test(entry.sharedVehicleId)
+        && typeof entry.sharedVehicleLinkSource === 'string' && /^[a-z0-9_-]{1,64}$/.test(entry.sharedVehicleLinkSource)
+        && Number.isInteger(entry.sharedVehicleLinkVehicleVersion) && entry.sharedVehicleLinkVehicleVersion > 0
+        && Number.isInteger(entry.sharedVehicleLinkResolverRevision) && entry.sharedVehicleLinkResolverRevision > 0
+        && aliases.length > 0 && aliases.includes(key) && new Set(aliases).size === aliases.length
+        && aliases.every(alias => typeof alias === 'string' && WORKSHOP_LINK_ALIAS_PATTERN.test(alias))
+        && matchedBy.length > 0 && new Set(matchedBy).size === matchedBy.length
+        && matchedBy.every(field => typeof field === 'string' && WORKSHOP_LINK_MATCH_FIELDS.has(field))
+        && typeof verifiedAt === 'string' && !Number.isNaN(Date.parse(verifiedAt))
+        && new Date(verifiedAt).toISOString() === verifiedAt;
+    });
+    return valid ? { entries, valid: true } : { entries: {}, valid: false };
+  } catch (_) {
+    return { entries: {}, valid: false };
+  }
+}
+
+function workshopLookupStoredVehicleLink(vehicle = {}, storage = null) {
+  const input = workshopVehicleLinkIdentityInput(vehicle);
+  const aliases = workshopVehicleLinkStableAliases(vehicle, input);
+  if (!aliases.length) return { outcome: 'not_found', entry: null, aliases };
+  const aliasSet = new Set(aliases);
+  const store = workshopLoadVehicleLinkStore(storage);
+  if (!store.valid) return { outcome: 'service_unavailable', entry: null, aliases };
+  const rawMatches = Object.values(store.entries)
+    .filter(entry => entry && Array.isArray(entry.aliases) && entry.aliases.some(alias => aliasSet.has(alias)));
+  if (rawMatches.some(entry => !WORKSHOP_UUID_PATTERN.test(String(entry.sharedVehicleId || '').trim()))) {
+    return { outcome: 'service_unavailable', entry: null, aliases };
+  }
+  const matches = rawMatches;
+  const uuids = [...new Set(matches.map(entry => String(entry.sharedVehicleId).trim().toLowerCase()))];
+  if (uuids.length > 1) return { outcome: 'conflict', entry: null, aliases };
+  if (!matches.length) return { outcome: 'not_found', entry: null, aliases };
+  return { outcome: 'resolved', entry: matches[0], aliases };
+}
+
+function workshopSaveStoredVehicleLink(vehicle = {}, updates = {}, storage = null) {
+  const target = workshopVehicleLinkStorage(storage);
+  if (!target) return false;
+  const aliases = workshopVehicleLinkStableAliases(vehicle);
+  if (!aliases.length
+      || aliases.some(alias => !WORKSHOP_LINK_ALIAS_PATTERN.test(alias))
+      || typeof updates.sharedVehicleId !== 'string' || !WORKSHOP_UUID_PATTERN.test(updates.sharedVehicleId)
+      || typeof updates.sharedVehicleLinkSource !== 'string' || !/^[a-z0-9_-]{1,64}$/.test(updates.sharedVehicleLinkSource)
+      || !Number.isInteger(updates.sharedVehicleLinkVehicleVersion) || updates.sharedVehicleLinkVehicleVersion < 1
+      || !Number.isInteger(updates.sharedVehicleLinkResolverRevision) || updates.sharedVehicleLinkResolverRevision < 1
+      || !Array.isArray(updates.sharedVehicleLinkMatchedBy) || !updates.sharedVehicleLinkMatchedBy.length
+      || new Set(updates.sharedVehicleLinkMatchedBy).size !== updates.sharedVehicleLinkMatchedBy.length
+      || updates.sharedVehicleLinkMatchedBy.some(field => typeof field !== 'string' || !WORKSHOP_LINK_MATCH_FIELDS.has(field))
+      || typeof updates.sharedVehicleLinkVerifiedAt !== 'string'
+      || Number.isNaN(Date.parse(updates.sharedVehicleLinkVerifiedAt))
+      || new Date(updates.sharedVehicleLinkVerifiedAt).toISOString() !== updates.sharedVehicleLinkVerifiedAt) return false;
+  const store = workshopLoadVehicleLinkStore(target);
+  if (!store.valid) return false;
+  const aliasSet = new Set(aliases);
+  const matchingKeys = Object.entries(store.entries)
+    .filter(([, entry]) => entry && Array.isArray(entry.aliases) && entry.aliases.some(alias => aliasSet.has(alias)))
+    .map(([key]) => key);
+  const existingUuids = [...new Set(matchingKeys
+    .map(key => String(store.entries[key]?.sharedVehicleId || '').trim().toLowerCase())
+    .filter(Boolean))];
+  const nextUuid = String(updates.sharedVehicleId).trim().toLowerCase();
+  if (existingUuids.some(uuid => uuid !== nextUuid)) return false;
+  const entryKey = matchingKeys[0] || aliases[0];
+  matchingKeys.slice(1).forEach(key => { delete store.entries[key]; });
+  store.entries[entryKey] = { ...(store.entries[entryKey] || {}), ...updates, aliases };
+  try {
+    target.setItem(WORKSHOP_BROWSER_LINKS_KEY, JSON.stringify({ entries: store.entries }));
+    return true;
+  } catch (_) {
+    return false;
+  }
+}
+
+function workshopVehicleLinkProbeInputs(vehicle = {}, combinedInput = null) {
+  const input = combinedInput || workshopVehicleLinkIdentityInput(vehicle);
+  const probes = [];
+  const add = (identifier, value, sourceVehicle) => {
+    if (!String(value || '').trim()) return;
+    const probeInput = workshopVehicleLinkIdentityInput(sourceVehicle);
+    if (probeInput.__resolverBuilderMissing || probeInput.__invalidIdentityField || !Object.keys(probeInput).length) {
+      probes.push({
+        identifier,
+        value: String(value).trim(),
+        input: null,
+        builderFailure: probeInput.__resolverBuilderFailure || probeInput.__invalidIdentityField || 'approved_identity_builder_empty_probe',
+      });
+      return;
+    }
+    probes.push({ identifier, value: String(value).trim(), input: probeInput });
+  };
+  add('vehicle_id', input.p_vehicle_id, { sharedVehicleId: input.p_vehicle_id });
+  add('stock_number', input.p_stock_number, { stock: input.p_stock_number });
+  add('vin', input.p_vin, { vin: input.p_vin });
+  add('job_card_number', input.p_job_card_number, { jobCardNumber: input.p_job_card_number, sourceSystem: input.p_source_system });
+  add('permanent_vehicle_id', input.p_permanent_vehicle_id, { permanentVehicleId: input.p_permanent_vehicle_id });
+  add('toyota_order_number', input.p_toyota_order_number, { toyotaOrderNumber: input.p_toyota_order_number, sourceSystem: input.p_source_system });
+  add('source_record_id', input.p_source_record_id, { sourceSystem: input.p_source_system, sourceRecordId: input.p_source_record_id });
+  return probes;
+}
+
+function workshopVehicleLinkRemediation(outcome = '', hasSavedLink = false) {
+  const messages = {
+    not_found: 'Create or import exactly one canonical shared vehicle through the approved Stage 2B importer, then run link verification again.',
+    ambiguous: 'Manual identity review is required: resolve duplicate normalized candidates without selecting by row order, then retry.',
+    conflict: 'Manual identity review is required: correct the conflicting saved UUID or identifier evidence, then retry.',
+    invalid_input: 'Correct the reported browser-local identity field, then run deterministic link verification again.',
+    unstable_identity: 'Add one stable browser-local identifier (source record, permanent vehicle ID, VIN, or Toyota order number) before linking; stock number alone is not a durable edit key.',
+    unauthorized: 'Use an approved staging account with resolver access; no link was saved.',
+    archived: 'The canonical shared vehicle is archived. An approved administrator must restore or replace it through controlled vehicle-master review before linking.',
+    service_unavailable: 'Restore the approved identity resolver service and retry; no fallback or guessed link is permitted.',
+  };
+  if (outcome === 'resolved') {
+    return hasSavedLink
+      ? 'No remediation required. The saved browser-local UUID link was re-verified against the canonical shared record.'
+      : 'Save the verified canonical UUID into the browser-local edits overlay, then retry scheduling.';
+  }
+  return messages[outcome] || 'Manual identity review is required before scheduling.';
+}
+
+function workshopVehicleLinkResultSummary(result = null) {
+  if (!result || typeof result !== 'object' || Array.isArray(result)) {
+    return { outcome: 'service_unavailable', sharedUuid: null, version: null, resolverRevision: null, isArchived: null, candidateCount: null, reason: 'invalid_resolver_result', field: null, matchedBy: [] };
+  }
+  const reportedOutcome = String(result.outcome || '').trim();
+  if (!WORKSHOP_VEHICLE_LINK_OUTCOMES.has(reportedOutcome)) {
+    return { outcome: 'service_unavailable', sharedUuid: null, version: null, resolverRevision: null, isArchived: null, candidateCount: null, reason: 'invalid_resolver_outcome', field: null, matchedBy: [] };
+  }
+  const sharedUuid = result.vehicleId;
+  const version = result.version;
+  const resolverRevision = result.resolverRevision;
+  if (reportedOutcome === 'resolved' && (
+    typeof sharedUuid !== 'string' || !WORKSHOP_UUID_PATTERN.test(sharedUuid)
+    || !Number.isInteger(version) || version < 1
+    || !Number.isInteger(resolverRevision) || resolverRevision < 1
+    || typeof result.isArchived !== 'boolean'
+    || !Array.isArray(result.matchedBy) || !result.matchedBy.length
+    || new Set(result.matchedBy).size !== result.matchedBy.length
+    || result.matchedBy.some(field => typeof field !== 'string' || !WORKSHOP_LINK_MATCH_FIELDS.has(field))
+  )) {
+    return { outcome: 'service_unavailable', sharedUuid: null, version: null, resolverRevision: null, isArchived: null, candidateCount: null, reason: 'invalid_resolved_contract', field: null, matchedBy: [] };
+  }
+  return {
+    outcome: reportedOutcome,
+    sharedUuid: reportedOutcome === 'resolved' ? sharedUuid : null,
+    version: reportedOutcome === 'resolved' ? version : null,
+    resolverRevision: reportedOutcome === 'resolved' ? resolverRevision : null,
+    isArchived: reportedOutcome === 'resolved' ? result.isArchived : null,
+    candidateCount: Number.isInteger(result.candidateCount) && result.candidateCount >= 0 ? result.candidateCount : null,
+    reason: typeof result.reason === 'string' ? result.reason : null,
+    field: typeof result.field === 'string' ? result.field : null,
+    matchedBy: Array.isArray(result.matchedBy) ? result.matchedBy.filter(value => typeof value === 'string') : [],
+  };
+}
+
+async function workshopResolveVehicleLinkDiagnostic(vehicle = {}, resolver = null, storage = null) {
+  const identityResolver = resolver || (typeof window !== 'undefined' ? window.__vehicleLifecycleIdentityResolver : null);
+  const explicitSavedUuid = String(vehicle.sharedVehicleId || vehicle.shared_vehicle_id || vehicle.canonicalVehicleId || '').trim() || null;
+  const storedLink = workshopLookupStoredVehicleLink(vehicle, storage);
+  const storedUuid = storedLink.outcome === 'resolved' ? String(storedLink.entry.sharedVehicleId || '').trim() : null;
+  const hydratedVehicle = storedUuid && !explicitSavedUuid ? { ...vehicle, sharedVehicleId: storedUuid } : vehicle;
+  const input = workshopVehicleLinkIdentityInput(hydratedVehicle);
+  const savedUuid = String(input.p_vehicle_id || explicitSavedUuid || storedUuid || '').trim() || null;
+  const browserLocalIdentity = {
+    vehicleKey: typeof vehicleKey === 'function'
+      ? vehicleKey(vehicle)
+      : String(vehicle.stock || vehicle.order || vehicle.id || '').trim(),
+    stockNumber: input.p_stock_number || null,
+    vin: input.p_vin || null,
+    jobCardNumber: input.p_job_card_number || null,
+    permanentVehicleId: input.p_permanent_vehicle_id || null,
+    toyotaOrderNumber: input.p_toyota_order_number || null,
+    sourceSystem: input.p_source_system || null,
+    sourceRecordId: input.p_source_record_id || null,
+    savedSharedUuid: savedUuid,
+  };
+  const reject = (outcome, reason, candidateProcess = []) => ({
+    browserLocalIdentity,
+    sharedUuid: null,
+    savedSharedUuid: savedUuid,
+    outcome,
+    linkState: 'rejected',
+    version: null,
+    resolverRevision: null,
+    matchedBy: [],
+    candidateCount: candidateProcess.reduce((max, item) => Number.isInteger(item?.candidateCount) ? Math.max(max, item.candidateCount) : max, 0) || null,
+    candidateProcess,
+    rejectedReason: [outcome, reason].filter(Boolean).join(':'),
+    exactRemediation: workshopVehicleLinkRemediation(outcome, false),
+  });
+  if (input.__resolverBuilderMissing) return reject('service_unavailable', input.__resolverBuilderFailure || 'approved_identity_builder_missing');
+  if (input.__invalidIdentityField) return reject('invalid_input', input.__invalidIdentityField);
+  if (storedLink.outcome === 'service_unavailable') return reject('service_unavailable', 'browser_local_link_store_invalid');
+  if (!workshopVehicleLinkStableAliases(vehicle, input).length) return reject('unstable_identity', 'stable_browser_identity_missing');
+  if (storedLink.outcome === 'conflict') return reject('conflict', 'browser_local_link_store_conflict');
+  if (explicitSavedUuid && storedUuid && explicitSavedUuid.toLowerCase() !== storedUuid.toLowerCase()) {
+    return reject('conflict', 'browser_local_saved_uuid_mismatch');
+  }
+  if (!identityResolver || typeof identityResolver.resolve !== 'function') return reject('service_unavailable', 'resolver_missing');
+  const probes = workshopVehicleLinkProbeInputs(hydratedVehicle, input);
+  const candidateProcess = [];
+  for (const probe of probes) {
+    let summary;
+    if (!probe.input) {
+      summary = {
+        outcome: 'service_unavailable', sharedUuid: null, version: null, resolverRevision: null,
+        isArchived: null, candidateCount: null, reason: probe.builderFailure || 'approved_identity_builder_probe_failed', field: null, matchedBy: [],
+      };
+    } else {
+      try {
+        summary = workshopVehicleLinkResultSummary(await identityResolver.resolve(probe.input, { reason: 'workshop_vehicle_link_probe', track: false }));
+      } catch (_) {
+        summary = workshopVehicleLinkResultSummary(null);
+      }
+    }
+    candidateProcess.push({ identifier: probe.identifier, value: probe.value, ...summary });
+  }
+  let summary;
+  try {
+    summary = workshopVehicleLinkResultSummary(await identityResolver.resolve(input, { reason: 'workshop_vehicle_link_combined', track: true }));
+  } catch (_) {
+    summary = workshopVehicleLinkResultSummary(null);
+  }
+  const probeOutcome = candidateProcess.map(item => item.isArchived ? 'archived' : item.outcome);
+  const priority = ['service_unavailable', 'unauthorized', 'archived', 'ambiguous', 'conflict', 'invalid_input'];
+  const blockingProbeOutcome = priority.find(outcome => probeOutcome.includes(outcome));
+  if (blockingProbeOutcome) {
+    const item = candidateProcess.find(candidate => (candidate.isArchived ? 'archived' : candidate.outcome) === blockingProbeOutcome);
+    return reject(blockingProbeOutcome, item?.reason || item?.field || `resolver_probe_${blockingProbeOutcome}`, candidateProcess);
+  }
+  const resolvedProbeUuids = candidateProcess
+    .filter(item => item.outcome === 'resolved')
+    .map(item => String(item.sharedUuid || '').toLowerCase());
+  const hasMissingProbe = probeOutcome.includes('not_found');
+  if (hasMissingProbe && resolvedProbeUuids.length) {
+    return reject('conflict', 'identifier_candidates_do_not_all_resolve', candidateProcess);
+  }
+  if (summary.outcome === 'service_unavailable') {
+    return reject('service_unavailable', summary.reason || 'resolver_combined_failed', candidateProcess);
+  }
+  if (summary.outcome === 'resolved' && summary.isArchived) {
+    return reject('archived', 'canonical_vehicle_archived', candidateProcess);
+  }
+  if (summary.outcome !== 'resolved') {
+    if (resolvedProbeUuids.length) return reject('conflict', 'combined_result_disagrees_with_identifier_candidates', candidateProcess);
+    return reject(summary.outcome, summary.reason || summary.field, candidateProcess);
+  }
+  const resolvedUuid = summary.sharedUuid;
+  if (hasMissingProbe || resolvedProbeUuids.some(uuid => uuid !== String(resolvedUuid).toLowerCase())) {
+    return reject('conflict', 'identifier_candidates_do_not_converge', candidateProcess);
+  }
+  const savedLinkMatches = !!(savedUuid && resolvedUuid && savedUuid.toLowerCase() === resolvedUuid.toLowerCase());
+  let outcome = summary.outcome;
+  let rejectedReason = outcome === 'resolved' ? null : [outcome, summary.reason || summary.field].filter(Boolean).join(':');
+  if (outcome === 'resolved' && summary.isArchived) {
+    outcome = 'archived';
+    rejectedReason = 'archived:canonical_vehicle_archived';
+  } else if (outcome === 'resolved' && savedUuid && !savedLinkMatches) {
+    outcome = 'conflict';
+    rejectedReason = 'conflict:saved_uuid_mismatch';
+  }
+  const linkState = outcome !== 'resolved' ? 'rejected' : savedLinkMatches ? 'verified' : 'ready_to_save';
+  return {
+    browserLocalIdentity,
+    sharedUuid: outcome === 'resolved' ? resolvedUuid : null,
+    savedSharedUuid: savedUuid,
+    outcome,
+    linkState,
+    version: outcome === 'resolved' ? summary.version : null,
+    resolverRevision: outcome === 'resolved' ? summary.resolverRevision : null,
+    matchedBy: outcome === 'resolved' ? [...summary.matchedBy] : [],
+    candidateCount: summary.candidateCount,
+    candidateProcess,
+    rejectedReason,
+    exactRemediation: workshopVehicleLinkRemediation(outcome, savedLinkMatches),
+  };
+}
+
+function workshopVehicleLinkCanPersist() {
+  if (typeof window === 'undefined') return true;
+  const role = String(window.PDC_AUTH_CONTEXT?.role || '').trim().toLowerCase();
+  return role === 'operator' || role === 'administrator';
+}
+
+function workshopPersistVerifiedCanonicalLink(vehicle = {}, diagnostic = {}, saveFn = null, storage = null, receiptOut = null) {
+  if (!workshopVehicleLinkCanPersist()) return false;
+  if (!vehicle || diagnostic.outcome !== 'resolved' || diagnostic.linkState !== 'ready_to_save'
+      || typeof diagnostic.sharedUuid !== 'string' || !WORKSHOP_UUID_PATTERN.test(diagnostic.sharedUuid)
+      || !Number.isInteger(diagnostic.version) || diagnostic.version < 1
+      || !Number.isInteger(diagnostic.resolverRevision) || diagnostic.resolverRevision < 1
+      || !Array.isArray(diagnostic.matchedBy) || !diagnostic.matchedBy.length
+      || new Set(diagnostic.matchedBy).size !== diagnostic.matchedBy.length
+      || diagnostic.matchedBy.some(field => typeof field !== 'string' || !WORKSHOP_LINK_MATCH_FIELDS.has(field))) return false;
+  const persist = saveFn || (typeof saveVehicleEdits === 'function' ? saveVehicleEdits : null);
+  const target = workshopVehicleLinkStorage(storage);
+  if (typeof persist !== 'function' || !target) return false;
+  const key = typeof vehicleKey === 'function'
+    ? vehicleKey(vehicle)
+    : String(vehicle.stock || vehicle.order || vehicle.id || '').trim();
+  if (!key) return false;
+  const updates = {
+    sharedVehicleId: diagnostic.sharedUuid,
+    sharedVehicleLinkSource: diagnostic.browserLocalIdentity?.sourceSystem || WORKSHOP_BROWSER_LINK_SOURCE_SYSTEM,
+    sharedVehicleLinkVehicleVersion: diagnostic.version,
+    sharedVehicleLinkResolverRevision: diagnostic.resolverRevision,
+    sharedVehicleLinkMatchedBy: [...(diagnostic.matchedBy || [])],
+    sharedVehicleLinkVerifiedAt: typeof nowIsoString === 'function' ? nowIsoString() : new Date().toISOString(),
+  };
+  const previousVehicleValues = Object.fromEntries(Object.keys(updates).map(field => [field, {
+    exists: Object.prototype.hasOwnProperty.call(vehicle, field),
+    value: vehicle[field],
+  }]));
+  let previousStore;
+  let previousEdits;
+  try {
+    previousStore = target.getItem(WORKSHOP_BROWSER_LINKS_KEY);
+    previousEdits = target.getItem(WORKSHOP_BROWSER_EDITS_KEY);
+  } catch (_) {
+    return false;
+  }
+  if (!workshopSaveStoredVehicleLink(vehicle, updates, target)) return false;
+  try {
+    if (persist(key, updates, { render: false }) === true) {
+      if (receiptOut && typeof receiptOut === 'object') {
+        Object.assign(receiptOut, {
+          storage: target,
+          vehicle,
+          previousStore,
+          persistedStore: target.getItem(WORKSHOP_BROWSER_LINKS_KEY),
+          previousEdits,
+          persistedEdits: target.getItem(WORKSHOP_BROWSER_EDITS_KEY),
+          previousVehicleValues,
+          updates,
+        });
+      }
+      return true;
+    }
+  } catch (_) {
+    // Roll back the stable link overlay below.
+  }
+  try {
+    if (previousStore == null) target.removeItem(WORKSHOP_BROWSER_LINKS_KEY);
+    else target.setItem(WORKSHOP_BROWSER_LINKS_KEY, previousStore);
+    if (previousEdits == null) target.removeItem(WORKSHOP_BROWSER_EDITS_KEY);
+    else target.setItem(WORKSHOP_BROWSER_EDITS_KEY, previousEdits);
+  } catch (_) {
+    // Persistence still reports failure and scheduling remains blocked.
+  }
+  Object.entries(previousVehicleValues).forEach(([field, previous]) => {
+    if (!workshopVehicleLinkValuesEqual(vehicle[field], updates[field])) return;
+    if (previous.exists) vehicle[field] = previous.value;
+    else delete vehicle[field];
+  });
+  return false;
+}
+
+function workshopVehicleLinkValuesEqual(left, right) {
+  if (Array.isArray(left) || Array.isArray(right)) return JSON.stringify(left) === JSON.stringify(right);
+  return left === right;
+}
+
+function workshopRollbackPersistedCanonicalLink(receipt = {}) {
+  const target = receipt.storage;
+  const vehicle = receipt.vehicle;
+  if (!target || !vehicle || !receipt.updates || !receipt.previousVehicleValues) return false;
+  let currentStore;
+  let currentEdits;
+  try {
+    currentStore = target.getItem(WORKSHOP_BROWSER_LINKS_KEY);
+    currentEdits = target.getItem(WORKSHOP_BROWSER_EDITS_KEY);
+  } catch (_) {
+    return false;
+  }
+  // Preflight both layers before touching either. A concurrent change leaves the
+  // saved state intact for manual review rather than creating split authority.
+  if (currentStore !== receipt.persistedStore || currentEdits !== receipt.persistedEdits) return false;
+  try {
+    if (receipt.previousStore == null) target.removeItem(WORKSHOP_BROWSER_LINKS_KEY);
+    else target.setItem(WORKSHOP_BROWSER_LINKS_KEY, receipt.previousStore);
+    if (receipt.previousEdits == null) target.removeItem(WORKSHOP_BROWSER_EDITS_KEY);
+    else target.setItem(WORKSHOP_BROWSER_EDITS_KEY, receipt.previousEdits);
+  } catch (_) {
+    // Best-effort roll-forward keeps both persistence layers on the same saved
+    // state if restoring the prior pair cannot complete.
+    try {
+      if (receipt.persistedStore == null) target.removeItem(WORKSHOP_BROWSER_LINKS_KEY);
+      else target.setItem(WORKSHOP_BROWSER_LINKS_KEY, receipt.persistedStore);
+      if (receipt.persistedEdits == null) target.removeItem(WORKSHOP_BROWSER_EDITS_KEY);
+      else target.setItem(WORKSHOP_BROWSER_EDITS_KEY, receipt.persistedEdits);
+    } catch (_) {
+      // The caller still fails closed and requires manual browser-storage review.
+    }
+    return false;
+  }
+  try {
+    if (target.getItem(WORKSHOP_BROWSER_LINKS_KEY) !== receipt.previousStore
+        || target.getItem(WORKSHOP_BROWSER_EDITS_KEY) !== receipt.previousEdits) return false;
+  } catch (_) {
+    return false;
+  }
+  let restored = true;
+  Object.entries(receipt.previousVehicleValues).forEach(([field, previous]) => {
+    if (!workshopVehicleLinkValuesEqual(vehicle[field], receipt.updates[field])) {
+      restored = false;
+      return;
+    }
+    if (previous.exists) vehicle[field] = previous.value;
+    else delete vehicle[field];
+  });
+  return restored;
+}
+
+function workshopVehicleLinkDisplayRows(diagnostic = {}) {
+  const identity = diagnostic.browserLocalIdentity || {};
+  const optionalRows = [
+    ['Browser-local key', identity.vehicleKey],
+    ['Stock number', identity.stockNumber],
+    ['VIN', identity.vin],
+    ['Job card', identity.jobCardNumber],
+    ['Toyota order', identity.toyotaOrderNumber],
+    ['Permanent vehicle ID', identity.permanentVehicleId],
+  ].filter(([, value]) => value);
+  return [
+    ...optionalRows,
+    ['Saved shared UUID', identity.savedSharedUuid || 'Not saved'],
+    ['Resolved shared UUID', diagnostic.sharedUuid || `Missing — ${diagnostic.rejectedReason || diagnostic.outcome || 'unresolved'}`],
+  ];
+}
+
+let workshopVehicleLinkModalSequence = 0;
+
+function workshopVehicleLinkDiagnosticModal(diagnostic = {}, options = {}) {
+  return new Promise(resolve => {
+    const headingId = `workshop-vehicle-link-title-${++workshopVehicleLinkModalSequence}`;
+    const previousFocus = document.activeElement;
+    const candidateRows = (diagnostic.candidateProcess || []).map(item => {
+      const detail = item.sharedUuid || [item.field, item.reason].filter(Boolean).join(':')
+        || (item.candidateCount == null ? 'No candidate' : `${item.candidateCount} candidates`);
+      return `<tr>
+      <td>${escapeHtml(item.identifier || '')}</td>
+      <td><code>${escapeHtml(item.value || '')}</code></td>
+      <td>${escapeHtml(item.outcome || 'unknown')}</td>
+      <td>${escapeHtml(detail)}</td>
+    </tr>`;
+    }).join('');
+    const identityRows = workshopVehicleLinkDisplayRows(diagnostic)
+      .map(([label, value]) => `<div><span>${escapeHtml(label)}</span><code>${escapeHtml(value)}</code></div>`).join('');
+    const canSave = diagnostic.linkState === 'ready_to_save' && !!diagnostic.sharedUuid && workshopVehicleLinkCanPersist();
+    const roleNote = diagnostic.linkState === 'ready_to_save' && !workshopVehicleLinkCanPersist()
+      ? '<p class="workshop-inline-note">An operator or administrator must save the verified browser-local link.</p>'
+      : '';
+    const safetyRefusal = diagnostic.linkState === 'verified'
+      ? ''
+      : '<p class="workshop-inline-note">This vehicle is not yet linked to one shared vehicle record. No change was made.</p>';
+    const statusCopy = diagnostic.linkState === 'verified'
+      ? 'The canonical shared UUID is saved and re-verified. Browser-local authority remains unchanged.'
+      : 'Workshop scheduling remains blocked until one canonical shared UUID is deterministically resolved and saved in the browser-local link overlay. Browser-local authority remains unchanged.';
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay workshop-vehicle-link-overlay';
+    overlay.setAttribute('role', 'dialog');
+    overlay.setAttribute('aria-modal', 'true');
+    overlay.setAttribute('aria-labelledby', headingId);
+    overlay.innerHTML = `<section class="modal-card workshop-vehicle-link-card">
+      <button class="modal-close" type="button" data-workshop-link-close aria-label="Close">×</button>
+      <header><h2 id="${headingId}">${escapeHtml(options.title || (canSave ? 'Verify shared vehicle link' : diagnostic.linkState === 'verified' ? 'Shared vehicle link verified' : 'Shared vehicle link required'))}</h2>
+        <p>${escapeHtml(statusCopy)}</p>${safetyRefusal}</header>
+      <section class="workshop-link-identity"><h3>Browser-local identity</h3>${identityRows || '<p>No usable identity fields were supplied.</p>'}</section>
+      <section><h3>Candidate matching process</h3><div class="responsive-table"><table class="data-table workshop-link-candidates"><thead><tr><th scope="col">Identifier</th><th scope="col">Normalized input</th><th scope="col">Outcome</th><th scope="col">Candidate / reason</th></tr></thead><tbody>${candidateRows || '<tr><td colspan="4">The approved resolver was unavailable; no fallback match was attempted.</td></tr>'}</tbody></table></div></section>
+      <section class="workshop-link-decision"><div><span>Decision</span><strong>${escapeHtml(diagnostic.linkState || 'rejected')}</strong></div><div><span>Rejected because</span><strong>${escapeHtml(diagnostic.rejectedReason || 'Not rejected')}</strong></div><div><span>Exact remediation</span><strong>${escapeHtml(diagnostic.exactRemediation || 'Manual review required.')}</strong></div></section>
+      ${roleNote}
+      <div class="edit-actions"><button class="secondary" type="button" data-workshop-link-close>Close without change</button>${canSave ? '<button class="primary" type="button" data-workshop-link-save>Save verified UUID link</button>' : ''}</div>
+    </section>`;
+    let finished = false;
+    const finish = value => {
+      if (finished) return;
+      finished = true;
+      document.removeEventListener('keydown', onKeyDown);
+      overlay.remove();
+      if (!document.querySelector('.modal-overlay')) document.body.classList.remove('modal-open');
+      if (previousFocus && previousFocus.isConnected && typeof previousFocus.focus === 'function') previousFocus.focus();
+      resolve(value);
+    };
+    const onKeyDown = event => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        finish('close');
+        return;
+      }
+      if (event.key !== 'Tab') return;
+      const focusable = [...overlay.querySelectorAll('button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])')];
+      if (!focusable.length) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+    overlay.querySelectorAll('[data-workshop-link-close]').forEach(button => button.addEventListener('click', () => finish('close')));
+    overlay.querySelector('[data-workshop-link-save]')?.addEventListener('click', () => finish('save'));
+    overlay.addEventListener('click', event => { if (event.target === overlay) finish('close'); });
+    document.body.appendChild(overlay);
+    document.body.classList.add('modal-open');
+    document.addEventListener('keydown', onKeyDown);
+    overlay.querySelector('[data-workshop-link-save], [data-workshop-link-close]')?.focus();
+  });
+}
+
+async function workshopVerifiedCanonicalVehicleRef(vehicle = {}, options = {}) {
+  const resolveDiagnostic = () => workshopResolveVehicleLinkDiagnostic(vehicle, options.resolver || null, options.storage || null);
+  const openDiagnostic = options.modalFn || workshopVehicleLinkDiagnosticModal;
+  const persistLink = options.persistFn || ((targetVehicle, diagnostic, receipt) => workshopPersistVerifiedCanonicalLink(
+    targetVehicle, diagnostic, options.saveFn || null, options.storage || null, receipt,
+  ));
+  const diagnostic = await resolveDiagnostic();
+  if (diagnostic.linkState === 'verified' && diagnostic.sharedUuid) {
+    return { ok: true, vehicleId: diagnostic.sharedUuid, version: diagnostic.version, diagnostic };
+  }
+  const decision = await openDiagnostic(diagnostic);
+  if (decision !== 'save' || diagnostic.linkState !== 'ready_to_save') return { ok: false, error: 'vehicle_identity_not_found', diagnostic };
+  const receipt = {};
+  if (!persistLink(vehicle, diagnostic, receipt)) {
+    const failed = { ...diagnostic, outcome: 'service_unavailable', linkState: 'rejected', rejectedReason: 'browser_local_link_persist_failed', exactRemediation: 'Resolve browser-local storage persistence, then run deterministic link verification again.' };
+    await openDiagnostic(failed, { title: 'Shared vehicle link was not saved' });
+    return { ok: false, error: 'vehicle_link_persist_failed', diagnostic: failed };
+  }
+  const verified = await resolveDiagnostic();
+  if (verified.linkState !== 'verified' || verified.sharedUuid !== diagnostic.sharedUuid) {
+    const rolledBack = workshopRollbackPersistedCanonicalLink(receipt);
+    const failed = {
+      ...verified,
+      linkState: 'rejected',
+      rejectedReason: `${verified.rejectedReason || 'post_save_verification_failed'}:${rolledBack ? 'new_link_rolled_back' : 'rollback_conflict'}`,
+      exactRemediation: rolledBack
+        ? 'The newly saved browser-local link was rolled back. Resolve the reported identity condition, then run deterministic link verification again.'
+        : 'Browser-local link rollback could not safely overwrite a concurrent change. Reload and complete manual identity review before scheduling.',
+    };
+    await openDiagnostic(failed, { title: rolledBack ? 'Shared vehicle link was rolled back' : 'Shared vehicle link rollback needs review' });
+    return { ok: false, error: rolledBack ? 'conflicting_vehicle_identity_rolled_back' : 'vehicle_link_rollback_conflict', diagnostic: failed };
+  }
+  await openDiagnostic(verified, { title: 'Shared UUID link saved and verified' });
+  return { ok: false, error: 'vehicle_link_saved_retry', diagnostic: verified };
+}
+
 function workshopSharedVehicleRef(vehicleReference = '') {
   if (!workshopSharedModeActive()) return null;
   const snapshot = window.__workshopDataService.getLastSnapshot();
@@ -3068,11 +3703,11 @@ async function scheduleWorkshopVehicle({ planId = '', vehicleKeyValue = '', stag
       });
       return !!(result && result.ok);
     }
-    const vehicleRef = workshopSharedVehicleRef(vehicleKey(vehicle));
+    const vehicleRef = await workshopVerifiedCanonicalVehicleRef(vehicle);
     if (!vehicleRef || vehicleRef.ok === false) {
-      window.alert(vehicleRef && vehicleRef.error
-        ? workshopDescribeSharedActionError(vehicleRef)
-        : 'This vehicle is not yet available in shared workshop data. No change was made.');
+      // Controlled linking owns the diagnostic UI and always fails closed.
+      // A newly saved link deliberately requires a second scheduling action;
+      // no operational booking is created in the link transaction.
       return false;
     }
     return workshopScheduleSharedNewBooking({
@@ -4046,6 +4681,20 @@ if (typeof module !== 'undefined' && module.exports) {
     workshopMapSnapshotBookingToLegacyRow,
     workshopConnectionBannerHtml,
     workshopDescribeSharedActionError,
+    workshopVehicleLinkIdentityInput,
+    workshopVehicleLinkStableAliases,
+    workshopLoadVehicleLinkStore,
+    workshopLookupStoredVehicleLink,
+    workshopSaveStoredVehicleLink,
+    workshopVehicleLinkProbeInputs,
+    workshopVehicleLinkResultSummary,
+    workshopResolveVehicleLinkDiagnostic,
+    workshopVehicleLinkCanPersist,
+    workshopPersistVerifiedCanonicalLink,
+    workshopRollbackPersistedCanonicalLink,
+    workshopVehicleLinkDisplayRows,
+    workshopVehicleLinkDiagnosticModal,
+    workshopVerifiedCanonicalVehicleRef,
     workshopSharedVehicleRef,
     workshopSharedTechnicianRef,
     workshopReferenceTechnicianRef,
