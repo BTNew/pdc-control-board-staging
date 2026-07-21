@@ -99,8 +99,10 @@ function resolverWith(combined) {
   assert.match(missing.exactRemediation, /approved Stage 2B importer/i);
   assert.deepStrictEqual(missing.candidateProcess.map(item => item.identifier), ['stock_number', 'vin', 'toyota_order_number']);
   const missingRows = Object.fromEntries(planner.workshopVehicleLinkDisplayRows(missing));
+  assert.strictEqual(missingRows['Shared vehicle UUID'], 'Missing');
+  assert.match(missingRows['Refusal reason'], /^Not found/);
   assert.strictEqual(missingRows['Saved shared UUID'], 'Not saved');
-  assert.match(missingRows['Resolved shared UUID'], /^Missing — not_found/);
+  assert.strictEqual(missingRows['Resolved shared UUID'], 'Missing');
 
   const partialMissing = await planner.workshopResolveVehicleLinkDiagnostic(vehicle, {
     async resolve(probe) {

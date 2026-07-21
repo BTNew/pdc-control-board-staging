@@ -1454,21 +1454,52 @@ function workshopRollbackPersistedCanonicalLink(receipt = {}) {
   return restored;
 }
 
-function workshopVehicleLinkDisplayRows(diagnostic = {}) {
+function workshopVehicleLinkVisibleReason(diagnostic = {}) {
+  const outcome = String(diagnostic.outcome || '').trim().toLowerCase();
+  const reason = String(diagnostic.rejectedReason || '').trim().toLowerCase();
+  if (outcome === 'stale' || reason.includes('stale')) {
+    return 'Stale — the saved vehicle identity or resolver result changed and must be verified again.';
+  }
+  const messages = {
+    not_found: 'Not found — no canonical shared vehicle matched the approved browser-local identity.',
+    invalid_input: 'Invalid input — a browser-local identity field must be corrected before linking.',
+    ambiguous: 'Ambiguous — more than one canonical vehicle candidate matched; no candidate was selected.',
+    conflict: 'Conflict — the saved UUID or identity evidence points to different canonical vehicles.',
+    archived: 'Archived — the canonical shared vehicle is archived and cannot be linked for scheduling.',
+    service_unavailable: 'Resolver unavailable — deterministic identity verification could not be completed.',
+    unauthorized: 'Not authorized — this account cannot resolve or save a shared vehicle link.',
+    unstable_identity: 'Not linked — the browser-local vehicle does not have a stable identity suitable for linking.',
+  };
+  if (messages[outcome]) return messages[outcome];
+  if (!diagnostic.sharedUuid) return 'Not linked — no verified canonical shared vehicle UUID is available.';
+  return 'No refusal — the canonical shared vehicle UUID was resolved.';
+}
+
+function workshopVehicleLinkDisplayRows(diagnostic = {}, options = {}) {
   const identity = diagnostic.browserLocalIdentity || {};
+  const sanitize = options.sanitize === true;
+  const shown = value => sanitize && value ? 'Restricted' : value;
   const optionalRows = [
-    ['Browser-local key', identity.vehicleKey],
-    ['Stock number', identity.stockNumber],
-    ['VIN', identity.vin],
-    ['Job card', identity.jobCardNumber],
-    ['Toyota order', identity.toyotaOrderNumber],
-    ['Permanent vehicle ID', identity.permanentVehicleId],
+    ['Browser-local key', shown(identity.vehicleKey)],
+    ['Stock number', shown(identity.stockNumber)],
+    ['VIN', shown(identity.vin)],
+    ['Job card', shown(identity.jobCardNumber)],
+    ['Toyota order', shown(identity.toyotaOrderNumber)],
+    ['Permanent vehicle ID', shown(identity.permanentVehicleId)],
+    ['Source system', shown(identity.sourceSystem)],
+    ['Source record ID', shown(identity.sourceRecordId)],
   ].filter(([, value]) => value);
-  return [
+  const sharedUuid = diagnostic.sharedUuid ? shown(diagnostic.sharedUuid) : 'Missing';
+  const rows = [
     ...optionalRows,
-    ['Saved shared UUID', identity.savedSharedUuid || 'Not saved'],
-    ['Resolved shared UUID', diagnostic.sharedUuid || `Missing — ${diagnostic.rejectedReason || diagnostic.outcome || 'unresolved'}`],
+    ['Shared vehicle UUID', sharedUuid],
   ];
+  if (!diagnostic.sharedUuid) rows.push(['Refusal reason', workshopVehicleLinkVisibleReason(diagnostic)]);
+  rows.push(
+    ['Saved shared UUID', identity.savedSharedUuid ? shown(identity.savedSharedUuid) : 'Not saved'],
+    ['Resolved shared UUID', diagnostic.sharedUuid ? shown(diagnostic.sharedUuid) : 'Missing'],
+  );
+  return rows;
 }
 
 let workshopVehicleLinkModalSequence = 0;
@@ -1477,18 +1508,22 @@ function workshopVehicleLinkDiagnosticModal(diagnostic = {}, options = {}) {
   return new Promise(resolve => {
     const headingId = `workshop-vehicle-link-title-${++workshopVehicleLinkModalSequence}`;
     const previousFocus = document.activeElement;
+    const viewerSanitized = typeof window !== 'undefined'
+      && String(window.PDC_AUTH_CONTEXT?.role || '').trim().toLowerCase() === 'viewer';
     const candidateRows = (diagnostic.candidateProcess || []).map(item => {
-      const detail = item.sharedUuid || [item.field, item.reason].filter(Boolean).join(':')
-        || (item.candidateCount == null ? 'No candidate' : `${item.candidateCount} candidates`);
+      const detail = item.sharedUuid
+        ? (viewerSanitized ? 'Restricted' : item.sharedUuid)
+        : (item.outcome ? workshopVehicleLinkVisibleReason({ outcome: item.isArchived ? 'archived' : item.outcome, rejectedReason: item.reason || item.field }) : 'No candidate');
       return `<tr>
       <td>${escapeHtml(item.identifier || '')}</td>
-      <td><code>${escapeHtml(item.value || '')}</code></td>
+      <td><code>${escapeHtml(viewerSanitized && item.value ? 'Restricted' : item.value || '')}</code></td>
       <td>${escapeHtml(item.outcome || 'unknown')}</td>
       <td>${escapeHtml(detail)}</td>
     </tr>`;
     }).join('');
-    const identityRows = workshopVehicleLinkDisplayRows(diagnostic)
+    const identityRows = workshopVehicleLinkDisplayRows(diagnostic, { sanitize: viewerSanitized })
       .map(([label, value]) => `<div><span>${escapeHtml(label)}</span><code>${escapeHtml(value)}</code></div>`).join('');
+    const visibleReason = workshopVehicleLinkVisibleReason(diagnostic);
     const canSave = diagnostic.linkState === 'ready_to_save' && !!diagnostic.sharedUuid && workshopVehicleLinkCanPersist();
     const roleNote = diagnostic.linkState === 'ready_to_save' && !workshopVehicleLinkCanPersist()
       ? '<p class="workshop-inline-note">An operator or administrator must save the verified browser-local link.</p>'
@@ -1510,7 +1545,7 @@ function workshopVehicleLinkDiagnosticModal(diagnostic = {}, options = {}) {
         <p>${escapeHtml(statusCopy)}</p>${safetyRefusal}</header>
       <section class="workshop-link-identity"><h3>Browser-local identity</h3>${identityRows || '<p>No usable identity fields were supplied.</p>'}</section>
       <section><h3>Candidate matching process</h3><div class="responsive-table"><table class="data-table workshop-link-candidates"><thead><tr><th scope="col">Identifier</th><th scope="col">Normalized input</th><th scope="col">Outcome</th><th scope="col">Candidate / reason</th></tr></thead><tbody>${candidateRows || '<tr><td colspan="4">The approved resolver was unavailable; no fallback match was attempted.</td></tr>'}</tbody></table></div></section>
-      <section class="workshop-link-decision"><div><span>Decision</span><strong>${escapeHtml(diagnostic.linkState || 'rejected')}</strong></div><div><span>Rejected because</span><strong>${escapeHtml(diagnostic.rejectedReason || 'Not rejected')}</strong></div><div><span>Exact remediation</span><strong>${escapeHtml(diagnostic.exactRemediation || 'Manual review required.')}</strong></div></section>
+      <section class="workshop-link-decision"><div><span>Decision</span><strong>${escapeHtml(diagnostic.linkState || 'rejected')}</strong></div><div><span>Refusal reason</span><strong>${escapeHtml(diagnostic.linkState === 'verified' ? 'Not refused' : visibleReason)}</strong></div><div><span>Exact remediation</span><strong>${escapeHtml(diagnostic.exactRemediation || 'Manual review required.')}</strong></div></section>
       ${roleNote}
       <div class="edit-actions"><button class="secondary" type="button" data-workshop-link-close>Close without change</button>${canSave ? '<button class="primary" type="button" data-workshop-link-save>Save verified UUID link</button>' : ''}</div>
     </section>`;
@@ -4692,6 +4727,7 @@ if (typeof module !== 'undefined' && module.exports) {
     workshopVehicleLinkCanPersist,
     workshopPersistVerifiedCanonicalLink,
     workshopRollbackPersistedCanonicalLink,
+    workshopVehicleLinkVisibleReason,
     workshopVehicleLinkDisplayRows,
     workshopVehicleLinkDiagnosticModal,
     workshopVerifiedCanonicalVehicleRef,
