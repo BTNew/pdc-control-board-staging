@@ -55,7 +55,7 @@ assert.ok(styles.includes('.parts-more-popover'), 'Parts More popover styles are
 assert.ok(styles.includes('position: fixed'), 'Parts More menu must be outside table flow');
 assert.ok(styles.includes('.parts-queue-table th:nth-child(6)'), 'JITA requires a narrow explicit column rule');
 assert.ok(styles.includes('width: 44px'), 'JITA compact target width is missing');
-assert.ok(styles.includes('.parts-queue-row > td') && styles.includes('padding: 5px 6px'), 'Parts rows need materially reduced cell padding');
+assert.ok(styles.includes('.parts-queue-row > td') && styles.includes('padding: 3px 5px'), 'Parts rows need materially reduced cell padding');
 
 for (const selector of ['.incoming-work-transfer', 'select[name="pdcLocation"]', '[data-pmb-bay-provider-key]', '[data-sublet-field="pmbSubletProvider"]']) {
   assert.ok(styles.includes(selector), `Transfer selector contrast coverage missing: ${selector}`);

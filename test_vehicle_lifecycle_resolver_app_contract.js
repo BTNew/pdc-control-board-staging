@@ -7,7 +7,10 @@ const path = require('path');
 const root = __dirname;
 const app = fs.readFileSync(path.join(root, 'app.js'), 'utf8').replace(/\r\n/g, '\n');
 const stagingConfig = fs.readFileSync(path.join(root, 'pdc-supabase-config.staging.js'), 'utf8');
-const productionConfig = fs.readFileSync(path.join(root, 'pdc-supabase-config.js'), 'utf8');
+const productionConfigPath = fs.existsSync(path.join(root, 'pdc-supabase-config.js'))
+  ? path.join(root, 'pdc-supabase-config.js')
+  : path.join(root, 'pdc-supabase-config.example.js');
+const productionConfig = fs.readFileSync(productionConfigPath, 'utf8');
 const stagingHtml = fs.readFileSync(path.join(root, 'staging.html'), 'utf8');
 const lifecycleModule = fs.readFileSync(path.join(root, 'vehicle-lifecycle-actions.js'), 'utf8');
 

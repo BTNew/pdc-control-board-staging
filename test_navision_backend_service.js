@@ -61,18 +61,22 @@ function assert(condition, message) {
   assert(first.browserLocalAuthorityCutover === false, 'Service must declare no browser-local authority cutover');
 
   const rows = [{ id: 'SYN-1' }, { id: 'SYN-2' }];
-  const preview = await first.preview(rows, { sourceName: 'synthetic.json' });
+  const missingDealer = await first.preview(rows, { sourceName: 'synthetic.json' });
+  assert(!missingDealer.ok && missingDealer.error === 'invalid_dealer_code', 'Missing dealer scope must fail closed before RPC');
+  const preview = await first.preview(rows, { sourceName: 'synthetic.json', dealerCode: '14450' });
   assert(preview.ok && preview.data.data.operational_mutations === 0, 'Preview must be read-only and report zero operational mutations');
-  assert(JSON.stringify(Object.keys(calls.at(-1).params).sort()) === JSON.stringify(['p_rows', 'p_source_name', 'p_source_timestamp']), 'Preview parameter keys must exactly match its SQL signature');
+  assert(JSON.stringify(Object.keys(calls.at(-1).params).sort()) === JSON.stringify(['p_dealer_code', 'p_rows', 'p_source_name', 'p_source_system', 'p_source_timestamp']), 'Preview parameter keys must exactly match its scoped SQL signature');
   const unconfirmed = await first.apply(rows, preview, { idempotencyKey: 'apply-1' });
   assert(!unconfirmed.ok && unconfirmed.error === 'explicit_confirmation_required', 'Apply must require explicit confirmation');
+  const truthyButNotExplicit = await first.apply(rows, preview, { idempotencyKey: 'apply-1', confirmed: 'yes' });
+  assert(!truthyButNotExplicit.ok && truthyButNotExplicit.error === 'explicit_confirmation_required', 'Apply confirmation must be the boolean true, not a truthy substitute');
 
-  const options = { idempotencyKey: 'apply-1', sourceName: 'synthetic.json', confirmed: true };
+  const options = { idempotencyKey: 'apply-1', sourceName: 'synthetic.json', sourceSystem: 'microsoft_navision', dealerCode: '14450', confirmed: true };
   const applied = await first.apply(rows, preview, options);
   const replayed = await first.apply(rows, preview, options);
   assert(applied.data.data.batch_id === 'batch-1' && JSON.stringify(applied.data) === JSON.stringify(replayed.data), 'Identical replay must return the same durable receipt');
   const applyCalls = calls.filter(call => call.name === 'apply_navision_backend_import');
-  assert(JSON.stringify(Object.keys(applyCalls[0].params).sort()) === JSON.stringify(['p_expected_revision', 'p_idempotency_key', 'p_preview_hash', 'p_rows', 'p_source_hash', 'p_source_name', 'p_source_timestamp']), 'Apply parameter keys must exactly match its SQL signature');
+  assert(JSON.stringify(Object.keys(applyCalls[0].params).sort()) === JSON.stringify(['p_dealer_code', 'p_expected_revision', 'p_idempotency_key', 'p_preview_hash', 'p_rows', 'p_source_hash', 'p_source_name', 'p_source_system', 'p_source_timestamp']), 'Apply parameter keys must exactly match its scoped SQL signature');
   assert(JSON.stringify(applyCalls[0].params) === JSON.stringify(applyCalls[1].params), 'Response-loss retry must send the identical request contract');
 
   let firstRevision = null;
@@ -82,13 +86,14 @@ function assert(condition, message) {
   subscribers.forEach(handler => handler.onChange({ new: { revision: 3 } }));
   assert(firstRevision === 3 && secondRevision === 3, 'Two browser clients must observe the same revision signal');
 
-  await first.snapshot('', 9999, 3);
+  await first.snapshot({ sourceSystem: 'microsoft_navision', dealerCode: '14450' }, {}, 9999, 3);
   const snapshotCall = calls.at(-1);
-  assert(snapshotCall.name === 'get_navision_backend_snapshot' && JSON.stringify(Object.keys(snapshotCall.params).sort()) === JSON.stringify(['p_after_source_record_id', 'p_expected_revision', 'p_page_size']), 'Snapshot parameter keys must exactly match its SQL signature');
+  assert(snapshotCall.name === 'get_navision_backend_snapshot' && JSON.stringify(Object.keys(snapshotCall.params).sort()) === JSON.stringify(['p_after_record_id', 'p_after_source_record_id', 'p_dealer_code', 'p_expected_revision', 'p_page_size', 'p_source_system']), 'Snapshot parameter keys must exactly match its dealer-scoped composite-cursor SQL signature');
   assert(snapshotCall.params.p_page_size === 500, 'Read contracts must cap export/snapshot pages at 500');
-  await first.exportRecords('NAV-9', 9999, 3);
+  await first.exportRecords({ sourceSystem: 'microsoft_navision', dealerCode: '37047' }, { sourceRecordId: 'NAV-9', recordId: '00000000-0000-0000-0000-000000000009' }, 9999, 3);
   const exportCall = calls.at(-1);
-  assert(exportCall.name === 'export_navision_backend_records' && JSON.stringify(Object.keys(exportCall.params).sort()) === JSON.stringify(['p_after_source_record_id', 'p_expected_revision', 'p_page_size']), 'Export parameter keys must exactly match its SQL signature');
+  assert(exportCall.name === 'export_navision_backend_records' && JSON.stringify(Object.keys(exportCall.params).sort()) === JSON.stringify(['p_after_record_id', 'p_after_source_record_id', 'p_dealer_code', 'p_expected_revision', 'p_page_size', 'p_source_system']), 'Export parameter keys must exactly match its dealer-scoped composite-cursor SQL signature');
+  assert(exportCall.params.p_dealer_code === '37047' && exportCall.params.p_after_record_id, 'Export must preserve exact dealer scope and both cursor components');
   await first.reconciliation('batch-1', 12, 9999);
   const reconciliationCall = calls.at(-1);
   assert(JSON.stringify(Object.keys(reconciliationCall.params).sort()) === JSON.stringify(['p_after_row_index', 'p_batch_id', 'p_page_size']) && reconciliationCall.params.p_after_row_index === 12 && reconciliationCall.params.p_page_size === 500, 'Reconciliation parameters must exactly match the SQL RPC contract');

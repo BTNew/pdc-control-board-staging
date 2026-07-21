@@ -32,5 +32,10 @@ assert.ok(!html.includes('<script src="workshop-planner.js'), 'Workshop Planner 
 assert.ok(html.includes('<script src="data.js'), 'Optional lazy loading must preserve the production vehicle dataset');
 assert.ok(source.includes("loadExternalScript('vendor/pdfjs/pdf.min.js"), 'PDF processing must retain an on-demand PDF.js path');
 assert.ok(source.includes("loadExternalScript('vendor/qz/qz-tray.js"), 'Printing must retain an on-demand QZ Tray path');
+assert.ok(source.includes('let activeRenderJsonCache = null;'), 'Local JSON reuse must be explicitly scoped to a synchronous render');
+assert.ok(functionSource('loadJson').includes('activeRenderJsonCache?.has(key)'), 'Repeated reads in one render must reuse the parsed value');
+assert.ok(functionSource('loadJson').includes('JSON.parse(JSON.stringify(fallback))'), 'Render cache must preserve loadJson fallback clone semantics');
+assert.ok(functionSource('saveJson').includes('activeRenderJsonCache?.delete(key)'), 'Every normal local JSON write must invalidate the render cache key first');
+assert.ok(activeRender.includes('activeRenderJsonCache = new Map();') && activeRender.includes('finally') && activeRender.includes('activeRenderJsonCache = previousRenderJsonCache;'), 'Render-scoped cache must always be discarded/restored in finally');
 
 console.log('Performance guard checks passed');

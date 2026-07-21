@@ -11501,13 +11501,35 @@ html[data-row-width="xl"] {
 
 
 /* Phase A — slimline Parts queue and out-of-flow More menu. */
-.parts-queue-table { table-layout: auto; }
-.parts-queue-row > td { padding: 5px 6px !important; vertical-align: middle; line-height: 1.08; }
-.parts-queue-row .small-button { min-height: 28px; padding: 4px 7px; font-size: .65rem; line-height: 1; }
+#parts.view.active { box-sizing: border-box; height: calc(100vh - 133px); min-height: min(640px, calc(100vh - 133px)); overflow: hidden; }
+#parts .parts-home-layout, #parts .parts-home-panel { height: 100%; min-height: 0; }
+#parts .parts-home-panel { display: flex; flex-direction: column; padding: 12px 14px; overflow: hidden; }
+#parts .panel-header { flex: 0 0 auto; }
+#parts .parts-summary-grid { flex: 0 0 auto; display: grid; grid-template-columns: repeat(5, minmax(126px, 1fr)); gap: 6px; margin: 7px 0; }
+#parts .parts-summary-card { min-height: 48px; display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-rows: auto auto; column-gap: 8px; align-items: center; padding: 6px 9px; border-radius: 5px; box-shadow: none; }
+#parts .parts-summary-card span { font-size: .62rem; line-height: 1; }
+#parts .parts-summary-card strong { grid-row: 1 / 3; grid-column: 2; margin: 0; font-size: 1.15rem; line-height: 1; }
+#parts .parts-summary-card small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .6rem; line-height: 1.05; }
+#parts .parts-toolbar { flex: 0 0 auto; margin: 4px 0; padding: 6px 8px; gap: 6px 8px; }
+#parts .parts-toolbar label { gap: 2px; }
+#parts .parts-toolbar label > span { font-size: .62rem; }
+#parts .parts-toolbar input, #parts .parts-toolbar select { min-height: 30px; padding: 4px 7px; font-size: .7rem; }
+#parts .parts-help-strip { flex: 0 0 auto; min-height: 30px; margin: 3px 0 6px; padding: 5px 8px; border-radius: 4px; font-size: .68rem; line-height: 1.15; }
+#parts .parts-home-content { flex: 1 1 auto; min-height: 0; overflow: hidden; }
+#parts .parts-table-wrap { height: 100%; min-height: 0; max-height: none; overflow: auto; border-radius: 4px; }
+.parts-queue-table { width: 100%; table-layout: auto; border-collapse: separate; border-spacing: 0; }
+.parts-queue-table thead th { position: sticky; top: 0; z-index: 4; height: 32px; padding-top: 4px !important; padding-bottom: 4px !important; border-bottom: 1px solid #94a3b8; }
+.parts-queue-row > td { height: 48px; padding: 3px 5px !important; vertical-align: middle; line-height: 1.02; border-bottom: 1px solid #d7dee8; border-radius: 0 !important; box-shadow: none !important; }
+.parts-queue-row:nth-child(even) > td { background: #f8fafc; }
+.parts-queue-row:hover > td { background: #eff6ff; }
+.parts-queue-row .small-button { min-height: 22px; padding: 2px 5px; font-size: .61rem; line-height: 1; border-radius: 4px; }
 .parts-queue-status-cell { gap: 3px; }
 .parts-queue-status-cell .parts-status-pill, .parts-queue-status-cell .badge { padding: 3px 5px; font-size: .58rem; line-height: 1; }
-.parts-queue-identity { gap: 3px; }
-.parts-queue-identity span { padding: 3px 4px; font-size: .65rem; line-height: 1; }
+.parts-queue-identity { gap: 2px; }
+.parts-compact-identity { width: 100%; display: grid; gap: 2px; margin: 0; padding: 0; border: 0; background: transparent; color: inherit; text-align: left; cursor: pointer; }
+.parts-compact-identity strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #0f172a; font-size: .67rem; line-height: 1.05; }
+.parts-compact-identity span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 0; color: #475569; font-size: .59rem; line-height: 1.05; }
+.parts-compact-identity:hover strong, .parts-compact-identity:focus-visible strong { color: #1d4ed8; text-decoration: underline; }
 .parts-queue-customer { gap: 1px; line-height: 1.05; }
 .parts-queue-customer strong { font-size: .72rem; line-height: 1.05; }
 .parts-queue-customer span { font-size: .63rem; line-height: 1.05; }
@@ -11517,17 +11539,17 @@ html[data-row-width="xl"] {
 .parts-eta { gap: 2px; }
 .parts-eta strong, .parts-eta span { font-size: .64rem; line-height: 1.05; }
 .parts-worst-eta-wrap { display: grid; grid-template-columns: minmax(106px, 1fr); gap: 1px; align-items: center; }
-.parts-worst-eta input { min-height: 28px !important; padding: 3px 5px !important; font-size: .65rem; }
+.parts-worst-eta input { min-height: 24px !important; padding: 2px 4px !important; font-size: .62rem; }
 .parts-worst-eta-details { display: flex; flex-wrap: wrap; gap: 2px 5px; line-height: 1; }
 .parts-worst-eta-label, .parts-worst-eta-countdown { margin: 0 !important; font-size: .58rem !important; line-height: 1 !important; }
 .parts-queue-table th:nth-child(6), .parts-queue-table td:nth-child(6) { width: 44px !important; min-width: 44px !important; max-width: 44px !important; padding-left: 3px !important; padding-right: 3px !important; text-align: center; }
 .parts-queue-jita-cell .jita-icon { display: inline-grid; place-items: center; width: 22px; height: 22px; margin: 0 auto; border-radius: 999px; font-size: .75rem; line-height: 1; }
 .parts-queue-blocker { max-width: 180px; }
 .parts-queue-blocker strong, .parts-queue-blocker span { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .62rem; }
-.parts-action-group { display: grid; gap: 3px; justify-items: end; min-width: 118px; }
+.parts-action-group { display: grid; gap: 2px; justify-items: end; min-width: 112px; }
 .parts-action-primary { display: flex; justify-content: flex-end; gap: 4px; white-space: nowrap; }
-.parts-email-sales-secondary { width: 100%; display: flex; justify-content: flex-end; border-top: 1px solid #e2e8f0; padding-top: 3px; }
-.parts-email-sales-secondary .parts-email-sales-button { min-height: 24px; padding: 3px 6px; border: 0; background: transparent; color: #1d4ed8; text-decoration: underline; }
+.parts-email-sales-secondary { width: 100%; display: flex; justify-content: flex-end; border-top: 1px solid #e2e8f0; padding-top: 2px; }
+.parts-email-sales-secondary .parts-email-sales-button { min-height: 18px; padding: 1px 4px; border: 0; background: transparent; color: #1d4ed8; text-decoration: underline; }
 .parts-more-popover { position: fixed; z-index: 10050; min-width: 150px; display: grid; gap: 5px; padding: 7px; border: 1px solid #94a3b8; border-radius: 8px; background: #fff; box-shadow: 0 16px 36px rgba(15, 23, 42, .28); }
 .parts-more-popover button { width: 100%; min-height: 32px; justify-content: flex-start; text-align: left; }
 .parts-more-popover.opens-upward { transform-origin: bottom right; }

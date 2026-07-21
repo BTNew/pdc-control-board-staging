@@ -3,9 +3,12 @@ const fs = require('fs');
 const path = require('path');
 
 const html = fs.readFileSync(path.join(__dirname, 'index.html'), 'utf8');
+const stagingHtml = fs.readFileSync(path.join(__dirname, 'staging.html'), 'utf8');
 const css = fs.readFileSync(path.join(__dirname, 'styles.css'), 'utf8');
 
-assert.ok(html.includes('<h2>1. Daily Navision import</h2>'), 'Daily Navision must be clearly labelled as the first upload');
+assert.ok(html.includes('<h2>1. Daily Navision import</h2>'), 'Production daily Navision import must remain the first upload');
+assert.ok(stagingHtml.includes('<h2>1. Daily Navision import · shared backend</h2>'), 'Staging shared-backend flow must be clearly labelled as the first upload');
+assert.ok(stagingHtml.includes('migration-037/038 shared staging service'), 'Staging shared upload must identify the migration-038 scoped safety layer');
 assert.ok(html.includes('<h2>2. Upload job card / PD work</h2>'), 'Job-card/PD upload must follow Navision');
 assert.ok(html.includes('<h2>2. Upload purchase order</h2>'), 'PO upload must be grouped with the second upload step');
 assert.ok(css.includes('#import .navision-layout { order: 1; }'), 'Navision layout must render first');
