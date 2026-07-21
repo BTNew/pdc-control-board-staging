@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.07.21.02-combined-staging-candidate';
+const APP_VERSION = '2026.07.21.03-real-linking-parts';
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
 // constant intentionally names only the production ref, never the

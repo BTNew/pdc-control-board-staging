@@ -41,7 +41,8 @@ assert.match(v2Css, /\.pdc-grid-stations-heading,[\s\S]*?grid-template-columns:\
 assert.match(v2Css, /\.identity-name \.vehicle-identity-value,[\s\S]*?white-space:\s*normal\s*!important/);
 assert.match(v2Css, /\.incoming-work-label[\s\S]*?white-space:\s*nowrap\s*!important/);
 assert.match(v2Css, /\.incoming-vehicle-card,[\s\S]*?overflow:\s*visible\s*!important/);
-assert.match(desktopCss, /\.parts-queue-table\s*\{[\s\S]*?min-width:\s*1480px/);
+assert.match(desktopCss, /\.parts-queue-table\s*\{[\s\S]*?min-width:\s*0/);
+assert.doesNotMatch(desktopCss, /\.parts-queue-table\s*\{[\s\S]*?min-width:\s*1480px/);
 assert.match(v2Css, /\.completed-table\s*\{[\s\S]*?width:\s*1730px\s*!important/);
 assert.match(v2Css, /\.backend-data-table\s*\{[\s\S]*?width:\s*1640px\s*!important/);
 

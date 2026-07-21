@@ -14,6 +14,7 @@ assert.ok(!plannerSource.includes('p_stock_number: vehicle.stock || vehicle.stoc
 assert.ok(plannerSource.includes('This vehicle is not yet linked to one shared vehicle record. No change was made.'), 'Exact refusal must remain');
 
 global.buildVehicleLifecycleIdentityInput = buildVehicleLifecycleIdentityInput;
+global.escapeHtml = value => String(value ?? '');
 
 const vehicle = {
   id: 'navision-12660174',
@@ -310,6 +311,147 @@ function resolverWith(combined) {
   assert.strictEqual(saveCalls, 1);
   assert.strictEqual(modalCalls, 2);
 
+  const bulkStorage = memoryStorage();
+  const bulkVehicles = [
+    { id: 'navision-BULK-1', stock: 'BULK-1001', vin: 'TESTVINBULK000001', order: 'TESTORDER-BULK-1' },
+    { id: 'navision-BULK-2', stock: 'BULK-1002', vin: 'TESTVINBULK000002', order: 'TESTORDER-BULK-2' },
+  ];
+  const bulkUuids = {
+    'BULK-1001': '11111111-1111-4111-8111-111111111111',
+    'BULK-1002': '22222222-2222-4222-8222-222222222222',
+  };
+  const bulkResolver = {
+    async resolve(input) {
+      const stock = input.p_stock_number
+        || (input.p_vehicle_id ? Object.keys(bulkUuids).find(key => bulkUuids[key] === input.p_vehicle_id) : '')
+        || (input.p_vin === bulkVehicles[0].vin ? bulkVehicles[0].stock : input.p_vin === bulkVehicles[1].vin ? bulkVehicles[1].stock : input.p_toyota_order_number === bulkVehicles[0].order ? bulkVehicles[0].stock : bulkVehicles[1].stock);
+      return { outcome: 'resolved', vehicleId: bulkUuids[stock], version: 1, resolverRevision: 99, isArchived: false, matchedBy: ['stock_number', 'vin', 'toyota_order_number'] };
+    },
+  };
+  global.window = { PDC_AUTH_CONTEXT: { role: 'operator' }, localStorage: bulkStorage };
+  const bulkReport = await planner.workshopBuildVehicleLinkReadinessReport(bulkVehicles, { resolver: bulkResolver, storage: bulkStorage });
+  assert.deepStrictEqual(bulkReport.counts, {
+    linked: 0, resolvable_unsaved: 2, missing_canonical_vehicle: 0,
+    ambiguous: 0, conflicting: 0, invalid_identity: 0,
+  });
+  let bulkSaves = 0;
+  const bulkApplied = await planner.workshopPersistVehicleLinkReadinessBatch(bulkReport, {
+    resolver: bulkResolver,
+    storage: bulkStorage,
+    saveFn: (key, updates) => {
+      const target = bulkVehicles.find(row => row.stock === key);
+      Object.assign(target, updates);
+      bulkSaves += 1;
+      return true;
+    },
+  });
+  assert.strictEqual(bulkApplied.ok, true);
+  assert.strictEqual(bulkApplied.saved, 2);
+  assert.strictEqual(bulkApplied.verified, 2);
+  assert.strictEqual(bulkSaves, 2);
+  const bulkAfter = await planner.workshopBuildVehicleLinkReadinessReport(bulkVehicles, { resolver: bulkResolver, storage: bulkStorage });
+  assert.strictEqual(bulkAfter.counts.linked, 2);
+  assert.strictEqual(bulkAfter.counts.resolvable_unsaved, 0);
+
+  const rollbackStorage = memoryStorage();
+  const rollbackVehicles = bulkVehicles.map(vehicle => ({ id: vehicle.id, stock: vehicle.stock, vin: vehicle.vin, order: vehicle.order }));
+  const rollbackReport = await planner.workshopBuildVehicleLinkReadinessReport(rollbackVehicles, { resolver: bulkResolver, storage: rollbackStorage });
+  let rollbackPersistCalls = 0;
+  const rollbackBatch = await planner.workshopPersistVehicleLinkReadinessBatch(rollbackReport, {
+    resolver: bulkResolver,
+    storage: rollbackStorage,
+    persistFn: (target, diagnostic, receipt) => {
+      rollbackPersistCalls += 1;
+      if (rollbackPersistCalls === 2) return false;
+      return planner.workshopPersistVerifiedCanonicalLink(target, diagnostic, (key, updates) => {
+        Object.assign(target, updates);
+        const edits = JSON.parse(rollbackStorage.getItem('vehicleTrackingCoreNavisionOnlyEdits:v1') || '{}');
+        edits[key] = { ...(edits[key] || {}), ...updates };
+        rollbackStorage.setItem('vehicleTrackingCoreNavisionOnlyEdits:v1', JSON.stringify(edits));
+        return true;
+      }, rollbackStorage, receipt);
+    },
+  });
+  assert.deepStrictEqual(rollbackBatch, {
+    ok: false,
+    error: 'browser_local_link_persist_failed_rolled_back',
+    saved: 0,
+    verified: 0,
+    rollbackReviewRequired: false,
+  });
+  assert.strictEqual(rollbackStorage.getItem('vehicleTrackingCoreWorkshopVehicleLinks:v1'), null);
+  assert.strictEqual(rollbackStorage.getItem('vehicleTrackingCoreNavisionOnlyEdits:v1'), null);
+  assert.strictEqual(Object.prototype.hasOwnProperty.call(rollbackVehicles[0], 'sharedVehicleId'), false);
+
+  const conflictStorage = memoryStorage();
+  const conflictVehicles = bulkVehicles.map(vehicle => ({ id: vehicle.id, stock: vehicle.stock, vin: vehicle.vin, order: vehicle.order }));
+  const conflictReport = await planner.workshopBuildVehicleLinkReadinessReport(conflictVehicles, { resolver: bulkResolver, storage: conflictStorage });
+  let conflictPersistCalls = 0;
+  const conflictBatch = await planner.workshopPersistVehicleLinkReadinessBatch(conflictReport, {
+    resolver: bulkResolver,
+    storage: conflictStorage,
+    persistFn: (target, diagnostic, receipt) => {
+      conflictPersistCalls += 1;
+      if (conflictPersistCalls === 2) {
+        const edits = JSON.parse(conflictStorage.getItem('vehicleTrackingCoreNavisionOnlyEdits:v1') || '{}');
+        edits.concurrentReviewMarker = { changed: true };
+        conflictStorage.setItem('vehicleTrackingCoreNavisionOnlyEdits:v1', JSON.stringify(edits));
+        return false;
+      }
+      return planner.workshopPersistVerifiedCanonicalLink(target, diagnostic, (key, updates) => {
+        Object.assign(target, updates);
+        const edits = JSON.parse(conflictStorage.getItem('vehicleTrackingCoreNavisionOnlyEdits:v1') || '{}');
+        edits[key] = { ...(edits[key] || {}), ...updates };
+        conflictStorage.setItem('vehicleTrackingCoreNavisionOnlyEdits:v1', JSON.stringify(edits));
+        return true;
+      }, conflictStorage, receipt);
+    },
+  });
+  assert.strictEqual(conflictBatch.ok, false);
+  assert.strictEqual(conflictBatch.error, 'rollback_conflict');
+  assert.strictEqual(conflictBatch.cause, 'browser_local_link_persist_failed');
+  assert.strictEqual(conflictBatch.saved, 1);
+  assert.strictEqual(conflictBatch.rollbackReviewRequired, true);
+  assert.strictEqual(conflictBatch.rollbackConflicts.length, 1);
+  assert.ok(conflictVehicles[0].sharedVehicleId, 'concurrently changed link remains intact for manual review');
+
+  const authStorage = memoryStorage();
+  const authVehicles = [{ id: bulkVehicles[0].id, stock: bulkVehicles[0].stock, vin: bulkVehicles[0].vin, order: bulkVehicles[0].order }];
+  const authResolver = bulkResolver;
+  const authReport = await planner.workshopBuildVehicleLinkReadinessReport(authVehicles, { resolver: authResolver, storage: authStorage });
+  const authChanged = await planner.workshopPersistVehicleLinkReadinessBatch(authReport, {
+    resolver: authResolver,
+    storage: authStorage,
+    persistFn: (target, diagnostic, receipt) => {
+      const saved = planner.workshopPersistVerifiedCanonicalLink(target, diagnostic, (key, updates) => {
+        Object.assign(target, updates);
+        const edits = JSON.parse(authStorage.getItem('vehicleTrackingCoreNavisionOnlyEdits:v1') || '{}');
+        edits[key] = { ...(edits[key] || {}), ...updates };
+        authStorage.setItem('vehicleTrackingCoreNavisionOnlyEdits:v1', JSON.stringify(edits));
+        return true;
+      }, authStorage, receipt);
+      global.window.PDC_AUTH_CONTEXT.role = 'viewer';
+      return saved;
+    },
+  });
+  assert.deepStrictEqual(authChanged, { ok: false, error: 'authorization_changed_rolled_back', saved: 0, verified: 0, rollbackReviewRequired: false });
+  assert.strictEqual(authVehicles[0].sharedVehicleId, undefined, 'in-flight role downgrade rolls back the just-persisted canonical link');
+  assert.strictEqual(authStorage.getItem('vehicleTrackingCoreWorkshopVehicleLinks:v1'), null);
+  global.window.PDC_AUTH_CONTEXT.role = 'operator';
+
+  const viewerStorage = memoryStorage();
+  const viewerVehicles = [{ id: 'navision-VIEWER-BULK', stock: 'BULK-1001', vin: 'TESTVINBULK000001', order: 'TESTORDER-BULK-1' }];
+  const viewerReport = await planner.workshopBuildVehicleLinkReadinessReport(viewerVehicles, { resolver: bulkResolver, storage: viewerStorage });
+  global.window.PDC_AUTH_CONTEXT.role = 'viewer';
+  const viewerApply = await planner.workshopPersistVehicleLinkReadinessBatch(viewerReport, { resolver: bulkResolver, storage: viewerStorage, saveFn: () => true });
+  assert.deepStrictEqual(viewerApply, { ok: false, error: 'unauthorized', saved: 0, verified: 0 });
+  assert.strictEqual(viewerStorage.getItem('vehicleTrackingCoreWorkshopVehicleLinks:v1'), null);
+  const viewerHtml = planner.workshopLinkReadinessModalReportHtml(viewerReport);
+  assert.ok(!viewerHtml.includes('BULK-1001'));
+  assert.ok(!viewerHtml.includes('11111111-1111-4111-8111-111111111111'));
+  assert.ok(viewerHtml.includes('restricted to operator and administrator review'));
+  delete global.window;
+
   const plannerSource = fs.readFileSync(path.join(__dirname, 'workshop-planner.js'), 'utf8');
   assert.ok(plannerSource.includes('This vehicle is not yet linked to one shared vehicle record. No change was made.'));
   assert.ok(plannerSource.includes('buildVehicleLifecycleIdentityInput({ ...vehicle, sourceSystem })'));
@@ -322,5 +464,6 @@ function resolverWith(combined) {
   process.exitCode = 1;
 }).finally(() => {
   delete global.buildVehicleLifecycleIdentityInput;
+  delete global.escapeHtml;
   delete global.window;
 });

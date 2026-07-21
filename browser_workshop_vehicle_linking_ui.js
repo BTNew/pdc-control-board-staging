@@ -66,6 +66,23 @@ function check(value, message) {
     await page.addScriptTag({ content: `window.escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));` });
     await page.addScriptTag({ url: `${origin}/vehicle-lifecycle-actions.js` });
     await page.addScriptTag({ url: `${origin}/workshop-planner.js` });
+    const viewerReadiness = await page.evaluate(({ stock, uuid }) => {
+      window.PDC_AUTH_CONTEXT = { role: 'viewer' };
+      const html = workshopLinkReadinessModalReportHtml({
+        total: 1,
+        counts: { linked: 0, resolvable_unsaved: 1 },
+        rows: [{
+          vehicle: { id: 'restricted-browser-row', stock },
+          status: 'resolvable_unsaved',
+          diagnostic: { sharedUuid: uuid, linkState: 'ready_to_save' },
+        }],
+      });
+      return { html, canPersist: workshopVehicleLinkCanPersist() };
+    }, { stock: sensitive.stock, uuid: sensitive.uuid });
+    check(viewerReadiness.canPersist === false, 'viewer cannot persist readiness links');
+    check(!viewerReadiness.html.includes(sensitive.stock), 'viewer readiness HTML redacts stock identity');
+    check(!viewerReadiness.html.includes(sensitive.uuid), 'viewer readiness HTML redacts canonical UUID');
+    check(viewerReadiness.html.includes('restricted to operator and administrator review'), 'viewer readiness HTML explains the role boundary');
     await page.evaluate(() => {
       window.PDC_AUTH_CONTEXT = { role: 'operator' };
       localStorage.setItem('vehicleTrackingCoreNavisionOnlyEdits:v1', JSON.stringify({ untouched: { marker: true } }));

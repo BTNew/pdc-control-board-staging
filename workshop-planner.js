@@ -1632,6 +1632,100 @@ async function workshopVerifiedCanonicalVehicleRef(vehicle = {}, options = {}) {
   return { ok: false, error: 'vehicle_link_saved_retry', diagnostic: verified };
 }
 
+function workshopVehicleLinkReadinessStatus(diagnostic = {}) {
+  if (diagnostic.linkState === 'verified') return 'linked';
+  if (diagnostic.linkState === 'ready_to_save') return 'resolvable_unsaved';
+  return {
+    not_found: 'missing_canonical_vehicle',
+    ambiguous: 'ambiguous',
+    conflict: 'conflicting',
+    invalid_input: 'invalid_identity',
+    unstable_identity: 'invalid_identity',
+  }[diagnostic.outcome] || 'invalid_identity';
+}
+
+async function workshopBuildVehicleLinkReadinessReport(vehicles = [], options = {}) {
+  const source = Array.isArray(vehicles) ? vehicles : [];
+  const rows = new Array(source.length);
+  const concurrency = Math.max(1, Math.min(8, Number(options.concurrency) || 5));
+  let nextIndex = 0;
+  let completed = 0;
+  const worker = async () => {
+    while (nextIndex < source.length) {
+      const index = nextIndex;
+      nextIndex += 1;
+      const vehicle = source[index];
+      const diagnostic = await workshopResolveVehicleLinkDiagnostic(vehicle, options.resolver || null, options.storage || null);
+      rows[index] = { vehicle, diagnostic, status: workshopVehicleLinkReadinessStatus(diagnostic) };
+      completed += 1;
+      if (typeof options.onProgress === 'function') options.onProgress(completed, source.length, rows[index]);
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(concurrency, source.length) }, () => worker()));
+  const counts = {
+    linked: 0,
+    resolvable_unsaved: 0,
+    missing_canonical_vehicle: 0,
+    ambiguous: 0,
+    conflicting: 0,
+    invalid_identity: 0,
+  };
+  rows.forEach(row => { counts[row.status] = (counts[row.status] || 0) + 1; });
+  return {
+    generatedAt: typeof nowIsoString === 'function' ? nowIsoString() : new Date().toISOString(),
+    total: rows.length,
+    counts,
+    rows,
+    browserLocalAuthorityUnchanged: true,
+  };
+}
+
+async function workshopPersistVehicleLinkReadinessBatch(report = {}, options = {}) {
+  if (!workshopVehicleLinkCanPersist()) return { ok: false, error: 'unauthorized', saved: 0, verified: 0 };
+  const ready = (Array.isArray(report.rows) ? report.rows : []).filter(row => row.status === 'resolvable_unsaved');
+  const receipts = [];
+  const verifiedRows = [];
+  const persist = options.persistFn || ((vehicle, diagnostic, receipt) => workshopPersistVerifiedCanonicalLink(
+    vehicle, diagnostic, options.saveFn || null, options.storage || null, receipt,
+  ));
+  const rollbackBatch = error => {
+    const rollbackResults = receipts.slice().reverse().map((receipt, index) => ({
+      receiptIndex: receipts.length - index - 1,
+      rolledBack: workshopRollbackPersistedCanonicalLink(receipt),
+    }));
+    const rollbackConflicts = rollbackResults.filter(result => !result.rolledBack);
+    if (rollbackConflicts.length) {
+      return {
+        ok: false,
+        error: 'rollback_conflict',
+        cause: error,
+        saved: rollbackConflicts.length,
+        verified: 0,
+        rollbackReviewRequired: true,
+        rollbackConflicts,
+      };
+    }
+    return { ok: false, error: `${error}_rolled_back`, saved: 0, verified: 0, rollbackReviewRequired: false };
+  };
+  for (const row of ready) {
+    if (!workshopVehicleLinkCanPersist()) return rollbackBatch('authorization_changed');
+    const receipt = {};
+    if (!persist(row.vehicle, row.diagnostic, receipt)) {
+      return rollbackBatch('browser_local_link_persist_failed');
+    }
+    receipts.push(receipt);
+    if (!workshopVehicleLinkCanPersist()) return rollbackBatch('authorization_changed');
+    const verified = await workshopResolveVehicleLinkDiagnostic(row.vehicle, options.resolver || null, options.storage || null);
+    if (verified.linkState !== 'verified' || verified.sharedUuid !== row.diagnostic.sharedUuid) {
+      return rollbackBatch('post_save_verification_failed');
+    }
+    if (!workshopVehicleLinkCanPersist()) return rollbackBatch('authorization_changed');
+    verifiedRows.push({ ...row, diagnostic: verified, status: 'linked' });
+    if (typeof options.onProgress === 'function') options.onProgress(verifiedRows.length, ready.length, verifiedRows[verifiedRows.length - 1]);
+  }
+  return { ok: true, saved: verifiedRows.length, verified: verifiedRows.length, rows: verifiedRows, browserLocalAuthorityUnchanged: true };
+}
+
 function workshopSharedVehicleRef(vehicleReference = '') {
   if (!workshopSharedModeActive()) return null;
   const snapshot = window.__workshopDataService.getLastSnapshot();
@@ -2805,6 +2899,82 @@ function workshopDetailHtml(entry = null) {
   </form>`;
 }
 
+function workshopLinkReadinessModalReportHtml(report = {}) {
+  const labels = {
+    linked: 'Linked',
+    resolvable_unsaved: 'Resolvable but unsaved',
+    missing_canonical_vehicle: 'Missing canonical vehicle',
+    ambiguous: 'Ambiguous',
+    conflicting: 'Conflicting',
+    invalid_identity: 'Invalid identity',
+  };
+  const counts = report.counts || {};
+  const canInspectIdentities = workshopVehicleLinkCanPersist();
+  const reviewRows = canInspectIdentities
+    ? (report.rows || []).filter(row => row.status !== 'linked').slice(0, 100)
+    : [];
+  return `<div class="workshop-link-readiness-summary">${Object.entries(labels).map(([key, label]) => `<div><span>${escapeHtml(label)}</span><strong>${Number(counts[key] || 0)}</strong></div>`).join('')}</div>
+    <p><strong>${Number(report.total || 0)} browser-local operational vehicles reviewed.</strong> This readiness scan does not change location, workflow, bookings, identity fields or browser-local authority.</p>
+    ${canInspectIdentities
+      ? `<div class="workshop-link-readiness-table"><table><thead><tr><th>Vehicle</th><th>Status</th><th>Shared UUID / reason</th></tr></thead><tbody>${reviewRows.map(row => `<tr><td><strong>${escapeHtml(displayStockNumber(row.vehicle) || vehicleKey(row.vehicle) || 'No stock')}</strong><span>${escapeHtml(workshopVehicleLinkIdentityInput(row.vehicle).vin || workshopVehicleLinkIdentityInput(row.vehicle).toyotaOrder || 'No VIN/order')}</span></td><td>${escapeHtml(labels[row.status] || row.status)}</td><td>${escapeHtml(row.diagnostic.sharedUuid || workshopVehicleLinkVisibleReason(row.diagnostic))}</td></tr>`).join('') || '<tr><td colspan="3">All reviewed vehicles are already linked.</td></tr>'}</tbody></table></div>`
+      : '<p class="warning-banner">Vehicle identities and shared UUIDs are restricted to operator and administrator review.</p>'}`;
+}
+
+async function workshopOpenVehicleLinkReadinessReview() {
+  if (!workshopSharedModeActive()) {
+    window.alert('Shared vehicle-link readiness is available only while the shared Workshop backend is active.');
+    return;
+  }
+  if (!workshopVehicleLinkCanPersist()) {
+    window.alert('Shared vehicle-link readiness is restricted to operators and administrators.');
+    return;
+  }
+  const vehicles = typeof pdcSheetVehicles === 'function' ? pdcSheetVehicles() : [];
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay workshop-link-readiness-overlay';
+  overlay.setAttribute('role', 'dialog');
+  overlay.setAttribute('aria-modal', 'true');
+  overlay.innerHTML = `<section class="modal-card workshop-link-readiness-card"><button class="modal-close" type="button" data-workshop-link-readiness-close aria-label="Close">×</button><header><h2>Shared vehicle link readiness</h2><p data-workshop-link-readiness-progress>Reviewing 0 of ${vehicles.length} browser-local operational vehicles…</p></header><div data-workshop-link-readiness-body><div class="loading-state">Deterministic identity checks are running. No data is being changed.</div></div><div class="edit-actions"><button class="secondary" type="button" data-workshop-link-readiness-close>Close</button><button class="primary" type="button" data-workshop-link-readiness-save hidden>Save verified links</button></div></section>`;
+  const close = () => {
+    overlay.remove();
+    if (!document.querySelector('.modal-overlay')) document.body.classList.remove('modal-open');
+  };
+  overlay.querySelectorAll('[data-workshop-link-readiness-close]').forEach(button => button.addEventListener('click', close));
+  document.body.appendChild(overlay);
+  document.body.classList.add('modal-open');
+  const progress = overlay.querySelector('[data-workshop-link-readiness-progress]');
+  const body = overlay.querySelector('[data-workshop-link-readiness-body]');
+  const saveButton = overlay.querySelector('[data-workshop-link-readiness-save]');
+  const report = await workshopBuildVehicleLinkReadinessReport(vehicles, {
+    onProgress: (done, total) => { if (progress) progress.textContent = `Reviewing ${done} of ${total} browser-local operational vehicles…`; },
+  });
+  if (!document.body.contains(overlay)) return;
+  progress.textContent = `Readiness report generated ${new Date(report.generatedAt).toLocaleString('en-AU')}.`;
+  body.innerHTML = workshopLinkReadinessModalReportHtml(report);
+  const readyCount = Number(report.counts?.resolvable_unsaved || 0);
+  saveButton.hidden = readyCount < 1 || !workshopVehicleLinkCanPersist();
+  saveButton.textContent = `Save ${readyCount} verified link${readyCount === 1 ? '' : 's'}`;
+  saveButton.addEventListener('click', async () => {
+    if (!window.confirm(`Save ${readyCount} deterministic browser-local → shared UUID link${readyCount === 1 ? '' : 's'}?\n\nNo vehicle location, workflow step or booking will change.`)) return;
+    saveButton.disabled = true;
+    progress.textContent = `Saving 0 of ${readyCount} verified links…`;
+    const result = await workshopPersistVehicleLinkReadinessBatch(report, {
+      onProgress: (done, total) => { if (progress) progress.textContent = `Saving ${done} of ${total} verified links…`; },
+    });
+    if (!result.ok) {
+      progress.textContent = result.rollbackReviewRequired
+        ? `Batch stopped: ${result.cause || result.error}. Rollback could not safely overwrite ${result.saved} concurrent browser-local change${result.saved === 1 ? '' : 's'}; manual identity review is required before retrying.`
+        : `Batch stopped and all newly written links were rolled back: ${result.error}. No unverified link was accepted.`;
+      saveButton.disabled = Boolean(result.rollbackReviewRequired);
+      return;
+    }
+    const refreshed = await workshopBuildVehicleLinkReadinessReport(vehicles);
+    progress.textContent = `${result.saved} link${result.saved === 1 ? '' : 's'} saved and re-verified. No location, workflow or booking changed.`;
+    body.innerHTML = workshopLinkReadinessModalReportHtml(refreshed);
+    saveButton.hidden = true;
+  });
+}
+
 function renderWorkshopPlanner() {
   if (workshopSharedModeActive()) workshopSyncConfigFromSharedSettings();
   const root = document.querySelector('#workshop-planner-root');
@@ -2846,6 +3016,7 @@ function renderWorkshopPlanner() {
         <button class="small-button" type="button" data-workshop-date-shift="1">Next ›</button>
         <button class="small-button" type="button" data-workshop-today>Today</button>
         <button class="small-button" type="button" data-workshop-weekly-view>Weekly view</button>
+        ${sharedModeActive && workshopVehicleLinkCanPersist() ? '<button class="small-button" type="button" data-workshop-link-readiness>Review shared links</button>' : ''}
         <button class="small-button warning-button" type="button" data-workshop-parts-warning>Draft next-day parts warning</button>
       </div>
     </header>
@@ -2973,6 +3144,7 @@ function bindWorkshopPlanner(root) {
     const selected = workshopLoadPlans().find(entry => entry.id === workshopState().selectedPlanId && entry.stage === workshopState().stage);
     openWorkshopWeeklyView(workshopState().stage, Number(selected?.bay) || 1, workshopState().date);
   });
+  root.querySelector('[data-workshop-link-readiness]')?.addEventListener('click', () => { void workshopOpenVehicleLinkReadinessReview(); });
   root.querySelector('[data-workshop-parts-warning]')?.addEventListener('click', draftWorkshopNextDayFittingWarningEmail);
   root.querySelectorAll('[data-workshop-bay-mechanic-stage]').forEach(select => select.addEventListener('change', () => saveWorkshopBayMechanic(select.dataset.workshopBayMechanicStage, Number(select.dataset.workshopBayMechanicNumber), select.value)));
   root.querySelectorAll('[data-workshop-weekly-stage]').forEach(button => button.addEventListener('click', () => openWorkshopWeeklyView(button.dataset.workshopWeeklyStage, Number(button.dataset.workshopWeeklyBay), workshopState().date)));
@@ -4821,6 +4993,10 @@ if (typeof module !== 'undefined' && module.exports) {
     workshopVehicleLinkDisplayRows,
     workshopVehicleLinkDiagnosticModal,
     workshopVerifiedCanonicalVehicleRef,
+    workshopVehicleLinkReadinessStatus,
+    workshopBuildVehicleLinkReadinessReport,
+    workshopPersistVehicleLinkReadinessBatch,
+    workshopLinkReadinessModalReportHtml,
     workshopSharedVehicleRef,
     workshopSharedTechnicianRef,
     workshopReferenceTechnicianRef,
