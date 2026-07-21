@@ -34,7 +34,10 @@ const WORKSHOP_REALTIME_CHANNEL_NAME = 'workshop-revision-changes';
  *   - subscribe(handlers): required. Caller-provided function that opens
  *     the actual realtime subscription and returns either a direct cleanup
  *     function or an object exposing unsubscribe() / destroy(). handlers =
- *     { onChange(newRow), onError(), onClosed() }.
+ *     { onChange(newRow), onSubscribed(), onError(), onClosed() }. Adapters
+ *     that return { requiresSubscribedStatus: true } are not reported healthy
+ *     until onSubscribed() arrives; simple injected transports retain the
+ *     existing synchronous-success contract.
  *     Kept as an injected function (rather than importing the Supabase JS
  *     client directly) so this module has zero hard dependency on the
  *     Supabase SDK and can be unit tested with a fake transport.
@@ -59,6 +62,8 @@ function createWorkshopRealtimeManager(options) {
   let currentBackoffMs = initialBackoffMs;
   let destroyed = false;
   let subscribed = false;
+  let connecting = false;
+  let readyGeneration = 0;
 
   function handleChange(row) {
     if (destroyed || !subscribed) return;
@@ -66,10 +71,7 @@ function createWorkshopRealtimeManager(options) {
     dataService.onRevisionSignal(revision);
   }
 
-  function releaseSubscription() {
-    const cleanup = subscriptionCleanup;
-    subscriptionCleanup = null;
-    subscriptionGeneration += 1;
+  function disposeSubscription(cleanup) {
     if (!cleanup) return;
     try {
       if (typeof cleanup === 'function') {
@@ -88,9 +90,17 @@ function createWorkshopRealtimeManager(options) {
     }
   }
 
+  function releaseSubscription() {
+    const cleanup = subscriptionCleanup;
+    subscriptionCleanup = null;
+    subscriptionGeneration += 1;
+    disposeSubscription(cleanup);
+  }
+
   function scheduleReconnect() {
     if (destroyed) return;
     subscribed = false;
+    connecting = false;
     releaseSubscription();
     onStatusChange('reconnecting');
     if (reconnectTimer) clearScheduledTimeout(reconnectTimer);
@@ -109,12 +119,30 @@ function createWorkshopRealtimeManager(options) {
     scheduleReconnect();
   }
 
+  function markSubscriptionReady(generation) {
+    if (destroyed || generation !== subscriptionGeneration || readyGeneration === generation) return;
+    readyGeneration = generation;
+    try {
+      // A fresh subscription may have missed events while disconnected.
+      // Complete the authoritative resynchronisation hand-off before
+      // reporting healthy or resetting backoff.
+      dataService.onReconnect();
+      connecting = false;
+      subscribed = true;
+      currentBackoffMs = initialBackoffMs;
+      onStatusChange('subscribed');
+    } catch (_err) {
+      scheduleReconnect();
+    }
+  }
+
   function openSubscription() {
     if (destroyed) return;
     releaseSubscription();
     const generation = ++subscriptionGeneration;
+    connecting = true;
     try {
-      subscriptionCleanup = subscribeFn({
+      const cleanup = subscribeFn({
         onChange: row => {
           if (generation !== subscriptionGeneration) return;
           handleChange(row);
@@ -123,24 +151,34 @@ function createWorkshopRealtimeManager(options) {
           if (generation !== subscriptionGeneration) return;
           handleError();
         },
+        onSubscribed: () => {
+          if (generation !== subscriptionGeneration) return;
+          markSubscriptionReady(generation);
+        },
         onClosed: () => {
           if (generation !== subscriptionGeneration) return;
           handleClosed();
         }
       });
-      subscribed = true;
-      currentBackoffMs = initialBackoffMs;
-      onStatusChange('subscribed');
-      // A fresh subscription may have missed events while we were
-      // reconnecting; always resynchronise once on (re)connect.
-      dataService.onReconnect();
+      // A status callback may run synchronously inside subscribeFn(). If it
+      // already failed or stopped this generation, dispose the just-returned
+      // handle immediately rather than retaining a failed live channel until
+      // the retry timer fires.
+      if (destroyed || generation !== subscriptionGeneration) {
+        disposeSubscription(cleanup);
+        return;
+      }
+      subscriptionCleanup = cleanup;
+      if (!subscriptionCleanup || subscriptionCleanup.requiresSubscribedStatus !== true) {
+        markSubscriptionReady(generation);
+      }
     } catch (_err) {
       scheduleReconnect();
     }
   }
 
   function start() {
-    if (destroyed || subscribed) return;
+    if (destroyed || subscribed || connecting) return;
     openSubscription();
   }
 
@@ -152,6 +190,7 @@ function createWorkshopRealtimeManager(options) {
     if (destroyed) return;
     destroyed = true;
     subscribed = false;
+    connecting = false;
     if (reconnectTimer) {
       clearScheduledTimeout(reconnectTimer);
       reconnectTimer = null;

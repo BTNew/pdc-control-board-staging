@@ -131,6 +131,7 @@ function createComposedHarness() {
       subscribe: handlers => adapter({}, handlers, { stageCode: stage })
     });
     manager.start();
+    records.at(-1).status('SUBSCRIBED');
     current = { stage, service, manager, record: records.at(-1) };
     services.push(service);
     assert.strictEqual(channels.size, 1, `exactly one channel after opening ${stage}`);

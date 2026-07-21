@@ -3542,8 +3542,18 @@ function createPdcSupabaseRealtimeSubscription(config, handlers, scope = null) {
     })
     .subscribe(status => {
       if (typeof handlers?.onStatus === 'function') handlers.onStatus(status);
+      if (status === 'SUBSCRIBED') {
+        if (typeof handlers?.onSubscribed === 'function') handlers.onSubscribed(status);
+      } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+        if (typeof handlers?.onError === 'function') handlers.onError(status);
+      } else if (status === 'CLOSED') {
+        if (typeof handlers?.onClosed === 'function') handlers.onClosed(status);
+      }
     });
-  return { unsubscribe: () => client.removeChannel(channel) };
+  return {
+    requiresSubscribedStatus: true,
+    unsubscribe: () => client.removeChannel(channel)
+  };
 }
 
 // Generic per-table realtime subscription, used by
