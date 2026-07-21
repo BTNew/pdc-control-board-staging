@@ -103,6 +103,10 @@ function resolverWith(combined) {
   assert.match(missingRows['Refusal reason'], /^Not found/);
   assert.strictEqual(missingRows['Saved shared UUID'], 'Not saved');
   assert.strictEqual(missingRows['Resolved shared UUID'], 'Missing');
+  assert.match(planner.workshopVehicleLinkVisibleReason(unstable), /^Not linked/);
+  assert.match(planner.workshopVehicleLinkVisibleReason({ outcome: 'service_unavailable', rejectedReason: 'service_unavailable:superseded' }), /^Stale/);
+  assert.match(planner.workshopVehicleLinkVisibleReason({ outcome: 'service_unavailable', rejectedReason: 'service_unavailable:resolver_stopped' }), /^Stale/);
+  assert.match(planner.workshopVehicleLinkVisibleReason({ outcome: 'service_unavailable', rejectedReason: 'service_unavailable:resolver_missing' }), /^Resolver unavailable/);
 
   const partialMissing = await planner.workshopResolveVehicleLinkDiagnostic(vehicle, {
     async resolve(probe) {
@@ -190,6 +194,9 @@ function resolverWith(combined) {
   assert.strictEqual(nullSummary.outcome, 'service_unavailable');
   const unknownSummary = planner.workshopVehicleLinkResultSummary({ outcome: 'surprise' });
   assert.strictEqual(unknownSummary.outcome, 'service_unavailable');
+  const stoppedSummary = planner.workshopVehicleLinkResultSummary({ outcome: 'service_unavailable', reason: 'resolver_stopped' });
+  assert.strictEqual(stoppedSummary.outcome, 'service_unavailable');
+  assert.strictEqual(stoppedSummary.reason, 'resolver_stopped');
 
   const malformed = await planner.workshopResolveVehicleLinkDiagnostic({ ...vehicle, sharedVehicleId: '' }, resolverWith({ outcome: 'resolved', vehicleId: 'bad', version: 'nope', resolverRevision: 0, isArchived: false }));
   assert.strictEqual(malformed.outcome, 'service_unavailable');
