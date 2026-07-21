@@ -653,6 +653,12 @@ function workshopDescribeSharedActionError(result) {
   if (error === 'vehicle_identity_not_found') {
     return 'This vehicle is not yet linked to one shared vehicle record. No change was made.';
   }
+  if (error === 'booking_before_eta') {
+    return `This YH/IT vehicle cannot be booked before its ETA to Kewdale. Earliest permitted booking date: ${result.earliest_permitted_date || 'correct the vehicle ETA'}. No booking was created.`;
+  }
+  if (error === 'missing_or_invalid_eta') {
+    return 'YH/IT vehicles require a valid ETA to Kewdale before booking. Correct the ETA and try again. No booking was created.';
+  }
   if (error === 'action_unavailable' || error === 'no_response') {
     return 'This action is not currently available in shared mode. No change was made.';
   }
@@ -2116,12 +2122,21 @@ function workshopSyncCompletedPlans(rows = workshopLoadPlans()) {
 
 function workshopStageVehicles(stage = '') {
   const normalizedStage = normalizePmbStage(stage);
-  if (typeof pmbVehiclesNeedingStationWork === 'function' && normalizedStage !== 'SUBLET') {
-    return pmbVehiclesNeedingStationWork(normalizedStage);
-  }
   const def = pmbStageJobDef(normalizedStage);
-  return app.data.filter(vehicle => {
-    if (statusCategory(vehicle) !== 'pmb') return false;
+  const pmbCandidates = normalizedStage === 'SUBLET'
+    ? app.data.filter(vehicle => {
+      if (statusCategory(vehicle) !== 'pmb') return false;
+      const currentStage = normalizePmbStage(inferredPmbStage(vehicle));
+      const hasSubletJobLine = workshopImportedJobLines(vehicle)
+        .some(line => workshopDetectedStageForLine(line.text, vehicle) === 'SUBLET');
+      return currentStage === 'SUBLET'
+        || hasSubletJobLine
+        || Boolean(cleanNavisionText(vehicle.pmbSubletProvider || vehicle.pmbSubletBookingDate || vehicle.pmbSubletExpectedReturnDate || ''));
+    })
+    : (typeof pmbVehiclesNeedingStationWork === 'function' ? pmbVehiclesNeedingStationWork(normalizedStage) : []);
+  const preArrivalCandidates = app.data.filter(vehicle => {
+    const planningLocation = workshopVehiclePlanningLocation(vehicle);
+    if (!['YH', 'IT'].includes(planningLocation)) return false;
     const currentStage = normalizePmbStage(inferredPmbStage(vehicle));
     if (normalizedStage === 'SUBLET') {
       const hasSubletJobLine = workshopImportedJobLines(vehicle)
@@ -2133,7 +2148,63 @@ function workshopStageVehicles(stage = '') {
     const requiredAndIncomplete = Boolean(def && pdcJobRequired(vehicle, def) && !pdcJobComplete(vehicle, def));
     const currentAndIncomplete = currentStage === normalizedStage && (!def || !pdcJobComplete(vehicle, def));
     return requiredAndIncomplete || currentAndIncomplete;
-  }).sort((a, b) => String(displayStockNumber(a) || '').localeCompare(String(displayStockNumber(b) || '')));
+  });
+  const rows = [...pmbCandidates, ...preArrivalCandidates];
+  return [...new Map(rows.map(vehicle => [vehicleKey(vehicle), vehicle])).values()]
+    .sort((a, b) => String(displayStockNumber(a) || '').localeCompare(String(displayStockNumber(b) || '')));
+}
+
+function workshopVehiclePlanningLocation(vehicle = {}) {
+  const raw = typeof vehiclePdcLocation === 'function'
+    ? vehiclePdcLocation(vehicle)
+    : (vehicle.pdcLocation || vehicle.manualLocation || '');
+  const normalized = cleanNavisionText(raw || '').toUpperCase();
+  if (normalized === 'YH' || normalized === 'IT') return normalized;
+  return statusCategory(vehicle) === 'pmb' || normalized === 'PMB' ? 'PMB' : normalized;
+}
+
+function workshopVehicleEtaConstraint(vehicle = {}) {
+  const location = workshopVehiclePlanningLocation(vehicle);
+  if (!['YH', 'IT'].includes(location)) return { required: false, ok: true, location, earliestDateKey: '' };
+  const raw = cleanNavisionText(typeof kewdaleEtaValue === 'function' ? kewdaleEtaValue(vehicle) : (vehicle.navisionKewdaleEta || vehicle.navisionEtaDate || ''));
+  const parsed = raw && typeof parseDateAU === 'function' ? parseDateAU(raw) : null;
+  if (!parsed || Number.isNaN(parsed.getTime())) return { required: true, ok: false, location, raw, earliestDateKey: '', reason: raw ? 'invalid_eta' : 'missing_eta' };
+  return { required: true, ok: true, location, raw, earliestDateKey: workshopDateKey(parsed) };
+}
+
+function workshopDateKeyNotBefore(value = '', minimum = '') {
+  if (!minimum) return value;
+  if (!value || value < minimum) return minimum;
+  return value;
+}
+
+function workshopEtaScheduleValidation(vehicle = {}, scheduledStartAt = '') {
+  const constraint = workshopVehicleEtaConstraint(vehicle);
+  if (!constraint.required) return constraint;
+  if (!constraint.ok) return constraint;
+  const scheduled = scheduledStartAt instanceof Date ? scheduledStartAt : parseIsoTimestamp(scheduledStartAt);
+  const scheduledDateKey = scheduled ? workshopDateKey(scheduled) : '';
+  if (!scheduledDateKey || scheduledDateKey < constraint.earliestDateKey) {
+    return { ...constraint, ok: false, reason: 'before_eta', scheduledDateKey };
+  }
+  return { ...constraint, scheduledDateKey };
+}
+
+function workshopRequireEtaSchedule(vehicle = {}, scheduledStartAt = '') {
+  const result = workshopEtaScheduleValidation(vehicle, scheduledStartAt);
+  if (result.ok) return true;
+  if (result.reason === 'missing_eta' || result.reason === 'invalid_eta') {
+    window.alert(`${result.location} vehicles require a valid ETA to Kewdale before they can be booked. Correct the ETA and try again. No booking was created.`);
+  } else {
+    window.alert(`This ${result.location} vehicle cannot be booked before its ETA to Kewdale. Earliest permitted booking date: ${result.earliestDateKey}. No booking was created.`);
+  }
+  return false;
+}
+
+function workshopEtaRiskForEntry(entry = {}, vehicle = workshopVehicle(entry.vehicleKey)) {
+  if (!vehicle || entry.status === 'completed') return null;
+  const result = workshopEtaScheduleValidation(vehicle, entry.startAt || entry.scheduledStartAt || '');
+  return result.required && !result.ok && result.reason === 'before_eta' ? result : null;
 }
 
 function workshopVehicleSearchText(vehicle = {}) {
@@ -2426,11 +2497,14 @@ function workshopQueueCardHtml(vehicle = {}, stage = workshopState().stage, date
   const parts = workshopPartsSummary(vehicle);
   const highlighted = workshopState().highlightVehicleKey === key;
   const hours = workshopCalculatedStageHours(vehicle, stage) || pmbBayHours(vehicle) || workshopDefaultBookingHours();
-  const bestSlot = workshopBestStageSlot(stage, dateKey, hours, rows);
+  const etaConstraint = workshopVehicleEtaConstraint(vehicle);
+  const earliestQueueDate = etaConstraint.ok ? workshopDateKeyNotBefore(dateKey, etaConstraint.earliestDateKey) : dateKey;
+  const bestSlot = etaConstraint.ok ? workshopBestStageSlot(stage, earliestQueueDate, hours, rows) : null;
   return `<article class="workshop-queue-card ${blocked ? 'is-blocked' : ''} ${highlighted ? 'is-search-match' : ''}" draggable="true" data-workshop-vehicle-key="${escapeHtml(key)}" data-workshop-job-vehicle="${escapeHtml(key)}" data-workshop-locate-key="${escapeHtml(key)}" title="Drag onto a bay, use Best slot, or use Schedule">
     <strong>JC ${escapeHtml(vehicleJobcardNumber(vehicle) || 'TBA')} · ${escapeHtml(displayStockNumber(vehicle) || vehicle.order || 'No stock')}</strong>
     <span>${escapeHtml(vehicle.vehicle || vehicle.toyotaVehicle || 'Vehicle')}</span>
     <span>${escapeHtml(vehicleCustomerName(vehicle) || 'Unknown customer')}</span>
+    ${etaConstraint.required ? `<small class="workshop-eta-line ${etaConstraint.ok ? '' : 'is-invalid'}">${escapeHtml(etaConstraint.ok ? `${etaConstraint.location} · earliest ${etaConstraint.earliestDateKey}` : `${etaConstraint.location} · correct missing/invalid ETA before booking`)}</small>` : ''}
     <small class="workshop-parts-line parts-${escapeHtml(parts.status)}">Parts: ${escapeHtml(parts.text)}</small>
     ${bestSlot ? `<small class="workshop-slot-hint">Best slot: ${escapeHtml(workshopSlotSummary(stage, bestSlot.bay, bestSlot.dateKey, bestSlot.startMinutes))}</small>` : ''}
     ${blocked ? '<em>STOPPAGE</em>' : ''}
@@ -2468,10 +2542,11 @@ function workshopPlanChipHtml(entry = {}, dateKey = '', rows = workshopLoadPlans
     ? workshopState().searchHighlightPlanId === entry.id
     : workshopState().highlightVehicleKey === entry.vehicleKey;
   const parts = workshopPartsSummary(vehicle);
+  const etaRisk = workshopEtaRiskForEntry(entry, vehicle);
   const draggable = entry.status !== 'completed';
   const assignee = cleanNavisionText(entry.assignee || '') || workshopBayMechanic(entry.stage, entry.bay) || '';
   const statusLabel = entry.status === 'completed' ? 'COMPLETED' : entry.status === 'stoppage' ? 'STOPPAGE' : entry.status === 'started' ? 'LIVE' : 'PLANNED';
-  const classes = [blocked ? 'is-blocked' : '', started ? 'is-started' : '', overtime ? 'is-overtime' : '', segment.usesConfiguredOvertime ? 'uses-configured-overtime' : '', segment.historicalOnClosure ? 'historical-on-closure' : '', assigneeConflict ? 'has-assignee-conflict' : '', entry.status === 'stoppage' ? 'is-stoppage' : '', selected ? 'is-selected' : '', highlighted ? 'is-search-match' : '', segment.continuesFromPrevious ? 'continues-from-previous' : '', segment.continuesNext ? 'continues-next' : ''].filter(Boolean).join(' ');
+  const classes = [blocked ? 'is-blocked' : '', started ? 'is-started' : '', overtime ? 'is-overtime' : '', etaRisk ? 'is-eta-risk' : '', segment.usesConfiguredOvertime ? 'uses-configured-overtime' : '', segment.historicalOnClosure ? 'historical-on-closure' : '', assigneeConflict ? 'has-assignee-conflict' : '', entry.status === 'stoppage' ? 'is-stoppage' : '', selected ? 'is-selected' : '', highlighted ? 'is-search-match' : '', segment.continuesFromPrevious ? 'continues-from-previous' : '', segment.continuesNext ? 'continues-next' : ''].filter(Boolean).join(' ');
   const conflictNote = assigneeConflict ? ` · WARNING: ${entry.assignee} is booked on another vehicle at this time` : '';
   return `<article class="workshop-plan-chip ${classes}" ${draggable ? 'draggable="true"' : ''} data-workshop-plan-id="${escapeHtml(entry.id)}" data-workshop-job-vehicle="${escapeHtml(entry.vehicleKey)}" data-workshop-locate-key="${escapeHtml(entry.vehicleKey)}" style="--plan-left:${left}%;--plan-width:${width}%;" title="${escapeHtml(`${workshopEntryTimeLabel(entry)} · ${entry.hours}h total${conflictNote} · double-click for vehicle job${entry.status === 'completed' ? ' · completed history stays fixed' : entry.status === 'planned' ? ' · drag to reschedule' : ' · drag to move this live job safely'}`)}">
     <button type="button" data-workshop-select-plan="${escapeHtml(entry.id)}">
@@ -2480,6 +2555,7 @@ function workshopPlanChipHtml(entry = {}, dateKey = '', rows = workshopLoadPlans
       <small>${escapeHtml(vehicleCustomerName(vehicle) || 'Unknown customer')}</small>
       <small>${escapeHtml(`${statusLabel}${assignee ? ` · ${assignee}` : ''}${segment.usesConfiguredOvertime ? ' · CONFIGURED OVERTIME' : ''}${segment.historicalOnClosure ? ' · HISTORICAL CLOSURE' : ''}`)}</small>
       <small>${escapeHtml(`${entry.hours}h · Parts ${parts.label}${parts.eta && !['issued', 'notrequired'].includes(parts.status) ? ` · ETA ${parts.eta}` : ''}`)}</small>
+      ${etaRisk ? `<small class="workshop-eta-risk-label">ETA RISK · earliest ${escapeHtml(etaRisk.earliestDateKey)}</small>` : ''}
     </button>
     <span class="workshop-plan-resize" data-workshop-resize-plan="${escapeHtml(entry.id)}" title="Drag to change duration"></span>
   </article>`;
@@ -3464,9 +3540,14 @@ function openWorkshopScheduleModal(vehicleKeyValue = '', stage = '', dateKey = '
   const normalizedStage = normalizePmbStage(stage);
   const vehicle = workshopVehicle(vehicleKeyValue);
   if (!vehicle || !WORKSHOP_STAGE_SEQUENCE.includes(normalizedStage)) return;
+  const etaConstraint = workshopVehicleEtaConstraint(vehicle);
+  if (etaConstraint.required && !etaConstraint.ok) {
+    workshopRequireEtaSchedule(vehicle, '');
+    return;
+  }
   const hours = workshopCalculatedStageHours(vehicle, normalizedStage) || pmbBayHours(vehicle) || workshopDefaultBookingHours();
   const bay = 1;
-  const selectedDate = workshopDateKey(workshopCoerceWorkDate(workshopDateFromKey(dateKey) || new Date(), 1));
+  const selectedDate = workshopDateKeyNotBefore(workshopDateKey(workshopCoerceWorkDate(workshopDateFromKey(dateKey) || new Date(), 1)), etaConstraint.earliestDateKey);
   const firstSlot = workshopFirstAvailableStartSlot(normalizedStage, bay, selectedDate, hours);
   const scheduledDate = firstSlot?.dateKey || selectedDate;
   const startMinutes = firstSlot?.startMinutes ?? 0;
@@ -3481,12 +3562,12 @@ function openWorkshopScheduleModal(vehicleKeyValue = '', stage = '', dateKey = '
     <form data-workshop-schedule-form>
       <div class="workshop-schedule-grid">
         <label><span>${normalizedStage === 'SUBLET' ? 'Row' : 'Bay'}</span><select name="bay">${bayOptions}</select></label>
-        <label><span>Date</span><input name="date" type="date" value="${escapeHtml(scheduledDate)}" required></label>
+        <label><span>Date</span><input name="date" type="date" value="${escapeHtml(scheduledDate)}" ${etaConstraint.earliestDateKey ? `min="${escapeHtml(etaConstraint.earliestDateKey)}"` : ''} required></label>
         <label><span>Start time</span><select name="startMinutes">${workshopScheduleTimeOptions(startMinutes)}</select></label>
         <label><span>Planned hours</span><input name="hours" type="number" min="0.25" step="0.25" value="${escapeHtml(workshopClampDurationHours(hours))}" required></label>
         <label><span>${normalizedStage === 'SUBLET' ? 'Provider' : 'Technician'}</span><select name="assignee">${workshopAssigneeOptions(normalizedStage, workshopBayMechanic(normalizedStage, bay) || pmbBayMechanic(vehicle))}</select></label>
       </div>
-      <p class="workshop-schedule-note">The first open sequence time is selected automatically and may advance to the next workday. Back-to-back bookings are allowed; overlapping times are blocked.</p>
+      <p class="workshop-schedule-note">The first open sequence time is selected automatically and may advance to the next workday. Back-to-back bookings are allowed; overlapping times are blocked.${etaConstraint.required ? ` ${escapeHtml(etaConstraint.location)} earliest permitted booking date: ${escapeHtml(etaConstraint.earliestDateKey)}.` : ''}</p>
       <div class="edit-actions"><button class="secondary" type="button" data-workshop-schedule-cancel>Cancel</button><button class="primary" type="submit">Add to planner</button></div>
     </form>
   </section>`;
@@ -3713,6 +3794,7 @@ async function scheduleWorkshopVehicle({ planId = '', vehicleKeyValue = '', stag
     }
   }
   const start = workshopDateAtOffset(dateKey, startMinutes);
+  if (!workshopRequireEtaSchedule(vehicle, start)) return false;
   const requestedHours = Number(hoursValue);
   const defaultHours = Number.isFinite(requestedHours) && requestedHours > 0
     ? requestedHours
@@ -4712,6 +4794,12 @@ if (typeof module !== 'undefined' && module.exports) {
     workshopFirstAvailableStartSlot,
     workshopBestStageSlot,
     workshopSlotSummary,
+    workshopVehiclePlanningLocation,
+    workshopVehicleEtaConstraint,
+    workshopDateKeyNotBefore,
+    workshopEtaScheduleValidation,
+    workshopEtaRiskForEntry,
+    workshopStageVehicles,
     moveWorkshopLivePlan,
     moveWorkshopDroppedPlan,
     workshopSharedModeActive,

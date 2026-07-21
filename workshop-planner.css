@@ -186,6 +186,8 @@ body[data-current-view="workshop"] .content {
 .workshop-detail-status-line { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
 .workshop-inline-meta { color: #1e3a8a; font-size: .62rem; font-weight: 900; }
 .workshop-slot-hint { color: #1d4ed8 !important; font-weight: 900 !important; }
+.workshop-eta-line { color: #92400e !important; font-weight: 850 !important; }
+.workshop-eta-line.is-invalid { color: #b91c1c !important; }
 
 .workshop-job-detail label {
   display: grid;
@@ -660,6 +662,8 @@ body[data-current-view="workshop"] .content {
 
 .workshop-plan-chip.is-overtime > button,
 .workshop-plan-chip.is-overtime small { color: #fff !important; }
+.workshop-plan-chip.is-eta-risk { border-color: #dc2626; border-left-color: #991b1b; background: #fff1f2; }
+.workshop-plan-chip .workshop-eta-risk-label { color: #b91c1c !important; font-weight: 950; }
 .workshop-plan-chip.uses-configured-overtime,
 .workshop-week-card.uses-configured-overtime {
   border: 3px solid #7c3aed;

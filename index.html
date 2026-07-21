@@ -8,9 +8,9 @@
   <meta name="description" content="PDC Workshop Control Board — STAGING (separate Supabase project, synthetic data only)." />
   <title>PDC Control Board — STAGING</title>
   <link rel="icon" href="favicon.svg" type="image/svg+xml" />
-  <link rel="stylesheet" href="styles.css?v=2026.07.21.01-stage2b-controlled-linking" />
-  <link rel="stylesheet" href="desktop-operations.css?v=2026.07.21.01-stage2b-controlled-linking" />
-  <link rel="stylesheet" href="workshop-planner.css?v=2026.07.21.01-stage2b-controlled-linking" />
+  <link rel="stylesheet" href="styles.css?v=2026.07.21.02-combined-staging-candidate" />
+  <link rel="stylesheet" href="desktop-operations.css?v=2026.07.21.02-combined-staging-candidate" />
+  <link rel="stylesheet" href="workshop-planner.css?v=2026.07.21.02-combined-staging-candidate" />
 </head>
 <body class="auth-pending" data-auth-state="checking">
   <main class="pdc-auth-gate" id="pdc-auth-gate" aria-labelledby="pdc-auth-title">
@@ -87,7 +87,7 @@
         <div class="brand-text">
           <div class="brand-title">Perth Motor Bodies</div>
           <div class="brand-subtitle">PDC Control Board</div>
-          <div class="app-version" id="app-version">Version 2026.07.21.01-stage2b-controlled-linking</div>
+          <div class="app-version" id="app-version">Version 2026.07.21.02-combined-staging-candidate</div>
         </div>
         <button class="sidebar-toggle" id="sidebar-toggle" type="button" aria-label="Collapse sidebar" title="Collapse sidebar">‹</button>
       </div>
@@ -798,8 +798,11 @@
           <section class="panel import-card" id="navision-scan-card">
             <div class="panel-header compact">
               <div>
-                <h2>1. Daily Navision import</h2>
-                <p>Paste rows copied from Navision, or upload .txt / .tsv / .csv / .xlsx. A normal daily Navision upload stores every vehicle in Back End Data without placing new vehicles on the PDC Sheet.</p>
+                <h2>1. Daily Navision import · shared backend</h2>
+                <p>Paste rows copied from Navision, or upload .txt / .tsv / .csv / .xlsx. Preview and apply use the approved migration-037/038 shared staging service. Browser-local authority is unchanged.</p>
+              </div>
+              <div class="panel-actions">
+                <a class="small-button" href="random-100-vehicles.csv" download>Download random 100-vehicle CSV</a>
               </div>
             </div>
             <label class="drop-zone navision-drop-zone" for="navision-upload">
@@ -822,7 +825,9 @@
                 <p>Daily Navision data refreshes ETA to Kewdale, JITA, status and identifiers in Back End Data. A separate work/job file, PO, PD check-form or manual update promotes a matching vehicle to the PDC Sheet.</p>
               </div>
               <div class="panel-actions">
-                <button class="primary" id="import-navision" type="button" disabled>Import vehicle updates</button>
+                <button class="small-button" id="export-local-navision" type="button">Export current local Navision data</button>
+                <button class="primary" id="import-navision" type="button" disabled>Preview shared import</button>
+                <button class="primary" id="apply-navision-shared" type="button" disabled>Confirm and apply shared import</button>
                 <button class="small-button" id="navision-clear" type="button" disabled>Clear</button>
               </div>
             </div>
@@ -831,14 +836,11 @@
                 <span>Paste Navision or spreadsheet rows</span>
                 <textarea id="navision-paste" rows="8" spellcheck="false" placeholder="Order&#9;Batch&#9;Production Month&#9;Compliance Date&#9;Model Description&#9;Suffix Description&#9;..."></textarea>
               </label>
-              <label class="sync-option">
-                <input id="navision-remove-missing" type="checkbox" checked />
-                <span><strong>Retire missing Navision-only back-end vehicles</strong> — after a current full dump, only unpromoted Navision back-end rows that disappear are moved to Deleted. Manual, PO, PD check-form and PDC Sheet vehicles are never removed by this option.</span>
-              </label>
-              <div class="subtle navision-note">Matching priority: Batch / stock number first, then Toyota order number, then VIN when WMI + VDS Number + Frame are available. Every new daily Navision row remains back-end-only. Use the PO or job-card upload directly below to bring a matching vehicle onto the PDC Sheet.</div>
+              <label class="zpl-field"><span>Exact dealer scope</span><select id="navision-dealer-code" required><option value="">Select dealer code before preview</option><option value="14450">Pilbara Toyota · 14450</option><option value="37047">Broome Toyota · 37047</option></select></label>
+              <div class="subtle navision-note"><strong>Shared backend:</strong> previews are deterministic and scoped by Microsoft Navision plus the exact dealer code. Missing rows are marked only within that same scope; no records are hard-deleted, activated or moved. New rows remain back-end-only. Browser-local export remains available for recovery.</div>
             </div>
             <div class="navision-status-list" id="navision-status-list">
-              <div class="empty-state compact-empty"><strong>No Navision text imported</strong><span>Paste copied Navision rows, or upload a text/CSV/XLSX file, then click Import vehicle updates.</span></div>
+              <div class="empty-state compact-empty"><strong>No Navision preview yet</strong><span>Paste copied Navision rows, or upload a text/CSV/XLSX file, select the exact dealer, then click Preview shared import.</span></div>
             </div>
           </section>
         </div>
@@ -992,13 +994,13 @@
 
   <script src="vendor/supabase/supabase-2.110.5.js"></script>
   <script src="pdc-supabase-config.staging.js"></script>
-  <script src="pdc-auth.js?v=2026.07.21.01-stage2b-controlled-linking"></script>
-  <script src="pdc-auth-registration.js?v=2026.07.21.01-stage2b-controlled-linking"></script>
-  <script src="data-staging-empty.js?v=2026.07.21.01-stage2b-controlled-linking"></script>
-  <script src="email-board-data.js?v=2026.07.21.01-stage2b-controlled-linking"></script>
-  <script src="arb-labor-catalog.js?v=2026.07.21.01-stage2b-controlled-linking"></script>
-  <script src="navision-backend-service.js?v=2026.07.21.01-stage2b-controlled-linking"></script>
-  <script src="ai-board-advisor.js?v=2026.07.21.01-stage2b-controlled-linking"></script>
-  <script src="app.js?v=2026.07.21.01-stage2b-controlled-linking"></script>
+  <script src="pdc-auth.js?v=2026.07.21.02-combined-staging-candidate"></script>
+  <script src="pdc-auth-registration.js?v=2026.07.21.02-combined-staging-candidate"></script>
+  <script src="data-staging-empty.js?v=2026.07.21.02-combined-staging-candidate"></script>
+  <script src="email-board-data.js?v=2026.07.21.02-combined-staging-candidate"></script>
+  <script src="arb-labor-catalog.js?v=2026.07.21.02-combined-staging-candidate"></script>
+  <script src="ai-board-advisor.js?v=2026.07.21.02-combined-staging-candidate"></script>
+  <script src="navision-backend-service.js?v=2026.07.21.02-combined-staging-candidate"></script>
+  <script src="app.js?v=2026.07.21.02-combined-staging-candidate"></script>
 </body>
 </html>

@@ -3,14 +3,14 @@
 /*
  * Staging-only Shared Navision Backend Store client.
  *
- * This module is intentionally not wired into app.js during migration 037.
- * Browser-local Navision data remains authoritative until a separate cutover
- * approval. It provides a focused preview/apply/read/export/reconcile/rollback
- * contract for staging verification and independent review.
+ * The normal staging upload UI uses this service for preview/apply. Existing
+ * browser-local data remains authoritative and is never mutated by this client.
  */
 
 const NAVISION_STAGING_PROJECT_REF = 'cdsmnqxtyyoeoznmbidd';
 const NAVISION_REVISION_TABLE = 'navision_backend_revision';
+const NAVISION_SOURCE_SYSTEM = 'microsoft_navision';
+const NAVISION_DEALER_CODES = Object.freeze(['14450', '37047']);
 
 function navisionProjectRefFromUrl(url = '') {
   const match = String(url).trim().match(/^https:\/\/([a-z0-9]+)\.supabase\.co(?:\/|$)/i);
@@ -68,8 +68,14 @@ function createNavisionBackendService(options = {}) {
 
   async function preview(rows, metadata = {}) {
     if (!Array.isArray(rows)) return { ok: false, error: 'rows_must_be_array' };
+    const sourceSystem = String(metadata.sourceSystem || NAVISION_SOURCE_SYSTEM).trim().toLowerCase();
+    const dealerCode = String(metadata.dealerCode || '').trim();
+    if (sourceSystem !== NAVISION_SOURCE_SYSTEM) return { ok: false, error: 'invalid_source_system' };
+    if (!NAVISION_DEALER_CODES.includes(dealerCode)) return { ok: false, error: 'invalid_dealer_code' };
     return call('preview_navision_backend_import', {
       p_rows: rows,
+      p_source_system: sourceSystem,
+      p_dealer_code: dealerCode,
       p_source_name: String(metadata.sourceName || 'navision.json').slice(0, 255),
       p_source_timestamp: metadata.sourceTimestamp || null,
     });
@@ -77,6 +83,10 @@ function createNavisionBackendService(options = {}) {
 
   async function apply(rows, previewResult, options = {}) {
     if (options.confirmed !== true) return { ok: false, error: 'explicit_confirmation_required' };
+    const sourceSystem = String(options.sourceSystem || NAVISION_SOURCE_SYSTEM).trim().toLowerCase();
+    const dealerCode = String(options.dealerCode || '').trim();
+    if (sourceSystem !== NAVISION_SOURCE_SYSTEM) return { ok: false, error: 'invalid_source_system' };
+    if (!NAVISION_DEALER_CODES.includes(dealerCode)) return { ok: false, error: 'invalid_dealer_code' };
     const previewData = previewResult?.data?.data || previewResult?.data;
     if (!previewData?.preview_hash || !previewData?.source_hash || !Number.isInteger(previewData?.base_revision)) {
       return { ok: false, error: 'valid_preview_required' };
@@ -86,6 +96,8 @@ function createNavisionBackendService(options = {}) {
     return call('apply_navision_backend_import', {
       p_idempotency_key: String(options.idempotencyKey),
       p_rows: rows,
+      p_source_system: sourceSystem,
+      p_dealer_code: dealerCode,
       p_source_name: String(options.sourceName || 'navision.json').slice(0, 255),
       p_source_timestamp: options.sourceTimestamp || null,
       p_source_hash: previewData.source_hash,
@@ -94,16 +106,31 @@ function createNavisionBackendService(options = {}) {
     });
   }
 
-  const snapshot = (cursor = '', limit = 250, expectedRevision = null) => call('get_navision_backend_snapshot', {
-    p_after_source_record_id: cursor || null,
-    p_page_size: Math.max(1, Math.min(500, Number(limit) || 250)),
-    p_expected_revision: expectedRevision,
-  });
-  const exportRecords = (cursor = '', limit = 250, expectedRevision = null) => call('export_navision_backend_records', {
-    p_after_source_record_id: cursor || null,
-    p_page_size: Math.max(1, Math.min(500, Number(limit) || 250)),
-    p_expected_revision: expectedRevision,
-  });
+  function scopedPageParams(scope = {}, cursor = {}, limit = 250, expectedRevision = null) {
+    const sourceSystem = String(scope.sourceSystem || NAVISION_SOURCE_SYSTEM).trim().toLowerCase();
+    const dealerCode = String(scope.dealerCode || '').trim();
+    if (sourceSystem !== NAVISION_SOURCE_SYSTEM) return { ok: false, error: 'invalid_source_system' };
+    if (!NAVISION_DEALER_CODES.includes(dealerCode)) return { ok: false, error: 'invalid_dealer_code' };
+    const sourceRecordId = String(cursor?.sourceRecordId || '').trim();
+    const recordId = String(cursor?.recordId || '').trim();
+    if (Boolean(sourceRecordId) !== Boolean(recordId)) return { ok: false, error: 'invalid_cursor' };
+    return { ok: true, params: {
+      p_source_system: sourceSystem,
+      p_dealer_code: dealerCode,
+      p_after_source_record_id: sourceRecordId || null,
+      p_after_record_id: recordId || null,
+      p_page_size: Math.max(1, Math.min(500, Number(limit) || 250)),
+      p_expected_revision: expectedRevision,
+    } };
+  }
+  const snapshot = (scope = {}, cursor = {}, limit = 250, expectedRevision = null) => {
+    const page = scopedPageParams(scope, cursor, limit, expectedRevision);
+    return page.ok ? call('get_navision_backend_snapshot', page.params) : Promise.resolve(page);
+  };
+  const exportRecords = (scope = {}, cursor = {}, limit = 250, expectedRevision = null) => {
+    const page = scopedPageParams(scope, cursor, limit, expectedRevision);
+    return page.ok ? call('export_navision_backend_records', page.params) : Promise.resolve(page);
+  };
   const reconciliation = (batchId, offset = 0, limit = 250) => call('get_navision_reconciliation_report', {
     p_batch_id: batchId,
     p_after_row_index: Math.max(0, Number(offset) || 0),
@@ -144,8 +171,8 @@ function createNavisionBackendService(options = {}) {
 }
 
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { NAVISION_STAGING_PROJECT_REF, NAVISION_REVISION_TABLE, navisionProjectRefFromUrl, createNavisionRpcClient, createNavisionBackendService };
+  module.exports = { NAVISION_STAGING_PROJECT_REF, NAVISION_REVISION_TABLE, NAVISION_SOURCE_SYSTEM, NAVISION_DEALER_CODES, navisionProjectRefFromUrl, createNavisionRpcClient, createNavisionBackendService };
 }
 if (typeof window !== 'undefined') {
-  window.PDC_NAVISION_BACKEND_SERVICE = { NAVISION_STAGING_PROJECT_REF, NAVISION_REVISION_TABLE, createNavisionRpcClient, createNavisionBackendService };
+  window.PDC_NAVISION_BACKEND_SERVICE = { NAVISION_STAGING_PROJECT_REF, NAVISION_REVISION_TABLE, NAVISION_SOURCE_SYSTEM, NAVISION_DEALER_CODES, createNavisionRpcClient, createNavisionBackendService };
 }

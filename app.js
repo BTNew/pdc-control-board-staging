@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.07.21.01-stage2b-controlled-linking';
+const APP_VERSION = '2026.07.21.02-combined-staging-candidate';
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
 // constant intentionally names only the production ref, never the
@@ -1123,12 +1123,23 @@ const TASK_OPTIONS = [
   'No task required'
 ];
 
+let activeRenderJsonCache = null;
+
 function loadJson(key, fallback) {
-  try { return JSON.parse(localStorage.getItem(key) || JSON.stringify(fallback)); }
-  catch { return fallback; }
+  if (activeRenderJsonCache?.has(key)) return activeRenderJsonCache.get(key);
+  let value = fallback;
+  try {
+    const stored = localStorage.getItem(key);
+    value = stored === null ? JSON.parse(JSON.stringify(fallback)) : JSON.parse(stored);
+  } catch {
+    value = fallback;
+  }
+  activeRenderJsonCache?.set(key, value);
+  return value;
 }
 
 function saveJson(key, value) {
+  activeRenderJsonCache?.delete(key);
   localStorage.setItem(key, JSON.stringify(value));
 }
 
@@ -2796,6 +2807,7 @@ function bindNav() {
   on($('#autocare-upload'), 'change', handleAutocareSelect);
   on($('#navision-upload'), 'change', handleNavisionFileSelect);
   on($('#navision-paste'), 'input', updateNavisionImportButton);
+  on($('#navision-dealer-code'), 'change', updateNavisionImportButton);
   on($('#export-local-navision'), 'click', exportLocalNavisionDataset);
   on($('#dashboard-navision-paste'), 'input', updateDashboardNavisionPasteButtons);
   on($('#dashboard-import-navision'), 'click', importDashboardNavisionPaste);
@@ -2848,6 +2860,7 @@ function bindNav() {
   bindDashboardPdDropZone();
   on($('#navision-pmb-only'), 'change', updateNavisionImportButton);
   on($('#import-navision'), 'click', importNavisionVehicles);
+  on($('#apply-navision-shared'), 'click', applySharedNavisionImport);
   on($('#navision-clear'), 'click', clearNavisionImport);
   on($('#backend-data-search'), 'input', renderBackEndData);
   on($('#backend-data-state-filter'), 'change', renderBackEndData);
@@ -3746,7 +3759,10 @@ function renderWorkshopPlannerWhenReady() {
 function renderActiveView() {
   ensureAppDataAvailable();
   const view = app.currentView || 'dashboard';
-  switch (view) {
+  const previousRenderJsonCache = activeRenderJsonCache;
+  activeRenderJsonCache = new Map();
+  try {
+    switch (view) {
     case 'dashboard':
       renderKpis();
       renderIncomingDashboardBoard();
@@ -3805,8 +3821,11 @@ function renderActiveView() {
     case 'tv':
       renderTvBoard();
       break;
-    default:
-      break;
+      default:
+        break;
+    }
+  } finally {
+    activeRenderJsonCache = previousRenderJsonCache;
   }
 }
 
@@ -4857,7 +4876,7 @@ function incomingVehicleDetailRow(vehicle = {}, bucketKey = '', options = {}) {
     : '';
   const gateIssues = bucketKey === 'pmb' ? vehiclesWithRftGateIssues([vehicle]).flatMap(row => row.issues || []) : [];
   const primaryAction = bucketKey === 'yardhold'
-    ? `<button class="primary incoming-transfer-pmb" type="button" data-yh-transfer-pmb="${escapeHtml(key)}" title="Transfer Yard Hold vehicle to PMB">To PMB</button>`
+    ? `<button class="primary incoming-transfer-pmb" type="button" data-yh-transfer-pmb="${escapeHtml(key)}" title="Transfer Yard Hold vehicle to PMB">To PMB</button><button class="small-button incoming-open-button" type="button" data-open-stock="${escapeHtml(key)}">Open</button>`
     : bucketKey === 'pmb'
       ? `<button class="primary incoming-transfer-rft" type="button" data-transfer-rft-stock="${escapeHtml(key)}" ${gateIssues.length ? 'disabled' : ''} title="${escapeHtml(gateIssues.length ? `RFT locked: ${gateIssues.join(' | ')}` : 'Transfer PMB vehicle to RFT')}">To RFT</button><button class="small-button incoming-open-button" type="button" data-open-stock="${escapeHtml(key)}">Open</button>`
       : bucketKey === 'rft'
@@ -10727,11 +10746,10 @@ function partsQueueRowHtml(vehicle = {}) {
     <td><div class="parts-queue-status-cell">
       <span class="parts-status-pill ${escapeHtml(partsDepartmentStatusClass(status))}">${escapeHtml(partsDepartmentStatusLabel(status))}</span>${partsRiskBadge(vehicle)}${vehicleDepartmentBadge(vehicle)}
     </div></td>
-    <td><div class="parts-queue-identity">
-      <span><b>Key</b>${escapeHtml(vehicleKeyNumber(vehicle) || '—')}</span>
-      <span><b>Stock</b><button class="stock-link stock-button" type="button" data-open-stock="${escapeHtml(key)}">${escapeHtml(displayStockNumber(vehicle) || vehicle.order || '—')}</button></span>
-      <span><b>JC</b>${escapeHtml(vehicleJobcardNumber(vehicle) || '—')}</span>
-    </div></td>
+    <td><button class="parts-queue-identity parts-compact-identity" type="button" data-open-stock="${escapeHtml(key)}" aria-label="Open vehicle ${escapeHtml(displayStockNumber(vehicle) || vehicle.order || key)}">
+      <strong>Stock ${escapeHtml(displayStockNumber(vehicle) || vehicle.order || '—')}</strong>
+      <span>JC ${escapeHtml(vehicleJobcardNumber(vehicle) || '—')} · Key ${escapeHtml(vehicleKeyNumber(vehicle) || '—')}</span>
+    </button></td>
     <td><div class="parts-queue-customer"><strong title="${escapeHtml(customer)}">${escapeHtml(customer)}</strong><span title="${escapeHtml(unit)}">${escapeHtml(unit)}</span></div></td>
     <td><div class="parts-eta"><strong>${escapeHtml(eta || 'No ETA')}</strong><span class="pmb-age ${escapeHtml('pmb-age-' + ageClass)}">${escapeHtml(partsEtaCounterLabel(vehicle))}</span></div></td>
     <td><div class="parts-worst-eta-wrap"><label class="parts-worst-eta"><span class="sr-only">Parts worst ETA</span><input type="date" data-parts-worst-eta="${escapeHtml(key)}" value="${escapeHtml(worstEtaInput)}" ${complete ? 'disabled' : ''} /></label><span class="parts-worst-eta-details">${worstEtaLabel ? `<span class="parts-worst-eta-label">${escapeHtml(worstEtaLabel)}</span>${worstEtaCountdown ? `<span class="parts-worst-eta-countdown ${escapeHtml(worstEtaCountdownClass)}">${escapeHtml(worstEtaCountdown)}</span>` : ''}` : '<span class="subtle parts-worst-eta-label">Set worst ETA</span>'}</span></div></td>
@@ -12928,10 +12946,17 @@ function updateNavisionControlStats(result = null) {
 
 function updateNavisionImportButton() {
   const raw = ($('#navision-paste')?.value || '').trim();
+  const dealerCode = ($('#navision-dealer-code')?.value || '').trim();
+  const sharedMode = Boolean($('#navision-dealer-code')) && Boolean(navisionSharedBackendService());
+  if (sharedMode && app.pendingSharedNavisionImport && (app.pendingSharedNavisionImport.dealerCode !== dealerCode || app.pendingSharedNavisionImport.sourceTextSha256 !== sha256Hex(raw))) {
+    app.pendingSharedNavisionImport = null;
+  }
   const button = $('#import-navision');
+  const applyButton = $('#apply-navision-shared');
   const clear = $('#navision-clear');
-  if (button) button.disabled = !raw;
-  if (clear) clear.disabled = !raw && !app.navisionImport;
+  if (button) button.disabled = !raw || (sharedMode && !['14450', '37047'].includes(dealerCode));
+  if (applyButton) applyButton.disabled = !app.pendingSharedNavisionImport;
+  if (clear) clear.disabled = !raw && !app.navisionImport && !app.pendingSharedNavisionImport;
   updateNavisionControlStats(app.pendingNavisionImport || app.navisionImport);
 }
 
@@ -13244,6 +13269,7 @@ function clearNavisionImport() {
   app.navisionFileName = '';
   app.navisionImport = null;
   app.pendingNavisionImport = null;
+  app.pendingSharedNavisionImport = null;
   updateNavisionImportButton();
   const summary = $('#navision-status-list');
   if (summary) {
@@ -13834,7 +13860,8 @@ function parseNavisionInput(text, options = {}) {
   if (!rows.length) return { vehicles: [], warnings: ['Paste the Navision export with the header row first.'], missing: [], delimiter: detected.delimiter, options };
   const headerRowIndex = findNavisionHeaderRowIndex(rows);
   const resolvedHeaderRowIndex = headerRowIndex >= 0 ? headerRowIndex : 0;
-  const headers = rows[resolvedHeaderRowIndex].map(header => cleanNavisionText(header).replace(/^\uFEFF/, ''));
+  const rawHeaders = rows[resolvedHeaderRowIndex].map(header => String(header ?? '').replace(/^\uFEFF/, ''));
+  const headers = rawHeaders.map(header => cleanNavisionText(header));
   const headerMap = buildNavisionHeaderMap(headers);
   const hasIdentityColumn = ['Batch', 'Batch Number', 'Batch No', 'Batch No.', 'Stock', 'Stock Number', 'Vehicle Stock Number', 'SN', 'Stock No', 'Stock No.'].some(column => hasNavisionColumn(headerMap, column));
   const hasOrderColumn = ['Order', 'Toyota Order', 'Toyota Order Number', 'Order Number'].some(column => hasNavisionColumn(headerMap, column));
@@ -13862,11 +13889,18 @@ function parseNavisionInput(text, options = {}) {
     warnings.push('PDC work / job file mode is on: matching rows are promoted to the PDC Sheet; rows without a work signal are skipped.');
   }
   const vehicles = [];
+  const rejectedRows = [];
   rows.slice(resolvedHeaderRowIndex + 1).forEach((row, index) => {
     const excelRow = resolvedHeaderRowIndex + index + 2;
     const vehicle = buildNavisionVehicle(row, headerMap, excelRow, importOptions);
+    const rawEvidence = {
+      sourceRow: excelRow,
+      columns: rawHeaders.map((header, columnIndex) => ({ header, value: String(row[columnIndex] ?? '') })),
+    };
+    vehicle.navisionRawEvidence = rawEvidence;
     if (!vehicle.stock && !vehicle.order && !vehicle.vin) {
       warnings.push(`Row ${excelRow}: skipped because Batch / Stock, Toyota Order and VIN are all blank.`);
+      rejectedRows.push(rawEvidence);
       return;
     }
     if (importOptions.pmbOnly && !navisionHasPmbWorkSignal(row, headerMap, vehicle)) {
@@ -13878,7 +13912,7 @@ function parseNavisionInput(text, options = {}) {
     }
     vehicles.push(vehicle);
   });
-  return { vehicles, warnings, missing: [], delimiter: detected.delimiter, options: importOptions };
+  return { vehicles, rejectedRows, warnings, missing: [], delimiter: detected.delimiter, options: importOptions };
 }
 
 function navisionMatchKeys(vehicle = {}) {
@@ -14179,9 +14213,93 @@ function buildNavisionImportPlan(parsed) {
   return result;
 }
 
-function importNavisionVehicles() {
+function navisionSharedBackendService() {
+  if (app.navisionSharedBackendService) return app.navisionSharedBackendService;
+  const serviceModule = window.PDC_NAVISION_BACKEND_SERVICE;
+  const factory = serviceModule?.createNavisionBackendService;
+  const config = window.PDC_SUPABASE_CONFIG || {};
+  if (typeof factory !== 'function') return null;
+  try {
+    app.navisionSharedBackendService = factory({
+      config,
+      projectRef: serviceModule.NAVISION_STAGING_PROJECT_REF,
+      getAccessToken: () => window.__pdcCachedAccessToken || null,
+    });
+    return app.navisionSharedBackendService;
+  } catch (error) {
+    console.error('Shared Navision service unavailable', error);
+    return null;
+  }
+}
+
+function navisionBrowserAuthoritySha256() {
+  const keys = [ADDED_KEY, EDITS_KEY, DELETED_KEY, PO_TASKS_KEY, PO_FILES_KEY, AUDIT_LOG_KEY, NAVISION_IMPORT_RESULTS_KEY, OPERATIONAL_HEALTH_KEY]
+    .filter(Boolean).sort();
+  return sha256Hex(JSON.stringify(keys.map(key => [key, localStorage.getItem(key)])));
+}
+
+function navisionSharedPreviewData(result = null) {
+  return result?.data?.data || result?.data || null;
+}
+
+function renderSharedNavisionPreview(state = {}, applied = false) {
+  const host = $('#navision-status-list');
+  if (!host) return;
+  const data = navisionSharedPreviewData(applied ? state.applyResult : state.previewResult) || {};
+  const counts = data.counts || state.previewData?.counts || {};
+  const blocking = data.blocking === true || Number(counts.invalid || 0) > 0 || Number(counts.conflict || 0) > 0;
+  const values = ['new', 'changed', 'unchanged', 'missing', 'invalid', 'conflict'];
+  host.innerHTML = `<div class="summary-row ${blocking ? 'error' : 'success'}"><strong>${applied ? 'Shared Navision batch applied' : (blocking ? 'Shared preview blocked' : 'Shared preview ready')}</strong><span>Microsoft Navision · dealer ${escapeHtml(state.dealerCode || '')} · browser-local authority SHA-256 ${escapeHtml(state.browserLocalSha256 || '')}</span></div>
+    <div class="scot-summary-grid">${values.map(key => `<div class="summary-stat"><span>${escapeHtml(key)}</span><strong>${Number(counts[key] || 0)}</strong></div>`).join('')}</div>
+    <div class="subtle navision-note">${applied ? `Durable receipt: ${escapeHtml(data.receipt_id || data.receiptId || 'returned by shared service')} · revision ${escapeHtml(data.revision ?? data.result_revision ?? '')}. Browser-local data was not applied or replaced.` : `Preview hash ${escapeHtml(data.preview_hash || '')}. Apply is enabled only when invalid/conflict totals are zero and the exact preview is unchanged.`}</div>`;
+}
+
+async function importNavisionVehicles() {
   const input = $('#navision-paste');
   const text = input?.value || '';
+  if (!$('#navision-dealer-code')) return importNavisionVehiclesLocal(text);
+  const dealerCode = ($('#navision-dealer-code')?.value || '').trim();
+  if (!['14450', '37047'].includes(dealerCode)) {
+    window.alert('Select the exact dealer code: Pilbara Toyota 14450 or Broome Toyota 37047. No preview was created.');
+    return;
+  }
+  const options = navisionImportOptionsFromDom();
+  const parsed = parseNavisionInput(text, options);
+  if (parsed.rejectedRows?.length) {
+    app.pendingSharedNavisionImport = null;
+    renderNavisionSummary({ parsed, added: [], updated: [], unchanged: [], stockNumberUpdates: [], restored: [], skipped: parsed.warnings });
+    window.alert('One or more source rows have no Navision identity. Shared preview was blocked so no raw source evidence is silently discarded.');
+    updateNavisionImportButton();
+    return;
+  }
+  if (!parsed.vehicles.length) {
+    app.pendingSharedNavisionImport = null;
+    renderNavisionSummary({ parsed, added: [], updated: [], unchanged: [], stockNumberUpdates: [], restored: [], skipped: parsed.warnings });
+    updateNavisionImportButton();
+    return;
+  }
+  const service = navisionSharedBackendService();
+  if (!service) {
+    window.alert('The staging shared Navision backend is unavailable. No localStorage fallback was attempted and no data changed.');
+    return;
+  }
+  const browserLocalSha256 = navisionBrowserAuthoritySha256();
+  const rows = parsed.vehicles;
+  const metadata = { sourceSystem: 'microsoft_navision', dealerCode, sourceName: app.navisionFileName || 'Pasted text', sourceTimestamp: null };
+  const previewResult = await service.preview(rows, metadata);
+  if (!previewResult?.ok) {
+    app.pendingSharedNavisionImport = null;
+    updateNavisionImportButton();
+    window.alert(`Shared Navision preview failed: ${previewResult?.error || 'service unavailable'}. No local data changed.`);
+    return;
+  }
+  const previewData = navisionSharedPreviewData(previewResult) || {};
+  app.pendingSharedNavisionImport = { rows, parsed, dealerCode, metadata, previewResult, previewData, browserLocalSha256, sourceTextSha256: sha256Hex(text.trim()) };
+  renderSharedNavisionPreview(app.pendingSharedNavisionImport);
+  updateNavisionImportButton();
+}
+
+function importNavisionVehiclesLocal(text = '') {
   const options = navisionImportOptionsFromDom();
   const parsed = parseNavisionInput(text, options);
   if (!parsed.vehicles.length) {
@@ -14189,7 +14307,6 @@ function importNavisionVehicles() {
     renderNavisionSummary({ parsed, added: [], updated: [], unchanged: [], stockNumberUpdates: [], restored: [], skipped: parsed.warnings });
     return;
   }
-
   const result = buildNavisionImportPlan(parsed);
   result.sourceFingerprint = navisionPayloadFingerprint(text, options);
   if (result.requiresConfirmation) {
@@ -14199,8 +14316,39 @@ function importNavisionVehicles() {
     updateNavisionImportButton();
     return;
   }
-
   applyNavisionImportPlan(result);
+}
+
+async function applySharedNavisionImport() {
+  const pending = app.pendingSharedNavisionImport;
+  if (!pending) return;
+  const data = pending.previewData || {};
+  const counts = data.counts || {};
+  if (data.blocking === true || Number(counts.invalid || 0) > 0 || Number(counts.conflict || 0) > 0) {
+    window.alert('This shared preview has blocking invalid or conflict rows. Correct the file and preview again. Nothing was applied.');
+    return;
+  }
+  if (navisionBrowserAuthoritySha256() !== pending.browserLocalSha256) {
+    window.alert('Browser-local operational data changed after preview. Preview again before applying. Nothing was applied.');
+    app.pendingSharedNavisionImport = null;
+    updateNavisionImportButton();
+    return;
+  }
+  const totals = ['new', 'changed', 'unchanged', 'missing', 'invalid', 'conflict'].map(key => `${key} ${Number(counts[key] || 0)}`).join(', ');
+  if (!window.confirm(`Apply this exact shared Navision preview?\n\nDealer: ${pending.dealerCode}\n${totals}\n\nThis writes only to the shared Navision backend. Browser-local authority, workflow, location, Parts and workshop data will not change.`)) return;
+  const service = navisionSharedBackendService();
+  const idempotencyKey = `normal-upload:${pending.dealerCode}:${data.source_hash || sha256Hex(JSON.stringify(pending.rows))}`.slice(0, 200);
+  const applyResult = await service.apply(pending.rows, pending.previewResult, { ...pending.metadata, confirmed: true, idempotencyKey });
+  if (!applyResult?.ok) {
+    window.alert(`Shared Navision apply failed: ${applyResult?.error || 'service unavailable'}. No localStorage fallback was attempted.`);
+    return;
+  }
+  const afterSha256 = navisionBrowserAuthoritySha256();
+  if (afterSha256 !== pending.browserLocalSha256) throw new Error('Shared Navision apply unexpectedly changed browser-local authority.');
+  app.pendingSharedNavisionImport = null;
+  renderSharedNavisionPreview({ ...pending, applyResult, browserLocalSha256: afterSha256 }, true);
+  updateNavisionControlStats({ parsed: pending.parsed, added: [], updated: [], unchanged: pending.parsed.vehicles, stockNumberUpdates: [] });
+  updateNavisionImportButton();
 }
 
 function selectedPendingNavisionUpdateKeys(result) {
