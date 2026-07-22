@@ -1,4 +1,5 @@
 const APP_VERSION = '2026.07.22.02-station-first';
+const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.07.22.03-next-workday-carry';
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
 // constant intentionally names only the production ref, never the
@@ -3935,7 +3936,7 @@ function renderWorkshopPlannerWhenReady() {
     .then(() => loadExternalScript(`workshop-realtime.js?v=${encodeURIComponent(APP_VERSION)}`, 'workshop-realtime-script'))
     .then(() => loadExternalScript(`workshop-shared-actions.js?v=${encodeURIComponent(APP_VERSION)}`, 'workshop-shared-actions-script'))
     .catch(() => { /* non-fatal: shared mode simply stays unavailable */ })
-    .then(() => loadExternalScript(`workshop-planner.js?v=${encodeURIComponent(APP_VERSION)}`, 'workshop-planner-script'))
+    .then(() => loadExternalScript(`workshop-planner.js?v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}`, 'workshop-planner-script'))
     .then(() => {
       window.__workshopPlannerModulesLoading = false;
       if (app.currentView !== 'workshop' || app.activeWorkshopPlannerStage !== requestedStage) return;

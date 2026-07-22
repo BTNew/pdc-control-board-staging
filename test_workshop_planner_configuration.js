@@ -74,6 +74,28 @@ assert.strictEqual(planner.WORKSHOP_CONFIG.dayLengthMinutes, 510);
 assert.deepStrictEqual([planner.workshopSetClock(drag, planner.WORKSHOP_CONFIG.dayEndMinutes).getHours(), planner.workshopSetClock(drag, planner.WORKSHOP_CONFIG.dayEndMinutes).getMinutes()], [16, 45]);
 console.log('PASS CONFIG 2: 08:15–16:45 survives normalization, drag/drop, work addition, segment rendering, and day-end calculation');
 
+// 2b. A booking that consumes the final minute of a workday continues at the
+// next configured work start instead of being rejected at the exact day-end
+// boundary.
+apply(rows());
+const nextDayCandidate = { startAt: localDate(2026, 7, 20, 13, 30).toISOString(), hours: 3, status: 'planned' };
+assert.deepStrictEqual(planner.workshopNewBookingValidation(nextDayCandidate), { ok: true, usesOvertime: false });
+const nextDayEnd = planner.workshopEntryEnd(nextDayCandidate);
+assert.deepStrictEqual(
+  [planner.workshopDateKey(nextDayEnd), nextDayEnd.getHours(), nextDayEnd.getMinutes()],
+  ['2026-07-21', 8, 30],
+  'A 1:30pm three-hour card must carry its final 30 minutes into the next working day',
+);
+console.log('PASS CONFIG 2b: end-of-day cards carry into the next working day');
+const fridayCandidate = { startAt: localDate(2026, 7, 24, 15, 30).toISOString(), hours: 2, status: 'planned' };
+assert.deepStrictEqual(planner.workshopNewBookingValidation(fridayCandidate), { ok: true, usesOvertime: false });
+const mondayEnd = planner.workshopEntryEnd(fridayCandidate);
+assert.deepStrictEqual(
+  [planner.workshopDateKey(mondayEnd), mondayEnd.getHours(), mondayEnd.getMinutes()],
+  ['2026-07-27', 9, 30],
+  'Friday overflow must skip the weekend and continue on Monday',
+);
+
 // 3. Closure dates are blocked and skipped by next/previous workday math.
 apply(rows({ closures: { value: [{ date: '2026-07-20', label: 'Synthetic closure' }] } }));
 assert.strictEqual(planner.workshopIsWorkday(localDate(2026, 7, 20, 10, 0)), false);

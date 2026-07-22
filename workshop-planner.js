@@ -2114,7 +2114,12 @@ function workshopNewBookingValidation(entry = {}) {
   const technicianId = workshopTechnicianIdForEntry(entry);
   let usesOvertime = false;
   for (let offset = 0; offset < durationMinutes; offset += 1) {
-    const proposedMinute = workshopAddWorkMinutes(start, offset);
+    // Sample the middle of each occupied work minute. workshopAddWorkMinutes()
+    // deliberately returns the exact end-of-window timestamp when an offset
+    // lands on that boundary (useful for display end times), but availability
+    // windows are half-open. Sampling at +0.5 minutes keeps validation inside
+    // the occupied minute and lets long cards continue at the next work start.
+    const proposedMinute = workshopAddWorkMinutes(start, offset + 0.5);
     const dateKey = workshopDateKey(proposedMinute);
     if (workshopIsClosureDate(proposedMinute)) return { ok: false, error: 'closure_date', date: dateKey };
     if (!workshopIsConfiguredWorkingDay(proposedMinute)) return { ok: false, error: 'non_working_day', date: dateKey };
