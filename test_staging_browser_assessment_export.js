@@ -109,7 +109,7 @@ async function main() {
   const serialized = JSON.stringify(payload);
   assert(!serialized.includes('customer-secret-sentinel'), 'customer payload leaked');
   assert(!serialized.includes('note-secret-sentinel'), 'note payload leaked');
-  const downloaded = { filename: null, clicks: 0, appended: 0, revoked: 0 };
+  const downloaded = { filename: null, clicks: 0, appended: 0, removed: 0, revoked: 0 };
   const anchor = {
     href: '', download: '',
     click() { downloaded.clicks += 1; downloaded.filename = this.download; },
@@ -122,7 +122,10 @@ async function main() {
     exportedAt: '2026-07-22T04:05:06.000Z',
     documentObject: {
       createElement: () => anchor,
-      body: { appendChild() { downloaded.appended += 1; } },
+      body: {
+        appendChild() { downloaded.appended += 1; },
+        removeChild() { downloaded.removed += 1; },
+      },
     },
     urlApi: {
       createObjectURL: () => 'blob:read-only-assessment',
@@ -131,9 +134,30 @@ async function main() {
   });
   assert.strictEqual(downloaded.clicks, 1);
   assert.strictEqual(downloaded.appended, 1);
+  assert.strictEqual(downloaded.removed, 1);
   assert.strictEqual(downloaded.revoked, 1);
   assert.match(downloaded.filename, /^PDC-Read-Only-Browser-Assessment-Computer-A-2026-07-22T04-05-06-000Z-[0-9a-f]{12}\.json$/);
   assert.strictEqual(storage.writeAttempts, 0);
+
+  const blocked = { appended: 0, removed: 0, revoked: 0 };
+  await assert.rejects(() => exporter.downloadAssessmentExport({
+    localStorage: storage,
+    windowObject: { location: { origin: 'https://btnew.github.io' } },
+    computerName: 'Computer A',
+    exportedAt: '2026-07-22T04:05:06.000Z',
+    documentObject: {
+      createElement: () => ({ href: '', download: '', click() { throw new Error('download blocked'); } }),
+      body: {
+        appendChild() { blocked.appended += 1; },
+        removeChild() { blocked.removed += 1; },
+      },
+    },
+    urlApi: {
+      createObjectURL: () => 'blob:blocked-assessment',
+      revokeObjectURL() { blocked.revoked += 1; },
+    },
+  }), /download blocked/);
+  assert.deepStrictEqual(blocked, { appended: 1, removed: 1, revoked: 1 }, 'blocked downloads must clean up the anchor and Blob URL');
 
   const staging = fs.readFileSync(path.join(__dirname, 'staging.html'), 'utf8');
   assert(staging.includes('id="browser-assessment-export"'));

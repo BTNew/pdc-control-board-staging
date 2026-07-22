@@ -1,4 +1,5 @@
 import json
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -22,12 +23,14 @@ def vehicle(ref, *, stock=None, vin=None, job=None, permanent=None, order=None, 
 def payload(vehicles=None):
     result = {
         "schema": c4.SCHEMA, "source_origin": "http://127.0.0.1:8124",
+        "computer_name": "Computer A", "exported_at": "2026-07-22T04:05:06.000Z",
         "local_storage_sha256_before": "a" * 64, "local_storage_sha256_after": "a" * 64,
         "local_storage_unchanged": True,
         "families": {
             "static_vehicle_count": 0, "added_vehicle_count": len(vehicles or []),
             "deleted_vehicle_count": 0, "edit_row_count": 0, "audit_row_count": 0,
-            "navision_import_present": False, "unknown_vehicle_storage_keys": [],
+            "navision_import_present": False, "canonical_vehicle_link_count": 0,
+            "unknown_vehicle_storage_keys": [],
         },
         "vehicles": vehicles or [], "deleted_records": [], "notes": [], "parts_records": [],
         "workflow_records": [], "bookings": [], "parse_errors": [],
@@ -38,6 +41,46 @@ def payload(vehicles=None):
 
 
 class C4AssessmentTests(unittest.TestCase):
+    def test_current_javascript_export_is_accepted_end_to_end(self):
+        script = r"""
+const exporter = require('./scripts/stage2b_c4_browser_export.js');
+class Storage {
+  constructor(values) { this.values = values; this.keys = Object.keys(values); }
+  get length() { return this.keys.length; }
+  key(index) { return this.keys[index] ?? null; }
+  getItem(key) { return Object.prototype.hasOwnProperty.call(this.values, key) ? this.values[key] : null; }
+}
+const storage = new Storage({
+  [exporter.KEYS.added]: JSON.stringify([{ stock: '130001', customer: 'must-not-export' }]),
+  [exporter.KEYS.edits]: '{}',
+  [exporter.KEYS.deleted]: '[]',
+  [exporter.KEYS.canonical_links]: '{}',
+});
+exporter.buildAssessmentExport({
+  localStorage: storage,
+  windowObject: { location: { origin: 'https://btnew.github.io' } },
+  computerName: 'Computer A',
+  exportedAt: '2026-07-22T04:05:06.000Z',
+}).then(payload => process.stdout.write(JSON.stringify(payload))).catch(error => { console.error(error); process.exit(1); });
+"""
+        completed = subprocess.run(
+            ["node", "-e", script], cwd=ROOT, check=True, capture_output=True, text=True
+        )
+        exported = json.loads(completed.stdout)
+        self.assertEqual(c4.validate_export(exported)["computer_name"], "Computer A")
+        self.assertNotIn("must-not-export", completed.stdout)
+
+    def test_current_browser_export_metadata_and_legacy_schema_are_both_accepted(self):
+        current = payload([vehicle("added:000001", stock="130001")])
+        self.assertEqual(c4.validate_export(current)["computer_name"], "Computer A")
+
+        legacy = payload([vehicle("added:000001", stock="130001")])
+        legacy.pop("computer_name")
+        legacy.pop("exported_at")
+        legacy["families"].pop("canonical_vehicle_link_count")
+        legacy["assessment_export_sha256"] = c4.sha256_text(c4.canonical_json({k: v for k, v in legacy.items() if k != "assessment_export_sha256"}))
+        self.assertEqual(c4.validate_export(legacy)["schema"], c4.SCHEMA)
+
     def test_clean_conflicting_ambiguous_invalid_and_orphans(self):
         data = payload([
             vehicle("added:000001", stock="13-0001", vin="JTNAA3BB4C5000001", job="JC-1"),

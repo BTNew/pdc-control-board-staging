@@ -23,21 +23,23 @@ PLACEHOLDER_STOCKS = {
     "0", "TBA", "TBD", "UNKNOWN", "NA", "N/A", "NONE", "UNASSIGNED", "PENDING",
     "TEMP", "PLACEHOLDER", "TOBEALLOCATED", "UNALLOCATED", "AWAITINGSTOCK", "PENDINGALLOCATION",
 }
-TOP_KEYS = {
+LEGACY_TOP_KEYS = {
     "schema", "source_origin", "local_storage_sha256_before", "local_storage_sha256_after",
     "local_storage_unchanged", "families", "vehicles", "deleted_records", "notes",
     "parts_records", "workflow_records", "bookings", "parse_errors", "excluded_payloads",
     "assessment_export_sha256",
 }
+TOP_KEYS = LEGACY_TOP_KEYS | {"computer_name", "exported_at"}
 VEHICLE_KEYS = {
     "record_ref", "source_family", "legacy_vehicle_key", "stock_number", "vin",
     "job_card_number", "permanent_vehicle_id", "toyota_order_number", "legacy_id",
     "workflow_field_names", "parts_task_count", "parts_file_count",
 }
-FAMILY_KEYS = {
+LEGACY_FAMILY_KEYS = {
     "static_vehicle_count", "added_vehicle_count", "deleted_vehicle_count", "edit_row_count",
     "audit_row_count", "navision_import_present", "unknown_vehicle_storage_keys",
 }
+FAMILY_KEYS = LEGACY_FAMILY_KEYS | {"canonical_vehicle_link_count"}
 ROW_SCHEMAS = {
     "deleted_records": {"record_ref", "legacy_vehicle_key"},
     "notes": {"legacy_vehicle_key", "note_count"},
@@ -120,8 +122,9 @@ def _validate_workflow_fields(value, label):
 
 
 def validate_export(payload):
-    if not isinstance(payload, dict) or set(payload) != TOP_KEYS or payload.get("schema") != SCHEMA:
+    if not isinstance(payload, dict) or set(payload) not in (LEGACY_TOP_KEYS, TOP_KEYS) or payload.get("schema") != SCHEMA:
         raise C4AssessmentError("assessment export schema is invalid")
+    current_export = set(payload) == TOP_KEYS
     if payload.get("local_storage_unchanged") is not True:
         raise C4AssessmentError("assessment export did not prove unchanged localStorage")
     for key in ("local_storage_sha256_before", "local_storage_sha256_after", "assessment_export_sha256"):
@@ -131,13 +134,22 @@ def validate_export(payload):
     for key in ("vehicles", "deleted_records", "notes", "parts_records", "workflow_records", "bookings", "parse_errors", "excluded_payloads"):
         if not isinstance(payload.get(key), list):
             raise C4AssessmentError(f"{key} must be an array")
-    if not isinstance(payload.get("families"), dict) or set(payload["families"]) != FAMILY_KEYS:
+    expected_family_keys = FAMILY_KEYS if current_export else LEGACY_FAMILY_KEYS
+    if not isinstance(payload.get("families"), dict) or set(payload["families"]) != expected_family_keys:
         raise C4AssessmentError("families schema is invalid")
+    if current_export:
+        _validate_identity_text(payload["computer_name"], "computer_name", nullable=False)
+        if not isinstance(payload["exported_at"], str) or not re.fullmatch(
+                r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{3})?Z", payload["exported_at"]):
+            raise C4AssessmentError("exported_at is invalid")
     if not isinstance(payload.get("source_origin"), str) or not re.fullmatch(r"https?://[^/@:]+(?::[0-9]{1,5})?", payload["source_origin"]):
         raise C4AssessmentError("source_origin is invalid")
     if payload["excluded_payloads"] != EXCLUDED_PAYLOADS:
         raise C4AssessmentError("excluded payload declaration is invalid")
-    for count_key in ("static_vehicle_count", "added_vehicle_count", "deleted_vehicle_count", "edit_row_count", "audit_row_count"):
+    count_keys = ["static_vehicle_count", "added_vehicle_count", "deleted_vehicle_count", "edit_row_count", "audit_row_count"]
+    if current_export:
+        count_keys.append("canonical_vehicle_link_count")
+    for count_key in count_keys:
         value = payload["families"][count_key]
         if not isinstance(value, int) or isinstance(value, bool) or not 0 <= value <= 1_000_000:
             raise C4AssessmentError(f"family count is invalid: {count_key}")

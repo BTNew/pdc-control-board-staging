@@ -251,19 +251,28 @@
     if (!documentObject || !urlApi || typeof Blob === 'undefined') throw new Error('browser download APIs are unavailable');
     const blob = new Blob([`${canonicalJson(payload)}\n`], { type: 'application/json' });
     const url = urlApi.createObjectURL(blob);
-    const anchor = documentObject.createElement('a');
-    anchor.href = url;
-    const safeComputerName = computerName.normalize('NFKD')
-      .replace(/[^A-Za-z0-9._-]+/g, '-')
-      .replace(/^-+|-+$/g, '')
-      .slice(0, 48) || 'Computer';
-    const safeTimestamp = exportedAt.replace(/[:.]/g, '-');
-    anchor.download = `PDC-Read-Only-Browser-Assessment-${safeComputerName}-${safeTimestamp}-${payload.assessment_export_sha256.slice(0, 12)}.json`;
-    documentObject.body.appendChild(anchor);
-    anchor.click();
-    anchor.remove();
-    urlApi.revokeObjectURL(url);
-    return payload;
+    let anchor = null;
+    let appended = false;
+    try {
+      anchor = documentObject.createElement('a');
+      anchor.href = url;
+      const safeComputerName = computerName.normalize('NFKD')
+        .replace(/[^A-Za-z0-9._-]+/g, '-')
+        .replace(/^-+|-+$/g, '')
+        .slice(0, 48) || 'Computer';
+      const safeTimestamp = exportedAt.replace(/[:.]/g, '-');
+      anchor.download = `PDC-Read-Only-Browser-Assessment-${safeComputerName}-${safeTimestamp}-${payload.assessment_export_sha256.slice(0, 12)}.json`;
+      documentObject.body.appendChild(anchor);
+      appended = true;
+      anchor.click();
+      return payload;
+    } finally {
+      try {
+        if (appended) documentObject.body.removeChild(anchor);
+      } finally {
+        urlApi.revokeObjectURL(url);
+      }
+    }
   }
 
   return Object.freeze({
