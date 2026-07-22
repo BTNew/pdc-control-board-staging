@@ -15,7 +15,11 @@ assert.match(css, /\.parts-queue-table \{ min-width: 0; width: 100%; table-layou
 assert.match(css, /\.parts-queue-table th:nth-child\(6\), \.parts-queue-table td:nth-child\(6\) \{ width: 44px !important; \}/);
 assert.match(css, /\.parts-action-group \{[\s\S]*?display: flex;[\s\S]*?justify-content: flex-start;/);
 assert.match(css, /\.parts-email-sales-secondary \{[\s\S]*?width: auto;[\s\S]*?border-top: 0;/);
-assert.ok(!/\.parts-email-sales-secondary \{[^}]*justify-content: flex-end;[^}]*\}/s.test(css.slice(css.indexOf('Combined staging remediation'))));
+const operationalCssStart = css.indexOf('Operational readiness — Parts follows the Vehicle Locations continuous page table');
+assert.ok(operationalCssStart >= 0, 'Operational-readiness Parts override block must exist');
+assert.ok(!/\.parts-email-sales-secondary \{[^}]*justify-content: flex-end;[^}]*\}/s.test(css.slice(operationalCssStart)));
+assert.match(css, /@media \(max-width: 1180px\) \{[\s\S]*?\.parts-action-primary \{ flex-wrap: wrap; white-space: normal; \}/);
+assert.match(css, /\.parts-worst-eta input \{ width: 100%; min-width: 0; max-width: 100%; \}/);
 assert.match(desktopCss, /\.parts-queue-table \{[\s\S]*?min-width: 0;/);
 assert.doesNotMatch(desktopCss, /\.parts-queue-table \{[\s\S]*?min-width: 1480px;/);
 assert.match(desktopCss, /\.parts-queue-table \.parts-action-group \{[\s\S]*?display: flex !important;[\s\S]*?flex-wrap: wrap !important;/);

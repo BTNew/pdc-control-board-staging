@@ -1,0 +1,228 @@
+{
+  "schema": "pdc.operational-ui-regression/v1",
+  "views": 11,
+  "checks": 22,
+  "passed": true,
+  "results": [
+    {
+      "viewport": 1600,
+      "view": "dashboard",
+      "bodyHorizontalOverflow": 0,
+      "partsNestedVerticalScroll": false,
+      "partsCellOverflow": 0,
+      "partsStatusOverlap": false,
+      "emailSalesAtRowEnd": false,
+      "emptyActiveView": false
+    },
+    {
+      "viewport": 1600,
+      "view": "workflow",
+      "bodyHorizontalOverflow": 0,
+      "partsNestedVerticalScroll": false,
+      "partsCellOverflow": 0,
+      "partsStatusOverlap": false,
+      "emailSalesAtRowEnd": false,
+      "emptyActiveView": false
+    },
+    {
+      "viewport": 1600,
+      "view": "parts",
+      "bodyHorizontalOverflow": 0,
+      "partsNestedVerticalScroll": false,
+      "partsCellOverflow": 0,
+      "partsStatusOverlap": false,
+      "emailSalesAtRowEnd": true,
+      "emptyActiveView": false
+    },
+    {
+      "viewport": 1600,
+      "view": "emailreview",
+      "bodyHorizontalOverflow": 0,
+      "partsNestedVerticalScroll": false,
+      "partsCellOverflow": 0,
+      "partsStatusOverlap": false,
+      "emailSalesAtRowEnd": false,
+      "emptyActiveView": false
+    },
+    {
+      "viewport": 1600,
+      "view": "sublet",
+      "bodyHorizontalOverflow": 0,
+      "partsNestedVerticalScroll": false,
+      "partsCellOverflow": 0,
+      "partsStatusOverlap": false,
+      "emailSalesAtRowEnd": false,
+      "emptyActiveView": false
+    },
+    {
+      "viewport": 1600,
+      "view": "rft",
+      "bodyHorizontalOverflow": 0,
+      "partsNestedVerticalScroll": false,
+      "partsCellOverflow": 0,
+      "partsStatusOverlap": false,
+      "emailSalesAtRowEnd": false,
+      "emptyActiveView": false
+    },
+    {
+      "viewport": 1600,
+      "view": "completed",
+      "bodyHorizontalOverflow": 0,
+      "partsNestedVerticalScroll": false,
+      "partsCellOverflow": 0,
+      "partsStatusOverlap": false,
+      "emailSalesAtRowEnd": false,
+      "emptyActiveView": false
+    },
+    {
+      "viewport": 1600,
+      "view": "deleted",
+      "bodyHorizontalOverflow": 0,
+      "partsNestedVerticalScroll": false,
+      "partsCellOverflow": 0,
+      "partsStatusOverlap": false,
+      "emailSalesAtRowEnd": false,
+      "emptyActiveView": false
+    },
+    {
+      "viewport": 1600,
+      "view": "backend",
+      "bodyHorizontalOverflow": 0,
+      "partsNestedVerticalScroll": false,
+      "partsCellOverflow": 0,
+      "partsStatusOverlap": false,
+      "emailSalesAtRowEnd": false,
+      "emptyActiveView": false
+    },
+    {
+      "viewport": 1600,
+      "view": "lists",
+      "bodyHorizontalOverflow": 0,
+      "partsNestedVerticalScroll": false,
+      "partsCellOverflow": 0,
+      "partsStatusOverlap": false,
+      "emailSalesAtRowEnd": false,
+      "emptyActiveView": false
+    },
+    {
+      "viewport": 1600,
+      "view": "import",
+      "bodyHorizontalOverflow": 0,
+      "partsNestedVerticalScroll": false,
+      "partsCellOverflow": 0,
+      "partsStatusOverlap": false,
+      "emailSalesAtRowEnd": false,
+      "emptyActiveView": false
+    },
+    {
+      "viewport": 1024,
+      "view": "dashboard",
+      "bodyHorizontalOverflow": 0,
+      "partsNestedVerticalScroll": false,
+      "partsCellOverflow": 0,
+      "partsStatusOverlap": false,
+      "emailSalesAtRowEnd": false,
+      "emptyActiveView": false
+    },
+    {
+      "viewport": 1024,
+      "view": "workflow",
+      "bodyHorizontalOverflow": 0,
+      "partsNestedVerticalScroll": false,
+      "partsCellOverflow": 0,
+      "partsStatusOverlap": false,
+      "emailSalesAtRowEnd": false,
+      "emptyActiveView": false
+    },
+    {
+      "viewport": 1024,
+      "view": "parts",
+      "bodyHorizontalOverflow": 0,
+      "partsNestedVerticalScroll": false,
+      "partsCellOverflow": 0,
+      "partsStatusOverlap": false,
+      "emailSalesAtRowEnd": true,
+      "emptyActiveView": false
+    },
+    {
+      "viewport": 1024,
+      "view": "emailreview",
+      "bodyHorizontalOverflow": 0,
+      "partsNestedVerticalScroll": false,
+      "partsCellOverflow": 0,
+      "partsStatusOverlap": false,
+      "emailSalesAtRowEnd": false,
+      "emptyActiveView": false
+    },
+    {
+      "viewport": 1024,
+      "view": "sublet",
+      "bodyHorizontalOverflow": 0,
+      "partsNestedVerticalScroll": false,
+      "partsCellOverflow": 0,
+      "partsStatusOverlap": false,
+      "emailSalesAtRowEnd": false,
+      "emptyActiveView": false
+    },
+    {
+      "viewport": 1024,
+      "view": "rft",
+      "bodyHorizontalOverflow": 0,
+      "partsNestedVerticalScroll": false,
+      "partsCellOverflow": 0,
+      "partsStatusOverlap": false,
+      "emailSalesAtRowEnd": false,
+      "emptyActiveView": false
+    },
+    {
+      "viewport": 1024,
+      "view": "completed",
+      "bodyHorizontalOverflow": 0,
+      "partsNestedVerticalScroll": false,
+      "partsCellOverflow": 0,
+      "partsStatusOverlap": false,
+      "emailSalesAtRowEnd": false,
+      "emptyActiveView": false
+    },
+    {
+      "viewport": 1024,
+      "view": "deleted",
+      "bodyHorizontalOverflow": 0,
+      "partsNestedVerticalScroll": false,
+      "partsCellOverflow": 0,
+      "partsStatusOverlap": false,
+      "emailSalesAtRowEnd": false,
+      "emptyActiveView": false
+    },
+    {
+      "viewport": 1024,
+      "view": "backend",
+      "bodyHorizontalOverflow": 0,
+      "partsNestedVerticalScroll": false,
+      "partsCellOverflow": 0,
+      "partsStatusOverlap": false,
+      "emailSalesAtRowEnd": false,
+      "emptyActiveView": false
+    },
+    {
+      "viewport": 1024,
+      "view": "lists",
+      "bodyHorizontalOverflow": 0,
+      "partsNestedVerticalScroll": false,
+      "partsCellOverflow": 0,
+      "partsStatusOverlap": false,
+      "emailSalesAtRowEnd": false,
+      "emptyActiveView": false
+    },
+    {
+      "viewport": 1024,
+      "view": "import",
+      "bodyHorizontalOverflow": 0,
+      "partsNestedVerticalScroll": false,
+      "partsCellOverflow": 0,
+      "partsStatusOverlap": false,
+      "emailSalesAtRowEnd": false,
+      "emptyActiveView": false
+    }
+  ]
+}

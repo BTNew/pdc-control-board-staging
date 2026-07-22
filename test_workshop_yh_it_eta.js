@@ -66,6 +66,10 @@ const laterEtaVehicle = { ...it, kewdaleEta: '23/07/2026' };
 const risk = planner.workshopEtaRiskForEntry(existing, laterEtaVehicle);
 assert.ok(risk && risk.reason === 'before_eta', 'Later IT ETA must flag the existing booking for review without moving or deleting it');
 assert.strictEqual(existing.startAt, new Date(2026, 6, 22, 8, 0).toISOString(), 'Risk calculation must not move the booking');
+const missingEtaRisk = planner.workshopEtaRiskForEntry(existing, { ...it, kewdaleEta: '' });
+assert.ok(missingEtaRisk && missingEtaRisk.reason === 'missing_eta', 'Removing an IT ETA must keep the existing booking visibly at risk for review');
+const invalidEtaRisk = planner.workshopEtaRiskForEntry(existing, { ...it, kewdaleEta: '31/02/2026' });
+assert.ok(invalidEtaRisk && invalidEtaRisk.reason === 'invalid_eta', 'An invalid IT ETA must keep the existing booking visibly at risk for review');
 assert.strictEqual(planner.workshopEtaRiskForEntry({ ...existing, vehicleKey: yh.id }, { ...yh, kewdaleEta: '24/07/2026' }), null, 'YH ETA changes must not create scheduling risk');
 
 const appSource = fs.readFileSync(path.join(__dirname, 'app.js'), 'utf8');
@@ -81,5 +85,7 @@ assert.ok(migration.includes("v_new_status:=case when v_location='IT'"), 'Later 
 assert.ok(migration.includes("'eta_risk_changed'"), 'ETA risk transitions must retain booking-history audit evidence');
 assert.ok(migration.includes('set search_path = pg_catalog, public, extensions'), 'Redefined scheduling RPC must retain hardened SECURITY DEFINER search path');
 assert.ok(!migration.includes('current_location ='), 'Scheduling migration must not mutate vehicle location');
+assert.ok(!/\bpmb_stage\s*=/.test(migration), 'Scheduling migration must not mutate the production bucket');
+assert.ok(!/\bvisible_on_board\s*=/.test(migration), 'Scheduling migration must not mutate board visibility');
 assert.ok(migration.includes('revoke all on function public.workshop_enforce_vehicle_eta()'), 'Trigger helpers must not be directly executable by authenticated clients');
-console.log('Workshop YH/IT ETA regression: 34 assertions passed.');
+console.log('Workshop YH/IT ETA regression: 38 assertions passed.');

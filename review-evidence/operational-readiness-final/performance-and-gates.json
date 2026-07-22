@@ -1,6 +1,6 @@
 {
   "schema": "pdc.operational-readiness-final/v1",
-  "capturedAt": "2026-07-22T06:02:56Z",
+  "capturedAt": "2026-07-22T06:21:22Z",
   "baseline": {
     "commit": "31ed7f94c789ccc803687716218db751b9f0fe34",
     "fixtureVehicles": 300,
@@ -13,8 +13,8 @@
     "fixtureVehicles": 300,
     "targetMs": 1000,
     "maxTransitionMs": 66,
-    "averageTransitionMs": 33,
-    "maxLongTaskMs": 57,
+    "averageTransitionMs": 34,
+    "maxLongTaskMs": 80,
     "pageUnresponsive": false,
     "vehicleStateUnchanged": true,
     "persistentShell": true,
@@ -33,7 +33,11 @@
     "viewports": [1600, 1024],
     "checks": 22,
     "horizontalOverflowFailures": 0,
-    "partsNestedVerticalScroll": false
+    "partsNestedVerticalScroll": false,
+    "partsCellOverflow": 0,
+    "partsStatusOverlap": false,
+    "emailSalesAtRowEnd": true,
+    "details": "ui-regression-final.json"
   },
   "blockedLiveGates": {
     "encryptedBackupAndIsolatedRestore": "Blocked: PDC_STAGING_DATABASE_URL, PDC_STAGING_SERVICE_ROLE_KEY and PDC_BACKUP_ENCRYPTION_KEY were unavailable.",

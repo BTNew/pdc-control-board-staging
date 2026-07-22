@@ -11,6 +11,10 @@ const views = ['dashboard','workflow','parts','emailreview','sublet','rft','comp
     const errors = [];
     page.on('pageerror', error => errors.push(String(error.message || error)));
     await page.goto(url, { waitUntil: 'networkidle', timeout: 60000 });
+    await page.evaluate(() => {
+      const vehicle = typeof partsDepartmentRows === 'function' ? partsDepartmentRows()[0] : null;
+      if (vehicle) vehicle.pdcPartsWorstEta = '2026-08-15';
+    });
     for (const view of views) {
       await page.locator(`.nav-item[data-view="${view}"]`).click();
       await page.waitForFunction(expected => document.querySelector('.view.active')?.id === expected, view);
@@ -18,15 +22,28 @@ const views = ['dashboard','workflow','parts','emailreview','sublet','rft','comp
         const active = document.querySelector('.view.active');
         const partsWrap = expected === 'parts' ? document.querySelector('.parts-table-wrap') : null;
         const wrapStyle = partsWrap ? getComputedStyle(partsWrap) : null;
+        const partsCells = expected === 'parts' ? [...document.querySelectorAll('.parts-queue-row td')] : [];
+        const emailSales = expected === 'parts' ? document.querySelector('[data-parts-eta-email]') : null;
+        const statusOverlap = expected === 'parts' ? [...document.querySelectorAll('.parts-queue-row td:first-child')].some(cell => {
+          const pill = cell.querySelector('.parts-status-pill');
+          if (!pill) return false;
+          return pill.getBoundingClientRect().right > cell.getBoundingClientRect().right + 1;
+        }) : false;
         return {
           view: active?.id || '',
           bodyHorizontalOverflow: Math.max(document.body.scrollWidth, document.documentElement.scrollWidth) - document.documentElement.clientWidth,
           partsNestedVerticalScroll: Boolean(partsWrap && partsWrap.scrollHeight > partsWrap.clientHeight + 1 && /auto|scroll/.test(wrapStyle.overflowY)),
+          partsCellOverflow: partsCells.reduce((max, cell) => Math.max(max, cell.scrollWidth - cell.clientWidth), 0),
+          partsStatusOverlap: statusOverlap,
+          emailSalesAtRowEnd: Boolean(emailSales && emailSales.closest('td') === emailSales.closest('tr')?.lastElementChild),
           emptyActiveView: !active || active.getBoundingClientRect().height < 60,
         };
       }, view);
       if (state.bodyHorizontalOverflow > 2) throw new Error(`${viewport.width}px ${view}: page overflows horizontally by ${state.bodyHorizontalOverflow}px`);
       if (state.partsNestedVerticalScroll) throw new Error(`${viewport.width}px Parts: nested vertical table scrolling remains`);
+      if (state.partsCellOverflow > 1) throw new Error(`${viewport.width}px Parts: table cell content overflows by ${state.partsCellOverflow}px`);
+      if (state.partsStatusOverlap) throw new Error(`${viewport.width}px Parts: status pill overlaps the next column`);
+      if (view === 'parts' && !state.emailSalesAtRowEnd) throw new Error(`${viewport.width}px Parts: compact Email sales action is not demonstrated at row end`);
       if (state.emptyActiveView) throw new Error(`${viewport.width}px ${view}: active view is unexpectedly empty`);
       results.push({ viewport: viewport.width, ...state });
     }

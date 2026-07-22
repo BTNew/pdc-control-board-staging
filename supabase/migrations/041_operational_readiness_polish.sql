@@ -147,8 +147,6 @@ begin
       workshop_status = 'scheduled',
       workshop_status_updated_at = now(),
       workshop_status_updated_by = auth.uid(),
-      pmb_stage = case when upper(btrim(coalesce(v_vehicle.current_location,''))) in ('YH','IT') then v_vehicle.pmb_stage else p_stage_code end,
-      visible_on_board = case when upper(btrim(coalesce(v_vehicle.current_location,''))) in ('YH','IT') then v_vehicle.visible_on_board else true end,
       version = version + 1,
       updated_by = auth.uid()
   where id = p_vehicle_id

@@ -2469,7 +2469,7 @@ function workshopRequireEtaSchedule(vehicle = {}, scheduledStartAt = '') {
 function workshopEtaRiskForEntry(entry = {}, vehicle = workshopVehicle(entry.vehicleKey)) {
   if (!vehicle || entry.status === 'completed') return null;
   const result = workshopEtaScheduleValidation(vehicle, entry.startAt || entry.scheduledStartAt || '');
-  return result.required && !result.ok && result.reason === 'before_eta' ? result : null;
+  return result.required && !result.ok ? result : null;
 }
 
 function workshopVehicleSearchText(vehicle = {}) {
