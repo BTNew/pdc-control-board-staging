@@ -109,10 +109,22 @@ for (const stage of STATIONS) {
   assertions += 16;
 }
 
+const dtoVehicles = [vehicle('DTO-BOOKING-ONLY', 'PMB'), vehicle('DTO-COMPLETED-ACTIVE', 'PMB'), vehicle('DTO-STOPPAGE', 'RFT'), vehicle('DTO-RECENT-COMPLETED', 'PMB')];
+const dtoWorkItems = [item('DTO-COMPLETED-ACTIVE', 'bus4x4', true), item('DTO-RECENT-COMPLETED', 'bus4x4', true)];
+const dtoBookings = [
+  { vehicle_id: 'DTO-BOOKING-ONLY', stage: { id: 'S1', code: 'BUS_4X4' }, status: 'planned' },
+  { vehicle_id: 'DTO-COMPLETED-ACTIVE', stage: { id: 'S1', code: 'BUS_4X4' }, status: 'started' },
+  { vehicle_id: 'DTO-STOPPAGE', stage: { id: 'S1', code: 'BUS_4X4' }, status: 'stoppage' },
+  { vehicle_id: 'DTO-RECENT-COMPLETED', stage: { id: 'S1', code: 'BUS_4X4' }, status: 'completed' },
+];
+const dtoResult = eligibility.workshopCanonicalEligibility({ stage: 'BUS_4X4', vehicles: dtoVehicles, workItems: dtoWorkItems, bookings: dtoBookings });
+assert.deepStrictEqual(dtoResult.candidates.map(row => row.vehicle.id), ['DTO-BOOKING-ONLY', 'DTO-COMPLETED-ACTIVE', 'DTO-STOPPAGE']);
+assert.strictEqual(dtoResult.excluded.find(row => row.vehicle.id === 'DTO-RECENT-COMPLETED').reason, 'completed');
+
 const sublet = eligibility.workshopStageDefinition('Sublet');
 assert.strictEqual(sublet.code, 'SUBLET');
 assert.strictEqual(sublet.statusVisible, true);
 assert.strictEqual(sublet.plannerEnabled, false);
 assert.throws(() => eligibility.assertWorkshopPlannerTarget('SUBLET'), /not a schedulable planner station/i);
 
-console.log(`All-station canonical eligibility regression: ${assertions + 38} assertions passed`);
+console.log(`All-station canonical eligibility regression: ${assertions + 40} assertions passed`);

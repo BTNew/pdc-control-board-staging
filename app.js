@@ -4283,14 +4283,21 @@ function teardownWorkshopEligibilityOverview({ clearSnapshot = false } = {}) {
 
 function workshopEligibilityOverviewSubscribe() {
   if (app.workshopEligibilityRealtime || typeof createPdcSupabaseRealtimeSubscription !== 'function') return;
+  app.workshopEligibilitySnapshot = null;
+  app.workshopEligibilityState = 'reconnecting';
   app.workshopEligibilityRealtime = createPdcSupabaseRealtimeSubscription(window.PDC_SUPABASE_CONFIG, {
-    onChange: () => loadWorkshopEligibilitySnapshot('realtime'),
+    onChange: () => {
+      if (app.workshopEligibilityState === 'connected') loadWorkshopEligibilitySnapshot('realtime');
+    },
+    onSubscribed: () => loadWorkshopEligibilitySnapshot('subscribed'),
     onError: status => {
+      app.workshopEligibilitySnapshot = null;
       app.workshopEligibilityState = 'reconnecting';
       app.workshopEligibilityError = String(status || 'Realtime unavailable');
       if (app.currentView === 'workflow') renderWorkflowBoard();
     },
     onClosed: () => {
+      app.workshopEligibilitySnapshot = null;
       app.workshopEligibilityState = 'reconnecting';
       if (app.currentView === 'workflow') renderWorkflowBoard();
     },
@@ -4305,6 +4312,13 @@ async function loadWorkshopEligibilitySnapshot(reason = 'manual') {
     app.workshopEligibilityState = 'permission_denied';
     app.workshopEligibilityError = 'Sign in to load authoritative workshop eligibility.';
     if (app.currentView === 'workflow') renderWorkflowBoard();
+    return null;
+  }
+  // Trust is established only after the Realtime channel reports SUBSCRIBED.
+  // The subscription callback then performs the authoritative resync, closing
+  // the fetch-before-subscribe missed-event window.
+  if (!app.workshopEligibilityRealtime && reason !== 'subscribed') {
+    workshopEligibilityOverviewSubscribe();
     return null;
   }
   const generation = ++app.workshopEligibilityRequestGeneration;
@@ -4328,7 +4342,6 @@ async function loadWorkshopEligibilitySnapshot(reason = 'manual') {
     app.workshopEligibilitySnapshot = snapshot;
     app.workshopEligibilityState = 'connected';
     app.workshopEligibilityError = '';
-    workshopEligibilityOverviewSubscribe();
     if (app.currentView === 'workflow') renderWorkflowBoard();
     return snapshot;
   } catch (error) {
@@ -4336,7 +4349,6 @@ async function loadWorkshopEligibilitySnapshot(reason = 'manual') {
     app.workshopEligibilitySnapshot = null;
     app.workshopEligibilityState = 'offline_error';
     app.workshopEligibilityError = error?.message || String(error);
-    if (reason !== 'realtime') workshopEligibilityOverviewSubscribe();
     if (app.currentView === 'workflow') renderWorkflowBoard();
     return null;
   }
@@ -4375,6 +4387,7 @@ function workshopEligibilityCandidateVehicle(candidate = {}) {
 }
 
 function authoritativeWorkshopVehiclesForStage(stage = '') {
+  if (app.workshopEligibilityState !== 'connected') return [];
   const canonical = WORKSHOP_ELIGIBILITY.canonicalWorkshopStage(stage);
   const candidates = app.workshopEligibilitySnapshot?.candidates;
   if (!Array.isArray(candidates)) return [];

@@ -114,7 +114,8 @@
     const activeStatuses = new Set(['queued', 'planned', 'started', 'stoppage']);
     const activeBookingByVehicle = new Map();
     bookings.forEach(entry => {
-      if (canonicalWorkshopStage(entry?.stage_code ?? entry?.stage ?? '') !== def.code) return;
+      const bookingStage = entry?.stage_code ?? entry?.stage?.code ?? entry?.stage ?? '';
+      if (canonicalWorkshopStage(bookingStage) !== def.code) return;
       if (!activeStatuses.has(String(entry?.status || '').toLowerCase())) return;
       const id = String(entry?.vehicle_id ?? entry?.vehicleId ?? '');
       if (id && !activeBookingByVehicle.has(id)) activeBookingByVehicle.set(id, entry);

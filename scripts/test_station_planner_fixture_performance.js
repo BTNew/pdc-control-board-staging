@@ -3,7 +3,7 @@ const { chromium } = require(process.env.PDC_PLAYWRIGHT_PATH || 'playwright-core
 
 const URL = process.env.PDC_FIXTURE_PERF_URL || 'http://127.0.0.1:8106/test-75.html';
 const TARGET_MS = 2000;
-const STATIONS = ['BUS_4X4', 'TINT', 'HOIST', 'FITTING', 'FABRICATION', 'ELECTRICAL', 'TYRE', 'PIT_INSPECTION', 'SUBLET'];
+const STATIONS = ['BUS_4X4', 'TINT', 'HOIST', 'FITTING', 'FABRICATION', 'ELECTRICAL', 'TYRE', 'PIT_INSPECTION'];
 
 (async () => {
   const browser = await chromium.launch({
