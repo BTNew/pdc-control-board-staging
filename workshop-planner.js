@@ -676,6 +676,9 @@ function workshopDescribeSharedActionError(result) {
   if (error === 'not_editable' || error === 'permission_denied' || error === 'forbidden') {
     return 'You do not have permission to make this change.';
   }
+  if (error === 'authority_superseded' || error === 'destroyed') {
+    return 'Your workshop session changed before this action completed. No change was confirmed; the planner has refreshed.';
+  }
   if (error === 'missing_expected_version') {
     return 'This action was missing required version information and was not sent. Please try again.';
   }

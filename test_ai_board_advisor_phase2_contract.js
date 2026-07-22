@@ -22,7 +22,7 @@ assert.ok(advisorBlock.includes("typeof service.getTrustedSnapshot !== 'function
 assert.ok(advisorBlock.includes('const snapshot = service.getTrustedSnapshot()'), 'shared advice must never consume the retained planner snapshot directly');
 assert.ok(dataService.includes('let snapshotTrusted = false'), 'data service must track advisory trust separately from retained planner data');
 assert.ok(dataService.includes('getTrustedSnapshot: () => ('), 'data service must expose a fail-closed advisory snapshot accessor');
-assert.ok(dataService.includes('snapshotTrusted = false;\n        setState(WORKSHOP_CONNECTION_STATE.PERMISSION_DENIED)'), '401/403 responses must invalidate advisory snapshot trust and surface permission denial');
+assert.ok(dataService.includes('result.status === 401 || result.status === 403') && dataService.includes('invalidateAuthority(WORKSHOP_CONNECTION_STATE.PERMISSION_DENIED)'), '401/403 responses must atomically purge snapshot authority and surface permission denial');
 assert.ok(dataService.includes('if (!token)'), 'advisory snapshot loads must require positive individual access-token evidence');
 assert.ok(dataService.includes('if (destroyed || generation !== lifecycleGeneration) return null'), 'late in-flight snapshot responses must be generation-guarded after teardown');
 assert.ok(dataService.includes('lastSnapshot = null;\n    lastRevision = null;'), 'service teardown must purge retained prior-session snapshot data');

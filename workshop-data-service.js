@@ -199,20 +199,19 @@ function createWorkshopDataService(options) {
       if (!destroyed) setState(WORKSHOP_CONNECTION_STATE.DISABLED);
       return null;
     }
+    const token = getAccessToken();
+    if (!token) {
+      // Check authority before coalescing with an active request. Otherwise a
+      // token loss during that request could return retained prior-user rows.
+      invalidateAuthority(WORKSHOP_CONNECTION_STATE.PERMISSION_DENIED);
+      return null;
+    }
     if (activeLoadToken) {
       snapshotTrusted = false;
       trailingReloadRequested = true;
       return lastSnapshot;
     }
     snapshotTrusted = false;
-    const token = getAccessToken();
-    if (!token) {
-      // A publishable-key response is not positive authenticated authority.
-      // Purge prior-account rows immediately; permission loss is not an
-      // offline-continuity condition and must not retain operational data.
-      invalidateAuthority(WORKSHOP_CONNECTION_STATE.PERMISSION_DENIED);
-      return null;
-    }
     const generation = lifecycleGeneration;
     const requestScopeGeneration = scopeGeneration;
     const loadToken = {};
@@ -344,11 +343,29 @@ function createWorkshopDataService(options) {
     }
 
     const token = getAccessToken();
+    if (!token) {
+      invalidateAuthority(WORKSHOP_CONNECTION_STATE.PERMISSION_DENIED);
+      return { ok: false, error: 'permission_denied', state: WORKSHOP_CONNECTION_STATE.PERMISSION_DENIED };
+    }
+    const generation = lifecycleGeneration;
     const result = await client.rpc(token, rpcName, params);
+    // Sign-out, role/token refresh, scope teardown, or destroy makes every
+    // result from the prior authority generation inert before caller/UI code
+    // can interpret it as a successful operation.
+    if (destroyed || generation !== lifecycleGeneration) {
+      return { ok: false, error: destroyed ? 'destroyed' : 'authority_superseded', state };
+    }
+    if (!getAccessToken()) {
+      invalidateAuthority(WORKSHOP_CONNECTION_STATE.PERMISSION_DENIED);
+      return { ok: false, error: 'permission_denied', state: WORKSHOP_CONNECTION_STATE.PERMISSION_DENIED };
+    }
     if (!result.ok) {
       if (result.status === 401 || result.status === 403) {
-        snapshotTrusted = false;
-        setState(WORKSHOP_CONNECTION_STATE.PERMISSION_DENIED);
+        // Purge immediately. A 403 can be action-specific (for example an
+        // administrator-only override), so re-establish read authority only
+        // through a fresh authenticated snapshot rather than retaining rows.
+        invalidateAuthority(WORKSHOP_CONNECTION_STATE.PERMISSION_DENIED);
+        if (!destroyed && getAccessToken()) await loadSnapshot('mutation_permission_recheck');
       }
       return { ok: false, error: 'request_failed', status: result.status, body: result.body };
     }

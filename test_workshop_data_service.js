@@ -390,6 +390,145 @@ async function run() {
     console.log('PASS 14: authority generation rejects late failed-channel responses');
   }
 
+  // 15. Mutation authorization denial purges first, then may restore only a
+  //     freshly revalidated readable snapshot for action-specific 403s.
+  {
+    const states = [];
+    const client = fakeClient([
+      { status: 200, ok: true, body: { revision: 1, vehicles: ['STALE'] } },
+      { status: 403, ok: false, body: { error: 'admin_only' } },
+      { status: 200, ok: true, body: { revision: 2, vehicles: ['FRESH'] } }
+    ]);
+    const service = createWorkshopDataService({
+      config: { workshop: { sharedData: true } }, client,
+      getAccessToken: () => 'tok', getRole: () => 'operator',
+      onStateChange: state => states.push(state)
+    });
+    await service.loadSnapshot('initial');
+    const denied = await service.mutate('start_workshop_work', { p_booking_id: 'x', p_expected_version: 1 });
+    assert.strictEqual(denied.ok, false, '15a denied mutation remains denied');
+    assert.ok(states.includes(WORKSHOP_CONNECTION_STATE.PERMISSION_DENIED), '15b denial atomically announces purged authority');
+    assert.strictEqual(service.getLastSnapshot().vehicles[0], 'FRESH', '15c only a fresh read-authorized snapshot may return after action-specific denial');
+    assert.strictEqual(service.getLastRevision(), 2, '15d stale revision authority is replaced');
+
+    const deniedClient = fakeClient([
+      { status: 200, ok: true, body: { revision: 1, vehicles: ['SECRET'] } },
+      { status: 401, ok: false, body: { error: 'expired' } },
+      { status: 401, ok: false, body: { error: 'expired' } }
+    ]);
+    const deniedService = createWorkshopDataService({
+      config: { workshop: { sharedData: true } }, client: deniedClient,
+      getAccessToken: () => 'expired', getRole: () => 'operator'
+    });
+    await deniedService.loadSnapshot('initial');
+    await deniedService.mutate('start_workshop_work', { p_booking_id: 'x', p_expected_version: 1 });
+    assert.strictEqual(deniedService.getLastSnapshot(), null, '15e failed read revalidation retains no operational rows');
+    assert.strictEqual(deniedService.getLastRevision(), null, '15f failed read revalidation retains no revision authority');
+    assert.strictEqual(deniedService.getState(), WORKSHOP_CONNECTION_STATE.PERMISSION_DENIED, '15g failed revalidation remains terminal denied');
+    console.log('PASS 15: mutation denial purges stale rows and re-establishes only freshly proven read authority');
+  }
+
+  // 16. A missing mutation token purges authority before any RPC dispatch.
+  {
+    let token = 'tok';
+    const client = fakeClient([{ status: 200, ok: true, body: { revision: 1, vehicles: ['SECRET'] } }]);
+    const service = createWorkshopDataService({
+      config: { workshop: { sharedData: true } }, client,
+      getAccessToken: () => token, getRole: () => 'operator'
+    });
+    await service.loadSnapshot('initial');
+    token = null;
+    const before = client.calls.length;
+    const denied = await service.mutate('start_workshop_work', { p_booking_id: 'x', p_expected_version: 1 });
+    assert.strictEqual(denied.error, 'permission_denied', '16a missing token is explicit');
+    assert.strictEqual(client.calls.length, before, '16b publishable-key mutation fallback is never called');
+    assert.strictEqual(service.getLastSnapshot(), null, '16c missing token purges rows');
+    console.log('PASS 16: missing mutation token purges authority before dispatch');
+  }
+
+  // 17. Token loss while a snapshot request is active supersedes that request
+  //     rather than coalescing onto retained prior-authority rows.
+  {
+    let token = 'tok';
+    let resolveRefresh;
+    let calls = 0;
+    const client = { rpc: async () => {
+      calls += 1;
+      if (calls === 1) return { status: 200, ok: true, body: { revision: 1, vehicles: ['SECRET'] } };
+      return new Promise(resolve => { resolveRefresh = resolve; });
+    } };
+    const service = createWorkshopDataService({
+      config: { workshop: { sharedData: true } }, client,
+      getAccessToken: () => token, getRole: () => 'operator'
+    });
+    await service.loadSnapshot('initial');
+    const pending = service.loadSnapshot('refresh');
+    token = null;
+    assert.strictEqual(await service.loadSnapshot('token-lost-mid-flight'), null, '17a token loss never returns retained rows');
+    assert.strictEqual(service.getLastSnapshot(), null, '17b token loss purges while the old request is unresolved');
+    resolveRefresh({ status: 200, ok: true, body: { revision: 2, vehicles: ['LATE'] } });
+    await pending;
+    assert.strictEqual(service.getLastSnapshot(), null, '17c late old-token response remains inert');
+    assert.strictEqual(service.getState(), WORKSHOP_CONNECTION_STATE.PERMISSION_DENIED, '17d authority remains denied');
+    console.log('PASS 17: token loss supersedes active snapshot loads');
+  }
+
+  // 18. Destroy or auth-generation replacement makes in-flight mutation
+  //     success inert before caller-side render/retry logic can observe it.
+  {
+    let resolveMutation;
+    let calls = 0;
+    const client = { rpc: async () => {
+      calls += 1;
+      if (calls === 1) return { status: 200, ok: true, body: { revision: 1, vehicles: [] } };
+      return new Promise(resolve => { resolveMutation = resolve; });
+    } };
+    const service = createWorkshopDataService({
+      config: { workshop: { sharedData: true } }, client,
+      getAccessToken: () => 'tok', getRole: () => 'operator'
+    });
+    await service.loadSnapshot('initial');
+    const pending = service.mutate('start_workshop_work', { p_booking_id: 'x', p_expected_version: 1 });
+    service.destroy();
+    resolveMutation({ status: 200, ok: true, body: { ok: true, booking: { id: 'PRIOR_AUTH' } } });
+    const result = await pending;
+    assert.strictEqual(result.ok, false, '18a late mutation is not reported successful');
+    assert.strictEqual(result.error, 'destroyed', '18b destroyed authority is explicit');
+    assert.strictEqual(service.getLastSnapshot(), null, '18c no late reconciliation can restore rows');
+    assert.strictEqual(calls, 2, '18d no post-success reload is dispatched');
+    console.log('PASS 18: in-flight mutation results are generation-bound and inert after teardown');
+  }
+
+  // 19. A live role/token refresh invalidates an in-flight operator mutation
+  //     and establishes the new role only from a fresh snapshot.
+  {
+    let role = 'operator';
+    let resolveMutation;
+    let calls = 0;
+    const client = { rpc: async () => {
+      calls += 1;
+      if (calls === 1) return { status: 200, ok: true, body: { revision: 1, vehicles: ['OPERATOR'] } };
+      if (calls === 2) return new Promise(resolve => { resolveMutation = resolve; });
+      return { status: 200, ok: true, body: { revision: 2, vehicles: ['VIEWER'] } };
+    } };
+    const service = createWorkshopDataService({
+      config: { workshop: { sharedData: true } }, client,
+      getAccessToken: () => 'tok', getRole: () => role
+    });
+    await service.loadSnapshot('initial');
+    const pendingMutation = service.mutate('start_workshop_work', { p_booking_id: 'x', p_expected_version: 1 });
+    role = 'viewer';
+    await service.onTokenRefresh();
+    resolveMutation({ status: 200, ok: true, body: { ok: true, booking: { id: 'OLD_ROLE' } } });
+    const mutation = await pendingMutation;
+    assert.strictEqual(mutation.error, 'authority_superseded', '19a prior-role mutation result is suppressed');
+    assert.strictEqual(service.getState(), WORKSHOP_CONNECTION_STATE.CONNECTED_READ_ONLY, '19b fresh role is read-only');
+    assert.strictEqual(service.getLastSnapshot().vehicles[0], 'VIEWER', '19c only fresh-role rows remain');
+    assert.strictEqual(service.getLastRevision(), 2, '19d prior revision authority is replaced');
+    assert.strictEqual(calls, 3, '19e stale mutation success triggers no reconciliation request');
+    console.log('PASS 19: live role refresh supersedes prior-role mutations and snapshots');
+  }
+
   console.log('Workshop data service unit tests passed');
 }
 

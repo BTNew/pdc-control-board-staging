@@ -237,6 +237,8 @@ console.log('Workshop planner shared-mode integration seam checks passed');
     ['technician_overlap', 'already assigned to another booking'],
     ['parts_incomplete', 'Parts requirements are incomplete'],
     ['permission_denied', 'do not have permission'],
+    ['authority_superseded', 'session changed'],
+    ['destroyed', 'session changed'],
     ['missing_expected_version', 'missing required version'],
     ['totally_unmapped_backend_error_code', 'could not be saved'],
   ];

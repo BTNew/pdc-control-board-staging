@@ -3868,6 +3868,10 @@ function vehicleLifecycleSharedModeActive() {
 // the Workshop Planner view (or returns after a session refresh) gets the
 // data service without needing to navigate away and back.
 window.addEventListener?.('pdc-auth-ready', () => {
+  // Auth-ready also represents live token/role changes. Existing planner
+  // services must discard their prior authority generation before reuse;
+  // init alone intentionally reuses the instance and is not sufficient.
+  window.__workshopDataService?.onTokenRefresh?.();
   if (app.currentView === 'workshop' && typeof initWorkshopSharedServicesIfEnabled === 'function') initWorkshopSharedServicesIfEnabled();
   if (app.currentView === 'workflow') {
     teardownWorkshopEligibilityOverview({ clearSnapshot: true });

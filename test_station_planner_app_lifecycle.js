@@ -68,6 +68,7 @@ function testRecoveryAndAuthLifecycleContracts() {
   assert(source.includes("const onOnline = () => window.__workshopRealtimeManager?.forceReconnect?.()"));
   assert(source.includes("window.removeEventListener('online', onOnline)"), 'inactive station listeners must be disposed');
   assert(source.includes("document.removeEventListener('visibilitychange', onVisibility)"), 'inactive visibility listeners must be disposed');
+  assert(source.includes("window.__workshopDataService?.onTokenRefresh?.();"), 'auth-ready role/token changes must invalidate and reload existing planner authority');
   assert(source.includes("if (app.currentView === 'workshop' && typeof initWorkshopSharedServicesIfEnabled === 'function')"));
   assert(source.includes("if (app.currentView !== 'workshop') return;"));
 }
