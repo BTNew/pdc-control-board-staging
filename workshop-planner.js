@@ -473,9 +473,20 @@ function workshopConnectionBannerHtml() {
     [CS.RECONNECTING]: { cls: 'warn', text: 'Reconnecting to shared workshop data… showing the last known state' },
     [CS.OFFLINE_READ_ONLY]: { cls: 'error', text: 'Offline · showing the last known shared state, read-only until the connection recovers' },
     [CS.INCOMPATIBLE]: { cls: 'error', text: 'Backend version incompatible with this Workshop Planner build. Contact an administrator.' },
+    [CS.PERMISSION_DENIED]: { cls: 'error', text: 'Access denied · this account does not have permission to view Workshop Planner station data. Contact an administrator.' },
     [CS.CONNECTING]: { cls: 'warn', text: 'Connecting to shared workshop data…' },
   }[state] || { cls: 'warn', text: 'Shared workshop mode status unknown' };
   return `<div class="workshop-connection-banner workshop-connection-${copy.cls}" role="status">${escapeHtml(copy.text)}</div>`;
+}
+
+function workshopStationSnapshotEmptyStateHtml(stage) {
+  const ds = window.__workshopDataService;
+  const state = ds && typeof ds.getState === 'function' ? ds.getState() : 'disabled';
+  const CS = window.WORKSHOP_CONNECTION_STATE || {};
+  if (state === CS.PERMISSION_DENIED) {
+    return `<div class="empty-state workshop-station-unavailable" role="alert">${workshopConnectionBannerHtml()}<strong>Workshop Planner access unavailable</strong><span>This account does not have permission to view ${escapeHtml(pmbStageLabel(stage))}. Contact an administrator.</span></div>`;
+  }
+  return `<div class="empty-state workshop-station-loading" role="status">${workshopConnectionBannerHtml()}<strong>Loading ${escapeHtml(pmbStageLabel(stage))}</strong><span>Waiting for the selected station snapshot…</span></div>`;
 }
 
 
@@ -3227,7 +3238,7 @@ function renderWorkshopPlanner() {
   const sharedModeActive = workshopSharedModeActive();
   const renderHost = dedicatedStage ? workshopEnsureDedicatedShell(root, stage) : root;
   if (dedicatedStage && sharedModeActive && !window.__workshopDataService?.getLastSnapshot?.()) {
-    renderHost.innerHTML = `<div class="empty-state workshop-station-loading" role="status">${workshopConnectionBannerHtml()}<strong>Loading ${escapeHtml(pmbStageLabel(stage))}</strong><span>Waiting for the selected station snapshot…</span></div>`;
+    renderHost.innerHTML = workshopStationSnapshotEmptyStateHtml(stage);
     return;
   }
   let plans = dedicatedStage ? workshopLoadPlans() : workshopCascadeAndSave(workshopSyncCompletedPlans());
@@ -5186,6 +5197,7 @@ if (typeof module !== 'undefined' && module.exports) {
     workshopLoadPlans,
     workshopMapSnapshotBookingToLegacyRow,
     workshopConnectionBannerHtml,
+    workshopStationSnapshotEmptyStateHtml,
     workshopDescribeSharedActionError,
     workshopVehicleLinkIdentityInput,
     workshopVehicleLinkStableAliases,

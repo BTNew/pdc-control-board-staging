@@ -183,6 +183,7 @@ function completeConfigurationRows(overrides = {}) {
     RECONNECTING: 'reconnecting',
     OFFLINE_READ_ONLY: 'offline_read_only',
     INCOMPATIBLE: 'incompatible',
+    PERMISSION_DENIED: 'permission_denied',
     CONNECTING: 'connecting',
   };
   withGlobals({
@@ -207,6 +208,20 @@ function completeConfigurationRows(overrides = {}) {
   }, () => {
     const html = planner.workshopConnectionBannerHtml();
     assert.ok(html.includes('workshop-connection-ok'), '7e editable state uses the ok style class');
+  });
+  withGlobals({
+    WORKSHOP_CONNECTION_STATE: states,
+    __workshopDataService: { getState: () => states.PERMISSION_DENIED }
+  }, () => {
+    const banner = planner.workshopConnectionBannerHtml();
+    assert.ok(banner.includes('Access denied'), '7f permission_denied has explicit access-denied copy');
+    assert.ok(banner.includes('workshop-connection-error'), '7g permission_denied uses the error style class');
+    assert.ok(!banner.includes('status unknown'), '7h permission_denied never falls through to unknown status');
+    const emptyState = planner.workshopStationSnapshotEmptyStateHtml('BUS_4X4');
+    assert.ok(emptyState.includes('Workshop Planner access unavailable'), '7i denied route renders a terminal unavailable state');
+    assert.ok(emptyState.includes('does not have permission'), '7j denied route explains the permission boundary');
+    assert.ok(!emptyState.includes('Waiting for the selected station snapshot'), '7k denied route never hangs on loading copy');
+    assert.ok(!emptyState.includes('workshop-station-loading'), '7l denied route is not marked as loading');
   });
   console.log('PASS 7: connection banner renders a distinct, styled message per connection state');
 }
