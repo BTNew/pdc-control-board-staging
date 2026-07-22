@@ -10,7 +10,7 @@ select v.alias_normalized,v.alias_normalized,v.stage_code from (values
  ('FABRICATION','FABRICATION'),('FAB','FABRICATION'),('FABRICATING','FABRICATION'),
  ('ELECTRICAL','ELECTRICAL'),('ELEC','ELECTRICAL'),('AUTOELECTRICAL','ELECTRICAL'),('AUTOELEC','ELECTRICAL'),
  ('TYRE','TYRE'),('TYRES','TYRE'),('TYREBAY','TYRE'),('TIRE','TYRE'),('TIREBAY','TYRE'),
- ('PITINSPECTION','PIT_INSPECTION'),('PIT','PIT_INSPECTION'),('INSPECTION','PIT_INSPECTION'),
+ ('PITINSPECTION','PIT_INSPECTION'),('PIT','PIT_INSPECTION'),('PITS','PIT_INSPECTION'),('INSPECTION','PIT_INSPECTION'),
  ('SUBLET','SUBLET'),('OUTSOURCE','SUBLET'),('OUTSOURCED','SUBLET'),('EXTERNAL','SUBLET')
 ) as v(alias_normalized,stage_code)
 on conflict(alias_normalized) do update set alias_value=excluded.alias_value,stage_code=excluded.stage_code;
@@ -27,8 +27,38 @@ revoke all on function public.workshop_require_planner_operator() from public,an
 
 create or replace function public.workshop_require_planner_booking_mutation()
 returns trigger language plpgsql security definer set search_path=pg_catalog,public as $$
+declare
+ v_stage_id uuid;
+ v_stage_code text;
+ v_planner_enabled boolean;
 begin
- if auth.uid() is not null then perform public.workshop_require_planner_operator(); end if;
+ if auth.uid() is not null then
+  -- Importer-authorized ETA changes invoke the retained vehicle ETA-risk trigger,
+  -- which may update only booking ETA-risk metadata as a nested trigger action.
+  if tg_op='UPDATE' and pg_trigger_depth()>1
+     and (to_jsonb(new)-array['eta_at_booking','eta_risk_status','eta_risk_detected_at','version','updated_by'])
+         is not distinct from
+         (to_jsonb(old)-array['eta_at_booking','eta_risk_status','eta_risk_detected_at','version','updated_by']) then
+   return new;
+  end if;
+  perform public.workshop_require_planner_operator();
+ end if;
+
+ v_stage_id:=case when tg_op='DELETE' then old.stage_id else new.stage_id end;
+ select s.code,coalesce(s.planner_enabled,false) into v_stage_code,v_planner_enabled
+ from public.workshop_stages s where s.id=v_stage_id;
+ if coalesce(v_planner_enabled,false)=false then
+  -- Historical Sublet completion is retained, but no disabled planner booking
+  -- may be created, started, stopped, resumed, reassigned, returned, restored,
+  -- moved, resized or deleted through either current or legacy RPCs.
+  if tg_op='UPDATE' and new.status='completed' and old.status is distinct from 'completed'
+     and (to_jsonb(new)-array['status','actual_start_at','actual_end_at','actual_duration_minutes','stoppage_started_at','stoppage_accumulated_minutes','updated_by','updated_at','version'])
+         is not distinct from
+         (to_jsonb(old)-array['status','actual_start_at','actual_end_at','actual_duration_minutes','stoppage_started_at','stoppage_accumulated_minutes','updated_by','updated_at','version']) then
+   return new;
+  end if;
+  raise exception 'planner_disabled stage=%',coalesce(v_stage_code,'unknown') using errcode='22023';
+ end if;
  if tg_op='DELETE' then return old; end if;
  return new;
 end $$;
@@ -36,6 +66,19 @@ revoke all on function public.workshop_require_planner_booking_mutation() from p
 drop trigger if exists workshop_bookings_require_planner_operator on public.workshop_bookings;
 create trigger workshop_bookings_require_planner_operator before insert or update or delete on public.workshop_bookings
 for each row execute function public.workshop_require_planner_booking_mutation();
+
+-- The browser uses the audited high-level action layer. Remove obsolete direct
+-- low-level mutation entry points while retaining historical completion.
+revoke execute on function public.workshop_create_booking(uuid,text,integer,timestamptz,integer,uuid,jsonb) from authenticated;
+revoke execute on function public.workshop_move_booking(uuid,integer,text,integer,timestamptz,integer,jsonb) from authenticated;
+revoke execute on function public.workshop_resize_booking(uuid,integer,integer,jsonb) from authenticated;
+revoke execute on function public.workshop_reassign_booking(uuid,integer,uuid,jsonb) from authenticated;
+revoke execute on function public.workshop_start_booking(uuid,integer,timestamptz,jsonb) from authenticated;
+revoke execute on function public.workshop_record_stoppage(uuid,integer,text,jsonb) from authenticated;
+revoke execute on function public.workshop_resume_booking(uuid,integer,jsonb) from authenticated;
+revoke execute on function public.workshop_return_booking_to_queue(uuid,integer,text,jsonb) from authenticated;
+revoke execute on function public.workshop_delete_booking(uuid,integer,text,jsonb) from authenticated;
+revoke execute on function public.workshop_restore_booking(uuid,integer,jsonb) from authenticated;
 
 create or replace function public.workshop_enforce_vehicle_eta()
 returns trigger language plpgsql security definer set search_path=pg_catalog,public,extensions as $$
@@ -159,9 +202,14 @@ grant execute on function public.get_station_workshop_snapshot(text,date,date) t
 create or replace function public.workshop_bump_all_station_revisions()
 returns trigger language plpgsql security definer set search_path=public as $$
 begin
+ -- Existing revision rows include stations that have just been disabled or deleted;
+ -- bump them first so their scoped subscribers refetch and observe rejection.
+ update public.workshop_station_revision
+ set revision=revision+1,updated_at=now();
+ -- Then add revision authority for newly inserted stages.
  insert into public.workshop_station_revision(stage_code,revision,updated_at)
- select code,1,now() from public.workshop_stages where active and planner_enabled
- on conflict(stage_code) do update set revision=public.workshop_station_revision.revision+1,updated_at=now();
+ select code,1,now() from public.workshop_stages
+ on conflict(stage_code) do nothing;
  return null;
 end $$;
 revoke all on function public.workshop_bump_all_station_revisions() from public,anon,authenticated;

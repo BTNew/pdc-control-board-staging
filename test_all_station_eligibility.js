@@ -7,12 +7,12 @@ const STATIONS = ['BUS_4X4', 'TINT', 'HOIST', 'FITTING', 'FABRICATION', 'ELECTRI
 const ALIASES = {
   BUS_4X4: ['Bus4x4', 'Bus 4x4', 'BUS4X4', 'BUS_4X4', 'Department 138'],
   TINT: ['Tint', 'TINTING'],
-  HOIST: ['Hoist', 'Pits Hoist'],
+  HOIST: ['Hoist', 'Pit Hoist', 'Pits Hoist'],
   FITTING: ['Fitting', 'Fitment'],
   FABRICATION: ['Fabrication', 'Fab'],
   ELECTRICAL: ['Electrical', 'Elec'],
   TYRE: ['Tyre Bay', 'Tyre', 'Tire'],
-  PIT_INSPECTION: ['Pit Inspection', 'Pit'],
+  PIT_INSPECTION: ['Pit Inspection', 'Pit', 'Pits'],
 };
 
 assert.deepStrictEqual(eligibility.workshopPlannerStageCodes(), STATIONS);

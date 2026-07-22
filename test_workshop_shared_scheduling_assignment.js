@@ -50,12 +50,12 @@ function installSharedState({ technicians = [], snapshotBookings = [], leave = [
   return alerts;
 }
 
-function request(assignee) {
+function request(assignee, stage = 'HOIST') {
   const start = new Date(2026, 6, 20, 9, 0, 0, 0).toISOString();
   return {
-    requestedCandidate: { id: '__new_workshop_booking__', stage: 'HOIST', bay: 2, status: 'planned', startAt: start, hours: 2, assignee },
+    requestedCandidate: { id: '__new_workshop_booking__', stage, bay: 2, status: 'planned', startAt: start, hours: 2, assignee },
     vehicleRef: { vehicleId: 'vehicle-uuid', version: 7 },
-    stageCode: 'HOIST',
+    stageCode: stage,
     bayNumber: 2,
     scheduledStartAt: start,
     durationMinutes: 120,
@@ -88,6 +88,12 @@ async function run() {
   assert.strictEqual(result.calls.length, 1);
   assert.strictEqual(result.calls[0].payload.technicianId, null, 'blank selection is an explicit null assignment');
   console.log('PASS 2: blank selection dispatches null');
+
+  result = await attempt(request('', 'SUBLET'));
+  assert.strictEqual(result.ok, false, 'Sublet cannot be scheduled through the generic shared booking helper');
+  assert.strictEqual(result.calls.length, 0, 'Sublet must be rejected before dispatching any mutation RPC');
+  assert.strictEqual(planner.workshopRequireSchedulableCandidate({ ...request('').requestedCandidate, stage: 'SUBLET' }), false, 'Sublet move/resize candidates must fail the shared schedulability guard');
+  console.log('PASS 2b: Sublet is rejected before shared mutation dispatch and resize validation');
 
   let alerts = installSharedState({ technicians: [{ id: activeId, name: 'Active Tech', active: true }] });
   result = await attempt(request('Missing Tech'));

@@ -13,7 +13,7 @@
     Object.freeze({ code: 'FABRICATION', label: 'Fab', short: 'Fa', workKey: 'FABRICATION', jobKey: 'fabrication', route: 'planner-fab', path: 'workshop/fab', plannerEnabled: true, statusVisible: true, aliases: ['FABRICATION', 'FAB', 'FABRICATING'] }),
     Object.freeze({ code: 'ELECTRICAL', label: 'Elec', short: 'E', workKey: 'ELECTRICAL', jobKey: 'electrical', route: 'planner-elec', path: 'workshop/elec', plannerEnabled: true, statusVisible: true, aliases: ['ELECTRICAL', 'ELEC', 'AUTO ELECTRICAL', 'AUTO ELEC'] }),
     Object.freeze({ code: 'TYRE', label: 'Tyre', short: 'Ty', workKey: 'TYRE', jobKey: 'tyre', route: 'planner-tyre', path: 'workshop/tyre', plannerEnabled: true, statusVisible: true, aliases: ['TYRE', 'TYRES', 'TYRE BAY', 'TIRE', 'TIRE BAY'] }),
-    Object.freeze({ code: 'PIT_INSPECTION', label: 'Pit', short: 'PI', workKey: 'PITINSPECTION', jobKey: 'pitInspection', route: 'planner-pit', path: 'workshop/pit', plannerEnabled: true, statusVisible: true, aliases: ['PIT_INSPECTION', 'PITINSPECTION', 'PIT INSPECTION', 'PIT', 'INSPECTION'] }),
+    Object.freeze({ code: 'PIT_INSPECTION', label: 'Pit', short: 'PI', workKey: 'PITINSPECTION', jobKey: 'pitInspection', route: 'planner-pit', path: 'workshop/pit', plannerEnabled: true, statusVisible: true, aliases: ['PIT_INSPECTION', 'PITINSPECTION', 'PIT INSPECTION', 'PIT', 'PITS', 'INSPECTION'] }),
     Object.freeze({ code: 'SUBLET', label: 'Sublet', short: 'S', workKey: 'SUBLET', jobKey: 'sublet', route: '', path: '', plannerEnabled: false, statusVisible: true, aliases: ['SUBLET', 'SUB LET', 'SUB-LET', 'OUTSOURCE', 'OUTSOURCED', 'EXTERNAL'] }),
   ]);
 

@@ -459,14 +459,15 @@ console.log('Workshop planner shared-mode integration seam checks passed');
     assert.strictEqual(planner.workshopBayIsActive('FABRICATION', 2), false, '14c an inactive bay (FABRICATION-BAY-02) must report inactive');
     assert.strictEqual(planner.workshopBayDefaultTechnicianName('FABRICATION', 2), '', '14c an inactive bay with no default_technician_id must return an empty default');
 
-    // 14d. SUBLET row matches its distinct 'SUBLET-ROW' code (not '-1' suffixed).
-    assert.strictEqual(planner.workshopBayIsActive('SUBLET', 1), true, "14d the SUBLET row (code SUBLET-ROW) must be matched correctly and report active");
+    // 14d. Historical SUBLET reference rows must not map into the active planner.
+    assert.strictEqual(planner.workshopSharedBayRef('SUBLET', 1), null, '14d the historical SUBLET row must not resolve as a planner bay');
+    assert.strictEqual(planner.workshopBayAvailabilityStatus('SUBLET', 1), 'unknown', '14d direct Sublet bay identifiers must fail closed for new scheduling');
 
     // 14e. Unknown bay number for a known stage -- fail safe: active, no default.
     assert.strictEqual(planner.workshopBayIsActive('FABRICATION', 99), true, '14e a bay number with no matching row must fail safe to active');
   });
 
-  console.log('PASS 14: Stage 2A workshop bay behaviour -- shared reference lookup, inactive-bay detection, default-technician resolution, fail-safe defaults, and SUBLET row code matching all behave correctly');
+  console.log('PASS 14: Stage 2A workshop bay behaviour -- shared lookup, inactive detection, defaults, and Sublet planner rejection all behave correctly');
 }
 
 // 15. Independent-review remediation (finding 1): workshopSyncConfigFromSharedSettings()

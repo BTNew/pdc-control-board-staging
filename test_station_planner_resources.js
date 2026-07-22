@@ -4,7 +4,7 @@ const assert = require('assert');
 const { createWorkshopDataService } = require('./workshop-data-service.js');
 const { createWorkshopRealtimeManager } = require('./workshop-realtime.js');
 
-const STAGES = ['BUS_4X4', 'TINT', 'HOIST', 'FITTING', 'FABRICATION', 'ELECTRICAL', 'TYRE', 'PIT_INSPECTION', 'SUBLET'];
+const STAGES = ['BUS_4X4', 'TINT', 'HOIST', 'FITTING', 'FABRICATION', 'ELECTRICAL', 'TYRE', 'PIT_INSPECTION'];
 
 async function measure(scope) {
   const rpcCalls = [];
@@ -13,6 +13,7 @@ async function measure(scope) {
   const client = {
     async rpc(_token, name, params) {
       rpcCalls.push({ name, params });
+      if (params?.p_stage_code === 'SUBLET') return { ok: false, status: 400, body: { error: 'stage_not_planner_enabled' } };
       return { ok: true, status: 200, body: {
         revision: 1, stages: [], bays: [], technicians: [], bookings: [], vehicles: [], work_items: []
       } };
@@ -33,8 +34,9 @@ async function measure(scope) {
   });
   realtime.start();
   realtime.stop();
+  const snapshotLoaded = Boolean(service.getLastSnapshot());
   service.destroy();
-  return { requests: rpcCalls.length, rpc: rpcCalls[0]?.name, peakChannels, channelsAfterTeardown: activeChannels };
+  return { requests: rpcCalls.length, rpc: rpcCalls[0]?.name, peakChannels, channelsAfterTeardown: activeChannels, snapshotLoaded };
 }
 
 async function cycleAllStationsThreeTimes() {
@@ -89,8 +91,10 @@ async function cycleAllStationsThreeTimes() {
 (async () => {
   const before = await measure(null);
   const after = await measure({ stageCode: 'TINT', dateFrom: '2026-07-21', dateTo: '2026-07-21' });
-  assert.deepStrictEqual(before, { requests: 1, rpc: 'get_workshop_snapshot', peakChannels: 1, channelsAfterTeardown: 0 });
-  assert.deepStrictEqual(after, { requests: 1, rpc: 'get_station_workshop_snapshot', peakChannels: 1, channelsAfterTeardown: 0 });
+  const sublet = await measure({ stageCode: 'SUBLET', dateFrom: '2026-07-21', dateTo: '2026-07-21' });
+  assert.deepStrictEqual(before, { requests: 1, rpc: 'get_workshop_snapshot', peakChannels: 1, channelsAfterTeardown: 0, snapshotLoaded: true });
+  assert.deepStrictEqual(after, { requests: 1, rpc: 'get_station_workshop_snapshot', peakChannels: 1, channelsAfterTeardown: 0, snapshotLoaded: true });
+  assert.deepStrictEqual(sublet, { requests: 1, rpc: 'get_station_workshop_snapshot', peakChannels: 1, channelsAfterTeardown: 0, snapshotLoaded: false });
   const repeated = await cycleAllStationsThreeTimes();
   console.log(`station_planner_resources: PASS ${JSON.stringify({ before, after, repeated })}`);
 })().catch(error => { console.error(error); process.exit(1); });

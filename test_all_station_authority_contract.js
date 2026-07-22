@@ -18,7 +18,7 @@ for (const stage of stations) {
   assert(moduleSource.includes(`code: '${stage}'`), `canonical frontend mapping missing ${stage}`);
   assert(effectiveMigration.includes(`'${stage}'`), `canonical database mapping missing ${stage}`);
 }
-for (const alias of ['Bus 4x4','BUS4X4','Fabrication','Fab','Electrical','Elec','Tyre Bay','Tyre','Pit Inspection','Pit']) {
+for (const alias of ['Bus 4x4','BUS4X4','Fabrication','Fab','Electrical','Elec','Tyre Bay','Tyre','Pit Inspection','Pit','Pits']) {
   assert(moduleSource.toLowerCase().includes(alias.toLowerCase()), `frontend aliases missing ${alias}`);
   assert(effectiveMigration.toLowerCase().includes(alias.toLowerCase()), `database aliases missing ${alias}`);
 }
@@ -37,6 +37,7 @@ assert(app.includes("get_workshop_eligibility_snapshot"), 'Control Board must lo
 assert(app.includes("{ allStations: true }"), 'Control Board must subscribe to all station revision signals');
 assert(app.includes("table = stageCode || allStations ? 'workshop_station_revision'"), 'all-station Realtime must use station revision authority');
 assert(app.includes("return loadWorkshopEligibilitySnapshot('subscribed')") && app.includes('workshopEligibilityReconnectTimer = setTimeout'), 'Realtime trust must resync after SUBSCRIBED and replace a closed channel');
+assert(app.includes('workshopEligibilityRevisionPending = true') && app.includes("loadWorkshopEligibilitySnapshot('realtime_pending')"), 'Realtime revisions received during resync must force a trailing fetch');
 assert(app.includes("if (app.workshopEligibilityState !== 'connected') return []"), 'disconnected Control Board must not consume stale candidates');
 assert(planner.includes('WORKSHOP_ELIGIBILITY_RUNTIME.workshopCanonicalEligibility'), 'planner must apply the canonical candidate contract');
 assert(migration.match(/get_station_workshop_snapshot[\s\S]*workshop_station_eligibility\(v_stage\)/), 'station RPC must use canonical eligibility');
@@ -48,20 +49,26 @@ assert(migration.includes('workshop_station_revision_from_vehicle') && migration
 assert(closure.includes("array['workshop_stages','workshop_stage_aliases','workshop_bays','workshop_technicians','workshop_settings']"), 'configuration dependencies must invalidate all station revisions');
 assert(closure.includes("v_role not in ('operator','administrator')"), 'planner snapshots must exclude importer/viewer roles');
 assert(closure.includes('workshop_bookings_require_planner_operator') && closure.includes('before insert or update or delete on public.workshop_bookings'), 'all direct and RPC booking mutations must enforce the exact planner operator boundary');
+assert(closure.includes("new.status='completed'") && closure.includes("raise exception 'planner_disabled stage=%'"), 'disabled planner lifecycle mutations must fail while historical completion remains narrowly allowed');
+assert(closure.includes('revoke execute on function public.workshop_start_booking') && closure.includes('revoke execute on function public.workshop_restore_booking'), 'obsolete low-level lifecycle RPCs must not remain browser-callable');
+assert(closure.includes('pg_trigger_depth()>1') && closure.includes("array['eta_at_booking','eta_risk_status','eta_risk_detected_at','version','updated_by']"), 'nested importer ETA-risk maintenance must remain allowed without widening direct booking writes');
+assert(closure.includes('update public.workshop_station_revision\n set revision=revision+1'), 'disabled/deleted station subscribers must receive a final invalidation');
 const etaGuard = closure.slice(closure.indexOf('create or replace function public.workshop_enforce_vehicle_eta'), closure.indexOf('drop trigger if exists workshop_bookings_enforce_vehicle_eta'));
 assert(etaGuard.includes("v_location='IT'") && !etaGuard.includes("v_location in ('YH','IT')"), 'YH must schedule immediately while IT remains ETA-gated');
 const scheduleClosure = closure.slice(closure.indexOf('create or replace function public.schedule_vehicle_work'), closure.indexOf('revoke all on function public.schedule_vehicle_work'));
 assert(!/\b(current_location|pmb_stage|visible_on_board)\s*=/.test(scheduleClosure), 'scheduling RPC must preserve location, workflow stage and visibility');
 
 assert(moduleSource.includes("plannerEnabled: false") && moduleSource.includes("code: 'SUBLET'"), 'Sublet requirement must remain canonical but planner-disabled');
+assert(!planner.includes('SUBLET'), 'dormant Sublet planner branches must be physically absent');
 assert(!app.includes("view: 'planner-sublet'") && !app.includes("path: 'workshop/sublet'"), 'Sublet must expose no planner route');
 assert(planner.includes('workshopRequirePlannerStage') && planner.includes('This work type does not have a Workshop Planner'), 'legacy frontend schedule paths must fail closed for Sublet');
 assert(migration.includes('workshop_prevent_disabled_planner_booking_mutation'), 'database must block hidden/legacy Sublet scheduling mutations');
 assert(app.includes("key: 'sublet'") && app.includes('function renderSubletHome('), 'Sublet requirement/provider/status workflow must remain');
 assert(app.includes('pdcRequirementDefinitions(vehicle).some(job => !pdcJobComplete(vehicle, job))'), 'RFT/QC gate must still include every required item, including Sublet');
 assert(app.includes('teardownWorkshopEligibilityOverview({ clearSnapshot: true })'), 'route/auth teardown must not retain stale candidate authority');
-for (const gate of ['scripts/test_station_planner_300_performance.js','scripts/test_station_planner_fixture_performance.js','scripts/test_station_planner_browser_performance.js']) {
-  assert(!/STATIONS[\s\S]{0,500}SUBLET/.test(read(gate)), `${gate} must not require the removed Sublet planner`);
+for (const gate of ['scripts/test_station_planner_300_performance.js','scripts/test_station_planner_fixture_performance.js','scripts/test_station_planner_browser_performance.js','test_station_planner_resources.js']) {
+  const inventory = read(gate).match(/const\s+(?:STAGES|STATIONS)\s*=\s*\[([^\]]*)\]/)?.[1] || '';
+  assert(!inventory.includes('SUBLET'), `${gate} must not require the removed Sublet planner`);
 }
 
 console.log(`All-station authority/Sublet contract: ${stations.length} stations passed`);

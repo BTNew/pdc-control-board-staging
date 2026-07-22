@@ -29,14 +29,12 @@ const planner = require('./workshop-planner.js');
 const yh = { id: 'yh-1', stock: 'YH1', pdcLocation: 'YH', kewdaleEta: '21/07/2026', stage: 'FABRICATION' };
 const it = { id: 'it-1', stock: 'IT1', pdcLocation: 'IT', kewdaleEta: '22/07/2026', stage: 'FABRICATION' };
 const pmb = { id: 'pmb-1', stock: 'PMB1', pdcLocation: 'PMB', stage: 'FABRICATION', required: true, complete: false };
-const pmbSublet = { id: 'pmb-sublet', stock: 'PMBS', pdcLocation: 'PMB', stage: 'SUBLET', pmbSubletProvider: 'Vendor' };
 global.app.data = [yh, it, pmb];
 
 assert.strictEqual(planner.workshopVehiclePlanningLocation(yh), 'YH');
 assert.strictEqual(planner.workshopVehiclePlanningLocation(it), 'IT');
 assert.deepStrictEqual(planner.workshopStageVehicles('FABRICATION').map(row => row.id), ['it-1', 'pmb-1', 'yh-1'], 'YH and IT vehicles with outstanding work must join the normal awaiting-schedule candidates');
-global.app.data.push(pmbSublet);
-assert.deepStrictEqual(planner.workshopStageVehicles('SUBLET').map(row => row.id), ['pmb-sublet'], 'PMB SUBLET vehicles must remain in the normal unallocated queue');
+assert.deepStrictEqual(planner.workshopStageVehicles('SUBLET'), [], 'Sublet requirement rows must never become planner candidates');
 
 const yhBeforeEta = planner.workshopEtaScheduleValidation(yh, new Date(2026, 6, 20, 8, 0));
 assert.strictEqual(yhBeforeEta.ok, true, 'YH must be schedulable immediately without an ETA restriction');

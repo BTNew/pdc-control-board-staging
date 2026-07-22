@@ -306,7 +306,7 @@ assert.ok(nextButtonIndex >= 0 && todayButtonIndex > nextButtonIndex, 'Today mus
 assert.ok(!source.includes('window.prompt('), 'Workshop actions must not use browser prompt dialogs');
 assert.ok(source.includes('value="move" checked'), 'Just move return option is missing');
 assert.ok(source.includes('value="stoppage"'), 'Stoppage return option is missing');
-assert.ok(source.includes('Parts completion remains an RFT gate, not an entry gate for Tint, Tyre or Sublet.'), 'Parts should remain an RFT gate without blocking workshop entry');
+assert.ok(source.includes('Parts completion remains an RFT gate, not an entry gate for Tint or Tyre.'), 'Parts should remain an RFT gate without blocking workshop entry');
 assert.ok(!source.includes('function removeWorkshopPlan('), 'Direct Remove Plan action must not exist');
 assert.ok(!source.includes('max="8"'), 'Workshop hours must not be capped at eight');
 assert.ok(!source.includes('Scheduled other days'), 'The Scheduled other days box should be removed');
@@ -387,7 +387,7 @@ for (const file of htmlFiles) {
   assert.ok(html.includes(`workshop-planner.css?v=${appVersion}`), `${file} is missing the planner stylesheet`);
   assert.ok(!html.includes('<script src="workshop-planner.js'), `${file} must not eagerly load the planner script`);
 }
-assert.ok(app.includes("const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.07.22.06-all-station-eligibility';"), 'Workshop Planner must carry the all-station eligibility cache-bust version');
+assert.ok(app.includes("const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.07.22.07-all-station-review-closure';"), 'Workshop Planner must carry the all-station eligibility cache-bust version');
 assert.ok(app.includes("loadExternalScript(`workshop-planner.js?v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}`"), 'app.js must lazy-load the Workshop Planner with its dedicated cache-bust version');
 
 console.log('Workshop planner regression checks passed');

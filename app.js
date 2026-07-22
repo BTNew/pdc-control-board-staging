@@ -1,5 +1,5 @@
-const APP_VERSION = '2026.07.22.06-all-station-eligibility';
-const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.07.22.06-all-station-eligibility';
+const APP_VERSION = '2026.07.22.07-all-station-review-closure';
+const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.07.22.07-all-station-review-closure';
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
 // constant intentionally names only the production ref, never the
@@ -1860,6 +1860,7 @@ const app = {
   workshopEligibilityState: 'idle',
   workshopEligibilityError: '',
   workshopEligibilityRequestGeneration: 0,
+  workshopEligibilityRevisionPending: false,
   workshopEligibilityRealtime: null,
   workshopEligibilityReconnectTimer: null,
   singleSearchFocus: {},
@@ -4273,6 +4274,7 @@ function workshopEligibilitySharedAuthorityEnabled() {
 
 function teardownWorkshopEligibilityOverview({ clearSnapshot = false } = {}) {
   app.workshopEligibilityRequestGeneration += 1;
+  app.workshopEligibilityRevisionPending = false;
   const realtime = app.workshopEligibilityRealtime;
   app.workshopEligibilityRealtime = null;
   if (app.workshopEligibilityReconnectTimer) clearTimeout(app.workshopEligibilityReconnectTimer);
@@ -4292,7 +4294,11 @@ function workshopEligibilityOverviewSubscribe() {
   let subscription = null;
   subscription = createPdcSupabaseRealtimeSubscription(window.PDC_SUPABASE_CONFIG, {
     onChange: () => {
-      if (app.workshopEligibilityState === 'connected') loadWorkshopEligibilitySnapshot('realtime');
+      if (app.workshopEligibilityState === 'connected') {
+        loadWorkshopEligibilitySnapshot('realtime');
+      } else {
+        app.workshopEligibilityRevisionPending = true;
+      }
     },
     onSubscribed: () => {
       if (app.workshopEligibilityReconnectTimer) clearTimeout(app.workshopEligibilityReconnectTimer);
@@ -4301,6 +4307,7 @@ function workshopEligibilityOverviewSubscribe() {
     },
     onError: status => {
       app.workshopEligibilitySnapshot = null;
+      app.workshopEligibilityRevisionPending = false;
       app.workshopEligibilityState = 'reconnecting';
       app.workshopEligibilityError = String(status || 'Realtime unavailable');
       if (app.currentView === 'workflow') renderWorkflowBoard();
@@ -4309,6 +4316,7 @@ function workshopEligibilityOverviewSubscribe() {
       if (app.workshopEligibilityRealtime !== subscription) return;
       app.workshopEligibilityRealtime = null;
       app.workshopEligibilitySnapshot = null;
+      app.workshopEligibilityRevisionPending = false;
       app.workshopEligibilityState = 'reconnecting';
       try { subscription?.unsubscribe?.(); } catch (_error) { /* best effort */ }
       if (app.workshopEligibilityReconnectTimer) clearTimeout(app.workshopEligibilityReconnectTimer);
@@ -4361,6 +4369,10 @@ async function loadWorkshopEligibilitySnapshot(reason = 'manual') {
     app.workshopEligibilityState = 'connected';
     app.workshopEligibilityError = '';
     if (app.currentView === 'workflow') renderWorkflowBoard();
+    if (app.workshopEligibilityRevisionPending) {
+      app.workshopEligibilityRevisionPending = false;
+      return loadWorkshopEligibilitySnapshot('realtime_pending');
+    }
     return snapshot;
   } catch (error) {
     if (generation !== app.workshopEligibilityRequestGeneration) return null;
