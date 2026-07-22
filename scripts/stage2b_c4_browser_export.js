@@ -200,6 +200,8 @@
     if (beforeJson !== afterJson || beforeHash !== afterHash) throw new Error('read-only invariant failed: localStorage changed during export');
     const payload = canonicalize({
       schema: SCHEMA,
+      computer_name: text(env.computerName) || null,
+      exported_at: text(env.exportedAt) || null,
       source_origin: text(env.origin || windowObject.location?.origin) || null,
       local_storage_sha256_before: beforeHash,
       local_storage_sha256_after: afterHash,
@@ -227,7 +229,9 @@
   }
 
   async function downloadAssessmentExport(environment) {
-    const payload = await buildAssessmentExport(environment);
+    const computerName = text(environment?.computerName) || 'Computer';
+    const exportedAt = text(environment?.exportedAt) || new Date().toISOString();
+    const payload = await buildAssessmentExport({ ...(environment || {}), computerName, exportedAt });
     const documentObject = environment?.documentObject || (typeof document !== 'undefined' ? document : null);
     const urlApi = environment?.urlApi || (typeof URL !== 'undefined' ? URL : null);
     if (!documentObject || !urlApi || typeof Blob === 'undefined') throw new Error('browser download APIs are unavailable');
@@ -235,7 +239,12 @@
     const url = urlApi.createObjectURL(blob);
     const anchor = documentObject.createElement('a');
     anchor.href = url;
-    anchor.download = `PDC-Stage2B-C4-Browser-Assessment-${payload.assessment_export_sha256.slice(0, 12)}.json`;
+    const safeComputerName = computerName.normalize('NFKD')
+      .replace(/[^A-Za-z0-9._-]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .slice(0, 48) || 'Computer';
+    const safeTimestamp = exportedAt.replace(/[:.]/g, '-');
+    anchor.download = `PDC-Read-Only-Browser-Assessment-${safeComputerName}-${safeTimestamp}-${payload.assessment_export_sha256.slice(0, 12)}.json`;
     documentObject.body.appendChild(anchor);
     anchor.click();
     anchor.remove();
