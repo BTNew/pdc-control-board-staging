@@ -10,6 +10,7 @@
     initialized: false,
     ownRoleChannel: null,
     ownRoleSubscriptionAttempt: null,
+    passwordSetupUserId: null,
     // Monotonic ownership tokens for asynchronous session and role checks.
     // A completion may publish authority only if it still owns both tokens.
     authGeneration: 0,
@@ -132,6 +133,7 @@
     unsubscribeOwnRoleChannel();
     state.session = null;
     state.validatingSession = null;
+    state.passwordSetupUserId = null;
     state.user = null;
     state.role = null;
     delete window.PDC_AUTH_CONTEXT;
@@ -318,6 +320,7 @@
     // authority either.
     state.session = null;
     state.validatingSession = null;
+    state.passwordSetupUserId = null;
     state.user = null;
     state.role = null;
     delete window.PDC_AUTH_CONTEXT;
@@ -349,9 +352,8 @@
     }
 
     if (state.passwordSetupRequired) {
-      state.session = session;
       state.validatingSession = null;
-      state.user = session.user;
+      state.passwordSetupUserId = session.user?.id || null;
       setMessage('Create your PDC password', 'Use at least 12 characters with upper and lower-case letters, a number and a symbol.', 'password-setup');
       return;
     }
@@ -488,7 +490,7 @@
       return;
     }
     const providerGeneration = beginProviderSessionOperation();
-    const session = state.session;
+    const passwordSetupUserId = state.passwordSetupUserId;
     const button = el('pdc-save-password');
     if (button) button.disabled = true;
     let data;
@@ -498,17 +500,37 @@
     } catch (caught) {
       error = caught;
     }
-    if (!completeProviderSessionOperation(providerGeneration, session) || state.session !== session) return;
+    if (!providerSessionOperationCurrent(providerGeneration) || state.passwordSetupUserId !== passwordSetupUserId) return;
     if (button) button.disabled = false;
     if (error || !data?.user) {
       setMessage('Password could not be saved', error?.message || 'Request another invitation and try again.', 'password-setup');
       return;
     }
+    let recoverySession;
+    let recoveryError;
+    try {
+      const result = await state.client.auth.getSession();
+      recoverySession = result?.data?.session || null;
+      recoveryError = result?.error || null;
+    } catch (caught) {
+      recoveryError = caught;
+    }
+    if (!providerSessionOperationCurrent(providerGeneration) || state.passwordSetupUserId !== passwordSetupUserId) return;
+    if (recoveryError || !recoverySession || recoverySession.user?.id !== passwordSetupUserId) {
+      completeProviderSessionOperation(providerGeneration);
+      state.passwordSetupRequired = false;
+      state.passwordSetupUserId = null;
+      await applySession(null);
+      setMessage('Password saved; sign in again', 'Your password was updated, but this browser could not safely revalidate the recovery session. Sign in with your new password.', 'signed-out');
+      return;
+    }
+    if (!completeProviderSessionOperation(providerGeneration, recoverySession)) return;
     if (el('pdc-new-password')) el('pdc-new-password').value = '';
     if (el('pdc-confirm-password')) el('pdc-confirm-password').value = '';
     state.passwordSetupRequired = false;
+    state.passwordSetupUserId = null;
     window.history.replaceState({}, document.title, window.location.pathname);
-    await applySession(session);
+    await applySession(recoverySession);
   }
 
   async function signOut() {

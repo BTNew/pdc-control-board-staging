@@ -82,7 +82,7 @@ assert.strictEqual(helpers.safeRedirectTo('/index.html'), 'http://localhost:8765
 async function testAuthGenerationOwnership() {
   const instrumented = authSource.replace(
     /\}\)\(\);\s*$/,
-    'window.__PDC_AUTH_INTERNALS = { state, applySession, handleOwnRoleRowChanged, beginProviderSessionOperation, completeProviderSessionOperation, signInWithPassword, signOut, initialize };\n})();'
+    'window.__PDC_AUTH_INTERNALS = { state, applySession, handleOwnRoleRowChanged, beginProviderSessionOperation, completeProviderSessionOperation, signInWithPassword, saveNewPassword, signOut, initialize };\n})();'
   );
   const events = [];
   const lockedObservations = [];
@@ -90,6 +90,9 @@ async function testAuthGenerationOwnership() {
     'pdc-login-email': { value: '' },
     'pdc-login-password': { value: '' },
     'pdc-password-login': { disabled: false },
+    'pdc-new-password': { value: '' },
+    'pdc-confirm-password': { value: '' },
+    'pdc-save-password': { disabled: false },
   };
   const body = { dataset: {}, classList: { add() {}, remove() {} } };
   const raceContext = {
@@ -97,6 +100,7 @@ async function testAuthGenerationOwnership() {
     CustomEvent: function CustomEvent(type, init) { this.type = type; this.detail = init?.detail; },
     window: {
       location: { origin: 'http://localhost:8765', pathname: '/index.html', search: '', hash: '' },
+      history: { replaceState() {} },
       addEventListener() {},
       dispatchEvent(event) {
         events.push(event);
@@ -172,6 +176,32 @@ async function testAuthGenerationOwnership() {
     const promise = new Promise((res, rej) => { resolve = res; reject = rej; });
     return { promise, resolve, reject };
   };
+
+  // Recovery/invite sessions may drive the isolated password-update form but
+  // must not become application, token, role, or monitor authority.
+  const recoverySession = {
+    access_token: 'RECOVERY_SECRET',
+    user: { id: 'R', email: 'recovery@example.com', user_metadata: {} },
+  };
+  const channelsBeforeRecovery = roleChannels.length;
+  internals.state.passwordSetupRequired = true;
+  await internals.applySession(recoverySession);
+  assert.strictEqual(internals.state.session, null, 'recovery session is not published as application authority');
+  assert.strictEqual(internals.state.user, null, 'recovery user is not published as application authority');
+  assert.strictEqual(internals.state.validatingSession, null, 'recovery session is not retained as a role-validation session');
+  assert.strictEqual(internals.state.passwordSetupUserId, 'R', 'recovery form retains only the expected user identity');
+  assert.strictEqual(raceContext.window.PDC_AUTH_CONTEXT, undefined, 'recovery path publishes no auth context');
+  assert.strictEqual(raceContext.window.__pdcCachedAccessToken, undefined, 'recovery path caches no token');
+  assert.strictEqual(roleChannels.length, channelsBeforeRecovery, 'recovery path creates no operational role monitor before password completion');
+  nodes['pdc-new-password'].value = 'Strong!Password123';
+  nodes['pdc-confirm-password'].value = 'Strong!Password123';
+  client.auth.updateUser = () => Promise.resolve({ data: { user: recoverySession.user }, error: null });
+  client.auth.getSession = () => Promise.resolve({ data: { session: recoverySession }, error: null });
+  roleResponses.push(Promise.resolve(approvedFor('recovery@example.com', 'operator')));
+  await internals.saveNewPassword({ preventDefault() {} });
+  assert.strictEqual(raceContext.window.PDC_AUTH_CONTEXT?.userId, 'R', 'completed recovery publishes authority only after fresh role and monitor proof');
+  assert.strictEqual(raceContext.window.__pdcCachedAccessToken, 'RECOVERY_SECRET', 'completed recovery caches the token only after monitored unlock');
+  await internals.applySession(null);
 
   // An older session validation must not unlock after a newer sign-out.
   const staleSessionRole = deferred();
