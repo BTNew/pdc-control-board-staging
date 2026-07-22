@@ -1,5 +1,5 @@
-const APP_VERSION = '2026.07.22.04-operational-readiness';
-const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.07.22.05-operational-readiness';
+const APP_VERSION = '2026.07.22.08-blocker-remediation';
+const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.07.22.08-blocker-remediation';
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
 // constant intentionally names only the production ref, never the
@@ -119,17 +119,38 @@ function pdcLocationSelectOptions(current = '') {
   }).join('');
 }
 
+function workshopEligibilityHarnessFallback() {
+  // Whole-app VM tests execute app.js without loading index.html dependencies.
+  // Never use this compatibility shape in a real browser: production must load
+  // workshop-eligibility.js and fails closed if that canonical module is absent.
+  if (window === globalThis) return null;
+  const tuples = [
+    ['BUS_4X4', 'Bus 4x4', 'bus4x4', 'planner-bus-4x4', 'workshop/bus-4x4', true],
+    ['TINT', 'Tint', 'tint', 'planner-tint', 'workshop/tint', true],
+    ['HOIST', 'Hoist', 'hoist', 'planner-hoist', 'workshop/hoist', true],
+    ['FITTING', 'Fitting', 'fitting', 'planner-fitting', 'workshop/fitting', true],
+    ['FABRICATION', 'Fab', 'fabrication', 'planner-fab', 'workshop/fab', true],
+    ['ELECTRICAL', 'Elec', 'electrical', 'planner-elec', 'workshop/elec', true],
+    ['TYRE', 'Tyre', 'tyre', 'planner-tyre', 'workshop/tyre', true],
+    ['PIT_INSPECTION', 'Pit', 'pitInspection', 'planner-pit', 'workshop/pit', true],
+    ['SUBLET', 'Sublet', 'sublet', '', '', false],
+  ];
+  const stationDefinitions = tuples.map(([code, label, jobKey, route, path, plannerEnabled]) => ({ code, label, jobKey, route, path, plannerEnabled }));
+  return {
+    stationDefinitions,
+    canonicalWorkshopStage: value => stationDefinitions.find(def => def.code === String(value || '').trim().toUpperCase())?.code || '',
+    workshopPlannerStageCodes: () => stationDefinitions.filter(def => def.plannerEnabled).map(def => def.code),
+    workshopPlannerStationDefinitions: () => stationDefinitions.filter(def => def.plannerEnabled),
+  };
+}
+
+const WORKSHOP_ELIGIBILITY = window.PDC_WORKSHOP_ELIGIBILITY || workshopEligibilityHarnessFallback();
+if (!WORKSHOP_ELIGIBILITY) throw new Error('Canonical workshop eligibility module failed to load');
+if (!globalThis.PDC_WORKSHOP_ELIGIBILITY && window !== globalThis) globalThis.PDC_WORKSHOP_ELIGIBILITY = WORKSHOP_ELIGIBILITY;
+const WORKSHOP_CANONICAL_STATION_DEFS = WORKSHOP_ELIGIBILITY.stationDefinitions;
 const PMB_STAGE_OPTIONS = [
   { value: '', label: 'UNALLOCATED' },
-  { value: 'BUS_4X4', label: 'Bus 4x4' },
-  { value: 'TINT', label: 'Tint' },
-  { value: 'HOIST', label: 'Hoist' },
-  { value: 'FITTING', label: 'Fitting' },
-  { value: 'FABRICATION', label: 'Fab' },
-  { value: 'ELECTRICAL', label: 'Elec' },
-  { value: 'TYRE', label: 'Tyre' },
-  { value: 'PIT_INSPECTION', label: 'Pit' },
-  { value: 'SUBLET', label: 'Sublet' },
+  ...WORKSHOP_CANONICAL_STATION_DEFS.map(def => ({ value: def.code, label: def.label })),
 ];
 
 const PMB_STAGE_DEFS = PMB_STAGE_OPTIONS.filter(option => option.value);
@@ -181,7 +202,7 @@ const PMB_STAGE_AGE_LIMITS = {
 };
 
 const PMB_BAY_MAX_COUNT = 13;
-const PMB_BAY_STATION_SEQUENCE = ['BUS_4X4', 'TINT', 'HOIST', 'FITTING', 'FABRICATION', 'ELECTRICAL', 'TYRE', 'PIT_INSPECTION'];
+const PMB_BAY_STATION_SEQUENCE = Object.freeze(WORKSHOP_ELIGIBILITY.workshopPlannerStageCodes());
 const PRODUCTION_FLOW_DEFS = [
   { key: 'BUS_4X4', label: 'Bus 4x4', short: 'B4', jobKey: 'bus4x4', stage: 'BUS_4X4', department: '138', search: /\b(bus\s*4x4|4x4 bus|department\s*138)\b/i },
   { key: 'TINT', label: 'Tint', short: 'T', jobKey: 'tint', stage: 'TINT', search: /\b(tint|tinting|window tint)\b/i },
@@ -202,21 +223,16 @@ const PRODUCTION_DEPARTMENT_VIEWS = {
   'dept-tyre': 'TYRE',
   'dept-pit-inspection': 'PIT_INSPECTION',
 };
-const WORKSHOP_STATION_ROUTE_DEFS = Object.freeze([
-  { view: 'planner-bus-4x4', path: 'workshop/bus-4x4', stage: 'BUS_4X4', label: 'Bus 4x4' },
-  { view: 'planner-tint', path: 'workshop/tint', stage: 'TINT', label: 'Tint' },
-  { view: 'planner-hoist', path: 'workshop/hoist', stage: 'HOIST', label: 'Hoist' },
-  { view: 'planner-fitting', path: 'workshop/fitting', stage: 'FITTING', label: 'Fitting' },
-  { view: 'planner-fab', path: 'workshop/fab', stage: 'FABRICATION', label: 'Fab' },
-  { view: 'planner-elec', path: 'workshop/elec', stage: 'ELECTRICAL', label: 'Elec' },
-  { view: 'planner-tyre', path: 'workshop/tyre', stage: 'TYRE', label: 'Tyre' },
-  { view: 'planner-pit', path: 'workshop/pit', stage: 'PIT_INSPECTION', label: 'Pit' },
-  { view: 'planner-sublet', path: 'workshop/sublet', stage: 'SUBLET', label: 'Sublet' },
-]);
+const WORKSHOP_STATION_ROUTE_DEFS = Object.freeze(WORKSHOP_ELIGIBILITY.workshopPlannerStationDefinitions().map(def => ({
+  view: def.route,
+  path: def.path,
+  stage: def.code,
+  label: def.label,
+})));
 const WORKSHOP_PLANNER_VIEWS = Object.freeze(Object.fromEntries(WORKSHOP_STATION_ROUTE_DEFS.map(def => [def.view, def.stage])));
 const WORKSHOP_PLANNER_ROUTE_BY_STAGE = Object.freeze(Object.fromEntries(WORKSHOP_STATION_ROUTE_DEFS.map(def => [def.stage, def.view])));
 const WORKSHOP_PLANNER_ROUTE_BY_PATH = Object.freeze(Object.fromEntries(WORKSHOP_STATION_ROUTE_DEFS.map(def => [def.path, def.view])));
-const WORKSHOP_CONTROL_BOARD_STATIONS = Object.freeze([...PMB_BAY_STATION_SEQUENCE, 'SUBLET']);
+const WORKSHOP_CONTROL_BOARD_STATIONS = PMB_BAY_STATION_SEQUENCE;
 
 const PDC_JOB_DEFS = [
   { key: 'bus4x4', label: 'BUS 4X4', short: 'B4', requireKey: 'pdcRequiresBus4x4', completeKey: 'pdcCompleteBus4x4', completeAtKey: 'pdcCompleteBus4x4At', completeByKey: 'pdcCompleteBus4x4By' },
@@ -266,16 +282,7 @@ function currentPdcJobLabelsText() {
   return PDC_JOB_DEFS.map(def => def.label).join(', ');
 }
 
-const PMB_STAGE_TO_JOB_KEY = {
-  BUS_4X4: 'bus4x4',
-  TINT: 'tint',
-  HOIST: 'hoist',
-  FITTING: 'fitting',
-  FABRICATION: 'fabrication',
-  ELECTRICAL: 'electrical',
-  TYRE: 'tyre',
-  PIT_INSPECTION: 'pitInspection',
-};
+const PMB_STAGE_TO_JOB_KEY = Object.freeze(Object.fromEntries(WORKSHOP_CANONICAL_STATION_DEFS.map(def => [def.code, def.jobKey])));
 
 function pmbStageJobDef(stage = '') {
   const key = PMB_STAGE_TO_JOB_KEY[normalizePmbStage(stage)];
@@ -310,6 +317,8 @@ function pdcJobHours(vehicle = {}, def = {}) {
 
 
 function normalizePmbStage(value = '') {
+  const canonical = WORKSHOP_ELIGIBILITY.canonicalWorkshopStage(value);
+  if (canonical) return canonical;
   const clean = String(value || '').trim().toUpperCase();
   if (!clean) return '';
   if (/\bBUS[ _-]*4X4\b|\b4X4[ _-]*BUS\b|\b(?:DEPT|DEPARTMENT)[ _-]*138\b/.test(clean)) return 'BUS_4X4';
@@ -1847,6 +1856,13 @@ const app = {
   pmbScheduleClockTimer: null,
   workflowBucketsCollapsed: true,
   workflowSearch: '',
+  workshopEligibilitySnapshot: null,
+  workshopEligibilityState: 'idle',
+  workshopEligibilityError: '',
+  workshopEligibilityRequestGeneration: 0,
+  workshopEligibilityRevisionPending: false,
+  workshopEligibilityRealtime: null,
+  workshopEligibilityReconnectTimer: null,
   singleSearchFocus: {},
   workflowFilters: {
     sort: 'oldest',
@@ -2710,6 +2726,7 @@ function workshopViewFromLocation() {
   if (!path) return 'dashboard';
   if (WORKSHOP_PLANNER_ROUTE_BY_PATH[path]) return WORKSHOP_PLANNER_ROUTE_BY_PATH[path];
   if (path === 'workshop') return workshopCombinedPlannerRollbackEnabled() ? 'workshop' : 'workflow';
+  if (path.startsWith('workshop/')) return 'workflow';
   const candidate = path.replaceAll('/', '-');
   return document.getElementById(candidate) || document.querySelector(`[data-view="${candidate}"]`) ? candidate : 'dashboard';
 }
@@ -3457,6 +3474,7 @@ function teardownWorkshopPlannerScope(options) {
 function showView(view, options) {
   options = options || {};
   let requestedView = view || 'dashboard';
+  if (requestedView.startsWith('planner-') && !WORKSHOP_PLANNER_VIEWS[requestedView]) requestedView = 'workflow';
   if (requestedView === 'workshop' && !workshopCombinedPlannerRollbackEnabled()) requestedView = 'workflow';
   const departmentStage = PRODUCTION_DEPARTMENT_VIEWS[requestedView] || '';
   const plannerStage = WORKSHOP_PLANNER_VIEWS[requestedView] || '';
@@ -3465,6 +3483,7 @@ function showView(view, options) {
   const previousWasPlanner = previousRequestedView === 'workshop' || Boolean(WORKSHOP_PLANNER_VIEWS[previousRequestedView]);
   const switchingPlannerStation = previousWasPlanner && Boolean(plannerStage) && previousRequestedView !== requestedView;
   if (previousWasPlanner && previousRequestedView !== requestedView) teardownWorkshopPlannerScope({ preserveShell: switchingPlannerStation });
+  if (previousRequestedView === 'workflow' && requestedView !== 'workflow') teardownWorkshopEligibilityOverview({ clearSnapshot: true });
   releaseHeavyViewDom(app.currentView, nextView);
   if (requestedView !== 'workflow') {
     app.activePmbBayStage = '';
@@ -3606,11 +3625,12 @@ function createPdcSupabaseRealtimeSubscription(config, handlers, scope = null) {
     return { requiresSubscribedStatus: true, unsubscribe: () => {} };
   }
   const stageCode = String(scope?.stageCode || '').trim().toUpperCase();
-  const table = stageCode ? 'workshop_station_revision' : 'workshop_revision';
+  const allStations = scope?.allStations === true;
+  const table = stageCode || allStations ? 'workshop_station_revision' : 'workshop_revision';
   const filter = stageCode ? `stage_code=eq.${stageCode}` : undefined;
   const changeSpec = { event: '*', schema: 'public', table, ...(filter ? { filter } : {}) };
   const channel = client
-    .channel(stageCode ? `workshop-station-revision-${stageCode.toLowerCase()}` : 'workshop-revision')
+    .channel(stageCode ? `workshop-station-revision-${stageCode.toLowerCase()}` : allStations ? 'workshop-all-station-revisions' : 'workshop-revision')
     .on('postgres_changes', changeSpec, payload => {
       if (typeof handlers?.onChange === 'function') handlers.onChange(payload);
     })
@@ -3848,7 +3868,15 @@ function vehicleLifecycleSharedModeActive() {
 // the Workshop Planner view (or returns after a session refresh) gets the
 // data service without needing to navigate away and back.
 window.addEventListener?.('pdc-auth-ready', () => {
+  // Auth-ready also represents live token/role changes. Existing planner
+  // services must discard their prior authority generation before reuse;
+  // init alone intentionally reuses the instance and is not sufficient.
+  window.__workshopDataService?.onTokenRefresh?.();
   if (app.currentView === 'workshop' && typeof initWorkshopSharedServicesIfEnabled === 'function') initWorkshopSharedServicesIfEnabled();
+  if (app.currentView === 'workflow') {
+    teardownWorkshopEligibilityOverview({ clearSnapshot: true });
+    loadWorkshopEligibilitySnapshot('auth_ready');
+  }
   if (typeof initVehicleLifecycleSharedActionsIfEnabled === 'function') initVehicleLifecycleSharedActionsIfEnabled();
   if (typeof refreshWorkshopReferenceData === 'function') refreshWorkshopReferenceData();
   const navItem = document.getElementById('nav-user-management');
@@ -3869,6 +3897,7 @@ window.addEventListener?.('pdc-auth-locked', () => {
   const advisorHost = document.getElementById('ai-board-advisor-content');
   if (advisorHost) advisorHost.replaceChildren();
   cancelWorkshopPlannerRender();
+  teardownWorkshopEligibilityOverview({ clearSnapshot: true });
   removeWorkshopRecoveryListeners();
   try {
     if (window.__workshopRealtimeManager && typeof window.__workshopRealtimeManager.stop === 'function') {
@@ -4243,6 +4272,186 @@ function workflowAction(target = '') {
   renderWorkflowBoard();
 }
 
+function workshopEligibilitySharedAuthorityEnabled() {
+  return window.PDC_SUPABASE_CONFIG?.workshop?.sharedData === true;
+}
+
+function teardownWorkshopEligibilityOverview({ clearSnapshot = false } = {}) {
+  app.workshopEligibilityRequestGeneration += 1;
+  app.workshopEligibilityRevisionPending = false;
+  const realtime = app.workshopEligibilityRealtime;
+  app.workshopEligibilityRealtime = null;
+  if (app.workshopEligibilityReconnectTimer) clearTimeout(app.workshopEligibilityReconnectTimer);
+  app.workshopEligibilityReconnectTimer = null;
+  try { realtime?.unsubscribe?.(); } catch (_error) { /* best effort */ }
+  if (clearSnapshot) {
+    app.workshopEligibilitySnapshot = null;
+    app.workshopEligibilityState = 'idle';
+    app.workshopEligibilityError = '';
+  }
+}
+
+function failWorkshopEligibilityOverviewSubscription(owner, status = 'Realtime unavailable') {
+  if (app.workshopEligibilityRealtime !== owner) return;
+  // Invalidate every snapshot request issued under the failed authority
+  // session before releasing the channel. A late response is therefore inert.
+  app.workshopEligibilityRequestGeneration += 1;
+  app.workshopEligibilityRealtime = null;
+  app.workshopEligibilitySnapshot = null;
+  app.workshopEligibilityRevisionPending = false;
+  app.workshopEligibilityState = 'reconnecting';
+  app.workshopEligibilityError = String(status || 'Realtime unavailable');
+  try { owner?.unsubscribe?.(); } catch (_error) { /* best effort */ }
+  if (app.workshopEligibilityReconnectTimer) clearTimeout(app.workshopEligibilityReconnectTimer);
+  app.workshopEligibilityReconnectTimer = setTimeout(() => {
+    app.workshopEligibilityReconnectTimer = null;
+    workshopEligibilityOverviewSubscribe();
+  }, 1000);
+  if (app.currentView === 'workflow') renderWorkflowBoard();
+}
+
+function workshopEligibilityOverviewSubscribe() {
+  if (app.workshopEligibilityRealtime || typeof createPdcSupabaseRealtimeSubscription !== 'function') return;
+  app.workshopEligibilitySnapshot = null;
+  app.workshopEligibilityState = 'reconnecting';
+  // Install an owner token before opening the transport. Supabase adapters may
+  // emit a failure synchronously from subscribe(); the token still makes that
+  // callback authoritative and ensures the returned failed handle is disposed.
+  const owner = {
+    handle: null,
+    unsubscribe() {
+      const handle = owner.handle;
+      owner.handle = null;
+      handle?.unsubscribe?.();
+    },
+  };
+  app.workshopEligibilityRealtime = owner;
+  let handle;
+  try {
+    handle = createPdcSupabaseRealtimeSubscription(window.PDC_SUPABASE_CONFIG, {
+      onChange: () => {
+        if (app.workshopEligibilityRealtime !== owner) return;
+        if (app.workshopEligibilityState === 'connected') {
+          loadWorkshopEligibilitySnapshot('realtime');
+        } else {
+          app.workshopEligibilityRevisionPending = true;
+        }
+      },
+      onSubscribed: () => {
+        if (app.workshopEligibilityRealtime !== owner) return null;
+        if (app.workshopEligibilityReconnectTimer) clearTimeout(app.workshopEligibilityReconnectTimer);
+        app.workshopEligibilityReconnectTimer = null;
+        return loadWorkshopEligibilitySnapshot('subscribed');
+      },
+      onError: status => failWorkshopEligibilityOverviewSubscription(owner, status),
+      onClosed: status => failWorkshopEligibilityOverviewSubscription(owner, status || 'Realtime closed'),
+    }, { allStations: true });
+  } catch (error) {
+    failWorkshopEligibilityOverviewSubscription(owner, error?.message || 'Realtime subscribe failed');
+    return;
+  }
+  owner.handle = handle;
+  if (app.workshopEligibilityRealtime !== owner) owner.unsubscribe();
+}
+
+async function loadWorkshopEligibilitySnapshot(reason = 'manual') {
+  if (!workshopEligibilitySharedAuthorityEnabled()) return null;
+  const token = getPdcSupabaseAccessToken();
+  if (!token) {
+    app.workshopEligibilitySnapshot = null;
+    app.workshopEligibilityState = 'permission_denied';
+    app.workshopEligibilityError = 'Sign in to load authoritative workshop eligibility.';
+    if (app.currentView === 'workflow') renderWorkflowBoard();
+    return null;
+  }
+  // Trust is established only after the Realtime channel reports SUBSCRIBED.
+  // The subscription callback then performs the authoritative resync, closing
+  // the fetch-before-subscribe missed-event window.
+  if (!app.workshopEligibilityRealtime && reason !== 'subscribed') {
+    workshopEligibilityOverviewSubscribe();
+    return null;
+  }
+  const authorityOwner = app.workshopEligibilityRealtime;
+  if (!authorityOwner) return null;
+  const generation = ++app.workshopEligibilityRequestGeneration;
+  app.workshopEligibilityState = 'loading';
+  app.workshopEligibilityError = '';
+  if (app.currentView === 'workflow') renderWorkflowBoard();
+  try {
+    const response = await fetch(`${window.PDC_SUPABASE_CONFIG.url}/rest/v1/rpc/get_workshop_eligibility_snapshot`, {
+      method: 'POST',
+      headers: {
+        apikey: window.PDC_SUPABASE_CONFIG.publishableKey,
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: '{}',
+    });
+    if (!response.ok) throw new Error(response.status === 401 || response.status === 403 ? 'Not authorized to read workshop eligibility.' : `Eligibility RPC failed (${response.status}).`);
+    const snapshot = await response.json();
+    if (generation !== app.workshopEligibilityRequestGeneration || app.workshopEligibilityRealtime !== authorityOwner) return null;
+    if (!snapshot || !Array.isArray(snapshot.stages) || !Array.isArray(snapshot.candidates)) throw new Error('Eligibility RPC returned an invalid snapshot.');
+    app.workshopEligibilitySnapshot = snapshot;
+    app.workshopEligibilityState = 'connected';
+    app.workshopEligibilityError = '';
+    if (app.currentView === 'workflow') renderWorkflowBoard();
+    if (app.workshopEligibilityRevisionPending) {
+      app.workshopEligibilityRevisionPending = false;
+      return loadWorkshopEligibilitySnapshot('realtime_pending');
+    }
+    return snapshot;
+  } catch (error) {
+    if (generation !== app.workshopEligibilityRequestGeneration || app.workshopEligibilityRealtime !== authorityOwner) return null;
+    app.workshopEligibilitySnapshot = null;
+    app.workshopEligibilityState = 'offline_error';
+    app.workshopEligibilityError = error?.message || String(error);
+    if (app.currentView === 'workflow') renderWorkflowBoard();
+    return null;
+  }
+}
+
+function workshopEligibilityCandidateVehicle(candidate = {}) {
+  const raw = candidate.vehicle || {};
+  const local = app.data.find(vehicle => String(vehicle.id || vehicle.sharedVehicleId || '') === String(raw.id || ''))
+    || app.data.find(vehicle => String(displayStockNumber(vehicle) || '') === String(raw.stock_number || ''));
+  const workItems = Array.isArray(candidate.work_items) ? candidate.work_items : [];
+  let shared = {
+    id: raw.id,
+    sharedVehicleId: raw.id,
+    stock: raw.stock_number || '', stockNumber: raw.stock_number || '',
+    vin: raw.vin || '', order: raw.toyota_order_number || '', jobCardNumber: raw.job_card_number || '',
+    client: raw.customer_name || '', vehicle: [raw.make, raw.model].filter(Boolean).join(' '),
+    rego: raw.registration || '', registration: raw.registration || '',
+    pdcLocation: raw.current_location || '', manualLocation: raw.current_location || '',
+    pmbStage: raw.pmb_stage || '', pmbBayStage: raw.pmb_bay_stage || '', pmbBay: raw.pmb_bay_number || '',
+    etaToKewdale: raw.eta_to_kewdale || '', eta: raw.eta_to_kewdale || '',
+    pmbJobs: {},
+  };
+  workItems.forEach(item => {
+    const def = pmbStageJobDef(WORKSHOP_ELIGIBILITY.canonicalWorkshopStage(item.work_key));
+    if (def) shared.pmbJobs[def.key] = { required: item.required === true, complete: item.completed === true, completedAt: item.completed_at || '' };
+  });
+  shared = { ...(local || {}), ...shared, pmbJobs: { ...(local?.pmbJobs || {}), ...shared.pmbJobs } };
+  shared.__workshopEligibility = {
+    stage: candidate.stage_code,
+    location: raw.current_location || '',
+    scheduleEnabled: candidate.schedule_enabled === true,
+    disabledReason: candidate.disabled_reason || '',
+    localVehicleKey: local ? vehicleKey(local) : '',
+  };
+  return shared;
+}
+
+function authoritativeWorkshopVehiclesForStage(stage = '') {
+  if (app.workshopEligibilityState !== 'connected') return [];
+  const canonical = WORKSHOP_ELIGIBILITY.canonicalWorkshopStage(stage);
+  const candidates = app.workshopEligibilitySnapshot?.candidates;
+  if (!Array.isArray(candidates)) return [];
+  return candidates.filter(candidate => WORKSHOP_ELIGIBILITY.canonicalWorkshopStage(candidate.stage_code) === canonical)
+    .map(workshopEligibilityCandidateVehicle)
+    .sort((a, b) => String(displayStockNumber(a) || vehicleKey(a) || '').localeCompare(String(displayStockNumber(b) || vehicleKey(b) || '')));
+}
+
 function pmbVehicleNeedsStationWork(vehicle = {}, stage = '') {
   const normalizedStage = normalizePmbStage(stage);
   const def = pmbStageJobDef(normalizedStage);
@@ -4254,6 +4463,7 @@ function pmbVehicleNeedsStationWork(vehicle = {}, stage = '') {
 
 function pmbVehiclesNeedingStationWork(stage = '') {
   const normalizedStage = normalizePmbStage(stage);
+  if (workshopEligibilitySharedAuthorityEnabled()) return authoritativeWorkshopVehiclesForStage(normalizedStage);
   return app.data
     .filter(vehicle => pmbVehicleNeedsStationWork(vehicle, normalizedStage))
     .sort((a, b) => String(displayStockNumber(a) || vehicleKey(a) || '').localeCompare(String(displayStockNumber(b) || vehicleKey(b) || '')));
@@ -4428,14 +4638,19 @@ function controlBoardStationVehicleHtml(vehicle = {}, stage = '') {
   const currentStage = normalizePmbStage(inferredPmbStage(vehicle));
   const currentBay = currentStage ? pmbBayNumber(vehicle, currentStage) : '';
   const inBay = Boolean(currentStage && currentBay);
-  const currentLabel = inBay ? `${pmbStageLabel(currentStage)} · Bay ${currentBay}` : currentStage ? `${pmbStageLabel(currentStage)} queue` : 'Unallocated';
+  const eligibility = vehicle.__workshopEligibility || {};
+  const planningLocation = cleanNavisionText(eligibility.location || vehiclePdcLocation(vehicle) || '').toUpperCase() || 'Unknown';
+  const currentLabel = inBay ? `${pmbStageLabel(currentStage)} · Bay ${currentBay}` : currentStage ? `${pmbStageLabel(currentStage)} queue` : `${planningLocation} · Unallocated`;
   const blocked = isPdcBlocked(vehicle) || isActivePartsStoppage(vehicle);
-  return `<button class="control-board-work-vehicle${blocked ? ' is-blocked' : ''}${inBay ? ' is-in-bay' : ''}" type="button" data-open-stock="${escapeHtml(key)}" aria-label="Open ${escapeHtml(stock)} for ${escapeHtml(pmbStageLabel(stage))} work">
+  const etaDisabled = planningLocation === 'IT' && eligibility.scheduleEnabled === false;
+  const targetVehicleKey = eligibility.localVehicleKey || (vehicle.__workshopEligibility ? '' : key);
+  const targetAttribute = targetVehicleKey ? `data-open-stock="${escapeHtml(targetVehicleKey)}"` : `data-open-workshop-stage="${escapeHtml(stage)}"`;
+  return `<button class="control-board-work-vehicle${blocked ? ' is-blocked' : ''}${inBay ? ' is-in-bay' : ''}${etaDisabled ? ' is-scheduling-disabled' : ''}" type="button" ${targetAttribute} aria-label="Open ${escapeHtml(stock)} for ${escapeHtml(pmbStageLabel(stage))} work">
     <span class="control-board-work-identity">${vehicleIdentityStackHtml(vehicle)}</span>
     <span class="control-board-work-main"><strong>${escapeHtml(unit)}</strong></span>
     <span class="control-board-work-location"><b>Now</b><span>${escapeHtml(currentLabel)}</span></span>
-    <span class="control-board-work-age"><b>PMB</b><span>${escapeHtml(pmbAgeLabel(vehicle))}</span></span>
-    ${blocked ? '<span class="badge danger">Stopped</span>' : inBay ? `<span class="badge info">IN ${escapeHtml(pmbStageLabel(currentStage).toUpperCase())} BAY ${escapeHtml(currentBay)}</span>` : '<span class="badge warning">Work required</span>'}
+    <span class="control-board-work-age"><b>Location</b><span>${escapeHtml(planningLocation)}</span></span>
+    ${etaDisabled ? `<span class="badge danger">${escapeHtml(eligibility.disabledReason === 'missing_eta' ? 'ETA missing · disabled' : 'ETA invalid · disabled')}</span>` : blocked ? '<span class="badge danger">Stopped</span>' : inBay ? `<span class="badge info">IN ${escapeHtml(pmbStageLabel(currentStage).toUpperCase())} BAY ${escapeHtml(currentBay)}</span>` : '<span class="badge warning">Work required</span>'}
   </button>`;
 }
 
@@ -4453,6 +4668,8 @@ function renderWorkflowBoard() {
   app.activePmbBayStage = '';
   const search = String($('#workflow-search')?.value || app.workflowSearch || '').trim().toLowerCase();
   app.workflowSearch = search;
+  const sharedEligibility = workshopEligibilitySharedAuthorityEnabled();
+  if (sharedEligibility && app.workshopEligibilityState === 'idle') loadWorkshopEligibilitySnapshot('route_entry');
   const stationRows = WORKSHOP_CONTROL_BOARD_STATIONS.map(stage => {
     const allVehicles = pmbVehiclesNeedingStationWork(stage);
     const vehicles = search ? allVehicles.filter(vehicle => incomingSearchText(vehicle, 'pmb').includes(search)) : allVehicles;
@@ -4471,7 +4688,7 @@ function renderWorkflowBoard() {
       <summary class="incoming-bucket-title workflow-bucket-title">
         <span>${escapeHtml(label)}</span>
         <strong>${escapeHtml(countLabel)}</strong>
-        <small>PMB vehicles with ${escapeHtml(label)} required and not completed</small>
+        <small>Canonical Supabase candidates · PMB/YH immediate · IT ETA-restricted</small>
         <span class="workflow-bucket-actions"><button class="small-button primary" type="button" data-open-workshop-stage="${escapeHtml(stage)}">Open ${escapeHtml(label)} Planner</button></span>
       </summary>
       <div class="control-board-work-list">${rows}</div>
@@ -4487,9 +4704,13 @@ function renderWorkflowBoard() {
     </summary>
     <div class="control-board-work-list">${qualityControlRows.map(qualityControlVehicleHtml).join('') || '<div class="pmb-empty-drop">No vehicles are waiting for QC.</div>'}</div>
   </details>`;
+  const authorityBanner = sharedEligibility
+    ? `<div class="workshop-connection-banner ${escapeHtml(app.workshopEligibilityState)}" role="status"><strong>Supabase eligibility: ${escapeHtml(app.workshopEligibilityState)}</strong><span>${escapeHtml(app.workshopEligibilityError || 'Control Board counts and planner candidates use the same canonical station relation.')}</span></div>`
+    : '';
   host.innerHTML = `
+    ${authorityBanner}
     <div class="branch-header workflow-pmb-header">
-      <div><strong>PMB work overview</strong><span>Vehicles appear in every station row where required work is still outstanding. Open a station planner to load only that station, its bays and its relevant work.</span></div>
+      <div><strong>Workshop work overview</strong><span>Authoritative PMB, YH and IT vehicles appear in every station where required work remains outstanding. IT scheduling is restricted by ETA to Kewdale.</span></div>
       <div class="branch-header-actions"><span class="badge neutral">${outstandingVehicleKeys.size} needing work · ${totalPmb} at PMB</span></div>
     </div>
     <div class="workflow-collapsible-board control-board-station-list">${stationHtml}${qualityControlHtml}</div>
@@ -15637,7 +15858,8 @@ function aiBoardBookingDtos(snapshot = null) {
         const calculatedEnd = start && duration > 0 ? new Date(start.getTime() + duration * 60000).toISOString() : '';
         return {
           id: booking?.booking_id || booking?.id || '',
-          vehicleIdentity: booking?.vehicle?.id ? `shared:${booking.vehicle.id}` : '',
+          vehicleIdentity: (booking?.vehicle_id || booking?.vehicle?.id)
+            ? `shared:${booking.vehicle_id || booking.vehicle.id}` : '',
           stage: booking?.stage?.code || booking?.stage_code || '',
           bay: booking?.bay?.bay_number ?? booking?.bay_number ?? '',
           status: booking?.status === 'queued' ? 'planned' : booking?.status || '',

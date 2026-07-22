@@ -101,6 +101,9 @@ function createWorkshopRealtimeManager(options) {
     if (destroyed) return;
     subscribed = false;
     connecting = false;
+    // Fail closed before releasing the transport. This invalidates any
+    // unresolved snapshot issued under the failed channel generation.
+    dataService.onAuthorityLost?.();
     releaseSubscription();
     onStatusChange('reconnecting');
     // Status observers are external code and may synchronously tear down the
@@ -203,6 +206,7 @@ function createWorkshopRealtimeManager(options) {
     destroyed = true;
     subscribed = false;
     connecting = false;
+    dataService.onAuthorityLost?.();
     if (reconnectTimer) {
       clearScheduledTimeout(reconnectTimer);
       reconnectTimer = null;
@@ -221,6 +225,7 @@ function createWorkshopRealtimeManager(options) {
       if (reconnectTimer) clearScheduledTimeout(reconnectTimer);
       reconnectTimer = null;
       currentBackoffMs = initialBackoffMs;
+      dataService.onAuthorityLost?.();
       openSubscription();
     }
   };

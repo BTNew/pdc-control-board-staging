@@ -444,6 +444,8 @@ body[data-current-view="workshop"] .content {
 .workshop-schedule-button.best-slot { border-color: #0f766e; background: #0f766e; }
 .workshop-schedule-button.best-slot:hover { background: #115e59; }
 .workshop-queue-card.is-blocked { border-color: #dc2626; background: #fecaca; }
+.workshop-queue-card.is-scheduling-disabled { border-color: #c2410c; background: #fff7ed; cursor: not-allowed; }
+.workshop-queue-card.is-scheduling-disabled .workshop-eta-line.is-invalid { color: #9a3412; font-weight: 800; }
 .workshop-parts-line { color: #475569 !important; font-weight: 900 !important; }
 .workshop-parts-line.parts-stoppage,
 .workshop-parts-line.parts-notordered,

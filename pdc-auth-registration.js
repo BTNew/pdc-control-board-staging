@@ -23,7 +23,7 @@
 
   async function signUp(event) {
     event?.preventDefault();
-    const { getClient, authConfig, safeRedirectTo, validatePassword, showFormError, showFormSuccess, applySession } = shared();
+    const { getClient, authConfig, safeRedirectTo, validatePassword, showFormError, showFormSuccess, applySession, beginProviderOperation, providerOperationCurrent, completeProviderOperation } = shared();
     showFormError('pdc-signup-error', '');
     showFormSuccess('pdc-signup-success', '');
 
@@ -38,15 +38,25 @@
     if (password !== confirmPassword) { showFormError('pdc-signup-error', 'The two passwords do not match.'); return; }
 
     const button = el('pdc-signup-submit');
+    const providerGeneration = beginProviderOperation();
+    await applySession(null);
+    if (!providerOperationCurrent(providerGeneration)) return;
     if (button) button.disabled = true;
     const config = authConfig();
-    const { data, error } = await getClient().auth.signUp({
-      email, password,
-      options: {
-        data: { full_name: fullName },
-        emailRedirectTo: safeRedirectTo(config.redirectTo),
-      },
-    });
+    let data;
+    let error;
+    try {
+      ({ data, error } = await getClient().auth.signUp({
+        email, password,
+        options: {
+          data: { full_name: fullName },
+          emailRedirectTo: safeRedirectTo(config.redirectTo),
+        },
+      }));
+    } catch (caught) {
+      error = caught;
+    }
+    if (!completeProviderOperation(providerGeneration, data?.session)) return;
     if (button) button.disabled = false;
 
     if (error) {
