@@ -4,10 +4,12 @@
   const state = {
     client: null,
     session: null,
+    validatingSession: null,
     user: null,
     role: null,
     initialized: false,
     ownRoleChannel: null,
+    ownRoleSubscriptionAttempt: null,
     // Monotonic ownership tokens for asynchronous session and role checks.
     // A completion may publish authority only if it still owns both tokens.
     authGeneration: 0,
@@ -110,6 +112,8 @@
   // ---------------------------------------------------------------------
   function unsubscribeOwnRoleChannel() {
     state.ownRoleChannelGeneration += 1;
+    state.ownRoleSubscriptionAttempt?.finish(false);
+    state.ownRoleSubscriptionAttempt = null;
     if (state.ownRoleChannel && state.client && typeof state.client.removeChannel === 'function') {
       try {
         state.client.removeChannel(state.ownRoleChannel);
@@ -127,6 +131,7 @@
     state.roleLookupGeneration += 1;
     unsubscribeOwnRoleChannel();
     state.session = null;
+    state.validatingSession = null;
     state.user = null;
     state.role = null;
     delete window.PDC_AUTH_CONTEXT;
@@ -144,29 +149,61 @@
 
   function subscribeOwnRoleChannel(email) {
     unsubscribeOwnRoleChannel();
-    if (!state.client || typeof state.client.channel !== 'function' || !email) return;
+    if (!state.client || typeof state.client.channel !== 'function' || !email) return Promise.resolve(false);
     const channelGeneration = state.ownRoleChannelGeneration;
-    const channel = state.client
-      .channel(`pdc_user_roles_own_row:${email}`)
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'pdc_user_roles', filter: `email=eq.${email}` },
-        () => {
-          handleOwnRoleRowChanged().catch(() => lockOwnRoleAuthority('role_check_failed'));
-        }
-      );
-    state.ownRoleChannel = channel;
-    channel.subscribe(status => {
-      if (channelGeneration !== state.ownRoleChannelGeneration || state.ownRoleChannel !== channel) return;
-      if (status === 'SUBSCRIBED') return;
-      if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+    return new Promise(resolve => {
+      let settled = false;
+      let timer = null;
+      const finish = result => {
+        if (settled) return;
+        settled = true;
+        if (timer !== null) window.clearTimeout(timer);
+        if (state.ownRoleSubscriptionAttempt?.finish === finish) state.ownRoleSubscriptionAttempt = null;
+        resolve(Boolean(result));
+      };
+      state.ownRoleSubscriptionAttempt = { finish };
+      try {
+        const channel = state.client
+          .channel(`pdc_user_roles_own_row:${email}`)
+          .on(
+            'postgres_changes',
+            { event: '*', schema: 'public', table: 'pdc_user_roles', filter: `email=eq.${email}` },
+            () => {
+              handleOwnRoleRowChanged().catch(() => lockOwnRoleAuthority('role_check_failed'));
+            }
+          );
+        state.ownRoleChannel = channel;
+        channel.subscribe(status => {
+          if (channelGeneration !== state.ownRoleChannelGeneration || state.ownRoleChannel !== channel) {
+            finish(false);
+            return;
+          }
+          if (status === 'SUBSCRIBED') {
+            finish(true);
+            return;
+          }
+          if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+            finish(false);
+            lockOwnRoleAuthority('role_monitor_unavailable');
+          }
+        });
+        if (!settled) timer = window.setTimeout(() => {
+          if (channelGeneration !== state.ownRoleChannelGeneration || state.ownRoleChannel !== channel) {
+            finish(false);
+            return;
+          }
+          finish(false);
+          lockOwnRoleAuthority('role_monitor_unavailable');
+        }, 10000);
+      } catch (_err) {
+        finish(false);
         lockOwnRoleAuthority('role_monitor_unavailable');
       }
     });
   }
 
   async function handleOwnRoleRowChanged() {
-    const session = state.session;
+    const session = state.session || state.validatingSession;
     if (!session) return;
     const authGeneration = state.authGeneration;
     const roleLookupGeneration = ++state.roleLookupGeneration;
@@ -180,9 +217,9 @@
     if (
       authGeneration !== state.authGeneration
       || roleLookupGeneration !== state.roleLookupGeneration
-      || state.session !== session
+      || (state.session !== session && state.validatingSession !== session)
     ) return;
-    if (error || !role || role.account_status !== 'approved' || !approvedRole(role, state.session.user?.email)) {
+    if (error || !role || role.account_status !== 'approved' || !approvedRole(role, session.user?.email)) {
       // No longer approved, or revalidation itself failed. Revoke before
       // notifying listeners and never retain authority without monitoring.
       lockOwnRoleAuthority(role ? role.account_status : (error ? 'role_check_failed' : 'not_found'), role);
@@ -193,7 +230,7 @@
     // lookup owns the newest role generation and may unlock from its fresh
     // proof; the older applySession completion is generation-suppressed.
     if (!state.role) {
-      unlockApplication(session, role);
+      await unlockApplication(session, role, authGeneration, roleLookupGeneration);
       return;
     }
     // Still approved -- if the role itself changed (e.g. viewer promoted to
@@ -211,8 +248,16 @@
     }
   }
 
-  function unlockApplication(session, roleRow) {
+  async function unlockApplication(session, roleRow, expectedAuthGeneration, expectedRoleLookupGeneration) {
+    const monitored = await subscribeOwnRoleChannel(String(session.user.email || '').toLowerCase());
+    if (
+      !monitored
+      || expectedAuthGeneration !== state.authGeneration
+      || expectedRoleLookupGeneration !== state.roleLookupGeneration
+      || (state.session !== session && state.validatingSession !== session)
+    ) return false;
     state.session = session;
+    state.validatingSession = null;
     state.user = session.user;
     state.role = roleRow;
     window.PDC_AUTH_CONTEXT = Object.freeze({
@@ -228,16 +273,6 @@
     // change (including silent token refresh), so it never goes stale for
     // more than one event loop tick.
     window.__pdcCachedAccessToken = session.access_token || null;
-
-    try {
-      subscribeOwnRoleChannel(window.PDC_AUTH_CONTEXT.email);
-    } catch (_err) {
-      lockOwnRoleAuthority('role_monitor_unavailable');
-      return false;
-    }
-    // A synchronous channel failure callback may already have revoked this
-    // attempted unlock. Never continue into visible/ready state afterward.
-    if (state.session !== session || !window.PDC_AUTH_CONTEXT) return false;
 
     const shell = el('app-shell');
     if (shell) {
@@ -282,6 +317,7 @@
     // the lock event, so listeners cannot observe unvalidated replacement
     // authority either.
     state.session = null;
+    state.validatingSession = null;
     state.user = null;
     state.role = null;
     delete window.PDC_AUTH_CONTEXT;
@@ -295,8 +331,7 @@
     if (!session && typeof window.stopWorkshopReferenceDataReconciliationTimer === 'function') {
       window.stopWorkshopReferenceDataReconciliationTimer();
     }
-    state.session = session || null;
-    state.user = session?.user || null;
+    state.validatingSession = session || null;
 
     const userLabel = el('pdc-auth-user');
     const signOut = el('pdc-auth-signout');
@@ -314,6 +349,9 @@
     }
 
     if (state.passwordSetupRequired) {
+      state.session = session;
+      state.validatingSession = null;
+      state.user = session.user;
       setMessage('Create your PDC password', 'Use at least 12 characters with upper and lower-case letters, a number and a symbol.', 'password-setup');
       return;
     }
@@ -329,29 +367,34 @@
     if (
       authGeneration !== state.authGeneration
       || roleLookupGeneration !== state.roleLookupGeneration
-      || state.session !== session
+      || state.validatingSession !== session
     ) return;
     if (error || !role) {
+      state.validatingSession = null;
       setMessage('Access not approved', `The account ${session.user.email || 'you used'} is not on the PDC approved staff list.`, 'denied');
       return;
     }
     if (role.account_status === 'pending') {
+      state.validatingSession = null;
       setMessage('Awaiting approval', 'Your account has been created and is awaiting administrator approval.', 'pending');
       return;
     }
     if (role.account_status === 'disabled') {
+      state.validatingSession = null;
       setMessage('Access disabled', 'Your account access has been disabled. Contact an administrator if you believe this is an error.', 'account-disabled');
       return;
     }
     if (role.account_status === 'rejected') {
+      state.validatingSession = null;
       setMessage('Registration not approved', 'Your registration was not approved. Contact an administrator for details.', 'rejected');
       return;
     }
     if (!approvedRole(role, session.user.email)) {
+      state.validatingSession = null;
       setMessage('Access not approved', `The account ${session.user.email || 'you used'} is not on the PDC approved staff list.`, 'denied');
       return;
     }
-    if (!unlockApplication(session, role)) return;
+    if (!await unlockApplication(session, role, authGeneration, roleLookupGeneration)) return;
     // Fire-and-forget: records the last successful sign-in timestamp for
     // the administrator user-management screen. Never blocks unlocking
     // the application on this succeeding.

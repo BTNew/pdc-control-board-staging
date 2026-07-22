@@ -33,7 +33,7 @@ assert.ok(registrationSource.includes('beginProviderOperation()') && registratio
 assert.ok(authSource.includes("scopes: 'email'"), 'Azure OAuth must request the email scope required by Supabase');
 assert.ok(authSource.includes(".from('pdc_user_roles')"), 'Authorization must check the protected PDC role table');
 const roleHandlerStart = authSource.indexOf('async function handleOwnRoleRowChanged()');
-assert.ok(authSource.indexOf('await loadApprovedRole(session)', roleHandlerStart) < authSource.indexOf('unlockApplication(session, role)', roleHandlerStart), 'Role authorization must occur before unlocking the app');
+assert.ok(authSource.indexOf('await loadApprovedRole(session)', roleHandlerStart) < authSource.indexOf('unlockApplication(session, role,', roleHandlerStart), 'Role authorization must occur before unlocking the app');
 
 let domReadyHandler = null;
 const context = {
@@ -111,6 +111,7 @@ async function testAuthGenerationOwnership() {
         }
       },
       setTimeout,
+      clearTimeout,
     },
     document: {
       readyState: 'loading',
@@ -127,6 +128,7 @@ async function testAuthGenerationOwnership() {
   const roleResponses = [];
   const roleChannels = [];
   let failChannelCreation = false;
+  let autoSubscribe = true;
   const client = {
     from() {
       return {
@@ -145,7 +147,12 @@ async function testAuthGenerationOwnership() {
         change: null,
         status: null,
         on(_type, _filter, callback) { this.change = callback; return this; },
-        subscribe(callback) { this.status = callback; roleChannels.push(this); return this; },
+        subscribe(callback) {
+          this.status = callback;
+          roleChannels.push(this);
+          if (autoSubscribe) callback('SUBSCRIBED');
+          return this;
+        },
       };
     },
     removeChannel() {},
@@ -241,8 +248,30 @@ async function testAuthGenerationOwnership() {
   assert.strictEqual(raceContext.window.PDC_AUTH_CONTEXT, undefined, 'rejected own-role query revokes context');
   assert.strictEqual(internals.state.session, null, 'rejected own-role query revokes session');
 
+  const readyBeforeSubscriptionProof = events.filter(event => event.type === 'pdc-auth-ready').length;
+  autoSubscribe = false;
   roleResponses.push(Promise.resolve(approved('operator')));
-  await internals.applySession(session);
+  const pendingMonitorApply = internals.applySession(session);
+  await new Promise(resolve => setImmediate(resolve));
+  const pendingRoleChannel = roleChannels[roleChannels.length - 1];
+  assert.strictEqual(raceContext.window.PDC_AUTH_CONTEXT, undefined, 'authority is not published before SUBSCRIBED');
+  assert.strictEqual(raceContext.window.__pdcCachedAccessToken, undefined, 'token is not cached before SUBSCRIBED');
+  assert.strictEqual(internals.state.session, null, 'session authority is not installed before SUBSCRIBED');
+  assert.strictEqual(events.filter(event => event.type === 'pdc-auth-ready').length, readyBeforeSubscriptionProof, 'ready event waits for SUBSCRIBED');
+  pendingRoleChannel.status('TIMED_OUT');
+  await pendingMonitorApply;
+  assert.strictEqual(raceContext.window.PDC_AUTH_CONTEXT, undefined, 'pre-subscription timeout remains locked');
+
+  roleResponses.push(Promise.resolve(approved('operator')));
+  const delayedSubscribedApply = internals.applySession(session);
+  await new Promise(resolve => setImmediate(resolve));
+  const delayedRoleChannel = roleChannels[roleChannels.length - 1];
+  assert.strictEqual(raceContext.window.PDC_AUTH_CONTEXT, undefined, 'delayed monitor still withholds authority');
+  delayedRoleChannel.status('SUBSCRIBED');
+  await delayedSubscribedApply;
+  assert.strictEqual(raceContext.window.PDC_AUTH_CONTEXT.userId, 'A', 'fresh SUBSCRIBED proof permits authority publication');
+  autoSubscribe = true;
+
   const currentRoleChannel = roleChannels[roleChannels.length - 1];
   currentRoleChannel.status('CHANNEL_ERROR');
   assert.strictEqual(raceContext.window.PDC_AUTH_CONTEXT, undefined, 'role-monitor channel loss revokes context');
