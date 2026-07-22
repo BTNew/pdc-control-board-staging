@@ -28,10 +28,10 @@ assert.strictEqual(planner.WORKSHOP_CONFIG.dayLengthMinutes, 480, 'Workshop day 
 assert.strictEqual(planner.WORKSHOP_CONFIG.defaultBookingDurationMinutes, 180, 'New planner bookings should default to 180 integer minutes');
 assert.deepStrictEqual(
   planner.WORKSHOP_STAGE_SEQUENCE,
-  ['BUS_4X4', 'TINT', 'HOIST', 'FITTING', 'FABRICATION', 'ELECTRICAL', 'TYRE', 'PIT_INSPECTION', 'SUBLET'],
-  'The physical station order must be preserved while Sublet remains a provider row',
+  ['BUS_4X4', 'TINT', 'HOIST', 'FITTING', 'FABRICATION', 'ELECTRICAL', 'TYRE', 'PIT_INSPECTION'],
+  'The physical station order must be preserved and Sublet must have no planner',
 );
-assert.ok(source.includes("const WORKSHOP_VISIBLE_STAGE_SEQUENCE = WORKSHOP_STAGE_SEQUENCE.filter(stage => stage !== 'SUBLET');"), 'Workshop planner tabs should exclude Sublet while keeping Sublet support elsewhere');
+assert.ok(source.includes('const WORKSHOP_VISIBLE_STAGE_SEQUENCE = WORKSHOP_STAGE_SEQUENCE;'), 'Every canonical planner-enabled station should be visible, with Sublet excluded at the source mapping');
 assert.ok(source.includes("const stageTabs = dedicatedStage ? '' : WORKSHOP_VISIBLE_STAGE_SEQUENCE.map("), 'Combined planner should retain physical station tabs while dedicated planners render no unrelated tabs');
 
 const friday = new Date(2026, 6, 17, 8, 0, 0, 0);
@@ -259,8 +259,8 @@ assert.ok(app.includes("case 'workshop':"), 'Main renderer is missing the Worksh
 assert.ok(app.includes("workshop: 'Workshop Planner'"), 'Workshop Planner page title is missing');
 assert.ok(app.includes('const PMB_SCHEDULE_WORK_START_HOUR = 8;'), 'Legacy PMB schedule start should match the workshop day');
 assert.ok(app.includes('const PMB_SCHEDULE_WORK_END_HOUR = 16;'), 'Legacy PMB schedule finish should match the workshop day');
-assert.ok(app.includes("{ value: 'BUS_4X4', label: 'Bus 4x4' }"), 'Bus 4x4 location option is missing');
-assert.ok(app.includes("['BUS_4X4', 'TINT', 'HOIST', 'FITTING', 'FABRICATION'"), 'Bus 4x4 must remain the first physical PMB station');
+assert.ok(app.includes('WORKSHOP_CANONICAL_STATION_DEFS.map(def => ({ value: def.code, label: def.label }))'), 'Location options must derive from the canonical station map');
+assert.strictEqual(planner.WORKSHOP_STAGE_SEQUENCE[0], 'BUS_4X4', 'Bus 4x4 must remain the first physical workshop station');
 
 assert.ok(source.includes("vehicleTrackingCoreWorkshopPlan:v1"), 'Planner persistence key is missing');
 assert.ok(source.includes('CRM_BACKUP_STORAGE_KEYS.push(WORKSHOP_PLAN_STORAGE_KEY)'), 'Planner data must be included in CRM backups');
@@ -387,7 +387,7 @@ for (const file of htmlFiles) {
   assert.ok(html.includes(`workshop-planner.css?v=${appVersion}`), `${file} is missing the planner stylesheet`);
   assert.ok(!html.includes('<script src="workshop-planner.js'), `${file} must not eagerly load the planner script`);
 }
-assert.ok(app.includes("const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.07.22.05-operational-readiness';"), 'Workshop Planner must have a dedicated cache-bust version for the next-workday carry fix');
+assert.ok(app.includes("const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.07.22.06-all-station-eligibility';"), 'Workshop Planner must carry the all-station eligibility cache-bust version');
 assert.ok(app.includes("loadExternalScript(`workshop-planner.js?v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}`"), 'app.js must lazy-load the Workshop Planner with its dedicated cache-bust version');
 
 console.log('Workshop planner regression checks passed');

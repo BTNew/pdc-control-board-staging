@@ -11387,6 +11387,7 @@ html[data-row-width="xl"] {
 }
 .control-board-work-vehicle:hover { border-color: #9db0c4; background: #f8fafc; }
 .control-board-work-vehicle.is-blocked { border-left-color: #dc2626; background: #fff7f7; }
+.control-board-work-vehicle.is-scheduling-disabled { border-color: #c2410c; background: #fff7ed; }
 .control-board-work-vehicle.is-in-bay {
   border-color: #7c3aed;
   border-left-color: #7c3aed;

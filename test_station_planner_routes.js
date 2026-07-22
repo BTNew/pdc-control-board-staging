@@ -17,7 +17,6 @@ const ROUTES = [
   ['planner-elec', 'workshop/elec', 'ELECTRICAL'],
   ['planner-tyre', 'workshop/tyre', 'TYRE'],
   ['planner-pit', 'workshop/pit', 'PIT_INSPECTION'],
-  ['planner-sublet', 'workshop/sublet', 'SUBLET'],
 ];
 
 async function testScopedDataService() {
@@ -99,10 +98,9 @@ function testRoutesAndIsolationContracts() {
   const staging = read('staging.html');
   const stagingConfig = read('pdc-supabase-config.staging.js');
 
-  for (const [view, route, stage] of ROUTES) {
-    assert(app.includes(`view: '${view}', path: '${route}', stage: '${stage}'`), `missing ${stage} route`);
-  }
-  assert(app.includes("const WORKSHOP_CONTROL_BOARD_STATIONS = Object.freeze([...PMB_BAY_STATION_SEQUENCE, 'SUBLET'])"));
+  assert(app.includes('WORKSHOP_ELIGIBILITY.workshopPlannerStationDefinitions()'), 'routes must derive from the canonical planner-enabled station map');
+  assert(!app.includes("view: 'planner-sublet'") && !app.includes("path: 'workshop/sublet'"), 'Sublet must have no planner route');
+  assert(app.includes('const WORKSHOP_CONTROL_BOARD_STATIONS = PMB_BAY_STATION_SEQUENCE'), 'Control Board planner stations must use the same canonical planner-only set');
   assert(app.includes('WORKSHOP_PLANNER_ROUTE_BY_STAGE[normalizedStage]'));
   assert(app.includes("window.addEventListener('popstate', restoreRoute)"));
   assert(app.includes("window.addEventListener('hashchange', restoreRoute)"));
@@ -118,7 +116,7 @@ function testRoutesAndIsolationContracts() {
   assert(app.includes('combinedPlannerRollback'));
   assert(app.includes('return configured === true'), 'combined planner rollback must fail closed unless explicitly enabled');
   assert(stagingConfig.includes('stationRoutes: { combinedPlannerRollback: false }'), 'staging must enter through station-first routes, never the combined planner');
-  assert(app.includes("table = stageCode ? 'workshop_station_revision' : 'workshop_revision'"), 'dedicated routes must use station-scoped realtime');
+  assert(app.includes("table = stageCode || allStations ? 'workshop_station_revision' : 'workshop_revision'"), 'dedicated and all-station routes must use station-scoped realtime');
   assert(app.includes('stage_code=eq.${stageCode}'), 'station realtime subscription must filter the active stage');
   assert(app.includes('window.__workshopRealtimeManager?.forceReconnect?.()'), 'recovery listener must become inert after teardown');
   assert(app.includes("if (app.currentView === 'workshop' && typeof initWorkshopSharedServicesIfEnabled"), 'auth refresh must not create a background planner service');
@@ -127,7 +125,7 @@ function testRoutesAndIsolationContracts() {
   assert(planner.includes('data-workshop-back-control'));
   assert(planner.includes("showView('workflow')"));
   assert(planner.includes('data-workshop-open-stage'), 'dedicated planner must expose station tabs without rendering inactive station boards');
-  assert(planner.includes('return WORKSHOP_STAGE_SEQUENCE.map(stage =>'), 'station tabs must include every Control Board planner, including SUBLET');
+  assert(planner.includes('return WORKSHOP_STAGE_SEQUENCE.map(stage =>'), 'station tabs must include every canonical planner-enabled station');
   assert(planner.includes('function workshopEnsureDedicatedShell('), 'dedicated station switches must preserve the lightweight planner shell');
   assert(planner.includes('data-workshop-station-content'), 'only the active station content host should be replaced');
   assert(app.includes('function scheduleWorkshopPlannerRender('), 'snapshot/status bursts must be coalesced before rendering');
@@ -225,10 +223,14 @@ function testDedicatedRendererRejectsUnrelatedSnapshotVehicles() {
     __workshopDataService: {
       isEnabled: () => true,
       getLastSnapshot: () => ({
-        revision: 1, bookings: [], work_items: [],
+        revision: 1, bookings: [],
+        work_items: [
+          { vehicle_id: 'tint-id', work_key: 'TINT', required: true, completed: false },
+          { vehicle_id: 'hoist-id', work_key: 'HOIST', required: true, completed: false }
+        ],
         vehicles: [
-          { id: 'tint-id', stock_number: 'TINT-1', pmb_stage: 'TINT' },
-          { id: 'hoist-id', stock_number: 'HOIST-1', pmb_stage: 'HOIST' }
+          { id: 'tint-id', stock_number: 'TINT-1', pmb_stage: 'TINT', current_location: 'PMB' },
+          { id: 'hoist-id', stock_number: 'HOIST-1', pmb_stage: 'HOIST', current_location: 'PMB' }
         ]
       })
     }
