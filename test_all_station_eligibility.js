@@ -73,7 +73,7 @@ for (const stage of STATIONS) {
   const result = eligibility.workshopCanonicalEligibility({ stage, vehicles, workItems, bookings });
   const ids = result.candidates.map(row => row.vehicle.id).sort();
   assert.deepStrictEqual(ids, [
-    `${stage}-ALIAS`, `${stage}-BOOKED`, `${stage}-BOOKED-WRONG-LOCATION`, `${stage}-IT-MISSING`, `${stage}-IT-VALID`, `${stage}-PMB`, `${stage}-YH`,
+    `${stage}-ALIAS`, `${stage}-BOOKED`, `${stage}-IT-MISSING`, `${stage}-IT-VALID`, `${stage}-PMB`, `${stage}-YH`,
   ].sort(), `${stage} canonical candidates`);
   assert.strictEqual(new Set(ids).size, ids.length, `${stage} duplicate aliases deduplicated`);
   assert.strictEqual(result.availableCount, ids.length, `${stage} count equals candidates`);
@@ -83,8 +83,9 @@ for (const stage of STATIONS) {
   assert.strictEqual(result.candidates.find(row => row.vehicle.id === `${stage}-IT-VALID`).schedule.earliestDateKey, '2026-07-24');
   assert.strictEqual(result.candidates.find(row => row.vehicle.id === `${stage}-IT-MISSING`).schedule.enabled, false);
   assert.strictEqual(result.candidates.find(row => row.vehicle.id === `${stage}-IT-MISSING`).schedule.reason, 'ETA to Kewdale is missing');
-  assert.strictEqual(result.candidates.find(row => row.vehicle.id === `${stage}-BOOKED-WRONG-LOCATION`).existingBooking, true);
+  assert.strictEqual(result.candidates.find(row => row.vehicle.id === `${stage}-BOOKED`).existingBooking, true);
   assert.strictEqual(result.excluded.some(row => row.vehicle.id === `${stage}-WRONG-LOCATION` && row.reason === 'location'), true);
+  assert.strictEqual(result.excluded.some(row => row.vehicle.id === `${stage}-BOOKED-WRONG-LOCATION` && row.reason === 'location'), true);
   assert.strictEqual(result.excluded.some(row => row.vehicle.id === `${stage}-COMPLETED` && row.reason === 'completed'), true);
   assert.strictEqual(result.excluded.some(row => row.vehicle.id === `${other}-LEAK`), true);
   assert.deepStrictEqual(
@@ -118,7 +119,10 @@ const dtoBookings = [
   { vehicle_id: 'DTO-RECENT-COMPLETED', stage: { id: 'S1', code: 'BUS_4X4' }, status: 'completed' },
 ];
 const dtoResult = eligibility.workshopCanonicalEligibility({ stage: 'BUS_4X4', vehicles: dtoVehicles, workItems: dtoWorkItems, bookings: dtoBookings });
-assert.deepStrictEqual(dtoResult.candidates.map(row => row.vehicle.id), ['DTO-BOOKING-ONLY', 'DTO-COMPLETED-ACTIVE', 'DTO-STOPPAGE']);
+assert.deepStrictEqual(dtoResult.candidates.map(row => row.vehicle.id), []);
+assert.strictEqual(dtoResult.excluded.find(row => row.vehicle.id === 'DTO-BOOKING-ONLY').reason, 'requirement');
+assert.strictEqual(dtoResult.excluded.find(row => row.vehicle.id === 'DTO-COMPLETED-ACTIVE').reason, 'completed');
+assert.strictEqual(dtoResult.excluded.find(row => row.vehicle.id === 'DTO-STOPPAGE').reason, 'requirement');
 assert.strictEqual(dtoResult.excluded.find(row => row.vehicle.id === 'DTO-RECENT-COMPLETED').reason, 'completed');
 
 const sublet = eligibility.workshopStageDefinition('Sublet');

@@ -1,0 +1,208 @@
+#!/usr/bin/env python3
+"""Rollback-only regression proof for migration 045.
+
+Uses the guarded staging connection, applies migration 045 inside one transaction,
+creates synthetic UUID-only fixtures, proves the authority/reconciliation contract,
+and always rolls back.
+"""
+from __future__ import annotations
+
+import json
+import sys
+import uuid
+from datetime import date
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "_staging_test_tools"))
+from staging_conn import get_conn  # noqa: E402
+
+ROOT = Path(__file__).resolve().parents[1]
+MIGRATION = ROOT / "supabase/migrations/045_canonical_work_item_eligibility_and_legacy_stage_reconciliation.sql"
+STATIONS = ["BUS_4X4", "TINT", "HOIST", "FITTING", "FABRICATION", "ELECTRICAL", "TYRE", "PIT_INSPECTION"]
+
+
+def assert_true(value, message):
+    if not value:
+        raise AssertionError(message)
+
+
+def main():
+    conn = get_conn()
+    cur = conn.cursor()
+    result = {"migration": "045", "transaction_rolled_back": False, "checks": []}
+    try:
+        cur.execute("begin")
+        cur.execute(MIGRATION.read_text(encoding="utf-8"))
+
+        cur.execute("select auth_user_id::text,email from public.pdc_user_roles where active and role='administrator' and auth_user_id is not null order by id limit 1")
+        admin = cur.fetchone()
+        assert_true(admin, "active staging administrator fixture required")
+        cur.execute("select set_config('request.jwt.claim.sub',%s,true),set_config('request.jwt.claims',%s,true)",
+                    (admin[0], json.dumps({"sub": admin[0], "email": admin[1], "role": "authenticated"})))
+
+        stage_ids = {}
+        for stage in STATIONS + ["SUBLET"]:
+            cur.execute("select id::text,work_key from public.workshop_stages where code=%s", (stage,))
+            row = cur.fetchone()
+            assert_true(row, f"missing stage {stage}")
+            stage_ids[stage] = row
+
+        def vehicle(stage, location="PMB", eta=None):
+            vehicle_id = str(uuid.uuid4())
+            cur.execute(
+                "insert into public.vehicles(id,permanent_vehicle_id,current_location,pmb_stage,eta_to_kewdale,visible_on_board,source_payload) "
+                "values(%s,%s,%s,%s,%s,true,'{}'::jsonb)",
+                (vehicle_id, "M045-" + vehicle_id, location, stage, eta),
+            )
+            return vehicle_id
+
+        def work(vehicle_id, stage, required=True, completed=False):
+            work_id = str(uuid.uuid4())
+            cur.execute(
+                "insert into public.vehicle_work_items(id,vehicle_id,work_key,required,completed,completed_at) "
+                "values(%s,%s,%s,%s,%s,case when %s then now() else null end)",
+                (work_id, vehicle_id, stage_ids[stage][1], required, completed, completed),
+            )
+            return work_id
+
+        def booking(vehicle_id, stage, start="2026-07-23 01:00:00+00", end="2026-07-23 04:00:00+00", completion_markers=False):
+            booking_id = str(uuid.uuid4())
+            cur.execute(
+                "insert into public.workshop_bookings(id,vehicle_id,stage_id,status,scheduled_start_at,scheduled_end_at,"
+                "default_duration_minutes,created_by,updated_by,actual_start_at,actual_end_at) "
+                "values(%s,%s,%s,'planned',%s,%s,180,%s,%s,case when %s then %s::timestamptz else null end,"
+                "case when %s then %s::timestamptz else null end)",
+                (booking_id, vehicle_id, stage_ids[stage][0], start, end, admin[0], admin[0], completion_markers, start, completion_markers, end),
+            )
+            return booking_id
+
+        def evidence(vehicle_id, stage):
+            cur.execute(
+                "insert into public.audit_events(action,table_name,row_id,vehicle_id,before_data,after_data,metadata) "
+                "values('move','vehicles',%s,%s,'{}'::jsonb,jsonb_build_object('pmb_stage',%s),'{}'::jsonb)",
+                (vehicle_id, vehicle_id, stage),
+            )
+
+        # Required A/B/C/D classifier cases.
+        a_hoist = vehicle("HOIST"); evidence(a_hoist, "HOIST")
+        a_fitting = vehicle("FITTING"); evidence(a_fitting, "FITTING")
+        c_open = vehicle("HOIST"); work(c_open, "HOIST")
+        b_booked = vehicle("HOIST"); wb = work(b_booked, "HOIST"); booking(b_booked, "HOIST"); cur.execute("update public.vehicle_work_items set required=false where id=%s", (wb,))
+        c_completed = vehicle("HOIST"); work(c_completed, "HOIST", completed=True)
+        d_conflict = vehicle("HOIST"); wd = work(d_conflict, "HOIST"); booking(d_conflict, "HOIST"); booking(d_conflict, "HOIST", "2026-07-24 01:00:00+00", "2026-07-24 04:00:00+00"); cur.execute("update public.vehicle_work_items set required=false where id=%s", (wd,))
+        ids = [a_hoist, a_fitting, c_open, b_booked, c_completed, d_conflict]
+        cur.execute("select vehicle_id::text,classification,reason_code from public.preview_legacy_stage_reconciliation(%s::uuid[])", (ids,))
+        preview = {r[0]: (r[1], r[2]) for r in cur.fetchall()}
+        assert_true(preview[a_hoist][0] == "A_SAFE_CREATE", "Hoist A classification")
+        assert_true(preview[a_fitting][0] == "A_SAFE_CREATE", "Fitting A classification")
+        assert_true(preview[c_open] == ("C_COMPLETED_OR_OBSOLETE", "canonical_open_work_item_exists"), "open item no-duplicate classification")
+        assert_true(preview[b_booked] == ("B_ACTIVE_BOOKING", "active_booking_represents_job"), "booking classification")
+        assert_true(preview[c_completed] == ("C_COMPLETED_OR_OBSOLETE", "completed_equivalent_work_exists"), "completed classification")
+        assert_true(preview[d_conflict][0] == "D_AMBIGUOUS", "ambiguous classification")
+        result["checks"].append("deterministic_A_B_C_D_preview")
+
+        batch = "m045-regression-" + uuid.uuid4().hex
+        cur.execute("select public.apply_legacy_stage_reconciliation(%s,%s::uuid[])", (batch, ids))
+        first = cur.fetchone()[0]
+        cur.execute("select public.apply_legacy_stage_reconciliation(%s,%s::uuid[])", (batch, ids))
+        second = cur.fetchone()[0]
+        assert_true(first == second, "idempotent replay response")
+        cur.execute("select count(*),count(*) filter(where decision_state='applied'),count(*) filter(where decision_state='ambiguous') from public.legacy_stage_reconciliation_receipts where batch_id=%s", (batch,))
+        assert_true(cur.fetchone() == (6, 2, 1), "receipt cardinality/state")
+        cur.execute("select count(*) from public.vehicle_work_items where id in (select applied_work_item_id from public.legacy_stage_reconciliation_receipts where batch_id=%s)", (batch,))
+        assert_true(cur.fetchone()[0] == 2, "only A creates work items")
+        cur.execute("select count(*) from public.audit_events where metadata->>'source'='legacy_pmb_stage_reconciliation' and metadata->>'batch_id'=%s", (batch,))
+        assert_true(cur.fetchone()[0] == 2, "apply audit events")
+        result["checks"].append("idempotent_apply_duplicate_prevention_receipts_audit")
+
+        cur.execute("select public.rollback_legacy_stage_reconciliation(%s)", (batch,))
+        rollback_first = cur.fetchone()[0]
+        cur.execute("select public.rollback_legacy_stage_reconciliation(%s)", (batch,))
+        rollback_second = cur.fetchone()[0]
+        assert_true(rollback_first == rollback_second and rollback_first["rolled_back"] == 2, "idempotent rollback")
+        cur.execute("select count(*) from public.vehicle_work_items wi join public.legacy_stage_reconciliation_receipts r on r.applied_work_item_id=wi.id where r.batch_id=%s and wi.required", (batch,))
+        assert_true(cur.fetchone()[0] == 0, "rollback disables without deleting")
+        cur.execute("select count(*) from public.audit_events where metadata->>'source'='legacy_pmb_stage_reconciliation_rollback' and metadata->>'batch_id'=%s", (batch,))
+        assert_true(cur.fetchone()[0] == 2, "rollback audit events")
+        result["checks"].append("non_destructive_idempotent_rollback")
+
+        # PMB/YH/IT and all-eight-station canonical authority.
+        eligibility = {}
+        for station in STATIONS:
+            vid = vehicle(station, "PMB"); work(vid, station); eligibility[station] = vid
+        yh = vehicle("HOIST", "YH"); work(yh, "HOIST")
+        it_ok = vehicle("HOIST", "IT", date(2026, 7, 24)); work(it_ok, "HOIST")
+        it_missing = vehicle("HOIST", "IT"); work(it_missing, "HOIST")
+        other = vehicle("HOIST", "OTHER"); work(other, "HOIST")
+        for station, vid in eligibility.items():
+            cur.execute("select vehicle_id::text from public.workshop_station_eligibility(%s) where vehicle_id=%s", (station, vid))
+            assert_true(cur.fetchone() == (vid,), f"canonical candidate missing for {station}")
+        cur.execute("select vehicle_id::text,schedule_enabled,disabled_reason from public.workshop_station_eligibility('HOIST') where vehicle_id=any(%s::uuid[])", ([yh, it_ok, it_missing, other],))
+        loc = {r[0]: (r[1], r[2]) for r in cur.fetchall()}
+        assert_true(loc[yh] == (True, None), "YH immediate")
+        assert_true(loc[it_ok] == (True, None), "IT valid ETA")
+        assert_true(loc[it_missing] == (False, "missing_eta"), "IT missing ETA visible but disabled")
+        assert_true(other not in loc, "other location excluded")
+        cur.execute("select count(*) from public.workshop_station_eligibility('SUBLET')")
+        assert_true(cur.fetchone()[0] == 0, "Sublet planner excluded")
+        result["checks"].append("pmb_yh_it_eta_all_eight_sublet")
+
+        # Legacy pmb_stage alone is never authority.
+        legacy_only = vehicle("TYRE", "PMB"); evidence(legacy_only, "TYRE")
+        cur.execute("select count(*) from public.workshop_station_eligibility('TYRE') where vehicle_id=%s", (legacy_only,))
+        assert_true(cur.fetchone()[0] == 0, "legacy stage leaked into eligibility")
+        result["checks"].append("legacy_stage_not_authority")
+
+        # Realtime station revision creation/removal and separate count semantics.
+        rev_vehicle = vehicle("PIT_INSPECTION", "PMB")
+        cur.execute("select revision from public.workshop_station_revision where stage_code='PIT_INSPECTION'")
+        before_rev = cur.fetchone()[0]
+        rev_work = work(rev_vehicle, "PIT_INSPECTION")
+        cur.execute("select revision from public.workshop_station_revision where stage_code='PIT_INSPECTION'")
+        created_rev = cur.fetchone()[0]
+        cur.execute("update public.vehicle_work_items set required=false,updated_at=now() where id=%s", (rev_work,))
+        cur.execute("select revision from public.workshop_station_revision where stage_code='PIT_INSPECTION'")
+        removed_rev = cur.fetchone()[0]
+        assert_true(before_rev < created_rev < removed_rev, "station revision did not invalidate on requirement create/remove")
+        result["checks"].append("realtime_revision_requirement_create_remove")
+
+        # Date-independent outstanding candidates versus selected-date bookings.
+        count_a = vehicle("FABRICATION", "PMB"); work(count_a, "FABRICATION")
+        count_b = vehicle("FABRICATION", "PMB"); work(count_b, "FABRICATION"); booking(count_b, "FABRICATION")
+        grid_only = vehicle("FABRICATION", "PMB"); wg = work(grid_only, "FABRICATION"); booking(grid_only, "FABRICATION"); cur.execute("update public.vehicle_work_items set required=false where id=%s", (wg,))
+        cur.execute("select public.get_station_workshop_snapshot('FABRICATION','2026-07-23','2026-07-23')")
+        snapshot = cur.fetchone()[0]
+        candidate_ids = {x["vehicle_id"] for x in snapshot["outstanding_candidates"]}
+        assert_true({count_a, count_b}.issubset(candidate_ids), "outstanding candidates not discoverable")
+        assert_true(grid_only not in candidate_ids, "booking-only vehicle became outstanding candidate")
+        assert_true(snapshot["counts"]["outstanding_candidates"] >= 2, "outstanding count")
+        assert_true(snapshot["counts"]["unscheduled_candidates"] >= 1, "unscheduled count")
+        selected_ids = {x["vehicle_id"] for x in snapshot["bookings"]}
+        assert_true({count_b, grid_only}.issubset(selected_ids), "selected-date grid booking set")
+        result["checks"].append("outstanding_unscheduled_selected_date_semantics")
+
+        # Service-only reconciliation authority and sanitized durable data.
+        cur.execute("select has_function_privilege('authenticated','public.preview_legacy_stage_reconciliation(uuid[])','execute'),has_function_privilege('authenticated','public.apply_legacy_stage_reconciliation(text,uuid[])','execute'),has_function_privilege('authenticated','public.rollback_legacy_stage_reconciliation(text)','execute'),has_table_privilege('authenticated','public.legacy_stage_reconciliation_receipts','select')")
+        assert_true(cur.fetchone() == (False, False, False, False), "reconciliation privilege closure")
+        cur.execute("select count(*) from public.legacy_stage_reconciliation_receipts where evidence ?| array['customer_name','notes','note_text']")
+        assert_true(cur.fetchone()[0] == 0, "receipt contains prohibited fields")
+        result["checks"].append("service_only_sanitized_receipts")
+
+        conn.rollback()
+        result["transaction_rolled_back"] = True
+        result["status"] = "passed"
+        print(json.dumps(result, indent=2, sort_keys=True))
+        return 0
+    except Exception as exc:
+        conn.rollback()
+        result["transaction_rolled_back"] = True
+        result["status"] = "failed"
+        result["error"] = f"{type(exc).__name__}: {exc}"
+        print(json.dumps(result, indent=2, sort_keys=True))
+        return 1
+    finally:
+        conn.close()
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

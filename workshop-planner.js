@@ -2320,10 +2320,8 @@ function workshopStageVehicles(stage = '') {
   const preArrivalCandidates = app.data.filter(vehicle => {
     const planningLocation = workshopVehiclePlanningLocation(vehicle);
     if (!['YH', 'IT'].includes(planningLocation)) return false;
-    const currentStage = normalizePmbStage(inferredPmbStage(vehicle));
     const requiredAndIncomplete = Boolean(def && pdcJobRequired(vehicle, def) && !pdcJobComplete(vehicle, def));
-    const currentAndIncomplete = currentStage === normalizedStage && (!def || !pdcJobComplete(vehicle, def));
-    return requiredAndIncomplete || currentAndIncomplete;
+    return requiredAndIncomplete;
   });
   const rows = [...pmbCandidates, ...preArrivalCandidates];
   return [...new Map(rows.map(vehicle => [vehicleKey(vehicle), vehicle])).values()]
@@ -2393,7 +2391,12 @@ function workshopPlannerVehiclesForStage(stage = '') {
     workItems,
     bookings,
   });
-  const eligibleVehicleIds = new Set(canonicalEligibility.candidates.map(row => String(row.vehicle?.id || '').trim()).filter(Boolean));
+  const canonicalById = new Map(canonicalEligibility.candidates.map(row => [String(row.vehicle?.id || '').trim(), row]).filter(([id]) => id));
+  const authoritativeRows = Array.isArray(snapshot?.outstanding_candidates) ? snapshot.outstanding_candidates : null;
+  const authoritativeById = authoritativeRows
+    ? new Map(authoritativeRows.map(row => [String(row?.vehicle_id || '').trim(), row]).filter(([id]) => id))
+    : null;
+  const eligibleVehicleIds = new Set(authoritativeById ? authoritativeById.keys() : canonicalById.keys());
   const scopedVehicles = snapshotVehicles.filter(vehicle => eligibleVehicleIds.has(String(vehicle?.id || '').trim()));
   const localById = new Map(rows.map(vehicle => [String(vehicle.id || vehicle.sharedVehicleId || '').trim(), vehicle]).filter(([key]) => key));
   const localByStock = new Map(rows.map(vehicle => [String(displayStockNumber(vehicle) || '').trim(), vehicle]).filter(([key]) => key));
@@ -2406,16 +2409,25 @@ function workshopPlannerVehiclesForStage(stage = '') {
     workItemsByVehicle.set(vehicleId, vehicleItems);
   });
   return scopedVehicles.map(vehicle => {
-    const local = localById.get(String(vehicle.id || '').trim())
+    const vehicleId = String(vehicle.id || '').trim();
+    const local = localById.get(vehicleId)
       || localByStock.get(String(vehicle.stock_number || '').trim());
-    const scoped = workshopSnapshotVehicleToPlannerRow(vehicle, workItemsByVehicle.get(String(vehicle.id || '').trim()) || [], dedicatedStage);
+    const scoped = workshopSnapshotVehicleToPlannerRow(vehicle, workItemsByVehicle.get(vehicleId) || [], dedicatedStage);
+    const authority = authoritativeById?.get(vehicleId);
+    const fallback = canonicalById.get(vehicleId);
+    const outstanding = {
+      existingBooking: authority ? authority.existing_booking === true : fallback?.existingBooking === true,
+      scheduleEnabled: authority ? authority.schedule_enabled === true : fallback?.schedule?.enabled === true,
+      disabledReason: authority?.disabled_reason || fallback?.schedule?.reason || '',
+    };
     return local ? {
       ...local,
       ...scoped,
-      pmbJobs: { ...(local.pmbJobs || {}), ...scoped.pmbJobs },
+      pmbJobs: { ...scoped.pmbJobs },
+      __workshopOutstanding: outstanding,
       sharedVehicleId: vehicle.id,
       id: vehicle.id
-    } : scoped;
+    } : { ...scoped, __workshopOutstanding: outstanding };
   }).sort((a, b) => String(displayStockNumber(a) || '').localeCompare(String(displayStockNumber(b) || '')));
 }
 
@@ -2780,24 +2792,32 @@ function workshopQueueCardHtml(vehicle = {}, stage = workshopState().stage, date
   const hours = workshopCalculatedStageHours(vehicle, stage) || pmbBayHours(vehicle) || workshopDefaultBookingHours();
   const etaConstraint = workshopVehicleEtaConstraint(vehicle);
   const etaDisabled = etaConstraint.required && !etaConstraint.ok;
+  const existingBooking = vehicle.__workshopOutstanding?.existingBooking === true;
+  const schedulingDisabled = etaDisabled || existingBooking;
+  const requirements = pdcRequirementDefinitions(vehicle)
+    .filter(def => pdcJobRequired(vehicle, def) && !pdcJobComplete(vehicle, def))
+    .map(def => def.label);
   const etaExplanation = etaConstraint.reason === 'missing_eta'
     ? `${etaConstraint.location} · ETA to Kewdale is missing; scheduling disabled`
     : etaConstraint.reason === 'invalid_eta'
       ? `${etaConstraint.location} · ETA to Kewdale is invalid; scheduling disabled`
       : '';
   const earliestQueueDate = etaConstraint.ok ? workshopDateKeyNotBefore(dateKey, etaConstraint.earliestDateKey) : dateKey;
-  const bestSlot = etaConstraint.ok ? workshopBestStageSlot(stage, earliestQueueDate, hours, rows) : null;
-  return `<article class="workshop-queue-card ${blocked ? 'is-blocked' : ''} ${highlighted ? 'is-search-match' : ''} ${etaDisabled ? 'is-scheduling-disabled' : ''}" draggable="${etaDisabled ? 'false' : 'true'}" ${etaDisabled ? 'aria-disabled="true"' : ''} data-workshop-vehicle-key="${escapeHtml(key)}" data-workshop-job-vehicle="${escapeHtml(key)}" data-workshop-locate-key="${escapeHtml(key)}" title="${escapeHtml(etaDisabled ? etaExplanation : 'Drag onto a bay, use Best slot, or use Schedule')}">
+  const bestSlot = etaConstraint.ok && !existingBooking ? workshopBestStageSlot(stage, earliestQueueDate, hours, rows) : null;
+  const disabledExplanation = existingBooking ? 'An active booking already represents this requirement' : etaExplanation;
+  return `<article class="workshop-queue-card ${blocked ? 'is-blocked' : ''} ${highlighted ? 'is-search-match' : ''} ${schedulingDisabled ? 'is-scheduling-disabled' : ''}" draggable="${schedulingDisabled ? 'false' : 'true'}" ${schedulingDisabled ? 'aria-disabled="true"' : ''} data-workshop-vehicle-key="${escapeHtml(key)}" data-workshop-job-vehicle="${escapeHtml(key)}" data-workshop-locate-key="${escapeHtml(key)}" title="${escapeHtml(schedulingDisabled ? disabledExplanation : 'Drag onto a bay, use Best slot, or use Schedule')}">
     <strong>JC ${escapeHtml(vehicleJobcardNumber(vehicle) || 'TBA')} · ${escapeHtml(displayStockNumber(vehicle) || vehicle.order || 'No stock')}</strong>
     <span>${escapeHtml(vehicle.vehicle || vehicle.toyotaVehicle || 'Vehicle')}</span>
     <span>${escapeHtml(vehicleCustomerName(vehicle) || 'Unknown customer')}</span>
+    <small class="workshop-requirements-line">Requirements: ${escapeHtml(requirements.join(', ') || pmbStageLabel(stage))}</small>
     ${etaConstraint.required ? `<small class="workshop-eta-line ${etaConstraint.ok ? '' : 'is-invalid'}">${escapeHtml(etaConstraint.ok ? `${etaConstraint.location} · earliest ${etaConstraint.earliestDateKey}` : etaExplanation)}</small>` : ''}
     <small class="workshop-parts-line parts-${escapeHtml(parts.status)}">Parts: ${escapeHtml(parts.text)}</small>
+    ${existingBooking ? '<small class="workshop-booked-line">Active booking exists · shown here because the requirement remains outstanding</small>' : ''}
     ${bestSlot ? `<small class="workshop-slot-hint">Best slot: ${escapeHtml(workshopSlotSummary(stage, bestSlot.bay, bestSlot.dateKey, bestSlot.startMinutes))}</small>` : ''}
     ${blocked ? '<em>STOPPAGE</em>' : ''}
     <div class="workshop-queue-actions">
       ${bestSlot ? `<button class="workshop-schedule-button best-slot" type="button" data-workshop-best-slot-vehicle="${escapeHtml(key)}" data-workshop-best-slot-stage="${escapeHtml(stage)}" data-workshop-best-slot-bay="${bestSlot.bay}" data-workshop-best-slot-date="${escapeHtml(bestSlot.dateKey)}" data-workshop-best-slot-start="${bestSlot.startMinutes}" data-workshop-best-slot-hours="${escapeHtml(hours)}">Best slot</button>` : ''}
-      <button class="workshop-schedule-button" type="button" data-workshop-schedule-vehicle="${escapeHtml(key)}" ${etaDisabled ? `disabled title="${escapeHtml(etaExplanation)}"` : ''}>${etaDisabled ? 'Scheduling disabled' : 'Schedule'}</button>
+      <button class="workshop-schedule-button" type="button" data-workshop-schedule-vehicle="${escapeHtml(key)}" ${schedulingDisabled ? `disabled title="${escapeHtml(disabledExplanation)}"` : ''}>${existingBooking ? 'Already booked' : etaDisabled ? 'Scheduling disabled' : 'Schedule'}</button>
     </div>
   </article>`;
 }
@@ -3249,9 +3269,10 @@ function renderWorkshopPlanner() {
   const selected = plans.find(entry => entry.id === state.selectedPlanId) || null;
   const dateKey = state.date;
   const activePlans = plans.filter(entry => entry.stage === stage && entry.status !== 'completed');
-  const plannedKeys = new Set(activePlans.map(entry => entry.vehicleKey));
   const stageVehicleList = workshopPlannerVehiclesForStage(stage);
-  const queue = stageVehicleList.filter(vehicle => !plannedKeys.has(vehicleKey(vehicle)));
+  const outstanding = stageVehicleList;
+  const unscheduled = outstanding.filter(vehicle => vehicle.__workshopOutstanding?.existingBooking !== true);
+  const queue = outstanding;
   const completed = plans.filter(entry => {
     if (entry.stage !== stage || entry.status !== 'completed') return false;
     const completedDate = parseIsoTimestamp(entry.completedAt || '');
@@ -3286,15 +3307,15 @@ function renderWorkshopPlanner() {
         <button class="small-button warning-button" type="button" data-workshop-parts-warning>Draft next-day parts warning</button>
       </div>
     </header>
-    <div class="workshop-date-summary"><strong>${escapeHtml(workshopDateLabel(dateKey))}</strong><span>${todaysPlans.length} planned · ${completed.length} completed · ${queue.length} waiting${assigneeConflicts ? ` · ⚠ ${assigneeConflicts} mechanic clash${assigneeConflicts === 1 ? '' : 'es'}` : ''} · Saved automatically${state.lastSavedAt ? ` ${escapeHtml(new Date(state.lastSavedAt).toLocaleTimeString('en-AU', { hour: 'numeric', minute: '2-digit' }))}` : ''}</span><div class="workshop-status-legend"><span class="planned">Planned</span><span class="live">Live</span><span class="stoppage">Stoppage</span><span class="completed">Completed</span></div></div>
+    <div class="workshop-date-summary"><strong>${escapeHtml(workshopDateLabel(dateKey))}</strong><span>${todaysPlans.length} bookings on selected date · ${completed.length} completed · ${outstanding.length} outstanding · ${unscheduled.length} unscheduled${assigneeConflicts ? ` · ⚠ ${assigneeConflicts} mechanic clash${assigneeConflicts === 1 ? '' : 'es'}` : ''} · Saved automatically${state.lastSavedAt ? ` ${escapeHtml(new Date(state.lastSavedAt).toLocaleTimeString('en-AU', { hour: 'numeric', minute: '2-digit' }))}` : ''}</span><div class="workshop-status-legend"><span class="planned">Planned</span><span class="live">Live</span><span class="stoppage">Stoppage</span><span class="completed">Completed</span></div></div>
     ${workshopSearchControlHtml(state.search || '', plans)}
     ${stageTabs ? `<nav class="workshop-stage-tabs" aria-label="Workshop departments">${stageTabs}</nav>` : ''}
     ${workshopDetailPanelHtml(selected, plans)}
     <div class="workshop-board-shell">
       <aside class="workshop-side-panel workshop-waiting-panel">
-        <div class="workshop-side-heading"><strong>Awaiting schedule</strong><span>${queue.length}</span></div>
+        <div class="workshop-side-heading"><strong>Outstanding candidates</strong><span>${outstanding.length}</span></div>
         <div class="workshop-unallocated-drop" data-workshop-unallocated-drop><strong>Return to Unallocated</strong><span>Planned or live: choose Just move or Stoppage</span></div>
-        <div class="workshop-side-list">${queueBatch.visible.map(vehicle => workshopQueueCardHtml(vehicle, stage, dateKey, plans)).join('') || '<div class="workshop-empty">No unscheduled vehicles in this department.</div>'}${workshopIncrementalLoadMoreHtml('queue', queueBatch)}</div>
+        <div class="workshop-side-list">${queueBatch.visible.map(vehicle => workshopQueueCardHtml(vehicle, stage, dateKey, plans)).join('') || '<div class="workshop-empty">No outstanding requirements in this department.</div>'}${workshopIncrementalLoadMoreHtml('queue', queueBatch)}</div>
       </aside>
       <section class="workshop-timeline-scroll">
         <div class="workshop-timeline">
@@ -5185,6 +5206,7 @@ if (typeof module !== 'undefined' && module.exports) {
     workshopVehiclePlanningLocation,
     workshopVehicleEtaConstraint,
     workshopIncrementalRenderRows,
+    workshopQueueCardHtml,
     workshopDateKeyNotBefore,
     workshopEtaScheduleValidation,
     workshopEtaRiskForEntry,

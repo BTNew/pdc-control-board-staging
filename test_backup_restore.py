@@ -47,7 +47,8 @@ assert "workshop_stage_aliases" in pdc_backup.TABLES
 assert len(pdc_backup.WORKSHOP_ALIASES_042) == 22
 assert len(pdc_backup.WORKSHOP_ALIASES_044) == 37
 assert len(pdc_backup.WORKSHOP_ALIAS_VALUES_044) == 37
-assert pdc_backup.required_backup_tables("044") == frozenset(pdc_backup.TABLES)
+assert pdc_backup.required_backup_tables("044") == frozenset(pdc_backup.TABLES).difference(pdc_backup.MIGRATION_045_BACKUP_TABLES)
+assert pdc_backup.required_backup_tables("045") == frozenset(pdc_backup.TABLES)
 assert pdc_backup.migration_number("037_shared") == 37
 
 columns = ["id", "payload"]
@@ -105,7 +106,7 @@ except RuntimeError:
 
 # Migration-044 alias authority must be present, complete and independently
 # count/hash evidenced; removing or remapping one alias fails closed.
-alias_tables = set(pdc_backup.TABLES)
+alias_tables = set(pdc_backup.required_backup_tables("044"))
 alias_payload = format2_payload(alias_tables, "044")
 alias_rows = [{"alias_normalized": alias, "alias_value": pdc_backup.WORKSHOP_ALIAS_VALUES_044[alias], "stage_code": stage}
               for alias, stage in sorted(pdc_backup.WORKSHOP_ALIASES_044.items())]
@@ -120,6 +121,24 @@ alias_payload["authority_contracts"] = {"workshop_stage_aliases": {
     "normalization_sha256": hashlib.sha256(json.dumps(alias_pairs, separators=(",", ":")).encode()).hexdigest(),
 }}
 pdc_restore.validate_backup_contract(alias_payload)
+# 045 makes the reconciliation receipt table mandatory without breaking the
+# pre-045 backup needed immediately before migration application.
+receipt_payload = copy.deepcopy(alias_payload)
+receipt_payload["migration_version"] = "045"
+receipt_payload["tables"]["legacy_stage_reconciliation_receipts"] = {"columns": [], "rows": []}
+receipt_payload["row_counts"]["legacy_stage_reconciliation_receipts"] = 0
+receipt_payload["table_hashes"]["legacy_stage_reconciliation_receipts"] = pdc_backup.deterministic_table_hash([], [])
+receipt_payload["schema_objects"]["legacy_stage_reconciliation_receipts"] = copy.deepcopy(empty_structure)
+receipt_payload["schema_objects"]["legacy_stage_reconciliation_receipts"]["sha256"] = empty_hash
+pdc_restore.validate_backup_contract(receipt_payload)
+missing_receipt = copy.deepcopy(receipt_payload)
+for key in ("tables", "row_counts", "table_hashes", "schema_objects"):
+    missing_receipt[key].pop("legacy_stage_reconciliation_receipts", None)
+try:
+    pdc_restore.validate_backup_contract(missing_receipt)
+    raise AssertionError("Migration-045 payload missing reconciliation receipts must fail closed")
+except RuntimeError:
+    pass
 # Duplicate normalized identities must fail before any restore schema is created,
 # even when all caller-supplied counts and hashes are self-consistent.
 duplicate_alias = copy.deepcopy(alias_payload)
@@ -135,7 +154,7 @@ try:
     raise AssertionError("Duplicate alias identity must fail preflight before DDL")
 except RuntimeError:
     pass
-for omitted in pdc_backup.TABLES:
+for omitted in pdc_backup.required_backup_tables("044"):
     broken = copy.deepcopy(alias_payload)
     for key in ("tables", "row_counts", "table_hashes", "schema_objects"):
         broken[key].pop(omitted, None)

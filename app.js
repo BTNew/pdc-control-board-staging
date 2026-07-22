@@ -1,5 +1,5 @@
-const APP_VERSION = '2026.07.22.08-blocker-remediation';
-const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.07.22.08-blocker-remediation';
+const APP_VERSION = '2026.07.23.09-canonical-work-items';
+const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.07.23.09-canonical-work-items';
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
 // constant intentionally names only the production ref, never the
@@ -4458,7 +4458,7 @@ function pmbVehicleNeedsStationWork(vehicle = {}, stage = '') {
   if (statusCategory(vehicle) !== 'pmb' || !def || !WORKSHOP_CONTROL_BOARD_STATIONS.includes(normalizedStage)) return false;
   const incomplete = !pdcJobComplete(vehicle, def);
   if (!incomplete) return false;
-  return pdcJobRequired(vehicle, def) || normalizePmbStage(inferredPmbStage(vehicle)) === normalizedStage;
+  return pdcJobRequired(vehicle, def);
 }
 
 function pmbVehiclesNeedingStationWork(stage = '') {
@@ -4688,7 +4688,7 @@ function renderWorkflowBoard() {
       <summary class="incoming-bucket-title workflow-bucket-title">
         <span>${escapeHtml(label)}</span>
         <strong>${escapeHtml(countLabel)}</strong>
-        <small>Canonical Supabase candidates · PMB/YH immediate · IT ETA-restricted</small>
+        <small>Outstanding canonical requirements · PMB/YH immediate · IT ETA-restricted</small>
         <span class="workflow-bucket-actions"><button class="small-button primary" type="button" data-open-workshop-stage="${escapeHtml(stage)}">Open ${escapeHtml(label)} Planner</button></span>
       </summary>
       <div class="control-board-work-list">${rows}</div>

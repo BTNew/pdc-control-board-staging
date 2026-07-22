@@ -202,6 +202,8 @@ TABLES = [
     "navision_rollback_items",
     "navision_backend_audit",
     "vehicle_work_items",
+    # Migration 045: service-only canonicalization/reconciliation receipts.
+    "legacy_stage_reconciliation_receipts",
     "vehicle_movements",
     "vehicle_parts_updates",
     "vehicle_eta_history",
@@ -240,9 +242,20 @@ TABLES = [
 ]
 
 
+MIGRATION_045_BACKUP_TABLES = frozenset({"legacy_stage_reconciliation_receipts"})
+
+
 def required_backup_tables(migration_version):
-    """Ledger-versioned fail-closed operational inventory."""
-    return frozenset(TABLES) if migration_number(migration_version) >= 42 else frozenset()
+    """Ledger-versioned fail-closed operational inventory.
+
+    The receipt table is introduced by 045, so a mandatory pre-045 backup must
+    remain valid before that table exists; every 045+ backup must contain it.
+    """
+    number = migration_number(migration_version)
+    if number < 42:
+        return frozenset()
+    required = frozenset(TABLES)
+    return required if number >= 45 else required.difference(MIGRATION_045_BACKUP_TABLES)
 
 
 NAVISION_BACKUP_TABLES = {

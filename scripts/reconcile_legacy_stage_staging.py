@@ -1,0 +1,67 @@
+#!/usr/bin/env python3
+"""Persist reviewed no-create decisions for the five staging legacy-stage rows.
+
+The exact preview is fail-closed. Four ambiguous records receive ambiguity
+receipts only; one booking-represented record receives a skipped receipt. No
+vehicle, booking or work-item field is changed by this approved batch.
+"""
+from __future__ import annotations
+import argparse, hashlib, json, sys
+from pathlib import Path
+ROOT=Path(__file__).resolve().parents[1]
+sys.path.insert(0,str(ROOT/'_staging_test_tools'))
+from staging_conn import get_conn  # noqa: E402
+from staging_env import EXPECTED_STAGING_REF  # noqa: E402
+IDS=[
+ '18e1ec63-503c-41f8-b6c0-8737911d73e5','23bdac02-842a-43c4-9f5b-a864487efca2',
+ '2c800952-1624-4b0f-bfd5-10a6d7758347','781eb0c0-b932-4a7d-88cb-2cfbb66619f9',
+ 'feba398a-a3ed-4e96-beef-8ba316dc220f',
+]
+EXPECTED={IDS[0]:('D_AMBIGUOUS','conflicting_booking_evidence'),IDS[1]:('D_AMBIGUOUS','conflicting_booking_evidence'),IDS[2]:('D_AMBIGUOUS','conflicting_booking_evidence'),IDS[3]:('D_AMBIGUOUS','conflicting_booking_evidence'),IDS[4]:('B_ACTIVE_BOOKING','active_booking_represents_job')}
+BATCH='staging-legacy-pmb-stage-20260723-v1'
+def sha256(path):
+ h=hashlib.sha256()
+ with Path(path).open('rb') as f:
+  for x in iter(lambda:f.read(1024*1024),b''):h.update(x)
+ return h.hexdigest()
+def state_hash(q):
+ q.execute("""select md5(coalesce(string_agg(x::text,'|' order by x->>'id'),'')) from (
+  select jsonb_build_object('id',v.id,'location',v.current_location,'stage',v.pmb_stage,'lifecycle',v.lifecycle_state,'deleted',v.deleted_at,
+   'customer_hash',md5(coalesce(v.customer_name,'')||'|'||coalesce(v.customer_email,'')||'|'||coalesce(v.customer_phone,''))) x
+  from public.vehicles v where v.id=any(%s::uuid[])) s""",(IDS,));vehicles=q.fetchone()[0]
+ q.execute("""select md5(coalesce(string_agg(x::text,'|' order by x->>'id'),'')) from (
+  select jsonb_build_object('id',wi.id,'vehicle',wi.vehicle_id,'key',wi.work_key,'required',wi.required,'completed',wi.completed,
+   'completed_at',wi.completed_at,'notes_hash',md5(coalesce(wi.notes,'')),'updated_at',wi.updated_at) x
+  from public.vehicle_work_items wi where wi.vehicle_id=any(%s::uuid[])) s""",(IDS,));items=q.fetchone()[0]
+ q.execute("""select md5(coalesce(string_agg(x::text,'|' order by x->>'id'),'')) from (
+  select jsonb_build_object('id',b.id,'vehicle',b.vehicle_id,'stage',b.stage_id,'bay',b.bay_id,'status',b.status,
+   'start',b.scheduled_start_at,'end',b.scheduled_end_at,'actual_end',b.actual_end_at,'deleted',b.deleted_at,'version',b.version) x
+  from public.workshop_bookings b where b.vehicle_id=any(%s::uuid[])) s""",(IDS,));bookings=q.fetchone()[0]
+ return {'vehicles':vehicles,'work_items':items,'bookings':bookings}
+def main():
+ p=argparse.ArgumentParser();p.add_argument('--confirm-project',required=True);p.add_argument('--backup-path',required=True);p.add_argument('--backup-sha256',required=True);a=p.parse_args()
+ if a.confirm_project!=EXPECTED_STAGING_REF:raise SystemExit('project confirmation mismatch')
+ if not Path(a.backup_path).is_file() or sha256(a.backup_path).lower()!=a.backup_sha256.lower():raise SystemExit('backup verification failed')
+ c=get_conn();q=c.cursor()
+ try:
+  q.execute('begin');q.execute("select count(*) from supabase_migrations.schema_migrations where version='045'")
+  if q.fetchone()[0]!=1:raise RuntimeError('migration 045 ledger entry missing')
+  q.execute("select vehicle_id::text,classification,reason_code from public.preview_legacy_stage_reconciliation(%s::uuid[]) order by vehicle_id",(IDS,))
+  preview={r[0]:(r[1],r[2]) for r in q.fetchall()}
+  if preview!=EXPECTED:raise RuntimeError(f'preview drift: {preview}')
+  if any(v[0]=='A_SAFE_CREATE' for v in preview.values()):raise RuntimeError('approved batch is no-create; A row detected')
+  before=state_hash(q)
+  q.execute("select public.apply_legacy_stage_reconciliation(%s,%s::uuid[])",(BATCH,IDS));first=q.fetchone()[0]
+  q.execute("select public.apply_legacy_stage_reconciliation(%s,%s::uuid[])",(BATCH,IDS));second=q.fetchone()[0]
+  after=state_hash(q)
+  if before!=after:raise RuntimeError('forbidden operational state change detected')
+  if first!=second:raise RuntimeError('idempotent replay result changed')
+  q.execute("select classification,decision_state,count(*) from public.legacy_stage_reconciliation_receipts where batch_id=%s group by 1,2 order by 1,2",(BATCH,));receipts=q.fetchall()
+  if receipts!=[('B_ACTIVE_BOOKING','skipped',1),('D_AMBIGUOUS','ambiguous',4)]:raise RuntimeError(f'receipt mismatch: {receipts}')
+  q.execute("select count(*) from public.audit_events where metadata->>'source'='legacy_pmb_stage_reconciliation_decision' and metadata->>'batch_id'=%s",(BATCH,))
+  if q.fetchone()[0]!=5:raise RuntimeError('every reconciliation decision requires one durable audit event')
+  c.commit()
+  print(json.dumps({'status':'recorded_no_create_decisions','project_ref':EXPECTED_STAGING_REF,'batch_id':BATCH,'preview':preview,'receipts':receipts,'operational_state_unchanged':True,'idempotent_replay':True,'backup_sha256':a.backup_sha256.lower()},sort_keys=True))
+ except Exception:c.rollback();raise
+ finally:c.close()
+if __name__=='__main__':main()

@@ -9,9 +9,10 @@ const planner = read('workshop-planner.js');
 const moduleSource = read('workshop-eligibility.js');
 const migration = read('supabase/migrations/042_all_station_eligibility_and_sublet_planner_removal.sql');
 const closure = read('supabase/migrations/044_blocker_only_all_station_release_closure.sql');
+const corrective = read('supabase/migrations/045_canonical_work_item_eligibility_and_legacy_stage_reconciliation.sql');
 const rejected = read('supabase/obsolete_migrations/043_all_station_review_closure_REJECTED_NEVER_APPLY.sql');
 const backup = read('scripts/pdc_backup.py');
-const effectiveMigration = `${migration}\n${closure}`;
+const effectiveMigration = `${migration}\n${closure}\n${corrective}`;
 const index = read('index.html');
 const eligibility = require('./workshop-eligibility.js');
 
@@ -44,8 +45,8 @@ assert(app.includes('workshopEligibilityRevisionPending = true') && app.includes
 assert(app.includes("if (app.workshopEligibilityState !== 'connected') return []"), 'disconnected Control Board must not consume stale candidates');
 assert(planner.includes('WORKSHOP_ELIGIBILITY_RUNTIME.workshopCanonicalEligibility'), 'planner must apply the canonical candidate contract');
 assert(planner.includes("stock: vehicle.stock_number || ''") && planner.includes("client: vehicle.customer_name || ''"), 'shared snapshot candidates must populate the planner identity fields used by the queue renderer');
-assert(migration.match(/get_station_workshop_snapshot[\s\S]*workshop_station_eligibility\(v_stage\)/), 'station RPC must use canonical eligibility');
-assert(migration.match(/get_workshop_eligibility_snapshot[\s\S]*workshop_station_eligibility\(s\.code\)/), 'Control Board RPC must use canonical eligibility');
+assert(corrective.match(/get_station_workshop_snapshot[\s\S]*workshop_station_eligibility\(v_stage\)/), 'station RPC must use canonical eligibility');
+assert(corrective.match(/get_workshop_eligibility_snapshot[\s\S]*workshop_station_eligibility\(s\.code\)/), 'Control Board RPC must use canonical eligibility');
 assert(migration.includes("in('PMB','YH')") && migration.includes("='IT'"), 'database eligibility must implement PMB/YH/IT rules');
 assert(migration.includes("'missing_eta'"), 'missing IT ETA must remain visible and disabled');
 assert(!/(update\s+public\.vehicles|insert\s+into\s+public\.vehicle_movements)/i.test(migration), 'eligibility migration must never change location/workflow state');
@@ -63,7 +64,7 @@ const scheduleClosure = closure.slice(closure.indexOf('create or replace functio
 assert(!/\b(current_location|pmb_stage|visible_on_board)\s*=/.test(scheduleClosure), 'scheduling RPC must preserve location, workflow stage and visibility');
 const moveClosure = closure.slice(closure.indexOf('create or replace function public.move_workshop_booking'), closure.indexOf('create or replace function public.resize_workshop_booking'));
 assert(moveClosure.includes('workshop_move_booking') && !/update\s+public\.vehicles|\b(current_location|pmb_stage|visible_on_board)\s*=/.test(moveClosure), 'booking move RPC must preserve vehicle authority');
-const stationSnapshotClosure = closure.slice(closure.indexOf('create or replace function public.get_station_workshop_snapshot'), closure.indexOf('create or replace function public.get_workshop_eligibility_snapshot'));
+const stationSnapshotClosure = corrective.slice(corrective.indexOf('create or replace function public.get_station_workshop_snapshot'), corrective.indexOf('create or replace function public.get_workshop_eligibility_snapshot'));
 assert(stationSnapshotClosure.includes('wi.vehicle_id=any(v_ids)') && !stationSnapshotClosure.includes('to_jsonb(v)') && !stationSnapshotClosure.includes('to_jsonb(w)'), 'station snapshot must scope and project vehicles/work items');
 assert(backup.indexOf('"workshop_stage_aliases"') > backup.indexOf('"workshop_stages"'), 'backup manifest must preserve canonical stage aliases after their parent stages');
 
