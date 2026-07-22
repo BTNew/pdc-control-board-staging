@@ -592,15 +592,15 @@ function workshopRequireOperatorProfile() {
 //                             should show body.error to the user via
 //                             workshopDescribeSharedActionError() and stop;
 //                             it must NOT apply any further local mutation
-// Section 8 Parts-incomplete override retry: move_workshop_booking and
-// schedule_vehicle_work both accept an inline p_override_reason -- when the
-// database rejects with 'parts_incomplete', prompt once for a reason and
-// resubmit the exact same payload with that reason attached. The database
-// (not this function) is the final authority on whether the acting user's
-// role is actually permitted to override; an unauthorised user's retry is
-// rejected again by the RPC with a permission error, never silently
-// applied client-side.
-const WORKSHOP_OVERRIDE_CAPABLE_ACTIONS = new Set(['moveBooking', 'scheduleVehicleWork']);
+// Section 8 Parts-incomplete override retry: move_workshop_booking,
+// schedule_vehicle_work, and the atomic cascade scheduler all accept an
+// inline p_override_reason -- when the database rejects with
+// 'parts_incomplete', prompt once for a reason and resubmit the exact same
+// payload with that reason attached. The database (not this function) is the
+// final authority on whether the acting user's role is actually permitted to
+// override; an unauthorised user's retry is rejected again by the RPC with a
+// permission error, never silently applied client-side.
+const WORKSHOP_OVERRIDE_CAPABLE_ACTIONS = new Set(['moveBooking', 'scheduleVehicleWork', 'cascadeSchedule']);
 
 async function workshopDispatchSharedAction(actionName, payload) {
   if (!workshopSharedModeActive()) return null;

@@ -160,6 +160,12 @@ begin
     end if;
     perform 1 from public.vehicles where id = p_target_id and version = p_target_expected_version for update;
     if not found then return jsonb_build_object('ok', false, 'error', 'vehicle_version_conflict'); end if;
+    if v_stage.is_physical and not public.workshop_parts_ready(p_target_id) then
+      if p_override_reason is null or trim(p_override_reason) = '' then
+        return jsonb_build_object('ok', false, 'error', 'parts_incomplete');
+      end if;
+      perform public.require_pdc_role('administrator');
+    end if;
   else
     select * into v_target from public.workshop_bookings where id = p_target_id for update;
     if not found then raise exception 'Workshop booking not found' using errcode = 'P0002'; end if;
@@ -181,7 +187,9 @@ begin
     p_scheduled_start_at := v_target.scheduled_start_at;
   end if;
 
-  perform pg_advisory_xact_lock(hashtextextended(v_bay.id::text, 0));
+  -- Use the same namespaced advisory lock as every existing booking mutation.
+  -- This serialises queue discovery with create/move/resize RPCs for the bay.
+  perform public.workshop_lock_resources(v_bay.id, null);
 
   select coalesce(array_agg(b.id order by b.scheduled_start_at, b.id), '{}'::uuid[])
     into v_expected_ids
@@ -192,6 +200,10 @@ begin
 
   perform 1 from public.workshop_bookings b where b.id = any(v_expected_ids) order by b.scheduled_start_at, b.id for update;
 
+  -- Keep the target action and every shifted timestamp in one subtransaction.
+  -- If the protected target RPC returns a structured business rejection, the
+  -- exception block rolls back all shifts and returns that rejection intact.
+  begin
   for v_shifted in
     select * from public.workshop_bookings b where b.id = any(v_expected_ids)
     order by b.scheduled_start_at desc, b.id desc
@@ -217,16 +229,33 @@ begin
   -- Validate the final technician allocation after every shifted timestamp is in place.
   for v_shifted in select * from public.workshop_bookings where id = any(v_expected_ids)
   loop
+    v_conflict := public.workshop_find_bay_conflict(
+      v_shifted.id, v_bay.id, v_shifted.scheduled_start_at, v_shifted.scheduled_end_at
+    );
+    if v_conflict is not null then
+      v_result := jsonb_build_object(
+        'ok', false,
+        'error', 'bay_overlap',
+        'conflict', public.workshop_conflict_payload(v_conflict, 'bay_overlap')
+      );
+      raise exception 'Cascade bay conflict' using errcode = 'P0001';
+    end if;
     select technician_id into v_technician from public.workshop_booking_assignments
       where booking_id = v_shifted.id and released_at is null
       order by case when assignment_type = 'primary' then 0 else 1 end, assigned_at desc limit 1;
     if v_technician is not null then
       v_conflict := public.workshop_find_technician_conflict(v_shifted.id, v_technician, v_shifted.scheduled_start_at, v_shifted.scheduled_end_at);
       if v_conflict is not null then
-        raise exception 'Cascade technician conflict for booking %', v_shifted.id using errcode = '23P01';
+        v_result := jsonb_build_object(
+          'ok', false,
+          'error', 'technician_overlap',
+          'conflict', public.workshop_conflict_payload(v_conflict, 'technician_overlap')
+        );
+        raise exception 'Cascade technician conflict' using errcode = 'P0001';
       end if;
       if public.workshop_technician_leave_date(v_technician, v_shifted.scheduled_start_at, v_shifted.scheduled_end_at) is not null then
-        raise exception 'Cascade technician leave conflict for booking %', v_shifted.id using errcode = '23P01';
+        v_result := jsonb_build_object('ok', false, 'error', 'technician_leave_conflict');
+        raise exception 'Cascade technician leave conflict' using errcode = 'P0001';
       end if;
     end if;
   end loop;
@@ -241,8 +270,14 @@ begin
   end if;
 
   if coalesce((v_result->>'ok')::boolean, false) is not true then
-    raise exception 'Atomic cascade target action failed: %', v_result::text using errcode = 'P0001';
+    raise exception 'Atomic cascade target action failed' using errcode = 'P0001';
   end if;
+  exception when sqlstate 'P0001' then
+    if v_result is not null and coalesce((v_result->>'ok')::boolean, false) is not true then
+      return v_result;
+    end if;
+    raise;
+  end;
 
   return v_result || jsonb_build_object(
     'cascade_operation', v_operation,
