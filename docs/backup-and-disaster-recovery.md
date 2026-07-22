@@ -64,6 +64,12 @@ secondary backup:
 Both layers should be tested and documented; neither replaces the
 other.
 
+### Canonical workshop-stage alias authority
+
+`workshop_stage_aliases` is mandatory operational configuration. It is exported immediately after `workshop_stages` in foreign-key-safe order. For migration 042 and later, every table in the ledger-versioned operational inventory is mandatory (55 tables at the migration-042/044 boundary), and the backup preflight verifies the migration-appropriate required alias corpus before publishing anything; a missing operational table, missing/remapped/unexpected/malformed alias, absent count/hash evidence, or incomplete manifest fails the backup.
+
+The encrypted payload and plaintext manifest record the alias row count and a deterministic normalization-map SHA-256 in `authority_contracts.workshop_stage_aliases`. Format-2 restore validation rejects missing or altered evidence before creating a schema. Isolated restore then verifies exact alias-row parity, exact schema/constraint parity, and identical normalized-alias-to-canonical-station results. Migration 044's reviewed corpus contains 37 mappings; pre-044 migration-042 backups remain valid against their 22-row applied baseline.
+
 ## Restore verification (independent-review remediation, finding #9)
 
 **Before this remediation**: `pdc_restore.py` used a short, 27-entry

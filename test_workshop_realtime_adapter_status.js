@@ -86,8 +86,10 @@ function clientHarness(options = {}) {
 function serviceHarness(options = {}) {
   return {
     reconnects: 0,
+    authorityLosses: 0,
     revisions: [],
     onRevisionSignal(revision) { this.revisions.push(revision); },
+    onAuthorityLost() { this.authorityLosses += 1; },
     onReconnect() {
       this.reconnects += 1;
       if (options.throwOnReconnect === this.reconnects) throw new Error('simulated resync failure');
@@ -128,6 +130,7 @@ function assertSingleFailure(status) {
   assert.strictEqual(h.timers.count(), 1, `${status}: exactly one retry timer`);
   assert.deepStrictEqual(h.timers.delays(), [1000], `${status}: bounded initial backoff`);
   assert.strictEqual(failed.removeCalls, 1, `${status}: failed channel removed exactly once`);
+  assert.strictEqual(h.service.authorityLosses, 1, `${status}: failed generation invalidates snapshot authority exactly once`);
   assert.strictEqual(h.active.size, 0, `${status}: no failed channel remains active`);
   return h;
 }

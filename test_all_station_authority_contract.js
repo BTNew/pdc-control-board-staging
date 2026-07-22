@@ -8,7 +8,8 @@ const app = read('app.js');
 const planner = read('workshop-planner.js');
 const moduleSource = read('workshop-eligibility.js');
 const migration = read('supabase/migrations/042_all_station_eligibility_and_sublet_planner_removal.sql');
-const closure = read('supabase/migrations/043_all_station_review_closure.sql');
+const closure = read('supabase/migrations/044_blocker_only_all_station_release_closure.sql');
+const rejected = read('supabase/obsolete_migrations/043_all_station_review_closure_REJECTED_NEVER_APPLY.sql');
 const backup = read('scripts/pdc_backup.py');
 const effectiveMigration = `${migration}\n${closure}`;
 const index = read('index.html');
@@ -27,10 +28,11 @@ const normalizeAlias = value => String(value).toUpperCase().replace(/[^A-Z0-9]+/
 for (const def of eligibility.stationDefinitions) {
   for (const alias of [def.code, def.workKey, def.jobKey, def.label, ...def.aliases]) {
     const normalized = normalizeAlias(alias);
-    assert(closure.includes(`('${normalized}','${def.code}')`) || migration.includes(`('${normalized}'`), `SQL alias corpus missing ${alias} -> ${def.code}`);
+    assert(closure.includes(`('${normalized}'`) || migration.includes(`('${normalized}'`), `SQL alias corpus missing ${alias} -> ${def.code}`);
   }
 }
-assert(closure.includes("('PITSHOIST','HOIST')"), 'Pits Hoist must map to Hoist at every authority boundary');
+assert(closure.includes("('PITSHOIST','Pits Hoist','HOIST')"), 'Pits Hoist must map to Hoist at every authority boundary');
+assert(!fs.existsSync(path.join(root,'supabase/migrations/043_all_station_review_closure.sql')) && rejected.includes('Corrective closure'), 'rejected 043 must be formally outside the active migration sequence');
 
 assert(index.indexOf('workshop-eligibility.js') < index.indexOf('app.js'), 'canonical mapping must load before app routing/counts');
 assert(app.includes('return authoritativeWorkshopVehiclesForStage(normalizedStage)'), 'shared Control Board counts must fail over to authoritative candidates, not browser-local filtering');
@@ -49,19 +51,19 @@ assert(migration.includes("'missing_eta'"), 'missing IT ETA must remain visible 
 assert(!/(update\s+public\.vehicles|insert\s+into\s+public\.vehicle_movements)/i.test(migration), 'eligibility migration must never change location/workflow state');
 assert(migration.includes('workshop_station_revision_from_vehicle') && migration.includes('vehicle_work_items'), 'location changes must invalidate every outstanding requirement station');
 assert(closure.includes("array['workshop_stages','workshop_stage_aliases','workshop_bays','workshop_technicians','workshop_settings']"), 'configuration dependencies must invalidate all station revisions');
-assert(closure.includes("v_role not in ('operator','administrator')"), 'planner snapshots must exclude importer/viewer roles');
+assert(closure.includes("in ('operator','administrator')") && closure.includes('workshop_require_planner_operator'), 'planner snapshots must exclude importer/viewer roles');
 assert(closure.includes('workshop_bookings_require_planner_operator') && closure.includes('before insert or update or delete on public.workshop_bookings'), 'all direct and RPC booking mutations must enforce the exact planner operator boundary');
 assert(closure.includes("new.status='completed'") && closure.includes("raise exception 'planner_disabled stage=%'"), 'disabled planner lifecycle mutations must fail while historical completion remains narrowly allowed');
 assert(closure.includes('revoke execute on function public.workshop_start_booking') && closure.includes('revoke execute on function public.workshop_restore_booking'), 'obsolete low-level lifecycle RPCs must not remain browser-callable');
 assert(closure.includes('pg_trigger_depth()>1') && closure.includes("array['eta_at_booking','eta_risk_status','eta_risk_detected_at','version','updated_by']"), 'nested importer ETA-risk maintenance must remain allowed without widening direct booking writes');
-assert(closure.includes('update public.workshop_station_revision\n set revision=revision+1'), 'disabled/deleted station subscribers must receive a final invalidation');
-const etaGuard = closure.slice(closure.indexOf('create or replace function public.workshop_enforce_vehicle_eta'), closure.indexOf('drop trigger if exists workshop_bookings_enforce_vehicle_eta'));
+assert(closure.match(/update public\.workshop_station_revision set revision=revision\+1/), 'disabled/deleted station subscribers must receive a final invalidation');
+const etaGuard = effectiveMigration.slice(effectiveMigration.indexOf('create or replace function public.workshop_enforce_vehicle_eta'), effectiveMigration.indexOf('drop trigger if exists workshop_bookings_enforce_vehicle_eta'));
 assert(etaGuard.includes("v_location='IT'") && !etaGuard.includes("v_location in ('YH','IT')"), 'YH must schedule immediately while IT remains ETA-gated');
-const scheduleClosure = closure.slice(closure.indexOf('create or replace function public.schedule_vehicle_work'), closure.indexOf('revoke all on function public.schedule_vehicle_work'));
+const scheduleClosure = closure.slice(closure.indexOf('create or replace function public.schedule_vehicle_work'), closure.indexOf('create or replace function public.move_workshop_booking'));
 assert(!/\b(current_location|pmb_stage|visible_on_board)\s*=/.test(scheduleClosure), 'scheduling RPC must preserve location, workflow stage and visibility');
-const moveClosure = closure.slice(closure.indexOf('create or replace function public.move_workshop_booking'), closure.indexOf('revoke all on function public.move_workshop_booking'));
+const moveClosure = closure.slice(closure.indexOf('create or replace function public.move_workshop_booking'), closure.indexOf('create or replace function public.resize_workshop_booking'));
 assert(moveClosure.includes('workshop_move_booking') && !/update\s+public\.vehicles|\b(current_location|pmb_stage|visible_on_board)\s*=/.test(moveClosure), 'booking move RPC must preserve vehicle authority');
-const stationSnapshotClosure = closure.slice(closure.indexOf('create or replace function public.get_station_workshop_snapshot'), closure.indexOf('revoke all on function public.get_workshop_eligibility_snapshot'));
+const stationSnapshotClosure = closure.slice(closure.indexOf('create or replace function public.get_station_workshop_snapshot'), closure.indexOf('create or replace function public.get_workshop_eligibility_snapshot'));
 assert(stationSnapshotClosure.includes('wi.vehicle_id=any(v_ids)') && !stationSnapshotClosure.includes('to_jsonb(v)') && !stationSnapshotClosure.includes('to_jsonb(w)'), 'station snapshot must scope and project vehicles/work items');
 assert(backup.indexOf('"workshop_stage_aliases"') > backup.indexOf('"workshop_stages"'), 'backup manifest must preserve canonical stage aliases after their parent stages');
 

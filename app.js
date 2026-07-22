@@ -1,5 +1,5 @@
-const APP_VERSION = '2026.07.22.07-all-station-review-closure';
-const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.07.22.07-all-station-review-closure';
+const APP_VERSION = '2026.07.22.08-blocker-remediation';
+const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.07.22.08-blocker-remediation';
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
 // constant intentionally names only the production ref, never the
@@ -4287,47 +4287,67 @@ function teardownWorkshopEligibilityOverview({ clearSnapshot = false } = {}) {
   }
 }
 
+function failWorkshopEligibilityOverviewSubscription(owner, status = 'Realtime unavailable') {
+  if (app.workshopEligibilityRealtime !== owner) return;
+  // Invalidate every snapshot request issued under the failed authority
+  // session before releasing the channel. A late response is therefore inert.
+  app.workshopEligibilityRequestGeneration += 1;
+  app.workshopEligibilityRealtime = null;
+  app.workshopEligibilitySnapshot = null;
+  app.workshopEligibilityRevisionPending = false;
+  app.workshopEligibilityState = 'reconnecting';
+  app.workshopEligibilityError = String(status || 'Realtime unavailable');
+  try { owner?.unsubscribe?.(); } catch (_error) { /* best effort */ }
+  if (app.workshopEligibilityReconnectTimer) clearTimeout(app.workshopEligibilityReconnectTimer);
+  app.workshopEligibilityReconnectTimer = setTimeout(() => {
+    app.workshopEligibilityReconnectTimer = null;
+    workshopEligibilityOverviewSubscribe();
+  }, 1000);
+  if (app.currentView === 'workflow') renderWorkflowBoard();
+}
+
 function workshopEligibilityOverviewSubscribe() {
   if (app.workshopEligibilityRealtime || typeof createPdcSupabaseRealtimeSubscription !== 'function') return;
   app.workshopEligibilitySnapshot = null;
   app.workshopEligibilityState = 'reconnecting';
-  let subscription = null;
-  subscription = createPdcSupabaseRealtimeSubscription(window.PDC_SUPABASE_CONFIG, {
-    onChange: () => {
-      if (app.workshopEligibilityState === 'connected') {
-        loadWorkshopEligibilitySnapshot('realtime');
-      } else {
-        app.workshopEligibilityRevisionPending = true;
-      }
+  // Install an owner token before opening the transport. Supabase adapters may
+  // emit a failure synchronously from subscribe(); the token still makes that
+  // callback authoritative and ensures the returned failed handle is disposed.
+  const owner = {
+    handle: null,
+    unsubscribe() {
+      const handle = owner.handle;
+      owner.handle = null;
+      handle?.unsubscribe?.();
     },
-    onSubscribed: () => {
-      if (app.workshopEligibilityReconnectTimer) clearTimeout(app.workshopEligibilityReconnectTimer);
-      app.workshopEligibilityReconnectTimer = null;
-      return loadWorkshopEligibilitySnapshot('subscribed');
-    },
-    onError: status => {
-      app.workshopEligibilitySnapshot = null;
-      app.workshopEligibilityRevisionPending = false;
-      app.workshopEligibilityState = 'reconnecting';
-      app.workshopEligibilityError = String(status || 'Realtime unavailable');
-      if (app.currentView === 'workflow') renderWorkflowBoard();
-    },
-    onClosed: () => {
-      if (app.workshopEligibilityRealtime !== subscription) return;
-      app.workshopEligibilityRealtime = null;
-      app.workshopEligibilitySnapshot = null;
-      app.workshopEligibilityRevisionPending = false;
-      app.workshopEligibilityState = 'reconnecting';
-      try { subscription?.unsubscribe?.(); } catch (_error) { /* best effort */ }
-      if (app.workshopEligibilityReconnectTimer) clearTimeout(app.workshopEligibilityReconnectTimer);
-      app.workshopEligibilityReconnectTimer = setTimeout(() => {
+  };
+  app.workshopEligibilityRealtime = owner;
+  let handle;
+  try {
+    handle = createPdcSupabaseRealtimeSubscription(window.PDC_SUPABASE_CONFIG, {
+      onChange: () => {
+        if (app.workshopEligibilityRealtime !== owner) return;
+        if (app.workshopEligibilityState === 'connected') {
+          loadWorkshopEligibilitySnapshot('realtime');
+        } else {
+          app.workshopEligibilityRevisionPending = true;
+        }
+      },
+      onSubscribed: () => {
+        if (app.workshopEligibilityRealtime !== owner) return null;
+        if (app.workshopEligibilityReconnectTimer) clearTimeout(app.workshopEligibilityReconnectTimer);
         app.workshopEligibilityReconnectTimer = null;
-        workshopEligibilityOverviewSubscribe();
-      }, 1000);
-      if (app.currentView === 'workflow') renderWorkflowBoard();
-    },
-  }, { allStations: true });
-  app.workshopEligibilityRealtime = subscription;
+        return loadWorkshopEligibilitySnapshot('subscribed');
+      },
+      onError: status => failWorkshopEligibilityOverviewSubscription(owner, status),
+      onClosed: status => failWorkshopEligibilityOverviewSubscription(owner, status || 'Realtime closed'),
+    }, { allStations: true });
+  } catch (error) {
+    failWorkshopEligibilityOverviewSubscription(owner, error?.message || 'Realtime subscribe failed');
+    return;
+  }
+  owner.handle = handle;
+  if (app.workshopEligibilityRealtime !== owner) owner.unsubscribe();
 }
 
 async function loadWorkshopEligibilitySnapshot(reason = 'manual') {
@@ -4347,6 +4367,8 @@ async function loadWorkshopEligibilitySnapshot(reason = 'manual') {
     workshopEligibilityOverviewSubscribe();
     return null;
   }
+  const authorityOwner = app.workshopEligibilityRealtime;
+  if (!authorityOwner) return null;
   const generation = ++app.workshopEligibilityRequestGeneration;
   app.workshopEligibilityState = 'loading';
   app.workshopEligibilityError = '';
@@ -4363,7 +4385,7 @@ async function loadWorkshopEligibilitySnapshot(reason = 'manual') {
     });
     if (!response.ok) throw new Error(response.status === 401 || response.status === 403 ? 'Not authorized to read workshop eligibility.' : `Eligibility RPC failed (${response.status}).`);
     const snapshot = await response.json();
-    if (generation !== app.workshopEligibilityRequestGeneration) return null;
+    if (generation !== app.workshopEligibilityRequestGeneration || app.workshopEligibilityRealtime !== authorityOwner) return null;
     if (!snapshot || !Array.isArray(snapshot.stages) || !Array.isArray(snapshot.candidates)) throw new Error('Eligibility RPC returned an invalid snapshot.');
     app.workshopEligibilitySnapshot = snapshot;
     app.workshopEligibilityState = 'connected';
@@ -4375,7 +4397,7 @@ async function loadWorkshopEligibilitySnapshot(reason = 'manual') {
     }
     return snapshot;
   } catch (error) {
-    if (generation !== app.workshopEligibilityRequestGeneration) return null;
+    if (generation !== app.workshopEligibilityRequestGeneration || app.workshopEligibilityRealtime !== authorityOwner) return null;
     app.workshopEligibilitySnapshot = null;
     app.workshopEligibilityState = 'offline_error';
     app.workshopEligibilityError = error?.message || String(error);
@@ -15832,7 +15854,8 @@ function aiBoardBookingDtos(snapshot = null) {
         const calculatedEnd = start && duration > 0 ? new Date(start.getTime() + duration * 60000).toISOString() : '';
         return {
           id: booking?.booking_id || booking?.id || '',
-          vehicleIdentity: booking?.vehicle?.id ? `shared:${booking.vehicle.id}` : '',
+          vehicleIdentity: (booking?.vehicle_id || booking?.vehicle?.id)
+            ? `shared:${booking.vehicle_id || booking.vehicle.id}` : '',
           stage: booking?.stage?.code || booking?.stage_code || '',
           bay: booking?.bay?.bay_number ?? booking?.bay_number ?? '',
           status: booking?.status === 'queued' ? 'planned' : booking?.status || '',

@@ -160,11 +160,27 @@ function createWorkshopDataService(options) {
   // only a successful authenticated snapshot response restores trust.
   let snapshotTrusted = false;
   let pendingReloadTimer = null;
-  let reloadInFlight = false;
+  let activeLoadToken = null;
   let trailingReloadRequested = false;
   let destroyed = false;
   let lifecycleGeneration = 0;
   let scopeGeneration = 0;
+
+  function invalidateAuthority(nextState = WORKSHOP_CONNECTION_STATE.RECONNECTING) {
+    lifecycleGeneration += 1;
+    snapshotTrusted = false;
+    lastSnapshot = null;
+    lastRevision = null;
+    trailingReloadRequested = false;
+    // Detach any unresolved request from the current authority session. Its
+    // finally block checks identity before changing current-session state.
+    activeLoadToken = null;
+    if (pendingReloadTimer) {
+      clearScheduledTimeout(pendingReloadTimer);
+      pendingReloadTimer = null;
+    }
+    if (!destroyed) setState(nextState);
+  }
 
   function setState(next) {
     if (state === next) return;
@@ -182,7 +198,7 @@ function createWorkshopDataService(options) {
       if (!destroyed) setState(WORKSHOP_CONNECTION_STATE.DISABLED);
       return null;
     }
-    if (reloadInFlight) {
+    if (activeLoadToken) {
       snapshotTrusted = false;
       trailingReloadRequested = true;
       return lastSnapshot;
@@ -193,12 +209,13 @@ function createWorkshopDataService(options) {
       // A publishable-key response is not positive authenticated authority.
       // Keep ordinary planner fallback but never request or trust advisory
       // data until an individual session access token is present.
-      setState(WORKSHOP_CONNECTION_STATE.CONNECTED_READ_ONLY);
+      setState(WORKSHOP_CONNECTION_STATE.PERMISSION_DENIED);
       return lastSnapshot;
     }
     const generation = lifecycleGeneration;
     const requestScopeGeneration = scopeGeneration;
-    reloadInFlight = true;
+    const loadToken = {};
+    activeLoadToken = loadToken;
     try {
       const rpcName = scope ? 'get_station_workshop_snapshot' : 'get_workshop_snapshot';
       const rpcParams = scope ? {
@@ -214,7 +231,7 @@ function createWorkshopDataService(options) {
           setState(WORKSHOP_CONNECTION_STATE.INCOMPATIBLE);
         } else if (result.status === 401 || result.status === 403) {
           snapshotTrusted = false;
-          setState(WORKSHOP_CONNECTION_STATE.CONNECTED_READ_ONLY);
+          setState(WORKSHOP_CONNECTION_STATE.PERMISSION_DENIED);
         } else {
           setState(WORKSHOP_CONNECTION_STATE.OFFLINE_READ_ONLY);
         }
@@ -235,7 +252,8 @@ function createWorkshopDataService(options) {
       setState(WORKSHOP_CONNECTION_STATE.OFFLINE_READ_ONLY);
       return lastSnapshot;
     } finally {
-      reloadInFlight = false;
+      if (activeLoadToken !== loadToken) return;
+      activeLoadToken = null;
       if (!destroyed && generation === lifecycleGeneration && trailingReloadRequested) {
         trailingReloadRequested = false;
         // A newer change arrived while we were mid-fetch; reload again so we
@@ -250,6 +268,9 @@ function createWorkshopDataService(options) {
     // A newer revision is known to exist, so the retained snapshot is not
     // current during debounce or reload and must not feed advisory output.
     snapshotTrusted = false;
+    // Retain the last snapshot for visual continuity, but make every action
+    // non-editable immediately rather than waiting for the debounced refetch.
+    setState(WORKSHOP_CONNECTION_STATE.RECONNECTING);
     if (pendingReloadTimer) {
       clearScheduledTimeout(pendingReloadTimer);
     }
@@ -269,7 +290,12 @@ function createWorkshopDataService(options) {
   function onReconnect() {
     if (destroyed) return;
     setState(WORKSHOP_CONNECTION_STATE.RECONNECTING);
-    loadSnapshot('reconnect');
+    return loadSnapshot('reconnect');
+  }
+
+  function onAuthorityLost() {
+    if (!enabled || destroyed) return;
+    invalidateAuthority(WORKSHOP_CONNECTION_STATE.RECONNECTING);
   }
 
   function onVisibilityReturn() {
@@ -279,7 +305,8 @@ function createWorkshopDataService(options) {
 
   function onTokenRefresh() {
     if (!enabled || destroyed) return;
-    loadSnapshot('token_refresh');
+    invalidateAuthority(WORKSHOP_CONNECTION_STATE.RECONNECTING);
+    return loadSnapshot('token_refresh');
   }
 
   async function setScope(nextScope) {
@@ -287,10 +314,7 @@ function createWorkshopDataService(options) {
     if (JSON.stringify(normalized) === JSON.stringify(scope)) return lastSnapshot;
     scope = normalized;
     scopeGeneration += 1;
-    lastSnapshot = null;
-    lastRevision = null;
-    snapshotTrusted = false;
-    setState(WORKSHOP_CONNECTION_STATE.CONNECTING);
+    invalidateAuthority(WORKSHOP_CONNECTION_STATE.CONNECTING);
     return loadSnapshot('scope_changed');
   }
 
@@ -304,7 +328,7 @@ function createWorkshopDataService(options) {
     if (!enabled) {
       throw new Error('workshop-data-service: shared mode is not enabled; no writable operational path exists');
     }
-    if (!isEditable()) {
+    if (!isEditable() || !snapshotTrusted || pendingReloadTimer || activeLoadToken || trailingReloadRequested) {
       return { ok: false, error: 'not_editable', state };
     }
     // Every mutation requires exactly one non-null expected-version param.
@@ -321,7 +345,7 @@ function createWorkshopDataService(options) {
     if (!result.ok) {
       if (result.status === 401 || result.status === 403) {
         snapshotTrusted = false;
-        setState(WORKSHOP_CONNECTION_STATE.CONNECTED_READ_ONLY);
+        setState(WORKSHOP_CONNECTION_STATE.PERMISSION_DENIED);
       }
       return { ok: false, error: 'request_failed', status: result.status, body: result.body };
     }
@@ -343,15 +367,7 @@ function createWorkshopDataService(options) {
   function destroy() {
     if (destroyed) return;
     destroyed = true;
-    lifecycleGeneration += 1;
-    snapshotTrusted = false;
-    lastSnapshot = null;
-    lastRevision = null;
-    trailingReloadRequested = false;
-    if (pendingReloadTimer) {
-      clearScheduledTimeout(pendingReloadTimer);
-      pendingReloadTimer = null;
-    }
+    invalidateAuthority(WORKSHOP_CONNECTION_STATE.DISABLED);
   }
 
   return {
@@ -365,7 +381,7 @@ function createWorkshopDataService(options) {
       snapshotTrusted
       && !destroyed
       && !pendingReloadTimer
-      && !reloadInFlight
+      && !activeLoadToken
       && !trailingReloadRequested
       && [WORKSHOP_CONNECTION_STATE.CONNECTED_READ_ONLY, WORKSHOP_CONNECTION_STATE.CONNECTED_EDITABLE].includes(state)
         ? lastSnapshot
@@ -377,6 +393,7 @@ function createWorkshopDataService(options) {
     setScope,
     onRevisionSignal,
     onReconnect,
+    onAuthorityLost,
     onVisibilityReturn,
     onTokenRefresh,
     mutate,

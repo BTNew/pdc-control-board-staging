@@ -387,7 +387,7 @@ for (const file of htmlFiles) {
   assert.ok(html.includes(`workshop-planner.css?v=${appVersion}`), `${file} is missing the planner stylesheet`);
   assert.ok(!html.includes('<script src="workshop-planner.js'), `${file} must not eagerly load the planner script`);
 }
-assert.ok(app.includes("const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.07.22.07-all-station-review-closure';"), 'Workshop Planner must carry the all-station eligibility cache-bust version');
+assert.ok(app.includes("const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.07.22.08-blocker-remediation';"), 'Workshop Planner must carry the all-station eligibility cache-bust version');
 assert.ok(app.includes("loadExternalScript(`workshop-planner.js?v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}`"), 'app.js must lazy-load the Workshop Planner with its dedicated cache-bust version');
 
 console.log('Workshop planner regression checks passed');

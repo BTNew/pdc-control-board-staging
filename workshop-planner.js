@@ -510,7 +510,9 @@ function workshopMapSnapshotBookingToLegacyRow(booking = {}) {
     stoppageReason: booking.stoppage_reason || '',
     stoppageAt: booking.stoppage_started_at || '',
     stoppageMinutes: Number(booking.stoppage_accumulated_minutes || 0),
-    actualHours: booking.actual_duration_minutes != null ? Number(booking.actual_duration_minutes) / 60 : undefined,
+    actualHours: booking.actual_start_at && booking.actual_end_at
+      ? (new Date(booking.actual_end_at).getTime() - new Date(booking.actual_start_at).getTime()) / 3600000
+      : undefined,
     completedAt: booking.actual_end_at || '',
     createdAt: booking.created_at,
     updatedAt: booking.updated_at,

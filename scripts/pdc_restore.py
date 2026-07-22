@@ -46,6 +46,9 @@ from pdc_backup import (  # noqa: E402
     TABLES,
     NAVISION_BACKUP_TABLES,
     migration_number,
+    required_workshop_aliases,
+    required_workshop_alias_values,
+    required_backup_tables,
 )
 
 
@@ -99,6 +102,8 @@ def clone_table_structure(cur, schema_name, table_name):
 def validate_backup_contract(data):
     version = str(data.get("backup_format_version", "1"))
     if version == "1":
+        if migration_number(data.get("migration_version")) >= 42:
+            raise RuntimeError("Legacy format-1 backups cannot claim migration 042 or later")
         return {"format_version": version, "legacy": True}
     if version != "2":
         raise RuntimeError(f"Unsupported backup format version: {version}")
@@ -109,10 +114,38 @@ def validate_backup_contract(data):
     table_names = set(tables)
     if set(hashes) != table_names or set(schema) != table_names or set(counts) != table_names:
         raise RuntimeError("Format-2 evidence must cover exactly every payload table")
+    required_tables = required_backup_tables(data.get("migration_version"))
+    if required_tables and table_names != required_tables:
+        missing = sorted(required_tables - table_names)
+        unexpected = sorted(table_names - required_tables)
+        raise RuntimeError("Migration-042+ operational inventory mismatch; missing=" + ",".join(missing) + "; unexpected=" + ",".join(unexpected))
     if migration_number(data.get("migration_version")) >= 37:
         missing = sorted(NAVISION_BACKUP_TABLES - table_names)
         if missing:
             raise RuntimeError("Migration-037 backup is missing required tables: " + ", ".join(missing))
+    if migration_number(data.get("migration_version")) >= 42:
+        if "workshop_stage_aliases" not in table_names:
+            raise RuntimeError("Workshop alias authority is missing from the backup payload")
+        evidence = data.get("authority_contracts", {}).get("workshop_stage_aliases")
+        if not isinstance(evidence, dict):
+            raise RuntimeError("Workshop alias authority evidence is missing")
+        details = tables["workshop_stage_aliases"]
+        columns = details.get("columns", [])
+        try:
+            aliases = sorted((str(row["alias_normalized"]), str(row["alias_value"]), str(row["stage_code"])) for row in details.get("rows", []))
+        except (KeyError, TypeError) as exc:
+            raise RuntimeError("Workshop alias payload is malformed") from exc
+        if not {"alias_normalized", "alias_value", "stage_code"}.issubset(columns):
+            raise RuntimeError("Workshop alias payload lacks normalization columns")
+        required = required_workshop_aliases(data.get("migration_version"))
+        values = required_workshop_alias_values(data.get("migration_version"))
+        actual = {alias: (value, stage) for alias, value, stage in aliases}
+        expected = {alias: (values[alias], stage) for alias, stage in required.items()}
+        malformed = [alias for alias, value, _stage in aliases
+                     if alias != re.sub(r"[^A-Za-z0-9]+", "", value).upper()]
+        canonical = json.dumps(aliases, separators=(",", ":"), ensure_ascii=True).encode("utf-8")
+        if actual != expected or malformed or evidence.get("row_count") != len(aliases) or evidence.get("normalization_sha256") != hashlib.sha256(canonical).hexdigest():
+            raise RuntimeError("Workshop alias authority is incomplete or its count/hash evidence is invalid")
     for table, details in tables.items():
         if not isinstance(details, dict) or not isinstance(details.get("columns"), list) or not isinstance(details.get("rows"), list):
             raise RuntimeError(f"Format-2 table payload is malformed: {table}")
@@ -500,7 +533,7 @@ def verify_format_v2_evidence(cur, schema_name, data):
     }
 
 
-def verify_restore(cur, schema_name, backup_row_counts):
+def verify_restore(cur, schema_name, backup_row_counts, backup_tables=None):
     report = {"schema": schema_name, "tables": {}, "checks": {}}
     mismatches = []
 
@@ -574,6 +607,21 @@ def verify_restore(cur, schema_name, backup_row_counts):
     report["checks"]["notifications_restored_disabled"] = pending_after_restore == 0
     report["checks"]["notification_rows_left_pending"] = pending_after_restore
 
+    alias_parity = True
+    alias_normalization_parity = True
+    if backup_tables and "workshop_stage_aliases" in backup_tables:
+        expected_rows = backup_tables["workshop_stage_aliases"]["rows"]
+        expected = sorted((str(row["alias_normalized"]), str(row["stage_code"])) for row in expected_rows)
+        cur.execute(f'select alias_normalized,stage_code from {quote_ident(schema_name)}.workshop_stage_aliases order by alias_normalized')
+        restored = [(str(alias), str(stage)) for alias, stage in cur.fetchall()]
+        alias_parity = restored == expected
+        # The normalizer contract is the normalized key -> canonical station
+        # map; identical ordered pairs prove every restored input resolves to
+        # the same station as the encrypted source payload.
+        alias_normalization_parity = dict(restored) == dict(expected)
+    report["checks"]["workshop_stage_aliases_restored_identically"] = alias_parity
+    report["checks"]["workshop_stage_normalization_results_match"] = alias_normalization_parity
+
     report["row_count_mismatches"] = mismatches
     report["all_checks_passed"] = (
         not mismatches
@@ -582,6 +630,8 @@ def verify_restore(cur, schema_name, backup_row_counts):
         and orphaned_assignments == 0
         and orphaned_audit == 0
         and pending_after_restore == 0
+        and alias_parity
+        and alias_normalization_parity
     )
     return report
 
@@ -672,7 +722,7 @@ def restore_backup(conn, backup_file_path, encryption_key, schema_name=None):
         cur, schema_name, data["schema_objects"], table_order
     )
 
-    report = verify_restore(cur, schema_name, data["row_counts"])
+    report = verify_restore(cur, schema_name, data["row_counts"], data.get("tables"))
     format_evidence = verify_format_v2_evidence(cur, schema_name, data)
     report["format_evidence"] = format_evidence
     report["all_checks_passed"] = (

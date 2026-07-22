@@ -6,9 +6,9 @@
   if (root) root.PDC_WORKSHOP_ELIGIBILITY = api;
 })(typeof globalThis !== 'undefined' ? globalThis : this, function workshopEligibilityFactory() {
   const STATIONS = Object.freeze([
-    Object.freeze({ code: 'BUS_4X4', label: 'Bus 4x4', short: 'B4', workKey: 'BUS4X4', jobKey: 'bus4x4', route: 'planner-bus-4x4', path: 'workshop/bus-4x4', plannerEnabled: true, statusVisible: true, aliases: ['BUS_4X4', 'BUS4X4', 'BUS 4X4', '4X4 BUS', 'DEPARTMENT 138', 'DEPT 138'] }),
+    Object.freeze({ code: 'BUS_4X4', label: 'Bus 4x4', short: 'B4', workKey: 'BUS4X4', jobKey: 'bus4x4', route: 'planner-bus-4x4', path: 'workshop/bus-4x4', plannerEnabled: true, statusVisible: true, aliases: ['BUS_4X4', 'BUS4X4', 'BUS 4X4', 'BUS FOUR BY FOUR', '4X4 BUS', 'DEPARTMENT 138', 'DEPT 138'] }),
     Object.freeze({ code: 'TINT', label: 'Tint', short: 'T', workKey: 'TINT', jobKey: 'tint', route: 'planner-tint', path: 'workshop/tint', plannerEnabled: true, statusVisible: true, aliases: ['TINT', 'TINTING', 'WINDOW TINT'] }),
-    Object.freeze({ code: 'HOIST', label: 'Hoist', short: 'H', workKey: 'HOIST', jobKey: 'hoist', route: 'planner-hoist', path: 'workshop/hoist', plannerEnabled: true, statusVisible: true, aliases: ['HOIST', 'PITS HOIST', 'PIT HOIST', 'EXPRESS HOIST'] }),
+    Object.freeze({ code: 'HOIST', label: 'Hoist', short: 'H', workKey: 'HOIST', jobKey: 'hoist', route: 'planner-hoist', path: 'workshop/hoist', plannerEnabled: true, statusVisible: true, aliases: ['HOIST', 'LIFTS', 'PITS HOIST', 'PIT HOIST', 'EXPRESS HOIST'] }),
     Object.freeze({ code: 'FITTING', label: 'Fitting', short: 'F', workKey: 'FITTING', jobKey: 'fitting', route: 'planner-fitting', path: 'workshop/fitting', plannerEnabled: true, statusVisible: true, aliases: ['FITTING', 'FITMENT', 'FITOUT', 'FIT OUT', 'EXPRESS FITOUT'] }),
     Object.freeze({ code: 'FABRICATION', label: 'Fab', short: 'Fa', workKey: 'FABRICATION', jobKey: 'fabrication', route: 'planner-fab', path: 'workshop/fab', plannerEnabled: true, statusVisible: true, aliases: ['FABRICATION', 'FAB', 'FABRICATING'] }),
     Object.freeze({ code: 'ELECTRICAL', label: 'Elec', short: 'E', workKey: 'ELECTRICAL', jobKey: 'electrical', route: 'planner-elec', path: 'workshop/elec', plannerEnabled: true, statusVisible: true, aliases: ['ELECTRICAL', 'ELEC', 'AUTO ELECTRICAL', 'AUTO ELEC'] }),

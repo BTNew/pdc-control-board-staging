@@ -45,6 +45,7 @@ import gzip
 import hashlib
 import json
 import os
+import re
 import sys
 import time
 import uuid
@@ -56,6 +57,81 @@ import psycopg2.extras
 from cryptography.fernet import Fernet
 
 BACKUP_FORMAT_VERSION = "2"
+
+# Canonical alias authority is operational configuration, not disposable seed
+# data. A backup at migration 042 must contain the applied 042 baseline; a
+# migration-044 backup must contain the corrected/expanded release corpus.
+WORKSHOP_ALIASES_042 = {
+    "BUS4X4": "BUS_4X4", "BUSFOURBYFOUR": "BUS_4X4", "TINT": "TINT", "WINDOWTINT": "TINT",
+    "HOIST": "HOIST", "LIFTS": "HOIST", "FITTING": "FITTING", "FITOUT": "FITTING",
+    "FAB": "FABRICATION", "FABRICATION": "FABRICATION", "ELEC": "ELECTRICAL", "ELECTRICAL": "ELECTRICAL",
+    "TYRE": "TYRE", "TYRES": "TYRE", "TYREBAY": "TYRE", "PIT": "PIT_INSPECTION",
+    "PITS": "PIT_INSPECTION", "PITINSPECTION": "PIT_INSPECTION", "PITSHOIST": "PIT_INSPECTION",
+    "SUBLET": "SUBLET", "OUTSOURCE": "SUBLET", "OUTSOURCED": "SUBLET",
+}
+WORKSHOP_ALIASES_044 = {
+    "BUS4X4": "BUS_4X4", "BUSFOURBYFOUR": "BUS_4X4", "4X4BUS": "BUS_4X4", "DEPARTMENT138": "BUS_4X4", "DEPT138": "BUS_4X4",
+    "TINT": "TINT", "TINTING": "TINT", "WINDOWTINT": "TINT",
+    "HOIST": "HOIST", "LIFTS": "HOIST", "PITSHOIST": "HOIST", "PITHOIST": "HOIST", "EXPRESSHOIST": "HOIST",
+    "FITTING": "FITTING", "FITMENT": "FITTING", "FITOUT": "FITTING", "EXPRESSFITOUT": "FITTING",
+    "FABRICATION": "FABRICATION", "FAB": "FABRICATION", "FABRICATING": "FABRICATION",
+    "ELECTRICAL": "ELECTRICAL", "ELEC": "ELECTRICAL", "AUTOELECTRICAL": "ELECTRICAL", "AUTOELEC": "ELECTRICAL",
+    "TYRE": "TYRE", "TYRES": "TYRE", "TYREBAY": "TYRE", "TIRE": "TYRE", "TIREBAY": "TYRE",
+    "PITINSPECTION": "PIT_INSPECTION", "PIT": "PIT_INSPECTION", "PITS": "PIT_INSPECTION", "INSPECTION": "PIT_INSPECTION",
+    "SUBLET": "SUBLET", "OUTSOURCE": "SUBLET", "OUTSOURCED": "SUBLET", "EXTERNAL": "SUBLET",
+}
+WORKSHOP_ALIAS_VALUES_042 = {
+    "BUS4X4":"Bus 4x4","BUSFOURBYFOUR":"Bus Four By Four","TINT":"Tint","WINDOWTINT":"Window Tint",
+    "HOIST":"Hoist","LIFTS":"Lifts","FITTING":"Fitting","FITOUT":"Fit Out","FAB":"Fab","FABRICATION":"Fabrication",
+    "ELEC":"Elec","ELECTRICAL":"Electrical","TYRE":"Tyre","TYRES":"Tyres","TYREBAY":"Tyre Bay","PIT":"Pit","PITS":"Pits",
+    "PITINSPECTION":"Pit Inspection","PITSHOIST":"Pits Hoist","SUBLET":"Sublet","OUTSOURCE":"Outsource","OUTSOURCED":"Outsourced",
+}
+WORKSHOP_ALIAS_VALUES_044 = {
+    "BUS4X4":"Bus 4x4","BUSFOURBYFOUR":"Bus Four By Four","4X4BUS":"4x4 Bus","DEPARTMENT138":"Department 138","DEPT138":"Dept 138",
+    "TINT":"Tint","TINTING":"Tinting","WINDOWTINT":"Window Tint","HOIST":"Hoist","LIFTS":"Lifts","PITSHOIST":"Pits Hoist",
+    "PITHOIST":"Pit Hoist","EXPRESSHOIST":"Express Hoist","FITTING":"Fitting","FITMENT":"Fitment","FITOUT":"Fit Out",
+    "EXPRESSFITOUT":"Express Fit Out","FABRICATION":"Fabrication","FAB":"Fab","FABRICATING":"Fabricating","ELECTRICAL":"Electrical",
+    "ELEC":"Elec","AUTOELECTRICAL":"Auto Electrical","AUTOELEC":"Auto Elec","TYRE":"Tyre","TYRES":"Tyres","TYREBAY":"Tyre Bay",
+    "TIRE":"Tire","TIREBAY":"Tire Bay","PITINSPECTION":"Pit Inspection","PIT":"Pit","PITS":"Pits","INSPECTION":"Inspection",
+    "SUBLET":"Sublet","OUTSOURCE":"Outsource","OUTSOURCED":"Outsourced","EXTERNAL":"External",
+}
+
+
+def required_workshop_aliases(migration_version):
+    number = migration_number(migration_version)
+    if number >= 44:
+        return WORKSHOP_ALIASES_044
+    if number >= 42:
+        return WORKSHOP_ALIASES_042
+    return {}
+
+
+def required_workshop_alias_values(migration_version):
+    number = migration_number(migration_version)
+    if number >= 44:
+        return WORKSHOP_ALIAS_VALUES_044
+    if number >= 42:
+        return WORKSHOP_ALIAS_VALUES_042
+    return {}
+
+
+def validate_workshop_alias_authority(cur, migration_version):
+    """Fail closed if the canonical alias table is absent or incomplete."""
+    required = required_workshop_aliases(migration_version)
+    if not required:
+        return None
+    required_values = required_workshop_alias_values(migration_version)
+    cur.execute("select alias_normalized,alias_value,stage_code from public.workshop_stage_aliases order by alias_normalized")
+    rows = [(str(alias), str(value), str(stage)) for alias, value, stage in cur.fetchall()]
+    actual = {alias: (value, stage) for alias, value, stage in rows}
+    expected = {alias: (required_values[alias], stage) for alias, stage in required.items()}
+    malformed = sorted(alias for alias, value, _stage in rows
+                       if alias != re.sub(r"[^A-Za-z0-9]+", "", value).upper())
+    if actual != expected or malformed:
+        raise RuntimeError("Workshop alias authority is missing, unexpected, incorrectly mapped or malformed")
+    canonical = json.dumps(rows, separators=(",", ":"), ensure_ascii=True).encode("utf-8")
+    return {"row_count": len(rows), "normalization_sha256": hashlib.sha256(canonical).hexdigest(),
+            "required_alias_count": len(required)}
 
 
 def durable_replace(source, target):
@@ -162,6 +238,12 @@ TABLES = [
     # Audit trail last (references everything above)
     "audit_events",
 ]
+
+
+def required_backup_tables(migration_version):
+    """Ledger-versioned fail-closed operational inventory."""
+    return frozenset(TABLES) if migration_number(migration_version) >= 42 else frozenset()
+
 
 NAVISION_BACKUP_TABLES = {
     "navision_backend_revision", "navision_import_batches",
@@ -403,6 +485,9 @@ def run_backup(conn, environment, output_dir, encryption_key, kind="scheduled", 
         payload_tables = [table for table in TABLES if table in existing_tables]
         missing_tables = [table for table in TABLES if table not in existing_tables]
         payload["not_present_tables"] = missing_tables
+        missing_required = sorted(required_backup_tables(migration_version).intersection(missing_tables))
+        if missing_required:
+            raise RuntimeError("Migration-042+ backup is missing required operational tables: " + ", ".join(missing_required))
         missing_navision = sorted(NAVISION_BACKUP_TABLES.intersection(missing_tables))
         if migration_number(migration_version) >= 37 and missing_navision:
             raise RuntimeError(
@@ -415,6 +500,10 @@ def run_backup(conn, environment, output_dir, encryption_key, kind="scheduled", 
                 "AI-email backup is incomplete; required dependency tables are missing: "
                 + ", ".join(missing_ai_email)
             )
+
+        alias_authority = validate_workshop_alias_authority(cur, migration_version)
+        if alias_authority is not None:
+            payload["authority_contracts"] = {"workshop_stage_aliases": alias_authority}
 
         for table in payload_tables:
             columns, rows = export_table(cur, table)
@@ -459,6 +548,7 @@ def run_backup(conn, environment, output_dir, encryption_key, kind="scheduled", 
                 table: details["sha256"] for table, details in payload["schema_objects"].items()
             },
             "not_present_tables": missing_tables,
+            "authority_contracts": payload.get("authority_contracts", {}),
             "encrypted": True,
         }
         manifest_bytes = (json.dumps(manifest, indent=2) + "\n").encode("utf-8")

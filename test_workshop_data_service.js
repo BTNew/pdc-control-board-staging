@@ -202,11 +202,13 @@ async function run() {
     await service.loadSnapshot('initial');
     service.onRevisionSignal(2);
     service.onRevisionSignal(2); // duplicate signal within debounce window
-    assert.strictEqual(timers.pendingCount(), 1, '8a duplicate revision signals collapse into a single scheduled reload');
+    const staleMutation = await service.mutate('move_workshop_booking', { p_booking_id: 'stale', p_expected_version: 1 });
+    assert.deepStrictEqual(staleMutation.error, 'not_editable', '8a mutation must fail closed while a newer revision is pending');
+    assert.strictEqual(timers.pendingCount(), 1, '8b duplicate revision signals collapse into a single scheduled reload');
     await timers.flushAll();
-    assert.strictEqual(service.getLastRevision(), 2, '8b reload eventually applies new revision');
+    assert.strictEqual(service.getLastRevision(), 2, '8c reload eventually applies new revision');
     service.onRevisionSignal(2); // exact same revision again -> no reload should be scheduled at all
-    assert.strictEqual(timers.pendingCount(), 0, '8c exact-duplicate revision after sync triggers no reload');
+    assert.strictEqual(timers.pendingCount(), 0, '8d exact-duplicate revision after sync triggers no reload');
     console.log('PASS 8: revision-driven reload is debounced and duplicate-safe');
   }
 
@@ -341,6 +343,43 @@ async function run() {
     assert.strictEqual(mutation.error, 'destroyed', '13f captured destroyed service exposes no mutation path');
     assert.strictEqual(client.calls.length, 1, '13g destroyed mutation dispatches no network call');
     console.log('PASS 13: in-flight responses and captured service calls stay inert after destroy');
+  }
+
+  // 14. Realtime authority loss invalidates an in-flight request. Its late
+  //     response cannot restore actionable state; only a fresh-generation
+  //     resync after the replacement subscription may restore authority.
+  {
+    let resolveOld;
+    let calls = 0;
+    let snapshots = 0;
+    const client = {
+      rpc: async () => {
+        calls += 1;
+        if (calls === 1) return new Promise(resolve => { resolveOld = resolve; });
+        return { status: 200, ok: true, body: { revision: 2, vehicles: ['fresh'] } };
+      }
+    };
+    const service = createWorkshopDataService({
+      config: { workshop: { sharedData: true } },
+      client,
+      getAccessToken: () => 'tok',
+      getRole: () => 'operator',
+      onSnapshot: () => { snapshots += 1; }
+    });
+    const oldLoad = service.loadSnapshot('old-channel');
+    service.onAuthorityLost();
+    assert.strictEqual(service.getState(), WORKSHOP_CONNECTION_STATE.RECONNECTING);
+    assert.strictEqual(service.getLastSnapshot(), null);
+    resolveOld({ status: 200, ok: true, body: { revision: 1, vehicles: ['stale'] } });
+    await oldLoad;
+    assert.strictEqual(service.getLastSnapshot(), null, '14a failed-generation response remains inert');
+    assert.strictEqual(service.getTrustedSnapshot(), null, '14b failed-generation response cannot restore trust');
+    assert.strictEqual(snapshots, 0, '14c failed-generation response cannot render');
+    await service.onReconnect();
+    assert.strictEqual(service.getLastSnapshot().vehicles[0], 'fresh', '14d replacement generation installs fresh snapshot');
+    assert.strictEqual(service.getState(), WORKSHOP_CONNECTION_STATE.CONNECTED_EDITABLE);
+    assert.strictEqual(snapshots, 1, '14e only fresh-generation snapshot renders');
+    console.log('PASS 14: authority generation rejects late failed-channel responses');
   }
 
   console.log('Workshop data service unit tests passed');

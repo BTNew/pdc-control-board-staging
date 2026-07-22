@@ -43,6 +43,11 @@ assert NAVISION_TABLES.issubset(set(pdc_backup.TABLES))
 assert AI_EMAIL_TABLES == pdc_backup.AI_EMAIL_BACKUP_TABLES
 assert AI_EMAIL_TABLES.issubset(set(pdc_backup.TABLES))
 assert "workshop_station_revision" in pdc_backup.TABLES
+assert "workshop_stage_aliases" in pdc_backup.TABLES
+assert len(pdc_backup.WORKSHOP_ALIASES_042) == 22
+assert len(pdc_backup.WORKSHOP_ALIASES_044) == 37
+assert len(pdc_backup.WORKSHOP_ALIAS_VALUES_044) == 37
+assert pdc_backup.required_backup_tables("044") == frozenset(pdc_backup.TABLES)
 assert pdc_backup.migration_number("037_shared") == 37
 
 columns = ["id", "payload"]
@@ -81,6 +86,66 @@ try:
 except RuntimeError:
     pass
 pdc_restore.validate_backup_contract(format2_payload(NAVISION_TABLES, "037"))
+try:
+    pdc_restore.validate_backup_contract({"backup_format_version": "1", "migration_version": "044"})
+    raise AssertionError("Format-1 payload claiming migration 044 must fail closed")
+except RuntimeError:
+    pass
+
+# Migration-044 alias authority must be present, complete and independently
+# count/hash evidenced; removing or remapping one alias fails closed.
+alias_tables = set(pdc_backup.TABLES)
+alias_payload = format2_payload(alias_tables, "044")
+alias_rows = [{"alias_normalized": alias, "alias_value": pdc_backup.WORKSHOP_ALIAS_VALUES_044[alias], "stage_code": stage}
+              for alias, stage in sorted(pdc_backup.WORKSHOP_ALIASES_044.items())]
+alias_columns = ["alias_normalized", "alias_value", "stage_code"]
+alias_payload["tables"]["workshop_stage_aliases"] = {"columns": alias_columns, "rows": alias_rows}
+alias_payload["row_counts"]["workshop_stage_aliases"] = len(alias_rows)
+alias_payload["table_hashes"]["workshop_stage_aliases"] = pdc_backup.deterministic_table_hash(alias_columns, alias_rows)
+alias_pairs = [(row["alias_normalized"], row["alias_value"], row["stage_code"]) for row in alias_rows]
+alias_payload["authority_contracts"] = {"workshop_stage_aliases": {
+    "row_count": len(alias_pairs),
+    "required_alias_count": len(pdc_backup.WORKSHOP_ALIASES_044),
+    "normalization_sha256": hashlib.sha256(json.dumps(alias_pairs, separators=(",", ":")).encode()).hexdigest(),
+}}
+pdc_restore.validate_backup_contract(alias_payload)
+for omitted in pdc_backup.TABLES:
+    broken = copy.deepcopy(alias_payload)
+    for key in ("tables", "row_counts", "table_hashes", "schema_objects"):
+        broken[key].pop(omitted, None)
+    try:
+        pdc_restore.validate_backup_contract(broken)
+        raise AssertionError(f"Migration-044 payload missing {omitted} must fail closed")
+    except RuntimeError:
+        pass
+
+for tamper in ("unexpected_alias", "malformed_alias_value"):
+    broken = copy.deepcopy(alias_payload)
+    if tamper == "unexpected_alias":
+        broken["tables"]["workshop_stage_aliases"]["rows"].append({"alias_normalized":"EXTRA","alias_value":"Extra","stage_code":"HOIST"})
+        broken["row_counts"]["workshop_stage_aliases"] += 1
+    else:
+        broken["tables"]["workshop_stage_aliases"]["rows"][0]["alias_value"] = "Wrong Value"
+    try:
+        pdc_restore.validate_backup_contract(broken)
+        raise AssertionError(f"Alias semantic tamper must fail closed: {tamper}")
+    except RuntimeError:
+        pass
+for tamper in ("missing_table", "missing_alias", "bad_hash"):
+    broken = copy.deepcopy(alias_payload)
+    if tamper == "missing_table":
+        for key in ("tables", "row_counts", "table_hashes", "schema_objects"):
+            broken[key].pop("workshop_stage_aliases", None)
+    elif tamper == "missing_alias":
+        broken["tables"]["workshop_stage_aliases"]["rows"].pop()
+        broken["row_counts"]["workshop_stage_aliases"] -= 1
+    else:
+        broken["authority_contracts"]["workshop_stage_aliases"]["normalization_sha256"] = "0" * 64
+    try:
+        pdc_restore.validate_backup_contract(broken)
+        raise AssertionError(f"Alias authority tamper must fail closed: {tamper}")
+    except RuntimeError:
+        pass
 
 # Adversarial exact-schema verifier: wrong index definition must not pass.
 meta = {

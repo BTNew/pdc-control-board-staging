@@ -22,13 +22,13 @@ assert.ok(advisorBlock.includes("typeof service.getTrustedSnapshot !== 'function
 assert.ok(advisorBlock.includes('const snapshot = service.getTrustedSnapshot()'), 'shared advice must never consume the retained planner snapshot directly');
 assert.ok(dataService.includes('let snapshotTrusted = false'), 'data service must track advisory trust separately from retained planner data');
 assert.ok(dataService.includes('getTrustedSnapshot: () => ('), 'data service must expose a fail-closed advisory snapshot accessor');
-assert.ok(dataService.includes('snapshotTrusted = false;\n        setState(WORKSHOP_CONNECTION_STATE.CONNECTED_READ_ONLY)'), '401/403 responses must invalidate advisory snapshot trust');
+assert.ok(dataService.includes('snapshotTrusted = false;\n        setState(WORKSHOP_CONNECTION_STATE.PERMISSION_DENIED)'), '401/403 responses must invalidate advisory snapshot trust and surface permission denial');
 assert.ok(dataService.includes('if (!token)'), 'advisory snapshot loads must require positive individual access-token evidence');
 assert.ok(dataService.includes('if (destroyed || generation !== lifecycleGeneration) return null'), 'late in-flight snapshot responses must be generation-guarded after teardown');
 assert.ok(dataService.includes('lastSnapshot = null;\n    lastRevision = null;'), 'service teardown must purge retained prior-session snapshot data');
 assert.ok(dataService.includes("return { ok: false, error: 'destroyed', state };"), 'captured destroyed services must expose no mutation path');
 assert.ok(advisorBlock.includes("booking?.booking_id || booking?.id"), 'shared booking IDs must use the authoritative snapshot DTO field');
-assert.ok(advisorBlock.includes("booking?.vehicle?.id"), 'shared booking identity must come from its canonical nested vehicle UUID');
+assert.ok(advisorBlock.includes("booking?.vehicle_id || booking?.vehicle?.id"), 'shared booking identity must prefer the canonical minimal DTO vehicle_id');
 assert.ok(advisorBlock.includes("booking?.default_duration_minutes"), 'shared booking end time must use the authoritative duration when no end timestamp is supplied');
 assert.ok(advisorBlock.includes('stageAgeLimitDays: pmbLaneAgeLimit(inferredPmbStage(vehicle))'), 'stage ageing must use the existing stage-specific operational threshold');
 assert.ok(advisorBlock.includes("Math.max(50, priorityFindings.length)"), 'priority view must include every critical/high finding before capping review cards');
