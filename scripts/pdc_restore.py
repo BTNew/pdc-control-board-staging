@@ -145,8 +145,13 @@ def validate_backup_contract(data):
         malformed = [alias for alias, value, _stage in aliases
                      if alias != re.sub(r"[^A-Za-z0-9]+", "", value).upper()]
         canonical = json.dumps(aliases, separators=(",", ":"), ensure_ascii=True).encode("utf-8")
-        if actual != expected or malformed or evidence.get("row_count") != len(aliases) or evidence.get("normalization_sha256") != hashlib.sha256(canonical).hexdigest():
-            raise RuntimeError("Workshop alias authority is incomplete or its count/hash evidence is invalid")
+        duplicate_aliases = len(actual) != len(aliases)
+        if (actual != expected or malformed or duplicate_aliases
+                or len(aliases) != len(required)
+                or evidence.get("row_count") != len(aliases)
+                or evidence.get("required_alias_count") != len(required)
+                or evidence.get("normalization_sha256") != hashlib.sha256(canonical).hexdigest()):
+            raise RuntimeError("Workshop alias authority is incomplete, duplicated or its count/hash evidence is invalid")
     for table, details in tables.items():
         if not isinstance(details, dict) or not isinstance(details.get("columns"), list) or not isinstance(details.get("rows"), list):
             raise RuntimeError(f"Format-2 table payload is malformed: {table}")

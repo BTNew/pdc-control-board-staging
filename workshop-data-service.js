@@ -35,6 +35,7 @@ const WORKSHOP_CONNECTION_STATE = Object.freeze({
   CONNECTED_READ_ONLY: 'connected_read_only',
   RECONNECTING: 'reconnecting',
   OFFLINE_READ_ONLY: 'offline_read_only',
+  PERMISSION_DENIED: 'permission_denied',
   INCOMPATIBLE: 'incompatible'
 });
 

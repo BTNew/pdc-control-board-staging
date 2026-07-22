@@ -14,6 +14,8 @@ const {
   createWorkshopDataService
 } = require('./workshop-data-service.js');
 
+assert.strictEqual(WORKSHOP_CONNECTION_STATE.PERMISSION_DENIED, 'permission_denied', 'authorization failures require an explicit stable UI state');
+
 function fakeClient(responses) {
   const calls = [];
   return {

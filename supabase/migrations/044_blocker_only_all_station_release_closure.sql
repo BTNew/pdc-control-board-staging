@@ -146,7 +146,11 @@ do $$
 declare v_table text; v_policy record;
 begin
  foreach v_table in array array[
-  'vehicle_work_items','workshop_bays','workshop_booking_assignments',
+  'vehicles','vehicle_aliases','vehicle_master_revision','vehicle_lifecycle_resolver_revision',
+  'vehicle_master_source_records','vehicle_master_operation_receipts','vehicle_master_history','vehicle_master_identity_conflicts',
+  'vehicle_movements','vehicle_parts_updates','vehicle_eta_history','vehicle_timeline_events',
+  'vehicle_intelligence_revisions','vehicle_intelligence_summaries','vehicle_match_candidates','deleted_completed_vehicles',
+  'vehicle_notifications','vehicle_work_items','workshop_bays','workshop_booking_assignments',
   'workshop_booking_history','workshop_bookings','workshop_parts_overrides',
   'workshop_revision','workshop_settings','workshop_stages',
   'workshop_technicians','workshop_station_revision','workshop_stage_aliases'
@@ -296,6 +300,38 @@ drop trigger if exists workshop_bookings_planner_enabled_guard on public.worksho
 create trigger workshop_bookings_planner_enabled_guard before insert or update on public.workshop_bookings
 for each row execute function public.workshop_prevent_disabled_planner_booking_mutation();
 
+-- Rebuild the canonical relation so soft-deleted active-looking bookings can
+-- never re-enter station or aggregate authority through migration-042 logic.
+create or replace function public.workshop_station_eligibility(p_stage_code text)
+returns table(vehicle_id uuid,stage_code text,work_key text,current_location text,
+ eta_to_kewdale date,existing_booking boolean,schedule_enabled boolean,disabled_reason text)
+language sql stable security definer set search_path=pg_catalog,public as $$
+ with station as(
+  select s.code,s.work_key from public.workshop_stages s
+  where s.code=public.workshop_canonical_stage_code(p_stage_code) and s.active and s.planner_enabled
+ ), outstanding as(
+  select wi.vehicle_id,st.code,st.work_key from public.vehicle_work_items wi cross join station st
+  where public.workshop_stage_code_for_work_key(wi.work_key)=st.code and wi.required and not wi.completed
+  group by wi.vehicle_id,st.code,st.work_key
+ ), active_booking as(
+  select distinct b.vehicle_id,st.code,st.work_key from public.workshop_bookings b
+  join public.workshop_stages s on s.id=b.stage_id join station st on st.code=s.code
+  where b.deleted_at is null and b.status in('queued','planned','started','stoppage')
+ ), scoped as(select * from outstanding union select * from active_booking)
+ select v.id,sc.code,sc.work_key,upper(btrim(coalesce(v.current_location,''))),v.eta_to_kewdale,
+  (ab.vehicle_id is not null),
+  case when upper(btrim(coalesce(v.current_location,''))) in('PMB','YH') then true
+       when upper(btrim(coalesce(v.current_location,'')))='IT' and v.eta_to_kewdale is not null then true else false end,
+  case when upper(btrim(coalesce(v.current_location,'')))='IT' and v.eta_to_kewdale is null then 'missing_eta'
+       when upper(btrim(coalesce(v.current_location,''))) not in('PMB','YH','IT') and ab.vehicle_id is not null then 'existing_booking_location_review'
+       when upper(btrim(coalesce(v.current_location,''))) not in('PMB','YH','IT') then 'location_ineligible' else null end
+ from scoped sc join public.vehicles v on v.id=sc.vehicle_id
+ left join active_booking ab on ab.vehicle_id=v.id and ab.code=sc.code
+ where v.lifecycle_state='active' and v.deleted_at is null
+  and(upper(btrim(coalesce(v.current_location,''))) in('PMB','YH','IT') or ab.vehicle_id is not null)
+$$;
+revoke all on function public.workshop_station_eligibility(text) from public,anon,authenticated;
+
 -- Booking DTO: explicit reviewed projection only. No customer, notes, audit,
 -- deletion reason, metadata, full rows or future columns can leak.
 create or replace function public.workshop_planner_booking_dto(p_booking_id uuid)
@@ -415,6 +451,17 @@ comment on function public.get_workshop_eligibility_snapshot() is
 -- Scheduling wrappers below may change booking, booking history/audit and revision
 -- records only. They never update vehicle location, pmb_stage, visibility,
 -- workflow state or requirement completion.
+create or replace function public.workshop_require_booking_active_vehicle(p_booking_id uuid,p_allow_deleted_booking boolean default false)
+returns void language plpgsql stable security definer set search_path=pg_catalog,public as $$
+begin
+ if not exists(select 1 from public.workshop_bookings b join public.vehicles v on v.id=b.vehicle_id
+  where b.id=p_booking_id and (p_allow_deleted_booking or b.deleted_at is null)
+   and v.lifecycle_state='active' and v.deleted_at is null) then
+  raise exception 'Active non-deleted vehicle and authorized booking are required' using errcode='22023';
+ end if;
+end $$;
+revoke all on function public.workshop_require_booking_active_vehicle(uuid,boolean) from public,anon,authenticated;
+
 create or replace function public.workshop_require_booking_schedule_eligibility(p_booking_id uuid,p_target_stage_code text default null)
 returns void language plpgsql stable security definer set search_path=pg_catalog,public as $$
 declare v_booking public.workshop_bookings%rowtype; v_current text; v_target text;
@@ -520,6 +567,7 @@ create or replace function public.assign_booking_technician(p_booking_id uuid,p_
 returns jsonb language plpgsql security definer set search_path=pg_catalog,public as $$
 declare v_result jsonb; v_revision bigint; begin
  perform public.workshop_require_planner_operator(); perform public.workshop_require_version(p_expected_version);
+ perform public.workshop_require_booking_active_vehicle(p_booking_id,false);
  v_result:=public.workshop_reassign_booking(p_booking_id,p_expected_version,p_technician_id,p_metadata);
  if not (v_result->>'ok')::boolean then return v_result; end if;
  v_revision:=public.workshop_bump_revision(); return v_result||jsonb_build_object('revision',v_revision); end $$;
@@ -528,6 +576,7 @@ create or replace function public.start_workshop_work(p_booking_id uuid,p_expect
 returns jsonb language plpgsql security definer set search_path=pg_catalog,public as $$
 declare v_result jsonb; v_revision bigint; begin
  perform public.workshop_require_planner_operator(); perform public.workshop_require_version(p_expected_version);
+ perform public.workshop_require_booking_active_vehicle(p_booking_id,false);
  v_result:=public.workshop_start_booking(p_booking_id,p_expected_version,p_actual_start_at,p_metadata);
  if not (v_result->>'ok')::boolean then return v_result; end if;
  v_revision:=public.workshop_bump_revision(); return v_result||jsonb_build_object('revision',v_revision); end $$;
@@ -536,6 +585,7 @@ create or replace function public.stop_workshop_work(p_booking_id uuid,p_expecte
 returns jsonb language plpgsql security definer set search_path=pg_catalog,public as $$
 declare v_result jsonb; v_revision bigint; begin
  perform public.workshop_require_planner_operator(); perform public.workshop_require_version(p_expected_version);
+ perform public.workshop_require_booking_active_vehicle(p_booking_id,false);
  v_result:=public.workshop_record_stoppage(p_booking_id,p_expected_version,p_reason,p_metadata);
  if not (v_result->>'ok')::boolean then return v_result; end if;
  v_revision:=public.workshop_bump_revision(); return v_result||jsonb_build_object('revision',v_revision); end $$;
@@ -545,6 +595,7 @@ returns jsonb language plpgsql security definer set search_path=pg_catalog,publi
 declare v_booking public.workshop_bookings%rowtype; v_stage_code text; v_requested_stage text; v_result jsonb; v_revision bigint;
 begin
  perform public.workshop_require_planner_operator(); perform public.workshop_require_version(p_expected_version);
+ perform public.workshop_require_booking_active_vehicle(p_booking_id,false);
  select * into v_booking from public.workshop_bookings where id=p_booking_id for update;
  if not found then raise exception 'Workshop booking not found' using errcode='P0002'; end if;
  select code into v_stage_code from public.workshop_stages where id=v_booking.stage_id;
@@ -564,6 +615,7 @@ create or replace function public.return_completed_work(p_booking_id uuid,p_expe
 returns jsonb language plpgsql security definer set search_path=pg_catalog,public as $$
 declare v_result jsonb; v_revision bigint; begin
  perform public.workshop_require_planner_operator(); perform public.workshop_require_version(p_expected_version);
+ perform public.workshop_require_booking_active_vehicle(p_booking_id,false);
  v_result:=public.workshop_return_booking_to_queue(p_booking_id,p_expected_version,p_reason,p_metadata);
  if not (v_result->>'ok')::boolean then return v_result; end if;
  v_revision:=public.workshop_bump_revision(); return v_result||jsonb_build_object('revision',v_revision); end $$;
@@ -572,6 +624,7 @@ create or replace function public.return_work_to_queue(p_booking_id uuid,p_expec
 returns jsonb language plpgsql security definer set search_path=pg_catalog,public as $$
 declare v_result jsonb; v_revision bigint; begin
  perform public.workshop_require_planner_operator(); perform public.workshop_require_version(p_expected_version);
+ perform public.workshop_require_booking_active_vehicle(p_booking_id,false);
  v_result:=public.workshop_return_booking_to_queue(p_booking_id,p_expected_version,p_reason,p_metadata);
  if not (v_result->>'ok')::boolean then return v_result; end if;
  v_revision:=public.workshop_bump_revision(); return v_result||jsonb_build_object('revision',v_revision); end $$;
@@ -580,6 +633,7 @@ create or replace function public.cancel_workshop_booking(p_booking_id uuid,p_ex
 returns jsonb language plpgsql security definer set search_path=pg_catalog,public as $$
 declare v_result jsonb; v_revision bigint; begin
  perform public.workshop_require_planner_operator(); perform public.workshop_require_version(p_expected_version);
+ perform public.workshop_require_booking_active_vehicle(p_booking_id,false);
  v_result:=public.workshop_delete_booking(p_booking_id,p_expected_version,p_reason,p_metadata);
  if not (v_result->>'ok')::boolean then return v_result; end if;
  v_revision:=public.workshop_bump_revision(); return v_result||jsonb_build_object('revision',v_revision); end $$;
@@ -588,6 +642,7 @@ create or replace function public.restore_workshop_booking(p_booking_id uuid,p_e
 returns jsonb language plpgsql security definer set search_path=pg_catalog,public as $$
 declare v_result jsonb; v_revision bigint; begin
  perform public.workshop_require_planner_operator(); perform public.workshop_require_version(p_expected_version);
+ perform public.workshop_require_booking_active_vehicle(p_booking_id,true);
  v_result:=public.workshop_restore_booking(p_booking_id,p_expected_version,p_metadata);
  if not (v_result->>'ok')::boolean then return v_result; end if;
  v_revision:=public.workshop_bump_revision(); return v_result||jsonb_build_object('revision',v_revision); end $$;
@@ -599,6 +654,7 @@ declare v_booking public.workshop_bookings%rowtype; v_technician_id uuid; v_conf
  v_new_start timestamptz; v_new_end timestamptz; v_remaining_minutes integer; v_elapsed_minutes integer; v_result jsonb; v_revision bigint;
 begin
  perform public.workshop_require_planner_operator(); perform public.workshop_require_version(p_expected_version);
+ perform public.workshop_require_booking_active_vehicle(p_booking_id,false);
  select * into v_booking from public.workshop_bookings where id=p_booking_id for update;
  if not found then raise exception 'Workshop booking not found' using errcode='P0002'; end if;
  if v_booking.version<>p_expected_version then return jsonb_build_object('ok',false,'error','version_conflict'); end if;

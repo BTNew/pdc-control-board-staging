@@ -120,6 +120,21 @@ alias_payload["authority_contracts"] = {"workshop_stage_aliases": {
     "normalization_sha256": hashlib.sha256(json.dumps(alias_pairs, separators=(",", ":")).encode()).hexdigest(),
 }}
 pdc_restore.validate_backup_contract(alias_payload)
+# Duplicate normalized identities must fail before any restore schema is created,
+# even when all caller-supplied counts and hashes are self-consistent.
+duplicate_alias = copy.deepcopy(alias_payload)
+duplicate_alias["tables"]["workshop_stage_aliases"]["rows"].append(copy.deepcopy(alias_rows[0]))
+duplicate_rows = duplicate_alias["tables"]["workshop_stage_aliases"]["rows"]
+duplicate_alias["row_counts"]["workshop_stage_aliases"] = len(duplicate_rows)
+duplicate_alias["table_hashes"]["workshop_stage_aliases"] = pdc_backup.deterministic_table_hash(alias_columns, duplicate_rows)
+duplicate_pairs = sorted((row["alias_normalized"], row["alias_value"], row["stage_code"]) for row in duplicate_rows)
+duplicate_alias["authority_contracts"]["workshop_stage_aliases"]["row_count"] = len(duplicate_pairs)
+duplicate_alias["authority_contracts"]["workshop_stage_aliases"]["normalization_sha256"] = hashlib.sha256(json.dumps(duplicate_pairs, separators=(",", ":")).encode()).hexdigest()
+try:
+    pdc_restore.validate_backup_contract(duplicate_alias)
+    raise AssertionError("Duplicate alias identity must fail preflight before DDL")
+except RuntimeError:
+    pass
 for omitted in pdc_backup.TABLES:
     broken = copy.deepcopy(alias_payload)
     for key in ("tables", "row_counts", "table_hashes", "schema_objects"):

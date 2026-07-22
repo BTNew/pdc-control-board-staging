@@ -91,6 +91,23 @@ try:
   q.execute("select public.resize_workshop_booking(%s,%s,120,'{}'::jsonb)",(inactive_booking,inactive_version)); raise AssertionError('inactive vehicle booking resize unexpectedly allowed')
  except psycopg2.Error as e:
   assert e.pgcode=='22023',e; q.execute('rollback to savepoint inactive_resize_denied')
+ inactive_lifecycle_statements=[
+  ('assign',"select public.assign_booking_technician(%s,%s,null,'{}'::jsonb)"),
+  ('start',"select public.start_workshop_work(%s,%s,now(),'{}'::jsonb)"),
+  ('stop',"select public.stop_workshop_work(%s,%s,'probe','{}'::jsonb)"),
+  ('complete',"select public.complete_workshop_work(%s,%s,null,now(),'{}'::jsonb)"),
+  ('return_completed',"select public.return_completed_work(%s,%s,'probe','{}'::jsonb)"),
+  ('return_queue',"select public.return_work_to_queue(%s,%s,'probe','{}'::jsonb)"),
+  ('cancel',"select public.cancel_workshop_booking(%s,%s,'probe','{}'::jsonb)"),
+  ('restore',"select public.restore_workshop_booking(%s,%s,'{}'::jsonb)"),
+  ('resume',"select public.resume_workshop_work(%s,%s,'{}'::jsonb)"),
+ ]
+ for label,statement in inactive_lifecycle_statements:
+  q.execute('savepoint inactive_lifecycle_denied')
+  try:
+   q.execute(statement,(inactive_booking,inactive_version)); raise AssertionError(f'inactive vehicle {label} unexpectedly allowed')
+  except psycopg2.Error as e:
+   assert e.pgcode=='22023',(label,e); q.execute('rollback to savepoint inactive_lifecycle_denied')
  q.execute('select version from public.workshop_bookings where id=%s',(bus_booking,)); bus_version=q.fetchone()[0]
  q.execute("select public.resize_workshop_booking(%s,%s,120,'{}'::jsonb)",(bus_booking,bus_version)); assert q.fetchone()[0]['ok'] is True
  assert_authority_unchanged(vehicle,protected,'resize')
@@ -123,6 +140,9 @@ try:
  excluded_fixture_ids={str(outsider),str(inactive_vehicle),str(deleted_vehicle),str(out_window_vehicle),str(deleted_booking_vehicle)}
  snapshot_booking_vehicle_ids={row['vehicle_id'] for row in snapshot['bookings']}
  assert not (excluded_fixture_ids & snapshot_vehicle_ids) and not (excluded_fixture_ids & snapshot_work_item_ids) and not (excluded_fixture_ids & snapshot_booking_vehicle_ids),'out-of-scope, inactive, deleted or out-of-window fixture leaked into station DTO'
+ q.execute('select public.get_workshop_eligibility_snapshot()'); aggregate=q.fetchone()[0]
+ aggregate_vehicle_ids={row['vehicle']['id'] for row in aggregate['candidates']}
+ assert str(deleted_booking_vehicle) not in aggregate_vehicle_ids,'soft-deleted active-looking booking leaked into aggregate eligibility DTO'
  assert snapshot_work_item_ids<=snapshot_vehicle_ids,'station DTO work_items must be scoped to returned vehicles'
  assert set(snapshot)=={'revision','generated_at','scope','stages','bays','bookings','vehicles','work_items'},snapshot.keys()
  assert all(set(row)=={'id','code','display_name','is_physical','work_key'} for row in snapshot['stages'])
@@ -164,7 +184,7 @@ try:
  q.execute("insert into public.pdc_user_roles(email,display_name,role,active) values(%s,'Fixture Importer','importer',true)",(importer,))
  q.execute("select lower(email),role::text from public.pdc_user_roles where lower(email) in (%s,%s)",(operator,viewer)); real_roles=dict(q.fetchall())
  assert real_roles.get(operator)=='operator' and real_roles.get(viewer)=='viewer',real_roles
- workshop_tables=['vehicles','vehicle_work_items','workshop_stages','workshop_stage_aliases','workshop_technicians','workshop_bays','workshop_settings','workshop_bookings','workshop_booking_assignments','workshop_booking_history','workshop_parts_overrides','workshop_revision','workshop_station_revision']
+ workshop_tables=['vehicles','vehicle_aliases','vehicle_master_revision','vehicle_lifecycle_resolver_revision','vehicle_master_source_records','vehicle_master_operation_receipts','vehicle_master_history','vehicle_master_identity_conflicts','vehicle_movements','vehicle_parts_updates','vehicle_eta_history','vehicle_timeline_events','vehicle_intelligence_revisions','vehicle_intelligence_summaries','vehicle_match_candidates','deleted_completed_vehicles','vehicle_notifications','vehicle_work_items','workshop_stages','workshop_stage_aliases','workshop_technicians','workshop_bays','workshop_settings','workshop_bookings','workshop_booking_assignments','workshop_booking_history','workshop_parts_overrides','workshop_revision','workshop_station_revision']
  for email,role,allowed in [(admin_email,'administrator',True),(operator,'operator',True),(viewer,'viewer',False),(importer,'importer',False)]:
   q.execute('reset role')
   q.execute("select set_config('request.jwt.claims',%s,true)",(json.dumps({'sub':str(admin),'email':email,'role':'authenticated'}),))

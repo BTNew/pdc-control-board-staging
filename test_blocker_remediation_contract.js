@@ -34,7 +34,7 @@ assert(station.includes("b.status='completed' and b.actual_end_at>=v_from and b.
 assert((station.match(/b\.deleted_at is null/g) || []).length >= 2 && booking.includes('b.deleted_at is null'), 'soft-deleted bookings must be excluded from shared scope and DTOs regardless of status');
 assert(sql.includes("raise exception 'Unknown, inactive or planner-disabled workshop station'") && sql.includes("raise exception 'Unknown or planner-disabled workshop station'"), 'Sublet/disabled stages must fail closed');
 
-assert(sql.includes("'vehicle_work_items','workshop_bays','workshop_booking_assignments'") && sql.includes('drop policy if exists') && sql.includes('workshop_is_planner_operator()'), 'all workshop policy inheritance must be replaced');
+assert(sql.includes("'vehicles','vehicle_aliases','vehicle_master_revision','vehicle_lifecycle_resolver_revision'") && sql.includes("'vehicle_movements','vehicle_parts_updates','vehicle_eta_history','vehicle_timeline_events'") && sql.includes('drop policy if exists') && sql.includes('workshop_is_planner_operator()'), 'all workshop and workflow-history policy inheritance must be replaced');
 assert(sql.includes("in ('operator','administrator')"), 'only operator/admin may read workshop tables');
 assert(sql.includes('create policy vehicles_planner_operator_select') && sql.includes('using(public.workshop_is_planner_operator())'), 'vehicle workflow rows and Realtime must deny importer inheritance');
 assert(/revoke all on function public\.get_workshop_snapshot\(date,date\) from public,anon,authenticated/i.test(sql), 'legacy broad workshop snapshot must be browser-inaccessible');
@@ -65,6 +65,12 @@ for (const fn of ['move_vehicle','mark_vehicle_deleted','qc_complete_vehicle','r
   assert(sql.includes(`public.${fn}(`), `${fn} inherited importer gate must be closed`);
 }
 assert(sql.includes('Active non-deleted vehicle is required for Workshop Planner scheduling') && sql.includes('Vehicle is not eligible for target Workshop Planner station'), 'all scheduling-shape mutations need active vehicle and shared target eligibility guards');
+assert(sql.includes("where b.deleted_at is null and b.status in('queued','planned','started','stoppage')"), 'canonical aggregate eligibility must exclude soft-deleted active-looking bookings');
+for (const fn of ['assign_booking_technician','start_workshop_work','stop_workshop_work','complete_workshop_work','return_completed_work','return_work_to_queue','cancel_workshop_booking','restore_workshop_booking','resume_workshop_work']) {
+  const start=sql.indexOf(`create or replace function public.${fn}`);
+  const end=sql.indexOf('create or replace function public.',start+40);
+  assert(start>=0 && sql.slice(start,end>start?end:undefined).includes('workshop_require_booking_active_vehicle'), `${fn} must reject inactive/deleted vehicle authority`);
+}
 assert(sql.includes('Ambiguous historical PITSHOIST/PITINSPECTION'), 'historical alias ambiguity must fail closed without data rewrite');
 
 assert(app.includes('failWorkshopEligibilityOverviewSubscription') && app.includes('workshopEligibilityRequestGeneration += 1'), 'aggregate authority loss must invalidate requests');
