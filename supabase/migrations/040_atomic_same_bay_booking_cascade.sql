@@ -4,6 +4,26 @@
 
 begin;
 
+-- Enforce the one-hour minimum at the authoritative storage boundary so it
+-- also covers every legacy protected mutation RPC and any future write path.
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_constraint
+    where conrelid = 'public.workshop_bookings'::regclass
+      and conname = 'workshop_bookings_minimum_duration_60'
+  ) then
+    alter table public.workshop_bookings
+      add constraint workshop_bookings_minimum_duration_60
+      check (default_duration_minutes >= 60) not valid;
+  end if;
+end;
+$$;
+
+alter table public.workshop_bookings
+  validate constraint workshop_bookings_minimum_duration_60;
+
 create or replace function public.workshop_add_operational_minutes(
   p_start timestamptz,
   p_duration_minutes integer
@@ -134,6 +154,7 @@ declare
   v_result jsonb;
   v_technician uuid;
   v_conflict uuid;
+  v_locked_count integer;
 begin
   perform public.require_pdc_role('operator');
   perform public.workshop_require_version(p_target_expected_version);
@@ -200,12 +221,33 @@ begin
 
   perform 1 from public.workshop_bookings b where b.id = any(v_expected_ids) order by b.scheduled_start_at, b.id for update;
 
+  -- A move-out RPC can hold a captured booking row while moving it to another
+  -- bay because that legacy path locks only its destination bay. Revalidate
+  -- every locked row before shifting anything. PostgreSQL rechecks the row
+  -- after a concurrent updater commits, so a moved row fails this source-bay
+  -- predicate and the whole cascade returns without partial movement.
+  select count(*) into v_locked_count
+  from public.workshop_bookings b
+  where b.id = any(v_expected_ids)
+    and b.bay_id = v_bay.id
+    and b.status = 'planned';
+  if v_locked_count <> cardinality(v_expected_ids) then
+    return jsonb_build_object(
+      'ok', false,
+      'error', 'concurrent_queue_change',
+      'retry', true
+    );
+  end if;
+
   -- Keep the target action and every shifted timestamp in one subtransaction.
   -- If the protected target RPC returns a structured business rejection, the
   -- exception block rolls back all shifts and returns that rejection intact.
   begin
   for v_shifted in
-    select * from public.workshop_bookings b where b.id = any(v_expected_ids)
+    select * from public.workshop_bookings b
+    where b.id = any(v_expected_ids)
+      and b.bay_id = v_bay.id
+      and b.status = 'planned'
     order by b.scheduled_start_at desc, b.id desc
   loop
     v_new_start := public.workshop_add_operational_minutes(v_shifted.scheduled_start_at, p_shift_minutes);
@@ -216,7 +258,13 @@ begin
           scheduled_end_at = v_new_end,
           updated_by = auth.uid(),
           version = version + 1
-      where id = v_shifted.id;
+      where id = v_shifted.id
+        and bay_id = v_bay.id
+        and status = 'planned';
+    if not found then
+      v_result := jsonb_build_object('ok', false, 'error', 'concurrent_queue_change', 'retry', true);
+      raise exception 'Cascade queue changed' using errcode = 'P0001';
+    end if;
     select technician_id into v_technician from public.workshop_booking_assignments
       where booking_id = v_shifted.id and released_at is null
       order by case when assignment_type = 'primary' then 0 else 1 end, assigned_at desc limit 1;
@@ -227,7 +275,11 @@ begin
   end loop;
 
   -- Validate the final technician allocation after every shifted timestamp is in place.
-  for v_shifted in select * from public.workshop_bookings where id = any(v_expected_ids)
+  for v_shifted in
+    select * from public.workshop_bookings
+    where id = any(v_expected_ids)
+      and bay_id = v_bay.id
+      and status = 'planned'
   loop
     v_conflict := public.workshop_find_bay_conflict(
       v_shifted.id, v_bay.id, v_shifted.scheduled_start_at, v_shifted.scheduled_end_at

@@ -17,6 +17,17 @@ assert.ok(
   'Cascade must not use an incompatible un-namespaced advisory lock',
 );
 assert.ok(
+  sql.includes('constraint workshop_bookings_minimum_duration_60')
+    && sql.includes('check (default_duration_minutes >= 60)'),
+  'The one-hour minimum must be enforced at the authoritative booking table for every mutation RPC',
+);
+assert.ok(
+  sql.includes("'error', 'concurrent_queue_change'")
+    && sql.includes('and b.bay_id = v_bay.id')
+    && sql.indexOf("'error', 'concurrent_queue_change'") < sql.indexOf('-- Keep the target action and every shifted timestamp'),
+  'Captured rows must be revalidated in the source bay after row locking and before any shift',
+);
+assert.ok(
   sql.includes('v_conflict := public.workshop_find_bay_conflict('),
   'Every shifted interval must be checked against queued/planned/live bay bookings',
 );
