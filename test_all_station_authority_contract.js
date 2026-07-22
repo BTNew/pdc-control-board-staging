@@ -41,6 +41,7 @@ assert(app.includes("return loadWorkshopEligibilitySnapshot('subscribed')") && a
 assert(app.includes('workshopEligibilityRevisionPending = true') && app.includes("loadWorkshopEligibilitySnapshot('realtime_pending')"), 'Realtime revisions received during resync must force a trailing fetch');
 assert(app.includes("if (app.workshopEligibilityState !== 'connected') return []"), 'disconnected Control Board must not consume stale candidates');
 assert(planner.includes('WORKSHOP_ELIGIBILITY_RUNTIME.workshopCanonicalEligibility'), 'planner must apply the canonical candidate contract');
+assert(planner.includes("stock: vehicle.stock_number || ''") && planner.includes("client: vehicle.customer_name || ''"), 'shared snapshot candidates must populate the planner identity fields used by the queue renderer');
 assert(migration.match(/get_station_workshop_snapshot[\s\S]*workshop_station_eligibility\(v_stage\)/), 'station RPC must use canonical eligibility');
 assert(migration.match(/get_workshop_eligibility_snapshot[\s\S]*workshop_station_eligibility\(s\.code\)/), 'Control Board RPC must use canonical eligibility');
 assert(migration.includes("in('PMB','YH')") && migration.includes("='IT'"), 'database eligibility must implement PMB/YH/IT rules');

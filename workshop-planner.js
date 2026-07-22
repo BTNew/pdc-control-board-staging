@@ -2330,10 +2330,16 @@ function workshopSnapshotVehicleToPlannerRow(vehicle = {}, workItems = [], stage
     sharedVehicleId: vehicle.id,
     permanentVehicleId: vehicle.permanent_vehicle_id || '',
     vehicleKey: vehicle.stock_number || vehicle.permanent_vehicle_id || vehicle.id,
+    // Keep the legacy display aliases populated as well as the typed shared
+    // fields. The queue renderer's established identity helpers read stock,
+    // order and client, while shared Supabase snapshots use snake_case.
+    stock: vehicle.stock_number || '',
     stockNumber: vehicle.stock_number || '',
+    order: vehicle.toyota_order_number || '',
     vin: vehicle.vin || '',
     toyotaOrderNumber: vehicle.toyota_order_number || '',
     jobCardNumber: vehicle.job_card_number || '',
+    client: vehicle.customer_name || '',
     customerName: vehicle.customer_name || '',
     customer: vehicle.customer_name || '',
     make: vehicle.make || '',
