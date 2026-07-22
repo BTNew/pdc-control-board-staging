@@ -9,6 +9,9 @@ const app = read('app.js');
 const planner = read('workshop-planner.js');
 const eligibility = read('workshop-eligibility.js');
 const backup = read('scripts/pdc_backup.py');
+const applyScript = read('scripts/apply_migration_045_staging.py');
+const reconcileScript = read('scripts/reconcile_legacy_stage_staging.py');
+const backupGate = read('scripts/release_backup_gate.py');
 
 const eligibilitySql = sql.slice(sql.indexOf('create or replace function public.workshop_station_eligibility'), sql.indexOf('create or replace function public.get_station_workshop_snapshot'));
 assert(eligibilitySql.includes('from public.vehicle_work_items wi') && eligibilitySql.includes('wi.required and not wi.completed'), 'outstanding work item must be the sole candidate authority');
@@ -34,6 +37,18 @@ assert(sql.includes('enable row level security') && /revoke all on table public\
 assert(sql.includes('revoke all on function public.apply_legacy_stage_reconciliation') && sql.includes('revoke all on function public.rollback_legacy_stage_reconciliation'), 'reconciliation RPCs must not be browser callable');
 assert(backup.includes('legacy_stage_reconciliation_receipts'), 'backup manifest must include receipts');
 assert(backup.includes('number >= 45') && backup.includes('difference(MIGRATION_045_BACKUP_TABLES)'), 'pre-045 backup must work before receipt table exists and 045+ must require it');
+const stationSnapshotSql = sql.slice(sql.indexOf('create or replace function public.get_station_workshop_snapshot'), sql.indexOf('create or replace function public.get_workshop_eligibility_snapshot'));
+assert(stationSnapshotSql.includes('public.workshop_stage_code_for_work_key(wi.work_key)=v_stage'), 'station DTO work-item children must remain scoped to the requested station');
+const candidateHydration = app.slice(app.indexOf('function workshopEligibilityCandidateVehicle'), app.indexOf('function authoritativeWorkshopVehiclesForStage'));
+assert(candidateHydration.includes('pmbJobs: { ...shared.pmbJobs }') && !candidateHydration.includes('local?.pmbJobs'), 'browser-local requirements must never survive canonical absence');
+for (const script of [applyScript, reconcileScript]) {
+  assert(script.includes('validate_release_backup') && script.includes("add_argument('--restore-schema',required=True)"), 'staging write scripts must require validated encrypted backup and isolated restore evidence');
+  assert(script.includes('active_same_station_bookings') && script.includes('open_equivalent_work_items'), 'exact reconciliation guard must use the migration evidence vocabulary');
+  assert(!script.includes('conflicting_booking_evidence'), 'exact reconciliation guard must use a reason code emitted by migration 045');
+}
+for (const gate of ['decrypt_backup','validate_backup_contract','PDC_BACKUP_ENCRYPTION_KEY','max_age_seconds','restore_test_runs','all_checks_passed','information_schema.schemata']) {
+  assert(backupGate.includes(gate), `backup gate is missing ${gate}`);
+}
 
 assert(eligibility.includes("else if (!work.outstanding) reason") && !eligibility.includes('!work.outstanding && !activeBooking'), 'frontend candidate authority must require outstanding work');
 const boardNeed = app.slice(app.indexOf('function pmbVehicleNeedsStationWork'), app.indexOf('function pmbVehiclesNeedingStationWork'));

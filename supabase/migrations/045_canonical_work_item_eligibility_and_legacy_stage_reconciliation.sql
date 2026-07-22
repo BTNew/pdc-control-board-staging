@@ -341,6 +341,7 @@ begin
   'work_items',(select coalesce(jsonb_agg(jsonb_build_object('vehicle_id',wi.vehicle_id,'work_key',wi.work_key,
    'required',wi.required,'completed',wi.completed,'completed_at',wi.completed_at) order by wi.vehicle_id,wi.work_key),'[]'::jsonb)
    from public.vehicle_work_items wi where wi.vehicle_id=any(v_ids)
+    and public.workshop_stage_code_for_work_key(wi.work_key)=v_stage
   )
  );
 end $$;

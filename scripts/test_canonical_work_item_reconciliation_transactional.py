@@ -25,9 +25,11 @@ ACTUAL_LEGACY_IDS = [
     "feba3549-dd9c-42bb-af65-d9ebda5c3579",
 ]
 ACTUAL_EXPECTED = {
-    ACTUAL_LEGACY_IDS[0]: "D_AMBIGUOUS", ACTUAL_LEGACY_IDS[1]: "D_AMBIGUOUS",
-    ACTUAL_LEGACY_IDS[2]: "D_AMBIGUOUS", ACTUAL_LEGACY_IDS[3]: "D_AMBIGUOUS",
-    ACTUAL_LEGACY_IDS[4]: "B_ACTIVE_BOOKING",
+    ACTUAL_LEGACY_IDS[0]: ("D_AMBIGUOUS", "multiple_active_same_station_bookings", "HOIST", "PMB", 2, True, 0, 1),
+    ACTUAL_LEGACY_IDS[1]: ("D_AMBIGUOUS", "active_status_booking_has_completion_markers", "HOIST", "PMB", 1, True, 0, 1),
+    ACTUAL_LEGACY_IDS[2]: ("D_AMBIGUOUS", "multiple_active_same_station_bookings", "HOIST", "PMB", 2, True, 0, 1),
+    ACTUAL_LEGACY_IDS[3]: ("D_AMBIGUOUS", "multiple_active_same_station_bookings", "HOIST", "PMB", 3, False, 0, 0),
+    ACTUAL_LEGACY_IDS[4]: ("B_ACTIVE_BOOKING", "active_booking_represents_job", "FITTING", "PMB", 1, False, 0, 0),
 }
 
 
@@ -44,10 +46,13 @@ def main():
         cur.execute("begin")
         cur.execute(MIGRATION.read_text(encoding="utf-8"))
         cur.execute(
-            "select vehicle_id::text,classification from public.preview_legacy_stage_reconciliation(%s::uuid[]) order by vehicle_id",
+            """select vehicle_id::text,classification,reason_code,canonical_station,current_location,
+               (evidence->>'active_same_station_bookings')::int,(evidence->>'booking_completion_markers')::boolean,
+               (evidence->>'open_equivalent_work_items')::int,(evidence->>'completed_equivalent_work_items')::int
+               from public.preview_legacy_stage_reconciliation(%s::uuid[]) order by vehicle_id""",
             (ACTUAL_LEGACY_IDS,),
         )
-        actual_preview = dict(cur.fetchall())
+        actual_preview = {row[0]: tuple(row[1:]) for row in cur.fetchall()}
         assert_true(actual_preview == ACTUAL_EXPECTED, f"actual five-record preview drifted: {actual_preview}")
         result["checks"].append("actual_five_record_preview_ids_and_classifications")
 

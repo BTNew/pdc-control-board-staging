@@ -4431,7 +4431,7 @@ function workshopEligibilityCandidateVehicle(candidate = {}) {
     const def = pmbStageJobDef(WORKSHOP_ELIGIBILITY.canonicalWorkshopStage(item.work_key));
     if (def) shared.pmbJobs[def.key] = { required: item.required === true, complete: item.completed === true, completedAt: item.completed_at || '' };
   });
-  shared = { ...(local || {}), ...shared, pmbJobs: { ...(local?.pmbJobs || {}), ...shared.pmbJobs } };
+  shared = { ...(local || {}), ...shared, pmbJobs: { ...shared.pmbJobs } };
   shared.__workshopEligibility = {
     stage: candidate.stage_code,
     location: raw.current_location || '',

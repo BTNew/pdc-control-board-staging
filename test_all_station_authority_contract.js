@@ -65,7 +65,7 @@ assert(!/\b(current_location|pmb_stage|visible_on_board)\s*=/.test(scheduleClosu
 const moveClosure = closure.slice(closure.indexOf('create or replace function public.move_workshop_booking'), closure.indexOf('create or replace function public.resize_workshop_booking'));
 assert(moveClosure.includes('workshop_move_booking') && !/update\s+public\.vehicles|\b(current_location|pmb_stage|visible_on_board)\s*=/.test(moveClosure), 'booking move RPC must preserve vehicle authority');
 const stationSnapshotClosure = corrective.slice(corrective.indexOf('create or replace function public.get_station_workshop_snapshot'), corrective.indexOf('create or replace function public.get_workshop_eligibility_snapshot'));
-assert(stationSnapshotClosure.includes('wi.vehicle_id=any(v_ids)') && !stationSnapshotClosure.includes('to_jsonb(v)') && !stationSnapshotClosure.includes('to_jsonb(w)'), 'station snapshot must scope and project vehicles/work items');
+assert(stationSnapshotClosure.includes('wi.vehicle_id=any(v_ids)') && stationSnapshotClosure.includes('public.workshop_stage_code_for_work_key(wi.work_key)=v_stage') && !stationSnapshotClosure.includes('to_jsonb(v)') && !stationSnapshotClosure.includes('to_jsonb(w)'), 'station snapshot must scope/project vehicles and scope work-item children to the requested station');
 assert(backup.indexOf('"workshop_stage_aliases"') > backup.indexOf('"workshop_stages"'), 'backup manifest must preserve canonical stage aliases after their parent stages');
 
 assert(moduleSource.includes("plannerEnabled: false") && moduleSource.includes("code: 'SUBLET'"), 'Sublet requirement must remain canonical but planner-disabled');
