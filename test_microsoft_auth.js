@@ -30,7 +30,7 @@ assert.ok(authSource.includes("event === 'PASSWORD_RECOVERY'"), 'Password recove
 assert.ok(!authSource.includes('.signUp('), 'The production browser must not expose public account registration');
 assert.ok(authSource.includes("scopes: 'email'"), 'Azure OAuth must request the email scope required by Supabase');
 assert.ok(authSource.includes(".from('pdc_user_roles')"), 'Authorization must check the protected PDC role table');
-assert.ok(authSource.indexOf(".from('pdc_user_roles')") < authSource.indexOf('unlockApplication(session, role)'), 'Role authorization must occur before unlocking the app');
+assert.ok(authSource.indexOf('const { role, error } = await loadApprovedRole(session)') < authSource.indexOf('unlockApplication(session, role)'), 'Role authorization must occur before unlocking the app');
 
 let domReadyHandler = null;
 const context = {
@@ -79,7 +79,7 @@ assert.strictEqual(helpers.safeRedirectTo('/index.html'), 'http://localhost:8765
 async function testAuthGenerationOwnership() {
   const instrumented = authSource.replace(
     /\}\)\(\);\s*$/,
-    'window.__PDC_AUTH_INTERNALS = { state, applySession, handleOwnRoleRowChanged };\n})();'
+    'window.__PDC_AUTH_INTERNALS = { state, applySession, handleOwnRoleRowChanged, signOut };\n})();'
   );
   const events = [];
   const body = { dataset: {}, classList: { add() {}, remove() {} } };
@@ -120,6 +120,7 @@ async function testAuthGenerationOwnership() {
     channel() { return { on() { return this; }, subscribe() { return this; } }; },
     removeChannel() {},
     rpc() { return Promise.resolve({}); },
+    auth: { signOut() { return Promise.resolve({}); } },
   };
   internals.state.client = client;
   const session = {
@@ -129,8 +130,9 @@ async function testAuthGenerationOwnership() {
   const approved = role => ({ data: { email: 'a@example.com', role, active: true, account_status: 'approved' }, error: null });
   const deferred = () => {
     let resolve;
-    const promise = new Promise(r => { resolve = r; });
-    return { promise, resolve };
+    let reject;
+    const promise = new Promise((res, rej) => { resolve = res; reject = rej; });
+    return { promise, resolve, reject };
   };
 
   // An older session validation must not unlock after a newer sign-out.
@@ -160,6 +162,44 @@ async function testAuthGenerationOwnership() {
   assert.strictEqual(raceContext.window.PDC_AUTH_CONTEXT.role, 'viewer', 'older elevated role lookup must not overwrite newer demotion');
   assert.strictEqual(internals.state.role.role, 'viewer', 'internal role authority must remain at newest lookup');
   assert.ok(events.some(event => event.type === 'pdc-auth-ready' && event.detail?.role === 'viewer'), 'newest demotion must publish auth-ready');
+
+  // A newer live-row demotion must also supersede an older applySession role
+  // result, not only another live-row lookup.
+  const mixedOldAdmin = deferred();
+  const mixedNewViewer = deferred();
+  roleResponses.push(mixedOldAdmin.promise, mixedNewViewer.promise);
+  const mixedApply = internals.applySession(session);
+  const mixedLookup = internals.handleOwnRoleRowChanged();
+  mixedNewViewer.resolve(approved('viewer'));
+  await mixedLookup;
+  mixedOldAdmin.resolve(approved('administrator'));
+  await mixedApply;
+  assert.strictEqual(raceContext.window.PDC_AUTH_CONTEXT.role, 'viewer', 'newer live demotion supersedes older applySession elevation');
+  assert.strictEqual(internals.state.role.role, 'viewer', 'mixed async ordering retains newest database role');
+
+  // signOut() must revoke local authority before provider transport settles,
+  // and a transport rejection must never restore it.
+  const staleDuringSignOut = deferred();
+  const remoteSignOut = deferred();
+  roleResponses.push(staleDuringSignOut.promise);
+  const staleDuringSignOutApply = internals.applySession(session);
+  client.auth.signOut = () => remoteSignOut.promise;
+  const pendingSignOut = internals.signOut();
+  staleDuringSignOut.resolve(approved('administrator'));
+  await staleDuringSignOutApply;
+  assert.strictEqual(raceContext.window.PDC_AUTH_CONTEXT, undefined, 'sign-out revokes context before remote transport completes');
+  assert.strictEqual(raceContext.window.__pdcCachedAccessToken, undefined, 'sign-out clears cached token before remote transport completes');
+  assert.strictEqual(internals.state.session, null, 'sign-out clears local session immediately');
+  remoteSignOut.resolve({ error: null });
+  await pendingSignOut;
+
+  roleResponses.push(Promise.resolve(approved('operator')));
+  await internals.applySession(session);
+  client.auth.signOut = () => Promise.reject(new Error('transport unavailable'));
+  await internals.signOut();
+  assert.strictEqual(raceContext.window.PDC_AUTH_CONTEXT, undefined, 'rejected remote sign-out remains locally locked');
+  assert.strictEqual(raceContext.window.__pdcCachedAccessToken, undefined, 'rejected remote sign-out cannot retain cached token');
+  assert.strictEqual(internals.state.session, null, 'rejected remote sign-out cannot retain session authority');
 }
 
 testAuthGenerationOwnership().then(() => {

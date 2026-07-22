@@ -165,10 +165,18 @@
       setMessage(title, body, cls);
       return;
     }
+    // A newer live-row result may arrive while applySession() is revalidating
+    // and has deliberately cleared state.role/context. In that case this
+    // lookup owns the newest role generation and may unlock from its fresh
+    // proof; the older applySession completion is generation-suppressed.
+    if (!state.role) {
+      unlockApplication(session, role);
+      return;
+    }
     // Still approved -- if the role itself changed (e.g. viewer promoted to
     // controller), refresh the visible permissions live without requiring
     // a page reload.
-    if (state.role && state.role.role !== role.role) {
+    if (state.role.role !== role.role) {
       state.role = role;
       window.PDC_AUTH_CONTEXT = Object.freeze({
         ...window.PDC_AUTH_CONTEXT,
@@ -233,7 +241,7 @@
     const authGeneration = ++state.authGeneration;
     // Any own-row lookup started under the previous session/role generation
     // is now obsolete, even when the replacement belongs to the same user.
-    state.roleLookupGeneration += 1;
+    const roleLookupGeneration = ++state.roleLookupGeneration;
     lockApplication();
     // Clear every operational-data surface before validating a replacement
     // session. This also covers ordinary sign-out/session-expiry, not only a
@@ -280,7 +288,11 @@
 
     setMessage('Checking PDC access…', 'Your identity is signed in. Checking the approved staff list.', 'checking');
     const { role, error } = await loadApprovedRole(session);
-    if (authGeneration !== state.authGeneration || state.session !== session) return;
+    if (
+      authGeneration !== state.authGeneration
+      || roleLookupGeneration !== state.roleLookupGeneration
+      || state.session !== session
+    ) return;
     if (error || !role) {
       setMessage('Access not approved', `The account ${session.user.email || 'you used'} is not on the PDC approved staff list.`, 'denied');
       return;
@@ -372,8 +384,21 @@
   }
 
   async function signOut() {
-    if (state.client) await state.client.auth.signOut();
+    // Local authority is revoked before any network wait. Provider sign-out
+    // is best-effort transport cleanup and can never keep or resurrect the
+    // unlocked shell when delayed or rejected.
+    const client = state.client;
     await applySession(null);
+    if (client) {
+      try {
+        const { error } = await client.auth.signOut();
+        if (error) {
+          setMessage('Signed out locally', 'The remote sign-out request could not be confirmed. Close this browser or try again before signing in.', 'signed-out');
+        }
+      } catch (_err) {
+        setMessage('Signed out locally', 'The remote sign-out request could not be confirmed. Close this browser or try again before signing in.', 'signed-out');
+      }
+    }
   }
 
   function validatePassword(password) {
