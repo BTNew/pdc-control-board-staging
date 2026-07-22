@@ -1,19 +1,17 @@
 {
   "ai_authority": "recommendation_and_review_only",
-  "approved_commits": {
-    "ai_workshop_email": "f25843b8ce8300c6456c1e85182f173b7d8b5cdc",
-    "combined_source": "02edd29f2a1358ffcd32bf6d42b721b9d5bda6f0",
-    "cosmetic_ui": "99ac0b7923879eab8ecccaade62c02736fd2bb6f",
-    "shared_navision": "a2c05fb1990cf409342339fad7199ea5d1eca401",
-    "station_planner_release_gate": "02edd29f2a1358ffcd32bf6d42b721b9d5bda6f0"
-  },
+  "base_integration_head": "02edd29f2a1358ffcd32bf6d42b721b9d5bda6f0",
   "browser_local_authority_cutover": false,
-  "generated_at": "2026-07-22T02:47:39.095319+00:00",
-  "integration_branch": "integration/post-c6-staging-test",
-  "integration_head": "02edd29f2a1358ffcd32bf6d42b721b9d5bda6f0",
+  "feature_branch": "perf/station-first-planner-navigation",
+  "feature_head": "7b21e0626265b86eaf3f9fa5c20477720ae33749",
+  "feature_tree": "55fb23245720b591c068fac660082ed1e950d50b",
+  "function_review": "PASS",
+  "generated_at": "2026-07-22T03:43:36Z",
   "mailbox_access_enabled": false,
   "outbound_email_enabled": false,
-  "schema": "pdc.post-c6-staging-station-planners/v1",
+  "performance_target_ms": 2000,
+  "schema": "pdc.station-first-staging/v1",
+  "security_review": "PASS",
   "staging_url": "https://btnew.github.io/pdc-control-board-staging/",
   "supabase_project_ref": "cdsmnqxtyyoeoznmbidd",
   "zero_data_artifact": true

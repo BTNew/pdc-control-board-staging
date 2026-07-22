@@ -22,9 +22,9 @@ window.PDC_SUPABASE_CONFIG = {
   },
   workshop: {
     sharedData: true,
-    // Temporary acceptance rollback: keeps the original combined Workshop
-    // Planner route available until every station route is signed off.
-    stationRoutes: { combinedPlannerRollback: true }
+    // Station-first staging entry: the combined all-department planner stays
+    // unavailable so opening Workshop cannot initialise every bay group.
+    stationRoutes: { combinedPlannerRollback: false }
   },
   vehicleLifecycle: Object.freeze({
     sharedData: true,

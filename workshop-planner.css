@@ -67,6 +67,30 @@ body[data-current-view="workshop"] .content {
   align-items: flex-start;
 }
 
+.workshop-planner-dedicated {
+  grid-template-rows: auto auto minmax(0, 1fr);
+}
+
+.workshop-planner-dedicated > [data-workshop-station-content] {
+  min-width: 0;
+  min-height: 0;
+}
+
+.workshop-station-board {
+  min-height: calc(100vh - 190px);
+}
+
+.workshop-station-tabs {
+  position: sticky;
+  top: 0;
+  z-index: 12;
+}
+
+.workshop-station-loading {
+  min-height: 150px;
+  contain: content;
+}
+
 .workshop-planner-header p {
   margin: 0;
   color: #64748b;

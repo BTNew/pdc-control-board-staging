@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.07.21.04-station-planners';
+const APP_VERSION = '2026.07.22.01-station-first';
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
 // constant intentionally names only the production ref, never the
@@ -3393,7 +3393,53 @@ function wireUserManagementActions() {
   }));
 }
 
-function teardownWorkshopPlannerScope() {
+function cancelWorkshopPlannerRender() {
+  const pending = window.__workshopPlannerRenderFrame;
+  if (!pending) return;
+  if (window.__workshopPlannerRenderUsesRaf && typeof window.cancelAnimationFrame === 'function') window.cancelAnimationFrame(pending);
+  else window.clearTimeout?.(pending);
+  window.__workshopPlannerRenderFrame = 0;
+  window.__workshopPlannerRenderUsesRaf = false;
+}
+
+function scheduleWorkshopPlannerRender() {
+  if (app.currentView !== 'workshop' || window.__workshopPlannerRenderFrame) return;
+  const render = () => {
+    window.__workshopPlannerRenderFrame = 0;
+    window.__workshopPlannerRenderUsesRaf = false;
+    if (app.currentView === 'workshop' && typeof renderWorkshopPlanner === 'function') renderWorkshopPlanner();
+  };
+  if (typeof window.requestAnimationFrame === 'function') {
+    window.__workshopPlannerRenderUsesRaf = true;
+    window.__workshopPlannerRenderFrame = window.requestAnimationFrame(render);
+  } else {
+    window.__workshopPlannerRenderFrame = window.setTimeout(render, 16);
+  }
+}
+
+function installWorkshopRecoveryListeners() {
+  if (window.__workshopRecoveryListenerCleanup) return;
+  const onOnline = () => window.__workshopRealtimeManager?.forceReconnect?.();
+  const onVisibility = () => {
+    if (document.visibilityState === 'visible') window.__workshopDataService?.onVisibilityReturn?.();
+  };
+  window.addEventListener('online', onOnline);
+  document.addEventListener('visibilitychange', onVisibility);
+  window.__workshopRecoveryListenerCleanup = () => {
+    window.removeEventListener('online', onOnline);
+    document.removeEventListener('visibilitychange', onVisibility);
+    window.__workshopRecoveryListenerCleanup = null;
+  };
+}
+
+function removeWorkshopRecoveryListeners() {
+  try { window.__workshopRecoveryListenerCleanup?.(); } catch (_error) { window.__workshopRecoveryListenerCleanup = null; }
+}
+
+function teardownWorkshopPlannerScope(options) {
+  options = options || {};
+  if (typeof cancelWorkshopPlannerRender === 'function') cancelWorkshopPlannerRender();
+  if (typeof removeWorkshopRecoveryListeners === 'function') removeWorkshopRecoveryListeners();
   try { window.__workshopRealtimeManager?.stop?.(); } catch (_error) { /* best-effort route teardown */ }
   try { window.__workshopDataService?.destroy?.(); } catch (_error) { /* best-effort route teardown */ }
   window.__workshopRealtimeManager = null;
@@ -3401,7 +3447,10 @@ function teardownWorkshopPlannerScope() {
   window.__workshopSharedActions = null;
   window.__activeWorkshopPlannerStage = '';
   const root = document.getElementById('workshop-planner-root');
-  if (root) root.replaceChildren();
+  const stationContent = options.preserveShell ? root?.querySelector?.('[data-workshop-station-content]') : null;
+  if (stationContent) {
+    stationContent.innerHTML = '<div class="empty-state workshop-station-loading" role="status"><strong>Loading selected station</strong><span>Releasing the previous station and preparing its replacement…</span></div>';
+  } else if (root) root.replaceChildren();
 }
 
 function showView(view, options) {
@@ -3413,7 +3462,8 @@ function showView(view, options) {
   const nextView = departmentStage ? 'department' : (plannerStage ? 'workshop' : requestedView);
   const previousRequestedView = app.currentRequestedView || app.currentView || 'dashboard';
   const previousWasPlanner = previousRequestedView === 'workshop' || Boolean(WORKSHOP_PLANNER_VIEWS[previousRequestedView]);
-  if (previousWasPlanner && previousRequestedView !== requestedView) teardownWorkshopPlannerScope();
+  const switchingPlannerStation = previousWasPlanner && Boolean(plannerStage) && previousRequestedView !== requestedView;
+  if (previousWasPlanner && previousRequestedView !== requestedView) teardownWorkshopPlannerScope({ preserveShell: switchingPlannerStation });
   releaseHeavyViewDom(app.currentView, nextView);
   if (requestedView !== 'workflow') {
     app.activePmbBayStage = '';
@@ -3633,7 +3683,7 @@ function initWorkshopReferenceDataServiceIfAvailable() {
       }
       renderAdminLists();
       renderKpis();
-      if (app.currentView === 'workshop' && typeof renderWorkshopPlanner === 'function') renderWorkshopPlanner();
+      if (app.currentView === 'workshop') scheduleWorkshopPlannerRender();
     }
   });
   window.__workshopReferenceDataService = service;
@@ -3669,11 +3719,11 @@ function initWorkshopSharedServicesIfEnabled() {
       getAccessToken: () => (typeof getPdcSupabaseAccessToken === 'function' ? getPdcSupabaseAccessToken() : null),
       getRole: () => (typeof window.PDC_AUTH_CONTEXT !== 'undefined' ? window.PDC_AUTH_CONTEXT?.role : null),
       onStateChange: () => {
-        if (app.currentView === 'workshop' && typeof renderWorkshopPlanner === 'function') renderWorkshopPlanner();
+        if (app.currentView === 'workshop') scheduleWorkshopPlannerRender();
         if (app.currentView === 'emailreview' && typeof renderAiBoardAdvisor === 'function') renderAiBoardAdvisor();
       },
       onSnapshot: () => {
-        if (app.currentView === 'workshop' && typeof renderWorkshopPlanner === 'function') renderWorkshopPlanner();
+        if (app.currentView === 'workshop') scheduleWorkshopPlannerRender();
         if (app.currentView === 'emailreview' && typeof renderAiBoardAdvisor === 'function') renderAiBoardAdvisor();
       }
     });
@@ -3702,17 +3752,11 @@ function initWorkshopSharedServicesIfEnabled() {
         app.activeWorkshopPlannerStage ? { stageCode: app.activeWorkshopPlannerStage } : null,
       ),
       onStatusChange: () => {
-        if (app.currentView === 'workshop' && typeof renderWorkshopPlanner === 'function') renderWorkshopPlanner();
+        if (app.currentView === 'workshop') scheduleWorkshopPlannerRender();
       }
     });
     window.__workshopRealtimeManager.start();
-    if (!window.__workshopRecoveryListenersInstalled) {
-      window.addEventListener('online', () => window.__workshopRealtimeManager?.forceReconnect?.());
-      document.addEventListener('visibilitychange', () => {
-        if (document.visibilityState === 'visible') window.__workshopDataService?.onVisibilityReturn?.();
-      });
-      window.__workshopRecoveryListenersInstalled = true;
-    }
+    installWorkshopRecoveryListeners();
   }
 
   // Deliberately re-checked every call (not just inside the "first init"
@@ -3817,6 +3861,8 @@ window.addEventListener?.('pdc-auth-ready', () => {
 window.addEventListener?.('pdc-auth-locked', () => {
   const advisorHost = document.getElementById('ai-board-advisor-content');
   if (advisorHost) advisorHost.replaceChildren();
+  cancelWorkshopPlannerRender();
+  removeWorkshopRecoveryListeners();
   try {
     if (window.__workshopRealtimeManager && typeof window.__workshopRealtimeManager.stop === 'function') {
       window.__workshopRealtimeManager.stop();
