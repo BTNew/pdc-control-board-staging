@@ -12,6 +12,11 @@
     // A completion may publish authority only if it still owns both tokens.
     authGeneration: 0,
     roleLookupGeneration: 0,
+    providerGeneration: 0,
+    pendingProviderSessionGeneration: null,
+    sessionAcceptanceBlocked: false,
+    explicitSessionUserId: null,
+    ownRoleChannelGeneration: 0,
     passwordSetupRequired: /(?:^|[?#&])type=(?:invite|recovery)(?:[&#]|$)/.test(`${window.location.search}${window.location.hash}`),
   };
 
@@ -104,6 +109,7 @@
   // visible label and re-fires 'pdc-auth-ready' without requiring a reload.
   // ---------------------------------------------------------------------
   function unsubscribeOwnRoleChannel() {
+    state.ownRoleChannelGeneration += 1;
     if (state.ownRoleChannel && state.client && typeof state.client.removeChannel === 'function') {
       try {
         state.client.removeChannel(state.ownRoleChannel);
@@ -114,20 +120,49 @@
     state.ownRoleChannel = null;
   }
 
+  function lockOwnRoleAuthority(reason, role = null) {
+    // Revoke synchronously before notifying listeners. A lock event must not
+    // expose the prior context, token, session, role, or monitor callback.
+    state.authGeneration += 1;
+    state.roleLookupGeneration += 1;
+    unsubscribeOwnRoleChannel();
+    state.session = null;
+    state.user = null;
+    state.role = null;
+    delete window.PDC_AUTH_CONTEXT;
+    delete window.__pdcCachedAccessToken;
+    lockApplication();
+    window.dispatchEvent(new CustomEvent('pdc-auth-locked', { detail: { reason } }));
+    const statusMessages = {
+      pending: ['Awaiting approval', 'Your account has been created and is awaiting administrator approval.', 'pending'],
+      disabled: ['Access disabled', 'Your account access has been disabled. Contact an administrator if you believe this is an error.', 'account-disabled'],
+      rejected: ['Registration not approved', 'Your registration was not approved. Contact an administrator for details.', 'rejected'],
+    };
+    const [title, body, cls] = statusMessages[role?.account_status] || ['Access not approved', 'Your access to the PDC Control Board could not be revalidated.', 'denied'];
+    setMessage(title, body, cls);
+  }
+
   function subscribeOwnRoleChannel(email) {
     unsubscribeOwnRoleChannel();
     if (!state.client || typeof state.client.channel !== 'function' || !email) return;
+    const channelGeneration = state.ownRoleChannelGeneration;
     const channel = state.client
       .channel(`pdc_user_roles_own_row:${email}`)
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'pdc_user_roles', filter: `email=eq.${email}` },
         () => {
-          handleOwnRoleRowChanged();
+          handleOwnRoleRowChanged().catch(() => lockOwnRoleAuthority('role_check_failed'));
         }
-      )
-      .subscribe();
+      );
     state.ownRoleChannel = channel;
+    channel.subscribe(status => {
+      if (channelGeneration !== state.ownRoleChannelGeneration || state.ownRoleChannel !== channel) return;
+      if (status === 'SUBSCRIBED') return;
+      if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+        lockOwnRoleAuthority('role_monitor_unavailable');
+      }
+    });
   }
 
   async function handleOwnRoleRowChanged() {
@@ -135,34 +170,22 @@
     if (!session) return;
     const authGeneration = state.authGeneration;
     const roleLookupGeneration = ++state.roleLookupGeneration;
-    const { role, error } = await loadApprovedRole(session);
+    let role;
+    let error;
+    try {
+      ({ role, error } = await loadApprovedRole(session));
+    } catch (caught) {
+      error = caught;
+    }
     if (
       authGeneration !== state.authGeneration
       || roleLookupGeneration !== state.roleLookupGeneration
       || state.session !== session
     ) return;
     if (error || !role || role.account_status !== 'approved' || !approvedRole(role, state.session.user?.email)) {
-      // No longer approved (disabled, rejected, reverted to pending, or the
-      // row vanished). Lock immediately -- do not wait for the user to
-      // reload or sign out, and do not leave previously-rendered
-      // operational data visible in an inert-but-still-DOM-present shell.
-      window.dispatchEvent(new CustomEvent('pdc-auth-locked', { detail: { reason: role ? role.account_status : 'not_found' } }));
-      state.authGeneration += 1;
-      state.roleLookupGeneration += 1;
-      unsubscribeOwnRoleChannel();
-      state.session = null;
-      state.user = null;
-      state.role = null;
-      delete window.PDC_AUTH_CONTEXT;
-      delete window.__pdcCachedAccessToken;
-      lockApplication();
-      const statusMessages = {
-        pending: ['Awaiting approval', 'Your account has been created and is awaiting administrator approval.', 'pending'],
-        disabled: ['Access disabled', 'Your account access has been disabled. Contact an administrator if you believe this is an error.', 'account-disabled'],
-        rejected: ['Registration not approved', 'Your registration was not approved. Contact an administrator for details.', 'rejected'],
-      };
-      const [title, body, cls] = statusMessages[role?.account_status] || ['Access not approved', 'Your access to the PDC Control Board is no longer approved.', 'denied'];
-      setMessage(title, body, cls);
+      // No longer approved, or revalidation itself failed. Revoke before
+      // notifying listeners and never retain authority without monitoring.
+      lockOwnRoleAuthority(role ? role.account_status : (error ? 'role_check_failed' : 'not_found'), role);
       return;
     }
     // A newer live-row result may arrive while applySession() is revalidating
@@ -206,6 +229,16 @@
     // more than one event loop tick.
     window.__pdcCachedAccessToken = session.access_token || null;
 
+    try {
+      subscribeOwnRoleChannel(window.PDC_AUTH_CONTEXT.email);
+    } catch (_err) {
+      lockOwnRoleAuthority('role_monitor_unavailable');
+      return false;
+    }
+    // A synchronous channel failure callback may already have revoked this
+    // attempted unlock. Never continue into visible/ready state afterward.
+    if (state.session !== session || !window.PDC_AUTH_CONTEXT) return false;
+
     const shell = el('app-shell');
     if (shell) {
       shell.removeAttribute('inert');
@@ -223,7 +256,7 @@
     document.body.classList.add('auth-approved');
     document.body.dataset.authState = 'approved';
     window.dispatchEvent(new CustomEvent('pdc-auth-ready', { detail: window.PDC_AUTH_CONTEXT }));
-    subscribeOwnRoleChannel(window.PDC_AUTH_CONTEXT.email);
+    return true;
   }
 
   async function loadApprovedRole(session) {
@@ -243,28 +276,27 @@
     // is now obsolete, even when the replacement belongs to the same user.
     const roleLookupGeneration = ++state.roleLookupGeneration;
     lockApplication();
-    // Clear every operational-data surface before validating a replacement
-    // session. This also covers ordinary sign-out/session-expiry, not only a
-    // realtime role lockout, so a subsequent login cannot briefly inherit
-    // rendered advice from the previous account.
+    unsubscribeOwnRoleChannel();
+    // Revoke every local authority surface before synchronously notifying
+    // listeners. The incoming session remains a local argument until after
+    // the lock event, so listeners cannot observe unvalidated replacement
+    // authority either.
+    state.session = null;
+    state.user = null;
+    state.role = null;
+    delete window.PDC_AUTH_CONTEXT;
+    delete window.__pdcCachedAccessToken;
     try {
       window.dispatchEvent?.(new CustomEvent('pdc-auth-locked', { detail: { reason: session ? 'session-revalidate' : 'session-ended' } }));
     } catch (_err) { /* best-effort client-data teardown */ }
-    unsubscribeOwnRoleChannel();
     // Stage 2A: stop the shared workshop reference-data realtime
     // subscriptions and periodic reconciliation timer on every session
-    // teardown path (sign-out, lockout, session expiry) -- this is the
-    // single chokepoint all of those already route through, so it
-    // never polls or holds open channels with a signed-out session.
-    // Only stop on teardown (session === null), never on a real sign-in.
+    // teardown path (sign-out, lockout, session expiry).
     if (!session && typeof window.stopWorkshopReferenceDataReconciliationTimer === 'function') {
       window.stopWorkshopReferenceDataReconciliationTimer();
     }
     state.session = session || null;
     state.user = session?.user || null;
-    state.role = null;
-    delete window.PDC_AUTH_CONTEXT;
-    delete window.__pdcCachedAccessToken;
 
     const userLabel = el('pdc-auth-user');
     const signOut = el('pdc-auth-signout');
@@ -287,7 +319,13 @@
     }
 
     setMessage('Checking PDC access…', 'Your identity is signed in. Checking the approved staff list.', 'checking');
-    const { role, error } = await loadApprovedRole(session);
+    let role;
+    let error;
+    try {
+      ({ role, error } = await loadApprovedRole(session));
+    } catch (caught) {
+      error = caught;
+    }
     if (
       authGeneration !== state.authGeneration
       || roleLookupGeneration !== state.roleLookupGeneration
@@ -313,25 +351,53 @@
       setMessage('Access not approved', `The account ${session.user.email || 'you used'} is not on the PDC approved staff list.`, 'denied');
       return;
     }
-    unlockApplication(session, role);
+    if (!unlockApplication(session, role)) return;
     // Fire-and-forget: records the last successful sign-in timestamp for
     // the administrator user-management screen. Never blocks unlocking
     // the application on this succeeding.
     state.client.rpc('record_pdc_login', {}).then(() => {}, () => {});
   }
 
+  function beginProviderSessionOperation() {
+    state.sessionAcceptanceBlocked = false;
+    state.explicitSessionUserId = null;
+    const generation = ++state.providerGeneration;
+    state.pendingProviderSessionGeneration = generation;
+    return generation;
+  }
+
+  function completeProviderSessionOperation(generation, session = null) {
+    if (generation !== state.providerGeneration || state.pendingProviderSessionGeneration !== generation) return false;
+    state.pendingProviderSessionGeneration = null;
+    if (session?.user?.id) state.explicitSessionUserId = session.user.id;
+    return true;
+  }
+
+  function providerSessionOperationCurrent(generation) {
+    return generation === state.providerGeneration && state.pendingProviderSessionGeneration === generation;
+  }
+
   async function signInWithMicrosoft() {
+    const providerGeneration = beginProviderSessionOperation();
+    await applySession(null);
+    if (!providerSessionOperationCurrent(providerGeneration)) return;
     const button = el('pdc-microsoft-login');
     if (button) button.disabled = true;
     setMessage('Opening Microsoft sign-in…', 'You will return here after Microsoft verifies your account.', 'checking');
     const config = authConfig();
-    const { error } = await state.client.auth.signInWithOAuth({
-      provider: config.provider,
-      options: {
-        scopes: 'email',
-        redirectTo: safeRedirectTo(config.redirectTo),
-      },
-    });
+    let error;
+    try {
+      ({ error } = await state.client.auth.signInWithOAuth({
+        provider: config.provider,
+        options: {
+          scopes: 'email',
+          redirectTo: safeRedirectTo(config.redirectTo),
+        },
+      }));
+    } catch (caught) {
+      error = caught;
+    }
+    if (!completeProviderSessionOperation(providerGeneration)) return;
     if (error) {
       setMessage('Microsoft sign-in unavailable', error.message || 'The Microsoft provider is not configured yet.', 'signed-out');
       if (button) button.disabled = false;
@@ -347,9 +413,19 @@
       setMessage('PDC staff sign-in', 'Enter your assigned email address and password.', 'signed-out');
       return;
     }
+    const providerGeneration = beginProviderSessionOperation();
+    await applySession(null);
+    if (!providerSessionOperationCurrent(providerGeneration)) return;
     if (button) button.disabled = true;
     setMessage('Signing in…', 'Checking your staff account and PDC access.', 'checking');
-    const { data, error } = await state.client.auth.signInWithPassword({ email, password });
+    let data;
+    let error;
+    try {
+      ({ data, error } = await state.client.auth.signInWithPassword({ email, password }));
+    } catch (caught) {
+      error = caught;
+    }
+    if (!completeProviderSessionOperation(providerGeneration, data?.session)) return;
     if (button) button.disabled = false;
     if (error || !data?.session) {
       if (el('pdc-login-password')) el('pdc-login-password').value = '';
@@ -368,9 +444,18 @@
       setMessage('Create your PDC password', password !== confirmation ? 'The two passwords do not match.' : 'Use at least 12 characters with upper and lower-case letters, a number and a symbol.', 'password-setup');
       return;
     }
+    const providerGeneration = beginProviderSessionOperation();
+    const session = state.session;
     const button = el('pdc-save-password');
     if (button) button.disabled = true;
-    const { data, error } = await state.client.auth.updateUser({ password });
+    let data;
+    let error;
+    try {
+      ({ data, error } = await state.client.auth.updateUser({ password }));
+    } catch (caught) {
+      error = caught;
+    }
+    if (!completeProviderSessionOperation(providerGeneration, session) || state.session !== session) return;
     if (button) button.disabled = false;
     if (error || !data?.user) {
       setMessage('Password could not be saved', error?.message || 'Request another invitation and try again.', 'password-setup');
@@ -380,23 +465,29 @@
     if (el('pdc-confirm-password')) el('pdc-confirm-password').value = '';
     state.passwordSetupRequired = false;
     window.history.replaceState({}, document.title, window.location.pathname);
-    await applySession(state.session);
+    await applySession(session);
   }
 
   async function signOut() {
     // Local authority is revoked before any network wait. Provider sign-out
     // is best-effort transport cleanup and can never keep or resurrect the
     // unlocked shell when delayed or rejected.
+    state.sessionAcceptanceBlocked = true;
+    state.pendingProviderSessionGeneration = null;
+    state.explicitSessionUserId = null;
+    const providerGeneration = ++state.providerGeneration;
     const client = state.client;
     await applySession(null);
     if (client) {
       try {
         const { error } = await client.auth.signOut();
-        if (error) {
+        if (error && providerGeneration === state.providerGeneration) {
           setMessage('Signed out locally', 'The remote sign-out request could not be confirmed. Close this browser or try again before signing in.', 'signed-out');
         }
       } catch (_err) {
-        setMessage('Signed out locally', 'The remote sign-out request could not be confirmed. Close this browser or try again before signing in.', 'signed-out');
+        if (providerGeneration === state.providerGeneration) {
+          setMessage('Signed out locally', 'The remote sign-out request could not be confirmed. Close this browser or try again before signing in.', 'signed-out');
+        }
       }
     }
   }
@@ -488,16 +579,45 @@
     el('pdc-disabled-signout')?.addEventListener('click', signOut);
     el('pdc-rejected-signout')?.addEventListener('click', signOut);
 
-    const { data, error } = await state.client.auth.getSession();
-    if (error) {
-      setMessage('Session error', error.message || 'The saved session could not be checked.', 'signed-out');
-      return;
-    }
-    await applySession(data.session);
+    // Register provider events before initial discovery so a newer sign-out,
+    // refresh, or replacement session supersedes a delayed getSession().
     state.client.auth.onAuthStateChange((event, session) => {
-      if (event === 'PASSWORD_RECOVERY') state.passwordSetupRequired = true;
-      window.setTimeout(() => applySession(session), 0);
+      // Supabase may emit SIGNED_IN before an explicit password/signup
+      // promise resolves. That request owns session publication; suppress
+      // uncorrelated callbacks until its generation completes.
+      if (session && state.pendingProviderSessionGeneration !== null) return;
+      if (session && state.explicitSessionUserId && session.user?.id !== state.explicitSessionUserId) return;
+      if (event === 'SIGNED_OUT') {
+        state.sessionAcceptanceBlocked = true;
+        state.pendingProviderSessionGeneration = null;
+      }
+      if (event === 'PASSWORD_RECOVERY') state.sessionAcceptanceBlocked = false;
+      const providerGeneration = ++state.providerGeneration;
+      window.setTimeout(() => {
+        if (providerGeneration !== state.providerGeneration) return;
+        if (session && state.sessionAcceptanceBlocked) {
+          applySession(null);
+          return;
+        }
+        if (event === 'PASSWORD_RECOVERY') state.passwordSetupRequired = true;
+        applySession(session);
+      }, 0);
     });
+    const providerGeneration = ++state.providerGeneration;
+    let data;
+    let error;
+    try {
+      ({ data, error } = await state.client.auth.getSession());
+    } catch (caught) {
+      error = caught;
+    }
+    if (providerGeneration === state.providerGeneration) {
+      if (error) {
+        setMessage('Session error', error.message || 'The saved session could not be checked.', 'signed-out');
+      } else {
+        await applySession(data.session);
+      }
+    }
     state.initialized = true;
   }
 
@@ -525,6 +645,9 @@
   window.PDC_AUTH_SHARED = Object.freeze({
     getClient: () => state.client,
     applySession,
+    beginProviderOperation: beginProviderSessionOperation,
+    providerOperationCurrent: providerSessionOperationCurrent,
+    completeProviderOperation: completeProviderSessionOperation,
     authConfig,
     safeRedirectTo,
     validatePassword,
