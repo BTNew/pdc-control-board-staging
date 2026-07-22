@@ -71,6 +71,9 @@ begin
   'public.get_vehicle_intelligence_snapshot(uuid,text,integer)'::regprocedure,
   'public.append_vehicle_timeline_event(uuid,text,timestamptz,public.vehicle_timeline_source_kind,public.vehicle_timeline_event_state,text,text,jsonb,text,text,text,text,text,text,text,text,text,numeric,numeric,numeric,numeric,text,boolean,jsonb,jsonb,text,text,uuid,uuid,uuid,uuid,uuid)'::regprocedure,
   'public.create_ai_review_item(uuid,uuid,uuid,uuid[],uuid[],text,jsonb,jsonb)'::regprocedure,
+  'public.list_ai_review_queue(text)'::regprocedure,
+  'public.list_salespeople(boolean)'::regprocedure,
+  'public.list_sublet_providers(boolean)'::regprocedure,
   'public.approve_ai_review_item(uuid,uuid,uuid[],text)'::regprocedure,
   'public.reject_ai_review_item(uuid,text,boolean)'::regprocedure
  ] loop
@@ -220,16 +223,21 @@ begin
  end loop;
 end $$;
 
--- AI intake/review rows are workflow authority, not importer scratch space.
--- Preserve operator/admin read/Realtime filtering while removing every direct
--- importer read/write policy; mutations remain available only through guarded RPCs.
+-- AI intake/review, audit, reference and importer-backed source rows are
+-- workflow authority, not importer scratch space. Preserve operator/admin
+-- read/Realtime filtering while removing every direct importer read/write
+-- policy; mutations remain available only through guarded narrow RPCs.
 do $$
 declare v_table text; v_policy record;
 begin
  foreach v_table in array array[
   'ai_email_analysis_results','ai_email_attachments','ai_email_intake','ai_extracted_fields',
   'ai_intake_config','ai_mapping_rules','ai_proposed_actions','ai_review_items',
-  'ai_trusted_senders','ai_undo_actions','ai_workshop_commands'
+  'ai_trusted_senders','ai_undo_actions','ai_workshop_commands',
+  'monitored_mailboxes','email_response_drafts','audit_events','import_runs','label_print_events',
+  'salespeople','sublet_providers','navision_backend_revision','navision_import_batches',
+  'navision_backend_records','navision_import_items','navision_operation_receipts',
+  'navision_rollback_items','navision_backend_audit'
  ] loop
   for v_policy in select policyname from pg_policies
    where schemaname='public' and tablename=v_table
@@ -240,6 +248,10 @@ begin
   execute format('revoke insert,update,delete on public.%I from public,anon,authenticated',v_table);
  end loop;
 end $$;
+
+-- Source email attachments are ingested by trusted backend code. Importer has
+-- no direct storage-object read authority.
+drop policy if exists pdc_email_attachments_read_importer on storage.objects;
 
 -- Direct low-level booking operations must never bypass the audited high-level layer.
 revoke execute on function public.workshop_create_booking(uuid,text,integer,timestamptz,integer,uuid,jsonb) from public,anon,authenticated;

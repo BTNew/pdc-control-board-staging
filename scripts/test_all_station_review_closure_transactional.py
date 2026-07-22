@@ -201,11 +201,16 @@ try:
   'public.workshop_complete_booking(uuid,integer,timestamp with time zone,jsonb)']:
   q.execute("select has_function_privilege('authenticated',%s,'EXECUTE')",(signature,)); assert q.fetchone()[0] is False,signature
  q.execute("select has_function_privilege('authenticated','public.get_workshop_snapshot(date,date)','EXECUTE')"); assert q.fetchone()[0] is False,'legacy broad snapshot must be browser-inaccessible'
+ q.execute("""select schemaname,tablename,policyname from pg_policies where schemaname in ('public','storage') and
+  (coalesce(qual,'') ilike '%is_pdc_role%operator%' or coalesce(with_check,'') ilike '%is_pdc_role%operator%' or
+   coalesce(qual,'') ilike '%is_pdc_role%importer%' or coalesce(with_check,'') ilike '%is_pdc_role%importer%' or
+   coalesce(qual,'') ilike '%current_pdc_user_role%importer%' or coalesce(with_check,'') ilike '%current_pdc_user_role%importer%')""")
+ assert q.fetchall()==[],'inherited importer-permissive direct-table/storage policy remains after migration 044'
  importer='fixture-importer-'+uuid.uuid4().hex+'@example.invalid'; operator=os.environ['PDC_STAGING_CONTROLLER_A_EMAIL'].strip().lower(); viewer=os.environ['PDC_STAGING_VIEWER_EMAIL'].strip().lower()
  q.execute("insert into public.pdc_user_roles(email,display_name,role,active) values(%s,'Fixture Importer','importer',true)",(importer,))
  q.execute("select lower(email),role::text from public.pdc_user_roles where lower(email) in (%s,%s)",(operator,viewer)); real_roles=dict(q.fetchall())
  assert real_roles.get(operator)=='operator' and real_roles.get(viewer)=='viewer',real_roles
- workshop_tables=['vehicles','vehicle_aliases','vehicle_master_revision','vehicle_lifecycle_resolver_revision','vehicle_master_source_records','vehicle_master_operation_receipts','vehicle_master_history','vehicle_master_identity_conflicts','vehicle_movements','vehicle_parts_updates','vehicle_eta_history','vehicle_timeline_events','vehicle_intelligence_revisions','vehicle_intelligence_summaries','vehicle_match_candidates','deleted_completed_vehicles','vehicle_notifications','vehicle_work_items','workshop_stages','workshop_stage_aliases','workshop_technicians','workshop_bays','workshop_settings','workshop_bookings','workshop_booking_assignments','workshop_booking_history','workshop_parts_overrides','workshop_revision','workshop_station_revision','ai_email_analysis_results','ai_email_attachments','ai_email_intake','ai_extracted_fields','ai_intake_config','ai_mapping_rules','ai_proposed_actions','ai_review_items','ai_trusted_senders','ai_undo_actions','ai_workshop_commands']
+ workshop_tables=['vehicles','vehicle_aliases','vehicle_master_revision','vehicle_lifecycle_resolver_revision','vehicle_master_source_records','vehicle_master_operation_receipts','vehicle_master_history','vehicle_master_identity_conflicts','vehicle_movements','vehicle_parts_updates','vehicle_eta_history','vehicle_timeline_events','vehicle_intelligence_revisions','vehicle_intelligence_summaries','vehicle_match_candidates','deleted_completed_vehicles','vehicle_notifications','vehicle_work_items','workshop_stages','workshop_stage_aliases','workshop_technicians','workshop_bays','workshop_settings','workshop_bookings','workshop_booking_assignments','workshop_booking_history','workshop_parts_overrides','workshop_revision','workshop_station_revision','ai_email_analysis_results','ai_email_attachments','ai_email_intake','ai_extracted_fields','ai_intake_config','ai_mapping_rules','ai_proposed_actions','ai_review_items','ai_trusted_senders','ai_undo_actions','ai_workshop_commands','monitored_mailboxes','email_response_drafts','audit_events','import_runs','label_print_events','salespeople','sublet_providers','navision_backend_revision','navision_import_batches','navision_backend_records','navision_import_items','navision_operation_receipts','navision_rollback_items','navision_backend_audit']
  for email,role,allowed in [(admin_email,'administrator',True),(operator,'operator',True),(viewer,'viewer',False),(importer,'importer',False)]:
   q.execute('reset role')
   q.execute("select set_config('request.jwt.claims',%s,true)",(json.dumps({'sub':str(admin),'email':email,'role':'authenticated'}),))
@@ -251,6 +256,9 @@ try:
     ('append_timeline',"select public.append_vehicle_timeline_event('00000000-0000-0000-0000-000000000001','probe')"),
     ('rebuild_intelligence',"select public.rebuild_vehicle_intelligence_summary('00000000-0000-0000-0000-000000000001')"),
     ('create_ai_review',"select public.create_ai_review_item('00000000-0000-0000-0000-000000000001','00000000-0000-0000-0000-000000000001')"),
+    ('list_ai_review_queue',"select public.list_ai_review_queue('pending')"),
+    ('list_salespeople',"select * from public.list_salespeople(false)"),
+    ('list_sublet_providers',"select * from public.list_sublet_providers(false)"),
     ('vehicle_intelligence',"select public.get_vehicle_intelligence_snapshot('00000000-0000-0000-0000-000000000001','desc',10)"),
     ('approve_ai_review',"select public.approve_ai_review_item('00000000-0000-0000-0000-000000000001',null,null,null)"),
     ('reject_ai_review',"select public.reject_ai_review_item('00000000-0000-0000-0000-000000000001',null,false)"),
