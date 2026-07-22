@@ -37,6 +37,9 @@ assert(sql.includes("raise exception 'Unknown, inactive or planner-disabled work
 assert(sql.includes("'vehicles','vehicle_aliases','vehicle_master_revision','vehicle_lifecycle_resolver_revision'") && sql.includes("'vehicle_movements','vehicle_parts_updates','vehicle_eta_history','vehicle_timeline_events'") && sql.includes('drop policy if exists') && sql.includes('workshop_is_planner_operator()'), 'all workshop and workflow-history policy inheritance must be replaced');
 assert(sql.includes("in ('operator','administrator')"), 'only operator/admin may read workshop tables');
 assert(sql.includes('create policy vehicles_planner_operator_select') && sql.includes('using(public.workshop_is_planner_operator())'), 'vehicle workflow rows and Realtime must deny importer inheritance');
+assert(sql.includes("'ai_email_analysis_results','ai_email_attachments','ai_email_intake','ai_extracted_fields'") && sql.includes("'ai_trusted_senders','ai_undo_actions','ai_workshop_commands'"), 'AI intake/review workflow tables must deny direct importer authority');
+assert(sql.includes('revoke all on function public.rebuild_vehicle_intelligence_summary(uuid) from public,anon,authenticated'), 'intelligence summary primitive must not remain directly executable by importer');
+assert(sql.includes("b.status = ''planned'' and b.deleted_at is null") && sql.includes("status = ''planned'' and deleted_at is null") && sql.includes('Soft-deleted Workshop Planner bookings cannot be scheduled or cascaded'), 'cascade candidate, revalidation, update and trigger boundaries must reject soft-deleted bookings');
 assert(/revoke all on function public\.get_workshop_snapshot\(date,date\) from public,anon,authenticated/i.test(sql), 'legacy broad workshop snapshot must be browser-inaccessible');
 for(const fn of ['get_workshop_configuration','list_workshop_bays','list_technicians','workshop_current_revision']) {
   const start=sql.indexOf(`function public.${fn}`);
@@ -61,7 +64,7 @@ for (const wrapperName of wrapperNames) {
   assert(!/update\s+public\.vehicles|update\s+public\.vehicle_work_items/i.test(body), `${wrapperName} mutates vehicle/work-item authority`);
 }
 assert(sql.includes("vehicle_not_eligible_for_station") && sql.includes('workshop_station_eligibility(v_code)'), 'create/cascade scheduling must transactionally recheck current eligibility');
-for (const fn of ['move_vehicle','mark_vehicle_deleted','qc_complete_vehicle','rft_transfer_vehicle','rft_collect_vehicle','restore_vehicle','edit_vehicle_master','get_vehicle_core_snapshot','resolve_vehicle_lifecycle_identity','get_vehicle_intelligence_snapshot','approve_ai_review_item','reject_ai_review_item','cascade_workshop_schedule']) {
+for (const fn of ['move_vehicle','mark_vehicle_deleted','qc_complete_vehicle','rft_transfer_vehicle','rft_collect_vehicle','restore_vehicle','edit_vehicle_master','get_vehicle_core_snapshot','resolve_vehicle_lifecycle_identity','get_vehicle_intelligence_snapshot','append_vehicle_timeline_event','rebuild_vehicle_intelligence_summary','create_ai_review_item','approve_ai_review_item','reject_ai_review_item','cascade_workshop_schedule']) {
   assert(sql.includes(`public.${fn}(`), `${fn} inherited importer gate must be closed`);
 }
 assert(sql.includes('Active non-deleted vehicle is required for Workshop Planner scheduling') && sql.includes('Vehicle is not eligible for target Workshop Planner station'), 'all scheduling-shape mutations need active vehicle and shared target eligibility guards');

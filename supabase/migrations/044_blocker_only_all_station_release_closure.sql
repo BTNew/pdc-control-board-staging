@@ -69,6 +69,8 @@ begin
   'public.get_vehicle_core_snapshot()'::regprocedure,
   'public.resolve_vehicle_lifecycle_identity(text,text,text,text,text,text,text,text)'::regprocedure,
   'public.get_vehicle_intelligence_snapshot(uuid,text,integer)'::regprocedure,
+  'public.append_vehicle_timeline_event(uuid,text,timestamptz,public.vehicle_timeline_source_kind,public.vehicle_timeline_event_state,text,text,jsonb,text,text,text,text,text,text,text,text,text,numeric,numeric,numeric,numeric,text,boolean,jsonb,jsonb,text,text,uuid,uuid,uuid,uuid,uuid)'::regprocedure,
+  'public.create_ai_review_item(uuid,uuid,uuid,uuid[],uuid[],text,jsonb,jsonb)'::regprocedure,
   'public.approve_ai_review_item(uuid,uuid,uuid[],text)'::regprocedure,
   'public.reject_ai_review_item(uuid,text,boolean)'::regprocedure
  ] loop
@@ -92,6 +94,27 @@ begin
   v_patched:=replace(v_patched,
     'public.current_pdc_user_role() = ANY (ARRAY[''operator''::public.pdc_role, ''importer''::public.pdc_role, ''administrator''::public.pdc_role])',
     'public.workshop_is_planner_operator()');
+  v_patched:=replace(v_patched,
+    'if public.current_pdc_user_role() not in (''importer'', ''administrator'', ''operator'') then',
+    'if not public.workshop_is_planner_operator() then');
+  v_patched:=replace(v_patched,
+    'if public.current_pdc_user_role() not in (''importer'', ''administrator'') then',
+    'if not public.workshop_is_planner_operator() or not public.is_pdc_role(''administrator'') then');
+  if v_signature='public.cascade_workshop_schedule(text,uuid,integer,text,integer,timestamptz,integer,uuid,integer,text,jsonb)'::regprocedure then
+   v_patched:=replace(v_patched,
+     'b.status = ''planned''',
+     'b.status = ''planned'' and b.deleted_at is null');
+   v_patched:=replace(v_patched,
+     'and status = ''planned'';',
+     'and status = ''planned'' and deleted_at is null;');
+   v_patched:=replace(v_patched,
+     E'and status = ''planned''\n',
+     E'and status = ''planned'' and deleted_at is null\n');
+   if position('b.status = ''planned'' and b.deleted_at is null' in v_patched)=0
+      or position('status = ''planned'' and deleted_at is null' in v_patched)=0 then
+    raise exception 'Could not install cascade soft-delete boundary' using errcode='42501';
+   end if;
+  end if;
   if position('public.workshop_require_planner_operator()' in v_patched)=0
      and position('public.workshop_is_planner_operator()' in v_patched)=0 then
    raise exception 'Could not install exact planner role guard for %',v_signature using errcode='42501';
@@ -99,12 +122,19 @@ begin
   if position('public.require_pdc_role(''operator''' in v_patched)>0
      or position('public.require_pdc_role(''importer''' in v_patched)>0
      or position('public.is_pdc_role(''operator''' in v_patched)>0
-     or position('''importer''::public.pdc_role' in v_patched)>0 then
+     or position('''importer''::public.pdc_role' in v_patched)>0
+     or position('current_pdc_user_role() not in (''importer''' in v_patched)>0 then
    raise exception 'Could not close inherited importer gate for %',v_signature using errcode='42501';
   end if;
   execute v_patched;
  end loop;
 end $$;
+
+-- Summary rebuilding is an internal primitive called by the approved narrow
+-- ETA path and by guarded operator/admin intelligence mutations. It must not
+-- remain directly executable by browser roles, including importer.
+revoke all on function public.rebuild_vehicle_intelligence_summary(uuid) from public,anon,authenticated;
+grant execute on function public.rebuild_vehicle_intelligence_summary(uuid) to service_role;
 
 -- Vehicle rows carry workflow authority and are part of the Realtime
 -- publication. Replace the inherited operator hierarchy so importers cannot
@@ -179,6 +209,27 @@ begin
   'workshop_booking_history','workshop_bookings','workshop_parts_overrides',
   'workshop_revision','workshop_settings','workshop_stages',
   'workshop_technicians','workshop_station_revision','workshop_stage_aliases'
+ ] loop
+  for v_policy in select policyname from pg_policies
+   where schemaname='public' and tablename=v_table
+  loop execute format('drop policy if exists %I on public.%I',v_policy.policyname,v_table); end loop;
+  execute format('create policy %I on public.%I for select to authenticated using (public.workshop_is_planner_operator())',
+   v_table||'_planner_operator_select',v_table);
+  execute format('grant select on public.%I to authenticated',v_table);
+  execute format('revoke insert,update,delete on public.%I from public,anon,authenticated',v_table);
+ end loop;
+end $$;
+
+-- AI intake/review rows are workflow authority, not importer scratch space.
+-- Preserve operator/admin read/Realtime filtering while removing every direct
+-- importer read/write policy; mutations remain available only through guarded RPCs.
+do $$
+declare v_table text; v_policy record;
+begin
+ foreach v_table in array array[
+  'ai_email_analysis_results','ai_email_attachments','ai_email_intake','ai_extracted_fields',
+  'ai_intake_config','ai_mapping_rules','ai_proposed_actions','ai_review_items',
+  'ai_trusted_senders','ai_undo_actions','ai_workshop_commands'
  ] loop
   for v_policy in select policyname from pg_policies
    where schemaname='public' and tablename=v_table
@@ -280,6 +331,16 @@ create or replace function public.workshop_prevent_disabled_planner_booking_muta
 returns trigger language plpgsql security definer set search_path=pg_catalog,public as $$
 declare v_enabled boolean; v_mutating boolean; v_location text; v_eta date; v_stage text; v_eligible boolean;
 begin
+ if tg_op='UPDATE' and old.deleted_at is not null then
+  if new.deleted_at is null and new.status='queued' and new.bay_id is null
+     and new.stage_id=old.stage_id and new.vehicle_id=old.vehicle_id
+     and new.scheduled_start_at is not distinct from old.scheduled_start_at
+     and new.scheduled_end_at is not distinct from old.scheduled_end_at
+     and new.default_duration_minutes is not distinct from old.default_duration_minutes then
+   return new;
+  end if;
+  raise exception 'Soft-deleted Workshop Planner bookings cannot be scheduled or cascaded' using errcode='22023';
+ end if;
  v_mutating:=tg_op='INSERT';
  if tg_op='UPDATE' then
   v_mutating:=old.stage_id is distinct from new.stage_id

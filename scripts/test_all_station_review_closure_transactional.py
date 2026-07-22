@@ -58,14 +58,13 @@ try:
   (%s,%s,null,'planned',%s,%s,60,null,null,%s,%s),
   (%s,%s,null,'planned',%s,%s,60,null,null,%s,%s),
   (%s,%s,null,'planned',%s,%s,60,null,null,%s,%s),
-  (%s,%s,null,'deleted',%s,%s,60,now(),'fixture deleted booking',%s,%s)""",
+  (%s,%s,null,'planned',%s,%s,60,now(),'fixture deleted booking',%s,%s)""",
   (inactive_vehicle,bus_stage,start,start+timedelta(hours=1),admin,admin,
    deleted_vehicle,bus_stage,start,start+timedelta(hours=1),admin,admin,
    out_window_vehicle,bus_stage,start+timedelta(days=10),start+timedelta(days=10,hours=1),admin,admin,
    deleted_booking_vehicle,bus_stage,start,start+timedelta(hours=1),admin,admin))
  q.execute('alter table public.workshop_bookings enable trigger workshop_bookings_planner_enabled_guard')
  # Adversarial soft deletion: a whitelisted status must still be excluded.
- q.execute("update public.workshop_bookings set status='planned' where vehicle_id=%s",(deleted_booking_vehicle,))
  # Bayless soft-deleted booking at an ineligible location with no outstanding
  # requirement must never be restorable into aggregate planner authority.
  restore_ineligible_vehicle=uuid.uuid4()
@@ -87,6 +86,13 @@ try:
  q.execute("select public.move_workshop_booking(%s,%s,'BUS_4X4',1,%s,60,null,'{}'::jsonb)",(bus_booking,bus_version,start+timedelta(hours=2))); assert q.fetchone()[0]['ok'] is True
  assert_authority_unchanged(vehicle,protected,'move')
  q.execute('select current_location,pmb_stage,visible_on_board from public.vehicles where id=%s',(vehicle,)); assert q.fetchone()==('YH','UNALLOCATED',False),'booking move changed vehicle authority'
+ # A soft-deleted planned bystander that otherwise satisfies every eligibility
+ # condition must never enter or be mutated by a same-bay cascade.
+ cascade_deleted_vehicle=uuid.uuid4()
+ q.execute("insert into public.vehicles(id,permanent_vehicle_id,stock_number,current_location,pmb_stage,visible_on_board,version,lifecycle_state,updated_by) values(%s,%s,%s,'PMB','UNALLOCATED',false,1,'active',%s)",(cascade_deleted_vehicle,uuid.uuid4(),'CASDEL-'+uuid.uuid4().hex[:8],admin))
+ q.execute("insert into public.vehicle_work_items(vehicle_id,work_key,required,completed) values(%s,'BUS4X4',true,false)",(cascade_deleted_vehicle,))
+ q.execute("select id from public.workshop_bays where stage_id=%s and bay_number=1",(bus_stage,)); bus_bay=q.fetchone()[0]
+ q.execute("insert into public.workshop_bookings(vehicle_id,stage_id,bay_id,status,scheduled_start_at,scheduled_end_at,default_duration_minutes,deleted_at,deleted_reason,created_by,updated_by) values(%s,%s,%s,'planned',%s,%s,60,now(),'fixture cascade soft delete',%s,%s) returning id,version,scheduled_start_at",(cascade_deleted_vehicle,bus_stage,bus_bay,start+timedelta(hours=6),start+timedelta(hours=7),admin,admin)); cascade_deleted_booking,cascade_deleted_version,cascade_deleted_start=q.fetchone()
  q.execute('savepoint ineligible_cross_station_move_denied')
  try:
   q.execute("select public.move_workshop_booking(%s,%s,'TINT',1,%s,60,'fixture eligibility probe','{}'::jsonb)",(bus_booking,bus_version,start+timedelta(hours=3))); raise AssertionError('move to station without target eligibility unexpectedly allowed')
@@ -125,6 +131,8 @@ try:
  assert_authority_unchanged(vehicle,protected,'resize')
  q.execute('select version,scheduled_start_at from public.workshop_bookings where id=%s',(bus_booking,)); bus_version,bus_start=q.fetchone()
  q.execute("select public.cascade_workshop_schedule('extend',%s,%s,'BUS_4X4',1,%s,180,null,60,null,'{}'::jsonb)",(bus_booking,bus_version,bus_start)); assert q.fetchone()[0]['ok'] is True
+ q.execute('select version,scheduled_start_at,deleted_at from public.workshop_bookings where id=%s',(cascade_deleted_booking,)); cascade_after=q.fetchone()
+ assert cascade_after[0]==cascade_deleted_version and cascade_after[1]==cascade_deleted_start and cascade_after[2] is not None,'cascade mutated soft-deleted planned bystander'
  assert_authority_unchanged(vehicle,protected,'cascade')
  q.execute('select version from public.workshop_bookings where id=%s',(bus_booking,)); bus_version=q.fetchone()[0]
  q.execute("select public.start_workshop_work(%s,%s,now(),'{}'::jsonb)",(bus_booking,bus_version)); assert q.fetchone()[0]['ok'] is True
@@ -151,6 +159,7 @@ try:
  snapshot_vehicle_ids={row['id'] for row in snapshot['vehicles']}; snapshot_work_item_ids={row['vehicle_id'] for row in snapshot['work_items']}
  excluded_fixture_ids={str(outsider),str(inactive_vehicle),str(deleted_vehicle),str(out_window_vehicle),str(deleted_booking_vehicle),str(restore_ineligible_vehicle)}
  snapshot_booking_vehicle_ids={row['vehicle_id'] for row in snapshot['bookings']}
+ assert str(cascade_deleted_vehicle) not in snapshot_booking_vehicle_ids,'soft-deleted cascade bystander leaked into station booking DTO'
  assert not (excluded_fixture_ids & snapshot_vehicle_ids) and not (excluded_fixture_ids & snapshot_work_item_ids) and not (excluded_fixture_ids & snapshot_booking_vehicle_ids),'out-of-scope, inactive, deleted or out-of-window fixture leaked into station DTO'
  q.execute('select public.get_workshop_eligibility_snapshot()'); aggregate=q.fetchone()[0]
  aggregate_vehicle_ids={row['vehicle']['id'] for row in aggregate['candidates']}
@@ -196,7 +205,7 @@ try:
  q.execute("insert into public.pdc_user_roles(email,display_name,role,active) values(%s,'Fixture Importer','importer',true)",(importer,))
  q.execute("select lower(email),role::text from public.pdc_user_roles where lower(email) in (%s,%s)",(operator,viewer)); real_roles=dict(q.fetchall())
  assert real_roles.get(operator)=='operator' and real_roles.get(viewer)=='viewer',real_roles
- workshop_tables=['vehicles','vehicle_aliases','vehicle_master_revision','vehicle_lifecycle_resolver_revision','vehicle_master_source_records','vehicle_master_operation_receipts','vehicle_master_history','vehicle_master_identity_conflicts','vehicle_movements','vehicle_parts_updates','vehicle_eta_history','vehicle_timeline_events','vehicle_intelligence_revisions','vehicle_intelligence_summaries','vehicle_match_candidates','deleted_completed_vehicles','vehicle_notifications','vehicle_work_items','workshop_stages','workshop_stage_aliases','workshop_technicians','workshop_bays','workshop_settings','workshop_bookings','workshop_booking_assignments','workshop_booking_history','workshop_parts_overrides','workshop_revision','workshop_station_revision']
+ workshop_tables=['vehicles','vehicle_aliases','vehicle_master_revision','vehicle_lifecycle_resolver_revision','vehicle_master_source_records','vehicle_master_operation_receipts','vehicle_master_history','vehicle_master_identity_conflicts','vehicle_movements','vehicle_parts_updates','vehicle_eta_history','vehicle_timeline_events','vehicle_intelligence_revisions','vehicle_intelligence_summaries','vehicle_match_candidates','deleted_completed_vehicles','vehicle_notifications','vehicle_work_items','workshop_stages','workshop_stage_aliases','workshop_technicians','workshop_bays','workshop_settings','workshop_bookings','workshop_booking_assignments','workshop_booking_history','workshop_parts_overrides','workshop_revision','workshop_station_revision','ai_email_analysis_results','ai_email_attachments','ai_email_intake','ai_extracted_fields','ai_intake_config','ai_mapping_rules','ai_proposed_actions','ai_review_items','ai_trusted_senders','ai_undo_actions','ai_workshop_commands']
  for email,role,allowed in [(admin_email,'administrator',True),(operator,'operator',True),(viewer,'viewer',False),(importer,'importer',False)]:
   q.execute('reset role')
   q.execute("select set_config('request.jwt.claims',%s,true)",(json.dumps({'sub':str(admin),'email':email,'role':'authenticated'}),))
@@ -239,6 +248,9 @@ try:
     ('rft_collect',"select public.rft_collect_vehicle('00000000-0000-0000-0000-000000000001',0)"),
     ('restore_vehicle',"select public.restore_vehicle('00000000-0000-0000-0000-000000000001',0,null)"),
     ('edit_vehicle_master',"select public.edit_vehicle_master('00000000-0000-0000-0000-000000000001',0,'{}'::jsonb,null,null)"),
+    ('append_timeline',"select public.append_vehicle_timeline_event('00000000-0000-0000-0000-000000000001','probe')"),
+    ('rebuild_intelligence',"select public.rebuild_vehicle_intelligence_summary('00000000-0000-0000-0000-000000000001')"),
+    ('create_ai_review',"select public.create_ai_review_item('00000000-0000-0000-0000-000000000001','00000000-0000-0000-0000-000000000001')"),
     ('vehicle_intelligence',"select public.get_vehicle_intelligence_snapshot('00000000-0000-0000-0000-000000000001','desc',10)"),
     ('approve_ai_review',"select public.approve_ai_review_item('00000000-0000-0000-0000-000000000001',null,null,null)"),
     ('reject_ai_review',"select public.reject_ai_review_item('00000000-0000-0000-0000-000000000001',null,false)"),
