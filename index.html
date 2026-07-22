@@ -8,9 +8,9 @@
   <meta name="description" content="PDC Workshop Control Board — STAGING (separate Supabase project, synthetic data only)." />
   <title>PDC Control Board — STAGING</title>
   <link rel="icon" href="favicon.svg" type="image/svg+xml" />
-  <link rel="stylesheet" href="styles.css?v=2026.07.21.02-combined-staging-candidate" />
-  <link rel="stylesheet" href="desktop-operations.css?v=2026.07.21.02-combined-staging-candidate" />
-  <link rel="stylesheet" href="workshop-planner.css?v=2026.07.21.02-combined-staging-candidate" />
+  <link rel="stylesheet" href="styles.css?v=2026.07.21.04-station-planners" />
+  <link rel="stylesheet" href="desktop-operations.css?v=2026.07.21.04-station-planners" />
+  <link rel="stylesheet" href="workshop-planner.css?v=2026.07.21.04-station-planners" />
 </head>
 <body class="auth-pending" data-auth-state="checking">
   <main class="pdc-auth-gate" id="pdc-auth-gate" aria-labelledby="pdc-auth-title">
@@ -87,7 +87,7 @@
         <div class="brand-text">
           <div class="brand-title">Perth Motor Bodies</div>
           <div class="brand-subtitle">PDC Control Board</div>
-          <div class="app-version" id="app-version">Version 2026.07.21.02-combined-staging-candidate</div>
+          <div class="app-version" id="app-version">Version 2026.07.21.04-station-planners</div>
         </div>
         <button class="sidebar-toggle" id="sidebar-toggle" type="button" aria-label="Collapse sidebar" title="Collapse sidebar">‹</button>
       </div>
@@ -95,7 +95,7 @@
       <nav class="nav">
         <button type="button" class="nav-item active" data-view="dashboard" data-short="LOC">Vehicle Locations</button>
         <button type="button" class="nav-item" data-view="workflow" data-short="CB">Control Board</button>
-        <button type="button" class="nav-item" data-view="workshop" data-short="PLAN">Workshop Planner</button>
+        <button type="button" class="nav-item" id="nav-workshop-rollback" data-view="workshop" data-short="PLAN" title="Temporary combined-planner rollback route">Workshop Planner</button>
         <button type="button" class="nav-item" data-view="visibility" data-short="OPS">Operations</button>
         <button type="button" class="nav-item" data-view="parts" data-short="PA">Parts</button>
         <button type="button" class="nav-item" data-view="emailreview" data-short="AI">AI Intake Review</button>
@@ -994,13 +994,13 @@
 
   <script src="vendor/supabase/supabase-2.110.5.js"></script>
   <script src="pdc-supabase-config.staging.js"></script>
-  <script src="pdc-auth.js?v=2026.07.21.02-combined-staging-candidate"></script>
-  <script src="pdc-auth-registration.js?v=2026.07.21.02-combined-staging-candidate"></script>
-  <script src="data-staging-empty.js?v=2026.07.21.02-combined-staging-candidate"></script>
-  <script src="email-board-data.js?v=2026.07.21.02-combined-staging-candidate"></script>
-  <script src="arb-labor-catalog.js?v=2026.07.21.02-combined-staging-candidate"></script>
-  <script src="ai-board-advisor.js?v=2026.07.21.02-combined-staging-candidate"></script>
-  <script src="navision-backend-service.js?v=2026.07.21.02-combined-staging-candidate"></script>
-  <script src="app.js?v=2026.07.21.02-combined-staging-candidate"></script>
+  <script src="pdc-auth.js?v=2026.07.21.04-station-planners"></script>
+  <script src="pdc-auth-registration.js?v=2026.07.21.04-station-planners"></script>
+  <script src="data-staging-empty.js?v=2026.07.21.04-station-planners"></script>
+  <script src="email-board-data.js?v=2026.07.21.04-station-planners"></script>
+  <script src="arb-labor-catalog.js?v=2026.07.21.04-station-planners"></script>
+  <script src="ai-board-advisor.js?v=2026.07.21.04-station-planners"></script>
+  <script src="navision-backend-service.js?v=2026.07.21.04-station-planners"></script>
+  <script src="app.js?v=2026.07.21.04-station-planners"></script>
 </body>
 </html>

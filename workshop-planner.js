@@ -231,7 +231,7 @@ function workshopClampLineHours(value = 1) {
 }
 
 function workshopClampDurationHours(value = workshopDefaultBookingHours()) {
-  return workshopClampLineHours(value || workshopDefaultBookingHours());
+  return Math.max(1, workshopClampLineHours(value || workshopDefaultBookingHours()));
 }
 
 function workshopIntervalsOverlap(startA, endA, startB, endB) {
@@ -592,15 +592,15 @@ function workshopRequireOperatorProfile() {
 //                             should show body.error to the user via
 //                             workshopDescribeSharedActionError() and stop;
 //                             it must NOT apply any further local mutation
-// Section 8 Parts-incomplete override retry: move_workshop_booking and
-// schedule_vehicle_work both accept an inline p_override_reason -- when the
-// database rejects with 'parts_incomplete', prompt once for a reason and
-// resubmit the exact same payload with that reason attached. The database
-// (not this function) is the final authority on whether the acting user's
-// role is actually permitted to override; an unauthorised user's retry is
-// rejected again by the RPC with a permission error, never silently
-// applied client-side.
-const WORKSHOP_OVERRIDE_CAPABLE_ACTIONS = new Set(['moveBooking', 'scheduleVehicleWork']);
+// Section 8 Parts-incomplete override retry: move_workshop_booking,
+// schedule_vehicle_work, and the atomic cascade scheduler all accept an
+// inline p_override_reason -- when the database rejects with
+// 'parts_incomplete', prompt once for a reason and resubmit the exact same
+// payload with that reason attached. The database (not this function) is the
+// final authority on whether the acting user's role is actually permitted to
+// override; an unauthorised user's retry is rejected again by the RPC with a
+// permission error, never silently applied client-side.
+const WORKSHOP_OVERRIDE_CAPABLE_ACTIONS = new Set(['moveBooking', 'scheduleVehicleWork', 'cascadeSchedule']);
 
 async function workshopDispatchSharedAction(actionName, payload) {
   if (!workshopSharedModeActive()) return null;
@@ -936,7 +936,19 @@ function workshopSelectPlanForDetail(planId = '') {
 
 function workshopVehicle(key = '') {
   const cleanKey = String(key || '').trim();
-  return cleanKey && typeof selectedVehicle === 'function' ? selectedVehicle(cleanKey) : null;
+  if (!cleanKey) return null;
+  const local = typeof selectedVehicle === 'function' ? selectedVehicle(cleanKey) : null;
+  if (local || !workshopSharedModeActive()) return local;
+  const snapshot = window.__workshopDataService?.getLastSnapshot?.();
+  const vehicles = Array.isArray(snapshot?.vehicles) ? snapshot.vehicles : [];
+  const matches = vehicles.filter(vehicle => [vehicle.id, vehicle.stock_number, vehicle.permanent_vehicle_id]
+    .some(value => String(value || '').trim() === cleanKey));
+  if (matches.length !== 1) return null;
+  return workshopSnapshotVehicleToPlannerRow(
+    matches[0],
+    Array.isArray(snapshot?.work_items) ? snapshot.work_items : [],
+    window.__activeWorkshopPlannerStage || '',
+  );
 }
 
 // Looks up a vehicle's shared Supabase id + optimistic version from the
@@ -1597,6 +1609,14 @@ function workshopVehicleLinkDiagnosticModal(diagnostic = {}, options = {}) {
 }
 
 async function workshopVerifiedCanonicalVehicleRef(vehicle = {}, options = {}) {
+  const authoritativeRef = workshopSharedVehicleRef(vehicle);
+  const authoritativeVersion = Number(authoritativeRef?.version);
+  if (authoritativeRef && !authoritativeRef.error && authoritativeRef.vehicleId && Number.isInteger(authoritativeVersion)) {
+    return { ok: true, vehicleId: authoritativeRef.vehicleId, version: authoritativeVersion, source: 'scoped_snapshot' };
+  }
+  if (authoritativeRef?.error && vehicle.sharedVehicleId) {
+    return { ok: false, error: authoritativeRef.error, diagnostic: authoritativeRef };
+  }
   const resolveDiagnostic = () => workshopResolveVehicleLinkDiagnostic(vehicle, options.resolver || null, options.storage || null);
   const openDiagnostic = options.modalFn || workshopVehicleLinkDiagnosticModal;
   const persistLink = options.persistFn || ((targetVehicle, diagnostic, receipt) => workshopPersistVerifiedCanonicalLink(
@@ -1630,6 +1650,100 @@ async function workshopVerifiedCanonicalVehicleRef(vehicle = {}, options = {}) {
   }
   await openDiagnostic(verified, { title: 'Shared UUID link saved and verified' });
   return { ok: false, error: 'vehicle_link_saved_retry', diagnostic: verified };
+}
+
+function workshopVehicleLinkReadinessStatus(diagnostic = {}) {
+  if (diagnostic.linkState === 'verified') return 'linked';
+  if (diagnostic.linkState === 'ready_to_save') return 'resolvable_unsaved';
+  return {
+    not_found: 'missing_canonical_vehicle',
+    ambiguous: 'ambiguous',
+    conflict: 'conflicting',
+    invalid_input: 'invalid_identity',
+    unstable_identity: 'invalid_identity',
+  }[diagnostic.outcome] || 'invalid_identity';
+}
+
+async function workshopBuildVehicleLinkReadinessReport(vehicles = [], options = {}) {
+  const source = Array.isArray(vehicles) ? vehicles : [];
+  const rows = new Array(source.length);
+  const concurrency = Math.max(1, Math.min(8, Number(options.concurrency) || 5));
+  let nextIndex = 0;
+  let completed = 0;
+  const worker = async () => {
+    while (nextIndex < source.length) {
+      const index = nextIndex;
+      nextIndex += 1;
+      const vehicle = source[index];
+      const diagnostic = await workshopResolveVehicleLinkDiagnostic(vehicle, options.resolver || null, options.storage || null);
+      rows[index] = { vehicle, diagnostic, status: workshopVehicleLinkReadinessStatus(diagnostic) };
+      completed += 1;
+      if (typeof options.onProgress === 'function') options.onProgress(completed, source.length, rows[index]);
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(concurrency, source.length) }, () => worker()));
+  const counts = {
+    linked: 0,
+    resolvable_unsaved: 0,
+    missing_canonical_vehicle: 0,
+    ambiguous: 0,
+    conflicting: 0,
+    invalid_identity: 0,
+  };
+  rows.forEach(row => { counts[row.status] = (counts[row.status] || 0) + 1; });
+  return {
+    generatedAt: typeof nowIsoString === 'function' ? nowIsoString() : new Date().toISOString(),
+    total: rows.length,
+    counts,
+    rows,
+    browserLocalAuthorityUnchanged: true,
+  };
+}
+
+async function workshopPersistVehicleLinkReadinessBatch(report = {}, options = {}) {
+  if (!workshopVehicleLinkCanPersist()) return { ok: false, error: 'unauthorized', saved: 0, verified: 0 };
+  const ready = (Array.isArray(report.rows) ? report.rows : []).filter(row => row.status === 'resolvable_unsaved');
+  const receipts = [];
+  const verifiedRows = [];
+  const persist = options.persistFn || ((vehicle, diagnostic, receipt) => workshopPersistVerifiedCanonicalLink(
+    vehicle, diagnostic, options.saveFn || null, options.storage || null, receipt,
+  ));
+  const rollbackBatch = error => {
+    const rollbackResults = receipts.slice().reverse().map((receipt, index) => ({
+      receiptIndex: receipts.length - index - 1,
+      rolledBack: workshopRollbackPersistedCanonicalLink(receipt),
+    }));
+    const rollbackConflicts = rollbackResults.filter(result => !result.rolledBack);
+    if (rollbackConflicts.length) {
+      return {
+        ok: false,
+        error: 'rollback_conflict',
+        cause: error,
+        saved: rollbackConflicts.length,
+        verified: 0,
+        rollbackReviewRequired: true,
+        rollbackConflicts,
+      };
+    }
+    return { ok: false, error: `${error}_rolled_back`, saved: 0, verified: 0, rollbackReviewRequired: false };
+  };
+  for (const row of ready) {
+    if (!workshopVehicleLinkCanPersist()) return rollbackBatch('authorization_changed');
+    const receipt = {};
+    if (!persist(row.vehicle, row.diagnostic, receipt)) {
+      return rollbackBatch('browser_local_link_persist_failed');
+    }
+    receipts.push(receipt);
+    if (!workshopVehicleLinkCanPersist()) return rollbackBatch('authorization_changed');
+    const verified = await workshopResolveVehicleLinkDiagnostic(row.vehicle, options.resolver || null, options.storage || null);
+    if (verified.linkState !== 'verified' || verified.sharedUuid !== row.diagnostic.sharedUuid) {
+      return rollbackBatch('post_save_verification_failed');
+    }
+    if (!workshopVehicleLinkCanPersist()) return rollbackBatch('authorization_changed');
+    verifiedRows.push({ ...row, diagnostic: verified, status: 'linked' });
+    if (typeof options.onProgress === 'function') options.onProgress(verifiedRows.length, ready.length, verifiedRows[verifiedRows.length - 1]);
+  }
+  return { ok: true, saved: verifiedRows.length, verified: verifiedRows.length, rows: verifiedRows, browserLocalAuthorityUnchanged: true };
 }
 
 function workshopSharedVehicleRef(vehicleReference = '') {
@@ -1951,6 +2065,26 @@ function workshopShiftTrailingPlannedRows(candidate = {}, otherRows = [], { conf
   return { rows: settled, moved };
 }
 
+function workshopShiftEveryLaterPlannedRow(candidate = {}, otherRows = [], shiftMinutes = 0) {
+  const delay = Math.max(0, workshopSnapMinutes(shiftMinutes));
+  const candidateStart = workshopEntryStart(candidate);
+  if (!delay || Number.isNaN(candidateStart.getTime())) return { rows: otherRows.map(row => ({ ...row })), moved: [] };
+  const later = otherRows
+    .filter(row => row.id !== candidate.id
+      && row.status === 'planned'
+      && row.stage === candidate.stage
+      && Number(row.bay) === Number(candidate.bay)
+      && workshopEntryStart(row) >= candidateStart)
+    .sort((a, b) => workshopEntryStart(a) - workshopEntryStart(b) || String(a.id).localeCompare(String(b.id)));
+  const moved = later.map(row => ({
+    ...row,
+    startAt: workshopAddWorkMinutes(workshopEntryStart(row), delay).toISOString(),
+    updatedAt: nowIsoString(),
+  }));
+  const byId = new Map(moved.map(row => [row.id, row]));
+  return { rows: otherRows.map(row => byId.get(row.id) || { ...row }), moved };
+}
+
 function workshopTechnicianIdForEntry(entry = {}) {
   if (entry.technicianId) return String(entry.technicianId);
   const assignee = cleanNavisionText(entry.assignee || '');
@@ -1968,11 +2102,19 @@ function workshopNewBookingValidation(entry = {}) {
   if (!workshopConfigurationAllowsNewScheduling()) return { ok: false, error: 'configuration_unavailable' };
   const start = parseIsoTimestamp(entry.startAt || '');
   if (!start) return { ok: false, error: 'invalid_start' };
-  const durationMinutes = Math.max(1, Math.round(Number(entry.hours || workshopDefaultBookingHours()) * 60));
+  if (workshopIsClosureDate(start)) return { ok: false, error: 'closure_date', date: workshopDateKey(start) };
+  if (!workshopIsConfiguredWorkingDay(start)) return { ok: false, error: 'non_working_day', date: workshopDateKey(start) };
+  const startMinute = workshopMinuteOfDay(start);
+  const startWindow = workshopAvailabilityWindowsForDate(start).find(window => startMinute >= window.startMinutes && startMinute < window.endMinutes);
+  if (!startWindow) {
+    const inBreak = workshopBreakWindowsForDate(start).some(window => startMinute >= window.startMinutes && startMinute < window.endMinutes);
+    return { ok: false, error: inBreak ? 'break_window' : 'outside_work_window', date: workshopDateKey(start), minute: startMinute };
+  }
+  const durationMinutes = Math.max(60, Math.round(Number(entry.hours || workshopDefaultBookingHours()) * 60));
   const technicianId = workshopTechnicianIdForEntry(entry);
   let usesOvertime = false;
   for (let offset = 0; offset < durationMinutes; offset += 1) {
-    const proposedMinute = new Date(start.getTime() + offset * 60000);
+    const proposedMinute = workshopAddWorkMinutes(start, offset);
     const dateKey = workshopDateKey(proposedMinute);
     if (workshopIsClosureDate(proposedMinute)) return { ok: false, error: 'closure_date', date: dateKey };
     if (!workshopIsConfiguredWorkingDay(proposedMinute)) return { ok: false, error: 'non_working_day', date: dateKey };
@@ -2042,10 +2184,22 @@ function workshopEntryIsLive(entry = {}) {
   return Boolean(vehicle && Number(pmbBayNumber(vehicle, entry.stage)) === Number(entry.bay));
 }
 
-function workshopCascadePlans(rows = workshopLoadPlans()) {
-  // Collision policy: never move another booking implicitly. All newly created or edited
-  // overlaps are rejected before persistence, while existing imported/legacy rows remain visible.
-  return { rows: rows.map(entry => ({ ...entry, hours: entry.status === 'completed' ? entry.hours : workshopClampDurationHours(entry.hours) })), changed: false };
+function workshopCascadePlans(rows = workshopLoadPlans(), now = new Date()) {
+  let nextRows = rows.map(entry => ({ ...entry, hours: entry.status === 'completed' ? entry.hours : workshopClampDurationHours(entry.hours) }));
+  let changed = nextRows.some((entry, index) => entry.hours !== rows[index].hours);
+  const liveRows = nextRows
+    .filter(entry => workshopEntryIsLive(entry) && workshopEntryIsOvertime(entry, now))
+    .sort((a, b) => workshopEntryStart(a) - workshopEntryStart(b));
+  for (const live of liveRows) {
+    const delay = workshopWorkMinutesBetween(workshopEntryEnd(live), workshopEntryEffectiveEnd(live, now));
+    if (delay <= 0) continue;
+    const shifted = workshopShiftEveryLaterPlannedRow(live, nextRows.filter(row => row.id !== live.id), delay);
+    if (!shifted.moved.length) continue;
+    const byId = new Map(shifted.moved.map(row => [row.id, row]));
+    nextRows = nextRows.map(row => byId.get(row.id) || row);
+    changed = true;
+  }
+  return { rows: nextRows, changed };
 }
 
 function workshopCascadeAndSave(rows = workshopLoadPlans(), now = new Date()) {
@@ -2152,6 +2306,94 @@ function workshopStageVehicles(stage = '') {
   const rows = [...pmbCandidates, ...preArrivalCandidates];
   return [...new Map(rows.map(vehicle => [vehicleKey(vehicle), vehicle])).values()]
     .sort((a, b) => String(displayStockNumber(a) || '').localeCompare(String(displayStockNumber(b) || '')));
+}
+
+function workshopSnapshotVehicleToPlannerRow(vehicle = {}, workItems = [], stage = '') {
+  const rawEta = String(vehicle.eta_to_kewdale || '').trim();
+  const isoEta = rawEta.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  const etaToKewdale = isoEta ? `${isoEta[3]}/${isoEta[2]}/${isoEta[1]}` : rawEta;
+  const jobDef = typeof pmbJobDefForStage === 'function' ? pmbJobDefForStage(stage) : null;
+  const stageWorkItems = workItems.filter(item => String(item?.vehicle_id || '') === String(vehicle.id || ''));
+  const pmbJobs = {};
+  stageWorkItems.forEach(item => {
+    const key = String(item.work_key || jobDef?.key || '').trim();
+    if (!key) return;
+    pmbJobs[key] = {
+      required: item.required === true,
+      completed: item.completed === true,
+      completedAt: item.completed_at || null,
+      notes: item.notes || ''
+    };
+  });
+  return {
+    id: vehicle.id,
+    sharedVehicleId: vehicle.id,
+    permanentVehicleId: vehicle.permanent_vehicle_id || '',
+    vehicleKey: vehicle.stock_number || vehicle.permanent_vehicle_id || vehicle.id,
+    stockNumber: vehicle.stock_number || '',
+    vin: vehicle.vin || '',
+    toyotaOrderNumber: vehicle.toyota_order_number || '',
+    jobCardNumber: vehicle.job_card_number || '',
+    customerName: vehicle.customer_name || '',
+    customer: vehicle.customer_name || '',
+    make: vehicle.make || '',
+    model: vehicle.model || '',
+    registration: vehicle.registration || '',
+    currentLocation: vehicle.current_location || '',
+    pdcLocation: vehicle.current_location || '',
+    pmbStage: vehicle.pmb_stage || stage,
+    pmbBayStage: vehicle.pmb_bay_stage || '',
+    pmbBayNumber: vehicle.pmb_bay_number || '',
+    navisionKewdaleEta: etaToKewdale,
+    etaAtKewdale: etaToKewdale,
+    pmbJobs,
+    version: vehicle.version
+  };
+}
+
+function workshopPlannerVehiclesForStage(stage = '') {
+  const rows = workshopStageVehicles(stage);
+  const dedicatedStage = normalizePmbStage(window.__activeWorkshopPlannerStage || '');
+  if (!dedicatedStage || !workshopSharedModeActive()) return rows;
+  const snapshot = window.__workshopDataService?.getLastSnapshot?.();
+  const snapshotVehicles = Array.isArray(snapshot?.vehicles) ? snapshot.vehicles : [];
+  const bookings = Array.isArray(snapshot?.bookings) ? snapshot.bookings : [];
+  const workItems = Array.isArray(snapshot?.work_items) ? snapshot.work_items : [];
+  const jobDef = typeof pmbJobDefForStage === 'function' ? pmbJobDefForStage(dedicatedStage) : null;
+  const relevantVehicleIds = new Set([
+    ...bookings
+      .filter(booking => normalizePmbStage(booking?.stage_code || booking?.stage) === dedicatedStage)
+      .map(booking => String(booking?.vehicle_id || '').trim()),
+    ...workItems
+      .filter(item => !jobDef || String(item?.work_key || '').replace(/_/g, '').toUpperCase() === String(jobDef.key || '').replace(/_/g, '').toUpperCase())
+      .map(item => String(item?.vehicle_id || '').trim())
+  ].filter(Boolean));
+  const scopedVehicles = snapshotVehicles.filter(vehicle => (
+    normalizePmbStage(vehicle?.pmb_stage || '') === dedicatedStage
+    || relevantVehicleIds.has(String(vehicle?.id || '').trim())
+  ));
+  const localById = new Map(rows.map(vehicle => [String(vehicle.id || vehicle.sharedVehicleId || '').trim(), vehicle]).filter(([key]) => key));
+  const localByStock = new Map(rows.map(vehicle => [String(displayStockNumber(vehicle) || '').trim(), vehicle]).filter(([key]) => key));
+  return scopedVehicles.map(vehicle => {
+    const local = localById.get(String(vehicle.id || '').trim())
+      || localByStock.get(String(vehicle.stock_number || '').trim());
+    const scoped = workshopSnapshotVehicleToPlannerRow(vehicle, workItems, dedicatedStage);
+    return local ? {
+      ...scoped,
+      ...local,
+      pmbJobs: { ...scoped.pmbJobs, ...(local.pmbJobs || {}) },
+      sharedVehicleId: vehicle.id,
+      id: vehicle.id
+    } : scoped;
+  }).sort((a, b) => String(displayStockNumber(a) || '').localeCompare(String(displayStockNumber(b) || '')));
+}
+
+function workshopRefreshDedicatedDate(dateKey = '') {
+  const stage = normalizePmbStage(window.__activeWorkshopPlannerStage || '');
+  const service = window.__workshopDataService;
+  if (!stage || !service || typeof service.setScope !== 'function') return false;
+  service.setScope({ stageCode: stage, dateFrom: dateKey, dateTo: dateKey });
+  return true;
 }
 
 function workshopVehiclePlanningLocation(vehicle = {}) {
@@ -2785,7 +3027,7 @@ function workshopDetailHtml(entry = null) {
       ${assigneeConflict ? `<small class="workshop-assignee-warning">⚠ ${escapeHtml(entry.assignee)} is booked on another vehicle at this time.</small>` : ''}
     </div>
     <label><span>Start</span><input name="startAt" type="datetime-local" step="900" value="${escapeHtml(localValue)}" required ${completed || started ? 'disabled' : ''} /></label>
-    <label><span>Planned hours</span><input name="hours" type="number" min="0.25" step="0.25" value="${escapeHtml(entry.hours)}" required ${completed ? 'disabled' : ''} /></label>
+    <label><span>Planned hours</span><input name="hours" type="number" min="1" step="0.25" value="${escapeHtml(entry.hours)}" required ${completed ? 'disabled' : ''} /></label>
     <label><span>${entry.stage === 'SUBLET' ? 'Provider' : 'Technician'}</span><select name="assignee" ${completed ? 'disabled' : ''}>${workshopAssigneeOptions(entry.stage, entry.assignee || workshopBayMechanic(entry.stage, entry.bay) || pmbBayMechanic(vehicle))}</select></label>
     <div class="workshop-detail-actions">
       ${completed ? '<span class="badge success">Completed</span>' : '<button class="primary" type="submit">Save plan</button>'}
@@ -2805,25 +3047,102 @@ function workshopDetailHtml(entry = null) {
   </form>`;
 }
 
+function workshopLinkReadinessModalReportHtml(report = {}) {
+  const labels = {
+    linked: 'Linked',
+    resolvable_unsaved: 'Resolvable but unsaved',
+    missing_canonical_vehicle: 'Missing canonical vehicle',
+    ambiguous: 'Ambiguous',
+    conflicting: 'Conflicting',
+    invalid_identity: 'Invalid identity',
+  };
+  const counts = report.counts || {};
+  const canInspectIdentities = workshopVehicleLinkCanPersist();
+  const reviewRows = canInspectIdentities
+    ? (report.rows || []).filter(row => row.status !== 'linked').slice(0, 100)
+    : [];
+  return `<div class="workshop-link-readiness-summary">${Object.entries(labels).map(([key, label]) => `<div><span>${escapeHtml(label)}</span><strong>${Number(counts[key] || 0)}</strong></div>`).join('')}</div>
+    <p><strong>${Number(report.total || 0)} browser-local operational vehicles reviewed.</strong> This readiness scan does not change location, workflow, bookings, identity fields or browser-local authority.</p>
+    ${canInspectIdentities
+      ? `<div class="workshop-link-readiness-table"><table><thead><tr><th>Vehicle</th><th>Status</th><th>Shared UUID / reason</th></tr></thead><tbody>${reviewRows.map(row => `<tr><td><strong>${escapeHtml(displayStockNumber(row.vehicle) || vehicleKey(row.vehicle) || 'No stock')}</strong><span>${escapeHtml(workshopVehicleLinkIdentityInput(row.vehicle).vin || workshopVehicleLinkIdentityInput(row.vehicle).toyotaOrder || 'No VIN/order')}</span></td><td>${escapeHtml(labels[row.status] || row.status)}</td><td>${escapeHtml(row.diagnostic.sharedUuid || workshopVehicleLinkVisibleReason(row.diagnostic))}</td></tr>`).join('') || '<tr><td colspan="3">All reviewed vehicles are already linked.</td></tr>'}</tbody></table></div>`
+      : '<p class="warning-banner">Vehicle identities and shared UUIDs are restricted to operator and administrator review.</p>'}`;
+}
+
+async function workshopOpenVehicleLinkReadinessReview() {
+  if (!workshopSharedModeActive()) {
+    window.alert('Shared vehicle-link readiness is available only while the shared Workshop backend is active.');
+    return;
+  }
+  if (!workshopVehicleLinkCanPersist()) {
+    window.alert('Shared vehicle-link readiness is restricted to operators and administrators.');
+    return;
+  }
+  const vehicles = typeof pdcSheetVehicles === 'function' ? pdcSheetVehicles() : [];
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay workshop-link-readiness-overlay';
+  overlay.setAttribute('role', 'dialog');
+  overlay.setAttribute('aria-modal', 'true');
+  overlay.innerHTML = `<section class="modal-card workshop-link-readiness-card"><button class="modal-close" type="button" data-workshop-link-readiness-close aria-label="Close">×</button><header><h2>Shared vehicle link readiness</h2><p data-workshop-link-readiness-progress>Reviewing 0 of ${vehicles.length} browser-local operational vehicles…</p></header><div data-workshop-link-readiness-body><div class="loading-state">Deterministic identity checks are running. No data is being changed.</div></div><div class="edit-actions"><button class="secondary" type="button" data-workshop-link-readiness-close>Close</button><button class="primary" type="button" data-workshop-link-readiness-save hidden>Save verified links</button></div></section>`;
+  const close = () => {
+    overlay.remove();
+    if (!document.querySelector('.modal-overlay')) document.body.classList.remove('modal-open');
+  };
+  overlay.querySelectorAll('[data-workshop-link-readiness-close]').forEach(button => button.addEventListener('click', close));
+  document.body.appendChild(overlay);
+  document.body.classList.add('modal-open');
+  const progress = overlay.querySelector('[data-workshop-link-readiness-progress]');
+  const body = overlay.querySelector('[data-workshop-link-readiness-body]');
+  const saveButton = overlay.querySelector('[data-workshop-link-readiness-save]');
+  const report = await workshopBuildVehicleLinkReadinessReport(vehicles, {
+    onProgress: (done, total) => { if (progress) progress.textContent = `Reviewing ${done} of ${total} browser-local operational vehicles…`; },
+  });
+  if (!document.body.contains(overlay)) return;
+  progress.textContent = `Readiness report generated ${new Date(report.generatedAt).toLocaleString('en-AU')}.`;
+  body.innerHTML = workshopLinkReadinessModalReportHtml(report);
+  const readyCount = Number(report.counts?.resolvable_unsaved || 0);
+  saveButton.hidden = readyCount < 1 || !workshopVehicleLinkCanPersist();
+  saveButton.textContent = `Save ${readyCount} verified link${readyCount === 1 ? '' : 's'}`;
+  saveButton.addEventListener('click', async () => {
+    if (!window.confirm(`Save ${readyCount} deterministic browser-local → shared UUID link${readyCount === 1 ? '' : 's'}?\n\nNo vehicle location, workflow step or booking will change.`)) return;
+    saveButton.disabled = true;
+    progress.textContent = `Saving 0 of ${readyCount} verified links…`;
+    const result = await workshopPersistVehicleLinkReadinessBatch(report, {
+      onProgress: (done, total) => { if (progress) progress.textContent = `Saving ${done} of ${total} verified links…`; },
+    });
+    if (!result.ok) {
+      progress.textContent = result.rollbackReviewRequired
+        ? `Batch stopped: ${result.cause || result.error}. Rollback could not safely overwrite ${result.saved} concurrent browser-local change${result.saved === 1 ? '' : 's'}; manual identity review is required before retrying.`
+        : `Batch stopped and all newly written links were rolled back: ${result.error}. No unverified link was accepted.`;
+      saveButton.disabled = Boolean(result.rollbackReviewRequired);
+      return;
+    }
+    const refreshed = await workshopBuildVehicleLinkReadinessReport(vehicles);
+    progress.textContent = `${result.saved} link${result.saved === 1 ? '' : 's'} saved and re-verified. No location, workflow or booking changed.`;
+    body.innerHTML = workshopLinkReadinessModalReportHtml(refreshed);
+    saveButton.hidden = true;
+  });
+}
+
 function renderWorkshopPlanner() {
   if (workshopSharedModeActive()) workshopSyncConfigFromSharedSettings();
   const root = document.querySelector('#workshop-planner-root');
   if (!root) return;
   const state = workshopState();
-  const requestedStage = normalizePmbStage(app.pendingWorkshopStage || '');
-  if (WORKSHOP_VISIBLE_STAGE_SEQUENCE.includes(requestedStage)) {
+  const dedicatedStage = normalizePmbStage(window.__activeWorkshopPlannerStage || '');
+  const requestedStage = dedicatedStage || normalizePmbStage(app.pendingWorkshopStage || '');
+  if (WORKSHOP_STAGE_SEQUENCE.includes(requestedStage)) {
     state.stage = requestedStage;
     workshopClearSelectedDetail(state);
     app.pendingWorkshopStage = '';
   }
-  let plans = workshopCascadeAndSave(workshopSyncCompletedPlans());
+  let plans = dedicatedStage ? workshopLoadPlans() : workshopCascadeAndSave(workshopSyncCompletedPlans());
   if (state.selectedPlanId && !plans.some(entry => entry.id === state.selectedPlanId)) workshopClearSelectedDetail(state);
   const selected = plans.find(entry => entry.id === state.selectedPlanId) || null;
-  const stage = WORKSHOP_VISIBLE_STAGE_SEQUENCE.includes(state.stage) ? state.stage : 'FABRICATION';
+  const stage = dedicatedStage || (WORKSHOP_VISIBLE_STAGE_SEQUENCE.includes(state.stage) ? state.stage : 'FABRICATION');
   const dateKey = state.date;
   const activePlans = plans.filter(entry => entry.stage === stage && entry.status !== 'completed');
   const plannedKeys = new Set(activePlans.map(entry => entry.vehicleKey));
-  const stageVehicleList = workshopStageVehicles(stage);
+  const stageVehicleList = workshopPlannerVehiclesForStage(stage);
   const queue = stageVehicleList.filter(vehicle => !plannedKeys.has(vehicleKey(vehicle)));
   const completed = plans.filter(entry => {
     if (entry.stage !== stage || entry.status !== 'completed') return false;
@@ -2832,26 +3151,29 @@ function renderWorkshopPlanner() {
   });
   const todaysPlans = activePlans.filter(entry => workshopEntrySegmentForDate(entry, dateKey));
   const assigneeConflicts = todaysPlans.filter(entry => workshopEntryHasAssigneeConflict(entry, plans)).length;
-  const stageVehicleCounts = new Map(WORKSHOP_VISIBLE_STAGE_SEQUENCE.map(value => [value, value === stage ? stageVehicleList.length : workshopStageVehicles(value).length]));
-  const stageTabs = WORKSHOP_VISIBLE_STAGE_SEQUENCE.map(value => `<button type="button" class="workshop-stage-tab ${value === stage ? 'active' : ''}" data-workshop-stage="${escapeHtml(value)}"><span>${escapeHtml(pmbStageLabel(value))}</span><strong>${stageVehicleCounts.get(value)}</strong></button>`).join('');
+  const stageVehicleCounts = dedicatedStage
+    ? new Map([[stage, stageVehicleList.length]])
+    : new Map(WORKSHOP_VISIBLE_STAGE_SEQUENCE.map(value => [value, value === stage ? stageVehicleList.length : workshopStageVehicles(value).length]));
+  const stageTabs = dedicatedStage ? '' : WORKSHOP_VISIBLE_STAGE_SEQUENCE.map(value => `<button type="button" class="workshop-stage-tab ${value === stage ? 'active' : ''}" data-workshop-stage="${escapeHtml(value)}"><span>${escapeHtml(pmbStageLabel(value))}</span><strong>${stageVehicleCounts.get(value)}</strong></button>`).join('');
   const sharedModeActive = workshopSharedModeActive();
   const sharedBanner = sharedModeActive ? workshopConnectionBannerHtml() : '';
-  root.innerHTML = `<div class="workshop-planner">
+  root.innerHTML = `<div class="workshop-planner${dedicatedStage ? ' workshop-planner-dedicated' : ''}" data-planner-stage="${escapeHtml(stage)}">
     ${sharedBanner}
     <header class="workshop-planner-header">
-      <div><h2>Workshop bay planner</h2><p>Monday–Friday, 8:00am–4:00pm. Long jobs carry into the next workday; overlapping bay bookings are blocked.</p></div>
+      <div>${dedicatedStage ? '<button class="small-button workshop-back-control" type="button" data-workshop-back-control>← Back to Control Board</button>' : ''}<h2>${escapeHtml(dedicatedStage ? `${pmbStageLabel(stage)} planner` : 'Workshop bay planner')}</h2><p>Monday–Friday, 8:00am–4:00pm. Long jobs carry into the next workday; overlapping bay bookings are blocked.</p></div>
       <div class="workshop-date-controls">
         <button class="small-button" type="button" data-workshop-date-shift="-1">‹ Previous</button>
         <input type="date" data-workshop-date aria-label="Workshop planner date" value="${escapeHtml(dateKey)}" />
         <button class="small-button" type="button" data-workshop-date-shift="1">Next ›</button>
         <button class="small-button" type="button" data-workshop-today>Today</button>
         <button class="small-button" type="button" data-workshop-weekly-view>Weekly view</button>
+        ${sharedModeActive && workshopVehicleLinkCanPersist() ? '<button class="small-button" type="button" data-workshop-link-readiness>Review shared links</button>' : ''}
         <button class="small-button warning-button" type="button" data-workshop-parts-warning>Draft next-day parts warning</button>
       </div>
     </header>
     <div class="workshop-date-summary"><strong>${escapeHtml(workshopDateLabel(dateKey))}</strong><span>${todaysPlans.length} planned · ${completed.length} completed · ${queue.length} waiting${assigneeConflicts ? ` · ⚠ ${assigneeConflicts} mechanic clash${assigneeConflicts === 1 ? '' : 'es'}` : ''} · Saved automatically${state.lastSavedAt ? ` ${escapeHtml(new Date(state.lastSavedAt).toLocaleTimeString('en-AU', { hour: 'numeric', minute: '2-digit' }))}` : ''}</span><div class="workshop-status-legend"><span class="planned">Planned</span><span class="live">Live</span><span class="stoppage">Stoppage</span><span class="completed">Completed</span></div></div>
     ${workshopSearchControlHtml(state.search || '', plans)}
-    <nav class="workshop-stage-tabs" aria-label="Workshop departments">${stageTabs}</nav>
+    ${stageTabs ? `<nav class="workshop-stage-tabs" aria-label="Workshop departments">${stageTabs}</nav>` : ''}
     ${workshopDetailPanelHtml(selected, plans)}
     <div class="workshop-board-shell">
       <aside class="workshop-side-panel workshop-waiting-panel">
@@ -2880,6 +3202,7 @@ function renderWorkshopPlanner() {
 }
 
 function bindWorkshopPlanner(root) {
+  root.querySelector('[data-workshop-back-control]')?.addEventListener('click', () => showView('workflow'));
   root.querySelectorAll('[data-workshop-stage]').forEach(button => button.addEventListener('click', () => {
     const state = workshopState();
     state.stage = button.dataset.workshopStage;
@@ -2893,14 +3216,14 @@ function bindWorkshopPlanner(root) {
     state.date = workshopDateKey(workshopShiftWorkday(current, Number(button.dataset.workshopDateShift)));
     workshopClearSelectedDetail(state);
     workshopSaveView(state);
-    renderWorkshopPlanner();
+    if (!workshopRefreshDedicatedDate(state.date)) renderWorkshopPlanner();
   }));
   root.querySelector('[data-workshop-today]')?.addEventListener('click', () => {
     const state = workshopState();
     state.date = workshopDateKey(workshopCoerceWorkDate(new Date(), 1));
     workshopClearSelectedDetail(state);
     workshopSaveView(state);
-    renderWorkshopPlanner();
+    if (!workshopRefreshDedicatedDate(state.date)) renderWorkshopPlanner();
   });
   root.querySelector('[data-workshop-date]')?.addEventListener('change', event => {
     const selected = workshopDateFromKey(event.target.value);
@@ -2911,7 +3234,7 @@ function bindWorkshopPlanner(root) {
     state.date = workshopDateKey(coerced);
     workshopClearSelectedDetail(state);
     workshopSaveView(state);
-    renderWorkshopPlanner();
+    if (!workshopRefreshDedicatedDate(state.date)) renderWorkshopPlanner();
   });
   const searchInput = root.querySelector('[data-workshop-search]');
   searchInput?.addEventListener('focus', event => {
@@ -2973,6 +3296,7 @@ function bindWorkshopPlanner(root) {
     const selected = workshopLoadPlans().find(entry => entry.id === workshopState().selectedPlanId && entry.stage === workshopState().stage);
     openWorkshopWeeklyView(workshopState().stage, Number(selected?.bay) || 1, workshopState().date);
   });
+  root.querySelector('[data-workshop-link-readiness]')?.addEventListener('click', () => { void workshopOpenVehicleLinkReadinessReview(); });
   root.querySelector('[data-workshop-parts-warning]')?.addEventListener('click', draftWorkshopNextDayFittingWarningEmail);
   root.querySelectorAll('[data-workshop-bay-mechanic-stage]').forEach(select => select.addEventListener('change', () => saveWorkshopBayMechanic(select.dataset.workshopBayMechanicStage, Number(select.dataset.workshopBayMechanicNumber), select.value)));
   root.querySelectorAll('[data-workshop-weekly-stage]').forEach(button => button.addEventListener('click', () => openWorkshopWeeklyView(button.dataset.workshopWeeklyStage, Number(button.dataset.workshopWeeklyBay), workshopState().date)));
@@ -3564,10 +3888,10 @@ function openWorkshopScheduleModal(vehicleKeyValue = '', stage = '', dateKey = '
         <label><span>${normalizedStage === 'SUBLET' ? 'Row' : 'Bay'}</span><select name="bay">${bayOptions}</select></label>
         <label><span>Date</span><input name="date" type="date" value="${escapeHtml(scheduledDate)}" ${etaConstraint.earliestDateKey ? `min="${escapeHtml(etaConstraint.earliestDateKey)}"` : ''} required></label>
         <label><span>Start time</span><select name="startMinutes">${workshopScheduleTimeOptions(startMinutes)}</select></label>
-        <label><span>Planned hours</span><input name="hours" type="number" min="0.25" step="0.25" value="${escapeHtml(workshopClampDurationHours(hours))}" required></label>
+        <label><span>Planned hours</span><input name="hours" type="number" min="1" step="0.25" value="${escapeHtml(workshopClampDurationHours(hours))}" required></label>
         <label><span>${normalizedStage === 'SUBLET' ? 'Provider' : 'Technician'}</span><select name="assignee">${workshopAssigneeOptions(normalizedStage, workshopBayMechanic(normalizedStage, bay) || pmbBayMechanic(vehicle))}</select></label>
       </div>
-      <p class="workshop-schedule-note">The first open sequence time is selected automatically and may advance to the next workday. Back-to-back bookings are allowed; overlapping times are blocked.${etaConstraint.required ? ` ${escapeHtml(etaConstraint.location)} earliest permitted booking date: ${escapeHtml(etaConstraint.earliestDateKey)}.` : ''}</p>
+      <p class="workshop-schedule-note">Later bookings in this bay move automatically, preserving their order and duration and skipping non-working days.${etaConstraint.required ? ` ${escapeHtml(etaConstraint.location)} earliest permitted booking date: ${escapeHtml(etaConstraint.earliestDateKey)}.` : ''}</p>
       <div class="edit-actions"><button class="secondary" type="button" data-workshop-schedule-cancel>Cancel</button><button class="primary" type="submit">Add to planner</button></div>
     </form>
   </section>`;
@@ -3600,24 +3924,12 @@ function openWorkshopScheduleModal(vehicleKeyValue = '', stage = '', dateKey = '
       return;
     }
     const requestedStartMinutes = Number(form.elements.startMinutes.value);
-    const availableSlot = workshopFirstAvailableStartSlot(
-      normalizedStage,
-      Number(form.elements.bay.value),
-      workshopDateKey(selected),
-      Number(form.elements.hours.value),
-      workshopLoadPlans(),
-      requestedStartMinutes,
-    );
-    if (!availableSlot) {
-      window.alert('No open sequence slot was found in this bay during the next 260 workdays. Choose another bay or a later date.');
-      return;
-    }
     const scheduled = await scheduleWorkshopVehicle({
       vehicleKeyValue,
       stage: normalizedStage,
       bay: Number(form.elements.bay.value),
-      dateKey: availableSlot.dateKey,
-      startMinutes: availableSlot.startMinutes,
+      dateKey: workshopDateKey(selected),
+      startMinutes: requestedStartMinutes,
       hoursValue: Number(form.elements.hours.value),
       assigneeValue: form.elements.assignee.value,
     });
@@ -3642,10 +3954,16 @@ async function extendWorkshopPlan(planId = '', additionalHours = 0) {
       technicianId: workshopTechnicianIdForEntry(entry),
     };
     if (!workshopRequireSchedulableCandidate(candidate)) return false;
-    const result = await workshopDispatchSharedAction('resizeBooking', {
-      bookingId: entry.sharedBookingId || entry.id,
-      expectedVersion: entry.sharedVersion,
+    const shiftMinutes = Math.round(delta * 60);
+    const result = await workshopDispatchSharedAction('cascadeSchedule', {
+      operation: 'extend',
+      targetId: entry.sharedBookingId || entry.id,
+      targetExpectedVersion: entry.sharedVersion,
+      stageCode: entry.stage,
+      bayNumber: Number(entry.bay),
+      scheduledStartAt: entry.startAt,
       durationMinutes: Math.round(nextHours * 60),
+      shiftMinutes,
     });
     return !!(result && result.ok);
   }
@@ -3658,16 +3976,9 @@ async function extendWorkshopPlan(planId = '', additionalHours = 0) {
     return false;
   }
   const otherRows = latestRows.filter(row => row.id !== candidate.id);
-  let extendShift = null;
-  if (workshopHasConflict(candidate, otherRows)) {
-    extendShift = workshopShiftTrailingPlannedRows(candidate, otherRows);
-    if (!extendShift) {
-      workshopRequireNoBayConflict(candidate, otherRows);
-      return false;
-    }
-  }
+  const extendShift = workshopShiftEveryLaterPlannedRow(candidate, otherRows, Math.round(delta * 60));
   const extendConflictRows = extendShift ? extendShift.rows.filter(row => row.id !== candidate.id) : otherRows;
-  if (!extendShift && !workshopRequireNoBayConflict(candidate, otherRows)) return false;
+  if (!workshopRequireNoBayConflict(candidate, extendConflictRows)) return false;
   if (!workshopRequireAvailableAssignee(candidate, extendConflictRows)) return false;
   const vehicle = workshopVehicle(entry.vehicleKey);
   const hoursMap = vehicle ? workshopEstimatedHoursMap(vehicle) : {};
@@ -3743,14 +4054,16 @@ async function workshopScheduleSharedNewBooking({
   }
   const candidate = { ...requestedCandidate, assignee, technicianId: technicianId || '' };
   if (!workshopRequireSchedulableCandidate(candidate)) return false;
-  const result = await dispatchAction('scheduleVehicleWork', {
-    vehicleId: vehicleRef.vehicleId,
-    vehicleExpectedVersion: vehicleRef.version,
+  const result = await dispatchAction('cascadeSchedule', {
+    operation: 'insert',
+    targetId: vehicleRef.vehicleId,
+    targetExpectedVersion: vehicleRef.version,
     stageCode,
     bayNumber,
     scheduledStartAt,
     durationMinutes,
     technicianId,
+    shiftMinutes: durationMinutes,
   });
   return !!(result && result.ok);
 }
@@ -3802,6 +4115,10 @@ async function scheduleWorkshopVehicle({ planId = '', vehicleKeyValue = '', stag
   const hours = workshopClampDurationHours(defaultHours);
   const requestedCandidate = {
     ...(existing || {}),
+    id: existing?.id || '__new_workshop_booking__',
+    stage: normalizedStage,
+    bay: Number(bay),
+    status: 'planned',
     startAt: start.toISOString(),
     hours,
     assignee: assigneeValue === null
@@ -3859,26 +4176,13 @@ async function scheduleWorkshopVehicle({ planId = '', vehicleKeyValue = '', stag
     return false;
   }
   const conflictRows = latestRows.filter(row => row.id !== candidate.id);
-  let resolvedCandidate = candidate;
-  let plannedRowsAfterShift = null;
-  if (workshopHasConflict(candidate, conflictRows)) {
-    if (preferRequestedTime) {
-      plannedRowsAfterShift = workshopShiftTrailingPlannedRows(candidate, conflictRows);
-      if (!plannedRowsAfterShift) {
-        if (!workshopRequireNoBayConflict(candidate, conflictRows)) return false;
-        return false;
-      }
-    } else {
-      resolvedCandidate = workshopResolveConflictByNextSlot(candidate, conflictRows);
-      if (!resolvedCandidate) return false;
-    }
-  } else if (!workshopRequireNoBayConflict(candidate, conflictRows)) return false;
-  const effectiveRows = plannedRowsAfterShift ? plannedRowsAfterShift.rows.filter(row => row.id !== resolvedCandidate.id) : conflictRows;
-  if (!workshopRequireAvailableAssignee(resolvedCandidate, effectiveRows)) return false;
-  if (!workshopConfirmOtherDepartmentPlans(resolvedCandidate, latestRows)) return false;
-  const baseRows = plannedRowsAfterShift
-    ? latestRows.map(entry => plannedRowsAfterShift.moved.find(item => item.id === entry.id) || entry)
-    : latestRows;
+  const plannedRowsAfterShift = workshopShiftEveryLaterPlannedRow(candidate, conflictRows, Math.round(candidate.hours * 60));
+  const effectiveRows = plannedRowsAfterShift.rows.filter(row => row.id !== candidate.id);
+  if (!workshopRequireNoBayConflict(candidate, effectiveRows)) return false;
+  if (!workshopRequireAvailableAssignee(candidate, effectiveRows)) return false;
+  if (!workshopConfirmOtherDepartmentPlans(candidate, latestRows)) return false;
+  const baseRows = latestRows.map(entry => plannedRowsAfterShift.moved.find(item => item.id === entry.id) || entry);
+  const resolvedCandidate = candidate;
   const nextRows = latestExisting ? baseRows.map(entry => entry.id === latestExisting.id ? resolvedCandidate : entry) : [...baseRows, resolvedCandidate];
   const persisted = workshopPersistPlanAction(
     existing ? 'Workshop plan rescheduled' : 'Workshop plan created',
@@ -3921,14 +4225,24 @@ async function saveWorkshopDetailForm(event) {
   if (workshopSharedModeActive()) {
     const nextStartAt = ['started', 'stoppage'].includes(entry.status) ? entry.startAt : normalizedStart.toISOString();
     const nextDurationMinutes = Math.round(workshopClampDurationHours(requestedHours) * 60);
-    const moveResult = await workshopDispatchSharedAction('moveBooking', {
-      bookingId: entry.sharedBookingId || entry.id,
-      expectedVersion: entry.sharedVersion,
-      stageCode: entry.stage,
-      bayNumber: Number(entry.bay),
-      scheduledStartAt: nextStartAt,
-      durationMinutes: nextDurationMinutes,
-    });
+    const currentDurationMinutes = Math.round(workshopClampDurationHours(entry.hours) * 60);
+    const extendsDuration = nextDurationMinutes > currentDurationMinutes;
+    if (extendsDuration && nextStartAt !== entry.startAt) {
+      window.alert('To preserve an atomic bay cascade, save the new start time first, then extend the duration.');
+      return;
+    }
+    const shiftMinutes = extendsDuration ? nextDurationMinutes - currentDurationMinutes : 0;
+    const moveResult = extendsDuration
+      ? await workshopDispatchSharedAction('cascadeSchedule', {
+        operation: 'extend', targetId: entry.sharedBookingId || entry.id, targetExpectedVersion: entry.sharedVersion,
+        stageCode: entry.stage, bayNumber: Number(entry.bay), scheduledStartAt: entry.startAt,
+        durationMinutes: nextDurationMinutes, shiftMinutes,
+      })
+      : await workshopDispatchSharedAction('moveBooking', {
+        bookingId: entry.sharedBookingId || entry.id, expectedVersion: entry.sharedVersion,
+        stageCode: entry.stage, bayNumber: Number(entry.bay), scheduledStartAt: nextStartAt,
+        durationMinutes: nextDurationMinutes,
+      });
     if (!moveResult || !moveResult.ok) return;
     if (nextAssignee !== (entry.assignee || '')) {
       const nextVersion = moveResult.booking && moveResult.booking.version;
@@ -3971,14 +4285,18 @@ async function saveWorkshopDetailForm(event) {
     return;
   }
   const otherRows = latestRows.filter(row => row.id !== candidate.id);
+  const durationDeltaMinutes = Math.max(0, Math.round((candidate.hours - workshopClampDurationHours(entry.hours)) * 60));
+  const detailShift = durationDeltaMinutes > 0 ? workshopShiftEveryLaterPlannedRow(candidate, otherRows, durationDeltaMinutes) : null;
+  const detailConflictRows = detailShift ? detailShift.rows : otherRows;
   let resolvedDetail = candidate;
-  if (workshopHasConflict(candidate, otherRows)) {
+  if (workshopHasConflict(candidate, detailConflictRows) && !detailShift) {
     resolvedDetail = workshopResolveConflictByNextSlot(candidate, otherRows);
     if (!resolvedDetail) return;
-  } else if (!workshopRequireNoBayConflict(candidate, otherRows)) return;
-  if (!workshopRequireAvailableAssignee(resolvedDetail, otherRows)) return;
+  } else if (!workshopRequireNoBayConflict(candidate, detailConflictRows)) return;
+  if (!workshopRequireAvailableAssignee(resolvedDetail, detailConflictRows)) return;
   if (!workshopConfirmOtherDepartmentPlans(resolvedDetail, latestRows)) return;
-  const updatedRows = workshopCascadePlans(latestRows.map(row => row.id === entry.id ? resolvedDetail : row)).rows;
+  const detailBaseRows = detailShift ? latestRows.map(row => detailShift.moved.find(item => item.id === row.id) || row) : latestRows;
+  const updatedRows = workshopCascadePlans(detailBaseRows.map(row => row.id === entry.id ? resolvedDetail : row)).rows;
   const vehicle = workshopVehicle(entry.vehicleKey);
   const hoursMap = vehicle ? workshopEstimatedHoursMap(vehicle) : {};
   if (vehicle) hoursMap[entry.stage] = resolvedDetail.hours;
@@ -4334,10 +4652,17 @@ function startWorkshopResize(handle, event) {
     const hours = Number(chip.dataset.previewHours || entry.hours);
     delete chip.dataset.previewHours;
     if (workshopSharedModeActive()) {
-      await workshopDispatchSharedAction('resizeBooking', {
-        bookingId: entry.sharedBookingId || entry.id,
-        expectedVersion: entry.sharedVersion,
-        durationMinutes: Math.round(workshopClampDurationHours(hours) * 60),
+      const nextHours = workshopClampDurationHours(hours);
+      const deltaMinutes = Math.max(0, Math.round((nextHours - workshopClampDurationHours(entry.hours)) * 60));
+      await workshopDispatchSharedAction('cascadeSchedule', {
+        operation: 'extend',
+        targetId: entry.sharedBookingId || entry.id,
+        targetExpectedVersion: entry.sharedVersion,
+        stageCode: entry.stage,
+        bayNumber: Number(entry.bay),
+        scheduledStartAt: entry.startAt,
+        durationMinutes: Math.round(nextHours * 60),
+        shiftMinutes: deltaMinutes,
       });
       return;
     }
@@ -4350,16 +4675,8 @@ function startWorkshopResize(handle, event) {
       return;
     }
     const otherRows = latestRows.filter(row => row.id !== candidate.id);
-    let resizeShift = null;
-    if (workshopHasConflict(candidate, otherRows)) {
-      resizeShift = workshopShiftTrailingPlannedRows(candidate, otherRows);
-      if (!resizeShift) {
-        workshopRequireNoBayConflict(candidate, otherRows);
-        renderWorkshopPlanner();
-        return;
-      }
-    }
-    if (!resizeShift && !workshopRequireNoBayConflict(candidate, otherRows)) {
+    const resizeShift = workshopShiftEveryLaterPlannedRow(candidate, otherRows, Math.max(0, Math.round((candidate.hours - originalHours) * 60)));
+    if (!workshopRequireNoBayConflict(candidate, resizeShift.rows)) {
       renderWorkshopPlanner();
       return;
     }
@@ -4766,6 +5083,7 @@ if (typeof module !== 'undefined' && module.exports) {
     workshopRequireNoBayConflict,
     workshopResolveConflictByNextSlot,
     workshopShiftTrailingPlannedRows,
+    workshopShiftEveryLaterPlannedRow,
     workshopDateKey,
     workshopDateFromKey,
     workshopNormalizeStartDate,
@@ -4800,6 +5118,10 @@ if (typeof module !== 'undefined' && module.exports) {
     workshopEtaScheduleValidation,
     workshopEtaRiskForEntry,
     workshopStageVehicles,
+    workshopVehicle,
+    workshopSnapshotVehicleToPlannerRow,
+    workshopPlannerVehiclesForStage,
+    workshopRefreshDedicatedDate,
     moveWorkshopLivePlan,
     moveWorkshopDroppedPlan,
     workshopSharedModeActive,
@@ -4821,6 +5143,10 @@ if (typeof module !== 'undefined' && module.exports) {
     workshopVehicleLinkDisplayRows,
     workshopVehicleLinkDiagnosticModal,
     workshopVerifiedCanonicalVehicleRef,
+    workshopVehicleLinkReadinessStatus,
+    workshopBuildVehicleLinkReadinessReport,
+    workshopPersistVehicleLinkReadinessBatch,
+    workshopLinkReadinessModalReportHtml,
     workshopSharedVehicleRef,
     workshopSharedTechnicianRef,
     workshopReferenceTechnicianRef,

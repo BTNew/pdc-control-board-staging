@@ -21,7 +21,10 @@ window.PDC_SUPABASE_CONFIG = {
     redirectTo: window.location.origin + window.location.pathname
   },
   workshop: {
-    sharedData: true
+    sharedData: true,
+    // Temporary acceptance rollback: keeps the original combined Workshop
+    // Planner route available until every station route is signed off.
+    stationRoutes: { combinedPlannerRollback: true }
   },
   vehicleLifecycle: Object.freeze({
     sharedData: true,

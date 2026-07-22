@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.07.21.02-combined-staging-candidate';
+const APP_VERSION = '2026.07.21.04-station-planners';
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
 // constant intentionally names only the production ref, never the
@@ -201,6 +201,21 @@ const PRODUCTION_DEPARTMENT_VIEWS = {
   'dept-tyre': 'TYRE',
   'dept-pit-inspection': 'PIT_INSPECTION',
 };
+const WORKSHOP_STATION_ROUTE_DEFS = Object.freeze([
+  { view: 'planner-bus-4x4', path: 'workshop/bus-4x4', stage: 'BUS_4X4', label: 'Bus 4x4' },
+  { view: 'planner-tint', path: 'workshop/tint', stage: 'TINT', label: 'Tint' },
+  { view: 'planner-hoist', path: 'workshop/hoist', stage: 'HOIST', label: 'Hoist' },
+  { view: 'planner-fitting', path: 'workshop/fitting', stage: 'FITTING', label: 'Fitting' },
+  { view: 'planner-fab', path: 'workshop/fab', stage: 'FABRICATION', label: 'Fab' },
+  { view: 'planner-elec', path: 'workshop/elec', stage: 'ELECTRICAL', label: 'Elec' },
+  { view: 'planner-tyre', path: 'workshop/tyre', stage: 'TYRE', label: 'Tyre' },
+  { view: 'planner-pit', path: 'workshop/pit', stage: 'PIT_INSPECTION', label: 'Pit' },
+  { view: 'planner-sublet', path: 'workshop/sublet', stage: 'SUBLET', label: 'Sublet' },
+]);
+const WORKSHOP_PLANNER_VIEWS = Object.freeze(Object.fromEntries(WORKSHOP_STATION_ROUTE_DEFS.map(def => [def.view, def.stage])));
+const WORKSHOP_PLANNER_ROUTE_BY_STAGE = Object.freeze(Object.fromEntries(WORKSHOP_STATION_ROUTE_DEFS.map(def => [def.stage, def.view])));
+const WORKSHOP_PLANNER_ROUTE_BY_PATH = Object.freeze(Object.fromEntries(WORKSHOP_STATION_ROUTE_DEFS.map(def => [def.path, def.view])));
+const WORKSHOP_CONTROL_BOARD_STATIONS = Object.freeze([...PMB_BAY_STATION_SEQUENCE, 'SUBLET']);
 
 const PDC_JOB_DEFS = [
   { key: 'bus4x4', label: 'BUS 4X4', short: 'B4', requireKey: 'pdcRequiresBus4x4', completeKey: 'pdcCompleteBus4x4', completeAtKey: 'pdcCompleteBus4x4At', completeByKey: 'pdcCompleteBus4x4By' },
@@ -1500,7 +1515,17 @@ function loadMechanicRecords(includeInactive = false) {
 // itself only reads the disposable in-memory cache synchronously and never
 // triggers a network fetch on its own (matching the existing synchronous
 // call-site contract every caller of loadMechanics() already relies on).
+function workshopReferenceDataRoleCanRead(role = window.PDC_AUTH_CONTEXT?.role) {
+  return ['operator', 'administrator'].includes(String(role || '').trim().toLowerCase());
+}
+
 function refreshWorkshopReferenceData() {
+  if (!workshopReferenceDataRoleCanRead()) {
+    stopWorkshopReferenceDataReconciliationTimer();
+    window.__workshopReferenceDataService?.unsubscribeAll?.();
+    window.__workshopReferenceDataService = null;
+    return;
+  }
   const service = typeof initWorkshopReferenceDataServiceIfAvailable === 'function' ? initWorkshopReferenceDataServiceIfAvailable() : null;
   if (!service) return;
   service.listTechnicians(true).catch(() => {});
@@ -1526,8 +1551,16 @@ function refreshWorkshopReferenceData() {
 // call sites), and stopped on logout/account-lockout so it never
 // polls with a signed-out session.
 function startWorkshopReferenceDataReconciliationTimer() {
+  if (!workshopReferenceDataRoleCanRead()) {
+    stopWorkshopReferenceDataReconciliationTimer();
+    return;
+  }
   if (window.__workshopReferenceDataReconcileTimer) return;
   window.__workshopReferenceDataReconcileTimer = window.setInterval(() => {
+    if (!workshopReferenceDataRoleCanRead()) {
+      stopWorkshopReferenceDataReconciliationTimer();
+      return;
+    }
     const service = window.__workshopReferenceDataService;
     if (!service || !window.PDC_AUTH_CONTEXT) return;
     service.listTechnicians(true).catch(() => {});
@@ -2661,19 +2694,53 @@ function vehicleWasIndependentlyPromoted(vehicle = {}) {
   return /manual|purchase order|pd check-form|work \/ job file|independent|operator|job card/.test(source);
 }
 
+function workshopCombinedPlannerRollbackEnabled() {
+  const configured = window.PDC_SUPABASE_CONFIG?.workshop?.stationRoutes?.combinedPlannerRollback;
+  return configured === true;
+}
+
+function workshopViewFromLocation() {
+  let path = '';
+  try {
+    path = decodeURIComponent(String(window.location?.hash || '').replace(/^#\/?/, '').replace(/\/$/, ''));
+  } catch (_error) {
+    return 'dashboard';
+  }
+  if (!path) return 'dashboard';
+  if (WORKSHOP_PLANNER_ROUTE_BY_PATH[path]) return WORKSHOP_PLANNER_ROUTE_BY_PATH[path];
+  if (path === 'workshop') return workshopCombinedPlannerRollbackEnabled() ? 'workshop' : 'workflow';
+  const candidate = path.replaceAll('/', '-');
+  return document.getElementById(candidate) || document.querySelector(`[data-view="${candidate}"]`) ? candidate : 'dashboard';
+}
+
+function workshopLocationPathForView(view = '') {
+  const station = WORKSHOP_STATION_ROUTE_DEFS.find(def => def.view === view);
+  return station ? station.path : (view === 'workshop' ? 'workshop' : String(view || 'dashboard'));
+}
+
+function updateWorkshopBrowserRoute(view = '', historyMode = 'push') {
+  if (!window.history || historyMode === 'none') return;
+  const hash = `#/${workshopLocationPathForView(view)}`;
+  if (window.location.hash === hash && historyMode !== 'replace') return;
+  const method = historyMode === 'replace' ? 'replaceState' : 'pushState';
+  window.history[method]({ pdcView: view }, '', hash);
+}
+
 function init() {
   ensureAppDataAvailable();
   migrateLegacyAutocareArrivalsToPmb();
   renderAppVersionMarker();
   renderHostingSecurityWarning();
   applyWorkflowWidthMode(loadWorkflowWidthMode());
-  if (document.body?.dataset) document.body.dataset.currentView = app.currentView || 'dashboard';
   updateNavisionSidebarMeta();
   const visibleRows = pdcSheetVehicles();
   app.selectedStock = vehicleKey(visibleRows.find(v => v.toyotaStatus) || visibleRows[0] || app.data[0]);
   bindNav();
+  const rollbackNav = $('#nav-workshop-rollback');
+  if (rollbackNav) rollbackNav.hidden = !workshopCombinedPlannerRollbackEnabled();
   populateFilters();
-  renderAll();
+  showView(workshopViewFromLocation(), { historyMode: 'replace' });
+  updateNavisionImportButton();
   loadVehicleLifecycleSharedActionsIfConfigured();
   loadWorkshopReferenceDataServiceIfConfigured();
 }
@@ -2744,6 +2811,12 @@ function queueIncomingDashboardRender() {
 
 function bindNav() {
   $$('.nav-item').forEach(btn => btn.addEventListener('click', () => showView(btn.dataset.view)));
+  if (!window.__pdcWorkshopRouteListenersInstalled && typeof window.addEventListener === 'function') {
+    const restoreRoute = () => showView(workshopViewFromLocation(), { historyMode: 'none' });
+    window.addEventListener('popstate', restoreRoute);
+    window.addEventListener('hashchange', restoreRoute);
+    window.__pdcWorkshopRouteListenersInstalled = true;
+  }
   on($('#sidebar-toggle'), 'click', toggleSidebar);
   on($('#operator-profile'), 'click', setOperatorProfile);
   on($('#tv-set-operator-top'), 'click', setOperatorProfile);
@@ -3320,10 +3393,27 @@ function wireUserManagementActions() {
   }));
 }
 
-function showView(view) {
-  const requestedView = view || 'dashboard';
+function teardownWorkshopPlannerScope() {
+  try { window.__workshopRealtimeManager?.stop?.(); } catch (_error) { /* best-effort route teardown */ }
+  try { window.__workshopDataService?.destroy?.(); } catch (_error) { /* best-effort route teardown */ }
+  window.__workshopRealtimeManager = null;
+  window.__workshopDataService = null;
+  window.__workshopSharedActions = null;
+  window.__activeWorkshopPlannerStage = '';
+  const root = document.getElementById('workshop-planner-root');
+  if (root) root.replaceChildren();
+}
+
+function showView(view, options) {
+  options = options || {};
+  let requestedView = view || 'dashboard';
+  if (requestedView === 'workshop' && !workshopCombinedPlannerRollbackEnabled()) requestedView = 'workflow';
   const departmentStage = PRODUCTION_DEPARTMENT_VIEWS[requestedView] || '';
-  const nextView = departmentStage ? 'department' : requestedView;
+  const plannerStage = WORKSHOP_PLANNER_VIEWS[requestedView] || '';
+  const nextView = departmentStage ? 'department' : (plannerStage ? 'workshop' : requestedView);
+  const previousRequestedView = app.currentRequestedView || app.currentView || 'dashboard';
+  const previousWasPlanner = previousRequestedView === 'workshop' || Boolean(WORKSHOP_PLANNER_VIEWS[previousRequestedView]);
+  if (previousWasPlanner && previousRequestedView !== requestedView) teardownWorkshopPlannerScope();
   releaseHeavyViewDom(app.currentView, nextView);
   if (requestedView !== 'workflow') {
     app.activePmbBayStage = '';
@@ -3333,10 +3423,14 @@ function showView(view) {
     if (pmbWorkflowHost) pmbWorkflowHost.classList.remove('station-only');
   }
   if (departmentStage) app.activeProductionDepartment = departmentStage;
+  app.activeWorkshopPlannerStage = plannerStage;
+  window.__activeWorkshopPlannerStage = plannerStage;
+  app.currentRequestedView = requestedView;
   app.currentView = nextView;
+  updateWorkshopBrowserRoute(requestedView, options.historyMode || 'push');
   if (document.body?.dataset) document.body.dataset.currentView = requestedView;
-  $$('.view').forEach(el => el.classList.toggle('active', el.id === requestedView || (departmentStage && el.id === 'department')));
-  $$('.nav-item').forEach(el => el.classList.toggle('active', el.dataset.view === requestedView));
+  $$('.view').forEach(el => el.classList.toggle('active', el.id === requestedView || (departmentStage && el.id === 'department') || (plannerStage && el.id === 'workshop')));
+  $$('.nav-item').forEach(el => el.classList.toggle('active', el.dataset.view === requestedView || (plannerStage && el.dataset.view === 'workshop')));
   const departmentDef = departmentStage ? PRODUCTION_FLOW_DEFS.find(def => def.key === departmentStage) : null;
   const titleMap = {
     dashboard: 'Vehicle Locations',
@@ -3358,7 +3452,9 @@ function showView(view) {
     zpl: 'Label Tools'
   };
   const pageTitle = $('#page-title');
-  if (pageTitle) pageTitle.textContent = departmentDef ? departmentDef.label : (titleMap[requestedView] || 'Control Board');
+  if (pageTitle) pageTitle.textContent = departmentDef
+    ? departmentDef.label
+    : (plannerStage ? `${pmbStageLabel(plannerStage)} Planner` : (titleMap[requestedView] || 'Control Board'));
   if (requestedView !== 'dashboard' && app.frozenHeaderCleanup) {
     app.frozenHeaderCleanup();
     app.frozenHeaderCleanup = null;
@@ -3450,18 +3546,37 @@ function getPdcSupabaseAccessToken() {
   return window.PDC_AUTH_CONTEXT ? (window.__pdcCachedAccessToken || null) : null;
 }
 
-function createPdcSupabaseRealtimeSubscription(config, handlers) {
+function createPdcSupabaseRealtimeSubscription(config, handlers, scope = null) {
   const client = window.PDC_SUPABASE;
-  if (!client || typeof client.channel !== 'function') return { unsubscribe: () => {} };
+  if (!client || typeof client.channel !== 'function') {
+    const status = 'CLIENT_UNAVAILABLE';
+    if (typeof handlers?.onStatus === 'function') handlers.onStatus(status);
+    if (typeof handlers?.onError === 'function') handlers.onError(status);
+    return { requiresSubscribedStatus: true, unsubscribe: () => {} };
+  }
+  const stageCode = String(scope?.stageCode || '').trim().toUpperCase();
+  const table = stageCode ? 'workshop_station_revision' : 'workshop_revision';
+  const filter = stageCode ? `stage_code=eq.${stageCode}` : undefined;
+  const changeSpec = { event: '*', schema: 'public', table, ...(filter ? { filter } : {}) };
   const channel = client
-    .channel('workshop-revision')
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'workshop_revision' }, payload => {
+    .channel(stageCode ? `workshop-station-revision-${stageCode.toLowerCase()}` : 'workshop-revision')
+    .on('postgres_changes', changeSpec, payload => {
       if (typeof handlers?.onChange === 'function') handlers.onChange(payload);
     })
     .subscribe(status => {
       if (typeof handlers?.onStatus === 'function') handlers.onStatus(status);
+      if (status === 'SUBSCRIBED') {
+        if (typeof handlers?.onSubscribed === 'function') handlers.onSubscribed(status);
+      } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+        if (typeof handlers?.onError === 'function') handlers.onError(status);
+      } else if (status === 'CLOSED') {
+        if (typeof handlers?.onClosed === 'function') handlers.onClosed(status);
+      }
     });
-  return { unsubscribe: () => client.removeChannel(channel) };
+  return {
+    requiresSubscribedStatus: true,
+    unsubscribe: () => client.removeChannel(channel)
+  };
 }
 
 // Generic per-table realtime subscription, used by
@@ -3496,6 +3611,7 @@ function createPdcSupabaseTableRealtimeSubscription(tableName, handlers) {
 // a clear "not authenticated"/offline state -- there is no synchronous
 // path back to localStorage.
 function initWorkshopReferenceDataServiceIfAvailable() {
+  if (!workshopReferenceDataRoleCanRead()) return null;
   if (window.__workshopReferenceDataService) return window.__workshopReferenceDataService;
   if (!window.PDC_SUPABASE_CONFIG || typeof createWorkshopReferenceDataService !== 'function' || typeof createWorkshopReferenceSupabaseClient !== 'function') return null;
 
@@ -3533,14 +3649,23 @@ function initWorkshopReferenceDataServiceIfAvailable() {
 // wiring, which are already app.js concerns for the rest of the site.
 function initWorkshopSharedServicesIfEnabled() {
   if (typeof workshopSharedModeEnabled !== 'function' || !workshopSharedModeEnabled(window.PDC_SUPABASE_CONFIG)) return;
+  if (app.currentView !== 'workshop') return;
 
   if (!window.__workshopDataService) {
     if (typeof createWorkshopDataService !== 'function' || typeof createWorkshopSupabaseClient !== 'function') return;
 
     const client = createWorkshopSupabaseClient(window.PDC_SUPABASE_CONFIG);
+    const plannerDate = typeof workshopState === 'function'
+      ? workshopState().date
+      : new Date().toISOString().slice(0, 10);
     const dataService = createWorkshopDataService({
       config: window.PDC_SUPABASE_CONFIG,
       client,
+      scope: app.activeWorkshopPlannerStage ? {
+        stageCode: app.activeWorkshopPlannerStage,
+        dateFrom: plannerDate,
+        dateTo: plannerDate,
+      } : null,
       getAccessToken: () => (typeof getPdcSupabaseAccessToken === 'function' ? getPdcSupabaseAccessToken() : null),
       getRole: () => (typeof window.PDC_AUTH_CONTEXT !== 'undefined' ? window.PDC_AUTH_CONTEXT?.role : null),
       onStateChange: () => {
@@ -3554,7 +3679,13 @@ function initWorkshopSharedServicesIfEnabled() {
     });
     window.__workshopDataService = dataService;
 
-    dataService.loadSnapshot('initial');
+    // The first successful station Realtime subscription performs the
+    // authoritative initial resync. Avoid issuing a duplicate scoped RPC
+    // immediately before that subscription; if Realtime is not loaded yet,
+    // retain the one-shot initial snapshot fallback.
+    if (typeof createWorkshopRealtimeManager !== 'function' || typeof createPdcSupabaseRealtimeSubscription !== 'function') {
+      dataService.loadSnapshot('initial_without_realtime');
+    }
   }
 
   // Deliberately re-checked every call, same reasoning as the shared-
@@ -3565,16 +3696,23 @@ function initWorkshopSharedServicesIfEnabled() {
   if (!window.__workshopRealtimeManager && typeof createWorkshopRealtimeManager === 'function' && typeof createPdcSupabaseRealtimeSubscription === 'function') {
     window.__workshopRealtimeManager = createWorkshopRealtimeManager({
       dataService: window.__workshopDataService,
-      subscribe: (handlers) => createPdcSupabaseRealtimeSubscription(window.PDC_SUPABASE_CONFIG, handlers),
+      subscribe: (handlers) => createPdcSupabaseRealtimeSubscription(
+        window.PDC_SUPABASE_CONFIG,
+        handlers,
+        app.activeWorkshopPlannerStage ? { stageCode: app.activeWorkshopPlannerStage } : null,
+      ),
       onStatusChange: () => {
         if (app.currentView === 'workshop' && typeof renderWorkshopPlanner === 'function') renderWorkshopPlanner();
       }
     });
     window.__workshopRealtimeManager.start();
-    window.addEventListener('online', () => window.__workshopRealtimeManager.forceReconnect());
-    document.addEventListener('visibilitychange', () => {
-      if (document.visibilityState === 'visible') window.__workshopDataService.onVisibilityReturn();
-    });
+    if (!window.__workshopRecoveryListenersInstalled) {
+      window.addEventListener('online', () => window.__workshopRealtimeManager?.forceReconnect?.());
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') window.__workshopDataService?.onVisibilityReturn?.();
+      });
+      window.__workshopRecoveryListenersInstalled = true;
+    }
   }
 
   // Deliberately re-checked every call (not just inside the "first init"
@@ -3659,7 +3797,7 @@ function vehicleLifecycleSharedModeActive() {
 // the Workshop Planner view (or returns after a session refresh) gets the
 // data service without needing to navigate away and back.
 window.addEventListener?.('pdc-auth-ready', () => {
-  if (typeof initWorkshopSharedServicesIfEnabled === 'function') initWorkshopSharedServicesIfEnabled();
+  if (app.currentView === 'workshop' && typeof initWorkshopSharedServicesIfEnabled === 'function') initWorkshopSharedServicesIfEnabled();
   if (typeof initVehicleLifecycleSharedActionsIfEnabled === 'function') initVehicleLifecycleSharedActionsIfEnabled();
   if (typeof refreshWorkshopReferenceData === 'function') refreshWorkshopReferenceData();
   const navItem = document.getElementById('nav-user-management');
@@ -3727,9 +3865,10 @@ window.addEventListener?.('pdc-auth-locked', () => {
 });
 
 function renderWorkshopPlannerWhenReady() {
+  const requestedStage = app.activeWorkshopPlannerStage || '';
   if (typeof renderWorkshopPlanner === 'function') {
     initWorkshopSharedServicesIfEnabled();
-    renderWorkshopPlanner();
+    if (app.activeWorkshopPlannerStage === requestedStage) renderWorkshopPlanner();
     return;
   }
   const root = $('#workshop-planner-root');
@@ -3745,8 +3884,9 @@ function renderWorkshopPlannerWhenReady() {
     .catch(() => { /* non-fatal: shared mode simply stays unavailable */ })
     .then(() => loadExternalScript(`workshop-planner.js?v=${encodeURIComponent(APP_VERSION)}`, 'workshop-planner-script'))
     .then(() => {
+      if (app.currentView !== 'workshop' || app.activeWorkshopPlannerStage !== requestedStage) return;
       initWorkshopSharedServicesIfEnabled();
-      if (app.currentView === 'workshop' && typeof renderWorkshopPlanner === 'function') renderWorkshopPlanner();
+      if (typeof renderWorkshopPlanner === 'function') renderWorkshopPlanner();
     })
     .catch(error => {
       if (!root) return;
@@ -4050,7 +4190,7 @@ function workflowAction(target = '') {
 function pmbVehicleNeedsStationWork(vehicle = {}, stage = '') {
   const normalizedStage = normalizePmbStage(stage);
   const def = pmbStageJobDef(normalizedStage);
-  if (statusCategory(vehicle) !== 'pmb' || !def || !PMB_BAY_STATION_SEQUENCE.includes(normalizedStage)) return false;
+  if (statusCategory(vehicle) !== 'pmb' || !def || !WORKSHOP_CONTROL_BOARD_STATIONS.includes(normalizedStage)) return false;
   const incomplete = !pdcJobComplete(vehicle, def);
   if (!incomplete) return false;
   return pdcJobRequired(vehicle, def) || normalizePmbStage(inferredPmbStage(vehicle)) === normalizedStage;
@@ -4245,16 +4385,9 @@ function controlBoardStationVehicleHtml(vehicle = {}, stage = '') {
 
 function openWorkshopPlannerForStage(stage = '') {
   const normalizedStage = normalizePmbStage(stage);
-  if (!PMB_BAY_STATION_SEQUENCE.includes(normalizedStage)) return;
-  if (typeof workshopState === 'function') {
-    const state = workshopState();
-    state.stage = normalizedStage;
-    state.selectedPlanId = '';
-    app.pendingWorkshopStage = '';
-  } else {
-    app.pendingWorkshopStage = normalizedStage;
-  }
-  showView('workshop');
+  const route = WORKSHOP_PLANNER_ROUTE_BY_STAGE[normalizedStage];
+  if (!route) return;
+  showView(route);
 }
 
 function renderWorkflowBoard() {
@@ -4264,7 +4397,7 @@ function renderWorkflowBoard() {
   app.activePmbBayStage = '';
   const search = String($('#workflow-search')?.value || app.workflowSearch || '').trim().toLowerCase();
   app.workflowSearch = search;
-  const stationRows = PMB_BAY_STATION_SEQUENCE.map(stage => {
+  const stationRows = WORKSHOP_CONTROL_BOARD_STATIONS.map(stage => {
     const allVehicles = pmbVehiclesNeedingStationWork(stage);
     const vehicles = search ? allVehicles.filter(vehicle => incomingSearchText(vehicle, 'pmb').includes(search)) : allVehicles;
     return { stage, allVehicles, vehicles };
@@ -4283,7 +4416,7 @@ function renderWorkflowBoard() {
         <span>${escapeHtml(label)}</span>
         <strong>${escapeHtml(countLabel)}</strong>
         <small>PMB vehicles with ${escapeHtml(label)} required and not completed</small>
-        <span class="workflow-bucket-actions"><button class="small-button primary" type="button" data-open-workshop-stage="${escapeHtml(stage)}">Open Bays</button></span>
+        <span class="workflow-bucket-actions"><button class="small-button primary" type="button" data-open-workshop-stage="${escapeHtml(stage)}">Open ${escapeHtml(label)} Planner</button></span>
       </summary>
       <div class="control-board-work-list">${rows}</div>
     </details>`;
@@ -4300,7 +4433,7 @@ function renderWorkflowBoard() {
   </details>`;
   host.innerHTML = `
     <div class="branch-header workflow-pmb-header">
-      <div><strong>PMB work overview</strong><span>Vehicles appear in every station row where required work is still outstanding. Open Bays goes directly to that station in Workshop Planner.</span></div>
+      <div><strong>PMB work overview</strong><span>Vehicles appear in every station row where required work is still outstanding. Open a station planner to load only that station, its bays and its relevant work.</span></div>
       <div class="branch-header-actions"><span class="badge neutral">${outstandingVehicleKeys.size} needing work · ${totalPmb} at PMB</span></div>
     </div>
     <div class="workflow-collapsible-board control-board-station-list">${stationHtml}${qualityControlHtml}</div>

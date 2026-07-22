@@ -59,6 +59,14 @@ body[data-current-view="workshop"] .content {
   color: #0f172a;
 }
 
+.workshop-back-control {
+  margin: 0 0 8px;
+}
+
+.workshop-planner-dedicated .workshop-planner-header {
+  align-items: flex-start;
+}
+
 .workshop-planner-header p {
   margin: 0;
   color: #64748b;
@@ -962,4 +970,22 @@ button.workshop-search-result:hover, button.workshop-search-result:focus-visible
   .workshop-search-result-flags { justify-content: flex-start; }
   .workshop-booking-navigator { grid-template-columns: 1fr 1fr; }
   .workshop-booking-navigator > span, .workshop-booking-navigator label { grid-column: 1 / -1; }
+}
+
+.workshop-link-readiness-card { width: min(1040px, calc(100vw - 32px)); max-height: min(860px, calc(100vh - 32px)); display: grid; grid-template-rows: auto auto minmax(0, 1fr) auto; gap: 12px; }
+.workshop-link-readiness-summary { display: grid; grid-template-columns: repeat(6, minmax(110px, 1fr)); gap: 7px; }
+.workshop-link-readiness-summary > div { min-width: 0; display: grid; gap: 3px; padding: 9px 10px; border: 1px solid #cbd5e1; background: #f8fafc; }
+.workshop-link-readiness-summary span { color: #475569; font-size: .68rem; font-weight: 750; }
+.workshop-link-readiness-summary strong { color: #0f172a; font-size: 1.3rem; }
+.workshop-link-readiness-table { min-height: 0; overflow: auto; border: 1px solid #cbd5e1; }
+.workshop-link-readiness-table table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+.workshop-link-readiness-table th, .workshop-link-readiness-table td { padding: 7px 8px; border-bottom: 1px solid #e2e8f0; text-align: left; vertical-align: top; font-size: .72rem; }
+.workshop-link-readiness-table th { position: sticky; top: 0; background: #f1f5f9; z-index: 2; }
+.workshop-link-readiness-table th:nth-child(1) { width: 24%; }
+.workshop-link-readiness-table th:nth-child(2) { width: 20%; }
+.workshop-link-readiness-table td { overflow-wrap: anywhere; }
+.workshop-link-readiness-table td:first-child { display: grid; gap: 2px; }
+.workshop-link-readiness-table td:first-child span { color: #64748b; font-size: .65rem; }
+@media (max-width: 900px) {
+  .workshop-link-readiness-summary { grid-template-columns: repeat(2, minmax(110px, 1fr)); }
 }

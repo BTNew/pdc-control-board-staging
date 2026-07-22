@@ -2,17 +2,18 @@
   "ai_authority": "recommendation_and_review_only",
   "approved_commits": {
     "ai_workshop_email": "f25843b8ce8300c6456c1e85182f173b7d8b5cdc",
-    "combined_source": "75a9d6560996999ffc83c02970ad66b91585d860",
+    "combined_source": "02edd29f2a1358ffcd32bf6d42b721b9d5bda6f0",
     "cosmetic_ui": "99ac0b7923879eab8ecccaade62c02736fd2bb6f",
-    "shared_navision": "a2c05fb1990cf409342339fad7199ea5d1eca401"
+    "shared_navision": "a2c05fb1990cf409342339fad7199ea5d1eca401",
+    "station_planner_release_gate": "02edd29f2a1358ffcd32bf6d42b721b9d5bda6f0"
   },
   "browser_local_authority_cutover": false,
-  "generated_at": "2026-07-21T05:11:31.092689+00:00",
-  "integration_branch": "integration/combined-staging-completion",
-  "integration_head": "75a9d6560996999ffc83c02970ad66b91585d860",
+  "generated_at": "2026-07-22T02:47:39.095319+00:00",
+  "integration_branch": "integration/post-c6-staging-test",
+  "integration_head": "02edd29f2a1358ffcd32bf6d42b721b9d5bda6f0",
   "mailbox_access_enabled": false,
   "outbound_email_enabled": false,
-  "schema": "pdc.combined-staging-completion/v1",
+  "schema": "pdc.post-c6-staging-station-planners/v1",
   "staging_url": "https://btnew.github.io/pdc-control-board-staging/",
   "supabase_project_ref": "cdsmnqxtyyoeoznmbidd",
   "zero_data_artifact": true
