@@ -13,9 +13,9 @@ sys.path.insert(0,str(ROOT/'_staging_test_tools'))
 from staging_conn import get_conn  # noqa: E402
 from staging_env import EXPECTED_STAGING_REF  # noqa: E402
 IDS=[
- '18e1ec63-503c-41f8-b6c0-8737911d73e5','23bdac02-842a-43c4-9f5b-a864487efca2',
- '2c800952-1624-4b0f-bfd5-10a6d7758347','781eb0c0-b932-4a7d-88cb-2cfbb66619f9',
- 'feba398a-a3ed-4e96-beef-8ba316dc220f',
+ '18e6b520-d3d0-434a-a4a6-9223b45b76af','23bd4310-c542-44f5-a421-bf2ffbda9341',
+ '2c800223-5901-4854-a190-07ac72db9b83','781c3923-8a5d-4ea8-aa32-f9bd777008b0',
+ 'feba3549-dd9c-42bb-af65-d9ebda5c3579',
 ]
 EXPECTED={IDS[0]:('D_AMBIGUOUS','conflicting_booking_evidence'),IDS[1]:('D_AMBIGUOUS','conflicting_booking_evidence'),IDS[2]:('D_AMBIGUOUS','conflicting_booking_evidence'),IDS[3]:('D_AMBIGUOUS','conflicting_booking_evidence'),IDS[4]:('B_ACTIVE_BOOKING','active_booking_represents_job')}
 BATCH='staging-legacy-pmb-stage-20260723-v1'

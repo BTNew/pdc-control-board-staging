@@ -19,6 +19,16 @@ from staging_conn import get_conn  # noqa: E402
 ROOT = Path(__file__).resolve().parents[1]
 MIGRATION = ROOT / "supabase/migrations/045_canonical_work_item_eligibility_and_legacy_stage_reconciliation.sql"
 STATIONS = ["BUS_4X4", "TINT", "HOIST", "FITTING", "FABRICATION", "ELECTRICAL", "TYRE", "PIT_INSPECTION"]
+ACTUAL_LEGACY_IDS = [
+    "18e6b520-d3d0-434a-a4a6-9223b45b76af", "23bd4310-c542-44f5-a421-bf2ffbda9341",
+    "2c800223-5901-4854-a190-07ac72db9b83", "781c3923-8a5d-4ea8-aa32-f9bd777008b0",
+    "feba3549-dd9c-42bb-af65-d9ebda5c3579",
+]
+ACTUAL_EXPECTED = {
+    ACTUAL_LEGACY_IDS[0]: "D_AMBIGUOUS", ACTUAL_LEGACY_IDS[1]: "D_AMBIGUOUS",
+    ACTUAL_LEGACY_IDS[2]: "D_AMBIGUOUS", ACTUAL_LEGACY_IDS[3]: "D_AMBIGUOUS",
+    ACTUAL_LEGACY_IDS[4]: "B_ACTIVE_BOOKING",
+}
 
 
 def assert_true(value, message):
@@ -33,6 +43,13 @@ def main():
     try:
         cur.execute("begin")
         cur.execute(MIGRATION.read_text(encoding="utf-8"))
+        cur.execute(
+            "select vehicle_id::text,classification from public.preview_legacy_stage_reconciliation(%s::uuid[]) order by vehicle_id",
+            (ACTUAL_LEGACY_IDS,),
+        )
+        actual_preview = dict(cur.fetchall())
+        assert_true(actual_preview == ACTUAL_EXPECTED, f"actual five-record preview drifted: {actual_preview}")
+        result["checks"].append("actual_five_record_preview_ids_and_classifications")
 
         cur.execute("select auth_user_id::text,email from public.pdc_user_roles where active and role='administrator' and auth_user_id is not null order by id limit 1")
         admin = cur.fetchone()
