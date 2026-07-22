@@ -99,6 +99,7 @@ def fsync_directory(path):
 TABLES = [
     # Lookup / reference tables (no operational FKs into vehicles)
     "workshop_stages",
+    "workshop_stage_aliases",
     "workshop_technicians",
     "workshop_bays",
     "workshop_settings",

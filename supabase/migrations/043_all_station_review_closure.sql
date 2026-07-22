@@ -146,6 +146,44 @@ end $$;
 revoke all on function public.schedule_vehicle_work(uuid,integer,text,integer,timestamptz,integer,uuid,text,jsonb) from public,anon;
 grant execute on function public.schedule_vehicle_work(uuid,integer,text,integer,timestamptz,integer,uuid,text,jsonb) to authenticated;
 
+-- A booking move is scheduling metadata only. The retained migration-010
+-- wrapper wrote the destination into vehicles.pmb_stage, which incorrectly
+-- promoted a planner move into workflow-stage authority.
+create or replace function public.move_workshop_booking(
+ p_booking_id uuid,p_expected_version integer,p_stage_code text,p_bay_number integer,
+ p_scheduled_start_at timestamptz,p_duration_minutes integer default null,
+ p_override_reason text default null,p_metadata jsonb default '{}'::jsonb)
+returns jsonb language plpgsql security definer set search_path=pg_catalog,public,extensions as $$
+declare
+ v_booking_before public.workshop_bookings%rowtype; v_stage public.workshop_stages%rowtype;
+ v_result jsonb; v_override_id uuid; v_revision bigint; v_stage_code text;
+begin
+ perform public.workshop_require_planner_operator();
+ perform public.workshop_require_version(p_expected_version);
+ select * into v_booking_before from public.workshop_bookings where id=p_booking_id for update;
+ if not found then raise exception 'Workshop booking not found' using errcode='P0002'; end if;
+ v_stage_code:=public.workshop_canonical_stage_code(p_stage_code);
+ select * into v_stage from public.workshop_stages where code=v_stage_code and active=true and planner_enabled=true;
+ if not found then raise exception 'Workshop stage % is not planner-enabled',p_stage_code using errcode='22023'; end if;
+ if v_stage.is_physical and not public.workshop_parts_ready(v_booking_before.vehicle_id) then
+  if p_override_reason is null or btrim(p_override_reason)='' then return jsonb_build_object('ok',false,'error','parts_incomplete'); end if;
+  perform public.require_pdc_role('administrator');
+ end if;
+ v_result:=public.workshop_move_booking(p_booking_id,p_expected_version,v_stage.code,p_bay_number,
+  p_scheduled_start_at,p_duration_minutes,p_metadata);
+ if not (v_result->>'ok')::boolean then return v_result; end if;
+ if p_override_reason is not null and btrim(p_override_reason)<>'' then
+  insert into public.workshop_parts_overrides(
+   vehicle_id,booking_id,work_key,intended_stage_id,reason,previous_state,resulting_state,approved_by,approved_by_email)
+  values(v_booking_before.vehicle_id,p_booking_id,'PARTS',v_stage.id,btrim(p_override_reason),
+   to_jsonb(v_booking_before),v_result->'booking',auth.uid(),public.current_actor_email()) returning id into v_override_id;
+ end if;
+ v_revision:=public.workshop_bump_revision();
+ return v_result||jsonb_build_object('override_id',v_override_id,'revision',v_revision);
+end $$;
+revoke all on function public.move_workshop_booking(uuid,integer,text,integer,timestamptz,integer,text,jsonb) from public,anon;
+grant execute on function public.move_workshop_booking(uuid,integer,text,integer,timestamptz,integer,text,jsonb) to authenticated;
+
 create or replace function public.get_workshop_eligibility_snapshot()
 returns jsonb language plpgsql stable security definer set search_path=public as $$
 begin
@@ -173,26 +211,44 @@ end $$;
 
 create or replace function public.get_station_workshop_snapshot(p_stage_code text,p_date_from date,p_date_to date)
 returns jsonb language plpgsql stable security definer set search_path=public as $$
-declare v_stage text:=public.workshop_canonical_stage_code(p_stage_code); v_result jsonb;
+declare v_stage text; v_stage_id uuid; v_from timestamptz; v_to timestamptz; v_base jsonb; v_ids uuid[];
 begin
  perform public.workshop_require_planner_operator();
- if v_stage is null or not exists(select 1 from public.workshop_stages where code=v_stage and active and planner_enabled) then raise exception 'Stage % is not planner-enabled',p_stage_code using errcode='22023'; end if;
- v_result:=public.get_station_workshop_snapshot_legacy(v_stage,p_date_from,p_date_to);
- v_result:=jsonb_set(v_result,'{stage}',to_jsonb(v_stage),true);
- v_result:=jsonb_set(v_result,'{revision}',to_jsonb(coalesce((select revision from public.workshop_station_revision where stage_code=v_stage),0)),true);
- v_result:=jsonb_set(v_result,'{vehicles}',coalesce((
-  with relevant_vehicle_ids as (
-   select vehicle_id from public.workshop_station_eligibility(v_stage)
-   union select b.vehicle_id from public.workshop_bookings b join public.workshop_stages s on s.id=b.stage_id
-    where s.code=v_stage and b.deleted_at is null and b.status='completed'
-      and coalesce(b.actual_end_at,b.scheduled_end_at,b.scheduled_start_at)>=(p_date_from::timestamp at time zone 'Australia/Perth')
-      and coalesce(b.actual_end_at,b.scheduled_end_at,b.scheduled_start_at)<((p_date_to+1)::timestamp at time zone 'Australia/Perth')
-  ) select jsonb_agg(to_jsonb(v) order by v.stock_number nulls last,v.id) from public.vehicles v where v.id in(select vehicle_id from relevant_vehicle_ids)
- ),'[]'::jsonb),true);
- v_result:=jsonb_set(v_result,'{work_items}',coalesce((select jsonb_agg(to_jsonb(w) order by w.vehicle_id,w.work_key,w.id) from public.vehicle_work_items w where public.workshop_canonical_stage_code(w.work_key)=v_stage),'[]'::jsonb),true);
- v_result:=jsonb_set(v_result,'{bookings}',coalesce((select jsonb_agg(public.workshop_booking_snapshot(b.id) order by b.scheduled_start_at,b.id) from public.workshop_bookings b join public.workshop_stages s on s.id=b.stage_id where s.code=v_stage and b.deleted_at is null and (b.status in('queued','planned','started','stoppage') or (b.status='completed' and coalesce(b.actual_end_at,b.scheduled_end_at,b.scheduled_start_at)>=(p_date_from::timestamp at time zone 'Australia/Perth') and coalesce(b.actual_end_at,b.scheduled_end_at,b.scheduled_start_at)<((p_date_to+1)::timestamp at time zone 'Australia/Perth')))),'[]'::jsonb),true);
- v_result:=jsonb_set(v_result,'{stages}',coalesce((select jsonb_agg(to_jsonb(s)) from public.workshop_stages s where s.code=v_stage),'[]'::jsonb),true);
- return v_result;
+ v_stage:=public.workshop_canonical_stage_code(p_stage_code);
+ select id into v_stage_id from public.workshop_stages where code=v_stage and active and planner_enabled;
+ if v_stage_id is null then raise exception 'Unknown, inactive or planner-disabled workshop station' using errcode='22023'; end if;
+ if p_date_from is null or p_date_to is null or p_date_to<p_date_from or p_date_to>p_date_from+31 then
+  raise exception 'Invalid station planner date range' using errcode='22023'; end if;
+ v_from:=p_date_from::timestamp at time zone 'Australia/Perth';
+ v_to:=(p_date_to+1)::timestamp at time zone 'Australia/Perth';
+ v_base:=public.get_station_workshop_snapshot_legacy(v_stage,p_date_from,p_date_to);
+ select coalesce(array_agg(distinct x.vehicle_id),'{}'::uuid[]) into v_ids from(
+  select e.vehicle_id from public.workshop_station_eligibility(v_stage)e
+  union select b.vehicle_id from public.workshop_bookings b where b.stage_id=v_stage_id and b.status='completed'
+   and b.actual_end_at>=v_from and b.actual_end_at<v_to) x;
+ return v_base||jsonb_build_object(
+  'stage',v_stage,'revision',public.workshop_current_station_revision(v_stage),
+  'scope',jsonb_build_object('stage_code',v_stage,'date_from',p_date_from,'date_to',p_date_to),
+  'stages',(select jsonb_agg(jsonb_build_object('id',s.id,'code',s.code,'display_name',s.display_name,
+   'sort_order',s.sort_order,'is_physical',s.is_physical,'is_sublet',s.is_sublet,'active',s.active,
+   'work_key',s.work_key,'planner_enabled',s.planner_enabled,
+   'aliases',(select coalesce(jsonb_agg(a.alias_value order by a.alias_value),'[]'::jsonb) from public.workshop_stage_aliases a where a.stage_code=s.code)))
+   from public.workshop_stages s where s.id=v_stage_id),
+  'bookings',(select coalesce(jsonb_agg(public.workshop_booking_snapshot(b.id) order by b.scheduled_start_at,b.id),'[]'::jsonb)
+   from public.workshop_bookings b where b.stage_id=v_stage_id and b.status<>'deleted' and(
+    b.status in('queued','planned','started','stoppage') or(b.status='completed' and b.actual_end_at>=v_from and b.actual_end_at<v_to))),
+  'vehicles',(select coalesce(jsonb_agg(jsonb_build_object(
+   'id',v.id,'permanent_vehicle_id',v.permanent_vehicle_id,'stock_number',v.stock_number,'vin',v.vin,
+   'toyota_order_number',v.toyota_order_number,'job_card_number',v.job_card_number,'customer_name',v.customer_name,
+   'make',v.make,'model',v.model,'registration',v.registration,'current_location',v.current_location,
+   'pmb_stage',v.pmb_stage,'pmb_bay_stage',v.pmb_bay_stage,'pmb_bay_number',v.pmb_bay_number,
+   'eta_to_kewdale',v.eta_to_kewdale,'active_workshop_booking_id',v.active_workshop_booking_id,
+   'workshop_status',v.workshop_status,'version',v.version) order by v.stock_number nulls last,v.id),'[]'::jsonb)
+   from public.vehicles v where v.id=any(v_ids)),
+  'work_items',(select coalesce(jsonb_agg(jsonb_build_object('vehicle_id',wi.vehicle_id,'work_key',wi.work_key,
+   'required',wi.required,'completed',wi.completed,'completed_at',wi.completed_at) order by wi.vehicle_id,wi.work_key),'[]'::jsonb)
+   from public.vehicle_work_items wi where wi.vehicle_id=any(v_ids) and public.workshop_stage_code_for_work_key(wi.work_key)=v_stage)
+ );
 end $$;
 revoke all on function public.get_workshop_eligibility_snapshot() from public,anon,authenticated;
 revoke all on function public.get_station_workshop_snapshot(text,date,date) from public,anon,authenticated;

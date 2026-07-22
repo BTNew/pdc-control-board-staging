@@ -21,6 +21,9 @@ try:
  q.execute("select set_config('request.jwt.claims',%s,true)",(json.dumps({'sub':str(admin),'email':admin_email,'role':'authenticated'}),))
  vehicle=uuid.uuid4(); stock='FIX043-'+uuid.uuid4().hex[:10].upper()
  q.execute("insert into public.vehicles(id,permanent_vehicle_id,stock_number,current_location,pmb_stage,visible_on_board,version,lifecycle_state,updated_by) values(%s,%s,%s,'YH','UNALLOCATED',false,1,'active',%s)",(vehicle,uuid.uuid4(),stock,admin))
+ outsider=uuid.uuid4()
+ q.execute("insert into public.vehicles(id,permanent_vehicle_id,stock_number,current_location,pmb_stage,visible_on_board,version,lifecycle_state,updated_by) values(%s,%s,%s,'OUTSIDE','UNALLOCATED',false,1,'active',%s)",(outsider,uuid.uuid4(),'OUT043-'+uuid.uuid4().hex[:10].upper(),admin))
+ q.execute("insert into public.vehicle_work_items(vehicle_id,work_key,required,completed) values(%s,'BUS4X4',true,false)",(outsider,))
  start=datetime.combine(date.today()+timedelta(days=1),datetime.min.time(),tzinfo=timezone.utc)+timedelta(hours=1)
  q.execute("select id from public.workshop_stages where code='SUBLET'"); sublet_stage=q.fetchone()[0]
  q.execute('alter table public.workshop_bookings disable trigger workshop_bookings_planner_enabled_guard')
@@ -30,6 +33,15 @@ try:
  q.execute('alter table public.workshop_bookings enable trigger workshop_bookings_require_planner_operator')
  q.execute("select public.schedule_vehicle_work(%s,1,'BUS_4X4',1,%s,60,null,null,'{}'::jsonb)",(vehicle,start)); result=q.fetchone()[0]; assert result['ok'] is True,result
  q.execute('select current_location,pmb_stage,visible_on_board from public.vehicles where id=%s',(vehicle,)); assert q.fetchone()==('YH','UNALLOCATED',False)
+ q.execute("select b.id,b.version from public.workshop_bookings b join public.workshop_stages s on s.id=b.stage_id where b.vehicle_id=%s and s.code='BUS_4X4' and b.deleted_at is null",(vehicle,)); bus_booking,bus_version=q.fetchone()
+ q.execute("select public.move_workshop_booking(%s,%s,'BUS_4X4',1,%s,60,null,'{}'::jsonb)",(bus_booking,bus_version,start+timedelta(hours=2))); assert q.fetchone()[0]['ok'] is True
+ q.execute('select current_location,pmb_stage,visible_on_board from public.vehicles where id=%s',(vehicle,)); assert q.fetchone()==('YH','UNALLOCATED',False),'booking move changed vehicle authority'
+ q.execute("select public.get_station_workshop_snapshot('BUS_4X4',%s,%s)",(date.today(),date.today()+timedelta(days=2))); snapshot=q.fetchone()[0]
+ snapshot_vehicle_ids={row['id'] for row in snapshot['vehicles']}; snapshot_work_item_ids={row['vehicle_id'] for row in snapshot['work_items']}
+ assert str(outsider) not in snapshot_vehicle_ids and str(outsider) not in snapshot_work_item_ids,'out-of-scope vehicle/work item leaked into station DTO'
+ assert snapshot_work_item_ids<=snapshot_vehicle_ids,'station DTO work_items must be scoped to returned vehicles'
+ fixture_vehicle=next(row for row in snapshot['vehicles'] if row['id']==str(vehicle))
+ assert set(fixture_vehicle)=={'id','permanent_vehicle_id','stock_number','vin','toyota_order_number','job_card_number','customer_name','make','model','registration','current_location','pmb_stage','pmb_bay_stage','pmb_bay_number','eta_to_kewdale','active_workshop_booking_id','workshop_status','version'},fixture_vehicle.keys()
  q.execute('select count(*) from public.workshop_booking_history where booking_id=%s',(sublet_booking,)); sublet_history_before=q.fetchone()[0]
  q.execute('savepoint sublet_lifecycle_denied')
  try:
@@ -81,6 +93,6 @@ try:
  q.execute("insert into public.workshop_stage_aliases(alias_normalized,alias_value,stage_code) values(%s,%s,'HOIST')",('FIXTUREALIAS'+uuid.uuid4().hex.upper(),'Fixture Alias'))
  q.execute("select revision from public.workshop_station_revision where stage_code='HOIST'"); assert q.fetchone()[0]>before
  q.execute("select public.get_station_workshop_snapshot('Pits Hoist',current_date,current_date)"); assert q.fetchone()[0]['stage']=='HOIST'
- print(json.dumps({'migration_043_transactional':True,'yh_without_eta_scheduled':True,'location_stage_visibility_unchanged':True,'importer_snapshot_schedule_and_direct_booking_denied':True,'importer_eta_risk_maintenance_preserved':True,'sublet_lifecycle_denied':True,'sublet_completion_preserved':True,'legacy_low_level_lifecycle_revoked':True,'alias_parity':sum(map(len,ALIASES.values())),'config_revision_bumped':True,'disabled_station_revision_bumped':True,'rolled_back':True}))
+ print(json.dumps({'migration_043_transactional':True,'yh_without_eta_scheduled':True,'location_stage_visibility_unchanged':True,'booking_move_preserves_vehicle_authority':True,'station_snapshot_dto_scoped_and_limited':True,'importer_snapshot_schedule_and_direct_booking_denied':True,'importer_eta_risk_maintenance_preserved':True,'sublet_lifecycle_denied':True,'sublet_completion_preserved':True,'legacy_low_level_lifecycle_revoked':True,'alias_parity':sum(map(len,ALIASES.values())),'config_revision_bumped':True,'disabled_station_revision_bumped':True,'rolled_back':True}))
 finally:
  conn.rollback(); conn.close()
