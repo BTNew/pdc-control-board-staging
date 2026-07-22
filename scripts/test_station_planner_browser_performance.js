@@ -19,6 +19,15 @@ function stationChannels() {
     .map(channel => ({ topic: String(channel.topic || ''), state: channel.state }));
 }
 
+async function waitForCondition(check, timeoutMs, label) {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    if (await check()) return;
+    await new Promise(resolve => setTimeout(resolve, 50));
+  }
+  throw new Error(`Timed out waiting for ${label}`);
+}
+
 (async () => {
   const browser = await chromium.launch({
     executablePath: process.env.PDC_CHROME_PATH || undefined,
@@ -73,20 +82,20 @@ function stationChannels() {
     await page.locator('#pdc-login-email').fill(creds.email);
     await page.locator('#pdc-login-password').fill(creds.password);
     await page.locator('#pdc-password-login').click();
-    await page.waitForFunction(() => {
+    await waitForCondition(() => page.evaluate(() => {
       const shell = document.getElementById('app-shell');
-      return shell && !shell.hasAttribute('inert') && window.PDC_AUTH_CONTEXT?.role;
-    }, null, { timeout: 30000 });
+      return Boolean(shell && !shell.hasAttribute('inert') && window.PDC_AUTH_CONTEXT?.role);
+    }), 30000, 'authenticated application shell');
     const projectRef = await page.evaluate(() => window.PDC_SUPABASE_CONFIG?.projectRef || '');
     if (projectRef !== STAGING_REF) throw new Error(`wrong project ${projectRef}`);
-    await page.waitForFunction(() => document.body.dataset.currentView === 'workflow');
+    await waitForCondition(() => page.evaluate(() => document.body.dataset.currentView === 'workflow'), 30000, 'Control Board view');
     const controlBoardActions = await page.locator('[data-open-workshop-stage]').count();
     if (controlBoardActions !== STATIONS.length) throw new Error(`expected ${STATIONS.length} Control Board planner actions, got ${controlBoardActions}`);
 
     const transitionResults = [];
     async function waitReady(stage, requestStart, startedAt, source) {
       const loadingSeenImmediately = await page.locator('.workshop-station-loading').count() > 0;
-      await page.waitForFunction(expected => {
+      await waitForCondition(() => page.evaluate(expected => {
         const snapshot = window.__workshopDataService?.getLastSnapshot?.();
         const channels = (window.PDC_SUPABASE?.getChannels?.() || []).filter(channel => String(channel.topic || '').includes('workshop-station-revision'));
         const board = document.querySelector('[data-workshop-station-content] .workshop-station-board');
@@ -96,7 +105,7 @@ function stationChannels() {
           && channels[0].state === 'joined'
           && String(channels[0].topic || '').endsWith(expected.toLowerCase())
           && board?.dataset?.plannerStage === expected;
-      }, stage, { timeout: TARGET_MS });
+      }, stage), TARGET_MS, `${stage} station snapshot and Realtime readiness`);
       await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
       const durationMs = Date.now() - startedAt;
       const calls = scopedRequests.slice(requestStart);
