@@ -2,8 +2,9 @@
 
 /* Stage 2B C4 browser-local readiness exporter.
  *
- * This file only reads window.PDC_APP/window.VEHICLE_TRACKING_DATA and
- * localStorage. It performs no localStorage mutation and no network request.
+ * This file reads only PDC-owned localStorage values (plus location.origin
+ * for provenance) and emits normalized identity/count/hash evidence. It performs
+ * no localStorage mutation and no network request.
  * The downloaded JSON contains narrow identity/linkage evidence only; customer,
  * notes, file contents, audit details and other operational payloads are omitted.
  */
