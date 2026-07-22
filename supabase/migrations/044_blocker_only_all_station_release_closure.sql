@@ -39,6 +39,24 @@ $$;
 revoke all on function public.workshop_is_planner_operator() from public,anon;
 grant execute on function public.workshop_is_planner_operator() to authenticated;
 
+create or replace function public.workshop_is_authorized_reader()
+returns boolean language sql stable security definer
+set search_path=pg_catalog,public as $$
+ select coalesce(public.current_pdc_user_role()::text,'') in ('viewer','operator','administrator')
+$$;
+revoke all on function public.workshop_is_authorized_reader() from public,anon;
+grant execute on function public.workshop_is_authorized_reader() to authenticated;
+
+create or replace function public.workshop_require_authorized_reader()
+returns void language plpgsql stable security definer
+set search_path=pg_catalog,public as $$
+begin
+ if not public.workshop_is_authorized_reader() then
+  raise exception 'Viewer, operator or administrator role required' using errcode='42501';
+ end if;
+end $$;
+revoke all on function public.workshop_require_authorized_reader() from public,anon,authenticated;
+
 create or replace function public.workshop_require_planner_operator()
 returns void language plpgsql stable security definer
 set search_path=pg_catalog,public as $$
@@ -131,6 +149,25 @@ begin
   end if;
   execute v_patched;
  end loop;
+end $$;
+
+-- The retained restricted-pilot lifecycle projection is viewer-readable but
+-- must not inherit importer through the historical role hierarchy.
+do $$
+declare v_signature regprocedure:='public.get_restricted_pilot_vehicle_snapshot(uuid)'::regprocedure;
+        v_definition text; v_patched text;
+begin
+ select pg_get_functiondef(v_signature) into v_definition;
+ v_patched:=replace(replace(v_definition,
+   'perform public.require_pdc_role(''viewer'');',
+   'perform public.workshop_require_authorized_reader();'),
+   'perform public.require_pdc_role(''viewer''::public.pdc_role);',
+   'perform public.workshop_require_authorized_reader();');
+ if position('public.workshop_require_authorized_reader()' in v_patched)=0
+    or position('public.require_pdc_role(''viewer''' in v_patched)>0 then
+  raise exception 'Could not close inherited importer gate for %',v_signature using errcode='42501';
+ end if;
+ execute v_patched;
 end $$;
 
 -- Summary rebuilding is an internal primitive called by the approved narrow

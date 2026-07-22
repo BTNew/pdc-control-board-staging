@@ -259,11 +259,14 @@ try:
     ('list_ai_review_queue',"select public.list_ai_review_queue('pending')"),
     ('list_salespeople',"select * from public.list_salespeople(false)"),
     ('list_sublet_providers',"select * from public.list_sublet_providers(false)"),
+    ('restricted_pilot_vehicle_snapshot',"select * from public.get_restricted_pilot_vehicle_snapshot(null)"),
     ('vehicle_intelligence',"select public.get_vehicle_intelligence_snapshot('00000000-0000-0000-0000-000000000001','desc',10)"),
     ('approve_ai_review',"select public.approve_ai_review_item('00000000-0000-0000-0000-000000000001',null,null,null)"),
     ('reject_ai_review',"select public.reject_ai_review_item('00000000-0000-0000-0000-000000000001',null,false)"),
    ]
    for label,statement in denied_mutations:
+    if label=='restricted_pilot_vehicle_snapshot' and role=='viewer':
+     q.execute(statement); q.fetchall(); continue
     q.execute('savepoint inherited_operator_rpc_denied')
     try:
      q.execute(statement); raise AssertionError(f'{role} {label} unexpectedly allowed')
