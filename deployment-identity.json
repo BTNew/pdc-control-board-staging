@@ -1,24 +1,39 @@
 {
-  "artifact_source_pairs_exact": "29/29",
-  "autonomous_ai_enabled": false,
-  "base_integration_head": "6c20288452e6ee23859678228d970cee1f31e46e",
-  "browser_local_authority_cutover": false,
-  "browser_local_data_deleted": false,
-  "browser_smoke": "pending exact deployed browser verification",
-  "database_migration_applied": false,
-  "feature_branch": "fix/staging-operational-readiness",
-  "feature_head": "31ed7f94c789ccc803687716218db751b9f0fe34",
-  "feature_tree": "d9392c940a988e4b8ca70b128123401a7aee5c33",
-  "function_review": "PASS \u2014 62/62 aggregate tests; 1:30pm 3h carries to next workday 8:30am; Friday overflow skips weekend",
-  "generated_at": "2026-07-22T05:22:07Z",
-  "mailbox_access_enabled": false,
-  "outbound_email_enabled": false,
-  "production_touched": false,
-  "retained_live_feature_head": "dd73e3930c59a7b8569d4486159aeb6b8f750c0a",
-  "schema": "pdc.temporary-read-only-browser-assessment-staging/v1",
-  "security_review": "PASS \u2014 scheduling validation boundary fix only; no database/migration/authority changes",
-  "staging_url": "https://btnew.github.io/pdc-control-board-staging/",
-  "supabase_project_ref": "cdsmnqxtyyoeoznmbidd",
-  "temporary_feature": "administrator-only read-only browser assessment export",
-  "zero_data_artifact": true
+  "environment": "staging",
+  "sourceRepository": "BTNew/pdc-control-board",
+  "sourceBranch": "fix/operational-readiness-final",
+  "sourceCommit": "37e48c744de1cc51985999933546c7668eb41229",
+  "generatedAtUtc": "2026-07-22T06:35:01Z",
+  "artifact": "zero-data static staging site",
+  "deploymentMode": "exact reviewed source blobs; staging.html mapped to index.html",
+  "sourceParity": "29/29 deployment source pairs byte-identical to exact source commit",
+  "releaseChecks": {
+    "aggregateTests": "63 passed, 0 failed, 2 optional fixture/tooling skips",
+    "uiRegression": "22/22 across 1600px and 1024px; no body/cell overflow, status overlap, or nested Parts scroll; Email sales at row end",
+    "plannerPerformance300": "66ms max transition against 1000ms target; 34ms average; stable DOM/memory; no errors",
+    "plannerResources": "one station snapshot request; peak one station Realtime channel; zero retained subscriptions",
+    "functionSecurityReview": "PASS exact SHA 37e48c744de1cc51985999933546c7668eb41229",
+    "uiReleaseReview": "PASS exact SHA 37e48c744de1cc51985999933546c7668eb41229"
+  },
+  "blockedActivationGates": {
+    "migration041": "source-only and unapplied; staging database backup/restore gate unavailable",
+    "twoComputerAuthority": "not migrated or live-validated",
+    "encryptedBackupIsolatedRestore": "not executed because required staging database credentials and encryption key were unavailable",
+    "partsCsvRemoval": "not performed; CSV retained"
+  },
+  "stagingSafety": {
+    "bundledOperationalData": false,
+    "productionTouched": false,
+    "sourceMainTouched": false,
+    "databaseMutation": false,
+    "mailboxMutation": false,
+    "outboundActions": false
+  },
+  "temporaryFeature": {
+    "name": "PDC staging browser assessment export",
+    "administratorOnly": true,
+    "networkAtExportTime": false,
+    "operationalMutation": false,
+    "status": "still deployed from prior approved staging artifact; no comparison or browser-data action performed"
+  }
 }

@@ -513,15 +513,24 @@ function workshopMapSnapshotBookingToLegacyRow(booking = {}) {
   };
 }
 
+let workshopSharedPlansCache = { snapshot: null, bookings: null, rows: null };
+
 function workshopLoadPlans() {
   if (workshopSharedModeActive()) {
     const snapshot = window.__workshopDataService.getLastSnapshot();
     const bookings = snapshot && Array.isArray(snapshot.bookings) ? snapshot.bookings : null;
     if (bookings) {
-      return bookings
+      if (snapshot === workshopSharedPlansCache.snapshot
+        && bookings === workshopSharedPlansCache.bookings
+        && Array.isArray(workshopSharedPlansCache.rows)) {
+        return workshopSharedPlansCache.rows;
+      }
+      const rows = bookings
         .map(workshopMapSnapshotBookingToLegacyRow)
         .filter(row => row && row.id && row.vehicleKey && WORKSHOP_STAGE_SEQUENCE.includes(row.stage))
         .map(row => row.status === 'completed' ? row : { ...row, hours: workshopClampDurationHours(row.hours) });
+      workshopSharedPlansCache = { snapshot, bookings, rows };
+      return rows;
     }
     // Shared mode is enabled but no snapshot has loaded yet (still
     // connecting / offline-read-only): fail closed to an empty list rather
@@ -2379,10 +2388,18 @@ function workshopPlannerVehiclesForStage(stage = '') {
   ));
   const localById = new Map(rows.map(vehicle => [String(vehicle.id || vehicle.sharedVehicleId || '').trim(), vehicle]).filter(([key]) => key));
   const localByStock = new Map(rows.map(vehicle => [String(displayStockNumber(vehicle) || '').trim(), vehicle]).filter(([key]) => key));
+  const workItemsByVehicle = new Map();
+  workItems.forEach(item => {
+    const vehicleId = String(item?.vehicle_id || '').trim();
+    if (!vehicleId) return;
+    const vehicleItems = workItemsByVehicle.get(vehicleId) || [];
+    vehicleItems.push(item);
+    workItemsByVehicle.set(vehicleId, vehicleItems);
+  });
   return scopedVehicles.map(vehicle => {
     const local = localById.get(String(vehicle.id || '').trim())
       || localByStock.get(String(vehicle.stock_number || '').trim());
-    const scoped = workshopSnapshotVehicleToPlannerRow(vehicle, workItems, dedicatedStage);
+    const scoped = workshopSnapshotVehicleToPlannerRow(vehicle, workItemsByVehicle.get(String(vehicle.id || '').trim()) || [], dedicatedStage);
     return local ? {
       ...scoped,
       ...local,
@@ -2412,7 +2429,8 @@ function workshopVehiclePlanningLocation(vehicle = {}) {
 
 function workshopVehicleEtaConstraint(vehicle = {}) {
   const location = workshopVehiclePlanningLocation(vehicle);
-  if (!['YH', 'IT'].includes(location)) return { required: false, ok: true, location, earliestDateKey: '' };
+  if (location === 'YH') return { required: false, ok: true, location, earliestDateKey: '' };
+  if (location !== 'IT') return { required: false, ok: true, location, earliestDateKey: '' };
   const raw = cleanNavisionText(typeof kewdaleEtaValue === 'function' ? kewdaleEtaValue(vehicle) : (vehicle.navisionKewdaleEta || vehicle.navisionEtaDate || ''));
   const parsed = raw && typeof parseDateAU === 'function' ? parseDateAU(raw) : null;
   if (!parsed || Number.isNaN(parsed.getTime())) return { required: true, ok: false, location, raw, earliestDateKey: '', reason: raw ? 'invalid_eta' : 'missing_eta' };
@@ -2451,7 +2469,14 @@ function workshopRequireEtaSchedule(vehicle = {}, scheduledStartAt = '') {
 function workshopEtaRiskForEntry(entry = {}, vehicle = workshopVehicle(entry.vehicleKey)) {
   if (!vehicle || entry.status === 'completed') return null;
   const result = workshopEtaScheduleValidation(vehicle, entry.startAt || entry.scheduledStartAt || '');
-  return result.required && !result.ok && result.reason === 'before_eta' ? result : null;
+  return result.required && !result.ok ? result : null;
+}
+
+function workshopEtaRiskLabel(risk = null) {
+  if (!risk) return '';
+  if (risk.reason === 'missing_eta') return 'ETA RISK · ETA missing';
+  if (risk.reason === 'invalid_eta') return 'ETA RISK · ETA invalid';
+  return `ETA RISK · earliest ${risk.earliestDateKey || 'unknown'}`;
 }
 
 function workshopVehicleSearchText(vehicle = {}) {
@@ -2762,6 +2787,22 @@ function workshopQueueCardHtml(vehicle = {}, stage = workshopState().stage, date
   </article>`;
 }
 
+const WORKSHOP_INCREMENTAL_RENDER_BATCH = 12;
+
+function workshopIncrementalRenderRows(rows = [], limit = WORKSHOP_INCREMENTAL_RENDER_BATCH) {
+  const safeRows = Array.isArray(rows) ? rows : [];
+  const safeLimit = Math.max(WORKSHOP_INCREMENTAL_RENDER_BATCH, Number(limit) || WORKSHOP_INCREMENTAL_RENDER_BATCH);
+  return {
+    visible: safeRows.slice(0, safeLimit),
+    remaining: Math.max(0, safeRows.length - safeLimit),
+  };
+}
+
+function workshopIncrementalLoadMoreHtml(kind = '', batch = {}) {
+  if (!batch.remaining) return '';
+  return `<button class="workshop-load-more" type="button" data-workshop-load-more="${escapeHtml(kind)}">Show next ${Math.min(WORKSHOP_INCREMENTAL_RENDER_BATCH, batch.remaining)} · ${batch.remaining} remaining</button>`;
+}
+
 function workshopOtherDateCardHtml(entry = {}) {
   const vehicle = workshopVehicle(entry.vehicleKey);
   if (!vehicle) return '';
@@ -2790,6 +2831,7 @@ function workshopPlanChipHtml(entry = {}, dateKey = '', rows = workshopLoadPlans
     : workshopState().highlightVehicleKey === entry.vehicleKey;
   const parts = workshopPartsSummary(vehicle);
   const etaRisk = workshopEtaRiskForEntry(entry, vehicle);
+  const etaRiskLabel = workshopEtaRiskLabel(etaRisk);
   const draggable = entry.status !== 'completed';
   const assignee = cleanNavisionText(entry.assignee || '') || workshopBayMechanic(entry.stage, entry.bay) || '';
   const statusLabel = entry.status === 'completed' ? 'COMPLETED' : entry.status === 'stoppage' ? 'STOPPAGE' : entry.status === 'started' ? 'LIVE' : 'PLANNED';
@@ -2802,7 +2844,7 @@ function workshopPlanChipHtml(entry = {}, dateKey = '', rows = workshopLoadPlans
       <small>${escapeHtml(vehicleCustomerName(vehicle) || 'Unknown customer')}</small>
       <small>${escapeHtml(`${statusLabel}${assignee ? ` · ${assignee}` : ''}${segment.usesConfiguredOvertime ? ' · CONFIGURED OVERTIME' : ''}${segment.historicalOnClosure ? ' · HISTORICAL CLOSURE' : ''}`)}</small>
       <small>${escapeHtml(`${entry.hours}h · Parts ${parts.label}${parts.eta && !['issued', 'notrequired'].includes(parts.status) ? ` · ETA ${parts.eta}` : ''}`)}</small>
-      ${etaRisk ? `<small class="workshop-eta-risk-label">ETA RISK · earliest ${escapeHtml(etaRisk.earliestDateKey)}</small>` : ''}
+      ${etaRiskLabel ? `<small class="workshop-eta-risk-label">${escapeHtml(etaRiskLabel)}</small>` : ''}
     </button>
     <span class="workshop-plan-resize" data-workshop-resize-plan="${escapeHtml(entry.id)}" title="Drag to change duration"></span>
   </article>`;
@@ -3200,6 +3242,14 @@ function renderWorkshopPlanner() {
     const completedDate = parseIsoTimestamp(entry.completedAt || '');
     return workshopDateKey(completedDate || workshopEntryStart(entry)) === dateKey;
   });
+  const incrementalScope = `${stage}:${dateKey}`;
+  if (state.incrementalRenderScope !== incrementalScope) {
+    state.incrementalRenderScope = incrementalScope;
+    state.incrementalQueueLimit = WORKSHOP_INCREMENTAL_RENDER_BATCH;
+    state.incrementalCompletedLimit = WORKSHOP_INCREMENTAL_RENDER_BATCH;
+  }
+  const queueBatch = workshopIncrementalRenderRows(queue, state.incrementalQueueLimit);
+  const completedBatch = workshopIncrementalRenderRows(completed, state.incrementalCompletedLimit);
   const todaysPlans = activePlans.filter(entry => workshopEntrySegmentForDate(entry, dateKey));
   const assigneeConflicts = todaysPlans.filter(entry => workshopEntryHasAssigneeConflict(entry, plans)).length;
   const stageVehicleCounts = dedicatedStage
@@ -3229,7 +3279,7 @@ function renderWorkshopPlanner() {
       <aside class="workshop-side-panel workshop-waiting-panel">
         <div class="workshop-side-heading"><strong>Awaiting schedule</strong><span>${queue.length}</span></div>
         <div class="workshop-unallocated-drop" data-workshop-unallocated-drop><strong>Return to Unallocated</strong><span>Planned or live: choose Just move or Stoppage</span></div>
-        <div class="workshop-side-list">${queue.map(vehicle => workshopQueueCardHtml(vehicle, stage, dateKey, plans)).join('') || '<div class="workshop-empty">No unscheduled vehicles in this department.</div>'}</div>
+        <div class="workshop-side-list">${queueBatch.visible.map(vehicle => workshopQueueCardHtml(vehicle, stage, dateKey, plans)).join('') || '<div class="workshop-empty">No unscheduled vehicles in this department.</div>'}${workshopIncrementalLoadMoreHtml('queue', queueBatch)}</div>
       </aside>
       <section class="workshop-timeline-scroll">
         <div class="workshop-timeline">
@@ -3240,7 +3290,7 @@ function renderWorkshopPlanner() {
       </section>
       <aside class="workshop-side-panel workshop-completed-panel">
         <div class="workshop-side-heading"><strong>Completed</strong><span>${completed.length}</span></div>
-        <div class="workshop-side-list">${completed.map(workshopCompletedCardHtml).join('') || '<div class="workshop-empty">Nothing completed on this board date.</div>'}</div>
+        <div class="workshop-side-list">${completedBatch.visible.map(workshopCompletedCardHtml).join('') || '<div class="workshop-empty">Nothing completed on this board date.</div>'}${workshopIncrementalLoadMoreHtml('completed', completedBatch)}</div>
       </aside>
     </div>
     <div class="workshop-board-note">How to use: drag a waiting vehicle or planned booking onto the exact bay/time you want. If that spot overlaps only queued planned work, the planner keeps your dropped booking there and offers to push the later queue back-to-back behind it. Use Best slot for the fastest bay suggestion, or use Schedule for a specific date and time. If a day is full, automatic sequencing continues on the next workday. Live overlap stays blocked, while live jobs can still be moved safely with the bay quick controls or drag/drop. The red current-time line stays visible on the planner and clamps to the workshop edge outside work hours. Double-click any vehicle to open its job.</div>
@@ -3252,6 +3302,20 @@ function renderWorkshopPlanner() {
 }
 
 function bindWorkshopPlanner(root) {
+  if (root.dataset.workshopIncrementalBound !== '1') {
+    root.dataset.workshopIncrementalBound = '1';
+    root.addEventListener('click', event => {
+      const button = event.target.closest?.('[data-workshop-load-more]');
+      if (!button || !root.contains(button)) return;
+      const state = workshopState();
+      if (button.dataset.workshopLoadMore === 'queue') {
+        state.incrementalQueueLimit = (Number(state.incrementalQueueLimit) || WORKSHOP_INCREMENTAL_RENDER_BATCH) + WORKSHOP_INCREMENTAL_RENDER_BATCH;
+      } else if (button.dataset.workshopLoadMore === 'completed') {
+        state.incrementalCompletedLimit = (Number(state.incrementalCompletedLimit) || WORKSHOP_INCREMENTAL_RENDER_BATCH) + WORKSHOP_INCREMENTAL_RENDER_BATCH;
+      } else return;
+      renderWorkshopPlanner();
+    });
+  }
   root.querySelector('[data-workshop-back-control]')?.addEventListener('click', () => showView('workflow'));
   root.querySelectorAll('[data-workshop-stage]').forEach(button => button.addEventListener('click', () => {
     const state = workshopState();
@@ -5164,9 +5228,11 @@ if (typeof module !== 'undefined' && module.exports) {
     workshopSlotSummary,
     workshopVehiclePlanningLocation,
     workshopVehicleEtaConstraint,
+    workshopIncrementalRenderRows,
     workshopDateKeyNotBefore,
     workshopEtaScheduleValidation,
     workshopEtaRiskForEntry,
+    workshopEtaRiskLabel,
     workshopStageVehicles,
     workshopVehicle,
     workshopSnapshotVehicleToPlannerRow,
@@ -5175,6 +5241,7 @@ if (typeof module !== 'undefined' && module.exports) {
     moveWorkshopLivePlan,
     moveWorkshopDroppedPlan,
     workshopSharedModeActive,
+    workshopLoadPlans,
     workshopMapSnapshotBookingToLegacyRow,
     workshopConnectionBannerHtml,
     workshopDescribeSharedActionError,
