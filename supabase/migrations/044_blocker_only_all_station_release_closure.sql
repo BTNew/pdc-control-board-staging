@@ -63,19 +63,34 @@ begin
   'public.mark_vehicle_deleted(uuid,integer,text)'::regprocedure,
   'public.qc_complete_vehicle(uuid,integer,text,text)'::regprocedure,
   'public.rft_transfer_vehicle(uuid,integer)'::regprocedure,
-  'public.rft_collect_vehicle(uuid,integer)'::regprocedure
+  'public.rft_collect_vehicle(uuid,integer)'::regprocedure,
+  'public.restore_vehicle(uuid,integer,text)'::regprocedure
  ] loop
   select pg_get_functiondef(v_signature) into v_definition;
-  v_patched:=replace(v_definition,
+  v_patched:=replace(replace(v_definition,
     'perform public.require_pdc_role(''operator'');',
+    'perform public.workshop_require_planner_operator();'),
+    'perform public.require_pdc_role(''importer'');',
     'perform public.workshop_require_planner_operator();');
   if position('public.workshop_require_planner_operator()' in v_patched)=0
-     or position('public.require_pdc_role(''operator'')' in v_patched)>0 then
+     or position('public.require_pdc_role(''operator'')' in v_patched)>0
+     or position('public.require_pdc_role(''importer'')' in v_patched)>0 then
    raise exception 'Could not close inherited importer gate for %',v_signature using errcode='42501';
   end if;
   execute v_patched;
  end loop;
 end $$;
+
+-- Vehicle rows carry workflow authority and are part of the Realtime
+-- publication. Replace the inherited operator hierarchy so importers cannot
+-- read that authority directly or through Realtime. Approved importer
+-- maintenance remains available only through narrow SECURITY DEFINER RPCs.
+drop policy if exists vehicles_select_approved on public.vehicles;
+drop policy if exists vehicles_select_operator on public.vehicles;
+drop policy if exists vehicles_planner_operator_select on public.vehicles;
+create policy vehicles_planner_operator_select on public.vehicles
+ for select to authenticated using(public.workshop_is_planner_operator());
+grant select on public.vehicles to authenticated;
 
 -- Retire the legacy combined snapshot: it serializes broad rows and is not
 -- used by any reachable station route. Keep it service-role-only for rollback
@@ -229,6 +244,58 @@ drop trigger if exists workshop_bookings_enforce_vehicle_eta on public.workshop_
 create trigger workshop_bookings_enforce_vehicle_eta before insert or update of scheduled_start_at,vehicle_id
 on public.workshop_bookings for each row execute function public.workshop_enforce_vehicle_eta();
 
+-- Every scheduling-shape mutation (create, move, resize, bay change and
+-- cascade shift) revalidates the same canonical eligibility boundary used by
+-- snapshots. Status-only historical completion remains possible for Sublet.
+create or replace function public.workshop_prevent_disabled_planner_booking_mutation()
+returns trigger language plpgsql security definer set search_path=pg_catalog,public as $$
+declare v_enabled boolean; v_mutating boolean; v_location text; v_eta date; v_stage text; v_eligible boolean;
+begin
+ v_mutating:=tg_op='INSERT';
+ if tg_op='UPDATE' then
+  v_mutating:=old.stage_id is distinct from new.stage_id
+   or old.bay_id is distinct from new.bay_id
+   or old.scheduled_start_at is distinct from new.scheduled_start_at
+   or old.scheduled_end_at is distinct from new.scheduled_end_at
+   or old.default_duration_minutes is distinct from new.default_duration_minutes;
+ end if;
+ if v_mutating then
+  select code,planner_enabled into v_stage,v_enabled from public.workshop_stages where id=new.stage_id and active;
+  if not found or coalesce(v_enabled,false)=false then
+   raise exception 'This work type does not have a Workshop Planner' using errcode='22023';
+  end if;
+  select upper(btrim(coalesce(current_location,''))),eta_to_kewdale into v_location,v_eta
+  from public.vehicles where id=new.vehicle_id and lifecycle_state='active' and deleted_at is null;
+  if not found then
+   raise exception 'Active non-deleted vehicle is required for Workshop Planner scheduling' using errcode='22023';
+  end if;
+  if tg_op='UPDATE' and old.stage_id=new.stage_id and old.vehicle_id=new.vehicle_id
+     and old.deleted_at is null and old.status in('queued','planned','started','stoppage') then
+   v_eligible:=true;
+  else
+   select exists(select 1 from public.vehicle_work_items wi where wi.vehicle_id=new.vehicle_id
+    and wi.required and not wi.completed and public.workshop_stage_code_for_work_key(wi.work_key)=v_stage) into v_eligible;
+  end if;
+  if not coalesce(v_eligible,false) then
+   raise exception 'Vehicle is not eligible for target Workshop Planner station' using errcode='22023';
+  end if;
+  if v_location not in('PMB','YH','IT') then
+   raise exception 'Vehicle location is not eligible for Workshop Planner scheduling' using errcode='22023';
+  end if;
+  if v_location='IT' and v_eta is null then
+   raise exception 'ETA to Kewdale is required before scheduling an in-transit vehicle' using errcode='22023';
+  end if;
+  if v_location='IT' and (new.scheduled_start_at at time zone 'Australia/Perth')::date<v_eta then
+   raise exception 'In-transit vehicle cannot be scheduled before ETA to Kewdale' using errcode='22023';
+  end if;
+ end if;
+ return new;
+end $$;
+revoke all on function public.workshop_prevent_disabled_planner_booking_mutation() from public,anon,authenticated;
+drop trigger if exists workshop_bookings_planner_enabled_guard on public.workshop_bookings;
+create trigger workshop_bookings_planner_enabled_guard before insert or update on public.workshop_bookings
+for each row execute function public.workshop_prevent_disabled_planner_booking_mutation();
+
 -- Booking DTO: explicit reviewed projection only. No customer, notes, audit,
 -- deletion reason, metadata, full rows or future columns can leak.
 create or replace function public.workshop_planner_booking_dto(p_booking_id uuid)
@@ -253,7 +320,7 @@ returns jsonb language sql stable security definer set search_path=pg_catalog,pu
  join public.vehicles v on v.id=b.vehicle_id and v.lifecycle_state='active' and v.deleted_at is null
  join public.workshop_stages s on s.id=b.stage_id
  left join public.workshop_bays bay on bay.id=b.bay_id
- left join aa on aa.booking_id=b.id where b.id=p_booking_id
+ left join aa on aa.booking_id=b.id where b.id=p_booking_id and b.deleted_at is null
 $$;
 revoke all on function public.workshop_planner_booking_dto(uuid) from public,anon,authenticated;
 comment on function public.workshop_planner_booking_dto(uuid) is
@@ -292,7 +359,7 @@ begin
    from public.workshop_bays b where b.stage_id=v_stage_id and b.is_active),
   'bookings',(select coalesce(jsonb_agg(public.workshop_planner_booking_dto(b.id) order by b.scheduled_start_at,b.id),'[]'::jsonb)
    from public.workshop_bookings b join public.vehicles v on v.id=b.vehicle_id and v.lifecycle_state='active' and v.deleted_at is null
-   where b.stage_id=v_stage_id and b.vehicle_id=any(v_ids) and b.status in('queued','planned','started','stoppage','completed')
+   where b.stage_id=v_stage_id and b.vehicle_id=any(v_ids) and b.deleted_at is null and b.status in('queued','planned','started','stoppage','completed')
    and ((b.status in('queued','planned','started','stoppage') and b.scheduled_start_at<v_to and b.scheduled_end_at>v_from)
         or (b.status='completed' and b.actual_end_at>=v_from and b.actual_end_at<v_to))),
   'vehicles',(select coalesce(jsonb_agg(jsonb_build_object(
@@ -348,6 +415,26 @@ comment on function public.get_workshop_eligibility_snapshot() is
 -- Scheduling wrappers below may change booking, booking history/audit and revision
 -- records only. They never update vehicle location, pmb_stage, visibility,
 -- workflow state or requirement completion.
+create or replace function public.workshop_require_booking_schedule_eligibility(p_booking_id uuid,p_target_stage_code text default null)
+returns void language plpgsql stable security definer set search_path=pg_catalog,public as $$
+declare v_booking public.workshop_bookings%rowtype; v_current text; v_target text;
+begin
+ select b.* into v_booking from public.workshop_bookings b join public.vehicles v on v.id=b.vehicle_id
+  where b.id=p_booking_id and b.deleted_at is null and v.lifecycle_state='active' and v.deleted_at is null;
+ if not found then raise exception 'Active non-deleted vehicle and booking are required for scheduling' using errcode='22023'; end if;
+ select code into v_current from public.workshop_stages where id=v_booking.stage_id;
+ v_target:=public.workshop_canonical_stage_code(coalesce(p_target_stage_code,v_current));
+ if not exists(select 1 from public.workshop_stages where code=v_target and active and planner_enabled) then
+  raise exception 'Unknown or planner-disabled workshop station' using errcode='22023';
+ end if;
+ if v_target is distinct from v_current and not exists(
+  select 1 from public.vehicle_work_items wi where wi.vehicle_id=v_booking.vehicle_id and wi.required and not wi.completed
+   and public.workshop_stage_code_for_work_key(wi.work_key)=v_target) then
+  raise exception 'Vehicle is not eligible for target Workshop Planner station' using errcode='22023';
+ end if;
+end $$;
+revoke all on function public.workshop_require_booking_schedule_eligibility(uuid,text) from public,anon,authenticated;
+
 create or replace function public.schedule_vehicle_work(
  p_vehicle_id uuid,p_vehicle_expected_version integer,p_stage_code text,p_bay_number integer,
  p_scheduled_start_at timestamptz,p_duration_minutes integer default 180,p_technician_id uuid default null,
@@ -391,6 +478,7 @@ begin
  select * into v_before from public.workshop_bookings where id=p_booking_id for update;
  if not found then raise exception 'Workshop booking not found' using errcode='P0002'; end if;
  v_code:=public.workshop_canonical_stage_code(p_stage_code);
+ perform public.workshop_require_booking_schedule_eligibility(p_booking_id,v_code);
  select * into v_stage from public.workshop_stages where code=v_code and active and planner_enabled;
  if not found then raise exception 'Unknown or planner-disabled workshop station' using errcode='22023'; end if;
  if v_stage.is_physical and not public.workshop_parts_ready(v_before.vehicle_id) then
@@ -411,6 +499,7 @@ create or replace function public.resize_workshop_booking(p_booking_id uuid,p_ex
 returns jsonb language plpgsql security definer set search_path=pg_catalog,public as $$
 declare v_result jsonb; v_revision bigint; begin
  perform public.workshop_require_planner_operator(); perform public.workshop_require_version(p_expected_version);
+ perform public.workshop_require_booking_schedule_eligibility(p_booking_id,null);
  v_result:=public.workshop_resize_booking(p_booking_id,p_expected_version,p_duration_minutes,p_metadata);
  if not (v_result->>'ok')::boolean then return v_result; end if;
  v_revision:=public.workshop_bump_revision(); return v_result||jsonb_build_object('revision',v_revision); end $$;
@@ -421,6 +510,7 @@ declare v_booking public.workshop_bookings%rowtype; v_code text; v_result jsonb;
  perform public.workshop_require_planner_operator(); perform public.workshop_require_version(p_expected_version);
  select * into v_booking from public.workshop_bookings where id=p_booking_id;
  if not found then raise exception 'Workshop booking not found' using errcode='P0002'; end if;
+ perform public.workshop_require_booking_schedule_eligibility(p_booking_id,null);
  select code into v_code from public.workshop_stages where id=v_booking.stage_id and planner_enabled;
  v_result:=public.workshop_move_booking(p_booking_id,p_expected_version,v_code,p_bay_number,v_booking.scheduled_start_at,v_booking.default_duration_minutes,p_metadata);
  if not (v_result->>'ok')::boolean then return v_result; end if;

@@ -73,6 +73,17 @@ def format2_payload(table_names, migration="036"):
     }
 
 pdc_restore.validate_backup_contract(format2_payload({"vehicles"}))
+for tamper_key in ("row_hash", "schema_hash"):
+    broken = format2_payload({"vehicles"})
+    if tamper_key == "row_hash":
+        broken["table_hashes"]["vehicles"] = "0" * 64
+    else:
+        broken["schema_objects"]["vehicles"]["sha256"] = "1" * 64
+    try:
+        pdc_restore.validate_backup_contract(broken)
+        raise AssertionError(f"Tampered non-alias {tamper_key} must fail before schema creation")
+    except RuntimeError:
+        pass
 broken = format2_payload({"vehicles"})
 del broken["table_hashes"]["vehicles"]
 try:

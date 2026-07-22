@@ -29,6 +29,7 @@ Safety:
 import argparse
 import copy
 import hashlib
+import hmac
 from decimal import Decimal
 import json
 import os
@@ -151,8 +152,17 @@ def validate_backup_contract(data):
             raise RuntimeError(f"Format-2 table payload is malformed: {table}")
         if counts[table] != len(details["rows"]):
             raise RuntimeError(f"Format-2 row count evidence is inconsistent: {table}")
-        if not isinstance(schema[table], dict) or not schema[table].get("sha256"):
+        expected_row_hash = deterministic_table_hash(details["columns"], details["rows"])
+        if not isinstance(hashes[table], str) or not hmac.compare_digest(hashes[table], expected_row_hash):
+            raise RuntimeError(f"Format-2 row hash evidence is inconsistent: {table}")
+        if not isinstance(schema[table], dict) or not isinstance(schema[table].get("sha256"), str):
             raise RuntimeError(f"Format-2 schema evidence is incomplete: {table}")
+        structure = {key: schema[table].get(key, []) for key in ("columns", "constraints", "indexes", "sequences")}
+        expected_schema_hash = hashlib.sha256(json.dumps(
+            structure, default=json_default, sort_keys=True, separators=(",", ":")
+        ).encode("utf-8")).hexdigest()
+        if not hmac.compare_digest(schema[table]["sha256"], expected_schema_hash):
+            raise RuntimeError(f"Format-2 schema hash evidence is inconsistent: {table}")
     return {"format_version": version, "legacy": False}
 
 
@@ -670,7 +680,9 @@ def restore_backup(conn, backup_file_path, encryption_key, schema_name=None):
         if table not in data["tables"]:
             continue
         columns = data["tables"][table]["columns"]
-        rows = data["tables"][table]["rows"]
+        # Loading may apply isolated-restore safety transforms. Never mutate the
+        # authenticated source payload or its preflight row-hash evidence.
+        rows = copy.deepcopy(data["tables"][table]["rows"])
 
         if table == "vehicle_notifications":
             # Never allow a restored notification to be resendable. Force

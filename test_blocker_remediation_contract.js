@@ -31,10 +31,12 @@ assert(station.includes('wi.vehicle_id=any(v_ids)') && station.includes('b.vehic
 assert((station.match(/v\.lifecycle_state='active' and v\.deleted_at is null/g) || []).length >= 3, 'all vehicle/booking scopes must exclude inactive/deleted vehicles');
 assert(station.includes("b.status in('queued','planned','started','stoppage','completed')") && station.includes('b.scheduled_start_at<v_to and b.scheduled_end_at>v_from'), 'active bookings require explicit status and overlap window');
 assert(station.includes("b.status='completed' and b.actual_end_at>=v_from and b.actual_end_at<v_to"), 'completed display requires approved actual-end window');
+assert((station.match(/b\.deleted_at is null/g) || []).length >= 2 && booking.includes('b.deleted_at is null'), 'soft-deleted bookings must be excluded from shared scope and DTOs regardless of status');
 assert(sql.includes("raise exception 'Unknown, inactive or planner-disabled workshop station'") && sql.includes("raise exception 'Unknown or planner-disabled workshop station'"), 'Sublet/disabled stages must fail closed');
 
 assert(sql.includes("'vehicle_work_items','workshop_bays','workshop_booking_assignments'") && sql.includes('drop policy if exists') && sql.includes('workshop_is_planner_operator()'), 'all workshop policy inheritance must be replaced');
 assert(sql.includes("in ('operator','administrator')"), 'only operator/admin may read workshop tables');
+assert(sql.includes('create policy vehicles_planner_operator_select') && sql.includes('using(public.workshop_is_planner_operator())'), 'vehicle workflow rows and Realtime must deny importer inheritance');
 assert(/revoke all on function public\.get_workshop_snapshot\(date,date\) from public,anon,authenticated/i.test(sql), 'legacy broad workshop snapshot must be browser-inaccessible');
 for(const fn of ['get_workshop_configuration','list_workshop_bays','list_technicians','workshop_current_revision']) {
   const start=sql.indexOf(`function public.${fn}`);
@@ -59,9 +61,10 @@ for (const wrapperName of wrapperNames) {
   assert(!/update\s+public\.vehicles|update\s+public\.vehicle_work_items/i.test(body), `${wrapperName} mutates vehicle/work-item authority`);
 }
 assert(sql.includes("vehicle_not_eligible_for_station") && sql.includes('workshop_station_eligibility(v_code)'), 'create/cascade scheduling must transactionally recheck current eligibility');
-for (const fn of ['move_vehicle','mark_vehicle_deleted','qc_complete_vehicle','rft_transfer_vehicle','rft_collect_vehicle','cascade_workshop_schedule']) {
+for (const fn of ['move_vehicle','mark_vehicle_deleted','qc_complete_vehicle','rft_transfer_vehicle','rft_collect_vehicle','restore_vehicle','cascade_workshop_schedule']) {
   assert(sql.includes(`public.${fn}(`), `${fn} inherited importer gate must be closed`);
 }
+assert(sql.includes('Active non-deleted vehicle is required for Workshop Planner scheduling') && sql.includes('Vehicle is not eligible for target Workshop Planner station'), 'all scheduling-shape mutations need active vehicle and shared target eligibility guards');
 assert(sql.includes('Ambiguous historical PITSHOIST/PITINSPECTION'), 'historical alias ambiguity must fail closed without data rewrite');
 
 assert(app.includes('failWorkshopEligibilityOverviewSubscription') && app.includes('workshopEligibilityRequestGeneration += 1'), 'aggregate authority loss must invalidate requests');

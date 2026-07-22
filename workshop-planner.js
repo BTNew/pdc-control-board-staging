@@ -482,14 +482,14 @@ function workshopConnectionBannerHtml() {
 // Maps one get_workshop_snapshot() booking DTO (see migration 012) into the
 // same legacy plan-row shape the rest of this file already expects, so the
 // existing rendering/interaction code needs no changes to read shared data.
-function workshopMapSnapshotBookingToLegacyRow(booking = {}) {
+function workshopMapSnapshotBookingToLegacyRow(booking = {}, vehicleById = null) {
   if (!booking || !booking.booking_id) return null;
-  const vehicle = booking.vehicle || {};
-  const sharedVehicleId = String(vehicle.id || booking.vehicle_id || '').trim();
+  const sharedVehicleId = String(booking.vehicle_id || booking.vehicle?.id || '').trim();
   // A shared booking without its canonical vehicle UUID is not safe to adapt:
   // stock/permanent-id text can change or be duplicated. Fail closed instead
   // of creating a legacy row that later has to reverse-map by first match.
   if (!sharedVehicleId) return null;
+  const vehicle = booking.vehicle || vehicleById?.get(sharedVehicleId) || {};
   const stage = booking.stage || {};
   const bay = booking.bay || null;
   const assignment = booking.assignment || null;
@@ -499,7 +499,10 @@ function workshopMapSnapshotBookingToLegacyRow(booking = {}) {
     sharedBookingId: booking.booking_id,
     sharedVersion: booking.version,
     sharedVehicleId,
-    vehicleKey: vehicle.stock_number || vehicle.permanent_vehicle_id || '',
+    // sharedVehicleId remains the only authority. The display key is resolved
+    // from the separately scoped vehicle DTO; UUID fallback keeps the booking
+    // renderable without inventing or reverse-matching mutable identifiers.
+    vehicleKey: vehicle.stock_number || vehicle.permanent_vehicle_id || sharedVehicleId,
     stage: normalizePmbStage(stage.code || ''),
     bay: bay ? Number(bay.bay_number) || 0 : 0,
     startAt: booking.scheduled_start_at,
@@ -531,8 +534,11 @@ function workshopLoadPlans() {
         && Array.isArray(workshopSharedPlansCache.rows)) {
         return workshopSharedPlansCache.rows;
       }
+      const vehicleById = new Map((Array.isArray(snapshot.vehicles) ? snapshot.vehicles : [])
+        .filter(vehicle => vehicle?.id)
+        .map(vehicle => [String(vehicle.id), vehicle]));
       const rows = bookings
-        .map(workshopMapSnapshotBookingToLegacyRow)
+        .map(booking => workshopMapSnapshotBookingToLegacyRow(booking, vehicleById))
         .filter(row => row && row.id && row.vehicleKey && WORKSHOP_STAGE_SEQUENCE.includes(row.stage))
         .map(row => row.status === 'completed' ? row : { ...row, hours: workshopClampDurationHours(row.hours) });
       workshopSharedPlansCache = { snapshot, bookings, rows };

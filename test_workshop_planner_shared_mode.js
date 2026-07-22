@@ -131,6 +131,13 @@ function completeConfigurationRows(overrides = {}) {
   assert.strictEqual(row.hours, 3, '4g 180 minutes maps to 3 hours');
   assert.strictEqual(row.assignee, 'Alex', '4h technician name maps to legacy assignee field');
   assert.strictEqual(row.status, 'started', '4i status maps through the legacy status vocabulary');
+  const minimal = planner.workshopMapSnapshotBookingToLegacyRow({
+    ...booking,
+    vehicle_id: 'veh-123',
+    vehicle: undefined,
+  }, new Map([['veh-123', { id: 'veh-123', stock_number: 'STK-999' }]]));
+  assert.strictEqual(minimal.vehicleKey, 'STK-999', '4j migration-044 minimal booking DTO resolves display identity from separately scoped vehicles');
+  assert.ok(minimal.id && minimal.vehicleKey && minimal.sharedVehicleId, '4k production-shaped minimal DTO survives planner filtering');
   console.log('PASS 4: snapshot booking DTO maps cleanly onto the existing legacy row shape');
 }
 

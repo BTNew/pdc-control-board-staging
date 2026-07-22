@@ -53,6 +53,7 @@ try:
    deleted_booking_vehicle,uuid.uuid4(),'DELBOOK-'+uuid.uuid4().hex[:8],admin))
  q.execute("insert into public.vehicle_work_items(vehicle_id,work_key,required,completed) values(%s,'BUS4X4',true,false),(%s,'BUS4X4',true,false)",(inactive_vehicle,deleted_vehicle))
  q.execute("select id from public.workshop_stages where code='BUS_4X4'"); bus_stage=q.fetchone()[0]
+ q.execute('alter table public.workshop_bookings disable trigger workshop_bookings_planner_enabled_guard')
  q.execute("""insert into public.workshop_bookings(vehicle_id,stage_id,bay_id,status,scheduled_start_at,scheduled_end_at,default_duration_minutes,deleted_at,deleted_reason,created_by,updated_by) values
   (%s,%s,null,'planned',%s,%s,60,null,null,%s,%s),
   (%s,%s,null,'planned',%s,%s,60,null,null,%s,%s),
@@ -62,6 +63,9 @@ try:
    deleted_vehicle,bus_stage,start,start+timedelta(hours=1),admin,admin,
    out_window_vehicle,bus_stage,start+timedelta(days=10),start+timedelta(days=10,hours=1),admin,admin,
    deleted_booking_vehicle,bus_stage,start,start+timedelta(hours=1),admin,admin))
+ q.execute('alter table public.workshop_bookings enable trigger workshop_bookings_planner_enabled_guard')
+ # Adversarial soft deletion: a whitelisted status must still be excluded.
+ q.execute("update public.workshop_bookings set status='planned' where vehicle_id=%s",(deleted_booking_vehicle,))
  q.execute("select id from public.workshop_stages where code='SUBLET'"); sublet_stage=q.fetchone()[0]
  q.execute('alter table public.workshop_bookings disable trigger workshop_bookings_planner_enabled_guard')
  q.execute('alter table public.workshop_bookings disable trigger workshop_bookings_require_planner_operator')
@@ -76,6 +80,17 @@ try:
  q.execute("select public.move_workshop_booking(%s,%s,'BUS_4X4',1,%s,60,null,'{}'::jsonb)",(bus_booking,bus_version,start+timedelta(hours=2))); assert q.fetchone()[0]['ok'] is True
  assert_authority_unchanged(vehicle,protected,'move')
  q.execute('select current_location,pmb_stage,visible_on_board from public.vehicles where id=%s',(vehicle,)); assert q.fetchone()==('YH','UNALLOCATED',False),'booking move changed vehicle authority'
+ q.execute('savepoint ineligible_cross_station_move_denied')
+ try:
+  q.execute("select public.move_workshop_booking(%s,%s,'TINT',1,%s,60,'fixture eligibility probe','{}'::jsonb)",(bus_booking,bus_version,start+timedelta(hours=3))); raise AssertionError('move to station without target eligibility unexpectedly allowed')
+ except psycopg2.Error as e:
+  assert e.pgcode=='22023',e; q.execute('rollback to savepoint ineligible_cross_station_move_denied')
+ q.execute("select id,version from public.workshop_bookings where vehicle_id=%s",(inactive_vehicle,)); inactive_booking,inactive_version=q.fetchone()
+ q.execute('savepoint inactive_resize_denied')
+ try:
+  q.execute("select public.resize_workshop_booking(%s,%s,120,'{}'::jsonb)",(inactive_booking,inactive_version)); raise AssertionError('inactive vehicle booking resize unexpectedly allowed')
+ except psycopg2.Error as e:
+  assert e.pgcode=='22023',e; q.execute('rollback to savepoint inactive_resize_denied')
  q.execute('select version from public.workshop_bookings where id=%s',(bus_booking,)); bus_version=q.fetchone()[0]
  q.execute("select public.resize_workshop_booking(%s,%s,120,'{}'::jsonb)",(bus_booking,bus_version)); assert q.fetchone()[0]['ok'] is True
  assert_authority_unchanged(vehicle,protected,'resize')
@@ -149,7 +164,7 @@ try:
  q.execute("insert into public.pdc_user_roles(email,display_name,role,active) values(%s,'Fixture Importer','importer',true)",(importer,))
  q.execute("select lower(email),role::text from public.pdc_user_roles where lower(email) in (%s,%s)",(operator,viewer)); real_roles=dict(q.fetchall())
  assert real_roles.get(operator)=='operator' and real_roles.get(viewer)=='viewer',real_roles
- workshop_tables=['vehicle_work_items','workshop_stages','workshop_stage_aliases','workshop_technicians','workshop_bays','workshop_settings','workshop_bookings','workshop_booking_assignments','workshop_booking_history','workshop_parts_overrides','workshop_revision','workshop_station_revision']
+ workshop_tables=['vehicles','vehicle_work_items','workshop_stages','workshop_stage_aliases','workshop_technicians','workshop_bays','workshop_settings','workshop_bookings','workshop_booking_assignments','workshop_booking_history','workshop_parts_overrides','workshop_revision','workshop_station_revision']
  for email,role,allowed in [(admin_email,'administrator',True),(operator,'operator',True),(viewer,'viewer',False),(importer,'importer',False)]:
   q.execute('reset role')
   q.execute("select set_config('request.jwt.claims',%s,true)",(json.dumps({'sub':str(admin),'email':email,'role':'authenticated'}),))
@@ -186,6 +201,7 @@ try:
     ('qc_complete',"select public.qc_complete_vehicle('00000000-0000-0000-0000-000000000001',0,'QC',null)"),
     ('rft_transfer',"select public.rft_transfer_vehicle('00000000-0000-0000-0000-000000000001',0)"),
     ('rft_collect',"select public.rft_collect_vehicle('00000000-0000-0000-0000-000000000001',0)"),
+    ('restore_vehicle',"select public.restore_vehicle('00000000-0000-0000-0000-000000000001',0,null)"),
    ]
    for label,statement in denied_mutations:
     q.execute('savepoint inherited_operator_rpc_denied')
