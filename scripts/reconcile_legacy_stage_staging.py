@@ -27,18 +27,12 @@ EXPECTED={
 }
 BATCH='staging-legacy-pmb-stage-20260723-v1'
 def state_hash(q):
- q.execute("""select md5(coalesce(string_agg(x::text,'|' order by x->>'id'),'')) from (
-  select jsonb_build_object('id',v.id,'location',v.current_location,'stage',v.pmb_stage,'lifecycle',v.lifecycle_state,'deleted',v.deleted_at,
-   'customer_hash',md5(coalesce(v.customer_name,'')||'|'||coalesce(v.customer_email,'')||'|'||coalesce(v.customer_phone,''))) x
-  from public.vehicles v where v.id=any(%s::uuid[])) s""",(IDS,));vehicles=q.fetchone()[0]
- q.execute("""select md5(coalesce(string_agg(x::text,'|' order by x->>'id'),'')) from (
-  select jsonb_build_object('id',wi.id,'vehicle',wi.vehicle_id,'key',wi.work_key,'required',wi.required,'completed',wi.completed,
-   'completed_at',wi.completed_at,'notes_hash',md5(coalesce(wi.notes,'')),'updated_at',wi.updated_at) x
-  from public.vehicle_work_items wi where wi.vehicle_id=any(%s::uuid[])) s""",(IDS,));items=q.fetchone()[0]
- q.execute("""select md5(coalesce(string_agg(x::text,'|' order by x->>'id'),'')) from (
-  select jsonb_build_object('id',b.id,'vehicle',b.vehicle_id,'stage',b.stage_id,'bay',b.bay_id,'status',b.status,
-   'start',b.scheduled_start_at,'end',b.scheduled_end_at,'actual_end',b.actual_end_at,'deleted',b.deleted_at,'version',b.version) x
-  from public.workshop_bookings b where b.vehicle_id=any(%s::uuid[])) s""",(IDS,));bookings=q.fetchone()[0]
+ q.execute("""select md5(coalesce(string_agg(md5(to_jsonb(v)::text),'|' order by v.id),''))
+  from public.vehicles v where v.id=any(%s::uuid[])""",(IDS,));vehicles=q.fetchone()[0]
+ q.execute("""select md5(coalesce(string_agg(md5(to_jsonb(wi)::text),'|' order by wi.id),''))
+  from public.vehicle_work_items wi where wi.vehicle_id=any(%s::uuid[])""",(IDS,));items=q.fetchone()[0]
+ q.execute("""select md5(coalesce(string_agg(md5(to_jsonb(b)::text),'|' order by b.id),''))
+  from public.workshop_bookings b where b.vehicle_id=any(%s::uuid[])""",(IDS,));bookings=q.fetchone()[0]
  return {'vehicles':vehicles,'work_items':items,'bookings':bookings}
 def main():
  p=argparse.ArgumentParser();p.add_argument('--confirm-project',required=True);p.add_argument('--backup-path',required=True);p.add_argument('--backup-sha256',required=True);p.add_argument('--restore-schema',required=True);a=p.parse_args()

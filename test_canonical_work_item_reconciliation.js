@@ -46,6 +46,8 @@ for (const script of [applyScript, reconcileScript]) {
   assert(script.includes('active_same_station_bookings') && script.includes('open_equivalent_work_items'), 'exact reconciliation guard must use the migration evidence vocabulary');
   assert(!script.includes('conflicting_booking_evidence'), 'exact reconciliation guard must use a reason code emitted by migration 045');
 }
+assert(reconcileScript.includes('md5(to_jsonb(v)::text)') && reconcileScript.includes('md5(to_jsonb(wi)::text)') && reconcileScript.includes('md5(to_jsonb(b)::text)'), 'no-create gate must hash complete vehicle/work-item/booking rows');
+assert(!reconcileScript.includes('customer_email') && !reconcileScript.includes('customer_phone'), 'no-create gate must not query nonexistent vehicle columns');
 for (const gate of ['decrypt_backup','validate_backup_contract','PDC_BACKUP_ENCRYPTION_KEY','max_age_seconds','restore_test_runs','all_checks_passed','information_schema.schemata']) {
   assert(backupGate.includes(gate), `backup gate is missing ${gate}`);
 }
