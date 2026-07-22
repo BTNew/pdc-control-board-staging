@@ -64,17 +64,42 @@ begin
   'public.qc_complete_vehicle(uuid,integer,text,text)'::regprocedure,
   'public.rft_transfer_vehicle(uuid,integer)'::regprocedure,
   'public.rft_collect_vehicle(uuid,integer)'::regprocedure,
-  'public.restore_vehicle(uuid,integer,text)'::regprocedure
+  'public.restore_vehicle(uuid,integer,text)'::regprocedure,
+  'public.edit_vehicle_master(uuid,integer,jsonb,text,text)'::regprocedure,
+  'public.get_vehicle_core_snapshot()'::regprocedure,
+  'public.resolve_vehicle_lifecycle_identity(text,text,text,text,text,text,text,text)'::regprocedure,
+  'public.get_vehicle_intelligence_snapshot(uuid,text,integer)'::regprocedure,
+  'public.approve_ai_review_item(uuid,uuid,uuid[],text)'::regprocedure,
+  'public.reject_ai_review_item(uuid,text,boolean)'::regprocedure
  ] loop
   select pg_get_functiondef(v_signature) into v_definition;
-  v_patched:=replace(replace(v_definition,
+  v_patched:=replace(replace(replace(replace(replace(replace(v_definition,
     'perform public.require_pdc_role(''operator'');',
     'perform public.workshop_require_planner_operator();'),
+    'perform public.require_pdc_role(''operator''::public.pdc_role);',
+    'perform public.workshop_require_planner_operator();'),
     'perform public.require_pdc_role(''importer'');',
-    'perform public.workshop_require_planner_operator();');
+    'perform public.workshop_require_planner_operator();'),
+    'perform public.require_pdc_role(''importer''::public.pdc_role);',
+    'perform public.workshop_require_planner_operator();'),
+    'public.is_pdc_role(''operator''::public.pdc_role)',
+    'public.workshop_is_planner_operator()'),
+    'public.is_pdc_role(''operator'')',
+    'public.workshop_is_planner_operator()');
+  v_patched:=replace(replace(v_patched,
+    'public.is_pdc_role(''importer''::public.pdc_role)','false'),
+    'public.is_pdc_role(''importer'')','false');
+  v_patched:=replace(v_patched,
+    'public.current_pdc_user_role() = ANY (ARRAY[''operator''::public.pdc_role, ''importer''::public.pdc_role, ''administrator''::public.pdc_role])',
+    'public.workshop_is_planner_operator()');
   if position('public.workshop_require_planner_operator()' in v_patched)=0
-     or position('public.require_pdc_role(''operator'')' in v_patched)>0
-     or position('public.require_pdc_role(''importer'')' in v_patched)>0 then
+     and position('public.workshop_is_planner_operator()' in v_patched)=0 then
+   raise exception 'Could not install exact planner role guard for %',v_signature using errcode='42501';
+  end if;
+  if position('public.require_pdc_role(''operator''' in v_patched)>0
+     or position('public.require_pdc_role(''importer''' in v_patched)>0
+     or position('public.is_pdc_role(''operator''' in v_patched)>0
+     or position('''importer''::public.pdc_role' in v_patched)>0 then
    raise exception 'Could not close inherited importer gate for %',v_signature using errcode='42501';
   end if;
   execute v_patched;
@@ -462,6 +487,29 @@ begin
 end $$;
 revoke all on function public.workshop_require_booking_active_vehicle(uuid,boolean) from public,anon,authenticated;
 
+create or replace function public.workshop_require_booking_restore_eligibility(p_booking_id uuid)
+returns void language plpgsql stable security definer set search_path=pg_catalog,public as $$
+declare v_vehicle_id uuid; v_stage_code text; v_location text; v_eta date;
+begin
+ select b.vehicle_id,s.code,upper(btrim(coalesce(v.current_location,''))),v.eta_to_kewdale
+  into v_vehicle_id,v_stage_code,v_location,v_eta
+ from public.workshop_bookings b join public.vehicles v on v.id=b.vehicle_id
+ join public.workshop_stages s on s.id=b.stage_id
+ where b.id=p_booking_id and b.deleted_at is not null
+  and v.lifecycle_state='active' and v.deleted_at is null and s.active and s.planner_enabled;
+ if not found then
+  raise exception 'Deleted booking, active vehicle and enabled planner station are required for restore' using errcode='22023';
+ end if;
+ if not (v_location in('PMB','YH') or (v_location='IT' and v_eta is not null)) then
+  raise exception 'Vehicle location is not eligible for Workshop Planner restore' using errcode='22023';
+ end if;
+ if not exists(select 1 from public.vehicle_work_items wi where wi.vehicle_id=v_vehicle_id
+  and wi.required and not wi.completed and public.workshop_stage_code_for_work_key(wi.work_key)=v_stage_code) then
+  raise exception 'Outstanding station requirement is required for Workshop Planner restore' using errcode='22023';
+ end if;
+end $$;
+revoke all on function public.workshop_require_booking_restore_eligibility(uuid) from public,anon,authenticated;
+
 create or replace function public.workshop_require_booking_schedule_eligibility(p_booking_id uuid,p_target_stage_code text default null)
 returns void language plpgsql stable security definer set search_path=pg_catalog,public as $$
 declare v_booking public.workshop_bookings%rowtype; v_current text; v_target text;
@@ -643,6 +691,7 @@ returns jsonb language plpgsql security definer set search_path=pg_catalog,publi
 declare v_result jsonb; v_revision bigint; begin
  perform public.workshop_require_planner_operator(); perform public.workshop_require_version(p_expected_version);
  perform public.workshop_require_booking_active_vehicle(p_booking_id,true);
+ perform public.workshop_require_booking_restore_eligibility(p_booking_id);
  v_result:=public.workshop_restore_booking(p_booking_id,p_expected_version,p_metadata);
  if not (v_result->>'ok')::boolean then return v_result; end if;
  v_revision:=public.workshop_bump_revision(); return v_result||jsonb_build_object('revision',v_revision); end $$;

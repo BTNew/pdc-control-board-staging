@@ -61,10 +61,11 @@ for (const wrapperName of wrapperNames) {
   assert(!/update\s+public\.vehicles|update\s+public\.vehicle_work_items/i.test(body), `${wrapperName} mutates vehicle/work-item authority`);
 }
 assert(sql.includes("vehicle_not_eligible_for_station") && sql.includes('workshop_station_eligibility(v_code)'), 'create/cascade scheduling must transactionally recheck current eligibility');
-for (const fn of ['move_vehicle','mark_vehicle_deleted','qc_complete_vehicle','rft_transfer_vehicle','rft_collect_vehicle','restore_vehicle','cascade_workshop_schedule']) {
+for (const fn of ['move_vehicle','mark_vehicle_deleted','qc_complete_vehicle','rft_transfer_vehicle','rft_collect_vehicle','restore_vehicle','edit_vehicle_master','get_vehicle_core_snapshot','resolve_vehicle_lifecycle_identity','get_vehicle_intelligence_snapshot','approve_ai_review_item','reject_ai_review_item','cascade_workshop_schedule']) {
   assert(sql.includes(`public.${fn}(`), `${fn} inherited importer gate must be closed`);
 }
 assert(sql.includes('Active non-deleted vehicle is required for Workshop Planner scheduling') && sql.includes('Vehicle is not eligible for target Workshop Planner station'), 'all scheduling-shape mutations need active vehicle and shared target eligibility guards');
+assert(sql.includes('workshop_require_booking_restore_eligibility(p_booking_id)') && sql.includes("b.deleted_at is not null") && sql.includes('Outstanding station requirement is required for Workshop Planner restore'), 'restore must independently recheck deleted booking, active vehicle, location and outstanding station eligibility');
 assert(sql.includes("where b.deleted_at is null and b.status in('queued','planned','started','stoppage')"), 'canonical aggregate eligibility must exclude soft-deleted active-looking bookings');
 for (const fn of ['assign_booking_technician','start_workshop_work','stop_workshop_work','complete_workshop_work','return_completed_work','return_work_to_queue','cancel_workshop_booking','restore_workshop_booking','resume_workshop_work']) {
   const start=sql.indexOf(`create or replace function public.${fn}`);

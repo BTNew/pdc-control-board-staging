@@ -66,6 +66,13 @@ try:
  q.execute('alter table public.workshop_bookings enable trigger workshop_bookings_planner_enabled_guard')
  # Adversarial soft deletion: a whitelisted status must still be excluded.
  q.execute("update public.workshop_bookings set status='planned' where vehicle_id=%s",(deleted_booking_vehicle,))
+ # Bayless soft-deleted booking at an ineligible location with no outstanding
+ # requirement must never be restorable into aggregate planner authority.
+ restore_ineligible_vehicle=uuid.uuid4()
+ q.execute("insert into public.vehicles(id,permanent_vehicle_id,stock_number,current_location,pmb_stage,visible_on_board,version,lifecycle_state,updated_by) values(%s,%s,%s,'OTHER','UNALLOCATED',false,1,'active',%s)",(restore_ineligible_vehicle,uuid.uuid4(),'RESTORE-'+uuid.uuid4().hex[:8],admin))
+ q.execute('alter table public.workshop_bookings disable trigger workshop_bookings_planner_enabled_guard')
+ q.execute("insert into public.workshop_bookings(vehicle_id,stage_id,bay_id,status,scheduled_start_at,scheduled_end_at,default_duration_minutes,deleted_at,deleted_reason,created_by,updated_by) values(%s,%s,null,'planned',%s,%s,60,now(),'fixture restore eligibility',%s,%s) returning id,version",(restore_ineligible_vehicle,bus_stage,start,start+timedelta(hours=1),admin,admin)); restore_ineligible_booking,restore_ineligible_version=q.fetchone()
+ q.execute('alter table public.workshop_bookings enable trigger workshop_bookings_planner_enabled_guard')
  q.execute("select id from public.workshop_stages where code='SUBLET'"); sublet_stage=q.fetchone()[0]
  q.execute('alter table public.workshop_bookings disable trigger workshop_bookings_planner_enabled_guard')
  q.execute('alter table public.workshop_bookings disable trigger workshop_bookings_require_planner_operator')
@@ -85,6 +92,11 @@ try:
   q.execute("select public.move_workshop_booking(%s,%s,'TINT',1,%s,60,'fixture eligibility probe','{}'::jsonb)",(bus_booking,bus_version,start+timedelta(hours=3))); raise AssertionError('move to station without target eligibility unexpectedly allowed')
  except psycopg2.Error as e:
   assert e.pgcode=='22023',e; q.execute('rollback to savepoint ineligible_cross_station_move_denied')
+ q.execute('savepoint ineligible_restore_denied')
+ try:
+  q.execute("select public.restore_workshop_booking(%s,%s,'{}'::jsonb)",(restore_ineligible_booking,restore_ineligible_version)); raise AssertionError('bayless deleted booking without canonical location/requirement unexpectedly restored')
+ except psycopg2.Error as e:
+  assert e.pgcode=='22023',e; q.execute('rollback to savepoint ineligible_restore_denied')
  q.execute("select id,version from public.workshop_bookings where vehicle_id=%s",(inactive_vehicle,)); inactive_booking,inactive_version=q.fetchone()
  q.execute('savepoint inactive_resize_denied')
  try:
@@ -137,7 +149,7 @@ try:
  q.execute("update public.workshop_bookings set status='planned' where id=%s",(bus_booking,))
  q.execute("select public.get_station_workshop_snapshot('BUS_4X4',%s,%s)",(date.today(),date.today()+timedelta(days=2))); snapshot=q.fetchone()[0]
  snapshot_vehicle_ids={row['id'] for row in snapshot['vehicles']}; snapshot_work_item_ids={row['vehicle_id'] for row in snapshot['work_items']}
- excluded_fixture_ids={str(outsider),str(inactive_vehicle),str(deleted_vehicle),str(out_window_vehicle),str(deleted_booking_vehicle)}
+ excluded_fixture_ids={str(outsider),str(inactive_vehicle),str(deleted_vehicle),str(out_window_vehicle),str(deleted_booking_vehicle),str(restore_ineligible_vehicle)}
  snapshot_booking_vehicle_ids={row['vehicle_id'] for row in snapshot['bookings']}
  assert not (excluded_fixture_ids & snapshot_vehicle_ids) and not (excluded_fixture_ids & snapshot_work_item_ids) and not (excluded_fixture_ids & snapshot_booking_vehicle_ids),'out-of-scope, inactive, deleted or out-of-window fixture leaked into station DTO'
  q.execute('select public.get_workshop_eligibility_snapshot()'); aggregate=q.fetchone()[0]
@@ -213,6 +225,10 @@ try:
      q.execute(statement); raise AssertionError(f'{role} {label} RPC unexpectedly allowed')
     except psycopg2.Error as e:
      assert e.pgcode=='42501',(role,label,e); q.execute('rollback to savepoint reference_rpc_denied')
+   q.execute('select public.get_vehicle_core_snapshot()'); core_denial=q.fetchone()[0]
+   assert 'permission_denied' in json.dumps(core_denial),(role,'vehicle_core_snapshot',core_denial)
+   q.execute('select public.resolve_vehicle_lifecycle_identity(null,null,null,null,null,null,null,null)'); resolver_denial=q.fetchone()[0]
+   assert resolver_denial.get('outcome')=='unauthorized',(role,'resolve_lifecycle',resolver_denial)
    denied_mutations=[
     ('complete',"select public.complete_workshop_work('00000000-0000-0000-0000-000000000001',0,null,null,'{}'::jsonb)"),
     ('cascade',"select public.cascade_workshop_schedule('extend','00000000-0000-0000-0000-000000000001',0,'BUS_4X4',1,now(),60,null,0,null,'{}'::jsonb)"),
@@ -222,6 +238,10 @@ try:
     ('rft_transfer',"select public.rft_transfer_vehicle('00000000-0000-0000-0000-000000000001',0)"),
     ('rft_collect',"select public.rft_collect_vehicle('00000000-0000-0000-0000-000000000001',0)"),
     ('restore_vehicle',"select public.restore_vehicle('00000000-0000-0000-0000-000000000001',0,null)"),
+    ('edit_vehicle_master',"select public.edit_vehicle_master('00000000-0000-0000-0000-000000000001',0,'{}'::jsonb,null,null)"),
+    ('vehicle_intelligence',"select public.get_vehicle_intelligence_snapshot('00000000-0000-0000-0000-000000000001','desc',10)"),
+    ('approve_ai_review',"select public.approve_ai_review_item('00000000-0000-0000-0000-000000000001',null,null,null)"),
+    ('reject_ai_review',"select public.reject_ai_review_item('00000000-0000-0000-0000-000000000001',null,false)"),
    ]
    for label,statement in denied_mutations:
     q.execute('savepoint inherited_operator_rpc_denied')
