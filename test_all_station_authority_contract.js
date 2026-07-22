@@ -47,6 +47,7 @@ assert(!/(update\s+public\.vehicles|insert\s+into\s+public\.vehicle_movements)/i
 assert(migration.includes('workshop_station_revision_from_vehicle') && migration.includes('vehicle_work_items'), 'location changes must invalidate every outstanding requirement station');
 assert(closure.includes("array['workshop_stages','workshop_stage_aliases','workshop_bays','workshop_technicians','workshop_settings']"), 'configuration dependencies must invalidate all station revisions');
 assert(closure.includes("v_role not in ('operator','administrator')"), 'planner snapshots must exclude importer/viewer roles');
+assert(closure.includes('workshop_bookings_require_planner_operator') && closure.includes('before insert or update or delete on public.workshop_bookings'), 'all direct and RPC booking mutations must enforce the exact planner operator boundary');
 const etaGuard = closure.slice(closure.indexOf('create or replace function public.workshop_enforce_vehicle_eta'), closure.indexOf('drop trigger if exists workshop_bookings_enforce_vehicle_eta'));
 assert(etaGuard.includes("v_location='IT'") && !etaGuard.includes("v_location in ('YH','IT')"), 'YH must schedule immediately while IT remains ETA-gated');
 const scheduleClosure = closure.slice(closure.indexOf('create or replace function public.schedule_vehicle_work'), closure.indexOf('revoke all on function public.schedule_vehicle_work'));

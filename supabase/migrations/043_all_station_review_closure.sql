@@ -25,6 +25,18 @@ begin
 end $$;
 revoke all on function public.workshop_require_planner_operator() from public,anon,authenticated;
 
+create or replace function public.workshop_require_planner_booking_mutation()
+returns trigger language plpgsql security definer set search_path=pg_catalog,public as $$
+begin
+ if auth.uid() is not null then perform public.workshop_require_planner_operator(); end if;
+ if tg_op='DELETE' then return old; end if;
+ return new;
+end $$;
+revoke all on function public.workshop_require_planner_booking_mutation() from public,anon,authenticated;
+drop trigger if exists workshop_bookings_require_planner_operator on public.workshop_bookings;
+create trigger workshop_bookings_require_planner_operator before insert or update or delete on public.workshop_bookings
+for each row execute function public.workshop_require_planner_booking_mutation();
+
 create or replace function public.workshop_enforce_vehicle_eta()
 returns trigger language plpgsql security definer set search_path=pg_catalog,public,extensions as $$
 declare v_vehicle public.vehicles%rowtype; v_location text;
