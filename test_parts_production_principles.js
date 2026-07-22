@@ -2,6 +2,15 @@ const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
 
+const styles = fs.readFileSync(path.join(__dirname, 'styles.css'), 'utf8');
+const operationalPartsCss = styles.slice(styles.indexOf('/* Operational readiness — Parts'));
+if (!/max-height:\s*none(?:\s*!important)?;/.test(operationalPartsCss) || !/overflow:\s*visible(?:\s*!important)?;/.test(operationalPartsCss)) {
+  throw new Error('Parts must use page scrolling rather than a nested table scrollbar');
+}
+if (!operationalPartsCss.includes('border: 0 !important;') || !operationalPartsCss.includes('box-shadow: none !important;')) {
+  throw new Error('Parts must use the continuous unboxed Vehicle Locations presentation');
+}
+
 let code = fs.readFileSync(path.join(__dirname, 'app.js'), 'utf8').replace(/\ninit\(\);\s*$/, '');
 code += String.raw`
 (function(){

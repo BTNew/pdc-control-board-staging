@@ -1,5 +1,5 @@
-const APP_VERSION = '2026.07.22.02-station-first';
-const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.07.22.03-next-workday-carry';
+const APP_VERSION = '2026.07.22.04-operational-readiness';
+const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.07.22.05-operational-readiness';
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
 // constant intentionally names only the production ref, never the
@@ -5003,7 +5003,6 @@ function pmbRequiredWorkLabels(vehicle = {}) {
 
 function incomingWorkChecklistHtml(vehicle = {}, options = {}) {
   const key = vehicleKey(vehicle);
-  const showStationTransfer = options.stationTransfer === true && statusCategory(vehicle) === 'pmb';
   const currentStage = normalizePmbStage(inferredPmbStage(vehicle));
   return `<div class="incoming-work-checks pdc-station-strip" aria-label="Required work stations">${pdcJobDefsPartsFirst().map(def => {
     const required = pdcJobRequired(vehicle, def);
@@ -5021,15 +5020,8 @@ function incomingWorkChecklistHtml(vehicle = {}, options = {}) {
     if (stage && currentStage === stage) classes.push('is-current-stage');
     const state = complete ? 'complete' : blocked ? 'blocked' : required ? 'required' : 'not required';
     const marker = complete ? '✓' : blocked ? '!' : required ? '•' : '–';
-    const transfer = showStationTransfer && stage
-      ? `<select class="incoming-work-transfer" data-pmb-work-transfer-key="${escapeHtml(key)}" data-pmb-work-transfer-stage="${escapeHtml(stage)}" aria-label="Move ${escapeHtml(displayStockNumber(vehicle) || key)} to ${escapeHtml(pmbStageLabel(stage))}">
-          <option value="">↧</option>
-          <option value="${escapeHtml(stage)}">To ${escapeHtml(pmbStageLabel(stage))}</option>
-        </select>`
-      : '';
     return `<span class="${classes.join(' ')}" title="${escapeHtml(required || complete ? pdcJobCompletionTitle(vehicle, def) : `${pdcGridJobLabel(def)} not required`)}" aria-label="${escapeHtml(`${pdcGridJobLabel(def)} ${state}`)}">
       <span class="incoming-work-box" aria-hidden="true">${marker}</span>
-      ${transfer}
       <span class="incoming-work-label">${escapeHtml(pdcGridJobLabel(def))}</span>
     </span>`;
   }).join('')}</div>`;
@@ -5162,26 +5154,12 @@ function renderIncomingDashboardBoard() {
     select.addEventListener('click', event => event.stopPropagation());
     select.addEventListener('change', () => updatePmbBaySubletProvider(select.dataset.pmbBayProviderKey, select.dataset.pmbBayProviderStage, select.value));
   });
-  bindPmbWorkTransferSelects(host);
   bindFixFirstRows(host);
   bindRftCollectedInputs(host);
   bindIncomingCardSelection(host);
   revealSingleVehicleSearchResult(host, filteredRows, filters.search, 'incoming');
   updateInlineSelectionBars(filteredRows);
   updateCollapseToggleButtons();
-}
-
-function bindPmbWorkTransferSelects(host = document) {
-  $$('[data-pmb-work-transfer-key]', host).forEach(select => {
-    select.addEventListener('click', event => event.stopPropagation());
-    select.addEventListener('change', event => {
-      event.stopPropagation();
-      const stage = select.value || select.dataset.pmbWorkTransferStage || '';
-      if (!stage) return;
-      void movePmbVehicleToStage(select.dataset.pmbWorkTransferKey, stage);
-      select.value = '';
-    });
-  });
 }
 
 function bindIncomingCardSelection(host = document) {

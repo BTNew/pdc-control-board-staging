@@ -11558,24 +11558,29 @@ html[data-row-width="xl"] {
   .parts-queue-blocker { max-width: 130px; }
 }
 
-/* Combined staging remediation — Parts follows the Vehicle Locations continuous table pattern. */
+/* Operational readiness — Parts follows the Vehicle Locations continuous page table. */
 #parts.view.active { height: auto; min-height: calc(100vh - 133px); overflow: visible; }
-#parts .parts-home-layout, #parts .parts-home-panel { height: auto; min-height: 0; }
-#parts .parts-home-panel { overflow: visible; }
-#parts .parts-home-content { flex: 0 1 auto; display: block; overflow: visible; }
-#parts .parts-table-wrap {
-  height: auto;
-  min-height: 0;
-  max-height: calc(100vh - 330px);
-  margin: 0;
-  border: 1px solid #dfe5ea !important;
+#parts .parts-home-layout, #parts .parts-home-panel { height: auto; min-height: calc(100vh - 165px); }
+#parts .parts-home-panel {
+  overflow: visible;
+  border: 0 !important;
   border-radius: 0 !important;
-  background: #fff;
+  background: transparent;
   box-shadow: none !important;
-  overflow: auto;
-  scrollbar-gutter: stable;
-  contain: layout paint;
-  isolation: isolate;
+}
+#parts .parts-home-content { flex: 1 1 auto; display: block; overflow: visible !important; }
+#parts .parts-table-wrap {
+  height: auto !important;
+  min-height: 0;
+  max-height: none !important;
+  margin: 0;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent;
+  box-shadow: none !important;
+  overflow: visible !important;
+  contain: none;
+  isolation: auto;
 }
 .parts-queue-table { min-width: 0; width: 100%; table-layout: fixed; }
 .parts-queue-table th:nth-child(1), .parts-queue-table td:nth-child(1) { width: 8%; }
@@ -11620,6 +11625,19 @@ html[data-row-width="xl"] {
   .parts-queue-row .small-button { padding-inline: 4px; }
 }
 
+
+.workshop-load-more {
+  width: 100%;
+  min-height: 34px;
+  border: 1px solid #bfdbfe;
+  border-radius: 6px;
+  background: #eff6ff;
+  color: #1d4ed8;
+  font-weight: 700;
+  cursor: pointer;
+}
+.workshop-load-more:hover,
+.workshop-load-more:focus-visible { background: #dbeafe; }
 
 /* Phase A — readable destination and transfer selectors in every state. */
 .incoming-work-transfer,

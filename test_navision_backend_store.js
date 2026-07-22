@@ -81,6 +81,11 @@ assert(functionBlock('get_navision_backend_snapshot').includes("case when v_role
 assert(functionBlock('rollback_navision_backend_import').includes('v_current is distinct from v_item.after_record'), 'Rollback must reject row-level after-image drift before mutation');
 assert(functionBlock('apply_navision_backend_import').includes("v_missing_index := v_missing_index + 1"), 'Missing reconciliation items must receive deterministic cursor indexes');
 
+const readinessSql = fs.readFileSync(path.join(__dirname, 'supabase', 'migrations', '041_operational_readiness_polish.sql'), 'utf8').toLowerCase();
+assert(readinessSql.includes("alter function public.preview_navision_backend_import(jsonb,text,text,text,timestamptz)\n  set statement_timeout = '120s'"), 'Shared Navision preview must receive a bounded timeout large enough for dealer reconciliation');
+assert(readinessSql.includes("alter function public.apply_navision_backend_import(text,jsonb,text,text,text,timestamptz,text,text,bigint)\n  set statement_timeout = '120s'"), 'Shared Navision apply must receive a bounded timeout large enough for durable atomic apply');
+assert(!/(insert\s+into|update|delete\s+from)\s+public\.vehicle_work_items\b/i.test(readinessSql), 'Navision timeout remediation must not mutate workflow rows');
+
 const concurrencyHarness = fs.readFileSync(path.join(__dirname, 'scripts', 'test_navision_backend_concurrency_staging.py'), 'utf8');
 assert(!concurrencyHarness.includes('snapshot_hash') && !concurrencyHarness.includes('last_batch_id'), 'Concurrency harness must only query migration-037 revision columns');
 const sessionLock = concurrencyHarness.indexOf("pg_advisory_lock(hashtextextended('navision-backend-store',0))");

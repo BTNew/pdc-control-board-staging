@@ -76,7 +76,7 @@ code += String.raw`
 const storage = new Map();
 const context = {
   console,
-  window: { VEHICLE_TRACKING_DATA: { vehicles: [], toyotaMatches: {}, report: {} }, location: { href: '' } },
+  window: { VEHICLE_TRACKING_DATA: { vehicles: [], toyotaMatches: {}, report: {} }, PDC_AUTH_CONTEXT: { role: 'operator' }, location: { href: '' } },
   localStorage: {
     getItem: key => storage.has(key) ? storage.get(key) : null,
     setItem: (key, value) => storage.set(key, String(value)),

@@ -8,9 +8,9 @@ const css = fs.readFileSync(path.join(__dirname, 'styles.css'), 'utf8');
 const desktopCss = fs.readFileSync(path.join(__dirname, 'desktop-operations.css'), 'utf8');
 const app = fs.readFileSync(path.join(__dirname, 'app.js'), 'utf8');
 
-assert.match(css, /Combined staging remediation — Parts follows the Vehicle Locations continuous table pattern/);
-assert.match(css, /#parts \.parts-home-content \{ flex: 0 1 auto; display: block; overflow: visible; \}/);
-assert.match(css, /#parts \.parts-table-wrap \{[\s\S]*?height: auto;[\s\S]*?min-height: 0;[\s\S]*?max-height: calc\(100vh - 330px\);/);
+assert.match(css, /Operational readiness — Parts follows the Vehicle Locations continuous page table/);
+assert.match(css, /#parts \.parts-home-content \{ flex: 1 1 auto; display: block; overflow: visible !important; \}/);
+assert.match(css, /#parts \.parts-table-wrap \{[\s\S]*?height: auto !important;[\s\S]*?min-height: 0;[\s\S]*?max-height: none !important;/);
 assert.match(css, /\.parts-queue-table \{ min-width: 0; width: 100%; table-layout: fixed; \}/);
 assert.match(css, /\.parts-queue-table th:nth-child\(6\), \.parts-queue-table td:nth-child\(6\) \{ width: 44px !important; \}/);
 assert.match(css, /\.parts-action-group \{[\s\S]*?display: flex;[\s\S]*?justify-content: flex-start;/);

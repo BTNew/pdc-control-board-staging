@@ -5,6 +5,14 @@ const fs = require('fs');
 const path = require('path');
 const planner = require('./workshop-planner.js');
 
+const incrementalRows = Array.from({ length: 105 }, (_, index) => ({ id: index + 1 }));
+const firstBatch = planner.workshopIncrementalRenderRows(incrementalRows);
+assert.strictEqual(firstBatch.visible.length, 12, 'Planner must incrementally render only the first 12 waiting/completed rows');
+assert.strictEqual(firstBatch.remaining, 93, 'Planner must report remaining rows without losing data');
+const thirdBatch = planner.workshopIncrementalRenderRows(incrementalRows, 120);
+assert.strictEqual(thirdBatch.visible.length, 105, 'Incremental expansion must eventually expose every row');
+assert.strictEqual(thirdBatch.remaining, 0, 'Expanded rendering must retain no hidden remainder');
+
 const root = __dirname;
 const app = fs.readFileSync(path.join(root, 'app.js'), 'utf8');
 const source = fs.readFileSync(path.join(root, 'workshop-planner.js'), 'utf8');
@@ -379,7 +387,7 @@ for (const file of htmlFiles) {
   assert.ok(html.includes(`workshop-planner.css?v=${appVersion}`), `${file} is missing the planner stylesheet`);
   assert.ok(!html.includes('<script src="workshop-planner.js'), `${file} must not eagerly load the planner script`);
 }
-assert.ok(app.includes("const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.07.22.03-next-workday-carry';"), 'Workshop Planner must have a dedicated cache-bust version for the next-workday carry fix');
+assert.ok(app.includes("const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.07.22.05-operational-readiness';"), 'Workshop Planner must have a dedicated cache-bust version for the next-workday carry fix');
 assert.ok(app.includes("loadExternalScript(`workshop-planner.js?v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}`"), 'app.js must lazy-load the Workshop Planner with its dedicated cache-bust version');
 
 console.log('Workshop planner regression checks passed');

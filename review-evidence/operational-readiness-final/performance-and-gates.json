@@ -1,0 +1,45 @@
+{
+  "schema": "pdc.operational-readiness-final/v1",
+  "capturedAt": "2026-07-22T06:02:56Z",
+  "baseline": {
+    "commit": "31ed7f94c789ccc803687716218db751b9f0fe34",
+    "fixtureVehicles": 300,
+    "maxTransitionMs": 192,
+    "averageTransitionMs": 59,
+    "maxLongTaskMs": 184,
+    "pageUnresponsive": false
+  },
+  "after": {
+    "fixtureVehicles": 300,
+    "targetMs": 1000,
+    "maxTransitionMs": 66,
+    "averageTransitionMs": 33,
+    "maxLongTaskMs": 57,
+    "pageUnresponsive": false,
+    "vehicleStateUnchanged": true,
+    "persistentShell": true,
+    "memoryStable": true,
+    "domStable": true
+  },
+  "plannerResources": {
+    "snapshotRequestsPerStationOpen": 1,
+    "peakStationRealtimeChannels": 1,
+    "channelsAfterTeardown": 0,
+    "repeatedCycles": 3,
+    "retainedSubscriptions": 0
+  },
+  "uiRegression": {
+    "views": 11,
+    "viewports": [1600, 1024],
+    "checks": 22,
+    "horizontalOverflowFailures": 0,
+    "partsNestedVerticalScroll": false
+  },
+  "blockedLiveGates": {
+    "encryptedBackupAndIsolatedRestore": "Blocked: PDC_STAGING_DATABASE_URL, PDC_STAGING_SERVICE_ROLE_KEY and PDC_BACKUP_ENCRYPTION_KEY were unavailable.",
+    "partsCsvRemoval": "Retained because encrypted backup plus isolated restore could not be confirmed.",
+    "navisionMigrationApply": "Migration 041 source is prepared and statically tested but was not applied without the backup/restore gate.",
+    "twoComputerAuthorityMigration": "Not applied without the backup/restore gate and staging database credentials."
+  },
+  "productionTouched": false
+}
