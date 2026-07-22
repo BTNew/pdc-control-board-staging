@@ -31,11 +31,16 @@ try:
   q.execute('select public.get_workshop_eligibility_snapshot()'); raise AssertionError('importer read unexpectedly allowed')
  except psycopg2.Error as e:
   assert e.pgcode=='42501',e; q.execute('rollback to savepoint importer_denied')
+ q.execute('savepoint importer_schedule_denied')
+ try:
+  q.execute("select public.schedule_vehicle_work(%s,2,'BUS_4X4',1,%s,60,null,null,'{}'::jsonb)",(vehicle,start+timedelta(hours=2))); raise AssertionError('importer scheduling unexpectedly allowed')
+ except psycopg2.Error as e:
+  assert e.pgcode=='42501',e; q.execute('rollback to savepoint importer_schedule_denied')
  q.execute("select set_config('request.jwt.claims',%s,true)",(json.dumps({'sub':str(admin),'email':admin_email,'role':'authenticated'}),))
  q.execute("select revision from public.workshop_station_revision where stage_code='HOIST'"); before=q.fetchone()[0]
  q.execute("insert into public.workshop_stage_aliases(alias_normalized,alias_value,stage_code) values(%s,%s,'HOIST')",('FIXTUREALIAS'+uuid.uuid4().hex.upper(),'Fixture Alias'))
  q.execute("select revision from public.workshop_station_revision where stage_code='HOIST'"); assert q.fetchone()[0]>before
  q.execute("select public.get_station_workshop_snapshot('Pits Hoist',current_date,current_date)"); assert q.fetchone()[0]['stage']=='HOIST'
- print(json.dumps({'migration_043_transactional':True,'yh_without_eta_scheduled':True,'location_stage_visibility_unchanged':True,'importer_denied':True,'alias_parity':sum(map(len,ALIASES.values())),'config_revision_bumped':True,'rolled_back':True}))
+ print(json.dumps({'migration_043_transactional':True,'yh_without_eta_scheduled':True,'location_stage_visibility_unchanged':True,'importer_snapshot_and_schedule_denied':True,'alias_parity':sum(map(len,ALIASES.values())),'config_revision_bumped':True,'rolled_back':True}))
 finally:
  conn.rollback(); conn.close()

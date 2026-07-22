@@ -15,7 +15,7 @@ select v.alias_normalized,v.alias_normalized,v.stage_code from (values
 ) as v(alias_normalized,stage_code)
 on conflict(alias_normalized) do update set alias_value=excluded.alias_value,stage_code=excluded.stage_code;
 
-create or replace function public.workshop_require_planner_reader()
+create or replace function public.workshop_require_planner_operator()
 returns void language plpgsql stable security definer set search_path=pg_catalog,public as $$
 declare v_role text:=coalesce(public.current_pdc_user_role()::text,'');
 begin
@@ -23,7 +23,7 @@ begin
   raise exception 'Operator or administrator role required' using errcode='42501';
  end if;
 end $$;
-revoke all on function public.workshop_require_planner_reader() from public,anon,authenticated;
+revoke all on function public.workshop_require_planner_operator() from public,anon,authenticated;
 
 create or replace function public.workshop_enforce_vehicle_eta()
 returns trigger language plpgsql security definer set search_path=pg_catalog,public,extensions as $$
@@ -58,7 +58,7 @@ declare
  v_vehicle public.vehicles%rowtype; v_stage public.workshop_stages%rowtype; v_booking jsonb;
  v_override_id uuid; v_before_vehicle jsonb; v_after_vehicle jsonb; v_revision bigint; v_stage_code text;
 begin
- perform public.require_pdc_role('operator');
+ perform public.workshop_require_planner_operator();
  perform public.workshop_require_version(p_vehicle_expected_version);
  select * into v_vehicle from public.vehicles where id=p_vehicle_id for update;
  if not found then raise exception 'Vehicle not found' using errcode='P0002'; end if;
@@ -94,7 +94,7 @@ grant execute on function public.schedule_vehicle_work(uuid,integer,text,integer
 create or replace function public.get_workshop_eligibility_snapshot()
 returns jsonb language plpgsql stable security definer set search_path=public as $$
 begin
- perform public.workshop_require_planner_reader();
+ perform public.workshop_require_planner_operator();
  return jsonb_build_object('generated_at',now(),
   'stages',(select coalesce(jsonb_agg(jsonb_build_object('code',s.code,'display_name',s.display_name,
    'work_key',s.work_key,'planner_enabled',s.planner_enabled,'revision',public.workshop_current_station_revision(s.code),
@@ -120,7 +120,7 @@ create or replace function public.get_station_workshop_snapshot(p_stage_code tex
 returns jsonb language plpgsql stable security definer set search_path=public as $$
 declare v_stage text:=public.workshop_canonical_stage_code(p_stage_code); v_result jsonb;
 begin
- perform public.workshop_require_planner_reader();
+ perform public.workshop_require_planner_operator();
  if v_stage is null or not exists(select 1 from public.workshop_stages where code=v_stage and active and planner_enabled) then raise exception 'Stage % is not planner-enabled',p_stage_code using errcode='22023'; end if;
  v_result:=public.get_station_workshop_snapshot_legacy(v_stage,p_date_from,p_date_to);
  v_result:=jsonb_set(v_result,'{stage}',to_jsonb(v_stage),true);
