@@ -131,6 +131,8 @@ function testRoutesAndIsolationContracts() {
   assert(planner.includes('function workshopEnsureDedicatedShell('), 'dedicated station switches must preserve the lightweight planner shell');
   assert(planner.includes('data-workshop-station-content'), 'only the active station content host should be replaced');
   assert(app.includes('function scheduleWorkshopPlannerRender('), 'snapshot/status bursts must be coalesced before rendering');
+  assert(app.includes('if (window.__workshopPlannerModulesLoading) return;'), 'auth-ready must not create a fallback snapshot while Realtime is still lazy-loading');
+  assert(app.includes('window.__workshopPlannerModulesLoading = true;'), 'planner module loading must be marked before the first lazy script resolves');
   assert(app.includes('preserveShell: switchingPlannerStation'), 'station switches must dispose active resources without rebuilding the whole planner shell');
   assert(app.includes('removeEventListener'), 'inactive planner recovery listeners must be removed on teardown');
   assert(planner.includes("const dedicatedStage = normalizePmbStage(window.__activeWorkshopPlannerStage || '')"));

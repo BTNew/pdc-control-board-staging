@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.07.22.01-station-first';
+const APP_VERSION = '2026.07.22.02-station-first';
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
 // constant intentionally names only the production ref, never the
@@ -3700,6 +3700,12 @@ function initWorkshopReferenceDataServiceIfAvailable() {
 function initWorkshopSharedServicesIfEnabled() {
   if (typeof workshopSharedModeEnabled !== 'function' || !workshopSharedModeEnabled(window.PDC_SUPABASE_CONFIG)) return;
   if (app.currentView !== 'workshop') return;
+  // The auth-ready event can fire while the lazy module chain is between
+  // workshop-data-service.js and workshop-realtime.js on a slower network.
+  // Do not create the data service in that gap: doing so activates the
+  // no-Realtime fallback snapshot, then the channel subscription performs a
+  // second initial snapshot when the remaining module arrives.
+  if (window.__workshopPlannerModulesLoading) return;
 
   if (!window.__workshopDataService) {
     if (typeof createWorkshopDataService !== 'function' || typeof createWorkshopSupabaseClient !== 'function') return;
@@ -3919,6 +3925,7 @@ function renderWorkshopPlannerWhenReady() {
   }
   const root = $('#workshop-planner-root');
   if (root) root.innerHTML = '<div class="empty-state"><strong>Loading Workshop Planner</strong><span>Preparing scheduling controls…</span></div>';
+  window.__workshopPlannerModulesLoading = true;
   // Load the shared-data service + realtime manager modules first. Both
   // stay completely inert (no snapshot fetch, no subscription, no writes)
   // unless window.PDC_SUPABASE_CONFIG.workshop.sharedData is explicitly set
@@ -3930,11 +3937,13 @@ function renderWorkshopPlannerWhenReady() {
     .catch(() => { /* non-fatal: shared mode simply stays unavailable */ })
     .then(() => loadExternalScript(`workshop-planner.js?v=${encodeURIComponent(APP_VERSION)}`, 'workshop-planner-script'))
     .then(() => {
+      window.__workshopPlannerModulesLoading = false;
       if (app.currentView !== 'workshop' || app.activeWorkshopPlannerStage !== requestedStage) return;
       initWorkshopSharedServicesIfEnabled();
       if (typeof renderWorkshopPlanner === 'function') renderWorkshopPlanner();
     })
     .catch(error => {
+      window.__workshopPlannerModulesLoading = false;
       if (!root) return;
       root.innerHTML = '<div class="empty-state"><strong>Workshop Planner could not load</strong><span></span></div>';
       const message = root.querySelector('span');
