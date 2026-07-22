@@ -25,7 +25,9 @@
     workshop_plans: 'vehicleTrackingCoreWorkshopPlan:v1',
     workshop_view: 'vehicleTrackingCoreWorkshopView:v1',
     workshop_bay_setup: 'vehicleTrackingCoreWorkshopBaySetup:v1',
+    canonical_links: 'workshopCanonicalVehicleLinks:v1',
   });
+  const PDC_STORAGE_PREFIXES = Object.freeze(['vehicleTrackingCore', 'broomeToyotaVehicleCrm']);
   const NOTES_PREFIX = 'vehicleTrackingCoreNotes:';
   const WORKFLOW_PREFIXES = Object.freeze(['pmb', 'pdc', 'workshop']);
   const IDENTITY_KEYS = Object.freeze({
@@ -61,6 +63,10 @@
     return Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('');
   }
 
+  function isPdcStorageKey(key) {
+    return PDC_STORAGE_PREFIXES.some(prefix => key.startsWith(prefix)) || key === KEYS.canonical_links;
+  }
+
   function snapshotStorage(storage) {
     if (!storage || typeof storage.length !== 'number' || typeof storage.key !== 'function' || typeof storage.getItem !== 'function') {
       throw new Error('localStorage is unavailable');
@@ -68,7 +74,7 @@
     const result = {};
     for (let index = 0; index < storage.length; index += 1) {
       const key = storage.key(index);
-      if (typeof key !== 'string') continue;
+      if (typeof key !== 'string' || !isPdcStorageKey(key)) continue;
       result[key] = storage.getItem(key);
     }
     return canonicalize(result);
@@ -147,6 +153,7 @@
     let plans = parseJson(before, KEYS.workshop_plans, [], parseErrors);
     let audit = parseJson(before, KEYS.audit, [], parseErrors);
     const navisionImport = parseJson(before, KEYS.navision_import, null, parseErrors);
+    let canonicalLinks = parseJson(before, KEYS.canonical_links, {}, parseErrors);
     const base = Array.isArray(windowObject.VEHICLE_TRACKING_DATA?.vehicles)
       ? windowObject.VEHICLE_TRACKING_DATA.vehicles : [];
     if (!Array.isArray(added) || !edits || typeof edits !== 'object' || Array.isArray(edits) || !Array.isArray(deleted)) {
@@ -160,6 +167,10 @@
     }
     if (!Array.isArray(plans)) { parseErrors.push({ family: 'workshop_plans', reason_code: 'invalid_type' }); plans = []; }
     if (!Array.isArray(audit)) { parseErrors.push({ family: 'audit', reason_code: 'invalid_type' }); audit = []; }
+    if (!canonicalLinks || typeof canonicalLinks !== 'object' || Array.isArray(canonicalLinks)) {
+      parseErrors.push({ family: 'canonical_links', reason_code: 'invalid_type' });
+      canonicalLinks = {};
+    }
     const deletedKeys = new Set(deleted.map(deletedKey).filter(Boolean));
     const combined = base.map((row, index) => ({ row, source: 'static', index }))
       .concat(added.map((row, index) => ({ row, source: 'added', index })));
@@ -213,6 +224,7 @@
         edit_row_count: Object.keys(edits).length,
         audit_row_count: countValue(audit),
         navision_import_present: navisionImport != null,
+        canonical_vehicle_link_count: Object.keys(canonicalLinks).length,
         unknown_vehicle_storage_keys: unknownVehicleKeys,
       },
       vehicles,
@@ -253,7 +265,7 @@
   }
 
   return Object.freeze({
-    SCHEMA, KEYS, NOTES_PREFIX, canonicalJson, snapshotStorage,
+    SCHEMA, KEYS, NOTES_PREFIX, PDC_STORAGE_PREFIXES, isPdcStorageKey, canonicalJson, snapshotStorage,
     buildAssessmentExport, downloadAssessmentExport,
   });
 }));

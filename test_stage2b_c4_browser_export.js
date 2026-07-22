@@ -6,10 +6,10 @@ const path = require('path');
 const exporter = require('./scripts/stage2b_c4_browser_export.js');
 
 class ReadOnlyStorage {
-  constructor(values) { this.values = { ...values }; this.keys = Object.keys(this.values); this.writeAttempts = 0; }
+  constructor(values) { this.values = { ...values }; this.keys = Object.keys(this.values); this.writeAttempts = 0; this.readKeys = []; }
   get length() { return this.keys.length; }
   key(index) { return this.keys[index] ?? null; }
-  getItem(key) { return Object.prototype.hasOwnProperty.call(this.values, key) ? this.values[key] : null; }
+  getItem(key) { this.readKeys.push(key); return Object.prototype.hasOwnProperty.call(this.values, key) ? this.values[key] : null; }
   setItem() { this.writeAttempts += 1; throw new Error('setItem forbidden'); }
   removeItem() { this.writeAttempts += 1; throw new Error('removeItem forbidden'); }
   clear() { this.writeAttempts += 1; throw new Error('clear forbidden'); }
@@ -29,7 +29,9 @@ async function main() {
     [exporter.KEYS.po_tasks]: JSON.stringify({ '13-0001': ['task content excluded'] }),
     [exporter.KEYS.po_files]: JSON.stringify({ '13-0001': [{ name: 'secret.pdf', data: 'excluded' }] }),
     [exporter.KEYS.workshop_plans]: JSON.stringify([{ id: 'p1', vehicleKey: '13-0001', stage: 'FITTING', assignee: 'excluded' }]),
+    [exporter.KEYS.canonical_links]: JSON.stringify({ '13-0001': '00000000-0000-4000-8000-000000000001' }),
     'vehicleTrackingCoreNotes:13-0001': JSON.stringify([{ text: 'excluded note text' }]),
+    'unrelatedGitHubPagesApp:secret': 'must never be read or exported',
   });
   const windowObject = {
     location: { origin: 'http://127.0.0.1:8124' },
@@ -41,6 +43,8 @@ async function main() {
   assert.strictEqual(first.local_storage_unchanged, true);
   assert.strictEqual(first.local_storage_sha256_before, first.local_storage_sha256_after);
   assert.strictEqual(storage.writeAttempts, 0, 'export must never call a storage write API');
+  assert(!storage.readKeys.includes('unrelatedGitHubPagesApp:secret'), 'export must not read non-PDC localStorage values');
+  assert.strictEqual(first.families.canonical_vehicle_link_count, 1);
   assert.strictEqual(first.vehicles.length, 2);
   assert.strictEqual(first.vehicles[0].job_card_number, 'JC-1');
   assert.strictEqual(first.vehicles[0].parts_task_count, 1);
