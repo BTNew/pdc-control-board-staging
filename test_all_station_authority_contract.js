@@ -36,7 +36,7 @@ assert(app.includes('return authoritativeWorkshopVehiclesForStage(normalizedStag
 assert(app.includes("get_workshop_eligibility_snapshot"), 'Control Board must load canonical aggregate RPC');
 assert(app.includes("{ allStations: true }"), 'Control Board must subscribe to all station revision signals');
 assert(app.includes("table = stageCode || allStations ? 'workshop_station_revision'"), 'all-station Realtime must use station revision authority');
-assert(app.includes("onSubscribed: () => loadWorkshopEligibilitySnapshot('subscribed')"), 'Realtime trust must resync after SUBSCRIBED/reconnect');
+assert(app.includes("return loadWorkshopEligibilitySnapshot('subscribed')") && app.includes('workshopEligibilityReconnectTimer = setTimeout'), 'Realtime trust must resync after SUBSCRIBED and replace a closed channel');
 assert(app.includes("if (app.workshopEligibilityState !== 'connected') return []"), 'disconnected Control Board must not consume stale candidates');
 assert(planner.includes('WORKSHOP_ELIGIBILITY_RUNTIME.workshopCanonicalEligibility'), 'planner must apply the canonical candidate contract');
 assert(migration.match(/get_station_workshop_snapshot[\s\S]*workshop_station_eligibility\(v_stage\)/), 'station RPC must use canonical eligibility');

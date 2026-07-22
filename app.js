@@ -1861,6 +1861,7 @@ const app = {
   workshopEligibilityError: '',
   workshopEligibilityRequestGeneration: 0,
   workshopEligibilityRealtime: null,
+  workshopEligibilityReconnectTimer: null,
   singleSearchFocus: {},
   workflowFilters: {
     sort: 'oldest',
@@ -4272,8 +4273,11 @@ function workshopEligibilitySharedAuthorityEnabled() {
 
 function teardownWorkshopEligibilityOverview({ clearSnapshot = false } = {}) {
   app.workshopEligibilityRequestGeneration += 1;
-  try { app.workshopEligibilityRealtime?.unsubscribe?.(); } catch (_error) { /* best effort */ }
+  const realtime = app.workshopEligibilityRealtime;
   app.workshopEligibilityRealtime = null;
+  if (app.workshopEligibilityReconnectTimer) clearTimeout(app.workshopEligibilityReconnectTimer);
+  app.workshopEligibilityReconnectTimer = null;
+  try { realtime?.unsubscribe?.(); } catch (_error) { /* best effort */ }
   if (clearSnapshot) {
     app.workshopEligibilitySnapshot = null;
     app.workshopEligibilityState = 'idle';
@@ -4285,11 +4289,16 @@ function workshopEligibilityOverviewSubscribe() {
   if (app.workshopEligibilityRealtime || typeof createPdcSupabaseRealtimeSubscription !== 'function') return;
   app.workshopEligibilitySnapshot = null;
   app.workshopEligibilityState = 'reconnecting';
-  app.workshopEligibilityRealtime = createPdcSupabaseRealtimeSubscription(window.PDC_SUPABASE_CONFIG, {
+  let subscription = null;
+  subscription = createPdcSupabaseRealtimeSubscription(window.PDC_SUPABASE_CONFIG, {
     onChange: () => {
       if (app.workshopEligibilityState === 'connected') loadWorkshopEligibilitySnapshot('realtime');
     },
-    onSubscribed: () => loadWorkshopEligibilitySnapshot('subscribed'),
+    onSubscribed: () => {
+      if (app.workshopEligibilityReconnectTimer) clearTimeout(app.workshopEligibilityReconnectTimer);
+      app.workshopEligibilityReconnectTimer = null;
+      return loadWorkshopEligibilitySnapshot('subscribed');
+    },
     onError: status => {
       app.workshopEligibilitySnapshot = null;
       app.workshopEligibilityState = 'reconnecting';
@@ -4297,11 +4306,20 @@ function workshopEligibilityOverviewSubscribe() {
       if (app.currentView === 'workflow') renderWorkflowBoard();
     },
     onClosed: () => {
+      if (app.workshopEligibilityRealtime !== subscription) return;
+      app.workshopEligibilityRealtime = null;
       app.workshopEligibilitySnapshot = null;
       app.workshopEligibilityState = 'reconnecting';
+      try { subscription?.unsubscribe?.(); } catch (_error) { /* best effort */ }
+      if (app.workshopEligibilityReconnectTimer) clearTimeout(app.workshopEligibilityReconnectTimer);
+      app.workshopEligibilityReconnectTimer = setTimeout(() => {
+        app.workshopEligibilityReconnectTimer = null;
+        workshopEligibilityOverviewSubscribe();
+      }, 1000);
       if (app.currentView === 'workflow') renderWorkflowBoard();
     },
   }, { allStations: true });
+  app.workshopEligibilityRealtime = subscription;
 }
 
 async function loadWorkshopEligibilitySnapshot(reason = 'manual') {
