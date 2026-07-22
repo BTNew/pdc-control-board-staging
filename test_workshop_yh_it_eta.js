@@ -68,8 +68,10 @@ assert.ok(risk && risk.reason === 'before_eta', 'Later IT ETA must flag the exis
 assert.strictEqual(existing.startAt, new Date(2026, 6, 22, 8, 0).toISOString(), 'Risk calculation must not move the booking');
 const missingEtaRisk = planner.workshopEtaRiskForEntry(existing, { ...it, kewdaleEta: '' });
 assert.ok(missingEtaRisk && missingEtaRisk.reason === 'missing_eta', 'Removing an IT ETA must keep the existing booking visibly at risk for review');
+assert.strictEqual(planner.workshopEtaRiskLabel(missingEtaRisk), 'ETA RISK · ETA missing');
 const invalidEtaRisk = planner.workshopEtaRiskForEntry(existing, { ...it, kewdaleEta: '31/02/2026' });
 assert.ok(invalidEtaRisk && invalidEtaRisk.reason === 'invalid_eta', 'An invalid IT ETA must keep the existing booking visibly at risk for review');
+assert.strictEqual(planner.workshopEtaRiskLabel(invalidEtaRisk), 'ETA RISK · ETA invalid');
 assert.strictEqual(planner.workshopEtaRiskForEntry({ ...existing, vehicleKey: yh.id }, { ...yh, kewdaleEta: '24/07/2026' }), null, 'YH ETA changes must not create scheduling risk');
 
 const appSource = fs.readFileSync(path.join(__dirname, 'app.js'), 'utf8');
@@ -88,4 +90,4 @@ assert.ok(!migration.includes('current_location ='), 'Scheduling migration must 
 assert.ok(!/\bpmb_stage\s*=/.test(migration), 'Scheduling migration must not mutate the production bucket');
 assert.ok(!/\bvisible_on_board\s*=/.test(migration), 'Scheduling migration must not mutate board visibility');
 assert.ok(migration.includes('revoke all on function public.workshop_enforce_vehicle_eta()'), 'Trigger helpers must not be directly executable by authenticated clients');
-console.log('Workshop YH/IT ETA regression: 38 assertions passed.');
+console.log('Workshop YH/IT ETA regression: 40 assertions passed.');

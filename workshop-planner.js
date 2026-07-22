@@ -2472,6 +2472,13 @@ function workshopEtaRiskForEntry(entry = {}, vehicle = workshopVehicle(entry.veh
   return result.required && !result.ok ? result : null;
 }
 
+function workshopEtaRiskLabel(risk = null) {
+  if (!risk) return '';
+  if (risk.reason === 'missing_eta') return 'ETA RISK · ETA missing';
+  if (risk.reason === 'invalid_eta') return 'ETA RISK · ETA invalid';
+  return `ETA RISK · earliest ${risk.earliestDateKey || 'unknown'}`;
+}
+
 function workshopVehicleSearchText(vehicle = {}) {
   return [vehicleKey(vehicle), displayStockNumber(vehicle), vehicle.keyNumber, vehicleKeyNumber(vehicle), vehicle.pdcJobcard, vehicleJobcardNumber(vehicle), vehicleCustomerName(vehicle), vehicle.vehicle, vehicle.toyotaVehicle, displayVehicle(vehicle)]
     .filter(Boolean).join(' ').toLowerCase();
@@ -2824,6 +2831,7 @@ function workshopPlanChipHtml(entry = {}, dateKey = '', rows = workshopLoadPlans
     : workshopState().highlightVehicleKey === entry.vehicleKey;
   const parts = workshopPartsSummary(vehicle);
   const etaRisk = workshopEtaRiskForEntry(entry, vehicle);
+  const etaRiskLabel = workshopEtaRiskLabel(etaRisk);
   const draggable = entry.status !== 'completed';
   const assignee = cleanNavisionText(entry.assignee || '') || workshopBayMechanic(entry.stage, entry.bay) || '';
   const statusLabel = entry.status === 'completed' ? 'COMPLETED' : entry.status === 'stoppage' ? 'STOPPAGE' : entry.status === 'started' ? 'LIVE' : 'PLANNED';
@@ -2836,7 +2844,7 @@ function workshopPlanChipHtml(entry = {}, dateKey = '', rows = workshopLoadPlans
       <small>${escapeHtml(vehicleCustomerName(vehicle) || 'Unknown customer')}</small>
       <small>${escapeHtml(`${statusLabel}${assignee ? ` · ${assignee}` : ''}${segment.usesConfiguredOvertime ? ' · CONFIGURED OVERTIME' : ''}${segment.historicalOnClosure ? ' · HISTORICAL CLOSURE' : ''}`)}</small>
       <small>${escapeHtml(`${entry.hours}h · Parts ${parts.label}${parts.eta && !['issued', 'notrequired'].includes(parts.status) ? ` · ETA ${parts.eta}` : ''}`)}</small>
-      ${etaRisk ? `<small class="workshop-eta-risk-label">ETA RISK · earliest ${escapeHtml(etaRisk.earliestDateKey)}</small>` : ''}
+      ${etaRiskLabel ? `<small class="workshop-eta-risk-label">${escapeHtml(etaRiskLabel)}</small>` : ''}
     </button>
     <span class="workshop-plan-resize" data-workshop-resize-plan="${escapeHtml(entry.id)}" title="Drag to change duration"></span>
   </article>`;
@@ -5224,6 +5232,7 @@ if (typeof module !== 'undefined' && module.exports) {
     workshopDateKeyNotBefore,
     workshopEtaScheduleValidation,
     workshopEtaRiskForEntry,
+    workshopEtaRiskLabel,
     workshopStageVehicles,
     workshopVehicle,
     workshopSnapshotVehicleToPlannerRow,
