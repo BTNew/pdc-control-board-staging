@@ -154,8 +154,9 @@
     let audit = parseJson(before, KEYS.audit, [], parseErrors);
     const navisionImport = parseJson(before, KEYS.navision_import, null, parseErrors);
     let canonicalLinks = parseJson(before, KEYS.canonical_links, {}, parseErrors);
-    const base = Array.isArray(windowObject.VEHICLE_TRACKING_DATA?.vehicles)
-      ? windowObject.VEHICLE_TRACKING_DATA.vehicles : [];
+    // Staging assessment scope is deliberately limited to PDC localStorage.
+    // Runtime/static/Supabase-loaded vehicle collections are not inspected.
+    const base = [];
     if (!Array.isArray(added) || !edits || typeof edits !== 'object' || Array.isArray(edits) || !Array.isArray(deleted)) {
       throw new Error('browser-local vehicle families have unexpected shapes');
     }

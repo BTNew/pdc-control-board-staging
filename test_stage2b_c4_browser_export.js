@@ -35,7 +35,7 @@ async function main() {
   });
   const windowObject = {
     location: { origin: 'http://127.0.0.1:8124' },
-    VEHICLE_TRACKING_DATA: { vehicles: [] },
+    VEHICLE_TRACKING_DATA: { vehicles: [{ stock: 'STATIC-001', customer: 'runtime-data-must-not-be-read' }] },
   };
   const first = await exporter.buildAssessmentExport({ localStorage: storage, windowObject });
   const second = await exporter.buildAssessmentExport({ localStorage: storage, windowObject });
@@ -51,7 +51,7 @@ async function main() {
   assert.deepStrictEqual(first.notes, [{ legacy_vehicle_key: '13-0001', note_count: 1 }]);
   assert.strictEqual(first.bookings[0].legacy_vehicle_key, '13-0001');
   const serialized = exporter.canonicalJson(first);
-  for (const prohibited of ['must not export', 'excluded note text', 'task content excluded', 'secret.pdf', 'assignee']) {
+  for (const prohibited of ['must not export', 'excluded note text', 'task content excluded', 'secret.pdf', 'assignee', 'runtime-data-must-not-be-read', 'STATIC-001']) {
     assert(!serialized.includes(prohibited), `broad payload leaked: ${prohibited}`);
   }
   const malformedStorage = new ReadOnlyStorage({
