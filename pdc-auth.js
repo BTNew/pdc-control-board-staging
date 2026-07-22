@@ -8,6 +8,10 @@
     role: null,
     initialized: false,
     ownRoleChannel: null,
+    // Monotonic ownership tokens for asynchronous session and role checks.
+    // A completion may publish authority only if it still owns both tokens.
+    authGeneration: 0,
+    roleLookupGeneration: 0,
     passwordSetupRequired: /(?:^|[?#&])type=(?:invite|recovery)(?:[&#]|$)/.test(`${window.location.search}${window.location.hash}`),
   };
 
@@ -127,15 +131,27 @@
   }
 
   async function handleOwnRoleRowChanged() {
-    if (!state.session) return;
-    const { role, error } = await loadApprovedRole(state.session);
+    const session = state.session;
+    if (!session) return;
+    const authGeneration = state.authGeneration;
+    const roleLookupGeneration = ++state.roleLookupGeneration;
+    const { role, error } = await loadApprovedRole(session);
+    if (
+      authGeneration !== state.authGeneration
+      || roleLookupGeneration !== state.roleLookupGeneration
+      || state.session !== session
+    ) return;
     if (error || !role || role.account_status !== 'approved' || !approvedRole(role, state.session.user?.email)) {
       // No longer approved (disabled, rejected, reverted to pending, or the
       // row vanished). Lock immediately -- do not wait for the user to
       // reload or sign out, and do not leave previously-rendered
       // operational data visible in an inert-but-still-DOM-present shell.
       window.dispatchEvent(new CustomEvent('pdc-auth-locked', { detail: { reason: role ? role.account_status : 'not_found' } }));
+      state.authGeneration += 1;
+      state.roleLookupGeneration += 1;
       unsubscribeOwnRoleChannel();
+      state.session = null;
+      state.user = null;
       state.role = null;
       delete window.PDC_AUTH_CONTEXT;
       delete window.__pdcCachedAccessToken;
@@ -214,6 +230,10 @@
   }
 
   async function applySession(session) {
+    const authGeneration = ++state.authGeneration;
+    // Any own-row lookup started under the previous session/role generation
+    // is now obsolete, even when the replacement belongs to the same user.
+    state.roleLookupGeneration += 1;
     lockApplication();
     // Clear every operational-data surface before validating a replacement
     // session. This also covers ordinary sign-out/session-expiry, not only a
@@ -260,6 +280,7 @@
 
     setMessage('Checking PDC access…', 'Your identity is signed in. Checking the approved staff list.', 'checking');
     const { role, error } = await loadApprovedRole(session);
+    if (authGeneration !== state.authGeneration || state.session !== session) return;
     if (error || !role) {
       setMessage('Access not approved', `The account ${session.user.email || 'you used'} is not on the PDC approved staff list.`, 'denied');
       return;

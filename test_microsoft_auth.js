@@ -76,4 +76,95 @@ assert.ok(!helpers.approvedRole({ email: 'other@example.com', role: 'administrat
 assert.strictEqual(helpers.safeRedirectTo('https://evil.example/login'), 'http://localhost:8765/index.html', 'OAuth redirect must stay on the current origin');
 assert.strictEqual(helpers.safeRedirectTo('/index.html'), 'http://localhost:8765/index.html', 'Same-origin OAuth redirect should be accepted');
 
-console.log('PDC authentication gate checks passed');
+async function testAuthGenerationOwnership() {
+  const instrumented = authSource.replace(
+    /\}\)\(\);\s*$/,
+    'window.__PDC_AUTH_INTERNALS = { state, applySession, handleOwnRoleRowChanged };\n})();'
+  );
+  const events = [];
+  const body = { dataset: {}, classList: { add() {}, remove() {} } };
+  const raceContext = {
+    console, URL, Set, Object, String, Boolean, Error, Promise,
+    CustomEvent: function CustomEvent(type, init) { this.type = type; this.detail = init?.detail; },
+    window: {
+      location: { origin: 'http://localhost:8765', pathname: '/index.html', search: '', hash: '' },
+      addEventListener() {},
+      dispatchEvent(event) { events.push(event); },
+      setTimeout,
+    },
+    document: {
+      readyState: 'loading',
+      addEventListener() {},
+      getElementById() { return null; },
+      body,
+    },
+    setTimeout,
+  };
+  raceContext.globalThis = raceContext;
+  vm.createContext(raceContext);
+  vm.runInContext(instrumented, raceContext, { filename: 'pdc-auth-race.js' });
+  const internals = raceContext.window.__PDC_AUTH_INTERNALS;
+  const roleResponses = [];
+  const client = {
+    from() {
+      return {
+        select() { return this; },
+        eq() { return this; },
+        maybeSingle() {
+          const response = roleResponses.shift();
+          if (!response) throw new Error('missing role response');
+          return response;
+        },
+      };
+    },
+    channel() { return { on() { return this; }, subscribe() { return this; } }; },
+    removeChannel() {},
+    rpc() { return Promise.resolve({}); },
+  };
+  internals.state.client = client;
+  const session = {
+    access_token: 'session-a-token',
+    user: { id: 'A', email: 'a@example.com', user_metadata: {} },
+  };
+  const approved = role => ({ data: { email: 'a@example.com', role, active: true, account_status: 'approved' }, error: null });
+  const deferred = () => {
+    let resolve;
+    const promise = new Promise(r => { resolve = r; });
+    return { promise, resolve };
+  };
+
+  // An older session validation must not unlock after a newer sign-out.
+  const staleSessionRole = deferred();
+  roleResponses.push(staleSessionRole.promise);
+  const staleApply = internals.applySession(session);
+  await internals.applySession(null);
+  staleSessionRole.resolve(approved('operator'));
+  await staleApply;
+  assert.strictEqual(raceContext.window.PDC_AUTH_CONTEXT, undefined, 'stale session validation must not restore auth context after sign-out');
+  assert.strictEqual(raceContext.window.__pdcCachedAccessToken, undefined, 'stale session validation must not recache an old JWT');
+  assert.strictEqual(internals.state.session, null, 'signed-out session remains authoritative');
+
+  // Concurrent own-row lookups are last-started-wins, even when the older
+  // elevated result completes after a newer demotion.
+  roleResponses.push(Promise.resolve(approved('operator')));
+  await internals.applySession(session);
+  const olderAdmin = deferred();
+  const newerViewer = deferred();
+  roleResponses.push(olderAdmin.promise, newerViewer.promise);
+  const oldLookup = internals.handleOwnRoleRowChanged();
+  const newLookup = internals.handleOwnRoleRowChanged();
+  newerViewer.resolve(approved('viewer'));
+  await newLookup;
+  olderAdmin.resolve(approved('administrator'));
+  await oldLookup;
+  assert.strictEqual(raceContext.window.PDC_AUTH_CONTEXT.role, 'viewer', 'older elevated role lookup must not overwrite newer demotion');
+  assert.strictEqual(internals.state.role.role, 'viewer', 'internal role authority must remain at newest lookup');
+  assert.ok(events.some(event => event.type === 'pdc-auth-ready' && event.detail?.role === 'viewer'), 'newest demotion must publish auth-ready');
+}
+
+testAuthGenerationOwnership().then(() => {
+  console.log('PDC authentication gate and generation-race checks passed');
+}).catch(error => {
+  console.error(error);
+  process.exitCode = 1;
+});
