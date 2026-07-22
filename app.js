@@ -1515,7 +1515,17 @@ function loadMechanicRecords(includeInactive = false) {
 // itself only reads the disposable in-memory cache synchronously and never
 // triggers a network fetch on its own (matching the existing synchronous
 // call-site contract every caller of loadMechanics() already relies on).
+function workshopReferenceDataRoleCanRead(role = window.PDC_AUTH_CONTEXT?.role) {
+  return ['operator', 'administrator'].includes(String(role || '').trim().toLowerCase());
+}
+
 function refreshWorkshopReferenceData() {
+  if (!workshopReferenceDataRoleCanRead()) {
+    stopWorkshopReferenceDataReconciliationTimer();
+    window.__workshopReferenceDataService?.unsubscribeAll?.();
+    window.__workshopReferenceDataService = null;
+    return;
+  }
   const service = typeof initWorkshopReferenceDataServiceIfAvailable === 'function' ? initWorkshopReferenceDataServiceIfAvailable() : null;
   if (!service) return;
   service.listTechnicians(true).catch(() => {});
@@ -1541,8 +1551,16 @@ function refreshWorkshopReferenceData() {
 // call sites), and stopped on logout/account-lockout so it never
 // polls with a signed-out session.
 function startWorkshopReferenceDataReconciliationTimer() {
+  if (!workshopReferenceDataRoleCanRead()) {
+    stopWorkshopReferenceDataReconciliationTimer();
+    return;
+  }
   if (window.__workshopReferenceDataReconcileTimer) return;
   window.__workshopReferenceDataReconcileTimer = window.setInterval(() => {
+    if (!workshopReferenceDataRoleCanRead()) {
+      stopWorkshopReferenceDataReconciliationTimer();
+      return;
+    }
     const service = window.__workshopReferenceDataService;
     if (!service || !window.PDC_AUTH_CONTEXT) return;
     service.listTechnicians(true).catch(() => {});
@@ -3593,6 +3611,7 @@ function createPdcSupabaseTableRealtimeSubscription(tableName, handlers) {
 // a clear "not authenticated"/offline state -- there is no synchronous
 // path back to localStorage.
 function initWorkshopReferenceDataServiceIfAvailable() {
+  if (!workshopReferenceDataRoleCanRead()) return null;
   if (window.__workshopReferenceDataService) return window.__workshopReferenceDataService;
   if (!window.PDC_SUPABASE_CONFIG || typeof createWorkshopReferenceDataService !== 'function' || typeof createWorkshopReferenceSupabaseClient !== 'function') return null;
 
@@ -3660,7 +3679,13 @@ function initWorkshopSharedServicesIfEnabled() {
     });
     window.__workshopDataService = dataService;
 
-    dataService.loadSnapshot('initial');
+    // The first successful station Realtime subscription performs the
+    // authoritative initial resync. Avoid issuing a duplicate scoped RPC
+    // immediately before that subscription; if Realtime is not loaded yet,
+    // retain the one-shot initial snapshot fallback.
+    if (typeof createWorkshopRealtimeManager !== 'function' || typeof createPdcSupabaseRealtimeSubscription !== 'function') {
+      dataService.loadSnapshot('initial_without_realtime');
+    }
   }
 
   // Deliberately re-checked every call, same reasoning as the shared-

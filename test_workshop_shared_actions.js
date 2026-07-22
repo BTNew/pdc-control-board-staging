@@ -44,6 +44,23 @@ async function run() {
     console.log('PASS 2: resizeBooking maps correctly');
   }
 
+  // 2c. atomic insert/extend cascade
+  {
+    const ds = fakeDataService();
+    const actions = buildWorkshopSharedActions(ds);
+    await actions.cascadeSchedule({
+      operation: 'extend', targetId: 'b1', targetExpectedVersion: 2,
+      stageCode: 'HOIST', bayNumber: 1, scheduledStartAt: '2026-07-20T00:00:00Z',
+      durationMinutes: 120, technicianId: null,
+      shiftMinutes: 60,
+    });
+    assert.strictEqual(ds.calls[0].name, 'cascade_workshop_schedule', 'cascade must use the one atomic transactional RPC');
+    assert.strictEqual(ds.calls[0].params.p_operation, 'extend');
+    assert.strictEqual(ds.calls[0].params.p_target_expected_version, 2);
+    assert.strictEqual(ds.calls[0].params.p_shift_minutes, 60);
+    console.log('PASS 2c: cascadeSchedule maps all timestamps to one atomic RPC');
+  }
+
   // 3. startWork / stopWork / resumeWork
   {
     const ds = fakeDataService();

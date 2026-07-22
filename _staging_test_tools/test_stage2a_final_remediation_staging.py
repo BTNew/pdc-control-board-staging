@@ -85,8 +85,11 @@ def direct_role_matrix(admin, operator, viewer, rows):
         ("list_workshop_bays", "workshop_bays"),
     ]:
         status, body = rpc(viewer, fn, {"p_include_inactive": True})
-        ids = {str(row.get("id")) for row in body} if status == 200 and isinstance(body, list) else set()
-        check(f"viewer {fn} cannot expose inactive rows", status == 200 and rows[key] not in ids, (status, body))
+        check(
+            f"viewer {fn} is denied by the operator-only reference contract",
+            status == 403 and isinstance(body, dict) and body.get("code") == "42501",
+            (status, body),
+        )
 
 
 def strict_validation(admin):

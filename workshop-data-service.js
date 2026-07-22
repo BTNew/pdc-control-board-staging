@@ -52,6 +52,7 @@ const WORKSHOP_MUTATION_RPCS = Object.freeze([
   'return_work_to_queue',
   'cancel_workshop_booking',
   'restore_workshop_booking',
+  'cascade_workshop_schedule',
   'approve_parts_incomplete_override'
 ]);
 
@@ -73,6 +74,7 @@ const WORKSHOP_MUTATION_VERSION_PARAM = Object.freeze({
   return_work_to_queue: 'p_expected_version',
   cancel_workshop_booking: 'p_expected_version',
   restore_workshop_booking: 'p_expected_version',
+  cascade_workshop_schedule: 'p_target_expected_version',
   approve_parts_incomplete_override: 'p_vehicle_expected_version'
 });
 

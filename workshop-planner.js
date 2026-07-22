@@ -231,7 +231,7 @@ function workshopClampLineHours(value = 1) {
 }
 
 function workshopClampDurationHours(value = workshopDefaultBookingHours()) {
-  return workshopClampLineHours(value || workshopDefaultBookingHours());
+  return Math.max(1, workshopClampLineHours(value || workshopDefaultBookingHours()));
 }
 
 function workshopIntervalsOverlap(startA, endA, startB, endB) {
@@ -2065,6 +2065,26 @@ function workshopShiftTrailingPlannedRows(candidate = {}, otherRows = [], { conf
   return { rows: settled, moved };
 }
 
+function workshopShiftEveryLaterPlannedRow(candidate = {}, otherRows = [], shiftMinutes = 0) {
+  const delay = Math.max(0, workshopSnapMinutes(shiftMinutes));
+  const candidateStart = workshopEntryStart(candidate);
+  if (!delay || Number.isNaN(candidateStart.getTime())) return { rows: otherRows.map(row => ({ ...row })), moved: [] };
+  const later = otherRows
+    .filter(row => row.id !== candidate.id
+      && row.status === 'planned'
+      && row.stage === candidate.stage
+      && Number(row.bay) === Number(candidate.bay)
+      && workshopEntryStart(row) >= candidateStart)
+    .sort((a, b) => workshopEntryStart(a) - workshopEntryStart(b) || String(a.id).localeCompare(String(b.id)));
+  const moved = later.map(row => ({
+    ...row,
+    startAt: workshopAddWorkMinutes(workshopEntryStart(row), delay).toISOString(),
+    updatedAt: nowIsoString(),
+  }));
+  const byId = new Map(moved.map(row => [row.id, row]));
+  return { rows: otherRows.map(row => byId.get(row.id) || { ...row }), moved };
+}
+
 function workshopTechnicianIdForEntry(entry = {}) {
   if (entry.technicianId) return String(entry.technicianId);
   const assignee = cleanNavisionText(entry.assignee || '');
@@ -2082,11 +2102,19 @@ function workshopNewBookingValidation(entry = {}) {
   if (!workshopConfigurationAllowsNewScheduling()) return { ok: false, error: 'configuration_unavailable' };
   const start = parseIsoTimestamp(entry.startAt || '');
   if (!start) return { ok: false, error: 'invalid_start' };
-  const durationMinutes = Math.max(1, Math.round(Number(entry.hours || workshopDefaultBookingHours()) * 60));
+  if (workshopIsClosureDate(start)) return { ok: false, error: 'closure_date', date: workshopDateKey(start) };
+  if (!workshopIsConfiguredWorkingDay(start)) return { ok: false, error: 'non_working_day', date: workshopDateKey(start) };
+  const startMinute = workshopMinuteOfDay(start);
+  const startWindow = workshopAvailabilityWindowsForDate(start).find(window => startMinute >= window.startMinutes && startMinute < window.endMinutes);
+  if (!startWindow) {
+    const inBreak = workshopBreakWindowsForDate(start).some(window => startMinute >= window.startMinutes && startMinute < window.endMinutes);
+    return { ok: false, error: inBreak ? 'break_window' : 'outside_work_window', date: workshopDateKey(start), minute: startMinute };
+  }
+  const durationMinutes = Math.max(60, Math.round(Number(entry.hours || workshopDefaultBookingHours()) * 60));
   const technicianId = workshopTechnicianIdForEntry(entry);
   let usesOvertime = false;
   for (let offset = 0; offset < durationMinutes; offset += 1) {
-    const proposedMinute = new Date(start.getTime() + offset * 60000);
+    const proposedMinute = workshopAddWorkMinutes(start, offset);
     const dateKey = workshopDateKey(proposedMinute);
     if (workshopIsClosureDate(proposedMinute)) return { ok: false, error: 'closure_date', date: dateKey };
     if (!workshopIsConfiguredWorkingDay(proposedMinute)) return { ok: false, error: 'non_working_day', date: dateKey };
@@ -2156,10 +2184,22 @@ function workshopEntryIsLive(entry = {}) {
   return Boolean(vehicle && Number(pmbBayNumber(vehicle, entry.stage)) === Number(entry.bay));
 }
 
-function workshopCascadePlans(rows = workshopLoadPlans()) {
-  // Collision policy: never move another booking implicitly. All newly created or edited
-  // overlaps are rejected before persistence, while existing imported/legacy rows remain visible.
-  return { rows: rows.map(entry => ({ ...entry, hours: entry.status === 'completed' ? entry.hours : workshopClampDurationHours(entry.hours) })), changed: false };
+function workshopCascadePlans(rows = workshopLoadPlans(), now = new Date()) {
+  let nextRows = rows.map(entry => ({ ...entry, hours: entry.status === 'completed' ? entry.hours : workshopClampDurationHours(entry.hours) }));
+  let changed = nextRows.some((entry, index) => entry.hours !== rows[index].hours);
+  const liveRows = nextRows
+    .filter(entry => workshopEntryIsLive(entry) && workshopEntryIsOvertime(entry, now))
+    .sort((a, b) => workshopEntryStart(a) - workshopEntryStart(b));
+  for (const live of liveRows) {
+    const delay = workshopWorkMinutesBetween(workshopEntryEnd(live), workshopEntryEffectiveEnd(live, now));
+    if (delay <= 0) continue;
+    const shifted = workshopShiftEveryLaterPlannedRow(live, nextRows.filter(row => row.id !== live.id), delay);
+    if (!shifted.moved.length) continue;
+    const byId = new Map(shifted.moved.map(row => [row.id, row]));
+    nextRows = nextRows.map(row => byId.get(row.id) || row);
+    changed = true;
+  }
+  return { rows: nextRows, changed };
 }
 
 function workshopCascadeAndSave(rows = workshopLoadPlans(), now = new Date()) {
@@ -2987,7 +3027,7 @@ function workshopDetailHtml(entry = null) {
       ${assigneeConflict ? `<small class="workshop-assignee-warning">⚠ ${escapeHtml(entry.assignee)} is booked on another vehicle at this time.</small>` : ''}
     </div>
     <label><span>Start</span><input name="startAt" type="datetime-local" step="900" value="${escapeHtml(localValue)}" required ${completed || started ? 'disabled' : ''} /></label>
-    <label><span>Planned hours</span><input name="hours" type="number" min="0.25" step="0.25" value="${escapeHtml(entry.hours)}" required ${completed ? 'disabled' : ''} /></label>
+    <label><span>Planned hours</span><input name="hours" type="number" min="1" step="0.25" value="${escapeHtml(entry.hours)}" required ${completed ? 'disabled' : ''} /></label>
     <label><span>${entry.stage === 'SUBLET' ? 'Provider' : 'Technician'}</span><select name="assignee" ${completed ? 'disabled' : ''}>${workshopAssigneeOptions(entry.stage, entry.assignee || workshopBayMechanic(entry.stage, entry.bay) || pmbBayMechanic(vehicle))}</select></label>
     <div class="workshop-detail-actions">
       ${completed ? '<span class="badge success">Completed</span>' : '<button class="primary" type="submit">Save plan</button>'}
@@ -3848,10 +3888,10 @@ function openWorkshopScheduleModal(vehicleKeyValue = '', stage = '', dateKey = '
         <label><span>${normalizedStage === 'SUBLET' ? 'Row' : 'Bay'}</span><select name="bay">${bayOptions}</select></label>
         <label><span>Date</span><input name="date" type="date" value="${escapeHtml(scheduledDate)}" ${etaConstraint.earliestDateKey ? `min="${escapeHtml(etaConstraint.earliestDateKey)}"` : ''} required></label>
         <label><span>Start time</span><select name="startMinutes">${workshopScheduleTimeOptions(startMinutes)}</select></label>
-        <label><span>Planned hours</span><input name="hours" type="number" min="0.25" step="0.25" value="${escapeHtml(workshopClampDurationHours(hours))}" required></label>
+        <label><span>Planned hours</span><input name="hours" type="number" min="1" step="0.25" value="${escapeHtml(workshopClampDurationHours(hours))}" required></label>
         <label><span>${normalizedStage === 'SUBLET' ? 'Provider' : 'Technician'}</span><select name="assignee">${workshopAssigneeOptions(normalizedStage, workshopBayMechanic(normalizedStage, bay) || pmbBayMechanic(vehicle))}</select></label>
       </div>
-      <p class="workshop-schedule-note">The first open sequence time is selected automatically and may advance to the next workday. Back-to-back bookings are allowed; overlapping times are blocked.${etaConstraint.required ? ` ${escapeHtml(etaConstraint.location)} earliest permitted booking date: ${escapeHtml(etaConstraint.earliestDateKey)}.` : ''}</p>
+      <p class="workshop-schedule-note">Later bookings in this bay move automatically, preserving their order and duration and skipping non-working days.${etaConstraint.required ? ` ${escapeHtml(etaConstraint.location)} earliest permitted booking date: ${escapeHtml(etaConstraint.earliestDateKey)}.` : ''}</p>
       <div class="edit-actions"><button class="secondary" type="button" data-workshop-schedule-cancel>Cancel</button><button class="primary" type="submit">Add to planner</button></div>
     </form>
   </section>`;
@@ -3884,24 +3924,12 @@ function openWorkshopScheduleModal(vehicleKeyValue = '', stage = '', dateKey = '
       return;
     }
     const requestedStartMinutes = Number(form.elements.startMinutes.value);
-    const availableSlot = workshopFirstAvailableStartSlot(
-      normalizedStage,
-      Number(form.elements.bay.value),
-      workshopDateKey(selected),
-      Number(form.elements.hours.value),
-      workshopLoadPlans(),
-      requestedStartMinutes,
-    );
-    if (!availableSlot) {
-      window.alert('No open sequence slot was found in this bay during the next 260 workdays. Choose another bay or a later date.');
-      return;
-    }
     const scheduled = await scheduleWorkshopVehicle({
       vehicleKeyValue,
       stage: normalizedStage,
       bay: Number(form.elements.bay.value),
-      dateKey: availableSlot.dateKey,
-      startMinutes: availableSlot.startMinutes,
+      dateKey: workshopDateKey(selected),
+      startMinutes: requestedStartMinutes,
       hoursValue: Number(form.elements.hours.value),
       assigneeValue: form.elements.assignee.value,
     });
@@ -3926,10 +3954,16 @@ async function extendWorkshopPlan(planId = '', additionalHours = 0) {
       technicianId: workshopTechnicianIdForEntry(entry),
     };
     if (!workshopRequireSchedulableCandidate(candidate)) return false;
-    const result = await workshopDispatchSharedAction('resizeBooking', {
-      bookingId: entry.sharedBookingId || entry.id,
-      expectedVersion: entry.sharedVersion,
+    const shiftMinutes = Math.round(delta * 60);
+    const result = await workshopDispatchSharedAction('cascadeSchedule', {
+      operation: 'extend',
+      targetId: entry.sharedBookingId || entry.id,
+      targetExpectedVersion: entry.sharedVersion,
+      stageCode: entry.stage,
+      bayNumber: Number(entry.bay),
+      scheduledStartAt: entry.startAt,
       durationMinutes: Math.round(nextHours * 60),
+      shiftMinutes,
     });
     return !!(result && result.ok);
   }
@@ -3942,16 +3976,9 @@ async function extendWorkshopPlan(planId = '', additionalHours = 0) {
     return false;
   }
   const otherRows = latestRows.filter(row => row.id !== candidate.id);
-  let extendShift = null;
-  if (workshopHasConflict(candidate, otherRows)) {
-    extendShift = workshopShiftTrailingPlannedRows(candidate, otherRows);
-    if (!extendShift) {
-      workshopRequireNoBayConflict(candidate, otherRows);
-      return false;
-    }
-  }
+  const extendShift = workshopShiftEveryLaterPlannedRow(candidate, otherRows, Math.round(delta * 60));
   const extendConflictRows = extendShift ? extendShift.rows.filter(row => row.id !== candidate.id) : otherRows;
-  if (!extendShift && !workshopRequireNoBayConflict(candidate, otherRows)) return false;
+  if (!workshopRequireNoBayConflict(candidate, extendConflictRows)) return false;
   if (!workshopRequireAvailableAssignee(candidate, extendConflictRows)) return false;
   const vehicle = workshopVehicle(entry.vehicleKey);
   const hoursMap = vehicle ? workshopEstimatedHoursMap(vehicle) : {};
@@ -4027,14 +4054,16 @@ async function workshopScheduleSharedNewBooking({
   }
   const candidate = { ...requestedCandidate, assignee, technicianId: technicianId || '' };
   if (!workshopRequireSchedulableCandidate(candidate)) return false;
-  const result = await dispatchAction('scheduleVehicleWork', {
-    vehicleId: vehicleRef.vehicleId,
-    vehicleExpectedVersion: vehicleRef.version,
+  const result = await dispatchAction('cascadeSchedule', {
+    operation: 'insert',
+    targetId: vehicleRef.vehicleId,
+    targetExpectedVersion: vehicleRef.version,
     stageCode,
     bayNumber,
     scheduledStartAt,
     durationMinutes,
     technicianId,
+    shiftMinutes: durationMinutes,
   });
   return !!(result && result.ok);
 }
@@ -4086,6 +4115,10 @@ async function scheduleWorkshopVehicle({ planId = '', vehicleKeyValue = '', stag
   const hours = workshopClampDurationHours(defaultHours);
   const requestedCandidate = {
     ...(existing || {}),
+    id: existing?.id || '__new_workshop_booking__',
+    stage: normalizedStage,
+    bay: Number(bay),
+    status: 'planned',
     startAt: start.toISOString(),
     hours,
     assignee: assigneeValue === null
@@ -4143,26 +4176,13 @@ async function scheduleWorkshopVehicle({ planId = '', vehicleKeyValue = '', stag
     return false;
   }
   const conflictRows = latestRows.filter(row => row.id !== candidate.id);
-  let resolvedCandidate = candidate;
-  let plannedRowsAfterShift = null;
-  if (workshopHasConflict(candidate, conflictRows)) {
-    if (preferRequestedTime) {
-      plannedRowsAfterShift = workshopShiftTrailingPlannedRows(candidate, conflictRows);
-      if (!plannedRowsAfterShift) {
-        if (!workshopRequireNoBayConflict(candidate, conflictRows)) return false;
-        return false;
-      }
-    } else {
-      resolvedCandidate = workshopResolveConflictByNextSlot(candidate, conflictRows);
-      if (!resolvedCandidate) return false;
-    }
-  } else if (!workshopRequireNoBayConflict(candidate, conflictRows)) return false;
-  const effectiveRows = plannedRowsAfterShift ? plannedRowsAfterShift.rows.filter(row => row.id !== resolvedCandidate.id) : conflictRows;
-  if (!workshopRequireAvailableAssignee(resolvedCandidate, effectiveRows)) return false;
-  if (!workshopConfirmOtherDepartmentPlans(resolvedCandidate, latestRows)) return false;
-  const baseRows = plannedRowsAfterShift
-    ? latestRows.map(entry => plannedRowsAfterShift.moved.find(item => item.id === entry.id) || entry)
-    : latestRows;
+  const plannedRowsAfterShift = workshopShiftEveryLaterPlannedRow(candidate, conflictRows, Math.round(candidate.hours * 60));
+  const effectiveRows = plannedRowsAfterShift.rows.filter(row => row.id !== candidate.id);
+  if (!workshopRequireNoBayConflict(candidate, effectiveRows)) return false;
+  if (!workshopRequireAvailableAssignee(candidate, effectiveRows)) return false;
+  if (!workshopConfirmOtherDepartmentPlans(candidate, latestRows)) return false;
+  const baseRows = latestRows.map(entry => plannedRowsAfterShift.moved.find(item => item.id === entry.id) || entry);
+  const resolvedCandidate = candidate;
   const nextRows = latestExisting ? baseRows.map(entry => entry.id === latestExisting.id ? resolvedCandidate : entry) : [...baseRows, resolvedCandidate];
   const persisted = workshopPersistPlanAction(
     existing ? 'Workshop plan rescheduled' : 'Workshop plan created',
@@ -4205,14 +4225,24 @@ async function saveWorkshopDetailForm(event) {
   if (workshopSharedModeActive()) {
     const nextStartAt = ['started', 'stoppage'].includes(entry.status) ? entry.startAt : normalizedStart.toISOString();
     const nextDurationMinutes = Math.round(workshopClampDurationHours(requestedHours) * 60);
-    const moveResult = await workshopDispatchSharedAction('moveBooking', {
-      bookingId: entry.sharedBookingId || entry.id,
-      expectedVersion: entry.sharedVersion,
-      stageCode: entry.stage,
-      bayNumber: Number(entry.bay),
-      scheduledStartAt: nextStartAt,
-      durationMinutes: nextDurationMinutes,
-    });
+    const currentDurationMinutes = Math.round(workshopClampDurationHours(entry.hours) * 60);
+    const extendsDuration = nextDurationMinutes > currentDurationMinutes;
+    if (extendsDuration && nextStartAt !== entry.startAt) {
+      window.alert('To preserve an atomic bay cascade, save the new start time first, then extend the duration.');
+      return;
+    }
+    const shiftMinutes = extendsDuration ? nextDurationMinutes - currentDurationMinutes : 0;
+    const moveResult = extendsDuration
+      ? await workshopDispatchSharedAction('cascadeSchedule', {
+        operation: 'extend', targetId: entry.sharedBookingId || entry.id, targetExpectedVersion: entry.sharedVersion,
+        stageCode: entry.stage, bayNumber: Number(entry.bay), scheduledStartAt: entry.startAt,
+        durationMinutes: nextDurationMinutes, shiftMinutes,
+      })
+      : await workshopDispatchSharedAction('moveBooking', {
+        bookingId: entry.sharedBookingId || entry.id, expectedVersion: entry.sharedVersion,
+        stageCode: entry.stage, bayNumber: Number(entry.bay), scheduledStartAt: nextStartAt,
+        durationMinutes: nextDurationMinutes,
+      });
     if (!moveResult || !moveResult.ok) return;
     if (nextAssignee !== (entry.assignee || '')) {
       const nextVersion = moveResult.booking && moveResult.booking.version;
@@ -4255,14 +4285,18 @@ async function saveWorkshopDetailForm(event) {
     return;
   }
   const otherRows = latestRows.filter(row => row.id !== candidate.id);
+  const durationDeltaMinutes = Math.max(0, Math.round((candidate.hours - workshopClampDurationHours(entry.hours)) * 60));
+  const detailShift = durationDeltaMinutes > 0 ? workshopShiftEveryLaterPlannedRow(candidate, otherRows, durationDeltaMinutes) : null;
+  const detailConflictRows = detailShift ? detailShift.rows : otherRows;
   let resolvedDetail = candidate;
-  if (workshopHasConflict(candidate, otherRows)) {
+  if (workshopHasConflict(candidate, detailConflictRows) && !detailShift) {
     resolvedDetail = workshopResolveConflictByNextSlot(candidate, otherRows);
     if (!resolvedDetail) return;
-  } else if (!workshopRequireNoBayConflict(candidate, otherRows)) return;
-  if (!workshopRequireAvailableAssignee(resolvedDetail, otherRows)) return;
+  } else if (!workshopRequireNoBayConflict(candidate, detailConflictRows)) return;
+  if (!workshopRequireAvailableAssignee(resolvedDetail, detailConflictRows)) return;
   if (!workshopConfirmOtherDepartmentPlans(resolvedDetail, latestRows)) return;
-  const updatedRows = workshopCascadePlans(latestRows.map(row => row.id === entry.id ? resolvedDetail : row)).rows;
+  const detailBaseRows = detailShift ? latestRows.map(row => detailShift.moved.find(item => item.id === row.id) || row) : latestRows;
+  const updatedRows = workshopCascadePlans(detailBaseRows.map(row => row.id === entry.id ? resolvedDetail : row)).rows;
   const vehicle = workshopVehicle(entry.vehicleKey);
   const hoursMap = vehicle ? workshopEstimatedHoursMap(vehicle) : {};
   if (vehicle) hoursMap[entry.stage] = resolvedDetail.hours;
@@ -4618,10 +4652,17 @@ function startWorkshopResize(handle, event) {
     const hours = Number(chip.dataset.previewHours || entry.hours);
     delete chip.dataset.previewHours;
     if (workshopSharedModeActive()) {
-      await workshopDispatchSharedAction('resizeBooking', {
-        bookingId: entry.sharedBookingId || entry.id,
-        expectedVersion: entry.sharedVersion,
-        durationMinutes: Math.round(workshopClampDurationHours(hours) * 60),
+      const nextHours = workshopClampDurationHours(hours);
+      const deltaMinutes = Math.max(0, Math.round((nextHours - workshopClampDurationHours(entry.hours)) * 60));
+      await workshopDispatchSharedAction('cascadeSchedule', {
+        operation: 'extend',
+        targetId: entry.sharedBookingId || entry.id,
+        targetExpectedVersion: entry.sharedVersion,
+        stageCode: entry.stage,
+        bayNumber: Number(entry.bay),
+        scheduledStartAt: entry.startAt,
+        durationMinutes: Math.round(nextHours * 60),
+        shiftMinutes: deltaMinutes,
       });
       return;
     }
@@ -4634,16 +4675,8 @@ function startWorkshopResize(handle, event) {
       return;
     }
     const otherRows = latestRows.filter(row => row.id !== candidate.id);
-    let resizeShift = null;
-    if (workshopHasConflict(candidate, otherRows)) {
-      resizeShift = workshopShiftTrailingPlannedRows(candidate, otherRows);
-      if (!resizeShift) {
-        workshopRequireNoBayConflict(candidate, otherRows);
-        renderWorkshopPlanner();
-        return;
-      }
-    }
-    if (!resizeShift && !workshopRequireNoBayConflict(candidate, otherRows)) {
+    const resizeShift = workshopShiftEveryLaterPlannedRow(candidate, otherRows, Math.max(0, Math.round((candidate.hours - originalHours) * 60)));
+    if (!workshopRequireNoBayConflict(candidate, resizeShift.rows)) {
       renderWorkshopPlanner();
       return;
     }
@@ -5050,6 +5083,7 @@ if (typeof module !== 'undefined' && module.exports) {
     workshopRequireNoBayConflict,
     workshopResolveConflictByNextSlot,
     workshopShiftTrailingPlannedRows,
+    workshopShiftEveryLaterPlannedRow,
     workshopDateKey,
     workshopDateFromKey,
     workshopNormalizeStartDate,

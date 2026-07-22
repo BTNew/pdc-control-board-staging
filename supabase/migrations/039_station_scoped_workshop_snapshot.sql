@@ -2,11 +2,9 @@
 -- Additive only: the existing combined get_workshop_snapshot() RPC remains
 -- unchanged for the temporary rollback route.
 
-begin;
-
 -- One revision row per station allows a dedicated planner to subscribe to
 -- only its own operational changes rather than the legacy global revision.
-create table public.workshop_station_revision (
+create table if not exists public.workshop_station_revision (
   stage_code text primary key,
   revision bigint not null default 0,
   updated_at timestamptz not null default now()
@@ -17,6 +15,7 @@ select code from public.workshop_stages
 on conflict (stage_code) do nothing;
 
 alter table public.workshop_station_revision enable row level security;
+drop policy if exists workshop_station_revision_select_operator on public.workshop_station_revision;
 create policy workshop_station_revision_select_operator
 on public.workshop_station_revision for select to authenticated
 using (public.is_pdc_role('operator'));
@@ -117,7 +116,19 @@ drop trigger if exists workshop_parts_overrides_station_revision on public.works
 create trigger workshop_parts_overrides_station_revision after insert or update or delete on public.workshop_parts_overrides
 for each row execute function public.workshop_station_revision_from_booking_child();
 
-alter publication supabase_realtime add table public.workshop_station_revision;
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_publication_tables
+    where pubname = 'supabase_realtime'
+      and schemaname = 'public'
+      and tablename = 'workshop_station_revision'
+  ) then
+    alter publication supabase_realtime add table public.workshop_station_revision;
+  end if;
+end;
+$$;
 
 revoke all on function public.workshop_bump_station_revision(text) from public, anon, authenticated;
 revoke all on function public.workshop_current_station_revision(text) from public, anon, authenticated;
@@ -324,5 +335,3 @@ grant execute on function public.get_station_workshop_snapshot(text, date, date)
 
 comment on function public.get_station_workshop_snapshot(text, date, date) is
   'Returns one active workshop station, its bays, relevant technicians, date-scoped bookings/completions, active stoppages and awaiting-schedule candidates. Operator+ only.';
-
-commit;

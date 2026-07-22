@@ -51,6 +51,7 @@ async function testScopedDataService() {
     params: { p_stage_code: 'TINT', p_date_from: '2026-07-21', p_date_to: '2026-07-21' }
   });
   assert.strictEqual(calls.some(call => call.name === 'get_workshop_snapshot'), false, 'dedicated route must not load combined snapshot');
+  assert.strictEqual(calls.filter(call => call.name === 'get_station_workshop_snapshot').length, 1, 'initial route entry must issue exactly one scoped snapshot RPC');
   await service.setScope({ stageCode: 'TINT', dateFrom: '2026-07-22', dateTo: '2026-07-22' });
   assert.strictEqual(calls.at(-1).params.p_date_from, '2026-07-22');
   assert.deepStrictEqual(service.getScope(), { stageCode: 'TINT', dateFrom: '2026-07-22', dateTo: '2026-07-22' });
@@ -139,7 +140,7 @@ function testRoutesAndIsolationContracts() {
   assert(migration.includes("v.lifecycle_state = 'active'"));
   assert(migration.includes('v.deleted_at is null'));
   assert(migration.includes("'eta_to_kewdale', v.eta_to_kewdale"));
-  assert(migration.includes('create table public.workshop_station_revision'));
+  assert(/create table(?: if not exists)? public\.workshop_station_revision/.test(migration));
   assert(migration.includes("'revision', public.workshop_current_station_revision(v_stage_code)"));
   assert(migration.slice(migration.indexOf("'parts_overrides'")).includes("b.status not in ('completed', 'stoppage')"), 'parts overrides must use scoped booking date/status');
   assert(migration.includes("perform public.require_pdc_role('operator')"));

@@ -53,7 +53,7 @@ function installSharedState({ technicians = [], snapshotBookings = [], leave = [
 function request(assignee) {
   const start = new Date(2026, 6, 20, 9, 0, 0, 0).toISOString();
   return {
-    requestedCandidate: { startAt: start, hours: 2, assignee },
+    requestedCandidate: { id: '__new_workshop_booking__', stage: 'HOIST', bay: 2, status: 'planned', startAt: start, hours: 2, assignee },
     vehicleRef: { vehicleId: 'vehicle-uuid', version: 7 },
     stageCode: 'HOIST',
     bayNumber: 2,
@@ -77,7 +77,8 @@ async function run() {
   let result = await attempt(request('Active Tech'));
   assert.strictEqual(result.ok, true, 'active selected technician schedules successfully');
   assert.strictEqual(result.calls.length, 1, 'active selected technician dispatches exactly one action');
-  assert.strictEqual(result.calls[0].name, 'scheduleVehicleWork');
+  assert.strictEqual(result.calls[0].name, 'cascadeSchedule');
+  assert.strictEqual(result.calls[0].payload.shiftMinutes, 120, 'insert cascade delay equals the inserted booking duration');
   assert.strictEqual(result.calls[0].payload.technicianId, activeId, 'stable reference UUID is retained in the scheduling payload');
   console.log('PASS 1: active selected technician dispatches the stable UUID');
 

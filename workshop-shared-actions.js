@@ -71,6 +71,22 @@ function buildWorkshopSharedActions(dataService) {
       });
     },
 
+    cascadeSchedule({ operation, targetId, targetExpectedVersion, stageCode, bayNumber, scheduledStartAt, durationMinutes, technicianId = null, shiftMinutes = 0, overrideReason = null, metadata = {} }) {
+      return mutate('cascade_workshop_schedule', {
+        p_operation: operation,
+        p_target_id: targetId,
+        p_target_expected_version: targetExpectedVersion,
+        p_stage_code: stageCode,
+        p_bay_number: bayNumber,
+        p_scheduled_start_at: scheduledStartAt,
+        p_duration_minutes: durationMinutes,
+        p_technician_id: technicianId || null,
+        p_shift_minutes: shiftMinutes,
+        p_override_reason: overrideReason || null,
+        p_metadata: metadata,
+      });
+    },
+
     changeBookingBay({ bookingId, expectedVersion, bayNumber, metadata }) {
       return mutate('change_booking_bay', {
         p_booking_id: bookingId,

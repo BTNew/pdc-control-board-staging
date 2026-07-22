@@ -146,8 +146,15 @@ def test_admin_approve_sets_role_and_grants_access():
         "GET", "/rest/v1/vehicles?select=id",
         headers={"apikey": ANON_KEY, "Authorization": f"Bearer {token}"},
     )
-    assert status4 == 200 and len(body4) > 0, "approved viewer should see vehicle rows"
-    print("PASS  4a admin_approve_user sets role + grants real read access")
+    assert status4 == 200 and body4 == [], "approved viewer must not receive direct vehicle rows"
+    status5, body5 = rpc(token, "get_restricted_pilot_vehicle_snapshot", {"p_vehicle_id": None})
+    assert status5 == 200 and isinstance(body5, list), body5
+    approved_fields = {
+        "id", "version", "current_location", "lifecycle_state",
+        "workshop_status", "active_workshop_booking_id",
+    }
+    assert all(set(row) == approved_fields for row in body5), "restricted viewer snapshot exposed unexpected fields"
+    print("PASS  4a admin_approve_user sets viewer role; direct vehicles stay hidden and the six-field restricted snapshot is reachable")
     return token
 
 
