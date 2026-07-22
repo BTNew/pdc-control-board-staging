@@ -63,8 +63,11 @@ function testScopedRealtimeTransport() {
 }
 
 function testRecoveryAndAuthLifecycleContracts() {
-  assert.strictEqual((source.match(/__workshopRecoveryListenersInstalled/g) || []).length, 2, 'one guard and one assignment expected');
-  assert(source.includes("window.addEventListener('online', () => window.__workshopRealtimeManager?.forceReconnect?.())"));
+  assert(source.includes('function installWorkshopRecoveryListeners()'));
+  assert(source.includes('function removeWorkshopRecoveryListeners()'));
+  assert(source.includes("const onOnline = () => window.__workshopRealtimeManager?.forceReconnect?.()"));
+  assert(source.includes("window.removeEventListener('online', onOnline)"), 'inactive station listeners must be disposed');
+  assert(source.includes("document.removeEventListener('visibilitychange', onVisibility)"), 'inactive visibility listeners must be disposed');
   assert(source.includes("if (app.currentView === 'workshop' && typeof initWorkshopSharedServicesIfEnabled === 'function')"));
   assert(source.includes("if (app.currentView !== 'workshop') return;"));
 }

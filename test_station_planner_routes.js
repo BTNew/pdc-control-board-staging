@@ -107,7 +107,7 @@ function testRoutesAndIsolationContracts() {
   assert(app.includes("window.addEventListener('popstate', restoreRoute)"));
   assert(app.includes("window.addEventListener('hashchange', restoreRoute)"));
   assert(app.includes("historyMode: 'none'"));
-  assert(app.includes('teardownWorkshopPlannerScope();'));
+  assert(app.includes('teardownWorkshopPlannerScope({ preserveShell: switchingPlannerStation })'));
   assert(app.includes('window.__workshopRealtimeManager?.stop?.()'));
   assert(app.includes("scope: app.activeWorkshopPlannerStage ?"));
   assert(index.includes('id="nav-workshop-rollback"'));
@@ -117,7 +117,7 @@ function testRoutesAndIsolationContracts() {
   }
   assert(app.includes('combinedPlannerRollback'));
   assert(app.includes('return configured === true'), 'combined planner rollback must fail closed unless explicitly enabled');
-  assert(stagingConfig.includes('stationRoutes: { combinedPlannerRollback: true }'), 'staging must retain the combined planner behind an explicit rollback flag');
+  assert(stagingConfig.includes('stationRoutes: { combinedPlannerRollback: false }'), 'staging must enter through station-first routes, never the combined planner');
   assert(app.includes("table = stageCode ? 'workshop_station_revision' : 'workshop_revision'"), 'dedicated routes must use station-scoped realtime');
   assert(app.includes('stage_code=eq.${stageCode}'), 'station realtime subscription must filter the active stage');
   assert(app.includes('window.__workshopRealtimeManager?.forceReconnect?.()'), 'recovery listener must become inert after teardown');
@@ -126,6 +126,13 @@ function testRoutesAndIsolationContracts() {
 
   assert(planner.includes('data-workshop-back-control'));
   assert(planner.includes("showView('workflow')"));
+  assert(planner.includes('data-workshop-open-stage'), 'dedicated planner must expose station tabs without rendering inactive station boards');
+  assert(planner.includes('return WORKSHOP_STAGE_SEQUENCE.map(stage =>'), 'station tabs must include every Control Board planner, including SUBLET');
+  assert(planner.includes('function workshopEnsureDedicatedShell('), 'dedicated station switches must preserve the lightweight planner shell');
+  assert(planner.includes('data-workshop-station-content'), 'only the active station content host should be replaced');
+  assert(app.includes('function scheduleWorkshopPlannerRender('), 'snapshot/status bursts must be coalesced before rendering');
+  assert(app.includes('preserveShell: switchingPlannerStation'), 'station switches must dispose active resources without rebuilding the whole planner shell');
+  assert(app.includes('removeEventListener'), 'inactive planner recovery listeners must be removed on teardown');
   assert(planner.includes("const dedicatedStage = normalizePmbStage(window.__activeWorkshopPlannerStage || '')"));
   assert(/dedicatedStage\s*\?\s*new Map\(\[\[stage, stageVehicleList\.length\]\]\)/.test(planner), 'dedicated render must not count other stations');
   assert(planner.includes('workshopPlannerVehiclesForStage(stage)'));
@@ -148,6 +155,7 @@ function testRoutesAndIsolationContracts() {
 
   const opener = app.slice(app.indexOf('function openWorkshopPlannerForStage'), app.indexOf('function renderWorkflowBoard'));
   assert(!/saveVehicle|saveJson|mutate\(|rpc\(|recordVehicleAudit/.test(opener), 'opening a station route must be non-mutating');
+  assert(app.includes('data-open-workshop-stage'), 'every Control Board station row must retain a direct Open Planner action');
 }
 
 function testScopedSnapshotCandidateMapping() {

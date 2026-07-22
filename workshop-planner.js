@@ -3123,6 +3123,46 @@ async function workshopOpenVehicleLinkReadinessReview() {
   });
 }
 
+function workshopDedicatedStageTabsHtml(activeStage = '') {
+  return WORKSHOP_STAGE_SEQUENCE.map(stage => `<button type="button" class="workshop-stage-tab ${stage === activeStage ? 'active' : ''}" data-workshop-open-stage="${escapeHtml(stage)}" aria-current="${stage === activeStage ? 'page' : 'false'}">${escapeHtml(pmbStageLabel(stage))}</button>`).join('');
+}
+
+function workshopEnsureDedicatedShell(root, stage = '') {
+  let shell = root.querySelector(':scope > .workshop-planner-dedicated');
+  if (!shell) {
+    root.innerHTML = `<div class="workshop-planner workshop-planner-dedicated" data-planner-stage="">
+      <header class="workshop-planner-header workshop-station-shell-header">
+        <div><button class="small-button workshop-back-control" type="button" data-workshop-back-control>← Back to Control Board</button><h2 data-workshop-station-title></h2><p>Only the selected station, its bays and relevant bookings are active.</p></div>
+      </header>
+      <nav class="workshop-stage-tabs workshop-station-tabs" aria-label="Workshop departments">${workshopDedicatedStageTabsHtml(stage)}</nav>
+      <div data-workshop-station-content><div class="empty-state workshop-station-loading" role="status"><strong>Loading selected station</strong><span>Preparing its bays and bookings…</span></div></div>
+    </div>`;
+    shell = root.querySelector(':scope > .workshop-planner-dedicated');
+    shell.addEventListener('click', event => {
+      const back = event.target.closest('[data-workshop-back-control]');
+      if (back) {
+        event.preventDefault();
+        showView('workflow');
+        return;
+      }
+      const stationButton = event.target.closest('[data-workshop-open-stage]');
+      if (!stationButton) return;
+      event.preventDefault();
+      const route = WORKSHOP_PLANNER_ROUTE_BY_STAGE[normalizePmbStage(stationButton.dataset.workshopOpenStage || '')];
+      if (route) showView(route);
+    });
+  }
+  shell.dataset.plannerStage = stage;
+  const title = shell.querySelector('[data-workshop-station-title]');
+  if (title) title.textContent = `${pmbStageLabel(stage)} Planner`;
+  shell.querySelectorAll('[data-workshop-open-stage]').forEach(button => {
+    const active = normalizePmbStage(button.dataset.workshopOpenStage || '') === stage;
+    button.classList.toggle('active', active);
+    button.setAttribute('aria-current', active ? 'page' : 'false');
+  });
+  return shell.querySelector('[data-workshop-station-content]');
+}
+
 function renderWorkshopPlanner() {
   if (workshopSharedModeActive()) workshopSyncConfigFromSharedSettings();
   const root = document.querySelector('#workshop-planner-root');
@@ -3135,10 +3175,16 @@ function renderWorkshopPlanner() {
     workshopClearSelectedDetail(state);
     app.pendingWorkshopStage = '';
   }
+  const stage = dedicatedStage || (WORKSHOP_VISIBLE_STAGE_SEQUENCE.includes(state.stage) ? state.stage : 'FABRICATION');
+  const sharedModeActive = workshopSharedModeActive();
+  const renderHost = dedicatedStage ? workshopEnsureDedicatedShell(root, stage) : root;
+  if (dedicatedStage && sharedModeActive && !window.__workshopDataService?.getLastSnapshot?.()) {
+    renderHost.innerHTML = `<div class="empty-state workshop-station-loading" role="status">${workshopConnectionBannerHtml()}<strong>Loading ${escapeHtml(pmbStageLabel(stage))}</strong><span>Waiting for the selected station snapshot…</span></div>`;
+    return;
+  }
   let plans = dedicatedStage ? workshopLoadPlans() : workshopCascadeAndSave(workshopSyncCompletedPlans());
   if (state.selectedPlanId && !plans.some(entry => entry.id === state.selectedPlanId)) workshopClearSelectedDetail(state);
   const selected = plans.find(entry => entry.id === state.selectedPlanId) || null;
-  const stage = dedicatedStage || (WORKSHOP_VISIBLE_STAGE_SEQUENCE.includes(state.stage) ? state.stage : 'FABRICATION');
   const dateKey = state.date;
   const activePlans = plans.filter(entry => entry.stage === stage && entry.status !== 'completed');
   const plannedKeys = new Set(activePlans.map(entry => entry.vehicleKey));
@@ -3155,12 +3201,11 @@ function renderWorkshopPlanner() {
     ? new Map([[stage, stageVehicleList.length]])
     : new Map(WORKSHOP_VISIBLE_STAGE_SEQUENCE.map(value => [value, value === stage ? stageVehicleList.length : workshopStageVehicles(value).length]));
   const stageTabs = dedicatedStage ? '' : WORKSHOP_VISIBLE_STAGE_SEQUENCE.map(value => `<button type="button" class="workshop-stage-tab ${value === stage ? 'active' : ''}" data-workshop-stage="${escapeHtml(value)}"><span>${escapeHtml(pmbStageLabel(value))}</span><strong>${stageVehicleCounts.get(value)}</strong></button>`).join('');
-  const sharedModeActive = workshopSharedModeActive();
   const sharedBanner = sharedModeActive ? workshopConnectionBannerHtml() : '';
-  root.innerHTML = `<div class="workshop-planner${dedicatedStage ? ' workshop-planner-dedicated' : ''}" data-planner-stage="${escapeHtml(stage)}">
+  renderHost.innerHTML = `<div class="${dedicatedStage ? 'workshop-planner workshop-station-board' : 'workshop-planner'}" data-planner-stage="${escapeHtml(stage)}">
     ${sharedBanner}
     <header class="workshop-planner-header">
-      <div>${dedicatedStage ? '<button class="small-button workshop-back-control" type="button" data-workshop-back-control>← Back to Control Board</button>' : ''}<h2>${escapeHtml(dedicatedStage ? `${pmbStageLabel(stage)} planner` : 'Workshop bay planner')}</h2><p>Monday–Friday, 8:00am–4:00pm. Long jobs carry into the next workday; overlapping bay bookings are blocked.</p></div>
+      <div><h2>${escapeHtml(dedicatedStage ? 'Selected station schedule' : 'Workshop bay planner')}</h2><p>Monday–Friday, 8:00am–4:00pm. Long jobs carry into the next workday; overlapping bay bookings are blocked.</p></div>
       <div class="workshop-date-controls">
         <button class="small-button" type="button" data-workshop-date-shift="-1">‹ Previous</button>
         <input type="date" data-workshop-date aria-label="Workshop planner date" value="${escapeHtml(dateKey)}" />
@@ -3195,10 +3240,10 @@ function renderWorkshopPlanner() {
     </div>
     <div class="workshop-board-note">How to use: drag a waiting vehicle or planned booking onto the exact bay/time you want. If that spot overlaps only queued planned work, the planner keeps your dropped booking there and offers to push the later queue back-to-back behind it. Use Best slot for the fastest bay suggestion, or use Schedule for a specific date and time. If a day is full, automatic sequencing continues on the next workday. Live overlap stays blocked, while live jobs can still be moved safely with the bay quick controls or drag/drop. The red current-time line stays visible on the planner and clamps to the workshop edge outside work hours. Double-click any vehicle to open its job.</div>
   </div>`;
-  bindWorkshopPlanner(root);
-  updateWorkshopNowLine(root);
+  bindWorkshopPlanner(renderHost);
+  updateWorkshopNowLine(renderHost);
   setupWorkshopPlannerClock();
-  workshopScrollToHighlightedVehicle(root);
+  workshopScrollToHighlightedVehicle(renderHost);
 }
 
 function bindWorkshopPlanner(root) {
