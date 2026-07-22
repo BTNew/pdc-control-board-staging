@@ -52,6 +52,7 @@ const WORKSHOP_MUTATION_RPCS = Object.freeze([
   'return_work_to_queue',
   'cancel_workshop_booking',
   'restore_workshop_booking',
+  'cascade_workshop_schedule',
   'approve_parts_incomplete_override'
 ]);
 
@@ -73,6 +74,7 @@ const WORKSHOP_MUTATION_VERSION_PARAM = Object.freeze({
   return_work_to_queue: 'p_expected_version',
   cancel_workshop_booking: 'p_expected_version',
   restore_workshop_booking: 'p_expected_version',
+  cascade_workshop_schedule: 'p_target_expected_version',
   approve_parts_incomplete_override: 'p_vehicle_expected_version'
 });
 
@@ -126,6 +128,15 @@ function createWorkshopSupabaseClient(config, fetchImpl) {
  * revision-driven resynchronisation scheduling (debounced). It does not
  * touch the DOM and does not import workshop-planner.js.
  */
+function normalizeWorkshopSnapshotScope(value) {
+  if (!value || typeof value !== 'object') return null;
+  const stageCode = String(value.stageCode || '').trim().toUpperCase();
+  const dateFrom = String(value.dateFrom || '').slice(0, 10);
+  const dateTo = String(value.dateTo || dateFrom).slice(0, 10);
+  if (!/^[A-Z0-9_]+$/.test(stageCode) || !/^\d{4}-\d{2}-\d{2}$/.test(dateFrom) || !/^\d{4}-\d{2}-\d{2}$/.test(dateTo)) return null;
+  return { stageCode, dateFrom, dateTo };
+}
+
 function createWorkshopDataService(options) {
   const config = options.config || null;
   const client = options.client; // { rpc(accessToken, name, params) }
@@ -136,6 +147,7 @@ function createWorkshopDataService(options) {
   const debounceMs = typeof options.debounceMs === 'number' ? options.debounceMs : 250;
   const scheduleTimeout = options.scheduleTimeout || ((fn, ms) => setTimeout(fn, ms));
   const clearScheduledTimeout = options.clearScheduledTimeout || clearTimeout;
+  let scope = normalizeWorkshopSnapshotScope(options.scope);
 
   const enabled = workshopSharedModeEnabled(config);
 
@@ -152,6 +164,7 @@ function createWorkshopDataService(options) {
   let trailingReloadRequested = false;
   let destroyed = false;
   let lifecycleGeneration = 0;
+  let scopeGeneration = 0;
 
   function setState(next) {
     if (state === next) return;
@@ -184,10 +197,18 @@ function createWorkshopDataService(options) {
       return lastSnapshot;
     }
     const generation = lifecycleGeneration;
+    const requestScopeGeneration = scopeGeneration;
     reloadInFlight = true;
     try {
-      const result = await client.rpc(token, 'get_workshop_snapshot', {});
+      const rpcName = scope ? 'get_station_workshop_snapshot' : 'get_workshop_snapshot';
+      const rpcParams = scope ? {
+        p_stage_code: scope.stageCode,
+        p_date_from: scope.dateFrom,
+        p_date_to: scope.dateTo,
+      } : {};
+      const result = await client.rpc(token, rpcName, rpcParams);
       if (destroyed || generation !== lifecycleGeneration) return null;
+      if (requestScopeGeneration !== scopeGeneration) return null;
       if (!result.ok) {
         if (result.status === 404) {
           setState(WORKSHOP_CONNECTION_STATE.INCOMPATIBLE);
@@ -210,6 +231,7 @@ function createWorkshopDataService(options) {
       return lastSnapshot;
     } catch (_err) {
       if (destroyed || generation !== lifecycleGeneration) return null;
+      if (requestScopeGeneration !== scopeGeneration) return null;
       setState(WORKSHOP_CONNECTION_STATE.OFFLINE_READ_ONLY);
       return lastSnapshot;
     } finally {
@@ -258,6 +280,18 @@ function createWorkshopDataService(options) {
   function onTokenRefresh() {
     if (!enabled || destroyed) return;
     loadSnapshot('token_refresh');
+  }
+
+  async function setScope(nextScope) {
+    const normalized = normalizeWorkshopSnapshotScope(nextScope);
+    if (JSON.stringify(normalized) === JSON.stringify(scope)) return lastSnapshot;
+    scope = normalized;
+    scopeGeneration += 1;
+    lastSnapshot = null;
+    lastRevision = null;
+    snapshotTrusted = false;
+    setState(WORKSHOP_CONNECTION_STATE.CONNECTING);
+    return loadSnapshot('scope_changed');
   }
 
   async function mutate(rpcName, params) {
@@ -338,7 +372,9 @@ function createWorkshopDataService(options) {
         : null
     ),
     getLastRevision: () => lastRevision,
+    getScope: () => (scope ? { ...scope } : null),
     loadSnapshot,
+    setScope,
     onRevisionSignal,
     onReconnect,
     onVisibilityReturn,
@@ -354,6 +390,7 @@ if (typeof module !== 'undefined' && module.exports) {
     WORKSHOP_MUTATION_RPCS,
     WORKSHOP_MUTATION_VERSION_PARAM,
     workshopSharedModeEnabled,
+    normalizeWorkshopSnapshotScope,
     createWorkshopSupabaseClient,
     createWorkshopDataService
   };

@@ -130,7 +130,14 @@ def test_viewer_can_read_but_not_write_or_manage():
         "GET", "/rest/v1/vehicles?select=id,stock_number",
         headers={"apikey": ANON_KEY, "Authorization": f"Bearer {token}"},
     )
-    assert status2 == 200 and len(body2) > 0, "viewer must see real vehicle rows"
+    assert status2 == 200 and body2 == [], "viewer must receive zero direct vehicle rows"
+    status_snapshot, snapshot = rpc(token, "get_restricted_pilot_vehicle_snapshot", {"p_vehicle_id": None})
+    approved_fields = {
+        "id", "version", "current_location", "lifecycle_state",
+        "workshop_status", "active_workshop_booking_id",
+    }
+    assert status_snapshot == 200 and isinstance(snapshot, list), snapshot
+    assert all(set(row) == approved_fields for row in snapshot), "restricted viewer snapshot exposed unexpected fields"
 
     vehicle_id, version = get_real_test_vehicle()
     status3, body3 = rpc(token, "move_vehicle", {
@@ -140,7 +147,7 @@ def test_viewer_can_read_but_not_write_or_manage():
 
     status4, body4 = rpc(token, "admin_approve_user", {"p_target_email": VIEWER_EMAIL, "p_role": "administrator"})
     assert status4 == 403 and body4.get("code") == "42501", body4
-    print("PASS  V1 viewer reads real operational data, cannot write, cannot manage users")
+    print("PASS  V1 viewer has only the six-field restricted pilot read, cannot write, cannot manage users")
 
 
 def test_disabled_user_full_matrix():

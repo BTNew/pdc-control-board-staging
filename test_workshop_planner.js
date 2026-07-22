@@ -24,7 +24,7 @@ assert.deepStrictEqual(
   'The physical station order must be preserved while Sublet remains a provider row',
 );
 assert.ok(source.includes("const WORKSHOP_VISIBLE_STAGE_SEQUENCE = WORKSHOP_STAGE_SEQUENCE.filter(stage => stage !== 'SUBLET');"), 'Workshop planner tabs should exclude Sublet while keeping Sublet support elsewhere');
-assert.ok(source.includes('const stageTabs = WORKSHOP_VISIBLE_STAGE_SEQUENCE.map('), 'Workshop planner should render only visible physical workshop stages as tabs');
+assert.ok(source.includes("const stageTabs = dedicatedStage ? '' : WORKSHOP_VISIBLE_STAGE_SEQUENCE.map("), 'Combined planner should retain physical station tabs while dedicated planners render no unrelated tabs');
 
 const friday = new Date(2026, 6, 17, 8, 0, 0, 0);
 const monday = planner.workshopShiftWorkday(friday, 1);
@@ -41,7 +41,7 @@ assert.strictEqual(planner.workshopSnapMinutes(22), 15, 'Times should snap to 15
 assert.strictEqual(planner.workshopSnapMinutes(23), 30, 'Times should snap to the nearest 15 minutes');
 assert.strictEqual(planner.workshopClampStartMinutes(500), 465, 'Latest start must be 3:45pm');
 assert.strictEqual(planner.workshopClampLineHours(0.5), 0.5, 'Imported job lines may retain sub-three-hour estimates');
-assert.strictEqual(planner.workshopClampDurationHours(0.5), 0.5, 'A reviewed category booking must retain its confirmed labour hours');
+assert.strictEqual(planner.workshopClampDurationHours(0.5), 1, 'Planner bookings must enforce the approved one-hour minimum');
 assert.strictEqual(planner.workshopClampDurationHours(20), 20, 'Workshop jobs must not have a maximum-hour limit');
 const longJobEnd = planner.workshopAddWorkMinutes(new Date(2026, 6, 17, 14, 0, 0, 0), 12 * 60);
 assert.strictEqual(longJobEnd.getDay(), 2, 'A 12-hour Friday job should carry through Monday into Tuesday');
@@ -70,10 +70,10 @@ const collisionRows = [
   { id: 'FABRICATION::next', vehicleKey: 'next', stage: 'FABRICATION', bay: 1, startAt: nextStart.toISOString(), hours: 3, status: 'planned' },
 ];
 assert.strictEqual(planner.workshopHasConflict(collisionRows[1], collisionRows), collisionRows[0], 'An overlapping booking in the same bay must be detected');
-const unchanged = planner.workshopCascadePlans(collisionRows, new Date(2026, 6, 14, 12, 0, 0, 0));
-assert.ok(!unchanged.changed, 'Hard-block policy must not silently cascade existing bookings');
-assert.strictEqual(unchanged.rows.find(row => row.vehicleKey === 'next').startAt, nextStart.toISOString(), 'A conflicting booking must never be moved automatically');
-assert.strictEqual(unchanged.rows.find(row => row.vehicleKey === 'next').hours, 3, 'Collision handling must retain the three-hour minimum estimate');
+const cascaded = planner.workshopCascadePlans(collisionRows, new Date(2026, 6, 14, 12, 0, 0, 0));
+assert.ok(cascaded.changed, 'A later planned booking must cascade after earlier work overruns');
+assert.strictEqual(cascaded.rows.find(row => row.vehicleKey === 'next').startAt, new Date(2026, 6, 14, 10, 45).toISOString(), 'The later booking must move by the live overrun while preserving its queue position');
+assert.strictEqual(cascaded.rows.find(row => row.vehicleKey === 'next').hours, 3, 'Cascade must preserve booking duration');
 const backToBack = { id: 'FABRICATION::back-to-back', vehicleKey: 'next', stage: 'FABRICATION', bay: 1, startAt: new Date(2026, 6, 14, 11, 0).toISOString(), hours: 3, status: 'planned' };
 assert.strictEqual(planner.workshopHasConflict(backToBack, [{ ...collisionRows[0], status: 'planned' }]), null, 'Back-to-back same-bay bookings must remain allowed');
 const differentStageSameBay = { id: 'HOIST::same-bay-number', vehicleKey: 'same-bay-number', stage: 'HOIST', bay: 1, startAt: nextStart.toISOString(), hours: 3, status: 'planned' };
@@ -236,6 +236,17 @@ const noShift = planner.workshopShiftTrailingPlannedRows(shiftBase, [{ ...queued
 assert.ok(noShift && noShift.moved.length === 0, 'Back-to-back queued bookings must remain untouched without prompting');
 global.window.confirm = message => { confirmPrompt = String(message); return true; };
 
+const fridayCascadeBase = { id: 'HOIST::inserted', vehicleKey: 'inserted', stage: 'HOIST', bay: 1, startAt: new Date(2030, 6, 19, 14, 0).toISOString(), hours: 1, status: 'planned' };
+const fridayLater = [
+  { id: 'HOIST::later-1', vehicleKey: 'later-1', stage: 'HOIST', bay: 1, startAt: new Date(2030, 6, 19, 15, 30).toISOString(), hours: 2, status: 'planned' },
+  { id: 'HOIST::later-2', vehicleKey: 'later-2', stage: 'HOIST', bay: 1, startAt: new Date(2030, 6, 22, 10, 0).toISOString(), hours: 3, status: 'planned' },
+];
+const everyLater = planner.workshopShiftEveryLaterPlannedRow(fridayCascadeBase, fridayLater, 60);
+assert.deepStrictEqual(everyLater.moved.map(row => row.id), ['HOIST::later-1', 'HOIST::later-2'], 'Every later booking in the same bay must move in original order');
+assert.strictEqual(everyLater.moved[0].startAt, new Date(2030, 6, 22, 8, 30).toISOString(), 'Cascade must skip the weekend and continue on the next operational day');
+assert.strictEqual(everyLater.moved[1].startAt, new Date(2030, 6, 22, 11, 0).toISOString(), 'The same operational delay must apply to all later bookings');
+assert.deepStrictEqual(everyLater.moved.map(row => row.hours), [2, 3], 'Cascade must preserve every later duration');
+
 assert.ok(app.includes("case 'workshop':"), 'Main renderer is missing the Workshop Planner view');
 assert.ok(app.includes("workshop: 'Workshop Planner'"), 'Workshop Planner page title is missing');
 assert.ok(app.includes('const PMB_SCHEDULE_WORK_START_HOUR = 8;'), 'Legacy PMB schedule start should match the workshop day');
@@ -250,7 +261,7 @@ assert.ok(source.includes('function workshopHasConflict('), 'Bay collision prote
 assert.ok(source.includes("typeof selectedVehicle === 'function' ? selectedVehicle(cleanKey) : null"), 'Planner vehicle lookup must use the fail-closed shared resolver');
 assert.ok(source.includes('requiredAndIncomplete'), 'Future required work must remain schedulable before the vehicle reaches that station');
 assert.ok(source.includes("typeof pmbVehiclesNeedingStationWork === 'function'"), 'Planner awaiting lists must share the Control Board station-work eligibility');
-assert.ok(source.includes("const requestedStage = normalizePmbStage(app.pendingWorkshopStage || '')"), 'Open Bays must be able to open the requested Workshop Planner station');
+assert.ok(source.includes("const requestedStage = dedicatedStage || normalizePmbStage(app.pendingWorkshopStage || '')"), 'Control Board station routes must pin the requested dedicated planner stage');
 assert.ok(app.includes('function openWorkshopPlannerForStage('), 'Control Board Open Bays navigation helper is missing');
 assert.ok(source.includes('function workshopPersistPlanAction('), 'Planner mutations must use transactional persistence and audit logging');
 assert.ok(source.includes("window.addEventListener('storage'"), 'Planner must reload changes saved in another browser tab');
@@ -303,8 +314,8 @@ assert.ok(source.includes('data-workshop-extend-plan'), 'Quick +15m/+30m/+1h con
 assert.ok(source.includes('function workshopBestStageSlot('), 'Stage-wide best-slot helper is missing');
 assert.ok(source.includes('function workshopSlotSummary('), 'Suggested-slot summary helper is missing');
 assert.ok(source.includes('This job is already in the earliest open bay/time for its current stage.'), 'Quick best-bay action must explain when no better move exists');
-assert.ok(source.includes('name="hours" type="number" min="0.25"'), 'Reviewed sub-three-hour bookings must remain valid and extendable');
-assert.ok(source.includes('Back-to-back bookings are allowed; overlapping times are blocked.'), 'The scheduling modal must explain later same-bay booking behavior');
+assert.ok(source.includes('name="hours" type="number" min="1"'), 'Booking inputs must enforce the approved one-hour minimum');
+assert.ok(source.includes('Later bookings in this bay move automatically'), 'The scheduling modal must explain the approved cascade behavior');
 assert.ok(css.includes('display: block;') && css.includes('overflow: visible;') && css.includes('z-index: 6;'), 'The workshop time axis should stay visibly layered above the planner header');
 assert.ok(css.includes('min-width: 760px;') && css.includes('grid-template-columns: 160px minmax(600px, 1fr);'), 'The planner timeline should fit more of the hour labels on standard laptop widths');
 assert.ok(source.includes('function workshopConfirmOtherDepartmentPlans('), 'Cross-department planning warning is missing');

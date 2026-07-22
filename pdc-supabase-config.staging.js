@@ -21,7 +21,10 @@ window.PDC_SUPABASE_CONFIG = {
     redirectTo: window.location.origin + window.location.pathname
   },
   workshop: {
-    sharedData: true
+    sharedData: true,
+    // Station-first staging entry: the combined all-department planner stays
+    // unavailable so opening Workshop cannot initialise every bay group.
+    stationRoutes: { combinedPlannerRollback: false }
   },
   vehicleLifecycle: Object.freeze({
     sharedData: true,

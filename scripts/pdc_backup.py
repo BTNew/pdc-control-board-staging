@@ -139,6 +139,7 @@ TABLES = [
     "workshop_booking_history",
     "workshop_parts_overrides",
     "workshop_revision",
+    "workshop_station_revision",
     # Notifications (restored disabled -- see restore script)
     "vehicle_notifications",
     # AI email intake / intelligence (Stage 1 foundation, included because
@@ -166,6 +167,14 @@ NAVISION_BACKUP_TABLES = {
     "navision_backend_records", "navision_import_items",
     "navision_operation_receipts", "navision_rollback_items",
     "navision_backend_audit",
+}
+
+AI_EMAIL_BACKUP_TABLES = {
+    "ai_trusted_senders", "ai_mapping_rules", "ai_intake_config",
+    "ai_email_intake", "ai_email_attachments", "ai_email_analysis_results",
+    "ai_extracted_fields", "ai_workshop_commands", "ai_proposed_actions",
+    "ai_review_items", "ai_undo_actions", "email_response_drafts",
+    "import_runs", "label_print_events",
 }
 
 # Columns that must never leave the database, even though none of the
@@ -398,6 +407,12 @@ def run_backup(conn, environment, output_dir, encryption_key, kind="scheduled", 
             raise RuntimeError(
                 "Migration-037 backup is incomplete; required Navision tables are missing: "
                 + ", ".join(missing_navision)
+            )
+        missing_ai_email = sorted(AI_EMAIL_BACKUP_TABLES.intersection(missing_tables))
+        if migration_number(migration_version) >= 14 and missing_ai_email:
+            raise RuntimeError(
+                "AI-email backup is incomplete; required dependency tables are missing: "
+                + ", ".join(missing_ai_email)
             )
 
         for table in payload_tables:

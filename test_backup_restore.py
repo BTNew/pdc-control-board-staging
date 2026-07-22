@@ -30,9 +30,19 @@ NAVISION_TABLES = {
     "navision_import_items", "navision_operation_receipts", "navision_rollback_items",
     "navision_backend_audit",
 }
+AI_EMAIL_TABLES = {
+    "ai_trusted_senders", "ai_mapping_rules", "ai_intake_config",
+    "ai_email_intake", "ai_email_attachments", "ai_email_analysis_results",
+    "ai_extracted_fields", "ai_workshop_commands", "ai_proposed_actions",
+    "ai_review_items", "ai_undo_actions", "email_response_drafts",
+    "import_runs", "label_print_events",
+}
 assert pdc_backup.BACKUP_FORMAT_VERSION == "2"
 assert NAVISION_TABLES == pdc_backup.NAVISION_BACKUP_TABLES
 assert NAVISION_TABLES.issubset(set(pdc_backup.TABLES))
+assert AI_EMAIL_TABLES == pdc_backup.AI_EMAIL_BACKUP_TABLES
+assert AI_EMAIL_TABLES.issubset(set(pdc_backup.TABLES))
+assert "workshop_station_revision" in pdc_backup.TABLES
 assert pdc_backup.migration_number("037_shared") == 37
 
 columns = ["id", "payload"]
