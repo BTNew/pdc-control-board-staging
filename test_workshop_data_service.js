@@ -268,8 +268,8 @@ async function run() {
     console.log('PASS 10: destroy() unsubscribes cleanly, preventing reloads after teardown');
   }
 
-  // 11. Advisory snapshot trust is narrower than retained planner fallback:
-  //     permission failures and pending revisions fail closed immediately.
+  // 11. Permission failures purge retained planner/advisory rows immediately;
+  //     pending revisions keep offline continuity but fail advisory trust.
   {
     const timers = makeTimerHarness();
     const client = fakeClient([
@@ -277,10 +277,11 @@ async function run() {
       { status: 403, ok: false, body: { error: 'forbidden' } },
       { status: 200, ok: true, body: { revision: 2, vehicles: ['refreshed'] } }
     ]);
+    let accessToken = 'tok';
     const service = createWorkshopDataService({
       config: { workshop: { sharedData: true } },
       client,
-      getAccessToken: () => 'tok',
+      getAccessToken: () => accessToken,
       getRole: () => 'viewer',
       scheduleTimeout: timers.scheduleTimeout,
       clearScheduledTimeout: timers.clearScheduledTimeout
@@ -288,13 +289,18 @@ async function run() {
     await service.loadSnapshot('initial');
     assert.strictEqual(service.getTrustedSnapshot().vehicles[0], 'current', '11a successful revision-bearing snapshot is trusted');
     await service.loadSnapshot('permission-check');
-    assert.strictEqual(service.getLastSnapshot().vehicles[0], 'current', '11b planner may retain the last snapshot after 403');
-    assert.strictEqual(service.getTrustedSnapshot(), null, '11c advisor must reject the retained snapshot after 403');
+    assert.strictEqual(service.getLastSnapshot(), null, '11b planner must purge retained operational rows after 403');
+    assert.strictEqual(service.getTrustedSnapshot(), null, '11c advisor must reject all snapshot authority after 403');
+    assert.strictEqual(service.getState(), WORKSHOP_CONNECTION_STATE.PERMISSION_DENIED, '11d permission loss remains explicit after purge');
     service.onRevisionSignal(2);
-    assert.strictEqual(service.getTrustedSnapshot(), null, '11d pending newer revision remains untrusted during debounce');
+    assert.strictEqual(service.getTrustedSnapshot(), null, '11e pending newer revision remains untrusted during debounce');
     await timers.flushAll();
-    assert.strictEqual(service.getTrustedSnapshot().vehicles[0], 'refreshed', '11e successful reload restores trust at the new revision');
-    console.log('PASS 11: advisory snapshot trust fails closed for permission errors and pending revisions');
+    assert.strictEqual(service.getTrustedSnapshot().vehicles[0], 'refreshed', '11f successful reload restores trust at the new revision');
+    accessToken = null;
+    assert.strictEqual(await service.loadSnapshot('token-lost'), null, '11g token loss returns no retained snapshot');
+    assert.strictEqual(service.getLastSnapshot(), null, '11h token loss purges refreshed operational rows');
+    assert.strictEqual(service.getState(), WORKSHOP_CONNECTION_STATE.PERMISSION_DENIED, '11i token loss enters permission_denied');
+    console.log('PASS 11: permission loss purges retained rows and pending revisions fail advisory trust');
   }
 
   // 12. A successful publishable-key response is not authenticated authority.

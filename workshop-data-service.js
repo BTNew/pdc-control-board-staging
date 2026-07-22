@@ -208,10 +208,10 @@ function createWorkshopDataService(options) {
     const token = getAccessToken();
     if (!token) {
       // A publishable-key response is not positive authenticated authority.
-      // Keep ordinary planner fallback but never request or trust advisory
-      // data until an individual session access token is present.
-      setState(WORKSHOP_CONNECTION_STATE.PERMISSION_DENIED);
-      return lastSnapshot;
+      // Purge prior-account rows immediately; permission loss is not an
+      // offline-continuity condition and must not retain operational data.
+      invalidateAuthority(WORKSHOP_CONNECTION_STATE.PERMISSION_DENIED);
+      return null;
     }
     const generation = lifecycleGeneration;
     const requestScopeGeneration = scopeGeneration;
@@ -231,8 +231,10 @@ function createWorkshopDataService(options) {
         if (result.status === 404) {
           setState(WORKSHOP_CONNECTION_STATE.INCOMPATIBLE);
         } else if (result.status === 401 || result.status === 403) {
-          snapshotTrusted = false;
-          setState(WORKSHOP_CONNECTION_STATE.PERMISSION_DENIED);
+          // Authentication/authorization loss invalidates both mutation
+          // authority and display authority for every retained row.
+          invalidateAuthority(WORKSHOP_CONNECTION_STATE.PERMISSION_DENIED);
+          return null;
         } else {
           setState(WORKSHOP_CONNECTION_STATE.OFFLINE_READ_ONLY);
         }
