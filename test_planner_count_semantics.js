@@ -45,8 +45,8 @@ const sanitized = planner.workshopSnapshotVehicleToPlannerRow(
   [{ vehicle_id: 'safe-1', work_key: 'sublet', required: true, completed: false, notes: 'WORK-NOTES-SENTINEL' }],
   'HOIST'
 );
-assert.strictEqual(sanitized.client, '', 'snapshot customer_name must be discarded');
-assert.strictEqual(sanitized.customerName, '', 'snapshot customer alias must be discarded');
+assert.strictEqual(sanitized.client, 'CUSTOMER-SENTINEL', 'operator/admin station snapshot must retain the approved customer name');
+assert.strictEqual(sanitized.customerName, 'CUSTOMER-SENTINEL', 'planner tile customer alias must retain the approved customer name');
 assert.strictEqual(sanitized.pmbJobs.sublet.notes, '', 'work-item notes must be discarded');
 assert(!('toyotaCustomer' in sanitized) && !('dealerCustomer' in sanitized) && !('notes' in sanitized), 'planner DTO must be an explicit allowlist');
 
@@ -67,13 +67,14 @@ global.window = {
 };
 const hydrated = planner.workshopPlannerVehiclesForStage('HOIST')[0];
 assert(hydrated && hydrated.id === 'safe-1', 'authoritative candidate must hydrate');
-for (const sentinel of ['LOCAL-CUSTOMER-SENTINEL','LOCAL-DEALER-SENTINEL','LOCAL-NOTES-SENTINEL','SERVER-CUSTOMER-SENTINEL','SERVER-NOTES-SENTINEL']) {
+assert.strictEqual(hydrated.customerName, 'SERVER-CUSTOMER-SENTINEL', 'authoritative operator/admin hydration must retain the approved customer name');
+for (const sentinel of ['LOCAL-CUSTOMER-SENTINEL','LOCAL-DEALER-SENTINEL','LOCAL-NOTES-SENTINEL','SERVER-NOTES-SENTINEL']) {
   assert(!JSON.stringify(hydrated).includes(sentinel), `canonical hydration leaked ${sentinel}`);
 }
 
 const source = require('fs').readFileSync(require('path').join(__dirname, 'workshop-planner.js'), 'utf8');
-assert(source.includes('const queue = outstanding;'), 'candidate panel must contain the full outstanding set');
-assert(source.includes('const unscheduled = outstanding.filter'), 'unscheduled must be separately measured');
+assert(source.includes('const queue = unscheduled;'), 'candidate panel must contain only actionable vehicles not already assigned to a station bay');
+assert(source.includes('const unscheduled = outstanding.filter'), 'unscheduled must be measured from authoritative active-booking state');
 assert(source.includes('${selectedDateBookingCount} bookings on selected date'), 'calendar count must use the canonical selected-date measurement');
 assert.strictEqual(planner.workshopSelectedDateBookingCount([{ id: 1 }, { id: 2 }], [{ id: 3 }]), 3, 'completed bookings must remain in local selected-date totals');
 assert.strictEqual(planner.workshopSelectedDateBookingCount([{ id: 1 }], [{ id: 2 }], { counts: { selected_date_bookings: 7 } }, true), 7, 'dedicated planner must use the authoritative snapshot count');

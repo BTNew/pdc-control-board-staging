@@ -13,7 +13,8 @@ const closure = read('supabase/migrations/044_blocker_only_all_station_release_c
 const corrective = read('supabase/migrations/045_canonical_work_item_eligibility_and_legacy_stage_reconciliation.sql');
 const rejected = read('supabase/obsolete_migrations/043_all_station_review_closure_REJECTED_NEVER_APPLY.sql');
 const backup = read('scripts/pdc_backup.py');
-const effectiveMigration = `${migration}\n${closure}\n${corrective}`;
+const lifecycle = read('supabase/migrations/050_workshop_tile_completion_and_live_bay.sql');
+const effectiveMigration = `${migration}\n${closure}\n${corrective}\n${lifecycle}`;
 const index = read('index.html');
 const eligibility = require('./workshop-eligibility.js');
 
@@ -45,23 +46,23 @@ assert(app.includes("return loadWorkshopEligibilitySnapshot('subscribed')") && a
 assert(app.includes('workshopEligibilityRevisionPending = true') && app.includes("loadWorkshopEligibilitySnapshot('realtime_pending')"), 'Realtime revisions received during resync must force a trailing fetch');
 assert(app.includes("if (app.workshopEligibilityState !== 'connected') return []"), 'disconnected Control Board must not consume stale candidates');
 assert(planner.includes('WORKSHOP_ELIGIBILITY_RUNTIME.workshopCanonicalEligibility'), 'planner must apply the canonical candidate contract');
-assert(planner.includes("stock: vehicle.stock_number || ''") && planner.includes("client: ''"), 'shared snapshot candidates must populate safe planner identity fields while discarding customer aliases');
+assert(planner.includes("stock: vehicle.stock_number || ''") && planner.includes("customerName: vehicle.customer_name || ''") && lifecycle.includes("'customer_name',v.customer_name"), 'operator/admin station snapshot must populate safe planner identity plus the approved customer name');
 const workshopVehicleSource = planner.slice(planner.indexOf('function workshopVehicle('), planner.indexOf('// Looks up a vehicle', planner.indexOf('function workshopVehicle(')));
 assert(workshopVehicleSource.includes('if (!workshopSharedModeActive())') && !workshopVehicleSource.includes('if (local || !workshopSharedModeActive())'), 'shared planner lookup must never prefer browser-local vehicles');
 let localLookupCount = 0;
 const sharedLookupContext = {
   window: { __workshopDataService: { getLastSnapshot: () => ({
-    vehicles: [{ id: 'shared-id', stock_number: 'SAFE-STOCK', permanent_vehicle_id: 'SAFE-PERM' }],
+    vehicles: [{ id: 'shared-id', stock_number: 'SAFE-STOCK', permanent_vehicle_id: 'SAFE-PERM', customer_name: 'SAFE-CUSTOMER' }],
     work_items: [],
   }) }, __activeWorkshopPlannerStage: 'HOIST' },
   workshopSharedModeActive: () => true,
   selectedVehicle: () => { localLookupCount += 1; return { id: 'shared-id', customer: 'LOCAL-CUSTOMER-SENTINEL', notes: 'LOCAL-NOTES-SENTINEL' }; },
-  workshopSnapshotVehicleToPlannerRow: vehicle => ({ id: vehicle.id, stock: vehicle.stock_number, client: '', customer: '', customerName: '', notes: '' }),
+  workshopSnapshotVehicleToPlannerRow: vehicle => ({ id: vehicle.id, stock: vehicle.stock_number, client: vehicle.customer_name || '', customer: vehicle.customer_name || '', customerName: vehicle.customer_name || '', notes: '' }),
   result: null,
 };
 vm.runInNewContext(`${workshopVehicleSource}\nresult = workshopVehicle('shared-id');`, sharedLookupContext);
 assert.strictEqual(localLookupCount, 0, 'shared lookup touched selectedVehicle/browser-local authority');
-assert.deepStrictEqual(JSON.parse(JSON.stringify(sharedLookupContext.result)), { id: 'shared-id', stock: 'SAFE-STOCK', client: '', customer: '', customerName: '', notes: '' }, 'shared lookup did not return only the sanitized snapshot row');
+assert.deepStrictEqual(JSON.parse(JSON.stringify(sharedLookupContext.result)), { id: 'shared-id', stock: 'SAFE-STOCK', client: 'SAFE-CUSTOMER', customer: 'SAFE-CUSTOMER', customerName: 'SAFE-CUSTOMER', notes: '' }, 'shared lookup must return only sanitized snapshot identity plus the approved customer name');
 assert(corrective.match(/get_station_workshop_snapshot[\s\S]*workshop_station_eligibility\(v_stage\)/), 'station RPC must use canonical eligibility');
 assert(corrective.match(/get_workshop_eligibility_snapshot[\s\S]*workshop_station_eligibility\(s\.code\)/), 'Control Board RPC must use canonical eligibility');
 assert(migration.includes("in('PMB','YH')") && migration.includes("='IT'"), 'database eligibility must implement PMB/YH/IT rules');

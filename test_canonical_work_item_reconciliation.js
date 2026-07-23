@@ -5,6 +5,7 @@ const path = require('path');
 const root = __dirname;
 const read = p => fs.readFileSync(path.join(root, p), 'utf8');
 const sql = read('supabase/migrations/045_canonical_work_item_eligibility_and_legacy_stage_reconciliation.sql');
+const lifecycle = read('supabase/migrations/050_workshop_tile_completion_and_live_bay.sql');
 const app = read('app.js');
 const planner = read('workshop-planner.js');
 const eligibility = read('workshop-eligibility.js');
@@ -55,7 +56,9 @@ assert(planner.includes('Array.isArray(authority?.requirements)') && planner.inc
 const candidateHydration = app.slice(app.indexOf('function workshopEligibilityCandidateVehicle'), app.indexOf('function authoritativeWorkshopVehiclesForStage'));
 assert(candidateHydration.includes('pmbJobs: { ...shared.pmbJobs }') && !candidateHydration.includes('local?.pmbJobs'), 'browser-local requirements must never survive canonical absence');
 assert(!candidateHydration.includes('...(local || {})') && candidateHydration.includes("client: ''"), 'Control Board canonical hydration must not widen the sanitized DTO with local customer or note aliases');
-assert(!planner.includes('...local') && planner.includes("customerName: ''") && planner.includes("notes: ''"), 'planner canonical hydration must discard local/server customer and note aliases');
+assert(!planner.includes('...local') && planner.includes("customerName: vehicle.customer_name || ''") && planner.includes("notes: ''"), 'planner canonical hydration must retain only the approved authoritative customer name and discard local/note aliases');
+const lifecycleSnapshot = lifecycle.slice(lifecycle.indexOf('create or replace function public.get_station_workshop_snapshot'), lifecycle.indexOf('revoke all on function public.get_station_workshop_snapshot'));
+assert(lifecycleSnapshot.includes("'customer_name',v.customer_name") && !lifecycleSnapshot.includes("'notes',v.notes"), 'operator/admin station snapshot must expose customer name without widening to notes');
 for (const script of [applyScript, reconcileScript]) {
   assert(script.includes('validate_release_backup') && script.includes("add_argument('--restore-schema',required=True)"), 'staging write scripts must require validated encrypted backup and isolated restore evidence');
   assert(script.includes('active_same_station_bookings') && script.includes('open_equivalent_work_items'), 'exact reconciliation guard must use the migration evidence vocabulary');
@@ -79,7 +82,7 @@ assert(!boardNeed.includes('inferredPmbStage') && boardNeed.includes('pdcJobRequ
 const localPlanner = planner.slice(planner.indexOf('function workshopStageVehicles'), planner.indexOf('function workshopSnapshotVehicleToPlannerRow'));
 assert(!localPlanner.includes('inferredPmbStage') && localPlanner.includes('pdcJobRequired'), 'browser-local planner fallback must not use pmb_stage');
 assert(planner.includes('outstanding_candidates') && planner.includes('Outstanding candidates') && planner.includes('bookings on selected date') && planner.includes('unscheduled'), 'planner must expose the three count concepts');
-assert(planner.includes('Active booking exists · shown here because the requirement remains outstanding') && planner.includes("pmbJobs: { ...scoped.pmbJobs }"), 'booked outstanding candidates must stay discoverable without local override');
+assert(planner.includes('const queue = unscheduled;') && planner.includes('<strong>Outstanding candidates</strong><span>${queue.length}</span>'), 'already-booked vehicles must be removed from the actionable Outstanding candidates pile');
 assert(planner.includes('Requirements:') && planner.includes('pdcRequirementDefinitions(vehicle)'), 'left candidate column must show canonical requirements, including Sublet');
 assert(!planner.includes("path: 'workshop/sublet'") && !app.includes("view: 'planner-sublet'"), 'Sublet must remain planner-excluded');
 

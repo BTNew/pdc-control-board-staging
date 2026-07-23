@@ -697,6 +697,9 @@ function workshopDescribeSharedActionError(result) {
   if (error === 'version_conflict') {
     return 'This booking was changed by another user. The planner has refreshed to the latest version.';
   }
+  if (error === 'bay_already_started') {
+    return 'This bay already has a started job. Stop or complete that job before starting another in this department bay.';
+  }
   if (error === 'bay_overlap' || (conflict && conflict.conflict_type === 'bay_overlap')) {
     return 'That bay is already occupied during this time. The planner has refreshed to the latest version.';
   }
@@ -2071,6 +2074,14 @@ function workshopHasConflict(candidate = {}, rows = workshopLoadPlans(), now = n
   }) || null;
 }
 
+function workshopStartedBayConflict(candidate = {}, rows = workshopLoadPlans()) {
+  if (!candidate.bay) return null;
+  return rows.find(row => row.id !== candidate.id
+    && row.status === 'started'
+    && row.stage === candidate.stage
+    && Number(row.bay) === Number(candidate.bay)) || null;
+}
+
 function workshopRequireNoBayConflict(candidate = {}, rows = workshopLoadPlans()) {
   const conflict = workshopHasConflict(candidate, rows);
   if (!conflict) return true;
@@ -2417,17 +2428,17 @@ function workshopSnapshotVehicleToPlannerRow(vehicle = {}, workItems = [], stage
     sharedVehicleId: vehicle.id,
     permanentVehicleId: vehicle.permanent_vehicle_id || '',
     vehicleKey: vehicle.stock_number || vehicle.permanent_vehicle_id || vehicle.id,
-    // Keep only approved identity/display aliases. Customer and note aliases are
-    // deliberately blank even if an unexpected local or server field is present.
+    // This station snapshot is restricted to planner operators/admins. Customer
+    // name is approved for the tile; notes and broad vehicle fields stay absent.
     stock: vehicle.stock_number || '',
     stockNumber: vehicle.stock_number || '',
     order: vehicle.toyota_order_number || '',
     vin: vehicle.vin || '',
     toyotaOrderNumber: vehicle.toyota_order_number || '',
     jobCardNumber: vehicle.job_card_number || '',
-    client: '',
-    customerName: '',
-    customer: '',
+    client: vehicle.customer_name || '',
+    customerName: vehicle.customer_name || '',
+    customer: vehicle.customer_name || '',
     make: vehicle.make || '',
     model: vehicle.model || '',
     registration: vehicle.registration || '',
@@ -2918,10 +2929,10 @@ function workshopPlanLifecycleActionsHtml(entry = {}) {
   if (!planId || ['completed', 'cancelled'].includes(status)) return '';
   if (entry.legacyAmbiguityReason) return `<div class="workshop-legacy-ambiguity" role="status" title="${escapeHtml(entry.legacyAmbiguityReason)}">Legacy review required · editing blocked</div>`;
   if (status === 'stoppage') {
-    return `<div class="workshop-plan-lifecycle-actions"><button type="button" data-workshop-resume-plan="${escapeHtml(planId)}" aria-label="Resume job">Resume job</button></div>`;
+    return `<div class="workshop-plan-lifecycle-actions"><button type="button" data-workshop-resume-plan="${escapeHtml(planId)}" aria-label="Resume job">Resume job</button><button class="workshop-complete-action" type="button" data-workshop-complete-plan="${escapeHtml(planId)}" aria-label="Complete job">Complete</button></div>`;
   }
   if (status === 'started') {
-    return `<div class="workshop-plan-lifecycle-actions"><button type="button" data-workshop-stop-plan="${escapeHtml(planId)}" aria-label="Stop job">Stop job</button></div>`;
+    return `<div class="workshop-plan-lifecycle-actions"><button type="button" data-workshop-stop-plan="${escapeHtml(planId)}" aria-label="Stop job">Stop job</button><button class="workshop-complete-action" type="button" data-workshop-complete-plan="${escapeHtml(planId)}" aria-label="Complete job">Complete</button></div>`;
   }
   return `<div class="workshop-plan-lifecycle-actions"><button type="button" data-workshop-start-plan="${escapeHtml(planId)}" aria-label="Start job">Start job</button></div>`;
 }
@@ -2954,7 +2965,7 @@ function workshopPlanChipHtml(entry = {}, dateKey = '', rows = workshopLoadPlans
     <button class="workshop-plan-main" type="button" data-workshop-select-plan="${escapeHtml(entry.id)}">
       <strong>JC ${escapeHtml(vehicleJobcardNumber(vehicle) || 'TBA')} · ${escapeHtml(displayStockNumber(vehicle) || vehicle.order || 'No stock')}</strong>
       <span>${escapeHtml(vehicle.vehicle || vehicle.toyotaVehicle || 'Vehicle')}</span>
-      <small>${escapeHtml(vehicleCustomerName(vehicle) || 'Unknown customer')}</small>
+      <small class="workshop-plan-customer">${escapeHtml(vehicleCustomerName(vehicle) || 'Unknown customer')}</small>
       <small>${escapeHtml(`${statusLabel}${assignee ? ` · ${assignee}` : ''}${segment.usesConfiguredOvertime ? ' · CONFIGURED OVERTIME' : ''}${segment.historicalOnClosure ? ' · HISTORICAL CLOSURE' : ''}`)}</small>
       ${entry.legacyAmbiguityReason ? `<small class="workshop-legacy-ambiguity">${escapeHtml(entry.legacyAmbiguityReason)}</small>` : ''}
       <small>${escapeHtml(`${entry.hours}h · Parts ${parts.label}${parts.eta && !['issued', 'notrequired'].includes(parts.status) ? ` · ETA ${parts.eta}` : ''}`)}</small>
@@ -3367,7 +3378,10 @@ function renderWorkshopPlanner() {
   const stageVehicleList = workshopPlannerVehiclesForStage(stage);
   const outstanding = stageVehicleList;
   const unscheduled = outstanding.filter(vehicle => vehicle.__workshopOutstanding?.existingBooking !== true);
-  const queue = outstanding;
+  // Once a vehicle is assigned to this station's physical bay it is no longer
+  // actionable in the Outstanding candidates pile. The authoritative total is
+  // still retained separately for reporting and reconciliation.
+  const queue = unscheduled;
   const completed = plans.filter(entry => {
     if (entry.stage !== stage || entry.status !== 'completed') return false;
     const completedDate = parseIsoTimestamp(entry.completedAt || '');
@@ -3420,7 +3434,7 @@ function renderWorkshopPlanner() {
     ${workshopDetailPanelHtml(selected, plans)}
     <div class="workshop-board-shell">
       <aside class="workshop-side-panel workshop-waiting-panel">
-        <div class="workshop-side-heading"><strong>Outstanding candidates</strong><span>${outstanding.length}</span></div>
+        <div class="workshop-side-heading"><strong>Outstanding candidates</strong><span>${queue.length}</span></div>
         <div class="workshop-unallocated-drop" data-workshop-unallocated-drop><strong>Return to Unallocated</strong><span>Planned or live: choose Just move or Stoppage</span></div>
         <div class="workshop-side-list">${queueBatch.visible.map(vehicle => workshopQueueCardHtml(vehicle, stage, dateKey, plans)).join('') || '<div class="workshop-empty">No outstanding requirements in this department.</div>'}${workshopIncrementalLoadMoreHtml('queue', queueBatch)}</div>
       </aside>
@@ -3661,7 +3675,7 @@ function bindWorkshopPlanner(root) {
     event.stopPropagation();
     void resumeWorkshopPlan(event.currentTarget.dataset.workshopResumePlan);
   }));
-  root.querySelector('[data-workshop-complete-plan]')?.addEventListener('click', event => completeWorkshopPlan(event.currentTarget.dataset.workshopCompletePlan));
+  root.querySelectorAll('[data-workshop-complete-plan]').forEach(button => button.addEventListener('click', event => completeWorkshopPlan(event.currentTarget.dataset.workshopCompletePlan)));
 }
 
 function bindWorkshopLane(lane) {
@@ -4591,6 +4605,11 @@ async function startWorkshopPlan(planId = '') {
   const entry = rows.find(row => row.id === planId);
   const vehicle = entry ? workshopVehicle(entry.vehicleKey) : null;
   if (!entry || !vehicle) return;
+  const alreadyStarted = workshopStartedBayConflict(entry, rows);
+  if (alreadyStarted) {
+    window.alert(`${pmbStageLabel(entry.stage)} Bay ${entry.bay} already has a started job. Stop or complete that job before starting another in this bay.`);
+    return;
+  }
   if (workshopSharedModeActive()) {
     await workshopDispatchSharedAction('startWork', {
       bookingId: entry.sharedBookingId || entry.id,
@@ -5306,6 +5325,7 @@ if (typeof module !== 'undefined' && module.exports) {
     workshopRequireSchedulableCandidate,
     workshopTechnicianIsOnLeave,
     workshopHasConflict,
+    workshopStartedBayConflict,
     workshopRequireNoBayConflict,
     workshopResolveConflictByNextSlot,
     workshopShiftTrailingPlannedRows,
