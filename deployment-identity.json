@@ -32,22 +32,22 @@
   "sourceFiles": [
     {
       "deployedPath": "ai-board-advisor.js",
-      "sha256": "b1dcf3e351d0aefa92ce663f9f86cee754edf4ade6a6b2e3575d2405826d4e01",
+      "sha256": "08a5a02faf5fb465126e07a0c96ecdf4416148a4e4695113dfe783b89b14b32d",
       "sourcePath": "ai-board-advisor.js"
     },
     {
       "deployedPath": "app.js",
-      "sha256": "6c1c1a49eaef56693dfad29f80fa057ab3bb375406524d8a36f49b6b4e3b4f4a",
+      "sha256": "becd7fb02134e9d03b35dbe0a82c9635f07a92c40f2fecefa340030de4cb5b16",
       "sourcePath": "app.js"
     },
     {
       "deployedPath": "arb-labor-catalog.js",
-      "sha256": "1800e93b325bfd58d9b0131d2105f78b775885bd82e88ceed63d3ecf6100b9fe",
+      "sha256": "db99ee8c4ddf341ce3f948dc04fb70cbe6c66d122be1a262f7074552a2fa49c0",
       "sourcePath": "arb-labor-catalog.js"
     },
     {
       "deployedPath": "assets/brand-logo.svg",
-      "sha256": "7e3c9cb0b7e1f53b931f6cad274583f78a6be67ba554d6a45e57473f5ab611a0",
+      "sha256": "4bffc708627c0ee8de1a997aec6bf3aae7461fb779f2700f41fd47e6645dd28d",
       "sourcePath": "assets/brand-logo.svg"
     },
     {
@@ -57,62 +57,62 @@
     },
     {
       "deployedPath": "data-staging-empty.js",
-      "sha256": "2fa02a231e559b4230ba22ac1c6e1cfa600fcaad9f546f6fb3e2a28b2acab756",
+      "sha256": "d2a9ed658daa1cc5eabb45a78eeb5c7f93ef0146a12e7f8c23d0b028f915c7a9",
       "sourcePath": "data-staging-empty.js"
     },
     {
       "deployedPath": "desktop-operations.css",
-      "sha256": "c043ff48d05e59163a9a08a59a02183f97334c4ce4efd1c2cfa35e1447d833d0",
+      "sha256": "767360ffac1c8f58a89e60b4f74cd593b9e6d776c371f58b8763085688858c10",
       "sourcePath": "desktop-operations.css"
     },
     {
       "deployedPath": "email-board-data.js",
-      "sha256": "c0cc888ec98ec64dd1710a75c7ea222d2c5a12993877ef4eebb3f66476e4093b",
+      "sha256": "3b55079afe708ae6842a6ddb61e19e912a8182cdc835a5d4102e4a5815dbace0",
       "sourcePath": "email-board-data.js"
     },
     {
       "deployedPath": "favicon.svg",
-      "sha256": "f1ce1b8f7a37c54801c2ee233c9e67bb2d852cb6ea8af942455d33d85aac046f",
+      "sha256": "f79b374447017a73a77012096c6d031ddb2ad6bf1b647d2efbfd465e6a5f32e6",
       "sourcePath": "favicon.svg"
     },
     {
       "deployedPath": "index.html",
-      "sha256": "a8ecaff4c576a74776f590319aab04fc6594ee3183892825af484c2be3f64068",
+      "sha256": "b9038401c7ab745be7b4f632a22c246b7ced24a5c86516b621b1f497a0aa2865",
       "sourcePath": "staging.html"
     },
     {
       "deployedPath": "navision-backend-service.js",
-      "sha256": "14b1bf6842ca6baf02b2ff6304ea9902d5077c24f9cdf6dd02bcda028b951fb8",
+      "sha256": "08c6fd98c499feb4327f277db3396254dce39f61d70abac0894df5b289ac8c86",
       "sourcePath": "navision-backend-service.js"
     },
     {
       "deployedPath": "pdc-auth-registration.js",
-      "sha256": "bc45f0a1ec5cfbdfb6ad05a8b499f4a4de2d98f6d150649de98790fae7bd615a",
+      "sha256": "13841fdf4408300d737b880cd4d676d2e49bdf4df65bd0f0c491db9e89da9dab",
       "sourcePath": "pdc-auth-registration.js"
     },
     {
       "deployedPath": "pdc-auth.js",
-      "sha256": "8c464adb0546ba5dddc5f4624fc0a66e007c3841879d0fa52b2f021fd5b3680e",
+      "sha256": "714f679310200f0dbfe232038179c48e8188d473159eddcfbde2ed76108f799b",
       "sourcePath": "pdc-auth.js"
     },
     {
       "deployedPath": "pdc-supabase-config.staging.js",
-      "sha256": "527033ba2c564b3113a8e8f67cb9f0127d695c5a7675b4f334d4d98d220e32be",
+      "sha256": "740ce65b13389386c57033a89ba5f688d983b0228cfaab8e48d77e88f560a590",
       "sourcePath": "pdc-supabase-config.staging.js"
     },
     {
       "deployedPath": "scripts/stage2b_c4_browser_export.js",
-      "sha256": "afa142651d88f44f40c2e41159e6f37bddc2e0af3fe89408e969e9926fc83f07",
+      "sha256": "5dafeb35a33626fec47aeaa931d17f83f22e436a4f602cbae66914537ab90f18",
       "sourcePath": "scripts/stage2b_c4_browser_export.js"
     },
     {
       "deployedPath": "staging-browser-assessment.js",
-      "sha256": "054f380b889eb8ce7475378478cab6f0927f0a9d15202c4745193e0405dc170e",
+      "sha256": "29acbe12e27d787b12d75614086278ac54e2ffe04bb6df1d755b3cacc7077bded",
       "sourcePath": "staging-browser-assessment.js"
     },
     {
       "deployedPath": "styles.css",
-      "sha256": "bdea06030c5df3f7d57ea8973cdd28ffa92195fff7abf959c0f6278f10195c3c",
+      "sha256": "ed0ebd496189134c5837790d2f5dce5944a2d66ac9e8eb6b3f31fef7652ce822",
       "sourcePath": "styles.css"
     },
     {
