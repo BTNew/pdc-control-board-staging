@@ -151,9 +151,21 @@ try:
     expect_ok("select public.resume_workshop_work(%s,%s,'{}'::jsonb)",(lifecycle_booking,version(lifecycle_booking))); counts['lifecycle_valid']+=1
     expect_ok("select public.complete_workshop_work(%s,%s,null,now(),'{}'::jsonb)",(lifecycle_booking,version(lifecycle_booking))); counts['lifecycle_valid']+=1
     expect_reject('completed_direct_start',"select public.start_workshop_work(%s,%s,now(),'{}'::jsonb)",(lifecycle_booking,version(lifecycle_booking))); counts['lifecycle_invalid']+=1
+    expect_reject('completed_direct_reopen',"with changed as(update public.workshop_bookings set status='queued' where id=%s returning id) select jsonb_build_object('ok',true) from changed",(lifecycle_booking,)); counts['lifecycle_invalid']+=1
     expect_ok("select public.return_completed_work(%s,%s,'authorised reopen','{}'::jsonb)",(lifecycle_booking,version(lifecycle_booking))); counts['lifecycle_valid']+=1
     planned_booking=primary[2][1]
     expect_reject('planned_direct_complete',"select public.complete_workshop_work(%s,%s,null,now(),'{}'::jsonb)",(planned_booking,version(planned_booking))); counts['lifecycle_invalid']+=1
+
+    # Queued start and stoppage cancellation are valid only through protected
+    # runtime actions; direct cancellation from started is impossible.
+    queued_booking=primary[4][1]
+    expect_ok("select public.cancel_workshop_booking(%s,%s,'queued matrix','{}'::jsonb)",(queued_booking,version(queued_booking))); counts['lifecycle_valid']+=1
+    expect_ok("select public.restore_workshop_booking(%s,%s,'{}'::jsonb)",(queued_booking,version(queued_booking))); counts['lifecycle_valid']+=1
+    expect_ok("select public.change_booking_bay(%s,%s,%s,'{}'::jsonb)",(queued_booking,version(queued_booking),stage_rows[primary[4][2]][2])); counts['lifecycle_valid']+=1
+    expect_ok("select public.start_workshop_work(%s,%s,now(),'{}'::jsonb)",(queued_booking,version(queued_booking))); counts['lifecycle_valid']+=1
+    expect_reject('started_direct_cancel',"with changed as(update public.workshop_bookings set status='deleted' where id=%s returning id) select jsonb_build_object('ok',true) from changed",(queued_booking,)); counts['lifecycle_invalid']+=1
+    expect_ok("select public.stop_workshop_work(%s,%s,'cancel matrix','{}'::jsonb)",(queued_booking,version(queued_booking))); counts['lifecycle_valid']+=1
+    expect_ok("select public.cancel_workshop_booking(%s,%s,'stoppage cancellation','{}'::jsonb)",(queued_booking,version(queued_booking))); counts['lifecycle_valid']+=1
 
     # Restore revalidates current canonical eligibility and cannot revive invalid data.
     restore_booking=primary[3][1]

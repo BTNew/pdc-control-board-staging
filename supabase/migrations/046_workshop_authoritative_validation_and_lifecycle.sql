@@ -180,10 +180,9 @@ begin
     raise exception 'Workshop duration must be at least 60 minutes' using errcode='22023';
   end if;
   while v_candidate<v_limit loop
-    if not exists(
-      select 1 from generate_series(v_candidate,v_candidate+make_interval(mins=>p_duration_minutes-1),interval '1 minute') m
-      where not public.workshop_calendar_minute_available(m)
-    ) then return v_candidate; end if;
+    if public.workshop_calendar_interval_available(v_candidate,v_candidate+make_interval(mins=>p_duration_minutes)) then
+      return v_candidate;
+    end if;
     v_candidate:=v_candidate+interval '1 minute';
   end loop;
   raise exception 'No configured Workshop Planner window is available' using errcode='22023';
