@@ -24,7 +24,7 @@ assert.match(desktopCss, /\.parts-queue-table \{[\s\S]*?min-width: 1480px;/);
 assert.match(desktopCss, /\.parts-queue-table \.parts-action-group \{[\s\S]*?display: flex !important;[\s\S]*?flex-wrap: wrap !important;/);
 assert.doesNotMatch(desktopCss, /\.parts-queue-table \.parts-action-group \{[^}]*display: grid !important;/s);
 assert.match(desktopCss, /\.parts-queue-table \.parts-email-sales-secondary \{[\s\S]*?width: auto !important;/);
-assert.match(app, /<th>Parts status<\/th><th>Parts ETA<\/th><th>ETA counter<\/th><th>JITA<\/th><th>Outstanding station work<\/th><th>Stoppage reason<\/th><th>Actions<\/th>/);
+assert.match(app, /<th>Parts status<\/th><th>Parts ETA<\/th><th>ETA counter<\/th><th>JITA<\/th><th>Outstanding station work<\/th><th>Parts STOPPAGE reason<\/th><th>Actions<\/th>/);
 assert.match(app, /parts-visible-actions/);
 assert.match(app, /data-parts-toggle-jita/);
 

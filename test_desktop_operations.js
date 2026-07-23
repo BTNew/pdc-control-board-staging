@@ -18,7 +18,7 @@ assert.ok(app.includes('window.PDC_ALLOW_LOCAL_RESET === true'));
 assert.ok(app.includes('jita-icon jita-unknown'));
 assert.ok(app.includes('PDC sheet · ${backEndOnlyCount} back end only'));
 
-const partsHeaders = ['Key', 'Stock', 'JC', 'Vehicle / customer', 'Parts status', 'Parts ETA', 'ETA counter', 'JITA', 'Outstanding station work', 'Stoppage reason', 'Actions'];
+const partsHeaders = ['Key', 'Stock', 'JC', 'Vehicle / customer', 'Parts status', 'Parts ETA', 'ETA counter', 'JITA', 'Outstanding station work', 'Parts STOPPAGE reason', 'Actions'];
 for (const heading of partsHeaders) {
   assert.ok(app.includes(`<th>${heading}</th>`), `Parts heading missing: ${heading}`);
 }
