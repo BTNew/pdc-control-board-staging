@@ -32,6 +32,10 @@ assert.ok(planner.includes('workshopSortBookingsClosest'), 'Closest booking sele
 assert.ok(planner.includes("event.key === 'Escape'"), 'Planner search result overlay must close on Escape');
 assert.ok(planner.includes('window.clearTimeout(app.workshopPlannerSearchTimer);'), 'Selecting a result must cancel the pending debounce so the overlay stays closed');
 assert.ok(plannerCss.includes('.workshop-plan-chip.is-search-match'), 'Selected search booking must retain a visible pulse/highlight');
+const modalOverlayZ = Number(styles.match(/\.modal-overlay\s*\{[\s\S]*?z-index:\s*(\d+)/)?.[1]);
+const workshopSearchZ = Number(plannerCss.match(/\.workshop-booking-search\s*\{[\s\S]*?z-index:\s*(\d+)/)?.[1]);
+assert.ok(Number.isFinite(modalOverlayZ) && Number.isFinite(workshopSearchZ) && modalOverlayZ > workshopSearchZ,
+  'Opening a Workshop job modal must place the modal above the planner booking search');
 
 const detailStart = app.indexOf('function renderDetail()');
 const detailEnd = app.indexOf('function saveVehicleEditsFromModal', detailStart);
