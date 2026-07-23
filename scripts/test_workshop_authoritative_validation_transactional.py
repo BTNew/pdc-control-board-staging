@@ -17,6 +17,8 @@ SQL_BODY=SQL.strip()
 SQL_BODY,n_begin=re.subn(r'(?im)^\s*begin;\s*','',SQL_BODY,count=1)
 SQL_BODY,n_commit=re.subn(r'(?im)\s*commit;\s*$','',SQL_BODY,count=1)
 assert n_begin==1 and n_commit==1
+PREFLIGHT=re.search(r"do \$\$\s*begin\s*if exists \([\s\S]*?before migration 046'[\s\S]*?end \$\$;",SQL,re.I).group(0)
+SQL_BODY=SQL_BODY.replace(PREFLIGHT,'',1)
 STAGES=['BUS_4X4','TINT','HOIST','FITTING','FABRICATION','ELECTRICAL','TYRE','PIT_INSPECTION']
 conn=psycopg2.connect(os.environ['PDC_STAGING_DATABASE_URL']); conn.autocommit=False; q=conn.cursor()
 counts={'accepted':0,'rejected':0,'stations':0,'lifecycle_valid':0,'lifecycle_invalid':0}
@@ -56,6 +58,36 @@ def create_vehicle(admin,stage_code,location='PMB',eta=None,completed=False,extr
 def version(booking_id): q.execute('select version from public.workshop_bookings where id=%s',(booking_id,)); return q.fetchone()[0]
 
 try:
+    q.execute("""select count(*) from public.workshop_bookings a join public.workshop_bookings b
+      on b.vehicle_id=a.vehicle_id and b.id>a.id and b.deleted_at is null
+      and b.status in('queued','planned','started','stoppage')
+      and tstzrange(b.scheduled_start_at,b.scheduled_end_at,'[)')&&tstzrange(a.scheduled_start_at,a.scheduled_end_at,'[)')
+      where a.deleted_at is null and a.status in('queued','planned','started','stoppage')""")
+    preexisting_overlap_count=q.fetchone()[0]
+    q.execute('savepoint migration_preflight')
+    try:
+        q.execute(PREFLIGHT)
+        assert preexisting_overlap_count==0
+    except psycopg2.Error as exc:
+        assert preexisting_overlap_count>0 and exc.pgcode=='23514',exc
+    finally:
+        q.execute('rollback to savepoint migration_preflight')
+    q.execute("""select count(*) from public.workshop_bookings a join public.workshop_bookings b
+      on b.vehicle_id=a.vehicle_id and b.id>a.id and b.deleted_at is null
+      and b.status in('queued','planned','started','stoppage')
+      and tstzrange(b.scheduled_start_at,b.scheduled_end_at,'[)')&&tstzrange(a.scheduled_start_at,a.scheduled_end_at,'[)')
+      where a.deleted_at is null and a.status in('queued','planned','started','stoppage')""")
+    assert q.fetchone()[0]==preexisting_overlap_count,'preflight must never rewrite operational rows'
+    if preexisting_overlap_count:
+        q.execute("""update public.workshop_bookings set status='deleted',deleted_at=now(),
+          deleted_reason='rollback-only migration-046 matrix isolation'
+          where id in (
+            select b.id from public.workshop_bookings a join public.workshop_bookings b
+              on b.vehicle_id=a.vehicle_id and b.id>a.id and b.deleted_at is null
+             and b.status in('queued','planned','started','stoppage')
+             and tstzrange(b.scheduled_start_at,b.scheduled_end_at,'[)')&&tstzrange(a.scheduled_start_at,a.scheduled_end_at,'[)')
+            where a.deleted_at is null and a.status in('queued','planned','started','stoppage')
+          )""")
     q.execute(SQL_BODY)
     admin_email=os.environ['PDC_STAGING_ADMIN_EMAIL'].strip().lower()
     q.execute('select id from auth.users where lower(email)=%s',(admin_email,)); admin=q.fetchone()[0]
@@ -223,6 +255,30 @@ try:
         for privilege in ('INSERT','UPDATE','DELETE','TRUNCATE'):
             q.execute("select has_table_privilege('authenticated','public.'||%s,%s)",(table,privilege)); assert q.fetchone()[0] is False,(table,privilege)
 
+    # Manufacture an impossible legacy overlap only inside nested savepoints.
+    # The migration preflight must fail and leave both operational rows intact.
+    q.execute('savepoint dirty_preflight')
+    dirty_vehicle=create_vehicle(admin,'BUS_4X4','PMB',extra_stage='TINT')
+    dirty_slot=base+timedelta(days=100)
+    q.execute('alter table public.workshop_bookings disable trigger workshop_booking_046b_validation_guard')
+    q.execute('alter table public.workshop_bookings drop constraint workshop_bookings_active_vehicle_no_overlap')
+    for code in ('BUS_4X4','TINT'):
+        stage_id,_,bay_number=stage_rows[code]
+        q.execute('select id from public.workshop_bays where stage_id=%s and bay_number=%s',(stage_id,bay_number)); bay_id=q.fetchone()[0]
+        q.execute("""insert into public.workshop_bookings(vehicle_id,stage_id,bay_id,status,scheduled_start_at,scheduled_end_at,
+          default_duration_minutes,created_by,updated_by) values(%s,%s,%s,'planned',%s,%s,60,%s,%s)""",
+          (dirty_vehicle,stage_id,bay_id,dirty_slot,dirty_slot+timedelta(hours=1),admin,admin))
+    q.execute('savepoint preflight_attempt')
+    try:
+        q.execute(PREFLIGHT)
+        raise AssertionError('migration 046 preflight accepted a dirty active vehicle overlap')
+    except psycopg2.Error as exc:
+        assert exc.pgcode=='23514',exc
+        q.execute('rollback to savepoint preflight_attempt')
+        q.execute('select count(*) from public.workshop_bookings where vehicle_id=%s',(dirty_vehicle,))
+        assert q.fetchone()[0]==2,'preflight must not clean or rewrite operational rows'
+    q.execute('rollback to savepoint dirty_preflight')
+
     # Historical completed fixture is direct-DML only inside this rollback-only
     # harness; it does not need a fake started transition and cannot ship.
     historical_vehicle=create_vehicle(admin,'TYRE','PMB',completed=True)
@@ -232,6 +288,6 @@ try:
       (historical_vehicle,stage_rows['TYRE'][0],base,base+timedelta(hours=1),admin,admin))
     q.execute('alter table public.workshop_bookings enable trigger workshop_bookings_planner_enabled_guard')
 
-    print(json.dumps({'rollback_only':True,**counts,'minimum_minutes':60,'planner_stations':STAGES,'historical_fixture_isolated':True},sort_keys=True))
+    print(json.dumps({'rollback_only':True,**counts,'minimum_minutes':60,'planner_stations':STAGES,'historical_fixture_isolated':True,'migration_preflight_overlap_pairs':preexisting_overlap_count},sort_keys=True))
 finally:
     conn.rollback(); conn.close()

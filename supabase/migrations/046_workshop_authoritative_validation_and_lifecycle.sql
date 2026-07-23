@@ -7,6 +7,25 @@ begin;
 -- because the exclusion constraints below depend on UUID GiST equality.
 create extension if not exists btree_gist;
 
+-- Do not silently grandfather ambiguous active vehicle schedules. Operational
+-- rows must be adjudicated separately; this migration never rewrites them.
+do $$
+begin
+  if exists (
+    select 1
+    from public.workshop_bookings a
+    join public.workshop_bookings b
+      on b.vehicle_id=a.vehicle_id and b.id>a.id
+     and b.deleted_at is null and b.status in ('queued','planned','started','stoppage')
+     and tstzrange(b.scheduled_start_at,b.scheduled_end_at,'[)')
+         && tstzrange(a.scheduled_start_at,a.scheduled_end_at,'[)')
+    where a.deleted_at is null and a.status in ('queued','planned','started','stoppage')
+  ) then
+    raise exception 'Existing active same-vehicle booking overlaps require adjudication before migration 046'
+      using errcode='23514';
+  end if;
+end $$;
+
 -- Private, transaction-scoped capabilities for the three exceptional lifecycle
 -- transitions. Runtime users have no table privileges; protected wrappers create
 -- and consume a marker in the same transaction as the guarded row update.
@@ -583,10 +602,8 @@ as $$
 declare v_result jsonb; v_technician uuid;
 begin
   if new.deleted_at is not null or new.status not in ('queued','planned','started','stoppage') then return new; end if;
-  -- Serialize the check/write pair per vehicle. Unlike an exclusion constraint,
-  -- this can be introduced while a separately-reviewed legacy staging overlap
-  -- still exists; every create/move/resize/cascade/restore after migration 046
-  -- is nevertheless race-safe and cannot add or revive an overlap.
+  -- Serialize readable validation per vehicle; the exclusion constraint below
+  -- remains the final race-safe authority for every mutation path.
   perform pg_advisory_xact_lock(hashtextextended('workshop:vehicle:'||new.vehicle_id::text,0));
   select a.technician_id into v_technician from public.workshop_booking_assignments a
   where a.booking_id=new.id and a.released_at is null
@@ -647,6 +664,13 @@ exclude using gist (
   bay_id with =,
   tstzrange(scheduled_start_at,scheduled_end_at,'[)') with &&
 ) where (deleted_at is null and bay_id is not null and status in ('planned','started','stoppage'));
+
+alter table public.workshop_bookings drop constraint if exists workshop_bookings_active_vehicle_no_overlap;
+alter table public.workshop_bookings add constraint workshop_bookings_active_vehicle_no_overlap
+exclude using gist (
+  vehicle_id with =,
+  tstzrange(scheduled_start_at,scheduled_end_at,'[)') with &&
+) where (deleted_at is null and status in ('queued','planned','started','stoppage'));
 
 alter table public.workshop_booking_assignments drop constraint if exists workshop_assignments_active_technician_no_overlap;
 alter table public.workshop_booking_assignments add constraint workshop_assignments_active_technician_no_overlap

@@ -13,6 +13,8 @@ assert(!/minimum(?:_|\s|-)*(?:duration|minutes)[^\n]{0,80}120/i.test(migration),
 assert(lower.includes("p_status in ('queued','planned','started','stoppage')"), 'active booking states must be explicit');
 assert(lower.includes("tstzrange(scheduled_start_at,scheduled_end_at,'[)')"), 'half-open intervals must permit back-to-back bookings');
 assert(lower.includes("pg_advisory_xact_lock(hashtextextended('workshop:vehicle:'||new.vehicle_id::text,0))"), 'transaction-safe vehicle advisory lock required');
+assert(lower.includes('workshop_bookings_active_vehicle_no_overlap'), 'authoritative same-vehicle exclusion constraint required');
+assert(lower.includes('existing active same-vehicle booking overlaps require adjudication before migration 046'), 'migration must fail closed on pre-existing active vehicle overlaps without rewriting rows');
 assert(lower.includes('workshop_bookings_active_bay_no_overlap'), 'authoritative bay exclusion constraint required');
 assert(lower.includes('workshop_assignments_active_technician_no_overlap'), 'authoritative technician exclusion constraint required');
 assert(lower.includes('workshop_calendar_minute_available') && lower.includes('workshop_operational_minutes_between'), 'canonical database calendar authority required');
