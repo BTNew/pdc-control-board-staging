@@ -34,9 +34,10 @@ const future = { ...past, id: 'future-planned', startAt: new Date(2030, 6, 15, 1
 assert.strictEqual(planner.workshopNewBookingValidation(past, now).error, 'past_start', 'Frontend must reject a planned booking placed before the current minute');
 assert.strictEqual(planner.workshopNewBookingValidation(future, now).ok, true, 'Frontend must continue accepting a valid future booking');
 
-assert.ok(migration.includes("p_status IN ('queued', 'planned')"), 'Effective backend migration must gate queued/planned past starts');
-assert.ok(migration.includes("p_scheduled_start_at < date_trunc('minute', statement_timestamp())"), 'Backend must compare requested start with the authoritative database clock');
-assert.match(migration, /not exists\s*\([\s\S]*?from public\.workshop_bookings existing[\s\S]*?existing\.scheduled_start_at=p_scheduled_start_at[\s\S]*?existing\.scheduled_end_at=p_scheduled_end_at/, 'Past-start guard must allow status-only lifecycle changes that retain an existing historical interval');
+assert.match(migration, /if not p_allow_unchanged_past\s+and p_status in \('queued','planned'\)/i, 'Effective backend migration must gate queued/planned past starts unless the trigger authorizes an unchanged historical interval');
+assert.ok(migration.includes("p_scheduled_start_at < date_trunc('minute',statement_timestamp())"), 'Backend must compare requested start with the authoritative database clock');
+assert.match(migration, /create or replace function public\.workshop_validate_booking\([\s\S]*?p_technician_id uuid default null[\s\S]*?select public\.workshop_validate_booking\([\s\S]*?p_technician_id,false/, 'Nine-argument validation callers must remain strict and unable to opt out of the past-start rule');
+assert.match(migration, /if tg_op='UPDATE'[\s\S]*?new\.scheduled_start_at is not distinct from old\.scheduled_start_at[\s\S]*?new\.scheduled_end_at is not distinct from old\.scheduled_end_at[\s\S]*?v_allow_unchanged_past:=true/, 'Only the booking trigger may allow lifecycle changes that retain the exact historical interval');
 assert.match(migration, /ALTER FUNCTION public\.cascade_workshop_schedule[\s\S]*SET search_path = pg_catalog, public;/, 'Browser-callable cascade RPC must resolve pg_catalog before public');
 
 assert.ok(source.includes("const started = String(entry.status || '').toLowerCase() === 'started';"), 'Started visual class must derive from lifecycle status, not legacy bay text');
