@@ -177,6 +177,9 @@ try:
     signatures=['workshop_create_booking(uuid,text,integer,timestamptz,integer,uuid,jsonb)','workshop_move_booking(uuid,integer,text,integer,timestamptz,integer,jsonb)','workshop_resize_booking(uuid,integer,integer,jsonb)','workshop_restore_booking(uuid,integer,jsonb)']
     for sig in signatures:
         q.execute("select has_function_privilege('authenticated','public.'||%s,'EXECUTE')",(sig,)); assert q.fetchone()[0] is False,sig
+    for table in ('workshop_bookings','workshop_booking_assignments','workshop_transition_authorizations'):
+        for privilege in ('INSERT','UPDATE','DELETE','TRUNCATE'):
+            q.execute("select has_table_privilege('authenticated','public.'||%s,%s)",(table,privilege)); assert q.fetchone()[0] is False,(table,privilege)
 
     # Historical completed fixture is direct-DML only inside this rollback-only
     # harness; it does not need a fake started transition and cannot ship.
