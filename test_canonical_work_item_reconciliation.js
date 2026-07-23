@@ -12,6 +12,7 @@ const backup = read('scripts/pdc_backup.py');
 const applyScript = read('scripts/apply_migration_045_staging.py');
 const reconcileScript = read('scripts/reconcile_legacy_stage_staging.py');
 const backupGate = read('scripts/release_backup_gate.py');
+const stagingHtml = read('staging.html');
 
 const eligibilitySql = sql.slice(sql.indexOf('create or replace function public.workshop_station_eligibility'), sql.indexOf('create or replace function public.get_station_workshop_snapshot'));
 assert(eligibilitySql.includes('from public.vehicle_work_items wi') && eligibilitySql.includes('wi.required and not wi.completed'), 'outstanding work item must be the sole candidate authority');
@@ -19,10 +20,13 @@ assert(!eligibilitySql.includes('v.pmb_stage') && !eligibilitySql.includes('work
 assert(!eligibilitySql.includes('union'), 'active bookings must annotate, never union into candidates');
 assert(eligibilitySql.includes('existing_booking') && eligibilitySql.includes("status in('queued','planned','started','stoppage')"), 'active booking must be an annotation for unscheduled semantics');
 assert(eligibilitySql.includes("in('PMB','YH','IT')") && eligibilitySql.includes("='IT' and v.eta_to_kewdale is null"), 'location and IT ETA rules must remain explicit');
+assert(eligibilitySql.includes('workshop_require_booking_schedule_eligibility') && eligibilitySql.includes('select 1 from public.workshop_station_eligibility(v_target)'), 'same-station move/resize/bay mutations must recheck current canonical eligibility');
+assert(!eligibilitySql.includes('v_target is distinct from v_current'), 'same-station booking mutations must not bypass canonical work authority');
 
 const preview = sql.slice(sql.indexOf('create or replace function public.preview_legacy_stage_reconciliation'), sql.indexOf('create or replace function public.apply_legacy_stage_reconciliation'));
 for (const classification of ['A_SAFE_CREATE','B_ACTIVE_BOOKING','C_COMPLETED_OR_OBSOLETE','D_AMBIGUOUS']) assert(preview.includes(classification), `preview missing ${classification}`);
 assert(preview.includes('active_same_bookings>1') && preview.includes('booking_completion_markers'), 'conflicting booking evidence must fail into D');
+assert(preview.includes('completed_items>0 and f.active_same_bookings>0') && preview.includes('completed_work_conflicts_with_active_booking'), 'completed work plus a live booking must be ambiguous');
 assert(preview.includes('extensions.uuid_generate_v5'), 'work-item identity must be deterministic');
 assert(!preview.includes('customer') && !preview.includes('notes'), 'preview must remain sanitized');
 
@@ -44,11 +48,18 @@ assert(!stationSnapshotSql.includes("'notes',wi.notes") && !stationSnapshotSql.i
 assert(planner.includes('Array.isArray(authority?.requirements)') && planner.includes('workshopSnapshotVehicleToPlannerRow(vehicle, displayWorkItems'), 'planner must render the server-authoritative requirements list, including Sublet, without using browser-local requirements');
 const candidateHydration = app.slice(app.indexOf('function workshopEligibilityCandidateVehicle'), app.indexOf('function authoritativeWorkshopVehiclesForStage'));
 assert(candidateHydration.includes('pmbJobs: { ...shared.pmbJobs }') && !candidateHydration.includes('local?.pmbJobs'), 'browser-local requirements must never survive canonical absence');
+assert(!candidateHydration.includes('...(local || {})') && candidateHydration.includes("client: ''"), 'Control Board canonical hydration must not widen the sanitized DTO with local customer or note aliases');
+assert(!planner.includes('...local') && planner.includes("customerName: ''") && planner.includes("notes: ''"), 'planner canonical hydration must discard local/server customer and note aliases');
 for (const script of [applyScript, reconcileScript]) {
   assert(script.includes('validate_release_backup') && script.includes("add_argument('--restore-schema',required=True)"), 'staging write scripts must require validated encrypted backup and isolated restore evidence');
   assert(script.includes('active_same_station_bookings') && script.includes('open_equivalent_work_items'), 'exact reconciliation guard must use the migration evidence vocabulary');
   assert(!script.includes('conflicting_booking_evidence'), 'exact reconciliation guard must use a reason code emitted by migration 045');
 }
+assert(applyScript.includes("version in('043','044','045')") && applyScript.includes("versions!=['044']"), 'apply gate must explicitly reject migration 043 and pre-existing 045');
+assert(reconcileScript.includes("choices=('record','finalize')") && reconcileScript.includes("expected_migration='044' if a.phase=='record' else '045'"), 'reconciliation must require distinct pre-045 and post-045 backup gates');
+assert(reconcileScript.includes("status':'pending_post_045_backup_restore'") && reconcileScript.includes("status':'reconciliation_finalized'"), 'record phase must not report final success before the post-045 restore proof');
+assert(reconcileScript.includes('backup_finished<last_receipt'), 'post-045 backup must be newer than committed receipts');
+assert(!stagingHtml.includes('random-100-vehicles.csv'), 'zero-data staging Pages shell must not expose an undeployed CSV download');
 assert(reconcileScript.includes('md5(to_jsonb(v)::text)') && reconcileScript.includes('md5(to_jsonb(wi)::text)') && reconcileScript.includes('md5(to_jsonb(b)::text)'), 'no-create gate must hash complete vehicle/work-item/booking rows');
 assert(!reconcileScript.includes('customer_email') && !reconcileScript.includes('customer_phone'), 'no-create gate must not query nonexistent vehicle columns');
 for (const gate of ['decrypt_backup','validate_backup_contract','PDC_BACKUP_ENCRYPTION_KEY','max_age_seconds','restore_test_runs','all_checks_passed','information_schema.schemata']) {

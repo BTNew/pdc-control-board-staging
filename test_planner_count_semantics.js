@@ -16,6 +16,8 @@ global.vehicleJobcardNumber = vehicle => vehicle.jobCard || '';
 global.displayStockNumber = vehicle => vehicle.stock || '';
 global.vehicleCustomerName = () => '';
 global.pmbStageLabel = stage => ({ HOIST: 'Hoist', FITTING: 'Fitting' }[stage] || stage);
+global.pmbStageJobDef = stage => ({ key: String(stage || '').toLowerCase(), label: String(stage || '') });
+global.pmbJobDefForStage = global.pmbStageJobDef;
 global.pdcRequirementDefinitions = () => [
   { key: 'hoist', label: 'Hoist' },
   { key: 'sublet', label: 'Sublet' },
@@ -38,10 +40,43 @@ assert(html.includes('Active booking exists · shown here because the requiremen
 assert(html.includes('draggable="false"') && html.includes('Already booked'), 'booked candidate must not create a duplicate booking');
 assert(!html.includes('data-workshop-best-slot-vehicle'), 'booked candidate must not offer another best slot');
 
+const sanitized = planner.workshopSnapshotVehicleToPlannerRow(
+  { id: 'safe-1', stock_number: 'SAFE-1', customer_name: 'CUSTOMER-SENTINEL', toyotaCustomer: 'TOYOTA-SENTINEL', dealerCustomer: 'DEALER-SENTINEL', notes: 'VEHICLE-NOTES-SENTINEL' },
+  [{ vehicle_id: 'safe-1', work_key: 'sublet', required: true, completed: false, notes: 'WORK-NOTES-SENTINEL' }],
+  'HOIST'
+);
+assert.strictEqual(sanitized.client, '', 'snapshot customer_name must be discarded');
+assert.strictEqual(sanitized.customerName, '', 'snapshot customer alias must be discarded');
+assert.strictEqual(sanitized.pmbJobs.sublet.notes, '', 'work-item notes must be discarded');
+assert(!('toyotaCustomer' in sanitized) && !('dealerCustomer' in sanitized) && !('notes' in sanitized), 'planner DTO must be an explicit allowlist');
+
+global.app.data = [{ id: 'safe-1', stock: 'SAFE-1', toyotaCustomer: 'LOCAL-CUSTOMER-SENTINEL', dealerCustomer: 'LOCAL-DEALER-SENTINEL', notes: 'LOCAL-NOTES-SENTINEL', pmbJobs: { hoist: { required: true, completed: false } } }];
+global.window = {
+  __activeWorkshopPlannerStage: 'HOIST',
+  PDC_SUPABASE_CONFIG: {},
+  workshopSharedModeEnabled: () => true,
+  __workshopDataService: {
+    isEnabled: () => true,
+    getLastSnapshot: () => ({
+      vehicles: [{ id: 'safe-1', stock_number: 'SAFE-1', current_location: 'PMB', customer_name: 'SERVER-CUSTOMER-SENTINEL', notes: 'SERVER-NOTES-SENTINEL' }],
+      work_items: [{ vehicle_id: 'safe-1', work_key: 'hoist', required: true, completed: false }],
+      bookings: [],
+      outstanding_candidates: [{ vehicle_id: 'safe-1', existing_booking: false, schedule_enabled: true, disabled_reason: null, requirements: [{ vehicle_id: 'safe-1', work_key: 'hoist', required: true, completed: false, completed_at: null }] }],
+    }),
+  },
+};
+const hydrated = planner.workshopPlannerVehiclesForStage('HOIST')[0];
+assert(hydrated && hydrated.id === 'safe-1', 'authoritative candidate must hydrate');
+for (const sentinel of ['LOCAL-CUSTOMER-SENTINEL','LOCAL-DEALER-SENTINEL','LOCAL-NOTES-SENTINEL','SERVER-CUSTOMER-SENTINEL','SERVER-NOTES-SENTINEL']) {
+  assert(!JSON.stringify(hydrated).includes(sentinel), `canonical hydration leaked ${sentinel}`);
+}
+
 const source = require('fs').readFileSync(require('path').join(__dirname, 'workshop-planner.js'), 'utf8');
 assert(source.includes('const queue = outstanding;'), 'candidate panel must contain the full outstanding set');
 assert(source.includes('const unscheduled = outstanding.filter'), 'unscheduled must be separately measured');
-assert(source.includes('${todaysPlans.length} bookings on selected date'), 'calendar count must be date-specific and separately labelled');
+assert(source.includes('${selectedDateBookingCount} bookings on selected date'), 'calendar count must use the canonical selected-date measurement');
+assert.strictEqual(planner.workshopSelectedDateBookingCount([{ id: 1 }, { id: 2 }], [{ id: 3 }]), 3, 'completed bookings must remain in local selected-date totals');
+assert.strictEqual(planner.workshopSelectedDateBookingCount([{ id: 1 }], [{ id: 2 }], { counts: { selected_date_bookings: 7 } }, true), 7, 'dedicated planner must use the authoritative snapshot count');
 assert(source.includes('<strong>Outstanding candidates</strong>'), 'left panel must be labelled with canonical semantics');
 
 console.log('Planner outstanding/unscheduled/selected-date UI semantics passed');

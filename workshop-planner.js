@@ -2342,7 +2342,7 @@ function workshopSnapshotVehicleToPlannerRow(vehicle = {}, workItems = [], stage
       required: item.required === true,
       completed: item.completed === true,
       completedAt: item.completed_at || null,
-      notes: item.notes || ''
+      notes: ''
     };
   });
   return {
@@ -2350,18 +2350,17 @@ function workshopSnapshotVehicleToPlannerRow(vehicle = {}, workItems = [], stage
     sharedVehicleId: vehicle.id,
     permanentVehicleId: vehicle.permanent_vehicle_id || '',
     vehicleKey: vehicle.stock_number || vehicle.permanent_vehicle_id || vehicle.id,
-    // Keep the legacy display aliases populated as well as the typed shared
-    // fields. The queue renderer's established identity helpers read stock,
-    // order and client, while shared Supabase snapshots use snake_case.
+    // Keep only approved identity/display aliases. Customer and note aliases are
+    // deliberately blank even if an unexpected local or server field is present.
     stock: vehicle.stock_number || '',
     stockNumber: vehicle.stock_number || '',
     order: vehicle.toyota_order_number || '',
     vin: vehicle.vin || '',
     toyotaOrderNumber: vehicle.toyota_order_number || '',
     jobCardNumber: vehicle.job_card_number || '',
-    client: vehicle.customer_name || '',
-    customerName: vehicle.customer_name || '',
-    customer: vehicle.customer_name || '',
+    client: '',
+    customerName: '',
+    customer: '',
     make: vehicle.make || '',
     model: vehicle.model || '',
     registration: vehicle.registration || '',
@@ -2398,8 +2397,6 @@ function workshopPlannerVehiclesForStage(stage = '') {
     : null;
   const eligibleVehicleIds = new Set(authoritativeById ? authoritativeById.keys() : canonicalById.keys());
   const scopedVehicles = snapshotVehicles.filter(vehicle => eligibleVehicleIds.has(String(vehicle?.id || '').trim()));
-  const localById = new Map(rows.map(vehicle => [String(vehicle.id || vehicle.sharedVehicleId || '').trim(), vehicle]).filter(([key]) => key));
-  const localByStock = new Map(rows.map(vehicle => [String(displayStockNumber(vehicle) || '').trim(), vehicle]).filter(([key]) => key));
   const workItemsByVehicle = new Map();
   workItems.forEach(item => {
     const vehicleId = String(item?.vehicle_id || '').trim();
@@ -2410,8 +2407,6 @@ function workshopPlannerVehiclesForStage(stage = '') {
   });
   return scopedVehicles.map(vehicle => {
     const vehicleId = String(vehicle.id || '').trim();
-    const local = localById.get(vehicleId)
-      || localByStock.get(String(vehicle.stock_number || '').trim());
     const authority = authoritativeById?.get(vehicleId);
     const displayWorkItems = Array.isArray(authority?.requirements)
       ? authority.requirements
@@ -2423,14 +2418,13 @@ function workshopPlannerVehiclesForStage(stage = '') {
       scheduleEnabled: authority ? authority.schedule_enabled === true : fallback?.schedule?.enabled === true,
       disabledReason: authority?.disabled_reason || fallback?.schedule?.reason || '',
     };
-    return local ? {
-      ...local,
+    return {
       ...scoped,
       pmbJobs: { ...scoped.pmbJobs },
       __workshopOutstanding: outstanding,
       sharedVehicleId: vehicle.id,
       id: vehicle.id
-    } : { ...scoped, __workshopOutstanding: outstanding };
+    };
   }).sort((a, b) => String(displayStockNumber(a) || '').localeCompare(String(displayStockNumber(b) || '')));
 }
 
@@ -3248,6 +3242,12 @@ function workshopEnsureDedicatedShell(root, stage = '') {
   return shell.querySelector('[data-workshop-station-content]');
 }
 
+function workshopSelectedDateBookingCount(activeRows = [], completedRows = [], snapshot = null, authoritative = false) {
+  const canonical = Number(snapshot?.counts?.selected_date_bookings);
+  if (authoritative && Number.isFinite(canonical) && canonical >= 0) return canonical;
+  return activeRows.length + completedRows.length;
+}
+
 function renderWorkshopPlanner() {
   if (workshopSharedModeActive()) workshopSyncConfigFromSharedSettings();
   const root = document.querySelector('#workshop-planner-root');
@@ -3290,6 +3290,18 @@ function renderWorkshopPlanner() {
   const queueBatch = workshopIncrementalRenderRows(queue, state.incrementalQueueLimit);
   const completedBatch = workshopIncrementalRenderRows(completed, state.incrementalCompletedLimit);
   const todaysPlans = activePlans.filter(entry => workshopEntrySegmentForDate(entry, dateKey));
+  const plannerSnapshot = window.__workshopDataService?.getLastSnapshot?.();
+  const plannerScope = plannerSnapshot?.scope || {};
+  const countIsAuthoritative = sharedModeActive && Boolean(dedicatedStage)
+    && normalizePmbStage(plannerScope.stage_code || '') === stage
+    && String(plannerScope.date_from || '') <= dateKey
+    && String(plannerScope.date_to || '') >= dateKey;
+  const selectedDateBookingCount = workshopSelectedDateBookingCount(
+    todaysPlans,
+    completed,
+    plannerSnapshot,
+    countIsAuthoritative
+  );
   const assigneeConflicts = todaysPlans.filter(entry => workshopEntryHasAssigneeConflict(entry, plans)).length;
   const stageVehicleCounts = dedicatedStage
     ? new Map([[stage, stageVehicleList.length]])
@@ -3310,7 +3322,7 @@ function renderWorkshopPlanner() {
         <button class="small-button warning-button" type="button" data-workshop-parts-warning>Draft next-day parts warning</button>
       </div>
     </header>
-    <div class="workshop-date-summary"><strong>${escapeHtml(workshopDateLabel(dateKey))}</strong><span>${todaysPlans.length} bookings on selected date · ${completed.length} completed · ${outstanding.length} outstanding · ${unscheduled.length} unscheduled${assigneeConflicts ? ` · ⚠ ${assigneeConflicts} mechanic clash${assigneeConflicts === 1 ? '' : 'es'}` : ''} · Saved automatically${state.lastSavedAt ? ` ${escapeHtml(new Date(state.lastSavedAt).toLocaleTimeString('en-AU', { hour: 'numeric', minute: '2-digit' }))}` : ''}</span><div class="workshop-status-legend"><span class="planned">Planned</span><span class="live">Live</span><span class="stoppage">Stoppage</span><span class="completed">Completed</span></div></div>
+    <div class="workshop-date-summary"><strong>${escapeHtml(workshopDateLabel(dateKey))}</strong><span>${selectedDateBookingCount} bookings on selected date · ${completed.length} completed · ${outstanding.length} outstanding · ${unscheduled.length} unscheduled${assigneeConflicts ? ` · ⚠ ${assigneeConflicts} mechanic clash${assigneeConflicts === 1 ? '' : 'es'}` : ''} · Saved automatically${state.lastSavedAt ? ` ${escapeHtml(new Date(state.lastSavedAt).toLocaleTimeString('en-AU', { hour: 'numeric', minute: '2-digit' }))}` : ''}</span><div class="workshop-status-legend"><span class="planned">Planned</span><span class="live">Live</span><span class="stoppage">Stoppage</span><span class="completed">Completed</span></div></div>
     ${workshopSearchControlHtml(state.search || '', plans)}
     ${stageTabs ? `<nav class="workshop-stage-tabs" aria-label="Workshop departments">${stageTabs}</nav>` : ''}
     ${workshopDetailPanelHtml(selected, plans)}
@@ -5209,6 +5221,7 @@ if (typeof module !== 'undefined' && module.exports) {
     workshopVehiclePlanningLocation,
     workshopVehicleEtaConstraint,
     workshopIncrementalRenderRows,
+    workshopSelectedDateBookingCount,
     workshopQueueCardHtml,
     workshopDateKeyNotBefore,
     workshopEtaScheduleValidation,

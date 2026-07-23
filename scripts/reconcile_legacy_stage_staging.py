@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-"""Persist reviewed no-create decisions for the five staging legacy-stage rows.
+"""Two-phase, staging-only legacy-stage reconciliation.
 
-The exact preview is fail-closed. Four ambiguous records receive ambiguity
-receipts only; one booking-represented record receives a skipped receipt. No
-vehicle, booking or work-item field is changed by this approved batch.
+Phase ``record`` commits the reviewed zero-create decision receipts only after a
+verified encrypted pre-045 backup. It deliberately reports PENDING, not release
+success. Phase ``finalize`` requires a fresh encrypted migration-045 backup,
+created after those receipts/audits, plus an isolated restore proof.
 """
 from __future__ import annotations
 import argparse, json, sys
@@ -34,34 +35,48 @@ def state_hash(q):
  q.execute("""select md5(coalesce(string_agg(md5(to_jsonb(b)::text),'|' order by b.id),''))
   from public.workshop_bookings b where b.vehicle_id=any(%s::uuid[])""",(IDS,));bookings=q.fetchone()[0]
  return {'vehicles':vehicles,'work_items':items,'bookings':bookings}
+def evidence(q):
+ q.execute("""select vehicle_id::text,classification,reason_code,canonical_station,current_location,
+  (evidence->>'active_same_station_bookings')::int,(evidence->>'booking_completion_markers')::boolean,
+  (evidence->>'open_equivalent_work_items')::int,(evidence->>'completed_equivalent_work_items')::int
+  from public.preview_legacy_stage_reconciliation(%s::uuid[]) order by vehicle_id""",(IDS,))
+ preview={r[0]:tuple(r[1:]) for r in q.fetchall()}
+ if preview!=EXPECTED:raise RuntimeError(f'preview drift: {preview}')
+ if any(v[0]=='A_SAFE_CREATE' for v in preview.values()):raise RuntimeError('approved batch is no-create; A row detected')
+ q.execute("select classification,decision_state,count(*) from public.legacy_stage_reconciliation_receipts where batch_id=%s group by 1,2 order by 1,2",(BATCH,));receipts=q.fetchall()
+ return preview,receipts
 def main():
- p=argparse.ArgumentParser();p.add_argument('--confirm-project',required=True);p.add_argument('--backup-path',required=True);p.add_argument('--backup-sha256',required=True);p.add_argument('--restore-schema',required=True);a=p.parse_args()
+ p=argparse.ArgumentParser();p.add_argument('--phase',choices=('record','finalize'),required=True);p.add_argument('--confirm-project',required=True);p.add_argument('--backup-path',required=True);p.add_argument('--backup-sha256',required=True);p.add_argument('--restore-schema',required=True);a=p.parse_args()
  if a.confirm_project!=EXPECTED_STAGING_REF:raise SystemExit('project confirmation mismatch')
  c=get_conn();q=c.cursor()
  try:
-  backup_evidence=validate_release_backup(c,a.backup_path,a.backup_sha256,a.restore_schema)
-  c.rollback();q=c.cursor()
-  q.execute('begin');q.execute("select count(*) from supabase_migrations.schema_migrations where version='045'")
-  if q.fetchone()[0]!=1:raise RuntimeError('migration 045 ledger entry missing')
-  q.execute("""select vehicle_id::text,classification,reason_code,canonical_station,current_location,
-   (evidence->>'active_same_station_bookings')::int,(evidence->>'booking_completion_markers')::boolean,
-   (evidence->>'open_equivalent_work_items')::int,(evidence->>'completed_equivalent_work_items')::int
-   from public.preview_legacy_stage_reconciliation(%s::uuid[]) order by vehicle_id""",(IDS,))
-  preview={r[0]:tuple(r[1:]) for r in q.fetchall()}
-  if preview!=EXPECTED:raise RuntimeError(f'preview drift: {preview}')
-  if any(v[0]=='A_SAFE_CREATE' for v in preview.values()):raise RuntimeError('approved batch is no-create; A row detected')
-  before=state_hash(q)
-  q.execute("select public.apply_legacy_stage_reconciliation(%s,%s::uuid[])",(BATCH,IDS));first=q.fetchone()[0]
-  q.execute("select public.apply_legacy_stage_reconciliation(%s,%s::uuid[])",(BATCH,IDS));second=q.fetchone()[0]
-  after=state_hash(q)
-  if before!=after:raise RuntimeError('forbidden operational state change detected')
-  if first!=second:raise RuntimeError('idempotent replay result changed')
-  q.execute("select classification,decision_state,count(*) from public.legacy_stage_reconciliation_receipts where batch_id=%s group by 1,2 order by 1,2",(BATCH,));receipts=q.fetchall()
-  if receipts!=[('B_ACTIVE_BOOKING','skipped',1),('D_AMBIGUOUS','ambiguous',4)]:raise RuntimeError(f'receipt mismatch: {receipts}')
+  expected_migration='044' if a.phase=='record' else '045'
+  backup_evidence=validate_release_backup(c,a.backup_path,a.backup_sha256,a.restore_schema,expected_migration=expected_migration)
+  c.rollback();q=c.cursor();q.execute('begin')
+  q.execute("select version from supabase_migrations.schema_migrations where version in('043','044','045') order by version")
+  if [r[0] for r in q.fetchall()]!=['044','045']:raise RuntimeError('migration ledger must contain 044/045 and exclude rejected 043')
+  preview,receipts=evidence(q)
+  if a.phase=='record':
+   before=state_hash(q)
+   q.execute("select public.apply_legacy_stage_reconciliation(%s,%s::uuid[])",(BATCH,IDS));first=q.fetchone()[0]
+   q.execute("select public.apply_legacy_stage_reconciliation(%s,%s::uuid[])",(BATCH,IDS));second=q.fetchone()[0]
+   after=state_hash(q)
+   if before!=after:raise RuntimeError('forbidden operational state change detected')
+   if first!=second:raise RuntimeError('idempotent replay result changed')
+   preview,receipts=evidence(q)
+   if receipts!=[('B_ACTIVE_BOOKING','skipped',1),('D_AMBIGUOUS','ambiguous',4)]:raise RuntimeError(f'receipt mismatch: {receipts}')
+   q.execute("select count(*) from public.audit_events where metadata->>'source'='legacy_pmb_stage_reconciliation_decision' and metadata->>'batch_id'=%s",(BATCH,))
+   if q.fetchone()[0]!=5:raise RuntimeError('every reconciliation decision requires one durable audit event')
+   c.commit()
+   print(json.dumps({'status':'pending_post_045_backup_restore','project_ref':EXPECTED_STAGING_REF,'batch_id':BATCH,'preview':preview,'receipts':receipts,'operational_state_unchanged':True,'idempotent_replay':True,'pre_045_backup_gate':backup_evidence},sort_keys=True));return
+  if receipts!=[('B_ACTIVE_BOOKING','skipped',1),('D_AMBIGUOUS','ambiguous',4)]:raise RuntimeError(f'final receipt mismatch: {receipts}')
+  q.execute("select max(applied_at) from public.legacy_stage_reconciliation_receipts where batch_id=%s",(BATCH,));last_receipt=q.fetchone()[0]
+  q.execute("select finished_at from public.backup_runs where id=%s::uuid",(backup_evidence['backup_run_id'],));backup_finished=q.fetchone()[0]
+  if last_receipt is None or backup_finished is None or backup_finished<last_receipt:raise RuntimeError('post-045 backup does not include committed reconciliation receipts')
   q.execute("select count(*) from public.audit_events where metadata->>'source'='legacy_pmb_stage_reconciliation_decision' and metadata->>'batch_id'=%s",(BATCH,))
-  if q.fetchone()[0]!=5:raise RuntimeError('every reconciliation decision requires one durable audit event')
-  c.commit()
-  print(json.dumps({'status':'recorded_no_create_decisions','project_ref':EXPECTED_STAGING_REF,'batch_id':BATCH,'preview':preview,'receipts':receipts,'operational_state_unchanged':True,'idempotent_replay':True,'backup_gate':backup_evidence},sort_keys=True))
+  if q.fetchone()[0]!=5:raise RuntimeError('final reconciliation audit count mismatch')
+  c.rollback()
+  print(json.dumps({'status':'reconciliation_finalized','project_ref':EXPECTED_STAGING_REF,'batch_id':BATCH,'preview':preview,'receipts':receipts,'post_045_backup_gate':backup_evidence,'backup_includes_receipts':True},sort_keys=True))
  except Exception:c.rollback();raise
  finally:c.close()
 if __name__=='__main__':main()

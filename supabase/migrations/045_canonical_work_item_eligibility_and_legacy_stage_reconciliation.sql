@@ -87,6 +87,7 @@ begin
         when f.open_items>1 or f.active_other_bookings>0 then 'D_AMBIGUOUS'
         when f.open_items=1 then 'C_COMPLETED_OR_OBSOLETE'
         when f.active_same_bookings>1 or f.booking_completion_markers then 'D_AMBIGUOUS'
+        when f.completed_items>0 and f.active_same_bookings>0 then 'D_AMBIGUOUS'
         when f.active_same_bookings=1 then 'B_ACTIVE_BOOKING'
         when f.completed_items>0 then 'C_COMPLETED_OR_OBSOLETE'
         when f.audited_legacy_move then 'A_SAFE_CREATE'
@@ -100,6 +101,7 @@ begin
         when f.open_items=1 then 'canonical_open_work_item_exists'
         when f.active_same_bookings>1 then 'multiple_active_same_station_bookings'
         when f.booking_completion_markers then 'active_status_booking_has_completion_markers'
+        when f.completed_items>0 and f.active_same_bookings>0 then 'completed_work_conflicts_with_active_booking'
         when f.active_same_bookings=1 then 'active_booking_represents_job'
         when f.completed_items>0 then 'completed_equivalent_work_exists'
         when f.audited_legacy_move then 'audited_unrepresented_legacy_requirement'
@@ -279,6 +281,27 @@ language sql stable security definer set search_path=pg_catalog,public as $$
   and upper(btrim(coalesce(v.current_location,''))) in('PMB','YH','IT')
 $$;
 revoke all on function public.workshop_station_eligibility(text) from public,anon,authenticated;
+
+-- Every schedule mutation, including a same-station move, resize or bay change,
+-- remains subordinate to the current canonical outstanding requirement.
+create or replace function public.workshop_require_booking_schedule_eligibility(p_booking_id uuid,p_target_stage_code text default null)
+returns void language plpgsql stable security definer set search_path=pg_catalog,public as $$
+declare v_vehicle_id uuid; v_current text; v_target text;
+begin
+ select b.vehicle_id,s.code into v_vehicle_id,v_current
+ from public.workshop_bookings b
+ join public.vehicles v on v.id=b.vehicle_id and v.lifecycle_state='active' and v.deleted_at is null
+ join public.workshop_stages s on s.id=b.stage_id
+ where b.id=p_booking_id and b.deleted_at is null;
+ if not found then
+  raise exception 'Active non-deleted vehicle and booking are required for scheduling' using errcode='22023';
+ end if;
+ v_target:=public.workshop_canonical_stage_code(coalesce(p_target_stage_code,v_current));
+ if not exists(select 1 from public.workshop_station_eligibility(v_target)e where e.vehicle_id=v_vehicle_id) then
+  raise exception 'Outstanding station requirement and current planner eligibility are required for scheduling' using errcode='22023';
+ end if;
+end $$;
+revoke all on function public.workshop_require_booking_schedule_eligibility(uuid,text) from public,anon,authenticated;
 
 create or replace function public.get_station_workshop_snapshot(p_stage_code text,p_date_from date,p_date_to date)
 returns jsonb language plpgsql stable security definer set search_path=pg_catalog,public as $$

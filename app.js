@@ -4420,7 +4420,7 @@ function workshopEligibilityCandidateVehicle(candidate = {}) {
     sharedVehicleId: raw.id,
     stock: raw.stock_number || '', stockNumber: raw.stock_number || '',
     vin: raw.vin || '', order: raw.toyota_order_number || '', jobCardNumber: raw.job_card_number || '',
-    client: raw.customer_name || '', vehicle: [raw.make, raw.model].filter(Boolean).join(' '),
+    client: '', vehicle: [raw.make, raw.model].filter(Boolean).join(' '),
     rego: raw.registration || '', registration: raw.registration || '',
     pdcLocation: raw.current_location || '', manualLocation: raw.current_location || '',
     pmbStage: raw.pmb_stage || '', pmbBayStage: raw.pmb_bay_stage || '', pmbBay: raw.pmb_bay_number || '',
@@ -4431,7 +4431,7 @@ function workshopEligibilityCandidateVehicle(candidate = {}) {
     const def = pmbStageJobDef(WORKSHOP_ELIGIBILITY.canonicalWorkshopStage(item.work_key));
     if (def) shared.pmbJobs[def.key] = { required: item.required === true, complete: item.completed === true, completedAt: item.completed_at || '' };
   });
-  shared = { ...(local || {}), ...shared, pmbJobs: { ...shared.pmbJobs } };
+  shared = { ...shared, pmbJobs: { ...shared.pmbJobs } };
   shared.__workshopEligibility = {
     stage: candidate.stage_code,
     location: raw.current_location || '',

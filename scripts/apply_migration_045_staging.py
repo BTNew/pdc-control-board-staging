@@ -39,7 +39,7 @@ def main():
   c.rollback()
   q=c.cursor()
   q.execute('begin')
-  q.execute("select version from supabase_migrations.schema_migrations where version in('044','045') order by version")
+  q.execute("select version from supabase_migrations.schema_migrations where version in('043','044','045') order by version")
   versions=[r[0] for r in q.fetchall()]
   if versions!=['044']: raise RuntimeError(f'ledger precondition failed: {versions}')
   q.execute(sql)

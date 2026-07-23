@@ -111,8 +111,9 @@ def main():
         c_open = vehicle("HOIST"); work(c_open, "HOIST")
         b_booked = vehicle("HOIST"); wb = work(b_booked, "HOIST"); booking(b_booked, "HOIST"); cur.execute("update public.vehicle_work_items set required=false where id=%s", (wb,))
         c_completed = vehicle("HOIST"); work(c_completed, "HOIST", completed=True)
+        d_completed_booked = vehicle("HOIST"); dcb_work = work(d_completed_booked, "HOIST"); booking(d_completed_booked, "HOIST"); cur.execute("update public.vehicle_work_items set completed=true,completed_at=now() where id=%s", (dcb_work,))
         d_conflict = vehicle("HOIST"); wd = work(d_conflict, "HOIST"); booking(d_conflict, "HOIST"); booking(d_conflict, "HOIST", "2026-07-24 01:00:00+00", "2026-07-24 04:00:00+00"); cur.execute("update public.vehicle_work_items set required=false where id=%s", (wd,))
-        ids = [a_hoist, a_fitting, c_open, b_booked, c_completed, d_conflict]
+        ids = [a_hoist, a_fitting, c_open, b_booked, c_completed, d_completed_booked, d_conflict]
         cur.execute("select vehicle_id::text,classification,reason_code from public.preview_legacy_stage_reconciliation(%s::uuid[])", (ids,))
         preview = {r[0]: (r[1], r[2]) for r in cur.fetchall()}
         assert_true(preview[a_hoist][0] == "A_SAFE_CREATE", "Hoist A classification")
@@ -120,6 +121,7 @@ def main():
         assert_true(preview[c_open] == ("C_COMPLETED_OR_OBSOLETE", "canonical_open_work_item_exists"), "open item no-duplicate classification")
         assert_true(preview[b_booked] == ("B_ACTIVE_BOOKING", "active_booking_represents_job"), "booking classification")
         assert_true(preview[c_completed] == ("C_COMPLETED_OR_OBSOLETE", "completed_equivalent_work_exists"), "completed classification")
+        assert_true(preview[d_completed_booked] == ("D_AMBIGUOUS", "completed_work_conflicts_with_active_booking"), "completed work plus active booking must be ambiguous")
         assert_true(preview[d_conflict][0] == "D_AMBIGUOUS", "ambiguous classification")
         result["checks"].append("deterministic_A_B_C_D_preview")
 
@@ -130,7 +132,7 @@ def main():
         second = cur.fetchone()[0]
         assert_true(first == second, "idempotent replay response")
         cur.execute("select count(*),count(*) filter(where decision_state='applied'),count(*) filter(where decision_state='ambiguous') from public.legacy_stage_reconciliation_receipts where batch_id=%s", (batch,))
-        assert_true(cur.fetchone() == (6, 2, 1), "receipt cardinality/state")
+        assert_true(cur.fetchone() == (7, 2, 2), "receipt cardinality/state")
         cur.execute("select count(*) from public.vehicle_work_items where id in (select applied_work_item_id from public.legacy_stage_reconciliation_receipts where batch_id=%s)", (batch,))
         assert_true(cur.fetchone()[0] == 2, "only A creates work items")
         cur.execute("select count(*) from public.audit_events where metadata->>'source'='legacy_pmb_stage_reconciliation' and metadata->>'batch_id'=%s", (batch,))
@@ -165,6 +167,21 @@ def main():
         assert_true(loc[it_ok] == (True, None), "IT valid ETA")
         assert_true(loc[it_missing] == (False, "missing_eta"), "IT missing ETA visible but disabled")
         assert_true(other not in loc, "other location excluded")
+
+        mutation_vehicle = vehicle("HOIST", "PMB"); mutation_work = work(mutation_vehicle, "HOIST"); mutation_booking = booking(mutation_vehicle, "HOIST")
+        cur.execute("update public.vehicle_work_items set required=false where id=%s", (mutation_work,))
+        for target in (None, "HOIST"):
+            cur.execute("savepoint canonical_booking_guard")
+            blocked = False
+            try:
+                cur.execute("select public.workshop_require_booking_schedule_eligibility(%s,%s)", (mutation_booking, target))
+            except Exception:
+                blocked = True
+                cur.execute("rollback to savepoint canonical_booking_guard")
+            cur.execute("release savepoint canonical_booking_guard")
+            assert_true(blocked, "same-station booking mutation survived completed/missing canonical requirement")
+        result["checks"].append("same_station_move_resize_bay_change_require_current_work")
+
         cur.execute("select count(*) from public.workshop_station_eligibility('SUBLET')")
         assert_true(cur.fetchone()[0] == 0, "Sublet planner excluded")
         result["checks"].append("pmb_yh_it_eta_all_eight_sublet")
@@ -192,6 +209,9 @@ def main():
         count_a = vehicle("FABRICATION", "PMB"); work(count_a, "FABRICATION"); work(count_a, "SUBLET")
         count_b = vehicle("FABRICATION", "PMB"); work(count_b, "FABRICATION"); booking(count_b, "FABRICATION")
         grid_only = vehicle("FABRICATION", "PMB"); wg = work(grid_only, "FABRICATION"); booking(grid_only, "FABRICATION"); cur.execute("update public.vehicle_work_items set required=false where id=%s", (wg,))
+        completed_grid = vehicle("FABRICATION", "PMB"); completed_grid_work = work(completed_grid, "FABRICATION"); completed_booking = booking(completed_grid, "FABRICATION")
+        cur.execute("update public.vehicle_work_items set completed=true,completed_at=now() where id=%s", (completed_grid_work,))
+        cur.execute("update public.workshop_bookings set status='completed',actual_start_at=scheduled_start_at,actual_end_at=scheduled_end_at where id=%s", (completed_booking,))
         cur.execute("select public.get_station_workshop_snapshot('FABRICATION','2026-07-23','2026-07-23')")
         snapshot = cur.fetchone()[0]
         candidate_ids = {x["vehicle_id"] for x in snapshot["outstanding_candidates"]}
@@ -204,7 +224,8 @@ def main():
         assert_true(snapshot["counts"]["outstanding_candidates"] >= 2, "outstanding count")
         assert_true(snapshot["counts"]["unscheduled_candidates"] >= 1, "unscheduled count")
         selected_ids = {x["vehicle_id"] for x in snapshot["bookings"]}
-        assert_true({count_b, grid_only}.issubset(selected_ids), "selected-date grid booking set")
+        assert_true({count_b, grid_only, completed_grid}.issubset(selected_ids), "selected-date grid booking set")
+        assert_true(snapshot["counts"]["selected_date_bookings"] == len(snapshot["bookings"]), "selected-date authoritative count excludes completed booking")
         result["checks"].append("outstanding_unscheduled_selected_date_semantics")
 
         # Service-only reconciliation authority and sanitized durable data.
