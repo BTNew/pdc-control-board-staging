@@ -2631,6 +2631,62 @@ body.vehicle-table-header-pinned #vehicle-table thead {
   display: grid;
   gap: 10px;
 }
+.navision-import-access-status {
+  margin-top: 10px;
+  padding: 11px 13px;
+  border: 1px solid;
+  border-radius: 12px;
+  display: grid;
+  gap: 3px;
+}
+.navision-import-access-status strong { font-size: .82rem; }
+.navision-import-access-status span { font-size: .76rem; }
+.navision-import-access-status.is-ready {
+  border-color: #86efac;
+  background: #f0fdf4;
+  color: #166534;
+}
+.navision-import-access-status.is-blocked {
+  border-color: #fcd34d;
+  background: #fffbeb;
+  color: #92400e;
+}
+.navision-import-success {
+  min-height: 118px;
+  padding: 18px 22px;
+  border: 2px solid #22c55e;
+  border-radius: 18px;
+  background: #f0fdf4;
+  color: #14532d;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  text-align: left;
+}
+.navision-import-success-tick {
+  width: 74px;
+  height: 74px;
+  border-radius: 50%;
+  background: #16a34a;
+  color: #fff;
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 auto;
+  font-size: 3.2rem;
+  font-weight: 950;
+  line-height: 1;
+  box-shadow: 0 8px 22px rgba(22, 163, 74, .22);
+}
+.navision-import-success strong {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 1.18rem;
+}
+.navision-import-success span:not(.navision-import-success-tick) {
+  font-size: .86rem;
+  color: #166534;
+}
 .navision-summary-grid {
   grid-template-columns: repeat(4, minmax(0, 1fr));
 }

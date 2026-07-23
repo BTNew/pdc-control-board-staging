@@ -39,4 +39,9 @@ ok(sql.includes("v_role = any(array['importer','administrator'])"),'snapshot dat
 ok(sql.includes('navision_backend_audit'),'audit retained');
 ok(sql.includes('revoke all on function public.preview_navision_backend_import(jsonb,text,timestamptz)'),'unscoped preview revoked');
 ok(sql.includes('revoke all on function public.apply_navision_backend_import(text,jsonb,text,timestamptz,text,text,bigint)'),'unscoped apply revoked');
+ok(app.includes('<option value="importer">importer</option>'),'administrator user management can assign the existing importer role');
+ok(app.includes('function navisionSharedImportRoleAllowed(')&&app.includes("['importer', 'administrator']"),'staging UI explains the same importer/administrator role gate as the backend');
+ok(stagingHtml.includes('id="navision-import-access-status"'),'staging shared import displays its access state instead of silently disabling the workflow');
+ok(app.includes('navision-import-success-tick')&&app.includes('Navision import complete'),'successful shared apply renders a prominent imported confirmation tick');
+ok(fs.readFileSync('styles.css','utf8').includes('.navision-import-success-tick'),'successful shared apply tick has dedicated visual styling');
 console.log(`Navision shared UI/dealer-scope regression: ${n} assertions passed.`);

@@ -3272,6 +3272,7 @@ function userManagementRowActionsHtml(row) {
       <select class="um-role-select" data-um-role-for="${email}">
         <option value="viewer">viewer</option>
         <option value="operator">controller</option>
+        <option value="importer">importer</option>
         <option value="administrator">administrator</option>
       </select>
       <button class="small-button primary" data-um-approve="${email}">Approve</button>
@@ -3283,6 +3284,7 @@ function userManagementRowActionsHtml(row) {
       <select class="um-role-select" data-um-role-for="${email}">
         <option value="viewer" ${row.role === 'viewer' ? 'selected' : ''}>viewer</option>
         <option value="operator" ${row.role === 'operator' ? 'selected' : ''}>controller</option>
+        <option value="importer" ${row.role === 'importer' ? 'selected' : ''}>importer</option>
         <option value="administrator" ${row.role === 'administrator' ? 'selected' : ''}>administrator</option>
       </select>
       <button class="small-button" data-um-change-role="${email}">Change role</button>
@@ -13332,18 +13334,46 @@ function updateNavisionControlStats(result = null) {
   }
 }
 
+function navisionSharedImportRoleAllowed(role = null) {
+  const resolvedRole = String(role ?? (typeof window !== 'undefined' ? window.PDC_AUTH_CONTEXT?.role : '') ?? '').trim().toLowerCase();
+  return ['importer', 'administrator'].includes(resolvedRole);
+}
+
+function updateNavisionImportAccessStatus(sharedMode = Boolean($('#navision-dealer-code'))) {
+  const host = $('#navision-import-access-status');
+  if (!host) return !sharedMode || navisionSharedImportRoleAllowed();
+  if (!sharedMode) {
+    host.hidden = true;
+    return true;
+  }
+  host.hidden = false;
+  const allowed = navisionSharedImportRoleAllowed();
+  host.className = `navision-import-access-status ${allowed ? 'is-ready' : 'is-blocked'}`;
+  host.innerHTML = allowed
+    ? '<strong>Import access ready</strong><span>Your account can preview and apply shared Navision imports.</span>'
+    : '<strong>Importer access required</strong><span>An administrator must assign your account the importer role before Navision preview or apply is enabled.</span>';
+  return allowed;
+}
+
 function updateNavisionImportButton() {
   const raw = ($('#navision-paste')?.value || '').trim();
   const dealerCode = ($('#navision-dealer-code')?.value || '').trim();
   const sharedMode = Boolean($('#navision-dealer-code')) && Boolean(navisionSharedBackendService());
+  const roleAllowed = updateNavisionImportAccessStatus(sharedMode);
   if (sharedMode && app.pendingSharedNavisionImport && (app.pendingSharedNavisionImport.dealerCode !== dealerCode || app.pendingSharedNavisionImport.sourceTextSha256 !== sha256Hex(raw))) {
     app.pendingSharedNavisionImport = null;
   }
   const button = $('#import-navision');
   const applyButton = $('#apply-navision-shared');
   const clear = $('#navision-clear');
-  if (button) button.disabled = !raw || (sharedMode && !['14450', '37047'].includes(dealerCode));
-  if (applyButton) applyButton.disabled = !app.pendingSharedNavisionImport;
+  if (button) {
+    button.disabled = !raw || (sharedMode && (!roleAllowed || !['14450', '37047'].includes(dealerCode)));
+    button.title = sharedMode && !roleAllowed ? 'Importer or administrator access is required.' : '';
+  }
+  if (applyButton) {
+    applyButton.disabled = !app.pendingSharedNavisionImport || (sharedMode && !roleAllowed);
+    applyButton.title = sharedMode && !roleAllowed ? 'Importer or administrator access is required.' : '';
+  }
   if (clear) clear.disabled = !raw && !app.navisionImport && !app.pendingSharedNavisionImport;
   updateNavisionControlStats(app.pendingNavisionImport || app.navisionImport);
 }
@@ -14637,7 +14667,10 @@ function renderSharedNavisionPreview(state = {}, applied = false) {
   const counts = data.counts || state.previewData?.counts || {};
   const blocking = data.blocking === true || Number(counts.invalid || 0) > 0 || Number(counts.conflict || 0) > 0;
   const values = ['new', 'changed', 'unchanged', 'missing', 'invalid', 'conflict'];
-  host.innerHTML = `<div class="summary-row ${blocking ? 'error' : 'success'}"><strong>${applied ? 'Shared Navision batch applied' : (blocking ? 'Shared preview blocked' : 'Shared preview ready')}</strong><span>Microsoft Navision · dealer ${escapeHtml(state.dealerCode || '')} · browser-local authority SHA-256 ${escapeHtml(state.browserLocalSha256 || '')}</span></div>
+  const resultBanner = applied
+    ? `<div class="navision-import-success" role="status" aria-live="polite"><span class="navision-import-success-tick" aria-hidden="true">✓</span><div><strong>Navision import complete</strong><span>Shared Navision batch applied successfully for dealer ${escapeHtml(state.dealerCode || '')}.</span></div></div>`
+    : `<div class="summary-row ${blocking ? 'error' : 'success'}"><strong>${blocking ? 'Shared preview blocked' : 'Shared preview ready'}</strong><span>Microsoft Navision · dealer ${escapeHtml(state.dealerCode || '')} · browser-local authority SHA-256 ${escapeHtml(state.browserLocalSha256 || '')}</span></div>`;
+  host.innerHTML = `${resultBanner}
     <div class="scot-summary-grid">${values.map(key => `<div class="summary-stat"><span>${escapeHtml(key)}</span><strong>${Number(counts[key] || 0)}</strong></div>`).join('')}</div>
     <div class="subtle navision-note">${applied ? `Durable receipt: ${escapeHtml(data.receipt_id || data.receiptId || 'returned by shared service')} · revision ${escapeHtml(data.revision ?? data.result_revision ?? '')}. Browser-local data was not applied or replaced.` : `Preview hash ${escapeHtml(data.preview_hash || '')}. Apply is enabled only when invalid/conflict totals are zero and the exact preview is unchanged.`}</div>`;
 }
@@ -14646,6 +14679,11 @@ async function importNavisionVehicles() {
   const input = $('#navision-paste');
   const text = input?.value || '';
   if (!$('#navision-dealer-code')) return importNavisionVehiclesLocal(text);
+  if (!navisionSharedImportRoleAllowed()) {
+    updateNavisionImportAccessStatus(true);
+    window.alert('Importer or administrator access is required for shared Navision imports. Ask an administrator to assign the importer role. Nothing changed.');
+    return;
+  }
   const dealerCode = ($('#navision-dealer-code')?.value || '').trim();
   if (!['14450', '37047'].includes(dealerCode)) {
     window.alert('Select the exact dealer code: Pilbara Toyota 14450 or Broome Toyota 37047. No preview was created.');
@@ -14708,6 +14746,11 @@ function importNavisionVehiclesLocal(text = '') {
 }
 
 async function applySharedNavisionImport() {
+  if (!navisionSharedImportRoleAllowed()) {
+    updateNavisionImportAccessStatus(true);
+    window.alert('Importer or administrator access is required for shared Navision imports. Nothing changed.');
+    return;
+  }
   const pending = app.pendingSharedNavisionImport;
   if (!pending) return;
   const data = pending.previewData || {};
