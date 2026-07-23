@@ -46,6 +46,9 @@ begin
   if not coalesce(v_role = any(array['viewer','operator','importer','administrator']), false) then
     return public.navision_backend_response(false, 'unauthorized');
   end if;
+  -- Approved PDC staff accounts are globally entitled to the restricted shared
+  -- import view; there is no per-user dealership partition in pdc_user_roles.
+  -- Dealer scope remains exact and caller-selected only within this fixed allowlist.
   if v_source_system <> 'microsoft_navision' or v_dealer_code not in ('14450','37047') then
     return public.navision_backend_response(false, 'invalid_input', jsonb_build_object('field', 'scope'));
   end if;

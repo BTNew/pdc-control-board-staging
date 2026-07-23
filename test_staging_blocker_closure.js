@@ -26,7 +26,10 @@ for (const action of ['scheduleVehicleWork', 'moveBooking', 'cascadeSchedule', '
 assert(migration.includes('vehicles_toyota_order_normalized_idx'));
 assert(migration.includes('union select v.id'));
 assert(migration.includes("b.status in('started','stoppage') and b.scheduled_start_at<v_to"));
-assert(!/statement_timeout|lock_timeout/i.test(migration), 'performance fix must not be a timeout increase');
+assert(migration.includes("set local lock_timeout = '3s'"), 'staging index build must fail fast instead of blocking live writes');
+assert(!/set\s+(local\s+)?statement_timeout/i.test(migration), 'runtime performance fix must not increase the statement timeout');
+assert(migration.includes('workshop_booking_048_legacy_ambiguity_guard'));
+assert(migration.includes("raise exception 'legacy_ambiguity_blocked'"));
 
 for (const label of ['Parts required', 'Parts ordered', 'Parts received', 'JITA ordered', 'Parts stoppage', 'Ready for workshop']) {
   assert(app.includes(label), `missing filter ${label}`);

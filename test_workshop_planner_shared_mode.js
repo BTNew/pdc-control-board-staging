@@ -750,6 +750,33 @@ console.log('Workshop planner shared-mode integration seam checks passed');
     assert.ok(!alerts[0].includes('sentinel'), '18c raw transport errors never leak to the operator');
     assert.strictEqual(renders, 1, '18d planner refresh is still requested after failure');
     console.log('PASS 18: rejected shared actions fail closed with safe UX and refresh');
+
+    const duplicateBookings = ['b1', 'b2'].map((id, index) => ({
+      booking_id: id,
+      version: 7,
+      vehicle: { id: 'veh-legacy', stock_number: 'LEGACY-HOIST' },
+      stage: { code: 'HOIST' },
+      bay: { bay_number: index + 1 },
+      status: 'planned',
+      scheduled_start_at: `2026-07-20T0${index + 1}:00:00.000Z`,
+      default_duration_minutes: 60,
+    }));
+    let ambiguityDispatches = 0;
+    global.window = {
+      workshopSharedModeEnabled: () => true,
+      PDC_SUPABASE_CONFIG: { workshop: { sharedData: true } },
+      __workshopDataService: {
+        isEnabled: () => true,
+        getLastSnapshot: () => ({ bookings: duplicateBookings, vehicles: [] }),
+      },
+      __workshopSharedActions: { startWork: async () => { ambiguityDispatches += 1; return { ok: true }; } },
+      alert: message => alerts.push(String(message)),
+    };
+    const blocked = await planner.workshopDispatchSharedAction('startWork', { bookingId: 'b1', expectedVersion: 7 }, () => { renders += 1; });
+    assert.strictEqual(blocked.error, 'legacy_ambiguity_blocked', '19a ambiguous legacy booking is rejected centrally');
+    assert.strictEqual(ambiguityDispatches, 0, '19b no protected mutation is dispatched for an ambiguous legacy booking');
+    assert.ok(alerts.at(-1).includes('Legacy review required'), '19c operator receives a clear legacy-review explanation');
+    console.log('PASS 19: alternate Job details paths cannot mutate ambiguous legacy bookings');
   } finally {
     global.window = originalWindow;
   }

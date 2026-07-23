@@ -1,6 +1,9 @@
 -- 048: staging blocker closure -- optimize Navision identity matching and carry unfinished live Workshop work forward.
 -- Depends on 045 and is intentionally limited to shared staging paths.
 
+begin;
+set local lock_timeout = '3s';
+
 create index if not exists vehicles_toyota_order_normalized_idx
 on public.vehicles ((public.normalize_vehicle_source_identifier(toyota_order_number)))
 where toyota_order_number is not null;
@@ -24,6 +27,38 @@ returns uuid[] language sql stable security definer set search_path=pg_catalog,p
  select coalesce(array_agg(distinct id order by id),'{}'::uuid[]) from candidates
 $$;
 revoke all on function public.navision_backend_candidate_vehicle_ids(jsonb) from public,anon,authenticated;
+
+create or replace function public.workshop_block_legacy_ambiguous_booking_mutation()
+returns trigger
+language plpgsql
+security definer
+set search_path=pg_catalog,public
+as $$
+begin
+  if old.deleted_at is null and old.status in ('queued','planned','started','stoppage')
+     and exists(select 1 from public.workshop_stages stage where stage.id=old.stage_id and stage.code='HOIST')
+     and (
+       old.actual_end_at is not null
+       or exists (
+         select 1 from public.workshop_bookings other
+         where other.id<>old.id
+           and other.vehicle_id=old.vehicle_id
+           and other.stage_id=old.stage_id
+           and other.deleted_at is null
+           and other.status in ('queued','planned','started','stoppage')
+       )
+     ) then
+    raise exception 'legacy_ambiguity_blocked' using errcode='23514';
+  end if;
+  return new;
+end $$;
+revoke all on function public.workshop_block_legacy_ambiguous_booking_mutation() from public,anon,authenticated;
+
+drop trigger if exists workshop_booking_048_legacy_ambiguity_guard on public.workshop_bookings;
+create trigger workshop_booking_048_legacy_ambiguity_guard
+before update of vehicle_id,stage_id,bay_id,status,scheduled_start_at,scheduled_end_at,default_duration_minutes,deleted_at
+on public.workshop_bookings
+for each row execute function public.workshop_block_legacy_ambiguous_booking_mutation();
 
 create or replace function public.get_station_workshop_snapshot(p_stage_code text,p_date_from date,p_date_to date)
 returns jsonb language plpgsql stable security definer set search_path=pg_catalog,public as $$
@@ -103,3 +138,5 @@ revoke all on function public.get_station_workshop_snapshot(text,date,date) from
 grant execute on function public.get_station_workshop_snapshot(text,date,date) to authenticated;
 comment on function public.get_station_workshop_snapshot(text,date,date) is
  'Operator/admin-only station DTO. Outstanding candidates remain date-independent; started/stopped work carries forward readably without duplicating bookings.';
+
+commit;

@@ -534,14 +534,16 @@ function workshopMapSnapshotBookingToLegacyRow(booking = {}, vehicleById = null)
 }
 
 function workshopAnnotateLegacyAmbiguity(rows = []) {
-  const active = rows.filter(row => !['completed', 'deleted', 'cancelled'].includes(row.status));
+  const active = rows.filter(row => normalizePmbStage(row.stage) === 'HOIST'
+    && !['completed', 'deleted', 'cancelled'].includes(row.status));
   const counts = new Map();
   active.forEach(row => {
     const key = `${row.sharedVehicleId}:${normalizePmbStage(row.stage)}`;
     counts.set(key, (counts.get(key) || 0) + 1);
   });
   return rows.map(row => {
-    if (['completed', 'deleted', 'cancelled'].includes(row.status)) return row;
+    if (normalizePmbStage(row.stage) !== 'HOIST'
+      || ['completed', 'deleted', 'cancelled'].includes(row.status)) return row;
     const duplicate = (counts.get(`${row.sharedVehicleId}:${normalizePmbStage(row.stage)}`) || 0) > 1;
     const completedMarker = Boolean(row.completedAt);
     if (!duplicate && !completedMarker) return row;
@@ -646,8 +648,22 @@ function workshopRequireOperatorProfile() {
 // permission error, never silently applied client-side.
 const WORKSHOP_OVERRIDE_CAPABLE_ACTIONS = new Set(['moveBooking', 'scheduleVehicleWork', 'cascadeSchedule']);
 
+function workshopSharedLegacyAmbiguity(payload = {}) {
+  const bookingId = String(payload.bookingId || '').trim();
+  if (!bookingId) return null;
+  if (!window.__workshopDataService || typeof window.__workshopDataService.getLastSnapshot !== 'function') return null;
+  return workshopLoadPlans().find(row => row.id === bookingId && row.legacyAmbiguityReason) || null;
+}
+
 async function workshopDispatchSharedAction(actionName, payload, renderAction = renderWorkshopPlanner) {
   if (!workshopSharedModeActive()) return null;
+  const ambiguous = workshopSharedLegacyAmbiguity(payload);
+  if (ambiguous) {
+    const result = { ok: false, error: 'legacy_ambiguity_blocked', bookingId: ambiguous.id };
+    window.alert(`${ambiguous.legacyAmbiguityReason} No change was made.`);
+    renderAction();
+    return result;
+  }
   const actions = window.__workshopSharedActions;
   if (!actions || typeof actions[actionName] !== 'function') {
     window.alert('Shared workshop mode is connected but this action is not yet available. No change was made.');
@@ -704,6 +720,9 @@ function workshopDescribeSharedActionError(result) {
   }
   if (error === 'ambiguous_vehicle_identity' || error === 'conflicting_vehicle_identity') {
     return 'This vehicle reference matches more than one shared vehicle or conflicts with its saved UUID. No change was made; the identity requires review.';
+  }
+  if (error === 'legacy_ambiguity_blocked') {
+    return 'This legacy booking is ambiguous and remains blocked for administrator review. No change was made.';
   }
   if (error === 'vehicle_identity_not_found') {
     return 'This vehicle is not yet linked to one shared vehicle record. No change was made.';
@@ -3128,6 +3147,16 @@ function workshopDetailHtml(entry = null) {
   if (!entry) return `<div class="workshop-job-detail is-empty"><strong>Job details</strong><span>Select a planned vehicle to view, start, complete or reschedule it. Drag a planned job back to the left panel to return it to Unallocated.</span></div>`;
   const vehicle = workshopVehicle(entry.vehicleKey);
   if (!vehicle) return `<div class="workshop-job-detail is-empty"><strong>Vehicle unavailable</strong><span>This plan is retained for administrator review.</span></div>`;
+  if (entry.legacyAmbiguityReason) {
+    return `<div class="workshop-job-detail workshop-legacy-review-detail" role="status">
+      <strong>Legacy review required · editing blocked</strong>
+      <span>${escapeHtml(entry.legacyAmbiguityReason)}</span>
+      <div class="workshop-detail-actions">
+        <button class="small-button" type="button" data-workshop-open-job="${escapeHtml(entry.vehicleKey)}">Vehicle job</button>
+        <button class="small-button" type="button" data-workshop-open-vehicle="${escapeHtml(entry.vehicleKey)}">Full vehicle</button>
+      </div>
+    </div>`;
+  }
   const start = parseIsoTimestamp(entry.startAt || '');
   const localValue = start ? `${workshopDateKey(start)}T${workshopPad(start.getHours())}:${workshopPad(start.getMinutes())}` : '';
   const actualBay = pmbBayNumber(vehicle, entry.stage);
