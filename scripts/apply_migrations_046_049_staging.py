@@ -38,7 +38,8 @@ def main():
     conn = get_conn()
     try:
         backup_evidence = validate_release_backup(
-            conn, args.backup_path, args.backup_sha256, args.restore_schema
+            conn, args.backup_path, args.backup_sha256, args.restore_schema,
+            expected_migration='048',
         )
         conn.rollback()
         cur = conn.cursor()
