@@ -359,10 +359,19 @@ for (const [startName, nextName, pathLabel] of [
   ['moveWorkshopLivePlan', 'moveWorkshopDroppedPlan', 'live drag/drop'],
   ['scheduleWorkshopVehicle', 'saveWorkshopDetailForm', 'daily drag/drop'],
   ['saveWorkshopDetailForm', 'startWorkshopPlan', 'detail edit'],
+  ['startWorkshopResize', 'workshopWeeklyCardHtml', 'duration resize'],
   ['moveWorkshopWeeklyPlan', 'openWorkshopWeeklyView', 'weekly move'],
 ]) {
   const section = workshopFunctionSection(startName, nextName);
   assert.ok(section.includes('workshopConfirmOtherDepartmentPlans('), `${pathLabel} must reject an overlapping active booking for the same vehicle before persistence`);
+  const firstDispatch = section.search(/workshop(?:DispatchSharedAction|ScheduleSharedNewBooking)\(/);
+  if (firstDispatch >= 0) {
+    assert.ok(section.indexOf('workshopConfirmOtherDepartmentPlans(') < firstDispatch, `${pathLabel} shared-mode overlap guard must run before dispatch`);
+  }
+}
+{
+  const section = workshopFunctionSection('extendWorkshopPlan', 'workshopOtherDepartmentOverlaps');
+  assert.ok(section.indexOf('workshopConfirmOtherDepartmentPlans(') >= 0 && section.indexOf('workshopConfirmOtherDepartmentPlans(') < section.indexOf('workshopDispatchSharedAction('), 'shared duration extension must reject same-vehicle overlap before cascade dispatch');
 }
 
 for (const [startName, nextName, pathLabel] of [

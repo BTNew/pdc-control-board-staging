@@ -235,6 +235,7 @@ console.log('Workshop planner shared-mode integration seam checks passed');
     ['version_conflict', 'changed by another user'],
     ['bay_overlap', 'bay is already occupied'],
     ['technician_overlap', 'already assigned to another booking'],
+    ['vehicle_overlap', 'back-to-back or non-overlapping'],
     ['parts_incomplete', 'Parts requirements are incomplete'],
     ['permission_denied', 'do not have permission'],
     ['authority_superseded', 'session changed'],
@@ -374,6 +375,7 @@ console.log('Workshop planner shared-mode integration seam checks passed');
   const tintTomorrow = { id: 'p4', vehicleKey: 'V1', stage: 'TINT', bay: 1, startAt: new Date(2026, 6, 20, 8, 0, 0, 0).toISOString(), hours: 2, status: 'planned' };
   const sameStage0900 = { id: 'p5', vehicleKey: 'V1', stage: 'FITTING', bay: 2, startAt: new Date(2026, 6, 17, 9, 0, 0, 0).toISOString(), hours: 2, status: 'planned' };
   const otherVehicleOverlap = { id: 'p6', vehicleKey: 'V2', stage: 'TINT', bay: 1, startAt: new Date(2026, 6, 17, 9, 0, 0, 0).toISOString(), hours: 2, status: 'planned' };
+  const startedFitting = { ...fitting0800to1100, id: 'p7', status: 'started' };
 
   // 12a: sequential, back-to-back bookings in different departments must
   // never be flagged as overlapping.
@@ -432,7 +434,15 @@ console.log('Workshop planner shared-mode integration seam checks passed');
     assert.ok(lastMessage.includes('TINT'), '12f the rejection must name the exact conflicting department');
     assert.ok(lastMessage.includes('Bay 01'), '12f the rejection must name the exact conflicting bay');
   }
-  console.log('PASS 12: same-vehicle overlap is rejected across stations/bays while back-to-back and cross-vehicle bookings remain valid');
+  {
+    let alertCalls = 0;
+    withGlobals({ alert: () => { alertCalls += 1; } }, () => {
+      const ok = planner.workshopConfirmOtherDepartmentPlans(startedFitting, [startedFitting, tint1000to1200]);
+      assert.strictEqual(ok, false, '12g a live started/stoppage move must reject same-vehicle overlap');
+    });
+    assert.strictEqual(alertCalls, 1, '12g live overlap rejection must explain the conflict');
+  }
+  console.log('PASS 12: same-vehicle overlap is rejected across stations/bays and live states while back-to-back and cross-vehicle bookings remain valid');
 }
 
 // 13. workshopDateAtOffset: exact drag/drop time-coordinate calculation.
@@ -706,3 +716,28 @@ console.log('Workshop planner shared-mode integration seam checks passed');
 
   console.log("PASS 17: workshopBayAvailabilityStatus() distinguishes active/inactive/unavailable/unknown and fails closed for new scheduling, while workshopBayIsActive() remains unchanged for existing/historical bookings");
 }
+
+// 18. Transport/runtime failures are converted to safe operator UX and never
+// leak a rejected promise or raw backend/network text.
+(async () => {
+  const originalWindow = global.window;
+  const alerts = [];
+  let renders = 0;
+  global.window = {
+    workshopSharedModeEnabled: () => true,
+    PDC_SUPABASE_CONFIG: { workshop: { sharedData: true } },
+    __workshopDataService: { isEnabled: () => true },
+    __workshopSharedActions: { moveBooking: async () => { throw new Error('network sentinel must not leak'); } },
+    alert: message => alerts.push(String(message)),
+  };
+  try {
+    const result = await planner.workshopDispatchSharedAction('moveBooking', {}, () => { renders += 1; });
+    assert.deepStrictEqual(result, { ok: false, error: 'runtime_failure' }, '18a rejected actions become a structured fail-closed result');
+    assert.strictEqual(alerts.length, 1, '18b one safe user-facing alert is shown');
+    assert.ok(!alerts[0].includes('sentinel'), '18c raw transport errors never leak to the operator');
+    assert.strictEqual(renders, 1, '18d planner refresh is still requested after failure');
+    console.log('PASS 18: rejected shared actions fail closed with safe UX and refresh');
+  } finally {
+    global.window = originalWindow;
+  }
+})().catch(error => { console.error(error); process.exitCode = 1; });

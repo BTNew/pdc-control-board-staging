@@ -83,7 +83,7 @@ try:
               and tstzrange(b.scheduled_start_at,b.scheduled_end_at,'[)')&&tstzrange(m,m+interval '2 hours','[)'))
           order by m limit 1""",(base+timedelta(days=i*7),base+timedelta(days=i*7)))
         slots.append(q.fetchone()[0])
-    primary=[]
+    primary=[]; secondary=[]
     for i,code in enumerate(STAGES):
         nxt=STAGES[(i+1)%len(STAGES)]; bay=stage_rows[code][2]; slot=slots[i]
         vehicle=create_vehicle(admin,code,'PMB' if i%2==0 else 'YH',extra_stage=nxt)
@@ -95,7 +95,10 @@ try:
         expect_reject(f'bay_overlap_{i}',"select public.schedule_vehicle_work(%s,1,%s,%s,%s,60,null,null,'{}'::jsonb)",(conflict_vehicle,code,bay,slot),{'bay_overlap'})
         next_bay=stage_rows[nxt][2]
         expect_reject(f'vehicle_overlap_{i}',"select public.schedule_vehicle_work(%s,1,%s,%s,%s,60,null,null,'{}'::jsonb)",(vehicle,nxt,next_bay,slot),{'vehicle_overlap'})
-        expect_ok("select public.schedule_vehicle_work(%s,1,%s,%s,%s,60,null,null,'{}'::jsonb)",(vehicle,nxt,next_bay,slot+timedelta(hours=1)))
+        second=expect_ok("select public.schedule_vehicle_work(%s,1,%s,%s,%s,60,null,null,'{}'::jsonb)",(vehicle,nxt,next_bay,slot+timedelta(hours=1)))
+        second_booking=uuid.UUID(second['booking']['booking_id']); secondary.append((second_booking,nxt,next_bay))
+        expect_reject(f'resize_vehicle_overlap_{i}',"select public.resize_workshop_booking(%s,%s,120,'{}'::jsonb)",(booking,version(booking)),{'vehicle_overlap'})
+        expect_reject(f'move_vehicle_overlap_{i}',"select public.move_workshop_booking(%s,%s,%s,%s,%s,60,null,'{}'::jsonb)",(second_booking,version(second_booking),nxt,next_bay,slot),{'vehicle_overlap'})
         counts['stations']+=1
 
     # Invalid working day/hour/closure/break and valid configured overtime.
@@ -123,6 +126,25 @@ try:
     start_clock=cal_base.astimezone(timezone(timedelta(hours=8))).strftime('%H:%M'); end_clock=(cal_base+timedelta(hours=1)).astimezone(timezone(timedelta(hours=8))).strftime('%H:%M')
     q.execute("update public.workshop_settings set value=%s::jsonb where key='break_windows'",(json.dumps([{'date':local_base.isoformat(),'start':start_clock,'end':end_clock}]),))
     expect_reject('break',"select public.schedule_vehicle_work(%s,1,'BUS_4X4',%s,%s,60,null,null,'{}'::jsonb)",(calendar_vehicle,bus_bay,cal_base),{'calendar_unavailable'})
+    q.execute("update public.workshop_settings set value=%s::jsonb where key='break_windows'",(json.dumps([{'date':local_base.isoformat(),'start':'12:00','end':'13:00'}]),))
+    q.execute("select public.workshop_add_operational_minutes((%s::date+time '11:30') at time zone 'Australia/Perth',60) at time zone 'Australia/Perth'",(local_base,))
+    assert q.fetchone()[0].time().strftime('%H:%M')=='13:30','cascade helper must skip configured break'
+    q.execute("update public.workshop_settings set value=%s::jsonb where key='break_windows'",(json.dumps(breaks),))
+    q.execute("""select m from generate_series(%s::timestamptz,%s::timestamptz+interval '14 days',interval '15 minutes')m
+      where public.workshop_calendar_interval_available(m,m+interval '4 hours')
+        and not exists(select 1 from public.workshop_bookings b where b.deleted_at is null and b.status in('queued','planned','started','stoppage')
+          and tstzrange(b.scheduled_start_at,b.scheduled_end_at,'[)')&&tstzrange(m,m+interval '4 hours','[)')) order by m limit 1""",(cal_base+timedelta(days=42),cal_base+timedelta(days=42)))
+    cascade_base=q.fetchone()[0]; cascade_day=cascade_base.astimezone(timezone(timedelta(hours=8))).date()
+    cascade_break_start=(cascade_base+timedelta(hours=2)).astimezone(timezone(timedelta(hours=8))).strftime('%H:%M')
+    cascade_break_end=(cascade_base+timedelta(hours=3)).astimezone(timezone(timedelta(hours=8))).strftime('%H:%M')
+    target_vehicle=create_vehicle(admin,'BUS_4X4','PMB'); trailing_vehicle=create_vehicle(admin,'BUS_4X4','PMB')
+    target_result=expect_ok("select public.schedule_vehicle_work(%s,1,'BUS_4X4',%s,%s,60,null,null,'{}'::jsonb)",(target_vehicle,bus_bay,cascade_base))
+    trailing_result=expect_ok("select public.schedule_vehicle_work(%s,1,'BUS_4X4',%s,%s,60,null,null,'{}'::jsonb)",(trailing_vehicle,bus_bay,cascade_base+timedelta(hours=1)))
+    target_booking=uuid.UUID(target_result['booking']['booking_id']); trailing_booking=uuid.UUID(trailing_result['booking']['booking_id'])
+    q.execute("update public.workshop_settings set value=%s::jsonb where key='break_windows'",(json.dumps([{'date':cascade_day.isoformat(),'start':cascade_break_start,'end':cascade_break_end}]),))
+    expect_ok("select public.cascade_workshop_schedule('extend',%s,%s,'BUS_4X4',%s,%s,120,null,60,null,'{}'::jsonb)",(target_booking,version(target_booking),bus_bay,cascade_base))
+    q.execute('select scheduled_start_at,scheduled_end_at from public.workshop_bookings where id=%s',(trailing_booking,)); shifted_start,shifted_end=q.fetchone()
+    assert shifted_start==cascade_base+timedelta(hours=3) and shifted_end==cascade_base+timedelta(hours=4),'cascade RPC must skip the configured break and preserve duration'
     q.execute("update public.workshop_settings set value=%s::jsonb where key='break_windows'",(json.dumps(breaks),))
     q.execute("select value from public.workshop_settings where key='overtime_windows' for update"); overtime=q.fetchone()[0]
     overtime_start=(datetime.combine(local_base,day_end)+timedelta(hours=1)).time().replace(second=0,microsecond=0)
@@ -131,7 +153,23 @@ try:
     q.execute("select (%s::date+%s::time) at time zone 'Australia/Perth'",(local_base,overtime_start)); overtime_at=q.fetchone()[0]
     overtime_vehicle=create_vehicle(admin,'BUS_4X4','PMB')
     expect_ok("select public.schedule_vehicle_work(%s,1,'BUS_4X4',%s,%s,60,null,null,'{}'::jsonb)",(overtime_vehicle,bus_bay,overtime_at))
+    q.execute("update public.workshop_settings set value=%s::jsonb where key='overtime_windows'",(json.dumps([{'date':local_base.isoformat(),'start':day_end.strftime('%H:%M'),'end':(datetime.combine(local_base,day_end)+timedelta(hours=1)).time().strftime('%H:%M')}]),))
+    q.execute("select public.workshop_add_operational_minutes((%s::date+(%s::time-interval '30 minutes')) at time zone 'Australia/Perth',60) at time zone 'Australia/Perth'",(local_base,day_end))
+    assert q.fetchone()[0].time()==(datetime.combine(local_base,day_end)+timedelta(minutes=30)).time(),'cascade helper must consume configured overtime'
     q.execute("update public.workshop_settings set value=%s::jsonb where key='overtime_windows'",(json.dumps(overtime),))
+
+    # Behavioural technician-leave rejection through the protected create RPC.
+    tech=uuid.uuid4(); q.execute("insert into public.workshop_technicians(id,name,role_type,active) values(%s,%s,'technician',true)",(tech,f'M046 rollback tech {tech}'))
+    q.execute("select value from public.workshop_settings where key='technician_leave' for update"); leave=q.fetchone()[0]
+    q.execute("""select m from generate_series(%s::timestamptz,%s::timestamptz+interval '14 days',interval '15 minutes')m
+      where public.workshop_calendar_interval_available(m,m+interval '1 hour')
+        and not exists(select 1 from public.workshop_bookings b where b.deleted_at is null and b.status in('queued','planned','started','stoppage')
+          and tstzrange(b.scheduled_start_at,b.scheduled_end_at,'[)')&&tstzrange(m,m+interval '1 hour','[)')) order by m limit 1""",(cal_base+timedelta(days=21),cal_base+timedelta(days=21)))
+    leave_slot=q.fetchone()[0]; leave_date=leave_slot.astimezone(timezone(timedelta(hours=8))).date()
+    q.execute("update public.workshop_settings set value=%s::jsonb where key='technician_leave'",(json.dumps([{'technician_id':str(tech),'date':leave_date.isoformat()}]),))
+    leave_vehicle=create_vehicle(admin,'BUS_4X4','PMB')
+    expect_reject('technician_leave',"select public.schedule_vehicle_work(%s,1,'BUS_4X4',%s,%s,60,%s,null,'{}'::jsonb)",(leave_vehicle,bus_bay,leave_slot,tech),{'technician_on_leave','technician_leave_conflict'})
+    q.execute("update public.workshop_settings set value=%s::jsonb where key='technician_leave'",(json.dumps(leave),))
 
     # Canonical requirement and IT ETA rules.
     missing=create_vehicle(admin,'TINT','PMB'); q.execute('delete from public.vehicle_work_items where vehicle_id=%s',(missing,))
@@ -172,6 +210,10 @@ try:
     expect_ok("select public.cancel_workshop_booking(%s,%s,'rollback proof','{}'::jsonb)",(restore_booking,version(restore_booking)))
     q.execute('update public.vehicle_work_items set completed=true,completed_at=now() where vehicle_id=%s and public.workshop_stage_code_for_work_key(work_key)=%s',(primary[3][0],primary[3][2]))
     expect_reject('invalid_restore',"select public.restore_workshop_booking(%s,%s,'{}'::jsonb)",(restore_booking,version(restore_booking)),{'canonical_requirement_missing_or_completed'})
+    overlap_restore=primary[6][1]; overlap_second=secondary[6][0]
+    expect_ok("select public.cancel_workshop_booking(%s,%s,'restore overlap proof','{}'::jsonb)",(overlap_restore,version(overlap_restore)))
+    expect_ok("select public.move_workshop_booking(%s,%s,%s,%s,%s,60,null,'{}'::jsonb)",(overlap_second,version(overlap_second),secondary[6][1],secondary[6][2],slots[6]))
+    expect_reject('vehicle_overlap_restore',"select public.restore_workshop_booking(%s,%s,'{}'::jsonb)",(overlap_restore,version(overlap_restore)),{'vehicle_overlap'})
 
     # Browser role cannot call weaker paths.
     signatures=['workshop_create_booking(uuid,text,integer,timestamptz,integer,uuid,jsonb)','workshop_move_booking(uuid,integer,text,integer,timestamptz,integer,jsonb)','workshop_resize_booking(uuid,integer,integer,jsonb)','workshop_restore_booking(uuid,integer,jsonb)']

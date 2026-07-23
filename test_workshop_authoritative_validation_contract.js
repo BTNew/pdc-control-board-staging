@@ -16,6 +16,8 @@ assert(lower.includes("pg_advisory_xact_lock(hashtextextended('workshop:vehicle:
 assert(lower.includes('workshop_bookings_active_bay_no_overlap'), 'authoritative bay exclusion constraint required');
 assert(lower.includes('workshop_assignments_active_technician_no_overlap'), 'authoritative technician exclusion constraint required');
 assert(lower.includes('workshop_calendar_minute_available') && lower.includes('workshop_operational_minutes_between'), 'canonical database calendar authority required');
+assert(/create or replace function public\.workshop_add_operational_minutes[\s\S]*workshop_calendar_minute_available\(v_cursor\)/i.test(migration), 'cascade operational-minute helper must consume the canonical break/overtime calendar');
+assert(/v_new_start\s*:=\s*public\.workshop_next_calendar_window\([\s\S]{0,220}public\.workshop_add_operational_minutes/i.test(migration), 'cascade must place every shifted booking in a full contiguous canonical window');
 for(const key of ['working_week','day_start_time','day_end_time','closures','break_windows','overtime_windows','technician_leave']){
   assert(lower.includes(`key='${key}'`) || lower.includes(key), `calendar authority missing ${key}`);
 }

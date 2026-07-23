@@ -634,24 +634,29 @@ function workshopRequireOperatorProfile() {
 // permission error, never silently applied client-side.
 const WORKSHOP_OVERRIDE_CAPABLE_ACTIONS = new Set(['moveBooking', 'scheduleVehicleWork', 'cascadeSchedule']);
 
-async function workshopDispatchSharedAction(actionName, payload) {
+async function workshopDispatchSharedAction(actionName, payload, renderAction = renderWorkshopPlanner) {
   if (!workshopSharedModeActive()) return null;
   const actions = window.__workshopSharedActions;
   if (!actions || typeof actions[actionName] !== 'function') {
     window.alert('Shared workshop mode is connected but this action is not yet available. No change was made.');
     return { ok: false, error: 'action_unavailable' };
   }
-  let result = await actions[actionName](payload);
-  if (result && result.ok !== true && result.error === 'parts_incomplete' && WORKSHOP_OVERRIDE_CAPABLE_ACTIONS.has(actionName) && !payload.overrideReason) {
-    const reason = await workshopOverrideReasonModal();
-    if (reason) {
-      result = await actions[actionName]({ ...payload, overrideReason: reason });
+  let result;
+  try {
+    result = await actions[actionName](payload);
+    if (result && result.ok !== true && result.error === 'parts_incomplete' && WORKSHOP_OVERRIDE_CAPABLE_ACTIONS.has(actionName) && !payload.overrideReason) {
+      const reason = await workshopOverrideReasonModal();
+      if (reason) {
+        result = await actions[actionName]({ ...payload, overrideReason: reason });
+      }
     }
+  } catch (_error) {
+    result = { ok: false, error: 'runtime_failure' };
   }
   if (!result || result.ok !== true) {
     window.alert(workshopDescribeSharedActionError(result));
   }
-  renderWorkshopPlanner();
+  renderAction();
   return result || { ok: false, error: 'no_response' };
 }
 
@@ -669,6 +674,9 @@ function workshopDescribeSharedActionError(result) {
   }
   if (error === 'technician_overlap' || (conflict && conflict.conflict_type === 'technician_overlap')) {
     return 'That technician is already assigned to another booking during this period.';
+  }
+  if (error === 'vehicle_overlap' || (conflict && conflict.conflict_type === 'vehicle_overlap')) {
+    return 'This vehicle already has an active booking during this time. Choose a back-to-back or non-overlapping time.';
   }
   if (error === 'parts_incomplete' || error === 'parts_incomplete_blocked') {
     return 'Parts requirements are incomplete. An authorised override and reason are required.';
@@ -694,7 +702,7 @@ function workshopDescribeSharedActionError(result) {
   if (error === 'missing_or_invalid_eta') {
     return 'YH/IT vehicles require a valid ETA to Kewdale before booking. Correct the ETA and try again. No booking was created.';
   }
-  if (error === 'action_unavailable' || error === 'no_response') {
+  if (error === 'action_unavailable' || error === 'no_response' || error === 'runtime_failure') {
     return 'This action is not currently available in shared mode. No change was made.';
   }
   return 'This change could not be saved. The planner has refreshed to the latest version.';
@@ -3935,6 +3943,7 @@ async function moveWorkshopLivePlan(planId = '', stage = '', bay = 0, dateKey = 
       technicianId: workshopTechnicianIdForEntry(entry),
     };
     if (!workshopRequireSchedulableCandidate(candidate)) return false;
+    if (!workshopConfirmOtherDepartmentPlans(candidate, rows)) return false;
     const requestedLabel = `${pmbStageLabel(nextStage)} Bay ${nextBay} · ${workshopEntryTimeLabel(candidate)}`;
     if (!window.confirm(`Move this live workshop job to ${requestedLabel}?\n\nThis updates the live bay allocation and keeps the job started/stoppage history.`)) return false;
     const result = await workshopDispatchSharedAction('moveBooking', {
@@ -4114,6 +4123,7 @@ async function extendWorkshopPlan(planId = '', additionalHours = 0) {
       technicianId: workshopTechnicianIdForEntry(entry),
     };
     if (!workshopRequireSchedulableCandidate(candidate)) return false;
+    if (!workshopConfirmOtherDepartmentPlans(candidate, rows)) return false;
     const shiftMinutes = Math.round(delta * 60);
     const result = await workshopDispatchSharedAction('cascadeSchedule', {
       operation: 'extend',
@@ -4129,6 +4139,7 @@ async function extendWorkshopPlan(planId = '', additionalHours = 0) {
   }
   const candidate = { ...entry, hours: workshopClampDurationHours(Number(entry.hours || 0) + delta), updatedAt: nowIsoString() };
   const latestRows = workshopLoadPlans();
+  if (!workshopConfirmOtherDepartmentPlans(candidate, latestRows)) return false;
   const latestEntry = latestRows.find(row => row.id === entry.id);
   if (!latestEntry || latestEntry.updatedAt !== entry.updatedAt) {
     window.alert('This workshop plan changed in another tab. The latest plan has been reloaded; please try again.');
@@ -4178,7 +4189,7 @@ function workshopOtherDepartmentOverlaps(candidate = {}, rows = []) {
 }
 
 function workshopConfirmOtherDepartmentPlans(candidate = {}, rows = []) {
-  if (!candidate.vehicleKey || candidate.status !== 'planned') return true;
+  if (!candidate.vehicleKey) return true;
   const overlapping = workshopOtherDepartmentOverlaps(candidate, rows);
   if (!overlapping.length) return true;
   const details = overlapping.slice(0, 8).map(row => {
@@ -4220,6 +4231,7 @@ async function workshopScheduleSharedNewBooking({
   }
   const candidate = { ...requestedCandidate, assignee, technicianId: technicianId || '' };
   if (!workshopRequireSchedulableCandidate(candidate)) return false;
+  if (!workshopConfirmOtherDepartmentPlans(candidate, workshopLoadPlans())) return false;
   const result = await dispatchAction('cascadeSchedule', {
     operation: 'insert',
     targetId: vehicleRef.vehicleId,
@@ -4291,6 +4303,7 @@ async function scheduleWorkshopVehicle({ planId = '', vehicleKeyValue = '', stag
       ? existing?.assignee || workshopBayMechanic(normalizedStage, bay) || pmbBayMechanic(vehicle) || ''
       : cleanNavisionText(assigneeValue || ''),
   };
+  if (!workshopConfirmOtherDepartmentPlans(requestedCandidate, workshopLoadPlans())) return false;
   if (workshopSharedModeActive()) {
     const durationMinutes = Math.round(hours * 60);
     if (existing && existing.sharedBookingId) {
@@ -4383,12 +4396,14 @@ async function saveWorkshopDetailForm(event) {
     return;
   }
   const nextAssignee = cleanNavisionText(data.get('assignee') || '');
-  if (!workshopRequireSchedulableCandidate({
+  const requestedDetailCandidate = {
     ...entry,
-    startAt: normalizedStart.toISOString(),
+    startAt: ['started', 'stoppage'].includes(entry.status) ? entry.startAt : normalizedStart.toISOString(),
     hours: requestedHours,
     assignee: nextAssignee,
-  })) return;
+  };
+  if (!workshopRequireSchedulableCandidate(requestedDetailCandidate)) return;
+  if (!workshopConfirmOtherDepartmentPlans(requestedDetailCandidate, rows)) return;
   if (workshopSharedModeActive()) {
     const nextStartAt = ['started', 'stoppage'].includes(entry.status) ? entry.startAt : normalizedStart.toISOString();
     const nextDurationMinutes = Math.round(workshopClampDurationHours(requestedHours) * 60);
@@ -4762,6 +4777,11 @@ function startWorkshopResize(handle, event) {
     document.removeEventListener('pointerup', onUp);
     const hours = Number(chip.dataset.previewHours || entry.hours);
     delete chip.dataset.previewHours;
+    const candidate = { ...entry, hours, updatedAt: nowIsoString() };
+    if (!workshopRequireSchedulableCandidate(candidate) || !workshopConfirmOtherDepartmentPlans(candidate, rows)) {
+      renderWorkshopPlanner();
+      return;
+    }
     if (workshopSharedModeActive()) {
       const nextHours = workshopClampDurationHours(hours);
       const deltaMinutes = Math.max(0, Math.round((nextHours - workshopClampDurationHours(entry.hours)) * 60));
@@ -4777,7 +4797,6 @@ function startWorkshopResize(handle, event) {
       });
       return;
     }
-    const candidate = { ...entry, hours, updatedAt: nowIsoString() };
     const latestRows = workshopLoadPlans();
     const latestEntry = latestRows.find(row => row.id === entry.id);
     if (!latestEntry || latestEntry.updatedAt !== entry.updatedAt) {
@@ -4863,6 +4882,12 @@ async function moveWorkshopWeeklyPlan(planId = '', stage = '', bay = 0, dateKey 
     startAt: workshopDateAtOffset(dateKey, startMinutes).toISOString(),
     updatedAt: nowIsoString(),
   };
+  if (!workshopRequireSchedulableCandidate(candidate) || !workshopConfirmOtherDepartmentPlans(candidate, rows)) return;
+  if (workshopSharedModeActive()) {
+    const moved = await scheduleWorkshopVehicle({ planId, stage, bay, dateKey, startMinutes, preferRequestedTime: true });
+    if (moved) openWorkshopWeeklyView(stage, bay, weekKey || dateKey);
+    return;
+  }
   const latestRows = workshopLoadPlans();
   const latestEntry = latestRows.find(row => row.id === entry.id);
   if (!latestEntry || latestEntry.updatedAt !== entry.updatedAt) {
@@ -5246,6 +5271,7 @@ if (typeof module !== 'undefined' && module.exports) {
     workshopConnectionBannerHtml,
     workshopStationSnapshotEmptyStateHtml,
     workshopDescribeSharedActionError,
+    workshopDispatchSharedAction,
     workshopVehicleLinkIdentityInput,
     workshopVehicleLinkStableAliases,
     workshopLoadVehicleLinkStore,
