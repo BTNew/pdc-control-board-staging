@@ -450,7 +450,7 @@ def load_table_rows(cur, schema_name, table_name, columns, rows):
     placeholders = ", ".join(["%s"] * len(insert_columns))
     sql = (
         f'insert into {quote_ident(schema_name)}.{quote_ident(table_name)} '
-        f'({col_list}) values ({placeholders})'
+        f'({col_list}) values %s'
     )
     values = [
         [decode_value(row.get(c), is_jsonb_column=c in jsonb_cols) for c in insert_columns]
@@ -459,7 +459,11 @@ def load_table_rows(cur, schema_name, table_name, columns, rows):
     savepoint = f"sp_load_{table_name}"
     cur.execute(f'savepoint {quote_ident(savepoint)}')
     try:
-        cur.executemany(sql, values)
+        # One round trip per page instead of psycopg2.executemany's one round
+        # trip per row. This keeps isolated staging restore proofs bounded even
+        # when the retained backup contains thousands of audit/history rows.
+        from psycopg2.extras import execute_values
+        execute_values(cur, sql, values, template=f"({placeholders})", page_size=500)
         cur.execute(f'release savepoint {quote_ident(savepoint)}')
     except Exception:
         cur.execute(f'rollback to savepoint {quote_ident(savepoint)}')
