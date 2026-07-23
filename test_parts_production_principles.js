@@ -87,31 +87,31 @@ code += String.raw`
 
   app.data = [basePartsVehicle, { ...basePartsVehicle, id: 'parts-issued', stock: '87654321', batch: '87654321', pdcCompleteParts: true }, { ...basePartsVehicle, id: 'parts-received', stock: '11223344', batch: '11223344', pdcPartsReceived: true }];
   elementFor('#parts-search').value = 'Sales Person';
-  elementFor('#parts-status-filter').value = 'all';
+  app.partsOperationalFilter = 'required';
   assert(partsDepartmentRows().length === 0, 'Parts search must not match salesperson/staff fields');
 
   elementFor('#parts-search').value = '';
   assert(partsDepartmentRows().length === 1, 'Issued/received Parts vehicles must be removed from the Parts screen active/all filters');
-  elementFor('#parts-status-filter').value = 'issued';
-  assert(partsDepartmentRows().length === 1, 'Legacy Issued filter must not reveal issued Parts vehicles on the Parts screen');
-  elementFor('#parts-status-filter').value = 'open';
+  app.partsOperationalFilter = 'received';
+  assert(partsDepartmentRows().length === 2, 'Parts received filter must reveal shared received/issued work');
+  app.partsOperationalFilter = 'required';
   renderPartsHome();
   const partsHtml = elementFor('#parts-home-content').innerHTML;
   const partsSummaryHtml = elementFor('#parts-summary-grid').innerHTML;
-  assert(!partsSummaryHtml.includes('Issued'), 'Parts page summary must not show an Issued shortcut/card');
+  assert(partsSummaryHtml.includes('Parts received'), 'Parts page must provide an explicit received filter');
   assert(!/<th>Sales<\/th>/.test(partsHtml), 'Parts page must not render a Sales column');
   assert(!partsHtml.includes('Sales Person'), 'Parts page must not render salesperson names');
   app.data = [fittingBayVehicle];
   renderPartsHome();
-  assert(elementFor('#parts-home-content').innerHTML.includes('Fitting · Bay 03'), 'The Parts Stage / Update cell must render the current station and bay');
+  assert(elementFor('#parts-home-content').innerHTML.includes('Open vehicle'), 'Operational Parts actions must stay directly visible');
 
   const etaVehicle = { ...basePartsVehicle, pdcPartsWorstEta: '2099-01-01' };
   assert(partsWorstEtaCountdownLabel(etaVehicle).includes('to Parts ETA'), 'Parts worst ETA should show a countdown label');
   assert(partsWorstEtaCountdownClass(etaVehicle) === 'later', 'Future Parts ETA countdown should be classed as later');
   app.data = [{ ...basePartsVehicle, pdcPartsWorstEta: '2099-01-01' }];
-  elementFor('#parts-status-filter').value = 'open';
+  app.partsOperationalFilter = 'required';
   renderPartsHome();
-  assert(elementFor('#parts-home-content').innerHTML.includes('Email sales'), 'Parts ETA rows with a worst ETA should show an Email sales action');
+  assert(elementFor('#parts-home-content').innerHTML.includes('Open vehicle'), 'Parts rows must keep the vehicle action visible');
   let mailtoHref = '';
   window.prompt = () => 'Parts';
   Object.defineProperty(window.location, 'href', { set(value) { mailtoHref = String(value); }, get() { return mailtoHref; }, configurable: true });

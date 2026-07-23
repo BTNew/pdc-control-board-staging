@@ -1,5 +1,5 @@
-const APP_VERSION = '2026.07.23.09-canonical-work-items';
-const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.07.23.09-canonical-work-items';
+const APP_VERSION = '2026.07.23.10-staging-blocker-closure';
+const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.07.23.10-staging-blocker-closure';
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
 // constant intentionally names only the production ref, never the
@@ -7925,8 +7925,7 @@ function bindControlBoardIssueActions(root = document) {
 function handleControlBoardIssueAction(action = '') {
   if (action === 'parts-stoppage') {
     showView('parts');
-    const select = $('#parts-status-filter');
-    if (select) select.value = 'stoppage';
+    app.partsOperationalFilter = 'stoppage';
     renderPartsHome();
     return;
   }
@@ -10957,118 +10956,76 @@ function partsCurrentLocationUpdateLabel(vehicle = {}) {
   return latest ? latest.toLocaleString('en-AU', { dateStyle: 'short', timeStyle: 'short' }) : '';
 }
 
+function partsOutstandingStationWork(vehicle = {}) {
+  return pdcRequiredJobs(vehicle)
+    .filter(def => def.key !== 'parts' && !pdcJobComplete(vehicle, def))
+    .map(def => pdcGridJobLabel(def));
+}
+
+function partsMatchesOperationalFilter(vehicle = {}, filter = 'required') {
+  const status = partsDepartmentStatus(vehicle);
+  const received = ['issued', 'notrequired'].includes(status);
+  if (filter === 'ordered') return status === 'onorder';
+  if (filter === 'received') return received;
+  if (filter === 'jita') return normalizeJita(jitaDisplay(vehicle)) === 'Yes';
+  if (filter === 'stoppage') return status === 'stoppage';
+  if (filter === 'ready') return received && partsOutstandingStationWork(vehicle).length > 0;
+  return !received && status !== 'notrequired';
+}
+
 function partsDepartmentRows() {
   const q = ($('#parts-search')?.value || '').trim().toLowerCase();
-  const selectedFilter = $('#parts-status-filter')?.value || 'open';
-  const etaFilter = $('#parts-eta-filter')?.value || 'all';
+  const operationalFilter = app.partsOperationalFilter || 'required';
   const departmentFilter = $('#parts-department-filter')?.value || '';
-  const etaSort = $('#parts-eta-sort')?.value || 'status';
-  const filter = ['issued', 'notrequired'].includes(selectedFilter) ? 'open' : selectedFilter;
   return pdcSheetVehicles()
     .filter(vehicleHasBatchNumber)
+    .filter(vehicle => partsMatchesOperationalFilter(vehicle, operationalFilter))
+    .filter(vehicle => !departmentFilter || vehicleDepartmentCode(vehicle) === departmentFilter)
     .filter(vehicle => {
-      const status = partsDepartmentStatus(vehicle);
-      const matchesStatus = (filter === 'all' && !['issued', 'notrequired'].includes(status))
-        || (filter === 'open' && !['issued', 'notrequired'].includes(status))
-        || (!['all', 'open'].includes(filter) && status === filter);
-      if (!matchesStatus) return false;
-      if (departmentFilter && vehicleDepartmentCode(vehicle) !== departmentFilter) return false;
-      const etaDays = partsWorstEtaDaysUntil(vehicle);
-      if (etaFilter === 'risk' && !partsEtaRisk(vehicle)) return false;
-      if (etaFilter === 'overdue' && !(etaDays !== null && etaDays < 0)) return false;
-      if (etaFilter === 'none' && partsWorstEtaValue(vehicle)) return false;
       if (!q) return true;
-      const productionLabel = productionMonthLabel(vehicle.prodMth || vehicle.productionMonth || '');
-      const hay = [
-        displayStockNumber(vehicle), vehicle.order, vehicle.client, vehicle.toyotaCustomer, displayVehicle(vehicle),
-        pdcLocationLabel(vehiclePdcLocation(vehicle)),
-        partsCurrentLocationLabel(vehicle), statusCategoryLabel(vehicle), partsDepartmentStatusLabel(status), partsStoppageReason(vehicle), productionLabel,
-        kewdaleEtaValue(vehicle), partsEtaCounterLabel(vehicle), partsWorstEtaLabel(vehicle), partsWorstEtaValue(vehicle),
-        vehicleDepartmentLabel(vehicle), partsEtaRisk(vehicle) ? 'parts risk' : ''
-      ].join(' ').toLowerCase();
+      const hay = [displayStockNumber(vehicle), vehicle.order, vehicleKeyNumber(vehicle), vehicleJobcardNumber(vehicle),
+        vehicleCustomerName(vehicle), displayVehicle(vehicle), partsDepartmentStatusLabel(partsDepartmentStatus(vehicle)),
+        partsStoppageReason(vehicle), ...partsOutstandingStationWork(vehicle)].join(' ').toLowerCase();
       return hay.includes(q);
     })
     .sort((a, b) => {
-      if (etaSort === 'nearest' || etaSort === 'latest') {
-        const missing = etaSort === 'nearest' ? 8640000000000000 : -8640000000000000;
-        const aEta = partsWorstEtaDate(a)?.getTime() ?? missing;
-        const bEta = partsWorstEtaDate(b)?.getTime() ?? missing;
-        if (aEta !== bEta) return etaSort === 'nearest' ? aEta - bEta : bEta - aEta;
-      }
-      const rank = { miscacc: 0, stoppage: 1, notordered: 2, onorder: 3, issued: 4, notrequired: 5 };
-      const rankDiff = (rank[partsDepartmentStatus(a)] ?? 9) - (rank[partsDepartmentStatus(b)] ?? 9);
-      if (rankDiff) return rankDiff;
-      if (partsDepartmentStatus(a) === 'stoppage' && partsDepartmentStatus(b) === 'stoppage') {
-        const etaDiff = partsWorstEtaSortValue(a) - partsWorstEtaSortValue(b);
-        if (etaDiff) return etaDiff;
-      }
-      const ageA = pmbAgeDays(a);
-      const ageB = pmbAgeDays(b);
-      if (ageA !== null || ageB !== null) return (ageB ?? -9999) - (ageA ?? -9999);
-      return String(displayStockNumber(a) || '').localeCompare(String(displayStockNumber(b) || ''), undefined, { numeric: true });
+      const rank = { stoppage: 0, notordered: 1, onorder: 2, issued: 3, notrequired: 4 };
+      return (rank[partsDepartmentStatus(a)] ?? 9) - (rank[partsDepartmentStatus(b)] ?? 9)
+        || String(displayStockNumber(a) || '').localeCompare(String(displayStockNumber(b) || ''), undefined, { numeric: true });
     });
 }
-
-function renderPartsSummary(rows = []) {
+function renderPartsSummary() {
   const all = pdcSheetVehicles().filter(vehicleHasBatchNumber);
-  const counts = all.reduce((acc, vehicle) => {
-    const status = partsDepartmentStatus(vehicle);
-    acc[status] = (acc[status] || 0) + 1;
-    if (!['issued', 'notrequired'].includes(status)) acc.open += 1;
-    return acc;
-  }, { open: 0, notordered: 0, onorder: 0, stoppage: 0, issued: 0, miscacc: 0, notrequired: 0 });
-  const cards = [
-    ['stoppage', 'Stoppages', counts.stoppage, 'Fix first — blocks RFT handover'],
-    ['open', 'Active parts', counts.open, 'Coming, stoppages and on-order only'],
-    ['notordered', 'Not Ordered', counts.notordered, 'Required parts not ordered yet'],
-    ['onorder', 'On Order', counts.onorder, 'Waiting on parts arrival'],
-    ['miscacc', 'Misc Acc', counts.miscacc, 'Misc accessory override'],
+  const filters = [
+    ['required', 'Parts required'], ['ordered', 'Parts ordered'], ['received', 'Parts received'],
+    ['jita', 'JITA ordered'], ['stoppage', 'Parts stoppage'], ['ready', 'Ready for workshop'],
   ];
+  const active = app.partsOperationalFilter || 'required';
   const host = $('#parts-summary-grid');
   if (!host) return;
-  host.innerHTML = cards.map(([key, label, count, hint]) => `<button class="parts-summary-card ${escapeHtml(partsDepartmentStatusClass(key === 'open' ? 'notordered' : key))}" type="button" data-parts-summary-filter="${escapeHtml(key)}"><span>${escapeHtml(label)}</span><strong>${count}</strong><small>${escapeHtml(hint)}</small></button>`).join('');
-  $$('[data-parts-summary-filter]', host).forEach(button => button.addEventListener('click', () => {
-    const select = $('#parts-status-filter');
-    if (select) select.value = button.dataset.partsSummaryFilter || 'open';
+  host.innerHTML = filters.map(([key, label]) => {
+    const count = all.filter(vehicle => partsMatchesOperationalFilter(vehicle, key)).length;
+    return `<button class="parts-filter-chip ${key === active ? 'is-active' : ''}" type="button" data-parts-operational-filter="${key}" aria-pressed="${key === active}"><span>${escapeHtml(label)}</span><strong>${count}</strong></button>`;
+  }).join('');
+  $$('[data-parts-operational-filter]', host).forEach(button => button.addEventListener('click', () => {
+    app.partsOperationalFilter = button.dataset.partsOperationalFilter || 'required';
     renderPartsHome();
   }));
 }
-
 function partsQueueActionsHtml(vehicle = {}, status = partsDepartmentStatus(vehicle)) {
   const key = vehicleKey(vehicle);
-  const stock = displayStockNumber(vehicle) || key;
-  const complete = ['issued', 'notrequired'].includes(status);
-  const showEmailSales = Boolean(partsWorstEtaLabel(vehicle)) && !complete;
-  let primaryAction = '';
-  const moreActions = [];
-  if (status === 'notordered') {
-    primaryAction = `<button class="small-button primary" type="button" data-parts-ordered="${escapeHtml(key)}" aria-label="Mark parts ordered for ${escapeHtml(stock)}">Mark ordered</button>`;
-    moreActions.push(`<button class="small-button" type="button" data-parts-complete="${escapeHtml(key)}">Complete</button>`);
-    moreActions.push(`<button class="small-button danger-button" type="button" data-parts-stoppage="${escapeHtml(key)}">Stoppage</button>`);
-    moreActions.push(`<button class="small-button" type="button" data-open-stock="${escapeHtml(key)}">Open vehicle</button>`);
-  } else if (status === 'stoppage') {
-    primaryAction = `<button class="small-button primary" type="button" data-open-stock="${escapeHtml(key)}">Review stoppage</button>`;
-    moreActions.push(`<button class="small-button" type="button" data-parts-clear-stoppage="${escapeHtml(key)}">Clear stoppage</button>`);
-    moreActions.push(`<button class="small-button" type="button" data-parts-complete="${escapeHtml(key)}">Complete</button>`);
-  } else if (complete) {
-    primaryAction = `<button class="small-button primary" type="button" data-open-stock="${escapeHtml(key)}">Open vehicle</button>`;
-  } else {
-    primaryAction = `<button class="small-button primary" type="button" data-parts-complete="${escapeHtml(key)}">Complete</button>`;
-    moreActions.push(`<button class="small-button danger-button" type="button" data-parts-stoppage="${escapeHtml(key)}">Stoppage</button>`);
-    moreActions.push(`<button class="small-button" type="button" data-open-stock="${escapeHtml(key)}">Open vehicle</button>`);
-  }
-  const moreMenu = moreActions.length ? `<button class="small-button parts-more-button" type="button" data-parts-more-button aria-expanded="false">More</button><template data-parts-more-template><div class="parts-more-popover" role="group" aria-label="More parts actions for ${escapeHtml(stock)}">${moreActions.join('')}</div></template>` : '';
-  const emailSales = showEmailSales ? `<div class="parts-email-sales-secondary"><button class="small-button parts-email-sales-button" type="button" data-parts-eta-email="${escapeHtml(key)}">Email sales</button></div>` : '';
-  return `<div class="parts-action-group"><div class="parts-action-primary">${primaryAction}${moreMenu}</div>${emailSales}</div>`;
-}
-
-function closePartsMoreMenu({ restoreFocus = false } = {}) {
-  const current = app.partsMoreMenu;
-  if (!current) return;
-  current.popover?.remove();
-  current.trigger?.setAttribute('aria-expanded', 'false');
-  if (restoreFocus) current.trigger?.focus();
-  app.partsMoreMenu = null;
+  const received = ['issued', 'notrequired'].includes(status);
+  const stopped = status === 'stoppage';
+  const jitaYes = normalizeJita(jitaDisplay(vehicle)) === 'Yes';
+  return `<div class="parts-action-group parts-visible-actions">
+    ${status === 'notordered' ? `<button class="small-button primary" type="button" data-parts-ordered="${escapeHtml(key)}">Mark ordered</button>` : ''}
+    ${received ? '' : `<button class="small-button" type="button" data-parts-complete="${escapeHtml(key)}">Mark received</button>`}
+    <button class="small-button ${jitaYes ? 'is-active' : ''}" type="button" data-parts-toggle-jita="${escapeHtml(key)}">JITA ${jitaYes ? '✓' : '×'}</button>
+    ${stopped
+      ? `<button class="small-button" type="button" data-parts-clear-stoppage="${escapeHtml(key)}">Remove stoppage</button>`
+      : `<button class="small-button danger-button" type="button" data-parts-stoppage="${escapeHtml(key)}">Add stoppage</button>`}
+    <button class="small-button" type="button" data-open-stock="${escapeHtml(key)}">Open vehicle</button>
+  </div>`;
 }
 
 function bindPartsQueueActionButtons(host) {
@@ -11078,99 +11035,30 @@ function bindPartsQueueActionButtons(host) {
   $$('[data-parts-complete]', host).forEach(button => button.addEventListener('click', () => markVehiclePartsComplete(button.dataset.partsComplete)));
   $$('[data-parts-stoppage]', host).forEach(button => button.addEventListener('click', () => markVehiclePartsStoppage(button.dataset.partsStoppage)));
   $$('[data-parts-clear-stoppage]', host).forEach(button => button.addEventListener('click', () => clearVehiclePartsStoppage(button.dataset.partsClearStoppage)));
+  $$('[data-parts-toggle-jita]', host).forEach(button => button.addEventListener('click', () => toggleVehiclePartsJita(button.dataset.partsToggleJita)));
   $$('[data-parts-eta-email]', host).forEach(button => button.addEventListener('click', () => draftPartsEtaSalesEmail(button.dataset.partsEtaEmail)));
-}
-
-function openPartsMoreMenu(trigger) {
-  closePartsMoreMenu();
-  const template = trigger?.parentElement?.querySelector('[data-parts-more-template]');
-  const popover = template?.content?.firstElementChild?.cloneNode(true);
-  if (!popover) return;
-  document.body.appendChild(popover);
-  trigger.setAttribute('aria-expanded', 'true');
-  app.partsMoreMenu = { popover, trigger };
-  bindPartsQueueActionButtons(popover);
-  popover.addEventListener('click', event => {
-    if (event.target.closest('button')) closePartsMoreMenu();
-  });
-  const triggerRect = trigger.getBoundingClientRect();
-  const menuRect = popover.getBoundingClientRect();
-  const margin = 8;
-  const availableBelow = window.innerHeight - triggerRect.bottom - margin;
-  const availableAbove = triggerRect.top - margin;
-  const openUpward = menuRect.height > availableBelow && availableAbove > availableBelow;
-  const top = openUpward
-    ? Math.max(margin, triggerRect.top - menuRect.height - 4)
-    : Math.min(window.innerHeight - menuRect.height - margin, triggerRect.bottom + 4);
-  const left = Math.min(window.innerWidth - menuRect.width - margin, Math.max(margin, triggerRect.right - menuRect.width));
-  popover.style.top = `${Math.round(top)}px`;
-  popover.style.left = `${Math.round(left)}px`;
-  popover.classList.toggle('opens-upward', openUpward);
-  popover.querySelector('button')?.focus({ preventScroll: true });
-}
-
-function bindPartsMoreMenus(host) {
-  $$('[data-parts-more-button]', host).forEach(button => button.addEventListener('click', event => {
-    event.preventDefault();
-    event.stopPropagation();
-    if (app.partsMoreMenu?.trigger === button) closePartsMoreMenu({ restoreFocus: true });
-    else openPartsMoreMenu(button);
-  }));
-  if (app.partsMoreMenuDocumentBound) return;
-  app.partsMoreMenuDocumentBound = true;
-  document.addEventListener('pointerdown', event => {
-    if (!app.partsMoreMenu || app.partsMoreMenu.popover.contains(event.target) || app.partsMoreMenu.trigger.contains(event.target)) return;
-    closePartsMoreMenu();
-  });
-  document.addEventListener('focusout', () => {
-    window.setTimeout(() => {
-      if (!app.partsMoreMenu) return;
-      const active = document.activeElement;
-      if (app.partsMoreMenu.popover.contains(active) || app.partsMoreMenu.trigger.contains(active)) return;
-      closePartsMoreMenu();
-    }, 0);
-  });
-  document.addEventListener('keydown', event => {
-    if (event.key === 'Escape' && app.partsMoreMenu) {
-      event.preventDefault();
-      closePartsMoreMenu({ restoreFocus: true });
-    }
-  });
-  if (window && typeof window.addEventListener === 'function') window.addEventListener('resize', () => closePartsMoreMenu());
 }
 
 function partsQueueRowHtml(vehicle = {}) {
   const key = vehicleKey(vehicle);
   const status = partsDepartmentStatus(vehicle);
-  const complete = ['issued', 'notrequired'].includes(status);
-  const eta = kewdaleEtaValue(vehicle);
-  const ageClass = partsEtaCounterClass(vehicle);
-  const currentLocation = partsCurrentLocationLabel(vehicle);
-  const worstEtaInput = partsWorstEtaInputValue(vehicle);
-  const worstEtaLabel = partsWorstEtaLabel(vehicle);
-  const worstEtaCountdown = partsWorstEtaCountdownLabel(vehicle);
-  const worstEtaCountdownClass = partsWorstEtaCountdownClass(vehicle);
   const customer = vehicleCustomerName(vehicle) || 'Dealer Order';
   const unit = displayVehicle(vehicle) || 'Vehicle not listed';
   const blocker = status === 'stoppage' ? partsStoppageReason(vehicle) : '';
+  const outstanding = partsOutstandingStationWork(vehicle);
+  const jitaYes = normalizeJita(jitaDisplay(vehicle)) === 'Yes';
   return `<tr class="parts-row parts-queue-row ${escapeHtml(partsDepartmentStatusClass(status))}">
-    <td><div class="parts-queue-status-cell">
-      <span class="parts-status-pill ${escapeHtml(partsDepartmentStatusClass(status))}">${escapeHtml(partsDepartmentStatusLabel(status))}</span>${partsRiskBadge(vehicle)}${vehicleDepartmentBadge(vehicle)}
-    </div></td>
-    <td><button class="parts-queue-identity parts-compact-identity" type="button" data-open-stock="${escapeHtml(key)}" aria-label="Open vehicle ${escapeHtml(displayStockNumber(vehicle) || vehicle.order || key)}">
-      <strong>Stock ${escapeHtml(displayStockNumber(vehicle) || vehicle.order || '—')}</strong>
-      <span>JC ${escapeHtml(vehicleJobcardNumber(vehicle) || '—')} · Key ${escapeHtml(vehicleKeyNumber(vehicle) || '—')}</span>
-    </button></td>
-    <td><div class="parts-queue-customer"><strong title="${escapeHtml(customer)}">${escapeHtml(customer)}</strong><span title="${escapeHtml(unit)}">${escapeHtml(unit)}</span></div></td>
-    <td><div class="parts-eta"><strong>${escapeHtml(eta || 'No ETA')}</strong><span class="pmb-age ${escapeHtml('pmb-age-' + ageClass)}">${escapeHtml(partsEtaCounterLabel(vehicle))}</span></div></td>
-    <td><div class="parts-worst-eta-wrap"><label class="parts-worst-eta"><span class="sr-only">Parts worst ETA</span><input type="date" data-parts-worst-eta="${escapeHtml(key)}" value="${escapeHtml(worstEtaInput)}" ${complete ? 'disabled' : ''} /></label><span class="parts-worst-eta-details">${worstEtaLabel ? `<span class="parts-worst-eta-label">${escapeHtml(worstEtaLabel)}</span>${worstEtaCountdown ? `<span class="parts-worst-eta-countdown ${escapeHtml(worstEtaCountdownClass)}">${escapeHtml(worstEtaCountdown)}</span>` : ''}` : '<span class="subtle parts-worst-eta-label">Set worst ETA</span>'}</span></div></td>
-    <td class="parts-queue-jita-cell">${jitaIndicator(vehicle)}</td>
-    <td class="parts-queue-blocker">${blocker ? `<strong title="${escapeHtml(blocker)}">${escapeHtml(blocker)}</strong>` : '<span class="subtle">No blocker recorded</span>'}</td>
-    <td><div class="parts-queue-stage"><strong>${escapeHtml(currentLocation)}</strong><span>${escapeHtml(partsCurrentLocationUpdateLabel(vehicle) || 'No location update recorded')}</span></div></td>
+    <td><strong>${escapeHtml(vehicleKeyNumber(vehicle) || '—')}</strong></td>
+    <td><button class="parts-compact-identity" type="button" data-open-stock="${escapeHtml(key)}"><strong>${escapeHtml(displayStockNumber(vehicle) || vehicle.order || '—')}</strong></button></td>
+    <td><strong>${escapeHtml(vehicleJobcardNumber(vehicle) || '—')}</strong></td>
+    <td><div class="parts-queue-customer"><strong title="${escapeHtml(unit)}">${escapeHtml(unit)}</strong><span title="${escapeHtml(customer)}">${escapeHtml(customer)}</span></div></td>
+    <td><span class="parts-status-pill ${escapeHtml(partsDepartmentStatusClass(status))}">${escapeHtml(partsDepartmentStatusLabel(status))}</span></td>
+    <td class="parts-queue-jita-cell"><span class="jita-icon ${jitaYes ? 'yes' : 'no'}" aria-label="JITA ${jitaYes ? 'ordered' : 'not ordered'}">${jitaYes ? '✓' : '×'}</span></td>
+    <td><span class="parts-outstanding-work" title="${escapeHtml(outstanding.join(', '))}">${escapeHtml(outstanding.join(', ') || 'None')}</span></td>
+    <td class="parts-queue-blocker">${blocker ? `<strong title="${escapeHtml(blocker)}">${escapeHtml(blocker)}</strong>` : '<span class="subtle">None</span>'}</td>
     <td>${partsQueueActionsHtml(vehicle, status)}</td>
   </tr>`;
 }
-
 function renderPartsHome() {
   const host = $('#parts-home-content');
   const summaryHost = $('#parts-summary-grid');
@@ -11184,12 +11072,19 @@ function renderPartsHome() {
   }
   host.innerHTML = `<div class="parts-table-wrap parts-queue-wrap"><table class="data-table compact-table parts-queue-table">
     <thead><tr>
-      <th>Status</th><th>Vehicle ID</th><th>Customer / vehicle</th><th>Kewdale ETA</th><th>Parts ETA</th><th>Jita</th><th>Blocker</th><th>Stage / update</th><th>Actions</th>
+      <th>Key</th><th>Stock</th><th>JC</th><th>Vehicle / customer</th><th>Parts status</th><th>JITA</th><th>Outstanding station work</th><th>Stoppage reason</th><th>Actions</th>
     </tr></thead>
     <tbody>${rows.map(partsQueueRowHtml).join('')}</tbody></table></div>`;
   bindPartsQueueActionButtons(host);
-  bindPartsMoreMenus(host);
   $$('[data-parts-worst-eta]', host).forEach(input => input.addEventListener('change', () => updateVehiclePartsWorstEta(input.dataset.partsWorstEta, input.value)));
+}
+
+function toggleVehiclePartsJita(key = '') {
+  const vehicle = selectedVehicle(key);
+  if (!vehicle) return;
+  const next = normalizeJita(jitaDisplay(vehicle)) === 'Yes' ? 'No' : 'Yes';
+  recordVehicleAudit(vehicle, `JITA marked ${next === 'Yes' ? 'ordered' : 'not ordered'}`, { by: getCurrentOperatorName() });
+  saveVehicleEdits(key, { jitaPartsOrdered: next });
 }
 
 function markVehiclePartsOrdered(key = '') {

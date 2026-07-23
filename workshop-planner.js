@@ -468,7 +468,7 @@ function workshopConnectionBannerHtml() {
   const state = ds && typeof ds.getState === 'function' ? ds.getState() : 'disabled';
   const CS = window.WORKSHOP_CONNECTION_STATE || {};
   const copy = {
-    [CS.CONNECTED_EDITABLE]: { cls: 'ok', text: 'Connected · shared workshop data · live editing available once the legacy import is approved' },
+    [CS.CONNECTED_EDITABLE]: { cls: 'ok', text: 'Connected · shared workshop data · live editing enabled' },
     [CS.CONNECTED_READ_ONLY]: { cls: 'warn', text: 'Connected · read-only (viewer role, or editing is not yet unlocked for this account)' },
     [CS.RECONNECTING]: { cls: 'warn', text: 'Reconnecting to shared workshop data… showing the last known state' },
     [CS.OFFLINE_READ_ONLY]: { cls: 'error', text: 'Offline · showing the last known shared state, read-only until the connection recovers' },
@@ -533,6 +533,27 @@ function workshopMapSnapshotBookingToLegacyRow(booking = {}, vehicleById = null)
   };
 }
 
+function workshopAnnotateLegacyAmbiguity(rows = []) {
+  const active = rows.filter(row => !['completed', 'deleted', 'cancelled'].includes(row.status));
+  const counts = new Map();
+  active.forEach(row => {
+    const key = `${row.sharedVehicleId}:${normalizePmbStage(row.stage)}`;
+    counts.set(key, (counts.get(key) || 0) + 1);
+  });
+  return rows.map(row => {
+    if (['completed', 'deleted', 'cancelled'].includes(row.status)) return row;
+    const duplicate = (counts.get(`${row.sharedVehicleId}:${normalizePmbStage(row.stage)}`) || 0) > 1;
+    const completedMarker = Boolean(row.completedAt);
+    if (!duplicate && !completedMarker) return row;
+    return {
+      ...row,
+      legacyAmbiguityReason: duplicate
+        ? 'Legacy review required: multiple active bookings exist for this vehicle and station.'
+        : 'Legacy review required: this active booking also contains a completion marker.',
+    };
+  });
+}
+
 let workshopSharedPlansCache = { snapshot: null, bookings: null, rows: null };
 
 function workshopLoadPlans() {
@@ -548,10 +569,10 @@ function workshopLoadPlans() {
       const vehicleById = new Map((Array.isArray(snapshot.vehicles) ? snapshot.vehicles : [])
         .filter(vehicle => vehicle?.id)
         .map(vehicle => [String(vehicle.id), vehicle]));
-      const rows = bookings
+      const rows = workshopAnnotateLegacyAmbiguity(bookings
         .map(booking => workshopMapSnapshotBookingToLegacyRow(booking, vehicleById))
         .filter(row => row && row.id && row.vehicleKey && WORKSHOP_STAGE_SEQUENCE.includes(row.stage))
-        .map(row => row.status === 'completed' ? row : { ...row, hours: workshopClampDurationHours(row.hours) });
+        .map(row => row.status === 'completed' ? row : { ...row, hours: workshopClampDurationHours(row.hours) }));
       workshopSharedPlansCache = { snapshot, bookings, rows };
       return rows;
     }
@@ -570,20 +591,11 @@ function workshopLoadPlans() {
 
 function workshopSavePlans(rows = []) {
   if (workshopSharedModeActive()) {
-    // Write-path cutover is intentionally NOT enabled yet: today's legacy
-    // rows carry no stable booking_id/version pairing with the RPC layer,
-    // so routing writes through schedule_vehicle_work / move_workshop_booking
-    // etc. here would either invent fake versions or silently no-op. That
-    // requires the approved legacy migration/reconciliation import (see
-    // scripts/workshop_planner_legacy_extract.js and section 16) to run
-    // first so every row has a real booking_id. Until that import is
-    // approved and executed, shared mode is fail-closed for writes: no
-    // operation is silently accepted, and no localStorage write happens
-    // either (which would create a second, contradicting source of truth).
-    if (typeof window !== 'undefined' && typeof window.alert === 'function') {
-      window.alert('Shared workshop mode is connected read-only. Live editing unlocks after the approved legacy data migration runs. No change was saved.');
-    }
-    return;
+    // Shared writes are owned exclusively by the protected RPC bridge. Keep
+    // browser-local persistence fail-closed without imposing a global lock on
+    // valid canonical bookings.
+    console.error('Blocked legacy Workshop serializer in shared mode; use a protected shared action.');
+    return false;
   }
   if (typeof saveJson !== 'function') return;
   const operation = () => saveJson(WORKSHOP_PLAN_STORAGE_KEY, rows);
@@ -2875,6 +2887,7 @@ function workshopPlanLifecycleActionsHtml(entry = {}) {
   const planId = String(entry.id || '');
   const status = String(entry.status || 'planned').toLowerCase();
   if (!planId || ['completed', 'cancelled'].includes(status)) return '';
+  if (entry.legacyAmbiguityReason) return `<div class="workshop-legacy-ambiguity" role="status" title="${escapeHtml(entry.legacyAmbiguityReason)}">Legacy review required · editing blocked</div>`;
   if (status === 'stoppage') {
     return `<div class="workshop-plan-lifecycle-actions"><button type="button" data-workshop-resume-plan="${escapeHtml(planId)}" aria-label="Resume job">Resume job</button></div>`;
   }
@@ -2903,7 +2916,7 @@ function workshopPlanChipHtml(entry = {}, dateKey = '', rows = workshopLoadPlans
   const parts = workshopPartsSummary(vehicle);
   const etaRisk = workshopEtaRiskForEntry(entry, vehicle);
   const etaRiskLabel = workshopEtaRiskLabel(etaRisk);
-  const draggable = entry.status !== 'completed';
+  const draggable = entry.status !== 'completed' && !entry.legacyAmbiguityReason;
   const assignee = cleanNavisionText(entry.assignee || '') || workshopBayMechanic(entry.stage, entry.bay) || '';
   const statusLabel = entry.status === 'completed' ? 'COMPLETED' : entry.status === 'stoppage' ? 'STOPPAGE' : entry.status === 'started' ? 'LIVE' : 'PLANNED';
   const lifecycleActionsHtml = workshopPlanLifecycleActionsHtml(entry);
@@ -2915,11 +2928,12 @@ function workshopPlanChipHtml(entry = {}, dateKey = '', rows = workshopLoadPlans
       <span>${escapeHtml(vehicle.vehicle || vehicle.toyotaVehicle || 'Vehicle')}</span>
       <small>${escapeHtml(vehicleCustomerName(vehicle) || 'Unknown customer')}</small>
       <small>${escapeHtml(`${statusLabel}${assignee ? ` · ${assignee}` : ''}${segment.usesConfiguredOvertime ? ' · CONFIGURED OVERTIME' : ''}${segment.historicalOnClosure ? ' · HISTORICAL CLOSURE' : ''}`)}</small>
+      ${entry.legacyAmbiguityReason ? `<small class="workshop-legacy-ambiguity">${escapeHtml(entry.legacyAmbiguityReason)}</small>` : ''}
       <small>${escapeHtml(`${entry.hours}h · Parts ${parts.label}${parts.eta && !['issued', 'notrequired'].includes(parts.status) ? ` · ETA ${parts.eta}` : ''}`)}</small>
       ${etaRiskLabel ? `<small class="workshop-eta-risk-label">${escapeHtml(etaRiskLabel)}</small>` : ''}
     </button>
     ${lifecycleActionsHtml}
-    <span class="workshop-plan-resize" data-workshop-resize-plan="${escapeHtml(entry.id)}" title="Drag to change duration"></span>
+    ${entry.legacyAmbiguityReason ? '' : `<span class="workshop-plan-resize" data-workshop-resize-plan="${escapeHtml(entry.id)}" title="Drag to change duration"></span>`}
   </article>`;
 }
 

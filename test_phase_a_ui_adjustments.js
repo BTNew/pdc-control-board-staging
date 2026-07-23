@@ -42,17 +42,14 @@ assert.ok(app.includes('function actionSelectHtml('), 'Underlying actions used b
 
 const etaCell = app.match(/<div class="parts-worst-eta-wrap">[\s\S]*?<\/td>/)?.[0] || '';
 assert.ok(!etaCell.includes('data-parts-eta-email'), 'Email Sales must not remain inside the ETA cell');
-assert.ok(app.includes('parts-email-sales-secondary'), 'Email Sales must move to a compact secondary action line');
-assert.ok(app.includes('data-parts-more-button'), 'Parts More action must use an overlay trigger');
-assert.ok(app.includes('function openPartsMoreMenu('), 'Parts More overlay positioning helper is missing');
-assert.ok(app.includes('role="group"'), 'Parts More overlay must expose a labelled native-button group without incomplete ARIA menu semantics');
-assert.ok(!app.includes('aria-haspopup="true"'), 'Parts More trigger must not claim menu semantics for a native-button group');
-assert.ok(app.includes("event.key === 'Escape'"), 'Parts More overlay must close on Escape');
-assert.ok(app.includes("document.addEventListener('pointerdown'"), 'Parts More overlay must close on outside click');
-assert.ok(app.includes("document.addEventListener('focusout'"), 'Parts More overlay must close when keyboard focus leaves it, including focus falling to the document body');
-assert.ok(app.includes("classList.toggle('opens-upward'"), 'Parts More overlay must open upward near the viewport bottom');
-assert.ok(styles.includes('.parts-more-popover'), 'Parts More popover styles are missing');
-assert.ok(styles.includes('position: fixed'), 'Parts More menu must be outside table flow');
+assert.ok(app.includes('parts-visible-actions'), 'Parts actions must be visible without an overflow menu');
+assert.ok(!app.includes('data-parts-more-button'), 'Parts must not hide operational actions behind More');
+assert.ok(app.includes('data-parts-toggle-jita'), 'JITA toggle must be directly visible');
+assert.ok(app.includes('data-parts-ordered'), 'Mark ordered must remain visible');
+assert.ok(app.includes('data-parts-complete'), 'Mark received must remain visible');
+assert.ok(app.includes('data-parts-stoppage'), 'Add stoppage must remain visible');
+assert.ok(app.includes('data-parts-clear-stoppage'), 'Remove stoppage must remain visible');
+assert.ok(app.includes('data-open-stock'), 'Open vehicle must remain visible');
 assert.ok(styles.includes('.parts-queue-table th:nth-child(6)'), 'JITA requires a narrow explicit column rule');
 assert.ok(styles.includes('width: 44px'), 'JITA compact target width is missing');
 assert.ok(styles.includes('.parts-queue-row > td') && styles.includes('padding: 3px 5px'), 'Parts rows need materially reduced cell padding');

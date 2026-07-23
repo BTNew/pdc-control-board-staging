@@ -18,14 +18,14 @@ assert.ok(app.includes('window.PDC_ALLOW_LOCAL_RESET === true'));
 assert.ok(app.includes('jita-icon jita-unknown'));
 assert.ok(app.includes('PDC sheet · ${backEndOnlyCount} back end only'));
 
-const partsHeaders = ['Status', 'Vehicle ID', 'Customer / vehicle', 'Kewdale ETA', 'Parts ETA', 'Jita', 'Blocker', 'Stage / update', 'Actions'];
+const partsHeaders = ['Key', 'Stock', 'JC', 'Vehicle / customer', 'Parts status', 'JITA', 'Outstanding station work', 'Stoppage reason', 'Actions'];
 for (const heading of partsHeaders) {
   assert.ok(app.includes(`<th>${heading}</th>`), `Parts heading missing: ${heading}`);
 }
-assert.ok(app.includes('parts-queue-jita-cell'), 'Jita must have its own dedicated cell/column in the Parts row, not be buried inside the Status cell');
+assert.ok(app.includes('parts-queue-jita-cell'), 'JITA must have its own dedicated cell/column');
 
 assert.ok(css.includes('.parts-queue-wrap'));
-assert.ok(css.includes('overflow: auto !important'));
+assert.ok(css.includes('#parts .parts-queue-wrap { overflow-x: hidden; }'));
 assert.ok(css.includes('#vehicle-modal .edit-actions'));
 assert.ok(css.includes('position: sticky'));
 assert.ok(css.includes('.workflow-floating-column-header'));

@@ -6,9 +6,9 @@
   <meta name="description" content="PDC vehicle locations, workshop workflow, Parts and scheduling control board." />
   <title>PDC Control Board — Random 100 Vehicle Test</title>
   <link rel="icon" href="favicon.svg" type="image/svg+xml" />
-  <link rel="stylesheet" href="styles.css?v=2026.07.23.09-canonical-work-items" />
-  <link rel="stylesheet" href="desktop-operations.css?v=2026.07.23.09-canonical-work-items" />
-  <link rel="stylesheet" href="workshop-planner.css?v=2026.07.23.09-canonical-work-items" />
+  <link rel="stylesheet" href="styles.css?v=2026.07.23.10-staging-blocker-closure" />
+  <link rel="stylesheet" href="desktop-operations.css?v=2026.07.23.10-staging-blocker-closure" />
+  <link rel="stylesheet" href="workshop-planner.css?v=2026.07.23.10-staging-blocker-closure" />
 </head>
 <body>
   <div class="test-data-banner" style="position:sticky;top:0;z-index:9999;background:#6d28d9;color:#fff;padding:8px 14px;text-align:center;font-weight:700;letter-spacing:.02em;">TEST DATASET — 100 SAMPLE VEHICLES ONLY — separate from live board</div>
@@ -359,46 +359,22 @@
       </section>
 
       <section id="parts" class="view">
-        <div class="parts-home-layout">
-          <section class="panel parts-home-panel">
-            <div class="panel-header">
-              <div>
-                <h2>Parts department home</h2>
-                <p>Prioritised work queue for ordering, supplier ETA, stoppages and issue completion. Use the status cards to focus the list.</p>
+              <div class="parts-home-layout">
+                <section class="panel parts-home-panel">
+                  <div class="panel-header parts-compact-header">
+                    <div><h2>Parts</h2><p>Order, receive and clear workshop parts blockers.</p></div>
+                    <button class="small-button" id="parts-export-csv" type="button">Export CSV</button>
+                  </div>
+                  <div class="parts-summary-grid parts-operational-filters" id="parts-summary-grid" role="toolbar" aria-label="Parts queue filters"></div>
+                  <div class="table-toolbar parts-toolbar parts-compact-toolbar">
+                    <label class="parts-search-field"><span>Search</span><input id="parts-search" type="search" placeholder="Key, stock, JC, customer or vehicle" /></label>
+                    <label><span>Department</span><select id="parts-department-filter"><option value="">All departments</option><option value="138">138 Bus 4x4</option><option value="137">137 Fab</option><option value="139">139 PD</option></select></label>
+                  </div>
+                  <div id="parts-home-content" class="parts-home-content"></div>
+                </section>
               </div>
-              <div class="panel-actions">
-                <button class="small-button" id="parts-export-csv" type="button">Export parts CSV</button>
-              </div>
-            </div>
-            <div class="parts-summary-grid" id="parts-summary-grid"></div>
-            <div class="table-toolbar advanced-toolbar wide-toolbar parts-toolbar">
-              <label>
-                <span>Search</span>
-                <input id="parts-search" type="search" placeholder="Stock, customer, vehicle, key or job card..." />
-              </label>
-              <label>
-                <span>Parts status</span>
-                <select id="parts-status-filter">
-                  <option value="open">Active parts</option>
-                  <option value="all">All active parts vehicles</option>
-                  <option value="notordered">Not Ordered</option>
-                  <option value="onorder">On Order</option>
-                  <option value="stoppage">Stoppages</option>
-                  <option value="miscacc">Misc Acc</option>
-                </select>
-              </label>
-              <label><span>ETA view</span><select id="parts-eta-filter"><option value="all">All ETAs</option><option value="risk">PARTS RISK only</option><option value="overdue">Overdue</option><option value="none">No ETA</option></select></label>
-              <label><span>ETA sort</span><select id="parts-eta-sort"><option value="status">Status priority</option><option value="nearest">Nearest ETA</option><option value="latest">Latest ETA</option></select></label>
-              <label><span>Department</span><select id="parts-department-filter"><option value="">All departments</option><option value="138">138 Bus 4x4</option><option value="137">137 Fab</option><option value="139">139 PD</option></select></label>
-            </div>
-            <div class="parts-help-strip">
-              <strong>Parts rule:</strong>
-              <span>Parts shows only what is coming, stoppages, and what is on order. Issued/signed-off vehicles are removed from this screen. RFT remains blocked until Parts is issued or not required.</span>
-            </div>
-            <div id="parts-home-content" class="parts-home-content"></div>
-          </section>
-        </div>
-      </section>
+            </section>
+
 
       <section id="emailreview" class="view">
         <div class="parts-home-layout email-review-layout">
@@ -876,11 +852,11 @@
     }());
   </script>
 
-  <script src="data-test-100.js?v=2026.07.23.09-canonical-work-items"></script>
-  <script src="arb-labor-catalog.js?v=2026.07.23.09-canonical-work-items"></script>
-  <script src="ai-board-advisor.js?v=2026.07.23.09-canonical-work-items"></script>
-  <script src="workshop-eligibility.js?v=2026.07.23.09-canonical-work-items"></script>
-  <script src="app.js?v=2026.07.23.09-canonical-work-items"></script>
+  <script src="data-test-100.js?v=2026.07.23.10-staging-blocker-closure"></script>
+  <script src="arb-labor-catalog.js?v=2026.07.23.10-staging-blocker-closure"></script>
+  <script src="ai-board-advisor.js?v=2026.07.23.10-staging-blocker-closure"></script>
+  <script src="workshop-eligibility.js?v=2026.07.23.10-staging-blocker-closure"></script>
+  <script src="app.js?v=2026.07.23.10-staging-blocker-closure"></script>
 
 </body>
 </html>
