@@ -9,7 +9,7 @@
   "cacheVersion": "2026.07.24.14-workshop-modal-layering",
   "deploymentMode": "exact reviewed source blobs; staging.html mapped to index.html",
   "environment": "staging",
-  "generatedAtUtc": "2026-07-23T22:09:02Z",
+  "generatedAtUtc": "2026-07-23T22:15:53Z",
   "migrationLedger": [
     "042",
     "044",
@@ -20,7 +20,7 @@
     "049"
   ],
   "releaseChecks": {
-    "aggregateTests": "76 passed, 0 failed, 2 optional fixture skips",
+    "aggregateTests": "75 passed, 0 failed, 2 optional fixture skips",
     "databasePostApply": "fresh encrypted backup and isolated restore passed; migrations 046 and 049 applied; CLI ledger repaired; 041 remains a pre-existing local-only drift item",
     "migration046049": "rollback-only 41 accepted / 64 rejected matrix passed; 8 exact legacy Hoist rows quarantined; 0 unquarantined active overlaps; past scheduling rejected",
     "authRefresh": "same-user token refresh, overlapping role lookup, demotion and stale-authority regressions passed",
@@ -28,7 +28,7 @@
     "literalArtifact": "30/30 source blobs byte-identical; staging.html mapped to index.html"
   },
   "sourceBranch": "fix/navision-import-access-success-ui",
-  "sourceCommit": "36350531241ca6bbd6b8659b234b43ef87659175",
+  "sourceCommit": "bd689098bb2974515b48e2443345ccb8cac75779",
   "sourceFiles": [
     {
       "deployedPath": "ai-board-advisor.js",
@@ -162,7 +162,7 @@
     },
     {
       "deployedPath": "workshop-planner.js",
-      "sha256": "c4eff53dc1aa592817fbd1f582853439836c2dd029cdab950afbcd30d2e2c7b4",
+      "sha256": "3d6b7c9c7a7c92f0befdad1fac4d5f17d04991b859ee6ffcf11d3067b7632688",
       "sourcePath": "workshop-planner.js"
     },
     {
@@ -183,7 +183,7 @@
   ],
   "sourceParity": "30/30 deployment source pairs byte-identical to exact source commit",
   "sourceRepository": "BTNew/pdc-control-board",
-  "sourceTree": "5515968b6249cc3219f2a4de0caa6ce9a63b624f",
+  "sourceTree": "e6e9c8c91c52ac05cfb563a6069e27d6957ecba7",
   "stagingProjectRef": "cdsmnqxtyyoeoznmbidd",
   "stagingSafety": {
     "bundledOperationalData": false,

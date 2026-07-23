@@ -2692,7 +2692,7 @@ function workshopSearchResultsHtml(query = '', plans = workshopLoadPlans()) {
 function workshopSearchControlHtml(query = '', plans = workshopLoadPlans()) {
   const open = workshopState().searchOpen && cleanNavisionText(query || '').length >= 2;
   return `<section class="workshop-booking-search${open ? ' is-open' : ''}" aria-label="Vehicle booking search">
-    <label><span>Find a workshop booking</span><input type="search" data-workshop-search value="${escapeHtml(query)}" placeholder="Key, stock, job card, customer or vehicle" autocomplete="off" aria-controls="workshop-booking-search-results" aria-expanded="${open ? 'true' : 'false'}" /></label>
+    <label><span>Find a workshop booking</span><input type="search" role="combobox" aria-autocomplete="list" data-workshop-search value="${escapeHtml(query)}" placeholder="Key, stock, job card, customer or vehicle" autocomplete="off" aria-controls="workshop-booking-search-results" aria-expanded="${open ? 'true' : 'false'}" /></label>
     <button type="button" class="small-button" data-workshop-search-clear ${query ? '' : 'disabled'}>Clear</button>
     <div id="workshop-booking-search-results" class="workshop-search-results" ${open ? '' : 'hidden'}>${open ? workshopSearchResultsHtml(query, plans) : ''}</div>
   </section>`;
