@@ -78,6 +78,19 @@ console.log('PASS CONFIG 2: 08:15–16:45 survives normalization, drag/drop, wor
 // next configured work start instead of being rejected at the exact day-end
 // boundary.
 apply(rows());
+const fiftyNineMinuteCandidate = { startAt: localDate(2026, 7, 20, 8, 0).toISOString(), hours: 59 / 60, status: 'planned' };
+assert.deepStrictEqual(
+  planner.workshopNewBookingValidation(fiftyNineMinuteCandidate),
+  { ok: false, error: 'minimum_duration', minimumMinutes: 60 },
+  'A 59-minute booking must be rejected rather than silently clamped to one hour',
+);
+const sixtyMinuteCandidate = { startAt: localDate(2026, 7, 20, 8, 0).toISOString(), hours: 1, status: 'planned' };
+assert.deepStrictEqual(
+  planner.workshopNewBookingValidation(sixtyMinuteCandidate),
+  { ok: true, usesOvertime: false },
+  'A 60-minute booking must remain valid',
+);
+console.log('PASS CONFIG 2a: 59-minute bookings are rejected and 60-minute bookings are accepted');
 const nextDayCandidate = { startAt: localDate(2026, 7, 20, 13, 30).toISOString(), hours: 3, status: 'planned' };
 assert.deepStrictEqual(planner.workshopNewBookingValidation(nextDayCandidate), { ok: true, usesOvertime: false });
 const nextDayEnd = planner.workshopEntryEnd(nextDayCandidate);

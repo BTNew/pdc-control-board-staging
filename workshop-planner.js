@@ -2136,6 +2136,10 @@ function workshopNewBookingValidation(entry = {}) {
   if (!workshopConfigurationAllowsNewScheduling()) return { ok: false, error: 'configuration_unavailable' };
   const start = parseIsoTimestamp(entry.startAt || '');
   if (!start) return { ok: false, error: 'invalid_start' };
+  const requestedDurationMinutes = Math.round(Number(entry.hours ?? workshopDefaultBookingHours()) * 60);
+  if (!Number.isFinite(requestedDurationMinutes) || requestedDurationMinutes < 60) {
+    return { ok: false, error: 'minimum_duration', minimumMinutes: 60 };
+  }
   if (workshopIsClosureDate(start)) return { ok: false, error: 'closure_date', date: workshopDateKey(start) };
   if (!workshopIsConfiguredWorkingDay(start)) return { ok: false, error: 'non_working_day', date: workshopDateKey(start) };
   const startMinute = workshopMinuteOfDay(start);
@@ -2144,7 +2148,7 @@ function workshopNewBookingValidation(entry = {}) {
     const inBreak = workshopBreakWindowsForDate(start).some(window => startMinute >= window.startMinutes && startMinute < window.endMinutes);
     return { ok: false, error: inBreak ? 'break_window' : 'outside_work_window', date: workshopDateKey(start), minute: startMinute };
   }
-  const durationMinutes = Math.max(60, Math.round(Number(entry.hours || workshopDefaultBookingHours()) * 60));
+  const durationMinutes = requestedDurationMinutes;
   const technicianId = workshopTechnicianIdForEntry(entry);
   let usesOvertime = false;
   for (let offset = 0; offset < durationMinutes; offset += 1) {
@@ -2182,6 +2186,7 @@ function workshopRequireSchedulableCandidate(entry = {}) {
   const messages = {
     configuration_unavailable: 'Shared planner configuration is loading, unavailable, or invalid. New scheduling is blocked until valid shared settings are confirmed.',
     invalid_start: 'Choose a valid workshop start date and time.',
+    minimum_duration: 'Workshop Planner bookings must be at least 60 minutes.',
     closure_date: 'That date is configured as a workshop closure and cannot accept a new booking.',
     non_working_day: 'That date is not part of the configured working week.',
     break_window: 'The proposed booking interval overlaps a configured non-bookable break window.',

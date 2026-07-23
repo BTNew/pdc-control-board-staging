@@ -22,6 +22,16 @@ assert.ok(
   'The one-hour minimum must be enforced at the authoritative booking table for every mutation RPC',
 );
 assert.ok(
+  sql.includes('if p_duration_minutes is null or p_duration_minutes < 60 then')
+    && sql.includes("'error', 'minimum_duration', 'minimum_minutes', 60"),
+  'Cascade must reject 59-minute insert/extend requests and accept the 60-minute boundary',
+);
+assert.ok(
+  sql.includes('return public.resize_workshop_booking(p_target_id, p_target_expected_version, p_duration_minutes')
+    && sql.includes('check (default_duration_minutes >= 60)'),
+  'Cascade resize below 60 minutes must remain rejected by the authoritative booking constraint',
+);
+assert.ok(
   sql.includes("'error', 'concurrent_queue_change'")
     && sql.includes('and b.bay_id = v_bay.id')
     && sql.indexOf("'error', 'concurrent_queue_change'") < sql.indexOf('-- Keep the target action and every shifted timestamp'),

@@ -65,8 +65,9 @@ This file records established PDC Control Board behaviour independent of any cha
 - Internal PMB stage keys must remain enum-like values: `TINT`, `HOIST`, `FITTING`, `FABRICATION`, `ELECTRICAL`, `TYRE`, `PIT_INSPECTION`; do not store display labels like `Tyre bay` or `Pit Inspection` as stage keys.
 
 ## Workshop planner scheduling
-- New and resized bookings have a one-hour minimum duration. The planner may still use 15-minute increments above that minimum.
+- New and resized bookings have a one-hour (60-minute) minimum duration. A 59-minute booking or resize is rejected; exactly 60 minutes is accepted. The planner may still use 15-minute increments above that minimum.
 - Inserting work or extending a booking automatically moves every later planned booking in the same bay by the inserted or added operational minutes.
+- Cascade operations reject a target duration below 60 minutes and preserve every shifted booking's existing duration, so cascade cannot create a sub-60-minute booking.
 - A same-bay cascade preserves booking order and each later booking's duration, carries timestamps into later operational days when necessary, and skips weekends, configured closures and non-working days.
 - The target write and every shifted booking timestamp must commit atomically. A version, role, validation or scheduling failure must leave the entire bay queue unchanged.
 - Cascades never move bookings in another bay or stage and never widen viewer permissions.
