@@ -6,48 +6,48 @@
     "twoPhysicalWorkstationAuthorityCutover": false
   },
   "artifact": "zero-data static staging site",
-  "cacheVersion": "2026.07.23.10-staging-blocker-closure",
+  "cacheVersion": "2026.07.24.12-midpoint-blockers",
   "deploymentMode": "exact reviewed source blobs; staging.html mapped to index.html",
   "environment": "staging",
-  "generatedAtUtc": "2026-07-23T08:50:11Z",
+  "generatedAtUtc": "2026-07-23T18:19:18Z",
   "migrationLedger": [
     "042",
     "044",
     "045",
+    "046",
     "047",
-    "048"
+    "048",
+    "049"
   ],
   "releaseChecks": {
-    "aggregateTests": "73 passed, 0 failed, 2 optional fixture skips",
-    "exactShaReviews": "FUNCTION, SECURITY, DATABASE/MIGRATION and UI/RELEASE APPROVE for de224d0ebe7d894fa0090fc0a6501b11a67b55e8",
-    "migration047": "restricted approved-user shared Navision visibility; UUID cursor integration tested",
-    "migration048": "224-row apply measured 3.2s under unchanged 8s timeout; exactly four ambiguous Hoist vehicles blocked; valid non-Hoist edit and next-day carry-forward transactional proofs passed",
-    "literalArtifact": "30/30 source blobs exact; staging.html mapped to index.html",
-    "databasePostApply": "backup/restore gate passed; migrations 047 and 048 applied; ledger and runtime objects verified",
-    "workshopLifecycle": "create, move, resize, start, stop, resume and complete protected RPCs all passed transactionally",
-    "navisionTwoSessions": "Admin and Viewer sessions returned identical 237-row revision 216 snapshots; relogin persisted; restricted fields absent"
+    "aggregateTests": "75 passed, 0 failed, 2 optional fixture skips",
+    "databasePostApply": "fresh encrypted backup and isolated restore passed; migrations 046 and 049 applied; CLI ledger repaired; 041 remains a pre-existing local-only drift item",
+    "migration046049": "rollback-only 41 accepted / 64 rejected matrix passed; 8 exact legacy Hoist rows quarantined; 0 unquarantined active overlaps; past scheduling rejected",
+    "authRefresh": "same-user token refresh, overlapping role lookup, demotion and stale-authority regressions passed",
+    "responsivePlanner": "mobile/small-laptop stack, timeline scroll cue, started/overdue visual contracts passed",
+    "literalArtifact": "30/30 source blobs byte-identical; staging.html mapped to index.html"
   },
   "sourceBranch": "fix/navision-import-access-success-ui",
-  "sourceCommit": "de224d0ebe7d894fa0090fc0a6501b11a67b55e8",
+  "sourceCommit": "f43b446827378552336ca57cdc3bb8d77e5b043c",
   "sourceFiles": [
     {
       "deployedPath": "ai-board-advisor.js",
-      "sha256": "08a5a02faf5fb465126e07a0c96ecdf4416148a4e4695113dfe783b89b14b32d",
+      "sha256": "b1dcf3e351d0aefa92ce663f9f86cee754edf4ade6a6b2e3575d2405826d4e01",
       "sourcePath": "ai-board-advisor.js"
     },
     {
       "deployedPath": "app.js",
-      "sha256": "995e65c04e0a1488e40073f3643f97cca3f12fdf113b8757d0b565bbee21875a",
+      "sha256": "6c1c1a49eaef56693dfad29f80fa057ab3bb375406524d8a36f49b6b4e3b4f4a",
       "sourcePath": "app.js"
     },
     {
       "deployedPath": "arb-labor-catalog.js",
-      "sha256": "db99ee8c4ddf341ce3f948dc04fb70cbe6c66d122be1a262f7074552a2fa49c0",
+      "sha256": "1800e93b325bfd58d9b0131d2105f78b775885bd82e88ceed63d3ecf6100b9fe",
       "sourcePath": "arb-labor-catalog.js"
     },
     {
       "deployedPath": "assets/brand-logo.svg",
-      "sha256": "4bffc708627c0ee8de1a997aec6bf3aae7461fb779f2700f41fd47e6645dd28d",
+      "sha256": "7e3c9cb0b7e1f53b931f6cad274583f78a6be67ba554d6a45e57473f5ab611a0",
       "sourcePath": "assets/brand-logo.svg"
     },
     {
@@ -57,62 +57,62 @@
     },
     {
       "deployedPath": "data-staging-empty.js",
-      "sha256": "d2a9ed658daa1cc5eabb45a78eeb5c7f93ef0146a12e7f8c23d0b028f915c7a9",
+      "sha256": "2fa02a231e559b4230ba22ac1c6e1cfa600fcaad9f546f6fb3e2a28b2acab756",
       "sourcePath": "data-staging-empty.js"
     },
     {
       "deployedPath": "desktop-operations.css",
-      "sha256": "767360ffac1c8f58a89e60b4f74cd593b9e6d776c371f58b8763085688858c10",
+      "sha256": "c043ff48d05e59163a9a08a59a02183f97334c4ce4efd1c2cfa35e1447d833d0",
       "sourcePath": "desktop-operations.css"
     },
     {
       "deployedPath": "email-board-data.js",
-      "sha256": "3b55079afe708ae6842a6ddb61e19e912a8182cdc835a5d4102e4a5815dbace0",
+      "sha256": "c0cc888ec98ec64dd1710a75c7ea222d2c5a12993877ef4eebb3f66476e4093b",
       "sourcePath": "email-board-data.js"
     },
     {
       "deployedPath": "favicon.svg",
-      "sha256": "f79b374447017a73a77012096c6d031ddb2ad6bf1b647d2efbfd465e6a5f32e6",
+      "sha256": "f1ce1b8f7a37c54801c2ee233c9e67bb2d852cb6ea8af942455d33d85aac046f",
       "sourcePath": "favicon.svg"
     },
     {
       "deployedPath": "index.html",
-      "sha256": "b0be7a1c58f4f2695ccf1afcd3567cf7a40ebe325bd4be9b85bb68646d1056c4",
+      "sha256": "a8ecaff4c576a74776f590319aab04fc6594ee3183892825af484c2be3f64068",
       "sourcePath": "staging.html"
     },
     {
       "deployedPath": "navision-backend-service.js",
-      "sha256": "08c6fd98c499feb4327f277db3396254dce39f61d70abac0894df5b289ac8c86",
+      "sha256": "14b1bf6842ca6baf02b2ff6304ea9902d5077c24f9cdf6dd02bcda028b951fb8",
       "sourcePath": "navision-backend-service.js"
     },
     {
       "deployedPath": "pdc-auth-registration.js",
-      "sha256": "13841fdf4408300d737b880cd4d676d2e49bdf4df65bd0f0c491db9e89da9dab",
+      "sha256": "bc45f0a1ec5cfbdfb6ad05a8b499f4a4de2d98f6d150649de98790fae7bd615a",
       "sourcePath": "pdc-auth-registration.js"
     },
     {
       "deployedPath": "pdc-auth.js",
-      "sha256": "225cb24b64a257530aabdad9b59be1248096949992e3222e56873097d6d2e7af",
+      "sha256": "8c464adb0546ba5dddc5f4624fc0a66e007c3841879d0fa52b2f021fd5b3680e",
       "sourcePath": "pdc-auth.js"
     },
     {
       "deployedPath": "pdc-supabase-config.staging.js",
-      "sha256": "740ce65b13389386c57033a89ba5f688d983b0228cfaab8e48d77e88f560a590",
+      "sha256": "527033ba2c564b3113a8e8f67cb9f0127d695c5a7675b4f334d4d98d220e32be",
       "sourcePath": "pdc-supabase-config.staging.js"
     },
     {
       "deployedPath": "scripts/stage2b_c4_browser_export.js",
-      "sha256": "5dafeb35a33626fec47aeaa931d17f83f22e436a4f602cbae66914537ab90f18",
+      "sha256": "afa142651d88f44f40c2e41159e6f37bddc2e0af3fe89408e969e9926fc83f07",
       "sourcePath": "scripts/stage2b_c4_browser_export.js"
     },
     {
       "deployedPath": "staging-browser-assessment.js",
-      "sha256": "29acbe12e27d787b12d75614086278ac54e2ffe04bb6dfd755b3cacc7077bded",
+      "sha256": "054f380b889eb8ce7475378478cab6f0927f0a9d15202c4745193e0405dc170e",
       "sourcePath": "staging-browser-assessment.js"
     },
     {
       "deployedPath": "styles.css",
-      "sha256": "009f40291b794ea08b2ce37b0ad9ccbfc5a959b73e86640ac8b09f441112f290",
+      "sha256": "bdea06030c5df3f7d57ea8973cdd28ffa92195fff7abf959c0f6278f10195c3c",
       "sourcePath": "styles.css"
     },
     {
@@ -157,12 +157,12 @@
     },
     {
       "deployedPath": "workshop-planner.css",
-      "sha256": "02884142a5338d38554195004f9d879821b23bd6d8cd1fd2b4a2650c0e3e6c9b",
+      "sha256": "a145d5cac9d6027d7ca7c25f29cc2820f1d205437673fe3de49b67e54c6a9861",
       "sourcePath": "workshop-planner.css"
     },
     {
       "deployedPath": "workshop-planner.js",
-      "sha256": "f376e6785f78984bb3721d76db0ec099abb23406ca43b99446d4c26c9cdeb212",
+      "sha256": "c4eff53dc1aa592817fbd1f582853439836c2dd029cdab950afbcd30d2e2c7b4",
       "sourcePath": "workshop-planner.js"
     },
     {
@@ -183,7 +183,7 @@
   ],
   "sourceParity": "30/30 deployment source pairs byte-identical to exact source commit",
   "sourceRepository": "BTNew/pdc-control-board",
-  "sourceTree": "7dbdf192180b7ca72d27276b796129ed543275ad",
+  "sourceTree": "ca494ed6b9fd9c34ed6347ee5dc98d46b13824c3",
   "stagingProjectRef": "cdsmnqxtyyoeoznmbidd",
   "stagingSafety": {
     "bundledOperationalData": false,
