@@ -39,6 +39,7 @@ assert.ok(migration.includes("p_scheduled_start_at < date_trunc('minute',stateme
 assert.match(migration, /create or replace function public\.workshop_validate_booking\([\s\S]*?p_technician_id uuid default null[\s\S]*?select public\.workshop_validate_booking\([\s\S]*?p_technician_id,false/, 'Nine-argument validation callers must remain strict and unable to opt out of the past-start rule');
 assert.match(migration, /if tg_op='UPDATE'[\s\S]*?new\.scheduled_start_at is not distinct from old\.scheduled_start_at[\s\S]*?new\.scheduled_end_at is not distinct from old\.scheduled_end_at[\s\S]*?v_allow_unchanged_past:=true/, 'Only the booking trigger may allow lifecycle changes that retain the exact historical interval');
 assert.match(migration, /ALTER FUNCTION public\.cascade_workshop_schedule[\s\S]*SET search_path = pg_catalog, public;/, 'Browser-callable cascade RPC must resolve pg_catalog before public');
+assert.match(source, /type="search" role="combobox" aria-autocomplete="list"[\s\S]*?aria-controls="workshop-booking-search-results" aria-expanded=/, 'Planner booking search must expose aria-expanded on an allowed combobox role');
 
 assert.ok(source.includes("const started = String(entry.status || '').toLowerCase() === 'started';"), 'Started visual class must derive from lifecycle status, not legacy bay text');
 assert.match(plannerCss, /\.workshop-plan-chip\s*\{[\s\S]*?background:\s*#fecdd3;/, 'Queued/planned cards must retain the pink Planned legend color');
