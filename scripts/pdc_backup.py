@@ -49,7 +49,7 @@ import re
 import sys
 import time
 import uuid
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from pathlib import Path
 
 import psycopg2
@@ -286,7 +286,7 @@ def utc_now_stamp():
 
 
 def json_default(value):
-    if isinstance(value, (datetime,)):
+    if isinstance(value, (datetime, date)):
         return value.isoformat()
     if isinstance(value, uuid.UUID):
         return str(value)
