@@ -384,10 +384,77 @@ async function testAuthGenerationOwnership() {
   assert.ok(internals.completeProviderSessionOperation(explicitBGeneration, sessionB), 'explicit replacement session claims its provider generation');
   roleResponses.push(Promise.resolve(approvedFor('b@example.com', 'viewer')));
   await internals.applySession(sessionB);
+
+  // Silent refresh for the already-authorized same user must update only the
+  // token/session. It must not tear down authority or recreate the required
+  // own-role monitor, which can otherwise leave a healthy long-lived tab
+  // stuck on the access-check overlay if channel resubscription is delayed.
+  const refreshAuthGeneration = internals.state.authGeneration;
+  const refreshRoleChannel = internals.state.ownRoleChannel;
+  const refreshLockCount = lockedObservations.length;
+  const refreshedSessionB = { ...sessionB, access_token: 'session-b-refreshed-token' };
+  roleResponses.push(Promise.resolve(approvedFor('b@example.com', 'viewer')));
+  authStateCallback('TOKEN_REFRESHED', refreshedSessionB);
+  await new Promise(resolve => setTimeout(resolve, 0));
+  await new Promise(resolve => setTimeout(resolve, 0));
+  assert.strictEqual(internals.state.session, refreshedSessionB, 'same-user token refresh publishes the replacement session');
+  assert.strictEqual(raceContext.window.__pdcCachedAccessToken, 'session-b-refreshed-token', 'same-user token refresh updates the cached access token');
+  assert.strictEqual(internals.state.authGeneration, refreshAuthGeneration, 'same-user token refresh does not revoke/revalidate authority');
+  assert.strictEqual(internals.state.ownRoleChannel, refreshRoleChannel, 'same-user token refresh retains the proven own-role monitor');
+  assert.strictEqual(lockedObservations.length, refreshLockCount, 'same-user token refresh emits no authority lock event');
+  assert.strictEqual(raceContext.window.PDC_AUTH_CONTEXT.userId, 'B', 'same-user token refresh retains approved context');
+
+  // A role-row revocation already in flight remains authoritative across a
+  // same-principal token refresh. The refresh must neither invalidate the
+  // consumed Realtime event nor retain stale authority when it resolves.
+  const refreshRaceDisabled = deferred();
+  roleResponses.push(refreshRaceDisabled.promise);
+  const pendingRefreshRaceRole = internals.handleOwnRoleRowChanged();
+  const refreshDuringRoleLookup = { ...refreshedSessionB, access_token: 'session-b-race-refresh' };
+  authStateCallback('TOKEN_REFRESHED', refreshDuringRoleLookup);
+  await new Promise(resolve => setTimeout(resolve, 0));
+  refreshRaceDisabled.resolve({ data: { email: 'b@example.com', role: 'viewer', active: false, account_status: 'disabled' }, error: null });
+  await pendingRefreshRaceRole;
+  await new Promise(resolve => setTimeout(resolve, 0));
+  assert.strictEqual(raceContext.window.PDC_AUTH_CONTEXT, undefined, 'in-flight disabled role result survives same-principal token refresh');
+  assert.strictEqual(raceContext.window.__pdcCachedAccessToken, undefined, 'in-flight disabled role result clears refreshed token');
+  assert.strictEqual(internals.state.session, null, 'in-flight disabled role result revokes refreshed session');
+
+  // Re-authorize B, then prove a same-id/different-email refresh cannot use
+  // the continuity path or retain the old email-bound monitor/context.
+  roleResponses.push(Promise.resolve(approvedFor('b@example.com', 'viewer')));
+  await internals.applySession(refreshedSessionB);
+  const changedEmailSessionB = {
+    ...refreshedSessionB,
+    access_token: 'session-b-changed-email-token',
+    user: { ...refreshedSessionB.user, email: 'unapproved@example.com' },
+  };
+  roleResponses.push(Promise.resolve({ data: null, error: null }));
+  authStateCallback('TOKEN_REFRESHED', changedEmailSessionB);
+  await new Promise(resolve => setTimeout(resolve, 0));
+  await new Promise(resolve => setTimeout(resolve, 0));
+  assert.strictEqual(raceContext.window.PDC_AUTH_CONTEXT, undefined, 'same-id/different-email refresh fails closed');
+  assert.strictEqual(raceContext.window.__pdcCachedAccessToken, undefined, 'same-id/different-email refresh cannot retain the old token authority');
+  assert.strictEqual(internals.state.session, null, 'same-id/different-email refresh cannot retain the old session authority');
+
+  roleResponses.push(Promise.resolve(approvedFor('b@example.com', 'viewer')));
+  await internals.applySession(refreshedSessionB);
+
   authStateCallback('SIGNED_IN', session);
   await new Promise(resolve => setTimeout(resolve, 0));
   assert.strictEqual(raceContext.window.PDC_AUTH_CONTEXT.userId, 'B', 'late different-user provider event cannot replace explicit newer user');
-  assert.strictEqual(internals.state.session, sessionB, 'explicit newer user remains pinned against stale provider event');
+  assert.strictEqual(internals.state.session, refreshedSessionB, 'refreshed explicit user remains pinned against stale provider event');
+
+  // The continuity fast path still revalidates the role row. A disabled account
+  // discovered during refresh must revoke every authority surface.
+  const disabledRefresh = { ...refreshedSessionB, access_token: 'session-b-disabled-refresh' };
+  roleResponses.push(Promise.resolve({ data: { email: 'b@example.com', role: 'viewer', active: false, account_status: 'disabled' }, error: null }));
+  authStateCallback('TOKEN_REFRESHED', disabledRefresh);
+  await new Promise(resolve => setTimeout(resolve, 0));
+  await new Promise(resolve => setTimeout(resolve, 0));
+  assert.strictEqual(raceContext.window.PDC_AUTH_CONTEXT, undefined, 'disabled role discovered on token refresh revokes context');
+  assert.strictEqual(raceContext.window.__pdcCachedAccessToken, undefined, 'disabled role discovered on token refresh revokes cached token');
+  assert.strictEqual(internals.state.session, null, 'disabled role discovered on token refresh revokes session');
 
   assert.ok(lockedObservations.length > 0, 'lockout observations were captured');
   for (const observation of lockedObservations) {

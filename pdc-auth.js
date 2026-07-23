@@ -15,6 +15,7 @@
     // A completion may publish authority only if it still owns both tokens.
     authGeneration: 0,
     roleLookupGeneration: 0,
+    roleLookupInFlight: 0,
     providerGeneration: 0,
     pendingProviderSessionGeneration: null,
     sessionAcceptanceBlocked: false,
@@ -51,6 +52,12 @@
     const roleEmail = String(roleRow?.email || '').trim().toLowerCase();
     const allowedRoles = new Set(['viewer', 'operator', 'importer', 'administrator']);
     return Boolean(roleRow?.active && email && roleEmail === email && allowedRoles.has(String(roleRow?.role || '')));
+  }
+
+  function authPrincipalKey(session) {
+    const id = String(session?.user?.id || '').trim();
+    const email = String(session?.user?.email || '').trim().toLowerCase();
+    return id && email ? `${id}\n${email}` : '';
   }
 
   function setMessage(title, detail, mode = 'signed-out') {
@@ -207,19 +214,24 @@
   async function handleOwnRoleRowChanged() {
     const session = state.session || state.validatingSession;
     if (!session) return;
+    const principalKey = authPrincipalKey(session);
     const authGeneration = state.authGeneration;
     const roleLookupGeneration = ++state.roleLookupGeneration;
     let role;
     let error;
+    state.roleLookupInFlight += 1;
     try {
       ({ role, error } = await loadApprovedRole(session));
     } catch (caught) {
       error = caught;
+    } finally {
+      state.roleLookupInFlight = Math.max(0, state.roleLookupInFlight - 1);
     }
     if (
       authGeneration !== state.authGeneration
       || roleLookupGeneration !== state.roleLookupGeneration
-      || (state.session !== session && state.validatingSession !== session)
+      || !principalKey
+      || ![state.session, state.validatingSession].some(current => authPrincipalKey(current) === principalKey)
     ) return;
     if (error || !role || role.account_status !== 'approved' || !approvedRole(role, session.user?.email)) {
       // No longer approved, or revalidation itself failed. Revoke before
@@ -652,6 +664,38 @@
       // uncorrelated callbacks until its generation completes.
       if (session && state.pendingProviderSessionGeneration !== null) return;
       if (session && state.explicitSessionUserId && session.user?.id !== state.explicitSessionUserId) return;
+      // Supabase silently rotates access tokens for a still-signed-in user.
+      // The already-approved context remains continuously monitored by the
+      // user's role-row channel, so tearing the whole app down and recreating
+      // that channel here adds no authority proof and can strand a healthy tab
+      // on the checking overlay if Realtime subscription is briefly delayed.
+      // Any different user, absent context/monitor, or blocked session still
+      // takes the full fail-closed applySession() path below.
+      if (
+        event === 'TOKEN_REFRESHED'
+        && session
+        && !state.sessionAcceptanceBlocked
+        && state.session?.user?.id
+        && state.session.user.id === session.user?.id
+        && authPrincipalKey(state.session) === authPrincipalKey(session)
+        && state.role
+        && state.ownRoleChannel
+        && window.PDC_AUTH_CONTEXT?.userId === session.user?.id
+      ) {
+        state.session = session;
+        state.user = session.user;
+        window.__pdcCachedAccessToken = session.access_token || null;
+        // Keep the hourly provider refresh as a secondary role-authority
+        // reconciliation even while the live role monitor remains subscribed.
+        // Revalidation runs without tearing down a proven context; any denial,
+        // lookup failure, or role change is still handled fail-closed.
+        if (state.roleLookupInFlight === 0) {
+          Promise.resolve()
+            .then(() => handleOwnRoleRowChanged())
+            .catch(() => lockOwnRoleAuthority('role_check_failed'));
+        }
+        return;
+      }
       if (event === 'SIGNED_OUT') {
         state.sessionAcceptanceBlocked = true;
         state.pendingProviderSessionGeneration = null;
