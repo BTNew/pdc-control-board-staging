@@ -199,7 +199,8 @@ begin
     raise exception 'Workshop duration must be at least 60 minutes' using errcode='22023';
   end if;
   while v_candidate<v_limit loop
-    if public.workshop_calendar_interval_available(v_candidate,v_candidate+make_interval(mins=>p_duration_minutes)) then
+    if public.workshop_calendar_minute_available(v_candidate) then
+      perform public.workshop_add_operational_minutes(v_candidate,p_duration_minutes);
       return v_candidate;
     end if;
     v_candidate:=v_candidate+interval '1 minute';
@@ -240,8 +241,297 @@ begin
 end $$;
 revoke all on function public.workshop_add_operational_minutes(timestamptz,integer) from public,anon,authenticated;
 
--- Supersede the migration-040 cascade so shifted bookings start in a full,
--- contiguous canonical window. The target action remains protected by the
+-- Supersede the Brisbane-date legacy helper: the authoritative workshop
+-- calendar and leave dates are both interpreted in Australia/Perth.
+create or replace function public.workshop_technician_leave_date(
+  p_technician_id uuid,p_start timestamptz,p_end timestamptz
+) returns date language sql stable security definer set search_path=pg_catalog,public as $$
+  select (item->>'date')::date
+  from public.workshop_settings s
+  cross join lateral jsonb_array_elements(case when jsonb_typeof(s.value)='array' then s.value else '[]'::jsonb end) item
+  where s.key='technician_leave'
+    and item->>'technician_id'=p_technician_id::text
+    and public.workshop_is_exact_iso_date(item->>'date')
+    and (item->>'date')::date between (p_start at time zone 'Australia/Perth')::date
+      and ((p_end-interval '1 microsecond') at time zone 'Australia/Perth')::date
+  order by (item->>'date')::date limit 1
+$$;
+revoke all on function public.workshop_technician_leave_date(uuid,timestamptz,timestamptz) from public,anon,authenticated;
+
+-- Keep every effective low-level mutation on the same operational-minute
+-- duration semantics as the frontend and canonical validator. These helpers stay
+-- non-browser-callable and are reached only through protected wrappers.
+create or replace function public.workshop_create_booking(
+  p_vehicle_id uuid,
+  p_stage_code text,
+  p_bay_number integer,
+  p_scheduled_start_at timestamptz,
+  p_duration_minutes integer default 180,
+  p_technician_id uuid default null,
+  p_metadata jsonb default '{}'::jsonb
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = pg_catalog, public
+as $$
+declare
+  v_stage_id uuid;
+  v_bay_id uuid;
+  v_booking_id uuid;
+  v_conflict_id uuid;
+  v_history_id uuid;
+  v_end timestamptz;
+  v_after jsonb;
+  v_leave_date date;
+begin
+  perform public.require_pdc_role('operator');
+  if p_duration_minutes is null or p_duration_minutes <= 0 then
+    raise exception 'Workshop duration must be positive' using errcode = '22023';
+  end if;
+
+  v_stage_id := public.workshop_resolve_stage_id(p_stage_code);
+  v_bay_id := public.workshop_resolve_bay_id(p_stage_code, p_bay_number);
+  v_end := public.workshop_add_operational_minutes(p_scheduled_start_at, p_duration_minutes);
+
+  if p_technician_id is not null then
+    if not exists (select 1 from public.workshop_technicians where id = p_technician_id) then
+      return jsonb_build_object('ok', false, 'error', 'technician_not_found', 'technician_id', p_technician_id);
+    end if;
+    if not exists (select 1 from public.workshop_technicians where id = p_technician_id and active) then
+      return jsonb_build_object('ok', false, 'error', 'technician_inactive', 'technician_id', p_technician_id);
+    end if;
+    select public.workshop_technician_leave_date(p_technician_id, p_scheduled_start_at, v_end) into v_leave_date;
+    if v_leave_date is not null then
+      return jsonb_build_object('ok', false, 'error', 'technician_on_leave', 'technician_id', p_technician_id, 'date', v_leave_date);
+    end if;
+  end if;
+
+  perform public.workshop_lock_resources(v_bay_id, p_technician_id);
+
+  v_conflict_id := public.workshop_find_bay_conflict(null, v_bay_id, p_scheduled_start_at, v_end);
+  if v_conflict_id is not null then
+    return jsonb_build_object('ok', false, 'error', 'bay_overlap', 'conflict', public.workshop_conflict_payload(v_conflict_id, 'bay_overlap'));
+  end if;
+
+  if p_technician_id is not null then
+    v_conflict_id := public.workshop_find_technician_conflict(null, p_technician_id, p_scheduled_start_at, v_end);
+    if v_conflict_id is not null then
+      return jsonb_build_object('ok', false, 'error', 'technician_overlap', 'conflict', public.workshop_conflict_payload(v_conflict_id, 'technician_overlap'));
+    end if;
+  end if;
+
+  insert into public.workshop_bookings (
+    vehicle_id,
+    stage_id,
+    bay_id,
+    status,
+    scheduled_start_at,
+    scheduled_end_at,
+    default_duration_minutes,
+    created_by,
+    updated_by
+  ) values (
+    p_vehicle_id,
+    v_stage_id,
+    v_bay_id,
+    'planned',
+    p_scheduled_start_at,
+    v_end,
+    p_duration_minutes,
+    auth.uid(),
+    auth.uid()
+  ) returning id into v_booking_id;
+
+  perform public.workshop_upsert_primary_assignment(v_booking_id, p_technician_id, p_scheduled_start_at, v_end, 'created');
+
+  v_after := public.workshop_booking_snapshot(v_booking_id);
+  v_history_id := public.workshop_write_history(v_booking_id, 'created', null, v_after, coalesce(p_metadata, '{}'::jsonb));
+
+  return jsonb_build_object('ok', true, 'booking', v_after, 'history_id', v_history_id);
+end;
+$$;
+
+create or replace function public.workshop_move_booking(
+  p_booking_id uuid,
+  p_expected_version integer,
+  p_stage_code text,
+  p_bay_number integer,
+  p_scheduled_start_at timestamptz,
+  p_duration_minutes integer default null,
+  p_metadata jsonb default '{}'::jsonb
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = pg_catalog, public
+as $$
+declare
+  v_before public.workshop_bookings%rowtype;
+  v_before_snapshot jsonb;
+  v_after_snapshot jsonb;
+  v_stage_id uuid;
+  v_bay_id uuid;
+  v_technician_id uuid;
+  v_conflict_id uuid;
+  v_duration integer;
+  v_end timestamptz;
+  v_history_id uuid;
+  v_leave_date date;
+begin
+  perform public.require_pdc_role('operator');
+
+  select * into v_before
+  from public.workshop_bookings
+  where id = p_booking_id
+  for update;
+
+  if not found then
+    raise exception 'Workshop booking not found' using errcode = 'P0002';
+  end if;
+  if v_before.version <> p_expected_version then
+    return jsonb_build_object('ok', false, 'error', 'version_conflict', 'conflict', public.workshop_conflict_payload(v_before.id, 'version_conflict'));
+  end if;
+  perform 1 from public.vehicles where id=v_before.vehicle_id for update;
+
+  select technician_id into v_technician_id
+  from public.workshop_booking_assignments
+  where booking_id = p_booking_id and released_at is null
+  order by case when assignment_type = 'primary' then 0 else 1 end, assigned_at desc
+  limit 1;
+
+  v_stage_id := public.workshop_resolve_stage_id(p_stage_code);
+  v_bay_id := public.workshop_resolve_bay_id(p_stage_code, p_bay_number);
+  v_duration := coalesce(p_duration_minutes, v_before.default_duration_minutes);
+  if v_duration <= 0 then
+    raise exception 'Workshop duration must be positive' using errcode = '22023';
+  end if;
+  v_end := public.workshop_add_operational_minutes(p_scheduled_start_at, v_duration);
+
+  perform public.workshop_lock_resources(v_bay_id, v_technician_id);
+
+  v_conflict_id := public.workshop_find_bay_conflict(p_booking_id, v_bay_id, p_scheduled_start_at, v_end);
+  if v_conflict_id is not null then
+    return jsonb_build_object('ok', false, 'error', 'bay_overlap', 'conflict', public.workshop_conflict_payload(v_conflict_id, 'bay_overlap'));
+  end if;
+  if v_technician_id is not null then
+    v_conflict_id := public.workshop_find_technician_conflict(p_booking_id, v_technician_id, p_scheduled_start_at, v_end);
+    if v_conflict_id is not null then
+      return jsonb_build_object('ok', false, 'error', 'technician_overlap', 'conflict', public.workshop_conflict_payload(v_conflict_id, 'technician_overlap'));
+    end if;
+  end if;
+
+  if v_technician_id is not null then
+    v_leave_date := public.workshop_technician_leave_date(v_technician_id, p_scheduled_start_at, v_end);
+    if v_leave_date is not null then
+      return jsonb_build_object('ok', false, 'error', 'technician_on_leave', 'date', v_leave_date, 'technician_id', v_technician_id);
+    end if;
+  end if;
+
+  v_before_snapshot := public.workshop_booking_snapshot(p_booking_id);
+
+  update public.workshop_bookings
+  set stage_id = v_stage_id,
+      bay_id = v_bay_id,
+      scheduled_start_at = p_scheduled_start_at,
+      scheduled_end_at = v_end,
+      default_duration_minutes = v_duration,
+      updated_by = auth.uid(),
+      version = version + 1
+  where id = p_booking_id;
+
+  perform public.workshop_upsert_primary_assignment(p_booking_id, v_technician_id, p_scheduled_start_at, v_end, 'moved');
+
+  v_after_snapshot := public.workshop_booking_snapshot(p_booking_id);
+  v_history_id := public.workshop_write_history(p_booking_id, 'moved', v_before_snapshot, v_after_snapshot, coalesce(p_metadata, '{}'::jsonb));
+
+  return jsonb_build_object('ok', true, 'booking', v_after_snapshot, 'history_id', v_history_id);
+end;
+$$;
+
+create or replace function public.workshop_resize_booking(
+  p_booking_id uuid,
+  p_expected_version integer,
+  p_duration_minutes integer,
+  p_metadata jsonb default '{}'::jsonb
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = pg_catalog, public
+as $$
+declare
+  v_booking public.workshop_bookings%rowtype;
+  v_technician_id uuid;
+  v_conflict_id uuid;
+  v_end timestamptz;
+  v_before_snapshot jsonb;
+  v_after_snapshot jsonb;
+  v_history_id uuid;
+  v_leave_date date;
+begin
+  perform public.require_pdc_role('operator');
+  if p_duration_minutes is null or p_duration_minutes <= 0 then
+    raise exception 'Workshop duration must be positive' using errcode = '22023';
+  end if;
+
+  select * into v_booking from public.workshop_bookings where id = p_booking_id for update;
+  if not found then
+    raise exception 'Workshop booking not found' using errcode = 'P0002';
+  end if;
+  if v_booking.version <> p_expected_version then
+    return jsonb_build_object('ok', false, 'error', 'version_conflict', 'conflict', public.workshop_conflict_payload(v_booking.id, 'version_conflict'));
+  end if;
+  perform 1 from public.vehicles where id=v_booking.vehicle_id for update;
+
+  select technician_id into v_technician_id
+  from public.workshop_booking_assignments
+  where booking_id = p_booking_id and released_at is null
+  order by case when assignment_type = 'primary' then 0 else 1 end, assigned_at desc
+  limit 1;
+
+  v_end := public.workshop_add_operational_minutes(v_booking.scheduled_start_at, p_duration_minutes);
+  perform public.workshop_lock_resources(v_booking.bay_id, v_technician_id);
+
+  v_conflict_id := public.workshop_find_bay_conflict(p_booking_id, v_booking.bay_id, v_booking.scheduled_start_at, v_end);
+  if v_conflict_id is not null then
+    return jsonb_build_object('ok', false, 'error', 'bay_overlap', 'conflict', public.workshop_conflict_payload(v_conflict_id, 'bay_overlap'));
+  end if;
+  if v_technician_id is not null then
+    v_conflict_id := public.workshop_find_technician_conflict(p_booking_id, v_technician_id, v_booking.scheduled_start_at, v_end);
+    if v_conflict_id is not null then
+      return jsonb_build_object('ok', false, 'error', 'technician_overlap', 'conflict', public.workshop_conflict_payload(v_conflict_id, 'technician_overlap'));
+    end if;
+  end if;
+
+  if v_technician_id is not null then
+    v_leave_date := public.workshop_technician_leave_date(v_technician_id, v_booking.scheduled_start_at, v_end);
+    if v_leave_date is not null then
+      return jsonb_build_object('ok', false, 'error', 'technician_on_leave', 'date', v_leave_date, 'technician_id', v_technician_id);
+    end if;
+  end if;
+
+  v_before_snapshot := public.workshop_booking_snapshot(p_booking_id);
+
+  update public.workshop_bookings
+  set scheduled_end_at = v_end,
+      default_duration_minutes = p_duration_minutes,
+      updated_by = auth.uid(),
+      version = version + 1
+  where id = p_booking_id;
+
+  perform public.workshop_upsert_primary_assignment(p_booking_id, v_technician_id, v_booking.scheduled_start_at, v_end, 'resized');
+
+  v_after_snapshot := public.workshop_booking_snapshot(p_booking_id);
+  v_history_id := public.workshop_write_history(p_booking_id, 'resized', v_before_snapshot, v_after_snapshot, coalesce(p_metadata, '{}'::jsonb));
+
+  return jsonb_build_object('ok', true, 'booking', v_after_snapshot, 'history_id', v_history_id);
+end;
+$$;
+
+-- Supersede the migration-040 cascade so shifted bookings start on a canonical
+-- operating minute and consume configured operating minutes across gaps. The
+-- target action remains protected by the
 -- same schedule/resize wrappers and the entire cascade remains atomic.
 create or replace function public.cascade_workshop_schedule(
   p_operation text,
@@ -277,8 +567,9 @@ declare
   v_conflict uuid;
   v_locked_count integer;
 begin
-  perform public.require_pdc_role('operator');
+  perform public.workshop_require_planner_operator();
   perform public.workshop_require_version(p_target_expected_version);
+  perform pg_advisory_xact_lock(hashtextextended('pdc:workshop:cascade',0));
 
   if v_operation not in ('insert', 'extend') then
     raise exception 'Cascade operation must be insert or extend' using errcode = '22023';
@@ -329,18 +620,29 @@ begin
     p_scheduled_start_at := v_target.scheduled_start_at;
   end if;
 
-  -- Use the same namespaced advisory lock as every existing booking mutation.
-  -- This serialises queue discovery with create/move/resize RPCs for the bay.
-  perform public.workshop_lock_resources(v_bay.id, null);
-
   select coalesce(array_agg(b.id order by b.scheduled_start_at, b.id), '{}'::uuid[])
     into v_expected_ids
   from public.workshop_bookings b
-  where b.bay_id = v_bay.id and b.status = 'planned'
+  where b.bay_id = v_bay.id and b.status = 'planned' and b.deleted_at is null
     and (case when v_operation = 'insert' then b.scheduled_start_at >= p_scheduled_start_at
               else b.id <> p_target_id and b.scheduled_start_at > v_target.scheduled_start_at end);
 
   perform 1 from public.workshop_bookings b where b.id = any(v_expected_ids) order by b.scheduled_start_at, b.id for update;
+
+  -- Booking validation locks the vehicle row too. Acquire every affected
+  -- vehicle before the bay lock so create/move/cascade share a non-cyclic
+  -- booking -> vehicle -> bay order.
+  perform 1 from public.vehicles v
+  where v.id in (
+    select b.vehicle_id from public.workshop_bookings b where b.id=any(v_expected_ids)
+    union select case when v_operation='insert' then p_target_id else v_target.vehicle_id end
+  )
+  order by v.id
+  for update;
+
+  -- Lock booking rows before the bay resource everywhere. This matches
+  -- move/resize and prevents a bay-lock/row-lock deadlock cycle.
+  perform public.workshop_lock_resources(v_bay.id, null);
 
   -- A move-out RPC can hold a captured booking row while moving it to another
   -- bay because that legacy path locks only its destination bay. Revalidate
@@ -351,7 +653,8 @@ begin
   from public.workshop_bookings b
   where b.id = any(v_expected_ids)
     and b.bay_id = v_bay.id
-    and b.status = 'planned';
+    and b.status = 'planned'
+    and b.deleted_at is null;
   if v_locked_count <> cardinality(v_expected_ids) then
     return jsonb_build_object(
       'ok', false,
@@ -369,13 +672,14 @@ begin
     where b.id = any(v_expected_ids)
       and b.bay_id = v_bay.id
       and b.status = 'planned'
+      and b.deleted_at is null
     order by b.scheduled_start_at desc, b.id desc
   loop
     v_new_start := public.workshop_next_calendar_window(
       public.workshop_add_operational_minutes(v_shifted.scheduled_start_at, p_shift_minutes),
       v_shifted.default_duration_minutes
     );
-    v_new_end := v_new_start + make_interval(mins => v_shifted.default_duration_minutes);
+    v_new_end := public.workshop_add_operational_minutes(v_new_start,v_shifted.default_duration_minutes);
     v_before := public.workshop_booking_snapshot(v_shifted.id);
     update public.workshop_bookings
       set scheduled_start_at = v_new_start,
@@ -384,7 +688,8 @@ begin
           version = version + 1
       where id = v_shifted.id
         and bay_id = v_bay.id
-        and status = 'planned';
+        and status = 'planned'
+        and deleted_at is null;
     if not found then
       v_result := jsonb_build_object('ok', false, 'error', 'concurrent_queue_change', 'retry', true);
       raise exception 'Cascade queue changed' using errcode = 'P0001';
@@ -404,6 +709,7 @@ begin
     where id = any(v_expected_ids)
       and bay_id = v_bay.id
       and status = 'planned'
+      and deleted_at is null
   loop
     v_conflict := public.workshop_find_bay_conflict(
       v_shifted.id, v_bay.id, v_shifted.scheduled_start_at, v_shifted.scheduled_end_at
@@ -503,8 +809,7 @@ begin
   if not public.workshop_calendar_minute_available(p_scheduled_start_at) then
     return jsonb_build_object('ok',false,'error','calendar_unavailable');
   end if;
-  if floor(extract(epoch from(p_scheduled_end_at-p_scheduled_start_at))/60.0)::integer<>p_duration_minutes
-     or not public.workshop_calendar_interval_available(p_scheduled_start_at,p_scheduled_end_at) then
+  if public.workshop_operational_minutes_between(p_scheduled_start_at,p_scheduled_end_at)<>p_duration_minutes then
     return jsonb_build_object('ok',false,'error','calendar_duration_mismatch');
   end if;
   select * into v_vehicle from public.vehicles where id=p_vehicle_id and deleted_at is null and lifecycle_state='active';
@@ -691,9 +996,9 @@ begin
  if not found then raise exception 'Workshop booking not found' using errcode='P0002'; end if;
  if v_booking.version<>p_expected_version then return jsonb_build_object('ok',false,'error','version_conflict'); end if;
  if v_booking.status<>'stoppage' then return jsonb_build_object('ok',false,'error','not_stopped'); end if;
- v_elapsed_minutes:=greatest(0,floor(extract(epoch from(coalesce(v_booking.stoppage_started_at,v_now)-v_booking.scheduled_start_at))/60.0)::integer)-coalesce(v_booking.stoppage_accumulated_minutes,0);
+ v_elapsed_minutes:=greatest(0,public.workshop_operational_minutes_between(v_booking.scheduled_start_at,coalesce(v_booking.stoppage_started_at,v_now))-coalesce(v_booking.stoppage_accumulated_minutes,0));
  v_remaining_minutes:=greatest(60,v_booking.default_duration_minutes-greatest(0,v_elapsed_minutes));
- v_new_start:=public.workshop_next_calendar_window(v_now,v_remaining_minutes); v_new_end:=v_new_start+make_interval(mins=>v_remaining_minutes);
+ v_new_start:=public.workshop_next_calendar_window(v_now,v_remaining_minutes); v_new_end:=public.workshop_add_operational_minutes(v_new_start,v_remaining_minutes);
  select technician_id into v_technician_id from public.workshop_booking_assignments where booking_id=p_booking_id and released_at is null
  order by case when assignment_type='primary' then 0 else 1 end,assigned_at desc limit 1;
  perform public.workshop_lock_resources(v_booking.bay_id,v_technician_id);
@@ -753,6 +1058,7 @@ end $$;
 revoke execute on function public.workshop_create_booking(uuid,text,integer,timestamptz,integer,uuid,jsonb) from public,anon,authenticated;
 revoke execute on function public.workshop_move_booking(uuid,integer,text,integer,timestamptz,integer,jsonb) from public,anon,authenticated;
 revoke execute on function public.workshop_resize_booking(uuid,integer,integer,jsonb) from public,anon,authenticated;
+revoke execute on function public.workshop_reassign_booking(uuid,integer,uuid,jsonb) from public,anon,authenticated;
 revoke execute on function public.workshop_restore_booking(uuid,integer,jsonb) from public,anon,authenticated;
 revoke execute on function public.workshop_start_booking(uuid,integer,timestamptz,jsonb) from public,anon,authenticated;
 revoke execute on function public.workshop_record_stoppage(uuid,integer,text,jsonb) from public,anon,authenticated;

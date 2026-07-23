@@ -42,7 +42,7 @@ for(const transition of requiredTransitions) assert(lower.includes(transition),`
 for(const capability of ['reopen_completed','restore','return_to_queue']) assert(lower.includes(`workshop_consume_transition_authorization(old.id,'${capability}')`),`protected lifecycle capability missing: ${capability}`);
 assert(lower.includes('revoke all on table public.workshop_transition_authorizations from public, anon, authenticated'), 'transition capabilities must be private');
 
-for(const fn of ['workshop_create_booking','workshop_move_booking','workshop_resize_booking','workshop_restore_booking','workshop_start_booking','workshop_record_stoppage','workshop_resume_booking','workshop_complete_booking','workshop_return_booking_to_queue','workshop_delete_booking']){
+for(const fn of ['workshop_create_booking','workshop_move_booking','workshop_resize_booking','workshop_reassign_booking','workshop_restore_booking','workshop_start_booking','workshop_record_stoppage','workshop_resume_booking','workshop_complete_booking','workshop_return_booking_to_queue','workshop_delete_booking']){
   assert(lower.includes(`revoke execute on function public.${fn}`),`weaker helper remains runtime-callable: ${fn}`);
 }
 
@@ -50,11 +50,29 @@ for(const fn of ['workshop_create_booking','workshop_move_booking','workshop_res
 // database test exercises each station; this static test prevents station forks.
 assert.strictEqual(stages.length,8);
 assert.strictEqual((migration.match(/create or replace function public\.workshop_validate_booking\(/gi)||[]).length,1,'exactly one canonical validator definition expected');
+assert(lower.includes("workshop_operational_minutes_between(p_scheduled_start_at,p_scheduled_end_at)<>p_duration_minutes"),'validator must compare configured operating minutes, not elapsed wall time');
+for(const expression of [
+  'workshop_add_operational_minutes(p_scheduled_start_at, p_duration_minutes)',
+  'workshop_add_operational_minutes(p_scheduled_start_at, v_duration)',
+  'workshop_add_operational_minutes(v_booking.scheduled_start_at, p_duration_minutes)',
+  'workshop_add_operational_minutes(v_new_start,v_shifted.default_duration_minutes)'
+]) assert(lower.includes(expression),`operational-duration override missing: ${expression}`);
+assert(lower.includes("workshop_require_planner_operator();\n  perform public.workshop_require_version(p_target_expected_version)"),'cascade must use the exact planner-role guard');
+assert(lower.includes("at time zone 'australia/perth'"),'technician leave must use the AWST business timezone');
+const cascade=lower.slice(lower.indexOf('create or replace function public.cascade_workshop_schedule'),lower.indexOf('create or replace function public.workshop_validate_booking'));
+assert(!/status\s*=\s*'planned'(?![\s\S]{0,80}deleted_at\s+is\s+null)/.test(cascade),'cascade planned-row paths must exclude soft-deleted rows');
+assert(cascade.indexOf('for update;')<cascade.indexOf('workshop_lock_resources(v_bay.id, null)'),'cascade must lock booking rows before the bay advisory lock');
 
 // Operational tooling denylist. Transactional tests may use direct fixture DML;
 // runtime/operational scripts may not disable guards or call low-level helpers.
-const fixtureOnly=/^(?:_staging_test_tools[\\/]|scripts[\\/]test_|backend[\\/]test_|test_)/;
-const forbidden=[/alter\s+table\s+(?:public\.)?workshop_bookings\s+disable\s+trigger/i,/\bworkshop_(?:create|move|resize|restore)_booking\s*\(/i,/insert\s+into\s+(?:public\.)?workshop_bookings/i];
+const fixtureOnly=/^(?:_staging_test_tools[\\/]|scripts[\\/](?:test_|verify_)|backend[\\/]test_|test_)/;
+const forbidden=[
+  /alter\s+table\s+(?:public\.)?workshop_bookings\s+disable\s+trigger/i,
+  /\bworkshop_(?:create|move|resize|restore|reassign)_booking\s*\(/i,
+  /["'`]workshop_(?:create|move|resize|restore|reassign)_booking["'`]/i,
+  /insert\s+into\s+(?:public\.)?workshop_bookings/i,
+  /(?:from|import|require\s*\(|import\s*\(|__import__\s*\(|import_module\s*\()[^\n]*(?:_staging_test_tools|(?:^|[\\/])test_|scripts[\\/]test_)/i
+];
 const operational=[];
 function walk(dir){for(const ent of fs.readdirSync(dir,{withFileTypes:true})){
   if(['.git','node_modules','supabase','review-evidence'].includes(ent.name)) continue;

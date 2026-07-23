@@ -89,6 +89,8 @@ try:
             where a.deleted_at is null and a.status in('queued','planned','started','stoppage')
           )""")
     q.execute(SQL_BODY)
+    q.execute(SQL_BODY)  # exact-body rerun idempotency proof inside rollback-only transaction
+    counts['migration_reapplications']=1
     admin_email=os.environ['PDC_STAGING_ADMIN_EMAIL'].strip().lower()
     q.execute('select id from auth.users where lower(email)=%s',(admin_email,)); admin=q.fetchone()[0]
     q.execute("select set_config('request.jwt.claims',%s,true)",(json.dumps({'sub':str(admin),'email':admin_email,'role':'authenticated'}),))
@@ -161,6 +163,20 @@ try:
     q.execute("update public.workshop_settings set value=%s::jsonb where key='break_windows'",(json.dumps([{'date':local_base.isoformat(),'start':'12:00','end':'13:00'}]),))
     q.execute("select public.workshop_add_operational_minutes((%s::date+time '11:30') at time zone 'Australia/Perth',60) at time zone 'Australia/Perth'",(local_base,))
     assert q.fetchone()[0].time().strftime('%H:%M')=='13:30','cascade helper must skip configured break'
+    q.execute('savepoint operational_duration_create')
+    spanning_vehicle=create_vehicle(admin,'BUS_4X4','PMB')
+    q.execute("select (%s::date+time '11:30') at time zone 'Australia/Perth'",(local_base,)); spanning_start=q.fetchone()[0]
+    spanning=expect_ok("select public.schedule_vehicle_work(%s,1,'BUS_4X4',%s,%s,60,null,null,'{}'::jsonb)",(spanning_vehicle,bus_bay,spanning_start))
+    spanning_booking=uuid.UUID(spanning['booking']['booking_id'])
+    q.execute('select scheduled_end_at from public.workshop_bookings where id=%s',(spanning_booking,)); assert q.fetchone()[0].astimezone(timezone(timedelta(hours=8))).time().strftime('%H:%M')=='13:30','protected create must consume configured minutes across a break'
+    expect_ok("select public.resize_workshop_booking(%s,%s,120,'{}'::jsonb)",(spanning_booking,version(spanning_booking)))
+    q.execute('select scheduled_end_at from public.workshop_bookings where id=%s',(spanning_booking,)); assert q.fetchone()[0].astimezone(timezone(timedelta(hours=8))).time().strftime('%H:%M')=='14:30','protected resize must consume configured minutes across a break'
+    q.execute("select (%s::date+time '11:00') at time zone 'Australia/Perth'",(local_base,)); spanning_move_start=q.fetchone()[0]
+    expect_ok("select public.move_workshop_booking(%s,%s,'BUS_4X4',%s,%s,120,null,'{}'::jsonb)",(spanning_booking,version(spanning_booking),bus_bay,spanning_move_start))
+    q.execute('select scheduled_end_at from public.workshop_bookings where id=%s',(spanning_booking,)); assert q.fetchone()[0].astimezone(timezone(timedelta(hours=8))).time().strftime('%H:%M')=='14:00','protected move must consume configured minutes across a break'
+    expect_ok("select public.cancel_workshop_booking(%s,%s,'operational duration restore proof','{}'::jsonb)",(spanning_booking,version(spanning_booking)))
+    expect_ok("select public.restore_workshop_booking(%s,%s,'{}'::jsonb)",(spanning_booking,version(spanning_booking)))
+    q.execute('rollback to savepoint operational_duration_create')
     q.execute("update public.workshop_settings set value=%s::jsonb where key='break_windows'",(json.dumps(breaks),))
     q.execute("""select m from generate_series(%s::timestamptz,%s::timestamptz+interval '14 days',interval '15 minutes')m
       where public.workshop_calendar_interval_available(m,m+interval '4 hours')
@@ -199,6 +215,8 @@ try:
           and tstzrange(b.scheduled_start_at,b.scheduled_end_at,'[)')&&tstzrange(m,m+interval '1 hour','[)')) order by m limit 1""",(cal_base+timedelta(days=21),cal_base+timedelta(days=21)))
     leave_slot=q.fetchone()[0]; leave_date=leave_slot.astimezone(timezone(timedelta(hours=8))).date()
     q.execute("update public.workshop_settings set value=%s::jsonb where key='technician_leave'",(json.dumps([{'technician_id':str(tech),'date':leave_date.isoformat()}]),))
+    q.execute("select public.workshop_technician_leave_date(%s,(%s::date+time '23:00') at time zone 'Australia/Perth',(%s::date+time '23:30') at time zone 'Australia/Perth')",(tech,leave_date,leave_date))
+    assert q.fetchone()[0]==leave_date,'technician leave must use the Australia/Perth date near midnight'
     leave_vehicle=create_vehicle(admin,'BUS_4X4','PMB')
     expect_reject('technician_leave',"select public.schedule_vehicle_work(%s,1,'BUS_4X4',%s,%s,60,%s,null,'{}'::jsonb)",(leave_vehicle,bus_bay,leave_slot,tech),{'technician_on_leave','technician_leave_conflict'})
     q.execute("update public.workshop_settings set value=%s::jsonb where key='technician_leave'",(json.dumps(leave),))
@@ -248,7 +266,7 @@ try:
     expect_reject('vehicle_overlap_restore',"select public.restore_workshop_booking(%s,%s,'{}'::jsonb)",(overlap_restore,version(overlap_restore)),{'vehicle_overlap'})
 
     # Browser role cannot call weaker paths.
-    signatures=['workshop_create_booking(uuid,text,integer,timestamptz,integer,uuid,jsonb)','workshop_move_booking(uuid,integer,text,integer,timestamptz,integer,jsonb)','workshop_resize_booking(uuid,integer,integer,jsonb)','workshop_restore_booking(uuid,integer,jsonb)']
+    signatures=['workshop_create_booking(uuid,text,integer,timestamptz,integer,uuid,jsonb)','workshop_move_booking(uuid,integer,text,integer,timestamptz,integer,jsonb)','workshop_resize_booking(uuid,integer,integer,jsonb)','workshop_reassign_booking(uuid,integer,uuid,jsonb)','workshop_restore_booking(uuid,integer,jsonb)']
     for sig in signatures:
         q.execute("select has_function_privilege('authenticated','public.'||%s,'EXECUTE')",(sig,)); assert q.fetchone()[0] is False,sig
     for table in ('workshop_bookings','workshop_booking_assignments','workshop_transition_authorizations'):

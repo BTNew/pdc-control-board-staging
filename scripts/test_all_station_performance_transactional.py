@@ -9,10 +9,19 @@ SQL46=(ROOT/'supabase/migrations/046_workshop_authoritative_validation_and_lifec
 SQL46_BODY,n_begin=re.subn(r'(?im)^\s*begin;\s*','',SQL46.strip(),count=1)
 SQL46_BODY,n_commit=re.subn(r'(?im)\s*commit;\s*$','',SQL46_BODY,count=1)
 assert n_begin==1 and n_commit==1
+PREFLIGHT=re.search(r"do \$\$\s*begin\s*if exists \([\s\S]*?before migration 046'[\s\S]*?end \$\$;",SQL46,re.I).group(0)
+SQL46_BODY=SQL46_BODY.replace(PREFLIGHT,'',1)
 conn=psycopg2.connect(os.environ['PDC_STAGING_DATABASE_URL']); conn.autocommit=False; q=conn.cursor()
 metrics={}
 try:
  q.execute("set local statement_timeout='30s'")
+ q.execute("""update public.workshop_bookings set status='deleted',deleted_at=now(),
+   deleted_reason='rollback-only migration-046 performance isolation'
+   where id in(select b.id from public.workshop_bookings a join public.workshop_bookings b
+    on b.vehicle_id=a.vehicle_id and b.id>a.id and b.deleted_at is null
+   and b.status in('queued','planned','started','stoppage')
+   and tstzrange(b.scheduled_start_at,b.scheduled_end_at,'[)')&&tstzrange(a.scheduled_start_at,a.scheduled_end_at,'[)')
+   where a.deleted_at is null and a.status in('queued','planned','started','stoppage'))""")
  q.execute(SQL46_BODY)
  q.execute("select email from public.pdc_user_roles where active and role='administrator' order by created_at limit 1")
  admin_email=q.fetchone()[0]

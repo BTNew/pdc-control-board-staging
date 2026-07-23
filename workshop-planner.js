@@ -696,12 +696,22 @@ function workshopDescribeSharedActionError(result) {
   if (error === 'vehicle_identity_not_found') {
     return 'This vehicle is not yet linked to one shared vehicle record. No change was made.';
   }
-  if (error === 'booking_before_eta') {
-    return `This YH/IT vehicle cannot be booked before its ETA to Kewdale. Earliest permitted booking date: ${result.earliest_permitted_date || 'correct the vehicle ETA'}. No booking was created.`;
+  if (error === 'booking_before_eta' || error === 'it_before_eta') {
+    return `This IT vehicle cannot be booked before its ETA to Kewdale. Earliest permitted booking date: ${result.earliest_permitted_date || 'correct the vehicle ETA'}. No booking was created.`;
   }
-  if (error === 'missing_or_invalid_eta') {
-    return 'YH/IT vehicles require a valid ETA to Kewdale before booking. Correct the ETA and try again. No booking was created.';
+  if (error === 'missing_or_invalid_eta' || error === 'it_eta_missing') {
+    return 'IT vehicles require a valid ETA to Kewdale before booking. Correct the ETA and try again. No booking was created.';
   }
+  if (error === 'minimum_duration') return 'Workshop bookings must be at least 60 minutes.';
+  if (error === 'calendar_unavailable') return 'That start time is outside the configured Workshop calendar, closure, break, or overtime availability.';
+  if (error === 'calendar_duration_mismatch' || error === 'invalid_schedule_interval') return 'The booking duration does not match the configured Workshop operating minutes. Choose a valid start and duration.';
+  if (error === 'vehicle_inactive_or_missing') return 'This vehicle is inactive or unavailable in the shared Workshop records.';
+  if (error === 'station_inactive_or_missing') return 'This Workshop station is inactive or unavailable.';
+  if (error === 'location_ineligible') return 'This vehicle location is not eligible for Workshop scheduling.';
+  if (error === 'canonical_requirement_missing_or_completed') return 'This vehicle has no incomplete canonical requirement for that Workshop station.';
+  if (error === 'bay_required' || error === 'bay_inactive_or_wrong_station') return 'Choose an active bay belonging to this Workshop station.';
+  if (error === 'technician_inactive_or_missing') return 'Choose an active Workshop technician.';
+  if (error === 'technician_leave_conflict' || error === 'technician_on_leave') return 'That technician is on leave during this booking.';
   if (error === 'action_unavailable' || error === 'no_response' || error === 'runtime_failure') {
     return 'This action is not currently available in shared mode. No change was made.';
   }
