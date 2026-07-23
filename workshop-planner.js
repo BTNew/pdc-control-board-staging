@@ -2412,8 +2412,11 @@ function workshopPlannerVehiclesForStage(stage = '') {
     const vehicleId = String(vehicle.id || '').trim();
     const local = localById.get(vehicleId)
       || localByStock.get(String(vehicle.stock_number || '').trim());
-    const scoped = workshopSnapshotVehicleToPlannerRow(vehicle, workItemsByVehicle.get(vehicleId) || [], dedicatedStage);
     const authority = authoritativeById?.get(vehicleId);
+    const displayWorkItems = Array.isArray(authority?.requirements)
+      ? authority.requirements
+      : (workItemsByVehicle.get(vehicleId) || []);
+    const scoped = workshopSnapshotVehicleToPlannerRow(vehicle, displayWorkItems, dedicatedStage);
     const fallback = canonicalById.get(vehicleId);
     const outstanding = {
       existingBooking: authority ? authority.existing_booking === true : fallback?.existingBooking === true,

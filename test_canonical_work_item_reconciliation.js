@@ -38,7 +38,10 @@ assert(sql.includes('revoke all on function public.apply_legacy_stage_reconcilia
 assert(backup.includes('legacy_stage_reconciliation_receipts'), 'backup manifest must include receipts');
 assert(backup.includes('number >= 45') && backup.includes('difference(MIGRATION_045_BACKUP_TABLES)'), 'pre-045 backup must work before receipt table exists and 045+ must require it');
 const stationSnapshotSql = sql.slice(sql.indexOf('create or replace function public.get_station_workshop_snapshot'), sql.indexOf('create or replace function public.get_workshop_eligibility_snapshot'));
-assert(stationSnapshotSql.includes('public.workshop_stage_code_for_work_key(wi.work_key)=v_stage'), 'station DTO work-item children must remain scoped to the requested station');
+assert(stationSnapshotSql.includes("public.workshop_stage_code_for_work_key(wi.work_key)=v_stage"), 'station work_items child collection must be scoped to the selected station');
+assert(stationSnapshotSql.includes("'requirements',(select") && stationSnapshotSql.includes('where wi.vehicle_id=e.vehicle_id and wi.required and not wi.completed'), 'station DTO must expose a separate sanitized canonical requirements list for the left-hand requirements column');
+assert(!stationSnapshotSql.includes("'notes',wi.notes") && !stationSnapshotSql.includes("'customer_name'"), 'sanitized requirements DTO must not expose notes or customer data');
+assert(planner.includes('Array.isArray(authority?.requirements)') && planner.includes('workshopSnapshotVehicleToPlannerRow(vehicle, displayWorkItems'), 'planner must render the server-authoritative requirements list, including Sublet, without using browser-local requirements');
 const candidateHydration = app.slice(app.indexOf('function workshopEligibilityCandidateVehicle'), app.indexOf('function authoritativeWorkshopVehiclesForStage'));
 assert(candidateHydration.includes('pmbJobs: { ...shared.pmbJobs }') && !candidateHydration.includes('local?.pmbJobs'), 'browser-local requirements must never survive canonical absence');
 for (const script of [applyScript, reconcileScript]) {

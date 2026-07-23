@@ -189,7 +189,7 @@ def main():
         result["checks"].append("realtime_revision_requirement_create_remove")
 
         # Date-independent outstanding candidates versus selected-date bookings.
-        count_a = vehicle("FABRICATION", "PMB"); work(count_a, "FABRICATION")
+        count_a = vehicle("FABRICATION", "PMB"); work(count_a, "FABRICATION"); work(count_a, "SUBLET")
         count_b = vehicle("FABRICATION", "PMB"); work(count_b, "FABRICATION"); booking(count_b, "FABRICATION")
         grid_only = vehicle("FABRICATION", "PMB"); wg = work(grid_only, "FABRICATION"); booking(grid_only, "FABRICATION"); cur.execute("update public.vehicle_work_items set required=false where id=%s", (wg,))
         cur.execute("select public.get_station_workshop_snapshot('FABRICATION','2026-07-23','2026-07-23')")
@@ -197,6 +197,10 @@ def main():
         candidate_ids = {x["vehicle_id"] for x in snapshot["outstanding_candidates"]}
         assert_true({count_a, count_b}.issubset(candidate_ids), "outstanding candidates not discoverable")
         assert_true(grid_only not in candidate_ids, "booking-only vehicle became outstanding candidate")
+        count_a_row = next(x for x in snapshot["outstanding_candidates"] if x["vehicle_id"] == count_a)
+        requirement_keys = {x["work_key"] for x in count_a_row["requirements"]}
+        assert_true({stage_ids["FABRICATION"][1], stage_ids["SUBLET"][1]}.issubset(requirement_keys), "sanitized left-column requirements omitted Sublet")
+        assert_true(all(set(x) == {"vehicle_id", "work_key", "required", "completed", "completed_at"} for x in count_a_row["requirements"]), "requirements DTO leaked fields")
         assert_true(snapshot["counts"]["outstanding_candidates"] >= 2, "outstanding count")
         assert_true(snapshot["counts"]["unscheduled_candidates"] >= 1, "unscheduled count")
         selected_ids = {x["vehicle_id"] for x in snapshot["bookings"]}

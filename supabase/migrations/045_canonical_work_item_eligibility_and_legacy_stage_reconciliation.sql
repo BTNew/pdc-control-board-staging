@@ -323,7 +323,13 @@ begin
    from public.workshop_bays b where b.stage_id=v_stage_id and b.is_active),
   'outstanding_candidates',(select coalesce(jsonb_agg(jsonb_build_object(
     'vehicle_id',e.vehicle_id,'existing_booking',e.existing_booking,'schedule_enabled',e.schedule_enabled,
-    'disabled_reason',e.disabled_reason) order by e.vehicle_id),'[]'::jsonb)
+    'disabled_reason',e.disabled_reason,
+    'requirements',(select coalesce(jsonb_agg(jsonb_build_object(
+      'vehicle_id',wi.vehicle_id,'work_key',wi.work_key,'required',wi.required,
+      'completed',wi.completed,'completed_at',wi.completed_at) order by wi.work_key),'[]'::jsonb)
+      from public.vehicle_work_items wi
+      where wi.vehicle_id=e.vehicle_id and wi.required and not wi.completed)
+    ) order by e.vehicle_id),'[]'::jsonb)
     from public.workshop_station_eligibility(v_stage)e),
   'bookings',(select coalesce(jsonb_agg(public.workshop_planner_booking_dto(b.id) order by b.scheduled_start_at,b.id),'[]'::jsonb)
    from public.workshop_bookings b join public.vehicles v on v.id=b.vehicle_id and v.lifecycle_state='active' and v.deleted_at is null
