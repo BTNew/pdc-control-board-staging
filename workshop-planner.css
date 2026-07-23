@@ -1065,7 +1065,7 @@ body[data-current-view="workshop"] .content {
 .workshop-board-shell { min-height: 500px; }
 .workshop-booking-search {
   position: relative;
-  z-index: 70;
+  z-index: 30;
   display: grid;
   grid-template-columns: minmax(260px, 560px) auto;
   align-items: end;
