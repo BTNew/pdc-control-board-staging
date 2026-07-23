@@ -2871,6 +2871,19 @@ function workshopOtherDateCardHtml(entry = {}) {
   </button>`;
 }
 
+function workshopPlanLifecycleActionsHtml(entry = {}) {
+  const planId = String(entry.id || '');
+  const status = String(entry.status || 'planned').toLowerCase();
+  if (!planId || ['completed', 'cancelled'].includes(status)) return '';
+  if (status === 'stoppage') {
+    return `<div class="workshop-plan-lifecycle-actions"><button type="button" data-workshop-resume-plan="${escapeHtml(planId)}" aria-label="Resume job">Resume job</button></div>`;
+  }
+  if (status === 'started') {
+    return `<div class="workshop-plan-lifecycle-actions"><button type="button" data-workshop-stop-plan="${escapeHtml(planId)}" aria-label="Stop job">Stop job</button></div>`;
+  }
+  return `<div class="workshop-plan-lifecycle-actions"><button type="button" data-workshop-start-plan="${escapeHtml(planId)}" aria-label="Start job">Start job</button></div>`;
+}
+
 function workshopPlanChipHtml(entry = {}, dateKey = '', rows = workshopLoadPlans()) {
   const vehicle = workshopVehicle(entry.vehicleKey);
   if (!vehicle) return '';
@@ -2893,10 +2906,11 @@ function workshopPlanChipHtml(entry = {}, dateKey = '', rows = workshopLoadPlans
   const draggable = entry.status !== 'completed';
   const assignee = cleanNavisionText(entry.assignee || '') || workshopBayMechanic(entry.stage, entry.bay) || '';
   const statusLabel = entry.status === 'completed' ? 'COMPLETED' : entry.status === 'stoppage' ? 'STOPPAGE' : entry.status === 'started' ? 'LIVE' : 'PLANNED';
-  const classes = [blocked ? 'is-blocked' : '', started ? 'is-started' : '', overtime ? 'is-overtime' : '', etaRisk ? 'is-eta-risk' : '', segment.usesConfiguredOvertime ? 'uses-configured-overtime' : '', segment.historicalOnClosure ? 'historical-on-closure' : '', assigneeConflict ? 'has-assignee-conflict' : '', entry.status === 'stoppage' ? 'is-stoppage' : '', selected ? 'is-selected' : '', highlighted ? 'is-search-match' : '', segment.continuesFromPrevious ? 'continues-from-previous' : '', segment.continuesNext ? 'continues-next' : ''].filter(Boolean).join(' ');
+  const lifecycleActionsHtml = workshopPlanLifecycleActionsHtml(entry);
+  const classes = [blocked ? 'is-blocked' : '', started ? 'is-started' : '', overtime ? 'is-overtime' : '', etaRisk ? 'is-eta-risk' : '', segment.usesConfiguredOvertime ? 'uses-configured-overtime' : '', segment.historicalOnClosure ? 'historical-on-closure' : '', assigneeConflict ? 'has-assignee-conflict' : '', entry.status === 'stoppage' ? 'is-stoppage' : '', lifecycleActionsHtml ? 'has-lifecycle-actions' : '', selected ? 'is-selected' : '', highlighted ? 'is-search-match' : '', segment.continuesFromPrevious ? 'continues-from-previous' : '', segment.continuesNext ? 'continues-next' : ''].filter(Boolean).join(' ');
   const conflictNote = assigneeConflict ? ` · WARNING: ${entry.assignee} is booked on another vehicle at this time` : '';
   return `<article class="workshop-plan-chip ${classes}" ${draggable ? 'draggable="true"' : ''} data-workshop-plan-id="${escapeHtml(entry.id)}" data-workshop-job-vehicle="${escapeHtml(entry.vehicleKey)}" data-workshop-locate-key="${escapeHtml(entry.vehicleKey)}" style="--plan-left:${left}%;--plan-width:${width}%;" title="${escapeHtml(`${workshopEntryTimeLabel(entry)} · ${entry.hours}h total${conflictNote} · double-click for vehicle job${entry.status === 'completed' ? ' · completed history stays fixed' : entry.status === 'planned' ? ' · drag to reschedule' : ' · drag to move this live job safely'}`)}">
-    <button type="button" data-workshop-select-plan="${escapeHtml(entry.id)}">
+    <button class="workshop-plan-main" type="button" data-workshop-select-plan="${escapeHtml(entry.id)}">
       <strong>JC ${escapeHtml(vehicleJobcardNumber(vehicle) || 'TBA')} · ${escapeHtml(displayStockNumber(vehicle) || vehicle.order || 'No stock')}</strong>
       <span>${escapeHtml(vehicle.vehicle || vehicle.toyotaVehicle || 'Vehicle')}</span>
       <small>${escapeHtml(vehicleCustomerName(vehicle) || 'Unknown customer')}</small>
@@ -2904,6 +2918,7 @@ function workshopPlanChipHtml(entry = {}, dateKey = '', rows = workshopLoadPlans
       <small>${escapeHtml(`${entry.hours}h · Parts ${parts.label}${parts.eta && !['issued', 'notrequired'].includes(parts.status) ? ` · ETA ${parts.eta}` : ''}`)}</small>
       ${etaRiskLabel ? `<small class="workshop-eta-risk-label">${escapeHtml(etaRiskLabel)}</small>` : ''}
     </button>
+    ${lifecycleActionsHtml}
     <span class="workshop-plan-resize" data-workshop-resize-plan="${escapeHtml(entry.id)}" title="Drag to change duration"></span>
   </article>`;
 }
@@ -3579,9 +3594,21 @@ function bindWorkshopPlanner(root) {
   root.querySelector('[data-workshop-detail-form]')?.addEventListener('submit', saveWorkshopDetailForm);
   root.querySelector('[data-workshop-open-job]')?.addEventListener('click', event => openWorkshopVehicleJob(event.currentTarget.dataset.workshopOpenJob, workshopLoadPlans().find(entry => entry.id === workshopState().selectedPlanId)?.stage || workshopState().stage));
   root.querySelector('[data-workshop-open-vehicle]')?.addEventListener('click', event => openVehicleModal(event.currentTarget.dataset.workshopOpenVehicle));
-  root.querySelector('[data-workshop-start-plan]')?.addEventListener('click', event => startWorkshopPlan(event.currentTarget.dataset.workshopStartPlan));
-  root.querySelector('[data-workshop-stop-plan]')?.addEventListener('click', event => stopWorkshopPlan(event.currentTarget.dataset.workshopStopPlan));
-  root.querySelector('[data-workshop-resume-plan]')?.addEventListener('click', event => resumeWorkshopPlan(event.currentTarget.dataset.workshopResumePlan));
+  root.querySelectorAll('[data-workshop-start-plan]').forEach(button => button.addEventListener('click', event => {
+    event.preventDefault();
+    event.stopPropagation();
+    void startWorkshopPlan(event.currentTarget.dataset.workshopStartPlan);
+  }));
+  root.querySelectorAll('[data-workshop-stop-plan]').forEach(button => button.addEventListener('click', event => {
+    event.preventDefault();
+    event.stopPropagation();
+    void stopWorkshopPlan(event.currentTarget.dataset.workshopStopPlan);
+  }));
+  root.querySelectorAll('[data-workshop-resume-plan]').forEach(button => button.addEventListener('click', event => {
+    event.preventDefault();
+    event.stopPropagation();
+    void resumeWorkshopPlan(event.currentTarget.dataset.workshopResumePlan);
+  }));
   root.querySelector('[data-workshop-complete-plan]')?.addEventListener('click', event => completeWorkshopPlan(event.currentTarget.dataset.workshopCompletePlan));
 }
 
@@ -5262,6 +5289,7 @@ if (typeof module !== 'undefined' && module.exports) {
     workshopVehiclePlanningLocation,
     workshopVehicleEtaConstraint,
     workshopIncrementalRenderRows,
+    workshopPlanLifecycleActionsHtml,
     workshopSelectedDateBookingCount,
     workshopQueueCardHtml,
     workshopDateKeyNotBefore,

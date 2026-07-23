@@ -711,9 +711,9 @@ body[data-current-view="workshop"] .content {
 .workshop-plan-chip.continues-from-previous { border-left-style: double; border-left-width: 8px; }
 .workshop-plan-chip.continues-next { border-right: 5px double #1d4ed8; }
 
-.workshop-plan-chip > button {
+.workshop-plan-chip > .workshop-plan-main {
   width: 100%;
-  height: 100%;
+  height: calc(100% - 23px);
   border: 0;
   background: transparent;
   display: grid;
@@ -724,6 +724,45 @@ body[data-current-view="workshop"] .content {
   text-align: left;
   cursor: pointer;
   overflow: hidden;
+}
+
+.workshop-plan-lifecycle-actions {
+  position: absolute;
+  z-index: 13;
+  left: 3px;
+  right: 12px;
+  bottom: 3px;
+  height: 20px;
+}
+
+.workshop-plan-lifecycle-actions > button {
+  width: 100%;
+  height: 100%;
+  border: 1px solid #1d4ed8;
+  border-radius: 4px;
+  background: #eff6ff;
+  color: #1e3a8a;
+  font-size: .55rem;
+  font-weight: 950;
+  line-height: 1;
+  text-align: center;
+  cursor: pointer;
+}
+
+.workshop-plan-lifecycle-actions > button:hover,
+.workshop-plan-lifecycle-actions > button:focus-visible {
+  background: #dbeafe;
+  outline: 2px solid #2563eb;
+  outline-offset: 1px;
+}
+
+.workshop-plan-chip.has-lifecycle-actions .workshop-plan-main > span,
+.workshop-plan-chip.has-lifecycle-actions .workshop-plan-main > small:first-of-type {
+  display: none;
+}
+
+.workshop-plan-chip.has-lifecycle-actions .workshop-plan-main {
+  line-height: 1.05;
 }
 
 .workshop-plan-chip strong,

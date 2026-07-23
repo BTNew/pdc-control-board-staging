@@ -278,6 +278,15 @@ assert.ok(source.includes('Overlapping workshop bookings are blocked'), 'Collisi
 assert.ok(source.includes('function workshopEntryIsOvertime('), 'Overtime detection is missing');
 assert.ok(source.includes('actualHours:'), 'Actual workshop time recording is missing');
 assert.ok(source.includes('function startWorkshopPlan('), 'Physical bay start action is missing');
+assert.ok(source.includes('function workshopPlanLifecycleActionsHtml('), 'Visible planner-card lifecycle controls are missing');
+global.escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[character]));
+assert.match(planner.workshopPlanLifecycleActionsHtml({ id: 'planned', status: 'planned' }), /data-workshop-start-plan="planned"[^>]*>Start job</, 'Planned bay cards must show a direct Start job button');
+assert.match(planner.workshopPlanLifecycleActionsHtml({ id: 'started', status: 'started' }), /data-workshop-stop-plan="started"[^>]*>Stop job</, 'Started bay cards must show a direct Stop job button');
+assert.match(planner.workshopPlanLifecycleActionsHtml({ id: 'stopped', status: 'stoppage' }), /data-workshop-resume-plan="stopped"[^>]*>Resume job</, 'Stopped bay cards must show a direct Resume job button');
+assert.strictEqual(planner.workshopPlanLifecycleActionsHtml({ id: 'done', status: 'completed' }), '', 'Completed bay cards must not show mutable lifecycle controls');
+assert.ok(source.includes("querySelectorAll('[data-workshop-start-plan]')"), 'Every rendered Start job button must be bound, not only the first match');
+assert.ok(source.includes("querySelectorAll('[data-workshop-stop-plan]')"), 'Every rendered Stop job button must be bound, not only the first match');
+assert.ok(source.includes("lifecycleActionsHtml ? 'has-lifecycle-actions'"), 'Cards with lifecycle controls must use the compact non-overlapping content layout');
 assert.ok(source.includes('async function moveWorkshopLivePlan('), 'Live workshop jobs need a dedicated safe move path');
 assert.ok(source.includes('function moveWorkshopDroppedPlan('), 'Daily drop handling must route planned and live jobs through the correct move path');
 assert.ok(source.includes('preferRequestedTime = false'), 'Planner scheduling should distinguish drop-to-time insertion from next-open-slot scheduling');
