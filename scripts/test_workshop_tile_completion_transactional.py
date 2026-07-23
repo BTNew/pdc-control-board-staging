@@ -1,4 +1,4 @@
-"""Rollback-only migration-050 functional contract against staging.
+"""Rollback-only migrations 050/051 functional contract against staging.
 No production endpoint is used and every fixture/schema change is rolled back.
 """
 import json, os, pathlib, re, uuid
@@ -14,8 +14,9 @@ def body(name):
     return text
 SQL049=(ROOT/'supabase/migrations/049_soft_launch_planner_safety.sql').read_text(encoding='utf-8')
 SQL050=body('050_workshop_tile_completion_and_live_bay.sql')
+SQL051=body('051_bus4x4_eight_bays_and_completion_hardening.sql')
 conn=psycopg2.connect(os.environ['PDC_STAGING_DATABASE_URL']); conn.autocommit=False; q=conn.cursor()
-counts={'start_to_now':0,'same_bay_rejected':0,'cross_station_started':0,'fixed_preserved':0,'completed_requirement':0,'rerequired':0,'customer_projected':0}
+counts={'bus4x4_eight_bays':0,'planned_complete_rejected':0,'null_complete_normalized':0,'start_to_now':0,'same_bay_rejected':0,'cross_station_started':0,'fixed_preserved':0,'completed_requirement':0,'rerequired':0,'customer_projected':0}
 
 def rpc(sql,args=()):
     q.execute(sql,args); value=q.fetchone()[0]
@@ -39,8 +40,12 @@ try:
     assert q.fetchone()[0]==0,'staging contains multiple started jobs in one physical bay; migration must remain blocked for explicit review'
     q.execute(SQL049)
     q.execute(SQL050)
+    q.execute(SQL051)
     q.execute("select indexdef from pg_indexes where schemaname='public' and indexname='workshop_bookings_one_started_per_bay_uidx'")
     indexdef=q.fetchone()[0]; assert '(bay_id)' in indexdef and "status = 'started'" in indexdef
+    q.execute("""select count(*) from public.workshop_bays b join public.workshop_stages s on s.id=b.stage_id
+      where s.code='BUS_4X4' and b.is_active""")
+    assert q.fetchone()[0]==8; counts['bus4x4_eight_bays']+=1
 
     admin_email=os.environ['PDC_STAGING_ADMIN_EMAIL'].strip().lower()
     q.execute('select id from auth.users where lower(email)=%s',(admin_email,)); admin=q.fetchone()[0]
@@ -81,6 +86,11 @@ try:
     q.execute('select id,stage_id,bay_id from public.workshop_bookings where id in(%s,%s,%s)',(aid,bid,cid)); actual={row[0]:(row[1],row[2]) for row in q.fetchall()}
     assert actual[aid][1]==fab_bay and actual[bid][1]==fab_bay and actual[cid][1]==tint_bay and actual[cid][1]!=actual[aid][1],actual
 
+    before_b=version(bid)
+    planned_complete=rpc("select public.complete_workshop_work(%s,%s,'FABRICATION',null,'{}'::jsonb)",(bid,before_b))
+    assert planned_complete=={'ok':False,'error':'not_completable'} and version(bid)==before_b
+    counts['planned_complete_rejected']+=1
+
     starta=rpc("select public.start_workshop_work(%s,%s,null,'{}'::jsonb)",(aid,version(aid)))
     assert starta['ok'] is True and 'signed_shift_minutes' in starta
     q.execute("select status,scheduled_start_at from public.workshop_bookings where id=%s",(aid,)); status,started_at=q.fetchone()
@@ -103,9 +113,13 @@ try:
     assert fixed['ok'] is False and fixed['error']=='fixed_booking_conflict'
     assert version(bid)==before_b; counts['fixed_preserved']+=1
 
-    complete=rpc("select public.complete_workshop_work(%s,%s,'FABRICATION',now(),'{}'::jsonb)",(aid,version(aid)))
+    complete=rpc("select public.complete_workshop_work(%s,%s,'FABRICATION',null,'{}'::jsonb)",(aid,version(aid)))
     assert complete['ok'] is True and complete['work_item_completed'] is True
-    q.execute("select completed from public.vehicle_work_items where vehicle_id=%s and public.workshop_stage_code_for_work_key(work_key)='FABRICATION'",(va,)); assert q.fetchone()[0] is True
+    q.execute("""select b.actual_end_at,wi.completed,wi.completed_at from public.workshop_bookings b
+      join public.vehicle_work_items wi on wi.vehicle_id=b.vehicle_id and public.workshop_stage_code_for_work_key(wi.work_key)='FABRICATION'
+      where b.id=%s""",(aid,)); actual_end,work_completed,work_completed_at=q.fetchone()
+    assert actual_end is not None and work_completed is True and work_completed_at==actual_end
+    counts['null_complete_normalized']+=1
     q.execute("select count(*) from public.workshop_station_eligibility('FABRICATION') where vehicle_id=%s",(va,)); assert q.fetchone()[0]==0
     counts['completed_requirement']+=1
 

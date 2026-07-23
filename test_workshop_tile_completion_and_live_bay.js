@@ -12,7 +12,7 @@ const applyScript = fs.readFileSync(path.join(root, 'scripts/apply_migration_050
 global.escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
 const startedActions = planner.workshopPlanLifecycleActionsHtml({ id: 'started-1', status: 'started' });
-assert.match(startedActions, /data-workshop-stop-plan="started-1"[^>]*>Stop job</, 'Started tile must retain Stop job');
+assert.match(startedActions, /data-workshop-stop-plan="started-1"[^>]*>STOPPAGE</, 'Started tile must expose generic STOPPAGE');
 assert.match(startedActions, /data-workshop-complete-plan="started-1"[^>]*>Complete</, 'Started tile must expose Complete');
 const stoppedActions = planner.workshopPlanLifecycleActionsHtml({ id: 'stopped-1', status: 'stoppage' });
 assert.match(stoppedActions, /data-workshop-resume-plan="stopped-1"[^>]*>Resume job</, 'Stopped tile must retain Resume job');

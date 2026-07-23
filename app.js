@@ -1,5 +1,5 @@
-const APP_VERSION = '2026.07.24.15-workshop-tile-lifecycle';
-const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.07.24.15-workshop-tile-lifecycle';
+const APP_VERSION = '2026.07.24.16-bus4x4-parts-eta-stoppage';
+const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.07.24.16-bus4x4-parts-eta-stoppage';
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
 // constant intentionally names only the production ref, never the
@@ -160,7 +160,7 @@ const PMB_STAGE_LABELS = new Map(PMB_STAGE_OPTIONS.map(option => [option.value, 
 
 const PMB_WIP_LIMITS = {
   '': 12,
-  BUS_4X4: 1,
+  BUS_4X4: 8,
   TINT: 2,
   HOIST: 3,
   FITTING: 5,
@@ -172,7 +172,7 @@ const PMB_WIP_LIMITS = {
 };
 
 const PMB_STAGE_BAY_COUNTS = {
-  BUS_4X4: 1,
+  BUS_4X4: 8,
   TINT: 2,
   HOIST: 3,
   FITTING: 5,
@@ -183,7 +183,7 @@ const PMB_STAGE_BAY_COUNTS = {
 };
 
 const PMB_STAGE_CAPACITY_LABELS = {
-  BUS_4X4: '1 bay',
+  BUS_4X4: '8 bays',
   FABRICATION: '13 bays',
   TYRE: '2 bays · 1 wheel alignment bay',
   SUBLET: 'Provider queue',
@@ -946,7 +946,7 @@ function productionGridHeaderHtml(className = '', options = {}) {
       { value: '', label: 'All PMB statuses' },
       { value: 'bucket:UNALLOCATED', label: 'Unallocated', short: 'Unalloc.' },
       ...PMB_STAGE_DEFS.map(def => ({ value: `bucket:${def.value}`, label: def.label, short: def.label })),
-      { value: 'stoppage:yes', label: 'Stoppage only', short: 'Stopped' },
+      { value: 'stoppage:yes', label: 'STOPPAGE only', short: 'STOPPAGE' },
       { value: 'stoppage:no', label: 'No stoppage', short: 'Clear' },
     ];
     const statusValue = workflowFilters.bucket ? `bucket:${workflowFilters.bucket}` : workflowFilters.stoppage ? `stoppage:${workflowFilters.stoppage}` : '';
@@ -5277,7 +5277,7 @@ function workStatusLegendHtml() {
     <span class="work-status-key status-none"><b>—</b> Not required</span>
     <span class="work-status-key status-required"><b>●</b> Required</span>
     <span class="work-status-key status-complete"><b>✓</b> Complete</span>
-    <span class="work-status-key status-blocked"><b>!</b> Stoppage</span>
+    <span class="work-status-key status-blocked"><b>!</b> STOPPAGE</span>
   </div>`;
 }
 
@@ -5361,7 +5361,7 @@ function renderIncomingDashboardBoard() {
   ];
   const priorityRows = workflowPriorityRows();
   const priorityHtml = filters.bucket ? '' : `<section class="incoming-priority-stoppages" aria-label="Parts and PMB stoppages">
-    <div class="incoming-priority-stoppages-head"><strong>Stoppages / Fix First</strong><span>${priorityRows.length} active</span><small>Red priority list before RFT. Sort Parts stoppages by Parts ETA so long-delay items fall lower.</small></div>
+    <div class="incoming-priority-stoppages-head"><strong>STOPPAGES / Fix First</strong><span>${priorityRows.length} active</span><small>Red priority list before RFT. Sort Parts STOPPAGES by Parts ETA so long-delay items fall lower.</small></div>
     <details class="fix-first-list incoming-priority-list"><summary>Show stoppages</summary><div class="fix-first-list-body">${fixFirstRowsHtml(priorityRows)}</div></details>
   </section>`;
   host.innerHTML = workStatusLegendHtml() + priorityHtml + defs.map(def => {
@@ -6854,7 +6854,7 @@ function pmbBayVehicleCardHtml(vehicle = {}, stage = '') {
   const identityHtml = pmbBayPillIdentityHtml(vehicle);
   const title = `${vehicleIdentityTitle(vehicle)} · ${pmbStageLabel(normalizedStage)} ${bayLabel}`;
   const finishButton = normalizedStage
-    ? `<button class="small-button pmb-finish-button" type="button" data-move-pmb-stage-key="${escapeHtml(key)}" data-move-pmb-stage-value="" title="Choose Complete, Stoppage, or Move only, then return this vehicle to PMB unallocated">Finish / unallocate</button>`
+    ? `<button class="small-button pmb-finish-button" type="button" data-move-pmb-stage-key="${escapeHtml(key)}" data-move-pmb-stage-value="" title="Choose Complete, STOPPAGE, or Move only, then return this vehicle to PMB unallocated">Finish / unallocate</button>`
     : '';
 
   return `
@@ -6876,7 +6876,7 @@ function pmbVehicleCardHtml(vehicle = {}) {
   const stage = normalizePmbStage(vehicle.pmbBayStage || inferredPmbStage(vehicle));
   const title = `Drag ${vehicleIdentityTitle(vehicle) || 'vehicle'} to another PMB bucket`;
   const finishButton = stage
-    ? `<button class="small-button pmb-finish-button" type="button" data-move-pmb-stage-key="${escapeHtml(key)}" data-move-pmb-stage-value="" title="Choose Complete, Stoppage, or Move only, then return this vehicle to PMB unallocated">Finish / unallocate</button>`
+    ? `<button class="small-button pmb-finish-button" type="button" data-move-pmb-stage-key="${escapeHtml(key)}" data-move-pmb-stage-value="" title="Choose Complete, STOPPAGE, or Move only, then return this vehicle to PMB unallocated">Finish / unallocate</button>`
     : '';
   return `
     <article class="pmb-vehicle-card pmb-vehicle-pill ${isPdcBlocked(vehicle) ? 'is-blocked' : ''}" draggable="true" data-pmb-drag-key="${escapeHtml(key)}" data-open-stock="${escapeHtml(key)}" title="${escapeHtml(title)}">
@@ -7114,7 +7114,7 @@ function pmbMovementResolutionChoiceModal(vehicle = {}, currentStage = '', nextS
           </label>
         </div>
         <label class="pmb-resolution-reason" data-pmb-resolution-reason-wrap hidden>
-          <span>Stoppage reason</span>
+          <span>STOPPAGE reason</span>
           <input type="text" value="${escapeHtml(area)} stoppage" data-pmb-resolution-reason>
         </label>
         <div class="edit-actions pmb-resolution-actions">
@@ -10668,7 +10668,7 @@ function productionDepartmentRows(def = activeProductionDepartmentDef()) {
 
 function departmentStatusBadgeHtml(vehicle = {}, def = {}) {
   const status = departmentVehicleStatus(vehicle, def);
-  if (status === 'blocked') return `<span class="department-status-badge blocked">Stoppage · ${escapeHtml(pdcBlockReason(vehicle))}</span>`;
+  if (status === 'blocked') return `<span class="department-status-badge blocked">STOPPAGE · ${escapeHtml(pdcBlockReason(vehicle))}</span>`;
   if (status === 'complete') return '<span class="department-status-badge complete">Complete ✓</span>';
   return '<span class="department-status-badge open">Open work</span>';
 }
@@ -10707,7 +10707,7 @@ function renderProductionDepartmentBoard() {
           <span class="incoming-card-meta"><b>ETA</b><span>${escapeHtml(kewdaleEtaValue(vehicle) || 'No ETA')}</span><small>${escapeHtml(pmbAgeLabel(vehicle))}</small></span>
           <span class="incoming-card-action department-actions">
             ${complete ? `<button type="button" class="small-button" data-dept-next="${escapeHtml(key)}" data-dept-stage="${escapeHtml(def.stage)}">Next bay</button>` : `<button type="button" class="primary" data-dept-complete="${escapeHtml(key)}" data-dept-stage="${escapeHtml(def.stage)}">Complete</button>`}
-            <button type="button" class="small-button" data-dept-stoppage="${escapeHtml(key)}" data-dept-stage="${escapeHtml(def.stage)}">Stoppage</button>
+            <button type="button" class="small-button" data-dept-stoppage="${escapeHtml(key)}" data-dept-stage="${escapeHtml(def.stage)}">STOPPAGE</button>
             ${isPdcBlocked(vehicle) ? `<button type="button" class="small-button" data-dept-clear-stoppage="${escapeHtml(key)}">Clear</button>` : ''}
             <button type="button" class="small-button" data-dept-open="${escapeHtml(key)}">Open</button>
           </span>
@@ -10817,17 +10817,17 @@ function partsWorstEtaDaysUntil(vehicle = {}) {
 function partsWorstEtaCountdownLabel(vehicle = {}) {
   const days = partsWorstEtaDaysUntil(vehicle);
   if (days === null) return '';
-  if (days < 0) return `${Math.abs(days)} day${Math.abs(days) === 1 ? '' : 's'} overdue`;
-  if (days === 0) return 'Due today';
-  return `${days} day${days === 1 ? '' : 's'} to Parts ETA`;
+  if (days < 0) return `-${Math.abs(days)} Day${Math.abs(days) === 1 ? '' : 's'} Overdue`;
+  if (days === 0) return '0 Days';
+  return `+${days} Day${days === 1 ? '' : 's'}`;
 }
 
 function partsWorstEtaCountdownClass(vehicle = {}) {
   const days = partsWorstEtaDaysUntil(vehicle);
   if (days === null) return 'unset';
-  if (days < 0) return 'overdue';
-  if (days <= 7) return 'soon';
-  return 'later';
+  if (days < 0) return 'negative';
+  if (days > 0) return 'positive';
+  return 'today';
 }
 
 function partsWorstEtaSortValue(vehicle = {}) {
@@ -10851,7 +10851,7 @@ function partsRiskBadge(vehicle = {}) {
 function isActivePartsStoppage(vehicle = {}) {
   const parts = PDC_JOB_BY_KEY.get('parts');
   const hasStoppage = vehicle.pdcPartsStoppage === true || Boolean(cleanNavisionText(vehicle.pdcPartsStoppageReason || ''));
-  return Boolean(hasStoppage && parts && pdcJobRequired(vehicle, parts) && !pdcJobComplete(vehicle, parts));
+  return Boolean(hasStoppage && parts && pdcJobRequired(vehicle, parts));
 }
 
 function partsOrdered(vehicle = {}) {
@@ -10866,9 +10866,9 @@ function partsMiscAcc(vehicle = {}) {
 function partsDepartmentStatus(vehicle = {}) {
   const def = partsJobDef();
   if (!pdcJobRequired(vehicle, def)) return 'notrequired';
+  if (isActivePartsStoppage(vehicle)) return 'stoppage';
   if (partsMiscAcc(vehicle)) return 'miscacc';
   if (def && (pdcJobComplete(vehicle, def) || vehicle.pdcPartsReceived === true)) return 'issued';
-  if (isActivePartsStoppage(vehicle)) return 'stoppage';
   if (partsOrdered(vehicle)) return 'onorder';
   return 'notordered';
 }
@@ -10878,7 +10878,7 @@ function partsDepartmentStatusLabel(status = '') {
     notrequired: 'Not Required',
     notordered: 'Not Ordered',
     onorder: 'On Order',
-    stoppage: 'Stoppage',
+    stoppage: 'Parts STOPPAGE',
     issued: 'Issued',
     miscacc: 'Misc Acc',
   }[status] || 'Not Ordered';
@@ -10962,20 +10962,17 @@ function partsOutstandingStationWork(vehicle = {}) {
     .map(def => pdcGridJobLabel(def));
 }
 
-function partsMatchesOperationalFilter(vehicle = {}, filter = 'required') {
+function partsMatchesOperationalFilter(vehicle = {}, filter = 'notordered') {
   const status = partsDepartmentStatus(vehicle);
-  const received = ['issued', 'notrequired'].includes(status);
   if (filter === 'ordered') return status === 'onorder';
-  if (filter === 'received') return received;
-  if (filter === 'jita') return normalizeJita(jitaDisplay(vehicle)) === 'Yes';
+  if (filter === 'overdue') return !['issued', 'notrequired'].includes(status) && partsWorstEtaDaysUntil(vehicle) < 0;
   if (filter === 'stoppage') return status === 'stoppage';
-  if (filter === 'ready') return received && partsOutstandingStationWork(vehicle).length > 0;
-  return !received && status !== 'notrequired';
+  return status === 'notordered';
 }
 
 function partsDepartmentRows() {
   const q = ($('#parts-search')?.value || '').trim().toLowerCase();
-  const operationalFilter = app.partsOperationalFilter || 'required';
+  const operationalFilter = app.partsOperationalFilter || 'notordered';
   const departmentFilter = $('#parts-department-filter')?.value || '';
   return pdcSheetVehicles()
     .filter(vehicleHasBatchNumber)
@@ -10997,10 +10994,12 @@ function partsDepartmentRows() {
 function renderPartsSummary() {
   const all = pdcSheetVehicles().filter(vehicleHasBatchNumber);
   const filters = [
-    ['required', 'Parts required'], ['ordered', 'Parts ordered'], ['received', 'Parts received'],
-    ['jita', 'JITA ordered'], ['stoppage', 'Parts stoppage'], ['ready', 'Ready for workshop'],
+    ['notordered', 'Parts Not Ordered'],
+    ['ordered', 'Parts Ordered'],
+    ['overdue', 'Parts Overdue'],
+    ['stoppage', 'Parts Stoppage'],
   ];
-  const active = app.partsOperationalFilter || 'required';
+  const active = app.partsOperationalFilter || 'notordered';
   const host = $('#parts-summary-grid');
   if (!host) return;
   host.innerHTML = filters.map(([key, label]) => {
@@ -11008,7 +11007,7 @@ function renderPartsSummary() {
     return `<button class="parts-filter-chip ${key === active ? 'is-active' : ''}" type="button" data-parts-operational-filter="${key}" aria-pressed="${key === active}"><span>${escapeHtml(label)}</span><strong>${count}</strong></button>`;
   }).join('');
   $$('[data-parts-operational-filter]', host).forEach(button => button.addEventListener('click', () => {
-    app.partsOperationalFilter = button.dataset.partsOperationalFilter || 'required';
+    app.partsOperationalFilter = button.dataset.partsOperationalFilter || 'notordered';
     renderPartsHome();
   }));
 }
@@ -11022,8 +11021,8 @@ function partsQueueActionsHtml(vehicle = {}, status = partsDepartmentStatus(vehi
     ${received ? '' : `<button class="small-button" type="button" data-parts-complete="${escapeHtml(key)}">Mark received</button>`}
     <button class="small-button ${jitaYes ? 'is-active' : ''}" type="button" data-parts-toggle-jita="${escapeHtml(key)}">JITA ${jitaYes ? '✓' : '×'}</button>
     ${stopped
-      ? `<button class="small-button" type="button" data-parts-clear-stoppage="${escapeHtml(key)}">Remove stoppage</button>`
-      : `<button class="small-button danger-button" type="button" data-parts-stoppage="${escapeHtml(key)}">Add stoppage</button>`}
+      ? `<button class="small-button" type="button" data-parts-clear-stoppage="${escapeHtml(key)}">Remove Parts STOPPAGE</button>`
+      : `<button class="small-button danger-button" type="button" data-parts-stoppage="${escapeHtml(key)}">Parts STOPPAGE</button>`}
     <button class="small-button" type="button" data-open-stock="${escapeHtml(key)}">Open vehicle</button>
   </div>`;
 }
@@ -11047,12 +11046,17 @@ function partsQueueRowHtml(vehicle = {}) {
   const blocker = status === 'stoppage' ? partsStoppageReason(vehicle) : '';
   const outstanding = partsOutstandingStationWork(vehicle);
   const jitaYes = normalizeJita(jitaDisplay(vehicle)) === 'Yes';
+  const etaValue = partsWorstEtaInputValue(vehicle);
+  const etaCountdown = partsWorstEtaCountdownLabel(vehicle);
+  const etaCountdownClass = partsWorstEtaCountdownClass(vehicle);
   return `<tr class="parts-row parts-queue-row ${escapeHtml(partsDepartmentStatusClass(status))}">
     <td><strong>${escapeHtml(vehicleKeyNumber(vehicle) || '—')}</strong></td>
     <td><button class="parts-compact-identity" type="button" data-open-stock="${escapeHtml(key)}"><strong>${escapeHtml(displayStockNumber(vehicle) || vehicle.order || '—')}</strong></button></td>
     <td><strong>${escapeHtml(vehicleJobcardNumber(vehicle) || '—')}</strong></td>
     <td><div class="parts-queue-customer"><strong title="${escapeHtml(unit)}">${escapeHtml(unit)}</strong><span title="${escapeHtml(customer)}">${escapeHtml(customer)}</span></div></td>
     <td><span class="parts-status-pill ${escapeHtml(partsDepartmentStatusClass(status))}">${escapeHtml(partsDepartmentStatusLabel(status))}</span></td>
+    <td class="parts-eta-cell"><input class="parts-eta-input" type="date" data-parts-worst-eta="${escapeHtml(key)}" value="${escapeHtml(etaValue)}" aria-label="Parts ETA for ${escapeHtml(displayStockNumber(vehicle) || vehicle.order || 'vehicle')}" /></td>
+    <td class="parts-eta-counter-cell"><span class="parts-eta-countdown ${escapeHtml(etaCountdownClass)}">${escapeHtml(etaCountdown || '—')}</span></td>
     <td class="parts-queue-jita-cell"><span class="jita-icon ${jitaYes ? 'yes' : 'no'}" aria-label="JITA ${jitaYes ? 'ordered' : 'not ordered'}">${jitaYes ? '✓' : '×'}</span></td>
     <td><span class="parts-outstanding-work" title="${escapeHtml(outstanding.join(', '))}">${escapeHtml(outstanding.join(', ') || 'None')}</span></td>
     <td class="parts-queue-blocker">${blocker ? `<strong title="${escapeHtml(blocker)}">${escapeHtml(blocker)}</strong>` : '<span class="subtle">None</span>'}</td>
@@ -11072,7 +11076,7 @@ function renderPartsHome() {
   }
   host.innerHTML = `<div class="parts-table-wrap parts-queue-wrap"><table class="data-table compact-table parts-queue-table">
     <thead><tr>
-      <th>Key</th><th>Stock</th><th>JC</th><th>Vehicle / customer</th><th>Parts status</th><th>JITA</th><th>Outstanding station work</th><th>Stoppage reason</th><th>Actions</th>
+      <th>Key</th><th>Stock</th><th>JC</th><th>Vehicle / customer</th><th>Parts status</th><th>Parts ETA</th><th>ETA counter</th><th>JITA</th><th>Outstanding station work</th><th>Parts STOPPAGE reason</th><th>Actions</th>
     </tr></thead>
     <tbody>${rows.map(partsQueueRowHtml).join('')}</tbody></table></div>`;
   bindPartsQueueActionButtons(host);
@@ -11136,7 +11140,7 @@ function markVehiclePartsComplete(key = '') {
 function markVehiclePartsStoppage(key = '') {
   const vehicle = selectedVehicle(key);
   if (!vehicle) return;
-  const reason = cleanNavisionText(window.prompt('Enter parts stoppage reason:', partsStoppageReason(vehicle) === 'Parts stoppage recorded' ? '' : partsStoppageReason(vehicle)) || '');
+  const reason = cleanNavisionText(window.prompt('Enter Parts STOPPAGE reason:', partsStoppageReason(vehicle) === 'Parts stoppage recorded' ? '' : partsStoppageReason(vehicle)) || '');
   if (!reason) return;
   const def = partsJobDef();
   const operator = getCurrentOperatorName();
@@ -11226,7 +11230,6 @@ function clearVehiclePartsStoppage(key = '') {
   saveVehicleEdits(key, {
     pdcPartsStoppage: false,
     pdcPartsStoppageReason: '',
-    pdcPartsWorstEta: '',
     pdcPartsStoppageClearedAt: nowIsoString(),
     pdcPartsStoppageClearedBy: operator,
   });

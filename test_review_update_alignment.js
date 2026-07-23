@@ -87,7 +87,7 @@ code += String.raw`
   assert(!workflowCardHtml.includes('pmb-card-actions') && !workflowCardHtml.includes('RFT gate:'), 'PMB workflow pill should not show old action/meta/RFT gate clutter');
   assert(!workflowCardHtml.includes('pmb-card-requirements'), 'PMB workflow pill should not show the old all-job tick row');
   assert(pmbStageBayCount('FABRICATION') === 13, 'Fabrication should expose thirteen physical bays');
-  assert(pmbStageBayCount('BUS_4X4') === 1, 'Bus 4x4 should expose its own physical bay');
+  assert(pmbStageBayCount('BUS_4X4') === 8, 'Bus 4x4 should expose exactly eight physical bays');
   const fabCardHtml = pmbBayVehicleCardHtml({ stock: '10015803', keyNumber: '203', jobCardNumber: 'JC13920003', client: 'Fremantle Council', pdcLocation: 'PMB', manualLocation: 'PMB', pmbStage: 'FABRICATION' }, 'FABRICATION');
   assert(!fabCardHtml.includes('data-assign-pmb-bay-number='), 'Fabrication bay pill should stay clean without bay assignment controls');
 

@@ -2649,7 +2649,7 @@ function workshopSearchMatches(query = '', plans = workshopLoadPlans()) {
 }
 
 function workshopBookingSearchStatus(entry = {}) {
-  return entry.status === 'completed' ? 'Completed' : entry.status === 'stoppage' ? 'Stoppage' : entry.status === 'started' ? 'Live' : 'Planned';
+  return entry.status === 'completed' ? 'Completed' : entry.status === 'stoppage' ? 'STOPPAGE' : entry.status === 'started' ? 'Live' : 'Planned';
 }
 
 function workshopBookingSearchMeta(entry = {}) {
@@ -2932,7 +2932,7 @@ function workshopPlanLifecycleActionsHtml(entry = {}) {
     return `<div class="workshop-plan-lifecycle-actions"><button type="button" data-workshop-resume-plan="${escapeHtml(planId)}" aria-label="Resume job">Resume job</button><button class="workshop-complete-action" type="button" data-workshop-complete-plan="${escapeHtml(planId)}" aria-label="Complete job">Complete</button></div>`;
   }
   if (status === 'started') {
-    return `<div class="workshop-plan-lifecycle-actions"><button type="button" data-workshop-stop-plan="${escapeHtml(planId)}" aria-label="Stop job">Stop job</button><button class="workshop-complete-action" type="button" data-workshop-complete-plan="${escapeHtml(planId)}" aria-label="Complete job">Complete</button></div>`;
+    return `<div class="workshop-plan-lifecycle-actions"><button type="button" data-workshop-stop-plan="${escapeHtml(planId)}" aria-label="Place job on stoppage">STOPPAGE</button><button class="workshop-complete-action" type="button" data-workshop-complete-plan="${escapeHtml(planId)}" aria-label="Complete job">Complete</button></div>`;
   }
   return `<div class="workshop-plan-lifecycle-actions"><button type="button" data-workshop-start-plan="${escapeHtml(planId)}" aria-label="Start job">Start job</button></div>`;
 }
@@ -3190,7 +3190,7 @@ function workshopDetailHtml(entry = null) {
   const stationLabel = `${pmbStageLabel(entry.stage)} Bay ${entry.bay}`;
   const stageAssignee = cleanNavisionText(entry.assignee || '') || workshopBayMechanic(entry.stage, entry.bay) || pmbBayMechanic(vehicle) || '';
   const statusTone = completed ? 'success' : stopped ? 'warning' : started ? 'info' : 'neutral';
-  const statusLabel = completed ? 'Completed' : stopped ? 'Stoppage' : started ? 'Live' : 'Planned';
+  const statusLabel = completed ? 'Completed' : stopped ? 'STOPPAGE' : started ? 'Live' : 'Planned';
   const previousBay = Number(entry.bay) > 1 ? Number(entry.bay) - 1 : 0;
   const nextBay = Number(entry.bay) < workshopStageBayCount(entry.stage) ? Number(entry.bay) + 1 : 0;
   const bestBaySlot = completed
@@ -3223,7 +3223,7 @@ function workshopDetailHtml(entry = null) {
       <button class="small-button" type="button" data-workshop-extend-plan="${escapeHtml(entry.id)}" data-workshop-extend-hours="0.5">+30m</button>
       <button class="small-button" type="button" data-workshop-extend-plan="${escapeHtml(entry.id)}" data-workshop-extend-hours="1">+1h</button>
       <button class="small-button" type="button" data-workshop-start-plan="${escapeHtml(entry.id)}" ${started ? 'disabled' : ''}>${started ? 'Started' : 'Start job'}</button>
-      <button class="small-button ${stopped ? 'active-lite' : ''}" type="button" ${stopped ? `data-workshop-resume-plan="${escapeHtml(entry.id)}"` : `data-workshop-stop-plan="${escapeHtml(entry.id)}"`}>${stopped ? 'Resume job' : 'Stoppage'}</button>
+      <button class="small-button ${stopped ? 'active-lite' : ''}" type="button" ${stopped ? `data-workshop-resume-plan="${escapeHtml(entry.id)}"` : `data-workshop-stop-plan="${escapeHtml(entry.id)}"`}>${stopped ? 'Resume job' : 'STOPPAGE'}</button>
       <button class="small-button active-lite" type="button" data-workshop-complete-plan="${escapeHtml(entry.id)}">Complete work</button>`}
     </div>
   </form>`;
@@ -3428,14 +3428,14 @@ function renderWorkshopPlanner() {
         <button class="small-button warning-button" type="button" data-workshop-parts-warning>Draft next-day parts warning</button>
       </div>
     </header>
-    <div class="workshop-date-summary"><strong>${escapeHtml(workshopDateLabel(dateKey))}</strong><span>${selectedDateBookingCount} bookings on selected date · ${completed.length} completed · ${outstanding.length} outstanding · ${unscheduled.length} unscheduled${assigneeConflicts ? ` · ⚠ ${assigneeConflicts} mechanic clash${assigneeConflicts === 1 ? '' : 'es'}` : ''} · Saved automatically${state.lastSavedAt ? ` ${escapeHtml(new Date(state.lastSavedAt).toLocaleTimeString('en-AU', { hour: 'numeric', minute: '2-digit' }))}` : ''}</span><div class="workshop-status-legend"><span class="planned">Planned</span><span class="live">Live</span><span class="stoppage">Stoppage</span><span class="completed">Completed</span></div></div>
+    <div class="workshop-date-summary"><strong>${escapeHtml(workshopDateLabel(dateKey))}</strong><span>${selectedDateBookingCount} bookings on selected date · ${completed.length} completed · ${outstanding.length} outstanding · ${unscheduled.length} unscheduled${assigneeConflicts ? ` · ⚠ ${assigneeConflicts} mechanic clash${assigneeConflicts === 1 ? '' : 'es'}` : ''} · Saved automatically${state.lastSavedAt ? ` ${escapeHtml(new Date(state.lastSavedAt).toLocaleTimeString('en-AU', { hour: 'numeric', minute: '2-digit' }))}` : ''}</span><div class="workshop-status-legend"><span class="planned">Planned</span><span class="live">Live</span><span class="stoppage">STOPPAGE</span><span class="completed">Completed</span></div></div>
     ${workshopSearchControlHtml(state.search || '', plans)}
     ${stageTabs ? `<nav class="workshop-stage-tabs" aria-label="Workshop departments">${stageTabs}</nav>` : ''}
     ${workshopDetailPanelHtml(selected, plans)}
     <div class="workshop-board-shell">
       <aside class="workshop-side-panel workshop-waiting-panel">
         <div class="workshop-side-heading"><strong>Outstanding candidates</strong><span>${queue.length}</span></div>
-        <div class="workshop-unallocated-drop" data-workshop-unallocated-drop><strong>Return to Unallocated</strong><span>Planned or live: choose Just move or Stoppage</span></div>
+        <div class="workshop-unallocated-drop" data-workshop-unallocated-drop><strong>Return to Unallocated</strong><span>Planned or live: choose Just move or STOPPAGE</span></div>
         <div class="workshop-side-list">${queueBatch.visible.map(vehicle => workshopQueueCardHtml(vehicle, stage, dateKey, plans)).join('') || '<div class="workshop-empty">No outstanding requirements in this department.</div>'}${workshopIncrementalLoadMoreHtml('queue', queueBatch)}</div>
       </aside>
       <section class="workshop-timeline-scroll">
@@ -3844,9 +3844,9 @@ function workshopReturnChoiceModal(entry = {}, vehicle = {}) {
       <header><h2>Return vehicle to PMB Unallocated</h2><p>${escapeHtml(displayStockNumber(vehicle) || vehicleJobcardNumber(vehicle) || 'Vehicle')} is leaving ${escapeHtml(pmbStageLabel(entry.stage))} Bay ${escapeHtml(entry.bay)}. The work remains open.</p></header>
       <div class="workshop-return-options">
         <label><input type="radio" name="workshopReturnChoice" value="move" checked><span><strong>Just move</strong><small>Return to Unallocated without marking the job complete or creating a stoppage.</small></span></label>
-        <label><input type="radio" name="workshopReturnChoice" value="stoppage"><span><strong>Stoppage</strong><small>Return to Unallocated, keep the job open and flag the vehicle as stopped.</small></span></label>
+        <label><input type="radio" name="workshopReturnChoice" value="stoppage"><span><strong>STOPPAGE</strong><small>Return to Unallocated, keep the job open and flag the vehicle as stopped.</small></span></label>
       </div>
-      <label class="workshop-return-reason" data-workshop-return-reason-wrap hidden><span>Stoppage reason</span><input type="text" data-workshop-return-reason value="${escapeHtml(entry.stoppageReason || `${pmbStageLabel(entry.stage)} stoppage`)}"></label>
+      <label class="workshop-return-reason" data-workshop-return-reason-wrap hidden><span>STOPPAGE reason</span><input type="text" data-workshop-return-reason value="${escapeHtml(entry.stoppageReason || `${pmbStageLabel(entry.stage)} stoppage`)}"></label>
       <div class="edit-actions"><button class="secondary" type="button" data-workshop-return-cancel>Cancel</button><button class="primary" type="button" data-workshop-return-apply>Return to Unallocated</button></div>
     </section>`;
     const finish = value => {
@@ -4720,9 +4720,9 @@ function workshopStoppageReasonModal(entry = {}, vehicle = {}) {
     overlay.setAttribute('aria-modal', 'true');
     overlay.innerHTML = `<section class="modal-card workshop-return-card">
       <button class="modal-close" type="button" data-workshop-stop-cancel aria-label="Cancel">×</button>
-      <header><h2>Record workshop stoppage</h2><p>${escapeHtml(displayStockNumber(vehicle) || vehicleJobcardNumber(vehicle) || 'Vehicle')} · ${escapeHtml(pmbStageLabel(entry.stage))} Bay ${escapeHtml(entry.bay)}</p></header>
-      <label class="workshop-return-reason"><span>Stoppage reason</span><input type="text" data-workshop-stop-reason value="${escapeHtml(entry.stoppageReason || '')}" autocomplete="off"></label>
-      <div class="edit-actions"><button class="secondary" type="button" data-workshop-stop-cancel>Cancel</button><button class="primary" type="button" data-workshop-stop-apply>Record stoppage</button></div>
+      <header><h2>Record workshop STOPPAGE</h2><p>${escapeHtml(displayStockNumber(vehicle) || vehicleJobcardNumber(vehicle) || 'Vehicle')} · ${escapeHtml(pmbStageLabel(entry.stage))} Bay ${escapeHtml(entry.bay)}</p></header>
+      <label class="workshop-return-reason"><span>STOPPAGE reason</span><input type="text" data-workshop-stop-reason value="${escapeHtml(entry.stoppageReason || '')}" autocomplete="off"></label>
+      <div class="edit-actions"><button class="secondary" type="button" data-workshop-stop-cancel>Cancel</button><button class="primary" type="button" data-workshop-stop-apply>Record STOPPAGE</button></div>
     </section>`;
     const finish = value => {
       overlay.remove();

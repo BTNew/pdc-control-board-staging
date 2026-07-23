@@ -31,13 +31,13 @@ assert(!/set\s+(local\s+)?statement_timeout/i.test(migration), 'runtime performa
 assert(migration.includes('workshop_booking_048_legacy_ambiguity_guard'));
 assert(migration.includes("raise exception 'legacy_ambiguity_blocked'"));
 
-for (const label of ['Parts required', 'Parts ordered', 'Parts received', 'JITA ordered', 'Parts stoppage', 'Ready for workshop']) {
+for (const label of ['Parts Not Ordered', 'Parts Ordered', 'Parts Overdue', 'Parts Stoppage']) {
   assert(app.includes(label), `missing filter ${label}`);
 }
-for (const action of ['Mark ordered', 'Mark received', 'Add stoppage', 'Remove stoppage', 'Open vehicle']) {
+for (const action of ['Mark ordered', 'Mark received', 'Parts STOPPAGE', 'Remove Parts STOPPAGE', 'Open vehicle']) {
   assert(app.includes(action), `missing visible action ${action}`);
 }
-for (const field of ['Key</th>', 'Stock</th>', 'JC</th>', 'Vehicle / customer', 'Outstanding station work', 'Stoppage reason']) {
+for (const field of ['Key</th>', 'Stock</th>', 'JC</th>', 'Vehicle / customer', 'Parts ETA', 'ETA counter', 'Outstanding station work', 'Parts STOPPAGE reason']) {
   assert(app.includes(field), `missing Parts field ${field}`);
 }
 assert(app.includes('toggleVehiclePartsJita'));
