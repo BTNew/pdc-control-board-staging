@@ -303,6 +303,64 @@ begin
 end $$;
 revoke all on function public.workshop_require_booking_schedule_eligibility(uuid,text) from public,anon,authenticated;
 
+-- Rebind the table-level scheduling-shape guard to canonical work-item
+-- authority. The migration-044 same-station shortcut treated the existing
+-- booking itself as authority, which allowed direct/cascade timestamp shifts
+-- after the required work item had been completed or removed.
+create or replace function public.workshop_prevent_disabled_planner_booking_mutation()
+returns trigger language plpgsql security definer set search_path=pg_catalog,public as $$
+declare v_enabled boolean; v_mutating boolean; v_location text; v_eta date; v_stage text; v_eligible boolean;
+begin
+ if tg_op='UPDATE' and old.deleted_at is not null then
+  if new.deleted_at is null and new.status='queued' and new.bay_id is null
+     and new.stage_id=old.stage_id and new.vehicle_id=old.vehicle_id
+     and new.scheduled_start_at is not distinct from old.scheduled_start_at
+     and new.scheduled_end_at is not distinct from old.scheduled_end_at
+     and new.default_duration_minutes is not distinct from old.default_duration_minutes then
+   return new;
+  end if;
+  raise exception 'Soft-deleted Workshop Planner bookings cannot be scheduled or cascaded' using errcode='22023';
+ end if;
+ v_mutating:=tg_op='INSERT';
+ if tg_op='UPDATE' then
+  v_mutating:=old.stage_id is distinct from new.stage_id
+   or old.bay_id is distinct from new.bay_id
+   or old.scheduled_start_at is distinct from new.scheduled_start_at
+   or old.scheduled_end_at is distinct from new.scheduled_end_at
+   or old.default_duration_minutes is distinct from new.default_duration_minutes;
+ end if;
+ if v_mutating then
+  select code,planner_enabled into v_stage,v_enabled from public.workshop_stages where id=new.stage_id and active;
+  if not found or coalesce(v_enabled,false)=false then
+   raise exception 'This work type does not have a Workshop Planner' using errcode='22023';
+  end if;
+  select upper(btrim(coalesce(current_location,''))),eta_to_kewdale into v_location,v_eta
+  from public.vehicles where id=new.vehicle_id and lifecycle_state='active' and deleted_at is null;
+  if not found then
+   raise exception 'Active non-deleted vehicle is required for Workshop Planner scheduling' using errcode='22023';
+  end if;
+  select exists(select 1 from public.workshop_station_eligibility(v_stage)e where e.vehicle_id=new.vehicle_id)
+    into v_eligible;
+  if not coalesce(v_eligible,false) then
+   raise exception 'Outstanding station requirement and current planner eligibility are required for scheduling' using errcode='22023';
+  end if;
+  if v_location not in('PMB','YH','IT') then
+   raise exception 'Vehicle location is not eligible for Workshop Planner scheduling' using errcode='22023';
+  end if;
+  if v_location='IT' and v_eta is null then
+   raise exception 'ETA to Kewdale is required before scheduling an in-transit vehicle' using errcode='22023';
+  end if;
+  if v_location='IT' and (new.scheduled_start_at at time zone 'Australia/Perth')::date<v_eta then
+   raise exception 'In-transit vehicle cannot be scheduled before ETA to Kewdale' using errcode='22023';
+  end if;
+ end if;
+ return new;
+end $$;
+revoke all on function public.workshop_prevent_disabled_planner_booking_mutation() from public,anon,authenticated;
+drop trigger if exists workshop_bookings_planner_enabled_guard on public.workshop_bookings;
+create trigger workshop_bookings_planner_enabled_guard before insert or update on public.workshop_bookings
+for each row execute function public.workshop_prevent_disabled_planner_booking_mutation();
+
 create or replace function public.get_station_workshop_snapshot(p_stage_code text,p_date_from date,p_date_to date)
 returns jsonb language plpgsql stable security definer set search_path=pg_catalog,public as $$
 declare v_stage text; v_stage_id uuid; v_from timestamptz; v_to timestamptz; v_ids uuid[];

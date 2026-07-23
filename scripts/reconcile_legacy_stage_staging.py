@@ -70,7 +70,7 @@ def main():
    c.commit()
    print(json.dumps({'status':'pending_post_045_backup_restore','project_ref':EXPECTED_STAGING_REF,'batch_id':BATCH,'preview':preview,'receipts':receipts,'operational_state_unchanged':True,'idempotent_replay':True,'pre_045_backup_gate':backup_evidence},sort_keys=True));return
   if receipts!=[('B_ACTIVE_BOOKING','skipped',1),('D_AMBIGUOUS','ambiguous',4)]:raise RuntimeError(f'final receipt mismatch: {receipts}')
-  q.execute("select max(applied_at) from public.legacy_stage_reconciliation_receipts where batch_id=%s",(BATCH,));last_receipt=q.fetchone()[0]
+  q.execute("select max(created_at) from public.legacy_stage_reconciliation_receipts where batch_id=%s",(BATCH,));last_receipt=q.fetchone()[0]
   q.execute("select finished_at from public.backup_runs where id=%s::uuid",(backup_evidence['backup_run_id'],));backup_finished=q.fetchone()[0]
   if last_receipt is None or backup_finished is None or backup_finished<last_receipt:raise RuntimeError('post-045 backup does not include committed reconciliation receipts')
   q.execute("select count(*) from public.audit_events where metadata->>'source'='legacy_pmb_stage_reconciliation_decision' and metadata->>'batch_id'=%s",(BATCH,))

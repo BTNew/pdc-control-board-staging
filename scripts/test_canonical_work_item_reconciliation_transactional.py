@@ -133,6 +133,11 @@ def main():
         assert_true(first == second, "idempotent replay response")
         cur.execute("select count(*),count(*) filter(where decision_state='applied'),count(*) filter(where decision_state='ambiguous') from public.legacy_stage_reconciliation_receipts where batch_id=%s", (batch,))
         assert_true(cur.fetchone() == (7, 2, 2), "receipt cardinality/state")
+        cur.execute("select max(created_at) from public.legacy_stage_reconciliation_receipts where batch_id=%s", (batch,))
+        assert_true(cur.fetchone()[0] is not None, "finalize receipt timestamp must use created_at")
+        cur.execute("select exists(select 1 from information_schema.columns where table_schema='public' and table_name='legacy_stage_reconciliation_receipts' and column_name='applied_at')")
+        assert_true(cur.fetchone()[0] is False, "receipt schema unexpectedly exposes stale applied_at column")
+        result["checks"].append("finalize_uses_real_receipt_created_at_column")
         cur.execute("select count(*) from public.vehicle_work_items where id in (select applied_work_item_id from public.legacy_stage_reconciliation_receipts where batch_id=%s)", (batch,))
         assert_true(cur.fetchone()[0] == 2, "only A creates work items")
         cur.execute("select count(*) from public.audit_events where metadata->>'source'='legacy_pmb_stage_reconciliation' and metadata->>'batch_id'=%s", (batch,))
@@ -181,6 +186,41 @@ def main():
             cur.execute("release savepoint canonical_booking_guard")
             assert_true(blocked, "same-station booking mutation survived completed/missing canonical requirement")
         result["checks"].append("same_station_move_resize_bay_change_require_current_work")
+
+        # Exercise the real atomic cascade path: a queued booking without a
+        # current work requirement must make the whole cascade fail before any
+        # timestamp/history change survives.
+        cur.execute("select b.id::text,b.bay_number from public.workshop_bays b join public.workshop_stages s on s.id=b.stage_id where s.code='HOIST' and b.is_active order by b.bay_number limit 1")
+        cascade_bay = cur.fetchone()
+        assert_true(cascade_bay, "active Hoist bay required for cascade fixture")
+        shifted_vehicle = vehicle("HOIST", "PMB"); shifted_work = work(shifted_vehicle, "HOIST")
+        shifted_booking = str(uuid.uuid4())
+        cur.execute(
+            "insert into public.workshop_bookings(id,vehicle_id,stage_id,bay_id,status,scheduled_start_at,scheduled_end_at,default_duration_minutes,created_by,updated_by) "
+            "values(%s,%s,%s,%s,'planned','2036-07-23 01:00:00+00','2036-07-23 04:00:00+00',180,%s,%s)",
+            (shifted_booking, shifted_vehicle, stage_ids["HOIST"][0], cascade_bay[0], admin[0], admin[0]),
+        )
+        cur.execute("update public.vehicle_work_items set required=false where id=%s", (shifted_work,))
+        cascade_target = vehicle("HOIST", "PMB"); work(cascade_target, "HOIST")
+        cur.execute("select version from public.vehicles where id=%s", (cascade_target,)); target_version = cur.fetchone()[0]
+        cur.execute("select scheduled_start_at,scheduled_end_at,version from public.workshop_bookings where id=%s", (shifted_booking,)); cascade_before = cur.fetchone()
+        cur.execute("select count(*) from public.workshop_booking_history where booking_id=%s", (shifted_booking,)); history_before = cur.fetchone()[0]
+        cur.execute("savepoint canonical_cascade_guard")
+        cascade_blocked = False
+        try:
+            cur.execute(
+                "select public.cascade_workshop_schedule('insert',%s,%s,'HOIST',%s,'2036-07-23 01:00:00+00',180,null,180,%s,'{}'::jsonb)",
+                (cascade_target, target_version, cascade_bay[1], "rollback-only canonical authority test"),
+            )
+        except Exception:
+            cascade_blocked = True
+            cur.execute("rollback to savepoint canonical_cascade_guard")
+        cur.execute("release savepoint canonical_cascade_guard")
+        cur.execute("select scheduled_start_at,scheduled_end_at,version from public.workshop_bookings where id=%s", (shifted_booking,)); cascade_after = cur.fetchone()
+        cur.execute("select count(*) from public.workshop_booking_history where booking_id=%s", (shifted_booking,)); history_after = cur.fetchone()[0]
+        assert_true(cascade_blocked, "cascade shifted a booking without current canonical work")
+        assert_true(cascade_after == cascade_before and history_after == history_before, "blocked cascade left timestamp/version/history changes")
+        result["checks"].append("cascade_shifts_require_current_work_and_are_atomic")
 
         cur.execute("select count(*) from public.workshop_station_eligibility('SUBLET')")
         assert_true(cur.fetchone()[0] == 0, "Sublet planner excluded")

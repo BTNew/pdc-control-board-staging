@@ -22,6 +22,12 @@ assert(eligibilitySql.includes('existing_booking') && eligibilitySql.includes("s
 assert(eligibilitySql.includes("in('PMB','YH','IT')") && eligibilitySql.includes("='IT' and v.eta_to_kewdale is null"), 'location and IT ETA rules must remain explicit');
 assert(eligibilitySql.includes('workshop_require_booking_schedule_eligibility') && eligibilitySql.includes('select 1 from public.workshop_station_eligibility(v_target)'), 'same-station move/resize/bay mutations must recheck current canonical eligibility');
 assert(!eligibilitySql.includes('v_target is distinct from v_current'), 'same-station booking mutations must not bypass canonical work authority');
+const guardStart = sql.indexOf('create or replace function public.workshop_prevent_disabled_planner_booking_mutation()');
+const guardEnd = sql.indexOf('create or replace function public.get_station_workshop_snapshot', guardStart);
+const bookingGuard = sql.slice(guardStart, guardEnd);
+assert(guardStart >= 0 && guardEnd > guardStart, 'migration 045 must replace and rebind the table-level booking mutation guard');
+assert(bookingGuard.includes('workshop_station_eligibility(v_stage)') && bookingGuard.includes('create trigger workshop_bookings_planner_enabled_guard'), 'direct and cascade booking shifts must use current canonical eligibility');
+assert(!bookingGuard.includes('v_eligible:=true'), 'same-station active bookings must not bypass current work-item authority');
 
 const preview = sql.slice(sql.indexOf('create or replace function public.preview_legacy_stage_reconciliation'), sql.indexOf('create or replace function public.apply_legacy_stage_reconciliation'));
 for (const classification of ['A_SAFE_CREATE','B_ACTIVE_BOOKING','C_COMPLETED_OR_OBSOLETE','D_AMBIGUOUS']) assert(preview.includes(classification), `preview missing ${classification}`);
@@ -59,6 +65,7 @@ assert(applyScript.includes("version in('043','044','045')") && applyScript.incl
 assert(reconcileScript.includes("choices=('record','finalize')") && reconcileScript.includes("expected_migration='044' if a.phase=='record' else '045'"), 'reconciliation must require distinct pre-045 and post-045 backup gates');
 assert(reconcileScript.includes("status':'pending_post_045_backup_restore'") && reconcileScript.includes("status':'reconciliation_finalized'"), 'record phase must not report final success before the post-045 restore proof');
 assert(reconcileScript.includes('backup_finished<last_receipt'), 'post-045 backup must be newer than committed receipts');
+assert(reconcileScript.includes('max(created_at)') && !reconcileScript.includes('max(applied_at)'), 'finalize must compare the real receipt creation timestamp column');
 assert(!stagingHtml.includes('random-100-vehicles.csv'), 'zero-data staging Pages shell must not expose an undeployed CSV download');
 assert(reconcileScript.includes('md5(to_jsonb(v)::text)') && reconcileScript.includes('md5(to_jsonb(wi)::text)') && reconcileScript.includes('md5(to_jsonb(b)::text)'), 'no-create gate must hash complete vehicle/work-item/booking rows');
 assert(!reconcileScript.includes('customer_email') && !reconcileScript.includes('customer_phone'), 'no-create gate must not query nonexistent vehicle columns');
