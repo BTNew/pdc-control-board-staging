@@ -31,7 +31,7 @@ assert(!/set\s+(local\s+)?statement_timeout/i.test(migration), 'runtime performa
 assert(migration.includes('workshop_booking_048_legacy_ambiguity_guard'));
 assert(migration.includes("raise exception 'legacy_ambiguity_blocked'"));
 
-for (const label of ['Parts Not Ordered', 'Parts Ordered', 'Parts Overdue', 'Parts Stoppage']) {
+for (const label of ['Parts Not Ordered', 'Parts Ordered', 'Parts Overdue', 'Parts STOPPAGE']) {
   assert(app.includes(label), `missing filter ${label}`);
 }
 for (const action of ['Mark ordered', 'Mark received', 'Parts STOPPAGE', 'Remove Parts STOPPAGE', 'Open vehicle']) {

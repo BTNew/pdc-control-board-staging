@@ -51,6 +51,18 @@ assert.strictEqual(planner.workshopClampStartMinutes(500), 465, 'Latest start mu
 assert.strictEqual(planner.workshopClampLineHours(0.5), 0.5, 'Imported job lines may retain sub-three-hour estimates');
 assert.strictEqual(planner.workshopClampDurationHours(0.5), 1, 'Planner bookings must enforce the approved one-hour minimum');
 assert.strictEqual(planner.workshopClampDurationHours(20), 20, 'Workshop jobs must not have a maximum-hour limit');
+assert.deepStrictEqual(planner.workshopManualDurationAllocation(25, 0), { total: 25, additional: 25 }, 'A manually entered 25-hour estimate must be saved as the bay total when there are no imported lines');
+assert.deepStrictEqual(planner.workshopManualDurationAllocation(25, 3), { total: 25, additional: 22 }, 'A manual total must subtract imported hours rather than add 25 hours on top');
+assert.strictEqual(planner.workshopManualDurationAllocation(2, 3), null, 'A manual total below allocated imported hours must fail closed');
+const sharedDurationPayload = planner.workshopManualDurationSharedPayload({ id: 'local-id', sharedBookingId: 'booking-id', sharedVersion: 7, stage: 'TINT', bay: 2, startAt: '2026-07-24T01:00:00.000Z', hours: 3 }, 25);
+assert.strictEqual(sharedDurationPayload.targetId, 'booking-id', 'Shared manual-time changes must target the authoritative booking id');
+assert.strictEqual(sharedDurationPayload.targetExpectedVersion, 7, 'Shared manual-time changes must preserve optimistic concurrency');
+assert.strictEqual(sharedDurationPayload.durationMinutes, 1500, 'A 25-hour estimate must be sent as 1500 minutes');
+assert.strictEqual(sharedDurationPayload.shiftMinutes, 1320, 'Extending 3 hours to 25 must cascade later queued work by 22 hours');
+assert.deepStrictEqual(sharedDurationPayload.metadata, { source: 'manual_estimated_time' });
+assert.match(source, /name="estimated_hours" min="1" step="0\.25"/, 'The job modal must expose an editable total estimated-hours field');
+assert.match(source, /data-workshop-estimated-hours-total/, 'The visible planned-time total must update with manual input');
+assert.match(source, /metadata: \{ source: 'manual_estimated_time' \}/, 'Shared manual-time edits must use the authoritative booking cascade action');
 const longJobEnd = planner.workshopAddWorkMinutes(new Date(2026, 6, 17, 14, 0, 0, 0), 12 * 60);
 assert.strictEqual(longJobEnd.getDay(), 2, 'A 12-hour Friday job should carry through Monday into Tuesday');
 assert.strictEqual(longJobEnd.getDate(), 21, 'A 12-hour Friday job should finish on Tuesday 21 July');

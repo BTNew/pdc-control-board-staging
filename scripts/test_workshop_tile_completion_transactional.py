@@ -1,11 +1,13 @@
-"""Rollback-only migrations 050/051 functional contract against staging.
+"""Rollback-only migrations 050/051/052 functional contract against staging.
 No production endpoint is used and every fixture/schema change is rolled back.
 """
-import json, os, pathlib, re, uuid
+import json, os, pathlib, re, sys, uuid
 from datetime import timedelta
 import psycopg2, psycopg2.extras
 psycopg2.extras.register_uuid()
 ROOT=pathlib.Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT/'_staging_test_tools'))
+from staging_conn import get_conn
 
 def body(name):
     text=(ROOT/'supabase/migrations'/name).read_text(encoding='utf-8').strip()
@@ -15,8 +17,9 @@ def body(name):
 SQL049=(ROOT/'supabase/migrations/049_soft_launch_planner_safety.sql').read_text(encoding='utf-8')
 SQL050=body('050_workshop_tile_completion_and_live_bay.sql')
 SQL051=body('051_bus4x4_eight_bays_and_completion_hardening.sql')
-conn=psycopg2.connect(os.environ['PDC_STAGING_DATABASE_URL']); conn.autocommit=False; q=conn.cursor()
-counts={'bus4x4_eight_bays':0,'planned_complete_rejected':0,'null_complete_normalized':0,'start_to_now':0,'same_bay_rejected':0,'cross_station_started':0,'fixed_preserved':0,'completed_requirement':0,'rerequired':0,'customer_projected':0}
+SQL052=body('052_bus4x4_concurrency_safe_bay_reconciliation.sql')
+conn=get_conn(); conn.autocommit=False; q=conn.cursor()
+counts={'bus4x4_eight_bays':0,'booking_dml_lock_blocked':0,'planned_complete_rejected':0,'null_complete_normalized':0,'start_to_now':0,'same_bay_rejected':0,'cross_station_started':0,'fixed_preserved':0,'completed_requirement':0,'rerequired':0,'customer_projected':0}
 
 def rpc(sql,args=()):
     q.execute(sql,args); value=q.fetchone()[0]
@@ -41,6 +44,16 @@ try:
     q.execute(SQL049)
     q.execute(SQL050)
     q.execute(SQL051)
+    q.execute(SQL052)
+    probe=get_conn(); probe.autocommit=False; probe_q=probe.cursor()
+    try:
+        try:
+            probe_q.execute('lock table public.workshop_bookings in row exclusive mode nowait')
+            raise AssertionError('migration 052 did not block concurrent booking DML')
+        except psycopg2.errors.LockNotAvailable:
+            probe.rollback(); counts['booking_dml_lock_blocked']+=1
+    finally:
+        probe_q.close(); probe.close()
     q.execute("select indexdef from pg_indexes where schemaname='public' and indexname='workshop_bookings_one_started_per_bay_uidx'")
     indexdef=q.fetchone()[0]; assert '(bay_id)' in indexdef and "status = 'started'" in indexdef
     q.execute("""select count(*) from public.workshop_bays b join public.workshop_stages s on s.id=b.stage_id
@@ -66,7 +79,12 @@ try:
           order by b.bay_number limit 1""",(stage,now,now))
         row=q.fetchone(); assert row,('no_open_bay_now',stage); return row
     fab_stage,fab_bay,fab_num=open_bay('FABRICATION')
-    tint_stage,tint_bay,tint_num=open_bay('TINT')
+    q.execute("select id from public.workshop_stages where code='TINT' and active and planner_enabled")
+    tint_stage=q.fetchone()[0]
+    q.execute("select coalesce(max(bay_number),0)+1000 from public.workshop_bays where stage_id=%s",(tint_stage,)); tint_num=q.fetchone()[0]
+    q.execute("""insert into public.workshop_bays(stage_id,bay_number,code,display_name,is_active,is_sublet_row)
+      values(%s,%s,%s,%s,true,false) returning id""",(tint_stage,tint_num,f'TINT-ROLLBACK-{uuid.uuid4()}',f'Tint rollback bay {tint_num}'))
+    tint_bay=q.fetchone()[0]
     assert fab_stage!=tint_stage and fab_bay!=tint_bay
     def free_slot(bay_id):
         q.execute("""select m from generate_series(%s::timestamptz+interval '1 day',%s::timestamptz+interval '80 days',interval '1 hour') m
@@ -74,7 +92,7 @@ try:
             and b.status in('planned','started','stoppage') and tstzrange(b.scheduled_start_at,b.scheduled_end_at,'[)')&&tstzrange(m,m+interval '8 hours','[)'))
           order by m limit 1""",(now,now,bay_id))
         row=q.fetchone(); assert row,('no_free_test_slot',bay_id); return row[0]
-    fab_slot=free_slot(fab_bay); tint_slot=free_slot(tint_bay)
+    fab_slot=free_slot(fab_bay); tint_slot=now
     va=make_vehicle(admin,'FABRICATION','Alpha Customer')
     vb=make_vehicle(admin,'FABRICATION','Bravo Customer')
     vc=make_vehicle(admin,'TINT','Charlie Customer')

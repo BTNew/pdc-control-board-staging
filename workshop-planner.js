@@ -958,6 +958,34 @@ function workshopCalculatedStageHours(vehicle = {}, stage = '') {
   return workshopEstimatedHours(vehicle, normalizedStage) || workshopDefaultBookingHours();
 }
 
+function workshopManualDurationAllocation(requestedHours = 0, importedHours = 0) {
+  const requested = Number(requestedHours);
+  const imported = Number(importedHours);
+  if (!Number.isFinite(requested) || requested < 1) return null;
+  const safeImported = Number.isFinite(imported) ? Math.max(0, imported) : 0;
+  const total = workshopClampDurationHours(requested);
+  if (total + 0.000001 < safeImported) return null;
+  return {
+    total,
+    additional: Number(Math.max(0, total - safeImported).toFixed(2)),
+  };
+}
+
+function workshopManualDurationSharedPayload(plan = {}, requestedHours = 0) {
+  const nextHours = workshopClampDurationHours(requestedHours);
+  return {
+    operation: 'extend',
+    targetId: plan.sharedBookingId || plan.id,
+    targetExpectedVersion: plan.sharedVersion,
+    stageCode: plan.stage,
+    bayNumber: Number(plan.bay),
+    scheduledStartAt: plan.startAt,
+    durationMinutes: Math.round(nextHours * 60),
+    shiftMinutes: Math.max(0, Math.round((nextHours - workshopClampDurationHours(plan.hours)) * 60)),
+    metadata: { source: 'manual_estimated_time' },
+  };
+}
+
 function workshopDetailSessionPreference() {
   if (typeof sessionStorage === 'undefined') return { pinned: false };
   try {
@@ -3616,7 +3644,7 @@ function bindWorkshopPlanner(root) {
   root.querySelectorAll('[data-workshop-job-vehicle]').forEach(card => card.addEventListener('dblclick', event => {
     event.preventDefault();
     const plan = workshopLoadPlans().find(entry => entry.id === card.dataset.workshopPlanId);
-    openWorkshopVehicleJob(card.dataset.workshopJobVehicle, plan?.stage || workshopState().stage);
+    openWorkshopVehicleJob(card.dataset.workshopJobVehicle, plan?.stage || workshopState().stage, plan?.id || '');
   }));
   root.querySelectorAll('[data-workshop-drop-bay]').forEach(lane => bindWorkshopLane(lane));
   bindWorkshopUnallocatedDrop(root.querySelector('[data-workshop-unallocated-drop]'));
@@ -3658,7 +3686,10 @@ function bindWorkshopPlanner(root) {
   root.querySelectorAll('[data-workshop-resize-plan]').forEach(handle => handle.addEventListener('pointerdown', event => startWorkshopResize(handle, event)));
   root.querySelectorAll('[data-workshop-extend-plan]').forEach(button => button.addEventListener('click', () => extendWorkshopPlan(button.dataset.workshopExtendPlan, Number(button.dataset.workshopExtendHours))));
   root.querySelector('[data-workshop-detail-form]')?.addEventListener('submit', saveWorkshopDetailForm);
-  root.querySelector('[data-workshop-open-job]')?.addEventListener('click', event => openWorkshopVehicleJob(event.currentTarget.dataset.workshopOpenJob, workshopLoadPlans().find(entry => entry.id === workshopState().selectedPlanId)?.stage || workshopState().stage));
+  root.querySelector('[data-workshop-open-job]')?.addEventListener('click', event => {
+    const selectedPlan = workshopLoadPlans().find(entry => entry.id === workshopState().selectedPlanId);
+    openWorkshopVehicleJob(event.currentTarget.dataset.workshopOpenJob, selectedPlan?.stage || workshopState().stage, selectedPlan?.id || '');
+  });
   root.querySelector('[data-workshop-open-vehicle]')?.addEventListener('click', event => openVehicleModal(event.currentTarget.dataset.workshopOpenVehicle));
   root.querySelectorAll('[data-workshop-start-plan]').forEach(button => button.addEventListener('click', event => {
     event.preventDefault();
@@ -3959,9 +3990,9 @@ async function returnWorkshopPlanToUnallocated(planId = '') {
   workshopState().highlightVehicleKey = '';
   if (stoppage) {
     offerSalespersonChangeEmail(vehicle, {
-      title: `${pmbStageLabel(entry.stage)} stoppage`,
-      subject: 'PDC workshop stoppage',
-      details: [`The vehicle was returned to PMB Unallocated with this stoppage: ${result.reason}.`, `The ${pmbStageLabel(entry.stage)} job remains open.`],
+      title: `${pmbStageLabel(entry.stage)} STOPPAGE`,
+      subject: 'PDC workshop STOPPAGE',
+      details: [`The vehicle was returned to PMB Unallocated with this STOPPAGE: ${result.reason}.`, `The ${pmbStageLabel(entry.stage)} job remains open.`],
     });
   }
   renderWorkshopPlanner();
@@ -4701,7 +4732,7 @@ async function completeWorkshopPlan(planId = '') {
       const operator = getCurrentOperatorName();
       const clearUpdates = workshopOwnedBlockClearUpdates(entry, refreshed, completedAt, operator);
       if (Object.keys(clearUpdates).length && !saveVehicleEdits(entry.vehicleKey, clearUpdates, { render: false })) {
-        throw new Error('The workshop stoppage could not be cleared safely.');
+        throw new Error('The workshop STOPPAGE could not be cleared safely.');
       }
       const next = { ...entry, status: 'completed', completedAt, actualHours: Number(actualHours.toFixed(2)), updatedAt: nowIsoString() };
       recordVehicleAudit(refreshed, 'Workshop actual time recorded', { stage: pmbStageLabel(entry.stage), estimatedHours: entry.hours, actualHours: next.actualHours, by: operator });
@@ -4791,7 +4822,7 @@ async function stopWorkshopPlan(planId = '') {
   if (!entry || !vehicle) return;
   if (workshopSharedModeActive()) {
     if (entry.status !== 'started') {
-      window.alert('Start the job before recording a workshop stoppage.');
+      window.alert('Start the job before recording a workshop STOPPAGE.');
       return;
     }
     const reason = await workshopStoppageReasonModal(entry, vehicle);
@@ -4805,7 +4836,7 @@ async function stopWorkshopPlan(planId = '') {
   }
   if (!workshopRequireOperatorProfile()) return;
   if (entry.status !== 'started') {
-    window.alert('Start the job before recording a workshop stoppage.');
+    window.alert('Start the job before recording a workshop STOPPAGE.');
     return;
   }
   const reason = await workshopStoppageReasonModal(entry, vehicle);
@@ -4814,17 +4845,17 @@ async function stopWorkshopPlan(planId = '') {
   const operator = getCurrentOperatorName();
   const next = { ...entry, status: 'stoppage', stoppageReason: reason, stoppageAt: now, updatedAt: now };
   const persisted = workshopPersistVehiclePlanAction(
-    'Record workshop stoppage',
+    'Record workshop STOPPAGE',
     workshopCascadePlans(rows.map(row => row.id === entry.id ? next : row)).rows,
     vehicle,
     workshopOwnedBlockUpdates(entry, reason, now, operator),
-    'Workshop job stoppage recorded',
+    'Workshop job STOPPAGE recorded',
     { stage: pmbStageLabel(entry.stage), reason, by: operator },
   );
   if (!persisted) return;
   offerSalespersonChangeEmail(vehicle, {
-    title: `${pmbStageLabel(entry.stage)} job stoppage`,
-    subject: 'PDC workshop stoppage',
+    title: `${pmbStageLabel(entry.stage)} job STOPPAGE`,
+    subject: 'PDC workshop STOPPAGE',
     details: [`The workshop job has stopped: ${reason}.`, `Bay ${entry.bay}${entry.assignee ? ` · Mechanic: ${entry.assignee}` : ''}.`],
   });
   renderWorkshopPlanner();
@@ -5123,7 +5154,7 @@ function openWorkshopWeeklyView(stage = '', bay = 1, anchorDate = '') {
       void moveWorkshopWeeklyPlan(planId, normalizedStage, bay, lane.dataset.workshopWeekDropDate, startMinutes, workshopDateKey(weekStart));
     });
   });
-  overlay.querySelectorAll('[data-workshop-job-vehicle]').forEach(card => card.addEventListener('dblclick', () => openWorkshopVehicleJob(card.dataset.workshopJobVehicle, normalizedStage)));
+  overlay.querySelectorAll('[data-workshop-job-vehicle]').forEach(card => card.addEventListener('dblclick', () => openWorkshopVehicleJob(card.dataset.workshopJobVehicle, normalizedStage, card.dataset.workshopPlanId || '')));
   overlay.addEventListener('click', event => { if (event.target === overlay) close(); });
   document.body.appendChild(overlay);
   document.body.classList.add('modal-open');
@@ -5136,7 +5167,7 @@ function workshopJobStageOptionsHtml(selected = '') {
 
 function workshopJobLineRowsHtml(vehicle = {}) {
   const lines = workshopResolvedJobLines(vehicle);
-  if (!lines.length) return '<div class="workshop-job-lines-empty">No AI/imported job lines are attached. Add manual time for the current bay below.</div>';
+  if (!lines.length) return '<div class="workshop-job-lines-empty">No AI/imported job lines are attached. Set the estimated time for the current bay above.</div>';
   return lines.map(line => `<div class="workshop-job-line-row" data-workshop-job-line="${escapeHtml(line.id)}">
     <span title="${escapeHtml(line.text)}">${escapeHtml(line.text)}</span>
     <label><small>Work area</small><select name="line_stage_${escapeHtml(line.id)}">${workshopJobStageOptionsHtml(line.stage)}</select></label>
@@ -5144,7 +5175,7 @@ function workshopJobLineRowsHtml(vehicle = {}) {
   </div>`).join('');
 }
 
-function openWorkshopVehicleJob(key = '', requestedStage = '') {
+function openWorkshopVehicleJob(key = '', requestedStage = '', requestedPlanId = '') {
   const vehicle = workshopVehicle(key);
   if (!vehicle) return;
   const stage = WORKSHOP_STAGE_SEQUENCE.includes(normalizePmbStage(requestedStage)) ? normalizePmbStage(requestedStage) : (normalizePmbStage(inferredPmbStage(vehicle)) || workshopState().stage);
@@ -5152,8 +5183,12 @@ function openWorkshopVehicleJob(key = '', requestedStage = '') {
   const parts = workshopPartsSummary(vehicle);
   const required = pdcRequirementDefinitions(vehicle).filter(def => pdcJobRequired(vehicle, def) && !pdcJobComplete(vehicle, def)).map(def => def.label);
   const stageLines = workshopStageJobLines(vehicle, stage);
-  const additionalHours = Number(workshopAdditionalHoursMap(vehicle)[stage] || 0);
-  const calculatedHours = workshopCalculatedStageHours(vehicle, stage);
+  const matchingPlans = workshopLoadPlans().filter(entry => entry.vehicleKey === vehicleKey(vehicle)
+    && entry.stage === stage
+    && !['completed', 'deleted', 'cancelled'].includes(entry.status));
+  const currentPlan = matchingPlans.find(entry => entry.id === requestedPlanId)
+    || (matchingPlans.length === 1 ? matchingPlans[0] : null);
+  const calculatedHours = currentPlan ? workshopClampDurationHours(currentPlan.hours) : workshopCalculatedStageHours(vehicle, stage);
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay workshop-job-overlay';
   overlay.dataset.workshopJobOverlay = 'true';
@@ -5170,12 +5205,12 @@ function openWorkshopVehicleJob(key = '', requestedStage = '') {
     </div>
     <form data-workshop-job-form data-workshop-job-key="${escapeHtml(vehicleKey(vehicle))}" data-workshop-job-stage="${escapeHtml(stage)}">
       <section class="workshop-current-stage-time">
-        <div><strong>${escapeHtml(pmbStageLabel(stage))} planned time</strong><span>${escapeHtml(calculatedHours)} hours total · ${stageLines.length} imported line${stageLines.length === 1 ? '' : 's'} allocated here</span></div>
-        <label><span>Additional manual hours for this bay</span><input type="number" name="additional_hours" min="0" step="0.25" value="${escapeHtml(additionalHours)}"></label>
+        <div><strong>${escapeHtml(pmbStageLabel(stage))} planned time</strong><span><strong data-workshop-estimated-hours-total>${escapeHtml(calculatedHours)}</strong> hours total · ${stageLines.length} imported line${stageLines.length === 1 ? '' : 's'} allocated here</span></div>
+        <label><span>Estimated hours for this bay</span><input type="number" name="estimated_hours" min="1" step="0.25" value="${escapeHtml(calculatedHours)}"></label>
       </section>
       <section class="workshop-job-lines"><header><strong>Imported job lines</strong><span>Change the work area to allocate a line elsewhere.</span></header>${workshopJobLineRowsHtml(vehicle)}</section>
       <div class="workshop-job-notes"><strong>Team notes</strong><span>${escapeHtml(teamNotesText(vehicle) || 'No additional team notes.')}</span></div>
-      <div class="edit-actions"><button class="secondary" type="button" data-workshop-job-close>Cancel</button><button class="primary" type="submit">Save job allocation</button><button class="small-button" type="button" data-workshop-job-full-vehicle="${escapeHtml(vehicleKey(vehicle))}">Open full vehicle</button></div>
+      <div class="edit-actions"><button class="secondary" type="button" data-workshop-job-close>Cancel</button><button class="primary" type="submit">Save estimated time / allocation</button><button class="small-button" type="button" data-workshop-job-full-vehicle="${escapeHtml(vehicleKey(vehicle))}">Open full vehicle</button></div>
     </form>
   </section>`;
   const close = () => {
@@ -5189,12 +5224,33 @@ function openWorkshopVehicleJob(key = '', requestedStage = '') {
     close();
     openVehicleModal(vehicleKeyValue);
   });
-  overlay.querySelector('[data-workshop-job-form]')?.addEventListener('submit', event => {
+  const estimatedHoursInput = overlay.querySelector('[name="estimated_hours"]');
+  const estimatedHoursTotal = overlay.querySelector('[data-workshop-estimated-hours-total]');
+  estimatedHoursInput?.addEventListener('input', () => {
+    const value = Number(estimatedHoursInput.value);
+    if (estimatedHoursTotal && Number.isFinite(value)) estimatedHoursTotal.textContent = String(value);
+  });
+  overlay.querySelector('[data-workshop-job-form]')?.addEventListener('submit', async event => {
     event.preventDefault();
     if (!workshopRequireOperatorProfile()) return;
     const form = event.currentTarget;
     const data = new FormData(form);
     const currentStage = normalizePmbStage(form.dataset.workshopJobStage);
+    const requestedHours = Number(data.get('estimated_hours'));
+    if (!Number.isFinite(requestedHours) || requestedHours < 1) {
+      window.alert('Estimated time must be at least 1 hour. No workshop time was changed.');
+      return;
+    }
+    const nextHours = workshopClampDurationHours(requestedHours);
+    if (workshopSharedModeActive()) {
+      if (!currentPlan) {
+        window.alert('This booking could not be identified uniquely, so its estimated time was not changed. Reload the planner and open the job again.');
+        return;
+      }
+      const result = await workshopDispatchSharedAction('cascadeSchedule', workshopManualDurationSharedPayload(currentPlan, nextHours));
+      if (result?.ok === true) close();
+      return;
+    }
     const assignments = workshopJobLineAssignments(vehicle);
     const lineRows = workshopImportedJobLines(vehicle);
     lineRows.forEach(line => {
@@ -5206,8 +5262,6 @@ function openWorkshopVehicleJob(key = '', requestedStage = '') {
       };
     });
     const additionalMap = workshopAdditionalHoursMap(vehicle);
-    const additionalHoursValue = Number(data.get('additional_hours') || 0);
-    additionalMap[currentStage] = Number.isFinite(additionalHoursValue) ? Math.max(0, additionalHoursValue) : 0;
     const hoursMap = workshopEstimatedHoursMap(vehicle);
     const stageTotals = {};
     Object.values(assignments).forEach(assignment => {
@@ -5215,10 +5269,17 @@ function openWorkshopVehicleJob(key = '', requestedStage = '') {
       if (!WORKSHOP_STAGE_SEQUENCE.includes(lineStage)) return;
       stageTotals[lineStage] = Number(stageTotals[lineStage] || 0) + Number(assignment.hours || 0);
     });
+    const manualAllocation = workshopManualDurationAllocation(nextHours, stageTotals[currentStage] || 0);
+    if (!manualAllocation) {
+      window.alert(`Estimated time cannot be less than the ${Number(stageTotals[currentStage] || 0)} imported hours allocated to this bay. No workshop time was changed.`);
+      return;
+    }
+    additionalMap[currentStage] = manualAllocation.additional;
     WORKSHOP_STAGE_SEQUENCE.forEach(workArea => {
       const total = Number(stageTotals[workArea] || 0) + Number(additionalMap[workArea] || 0);
       if (total > 0) hoursMap[workArea] = workshopClampDurationHours(total);
     });
+    hoursMap[currentStage] = manualAllocation.total;
     const updatedPlans = workshopLoadPlans().map(entry => entry.vehicleKey === vehicleKey(vehicle) && entry.status !== 'completed' && Number(hoursMap[entry.stage]) > 0
       ? { ...entry, hours: workshopClampDurationHours(hoursMap[entry.stage]), updatedAt: nowIsoString() }
       : entry);
@@ -5318,6 +5379,8 @@ if (typeof module !== 'undefined' && module.exports) {
     workshopClampLineHours,
     workshopClampStartMinutes,
     workshopClampDurationHours,
+    workshopManualDurationAllocation,
+    workshopManualDurationSharedPayload,
     workshopIntervalsOverlap,
     workshopAvailabilityWindowsForDate,
     workshopBreakWindowsForDate,

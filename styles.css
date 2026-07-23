@@ -11974,6 +11974,10 @@ select[name="pdcLocation"]:focus,
 #parts .parts-filter-chip.is-active { border-color: #2563eb; background: #dbeafe; color: #1e3a8a; box-shadow: inset 0 -2px 0 #2563eb; }
 #parts .parts-compact-toolbar { display: grid; grid-template-columns: minmax(280px, 1fr) 180px; align-items: end; padding: 5px 7px; }
 #parts .parts-search-field { min-width: 0; }
+#parts .parts-stoppage-picker { display: flex; align-items: end; gap: 8px; margin: 6px 0; padding: 7px; border: 1px solid #fca5a5; border-radius: 6px; background: #fff7f7; }
+#parts .parts-stoppage-picker label { display: grid; flex: 1; gap: 4px; min-width: 0; }
+#parts .parts-stoppage-picker select { width: 100%; min-height: 32px; }
+#parts .parts-stoppage-picker > span { color: #64748b; font-size: .72rem; }
 #parts .parts-table-wrap.parts-queue-wrap { overflow-x: auto !important; overflow-y: visible !important; }
 #parts .parts-queue-table { width: 100%; min-width: 1480px; table-layout: fixed; }
 #parts .parts-queue-table th:nth-child(1), #parts .parts-queue-table td:nth-child(1) { width: 4% !important; }

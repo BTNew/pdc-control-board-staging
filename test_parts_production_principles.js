@@ -49,7 +49,7 @@ code += String.raw`
   const issuedStoppage = { ...basePartsVehicle, pdcCompleteParts: true, pdcPartsStoppage: true, pdcPartsStoppageReason: 'Incorrect parts supplied' };
   assert(partsDepartmentStatus(issuedStoppage) === 'stoppage', 'Parts STOPPAGE must restore an issued vehicle to the Parts screen');
   app.quickFilter = 'partsstoppage';
-  assert(quickFilterLabel() === 'Parts Stoppage vehicles', 'Parts stoppage quick filter should have a dashboard table heading');
+  assert(quickFilterLabel() === 'Parts STOPPAGE vehicles', 'Parts STOPPAGE quick filter should have a dashboard table heading');
   app.quickFilter = 'batchmatched';
 
   const partsDef = PDC_JOB_BY_KEY.get('parts');
@@ -98,13 +98,14 @@ code += String.raw`
   const ordered = { ...basePartsVehicle, id: 'parts-ordered', stock: '22334455', batch: '22334455', pdcPartsOrdered: true, pdcPartsWorstEta: localDateValue(11) };
   const overdue = { ...basePartsVehicle, id: 'parts-overdue', stock: '33445566', batch: '33445566', pdcPartsOrdered: true, pdcPartsWorstEta: localDateValue(-15) };
   const stoppedAfterIssue = { ...issuedStoppage, id: 'parts-issued-stop', stock: '44556677', batch: '44556677' };
-  app.data = [basePartsVehicle, issued, received, ordered, overdue, stoppedAfterIssue];
+  const miscAcc = { ...basePartsVehicle, id: 'parts-misc', stock: '55667788', batch: '55667788', pdcPartsMiscAcc: true };
+  app.data = [basePartsVehicle, issued, received, ordered, overdue, stoppedAfterIssue, miscAcc];
   elementFor('#parts-search').value = 'Sales Person';
   app.partsOperationalFilter = 'notordered';
   assert(partsDepartmentRows().length === 0, 'Parts search must not match salesperson/staff fields');
 
   elementFor('#parts-search').value = '';
-  assert(partsDepartmentRows().length === 1, 'Parts Not Ordered must show only active not-ordered vehicles');
+  assert(partsDepartmentRows().length === 2, 'Parts Not Ordered must keep both ordinary and Misc Acc active rows reachable');
   app.partsOperationalFilter = 'ordered';
   assert(partsDepartmentRows().length === 2, 'Parts Ordered must show active ordered vehicles and exclude issued vehicles');
   app.partsOperationalFilter = 'overdue';
@@ -115,7 +116,7 @@ code += String.raw`
   renderPartsHome();
   const partsHtml = elementFor('#parts-home-content').innerHTML;
   const partsSummaryHtml = elementFor('#parts-summary-grid').innerHTML;
-  for (const label of ['Parts Not Ordered', 'Parts Ordered', 'Parts Overdue', 'Parts Stoppage']) assert(partsSummaryHtml.includes(label), 'Parts page missing top box ' + label);
+  for (const label of ['Parts Not Ordered', 'Parts Ordered', 'Parts Overdue', 'Parts STOPPAGE']) assert(partsSummaryHtml.includes(label), 'Parts page missing top box ' + label);
   for (const label of ['Parts required', 'Parts received', 'JITA ordered', 'Ready for workshop']) assert(!partsSummaryHtml.includes(label), 'Parts page must remove obsolete top box ' + label);
   assert(!/<th>Sales<\/th>/.test(partsHtml), 'Parts page must not render a Sales column');
   assert(!partsHtml.includes('Sales Person'), 'Parts page must not render salesperson names');
@@ -138,6 +139,12 @@ code += String.raw`
   assert(etaHtml.indexOf('Parts ETA</th>') < etaHtml.indexOf('ETA counter</th>'), 'ETA counter must sit immediately to the right of Parts ETA');
   assert(etaHtml.includes('+11 Days') && etaHtml.includes('parts-eta-countdown positive'), 'Parts ETA row must render the green positive counter');
   assert(etaHtml.includes('Open vehicle'), 'Parts rows must keep the vehicle action visible');
+  app.data = [issued];
+  app.partsOperationalFilter = 'stoppage';
+  renderPartsHome();
+  const issuedPickerHtml = elementFor('#parts-home-content').innerHTML;
+  assert(issuedPickerHtml.includes('Add issued vehicle to Parts STOPPAGE'), 'Parts STOPPAGE must provide a manual issued-vehicle picker');
+  assert(issuedPickerHtml.includes('data-parts-issued-stoppage-vehicle'), 'The issued-vehicle picker must remain available even when no stopped rows exist');
   let mailtoHref = '';
   window.prompt = () => 'Parts';
   Object.defineProperty(window.location, 'href', { set(value) { mailtoHref = String(value); }, get() { return mailtoHref; }, configurable: true });
@@ -157,6 +164,12 @@ code += String.raw`
   renderAll = () => {};
   populateFilters = () => {};
   window.alert = message => { throw new Error('Unexpected alert: ' + message); };
+  app.data = [issued];
+  window.prompt = () => 'Incorrect part supplied';
+  markVehiclePartsStoppage(vehicleKey(issued));
+  const issuedAfterStop = selectedVehicle(vehicleKey(issued));
+  assert(issuedAfterStop.pdcCompleteParts === true, 'Recording Parts STOPPAGE must preserve issued/completed state');
+  assert(partsDepartmentStatus(issuedAfterStop) === 'stoppage', 'A newly stopped issued row must return under Parts STOPPAGE');
   const qcPendingVehicle = { ...basePartsVehicle, pdcLocation: 'PMB', manualLocation: 'PMB', pmbStage: '', pdcCompleteParts: true };
   const qcPendingIssues = vehicleRftGateIssues(qcPendingVehicle);
   assert(qcPendingIssues.includes('QC sign-off required'), 'Unallocated vehicles must wait for final QC before RFT');

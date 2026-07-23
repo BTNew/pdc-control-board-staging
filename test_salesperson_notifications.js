@@ -15,9 +15,9 @@ assert.ok(app.includes('data-email-vehicle-update'), 'Vehicle detail must expose
 assert.ok(app.includes('Workshop / bay history:'), 'Status email must include workshop and bay history');
 assert.ok(app.includes('Parts ETA:'), 'Status email must include Parts ETA when Parts is outstanding');
 assert.ok(app.includes("title: eta ? 'Parts ETA updated' : 'Parts ETA cleared'"), 'Parts ETA updates must offer a salesperson email');
-assert.ok(app.includes("title: 'Parts stoppage recorded'"), 'Parts stoppages must offer a salesperson email');
+assert.ok(app.includes("title: 'Parts STOPPAGE recorded'"), 'Parts STOPPAGEs must offer a salesperson email');
 assert.ok(app.includes("title: 'Parts completed'"), 'Parts completion must offer a salesperson email');
-assert.ok(app.includes("subject: 'PDC stoppage update'"), 'Production stoppages must offer a salesperson email');
+assert.ok(app.includes("subject: 'PDC STOPPAGE update'"), 'Production STOPPAGEs must offer a salesperson email');
 assert.ok(app.includes("subject: 'PDC work completed'"), 'PDC job completions must offer a salesperson email');
 assert.ok(app.includes("title: 'Vehicle completed and collected'"), 'Completed/collected vehicles must offer a salesperson email');
 assert.ok(app.includes('salespersonForVehicle(vehicle)?.email'), 'Salesperson directory email lookup must take priority over the fallback');
