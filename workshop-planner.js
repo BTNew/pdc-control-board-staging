@@ -971,8 +971,11 @@ function workshopSelectPlanForDetail(planId = '') {
 function workshopVehicle(key = '') {
   const cleanKey = String(key || '').trim();
   if (!cleanKey) return null;
-  const local = typeof selectedVehicle === 'function' ? selectedVehicle(cleanKey) : null;
-  if (local || !workshopSharedModeActive()) return local;
+  if (!workshopSharedModeActive()) {
+    return typeof selectedVehicle === 'function' ? selectedVehicle(cleanKey) : null;
+  }
+  // Shared mode is fail-closed: browser-local vehicle/customer/note records
+  // cannot supplement or replace the authoritative scoped snapshot.
   const snapshot = window.__workshopDataService?.getLastSnapshot?.();
   const vehicles = Array.isArray(snapshot?.vehicles) ? snapshot.vehicles : [];
   const matches = vehicles.filter(vehicle => [vehicle.id, vehicle.stock_number, vehicle.permanent_vehicle_id]

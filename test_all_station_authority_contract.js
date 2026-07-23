@@ -2,6 +2,7 @@
 const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
+const vm = require('vm');
 const root = __dirname;
 const read = name => fs.readFileSync(path.join(root, name), 'utf8');
 const app = read('app.js');
@@ -45,6 +46,22 @@ assert(app.includes('workshopEligibilityRevisionPending = true') && app.includes
 assert(app.includes("if (app.workshopEligibilityState !== 'connected') return []"), 'disconnected Control Board must not consume stale candidates');
 assert(planner.includes('WORKSHOP_ELIGIBILITY_RUNTIME.workshopCanonicalEligibility'), 'planner must apply the canonical candidate contract');
 assert(planner.includes("stock: vehicle.stock_number || ''") && planner.includes("client: ''"), 'shared snapshot candidates must populate safe planner identity fields while discarding customer aliases');
+const workshopVehicleSource = planner.slice(planner.indexOf('function workshopVehicle('), planner.indexOf('// Looks up a vehicle', planner.indexOf('function workshopVehicle(')));
+assert(workshopVehicleSource.includes('if (!workshopSharedModeActive())') && !workshopVehicleSource.includes('if (local || !workshopSharedModeActive())'), 'shared planner lookup must never prefer browser-local vehicles');
+let localLookupCount = 0;
+const sharedLookupContext = {
+  window: { __workshopDataService: { getLastSnapshot: () => ({
+    vehicles: [{ id: 'shared-id', stock_number: 'SAFE-STOCK', permanent_vehicle_id: 'SAFE-PERM' }],
+    work_items: [],
+  }) }, __activeWorkshopPlannerStage: 'HOIST' },
+  workshopSharedModeActive: () => true,
+  selectedVehicle: () => { localLookupCount += 1; return { id: 'shared-id', customer: 'LOCAL-CUSTOMER-SENTINEL', notes: 'LOCAL-NOTES-SENTINEL' }; },
+  workshopSnapshotVehicleToPlannerRow: vehicle => ({ id: vehicle.id, stock: vehicle.stock_number, client: '', customer: '', customerName: '', notes: '' }),
+  result: null,
+};
+vm.runInNewContext(`${workshopVehicleSource}\nresult = workshopVehicle('shared-id');`, sharedLookupContext);
+assert.strictEqual(localLookupCount, 0, 'shared lookup touched selectedVehicle/browser-local authority');
+assert.deepStrictEqual(JSON.parse(JSON.stringify(sharedLookupContext.result)), { id: 'shared-id', stock: 'SAFE-STOCK', client: '', customer: '', customerName: '', notes: '' }, 'shared lookup did not return only the sanitized snapshot row');
 assert(corrective.match(/get_station_workshop_snapshot[\s\S]*workshop_station_eligibility\(v_stage\)/), 'station RPC must use canonical eligibility');
 assert(corrective.match(/get_workshop_eligibility_snapshot[\s\S]*workshop_station_eligibility\(s\.code\)/), 'Control Board RPC must use canonical eligibility');
 assert(migration.includes("in('PMB','YH')") && migration.includes("='IT'"), 'database eligibility must implement PMB/YH/IT rules');
