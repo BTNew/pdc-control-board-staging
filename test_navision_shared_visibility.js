@@ -19,6 +19,7 @@ assert.ok(sql.includes("'stock_number'") && sql.includes("'toyota_order_number'"
 assert.ok(!sql.includes("'customer'") && !sql.includes("'vin'") && !sql.includes("'normalized_data',") && !sql.includes("'raw_evidence'"), 'restricted output excludes customer, VIN and full source payloads');
 assert.ok(!/\b(insert|update|delete)\s+(into\s+)?public\.vehicles\b/.test(sql), 'visibility migration does not mutate operational vehicle authority');
 assert.ok(sql.includes('navision_backend_revision_approved_read'), 'all approved sessions can receive the revision-only realtime signal');
+assert.ok(sql.includes('select id from selected order by id desc limit 1') && !sql.includes('max(id)'), 'UUID pagination cursor uses deterministic ordering instead of unsupported max(uuid)');
 
 assert.ok(app.includes('async function loadSharedNavisionVisibleRows('), 'UI loads shared imports from the restricted RPC');
 assert.ok(app.includes("state: 'Shared Navision'"), 'shared imported rows are visibly identified and read-only');

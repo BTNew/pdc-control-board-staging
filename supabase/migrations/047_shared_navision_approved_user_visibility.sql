@@ -100,7 +100,7 @@ begin
     ), '[]'::jsonb),
     'has_more', (select count(*) > v_page_size from page),
     'next_record_id', case when (select count(*) > v_page_size from page)
-      then (select max(id) from selected)
+      then (select id from selected order by id desc limit 1)
       else null
     end,
     'authority', 'shared_navision_backend_read_only',
