@@ -2181,13 +2181,21 @@ function workshopTechnicianIsOnLeave(technicianId = '', dateValue = new Date()) 
   return dates.includes(workshopDateKey(dateValue));
 }
 
-function workshopNewBookingValidation(entry = {}) {
+function workshopNewBookingValidation(entry = {}, now = null) {
   if (!workshopConfigurationAllowsNewScheduling()) return { ok: false, error: 'configuration_unavailable' };
   const start = parseIsoTimestamp(entry.startAt || '');
   if (!start) return { ok: false, error: 'invalid_start' };
   const requestedDurationMinutes = Math.round(Number(entry.hours ?? workshopDefaultBookingHours()) * 60);
   if (!Number.isFinite(requestedDurationMinutes) || requestedDurationMinutes < 60) {
     return { ok: false, error: 'minimum_duration', minimumMinutes: 60 };
+  }
+  const referenceNow = now instanceof Date ? new Date(now) : now ? new Date(now) : null;
+  if (referenceNow && !Number.isNaN(referenceNow.getTime())) {
+    referenceNow.setSeconds(0, 0);
+    const status = cleanNavisionText(entry.status || 'planned').toLowerCase();
+    if (['queued', 'planned'].includes(status) && start < referenceNow) {
+      return { ok: false, error: 'past_start', now: referenceNow.toISOString() };
+    }
   }
   if (workshopIsClosureDate(start)) return { ok: false, error: 'closure_date', date: workshopDateKey(start) };
   if (!workshopIsConfiguredWorkingDay(start)) return { ok: false, error: 'non_working_day', date: workshopDateKey(start) };
@@ -2230,11 +2238,13 @@ function workshopRequireSchedulableCandidate(entry = {}) {
     if (typeof window !== 'undefined' && typeof window.alert === 'function') window.alert('This work type does not have a Workshop Planner. No scheduling change was made.');
     return false;
   }
-  const result = workshopNewBookingValidation(entry);
+  const validationNow = typeof nowIsoString === 'function' ? parseIsoTimestamp(nowIsoString()) : new Date();
+  const result = workshopNewBookingValidation(entry, validationNow || new Date());
   if (result.ok) return true;
   const messages = {
     configuration_unavailable: 'Shared planner configuration is loading, unavailable, or invalid. New scheduling is blocked until valid shared settings are confirmed.',
     invalid_start: 'Choose a valid workshop start date and time.',
+    past_start: 'Workshop jobs cannot be placed in the past. Choose the current or a future time.',
     minimum_duration: 'Workshop Planner bookings must be at least 60 minutes.',
     closure_date: 'That date is configured as a workshop closure and cannot accept a new booking.',
     non_working_day: 'That date is not part of the configured working week.',
@@ -2923,8 +2933,7 @@ function workshopPlanChipHtml(entry = {}, dateKey = '', rows = workshopLoadPlans
   if (!segment) return '';
   const left = (segment.start / WORKSHOP_PLANNER_CONFIG.dayLengthMinutes) * 100;
   const width = ((segment.end - segment.start) / WORKSHOP_PLANNER_CONFIG.dayLengthMinutes) * 100;
-  const actualBay = pmbBayNumber(vehicle, entry.stage);
-  const started = Number(actualBay) === Number(entry.bay);
+  const started = String(entry.status || '').toLowerCase() === 'started';
   const blocked = isPdcBlocked(vehicle);
   const overtime = workshopEntryIsOvertime(entry);
   const assigneeConflict = workshopEntryHasAssigneeConflict(entry, rows);
@@ -3159,8 +3168,7 @@ function workshopDetailHtml(entry = null) {
   }
   const start = parseIsoTimestamp(entry.startAt || '');
   const localValue = start ? `${workshopDateKey(start)}T${workshopPad(start.getHours())}:${workshopPad(start.getMinutes())}` : '';
-  const actualBay = pmbBayNumber(vehicle, entry.stage);
-  const started = Number(actualBay) === Number(entry.bay);
+  const started = String(entry.status || '').toLowerCase() === 'started';
   const completed = entry.status === 'completed';
   const stopped = entry.status === 'stoppage';
   const overtime = workshopEntryIsOvertime(entry);
@@ -3417,6 +3425,7 @@ function renderWorkshopPlanner() {
         <div class="workshop-side-list">${queueBatch.visible.map(vehicle => workshopQueueCardHtml(vehicle, stage, dateKey, plans)).join('') || '<div class="workshop-empty">No outstanding requirements in this department.</div>'}${workshopIncrementalLoadMoreHtml('queue', queueBatch)}</div>
       </aside>
       <section class="workshop-timeline-scroll">
+        <div class="workshop-scroll-cue" role="note">Swipe or scroll schedule horizontally →</div>
         <div class="workshop-timeline">
           <div class="workshop-time-header"><div class="workshop-bay-label"><strong>${escapeHtml(`${pmbStageLabel(stage)} bays`)}</strong><span>${escapeHtml(`${workshopStageBayCount(stage)} physical bay${workshopStageBayCount(stage) === 1 ? '' : 's'}`)}</span></div><div class="workshop-time-axis">${workshopTimeAxisHtml()}</div></div>
           <div class="workshop-now-line" data-workshop-now-line hidden><span>Now</span></div>
