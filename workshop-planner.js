@@ -4160,11 +4160,9 @@ async function extendWorkshopPlan(planId = '', additionalHours = 0) {
   return true;
 }
 
-// Section 2 fix: a vehicle is allowed to be scheduled in multiple
-// departments at different times. This must only warn when the candidate's
-// proposed time window actually overlaps another department's booking for
-// the same vehicle - never merely because another department also has a
-// booking for this vehicle at some other (non-overlapping) time.
+// A vehicle may have work in multiple departments, but active time windows
+// are authoritative and may never overlap. Half-open intervals keep exact
+// back-to-back bookings valid.
 function workshopOtherDepartmentOverlaps(candidate = {}, rows = []) {
   if (!candidate.vehicleKey) return [];
   const candidateStart = workshopEntryStart(candidate).getTime();
@@ -4172,7 +4170,6 @@ function workshopOtherDepartmentOverlaps(candidate = {}, rows = []) {
   return rows.filter(row => {
     if (row.id === candidate.id) return false;
     if (row.vehicleKey !== candidate.vehicleKey) return false;
-    if (row.stage === candidate.stage) return false;
     if (row.status === 'completed' || row.status === 'deleted') return false;
     const rowStart = workshopEntryStart(row).getTime();
     const rowEnd = workshopEntryEnd(row).getTime();
@@ -4190,7 +4187,8 @@ function workshopConfirmOtherDepartmentPlans(candidate = {}, rows = []) {
     const place = `Bay ${workshopPad(row.bay)}`;
     return `• ${pmbStageLabel(row.stage)} · ${place} · ${whenLabel}`;
   }).join('\n');
-  return window.confirm(`This vehicle's requested time overlaps another department's booking for the same vehicle:\n\n${details}\n\nContinue with the ${pmbStageLabel(candidate.stage)} booking?`);
+  window.alert(`This vehicle already has an active booking in the requested time window:\n\n${details}\n\nChoose a back-to-back or non-overlapping time. No booking was changed.`);
+  return false;
 }
 
 async function workshopScheduleSharedNewBooking({

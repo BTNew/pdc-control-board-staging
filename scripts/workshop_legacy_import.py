@@ -60,6 +60,7 @@ from workshop_vehicle_reference_artifact import (
 
 STAGING_PROJECT_REF = 'cdsmnqxtyyoeoznmbidd'
 LEGACY_IMPORT_SOURCE = 'legacy_migration'
+WORKSHOP_LEGACY_DIRECT_APPLY_DISABLED = True
 VEHICLE_IDENTITY_EXPORT_RPC = 'export_workshop_legacy_vehicle_identities'
 VEHICLE_IDENTITY_EXPORT_MAX_PAGE_SIZE = 500
 
@@ -832,6 +833,11 @@ def run_import(
         legacy_reference_rollback=vehicle_export_rollback,
         logger=logger,
     )
+    if apply and WORKSHOP_LEGACY_DIRECT_APPLY_DISABLED:
+        raise RuntimeError(
+            'Direct Workshop Planner legacy apply is disabled. Regenerate an operational preview '
+            'and apply bookings only through protected runtime RPCs.'
+        )
     request_fingerprint = _import_request_fingerprint(extract, reference, buckets)
     if apply:
         # Serialize identical requests. If the first caller committed but its

@@ -396,13 +396,11 @@ console.log('Workshop planner shared-mode integration seam checks passed');
     '12c a booking tomorrow in another department must not warn for today',
   );
 
-  // 12d: bookings in the SAME stage are never a "cross-department" concern,
-  // even if they overlap in time (that is the same-bay/technician conflict
-  // path, handled separately by workshopHasConflict).
-  assert.deepStrictEqual(
-    planner.workshopOtherDepartmentOverlaps(fitting0800to1100, [fitting0800to1100, sameStage0900]),
-    [],
-    '12d same-stage bookings must not be reported as cross-department overlaps',
+  // 12d: the vehicle invariant also applies across two bays in the same stage.
+  assert.strictEqual(
+    planner.workshopOtherDepartmentOverlaps(fitting0800to1100, [fitting0800to1100, sameStage0900]).length,
+    1,
+    '12d same-vehicle overlap in another bay of the same stage must be rejected',
   );
 
   // 12e: a different vehicle's overlapping booking must never be reported
@@ -413,29 +411,28 @@ console.log('Workshop planner shared-mode integration seam checks passed');
     '12e another vehicle\'s overlapping booking must not be attributed to this vehicle',
   );
 
-  // 12f: workshopConfirmOtherDepartmentPlans must call window.confirm only
-  // when a real overlap exists, and must not call it for the valid
-  // sequential case.
+  // 12f: valid sequential work proceeds silently; a real overlap is an
+  // authoritative rejection and cannot be confirmed through.
   {
-    let confirmCalls = 0;
-    withGlobals({ confirm: () => { confirmCalls += 1; return true; } }, () => {
+    let alertCalls = 0;
+    withGlobals({ alert: () => { alertCalls += 1; } }, () => {
       const ok = planner.workshopConfirmOtherDepartmentPlans(fitting0800to1100, [fitting0800to1100, tint1100to1300]);
       assert.strictEqual(ok, true, '12f sequential departments must be allowed without prompting');
     });
-    assert.strictEqual(confirmCalls, 0, '12f window.confirm must not be called for a valid non-overlapping sequential booking');
+    assert.strictEqual(alertCalls, 0, '12f no rejection alert may fire for a valid sequential booking');
   }
   {
-    let confirmCalls = 0;
+    let alertCalls = 0;
     let lastMessage = '';
-    withGlobals({ confirm: message => { confirmCalls += 1; lastMessage = message; return true; } }, () => {
+    withGlobals({ alert: message => { alertCalls += 1; lastMessage = message; } }, () => {
       const ok = planner.workshopConfirmOtherDepartmentPlans(fitting0800to1100, [fitting0800to1100, tint1000to1200]);
-      assert.strictEqual(ok, true, '12f confirming the overlap warning must allow the booking to proceed');
+      assert.strictEqual(ok, false, '12f a same-vehicle overlap must be rejected without an override');
     });
-    assert.strictEqual(confirmCalls, 1, '12f window.confirm must be called exactly once when a real overlap exists');
-    assert.ok(lastMessage.includes('TINT'), '12f the warning must name the exact conflicting department');
-    assert.ok(lastMessage.includes('Bay 01'), '12f the warning must name the exact conflicting bay');
+    assert.strictEqual(alertCalls, 1, '12f one rejection alert must identify the conflict');
+    assert.ok(lastMessage.includes('TINT'), '12f the rejection must name the exact conflicting department');
+    assert.ok(lastMessage.includes('Bay 01'), '12f the rejection must name the exact conflicting bay');
   }
-  console.log('PASS 12: cross-department warning only fires on real time overlap, identifies the exact department/bay/time, and never fires for valid sequential or cross-vehicle bookings');
+  console.log('PASS 12: same-vehicle overlap is rejected across stations/bays while back-to-back and cross-vehicle bookings remain valid');
 }
 
 // 13. workshopDateAtOffset: exact drag/drop time-coordinate calculation.

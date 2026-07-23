@@ -326,9 +326,9 @@ assert.ok(source.includes('name="hours" type="number" min="1"'), 'Booking inputs
 assert.ok(source.includes('Later bookings in this bay move automatically'), 'The scheduling modal must explain the approved cascade behavior');
 assert.ok(css.includes('display: block;') && css.includes('overflow: visible;') && css.includes('z-index: 6;'), 'The workshop time axis should stay visibly layered above the planner header');
 assert.ok(css.includes('min-width: 760px;') && css.includes('grid-template-columns: 160px minmax(600px, 1fr);'), 'The planner timeline should fit more of the hour labels on standard laptop widths');
-assert.ok(source.includes('function workshopConfirmOtherDepartmentPlans('), 'Cross-department planning warning is missing');
-assert.ok(source.includes('function workshopOtherDepartmentOverlaps('), 'Cross-department overlap detector is missing');
-assert.ok(source.includes("This vehicle's requested time overlaps another department's booking for the same vehicle:"), 'Cross-department warning must identify the other plan');
+assert.ok(source.includes('function workshopConfirmOtherDepartmentPlans('), 'Same-vehicle overlap guard is missing');
+assert.ok(source.includes('function workshopOtherDepartmentOverlaps('), 'Same-vehicle overlap detector is missing');
+assert.ok(source.includes('This vehicle already has an active booking in the requested time window:'), 'Same-vehicle rejection must identify the conflicting plan');
 assert.ok(!source.includes('This vehicle is also planned by another department:'), 'Cross-department warning must not fire merely because another department has any booking - only on real time overlap');
 assert.ok(app.includes('function vehicleReadyForQualityControl('), 'The final QC eligibility gate is missing');
 assert.ok(app.includes('data-qc-complete'), 'The Control Board QC row/action is missing');
@@ -362,7 +362,7 @@ for (const [startName, nextName, pathLabel] of [
   ['moveWorkshopWeeklyPlan', 'openWorkshopWeeklyView', 'weekly move'],
 ]) {
   const section = workshopFunctionSection(startName, nextName);
-  assert.ok(section.includes('workshopConfirmOtherDepartmentPlans('), `${pathLabel} must warn before persisting a plan when another department has the same vehicle planned`);
+  assert.ok(section.includes('workshopConfirmOtherDepartmentPlans('), `${pathLabel} must reject an overlapping active booking for the same vehicle before persistence`);
 }
 
 for (const [startName, nextName, pathLabel] of [
