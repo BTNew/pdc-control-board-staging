@@ -41,14 +41,15 @@ assert.match(migration, /if tg_op='UPDATE'[\s\S]*?new\.scheduled_start_at is not
 assert.match(migration, /ALTER FUNCTION public\.cascade_workshop_schedule[\s\S]*SET search_path = pg_catalog, public;/, 'Browser-callable cascade RPC must resolve pg_catalog before public');
 
 assert.ok(source.includes("const started = String(entry.status || '').toLowerCase() === 'started';"), 'Started visual class must derive from lifecycle status, not legacy bay text');
-assert.match(plannerCss, /\.workshop-plan-chip\s*\{[\s\S]*?background:\s*#dbeafe;/, 'Queued/planned cards must render blue');
+assert.match(plannerCss, /\.workshop-plan-chip\s*\{[\s\S]*?background:\s*#fecdd3;/, 'Queued/planned cards must retain the pink Planned legend color');
 assert.match(plannerCss, /\.workshop-plan-chip\.is-started\s*\{[\s\S]*?animation:\s*workshop-started-blue-pulse/, 'Started cards must visibly flash blue');
 assert.match(plannerCss, /\.workshop-plan-chip\.is-overtime\s*\{[\s\S]*?background:\s*#fecdd3/, 'Overdue cards must render red');
 assert.match(plannerCss, /prefers-reduced-motion:[\s\S]*?\.workshop-plan-chip\.is-started/, 'Started flashing must respect reduced-motion settings');
 
 assert.match(globalCss, /@media \(max-width: 820px\)[\s\S]*?\.app-shell\s*\{\s*grid-template-columns:\s*1fr\s*!important;/, 'Mobile shell must not sacrifice the viewport to a fixed left sidebar');
-assert.match(plannerCss, /@media \(max-width: 820px\)[\s\S]*?\.workshop-board-shell\s*\{\s*grid-template-columns:\s*minmax\(0, 1fr\)/, 'Mobile planner must stack its queue and timeline instead of clipping a desktop-width grid');
-assert.match(plannerCss, /@media \(max-width: 1050px\)[\s\S]*?\.workshop-board-shell\s*\{[\s\S]*?grid-template-columns:\s*minmax\(0, 1fr\)/, 'Small-laptop planner must switch to one column before its 880px internal grid clips');
+assert.match(plannerCss, /@media \(max-width: 820px\)[\s\S]*?\.workshop-board-shell\s*\{[\s\S]*?grid-template-columns:\s*minmax\(0, 1fr\)/, 'Mobile planner must stack its queue and timeline instead of clipping a desktop-width grid');
+assert.match(plannerCss, /@media \(max-width: 1300px\)[\s\S]*?\.workshop-board-shell\s*\{[\s\S]*?grid-template-columns:\s*minmax\(0, 1fr\)/, 'Small-laptop planner must switch to one column before side panels clip');
+assert.match(plannerCss, /@media \(max-width: 820px\)[\s\S]*?\.workshop-stage-tabs\s*\{\s*grid-template-columns:\s*repeat\(4, minmax\(0, 1fr\)\)/, 'Narrow-mobile station tabs must shrink below 90px instead of being clipped');
 assert.ok(source.includes('Swipe or scroll schedule horizontally'), 'Narrow planner must expose a durable horizontal-scroll instruction');
 assert.match(plannerCss, /\.workshop-scroll-cue\s*\{[\s\S]*?position:\s*sticky/, 'Planner scroll cue must stay visible while the timeline moves');
 assert.match(plannerCss, /prefers-reduced-motion:[\s\S]*?\.workshop-plan-chip\.is-overtime[\s\S]*?background:\s*#b91c1c/, 'Reduced-motion overdue cards must retain readable red contrast');
