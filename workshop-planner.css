@@ -650,10 +650,10 @@ body[data-current-view="workshop"] .content {
   left: var(--plan-left);
   width: max(var(--plan-width), 62px);
   height: 82px;
-  border: 1px solid #60a5fa;
-  border-left: 5px solid #2563eb;
+  border: 1px solid #fb7185;
+  border-left: 5px solid #e11d48;
   border-radius: 5px;
-  background: #dbeafe;
+  background: #fecdd3;
   box-shadow: 0 2px 5px rgba(15,23,42,.12);
   overflow: hidden;
   cursor: grab;
@@ -977,7 +977,7 @@ body[data-current-view="workshop"] .content {
   .workshop-detail-actions { grid-column: 1 / -1; justify-content: flex-start; }
 }
 
-@media (max-width: 1050px) {
+@media (max-width: 1300px) {
   .workshop-board-shell {
     width: 100%;
     min-width: 0;
@@ -1022,10 +1022,21 @@ body[data-current-view="workshop"] .content {
 
 @media (max-width: 820px) {
   .workshop-planner-panel { overflow: visible; }
+  .workshop-planner,
+  .workshop-planner-dedicated,
+  .workshop-planner-dedicated > [data-workshop-station-content] {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+  }
+  .workshop-planner,
+  .workshop-station-board { grid-template-columns: minmax(0, 1fr); }
   .workshop-planner-header,
   .workshop-date-summary { min-width: 0; }
   .workshop-date-controls { width: 100%; justify-content: flex-start; }
   .workshop-board-shell {
+    width: 100%;
+    max-width: 100%;
     grid-template-columns: minmax(0, 1fr);
     min-width: 0;
     overflow: visible;
@@ -1042,6 +1053,8 @@ body[data-current-view="workshop"] .content {
     overflow-x: auto;
     overscroll-behavior-inline: contain;
   }
+  .workshop-stage-tabs { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .workshop-stage-tab { min-width: 0; padding-inline: 4px; }
   .workshop-booking-search { grid-template-columns: minmax(0, 1fr); }
   .workshop-booking-search > button { justify-self: start; }
 }
