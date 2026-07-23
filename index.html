@@ -588,6 +588,29 @@
 
       <section id="backend" class="view">
         <div class="parts-home-layout backend-data-layout">
+          <section class="panel parts-home-panel key-list-review-panel" id="key-list-review-panel">
+            <div class="panel-header">
+              <div>
+                <h2>PMB key-list staging review</h2>
+                <p>Read-only review of the supplied key list, proposed locations and proposed work. Guesses remain marked for confirmation and do not create workshop bookings.</p>
+              </div>
+              <div class="panel-actions">
+                <span class="status-pill" id="key-list-review-count">Not loaded</span>
+                <button class="small-button" id="key-list-review-refresh" type="button">Refresh review</button>
+              </div>
+            </div>
+            <div class="table-toolbar advanced-toolbar wide-toolbar key-list-review-toolbar">
+              <label><span>Search</span><input id="key-list-review-search" type="search" placeholder="Key, stock, order or vehicle" /></label>
+              <label><span>Location</span><select id="key-list-review-location"><option value="">All locations</option></select></label>
+              <label><span>Evidence</span><select id="key-list-review-confidence"><option value="">All evidence levels</option><option value="authoritative_existing">Existing staging location</option><option value="high">High-confidence source evidence</option><option value="medium">Best guess — review</option><option value="low">Low-confidence guess — review</option></select></label>
+            </div>
+            <div class="parts-help-strip">
+              <strong>Staging review only:</strong>
+              <span>Customer names, salesperson details and workbook notes were not imported. IT rows have no invented ETA and remain scheduling-blocked. Ambiguous legacy Hoist records remain operationally unchanged.</span>
+            </div>
+            <div id="key-list-review-summary" class="scan-card"></div>
+            <div id="key-list-review-content" class="parts-home-content key-list-review-content"><div class="empty-state compact-empty"><strong>Sign in to load the review</strong></div></div>
+          </section>
           <section class="panel parts-home-panel backend-data-panel">
             <div class="panel-header">
               <div>
@@ -980,6 +1003,7 @@
   <script src="navision-backend-service.js?v=2026.07.23.10-staging-blocker-closure"></script>
   <script src="workshop-eligibility.js?v=2026.07.23.10-staging-blocker-closure"></script>
   <script src="app.js?v=2026.07.23.10-staging-blocker-closure"></script>
+  <script src="key-list-review.js?v=2026.07.23.11-key-list-review"></script>
   <script src="scripts/stage2b_c4_browser_export.js?v=2026.07.22.01-read-only-assessment"></script>
   <script src="staging-browser-assessment.js?v=2026.07.22.01-read-only-assessment"></script>
 </body>
