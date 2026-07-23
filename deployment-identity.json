@@ -6,10 +6,10 @@
     "twoPhysicalWorkstationAuthorityCutover": false
   },
   "artifact": "zero-data static staging site",
-  "cacheVersion": "2026.07.24.13-midpoint-visual-closure",
+  "cacheVersion": "2026.07.24.14-workshop-modal-layering",
   "deploymentMode": "exact reviewed source blobs; staging.html mapped to index.html",
   "environment": "staging",
-  "generatedAtUtc": "2026-07-23T18:36:25Z",
+  "generatedAtUtc": "2026-07-23T22:09:02Z",
   "migrationLedger": [
     "042",
     "044",
@@ -20,7 +20,7 @@
     "049"
   ],
   "releaseChecks": {
-    "aggregateTests": "75 passed, 0 failed, 2 optional fixture skips",
+    "aggregateTests": "76 passed, 0 failed, 2 optional fixture skips",
     "databasePostApply": "fresh encrypted backup and isolated restore passed; migrations 046 and 049 applied; CLI ledger repaired; 041 remains a pre-existing local-only drift item",
     "migration046049": "rollback-only 41 accepted / 64 rejected matrix passed; 8 exact legacy Hoist rows quarantined; 0 unquarantined active overlaps; past scheduling rejected",
     "authRefresh": "same-user token refresh, overlapping role lookup, demotion and stale-authority regressions passed",
@@ -28,7 +28,7 @@
     "literalArtifact": "30/30 source blobs byte-identical; staging.html mapped to index.html"
   },
   "sourceBranch": "fix/navision-import-access-success-ui",
-  "sourceCommit": "f542a9c90f05a9f79399676efeee25578fa29ef6",
+  "sourceCommit": "36350531241ca6bbd6b8659b234b43ef87659175",
   "sourceFiles": [
     {
       "deployedPath": "ai-board-advisor.js",
@@ -37,7 +37,7 @@
     },
     {
       "deployedPath": "app.js",
-      "sha256": "80d06e78f49feb4148e9c1a2348e9a4eec0affb2a0f2fb54fc1d4de345e2be37",
+      "sha256": "764d74b4ffd759992700141f4dc5df7888f5c061c1d7a4e01b8d8943a6342106",
       "sourcePath": "app.js"
     },
     {
@@ -77,7 +77,7 @@
     },
     {
       "deployedPath": "index.html",
-      "sha256": "65e5078f61b9bb6db51f2dc0b449f6b3aca145965c21c1f99eca12d024f15d5e",
+      "sha256": "2a1ff93be0b2382962325830390cd87149e877983df8e1206413d521e46627eb",
       "sourcePath": "staging.html"
     },
     {
@@ -157,7 +157,7 @@
     },
     {
       "deployedPath": "workshop-planner.css",
-      "sha256": "e4064f85e3d0d5b4f16636092f8f48a627b32ebd064f950565c8b2e81f2ee9d8",
+      "sha256": "c87c531a8d4dceb333957dfab45ee1b76acc94b77fc8661c12d679fbf6e73d0e",
       "sourcePath": "workshop-planner.css"
     },
     {
@@ -183,7 +183,7 @@
   ],
   "sourceParity": "30/30 deployment source pairs byte-identical to exact source commit",
   "sourceRepository": "BTNew/pdc-control-board",
-  "sourceTree": "3a997d6bb800d614b220593bc03ba18efe754f22",
+  "sourceTree": "5515968b6249cc3219f2a4de0caa6ce9a63b624f",
   "stagingProjectRef": "cdsmnqxtyyoeoznmbidd",
   "stagingSafety": {
     "bundledOperationalData": false,
