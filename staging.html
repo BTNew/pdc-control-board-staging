@@ -617,10 +617,11 @@
             <div class="panel-header">
               <div>
                 <h2>Back End Data</h2>
-                <p>All imported/current tracker vehicles plus rows moved to Deleted after a later Navision dump no longer contains them.</p>
+                <p>Online shared Navision imports are visible here to every approved staff account, alongside this browser's operational tracker rows.</p>
               </div>
               <div class="panel-actions">
                 <span class="status-pill" id="backend-data-count">0 current · 0 deleted</span>
+                <button class="small-button" id="backend-data-refresh-shared" type="button">Refresh shared imports</button>
                 <button class="small-button" type="button" data-view-target="import">Upload Navision dump</button>
               </div>
             </div>
@@ -635,14 +636,15 @@
                   <option value="all">All back-end data</option>
                   <option value="backend">Back end only</option>
                   <option value="active">Active / PDC Sheet</option>
+                  <option value="shared">Shared Navision imports</option>
                   <option value="deleted">Deleted</option>
                 </select>
               </label>
               <button class="small-button" id="backend-data-clear-search" type="button">Clear</button>
             </div>
             <div class="parts-help-strip">
-              <strong>Navision refresh:</strong>
-              <span>Search for a back-end-only vehicle and use Move to active to place it on the PDC Sheet. Its Navision data remains attached and future imports will not hide it.</span>
+              <strong>Online Navision visibility:</strong>
+              <span>Shared imported rows update automatically for signed-in staff and remain read-only here. Moving a vehicle into operational workflow still requires the separately approved vehicle-authority process.</span>
             </div>
             <div id="backend-data-content" class="parts-home-content backend-data-content"></div>
           </section>

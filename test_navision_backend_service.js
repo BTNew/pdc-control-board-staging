@@ -90,6 +90,10 @@ function assert(condition, message) {
   const snapshotCall = calls.at(-1);
   assert(snapshotCall.name === 'get_navision_backend_snapshot' && JSON.stringify(Object.keys(snapshotCall.params).sort()) === JSON.stringify(['p_after_record_id', 'p_after_source_record_id', 'p_dealer_code', 'p_expected_revision', 'p_page_size', 'p_source_system']), 'Snapshot parameter keys must exactly match its dealer-scoped composite-cursor SQL signature');
   assert(snapshotCall.params.p_page_size === 500, 'Read contracts must cap export/snapshot pages at 500');
+  await first.visibleSnapshot({ sourceSystem: 'microsoft_navision', dealerCode: '14450' }, { recordId: '00000000-0000-4000-8000-000000000008' }, 9999, 3);
+  const visibleSnapshotCall = calls.at(-1);
+  assert(visibleSnapshotCall.name === 'get_navision_visible_snapshot' && JSON.stringify(Object.keys(visibleSnapshotCall.params).sort()) === JSON.stringify(['p_after_record_id', 'p_dealer_code', 'p_expected_revision', 'p_page_size', 'p_source_system']), 'Approved-user visible snapshot must use the restricted opaque UUID cursor contract');
+  assert(visibleSnapshotCall.params.p_page_size === 500 && visibleSnapshotCall.params.p_after_record_id, 'Visible snapshot must cap pages and preserve its opaque cursor');
   await first.exportRecords({ sourceSystem: 'microsoft_navision', dealerCode: '37047' }, { sourceRecordId: 'NAV-9', recordId: '00000000-0000-0000-0000-000000000009' }, 9999, 3);
   const exportCall = calls.at(-1);
   assert(exportCall.name === 'export_navision_backend_records' && JSON.stringify(Object.keys(exportCall.params).sort()) === JSON.stringify(['p_after_record_id', 'p_after_source_record_id', 'p_dealer_code', 'p_expected_revision', 'p_page_size', 'p_source_system']), 'Export parameter keys must exactly match its dealer-scoped composite-cursor SQL signature');

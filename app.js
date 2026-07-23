@@ -1885,6 +1885,12 @@ const app = {
   pendingNavisionImport: null,
   navisionFileName: '',
   rejectedNavisionFingerprint: '',
+  sharedNavisionVisibleRows: [],
+  sharedNavisionVisibleState: 'idle',
+  sharedNavisionVisibleError: '',
+  sharedNavisionVisibleRevision: null,
+  sharedNavisionVisibleGeneration: 0,
+  sharedNavisionVisibleRealtime: null,
 };
 
 
@@ -2956,6 +2962,7 @@ function bindNav() {
   on($('#backend-data-search'), 'input', renderBackEndData);
   on($('#backend-data-state-filter'), 'change', renderBackEndData);
   on($('#backend-data-clear-search'), 'click', clearBackEndDataSearch);
+  on($('#backend-data-refresh-shared'), 'click', () => loadSharedNavisionVisibleRows({ force: true }));
   on($('#add-mechanic-list-button'), 'click', addMechanicFromAdminInput);
   on($('#mechanic-name-input'), 'keydown', event => { if (event.key === 'Enter') { event.preventDefault(); addMechanicFromAdminInput(); } });
   on($('#add-sublet-provider-button'), 'click', addSubletProviderFromAdminInput);
@@ -3884,6 +3891,7 @@ window.addEventListener?.('pdc-auth-ready', () => {
   const navItem = document.getElementById('nav-user-management');
   if (navItem) navItem.hidden = !(typeof backupStatusSharedModeReady === 'function' && backupStatusSharedModeReady());
   if (app.currentView === 'emailreview' && typeof renderAiBoardAdvisor === 'function') renderAiBoardAdvisor();
+  if (app.currentView === 'backend') loadSharedNavisionVisibleRows({ force: true });
 });
 
 // Independent-review remediation, finding #5 / critical blocker #5:
@@ -3944,6 +3952,19 @@ window.addEventListener?.('pdc-auth-locked', () => {
   window.__vehicleLifecycleResolverDiagnostics = [];
   window.__vehicleLifecycleActions = null;
   window.__workshopReferenceDataService = null;
+  try {
+    app.sharedNavisionVisibleGeneration += 1;
+    if (app.sharedNavisionVisibleRealtime && window.PDC_SUPABASE && typeof window.PDC_SUPABASE.removeChannel === 'function') {
+      window.PDC_SUPABASE.removeChannel(app.sharedNavisionVisibleRealtime);
+    } else if (app.sharedNavisionVisibleRealtime && typeof app.sharedNavisionVisibleRealtime.unsubscribe === 'function') {
+      app.sharedNavisionVisibleRealtime.unsubscribe();
+    }
+  } catch (_err) { /* best-effort teardown */ }
+  app.sharedNavisionVisibleRealtime = null;
+  app.sharedNavisionVisibleRows = [];
+  app.sharedNavisionVisibleRevision = null;
+  app.sharedNavisionVisibleError = '';
+  app.sharedNavisionVisibleState = 'idle';
   const navItem = document.getElementById('nav-user-management');
   if (navItem) navItem.hidden = true;
 });
@@ -11693,6 +11714,109 @@ function renderDeletedVehicles() {
   updateCollapseToggleButtons();
 }
 
+function sharedNavisionVisibleData(result = null) {
+  return result?.data?.data || result?.data || null;
+}
+
+function subscribeSharedNavisionVisibility() {
+  if (app.sharedNavisionVisibleRealtime) return;
+  const client = window.PDC_SUPABASE;
+  if (!client || typeof client.channel !== 'function') return;
+  app.sharedNavisionVisibleRealtime = client
+    .channel('pdc_navision_visible_revision')
+    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'navision_backend_revision' }, payload => {
+      const revision = Number(payload?.new?.revision);
+      if (!Number.isFinite(revision) || revision !== Number(app.sharedNavisionVisibleRevision)) {
+        loadSharedNavisionVisibleRows({ force: true });
+      }
+    })
+    .subscribe();
+}
+
+async function loadSharedNavisionVisibleRows(options = {}) {
+  const force = options.force === true;
+  if (app.sharedNavisionVisibleState === 'loading' && !force) return;
+  const service = navisionSharedBackendService();
+  if (!service || typeof service.visibleSnapshot !== 'function') {
+    app.sharedNavisionVisibleState = 'unavailable';
+    app.sharedNavisionVisibleError = 'Shared Navision visibility is unavailable in this environment.';
+    renderBackEndData();
+    return;
+  }
+
+  const generation = ++app.sharedNavisionVisibleGeneration;
+  app.sharedNavisionVisibleState = 'loading';
+  app.sharedNavisionVisibleError = '';
+  renderBackEndData();
+  try {
+    const rows = [];
+    let expectedRevision = null;
+    for (const dealerCode of ['14450', '37047']) {
+      let cursor = {};
+      let pageCount = 0;
+      let exhausted = false;
+      while (pageCount < 25) {
+        const result = await service.visibleSnapshot(
+          { sourceSystem: 'microsoft_navision', dealerCode },
+          cursor,
+          500,
+          expectedRevision,
+        );
+        if (generation !== app.sharedNavisionVisibleGeneration) return;
+        if (!result?.ok) throw new Error(result?.error || 'shared_navision_visibility_failed');
+        const data = sharedNavisionVisibleData(result) || {};
+        const revision = Number(data.revision);
+        if (!Number.isFinite(revision)) throw new Error('shared_navision_revision_missing');
+        if (expectedRevision === null) expectedRevision = revision;
+        if (revision !== expectedRevision) throw new Error('shared_navision_revision_changed');
+        (Array.isArray(data.items) ? data.items : []).forEach(item => rows.push({ ...item, dealer_code: item.dealer_code || dealerCode }));
+        pageCount += 1;
+        if (!data.has_more) {
+          exhausted = true;
+          break;
+        }
+        if (!data.next_record_id) throw new Error('shared_navision_cursor_missing');
+        cursor = { recordId: data.next_record_id };
+      }
+      if (!exhausted) throw new Error('shared_navision_page_limit_exceeded');
+    }
+    if (generation !== app.sharedNavisionVisibleGeneration) return;
+    app.sharedNavisionVisibleRows = rows;
+    app.sharedNavisionVisibleRevision = expectedRevision;
+    app.sharedNavisionVisibleState = 'ready';
+    subscribeSharedNavisionVisibility();
+  } catch (error) {
+    if (generation !== app.sharedNavisionVisibleGeneration) return;
+    console.error('Shared Navision visibility load failed', error);
+    app.sharedNavisionVisibleState = 'error';
+    app.sharedNavisionVisibleError = error?.message || 'Shared Navision imports could not be loaded.';
+  }
+  renderBackEndData();
+}
+
+function sharedNavisionBackEndRows() {
+  return (app.sharedNavisionVisibleRows || []).map(item => ({
+    vehicle: {
+      id: `shared-navision-${item.id || ''}`,
+      stock: item.stock_number || '',
+      batch: item.stock_number || '',
+      order: item.toyota_order_number || '',
+      vehicle: [item.model, item.colour].filter(Boolean).join(' · '),
+      toyotaVehicle: item.model || '',
+      colour: item.colour || '',
+      toyotaStatus: item.vehicle_status || '',
+      etaAtDealer: item.eta_to_kewdale || '',
+      importedAt: item.updated_at || '',
+      source: 'Shared Navision',
+    },
+    state: 'Shared Navision',
+    detail: `Online · dealer ${item.dealer_code || '—'} · ${item.is_current === false ? 'missing from latest upload' : 'current import'}`,
+    deletedAt: '',
+    sharedReadOnly: true,
+    backendRecordId: item.id || '',
+  }));
+}
+
 function backEndDataRows() {
   const deletedRecords = deletedVehicleRecords().map(record => ({
     vehicle: record.vehicle || {},
@@ -11706,7 +11830,7 @@ function backEndDataRows() {
     detail: [vehicle.source || (vehicle.importedAt ? 'Navision' : 'Tracker'), vehicle.pdcVisibilitySource].filter(Boolean).join(' · '),
     deletedAt: '',
   }));
-  return activeRows.concat(deletedRecords).sort((a, b) => String(displayStockNumber(a.vehicle) || vehicleKey(a.vehicle) || '').localeCompare(String(displayStockNumber(b.vehicle) || vehicleKey(b.vehicle) || ''), 'en-AU', { numeric: true }));
+  return activeRows.concat(sharedNavisionBackEndRows(), deletedRecords).sort((a, b) => String(displayStockNumber(a.vehicle) || a.vehicle?.order || vehicleKey(a.vehicle) || '').localeCompare(String(displayStockNumber(b.vehicle) || b.vehicle?.order || vehicleKey(b.vehicle) || ''), 'en-AU', { numeric: true }));
 }
 
 function filteredBackEndDataRows(rows = backEndDataRows()) {
@@ -11717,6 +11841,7 @@ function filteredBackEndDataRows(rows = backEndDataRows()) {
     if (stateFilter === 'backend' && row.state !== 'Back end only') return false;
     if (stateFilter === 'active' && row.state !== 'PDC Sheet') return false;
     if (stateFilter === 'deleted' && row.state !== 'Deleted') return false;
+    if (stateFilter === 'shared' && row.state !== 'Shared Navision') return false;
     if (!terms.length) return true;
     const vehicle = row.vehicle || {};
     const haystack = [
@@ -11849,34 +11974,55 @@ function transferBackEndVehicleToActive(key = '') {
 function renderBackEndData() {
   const host = $('#backend-data-content');
   if (!host) return;
+  const sharedRole = String(window.PDC_AUTH_CONTEXT?.role || '').trim().toLowerCase();
+  const sharedRoleApproved = ['viewer', 'operator', 'importer', 'administrator'].includes(sharedRole);
+  if (app.sharedNavisionVisibleState === 'idle' && sharedRoleApproved) loadSharedNavisionVisibleRows();
   const allRows = backEndDataRows();
   const rows = filteredBackEndDataRows(allRows);
   const pdcSheet = allRows.filter(row => row.state === 'PDC Sheet').length;
   const backEndOnly = allRows.filter(row => row.state === 'Back end only').length;
+  const shared = allRows.filter(row => row.state === 'Shared Navision').length;
   const deleted = allRows.filter(row => row.state === 'Deleted').length;
   const count = $('#backend-data-count');
-  if (count) count.textContent = `${rows.length} shown · ${pdcSheet} active · ${backEndOnly} back end only · ${deleted} deleted`;
+  if (count) count.textContent = `${rows.length} shown · ${pdcSheet} active · ${backEndOnly} local back end · ${shared} shared Navision · ${deleted} deleted`;
+  const sharedStatus = app.sharedNavisionVisibleState === 'loading'
+    ? '<div class="backend-shared-status is-loading"><strong>Loading shared Navision imports…</strong><span>Reading the approved online display view.</span></div>'
+    : app.sharedNavisionVisibleState === 'error'
+      ? `<div class="backend-shared-status is-error"><strong>Shared Navision imports could not be loaded</strong><span>${escapeHtml(app.sharedNavisionVisibleError || 'Use Refresh shared imports to try again.')}</span></div>`
+      : app.sharedNavisionVisibleState === 'ready'
+        ? `<div class="backend-shared-status is-ready"><strong>Online Navision imports visible</strong><span>${shared} shared row${shared === 1 ? '' : 's'} · revision ${escapeHtml(app.sharedNavisionVisibleRevision ?? '—')} · updates refresh automatically.</span></div>`
+        : '';
   if (!rows.length) {
-    host.innerHTML = `<div class="empty-state"><strong>No matching back-end vehicles</strong><span>${allRows.length ? 'Change the search or state filter, then try again.' : 'Upload the latest Navision dump to populate this page.'}</span></div>`;
+    host.innerHTML = `${sharedStatus}<div class="empty-state"><strong>No matching back-end vehicles</strong><span>${allRows.length ? 'Change the search or state filter, then try again.' : 'Upload the latest Navision dump to populate this page.'}</span></div>`;
     return;
   }
-  host.innerHTML = `<div class="responsive-table pdc-grid-table-wrap"><table class="data-table backend-data-table pdc-grid-table">
+  host.innerHTML = `${sharedStatus}<div class="responsive-table pdc-grid-table-wrap"><table class="data-table backend-data-table pdc-grid-table">
     <thead><tr><th>Key</th><th>Stock</th><th>Job Card</th><th>Customer</th><th>Vehicle</th><th>Status</th><th>Source / note</th><th>Updated</th><th>Actions</th></tr></thead>
     <tbody>${rows.map(row => {
       const v = row.vehicle || {};
       const key = vehicleKey(v);
       const isDeleted = row.state === 'Deleted';
       const isBackEndOnly = row.state === 'Back end only';
-      return `<tr class="${isDeleted ? 'deleted-row' : ''}">
+      const isShared = row.state === 'Shared Navision' || row.sharedReadOnly === true;
+      const stockCell = isDeleted || isShared
+        ? escapeHtml(displayStockNumber(v) || v.order || '—')
+        : `<button class="stock-link stock-button" type="button" data-open-stock="${escapeHtml(key)}">${escapeHtml(displayStockNumber(v) || v.order || '—')}</button>`;
+      const sharedAction = '<span class="badge neutral">Read only</span>';
+      const actionCell = isShared
+        ? sharedAction
+        : isBackEndOnly
+          ? `<button class="small-button primary" type="button" data-backend-activate="${escapeHtml(key)}">Move to active</button>`
+          : isDeleted ? '<span class="subtle">Locked</span>' : '<span class="badge neutral">Active</span>';
+      return `<tr class="${isDeleted ? 'deleted-row' : isShared ? 'shared-navision-row' : ''}">
         <td class="pdc-id-cell pdc-key-cell">${escapeHtml(vehicleKeyNumber(v) || '—')}</td>
-        <td class="pdc-id-cell pdc-stock-cell">${isDeleted ? escapeHtml(displayStockNumber(v) || v.order || '—') : `<button class="stock-link stock-button" type="button" data-open-stock="${escapeHtml(key)}">${escapeHtml(displayStockNumber(v) || v.order || '—')}</button>`}</td>
+        <td class="pdc-id-cell pdc-stock-cell">${stockCell}</td>
         <td class="pdc-id-cell pdc-jc-cell">${escapeHtml(vehicleJobcardNumber(v) || '—')}</td>
-        <td class="pdc-name-cell">${escapeHtml(vehicleCustomerName(v) || 'Customer TBA')}</td>
-        <td class="pdc-vehicle-cell">${escapeHtml(displayVehicle(v) || v.vehicle || v.toyotaVehicle || '')}</td>
+        <td class="pdc-name-cell">${isShared ? '<span class="subtle">Restricted online view</span>' : escapeHtml(vehicleCustomerName(v) || 'Customer TBA')}</td>
+        <td class="pdc-vehicle-cell">${escapeHtml(isShared ? (v.vehicle || v.toyotaVehicle || '') : (displayVehicle(v) || v.vehicle || v.toyotaVehicle || ''))}</td>
         <td class="pdc-status-cell"><span class="badge ${isDeleted ? 'danger' : isBackEndOnly ? 'warning' : 'neutral'}">${escapeHtml(row.state)}</span>${v.toyotaStatus ? ` <span class="subtle">${escapeHtml(v.toyotaStatus)}</span>` : ''}</td>
         <td class="pdc-note-cell">${escapeHtml(row.detail || '')}</td>
         <td>${escapeHtml(isDeleted ? (parseIsoTimestamp(row.deletedAt)?.toLocaleString('en-AU', { dateStyle: 'short', timeStyle: 'short' }) || '') : (parseIsoTimestamp(v.importedAt || v.updatedAt || '')?.toLocaleString('en-AU', { dateStyle: 'short', timeStyle: 'short' }) || ''))}</td>
-        <td class="backend-action-cell">${isBackEndOnly ? `<button class="small-button primary" type="button" data-backend-activate="${escapeHtml(key)}">Move to active</button>` : isDeleted ? '<span class="subtle">Locked</span>' : '<span class="badge neutral">Active</span>'}</td>
+        <td class="backend-action-cell">${actionCell}</td>
       </tr>`;
     }).join('')}</tbody>
   </table></div>`;
@@ -14780,6 +14926,7 @@ async function applySharedNavisionImport() {
   renderSharedNavisionPreview({ ...pending, applyResult, browserLocalSha256: afterSha256 }, true);
   updateNavisionControlStats({ parsed: pending.parsed, added: [], updated: [], unchanged: pending.parsed.vehicles, stockNumberUpdates: [] });
   updateNavisionImportButton();
+  loadSharedNavisionVisibleRows({ force: true });
 }
 
 function selectedPendingNavisionUpdateKeys(result) {
