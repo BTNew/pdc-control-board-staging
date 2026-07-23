@@ -8,7 +8,34 @@ begin;
 create extension if not exists btree_gist;
 
 -- Do not silently grandfather ambiguous active vehicle schedules. Operational
--- rows must be adjudicated separately; this migration never rewrites them.
+-- rows must be adjudicated separately; this migration never rewrites their
+-- schedule or lifecycle fields. When migration 048 is already installed (a
+-- safe staging backfill), tag only its exact legacy-Hoist quarantine so the
+-- database exclusion constraint can protect every other row. On a fresh
+-- sequential install the guard function is absent, nothing is tagged, and
+-- every overlap still fails closed.
+alter table public.workshop_bookings
+  add column if not exists legacy_ambiguity_quarantined boolean not null default false;
+
+do $$
+begin
+  if to_regprocedure('public.workshop_block_legacy_ambiguous_booking_mutation()') is not null then
+    update public.workshop_bookings b
+    set legacy_ambiguity_quarantined=true
+    where b.deleted_at is null
+      and b.status in ('queued','planned','started','stoppage')
+      and exists (select 1 from public.workshop_stages s where s.id=b.stage_id and s.code='HOIST')
+      and (
+        b.actual_end_at is not null
+        or exists (
+          select 1 from public.workshop_bookings other
+          where other.id<>b.id and other.vehicle_id=b.vehicle_id and other.stage_id=b.stage_id
+            and other.deleted_at is null and other.status in ('queued','planned','started','stoppage')
+        )
+      );
+  end if;
+end $$;
+
 do $$
 begin
   if exists (
@@ -20,6 +47,7 @@ begin
      and tstzrange(b.scheduled_start_at,b.scheduled_end_at,'[)')
          && tstzrange(a.scheduled_start_at,a.scheduled_end_at,'[)')
     where a.deleted_at is null and a.status in ('queued','planned','started','stoppage')
+      and not (a.legacy_ambiguity_quarantined and b.legacy_ambiguity_quarantined)
   ) then
     raise exception 'Existing active same-vehicle booking overlaps require adjudication before migration 046'
       using errcode='23514';
@@ -975,7 +1003,7 @@ alter table public.workshop_bookings add constraint workshop_bookings_active_veh
 exclude using gist (
   vehicle_id with =,
   tstzrange(scheduled_start_at,scheduled_end_at,'[)') with &&
-) where (deleted_at is null and status in ('queued','planned','started','stoppage'));
+) where (deleted_at is null and not legacy_ambiguity_quarantined and status in ('queued','planned','started','stoppage'));
 
 alter table public.workshop_booking_assignments drop constraint if exists workshop_assignments_active_technician_no_overlap;
 alter table public.workshop_booking_assignments add constraint workshop_assignments_active_technician_no_overlap

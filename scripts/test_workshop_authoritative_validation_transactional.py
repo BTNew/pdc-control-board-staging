@@ -10,6 +10,7 @@ psycopg2.extras.register_uuid()
 
 ROOT=pathlib.Path(__file__).resolve().parents[1]
 SQL=(ROOT/'supabase/migrations/046_workshop_authoritative_validation_and_lifecycle.sql').read_text(encoding='utf-8')
+SQL_049=(ROOT/'supabase/migrations/049_soft_launch_planner_safety.sql').read_text(encoding='utf-8')
 # Execute the migration body inside this harness's outer transaction. Never run
 # the migration's BEGIN/COMMIT wrapper here: every schema and fixture change
 # must remain rollback-only until the four source-review gates pass.
@@ -17,8 +18,7 @@ SQL_BODY=SQL.strip()
 SQL_BODY,n_begin=re.subn(r'(?im)^\s*begin;\s*','',SQL_BODY,count=1)
 SQL_BODY,n_commit=re.subn(r'(?im)\s*commit;\s*$','',SQL_BODY,count=1)
 assert n_begin==1 and n_commit==1
-PREFLIGHT=re.search(r"do \$\$\s*begin\s*if exists \([\s\S]*?before migration 046'[\s\S]*?end \$\$;",SQL,re.I).group(0)
-SQL_BODY=SQL_BODY.replace(PREFLIGHT,'',1)
+PREFLIGHT=re.search(r"do \$\$\s*begin\s*if exists \([\s\S]*?raise exception 'Existing active same-vehicle booking overlaps require adjudication before migration 046'[\s\S]*?end \$\$;",SQL,re.I).group(0)
 STAGES=['BUS_4X4','TINT','HOIST','FITTING','FABRICATION','ELECTRICAL','TYRE','PIT_INSPECTION']
 conn=psycopg2.connect(os.environ['PDC_STAGING_DATABASE_URL']); conn.autocommit=False; q=conn.cursor()
 counts={'accepted':0,'rejected':0,'stations':0,'lifecycle_valid':0,'lifecycle_invalid':0}
@@ -64,33 +64,23 @@ try:
       and tstzrange(b.scheduled_start_at,b.scheduled_end_at,'[)')&&tstzrange(a.scheduled_start_at,a.scheduled_end_at,'[)')
       where a.deleted_at is null and a.status in('queued','planned','started','stoppage')""")
     preexisting_overlap_count=q.fetchone()[0]
-    q.execute('savepoint migration_preflight')
-    try:
-        q.execute(PREFLIGHT)
-        assert preexisting_overlap_count==0
-    except psycopg2.Error as exc:
-        assert preexisting_overlap_count>0 and exc.pgcode=='23514',exc
-    finally:
-        q.execute('rollback to savepoint migration_preflight')
+    q.execute(SQL_BODY)
+    q.execute(SQL_049)
     q.execute("""select count(*) from public.workshop_bookings a join public.workshop_bookings b
       on b.vehicle_id=a.vehicle_id and b.id>a.id and b.deleted_at is null
       and b.status in('queued','planned','started','stoppage')
       and tstzrange(b.scheduled_start_at,b.scheduled_end_at,'[)')&&tstzrange(a.scheduled_start_at,a.scheduled_end_at,'[)')
       where a.deleted_at is null and a.status in('queued','planned','started','stoppage')""")
-    assert q.fetchone()[0]==preexisting_overlap_count,'preflight must never rewrite operational rows'
-    if preexisting_overlap_count:
-        q.execute("""update public.workshop_bookings set status='deleted',deleted_at=now(),
-          deleted_reason='rollback-only migration-046 matrix isolation'
-          where id in (
-            select b.id from public.workshop_bookings a join public.workshop_bookings b
-              on b.vehicle_id=a.vehicle_id and b.id>a.id and b.deleted_at is null
-             and b.status in('queued','planned','started','stoppage')
-             and tstzrange(b.scheduled_start_at,b.scheduled_end_at,'[)')&&tstzrange(a.scheduled_start_at,a.scheduled_end_at,'[)')
-            where a.deleted_at is null and a.status in('queued','planned','started','stoppage')
-          )""")
-    q.execute(SQL_BODY)
+    assert q.fetchone()[0]==preexisting_overlap_count,'migration must never rewrite operational schedule/lifecycle rows'
+    q.execute("""select count(*) from public.workshop_bookings
+      where legacy_ambiguity_quarantined and deleted_at is null
+        and status in('queued','planned','started','stoppage')""")
+    quarantined_count=q.fetchone()[0]
+    assert preexisting_overlap_count==0 or quarantined_count>0,'pre-existing overlap must be explicitly quarantined'
     q.execute(SQL_BODY)  # exact-body rerun idempotency proof inside rollback-only transaction
+    q.execute(SQL_049)   # restore the final effective 046 + 049 state after the 046 re-run
     counts['migration_reapplications']=1
+    counts['quarantined_legacy_rows']=quarantined_count
     admin_email=os.environ['PDC_STAGING_ADMIN_EMAIL'].strip().lower()
     q.execute('select id from auth.users where lower(email)=%s',(admin_email,)); admin=q.fetchone()[0]
     q.execute("select set_config('request.jwt.claims',%s,true)",(json.dumps({'sub':str(admin),'email':admin_email,'role':'authenticated'}),))
@@ -240,7 +230,15 @@ try:
     expect_ok("select public.complete_workshop_work(%s,%s,null,now(),'{}'::jsonb)",(lifecycle_booking,version(lifecycle_booking))); counts['lifecycle_valid']+=1
     expect_reject('completed_direct_start',"select public.start_workshop_work(%s,%s,now(),'{}'::jsonb)",(lifecycle_booking,version(lifecycle_booking))); counts['lifecycle_invalid']+=1
     expect_reject('completed_direct_reopen',"with changed as(update public.workshop_bookings set status='queued' where id=%s returning id) select jsonb_build_object('ok',true) from changed",(lifecycle_booking,)); counts['lifecycle_invalid']+=1
+    q.execute("""select m from generate_series(date_trunc('day',now())-interval '30 days',date_trunc('minute',now())-interval '1 hour',interval '15 minutes') m
+      where public.workshop_calendar_interval_available(m,m+interval '1 hour')
+      order by m desc limit 1""")
+    historical_slot=q.fetchone()[0]
+    q.execute("update public.workshop_bookings set scheduled_start_at=%s,scheduled_end_at=%s where id=%s",
+              (historical_slot,historical_slot+timedelta(hours=1),lifecycle_booking))
     expect_ok("select public.return_completed_work(%s,%s,'authorised reopen','{}'::jsonb)",(lifecycle_booking,version(lifecycle_booking))); counts['lifecycle_valid']+=1
+    expect_ok("select public.cancel_workshop_booking(%s,%s,'historical restore proof','{}'::jsonb)",(lifecycle_booking,version(lifecycle_booking))); counts['lifecycle_valid']+=1
+    expect_ok("select public.restore_workshop_booking(%s,%s,'{}'::jsonb)",(lifecycle_booking,version(lifecycle_booking))); counts['lifecycle_valid']+=1
     planned_booking=primary[2][1]
     expect_reject('planned_direct_complete',"select public.complete_workshop_work(%s,%s,null,now(),'{}'::jsonb)",(planned_booking,version(planned_booking))); counts['lifecycle_invalid']+=1
 
@@ -254,6 +252,10 @@ try:
     expect_reject('started_direct_cancel',"with changed as(update public.workshop_bookings set status='deleted' where id=%s returning id) select jsonb_build_object('ok',true) from changed",(queued_booking,)); counts['lifecycle_invalid']+=1
     expect_ok("select public.stop_workshop_work(%s,%s,'cancel matrix','{}'::jsonb)",(queued_booking,version(queued_booking))); counts['lifecycle_valid']+=1
     expect_ok("select public.cancel_workshop_booking(%s,%s,'stoppage cancellation','{}'::jsonb)",(queued_booking,version(queued_booking))); counts['lifecycle_valid']+=1
+
+    past_vehicle=create_vehicle(admin,'TINT','PMB')
+    expect_reject('past_create',"select public.schedule_vehicle_work(%s,1,'TINT',%s,%s,60,null,null,'{}'::jsonb)",
+                  (past_vehicle,stage_rows['TINT'][2],historical_slot),{'past_start'})
 
     # Restore revalidates current canonical eligibility and cannot revive invalid data.
     restore_booking=primary[3][1]
