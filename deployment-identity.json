@@ -6,22 +6,29 @@
     "twoPhysicalWorkstationAuthorityCutover": false
   },
   "artifact": "zero-data static staging site",
-  "cacheVersion": "2026.07.22.08-blocker-remediation",
+  "cacheVersion": "2026.07.23.10-staging-blocker-closure",
   "deploymentMode": "exact reviewed source blobs; staging.html mapped to index.html",
   "environment": "staging",
-  "generatedAtUtc": "2026-07-22T22:17:29Z",
+  "generatedAtUtc": "2026-07-23T08:50:11Z",
   "migrationLedger": [
     "042",
-    "044"
+    "044",
+    "045",
+    "047",
+    "048"
   ],
   "releaseChecks": {
-    "aggregateTests": "68 passed, 0 failed, 2 optional/environment skips",
-    "exactShaReviews": "FUNCTION, SECURITY, DATABASE/MIGRATION and UI/RELEASE APPROVE",
-    "literalArtifact": "428/428 Git blobs exact; zero mismatches",
-    "migration044": "applied atomically to guarded staging project; post-apply transactional proof passed and rolled back"
+    "aggregateTests": "73 passed, 0 failed, 2 optional fixture skips",
+    "exactShaReviews": "FUNCTION, SECURITY, DATABASE/MIGRATION and UI/RELEASE APPROVE for de224d0ebe7d894fa0090fc0a6501b11a67b55e8",
+    "migration047": "restricted approved-user shared Navision visibility; UUID cursor integration tested",
+    "migration048": "224-row apply measured 3.2s under unchanged 8s timeout; exactly four ambiguous Hoist vehicles blocked; valid non-Hoist edit and next-day carry-forward transactional proofs passed",
+    "literalArtifact": "30/30 source blobs exact; staging.html mapped to index.html",
+    "databasePostApply": "backup/restore gate passed; migrations 047 and 048 applied; ledger and runtime objects verified",
+    "workshopLifecycle": "create, move, resize, start, stop, resume and complete protected RPCs all passed transactionally",
+    "navisionTwoSessions": "Admin and Viewer sessions returned identical 237-row revision 216 snapshots; relogin persisted; restricted fields absent"
   },
-  "sourceBranch": "fix/all-station-eligibility-audit",
-  "sourceCommit": "dd011bf121d2547d5b1a303a412d334a061ce14f",
+  "sourceBranch": "fix/navision-import-access-success-ui",
+  "sourceCommit": "de224d0ebe7d894fa0090fc0a6501b11a67b55e8",
   "sourceFiles": [
     {
       "deployedPath": "ai-board-advisor.js",
@@ -30,7 +37,7 @@
     },
     {
       "deployedPath": "app.js",
-      "sha256": "fd00bd5b4c74d5229faca73cbf3fd3c7d7b5a04bf97ebbc6653fdc860cc0d8e8",
+      "sha256": "995e65c04e0a1488e40073f3643f97cca3f12fdf113b8757d0b565bbee21875a",
       "sourcePath": "app.js"
     },
     {
@@ -70,12 +77,12 @@
     },
     {
       "deployedPath": "index.html",
-      "sha256": "559a5aaf5347b07d793d3b9dd5d6986665ef40250e20d395ef169608ce6f3906",
+      "sha256": "b0be7a1c58f4f2695ccf1afcd3567cf7a40ebe325bd4be9b85bb68646d1056c4",
       "sourcePath": "staging.html"
     },
     {
       "deployedPath": "navision-backend-service.js",
-      "sha256": "576a9af22ee5a6aee41d7c37280d4d9028054903c13c3eb62bbf886ef4af3509",
+      "sha256": "08c6fd98c499feb4327f277db3396254dce39f61d70abac0894df5b289ac8c86",
       "sourcePath": "navision-backend-service.js"
     },
     {
@@ -105,7 +112,7 @@
     },
     {
       "deployedPath": "styles.css",
-      "sha256": "8d2351c51ed68e4faad157c1c74bf03ff3454f46c9da8d380e5f03cde1759080",
+      "sha256": "009f40291b794ea08b2ce37b0ad9ccbfc5a959b73e86640ac8b09f441112f290",
       "sourcePath": "styles.css"
     },
     {
@@ -145,17 +152,17 @@
     },
     {
       "deployedPath": "workshop-eligibility.js",
-      "sha256": "1b3baf18da18111fe6f4c76bb18488d589a5bd3ad98d98385be9e92ceaf5d514",
+      "sha256": "19ea6ba77817d3d9a34d2d6671bf2c6b2201588b0a6426b2802d938b9c93c31e",
       "sourcePath": "workshop-eligibility.js"
     },
     {
       "deployedPath": "workshop-planner.css",
-      "sha256": "d709c1a43a16258a2bd69f9d4aec78b274dbe399f771d67bd738b1c2582f2d53",
+      "sha256": "02884142a5338d38554195004f9d879821b23bd6d8cd1fd2b4a2650c0e3e6c9b",
       "sourcePath": "workshop-planner.css"
     },
     {
       "deployedPath": "workshop-planner.js",
-      "sha256": "71f94c36a1283b5380c8beed4ab2a9fe3332f44fed19a7039b6b651acd227b9b",
+      "sha256": "f376e6785f78984bb3721d76db0ec099abb23406ca43b99446d4c26c9cdeb212",
       "sourcePath": "workshop-planner.js"
     },
     {
@@ -176,11 +183,11 @@
   ],
   "sourceParity": "30/30 deployment source pairs byte-identical to exact source commit",
   "sourceRepository": "BTNew/pdc-control-board",
-  "sourceTree": "aa7f96652be76d3638274169556d00232b15f25c",
+  "sourceTree": "7dbdf192180b7ca72d27276b796129ed543275ad",
   "stagingProjectRef": "cdsmnqxtyyoeoznmbidd",
   "stagingSafety": {
     "bundledOperationalData": false,
-    "livePilotActive": false,
+    "livePilotActive": true,
     "mailboxMutation": false,
     "outboundActions": false,
     "productionTouched": false,

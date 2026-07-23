@@ -1,5 +1,5 @@
-const APP_VERSION = '2026.07.22.08-blocker-remediation';
-const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.07.22.08-blocker-remediation';
+const APP_VERSION = '2026.07.23.10-staging-blocker-closure';
+const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.07.23.10-staging-blocker-closure';
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
 // constant intentionally names only the production ref, never the
@@ -1885,6 +1885,12 @@ const app = {
   pendingNavisionImport: null,
   navisionFileName: '',
   rejectedNavisionFingerprint: '',
+  sharedNavisionVisibleRows: [],
+  sharedNavisionVisibleState: 'idle',
+  sharedNavisionVisibleError: '',
+  sharedNavisionVisibleRevision: null,
+  sharedNavisionVisibleGeneration: 0,
+  sharedNavisionVisibleRealtime: null,
 };
 
 
@@ -2956,6 +2962,7 @@ function bindNav() {
   on($('#backend-data-search'), 'input', renderBackEndData);
   on($('#backend-data-state-filter'), 'change', renderBackEndData);
   on($('#backend-data-clear-search'), 'click', clearBackEndDataSearch);
+  on($('#backend-data-refresh-shared'), 'click', () => loadSharedNavisionVisibleRows({ force: true }));
   on($('#add-mechanic-list-button'), 'click', addMechanicFromAdminInput);
   on($('#mechanic-name-input'), 'keydown', event => { if (event.key === 'Enter') { event.preventDefault(); addMechanicFromAdminInput(); } });
   on($('#add-sublet-provider-button'), 'click', addSubletProviderFromAdminInput);
@@ -3272,6 +3279,7 @@ function userManagementRowActionsHtml(row) {
       <select class="um-role-select" data-um-role-for="${email}">
         <option value="viewer">viewer</option>
         <option value="operator">controller</option>
+        <option value="importer">importer</option>
         <option value="administrator">administrator</option>
       </select>
       <button class="small-button primary" data-um-approve="${email}">Approve</button>
@@ -3283,6 +3291,7 @@ function userManagementRowActionsHtml(row) {
       <select class="um-role-select" data-um-role-for="${email}">
         <option value="viewer" ${row.role === 'viewer' ? 'selected' : ''}>viewer</option>
         <option value="operator" ${row.role === 'operator' ? 'selected' : ''}>controller</option>
+        <option value="importer" ${row.role === 'importer' ? 'selected' : ''}>importer</option>
         <option value="administrator" ${row.role === 'administrator' ? 'selected' : ''}>administrator</option>
       </select>
       <button class="small-button" data-um-change-role="${email}">Change role</button>
@@ -3882,6 +3891,7 @@ window.addEventListener?.('pdc-auth-ready', () => {
   const navItem = document.getElementById('nav-user-management');
   if (navItem) navItem.hidden = !(typeof backupStatusSharedModeReady === 'function' && backupStatusSharedModeReady());
   if (app.currentView === 'emailreview' && typeof renderAiBoardAdvisor === 'function') renderAiBoardAdvisor();
+  if (app.currentView === 'backend') loadSharedNavisionVisibleRows({ force: true });
 });
 
 // Independent-review remediation, finding #5 / critical blocker #5:
@@ -3942,6 +3952,19 @@ window.addEventListener?.('pdc-auth-locked', () => {
   window.__vehicleLifecycleResolverDiagnostics = [];
   window.__vehicleLifecycleActions = null;
   window.__workshopReferenceDataService = null;
+  try {
+    app.sharedNavisionVisibleGeneration += 1;
+    if (app.sharedNavisionVisibleRealtime && window.PDC_SUPABASE && typeof window.PDC_SUPABASE.removeChannel === 'function') {
+      window.PDC_SUPABASE.removeChannel(app.sharedNavisionVisibleRealtime);
+    } else if (app.sharedNavisionVisibleRealtime && typeof app.sharedNavisionVisibleRealtime.unsubscribe === 'function') {
+      app.sharedNavisionVisibleRealtime.unsubscribe();
+    }
+  } catch (_err) { /* best-effort teardown */ }
+  app.sharedNavisionVisibleRealtime = null;
+  app.sharedNavisionVisibleRows = [];
+  app.sharedNavisionVisibleRevision = null;
+  app.sharedNavisionVisibleError = '';
+  app.sharedNavisionVisibleState = 'idle';
   const navItem = document.getElementById('nav-user-management');
   if (navItem) navItem.hidden = true;
 });
@@ -4420,7 +4443,7 @@ function workshopEligibilityCandidateVehicle(candidate = {}) {
     sharedVehicleId: raw.id,
     stock: raw.stock_number || '', stockNumber: raw.stock_number || '',
     vin: raw.vin || '', order: raw.toyota_order_number || '', jobCardNumber: raw.job_card_number || '',
-    client: raw.customer_name || '', vehicle: [raw.make, raw.model].filter(Boolean).join(' '),
+    client: '', vehicle: [raw.make, raw.model].filter(Boolean).join(' '),
     rego: raw.registration || '', registration: raw.registration || '',
     pdcLocation: raw.current_location || '', manualLocation: raw.current_location || '',
     pmbStage: raw.pmb_stage || '', pmbBayStage: raw.pmb_bay_stage || '', pmbBay: raw.pmb_bay_number || '',
@@ -4431,7 +4454,7 @@ function workshopEligibilityCandidateVehicle(candidate = {}) {
     const def = pmbStageJobDef(WORKSHOP_ELIGIBILITY.canonicalWorkshopStage(item.work_key));
     if (def) shared.pmbJobs[def.key] = { required: item.required === true, complete: item.completed === true, completedAt: item.completed_at || '' };
   });
-  shared = { ...(local || {}), ...shared, pmbJobs: { ...(local?.pmbJobs || {}), ...shared.pmbJobs } };
+  shared = { ...shared, pmbJobs: { ...shared.pmbJobs } };
   shared.__workshopEligibility = {
     stage: candidate.stage_code,
     location: raw.current_location || '',
@@ -4458,7 +4481,7 @@ function pmbVehicleNeedsStationWork(vehicle = {}, stage = '') {
   if (statusCategory(vehicle) !== 'pmb' || !def || !WORKSHOP_CONTROL_BOARD_STATIONS.includes(normalizedStage)) return false;
   const incomplete = !pdcJobComplete(vehicle, def);
   if (!incomplete) return false;
-  return pdcJobRequired(vehicle, def) || normalizePmbStage(inferredPmbStage(vehicle)) === normalizedStage;
+  return pdcJobRequired(vehicle, def);
 }
 
 function pmbVehiclesNeedingStationWork(stage = '') {
@@ -4688,7 +4711,7 @@ function renderWorkflowBoard() {
       <summary class="incoming-bucket-title workflow-bucket-title">
         <span>${escapeHtml(label)}</span>
         <strong>${escapeHtml(countLabel)}</strong>
-        <small>Canonical Supabase candidates · PMB/YH immediate · IT ETA-restricted</small>
+        <small>Outstanding canonical requirements · PMB/YH immediate · IT ETA-restricted</small>
         <span class="workflow-bucket-actions"><button class="small-button primary" type="button" data-open-workshop-stage="${escapeHtml(stage)}">Open ${escapeHtml(label)} Planner</button></span>
       </summary>
       <div class="control-board-work-list">${rows}</div>
@@ -7902,8 +7925,7 @@ function bindControlBoardIssueActions(root = document) {
 function handleControlBoardIssueAction(action = '') {
   if (action === 'parts-stoppage') {
     showView('parts');
-    const select = $('#parts-status-filter');
-    if (select) select.value = 'stoppage';
+    app.partsOperationalFilter = 'stoppage';
     renderPartsHome();
     return;
   }
@@ -10934,118 +10956,76 @@ function partsCurrentLocationUpdateLabel(vehicle = {}) {
   return latest ? latest.toLocaleString('en-AU', { dateStyle: 'short', timeStyle: 'short' }) : '';
 }
 
+function partsOutstandingStationWork(vehicle = {}) {
+  return pdcRequiredJobs(vehicle)
+    .filter(def => def.key !== 'parts' && !pdcJobComplete(vehicle, def))
+    .map(def => pdcGridJobLabel(def));
+}
+
+function partsMatchesOperationalFilter(vehicle = {}, filter = 'required') {
+  const status = partsDepartmentStatus(vehicle);
+  const received = ['issued', 'notrequired'].includes(status);
+  if (filter === 'ordered') return status === 'onorder';
+  if (filter === 'received') return received;
+  if (filter === 'jita') return normalizeJita(jitaDisplay(vehicle)) === 'Yes';
+  if (filter === 'stoppage') return status === 'stoppage';
+  if (filter === 'ready') return received && partsOutstandingStationWork(vehicle).length > 0;
+  return !received && status !== 'notrequired';
+}
+
 function partsDepartmentRows() {
   const q = ($('#parts-search')?.value || '').trim().toLowerCase();
-  const selectedFilter = $('#parts-status-filter')?.value || 'open';
-  const etaFilter = $('#parts-eta-filter')?.value || 'all';
+  const operationalFilter = app.partsOperationalFilter || 'required';
   const departmentFilter = $('#parts-department-filter')?.value || '';
-  const etaSort = $('#parts-eta-sort')?.value || 'status';
-  const filter = ['issued', 'notrequired'].includes(selectedFilter) ? 'open' : selectedFilter;
   return pdcSheetVehicles()
     .filter(vehicleHasBatchNumber)
+    .filter(vehicle => partsMatchesOperationalFilter(vehicle, operationalFilter))
+    .filter(vehicle => !departmentFilter || vehicleDepartmentCode(vehicle) === departmentFilter)
     .filter(vehicle => {
-      const status = partsDepartmentStatus(vehicle);
-      const matchesStatus = (filter === 'all' && !['issued', 'notrequired'].includes(status))
-        || (filter === 'open' && !['issued', 'notrequired'].includes(status))
-        || (!['all', 'open'].includes(filter) && status === filter);
-      if (!matchesStatus) return false;
-      if (departmentFilter && vehicleDepartmentCode(vehicle) !== departmentFilter) return false;
-      const etaDays = partsWorstEtaDaysUntil(vehicle);
-      if (etaFilter === 'risk' && !partsEtaRisk(vehicle)) return false;
-      if (etaFilter === 'overdue' && !(etaDays !== null && etaDays < 0)) return false;
-      if (etaFilter === 'none' && partsWorstEtaValue(vehicle)) return false;
       if (!q) return true;
-      const productionLabel = productionMonthLabel(vehicle.prodMth || vehicle.productionMonth || '');
-      const hay = [
-        displayStockNumber(vehicle), vehicle.order, vehicle.client, vehicle.toyotaCustomer, displayVehicle(vehicle),
-        pdcLocationLabel(vehiclePdcLocation(vehicle)),
-        partsCurrentLocationLabel(vehicle), statusCategoryLabel(vehicle), partsDepartmentStatusLabel(status), partsStoppageReason(vehicle), productionLabel,
-        kewdaleEtaValue(vehicle), partsEtaCounterLabel(vehicle), partsWorstEtaLabel(vehicle), partsWorstEtaValue(vehicle),
-        vehicleDepartmentLabel(vehicle), partsEtaRisk(vehicle) ? 'parts risk' : ''
-      ].join(' ').toLowerCase();
+      const hay = [displayStockNumber(vehicle), vehicle.order, vehicleKeyNumber(vehicle), vehicleJobcardNumber(vehicle),
+        vehicleCustomerName(vehicle), displayVehicle(vehicle), partsDepartmentStatusLabel(partsDepartmentStatus(vehicle)),
+        partsStoppageReason(vehicle), ...partsOutstandingStationWork(vehicle)].join(' ').toLowerCase();
       return hay.includes(q);
     })
     .sort((a, b) => {
-      if (etaSort === 'nearest' || etaSort === 'latest') {
-        const missing = etaSort === 'nearest' ? 8640000000000000 : -8640000000000000;
-        const aEta = partsWorstEtaDate(a)?.getTime() ?? missing;
-        const bEta = partsWorstEtaDate(b)?.getTime() ?? missing;
-        if (aEta !== bEta) return etaSort === 'nearest' ? aEta - bEta : bEta - aEta;
-      }
-      const rank = { miscacc: 0, stoppage: 1, notordered: 2, onorder: 3, issued: 4, notrequired: 5 };
-      const rankDiff = (rank[partsDepartmentStatus(a)] ?? 9) - (rank[partsDepartmentStatus(b)] ?? 9);
-      if (rankDiff) return rankDiff;
-      if (partsDepartmentStatus(a) === 'stoppage' && partsDepartmentStatus(b) === 'stoppage') {
-        const etaDiff = partsWorstEtaSortValue(a) - partsWorstEtaSortValue(b);
-        if (etaDiff) return etaDiff;
-      }
-      const ageA = pmbAgeDays(a);
-      const ageB = pmbAgeDays(b);
-      if (ageA !== null || ageB !== null) return (ageB ?? -9999) - (ageA ?? -9999);
-      return String(displayStockNumber(a) || '').localeCompare(String(displayStockNumber(b) || ''), undefined, { numeric: true });
+      const rank = { stoppage: 0, notordered: 1, onorder: 2, issued: 3, notrequired: 4 };
+      return (rank[partsDepartmentStatus(a)] ?? 9) - (rank[partsDepartmentStatus(b)] ?? 9)
+        || String(displayStockNumber(a) || '').localeCompare(String(displayStockNumber(b) || ''), undefined, { numeric: true });
     });
 }
-
-function renderPartsSummary(rows = []) {
+function renderPartsSummary() {
   const all = pdcSheetVehicles().filter(vehicleHasBatchNumber);
-  const counts = all.reduce((acc, vehicle) => {
-    const status = partsDepartmentStatus(vehicle);
-    acc[status] = (acc[status] || 0) + 1;
-    if (!['issued', 'notrequired'].includes(status)) acc.open += 1;
-    return acc;
-  }, { open: 0, notordered: 0, onorder: 0, stoppage: 0, issued: 0, miscacc: 0, notrequired: 0 });
-  const cards = [
-    ['stoppage', 'Stoppages', counts.stoppage, 'Fix first — blocks RFT handover'],
-    ['open', 'Active parts', counts.open, 'Coming, stoppages and on-order only'],
-    ['notordered', 'Not Ordered', counts.notordered, 'Required parts not ordered yet'],
-    ['onorder', 'On Order', counts.onorder, 'Waiting on parts arrival'],
-    ['miscacc', 'Misc Acc', counts.miscacc, 'Misc accessory override'],
+  const filters = [
+    ['required', 'Parts required'], ['ordered', 'Parts ordered'], ['received', 'Parts received'],
+    ['jita', 'JITA ordered'], ['stoppage', 'Parts stoppage'], ['ready', 'Ready for workshop'],
   ];
+  const active = app.partsOperationalFilter || 'required';
   const host = $('#parts-summary-grid');
   if (!host) return;
-  host.innerHTML = cards.map(([key, label, count, hint]) => `<button class="parts-summary-card ${escapeHtml(partsDepartmentStatusClass(key === 'open' ? 'notordered' : key))}" type="button" data-parts-summary-filter="${escapeHtml(key)}"><span>${escapeHtml(label)}</span><strong>${count}</strong><small>${escapeHtml(hint)}</small></button>`).join('');
-  $$('[data-parts-summary-filter]', host).forEach(button => button.addEventListener('click', () => {
-    const select = $('#parts-status-filter');
-    if (select) select.value = button.dataset.partsSummaryFilter || 'open';
+  host.innerHTML = filters.map(([key, label]) => {
+    const count = all.filter(vehicle => partsMatchesOperationalFilter(vehicle, key)).length;
+    return `<button class="parts-filter-chip ${key === active ? 'is-active' : ''}" type="button" data-parts-operational-filter="${key}" aria-pressed="${key === active}"><span>${escapeHtml(label)}</span><strong>${count}</strong></button>`;
+  }).join('');
+  $$('[data-parts-operational-filter]', host).forEach(button => button.addEventListener('click', () => {
+    app.partsOperationalFilter = button.dataset.partsOperationalFilter || 'required';
     renderPartsHome();
   }));
 }
-
 function partsQueueActionsHtml(vehicle = {}, status = partsDepartmentStatus(vehicle)) {
   const key = vehicleKey(vehicle);
-  const stock = displayStockNumber(vehicle) || key;
-  const complete = ['issued', 'notrequired'].includes(status);
-  const showEmailSales = Boolean(partsWorstEtaLabel(vehicle)) && !complete;
-  let primaryAction = '';
-  const moreActions = [];
-  if (status === 'notordered') {
-    primaryAction = `<button class="small-button primary" type="button" data-parts-ordered="${escapeHtml(key)}" aria-label="Mark parts ordered for ${escapeHtml(stock)}">Mark ordered</button>`;
-    moreActions.push(`<button class="small-button" type="button" data-parts-complete="${escapeHtml(key)}">Complete</button>`);
-    moreActions.push(`<button class="small-button danger-button" type="button" data-parts-stoppage="${escapeHtml(key)}">Stoppage</button>`);
-    moreActions.push(`<button class="small-button" type="button" data-open-stock="${escapeHtml(key)}">Open vehicle</button>`);
-  } else if (status === 'stoppage') {
-    primaryAction = `<button class="small-button primary" type="button" data-open-stock="${escapeHtml(key)}">Review stoppage</button>`;
-    moreActions.push(`<button class="small-button" type="button" data-parts-clear-stoppage="${escapeHtml(key)}">Clear stoppage</button>`);
-    moreActions.push(`<button class="small-button" type="button" data-parts-complete="${escapeHtml(key)}">Complete</button>`);
-  } else if (complete) {
-    primaryAction = `<button class="small-button primary" type="button" data-open-stock="${escapeHtml(key)}">Open vehicle</button>`;
-  } else {
-    primaryAction = `<button class="small-button primary" type="button" data-parts-complete="${escapeHtml(key)}">Complete</button>`;
-    moreActions.push(`<button class="small-button danger-button" type="button" data-parts-stoppage="${escapeHtml(key)}">Stoppage</button>`);
-    moreActions.push(`<button class="small-button" type="button" data-open-stock="${escapeHtml(key)}">Open vehicle</button>`);
-  }
-  const moreMenu = moreActions.length ? `<button class="small-button parts-more-button" type="button" data-parts-more-button aria-expanded="false">More</button><template data-parts-more-template><div class="parts-more-popover" role="group" aria-label="More parts actions for ${escapeHtml(stock)}">${moreActions.join('')}</div></template>` : '';
-  const emailSales = showEmailSales ? `<div class="parts-email-sales-secondary"><button class="small-button parts-email-sales-button" type="button" data-parts-eta-email="${escapeHtml(key)}">Email sales</button></div>` : '';
-  return `<div class="parts-action-group"><div class="parts-action-primary">${primaryAction}${moreMenu}</div>${emailSales}</div>`;
-}
-
-function closePartsMoreMenu({ restoreFocus = false } = {}) {
-  const current = app.partsMoreMenu;
-  if (!current) return;
-  current.popover?.remove();
-  current.trigger?.setAttribute('aria-expanded', 'false');
-  if (restoreFocus) current.trigger?.focus();
-  app.partsMoreMenu = null;
+  const received = ['issued', 'notrequired'].includes(status);
+  const stopped = status === 'stoppage';
+  const jitaYes = normalizeJita(jitaDisplay(vehicle)) === 'Yes';
+  return `<div class="parts-action-group parts-visible-actions">
+    ${status === 'notordered' ? `<button class="small-button primary" type="button" data-parts-ordered="${escapeHtml(key)}">Mark ordered</button>` : ''}
+    ${received ? '' : `<button class="small-button" type="button" data-parts-complete="${escapeHtml(key)}">Mark received</button>`}
+    <button class="small-button ${jitaYes ? 'is-active' : ''}" type="button" data-parts-toggle-jita="${escapeHtml(key)}">JITA ${jitaYes ? '✓' : '×'}</button>
+    ${stopped
+      ? `<button class="small-button" type="button" data-parts-clear-stoppage="${escapeHtml(key)}">Remove stoppage</button>`
+      : `<button class="small-button danger-button" type="button" data-parts-stoppage="${escapeHtml(key)}">Add stoppage</button>`}
+    <button class="small-button" type="button" data-open-stock="${escapeHtml(key)}">Open vehicle</button>
+  </div>`;
 }
 
 function bindPartsQueueActionButtons(host) {
@@ -11055,99 +11035,30 @@ function bindPartsQueueActionButtons(host) {
   $$('[data-parts-complete]', host).forEach(button => button.addEventListener('click', () => markVehiclePartsComplete(button.dataset.partsComplete)));
   $$('[data-parts-stoppage]', host).forEach(button => button.addEventListener('click', () => markVehiclePartsStoppage(button.dataset.partsStoppage)));
   $$('[data-parts-clear-stoppage]', host).forEach(button => button.addEventListener('click', () => clearVehiclePartsStoppage(button.dataset.partsClearStoppage)));
+  $$('[data-parts-toggle-jita]', host).forEach(button => button.addEventListener('click', () => toggleVehiclePartsJita(button.dataset.partsToggleJita)));
   $$('[data-parts-eta-email]', host).forEach(button => button.addEventListener('click', () => draftPartsEtaSalesEmail(button.dataset.partsEtaEmail)));
-}
-
-function openPartsMoreMenu(trigger) {
-  closePartsMoreMenu();
-  const template = trigger?.parentElement?.querySelector('[data-parts-more-template]');
-  const popover = template?.content?.firstElementChild?.cloneNode(true);
-  if (!popover) return;
-  document.body.appendChild(popover);
-  trigger.setAttribute('aria-expanded', 'true');
-  app.partsMoreMenu = { popover, trigger };
-  bindPartsQueueActionButtons(popover);
-  popover.addEventListener('click', event => {
-    if (event.target.closest('button')) closePartsMoreMenu();
-  });
-  const triggerRect = trigger.getBoundingClientRect();
-  const menuRect = popover.getBoundingClientRect();
-  const margin = 8;
-  const availableBelow = window.innerHeight - triggerRect.bottom - margin;
-  const availableAbove = triggerRect.top - margin;
-  const openUpward = menuRect.height > availableBelow && availableAbove > availableBelow;
-  const top = openUpward
-    ? Math.max(margin, triggerRect.top - menuRect.height - 4)
-    : Math.min(window.innerHeight - menuRect.height - margin, triggerRect.bottom + 4);
-  const left = Math.min(window.innerWidth - menuRect.width - margin, Math.max(margin, triggerRect.right - menuRect.width));
-  popover.style.top = `${Math.round(top)}px`;
-  popover.style.left = `${Math.round(left)}px`;
-  popover.classList.toggle('opens-upward', openUpward);
-  popover.querySelector('button')?.focus({ preventScroll: true });
-}
-
-function bindPartsMoreMenus(host) {
-  $$('[data-parts-more-button]', host).forEach(button => button.addEventListener('click', event => {
-    event.preventDefault();
-    event.stopPropagation();
-    if (app.partsMoreMenu?.trigger === button) closePartsMoreMenu({ restoreFocus: true });
-    else openPartsMoreMenu(button);
-  }));
-  if (app.partsMoreMenuDocumentBound) return;
-  app.partsMoreMenuDocumentBound = true;
-  document.addEventListener('pointerdown', event => {
-    if (!app.partsMoreMenu || app.partsMoreMenu.popover.contains(event.target) || app.partsMoreMenu.trigger.contains(event.target)) return;
-    closePartsMoreMenu();
-  });
-  document.addEventListener('focusout', () => {
-    window.setTimeout(() => {
-      if (!app.partsMoreMenu) return;
-      const active = document.activeElement;
-      if (app.partsMoreMenu.popover.contains(active) || app.partsMoreMenu.trigger.contains(active)) return;
-      closePartsMoreMenu();
-    }, 0);
-  });
-  document.addEventListener('keydown', event => {
-    if (event.key === 'Escape' && app.partsMoreMenu) {
-      event.preventDefault();
-      closePartsMoreMenu({ restoreFocus: true });
-    }
-  });
-  if (window && typeof window.addEventListener === 'function') window.addEventListener('resize', () => closePartsMoreMenu());
 }
 
 function partsQueueRowHtml(vehicle = {}) {
   const key = vehicleKey(vehicle);
   const status = partsDepartmentStatus(vehicle);
-  const complete = ['issued', 'notrequired'].includes(status);
-  const eta = kewdaleEtaValue(vehicle);
-  const ageClass = partsEtaCounterClass(vehicle);
-  const currentLocation = partsCurrentLocationLabel(vehicle);
-  const worstEtaInput = partsWorstEtaInputValue(vehicle);
-  const worstEtaLabel = partsWorstEtaLabel(vehicle);
-  const worstEtaCountdown = partsWorstEtaCountdownLabel(vehicle);
-  const worstEtaCountdownClass = partsWorstEtaCountdownClass(vehicle);
   const customer = vehicleCustomerName(vehicle) || 'Dealer Order';
   const unit = displayVehicle(vehicle) || 'Vehicle not listed';
   const blocker = status === 'stoppage' ? partsStoppageReason(vehicle) : '';
+  const outstanding = partsOutstandingStationWork(vehicle);
+  const jitaYes = normalizeJita(jitaDisplay(vehicle)) === 'Yes';
   return `<tr class="parts-row parts-queue-row ${escapeHtml(partsDepartmentStatusClass(status))}">
-    <td><div class="parts-queue-status-cell">
-      <span class="parts-status-pill ${escapeHtml(partsDepartmentStatusClass(status))}">${escapeHtml(partsDepartmentStatusLabel(status))}</span>${partsRiskBadge(vehicle)}${vehicleDepartmentBadge(vehicle)}
-    </div></td>
-    <td><button class="parts-queue-identity parts-compact-identity" type="button" data-open-stock="${escapeHtml(key)}" aria-label="Open vehicle ${escapeHtml(displayStockNumber(vehicle) || vehicle.order || key)}">
-      <strong>Stock ${escapeHtml(displayStockNumber(vehicle) || vehicle.order || '—')}</strong>
-      <span>JC ${escapeHtml(vehicleJobcardNumber(vehicle) || '—')} · Key ${escapeHtml(vehicleKeyNumber(vehicle) || '—')}</span>
-    </button></td>
-    <td><div class="parts-queue-customer"><strong title="${escapeHtml(customer)}">${escapeHtml(customer)}</strong><span title="${escapeHtml(unit)}">${escapeHtml(unit)}</span></div></td>
-    <td><div class="parts-eta"><strong>${escapeHtml(eta || 'No ETA')}</strong><span class="pmb-age ${escapeHtml('pmb-age-' + ageClass)}">${escapeHtml(partsEtaCounterLabel(vehicle))}</span></div></td>
-    <td><div class="parts-worst-eta-wrap"><label class="parts-worst-eta"><span class="sr-only">Parts worst ETA</span><input type="date" data-parts-worst-eta="${escapeHtml(key)}" value="${escapeHtml(worstEtaInput)}" ${complete ? 'disabled' : ''} /></label><span class="parts-worst-eta-details">${worstEtaLabel ? `<span class="parts-worst-eta-label">${escapeHtml(worstEtaLabel)}</span>${worstEtaCountdown ? `<span class="parts-worst-eta-countdown ${escapeHtml(worstEtaCountdownClass)}">${escapeHtml(worstEtaCountdown)}</span>` : ''}` : '<span class="subtle parts-worst-eta-label">Set worst ETA</span>'}</span></div></td>
-    <td class="parts-queue-jita-cell">${jitaIndicator(vehicle)}</td>
-    <td class="parts-queue-blocker">${blocker ? `<strong title="${escapeHtml(blocker)}">${escapeHtml(blocker)}</strong>` : '<span class="subtle">No blocker recorded</span>'}</td>
-    <td><div class="parts-queue-stage"><strong>${escapeHtml(currentLocation)}</strong><span>${escapeHtml(partsCurrentLocationUpdateLabel(vehicle) || 'No location update recorded')}</span></div></td>
+    <td><strong>${escapeHtml(vehicleKeyNumber(vehicle) || '—')}</strong></td>
+    <td><button class="parts-compact-identity" type="button" data-open-stock="${escapeHtml(key)}"><strong>${escapeHtml(displayStockNumber(vehicle) || vehicle.order || '—')}</strong></button></td>
+    <td><strong>${escapeHtml(vehicleJobcardNumber(vehicle) || '—')}</strong></td>
+    <td><div class="parts-queue-customer"><strong title="${escapeHtml(unit)}">${escapeHtml(unit)}</strong><span title="${escapeHtml(customer)}">${escapeHtml(customer)}</span></div></td>
+    <td><span class="parts-status-pill ${escapeHtml(partsDepartmentStatusClass(status))}">${escapeHtml(partsDepartmentStatusLabel(status))}</span></td>
+    <td class="parts-queue-jita-cell"><span class="jita-icon ${jitaYes ? 'yes' : 'no'}" aria-label="JITA ${jitaYes ? 'ordered' : 'not ordered'}">${jitaYes ? '✓' : '×'}</span></td>
+    <td><span class="parts-outstanding-work" title="${escapeHtml(outstanding.join(', '))}">${escapeHtml(outstanding.join(', ') || 'None')}</span></td>
+    <td class="parts-queue-blocker">${blocker ? `<strong title="${escapeHtml(blocker)}">${escapeHtml(blocker)}</strong>` : '<span class="subtle">None</span>'}</td>
     <td>${partsQueueActionsHtml(vehicle, status)}</td>
   </tr>`;
 }
-
 function renderPartsHome() {
   const host = $('#parts-home-content');
   const summaryHost = $('#parts-summary-grid');
@@ -11161,12 +11072,19 @@ function renderPartsHome() {
   }
   host.innerHTML = `<div class="parts-table-wrap parts-queue-wrap"><table class="data-table compact-table parts-queue-table">
     <thead><tr>
-      <th>Status</th><th>Vehicle ID</th><th>Customer / vehicle</th><th>Kewdale ETA</th><th>Parts ETA</th><th>Jita</th><th>Blocker</th><th>Stage / update</th><th>Actions</th>
+      <th>Key</th><th>Stock</th><th>JC</th><th>Vehicle / customer</th><th>Parts status</th><th>JITA</th><th>Outstanding station work</th><th>Stoppage reason</th><th>Actions</th>
     </tr></thead>
     <tbody>${rows.map(partsQueueRowHtml).join('')}</tbody></table></div>`;
   bindPartsQueueActionButtons(host);
-  bindPartsMoreMenus(host);
   $$('[data-parts-worst-eta]', host).forEach(input => input.addEventListener('change', () => updateVehiclePartsWorstEta(input.dataset.partsWorstEta, input.value)));
+}
+
+function toggleVehiclePartsJita(key = '') {
+  const vehicle = selectedVehicle(key);
+  if (!vehicle) return;
+  const next = normalizeJita(jitaDisplay(vehicle)) === 'Yes' ? 'No' : 'Yes';
+  recordVehicleAudit(vehicle, `JITA marked ${next === 'Yes' ? 'ordered' : 'not ordered'}`, { by: getCurrentOperatorName() });
+  saveVehicleEdits(key, { jitaPartsOrdered: next });
 }
 
 function markVehiclePartsOrdered(key = '') {
@@ -11691,6 +11609,109 @@ function renderDeletedVehicles() {
   updateCollapseToggleButtons();
 }
 
+function sharedNavisionVisibleData(result = null) {
+  return result?.data?.data || result?.data || null;
+}
+
+function subscribeSharedNavisionVisibility() {
+  if (app.sharedNavisionVisibleRealtime) return;
+  const client = window.PDC_SUPABASE;
+  if (!client || typeof client.channel !== 'function') return;
+  app.sharedNavisionVisibleRealtime = client
+    .channel('pdc_navision_visible_revision')
+    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'navision_backend_revision' }, payload => {
+      const revision = Number(payload?.new?.revision);
+      if (!Number.isFinite(revision) || revision !== Number(app.sharedNavisionVisibleRevision)) {
+        loadSharedNavisionVisibleRows({ force: true });
+      }
+    })
+    .subscribe();
+}
+
+async function loadSharedNavisionVisibleRows(options = {}) {
+  const force = options.force === true;
+  if (app.sharedNavisionVisibleState === 'loading' && !force) return;
+  const service = navisionSharedBackendService();
+  if (!service || typeof service.visibleSnapshot !== 'function') {
+    app.sharedNavisionVisibleState = 'unavailable';
+    app.sharedNavisionVisibleError = 'Shared Navision visibility is unavailable in this environment.';
+    renderBackEndData();
+    return;
+  }
+
+  const generation = ++app.sharedNavisionVisibleGeneration;
+  app.sharedNavisionVisibleState = 'loading';
+  app.sharedNavisionVisibleError = '';
+  renderBackEndData();
+  try {
+    const rows = [];
+    let expectedRevision = null;
+    for (const dealerCode of ['14450', '37047']) {
+      let cursor = {};
+      let pageCount = 0;
+      let exhausted = false;
+      while (pageCount < 25) {
+        const result = await service.visibleSnapshot(
+          { sourceSystem: 'microsoft_navision', dealerCode },
+          cursor,
+          500,
+          expectedRevision,
+        );
+        if (generation !== app.sharedNavisionVisibleGeneration) return;
+        if (!result?.ok) throw new Error(result?.error || 'shared_navision_visibility_failed');
+        const data = sharedNavisionVisibleData(result) || {};
+        const revision = Number(data.revision);
+        if (!Number.isFinite(revision)) throw new Error('shared_navision_revision_missing');
+        if (expectedRevision === null) expectedRevision = revision;
+        if (revision !== expectedRevision) throw new Error('shared_navision_revision_changed');
+        (Array.isArray(data.items) ? data.items : []).forEach(item => rows.push({ ...item, dealer_code: item.dealer_code || dealerCode }));
+        pageCount += 1;
+        if (!data.has_more) {
+          exhausted = true;
+          break;
+        }
+        if (!data.next_record_id) throw new Error('shared_navision_cursor_missing');
+        cursor = { recordId: data.next_record_id };
+      }
+      if (!exhausted) throw new Error('shared_navision_page_limit_exceeded');
+    }
+    if (generation !== app.sharedNavisionVisibleGeneration) return;
+    app.sharedNavisionVisibleRows = rows;
+    app.sharedNavisionVisibleRevision = expectedRevision;
+    app.sharedNavisionVisibleState = 'ready';
+    subscribeSharedNavisionVisibility();
+  } catch (error) {
+    if (generation !== app.sharedNavisionVisibleGeneration) return;
+    console.error('Shared Navision visibility load failed', error);
+    app.sharedNavisionVisibleState = 'error';
+    app.sharedNavisionVisibleError = error?.message || 'Shared Navision imports could not be loaded.';
+  }
+  renderBackEndData();
+}
+
+function sharedNavisionBackEndRows() {
+  return (app.sharedNavisionVisibleRows || []).map(item => ({
+    vehicle: {
+      id: `shared-navision-${item.id || ''}`,
+      stock: item.stock_number || '',
+      batch: item.stock_number || '',
+      order: item.toyota_order_number || '',
+      vehicle: [item.model, item.colour].filter(Boolean).join(' · '),
+      toyotaVehicle: item.model || '',
+      colour: item.colour || '',
+      toyotaStatus: item.vehicle_status || '',
+      etaAtDealer: item.eta_to_kewdale || '',
+      importedAt: item.updated_at || '',
+      source: 'Shared Navision',
+    },
+    state: 'Shared Navision',
+    detail: `Online · dealer ${item.dealer_code || '—'} · ${item.is_current === false ? 'missing from latest upload' : 'current import'}`,
+    deletedAt: '',
+    sharedReadOnly: true,
+    backendRecordId: item.id || '',
+  }));
+}
+
 function backEndDataRows() {
   const deletedRecords = deletedVehicleRecords().map(record => ({
     vehicle: record.vehicle || {},
@@ -11704,7 +11725,7 @@ function backEndDataRows() {
     detail: [vehicle.source || (vehicle.importedAt ? 'Navision' : 'Tracker'), vehicle.pdcVisibilitySource].filter(Boolean).join(' · '),
     deletedAt: '',
   }));
-  return activeRows.concat(deletedRecords).sort((a, b) => String(displayStockNumber(a.vehicle) || vehicleKey(a.vehicle) || '').localeCompare(String(displayStockNumber(b.vehicle) || vehicleKey(b.vehicle) || ''), 'en-AU', { numeric: true }));
+  return activeRows.concat(sharedNavisionBackEndRows(), deletedRecords).sort((a, b) => String(displayStockNumber(a.vehicle) || a.vehicle?.order || vehicleKey(a.vehicle) || '').localeCompare(String(displayStockNumber(b.vehicle) || b.vehicle?.order || vehicleKey(b.vehicle) || ''), 'en-AU', { numeric: true }));
 }
 
 function filteredBackEndDataRows(rows = backEndDataRows()) {
@@ -11715,6 +11736,7 @@ function filteredBackEndDataRows(rows = backEndDataRows()) {
     if (stateFilter === 'backend' && row.state !== 'Back end only') return false;
     if (stateFilter === 'active' && row.state !== 'PDC Sheet') return false;
     if (stateFilter === 'deleted' && row.state !== 'Deleted') return false;
+    if (stateFilter === 'shared' && row.state !== 'Shared Navision') return false;
     if (!terms.length) return true;
     const vehicle = row.vehicle || {};
     const haystack = [
@@ -11847,34 +11869,55 @@ function transferBackEndVehicleToActive(key = '') {
 function renderBackEndData() {
   const host = $('#backend-data-content');
   if (!host) return;
+  const sharedRole = String(window.PDC_AUTH_CONTEXT?.role || '').trim().toLowerCase();
+  const sharedRoleApproved = ['viewer', 'operator', 'importer', 'administrator'].includes(sharedRole);
+  if (app.sharedNavisionVisibleState === 'idle' && sharedRoleApproved) loadSharedNavisionVisibleRows();
   const allRows = backEndDataRows();
   const rows = filteredBackEndDataRows(allRows);
   const pdcSheet = allRows.filter(row => row.state === 'PDC Sheet').length;
   const backEndOnly = allRows.filter(row => row.state === 'Back end only').length;
+  const shared = allRows.filter(row => row.state === 'Shared Navision').length;
   const deleted = allRows.filter(row => row.state === 'Deleted').length;
   const count = $('#backend-data-count');
-  if (count) count.textContent = `${rows.length} shown · ${pdcSheet} active · ${backEndOnly} back end only · ${deleted} deleted`;
+  if (count) count.textContent = `${rows.length} shown · ${pdcSheet} active · ${backEndOnly} local back end · ${shared} shared Navision · ${deleted} deleted`;
+  const sharedStatus = app.sharedNavisionVisibleState === 'loading'
+    ? '<div class="backend-shared-status is-loading"><strong>Loading shared Navision imports…</strong><span>Reading the approved online display view.</span></div>'
+    : app.sharedNavisionVisibleState === 'error'
+      ? `<div class="backend-shared-status is-error"><strong>Shared Navision imports could not be loaded</strong><span>${escapeHtml(app.sharedNavisionVisibleError || 'Use Refresh shared imports to try again.')}</span></div>`
+      : app.sharedNavisionVisibleState === 'ready'
+        ? `<div class="backend-shared-status is-ready"><strong>Online Navision imports visible</strong><span>${shared} shared row${shared === 1 ? '' : 's'} · revision ${escapeHtml(app.sharedNavisionVisibleRevision ?? '—')} · updates refresh automatically.</span></div>`
+        : '';
   if (!rows.length) {
-    host.innerHTML = `<div class="empty-state"><strong>No matching back-end vehicles</strong><span>${allRows.length ? 'Change the search or state filter, then try again.' : 'Upload the latest Navision dump to populate this page.'}</span></div>`;
+    host.innerHTML = `${sharedStatus}<div class="empty-state"><strong>No matching back-end vehicles</strong><span>${allRows.length ? 'Change the search or state filter, then try again.' : 'Upload the latest Navision dump to populate this page.'}</span></div>`;
     return;
   }
-  host.innerHTML = `<div class="responsive-table pdc-grid-table-wrap"><table class="data-table backend-data-table pdc-grid-table">
+  host.innerHTML = `${sharedStatus}<div class="responsive-table pdc-grid-table-wrap"><table class="data-table backend-data-table pdc-grid-table">
     <thead><tr><th>Key</th><th>Stock</th><th>Job Card</th><th>Customer</th><th>Vehicle</th><th>Status</th><th>Source / note</th><th>Updated</th><th>Actions</th></tr></thead>
     <tbody>${rows.map(row => {
       const v = row.vehicle || {};
       const key = vehicleKey(v);
       const isDeleted = row.state === 'Deleted';
       const isBackEndOnly = row.state === 'Back end only';
-      return `<tr class="${isDeleted ? 'deleted-row' : ''}">
+      const isShared = row.state === 'Shared Navision' || row.sharedReadOnly === true;
+      const stockCell = isDeleted || isShared
+        ? escapeHtml(displayStockNumber(v) || v.order || '—')
+        : `<button class="stock-link stock-button" type="button" data-open-stock="${escapeHtml(key)}">${escapeHtml(displayStockNumber(v) || v.order || '—')}</button>`;
+      const sharedAction = '<span class="badge neutral">Read only</span>';
+      const actionCell = isShared
+        ? sharedAction
+        : isBackEndOnly
+          ? `<button class="small-button primary" type="button" data-backend-activate="${escapeHtml(key)}">Move to active</button>`
+          : isDeleted ? '<span class="subtle">Locked</span>' : '<span class="badge neutral">Active</span>';
+      return `<tr class="${isDeleted ? 'deleted-row' : isShared ? 'shared-navision-row' : ''}">
         <td class="pdc-id-cell pdc-key-cell">${escapeHtml(vehicleKeyNumber(v) || '—')}</td>
-        <td class="pdc-id-cell pdc-stock-cell">${isDeleted ? escapeHtml(displayStockNumber(v) || v.order || '—') : `<button class="stock-link stock-button" type="button" data-open-stock="${escapeHtml(key)}">${escapeHtml(displayStockNumber(v) || v.order || '—')}</button>`}</td>
+        <td class="pdc-id-cell pdc-stock-cell">${stockCell}</td>
         <td class="pdc-id-cell pdc-jc-cell">${escapeHtml(vehicleJobcardNumber(v) || '—')}</td>
-        <td class="pdc-name-cell">${escapeHtml(vehicleCustomerName(v) || 'Customer TBA')}</td>
-        <td class="pdc-vehicle-cell">${escapeHtml(displayVehicle(v) || v.vehicle || v.toyotaVehicle || '')}</td>
+        <td class="pdc-name-cell">${isShared ? '<span class="subtle">Restricted online view</span>' : escapeHtml(vehicleCustomerName(v) || 'Customer TBA')}</td>
+        <td class="pdc-vehicle-cell">${escapeHtml(isShared ? (v.vehicle || v.toyotaVehicle || '') : (displayVehicle(v) || v.vehicle || v.toyotaVehicle || ''))}</td>
         <td class="pdc-status-cell"><span class="badge ${isDeleted ? 'danger' : isBackEndOnly ? 'warning' : 'neutral'}">${escapeHtml(row.state)}</span>${v.toyotaStatus ? ` <span class="subtle">${escapeHtml(v.toyotaStatus)}</span>` : ''}</td>
         <td class="pdc-note-cell">${escapeHtml(row.detail || '')}</td>
         <td>${escapeHtml(isDeleted ? (parseIsoTimestamp(row.deletedAt)?.toLocaleString('en-AU', { dateStyle: 'short', timeStyle: 'short' }) || '') : (parseIsoTimestamp(v.importedAt || v.updatedAt || '')?.toLocaleString('en-AU', { dateStyle: 'short', timeStyle: 'short' }) || ''))}</td>
-        <td class="backend-action-cell">${isBackEndOnly ? `<button class="small-button primary" type="button" data-backend-activate="${escapeHtml(key)}">Move to active</button>` : isDeleted ? '<span class="subtle">Locked</span>' : '<span class="badge neutral">Active</span>'}</td>
+        <td class="backend-action-cell">${actionCell}</td>
       </tr>`;
     }).join('')}</tbody>
   </table></div>`;
@@ -13332,18 +13375,46 @@ function updateNavisionControlStats(result = null) {
   }
 }
 
+function navisionSharedImportRoleAllowed(role = null) {
+  const resolvedRole = String(role ?? (typeof window !== 'undefined' ? window.PDC_AUTH_CONTEXT?.role : '') ?? '').trim().toLowerCase();
+  return ['importer', 'administrator'].includes(resolvedRole);
+}
+
+function updateNavisionImportAccessStatus(sharedMode = Boolean($('#navision-dealer-code'))) {
+  const host = $('#navision-import-access-status');
+  if (!host) return !sharedMode || navisionSharedImportRoleAllowed();
+  if (!sharedMode) {
+    host.hidden = true;
+    return true;
+  }
+  host.hidden = false;
+  const allowed = navisionSharedImportRoleAllowed();
+  host.className = `navision-import-access-status ${allowed ? 'is-ready' : 'is-blocked'}`;
+  host.innerHTML = allowed
+    ? '<strong>Import access ready</strong><span>Your account can preview and apply shared Navision imports.</span>'
+    : '<strong>Importer access required</strong><span>An administrator must assign your account the importer role before Navision preview or apply is enabled.</span>';
+  return allowed;
+}
+
 function updateNavisionImportButton() {
   const raw = ($('#navision-paste')?.value || '').trim();
   const dealerCode = ($('#navision-dealer-code')?.value || '').trim();
   const sharedMode = Boolean($('#navision-dealer-code')) && Boolean(navisionSharedBackendService());
+  const roleAllowed = updateNavisionImportAccessStatus(sharedMode);
   if (sharedMode && app.pendingSharedNavisionImport && (app.pendingSharedNavisionImport.dealerCode !== dealerCode || app.pendingSharedNavisionImport.sourceTextSha256 !== sha256Hex(raw))) {
     app.pendingSharedNavisionImport = null;
   }
   const button = $('#import-navision');
   const applyButton = $('#apply-navision-shared');
   const clear = $('#navision-clear');
-  if (button) button.disabled = !raw || (sharedMode && !['14450', '37047'].includes(dealerCode));
-  if (applyButton) applyButton.disabled = !app.pendingSharedNavisionImport;
+  if (button) {
+    button.disabled = !raw || (sharedMode && (!roleAllowed || !['14450', '37047'].includes(dealerCode)));
+    button.title = sharedMode && !roleAllowed ? 'Importer or administrator access is required.' : '';
+  }
+  if (applyButton) {
+    applyButton.disabled = !app.pendingSharedNavisionImport || (sharedMode && !roleAllowed);
+    applyButton.title = sharedMode && !roleAllowed ? 'Importer or administrator access is required.' : '';
+  }
   if (clear) clear.disabled = !raw && !app.navisionImport && !app.pendingSharedNavisionImport;
   updateNavisionControlStats(app.pendingNavisionImport || app.navisionImport);
 }
@@ -14637,7 +14708,10 @@ function renderSharedNavisionPreview(state = {}, applied = false) {
   const counts = data.counts || state.previewData?.counts || {};
   const blocking = data.blocking === true || Number(counts.invalid || 0) > 0 || Number(counts.conflict || 0) > 0;
   const values = ['new', 'changed', 'unchanged', 'missing', 'invalid', 'conflict'];
-  host.innerHTML = `<div class="summary-row ${blocking ? 'error' : 'success'}"><strong>${applied ? 'Shared Navision batch applied' : (blocking ? 'Shared preview blocked' : 'Shared preview ready')}</strong><span>Microsoft Navision · dealer ${escapeHtml(state.dealerCode || '')} · browser-local authority SHA-256 ${escapeHtml(state.browserLocalSha256 || '')}</span></div>
+  const resultBanner = applied
+    ? `<div class="navision-import-success" role="status" aria-live="polite"><span class="navision-import-success-tick" aria-hidden="true">✓</span><div><strong>Navision import complete</strong><span>Shared Navision batch applied successfully for dealer ${escapeHtml(state.dealerCode || '')}.</span></div></div>`
+    : `<div class="summary-row ${blocking ? 'error' : 'success'}"><strong>${blocking ? 'Shared preview blocked' : 'Shared preview ready'}</strong><span>Microsoft Navision · dealer ${escapeHtml(state.dealerCode || '')} · browser-local authority SHA-256 ${escapeHtml(state.browserLocalSha256 || '')}</span></div>`;
+  host.innerHTML = `${resultBanner}
     <div class="scot-summary-grid">${values.map(key => `<div class="summary-stat"><span>${escapeHtml(key)}</span><strong>${Number(counts[key] || 0)}</strong></div>`).join('')}</div>
     <div class="subtle navision-note">${applied ? `Durable receipt: ${escapeHtml(data.receipt_id || data.receiptId || 'returned by shared service')} · revision ${escapeHtml(data.revision ?? data.result_revision ?? '')}. Browser-local data was not applied or replaced.` : `Preview hash ${escapeHtml(data.preview_hash || '')}. Apply is enabled only when invalid/conflict totals are zero and the exact preview is unchanged.`}</div>`;
 }
@@ -14646,6 +14720,11 @@ async function importNavisionVehicles() {
   const input = $('#navision-paste');
   const text = input?.value || '';
   if (!$('#navision-dealer-code')) return importNavisionVehiclesLocal(text);
+  if (!navisionSharedImportRoleAllowed()) {
+    updateNavisionImportAccessStatus(true);
+    window.alert('Importer or administrator access is required for shared Navision imports. Ask an administrator to assign the importer role. Nothing changed.');
+    return;
+  }
   const dealerCode = ($('#navision-dealer-code')?.value || '').trim();
   if (!['14450', '37047'].includes(dealerCode)) {
     window.alert('Select the exact dealer code: Pilbara Toyota 14450 or Broome Toyota 37047. No preview was created.');
@@ -14708,6 +14787,11 @@ function importNavisionVehiclesLocal(text = '') {
 }
 
 async function applySharedNavisionImport() {
+  if (!navisionSharedImportRoleAllowed()) {
+    updateNavisionImportAccessStatus(true);
+    window.alert('Importer or administrator access is required for shared Navision imports. Nothing changed.');
+    return;
+  }
   const pending = app.pendingSharedNavisionImport;
   if (!pending) return;
   const data = pending.previewData || {};
@@ -14737,6 +14821,7 @@ async function applySharedNavisionImport() {
   renderSharedNavisionPreview({ ...pending, applyResult, browserLocalSha256: afterSha256 }, true);
   updateNavisionControlStats({ parsed: pending.parsed, added: [], updated: [], unchanged: pending.parsed.vehicles, stockNumberUpdates: [] });
   updateNavisionImportButton();
+  loadSharedNavisionVisibleRows({ force: true });
 }
 
 function selectedPendingNavisionUpdateKeys(result) {

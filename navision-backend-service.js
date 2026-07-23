@@ -127,6 +127,23 @@ function createNavisionBackendService(options = {}) {
     const page = scopedPageParams(scope, cursor, limit, expectedRevision);
     return page.ok ? call('get_navision_backend_snapshot', page.params) : Promise.resolve(page);
   };
+  const visibleSnapshot = (scope = {}, cursor = {}, limit = 250, expectedRevision = null) => {
+    const sourceSystem = String(scope.sourceSystem || NAVISION_SOURCE_SYSTEM).trim().toLowerCase();
+    const dealerCode = String(scope.dealerCode || '').trim();
+    if (sourceSystem !== NAVISION_SOURCE_SYSTEM) return Promise.resolve({ ok: false, error: 'invalid_source_system' });
+    if (!NAVISION_DEALER_CODES.includes(dealerCode)) return Promise.resolve({ ok: false, error: 'invalid_dealer_code' });
+    const recordId = String(cursor?.recordId || '').trim();
+    if (recordId && !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(recordId)) {
+      return Promise.resolve({ ok: false, error: 'invalid_cursor' });
+    }
+    return call('get_navision_visible_snapshot', {
+      p_source_system: sourceSystem,
+      p_dealer_code: dealerCode,
+      p_after_record_id: recordId || null,
+      p_page_size: Math.max(1, Math.min(500, Number(limit) || 250)),
+      p_expected_revision: expectedRevision,
+    });
+  };
   const exportRecords = (scope = {}, cursor = {}, limit = 250, expectedRevision = null) => {
     const page = scopedPageParams(scope, cursor, limit, expectedRevision);
     return page.ok ? call('export_navision_backend_records', page.params) : Promise.resolve(page);
@@ -162,6 +179,7 @@ function createNavisionBackendService(options = {}) {
     preview,
     apply,
     snapshot,
+    visibleSnapshot,
     exportRecords,
     reconciliation,
     rollback,

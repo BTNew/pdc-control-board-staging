@@ -127,9 +127,9 @@
       const activeBooking = activeBookingByVehicle.get(id) || null;
       let reason = '';
       if (!vehicleIsActive(vehicle)) reason = 'inactive';
-      else if (!work.outstanding && !activeBooking) reason = work.hasRequirement && work.completed ? 'completed' : 'requirement';
+      else if (!work.outstanding) reason = work.hasRequirement && work.completed ? 'completed' : 'requirement';
       const schedule = scheduleEligibility(vehicle);
-      if (!reason && !['PMB', 'YH', 'IT'].includes(schedule.location) && !activeBooking) reason = 'location';
+      if (!reason && !['PMB', 'YH', 'IT'].includes(schedule.location)) reason = 'location';
       if (reason) {
         excluded.push({ vehicle, reason, work, existingBooking: Boolean(activeBooking), schedule });
         return;

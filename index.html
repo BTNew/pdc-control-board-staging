@@ -8,9 +8,9 @@
   <meta name="description" content="PDC Workshop Control Board — STAGING (separate Supabase project, synthetic data only)." />
   <title>PDC Control Board — STAGING</title>
   <link rel="icon" href="favicon.svg" type="image/svg+xml" />
-  <link rel="stylesheet" href="styles.css?v=2026.07.22.08-blocker-remediation" />
-  <link rel="stylesheet" href="desktop-operations.css?v=2026.07.22.08-blocker-remediation" />
-  <link rel="stylesheet" href="workshop-planner.css?v=2026.07.22.08-blocker-remediation" />
+  <link rel="stylesheet" href="styles.css?v=2026.07.23.10-staging-blocker-closure" />
+  <link rel="stylesheet" href="desktop-operations.css?v=2026.07.23.10-staging-blocker-closure" />
+  <link rel="stylesheet" href="workshop-planner.css?v=2026.07.23.10-staging-blocker-closure" />
 </head>
 <body class="auth-pending" data-auth-state="checking">
   <main class="pdc-auth-gate" id="pdc-auth-gate" aria-labelledby="pdc-auth-title">
@@ -87,7 +87,7 @@
         <div class="brand-text">
           <div class="brand-title">Perth Motor Bodies</div>
           <div class="brand-subtitle">PDC Control Board</div>
-          <div class="app-version" id="app-version">Version 2026.07.22.08-blocker-remediation</div>
+          <div class="app-version" id="app-version">Version 2026.07.23.10-staging-blocker-closure</div>
         </div>
         <button class="sidebar-toggle" id="sidebar-toggle" type="button" aria-label="Collapse sidebar" title="Collapse sidebar">‹</button>
       </div>
@@ -428,39 +428,14 @@
       <section id="parts" class="view">
         <div class="parts-home-layout">
           <section class="panel parts-home-panel">
-            <div class="panel-header">
-              <div>
-                <h2>Parts department home</h2>
-                <p>Prioritised work queue for ordering, supplier ETA, stoppages and issue completion. Use the status cards to focus the list.</p>
-              </div>
-              <div class="panel-actions">
-                <button class="small-button" id="parts-export-csv" type="button">Export parts CSV</button>
-              </div>
+            <div class="panel-header parts-compact-header">
+              <div><h2>Parts</h2><p>Order, receive and clear workshop parts blockers.</p></div>
+              <button class="small-button" id="parts-export-csv" type="button">Export CSV</button>
             </div>
-            <div class="parts-summary-grid" id="parts-summary-grid"></div>
-            <div class="table-toolbar advanced-toolbar wide-toolbar parts-toolbar">
-              <label>
-                <span>Search</span>
-                <input id="parts-search" type="search" placeholder="Stock, customer, vehicle, key or job card..." />
-              </label>
-              <label>
-                <span>Parts status</span>
-                <select id="parts-status-filter">
-                  <option value="open">Active parts</option>
-                  <option value="all">All active parts vehicles</option>
-                  <option value="notordered">Not Ordered</option>
-                  <option value="onorder">On Order</option>
-                  <option value="stoppage">Stoppages</option>
-                  <option value="miscacc">Misc Acc</option>
-                </select>
-              </label>
-              <label><span>ETA view</span><select id="parts-eta-filter"><option value="all">All ETAs</option><option value="risk">PARTS RISK only</option><option value="overdue">Overdue</option><option value="none">No ETA</option></select></label>
-              <label><span>ETA sort</span><select id="parts-eta-sort"><option value="status">Status priority</option><option value="nearest">Nearest ETA</option><option value="latest">Latest ETA</option></select></label>
+            <div class="parts-summary-grid parts-operational-filters" id="parts-summary-grid" role="toolbar" aria-label="Parts queue filters"></div>
+            <div class="table-toolbar parts-toolbar parts-compact-toolbar">
+              <label class="parts-search-field"><span>Search</span><input id="parts-search" type="search" placeholder="Key, stock, JC, customer or vehicle" /></label>
               <label><span>Department</span><select id="parts-department-filter"><option value="">All departments</option><option value="138">138 Bus 4x4</option><option value="137">137 Fab</option><option value="139">139 PD</option></select></label>
-            </div>
-            <div class="parts-help-strip">
-              <strong>Parts rule:</strong>
-              <span>Parts shows only what is coming, stoppages, and what is on order. Issued/signed-off vehicles are removed from this screen. RFT remains blocked until Parts is issued or not required.</span>
             </div>
             <div id="parts-home-content" class="parts-home-content"></div>
           </section>
@@ -617,10 +592,11 @@
             <div class="panel-header">
               <div>
                 <h2>Back End Data</h2>
-                <p>All imported/current tracker vehicles plus rows moved to Deleted after a later Navision dump no longer contains them.</p>
+                <p>Online shared Navision imports are visible here to every approved staff account, alongside this browser's operational tracker rows.</p>
               </div>
               <div class="panel-actions">
                 <span class="status-pill" id="backend-data-count">0 current · 0 deleted</span>
+                <button class="small-button" id="backend-data-refresh-shared" type="button">Refresh shared imports</button>
                 <button class="small-button" type="button" data-view-target="import">Upload Navision dump</button>
               </div>
             </div>
@@ -635,14 +611,15 @@
                   <option value="all">All back-end data</option>
                   <option value="backend">Back end only</option>
                   <option value="active">Active / PDC Sheet</option>
+                  <option value="shared">Shared Navision imports</option>
                   <option value="deleted">Deleted</option>
                 </select>
               </label>
               <button class="small-button" id="backend-data-clear-search" type="button">Clear</button>
             </div>
             <div class="parts-help-strip">
-              <strong>Navision refresh:</strong>
-              <span>Search for a back-end-only vehicle and use Move to active to place it on the PDC Sheet. Its Navision data remains attached and future imports will not hide it.</span>
+              <strong>Online Navision visibility:</strong>
+              <span>Shared imported rows update automatically for signed-in staff and remain read-only here. Moving a vehicle into operational workflow still requires the separately approved vehicle-authority process.</span>
             </div>
             <div id="backend-data-content" class="parts-home-content backend-data-content"></div>
           </section>
@@ -803,9 +780,6 @@
                 <h2>1. Daily Navision import · shared backend</h2>
                 <p>Paste rows copied from Navision, or upload .txt / .tsv / .csv / .xlsx. Preview and apply use the approved migration-037/038 shared staging service. Browser-local authority is unchanged.</p>
               </div>
-              <div class="panel-actions">
-                <a class="small-button" href="random-100-vehicles.csv" download>Download random 100-vehicle CSV</a>
-              </div>
             </div>
             <label class="drop-zone navision-drop-zone" for="navision-upload">
               <input id="navision-upload" type="file" accept=".txt,.tsv,.csv,.xlsx,text/plain,text/tab-separated-values,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" />
@@ -840,6 +814,7 @@
               </label>
               <label class="zpl-field"><span>Exact dealer scope</span><select id="navision-dealer-code" required><option value="">Select dealer code before preview</option><option value="14450">Pilbara Toyota · 14450</option><option value="37047">Broome Toyota · 37047</option></select></label>
               <div class="subtle navision-note"><strong>Shared backend:</strong> previews are deterministic and scoped by Microsoft Navision plus the exact dealer code. Missing rows are marked only within that same scope; no records are hard-deleted, activated or moved. New rows remain back-end-only. Browser-local export remains available for recovery.</div>
+              <div class="navision-import-access-status is-blocked" id="navision-import-access-status" role="status" aria-live="polite"><strong>Checking import access…</strong><span>Your approved account role determines whether preview and apply are available.</span></div>
             </div>
             <div class="navision-status-list" id="navision-status-list">
               <div class="empty-state compact-empty"><strong>No Navision preview yet</strong><span>Paste copied Navision rows, or upload a text/CSV/XLSX file, select the exact dealer, then click Preview shared import.</span></div>
@@ -996,15 +971,15 @@
 
   <script src="vendor/supabase/supabase-2.110.5.js"></script>
   <script src="pdc-supabase-config.staging.js"></script>
-  <script src="pdc-auth.js?v=2026.07.22.08-blocker-remediation"></script>
-  <script src="pdc-auth-registration.js?v=2026.07.22.08-blocker-remediation"></script>
-  <script src="data-staging-empty.js?v=2026.07.22.08-blocker-remediation"></script>
-  <script src="email-board-data.js?v=2026.07.22.08-blocker-remediation"></script>
-  <script src="arb-labor-catalog.js?v=2026.07.22.08-blocker-remediation"></script>
-  <script src="ai-board-advisor.js?v=2026.07.22.08-blocker-remediation"></script>
-  <script src="navision-backend-service.js?v=2026.07.22.08-blocker-remediation"></script>
-  <script src="workshop-eligibility.js?v=2026.07.22.08-blocker-remediation"></script>
-  <script src="app.js?v=2026.07.22.08-blocker-remediation"></script>
+  <script src="pdc-auth.js?v=2026.07.23.10-staging-blocker-closure"></script>
+  <script src="pdc-auth-registration.js?v=2026.07.23.10-staging-blocker-closure"></script>
+  <script src="data-staging-empty.js?v=2026.07.23.10-staging-blocker-closure"></script>
+  <script src="email-board-data.js?v=2026.07.23.10-staging-blocker-closure"></script>
+  <script src="arb-labor-catalog.js?v=2026.07.23.10-staging-blocker-closure"></script>
+  <script src="ai-board-advisor.js?v=2026.07.23.10-staging-blocker-closure"></script>
+  <script src="navision-backend-service.js?v=2026.07.23.10-staging-blocker-closure"></script>
+  <script src="workshop-eligibility.js?v=2026.07.23.10-staging-blocker-closure"></script>
+  <script src="app.js?v=2026.07.23.10-staging-blocker-closure"></script>
   <script src="scripts/stage2b_c4_browser_export.js?v=2026.07.22.01-read-only-assessment"></script>
   <script src="staging-browser-assessment.js?v=2026.07.22.01-read-only-assessment"></script>
 </body>
