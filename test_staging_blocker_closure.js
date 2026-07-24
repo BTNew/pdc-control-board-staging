@@ -40,7 +40,12 @@ for (const action of ['Mark ordered', 'Mark received', 'Parts STOPPAGE', 'Remove
 for (const field of ['Key</th>', 'Stock</th>', 'JC</th>', 'Vehicle / customer', 'Parts ETA', 'ETA counter', 'Outstanding station work', 'Parts STOPPAGE reason']) {
   assert(app.includes(field), `missing Parts field ${field}`);
 }
-assert(app.includes('toggleVehiclePartsJita'));
+assert(!app.includes('toggleVehiclePartsJita'));
+assert(!app.includes('data-parts-toggle-jita'));
+assert(!app.includes('name="jitaPartsOrdered"'));
+assert(!index.includes('name="jitaPartsOrdered"'));
+assert(!staging.includes('name="jitaPartsOrdered"'));
+assert(app.includes('vehicleNavisionJitaNumber'));
 assert(css.includes('overflow-x: hidden'));
 assert(css.includes('.parts-visible-actions'));
 assert(!index.includes('id="parts-status-filter"'));

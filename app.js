@@ -1,5 +1,5 @@
-const APP_VERSION = '2026.07.24.17-manual-estimated-time-review-fixes';
-const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.07.24.17-manual-estimated-time-review-fixes';
+const APP_VERSION = '2026.07.24.18-jita-navision-authority-review-fixes';
+const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.07.24.18-jita-navision-authority-review-fixes';
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
 // constant intentionally names only the production ref, never the
@@ -1984,10 +1984,14 @@ function taskOptionsHtml(current = '') {
     .join('');
 }
 
+function vehicleNavisionJitaNumber(vehicle = {}) {
+  const value = String(vehicle.jitQty || vehicle.navisionJitaNumber || '').trim();
+  return /\d/.test(value) && !/^0+(?:\.0+)?$/.test(value) ? value : '';
+}
+
 function inferJitaPartsOrdered(vehicle) {
-  const qty = String(vehicle.jitQty || '').trim();
-  if (qty && qty !== '0') return `Yes${qty ? ` - Qty ${qty}` : ''}`;
-  return 'Unknown';
+  const number = vehicleNavisionJitaNumber(vehicle);
+  return number ? `Yes - JITA ${number}` : 'Unknown';
 }
 
 function normalizeJita(value) {
@@ -4162,7 +4166,7 @@ function renderOperationalVisibility() {
   const metrics = operationalVisibilityMetrics(rows);
   const cards = [
     { label: 'External/specialist work', value: metrics.openThirdParty, detail: `${metrics.assignedThirdParty} assigned · tint / fabrication / electrical / pit inspection` },
-    { label: 'Stagnation & blockers', value: metrics.stagnant, detail: `${metrics.activeBlockers} active blockers or Parts STOPPAGEs` },
+    { label: 'Stagnation & blockers', value: metrics.stagnant, detail: `${metrics.activeBlockers} active blockers or Parts STOPPAGES` },
     { label: 'Capacity alerts', value: metrics.capacityAlerts, detail: `${metrics.pmbRows} PMB vehicles checked against WIP and ageing limits` },
     { label: 'RFT gate issues', value: metrics.rftGateIssues, detail: 'Manual QC remains required before Ready for Transport' },
     { label: 'History events', value: metrics.historyEvents, detail: 'Local timestamped audit records for reporting review' },
@@ -4206,7 +4210,7 @@ function workflowPriorityRows() {
     });
   pmbRows
     .filter(isPdcBlocked)
-    .forEach(vehicle => issueRows.push({ vehicle, label: 'PMB stoppage', severity: 'danger', detail: pdcBlockReason(vehicle) }));
+    .forEach(vehicle => issueRows.push({ vehicle, label: 'PMB STOPPAGE', severity: 'danger', detail: pdcBlockReason(vehicle) }));
   const seen = new Set();
   return issueRows.filter(row => {
     const key = `${vehicleKey(row.vehicle)}:${row.label}`;
@@ -4254,7 +4258,7 @@ function renderFixFirstGrid() {
   const host = $('#fix-first-grid');
   if (!host) return;
   const rows = workflowPriorityRows();
-  host.innerHTML = `<details class="fix-first-list"><summary>Show stoppages</summary><div class="fix-first-list-body">${fixFirstRowsHtml(rows)}</div></details>`;
+  host.innerHTML = `<details class="fix-first-list"><summary>Show STOPPAGES</summary><div class="fix-first-list-body">${fixFirstRowsHtml(rows)}</div></details>`;
   bindFixFirstRows(host);
 }
 
@@ -5116,7 +5120,7 @@ function workflowFilterSummary(filters = {}, matched = 0, total = 0) {
   if (filters.work) parts.push(`work ${PDC_JOB_BY_KEY.get(filters.work)?.label || filters.work}`);
   if (filters.required) parts.push(`required ${filters.required}`);
   if (filters.completion) parts.push(filters.completion);
-  if (filters.stoppage) parts.push(filters.stoppage === 'yes' ? 'stoppage only' : 'no stoppage');
+  if (filters.stoppage) parts.push(filters.stoppage === 'yes' ? 'STOPPAGE only' : 'no STOPPAGE');
   parts.push(sortLabels[filters.sort] || 'oldest first');
   return parts.join(' · ');
 }
@@ -5360,9 +5364,9 @@ function renderIncomingDashboardBoard() {
     { key: 'overseas', label: 'Overseas / Other', hint: 'All other non-RFT vehicles not yet in transit/YH/PMB', open: false },
   ];
   const priorityRows = workflowPriorityRows();
-  const priorityHtml = filters.bucket ? '' : `<section class="incoming-priority-stoppages" aria-label="Parts and PMB stoppages">
+  const priorityHtml = filters.bucket ? '' : `<section class="incoming-priority-stoppages" aria-label="Parts and PMB STOPPAGES">
     <div class="incoming-priority-stoppages-head"><strong>STOPPAGES / Fix First</strong><span>${priorityRows.length} active</span><small>Red priority list before RFT. Sort Parts STOPPAGES by Parts ETA so long-delay items fall lower.</small></div>
-    <details class="fix-first-list incoming-priority-list"><summary>Show stoppages</summary><div class="fix-first-list-body">${fixFirstRowsHtml(priorityRows)}</div></details>
+    <details class="fix-first-list incoming-priority-list"><summary>Show STOPPAGES</summary><div class="fix-first-list-body">${fixFirstRowsHtml(priorityRows)}</div></details>
   </section>`;
   host.innerHTML = workStatusLegendHtml() + priorityHtml + defs.map(def => {
     if (filters.bucket && filters.bucket !== def.key) return '';
@@ -6524,7 +6528,7 @@ function renderPmbBayBoardHtml(stage = '') {
         <section class="pmb-bay-work-started" data-pmb-complete-drop-stage="${escapeHtml(normalizedStage)}">
           <div class="pmb-bay-unassigned-title"><strong>Completed / return to unallocated</strong><span>${workStarted.length} complete</span></div>
           <div class="pmb-bay-unassigned-list">
-            ${workStarted.map(vehicle => pmbBayVehicleCardHtml(vehicle, normalizedStage)).join('') || '<div class="pmb-bay-empty compact">Drop a vehicle here to choose Complete, Stoppage, or Move only.</div>'}
+            ${workStarted.map(vehicle => pmbBayVehicleCardHtml(vehicle, normalizedStage)).join('') || '<div class="pmb-bay-empty compact">Drop a vehicle here to choose Complete, STOPPAGE, or Move only.</div>'}
           </div>
         </section>
       </div>
@@ -6835,7 +6839,7 @@ function pmbCardDetailHtml(vehicle = {}) {
   const unit = displayVehicle(vehicle) || 'Vehicle not listed';
   const consultant = consultantName(vehicle) || vehicle.salesperson || vehicle.salesPerson || 'No sales rep';
   const blocked = isPdcBlocked(vehicle) || partsDepartmentStatus(vehicle) === 'stoppage';
-  const blocker = blocked ? (partsStoppageReason(vehicle) || vehicle.pdcBlockedReason || 'Parts/PMB stoppage') : 'No parts stoppage';
+  const blocker = blocked ? (partsStoppageReason(vehicle) || vehicle.pdcBlockedReason || 'Parts/PMB STOPPAGE') : 'No Parts STOPPAGE';
   return `<span class="pmb-pill-vehicle" title="${escapeHtml(unit)}">${escapeHtml(unit)}</span>
     <span class="pmb-pill-meta">
       <span class="pmb-card-age pmb-age-${escapeHtml(onSiteDaysClass(vehicle))}">${escapeHtml(onSiteDaysLabel(vehicle).replace('on site', 'at PMB'))}</span>
@@ -7101,7 +7105,7 @@ function pmbMovementResolutionChoiceModal(vehicle = {}, currentStage = '', nextS
           <label class="pmb-resolution-option is-stoppage">
             <input type="checkbox" value="stoppage" data-pmb-resolution-choice>
             <span>
-              <strong>Parts / job stoppage</strong>
+              <strong>Parts / job STOPPAGE</strong>
               <small>Move the vehicle and record why this PMB job is stopped.</small>
             </span>
           </label>
@@ -7115,7 +7119,7 @@ function pmbMovementResolutionChoiceModal(vehicle = {}, currentStage = '', nextS
         </div>
         <label class="pmb-resolution-reason" data-pmb-resolution-reason-wrap hidden>
           <span>STOPPAGE reason</span>
-          <input type="text" value="${escapeHtml(area)} stoppage" data-pmb-resolution-reason>
+          <input type="text" value="${escapeHtml(area)} STOPPAGE" data-pmb-resolution-reason>
         </label>
         <div class="edit-actions pmb-resolution-actions">
           <button class="secondary" type="button" data-pmb-resolution-cancel>Cancel</button>
@@ -7154,8 +7158,8 @@ function pmbMovementResolutionChoiceModal(vehicle = {}, currentStage = '', nextS
     });
     overlay.querySelector('[data-pmb-resolution-save]').addEventListener('click', () => {
       const choice = selectedChoice();
-      const reason = cleanNavisionText(overlay.querySelector('[data-pmb-resolution-reason]')?.value || `${area} stoppage`);
-      finish({ choice, reason: reason || `${area} stoppage` });
+      const reason = cleanNavisionText(overlay.querySelector('[data-pmb-resolution-reason]')?.value || `${area} STOPPAGE`);
+      finish({ choice, reason: reason || `${area} STOPPAGE` });
     });
     document.body.appendChild(overlay);
     document.addEventListener('keydown', onKeydown);
@@ -7177,7 +7181,7 @@ async function pmbMovementResolutionUpdates(vehicle = {}, fromStage = '', toStag
   const operator = getCurrentOperatorName();
   const area = pmbStageLabel(currentStage) || 'the current area';
   if (choice === 'stoppage') {
-    const reason = cleanNavisionText(result.reason || `${area} stoppage`);
+    const reason = cleanNavisionText(result.reason || `${area} STOPPAGE`);
     return { pdcBlocked: true, pdcBlockReason: reason, pdcBlockedAt: now, pdcBlockedBy: operator };
   }
   if (choice === 'complete') {
@@ -7895,7 +7899,7 @@ function issueStripButtonHtml(action, label, value, detail, tone = '') {
 function renderControlBoardIssueStripHtml(counts = controlBoardIssueCounts()) {
   return `
     <div class="exception-strip" aria-label="Fix first queues">
-      ${issueStripButtonHtml('parts-stoppage', 'Parts STOPPAGEs', counts.partsStoppage, 'Blocking production now', counts.partsStoppage ? 'danger' : '')}
+      ${issueStripButtonHtml('parts-stoppage', 'Parts STOPPAGES', counts.partsStoppage, 'Blocking production now', counts.partsStoppage ? 'danger' : '')}
       ${issueStripButtonHtml('pmb-blocked', 'PMB blockers', counts.pmbBlocked, 'Blocked PMB vehicles', counts.pmbBlocked ? 'danger' : '')}
       ${issueStripButtonHtml('rft-blocked', 'RFT blocked', counts.rftBlocked, 'Missing gate sign-offs', counts.rftBlocked ? 'warning' : '')}
       ${issueStripButtonHtml('pmb-unallocated', 'PMB unallocated', counts.pmbUnallocated, 'Needs stage / bay decision', counts.pmbUnallocated ? 'warning' : '')}
@@ -9795,14 +9799,6 @@ function renderDetail() {
             <span class="muted-label">Navision ETA</span>
             <input value="${escapeHtml(scotEtaOnly(v.etaAtDealer))}" placeholder="No Navision ETA" readonly />
           </label>
-          <label>
-            <span class="muted-label">JITA Parts Ordered</span>
-            <select name="jitaPartsOrdered">
-              <option value="Unknown" ${normalizeJita(jitaDisplay(v)) === 'Unknown' ? 'selected' : ''}>Unknown</option>
-              <option value="Yes" ${normalizeJita(jitaDisplay(v)) === 'Yes' ? 'selected' : ''}>Yes</option>
-              <option value="No" ${normalizeJita(jitaDisplay(v)) === 'No' ? 'selected' : ''}>No</option>
-            </select>
-          </label>
         </div>
         <div class="form-row one-col">
           <label>
@@ -9942,7 +9938,6 @@ function renderDetail() {
     const pdcLocation = isCompletedVehicle ? previousPdcLocation : normalizePdcLocation(form.pdcLocation.value);
     const pmbStage = previousPmbStage;
     const pdcJobcard = cleanNavisionText(form.pdcJobcard?.value || '');
-    const jitaPartsOrdered = form.jitaPartsOrdered.value;
     const pdcBlocked = Boolean(form.pdcBlocked?.checked);
     const pdcBlockReasonValue = cleanNavisionText(form.pdcBlockReason?.value || '');
     const requirementUpdates = {};
@@ -9956,7 +9951,7 @@ function renderDetail() {
       window.alert(`Key tag ${keyNumber} is already assigned to ${displayStockNumber(duplicateKeyVehicle) || duplicateKeyVehicle.order || 'another PMB vehicle'}. Only one active PMB vehicle can use a key tag number at a time.`);
       return;
     }
-    const updates = { client, keyNumber, pdcJobcard, consultant, internalStatus, pdcLocation, pmbStage, jitaPartsOrdered, pdcBlocked, pdcBlockReason: pdcBlockReasonValue, ...requirementUpdates, ...completionUpdates };
+    const updates = { client, keyNumber, pdcJobcard, consultant, internalStatus, pdcLocation, pmbStage, pdcBlocked, pdcBlockReason: pdcBlockReasonValue, ...requirementUpdates, ...completionUpdates };
     const hasIndependentPdcWork = Boolean(
       pdcJobcard || pdcLocation || pdcBlocked ||
       PDC_JOB_DEFS.some(def => requirementUpdates[def.requireKey] || completionUpdates[def.completeKey])
@@ -10684,9 +10679,9 @@ function renderProductionDepartmentBoard() {
   const help = $('#department-help-strip');
   const capacity = pmbStageCapacityLabel(def.stage);
   if (heading) heading.textContent = def.label;
-  if (description) description.textContent = `${def.label} focused work list. Use the row actions to sign off work, record stoppages, or open the vehicle details.`;
+  if (description) description.textContent = `${def.label} focused work list. Use the row actions to sign off work, record STOPPAGES, or open the vehicle details.`;
   if (count) count.textContent = `${rows.length} vehicle${rows.length === 1 ? '' : 's'} · ${capacity}`;
-  if (help) help.innerHTML = `<strong>${escapeHtml(def.label)}</strong><span>Capacity: ${escapeHtml(capacity)}</span><span>Sort: stoppages first, then earliest Kewdale ETA.</span>`;
+  if (help) help.innerHTML = `<strong>${escapeHtml(def.label)}</strong><span>Capacity: ${escapeHtml(capacity)}</span><span>Sort: STOPPAGES first, then earliest Kewdale ETA.</span>`;
   if (!rows.length) {
     host.innerHTML = '<div class="empty-state"><strong>No vehicles match this department filter</strong><span>Clear search or change the status filter.</span></div>';
     return;
@@ -10727,7 +10722,7 @@ function markProductionDepartmentStoppage(key = '', stage = '') {
   if (!vehicle) return;
   const normalizedStage = normalizePmbStage(stage || inferredPmbStage(vehicle));
   if (!normalizedStage) return;
-  const reason = cleanNavisionText(window.prompt(`Enter ${pmbStageLabel(normalizedStage)} stoppage reason:`, isPdcBlocked(vehicle) ? pdcBlockReason(vehicle) : '') || '');
+  const reason = cleanNavisionText(window.prompt(`Enter ${pmbStageLabel(normalizedStage)} STOPPAGE reason:`, isPdcBlocked(vehicle) ? pdcBlockReason(vehicle) : '') || '');
   if (!reason) return;
   const def = pmbStageJobDef(normalizedStage);
   const operator = getCurrentOperatorName();
@@ -11015,11 +11010,9 @@ function partsQueueActionsHtml(vehicle = {}, status = partsDepartmentStatus(vehi
   const key = vehicleKey(vehicle);
   const received = ['issued', 'notrequired'].includes(status);
   const stopped = status === 'stoppage';
-  const jitaYes = normalizeJita(jitaDisplay(vehicle)) === 'Yes';
   return `<div class="parts-action-group parts-visible-actions">
     ${status === 'notordered' ? `<button class="small-button primary" type="button" data-parts-ordered="${escapeHtml(key)}">Mark ordered</button>` : ''}
     ${received ? '' : `<button class="small-button" type="button" data-parts-complete="${escapeHtml(key)}">Mark received</button>`}
-    <button class="small-button ${jitaYes ? 'is-active' : ''}" type="button" data-parts-toggle-jita="${escapeHtml(key)}">JITA ${jitaYes ? '✓' : '×'}</button>
     ${stopped
       ? `<button class="small-button" type="button" data-parts-clear-stoppage="${escapeHtml(key)}">Remove Parts STOPPAGE</button>`
       : `<button class="small-button danger-button" type="button" data-parts-stoppage="${escapeHtml(key)}">Parts STOPPAGE</button>`}
@@ -11034,7 +11027,6 @@ function bindPartsQueueActionButtons(host) {
   $$('[data-parts-complete]', host).forEach(button => button.addEventListener('click', () => markVehiclePartsComplete(button.dataset.partsComplete)));
   $$('[data-parts-stoppage]', host).forEach(button => button.addEventListener('click', () => markVehiclePartsStoppage(button.dataset.partsStoppage)));
   $$('[data-parts-clear-stoppage]', host).forEach(button => button.addEventListener('click', () => clearVehiclePartsStoppage(button.dataset.partsClearStoppage)));
-  $$('[data-parts-toggle-jita]', host).forEach(button => button.addEventListener('click', () => toggleVehiclePartsJita(button.dataset.partsToggleJita)));
   $$('[data-parts-eta-email]', host).forEach(button => button.addEventListener('click', () => draftPartsEtaSalesEmail(button.dataset.partsEtaEmail)));
 }
 
@@ -11045,7 +11037,7 @@ function partsQueueRowHtml(vehicle = {}) {
   const unit = displayVehicle(vehicle) || 'Vehicle not listed';
   const blocker = status === 'stoppage' ? partsStoppageReason(vehicle) : '';
   const outstanding = partsOutstandingStationWork(vehicle);
-  const jitaYes = normalizeJita(jitaDisplay(vehicle)) === 'Yes';
+  const jitaNumber = vehicleNavisionJitaNumber(vehicle);
   const etaValue = partsWorstEtaInputValue(vehicle);
   const etaCountdown = partsWorstEtaCountdownLabel(vehicle);
   const etaCountdownClass = partsWorstEtaCountdownClass(vehicle);
@@ -11057,7 +11049,7 @@ function partsQueueRowHtml(vehicle = {}) {
     <td><span class="parts-status-pill ${escapeHtml(partsDepartmentStatusClass(status))}">${escapeHtml(partsDepartmentStatusLabel(status))}</span></td>
     <td class="parts-eta-cell"><input class="parts-eta-input" type="date" data-parts-worst-eta="${escapeHtml(key)}" value="${escapeHtml(etaValue)}" aria-label="Parts ETA for ${escapeHtml(displayStockNumber(vehicle) || vehicle.order || 'vehicle')}" /></td>
     <td class="parts-eta-counter-cell"><span class="parts-eta-countdown ${escapeHtml(etaCountdownClass)}">${escapeHtml(etaCountdown || '—')}</span></td>
-    <td class="parts-queue-jita-cell"><span class="jita-icon ${jitaYes ? 'yes' : 'no'}" aria-label="JITA ${jitaYes ? 'ordered' : 'not ordered'}">${jitaYes ? '✓' : '×'}</span></td>
+    <td class="parts-queue-jita-cell">${jitaNumber ? `<span class="jita-icon yes" role="img" aria-label="Navision JITA number ${escapeHtml(jitaNumber)}" title="Navision JITA number ${escapeHtml(jitaNumber)}">✓</span>` : '<span class="parts-jita-empty" aria-label="No Navision JITA number">—</span>'}</td>
     <td><span class="parts-outstanding-work" title="${escapeHtml(outstanding.join(', '))}">${escapeHtml(outstanding.join(', ') || 'None')}</span></td>
     <td class="parts-queue-blocker">${blocker ? `<strong title="${escapeHtml(blocker)}">${escapeHtml(blocker)}</strong>` : '<span class="subtle">None</span>'}</td>
     <td>${partsQueueActionsHtml(vehicle, status)}</td>
@@ -11107,14 +11099,6 @@ function renderPartsHome() {
   bindPartsIssuedStoppagePicker(host);
   bindPartsQueueActionButtons(host);
   $$('[data-parts-worst-eta]', host).forEach(input => input.addEventListener('change', () => updateVehiclePartsWorstEta(input.dataset.partsWorstEta, input.value)));
-}
-
-function toggleVehiclePartsJita(key = '') {
-  const vehicle = selectedVehicle(key);
-  if (!vehicle) return;
-  const next = normalizeJita(jitaDisplay(vehicle)) === 'Yes' ? 'No' : 'Yes';
-  recordVehicleAudit(vehicle, `JITA marked ${next === 'Yes' ? 'ordered' : 'not ordered'}`, { by: getCurrentOperatorName() });
-  saveVehicleEdits(key, { jitaPartsOrdered: next });
 }
 
 function markVehiclePartsOrdered(key = '') {
@@ -13933,11 +13917,18 @@ function navisionToyotaStatus(row, headerMap) {
   return getNavisionValue(row, headerMap, 'Sub Location Description');
 }
 
+function navisionHasColumn(headerMap, columns) {
+  const names = Array.isArray(columns) ? columns : [columns];
+  return names.some(name => headerMap.has(name) || headerMap.has(normalizeNavisionHeader(name)));
+}
+
+function navisionJitaNumber(row, headerMap) {
+  const value = cleanNavisionText(getNavisionValue(row, headerMap, ['JITA Number', 'JITA No.', 'JITA No', 'JITA PreOrder']));
+  return /\d/.test(value) && !/^0+(?:\.0+)?$/.test(value) ? value : '';
+}
+
 function navisionJita(row, headerMap) {
-  const value = getNavisionValue(row, headerMap, 'JITA PreOrder');
-  if (/^yes$/i.test(value) || (/\d/.test(value) && value !== '0')) return 'Yes';
-  if (/^no$/i.test(value)) return 'No';
-  return 'Unknown';
+  return navisionJitaNumber(row, headerMap) ? 'Yes' : 'Unknown';
 }
 
 
@@ -14236,8 +14227,9 @@ function buildNavisionVehicle(row, headerMap, excelRow, options = {}) {
     navisionDealerComments: dealerComments,
     navisionVehicleNote: vehicleNote,
     epodReceipt: getNavisionValue(row, headerMap, 'EPOD Date'),
-    jitQty: '',
+    jitQty: navisionJitaNumber(row, headerMap),
     jitaPartsOrdered: navisionJita(row, headerMap),
+    _navisionJitaNumberColumnPresent: navisionHasColumn(headerMap, ['JITA Number', 'JITA No.', 'JITA No', 'JITA PreOrder']),
     wmi,
     vdsNumber,
     frame,
@@ -14514,6 +14506,7 @@ function navisionEditPayload(incoming, existing = {}) {
   // For existing CRM rows, protect manual edits and preparation fields.
   // Navision refreshes only identifiers needed for matching plus Tray, Dealer Comments, JITA and location/status fields.
   const workFileMode = incoming.pdcImportMode === 'work-file';
+  const navisionJitaNumberColumnPresent = incoming._navisionJitaNumberColumnPresent === true;
   const independentlyPromoted = vehicleWasIndependentlyPromoted(existing) || Boolean(existing.pdcLocationLocked || existing.navisionLocationLocked || existing.manualLocation);
   const workFilePromotes = workFileMode && incoming.pdcSheetVisible === true;
   const keepVisible = independentlyPromoted || workFilePromotes;
@@ -14559,8 +14552,8 @@ function navisionEditPayload(incoming, existing = {}) {
     // Allowed Navision refresh fields.
     trayOrdered: workFileMode ? (incoming.trayOrdered === true || existing.trayOrdered === true) : incoming.trayOrdered,
     trayFitmentComplete: workFileMode ? (incoming.trayFitmentComplete === true || existing.trayFitmentComplete === true) : incoming.trayFitmentComplete,
-    jitaPartsOrdered: workFileMode ? (existing.jitaPartsOrdered || 'Unknown') : incoming.jitaPartsOrdered,
-    jitQty: workFileMode ? (existing.jitQty || '') : (incoming.jitQty || ''),
+    jitaPartsOrdered: navisionJitaNumberColumnPresent ? incoming.jitaPartsOrdered : (existing.jitaPartsOrdered || 'Unknown'),
+    jitQty: navisionJitaNumberColumnPresent ? (incoming.jitQty || '') : (existing.jitQty || ''),
     toyotaStatus: workFileMode ? (existing.toyotaStatus || '') : (incoming.toyotaStatus || ''),
     navisionSubLocationDescription: workFileMode ? (existing.navisionSubLocationDescription || '') : (incoming.navisionSubLocationDescription || ''),
     navisionLocationStatus: workFileMode ? (existing.navisionLocationStatus || '') : (incoming.navisionLocationStatus || ''),
@@ -14575,6 +14568,7 @@ function navisionEditPayload(incoming, existing = {}) {
     navisionCutButVehicle: workFileMode ? Boolean(existing.navisionCutButVehicle) : Boolean(incoming.navisionCutButVehicle),
     navisionCutButVehicleSource: workFileMode ? (existing.navisionCutButVehicleSource || '') : (incoming.navisionCutButVehicleSource || ''),
   };
+  delete payload._navisionJitaNumberColumnPresent;
   if (!workFileMode) {
     const wasOldAutomaticPromotion = /navision pdc work|navision.*location signal/i.test(existing.pdcVisibilitySource || '');
     if (!independentlyPromoted && wasOldAutomaticPromotion) {
@@ -14615,7 +14609,7 @@ function navisionFieldChanges(existing = {}, payload = {}) {
     ['prodMth', 'P/Month'],
     ['etaAtDealer', 'ETA'],
     ['toyotaStatus', 'Toyota Status'],
-    ['jitaPartsOrdered', 'JITA'],
+    ['jitQty', 'JITA Number'],
     ['trayOrdered', 'Tray Fitment Ordered'],
     ['trayFitmentComplete', 'Tray Fitment Complete'],
     ['navisionDealerComments', 'Navision Notes'],

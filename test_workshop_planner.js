@@ -309,7 +309,7 @@ assert.ok(source.includes('function completeWorkshopPlan('), 'Workshop completio
 assert.ok(source.includes('function stopWorkshopPlan('), 'Workshop stoppage action is missing');
 assert.ok(source.includes('function openWorkshopVehicleJob('), 'Double-click vehicle job editor is missing');
 assert.ok(source.includes('function openWorkshopWeeklyView('), 'Per-bay weekly schedule is missing');
-assert.ok(source.includes('Started and stoppage jobs can also be moved safely, with audit and bay-state updates.'), 'Weekly planner guidance must explain the safe live-move path');
+assert.ok(source.includes('Started and STOPPAGE jobs can also be moved safely, with audit and bay-state updates.'), 'Weekly planner guidance must explain the safe live-move path');
 assert.ok(source.includes('data-workshop-weekly-stage'), 'Per-bay Week button is missing');
 assert.ok(source.includes('function workshopRevealSearchMatch('), 'Planner search reveal is missing');
 assert.ok(source.includes('workshopJobLineAssignments'), 'Imported job-line work-area allocation is missing');

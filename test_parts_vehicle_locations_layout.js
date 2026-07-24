@@ -26,6 +26,8 @@ assert.doesNotMatch(desktopCss, /\.parts-queue-table \.parts-action-group \{[^}]
 assert.match(desktopCss, /\.parts-queue-table \.parts-email-sales-secondary \{[\s\S]*?width: auto !important;/);
 assert.match(app, /<th>Parts status<\/th><th>Parts ETA<\/th><th>ETA counter<\/th><th>JITA<\/th><th>Outstanding station work<\/th><th>Parts STOPPAGE reason<\/th><th>Actions<\/th>/);
 assert.match(app, /parts-visible-actions/);
-assert.match(app, /data-parts-toggle-jita/);
+assert.doesNotMatch(app, /data-parts-toggle-jita/);
+assert.match(app, /vehicleNavisionJitaNumber/);
+assert.match(app, /No Navision JITA number/);
 
 console.log('Parts/Vehicle Locations layout regression tests passed.');

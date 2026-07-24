@@ -48,7 +48,8 @@ const etaCell = app.match(/<div class="parts-worst-eta-wrap">[\s\S]*?<\/td>/)?.[
 assert.ok(!etaCell.includes('data-parts-eta-email'), 'Email Sales must not remain inside the ETA cell');
 assert.ok(app.includes('parts-visible-actions'), 'Parts actions must be visible without an overflow menu');
 assert.ok(!app.includes('data-parts-more-button'), 'Parts must not hide operational actions behind More');
-assert.ok(app.includes('data-parts-toggle-jita'), 'JITA toggle must be directly visible');
+assert.ok(!app.includes('data-parts-toggle-jita'), 'Parts must not expose an operator-editable JITA control');
+assert.ok(app.includes('vehicleNavisionJitaNumber'), 'Parts JITA display must derive from the imported Navision JITA number');
 assert.ok(app.includes('data-parts-ordered'), 'Mark ordered must remain visible');
 assert.ok(app.includes('data-parts-complete'), 'Mark received must remain visible');
 assert.ok(app.includes('data-parts-stoppage'), 'Add stoppage must remain visible');

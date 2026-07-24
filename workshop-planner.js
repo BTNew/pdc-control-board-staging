@@ -649,7 +649,7 @@ function workshopRequireOperatorProfile() {
 const WORKSHOP_OVERRIDE_CAPABLE_ACTIONS = new Set(['moveBooking', 'scheduleVehicleWork', 'cascadeSchedule']);
 
 function workshopSharedLegacyAmbiguity(payload = {}) {
-  const bookingId = String(payload.bookingId || '').trim();
+  const bookingId = String(payload.bookingId || payload.targetId || '').trim();
   if (!bookingId) return null;
   if (!window.__workshopDataService || typeof window.__workshopDataService.getLastSnapshot !== 'function') return null;
   return workshopLoadPlans().find(row => row.id === bookingId && row.legacyAmbiguityReason) || null;
@@ -2960,7 +2960,7 @@ function workshopPlanLifecycleActionsHtml(entry = {}) {
     return `<div class="workshop-plan-lifecycle-actions"><button type="button" data-workshop-resume-plan="${escapeHtml(planId)}" aria-label="Resume job">Resume job</button><button class="workshop-complete-action" type="button" data-workshop-complete-plan="${escapeHtml(planId)}" aria-label="Complete job">Complete</button></div>`;
   }
   if (status === 'started') {
-    return `<div class="workshop-plan-lifecycle-actions"><button type="button" data-workshop-stop-plan="${escapeHtml(planId)}" aria-label="Place job on stoppage">STOPPAGE</button><button class="workshop-complete-action" type="button" data-workshop-complete-plan="${escapeHtml(planId)}" aria-label="Complete job">Complete</button></div>`;
+    return `<div class="workshop-plan-lifecycle-actions"><button type="button" data-workshop-stop-plan="${escapeHtml(planId)}" aria-label="Place job on STOPPAGE">STOPPAGE</button><button class="workshop-complete-action" type="button" data-workshop-complete-plan="${escapeHtml(planId)}" aria-label="Complete job">Complete</button></div>`;
   }
   return `<div class="workshop-plan-lifecycle-actions"><button type="button" data-workshop-start-plan="${escapeHtml(planId)}" aria-label="Start job">Start job</button></div>`;
 }
@@ -3874,10 +3874,10 @@ function workshopReturnChoiceModal(entry = {}, vehicle = {}) {
       <button class="modal-close" type="button" data-workshop-return-cancel aria-label="Cancel">×</button>
       <header><h2>Return vehicle to PMB Unallocated</h2><p>${escapeHtml(displayStockNumber(vehicle) || vehicleJobcardNumber(vehicle) || 'Vehicle')} is leaving ${escapeHtml(pmbStageLabel(entry.stage))} Bay ${escapeHtml(entry.bay)}. The work remains open.</p></header>
       <div class="workshop-return-options">
-        <label><input type="radio" name="workshopReturnChoice" value="move" checked><span><strong>Just move</strong><small>Return to Unallocated without marking the job complete or creating a stoppage.</small></span></label>
+        <label><input type="radio" name="workshopReturnChoice" value="move" checked><span><strong>Just move</strong><small>Return to Unallocated without marking the job complete or creating a STOPPAGE.</small></span></label>
         <label><input type="radio" name="workshopReturnChoice" value="stoppage"><span><strong>STOPPAGE</strong><small>Return to Unallocated, keep the job open and flag the vehicle as stopped.</small></span></label>
       </div>
-      <label class="workshop-return-reason" data-workshop-return-reason-wrap hidden><span>STOPPAGE reason</span><input type="text" data-workshop-return-reason value="${escapeHtml(entry.stoppageReason || `${pmbStageLabel(entry.stage)} stoppage`)}"></label>
+      <label class="workshop-return-reason" data-workshop-return-reason-wrap hidden><span>STOPPAGE reason</span><input type="text" data-workshop-return-reason value="${escapeHtml(entry.stoppageReason || `${pmbStageLabel(entry.stage)} STOPPAGE`)}"></label>
       <div class="edit-actions"><button class="secondary" type="button" data-workshop-return-cancel>Cancel</button><button class="primary" type="button" data-workshop-return-apply>Return to Unallocated</button></div>
     </section>`;
     const finish = value => {
@@ -3895,7 +3895,7 @@ function workshopReturnChoiceModal(entry = {}, vehicle = {}) {
       const choice = overlay.querySelector('[name="workshopReturnChoice"]:checked')?.value || 'move';
       const reason = cleanNavisionText(overlay.querySelector('[data-workshop-return-reason]')?.value || '');
       if (choice === 'stoppage' && !reason) {
-        window.alert('Enter the stoppage reason.');
+        window.alert('Enter the STOPPAGE reason.');
         return;
       }
       finish({ choice, reason });
@@ -4079,7 +4079,7 @@ async function moveWorkshopLivePlan(planId = '', stage = '', bay = 0, dateKey = 
     if (!workshopRequireSchedulableCandidate(candidate)) return false;
     if (!workshopConfirmOtherDepartmentPlans(candidate, rows)) return false;
     const requestedLabel = `${pmbStageLabel(nextStage)} Bay ${nextBay} · ${workshopEntryTimeLabel(candidate)}`;
-    if (!window.confirm(`Move this live workshop job to ${requestedLabel}?\n\nThis updates the live bay allocation and keeps the job started/stoppage history.`)) return false;
+    if (!window.confirm(`Move this live workshop job to ${requestedLabel}?\n\nThis updates the live bay allocation and keeps the job started/STOPPAGE history.`)) return false;
     const result = await workshopDispatchSharedAction('moveBooking', {
       bookingId: entry.sharedBookingId || entry.id,
       expectedVersion: entry.sharedVersion,
@@ -4094,7 +4094,7 @@ async function moveWorkshopLivePlan(planId = '', stage = '', bay = 0, dateKey = 
   const nextBay = Number(bay);
   const nextStart = workshopDateAtOffset(dateKey, startMinutes).toISOString();
   const requestedLabel = `${pmbStageLabel(nextStage)} Bay ${nextBay} · ${workshopEntryTimeLabel({ ...entry, stage: nextStage, bay: nextBay, startAt: nextStart })}`;
-  if (!window.confirm(`Move this live workshop job to ${requestedLabel}?\n\nThis updates the live bay allocation and keeps the job started/stoppage history.`)) return false;
+  if (!window.confirm(`Move this live workshop job to ${requestedLabel}?\n\nThis updates the live bay allocation and keeps the job started/STOPPAGE history.`)) return false;
   const candidate = {
     ...entry,
     stage: nextStage,
@@ -4764,7 +4764,7 @@ function workshopStoppageReasonModal(entry = {}, vehicle = {}) {
     overlay.querySelector('[data-workshop-stop-apply]').addEventListener('click', () => {
       const reason = cleanNavisionText(overlay.querySelector('[data-workshop-stop-reason]')?.value || '');
       if (!reason) {
-        window.alert('Enter the stoppage reason.');
+        window.alert('Enter the STOPPAGE reason.');
         return;
       }
       finish(reason);
@@ -5094,7 +5094,7 @@ function openWorkshopWeeklyView(stage = '', bay = 1, anchorDate = '') {
     <button class="modal-close" type="button" data-workshop-week-close aria-label="Close weekly view">×</button>
     <header class="workshop-week-header"><div><h2>${escapeHtml(pmbStageLabel(normalizedStage))} · Bay ${escapeHtml(bay)} weekly schedule</h2><p>${escapeHtml(dates[0].toLocaleDateString('en-AU', { day: 'numeric', month: 'long' }))}–${escapeHtml(dates[dates.length - 1].toLocaleDateString('en-AU', { day: 'numeric', month: 'long', year: 'numeric' }))} · drag a minimised booking to another day or time</p></div><div><button class="small-button" type="button" data-workshop-week-shift="-7">‹ Previous week</button><button class="small-button" type="button" data-workshop-week-shift="7">Next week ›</button></div></header>
     <div class="workshop-week-grid" style="--workshop-week-columns:${dates.length};min-width:${Math.max(620, dates.length * 200)}px">${columns}</div>
-    <footer><span>Planned jobs snap to ${escapeHtml(WORKSHOP_PLANNER_CONFIG.schedulingIncrementMinutes)} minutes and update the daily board immediately. Closures are read-only; historical bookings remain visible. Started and stoppage jobs can also be moved safely, with audit and bay-state updates. Completed jobs stay fixed.</span><button class="primary" type="button" data-workshop-week-close>Done</button></footer>
+    <footer><span>Planned jobs snap to ${escapeHtml(WORKSHOP_PLANNER_CONFIG.schedulingIncrementMinutes)} minutes and update the daily board immediately. Closures are read-only; historical bookings remain visible. Started and STOPPAGE jobs can also be moved safely, with audit and bay-state updates. Completed jobs stay fixed.</span><button class="primary" type="button" data-workshop-week-close>Done</button></footer>
   </section>`;
   const close = () => {
     overlay.remove();

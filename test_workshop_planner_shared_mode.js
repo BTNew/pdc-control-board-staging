@@ -769,14 +769,20 @@ console.log('Workshop planner shared-mode integration seam checks passed');
         isEnabled: () => true,
         getLastSnapshot: () => ({ bookings: duplicateBookings, vehicles: [] }),
       },
-      __workshopSharedActions: { startWork: async () => { ambiguityDispatches += 1; return { ok: true }; } },
+      __workshopSharedActions: {
+        startWork: async () => { ambiguityDispatches += 1; return { ok: true }; },
+        cascadeSchedule: async () => { ambiguityDispatches += 1; return { ok: true }; },
+      },
       alert: message => alerts.push(String(message)),
     };
     const blocked = await planner.workshopDispatchSharedAction('startWork', { bookingId: 'b1', expectedVersion: 7 }, () => { renders += 1; });
     assert.strictEqual(blocked.error, 'legacy_ambiguity_blocked', '19a ambiguous legacy booking is rejected centrally');
     assert.strictEqual(ambiguityDispatches, 0, '19b no protected mutation is dispatched for an ambiguous legacy booking');
     assert.ok(alerts.at(-1).includes('Legacy review required'), '19c operator receives a clear legacy-review explanation');
-    console.log('PASS 19: alternate Job details paths cannot mutate ambiguous legacy bookings');
+    const blockedResize = await planner.workshopDispatchSharedAction('cascadeSchedule', { targetId: 'b1', expectedVersion: 7, operation: 'extend', durationMinutes: 1500 }, () => { renders += 1; });
+    assert.strictEqual(blockedResize.error, 'legacy_ambiguity_blocked', '19d manual estimated-time resize also rejects ambiguous targetId payloads');
+    assert.strictEqual(ambiguityDispatches, 0, '19e ambiguous resize never reaches cascadeSchedule');
+    console.log('PASS 19: alternate Job details and manual resize paths cannot mutate ambiguous legacy bookings');
   } finally {
     global.window = originalWindow;
   }

@@ -17,7 +17,7 @@ code += String.raw`
   function assert(condition, message) { if (!condition) throw new Error(message); }
   function row(values) { return values.join('\t'); }
   const header = row(['Order','Batch','Production Month','Model Description','Suffix Description','Trim Description','Colour Description','Customer Surname','Dealer Comments','Sub Location Description','ETA At Dealer/BB','ETA At Kewdale Yard','ETA Date','Port/Plant ETA Date','JITA PreOrder','Tray Fitment Ordered','Tray Fitment Complete','WMI','VDS Number','Frame']);
-  const incomingChanged = row(['ORD1','12345678','202608','Hilux','SR','Fabric','White','MERCER','New dealer note','In Transit to WA','20/08/2026','18/08/2026','17/08/2026','16/08/2026','Yes','Yes','Yes','MR0','BA3FS2','01361094']);
+  const incomingChanged = row(['ORD1','12345678','202608','Hilux','SR','Fabric','White','MERCER','New dealer note','In Transit to WA','20/08/2026','18/08/2026','17/08/2026','16/08/2026','JITA-2471','Yes','Yes','MR0','BA3FS2','01361094']);
   const parsed = parseNavisionInput(header + '\n' + incomingChanged);
   assert(parsed.vehicles.length === 1, 'Navision parser should read one vehicle');
   assert(parsed.vehicles[0].etaAtDealer === '18/08/2026', 'Dashboard ETA should use ETA At Kewdale Yard, not ETA At Dealer/BB');
@@ -38,7 +38,7 @@ code += String.raw`
   assert(updated.navisionEtaAtDealerBB === '20/08/2026', 'Confirmed import should preserve Dealer/BB ETA for popup reference only');
   assert(updated.navisionEtaDate === '17/08/2026', 'Confirmed import should preserve ETA Date for popup reference');
   assert(updated.prodMth === '08/26', 'Confirmed import should apply P/Month');
-  assert(updated.jitaPartsOrdered === 'Yes', 'Confirmed import should apply JITA');
+  assert(updated.jitaPartsOrdered === 'Yes' && updated.jitQty === 'JITA-2471', 'Confirmed import should retain the authoritative Navision JITA number');
   assert(updated.navisionDealerComments === 'New dealer note', 'Confirmed import should apply Navision Notes');
   assert(updated.trayOrdered === true, 'Confirmed import should apply Tray Fitment Ordered');
   assert(updated.trayFitmentComplete === true, 'Confirmed import should apply Tray Fitment Complete');
@@ -52,6 +52,9 @@ code += String.raw`
   const incomingEtaDateOnly = row(['ORD1','12345678','202608','Hilux','SR','Fabric','White','MERCER','ETA Date only','In Transit to WA','30/08/2026','','22/08/2026','21/08/2026','Yes','No','No','MR0','BA3FS2','01361094']);
   const parsedEtaDate = parseNavisionInput(header + '\n' + incomingEtaDateOnly);
   assert(parsedEtaDate.vehicles[0].etaAtDealer === '', 'When Kewdale is blank, dashboard ETA should stay blank and ignore ETA Date, Port/Plant and Dealer/BB');
+  assert(parsedEtaDate.vehicles[0].jitaPartsOrdered === 'Unknown' && parsedEtaDate.vehicles[0].jitQty === '', 'A Yes marker without a Navision JITA number must not create a Parts tick');
+  assert(vehicleNavisionJitaNumber({ jitaPartsOrdered: 'Yes' }) === '', 'A stale/manual local JITA boolean must never create a Parts-screen tick');
+  assert(vehicleNavisionJitaNumber({ jitQty: 'JITA-77881', jitaPartsOrdered: 'No' }) === 'JITA-77881', 'A non-empty imported Navision JITA number must create the read-only Parts tick');
 
   // Selected-only apply should skip unselected existing updates but still add new vehicles.
   localStorage.clear();
