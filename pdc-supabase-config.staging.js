@@ -11,6 +11,11 @@
 // staging page only. Both flags are independently opt-in and have no
 // effect on production, which is not configured with either flag.
 
+// Staging-only, explicit browser cleanup gate. The application only clears
+// vehicleTrackingCore operational keys when the URL also requests
+// ?clearLocalData=1 (or its documented aliases). Production never sets this.
+window.PDC_ALLOW_LOCAL_RESET = true;
+
 window.PDC_SUPABASE_CONFIG = {
   projectRef: 'cdsmnqxtyyoeoznmbidd',
   url: 'https://cdsmnqxtyyoeoznmbidd.supabase.co',
