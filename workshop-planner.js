@@ -1094,8 +1094,8 @@ const WORKSHOP_BROWSER_LINKS_KEY = 'workshopCanonicalVehicleLinks:v1';
 const WORKSHOP_BROWSER_EDITS_KEY = 'vehicleTrackingCoreNavisionOnlyEdits:v1';
 const WORKSHOP_VEHICLE_LINK_OUTCOMES = new Set(['resolved', 'not_found', 'ambiguous', 'conflict', 'invalid_input', 'unauthorized', 'service_unavailable']);
 const WORKSHOP_UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-const WORKSHOP_LINK_ALIAS_PATTERN = /^(?:source:[a-z0-9_-]+|toyota_order:[a-z0-9_-]+|permanent_vehicle_id|vin):[A-Z0-9][A-Z0-9:._/-]*$/;
-const WORKSHOP_LINK_MATCH_FIELDS = new Set(['vehicle_id', 'stock_number', 'vin', 'job_card_number', 'permanent_vehicle_id', 'toyota_order_number', 'source_record_id']);
+const WORKSHOP_LINK_ALIAS_PATTERN = /^(?:source:[a-z0-9_-]+|permanent_vehicle_id|vin):[A-Z0-9][A-Z0-9:._/-]*$/;
+const WORKSHOP_LINK_MATCH_FIELDS = new Set(['vehicle_id', 'stock_number', 'vin', 'job_card_number', 'permanent_vehicle_id', 'source_record_id']);
 const WORKSHOP_LINK_ENTRY_FIELDS = new Set([
   'sharedVehicleId', 'sharedVehicleLinkSource', 'sharedVehicleLinkVehicleVersion',
   'sharedVehicleLinkResolverRevision', 'sharedVehicleLinkMatchedBy', 'sharedVehicleLinkVerifiedAt', 'aliases',
@@ -1119,7 +1119,7 @@ function workshopVehicleLinkIdentityInput(vehicle = {}) {
   if (!built || typeof built !== 'object' || Array.isArray(built)) return unavailable('approved_identity_builder_invalid_result');
   const allowed = [
     'p_vehicle_id', 'p_stock_number', 'p_vin', 'p_job_card_number',
-    'p_permanent_vehicle_id', 'p_toyota_order_number', 'p_source_system', 'p_source_record_id',
+    'p_permanent_vehicle_id', 'p_source_system', 'p_source_record_id',
   ];
   if (allowed.some(key => built[key] != null && typeof built[key] !== 'string')) {
     return unavailable('approved_identity_builder_invalid_result');
@@ -1149,7 +1149,6 @@ function workshopVehicleLinkStableAliases(vehicle = {}, input = null) {
   if (sourceSystem && identity.p_source_record_id) add(`source:${sourceSystem}`, identity.p_source_record_id);
   add('permanent_vehicle_id', identity.p_permanent_vehicle_id);
   add('vin', identity.p_vin);
-  if (sourceSystem && identity.p_toyota_order_number) add(`toyota_order:${sourceSystem}`, identity.p_toyota_order_number);
   return [...new Set(aliases)];
 }
 
@@ -1273,7 +1272,6 @@ function workshopVehicleLinkProbeInputs(vehicle = {}, combinedInput = null) {
   add('vin', input.p_vin, { vin: input.p_vin });
   add('job_card_number', input.p_job_card_number, { jobCardNumber: input.p_job_card_number, sourceSystem: input.p_source_system });
   add('permanent_vehicle_id', input.p_permanent_vehicle_id, { permanentVehicleId: input.p_permanent_vehicle_id });
-  add('toyota_order_number', input.p_toyota_order_number, { toyotaOrderNumber: input.p_toyota_order_number, sourceSystem: input.p_source_system });
   add('source_record_id', input.p_source_record_id, { sourceSystem: input.p_source_system, sourceRecordId: input.p_source_record_id });
   return probes;
 }
@@ -1284,7 +1282,7 @@ function workshopVehicleLinkRemediation(outcome = '', hasSavedLink = false) {
     ambiguous: 'Manual identity review is required: resolve duplicate normalized candidates without selecting by row order, then retry.',
     conflict: 'Manual identity review is required: correct the conflicting saved UUID or identifier evidence, then retry.',
     invalid_input: 'Correct the reported browser-local identity field, then run deterministic link verification again.',
-    unstable_identity: 'Add one stable browser-local identifier (source record, permanent vehicle ID, VIN, or Toyota order number) before linking; stock number alone is not a durable edit key.',
+    unstable_identity: 'Add one stable browser-local identifier (source record, permanent vehicle ID, or VIN) before linking; stock number alone is not a durable edit key.',
     unauthorized: 'Use an approved staging account with resolver access; no link was saved.',
     archived: 'The canonical shared vehicle is archived. An approved administrator must restore or replace it through controlled vehicle-master review before linking.',
     service_unavailable: 'Restore the approved identity resolver service and retry; no fallback or guessed link is permitted.',
@@ -1343,12 +1341,12 @@ async function workshopResolveVehicleLinkDiagnostic(vehicle = {}, resolver = nul
   const browserLocalIdentity = {
     vehicleKey: typeof vehicleKey === 'function'
       ? vehicleKey(vehicle)
-      : String(vehicle.stock || vehicle.order || vehicle.id || '').trim(),
+      : String(vehicle.stock || vehicle.id || '').trim(),
     stockNumber: input.p_stock_number || null,
     vin: input.p_vin || null,
     jobCardNumber: input.p_job_card_number || null,
     permanentVehicleId: input.p_permanent_vehicle_id || null,
-    toyotaOrderNumber: input.p_toyota_order_number || null,
+
     sourceSystem: input.p_source_system || null,
     sourceRecordId: input.p_source_record_id || null,
     savedSharedUuid: savedUuid,
@@ -1475,7 +1473,7 @@ function workshopPersistVerifiedCanonicalLink(vehicle = {}, diagnostic = {}, sav
   if (typeof persist !== 'function' || !target) return false;
   const key = typeof vehicleKey === 'function'
     ? vehicleKey(vehicle)
-    : String(vehicle.stock || vehicle.order || vehicle.id || '').trim();
+    : String(vehicle.stock || vehicle.id || '').trim();
   if (!key) return false;
   const updates = {
     sharedVehicleId: diagnostic.sharedUuid,
@@ -1621,7 +1619,7 @@ function workshopVehicleLinkDisplayRows(diagnostic = {}, options = {}) {
     ['Stock number', shown(identity.stockNumber)],
     ['VIN', shown(identity.vin)],
     ['Job card', shown(identity.jobCardNumber)],
-    ['Toyota order', shown(identity.toyotaOrderNumber)],
+
     ['Permanent vehicle ID', shown(identity.permanentVehicleId)],
     ['Source system', shown(identity.sourceSystem)],
     ['Source record ID', shown(identity.sourceRecordId)],
@@ -2460,9 +2458,7 @@ function workshopSnapshotVehicleToPlannerRow(vehicle = {}, workItems = [], stage
     // name is approved for the tile; notes and broad vehicle fields stay absent.
     stock: vehicle.stock_number || '',
     stockNumber: vehicle.stock_number || '',
-    order: vehicle.toyota_order_number || '',
     vin: vehicle.vin || '',
-    toyotaOrderNumber: vehicle.toyota_order_number || '',
     jobCardNumber: vehicle.job_card_number || '',
     client: vehicle.customer_name || '',
     customerName: vehicle.customer_name || '',
@@ -2909,7 +2905,7 @@ function workshopQueueCardHtml(vehicle = {}, stage = workshopState().stage, date
   const bestSlot = etaConstraint.ok && !existingBooking ? workshopBestStageSlot(stage, earliestQueueDate, hours, rows) : null;
   const disabledExplanation = existingBooking ? 'An active booking already represents this requirement' : etaExplanation;
   return `<article class="workshop-queue-card ${blocked ? 'is-blocked' : ''} ${highlighted ? 'is-search-match' : ''} ${schedulingDisabled ? 'is-scheduling-disabled' : ''}" draggable="${schedulingDisabled ? 'false' : 'true'}" ${schedulingDisabled ? 'aria-disabled="true"' : ''} data-workshop-vehicle-key="${escapeHtml(key)}" data-workshop-job-vehicle="${escapeHtml(key)}" data-workshop-locate-key="${escapeHtml(key)}" title="${escapeHtml(schedulingDisabled ? disabledExplanation : 'Drag onto a bay, use Best slot, or use Schedule')}">
-    <strong>JC ${escapeHtml(vehicleJobcardNumber(vehicle) || 'TBA')} · ${escapeHtml(displayStockNumber(vehicle) || vehicle.order || 'No stock')}</strong>
+    <strong>JC ${escapeHtml(vehicleJobcardNumber(vehicle) || 'TBA')} · ${escapeHtml(displayStockNumber(vehicle) || 'No stock')}</strong>
     <span>${escapeHtml(vehicle.vehicle || vehicle.toyotaVehicle || 'Vehicle')}</span>
     <span>${escapeHtml(vehicleCustomerName(vehicle) || 'Unknown customer')}</span>
     <small class="workshop-requirements-line">Requirements: ${escapeHtml(requirements.join(', ') || pmbStageLabel(stage))}</small>
@@ -2946,7 +2942,7 @@ function workshopOtherDateCardHtml(entry = {}) {
   if (!vehicle) return '';
   const date = parseIsoTimestamp(entry.startAt || '');
   return `<button class="workshop-other-date-card" type="button" data-workshop-open-plan="${escapeHtml(entry.id)}" data-workshop-open-date="${escapeHtml(workshopEntryDate(entry))}">
-    <strong>${escapeHtml(displayStockNumber(vehicle) || vehicle.order || 'No stock')}</strong>
+    <strong>${escapeHtml(displayStockNumber(vehicle) || 'No stock')}</strong>
     <span>${escapeHtml(date ? date.toLocaleDateString('en-AU', { weekday: 'short', day: '2-digit', month: '2-digit' }) : 'Date unknown')} · ${escapeHtml(`Bay ${entry.bay}`)}</span>
   </button>`;
 }
@@ -2991,7 +2987,7 @@ function workshopPlanChipHtml(entry = {}, dateKey = '', rows = workshopLoadPlans
   const conflictNote = assigneeConflict ? ` · WARNING: ${entry.assignee} is booked on another vehicle at this time` : '';
   return `<article class="workshop-plan-chip ${classes}" ${draggable ? 'draggable="true"' : ''} data-workshop-plan-id="${escapeHtml(entry.id)}" data-workshop-job-vehicle="${escapeHtml(entry.vehicleKey)}" data-workshop-locate-key="${escapeHtml(entry.vehicleKey)}" style="--plan-left:${left}%;--plan-width:${width}%;" title="${escapeHtml(`${workshopEntryTimeLabel(entry)} · ${entry.hours}h total${conflictNote} · double-click for vehicle job${entry.status === 'completed' ? ' · completed history stays fixed' : entry.status === 'planned' ? ' · drag to reschedule' : ' · drag to move this live job safely'}`)}">
     <button class="workshop-plan-main" type="button" data-workshop-select-plan="${escapeHtml(entry.id)}">
-      <strong>JC ${escapeHtml(vehicleJobcardNumber(vehicle) || 'TBA')} · ${escapeHtml(displayStockNumber(vehicle) || vehicle.order || 'No stock')}</strong>
+      <strong>JC ${escapeHtml(vehicleJobcardNumber(vehicle) || 'TBA')} · ${escapeHtml(displayStockNumber(vehicle) || 'No stock')}</strong>
       <span>${escapeHtml(vehicle.vehicle || vehicle.toyotaVehicle || 'Vehicle')}</span>
       <small class="workshop-plan-customer">${escapeHtml(vehicleCustomerName(vehicle) || 'Unknown customer')}</small>
       <small>${escapeHtml(`${statusLabel}${assignee ? ` · ${assignee}` : ''}${segment.usesConfiguredOvertime ? ' · CONFIGURED OVERTIME' : ''}${segment.historicalOnClosure ? ' · HISTORICAL CLOSURE' : ''}`)}</small>
@@ -3013,7 +3009,7 @@ function workshopCompletedCardHtml(entry = {}) {
     ? workshopState().searchHighlightPlanId === entry.id
     : workshopState().highlightVehicleKey === entry.vehicleKey;
   return `<button class="workshop-completed-card ${highlighted ? 'is-search-match' : ''}" type="button" data-workshop-select-plan="${escapeHtml(entry.id)}" data-workshop-locate-key="${escapeHtml(entry.vehicleKey)}">
-    <strong>✓ ${escapeHtml(displayStockNumber(vehicle) || vehicle.order || 'No stock')}</strong>
+    <strong>✓ ${escapeHtml(displayStockNumber(vehicle) || 'No stock')}</strong>
     <span>${escapeHtml(vehicleCustomerName(vehicle) || 'Unknown customer')}</span>
     <small>${escapeHtml(`Bay ${entry.bay}`)} · ${escapeHtml(timeSummary)}</small>
   </button>`;
@@ -3227,7 +3223,7 @@ function workshopDetailHtml(entry = null) {
   const bestBaySummary = bestBaySlot ? workshopSlotSummary(entry.stage, bestBaySlot.bay, bestBaySlot.dateKey, bestBaySlot.startMinutes) : '';
   return `<form class="workshop-job-detail" data-workshop-detail-form data-workshop-plan-form-id="${escapeHtml(entry.id)}">
     <div class="workshop-detail-identity">
-      <strong>${escapeHtml(displayStockNumber(vehicle) || vehicle.order || 'No stock')} · ${escapeHtml(vehicleCustomerName(vehicle) || 'Unknown customer')}</strong>
+      <strong>${escapeHtml(displayStockNumber(vehicle) || 'No stock')} · ${escapeHtml(vehicleCustomerName(vehicle) || 'Unknown customer')}</strong>
       <span>${escapeHtml(vehicle.vehicle || vehicle.toyotaVehicle || 'Vehicle')} · ${escapeHtml(stationLabel)}${started ? ' · STARTED' : ' · PLANNED'}${overtime ? ' · OVERTIME' : ''}</span>
       <small class="workshop-detail-status-line"><span class="badge ${statusTone}">${statusLabel}</span>${stageAssignee ? ` <span class="workshop-inline-meta">${escapeHtml(`Technician ${stageAssignee}`)}</span>` : ''}</small>
       <small>${stageLines.length ? `Imported ${escapeHtml(pmbStageLabel(entry.stage))} work: ${escapeHtml(stageLines.map(line => line.text).join(' · '))}` : `No imported ${escapeHtml(pmbStageLabel(entry.stage))} lines · time is manual/default`}</small>
@@ -3274,7 +3270,7 @@ function workshopLinkReadinessModalReportHtml(report = {}) {
   return `<div class="workshop-link-readiness-summary">${Object.entries(labels).map(([key, label]) => `<div><span>${escapeHtml(label)}</span><strong>${Number(counts[key] || 0)}</strong></div>`).join('')}</div>
     <p><strong>${Number(report.total || 0)} browser-local operational vehicles reviewed.</strong> This readiness scan does not change location, workflow, bookings, identity fields or browser-local authority.</p>
     ${canInspectIdentities
-      ? `<div class="workshop-link-readiness-table"><table><thead><tr><th>Vehicle</th><th>Status</th><th>Shared UUID / reason</th></tr></thead><tbody>${reviewRows.map(row => `<tr><td><strong>${escapeHtml(displayStockNumber(row.vehicle) || vehicleKey(row.vehicle) || 'No stock')}</strong><span>${escapeHtml(workshopVehicleLinkIdentityInput(row.vehicle).vin || workshopVehicleLinkIdentityInput(row.vehicle).toyotaOrder || 'No VIN/order')}</span></td><td>${escapeHtml(labels[row.status] || row.status)}</td><td>${escapeHtml(row.diagnostic.sharedUuid || workshopVehicleLinkVisibleReason(row.diagnostic))}</td></tr>`).join('') || '<tr><td colspan="3">All reviewed vehicles are already linked.</td></tr>'}</tbody></table></div>`
+      ? `<div class="workshop-link-readiness-table"><table><thead><tr><th>Vehicle</th><th>Status</th><th>Shared UUID / reason</th></tr></thead><tbody>${reviewRows.map(row => `<tr><td><strong>${escapeHtml(displayStockNumber(row.vehicle) || vehicleKey(row.vehicle) || 'No stock')}</strong><span>${escapeHtml(workshopVehicleLinkIdentityInput(row.vehicle).vin || 'No VIN')}</span></td><td>${escapeHtml(labels[row.status] || row.status)}</td><td>${escapeHtml(row.diagnostic.sharedUuid || workshopVehicleLinkVisibleReason(row.diagnostic))}</td></tr>`).join('') || '<tr><td colspan="3">All reviewed vehicles are already linked.</td></tr>'}</tbody></table></div>`
       : '<p class="warning-banner">Vehicle identities and shared UUIDs are restricted to operator and administrator review.</p>'}`;
 }
 
@@ -5198,7 +5194,7 @@ function openWorkshopVehicleJob(key = '', requestedStage = '', requestedPlanId =
     <button class="modal-close" type="button" data-workshop-job-close aria-label="Close vehicle job">×</button>
     <header><div><h2>${escapeHtml(pmbStageLabel(stage))} vehicle job</h2><p>Only ${escapeHtml(pmbStageLabel(stage))} time is shown for this bay. Allocate imported job lines to another work area when needed.</p></div><span class="badge neutral">AI lines + manual time</span></header>
     <div class="workshop-job-vehicle-summary">
-      <strong>${escapeHtml(displayStockNumber(vehicle) || vehicle.order || 'No stock')} · ${escapeHtml(vehicleCustomerName(vehicle) || 'Unknown customer')}</strong>
+      <strong>${escapeHtml(displayStockNumber(vehicle) || 'No stock')} · ${escapeHtml(vehicleCustomerName(vehicle) || 'Unknown customer')}</strong>
       <span>${escapeHtml(vehicle.vehicle || vehicle.toyotaVehicle || 'Vehicle')} · Job Card ${escapeHtml(vehicleJobcardNumber(vehicle) || 'TBA')}</span>
       <small>Outstanding work: ${escapeHtml(required.join(', ') || 'None')}</small>
       <small class="workshop-parts-line parts-${escapeHtml(parts.status)}">Parts: ${escapeHtml(parts.text)}</small>

@@ -103,6 +103,8 @@ function assert(condition, message) {
   assert(JSON.stringify(Object.keys(reconciliationCall.params).sort()) === JSON.stringify(['p_after_row_index', 'p_batch_id', 'p_page_size']) && reconciliationCall.params.p_after_row_index === 12 && reconciliationCall.params.p_page_size === 500, 'Reconciliation parameters must exactly match the SQL RPC contract');
   await first.link('record-1', 'vehicle-1', 3, 'link-1');
   assert(JSON.stringify(Object.keys(calls.at(-1).params).sort()) === JSON.stringify(['p_backend_record_id', 'p_canonical_vehicle_id', 'p_expected_revision', 'p_idempotency_key']) && calls.at(-1).params.p_backend_record_id === 'record-1', 'Link parameters must exactly match the protected SQL RPC contract');
+  await first.activate('record-1', 3, 'activate-1', 'manual');
+  assert(calls.at(-1).name === 'activate_navision_backend_record' && JSON.stringify(Object.keys(calls.at(-1).params).sort()) === JSON.stringify(['p_activation_source', 'p_backend_record_id', 'p_expected_revision', 'p_idempotency_key']), 'Activation parameters must exactly match the protected SQL RPC contract');
   await first.rollback('batch-1', 3, 'rollback-1');
   assert(JSON.stringify(Object.keys(calls.at(-1).params).sort()) === JSON.stringify(['p_expected_revision', 'p_idempotency_key', 'p_target_batch_id']) && calls.at(-1).params.p_target_batch_id === 'batch-1', 'Rollback parameters must exactly match the SQL RPC contract');
 

@@ -20,7 +20,7 @@ const vehicle = {
   id: 'navision-12660174',
   stock: '12660174',
   vin: 'MR0REBHVX00537433',
-  order: '250040006',
+
   pdcJobcard: '',
 };
 const uuid = '6fb66a8f-7e50-48aa-a846-f05f06616ab4';
@@ -48,7 +48,7 @@ function resolverWith(combined) {
   assert.deepStrictEqual(input, {
     p_stock_number: '12660174',
     p_vin: 'MR0REBHVX00537433',
-    p_toyota_order_number: '250040006',
+
     p_source_system: 'browser_local_c4',
   });
   assert.strictEqual(input.p_vehicle_id, undefined);
@@ -72,11 +72,11 @@ function resolverWith(combined) {
   assert.match(builderMalformed.rejectedReason, /approved_identity_builder_invalid_result/);
   global.buildVehicleLifecycleIdentityInput = buildVehicleLifecycleIdentityInput;
   const approvedProbes = planner.workshopVehicleLinkProbeInputs(vehicle, input);
-  assert.deepStrictEqual(approvedProbes.map(probe => probe.identifier), ['stock_number', 'vin', 'toyota_order_number']);
+  assert.deepStrictEqual(approvedProbes.map(probe => probe.identifier), ['stock_number', 'vin']);
   assert.deepStrictEqual(approvedProbes[0].input, planner.workshopVehicleLinkIdentityInput({ stock: input.p_stock_number }));
-  assert.deepStrictEqual(approvedProbes[2].input, planner.workshopVehicleLinkIdentityInput({ toyotaOrderNumber: input.p_toyota_order_number, sourceSystem: input.p_source_system }));
+
   global.buildVehicleLifecycleIdentityInput = source => {
-    if (source.stock && !source.vin && !source.order && !source.toyotaOrderNumber && !source.sharedVehicleId) return null;
+    if (source.stock && !source.vin && !source.sharedVehicleId) return null;
     return buildVehicleLifecycleIdentityInput(source);
   };
   const failedProbeBuilder = await planner.workshopResolveVehicleLinkDiagnostic(vehicle, resolverWith(resolvedResult));
@@ -98,7 +98,7 @@ function resolverWith(combined) {
   assert.strictEqual(missing.sharedUuid, null);
   assert.strictEqual(missing.outcome, 'not_found');
   assert.match(missing.exactRemediation, /approved Stage 2B importer/i);
-  assert.deepStrictEqual(missing.candidateProcess.map(item => item.identifier), ['stock_number', 'vin', 'toyota_order_number']);
+  assert.deepStrictEqual(missing.candidateProcess.map(item => item.identifier), ['stock_number', 'vin']);
   const missingRows = Object.fromEntries(planner.workshopVehicleLinkDisplayRows(missing));
   assert.strictEqual(missingRows['Shared vehicle UUID'], 'Missing');
   assert.match(missingRows['Refusal reason'], /^Not found/);
@@ -111,7 +111,7 @@ function resolverWith(combined) {
 
   const partialMissing = await planner.workshopResolveVehicleLinkDiagnostic(vehicle, {
     async resolve(probe) {
-      if (probe.p_stock_number && !probe.p_vin && !probe.p_toyota_order_number && !probe.p_vehicle_id) return { outcome: 'not_found' };
+      if (probe.p_stock_number && !probe.p_vin && !probe.p_vehicle_id) return { outcome: 'not_found' };
       return resolvedResult;
     },
   });
@@ -119,7 +119,7 @@ function resolverWith(combined) {
   assert.match(partialMissing.rejectedReason, /do_not_all_resolve|do_not_converge/);
   const ambiguousProbe = await planner.workshopResolveVehicleLinkDiagnostic(vehicle, {
     async resolve(probe) {
-      if (probe.p_vin && !probe.p_stock_number && !probe.p_toyota_order_number && !probe.p_vehicle_id) return { outcome: 'ambiguous', candidateCount: 2 };
+      if (probe.p_vin && !probe.p_stock_number && !probe.p_vehicle_id) return { outcome: 'ambiguous', candidateCount: 2 };
       return resolvedResult;
     },
   });
@@ -313,8 +313,8 @@ function resolverWith(combined) {
 
   const bulkStorage = memoryStorage();
   const bulkVehicles = [
-    { id: 'navision-BULK-1', stock: 'BULK-1001', vin: 'TESTVINBULK000001', order: 'TESTORDER-BULK-1' },
-    { id: 'navision-BULK-2', stock: 'BULK-1002', vin: 'TESTVINBULK000002', order: 'TESTORDER-BULK-2' },
+    { id: 'navision-BULK-1', stock: 'BULK-1001', vin: 'TESTVINBULK000001' },
+    { id: 'navision-BULK-2', stock: 'BULK-1002', vin: 'TESTVINBULK000002' },
   ];
   const bulkUuids = {
     'BULK-1001': '11111111-1111-4111-8111-111111111111',
@@ -324,8 +324,8 @@ function resolverWith(combined) {
     async resolve(input) {
       const stock = input.p_stock_number
         || (input.p_vehicle_id ? Object.keys(bulkUuids).find(key => bulkUuids[key] === input.p_vehicle_id) : '')
-        || (input.p_vin === bulkVehicles[0].vin ? bulkVehicles[0].stock : input.p_vin === bulkVehicles[1].vin ? bulkVehicles[1].stock : input.p_toyota_order_number === bulkVehicles[0].order ? bulkVehicles[0].stock : bulkVehicles[1].stock);
-      return { outcome: 'resolved', vehicleId: bulkUuids[stock], version: 1, resolverRevision: 99, isArchived: false, matchedBy: ['stock_number', 'vin', 'toyota_order_number'] };
+        || (input.p_vin === bulkVehicles[0].vin ? bulkVehicles[0].stock : bulkVehicles[1].stock);
+      return { outcome: 'resolved', vehicleId: bulkUuids[stock], version: 1, resolverRevision: 99, isArchived: false, matchedBy: ['stock_number', 'vin'] };
     },
   };
   global.window = { PDC_AUTH_CONTEXT: { role: 'operator' }, localStorage: bulkStorage };

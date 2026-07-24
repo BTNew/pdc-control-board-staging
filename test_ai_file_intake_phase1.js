@@ -23,26 +23,22 @@ code += String.raw`
     '!ARB02 Dual Battery System 1 200.00 200.00',
   ].join('\n');
   const poAnalysis = analyzeAiAssistantText(poText, { name: 'CRAIGW_PO11204260_PurchaseOrder.pdf', type: 'application/pdf' });
-  check(poAnalysis.ok === true, 'PO analysis should produce a safe draft');
-  check(poAnalysis.review.type === 'vehicle-import', 'PO analysis should create a vehicle-import review');
-  check(poAnalysis.review.stock === '13037843', 'PO analysis should retain the stock number');
-  check(poAnalysis.review.jobLines.length === 2, 'PO analysis should create job lines from safe line items');
-  check(poAnalysis.review.jobLines.every(line => line.source === 'Reviewed PO upload'), 'PO analysis should preserve reviewed PO line provenance');
+  check(poAnalysis.ok === false, 'Purchase orders must be rejected from vehicle-work intake');
 
   const pdText = [
-    'Stock #: 12345678',
-    'Job Card: JC-4102',
-    'Customer: Broome Test Customer',
-    'Vehicle: HiLux DCC SR',
-    'Salesperson: CW',
-    'Colour: Glacier White',
+    'PRE DELIVERY CHECK FORM',
+    '(CW) Craig Watson Deal: 47836',
+    'CUSTOMER SALES DETAILS',
+    'Broome Test Customer Fleet',
+    'Stock # 12345678',
+    'Make & Model HiLux DCC SR Unit Colour Glacier White Trim Colour Black',
     'Window tint and steel tray body with dual battery',
   ].join('\n');
-  const pdAnalysis = analyzeAiAssistantText(pdText, { name: 'job-card.txt', type: 'text/plain' });
-  check(pdAnalysis.ok === true, 'Job-card analysis should produce a safe draft');
-  check(pdAnalysis.review.type === 'vehicle-import', 'Job-card analysis should create a vehicle-import review');
-  check(pdAnalysis.review.jobLines.length >= 3, 'Job-card analysis should create review lines from detected tasks');
-  check(pdAnalysis.review.jobLines.every(line => line.estimatedHours === null), 'Job-card task drafts must require staff-entered hours');
+  const pdAnalysis = analyzeAiAssistantText(pdText, { name: 'PDCheckform.pdf', type: 'application/pdf' });
+  check(pdAnalysis.ok === true, 'PD Document analysis should produce a safe draft');
+  check(pdAnalysis.review.type === 'vehicle-import', 'PD Document analysis should create a vehicle-import review');
+  check(pdAnalysis.review.jobLines.length >= 3, 'PD Document analysis should create review lines from detected tasks');
+  check(pdAnalysis.review.jobLines.every(line => line.estimatedHours === null), 'PD Document task drafts must require staff-entered hours');
 
   const partsText = [
     'Stock: 13047064',
@@ -56,11 +52,10 @@ code += String.raw`
   check(partsAnalysis.review.action === 'stoppage', 'Parts text analysis should detect stoppage intent');
   check(partsAnalysis.review.eta === '22/07/2026', 'Parts text analysis should retain the ETA text');
 
-  saveAiFileAssistantReviews([poAnalysis.review, pdAnalysis.review]);
+  saveAiFileAssistantReviews([pdAnalysis.review]);
   window.PDC_EMAIL_BOARD_DATA = { reviews: [{ id: 'seed-review', stock: 'SEED-1', type: 'parts-update', action: 'note', receivedAt: '2026-07-01T00:00:00.000Z' }] };
   const merged = emailReviewItems();
   check(merged.some(item => item.id === 'seed-review'), 'Email review list must keep seeded review data');
-  check(merged.some(item => item.id === poAnalysis.review.id), 'Email review list must include saved AI file drafts');
   check(merged.some(item => item.id === pdAnalysis.review.id), 'Email review list must include every saved AI file draft');
 
   console.log('AI file intake phase 1 checks passed');

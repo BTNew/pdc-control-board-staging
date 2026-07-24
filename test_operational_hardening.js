@@ -9,7 +9,7 @@ const app = fs.readFileSync(path.join(root, 'app.js'), 'utf8');
 const index = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
 const styles = fs.readFileSync(path.join(root, 'styles.css'), 'utf8');
 
-for (const transactionLabel of ['Navision import', 'Purchase-order import', 'PD / job-card import', 'Vehicle removal', 'CRM backup restore']) {
+for (const transactionLabel of ['Navision import', 'PD Document import', 'Vehicle removal', 'CRM backup restore']) {
   assert.ok(app.includes(`runStorageTransaction('${transactionLabel}'`), `${transactionLabel} is not protected by the storage transaction wrapper`);
 }
 assert.ok(app.indexOf('recoverInterruptedStorageTransaction();') < app.indexOf('const app = {'), 'Interrupted storage recovery must run before app.data is built');

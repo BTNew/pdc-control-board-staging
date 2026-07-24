@@ -71,7 +71,7 @@ function resolvedBody(version = 3, extras = {}) {
     fullVin: '1HGCM82633A004352',
     pdcJobcard: ' JC-9 ',
     permanentVehicleId: ' PERM-1 ',
-    toyotaOrder: ' ORD-4 ',
+
     sourceSystem: ' Navision ',
     sourceRecordId: ' ROW-8 ',
     vehicle: 'Display text must not be mapped',
@@ -81,7 +81,7 @@ function resolvedBody(version = 3, extras = {}) {
     p_vin: '1HGCM82633A004352',
     p_job_card_number: 'JC-9',
     p_permanent_vehicle_id: 'PERM-1',
-    p_toyota_order_number: 'ORD-4',
+
     p_source_system: 'Navision',
     p_source_record_id: 'ROW-8',
   });
@@ -91,10 +91,9 @@ function resolvedBody(version = 3, extras = {}) {
     buildVehicleLifecycleIdentityInput({ stock: 'STK-001', pdcJobcard: 'JC-2' }).__invalidIdentityField,
     'job_card_source_system',
   );
-  assert.strictEqual(
-    buildVehicleLifecycleIdentityInput({ stock: 'STK-001', toyotaOrderNumber: 'ORDER-2' }).__invalidIdentityField,
-    'toyota_order_source_system',
-  );
+  const orderFreeIdentity = buildVehicleLifecycleIdentityInput({ stock: 'STK-001', toyotaOrderNumber: 'ORDER-2', order: 'ORDER-3' });
+  assert.strictEqual(orderFreeIdentity.p_toyota_order_number, undefined);
+  assert.strictEqual(orderFreeIdentity.__invalidIdentityField, undefined);
   const invalidResolverClient = fakeClient(async () => { throw new Error('must not be called'); });
   const invalidIdentity = await createVehicleLifecycleIdentityResolver({ client: invalidResolverClient }).resolve(conflictingIdentity);
   assert.deepStrictEqual(invalidIdentity, { outcome: 'invalid_input', field: 'stock_number' });

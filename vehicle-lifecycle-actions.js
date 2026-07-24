@@ -94,12 +94,7 @@ function buildVehicleLifecycleIdentityInput(vehicle = {}) {
     vehicle.pdcJobcard, vehicle.jobcard, vehicle.jobCard, vehicle.jobcardNumber,
     vehicle.jobCardNumber, vehicle.jcJobcard, vehicle.jc,
   ], normalizeLifecycleSourceIdentifier, state);
-  const toyotaOrderNumber = chooseLifecycleIdentityText('toyota_order_number', [
-    vehicle.toyotaOrderNumber, vehicle.toyota_order_number, vehicle.toyotaOrder,
-    vehicle.salesOrder, vehicle.order,
-  ], normalizeLifecycleSourceIdentifier, state);
   if (jobCardNumber && !sourceSystem && !state.invalidField) state.invalidField = 'job_card_source_system';
-  if (toyotaOrderNumber && !sourceSystem && !state.invalidField) state.invalidField = 'toyota_order_source_system';
   const result = {
     p_vehicle_id: chooseLifecycleIdentityText('vehicle_id', [
       vehicle.sharedVehicleId, vehicle.shared_vehicle_id, vehicle.vehicleId,
@@ -116,7 +111,6 @@ function buildVehicleLifecycleIdentityInput(vehicle = {}) {
     p_permanent_vehicle_id: chooseLifecycleIdentityText('permanent_vehicle_id', [
       vehicle.permanentVehicleId, vehicle.permanent_vehicle_id, vehicle.sharedPermanentVehicleId,
     ], normalizeLifecycleSourceIdentifier, state),
-    p_toyota_order_number: toyotaOrderNumber,
     p_source_system: sourceSystem,
     p_source_record_id: chooseLifecycleIdentityText('source_record_id', [
       vehicle.sourceRecordId, vehicle.source_record_id,

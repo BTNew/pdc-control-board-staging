@@ -25,13 +25,13 @@ code += String.raw`
   renderCustomers = function() {};
   renderReviewTable = function() {};
 
-  const first = { id: 'vehicle-one', stock: '10000001', order: 'ORDER-ONE', internalStatus: 'Keep first' };
-  const second = { id: 'vehicle-two', stock: '10000002', order: 'ORDER-TWO', internalStatus: 'Keep second' };
+  const first = { id: 'vehicle-one', stock: '10000001', batch: 'BATCH-ONE', internalStatus: 'Keep first' };
+  const second = { id: 'vehicle-two', stock: '10000002', batch: 'BATCH-TWO', internalStatus: 'Keep second' };
   app.data = [first, second];
   app.selectedStock = first.stock;
 
   assert(selectedVehicle('10000002') === second, 'An exact stock key should resolve the requested vehicle');
-  assert(selectedVehicle('ORDER-TWO') === second, 'A unique alias should resolve the requested vehicle');
+  assert(selectedVehicle('BATCH-TWO') === second, 'A unique Batch alias should resolve the requested vehicle');
   assert(selectedVehicle('missing-key') === null, 'A missing key must return null instead of the first vehicle');
 
   const editsBefore = localStorage.getItem(EDITS_KEY);
@@ -49,10 +49,10 @@ code += String.raw`
   assert(window.location.href === previousHref, 'A stale key must not draft an email for another vehicle');
 
   app.data = [
-    { id: 'alias-one', stock: '20000001', order: 'SHARED-ORDER' },
-    { id: 'alias-two', stock: '20000002', order: 'SHARED-ORDER' },
+    { id: 'alias-one', stock: '20000001', batch: 'SHARED-BATCH' },
+    { id: 'alias-two', stock: '20000002', batch: 'SHARED-BATCH' },
   ];
-  assert(selectedVehicle('SHARED-ORDER') === null, 'An ambiguous alias must fail closed');
+  assert(selectedVehicle('SHARED-BATCH') === null, 'An ambiguous Batch alias must fail closed');
 
   app.data = [
     { id: 'duplicate-one', stock: '30000001' },

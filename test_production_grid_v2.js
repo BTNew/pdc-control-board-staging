@@ -30,7 +30,7 @@ for (const station of ['Parts', 'Tint', 'Hoist', 'Fitting', 'Fabrication', 'Elec
 assert.doesNotMatch(app, /truncate\(\s*(?:customer|vehicleCustomerName)/i, 'Customer names must not be truncated');
 assert.match(app, /<th>Key<\/th><th>Stock<\/th><th>JC<\/th><th>Vehicle \/ customer<\/th><th>Parts status<\/th><th>Parts ETA<\/th><th>ETA counter<\/th><th>JITA<\/th><th>Outstanding station work<\/th><th>Parts STOPPAGE reason<\/th><th>Actions<\/th>/);
 assert.match(app, /<th>Collected<\/th><th>Key<\/th><th>Stock<\/th><th>Job Card<\/th><th>Customer<\/th><th>Vehicle<\/th>/);
-assert.match(app, /<thead><tr><th>Key<\/th><th>Stock<\/th><th>Job Card<\/th><th>Customer<\/th><th>Vehicle<\/th>/);
+assert.match(app, /<thead><tr><th>Key<\/th><th>Stock \(Batch\)<\/th><th>Job Card<\/th><th>Customer<\/th><th>Salesperson<\/th><th>Model<\/th><th>Colour<\/th>/);
 
 const v2Css = css.slice(css.indexOf('2026.07.10.22 — Production Grid V2'));
 assert.ok(v2Css.length > 1000, 'Production Grid V2 CSS block is missing');
@@ -43,7 +43,7 @@ assert.match(v2Css, /\.incoming-work-label[\s\S]*?white-space:\s*nowrap\s*!impor
 assert.match(v2Css, /\.incoming-vehicle-card,[\s\S]*?overflow:\s*visible\s*!important/);
 assert.match(desktopCss, /\.parts-queue-table\s*\{[\s\S]*?min-width:\s*1480px/);
 assert.match(v2Css, /\.completed-table\s*\{[\s\S]*?width:\s*1730px\s*!important/);
-assert.match(v2Css, /\.backend-data-table\s*\{[\s\S]*?width:\s*1640px\s*!important/);
+assert.match(v2Css, /\.backend-data-table\s*\{[\s\S]*?width:\s*1910px\s*!important/);
 
 for (const file of htmlFiles) {
   const html = fs.readFileSync(path.join(root, file), 'utf8');

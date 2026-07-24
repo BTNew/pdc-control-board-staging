@@ -11,18 +11,6 @@ const skipped = new Map();
 if (isCleanImportBuild) {
   skipped.set('test_master_sheet_import.js', 'clean import build intentionally ships without the 321-vehicle master dataset');
 }
-const poFixtureNames = [
-  'CRAIGW_PO11204260_PurchaseOrder.pdf',
-  'CRAIGW_PO11016825_PurchaseOrder.pdf',
-  'CRAIGW_PO11016848_PurchaseOrder.pdf',
-];
-const poFixtureDirs = [path.resolve(root, '..', '..', 'upload'), path.resolve(root, '..', 'upload')];
-const hasPoFixtures = poFixtureDirs.some(dir => poFixtureNames.every(name => fs.existsSync(path.join(dir, name))));
-const hasPdfText = spawnSync('pdftotext', ['-v'], { stdio: 'ignore' }).status === 0;
-if (!hasPoFixtures || !hasPdfText) {
-  skipped.set('test_purchase_order_import.js', 'optional supplied PO PDF fixtures or pdftotext are not available in this handoff');
-}
-
 const tests = fs.readdirSync(root)
   .filter(file => /^test_.*\.js$/.test(file) && file !== 'test_all.js')
   .sort((a, b) => a.localeCompare(b));

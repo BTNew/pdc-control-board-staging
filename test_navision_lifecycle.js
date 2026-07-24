@@ -42,12 +42,10 @@ code += String.raw`
 
   const workHeader = row(['Stock Number','Job Card']);
   const workFile = parseNavisionInput(workHeader + '\n' + row(['90000002','JC-9002']), { pmbOnly: true });
-  assert(workFile.vehicles.length === 1 && workFile.vehicles[0].pdcJobcard === 'JC-9002', 'A separate job-card file should identify the matching back-end vehicle');
+  assert(workFile.vehicles.length === 0 && workFile.missing.includes('PD Document required'), 'Legacy job-card work files must be rejected in favour of PD Documents');
   applyNavisionImportPlan(buildNavisionImportPlan(workFile));
   app.data = buildVehicleData();
-  assert(pdcSheetVehicles().length === 1 && pdcSheetVehicles()[0].stock === '90000002', 'The separate job-card file should promote its vehicle to the PDC Sheet');
-  const jobCardPromoted = app.data.find(v => v.stock === '90000002');
-  assert(jobCardPromoted.etaAtDealer === '21/07/2026' && jobCardPromoted.jitaPartsOrdered === 'Yes' && jobCardPromoted.jitQty === 'JITA-9002' && vehicleNavisionJitaNumber(jobCardPromoted) === 'JITA-9002', 'A work/job file without a JITA column must preserve the daily Navision number and its validated provenance');
+  assert(pdcSheetVehicles().length === 0, 'A rejected job-card file must not promote a vehicle');
 
   const backEndDay2 = row(['BE-1','90000001','Corolla','','In Transit to WA','25/07/2026','JITA-9001']);
   const pdcDay2 = row(['PDC-1','90000002','Hilux','Purchase order for tray','Vehicle Yard Hold','26/07/2026','']);
@@ -59,7 +57,7 @@ code += String.raw`
   const refreshedBackEnd = app.data.find(v => v.stock === '90000001');
   assert(refreshedBackEnd.etaAtDealer === '25/07/2026', 'Daily Navision should refresh Kewdale ETA on a back-end-only vehicle');
   assert(refreshedBackEnd.jitaPartsOrdered === 'Yes' && refreshedBackEnd.jitQty === 'JITA-9001' && vehicleNavisionJitaNumber(refreshedBackEnd) === 'JITA-9001', 'Daily Navision should refresh the provenance-bound authoritative JITA number on a back-end-only vehicle');
-  assert(isVehicleVisibleOnPdcSheet(app.data.find(v => v.stock === '90000002')), 'A later daily Navision upload must not hide a job-card-promoted vehicle');
+  assert(!isVehicleVisibleOnPdcSheet(app.data.find(v => v.stock === '90000002')), 'A daily Navision row must stay back-end-only without approved PD or manual activation');
 
   const backEndToActivate = app.data.find(v => v.stock === '90000005');
   assert(backEndToActivate && !isVehicleVisibleOnPdcSheet(backEndToActivate), 'A normal Navision vehicle should be searchable as back-end-only before manual activation');
@@ -85,10 +83,11 @@ code += String.raw`
   bodyBuilderActive = app.data.find(v => v.stock === '90000006');
   assert(vehiclePdcLocation(bodyBuilderActive) === 'YH', 'A later Navision refresh should update a Navision-derived active location until staff manually lock it');
 
-  const promoted = ensureVehicleForPo('90000001');
-  assert(promoted.pdcSheetVisible === true && isVehicleVisibleOnPdcSheet(promoted), 'Loading a PO should permanently promote an existing back-end vehicle to the PDC Sheet');
-  app.data = buildVehicleData();
-  assert(pdcSheetVehicles().length === 4, 'The PO-promoted vehicle should now be visible with the job-card and both manually activated vehicles');
+  let blockedPoImport = false;
+  try { legacyDisabledEnsureVehicleForPo('90000001'); } catch (error) { blockedPoImport = /disabled/i.test(error.message); }
+  assert(blockedPoImport, 'Legacy purchase-order promotion must fail closed');
+  assert(!isVehicleVisibleOnPdcSheet(app.data.find(v => v.stock === '90000001')), 'A blocked purchase-order path must not promote a back-end vehicle');
+  assert(pdcSheetVehicles().length === 2, 'Only the two manually activated vehicles should be visible');
 
   const manualVehicle = {
     id: 'manual-keep', stock: '90000003', batch: '90000003', vehicle: 'Toyota Prado', source: 'Manual',
@@ -99,7 +98,7 @@ code += String.raw`
   saveAddedVehicles(added);
   app.data = buildVehicleData();
   const missingAfterEmptyDump = vehiclesMissingFromNavisionImport(app.data, [], { fullRefresh: true });
-  assert(missingAfterEmptyDump.length === 0, 'Manual, PO-promoted and PDC vehicles must not be cleanup candidates');
+  assert(missingAfterEmptyDump.length === 2 && missingAfterEmptyDump.every(vehicle => ['90000001', '90000002'].includes(vehicle.stock)), 'Only unactivated Navision-only rows should be cleanup candidates; manual and activated PDC vehicles stay protected');
 
   const plainBackEnd = {
     id: 'navision-90000004', stock: '90000004', batch: '90000004', vehicle: 'Toyota Yaris', source: 'Navision',
@@ -110,8 +109,9 @@ code += String.raw`
   saveAddedVehicles(addedAgain);
   app.data = buildVehicleData();
   const eligible = vehiclesMissingFromNavisionImport(app.data, [], { fullRefresh: true });
-  assert(eligible.length === 1 && eligible[0].stock === '90000004', 'Only the unpromoted Navision-only back-end vehicle should be eligible for retirement');
-  removeVehiclesFromTracker(eligible, { deletionType: 'navision-missing', reason: 'Missing from full Navision upload' });
+  const plainEligible = eligible.find(vehicle => vehicle.stock === '90000004');
+  assert(eligible.length === 3 && plainEligible, 'All three unactivated Navision-only back-end vehicles should be eligible for retirement');
+  removeVehiclesFromTracker([plainEligible], { deletionType: 'navision-missing', reason: 'Missing from full Navision upload' });
   app.data = buildVehicleData();
   assert(!app.data.some(v => v.stock === '90000004'), 'A missing Navision-only back-end vehicle should retire from active data');
   assert(deletedVehicleRecords().some(record => record.vehicle.stock === '90000004' && record.deletionType === 'navision-missing'), 'Automatic retirement should keep a typed Deleted record');

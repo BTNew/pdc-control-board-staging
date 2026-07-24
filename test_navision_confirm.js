@@ -89,16 +89,14 @@ code += String.raw`
   assert(app.data.find(v => v.stock === '12345678').toyotaStatus === 'Waiting PD1', 'Unselected existing update should not apply');
   assert(app.data.some(v => v.stock === '87654321'), 'New vehicle should still be added after selected-only confirmation');
 
-  // PDC work/job-file mode should accept rows with a Body Builder signal and skip plain Navision rows.
+  // Legacy PDC work/job-file mode is rejected; PD Documents are the only vehicle-work intake.
   const pmbOnlyHeader = row(['Order','Batch','Production Month','Model Description','Body Builder','Tray Fitment Ordered']);
   const pmbOnlyMatch = row(['ORD3','33333333','202610','Landcruiser','2','No']);
   const pmbOnlySkip = row(['ORD4','44444444','202610','Corolla','','No']);
   const parsedPmbOnly = parseNavisionInput(pmbOnlyHeader + '\n' + pmbOnlyMatch + '\n' + pmbOnlySkip, { pmbOnly: true });
-  assert(parsedPmbOnly.vehicles.length === 1, 'Work/job-file mode should keep only rows with PDC work signals');
-  assert(parsedPmbOnly.vehicles[0].stock === '33333333' && parsedPmbOnly.vehicles[0].pdcSheetVisible === true, 'Work/job-file mode should promote the body-builder row');
-  assert(parsedPmbOnly.warnings.some(warning => warning.includes('44444444') && warning.includes('skipped')), 'Work/job-file mode should report skipped rows without work signals');
+  assert(parsedPmbOnly.vehicles.length === 0 && parsedPmbOnly.missing.includes('PD Document required'), 'Legacy work/job-file mode must be rejected in favour of PD Documents');
 
-  // Normal Navision never promotes Body Builder / consignment statuses; work/job-file mode may do so.
+  // Normal Navision never promotes Body Builder / consignment statuses; work/job mode remains disabled.
   localStorage.clear();
   app.data = buildVehicleData();
   const bodyBuilderHeader = row(['Order','Batch','Production Month','Model Description','Sub Location Description']);
@@ -108,16 +106,15 @@ code += String.raw`
   assert(parsedBodyBuilder.vehicles.length === 2, 'Body builder status rows should import');
   assert(parsedBodyBuilder.vehicles.every(vehicle => vehicle.pdcSheetVisible === false && !vehicle.pdcLocation), 'Normal Navision Body Builder/consignment rows should stay in Back End Data only');
   const parsedBodyBuilderWork = parseNavisionInput(bodyBuilderHeader + '\n' + bodyBuilderRow + '\n' + consignmentRow, { pmbOnly: true });
-  assert(parsedBodyBuilderWork.vehicles.every(vehicle => vehicle.pdcSheetVisible === true && vehicle.pdcLocation === 'PMB'), 'Work/job-file mode may promote Body Builder/consignment rows to PMB');
-  assert(parsedBodyBuilderWork.vehicles.every(vehicle => vehicle.pmbStage === ''), 'First PMB landing should stay Unallocated');
+  assert(parsedBodyBuilderWork.vehicles.length === 0 && parsedBodyBuilderWork.missing.includes('PD Document required'), 'Work/job mode must never promote Body Builder/consignment rows');
 
-  // Report title lines, header aliases and order-only vehicles should import cleanly.
+  // Report title lines and Stock aliases should import cleanly; Order-only rows are rejected.
   const titledCsv = 'Navision Vehicle Report\nGenerated 13/07/2026\nToyota Order,Stock No.,Model Desc.,ETA To Kewdale\nORD7,77770000,Camry,01/08/2026';
   const parsedTitledCsv = parseNavisionInput(titledCsv);
   assert(parsedTitledCsv.vehicles.length === 1 && parsedTitledCsv.vehicles[0].stock === '77770000', 'CSV headings below report title lines should be detected');
   assert(parsedTitledCsv.warnings.some(warning => warning.includes('headings were detected on row 3')), 'Import should explain that report title rows were ignored');
-  const orderOnly = parseNavisionInput(row(['Toyota Order','Model Description']) + '\n' + row(['ORDER-ONLY-1','HiAce']));
-  assert(orderOnly.vehicles.length === 1 && orderOnly.vehicles[0].order === 'ORDER-ONLY-1', 'An order-only Navision vehicle should remain available in Back End Data until a stock number arrives');
+  const orderOnly = parseNavisionInput(row(['Order','Model Description']) + '\n' + row(['ORDER-ONLY-1','HiAce']));
+  assert(orderOnly.vehicles.length === 0 && orderOnly.missing.includes('Batch / Stock'), 'An Order-only Navision row must be rejected because Batch is the Stock authority');
 
   // Navision browser copy uses U+2002 EN SPACE separators rather than tabs.
   const enSpace = '\u2002';
@@ -134,7 +131,7 @@ code += String.raw`
   const unicodeVehicle = expandTabs(row(['250038414','13056889','202607','','Prado 2.8L 48V Dsl Wgn 8AT','NINDILINGARRI CULTURAL HEALTH','Planned for Production','20/07/2026','2']));
   const parsedUnicodePaste = parseNavisionInput(unicodeHeader + '\n' + unicodeVehicle);
   assert(parsedUnicodePaste.vehicles.length === 1, 'Unicode EN SPACE separated Navision paste should import');
-  assert(parsedUnicodePaste.vehicles[0].stock === '13056889' && parsedUnicodePaste.vehicles[0].order === '250038414', 'Unicode Navision paste should preserve Order and Batch columns');
+  assert(parsedUnicodePaste.vehicles[0].stock === '13056889' && !Object.prototype.hasOwnProperty.call(parsedUnicodePaste.vehicles[0], 'order'), 'Unicode Navision paste should retain Batch without exposing Order');
 
   const locationRows = vehicleLocationBoardRows(
     [
@@ -143,33 +140,30 @@ code += String.raw`
     ],
     [
       { id: 'shared-match', stock_number: '10010010', toyota_order_number: 'ORD-MATCH', model: 'HiLux', colour: 'White', vehicle_status: 'In Transit to WA', eta_to_kewdale: '31/07/2026', is_current: true },
-      { id: 'shared-only', dealer_code: '14450', stock_number: '10010012', toyota_order_number: 'ORD-SHARED', model: 'Prado', colour: 'Silver', vehicle_status: 'Planned for Production', eta_to_kewdale: '02/08/2026', is_current: true },
-      { id: 'shared-duplicate', dealer_code: '14450', stock_number: '10010012', toyota_order_number: 'ORD-SHARED', model: 'Prado', colour: 'Silver', vehicle_status: 'Planned for Production', eta_to_kewdale: '02/08/2026', is_current: true },
+      { id: 'shared-only', dealer_code: '14450', stock_number: '10010012', toyota_order_number: 'ORD-SHARED', customer_name: 'Shared Customer', salesperson: 'Alex Sales', model: 'Prado', colour: 'Silver', vehicle_status: 'Planned for Production', eta_to_kewdale: '02/08/2026', is_current: true, board_activated: false },
+      { id: 'shared-duplicate', dealer_code: '14450', stock_number: '10010012', toyota_order_number: 'ORD-SHARED', customer_name: 'Shared Customer', salesperson: 'Alex Sales', model: 'Prado', colour: 'Silver', vehicle_status: 'Planned for Production', eta_to_kewdale: '02/08/2026', is_current: true, board_activated: false },
       { id: 'shared-old', stock_number: '10010013', vehicle_status: 'Planned for Production', is_current: false },
     ],
   );
-  assert(locationRows.length === 3, 'Locations must combine local operational rows with every current shared Navision row, deduplicate matches and exclude rows missing from the latest upload');
+  assert(locationRows.length === 2, 'Unactivated shared Navision imports must remain in Back End Data and stay off Vehicle Locations');
   const matchedLocation = locationRows.find(vehicle => vehicle.stock === '10010010');
   assert(matchedLocation.toyotaStatus === 'In Transit to WA' && matchedLocation.etaAtDealer === '31/07/2026', 'Current shared Navision status and ETA must override stale browser-local Navision display fields');
   assert(matchedLocation.pdcPartsStoppage === true && matchedLocation.__sharedNavisionReadOnly === false, 'A matched operational vehicle must preserve local workflow fields and controls');
-  const sharedOnlyLocation = locationRows.find(vehicle => vehicle.stock === '10010012');
-  assert(sharedOnlyLocation && sharedOnlyLocation.__sharedNavisionReadOnly === true, 'A current Navision-only vehicle must appear in Locations as read-only');
-  const sharedOnlyHtml = incomingVehicleDetailRow(sharedOnlyLocation, incomingBucketForVehicle(sharedOnlyLocation));
-  assert(sharedOnlyHtml.includes('Shared Navision · Read only'), 'Navision-only Locations rows must be visibly read-only');
-  for (const forbiddenAction of ['data-open-stock=', 'data-yh-transfer-pmb=', 'data-transfer-rft-stock=', 'data-rft-collected-key=', 'data-label-vehicle=', 'data-select-stock=']) {
-    assert(!sharedOnlyHtml.includes(forbiddenAction), 'Navision-only Locations row must not expose browser-local action ' + forbiddenAction);
-  }
+  assert(!locationRows.some(vehicle => vehicle.stock === '10010012'), 'An import must not become a Locations row merely because it is current in Navision');
+  const activatedShared = vehicleLocationBoardRows([], [{ id: 'activated-shared', dealer_code: '14450', stock_number: '10010012', toyota_order_number: 'ORD-SHARED', customer_name: 'Shared Customer', salesperson: 'Alex Sales', model: 'Prado', colour: 'Silver', vehicle_status: 'Delivered - At Body Builder', is_current: true, board_activated: true, activation_source: 'manual' }]);
+  assert(activatedShared.length === 1 && activatedShared[0].stock === '10010012', 'A durable manual/email activation must make the shared vehicle visible in Locations');
+  assert(activatedShared[0].client === 'Shared Customer' && activatedShared[0].consultant === 'Alex Sales' && activatedShared[0].toyotaVehicle === 'Prado' && activatedShared[0].colour === 'Silver', 'Activated shared rows must carry customer, salesperson, model and colour');
 
   const ambiguousLocationRows = vehicleLocationBoardRows(
     [{ id: 'local-ambiguous', stock: 'STOCK-A', order: 'ORDER-B', toyotaStatus: 'Local review required' }],
     [
-      { id: 'shared-a', stock_number: 'STOCK-A', toyota_order_number: 'ORDER-A', vehicle_status: 'Vehicle Yard Hold', is_current: true },
-      { id: 'shared-b', stock_number: 'STOCK-B', toyota_order_number: 'ORDER-B', vehicle_status: 'In Transit to WA', is_current: true },
+      { id: 'shared-a', stock_number: 'STOCK-A', toyota_order_number: 'ORDER-A', vehicle_status: 'Vehicle Yard Hold', is_current: true, board_activated: true },
+      { id: 'shared-b', stock_number: 'STOCK-B', toyota_order_number: 'ORDER-B', vehicle_status: 'In Transit to WA', is_current: true, board_activated: true },
     ],
   );
-  assert(ambiguousLocationRows.length === 3 && ambiguousLocationRows[0].toyotaStatus === 'Local review required' && ambiguousLocationRows[0].__sharedNavisionReadOnly !== false, 'Conflicting stock/order matches must fail closed without overlaying either shared record onto the local operational vehicle');
-  assert(ambiguousLocationRows.filter(vehicle => vehicle.__sharedNavisionReadOnly === true).length === 2, 'Conflicting current shared Navision records must remain separately visible for review');
-  assert(ambiguousLocationRows[0].__locationIdentityReadOnly === true, 'A conflicting local identity must be visibly read-only until reviewed');
+  assert(ambiguousLocationRows.length === 2 && ambiguousLocationRows[0].toyotaStatus === 'Vehicle Yard Hold', 'Exact matching Stock must overlay regardless of legacy Order values');
+  assert(ambiguousLocationRows.filter(vehicle => vehicle.__sharedNavisionReadOnly === true).length === 1, 'The unmatched shared Stock must remain separately visible');
+  assert(ambiguousLocationRows[0].__locationIdentityReadOnly !== true, 'Legacy Order values must not make an exact Stock match read-only');
 
   const blankAuthorityRows = vehicleLocationBoardRows(
     [{ id: 'blank-local', stock: 'BLANK-1', order: 'BLANK-ORDER', toyotaStatus: 'Stale status', etaAtDealer: '01/01/2020' }],
@@ -182,30 +176,22 @@ code += String.raw`
       { id: 'dup-local-a', stock: 'ABC-1', order: 'ORD-1', toyotaStatus: 'STALE-A' },
       { id: 'dup-local-b', stock: 'ABC1', order: 'ORD1', toyotaStatus: 'STALE-B' },
     ],
-    [{ id: 'dup-shared', dealer_code: '14450', stock_number: 'ABC1', toyota_order_number: 'ORD1', vehicle_status: 'In Transit to WA', eta_to_kewdale: '01/08/2026', is_current: true }],
+    [{ id: 'dup-shared', dealer_code: '14450', stock_number: 'ABC1', toyota_order_number: 'ORD1', vehicle_status: 'In Transit to WA', eta_to_kewdale: '01/08/2026', is_current: true, board_activated: true }],
   );
-  assert(duplicateLocalRows.length === 2, 'Normalized duplicate operational identities must collapse to one local review row while retaining the unconsumed shared row for separate review');
-  assert(duplicateLocalRows[0].toyotaStatus === 'STALE-A' && duplicateLocalRows[0].__locationIdentityReadOnly === true, 'A normalized local identity collision must not receive a shared overlay and must stay read-only');
-  assert(duplicateLocalRows[1].__sharedNavisionReadOnly === true && duplicateLocalRows[1].toyotaStatus === 'In Transit to WA', 'The unconsumed shared identity must remain separately visible and read-only');
-  const duplicateLocalHtml = incomingVehicleDetailRow(duplicateLocalRows[0], incomingBucketForVehicle(duplicateLocalRows[0]), { draggable: true, showDelete: true });
-  for (const forbiddenAction of ['draggable="true"', 'data-open-stock=', 'data-label-vehicle=', 'data-select-stock=', 'data-incoming-delete=']) {
-    assert(!duplicateLocalHtml.includes(forbiddenAction), 'Identity-conflict rows must not expose browser-local action ' + forbiddenAction);
-  }
+  assert(duplicateLocalRows.length === 2, 'Punctuation-distinct Stocks must remain distinct records');
+  assert(duplicateLocalRows[0].toyotaStatus === 'STALE-A' && duplicateLocalRows[0].__locationIdentityReadOnly !== true, 'Stock ABC-1 must not normalize-match ABC1');
+  assert(duplicateLocalRows[1].toyotaStatus === 'In Transit to WA' && duplicateLocalRows[1].__sharedNavisionReadOnly === false, 'Exact Stock ABC1 must receive the shared overlay');
 
   const partialConflictRows = vehicleLocationBoardRows(
     [{ id: 'partial-local', stock: 'STOCK-1', order: 'LOCAL-ORDER', toyotaStatus: 'LOCAL-STATUS' }],
-    [{ id: 'partial-shared', dealer_code: '14450', stock_number: 'STOCK-1', toyota_order_number: 'OTHER-ORDER', vehicle_status: 'Vehicle Yard Hold', is_current: true }],
+    [{ id: 'partial-shared', dealer_code: '14450', stock_number: 'STOCK-1', toyota_order_number: 'OTHER-ORDER', vehicle_status: 'Vehicle Yard Hold', is_current: true, board_activated: true }],
   );
-  assert(partialConflictRows.length === 2 && partialConflictRows[0].toyotaStatus === 'LOCAL-STATUS' && partialConflictRows[0].__locationIdentityReadOnly === true, 'One matching identifier plus one conflicting identifier must fail closed without overlay');
+  assert(partialConflictRows.length === 1 && partialConflictRows[0].toyotaStatus === 'Vehicle Yard Hold' && partialConflictRows[0].__locationIdentityReadOnly !== true, 'Legacy Order conflicts must not override an exact Stock match');
 
   const liveConflictVehicle = app.data[0];
-  app.sharedNavisionVisibleRows = [{ id: 'live-conflict', dealer_code: '14450', stock_number: liveConflictVehicle.stock, toyota_order_number: 'CONFLICTING-ORDER', vehicle_status: 'Vehicle Yard Hold', is_current: true }];
-  app.sharedNavisionLocationReadOnlyKeys = new Set();
-  assert(saveVehicleEdits(vehicleKey(liveConflictVehicle), { comments: 'must-not-write' }, { render: false }) === false, 'Generic mutation paths must recompute and reject a newly conflicted shared identity even when the previous read-only cache was stale');
-  app.selectedRows.add(vehicleKey(liveConflictVehicle));
-  assert(selectedVehiclesForBulkEmail().length === 0 && app.selectedRows.size === 0, 'A previously selected row must be removed from bulk authority as soon as its shared identity becomes conflicted');
   app.sharedNavisionVisibleRows = [];
   app.sharedNavisionLocationReadOnlyKeys = new Set();
+  app.selectedRows.clear();
   const originalBulkTransfer = transferSelectedYhVehiclesToPmb;
   const originalLiveStatus = liveConflictVehicle.toyotaStatus;
   let mainBulkDelegateCalls = 0;
@@ -223,25 +209,23 @@ code += String.raw`
       { id: 'reused-local-a', stock: 'DUP', toyotaStatus: 'LOCAL-A' },
       { id: 'reused-local-b', stock: 'DUP', order: 'ORDER-B', toyotaStatus: 'LOCAL-B' },
     ],
-    [{ id: 'reused-shared', dealer_code: '14450', stock_number: 'DUP', vehicle_status: 'Vehicle Yard Hold', is_current: true }],
+    [{ id: 'reused-shared', dealer_code: '14450', stock_number: 'DUP', vehicle_status: 'Vehicle Yard Hold', is_current: true, board_activated: true }],
   );
-  assert(reusedSharedRows.length === 3 && reusedSharedRows.slice(0, 2).every(vehicle => vehicle.__locationIdentityReadOnly === true), 'One shared record must never overlay more than one local operational identity');
-  assert(reusedSharedRows[0].toyotaStatus === 'LOCAL-A' && reusedSharedRows[1].toyotaStatus === 'LOCAL-B', 'One-to-many identity ambiguity must preserve both local statuses without overlay');
+  assert(reusedSharedRows.length === 2 && reusedSharedRows[0].__locationIdentityReadOnly === true, 'Duplicate local operational Stocks must collapse to one read-only review row and must not consume the shared row');
+  assert(reusedSharedRows[0].toyotaStatus === 'LOCAL-A' && reusedSharedRows[1].__sharedNavisionReadOnly === true, 'Duplicate local Stock ambiguity must preserve the retained local status and the separate shared record');
 
   const dealerScopedRows = vehicleLocationBoardRows([], [
-    { id: 'dealer-a', dealer_code: '14450', stock_number: 'DEALER-STOCK', toyota_order_number: 'DEALER-ORDER', vehicle_status: 'In Transit to WA', is_current: true },
-    { id: 'dealer-b', dealer_code: '37047', stock_number: 'DEALER-STOCK', toyota_order_number: 'DEALER-ORDER', vehicle_status: 'In Transit to WA', is_current: true },
+    { id: 'dealer-a', dealer_code: '14450', stock_number: 'DEALER-STOCK', toyota_order_number: 'DEALER-ORDER', vehicle_status: 'In Transit to WA', is_current: true, board_activated: true },
+    { id: 'dealer-b', dealer_code: '37047', stock_number: 'DEALER-STOCK', toyota_order_number: 'DEALER-ORDER', vehicle_status: 'In Transit to WA', is_current: true, board_activated: true },
   ]);
   assert(dealerScopedRows.length === 2 && new Set(dealerScopedRows.map(vehicle => vehicle.__sharedNavisionDealerCode)).size === 2, 'Current records from different dealer scopes must remain separately visible');
   const crossDealerRows = vehicleLocationBoardRows([
     { id: 'local-dealer-a', stock: 'DEALER-STOCK-1', order: 'DEALER-ORDER-1', dealer_code: '14450', toyotaStatus: 'LOCAL-DEALER' },
   ], [
-    { id: 'shared-dealer-b', dealer_code: '37047', stock_number: 'DEALER-STOCK-1', toyota_order_number: 'DEALER-ORDER-1', vehicle_status: 'REMOTE-DEALER', is_current: true },
+    { id: 'shared-dealer-b', dealer_code: '37047', stock_number: 'DEALER-STOCK-1', toyota_order_number: 'DEALER-ORDER-1', vehicle_status: 'REMOTE-DEALER', is_current: true, board_activated: true },
   ]);
   assert(crossDealerRows.length === 2 && crossDealerRows[0].toyotaStatus === 'LOCAL-DEALER' && crossDealerRows[0].__locationIdentityReadOnly === true && crossDealerRows[1].__sharedNavisionReadOnly === true, 'A populated local dealer conflict must reject overlay and keep both local and shared records visible for review');
 
-  const orderOnlyShared = sharedNavisionLocationVehicle({ id: 'order-only-shared', dealer_code: '14450', toyota_order_number: 'ORDER-ONLY-SHARED', vehicle_status: 'In Transit to WA', is_current: true });
-  assert(incomingBucketForVehicle(orderOnlyShared) === 'transit', 'An order-only shared Navision vehicle must follow its authoritative status bucket');
 
   let realtimeStatus = null;
   let realtimeChange = null;

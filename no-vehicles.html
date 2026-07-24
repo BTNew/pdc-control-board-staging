@@ -6,9 +6,9 @@
   <meta name="description" content="PDC vehicle locations, workshop workflow, Parts and scheduling control board." />
   <title>Vehicle Tracking Core - No Vehicle Details</title>
   <link rel="icon" href="favicon.svg" type="image/svg+xml" />
-  <link rel="stylesheet" href="styles.css?v=2026.07.24.24-shared-navision-bulk-transfer" />
-  <link rel="stylesheet" href="desktop-operations.css?v=2026.07.24.24-shared-navision-bulk-transfer" />
-  <link rel="stylesheet" href="workshop-planner.css?v=2026.07.24.24-shared-navision-bulk-transfer" />
+  <link rel="stylesheet" href="styles.css?v=2026.07.24.26-pd-document-intake" />
+  <link rel="stylesheet" href="desktop-operations.css?v=2026.07.24.26-pd-document-intake" />
+  <link rel="stylesheet" href="workshop-planner.css?v=2026.07.24.26-pd-document-intake" />
 </head>
 <body>
   <div class="app-shell" id="app-shell">
@@ -18,7 +18,7 @@
         <div class="brand-text">
           <div class="brand-title">Perth Motor Bodies</div>
           <div class="brand-subtitle">Clean Review Board</div>
-          <div class="app-version" id="app-version">Version 2026.07.24.24-shared-navision-bulk-transfer</div>
+          <div class="app-version" id="app-version">Version 2026.07.24.26-pd-document-intake</div>
         </div>
         <button class="sidebar-toggle" id="sidebar-toggle" type="button" aria-label="Collapse sidebar" title="Collapse sidebar">‹</button>
       </div>
@@ -55,7 +55,7 @@
           <button class="ghost" id="operator-profile" type="button">Set Operator</button>
           <button class="ghost" id="export-backup-top" type="button">Export Backup</button>
           <button class="ghost" id="add-customer-top" type="button">Add vehicle</button>
-          <button class="primary" type="button" data-view-target="import">Upload Excel / Navision / PO</button>
+          <button class="primary" type="button" data-view-target="import">Upload Navision / PD Document</button>
         </div>
       </header>
 
@@ -184,7 +184,7 @@
           <div class="table-toolbar advanced-toolbar wide-toolbar table-global-toolbar">
             <label>
               <span>Search</span>
-              <input id="search" type="search" placeholder="Stock, Toyota order, client, vehicle, notes..." />
+              <input id="search" type="search" placeholder="Stock, client, vehicle, notes..." />
             </label>
             <label>
               <span>Source</span>
@@ -398,7 +398,7 @@
                   <input id="ai-intake-upload" type="file" accept=".pdf,.txt,.csv,.tsv,.json,text/plain,text/csv,application/json,application/pdf" multiple />
                   <div class="drop-icon navision-icon">AI</div>
                   <strong>Select files for analysis</strong>
-                  <span>PO PDFs, PD/job card text, parts notes or other file dumps</span>
+                  <span>PD Documents and Parts notes</span>
                 </label>
                 <div class="email-intake-upload-buttons">
                   <button class="primary" id="ai-intake-analyze" type="button" disabled>Analyse files</button>
@@ -614,7 +614,7 @@
             <div class="panel-header compact">
               <div>
                 <h2>CRM backup / restore</h2>
-                <p>Use this before changing website files. The JSON backup restores vehicles, edits, notes, PO ticks, Autocare results and import history.</p>
+                <p>Use this before changing website files. The JSON backup restores vehicles, edits, notes, work requirement ticks, Autocare results and import history.</p>
               </div>
             </div>
             <div class="backup-actions-panel">
@@ -656,7 +656,7 @@
               <input id="navision-upload" type="file" accept=".txt,.tsv,.csv,.xlsx,text/plain,text/tab-separated-values,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" />
               <span class="drop-icon navision-icon">XLSX</span>
               <strong>Select Navision text or Excel</strong>
-              <span>Uses Batch/stock, order or VIN to update existing rows and store new vehicles in Back End Data. XLSX files are converted in the browser.</span>
+              <span>Uses Navision Batch as Stock to update existing rows and store new vehicles in Back End Data. XLSX files are converted in the browser.</span>
             </label>
             <div class="scan-card">
               <div class="scan-line navision-file"><span>File / paste</span><strong>Waiting for text</strong></div>
@@ -669,7 +669,7 @@
             <div class="panel-header">
               <div>
                 <h2>Navision import results</h2>
-                <p>Daily Navision data refreshes ETA to Kewdale, JITA, status and identifiers in Back End Data. Separate work files and manual inputs promote matching vehicles to the PDC Sheet.</p>
+                <p>Daily Navision data refreshes ETA to Kewdale, JITA, status and identifiers in Back End Data. Approved PD Documents and manual activation promote matching vehicles to the PDC Sheet.</p>
               </div>
               <div class="panel-actions">
                 <button class="primary" id="import-navision" type="button" disabled>Import vehicle updates</button>
@@ -679,17 +679,14 @@
             <div class="navision-paste-panel">
               <label class="zpl-field">
                 <span>Paste Navision or spreadsheet rows</span>
-                <textarea id="navision-paste" rows="8" spellcheck="false" placeholder="Order&#9;Batch&#9;Production Month&#9;Compliance Date&#9;Model Description&#9;Suffix Description&#9;..."></textarea>
+                <textarea id="navision-paste" rows="8" spellcheck="false" placeholder="Batch&#9;Production Month&#9;Compliance Date&#9;Model Description&#9;Suffix Description&#9;..."></textarea>
               </label>
-              <label class="sync-option">
-                <input id="navision-pmb-only" type="checkbox" />
-                <span><strong>This is a PDC work / job file</strong> — optional filter for PMB purchase-order/body-builder work only. Leave unticked on this blank site when loading a full Navision list.</span>
-              </label>
+
               <label class="sync-option">
                 <input id="navision-remove-missing" type="checkbox" />
-                <span><strong>Retire missing Navision-only back-end vehicles</strong> — only unpromoted Navision back-end rows that disappear from a full dump are eligible. Manual, PO, PD check-form and PDC Sheet vehicles are protected.</span>
+                <span><strong>Retire missing Navision-only back-end vehicles</strong> — only unpromoted Navision back-end rows that disappear from a full dump are eligible. Manual, PD Document and PDC Sheet vehicles are protected.</span>
               </label>
-              <div class="subtle navision-note">Matching priority: Batch / stock number first, then Toyota order number, then VIN when WMI + VDS Number + Frame are available. For existing vehicles, Navision updates source data only until Yard Hold. PMB/RFT movement is manual in the vehicle popup and will not be overwritten by future imports. Dealer Comments appear in Navision Notes. Rows marked as Cut But Vehicle are highlighted light blue. Optional spreadsheet columns: TINT, HOIST, FITTING, FABRICATION, ELECTRICAL, TYRE, PIT INSPECTION, PARTS, PMB Bucket, PDC Location or Blocked can deliberately update PDC controls. PMB-only import accepts rows with Body Builder, PMB/PDC Location, PMB Bucket, tray ordered, or explicit job columns such as TINT/HOIST/FITTING/FABRICATION/ELECTRICAL/TYRE/PIT INSPECTION/PARTS.</div>
+              <div class="subtle navision-note">Batch is the Stock number and matching authority. New Navision rows remain in Back End Data until an approved PD Document or manual activation brings the vehicle onto the PDC Sheet.</div>
             </div>
             <div class="navision-status-list" id="navision-status-list">
               <div class="empty-state compact-empty"><strong>No Navision text imported</strong><span>Paste copied Navision rows, or upload a text/CSV/XLSX file, then click Import vehicle updates.</span></div>
@@ -744,35 +741,20 @@
           </section>
         </div>
 
-        <div class="import-layout po-layout">
-          <section class="panel import-card" id="po-scan-card">
+        <div class="import-layout po-job-layout">
+          <section class="panel import-card pd-import-panel">
             <div class="panel-header compact">
               <div>
-                <h2>Upload purchase orders</h2>
-                <p>Uploading a PO automatically records a PMB fitment PO for the matched vehicle.</p>
+                <h2>2. Upload PD Document</h2>
+                <p>Upload the Toyota Pre Delivery Check Form. It supplies vehicle details, required work and any named Sublet provider for staff review.</p>
               </div>
+              <div class="panel-actions"><button class="primary" id="dashboard-import-pd" type="button" disabled>Review PD Document</button><button class="small-button" id="dashboard-clear-pd" type="button" disabled>Clear</button></div>
             </div>
-            <label class="drop-zone" for="po-upload">
-              <input id="po-upload" type="file" accept="application/pdf,.pdf" multiple />
-              <span class="drop-icon">PO</span>
-              <strong>Drop or select PO PDFs</strong>
-              <span>Use stock number in the filename for automatic matching, or upload from a vehicle popup.</span>
-            </label>
-            <div class="scan-card">
-              <div class="scan-line po-files"><span>Files selected</span><strong>0 files</strong></div>
-              <div class="scan-line po-matched"><span>Matched vehicles</span><strong>0 matched</strong></div>
+            <div class="pd-import-grid">
+              <label class="drop-zone pd-drop-zone" id="dashboard-pd-drop"><input id="dashboard-pd-upload" type="file" accept=".pdf,.txt,text/plain,application/pdf" multiple /><span class="drop-icon">PD</span><strong>Drop PD Document here</strong><span>PDF or extracted text containing a Stock number or VIN.</span></label>
+              <textarea id="dashboard-pd-paste" class="quick-navision-textarea" rows="7" spellcheck="false" aria-label="PD Document text" placeholder="Paste PD Document text here..."></textarea>
             </div>
-          </section>
-          <section class="panel review-panel">
-            <div class="panel-header">
-              <div>
-                <h2>PO matching results</h2>
-                <p>PO items stay out of the Task dropdown.</p>
-              </div>
-            </div>
-            <div class="po-status-list" id="po-status-list">
-              <div class="empty-state compact-empty"><strong>No PO uploaded</strong><span>Matched upload results will appear here.</span></div>
-            </div>
+            <div id="dashboard-pd-status" class="po-status-list pd-status-list"></div>
           </section>
         </div>
       </section>
@@ -837,11 +819,11 @@
     }
   </script>
 
-  <script src="data-no-vehicles.js?v=2026.07.24.24-shared-navision-bulk-transfer"></script>
-  <script src="arb-labor-catalog.js?v=2026.07.24.24-shared-navision-bulk-transfer"></script>
-  <script src="ai-board-advisor.js?v=2026.07.24.24-shared-navision-bulk-transfer"></script>
-  <script src="workshop-eligibility.js?v=2026.07.24.24-shared-navision-bulk-transfer"></script>
-  <script src="app.js?v=2026.07.24.24-shared-navision-bulk-transfer"></script>
+  <script src="data-no-vehicles.js?v=2026.07.24.26-pd-document-intake"></script>
+  <script src="arb-labor-catalog.js?v=2026.07.24.26-pd-document-intake"></script>
+  <script src="ai-board-advisor.js?v=2026.07.24.26-pd-document-intake"></script>
+  <script src="workshop-eligibility.js?v=2026.07.24.26-pd-document-intake"></script>
+  <script src="app.js?v=2026.07.24.26-pd-document-intake"></script>
 
 </body>
 </html>
