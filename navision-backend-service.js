@@ -158,6 +158,12 @@ function createNavisionBackendService(options = {}) {
     p_target_batch_id: batchId,
     p_expected_revision: expectedRevision,
   });
+  const activate = (recordId, expectedRevision, idempotencyKey, activationSource = 'manual') => call('activate_navision_backend_record', {
+    p_idempotency_key: String(idempotencyKey || ''),
+    p_backend_record_id: recordId || null,
+    p_expected_revision: expectedRevision,
+    p_activation_source: String(activationSource || 'manual'),
+  });
   const link = (recordId, canonicalVehicleId, expectedRevision, idempotencyKey) => call('link_navision_backend_record', {
     p_idempotency_key: String(idempotencyKey || ''),
     p_backend_record_id: recordId,
@@ -183,6 +189,7 @@ function createNavisionBackendService(options = {}) {
     exportRecords,
     reconciliation,
     rollback,
+    activate,
     link,
     subscribe,
   };

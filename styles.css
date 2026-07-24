@@ -10826,20 +10826,22 @@ textarea {
 .completed-table th:nth-child(12), .completed-table td:nth-child(12) { width: 260px !important; }
 .completed-table th:nth-child(13), .completed-table td:nth-child(13) { width: 73px !important; }
 
-/* Back End Data — 9 explicit columns. */
+/* Back End Data — 11 explicit columns, including the approved Navision display fields. */
 .backend-data-table {
-  width: 1640px !important;
-  min-width: 1640px !important;
+  width: 1910px !important;
+  min-width: 1910px !important;
 }
 .backend-data-table th:nth-child(1), .backend-data-table td:nth-child(1) { width: 58px !important; }
-.backend-data-table th:nth-child(2), .backend-data-table td:nth-child(2) { width: 96px !important; }
-.backend-data-table th:nth-child(3), .backend-data-table td:nth-child(3) { width: 116px !important; }
-.backend-data-table th:nth-child(4), .backend-data-table td:nth-child(4) { width: 360px !important; }
-.backend-data-table th:nth-child(5), .backend-data-table td:nth-child(5) { width: 185px !important; }
-.backend-data-table th:nth-child(6), .backend-data-table td:nth-child(6) { width: 225px !important; }
-.backend-data-table th:nth-child(7), .backend-data-table td:nth-child(7) { width: 300px !important; }
-.backend-data-table th:nth-child(8), .backend-data-table td:nth-child(8) { width: 150px !important; }
-.backend-data-table th:nth-child(9), .backend-data-table td:nth-child(9) { width: 150px !important; }
+.backend-data-table th:nth-child(2), .backend-data-table td:nth-child(2) { width: 110px !important; }
+.backend-data-table th:nth-child(3), .backend-data-table td:nth-child(3) { width: 110px !important; }
+.backend-data-table th:nth-child(4), .backend-data-table td:nth-child(4) { width: 260px !important; }
+.backend-data-table th:nth-child(5), .backend-data-table td:nth-child(5) { width: 170px !important; }
+.backend-data-table th:nth-child(6), .backend-data-table td:nth-child(6) { width: 220px !important; }
+.backend-data-table th:nth-child(7), .backend-data-table td:nth-child(7) { width: 150px !important; }
+.backend-data-table th:nth-child(8), .backend-data-table td:nth-child(8) { width: 200px !important; }
+.backend-data-table th:nth-child(9), .backend-data-table td:nth-child(9) { width: 300px !important; }
+.backend-data-table th:nth-child(10), .backend-data-table td:nth-child(10) { width: 150px !important; }
+.backend-data-table th:nth-child(11), .backend-data-table td:nth-child(11) { width: 180px !important; }
 .backend-action-cell .small-button { width: 100%; white-space: nowrap; }
 .backend-shared-status {
   margin: 0 0 12px;

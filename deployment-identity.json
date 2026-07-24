@@ -6,10 +6,10 @@
     "twoPhysicalWorkstationAuthorityCutover": false
   },
   "artifact": "zero-data static staging site",
-  "cacheVersion": "2026.07.24.24-shared-navision-bulk-transfer",
+  "cacheVersion": "2026.07.24.26-pd-document-intake",
   "deploymentMode": "exact reviewed source blobs; staging.html mapped to index.html",
   "environment": "staging",
-  "generatedAtUtc": "2026-07-24T02:59:40Z",
+  "generatedAtUtc": "2026-07-24T06:49:39Z",
   "migrationLedger": [
     "042",
     "044",
@@ -20,19 +20,20 @@
     "049",
     "050",
     "051",
-    "052"
+    "052",
+    "053"
   ],
   "releaseChecks": {
-    "aggregateTests": "77 passed, 0 failed, 2 optional fixture skips",
-    "bulkPmbTransfer": "visible main-board bulk YH/In Transit to PMB path browser-proved and exact-blob audited",
-    "databasePostApply": "fresh encrypted migration-051 backup and isolated restore passed; migration 052 applied; operational hashes unchanged; 8 active physical Bus 4x4 bays; 0 hidden active bookings",
-    "independentReview": "two immutable exact-commit GO verdicts",
-    "literalArtifact": "30/30 source blobs byte-identical; staging.html mapped to index.html",
-    "navisionLocations": "shared current Navision visibility, strict typed stock/order/dealer matching, conflicts and shared-only rows fail closed read-only, generation-bound Realtime reconciliation",
-    "transactionalTest": "rollback-only Workshop lifecycle and bay safety test passed"
+    "aggregateTests": "79 passed, 0 failed, 1 intentional clean-dataset skip",
+    "backupRestore": "fresh encrypted staging backup and isolated restore passed before migration/reset",
+    "databasePostApply": "migration 053 applied with operational hashes unchanged, RLS enabled and direct table access denied; 41 operational tables verified empty after reset",
+    "independentReview": "final combined-diff blocker/major review PASS",
+    "literalArtifact": "30/30 source blobs assembled from exact reviewed source commit",
+    "navisionLocations": "Batch-only identity, durable reviewed activation, fail-closed shared authority, no Toyota-order UI or matching",
+    "pdIntake": "PD Document is sole vehicle-work intake; PO/job-card executable paths absent"
   },
   "sourceBranch": "fix/navision-import-access-success-ui",
-  "sourceCommit": "6511830093e078ae5b3763fa1f22cdeef64ae51c",
+  "sourceCommit": "ea9d65c66d8d585dd0e8a34a1994721a2b520a35",
   "sourceFiles": [
     {
       "deployedPath": "ai-board-advisor.js",
@@ -41,7 +42,7 @@
     },
     {
       "deployedPath": "app.js",
-      "sha256": "6f2c2a85fac6f734a9e96abb94036f329779014c22e94c739eb33fe7a66b8f94",
+      "sha256": "746f1dc358771e7886102b9310661946de1ed97b2dcdfddec751e66da3ecd1ab",
       "sourcePath": "app.js"
     },
     {
@@ -81,12 +82,12 @@
     },
     {
       "deployedPath": "index.html",
-      "sha256": "1fb9dda81d3192561e7365561d7af0f33b676dcbb286f12d801387e8d184a457",
+      "sha256": "1334a510a70a4358fdf9ca74a59c3f194fb14461f91046831f87c8f3ce6c6837",
       "sourcePath": "staging.html"
     },
     {
       "deployedPath": "navision-backend-service.js",
-      "sha256": "08c6fd98c499feb4327f277db3396254dce39f61d70abac0894df5b289ac8c86",
+      "sha256": "e010dc0bcb1e9df0c7188a050d398ebabbdeb6d2c0e451fb766f567aef3b8720",
       "sourcePath": "navision-backend-service.js"
     },
     {
@@ -116,12 +117,12 @@
     },
     {
       "deployedPath": "styles.css",
-      "sha256": "245881dacb2560be5d1b81216bee3e462eca9082cdede7c70fdab48b8786e044",
+      "sha256": "cb3658ef3b1e9d5e7640c44fba1fee5612a302e1d6f53662134afb4ae693652f",
       "sourcePath": "styles.css"
     },
     {
       "deployedPath": "vehicle-lifecycle-actions.js",
-      "sha256": "6c057bf4dce2eecb9893bce1f52548a74e7e79d5bc4bd3e993e80a3c7e1aa20a",
+      "sha256": "82cc7ff9bd81d25d50368321e1e91b1bbe71d1599173d6ce806d71354553ef24",
       "sourcePath": "vehicle-lifecycle-actions.js"
     },
     {
@@ -166,7 +167,7 @@
     },
     {
       "deployedPath": "workshop-planner.js",
-      "sha256": "a9f4b2ed8c06826f766e8074eff50fdb9dcdc102226e06735dcfa1a44ac70cf3",
+      "sha256": "b5cc25d7291f6225acf30fef6dfce1b4c4c6c0ff82037cd6f24cfc7c6689c054",
       "sourcePath": "workshop-planner.js"
     },
     {
@@ -187,7 +188,7 @@
   ],
   "sourceParity": "30/30 deployment source pairs byte-identical to exact source commit",
   "sourceRepository": "BTNew/pdc-control-board",
-  "sourceTree": "695fae447fe94ed5e672552d7ffb41dd0b8fd2c8",
+  "sourceTree": "0a3ec55e361eaa579e6bcf219a450c4e19ccfa23",
   "stagingProjectRef": "cdsmnqxtyyoeoznmbidd",
   "stagingSafety": {
     "bundledOperationalData": false,
