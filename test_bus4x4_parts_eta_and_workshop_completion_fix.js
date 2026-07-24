@@ -23,11 +23,13 @@ assert(!/update\s+public\.workshop_bookings/i.test(migration), 'Migration 051 mu
 for (const gate of ["expected_migration='050'", "versions != ['050']", "operational_hashes_unchanged", "bus4x4_active_bays"]) {
   assert(applyScript.includes(gate), `Migration 051 staging runner missing gate: ${gate}`);
 }
+assert(migration052.includes('set local lock_timeout = \'5s\''), 'Migration 052 booking lock must fail safely instead of waiting indefinitely');
+assert(migration052.includes("where code = 'BUS_4X4' and active and is_physical"), 'Migration 052 must fail closed unless Bus 4x4 remains an active physical stage');
 assert(migration052.includes('lock table public.workshop_bookings in share row exclusive mode'), 'Migration 052 must serialize bay reconciliation against booking DML');
 assert(migration052.includes("wb.status in ('queued', 'planned', 'started', 'stoppage')"), 'Migration 052 must recheck every active booking lifecycle, including queued work');
 assert.strictEqual((migration052.match(/wb\.status in \('queued', 'planned', 'started', 'stoppage'\)/g) || []).length, 2, 'Migration 052 must include queued work in both precondition and postcondition checks');
 assert(!/update\s+public\.workshop_bookings/i.test(migration052), 'Migration 052 must not move or rewrite bookings');
-for (const gate of ["expected_migration='051'", "versions != ['051']", "wb.status in ('queued', 'planned', 'started', 'stoppage')", "wb.status in ('queued','planned','started','stoppage')", 'hidden_active_bus4x4_bookings', 'operational_hashes_unchanged']) {
+for (const gate of ["expected_migration='051'", "versions != ['051']", "set local lock_timeout = '5s'", "where code = 'BUS_4X4' and active and is_physical", "s.code='BUS_4X4' and s.active and s.is_physical", "wb.status in ('queued', 'planned', 'started', 'stoppage')", "wb.status in ('queued','planned','started','stoppage')", 'hidden_active_bus4x4_bookings', 'operational_hashes_unchanged']) {
   assert(applyScript052.includes(gate), `Migration 052 staging runner missing gate: ${gate}`);
 }
 

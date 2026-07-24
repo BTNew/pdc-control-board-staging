@@ -3,6 +3,7 @@
 -- booking DML for the bounded transaction before checking or changing bay
 -- visibility. It never moves, rewrites, deletes, or rebooks operational work.
 begin;
+set local lock_timeout = '5s';
 
 lock table public.workshop_bookings in share row exclusive mode;
 
@@ -14,7 +15,7 @@ declare
 begin
   select id into v_stage_id
   from public.workshop_stages
-  where code = 'BUS_4X4'
+  where code = 'BUS_4X4' and active and is_physical
   for update;
 
   if v_stage_id is null then

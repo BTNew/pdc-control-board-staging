@@ -1829,7 +1829,6 @@ function buildVehicleData() {
     const key = vehicleKey(vehicle);
     const updated = {
       ...vehicle,
-      jitaPartsOrdered: vehicle.jitaPartsOrdered || inferJitaPartsOrdered(vehicle),
       ...(edits[key] || edits[vehicle.stock] || {}),
     };
     return {
@@ -1988,30 +1987,17 @@ function vehicleNavisionJitaNumber(vehicle = {}) {
   const value = String(vehicle.jitQty || vehicle.navisionJitaNumber || '').trim();
   return /\d/.test(value) && !/^0+(?:\.0+)?$/.test(value) ? value : '';
 }
-
-function inferJitaPartsOrdered(vehicle) {
-  const number = vehicleNavisionJitaNumber(vehicle);
-  return number ? `Yes - JITA ${number}` : 'Unknown';
-}
-
-function normalizeJita(value) {
-  const v = String(value || '').toLowerCase();
-  if (v.startsWith('yes')) return 'Yes';
-  if (v.startsWith('no')) return 'No';
-  return 'Unknown';
-}
-
 function jitaDisplay(vehicle) {
-  return vehicle.jitaPartsOrdered || inferJitaPartsOrdered(vehicle);
+  return vehicleNavisionJitaNumber(vehicle);
 }
 
 function jitaIndicator(vehicle) {
-  const state = normalizeJita(jitaDisplay(vehicle));
-  const detail = jitaDisplay(vehicle);
-  const accessible = `JITA ${state}: ${detail || 'No status recorded'}`;
-  if (state === 'Yes') return `<span class="jita-icon jita-yes" role="img" aria-label="${escapeHtml(accessible)}" title="${escapeHtml(detail)}">✓</span>`;
-  if (state === 'No') return `<span class="jita-icon jita-no" role="img" aria-label="${escapeHtml(accessible)}" title="${escapeHtml(detail)}">×</span>`;
-  return `<span class="jita-icon jita-unknown" role="img" aria-label="${escapeHtml(accessible)}" title="${escapeHtml(detail)}">?</span>`;
+  const number = vehicleNavisionJitaNumber(vehicle);
+  if (number) {
+    const accessible = `Navision JITA number ${number}`;
+    return `<span class="jita-icon jita-yes" role="img" aria-label="${escapeHtml(accessible)}" title="${escapeHtml(accessible)}">✓</span>`;
+  }
+  return '<span class="jita-icon jita-unknown" role="img" aria-label="No Navision JITA number" title="No Navision JITA number">—</span>';
 }
 
 function legacyVehicleFlag(vehicle, key) {
@@ -2503,7 +2489,7 @@ function sortValue(vehicle, key) {
     case 'internalStatus': return vehicle.internalStatus || '';
     case 'toyotaStatus': return `${String(toyotaStatusRank(vehicle.toyotaStatus)).padStart(4, '0')} ${vehicle.toyotaStatus || ''}`;
     case 'eta': return parseDateAU(vehicle.etaAtDealer)?.getTime() || 9999999999999;
-    case 'jita': return normalizeJita(jitaDisplay(vehicle));
+    case 'jita': return vehicleNavisionJitaNumber(vehicle) ? 'Yes' : 'Unknown';
     case 'pdcRequiresTint': return vehicleFlag(vehicle, 'pdcRequiresTint') ? 'Yes' : 'No';
     case 'pdcRequiresHoist': return vehicleFlag(vehicle, 'pdcRequiresHoist') ? 'Yes' : 'No';
     case 'pdcRequiresFitting': return vehicleFlag(vehicle, 'pdcRequiresFitting') ? 'Yes' : 'No';
@@ -5658,7 +5644,6 @@ function ensureVehicleForPd(parsed = {}) {
     etaAtDealer: '',
     epodReceipt: '',
     jitQty: '',
-    jitaPartsOrdered: 'Unknown',
     consultant: '',
     poTasks: [],
     poFiles: [],
@@ -7978,7 +7963,7 @@ function filteredVehicles() {
     const matchesSales = !sales || salesPersonInitials(consultantName(v)) === sales;
     const matchesProduction = !production || productionLabel === production;
     const matchesSource = !source || v.source === source;
-    const matchesJita = !jita || normalizeJita(jitaDisplay(v)) === jita;
+    const matchesJita = !jita || (vehicleNavisionJitaNumber(v) ? 'Yes' : 'Unknown') === jita;
     const matchesQuick = !app.quickFilter || matchesQuickFilter(app.quickFilter)(v);
     const currentPmbStage = inferredPmbStage(v);
     const matchesPmbSub = !app.pmbSubFilter || (app.quickFilter === 'pmb' && (app.pmbSubFilter === PMB_STAGE_UNASSIGNED_FILTER ? !currentPmbStage : currentPmbStage === app.pmbSubFilter));
@@ -8139,7 +8124,7 @@ function renderVehicleTable() {
       <th data-col-id="status">${columnFilterSlot('status', app.filterOptions.statuses, app.columnFilters.status, 'All statuses')}${sortableTh('Toyota Status', 'toyotaStatus')}</th>
       <th data-col-id="eta">${emptyColumnFilterSlot()}${sortableTh('ETA', 'eta')}</th>
       <th class="navision-notes-full-col" data-col-id="navisionNotes" title="Full Navision Notes from Dealer Comments">${emptyColumnFilterSlot()}${sortableTh('Navision Notes', 'navisionNotes')}</th>
-      <th data-col-id="jita">${columnFilterSlot('jita', [{ value: 'Yes', label: '✓ Tick' }, { value: 'No', label: '× Cross' }, { value: 'Unknown', label: 'Unknown' }], app.columnFilters.jita, 'All')}${sortableTh('JITA', 'jita')}</th>
+      <th data-col-id="jita">${columnFilterSlot('jita', [{ value: 'Yes', label: '✓ JITA Number' }, { value: 'Unknown', label: 'Blank' }], app.columnFilters.jita, 'All')}${sortableTh('JITA', 'jita')}</th>
       <th data-col-id="action">${emptyColumnFilterSlot()}<span class="plain-header-label">Action</span></th>
     </tr></thead>
     <tbody>
@@ -9861,7 +9846,7 @@ function renderDetail() {
         <div class="metric"><span>Port</span><strong>${escapeHtml(v.arrivalPort || 'Not shown')}</strong></div>
         <div class="metric"><span>Autocare VIN</span><strong>${escapeHtml(v.autocareVin || v.vin || 'Not despatched')}</strong></div>
         <div class="metric"><span>Autocare load</span><strong>${escapeHtml(v.autocareLoadNumber || 'None')}</strong></div>
-        <div class="metric"><span>JITA Qty</span><strong>${escapeHtml(v.jitQty || 'None shown')}</strong></div>
+        <div class="metric"><span>JITA Number</span><strong>${escapeHtml(vehicleNavisionJitaNumber(v) || 'None shown')}</strong></div>
       </div>
       <div>
         <div class="muted-label">Status history</div>
@@ -10080,7 +10065,7 @@ function renderNavisionDetailSection(vehicle = {}) {
     ['VDS Number', vehicle.vdsNumber],
     ['Frame', vehicle.frame],
     ['Dealer Customer Name', vehicle.dealerCustomer || vehicle.toyotaCustomer],
-    ['JITA PreOrder', jitaDisplay(vehicle)],
+    ['JITA Number', jitaDisplay(vehicle)],
     ['Tray Fitment Ordered', vehicleFlag(vehicle, 'trayOrdered') ? 'Yes' : 'No'],
     ['Tray Fitment Complete', vehicleFlag(vehicle, 'trayFitmentComplete') ? 'Yes' : 'No'],
     ['Sub Location Description', vehicle.navisionSubLocationDescription || vehicle.toyotaStatus],
@@ -12148,7 +12133,6 @@ function addCustomerFromForm(e) {
     etaAtDealer: (data.etaAtDealer || '').trim(),
     epodReceipt: '',
     jitQty: '',
-    jitaPartsOrdered: data.jitaPartsOrdered || 'Unknown',
     pdcJobcard: (data.pdcJobcard || '').trim(),
     consultant: (data.consultant || '').trim(),
   };
@@ -12369,7 +12353,6 @@ function ensureVehicleForPo(stockOrParsed) {
     etaAtDealer: '',
     epodReceipt: '',
     jitQty: '',
-    jitaPartsOrdered: 'Unknown',
     consultant: parsed.salesperson || '',
     vin: parsed.vin || '',
     poTasks: [],
@@ -15652,9 +15635,9 @@ function teamNotesText(vehicle) {
 
 function exportCsv() {
   const jobHeaders = PDC_JOB_DEFS.flatMap(def => [`Requires ${def.label}`, `${def.label} Complete`]);
-  const headers = ['SP','Stock','Toyota Order','Key Number','P/Month','Client','Vehicle','PDC Location','PMB Work Stream','SUBLET Provider','PMB Bay','PMB Bay Hours','PMB Bay Scheduled Start','PMB Bay Started','PMB Bay Completed','PMB Requirements','PMB Completed','PMB Outstanding','Blocked','Blocked Reason','Bucket Days','Days Since Kewdale ETA','Parts Status','Parts ETA','Parts Worst ETA','RFT Gate Issues','RFT Date','Navision Notes','Team Notes','Task', ...jobHeaders, 'PO Tasks','PO Files','Toyota Status (Sub Location)','Navision ETA','Delivery Date','JITA Parts Ordered','JITA Qty','Contact','Source','Autocare VIN','Autocare Batch','Autocare Load','Match Warning'];
+  const headers = ['SP','Stock','Toyota Order','Key Number','P/Month','Client','Vehicle','PDC Location','PMB Work Stream','SUBLET Provider','PMB Bay','PMB Bay Hours','PMB Bay Scheduled Start','PMB Bay Started','PMB Bay Completed','PMB Requirements','PMB Completed','PMB Outstanding','Blocked','Blocked Reason','Bucket Days','Days Since Kewdale ETA','Parts Status','Parts ETA','Parts Worst ETA','RFT Gate Issues','RFT Date','Navision Notes','Team Notes','Task', ...jobHeaders, 'PO Tasks','PO Files','Toyota Status (Sub Location)','Navision ETA','Delivery Date','JITA Number','Contact','Source','Autocare VIN','Autocare Batch','Autocare Load','Match Warning'];
   const lines = [headers.join(',')].concat(pdcSheetVehicles().map(v => [
-    salesPersonInitials(consultantName(v)), displayStockNumber(v), v.order || '', vehicleKeyNumber(v), productionMonthLabel(v.prodMth || v.productionMonth || ''), v.client, displayVehicle(v), pdcLocationLabel(v.pdcLocation), pmbStageLabel(inferredPmbStage(v)), pmbBaySubletProvider(v), pmbBayNumber(v, inferredPmbStage(v)) || '', pmbBayHours(v) === '' ? '' : pmbBayHours(v), v.pmbBayScheduledStartAt ? new Date(v.pmbBayScheduledStartAt).toLocaleString('en-AU', { dateStyle: 'short', timeStyle: 'short' }) : '', v.pmbBayEnteredAt ? new Date(v.pmbBayEnteredAt).toLocaleString('en-AU', { dateStyle: 'short', timeStyle: 'short' }) : '', v.pmbBayCompletedAt ? new Date(v.pmbBayCompletedAt).toLocaleString('en-AU', { dateStyle: 'short', timeStyle: 'short' }) : '', pmbRequirementText(v), pdcCompletedJobsText(v), pdcOutstandingJobsText(v), isPdcBlocked(v) ? 'Yes' : 'No', pdcBlockReason(v), pmbStageAgeDays(v) === null ? '' : pmbStageAgeDays(v), pmbAgeDays(v) === null ? '' : pmbAgeDays(v), partsDepartmentStatusLabel(partsDepartmentStatus(v)), kewdaleEtaValue(v), partsWorstEtaLabel(v), vehicleRftGateIssues(v).join('; '), v.rftTransferredAt ? new Date(v.rftTransferredAt).toLocaleString('en-AU', { dateStyle: 'short', timeStyle: 'short' }) : '', navisionDealerNoteText(v), teamNotesText(v), v.internalStatus || '', ...PDC_JOB_DEFS.flatMap(def => [pdcJobRequired(v, def) ? 'Yes' : 'No', pdcJobComplete(v, def) ? 'Yes' : 'No']), (v.poTasks || []).join('; '), (v.poFiles || []).join('; '), v.toyotaStatus || '', scotEtaOnly(v.etaAtDealer), v.deliveryDate || '', jitaDisplay(v), v.jitQty || '', v.contact || '', v.source || '', v.autocareVin || '', v.autocareBatch || '', v.autocareLoadNumber || '', isCustomerMatch(v) ? '' : 'Customer mismatch'
+    salesPersonInitials(consultantName(v)), displayStockNumber(v), v.order || '', vehicleKeyNumber(v), productionMonthLabel(v.prodMth || v.productionMonth || ''), v.client, displayVehicle(v), pdcLocationLabel(v.pdcLocation), pmbStageLabel(inferredPmbStage(v)), pmbBaySubletProvider(v), pmbBayNumber(v, inferredPmbStage(v)) || '', pmbBayHours(v) === '' ? '' : pmbBayHours(v), v.pmbBayScheduledStartAt ? new Date(v.pmbBayScheduledStartAt).toLocaleString('en-AU', { dateStyle: 'short', timeStyle: 'short' }) : '', v.pmbBayEnteredAt ? new Date(v.pmbBayEnteredAt).toLocaleString('en-AU', { dateStyle: 'short', timeStyle: 'short' }) : '', v.pmbBayCompletedAt ? new Date(v.pmbBayCompletedAt).toLocaleString('en-AU', { dateStyle: 'short', timeStyle: 'short' }) : '', pmbRequirementText(v), pdcCompletedJobsText(v), pdcOutstandingJobsText(v), isPdcBlocked(v) ? 'Yes' : 'No', pdcBlockReason(v), pmbStageAgeDays(v) === null ? '' : pmbStageAgeDays(v), pmbAgeDays(v) === null ? '' : pmbAgeDays(v), partsDepartmentStatusLabel(partsDepartmentStatus(v)), kewdaleEtaValue(v), partsWorstEtaLabel(v), vehicleRftGateIssues(v).join('; '), v.rftTransferredAt ? new Date(v.rftTransferredAt).toLocaleString('en-AU', { dateStyle: 'short', timeStyle: 'short' }) : '', navisionDealerNoteText(v), teamNotesText(v), v.internalStatus || '', ...PDC_JOB_DEFS.flatMap(def => [pdcJobRequired(v, def) ? 'Yes' : 'No', pdcJobComplete(v, def) ? 'Yes' : 'No']), (v.poTasks || []).join('; '), (v.poFiles || []).join('; '), v.toyotaStatus || '', scotEtaOnly(v.etaAtDealer), v.deliveryDate || '', jitaDisplay(v), v.contact || '', v.source || '', v.autocareVin || '', v.autocareBatch || '', v.autocareLoadNumber || '', isCustomerMatch(v) ? '' : 'Customer mismatch'
   ].map(csvEscape).join(',')));
   const blob = new Blob([lines.join('\n')], { type: 'text/csv' });
   const url = URL.createObjectURL(blob);

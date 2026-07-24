@@ -55,6 +55,13 @@ code += String.raw`
   assert(parsedEtaDate.vehicles[0].jitaPartsOrdered === 'Unknown' && parsedEtaDate.vehicles[0].jitQty === '', 'A Yes marker without a Navision JITA number must not create a Parts tick');
   assert(vehicleNavisionJitaNumber({ jitaPartsOrdered: 'Yes' }) === '', 'A stale/manual local JITA boolean must never create a Parts-screen tick');
   assert(vehicleNavisionJitaNumber({ jitQty: 'JITA-77881', jitaPartsOrdered: 'No' }) === 'JITA-77881', 'A non-empty imported Navision JITA number must create the read-only Parts tick');
+  assert(jitaDisplay({ jitaPartsOrdered: 'Yes' }) === '', 'The main Control Board display must ignore a stale local JITA yes flag');
+  assert(!jitaIndicator({ jitaPartsOrdered: 'Yes' }).includes('✓'), 'A stale local JITA yes flag must not create a main-table tick');
+  assert(!jitaIndicator({ jitaPartsOrdered: 'No' }).includes('×'), 'The main table must not render a manual JITA cross');
+  assert(jitaIndicator({ jitQty: 'JITA-77881', jitaPartsOrdered: 'No' }).includes('✓'), 'An imported Navision JITA number must create the main-table tick even when a stale flag disagrees');
+  assert(jitaIndicator({ jitQty: 'JITA-77881', jitaPartsOrdered: 'No' }).includes('Navision JITA number JITA-77881'), 'The main-table tick must expose the authoritative Navision JITA number');
+  assert(sortValue({ jitaPartsOrdered: 'Yes' }, 'jita') === 'Unknown', 'JITA sorting must ignore stale local booleans');
+  assert(sortValue({ jitQty: 'JITA-77881', jitaPartsOrdered: 'No' }, 'jita') === 'Yes', 'JITA sorting must use the imported Navision number');
 
   // Selected-only apply should skip unselected existing updates but still add new vehicles.
   localStorage.clear();

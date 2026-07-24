@@ -46,7 +46,9 @@ def main():
 
     sql = MIGRATION.read_text(encoding='utf-8')
     required_sql = (
+        "set local lock_timeout = '5s'",
         'lock table public.workshop_bookings in share row exclusive mode',
+        "where code = 'BUS_4X4' and active and is_physical",
         "wb.status in ('queued', 'planned', 'started', 'stoppage')",
         'bay.bay_number not between 1 and 8',
     )
@@ -78,7 +80,7 @@ def main():
             raise RuntimeError('migration changed operational rows')
         cursor.execute("""select count(*) from public.workshop_bays b
           join public.workshop_stages s on s.id=b.stage_id
-          where s.code='BUS_4X4' and b.is_active""")
+          where s.code='BUS_4X4' and s.active and s.is_physical and b.is_active""")
         if cursor.fetchone()[0] != 8:
             raise RuntimeError('Bus 4x4 does not have exactly eight active bays')
         cursor.execute("""select count(*)
@@ -86,6 +88,8 @@ def main():
           join public.workshop_bays bay on bay.id=wb.bay_id
           join public.workshop_stages stage on stage.id=bay.stage_id
           where stage.code='BUS_4X4'
+            and stage.active
+            and stage.is_physical
             and wb.deleted_at is null
             and wb.status in ('queued','planned','started','stoppage')
             and (bay.is_active is not true or bay.bay_number not between 1 and 8)""")
