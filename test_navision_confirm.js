@@ -206,6 +206,17 @@ code += String.raw`
   assert(selectedVehiclesForBulkEmail().length === 0 && app.selectedRows.size === 0, 'A previously selected row must be removed from bulk authority as soon as its shared identity becomes conflicted');
   app.sharedNavisionVisibleRows = [];
   app.sharedNavisionLocationReadOnlyKeys = new Set();
+  const originalBulkTransfer = transferSelectedYhVehiclesToPmb;
+  const originalLiveStatus = liveConflictVehicle.toyotaStatus;
+  let mainBulkDelegateCalls = 0;
+  transferSelectedYhVehiclesToPmb = async () => { mainBulkDelegateCalls += 1; };
+  liveConflictVehicle.toyotaStatus = 'Vehicle Yard Hold';
+  app.selectedRows.add(vehicleKey(liveConflictVehicle));
+  transferSelectedMainYhVehiclesToPmb();
+  assert(mainBulkDelegateCalls === 1, 'The visible main-board bulk YH to PMB action must delegate to the implemented guarded bulk transfer workflow');
+  transferSelectedYhVehiclesToPmb = originalBulkTransfer;
+  liveConflictVehicle.toyotaStatus = originalLiveStatus;
+  app.selectedRows.clear();
 
   const reusedSharedRows = vehicleLocationBoardRows(
     [

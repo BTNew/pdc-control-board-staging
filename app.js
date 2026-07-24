@@ -1,5 +1,5 @@
-const APP_VERSION = '2026.07.24.23-shared-navision-central-guard';
-const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.07.24.23-shared-navision-central-guard';
+const APP_VERSION = '2026.07.24.24-shared-navision-bulk-transfer';
+const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.07.24.24-shared-navision-bulk-transfer';
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
 // constant intentionally names only the production ref, never the
@@ -5480,7 +5480,7 @@ async function transferSelectedMainYhVehiclesToPmb() {
     window.alert('Only Yard Hold or In Transit vehicles can be transferred to PMB from the main screen. Untick any PMB, RFT, completed or overseas rows first.');
     return;
   }
-  await transferVehiclesToPmb(selected);
+  await transferSelectedYhVehiclesToPmb();
   updateInlineSelectionBars();
 }
 
