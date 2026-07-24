@@ -49,6 +49,10 @@ assert.ok(first.findings.some(item => item.rule === 'BOOKING_STOPPAGE'), 'bookin
 assert.ok(first.findings.some(item => item.rule === 'UNSCHEDULED_REQUIRED_STAGE' && item.evidence.some(value => value.includes('elec'))), 'outstanding unscheduled stage must be detected with authoritative coverage');
 assert.strictEqual(first.findings[0].severity, 'critical', 'critical findings must sort first');
 assert.ok(first.findings.every(item => !('action' in item) && !('callback' in item) && !('mutation' in item)), 'findings must contain display evidence only');
+for (const item of first.findings) {
+  const renderedText = [item.title, item.explanation, item.recommendation, ...(item.evidence || [])].filter(Boolean).join(' ');
+  assert.ok(!/\bstoppage\b/.test(renderedText), `AI finding ${item.rule} must render STOPPAGE in uppercase: ${renderedText}`);
+}
 
 const ambiguous = advisor.analyze({
   nowIso: input.nowIso,

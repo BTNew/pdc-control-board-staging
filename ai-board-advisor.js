@@ -132,9 +132,9 @@
       if (parts.stoppage === true) {
         results.push(finding('PARTS_STOPPAGE', 'critical', 'parts', identity, {
           vehicleIdentity: identity, stock,
-          title: `Parts stoppage on ${label}`,
-          explanation: 'Required Parts are in stoppage and may prevent downstream workshop work.',
-          evidence: [text(parts.reason) || 'Parts stoppage flag is active', text(parts.eta) && `ETA ${text(parts.eta)}`],
+          title: `Parts STOPPAGE on ${label}`,
+          explanation: 'Required Parts are in STOPPAGE and may prevent downstream workshop work.',
+          evidence: [text(parts.reason) || 'Parts STOPPAGE flag is active', text(parts.eta) && `ETA ${text(parts.eta)}`],
           recommendation: 'Review the supplier status and confirm the operational plan with Parts.',
         }));
       }
@@ -259,10 +259,10 @@
         if (booking.status === 'stoppage') {
           results.push(finding('BOOKING_STOPPAGE', 'critical', 'workshop', booking.id, {
             vehicleIdentity: booking.vehicleIdentity, stock, bookingIds: [booking.id],
-            title: `Workshop stoppage${stock ? ` on ${stock}` : ''}`,
-            explanation: 'An active workshop booking is in stoppage.',
-            evidence: [`Booking ${booking.id}`, text(booking.stage) && `Stage ${text(booking.stage)}`, text(booking.stoppageReason) || 'Stoppage reason not recorded'],
-            recommendation: 'Confirm the stoppage owner, reason and safe resumption plan.',
+            title: `Workshop STOPPAGE${stock ? ` on ${stock}` : ''}`,
+            explanation: 'An active workshop booking is in STOPPAGE.',
+            evidence: [`Booking ${booking.id}`, text(booking.stage) && `Stage ${text(booking.stage)}`, text(booking.stoppageReason) || 'STOPPAGE reason not recorded'],
+            recommendation: 'Confirm the STOPPAGE owner, reason and safe resumption plan.',
           }));
         }
         if (booking.status === 'planned' && booking.start.getTime() < now.getTime() - 30 * 60000) {
@@ -317,7 +317,7 @@
             vehicleIdentity: identity, stock: vehicle.stock,
             title: `${text(vehicle.stock) || identity} has unscheduled required work`,
             explanation: 'One or more required incomplete workshop stages have no active booking in the authoritative snapshot.',
-            evidence: [`Required stages: ${unscheduled.join(', ')}`, 'No queued, planned, started or stoppage booking found for these stages'],
+            evidence: [`Required stages: ${unscheduled.join(', ')}`, 'No queued, planned, started or STOPPAGE booking found for these stages'],
             recommendation: 'Review capacity and create or confirm a booking manually if appropriate.',
           }));
         }

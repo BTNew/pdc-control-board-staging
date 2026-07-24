@@ -47,7 +47,7 @@ def main():
     sql = MIGRATION.read_text(encoding='utf-8')
     required_sql = (
         'lock table public.workshop_bookings in share row exclusive mode',
-        "wb.status in ('planned', 'started', 'stoppage')",
+        "wb.status in ('queued', 'planned', 'started', 'stoppage')",
         'bay.bay_number not between 1 and 8',
     )
     for fragment in required_sql:
@@ -87,7 +87,7 @@ def main():
           join public.workshop_stages stage on stage.id=bay.stage_id
           where stage.code='BUS_4X4'
             and wb.deleted_at is null
-            and wb.status in ('planned','started','stoppage')
+            and wb.status in ('queued','planned','started','stoppage')
             and (bay.is_active is not true or bay.bay_number not between 1 and 8)""")
         if cursor.fetchone()[0] != 0:
             raise RuntimeError('active Bus 4x4 work is attached to a hidden or out-of-range bay')

@@ -24,9 +24,10 @@ for (const gate of ["expected_migration='050'", "versions != ['050']", "operatio
   assert(applyScript.includes(gate), `Migration 051 staging runner missing gate: ${gate}`);
 }
 assert(migration052.includes('lock table public.workshop_bookings in share row exclusive mode'), 'Migration 052 must serialize bay reconciliation against booking DML');
-assert(migration052.includes("wb.status in ('planned', 'started', 'stoppage')"), 'Migration 052 must recheck every active booking lifecycle');
+assert(migration052.includes("wb.status in ('queued', 'planned', 'started', 'stoppage')"), 'Migration 052 must recheck every active booking lifecycle, including queued work');
+assert.strictEqual((migration052.match(/wb\.status in \('queued', 'planned', 'started', 'stoppage'\)/g) || []).length, 2, 'Migration 052 must include queued work in both precondition and postcondition checks');
 assert(!/update\s+public\.workshop_bookings/i.test(migration052), 'Migration 052 must not move or rewrite bookings');
-for (const gate of ["expected_migration='051'", "versions != ['051']", 'hidden_active_bus4x4_bookings', 'operational_hashes_unchanged']) {
+for (const gate of ["expected_migration='051'", "versions != ['051']", "wb.status in ('queued', 'planned', 'started', 'stoppage')", "wb.status in ('queued','planned','started','stoppage')", 'hidden_active_bus4x4_bookings', 'operational_hashes_unchanged']) {
   assert(applyScript052.includes(gate), `Migration 052 staging runner missing gate: ${gate}`);
 }
 
@@ -40,8 +41,9 @@ assert(!app.includes('if (def) updates[def.completeKey] = false;'), 'Parts STOPP
 assert(css.includes('.parts-eta-countdown.positive') && css.includes('color: #15803d'));
 assert(css.includes('.parts-eta-countdown.negative') && css.includes('color: #dc2626'));
 assert(planner.includes('>STOPPAGE</button>'), 'generic Workshop stoppage action must say STOPPAGE');
-const userFacingSources = [app, planner, read('index.html'), read('staging.html'), read('no-vehicles.html'), read('test-50.html'), read('test-75.html'), read('test-100.html')].join('\n');
-for (const legacyLabel of ['PMB stoppage', 'Show stoppages', 'stoppage only', 'no stoppage', 'Complete, Stoppage', 'Parts / job stoppage', 'Place job on stoppage', 'Enter the stoppage reason', 'stoppage notes', '${escapeHtml(area)} stoppage', 'Fix parts stoppage:', 'Current stoppage / blocker:', 'with stoppage', 'Parts delay / stoppage', 'PDC stoppage / blocker', 'complete/stoppage action', "action === 'stoppage' ? 'stoppage' : 'note'} for stock"]) {
+const advisorSource = read('ai-board-advisor.js');
+const userFacingSources = [app, planner, advisorSource, read('index.html'), read('staging.html'), read('no-vehicles.html'), read('test-50.html'), read('test-75.html'), read('test-100.html')].join('\n');
+for (const legacyLabel of ['PMB stoppage', 'Show stoppages', 'stoppage only', 'no stoppage', 'Complete, Stoppage', 'Parts / job stoppage', 'Place job on stoppage', 'Enter the stoppage reason', 'stoppage notes', '${escapeHtml(area)} stoppage', 'Fix parts stoppage:', 'Current stoppage / blocker:', 'with stoppage', 'Parts delay / stoppage', 'PDC stoppage / blocker', 'complete/stoppage action', "action === 'stoppage' ? 'stoppage' : 'note'} for stock", 'Parts stoppage', 'Workshop stoppage', 'in stoppage', 'Stoppage reason', 'the stoppage owner', 'or stoppage booking']) {
   assert(!userFacingSources.includes(legacyLabel), `legacy user-facing STOPPAGE label remains: ${legacyLabel}`);
 }
 

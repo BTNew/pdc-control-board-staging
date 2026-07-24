@@ -34,7 +34,7 @@ begin
   join public.workshop_bays bay on bay.id = wb.bay_id
   where bay.stage_id = v_stage_id
     and wb.deleted_at is null
-    and wb.status in ('planned', 'started', 'stoppage')
+    and wb.status in ('queued', 'planned', 'started', 'stoppage')
     and (bay.is_active is not true or bay.bay_number not between 1 and 8);
 
   if v_hidden_active_count <> 0 then
@@ -77,7 +77,7 @@ begin
   join public.workshop_bays bay on bay.id = wb.bay_id
   where bay.stage_id = v_stage_id
     and wb.deleted_at is null
-    and wb.status in ('planned', 'started', 'stoppage')
+    and wb.status in ('queued', 'planned', 'started', 'stoppage')
     and (bay.is_active is not true or bay.bay_number not between 1 and 8);
 
   if v_hidden_active_count <> 0 then
