@@ -135,8 +135,8 @@ code += String.raw`
     ],
     [
       { id: 'shared-match', stock_number: '10010010', toyota_order_number: 'ORD-MATCH', model: 'HiLux', colour: 'White', vehicle_status: 'In Transit to WA', eta_to_kewdale: '31/07/2026', is_current: true },
-      { id: 'shared-only', stock_number: '10010012', toyota_order_number: 'ORD-SHARED', model: 'Prado', colour: 'Silver', vehicle_status: 'Planned for Production', eta_to_kewdale: '02/08/2026', is_current: true },
-      { id: 'shared-duplicate', stock_number: '10010012', toyota_order_number: 'ORD-SHARED', model: 'Prado duplicate dealer row', vehicle_status: 'Planned for Production', is_current: true },
+      { id: 'shared-only', dealer_code: '14450', stock_number: '10010012', toyota_order_number: 'ORD-SHARED', model: 'Prado', colour: 'Silver', vehicle_status: 'Planned for Production', eta_to_kewdale: '02/08/2026', is_current: true },
+      { id: 'shared-duplicate', dealer_code: '14450', stock_number: '10010012', toyota_order_number: 'ORD-SHARED', model: 'Prado', colour: 'Silver', vehicle_status: 'Planned for Production', eta_to_kewdale: '02/08/2026', is_current: true },
       { id: 'shared-old', stock_number: '10010013', vehicle_status: 'Planned for Production', is_current: false },
     ],
   );
@@ -161,6 +161,87 @@ code += String.raw`
   );
   assert(ambiguousLocationRows.length === 3 && ambiguousLocationRows[0].toyotaStatus === 'Local review required' && ambiguousLocationRows[0].__sharedNavisionReadOnly !== false, 'Conflicting stock/order matches must fail closed without overlaying either shared record onto the local operational vehicle');
   assert(ambiguousLocationRows.filter(vehicle => vehicle.__sharedNavisionReadOnly === true).length === 2, 'Conflicting current shared Navision records must remain separately visible for review');
+  assert(ambiguousLocationRows[0].__locationIdentityReadOnly === true, 'A conflicting local identity must be visibly read-only until reviewed');
+
+  const blankAuthorityRows = vehicleLocationBoardRows(
+    [{ id: 'blank-local', stock: 'BLANK-1', order: 'BLANK-ORDER', toyotaStatus: 'Stale status', etaAtDealer: '01/01/2020' }],
+    [{ id: 'blank-shared', dealer_code: '14450', stock_number: 'BLANK-1', toyota_order_number: 'BLANK-ORDER', vehicle_status: '', eta_to_kewdale: '', is_current: true }],
+  );
+  assert(blankAuthorityRows.length === 1 && blankAuthorityRows[0].toyotaStatus === '' && blankAuthorityRows[0].etaAtDealer === '', 'Authoritative shared blanks must clear stale browser-local status and ETA values');
+
+  const duplicateLocalRows = vehicleLocationBoardRows(
+    [
+      { id: 'dup-local-a', stock: 'ABC-1', order: 'ORD-1', toyotaStatus: 'STALE-A' },
+      { id: 'dup-local-b', stock: 'ABC1', order: 'ORD1', toyotaStatus: 'STALE-B' },
+    ],
+    [{ id: 'dup-shared', dealer_code: '14450', stock_number: 'ABC1', toyota_order_number: 'ORD1', vehicle_status: 'In Transit to WA', eta_to_kewdale: '01/08/2026', is_current: true }],
+  );
+  assert(duplicateLocalRows.length === 1 && duplicateLocalRows[0].toyotaStatus === 'In Transit to WA', 'Normalized duplicate operational identities must count once and use the unambiguous shared status');
+  assert(duplicateLocalRows[0].__locationIdentityReadOnly === true, 'A collapsed duplicate operational identity must stay read-only until its local conflict is reviewed');
+  const duplicateLocalHtml = incomingVehicleDetailRow(duplicateLocalRows[0], incomingBucketForVehicle(duplicateLocalRows[0]), { draggable: true, showDelete: true });
+  for (const forbiddenAction of ['draggable="true"', 'data-open-stock=', 'data-label-vehicle=', 'data-select-stock=', 'data-incoming-delete=']) {
+    assert(!duplicateLocalHtml.includes(forbiddenAction), 'Identity-conflict rows must not expose browser-local action ' + forbiddenAction);
+  }
+
+  const partialConflictRows = vehicleLocationBoardRows(
+    [{ id: 'partial-local', stock: 'STOCK-1', order: 'LOCAL-ORDER', toyotaStatus: 'LOCAL-STATUS' }],
+    [{ id: 'partial-shared', dealer_code: '14450', stock_number: 'STOCK-1', toyota_order_number: 'OTHER-ORDER', vehicle_status: 'Vehicle Yard Hold', is_current: true }],
+  );
+  assert(partialConflictRows.length === 2 && partialConflictRows[0].toyotaStatus === 'LOCAL-STATUS' && partialConflictRows[0].__locationIdentityReadOnly === true, 'One matching identifier plus one conflicting identifier must fail closed without overlay');
+
+  const reusedSharedRows = vehicleLocationBoardRows(
+    [
+      { id: 'reused-local-a', stock: 'DUP', toyotaStatus: 'LOCAL-A' },
+      { id: 'reused-local-b', stock: 'DUP', order: 'ORDER-B', toyotaStatus: 'LOCAL-B' },
+    ],
+    [{ id: 'reused-shared', dealer_code: '14450', stock_number: 'DUP', vehicle_status: 'Vehicle Yard Hold', is_current: true }],
+  );
+  assert(reusedSharedRows.length === 3 && reusedSharedRows.slice(0, 2).every(vehicle => vehicle.__locationIdentityReadOnly === true), 'One shared record must never overlay more than one local operational identity');
+  assert(reusedSharedRows[0].toyotaStatus === 'LOCAL-A' && reusedSharedRows[1].toyotaStatus === 'LOCAL-B', 'One-to-many identity ambiguity must preserve both local statuses without overlay');
+
+  const dealerScopedRows = vehicleLocationBoardRows([], [
+    { id: 'dealer-a', dealer_code: '14450', stock_number: 'DEALER-STOCK', toyota_order_number: 'DEALER-ORDER', vehicle_status: 'In Transit to WA', is_current: true },
+    { id: 'dealer-b', dealer_code: '37047', stock_number: 'DEALER-STOCK', toyota_order_number: 'DEALER-ORDER', vehicle_status: 'In Transit to WA', is_current: true },
+  ]);
+  assert(dealerScopedRows.length === 2 && new Set(dealerScopedRows.map(vehicle => vehicle.__sharedNavisionDealerCode)).size === 2, 'Current records from different dealer scopes must remain separately visible');
+
+  const orderOnlyShared = sharedNavisionLocationVehicle({ id: 'order-only-shared', dealer_code: '14450', toyota_order_number: 'ORDER-ONLY-SHARED', vehicle_status: 'In Transit to WA', is_current: true });
+  assert(incomingBucketForVehicle(orderOnlyShared) === 'transit', 'An order-only shared Navision vehicle must follow its authoritative status bucket');
+
+  let realtimeStatus = null;
+  let realtimeChange = null;
+  let realtimeRemoved = 0;
+  let snapshotCalls = 0;
+  const fakeChannel = {
+    on(_event, _filter, callback) { realtimeChange = callback; return this; },
+    subscribe(callback) { realtimeStatus = callback; return this; },
+  };
+  app.navisionSharedBackendService = {
+    visibleSnapshot() {
+      snapshotCalls += 1;
+      return Promise.resolve({ ok: true, data: { revision: 81, items: [], has_more: false } });
+    },
+  };
+  window.PDC_AUTH_CONTEXT = { user: { id: 'approved-test-user' } };
+  window.PDC_SUPABASE = {
+    channel() { return fakeChannel; },
+    removeChannel(channel) { if (channel === fakeChannel) realtimeRemoved += 1; },
+  };
+  app.sharedNavisionVisibleRealtime = null;
+  app.sharedNavisionVisibleRealtimeState = 'idle';
+  subscribeSharedNavisionVisibility();
+  assert(typeof realtimeStatus === 'function' && typeof realtimeChange === 'function' && app.sharedNavisionVisibleRealtimeState === 'connecting', 'Shared Navision Realtime must retain lifecycle and revision callbacks while connecting');
+  realtimeStatus('SUBSCRIBED');
+  assert(app.sharedNavisionVisibleRealtimeState === 'subscribed' && snapshotCalls > 0, 'A healthy Realtime subscription must trigger post-subscribe snapshot reconciliation');
+  realtimeStatus('CHANNEL_ERROR');
+  assert(app.sharedNavisionVisibleRealtime === null && app.sharedNavisionVisibleRealtimeState === 'reconnecting' && realtimeRemoved === 1 && app.sharedNavisionVisibleReconnectTimer, 'A Realtime channel failure must release ownership and schedule bounded reconnection');
+  const generationAfterFailure = app.sharedNavisionVisibleRealtimeGeneration;
+  realtimeStatus('SUBSCRIBED');
+  assert(app.sharedNavisionVisibleRealtimeGeneration === generationAfterFailure && app.sharedNavisionVisibleRealtimeState === 'reconnecting', 'A stale channel callback must remain inert after ownership is released');
+  clearSharedNavisionVisibilityReconnectTimer();
+  app.sharedNavisionVisibleGeneration += 1;
+  releaseSharedNavisionVisibilityChannel();
+  delete window.PDC_AUTH_CONTEXT;
 
   // Missing cleanup on a full refresh should protect non-Toyota records.
   const toyotaExisting = { id: 'toyota-1', stock: '77777777', batch: '77777777', vehicle: 'Toyota Prado', toyotaVehicle: 'Prado', source: 'Navision' };

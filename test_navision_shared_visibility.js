@@ -31,9 +31,13 @@ assert.ok(staging.includes('id="backend-data-refresh-shared"'), 'staff have an e
 assert.ok(app.includes('subscribeSharedNavisionVisibility') && app.includes("table: 'navision_backend_revision'"), 'open staff browsers subscribe to revision changes');
 assert.ok(app.includes("loadSharedNavisionVisibleRows({ force: true });") && !app.includes("if (app.currentView === 'backend') loadSharedNavisionVisibleRows"), 'every authenticated view refreshes the shared Navision snapshot instead of limiting it to Back End Data');
 assert.ok(app.includes('vehicleLocationBoardRows()') && app.includes('activeSharedNavisionRows') && app.includes('__sharedNavisionReadOnly'), 'Locations combines all current shared Navision vehicles with operational rows using read-only authority for unmatched imports');
-assert.ok(app.includes('Shared Navision locations online') && app.includes('synchronized across signed-in computers'), 'Locations shows the shared revision state and cross-computer synchronization');
+assert.ok(app.includes('Shared Navision locations online') && app.includes('synchronized across signed-in computers') && app.includes("sharedNavisionVisibleRealtimeState === 'subscribed'"), 'Locations claims cross-computer synchronization only after Realtime reports healthy subscription ownership');
+assert.ok(app.includes("status === 'SUBSCRIBED'") && app.includes("status === 'CHANNEL_ERROR'") && app.includes("status === 'TIMED_OUT'") && app.includes("status === 'CLOSED'"), 'Realtime lifecycle proves subscription health and handles every failure boundary');
+assert.ok(app.includes('firstHealthySubscription') && app.includes('loadSharedNavisionVisibleRows({ force: true })'), 'a post-subscribe snapshot reconciliation closes the load-before-subscribe race');
+assert.ok(app.includes('scheduleSharedNavisionVisibilityReconnect') && app.includes('sharedNavisionVisibleRealtimeGeneration'), 'failed and stale Realtime channels are generation-bound and reconnect with a bounded lifecycle');
+assert.ok(app.includes('sharedNavisionVisibilityConfigured()') && app.includes("app.sharedNavisionVisibleState = 'idle'"), 'unsupported entry points keep shared visibility dormant instead of showing a false outage');
 assert.ok(app.includes('sharedNavisionVisibleGeneration += 1'), 'auth lock invalidates shared snapshot generations');
-assert.ok(app.includes('sharedNavisionVisibleRows = []') && app.includes('removeChannel(app.sharedNavisionVisibleRealtime)'), 'auth lock clears imported rows and tears down Realtime');
+assert.ok(app.includes('sharedNavisionVisibleRows = []') && app.includes('releaseSharedNavisionVisibilityChannel()') && app.includes('clearSharedNavisionVisibilityReconnectTimer()'), 'auth lock clears imported rows, timers and Realtime ownership');
 assert.ok(app.includes("'<span class=\"badge neutral\">Read only</span>'"), 'shared imported rows cannot invoke browser-local or operational actions');
 assert.ok(app.includes('Restricted online view'), 'shared rows make excluded personal details explicit instead of displaying misleading customer data');
 

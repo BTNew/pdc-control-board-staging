@@ -1,5 +1,5 @@
-const APP_VERSION = '2026.07.24.20-navision-jita-provenance';
-const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.07.24.20-navision-jita-provenance';
+const APP_VERSION = '2026.07.24.21-shared-navision-identity-realtime';
+const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.07.24.21-shared-navision-identity-realtime';
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
 // constant intentionally names only the production ref, never the
@@ -1890,6 +1890,10 @@ const app = {
   sharedNavisionVisibleRevision: null,
   sharedNavisionVisibleGeneration: 0,
   sharedNavisionVisibleRealtime: null,
+  sharedNavisionVisibleRealtimeGeneration: 0,
+  sharedNavisionVisibleRealtimeState: 'idle',
+  sharedNavisionVisibleReconnectAttempt: 0,
+  sharedNavisionVisibleReconnectTimer: null,
 };
 
 
@@ -2106,7 +2110,7 @@ function vehicleCollectedFromRft(vehicle = {}) {
 function statusCategory(vehicleOrStatus = '') {
   const isVehicle = vehicleOrStatus && typeof vehicleOrStatus === 'object';
   if (isVehicle && vehicleCollectedFromRft(vehicleOrStatus)) return 'completed';
-  if (isVehicle && !vehicleHasBatchNumber(vehicleOrStatus)) return 'other';
+  if (isVehicle && !vehicleHasBatchNumber(vehicleOrStatus) && !sharedNavisionIdentityToken(vehicleOrStatus.order || vehicleOrStatus.orderNumber || '')) return 'other';
 
   if (isVehicle) {
     const manualPdcLocation = vehiclePdcLocation(vehicleOrStatus);
@@ -3947,15 +3951,11 @@ window.addEventListener?.('pdc-auth-locked', () => {
   window.__vehicleLifecycleResolverDiagnostics = [];
   window.__vehicleLifecycleActions = null;
   window.__workshopReferenceDataService = null;
-  try {
-    app.sharedNavisionVisibleGeneration += 1;
-    if (app.sharedNavisionVisibleRealtime && window.PDC_SUPABASE && typeof window.PDC_SUPABASE.removeChannel === 'function') {
-      window.PDC_SUPABASE.removeChannel(app.sharedNavisionVisibleRealtime);
-    } else if (app.sharedNavisionVisibleRealtime && typeof app.sharedNavisionVisibleRealtime.unsubscribe === 'function') {
-      app.sharedNavisionVisibleRealtime.unsubscribe();
-    }
-  } catch (_err) { /* best-effort teardown */ }
-  app.sharedNavisionVisibleRealtime = null;
+  clearSharedNavisionVisibilityReconnectTimer();
+  app.sharedNavisionVisibleGeneration += 1;
+  releaseSharedNavisionVisibilityChannel();
+  app.sharedNavisionVisibleRealtimeState = 'idle';
+  app.sharedNavisionVisibleReconnectAttempt = 0;
   app.sharedNavisionVisibleRows = [];
   app.sharedNavisionVisibleRevision = null;
   app.sharedNavisionVisibleError = '';
@@ -5280,6 +5280,8 @@ function workStatusLegendHtml() {
 function incomingVehicleDetailRow(vehicle = {}, bucketKey = '', options = {}) {
   const key = vehicleKey(vehicle);
   const sharedReadOnly = vehicle.__sharedNavisionReadOnly === true;
+  const identityReadOnly = vehicle.__locationIdentityReadOnly === true;
+  const locationReadOnly = sharedReadOnly || identityReadOnly;
   const eta = locationAgeLabel(vehicle);
   const stock = displayStockNumber(vehicle) || vehicleKey(vehicle) || 'No stock';
   const unit = displayVehicle(vehicle) || 'Vehicle not listed';
@@ -5293,12 +5295,12 @@ function incomingVehicleDetailRow(vehicle = {}, bucketKey = '', options = {}) {
   const stage = inferredPmbStage(vehicle);
   const rowStatus = incomingGridStatusLabel(vehicle, bucketKey);
   const subletProvider = pmbBaySubletProvider(vehicle);
-  const subletProviderField = !sharedReadOnly && bucketKey === 'pmb' && stage === 'SUBLET'
+  const subletProviderField = !locationReadOnly && bucketKey === 'pmb' && stage === 'SUBLET'
     ? `<div class="wide incoming-sublet-provider"><b>Sublet provider</b><span><select data-pmb-bay-provider-key="${escapeHtml(key)}" data-pmb-bay-provider-stage="SUBLET" aria-label="Sublet provider for ${escapeHtml(stock)}">${subletProviderOptionsHtml(subletProvider)}</select></span></div>`
     : '';
   const gateIssues = bucketKey === 'pmb' ? vehiclesWithRftGateIssues([vehicle]).flatMap(row => row.issues || []) : [];
-  const primaryAction = sharedReadOnly
-    ? '<span class="badge neutral">Shared Navision · Read only</span>'
+  const primaryAction = locationReadOnly
+    ? `<span class="badge neutral">${identityReadOnly ? 'Identity conflict · Read only' : 'Shared Navision · Read only'}</span>`
     : bucketKey === 'yardhold'
     ? `<button class="primary incoming-transfer-pmb" type="button" data-yh-transfer-pmb="${escapeHtml(key)}" title="Transfer Yard Hold vehicle to PMB">To PMB</button><button class="small-button incoming-open-button" type="button" data-open-stock="${escapeHtml(key)}">Open</button>`
     : bucketKey === 'pmb'
@@ -5306,17 +5308,18 @@ function incomingVehicleDetailRow(vehicle = {}, bucketKey = '', options = {}) {
       : bucketKey === 'rft'
         ? `<label class="rft-collected-check incoming-collected-check" title="Tick once the vehicle has been collected"><input type="checkbox" data-rft-collected-key="${escapeHtml(key)}" /> <span>Collected</span></label><button class="small-button incoming-open-button" type="button" data-open-stock="${escapeHtml(key)}">Open</button>`
         : `<button class="small-button incoming-open-button" type="button" data-open-stock="${escapeHtml(key)}">Open</button>`;
-  const labelAction = sharedReadOnly ? '' : `<button class="small-button vehicle-label-button" type="button" data-label-vehicle="${escapeHtml(key)}" title="Print one Zebra label for ${escapeHtml(stock)}">Label</button>`;
-  const deleteAction = sharedReadOnly ? '' : (options.showDelete ? `<button class="small-button incoming-delete-button" type="button" data-incoming-delete="${escapeHtml(key)}" title="Move this vehicle to Deleted vehicles">Delete</button>` : '');
+  const labelAction = locationReadOnly ? '' : `<button class="small-button vehicle-label-button" type="button" data-label-vehicle="${escapeHtml(key)}" title="Print one Zebra label for ${escapeHtml(stock)}">Label</button>`;
+  const deleteAction = locationReadOnly ? '' : (options.showDelete ? `<button class="small-button incoming-delete-button" type="button" data-incoming-delete="${escapeHtml(key)}" title="Move this vehicle to Deleted vehicles">Delete</button>` : '');
   const identitySummary = vehicleIdentityStackHtml(vehicle, { className: 'incoming-identity' });
-  const selectBox = sharedReadOnly
+  const selectBox = locationReadOnly
     ? '<span class="incoming-card-select" aria-hidden="true"></span>'
     : `<label class="incoming-card-select" title="Select ${escapeHtml(stock)}"><input type="checkbox" data-select-stock="${escapeHtml(key)}" aria-label="Select ${escapeHtml(stock)}" ${app.selectedRows.has(key) ? 'checked' : ''} /><span aria-hidden="true"></span></label>`;
-  const dragAttrs = options.draggable ? ` draggable="true" data-pmb-drag-key="${escapeHtml(key)}"` : '';
-  const dragClass = options.draggable ? ' workflow-draggable-row' : '';
+  const draggable = options.draggable && !locationReadOnly;
+  const dragAttrs = draggable ? ` draggable="true" data-pmb-drag-key="${escapeHtml(key)}"` : '';
+  const dragClass = draggable ? ' workflow-draggable-row' : '';
   const risk = partsEtaRisk(vehicle);
   return `
-    <details class="incoming-vehicle-card pdc-production-grid-card incoming-${escapeHtml(bucketKey)}-row${dragClass} ${app.selectedRows.has(key) ? 'is-selected' : ''}${risk ? ' has-parts-risk' : ''}${sharedReadOnly ? ' shared-navision-read-only' : ''}" data-incoming-row="${escapeHtml(key)}"${dragAttrs}>
+    <details class="incoming-vehicle-card pdc-production-grid-card incoming-${escapeHtml(bucketKey)}-row${dragClass} ${app.selectedRows.has(key) ? 'is-selected' : ''}${risk ? ' has-parts-risk' : ''}${locationReadOnly ? ' shared-navision-read-only' : ''}" data-incoming-row="${escapeHtml(key)}"${dragAttrs}>
       <summary class="incoming-vehicle-summary pdc-production-grid-row">
         ${selectBox}
         <span class="incoming-card-stock">${identitySummary}</span>
@@ -11633,19 +11636,81 @@ function sharedNavisionVisibleData(result = null) {
   return result?.data?.data || result?.data || null;
 }
 
+function sharedNavisionVisibilityConfigured() {
+  const service = navisionSharedBackendService();
+  return Boolean(service && typeof service.visibleSnapshot === 'function');
+}
+
+function renderSharedNavisionVisibilityState() {
+  renderBackEndData();
+  if (app.currentView === 'dashboard') renderIncomingDashboardBoard();
+}
+
+function clearSharedNavisionVisibilityReconnectTimer() {
+  if (!app.sharedNavisionVisibleReconnectTimer) return;
+  clearTimeout(app.sharedNavisionVisibleReconnectTimer);
+  app.sharedNavisionVisibleReconnectTimer = null;
+}
+
+function releaseSharedNavisionVisibilityChannel() {
+  const channel = app.sharedNavisionVisibleRealtime;
+  app.sharedNavisionVisibleRealtime = null;
+  app.sharedNavisionVisibleRealtimeGeneration += 1;
+  if (!channel) return;
+  try {
+    if (window.PDC_SUPABASE && typeof window.PDC_SUPABASE.removeChannel === 'function') {
+      window.PDC_SUPABASE.removeChannel(channel);
+    } else if (typeof channel.unsubscribe === 'function') {
+      channel.unsubscribe();
+    }
+  } catch (_err) { /* best-effort teardown */ }
+}
+
+function scheduleSharedNavisionVisibilityReconnect() {
+  if (app.sharedNavisionVisibleReconnectTimer || !window.PDC_AUTH_CONTEXT || !sharedNavisionVisibilityConfigured()) return;
+  const delay = Math.min(30000, 1000 * (2 ** Math.min(app.sharedNavisionVisibleReconnectAttempt, 5)));
+  app.sharedNavisionVisibleReconnectAttempt += 1;
+  app.sharedNavisionVisibleReconnectTimer = setTimeout(() => {
+    app.sharedNavisionVisibleReconnectTimer = null;
+    subscribeSharedNavisionVisibility();
+  }, delay);
+}
+
 function subscribeSharedNavisionVisibility() {
-  if (app.sharedNavisionVisibleRealtime) return;
+  if (app.sharedNavisionVisibleRealtime || !window.PDC_AUTH_CONTEXT || !sharedNavisionVisibilityConfigured()) return;
   const client = window.PDC_SUPABASE;
   if (!client || typeof client.channel !== 'function') return;
-  app.sharedNavisionVisibleRealtime = client
+  clearSharedNavisionVisibilityReconnectTimer();
+  const generation = ++app.sharedNavisionVisibleRealtimeGeneration;
+  app.sharedNavisionVisibleRealtimeState = 'connecting';
+  const channel = client
     .channel('pdc_navision_visible_revision')
     .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'navision_backend_revision' }, payload => {
+      if (generation !== app.sharedNavisionVisibleRealtimeGeneration || app.sharedNavisionVisibleRealtime !== channel) return;
       const revision = Number(payload?.new?.revision);
       if (!Number.isFinite(revision) || revision !== Number(app.sharedNavisionVisibleRevision)) {
         loadSharedNavisionVisibleRows({ force: true });
       }
-    })
-    .subscribe();
+    });
+  app.sharedNavisionVisibleRealtime = channel;
+  channel.subscribe(status => {
+    if (generation !== app.sharedNavisionVisibleRealtimeGeneration || app.sharedNavisionVisibleRealtime !== channel) return;
+    if (status === 'SUBSCRIBED') {
+      const firstHealthySubscription = app.sharedNavisionVisibleRealtimeState !== 'subscribed';
+      app.sharedNavisionVisibleRealtimeState = 'subscribed';
+      app.sharedNavisionVisibleReconnectAttempt = 0;
+      renderSharedNavisionVisibilityState();
+      // Close the load-before-subscribe race by reconciling once healthy ownership is proven.
+      if (firstHealthySubscription) loadSharedNavisionVisibleRows({ force: true });
+      return;
+    }
+    if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+      app.sharedNavisionVisibleRealtimeState = 'reconnecting';
+      releaseSharedNavisionVisibilityChannel();
+      renderSharedNavisionVisibilityState();
+      scheduleSharedNavisionVisibilityReconnect();
+    }
+  });
 }
 
 async function loadSharedNavisionVisibleRows(options = {}) {
@@ -11653,12 +11718,11 @@ async function loadSharedNavisionVisibleRows(options = {}) {
   if (app.sharedNavisionVisibleState === 'loading' && !force) return;
   const service = navisionSharedBackendService();
   if (!service || typeof service.visibleSnapshot !== 'function') {
-    app.sharedNavisionVisibleState = 'unavailable';
-    app.sharedNavisionVisibleError = 'Shared Navision visibility is unavailable in this environment.';
-    renderBackEndData();
-    if (app.currentView === 'dashboard') renderIncomingDashboardBoard();
+    app.sharedNavisionVisibleState = 'idle';
+    app.sharedNavisionVisibleError = '';
     return;
   }
+  subscribeSharedNavisionVisibility();
 
   const generation = ++app.sharedNavisionVisibleGeneration;
   app.sharedNavisionVisibleState = 'loading';
@@ -11701,7 +11765,6 @@ async function loadSharedNavisionVisibleRows(options = {}) {
     app.sharedNavisionVisibleRows = rows;
     app.sharedNavisionVisibleRevision = expectedRevision;
     app.sharedNavisionVisibleState = 'ready';
-    subscribeSharedNavisionVisibility();
   } catch (error) {
     if (generation !== app.sharedNavisionVisibleGeneration) return;
     console.error('Shared Navision visibility load failed', error);
@@ -11750,15 +11813,72 @@ function sharedNavisionLocationVehicle(item = {}) {
     pdcSheetVisible: true,
     __sharedNavisionReadOnly: true,
     __sharedNavisionRecordId: item.id || '',
+    __sharedNavisionDealerCode: item.dealer_code || '',
   };
+}
+
+function sharedNavisionIdentityPartsFromItem(item = {}) {
+  return {
+    stock: sharedNavisionIdentityToken(item.stock_number || ''),
+    order: sharedNavisionIdentityToken(item.toyota_order_number || ''),
+  };
+}
+
+function sharedNavisionIdentityPartsFromVehicle(vehicle = {}) {
+  return {
+    stock: sharedNavisionIdentityToken(vehicle.stock || vehicle.stockNumber || vehicle.batch || ''),
+    order: sharedNavisionIdentityToken(vehicle.order || vehicle.toyotaOrder || vehicle.salesOrder || ''),
+  };
+}
+
+function sharedNavisionIdentityRelation(vehicle = {}, item = {}) {
+  const local = sharedNavisionIdentityPartsFromVehicle(vehicle);
+  const shared = sharedNavisionIdentityPartsFromItem(item);
+  const stockMatch = Boolean(local.stock && shared.stock && local.stock === shared.stock);
+  const orderMatch = Boolean(local.order && shared.order && local.order === shared.order);
+  const stockConflict = Boolean(local.stock && shared.stock && local.stock !== shared.stock);
+  const orderConflict = Boolean(local.order && shared.order && local.order !== shared.order);
+  if ((stockMatch || orderMatch) && (stockConflict || orderConflict)) return 'conflict';
+  if ((stockMatch || orderMatch) && !stockConflict && !orderConflict) return 'match';
+  return 'unrelated';
+}
+
+function localLocationIdentitySignature(vehicle = {}) {
+  const keys = vehicleSharedNavisionIdentityKeys(vehicle).sort();
+  return keys.length ? keys.join('|') : `record:${String(vehicle.id || vehicleKey(vehicle) || '')}`;
+}
+
+function deduplicateLocalLocationRows(rows = []) {
+  const bySignature = new Map();
+  (Array.isArray(rows) ? rows : []).forEach(vehicle => {
+    const signature = localLocationIdentitySignature(vehicle);
+    if (!bySignature.has(signature)) {
+      bySignature.set(signature, vehicle);
+      return;
+    }
+    const retained = bySignature.get(signature);
+    bySignature.set(signature, {
+      ...retained,
+      __locationIdentityReadOnly: true,
+      __locationIdentityConflictCount: Number(retained.__locationIdentityConflictCount || 1) + 1,
+    });
+  });
+  return Array.from(bySignature.values());
 }
 
 function activeSharedNavisionRows(rows = app.sharedNavisionVisibleRows) {
   const seenSignatures = new Set();
   return (Array.isArray(rows) ? rows : []).filter(item => {
     if (item?.is_current !== true) return false;
-    const keys = sharedNavisionItemIdentityKeys(item).sort();
-    const signature = keys.length ? keys.join('|') : `record:${String(item.id || '')}`;
+    const identity = sharedNavisionItemIdentityKeys(item).sort().join('|') || `record:${String(item.id || '')}`;
+    const signature = [
+      `dealer:${sharedNavisionIdentityToken(item.dealer_code || '')}`,
+      identity,
+      `status:${cleanNavisionText(item.vehicle_status || '')}`,
+      `eta:${cleanNavisionText(item.eta_to_kewdale || '')}`,
+      `model:${cleanNavisionText(item.model || '')}`,
+      `colour:${cleanNavisionText(item.colour || '')}`,
+    ].join('|');
     if (seenSignatures.has(signature)) return false;
     seenSignatures.add(signature);
     return true;
@@ -11767,27 +11887,35 @@ function activeSharedNavisionRows(rows = app.sharedNavisionVisibleRows) {
 
 function vehicleLocationBoardRows(localRows = pdcSheetVehicles(), sharedRows = app.sharedNavisionVisibleRows) {
   const currentShared = activeSharedNavisionRows(sharedRows);
-  const sharedByIdentity = new Map();
-  currentShared.forEach(item => sharedNavisionItemIdentityKeys(item).forEach(key => {
-    if (!sharedByIdentity.has(key)) sharedByIdentity.set(key, new Set());
-    sharedByIdentity.get(key).add(item);
-  }));
+  const localVehicles = deduplicateLocalLocationRows(localRows);
+  const candidatesByLocal = new Map();
+  const sharedCandidateCounts = new Map();
+
+  localVehicles.forEach(vehicle => {
+    const matches = currentShared.filter(item => sharedNavisionIdentityRelation(vehicle, item) === 'match');
+    candidatesByLocal.set(vehicle, matches);
+    matches.forEach(item => sharedCandidateCounts.set(item, Number(sharedCandidateCounts.get(item) || 0) + 1));
+  });
+
   const consumedShared = new Set();
-  const mergedLocal = (Array.isArray(localRows) ? localRows : []).map(vehicle => {
-    const matches = new Set(vehicleSharedNavisionIdentityKeys(vehicle).flatMap(key => Array.from(sharedByIdentity.get(key) || [])));
-    if (matches.size !== 1) return vehicle;
-    const [item] = matches;
+  const mergedLocal = localVehicles.map(vehicle => {
+    const matches = candidatesByLocal.get(vehicle) || [];
+    const hasConflictingIdentity = currentShared.some(item => sharedNavisionIdentityRelation(vehicle, item) === 'conflict');
+    const item = matches.length === 1 && sharedCandidateCounts.get(matches[0]) === 1 ? matches[0] : null;
+    const identityAmbiguous = Boolean(vehicle.__locationIdentityReadOnly || hasConflictingIdentity || matches.length > 1 || (matches.length === 1 && !item));
+    if (!item) return identityAmbiguous ? { ...vehicle, __locationIdentityReadOnly: true } : vehicle;
     consumedShared.add(item);
     const shared = sharedNavisionLocationVehicle(item);
     return {
       ...shared,
       ...vehicle,
-      toyotaStatus: shared.toyotaStatus || vehicle.toyotaStatus || '',
-      navisionLocationStatus: shared.navisionLocationStatus || vehicle.navisionLocationStatus || '',
-      etaAtDealer: shared.etaAtDealer || vehicle.etaAtDealer || '',
-      navisionKewdaleEta: shared.navisionKewdaleEta || vehicle.navisionKewdaleEta || '',
+      toyotaStatus: shared.toyotaStatus,
+      navisionLocationStatus: shared.navisionLocationStatus,
+      etaAtDealer: shared.etaAtDealer,
+      navisionKewdaleEta: shared.navisionKewdaleEta,
       importedAt: shared.importedAt || vehicle.importedAt || '',
       __sharedNavisionReadOnly: false,
+      __locationIdentityReadOnly: identityAmbiguous,
       __sharedNavisionRecordId: item.id || '',
     };
   });
@@ -11798,15 +11926,19 @@ function vehicleLocationBoardRows(localRows = pdcSheetVehicles(), sharedRows = a
 }
 
 function sharedNavisionLocationsStatusHtml() {
+  if (!sharedNavisionVisibilityConfigured()) return '';
   if (app.sharedNavisionVisibleState === 'idle' && !window.PDC_AUTH_CONTEXT) return '';
   if (app.sharedNavisionVisibleState === 'loading' || app.sharedNavisionVisibleState === 'idle') {
-    return '<div class="backend-shared-status"><strong>Loading shared Navision vehicles</strong><span>Locations will refresh automatically.</span></div>';
+    return '<div class="backend-shared-status"><strong>Loading shared Navision vehicles</strong><span>Locations will refresh automatically once shared access is confirmed.</span></div>';
   }
   if (app.sharedNavisionVisibleState === 'error' || app.sharedNavisionVisibleState === 'unavailable') {
     return `<div class="backend-shared-status is-error"><strong>Shared Navision vehicles unavailable</strong><span>${escapeHtml(app.sharedNavisionVisibleError || 'Refresh or sign in again. Local operational vehicles remain visible.')}</span></div>`;
   }
   const count = activeSharedNavisionRows().length;
-  return `<div class="backend-shared-status is-ready"><strong>Shared Navision locations online</strong><span>${count} active Navision vehicle${count === 1 ? '' : 's'} · revision ${escapeHtml(app.sharedNavisionVisibleRevision ?? '—')} · synchronized across signed-in computers</span></div>`;
+  const realtimeHealthy = app.sharedNavisionVisibleRealtimeState === 'subscribed';
+  return realtimeHealthy
+    ? `<div class="backend-shared-status is-ready"><strong>Shared Navision locations online</strong><span>${count} active Navision vehicle${count === 1 ? '' : 's'} · revision ${escapeHtml(app.sharedNavisionVisibleRevision ?? '—')} · synchronized across signed-in computers</span></div>`
+    : `<div class="backend-shared-status"><strong>Shared Navision locations loaded</strong><span>${count} active Navision vehicle${count === 1 ? '' : 's'} · revision ${escapeHtml(app.sharedNavisionVisibleRevision ?? '—')} · live synchronization reconnecting</span></div>`;
 }
 
 function sharedNavisionBackEndRows() {
