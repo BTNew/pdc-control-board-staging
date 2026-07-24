@@ -9,7 +9,7 @@
   "cacheVersion": "2026.07.24.26-pd-document-intake",
   "deploymentMode": "exact reviewed source blobs; staging.html mapped to index.html",
   "environment": "staging",
-  "generatedAtUtc": "2026-07-24T06:49:39Z",
+  "generatedAtUtc": "2026-07-24T08:31:20Z",
   "migrationLedger": [
     "042",
     "044",
@@ -24,16 +24,17 @@
     "053"
   ],
   "releaseChecks": {
-    "aggregateTests": "79 passed, 0 failed, 1 intentional clean-dataset skip",
+    "aggregateTests": "80 passed, 0 failed, 1 intentional clean-dataset skip",
     "backupRestore": "fresh encrypted staging backup and isolated restore passed before migration/reset",
     "databasePostApply": "migration 053 applied with operational hashes unchanged, RLS enabled and direct table access denied; 41 operational tables verified empty after reset",
     "independentReview": "final combined-diff blocker/major review PASS",
     "literalArtifact": "30/30 source blobs assembled from exact reviewed source commit",
     "navisionLocations": "Batch-only identity, durable reviewed activation, fail-closed shared authority, no Toyota-order UI or matching",
-    "pdIntake": "PD Document is sole vehicle-work intake; PO/job-card executable paths absent"
+    "pdIntake": "PD Document is sole vehicle-work intake; PO/job-card executable paths absent",
+    "stagingBrowserCleanup": "explicit ?clearLocalData=1 gate clears bounded browser-local operational data on staging only"
   },
   "sourceBranch": "fix/navision-import-access-success-ui",
-  "sourceCommit": "ea9d65c66d8d585dd0e8a34a1994721a2b520a35",
+  "sourceCommit": "449f06aecf4c8287946f205a63636d075e7dcd0e",
   "sourceFiles": [
     {
       "deployedPath": "ai-board-advisor.js",
@@ -82,7 +83,7 @@
     },
     {
       "deployedPath": "index.html",
-      "sha256": "1334a510a70a4358fdf9ca74a59c3f194fb14461f91046831f87c8f3ce6c6837",
+      "sha256": "dbb87a7297e0073fb275f69b441a17bdc2aed6219fcb189d0c9e3b386be32291",
       "sourcePath": "staging.html"
     },
     {
@@ -102,7 +103,7 @@
     },
     {
       "deployedPath": "pdc-supabase-config.staging.js",
-      "sha256": "740ce65b13389386c57033a89ba5f688d983b0228cfaab8e48d77e88f560a590",
+      "sha256": "94aba0cab8f8fb11aa8e95bfa6d8f919d6fd81bf450bd08b006891edd1edcdf5",
       "sourcePath": "pdc-supabase-config.staging.js"
     },
     {
@@ -188,7 +189,7 @@
   ],
   "sourceParity": "30/30 deployment source pairs byte-identical to exact source commit",
   "sourceRepository": "BTNew/pdc-control-board",
-  "sourceTree": "0a3ec55e361eaa579e6bcf219a450c4e19ccfa23",
+  "sourceTree": "3265fd46fb624627a29753f18d1346ab55f406ba",
   "stagingProjectRef": "cdsmnqxtyyoeoznmbidd",
   "stagingSafety": {
     "bundledOperationalData": false,
