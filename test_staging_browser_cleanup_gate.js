@@ -13,6 +13,8 @@ assert.doesNotMatch(nonStagingConfigTemplate, /PDC_ALLOW_LOCAL_RESET/,
   'non-staging config template must never enable the staging browser cleanup gate');
 assert.ok(stagingHtml.indexOf('pdc-supabase-config.staging.js') < stagingHtml.indexOf('app.js'),
   'staging config must load before app.js evaluates the cleanup request');
+assert.match(stagingHtml, /pdc-supabase-config\.staging\.js\?v=2026\.07\.24\.27-clean-browser-reset/,
+  'staging config cleanup gate must be cache-busted for already-open browsers');
 assert.match(appSource, /has\(['"]clearLocalData['"]\)/,
   'app must recognize the explicit clearLocalData query parameter');
 assert.match(appSource, /window\.PDC_ALLOW_LOCAL_RESET\s*===\s*true/,
