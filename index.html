@@ -8,9 +8,9 @@
   <meta name="description" content="PDC Workshop Control Board — STAGING (separate Supabase project, synthetic data only)." />
   <title>PDC Control Board — STAGING</title>
   <link rel="icon" href="favicon.svg" type="image/svg+xml" />
-  <link rel="stylesheet" href="styles.css?v=2026.07.24.15-workshop-tile-lifecycle" />
-  <link rel="stylesheet" href="desktop-operations.css?v=2026.07.24.15-workshop-tile-lifecycle" />
-  <link rel="stylesheet" href="workshop-planner.css?v=2026.07.24.15-workshop-tile-lifecycle" />
+  <link rel="stylesheet" href="styles.css?v=2026.07.24.24-shared-navision-bulk-transfer" />
+  <link rel="stylesheet" href="desktop-operations.css?v=2026.07.24.24-shared-navision-bulk-transfer" />
+  <link rel="stylesheet" href="workshop-planner.css?v=2026.07.24.24-shared-navision-bulk-transfer" />
 </head>
 <body class="auth-pending" data-auth-state="checking">
   <main class="pdc-auth-gate" id="pdc-auth-gate" aria-labelledby="pdc-auth-title">
@@ -87,7 +87,7 @@
         <div class="brand-text">
           <div class="brand-title">Perth Motor Bodies</div>
           <div class="brand-subtitle">PDC Control Board</div>
-          <div class="app-version" id="app-version">Version 2026.07.24.15-workshop-tile-lifecycle</div>
+          <div class="app-version" id="app-version">Version 2026.07.24.24-shared-navision-bulk-transfer</div>
         </div>
         <button class="sidebar-toggle" id="sidebar-toggle" type="button" aria-label="Collapse sidebar" title="Collapse sidebar">‹</button>
       </div>
@@ -413,7 +413,7 @@
                 <span>Status</span>
                 <select id="department-status-filter">
                   <option value="open">Open work</option>
-                  <option value="blocked">Stoppages</option>
+                  <option value="blocked">STOPPAGES</option>
                   <option value="complete">Completed</option>
                   <option value="all">All for this station</option>
                 </select>
@@ -483,7 +483,7 @@
       <section id="sublet" class="view">
         <div class="parts-home-layout sublet-home-layout">
           <section class="panel parts-home-panel sublet-home-panel">
-            <div class="panel-header"><div><h2>Sublet bookings</h2><p>Provider queue, purchase-order dates, bookings, expected returns, stoppage notes and controlled email drafts.</p></div><span class="badge neutral" id="sublet-summary">0 shown</span></div>
+            <div class="panel-header"><div><h2>Sublet bookings</h2><p>Provider queue, purchase-order dates, bookings, expected returns, STOPPAGE notes and controlled email drafts.</p></div><span class="badge neutral" id="sublet-summary">0 shown</span></div>
             <div class="table-toolbar advanced-toolbar wide-toolbar"><label><span>Search</span><input id="sublet-search" type="search" placeholder="Stock, customer, provider or notes..."></label><label><span>Status</span><select id="sublet-status-filter"><option value="active">Active bookings</option><option value="overdue">Overdue</option><option value="returned">Returned</option><option value="all">All</option></select></label></div>
             <div class="parts-help-strip"><strong>Sublet rule:</strong><span>SUBLET is a provider queue, not a numbered physical bay. Email actions open reviewed drafts and never send automatically.</span></div>
             <div id="sublet-home-content"></div>
@@ -970,10 +970,9 @@
           <label><span class="muted-label">Contact</span><input type="text" name="contact" placeholder="Phone or email" /></label>
         </div>
         <label><span class="muted-label">Vehicle</span><input type="text" name="vehicle" required placeholder="Vehicle type / grade only" /></label>
-        <div class="form-row three-col">
+        <div class="form-row two-col">
           <label><span class="muted-label">Task</span><select name="internalStatus" id="new-customer-task"></select></label>
           <label><span class="muted-label">JC Jobcard Number</span><input type="text" name="pdcJobcard" placeholder="Workshop jobcard #" /></label>
-          <label><span class="muted-label">JITA</span><select name="jitaPartsOrdered"><option>Unknown</option><option>Yes</option><option>No</option></select></label>
         </div>
         <div class="edit-actions">
           <button class="primary" type="submit">Add vehicle</button>
@@ -994,15 +993,15 @@
 
   <script src="vendor/supabase/supabase-2.110.5.js"></script>
   <script src="pdc-supabase-config.staging.js"></script>
-  <script src="pdc-auth.js?v=2026.07.24.15-workshop-tile-lifecycle"></script>
-  <script src="pdc-auth-registration.js?v=2026.07.24.15-workshop-tile-lifecycle"></script>
-  <script src="data-staging-empty.js?v=2026.07.24.15-workshop-tile-lifecycle"></script>
-  <script src="email-board-data.js?v=2026.07.24.15-workshop-tile-lifecycle"></script>
-  <script src="arb-labor-catalog.js?v=2026.07.24.15-workshop-tile-lifecycle"></script>
-  <script src="ai-board-advisor.js?v=2026.07.24.15-workshop-tile-lifecycle"></script>
-  <script src="navision-backend-service.js?v=2026.07.24.15-workshop-tile-lifecycle"></script>
-  <script src="workshop-eligibility.js?v=2026.07.24.15-workshop-tile-lifecycle"></script>
-  <script src="app.js?v=2026.07.24.15-workshop-tile-lifecycle"></script>
+  <script src="pdc-auth.js?v=2026.07.24.24-shared-navision-bulk-transfer"></script>
+  <script src="pdc-auth-registration.js?v=2026.07.24.24-shared-navision-bulk-transfer"></script>
+  <script src="data-staging-empty.js?v=2026.07.24.24-shared-navision-bulk-transfer"></script>
+  <script src="email-board-data.js?v=2026.07.24.24-shared-navision-bulk-transfer"></script>
+  <script src="arb-labor-catalog.js?v=2026.07.24.24-shared-navision-bulk-transfer"></script>
+  <script src="ai-board-advisor.js?v=2026.07.24.24-shared-navision-bulk-transfer"></script>
+  <script src="navision-backend-service.js?v=2026.07.24.24-shared-navision-bulk-transfer"></script>
+  <script src="workshop-eligibility.js?v=2026.07.24.24-shared-navision-bulk-transfer"></script>
+  <script src="app.js?v=2026.07.24.24-shared-navision-bulk-transfer"></script>
   <script src="key-list-review.js?v=2026.07.23.11-key-list-review"></script>
   <script src="scripts/stage2b_c4_browser_export.js?v=2026.07.22.01-read-only-assessment"></script>
   <script src="staging-browser-assessment.js?v=2026.07.22.01-read-only-assessment"></script>

@@ -6,10 +6,10 @@
     "twoPhysicalWorkstationAuthorityCutover": false
   },
   "artifact": "zero-data static staging site",
-  "cacheVersion": "2026.07.24.15-workshop-tile-lifecycle",
+  "cacheVersion": "2026.07.24.24-shared-navision-bulk-transfer",
   "deploymentMode": "exact reviewed source blobs; staging.html mapped to index.html",
   "environment": "staging",
-  "generatedAtUtc": "2026-07-23T22:32:16Z",
+  "generatedAtUtc": "2026-07-24T02:59:40Z",
   "migrationLedger": [
     "042",
     "044",
@@ -18,28 +18,30 @@
     "047",
     "048",
     "049",
-    "050"
+    "050",
+    "051",
+    "052"
   ],
   "releaseChecks": {
-    "aggregateTests": "76 passed, 0 failed, 2 optional fixture skips",
-    "databasePostApply": "fresh encrypted backup and isolated restore passed; migration 050 applied with operational hashes unchanged; 041 remains a pre-existing local-only drift item",
-    "migration046049": "rollback-only 41 accepted / 64 rejected matrix passed; 8 exact legacy Hoist rows quarantined; 0 unquarantined active overlaps; past scheduling rejected",
-    "authRefresh": "same-user token refresh, overlapping role lookup, demotion and stale-authority regressions passed",
-    "responsivePlanner": "rendered 320/360/375/390/1051/1100/1200/1300/1301px geometry proof passed; planned/live reduced-motion colors remain distinct",
+    "aggregateTests": "77 passed, 0 failed, 2 optional fixture skips",
+    "bulkPmbTransfer": "visible main-board bulk YH/In Transit to PMB path browser-proved and exact-blob audited",
+    "databasePostApply": "fresh encrypted migration-051 backup and isolated restore passed; migration 052 applied; operational hashes unchanged; 8 active physical Bus 4x4 bays; 0 hidden active bookings",
+    "independentReview": "two immutable exact-commit GO verdicts",
     "literalArtifact": "30/30 source blobs byte-identical; staging.html mapped to index.html",
-    "workshopTileLifecycle": "customer shown on tiles; Complete is green and protected; assigned jobs leave the candidate pile; one started job enforced per physical station-bay UUID"
+    "navisionLocations": "shared current Navision visibility, strict typed stock/order/dealer matching, conflicts and shared-only rows fail closed read-only, generation-bound Realtime reconciliation",
+    "transactionalTest": "rollback-only Workshop lifecycle and bay safety test passed"
   },
   "sourceBranch": "fix/navision-import-access-success-ui",
-  "sourceCommit": "5b619052d36f7d1803141034e6386c5313381abf",
+  "sourceCommit": "6511830093e078ae5b3763fa1f22cdeef64ae51c",
   "sourceFiles": [
     {
       "deployedPath": "ai-board-advisor.js",
-      "sha256": "08a5a02faf5fb465126e07a0c96ecdf4416148a4e4695113dfe783b89b14b32d",
+      "sha256": "a01dc581a417684c5a3377057bc70a57624bdaa3ad67c24b408eedfa86e0fc4e",
       "sourcePath": "ai-board-advisor.js"
     },
     {
       "deployedPath": "app.js",
-      "sha256": "4cdf0b3d8f9ea9a6c4615f8c210f478a0ca50955db05daaa12d94095f6e7b741",
+      "sha256": "6f2c2a85fac6f734a9e96abb94036f329779014c22e94c739eb33fe7a66b8f94",
       "sourcePath": "app.js"
     },
     {
@@ -64,7 +66,7 @@
     },
     {
       "deployedPath": "desktop-operations.css",
-      "sha256": "767360ffac1c8f58a89e60b4f74cd593b9e6d776c371f58b8763085688858c10",
+      "sha256": "0f5929993a588823670258758919257d5bcb5fac0b5f313b592e96b990088c73",
       "sourcePath": "desktop-operations.css"
     },
     {
@@ -79,7 +81,7 @@
     },
     {
       "deployedPath": "index.html",
-      "sha256": "65027d6eaa76d3fec03f6c75aa888419f326ba19fc899235bb7457d6659bbd83",
+      "sha256": "1fb9dda81d3192561e7365561d7af0f33b676dcbb286f12d801387e8d184a457",
       "sourcePath": "staging.html"
     },
     {
@@ -114,7 +116,7 @@
     },
     {
       "deployedPath": "styles.css",
-      "sha256": "ed0ebd496189134c5837790d2f5dce5944a2d66ac9e8eb6b3f31fef7652ce822",
+      "sha256": "245881dacb2560be5d1b81216bee3e462eca9082cdede7c70fdab48b8786e044",
       "sourcePath": "styles.css"
     },
     {
@@ -164,7 +166,7 @@
     },
     {
       "deployedPath": "workshop-planner.js",
-      "sha256": "0abd8bed291e3a711f57a88316b0d545058fc80d74b894822167ad8a34600717",
+      "sha256": "a9f4b2ed8c06826f766e8074eff50fdb9dcdc102226e06735dcfa1a44ac70cf3",
       "sourcePath": "workshop-planner.js"
     },
     {
@@ -185,7 +187,7 @@
   ],
   "sourceParity": "30/30 deployment source pairs byte-identical to exact source commit",
   "sourceRepository": "BTNew/pdc-control-board",
-  "sourceTree": "a7a52bbd128bc81c1330faeaf391e692f2ffee52",
+  "sourceTree": "695fae447fe94ed5e672552d7ffb41dd0b8fd2c8",
   "stagingProjectRef": "cdsmnqxtyyoeoznmbidd",
   "stagingSafety": {
     "bundledOperationalData": false,

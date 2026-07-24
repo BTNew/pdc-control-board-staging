@@ -1,5 +1,5 @@
-const APP_VERSION = '2026.07.24.15-workshop-tile-lifecycle';
-const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.07.24.15-workshop-tile-lifecycle';
+const APP_VERSION = '2026.07.24.24-shared-navision-bulk-transfer';
+const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.07.24.24-shared-navision-bulk-transfer';
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
 // constant intentionally names only the production ref, never the
@@ -160,7 +160,7 @@ const PMB_STAGE_LABELS = new Map(PMB_STAGE_OPTIONS.map(option => [option.value, 
 
 const PMB_WIP_LIMITS = {
   '': 12,
-  BUS_4X4: 1,
+  BUS_4X4: 8,
   TINT: 2,
   HOIST: 3,
   FITTING: 5,
@@ -172,7 +172,7 @@ const PMB_WIP_LIMITS = {
 };
 
 const PMB_STAGE_BAY_COUNTS = {
-  BUS_4X4: 1,
+  BUS_4X4: 8,
   TINT: 2,
   HOIST: 3,
   FITTING: 5,
@@ -183,7 +183,7 @@ const PMB_STAGE_BAY_COUNTS = {
 };
 
 const PMB_STAGE_CAPACITY_LABELS = {
-  BUS_4X4: '1 bay',
+  BUS_4X4: '8 bays',
   FABRICATION: '13 bays',
   TYRE: '2 bays · 1 wheel alignment bay',
   SUBLET: 'Provider queue',
@@ -728,7 +728,7 @@ function vehicleRftGateIssues(vehicle = {}) {
   const issues = [];
   if (isPdcBlocked(vehicle)) issues.push(`Blocked: ${pdcBlockReason(vehicle)}`);
   if (vehicle.pdcPartsStoppage === true || cleanNavisionText(vehicle.pdcPartsStoppageReason || '')) {
-    issues.push(`Parts stoppage: ${partsStoppageReason(vehicle)}`);
+    issues.push(`Parts STOPPAGE: ${partsStoppageReason(vehicle)}`);
   }
   if (partsEtaRisk(vehicle)) issues.push(`PARTS RISK: Parts ETA ${partsWorstEtaLabel(vehicle)} is later than Kewdale ETA ${kewdaleEtaValue(vehicle)}`);
   const outstanding = pdcRequirementDefinitions(vehicle).filter(job => !pdcJobComplete(vehicle, job)).map(job => job.label);
@@ -946,8 +946,8 @@ function productionGridHeaderHtml(className = '', options = {}) {
       { value: '', label: 'All PMB statuses' },
       { value: 'bucket:UNALLOCATED', label: 'Unallocated', short: 'Unalloc.' },
       ...PMB_STAGE_DEFS.map(def => ({ value: `bucket:${def.value}`, label: def.label, short: def.label })),
-      { value: 'stoppage:yes', label: 'Stoppage only', short: 'Stopped' },
-      { value: 'stoppage:no', label: 'No stoppage', short: 'Clear' },
+      { value: 'stoppage:yes', label: 'STOPPAGE only', short: 'STOPPAGE' },
+      { value: 'stoppage:no', label: 'No STOPPAGE', short: 'Clear' },
     ];
     const statusValue = workflowFilters.bucket ? `bucket:${workflowFilters.bucket}` : workflowFilters.stoppage ? `stoppage:${workflowFilters.stoppage}` : '';
     const ageOptions = [
@@ -1829,7 +1829,6 @@ function buildVehicleData() {
     const key = vehicleKey(vehicle);
     const updated = {
       ...vehicle,
-      jitaPartsOrdered: vehicle.jitaPartsOrdered || inferJitaPartsOrdered(vehicle),
       ...(edits[key] || edits[vehicle.stock] || {}),
     };
     return {
@@ -1891,6 +1890,13 @@ const app = {
   sharedNavisionVisibleRevision: null,
   sharedNavisionVisibleGeneration: 0,
   sharedNavisionVisibleRealtime: null,
+  sharedNavisionVisibleRealtimeGeneration: 0,
+  sharedNavisionVisibleRealtimeState: 'idle',
+  sharedNavisionVisibleReconnectAttempt: 0,
+  sharedNavisionVisibleReconnectTimer: null,
+  sharedNavisionVisibleStableTimer: null,
+  sharedNavisionVisibleRealtimeReconciled: false,
+  sharedNavisionLocationReadOnlyKeys: new Set(),
 };
 
 
@@ -1984,30 +1990,25 @@ function taskOptionsHtml(current = '') {
     .join('');
 }
 
-function inferJitaPartsOrdered(vehicle) {
-  const qty = String(vehicle.jitQty || '').trim();
-  if (qty && qty !== '0') return `Yes${qty ? ` - Qty ${qty}` : ''}`;
-  return 'Unknown';
-}
+const NAVISION_JITA_NUMBER_AUTHORITY = 'validated-navision-import-v1';
 
-function normalizeJita(value) {
-  const v = String(value || '').toLowerCase();
-  if (v.startsWith('yes')) return 'Yes';
-  if (v.startsWith('no')) return 'No';
-  return 'Unknown';
+function vehicleNavisionJitaNumber(vehicle = {}) {
+  if (vehicle.navisionJitaNumberAuthority !== NAVISION_JITA_NUMBER_AUTHORITY) return '';
+  if (!/navision/i.test(String(vehicle.source || ''))) return '';
+  const value = String(vehicle.jitQty || vehicle.navisionJitaNumber || '').trim();
+  return /\d/.test(value) && !/^0+(?:\.0+)?$/.test(value) ? value : '';
 }
-
 function jitaDisplay(vehicle) {
-  return vehicle.jitaPartsOrdered || inferJitaPartsOrdered(vehicle);
+  return vehicleNavisionJitaNumber(vehicle);
 }
 
 function jitaIndicator(vehicle) {
-  const state = normalizeJita(jitaDisplay(vehicle));
-  const detail = jitaDisplay(vehicle);
-  const accessible = `JITA ${state}: ${detail || 'No status recorded'}`;
-  if (state === 'Yes') return `<span class="jita-icon jita-yes" role="img" aria-label="${escapeHtml(accessible)}" title="${escapeHtml(detail)}">✓</span>`;
-  if (state === 'No') return `<span class="jita-icon jita-no" role="img" aria-label="${escapeHtml(accessible)}" title="${escapeHtml(detail)}">×</span>`;
-  return `<span class="jita-icon jita-unknown" role="img" aria-label="${escapeHtml(accessible)}" title="${escapeHtml(detail)}">?</span>`;
+  const number = vehicleNavisionJitaNumber(vehicle);
+  if (number) {
+    const accessible = `Navision JITA number ${number}`;
+    return `<span class="jita-icon jita-yes" role="img" aria-label="${escapeHtml(accessible)}" title="${escapeHtml(accessible)}">✓</span>`;
+  }
+  return '<span class="jita-icon jita-unknown" role="img" aria-label="No Navision JITA number" title="No Navision JITA number">—</span>';
 }
 
 function legacyVehicleFlag(vehicle, key) {
@@ -2112,7 +2113,7 @@ function vehicleCollectedFromRft(vehicle = {}) {
 function statusCategory(vehicleOrStatus = '') {
   const isVehicle = vehicleOrStatus && typeof vehicleOrStatus === 'object';
   if (isVehicle && vehicleCollectedFromRft(vehicleOrStatus)) return 'completed';
-  if (isVehicle && !vehicleHasBatchNumber(vehicleOrStatus)) return 'other';
+  if (isVehicle && !vehicleHasBatchNumber(vehicleOrStatus) && !sharedNavisionIdentityToken(vehicleOrStatus.order || vehicleOrStatus.orderNumber || '')) return 'other';
 
   if (isVehicle) {
     const manualPdcLocation = vehiclePdcLocation(vehicleOrStatus);
@@ -2499,7 +2500,7 @@ function sortValue(vehicle, key) {
     case 'internalStatus': return vehicle.internalStatus || '';
     case 'toyotaStatus': return `${String(toyotaStatusRank(vehicle.toyotaStatus)).padStart(4, '0')} ${vehicle.toyotaStatus || ''}`;
     case 'eta': return parseDateAU(vehicle.etaAtDealer)?.getTime() || 9999999999999;
-    case 'jita': return normalizeJita(jitaDisplay(vehicle));
+    case 'jita': return vehicleNavisionJitaNumber(vehicle) ? 'Yes' : 'Unknown';
     case 'pdcRequiresTint': return vehicleFlag(vehicle, 'pdcRequiresTint') ? 'Yes' : 'No';
     case 'pdcRequiresHoist': return vehicleFlag(vehicle, 'pdcRequiresHoist') ? 'Yes' : 'No';
     case 'pdcRequiresFitting': return vehicleFlag(vehicle, 'pdcRequiresFitting') ? 'Yes' : 'No';
@@ -2767,6 +2768,7 @@ function init() {
   updateNavisionImportButton();
   loadVehicleLifecycleSharedActionsIfConfigured();
   loadWorkshopReferenceDataServiceIfConfigured();
+  if (window.PDC_AUTH_CONTEXT) loadSharedNavisionVisibleRows();
 }
 
 // Loads workshop-reference-data-service.js (Stage 2A) lazily, mirroring
@@ -3891,7 +3893,7 @@ window.addEventListener?.('pdc-auth-ready', () => {
   const navItem = document.getElementById('nav-user-management');
   if (navItem) navItem.hidden = !(typeof backupStatusSharedModeReady === 'function' && backupStatusSharedModeReady());
   if (app.currentView === 'emailreview' && typeof renderAiBoardAdvisor === 'function') renderAiBoardAdvisor();
-  if (app.currentView === 'backend') loadSharedNavisionVisibleRows({ force: true });
+  loadSharedNavisionVisibleRows({ force: true });
 });
 
 // Independent-review remediation, finding #5 / critical blocker #5:
@@ -3952,19 +3954,18 @@ window.addEventListener?.('pdc-auth-locked', () => {
   window.__vehicleLifecycleResolverDiagnostics = [];
   window.__vehicleLifecycleActions = null;
   window.__workshopReferenceDataService = null;
-  try {
-    app.sharedNavisionVisibleGeneration += 1;
-    if (app.sharedNavisionVisibleRealtime && window.PDC_SUPABASE && typeof window.PDC_SUPABASE.removeChannel === 'function') {
-      window.PDC_SUPABASE.removeChannel(app.sharedNavisionVisibleRealtime);
-    } else if (app.sharedNavisionVisibleRealtime && typeof app.sharedNavisionVisibleRealtime.unsubscribe === 'function') {
-      app.sharedNavisionVisibleRealtime.unsubscribe();
-    }
-  } catch (_err) { /* best-effort teardown */ }
-  app.sharedNavisionVisibleRealtime = null;
+  clearSharedNavisionVisibilityReconnectTimer();
+  app.sharedNavisionVisibleGeneration += 1;
+  releaseSharedNavisionVisibilityChannel();
+  app.sharedNavisionVisibleRealtimeState = 'idle';
+  app.sharedNavisionVisibleReconnectAttempt = 0;
+  app.sharedNavisionLocationReadOnlyKeys = new Set();
+  app.selectedRows.clear();
   app.sharedNavisionVisibleRows = [];
   app.sharedNavisionVisibleRevision = null;
   app.sharedNavisionVisibleError = '';
   app.sharedNavisionVisibleState = 'idle';
+  if (app.currentView === 'dashboard') renderIncomingDashboardBoard();
   const navItem = document.getElementById('nav-user-management');
   if (navItem) navItem.hidden = true;
 });
@@ -4162,7 +4163,7 @@ function renderOperationalVisibility() {
   const metrics = operationalVisibilityMetrics(rows);
   const cards = [
     { label: 'External/specialist work', value: metrics.openThirdParty, detail: `${metrics.assignedThirdParty} assigned · tint / fabrication / electrical / pit inspection` },
-    { label: 'Stagnation & blockers', value: metrics.stagnant, detail: `${metrics.activeBlockers} active blockers or Parts stoppages` },
+    { label: 'Stagnation & blockers', value: metrics.stagnant, detail: `${metrics.activeBlockers} active blockers or Parts STOPPAGES` },
     { label: 'Capacity alerts', value: metrics.capacityAlerts, detail: `${metrics.pmbRows} PMB vehicles checked against WIP and ageing limits` },
     { label: 'RFT gate issues', value: metrics.rftGateIssues, detail: 'Manual QC remains required before Ready for Transport' },
     { label: 'History events', value: metrics.historyEvents, detail: 'Local timestamped audit records for reporting review' },
@@ -4199,14 +4200,14 @@ function workflowPriorityRows() {
       const eta = partsWorstEtaLabel(vehicle);
       issueRows.push({
         vehicle,
-        label: 'Parts stoppage',
+        label: 'Parts STOPPAGE',
         severity: 'danger',
         detail: `${partsStoppageReason(vehicle)} · ${eta ? `Parts ETA ${eta}` : 'Parts ETA pending'}`,
       });
     });
   pmbRows
     .filter(isPdcBlocked)
-    .forEach(vehicle => issueRows.push({ vehicle, label: 'PMB stoppage', severity: 'danger', detail: pdcBlockReason(vehicle) }));
+    .forEach(vehicle => issueRows.push({ vehicle, label: 'PMB STOPPAGE', severity: 'danger', detail: pdcBlockReason(vehicle) }));
   const seen = new Set();
   return issueRows.filter(row => {
     const key = `${vehicleKey(row.vehicle)}:${row.label}`;
@@ -4214,7 +4215,7 @@ function workflowPriorityRows() {
     seen.add(key);
     return true;
   }).sort((a, b) => {
-    if (a.label === 'Parts stoppage' && b.label === 'Parts stoppage') {
+    if (a.label === 'Parts STOPPAGE' && b.label === 'Parts STOPPAGE') {
       const etaDiff = partsWorstEtaSortValue(a.vehicle) - partsWorstEtaSortValue(b.vehicle);
       if (etaDiff) return etaDiff;
     }
@@ -4254,7 +4255,7 @@ function renderFixFirstGrid() {
   const host = $('#fix-first-grid');
   if (!host) return;
   const rows = workflowPriorityRows();
-  host.innerHTML = `<details class="fix-first-list"><summary>Show stoppages</summary><div class="fix-first-list-body">${fixFirstRowsHtml(rows)}</div></details>`;
+  host.innerHTML = `<details class="fix-first-list"><summary>Show STOPPAGES</summary><div class="fix-first-list-body">${fixFirstRowsHtml(rows)}</div></details>`;
   bindFixFirstRows(host);
 }
 
@@ -5116,7 +5117,7 @@ function workflowFilterSummary(filters = {}, matched = 0, total = 0) {
   if (filters.work) parts.push(`work ${PDC_JOB_BY_KEY.get(filters.work)?.label || filters.work}`);
   if (filters.required) parts.push(`required ${filters.required}`);
   if (filters.completion) parts.push(filters.completion);
-  if (filters.stoppage) parts.push(filters.stoppage === 'yes' ? 'stoppage only' : 'no stoppage');
+  if (filters.stoppage) parts.push(filters.stoppage === 'yes' ? 'STOPPAGE only' : 'no STOPPAGE');
   parts.push(sortLabels[filters.sort] || 'oldest first');
   return parts.join(' · ');
 }
@@ -5277,12 +5278,16 @@ function workStatusLegendHtml() {
     <span class="work-status-key status-none"><b>—</b> Not required</span>
     <span class="work-status-key status-required"><b>●</b> Required</span>
     <span class="work-status-key status-complete"><b>✓</b> Complete</span>
-    <span class="work-status-key status-blocked"><b>!</b> Stoppage</span>
+    <span class="work-status-key status-blocked"><b>!</b> STOPPAGE</span>
   </div>`;
 }
 
 function incomingVehicleDetailRow(vehicle = {}, bucketKey = '', options = {}) {
   const key = vehicleKey(vehicle);
+  const sharedReadOnly = vehicle.__sharedNavisionReadOnly === true;
+  const identityReadOnly = vehicle.__locationIdentityReadOnly === true;
+  const authorityPending = !sharedNavisionLocationAuthorityReady();
+  const locationReadOnly = sharedReadOnly || identityReadOnly || authorityPending;
   const eta = locationAgeLabel(vehicle);
   const stock = displayStockNumber(vehicle) || vehicleKey(vehicle) || 'No stock';
   const unit = displayVehicle(vehicle) || 'Vehicle not listed';
@@ -5296,26 +5301,31 @@ function incomingVehicleDetailRow(vehicle = {}, bucketKey = '', options = {}) {
   const stage = inferredPmbStage(vehicle);
   const rowStatus = incomingGridStatusLabel(vehicle, bucketKey);
   const subletProvider = pmbBaySubletProvider(vehicle);
-  const subletProviderField = bucketKey === 'pmb' && stage === 'SUBLET'
+  const subletProviderField = !locationReadOnly && bucketKey === 'pmb' && stage === 'SUBLET'
     ? `<div class="wide incoming-sublet-provider"><b>Sublet provider</b><span><select data-pmb-bay-provider-key="${escapeHtml(key)}" data-pmb-bay-provider-stage="SUBLET" aria-label="Sublet provider for ${escapeHtml(stock)}">${subletProviderOptionsHtml(subletProvider)}</select></span></div>`
     : '';
   const gateIssues = bucketKey === 'pmb' ? vehiclesWithRftGateIssues([vehicle]).flatMap(row => row.issues || []) : [];
-  const primaryAction = bucketKey === 'yardhold'
+  const primaryAction = locationReadOnly
+    ? `<span class="badge neutral">${identityReadOnly ? 'Identity conflict · Read only' : sharedReadOnly ? 'Shared Navision · Read only' : 'Shared sync pending · Read only'}</span>`
+    : bucketKey === 'yardhold'
     ? `<button class="primary incoming-transfer-pmb" type="button" data-yh-transfer-pmb="${escapeHtml(key)}" title="Transfer Yard Hold vehicle to PMB">To PMB</button><button class="small-button incoming-open-button" type="button" data-open-stock="${escapeHtml(key)}">Open</button>`
     : bucketKey === 'pmb'
       ? `<button class="primary incoming-transfer-rft" type="button" data-transfer-rft-stock="${escapeHtml(key)}" ${gateIssues.length ? 'disabled' : ''} title="${escapeHtml(gateIssues.length ? `RFT locked: ${gateIssues.join(' | ')}` : 'Transfer PMB vehicle to RFT')}">To RFT</button><button class="small-button incoming-open-button" type="button" data-open-stock="${escapeHtml(key)}">Open</button>`
       : bucketKey === 'rft'
         ? `<label class="rft-collected-check incoming-collected-check" title="Tick once the vehicle has been collected"><input type="checkbox" data-rft-collected-key="${escapeHtml(key)}" /> <span>Collected</span></label><button class="small-button incoming-open-button" type="button" data-open-stock="${escapeHtml(key)}">Open</button>`
         : `<button class="small-button incoming-open-button" type="button" data-open-stock="${escapeHtml(key)}">Open</button>`;
-  const labelAction = `<button class="small-button vehicle-label-button" type="button" data-label-vehicle="${escapeHtml(key)}" title="Print one Zebra label for ${escapeHtml(stock)}">Label</button>`;
-  const deleteAction = options.showDelete ? `<button class="small-button incoming-delete-button" type="button" data-incoming-delete="${escapeHtml(key)}" title="Move this vehicle to Deleted vehicles">Delete</button>` : '';
+  const labelAction = locationReadOnly ? '' : `<button class="small-button vehicle-label-button" type="button" data-label-vehicle="${escapeHtml(key)}" title="Print one Zebra label for ${escapeHtml(stock)}">Label</button>`;
+  const deleteAction = locationReadOnly ? '' : (options.showDelete ? `<button class="small-button incoming-delete-button" type="button" data-incoming-delete="${escapeHtml(key)}" title="Move this vehicle to Deleted vehicles">Delete</button>` : '');
   const identitySummary = vehicleIdentityStackHtml(vehicle, { className: 'incoming-identity' });
-  const selectBox = `<label class="incoming-card-select" title="Select ${escapeHtml(stock)}"><input type="checkbox" data-select-stock="${escapeHtml(key)}" aria-label="Select ${escapeHtml(stock)}" ${app.selectedRows.has(key) ? 'checked' : ''} /><span aria-hidden="true"></span></label>`;
-  const dragAttrs = options.draggable ? ` draggable="true" data-pmb-drag-key="${escapeHtml(key)}"` : '';
-  const dragClass = options.draggable ? ' workflow-draggable-row' : '';
+  const selectBox = locationReadOnly
+    ? '<span class="incoming-card-select" aria-hidden="true"></span>'
+    : `<label class="incoming-card-select" title="Select ${escapeHtml(stock)}"><input type="checkbox" data-select-stock="${escapeHtml(key)}" aria-label="Select ${escapeHtml(stock)}" ${app.selectedRows.has(key) ? 'checked' : ''} /><span aria-hidden="true"></span></label>`;
+  const draggable = options.draggable && !locationReadOnly;
+  const dragAttrs = draggable ? ` draggable="true" data-pmb-drag-key="${escapeHtml(key)}"` : '';
+  const dragClass = draggable ? ' workflow-draggable-row' : '';
   const risk = partsEtaRisk(vehicle);
   return `
-    <details class="incoming-vehicle-card pdc-production-grid-card incoming-${escapeHtml(bucketKey)}-row${dragClass} ${app.selectedRows.has(key) ? 'is-selected' : ''}${risk ? ' has-parts-risk' : ''}" data-incoming-row="${escapeHtml(key)}"${dragAttrs}>
+    <details class="incoming-vehicle-card pdc-production-grid-card incoming-${escapeHtml(bucketKey)}-row${dragClass} ${app.selectedRows.has(key) ? 'is-selected' : ''}${risk ? ' has-parts-risk' : ''}${locationReadOnly ? ' shared-navision-read-only' : ''}" data-incoming-row="${escapeHtml(key)}"${dragAttrs}>
       <summary class="incoming-vehicle-summary pdc-production-grid-row">
         ${selectBox}
         <span class="incoming-card-stock">${identitySummary}</span>
@@ -5341,7 +5351,11 @@ function incomingVehicleDetailRow(vehicle = {}, bucketKey = '', options = {}) {
 function renderIncomingDashboardBoard() {
   const host = $('#incoming-main-board');
   if (!host) return;
-  const rows = pdcSheetVehicles().filter(vehicle => incomingBucketForVehicle(vehicle) && !vehicleCollectedFromRft(vehicle));
+  const rows = vehicleLocationBoardRows().filter(vehicle => incomingBucketForVehicle(vehicle) && !vehicleCollectedFromRft(vehicle));
+  if (!sharedNavisionLocationAuthorityReady()) app.selectedRows.clear();
+  else [...app.selectedRows].forEach(key => {
+    if (app.sharedNavisionLocationReadOnlyKeys?.has(key)) app.selectedRows.delete(key);
+  });
   updateIncomingDashboardFilterOptions(rows);
   const filters = incomingDashboardFilterValues();
   updateIncomingMoreFiltersState(filters);
@@ -5360,11 +5374,11 @@ function renderIncomingDashboardBoard() {
     { key: 'overseas', label: 'Overseas / Other', hint: 'All other non-RFT vehicles not yet in transit/YH/PMB', open: false },
   ];
   const priorityRows = workflowPriorityRows();
-  const priorityHtml = filters.bucket ? '' : `<section class="incoming-priority-stoppages" aria-label="Parts and PMB stoppages">
-    <div class="incoming-priority-stoppages-head"><strong>Stoppages / Fix First</strong><span>${priorityRows.length} active</span><small>Red priority list before RFT. Sort Parts stoppages by Parts ETA so long-delay items fall lower.</small></div>
-    <details class="fix-first-list incoming-priority-list"><summary>Show stoppages</summary><div class="fix-first-list-body">${fixFirstRowsHtml(priorityRows)}</div></details>
+  const priorityHtml = filters.bucket ? '' : `<section class="incoming-priority-stoppages" aria-label="Parts and PMB STOPPAGES">
+    <div class="incoming-priority-stoppages-head"><strong>STOPPAGES / Fix First</strong><span>${priorityRows.length} active</span><small>Red priority list before RFT. Sort Parts STOPPAGES by Parts ETA so long-delay items fall lower.</small></div>
+    <details class="fix-first-list incoming-priority-list"><summary>Show STOPPAGES</summary><div class="fix-first-list-body">${fixFirstRowsHtml(priorityRows)}</div></details>
   </section>`;
-  host.innerHTML = workStatusLegendHtml() + priorityHtml + defs.map(def => {
+  host.innerHTML = sharedNavisionLocationsStatusHtml() + workStatusLegendHtml() + priorityHtml + defs.map(def => {
     if (filters.bucket && filters.bucket !== def.key) return '';
     const vehicles = filteredRows.filter(vehicle => incomingBucketForVehicle(vehicle) === def.key)
       .sort((a, b) => (parseDateAU(navisionEtaForVehicle(a))?.getTime() || 9999999999999) - (parseDateAU(navisionEtaForVehicle(b))?.getTime() || 9999999999999));
@@ -5466,13 +5480,13 @@ async function transferSelectedMainYhVehiclesToPmb() {
     window.alert('Only Yard Hold or In Transit vehicles can be transferred to PMB from the main screen. Untick any PMB, RFT, completed or overseas rows first.');
     return;
   }
-  await transferVehiclesToPmb(selected);
+  await transferSelectedYhVehiclesToPmb();
   updateInlineSelectionBars();
 }
 
 function deleteIncomingVehicleFromMain(key = '') {
   const vehicle = app.data.find(row => vehicleKey(row) === key || row.stock === key || row.order === key || row.id === key);
-  if (!vehicle) return;
+  if (!vehicle || !vehicleLocationActionAllowed(vehicle, 'delete')) return;
   const label = `${vehicleIdentityTitle(vehicle) || 'No stock'} - ${vehicleCustomerName(vehicle) || 'Unknown customer'}`;
   if (!window.confirm(`Delete this vehicle from the main screen?\n\n${label}\n\nThis hides it from this browser's tracker and keeps the delete in local storage.`)) return;
   removeVehiclesFromTracker([vehicle]);
@@ -5654,7 +5668,6 @@ function ensureVehicleForPd(parsed = {}) {
     etaAtDealer: '',
     epodReceipt: '',
     jitQty: '',
-    jitaPartsOrdered: 'Unknown',
     consultant: '',
     poTasks: [],
     poFiles: [],
@@ -6524,7 +6537,7 @@ function renderPmbBayBoardHtml(stage = '') {
         <section class="pmb-bay-work-started" data-pmb-complete-drop-stage="${escapeHtml(normalizedStage)}">
           <div class="pmb-bay-unassigned-title"><strong>Completed / return to unallocated</strong><span>${workStarted.length} complete</span></div>
           <div class="pmb-bay-unassigned-list">
-            ${workStarted.map(vehicle => pmbBayVehicleCardHtml(vehicle, normalizedStage)).join('') || '<div class="pmb-bay-empty compact">Drop a vehicle here to choose Complete, Stoppage, or Move only.</div>'}
+            ${workStarted.map(vehicle => pmbBayVehicleCardHtml(vehicle, normalizedStage)).join('') || '<div class="pmb-bay-empty compact">Drop a vehicle here to choose Complete, STOPPAGE, or Move only.</div>'}
           </div>
         </section>
       </div>
@@ -6835,11 +6848,11 @@ function pmbCardDetailHtml(vehicle = {}) {
   const unit = displayVehicle(vehicle) || 'Vehicle not listed';
   const consultant = consultantName(vehicle) || vehicle.salesperson || vehicle.salesPerson || 'No sales rep';
   const blocked = isPdcBlocked(vehicle) || partsDepartmentStatus(vehicle) === 'stoppage';
-  const blocker = blocked ? (partsStoppageReason(vehicle) || vehicle.pdcBlockedReason || 'Parts/PMB stoppage') : 'No parts stoppage';
+  const blocker = blocked ? (partsStoppageReason(vehicle) || vehicle.pdcBlockedReason || 'Parts/PMB STOPPAGE') : 'No Parts STOPPAGE';
   return `<span class="pmb-pill-vehicle" title="${escapeHtml(unit)}">${escapeHtml(unit)}</span>
     <span class="pmb-pill-meta">
       <span class="pmb-card-age pmb-age-${escapeHtml(onSiteDaysClass(vehicle))}">${escapeHtml(onSiteDaysLabel(vehicle).replace('on site', 'at PMB'))}</span>
-      <span class="pmb-pill-blocker ${blocked ? 'is-blocked' : ''}" title="${escapeHtml(blocker)}">${escapeHtml(blocked ? 'Parts stoppage' : 'No stoppage')}</span>
+      <span class="pmb-pill-blocker ${blocked ? 'is-blocked' : ''}" title="${escapeHtml(blocker)}">${escapeHtml(blocked ? 'Parts STOPPAGE' : 'No STOPPAGE')}</span>
     </span>
     <span class="pmb-pill-sales" title="${escapeHtml(consultant)}">${escapeHtml(consultant)}</span>`;
 }
@@ -6854,7 +6867,7 @@ function pmbBayVehicleCardHtml(vehicle = {}, stage = '') {
   const identityHtml = pmbBayPillIdentityHtml(vehicle);
   const title = `${vehicleIdentityTitle(vehicle)} · ${pmbStageLabel(normalizedStage)} ${bayLabel}`;
   const finishButton = normalizedStage
-    ? `<button class="small-button pmb-finish-button" type="button" data-move-pmb-stage-key="${escapeHtml(key)}" data-move-pmb-stage-value="" title="Choose Complete, Stoppage, or Move only, then return this vehicle to PMB unallocated">Finish / unallocate</button>`
+    ? `<button class="small-button pmb-finish-button" type="button" data-move-pmb-stage-key="${escapeHtml(key)}" data-move-pmb-stage-value="" title="Choose Complete, STOPPAGE, or Move only, then return this vehicle to PMB unallocated">Finish / unallocate</button>`
     : '';
 
   return `
@@ -6876,7 +6889,7 @@ function pmbVehicleCardHtml(vehicle = {}) {
   const stage = normalizePmbStage(vehicle.pmbBayStage || inferredPmbStage(vehicle));
   const title = `Drag ${vehicleIdentityTitle(vehicle) || 'vehicle'} to another PMB bucket`;
   const finishButton = stage
-    ? `<button class="small-button pmb-finish-button" type="button" data-move-pmb-stage-key="${escapeHtml(key)}" data-move-pmb-stage-value="" title="Choose Complete, Stoppage, or Move only, then return this vehicle to PMB unallocated">Finish / unallocate</button>`
+    ? `<button class="small-button pmb-finish-button" type="button" data-move-pmb-stage-key="${escapeHtml(key)}" data-move-pmb-stage-value="" title="Choose Complete, STOPPAGE, or Move only, then return this vehicle to PMB unallocated">Finish / unallocate</button>`
     : '';
   return `
     <article class="pmb-vehicle-card pmb-vehicle-pill ${isPdcBlocked(vehicle) ? 'is-blocked' : ''}" draggable="true" data-pmb-drag-key="${escapeHtml(key)}" data-open-stock="${escapeHtml(key)}" title="${escapeHtml(title)}">
@@ -7101,7 +7114,7 @@ function pmbMovementResolutionChoiceModal(vehicle = {}, currentStage = '', nextS
           <label class="pmb-resolution-option is-stoppage">
             <input type="checkbox" value="stoppage" data-pmb-resolution-choice>
             <span>
-              <strong>Parts / job stoppage</strong>
+              <strong>Parts / job STOPPAGE</strong>
               <small>Move the vehicle and record why this PMB job is stopped.</small>
             </span>
           </label>
@@ -7114,8 +7127,8 @@ function pmbMovementResolutionChoiceModal(vehicle = {}, currentStage = '', nextS
           </label>
         </div>
         <label class="pmb-resolution-reason" data-pmb-resolution-reason-wrap hidden>
-          <span>Stoppage reason</span>
-          <input type="text" value="${escapeHtml(area)} stoppage" data-pmb-resolution-reason>
+          <span>STOPPAGE reason</span>
+          <input type="text" value="${escapeHtml(area)} STOPPAGE" data-pmb-resolution-reason>
         </label>
         <div class="edit-actions pmb-resolution-actions">
           <button class="secondary" type="button" data-pmb-resolution-cancel>Cancel</button>
@@ -7154,8 +7167,8 @@ function pmbMovementResolutionChoiceModal(vehicle = {}, currentStage = '', nextS
     });
     overlay.querySelector('[data-pmb-resolution-save]').addEventListener('click', () => {
       const choice = selectedChoice();
-      const reason = cleanNavisionText(overlay.querySelector('[data-pmb-resolution-reason]')?.value || `${area} stoppage`);
-      finish({ choice, reason: reason || `${area} stoppage` });
+      const reason = cleanNavisionText(overlay.querySelector('[data-pmb-resolution-reason]')?.value || `${area} STOPPAGE`);
+      finish({ choice, reason: reason || `${area} STOPPAGE` });
     });
     document.body.appendChild(overlay);
     document.addEventListener('keydown', onKeydown);
@@ -7177,7 +7190,7 @@ async function pmbMovementResolutionUpdates(vehicle = {}, fromStage = '', toStag
   const operator = getCurrentOperatorName();
   const area = pmbStageLabel(currentStage) || 'the current area';
   if (choice === 'stoppage') {
-    const reason = cleanNavisionText(result.reason || `${area} stoppage`);
+    const reason = cleanNavisionText(result.reason || `${area} STOPPAGE`);
     return { pdcBlocked: true, pdcBlockReason: reason, pdcBlockedAt: now, pdcBlockedBy: operator };
   }
   if (choice === 'complete') {
@@ -7201,7 +7214,7 @@ function recordPmbMovementResolutionAudit(vehicle = {}, fromStage = '', toStage 
   const nextStage = normalizePmbStage(toStage);
   const operator = getCurrentOperatorName();
   if (updates.pdcBlocked === true) {
-    recordVehicleAudit(vehicle, 'PMB movement stoppage recorded', { stage: pmbStageLabel(currentStage), reason: updates.pdcBlockReason || 'Stoppage', by: operator });
+    recordVehicleAudit(vehicle, 'PMB movement STOPPAGE recorded', { stage: pmbStageLabel(currentStage), reason: updates.pdcBlockReason || 'STOPPAGE', by: operator });
     return;
   }
   const jobDef = pmbStageJobDef(currentStage);
@@ -7340,9 +7353,9 @@ async function movePmbVehicleToStage(key, stage) {
   const completedDef = pmbStageJobDef(currentStage);
   if (resolutionUpdates.pdcBlocked === true) {
     offerSalespersonChangeEmail(vehicle, {
-      title: `${pmbStageLabel(currentStage) || 'PMB'} stoppage recorded`,
-      subject: 'PDC stoppage update',
-      details: [resolutionUpdates.pdcBlockReason || 'A production stoppage was recorded.', `Moved to ${pmbStageLabel(nextStage) || 'Unallocated'}.`],
+      title: `${pmbStageLabel(currentStage) || 'PMB'} STOPPAGE recorded`,
+      subject: 'PDC STOPPAGE update',
+      details: [resolutionUpdates.pdcBlockReason || 'A production STOPPAGE was recorded.', `Moved to ${pmbStageLabel(nextStage) || 'Unallocated'}.`],
     });
   } else if (completedDef && resolutionUpdates[completedDef.completeKey] === true) {
     offerSalespersonChangeEmail(vehicle, {
@@ -7789,7 +7802,7 @@ function quickFilterLabel() {
   const base = {
     incoming: 'Incoming / non-PMB vehicles',
     batchmatched: 'Batch Matched vehicles',
-    partsstoppage: 'Parts Stoppage vehicles',
+    partsstoppage: 'Parts STOPPAGE vehicles',
     prodtransit: 'Production / In Transit vehicles',
     yardhold: 'Vehicles at YH',
     pmb: 'Vehicles at PMB',
@@ -7854,7 +7867,7 @@ function clearAllFilters() {
 
 function nextActionForVehicle(vehicle = {}) {
   const category = statusCategory(vehicle);
-  if (isActivePartsStoppage(vehicle)) return `Fix parts stoppage: ${partsStoppageReason(vehicle)}`;
+  if (isActivePartsStoppage(vehicle)) return `Fix Parts STOPPAGE: ${partsStoppageReason(vehicle)}`;
   if (isPdcBlocked(vehicle)) return `Clear blocker: ${pdcBlockReason(vehicle)}`;
   if (category === 'yardhold') return 'Transfer Yard Hold → PMB';
   if (category === 'pmb') {
@@ -7895,7 +7908,7 @@ function issueStripButtonHtml(action, label, value, detail, tone = '') {
 function renderControlBoardIssueStripHtml(counts = controlBoardIssueCounts()) {
   return `
     <div class="exception-strip" aria-label="Fix first queues">
-      ${issueStripButtonHtml('parts-stoppage', 'Parts stoppages', counts.partsStoppage, 'Blocking production now', counts.partsStoppage ? 'danger' : '')}
+      ${issueStripButtonHtml('parts-stoppage', 'Parts STOPPAGES', counts.partsStoppage, 'Blocking production now', counts.partsStoppage ? 'danger' : '')}
       ${issueStripButtonHtml('pmb-blocked', 'PMB blockers', counts.pmbBlocked, 'Blocked PMB vehicles', counts.pmbBlocked ? 'danger' : '')}
       ${issueStripButtonHtml('rft-blocked', 'RFT blocked', counts.rftBlocked, 'Missing gate sign-offs', counts.rftBlocked ? 'warning' : '')}
       ${issueStripButtonHtml('pmb-unallocated', 'PMB unallocated', counts.pmbUnallocated, 'Needs stage / bay decision', counts.pmbUnallocated ? 'warning' : '')}
@@ -7974,7 +7987,7 @@ function filteredVehicles() {
     const matchesSales = !sales || salesPersonInitials(consultantName(v)) === sales;
     const matchesProduction = !production || productionLabel === production;
     const matchesSource = !source || v.source === source;
-    const matchesJita = !jita || normalizeJita(jitaDisplay(v)) === jita;
+    const matchesJita = !jita || (vehicleNavisionJitaNumber(v) ? 'Yes' : 'Unknown') === jita;
     const matchesQuick = !app.quickFilter || matchesQuickFilter(app.quickFilter)(v);
     const currentPmbStage = inferredPmbStage(v);
     const matchesPmbSub = !app.pmbSubFilter || (app.quickFilter === 'pmb' && (app.pmbSubFilter === PMB_STAGE_UNASSIGNED_FILTER ? !currentPmbStage : currentPmbStage === app.pmbSubFilter));
@@ -8135,7 +8148,7 @@ function renderVehicleTable() {
       <th data-col-id="status">${columnFilterSlot('status', app.filterOptions.statuses, app.columnFilters.status, 'All statuses')}${sortableTh('Toyota Status', 'toyotaStatus')}</th>
       <th data-col-id="eta">${emptyColumnFilterSlot()}${sortableTh('ETA', 'eta')}</th>
       <th class="navision-notes-full-col" data-col-id="navisionNotes" title="Full Navision Notes from Dealer Comments">${emptyColumnFilterSlot()}${sortableTh('Navision Notes', 'navisionNotes')}</th>
-      <th data-col-id="jita">${columnFilterSlot('jita', [{ value: 'Yes', label: '✓ Tick' }, { value: 'No', label: '× Cross' }, { value: 'Unknown', label: 'Unknown' }], app.columnFilters.jita, 'All')}${sortableTh('JITA', 'jita')}</th>
+      <th data-col-id="jita">${columnFilterSlot('jita', [{ value: 'Yes', label: '✓ JITA Number' }, { value: 'Unknown', label: 'Blank' }], app.columnFilters.jita, 'All')}${sortableTh('JITA', 'jita')}</th>
       <th data-col-id="action">${emptyColumnFilterSlot()}<span class="plain-header-label">Action</span></th>
     </tr></thead>
     <tbody>
@@ -8256,8 +8269,10 @@ function renderVehicleTable() {
 
 
 function removeVehiclesFromTracker(vehicles = [], options = {}) {
+  const list = vehicles.filter(Boolean);
+  if (!list.length || list.some(vehicle => !vehicleLocationActionAllowed(vehicle, 'delete'))) return [];
   try {
-    return runStorageTransaction('Vehicle removal', trackerTransactionKeys(), () => removeVehiclesFromTrackerUnsafe(vehicles, options));
+    return runStorageTransaction('Vehicle removal', trackerTransactionKeys(), () => removeVehiclesFromTrackerUnsafe(list, options));
   } catch (error) {
     app.data = buildVehicleData();
     window.alert(error.message || String(error));
@@ -8359,6 +8374,14 @@ function refreshAfterVehicleRemoval() {
 
 function selectedVehiclesForBulkEmail() {
   if (!app.selectedRows || !app.selectedRows.size) return [];
+  if (!sharedNavisionLocationAuthorityReady()) {
+    app.selectedRows.clear();
+    return [];
+  }
+  vehicleLocationBoardRows();
+  [...app.selectedRows].forEach(key => {
+    if (app.sharedNavisionLocationReadOnlyKeys?.has(key)) app.selectedRows.delete(key);
+  });
   return [...app.selectedRows]
     .map(key => app.data.find(vehicle => vehicleKey(vehicle) === key || vehicle.stock === key || vehicle.order === key || vehicle.id === key))
     .filter(Boolean);
@@ -8607,7 +8630,7 @@ async function transferSelectedYhVehiclesToPmb() {
   if (!window.confirm(`Transfer ${transferable.length} Yard Hold/In Transit vehicle${transferable.length === 1 ? '' : 's'} to Vehicles at PMB?\n\n${preview}${more}\n\nThis is a manual PDC location change. Future Navision uploads will not move these vehicles back.`)) return;
 
   const requirementSelections = await pmbRequirementChecklistModal(transferable);
-  if (!requirementSelections) return;
+  if (!requirementSelections || transferable.some(vehicle => !vehicleLocationActionAllowed(vehicle, 'transfer to PMB'))) return;
 
   const transferTime = nowIsoString();
   const edits = loadVehicleEdits();
@@ -8661,7 +8684,7 @@ async function transferSelectedYhVehiclesToPmb() {
 
 async function transferYhVehicleToPmb(key = '') {
   const vehicle = app.data.find(v => vehicleKey(v) === key || v.stock === key || v.order === key || v.id === key);
-  if (!vehicle) return;
+  if (!vehicle || !vehicleLocationActionAllowed(vehicle, 'transfer to PMB')) return;
   if (!canTransferVehicleToPmb(vehicle)) {
     window.alert('Only Yard Hold or In Transit vehicles can be transferred to PMB from this button.');
     return;
@@ -8671,7 +8694,7 @@ async function transferYhVehicleToPmb(key = '') {
   if (!window.confirm(`Transfer ${stock} - ${customer} to PMB?\n\nThis is a manual PDC location change. Future Navision uploads will not move it back.`)) return;
 
   const requirementSelections = await pmbRequirementChecklistModal([vehicle]);
-  if (!requirementSelections) return;
+  if (!requirementSelections || !vehicleLocationActionAllowed(vehicle, 'transfer to PMB')) return;
 
   const transferTime = nowIsoString();
   const edits = loadVehicleEdits();
@@ -8725,7 +8748,7 @@ function transferSelectedPmbVehiclesToRft() {
 
 function transferVehicleToRftFromCard(key) {
   const vehicle = app.data.find(v => vehicleKey(v) === key || v.stock === key || v.order === key || v.id === key);
-  if (!vehicle) return;
+  if (!vehicle || !vehicleLocationActionAllowed(vehicle, 'transfer to RFT')) return;
   transferVehiclesToRft([vehicle], { clearSelection: false });
 }
 
@@ -8743,7 +8766,7 @@ function confirmRftGateOverride(vehicles = []) {
 
 async function transferVehiclesToRft(vehicles = [], options = {}) {
   const selected = vehicles.filter(Boolean);
-  if (!selected.length) return;
+  if (!selected.length || selected.some(vehicle => !vehicleLocationActionAllowed(vehicle, 'transfer to RFT'))) return;
   const nonPmb = selected.filter(vehicle => statusCategory(vehicle) !== 'pmb');
   if (nonPmb.length) {
     window.alert('Only vehicles currently at PMB can be transferred to RFT. Clear the selection and select PMB vehicles only.');
@@ -8758,6 +8781,10 @@ async function transferVehiclesToRft(vehicles = [], options = {}) {
   if (vehicleLifecycleSharedModeActive()) {
     const failures = [];
     for (const vehicle of selected) {
+      if (!vehicleLocationActionAllowed(vehicle, 'transfer to RFT')) {
+        failures.push(`${vehicleIdentityTitle(vehicle) || 'No stock'} - shared Navision identity is not ready or requires review`);
+        continue;
+      }
       const ref = await vehicleLifecycleSharedRef(vehicle);
       if (!ref || ref.outcome !== 'resolved') {
         failures.push(`${vehicleIdentityTitle(vehicle) || 'No stock'} - ${describeVehicleLifecycleResolutionOutcome(ref)}`);
@@ -8769,6 +8796,10 @@ async function transferVehiclesToRft(vehicles = [], options = {}) {
       }
       if (!ref.qcCompletedAt) {
         failures.push(`${vehicleIdentityTitle(vehicle) || 'No stock'} - QC sign-off required first`);
+        continue;
+      }
+      if (!vehicleLocationActionAllowed(vehicle, 'transfer to RFT')) {
+        failures.push(`${vehicleIdentityTitle(vehicle) || 'No stock'} - shared Navision identity changed before transfer`);
         continue;
       }
       const result = await window.__vehicleLifecycleActions.rftTransferVehicle({ vehicleId: ref.vehicleId, expectedVersion: ref.version });
@@ -8839,10 +8870,10 @@ function salespersonChangeFlag(vehicle = {}, change = {}) {
   if (title && title.toLowerCase() !== 'vehicle status update') return title;
   if (statusCategory(vehicle) === 'rft') return 'Ready for transport (RFT)';
   if (vehicleCollectedFromRft(vehicle)) return 'Vehicle completed / collected';
-  if (isActivePartsStoppage(vehicle)) return 'Parts delay / stoppage';
+  if (isActivePartsStoppage(vehicle)) return 'Parts delay / STOPPAGE';
   const partsStatus = partsDepartmentStatus(vehicle);
   if (partsWorstEtaLabel(vehicle) && !['issued', 'notrequired'].includes(partsStatus)) return 'Parts ETA / delay update';
-  if (isPdcBlocked(vehicle)) return 'PDC stoppage / blocker';
+  if (isPdcBlocked(vehicle)) return 'PDC STOPPAGE / blocker';
   return title || 'Vehicle status update';
 }
 
@@ -8984,7 +9015,7 @@ function vehicleStatusUpdateEmailBody(vehicle = {}) {
     `Parts status: ${partsDepartmentStatusLabel(partsStatus)}`,
     ...(partsOpen ? [
       `Parts ETA: ${partsEta}${partsCountdown ? ` (${partsCountdown})` : ''}`,
-      ...(isActivePartsStoppage(vehicle) ? [`Parts stoppage: ${partsStoppageReason(vehicle)}`] : []),
+      ...(isActivePartsStoppage(vehicle) ? [`Parts STOPPAGE: ${partsStoppageReason(vehicle)}`] : []),
     ] : []),
     '',
     'Workshop / bay history:',
@@ -8995,7 +9026,7 @@ function vehicleStatusUpdateEmailBody(vehicle = {}) {
     '',
     'Work still outstanding:',
     ...(outstanding.length ? outstanding : ['- None']),
-    ...(blocker ? ['', `Current stoppage / blocker: ${blocker}`] : []),
+    ...(blocker ? ['', `Current STOPPAGE / blocker: ${blocker}`] : []),
     '',
     'Kind Regards,',
   ].join('\n');
@@ -9690,7 +9721,21 @@ function saveVehicleEdits(key, updates, options = {}) {
   const vehicle = selectedVehicle(key);
   if (!vehicle) return false;
   const editKey = vehicleKey(vehicle);
+  if (!vehicleLocationActionAllowed(vehicle, 'edit')) return false;
   const nextUpdates = { ...updates };
+  const protectedNavisionAuthorityFields = [
+    'jitQty',
+    'navisionJitaNumber',
+    'navisionJitaNumberAuthority',
+    'jitaPartsOrdered',
+    '_navisionJitaNumberColumnPresent',
+  ];
+  const rejectedAuthorityFields = protectedNavisionAuthorityFields.filter(field => Object.prototype.hasOwnProperty.call(nextUpdates, field));
+  rejectedAuthorityFields.forEach(field => { delete nextUpdates[field]; });
+  if (rejectedAuthorityFields.length) {
+    console.warn('Ignored operator edit to imported Navision JITA authority fields.', { fields: rejectedAuthorityFields });
+  }
+  if (!Object.keys(nextUpdates).length) return false;
   if ('etaAtDealer' in nextUpdates) nextUpdates.etaAtDealer = navisionEtaForVehicle({ ...vehicle, ...nextUpdates });
   const wasNestedTransaction = storageTransactionDepth > 0;
   const previousValues = Object.fromEntries(Object.keys(nextUpdates).map(field => [field, {
@@ -9723,6 +9768,7 @@ function openVehicleModal(stock) {
     window.alert('That vehicle could not be found. Refresh the list and try again. No vehicle was changed.');
     return false;
   }
+  if (!vehicleLocationActionAllowed(vehicle, 'open')) return false;
   app.selectedStock = vehicleKey(vehicle);
   renderDetail();
   const modal = $('#vehicle-modal');
@@ -9742,7 +9788,7 @@ function closeVehicleModal() {
 
 function removeVehicle(stock) {
   const vehicle = selectedVehicle(stock);
-  if (!vehicle) return;
+  if (!vehicle || !vehicleLocationActionAllowed(vehicle, 'delete')) return;
   const label = `${vehicleIdentityTitle(vehicle) || 'this vehicle'} - ${vehicleCustomerName(vehicle) || 'Unknown customer'}`;
   if (!window.confirm(`Move ${label} to Deleted vehicles?\n\nThe record can still be reviewed on the Deleted vehicles screen.`)) return;
 
@@ -9794,14 +9840,6 @@ function renderDetail() {
           <label>
             <span class="muted-label">Navision ETA</span>
             <input value="${escapeHtml(scotEtaOnly(v.etaAtDealer))}" placeholder="No Navision ETA" readonly />
-          </label>
-          <label>
-            <span class="muted-label">JITA Parts Ordered</span>
-            <select name="jitaPartsOrdered">
-              <option value="Unknown" ${normalizeJita(jitaDisplay(v)) === 'Unknown' ? 'selected' : ''}>Unknown</option>
-              <option value="Yes" ${normalizeJita(jitaDisplay(v)) === 'Yes' ? 'selected' : ''}>Yes</option>
-              <option value="No" ${normalizeJita(jitaDisplay(v)) === 'No' ? 'selected' : ''}>No</option>
-            </select>
           </label>
         </div>
         <div class="form-row one-col">
@@ -9865,7 +9903,7 @@ function renderDetail() {
         <div class="metric"><span>Port</span><strong>${escapeHtml(v.arrivalPort || 'Not shown')}</strong></div>
         <div class="metric"><span>Autocare VIN</span><strong>${escapeHtml(v.autocareVin || v.vin || 'Not despatched')}</strong></div>
         <div class="metric"><span>Autocare load</span><strong>${escapeHtml(v.autocareLoadNumber || 'None')}</strong></div>
-        <div class="metric"><span>JITA Qty</span><strong>${escapeHtml(v.jitQty || 'None shown')}</strong></div>
+        <div class="metric"><span>JITA Number</span><strong>${escapeHtml(vehicleNavisionJitaNumber(v) || 'None shown')}</strong></div>
       </div>
       <div>
         <div class="muted-label">Status history</div>
@@ -9942,7 +9980,6 @@ function renderDetail() {
     const pdcLocation = isCompletedVehicle ? previousPdcLocation : normalizePdcLocation(form.pdcLocation.value);
     const pmbStage = previousPmbStage;
     const pdcJobcard = cleanNavisionText(form.pdcJobcard?.value || '');
-    const jitaPartsOrdered = form.jitaPartsOrdered.value;
     const pdcBlocked = Boolean(form.pdcBlocked?.checked);
     const pdcBlockReasonValue = cleanNavisionText(form.pdcBlockReason?.value || '');
     const requirementUpdates = {};
@@ -9956,7 +9993,7 @@ function renderDetail() {
       window.alert(`Key tag ${keyNumber} is already assigned to ${displayStockNumber(duplicateKeyVehicle) || duplicateKeyVehicle.order || 'another PMB vehicle'}. Only one active PMB vehicle can use a key tag number at a time.`);
       return;
     }
-    const updates = { client, keyNumber, pdcJobcard, consultant, internalStatus, pdcLocation, pmbStage, jitaPartsOrdered, pdcBlocked, pdcBlockReason: pdcBlockReasonValue, ...requirementUpdates, ...completionUpdates };
+    const updates = { client, keyNumber, pdcJobcard, consultant, internalStatus, pdcLocation, pmbStage, pdcBlocked, pdcBlockReason: pdcBlockReasonValue, ...requirementUpdates, ...completionUpdates };
     const hasIndependentPdcWork = Boolean(
       pdcJobcard || pdcLocation || pdcBlocked ||
       PDC_JOB_DEFS.some(def => requirementUpdates[def.requireKey] || completionUpdates[def.completeKey])
@@ -10028,13 +10065,13 @@ function renderDetail() {
     const stoppageAdded = !previouslyPdcBlocked && pdcBlocked;
     if (newlyCompleted.length || stoppageAdded) {
       const notificationTitle = stoppageAdded
-        ? 'PDC stoppage recorded'
+        ? 'PDC STOPPAGE recorded'
         : newlyCompleted.length === 1
           ? `${newlyCompleted[0].label} completed`
           : `${newlyCompleted.length} PDC jobs completed`;
       offerSalespersonChangeEmail(v, {
         title: notificationTitle,
-        subject: stoppageAdded ? 'PDC stoppage update' : 'PDC work completed',
+        subject: stoppageAdded ? 'PDC STOPPAGE update' : 'PDC work completed',
         details: [
           ...newlyCompleted.map(def => `${def.label} was signed off by ${getCurrentOperatorName()}.`),
           stoppageAdded ? `Reason: ${pdcBlockReasonValue || 'Blocked'}` : '',
@@ -10085,7 +10122,7 @@ function renderNavisionDetailSection(vehicle = {}) {
     ['VDS Number', vehicle.vdsNumber],
     ['Frame', vehicle.frame],
     ['Dealer Customer Name', vehicle.dealerCustomer || vehicle.toyotaCustomer],
-    ['JITA PreOrder', jitaDisplay(vehicle)],
+    ['JITA Number', jitaDisplay(vehicle)],
     ['Tray Fitment Ordered', vehicleFlag(vehicle, 'trayOrdered') ? 'Yes' : 'No'],
     ['Tray Fitment Complete', vehicleFlag(vehicle, 'trayFitmentComplete') ? 'Yes' : 'No'],
     ['Sub Location Description', vehicle.navisionSubLocationDescription || vehicle.toyotaStatus],
@@ -10668,7 +10705,7 @@ function productionDepartmentRows(def = activeProductionDepartmentDef()) {
 
 function departmentStatusBadgeHtml(vehicle = {}, def = {}) {
   const status = departmentVehicleStatus(vehicle, def);
-  if (status === 'blocked') return `<span class="department-status-badge blocked">Stoppage · ${escapeHtml(pdcBlockReason(vehicle))}</span>`;
+  if (status === 'blocked') return `<span class="department-status-badge blocked">STOPPAGE · ${escapeHtml(pdcBlockReason(vehicle))}</span>`;
   if (status === 'complete') return '<span class="department-status-badge complete">Complete ✓</span>';
   return '<span class="department-status-badge open">Open work</span>';
 }
@@ -10684,9 +10721,9 @@ function renderProductionDepartmentBoard() {
   const help = $('#department-help-strip');
   const capacity = pmbStageCapacityLabel(def.stage);
   if (heading) heading.textContent = def.label;
-  if (description) description.textContent = `${def.label} focused work list. Use the row actions to sign off work, record stoppages, or open the vehicle details.`;
+  if (description) description.textContent = `${def.label} focused work list. Use the row actions to sign off work, record STOPPAGES, or open the vehicle details.`;
   if (count) count.textContent = `${rows.length} vehicle${rows.length === 1 ? '' : 's'} · ${capacity}`;
-  if (help) help.innerHTML = `<strong>${escapeHtml(def.label)}</strong><span>Capacity: ${escapeHtml(capacity)}</span><span>Sort: stoppages first, then earliest Kewdale ETA.</span>`;
+  if (help) help.innerHTML = `<strong>${escapeHtml(def.label)}</strong><span>Capacity: ${escapeHtml(capacity)}</span><span>Sort: STOPPAGES first, then earliest Kewdale ETA.</span>`;
   if (!rows.length) {
     host.innerHTML = '<div class="empty-state"><strong>No vehicles match this department filter</strong><span>Clear search or change the status filter.</span></div>';
     return;
@@ -10707,7 +10744,7 @@ function renderProductionDepartmentBoard() {
           <span class="incoming-card-meta"><b>ETA</b><span>${escapeHtml(kewdaleEtaValue(vehicle) || 'No ETA')}</span><small>${escapeHtml(pmbAgeLabel(vehicle))}</small></span>
           <span class="incoming-card-action department-actions">
             ${complete ? `<button type="button" class="small-button" data-dept-next="${escapeHtml(key)}" data-dept-stage="${escapeHtml(def.stage)}">Next bay</button>` : `<button type="button" class="primary" data-dept-complete="${escapeHtml(key)}" data-dept-stage="${escapeHtml(def.stage)}">Complete</button>`}
-            <button type="button" class="small-button" data-dept-stoppage="${escapeHtml(key)}" data-dept-stage="${escapeHtml(def.stage)}">Stoppage</button>
+            <button type="button" class="small-button" data-dept-stoppage="${escapeHtml(key)}" data-dept-stage="${escapeHtml(def.stage)}">STOPPAGE</button>
             ${isPdcBlocked(vehicle) ? `<button type="button" class="small-button" data-dept-clear-stoppage="${escapeHtml(key)}">Clear</button>` : ''}
             <button type="button" class="small-button" data-dept-open="${escapeHtml(key)}">Open</button>
           </span>
@@ -10727,7 +10764,7 @@ function markProductionDepartmentStoppage(key = '', stage = '') {
   if (!vehicle) return;
   const normalizedStage = normalizePmbStage(stage || inferredPmbStage(vehicle));
   if (!normalizedStage) return;
-  const reason = cleanNavisionText(window.prompt(`Enter ${pmbStageLabel(normalizedStage)} stoppage reason:`, isPdcBlocked(vehicle) ? pdcBlockReason(vehicle) : '') || '');
+  const reason = cleanNavisionText(window.prompt(`Enter ${pmbStageLabel(normalizedStage)} STOPPAGE reason:`, isPdcBlocked(vehicle) ? pdcBlockReason(vehicle) : '') || '');
   if (!reason) return;
   const def = pmbStageJobDef(normalizedStage);
   const operator = getCurrentOperatorName();
@@ -10743,11 +10780,11 @@ function markProductionDepartmentStoppage(key = '', stage = '') {
     updates[def.requireKey] = true;
     updates[def.completeKey] = false;
   }
-  recordVehicleAudit(vehicle, 'Production stoppage recorded', { stage: pmbStageLabel(normalizedStage), reason, by: operator });
+  recordVehicleAudit(vehicle, 'Production STOPPAGE recorded', { stage: pmbStageLabel(normalizedStage), reason, by: operator });
   saveVehicleEdits(key, updates);
   offerSalespersonChangeEmail(vehicle, {
-    title: `${pmbStageLabel(normalizedStage)} stoppage recorded`,
-    subject: 'PDC stoppage update',
+    title: `${pmbStageLabel(normalizedStage)} STOPPAGE recorded`,
+    subject: 'PDC STOPPAGE update',
     details: [`Reason: ${reason}`, `Recorded by ${operator}.`],
   });
 }
@@ -10756,7 +10793,7 @@ function clearProductionDepartmentStoppage(key = '') {
   const vehicle = selectedVehicle(key);
   if (!vehicle) return;
   const operator = getCurrentOperatorName();
-  recordVehicleAudit(vehicle, 'Production stoppage cleared', { reason: pdcBlockReason(vehicle), by: operator });
+  recordVehicleAudit(vehicle, 'Production STOPPAGE cleared', { reason: pdcBlockReason(vehicle), by: operator });
   saveVehicleEdits(key, {
     pdcBlocked: false,
     pdcBlockReason: '',
@@ -10770,7 +10807,7 @@ function partsJobDef() {
 }
 
 function partsStoppageReason(vehicle = {}) {
-  return cleanNavisionText(vehicle.pdcPartsStoppageReason || '') || 'Parts stoppage recorded';
+  return cleanNavisionText(vehicle.pdcPartsStoppageReason || '') || 'Parts STOPPAGE recorded';
 }
 
 function partsWorstEtaValue(vehicle = {}) {
@@ -10817,17 +10854,17 @@ function partsWorstEtaDaysUntil(vehicle = {}) {
 function partsWorstEtaCountdownLabel(vehicle = {}) {
   const days = partsWorstEtaDaysUntil(vehicle);
   if (days === null) return '';
-  if (days < 0) return `${Math.abs(days)} day${Math.abs(days) === 1 ? '' : 's'} overdue`;
-  if (days === 0) return 'Due today';
-  return `${days} day${days === 1 ? '' : 's'} to Parts ETA`;
+  if (days < 0) return `-${Math.abs(days)} Day${Math.abs(days) === 1 ? '' : 's'} Overdue`;
+  if (days === 0) return '0 Days';
+  return `+${days} Day${days === 1 ? '' : 's'}`;
 }
 
 function partsWorstEtaCountdownClass(vehicle = {}) {
   const days = partsWorstEtaDaysUntil(vehicle);
   if (days === null) return 'unset';
-  if (days < 0) return 'overdue';
-  if (days <= 7) return 'soon';
-  return 'later';
+  if (days < 0) return 'negative';
+  if (days > 0) return 'positive';
+  return 'today';
 }
 
 function partsWorstEtaSortValue(vehicle = {}) {
@@ -10851,7 +10888,7 @@ function partsRiskBadge(vehicle = {}) {
 function isActivePartsStoppage(vehicle = {}) {
   const parts = PDC_JOB_BY_KEY.get('parts');
   const hasStoppage = vehicle.pdcPartsStoppage === true || Boolean(cleanNavisionText(vehicle.pdcPartsStoppageReason || ''));
-  return Boolean(hasStoppage && parts && pdcJobRequired(vehicle, parts) && !pdcJobComplete(vehicle, parts));
+  return Boolean(hasStoppage && parts && pdcJobRequired(vehicle, parts));
 }
 
 function partsOrdered(vehicle = {}) {
@@ -10866,9 +10903,9 @@ function partsMiscAcc(vehicle = {}) {
 function partsDepartmentStatus(vehicle = {}) {
   const def = partsJobDef();
   if (!pdcJobRequired(vehicle, def)) return 'notrequired';
+  if (isActivePartsStoppage(vehicle)) return 'stoppage';
   if (partsMiscAcc(vehicle)) return 'miscacc';
   if (def && (pdcJobComplete(vehicle, def) || vehicle.pdcPartsReceived === true)) return 'issued';
-  if (isActivePartsStoppage(vehicle)) return 'stoppage';
   if (partsOrdered(vehicle)) return 'onorder';
   return 'notordered';
 }
@@ -10878,7 +10915,7 @@ function partsDepartmentStatusLabel(status = '') {
     notrequired: 'Not Required',
     notordered: 'Not Ordered',
     onorder: 'On Order',
-    stoppage: 'Stoppage',
+    stoppage: 'Parts STOPPAGE',
     issued: 'Issued',
     miscacc: 'Misc Acc',
   }[status] || 'Not Ordered';
@@ -10962,20 +10999,17 @@ function partsOutstandingStationWork(vehicle = {}) {
     .map(def => pdcGridJobLabel(def));
 }
 
-function partsMatchesOperationalFilter(vehicle = {}, filter = 'required') {
+function partsMatchesOperationalFilter(vehicle = {}, filter = 'notordered') {
   const status = partsDepartmentStatus(vehicle);
-  const received = ['issued', 'notrequired'].includes(status);
   if (filter === 'ordered') return status === 'onorder';
-  if (filter === 'received') return received;
-  if (filter === 'jita') return normalizeJita(jitaDisplay(vehicle)) === 'Yes';
+  if (filter === 'overdue') return !['issued', 'notrequired'].includes(status) && partsWorstEtaDaysUntil(vehicle) < 0;
   if (filter === 'stoppage') return status === 'stoppage';
-  if (filter === 'ready') return received && partsOutstandingStationWork(vehicle).length > 0;
-  return !received && status !== 'notrequired';
+  return ['notordered', 'miscacc'].includes(status);
 }
 
 function partsDepartmentRows() {
   const q = ($('#parts-search')?.value || '').trim().toLowerCase();
-  const operationalFilter = app.partsOperationalFilter || 'required';
+  const operationalFilter = app.partsOperationalFilter || 'notordered';
   const departmentFilter = $('#parts-department-filter')?.value || '';
   return pdcSheetVehicles()
     .filter(vehicleHasBatchNumber)
@@ -10997,10 +11031,12 @@ function partsDepartmentRows() {
 function renderPartsSummary() {
   const all = pdcSheetVehicles().filter(vehicleHasBatchNumber);
   const filters = [
-    ['required', 'Parts required'], ['ordered', 'Parts ordered'], ['received', 'Parts received'],
-    ['jita', 'JITA ordered'], ['stoppage', 'Parts stoppage'], ['ready', 'Ready for workshop'],
+    ['notordered', 'Parts Not Ordered'],
+    ['ordered', 'Parts Ordered'],
+    ['overdue', 'Parts Overdue'],
+    ['stoppage', 'Parts STOPPAGE'],
   ];
-  const active = app.partsOperationalFilter || 'required';
+  const active = app.partsOperationalFilter || 'notordered';
   const host = $('#parts-summary-grid');
   if (!host) return;
   host.innerHTML = filters.map(([key, label]) => {
@@ -11008,7 +11044,7 @@ function renderPartsSummary() {
     return `<button class="parts-filter-chip ${key === active ? 'is-active' : ''}" type="button" data-parts-operational-filter="${key}" aria-pressed="${key === active}"><span>${escapeHtml(label)}</span><strong>${count}</strong></button>`;
   }).join('');
   $$('[data-parts-operational-filter]', host).forEach(button => button.addEventListener('click', () => {
-    app.partsOperationalFilter = button.dataset.partsOperationalFilter || 'required';
+    app.partsOperationalFilter = button.dataset.partsOperationalFilter || 'notordered';
     renderPartsHome();
   }));
 }
@@ -11016,14 +11052,12 @@ function partsQueueActionsHtml(vehicle = {}, status = partsDepartmentStatus(vehi
   const key = vehicleKey(vehicle);
   const received = ['issued', 'notrequired'].includes(status);
   const stopped = status === 'stoppage';
-  const jitaYes = normalizeJita(jitaDisplay(vehicle)) === 'Yes';
   return `<div class="parts-action-group parts-visible-actions">
     ${status === 'notordered' ? `<button class="small-button primary" type="button" data-parts-ordered="${escapeHtml(key)}">Mark ordered</button>` : ''}
     ${received ? '' : `<button class="small-button" type="button" data-parts-complete="${escapeHtml(key)}">Mark received</button>`}
-    <button class="small-button ${jitaYes ? 'is-active' : ''}" type="button" data-parts-toggle-jita="${escapeHtml(key)}">JITA ${jitaYes ? '✓' : '×'}</button>
     ${stopped
-      ? `<button class="small-button" type="button" data-parts-clear-stoppage="${escapeHtml(key)}">Remove stoppage</button>`
-      : `<button class="small-button danger-button" type="button" data-parts-stoppage="${escapeHtml(key)}">Add stoppage</button>`}
+      ? `<button class="small-button" type="button" data-parts-clear-stoppage="${escapeHtml(key)}">Remove Parts STOPPAGE</button>`
+      : `<button class="small-button danger-button" type="button" data-parts-stoppage="${escapeHtml(key)}">Parts STOPPAGE</button>`}
     <button class="small-button" type="button" data-open-stock="${escapeHtml(key)}">Open vehicle</button>
   </div>`;
 }
@@ -11035,7 +11069,6 @@ function bindPartsQueueActionButtons(host) {
   $$('[data-parts-complete]', host).forEach(button => button.addEventListener('click', () => markVehiclePartsComplete(button.dataset.partsComplete)));
   $$('[data-parts-stoppage]', host).forEach(button => button.addEventListener('click', () => markVehiclePartsStoppage(button.dataset.partsStoppage)));
   $$('[data-parts-clear-stoppage]', host).forEach(button => button.addEventListener('click', () => clearVehiclePartsStoppage(button.dataset.partsClearStoppage)));
-  $$('[data-parts-toggle-jita]', host).forEach(button => button.addEventListener('click', () => toggleVehiclePartsJita(button.dataset.partsToggleJita)));
   $$('[data-parts-eta-email]', host).forEach(button => button.addEventListener('click', () => draftPartsEtaSalesEmail(button.dataset.partsEtaEmail)));
 }
 
@@ -11046,19 +11079,47 @@ function partsQueueRowHtml(vehicle = {}) {
   const unit = displayVehicle(vehicle) || 'Vehicle not listed';
   const blocker = status === 'stoppage' ? partsStoppageReason(vehicle) : '';
   const outstanding = partsOutstandingStationWork(vehicle);
-  const jitaYes = normalizeJita(jitaDisplay(vehicle)) === 'Yes';
+  const jitaNumber = vehicleNavisionJitaNumber(vehicle);
+  const etaValue = partsWorstEtaInputValue(vehicle);
+  const etaCountdown = partsWorstEtaCountdownLabel(vehicle);
+  const etaCountdownClass = partsWorstEtaCountdownClass(vehicle);
   return `<tr class="parts-row parts-queue-row ${escapeHtml(partsDepartmentStatusClass(status))}">
     <td><strong>${escapeHtml(vehicleKeyNumber(vehicle) || '—')}</strong></td>
     <td><button class="parts-compact-identity" type="button" data-open-stock="${escapeHtml(key)}"><strong>${escapeHtml(displayStockNumber(vehicle) || vehicle.order || '—')}</strong></button></td>
     <td><strong>${escapeHtml(vehicleJobcardNumber(vehicle) || '—')}</strong></td>
     <td><div class="parts-queue-customer"><strong title="${escapeHtml(unit)}">${escapeHtml(unit)}</strong><span title="${escapeHtml(customer)}">${escapeHtml(customer)}</span></div></td>
     <td><span class="parts-status-pill ${escapeHtml(partsDepartmentStatusClass(status))}">${escapeHtml(partsDepartmentStatusLabel(status))}</span></td>
-    <td class="parts-queue-jita-cell"><span class="jita-icon ${jitaYes ? 'yes' : 'no'}" aria-label="JITA ${jitaYes ? 'ordered' : 'not ordered'}">${jitaYes ? '✓' : '×'}</span></td>
+    <td class="parts-eta-cell"><input class="parts-eta-input" type="date" data-parts-worst-eta="${escapeHtml(key)}" value="${escapeHtml(etaValue)}" aria-label="Parts ETA for ${escapeHtml(displayStockNumber(vehicle) || vehicle.order || 'vehicle')}" /></td>
+    <td class="parts-eta-counter-cell"><span class="parts-eta-countdown ${escapeHtml(etaCountdownClass)}">${escapeHtml(etaCountdown || '—')}</span></td>
+    <td class="parts-queue-jita-cell">${jitaNumber ? `<span class="jita-icon yes" role="img" aria-label="Navision JITA number ${escapeHtml(jitaNumber)}" title="Navision JITA number ${escapeHtml(jitaNumber)}">✓</span>` : '<span class="parts-jita-empty" aria-label="No Navision JITA number">—</span>'}</td>
     <td><span class="parts-outstanding-work" title="${escapeHtml(outstanding.join(', '))}">${escapeHtml(outstanding.join(', ') || 'None')}</span></td>
     <td class="parts-queue-blocker">${blocker ? `<strong title="${escapeHtml(blocker)}">${escapeHtml(blocker)}</strong>` : '<span class="subtle">None</span>'}</td>
     <td>${partsQueueActionsHtml(vehicle, status)}</td>
   </tr>`;
 }
+function partsIssuedStoppagePickerHtml() {
+  const issued = pdcSheetVehicles()
+    .filter(vehicleHasBatchNumber)
+    .filter(vehicle => partsDepartmentStatus(vehicle) === 'issued')
+    .sort((a, b) => String(displayStockNumber(a) || '').localeCompare(String(displayStockNumber(b) || ''), undefined, { numeric: true }));
+  if (!issued.length) return '<div class="parts-stoppage-picker"><strong>Add issued vehicle to Parts STOPPAGE</strong><span>No issued vehicles are currently available.</span></div>';
+  const options = issued.map(vehicle => `<option value="${escapeHtml(vehicleKey(vehicle))}">${escapeHtml(displayStockNumber(vehicle) || vehicle.order || vehicleKeyNumber(vehicle) || 'Vehicle')} · ${escapeHtml(vehicleCustomerName(vehicle) || 'Unknown customer')}</option>`).join('');
+  return `<div class="parts-stoppage-picker"><label><strong>Add issued vehicle to Parts STOPPAGE</strong><select data-parts-issued-stoppage-vehicle><option value="">Select issued vehicle</option>${options}</select></label><button class="small-button danger-button" type="button" data-parts-add-issued-stoppage>Add Parts STOPPAGE</button></div>`;
+}
+
+function bindPartsIssuedStoppagePicker(host) {
+  const button = host?.querySelector('[data-parts-add-issued-stoppage]');
+  const select = host?.querySelector('[data-parts-issued-stoppage-vehicle]');
+  button?.addEventListener('click', () => {
+    const key = select?.value || '';
+    if (!key) {
+      window.alert('Select an issued vehicle before adding a Parts STOPPAGE.');
+      return;
+    }
+    markVehiclePartsStoppage(key);
+  });
+}
+
 function renderPartsHome() {
   const host = $('#parts-home-content');
   const summaryHost = $('#parts-summary-grid');
@@ -11066,25 +11127,20 @@ function renderPartsHome() {
   const rows = partsDepartmentRows();
   renderPartsSummary(rows);
   if (!host) return;
+  const stoppagePicker = (app.partsOperationalFilter || 'notordered') === 'stoppage' ? partsIssuedStoppagePickerHtml() : '';
   if (!rows.length) {
-    host.innerHTML = '<div class="empty-state"><strong>No vehicles match the current parts filter</strong><span>Clear search or change the Parts status filter.</span></div>';
+    host.innerHTML = `${stoppagePicker}<div class="empty-state"><strong>No vehicles match the current parts filter</strong><span>Clear search or change the Parts status filter.</span></div>`;
+    bindPartsIssuedStoppagePicker(host);
     return;
   }
-  host.innerHTML = `<div class="parts-table-wrap parts-queue-wrap"><table class="data-table compact-table parts-queue-table">
+  host.innerHTML = `${stoppagePicker}<div class="parts-table-wrap parts-queue-wrap"><table class="data-table compact-table parts-queue-table">
     <thead><tr>
-      <th>Key</th><th>Stock</th><th>JC</th><th>Vehicle / customer</th><th>Parts status</th><th>JITA</th><th>Outstanding station work</th><th>Stoppage reason</th><th>Actions</th>
+      <th>Key</th><th>Stock</th><th>JC</th><th>Vehicle / customer</th><th>Parts status</th><th>Parts ETA</th><th>ETA counter</th><th>JITA</th><th>Outstanding station work</th><th>Parts STOPPAGE reason</th><th>Actions</th>
     </tr></thead>
     <tbody>${rows.map(partsQueueRowHtml).join('')}</tbody></table></div>`;
+  bindPartsIssuedStoppagePicker(host);
   bindPartsQueueActionButtons(host);
   $$('[data-parts-worst-eta]', host).forEach(input => input.addEventListener('change', () => updateVehiclePartsWorstEta(input.dataset.partsWorstEta, input.value)));
-}
-
-function toggleVehiclePartsJita(key = '') {
-  const vehicle = selectedVehicle(key);
-  if (!vehicle) return;
-  const next = normalizeJita(jitaDisplay(vehicle)) === 'Yes' ? 'No' : 'Yes';
-  recordVehicleAudit(vehicle, `JITA marked ${next === 'Yes' ? 'ordered' : 'not ordered'}`, { by: getCurrentOperatorName() });
-  saveVehicleEdits(key, { jitaPartsOrdered: next });
 }
 
 function markVehiclePartsOrdered(key = '') {
@@ -11136,9 +11192,8 @@ function markVehiclePartsComplete(key = '') {
 function markVehiclePartsStoppage(key = '') {
   const vehicle = selectedVehicle(key);
   if (!vehicle) return;
-  const reason = cleanNavisionText(window.prompt('Enter parts stoppage reason:', partsStoppageReason(vehicle) === 'Parts stoppage recorded' ? '' : partsStoppageReason(vehicle)) || '');
+  const reason = cleanNavisionText(window.prompt('Enter Parts STOPPAGE reason:', partsStoppageReason(vehicle) === 'Parts STOPPAGE recorded' ? '' : partsStoppageReason(vehicle)) || '');
   if (!reason) return;
-  const def = partsJobDef();
   const operator = getCurrentOperatorName();
   const updates = {
     pdcRequiresParts: true,
@@ -11147,12 +11202,11 @@ function markVehiclePartsStoppage(key = '') {
     pdcPartsStoppageAt: nowIsoString(),
     pdcPartsStoppageBy: operator,
   };
-  if (def) updates[def.completeKey] = false;
-  recordVehicleAudit(vehicle, 'Parts stoppage recorded', { reason, by: operator });
+  recordVehicleAudit(vehicle, 'Parts STOPPAGE recorded', { reason, by: operator });
   saveVehicleEdits(key, updates);
   offerSalespersonChangeEmail(vehicle, {
-    title: 'Parts stoppage recorded',
-    subject: 'PDC stoppage update',
+    title: 'Parts STOPPAGE recorded',
+    subject: 'PDC STOPPAGE update',
     details: [`Reason: ${reason}`, `Recorded by ${operator}.`],
   });
 }
@@ -11222,11 +11276,10 @@ function clearVehiclePartsStoppage(key = '') {
   const vehicle = selectedVehicle(key);
   if (!vehicle) return;
   const operator = getCurrentOperatorName();
-  recordVehicleAudit(vehicle, 'Parts stoppage cleared', { reason: partsStoppageReason(vehicle), by: operator });
+  recordVehicleAudit(vehicle, 'Parts STOPPAGE cleared', { reason: partsStoppageReason(vehicle), by: operator });
   saveVehicleEdits(key, {
     pdcPartsStoppage: false,
     pdcPartsStoppageReason: '',
-    pdcPartsWorstEta: '',
     pdcPartsStoppageClearedAt: nowIsoString(),
     pdcPartsStoppageClearedBy: operator,
   });
@@ -11234,7 +11287,7 @@ function clearVehiclePartsStoppage(key = '') {
 
 function exportPartsCsv() {
   const rows = partsDepartmentRows();
-  const headers = ['Parts Status','Stock','Toyota Order','Client','Vehicle','Kewdale ETA','Kewdale ETA Age','Parts Worst ETA','Parts Worst ETA Countdown','Current Stage','PMB Stage','Parts Ordered','Parts Ordered By','Parts Issued','Parts Issued By','Parts Stoppage','Parts Stoppage Reason','Last Parts Update'];
+  const headers = ['Parts Status','Stock','Toyota Order','Client','Vehicle','Kewdale ETA','Kewdale ETA Age','Parts Worst ETA','Parts Worst ETA Countdown','Current Stage','PMB Stage','Parts Ordered','Parts Ordered By','Parts Issued','Parts Issued By','Parts STOPPAGE','Parts STOPPAGE Reason','Last Parts Update'];
   const def = partsJobDef();
   const lines = [headers.join(',')].concat(rows.map(vehicle => [
     partsDepartmentStatusLabel(partsDepartmentStatus(vehicle)),
@@ -11613,19 +11666,115 @@ function sharedNavisionVisibleData(result = null) {
   return result?.data?.data || result?.data || null;
 }
 
+function sharedNavisionVisibilityConfigured() {
+  const service = navisionSharedBackendService();
+  return Boolean(service && typeof service.visibleSnapshot === 'function');
+}
+
+function sharedNavisionLocationAuthorityReady() {
+  if (!sharedNavisionVisibilityConfigured()) return true;
+  return app.sharedNavisionVisibleState === 'ready' &&
+    app.sharedNavisionVisibleRealtimeState === 'subscribed' &&
+    app.sharedNavisionVisibleRealtimeReconciled === true;
+}
+
+function vehicleLocationActionAllowed(vehicleOrKey, operation = 'change') {
+  if (!sharedNavisionLocationAuthorityReady()) {
+    console.warn('Vehicle action blocked while shared Navision identity authority is not reconciled.', { operation });
+    return false;
+  }
+  vehicleLocationBoardRows();
+  const vehicle = vehicleOrKey && typeof vehicleOrKey === 'object' ? vehicleOrKey : selectedVehicle(vehicleOrKey);
+  if (!vehicle) return false;
+  const key = vehicleKey(vehicle);
+  if (app.sharedNavisionLocationReadOnlyKeys?.has(key)) {
+    console.warn('Vehicle action blocked because the Locations identity is read-only.', { operation, key });
+    return false;
+  }
+  return true;
+}
+
+function renderSharedNavisionVisibilityState() {
+  renderBackEndData();
+  if (app.currentView === 'dashboard') renderIncomingDashboardBoard();
+}
+
+function clearSharedNavisionVisibilityReconnectTimer() {
+  if (app.sharedNavisionVisibleReconnectTimer) clearTimeout(app.sharedNavisionVisibleReconnectTimer);
+  app.sharedNavisionVisibleReconnectTimer = null;
+  if (app.sharedNavisionVisibleStableTimer) clearTimeout(app.sharedNavisionVisibleStableTimer);
+  app.sharedNavisionVisibleStableTimer = null;
+}
+
+function releaseSharedNavisionVisibilityChannel() {
+  if (app.sharedNavisionVisibleStableTimer) clearTimeout(app.sharedNavisionVisibleStableTimer);
+  app.sharedNavisionVisibleStableTimer = null;
+  app.sharedNavisionVisibleRealtimeReconciled = false;
+  const channel = app.sharedNavisionVisibleRealtime;
+  app.sharedNavisionVisibleRealtime = null;
+  app.sharedNavisionVisibleRealtimeGeneration += 1;
+  if (!channel) return;
+  try {
+    if (window.PDC_SUPABASE && typeof window.PDC_SUPABASE.removeChannel === 'function') {
+      window.PDC_SUPABASE.removeChannel(channel);
+    } else if (typeof channel.unsubscribe === 'function') {
+      channel.unsubscribe();
+    }
+  } catch (_err) { /* best-effort teardown */ }
+}
+
+function scheduleSharedNavisionVisibilityReconnect() {
+  if (app.sharedNavisionVisibleReconnectTimer || !window.PDC_AUTH_CONTEXT || !sharedNavisionVisibilityConfigured()) return;
+  const delay = Math.min(30000, 1000 * (2 ** Math.min(app.sharedNavisionVisibleReconnectAttempt, 5)));
+  app.sharedNavisionVisibleReconnectAttempt += 1;
+  app.sharedNavisionVisibleReconnectTimer = setTimeout(() => {
+    app.sharedNavisionVisibleReconnectTimer = null;
+    subscribeSharedNavisionVisibility();
+  }, delay);
+}
+
 function subscribeSharedNavisionVisibility() {
-  if (app.sharedNavisionVisibleRealtime) return;
+  if (app.sharedNavisionVisibleRealtime || !window.PDC_AUTH_CONTEXT || !sharedNavisionVisibilityConfigured()) return;
   const client = window.PDC_SUPABASE;
   if (!client || typeof client.channel !== 'function') return;
-  app.sharedNavisionVisibleRealtime = client
+  clearSharedNavisionVisibilityReconnectTimer();
+  const generation = ++app.sharedNavisionVisibleRealtimeGeneration;
+  app.sharedNavisionVisibleRealtimeState = 'connecting';
+  const channel = client
     .channel('pdc_navision_visible_revision')
     .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'navision_backend_revision' }, payload => {
+      if (generation !== app.sharedNavisionVisibleRealtimeGeneration || app.sharedNavisionVisibleRealtime !== channel) return;
       const revision = Number(payload?.new?.revision);
       if (!Number.isFinite(revision) || revision !== Number(app.sharedNavisionVisibleRevision)) {
         loadSharedNavisionVisibleRows({ force: true });
       }
-    })
-    .subscribe();
+    });
+  app.sharedNavisionVisibleRealtime = channel;
+  channel.subscribe(status => {
+    if (generation !== app.sharedNavisionVisibleRealtimeGeneration || app.sharedNavisionVisibleRealtime !== channel) return;
+    if (status === 'SUBSCRIBED') {
+      const firstHealthySubscription = app.sharedNavisionVisibleRealtimeState !== 'subscribed';
+      app.sharedNavisionVisibleRealtimeState = 'subscribed';
+      if (firstHealthySubscription) app.sharedNavisionVisibleRealtimeReconciled = false;
+      if (app.sharedNavisionVisibleStableTimer) clearTimeout(app.sharedNavisionVisibleStableTimer);
+      app.sharedNavisionVisibleStableTimer = setTimeout(() => {
+        if (generation === app.sharedNavisionVisibleRealtimeGeneration && app.sharedNavisionVisibleRealtime === channel && app.sharedNavisionVisibleRealtimeState === 'subscribed') {
+          app.sharedNavisionVisibleReconnectAttempt = 0;
+        }
+        app.sharedNavisionVisibleStableTimer = null;
+      }, 10000);
+      renderSharedNavisionVisibilityState();
+      // Close the load-before-subscribe race by reconciling once healthy ownership is proven.
+      if (firstHealthySubscription) loadSharedNavisionVisibleRows({ force: true });
+      return;
+    }
+    if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+      app.sharedNavisionVisibleRealtimeState = 'reconnecting';
+      releaseSharedNavisionVisibilityChannel();
+      renderSharedNavisionVisibilityState();
+      scheduleSharedNavisionVisibilityReconnect();
+    }
+  });
 }
 
 async function loadSharedNavisionVisibleRows(options = {}) {
@@ -11633,16 +11782,18 @@ async function loadSharedNavisionVisibleRows(options = {}) {
   if (app.sharedNavisionVisibleState === 'loading' && !force) return;
   const service = navisionSharedBackendService();
   if (!service || typeof service.visibleSnapshot !== 'function') {
-    app.sharedNavisionVisibleState = 'unavailable';
-    app.sharedNavisionVisibleError = 'Shared Navision visibility is unavailable in this environment.';
-    renderBackEndData();
+    app.sharedNavisionVisibleState = 'idle';
+    app.sharedNavisionVisibleError = '';
     return;
   }
+  subscribeSharedNavisionVisibility();
 
   const generation = ++app.sharedNavisionVisibleGeneration;
+  if (app.sharedNavisionVisibleRealtimeState === 'subscribed') app.sharedNavisionVisibleRealtimeReconciled = false;
   app.sharedNavisionVisibleState = 'loading';
   app.sharedNavisionVisibleError = '';
   renderBackEndData();
+  if (app.currentView === 'dashboard') renderIncomingDashboardBoard();
   try {
     const rows = [];
     let expectedRevision = null;
@@ -11679,14 +11830,191 @@ async function loadSharedNavisionVisibleRows(options = {}) {
     app.sharedNavisionVisibleRows = rows;
     app.sharedNavisionVisibleRevision = expectedRevision;
     app.sharedNavisionVisibleState = 'ready';
-    subscribeSharedNavisionVisibility();
+    app.sharedNavisionVisibleRealtimeReconciled = app.sharedNavisionVisibleRealtimeState === 'subscribed' && Boolean(app.sharedNavisionVisibleRealtime);
   } catch (error) {
     if (generation !== app.sharedNavisionVisibleGeneration) return;
     console.error('Shared Navision visibility load failed', error);
     app.sharedNavisionVisibleState = 'error';
+    app.sharedNavisionVisibleRealtimeReconciled = false;
     app.sharedNavisionVisibleError = error?.message || 'Shared Navision imports could not be loaded.';
   }
   renderBackEndData();
+  if (app.currentView === 'dashboard') renderIncomingDashboardBoard();
+}
+
+function sharedNavisionIdentityToken(value = '') {
+  return cleanNavisionText(value).toUpperCase().replace(/[^A-Z0-9]/g, '');
+}
+
+function sharedNavisionItemIdentityKeys(item = {}) {
+  return [
+    item.stock_number ? `stock:${sharedNavisionIdentityToken(item.stock_number)}` : '',
+    item.toyota_order_number ? `order:${sharedNavisionIdentityToken(item.toyota_order_number)}` : '',
+  ].filter(key => !key.endsWith(':'));
+}
+
+function vehicleSharedNavisionIdentityKeys(vehicle = {}) {
+  const stock = vehicle.stock || vehicle.stockNumber || vehicle.batch || '';
+  const order = vehicle.order || vehicle.toyotaOrder || vehicle.salesOrder || '';
+  const dealer = vehicle.dealer_code || vehicle.dealerCode || vehicle.navisionDealerCode || vehicle.toyotaDealerCode || vehicle.__sharedNavisionDealerCode || '';
+  return [
+    stock ? `stock:${sharedNavisionIdentityToken(stock)}` : '',
+    order ? `order:${sharedNavisionIdentityToken(order)}` : '',
+    dealer ? `dealer:${sharedNavisionIdentityToken(dealer)}` : '',
+  ].filter(key => !key.endsWith(':'));
+}
+
+function sharedNavisionLocationVehicle(item = {}) {
+  return {
+    id: `shared-navision-${item.id || sharedNavisionIdentityToken(item.stock_number || item.toyota_order_number)}`,
+    stock: item.stock_number || '',
+    batch: item.stock_number || '',
+    order: item.toyota_order_number || '',
+    vehicle: [item.model, item.colour].filter(Boolean).join(' · '),
+    toyotaVehicle: item.model || '',
+    colour: item.colour || '',
+    toyotaStatus: item.vehicle_status || '',
+    navisionLocationStatus: item.vehicle_status || '',
+    etaAtDealer: item.eta_to_kewdale || '',
+    navisionKewdaleEta: item.eta_to_kewdale || '',
+    importedAt: item.updated_at || '',
+    source: 'Shared Navision',
+    pdcSheetVisible: true,
+    __sharedNavisionReadOnly: true,
+    __sharedNavisionRecordId: item.id || '',
+    __sharedNavisionDealerCode: item.dealer_code || '',
+  };
+}
+
+function sharedNavisionIdentityPartsFromItem(item = {}) {
+  return {
+    stock: sharedNavisionIdentityToken(item.stock_number || ''),
+    order: sharedNavisionIdentityToken(item.toyota_order_number || ''),
+    dealer: sharedNavisionIdentityToken(item.dealer_code || ''),
+  };
+}
+
+function sharedNavisionIdentityPartsFromVehicle(vehicle = {}) {
+  return {
+    stock: sharedNavisionIdentityToken(vehicle.stock || vehicle.stockNumber || vehicle.batch || ''),
+    order: sharedNavisionIdentityToken(vehicle.order || vehicle.toyotaOrder || vehicle.salesOrder || ''),
+    dealer: sharedNavisionIdentityToken(vehicle.dealer_code || vehicle.dealerCode || vehicle.navisionDealerCode || vehicle.toyotaDealerCode || vehicle.__sharedNavisionDealerCode || ''),
+  };
+}
+
+function sharedNavisionIdentityRelation(vehicle = {}, item = {}) {
+  const local = sharedNavisionIdentityPartsFromVehicle(vehicle);
+  const shared = sharedNavisionIdentityPartsFromItem(item);
+  const stockMatch = Boolean(local.stock && shared.stock && local.stock === shared.stock);
+  const orderMatch = Boolean(local.order && shared.order && local.order === shared.order);
+  const stockConflict = Boolean(local.stock && shared.stock && local.stock !== shared.stock);
+  const orderConflict = Boolean(local.order && shared.order && local.order !== shared.order);
+  const dealerConflict = Boolean(local.dealer && shared.dealer && local.dealer !== shared.dealer);
+  if ((stockMatch || orderMatch) && (stockConflict || orderConflict || dealerConflict)) return 'conflict';
+  if ((stockMatch || orderMatch) && !stockConflict && !orderConflict && !dealerConflict) return 'match';
+  return 'unrelated';
+}
+
+function localLocationIdentitySignature(vehicle = {}) {
+  const keys = vehicleSharedNavisionIdentityKeys(vehicle).sort();
+  return keys.length ? keys.join('|') : `record:${String(vehicle.id || vehicleKey(vehicle) || '')}`;
+}
+
+function deduplicateLocalLocationRows(rows = []) {
+  const bySignature = new Map();
+  (Array.isArray(rows) ? rows : []).forEach(vehicle => {
+    const signature = localLocationIdentitySignature(vehicle);
+    if (!bySignature.has(signature)) {
+      bySignature.set(signature, vehicle);
+      return;
+    }
+    const retained = bySignature.get(signature);
+    bySignature.set(signature, {
+      ...retained,
+      __locationIdentityReadOnly: true,
+      __locationIdentityConflictCount: Number(retained.__locationIdentityConflictCount || 1) + 1,
+    });
+  });
+  return Array.from(bySignature.values());
+}
+
+function activeSharedNavisionRows(rows = app.sharedNavisionVisibleRows) {
+  const seenSignatures = new Set();
+  return (Array.isArray(rows) ? rows : []).filter(item => {
+    if (item?.is_current !== true) return false;
+    const identity = sharedNavisionItemIdentityKeys(item).sort().join('|') || `record:${String(item.id || '')}`;
+    const signature = [
+      `dealer:${sharedNavisionIdentityToken(item.dealer_code || '')}`,
+      identity,
+      `status:${cleanNavisionText(item.vehicle_status || '')}`,
+      `eta:${cleanNavisionText(item.eta_to_kewdale || '')}`,
+      `model:${cleanNavisionText(item.model || '')}`,
+      `colour:${cleanNavisionText(item.colour || '')}`,
+    ].join('|');
+    if (seenSignatures.has(signature)) return false;
+    seenSignatures.add(signature);
+    return true;
+  });
+}
+
+function vehicleLocationBoardRows(localRows = pdcSheetVehicles(), sharedRows = app.sharedNavisionVisibleRows) {
+  const currentShared = activeSharedNavisionRows(sharedRows);
+  const localVehicles = deduplicateLocalLocationRows(localRows);
+  const candidatesByLocal = new Map();
+  const sharedCandidateCounts = new Map();
+
+  localVehicles.forEach(vehicle => {
+    const matches = currentShared.filter(item => sharedNavisionIdentityRelation(vehicle, item) === 'match');
+    candidatesByLocal.set(vehicle, matches);
+    matches.forEach(item => sharedCandidateCounts.set(item, Number(sharedCandidateCounts.get(item) || 0) + 1));
+  });
+
+  const consumedShared = new Set();
+  const mergedLocal = localVehicles.map(vehicle => {
+    const matches = candidatesByLocal.get(vehicle) || [];
+    const hasConflictingIdentity = currentShared.some(item => sharedNavisionIdentityRelation(vehicle, item) === 'conflict');
+    const item = !vehicle.__locationIdentityReadOnly && matches.length === 1 && sharedCandidateCounts.get(matches[0]) === 1 ? matches[0] : null;
+    const identityAmbiguous = Boolean(vehicle.__locationIdentityReadOnly || hasConflictingIdentity || matches.length > 1 || (matches.length === 1 && !item));
+    if (!item) return identityAmbiguous ? { ...vehicle, __locationIdentityReadOnly: true } : vehicle;
+    consumedShared.add(item);
+    const shared = sharedNavisionLocationVehicle(item);
+    return {
+      ...shared,
+      ...vehicle,
+      toyotaStatus: shared.toyotaStatus,
+      navisionLocationStatus: shared.navisionLocationStatus,
+      etaAtDealer: shared.etaAtDealer,
+      navisionKewdaleEta: shared.navisionKewdaleEta,
+      importedAt: shared.importedAt || vehicle.importedAt || '',
+      __sharedNavisionReadOnly: false,
+      __locationIdentityReadOnly: identityAmbiguous,
+      __sharedNavisionRecordId: item.id || '',
+    };
+  });
+  const sharedOnly = currentShared
+    .filter(item => !consumedShared.has(item))
+    .map(sharedNavisionLocationVehicle);
+  const result = mergedLocal.concat(sharedOnly);
+  app.sharedNavisionLocationReadOnlyKeys = new Set(result
+    .filter(vehicle => vehicle.__sharedNavisionReadOnly === true || vehicle.__locationIdentityReadOnly === true)
+    .map(vehicleKey));
+  return result;
+}
+
+function sharedNavisionLocationsStatusHtml() {
+  if (!sharedNavisionVisibilityConfigured()) return '';
+  if (app.sharedNavisionVisibleState === 'idle' && !window.PDC_AUTH_CONTEXT) return '';
+  if (app.sharedNavisionVisibleState === 'loading' || app.sharedNavisionVisibleState === 'idle') {
+    return '<div class="backend-shared-status"><strong>Loading shared Navision vehicles</strong><span>Locations will refresh automatically once shared access is confirmed.</span></div>';
+  }
+  if (app.sharedNavisionVisibleState === 'error' || app.sharedNavisionVisibleState === 'unavailable') {
+    return `<div class="backend-shared-status is-error"><strong>Shared Navision vehicles unavailable</strong><span>${escapeHtml(app.sharedNavisionVisibleError || 'Refresh or sign in again. Local operational vehicles remain visible.')}</span></div>`;
+  }
+  const count = activeSharedNavisionRows().length;
+  const realtimeHealthy = app.sharedNavisionVisibleRealtimeState === 'subscribed' && app.sharedNavisionVisibleRealtimeReconciled === true;
+  return realtimeHealthy
+    ? `<div class="backend-shared-status is-ready"><strong>Shared Navision locations online</strong><span>${count} active Navision vehicle${count === 1 ? '' : 's'} · revision ${escapeHtml(app.sharedNavisionVisibleRevision ?? '—')} · synchronized across signed-in computers</span></div>`
+    : `<div class="backend-shared-status"><strong>Shared Navision locations loaded</strong><span>${count} active Navision vehicle${count === 1 ? '' : 's'} · revision ${escapeHtml(app.sharedNavisionVisibleRevision ?? '—')} · live synchronization reconnecting</span></div>`;
 }
 
 function sharedNavisionBackEndRows() {
@@ -12137,7 +12465,6 @@ function addCustomerFromForm(e) {
     etaAtDealer: (data.etaAtDealer || '').trim(),
     epodReceipt: '',
     jitQty: '',
-    jitaPartsOrdered: data.jitaPartsOrdered || 'Unknown',
     pdcJobcard: (data.pdcJobcard || '').trim(),
     consultant: (data.consultant || '').trim(),
   };
@@ -12358,7 +12685,6 @@ function ensureVehicleForPo(stockOrParsed) {
     etaAtDealer: '',
     epodReceipt: '',
     jitQty: '',
-    jitaPartsOrdered: 'Unknown',
     consultant: parsed.salesperson || '',
     vin: parsed.vin || '',
     poTasks: [],
@@ -13906,11 +14232,18 @@ function navisionToyotaStatus(row, headerMap) {
   return getNavisionValue(row, headerMap, 'Sub Location Description');
 }
 
+function navisionHasColumn(headerMap, columns) {
+  const names = Array.isArray(columns) ? columns : [columns];
+  return names.some(name => headerMap.has(name) || headerMap.has(normalizeNavisionHeader(name)));
+}
+
+function navisionJitaNumber(row, headerMap) {
+  const value = cleanNavisionText(getNavisionValue(row, headerMap, ['JITA Number', 'JITA No.', 'JITA No', 'JITA PreOrder']));
+  return /\d/.test(value) && !/^0+(?:\.0+)?$/.test(value) ? value : '';
+}
+
 function navisionJita(row, headerMap) {
-  const value = getNavisionValue(row, headerMap, 'JITA PreOrder');
-  if (/^yes$/i.test(value) || (/\d/.test(value) && value !== '0')) return 'Yes';
-  if (/^no$/i.test(value)) return 'No';
-  return 'Unknown';
+  return navisionJitaNumber(row, headerMap) ? 'Yes' : 'Unknown';
 }
 
 
@@ -14160,6 +14493,8 @@ function buildNavisionVehicle(row, headerMap, excelRow, options = {}) {
   const navisionEtaDate = getNavisionValue(row, headerMap, 'ETA Date');
   const keyNumber = getNavisionValue(row, headerMap, ['Key Number', 'Key No', 'Key No.', 'Key #', 'Key', 'Key Tag']);
   const navisionEta = scotEtaOnly(navisionKewdaleEta);
+  const navisionJitaNumberColumnPresent = navisionHasColumn(headerMap, ['JITA Number', 'JITA No.', 'JITA No', 'JITA PreOrder']);
+  const importedNavisionJitaNumber = navisionJitaNumber(row, headerMap);
   const workFileMode = options.pmbOnly === true || options.workFile === true;
   const explicitPdcUpdates = workFileMode ? protectPmbFirstLandingFromImport(buildExplicitPdcUpdatesFromImport(row, headerMap), {}) : {};
   const payload = {
@@ -14209,8 +14544,10 @@ function buildNavisionVehicle(row, headerMap, excelRow, options = {}) {
     navisionDealerComments: dealerComments,
     navisionVehicleNote: vehicleNote,
     epodReceipt: getNavisionValue(row, headerMap, 'EPOD Date'),
-    jitQty: '',
+    jitQty: importedNavisionJitaNumber,
     jitaPartsOrdered: navisionJita(row, headerMap),
+    navisionJitaNumberAuthority: navisionJitaNumberColumnPresent ? NAVISION_JITA_NUMBER_AUTHORITY : '',
+    _navisionJitaNumberColumnPresent: navisionJitaNumberColumnPresent,
     wmi,
     vdsNumber,
     frame,
@@ -14487,6 +14824,7 @@ function navisionEditPayload(incoming, existing = {}) {
   // For existing CRM rows, protect manual edits and preparation fields.
   // Navision refreshes only identifiers needed for matching plus Tray, Dealer Comments, JITA and location/status fields.
   const workFileMode = incoming.pdcImportMode === 'work-file';
+  const navisionJitaNumberColumnPresent = incoming._navisionJitaNumberColumnPresent === true;
   const independentlyPromoted = vehicleWasIndependentlyPromoted(existing) || Boolean(existing.pdcLocationLocked || existing.navisionLocationLocked || existing.manualLocation);
   const workFilePromotes = workFileMode && incoming.pdcSheetVisible === true;
   const keepVisible = independentlyPromoted || workFilePromotes;
@@ -14532,8 +14870,11 @@ function navisionEditPayload(incoming, existing = {}) {
     // Allowed Navision refresh fields.
     trayOrdered: workFileMode ? (incoming.trayOrdered === true || existing.trayOrdered === true) : incoming.trayOrdered,
     trayFitmentComplete: workFileMode ? (incoming.trayFitmentComplete === true || existing.trayFitmentComplete === true) : incoming.trayFitmentComplete,
-    jitaPartsOrdered: workFileMode ? (existing.jitaPartsOrdered || 'Unknown') : incoming.jitaPartsOrdered,
-    jitQty: workFileMode ? (existing.jitQty || '') : (incoming.jitQty || ''),
+    jitaPartsOrdered: navisionJitaNumberColumnPresent ? incoming.jitaPartsOrdered : (existing.jitaPartsOrdered || 'Unknown'),
+    jitQty: navisionJitaNumberColumnPresent ? (incoming.jitQty || '') : (existing.jitQty || ''),
+    navisionJitaNumberAuthority: navisionJitaNumberColumnPresent
+      ? NAVISION_JITA_NUMBER_AUTHORITY
+      : (/navision/i.test(String(existing.source || '')) ? (existing.navisionJitaNumberAuthority || '') : ''),
     toyotaStatus: workFileMode ? (existing.toyotaStatus || '') : (incoming.toyotaStatus || ''),
     navisionSubLocationDescription: workFileMode ? (existing.navisionSubLocationDescription || '') : (incoming.navisionSubLocationDescription || ''),
     navisionLocationStatus: workFileMode ? (existing.navisionLocationStatus || '') : (incoming.navisionLocationStatus || ''),
@@ -14548,6 +14889,7 @@ function navisionEditPayload(incoming, existing = {}) {
     navisionCutButVehicle: workFileMode ? Boolean(existing.navisionCutButVehicle) : Boolean(incoming.navisionCutButVehicle),
     navisionCutButVehicleSource: workFileMode ? (existing.navisionCutButVehicleSource || '') : (incoming.navisionCutButVehicleSource || ''),
   };
+  delete payload._navisionJitaNumberColumnPresent;
   if (!workFileMode) {
     const wasOldAutomaticPromotion = /navision pdc work|navision.*location signal/i.test(existing.pdcVisibilitySource || '');
     if (!independentlyPromoted && wasOldAutomaticPromotion) {
@@ -14588,7 +14930,7 @@ function navisionFieldChanges(existing = {}, payload = {}) {
     ['prodMth', 'P/Month'],
     ['etaAtDealer', 'ETA'],
     ['toyotaStatus', 'Toyota Status'],
-    ['jitaPartsOrdered', 'JITA'],
+    ['jitQty', 'JITA Number'],
     ['trayOrdered', 'Tray Fitment Ordered'],
     ['trayFitmentComplete', 'Tray Fitment Complete'],
     ['navisionDealerComments', 'Navision Notes'],
@@ -15522,6 +15864,25 @@ function backupStorageKeyAllowed(key) {
     normalizedKey.startsWith('vehicleTrackingCoreNavisionOnly');
 }
 
+function stripRestoredNavisionJitaAuthority(value, key = '') {
+  if (![ADDED_KEY, EDITS_KEY].includes(key)) return value;
+  try {
+    const parsed = JSON.parse(value);
+    const stripRow = row => {
+      if (!row || typeof row !== 'object') return row;
+      const cleaned = { ...row };
+      ['jitQty', 'navisionJitaNumber', 'navisionJitaNumberAuthority', 'jitaPartsOrdered', '_navisionJitaNumberColumnPresent']
+        .forEach(field => { delete cleaned[field]; });
+      return cleaned;
+    };
+    if (Array.isArray(parsed)) return JSON.stringify(parsed.map(stripRow));
+    if (parsed && typeof parsed === 'object') {
+      return JSON.stringify(Object.fromEntries(Object.entries(parsed).map(([rowKey, row]) => [rowKey, stripRow(row)])));
+    }
+  } catch (_error) { /* malformed restored values fail through normal JSON validation */ }
+  return value;
+}
+
 function normalizedBackupStorage(backup) {
   const storage = backup?.storage && typeof backup.storage === 'object' ? { ...backup.storage } : {};
   if (!storage[ADDED_KEY] && Array.isArray(backup?.vehicles)) {
@@ -15529,7 +15890,10 @@ function normalizedBackupStorage(backup) {
   }
   return Object.fromEntries(Object.entries(storage)
     .filter(([key, value]) => backupStorageKeyAllowed(key) && typeof value === 'string')
-    .map(([key, value]) => [normalizeIncomingBackupKey(key), value]));
+    .map(([key, value]) => {
+      const normalizedKey = normalizeIncomingBackupKey(key);
+      return [normalizedKey, stripRestoredNavisionJitaAuthority(value, normalizedKey)];
+    }));
 }
 
 function restoreCrmBackup(text, fileName = 'backup file') {
@@ -15631,9 +15995,9 @@ function teamNotesText(vehicle) {
 
 function exportCsv() {
   const jobHeaders = PDC_JOB_DEFS.flatMap(def => [`Requires ${def.label}`, `${def.label} Complete`]);
-  const headers = ['SP','Stock','Toyota Order','Key Number','P/Month','Client','Vehicle','PDC Location','PMB Work Stream','SUBLET Provider','PMB Bay','PMB Bay Hours','PMB Bay Scheduled Start','PMB Bay Started','PMB Bay Completed','PMB Requirements','PMB Completed','PMB Outstanding','Blocked','Blocked Reason','Bucket Days','Days Since Kewdale ETA','Parts Status','Parts ETA','Parts Worst ETA','RFT Gate Issues','RFT Date','Navision Notes','Team Notes','Task', ...jobHeaders, 'PO Tasks','PO Files','Toyota Status (Sub Location)','Navision ETA','Delivery Date','JITA Parts Ordered','JITA Qty','Contact','Source','Autocare VIN','Autocare Batch','Autocare Load','Match Warning'];
+  const headers = ['SP','Stock','Toyota Order','Key Number','P/Month','Client','Vehicle','PDC Location','PMB Work Stream','SUBLET Provider','PMB Bay','PMB Bay Hours','PMB Bay Scheduled Start','PMB Bay Started','PMB Bay Completed','PMB Requirements','PMB Completed','PMB Outstanding','Blocked','Blocked Reason','Bucket Days','Days Since Kewdale ETA','Parts Status','Parts ETA','Parts Worst ETA','RFT Gate Issues','RFT Date','Navision Notes','Team Notes','Task', ...jobHeaders, 'PO Tasks','PO Files','Toyota Status (Sub Location)','Navision ETA','Delivery Date','JITA Number','Contact','Source','Autocare VIN','Autocare Batch','Autocare Load','Match Warning'];
   const lines = [headers.join(',')].concat(pdcSheetVehicles().map(v => [
-    salesPersonInitials(consultantName(v)), displayStockNumber(v), v.order || '', vehicleKeyNumber(v), productionMonthLabel(v.prodMth || v.productionMonth || ''), v.client, displayVehicle(v), pdcLocationLabel(v.pdcLocation), pmbStageLabel(inferredPmbStage(v)), pmbBaySubletProvider(v), pmbBayNumber(v, inferredPmbStage(v)) || '', pmbBayHours(v) === '' ? '' : pmbBayHours(v), v.pmbBayScheduledStartAt ? new Date(v.pmbBayScheduledStartAt).toLocaleString('en-AU', { dateStyle: 'short', timeStyle: 'short' }) : '', v.pmbBayEnteredAt ? new Date(v.pmbBayEnteredAt).toLocaleString('en-AU', { dateStyle: 'short', timeStyle: 'short' }) : '', v.pmbBayCompletedAt ? new Date(v.pmbBayCompletedAt).toLocaleString('en-AU', { dateStyle: 'short', timeStyle: 'short' }) : '', pmbRequirementText(v), pdcCompletedJobsText(v), pdcOutstandingJobsText(v), isPdcBlocked(v) ? 'Yes' : 'No', pdcBlockReason(v), pmbStageAgeDays(v) === null ? '' : pmbStageAgeDays(v), pmbAgeDays(v) === null ? '' : pmbAgeDays(v), partsDepartmentStatusLabel(partsDepartmentStatus(v)), kewdaleEtaValue(v), partsWorstEtaLabel(v), vehicleRftGateIssues(v).join('; '), v.rftTransferredAt ? new Date(v.rftTransferredAt).toLocaleString('en-AU', { dateStyle: 'short', timeStyle: 'short' }) : '', navisionDealerNoteText(v), teamNotesText(v), v.internalStatus || '', ...PDC_JOB_DEFS.flatMap(def => [pdcJobRequired(v, def) ? 'Yes' : 'No', pdcJobComplete(v, def) ? 'Yes' : 'No']), (v.poTasks || []).join('; '), (v.poFiles || []).join('; '), v.toyotaStatus || '', scotEtaOnly(v.etaAtDealer), v.deliveryDate || '', jitaDisplay(v), v.jitQty || '', v.contact || '', v.source || '', v.autocareVin || '', v.autocareBatch || '', v.autocareLoadNumber || '', isCustomerMatch(v) ? '' : 'Customer mismatch'
+    salesPersonInitials(consultantName(v)), displayStockNumber(v), v.order || '', vehicleKeyNumber(v), productionMonthLabel(v.prodMth || v.productionMonth || ''), v.client, displayVehicle(v), pdcLocationLabel(v.pdcLocation), pmbStageLabel(inferredPmbStage(v)), pmbBaySubletProvider(v), pmbBayNumber(v, inferredPmbStage(v)) || '', pmbBayHours(v) === '' ? '' : pmbBayHours(v), v.pmbBayScheduledStartAt ? new Date(v.pmbBayScheduledStartAt).toLocaleString('en-AU', { dateStyle: 'short', timeStyle: 'short' }) : '', v.pmbBayEnteredAt ? new Date(v.pmbBayEnteredAt).toLocaleString('en-AU', { dateStyle: 'short', timeStyle: 'short' }) : '', v.pmbBayCompletedAt ? new Date(v.pmbBayCompletedAt).toLocaleString('en-AU', { dateStyle: 'short', timeStyle: 'short' }) : '', pmbRequirementText(v), pdcCompletedJobsText(v), pdcOutstandingJobsText(v), isPdcBlocked(v) ? 'Yes' : 'No', pdcBlockReason(v), pmbStageAgeDays(v) === null ? '' : pmbStageAgeDays(v), pmbAgeDays(v) === null ? '' : pmbAgeDays(v), partsDepartmentStatusLabel(partsDepartmentStatus(v)), kewdaleEtaValue(v), partsWorstEtaLabel(v), vehicleRftGateIssues(v).join('; '), v.rftTransferredAt ? new Date(v.rftTransferredAt).toLocaleString('en-AU', { dateStyle: 'short', timeStyle: 'short' }) : '', navisionDealerNoteText(v), teamNotesText(v), v.internalStatus || '', ...PDC_JOB_DEFS.flatMap(def => [pdcJobRequired(v, def) ? 'Yes' : 'No', pdcJobComplete(v, def) ? 'Yes' : 'No']), (v.poTasks || []).join('; '), (v.poFiles || []).join('; '), v.toyotaStatus || '', scotEtaOnly(v.etaAtDealer), v.deliveryDate || '', jitaDisplay(v), v.contact || '', v.source || '', v.autocareVin || '', v.autocareBatch || '', v.autocareLoadNumber || '', isCustomerMatch(v) ? '' : 'Customer mismatch'
   ].map(csvEscape).join(',')));
   const blob = new Blob([lines.join('\n')], { type: 'text/csv' });
   const url = URL.createObjectURL(blob);
@@ -16145,7 +16509,7 @@ function parseAiAssistantPartsUpdate(text = '', sourceFilename = '') {
   const action = /\breceived\b|\bissued\b|\bcomplete\b/.test(squashed)
     ? 'complete'
     : (/\bstoppage\b|back\s*order|awaiting|\beta\b/.test(squashed) ? 'stoppage' : 'note');
-  const warning = action === 'note' ? 'No clear complete/stoppage action was detected; review before applying.' : '';
+  const warning = action === 'note' ? 'No clear complete/STOPPAGE action was detected; review before applying.' : '';
   return {
     id: aiFileAssistantReviewId('ai-parts'),
     intakeId: aiFileAssistantReviewId('ai-parts-intake'),
@@ -16157,10 +16521,10 @@ function parseAiAssistantPartsUpdate(text = '', sourceFilename = '') {
     action,
     eta: cleanNavisionText(rawEta),
     notes,
-    reason: action === 'stoppage' ? cleanNavisionText(notes || 'Parts stoppage from uploaded file') : '',
+    reason: action === 'stoppage' ? cleanNavisionText(notes || 'Parts STOPPAGE from uploaded file') : '',
     sourceFiles: [cleanNavisionText(sourceFilename)].filter(Boolean),
     sourceType: 'Parts update text file',
-    analysisSummary: `Detected Parts ${action === 'complete' ? 'completion' : action === 'stoppage' ? 'stoppage' : 'note'} for stock ${stock}`,
+    analysisSummary: `Detected Parts ${action === 'complete' ? 'completion' : action === 'stoppage' ? 'STOPPAGE' : 'note'} for stock ${stock}`,
     analysisConfidence: action === 'note' ? 'low' : 'medium',
     analysisWarnings: warning ? [warning] : [],
   };
@@ -16295,14 +16659,14 @@ function vehicleForEmailReview(review = {}) {
 
 function emailReviewActionLabel(review = {}) {
   if (review.type === 'vehicle-import') return 'Review vehicle, labour and workshop categories';
-  return review.action === 'complete' ? 'Mark Parts complete' : review.action === 'stoppage' ? 'Record Parts stoppage' : 'Add Parts note';
+  return review.action === 'complete' ? 'Mark Parts complete' : review.action === 'stoppage' ? 'Record Parts STOPPAGE' : 'Add Parts note';
 }
 
 function emailReviewApplyUpdates(vehicle = {}, review = {}) {
   const operator = getCurrentOperatorName();
   const now = nowIsoString();
   const notes = cleanNavisionText(review.notes || '');
-  const reason = cleanNavisionText(review.reason || notes || 'Parts stoppage received by email');
+  const reason = cleanNavisionText(review.reason || notes || 'Parts STOPPAGE received by email');
   const existingNotes = Array.isArray(vehicle.pdcPartsEmailNotes) ? vehicle.pdcPartsEmailNotes : [];
   const updates = {
     pdcRequiresParts: true,
@@ -16333,7 +16697,6 @@ function emailReviewApplyUpdates(vehicle = {}, review = {}) {
       pdcPartsStoppageBy: operator,
       pdcPartsWorstEta: cleanNavisionText(review.eta || vehicle.pdcPartsWorstEta || ''),
     });
-    if (def) updates[def.completeKey] = false;
   }
   return updates;
 }
@@ -16489,7 +16852,7 @@ function applyEmailReview(id = '') {
   renderAll();
   const freshVehicle = selectedVehicle(vehicleKey(vehicle)) || vehicle;
   offerSalespersonChangeEmail(freshVehicle, {
-    title: review.action === 'complete' ? 'Parts completed from reviewed email' : review.action === 'stoppage' ? 'Parts stoppage from reviewed email' : 'Parts note received',
+    title: review.action === 'complete' ? 'Parts completed from reviewed email' : review.action === 'stoppage' ? 'Parts STOPPAGE from reviewed email' : 'Parts note received',
     subject: 'PDC Parts email update',
     details: [review.reason && `Reason: ${review.reason}`, review.notes && `Notes: ${review.notes}`, review.eta && `Parts ETA: ${review.eta}`].filter(Boolean),
   });
