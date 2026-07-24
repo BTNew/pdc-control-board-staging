@@ -1,5 +1,5 @@
-const APP_VERSION = '2026.07.24.21-shared-navision-identity-realtime';
-const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.07.24.21-shared-navision-identity-realtime';
+const APP_VERSION = '2026.07.24.22-shared-navision-fail-closed';
+const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.07.24.22-shared-navision-fail-closed';
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
 // constant intentionally names only the production ref, never the
@@ -1894,6 +1894,9 @@ const app = {
   sharedNavisionVisibleRealtimeState: 'idle',
   sharedNavisionVisibleReconnectAttempt: 0,
   sharedNavisionVisibleReconnectTimer: null,
+  sharedNavisionVisibleStableTimer: null,
+  sharedNavisionVisibleRealtimeReconciled: false,
+  sharedNavisionLocationReadOnlyKeys: new Set(),
 };
 
 
@@ -3956,6 +3959,8 @@ window.addEventListener?.('pdc-auth-locked', () => {
   releaseSharedNavisionVisibilityChannel();
   app.sharedNavisionVisibleRealtimeState = 'idle';
   app.sharedNavisionVisibleReconnectAttempt = 0;
+  app.sharedNavisionLocationReadOnlyKeys = new Set();
+  app.selectedRows.clear();
   app.sharedNavisionVisibleRows = [];
   app.sharedNavisionVisibleRevision = null;
   app.sharedNavisionVisibleError = '';
@@ -5281,7 +5286,8 @@ function incomingVehicleDetailRow(vehicle = {}, bucketKey = '', options = {}) {
   const key = vehicleKey(vehicle);
   const sharedReadOnly = vehicle.__sharedNavisionReadOnly === true;
   const identityReadOnly = vehicle.__locationIdentityReadOnly === true;
-  const locationReadOnly = sharedReadOnly || identityReadOnly;
+  const authorityPending = !sharedNavisionLocationAuthorityReady();
+  const locationReadOnly = sharedReadOnly || identityReadOnly || authorityPending;
   const eta = locationAgeLabel(vehicle);
   const stock = displayStockNumber(vehicle) || vehicleKey(vehicle) || 'No stock';
   const unit = displayVehicle(vehicle) || 'Vehicle not listed';
@@ -5300,7 +5306,7 @@ function incomingVehicleDetailRow(vehicle = {}, bucketKey = '', options = {}) {
     : '';
   const gateIssues = bucketKey === 'pmb' ? vehiclesWithRftGateIssues([vehicle]).flatMap(row => row.issues || []) : [];
   const primaryAction = locationReadOnly
-    ? `<span class="badge neutral">${identityReadOnly ? 'Identity conflict · Read only' : 'Shared Navision · Read only'}</span>`
+    ? `<span class="badge neutral">${identityReadOnly ? 'Identity conflict · Read only' : sharedReadOnly ? 'Shared Navision · Read only' : 'Shared sync pending · Read only'}</span>`
     : bucketKey === 'yardhold'
     ? `<button class="primary incoming-transfer-pmb" type="button" data-yh-transfer-pmb="${escapeHtml(key)}" title="Transfer Yard Hold vehicle to PMB">To PMB</button><button class="small-button incoming-open-button" type="button" data-open-stock="${escapeHtml(key)}">Open</button>`
     : bucketKey === 'pmb'
@@ -5346,6 +5352,10 @@ function renderIncomingDashboardBoard() {
   const host = $('#incoming-main-board');
   if (!host) return;
   const rows = vehicleLocationBoardRows().filter(vehicle => incomingBucketForVehicle(vehicle) && !vehicleCollectedFromRft(vehicle));
+  if (!sharedNavisionLocationAuthorityReady()) app.selectedRows.clear();
+  else [...app.selectedRows].forEach(key => {
+    if (app.sharedNavisionLocationReadOnlyKeys?.has(key)) app.selectedRows.delete(key);
+  });
   updateIncomingDashboardFilterOptions(rows);
   const filters = incomingDashboardFilterValues();
   updateIncomingMoreFiltersState(filters);
@@ -8362,6 +8372,14 @@ function refreshAfterVehicleRemoval() {
 
 function selectedVehiclesForBulkEmail() {
   if (!app.selectedRows || !app.selectedRows.size) return [];
+  if (!sharedNavisionLocationAuthorityReady()) {
+    app.selectedRows.clear();
+    return [];
+  }
+  vehicleLocationBoardRows();
+  [...app.selectedRows].forEach(key => {
+    if (app.sharedNavisionLocationReadOnlyKeys?.has(key)) app.selectedRows.delete(key);
+  });
   return [...app.selectedRows]
     .map(key => app.data.find(vehicle => vehicleKey(vehicle) === key || vehicle.stock === key || vehicle.order === key || vehicle.id === key))
     .filter(Boolean);
@@ -9693,6 +9711,14 @@ function saveVehicleEdits(key, updates, options = {}) {
   const vehicle = selectedVehicle(key);
   if (!vehicle) return false;
   const editKey = vehicleKey(vehicle);
+  if (!sharedNavisionLocationAuthorityReady()) {
+    console.warn('Vehicle edit blocked while shared Navision identity authority is not reconciled.', { editKey });
+    return false;
+  }
+  if (app.sharedNavisionLocationReadOnlyKeys?.has(editKey)) {
+    console.warn('Vehicle edit blocked because the Locations identity is read-only.', { editKey });
+    return false;
+  }
   const nextUpdates = { ...updates };
   const protectedNavisionAuthorityFields = [
     'jitQty',
@@ -11641,18 +11667,29 @@ function sharedNavisionVisibilityConfigured() {
   return Boolean(service && typeof service.visibleSnapshot === 'function');
 }
 
+function sharedNavisionLocationAuthorityReady() {
+  if (!sharedNavisionVisibilityConfigured()) return true;
+  return app.sharedNavisionVisibleState === 'ready' &&
+    app.sharedNavisionVisibleRealtimeState === 'subscribed' &&
+    app.sharedNavisionVisibleRealtimeReconciled === true;
+}
+
 function renderSharedNavisionVisibilityState() {
   renderBackEndData();
   if (app.currentView === 'dashboard') renderIncomingDashboardBoard();
 }
 
 function clearSharedNavisionVisibilityReconnectTimer() {
-  if (!app.sharedNavisionVisibleReconnectTimer) return;
-  clearTimeout(app.sharedNavisionVisibleReconnectTimer);
+  if (app.sharedNavisionVisibleReconnectTimer) clearTimeout(app.sharedNavisionVisibleReconnectTimer);
   app.sharedNavisionVisibleReconnectTimer = null;
+  if (app.sharedNavisionVisibleStableTimer) clearTimeout(app.sharedNavisionVisibleStableTimer);
+  app.sharedNavisionVisibleStableTimer = null;
 }
 
 function releaseSharedNavisionVisibilityChannel() {
+  if (app.sharedNavisionVisibleStableTimer) clearTimeout(app.sharedNavisionVisibleStableTimer);
+  app.sharedNavisionVisibleStableTimer = null;
+  app.sharedNavisionVisibleRealtimeReconciled = false;
   const channel = app.sharedNavisionVisibleRealtime;
   app.sharedNavisionVisibleRealtime = null;
   app.sharedNavisionVisibleRealtimeGeneration += 1;
@@ -11698,7 +11735,14 @@ function subscribeSharedNavisionVisibility() {
     if (status === 'SUBSCRIBED') {
       const firstHealthySubscription = app.sharedNavisionVisibleRealtimeState !== 'subscribed';
       app.sharedNavisionVisibleRealtimeState = 'subscribed';
-      app.sharedNavisionVisibleReconnectAttempt = 0;
+      if (firstHealthySubscription) app.sharedNavisionVisibleRealtimeReconciled = false;
+      if (app.sharedNavisionVisibleStableTimer) clearTimeout(app.sharedNavisionVisibleStableTimer);
+      app.sharedNavisionVisibleStableTimer = setTimeout(() => {
+        if (generation === app.sharedNavisionVisibleRealtimeGeneration && app.sharedNavisionVisibleRealtime === channel && app.sharedNavisionVisibleRealtimeState === 'subscribed') {
+          app.sharedNavisionVisibleReconnectAttempt = 0;
+        }
+        app.sharedNavisionVisibleStableTimer = null;
+      }, 10000);
       renderSharedNavisionVisibilityState();
       // Close the load-before-subscribe race by reconciling once healthy ownership is proven.
       if (firstHealthySubscription) loadSharedNavisionVisibleRows({ force: true });
@@ -11725,6 +11769,7 @@ async function loadSharedNavisionVisibleRows(options = {}) {
   subscribeSharedNavisionVisibility();
 
   const generation = ++app.sharedNavisionVisibleGeneration;
+  if (app.sharedNavisionVisibleRealtimeState === 'subscribed') app.sharedNavisionVisibleRealtimeReconciled = false;
   app.sharedNavisionVisibleState = 'loading';
   app.sharedNavisionVisibleError = '';
   renderBackEndData();
@@ -11765,10 +11810,12 @@ async function loadSharedNavisionVisibleRows(options = {}) {
     app.sharedNavisionVisibleRows = rows;
     app.sharedNavisionVisibleRevision = expectedRevision;
     app.sharedNavisionVisibleState = 'ready';
+    app.sharedNavisionVisibleRealtimeReconciled = app.sharedNavisionVisibleRealtimeState === 'subscribed' && Boolean(app.sharedNavisionVisibleRealtime);
   } catch (error) {
     if (generation !== app.sharedNavisionVisibleGeneration) return;
     console.error('Shared Navision visibility load failed', error);
     app.sharedNavisionVisibleState = 'error';
+    app.sharedNavisionVisibleRealtimeReconciled = false;
     app.sharedNavisionVisibleError = error?.message || 'Shared Navision imports could not be loaded.';
   }
   renderBackEndData();
@@ -11901,7 +11948,7 @@ function vehicleLocationBoardRows(localRows = pdcSheetVehicles(), sharedRows = a
   const mergedLocal = localVehicles.map(vehicle => {
     const matches = candidatesByLocal.get(vehicle) || [];
     const hasConflictingIdentity = currentShared.some(item => sharedNavisionIdentityRelation(vehicle, item) === 'conflict');
-    const item = matches.length === 1 && sharedCandidateCounts.get(matches[0]) === 1 ? matches[0] : null;
+    const item = !vehicle.__locationIdentityReadOnly && matches.length === 1 && sharedCandidateCounts.get(matches[0]) === 1 ? matches[0] : null;
     const identityAmbiguous = Boolean(vehicle.__locationIdentityReadOnly || hasConflictingIdentity || matches.length > 1 || (matches.length === 1 && !item));
     if (!item) return identityAmbiguous ? { ...vehicle, __locationIdentityReadOnly: true } : vehicle;
     consumedShared.add(item);
@@ -11922,7 +11969,11 @@ function vehicleLocationBoardRows(localRows = pdcSheetVehicles(), sharedRows = a
   const sharedOnly = currentShared
     .filter(item => !consumedShared.has(item))
     .map(sharedNavisionLocationVehicle);
-  return mergedLocal.concat(sharedOnly);
+  const result = mergedLocal.concat(sharedOnly);
+  app.sharedNavisionLocationReadOnlyKeys = new Set(result
+    .filter(vehicle => vehicle.__sharedNavisionReadOnly === true || vehicle.__locationIdentityReadOnly === true)
+    .map(vehicleKey));
+  return result;
 }
 
 function sharedNavisionLocationsStatusHtml() {
@@ -11935,7 +11986,7 @@ function sharedNavisionLocationsStatusHtml() {
     return `<div class="backend-shared-status is-error"><strong>Shared Navision vehicles unavailable</strong><span>${escapeHtml(app.sharedNavisionVisibleError || 'Refresh or sign in again. Local operational vehicles remain visible.')}</span></div>`;
   }
   const count = activeSharedNavisionRows().length;
-  const realtimeHealthy = app.sharedNavisionVisibleRealtimeState === 'subscribed';
+  const realtimeHealthy = app.sharedNavisionVisibleRealtimeState === 'subscribed' && app.sharedNavisionVisibleRealtimeReconciled === true;
   return realtimeHealthy
     ? `<div class="backend-shared-status is-ready"><strong>Shared Navision locations online</strong><span>${count} active Navision vehicle${count === 1 ? '' : 's'} · revision ${escapeHtml(app.sharedNavisionVisibleRevision ?? '—')} · synchronized across signed-in computers</span></div>`
     : `<div class="backend-shared-status"><strong>Shared Navision locations loaded</strong><span>${count} active Navision vehicle${count === 1 ? '' : 's'} · revision ${escapeHtml(app.sharedNavisionVisibleRevision ?? '—')} · live synchronization reconnecting</span></div>`;
@@ -15788,6 +15839,25 @@ function backupStorageKeyAllowed(key) {
     normalizedKey.startsWith('vehicleTrackingCoreNavisionOnly');
 }
 
+function stripRestoredNavisionJitaAuthority(value, key = '') {
+  if (![ADDED_KEY, EDITS_KEY].includes(key)) return value;
+  try {
+    const parsed = JSON.parse(value);
+    const stripRow = row => {
+      if (!row || typeof row !== 'object') return row;
+      const cleaned = { ...row };
+      ['jitQty', 'navisionJitaNumber', 'navisionJitaNumberAuthority', 'jitaPartsOrdered', '_navisionJitaNumberColumnPresent']
+        .forEach(field => { delete cleaned[field]; });
+      return cleaned;
+    };
+    if (Array.isArray(parsed)) return JSON.stringify(parsed.map(stripRow));
+    if (parsed && typeof parsed === 'object') {
+      return JSON.stringify(Object.fromEntries(Object.entries(parsed).map(([rowKey, row]) => [rowKey, stripRow(row)])));
+    }
+  } catch (_error) { /* malformed restored values fail through normal JSON validation */ }
+  return value;
+}
+
 function normalizedBackupStorage(backup) {
   const storage = backup?.storage && typeof backup.storage === 'object' ? { ...backup.storage } : {};
   if (!storage[ADDED_KEY] && Array.isArray(backup?.vehicles)) {
@@ -15795,7 +15865,10 @@ function normalizedBackupStorage(backup) {
   }
   return Object.fromEntries(Object.entries(storage)
     .filter(([key, value]) => backupStorageKeyAllowed(key) && typeof value === 'string')
-    .map(([key, value]) => [normalizeIncomingBackupKey(key), value]));
+    .map(([key, value]) => {
+      const normalizedKey = normalizeIncomingBackupKey(key);
+      return [normalizedKey, stripRestoredNavisionJitaAuthority(value, normalizedKey)];
+    }));
 }
 
 function restoreCrmBackup(text, fileName = 'backup file') {

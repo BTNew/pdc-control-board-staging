@@ -68,6 +68,14 @@ code += String.raw`
   assert(jitaIndicator(authoritativeJitaVehicle).includes('Navision JITA number JITA-77881'), 'The main-table tick must expose the authoritative Navision JITA number');
   assert(sortValue({ jitaPartsOrdered: 'Yes' }, 'jita') === 'Unknown', 'JITA sorting must ignore stale local booleans');
   assert(sortValue(authoritativeJitaVehicle, 'jita') === 'Yes', 'JITA sorting must use only a provenance-bound imported Navision number');
+  const restoredAuthority = normalizedBackupStorage({ storage: {
+    [EDITS_KEY]: JSON.stringify({ '12345678': { comments: 'keep', source: 'Navision', jitQty: 'JITA-FORGED-RESTORE', navisionJitaNumber: 'JITA-FORGED-RESTORE', navisionJitaNumberAuthority: NAVISION_JITA_NUMBER_AUTHORITY, jitaPartsOrdered: 'Yes' } }),
+    [ADDED_KEY]: JSON.stringify([{ id: 'restored-added', source: 'Navision', jitQty: 'JITA-FORGED-ADDED', navisionJitaNumberAuthority: NAVISION_JITA_NUMBER_AUTHORITY }]),
+  } });
+  const restoredEditRow = JSON.parse(restoredAuthority[EDITS_KEY])['12345678'];
+  const restoredAddedRow = JSON.parse(restoredAuthority[ADDED_KEY])[0];
+  assert(restoredEditRow.comments === 'keep' && restoredEditRow.jitQty === undefined && restoredEditRow.navisionJitaNumberAuthority === undefined, 'Backup restore must preserve ordinary edits while stripping forged JITA authority from persisted edits');
+  assert(restoredAddedRow.jitQty === undefined && restoredAddedRow.navisionJitaNumberAuthority === undefined, 'Backup restore must strip forged JITA authority from restored added vehicles');
 
   // Selected-only apply should skip unselected existing updates but still add new vehicles.
   localStorage.clear();
@@ -176,8 +184,9 @@ code += String.raw`
     ],
     [{ id: 'dup-shared', dealer_code: '14450', stock_number: 'ABC1', toyota_order_number: 'ORD1', vehicle_status: 'In Transit to WA', eta_to_kewdale: '01/08/2026', is_current: true }],
   );
-  assert(duplicateLocalRows.length === 1 && duplicateLocalRows[0].toyotaStatus === 'In Transit to WA', 'Normalized duplicate operational identities must count once and use the unambiguous shared status');
-  assert(duplicateLocalRows[0].__locationIdentityReadOnly === true, 'A collapsed duplicate operational identity must stay read-only until its local conflict is reviewed');
+  assert(duplicateLocalRows.length === 2, 'Normalized duplicate operational identities must collapse to one local review row while retaining the unconsumed shared row for separate review');
+  assert(duplicateLocalRows[0].toyotaStatus === 'STALE-A' && duplicateLocalRows[0].__locationIdentityReadOnly === true, 'A normalized local identity collision must not receive a shared overlay and must stay read-only');
+  assert(duplicateLocalRows[1].__sharedNavisionReadOnly === true && duplicateLocalRows[1].toyotaStatus === 'In Transit to WA', 'The unconsumed shared identity must remain separately visible and read-only');
   const duplicateLocalHtml = incomingVehicleDetailRow(duplicateLocalRows[0], incomingBucketForVehicle(duplicateLocalRows[0]), { draggable: true, showDelete: true });
   for (const forbiddenAction of ['draggable="true"', 'data-open-stock=', 'data-label-vehicle=', 'data-select-stock=', 'data-incoming-delete=']) {
     assert(!duplicateLocalHtml.includes(forbiddenAction), 'Identity-conflict rows must not expose browser-local action ' + forbiddenAction);
@@ -188,6 +197,15 @@ code += String.raw`
     [{ id: 'partial-shared', dealer_code: '14450', stock_number: 'STOCK-1', toyota_order_number: 'OTHER-ORDER', vehicle_status: 'Vehicle Yard Hold', is_current: true }],
   );
   assert(partialConflictRows.length === 2 && partialConflictRows[0].toyotaStatus === 'LOCAL-STATUS' && partialConflictRows[0].__locationIdentityReadOnly === true, 'One matching identifier plus one conflicting identifier must fail closed without overlay');
+
+  const liveConflictVehicle = app.data[0];
+  app.sharedNavisionVisibleRows = [{ id: 'live-conflict', dealer_code: '14450', stock_number: liveConflictVehicle.stock, toyota_order_number: 'CONFLICTING-ORDER', vehicle_status: 'Vehicle Yard Hold', is_current: true }];
+  vehicleLocationBoardRows();
+  app.selectedRows.add(vehicleKey(liveConflictVehicle));
+  assert(selectedVehiclesForBulkEmail().length === 0 && app.selectedRows.size === 0, 'A previously selected row must be removed from bulk authority as soon as its shared identity becomes conflicted');
+  assert(saveVehicleEdits(vehicleKey(liveConflictVehicle), { comments: 'must-not-write' }, { render: false }) === false, 'Generic mutation paths must reject a vehicle whose derived shared identity is read-only');
+  app.sharedNavisionVisibleRows = [];
+  app.sharedNavisionLocationReadOnlyKeys = new Set();
 
   const reusedSharedRows = vehicleLocationBoardRows(
     [
@@ -229,15 +247,27 @@ code += String.raw`
   };
   app.sharedNavisionVisibleRealtime = null;
   app.sharedNavisionVisibleRealtimeState = 'idle';
+  app.sharedNavisionVisibleState = 'loading';
+  const pendingAuthorityHtml = incomingVehicleDetailRow(app.data[0], incomingBucketForVehicle(app.data[0]), { draggable: true, showDelete: true });
+  for (const forbiddenAction of ['draggable="true"', 'data-open-stock=', 'data-label-vehicle=', 'data-select-stock=', 'data-incoming-delete=']) {
+    assert(!pendingAuthorityHtml.includes(forbiddenAction), 'Local Locations actions must fail closed while shared identity authority is loading: ' + forbiddenAction);
+  }
+  assert(pendingAuthorityHtml.includes('Shared sync pending · Read only'), 'Rows must visibly explain their read-only state while shared identity authority is loading');
   subscribeSharedNavisionVisibility();
   assert(typeof realtimeStatus === 'function' && typeof realtimeChange === 'function' && app.sharedNavisionVisibleRealtimeState === 'connecting', 'Shared Navision Realtime must retain lifecycle and revision callbacks while connecting');
   realtimeStatus('SUBSCRIBED');
   assert(app.sharedNavisionVisibleRealtimeState === 'subscribed' && snapshotCalls > 0, 'A healthy Realtime subscription must trigger post-subscribe snapshot reconciliation');
+  assert(app.sharedNavisionVisibleRealtimeReconciled === false && !sharedNavisionLocationsStatusHtml().includes('synchronized across signed-in computers'), 'Realtime subscription alone must not claim synchronization before the reconciliation snapshot resolves');
   realtimeStatus('CHANNEL_ERROR');
-  assert(app.sharedNavisionVisibleRealtime === null && app.sharedNavisionVisibleRealtimeState === 'reconnecting' && realtimeRemoved === 1 && app.sharedNavisionVisibleReconnectTimer, 'A Realtime channel failure must release ownership and schedule bounded reconnection');
+  assert(app.sharedNavisionVisibleRealtime === null && app.sharedNavisionVisibleRealtimeState === 'reconnecting' && realtimeRemoved === 1 && app.sharedNavisionVisibleReconnectTimer && app.sharedNavisionVisibleReconnectTimer._idleTimeout === 1000, 'A Realtime channel failure must release ownership and schedule the first bounded reconnection');
   const generationAfterFailure = app.sharedNavisionVisibleRealtimeGeneration;
   realtimeStatus('SUBSCRIBED');
   assert(app.sharedNavisionVisibleRealtimeGeneration === generationAfterFailure && app.sharedNavisionVisibleRealtimeState === 'reconnecting', 'A stale channel callback must remain inert after ownership is released');
+  clearSharedNavisionVisibilityReconnectTimer();
+  subscribeSharedNavisionVisibility();
+  realtimeStatus('SUBSCRIBED');
+  realtimeStatus('CLOSED');
+  assert(app.sharedNavisionVisibleReconnectTimer && app.sharedNavisionVisibleReconnectTimer._idleTimeout === 2000, 'A short-lived SUBSCRIBED/CLOSED flap must increase backoff instead of resetting to a one-second hot loop');
   clearSharedNavisionVisibilityReconnectTimer();
   app.sharedNavisionVisibleGeneration += 1;
   releaseSharedNavisionVisibilityChannel();
