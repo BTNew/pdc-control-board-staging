@@ -122,6 +122,40 @@ code += String.raw`
   assert(parsedUnicodePaste.vehicles.length === 1, 'Unicode EN SPACE separated Navision paste should import');
   assert(parsedUnicodePaste.vehicles[0].stock === '13056889' && parsedUnicodePaste.vehicles[0].order === '250038414', 'Unicode Navision paste should preserve Order and Batch columns');
 
+  const locationRows = vehicleLocationBoardRows(
+    [
+      { id: 'local-match', stock: '10010010', order: 'ORD-MATCH', source: 'Manual', pdcSheetVisible: true, toyotaStatus: 'Old local status', pdcPartsStoppage: true },
+      { id: 'local-only', stock: '10010011', source: 'Manual', pdcSheetVisible: true, toyotaStatus: 'Vehicle Yard Hold' },
+    ],
+    [
+      { id: 'shared-match', stock_number: '10010010', toyota_order_number: 'ORD-MATCH', model: 'HiLux', colour: 'White', vehicle_status: 'In Transit to WA', eta_to_kewdale: '31/07/2026', is_current: true },
+      { id: 'shared-only', stock_number: '10010012', toyota_order_number: 'ORD-SHARED', model: 'Prado', colour: 'Silver', vehicle_status: 'Planned for Production', eta_to_kewdale: '02/08/2026', is_current: true },
+      { id: 'shared-duplicate', stock_number: '10010012', toyota_order_number: 'ORD-SHARED', model: 'Prado duplicate dealer row', vehicle_status: 'Planned for Production', is_current: true },
+      { id: 'shared-old', stock_number: '10010013', vehicle_status: 'Planned for Production', is_current: false },
+    ],
+  );
+  assert(locationRows.length === 3, 'Locations must combine local operational rows with every current shared Navision row, deduplicate matches and exclude rows missing from the latest upload');
+  const matchedLocation = locationRows.find(vehicle => vehicle.stock === '10010010');
+  assert(matchedLocation.toyotaStatus === 'In Transit to WA' && matchedLocation.etaAtDealer === '31/07/2026', 'Current shared Navision status and ETA must override stale browser-local Navision display fields');
+  assert(matchedLocation.pdcPartsStoppage === true && matchedLocation.__sharedNavisionReadOnly === false, 'A matched operational vehicle must preserve local workflow fields and controls');
+  const sharedOnlyLocation = locationRows.find(vehicle => vehicle.stock === '10010012');
+  assert(sharedOnlyLocation && sharedOnlyLocation.__sharedNavisionReadOnly === true, 'A current Navision-only vehicle must appear in Locations as read-only');
+  const sharedOnlyHtml = incomingVehicleDetailRow(sharedOnlyLocation, incomingBucketForVehicle(sharedOnlyLocation));
+  assert(sharedOnlyHtml.includes('Shared Navision · Read only'), 'Navision-only Locations rows must be visibly read-only');
+  for (const forbiddenAction of ['data-open-stock=', 'data-yh-transfer-pmb=', 'data-transfer-rft-stock=', 'data-rft-collected-key=', 'data-label-vehicle=', 'data-select-stock=']) {
+    assert(!sharedOnlyHtml.includes(forbiddenAction), 'Navision-only Locations row must not expose browser-local action ' + forbiddenAction);
+  }
+
+  const ambiguousLocationRows = vehicleLocationBoardRows(
+    [{ id: 'local-ambiguous', stock: 'STOCK-A', order: 'ORDER-B', toyotaStatus: 'Local review required' }],
+    [
+      { id: 'shared-a', stock_number: 'STOCK-A', toyota_order_number: 'ORDER-A', vehicle_status: 'Vehicle Yard Hold', is_current: true },
+      { id: 'shared-b', stock_number: 'STOCK-B', toyota_order_number: 'ORDER-B', vehicle_status: 'In Transit to WA', is_current: true },
+    ],
+  );
+  assert(ambiguousLocationRows.length === 3 && ambiguousLocationRows[0].toyotaStatus === 'Local review required' && ambiguousLocationRows[0].__sharedNavisionReadOnly !== false, 'Conflicting stock/order matches must fail closed without overlaying either shared record onto the local operational vehicle');
+  assert(ambiguousLocationRows.filter(vehicle => vehicle.__sharedNavisionReadOnly === true).length === 2, 'Conflicting current shared Navision records must remain separately visible for review');
+
   // Missing cleanup on a full refresh should protect non-Toyota records.
   const toyotaExisting = { id: 'toyota-1', stock: '77777777', batch: '77777777', vehicle: 'Toyota Prado', toyotaVehicle: 'Prado', source: 'Navision' };
   const nissanExisting = { id: 'nissan-1', stock: '88888888', batch: '88888888', vehicle: 'Nissan Patrol', source: 'Manual' };

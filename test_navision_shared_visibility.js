@@ -29,7 +29,10 @@ assert.ok(staging.includes('<option value="shared">Shared Navision imports</opti
 assert.ok(index.includes('<option value="shared">Shared Navision imports</option>'), 'production-shaped HTML remains structurally in parity');
 assert.ok(staging.includes('id="backend-data-refresh-shared"'), 'staff have an explicit shared refresh control');
 assert.ok(app.includes('subscribeSharedNavisionVisibility') && app.includes("table: 'navision_backend_revision'"), 'open staff browsers subscribe to revision changes');
-assert.ok(app.includes("if (app.currentView === 'backend') loadSharedNavisionVisibleRows({ force: true });") && app.includes('sharedNavisionVisibleGeneration += 1'), 'auth-ready refresh and auth-lock generation invalidation are wired');
+assert.ok(app.includes("loadSharedNavisionVisibleRows({ force: true });") && !app.includes("if (app.currentView === 'backend') loadSharedNavisionVisibleRows"), 'every authenticated view refreshes the shared Navision snapshot instead of limiting it to Back End Data');
+assert.ok(app.includes('vehicleLocationBoardRows()') && app.includes('activeSharedNavisionRows') && app.includes('__sharedNavisionReadOnly'), 'Locations combines all current shared Navision vehicles with operational rows using read-only authority for unmatched imports');
+assert.ok(app.includes('Shared Navision locations online') && app.includes('synchronized across signed-in computers'), 'Locations shows the shared revision state and cross-computer synchronization');
+assert.ok(app.includes('sharedNavisionVisibleGeneration += 1'), 'auth lock invalidates shared snapshot generations');
 assert.ok(app.includes('sharedNavisionVisibleRows = []') && app.includes('removeChannel(app.sharedNavisionVisibleRealtime)'), 'auth lock clears imported rows and tears down Realtime');
 assert.ok(app.includes("'<span class=\"badge neutral\">Read only</span>'"), 'shared imported rows cannot invoke browser-local or operational actions');
 assert.ok(app.includes('Restricted online view'), 'shared rows make excluded personal details explicit instead of displaying misleading customer data');
