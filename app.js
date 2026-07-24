@@ -1,5 +1,5 @@
-const APP_VERSION = '2026.07.24.22-shared-navision-fail-closed';
-const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.07.24.22-shared-navision-fail-closed';
+const APP_VERSION = '2026.07.24.23-shared-navision-central-guard';
+const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.07.24.23-shared-navision-central-guard';
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
 // constant intentionally names only the production ref, never the
@@ -5486,7 +5486,7 @@ async function transferSelectedMainYhVehiclesToPmb() {
 
 function deleteIncomingVehicleFromMain(key = '') {
   const vehicle = app.data.find(row => vehicleKey(row) === key || row.stock === key || row.order === key || row.id === key);
-  if (!vehicle) return;
+  if (!vehicle || !vehicleLocationActionAllowed(vehicle, 'delete')) return;
   const label = `${vehicleIdentityTitle(vehicle) || 'No stock'} - ${vehicleCustomerName(vehicle) || 'Unknown customer'}`;
   if (!window.confirm(`Delete this vehicle from the main screen?\n\n${label}\n\nThis hides it from this browser's tracker and keeps the delete in local storage.`)) return;
   removeVehiclesFromTracker([vehicle]);
@@ -8269,8 +8269,10 @@ function renderVehicleTable() {
 
 
 function removeVehiclesFromTracker(vehicles = [], options = {}) {
+  const list = vehicles.filter(Boolean);
+  if (!list.length || list.some(vehicle => !vehicleLocationActionAllowed(vehicle, 'delete'))) return [];
   try {
-    return runStorageTransaction('Vehicle removal', trackerTransactionKeys(), () => removeVehiclesFromTrackerUnsafe(vehicles, options));
+    return runStorageTransaction('Vehicle removal', trackerTransactionKeys(), () => removeVehiclesFromTrackerUnsafe(list, options));
   } catch (error) {
     app.data = buildVehicleData();
     window.alert(error.message || String(error));
@@ -8628,7 +8630,7 @@ async function transferSelectedYhVehiclesToPmb() {
   if (!window.confirm(`Transfer ${transferable.length} Yard Hold/In Transit vehicle${transferable.length === 1 ? '' : 's'} to Vehicles at PMB?\n\n${preview}${more}\n\nThis is a manual PDC location change. Future Navision uploads will not move these vehicles back.`)) return;
 
   const requirementSelections = await pmbRequirementChecklistModal(transferable);
-  if (!requirementSelections) return;
+  if (!requirementSelections || transferable.some(vehicle => !vehicleLocationActionAllowed(vehicle, 'transfer to PMB'))) return;
 
   const transferTime = nowIsoString();
   const edits = loadVehicleEdits();
@@ -8682,7 +8684,7 @@ async function transferSelectedYhVehiclesToPmb() {
 
 async function transferYhVehicleToPmb(key = '') {
   const vehicle = app.data.find(v => vehicleKey(v) === key || v.stock === key || v.order === key || v.id === key);
-  if (!vehicle) return;
+  if (!vehicle || !vehicleLocationActionAllowed(vehicle, 'transfer to PMB')) return;
   if (!canTransferVehicleToPmb(vehicle)) {
     window.alert('Only Yard Hold or In Transit vehicles can be transferred to PMB from this button.');
     return;
@@ -8692,7 +8694,7 @@ async function transferYhVehicleToPmb(key = '') {
   if (!window.confirm(`Transfer ${stock} - ${customer} to PMB?\n\nThis is a manual PDC location change. Future Navision uploads will not move it back.`)) return;
 
   const requirementSelections = await pmbRequirementChecklistModal([vehicle]);
-  if (!requirementSelections) return;
+  if (!requirementSelections || !vehicleLocationActionAllowed(vehicle, 'transfer to PMB')) return;
 
   const transferTime = nowIsoString();
   const edits = loadVehicleEdits();
@@ -8746,7 +8748,7 @@ function transferSelectedPmbVehiclesToRft() {
 
 function transferVehicleToRftFromCard(key) {
   const vehicle = app.data.find(v => vehicleKey(v) === key || v.stock === key || v.order === key || v.id === key);
-  if (!vehicle) return;
+  if (!vehicle || !vehicleLocationActionAllowed(vehicle, 'transfer to RFT')) return;
   transferVehiclesToRft([vehicle], { clearSelection: false });
 }
 
@@ -8764,7 +8766,7 @@ function confirmRftGateOverride(vehicles = []) {
 
 async function transferVehiclesToRft(vehicles = [], options = {}) {
   const selected = vehicles.filter(Boolean);
-  if (!selected.length) return;
+  if (!selected.length || selected.some(vehicle => !vehicleLocationActionAllowed(vehicle, 'transfer to RFT'))) return;
   const nonPmb = selected.filter(vehicle => statusCategory(vehicle) !== 'pmb');
   if (nonPmb.length) {
     window.alert('Only vehicles currently at PMB can be transferred to RFT. Clear the selection and select PMB vehicles only.');
@@ -8779,6 +8781,10 @@ async function transferVehiclesToRft(vehicles = [], options = {}) {
   if (vehicleLifecycleSharedModeActive()) {
     const failures = [];
     for (const vehicle of selected) {
+      if (!vehicleLocationActionAllowed(vehicle, 'transfer to RFT')) {
+        failures.push(`${vehicleIdentityTitle(vehicle) || 'No stock'} - shared Navision identity is not ready or requires review`);
+        continue;
+      }
       const ref = await vehicleLifecycleSharedRef(vehicle);
       if (!ref || ref.outcome !== 'resolved') {
         failures.push(`${vehicleIdentityTitle(vehicle) || 'No stock'} - ${describeVehicleLifecycleResolutionOutcome(ref)}`);
@@ -8790,6 +8796,10 @@ async function transferVehiclesToRft(vehicles = [], options = {}) {
       }
       if (!ref.qcCompletedAt) {
         failures.push(`${vehicleIdentityTitle(vehicle) || 'No stock'} - QC sign-off required first`);
+        continue;
+      }
+      if (!vehicleLocationActionAllowed(vehicle, 'transfer to RFT')) {
+        failures.push(`${vehicleIdentityTitle(vehicle) || 'No stock'} - shared Navision identity changed before transfer`);
         continue;
       }
       const result = await window.__vehicleLifecycleActions.rftTransferVehicle({ vehicleId: ref.vehicleId, expectedVersion: ref.version });
@@ -9711,14 +9721,7 @@ function saveVehicleEdits(key, updates, options = {}) {
   const vehicle = selectedVehicle(key);
   if (!vehicle) return false;
   const editKey = vehicleKey(vehicle);
-  if (!sharedNavisionLocationAuthorityReady()) {
-    console.warn('Vehicle edit blocked while shared Navision identity authority is not reconciled.', { editKey });
-    return false;
-  }
-  if (app.sharedNavisionLocationReadOnlyKeys?.has(editKey)) {
-    console.warn('Vehicle edit blocked because the Locations identity is read-only.', { editKey });
-    return false;
-  }
+  if (!vehicleLocationActionAllowed(vehicle, 'edit')) return false;
   const nextUpdates = { ...updates };
   const protectedNavisionAuthorityFields = [
     'jitQty',
@@ -9765,6 +9768,7 @@ function openVehicleModal(stock) {
     window.alert('That vehicle could not be found. Refresh the list and try again. No vehicle was changed.');
     return false;
   }
+  if (!vehicleLocationActionAllowed(vehicle, 'open')) return false;
   app.selectedStock = vehicleKey(vehicle);
   renderDetail();
   const modal = $('#vehicle-modal');
@@ -9784,7 +9788,7 @@ function closeVehicleModal() {
 
 function removeVehicle(stock) {
   const vehicle = selectedVehicle(stock);
-  if (!vehicle) return;
+  if (!vehicle || !vehicleLocationActionAllowed(vehicle, 'delete')) return;
   const label = `${vehicleIdentityTitle(vehicle) || 'this vehicle'} - ${vehicleCustomerName(vehicle) || 'Unknown customer'}`;
   if (!window.confirm(`Move ${label} to Deleted vehicles?\n\nThe record can still be reviewed on the Deleted vehicles screen.`)) return;
 
@@ -11674,6 +11678,22 @@ function sharedNavisionLocationAuthorityReady() {
     app.sharedNavisionVisibleRealtimeReconciled === true;
 }
 
+function vehicleLocationActionAllowed(vehicleOrKey, operation = 'change') {
+  if (!sharedNavisionLocationAuthorityReady()) {
+    console.warn('Vehicle action blocked while shared Navision identity authority is not reconciled.', { operation });
+    return false;
+  }
+  vehicleLocationBoardRows();
+  const vehicle = vehicleOrKey && typeof vehicleOrKey === 'object' ? vehicleOrKey : selectedVehicle(vehicleOrKey);
+  if (!vehicle) return false;
+  const key = vehicleKey(vehicle);
+  if (app.sharedNavisionLocationReadOnlyKeys?.has(key)) {
+    console.warn('Vehicle action blocked because the Locations identity is read-only.', { operation, key });
+    return false;
+  }
+  return true;
+}
+
 function renderSharedNavisionVisibilityState() {
   renderBackEndData();
   if (app.currentView === 'dashboard') renderIncomingDashboardBoard();
@@ -11836,9 +11856,11 @@ function sharedNavisionItemIdentityKeys(item = {}) {
 function vehicleSharedNavisionIdentityKeys(vehicle = {}) {
   const stock = vehicle.stock || vehicle.stockNumber || vehicle.batch || '';
   const order = vehicle.order || vehicle.toyotaOrder || vehicle.salesOrder || '';
+  const dealer = vehicle.dealer_code || vehicle.dealerCode || vehicle.navisionDealerCode || vehicle.toyotaDealerCode || vehicle.__sharedNavisionDealerCode || '';
   return [
     stock ? `stock:${sharedNavisionIdentityToken(stock)}` : '',
     order ? `order:${sharedNavisionIdentityToken(order)}` : '',
+    dealer ? `dealer:${sharedNavisionIdentityToken(dealer)}` : '',
   ].filter(key => !key.endsWith(':'));
 }
 
@@ -11868,6 +11890,7 @@ function sharedNavisionIdentityPartsFromItem(item = {}) {
   return {
     stock: sharedNavisionIdentityToken(item.stock_number || ''),
     order: sharedNavisionIdentityToken(item.toyota_order_number || ''),
+    dealer: sharedNavisionIdentityToken(item.dealer_code || ''),
   };
 }
 
@@ -11875,6 +11898,7 @@ function sharedNavisionIdentityPartsFromVehicle(vehicle = {}) {
   return {
     stock: sharedNavisionIdentityToken(vehicle.stock || vehicle.stockNumber || vehicle.batch || ''),
     order: sharedNavisionIdentityToken(vehicle.order || vehicle.toyotaOrder || vehicle.salesOrder || ''),
+    dealer: sharedNavisionIdentityToken(vehicle.dealer_code || vehicle.dealerCode || vehicle.navisionDealerCode || vehicle.toyotaDealerCode || vehicle.__sharedNavisionDealerCode || ''),
   };
 }
 
@@ -11885,8 +11909,9 @@ function sharedNavisionIdentityRelation(vehicle = {}, item = {}) {
   const orderMatch = Boolean(local.order && shared.order && local.order === shared.order);
   const stockConflict = Boolean(local.stock && shared.stock && local.stock !== shared.stock);
   const orderConflict = Boolean(local.order && shared.order && local.order !== shared.order);
-  if ((stockMatch || orderMatch) && (stockConflict || orderConflict)) return 'conflict';
-  if ((stockMatch || orderMatch) && !stockConflict && !orderConflict) return 'match';
+  const dealerConflict = Boolean(local.dealer && shared.dealer && local.dealer !== shared.dealer);
+  if ((stockMatch || orderMatch) && (stockConflict || orderConflict || dealerConflict)) return 'conflict';
+  if ((stockMatch || orderMatch) && !stockConflict && !orderConflict && !dealerConflict) return 'match';
   return 'unrelated';
 }
 

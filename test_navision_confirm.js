@@ -200,10 +200,10 @@ code += String.raw`
 
   const liveConflictVehicle = app.data[0];
   app.sharedNavisionVisibleRows = [{ id: 'live-conflict', dealer_code: '14450', stock_number: liveConflictVehicle.stock, toyota_order_number: 'CONFLICTING-ORDER', vehicle_status: 'Vehicle Yard Hold', is_current: true }];
-  vehicleLocationBoardRows();
+  app.sharedNavisionLocationReadOnlyKeys = new Set();
+  assert(saveVehicleEdits(vehicleKey(liveConflictVehicle), { comments: 'must-not-write' }, { render: false }) === false, 'Generic mutation paths must recompute and reject a newly conflicted shared identity even when the previous read-only cache was stale');
   app.selectedRows.add(vehicleKey(liveConflictVehicle));
   assert(selectedVehiclesForBulkEmail().length === 0 && app.selectedRows.size === 0, 'A previously selected row must be removed from bulk authority as soon as its shared identity becomes conflicted');
-  assert(saveVehicleEdits(vehicleKey(liveConflictVehicle), { comments: 'must-not-write' }, { render: false }) === false, 'Generic mutation paths must reject a vehicle whose derived shared identity is read-only');
   app.sharedNavisionVisibleRows = [];
   app.sharedNavisionLocationReadOnlyKeys = new Set();
 
@@ -222,6 +222,12 @@ code += String.raw`
     { id: 'dealer-b', dealer_code: '37047', stock_number: 'DEALER-STOCK', toyota_order_number: 'DEALER-ORDER', vehicle_status: 'In Transit to WA', is_current: true },
   ]);
   assert(dealerScopedRows.length === 2 && new Set(dealerScopedRows.map(vehicle => vehicle.__sharedNavisionDealerCode)).size === 2, 'Current records from different dealer scopes must remain separately visible');
+  const crossDealerRows = vehicleLocationBoardRows([
+    { id: 'local-dealer-a', stock: 'DEALER-STOCK-1', order: 'DEALER-ORDER-1', dealer_code: '14450', toyotaStatus: 'LOCAL-DEALER' },
+  ], [
+    { id: 'shared-dealer-b', dealer_code: '37047', stock_number: 'DEALER-STOCK-1', toyota_order_number: 'DEALER-ORDER-1', vehicle_status: 'REMOTE-DEALER', is_current: true },
+  ]);
+  assert(crossDealerRows.length === 2 && crossDealerRows[0].toyotaStatus === 'LOCAL-DEALER' && crossDealerRows[0].__locationIdentityReadOnly === true && crossDealerRows[1].__sharedNavisionReadOnly === true, 'A populated local dealer conflict must reject overlay and keep both local and shared records visible for review');
 
   const orderOnlyShared = sharedNavisionLocationVehicle({ id: 'order-only-shared', dealer_code: '14450', toyota_order_number: 'ORDER-ONLY-SHARED', vehicle_status: 'In Transit to WA', is_current: true });
   assert(incomingBucketForVehicle(orderOnlyShared) === 'transit', 'An order-only shared Navision vehicle must follow its authoritative status bucket');
@@ -253,6 +259,14 @@ code += String.raw`
     assert(!pendingAuthorityHtml.includes(forbiddenAction), 'Local Locations actions must fail closed while shared identity authority is loading: ' + forbiddenAction);
   }
   assert(pendingAuthorityHtml.includes('Shared sync pending · Read only'), 'Rows must visibly explain their read-only state while shared identity authority is loading');
+  const pendingVehicle = app.data[0];
+  const pendingLocation = vehiclePdcLocation(pendingVehicle);
+  const pendingDeletedCount = deletedVehicleRecords().length;
+  assert(openVehicleModal(vehicleKey(pendingVehicle)) === false, 'Direct modal opening must fail closed while shared identity authority is loading');
+  deleteIncomingVehicleFromMain(vehicleKey(pendingVehicle));
+  removeVehicle(vehicleKey(pendingVehicle));
+  transferYhVehicleToPmb(vehicleKey(pendingVehicle));
+  assert(deletedVehicleRecords().length === pendingDeletedCount && vehiclePdcLocation(pendingVehicle) === pendingLocation, 'Direct delete and single-transfer handlers must not mutate while shared identity authority is loading');
   subscribeSharedNavisionVisibility();
   assert(typeof realtimeStatus === 'function' && typeof realtimeChange === 'function' && app.sharedNavisionVisibleRealtimeState === 'connecting', 'Shared Navision Realtime must retain lifecycle and revision callbacks while connecting');
   realtimeStatus('SUBSCRIBED');
