@@ -38,7 +38,10 @@ code += String.raw`
   assert(updated.navisionEtaAtDealerBB === '20/08/2026', 'Confirmed import should preserve Dealer/BB ETA for popup reference only');
   assert(updated.navisionEtaDate === '17/08/2026', 'Confirmed import should preserve ETA Date for popup reference');
   assert(updated.prodMth === '08/26', 'Confirmed import should apply P/Month');
-  assert(updated.jitaPartsOrdered === 'Yes' && updated.jitQty === 'JITA-2471', 'Confirmed import should retain the authoritative Navision JITA number');
+  assert(updated.jitaPartsOrdered === 'Yes' && updated.jitQty === 'JITA-2471' && updated.navisionJitaNumberAuthority === NAVISION_JITA_NUMBER_AUTHORITY, 'Confirmed import should retain the authoritative provenance-bound Navision JITA number');
+  const importedJitaBeforeBlockedEdit = updated.jitQty;
+  assert(saveVehicleEdits(vehicleKey(updated), { jitQty: 'JITA-FAKE-999', navisionJitaNumberAuthority: NAVISION_JITA_NUMBER_AUTHORITY }) === false, 'Generic vehicle edits must reject every attempted Navision JITA authority-only update');
+  assert(updated.jitQty === importedJitaBeforeBlockedEdit, 'A rejected generic edit must not change the imported JITA number');
   assert(updated.navisionDealerComments === 'New dealer note', 'Confirmed import should apply Navision Notes');
   assert(updated.trayOrdered === true, 'Confirmed import should apply Tray Fitment Ordered');
   assert(updated.trayFitmentComplete === true, 'Confirmed import should apply Tray Fitment Complete');
@@ -52,16 +55,19 @@ code += String.raw`
   const incomingEtaDateOnly = row(['ORD1','12345678','202608','Hilux','SR','Fabric','White','MERCER','ETA Date only','In Transit to WA','30/08/2026','','22/08/2026','21/08/2026','Yes','No','No','MR0','BA3FS2','01361094']);
   const parsedEtaDate = parseNavisionInput(header + '\n' + incomingEtaDateOnly);
   assert(parsedEtaDate.vehicles[0].etaAtDealer === '', 'When Kewdale is blank, dashboard ETA should stay blank and ignore ETA Date, Port/Plant and Dealer/BB');
-  assert(parsedEtaDate.vehicles[0].jitaPartsOrdered === 'Unknown' && parsedEtaDate.vehicles[0].jitQty === '', 'A Yes marker without a Navision JITA number must not create a Parts tick');
+  assert(parsedEtaDate.vehicles[0].jitaPartsOrdered === 'Unknown' && parsedEtaDate.vehicles[0].jitQty === '' && parsedEtaDate.vehicles[0].navisionJitaNumberAuthority === NAVISION_JITA_NUMBER_AUTHORITY, 'A present Navision JITA column with a Yes-only value must retain import provenance but no JITA number');
+  const authoritativeJitaVehicle = { source: 'Navision', navisionJitaNumberAuthority: NAVISION_JITA_NUMBER_AUTHORITY, jitQty: 'JITA-77881', jitaPartsOrdered: 'No' };
   assert(vehicleNavisionJitaNumber({ jitaPartsOrdered: 'Yes' }) === '', 'A stale/manual local JITA boolean must never create a Parts-screen tick');
-  assert(vehicleNavisionJitaNumber({ jitQty: 'JITA-77881', jitaPartsOrdered: 'No' }) === 'JITA-77881', 'A non-empty imported Navision JITA number must create the read-only Parts tick');
+  assert(vehicleNavisionJitaNumber({ source: 'Manual', navisionJitaNumberAuthority: NAVISION_JITA_NUMBER_AUTHORITY, jitQty: 'JITA-FAKE-123' }) === '', 'A manually supplied numeric JITA value must remain blank even if an authority marker is forged');
+  assert(vehicleNavisionJitaNumber({ source: 'Navision', jitQty: 'JITA-STALE-123' }) === '', 'A stale numeric value without validated import provenance must remain blank');
+  assert(vehicleNavisionJitaNumber(authoritativeJitaVehicle) === 'JITA-77881', 'A provenance-bound imported Navision JITA number must create the read-only Parts tick');
   assert(jitaDisplay({ jitaPartsOrdered: 'Yes' }) === '', 'The main Control Board display must ignore a stale local JITA yes flag');
   assert(!jitaIndicator({ jitaPartsOrdered: 'Yes' }).includes('✓'), 'A stale local JITA yes flag must not create a main-table tick');
   assert(!jitaIndicator({ jitaPartsOrdered: 'No' }).includes('×'), 'The main table must not render a manual JITA cross');
-  assert(jitaIndicator({ jitQty: 'JITA-77881', jitaPartsOrdered: 'No' }).includes('✓'), 'An imported Navision JITA number must create the main-table tick even when a stale flag disagrees');
-  assert(jitaIndicator({ jitQty: 'JITA-77881', jitaPartsOrdered: 'No' }).includes('Navision JITA number JITA-77881'), 'The main-table tick must expose the authoritative Navision JITA number');
+  assert(jitaIndicator(authoritativeJitaVehicle).includes('✓'), 'An imported Navision JITA number must create the main-table tick even when a stale flag disagrees');
+  assert(jitaIndicator(authoritativeJitaVehicle).includes('Navision JITA number JITA-77881'), 'The main-table tick must expose the authoritative Navision JITA number');
   assert(sortValue({ jitaPartsOrdered: 'Yes' }, 'jita') === 'Unknown', 'JITA sorting must ignore stale local booleans');
-  assert(sortValue({ jitQty: 'JITA-77881', jitaPartsOrdered: 'No' }, 'jita') === 'Yes', 'JITA sorting must use the imported Navision number');
+  assert(sortValue(authoritativeJitaVehicle, 'jita') === 'Yes', 'JITA sorting must use only a provenance-bound imported Navision number');
 
   // Selected-only apply should skip unselected existing updates but still add new vehicles.
   localStorage.clear();

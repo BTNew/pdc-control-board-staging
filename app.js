@@ -1,5 +1,5 @@
-const APP_VERSION = '2026.07.24.19-shared-navision-locations';
-const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.07.24.19-shared-navision-locations';
+const APP_VERSION = '2026.07.24.20-navision-jita-provenance';
+const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.07.24.20-navision-jita-provenance';
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
 // constant intentionally names only the production ref, never the
@@ -1983,7 +1983,11 @@ function taskOptionsHtml(current = '') {
     .join('');
 }
 
+const NAVISION_JITA_NUMBER_AUTHORITY = 'validated-navision-import-v1';
+
 function vehicleNavisionJitaNumber(vehicle = {}) {
+  if (vehicle.navisionJitaNumberAuthority !== NAVISION_JITA_NUMBER_AUTHORITY) return '';
+  if (!/navision/i.test(String(vehicle.source || ''))) return '';
   const value = String(vehicle.jitQty || vehicle.navisionJitaNumber || '').trim();
   return /\d/.test(value) && !/^0+(?:\.0+)?$/.test(value) ? value : '';
 }
@@ -9687,6 +9691,19 @@ function saveVehicleEdits(key, updates, options = {}) {
   if (!vehicle) return false;
   const editKey = vehicleKey(vehicle);
   const nextUpdates = { ...updates };
+  const protectedNavisionAuthorityFields = [
+    'jitQty',
+    'navisionJitaNumber',
+    'navisionJitaNumberAuthority',
+    'jitaPartsOrdered',
+    '_navisionJitaNumberColumnPresent',
+  ];
+  const rejectedAuthorityFields = protectedNavisionAuthorityFields.filter(field => Object.prototype.hasOwnProperty.call(nextUpdates, field));
+  rejectedAuthorityFields.forEach(field => { delete nextUpdates[field]; });
+  if (rejectedAuthorityFields.length) {
+    console.warn('Ignored operator edit to imported Navision JITA authority fields.', { fields: rejectedAuthorityFields });
+  }
+  if (!Object.keys(nextUpdates).length) return false;
   if ('etaAtDealer' in nextUpdates) nextUpdates.etaAtDealer = navisionEtaForVehicle({ ...vehicle, ...nextUpdates });
   const wasNestedTransaction = storageTransactionDepth > 0;
   const previousValues = Object.fromEntries(Object.keys(nextUpdates).map(field => [field, {
@@ -14268,6 +14285,8 @@ function buildNavisionVehicle(row, headerMap, excelRow, options = {}) {
   const navisionEtaDate = getNavisionValue(row, headerMap, 'ETA Date');
   const keyNumber = getNavisionValue(row, headerMap, ['Key Number', 'Key No', 'Key No.', 'Key #', 'Key', 'Key Tag']);
   const navisionEta = scotEtaOnly(navisionKewdaleEta);
+  const navisionJitaNumberColumnPresent = navisionHasColumn(headerMap, ['JITA Number', 'JITA No.', 'JITA No', 'JITA PreOrder']);
+  const importedNavisionJitaNumber = navisionJitaNumber(row, headerMap);
   const workFileMode = options.pmbOnly === true || options.workFile === true;
   const explicitPdcUpdates = workFileMode ? protectPmbFirstLandingFromImport(buildExplicitPdcUpdatesFromImport(row, headerMap), {}) : {};
   const payload = {
@@ -14317,9 +14336,10 @@ function buildNavisionVehicle(row, headerMap, excelRow, options = {}) {
     navisionDealerComments: dealerComments,
     navisionVehicleNote: vehicleNote,
     epodReceipt: getNavisionValue(row, headerMap, 'EPOD Date'),
-    jitQty: navisionJitaNumber(row, headerMap),
+    jitQty: importedNavisionJitaNumber,
     jitaPartsOrdered: navisionJita(row, headerMap),
-    _navisionJitaNumberColumnPresent: navisionHasColumn(headerMap, ['JITA Number', 'JITA No.', 'JITA No', 'JITA PreOrder']),
+    navisionJitaNumberAuthority: navisionJitaNumberColumnPresent ? NAVISION_JITA_NUMBER_AUTHORITY : '',
+    _navisionJitaNumberColumnPresent: navisionJitaNumberColumnPresent,
     wmi,
     vdsNumber,
     frame,
@@ -14644,6 +14664,9 @@ function navisionEditPayload(incoming, existing = {}) {
     trayFitmentComplete: workFileMode ? (incoming.trayFitmentComplete === true || existing.trayFitmentComplete === true) : incoming.trayFitmentComplete,
     jitaPartsOrdered: navisionJitaNumberColumnPresent ? incoming.jitaPartsOrdered : (existing.jitaPartsOrdered || 'Unknown'),
     jitQty: navisionJitaNumberColumnPresent ? (incoming.jitQty || '') : (existing.jitQty || ''),
+    navisionJitaNumberAuthority: navisionJitaNumberColumnPresent
+      ? NAVISION_JITA_NUMBER_AUTHORITY
+      : (/navision/i.test(String(existing.source || '')) ? (existing.navisionJitaNumberAuthority || '') : ''),
     toyotaStatus: workFileMode ? (existing.toyotaStatus || '') : (incoming.toyotaStatus || ''),
     navisionSubLocationDescription: workFileMode ? (existing.navisionSubLocationDescription || '') : (incoming.navisionSubLocationDescription || ''),
     navisionLocationStatus: workFileMode ? (existing.navisionLocationStatus || '') : (incoming.navisionLocationStatus || ''),

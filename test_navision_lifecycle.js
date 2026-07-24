@@ -47,7 +47,7 @@ code += String.raw`
   app.data = buildVehicleData();
   assert(pdcSheetVehicles().length === 1 && pdcSheetVehicles()[0].stock === '90000002', 'The separate job-card file should promote its vehicle to the PDC Sheet');
   const jobCardPromoted = app.data.find(v => v.stock === '90000002');
-  assert(jobCardPromoted.etaAtDealer === '21/07/2026' && jobCardPromoted.jitaPartsOrdered === 'Yes' && jobCardPromoted.jitQty === 'JITA-9002', 'A work/job file must not blank the daily Navision ETA or JITA number');
+  assert(jobCardPromoted.etaAtDealer === '21/07/2026' && jobCardPromoted.jitaPartsOrdered === 'Yes' && jobCardPromoted.jitQty === 'JITA-9002' && vehicleNavisionJitaNumber(jobCardPromoted) === 'JITA-9002', 'A work/job file without a JITA column must preserve the daily Navision number and its validated provenance');
 
   const backEndDay2 = row(['BE-1','90000001','Corolla','','In Transit to WA','25/07/2026','JITA-9001']);
   const pdcDay2 = row(['PDC-1','90000002','Hilux','Purchase order for tray','Vehicle Yard Hold','26/07/2026','']);
@@ -58,7 +58,7 @@ code += String.raw`
   app.data = buildVehicleData();
   const refreshedBackEnd = app.data.find(v => v.stock === '90000001');
   assert(refreshedBackEnd.etaAtDealer === '25/07/2026', 'Daily Navision should refresh Kewdale ETA on a back-end-only vehicle');
-  assert(refreshedBackEnd.jitaPartsOrdered === 'Yes' && refreshedBackEnd.jitQty === 'JITA-9001', 'Daily Navision should refresh the authoritative JITA number on a back-end-only vehicle');
+  assert(refreshedBackEnd.jitaPartsOrdered === 'Yes' && refreshedBackEnd.jitQty === 'JITA-9001' && vehicleNavisionJitaNumber(refreshedBackEnd) === 'JITA-9001', 'Daily Navision should refresh the provenance-bound authoritative JITA number on a back-end-only vehicle');
   assert(isVehicleVisibleOnPdcSheet(app.data.find(v => v.stock === '90000002')), 'A later daily Navision upload must not hide a job-card-promoted vehicle');
 
   const backEndToActivate = app.data.find(v => v.stock === '90000005');
