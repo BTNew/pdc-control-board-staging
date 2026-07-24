@@ -41,7 +41,7 @@ assert(css.includes('.parts-eta-countdown.positive') && css.includes('color: #15
 assert(css.includes('.parts-eta-countdown.negative') && css.includes('color: #dc2626'));
 assert(planner.includes('>STOPPAGE</button>'), 'generic Workshop stoppage action must say STOPPAGE');
 const userFacingSources = [app, planner, read('index.html'), read('staging.html'), read('no-vehicles.html'), read('test-50.html'), read('test-75.html'), read('test-100.html')].join('\n');
-for (const legacyLabel of ['PMB stoppage', 'Show stoppages', 'stoppage only', 'no stoppage', 'Complete, Stoppage', 'Parts / job stoppage', 'Place job on stoppage', 'Enter the stoppage reason', 'stoppage notes', '${escapeHtml(area)} stoppage']) {
+for (const legacyLabel of ['PMB stoppage', 'Show stoppages', 'stoppage only', 'no stoppage', 'Complete, Stoppage', 'Parts / job stoppage', 'Place job on stoppage', 'Enter the stoppage reason', 'stoppage notes', '${escapeHtml(area)} stoppage', 'Fix parts stoppage:', 'Current stoppage / blocker:', 'with stoppage', 'Parts delay / stoppage', 'PDC stoppage / blocker', 'complete/stoppage action', "action === 'stoppage' ? 'stoppage' : 'note'} for stock"]) {
   assert(!userFacingSources.includes(legacyLabel), `legacy user-facing STOPPAGE label remains: ${legacyLabel}`);
 }
 

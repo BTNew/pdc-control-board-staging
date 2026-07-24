@@ -3982,7 +3982,7 @@ async function returnWorkshopPlanToUnallocated(planId = '') {
     rows.filter(row => row.id !== entry.id),
     vehicle,
     vehicleUpdates,
-    stoppage ? 'Workshop job returned to Unallocated with stoppage' : 'Workshop job returned to Unallocated',
+    stoppage ? 'Workshop job returned to Unallocated with STOPPAGE' : 'Workshop job returned to Unallocated',
     { stage: pmbStageLabel(entry.stage), bay: entry.bay, reason: stoppage ? result.reason : 'Just move', by: operator },
   );
   if (!persisted) return;

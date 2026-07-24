@@ -7858,7 +7858,7 @@ function clearAllFilters() {
 
 function nextActionForVehicle(vehicle = {}) {
   const category = statusCategory(vehicle);
-  if (isActivePartsStoppage(vehicle)) return `Fix parts stoppage: ${partsStoppageReason(vehicle)}`;
+  if (isActivePartsStoppage(vehicle)) return `Fix Parts STOPPAGE: ${partsStoppageReason(vehicle)}`;
   if (isPdcBlocked(vehicle)) return `Clear blocker: ${pdcBlockReason(vehicle)}`;
   if (category === 'yardhold') return 'Transfer Yard Hold → PMB';
   if (category === 'pmb') {
@@ -8843,10 +8843,10 @@ function salespersonChangeFlag(vehicle = {}, change = {}) {
   if (title && title.toLowerCase() !== 'vehicle status update') return title;
   if (statusCategory(vehicle) === 'rft') return 'Ready for transport (RFT)';
   if (vehicleCollectedFromRft(vehicle)) return 'Vehicle completed / collected';
-  if (isActivePartsStoppage(vehicle)) return 'Parts delay / stoppage';
+  if (isActivePartsStoppage(vehicle)) return 'Parts delay / STOPPAGE';
   const partsStatus = partsDepartmentStatus(vehicle);
   if (partsWorstEtaLabel(vehicle) && !['issued', 'notrequired'].includes(partsStatus)) return 'Parts ETA / delay update';
-  if (isPdcBlocked(vehicle)) return 'PDC stoppage / blocker';
+  if (isPdcBlocked(vehicle)) return 'PDC STOPPAGE / blocker';
   return title || 'Vehicle status update';
 }
 
@@ -8999,7 +8999,7 @@ function vehicleStatusUpdateEmailBody(vehicle = {}) {
     '',
     'Work still outstanding:',
     ...(outstanding.length ? outstanding : ['- None']),
-    ...(blocker ? ['', `Current stoppage / blocker: ${blocker}`] : []),
+    ...(blocker ? ['', `Current STOPPAGE / blocker: ${blocker}`] : []),
     '',
     'Kind Regards,',
   ].join('\n');
@@ -16166,7 +16166,7 @@ function parseAiAssistantPartsUpdate(text = '', sourceFilename = '') {
   const action = /\breceived\b|\bissued\b|\bcomplete\b/.test(squashed)
     ? 'complete'
     : (/\bstoppage\b|back\s*order|awaiting|\beta\b/.test(squashed) ? 'stoppage' : 'note');
-  const warning = action === 'note' ? 'No clear complete/stoppage action was detected; review before applying.' : '';
+  const warning = action === 'note' ? 'No clear complete/STOPPAGE action was detected; review before applying.' : '';
   return {
     id: aiFileAssistantReviewId('ai-parts'),
     intakeId: aiFileAssistantReviewId('ai-parts-intake'),
@@ -16181,7 +16181,7 @@ function parseAiAssistantPartsUpdate(text = '', sourceFilename = '') {
     reason: action === 'stoppage' ? cleanNavisionText(notes || 'Parts STOPPAGE from uploaded file') : '',
     sourceFiles: [cleanNavisionText(sourceFilename)].filter(Boolean),
     sourceType: 'Parts update text file',
-    analysisSummary: `Detected Parts ${action === 'complete' ? 'completion' : action === 'stoppage' ? 'stoppage' : 'note'} for stock ${stock}`,
+    analysisSummary: `Detected Parts ${action === 'complete' ? 'completion' : action === 'stoppage' ? 'STOPPAGE' : 'note'} for stock ${stock}`,
     analysisConfidence: action === 'note' ? 'low' : 'medium',
     analysisWarnings: warning ? [warning] : [],
   };
