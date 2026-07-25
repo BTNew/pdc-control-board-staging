@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.07.24.26-pd-document-intake';
+const APP_VERSION = '2026.07.25.01-ai-intake-staging';
 const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.07.24.26-pd-document-intake';
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
@@ -1877,6 +1877,14 @@ const app = {
   autocareScan: loadJson(AUTOCARE_RESULTS_KEY, null),
   aiIntakeFiles: [],
   aiIntakeStatus: [],
+  serverAiIntakeService: null,
+  serverAiIntakeState: 'idle',
+  serverAiIntakeError: '',
+  serverAiIntakeRevision: null,
+  serverAiIntakeItems: [],
+  serverAiIntakeHistory: [],
+  serverAiIntakeGeneration: 0,
+  serverAiIntakeRealtime: null,
   navisionImport: loadJson(NAVISION_IMPORT_RESULTS_KEY, null),
   pendingNavisionImport: null,
   navisionFileName: '',
@@ -2764,6 +2772,7 @@ function init() {
   loadVehicleLifecycleSharedActionsIfConfigured();
   loadWorkshopReferenceDataServiceIfConfigured();
   if (window.PDC_AUTH_CONTEXT) loadSharedNavisionVisibleRows();
+  initServerAiIntakeIfAvailable();
 }
 
 // Loads workshop-reference-data-service.js (Stage 2A) lazily, mirroring
@@ -2859,6 +2868,8 @@ function bindNav() {
   on($('#ai-intake-upload'), 'change', handleAiFileAssistantSelect);
   on($('#ai-intake-analyze'), 'click', analyzeAiFileAssistantUploads);
   on($('#ai-intake-clear'), 'click', () => clearAiFileAssistantUploads());
+  on($('#ai-intake-server-refresh'), 'click', () => refreshServerAiIntake());
+  on($('#ai-intake-server-filter'), 'change', () => refreshServerAiIntake());
   on($('#sublet-search'), 'input', renderSubletHome);
   on($('#sublet-status-filter'), 'change', renderSubletHome);
   on($('#schedule-search'), 'input', renderScheduleBoard);
@@ -3888,6 +3899,8 @@ window.addEventListener?.('pdc-auth-ready', () => {
   const navItem = document.getElementById('nav-user-management');
   if (navItem) navItem.hidden = !(typeof backupStatusSharedModeReady === 'function' && backupStatusSharedModeReady());
   if (app.currentView === 'emailreview' && typeof renderAiBoardAdvisor === 'function') renderAiBoardAdvisor();
+  initServerAiIntakeIfAvailable();
+  refreshServerAiIntake({ silent: true });
   loadSharedNavisionVisibleRows({ force: true });
 });
 
@@ -3949,6 +3962,12 @@ window.addEventListener?.('pdc-auth-locked', () => {
   window.__vehicleLifecycleResolverDiagnostics = [];
   window.__vehicleLifecycleActions = null;
   window.__workshopReferenceDataService = null;
+  try { app.serverAiIntakeRealtime?.unsubscribe?.(); } catch (_err) { /* best-effort teardown */ }
+  app.serverAiIntakeRealtime = null;
+  app.serverAiIntakeService = null;
+  app.serverAiIntakeItems = [];
+  app.serverAiIntakeHistory = [];
+  app.serverAiIntakeState = 'idle';
   clearSharedNavisionVisibilityReconnectTimer();
   app.sharedNavisionVisibleGeneration += 1;
   releaseSharedNavisionVisibilityChannel();
@@ -16682,6 +16701,136 @@ async function analyzeAiFileAssistantUploads() {
   return createdReviews.length > 0;
 }
 
+function serverAiIntakeService() {
+  if (app.serverAiIntakeService) return app.serverAiIntakeService;
+  const module = window.PDC_AI_INTAKE_SERVICE;
+  if (!$('#ai-intake-server-panel') || typeof module?.createPdcAiIntakeService !== 'function') return null;
+  try {
+    app.serverAiIntakeService = module.createPdcAiIntakeService({
+      config: window.PDC_SUPABASE_CONFIG || {},
+      getAccessToken: () => getPdcSupabaseAccessToken(),
+      subscribeRealtime: (tableName, onChange) => createPdcSupabaseTableRealtimeSubscription(tableName, { onChange }),
+    });
+    return app.serverAiIntakeService;
+  } catch (error) {
+    app.serverAiIntakeState = 'error';
+    app.serverAiIntakeError = error.message || String(error);
+    return null;
+  }
+}
+
+function initServerAiIntakeIfAvailable() {
+  const service = serverAiIntakeService();
+  if (!service || app.serverAiIntakeRealtime) return service;
+  app.serverAiIntakeRealtime = service.subscribe(() => {
+    if (app.currentView === 'emailreview') refreshServerAiIntake({ silent: true });
+  });
+  refreshServerAiIntake({ silent: true });
+  return service;
+}
+
+async function refreshServerAiIntake(options = {}) {
+  const service = serverAiIntakeService();
+  if (!service) {
+    renderServerAiIntake();
+    return false;
+  }
+  const generation = ++app.serverAiIntakeGeneration;
+  const filter = $('#ai-intake-server-filter')?.value || 'pending';
+  if (!options.silent) app.serverAiIntakeState = 'loading';
+  renderServerAiIntake();
+  const response = await service.snapshot(filter, 150);
+  if (generation !== app.serverAiIntakeGeneration) return false;
+  if (!response.ok) {
+    app.serverAiIntakeState = 'error';
+    app.serverAiIntakeError = response.code || 'AI Intake snapshot failed';
+    renderServerAiIntake();
+    return false;
+  }
+  app.serverAiIntakeState = 'synchronized';
+  app.serverAiIntakeError = '';
+  app.serverAiIntakeRevision = response.data?.revision ?? null;
+  app.serverAiIntakeItems = Array.isArray(response.data?.items) ? response.data.items : [];
+  app.serverAiIntakeHistory = Array.isArray(response.data?.history) ? response.data.history : [];
+  renderServerAiIntake();
+  return true;
+}
+
+function serverAiIntakeRoleCanApply() {
+  return String(window.PDC_AUTH_CONTEXT?.role || '').toLowerCase() === 'administrator';
+}
+
+function serverAiIntakeStatusClass(status = '') {
+  return status === 'applied' ? 'ready' : status === 'pending' ? 'warning' : 'neutral';
+}
+
+function renderServerAiIntake() {
+  const host = $('#ai-intake-server-content');
+  const historyHost = $('#ai-intake-history-content');
+  const stateHost = $('#ai-intake-server-state');
+  if (!host || !historyHost || !stateHost) return;
+  const state = app.serverAiIntakeState;
+  stateHost.className = `badge ${state === 'synchronized' ? 'ready' : state === 'error' ? 'danger' : 'warning'}`;
+  stateHost.textContent = state === 'synchronized'
+    ? `Online · revision ${app.serverAiIntakeRevision ?? '—'}`
+    : state === 'error' ? 'Unavailable' : state === 'loading' ? 'Refreshing' : 'Connecting';
+  if (state === 'error') {
+    host.innerHTML = `<div class="empty-state"><strong>PMB inbox history is unavailable</strong><span>${escapeHtml(app.serverAiIntakeError || 'No server-authoritative snapshot is available. Nothing can be applied.')}</span></div>`;
+    historyHost.innerHTML = '<div class="empty-state compact-empty"><strong>History unavailable</strong><span>No browser-local fallback is used.</span></div>';
+    return;
+  }
+  const rows = Array.isArray(app.serverAiIntakeItems) ? app.serverAiIntakeItems : [];
+  if (!rows.length) {
+    host.innerHTML = state === 'synchronized'
+      ? '<div class="empty-state compact-empty"><strong>No inbox observations match this filter</strong><span>The PMB bot will add authenticated email observations here.</span></div>'
+      : '<div class="empty-state compact-empty"><strong>Loading PMB inbox observations</strong><span>No browser-local fallback is used.</span></div>';
+  } else {
+    const canApply = serverAiIntakeRoleCanApply();
+    host.innerHTML = `<div class="ai-intake-server-list">${rows.map(item => {
+      const pending = item.status === 'pending';
+      const actionable = item.action_type === 'board_activate_only';
+      const actionLabel = actionable ? 'Activate unique current Navision Stock on staging board' : 'Observation only — no automatic operational change';
+      const statusClass = serverAiIntakeStatusClass(item.status);
+      return `<article class="ai-intake-server-row" data-status="${escapeHtml(item.status || '')}" data-ai-intake-proposal="${escapeHtml(item.proposal_id || '')}">
+        <div class="ai-intake-server-heading"><span class="badge ${statusClass}">${escapeHtml(String(item.status || 'pending').toUpperCase())}</span><strong>${escapeHtml(item.stock_number ? `Stock ${item.stock_number}` : item.subject || 'Email observation')}</strong><code>${escapeHtml(item.fingerprint || '')}</code></div>
+        <div class="ai-intake-server-meta"><span>${escapeHtml(item.sender_address || 'Unknown sender')}</span><span>UID ${escapeHtml(item.source_uid || '—')}</span><span>${escapeHtml(item.source_received_at ? operationalHealthDateLabel(item.source_received_at) : 'Date unavailable')}</span></div>
+        <p class="ai-intake-server-summary">${escapeHtml(item.summary || '')}</p>
+        <div class="ai-intake-server-evidence"><span><b>Proposed action:</b> ${escapeHtml(actionLabel)}</span><span><b>Authoritative vehicle:</b> ${escapeHtml(item.authoritative_vehicle || 'Not resolved')}</span><span><b>Current location:</b> ${escapeHtml(item.authoritative_location || 'Not populated')}</span></div>
+        ${pending ? `<div class="ai-intake-server-actions"><input type="text" maxlength="500" data-ai-intake-reason placeholder="Decision reason (minimum 10 characters)" aria-label="Decision reason for ${escapeHtml(item.stock_number || item.subject || 'proposal')}">${actionable ? `<button class="primary" type="button" data-ai-intake-apply="${escapeHtml(item.proposal_id)}" ${canApply ? '' : 'disabled title="Administrator access required"'}>Apply to staging</button>` : ''}<button class="small-button" type="button" data-ai-intake-reject="${escapeHtml(item.proposal_id)}" ${canApply ? '' : 'disabled title="Administrator access required"'}>${actionable ? 'Reject' : 'Dismiss observation'}</button></div>` : `<div class="ai-intake-server-meta"><b>${escapeHtml(item.decided_by_email || 'Unknown administrator')}</b><span>${escapeHtml(item.decided_at ? operationalHealthDateLabel(item.decided_at) : '')}</span><span>${escapeHtml(item.decision_reason || '')}</span></div>`}
+      </article>`;
+    }).join('')}</div>`;
+  }
+  const history = Array.isArray(app.serverAiIntakeHistory) ? app.serverAiIntakeHistory : [];
+  historyHost.innerHTML = history.length
+    ? `<div class="ai-intake-history-list">${history.map(event => `<div class="ai-intake-history-row"><strong>${escapeHtml(String(event.event_type || '').toUpperCase())}${event.stock_number ? ` · ${escapeHtml(event.stock_number)}` : ''}</strong><span>${escapeHtml(event.actor_email || 'System')} · ${escapeHtml(event.event_at ? operationalHealthDateLabel(event.event_at) : '')} · ${escapeHtml(event.fingerprint || '')}</span></div>`).join('')}</div>`
+    : '<div class="empty-state compact-empty"><strong>No durable history yet</strong><span>Noticed, applied and rejected events will appear here.</span></div>';
+  $$('[data-ai-intake-apply]', host).forEach(button => button.addEventListener('click', () => decideServerAiIntake(button.dataset.aiIntakeApply, 'apply')));
+  $$('[data-ai-intake-reject]', host).forEach(button => button.addEventListener('click', () => decideServerAiIntake(button.dataset.aiIntakeReject, 'reject')));
+}
+
+async function decideServerAiIntake(proposalId = '', decision = '') {
+  const proposal = app.serverAiIntakeItems.find(item => String(item.proposal_id || '') === String(proposalId || ''));
+  const service = serverAiIntakeService();
+  if (!proposal || !service) return false;
+  const row = $(`[data-ai-intake-proposal="${proposalId}"]`);
+  const reason = cleanNavisionText($('[data-ai-intake-reason]', row)?.value || '');
+  if (reason.length < 10) {
+    window.alert('Enter a decision reason of at least 10 characters. Nothing changed.');
+    return false;
+  }
+  if (decision === 'apply' && !window.confirm(`Apply proposal ${proposal.fingerprint} for Stock ${proposal.stock_number || 'unknown'} to staging? Only board activation is permitted; the current Navision location will be preserved.`)) return false;
+  if (decision === 'reject' && !window.confirm(`Reject or dismiss proposal ${proposal.fingerprint}?`)) return false;
+  const response = await service.decide(proposal, decision, reason);
+  if (!response.ok) {
+    window.alert(`AI Intake decision failed: ${response.code || 'unknown error'}. Nothing changed.`);
+    await refreshServerAiIntake();
+    return false;
+  }
+  await refreshServerAiIntake();
+  if (decision === 'apply' && typeof loadSharedNavisionVisibleRows === 'function') await loadSharedNavisionVisibleRows();
+  return true;
+}
+
 function emailReviewItems() {
   const seeded = Array.isArray(window.PDC_EMAIL_BOARD_DATA?.reviews) ? window.PDC_EMAIL_BOARD_DATA.reviews : [];
   const local = loadAiFileAssistantReviews();
@@ -16889,6 +17038,10 @@ async function applyVehicleImportReview(review = {}) {
 }
 
 function applyEmailReview(id = '') {
+  if ($('#ai-intake-server-panel')) {
+    window.alert('Uploaded-file proposals are local drafts only. Use the PMB inbox bot section above for a durable, audited staging decision. Nothing changed.');
+    return false;
+  }
   const review = emailReviewItems().find(item => String(item.id || '') === String(id || ''));
   if (!review) return;
   if (review.type === 'vehicle-import') return applyVehicleImportReview(review);
@@ -16960,10 +17113,12 @@ function emailVehicleReviewLinesHtml(review = {}, disabled = false) {
 function renderEmailIntakeReview() {
   const host = $('#email-intake-review-content');
   if (!host) return;
+  renderServerAiIntake();
   renderAiBoardAdvisor();
   updateAiFileAssistantButtons();
   const decisions = emailReviewDecisions();
   const filter = $('#email-review-status-filter')?.value || 'pending';
+  const localApplyDisabled = Boolean($('#ai-intake-server-panel'));
   const all = emailReviewItems();
   const rows = all.filter(review => {
     const state = decisions[review.id]?.status || 'pending';
@@ -17004,7 +17159,7 @@ function renderEmailIntakeReview() {
           <div class="email-review-vehicle-fields"><label><span>Customer</span><input type="text" data-email-vehicle-customer value="${escapeHtml(vehicleCustomerName(proposalVehicle) || '')}" ${state !== 'pending' ? 'disabled' : ''}></label><label><span>Vehicle details</span><input type="text" data-email-vehicle-description value="${escapeHtml(displayVehicle(proposalVehicle) || proposalVehicle.vehicle || '')}" ${state !== 'pending' ? 'disabled' : ''}></label><label><span>Job card</span><input type="text" data-email-vehicle-job-card value="${escapeHtml(vehicleJobcardNumber(proposalVehicle) || proposalVehicle.jobCardNumber || '')}" ${state !== 'pending' ? 'disabled' : ''}></label></div>
           <div class="email-review-guidance"><strong>Check every included row.</strong> Correct the description, move it to the workshop category that will perform it, and confirm labour hours. Only approved rows are pushed to the PDC board and Workshop Planner.</div>
           ${emailVehicleReviewLinesHtml(review, state !== 'pending')}
-          <div class="email-review-actions">${state === 'pending' ? `<button class="primary" type="button" data-email-review-apply="${escapeHtml(review.id)}" ${lineCount ? '' : 'disabled'}>Approve &amp; push to PDC board</button><button class="small-button" type="button" data-email-review-reject="${escapeHtml(review.id)}">Reject</button>` : `<span class="subtle">${escapeHtml(decision.decidedBy || '')} · ${escapeHtml(decision.decidedAt ? operationalHealthDateLabel(decision.decidedAt) : '')}</span>`}</div>
+          <div class="email-review-actions">${state === 'pending' ? `<button class="primary" type="button" data-email-review-apply="${escapeHtml(review.id)}" ${lineCount && !localApplyDisabled ? '' : 'disabled'}>${localApplyDisabled ? 'Server proposal required' : 'Approve &amp; push to PDC board'}</button><button class="small-button" type="button" data-email-review-reject="${escapeHtml(review.id)}">Reject draft</button>` : `<span class="subtle">${escapeHtml(decision.decidedBy || '')} · ${escapeHtml(decision.decidedAt ? operationalHealthDateLabel(decision.decidedAt) : '')}</span>`}</div>
         </div>
       </details>`;
     }
@@ -17012,7 +17167,7 @@ function renderEmailIntakeReview() {
       <div class="email-review-main"><span class="badge ${state === 'pending' ? 'warning' : state === 'applied' ? 'ready' : 'neutral'}">${escapeHtml(state.toUpperCase())}</span><strong>${escapeHtml(review.stock || 'No stock')}</strong><b>${escapeHtml(emailReviewActionLabel(review))}</b><small>${escapeHtml(review.receivedAt ? operationalHealthDateLabel(review.receivedAt) : 'Date unavailable')}</small></div>
       <div class="email-review-details"><span><b>Vehicle:</b> ${escapeHtml(vehicle ? `${vehicleCustomerName(vehicle)} · ${displayVehicle(vehicle)}` : 'No matching vehicle')}</span>${review.reason ? `<span><b>Reason:</b> ${escapeHtml(review.reason)}</span>` : ''}${review.notes ? `<span><b>Notes:</b> ${escapeHtml(review.notes)}</span>` : ''}${review.eta ? `<span><b>ETA:</b> ${escapeHtml(review.eta)}</span>` : ''}<span><b>Sender:</b> ${escapeHtml(review.sender || 'Unknown')}</span></div>
       ${aiAssistantReviewMetaHtml(review)}
-      <div class="email-review-actions">${state === 'pending' ? `<button class="primary" type="button" data-email-review-apply="${escapeHtml(review.id)}" ${vehicle ? '' : 'disabled'}>Apply reviewed update</button><button class="small-button" type="button" data-email-review-reject="${escapeHtml(review.id)}">Reject</button>` : `<span class="subtle">${escapeHtml(decision.decidedBy || '')} · ${escapeHtml(decision.decidedAt ? operationalHealthDateLabel(decision.decidedAt) : '')}</span>`}</div>
+      <div class="email-review-actions">${state === 'pending' ? `<button class="primary" type="button" data-email-review-apply="${escapeHtml(review.id)}" ${vehicle && !localApplyDisabled ? '' : 'disabled'}>${localApplyDisabled ? 'Server proposal required' : 'Apply reviewed update'}</button><button class="small-button" type="button" data-email-review-reject="${escapeHtml(review.id)}">Reject draft</button>` : `<span class="subtle">${escapeHtml(decision.decidedBy || '')} · ${escapeHtml(decision.decidedAt ? operationalHealthDateLabel(decision.decidedAt) : '')}</span>`}</div>
     </article>`;
   }).join('')}</div>`;
   $$('[data-email-vehicle-review]', host).forEach(row => row.addEventListener('toggle', () => {

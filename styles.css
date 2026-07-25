@@ -12009,3 +12009,42 @@ select[name="pdcLocation"]:focus,
   #parts .parts-operational-filters { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   #parts .parts-compact-toolbar { grid-template-columns: 1fr; }
 }
+
+/* Server-authoritative PMB inbox history and controlled staging decisions. */
+.ai-intake-server-panel {
+  display: grid;
+  gap: 12px;
+  margin: 0 0 16px;
+  padding: 16px;
+  border: 1px solid #86efac;
+  border-radius: 14px;
+  background: linear-gradient(180deg, #f0fdf4, #ffffff);
+}
+.ai-intake-server-header, .ai-intake-server-toolbar, .ai-intake-server-heading, .ai-intake-server-meta, .ai-intake-server-actions, .ai-intake-history-heading { display: flex; align-items: center; gap: 10px; }
+.ai-intake-server-header, .ai-intake-server-heading, .ai-intake-history-heading { justify-content: space-between; }
+.ai-intake-server-toolbar { flex-wrap: wrap; justify-content: flex-end; }
+.ai-intake-server-filter { margin: 0; }
+.ai-intake-server-list, .ai-intake-history-list { display: grid; gap: 10px; }
+.ai-intake-server-row {
+  display: grid;
+  gap: 9px;
+  padding: 13px;
+  border: 1px solid #d1d5db;
+  border-radius: 11px;
+  background: #fff;
+}
+.ai-intake-server-heading { flex-wrap: wrap; justify-content: flex-start; }
+.ai-intake-server-heading code { margin-left: auto; font-size: .72rem; }
+.ai-intake-server-meta { flex-wrap: wrap; color: #64748b; font-size: .78rem; }
+.ai-intake-server-summary { margin: 0; line-height: 1.45; }
+.ai-intake-server-evidence { display: grid; gap: 5px; font-size: .82rem; }
+.ai-intake-server-actions { align-items: stretch; flex-wrap: wrap; }
+.ai-intake-server-actions input { flex: 1 1 320px; min-height: 38px; }
+.ai-intake-history-heading { border-top: 1px solid #bbf7d0; padding-top: 12px; }
+.ai-intake-history-row { display: grid; gap: 3px; padding: 9px 11px; border-left: 4px solid #22c55e; background: #f8fafc; }
+.ai-intake-history-row span { color: #64748b; font-size: .76rem; }
+@media (max-width: 760px) {
+  .ai-intake-server-header, .ai-intake-history-heading { align-items: flex-start; flex-direction: column; }
+  .ai-intake-server-toolbar { justify-content: flex-start; }
+  .ai-intake-server-heading code { margin-left: 0; }
+}
