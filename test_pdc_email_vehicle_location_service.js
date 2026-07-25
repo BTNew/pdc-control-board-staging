@@ -14,13 +14,16 @@ function assert(value, message) { if (!value) throw new Error(message); }
   assert(mapped.pdcRequiresTint === true && mapped.pdcCompleteTint === false, 'Required incomplete work must map to a to-be-completed tick');
   assert(mapped.pdcRequiresPitInspection === true && mapped.pdcCompletePitInspection === true, 'Canonical completed work must map');
   assert(mapped.pdcRequiresParts === true && mapped.pdcCompleteParts === false, 'Parts summary flags must be authoritative');
+  assert(mapped.__emailVehicleReadOnly === true, 'Email-imported server rows must remain fail-closed for browser-local location mutations');
+  assert(mapped.__locationIdentityReadOnly !== true, 'A unique email-imported server row must not be mislabeled as an identity conflict');
 
   const merged = reconcileVehicleRows([{ stock: 'S100', vin: 'VIN100', client: 'Browser edit', pdcRequiresTint: false }], [server]).rows;
   assert(merged.length === 1 && merged[0].client === 'Server customer' && merged[0].pdcRequiresTint === true, 'Server row must override matching browser/static data');
+  assert(merged[0].__emailVehicleReadOnly === true && merged[0].__locationIdentityReadOnly !== true, 'A unique stock/VIN match must remain safely read-only without claiming an identity conflict');
   const restored = reconcileVehicleRows([], [server]).rows;
   assert(restored.length === 1 && restored[0].__emailVehicleServerAuthoritative === true, 'Browser deletion must not hide a server row');
   const conflict = reconcileVehicleRows([{ stock: 'S100', vin: 'A' }, { stock: 'S200', vin: 'VIN100' }], [server]);
-  assert(conflict.rows.length === 2 && conflict.conflictCount === 2 && conflict.rows.every(row => row.__emailVehicleIdentityConflict), 'Cross-identity conflicts must fail closed without inserting the server row');
+  assert(conflict.rows.length === 2 && conflict.conflictCount === 2 && conflict.rows.every(row => row.__emailVehicleIdentityConflict && row.__locationIdentityReadOnly === true), 'Cross-identity conflicts must remain read-only and fail closed without inserting the server row');
 
   let blocked = false;
   try { createPdcEmailVehicleLocationService({ config: { url: 'https://production.supabase.co', publishableKey: 'x' }, fetchImpl: async () => null }); } catch (_error) { blocked = true; }
@@ -43,6 +46,7 @@ function assert(value, message) { if (!value) throw new Error(message); }
   const production = fs.readFileSync('index.html', 'utf8');
   const app = fs.readFileSync('app.js', 'utf8');
   assert(staging.includes('pdc-email-vehicle-location-service.js') && !production.includes('pdc-email-vehicle-location-service.js'), 'Service must load only from staging.html');
+  assert(app.includes("const emailReadOnly = vehicle.__emailVehicleReadOnly === true;") && app.includes("emailReadOnly ? 'Email import · Read only'"), 'Email-imported rows must show an accurate read-only badge instead of a false identity conflict');
   assert(staging.includes('Identity conflicts fail closed') && staging.includes('Authenticated email vehicle imports'), 'Staging-only safety copy must be present');
   assert(app.includes('pdc-auth-ready') && app.includes('initEmailVehicleLocationsIfAvailable') && app.includes('pdc-auth-locked'), 'App must bind service lifecycle to approved auth');
   assert(app.includes('reconcileVehicleRows(localRows, app.emailVehicleLocationRows)'), 'Vehicle Location cards must consume authoritative rows');

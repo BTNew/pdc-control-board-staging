@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.07.25.04-authenticated-email-auto-import';
+const APP_VERSION = '2026.07.26.01-email-identity-badge';
 const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.07.24.26-pd-document-intake';
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
@@ -5347,8 +5347,9 @@ function incomingVehicleDetailRow(vehicle = {}, bucketKey = '', options = {}) {
   const key = vehicleKey(vehicle);
   const sharedReadOnly = vehicle.__sharedNavisionReadOnly === true;
   const identityReadOnly = vehicle.__locationIdentityReadOnly === true;
+  const emailReadOnly = vehicle.__emailVehicleReadOnly === true;
   const authorityPending = !sharedNavisionLocationAuthorityReady();
-  const locationReadOnly = sharedReadOnly || identityReadOnly || authorityPending;
+  const locationReadOnly = sharedReadOnly || identityReadOnly || emailReadOnly || authorityPending;
   const eta = locationAgeLabel(vehicle);
   const stock = displayStockNumber(vehicle) || vehicleKey(vehicle) || 'No stock';
   const unit = displayVehicle(vehicle) || 'Vehicle not listed';
@@ -5367,7 +5368,7 @@ function incomingVehicleDetailRow(vehicle = {}, bucketKey = '', options = {}) {
     : '';
   const gateIssues = bucketKey === 'pmb' ? vehiclesWithRftGateIssues([vehicle]).flatMap(row => row.issues || []) : [];
   const primaryAction = locationReadOnly
-    ? `<span class="badge neutral">${identityReadOnly ? 'Identity conflict · Read only' : sharedReadOnly ? 'Shared Navision · Read only' : 'Shared sync pending · Read only'}</span>`
+    ? `<span class="badge neutral">${identityReadOnly ? 'Identity conflict · Read only' : emailReadOnly ? 'Email import · Read only' : sharedReadOnly ? 'Shared Navision · Read only' : 'Shared sync pending · Read only'}</span>`
     : bucketKey === 'yardhold'
     ? `<button class="primary incoming-transfer-pmb" type="button" data-yh-transfer-pmb="${escapeHtml(key)}" title="Transfer Yard Hold vehicle to PMB">To PMB</button><button class="small-button incoming-open-button" type="button" data-open-stock="${escapeHtml(key)}">Open</button>`
     : bucketKey === 'pmb'
