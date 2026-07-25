@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.07.25.03-ai-intake-admin-decision';
+const APP_VERSION = '2026.07.25.04-authenticated-email-auto-import';
 const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.07.24.26-pd-document-intake';
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
