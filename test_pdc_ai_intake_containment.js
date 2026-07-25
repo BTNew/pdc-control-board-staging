@@ -109,5 +109,31 @@ for (const role of ['operator', 'importer', 'administrator']) {
   assert.strictEqual(first.idempotencyKey, retry.idempotencyKey);
   assert.strictEqual(retry.proposal.inbox_revision, 3);
   assert.strictEqual(retry.proposal.navision_revision, 241);
+
+  // The outer handler must retain the exact attempt when transport outcome is unknown.
+  const outerProposal = {
+    proposal_id: 'p-outer', version: 1, fingerprint: 'A1B2C3D4E5F60708',
+    stock_number: 'QA-OUTER', action_type: 'board_activate_only', status: 'pending',
+  };
+  const alerts = [];
+  state.serverAiIntakeItems = [outerProposal];
+  state.serverAiIntakeHistory = [];
+  state.serverAiIntakeRevision = 3;
+  state.serverAiIntakeNavisionRevision = 241;
+  state.serverAiIntakeService = service;
+  state.serverAiIntakeDecisionAttempts = new Map();
+  service.decide = async () => ({ ok: false, code: 'outcome_unknown', outcomeUnknown: true, status: 503 });
+  service.snapshot = async () => ({ ok: true, data: { revision: 3, navision_revision: 241, items: [outerProposal], history: [] } });
+  context.serverAiIntakeRoleCanApply = () => true;
+  context.cleanNavisionText = value => String(value || '').trim();
+  context.$ = selector => String(selector).includes('data-ai-intake-reason')
+    ? { value: 'Administrator exact outcome unknown test' }
+    : {};
+  context.window.confirm = () => true;
+  context.window.alert = message => alerts.push(String(message));
+  vm.runInContext(functionSource('decideServerAiIntake', 'emailReviewItems'), context);
+  assert.strictEqual(await context.decideServerAiIntake('p-outer', 'apply'), false);
+  assert([...state.serverAiIntakeDecisionAttempts.values()].some(attempt => attempt?.proposal?.proposal_id === 'p-outer'), 'Outcome-unknown handler must retain the exact attempt');
+  assert(alerts.at(-1).includes('outcome is not yet known') && !alerts.at(-1).includes('committed no change'), 'Outcome-unknown handler must make no false no-change claim');
   console.log('AI Intake behavioral authority, lifecycle, retry and SQL lock gates passed');
 })().catch(error => { console.error(error); process.exit(1); });
