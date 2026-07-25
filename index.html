@@ -445,13 +445,13 @@
       <section id="emailreview" class="view">
         <div class="parts-home-layout email-review-layout">
           <section class="panel parts-home-panel email-review-panel">
-            <div class="panel-header"><div><h2>AI Intake Review</h2><p>Authenticated PMB inbox observations and every approved staging adjustment are recorded here. The bot proposes; an Administrator makes the durable decision.</p></div><span class="badge warning" id="email-review-count">0 pending</span></div>
+            <div class="panel-header"><div><h2>AI Intake Review</h2><p>Authenticated PMB inbox observations and durable history are recorded here. Operational decisions are currently disabled.</p></div><span class="badge warning" id="email-review-count">0 pending</span></div>
             <section class="ai-intake-server-panel" id="ai-intake-server-panel" aria-labelledby="ai-intake-server-title">
               <div class="ai-intake-server-header">
-                <div><span class="eyebrow">PMB inbox bot · Supabase staging</span><h3 id="ai-intake-server-title">Inbox observations and controlled adjustments</h3><p>Every accepted email is fingerprinted and retained. Only the exact typed action shown can be applied; current Navision identity and location are revalidated by the server.</p></div>
+                <div><span class="eyebrow">PMB inbox bot · Supabase staging</span><h3 id="ai-intake-server-title">Inbox observations and history</h3><p>Every accepted email is fingerprinted and retained. Decision execution is temporarily contained pending provider-authenticated email and durable human-approval receipts; this panel cannot change board or workshop state.</p></div>
                 <div class="ai-intake-server-toolbar"><span class="badge warning" id="ai-intake-server-state">Connecting</span><button class="small-button" id="ai-intake-server-refresh" type="button">Refresh inbox</button></div>
               </div>
-              <div class="table-toolbar ai-intake-server-filter"><label><span>Inbox status</span><select id="ai-intake-server-filter"><option value="pending">Awaiting decision</option><option value="applied">Applied</option><option value="rejected">Rejected / dismissed</option><option value="all">All inbox observations</option></select></label></div>
+              <div class="table-toolbar ai-intake-server-filter"><label><span>Inbox status</span><select id="ai-intake-server-filter"><option value="pending">Pending observation</option><option value="applied">Applied history</option><option value="rejected">Rejected history</option><option value="all">All inbox observations</option></select></label></div>
               <div id="ai-intake-server-content"><div class="empty-state compact-empty"><strong>Connecting to staging AI Intake</strong><span>No browser-local fallback is used.</span></div></div>
               <div class="ai-intake-history-heading"><div><span class="eyebrow">Durable audit trail</span><h3>What the inbox bot noticed and what staff changed</h3></div></div>
               <div id="ai-intake-history-content"><div class="empty-state compact-empty"><strong>Loading history</strong><span>Noticed, applied and rejected events appear here.</span></div></div>
@@ -989,9 +989,9 @@
   <script src="arb-labor-catalog.js?v=2026.07.24.26-pd-document-intake"></script>
   <script src="ai-board-advisor.js?v=2026.07.24.26-pd-document-intake"></script>
   <script src="navision-backend-service.js?v=2026.07.24.26-pd-document-intake"></script>
-  <script src="pdc-ai-intake-service.js?v=2026.07.25.01-ai-intake-staging"></script>
+  <script src="pdc-ai-intake-service.js?v=2026.07.25.02-ai-intake-contained"></script>
   <script src="workshop-eligibility.js?v=2026.07.24.26-pd-document-intake"></script>
-  <script src="app.js?v=2026.07.25.01-ai-intake-staging"></script>
+  <script src="app.js?v=2026.07.25.02-ai-intake-contained"></script>
   <script src="key-list-review.js?v=2026.07.23.11-key-list-review"></script>
   <script src="scripts/stage2b_c4_browser_export.js?v=2026.07.22.01-read-only-assessment"></script>
   <script src="staging-browser-assessment.js?v=2026.07.22.01-read-only-assessment"></script>

@@ -6,10 +6,10 @@
     "twoPhysicalWorkstationAuthorityCutover": false
   },
   "artifact": "zero-data static staging site",
-  "cacheVersion": "2026.07.25.01-ai-intake-staging",
+  "cacheVersion": "2026.07.25.02-ai-intake-contained",
   "deploymentMode": "exact reviewed source blobs; staging.html mapped to index.html",
   "environment": "staging",
-  "generatedAtUtc": "2026-07-25T04:32:33Z",
+  "generatedAtUtc": "2026-07-25T04:53:00Z",
   "migrationLedger": [
     "042",
     "044",
@@ -31,21 +31,22 @@
     "060",
     "061",
     "062",
-    "063"
+    "063",
+    "064"
   ],
   "releaseChecks": {
-    "aggregateTests": "AI Intake service and syntax gates passed; migration 063 rehearsal and repository/monitor aggregate gates passed before publish",
+    "aggregateTests": "AI Intake service, static containment, migration contract, syntax, and transactional staging containment gates passed",
     "backupRestore": "fresh encrypted staging backup and isolated restore passed before migration/reset",
-    "databasePostApply": "migration 063 applied on staging; 2 authenticated observations, 0 decisions, 11 board activations; revision unchanged until decision",
+    "databasePostApply": "migration 064 applied on staging; 2 pending observations, 0 decisions, 11 board activations, Navision revision 241",
     "independentReview": "final combined-diff blocker/major review PASS",
     "literalArtifact": "30/30 source blobs assembled from exact reviewed source commit",
     "navisionLocations": "Batch-only identity, durable reviewed activation, fail-closed shared authority, no Toyota-order UI or matching",
     "pdIntake": "PD Document is sole vehicle-work intake; PO/job-card executable paths absent",
     "stagingBrowserCleanup": "explicit ?clearLocalData=1 gate clears bounded browser-local operational data on staging only",
-    "aiIntake": "enrolled Viewer submits authenticated observations; only Administrator may fingerprint/version-bound apply or reject; board activation is the sole typed operational action"
+    "aiIntake": "proposal-only containment active: enrolled Viewer may submit immutable observations; exact Administrator snapshot only; decision RPC absent; browser Apply/Reject blocked"
   },
   "sourceBranch": "fix/ai-intake-inbox-history",
-  "sourceCommit": "48872c61ade661c959f91c0448b23d4f96539351",
+  "sourceCommit": "578b8c5a668ad4734b9aac539a51816c0e5c6b40",
   "sourceFiles": [
     {
       "deployedPath": "ai-board-advisor.js",
@@ -54,7 +55,7 @@
     },
     {
       "deployedPath": "app.js",
-      "sha256": "731b686a4b12612659e67cda77111cb30746160df4d30e5516a9e7b34bda8457",
+      "sha256": "57d999a0b63dfe1e5266d8a1b290f57e20e438a4918a825734d0b4d2eaea2c2f",
       "sourcePath": "app.js"
     },
     {
@@ -94,7 +95,7 @@
     },
     {
       "deployedPath": "index.html",
-      "sha256": "bff5d089379f7ffab998909947281f216cdb7b79adb28980b615e489a19c6a89",
+      "sha256": "1c760b8f52ab52821f310172604bc2c7626b76ebbfd4f0953fe3c8cde82e9f57",
       "sourcePath": "staging.html"
     },
     {
@@ -205,7 +206,7 @@
   ],
   "sourceParity": "31/31 deployed Git blobs byte-identical to exact source commit",
   "sourceRepository": "BTNew/pdc-control-board",
-  "sourceTree": "f2de2e2065ca98dac41de9b81da7d1c2dc34e352",
+  "sourceTree": "a325cc1b46fde6dcef4c6c4f33e9ff19140e61b9",
   "stagingProjectRef": "cdsmnqxtyyoeoznmbidd",
   "stagingSafety": {
     "bundledOperationalData": false,
