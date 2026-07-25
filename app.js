@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.07.25.02-ai-intake-contained';
+const APP_VERSION = '2026.07.25.03-ai-intake-admin-decision';
 const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.07.24.26-pd-document-intake';
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
@@ -1881,10 +1881,14 @@ const app = {
   serverAiIntakeState: 'idle',
   serverAiIntakeError: '',
   serverAiIntakeRevision: null,
+  serverAiIntakeNavisionRevision: null,
   serverAiIntakeItems: [],
   serverAiIntakeHistory: [],
   serverAiIntakeGeneration: 0,
+  serverAiIntakeLifecycleGeneration: 0,
   serverAiIntakeRealtime: null,
+  serverAiIntakeDecisionInFlight: false,
+  serverAiIntakeDecisionAttempts: new Map(),
   navisionImport: loadJson(NAVISION_IMPORT_RESULTS_KEY, null),
   pendingNavisionImport: null,
   navisionFileName: '',
@@ -3899,6 +3903,7 @@ window.addEventListener?.('pdc-auth-ready', () => {
   const navItem = document.getElementById('nav-user-management');
   if (navItem) navItem.hidden = !(typeof backupStatusSharedModeReady === 'function' && backupStatusSharedModeReady());
   if (app.currentView === 'emailreview' && typeof renderAiBoardAdvisor === 'function') renderAiBoardAdvisor();
+  resetServerAiIntakeAuthorityState({ clearData: true });
   initServerAiIntakeIfAvailable();
   refreshServerAiIntake({ silent: true });
   loadSharedNavisionVisibleRows({ force: true });
@@ -3962,12 +3967,7 @@ window.addEventListener?.('pdc-auth-locked', () => {
   window.__vehicleLifecycleResolverDiagnostics = [];
   window.__vehicleLifecycleActions = null;
   window.__workshopReferenceDataService = null;
-  try { app.serverAiIntakeRealtime?.unsubscribe?.(); } catch (_err) { /* best-effort teardown */ }
-  app.serverAiIntakeRealtime = null;
-  app.serverAiIntakeService = null;
-  app.serverAiIntakeItems = [];
-  app.serverAiIntakeHistory = [];
-  app.serverAiIntakeState = 'idle';
+  resetServerAiIntakeAuthorityState({ clearData: true });
   clearSharedNavisionVisibilityReconnectTimer();
   app.sharedNavisionVisibleGeneration += 1;
   releaseSharedNavisionVisibilityChannel();
@@ -12257,6 +12257,10 @@ async function activateSharedNavisionBackendRecord(recordId = '', source = 'manu
 }
 
 function activateSharedNavisionForApprovedDocumentReview(vehicle = {}, source = 'approved_pd_document') {
+  const normalizedSource = String(source || '').trim().toLowerCase();
+  if (normalizedSource.includes('email') || normalizedSource.includes('ai_intake')) {
+    return { ok: false, code: 'server_ai_intake_rpc_required', activated: false };
+  }
   if (sharedNavisionVisibilityConfigured() && !sharedNavisionLocationAuthorityReady()) {
     return { ok: false, code: 'shared_authority_unavailable' };
   }
@@ -12268,8 +12272,10 @@ function activateSharedNavisionForApprovedDocumentReview(vehicle = {}, source = 
   return activateSharedNavisionBackendRecord(matches[0].id, source, { confirm: false });
 }
 
-function activateSharedNavisionForApprovedEmailReview(vehicle = {}) {
-  return activateSharedNavisionForApprovedDocumentReview(vehicle, 'approved_email_build');
+function activateSharedNavisionForApprovedEmailReview(_vehicle = {}) {
+  // Local/uploaded email drafts are never an authority path. The only AI
+  // Intake activation contract is the exact Administrator RPC in migration 065.
+  return { ok: false, code: 'server_ai_intake_rpc_required' };
 }
 
 function renderBackEndData() {
@@ -16701,6 +16707,35 @@ async function analyzeAiFileAssistantUploads() {
   return createdReviews.length > 0;
 }
 
+function serverAiIntakeAuthMarker() {
+  const context = window.PDC_AUTH_CONTEXT || {};
+  const role = String(context.role || '').trim().toLowerCase();
+  const userId = String(context.userId || context.user?.id || '').trim();
+  const email = String(context.email || context.user?.email || '').trim().toLowerCase();
+  const token = String(getPdcSupabaseAccessToken() || '');
+  return role === 'administrator' && userId && email && token
+    ? `${userId}|${email}|${token}`
+    : '';
+}
+
+function resetServerAiIntakeAuthorityState({ clearData = true } = {}) {
+  app.serverAiIntakeLifecycleGeneration += 1;
+  app.serverAiIntakeGeneration += 1;
+  try { app.serverAiIntakeRealtime?.unsubscribe?.(); } catch (_error) { /* best-effort teardown */ }
+  app.serverAiIntakeRealtime = null;
+  app.serverAiIntakeService = null;
+  app.serverAiIntakeDecisionInFlight = false;
+  app.serverAiIntakeRevision = null;
+  app.serverAiIntakeNavisionRevision = null;
+  app.serverAiIntakeError = '';
+  app.serverAiIntakeState = 'idle';
+  if (clearData) {
+    app.serverAiIntakeItems = [];
+    app.serverAiIntakeHistory = [];
+  }
+  renderServerAiIntake();
+}
+
 function serverAiIntakeService() {
   if (app.serverAiIntakeService) return app.serverAiIntakeService;
   const module = window.PDC_AI_INTAKE_SERVICE;
@@ -16720,6 +16755,10 @@ function serverAiIntakeService() {
 }
 
 function initServerAiIntakeIfAvailable() {
+  if (!serverAiIntakeAuthMarker()) {
+    resetServerAiIntakeAuthorityState({ clearData: true });
+    return null;
+  }
   const service = serverAiIntakeService();
   if (!service || app.serverAiIntakeRealtime) return service;
   app.serverAiIntakeRealtime = service.subscribe(() => {
@@ -16730,6 +16769,12 @@ function initServerAiIntakeIfAvailable() {
 }
 
 async function refreshServerAiIntake(options = {}) {
+  const authority = serverAiIntakeAuthMarker();
+  const lifecycle = app.serverAiIntakeLifecycleGeneration;
+  if (!authority) {
+    resetServerAiIntakeAuthorityState({ clearData: true });
+    return false;
+  }
   const service = serverAiIntakeService();
   if (!service) {
     renderServerAiIntake();
@@ -16740,7 +16785,10 @@ async function refreshServerAiIntake(options = {}) {
   if (!options.silent) app.serverAiIntakeState = 'loading';
   renderServerAiIntake();
   const response = await service.snapshot(filter, 150);
-  if (generation !== app.serverAiIntakeGeneration) return false;
+  if (generation !== app.serverAiIntakeGeneration
+      || lifecycle !== app.serverAiIntakeLifecycleGeneration
+      || authority !== serverAiIntakeAuthMarker()
+      || service !== app.serverAiIntakeService) return false;
   if (!response.ok) {
     app.serverAiIntakeState = 'error';
     app.serverAiIntakeError = response.code || 'AI Intake snapshot failed';
@@ -16750,6 +16798,7 @@ async function refreshServerAiIntake(options = {}) {
   app.serverAiIntakeState = 'synchronized';
   app.serverAiIntakeError = '';
   app.serverAiIntakeRevision = response.data?.revision ?? null;
+  app.serverAiIntakeNavisionRevision = response.data?.navision_revision ?? null;
   app.serverAiIntakeItems = Array.isArray(response.data?.items) ? response.data.items : [];
   app.serverAiIntakeHistory = Array.isArray(response.data?.history) ? response.data.history : [];
   renderServerAiIntake();
@@ -16761,7 +16810,8 @@ function serverAuthoritativeAiIntakeEnabled() {
 }
 
 function serverAiIntakeRoleCanApply() {
-  return false;
+  return String(window.PDC_AUTH_CONTEXT?.role || '').toLowerCase() === 'administrator'
+    && !app.serverAiIntakeDecisionInFlight;
 }
 
 function serverAiIntakeStatusClass(status = '') {
@@ -16789,6 +16839,7 @@ function renderServerAiIntake() {
       ? '<div class="empty-state compact-empty"><strong>No inbox observations match this filter</strong><span>The PMB bot will add authenticated email observations here.</span></div>'
       : '<div class="empty-state compact-empty"><strong>Loading PMB inbox observations</strong><span>No browser-local fallback is used.</span></div>';
   } else {
+    const canDecide = serverAiIntakeRoleCanApply();
     host.innerHTML = `<div class="ai-intake-server-list">${rows.map(item => {
       const pending = item.status === 'pending';
       const actionable = item.action_type === 'board_activate_only';
@@ -16799,7 +16850,7 @@ function renderServerAiIntake() {
         <div class="ai-intake-server-meta"><span>${escapeHtml(item.sender_address || 'Unknown sender')}</span><span>UID ${escapeHtml(item.source_uid || '—')}</span><span>${escapeHtml(item.source_received_at ? operationalHealthDateLabel(item.source_received_at) : 'Date unavailable')}</span></div>
         <p class="ai-intake-server-summary">${escapeHtml(item.summary || '')}</p>
         <div class="ai-intake-server-evidence"><span><b>Proposed action:</b> ${escapeHtml(actionLabel)}</span><span><b>Authoritative vehicle:</b> ${escapeHtml(item.authoritative_vehicle || 'Not resolved')}</span><span><b>Current location:</b> ${escapeHtml(item.authoritative_location || 'Not populated')}</span></div>
-        ${pending ? '<div class="callout warning"><strong>Observation only</strong><span>Apply and Reject are temporarily disabled while provider-authenticated email and durable human-approval receipts are completed. Nothing can change the board from this panel.</span></div>' : `<div class="ai-intake-server-meta"><b>${escapeHtml(item.decided_by_email || 'Unknown administrator')}</b><span>${escapeHtml(item.decided_at ? operationalHealthDateLabel(item.decided_at) : '')}</span><span>${escapeHtml(item.decision_reason || '')}</span></div>`}
+        ${pending ? `<div class="callout warning"><strong>Administrator decision required</strong><span>Email evidence is informational and does not authorize a change. Apply performs only a fresh, exact server-side Navision board activation; Reject records no operational change.</span></div><div class="ai-intake-server-actions"><input type="text" maxlength="500" data-ai-intake-reason placeholder="Exact decision reason (minimum 10 characters)" aria-label="Decision reason for ${escapeHtml(item.stock_number || item.subject || 'proposal')}">${actionable ? `<button class="primary" type="button" data-ai-intake-apply="${escapeHtml(item.proposal_id)}" ${canDecide ? '' : 'disabled title="Active Administrator access required"'}>Activate on staging board</button>` : ''}<button class="small-button" type="button" data-ai-intake-reject="${escapeHtml(item.proposal_id)}" ${canDecide ? '' : 'disabled title="Active Administrator access required"'}>${actionable ? 'Reject' : 'Dismiss observation'}</button></div>` : `<div class="ai-intake-server-meta"><b>${escapeHtml(item.decided_by_email || 'Unknown administrator')}</b><span>${escapeHtml(item.decided_at ? operationalHealthDateLabel(item.decided_at) : '')}</span><span>${escapeHtml(item.decision_reason || '')}</span></div>`}
       </article>`;
     }).join('')}</div>`;
   }
@@ -16811,30 +16862,108 @@ function renderServerAiIntake() {
   $$('[data-ai-intake-reject]', host).forEach(button => button.addEventListener('click', () => decideServerAiIntake(button.dataset.aiIntakeReject, 'reject')));
 }
 
-async function decideServerAiIntake(proposalId = '', decision = '') {
-  if (serverAuthoritativeAiIntakeEnabled()) {
-    window.alert('AI Intake decisions are temporarily contained. This panel is observation and history only; nothing changed.');
-    return false;
+function persistServerAiIntakeDecisionAttempts() {
+  try {
+    const entries = [...app.serverAiIntakeDecisionAttempts.entries()].slice(-50);
+    sessionStorage.setItem('pdc.ai-intake.decision-attempts.v1', JSON.stringify(entries));
+  } catch (_error) { /* memory-only retry remains available */ }
+}
+
+function restoreServerAiIntakeDecisionAttempts() {
+  if (app.serverAiIntakeDecisionAttempts.size) return;
+  try {
+    const entries = JSON.parse(sessionStorage.getItem('pdc.ai-intake.decision-attempts.v1') || '[]');
+    for (const [signature, attempt] of Array.isArray(entries) ? entries : []) {
+      if (typeof signature === 'string'
+          && /^pdc-ai-intake-[a-zA-Z0-9_-]{16,160}$/.test(String(attempt?.idempotencyKey || ''))
+          && attempt?.proposal?.proposal_id) {
+        app.serverAiIntakeDecisionAttempts.set(signature, attempt);
+      }
+    }
+  } catch (_error) { /* corrupt UI retry cache is ignored */ }
+}
+
+function deleteServerAiIntakeDecisionAttempt(signature = '') {
+  app.serverAiIntakeDecisionAttempts.delete(signature);
+  persistServerAiIntakeDecisionAttempts();
+}
+
+function serverAiIntakeDecisionAttempt(proposal = {}, decision = '', reason = '') {
+  restoreServerAiIntakeDecisionAttempts();
+  const context = window.PDC_AUTH_CONTEXT || {};
+  const actor = `${String(context.userId || context.user?.id || '')}|${String(context.email || context.user?.email || '').toLowerCase()}`;
+  const signature = JSON.stringify([actor, proposal.proposal_id, proposal.version, decision, reason]);
+  let attempt = app.serverAiIntakeDecisionAttempts.get(signature);
+  if (!attempt) {
+    const nonce = typeof window.crypto?.randomUUID === 'function'
+      ? window.crypto.randomUUID()
+      : `${Date.now()}-${Math.random().toString(36).slice(2)}-${Math.random().toString(36).slice(2)}`;
+    attempt = {
+      idempotencyKey: `pdc-ai-intake-${nonce}`,
+      proposal: {
+        ...proposal,
+        inbox_revision: Number(app.serverAiIntakeRevision),
+        navision_revision: Number(app.serverAiIntakeNavisionRevision),
+      },
+    };
+    app.serverAiIntakeDecisionAttempts.set(signature, attempt);
+    persistServerAiIntakeDecisionAttempts();
   }
+  return { signature, ...attempt };
+}
+
+async function decideServerAiIntake(proposalId = '', decision = '') {
+  if (!serverAiIntakeRoleCanApply()) return false;
   const proposal = app.serverAiIntakeItems.find(item => String(item.proposal_id || '') === String(proposalId || ''));
   const service = serverAiIntakeService();
-  if (!proposal || !service) return false;
+  const authority = serverAiIntakeAuthMarker();
+  const lifecycle = app.serverAiIntakeLifecycleGeneration;
+  if (!proposal || !service || !authority) return false;
   const row = $(`[data-ai-intake-proposal="${proposalId}"]`);
   const reason = cleanNavisionText($('[data-ai-intake-reason]', row)?.value || '');
   if (reason.length < 10) {
     window.alert('Enter a decision reason of at least 10 characters. Nothing changed.');
     return false;
   }
-  if (decision === 'apply' && !window.confirm(`Apply proposal ${proposal.fingerprint} for Stock ${proposal.stock_number || 'unknown'} to staging? Only board activation is permitted; the current Navision location will be preserved.`)) return false;
+  if (decision === 'apply' && !window.confirm(`Activate proposal ${proposal.fingerprint} for Stock ${proposal.stock_number || 'unknown'} on the staging board? Email evidence is informational only. The server will revalidate the exact Navision record and revision, preserve its location, and make no other operational change.`)) return false;
   if (decision === 'reject' && !window.confirm(`Reject or dismiss proposal ${proposal.fingerprint}?`)) return false;
-  const response = await service.decide(proposal, decision, reason);
-  if (!response.ok) {
-    window.alert(`AI Intake decision failed: ${response.code || 'unknown error'}. Nothing changed.`);
+  const attempt = serverAiIntakeDecisionAttempt(proposal, decision, reason);
+  app.serverAiIntakeDecisionInFlight = true;
+  renderServerAiIntake();
+  let response;
+  try {
+    response = await service.decide(attempt.proposal, decision, reason, attempt.idempotencyKey);
+  } finally {
+    if (lifecycle === app.serverAiIntakeLifecycleGeneration && authority === serverAiIntakeAuthMarker()) {
+      app.serverAiIntakeDecisionInFlight = false;
+    }
+  }
+  if (lifecycle !== app.serverAiIntakeLifecycleGeneration
+      || authority !== serverAiIntakeAuthMarker()
+      || service !== app.serverAiIntakeService) return false;
+  if (response?.outcomeUnknown) {
+    await refreshServerAiIntake();
+    if (lifecycle !== app.serverAiIntakeLifecycleGeneration || authority !== serverAiIntakeAuthMarker()) return false;
+    const current = app.serverAiIntakeItems.find(item => String(item.proposal_id || '') === String(proposalId));
+    const terminalHistory = app.serverAiIntakeHistory.some(event => String(event.proposal_id || '') === String(proposalId)
+      && ['applied', 'rejected'].includes(String(event.event_type || '').toLowerCase()));
+    if ((current && current.status !== 'pending') || terminalHistory) {
+      deleteServerAiIntakeDecisionAttempt(attempt.signature);
+      window.alert('The original response was lost, but authoritative history confirms that the decision was recorded.');
+      return true;
+    }
+    window.alert('The server outcome is not yet known. No result is being claimed. Retry the same decision to reconcile the durable receipt with the same idempotency key.');
+    return false;
+  }
+  if (!response?.ok) {
+    deleteServerAiIntakeDecisionAttempt(attempt.signature);
+    window.alert(`AI Intake decision rejected: ${response?.code || 'unknown error'}. The server returned a definitive rejection and committed no change.`);
     await refreshServerAiIntake();
     return false;
   }
-  await refreshServerAiIntake();
+  deleteServerAiIntakeDecisionAttempt(attempt.signature);
   if (decision === 'apply' && typeof loadSharedNavisionVisibleRows === 'function') await loadSharedNavisionVisibleRows();
+  if (lifecycle === app.serverAiIntakeLifecycleGeneration && authority === serverAiIntakeAuthMarker()) await refreshServerAiIntake();
   return true;
 }
 

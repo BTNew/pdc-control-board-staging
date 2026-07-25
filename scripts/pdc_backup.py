@@ -183,6 +183,14 @@ TABLES = [
     "sublet_providers",
     "monitored_mailboxes",
     "pdc_user_roles",
+    # Added in later migrations; required_backup_tables() gates these by ledger.
+    "pdc_monitor_vehicle_identity_readers",
+    "pdc_monitor_stage_activation_writers",
+    "pdc_monitor_stage_activation_approvals",
+    "pdc_monitor_new_build_intake_approvals",
+    "pdc_online_state_revision",
+    "pdc_online_operational_state",
+    "pdc_online_state_receipts",
     # Vehicle master + everything that hangs off a vehicle
     "vehicles",
     "vehicle_aliases",
@@ -201,6 +209,12 @@ TABLES = [
     "navision_operation_receipts",
     "navision_rollback_items",
     "navision_backend_audit",
+    "navision_board_activations",
+    "pdc_email_source_claims",
+    "pdc_ai_intake_revision",
+    "pdc_ai_intake_proposals",
+    "pdc_ai_intake_history",
+    "pdc_ai_intake_decision_receipts",
     "vehicle_work_items",
     # Migration 045: service-only canonicalization/reconciliation receipts.
     "legacy_stage_reconciliation_receipts",
@@ -242,20 +256,48 @@ TABLES = [
 ]
 
 
-MIGRATION_045_BACKUP_TABLES = frozenset({"legacy_stage_reconciliation_receipts"})
+MIGRATION_045_BACKUP_TABLES = frozenset({'legacy_stage_reconciliation_receipts'})
+MIGRATION_053_BACKUP_TABLES = frozenset({'navision_board_activations'})
+MIGRATION_054_BACKUP_TABLES = frozenset({'pdc_monitor_vehicle_identity_readers'})
+MIGRATION_056_BACKUP_TABLES = frozenset({
+    'pdc_online_state_revision', 'pdc_online_operational_state', 'pdc_online_state_receipts',
+})
+MIGRATION_060_BACKUP_TABLES = frozenset({
+    'pdc_monitor_stage_activation_writers',
+    'pdc_monitor_stage_activation_approvals',
+})
+MIGRATION_061_BACKUP_TABLES = frozenset({'pdc_monitor_new_build_intake_approvals'})
+MIGRATION_063_BACKUP_TABLES = frozenset({
+    'pdc_email_source_claims', 'pdc_ai_intake_revision',
+    'pdc_ai_intake_proposals', 'pdc_ai_intake_history',
+})
+MIGRATION_065_BACKUP_TABLES = frozenset({'pdc_ai_intake_decision_receipts'})
 
 
 def required_backup_tables(migration_version):
-    """Ledger-versioned fail-closed operational inventory.
-
-    The receipt table is introduced by 045, so a mandatory pre-045 backup must
-    remain valid before that table exists; every 045+ backup must contain it.
-    """
+    """Ledger-versioned fail-closed operational inventory."""
     number = migration_number(migration_version)
     if number < 42:
         return frozenset()
-    required = frozenset(TABLES)
-    return required if number >= 45 else required.difference(MIGRATION_045_BACKUP_TABLES)
+    future = MIGRATION_045_BACKUP_TABLES | MIGRATION_053_BACKUP_TABLES | MIGRATION_054_BACKUP_TABLES | MIGRATION_056_BACKUP_TABLES | MIGRATION_060_BACKUP_TABLES | MIGRATION_061_BACKUP_TABLES | MIGRATION_063_BACKUP_TABLES | MIGRATION_065_BACKUP_TABLES
+    required = frozenset(TABLES).difference(future)
+    if number >= 45:
+        required |= MIGRATION_045_BACKUP_TABLES
+    if number >= 53:
+        required |= MIGRATION_053_BACKUP_TABLES
+    if number >= 54:
+        required |= MIGRATION_054_BACKUP_TABLES
+    if number >= 56:
+        required |= MIGRATION_056_BACKUP_TABLES
+    if number >= 60:
+        required |= MIGRATION_060_BACKUP_TABLES
+    if number >= 61:
+        required |= MIGRATION_061_BACKUP_TABLES
+    if number >= 63:
+        required |= MIGRATION_063_BACKUP_TABLES
+    if number >= 65:
+        required |= MIGRATION_065_BACKUP_TABLES
+    return required
 
 
 NAVISION_BACKUP_TABLES = {

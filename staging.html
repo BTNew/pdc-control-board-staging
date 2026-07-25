@@ -445,10 +445,10 @@
       <section id="emailreview" class="view">
         <div class="parts-home-layout email-review-layout">
           <section class="panel parts-home-panel email-review-panel">
-            <div class="panel-header"><div><h2>AI Intake Review</h2><p>Authenticated PMB inbox observations and durable history are recorded here. Operational decisions are currently disabled.</p></div><span class="badge warning" id="email-review-count">0 pending</span></div>
+            <div class="panel-header"><div><h2>AI Intake Review</h2><p>Authenticated PMB inbox observations and durable Administrator decisions are recorded here. Email evidence is informational; live server checks authorize the one supported staging action.</p></div><span class="badge warning" id="email-review-count">0 pending</span></div>
             <section class="ai-intake-server-panel" id="ai-intake-server-panel" aria-labelledby="ai-intake-server-title">
               <div class="ai-intake-server-header">
-                <div><span class="eyebrow">PMB inbox bot · Supabase staging</span><h3 id="ai-intake-server-title">Inbox observations and history</h3><p>Every accepted email is fingerprinted and retained. Decision execution is temporarily contained pending provider-authenticated email and durable human-approval receipts; this panel cannot change board or workshop state.</p></div>
+                <div><span class="eyebrow">PMB inbox bot · Supabase staging</span><h3 id="ai-intake-server-title">Inbox observations and controlled board activation</h3><p>Every accepted email is fingerprinted and retained. An active Administrator may independently authorize only an exact current Navision Stock activation after the server revalidates identity and revisions.</p></div>
                 <div class="ai-intake-server-toolbar"><span class="badge warning" id="ai-intake-server-state">Connecting</span><button class="small-button" id="ai-intake-server-refresh" type="button">Refresh inbox</button></div>
               </div>
               <div class="table-toolbar ai-intake-server-filter"><label><span>Inbox status</span><select id="ai-intake-server-filter"><option value="pending">Pending observation</option><option value="applied">Applied history</option><option value="rejected">Rejected history</option><option value="all">All inbox observations</option></select></label></div>
@@ -467,7 +467,7 @@
               <div class="email-intake-upload-copy">
                 <span class="eyebrow">Phase 1 · AI file assistant</span>
                 <strong>Drop PDFs or text files to analyse into safe review drafts</strong>
-                <p>Uploads are analysed locally and turned into pending proposals only. Nothing writes to vehicles until a staff member approves it.</p>
+                <p>Uploads are analysed locally and turned into non-operational drafts only. They cannot write to vehicles or online staging.</p>
               </div>
               <div class="email-intake-upload-actions">
                 <label class="drop-zone email-intake-drop-zone" for="ai-intake-upload">
@@ -989,9 +989,9 @@
   <script src="arb-labor-catalog.js?v=2026.07.24.26-pd-document-intake"></script>
   <script src="ai-board-advisor.js?v=2026.07.24.26-pd-document-intake"></script>
   <script src="navision-backend-service.js?v=2026.07.24.26-pd-document-intake"></script>
-  <script src="pdc-ai-intake-service.js?v=2026.07.25.02-ai-intake-contained"></script>
+  <script src="pdc-ai-intake-service.js?v=2026.07.25.03-ai-intake-admin-decision"></script>
   <script src="workshop-eligibility.js?v=2026.07.24.26-pd-document-intake"></script>
-  <script src="app.js?v=2026.07.25.02-ai-intake-contained"></script>
+  <script src="app.js?v=2026.07.25.03-ai-intake-admin-decision"></script>
   <script src="key-list-review.js?v=2026.07.23.11-key-list-review"></script>
   <script src="scripts/stage2b_c4_browser_export.js?v=2026.07.22.01-read-only-assessment"></script>
   <script src="staging-browser-assessment.js?v=2026.07.22.01-read-only-assessment"></script>

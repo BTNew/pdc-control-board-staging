@@ -21,15 +21,20 @@ function createPdcAiIntakeRpcClient(config = {}, fetchImpl = null) {
   if (!request) throw new Error('AI Intake has no fetch implementation.');
 
   async function rpc(accessToken, name, params = {}) {
-    if (!accessToken) return { ok: false, status: 401, body: { ok: false, code: 'not_authenticated' } };
-    const response = await request(`${url}/rest/v1/rpc/${name}`, {
-      method: 'POST',
-      headers: { apikey: key, Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify(params),
-    });
+    if (!accessToken) return { ok: false, status: 401, ambiguous: false, body: { ok: false, code: 'not_authenticated' } };
+    let response;
+    try {
+      response = await request(`${url}/rest/v1/rpc/${name}`, {
+        method: 'POST',
+        headers: { apikey: key, Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify(params),
+      });
+    } catch (error) {
+      return { ok: false, status: 0, ambiguous: true, body: null, error };
+    }
     let body = null;
     try { body = await response.json(); } catch (_error) { body = null; }
-    return { ok: response.ok, status: response.status, body };
+    return { ok: response.ok && body != null, status: response.status, ambiguous: response.ok && body == null, body };
   }
   return { projectRef, rpc };
 }
@@ -45,6 +50,9 @@ function createPdcAiIntakeService(options = {}) {
 
   async function call(name, params) {
     const response = await client.rpc(getAccessToken(), name, params);
+    if (response.ambiguous) {
+      return { ok: false, code: 'outcome_unknown', outcomeUnknown: true, status: response.status, data: null };
+    }
     if (!response.ok || !response.body || response.body.ok === false) {
       const code = response.body?.code || response.body?.error || response.body?.message || `HTTP ${response.status}`;
       return { ok: false, code, status: response.status, data: response.body || null };
@@ -63,22 +71,36 @@ function createPdcAiIntakeService(options = {}) {
     });
   }
 
-  function decide(proposal = {}, decision = '', reason = '') {
+  function decide(proposal = {}, decision = '', reason = '', idempotencyKey = '') {
     const normalized = String(decision || '').toLowerCase();
     const trimmedReason = String(reason || '').trim();
+    const action = String(proposal.action_type || '').toLowerCase();
+    const key = String(idempotencyKey || '').trim();
+    const inboxRevision = Number(proposal.inbox_revision);
+    const navisionRevision = proposal.navision_revision == null ? null : Number(proposal.navision_revision);
     if (!proposal.proposal_id || !Number.isInteger(Number(proposal.version)) || Number(proposal.version) < 1) {
       return Promise.resolve({ ok: false, code: 'invalid_proposal' });
     }
+    if (!Number.isInteger(inboxRevision) || inboxRevision < 1) return Promise.resolve({ ok: false, code: 'invalid_inbox_revision' });
+    if (!['board_activate_only', 'review_only'].includes(action)) return Promise.resolve({ ok: false, code: 'invalid_action' });
+    if (!/^pdc-ai-intake-[a-zA-Z0-9_-]{16,160}$/.test(key)) return Promise.resolve({ ok: false, code: 'invalid_idempotency_key' });
     if (!/^[A-F0-9]{16}$/.test(String(proposal.fingerprint || ''))) {
       return Promise.resolve({ ok: false, code: 'invalid_fingerprint' });
     }
     if (!['apply', 'reject'].includes(normalized)) return Promise.resolve({ ok: false, code: 'invalid_decision' });
+    if (normalized === 'apply' && (action !== 'board_activate_only' || !Number.isInteger(navisionRevision) || navisionRevision < 1)) {
+      return Promise.resolve({ ok: false, code: 'invalid_navision_revision' });
+    }
     if (trimmedReason.length < 10 || trimmedReason.length > 500) return Promise.resolve({ ok: false, code: 'decision_reason_required' });
     return call('decide_pdc_ai_intake_proposal', {
+      p_idempotency_key: key,
       p_proposal_id: proposal.proposal_id,
       p_expected_version: Number(proposal.version),
-      p_fingerprint: proposal.fingerprint,
+      p_expected_inbox_revision: inboxRevision,
+      p_expected_action: action,
       p_decision: normalized,
+      p_fingerprint: proposal.fingerprint,
+      p_expected_navision_revision: normalized === 'apply' ? navisionRevision : null,
       p_reason: trimmedReason,
     });
   }
