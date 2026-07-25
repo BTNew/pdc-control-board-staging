@@ -1889,6 +1889,11 @@ const app = {
   serverAiIntakeRealtime: null,
   serverAiIntakeDecisionInFlight: false,
   serverAiIntakeDecisionAttempts: new Map(),
+  emailVehicleLocationService: null,
+  emailVehicleLocationRows: [],
+  emailVehicleLocationRevision: null,
+  emailVehicleLocationGeneration: 0,
+  emailVehicleLocationRealtime: null,
   navisionImport: loadJson(NAVISION_IMPORT_RESULTS_KEY, null),
   pendingNavisionImport: null,
   navisionFileName: '',
@@ -3883,6 +3888,48 @@ function vehicleLifecycleSharedModeActive() {
     && vehicleLifecycleSharedModeEnabled(window.PDC_SUPABASE_CONFIG);
 }
 
+function resetEmailVehicleLocations() {
+  app.emailVehicleLocationGeneration += 1;
+  try { app.emailVehicleLocationRealtime?.unsubscribe?.(); } catch (_error) { /* best-effort teardown */ }
+  app.emailVehicleLocationRealtime = null;
+  app.emailVehicleLocationService = null;
+  app.emailVehicleLocationRows = [];
+  app.emailVehicleLocationRevision = null;
+  if (app.currentView === 'dashboard') renderIncomingDashboardBoard();
+}
+
+async function refreshEmailVehicleLocations() {
+  const service = app.emailVehicleLocationService;
+  const authority = String(window.PDC_AUTH_CONTEXT?.userId || '');
+  if (!service || !authority || !getPdcSupabaseAccessToken()) return false;
+  const generation = ++app.emailVehicleLocationGeneration;
+  const response = await service.snapshot();
+  if (generation !== app.emailVehicleLocationGeneration || service !== app.emailVehicleLocationService || authority !== String(window.PDC_AUTH_CONTEXT?.userId || '')) return false;
+  if (!response.ok) return false;
+  app.emailVehicleLocationRows = Array.isArray(response.data?.vehicles) ? response.data.vehicles : [];
+  app.emailVehicleLocationRevision = response.data?.revision ?? null;
+  renderAll();
+  return true;
+}
+
+function initEmailVehicleLocationsIfAvailable() {
+  if (!window.PDC_AUTH_CONTEXT || !getPdcSupabaseAccessToken()) return null;
+  const module = window.PDC_EMAIL_VEHICLE_LOCATION_SERVICE;
+  if (typeof module?.createPdcEmailVehicleLocationService !== 'function') return null;
+  if (!app.emailVehicleLocationService) {
+    try {
+      app.emailVehicleLocationService = module.createPdcEmailVehicleLocationService({
+        config: window.PDC_SUPABASE_CONFIG || {},
+        getAccessToken: () => getPdcSupabaseAccessToken(),
+        subscribeRealtime: (tableName, onChange) => createPdcSupabaseTableRealtimeSubscription(tableName, { onChange }),
+      });
+    } catch (_error) { return null; }
+  }
+  if (!app.emailVehicleLocationRealtime) app.emailVehicleLocationRealtime = app.emailVehicleLocationService.subscribe(() => refreshEmailVehicleLocations());
+  refreshEmailVehicleLocations();
+  return app.emailVehicleLocationService;
+}
+
 // pdc-auth.js dispatches 'pdc-auth-ready' every time a session unlocks the
 // app (initial load, token refresh redirect, re-login after sign-out).
 // Re-run the shared-services init so a user who logs in while already on
@@ -3907,6 +3954,7 @@ window.addEventListener?.('pdc-auth-ready', () => {
   initServerAiIntakeIfAvailable();
   refreshServerAiIntake({ silent: true });
   loadSharedNavisionVisibleRows({ force: true });
+  initEmailVehicleLocationsIfAvailable();
 });
 
 // Independent-review remediation, finding #5 / critical blocker #5:
@@ -3919,6 +3967,7 @@ window.addEventListener?.('pdc-auth-ready', () => {
 // state so a disabled user's already-open tab cannot continue showing
 // (or silently re-deriving UI from) previously-loaded operational data.
 window.addEventListener?.('pdc-auth-locked', () => {
+  resetEmailVehicleLocations();
   const advisorHost = document.getElementById('ai-board-advisor-content');
   if (advisorHost) advisorHost.replaceChildren();
   cancelWorkshopPlannerRender();
@@ -11978,6 +12027,10 @@ function activeSharedNavisionRows(rows = app.sharedNavisionVisibleRows) {
 }
 
 function vehicleLocationBoardRows(localRows = pdcSheetVehicles(), sharedRows = app.sharedNavisionVisibleRows) {
+  const emailModule = window.PDC_EMAIL_VEHICLE_LOCATION_SERVICE;
+  if (typeof emailModule?.reconcileVehicleRows === 'function') {
+    localRows = emailModule.reconcileVehicleRows(localRows, app.emailVehicleLocationRows).rows;
+  }
   const currentShared = activeSharedNavisionRows(sharedRows);
   const localVehicles = deduplicateLocalLocationRows(localRows);
   const candidatesByLocal = new Map();
@@ -11993,7 +12046,8 @@ function vehicleLocationBoardRows(localRows = pdcSheetVehicles(), sharedRows = a
   const mergedLocal = localVehicles.map(vehicle => {
     const matches = candidatesByLocal.get(vehicle) || [];
     const hasConflictingIdentity = currentShared.some(item => sharedNavisionIdentityRelation(vehicle, item) === 'conflict');
-    const item = !vehicle.__locationIdentityReadOnly && matches.length === 1 && sharedCandidateCounts.get(matches[0]) === 1 ? matches[0] : null;
+    const mayMergeAuthoritativeNavision = !vehicle.__locationIdentityReadOnly || vehicle.__emailVehicleServerAuthoritative === true;
+    const item = mayMergeAuthoritativeNavision && matches.length === 1 && sharedCandidateCounts.get(matches[0]) === 1 ? matches[0] : null;
     const identityAmbiguous = Boolean(vehicle.__locationIdentityReadOnly || hasConflictingIdentity || matches.length > 1 || (matches.length === 1 && !item));
     if (!item) return identityAmbiguous ? { ...vehicle, __locationIdentityReadOnly: true } : vehicle;
     consumedShared.add(item);
@@ -12017,7 +12071,7 @@ function vehicleLocationBoardRows(localRows = pdcSheetVehicles(), sharedRows = a
     .map(sharedNavisionLocationVehicle);
   const result = mergedLocal.concat(sharedOnly);
   app.sharedNavisionLocationReadOnlyKeys = new Set(result
-    .filter(vehicle => vehicle.__sharedNavisionReadOnly === true || vehicle.__locationIdentityReadOnly === true)
+    .filter(vehicle => vehicle.__sharedNavisionReadOnly === true || vehicle.__locationIdentityReadOnly === true || vehicle.__emailVehicleServerAuthoritative === true)
     .map(vehicleKey));
   return result;
 }

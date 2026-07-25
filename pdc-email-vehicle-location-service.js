@@ -1,0 +1,79 @@
+'use strict';
+
+/* Staging-only, read-only consumer of authenticated email vehicle imports. */
+const PDC_EMAIL_VEHICLE_STAGING_PROJECT_REF = 'cdsmnqxtyyoeoznmbidd';
+const PDC_EMAIL_VEHICLE_REVISION_TABLE = 'pdc_email_vehicle_revision';
+const PDC_EMAIL_VEHICLE_SNAPSHOT_RPC = 'get_pdc_email_vehicle_location_snapshot';
+const WORK_FIELDS = Object.freeze({
+  bus4x4: ['pdcRequiresBus4x4', 'pdcCompleteBus4x4'], tint: ['pdcRequiresTint', 'pdcCompleteTint'], hoist: ['pdcRequiresHoist', 'pdcCompleteHoist'], fitting: ['pdcRequiresFitting', 'pdcCompleteFitting'], fabrication: ['pdcRequiresFabrication', 'pdcCompleteFabrication'], electrical: ['pdcRequiresElectrical', 'pdcCompleteElectrical'], tyre: ['pdcRequiresTyre', 'pdcCompleteTyre'], sublet: ['pdcRequiresSublet', 'pdcCompleteSublet'], pitinspection: ['pdcRequiresPitInspection', 'pdcCompletePitInspection'], parts: ['pdcRequiresParts', 'pdcCompleteParts'],
+});
+function projectRef(url = '') { const match = String(url || '').trim().match(/^https:\/\/([a-z0-9]+)\.supabase\.co(?:\/|$)/i); return match ? match[1].toLowerCase() : ''; }
+function identity(value = '') { return String(value || '').trim().toUpperCase().replace(/[\s-]+/g, ''); }
+function canonicalWorkKey(value = '') {
+  const key = String(value || '').trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+  if (['pit', 'pitinspection', 'inspectionpit', 'pitinspect'].includes(key)) return 'pitinspection';
+  if (['bus4x4', 'bus4wd', '4x4bus'].includes(key)) return 'bus4x4';
+  if (['tyres', 'tire', 'tires'].includes(key)) return 'tyre';
+  if (['part', 'partsrequired'].includes(key)) return 'parts';
+  return key;
+}
+function mapServerVehicle(row = {}) {
+  const mapped = {
+    id: String(row.permanent_vehicle_id || row.id || ''), permanentVehicleId: String(row.permanent_vehicle_id || ''), stock: String(row.stock_number || '').trim(), vin: String(row.vin || '').trim(), jobCardNumber: String(row.job_card_number || '').trim(), jobcard: String(row.job_card_number || '').trim(), client: String(row.customer_name || '').trim(), vehicle: String(row.vehicle_description || '').trim(), salesperson: String(row.salesperson_reference || '').trim(), registration: String(row.registration || '').trim(), rego: String(row.registration || '').trim(), navisionKewdaleEta: row.eta_to_kewdale || '', etaAtDealer: row.eta_to_kewdale || '', pdcLocation: String(row.current_location || 'Other').trim() || 'Other', pdcSheetVisible: row.visible_on_board !== false, source: String(row.source_system || 'Authenticated email auto-import'), sourceRecordId: String(row.source_record_id || ''), updatedAt: row.updated_at || '', __emailVehicleServerAuthoritative: true, __locationIdentityReadOnly: true,
+  };
+  for (const [requiredKey, completeKey] of Object.values(WORK_FIELDS)) { mapped[requiredKey] = false; mapped[completeKey] = false; }
+  for (const item of Array.isArray(row.work_items) ? row.work_items : []) {
+    const fields = WORK_FIELDS[canonicalWorkKey(item?.work_key)]; if (!fields) continue;
+    mapped[fields[0]] = item.required === true; mapped[fields[1]] = item.completed === true;
+    if (item.completed_at) mapped[`${fields[1]}At`] = item.completed_at;
+    if (item.completed_by) mapped[`${fields[1]}By`] = item.completed_by;
+  }
+  if (row.parts_required != null) mapped.pdcRequiresParts = row.parts_required === true;
+  if (row.parts_completed != null) mapped.pdcCompleteParts = row.parts_completed === true;
+  return mapped;
+}
+function rowIdentities(row = {}) { return { stock: identity(row.stock_number ?? row.stock), vin: identity(row.vin ?? row.VIN ?? row.chassis ?? row.chassisNo) }; }
+function reconcileVehicleRows(localRows = [], serverRows = []) {
+  const local = Array.isArray(localRows) ? localRows : [];
+  const visibleServer = (Array.isArray(serverRows) ? serverRows : []).filter(row => row && row.visible_on_board !== false);
+  const replaced = new Set(); const conflicts = new Set(); const additions = [];
+  for (const serverRow of visibleServer) {
+    const serverId = rowIdentities(serverRow);
+    const stockMatches = serverId.stock ? local.map((row, i) => rowIdentities(row).stock === serverId.stock ? i : -1).filter(i => i >= 0) : [];
+    const vinMatches = serverId.vin ? local.map((row, i) => rowIdentities(row).vin === serverId.vin ? i : -1).filter(i => i >= 0) : [];
+    const candidates = new Set([...stockMatches, ...vinMatches]);
+    const stockIndex = stockMatches.length === 1 ? stockMatches[0] : -1; const vinIndex = vinMatches.length === 1 ? vinMatches[0] : -1;
+    const ambiguous = stockMatches.length > 1 || vinMatches.length > 1 || (stockIndex >= 0 && vinIndex >= 0 && stockIndex !== vinIndex);
+    if (ambiguous) { candidates.forEach(index => conflicts.add(index)); continue; }
+    const index = stockIndex >= 0 ? stockIndex : vinIndex; const mapped = mapServerVehicle(serverRow);
+    if (index >= 0) { additions.push({ ...local[index], ...mapped }); replaced.add(index); } else additions.push(mapped);
+  }
+  const retained = local.filter((_row, index) => !replaced.has(index)).map((row, index) => conflicts.has(index) ? { ...row, __locationIdentityReadOnly: true, __emailVehicleIdentityConflict: true } : row);
+  return { rows: retained.concat(additions), conflictCount: conflicts.size };
+}
+function createPdcEmailVehicleLocationService(options = {}) {
+  const config = options.config || {};
+  if (projectRef(config.url) !== PDC_EMAIL_VEHICLE_STAGING_PROJECT_REF) throw new Error('Authenticated email vehicle locations are staging-only.');
+  const getAccessToken = typeof options.getAccessToken === 'function' ? options.getAccessToken : () => null;
+  const subscribeRealtime = typeof options.subscribeRealtime === 'function' ? options.subscribeRealtime : null;
+  const request = options.fetchImpl || (typeof fetch !== 'undefined' ? fetch : null);
+  const url = String(config.url || '').replace(/\/$/, ''); const key = String(config.publishableKey || '');
+  if (!request || !key) throw new Error('Authenticated email vehicle locations require the staging browser client.');
+  async function snapshot() {
+    const token = getAccessToken(); if (!token) return { ok: false, code: 'not_authenticated', data: null };
+    try {
+      const response = await request(`${url}/rest/v1/rpc/${PDC_EMAIL_VEHICLE_SNAPSHOT_RPC}`, { method: 'POST', headers: { apikey: key, Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: '{}' });
+      const body = await response.json();
+      if (!response.ok || !body || body.ok === false) return { ok: false, code: body?.code || `HTTP ${response.status}`, data: null };
+      return { ok: true, code: body.code || 'ok', data: body.data || body };
+    } catch (_error) { return { ok: false, code: 'snapshot_unavailable', data: null }; }
+  }
+  function subscribe(onRevision) {
+    if (!subscribeRealtime) return { unsubscribe() {} };
+    return subscribeRealtime(PDC_EMAIL_VEHICLE_REVISION_TABLE, event => { if (typeof onRevision === 'function') onRevision(event?.new?.revision ?? null, event); });
+  }
+  return { authority: 'supabase_staging_authenticated_email_vehicle', snapshot, subscribe };
+}
+const exported = { PDC_EMAIL_VEHICLE_STAGING_PROJECT_REF, PDC_EMAIL_VEHICLE_REVISION_TABLE, PDC_EMAIL_VEHICLE_SNAPSHOT_RPC, canonicalWorkKey, mapServerVehicle, reconcileVehicleRows, createPdcEmailVehicleLocationService };
+if (typeof module !== 'undefined' && module.exports) module.exports = exported;
+if (typeof window !== 'undefined') window.PDC_EMAIL_VEHICLE_LOCATION_SERVICE = exported;

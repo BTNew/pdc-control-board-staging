@@ -1,0 +1,52 @@
+'use strict';
+const fs = require('fs');
+const {
+  PDC_EMAIL_VEHICLE_STAGING_PROJECT_REF, PDC_EMAIL_VEHICLE_REVISION_TABLE,
+  canonicalWorkKey, mapServerVehicle, reconcileVehicleRows, createPdcEmailVehicleLocationService,
+} = require('./pdc-email-vehicle-location-service.js');
+function assert(value, message) { if (!value) throw new Error(message); }
+
+(async () => {
+  assert(canonicalWorkKey('Pit Inspection') === 'pitinspection' && canonicalWorkKey('PIT_INSPECTION') === 'pitinspection', 'Pit aliases must canonicalize');
+  const server = { id: 's1', permanent_vehicle_id: 'p1', stock_number: 'S-100', vin: 'VIN100', customer_name: 'Server customer', vehicle_description: 'Server vehicle', current_location: 'Other', visible_on_board: true, work_items: [{ work_key: 'tint', required: true, completed: false }, { work_key: 'pit_inspection', required: true, completed: true, completed_at: '2026-07-25T01:00:00Z', completed_by: 'staff' }], parts_required: true, parts_completed: false };
+  const mapped = mapServerVehicle(server);
+  assert(mapped.pdcLocation === 'Other' && mapped.pdcSheetVisible === true, 'Other server row must remain board-visible');
+  assert(mapped.pdcRequiresTint === true && mapped.pdcCompleteTint === false, 'Required incomplete work must map to a to-be-completed tick');
+  assert(mapped.pdcRequiresPitInspection === true && mapped.pdcCompletePitInspection === true, 'Canonical completed work must map');
+  assert(mapped.pdcRequiresParts === true && mapped.pdcCompleteParts === false, 'Parts summary flags must be authoritative');
+
+  const merged = reconcileVehicleRows([{ stock: 'S100', vin: 'VIN100', client: 'Browser edit', pdcRequiresTint: false }], [server]).rows;
+  assert(merged.length === 1 && merged[0].client === 'Server customer' && merged[0].pdcRequiresTint === true, 'Server row must override matching browser/static data');
+  const restored = reconcileVehicleRows([], [server]).rows;
+  assert(restored.length === 1 && restored[0].__emailVehicleServerAuthoritative === true, 'Browser deletion must not hide a server row');
+  const conflict = reconcileVehicleRows([{ stock: 'S100', vin: 'A' }, { stock: 'S200', vin: 'VIN100' }], [server]);
+  assert(conflict.rows.length === 2 && conflict.conflictCount === 2 && conflict.rows.every(row => row.__emailVehicleIdentityConflict), 'Cross-identity conflicts must fail closed without inserting the server row');
+
+  let blocked = false;
+  try { createPdcEmailVehicleLocationService({ config: { url: 'https://production.supabase.co', publishableKey: 'x' }, fetchImpl: async () => null }); } catch (_error) { blocked = true; }
+  assert(blocked, 'Non-staging project must be refused');
+  let request = null; let subscription = null;
+  const service = createPdcEmailVehicleLocationService({
+    config: { url: `https://${PDC_EMAIL_VEHICLE_STAGING_PROJECT_REF}.supabase.co`, publishableKey: 'key' },
+    getAccessToken: () => 'approved-token',
+    fetchImpl: async (url, options) => { request = { url, options }; return { ok: true, status: 200, async json() { return { ok: true, code: 'ok', data: { revision: 7, vehicles: [server] } }; } }; },
+    subscribeRealtime(table, callback) { subscription = { table, callback }; return { unsubscribe() {} }; },
+  });
+  const snapshot = await service.snapshot();
+  assert(snapshot.ok && snapshot.data.revision === 7 && /get_pdc_email_vehicle_location_snapshot$/.test(request.url), 'Exact authenticated snapshot RPC must be used');
+  assert(request.options.headers.Authorization === 'Bearer approved-token' && request.options.body === '{}', 'Snapshot must use current auth and no browser-supplied authority parameters');
+  let revision = null; service.subscribe(value => { revision = value; });
+  subscription.callback({ new: { revision: 8 } });
+  assert(subscription.table === PDC_EMAIL_VEHICLE_REVISION_TABLE && revision === 8, 'Exact realtime revision table must trigger refresh');
+
+  const staging = fs.readFileSync('staging.html', 'utf8');
+  const production = fs.readFileSync('index.html', 'utf8');
+  const app = fs.readFileSync('app.js', 'utf8');
+  assert(staging.includes('pdc-email-vehicle-location-service.js') && !production.includes('pdc-email-vehicle-location-service.js'), 'Service must load only from staging.html');
+  assert(staging.includes('Identity conflicts fail closed') && staging.includes('Authenticated email vehicle imports'), 'Staging-only safety copy must be present');
+  assert(app.includes('pdc-auth-ready') && app.includes('initEmailVehicleLocationsIfAvailable') && app.includes('pdc-auth-locked'), 'App must bind service lifecycle to approved auth');
+  assert(app.includes('reconcileVehicleRows(localRows, app.emailVehicleLocationRows)'), 'Vehicle Location cards must consume authoritative rows');
+  assert(staging.indexOf('pdc-email-vehicle-location-service.js') < staging.indexOf('app.js'), 'Email vehicle service must load before app initialization/auth events');
+  assert(app.includes('vehicle.__emailVehicleServerAuthoritative === true'), 'An authoritative email row must consume its matching activated Navision row rather than render a duplicate');
+  console.log('Authenticated email vehicle Location service, authority merge, mapping, realtime and staging containment checks passed');
+})().catch(error => { console.error(error); process.exit(1); });
