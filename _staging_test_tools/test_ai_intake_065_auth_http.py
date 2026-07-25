@@ -63,9 +63,11 @@ def main():
     }
     admin = token("ADMIN")
     admin_status, admin_snapshot = rpc(admin, "get_pdc_ai_intake_snapshot", {"p_status": "pending", "p_page_size": 10})
-    admin_decision_status, admin_decision = rpc(admin, "decide_pdc_ai_intake_proposal", invalid)
     assert admin_status == 200 and admin_snapshot.get("ok") is True and admin_snapshot.get("code") == "snapshot"
     assert isinstance(admin_snapshot.get("data", {}).get("navision_revision"), int)
+    invalid["p_expected_inbox_revision"] = admin_snapshot["data"]["revision"]
+    invalid["p_expected_navision_revision"] = admin_snapshot["data"]["navision_revision"]
+    admin_decision_status, admin_decision = rpc(admin, "decide_pdc_ai_intake_proposal", invalid)
     assert admin_decision_status == 200 and admin_decision.get("ok") is False and admin_decision.get("code") == "proposal_not_found"
 
     denied = {}

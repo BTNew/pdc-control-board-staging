@@ -24,6 +24,7 @@ def claims(cur, user):
     cur.execute("select set_config('request.jwt.claim.sub',%s,true)", (str(user[0]),))
     cur.execute("select set_config('request.jwt.claim.email',%s,true)", (user[1],))
     cur.execute("select set_config('request.jwt.claim.role','authenticated',true)")
+    cur.execute("select set_config('request.jwt.claims',%s,true)", (json.dumps({'sub': str(user[0]), 'email': user[1], 'role': 'authenticated'}),))
 
 
 def main():
@@ -46,7 +47,7 @@ def main():
         q.execute("""select r.id::text,public.normalize_vehicle_stock_number(r.normalized_data->>'batch'),r.version,n.revision
           from public.navision_backend_records r cross join public.navision_backend_revision n
           where n.singleton and r.source_system='microsoft_navision' and r.dealer_code in ('14450','37047')
-            and r.is_current and r.record_status='current' and not r.is_quoted
+            and r.is_current and r.record_status='current'
             and public.is_real_vehicle_stock_number(r.normalized_data->>'batch')
             and not exists(select 1 from public.navision_board_activations a where a.backend_record_id=r.id)
             and not exists(select 1 from public.vehicles v where v.stock_number_normalized=public.normalize_vehicle_stock_number(r.normalized_data->>'batch') and v.deleted_at is null)
@@ -69,13 +70,13 @@ def main():
         evidence_hash = hashlib.sha256(('evidence-' + marker).encode()).hexdigest()
         fingerprint = hashlib.sha256(('fingerprint-' + marker).encode()).hexdigest()[:16].upper()
         q.execute("""insert into public.pdc_ai_intake_proposals(
-          proposal_id,source_uid,source_hash,evidence_hash,source_account,sender_address,source_received_at,
+          proposal_id,dedupe_key,source_uid,source_hash,evidence_hash,sender_address,source_received_at,
           authentication,subject,action_type,stock_number,backend_record_id,backend_record_version,
           observed_navision_revision,summary,observations,fingerprint,status,version,submitted_by)
-          values(%s::uuid,%s,%s,%s,'qa-race','qa@perthmotorbodies.com.au',clock_timestamp(),
+          values(%s::uuid,%s,%s,%s,%s,'qa@perthmotorbodies.com.au',clock_timestamp(),
           '{"gmail_authentication_results":true,"spf":"pass"}'::jsonb,'QA migration 065 identity race',
           'board_activate_only',%s,%s::uuid,%s,%s,'Two-session rollback fixture','{}'::jsonb,%s,'pending',1,%s::uuid)""",
-          (proposal_id, 'qa-' + marker, source_hash, evidence_hash, stock, rid, record_version, nav_revision, fingerprint, str(admin[0])))
+          (proposal_id, 'qa-race:' + marker, 'qa-' + marker, source_hash, evidence_hash, stock, rid, record_version, nav_revision, fingerprint, str(admin[0])))
 
         writer.autocommit = False
         w = writer.cursor()
@@ -100,7 +101,7 @@ def main():
         thread.start()
         time.sleep(0.75)
         if not thread.is_alive():
-            raise AssertionError('Apply did not block behind canonical identity writer')
+            raise AssertionError(f"Apply did not block behind canonical identity writer: {result!r}")
         writer.commit()
         thread.join(10)
         if thread.is_alive():
