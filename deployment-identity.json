@@ -6,10 +6,10 @@
     "twoPhysicalWorkstationAuthorityCutover": false
   },
   "artifact": "zero-data static staging site",
-  "cacheVersion": "2026.07.25.02-ai-intake-contained",
+  "cacheVersion": "2026.07.25.03-ai-intake-admin-decision",
   "deploymentMode": "exact reviewed source blobs; staging.html mapped to index.html",
   "environment": "staging",
-  "generatedAtUtc": "2026-07-25T04:53:00Z",
+  "generatedAtUtc": "2026-07-25T06:41:49Z",
   "migrationLedger": [
     "042",
     "044",
@@ -32,21 +32,22 @@
     "061",
     "062",
     "063",
-    "064"
+    "064",
+    "065"
   ],
   "releaseChecks": {
-    "aggregateTests": "AI Intake service, static containment, migration contract, syntax, and transactional staging containment gates passed",
-    "backupRestore": "fresh encrypted staging backup and isolated restore passed before migration/reset",
-    "databasePostApply": "migration 064 applied on staging; 2 pending observations, 0 decisions, 11 board activations, Navision revision 241",
-    "independentReview": "final combined-diff blocker/major review PASS",
-    "literalArtifact": "30/30 source blobs assembled from exact reviewed source commit",
+    "aggregateTests": "AI Intake service, behavioral containment/outer handler, migration contract, syntax, canonical reconciliation, authenticated HTTP role matrix, and two-session TOCTOU gates passed; aggregate delta matches parent",
+    "backupRestore": "fresh encrypted pre-065 staging backup eb1b898b and isolated restore passed",
+    "databasePostApply": "migration 065 installed from exact reviewed SQL; hash equal; 2 pending observations, 0 decision receipts, 11 board activations, Navision revision 241, AI Intake revision 3",
+    "independentReview": "exact source SHA 0dd0cc6004a2abc3d43f1c7d778e6150453fc57a security review GO",
+    "literalArtifact": "31/31 source blobs assembled from exact reviewed source commit",
     "navisionLocations": "Batch-only identity, durable reviewed activation, fail-closed shared authority, no Toyota-order UI or matching",
     "pdIntake": "PD Document is sole vehicle-work intake; PO/job-card executable paths absent",
     "stagingBrowserCleanup": "explicit ?clearLocalData=1 gate clears bounded browser-local operational data on staging only",
-    "aiIntake": "proposal-only containment active: enrolled Viewer may submit immutable observations; exact Administrator snapshot only; decision RPC absent; browser Apply/Reject blocked"
+    "aiIntake": "email remains informational; immutable observations plus exact active-Administrator Apply/Reject; Apply is board_activate_only with durable receipts, replay/race protection, authoritative reconciliation, and no lifecycle inference"
   },
   "sourceBranch": "fix/ai-intake-inbox-history",
-  "sourceCommit": "578b8c5a668ad4734b9aac539a51816c0e5c6b40",
+  "sourceCommit": "0dd0cc6004a2abc3d43f1c7d778e6150453fc57a",
   "sourceFiles": [
     {
       "deployedPath": "ai-board-advisor.js",
@@ -55,7 +56,7 @@
     },
     {
       "deployedPath": "app.js",
-      "sha256": "57d999a0b63dfe1e5266d8a1b290f57e20e438a4918a825734d0b4d2eaea2c2f",
+      "sha256": "0e36a758ea98eba102817bb31a97d9332a47274706e456fcde6b22a4923f5f4d",
       "sourcePath": "app.js"
     },
     {
@@ -95,7 +96,7 @@
     },
     {
       "deployedPath": "index.html",
-      "sha256": "1c760b8f52ab52821f310172604bc2c7626b76ebbfd4f0953fe3c8cde82e9f57",
+      "sha256": "169dd59b2e1547cad51271ff4309215df4749967d73496d446a50cba2811a03e",
       "sourcePath": "staging.html"
     },
     {
@@ -200,13 +201,13 @@
     },
     {
       "deployedPath": "pdc-ai-intake-service.js",
-      "sha256": "7da57eef955bb1fc54e18693ba4775551e2b0b8ac35a5b8b60299c6f2047305a",
+      "sha256": "dc8fdb4ca33a236c98d6f9e38a15e0c2e32f7bfc2b8b27d31914a1e82bd89be5",
       "sourcePath": "pdc-ai-intake-service.js"
     }
   ],
   "sourceParity": "31/31 deployed Git blobs byte-identical to exact source commit",
   "sourceRepository": "BTNew/pdc-control-board",
-  "sourceTree": "a325cc1b46fde6dcef4c6c4f33e9ff19140e61b9",
+  "sourceTree": "e36ea3e96b5af566db3d1adc2bd733fa817f4444",
   "stagingProjectRef": "cdsmnqxtyyoeoznmbidd",
   "stagingSafety": {
     "bundledOperationalData": false,
