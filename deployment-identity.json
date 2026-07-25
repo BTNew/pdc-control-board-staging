@@ -1,202 +1,37 @@
 {
-  "activationScope": {
-    "manualStagingSmokeOnly": true,
-    "productionActivation": false,
-    "staticStagingRelease": true,
-    "twoPhysicalWorkstationAuthorityCutover": false
-  },
-  "artifact": "zero-data static staging site",
-  "cacheVersion": "2026.07.24.26-pd-document-intake",
-  "deploymentMode": "exact reviewed source blobs; staging.html mapped to index.html",
+  "schema_version": "pdc-staging-deployment-identity/v1",
   "environment": "staging",
-  "generatedAtUtc": "2026-07-24T08:31:20Z",
-  "migrationLedger": [
-    "042",
-    "044",
-    "045",
-    "046",
-    "047",
-    "048",
-    "049",
-    "050",
-    "051",
-    "052",
-    "053"
-  ],
-  "releaseChecks": {
-    "aggregateTests": "80 passed, 0 failed, 1 intentional clean-dataset skip",
-    "backupRestore": "fresh encrypted staging backup and isolated restore passed before migration/reset",
-    "databasePostApply": "migration 053 applied with operational hashes unchanged, RLS enabled and direct table access denied; 41 operational tables verified empty after reset",
-    "independentReview": "final combined-diff blocker/major review PASS",
-    "literalArtifact": "30/30 source blobs assembled from exact reviewed source commit",
-    "navisionLocations": "Batch-only identity, durable reviewed activation, fail-closed shared authority, no Toyota-order UI or matching",
-    "pdIntake": "PD Document is sole vehicle-work intake; PO/job-card executable paths absent",
-    "stagingBrowserCleanup": "explicit ?clearLocalData=1 gate clears bounded browser-local operational data on staging only"
-  },
-  "sourceBranch": "fix/navision-import-access-success-ui",
-  "sourceCommit": "449f06aecf4c8287946f205a63636d075e7dcd0e",
-  "sourceFiles": [
+  "project_ref": "cdsmnqxtyyoeoznmbidd",
+  "source_repository": "BTNew/pdc-control-board",
+  "source_branch": "fix/ai-intake-inbox-history",
+  "source_commit": "48872c61ade661c959f91c0448b23d4f96539351",
+  "publish_repository": "BTNew/pdc-control-board-staging",
+  "publish_branch": "main",
+  "publish_commit": "efe7da60b167194b6e355734bd3b0458a5f95106",
+  "deployed_at_utc": "2026-07-25T04:30:01Z",
+  "deployed_by": "Hermes on behalf of Craig Watson",
+  "entrypoint": "index.html",
+  "production_untouched": true,
+  "assets": [
     {
-      "deployedPath": "ai-board-advisor.js",
-      "sha256": "a01dc581a417684c5a3377057bc70a57624bdaa3ad67c24b408eedfa86e0fc4e",
-      "sourcePath": "ai-board-advisor.js"
+      "path": "index.html",
+      "bytes": 65339,
+      "sha256": "4edbaee1a76710b1100227399cf3e25ec9ec4bd7688052219d8282a283142796"
     },
     {
-      "deployedPath": "app.js",
-      "sha256": "746f1dc358771e7886102b9310661946de1ed97b2dcdfddec751e66da3ecd1ab",
-      "sourcePath": "app.js"
+      "path": "styles.css",
+      "bytes": 352534,
+      "sha256": "28ced01db42987dde079fdc4bf042e44e931e44c671fbce8bc92f9549c741884"
     },
     {
-      "deployedPath": "arb-labor-catalog.js",
-      "sha256": "db99ee8c4ddf341ce3f948dc04fb70cbe6c66d122be1a262f7074552a2fa49c0",
-      "sourcePath": "arb-labor-catalog.js"
+      "path": "app.js",
+      "bytes": 888740,
+      "sha256": "e798167c4c5f606f3fc40f87dd5b966c92823f3282204b72f4cfc526c365f44f"
     },
     {
-      "deployedPath": "assets/brand-logo.svg",
-      "sha256": "4bffc708627c0ee8de1a997aec6bf3aae7461fb779f2700f41fd47e6645dd28d",
-      "sourcePath": "assets/brand-logo.svg"
-    },
-    {
-      "deployedPath": "assets/pmb-logo.png",
-      "sha256": "b795f771135b94768d211ca912472fd7d74e324cf27d5d03a354380344b7a923",
-      "sourcePath": "assets/pmb-logo.png"
-    },
-    {
-      "deployedPath": "data-staging-empty.js",
-      "sha256": "d2a9ed658daa1cc5eabb45a78eeb5c7f93ef0146a12e7f8c23d0b028f915c7a9",
-      "sourcePath": "data-staging-empty.js"
-    },
-    {
-      "deployedPath": "desktop-operations.css",
-      "sha256": "0f5929993a588823670258758919257d5bcb5fac0b5f313b592e96b990088c73",
-      "sourcePath": "desktop-operations.css"
-    },
-    {
-      "deployedPath": "email-board-data.js",
-      "sha256": "3b55079afe708ae6842a6ddb61e19e912a8182cdc835a5d4102e4a5815dbace0",
-      "sourcePath": "email-board-data.js"
-    },
-    {
-      "deployedPath": "favicon.svg",
-      "sha256": "f79b374447017a73a77012096c6d031ddb2ad6bf1b647d2efbfd465e6a5f32e6",
-      "sourcePath": "favicon.svg"
-    },
-    {
-      "deployedPath": "index.html",
-      "sha256": "dbb87a7297e0073fb275f69b441a17bdc2aed6219fcb189d0c9e3b386be32291",
-      "sourcePath": "staging.html"
-    },
-    {
-      "deployedPath": "navision-backend-service.js",
-      "sha256": "e010dc0bcb1e9df0c7188a050d398ebabbdeb6d2c0e451fb766f567aef3b8720",
-      "sourcePath": "navision-backend-service.js"
-    },
-    {
-      "deployedPath": "pdc-auth-registration.js",
-      "sha256": "13841fdf4408300d737b880cd4d676d2e49bdf4df65bd0f0c491db9e89da9dab",
-      "sourcePath": "pdc-auth-registration.js"
-    },
-    {
-      "deployedPath": "pdc-auth.js",
-      "sha256": "714f679310200f0dbfe232038179c48e8188d473159eddcfbde2ed76108f799b",
-      "sourcePath": "pdc-auth.js"
-    },
-    {
-      "deployedPath": "pdc-supabase-config.staging.js",
-      "sha256": "94aba0cab8f8fb11aa8e95bfa6d8f919d6fd81bf450bd08b006891edd1edcdf5",
-      "sourcePath": "pdc-supabase-config.staging.js"
-    },
-    {
-      "deployedPath": "scripts/stage2b_c4_browser_export.js",
-      "sha256": "5dafeb35a33626fec47aeaa931d17f83f22e436a4f602cbae66914537ab90f18",
-      "sourcePath": "scripts/stage2b_c4_browser_export.js"
-    },
-    {
-      "deployedPath": "staging-browser-assessment.js",
-      "sha256": "29acbe12e27d787b12d75614086278ac54e2ffe04bb6dfd755b3cacc7077bded",
-      "sourcePath": "staging-browser-assessment.js"
-    },
-    {
-      "deployedPath": "styles.css",
-      "sha256": "cb3658ef3b1e9d5e7640c44fba1fee5612a302e1d6f53662134afb4ae693652f",
-      "sourcePath": "styles.css"
-    },
-    {
-      "deployedPath": "vehicle-lifecycle-actions.js",
-      "sha256": "82cc7ff9bd81d25d50368321e1e91b1bbe71d1599173d6ce806d71354553ef24",
-      "sourcePath": "vehicle-lifecycle-actions.js"
-    },
-    {
-      "deployedPath": "vendor/pdfjs/LICENSE",
-      "sha256": "0d542e0c8804e39aa7f37eb00da5a762149dc682d7829451287e11b938e94594",
-      "sourcePath": "vendor/pdfjs/LICENSE"
-    },
-    {
-      "deployedPath": "vendor/pdfjs/pdf.min.js",
-      "sha256": "5b5799e6f8c680663207ac5b42ee14eed2a406fa7af48f50c154f0c0b1566946",
-      "sourcePath": "vendor/pdfjs/pdf.min.js"
-    },
-    {
-      "deployedPath": "vendor/pdfjs/pdf.worker.min.js",
-      "sha256": "feabdf309770ed24bba31a5467836cdc8cf639c705af27d52b585b041bb8527b",
-      "sourcePath": "vendor/pdfjs/pdf.worker.min.js"
-    },
-    {
-      "deployedPath": "vendor/qz/qz-tray.js",
-      "sha256": "b0a0afde74511e5284195cc875bc862b1ea4233f6c6aecb3ad485430a56bf4a6",
-      "sourcePath": "vendor/qz/qz-tray.js"
-    },
-    {
-      "deployedPath": "vendor/supabase/supabase-2.110.5.js",
-      "sha256": "8e00fd587eb7c5148c977fa7c425316e8f9f168b3831100d8e2925a9807b5893",
-      "sourcePath": "vendor/supabase/supabase-2.110.5.js"
-    },
-    {
-      "deployedPath": "workshop-data-service.js",
-      "sha256": "58e3665af9fb8d7447c4dbea461b041ff1db761ebc0abd00feaa5c8f846da5b8",
-      "sourcePath": "workshop-data-service.js"
-    },
-    {
-      "deployedPath": "workshop-eligibility.js",
-      "sha256": "19ea6ba77817d3d9a34d2d6671bf2c6b2201588b0a6426b2802d938b9c93c31e",
-      "sourcePath": "workshop-eligibility.js"
-    },
-    {
-      "deployedPath": "workshop-planner.css",
-      "sha256": "8067757ebee8dea3f2e18570d3f238b48b17857006676db498a24ada664d6e69",
-      "sourcePath": "workshop-planner.css"
-    },
-    {
-      "deployedPath": "workshop-planner.js",
-      "sha256": "b5cc25d7291f6225acf30fef6dfce1b4c4c6c0ff82037cd6f24cfc7c6689c054",
-      "sourcePath": "workshop-planner.js"
-    },
-    {
-      "deployedPath": "workshop-realtime.js",
-      "sha256": "484c0a4ebc6e823fbca6eaf7f6c3fe4e563902abfbd3959221d21c19f45c0361",
-      "sourcePath": "workshop-realtime.js"
-    },
-    {
-      "deployedPath": "workshop-reference-data-service.js",
-      "sha256": "ebe98f65a5cea69a42fdad77535f9bcdbf0f61c4013c34e7e7be34866b2682fe",
-      "sourcePath": "workshop-reference-data-service.js"
-    },
-    {
-      "deployedPath": "workshop-shared-actions.js",
-      "sha256": "080805d01de233f694099951138d7526cbd6a3aac7c6454985c21b2c1480a71e",
-      "sourcePath": "workshop-shared-actions.js"
+      "path": "pdc-ai-intake-service.js",
+      "bytes": 5073,
+      "sha256": "7da57eef955bb1fc54e18693ba4775551e2b0b8ac35a5b8b60299c6f2047305a"
     }
-  ],
-  "sourceParity": "30/30 deployment source pairs byte-identical to exact source commit",
-  "sourceRepository": "BTNew/pdc-control-board",
-  "sourceTree": "3265fd46fb624627a29753f18d1346ab55f406ba",
-  "stagingProjectRef": "cdsmnqxtyyoeoznmbidd",
-  "stagingSafety": {
-    "bundledOperationalData": false,
-    "livePilotActive": true,
-    "mailboxMutation": false,
-    "outboundActions": false,
-    "productionTouched": false,
-    "sourceMainTouched": false
-  }
+  ]
 }
