@@ -7,13 +7,14 @@ SQL_64 = (ROOT / 'supabase/staging_only/064_disable_pdc_ai_intake_decisions.sql'
 SQL_65 = (ROOT / 'supabase/staging_only/065_pdc_ai_intake_admin_decisions.sql').read_text(encoding='utf-8').lower()
 SQL_66 = (ROOT / 'supabase/staging_only/066_pdc_authenticated_email_canonical_import.sql').read_text(encoding='utf-8').lower()
 SQL_67 = (ROOT / 'supabase/staging_only/067_pdc_email_vehicle_navision_reconciliation.sql').read_text(encoding='utf-8').lower()
+SQL_68 = (ROOT / 'supabase/staging_only/068_pdc_email_work_station_queues.sql').read_text(encoding='utf-8').lower()
 
 
 class AiIntakeMigrationTests(unittest.TestCase):
     def test_is_staging_only_and_not_in_production_discovery(self):
-        for sql in (SQL_63, SQL_64, SQL_65, SQL_66, SQL_67):
+        for sql in (SQL_63, SQL_64, SQL_65, SQL_66, SQL_67, SQL_68):
             self.assertIn("cdsmnqxtyyoeoznmbidd", sql)
-        self.assertFalse(any(p.name.startswith(('063_', '064_', '065_', '066_', '067_')) for p in (ROOT / 'supabase/migrations').glob('*.sql')))
+        self.assertFalse(any(p.name.startswith(('063_', '064_', '065_', '066_', '067_', '068_')) for p in (ROOT / 'supabase/migrations').glob('*.sql')))
 
     def test_monitor_can_submit_observations_but_not_decide(self):
         self.assertIn('submit_pdc_ai_intake_observation', SQL_63)
@@ -149,6 +150,20 @@ class AiIntakeMigrationTests(unittest.TestCase):
         self.assertNotIn('update public.workshop_bookings', SQL_67)
         self.assertNotIn('insert into public.vehicle_work_items', SQL_67)
         self.assertNotIn('update public.vehicle_work_items', SQL_67)
+
+    def test_068_puts_required_work_in_station_queue_without_auto_scheduling(self):
+        for token in (
+            'workshop_station_eligibility',
+            'workshop_stage_code_for_work_key(wi.work_key)=st.code',
+            'wi.required and not wi.completed',
+            "then 'location_ineligible'",
+            "schedule_enabled=false",
+            'update public.workshop_station_revision',
+        ):
+            self.assertIn(token, SQL_68)
+        self.assertNotIn("and upper(btrim(coalesce(v.current_location,''))) in('pmb','yh','it')", SQL_68)
+        self.assertNotIn('insert into public.workshop_bookings', SQL_68)
+        self.assertNotIn('update public.workshop_bookings', SQL_68)
 
 
 if __name__ == '__main__':
