@@ -1,37 +1,218 @@
 {
-  "schema_version": "pdc-staging-deployment-identity/v1",
+  "activationScope": {
+    "manualStagingSmokeOnly": true,
+    "productionActivation": false,
+    "staticStagingRelease": true,
+    "twoPhysicalWorkstationAuthorityCutover": false
+  },
+  "artifact": "zero-data static staging site",
+  "cacheVersion": "2026.07.25.01-ai-intake-staging",
+  "deploymentMode": "exact reviewed source blobs; staging.html mapped to index.html",
   "environment": "staging",
-  "project_ref": "cdsmnqxtyyoeoznmbidd",
-  "source_repository": "BTNew/pdc-control-board",
-  "source_branch": "fix/ai-intake-inbox-history",
-  "source_commit": "48872c61ade661c959f91c0448b23d4f96539351",
-  "publish_repository": "BTNew/pdc-control-board-staging",
-  "publish_branch": "main",
-  "publish_commit": "efe7da60b167194b6e355734bd3b0458a5f95106",
-  "deployed_at_utc": "2026-07-25T04:30:01Z",
-  "deployed_by": "Hermes on behalf of Craig Watson",
-  "entrypoint": "index.html",
-  "production_untouched": true,
-  "assets": [
+  "generatedAtUtc": "2026-07-25T04:31:21Z",
+  "migrationLedger": [
+    "042",
+    "044",
+    "045",
+    "046",
+    "047",
+    "048",
+    "049",
+    "050",
+    "051",
+    "052",
+    "053",
+    "054",
+    "055",
+    "056",
+    "057",
+    "058",
+    "059",
+    "060",
+    "061",
+    "062",
+    "063"
+  ],
+  "releaseChecks": {
+    "aggregateTests": "AI Intake service and syntax gates passed; migration 063 rehearsal and repository/monitor aggregate gates passed before publish",
+    "backupRestore": "fresh encrypted staging backup and isolated restore passed before migration/reset",
+    "databasePostApply": "migration 063 applied on staging; 2 authenticated observations, 0 decisions, 11 board activations; revision unchanged until decision",
+    "independentReview": "final combined-diff blocker/major review PASS",
+    "literalArtifact": "30/30 source blobs assembled from exact reviewed source commit",
+    "navisionLocations": "Batch-only identity, durable reviewed activation, fail-closed shared authority, no Toyota-order UI or matching",
+    "pdIntake": "PD Document is sole vehicle-work intake; PO/job-card executable paths absent",
+    "stagingBrowserCleanup": "explicit ?clearLocalData=1 gate clears bounded browser-local operational data on staging only",
+    "aiIntake": "enrolled Viewer submits authenticated observations; only Administrator may fingerprint/version-bound apply or reject; board activation is the sole typed operational action"
+  },
+  "sourceBranch": "fix/ai-intake-inbox-history",
+  "sourceCommit": "48872c61ade661c959f91c0448b23d4f96539351",
+  "sourceFiles": [
     {
-      "path": "index.html",
-      "bytes": 65339,
-      "sha256": "4edbaee1a76710b1100227399cf3e25ec9ec4bd7688052219d8282a283142796"
+      "deployedPath": "ai-board-advisor.js",
+      "sha256": "97785220d0b72527327955c39c02e276d33a2c1391f220f211b83996ece07c65",
+      "sourcePath": "ai-board-advisor.js"
     },
     {
-      "path": "styles.css",
-      "bytes": 352534,
-      "sha256": "28ced01db42987dde079fdc4bf042e44e931e44c671fbce8bc92f9549c741884"
+      "deployedPath": "app.js",
+      "sha256": "e798167c4c5f606f3fc40f87dd5b966c92823f3282204b72f4cfc526c365f44f",
+      "sourcePath": "app.js"
     },
     {
-      "path": "app.js",
-      "bytes": 888740,
-      "sha256": "e798167c4c5f606f3fc40f87dd5b966c92823f3282204b72f4cfc526c365f44f"
+      "deployedPath": "arb-labor-catalog.js",
+      "sha256": "1800e93b325bfd58d9b0131d2105f78b775885bd82e88ceed63d3ecf6100b9fe",
+      "sourcePath": "arb-labor-catalog.js"
     },
     {
-      "path": "pdc-ai-intake-service.js",
-      "bytes": 5073,
-      "sha256": "7da57eef955bb1fc54e18693ba4775551e2b0b8ac35a5b8b60299c6f2047305a"
+      "deployedPath": "assets/brand-logo.svg",
+      "sha256": "7e3c9cb0b7e1f53b931f6cad274583f78a6be67ba554d6a45e57473f5ab611a0",
+      "sourcePath": "assets/brand-logo.svg"
+    },
+    {
+      "deployedPath": "assets/pmb-logo.png",
+      "sha256": "b795f771135b94768d211ca912472fd7d74e324cf27d5d03a354380344b7a923",
+      "sourcePath": "assets/pmb-logo.png"
+    },
+    {
+      "deployedPath": "data-staging-empty.js",
+      "sha256": "2fa02a231e559b4230ba22ac1c6e1cfa600fcaad9f546f6fb3e2a28b2acab756",
+      "sourcePath": "data-staging-empty.js"
+    },
+    {
+      "deployedPath": "desktop-operations.css",
+      "sha256": "0217291a89fbdb065879b7a118b3a5e6946f1ef2d0409c1cf05af4b58cb02393",
+      "sourcePath": "desktop-operations.css"
+    },
+    {
+      "deployedPath": "email-board-data.js",
+      "sha256": "c0cc888ec98ec64dd1710a75c7ea222d2c5a12993877ef4eebb3f66476e4093b",
+      "sourcePath": "email-board-data.js"
+    },
+    {
+      "deployedPath": "favicon.svg",
+      "sha256": "f1ce1b8f7a37c54801c2ee233c9e67bb2d852cb6ea8af942455d33d85aac046f",
+      "sourcePath": "favicon.svg"
+    },
+    {
+      "deployedPath": "index.html",
+      "sha256": "4edbaee1a76710b1100227399cf3e25ec9ec4bd7688052219d8282a283142796",
+      "sourcePath": "staging.html"
+    },
+    {
+      "deployedPath": "navision-backend-service.js",
+      "sha256": "b9bd7c61217900a49c14cd4f1324bae47001931a10344f9671ad45451c05622e",
+      "sourcePath": "navision-backend-service.js"
+    },
+    {
+      "deployedPath": "pdc-auth-registration.js",
+      "sha256": "bc45f0a1ec5cfbdfb6ad05a8b499f4a4de2d98f6d150649de98790fae7bd615a",
+      "sourcePath": "pdc-auth-registration.js"
+    },
+    {
+      "deployedPath": "pdc-auth.js",
+      "sha256": "8c464adb0546ba5dddc5f4624fc0a66e007c3841879d0fa52b2f021fd5b3680e",
+      "sourcePath": "pdc-auth.js"
+    },
+    {
+      "deployedPath": "pdc-supabase-config.staging.js",
+      "sha256": "5fe4e1d2e3d5240b89b0576830c8c0ab6d5ec40e3ed66526d335a0321fbeba62",
+      "sourcePath": "pdc-supabase-config.staging.js"
+    },
+    {
+      "deployedPath": "scripts/stage2b_c4_browser_export.js",
+      "sha256": "afa142651d88f44f40c2e41159e6f37bddc2e0af3fe89408e969e9926fc83f07",
+      "sourcePath": "scripts/stage2b_c4_browser_export.js"
+    },
+    {
+      "deployedPath": "staging-browser-assessment.js",
+      "sha256": "054f380b889eb8ce7475378478cab6f0927f0a9d15202c4745193e0405dc170e",
+      "sourcePath": "staging-browser-assessment.js"
+    },
+    {
+      "deployedPath": "styles.css",
+      "sha256": "28ced01db42987dde079fdc4bf042e44e931e44c671fbce8bc92f9549c741884",
+      "sourcePath": "styles.css"
+    },
+    {
+      "deployedPath": "vehicle-lifecycle-actions.js",
+      "sha256": "8fe1fbefce1a9c3ce2295d83154465a4506507a031cd7771e5b74bf0beb91066",
+      "sourcePath": "vehicle-lifecycle-actions.js"
+    },
+    {
+      "deployedPath": "vendor/pdfjs/LICENSE",
+      "sha256": "eb3d7b5485466acbd81f2b496f595ab637d2792e268206b27d99e793bdb67549",
+      "sourcePath": "vendor/pdfjs/LICENSE"
+    },
+    {
+      "deployedPath": "vendor/pdfjs/pdf.min.js",
+      "sha256": "86791280654fb3403853a2e3a39212941fd1c4af0c7e3608ae8f85cead458be0",
+      "sourcePath": "vendor/pdfjs/pdf.min.js"
+    },
+    {
+      "deployedPath": "vendor/pdfjs/pdf.worker.min.js",
+      "sha256": "6195a19b81679dfb8fbd6c387aa37cf212c83f02628d768d142925fddc3d88fb",
+      "sourcePath": "vendor/pdfjs/pdf.worker.min.js"
+    },
+    {
+      "deployedPath": "vendor/qz/qz-tray.js",
+      "sha256": "2d8c0b7ab912e14a12dab4bf246be8e9555754053e6e12c556196bc8d946fdd1",
+      "sourcePath": "vendor/qz/qz-tray.js"
+    },
+    {
+      "deployedPath": "vendor/supabase/supabase-2.110.5.js",
+      "sha256": "8c786ef59b285ab2a6710af2f89190ccf1201730651c5ce3bfaded7b1d61f090",
+      "sourcePath": "vendor/supabase/supabase-2.110.5.js"
+    },
+    {
+      "deployedPath": "workshop-data-service.js",
+      "sha256": "a167b8e229a9f9093194a4cb44ae055ef65a881d00a0ed1869267e208fb0867e",
+      "sourcePath": "workshop-data-service.js"
+    },
+    {
+      "deployedPath": "workshop-eligibility.js",
+      "sha256": "6eceea401de08243bf01d039fc8ab4b9295782534b9078be0eebc279dc68ba7f",
+      "sourcePath": "workshop-eligibility.js"
+    },
+    {
+      "deployedPath": "workshop-planner.css",
+      "sha256": "d52054fd064e2c300da11af4d5919f67d232bdb5931e75c2bf684d20048cb8ce",
+      "sourcePath": "workshop-planner.css"
+    },
+    {
+      "deployedPath": "workshop-planner.js",
+      "sha256": "0c7f19f1086d642df14095a6bb1f4f08bb616acdc42d24e1783f4a3669e19e4d",
+      "sourcePath": "workshop-planner.js"
+    },
+    {
+      "deployedPath": "workshop-realtime.js",
+      "sha256": "42743226062ef0bd6ad5bfb3fbf5353b7c13c487e5610cfa18044b7eea63b9bd",
+      "sourcePath": "workshop-realtime.js"
+    },
+    {
+      "deployedPath": "workshop-reference-data-service.js",
+      "sha256": "1931dfe83844d13de8d48a17e2b481a7727b511632d01d70a95d7702db7782ef",
+      "sourcePath": "workshop-reference-data-service.js"
+    },
+    {
+      "deployedPath": "workshop-shared-actions.js",
+      "sha256": "6ac851866b2873ec41b9b34132216b94a2a478891dc5ceb9fe9650ccbf4e41b8",
+      "sourcePath": "workshop-shared-actions.js"
+    },
+    {
+      "deployedPath": "pdc-ai-intake-service.js",
+      "sha256": "7da57eef955bb1fc54e18693ba4775551e2b0b8ac35a5b8b60299c6f2047305a",
+      "sourcePath": "pdc-ai-intake-service.js"
     }
-  ]
+  ],
+  "sourceParity": "31/31 deployment source pairs byte-identical to exact source commit",
+  "sourceRepository": "BTNew/pdc-control-board",
+  "sourceTree": "f2de2e2065ca98dac41de9b81da7d1c2dc34e352",
+  "stagingProjectRef": "cdsmnqxtyyoeoznmbidd",
+  "stagingSafety": {
+    "bundledOperationalData": false,
+    "livePilotActive": true,
+    "mailboxMutation": false,
+    "outboundActions": false,
+    "productionTouched": false,
+    "sourceMainTouched": false
+  }
 }
