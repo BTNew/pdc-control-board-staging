@@ -108,6 +108,8 @@ def main() -> None:
         with conn.cursor() as cur:
             cur.execute("begin")
             baseline = counts(cur)
+            cur.execute("select to_regprocedure('public.import_pdc_authenticated_vehicle_email(text,text,text,text,text,jsonb,timestamp with time zone,text,jsonb,jsonb)')")
+            preexisting_function = cur.fetchone()[0]
             sql = (ROOT / "supabase/staging_only/066_pdc_authenticated_email_canonical_import.sql").read_text(encoding="utf-8")
             cur.execute(migration_body(sql))
 
@@ -347,10 +349,10 @@ def main() -> None:
 
             conn.rollback()
 
-        # Independent post-rollback proof: 066 object and all business counts returned to baseline.
+        # Independent post-rollback proof: installed-vs-rollback object state and all business counts returned to baseline.
         with conn.cursor() as cur:
             cur.execute("select to_regprocedure('public.import_pdc_authenticated_vehicle_email(text,text,text,text,text,jsonb,timestamp with time zone,text,jsonb,jsonb)')")
-            assert cur.fetchone()[0] is None, "migration 066 function survived rollback"
+            assert cur.fetchone()[0] == preexisting_function, "migration 066 function state changed despite rollback"
             assert counts(cur) == baseline, "business counts changed despite rollback"
         result["transaction"] = "rolled_back"
         result["independent_rollback_verified"] = True

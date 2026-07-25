@@ -6,13 +6,14 @@ SQL_63 = (ROOT / 'supabase/staging_only/063_pdc_ai_intake_inbox_history.sql').re
 SQL_64 = (ROOT / 'supabase/staging_only/064_disable_pdc_ai_intake_decisions.sql').read_text(encoding='utf-8').lower()
 SQL_65 = (ROOT / 'supabase/staging_only/065_pdc_ai_intake_admin_decisions.sql').read_text(encoding='utf-8').lower()
 SQL_66 = (ROOT / 'supabase/staging_only/066_pdc_authenticated_email_canonical_import.sql').read_text(encoding='utf-8').lower()
+SQL_67 = (ROOT / 'supabase/staging_only/067_pdc_email_vehicle_navision_reconciliation.sql').read_text(encoding='utf-8').lower()
 
 
 class AiIntakeMigrationTests(unittest.TestCase):
     def test_is_staging_only_and_not_in_production_discovery(self):
-        for sql in (SQL_63, SQL_64, SQL_65, SQL_66):
+        for sql in (SQL_63, SQL_64, SQL_65, SQL_66, SQL_67):
             self.assertIn("cdsmnqxtyyoeoznmbidd", sql)
-        self.assertFalse(any(p.name.startswith(('063_', '064_', '065_', '066_')) for p in (ROOT / 'supabase/migrations').glob('*.sql')))
+        self.assertFalse(any(p.name.startswith(('063_', '064_', '065_', '066_', '067_')) for p in (ROOT / 'supabase/migrations').glob('*.sql')))
 
     def test_monitor_can_submit_observations_but_not_decide(self):
         self.assertIn('submit_pdc_ai_intake_observation', SQL_63)
@@ -128,6 +129,26 @@ class AiIntakeMigrationTests(unittest.TestCase):
         self.assertNotIn('s.active and s.planner_enabled', SQL_66)
         self.assertNotIn('insert into public.workshop_bookings', SQL_66)
         self.assertNotIn('update public.workshop_bookings', SQL_66)
+
+    def test_067_continuously_enriches_email_cards_from_exact_navision_data(self):
+        for token in (
+            'reconcile_pdc_email_vehicles_from_navision',
+            'pdc_authenticated_email_import_receipts',
+            "r.source_system='microsoft_navision'",
+            "r.is_current and r.record_status='current'",
+            'v_stock_ids[1]<>v_vin_ids[1]',
+            'current_location=v_location',
+            "source_system='microsoft_navision'",
+            "'booking_created',false",
+            "'work_changed',false",
+            'pdc_email_vehicle_revision',
+            'grant execute on function public.reconcile_pdc_email_vehicles_from_navision() to authenticated',
+        ):
+            self.assertIn(token, SQL_67)
+        self.assertNotIn('insert into public.workshop_bookings', SQL_67)
+        self.assertNotIn('update public.workshop_bookings', SQL_67)
+        self.assertNotIn('insert into public.vehicle_work_items', SQL_67)
+        self.assertNotIn('update public.vehicle_work_items', SQL_67)
 
 
 if __name__ == '__main__':
