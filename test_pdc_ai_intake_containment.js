@@ -1,0 +1,21 @@
+'use strict';
+const assert = require('assert');
+const fs = require('fs');
+const path = require('path');
+const root = __dirname;
+const app = fs.readFileSync(path.join(root, 'app.js'), 'utf8');
+const html = fs.readFileSync(path.join(root, 'staging.html'), 'utf8');
+const migration = fs.readFileSync(path.join(root, 'supabase/staging_only/064_disable_pdc_ai_intake_decisions.sql'), 'utf8').toLowerCase();
+
+assert(app.includes("function serverAuthoritativeAiIntakeEnabled()"));
+assert(app.includes("throw new Error('browser_ai_intake_mutation_disabled')"));
+assert(app.includes('AI Intake decisions are temporarily contained'));
+assert(!app.includes('data-ai-intake-apply="${escapeHtml(item.proposal_id)}"'));
+assert(!app.includes('data-ai-intake-reject="${escapeHtml(item.proposal_id)}"'));
+assert(html.includes('Operational decisions are currently disabled'));
+assert(html.includes('this panel cannot change board or workshop state'));
+assert(migration.includes('drop function public.decide_pdc_ai_intake_proposal'));
+assert(migration.includes("v_role is distinct from 'administrator'"));
+assert(migration.includes("status <> 'pending' or decided_at is not null"));
+assert(!migration.includes('insert into public.navision_board_activations'));
+console.log('AI Intake migration 064 database and browser containment checks passed');

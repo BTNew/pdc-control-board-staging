@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.07.25.01-ai-intake-staging';
+const APP_VERSION = '2026.07.25.02-ai-intake-contained';
 const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.07.24.26-pd-document-intake';
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
@@ -16756,8 +16756,12 @@ async function refreshServerAiIntake(options = {}) {
   return true;
 }
 
+function serverAuthoritativeAiIntakeEnabled() {
+  return Boolean($('#ai-intake-server-panel'));
+}
+
 function serverAiIntakeRoleCanApply() {
-  return String(window.PDC_AUTH_CONTEXT?.role || '').toLowerCase() === 'administrator';
+  return false;
 }
 
 function serverAiIntakeStatusClass(status = '') {
@@ -16785,7 +16789,6 @@ function renderServerAiIntake() {
       ? '<div class="empty-state compact-empty"><strong>No inbox observations match this filter</strong><span>The PMB bot will add authenticated email observations here.</span></div>'
       : '<div class="empty-state compact-empty"><strong>Loading PMB inbox observations</strong><span>No browser-local fallback is used.</span></div>';
   } else {
-    const canApply = serverAiIntakeRoleCanApply();
     host.innerHTML = `<div class="ai-intake-server-list">${rows.map(item => {
       const pending = item.status === 'pending';
       const actionable = item.action_type === 'board_activate_only';
@@ -16796,7 +16799,7 @@ function renderServerAiIntake() {
         <div class="ai-intake-server-meta"><span>${escapeHtml(item.sender_address || 'Unknown sender')}</span><span>UID ${escapeHtml(item.source_uid || '—')}</span><span>${escapeHtml(item.source_received_at ? operationalHealthDateLabel(item.source_received_at) : 'Date unavailable')}</span></div>
         <p class="ai-intake-server-summary">${escapeHtml(item.summary || '')}</p>
         <div class="ai-intake-server-evidence"><span><b>Proposed action:</b> ${escapeHtml(actionLabel)}</span><span><b>Authoritative vehicle:</b> ${escapeHtml(item.authoritative_vehicle || 'Not resolved')}</span><span><b>Current location:</b> ${escapeHtml(item.authoritative_location || 'Not populated')}</span></div>
-        ${pending ? `<div class="ai-intake-server-actions"><input type="text" maxlength="500" data-ai-intake-reason placeholder="Decision reason (minimum 10 characters)" aria-label="Decision reason for ${escapeHtml(item.stock_number || item.subject || 'proposal')}">${actionable ? `<button class="primary" type="button" data-ai-intake-apply="${escapeHtml(item.proposal_id)}" ${canApply ? '' : 'disabled title="Administrator access required"'}>Apply to staging</button>` : ''}<button class="small-button" type="button" data-ai-intake-reject="${escapeHtml(item.proposal_id)}" ${canApply ? '' : 'disabled title="Administrator access required"'}>${actionable ? 'Reject' : 'Dismiss observation'}</button></div>` : `<div class="ai-intake-server-meta"><b>${escapeHtml(item.decided_by_email || 'Unknown administrator')}</b><span>${escapeHtml(item.decided_at ? operationalHealthDateLabel(item.decided_at) : '')}</span><span>${escapeHtml(item.decision_reason || '')}</span></div>`}
+        ${pending ? '<div class="callout warning"><strong>Observation only</strong><span>Apply and Reject are temporarily disabled while provider-authenticated email and durable human-approval receipts are completed. Nothing can change the board from this panel.</span></div>' : `<div class="ai-intake-server-meta"><b>${escapeHtml(item.decided_by_email || 'Unknown administrator')}</b><span>${escapeHtml(item.decided_at ? operationalHealthDateLabel(item.decided_at) : '')}</span><span>${escapeHtml(item.decision_reason || '')}</span></div>`}
       </article>`;
     }).join('')}</div>`;
   }
@@ -16809,6 +16812,10 @@ function renderServerAiIntake() {
 }
 
 async function decideServerAiIntake(proposalId = '', decision = '') {
+  if (serverAuthoritativeAiIntakeEnabled()) {
+    window.alert('AI Intake decisions are temporarily contained. This panel is observation and history only; nothing changed.');
+    return false;
+  }
   const proposal = app.serverAiIntakeItems.find(item => String(item.proposal_id || '') === String(proposalId || ''));
   const service = serverAiIntakeService();
   if (!proposal || !service) return false;
@@ -16849,6 +16856,7 @@ function emailReviewDecisions() {
 }
 
 function saveEmailReviewDecision(id = '', status = '', details = {}) {
+  if (serverAuthoritativeAiIntakeEnabled()) throw new Error('browser_ai_intake_mutation_disabled');
   const decisions = emailReviewDecisions();
   decisions[id] = { status, ...details, decidedAt: nowIsoString(), decidedBy: getCurrentOperatorName() };
   saveJson(EMAIL_REVIEW_DECISIONS_KEY, decisions);
@@ -16976,6 +16984,10 @@ function reviewedEmailVehicleUpdates(vehicle = {}, review = {}, lines = [], oper
 }
 
 async function applyVehicleImportReview(review = {}) {
+  if (serverAuthoritativeAiIntakeEnabled()) {
+    window.alert('Uploaded-file proposals are local drafts only. Server AI Intake is observation and history only; nothing changed.');
+    return false;
+  }
   const operator = getCurrentOperatorName();
   if (!operator || operator === 'Unknown operator') {
     window.alert('Set an operator name before approving an email import. Nothing was changed.');
@@ -17039,7 +17051,7 @@ async function applyVehicleImportReview(review = {}) {
 
 function applyEmailReview(id = '') {
   if ($('#ai-intake-server-panel')) {
-    window.alert('Uploaded-file proposals are local drafts only. Use the PMB inbox bot section above for a durable, audited staging decision. Nothing changed.');
+    window.alert('Uploaded-file proposals are local drafts only. Server AI Intake is observation and history only; nothing changed.');
     return false;
   }
   const review = emailReviewItems().find(item => String(item.id || '') === String(id || ''));
@@ -17077,6 +17089,10 @@ function applyEmailReview(id = '') {
 }
 
 function rejectEmailReview(id = '') {
+  if (serverAuthoritativeAiIntakeEnabled()) {
+    window.alert('Browser-local AI Intake decisions are disabled on staging. Nothing changed.');
+    return false;
+  }
   const review = emailReviewItems().find(item => String(item.id || '') === String(id || ''));
   if (!review || !window.confirm(`Reject this proposed update for ${review.stock}?`)) return false;
   const vehicle = vehicleForEmailReview(review);
