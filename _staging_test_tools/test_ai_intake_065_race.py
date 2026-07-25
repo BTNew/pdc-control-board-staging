@@ -34,6 +34,7 @@ def main():
     marker = uuid.uuid4().hex
     proposal_id = str(uuid.uuid4())
     permanent_id = 'QA-AI-065-RACE-' + marker
+    decision_key = 'pdc-ai-intake-' + uuid.uuid4().hex
     result = {}
     try:
         setup.autocommit = True
@@ -44,10 +45,17 @@ def main():
             raise RuntimeError('No active Administrator fixture')
         q.execute("""select r.id::text,public.normalize_vehicle_stock_number(r.normalized_data->>'batch'),r.version,n.revision
           from public.navision_backend_records r cross join public.navision_backend_revision n
-          where n.singleton and r.is_current and r.record_status='current' and not r.is_quoted
+          where n.singleton and r.source_system='microsoft_navision' and r.dealer_code in ('14450','37047')
+            and r.is_current and r.record_status='current' and not r.is_quoted
             and public.is_real_vehicle_stock_number(r.normalized_data->>'batch')
             and not exists(select 1 from public.navision_board_activations a where a.backend_record_id=r.id)
             and not exists(select 1 from public.vehicles v where v.stock_number_normalized=public.normalize_vehicle_stock_number(r.normalized_data->>'batch') and v.deleted_at is null)
+            and not exists(select 1 from public.vehicle_aliases a where a.active and a.alias_type_normalized='stock_number' and a.normalized_alias_value=public.normalize_vehicle_stock_number(r.normalized_data->>'batch'))
+            and 1=(select count(*) from public.navision_backend_records c
+              where c.source_system='microsoft_navision' and c.dealer_code in ('14450','37047')
+                and c.is_current and c.record_status='current'
+                and public.is_real_vehicle_stock_number(c.normalized_data->>'batch')
+                and public.normalize_vehicle_stock_number(c.normalized_data->>'batch')=public.normalize_vehicle_stock_number(r.normalized_data->>'batch'))
           order by r.id limit 1""")
         record = q.fetchone()
         if not record:
@@ -55,6 +63,8 @@ def main():
         rid, stock, record_version, nav_revision = record
         q.execute("select revision from public.pdc_ai_intake_revision where singleton")
         inbox_revision = q.fetchone()[0]
+        q.execute("select count(*) from public.navision_board_activations")
+        activation_count_before = q.fetchone()[0]
         source_hash = hashlib.sha256(('source-' + marker).encode()).hexdigest()
         evidence_hash = hashlib.sha256(('evidence-' + marker).encode()).hexdigest()
         fingerprint = hashlib.sha256(('fingerprint-' + marker).encode()).hexdigest()[:16].upper()
@@ -78,7 +88,7 @@ def main():
                 a = applier.cursor()
                 claims(a, admin)
                 a.execute("select public.decide_pdc_ai_intake_proposal(%s,%s::uuid,1,%s,'board_activate_only','apply',%s,%s,%s)", (
-                    'pdc-ai-intake-' + uuid.uuid4().hex, proposal_id, inbox_revision, fingerprint, nav_revision,
+                    decision_key, proposal_id, inbox_revision, fingerprint, nav_revision,
                     'Administrator two-session identity race regression'))
                 result['body'] = a.fetchone()[0]
                 applier.rollback()
@@ -100,6 +110,21 @@ def main():
         body = result.get('body') or {}
         if body.get('ok') is not False or body.get('code') != 'operational_identity_present':
             raise AssertionError(f'Apply did not fail closed: {body!r}')
+        q.execute("select revision from public.navision_backend_revision where singleton")
+        if q.fetchone()[0] != nav_revision:
+            raise AssertionError('Race gate changed Navision revision despite rollback')
+        q.execute("select revision from public.pdc_ai_intake_revision where singleton")
+        if q.fetchone()[0] != inbox_revision:
+            raise AssertionError('Race gate changed AI Intake revision despite rollback')
+        q.execute("select count(*) from public.navision_board_activations")
+        if q.fetchone()[0] != activation_count_before:
+            raise AssertionError('Race gate retained an activation despite rollback')
+        q.execute("select count(*) from public.navision_operation_receipts where operation_kind='board_activate' and idempotency_key=%s", ('ai-intake:' + proposal_id,))
+        if q.fetchone()[0] != 0:
+            raise AssertionError('Race gate retained an activation receipt despite rollback')
+        q.execute("select count(*) from public.pdc_ai_intake_decision_receipts where idempotency_key=%s", (decision_key,))
+        if q.fetchone()[0] != 0:
+            raise AssertionError('Race gate retained a decision receipt despite rollback')
         print(json.dumps({'apply_blocked': True, 'revalidation': 'operational_identity_present', 'activation_created': False, 'production_contacted': False}, sort_keys=True))
     finally:
         try:

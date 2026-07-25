@@ -44,6 +44,11 @@ class AiIntakeMigrationTests(unittest.TestCase):
             'pg_advisory_xact_lock',
         ):
             self.assertIn(token, SQL_65)
+        board_lock = SQL_65.index("'navision-board-activate:ai-intake:' || p_proposal_id::text")
+        store_lock = SQL_65.index("'navision-backend-store'", board_lock)
+        activation_call = SQL_65.index('activate_navision_backend_record(', store_lock)
+        self.assertLess(board_lock, store_lock)
+        self.assertLess(store_lock, activation_call)
 
     def test_email_is_observation_not_execution_authority(self):
         self.assertIn('p_authentication jsonb', SQL_63)

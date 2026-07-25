@@ -47,7 +47,7 @@ assert(rollback.includes("(v_before->>'updated_at')::timestamptz<>r.work_item_up
 assert(sql.includes('enable row level security') && /revoke all on table public\.legacy_stage_reconciliation_receipts from public,\s*anon,\s*authenticated/.test(sql), 'receipts must be service-only');
 assert(sql.includes('revoke all on function public.apply_legacy_stage_reconciliation') && sql.includes('revoke all on function public.rollback_legacy_stage_reconciliation'), 'reconciliation RPCs must not be browser callable');
 assert(backup.includes('legacy_stage_reconciliation_receipts'), 'backup manifest must include receipts');
-assert(backup.includes('number >= 45') && backup.includes('difference(MIGRATION_045_BACKUP_TABLES)'), 'pre-045 backup must work before receipt table exists and 045+ must require it');
+assert(backup.includes('if number >= 45') && backup.includes('required |= MIGRATION_045_BACKUP_TABLES'), 'pre-045 backup must work before receipt table exists and 045+ must require it');
 const stationSnapshotSql = sql.slice(sql.indexOf('create or replace function public.get_station_workshop_snapshot'), sql.indexOf('create or replace function public.get_workshop_eligibility_snapshot'));
 assert(stationSnapshotSql.includes("public.workshop_stage_code_for_work_key(wi.work_key)=v_stage"), 'station work_items child collection must be scoped to the selected station');
 assert(stationSnapshotSql.includes("'requirements',(select") && stationSnapshotSql.includes('where wi.vehicle_id=e.vehicle_id and wi.required and not wi.completed'), 'station DTO must expose a separate sanitized canonical requirements list for the left-hand requirements column');

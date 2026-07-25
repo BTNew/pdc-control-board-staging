@@ -34,7 +34,19 @@ function createPdcAiIntakeRpcClient(config = {}, fetchImpl = null) {
     }
     let body = null;
     try { body = await response.json(); } catch (_error) { body = null; }
-    return { ok: response.ok && body != null, status: response.status, ambiguous: response.ok && body == null, body };
+    // A proxy/gateway may emit these statuses after the RPC transaction has
+    // committed. They are not proof of rejection and must retain the exact
+    // idempotency attempt for authoritative reconciliation/same-key retry.
+    const ambiguousStatus = response.status === 408
+      || response.status === 425
+      || response.status === 429
+      || (response.status >= 500 && response.status <= 599);
+    return {
+      ok: response.ok && body != null,
+      status: response.status,
+      ambiguous: ambiguousStatus || (response.ok && body == null),
+      body,
+    };
   }
   return { projectRef, rpc };
 }

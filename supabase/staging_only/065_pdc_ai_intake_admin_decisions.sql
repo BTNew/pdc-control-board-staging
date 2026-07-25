@@ -215,6 +215,12 @@ begin
        or concat_ws(' ',v_proposal.subject,v_proposal.summary) ~* '\m(cancelled|canceled|cancellation)\M' then
       return public.navision_backend_response(false,'proposal_conflicted_or_cancelled');
     end if;
+    -- Match activate_navision_backend_record's lock order. Taking its exact
+    -- idempotency lock first makes the nested acquisition reentrant and avoids
+    -- board-activation/global-store inversion with a concurrent direct call.
+    perform pg_advisory_xact_lock(hashtextextended(
+      'navision-board-activate:ai-intake:' || p_proposal_id::text, 0
+    ));
     perform pg_advisory_xact_lock(hashtextextended('navision-backend-store',0));
     select revision into v_navision_revision from public.navision_backend_revision
     where singleton for update;

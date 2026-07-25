@@ -21,6 +21,29 @@ function assert(value, message) { if (!value) throw new Error(message); }
   const emptyClient = createPdcAiIntakeRpcClient(stagingConfig, async () => ({ ok: true, status: 200, async json() { throw new Error('empty'); } }));
   const empty = await emptyClient.rpc('token', 'decision', {});
   assert(empty.ambiguous === true, 'Unreadable successful response must be outcome-ambiguous');
+  for (const status of [408, 425, 429, 500, 502, 503, 504, 599]) {
+    const gatewayClient = createPdcAiIntakeRpcClient(stagingConfig, async () => ({
+      ok: false,
+      status,
+      async json() { return { message: 'gateway response is not commit evidence' }; },
+    }));
+    const gateway = await gatewayClient.rpc('token', 'decision', {});
+    assert(gateway.ambiguous === true, `HTTP ${status} must be outcome-ambiguous`);
+    const gatewayService = createPdcAiIntakeService({
+      config: stagingConfig,
+      client: gatewayClient,
+      getAccessToken: () => 'staff-token',
+    });
+    const gatewayOutcome = await gatewayService.decide(
+      { proposal_id: '00000000-0000-4000-8000-000000000001', version: 1, inbox_revision: 3, navision_revision: 241, action_type: 'board_activate_only', fingerprint: 'A1B2C3D4E5F60708' },
+      'apply',
+      'Administrator independently approved exact live activation',
+      'pdc-ai-intake-00000000-0000-4000-8000-000000000009',
+    );
+    assert(gatewayOutcome.outcomeUnknown === true && gatewayOutcome.code === 'outcome_unknown', `HTTP ${status} must retain same-key reconciliation`);
+  }
+  const unreadableGatewayClient = createPdcAiIntakeRpcClient(stagingConfig, async () => ({ ok: false, status: 504, async json() { throw new Error('unreadable'); } }));
+  assert((await unreadableGatewayClient.rpc('token', 'decision', {})).ambiguous === true, 'Unreadable HTTP 504 must be outcome-ambiguous');
 
   const calls = [];
   const client = {
