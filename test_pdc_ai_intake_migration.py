@@ -5,13 +5,14 @@ ROOT = Path(__file__).resolve().parent
 SQL_63 = (ROOT / 'supabase/staging_only/063_pdc_ai_intake_inbox_history.sql').read_text(encoding='utf-8').lower()
 SQL_64 = (ROOT / 'supabase/staging_only/064_disable_pdc_ai_intake_decisions.sql').read_text(encoding='utf-8').lower()
 SQL_65 = (ROOT / 'supabase/staging_only/065_pdc_ai_intake_admin_decisions.sql').read_text(encoding='utf-8').lower()
+SQL_66 = (ROOT / 'supabase/staging_only/066_pdc_authenticated_email_canonical_import.sql').read_text(encoding='utf-8').lower()
 
 
 class AiIntakeMigrationTests(unittest.TestCase):
     def test_is_staging_only_and_not_in_production_discovery(self):
-        for sql in (SQL_63, SQL_64, SQL_65):
+        for sql in (SQL_63, SQL_64, SQL_65, SQL_66):
             self.assertIn("cdsmnqxtyyoeoznmbidd", sql)
-        self.assertFalse(any(p.name.startswith(('063_', '064_', '065_')) for p in (ROOT / 'supabase/migrations').glob('*.sql')))
+        self.assertFalse(any(p.name.startswith(('063_', '064_', '065_', '066_')) for p in (ROOT / 'supabase/migrations').glob('*.sql')))
 
     def test_monitor_can_submit_observations_but_not_decide(self):
         self.assertIn('submit_pdc_ai_intake_observation', SQL_63)
@@ -66,6 +67,67 @@ class AiIntakeMigrationTests(unittest.TestCase):
         self.assertIn('create table if not exists public.pdc_ai_intake_history', SQL_63)
         self.assertIn('pdc_ai_intake_revision', SQL_65)
         self.assertIn('insert into public.pdc_ai_intake_history', SQL_65)
+
+    def test_066_chains_observation_to_authenticated_auto_import(self):
+        self.assertIn('import_pdc_authenticated_vehicle_email', SQL_66)
+        self.assertNotIn('revoke all on function public.submit_pdc_ai_intake_observation', SQL_66)
+        for token in (
+            "(r.auth_user_id is null or r.auth_user_id=v_actor_id)",
+            "r.role='viewer' and r.active and r.account_status='approved'",
+            'pdc_monitor_stage_activation_writers',
+            "split_part(v_sender,'@',2) not in ('broometoyota.com.au','pmgwa.com.au')",
+            "v_auth->'gmail_authentication_results' is distinct from 'true'::jsonb",
+            "jsonb_array_length(v_email->'stock_numbers')>1",
+            "jsonb_array_length(v_email->'vins')>1",
+            "jsonb_array_length(v_email->'stock_numbers')+jsonb_array_length(v_email->'vins')<1",
+            "c.contract_name='pdc_ai_intake_063'",
+            'pdc_authenticated_email_import_receipts',
+            "'source_hash',v_source_hash",
+            "'evidence_hash',v_evidence_hash",
+            "'evidence_expired'",
+            "'evidence_conflicted_or_cancelled'",
+            "status='applied'",
+            "'authenticated email automatic vehicle/work import'",
+        ):
+            self.assertIn(token, SQL_66)
+
+    def test_066_serializes_exact_navision_and_operational_identity(self):
+        for token in (
+            'lock table public.vehicles,public.vehicle_aliases in share row exclusive mode',
+            "'vehicle-master:vin:'||v_vin",
+            "'vehicle-master:stock_number:'||v_stock",
+            "'navision-backend-store'",
+            'v_nav_stock_ids is distinct from v_nav_vin_ids',
+            'v_operational_stock_ids is distinct from v_operational_vin_ids',
+            "r.normalized_data->>'batch'",
+            "r.normalized_data->>'vin'",
+            "'navision_identity_conflict'",
+            "'operational_identity_conflict'",
+        ):
+            self.assertIn(token, SQL_66)
+        self.assertLess(SQL_66.index("'vehicle-master:vin:'||v_vin"), SQL_66.index("'vehicle-master:stock_number:'||v_stock"))
+
+    def test_066_canonical_vehicle_location_activation_and_work_contract(self):
+        for token in (
+            "'active',true,case when v_record.id is not null then v_location else 'other' end",
+            "in ('rft','readyfortransfer')",
+            'current_location is deliberately absent',
+            "values(v_record.id,'approved_email_build'",
+            'insert into public.vehicle_work_items',
+            'where not public.vehicle_work_items.completed',
+            'insert into public.vehicle_parts_updates',
+            'parts_required=true',
+            "'completed_work_reopened',false",
+            "'booking_created',false",
+            'get_pdc_email_vehicle_location_snapshot',
+            'pdc_email_vehicle_revision',
+        ):
+            self.assertIn(token, SQL_66)
+        for work_key in ('bus4x4','tint','hoist','fitting','fabrication','electrical','tyre','sublet','pitinspection','parts'):
+            self.assertIn(f"when '{work_key}'", SQL_66)
+        self.assertNotIn('s.active and s.planner_enabled', SQL_66)
+        self.assertNotIn('insert into public.workshop_bookings', SQL_66)
+        self.assertNotIn('update public.workshop_bookings', SQL_66)
 
 
 if __name__ == '__main__':
