@@ -149,7 +149,7 @@
           <div class="panel-header">
             <div>
               <h2>Vehicle Locations list</h2>
-              <p>Searchable daily vehicle board ordered by RFT, PMB, Yard Hold, In Transit, then Overseas/Other. Use Yard Hold rows to transfer straight to PMB and PMB rows to transfer to RFT.</p>
+              <p>Searchable daily vehicle board ordered by RFT, PMB, Yard Hold, In Transit, then Overseas/Other. Authenticated email vehicle imports synchronize automatically for every approved signed-in staging browser. Identity conflicts fail closed and remain read only for safe review.</p>
             </div>
             <div class="panel-actions">
               <button class="small-button" id="incoming-collapse-all" type="button">Collapse all rows</button>
@@ -991,9 +991,11 @@
   <script src="navision-backend-service.js?v=2026.07.24.26-pd-document-intake"></script>
   <script src="pdc-ai-intake-service.js?v=2026.07.25.03-ai-intake-admin-decision"></script>
   <script src="workshop-eligibility.js?v=2026.07.24.26-pd-document-intake"></script>
-  <script src="app.js?v=2026.07.25.03-ai-intake-admin-decision"></script>
+  <script src="pdc-email-vehicle-location-service.js?v=2026.07.25.01-authenticated-email-auto-import"></script>
+  <script src="app.js?v=2026.07.25.04-authenticated-email-auto-import"></script>
   <script src="key-list-review.js?v=2026.07.23.11-key-list-review"></script>
   <script src="scripts/stage2b_c4_browser_export.js?v=2026.07.22.01-read-only-assessment"></script>
   <script src="staging-browser-assessment.js?v=2026.07.22.01-read-only-assessment"></script>
+
 </body>
 </html>
