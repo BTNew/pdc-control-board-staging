@@ -66,12 +66,13 @@ code += String.raw`
   assert(renderWorkflowBoard.toString().includes('data-open-workshop-stage'), 'Each Control Board station must expose an Open Bays route to Workshop Planner');
 
   const stageValues = PMB_STAGE_DEFS.map(def => def.value);
-  ['BUS_4X4', 'TINT', 'HOIST', 'FITTING', 'FABRICATION', 'ELECTRICAL', 'TYRE', 'PIT_INSPECTION'].forEach(stage => {
+  ['BUS_4X4', 'TINT', 'HOIST', 'FITTING', 'FABRICATION', 'ELECTRICAL', 'TYRE'].forEach(stage => {
     assert(stageValues.includes(stage), 'PMB bucket coverage missing ' + stage);
   });
+  assert(!stageValues.includes('PIT_INSPECTION'), 'Pit Inspection must not remain a PMB bay/staging bucket');
   const bayBoardHtml = renderPmbBayBoardHtml('HOIST');
   assert(bayBoardHtml.includes('data-open-pmb-bays="TINT"'), 'PMB bay board should expose Tint bucket tab');
-  assert(bayBoardHtml.includes('data-open-pmb-bays="PIT_INSPECTION"'), 'PMB bay board should expose Pit bucket tab');
+  assert(!bayBoardHtml.includes('data-open-pmb-bays="PIT_INSPECTION"'), 'PMB bay board must not expose a Pit bucket tab');
   assert(bayBoardHtml.includes('pmb-bay-stage-tabs'), 'PMB bay board should include bucket navigation tabs');
   const bayActionVehicle = { stock: '10015802', keyNumber: '202', jobCardNumber: 'JC13920002', client: 'Kewdale Fleet', pdcLocation: 'PMB', manualLocation: 'PMB', pmbStage: 'HOIST', pdcRequiresHoist: true };
   app.data = [bayActionVehicle];

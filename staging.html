@@ -8,9 +8,9 @@
   <meta name="description" content="PDC Workshop Control Board — STAGING (separate Supabase project, synthetic data only)." />
   <title>PDC Control Board — STAGING</title>
   <link rel="icon" href="favicon.svg" type="image/svg+xml" />
-  <link rel="stylesheet" href="styles.css?v=2026.07.26.01-email-identity-badge" />
-  <link rel="stylesheet" href="desktop-operations.css?v=2026.07.26.01-email-identity-badge" />
-  <link rel="stylesheet" href="workshop-planner.css?v=2026.07.24.26-pd-document-intake" />
+  <link rel="stylesheet" href="styles.css?v=2026.07.27.01-pit-qc-flow" />
+  <link rel="stylesheet" href="desktop-operations.css?v=2026.07.27.01-pit-qc-flow" />
+  <link rel="stylesheet" href="workshop-planner.css?v=2026.07.27.01-pit-qc-flow" />
 </head>
 <body class="auth-pending" data-auth-state="checking">
   <main class="pdc-auth-gate" id="pdc-auth-gate" aria-labelledby="pdc-auth-title">
@@ -87,7 +87,7 @@
         <div class="brand-text">
           <div class="brand-title">Perth Motor Bodies</div>
           <div class="brand-subtitle">PDC Control Board</div>
-          <div class="app-version" id="app-version">Version 2026.07.26.01-email-identity-badge</div>
+          <div class="app-version" id="app-version">Version 2026.07.27.01-pit-qc-flow</div>
         </div>
         <button class="sidebar-toggle" id="sidebar-toggle" type="button" aria-label="Collapse sidebar" title="Collapse sidebar">‹</button>
       </div>
@@ -365,7 +365,7 @@
             <div class="panel-header">
               <div>
                 <h2>Production</h2>
-                <p>Production / In Transit list sorted by earliest Kewdale arrival first. PMB bay work uses Tint (internal), Hoist, Fitting, Fabrication, Electrical, Tyre Bay and Pit Inspection. No Navision tracker is shown here.</p>
+                <p>Production / In Transit list sorted by earliest Kewdale arrival first. PMB bay work uses Tint (internal), Hoist, Fitting, Fabrication, Electrical and Tyre Bay. Pit Inspection is tracked separately as transport to the Department of Transport and has no workshop planner.</p>
               </div>
               <span class="badge neutral" id="schedule-count">0 vehicles</span>
             </div>
@@ -385,7 +385,7 @@
                   <option value="FABRICATION">Fab</option>
                   <option value="ELECTRICAL">Elec</option>
                   <option value="TYRE">Tyre</option>
-                  <option value="PIT_INSPECTION">Pit</option>
+
                 </select>
               </label>
             </div>
@@ -533,7 +533,7 @@
             </div>
             <div class="parts-help-strip rft-help-strip">
               <strong>RFT rule:</strong>
-              <span>RFT is complete only when every required job is signed off, including Parts and Pit Inspection where present. Manual RFT location stays protected from Navision imports.</span>
+              <span>QC becomes available when all required workshop staging and Parts are complete. QC sign-off unlocks RFT. Pit Inspection remains separately tracked before registration and may be completed before or after QC.</span>
             </div>
             <div id="rft-home-content" class="parts-home-content rft-home-content"></div>
           </section>
@@ -985,14 +985,14 @@
   <script src="pdc-auth.js?v=2026.07.24.26-pd-document-intake"></script>
   <script src="pdc-auth-registration.js?v=2026.07.24.26-pd-document-intake"></script>
   <script src="data-staging-empty.js?v=2026.07.24.26-pd-document-intake"></script>
-  <script src="email-board-data.js?v=2026.07.26.01-email-identity-badge"></script>
+  <script src="email-board-data.js?v=2026.07.27.01-pit-qc-flow"></script>
   <script src="arb-labor-catalog.js?v=2026.07.24.26-pd-document-intake"></script>
   <script src="ai-board-advisor.js?v=2026.07.24.26-pd-document-intake"></script>
   <script src="navision-backend-service.js?v=2026.07.24.26-pd-document-intake"></script>
   <script src="pdc-ai-intake-service.js?v=2026.07.25.03-ai-intake-admin-decision"></script>
-  <script src="workshop-eligibility.js?v=2026.07.24.26-pd-document-intake"></script>
-  <script src="pdc-email-vehicle-location-service.js?v=2026.07.26.01-email-identity-badge"></script>
-  <script src="app.js?v=2026.07.26.01-email-identity-badge"></script>
+  <script src="workshop-eligibility.js?v=2026.07.27.01-pit-qc-flow"></script>
+  <script src="pdc-email-vehicle-location-service.js?v=2026.07.27.01-pit-qc-flow"></script>
+  <script src="app.js?v=2026.07.27.01-pit-qc-flow"></script>
   <script src="key-list-review.js?v=2026.07.23.11-key-list-review"></script>
   <script src="scripts/stage2b_c4_browser_export.js?v=2026.07.22.01-read-only-assessment"></script>
   <script src="staging-browser-assessment.js?v=2026.07.22.01-read-only-assessment"></script>

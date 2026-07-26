@@ -176,6 +176,14 @@ code += String.raw`
   assert(!qcPendingIssues.includes('No PMB bucket assigned'), 'PMB Unallocated must not itself block RFT');
   const rftVehicle = { ...qcPendingVehicle, pdcQcComplete: true };
   assert(vehicleRftGateIssues(rftVehicle).length === 0, 'A QC-complete PMB Unallocated vehicle with all required work complete must be RFT eligible');
+  const pitPendingVehicle = { ...qcPendingVehicle, stock: 'PIT-PENDING', pdcRequiresPitInspection: true, pdcCompletePitInspection: false };
+  assert(vehicleReadyForQualityControl(pitPendingVehicle), 'Pit Inspection must not block entry to the QC bucket');
+  assert(vehicleRftGateIssues(pitPendingVehicle).includes('QC sign-off required'), 'Pit-pending vehicles must still require QC sign-off before RFT');
+  assert(!vehicleRftGateIssues(pitPendingVehicle).some(issue => /pit/i.test(issue)), 'Pit Inspection must not be reported as a QC/RFT gate issue');
+  assert(vehicleRftGateIssues({ ...pitPendingVehicle, pdcQcComplete: true }).length === 0, 'A QC-complete vehicle may enter RFT while Pit Inspection is still pending');
+  const tintPendingVehicle = { ...pitPendingVehicle, stock: 'TINT-PENDING', pdcRequiresTint: true, pdcCompleteTint: false };
+  assert(!vehicleReadyForQualityControl(tintPendingVehicle), 'Incomplete workshop staging must still block the QC bucket');
+  assert(vehicleRftGateIssues({ ...tintPendingVehicle, pdcQcComplete: true }).some(issue => /TINT/i.test(issue)), 'Incomplete workshop staging must still block RFT even if a stale QC flag exists');
   transferVehiclesToRft([rftVehicle], { clearSelection: false });
   assert(confirms.length === 1, 'RFT transfer should only ask for transfer confirmation');
   assert(!confirms.some(message => /sales\s*person|salesperson/i.test(message)), 'RFT transfer must not prompt for salesperson notification');

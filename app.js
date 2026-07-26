@@ -1,5 +1,5 @@
-const APP_VERSION = '2026.07.26.01-email-identity-badge';
-const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.07.24.26-pd-document-intake';
+const APP_VERSION = '2026.07.27.01-pit-qc-flow';
+const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.07.27.01-pit-qc-flow';
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
 // constant intentionally names only the production ref, never the
@@ -132,7 +132,7 @@ function workshopEligibilityHarnessFallback() {
     ['FABRICATION', 'Fab', 'fabrication', 'planner-fab', 'workshop/fab', true],
     ['ELECTRICAL', 'Elec', 'electrical', 'planner-elec', 'workshop/elec', true],
     ['TYRE', 'Tyre', 'tyre', 'planner-tyre', 'workshop/tyre', true],
-    ['PIT_INSPECTION', 'Pit', 'pitInspection', 'planner-pit', 'workshop/pit', true],
+    ['PIT_INSPECTION', 'Pit', 'pitInspection', '', '', false],
     ['SUBLET', 'Sublet', 'sublet', '', '', false],
   ];
   const stationDefinitions = tuples.map(([code, label, jobKey, route, path, plannerEnabled]) => ({ code, label, jobKey, route, path, plannerEnabled }));
@@ -150,13 +150,18 @@ if (!globalThis.PDC_WORKSHOP_ELIGIBILITY && window !== globalThis) globalThis.PD
 const WORKSHOP_CANONICAL_STATION_DEFS = WORKSHOP_ELIGIBILITY.stationDefinitions;
 const PMB_STAGE_OPTIONS = [
   { value: '', label: 'UNALLOCATED' },
-  ...WORKSHOP_CANONICAL_STATION_DEFS.map(def => ({ value: def.code, label: def.label })),
+  ...WORKSHOP_CANONICAL_STATION_DEFS
+    .filter(def => def.code !== 'PIT_INSPECTION')
+    .map(def => ({ value: def.code, label: def.label })),
 ];
 
 const PMB_STAGE_DEFS = PMB_STAGE_OPTIONS.filter(option => option.value);
 const PDC_JOB_LINE_STAGE_OPTIONS = PMB_STAGE_OPTIONS.filter(option => option.value && option.value !== 'SUBLET');
 const PMB_STAGE_UNASSIGNED_FILTER = '__UNASSIGNED__';
-const PMB_STAGE_LABELS = new Map(PMB_STAGE_OPTIONS.map(option => [option.value, option.label]));
+const PMB_STAGE_LABELS = new Map([
+  ...PMB_STAGE_OPTIONS.map(option => [option.value, option.label]),
+  ['PIT_INSPECTION', 'Pit Inspection'],
+]);
 
 const PMB_WIP_LIMITS = {
   '': 12,
@@ -167,7 +172,6 @@ const PMB_WIP_LIMITS = {
   FABRICATION: 13,
   ELECTRICAL: 10,
   TYRE: 2,
-  PIT_INSPECTION: 1,
   SUBLET: 12,
 };
 
@@ -179,7 +183,6 @@ const PMB_STAGE_BAY_COUNTS = {
   FABRICATION: 13,
   ELECTRICAL: 10,
   TYRE: 2,
-  PIT_INSPECTION: 1,
 };
 
 const PMB_STAGE_CAPACITY_LABELS = {
@@ -198,7 +201,6 @@ const PMB_STAGE_AGE_LIMITS = {
   FABRICATION: 4,
   ELECTRICAL: 2,
   TYRE: 2,
-  PIT_INSPECTION: 1,
 };
 
 const PMB_BAY_MAX_COUNT = 13;
@@ -221,7 +223,6 @@ const PRODUCTION_DEPARTMENT_VIEWS = {
   'dept-fabrication': 'FABRICATION',
   'dept-electrical': 'ELECTRICAL',
   'dept-tyre': 'TYRE',
-  'dept-pit-inspection': 'PIT_INSPECTION',
 };
 const WORKSHOP_STATION_ROUTE_DEFS = Object.freeze(WORKSHOP_ELIGIBILITY.workshopPlannerStationDefinitions().map(def => ({
   view: def.route,
@@ -724,6 +725,10 @@ function pdcBooleanFromText(value) {
   return undefined;
 }
 
+function pdcQualityControlRequirementDefinitions(vehicle = {}) {
+  return pdcRequirementDefinitions(vehicle).filter(job => job.key !== 'pitInspection');
+}
+
 function vehicleRftGateIssues(vehicle = {}) {
   const issues = [];
   if (isPdcBlocked(vehicle)) issues.push(`Blocked: ${pdcBlockReason(vehicle)}`);
@@ -731,12 +736,12 @@ function vehicleRftGateIssues(vehicle = {}) {
     issues.push(`Parts STOPPAGE: ${partsStoppageReason(vehicle)}`);
   }
   if (partsEtaRisk(vehicle)) issues.push(`PARTS RISK: Parts ETA ${partsWorstEtaLabel(vehicle)} is later than Kewdale ETA ${kewdaleEtaValue(vehicle)}`);
-  const outstanding = pdcRequirementDefinitions(vehicle).filter(job => !pdcJobComplete(vehicle, job)).map(job => job.label);
+  const outstanding = pdcQualityControlRequirementDefinitions(vehicle).filter(job => !pdcJobComplete(vehicle, job)).map(job => job.label);
   if (outstanding.length) issues.push(`Outstanding jobs: ${outstanding.join(', ')}`);
   const alreadyTransferredToRft = vehiclePdcLocation(vehicle) === 'RFT' || statusCategory(vehicle) === 'rft' || vehicleCollectedFromRft(vehicle);
   if (!alreadyTransferredToRft && statusCategory(vehicle) === 'pmb') {
     const currentStage = normalizePmbStage(inferredPmbStage(vehicle));
-    const currentBay = currentStage ? pmbBayNumber(vehicle, currentStage) : '';
+    const currentBay = currentStage && currentStage !== 'PIT_INSPECTION' ? pmbBayNumber(vehicle, currentStage) : '';
     if (currentBay) issues.push(`Currently in ${pmbStageLabel(currentStage)} Bay ${currentBay}`);
     if (!outstanding.length && vehicle.pdcQcComplete !== true) issues.push('QC sign-off required');
   }
@@ -4631,8 +4636,9 @@ function describeVehicleLifecycleResolutionOutcome(result = {}) {
 
 function vehicleReadyForQualityControl(vehicle = {}) {
   if (statusCategory(vehicle) !== 'pmb' || vehicle.pdcQcComplete === true || isPdcBlocked(vehicle) || isActivePartsStoppage(vehicle)) return false;
-  if (pdcRequirementDefinitions(vehicle).some(job => !pdcJobComplete(vehicle, job))) return false;
-  return !normalizePmbStage(inferredPmbStage(vehicle));
+  if (pdcQualityControlRequirementDefinitions(vehicle).some(job => !pdcJobComplete(vehicle, job))) return false;
+  const currentStage = normalizePmbStage(inferredPmbStage(vehicle));
+  return !currentStage || currentStage === 'PIT_INSPECTION';
 }
 
 function qualityControlVehicleHtml(vehicle = {}) {
@@ -4651,7 +4657,7 @@ async function completeVehicleQualityControl(key = '') {
   const vehicle = selectedVehicle(key);
   if (!vehicle) return false;
   if (!vehicleReadyForQualityControl(vehicle)) {
-    window.alert('QC is available only when all required work is complete and the vehicle is back in PMB Unallocated.');
+    window.alert('QC is available only when all required workshop staging is complete and the vehicle is back in PMB Unallocated. Pit Inspection is tracked separately and may be completed before or after QC.');
     return false;
   }
   const operator = cleanNavisionText(window.PDC_AUTH_CONTEXT?.displayName || window.PDC_AUTH_CONTEXT?.email || localStorage.getItem(OPERATOR_NAME_KEY) || '');
@@ -4784,7 +4790,7 @@ function renderWorkflowBoard() {
     <summary class="incoming-bucket-title workflow-bucket-title">
       <span>QC</span>
       <strong>${escapeHtml(search ? `${qualityControlRows.length}/${qualityControlVehicles.length}` : qualityControlVehicles.length)}</strong>
-      <small>All required work complete · final quality check before RFT</small>
+      <small>All required workshop staging complete · Pit Inspection tracked separately · final QC before RFT</small>
       <span class="workflow-bucket-actions"><span class="badge neutral">Final gate</span></span>
     </summary>
     <div class="control-board-work-list">${qualityControlRows.map(qualityControlVehicleHtml).join('') || '<div class="pmb-empty-drop">No vehicles are waiting for QC.</div>'}</div>

@@ -92,11 +92,13 @@ assert(!app.includes("view: 'planner-sublet'") && !app.includes("path: 'workshop
 assert(planner.includes('workshopRequirePlannerStage') && planner.includes('This work type does not have a Workshop Planner'), 'legacy frontend schedule paths must fail closed for Sublet');
 assert(migration.includes('workshop_prevent_disabled_planner_booking_mutation'), 'database must block hidden/legacy Sublet scheduling mutations');
 assert(app.includes("key: 'sublet'") && app.includes('function renderSubletHome('), 'Sublet requirement/provider/status workflow must remain');
-assert(app.includes('pdcRequirementDefinitions(vehicle).some(job => !pdcJobComplete(vehicle, job))'), 'RFT/QC gate must still include every required item, including Sublet');
+assert(app.includes("pdcRequirementDefinitions(vehicle).filter(job => job.key !== 'pitInspection')"), 'QC/RFT must exclude only the separately tracked Pit Inspection requirement');
+assert(app.includes('pdcQualityControlRequirementDefinitions(vehicle).some(job => !pdcJobComplete(vehicle, job))'), 'QC must still include every other required item, including Sublet');
 assert(app.includes('teardownWorkshopEligibilityOverview({ clearSnapshot: true })'), 'route/auth teardown must not retain stale candidate authority');
 for (const gate of ['scripts/test_station_planner_300_performance.js','scripts/test_station_planner_fixture_performance.js','scripts/test_station_planner_browser_performance.js','test_station_planner_resources.js']) {
   const inventory = read(gate).match(/const\s+(?:STAGES|STATIONS)\s*=\s*\[([^\]]*)\]/)?.[1] || '';
   assert(!inventory.includes('SUBLET'), `${gate} must not require the removed Sublet planner`);
+  assert(!inventory.includes('PIT_INSPECTION'), `${gate} must not require the removed Pit Inspection planner`);
 }
 
 console.log(`All-station authority/Sublet contract: ${stations.length} stations passed`);
