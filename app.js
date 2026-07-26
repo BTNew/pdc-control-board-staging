@@ -1,5 +1,5 @@
-const APP_VERSION = '2026.07.27.01-pit-qc-flow';
-const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.07.27.01-pit-qc-flow';
+const APP_VERSION = '2026.07.27.02-planner-today-intake-stock';
+const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.07.27.02-planner-today-intake-stock';
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
 // constant intentionally names only the production ref, never the
@@ -3513,6 +3513,9 @@ function showView(view, options) {
   const previousRequestedView = app.currentRequestedView || app.currentView || 'dashboard';
   const previousWasPlanner = previousRequestedView === 'workshop' || Boolean(WORKSHOP_PLANNER_VIEWS[previousRequestedView]);
   const switchingPlannerStation = previousWasPlanner && Boolean(plannerStage) && previousRequestedView !== requestedView;
+  const enteringWorkshopPlanner = nextView === 'workshop'
+    && (!previousWasPlanner || previousRequestedView !== requestedView);
+  if (enteringWorkshopPlanner) app.pendingWorkshopOpenToday = true;
   if (previousWasPlanner && previousRequestedView !== requestedView) teardownWorkshopPlannerScope({ preserveShell: switchingPlannerStation });
   if (previousRequestedView === 'workflow' && requestedView !== 'workflow') teardownWorkshopEligibilityOverview({ clearSnapshot: true });
   releaseHeavyViewDom(app.currentView, nextView);
@@ -3758,6 +3761,8 @@ function initWorkshopSharedServicesIfEnabled() {
   // no-Realtime fallback snapshot, then the channel subscription performs a
   // second initial snapshot when the remaining module arrives.
   if (window.__workshopPlannerModulesLoading) return;
+
+  if (typeof workshopApplyOpenDateDefault === 'function') workshopApplyOpenDateDefault();
 
   if (!window.__workshopDataService) {
     if (typeof createWorkshopDataService !== 'function' || typeof createWorkshopSupabaseClient !== 'function') return;
@@ -16879,6 +16884,36 @@ function serverAiIntakeStatusClass(status = '') {
   return status === 'applied' ? 'ready' : status === 'pending' ? 'warning' : 'neutral';
 }
 
+function aiIntakeVehicleForStock(stock = '') {
+  const identity = cleanNavisionText(stock).toUpperCase();
+  if (!identity) return null;
+  const sourceRows = [...(Array.isArray(app.data) ? app.data : []), ...(Array.isArray(app.sharedNavisionVisibleRows) ? app.sharedNavisionVisibleRows : [])];
+  const exactRows = sourceRows.filter(vehicle => [vehicle.stockNumber, vehicle.stock, vehicle.stock_number]
+    .some(value => cleanNavisionText(value).toUpperCase() === identity));
+  const matches = [...new Map(exactRows.map(vehicle => {
+    const canonicalKey = cleanNavisionText(vehicle.permanentVehicleId || vehicle.permanent_vehicle_id || vehicle.id || vehicleKey(vehicle));
+    return [canonicalKey, vehicle];
+  })).values()];
+  return matches.length === 1 ? matches[0] : null;
+}
+
+function aiIntakeStockNavigationHtml(stock = '', matchedVehicle = null, options = {}) {
+  const identity = cleanNavisionText(stock);
+  const label = `${options.includeStockLabel === false ? '' : 'Stock '}${identity || 'Not found'}`;
+  const vehicle = matchedVehicle || aiIntakeVehicleForStock(identity);
+  const key = vehicle ? vehicleKey(vehicle) : '';
+  if (!identity || !key) return `<strong>${escapeHtml(label)}</strong>`;
+  return `<button class="stock-link stock-button ai-intake-stock-link" type="button" data-open-stock="${escapeHtml(key)}" title="Open ${escapeHtml(label)} vehicle card" aria-label="Open ${escapeHtml(label)} vehicle card">${escapeHtml(label)}</button>`;
+}
+
+function bindAiIntakeStockNavigation(root) {
+  $$('[data-open-stock]', root).forEach(button => button.addEventListener('click', event => {
+    event.preventDefault();
+    event.stopPropagation();
+    openVehicleModal(button.dataset.openStock);
+  }));
+}
+
 function renderServerAiIntake() {
   const host = $('#ai-intake-server-content');
   const historyHost = $('#ai-intake-history-content');
@@ -16907,7 +16942,7 @@ function renderServerAiIntake() {
       const actionLabel = actionable ? 'Activate unique current Navision Stock on staging board' : 'Observation only — no automatic operational change';
       const statusClass = serverAiIntakeStatusClass(item.status);
       return `<article class="ai-intake-server-row" data-status="${escapeHtml(item.status || '')}" data-ai-intake-proposal="${escapeHtml(item.proposal_id || '')}">
-        <div class="ai-intake-server-heading"><span class="badge ${statusClass}">${escapeHtml(String(item.status || 'pending').toUpperCase())}</span><strong>${escapeHtml(item.stock_number ? `Stock ${item.stock_number}` : item.subject || 'Email observation')}</strong><code>${escapeHtml(item.fingerprint || '')}</code></div>
+        <div class="ai-intake-server-heading"><span class="badge ${statusClass}">${escapeHtml(String(item.status || 'pending').toUpperCase())}</span>${item.stock_number ? aiIntakeStockNavigationHtml(item.stock_number) : `<strong>${escapeHtml(item.subject || 'Email observation')}</strong>`}<code>${escapeHtml(item.fingerprint || '')}</code></div>
         <div class="ai-intake-server-meta"><span>${escapeHtml(item.sender_address || 'Unknown sender')}</span><span>UID ${escapeHtml(item.source_uid || '—')}</span><span>${escapeHtml(item.source_received_at ? operationalHealthDateLabel(item.source_received_at) : 'Date unavailable')}</span></div>
         <p class="ai-intake-server-summary">${escapeHtml(item.summary || '')}</p>
         <div class="ai-intake-server-evidence"><span><b>Proposed action:</b> ${escapeHtml(actionLabel)}</span><span><b>Authoritative vehicle:</b> ${escapeHtml(item.authoritative_vehicle || 'Not resolved')}</span><span><b>Current location:</b> ${escapeHtml(item.authoritative_location || 'Not populated')}</span></div>
@@ -16919,6 +16954,7 @@ function renderServerAiIntake() {
   historyHost.innerHTML = history.length
     ? `<div class="ai-intake-history-list">${history.map(event => `<div class="ai-intake-history-row"><strong>${escapeHtml(String(event.event_type || '').toUpperCase())}${event.stock_number ? ` · ${escapeHtml(event.stock_number)}` : ''}</strong><span>${escapeHtml(event.actor_email || 'System')} · ${escapeHtml(event.event_at ? operationalHealthDateLabel(event.event_at) : '')} · ${escapeHtml(event.fingerprint || '')}</span></div>`).join('')}</div>`
     : '<div class="empty-state compact-empty"><strong>No durable history yet</strong><span>Noticed, applied and rejected events will appear here.</span></div>';
+  bindAiIntakeStockNavigation(host);
   $$('[data-ai-intake-apply]', host).forEach(button => button.addEventListener('click', () => decideServerAiIntake(button.dataset.aiIntakeApply, 'apply')));
   $$('[data-ai-intake-reject]', host).forEach(button => button.addEventListener('click', () => decideServerAiIntake(button.dataset.aiIntakeReject, 'reject')));
 }
@@ -17351,7 +17387,7 @@ function renderEmailIntakeReview() {
       const metaHtml = aiAssistantReviewMetaHtml(review);
       return `<details class="email-review-row email-vehicle-review email-review-${escapeHtml(state)}" data-email-vehicle-review="${escapeHtml(review.id)}">
         <summary class="email-review-summary">
-          <span class="email-review-summary-identity"><span class="badge ${state === 'pending' ? 'warning' : state === 'applied' ? 'ready' : 'neutral'}">${escapeHtml(state.toUpperCase())}</span><strong>Stock ${escapeHtml(review.stock || 'Not found')}</strong></span>
+          <span class="email-review-summary-identity"><span class="badge ${state === 'pending' ? 'warning' : state === 'applied' ? 'ready' : 'neutral'}">${escapeHtml(state.toUpperCase())}</span>${aiIntakeStockNavigationHtml(review.stock, vehicle)}</span>
           <span class="email-review-summary-cell"><small>Customer</small><b title="${escapeHtml(customer)}">${escapeHtml(customer)}</b></span>
           <span class="email-review-summary-cell"><small>Vehicle</small><b title="${escapeHtml(vehicleDescription)}">${escapeHtml(vehicleDescription)}</b></span>
           <span class="email-review-summary-cell"><small>Job card</small><b>${escapeHtml(jobCard)}</b></span>
@@ -17370,7 +17406,7 @@ function renderEmailIntakeReview() {
       </details>`;
     }
     return `<article class="email-review-row email-review-${escapeHtml(state)}">
-      <div class="email-review-main"><span class="badge ${state === 'pending' ? 'warning' : state === 'applied' ? 'ready' : 'neutral'}">${escapeHtml(state.toUpperCase())}</span><strong>${escapeHtml(review.stock || 'No stock')}</strong><b>${escapeHtml(emailReviewActionLabel(review))}</b><small>${escapeHtml(review.receivedAt ? operationalHealthDateLabel(review.receivedAt) : 'Date unavailable')}</small></div>
+      <div class="email-review-main"><span class="badge ${state === 'pending' ? 'warning' : state === 'applied' ? 'ready' : 'neutral'}">${escapeHtml(state.toUpperCase())}</span>${aiIntakeStockNavigationHtml(review.stock, vehicle, { includeStockLabel: false })}<b>${escapeHtml(emailReviewActionLabel(review))}</b><small>${escapeHtml(review.receivedAt ? operationalHealthDateLabel(review.receivedAt) : 'Date unavailable')}</small></div>
       <div class="email-review-details"><span><b>Vehicle:</b> ${escapeHtml(vehicle ? `${vehicleCustomerName(vehicle)} · ${displayVehicle(vehicle)}` : 'No matching vehicle')}</span>${review.reason ? `<span><b>Reason:</b> ${escapeHtml(review.reason)}</span>` : ''}${review.notes ? `<span><b>Notes:</b> ${escapeHtml(review.notes)}</span>` : ''}${review.eta ? `<span><b>ETA:</b> ${escapeHtml(review.eta)}</span>` : ''}<span><b>Sender:</b> ${escapeHtml(review.sender || 'Unknown')}</span></div>
       ${aiAssistantReviewMetaHtml(review)}
       <div class="email-review-actions">${state === 'pending' ? `<button class="primary" type="button" data-email-review-apply="${escapeHtml(review.id)}" ${vehicle && !localApplyDisabled ? '' : 'disabled'}>${localApplyDisabled ? 'Server proposal required' : 'Apply reviewed update'}</button><button class="small-button" type="button" data-email-review-reject="${escapeHtml(review.id)}">Reject draft</button>` : `<span class="subtle">${escapeHtml(decision.decidedBy || '')} · ${escapeHtml(decision.decidedAt ? operationalHealthDateLabel(decision.decidedAt) : '')}</span>`}</div>
@@ -17382,6 +17418,7 @@ function renderEmailIntakeReview() {
       if (other !== row) other.removeAttribute('open');
     });
   }));
+  bindAiIntakeStockNavigation(host);
   $$('[data-email-review-apply]', host).forEach(button => button.addEventListener('click', () => applyEmailReview(button.dataset.emailReviewApply)));
   $$('[data-email-review-reject]', host).forEach(button => button.addEventListener('click', () => rejectEmailReview(button.dataset.emailReviewReject)));
 }

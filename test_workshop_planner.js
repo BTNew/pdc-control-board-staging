@@ -41,6 +41,8 @@ assert.strictEqual(monday.getDate(), 20, 'Friday navigation should skip the week
 const previousFriday = planner.workshopShiftWorkday(monday, -1);
 assert.strictEqual(previousFriday.getDay(), 5, 'Previous before Monday must be Friday');
 assert.strictEqual(previousFriday.getDate(), 17, 'Monday navigation should skip the weekend');
+assert.strictEqual(planner.workshopDefaultOpenDateKey(new Date(2026, 6, 20, 14, 0)), '2026-07-20', 'Opening a planner station on a workday must default to today');
+assert.strictEqual(planner.workshopDefaultOpenDateKey(new Date(2026, 6, 18, 14, 0)), '2026-07-20', 'Opening a planner station on a weekend must use the next operational day');
 const weekStart = planner.workshopWeekStart(new Date(2026, 6, 16, 13, 0));
 assert.strictEqual(weekStart.getDay(), 1, 'Weekly view must begin on Monday');
 assert.deepStrictEqual(planner.workshopWeekDates(weekStart).map(date => date.getDay()), [1, 2, 3, 4, 5], 'Weekly view must contain Monday to Friday only');
@@ -283,6 +285,9 @@ assert.ok(source.includes('requiredAndIncomplete'), 'Future required work must r
 assert.ok(source.includes("typeof pmbVehiclesNeedingStationWork === 'function'"), 'Planner awaiting lists must share the Control Board station-work eligibility');
 assert.ok(source.includes("const requestedStage = dedicatedStage || normalizePmbStage(app.pendingWorkshopStage || '')"), 'Control Board station routes must pin the requested dedicated planner stage');
 assert.ok(app.includes('function openWorkshopPlannerForStage('), 'Control Board Open Bays navigation helper is missing');
+assert.ok(app.includes('const enteringWorkshopPlanner = nextView === \'workshop\''), 'Planner route entry must detect a fresh station open');
+assert.ok(app.includes('app.pendingWorkshopOpenToday = true;'), 'Fresh planner station entry must request today instead of retaining an old viewed date');
+assert.ok(source.includes('app.pendingWorkshopOpenToday !== true') && source.includes('app.pendingWorkshopOpenToday = false;'), 'Planner rendering must consume the one-shot today default');
 assert.ok(source.includes('function workshopPersistPlanAction('), 'Planner mutations must use transactional persistence and audit logging');
 assert.ok(source.includes("window.addEventListener('storage'"), 'Planner must reload changes saved in another browser tab');
 assert.ok(source.includes('function workshopRequireNoBayConflict('), 'Hard-block bay collision protection is missing');
