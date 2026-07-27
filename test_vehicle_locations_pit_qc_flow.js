@@ -48,6 +48,9 @@ assert(lifecycle.includes('pitTransferVehicle({ vehicleId, expectedVersion, dire
 assert(lifecycle.includes("rpc('pit_transfer_vehicle'"), 'Lifecycle bridge must call the PIT movement RPC');
 
 for (const contract of [
+  'pdc_staging_environment_sentinel',
+  "project_ref = 'cdsmnqxtyyoeoznmbidd'",
+  'PDC_MIGRATION_070_DEPENDENCY_MISSING',
   'create or replace function public.qc_signoff_to_rft',
   'v_qc := public.qc_complete_vehicle',
   'v_rft := public.rft_transfer_vehicle',

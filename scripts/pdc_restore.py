@@ -440,17 +440,30 @@ def get_generated_columns(cur, schema_name, table_name):
     return {row[0] for row in cur.fetchall()}
 
 
+def get_always_identity_columns(cur, schema_name, table_name):
+    """Return GENERATED ALWAYS identity columns whose backed-up values must be preserved."""
+    cur.execute(
+        "select column_name from information_schema.columns "
+        "where table_schema=%s and table_name=%s "
+        "and is_identity='YES' and identity_generation='ALWAYS'",
+        (schema_name, table_name),
+    )
+    return {row[0] for row in cur.fetchall()}
+
+
 def load_table_rows(cur, schema_name, table_name, columns, rows):
     if not rows:
         return 0
     jsonb_cols = get_jsonb_columns(cur, schema_name, table_name)
     generated_cols = get_generated_columns(cur, schema_name, table_name)
+    identity_cols = get_always_identity_columns(cur, schema_name, table_name)
     insert_columns = [column for column in columns if column not in generated_cols]
     col_list = ", ".join(quote_ident(c) for c in insert_columns)
     placeholders = ", ".join(["%s"] * len(insert_columns))
+    identity_override = " overriding system value" if identity_cols.intersection(insert_columns) else ""
     sql = (
         f'insert into {quote_ident(schema_name)}.{quote_ident(table_name)} '
-        f'({col_list}) values %s'
+        f'({col_list}){identity_override} values %s'
     )
     values = [
         [decode_value(row.get(c), is_jsonb_column=c in jsonb_cols) for c in insert_columns]

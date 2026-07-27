@@ -8,6 +8,28 @@
 
 begin;
 
+do $guard$
+begin
+  if to_regclass('public.pdc_staging_environment_sentinel') is null
+     or not exists (
+       select 1 from public.pdc_staging_environment_sentinel
+       where singleton and project_ref = 'cdsmnqxtyyoeoznmbidd'
+     ) then
+    raise exception 'PDC_STAGING_SENTINEL_MISMATCH';
+  end if;
+  if to_regclass('public.vehicles') is null
+     or to_regclass('public.vehicle_movements') is null
+     or to_regclass('public.workshop_bookings') is null
+     or to_regprocedure('public.require_pdc_role(public.pdc_role)') is null
+     or to_regprocedure('public.audit_pdc_event(public.audit_action,text,uuid,uuid,jsonb,jsonb,jsonb)') is null
+     or to_regprocedure('public.pdc_qc_gate_issues(uuid)') is null
+     or to_regprocedure('public.qc_complete_vehicle(uuid,integer,text,text)') is null
+     or to_regprocedure('public.rft_transfer_vehicle(uuid,integer)') is null then
+    raise exception 'PDC_MIGRATION_070_DEPENDENCY_MISSING';
+  end if;
+end;
+$guard$;
+
 -- Reconcile legacy non-booked PIT stage assignments into the PIT location.
 -- Migration 069 fails closed before this point if an active PIT planner booking
 -- still exists, so no live booking is silently discarded.
@@ -43,7 +65,7 @@ create or replace function public.pit_transfer_vehicle(
 returns jsonb
 language plpgsql
 security definer
-set search_path = public
+set search_path = pg_catalog, public
 as $$
 declare
   v_before public.vehicles%rowtype;
@@ -139,7 +161,7 @@ create or replace function public.qc_signoff_to_rft(
 returns jsonb
 language plpgsql
 security definer
-set search_path = public
+set search_path = pg_catalog, public
 as $$
 declare
   v_before public.vehicles%rowtype;
