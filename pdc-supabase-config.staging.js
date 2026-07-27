@@ -34,6 +34,6 @@ window.PDC_SUPABASE_CONFIG = {
   vehicleLifecycle: Object.freeze({
     sharedData: true,
     resolverRollbackDirectRead: false,
-    resolverAssetVersion: '2026.07.27.11-admin-menu-visibility-fix'
+    resolverAssetVersion: '2026.07.27.12-workflow-navision-sublet-fixes'
   })
 };

@@ -644,14 +644,11 @@ function workshopRequireOperatorProfile() {
 //                             should show body.error to the user via
 //                             workshopDescribeSharedActionError() and stop;
 //                             it must NOT apply any further local mutation
-// Section 8 Parts-incomplete override retry: move_workshop_booking,
-// schedule_vehicle_work, and the atomic cascade scheduler all accept an
-// inline p_override_reason -- when the database rejects with
-// 'parts_incomplete', prompt once for a reason and resubmit the exact same
-// payload with that reason attached. The database (not this function) is the
-// final authority on whether the acting user's role is actually permitted to
-// override; an unauthorised user's retry is rejected again by the RPC with a
-// permission error, never silently applied client-side.
+// Future planning must not claim that Parts are ready or reserve stock. When a
+// booking action encounters the Parts gate, retry once with an explicit,
+// truthful planning-only audit reason. The database remains the authority on
+// role permission and records the exception; live workshop entry/readiness
+// gates are unchanged.
 const WORKSHOP_OVERRIDE_CAPABLE_ACTIONS = new Set(['moveBooking', 'scheduleVehicleWork', 'cascadeSchedule']);
 
 function workshopSharedLegacyAmbiguity(payload = {}) {
@@ -679,10 +676,8 @@ async function workshopDispatchSharedAction(actionName, payload, renderAction = 
   try {
     result = await actions[actionName](payload);
     if (result && result.ok !== true && result.error === 'parts_incomplete' && WORKSHOP_OVERRIDE_CAPABLE_ACTIONS.has(actionName) && !payload.overrideReason) {
-      const reason = await workshopOverrideReasonModal();
-      if (reason) {
-        result = await actions[actionName]({ ...payload, overrideReason: reason });
-      }
+      const reason = 'Future workshop booking created before Parts readiness was confirmed';
+      result = await actions[actionName]({ ...payload, overrideReason: reason });
     }
   } catch (_error) {
     result = { ok: false, error: 'runtime_failure' };

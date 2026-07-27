@@ -1,5 +1,5 @@
-const APP_VERSION = '2026.07.27.11-admin-menu-visibility-fix';
-const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.07.27.11-admin-menu-visibility-fix';
+const APP_VERSION = '2026.07.27.12-workflow-navision-sublet-fixes';
+const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.07.27.12-workflow-navision-sublet-fixes';
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
 // constant intentionally names only the production ref, never the
@@ -2912,7 +2912,6 @@ function bindNav() {
     window.addEventListener('hashchange', restoreRoute);
     window.__pdcWorkshopRouteListenersInstalled = true;
   }
-  on($('#sidebar-toggle'), 'click', toggleSidebar);
   on($('#operator-profile'), 'click', setOperatorProfile);
   on($('#tv-set-operator-top'), 'click', setOperatorProfile);
   $$('[data-view-target]').forEach(btn => btn.addEventListener('click', () => showView(btn.dataset.viewTarget)));
@@ -17336,7 +17335,7 @@ function renderServerAiIntake() {
             <section class="ai-intake-detected-changes"><span>Detected changes</span>${aiIntakeHumanChangesHtml(outcome)}</section>
             <div class="ai-intake-proposed-action"><span>Proposed action</span><strong>${actionable ? 'Activate matching car on Control Board' : escapeHtml(outcome.title)}</strong><small>${escapeHtml(outcome.message)}</small></div>
           </div>
-          ${pending ? `<aside class="ai-intake-decision-panel"><label><span>Decision reason</span><input type="text" maxlength="500" data-ai-intake-reason placeholder="Minimum 10 characters" aria-label="Decision reason for ${escapeHtml(item.stock_number || item.subject || 'proposal')}"></label>${actionable ? `<button class="primary ai-intake-approve" type="button" data-ai-intake-apply="${escapeHtml(item.proposal_id)}" ${canDecide ? '' : 'disabled title="Active Administrator access required"'}>✓ Approve</button>` : ''}<button class="small-button ai-intake-deny" type="button" data-ai-intake-reject="${escapeHtml(item.proposal_id)}" ${canDecide ? '' : 'disabled title="Active Administrator access required"'}>× Deny</button></aside>` : `<aside class="ai-intake-decision-panel ai-intake-decision-complete"><strong>${escapeHtml(outcome.title)}</strong><span>Processed by ${escapeHtml(item.decided_by_email || 'System')}</span><small>${escapeHtml(item.decided_at ? operationalHealthDateLabel(item.decided_at) : '')}</small></aside>`}
+          ${pending ? `<aside class="ai-intake-decision-panel">${actionable ? `<button class="primary ai-intake-approve" type="button" data-ai-intake-apply="${escapeHtml(item.proposal_id)}" ${canDecide ? '' : 'disabled title="Active Administrator access required"'}>✓ Approve</button>` : ''}<button class="small-button ai-intake-deny" type="button" data-ai-intake-reject="${escapeHtml(item.proposal_id)}" ${canDecide ? '' : 'disabled title="Active Administrator access required"'}>× Deny</button></aside>` : `<aside class="ai-intake-decision-panel ai-intake-decision-complete"><strong>${escapeHtml(outcome.title)}</strong><span>Processed by ${escapeHtml(item.decided_by_email || 'System')}</span><small>${escapeHtml(item.decided_at ? operationalHealthDateLabel(item.decided_at) : '')}</small></aside>`}
         </div>
         <details class="ai-intake-technical-details"><summary>Email and technical details</summary><p>${escapeHtml(item.summary || 'No email summary available.')}</p><div class="ai-intake-server-meta"><span>UID ${escapeHtml(item.source_uid || '—')}</span><span>Receipt ${escapeHtml(item.fingerprint || '—')}</span><span>Action ${escapeHtml(item.action_type || 'review_only')}</span></div></details>
       </article>`;
@@ -17408,12 +17407,10 @@ async function decideServerAiIntake(proposalId = '', decision = '') {
   const authority = serverAiIntakeAuthMarker();
   const lifecycle = app.serverAiIntakeLifecycleGeneration;
   if (!proposal || !service || !authority) return false;
-  const row = $(`[data-ai-intake-proposal="${proposalId}"]`);
-  const reason = cleanNavisionText($('[data-ai-intake-reason]', row)?.value || '');
-  if (reason.length < 10) {
-    window.alert('Enter a decision reason of at least 10 characters. Nothing changed.');
-    return false;
-  }
+  // Staff no longer have to type a reason for routine triage.
+  // truthful audit reason so the protected RPC and durable history still record
+  // what happened without inventing user-authored detail.
+  const reason = decision === 'apply' ? 'Approved through AI Intake' : 'Denied through AI Intake';
   if (decision === 'apply' && !window.confirm(`Approve this intake item for Stock ${proposal.stock_number || 'unknown'}? Email evidence is informational only. The server will revalidate the exact Navision record and revision, preserve its location, and make no other operational change.`)) return false;
   if (decision === 'reject' && !window.confirm('Deny this intake item? No car will be changed.')) return false;
   const attempt = serverAiIntakeDecisionAttempt(proposal, decision, reason);
@@ -17822,7 +17819,10 @@ function plainDateValue(value = '') {
 
 function subletRows() {
   const definition = PDC_JOB_DEFS.find(def => def.key === 'sublet');
-  return pdcSheetVehicles().filter(vehicle => {
+  // Vehicle Locations includes canonical authenticated-email vehicles that are
+  // not present in the browser-local PDC array. Use the same reconciled source
+  // so every visible incomplete Sublet requirement reaches this queue.
+  return vehicleLocationBoardRows().filter(vehicle => {
     const needsSublet = Boolean(definition && pdcJobRequired(vehicle, definition) && !pdcJobComplete(vehicle, definition));
     const hasBookingRecord = Boolean(pmbBaySubletProvider(vehicle) || vehicle.pmbSubletBookingDate || vehicle.pmbSubletExpectedReturnDate || vehicle.pmbSubletActualReturnDate);
     return needsSublet || inferredPmbStage(vehicle) === 'SUBLET' || hasBookingRecord;
@@ -17877,37 +17877,78 @@ function subletIsOverdue(vehicle = {}) {
   return expected < localToday;
 }
 
-function updateSubletField(key = '', field = '', value = '') {
+function subletVehicleByKey(key = '') {
+  return subletRows().find(vehicle => vehicleKey(vehicle) === String(key || '')) || selectedVehicle(key);
+}
+
+const SUBLET_SERVER_FIELD_MAP = Object.freeze({
+  pmbSubletProvider: 'provider',
+  pmbSubletProviderEmail: 'provider_email',
+  pmbSubletPoSentDate: 'po_sent_date',
+  pmbSubletBookingDate: 'booking_date',
+  pmbSubletExpectedReturnDate: 'expected_return_date',
+  pmbSubletActualReturnDate: 'actual_return_date',
+  pmbSubletNotes: 'notes',
+  pmbSubletEmailSent: 'email_sent',
+});
+
+async function updateSubletField(key = '', field = '', value = '') {
   const allowed = new Set(['pmbSubletProvider', 'pmbSubletProviderEmail', 'pmbSubletPoSentDate', 'pmbSubletBookingDate', 'pmbSubletExpectedReturnDate', 'pmbSubletActualReturnDate', 'pmbSubletNotes']);
   if (!allowed.has(field)) return;
-  const vehicle = selectedVehicle(key);
+  const vehicle = subletVehicleByKey(key);
   if (!vehicle) return;
   const cleanValue = cleanNavisionText(value || '');
+  if (vehicle.__emailVehicleServerAuthoritative === true) {
+    const service = app.emailVehicleLocationService;
+    if (!service?.updateSublet || !vehicle.__emailVehicleId) {
+      window.alert('Shared Sublet booking service is unavailable. No change was made.');
+      return;
+    }
+    const response = await service.updateSublet(vehicle.__emailVehicleId, vehicle.__subletBookingVersion, SUBLET_SERVER_FIELD_MAP[field], cleanValue);
+    if (!response?.ok) {
+      await refreshEmailVehicleLocations();
+      window.alert(response?.code === 'version_conflict'
+        ? 'This Sublet booking changed on another computer. It has been refreshed; please retry your change.'
+        : `Shared Sublet update failed: ${response?.code || 'unknown_error'}. No change was made.`);
+      return;
+    }
+    await refreshEmailVehicleLocations();
+    return;
+  }
   recordVehicleAudit(vehicle, 'Sublet booking updated', { field, value: cleanValue, by: getCurrentOperatorName() });
   saveVehicleEdits(key, { [field]: cleanValue, pmbSubletUpdatedAt: nowIsoString(), pmbSubletUpdatedBy: getCurrentOperatorName() });
 }
 
-function setSubletEmailSent(key = '', sent = false) {
-  const vehicle = selectedVehicle(key);
+async function setSubletEmailSent(key = '', sent = false) {
+  const vehicle = subletVehicleByKey(key);
   if (!vehicle) return;
+  if (vehicle.__emailVehicleServerAuthoritative === true) {
+    const service = app.emailVehicleLocationService;
+    const response = await service?.updateSublet?.(vehicle.__emailVehicleId, vehicle.__subletBookingVersion, SUBLET_SERVER_FIELD_MAP.pmbSubletEmailSent, sent ? 'true' : 'false');
+    if (!response?.ok) window.alert(`Shared Sublet email-status update failed: ${response?.code || 'unknown_error'}. No change was made.`);
+    await refreshEmailVehicleLocations();
+    return;
+  }
   recordVehicleAudit(vehicle, sent ? 'Sublet email marked sent' : 'Sublet email marked not sent', { by: getCurrentOperatorName() });
   saveVehicleEdits(key, { pmbSubletEmailSent: Boolean(sent), pmbSubletEmailSentAt: sent ? nowIsoString() : '', pmbSubletEmailSentBy: sent ? getCurrentOperatorName() : '' });
 }
 
 function draftSubletProviderEmail(key = '') {
-  const vehicle = selectedVehicle(key);
+  const vehicle = subletVehicleByKey(key);
   if (!vehicle) return;
   const recipient = cleanNavisionText(vehicle.pmbSubletProviderEmail || '');
   const stock = displayStockNumber(vehicle) || 'TBA';
   const subject = `Sublet booking - ${stock}`;
   const body = [`Hello ${pmbBaySubletProvider(vehicle) || 'Sublet provider'},`, '', 'Please confirm the following booking:', '', ...vehicleEmailLines(vehicle), `Job Card: ${vehicleJobcardNumber(vehicle) || 'TBA'}`, `Booking date: ${plainDateValue(vehicle.pmbSubletBookingDate) || 'TBA'}`, `Expected return: ${plainDateValue(vehicle.pmbSubletExpectedReturnDate) || 'TBA'}`, `Notes: ${cleanNavisionText(vehicle.pmbSubletNotes || 'None')}`, '', 'Kind Regards,'].join('\n');
-  recordVehicleAudit(vehicle, 'Sublet provider email drafted', { provider: pmbBaySubletProvider(vehicle), recipient, by: getCurrentOperatorName() });
-  saveVehicleEdits(key, { pmbSubletEmailDraftedAt: nowIsoString(), pmbSubletEmailDraftedBy: getCurrentOperatorName() });
+  if (vehicle.__emailVehicleServerAuthoritative !== true) {
+    recordVehicleAudit(vehicle, 'Sublet provider email drafted', { provider: pmbBaySubletProvider(vehicle), recipient, by: getCurrentOperatorName() });
+    saveVehicleEdits(key, { pmbSubletEmailDraftedAt: nowIsoString(), pmbSubletEmailDraftedBy: getCurrentOperatorName() });
+  }
   window.location.href = `mailto:${encodeURIComponent(recipient)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
 }
 
 function draftSubletSalesUpdate(key = '') {
-  const vehicle = selectedVehicle(key);
+  const vehicle = subletVehicleByKey(key);
   if (!vehicle) return;
   draftSalespersonChangeEmail(vehicle, {
     title: subletIsOverdue(vehicle) ? 'Sublet return overdue' : 'Sublet booking update',
