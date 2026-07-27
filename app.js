@@ -1,5 +1,5 @@
-const APP_VERSION = '2026.07.27.17-navision-first-scope-review';
-const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.07.27.17-navision-first-scope-review';
+const APP_VERSION = '2026.07.27.18-sublet-ai-summary';
+const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.07.27.18-sublet-ai-summary';
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
 // constant intentionally names only the production ref, never the
@@ -17483,12 +17483,13 @@ function renderServerAiIntake() {
               <div><span>Matched stock</span>${item.stock_number ? aiIntakeStockNavigationHtml(item.stock_number, null, { includeStockLabel: false }) : '<strong>Not matched</strong>'}</div>
               <div><span>Matched car</span><strong>${escapeHtml(item.authoritative_vehicle || 'Not matched yet')}</strong><small>${item.authoritative_location ? `Location: ${escapeHtml(item.authoritative_location)}` : ''}</small></div>
             </div>
+            <section class="ai-intake-email-summary"><span>What the email says</span><p>${escapeHtml(item.summary || 'No reliable email summary was generated. Deny this item or open the technical details before deciding.')}</p></section>
             <section class="ai-intake-detected-changes"><span>Detected changes</span>${aiIntakeHumanChangesHtml(outcome)}</section>
             <div class="ai-intake-proposed-action"><span>Proposed action</span><strong>${actionable ? 'Activate matching car on Control Board' : escapeHtml(outcome.title)}</strong><small>${escapeHtml(outcome.message)}</small></div>
           </div>
           ${pending ? `<aside class="ai-intake-decision-panel">${actionable ? `<button class="primary ai-intake-approve" type="button" data-ai-intake-apply="${escapeHtml(item.proposal_id)}" ${canDecide ? '' : 'disabled title="Active Administrator access required"'}>✓ Approve</button>` : ''}<button class="small-button ai-intake-deny" type="button" data-ai-intake-reject="${escapeHtml(item.proposal_id)}" ${canDecide ? '' : 'disabled title="Active Administrator access required"'}>× Deny</button></aside>` : `<aside class="ai-intake-decision-panel ai-intake-decision-complete"><strong>${escapeHtml(outcome.title)}</strong><span>Processed by ${escapeHtml(item.decided_by_email || 'System')}</span><small>${escapeHtml(item.decided_at ? operationalHealthDateLabel(item.decided_at) : '')}</small></aside>`}
         </div>
-        <details class="ai-intake-technical-details"><summary>Email and technical details</summary><p>${escapeHtml(item.summary || 'No email summary available.')}</p><div class="ai-intake-server-meta"><span>UID ${escapeHtml(item.source_uid || '—')}</span><span>Receipt ${escapeHtml(item.fingerprint || '—')}</span><span>Action ${escapeHtml(item.action_type || 'review_only')}</span></div></details>
+        <details class="ai-intake-technical-details"><summary>Email and technical details</summary><div class="ai-intake-server-meta"><span>UID ${escapeHtml(item.source_uid || '—')}</span><span>Receipt ${escapeHtml(item.fingerprint || '—')}</span><span>Action ${escapeHtml(item.action_type || 'review_only')}</span></div></details>
       </article>`;
     }).join('')}</div>`;
   }
@@ -18090,7 +18091,7 @@ function draftSubletProviderEmail(key = '') {
   const recipient = cleanNavisionText(vehicle.pmbSubletProviderEmail || '');
   const stock = displayStockNumber(vehicle) || 'TBA';
   const subject = `Sublet booking - ${stock}`;
-  const body = [`Hello ${pmbBaySubletProvider(vehicle) || 'Sublet provider'},`, '', 'Please confirm the following booking:', '', ...vehicleEmailLines(vehicle), `Job Card: ${vehicleJobcardNumber(vehicle) || 'TBA'}`, `Booking date: ${plainDateValue(vehicle.pmbSubletBookingDate) || 'TBA'}`, `Expected return: ${plainDateValue(vehicle.pmbSubletExpectedReturnDate) || 'TBA'}`, `Notes: ${cleanNavisionText(vehicle.pmbSubletNotes || 'None')}`, '', 'Kind Regards,'].join('\n');
+  const body = [`Hello ${pmbBaySubletProvider(vehicle) || 'Sublet provider'},`, '', 'Please confirm the following booking:', '', ...vehicleEmailLines(vehicle), `Job Card: ${vehicleJobcardNumber(vehicle) || 'TBA'}`, `Booking date: ${plainDateValue(vehicle.pmbSubletBookingDate) || 'TBA'}`, `Notes: ${cleanNavisionText(vehicle.pmbSubletNotes || 'None')}`, '', 'Kind Regards,'].join('\n');
   if (vehicle.__emailVehicleServerAuthoritative !== true) {
     recordVehicleAudit(vehicle, 'Sublet provider email drafted', { provider: pmbBaySubletProvider(vehicle), recipient, by: getCurrentOperatorName() });
     saveVehicleEdits(key, { pmbSubletEmailDraftedAt: nowIsoString(), pmbSubletEmailDraftedBy: getCurrentOperatorName() });
@@ -18102,9 +18103,9 @@ function draftSubletSalesUpdate(key = '') {
   const vehicle = subletVehicleByKey(key);
   if (!vehicle) return;
   draftSalespersonChangeEmail(vehicle, {
-    title: subletIsOverdue(vehicle) ? 'Sublet return overdue' : 'Sublet booking update',
+    title: 'Sublet booking update',
     subject: 'PDC Sublet update',
-    details: [`Provider: ${pmbBaySubletProvider(vehicle) || 'Unassigned'}`, `Booking: ${plainDateValue(vehicle.pmbSubletBookingDate) || 'TBA'}`, `Expected return: ${plainDateValue(vehicle.pmbSubletExpectedReturnDate) || 'TBA'}`, vehicle.pmbSubletNotes && `Notes: ${vehicle.pmbSubletNotes}`].filter(Boolean),
+    details: [`Provider: ${pmbBaySubletProvider(vehicle) || 'Unassigned'}`, `Booking: ${plainDateValue(vehicle.pmbSubletBookingDate) || 'TBA'}`, vehicle.pmbSubletNotes && `Notes: ${vehicle.pmbSubletNotes}`].filter(Boolean),
   });
 }
 
@@ -18112,35 +18113,28 @@ function renderSubletHome() {
   const host = $('#sublet-home-content');
   if (!host) return;
   const search = cleanNavisionText($('#sublet-search')?.value || '').toLowerCase();
-  const filter = $('#sublet-status-filter')?.value || 'active';
   const allRows = subletRows();
   const providerFilter = syncSubletProviderFilter(allRows);
   const sortReference = new Date();
   const rows = allRows.filter(vehicle => {
-    const returned = Boolean(plainDateValue(vehicle.pmbSubletActualReturnDate || ''));
-    if (filter === 'active' && returned) return false;
-    if (filter === 'overdue' && !subletIsOverdue(vehicle)) return false;
-    if (filter === 'returned' && !returned) return false;
     const provider = normalizeSubletProviderName(pmbBaySubletProvider(vehicle));
     if (providerFilter === 'unassigned' && provider) return false;
     if (!['all', 'unassigned'].includes(providerFilter) && provider.toLowerCase() !== normalizeSubletProviderName(providerFilter).toLowerCase()) return false;
     if (!search) return true;
     return [displayStockNumber(vehicle), vehicleCustomerName(vehicle), displayVehicle(vehicle), pmbBaySubletProvider(vehicle), vehicle.pmbSubletNotes].join(' ').toLowerCase().includes(search);
   }).sort((a, b) => compareSubletBookingProximity(a, b, sortReference));
-  const overdue = allRows.filter(subletIsOverdue).length;
   const unbooked = allRows.filter(vehicle => !plainDateValue(vehicle.pmbSubletBookingDate)).length;
   const count = $('#sublet-summary');
-  if (count) count.textContent = `${rows.length} shown · ${unbooked} unbooked · ${overdue} overdue`;
+  if (count) count.textContent = `${rows.length} shown · ${unbooked} awaiting booking`;
   if (!rows.length) {
     host.innerHTML = '<div class="empty-state"><strong>No Sublet vehicles match this filter</strong><span>Vehicles appear automatically when Sublet work is required. Adjust the filters or mark Sublet as required on the vehicle.</span></div>';
     return;
   }
-  host.innerHTML = `<div class="sublet-table-wrap"><table class="data-table compact-table sublet-table"><thead><tr><th>Vehicle</th><th>Provider</th><th>PO sent</th><th>Booking</th><th>Expected return</th><th>Actual return</th><th>Notes / email</th><th>Actions</th></tr></thead><tbody>${rows.map(vehicle => {
+  host.innerHTML = `<div class="sublet-table-wrap"><table class="data-table compact-table sublet-table"><thead><tr><th>Vehicle</th><th>Provider</th><th>Booking date</th><th>Notes / email</th><th>Actions</th></tr></thead><tbody>${rows.map(vehicle => {
     const key = vehicleKey(vehicle);
     const stock = displayStockNumber(vehicle) || 'vehicle';
     const accessibleStock = escapeHtml(stock);
-    const overdueClass = subletIsOverdue(vehicle) ? ' sublet-overdue' : '';
-    return `<tr class="sublet-row${overdueClass}"><td><strong>${escapeHtml(stock === 'vehicle' ? '—' : stock)}</strong><span>${escapeHtml(vehicleCustomerName(vehicle) || 'Dealer Order')}</span><small>${escapeHtml(displayVehicle(vehicle) || '')}</small></td><td><select aria-label="Sublet provider for ${accessibleStock}" data-sublet-field="pmbSubletProvider" data-sublet-key="${escapeHtml(key)}">${subletProviderOptionsHtml(pmbBaySubletProvider(vehicle))}</select><input type="email" aria-label="Sublet provider email for ${accessibleStock}" placeholder="Provider email" value="${escapeHtml(vehicle.pmbSubletProviderEmail || '')}" data-sublet-field="pmbSubletProviderEmail" data-sublet-key="${escapeHtml(key)}"></td><td><input type="date" aria-label="PO sent date for ${accessibleStock}" value="${escapeHtml(plainDateValue(vehicle.pmbSubletPoSentDate))}" data-sublet-field="pmbSubletPoSentDate" data-sublet-key="${escapeHtml(key)}"></td><td><input type="date" aria-label="Sublet booking date for ${accessibleStock}" value="${escapeHtml(plainDateValue(vehicle.pmbSubletBookingDate))}" data-sublet-field="pmbSubletBookingDate" data-sublet-key="${escapeHtml(key)}"></td><td><input type="date" aria-label="Expected sublet return for ${accessibleStock}" value="${escapeHtml(plainDateValue(vehicle.pmbSubletExpectedReturnDate))}" data-sublet-field="pmbSubletExpectedReturnDate" data-sublet-key="${escapeHtml(key)}">${subletIsOverdue(vehicle) ? '<b class="sublet-overdue-label">OVERDUE</b>' : ''}</td><td><input type="date" aria-label="Actual sublet return for ${accessibleStock}" value="${escapeHtml(plainDateValue(vehicle.pmbSubletActualReturnDate))}" data-sublet-field="pmbSubletActualReturnDate" data-sublet-key="${escapeHtml(key)}"></td><td><textarea rows="2" aria-label="Sublet notes for ${accessibleStock}" data-sublet-field="pmbSubletNotes" data-sublet-key="${escapeHtml(key)}">${escapeHtml(vehicle.pmbSubletNotes || '')}</textarea><label class="sublet-email-check"><input type="checkbox" data-sublet-email-sent="${escapeHtml(key)}" ${vehicle.pmbSubletEmailSent ? 'checked' : ''}> Email sent</label></td><td><button class="small-button" type="button" data-sublet-provider-email="${escapeHtml(key)}">Draft provider email</button><button class="small-button" type="button" data-sublet-sales-email="${escapeHtml(key)}">Draft sales update</button></td></tr>`;
+    return `<tr class="sublet-row"><td><strong>${escapeHtml(stock === 'vehicle' ? '—' : stock)}</strong><span>${escapeHtml(vehicleCustomerName(vehicle) || 'Dealer Order')}</span><small>${escapeHtml(displayVehicle(vehicle) || '')}</small></td><td><select aria-label="Sublet provider for ${accessibleStock}" data-sublet-field="pmbSubletProvider" data-sublet-key="${escapeHtml(key)}">${subletProviderOptionsHtml(pmbBaySubletProvider(vehicle))}</select><input type="email" aria-label="Sublet provider email for ${accessibleStock}" placeholder="Provider email" value="${escapeHtml(vehicle.pmbSubletProviderEmail || '')}" data-sublet-field="pmbSubletProviderEmail" data-sublet-key="${escapeHtml(key)}"></td><td><input type="date" aria-label="Sublet booking date for ${accessibleStock}" value="${escapeHtml(plainDateValue(vehicle.pmbSubletBookingDate))}" data-sublet-field="pmbSubletBookingDate" data-sublet-key="${escapeHtml(key)}"></td><td><textarea rows="2" aria-label="Sublet notes for ${accessibleStock}" data-sublet-field="pmbSubletNotes" data-sublet-key="${escapeHtml(key)}">${escapeHtml(vehicle.pmbSubletNotes || '')}</textarea><label class="sublet-email-check"><input type="checkbox" data-sublet-email-sent="${escapeHtml(key)}" ${vehicle.pmbSubletEmailSent ? 'checked' : ''}> Provider email sent</label></td><td><button class="small-button" type="button" data-sublet-provider-email="${escapeHtml(key)}">Draft provider email</button><button class="small-button" type="button" data-sublet-sales-email="${escapeHtml(key)}">Draft sales update</button></td></tr>`;
   }).join('')}</tbody></table></div>`;
   $$('[data-sublet-field]', host).forEach(input => input.addEventListener('change', () => updateSubletField(input.dataset.subletKey, input.dataset.subletField, input.value)));
   $$('[data-sublet-email-sent]', host).forEach(input => input.addEventListener('change', () => setSubletEmailSent(input.dataset.subletEmailSent, input.checked)));

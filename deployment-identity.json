@@ -6,10 +6,10 @@
     "twoPhysicalWorkstationAuthorityCutover": false
   },
   "artifact": "zero-data static staging site",
-  "cacheVersion": "2026.07.27.17-navision-first-scope-review",
+  "cacheVersion": "2026.07.27.18-sublet-ai-summary",
   "deploymentMode": "exact reviewed source blobs; staging.html mapped to index.html",
   "environment": "staging",
-  "generatedAtUtc": "2026-07-27T09:04:54.704799Z",
+  "generatedAtUtc": "2026-07-27T09:17:29.899011Z",
   "migrationLedger": {
     "appliedThrough": "074",
     "evidence": "Staging sentinel verified; migration 074 applied and cleanly reapplied. Authenticated smoke proved the empty Pilbara scope blocks before review, an exact administrator-reviewed 100-row snapshot releases, changed content remains blocked, and the synthetic approval was removed.",
@@ -36,17 +36,18 @@
   },
   "pendingStagingMigrations": [],
   "releaseChecks": {
-    "aggregateTests": "All targeted Navision backend, storage safety, shared UI, confirmation, exact first-scope review, review-alignment, syntax and version checks passed.",
+    "aggregateTests": "All targeted Sublet queue, shared authority, search, AI Intake UI/authority, syntax, new presentation contract and version checks passed.",
     "backupRestore": "PASS \u2014 encrypted backup run 11b91f6c-6c00-48b1-a1f1-f3943f082e23 restored into isolated schema restore_ai_intake_071_20260727; row counts, foreign keys, relationships and format/schema hashes matched; schema dropped after verification",
     "databasePostApply": "PASS \u2014 migration 074 applied and source-reapplied; exact-content administrator approval, role denial, changed-content rejection and cleanup smokes passed.",
     "humanAiIntake": "Received, What happened, Car and What changed are shown in plain language; activated, modified, unchanged and review-needed outcomes are distinct; field changes render previous value to new value; technical receipt data is collapsed",
     "humanNavisionResults": "An administrator can establish the first empty dealer scope only for one exact full snapshot of at least 100 valid rows. Approval is content-bound, user-bound and expires after two hours. Cross-dealer, invalid, duplicate, stale and changed snapshots remain fail-closed. Later strongly matched refresh omissions continue to enter reversible temporary holding.",
-    "literalArtifact": "33/33 deployed Git blobs match source commit 9b47c1ef09b4439e7463d944ff27e536b6de1066",
+    "literalArtifact": "33/33 deployed Git blobs match source commit df32e59865b680a4b212bb4a2e5992c2eae2b901",
     "production": "Untouched; staging static artifact plus staging-only migrations through 074",
+    "subletAiReview": "Sublet uses a compact five-column operational table: Vehicle, Provider, Booking date, Notes/email and Actions. PO sent, expected return, actual return and return-status filtering are absent. AI Review shows the server-generated What the email says summary before detected changes and Approve/Deny controls.",
     "uiCleanup": "Control Board current-time line appears only for today and QC is removed from its station list. All-green PMB vehicles require explicit Ready for QC confirmation and move authoritatively to the Vehicle Locations QC Gate. Named QC sign-off moves to RFT and prints a dedicated windscreen label. Parts removes Outstanding station work, persists and refreshes ETA countdowns, and uses the shared Vehicle Locations row height."
   },
   "sourceBranch": "feat/vehicle-locations-pit-qc-signoff-rft",
-  "sourceCommit": "9b47c1ef09b4439e7463d944ff27e536b6de1066",
+  "sourceCommit": "df32e59865b680a4b212bb4a2e5992c2eae2b901",
   "sourceFiles": [
     {
       "deployedPath": "ai-board-advisor.js",
@@ -55,7 +56,7 @@
     },
     {
       "deployedPath": "app.js",
-      "sha256": "2e96d24afe0c5a7b230c6a52c243a77fb863ebf6b8fac24ff5f4e5213abfc83e",
+      "sha256": "a3419e872a707d82d204f44a8444e344f8cd7653b3781ddd5b2d127211ead5bc",
       "sourcePath": "app.js"
     },
     {
@@ -95,7 +96,7 @@
     },
     {
       "deployedPath": "index.html",
-      "sha256": "854cbe7072b4630aab13952609be65a2ccf592e66ee8f072151b94bbe2fc5142",
+      "sha256": "1e8352f63002687caf39e20cc3213f82f0daf416b58ab54278cf5f2385586a27",
       "sourcePath": "staging.html"
     },
     {
@@ -130,7 +131,7 @@
     },
     {
       "deployedPath": "pdc-supabase-config.staging.js",
-      "sha256": "3f331fbeb132239a75d599ff6b71843a446039dc6a915cf11988e65d7301c1c7",
+      "sha256": "e96410a4eef17d42193220098cc3534e27012e89dc6df123a1a4b40dccc3586d",
       "sourcePath": "pdc-supabase-config.staging.js"
     },
     {
@@ -145,7 +146,7 @@
     },
     {
       "deployedPath": "styles.css",
-      "sha256": "ca4a14f0fef0b8164ef7cb1ec16465dbaa2b56f3b0825ce47cefde40d9938e0a",
+      "sha256": "d7a11c97205653445cfc9c441ae31cb5f91e07f4729be628bbbd549ea1dcd613",
       "sourcePath": "styles.css"
     },
     {
@@ -214,5 +215,5 @@
       "sourcePath": "workshop-shared-actions.js"
     }
   ],
-  "sourceTree": "b8fe0fde9a9c82395788a798b7fec6da9c769e6c"
+  "sourceTree": "31221036504186766c12a377b8670b2f196810a5"
 }
