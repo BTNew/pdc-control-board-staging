@@ -1,5 +1,5 @@
-const APP_VERSION = '2026.07.27.16-control-board-cleanup';
-const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.07.27.16-control-board-cleanup';
+const APP_VERSION = '2026.07.27.17-navision-first-scope-review';
+const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.07.27.17-navision-first-scope-review';
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
 // constant intentionally names only the production ref, never the
@@ -15519,6 +15519,9 @@ function navisionSafetyIssueMessage(reason = '') {
     suspicious_complete_replacement: 'This file would replace the complete current dealer scope.',
     suspicious_cross_dealer_overlap: 'This file appears to contain records belonging to another dealer.',
     suspicious_dealer_filename_mismatch: 'The selected dealer does not match the uploaded filename.',
+    source_name_dealer_scope_mismatch: 'The selected dealer does not match the uploaded filename.',
+    cross_dealer_identity_overlap: 'This file contains Navision identities already assigned to the other dealer.',
+    unproven_empty_dealer_scope: 'This dealer has no established Navision baseline. An administrator must review and approve this exact first full snapshot.',
     suspicious_empty_scope: 'The dealer scope or source file could not be proven safely.',
     suspicious_tiny_snapshot: 'This file is too small to treat as a complete daily Navision snapshot.',
     safety_review_required: 'The server safety assessment requires this file to be reviewed before import.',
@@ -15675,14 +15678,36 @@ async function importNavisionVehicles() {
   const browserLocalSha256 = navisionBrowserAuthoritySha256();
   const rows = parsed.vehicles;
   const metadata = { sourceSystem: 'microsoft_navision', dealerCode, sourceName: app.navisionFileName || 'Pasted text', sourceTimestamp: null };
-  const previewResult = await service.preview(rows, metadata);
+  let previewResult = await service.preview(rows, metadata);
   if (!previewResult?.ok) {
     app.pendingSharedNavisionImport = null;
     updateNavisionImportButton();
     window.alert(`Shared Navision preview failed: ${previewResult?.error || 'service unavailable'}. No local data changed.`);
     return;
   }
-  const previewData = navisionSharedPreviewData(previewResult) || {};
+  let previewData = navisionSharedPreviewData(previewResult) || {};
+  let blockingState = navisionSharedPreviewBlockingState(previewData);
+  const role = String(window.PDC_AUTH_CONTEXT?.role || '').trim().toLowerCase();
+  if (blockingState.safetyBlocking && blockingState.safetyReason === 'unproven_empty_dealer_scope' && role === 'administrator') {
+    const approved = window.confirm(`Establish the first Navision baseline for ${navisionDealerName(dealerCode)}?\n\nDealer: ${dealerCode}\nRows: ${rows.length}\n\nThe server will approve only this exact snapshot for your account for two hours. It will still reject invalid rows, duplicate identities, cross-dealer matches and stale previews. No vehicle location, Parts or workshop data will change.`);
+    if (approved) {
+      const approvalResult = await service.approveInitialScope(rows, metadata);
+      if (!approvalResult?.ok) {
+        window.alert(`Initial dealer-scope review failed: ${approvalResult?.error || 'server unavailable'}. Nothing was imported or changed.`);
+      } else {
+        previewResult = await service.preview(rows, metadata);
+        if (!previewResult?.ok) {
+          app.pendingSharedNavisionImport = null;
+          updateNavisionImportButton();
+          window.alert(`Shared Navision preview failed after dealer-scope review: ${previewResult?.error || 'service unavailable'}. Nothing was imported or changed.`);
+          return;
+        } else {
+          previewData = navisionSharedPreviewData(previewResult) || {};
+          blockingState = navisionSharedPreviewBlockingState(previewData);
+        }
+      }
+    }
+  }
   app.pendingSharedNavisionImport = { rows, parsed, dealerCode, metadata, previewResult, previewData, browserLocalSha256, sourceTextSha256: sha256Hex(text.trim()) };
   try {
     await enrichSharedNavisionPreviewChanges(app.pendingSharedNavisionImport, service);

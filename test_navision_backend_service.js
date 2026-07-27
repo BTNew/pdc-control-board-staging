@@ -66,6 +66,9 @@ function assert(condition, message) {
   const preview = await first.preview(rows, { sourceName: 'synthetic.json', dealerCode: '14450' });
   assert(preview.ok && preview.data.data.operational_mutations === 0, 'Preview must be read-only and report zero operational mutations');
   assert(JSON.stringify(Object.keys(calls.at(-1).params).sort()) === JSON.stringify(['p_dealer_code', 'p_rows', 'p_source_name', 'p_source_system', 'p_source_timestamp']), 'Preview parameter keys must exactly match its scoped SQL signature');
+  const initialScopeApproval = await first.approveInitialScope(rows, { dealerCode: '14450' });
+  assert(initialScopeApproval.ok && calls.at(-1).name === 'approve_navision_initial_scope', 'First dealer baseline review must use the protected approval RPC');
+  assert(JSON.stringify(Object.keys(calls.at(-1).params).sort()) === JSON.stringify(['p_dealer_code', 'p_rows', 'p_source_system']), 'Initial scope approval must be bound to the exact rows and dealer scope');
   const unconfirmed = await first.apply(rows, preview, { idempotencyKey: 'apply-1' });
   assert(!unconfirmed.ok && unconfirmed.error === 'explicit_confirmation_required', 'Apply must require explicit confirmation');
   const truthyButNotExplicit = await first.apply(rows, preview, { idempotencyKey: 'apply-1', confirmed: 'yes' });
