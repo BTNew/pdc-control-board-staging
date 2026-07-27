@@ -11982,6 +11982,8 @@ select[name="pdcLocation"]:focus,
 #parts .parts-stoppage-picker select { width: 100%; min-height: 32px; }
 #parts .parts-stoppage-picker > span { color: #64748b; font-size: .72rem; }
 #parts .parts-table-wrap.parts-queue-wrap { overflow-x: auto !important; overflow-y: visible !important; }
+/* Parts production grid */
+#parts { --pdc-row-height: 46px; }
 #parts .parts-queue-table { width: 100%; min-width: 1320px; table-layout: fixed; }
 #parts .parts-queue-table th:nth-child(1), #parts .parts-queue-table td:nth-child(1) { width: 4% !important; }
 #parts .parts-queue-table th:nth-child(2), #parts .parts-queue-table td:nth-child(2) { width: 6% !important; }

@@ -9,7 +9,7 @@
   "cacheVersion": "2026.07.27.15-qc-gate-parts-eta",
   "deploymentMode": "exact reviewed source blobs; staging.html mapped to index.html",
   "environment": "staging",
-  "generatedAtUtc": "2026-07-27T08:18:12.029298Z",
+  "generatedAtUtc": "2026-07-27T08:22:59.560526Z",
   "migrationLedger": {
     "appliedThrough": "073",
     "evidence": "Staging sentinel verified; migration 073 dry-run compiled and applied. Authenticated fail-closed RPC checks passed. Transactional smoke proved PMB Ready for QC -> QC Gate -> named QC sign-off -> RFT and shared Parts ETA persistence, with synthetic rows rolled back.",
@@ -40,12 +40,12 @@
     "databasePostApply": "PASS \u2014 migration 073 applied; protected Ready-for-QC and Parts ETA RPCs present; authenticated fail-closed contracts passed; transactional lifecycle and ETA smoke passed with test rows rolled back.",
     "humanAiIntake": "Received, What happened, Car and What changed are shown in plain language; activated, modified, unchanged and review-needed outcomes are distinct; field changes render previous value to new value; technical receipt data is collapsed",
     "humanNavisionResults": "Strongly matched large dealer refreshes may apply while omissions enter reversible temporary holding; the verified replay passed 153 incoming, 153 selected-identity matches, 69 omissions, 0 cross-dealer matches and hard deletion disabled. Structured server safety findings are never reconciled away by zero row-error counts: wrong dealer, cross-dealer, empty, small and weakly matched files show their safety reason and remain blocked before apply.",
-    "literalArtifact": "33/33 deployed Git blobs match source commit 71dad2072172958684d924339efd3c04949218cd",
+    "literalArtifact": "33/33 deployed Git blobs match source commit db416825530cc58d56c79c51832b1fbee5522b59",
     "production": "Untouched; staging static artifact plus staging-only migration 073",
     "uiCleanup": "Control Board current-time line appears only for today and QC is removed from its station list. All-green PMB vehicles require explicit Ready for QC confirmation and move authoritatively to the Vehicle Locations QC Gate. Named QC sign-off moves to RFT and prints a dedicated windscreen label. Parts removes Outstanding station work, persists and refreshes ETA countdowns, and uses the shared Vehicle Locations row height."
   },
   "sourceBranch": "feat/vehicle-locations-pit-qc-signoff-rft",
-  "sourceCommit": "71dad2072172958684d924339efd3c04949218cd",
+  "sourceCommit": "db416825530cc58d56c79c51832b1fbee5522b59",
   "sourceFiles": [
     {
       "deployedPath": "ai-board-advisor.js",
@@ -144,7 +144,7 @@
     },
     {
       "deployedPath": "styles.css",
-      "sha256": "3be9362b233a08385a00f5a7938a1a07335663e62b1a9ed7d76d8627ba644a32",
+      "sha256": "ca4a14f0fef0b8164ef7cb1ec16465dbaa2b56f3b0825ce47cefde40d9938e0a",
       "sourcePath": "styles.css"
     },
     {
@@ -213,5 +213,5 @@
       "sourcePath": "workshop-shared-actions.js"
     }
   ],
-  "sourceTree": "2b2ca59dfc2fcf3ee91b56e109850269a6d1c678"
+  "sourceTree": "412c451c3480f65bfb27b2edd05438ed6aee6b13"
 }
