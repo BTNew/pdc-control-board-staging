@@ -8,9 +8,9 @@
   <meta name="description" content="PDC Workshop Control Board — STAGING (separate Supabase project, synthetic data only)." />
   <title>PDC Control Board — STAGING</title>
   <link rel="icon" href="favicon.svg" type="image/svg+xml" />
-  <link rel="stylesheet" href="styles.css?v=2026.07.27.09-navision-preview-blocking-fix" />
-  <link rel="stylesheet" href="desktop-operations.css?v=2026.07.27.09-navision-preview-blocking-fix" />
-  <link rel="stylesheet" href="workshop-planner.css?v=2026.07.27.09-navision-preview-blocking-fix" />
+  <link rel="stylesheet" href="styles.css?v=2026.07.27.10-admin-ai-locations-cleanup" />
+  <link rel="stylesheet" href="desktop-operations.css?v=2026.07.27.10-admin-ai-locations-cleanup" />
+  <link rel="stylesheet" href="workshop-planner.css?v=2026.07.27.10-admin-ai-locations-cleanup" />
 </head>
 <body class="auth-pending" data-auth-state="checking">
   <main class="pdc-auth-gate" id="pdc-auth-gate" aria-labelledby="pdc-auth-title">
@@ -87,7 +87,7 @@
         <div class="brand-text">
           <div class="brand-title">Perth Motor Bodies</div>
           <div class="brand-subtitle">PDC Control Board</div>
-          <div class="app-version" id="app-version">Version 2026.07.27.09-navision-preview-blocking-fix</div>
+          <div class="app-version" id="app-version">Version 2026.07.27.10-admin-ai-locations-cleanup</div>
         </div>
         <button class="sidebar-toggle" id="sidebar-toggle" type="button" aria-label="Collapse sidebar" title="Collapse sidebar">‹</button>
       </div>
@@ -96,17 +96,21 @@
         <button type="button" class="nav-item active" data-view="dashboard" data-short="LOC">Vehicle Locations</button>
         <button type="button" class="nav-item" data-view="workflow" data-short="CB">Control Board</button>
         <button type="button" class="nav-item" id="nav-workshop-rollback" data-view="workshop" data-short="PLAN" title="Temporary combined-planner rollback route">Workshop Planner</button>
-        <button type="button" class="nav-item" data-view="visibility" data-short="OPS">Operations</button>
         <button type="button" class="nav-item" data-view="parts" data-short="PA">Parts</button>
         <button type="button" class="nav-item" data-view="emailreview" data-short="AI">AI Intake</button>
         <button type="button" class="nav-item" data-view="sublet" data-short="SUB">Sublet</button>
         <button type="button" class="nav-item" data-view="rft" data-short="RFT">RFT</button>
-        <button type="button" class="nav-item" data-view="completed" data-short="DONE">Completed vehicles</button>
-        <button type="button" class="nav-item" data-view="deleted" data-short="DEL">Deleted vehicles</button>
-        <button type="button" class="nav-item" data-view="backend" data-short="DATA">Back End Data</button>
-        <button type="button" class="nav-item" data-view="lists" data-short="SET">Setup</button>
-        <button type="button" class="nav-item" id="nav-user-management" data-view="user-management" data-short="USR" hidden>User Management</button>
-        <button type="button" class="nav-item" data-view="import" data-short="U">Uploads</button>
+        <div class="nav-admin-group" id="nav-admin-group" hidden>
+          <button type="button" class="nav-item nav-admin-toggle" id="nav-admin-toggle" data-short="ADM" aria-expanded="false" aria-controls="nav-admin-menu"><span>Admin</span><span class="nav-admin-chevron" aria-hidden="true">⌄</span></button>
+          <div class="nav-admin-menu" id="nav-admin-menu" hidden>
+            <button type="button" class="nav-item nav-admin-item" id="nav-user-management" data-view="user-management" data-short="USR">User Management</button>
+            <button type="button" class="nav-item nav-admin-item" data-view="lists" data-short="SET">Setup</button>
+            <button type="button" class="nav-item nav-admin-item" data-view="import" data-short="UP">Uploads</button>
+            <button type="button" class="nav-item nav-admin-item" data-view="deleted" data-short="DEL">Deleted Vehicles</button>
+            <button type="button" class="nav-item nav-admin-item" data-view="completed" data-short="DONE">Completed Vehicles</button>
+            <button type="button" class="nav-item nav-admin-item" data-view="backend" data-short="DATA">Back End Data</button>
+          </div>
+        </div>
       </nav>
 
       <div class="sidebar-card">
@@ -144,65 +148,14 @@
       </div>
 
       <section id="dashboard" class="view active">
-        <div class="kpi-grid" id="kpi-grid"></div>
         <section class="panel span-12 incoming-board-panel">
-          <div class="panel-header">
-            <div>
-              <h2>Vehicle Locations list</h2>
-              <p>Searchable daily vehicle board ordered by RFT, QC, PIT, PMB, YARD HOLD, IT, then OTHER. PIT is a vehicle location, not workshop work. Completing every required station job places the vehicle in QC; a named QC sign-off marks it RFT. Authenticated email vehicle imports synchronize automatically for approved signed-in staging browsers. Identity conflicts fail closed and remain read only for safe review.</p>
-            </div>
-            <div class="panel-actions">
-              <button class="small-button" id="incoming-collapse-all" type="button">Collapse all rows</button>
-              <button class="small-button" type="button" data-view-target="workflow">Open Control Board</button>
-            </div>
-          </div>
-          <div class="incoming-search-panel" role="search" aria-label="Main screen vehicle search and filters">
-            <div class="incoming-filter-row primary-filter-row">
-              <label>
-                <span>Name / Stock / Key</span>
-                <input id="incoming-search" type="search" placeholder="Customer, stock, order, rego, key number, vehicle..." />
-              </label>
-              <label>
-                <span>Status</span>
-                <select id="incoming-status-filter"><option value="">All statuses</option></select>
-              </label>
-              <label>
-                <span>Bucket</span>
-                <select id="incoming-bucket-filter">
-                                  <option value="">All buckets</option>
-                                  <option value="rft">RFT</option>
-                                  <option value="qc">QC</option>
-                                  <option value="pit">PIT</option>
-                                  <option value="pmb">PMB</option>
-                                  <option value="yardhold">YARD HOLD</option>
-                                  <option value="transit">IT</option>
-                                  <option value="overseas">OTHER</option>
-                                </select>
-              </label>
-              <button class="primary incoming-find-button" id="incoming-find" type="button">Find</button>
-              <button class="small-button" id="incoming-clear-filters" type="button">Clear</button>
-            </div>
-            <details class="incoming-more-filters" id="incoming-more-filters">
-              <summary><span data-incoming-more-filter-label>More filters</span></summary>
-              <div class="incoming-more-filter-grid">
-                <label>
-                  <span>Sales rep</span>
-                  <select id="incoming-rep-filter"><option value="">All reps</option></select>
-                </label>
-                <fieldset class="incoming-work-filter-checks" aria-label="Work type filters">
-                  <legend>Work type</legend>
-                  <label><input type="checkbox" name="incoming-work-filter" value="tint" /> Tint</label>
-                  <label><input type="checkbox" name="incoming-work-filter" value="bus4x4" /> Bus 4x4</label>
-                  <label><input type="checkbox" name="incoming-work-filter" value="hoist" /> Hoist</label>
-                  <label><input type="checkbox" name="incoming-work-filter" value="fitting" /> Fitting</label>
-                  <label><input type="checkbox" name="incoming-work-filter" value="fabrication" /> Fab</label>
-                  <label><input type="checkbox" name="incoming-work-filter" value="electrical" /> Elec</label>
-                  <label><input type="checkbox" name="incoming-work-filter" value="tyre" /> Tyre</label>
-                  <label><input type="checkbox" name="incoming-work-filter" value="sublet" /> Sublet</label>
-                </fieldset>
-              </div>
-            </details>
-            <div class="incoming-filter-meta" id="incoming-filter-summary">All active incoming vehicles</div>
+          <div class="incoming-search-panel incoming-search-only" role="search" aria-label="Search Vehicle Locations">
+            <label>
+              <span>Search vehicles</span>
+              <input id="incoming-search" type="search" placeholder="Customer, stock, order, rego, key number or vehicle..." />
+            </label>
+            <div class="incoming-filter-meta" id="incoming-filter-summary">All active vehicles</div>
+            <p class="sr-only">Authenticated email vehicle imports are server-authoritative. Identity conflicts fail closed. PIT is a separate vehicle location, not a workshop job. A named QC sign-off immediately marks the vehicle RFT.</p>
           </div>
           <div class="inline-selection-bar" id="incoming-selection-bar" aria-live="polite">
             <strong id="incoming-selection-count">0 selected</strong>
@@ -446,26 +399,26 @@
       <section id="emailreview" class="view">
         <div class="parts-home-layout email-review-layout">
           <section class="panel parts-home-panel email-review-panel">
-            <div class="panel-header"><div><h2>AI Intake</h2><p>A simple record of what arrived, which car it matched, and exactly what changed.</p></div><span class="badge warning" id="email-review-count">0 pending</span></div>
+            <div class="panel-header"><div><h2>AI / Email Intake</h2><p>Review only the emails that need an Administrator decision.</p></div><span class="badge warning" id="email-review-count">0 pending</span></div>
             <section class="ai-intake-server-panel" id="ai-intake-server-panel" aria-labelledby="ai-intake-server-title">
               <div class="ai-intake-server-header">
-                <div><span class="eyebrow">PMB email intake</span><h3 id="ai-intake-server-title">Emails received and car changes</h3><p>Each item shows whether a car was activated, modified, left unchanged or needs review. Technical receipt details are available inside each item.</p></div>
+                <div><span class="eyebrow">PMB email intake</span><h3 id="ai-intake-server-title">Emails received</h3><p>Approve or deny the items that need a decision. Completed items remain available in the filter and history.</p></div>
                 <div class="ai-intake-server-toolbar"><span class="badge warning" id="ai-intake-server-state">Connecting</span><button class="small-button" id="ai-intake-server-refresh" type="button">Refresh inbox</button></div>
               </div>
               <div class="table-toolbar ai-intake-server-filter"><label><span>Show</span><select id="ai-intake-server-filter"><option value="pending">Needs review</option><option value="applied">Processed</option><option value="rejected">No change made</option><option value="all">Everything received</option></select></label></div>
-              <div class="parts-help-strip"><strong>Safety:</strong><span>Email evidence is informational. An Administrator decision can approve only a controlled board activation after the server matches the exact current Navision car again.</span></div>
+              <div class="parts-help-strip ai-intake-information"><strong>Information only</strong><span>Email content is not operational authority. Administrator approval can only perform a controlled board activation after the server matches and validates the exact current Navision car.</span></div>
               <div id="ai-intake-server-content"><div class="empty-state compact-empty"><strong>Loading email intake</strong><span>Checking the latest online records.</span></div></div>
               <div class="ai-intake-history-heading"><div><span class="eyebrow">History</span><h3>What arrived and what happened</h3></div></div>
               <div id="ai-intake-history-content"><div class="empty-state compact-empty"><strong>Loading history</strong><span>Received, activated, modified and dismissed items appear here.</span></div></div>
             </section>
-            <section class="ai-board-advisor-panel" aria-labelledby="ai-board-advisor-title">
+            <section class="ai-board-advisor-panel" aria-labelledby="ai-board-advisor-title" hidden>
               <div class="ai-board-advisor-header">
                 <div><span class="eyebrow">Phase 2 · Board advisor</span><h3 id="ai-board-advisor-title">Workshop and Parts priorities</h3><p>Transparent deterministic checks rank risks for human review. This advisor cannot change vehicles, bookings, Parts, workflow or messages.</p></div>
                 <div class="ai-board-advisor-actions"><span class="badge ready">Advisory only</span><button class="small-button" id="ai-board-refresh" type="button">Refresh advice</button></div>
               </div>
               <div id="ai-board-advisor-content"><div class="empty-state compact-empty"><strong>Calculating read-only advice</strong><span>No operational data is changed.</span></div></div>
             </section>
-            <section class="email-intake-upload-panel" aria-label="AI file assistant upload">
+            <section class="email-intake-upload-panel" aria-label="AI file assistant upload" hidden>
               <div class="email-intake-upload-copy">
                 <span class="eyebrow">Phase 1 · AI file assistant</span>
                 <strong>Drop PDFs or text files to analyse into safe review drafts</strong>
@@ -484,10 +437,9 @@
                 </div>
               </div>
             </section>
-            <div id="ai-intake-status" class="email-intake-status"><div class="empty-state compact-empty"><strong>No files queued</strong><span>Add one or more files above to create review drafts.</span></div></div>
-            <div class="table-toolbar"><label><span>Status</span><select id="email-review-status-filter"><option value="pending">Pending review</option><option value="applied">Applied</option><option value="rejected">Rejected</option><option value="all">All proposals</option></select></label></div>
-            <div class="parts-help-strip"><strong>Safety rule:</strong><span>Uploaded-file proposals below remain local drafts and cannot change online staging. Use the server-authoritative PMB inbox section above for durable decisions and history.</span></div>
-            <div id="email-intake-review-content"></div>
+            <div id="ai-intake-status" class="email-intake-status" hidden><div class="empty-state compact-empty"><strong>No files queued</strong><span>Add one or more files above to create review drafts.</span></div></div>
+            <div class="table-toolbar" hidden><label><span>Status</span><select id="email-review-status-filter"><option value="pending">Pending review</option><option value="applied">Applied</option><option value="rejected">Rejected</option><option value="all">All proposals</option></select></label></div>
+            <div id="email-intake-review-content" hidden></div>
           </section>
         </div>
       </section>
@@ -987,14 +939,14 @@
   <script src="pdc-auth.js?v=2026.07.24.26-pd-document-intake"></script>
   <script src="pdc-auth-registration.js?v=2026.07.24.26-pd-document-intake"></script>
   <script src="data-staging-empty.js?v=2026.07.24.26-pd-document-intake"></script>
-  <script src="email-board-data.js?v=2026.07.27.09-navision-preview-blocking-fix"></script>
+  <script src="email-board-data.js?v=2026.07.27.10-admin-ai-locations-cleanup"></script>
   <script src="arb-labor-catalog.js?v=2026.07.24.26-pd-document-intake"></script>
   <script src="ai-board-advisor.js?v=2026.07.24.26-pd-document-intake"></script>
-  <script src="navision-backend-service.js?v=2026.07.27.09-navision-preview-blocking-fix"></script>
+  <script src="navision-backend-service.js?v=2026.07.27.10-admin-ai-locations-cleanup"></script>
   <script src="pdc-ai-intake-service.js?v=2026.07.25.03-ai-intake-admin-decision"></script>
-  <script src="workshop-eligibility.js?v=2026.07.27.09-navision-preview-blocking-fix"></script>
-  <script src="pdc-email-vehicle-location-service.js?v=2026.07.27.09-navision-preview-blocking-fix"></script>
-  <script src="app.js?v=2026.07.27.09-navision-preview-blocking-fix"></script>
+  <script src="workshop-eligibility.js?v=2026.07.27.10-admin-ai-locations-cleanup"></script>
+  <script src="pdc-email-vehicle-location-service.js?v=2026.07.27.10-admin-ai-locations-cleanup"></script>
+  <script src="app.js?v=2026.07.27.10-admin-ai-locations-cleanup"></script>
   <script src="key-list-review.js?v=2026.07.23.11-key-list-review"></script>
   <script src="scripts/stage2b_c4_browser_export.js?v=2026.07.22.01-read-only-assessment"></script>
   <script src="staging-browser-assessment.js?v=2026.07.22.01-read-only-assessment"></script>

@@ -6,10 +6,10 @@
     "twoPhysicalWorkstationAuthorityCutover": false
   },
   "artifact": "zero-data static staging site",
-  "cacheVersion": "2026.07.27.09-navision-preview-blocking-fix",
+  "cacheVersion": "2026.07.27.10-admin-ai-locations-cleanup",
   "deploymentMode": "exact reviewed source blobs; staging.html mapped to index.html",
   "environment": "staging",
-  "generatedAtUtc": "2026-07-27T06:16:07.283563Z",
+  "generatedAtUtc": "2026-07-27T06:37:12.151039Z",
   "migrationLedger": {
     "appliedThrough": "071",
     "evidence": "staging sentinel verified; encrypted pre-migration backup 11b91f6c-6c00-48b1-a1f1-f3943f082e23 restored in an isolated schema with row counts, foreign keys and integrity/hash checks passing; migration 071 rollback rehearsal and controlled apply passed with protected inventory unchanged",
@@ -33,16 +33,17 @@
   },
   "pendingStagingMigrations": [],
   "releaseChecks": {
-    "aggregateTests": "86 passed, 1 failed, 1 skipped in the fresh direct JavaScript aggregate; focused Navision service, shared UI, timeout, syntax and version suites passed. The remaining failure is the pre-existing Windows-CRLF-sensitive workshop planner-role static assertion.",
+    "aggregateTests": "87 passed, 1 failed, 1 skipped in the fresh direct JavaScript aggregate; focused Admin navigation, AI Intake, Vehicle Locations, authority, syntax and version suites passed. The remaining failure is the pre-existing Windows-CRLF-sensitive workshop planner-role static assertion.",
     "backupRestore": "PASS \u2014 encrypted backup run 11b91f6c-6c00-48b1-a1f1-f3943f082e23 restored into isolated schema restore_ai_intake_071_20260727; row counts, foreign keys, relationships and format/schema hashes matched; schema dropped after verification",
     "databasePostApply": "PASS \u2014 ledger 071; 40 AI Intake receipts checked, 29 contain exact bounded change evidence; protected inventory unchanged at 20 vehicles, 61 work items, 18 Parts updates and 2 bookings",
     "humanAiIntake": "Received, What happened, Car and What changed are shown in plain language; activated, modified, unchanged and review-needed outcomes are distinct; field changes render previous value to new value; technical receipt data is collapsed",
     "humanNavisionResults": "Contradictory top-level blocking flags are reconciled against exact invalid/conflict counts and row classifications; zero-issue previews may reach the atomic server apply, while actual invalid/conflict evidence and unknown blocking states still fail closed.",
-    "literalArtifact": "33/33 deployed Git blobs match source commit bfdd2de465857b9669907c0abe4b68e0bf9cfd12",
-    "production": "Untouched; staging static artifact only; no database migration"
+    "literalArtifact": "33/33 deployed Git blobs match source commit 8b54bec989c3b1d9251e7263991e9e2a8dbc01b1",
+    "production": "Untouched; staging static artifact only; no database migration",
+    "uiCleanup": "Operations was removed from staging navigation; the Administrator-only Admin disclosure contains the six requested destinations; Vehicle Locations is search-only; and pending AI Intake cards present authoritative Approve/Deny decisions without changing server authority boundaries."
   },
   "sourceBranch": "feat/vehicle-locations-pit-qc-signoff-rft",
-  "sourceCommit": "bfdd2de465857b9669907c0abe4b68e0bf9cfd12",
+  "sourceCommit": "8b54bec989c3b1d9251e7263991e9e2a8dbc01b1",
   "sourceFiles": [
     {
       "deployedPath": "ai-board-advisor.js",
@@ -51,7 +52,7 @@
     },
     {
       "deployedPath": "app.js",
-      "sha256": "50d314cc91a83682fcd9c0de8669a4e920fb4386f02368e24a936fd63bd3fc88",
+      "sha256": "ff9c4b1ef6ca42d3490b3bc78c2b90e299b6fe8ab31bf25de7206e7c47d43c6c",
       "sourcePath": "app.js"
     },
     {
@@ -91,7 +92,7 @@
     },
     {
       "deployedPath": "index.html",
-      "sha256": "d10f59f9223a6f30a0ad680dba9c4a43d77bff1edcd0a4696cf60b8dd3ed9d58",
+      "sha256": "04a5730a273ef8a1c2705e66f47acb2263d3054b5442032537a272c0c7dc70aa",
       "sourcePath": "staging.html"
     },
     {
@@ -126,7 +127,7 @@
     },
     {
       "deployedPath": "pdc-supabase-config.staging.js",
-      "sha256": "1c6a3113284e283769e55c57b9e9fa7c13dbf173a8bd4c10515de1beda381fd2",
+      "sha256": "6b2a9f0858414a6556b7c0ad5d018bb0d19fd0da2ff7e7a9378f8978b7291ce4",
       "sourcePath": "pdc-supabase-config.staging.js"
     },
     {
@@ -141,7 +142,7 @@
     },
     {
       "deployedPath": "styles.css",
-      "sha256": "c4d529784ddb8100f13ce7385a1d49f6d669171ce7ec13cb5ca38d6a553dc37d",
+      "sha256": "a70228f08a3aefe40530eb88ab0e6afa4bd7872f4b3578660b19fad145c562f0",
       "sourcePath": "styles.css"
     },
     {
@@ -210,5 +211,5 @@
       "sourcePath": "workshop-shared-actions.js"
     }
   ],
-  "sourceTree": "a25c1074011a87a80850c0999eeb239dee7dd9ec"
+  "sourceTree": "eb45a668f0e0ddfd3c65875a5d30829158ffbfd0"
 }

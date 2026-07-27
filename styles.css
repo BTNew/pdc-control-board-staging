@@ -12063,3 +12063,65 @@ select[name="pdcLocation"]:focus,
   .ai-intake-server-toolbar { justify-content: flex-start; }
   .ai-intake-server-heading code { margin-left: 0; }
 }
+
+/* Simplified administrator navigation, Vehicle Locations search and AI Intake review cards. */
+.nav-admin-group { display: grid; gap: 5px; min-width: 0; }
+.nav-admin-toggle { width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.nav-admin-chevron { font-size: 1.05rem; transition: transform .18s ease; }
+.nav-admin-toggle[aria-expanded="true"] .nav-admin-chevron { transform: rotate(180deg); }
+.nav-admin-menu { display: grid; gap: 4px; margin-left: 12px; padding: 5px 0 5px 10px; border-left: 1px solid rgba(255,255,255,.22); }
+.nav-admin-menu[hidden], .nav-admin-group[hidden],
+.ai-board-advisor-panel[hidden], .email-intake-upload-panel[hidden],
+.email-intake-status[hidden], .table-toolbar[hidden], #email-intake-review-content[hidden] { display: none !important; }
+.nav-admin-item { padding: 9px 12px; border-radius: 10px; font-size: .84rem; }
+.app-shell.sidebar-collapsed .nav-admin-group { position: relative; width: 100%; }
+.app-shell.sidebar-collapsed .nav-admin-menu { position: absolute; z-index: 70; top: 0; left: calc(100% + 8px); width: 226px; margin: 0; padding: 8px; border: 1px solid rgba(255,255,255,.14); border-radius: 12px; background: #111827; box-shadow: 0 18px 42px rgba(15,23,42,.35); }
+.app-shell.sidebar-collapsed .nav-admin-item { display: block; height: auto; padding: 10px 12px; font-size: .84rem; text-align: left; }
+.app-shell.sidebar-collapsed .nav-admin-item::before { content: none; }
+
+.incoming-search-panel.incoming-search-only { display: grid; grid-template-columns: minmax(280px, 1fr) auto; align-items: end; gap: 12px; padding: 14px 18px; }
+.incoming-search-only label { display: grid; gap: 6px; }
+.incoming-search-only label > span { color: #475569; font-size: .75rem; font-weight: 800; text-transform: uppercase; letter-spacing: .04em; }
+.incoming-search-only .incoming-filter-meta { align-self: center; margin: 20px 0 0; white-space: nowrap; }
+
+.ai-intake-information { border: 1px solid #fde68a; background: #fffbeb; color: #92400e; }
+.ai-intake-review-card { gap: 0; padding: 0; overflow: hidden; border-color: #dbe3ed; border-radius: 12px; background: #fff; }
+.ai-intake-review-heading { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 13px 15px; border-bottom: 1px solid #e2e8f0; background: #f8fafc; }
+.ai-intake-review-title { display: flex; align-items: center; flex-wrap: wrap; gap: 9px; min-width: 0; }
+.ai-intake-review-title > strong { color: #0f172a; }
+.ai-intake-mail-icon { color: #64748b; font-size: 1rem; }
+.ai-intake-review-heading time { flex: 0 0 auto; color: #64748b; font-size: .78rem; }
+.ai-intake-review-body { display: grid; grid-template-columns: minmax(0, 1fr) 220px; }
+.ai-intake-review-content { display: grid; gap: 14px; min-width: 0; padding: 15px; }
+.ai-intake-review-meta { display: grid; grid-template-columns: minmax(160px, 1fr) minmax(130px, .65fr) minmax(180px, 1fr); gap: 14px; }
+.ai-intake-review-meta > div { display: grid; align-content: start; gap: 4px; min-width: 0; }
+.ai-intake-review-meta span, .ai-intake-detected-changes > span, .ai-intake-proposed-action > span, .ai-intake-decision-panel label > span { color: #64748b; font-size: .68rem; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; }
+.ai-intake-review-meta strong, .ai-intake-review-meta .stock-button { overflow-wrap: anywhere; }
+.ai-intake-review-meta small, .ai-intake-proposed-action small { color: #64748b; }
+.ai-intake-detected-changes { display: grid; gap: 6px; }
+.ai-intake-detected-changes .ai-intake-change-list, .ai-intake-detected-changes .ai-intake-no-changes { padding: 9px 11px; border: 1px solid #e2e8f0; border-radius: 7px; background: #f8fafc; }
+.ai-intake-detected-changes .ai-intake-change-list { margin: 0; padding-left: 28px; }
+.ai-intake-proposed-action { display: grid; gap: 4px; }
+.ai-intake-decision-panel { display: grid; align-content: center; gap: 8px; padding: 14px; border-left: 1px solid #e2e8f0; background: #f8fafc; }
+.ai-intake-decision-panel label { display: grid; gap: 5px; margin-bottom: 2px; }
+.ai-intake-decision-panel input { min-width: 0; padding: 9px 10px; font-size: .8rem; }
+.ai-intake-decision-panel button { width: 100%; min-height: 40px; }
+.ai-intake-approve { background: #16a34a; box-shadow: none; }
+.ai-intake-approve:hover { background: #15803d; }
+.ai-intake-deny { border: 1px solid #dc2626; background: #dc2626; color: #fff; }
+.ai-intake-deny:hover { background: #b91c1c; }
+.ai-intake-decision-complete { color: #475569; }
+.ai-intake-decision-complete strong { color: #0f172a; }
+.ai-intake-review-card > .ai-intake-technical-details { margin: 0 15px 12px; padding-top: 9px; }
+
+@media (max-width: 900px) {
+  .ai-intake-review-body { grid-template-columns: 1fr; }
+  .ai-intake-decision-panel { grid-template-columns: minmax(180px, 1fr) repeat(2, minmax(130px, .55fr)); border-top: 1px solid #e2e8f0; border-left: 0; }
+  .ai-intake-decision-complete { grid-template-columns: 1fr; }
+}
+@media (max-width: 760px) {
+  .incoming-search-panel.incoming-search-only, .ai-intake-review-meta, .ai-intake-decision-panel { grid-template-columns: 1fr; }
+  .incoming-search-only .incoming-filter-meta { margin-top: 0; white-space: normal; }
+  .ai-intake-review-heading { align-items: flex-start; flex-direction: column; }
+  .app-shell.sidebar-collapsed .nav-admin-menu { position: static; width: auto; margin-left: 12px; box-shadow: none; }
+}
