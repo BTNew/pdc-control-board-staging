@@ -40,7 +40,7 @@
   "releaseChecks": {
     "aggregateTests": "83 passed, 2 verified pre-existing failures, 1 skipped; final focused PIT/QC/Vehicle Locations, lifecycle resolver, planner, version and syntax checks passed",
     "databasePostApply": "Frontend-only staging upload. No database migration was applied; existing migration ledger metadata retained and migrations 067-070 remain pending.",
-    "literalArtifact": "33/33 source blobs assembled from exact committed source",
+    "literalArtifact": "33/33 deployed Git blobs match the committed source artifact",
     "vehicleLocationsPitQcRft": "PIT removed from Workshop Planning; Vehicle Locations ordered RFT, QC, PIT, PMB, YARD HOLD, IT, OTHER; named QC sign-off maps to atomic QC-to-RFT authority when migration 070 is installed",
     "plannerAndAiIntake": "Workshop Planner opens on today at station entry; exact unambiguous AI Intake Stock links open the canonical vehicle"
   },
@@ -49,22 +49,22 @@
   "sourceFiles": [
     {
       "deployedPath": "ai-board-advisor.js",
-      "sha256": "97785220d0b72527327955c39c02e276d33a2c1391f220f211b83996ece07c65",
+      "sha256": "a01dc581a417684c5a3377057bc70a57624bdaa3ad67c24b408eedfa86e0fc4e",
       "sourcePath": "ai-board-advisor.js"
     },
     {
       "deployedPath": "app.js",
-      "sha256": "0170ee8e201e57153271404a56676b0f4776e13b5a0b10f8be0860966ff9ec63",
+      "sha256": "a97f9864ea690984e17e4f946180a1e86ecfc01ada42ad383342b1b5056b2188",
       "sourcePath": "app.js"
     },
     {
       "deployedPath": "arb-labor-catalog.js",
-      "sha256": "1800e93b325bfd58d9b0131d2105f78b775885bd82e88ceed63d3ecf6100b9fe",
+      "sha256": "db99ee8c4ddf341ce3f948dc04fb70cbe6c66d122be1a262f7074552a2fa49c0",
       "sourcePath": "arb-labor-catalog.js"
     },
     {
       "deployedPath": "assets/brand-logo.svg",
-      "sha256": "7e3c9cb0b7e1f53b931f6cad274583f78a6be67ba554d6a45e57473f5ab611a0",
+      "sha256": "4bffc708627c0ee8de1a997aec6bf3aae7461fb779f2700f41fd47e6645dd28d",
       "sourcePath": "assets/brand-logo.svg"
     },
     {
@@ -74,142 +74,142 @@
     },
     {
       "deployedPath": "data-staging-empty.js",
-      "sha256": "2fa02a231e559b4230ba22ac1c6e1cfa600fcaad9f546f6fb3e2a28b2acab756",
+      "sha256": "d2a9ed658daa1cc5eabb45a78eeb5c7f93ef0146a12e7f8c23d0b028f915c7a9",
       "sourcePath": "data-staging-empty.js"
     },
     {
       "deployedPath": "desktop-operations.css",
-      "sha256": "0217291a89fbdb065879b7a118b3a5e6946f1ef2d0409c1cf05af4b58cb02393",
+      "sha256": "0f5929993a588823670258758919257d5bcb5fac0b5f313b592e96b990088c73",
       "sourcePath": "desktop-operations.css"
     },
     {
       "deployedPath": "email-board-data.js",
-      "sha256": "c0cc888ec98ec64dd1710a75c7ea222d2c5a12993877ef4eebb3f66476e4093b",
+      "sha256": "3b55079afe708ae6842a6ddb61e19e912a8182cdc835a5d4102e4a5815dbace0",
       "sourcePath": "email-board-data.js"
     },
     {
       "deployedPath": "favicon.svg",
-      "sha256": "f1ce1b8f7a37c54801c2ee233c9e67bb2d852cb6ea8af942455d33d85aac046f",
+      "sha256": "f79b374447017a73a77012096c6d031ddb2ad6bf1b647d2efbfd465e6a5f32e6",
       "sourcePath": "favicon.svg"
     },
     {
       "deployedPath": "index.html",
-      "sha256": "40f531df72667c6e9a74dda8f0a21ded01c73d7f4812e63b73117bf8960b37f2",
+      "sha256": "2d806b68c0df79ae905d762a5ecace23e38b5f37b3e05bdf462797aa01cabad3",
       "sourcePath": "staging.html"
     },
     {
       "deployedPath": "key-list-review.js",
-      "sha256": "b0785e79071bd43c066ed3f20623e0a1a2c047bcedd9968cb815a0fe82b43ffe",
+      "sha256": "b6b42659b28b812fcf63b13a60faac8276e866442950f2e55197a8fec0aedf67",
       "sourcePath": "key-list-review.js"
     },
     {
       "deployedPath": "navision-backend-service.js",
-      "sha256": "b9bd7c61217900a49c14cd4f1324bae47001931a10344f9671ad45451c05622e",
+      "sha256": "e010dc0bcb1e9df0c7188a050d398ebabbdeb6d2c0e451fb766f567aef3b8720",
       "sourcePath": "navision-backend-service.js"
     },
     {
       "deployedPath": "pdc-ai-intake-service.js",
-      "sha256": "78b0f0edcb7cfd8b895f4dd511d5f0c4b45e4fd5f412e044fb905b1e238615f8",
+      "sha256": "dc8fdb4ca33a236c98d6f9e38a15e0c2e32f7bfc2b8b27d31914a1e82bd89be5",
       "sourcePath": "pdc-ai-intake-service.js"
     },
     {
       "deployedPath": "pdc-auth-registration.js",
-      "sha256": "bc45f0a1ec5cfbdfb6ad05a8b499f4a4de2d98f6d150649de98790fae7bd615a",
+      "sha256": "13841fdf4408300d737b880cd4d676d2e49bdf4df65bd0f0c491db9e89da9dab",
       "sourcePath": "pdc-auth-registration.js"
     },
     {
       "deployedPath": "pdc-auth.js",
-      "sha256": "8c464adb0546ba5dddc5f4624fc0a66e007c3841879d0fa52b2f021fd5b3680e",
+      "sha256": "714f679310200f0dbfe232038179c48e8188d473159eddcfbde2ed76108f799b",
       "sourcePath": "pdc-auth.js"
     },
     {
       "deployedPath": "pdc-email-vehicle-location-service.js",
-      "sha256": "ec1cd3b17911d1c9234f82cfea86b8a480612e37ef11a126c7eebfb4defab1d5",
+      "sha256": "7a797e949268ae66c5e84fd2dbe487f5c4868c32ef7baf84c9d1fbc5a2787b5b",
       "sourcePath": "pdc-email-vehicle-location-service.js"
     },
     {
       "deployedPath": "pdc-supabase-config.staging.js",
-      "sha256": "1cc73384bd715db4e342de12c3b41fb38da45e1d0c9cbac34850424989d229c2",
+      "sha256": "68c4fc814114961d2dd80f430cc6b9d4edaed7ce841c9f70a3dadc8ba7d88e4f",
       "sourcePath": "pdc-supabase-config.staging.js"
     },
     {
       "deployedPath": "scripts/stage2b_c4_browser_export.js",
-      "sha256": "afa142651d88f44f40c2e41159e6f37bddc2e0af3fe89408e969e9926fc83f07",
+      "sha256": "5dafeb35a33626fec47aeaa931d17f83f22e436a4f602cbae66914537ab90f18",
       "sourcePath": "scripts/stage2b_c4_browser_export.js"
     },
     {
       "deployedPath": "staging-browser-assessment.js",
-      "sha256": "054f380b889eb8ce7475378478cab6f0927f0a9d15202c4745193e0405dc170e",
+      "sha256": "29acbe12e27d787b12d75614086278ac54e2ffe04bb6dfd755b3cacc7077bded",
       "sourcePath": "staging-browser-assessment.js"
     },
     {
       "deployedPath": "styles.css",
-      "sha256": "51b47542ae443309a42e757e233c27635e98a3c8b4b88bf78fd2dd7c97397e76",
+      "sha256": "5a982ca9d48cfab1872f088a08fd77c5997a86a3a2bf924e4538dfe7d39c704e",
       "sourcePath": "styles.css"
     },
     {
       "deployedPath": "vehicle-lifecycle-actions.js",
-      "sha256": "1d4a339137cd7cf96a388b521491a8e9287c69e41481ce5082b0765404455326",
+      "sha256": "c35faf4fc195ce450ffeb815261f3ba9cf71bdf45aab288b708723a9ca108d35",
       "sourcePath": "vehicle-lifecycle-actions.js"
     },
     {
       "deployedPath": "vendor/pdfjs/LICENSE",
-      "sha256": "eb3d7b5485466acbd81f2b496f595ab637d2792e268206b27d99e793bdb67549",
+      "sha256": "0d542e0c8804e39aa7f37eb00da5a762149dc682d7829451287e11b938e94594",
       "sourcePath": "vendor/pdfjs/LICENSE"
     },
     {
       "deployedPath": "vendor/pdfjs/pdf.min.js",
-      "sha256": "86791280654fb3403853a2e3a39212941fd1c4af0c7e3608ae8f85cead458be0",
+      "sha256": "5b5799e6f8c680663207ac5b42ee14eed2a406fa7af48f50c154f0c0b1566946",
       "sourcePath": "vendor/pdfjs/pdf.min.js"
     },
     {
       "deployedPath": "vendor/pdfjs/pdf.worker.min.js",
-      "sha256": "6195a19b81679dfb8fbd6c387aa37cf212c83f02628d768d142925fddc3d88fb",
+      "sha256": "feabdf309770ed24bba31a5467836cdc8cf639c705af27d52b585b041bb8527b",
       "sourcePath": "vendor/pdfjs/pdf.worker.min.js"
     },
     {
       "deployedPath": "vendor/qz/qz-tray.js",
-      "sha256": "2d8c0b7ab912e14a12dab4bf246be8e9555754053e6e12c556196bc8d946fdd1",
+      "sha256": "b0a0afde74511e5284195cc875bc862b1ea4233f6c6aecb3ad485430a56bf4a6",
       "sourcePath": "vendor/qz/qz-tray.js"
     },
     {
       "deployedPath": "vendor/supabase/supabase-2.110.5.js",
-      "sha256": "8c786ef59b285ab2a6710af2f89190ccf1201730651c5ce3bfaded7b1d61f090",
+      "sha256": "8e00fd587eb7c5148c977fa7c425316e8f9f168b3831100d8e2925a9807b5893",
       "sourcePath": "vendor/supabase/supabase-2.110.5.js"
     },
     {
       "deployedPath": "workshop-data-service.js",
-      "sha256": "a167b8e229a9f9093194a4cb44ae055ef65a881d00a0ed1869267e208fb0867e",
+      "sha256": "58e3665af9fb8d7447c4dbea461b041ff1db761ebc0abd00feaa5c8f846da5b8",
       "sourcePath": "workshop-data-service.js"
     },
     {
       "deployedPath": "workshop-eligibility.js",
-      "sha256": "932aad0a0fab48db321201e808f9751463372331c549864b3476143e76c665cb",
+      "sha256": "148161fe2823f511214256e9dde138e9eddd633d0f63946205b382bfc87ef3ff",
       "sourcePath": "workshop-eligibility.js"
     },
     {
       "deployedPath": "workshop-planner.css",
-      "sha256": "d52054fd064e2c300da11af4d5919f67d232bdb5931e75c2bf684d20048cb8ce",
+      "sha256": "8067757ebee8dea3f2e18570d3f238b48b17857006676db498a24ada664d6e69",
       "sourcePath": "workshop-planner.css"
     },
     {
       "deployedPath": "workshop-planner.js",
-      "sha256": "e1ead5fa728f86a658cabe311302043c4f1a87df0a395e9f917186aae7fa66a6",
+      "sha256": "ccb4e09b222e19b8267ed7a2bb52f3dca2527284d6ff594b367f61dc77469e88",
       "sourcePath": "workshop-planner.js"
     },
     {
       "deployedPath": "workshop-realtime.js",
-      "sha256": "42743226062ef0bd6ad5bfb3fbf5353b7c13c487e5610cfa18044b7eea63b9bd",
+      "sha256": "484c0a4ebc6e823fbca6eaf7f6c3fe4e563902abfbd3959221d21c19f45c0361",
       "sourcePath": "workshop-realtime.js"
     },
     {
       "deployedPath": "workshop-reference-data-service.js",
-      "sha256": "1931dfe83844d13de8d48a17e2b481a7727b511632d01d70a95d7702db7782ef",
+      "sha256": "ebe98f65a5cea69a42fdad77535f9bcdbf0f61c4013c34e7e7be34866b2682fe",
       "sourcePath": "workshop-reference-data-service.js"
     },
     {
       "deployedPath": "workshop-shared-actions.js",
-      "sha256": "6ac851866b2873ec41b9b34132216b94a2a478891dc5ceb9fe9650ccbf4e41b8",
+      "sha256": "080805d01de233f694099951138d7526cbd6a3aac7c6454985c21b2c1480a71e",
       "sourcePath": "workshop-shared-actions.js"
     }
   ],
