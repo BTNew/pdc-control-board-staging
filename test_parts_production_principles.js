@@ -38,6 +38,41 @@ code += String.raw`
   document.createElement = () => ({ setAttribute(){}, appendChild(){}, addEventListener(){}, remove(){}, click(){}, style:{}, classList:{add(){},remove(){},toggle(){}} });
 
   const basePartsVehicle = { id: 'parts-1', stock: '12345678', batch: '12345678', order: 'ORD1', client: 'Customer One', consultant: 'Sales Person', vehicle: 'Hilux', toyotaStatus: 'Vehicle Yard Hold' };
+
+  const originalEmailModule = window.PDC_EMAIL_VEHICLE_LOCATION_SERVICE;
+  window.PDC_EMAIL_VEHICLE_LOCATION_SERVICE = {
+    reconcileVehicleRows(_localRows, serverRows) {
+      return { rows: serverRows.map(row => ({
+        id: row.permanent_vehicle_id,
+        permanentVehicleId: row.permanent_vehicle_id,
+        stock: row.stock_number,
+        batch: row.stock_number,
+        client: row.customer_name,
+        vehicle: row.vehicle_description,
+        pdcSheetVisible: true,
+        pdcRequiresParts: row.parts_required === true,
+        pdcCompleteParts: row.parts_completed === true,
+        __emailVehicleServerAuthoritative: true,
+        __emailVehicleReadOnly: true,
+      })) };
+    },
+  };
+  app.data = [];
+  app.emailVehicleLocationRows = [{
+    permanent_vehicle_id: 'canonical-parts-1',
+    stock_number: '99887766',
+    customer_name: 'Canonical Customer',
+    vehicle_description: 'Canonical Hilux',
+    parts_required: true,
+    parts_completed: false,
+  }];
+  app.partsOperationalFilter = 'notordered';
+  assert(partsDepartmentSourceRows().length === 1, 'Parts must consume the authenticated canonical vehicle snapshot when the local staging artifact is empty');
+  assert(partsDepartmentRows().length === 1 && partsDepartmentRows()[0].stock === '99887766', 'Canonical required incomplete Parts work must remain visible on the Parts screen');
+  window.PDC_EMAIL_VEHICLE_LOCATION_SERVICE = originalEmailModule;
+  app.emailVehicleLocationRows = [];
+  app.data = [];
+
   assert(partsDepartmentStatus(basePartsVehicle) === 'notordered', 'Parts with no order should show Not Ordered');
   assert(partsDepartmentStatus({ ...basePartsVehicle, pdcPartsOrdered: true }) === 'onorder', 'Ordered parts should show On Order');
   assert(partsDepartmentStatus({ ...basePartsVehicle, pdcCompleteParts: true }) === 'issued', 'Signed-off parts should show Issued');
