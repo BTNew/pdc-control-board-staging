@@ -1,0 +1,39 @@
+.ai-intake-email-summary.is-missing {
+  border-color: #fecaca;
+  background: #fef2f2;
+}
+.ai-intake-email-summary.is-missing p,
+.ai-intake-email-summary.is-missing small {
+  color: #991b1b;
+}
+.ai-intake-email-summary.is-missing small {
+  font-weight: 700;
+}
+.ai-intake-decision-effects {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+.ai-intake-decision-effects > div {
+  display: grid;
+  gap: 4px;
+  padding: 9px 11px;
+  border: 1px solid #e2e8f0;
+  border-radius: 7px;
+  background: #f8fafc;
+}
+.ai-intake-decision-effects span {
+  color: #64748b;
+  font-size: .68rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+}
+.ai-intake-decision-effects strong {
+  color: #334155;
+  font-size: .78rem;
+  line-height: 1.4;
+}
+@media (max-width: 760px) {
+  .ai-intake-decision-effects { grid-template-columns: 1fr; }
+}

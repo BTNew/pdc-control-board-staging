@@ -9,7 +9,7 @@
   "cacheVersion": "2026.07.27.18-sublet-ai-summary",
   "deploymentMode": "exact reviewed source blobs; staging.html mapped to index.html",
   "environment": "staging",
-  "generatedAtUtc": "2026-07-27T09:17:29.899011Z",
+  "generatedAtUtc": "2026-07-27T09:50:04Z",
   "migrationLedger": {
     "appliedThrough": "074",
     "evidence": "Staging sentinel verified; migration 074 applied and cleanly reapplied. Authenticated smoke proved the empty Pilbara scope blocks before review, an exact administrator-reviewed 100-row snapshot releases, changed content remains blocked, and the synthetic approval was removed.",
@@ -41,13 +41,15 @@
     "databasePostApply": "PASS \u2014 migration 074 applied and source-reapplied; exact-content administrator approval, role denial, changed-content rejection and cleanup smokes passed.",
     "humanAiIntake": "Received, What happened, Car and What changed are shown in plain language; activated, modified, unchanged and review-needed outcomes are distinct; field changes render previous value to new value; technical receipt data is collapsed",
     "humanNavisionResults": "An administrator can establish the first empty dealer scope only for one exact full snapshot of at least 100 valid rows. Approval is content-bound, user-bound and expires after two hours. Cross-dealer, invalid, duplicate, stale and changed snapshots remain fail-closed. Later strongly matched refresh omissions continue to enter reversible temporary holding.",
-    "literalArtifact": "33/33 deployed Git blobs match source commit df32e59865b680a4b212bb4a2e5992c2eae2b901",
+    "literalArtifact": "35/35 deployed Git blobs match source commit 169485e3b1aa0a4f6d71d334f0787931f3406cec",
     "production": "Untouched; staging static artifact plus staging-only migrations through 074",
     "subletAiReview": "Sublet uses a compact five-column operational table: Vehicle, Provider, Booking date, Notes/email and Actions. PO sent, expected return, actual return and return-status filtering are absent. AI Review shows the server-generated What the email says summary before detected changes and Approve/Deny controls.",
-    "uiCleanup": "Control Board current-time line appears only for today and QC is removed from its station list. All-green PMB vehicles require explicit Ready for QC confirmation and move authoritatively to the Vehicle Locations QC Gate. Named QC sign-off moves to RFT and prints a dedicated windscreen label. Parts removes Outstanding station work, persists and refreshes ETA countdowns, and uses the shared Vehicle Locations row height."
+    "uiCleanup": "Control Board current-time line appears only for today and QC is removed from its station list. All-green PMB vehicles require explicit Ready for QC confirmation and move authoritatively to the Vehicle Locations QC Gate. Named QC sign-off moves to RFT and prints a dedicated windscreen label. Parts removes Outstanding station work, persists and refreshes ETA countdowns, and uses the shared Vehicle Locations row height.",
+    "aiReviewDecisionContext": true,
+    "aiReviewOverlayVersion": "2026.07.27.19-ai-review-decision-context"
   },
   "sourceBranch": "feat/vehicle-locations-pit-qc-signoff-rft",
-  "sourceCommit": "df32e59865b680a4b212bb4a2e5992c2eae2b901",
+  "sourceCommit": "169485e3b1aa0a4f6d71d334f0787931f3406cec",
   "sourceFiles": [
     {
       "deployedPath": "ai-board-advisor.js",
@@ -96,7 +98,7 @@
     },
     {
       "deployedPath": "index.html",
-      "sha256": "1e8352f63002687caf39e20cc3213f82f0daf416b58ab54278cf5f2385586a27",
+      "sha256": "549f90c453a774a125e9a96833a4d31768b53519d22bd667774edb60b6443bac",
       "sourcePath": "staging.html"
     },
     {
@@ -213,7 +215,21 @@
       "deployedPath": "workshop-shared-actions.js",
       "sha256": "080805d01de233f694099951138d7526cbd6a3aac7c6454985c21b2c1480a71e",
       "sourcePath": "workshop-shared-actions.js"
+    },
+    {
+      "sourcePath": "pdc-ai-intake-review.css",
+      "deployedPath": "pdc-ai-intake-review.css",
+      "sha256": "ba4ededb1f4df440cd8f65c5162346baeac144cccdba336703c3f1621cd3743a"
+    },
+    {
+      "sourcePath": "pdc-ai-intake-review.js",
+      "deployedPath": "pdc-ai-intake-review.js",
+      "sha256": "575ea073661ea77830c249e6b64e86f9b4fae50708a3609dd1f18653a55e7c04"
     }
   ],
-  "sourceTree": "31221036504186766c12a377b8670b2f196810a5"
+  "sourceTree": "e80a15808eea3b6c6434f4be071f4002e312d98b",
+  "humanAiIntake": {
+    "summary": "Prominent escaped email summary plus explicit Approve/Deny effects; approval fails closed when no readable summary exists.",
+    "approvalGate": "Administrator decision remains server-validated; missing summaries disable Approve while Deny remains available."
+  }
 }
