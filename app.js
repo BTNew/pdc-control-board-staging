@@ -1,5 +1,5 @@
-const APP_VERSION = '2026.07.27.07-authoritative-parts-queue';
-const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.07.27.07-authoritative-parts-queue';
+const APP_VERSION = '2026.07.27.08-human-ai-intake-results';
+const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.07.27.08-human-ai-intake-results';
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
 // constant intentionally names only the production ref, never the
@@ -3571,7 +3571,7 @@ function showView(view, options) {
     tv: 'PDC TV Board',
     schedule: 'Production',
     parts: 'Parts',
-    emailreview: 'AI Intake Review',
+    emailreview: 'AI Intake',
     sublet: 'Sublet',
     rft: 'RFT',
     completed: 'Completed vehicles',
@@ -15354,19 +15354,113 @@ function navisionSharedPreviewData(result = null) {
   return result?.data?.data || result?.data || null;
 }
 
+function navisionDealerName(dealerCode = '') {
+  return String(dealerCode) === '14450' ? 'Pilbara Toyota' : String(dealerCode) === '37047' ? 'Broome Toyota' : `dealer ${dealerCode || 'not selected'}`;
+}
+
+function navisionPreviewIssueMessage(reason = '') {
+  const messages = {
+    row_not_object: 'This row is not a valid spreadsheet record.',
+    missing_source_record_id: 'No unique Navision record ID was found in this row.',
+    forbidden_operational_field: 'This row contains workshop fields that Navision is not allowed to change.',
+    duplicate_source_record_id: 'The same Navision record appears more than once in this file.',
+    ambiguous_canonical_identity: 'This record matches more than one car, so it cannot be safely updated.',
+    legacy_claim_requires_administrator: 'An Administrator must review this older unassigned record.',
+  };
+  return messages[reason] || 'This row could not be matched safely.';
+}
+
+function navisionPreviewItemLabel(item = {}) {
+  const identity = cleanNavisionText(item.source_record_id || '');
+  return identity ? `Navision record ${identity}` : `Row ${Number(item.row_index || 0) || '?'}`;
+}
+
+async function loadSharedNavisionCurrentRows(service, dealerCode, expectedRevision) {
+  const items = [];
+  let cursor = {};
+  for (let page = 0; page < 12; page += 1) {
+    const response = await service.snapshot({ sourceSystem: 'microsoft_navision', dealerCode }, cursor, 500, expectedRevision);
+    if (!response?.ok) return null;
+    const data = navisionSharedPreviewData(response) || {};
+    items.push(...(Array.isArray(data.items) ? data.items : []));
+    if (!data.has_more) return items;
+    if (!data.next_source_record_id || !data.next_record_id) return null;
+    cursor = { sourceRecordId: data.next_source_record_id, recordId: data.next_record_id };
+  }
+  return null;
+}
+
+async function enrichSharedNavisionPreviewChanges(state = {}, service = null) {
+  const data = state.previewData || {};
+  if (!service || !Number.isInteger(data.base_revision)) return false;
+  const existingRows = await loadSharedNavisionCurrentRows(service, state.dealerCode, data.base_revision);
+  if (!existingRows) return false;
+  const byId = new Map(existingRows.map(row => [String(row.id || ''), row]));
+  const items = Array.isArray(data.items) ? data.items : [];
+  items.forEach(item => {
+    if (item.classification !== 'changed') return;
+    const incoming = state.rows?.[Math.max(0, Number(item.row_index || 1) - 1)] || {};
+    const existing = byId.get(String(item.backend_record_id || ''));
+    item.field_changes = existing ? navisionFieldChanges(existing.normalized_data || {}, incoming) : [];
+    item.change_details_available = Boolean(existing);
+  });
+  state.previewChangeDetailsReady = true;
+  return true;
+}
+
+function renderSharedNavisionChangeDetails(state = {}, data = {}) {
+  const items = Array.isArray(data.items) ? data.items : (Array.isArray(state.previewData?.items) ? state.previewData.items : []);
+  const changed = items.filter(item => item.classification === 'changed');
+  const issues = items.filter(item => ['invalid', 'conflict'].includes(item.classification));
+  const changedHtml = changed.length ? `<section class="navision-human-detail"><h4>Cars that would be modified</h4>${changed.map(item => {
+    const changes = Array.isArray(item.field_changes) ? item.field_changes : [];
+    const detail = changes.length
+      ? `<ul>${changes.map(change => `<li><strong>${escapeHtml(change.label)}:</strong> ${escapeHtml(change.before || 'Blank')} → ${escapeHtml(change.after || 'Blank')}</li>`).join('')}</ul>`
+      : `<p>${item.change_details_available === false ? 'The existing record could not be loaded. Preview again to see the exact changes.' : 'Navision data changed, but no staff-facing vehicle fields changed.'}</p>`;
+    return `<div class="navision-human-row"><strong>${escapeHtml(navisionPreviewItemLabel(item))}</strong>${detail}</div>`;
+  }).join('')}</section>` : '';
+  const issueHtml = issues.length ? `<section class="navision-human-detail navision-human-errors"><h4>Rows that need attention</h4><ul>${issues.map(item => `<li><strong>${escapeHtml(navisionPreviewItemLabel(item))}:</strong> ${escapeHtml(navisionPreviewIssueMessage(item.reason))}</li>`).join('')}</ul><p>Fix these rows in the source file, then preview it again. Nothing has been imported.</p></section>` : '';
+  return `${changedHtml}${issueHtml}`;
+}
+
 function renderSharedNavisionPreview(state = {}, applied = false) {
   const host = $('#navision-status-list');
   if (!host) return;
-  const data = navisionSharedPreviewData(applied ? state.applyResult : state.previewResult) || {};
+  let data = navisionSharedPreviewData(applied ? state.applyResult : state.previewResult) || state.previewData || {};
+  if (applied && Array.isArray(data.items) && Array.isArray(state.previewData?.items)) {
+    const previewItems = new Map(state.previewData.items.map(item => [`${item.row_index || ''}|${item.source_record_id || ''}`, item]));
+    data = {
+      ...data,
+      items: data.items.map(item => {
+        const previewItem = previewItems.get(`${item.row_index || ''}|${item.source_record_id || ''}`);
+        return previewItem ? { ...item, field_changes: previewItem.field_changes || [], change_details_available: previewItem.change_details_available === true } : item;
+      }),
+    };
+  }
   const counts = data.counts || state.previewData?.counts || {};
-  const blocking = data.blocking === true || Number(counts.invalid || 0) > 0 || Number(counts.conflict || 0) > 0;
-  const values = ['new', 'changed', 'unchanged', 'missing', 'invalid', 'conflict'];
+  const total = Number(counts.total || 0);
+  const added = Number(counts.new || 0);
+  const changed = Number(counts.changed || 0);
+  const unchanged = Number(counts.unchanged || 0);
+  const missing = Number(counts.missing || 0);
+  const invalid = Number(counts.invalid || 0);
+  const conflict = Number(counts.conflict || 0);
+  const blocking = data.blocking === true || invalid > 0 || conflict > 0;
   const resultBanner = applied
-    ? `<div class="navision-import-success" role="status" aria-live="polite"><span class="navision-import-success-tick" aria-hidden="true">✓</span><div><strong>Navision import complete</strong><span>Shared Navision batch applied successfully for dealer ${escapeHtml(state.dealerCode || '')}.</span></div></div>`
-    : `<div class="summary-row ${blocking ? 'error' : 'success'}"><strong>${blocking ? 'Shared preview blocked' : 'Shared preview ready'}</strong><span>Microsoft Navision · dealer ${escapeHtml(state.dealerCode || '')} · browser-local authority SHA-256 ${escapeHtml(state.browserLocalSha256 || '')}</span></div>`;
+    ? `<div class="navision-import-success" role="status" aria-live="polite"><span class="navision-import-success-tick" aria-hidden="true">✓</span><div><strong>Navision import complete</strong><span>Received ${total} car record${total === 1 ? '' : 's'} for ${escapeHtml(navisionDealerName(state.dealerCode))}.</span></div></div>`
+    : `<div class="summary-row ${blocking ? 'error' : 'success'}"><strong>${blocking ? 'This file needs attention before it can be imported' : 'Navision file checked and ready'}</strong><span>Received ${total} car record${total === 1 ? '' : 's'} for ${escapeHtml(navisionDealerName(state.dealerCode))}. ${blocking ? 'Nothing was changed.' : 'This is a preview. Nothing has changed yet.'}</span></div>`;
   host.innerHTML = `${resultBanner}
-    <div class="scot-summary-grid">${values.map(key => `<div class="summary-stat"><span>${escapeHtml(key)}</span><strong>${Number(counts[key] || 0)}</strong></div>`).join('')}</div>
-    <div class="subtle navision-note">${applied ? `Durable receipt: ${escapeHtml(data.receipt_id || data.receiptId || 'returned by shared service')} · revision ${escapeHtml(data.revision ?? data.result_revision ?? '')}. Browser-local data was not applied or replaced.` : `Preview hash ${escapeHtml(data.preview_hash || '')}. Apply is enabled only when invalid/conflict totals are zero and the exact preview is unchanged.`}</div>`;
+    <div class="scot-summary-grid navision-human-summary">
+      <div class="summary-stat"><span>${applied ? 'Added to Back End Data' : 'Would be added'}</span><strong>${added}</strong></div>
+      <div class="summary-stat"><span>${applied ? 'Cars modified' : 'Would be modified'}</span><strong>${changed}</strong></div>
+      <div class="summary-stat"><span>Already up to date</span><strong>${unchanged}</strong></div>
+      <div class="summary-stat"><span>Not in this file</span><strong>${missing}</strong></div>
+      <div class="summary-stat"><span>Rows needing attention</span><strong>${invalid + conflict}</strong></div>
+      <div class="summary-stat"><span>Cars activated or moved</span><strong>0</strong></div>
+    </div>
+    <div class="parts-help-strip"><strong>${applied ? 'What happened:' : 'Import rule:'}</strong><span>${applied ? `The shared Navision records were updated. ${added} added, ${changed} modified and ${unchanged} already current.` : 'A Navision upload updates Back End Data only. It does not activate cars, move them, change Parts or alter workshop bookings.'}</span></div>
+    ${renderSharedNavisionChangeDetails(state, data)}
+    <details class="navision-technical-details"><summary>Technical details</summary><div class="subtle navision-note">Dealer ${escapeHtml(state.dealerCode || '')} · ${applied ? `receipt ${escapeHtml(data.receipt_id || data.receiptId || 'returned by server')} · revision ${escapeHtml(data.revision ?? data.result_revision ?? '')}` : `preview ${escapeHtml(data.preview_hash || '')}`} · browser check ${escapeHtml(state.browserLocalSha256 || '')}</div></details>`;
 }
 
 async function importNavisionVehicles() {
@@ -15415,6 +15509,11 @@ async function importNavisionVehicles() {
   }
   const previewData = navisionSharedPreviewData(previewResult) || {};
   app.pendingSharedNavisionImport = { rows, parsed, dealerCode, metadata, previewResult, previewData, browserLocalSha256, sourceTextSha256: sha256Hex(text.trim()) };
+  try {
+    await enrichSharedNavisionPreviewChanges(app.pendingSharedNavisionImport, service);
+  } catch (error) {
+    console.warn('Exact Navision field changes could not be loaded', error);
+  }
   renderSharedNavisionPreview(app.pendingSharedNavisionImport);
   updateNavisionImportButton();
 }
@@ -15450,7 +15549,10 @@ async function applySharedNavisionImport() {
   const data = pending.previewData || {};
   const counts = data.counts || {};
   if (data.blocking === true || Number(counts.invalid || 0) > 0 || Number(counts.conflict || 0) > 0) {
-    window.alert('This shared preview has blocking invalid or conflict rows. Correct the file and preview again. Nothing was applied.');
+    const invalid = Number(counts.invalid || 0);
+    const conflict = Number(counts.conflict || 0);
+    const affected = invalid + conflict;
+    window.alert(`${affected} row${affected === 1 ? '' : 's'} need attention (${invalid} invalid, ${conflict} conflicting).\n\nClose this message to see each affected row and how to fix it. Nothing was imported or changed.`);
     return;
   }
   if (navisionBrowserAuthoritySha256() !== pending.browserLocalSha256) {
@@ -17040,6 +17142,73 @@ function serverAiIntakeStatusClass(status = '') {
   return status === 'applied' ? 'ready' : status === 'pending' ? 'warning' : 'neutral';
 }
 
+function aiIntakeAuditChangeSummary(item = {}) {
+  const events = Array.isArray(item.change_events) ? item.change_events : [];
+  const changes = [];
+  const fieldLabels = {
+    stock_number: 'Stock number', vin: 'VIN', toyota_order_number: 'Order number', job_card_number: 'Job card',
+    customer_name: 'Customer', make: 'Make', vehicle_description: 'Vehicle', model: 'Model', registration: 'Registration',
+    key_number: 'Key number', salesperson_reference: 'Salesperson', arrival_reference_date: 'Arrival date',
+    eta_to_kewdale: 'ETA to Kewdale', visible_on_board: 'Active on control board', current_location: 'Location',
+  };
+  const valueLabel = value => {
+    if (value === true) return 'Yes';
+    if (value === false) return 'No';
+    if (value === null || value === undefined || value === '') return 'Blank';
+    return String(value);
+  };
+  let vehicleCreated = false;
+  events.forEach(event => {
+    const before = event.before_data || {};
+    const after = event.after_data || {};
+    if (event.table_name === 'vehicles' && event.action === 'insert') {
+      vehicleCreated = true;
+      changes.push({ label: 'Control Board', before: 'Not active', after: 'Car activated' });
+      return;
+    }
+    if (event.table_name === 'vehicles') {
+      Object.entries(fieldLabels).forEach(([key, label]) => {
+        if (valueLabel(before[key]) !== valueLabel(after[key])) changes.push({ label, before: valueLabel(before[key]), after: valueLabel(after[key]) });
+      });
+      return;
+    }
+    if (event.table_name === 'vehicle_work_items') {
+      const workKey = after.work_key || before.work_key;
+      const work = PDC_JOB_DEFS.find(def => def.key === workKey)?.label || workKey || 'Workshop work';
+      if (Boolean(before.required) !== Boolean(after.required) || event.action === 'insert') {
+        changes.push({ label: `${work} required`, before: event.action === 'insert' ? 'No' : valueLabel(Boolean(before.required)), after: valueLabel(Boolean(after.required)) });
+      }
+      return;
+    }
+    if (event.table_name === 'vehicle_parts_updates' && (Boolean(before.parts_required) !== Boolean(after.parts_required) || event.action === 'insert')) {
+      changes.push({ label: 'Parts required', before: event.action === 'insert' ? 'No' : valueLabel(Boolean(before.parts_required)), after: valueLabel(Boolean(after.parts_required)) });
+    }
+  });
+  if (item.board_activation_created && !vehicleCreated) changes.unshift({ label: 'Control Board', before: 'Not active', after: 'Car activated' });
+  const unique = [...new Map(changes.map(change => [`${change.label}|${change.before}|${change.after}`, change])).values()];
+  return {
+    changes: unique,
+    activated: vehicleCreated || Boolean(item.board_activation_created) || (item.status === 'applied' && item.action_type === 'board_activate_only'),
+    modified: !vehicleCreated && unique.some(change => change.label !== 'Control Board'),
+    auditAvailable: events.length > 0 || Boolean(item.board_activation_created),
+  };
+}
+
+function aiIntakeHumanOutcome(item = {}) {
+  const audit = aiIntakeAuditChangeSummary(item);
+  if (item.status === 'pending') return { ...audit, badge: 'NEEDS REVIEW', title: 'Email received — waiting for review', message: item.action_type === 'board_activate_only' ? 'This may activate the matching Navision car after an Administrator checks it.' : 'No car has been changed.' };
+  if (item.status === 'rejected') return { ...audit, badge: 'NO CHANGE', title: 'Reviewed — no car changed', message: item.decision_reason || 'This email was dismissed.' };
+  if (audit.activated) return { ...audit, badge: 'CAR ACTIVATED', title: 'Car activated', message: 'The matching car is now active on the control board.' };
+  if (audit.modified) return { ...audit, badge: 'CAR MODIFIED', title: 'Existing car modified', message: 'The changes made from this email are listed below.' };
+  if (item.status === 'applied') return { ...audit, badge: 'RECEIVED', title: 'Email processed', message: audit.auditAvailable ? 'The car was already up to date.' : 'No recorded car changes were found for this older receipt.' };
+  return { ...audit, badge: 'RECEIVED', title: 'Email received', message: 'No car has been changed.' };
+}
+
+function aiIntakeHumanChangesHtml(outcome = {}) {
+  if (!outcome.changes?.length) return '<p class="ai-intake-no-changes">No vehicle details were changed.</p>';
+  return `<ul class="ai-intake-change-list">${outcome.changes.map(change => `<li><strong>${escapeHtml(change.label)}:</strong> ${escapeHtml(change.before)} → ${escapeHtml(change.after)}</li>`).join('')}</ul>`;
+}
+
 function aiIntakeVehicleForStock(stock = '') {
   const identity = cleanNavisionText(stock).toUpperCase();
   if (!identity) return null;
@@ -17069,6 +17238,11 @@ function bindAiIntakeStockNavigation(root) {
   }));
 }
 
+function aiIntakeHistoryLabel(eventType = '') {
+  const labels = { noticed: 'Email received', applied: 'Car change recorded', rejected: 'Reviewed — no change made' };
+  return labels[String(eventType || '').toLowerCase()] || 'Email activity recorded';
+}
+
 function renderServerAiIntake() {
   const host = $('#ai-intake-server-content');
   const historyHost = $('#ai-intake-history-content');
@@ -17080,35 +17254,39 @@ function renderServerAiIntake() {
     ? `Online · revision ${app.serverAiIntakeRevision ?? '—'}`
     : state === 'error' ? 'Unavailable' : state === 'loading' ? 'Refreshing' : 'Connecting';
   if (state === 'error') {
-    host.innerHTML = `<div class="empty-state"><strong>PMB inbox history is unavailable</strong><span>${escapeHtml(app.serverAiIntakeError || 'No server-authoritative snapshot is available. Nothing can be applied.')}</span></div>`;
-    historyHost.innerHTML = '<div class="empty-state compact-empty"><strong>History unavailable</strong><span>No browser-local fallback is used.</span></div>';
+    host.innerHTML = `<div class="empty-state"><strong>Email intake could not be loaded</strong><span>Try Refresh inbox. Nothing can be approved while the online record is unavailable.</span><details class="ai-intake-technical-details"><summary>Technical details</summary><span>${escapeHtml(app.serverAiIntakeError || 'No online snapshot is available.')}</span></details></div>`;
+    historyHost.innerHTML = '<div class="empty-state compact-empty"><strong>History could not be loaded</strong><span>Try Refresh inbox.</span></div>';
     return;
   }
   const rows = Array.isArray(app.serverAiIntakeItems) ? app.serverAiIntakeItems : [];
   if (!rows.length) {
     host.innerHTML = state === 'synchronized'
-      ? '<div class="empty-state compact-empty"><strong>No inbox observations match this filter</strong><span>The PMB bot will add authenticated email observations here.</span></div>'
-      : '<div class="empty-state compact-empty"><strong>Loading PMB inbox observations</strong><span>No browser-local fallback is used.</span></div>';
+      ? '<div class="empty-state compact-empty"><strong>No emails match this filter</strong><span>Choose another filter, or refresh the inbox.</span></div>'
+      : '<div class="empty-state compact-empty"><strong>Loading email intake</strong><span>Checking the latest online records.</span></div>';
   } else {
     const canDecide = serverAiIntakeRoleCanApply();
     host.innerHTML = `<div class="ai-intake-server-list">${rows.map(item => {
       const pending = item.status === 'pending';
       const actionable = item.action_type === 'board_activate_only';
-      const actionLabel = actionable ? 'Activate unique current Navision Stock on staging board' : 'Observation only — no automatic operational change';
+      const outcome = aiIntakeHumanOutcome(item);
       const statusClass = serverAiIntakeStatusClass(item.status);
-      return `<article class="ai-intake-server-row" data-status="${escapeHtml(item.status || '')}" data-ai-intake-proposal="${escapeHtml(item.proposal_id || '')}">
-        <div class="ai-intake-server-heading"><span class="badge ${statusClass}">${escapeHtml(String(item.status || 'pending').toUpperCase())}</span>${item.stock_number ? aiIntakeStockNavigationHtml(item.stock_number) : `<strong>${escapeHtml(item.subject || 'Email observation')}</strong>`}<code>${escapeHtml(item.fingerprint || '')}</code></div>
-        <div class="ai-intake-server-meta"><span>${escapeHtml(item.sender_address || 'Unknown sender')}</span><span>UID ${escapeHtml(item.source_uid || '—')}</span><span>${escapeHtml(item.source_received_at ? operationalHealthDateLabel(item.source_received_at) : 'Date unavailable')}</span></div>
-        <p class="ai-intake-server-summary">${escapeHtml(item.summary || '')}</p>
-        <div class="ai-intake-server-evidence"><span><b>Proposed action:</b> ${escapeHtml(actionLabel)}</span><span><b>Authoritative vehicle:</b> ${escapeHtml(item.authoritative_vehicle || 'Not resolved')}</span><span><b>Current location:</b> ${escapeHtml(item.authoritative_location || 'Not populated')}</span></div>
-        ${pending ? `<div class="callout warning"><strong>Administrator decision required</strong><span>Email evidence is informational and does not authorize a change. Apply performs only a fresh, exact server-side Navision board activation; Reject records no operational change.</span></div><div class="ai-intake-server-actions"><input type="text" maxlength="500" data-ai-intake-reason placeholder="Exact decision reason (minimum 10 characters)" aria-label="Decision reason for ${escapeHtml(item.stock_number || item.subject || 'proposal')}">${actionable ? `<button class="primary" type="button" data-ai-intake-apply="${escapeHtml(item.proposal_id)}" ${canDecide ? '' : 'disabled title="Active Administrator access required"'}>Activate on staging board</button>` : ''}<button class="small-button" type="button" data-ai-intake-reject="${escapeHtml(item.proposal_id)}" ${canDecide ? '' : 'disabled title="Active Administrator access required"'}>${actionable ? 'Reject' : 'Dismiss observation'}</button></div>` : `<div class="ai-intake-server-meta"><b>${escapeHtml(item.decided_by_email || 'Unknown administrator')}</b><span>${escapeHtml(item.decided_at ? operationalHealthDateLabel(item.decided_at) : '')}</span><span>${escapeHtml(item.decision_reason || '')}</span></div>`}
+      return `<article class="ai-intake-server-row ai-intake-human-row" data-status="${escapeHtml(item.status || '')}" data-ai-intake-proposal="${escapeHtml(item.proposal_id || '')}">
+        <div class="ai-intake-server-heading"><span class="badge ${statusClass}">${escapeHtml(outcome.badge)}</span>${item.stock_number ? aiIntakeStockNavigationHtml(item.stock_number) : `<strong>${escapeHtml(item.subject || 'Email received')}</strong>`}</div>
+        <div class="ai-intake-human-grid">
+          <div><span class="subtle">Received</span><strong>${escapeHtml(item.subject || 'Email about this car')}</strong><small>${escapeHtml(item.sender_address || 'Unknown sender')} · ${escapeHtml(item.source_received_at ? operationalHealthDateLabel(item.source_received_at) : 'Date unavailable')}</small></div>
+          <div><span class="subtle">What happened</span><strong>${escapeHtml(outcome.title)}</strong><small>${escapeHtml(outcome.message)}</small></div>
+          <div><span class="subtle">Car</span><strong>${escapeHtml(item.authoritative_vehicle || 'Not matched yet')}</strong><small>Location: ${escapeHtml(item.authoritative_location || 'Not provided')}</small></div>
+        </div>
+        <section class="ai-intake-human-changes"><strong>What changed</strong>${aiIntakeHumanChangesHtml(outcome)}</section>
+        ${pending ? `<div class="callout warning"><strong>${actionable ? 'Administrator review needed' : 'Review needed'}</strong><span>${actionable ? 'The email is a lead only. The server will check the exact current Navision car again before activation.' : 'No car change is proposed.'}</span></div><div class="ai-intake-server-actions"><input type="text" maxlength="500" data-ai-intake-reason placeholder="Why are you approving or dismissing this?" aria-label="Decision reason for ${escapeHtml(item.stock_number || item.subject || 'proposal')}">${actionable ? `<button class="primary" type="button" data-ai-intake-apply="${escapeHtml(item.proposal_id)}" ${canDecide ? '' : 'disabled title="Active Administrator access required"'}>Activate car</button>` : ''}<button class="small-button" type="button" data-ai-intake-reject="${escapeHtml(item.proposal_id)}" ${canDecide ? '' : 'disabled title="Active Administrator access required"'}>${actionable ? 'Do not activate' : 'Dismiss'}</button></div>` : `<div class="ai-intake-server-meta"><span>Processed by <b>${escapeHtml(item.decided_by_email || 'System')}</b></span><span>${escapeHtml(item.decided_at ? operationalHealthDateLabel(item.decided_at) : '')}</span></div>`}
+        <details class="ai-intake-technical-details"><summary>Email and technical details</summary><p>${escapeHtml(item.summary || 'No email summary available.')}</p><div class="ai-intake-server-meta"><span>UID ${escapeHtml(item.source_uid || '—')}</span><span>Receipt ${escapeHtml(item.fingerprint || '—')}</span><span>Action ${escapeHtml(item.action_type || 'review_only')}</span></div></details>
       </article>`;
     }).join('')}</div>`;
   }
   const history = Array.isArray(app.serverAiIntakeHistory) ? app.serverAiIntakeHistory : [];
   historyHost.innerHTML = history.length
-    ? `<div class="ai-intake-history-list">${history.map(event => `<div class="ai-intake-history-row"><strong>${escapeHtml(String(event.event_type || '').toUpperCase())}${event.stock_number ? ` · ${escapeHtml(event.stock_number)}` : ''}</strong><span>${escapeHtml(event.actor_email || 'System')} · ${escapeHtml(event.event_at ? operationalHealthDateLabel(event.event_at) : '')} · ${escapeHtml(event.fingerprint || '')}</span></div>`).join('')}</div>`
-    : '<div class="empty-state compact-empty"><strong>No durable history yet</strong><span>Noticed, applied and rejected events will appear here.</span></div>';
+    ? `<div class="ai-intake-history-list">${history.map(event => `<div class="ai-intake-history-row"><strong>${escapeHtml(aiIntakeHistoryLabel(event.event_type))}${event.stock_number ? ` · Stock ${escapeHtml(event.stock_number)}` : ''}</strong><span>${escapeHtml(event.actor_email || 'System')} · ${escapeHtml(event.event_at ? operationalHealthDateLabel(event.event_at) : '')}</span><details class="ai-intake-technical-details"><summary>Technical details</summary><span>Event ${escapeHtml(event.event_type || 'unknown')} · Receipt ${escapeHtml(event.fingerprint || '—')}</span></details></div>`).join('')}</div>`
+    : '<div class="empty-state compact-empty"><strong>No history yet</strong><span>Received, processed and dismissed emails will appear here.</span></div>';
   bindAiIntakeStockNavigation(host);
   $$('[data-ai-intake-apply]', host).forEach(button => button.addEventListener('click', () => decideServerAiIntake(button.dataset.aiIntakeApply, 'apply')));
   $$('[data-ai-intake-reject]', host).forEach(button => button.addEventListener('click', () => decideServerAiIntake(button.dataset.aiIntakeReject, 'reject')));
