@@ -6,10 +6,10 @@
     "twoPhysicalWorkstationAuthorityCutover": false
   },
   "artifact": "zero-data static staging site",
-  "cacheVersion": "2026.07.27.15-qc-gate-parts-eta",
+  "cacheVersion": "2026.07.27.16-control-board-cleanup",
   "deploymentMode": "exact reviewed source blobs; staging.html mapped to index.html",
   "environment": "staging",
-  "generatedAtUtc": "2026-07-27T08:22:59.560526Z",
+  "generatedAtUtc": "2026-07-27T08:34:36.765428Z",
   "migrationLedger": {
     "appliedThrough": "073",
     "evidence": "Staging sentinel verified; migration 073 dry-run compiled and applied. Authenticated fail-closed RPC checks passed. Transactional smoke proved PMB Ready for QC -> QC Gate -> named QC sign-off -> RFT and shared Parts ETA persistence, with synthetic rows rolled back.",
@@ -40,12 +40,12 @@
     "databasePostApply": "PASS \u2014 migration 073 applied; protected Ready-for-QC and Parts ETA RPCs present; authenticated fail-closed contracts passed; transactional lifecycle and ETA smoke passed with test rows rolled back.",
     "humanAiIntake": "Received, What happened, Car and What changed are shown in plain language; activated, modified, unchanged and review-needed outcomes are distinct; field changes render previous value to new value; technical receipt data is collapsed",
     "humanNavisionResults": "Strongly matched large dealer refreshes may apply while omissions enter reversible temporary holding; the verified replay passed 153 incoming, 153 selected-identity matches, 69 omissions, 0 cross-dealer matches and hard deletion disabled. Structured server safety findings are never reconciled away by zero row-error counts: wrong dealer, cross-dealer, empty, small and weakly matched files show their safety reason and remain blocked before apply.",
-    "literalArtifact": "33/33 deployed Git blobs match source commit db416825530cc58d56c79c51832b1fbee5522b59",
+    "literalArtifact": "33/33 deployed Git blobs match source commit 8ab61128833d5401a3b09eb568bbcf3bca8e5781",
     "production": "Untouched; staging static artifact plus staging-only migration 073",
     "uiCleanup": "Control Board current-time line appears only for today and QC is removed from its station list. All-green PMB vehicles require explicit Ready for QC confirmation and move authoritatively to the Vehicle Locations QC Gate. Named QC sign-off moves to RFT and prints a dedicated windscreen label. Parts removes Outstanding station work, persists and refreshes ETA countdowns, and uses the shared Vehicle Locations row height."
   },
   "sourceBranch": "feat/vehicle-locations-pit-qc-signoff-rft",
-  "sourceCommit": "db416825530cc58d56c79c51832b1fbee5522b59",
+  "sourceCommit": "8ab61128833d5401a3b09eb568bbcf3bca8e5781",
   "sourceFiles": [
     {
       "deployedPath": "ai-board-advisor.js",
@@ -54,7 +54,7 @@
     },
     {
       "deployedPath": "app.js",
-      "sha256": "088d4e2d8f4fccfcd23c4a2d5b1f55424b63d9dcf154a3106df5adf3f1e84cec",
+      "sha256": "170e04b3ae78784a7a71ba0fcce2ae6de883a795ea20e2845e516eeb431334da",
       "sourcePath": "app.js"
     },
     {
@@ -94,7 +94,7 @@
     },
     {
       "deployedPath": "index.html",
-      "sha256": "0faf29d847d0d6ad9540ec3aa1893b75c32f0f0c3b7f670acba46128254ccc27",
+      "sha256": "6450db39b8fbb7c0782a1bcd59f05e6b54ceb2446768e6479220bd735f4ea2ae",
       "sourcePath": "staging.html"
     },
     {
@@ -129,7 +129,7 @@
     },
     {
       "deployedPath": "pdc-supabase-config.staging.js",
-      "sha256": "013a3bb0cfcad62761c9e03dc480690507d6fb98d34b8dd7d1aeb0ba67e5b9ca",
+      "sha256": "c9d35b6c5ba9296ff2d6159bbec7861db502950c265195c34f7a512edcba00c7",
       "sourcePath": "pdc-supabase-config.staging.js"
     },
     {
@@ -213,5 +213,5 @@
       "sourcePath": "workshop-shared-actions.js"
     }
   ],
-  "sourceTree": "412c451c3480f65bfb27b2edd05438ed6aee6b13"
+  "sourceTree": "a627edb826c33410df085622f09653df9efd05f5"
 }

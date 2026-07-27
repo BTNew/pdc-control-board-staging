@@ -1,5 +1,5 @@
-const APP_VERSION = '2026.07.27.15-qc-gate-parts-eta';
-const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.07.27.15-qc-gate-parts-eta';
+const APP_VERSION = '2026.07.27.16-control-board-cleanup';
+const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.07.27.16-control-board-cleanup';
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
 // constant intentionally names only the production ref, never the
