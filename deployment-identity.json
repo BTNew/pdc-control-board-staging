@@ -6,10 +6,10 @@
     "twoPhysicalWorkstationAuthorityCutover": false
   },
   "artifact": "zero-data static staging site",
-  "cacheVersion": "2026.07.27.05-authoritative-planner-scheduling",
+  "cacheVersion": "2026.07.27.06-sublet-provider-booking-queue",
   "deploymentMode": "exact reviewed source blobs; staging.html mapped to index.html",
   "environment": "staging",
-  "generatedAtUtc": "2026-07-27T03:03:25.062840Z",
+  "generatedAtUtc": "2026-07-27T03:24:12.113048Z",
   "migrationLedger": {
     "appliedThrough": "070",
     "evidence": "staging sentinel verified; encrypted backup 1b6e8c5d-cf95-48e7-a6d9-e2ae0a6922c6 restored with all row counts, 170/170 FKs and all integrity/hash checks passing; 066 structurally reconciled; 067-070 ledger and postchecks passed",
@@ -32,17 +32,18 @@
   },
   "pendingStagingMigrations": [],
   "releaseChecks": {
-    "aggregateTests": "83 passed, 2 verified pre-existing failures, 1 skipped; new time-floor, conflict-refresh, one-retry, focused planner and syntax checks passed",
+    "aggregateTests": "84 passed, 2 verified pre-existing failures, 1 skipped; Sublet eligibility, booking proximity, provider-filter, station authority, version and syntax checks passed",
     "authoritativePlannerScheduling": "Today suggestions round up to the next valid increment; after-hours advances to the next workday; stale vehicle versions refresh from a trusted snapshot and retry once under full transactional RPC validation",
     "backupRestore": "PASS \u2014 encrypted backup run 1b6e8c5d-cf95-48e7-a6d9-e2ae0a6922c6 restored into an isolated schema; all table counts, 170/170 foreign keys, relationship checks and hashes matched.",
     "databasePostApply": "PASS \u2014 ledger 070; PIT planner disabled; zero active PIT bookings; QC gate, PIT transfer and QC-to-RFT RPCs present and granted to authenticated users; protected inventory unchanged at 18 vehicles, 56 work items and 2 bookings.",
-    "literalArtifact": "33/33 deployed Git blobs match source commit 998198a0a0540f0ac0f52e3100142c3d7d8a7b39",
+    "literalArtifact": "33/33 deployed Git blobs match source commit 98c2ec4425ab7a802fe1368894a90ff3f4607e71",
     "plannerAndAiIntake": "Workshop Planner opens on today at station entry; AI Intake and Vehicle Locations Stock links open the exact canonical vehicle card; duplicate identities remain fail-closed",
     "production": "Untouched; staging static artifact only; no database migration required and ledger remains 070",
+    "subletProviderBookingQueue": "Every incomplete required Sublet vehicle appears as a row regardless of its current PMB stage; row provider/date controls remain; booking proximity sort, provider and unassigned filters verified",
     "vehicleLocationsPitQcRft": "PIT removed from Workshop Planning; Vehicle Locations ordered RFT, QC, PIT, PMB, YARD HOLD, IT, OTHER; named QC sign-off maps to atomic QC-to-RFT authority when migration 070 is installed"
   },
   "sourceBranch": "feat/vehicle-locations-pit-qc-signoff-rft",
-  "sourceCommit": "998198a0a0540f0ac0f52e3100142c3d7d8a7b39",
+  "sourceCommit": "98c2ec4425ab7a802fe1368894a90ff3f4607e71",
   "sourceFiles": [
     {
       "deployedPath": "ai-board-advisor.js",
@@ -51,7 +52,7 @@
     },
     {
       "deployedPath": "app.js",
-      "sha256": "331fecb3a932323c293906315374b8bed99670eaf0cfab8b6a79b324011d3f18",
+      "sha256": "b293aa120f9e87190fa5fd49704825dded49b23fc8374c79869765daf5096525",
       "sourcePath": "app.js"
     },
     {
@@ -91,7 +92,7 @@
     },
     {
       "deployedPath": "index.html",
-      "sha256": "9049eb0e8483bddfd9ab8c86097e7cfbd3647068fcf4e7c4ba14b1fb48da9aec",
+      "sha256": "9acf67c5025298be876f27e1f3477708a300e00f864a43e0f26f8dc8ffffe0f9",
       "sourcePath": "staging.html"
     },
     {
@@ -126,7 +127,7 @@
     },
     {
       "deployedPath": "pdc-supabase-config.staging.js",
-      "sha256": "edd04a45170590ffacef66d4d98cb5d55ff1921cbd0c7003dc30fab61d702a49",
+      "sha256": "b8d5c4d31d081275fa479f0274119138063c740692958f6e9952c12fe95d76d7",
       "sourcePath": "pdc-supabase-config.staging.js"
     },
     {
@@ -210,5 +211,5 @@
       "sourcePath": "workshop-shared-actions.js"
     }
   ],
-  "sourceTree": "a30e5588cb5fd981113fa58d25ae115ada433154"
+  "sourceTree": "4704b7e5f143802b7934de03ee689e09219dd101"
 }

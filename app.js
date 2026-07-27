@@ -1,5 +1,5 @@
-const APP_VERSION = '2026.07.27.05-authoritative-planner-scheduling';
-const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.07.27.05-authoritative-planner-scheduling';
+const APP_VERSION = '2026.07.27.06-sublet-provider-booking-queue';
+const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.07.27.06-sublet-provider-booking-queue';
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
 // constant intentionally names only the production ref, never the
@@ -2911,6 +2911,7 @@ function bindNav() {
   on($('#ai-intake-server-filter'), 'change', () => refreshServerAiIntake());
   on($('#sublet-search'), 'input', renderSubletHome);
   on($('#sublet-status-filter'), 'change', renderSubletHome);
+  on($('#sublet-provider-filter'), 'change', renderSubletHome);
   on($('#schedule-search'), 'input', renderScheduleBoard);
   on($('#schedule-department-filter'), 'change', renderScheduleBoard);
   on($('#department-search'), 'input', renderProductionDepartmentBoard);
@@ -17577,7 +17578,52 @@ function plainDateValue(value = '') {
 }
 
 function subletRows() {
-  return pdcSheetVehicles().filter(vehicle => inferredPmbStage(vehicle) === 'SUBLET' || Boolean(pmbBaySubletProvider(vehicle) || vehicle.pmbSubletBookingDate || vehicle.pmbSubletExpectedReturnDate || vehicle.pmbSubletActualReturnDate));
+  const definition = PDC_JOB_DEFS.find(def => def.key === 'sublet');
+  return pdcSheetVehicles().filter(vehicle => {
+    const needsSublet = Boolean(definition && pdcJobRequired(vehicle, definition) && !pdcJobComplete(vehicle, definition));
+    const hasBookingRecord = Boolean(pmbBaySubletProvider(vehicle) || vehicle.pmbSubletBookingDate || vehicle.pmbSubletExpectedReturnDate || vehicle.pmbSubletActualReturnDate);
+    return needsSublet || inferredPmbStage(vehicle) === 'SUBLET' || hasBookingRecord;
+  });
+}
+
+function subletDateOrdinal(value = '') {
+  const dateKey = plainDateValue(value);
+  if (!dateKey) return null;
+  const parts = dateKey.split('-').map(Number);
+  if (parts.length !== 3 || parts.some(part => !Number.isInteger(part))) return null;
+  const ordinal = Date.UTC(parts[0], parts[1] - 1, parts[2]);
+  return Number.isFinite(ordinal) ? ordinal : null;
+}
+
+function compareSubletBookingProximity(a = {}, b = {}, referenceDate = new Date()) {
+  const referenceKey = referenceDate instanceof Date
+    ? `${referenceDate.getFullYear()}-${String(referenceDate.getMonth() + 1).padStart(2, '0')}-${String(referenceDate.getDate()).padStart(2, '0')}`
+    : plainDateValue(referenceDate);
+  const referenceOrdinal = subletDateOrdinal(referenceKey) ?? 0;
+  const aOrdinal = subletDateOrdinal(a.pmbSubletBookingDate);
+  const bOrdinal = subletDateOrdinal(b.pmbSubletBookingDate);
+  if (aOrdinal === null && bOrdinal !== null) return 1;
+  if (aOrdinal !== null && bOrdinal === null) return -1;
+  if (aOrdinal !== null && bOrdinal !== null) {
+    const distance = Math.abs(aOrdinal - referenceOrdinal) - Math.abs(bOrdinal - referenceOrdinal);
+    if (distance) return distance;
+    if (aOrdinal !== bOrdinal) return aOrdinal - bOrdinal;
+  }
+  return String(displayStockNumber(a) || vehicleKey(a) || '').localeCompare(String(displayStockNumber(b) || vehicleKey(b) || ''));
+}
+
+function syncSubletProviderFilter(rows = []) {
+  const select = $('#sublet-provider-filter');
+  if (!select) return 'all';
+  const previous = cleanNavisionText(select.value || 'all');
+  const providers = normalizedSubletProviderList([
+    ...loadSubletProviders(),
+    ...(Array.isArray(rows) ? rows.map(pmbBaySubletProvider) : []),
+  ]);
+  select.innerHTML = `<option value="all">All providers</option><option value="unassigned">Unassigned</option>${providers.map(provider => `<option value="${escapeHtml(provider)}">${escapeHtml(provider)}</option>`).join('')}`;
+  const available = [...select.options].some(option => option.value === previous);
+  select.value = available ? previous : 'all';
+  return select.value;
 }
 
 function subletIsOverdue(vehicle = {}) {
@@ -17632,19 +17678,26 @@ function renderSubletHome() {
   if (!host) return;
   const search = cleanNavisionText($('#sublet-search')?.value || '').toLowerCase();
   const filter = $('#sublet-status-filter')?.value || 'active';
-  const rows = subletRows().filter(vehicle => {
+  const allRows = subletRows();
+  const providerFilter = syncSubletProviderFilter(allRows);
+  const sortReference = new Date();
+  const rows = allRows.filter(vehicle => {
     const returned = Boolean(plainDateValue(vehicle.pmbSubletActualReturnDate || ''));
     if (filter === 'active' && returned) return false;
     if (filter === 'overdue' && !subletIsOverdue(vehicle)) return false;
     if (filter === 'returned' && !returned) return false;
+    const provider = normalizeSubletProviderName(pmbBaySubletProvider(vehicle));
+    if (providerFilter === 'unassigned' && provider) return false;
+    if (!['all', 'unassigned'].includes(providerFilter) && provider.toLowerCase() !== normalizeSubletProviderName(providerFilter).toLowerCase()) return false;
     if (!search) return true;
     return [displayStockNumber(vehicle), vehicleCustomerName(vehicle), displayVehicle(vehicle), pmbBaySubletProvider(vehicle), vehicle.pmbSubletNotes].join(' ').toLowerCase().includes(search);
-  }).sort((a, b) => String(a.pmbSubletExpectedReturnDate || '9999').localeCompare(String(b.pmbSubletExpectedReturnDate || '9999')));
-  const overdue = subletRows().filter(subletIsOverdue).length;
+  }).sort((a, b) => compareSubletBookingProximity(a, b, sortReference));
+  const overdue = allRows.filter(subletIsOverdue).length;
+  const unbooked = allRows.filter(vehicle => !plainDateValue(vehicle.pmbSubletBookingDate)).length;
   const count = $('#sublet-summary');
-  if (count) count.textContent = `${rows.length} shown · ${overdue} overdue`;
+  if (count) count.textContent = `${rows.length} shown · ${unbooked} unbooked · ${overdue} overdue`;
   if (!rows.length) {
-    host.innerHTML = '<div class="empty-state"><strong>No Sublet vehicles match this filter</strong><span>Move a PMB vehicle into SUBLET to create its provider booking record.</span></div>';
+    host.innerHTML = '<div class="empty-state"><strong>No Sublet vehicles match this filter</strong><span>Vehicles appear automatically when Sublet work is required. Adjust the filters or mark Sublet as required on the vehicle.</span></div>';
     return;
   }
   host.innerHTML = `<div class="sublet-table-wrap"><table class="data-table compact-table sublet-table"><thead><tr><th>Vehicle</th><th>Provider</th><th>PO sent</th><th>Booking</th><th>Expected return</th><th>Actual return</th><th>Notes / email</th><th>Actions</th></tr></thead><tbody>${rows.map(vehicle => {
