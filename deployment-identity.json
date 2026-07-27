@@ -9,11 +9,15 @@
   "cacheVersion": "2026.07.27.18-sublet-ai-summary",
   "deploymentMode": "exact reviewed source blobs; staging.html mapped to index.html",
   "environment": "staging",
-  "generatedAtUtc": "2026-07-27T09:50:04Z",
+  "generatedAtUtc": "2026-07-27T09:53:18.102728Z",
+  "humanAiIntake": {
+    "approvalGate": "Administrator decision remains server-validated; missing summaries disable Approve while Deny remains available.",
+    "summary": "Prominent escaped email summary plus explicit Approve/Deny effects; approval fails closed when no readable summary exists."
+  },
   "migrationLedger": {
-    "appliedThrough": "074",
-    "evidence": "Staging sentinel verified; migration 074 applied and cleanly reapplied. Authenticated smoke proved the empty Pilbara scope blocks before review, an exact administrator-reviewed 100-row snapshot releases, changed content remains blocked, and the synthetic approval was removed.",
-    "ledgerHead": "074",
+    "appliedThrough": "075",
+    "evidence": "Migration 075 passed a genuine rollback dry-run, was applied and source-reapplied. Authenticated preview smoke proved 100 cross-scope identities are released only when all 100 source Dealer columns declare Pilbara 14450; a mixed or missing Dealer row remains blocked. No smoke import was applied.",
+    "ledgerHead": "075",
     "migrations": [
       "058",
       "059",
@@ -31,25 +35,27 @@
       "071",
       "072",
       "073",
-      "074"
+      "074",
+      "075"
     ]
   },
   "pendingStagingMigrations": [],
   "releaseChecks": {
-    "aggregateTests": "All targeted Sublet queue, shared authority, search, AI Intake UI/authority, syntax, new presentation contract and version checks passed.",
+    "aggregateTests": "All targeted Navision Dealer-column, first-scope, backend replay/storage safety, AI Intake decision-context and version checks passed.",
+    "aiReviewDecisionContext": true,
+    "aiReviewOverlayVersion": "2026.07.27.19-ai-review-decision-context",
     "backupRestore": "PASS \u2014 encrypted backup run 11b91f6c-6c00-48b1-a1f1-f3943f082e23 restored into isolated schema restore_ai_intake_071_20260727; row counts, foreign keys, relationships and format/schema hashes matched; schema dropped after verification",
-    "databasePostApply": "PASS \u2014 migration 074 applied and source-reapplied; exact-content administrator approval, role denial, changed-content rejection and cleanup smokes passed.",
+    "databasePostApply": "PASS \u2014 migration 075 applied and source-reapplied; exact Dealer-column release, mixed/missing Dealer rejection and preview-only no-mutation smokes passed.",
     "humanAiIntake": "Received, What happened, Car and What changed are shown in plain language; activated, modified, unchanged and review-needed outcomes are distinct; field changes render previous value to new value; technical receipt data is collapsed",
     "humanNavisionResults": "An administrator can establish the first empty dealer scope only for one exact full snapshot of at least 100 valid rows. Approval is content-bound, user-bound and expires after two hours. Cross-dealer, invalid, duplicate, stale and changed snapshots remain fail-closed. Later strongly matched refresh omissions continue to enter reversible temporary holding.",
-    "literalArtifact": "35/35 deployed Git blobs match source commit 169485e3b1aa0a4f6d71d334f0787931f3406cec",
-    "production": "Untouched; staging static artifact plus staging-only migrations through 074",
+    "literalArtifact": "35/35 deployed Git blobs match source commit 0a3c8a9d1228bbdab71212e512c6792fe8ee1efa",
+    "pilbaraNavision": "Cross-scope Batch overlap no longer blocks a substantial Pilbara extract when every valid source row's original Dealer column explicitly declares 14450. Mixed, missing or contrary Dealer evidence remains blocked; hard deletion is disabled and the browser's selected option alone is not trusted.",
+    "production": "Untouched; staging static artifact plus staging-only migrations through 075",
     "subletAiReview": "Sublet uses a compact five-column operational table: Vehicle, Provider, Booking date, Notes/email and Actions. PO sent, expected return, actual return and return-status filtering are absent. AI Review shows the server-generated What the email says summary before detected changes and Approve/Deny controls.",
-    "uiCleanup": "Control Board current-time line appears only for today and QC is removed from its station list. All-green PMB vehicles require explicit Ready for QC confirmation and move authoritatively to the Vehicle Locations QC Gate. Named QC sign-off moves to RFT and prints a dedicated windscreen label. Parts removes Outstanding station work, persists and refreshes ETA countdowns, and uses the shared Vehicle Locations row height.",
-    "aiReviewDecisionContext": true,
-    "aiReviewOverlayVersion": "2026.07.27.19-ai-review-decision-context"
+    "uiCleanup": "Control Board current-time line appears only for today and QC is removed from its station list. All-green PMB vehicles require explicit Ready for QC confirmation and move authoritatively to the Vehicle Locations QC Gate. Named QC sign-off moves to RFT and prints a dedicated windscreen label. Parts removes Outstanding station work, persists and refreshes ETA countdowns, and uses the shared Vehicle Locations row height."
   },
   "sourceBranch": "feat/vehicle-locations-pit-qc-signoff-rft",
-  "sourceCommit": "169485e3b1aa0a4f6d71d334f0787931f3406cec",
+  "sourceCommit": "0a3c8a9d1228bbdab71212e512c6792fe8ee1efa",
   "sourceFiles": [
     {
       "deployedPath": "ai-board-advisor.js",
@@ -217,19 +223,15 @@
       "sourcePath": "workshop-shared-actions.js"
     },
     {
-      "sourcePath": "pdc-ai-intake-review.css",
       "deployedPath": "pdc-ai-intake-review.css",
-      "sha256": "ba4ededb1f4df440cd8f65c5162346baeac144cccdba336703c3f1621cd3743a"
+      "sha256": "ba4ededb1f4df440cd8f65c5162346baeac144cccdba336703c3f1621cd3743a",
+      "sourcePath": "pdc-ai-intake-review.css"
     },
     {
-      "sourcePath": "pdc-ai-intake-review.js",
       "deployedPath": "pdc-ai-intake-review.js",
-      "sha256": "575ea073661ea77830c249e6b64e86f9b4fae50708a3609dd1f18653a55e7c04"
+      "sha256": "575ea073661ea77830c249e6b64e86f9b4fae50708a3609dd1f18653a55e7c04",
+      "sourcePath": "pdc-ai-intake-review.js"
     }
   ],
-  "sourceTree": "e80a15808eea3b6c6434f4be071f4002e312d98b",
-  "humanAiIntake": {
-    "summary": "Prominent escaped email summary plus explicit Approve/Deny effects; approval fails closed when no readable summary exists.",
-    "approvalGate": "Administrator decision remains server-validated; missing summaries disable Approve while Deny remains available."
-  }
+  "sourceTree": "dedae4ba8cd4af1d7e70237107403dcbb4e714e5"
 }
