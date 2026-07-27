@@ -39,7 +39,7 @@
     "backupRestore": "PASS \u2014 encrypted backup run 1b6e8c5d-cf95-48e7-a6d9-e2ae0a6922c6 restored into an isolated schema; all table counts, 170/170 foreign keys, relationship checks and hashes matched."
   },
   "sourceBranch": "feat/vehicle-locations-pit-qc-signoff-rft",
-  "sourceCommit": "ed1a97c6948a29aaa6e27cb47f9163e52a62b0df",
+  "sourceCommit": "ed1a97c51bf3ba9e6a8ac182c5ff3b56e26a56fc",
   "sourceFiles": [
     {
       "deployedPath": "ai-board-advisor.js",
