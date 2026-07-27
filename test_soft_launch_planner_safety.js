@@ -3,13 +3,14 @@
 const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
-const planner = require('./workshop-planner.js');
 
+global.normalizePmbStage = value => String(value || '').trim().toUpperCase();
 global.parseIsoTimestamp = value => {
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? null : date;
 };
 global.cleanNavisionText = value => String(value || '').trim();
+const planner = require('./workshop-planner.js');
 
 const root = __dirname;
 const source = fs.readFileSync(path.join(root, 'workshop-planner.js'), 'utf8');
@@ -33,6 +34,15 @@ const past = {
 const future = { ...past, id: 'future-planned', startAt: new Date(2030, 6, 15, 13, 0, 0, 0).toISOString() };
 assert.strictEqual(planner.workshopNewBookingValidation(past, now).error, 'past_start', 'Frontend must reject a planned booking placed before the current minute');
 assert.strictEqual(planner.workshopNewBookingValidation(future, now).ok, true, 'Frontend must continue accepting a valid future booking');
+
+const duringToday = new Date(2030, 6, 15, 10, 40, 0, 0);
+const todaySlot = planner.workshopFirstAvailableStartSlot('TYRE', 1, '2030-07-15', 1, [], 0, 2, duringToday);
+assert.deepStrictEqual(todaySlot, { dateKey: '2030-07-15', startMinutes: 165 }, 'Today Best slot must round 10:40 up to 10:45, never offer the elapsed 8:00 start');
+const afterHours = new Date(2030, 6, 15, 16, 5, 0, 0);
+const nextDaySlot = planner.workshopFirstAvailableStartSlot('TYRE', 1, '2030-07-15', 1, [], 0, 2, afterHours);
+assert.deepStrictEqual(nextDaySlot, { dateKey: '2030-07-16', startMinutes: 0 }, 'After-hours Best slot must advance to the next workday');
+assert.match(planner.workshopDescribeSharedActionError({ ok: false, error: 'past_start' }), /already passed/i, 'Backend past-start rejection must never fall through to the misleading generic save error');
+assert.match(planner.workshopDescribeSharedActionError({ ok: false, error: 'vehicle_version_conflict' }), /vehicle changed/i, 'Vehicle-version conflicts require a specific actionable message');
 
 assert.match(migration, /if not p_allow_unchanged_past\s+and p_status in \('queued','planned'\)/i, 'Effective backend migration must gate queued/planned past starts unless the trigger authorizes an unchanged historical interval');
 assert.ok(migration.includes("p_scheduled_start_at < date_trunc('minute',statement_timestamp())"), 'Backend must compare requested start with the authoritative database clock');

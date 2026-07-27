@@ -661,7 +661,7 @@ function workshopSharedLegacyAmbiguity(payload = {}) {
   return workshopLoadPlans().find(row => row.id === bookingId && row.legacyAmbiguityReason) || null;
 }
 
-async function workshopDispatchSharedAction(actionName, payload, renderAction = renderWorkshopPlanner) {
+async function workshopDispatchSharedAction(actionName, payload, renderAction = renderWorkshopPlanner, options = {}) {
   if (!workshopSharedModeActive()) return null;
   const ambiguous = workshopSharedLegacyAmbiguity(payload);
   if (ambiguous) {
@@ -687,10 +687,10 @@ async function workshopDispatchSharedAction(actionName, payload, renderAction = 
   } catch (_error) {
     result = { ok: false, error: 'runtime_failure' };
   }
-  if (!result || result.ok !== true) {
+  if ((!result || result.ok !== true) && options.suppressFailureAlert !== true) {
     window.alert(workshopDescribeSharedActionError(result));
   }
-  renderAction();
+  if (options.suppressRender !== true) renderAction();
   return result || { ok: false, error: 'no_response' };
 }
 
@@ -702,6 +702,9 @@ function workshopDescribeSharedActionError(result) {
   const conflict = result && result.conflict;
   if (error === 'version_conflict') {
     return 'This booking was changed by another user. The planner has refreshed to the latest version.';
+  }
+  if (error === 'vehicle_version_conflict') {
+    return 'This vehicle changed while it was being scheduled. The latest record has been loaded; please try again.';
   }
   if (error === 'bay_already_started') {
     return 'This bay already has a started job. Stop or complete that job before starting another in this department bay.';
@@ -743,6 +746,7 @@ function workshopDescribeSharedActionError(result) {
     return 'IT vehicles require a valid ETA to Kewdale before booking. Correct the ETA and try again. No booking was created.';
   }
   if (error === 'minimum_duration') return 'Workshop bookings must be at least 60 minutes.';
+  if (error === 'past_start') return 'That suggested time has already passed. The planner has moved to the next available current or future time.';
   if (error === 'calendar_unavailable') return 'That start time is outside the configured Workshop calendar, closure, break, or overtime availability.';
   if (error === 'calendar_duration_mismatch' || error === 'invalid_schedule_interval') return 'The booking duration does not match the configured Workshop operating minutes. Choose a valid start and duration.';
   if (error === 'vehicle_inactive_or_missing') return 'This vehicle is inactive or unavailable in the shared Workshop records.';
@@ -4017,10 +4021,21 @@ function workshopRequirePlannerStage(stage = '') {
   return '';
 }
 
+function workshopNotBeforeMinutesForDate(dateKey = '', referenceNow = new Date()) {
+  const now = referenceNow instanceof Date ? new Date(referenceNow) : new Date(referenceNow);
+  if (Number.isNaN(now.getTime()) || workshopDateKey(now) !== String(dateKey || '')) return 0;
+  const increment = WORKSHOP_PLANNER_CONFIG.schedulingIncrementMinutes;
+  const offset = workshopMinuteOffset(now);
+  return Math.max(0, Math.ceil(offset / increment) * increment);
+}
+
 function workshopFirstAvailableStartMinutes(stage = '', bay = 1, dateKey = '', hours = workshopDefaultBookingHours(), rows = workshopLoadPlans(), notBeforeMinutes = 0) {
   const normalizedStage = normalizePmbStage(stage);
   const duration = workshopClampDurationHours(hours);
-  const firstStart = workshopClampStartMinutes(notBeforeMinutes);
+  const increment = WORKSHOP_PLANNER_CONFIG.schedulingIncrementMinutes;
+  const rawNotBefore = Math.max(0, Number(notBeforeMinutes) || 0);
+  if (rawNotBefore >= WORKSHOP_PLANNER_CONFIG.dayLengthMinutes) return null;
+  const firstStart = Math.ceil(rawNotBefore / increment) * increment;
   for (let startMinutes = firstStart; startMinutes < WORKSHOP_PLANNER_CONFIG.dayLengthMinutes; startMinutes += WORKSHOP_PLANNER_CONFIG.schedulingIncrementMinutes) {
     const candidate = {
       id: '__availability_check__',
@@ -4036,12 +4051,13 @@ function workshopFirstAvailableStartMinutes(stage = '', bay = 1, dateKey = '', h
   return null;
 }
 
-function workshopFirstAvailableStartSlot(stage = '', bay = 1, dateKey = '', hours = workshopDefaultBookingHours(), rows = workshopLoadPlans(), notBeforeMinutes = 0, maxWorkdays = 260) {
+function workshopFirstAvailableStartSlot(stage = '', bay = 1, dateKey = '', hours = workshopDefaultBookingHours(), rows = workshopLoadPlans(), notBeforeMinutes = 0, maxWorkdays = 260, referenceNow = new Date()) {
   const requestedDate = workshopDateFromKey(dateKey) || new Date();
   let workDate = workshopCoerceWorkDate(requestedDate, 1);
   for (let dayIndex = 0; dayIndex < Math.max(1, Number(maxWorkdays) || 260); dayIndex += 1) {
     const candidateDateKey = workshopDateKey(workDate);
-    const firstMinutes = dayIndex === 0 ? notBeforeMinutes : 0;
+    const currentTimeFloor = workshopNotBeforeMinutesForDate(candidateDateKey, referenceNow);
+    const firstMinutes = dayIndex === 0 ? Math.max(notBeforeMinutes, currentTimeFloor) : currentTimeFloor;
     const startMinutes = workshopFirstAvailableStartMinutes(stage, bay, candidateDateKey, hours, rows, firstMinutes);
     if (startMinutes !== null) return { dateKey: candidateDateKey, startMinutes };
     workDate = workshopNextWorkdayDate(workDate);
@@ -4378,7 +4394,7 @@ async function workshopScheduleSharedNewBooking({
   const candidate = { ...requestedCandidate, assignee, technicianId: technicianId || '' };
   if (!workshopRequireSchedulableCandidate(candidate)) return false;
   if (!workshopConfirmOtherDepartmentPlans(candidate, workshopLoadPlans())) return false;
-  const result = await dispatchAction('cascadeSchedule', {
+  const payload = {
     operation: 'insert',
     targetId: vehicleRef.vehicleId,
     targetExpectedVersion: vehicleRef.version,
@@ -4388,7 +4404,30 @@ async function workshopScheduleSharedNewBooking({
     durationMinutes,
     technicianId,
     shiftMinutes: durationMinutes,
-  });
+  };
+  const managedDispatch = dispatchAction === workshopDispatchSharedAction;
+  const dispatch = nextPayload => managedDispatch
+    ? dispatchAction('cascadeSchedule', nextPayload, renderWorkshopPlanner, { suppressFailureAlert: true, suppressRender: true })
+    : dispatchAction('cascadeSchedule', nextPayload);
+  let result = await dispatch(payload);
+  if (result && result.ok === false && result.error === 'vehicle_version_conflict') {
+    // mutate() has synchronously refreshed the authoritative snapshot before
+    // returning this conflict. Retry this unchanged insert intent once with
+    // the newly confirmed vehicle version; the RPC re-validates location,
+    // requirement, bay, overlap, ETA and permissions atomically.
+    const snapshot = window.__workshopDataService?.getTrustedSnapshot?.();
+    const freshMatches = Array.isArray(snapshot?.vehicles)
+      ? snapshot.vehicles.filter(row => String(row?.id || '').trim() === String(vehicleRef.vehicleId || '').trim())
+      : [];
+    const freshVersion = Number(freshMatches[0]?.version);
+    if (freshMatches.length === 1 && Number.isInteger(freshVersion) && freshVersion !== Number(vehicleRef.version)) {
+      result = await dispatch({ ...payload, targetExpectedVersion: freshVersion });
+    }
+  }
+  if (managedDispatch) {
+    if (!result || result.ok !== true) window.alert(workshopDescribeSharedActionError(result));
+    renderWorkshopPlanner();
+  }
   return !!(result && result.ok);
 }
 

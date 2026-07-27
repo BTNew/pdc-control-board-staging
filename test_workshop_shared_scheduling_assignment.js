@@ -89,6 +89,21 @@ async function run() {
   assert.strictEqual(result.calls[0].payload.technicianId, null, 'blank selection is an explicit null assignment');
   console.log('PASS 2: blank selection dispatches null');
 
+  installSharedState({ technicians: [{ id: activeId, name: 'Active Tech', active: true }] });
+  window.__workshopDataService.getTrustedSnapshot = () => ({ vehicles: [{ id: 'vehicle-uuid', version: 8 }] });
+  const retryCalls = [];
+  const retried = await planner.workshopScheduleSharedNewBooking(request(''), async (name, payload) => {
+    retryCalls.push({ name, payload });
+    return retryCalls.length === 1
+      ? { ok: false, error: 'vehicle_version_conflict' }
+      : { ok: true };
+  });
+  assert.strictEqual(retried, true, 'stale vehicle scheduling should recover without a second user action');
+  assert.strictEqual(retryCalls.length, 2, 'vehicle version conflict is retried exactly once');
+  assert.strictEqual(retryCalls[0].payload.targetExpectedVersion, 7);
+  assert.strictEqual(retryCalls[1].payload.targetExpectedVersion, 8, 'retry uses the freshly trusted authoritative version');
+  console.log('PASS 2a: stale vehicle version refreshes and retries the unchanged insert once');
+
   result = await attempt(request('', 'SUBLET'));
   assert.strictEqual(result.ok, false, 'Sublet cannot be scheduled through the generic shared booking helper');
   assert.strictEqual(result.calls.length, 0, 'Sublet must be rejected before dispatching any mutation RPC');

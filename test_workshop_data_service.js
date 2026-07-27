@@ -186,6 +186,38 @@ async function run() {
     console.log('PASS 7: rejected stale mutation refreshes to the authoritative snapshot');
   }
 
+  // 7b. Vehicle-level version conflicts are common when email/Navision updates
+  //      land while a planner tab is open. mutate() must not return until the
+  //      replacement authoritative snapshot is actually available for retry.
+  {
+    let resolveRefresh;
+    const refreshResponse = new Promise(resolve => { resolveRefresh = resolve; });
+    const client = fakeClient([
+      { status: 200, ok: true, body: { revision: 1, vehicles: [{ id: 'v', version: 1 }] } },
+      { status: 200, ok: true, body: { ok: false, error: 'vehicle_version_conflict' } },
+      refreshResponse,
+    ]);
+    const service = createWorkshopDataService({
+      config: { workshop: { sharedData: true } },
+      client,
+      getAccessToken: () => 'tok',
+      getRole: () => 'operator'
+    });
+    await service.loadSnapshot('initial');
+    let settled = false;
+    const mutation = service.mutate('schedule_vehicle_work', {
+      p_vehicle_id: 'v', p_vehicle_expected_version: 1, p_stage_code: 'TYRE', p_bay_number: 1,
+      p_scheduled_start_at: '2030-07-15T03:00:00Z', p_duration_minutes: 60,
+    }).then(result => { settled = true; return result; });
+    await new Promise(resolve => setImmediate(resolve));
+    assert.strictEqual(settled, false, '7b conflict result must wait for authoritative refresh');
+    resolveRefresh({ status: 200, ok: true, body: { revision: 2, vehicles: [{ id: 'v', version: 2 }] } });
+    const result = await mutation;
+    assert.strictEqual(result.error, 'vehicle_version_conflict');
+    assert.strictEqual(service.getTrustedSnapshot().vehicles[0].version, 2, '7c retry consumers receive the refreshed vehicle version');
+    console.log('PASS 7b: vehicle version conflict waits for a trusted authoritative refresh');
+  }
+
   // 8. Revision signal debounces trailing duplicate updates and ignores exact repeats
   {
     const timers = makeTimerHarness();
