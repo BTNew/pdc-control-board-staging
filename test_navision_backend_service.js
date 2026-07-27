@@ -79,6 +79,20 @@ function assert(condition, message) {
   assert(JSON.stringify(Object.keys(applyCalls[0].params).sort()) === JSON.stringify(['p_dealer_code', 'p_expected_revision', 'p_idempotency_key', 'p_preview_hash', 'p_rows', 'p_source_hash', 'p_source_name', 'p_source_system', 'p_source_timestamp']), 'Apply parameter keys must exactly match its scoped SQL signature');
   assert(JSON.stringify(applyCalls[0].params) === JSON.stringify(applyCalls[1].params), 'Response-loss retry must send the identical request contract');
 
+  const contradictoryPreview = JSON.parse(JSON.stringify(preview));
+  contradictoryPreview.data.data.blocking = true;
+  contradictoryPreview.data.data.counts = { ...contradictoryPreview.data.data.counts, invalid: 0, conflict: 0 };
+  contradictoryPreview.data.data.items = [{ classification: 'changed' }, { classification: 'unchanged' }];
+  const reconciled = await first.apply(rows, contradictoryPreview, { ...options, idempotencyKey: 'apply-reconciled' });
+  assert(reconciled.ok, 'A stale blocking flag must not prevent server revalidation when exact counts and items contain zero blocking rows');
+  const trulyBlockedPreview = JSON.parse(JSON.stringify(preview));
+  trulyBlockedPreview.data.data.blocking = false;
+  trulyBlockedPreview.data.data.counts = { ...trulyBlockedPreview.data.data.counts, invalid: 1, conflict: 0 };
+  trulyBlockedPreview.data.data.items = [{ classification: 'invalid' }];
+  const callsBeforeBlocked = calls.length;
+  const trulyBlocked = await first.apply(rows, trulyBlockedPreview, { ...options, idempotencyKey: 'apply-blocked' });
+  assert(!trulyBlocked.ok && trulyBlocked.error === 'preview_has_blocking_issues' && calls.length === callsBeforeBlocked, 'Invalid/conflicting rows must still fail closed before the apply RPC');
+
   let firstRevision = null;
   let secondRevision = null;
   first.subscribe(revision => { firstRevision = revision; });

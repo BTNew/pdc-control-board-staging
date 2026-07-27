@@ -34,6 +34,6 @@ window.PDC_SUPABASE_CONFIG = {
   vehicleLifecycle: Object.freeze({
     sharedData: true,
     resolverRollbackDirectRead: false,
-    resolverAssetVersion: '2026.07.27.08-human-ai-intake-results'
+    resolverAssetVersion: '2026.07.27.09-navision-preview-blocking-fix'
   })
 };

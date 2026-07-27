@@ -44,4 +44,7 @@ ok(app.includes('function navisionSharedImportRoleAllowed(')&&app.includes("['im
 ok(stagingHtml.includes('id="navision-import-access-status"'),'staging shared import displays its access state instead of silently disabling the workflow');
 ok(app.includes('navision-import-success-tick')&&app.includes('Navision import complete'),'successful shared apply renders a prominent imported confirmation tick');
 ok(fs.readFileSync('styles.css','utf8').includes('.navision-import-success-tick'),'successful shared apply tick has dedicated visual styling');
+ok(app.includes('navisionSharedPreviewBlockingState(data)')&&applyFn.includes('if (blockingState.blocking)'),'shared UI reconciles the blocking flag with exact invalid/conflict evidence');
+ok(!applyFn.includes('if (data.blocking === true ||'),'shared apply no longer reports zero attention rows solely from a contradictory top-level flag');
+ok(service.includes('function navisionPreviewBlockingState(')&&service.includes('inconsistentFlag'),'service rechecks contradictory preview evidence while retaining a fail-closed unknown-state path');
 console.log(`Navision shared UI/dealer-scope regression: ${n} assertions passed.`);

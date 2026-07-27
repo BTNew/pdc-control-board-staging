@@ -1,5 +1,5 @@
-const APP_VERSION = '2026.07.27.08-human-ai-intake-results';
-const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.07.27.08-human-ai-intake-results';
+const APP_VERSION = '2026.07.27.09-navision-preview-blocking-fix';
+const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.07.27.09-navision-preview-blocking-fix';
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
 // constant intentionally names only the production ref, never the
@@ -15354,6 +15354,22 @@ function navisionSharedPreviewData(result = null) {
   return result?.data?.data || result?.data || null;
 }
 
+function navisionSharedPreviewBlockingState(data = {}) {
+  const helper = window.PDC_NAVISION_BACKEND_SERVICE?.navisionPreviewBlockingState;
+  if (typeof helper === 'function') return helper(data);
+  const counts = data?.counts && typeof data.counts === 'object' ? data.counts : null;
+  const invalid = Math.max(0, Number(counts?.invalid || 0));
+  const conflict = Math.max(0, Number(counts?.conflict || 0));
+  const affected = invalid + conflict;
+  return {
+    invalid,
+    conflict,
+    affected,
+    inconsistentFlag: data?.blocking === true && affected === 0 && Boolean(counts),
+    blocking: affected > 0 || (data?.blocking === true && !counts),
+  };
+}
+
 function navisionDealerName(dealerCode = '') {
   return String(dealerCode) === '14450' ? 'Pilbara Toyota' : String(dealerCode) === '37047' ? 'Broome Toyota' : `dealer ${dealerCode || 'not selected'}`;
 }
@@ -15443,9 +15459,10 @@ function renderSharedNavisionPreview(state = {}, applied = false) {
   const changed = Number(counts.changed || 0);
   const unchanged = Number(counts.unchanged || 0);
   const missing = Number(counts.missing || 0);
-  const invalid = Number(counts.invalid || 0);
-  const conflict = Number(counts.conflict || 0);
-  const blocking = data.blocking === true || invalid > 0 || conflict > 0;
+  const blockingState = navisionSharedPreviewBlockingState(data);
+  const invalid = blockingState.invalid;
+  const conflict = blockingState.conflict;
+  const blocking = blockingState.blocking;
   const resultBanner = applied
     ? `<div class="navision-import-success" role="status" aria-live="polite"><span class="navision-import-success-tick" aria-hidden="true">✓</span><div><strong>Navision import complete</strong><span>Received ${total} car record${total === 1 ? '' : 's'} for ${escapeHtml(navisionDealerName(state.dealerCode))}.</span></div></div>`
     : `<div class="summary-row ${blocking ? 'error' : 'success'}"><strong>${blocking ? 'This file needs attention before it can be imported' : 'Navision file checked and ready'}</strong><span>Received ${total} car record${total === 1 ? '' : 's'} for ${escapeHtml(navisionDealerName(state.dealerCode))}. ${blocking ? 'Nothing was changed.' : 'This is a preview. Nothing has changed yet.'}</span></div>`;
@@ -15459,6 +15476,7 @@ function renderSharedNavisionPreview(state = {}, applied = false) {
       <div class="summary-stat"><span>Cars activated or moved</span><strong>0</strong></div>
     </div>
     <div class="parts-help-strip"><strong>${applied ? 'What happened:' : 'Import rule:'}</strong><span>${applied ? `The shared Navision records were updated. ${added} added, ${changed} modified and ${unchanged} already current.` : 'A Navision upload updates Back End Data only. It does not activate cars, move them, change Parts or alter workshop bookings.'}</span></div>
+    ${!applied && blockingState.inconsistentFlag ? '<div class="summary-row warning"><strong>Preview rechecked</strong><span>No invalid or conflicting rows were found. The database will validate the exact preview again before applying any change.</span></div>' : ''}
     ${renderSharedNavisionChangeDetails(state, data)}
     <details class="navision-technical-details"><summary>Technical details</summary><div class="subtle navision-note">Dealer ${escapeHtml(state.dealerCode || '')} · ${applied ? `receipt ${escapeHtml(data.receipt_id || data.receiptId || 'returned by server')} · revision ${escapeHtml(data.revision ?? data.result_revision ?? '')}` : `preview ${escapeHtml(data.preview_hash || '')}`} · browser check ${escapeHtml(state.browserLocalSha256 || '')}</div></details>`;
 }
@@ -15548,10 +15566,9 @@ async function applySharedNavisionImport() {
   if (!pending) return;
   const data = pending.previewData || {};
   const counts = data.counts || {};
-  if (data.blocking === true || Number(counts.invalid || 0) > 0 || Number(counts.conflict || 0) > 0) {
-    const invalid = Number(counts.invalid || 0);
-    const conflict = Number(counts.conflict || 0);
-    const affected = invalid + conflict;
+  const blockingState = navisionSharedPreviewBlockingState(data);
+  if (blockingState.blocking) {
+    const { invalid, conflict, affected } = blockingState;
     window.alert(`${affected} row${affected === 1 ? '' : 's'} need attention (${invalid} invalid, ${conflict} conflicting).\n\nClose this message to see each affected row and how to fix it. Nothing was imported or changed.`);
     return;
   }

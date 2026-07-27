@@ -17,6 +17,25 @@ function navisionProjectRefFromUrl(url = '') {
   return match ? match[1].toLowerCase() : '';
 }
 
+function navisionPreviewBlockingState(previewData = {}) {
+  const counts = previewData?.counts && typeof previewData.counts === 'object' ? previewData.counts : null;
+  const items = Array.isArray(previewData?.items) ? previewData.items : [];
+  const itemInvalid = items.filter(item => item?.classification === 'invalid').length;
+  const itemConflict = items.filter(item => item?.classification === 'conflict').length;
+  const invalid = Math.max(0, Number(counts?.invalid || 0), itemInvalid);
+  const conflict = Math.max(0, Number(counts?.conflict || 0), itemConflict);
+  const affected = invalid + conflict;
+  const canReconcileFlag = Boolean(counts) || items.length > 0;
+  const inconsistentFlag = previewData?.blocking === true && affected === 0 && canReconcileFlag;
+  return {
+    invalid,
+    conflict,
+    affected,
+    inconsistentFlag,
+    blocking: affected > 0 || (previewData?.blocking === true && !canReconcileFlag),
+  };
+}
+
 function createNavisionRpcClient(config, fetchImpl) {
   const url = String(config?.url || '').replace(/\/$/, '');
   const publishableKey = String(config?.publishableKey || '');
@@ -91,7 +110,8 @@ function createNavisionBackendService(options = {}) {
     if (!previewData?.preview_hash || !previewData?.source_hash || !Number.isInteger(previewData?.base_revision)) {
       return { ok: false, error: 'valid_preview_required' };
     }
-    if (previewData.blocking === true) return { ok: false, error: 'preview_has_blocking_issues' };
+    const blockingState = navisionPreviewBlockingState(previewData);
+    if (blockingState.blocking) return { ok: false, error: 'preview_has_blocking_issues', data: blockingState };
     if (!options.idempotencyKey) return { ok: false, error: 'idempotency_key_required' };
     return call('apply_navision_backend_import', {
       p_idempotency_key: String(options.idempotencyKey),
@@ -196,8 +216,8 @@ function createNavisionBackendService(options = {}) {
 }
 
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { NAVISION_STAGING_PROJECT_REF, NAVISION_REVISION_TABLE, NAVISION_SOURCE_SYSTEM, NAVISION_DEALER_CODES, navisionProjectRefFromUrl, createNavisionRpcClient, createNavisionBackendService };
+  module.exports = { NAVISION_STAGING_PROJECT_REF, NAVISION_REVISION_TABLE, NAVISION_SOURCE_SYSTEM, NAVISION_DEALER_CODES, navisionProjectRefFromUrl, navisionPreviewBlockingState, createNavisionRpcClient, createNavisionBackendService };
 }
 if (typeof window !== 'undefined') {
-  window.PDC_NAVISION_BACKEND_SERVICE = { NAVISION_STAGING_PROJECT_REF, NAVISION_REVISION_TABLE, NAVISION_SOURCE_SYSTEM, NAVISION_DEALER_CODES, createNavisionRpcClient, createNavisionBackendService };
+  window.PDC_NAVISION_BACKEND_SERVICE = { NAVISION_STAGING_PROJECT_REF, NAVISION_REVISION_TABLE, NAVISION_SOURCE_SYSTEM, NAVISION_DEALER_CODES, navisionPreviewBlockingState, createNavisionRpcClient, createNavisionBackendService };
 }
