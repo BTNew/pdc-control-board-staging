@@ -1,5 +1,5 @@
-const APP_VERSION = '2026.07.27.03-vehicle-locations-pit-qc-rft';
-const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.07.27.03-vehicle-locations-pit-qc-rft';
+const APP_VERSION = '2026.07.27.04-ai-intake-location-stock-links';
+const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.07.27.04-ai-intake-location-stock-links';
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
 // constant intentionally names only the production ref, never the
@@ -2395,7 +2395,10 @@ function vehicleIdentityStackHtml(vehicle = {}, options = {}) {
     // Customer names are deliberately left intact. CSS gives the name cell room to wrap
     // so long company names remain readable instead of being cut down to a few characters.
     const value = cell.label === 'Name' ? rawValue : truncate(rawValue, 18);
-    const valueHtml = options.button && index === 0
+    const buttonCell = options.button === true
+      && cleanNavisionText(cell.value)
+      && (options.buttonLabel ? cell.label === options.buttonLabel : index === 0);
+    const valueHtml = buttonCell
       ? `<button class="stock-link stock-button vehicle-identity-value vehicle-identity-primary" type="button" data-open-stock="${escapeHtml(key)}" title="${escapeHtml(title)}" aria-label="${escapeHtml(`${cell.label} ${rawValue}`)}">${escapeHtml(value)}</button>`
       : `<span class="vehicle-identity-value ${index === 0 ? 'vehicle-identity-primary' : ''}" title="${escapeHtml(rawValue)}" aria-label="${escapeHtml(`${cell.label} ${rawValue}`)}">${escapeHtml(value)}</span>`;
     return `<span class="vehicle-identity-cell ${escapeHtml(cell.className)}" data-label="${escapeHtml(cell.label)}">${valueHtml}</span>`;
@@ -5515,7 +5518,11 @@ function incomingVehicleDetailRow(vehicle = {}, bucketKey = '', options = {}) {
             : `<button class="small-button incoming-open-button" type="button" data-open-stock="${escapeHtml(key)}">Open</button>`;
   const labelAction = locationReadOnly ? '' : `<button class="small-button vehicle-label-button" type="button" data-label-vehicle="${escapeHtml(key)}" title="Print one Zebra label for ${escapeHtml(stock)}">Label</button>`;
   const deleteAction = locationReadOnly ? '' : (options.showDelete ? `<button class="small-button incoming-delete-button" type="button" data-incoming-delete="${escapeHtml(key)}" title="Move this vehicle to Deleted vehicles">Delete</button>` : '');
-  const identitySummary = vehicleIdentityStackHtml(vehicle, { className: 'incoming-identity' });
+  const identitySummary = vehicleIdentityStackHtml(vehicle, {
+    className: 'incoming-identity',
+    button: !identityReadOnly && !authorityPending,
+    buttonLabel: 'SN',
+  });
   const selectBox = locationReadOnly
     ? '<span class="incoming-card-select" aria-hidden="true"></span>'
     : `<label class="incoming-card-select" title="Select ${escapeHtml(stock)}"><input type="checkbox" data-select-stock="${escapeHtml(key)}" aria-label="Select ${escapeHtml(stock)}" ${app.selectedRows.has(key) ? 'checked' : ''} /><span aria-hidden="true"></span></label>`;
@@ -9943,6 +9950,12 @@ function selectedVehicle(key = app.selectedStock) {
     console.warn('Vehicle lookup was ambiguous; no vehicle was selected.', { requested, matchCount: canonicalMatches.length });
     return null;
   }
+  const boardMatches = vehicleLocationBoardRows().filter(vehicle => String(vehicleKey(vehicle) || '').trim() === requested);
+  if (boardMatches.length === 1) return boardMatches[0];
+  if (boardMatches.length > 1) {
+    console.warn('Vehicle Locations lookup was ambiguous; no vehicle was selected.', { requested, matchCount: boardMatches.length });
+    return null;
+  }
   const aliasMatches = app.data.filter(vehicle => [vehicle.stock, vehicle.batch, vehicle.id]
     .map(value => String(value || '').trim())
     .includes(requested));
@@ -11908,6 +11921,7 @@ function vehicleLocationActionAllowed(vehicleOrKey, operation = 'change') {
   if (!vehicle) return false;
   const key = vehicleKey(vehicle);
   if (app.sharedNavisionLocationReadOnlyKeys?.has(key)) {
+    if (operation === 'open') return true;
     console.warn('Vehicle action blocked because the Locations identity is read-only.', { operation, key });
     return false;
   }
@@ -17022,11 +17036,10 @@ function serverAiIntakeStatusClass(status = '') {
 function aiIntakeVehicleForStock(stock = '') {
   const identity = cleanNavisionText(stock).toUpperCase();
   if (!identity) return null;
-  const sourceRows = [...(Array.isArray(app.data) ? app.data : []), ...(Array.isArray(app.sharedNavisionVisibleRows) ? app.sharedNavisionVisibleRows : [])];
-  const exactRows = sourceRows.filter(vehicle => [vehicle.stockNumber, vehicle.stock, vehicle.stock_number]
+  const exactRows = vehicleLocationBoardRows().filter(vehicle => [vehicle.stockNumber, vehicle.stock, vehicle.stock_number, vehicle.batch]
     .some(value => cleanNavisionText(value).toUpperCase() === identity));
   const matches = [...new Map(exactRows.map(vehicle => {
-    const canonicalKey = cleanNavisionText(vehicle.permanentVehicleId || vehicle.permanent_vehicle_id || vehicle.id || vehicleKey(vehicle));
+    const canonicalKey = cleanNavisionText(vehicle.permanentVehicleId || vehicle.permanent_vehicle_id || vehicle.__sharedNavisionRecordId || vehicle.id || vehicleKey(vehicle));
     return [canonicalKey, vehicle];
   })).values()];
   return matches.length === 1 ? matches[0] : null;

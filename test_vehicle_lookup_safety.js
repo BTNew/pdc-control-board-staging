@@ -60,6 +60,29 @@ code += String.raw`
   ];
   assert(selectedVehicle('30000001') === null, 'An ambiguous canonical vehicle key must fail closed');
 
+  app.data = [];
+  app.sharedNavisionVisibleRows = [{
+    id: 'shared-record-one', stock_number: '40000001', dealer_code: '14450',
+    customer_name: 'Shared customer', model: 'HiAce', vehicle_status: 'PMB',
+    is_current: true, board_activated: true,
+  }];
+  const intakeVehicle = aiIntakeVehicleForStock('40000001');
+  assert(intakeVehicle && vehicleKey(intakeVehicle) === '40000001', 'AI Intake must resolve the canonical Vehicle Locations row, not a raw Navision item');
+  assert(aiIntakeStockNavigationHtml('40000001').includes('data-open-stock="40000001"'), 'AI Intake must link the exact canonical Vehicle Locations key');
+  const locationIdentity = vehicleIdentityStackHtml(intakeVehicle, { button: true, buttonLabel: 'SN' });
+  assert(/identity-stock[\s\S]*data-open-stock="40000001"/.test(locationIdentity), 'Vehicle Locations Stock must render as a vehicle-card link');
+  assert(!/identity-key[\s\S]*data-open-stock/.test(locationIdentity.split('identity-stock')[0]), 'Vehicle Locations Key must remain plain text when Stock is the requested link');
+  const alertsBeforeSharedOpen = window.__alerts.length;
+  assert(openVehicleModal('40000001') !== false, 'A unique shared Vehicle Locations row must open read-only instead of reporting that it does not exist');
+  assert(app.selectedStock === '40000001', 'Shared Vehicle Locations opening must select the exact Stock');
+  assert(window.__alerts.length === alertsBeforeSharedOpen, 'Opening a valid shared vehicle must not show a missing-vehicle alert');
+
+  app.sharedNavisionVisibleRows = [
+    { id: 'shared-duplicate-one', stock_number: '50000001', dealer_code: '14450', model: 'HiAce', vehicle_status: 'PMB', is_current: true, board_activated: true },
+    { id: 'shared-duplicate-two', stock_number: '50000001', dealer_code: '37047', model: 'Coaster', vehicle_status: 'PMB', is_current: true, board_activated: true },
+  ];
+  assert(aiIntakeVehicleForStock('50000001') === null, 'AI Intake must keep duplicate shared Stock identities fail-closed');
+
   console.log('Vehicle lookup safety checks passed');
 })();
 `;
