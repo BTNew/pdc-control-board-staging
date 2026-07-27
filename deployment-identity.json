@@ -6,12 +6,14 @@
     "twoPhysicalWorkstationAuthorityCutover": false
   },
   "artifact": "zero-data static staging site",
-  "cacheVersion": "2026.07.27.03-vehicle-locations-pit-qc-rft",
+  "cacheVersion": "2026.07.27.04-ai-intake-location-stock-links",
   "deploymentMode": "exact reviewed source blobs; staging.html mapped to index.html",
   "environment": "staging",
-  "generatedAtUtc": "2026-07-27T02:25:08.614796Z",
+  "generatedAtUtc": "2026-07-27T02:47:45.154120Z",
   "migrationLedger": {
     "appliedThrough": "070",
+    "evidence": "staging sentinel verified; encrypted backup 1b6e8c5d-cf95-48e7-a6d9-e2ae0a6922c6 restored with all row counts, 170/170 FKs and all integrity/hash checks passing; 066 structurally reconciled; 067-070 ledger and postchecks passed",
+    "ledgerHead": "070",
     "migrations": [
       "058",
       "059",
@@ -26,20 +28,19 @@
       "068",
       "069",
       "070"
-    ],
-    "evidence": "staging sentinel verified; encrypted backup 1b6e8c5d-cf95-48e7-a6d9-e2ae0a6922c6 restored with all row counts, 170/170 FKs and all integrity/hash checks passing; 066 structurally reconciled; 067-070 ledger and postchecks passed",
-    "ledgerHead": "070"
+    ]
   },
+  "pendingStagingMigrations": [],
   "releaseChecks": {
-    "aggregateTests": "83 passed, 2 verified pre-existing failures, 1 skipped; final focused PIT/QC/Vehicle Locations, lifecycle resolver, planner, version and syntax checks passed",
+    "aggregateTests": "83 passed, 2 verified pre-existing failures, 1 skipped; AI Intake/Vehicle Locations Stock navigation, identity safety, Navision, lifecycle resolver, version and syntax checks passed",
+    "backupRestore": "PASS \u2014 encrypted backup run 1b6e8c5d-cf95-48e7-a6d9-e2ae0a6922c6 restored into an isolated schema; all table counts, 170/170 foreign keys, relationship checks and hashes matched.",
     "databasePostApply": "PASS \u2014 ledger 070; PIT planner disabled; zero active PIT bookings; QC gate, PIT transfer and QC-to-RFT RPCs present and granted to authenticated users; protected inventory unchanged at 18 vehicles, 56 work items and 2 bookings.",
     "literalArtifact": "33/33 deployed Git blobs match the committed source artifact",
-    "vehicleLocationsPitQcRft": "PIT removed from Workshop Planning; Vehicle Locations ordered RFT, QC, PIT, PMB, YARD HOLD, IT, OTHER; named QC sign-off maps to atomic QC-to-RFT authority when migration 070 is installed",
-    "plannerAndAiIntake": "Workshop Planner opens on today at station entry; exact unambiguous AI Intake Stock links open the canonical vehicle",
-    "backupRestore": "PASS \u2014 encrypted backup run 1b6e8c5d-cf95-48e7-a6d9-e2ae0a6922c6 restored into an isolated schema; all table counts, 170/170 foreign keys, relationship checks and hashes matched."
+    "plannerAndAiIntake": "Workshop Planner opens on today at station entry; AI Intake and Vehicle Locations Stock links open the exact canonical vehicle card; duplicate identities remain fail-closed",
+    "vehicleLocationsPitQcRft": "PIT removed from Workshop Planning; Vehicle Locations ordered RFT, QC, PIT, PMB, YARD HOLD, IT, OTHER; named QC sign-off maps to atomic QC-to-RFT authority when migration 070 is installed"
   },
   "sourceBranch": "feat/vehicle-locations-pit-qc-signoff-rft",
-  "sourceCommit": "ed1a97c51bf3ba9e6a8ac182c5ff3b56e26a56fc",
+  "sourceCommit": "35c06fdfb727d80796ed553e9ace3e817381aa4c",
   "sourceFiles": [
     {
       "deployedPath": "ai-board-advisor.js",
@@ -48,7 +49,7 @@
     },
     {
       "deployedPath": "app.js",
-      "sha256": "a97f9864ea690984e17e4f946180a1e86ecfc01ada42ad383342b1b5056b2188",
+      "sha256": "08dcdbe7e2ebdd566876f579fc81c35bdadffee303cf2a29d8f5cdfb091ab479",
       "sourcePath": "app.js"
     },
     {
@@ -88,7 +89,7 @@
     },
     {
       "deployedPath": "index.html",
-      "sha256": "2d806b68c0df79ae905d762a5ecace23e38b5f37b3e05bdf462797aa01cabad3",
+      "sha256": "a3f5c15b1713eb48c3125d4f08fb3d5b92c7d2d299dc36cb826a324261447c14",
       "sourcePath": "staging.html"
     },
     {
@@ -123,7 +124,7 @@
     },
     {
       "deployedPath": "pdc-supabase-config.staging.js",
-      "sha256": "68c4fc814114961d2dd80f430cc6b9d4edaed7ce841c9f70a3dadc8ba7d88e4f",
+      "sha256": "fddcac5f41d4f2af7dcf929670e8da9ae9f24ee41547c336b6879bcb1c8bf1cd",
       "sourcePath": "pdc-supabase-config.staging.js"
     },
     {
@@ -206,6 +207,5 @@
       "sha256": "080805d01de233f694099951138d7526cbd6a3aac7c6454985c21b2c1480a71e",
       "sourcePath": "workshop-shared-actions.js"
     }
-  ],
-  "pendingStagingMigrations": []
+  ]
 }
