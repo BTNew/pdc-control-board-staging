@@ -49,4 +49,7 @@ ok(!applyFn.includes('if (data.blocking === true ||'),'shared apply no longer re
 ok(service.includes('function navisionPreviewBlockingState(')&&service.includes('inconsistentFlag'),'service rechecks contradictory preview evidence while retaining a fail-closed unknown-state path');
 ok(service.includes('safetyBlocking')&&service.includes("safety?.blocking === true"),'structured server safety findings remain blocking even when row-invalid counts are zero');
 ok(applyFn.includes('navisionSafetyIssueMessage(blockingState.safetyReason)'),'shared apply explains the server safety reason instead of reporting zero bad rows');
+ok(applyFn.includes('await service.preview(pending.rows, pending.metadata)')&&applyFn.includes('pending.previewResult = refreshedPreview'),'apply rechecks a previously blocked preview against the current authoritative server policy');
+ok(applyFn.indexOf('await service.preview(pending.rows, pending.metadata)')<applyFn.lastIndexOf('if (blockingState.blocking)'),'server recheck occurs before a stale blocked result is shown again');
+ok(applyFn.includes('Server check:')&&applyFn.includes('cross_dealer_matches'),'a still-blocked recheck reports actionable server evidence instead of the same opaque alert');
 console.log(`Navision shared UI/dealer-scope regression: ${n} assertions passed.`);
