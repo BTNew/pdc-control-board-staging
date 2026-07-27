@@ -31,11 +31,15 @@ assert(app.includes("data-pit-transfer") && app.includes("data-pit-return-pmb"),
 for (const shell of shells) {
   const html = read(shell);
   assert(!html.includes('name="incoming-work-filter" value="pitinspection"'), `${shell} must not expose PIT as a workshop work filter`);
-  const bucketFilter = html.slice(html.indexOf('<select id="incoming-bucket-filter">'), html.indexOf('</select>', html.indexOf('<select id="incoming-bucket-filter">')));
-  const options = [...bucketFilter.matchAll(/<option value="([^"]*)">([^<]+)<\/option>/g)].slice(1).map(match => [match[1], match[2]]);
-  assert.deepStrictEqual(options, [
-    ['rft', 'RFT'], ['qc', 'QC'], ['pit', 'PIT'], ['pmb', 'PMB'], ['yardhold', 'YARD HOLD'], ['transit', 'IT'], ['overseas', 'OTHER'],
-  ], `${shell} Vehicle Location bucket filter order is incorrect`);
+  if (shell === 'staging.html') {
+    assert(!html.includes('id="incoming-bucket-filter"') && html.includes('id="incoming-search"'), 'staging Vehicle Locations must retain search and remove bucket filtering');
+  } else {
+    const bucketFilter = html.slice(html.indexOf('<select id="incoming-bucket-filter">'), html.indexOf('</select>', html.indexOf('<select id="incoming-bucket-filter">')));
+    const options = [...bucketFilter.matchAll(/<option value="([^"]*)">([^<]+)<\/option>/g)].slice(1).map(match => [match[1], match[2]]);
+    assert.deepStrictEqual(options, [
+      ['rft', 'RFT'], ['qc', 'QC'], ['pit', 'PIT'], ['pmb', 'PMB'], ['yardhold', 'YARD HOLD'], ['transit', 'IT'], ['overseas', 'OTHER'],
+    ], `${shell} Vehicle Location bucket filter order is incorrect`);
+  }
   assert(!html.includes('id="transfer-selected-to-rft-bar"'), `${shell} must not bypass QC sign-off with a bulk PMB-to-RFT action`);
 }
 

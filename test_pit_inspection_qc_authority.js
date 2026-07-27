@@ -33,8 +33,12 @@ for (const shell of shells) {
   const html = read(shell);
   assert(!html.includes('<option value="PIT_INSPECTION">Pit</option>'), `${shell} must not offer PIT as a workshop schedule department`);
   assert(!html.includes('name="incoming-work-filter" value="pitinspection"'), `${shell} must not offer PIT as a workshop work filter`);
-  assert(html.includes('<option value="pit">PIT</option>'), `${shell} must offer the PIT location bucket`);
-  assert(html.includes('<option value="qc">QC</option>'), `${shell} must offer the QC location bucket`);
+  if (shell === 'staging.html') {
+    assert(!html.includes('id="incoming-bucket-filter"'), 'staging Vehicle Locations must be search-only');
+  } else {
+    assert(html.includes('<option value="pit">PIT</option>'), `${shell} must offer the PIT location bucket`);
+    assert(html.includes('<option value="qc">QC</option>'), `${shell} must offer the QC location bucket`);
+  }
   assert(html.includes('PIT is a separate vehicle location, not a workshop job.'), `${shell} must explain PIT authority`);
   assert(html.includes('A named QC sign-off immediately marks the vehicle RFT.'), `${shell} must explain QC-to-RFT authority`);
 }

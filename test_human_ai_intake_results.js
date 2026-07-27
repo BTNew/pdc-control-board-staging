@@ -46,8 +46,8 @@ assert.strictEqual(unchanged.badge, 'RECEIVED');
 assert.strictEqual(unchanged.activated, false);
 assert(/No recorded car changes/.test(unchanged.message));
 
-assert(staging.includes('A simple record of what arrived, which car it matched, and exactly what changed.'));
-assert(staging.includes('Emails received and car changes'));
+assert(staging.includes('Review only the emails that need an Administrator decision.'));
+assert(staging.includes('Approve or deny the items that need a decision.'));
 assert(appSource.includes('Rows that need attention') && appSource.includes('Fix these rows in the source file'));
 assert(appSource.includes('Cars activated or moved') && appSource.includes('Nothing was imported or changed'));
 assert(appSource.includes('await enrichSharedNavisionPreviewChanges') && appSource.includes('navisionFieldChanges(existing.normalized_data || {}, incoming)'));

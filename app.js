@@ -1,5 +1,5 @@
-const APP_VERSION = '2026.07.27.09-navision-preview-blocking-fix';
-const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.07.27.09-navision-preview-blocking-fix';
+const APP_VERSION = '2026.07.27.10-admin-ai-locations-cleanup';
+const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.07.27.10-admin-ai-locations-cleanup';
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
 // constant intentionally names only the production ref, never the
@@ -2878,8 +2878,34 @@ function queueIncomingDashboardRender() {
   }, 160);
 }
 
+function setAdminNavigationExpanded(expanded) {
+  const toggle = $('#nav-admin-toggle');
+  const menu = $('#nav-admin-menu');
+  if (!toggle || !menu) return;
+  const next = Boolean(expanded);
+  toggle.setAttribute('aria-expanded', String(next));
+  menu.hidden = !next;
+}
+
+function syncAdminNavigationVisibility() {
+  const group = $('#nav-admin-group');
+  if (!group) return false;
+  const role = String(window.PDC_AUTH_CONTEXT?.role || '').trim().toLowerCase();
+  const allowed = role === 'administrator'
+    && typeof backupStatusSharedModeReady === 'function'
+    && backupStatusSharedModeReady();
+  group.hidden = !allowed;
+  if (!allowed) setAdminNavigationExpanded(false);
+  return allowed;
+}
+
 function bindNav() {
-  $$('.nav-item').forEach(btn => btn.addEventListener('click', () => showView(btn.dataset.view)));
+  $$('.nav-item[data-view]').forEach(btn => btn.addEventListener('click', () => showView(btn.dataset.view)));
+  on($('#nav-admin-toggle'), 'click', () => {
+    if (!syncAdminNavigationVisibility()) return;
+    setAdminNavigationExpanded($('#nav-admin-toggle')?.getAttribute('aria-expanded') !== 'true');
+  });
+  syncAdminNavigationVisibility();
   if (!window.__pdcWorkshopRouteListenersInstalled && typeof window.addEventListener === 'function') {
     const restoreRoute = () => showView(workshopViewFromLocation(), { historyMode: 'none' });
     window.addEventListener('popstate', restoreRoute);
@@ -3560,7 +3586,11 @@ function showView(view, options) {
   updateWorkshopBrowserRoute(requestedView, options.historyMode || 'push');
   if (document.body?.dataset) document.body.dataset.currentView = requestedView;
   $$('.view').forEach(el => el.classList.toggle('active', el.id === requestedView || (departmentStage && el.id === 'department') || (plannerStage && el.id === 'workshop')));
-  $$('.nav-item').forEach(el => el.classList.toggle('active', el.dataset.view === requestedView || (plannerStage && el.dataset.view === 'workshop')));
+  $$('.nav-item[data-view]').forEach(el => el.classList.toggle('active', el.dataset.view === requestedView || (plannerStage && el.dataset.view === 'workshop')));
+  const adminViews = new Set(['user-management', 'lists', 'import', 'deleted', 'completed', 'backend']);
+  const adminActive = adminViews.has(requestedView);
+  $('#nav-admin-toggle')?.classList.toggle('active', adminActive);
+  if (adminActive && syncAdminNavigationVisibility()) setAdminNavigationExpanded(true);
   const departmentDef = departmentStage ? PRODUCTION_FLOW_DEFS.find(def => def.key === departmentStage) : null;
   const titleMap = {
     dashboard: 'Vehicle Locations',
@@ -3983,6 +4013,7 @@ window.addEventListener?.('pdc-auth-ready', () => {
   }
   if (typeof initVehicleLifecycleSharedActionsIfEnabled === 'function') initVehicleLifecycleSharedActionsIfEnabled();
   if (typeof refreshWorkshopReferenceData === 'function') refreshWorkshopReferenceData();
+  syncAdminNavigationVisibility();
   const navItem = document.getElementById('nav-user-management');
   if (navItem) navItem.hidden = !(typeof backupStatusSharedModeReady === 'function' && backupStatusSharedModeReady());
   if (app.currentView === 'emailreview' && typeof renderAiBoardAdvisor === 'function') renderAiBoardAdvisor();
@@ -4065,6 +4096,9 @@ window.addEventListener?.('pdc-auth-locked', () => {
   app.sharedNavisionVisibleError = '';
   app.sharedNavisionVisibleState = 'idle';
   if (app.currentView === 'dashboard') renderIncomingDashboardBoard();
+  const adminGroup = document.getElementById('nav-admin-group');
+  if (adminGroup) adminGroup.hidden = true;
+  setAdminNavigationExpanded(false);
   const navItem = document.getElementById('nav-user-management');
   if (navItem) navItem.hidden = true;
 });
@@ -17287,15 +17321,23 @@ function renderServerAiIntake() {
       const actionable = item.action_type === 'board_activate_only';
       const outcome = aiIntakeHumanOutcome(item);
       const statusClass = serverAiIntakeStatusClass(item.status);
-      return `<article class="ai-intake-server-row ai-intake-human-row" data-status="${escapeHtml(item.status || '')}" data-ai-intake-proposal="${escapeHtml(item.proposal_id || '')}">
-        <div class="ai-intake-server-heading"><span class="badge ${statusClass}">${escapeHtml(outcome.badge)}</span>${item.stock_number ? aiIntakeStockNavigationHtml(item.stock_number) : `<strong>${escapeHtml(item.subject || 'Email received')}</strong>`}</div>
-        <div class="ai-intake-human-grid">
-          <div><span class="subtle">Received</span><strong>${escapeHtml(item.subject || 'Email about this car')}</strong><small>${escapeHtml(item.sender_address || 'Unknown sender')} · ${escapeHtml(item.source_received_at ? operationalHealthDateLabel(item.source_received_at) : 'Date unavailable')}</small></div>
-          <div><span class="subtle">What happened</span><strong>${escapeHtml(outcome.title)}</strong><small>${escapeHtml(outcome.message)}</small></div>
-          <div><span class="subtle">Car</span><strong>${escapeHtml(item.authoritative_vehicle || 'Not matched yet')}</strong><small>Location: ${escapeHtml(item.authoritative_location || 'Not provided')}</small></div>
+      return `<article class="ai-intake-server-row ai-intake-review-card" data-status="${escapeHtml(item.status || '')}" data-ai-intake-proposal="${escapeHtml(item.proposal_id || '')}">
+        <header class="ai-intake-review-heading">
+          <div class="ai-intake-review-title"><span class="ai-intake-mail-icon" aria-hidden="true">✉</span><strong>${escapeHtml(item.subject || 'Email received')}</strong><span class="badge ${statusClass}">${escapeHtml(outcome.badge)}</span></div>
+          <time>${escapeHtml(item.source_received_at ? operationalHealthDateLabel(item.source_received_at) : 'Date unavailable')}</time>
+        </header>
+        <div class="ai-intake-review-body">
+          <div class="ai-intake-review-content">
+            <div class="ai-intake-review-meta">
+              <div><span>Sender</span><strong>${escapeHtml(item.sender_address || 'Unknown sender')}</strong></div>
+              <div><span>Matched stock</span>${item.stock_number ? aiIntakeStockNavigationHtml(item.stock_number, null, { includeStockLabel: false }) : '<strong>Not matched</strong>'}</div>
+              <div><span>Matched car</span><strong>${escapeHtml(item.authoritative_vehicle || 'Not matched yet')}</strong><small>${item.authoritative_location ? `Location: ${escapeHtml(item.authoritative_location)}` : ''}</small></div>
+            </div>
+            <section class="ai-intake-detected-changes"><span>Detected changes</span>${aiIntakeHumanChangesHtml(outcome)}</section>
+            <div class="ai-intake-proposed-action"><span>Proposed action</span><strong>${actionable ? 'Activate matching car on Control Board' : escapeHtml(outcome.title)}</strong><small>${escapeHtml(outcome.message)}</small></div>
+          </div>
+          ${pending ? `<aside class="ai-intake-decision-panel"><label><span>Decision reason</span><input type="text" maxlength="500" data-ai-intake-reason placeholder="Minimum 10 characters" aria-label="Decision reason for ${escapeHtml(item.stock_number || item.subject || 'proposal')}"></label>${actionable ? `<button class="primary ai-intake-approve" type="button" data-ai-intake-apply="${escapeHtml(item.proposal_id)}" ${canDecide ? '' : 'disabled title="Active Administrator access required"'}>✓ Approve</button>` : ''}<button class="small-button ai-intake-deny" type="button" data-ai-intake-reject="${escapeHtml(item.proposal_id)}" ${canDecide ? '' : 'disabled title="Active Administrator access required"'}>× Deny</button></aside>` : `<aside class="ai-intake-decision-panel ai-intake-decision-complete"><strong>${escapeHtml(outcome.title)}</strong><span>Processed by ${escapeHtml(item.decided_by_email || 'System')}</span><small>${escapeHtml(item.decided_at ? operationalHealthDateLabel(item.decided_at) : '')}</small></aside>`}
         </div>
-        <section class="ai-intake-human-changes"><strong>What changed</strong>${aiIntakeHumanChangesHtml(outcome)}</section>
-        ${pending ? `<div class="callout warning"><strong>${actionable ? 'Administrator review needed' : 'Review needed'}</strong><span>${actionable ? 'The email is a lead only. The server will check the exact current Navision car again before activation.' : 'No car change is proposed.'}</span></div><div class="ai-intake-server-actions"><input type="text" maxlength="500" data-ai-intake-reason placeholder="Why are you approving or dismissing this?" aria-label="Decision reason for ${escapeHtml(item.stock_number || item.subject || 'proposal')}">${actionable ? `<button class="primary" type="button" data-ai-intake-apply="${escapeHtml(item.proposal_id)}" ${canDecide ? '' : 'disabled title="Active Administrator access required"'}>Activate car</button>` : ''}<button class="small-button" type="button" data-ai-intake-reject="${escapeHtml(item.proposal_id)}" ${canDecide ? '' : 'disabled title="Active Administrator access required"'}>${actionable ? 'Do not activate' : 'Dismiss'}</button></div>` : `<div class="ai-intake-server-meta"><span>Processed by <b>${escapeHtml(item.decided_by_email || 'System')}</b></span><span>${escapeHtml(item.decided_at ? operationalHealthDateLabel(item.decided_at) : '')}</span></div>`}
         <details class="ai-intake-technical-details"><summary>Email and technical details</summary><p>${escapeHtml(item.summary || 'No email summary available.')}</p><div class="ai-intake-server-meta"><span>UID ${escapeHtml(item.source_uid || '—')}</span><span>Receipt ${escapeHtml(item.fingerprint || '—')}</span><span>Action ${escapeHtml(item.action_type || 'review_only')}</span></div></details>
       </article>`;
     }).join('')}</div>`;
@@ -17372,8 +17414,8 @@ async function decideServerAiIntake(proposalId = '', decision = '') {
     window.alert('Enter a decision reason of at least 10 characters. Nothing changed.');
     return false;
   }
-  if (decision === 'apply' && !window.confirm(`Activate proposal ${proposal.fingerprint} for Stock ${proposal.stock_number || 'unknown'} on the staging board? Email evidence is informational only. The server will revalidate the exact Navision record and revision, preserve its location, and make no other operational change.`)) return false;
-  if (decision === 'reject' && !window.confirm(`Reject or dismiss proposal ${proposal.fingerprint}?`)) return false;
+  if (decision === 'apply' && !window.confirm(`Approve this intake item for Stock ${proposal.stock_number || 'unknown'}? Email evidence is informational only. The server will revalidate the exact Navision record and revision, preserve its location, and make no other operational change.`)) return false;
+  if (decision === 'reject' && !window.confirm('Deny this intake item? No car will be changed.')) return false;
   const attempt = serverAiIntakeDecisionAttempt(proposal, decision, reason);
   app.serverAiIntakeDecisionInFlight = true;
   renderServerAiIntake();

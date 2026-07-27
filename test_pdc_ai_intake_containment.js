@@ -21,7 +21,7 @@ function functionSource(name, nextName) {
   return appSource.slice(start, end);
 }
 
-assert(html.includes('Administrator decision') && html.includes('Email evidence is informational'), 'UI must state the real authority boundary');
+assert(html.includes('Administrator approval') && html.includes('Email content is not operational authority'), 'UI must state the real authority boundary');
 assert(html.includes('controlled board activation'), 'Staging UI must describe board-only activation');
 assert(sql.includes('lock table public.vehicles, public.vehicle_aliases in share row exclusive mode'), 'Apply must serialize operational identity writers');
 assert(sql.includes("'vehicle-master:stock_number:' || v_proposal.stock_number"), 'Apply must join the canonical Stock lock namespace');
