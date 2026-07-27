@@ -27,7 +27,8 @@ for (const [label, view] of adminEntries) {
   assert(menu.includes(`>${label}</button>`), `${label} must use the requested staff-facing label`);
   previous = at;
 }
-assert(app.includes("const role = String(window.PDC_AUTH_CONTEXT?.role || '').trim().toLowerCase();") && app.includes("const allowed = role === 'administrator'"), 'Admin menu visibility must require the Administrator role');
+assert(app.includes('const allowed = Boolean(window.PDC_AUTH_CONTEXT?.userId || window.PDC_AUTH_CONTEXT?.email);'), 'Admin menu must be visible to every approved signed-in staff member');
+assert(!app.slice(app.indexOf('function syncAdminNavigationVisibility()'), app.indexOf('function bindNav()')).includes('backupStatusSharedModeReady'), 'Admin menu visibility must not depend on backup readiness');
 assert(app.includes("$$('.nav-item[data-view]')"), 'Admin disclosure button must not be treated as a page route');
 assert(app.includes('setAdminNavigationExpanded') && app.includes('syncAdminNavigationVisibility'), 'Admin disclosure state and auth visibility must be synchronized');
 

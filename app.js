@@ -1,5 +1,5 @@
-const APP_VERSION = '2026.07.27.10-admin-ai-locations-cleanup';
-const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.07.27.10-admin-ai-locations-cleanup';
+const APP_VERSION = '2026.07.27.11-admin-menu-visibility-fix';
+const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.07.27.11-admin-menu-visibility-fix';
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
 // constant intentionally names only the production ref, never the
@@ -2890,10 +2890,10 @@ function setAdminNavigationExpanded(expanded) {
 function syncAdminNavigationVisibility() {
   const group = $('#nav-admin-group');
   if (!group) return false;
-  const role = String(window.PDC_AUTH_CONTEXT?.role || '').trim().toLowerCase();
-  const allowed = role === 'administrator'
-    && typeof backupStatusSharedModeReady === 'function'
-    && backupStatusSharedModeReady();
+  // The group also contains destinations historically available to approved
+  // non-administrator staff. Every destination and write remains role/RLS
+  // gated; hiding this disclosure is not an authority boundary.
+  const allowed = Boolean(window.PDC_AUTH_CONTEXT?.userId || window.PDC_AUTH_CONTEXT?.email);
   group.hidden = !allowed;
   if (!allowed) setAdminNavigationExpanded(false);
   return allowed;
@@ -3398,7 +3398,7 @@ async function renderUserManagementScreen() {
   if (!host) return;
 
   if (!userManagementSharedModeReady()) {
-    if (navItem) navItem.hidden = true;
+    if (navItem) navItem.hidden = false;
     host.innerHTML = '<div class="empty-state compact-empty"><strong>Administrator access required</strong></div>';
     return;
   }
@@ -4015,7 +4015,7 @@ window.addEventListener?.('pdc-auth-ready', () => {
   if (typeof refreshWorkshopReferenceData === 'function') refreshWorkshopReferenceData();
   syncAdminNavigationVisibility();
   const navItem = document.getElementById('nav-user-management');
-  if (navItem) navItem.hidden = !(typeof backupStatusSharedModeReady === 'function' && backupStatusSharedModeReady());
+  if (navItem) navItem.hidden = false;
   if (app.currentView === 'emailreview' && typeof renderAiBoardAdvisor === 'function') renderAiBoardAdvisor();
   resetServerAiIntakeAuthorityState({ clearData: true });
   initServerAiIntakeIfAvailable();
