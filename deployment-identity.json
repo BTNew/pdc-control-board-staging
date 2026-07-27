@@ -6,14 +6,14 @@
     "twoPhysicalWorkstationAuthorityCutover": false
   },
   "artifact": "zero-data static staging site",
-  "cacheVersion": "2026.07.27.14-ai-intake-flat-panel",
+  "cacheVersion": "2026.07.27.15-qc-gate-parts-eta",
   "deploymentMode": "exact reviewed source blobs; staging.html mapped to index.html",
   "environment": "staging",
-  "generatedAtUtc": "2026-07-27T07:34:47.889736Z",
+  "generatedAtUtc": "2026-07-27T08:18:12.029298Z",
   "migrationLedger": {
-    "appliedThrough": "072",
-    "evidence": "Staging sentinel verified; migration 072 dry-run rollback passed before apply; ledger recorded; shared Sublet objects exist; authenticated snapshot returned 24 canonical vehicles, 16 requiring Sublet, including all five reported stock numbers; bounded Navision safety replay returned non-blocking with 153/153 selected identities, 69 omissions routed to temporary holding and hard deletion disabled.",
-    "ledgerHead": "072",
+    "appliedThrough": "073",
+    "evidence": "Staging sentinel verified; migration 073 dry-run compiled and applied. Authenticated fail-closed RPC checks passed. Transactional smoke proved PMB Ready for QC -> QC Gate -> named QC sign-off -> RFT and shared Parts ETA persistence, with synthetic rows rolled back.",
+    "ledgerHead": "073",
     "migrations": [
       "058",
       "059",
@@ -29,22 +29,23 @@
       "069",
       "070",
       "071",
-      "072"
+      "072",
+      "073"
     ]
   },
   "pendingStagingMigrations": [],
   "releaseChecks": {
-    "aggregateTests": "88 passed, 1 failed, 1 skipped in the full direct JavaScript aggregate; all new workflow, Navision, Sublet, AI Intake, header/sidebar, syntax and version suites passed. The sole failure is the pre-existing Windows-CRLF-sensitive workshop planner-role static assertion.",
+    "aggregateTests": "89 passed, 1 failed, 1 skipped in the full direct JavaScript aggregate; all new Control Board, QC Gate, Parts ETA, layout, lifecycle, syntax and version suites passed. The sole failure is the pre-existing Windows-CRLF-sensitive workshop planner-role static assertion.",
     "backupRestore": "PASS \u2014 encrypted backup run 11b91f6c-6c00-48b1-a1f1-f3943f082e23 restored into isolated schema restore_ai_intake_071_20260727; row counts, foreign keys, relationships and format/schema hashes matched; schema dropped after verification",
-    "databasePostApply": "PASS \u2014 ledger 072; dedicated RLS-protected shared Sublet tables/RPC present; authenticated snapshot returns 16 active required-Sublet vehicles including the five reported stocks; no vehicle/work-item deletion occurred.",
+    "databasePostApply": "PASS \u2014 migration 073 applied; protected Ready-for-QC and Parts ETA RPCs present; authenticated fail-closed contracts passed; transactional lifecycle and ETA smoke passed with test rows rolled back.",
     "humanAiIntake": "Received, What happened, Car and What changed are shown in plain language; activated, modified, unchanged and review-needed outcomes are distinct; field changes render previous value to new value; technical receipt data is collapsed",
     "humanNavisionResults": "Strongly matched large dealer refreshes may apply while omissions enter reversible temporary holding; the verified replay passed 153 incoming, 153 selected-identity matches, 69 omissions, 0 cross-dealer matches and hard deletion disabled. Structured server safety findings are never reconciled away by zero row-error counts: wrong dealer, cross-dealer, empty, small and weakly matched files show their safety reason and remain blocked before apply.",
-    "literalArtifact": "33/33 deployed Git blobs match source commit 1a1ed79c10fa4b288e0ff53bb9b72e6f26e11a5f",
-    "production": "Untouched; staging static artifact plus staging-only migration 072",
-    "uiCleanup": "Top headers retain only approved login details and Sign out; redundant export/add/upload controls and the ineffective sidebar collapse control are removed. AI Intake no longer asks staff for a routine reason, and its green outer outline/gradient container is removed while automatic truthful audit reasons preserve the authoritative decision path. Future workshop booking/rescheduling can proceed before Parts readiness with an automatic planning-risk audit reason; physical-entry gates remain. Sublet consumes canonical Vehicle Locations rows and shared booking edits are server-authoritative and audited."
+    "literalArtifact": "33/33 deployed Git blobs match source commit 71dad2072172958684d924339efd3c04949218cd",
+    "production": "Untouched; staging static artifact plus staging-only migration 073",
+    "uiCleanup": "Control Board current-time line appears only for today and QC is removed from its station list. All-green PMB vehicles require explicit Ready for QC confirmation and move authoritatively to the Vehicle Locations QC Gate. Named QC sign-off moves to RFT and prints a dedicated windscreen label. Parts removes Outstanding station work, persists and refreshes ETA countdowns, and uses the shared Vehicle Locations row height."
   },
   "sourceBranch": "feat/vehicle-locations-pit-qc-signoff-rft",
-  "sourceCommit": "1a1ed79c10fa4b288e0ff53bb9b72e6f26e11a5f",
+  "sourceCommit": "71dad2072172958684d924339efd3c04949218cd",
   "sourceFiles": [
     {
       "deployedPath": "ai-board-advisor.js",
@@ -53,7 +54,7 @@
     },
     {
       "deployedPath": "app.js",
-      "sha256": "338f9d3feba81f481c19d29f1099a181365e37539a324889f23d6ccc967a8da3",
+      "sha256": "088d4e2d8f4fccfcd23c4a2d5b1f55424b63d9dcf154a3106df5adf3f1e84cec",
       "sourcePath": "app.js"
     },
     {
@@ -78,7 +79,7 @@
     },
     {
       "deployedPath": "desktop-operations.css",
-      "sha256": "0f5929993a588823670258758919257d5bcb5fac0b5f313b592e96b990088c73",
+      "sha256": "f3179efdeeaf34ba76dfc10c56aa2c3c59498ee61e60c11e0032abb9d3b51616",
       "sourcePath": "desktop-operations.css"
     },
     {
@@ -93,7 +94,7 @@
     },
     {
       "deployedPath": "index.html",
-      "sha256": "e70fc14edf9ccf0f91c32216b537aae9e37d6872c979b4df5236242abdb7dc38",
+      "sha256": "0faf29d847d0d6ad9540ec3aa1893b75c32f0f0c3b7f670acba46128254ccc27",
       "sourcePath": "staging.html"
     },
     {
@@ -123,12 +124,12 @@
     },
     {
       "deployedPath": "pdc-email-vehicle-location-service.js",
-      "sha256": "b95c7496f0d4739cd83cb3e5bdeb7b23e7a714bd12f9a12a782592d8b3fce093",
+      "sha256": "021dcc534a09e993af19b8094961156f0a582b1637e4434ac372334b7ed2f699",
       "sourcePath": "pdc-email-vehicle-location-service.js"
     },
     {
       "deployedPath": "pdc-supabase-config.staging.js",
-      "sha256": "823d97fd9b207886d3a0146742272da761714c34003d57d594382e7b185e2ba6",
+      "sha256": "013a3bb0cfcad62761c9e03dc480690507d6fb98d34b8dd7d1aeb0ba67e5b9ca",
       "sourcePath": "pdc-supabase-config.staging.js"
     },
     {
@@ -143,12 +144,12 @@
     },
     {
       "deployedPath": "styles.css",
-      "sha256": "315b4e8820a20a76f60215fb7bb5d50f723c55ba049f637e721ddc1c04147911",
+      "sha256": "3be9362b233a08385a00f5a7938a1a07335663e62b1a9ed7d76d8627ba644a32",
       "sourcePath": "styles.css"
     },
     {
       "deployedPath": "vehicle-lifecycle-actions.js",
-      "sha256": "c35faf4fc195ce450ffeb815261f3ba9cf71bdf45aab288b708723a9ca108d35",
+      "sha256": "0a974408e427e8d1d38314a4364e5d7812437004784bf88165ecbe1db99e6373",
       "sourcePath": "vehicle-lifecycle-actions.js"
     },
     {
@@ -193,7 +194,7 @@
     },
     {
       "deployedPath": "workshop-planner.js",
-      "sha256": "64a57d71f843034ee0ece38b8be105aa2cd0713cf4fce2598280fd7ce66cc698",
+      "sha256": "9d4ac83cc04ec7e924c439e6eb586a995b697908fdc4ebc8826d6e444d3e9229",
       "sourcePath": "workshop-planner.js"
     },
     {
@@ -212,5 +213,5 @@
       "sourcePath": "workshop-shared-actions.js"
     }
   ],
-  "sourceTree": "71f61463298cd07eabe2b52292b81a5772e49961"
+  "sourceTree": "2b2ca59dfc2fcf3ee91b56e109850269a6d1c678"
 }

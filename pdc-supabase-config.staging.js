@@ -34,6 +34,6 @@ window.PDC_SUPABASE_CONFIG = {
   vehicleLifecycle: Object.freeze({
     sharedData: true,
     resolverRollbackDirectRead: false,
-    resolverAssetVersion: '2026.07.27.14-ai-intake-flat-panel'
+    resolverAssetVersion: '2026.07.27.15-qc-gate-parts-eta'
   })
 };

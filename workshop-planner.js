@@ -5387,7 +5387,9 @@ function updateWorkshopNowLine(root = document) {
   const now = new Date();
   const offset = workshopMinuteOffset(now);
   const selectedDate = workshopDateFromKey(state.date);
-  const visible = workshopIsWorkday(selectedDate || now);
+  const visible = Boolean(selectedDate)
+    && workshopDateKey(selectedDate) === workshopDateKey(now)
+    && workshopIsWorkday(selectedDate);
   line.hidden = !visible;
   if (!visible) return;
   const timelineRect = timeline.getBoundingClientRect();

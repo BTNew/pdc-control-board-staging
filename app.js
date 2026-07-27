@@ -1,5 +1,5 @@
-const APP_VERSION = '2026.07.27.14-ai-intake-flat-panel';
-const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.07.27.14-ai-intake-flat-panel';
+const APP_VERSION = '2026.07.27.15-qc-gate-parts-eta';
+const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.07.27.15-qc-gate-parts-eta';
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
 // constant intentionally names only the production ref, never the
@@ -93,7 +93,7 @@ const PDC_LOCATION_OPTIONS = [
   { value: 'YH', label: 'YH - Yard Hold' },
   { value: 'PMB', label: 'PMB - Perth Motor Bodies' },
   { value: 'PIT', label: 'PIT - Department of Transport inspection' },
-  { value: 'QC', label: 'QC - automatic after all station jobs are complete', systemOnly: true },
+  { value: 'QC', label: 'QC - Ready for QC / QC Gate', systemOnly: true },
   { value: 'RFT', label: 'RFT - set by QC sign-off', systemOnly: true },
 ];
 
@@ -2159,7 +2159,7 @@ function statusCategory(vehicleOrStatus = '') {
     if (manualPdcLocation === 'PIT') return 'pit';
     if (manualPdcLocation === 'QC') return 'qc';
     if (manualPdcLocation === 'RFT') return 'rft';
-    if (manualPdcLocation === 'PMB' && (vehicleOrStatus.pdcQcComplete === true || vehicleReadyForQualityControl(vehicleOrStatus))) return 'qc';
+    if (manualPdcLocation === 'PMB' && vehicleOrStatus.pdcQcComplete === true) return 'qc';
     if (manualPdcLocation === 'PMB') return 'pmb';
   }
 
@@ -4719,6 +4719,77 @@ function vehicleReadyForQualityControl(vehicle = {}) {
   return !currentStage;
 }
 
+function vehicleInQualityControlGate(vehicle = {}) {
+  return vehiclePdcLocation(vehicle) === 'QC' && vehicle.pdcQcComplete !== true;
+}
+
+async function markVehicleReadyForQualityControl(key = '') {
+  const vehicle = selectedVehicle(key);
+  if (!vehicle || !vehicleReadyForQualityControl(vehicle)) {
+    window.alert('Ready for QC is available only after every required item is green, Parts is clear, and the vehicle is back in PMB Unallocated.');
+    return false;
+  }
+  const label = vehicleIdentityTitle(vehicle) || displayStockNumber(vehicle) || 'this vehicle';
+  if (!window.confirm(`All required work is complete for ${label}.\n\nMark this vehicle Ready for QC and move it to the QC Gate in Vehicle Locations?`)) return false;
+
+  if (vehicleLifecycleSharedModeActive()) {
+    const ref = await vehicleLifecycleSharedRef(vehicle);
+    if (!ref || ref.outcome !== 'resolved') {
+      window.alert(describeVehicleLifecycleResolutionOutcome(ref));
+      return false;
+    }
+    if (ref.isArchived) {
+      window.alert('This vehicle has been archived and cannot be moved to the QC Gate.');
+      return false;
+    }
+    const result = await window.__vehicleLifecycleActions.markReadyForQc({ vehicleId: ref.vehicleId, expectedVersion: ref.version });
+    if (!result || result.ok !== true) {
+      window.alert(typeof describeVehicleLifecycleActionError === 'function'
+        ? describeVehicleLifecycleActionError(result && result.error)
+        : 'The vehicle could not be moved to the QC Gate.');
+      return false;
+    }
+    reconcileVehicleLifecycleServerResult(vehicle, result);
+    if (window.__workshopDataService && typeof window.__workshopDataService.loadSnapshot === 'function') {
+      await window.__workshopDataService.loadSnapshot('ready_for_qc');
+    }
+    renderAll();
+    return true;
+  }
+
+  const now = nowIsoString();
+  recordVehicleAudit(vehicle, 'Vehicle marked Ready for QC', { by: getCurrentOperatorName(), from: 'PMB', to: 'QC Gate' });
+  saveVehicleEdits(vehicleKey(vehicle), {
+    pdcLocation: 'QC', manualLocation: 'QC', pdcLocationLocked: true, pdcLocationUpdatedAt: now,
+  });
+  renderAll();
+  return true;
+}
+
+function qualityControlSignoffLabelZpl(vehicle = {}, operator = '', signedAt = '') {
+  const stock = cleanZplField(displayStockNumber(vehicle) || 'NO STOCK');
+  const keyNumber = cleanZplField(vehicleKeyNumber(vehicle) || 'NO KEY');
+  const unit = cleanZplField(displayVehicle(vehicle) || 'Vehicle not listed');
+  const signer = cleanZplField(operator || 'Unknown operator');
+  const signed = parseIsoTimestamp(signedAt) || new Date();
+  const signedLabel = cleanZplField(signed.toLocaleString('en-AU', { dateStyle: 'short', timeStyle: 'short' }));
+  return [
+    '^XA', '^PW540', '^LL360', '^LH0,0', '^CI28',
+    '^FO18,12^A0N,52,52^FB504,1,0,L,0^FDQC SIGNED OFF^FS',
+    `^FO18,78^A0N,34,34^FB504,1,0,L,0^FDKEY ${keyNumber}^FS`,
+    `^FO18,120^A0N,28,28^FB504,1,0,L,0^FDSTOCK ${stock}^FS`,
+    `^FO18,158^A0N,24,24^FB504,2,2,L,0^FD${unit}^FS`,
+    `^FO18,230^A0N,23,23^FB504,1,0,L,0^FDSIGNED BY ${signer}^FS`,
+    `^FO18,266^A0N,23,23^FB504,1,0,L,0^FD${signedLabel}^FS`,
+    '^FO18,310^A0N,20,20^FB504,1,0,L,0^FDPDC - PLACE ON WINDSCREEN^FS',
+    '^PQ1', '^XZ',
+  ].join('\n');
+}
+
+async function printQualityControlSignoffLabel(vehicle = {}, operator = '', signedAt = '') {
+  return printRawZpl(qualityControlSignoffLabelZpl(vehicle, operator, signedAt), 'QC sign-off label');
+}
+
 function qualityControlVehicleHtml(vehicle = {}) {
   const key = vehicleKey(vehicle);
   const stock = displayStockNumber(vehicle) || key || 'No stock';
@@ -4734,8 +4805,8 @@ function qualityControlVehicleHtml(vehicle = {}) {
 async function completeVehicleQualityControl(key = '') {
   const vehicle = selectedVehicle(key);
   if (!vehicle) return false;
-  if (!vehicleReadyForQualityControl(vehicle)) {
-    window.alert('QC is available only after every required station job is complete, Parts is clear, and the vehicle is back in PMB Unallocated.');
+  if (!vehicleInQualityControlGate(vehicle)) {
+    window.alert('QC sign-off is available only for vehicles currently in the QC Gate.');
     return false;
   }
   const operator = cleanNavisionText(window.PDC_AUTH_CONTEXT?.displayName || window.PDC_AUTH_CONTEXT?.email || localStorage.getItem(OPERATOR_NAME_KEY) || '');
@@ -4745,7 +4816,7 @@ async function completeVehicleQualityControl(key = '') {
     return false;
   }
   const label = vehicleIdentityTitle(vehicle) || displayStockNumber(vehicle) || 'this vehicle';
-  if (!window.confirm(`Sign off QC for ${label}?\n\nThis records your QC sign-off and immediately marks the vehicle RFT.`)) return false;
+  if (!window.confirm(`Sign off QC for ${label}?\n\nThis records your named QC sign-off, marks the vehicle RFT, and prints the windscreen sign-off label.`)) return false;
 
   if (vehicleLifecycleSharedModeActive()) {
     const ref = await vehicleLifecycleSharedRef(vehicle);
@@ -4778,6 +4849,7 @@ async function completeVehicleQualityControl(key = '') {
       return false;
     }
     reconcileVehicleLifecycleServerResult(vehicle, result);
+    await printQualityControlSignoffLabel(vehicle, operator, result.vehicle?.qc_completed_at || nowIsoString());
     if (result.notification_has_recipient === false) {
       window.alert('QC complete was saved, but no salesperson email is on file for this vehicle. The "ready for transport" notification could not be queued for sending. Please set the correct salesperson and use Retry from the notification outbox.');
     }
@@ -4809,6 +4881,7 @@ async function completeVehicleQualityControl(key = '') {
     window.alert(error.message || String(error));
     return false;
   }
+  await printQualityControlSignoffLabel(vehicle, operator, now);
   renderAll();
   return true;
 }
@@ -4929,8 +5002,7 @@ function renderWorkflowBoard() {
     return { stage, allVehicles, vehicles };
   });
   const totalPmb = workflowVehiclesForStep('pmb').length;
-  const qualityControlVehicles = workflowVehiclesForStep('pmb').filter(vehicleReadyForQualityControl);
-  const outstandingVehicleKeys = new Set([...stationRows.flatMap(row => row.allVehicles.map(vehicleKey)), ...qualityControlVehicles.map(vehicleKey)]);
+  const outstandingVehicleKeys = new Set(stationRows.flatMap(row => row.allVehicles.map(vehicleKey)));
   const stationHtml = stationRows.map(({ stage, allVehicles, vehicles }) => {
     const label = pmbStageLabel(stage);
     const countLabel = search ? `${vehicles.length}/${allVehicles.length}` : `${allVehicles.length}`;
@@ -4947,16 +5019,7 @@ function renderWorkflowBoard() {
       <div class="control-board-work-list">${rows}</div>
     </details>`;
   }).join('');
-  const qualityControlRows = qualityControlVehicles.filter(vehicle => !search || incomingSearchText(vehicle, 'pmb').includes(search));
-  const qualityControlHtml = `<details class="incoming-bucket workflow-stage-bucket control-board-station-row control-board-qc-row" open>
-    <summary class="incoming-bucket-title workflow-bucket-title">
-      <span>QC</span>
-      <strong>${escapeHtml(search ? `${qualityControlRows.length}/${qualityControlVehicles.length}` : qualityControlVehicles.length)}</strong>
-      <small>All required station jobs complete · PMB Unallocated · named QC sign-off marks the vehicle RFT</small>
-      <span class="workflow-bucket-actions"><span class="badge neutral">Final gate</span></span>
-    </summary>
-    <div class="control-board-work-list">${qualityControlRows.map(qualityControlVehicleHtml).join('') || '<div class="pmb-empty-drop">No vehicles are waiting for QC.</div>'}</div>
-  </details>`;
+
   const authorityBanner = sharedEligibility
     ? `<div class="workshop-connection-banner ${escapeHtml(app.workshopEligibilityState)}" role="status"><strong>Supabase eligibility: ${escapeHtml(app.workshopEligibilityState)}</strong><span>${escapeHtml(app.workshopEligibilityError || 'Control Board counts and planner candidates use the same canonical station relation.')}</span></div>`
     : '';
@@ -4966,7 +5029,7 @@ function renderWorkflowBoard() {
       <div><strong>Workshop work overview</strong><span>Authoritative PMB, YH and IT vehicles appear in every station where required work remains outstanding. IT scheduling is restricted by ETA to Kewdale.</span></div>
       <div class="branch-header-actions"><span class="badge neutral">${outstandingVehicleKeys.size} needing work · ${totalPmb} at PMB</span></div>
     </div>
-    <div class="workflow-collapsible-board control-board-station-list">${stationHtml}${qualityControlHtml}</div>
+    <div class="workflow-collapsible-board control-board-station-list">${stationHtml}</div>
   `;
   $$('[data-open-workshop-stage]', host).forEach(button => button.addEventListener('click', event => {
     event.preventDefault();
@@ -4974,7 +5037,7 @@ function renderWorkflowBoard() {
     openWorkshopPlannerForStage(button.dataset.openWorkshopStage);
   }));
   $$('[data-open-stock]', host).forEach(button => button.addEventListener('click', () => openVehicleModal(button.dataset.openStock)));
-  $$('[data-qc-signoff-rft]', host).forEach(button => button.addEventListener('click', () => completeVehicleQualityControl(button.dataset.qcSignoffRft)));
+
   updateCollapseToggleButtons();
   scheduleWorkflowFloatingHeaderUpdate();
 }
@@ -5521,6 +5584,8 @@ function incomingVehicleDetailRow(vehicle = {}, bucketKey = '', options = {}) {
   const emailReadOnly = vehicle.__emailVehicleReadOnly === true;
   const authorityPending = !sharedNavisionLocationAuthorityReady();
   const locationReadOnly = sharedReadOnly || identityReadOnly || emailReadOnly || authorityPending;
+  const protectedLifecycleAllowed = emailReadOnly && !identityReadOnly && !authorityPending && vehicleLifecycleSharedModeActive()
+    && ((bucketKey === 'pmb' && vehicleReadyForQualityControl(vehicle)) || bucketKey === 'qc');
   const eta = locationAgeLabel(vehicle);
   const stock = displayStockNumber(vehicle) || vehicleKey(vehicle) || 'No stock';
   const unit = displayVehicle(vehicle) || 'Vehicle not listed';
@@ -5537,14 +5602,16 @@ function incomingVehicleDetailRow(vehicle = {}, bucketKey = '', options = {}) {
   const subletProviderField = !locationReadOnly && bucketKey === 'pmb' && stage === 'SUBLET'
     ? `<div class="wide incoming-sublet-provider"><b>Sublet provider</b><span><select data-pmb-bay-provider-key="${escapeHtml(key)}" data-pmb-bay-provider-stage="SUBLET" aria-label="Sublet provider for ${escapeHtml(stock)}">${subletProviderOptionsHtml(subletProvider)}</select></span></div>`
     : '';
-  const primaryAction = locationReadOnly
+  const primaryAction = locationReadOnly && !protectedLifecycleAllowed
     ? `<span class="badge neutral">${identityReadOnly ? 'Identity conflict · Read only' : emailReadOnly ? 'Email import · Read only' : sharedReadOnly ? 'Shared Navision · Read only' : 'Shared sync pending · Read only'}</span>`
     : bucketKey === 'yardhold'
     ? `<button class="primary incoming-transfer-pmb" type="button" data-yh-transfer-pmb="${escapeHtml(key)}" title="Transfer Yard Hold vehicle to PMB">To PMB</button><button class="small-button incoming-open-button" type="button" data-open-stock="${escapeHtml(key)}">Open</button>`
     : bucketKey === 'pmb'
-      ? `<button class="primary" type="button" data-pit-transfer="${escapeHtml(key)}" ${vehicleCanEnterPit(vehicle) ? '' : 'disabled'} title="${escapeHtml(vehicleCanEnterPit(vehicle) ? 'Move PMB Unallocated vehicle to PIT' : 'PIT movement requires PMB Unallocated with no active station')}">To PIT</button><button class="small-button incoming-open-button" type="button" data-open-stock="${escapeHtml(key)}">Open</button>`
+      ? `${vehicleReadyForQualityControl(vehicle)
+        ? `<button class="primary" type="button" data-ready-for-qc="${escapeHtml(key)}" title="Move this all-green vehicle to the QC Gate">Ready for QC</button>`
+        : `<button class="primary" type="button" data-pit-transfer="${escapeHtml(key)}" ${vehicleCanEnterPit(vehicle) ? '' : 'disabled'} title="${escapeHtml(vehicleCanEnterPit(vehicle) ? 'Move PMB Unallocated vehicle to PIT' : 'PIT movement requires PMB Unallocated with no active station')}">To PIT</button>`}<button class="small-button incoming-open-button" type="button" data-open-stock="${escapeHtml(key)}">Open</button>`
       : bucketKey === 'qc'
-        ? `${vehicle.pdcQcComplete === true ? `<button class="primary" type="button" data-transfer-rft-stock="${escapeHtml(key)}">Complete RFT transfer</button>` : `<button class="primary" type="button" data-qc-signoff-rft="${escapeHtml(key)}">Sign off QC → RFT</button>`}<button class="small-button incoming-open-button" type="button" data-open-stock="${escapeHtml(key)}">Open</button>`
+        ? `${vehicle.pdcQcComplete === true ? `<button class="primary" type="button" data-transfer-rft-stock="${escapeHtml(key)}">Complete RFT transfer</button>` : `<button class="primary" type="button" data-qc-signoff-rft="${escapeHtml(key)}">Sign off & print label</button>`}<button class="small-button incoming-open-button" type="button" data-open-stock="${escapeHtml(key)}">Open</button>`
         : bucketKey === 'pit'
           ? `<button class="primary" type="button" data-pit-return-pmb="${escapeHtml(key)}">Return to PMB</button><button class="small-button incoming-open-button" type="button" data-open-stock="${escapeHtml(key)}">Open</button>`
           : bucketKey === 'rft'
@@ -5645,6 +5712,10 @@ function renderIncomingDashboardBoard() {
   $$('[data-pit-return-pmb]', host).forEach(button => button.addEventListener('click', event => {
     event.stopPropagation();
     moveVehiclePitLocation(button.dataset.pitReturnPmb, 'to_pmb');
+  }));
+  $$('[data-ready-for-qc]', host).forEach(button => button.addEventListener('click', event => {
+    event.stopPropagation();
+    markVehicleReadyForQualityControl(button.dataset.readyForQc);
   }));
   $$('[data-qc-signoff-rft]', host).forEach(button => button.addEventListener('click', event => {
     event.stopPropagation();
@@ -11134,6 +11205,21 @@ function partsWorstEtaCountdownClass(vehicle = {}) {
   return 'today';
 }
 
+function refreshPartsEtaCounters() {
+  $$('[data-parts-eta-counter]').forEach(node => {
+    const vehicle = selectedVehicle(node.dataset.partsEtaCounter || '');
+    if (!vehicle) return;
+    node.className = `parts-eta-countdown ${partsWorstEtaCountdownClass(vehicle)}`;
+    node.textContent = partsWorstEtaCountdownLabel(vehicle) || '—';
+  });
+}
+
+function setupPartsEtaCounterClock() {
+  refreshPartsEtaCounters();
+  if (app.partsEtaCounterTimer || typeof window.setInterval !== 'function') return;
+  app.partsEtaCounterTimer = window.setInterval(refreshPartsEtaCounters, 60000);
+}
+
 function partsWorstEtaSortValue(vehicle = {}) {
   const date = partsWorstEtaDate(vehicle);
   return date ? date.getTime() : -8640000000000000;
@@ -11351,7 +11437,7 @@ function partsQueueRowHtml(vehicle = {}) {
   const customer = vehicleCustomerName(vehicle) || 'Dealer Order';
   const unit = displayVehicle(vehicle) || 'Vehicle not listed';
   const blocker = status === 'stoppage' ? partsStoppageReason(vehicle) : '';
-  const outstanding = partsOutstandingStationWork(vehicle);
+
   const jitaNumber = vehicleNavisionJitaNumber(vehicle);
   const etaValue = partsWorstEtaInputValue(vehicle);
   const etaCountdown = partsWorstEtaCountdownLabel(vehicle);
@@ -11363,9 +11449,8 @@ function partsQueueRowHtml(vehicle = {}) {
     <td><div class="parts-queue-customer"><strong title="${escapeHtml(unit)}">${escapeHtml(unit)}</strong><span title="${escapeHtml(customer)}">${escapeHtml(customer)}</span></div></td>
     <td><span class="parts-status-pill ${escapeHtml(partsDepartmentStatusClass(status))}">${escapeHtml(partsDepartmentStatusLabel(status))}</span></td>
     <td class="parts-eta-cell"><input class="parts-eta-input" type="date" data-parts-worst-eta="${escapeHtml(key)}" value="${escapeHtml(etaValue)}" aria-label="Parts ETA for ${escapeHtml(displayStockNumber(vehicle) || 'vehicle')}" /></td>
-    <td class="parts-eta-counter-cell"><span class="parts-eta-countdown ${escapeHtml(etaCountdownClass)}">${escapeHtml(etaCountdown || '—')}</span></td>
+    <td class="parts-eta-counter-cell"><span class="parts-eta-countdown ${escapeHtml(etaCountdownClass)}" data-parts-eta-counter="${escapeHtml(vehicleKey(vehicle))}">${escapeHtml(etaCountdown || '—')}</span></td>
     <td class="parts-queue-jita-cell">${jitaNumber ? `<span class="jita-icon yes" role="img" aria-label="Navision JITA number ${escapeHtml(jitaNumber)}" title="Navision JITA number ${escapeHtml(jitaNumber)}">✓</span>` : '<span class="parts-jita-empty" aria-label="No Navision JITA number">—</span>'}</td>
-    <td><span class="parts-outstanding-work" title="${escapeHtml(outstanding.join(', '))}">${escapeHtml(outstanding.join(', ') || 'None')}</span></td>
     <td class="parts-queue-blocker">${blocker ? `<strong title="${escapeHtml(blocker)}">${escapeHtml(blocker)}</strong>` : '<span class="subtle">None</span>'}</td>
     <td>${partsQueueActionsHtml(vehicle, status)}</td>
   </tr>`;
@@ -11398,6 +11483,7 @@ function renderPartsHome() {
   const summaryHost = $('#parts-summary-grid');
   if (!host && !summaryHost) return;
   const rows = partsDepartmentRows();
+  setupPartsEtaCounterClock();
   renderPartsSummary(rows);
   if (!host) return;
   const stoppagePicker = (app.partsOperationalFilter || 'notordered') === 'stoppage' ? partsIssuedStoppagePickerHtml() : '';
@@ -11408,11 +11494,12 @@ function renderPartsHome() {
   }
   host.innerHTML = `${stoppagePicker}<div class="parts-table-wrap parts-queue-wrap"><table class="data-table compact-table parts-queue-table">
     <thead><tr>
-      <th>Key</th><th>Stock</th><th>JC</th><th>Vehicle / customer</th><th>Parts status</th><th>Parts ETA</th><th>ETA counter</th><th>JITA</th><th>Outstanding station work</th><th>Parts STOPPAGE reason</th><th>Actions</th>
+      <th>Key</th><th>Stock</th><th>JC</th><th>Vehicle / customer</th><th>Parts status</th><th>Parts ETA</th><th>ETA counter</th><th>JITA</th><th>Parts STOPPAGE reason</th><th>Actions</th>
     </tr></thead>
     <tbody>${rows.map(partsQueueRowHtml).join('')}</tbody></table></div>`;
   bindPartsIssuedStoppagePicker(host);
   bindPartsQueueActionButtons(host);
+  setupPartsEtaCounterClock();
   $$('[data-parts-worst-eta]', host).forEach(input => input.addEventListener('change', () => updateVehiclePartsWorstEta(input.dataset.partsWorstEta, input.value)));
 }
 
@@ -11484,12 +11571,31 @@ function markVehiclePartsStoppage(key = '') {
   });
 }
 
-function updateVehiclePartsWorstEta(key = '', value = '') {
+async function updateVehiclePartsWorstEta(key = '', value = '') {
   const vehicle = selectedVehicle(key);
   if (!vehicle) return;
   const eta = cleanNavisionText(value || '');
   const previousEta = partsWorstEtaValue(vehicle);
   const operator = getCurrentOperatorName();
+  if (vehicle.__emailVehicleServerAuthoritative === true) {
+    const service = app.emailVehicleLocationService;
+    if (!service || typeof service.updatePartsEta !== 'function') {
+      window.alert('The shared Parts ETA service is unavailable. No change was made.');
+      renderPartsHome();
+      return;
+    }
+    const result = await service.updatePartsEta(vehicle.__emailVehicleId, vehicle.__emailVehicleVersion, eta);
+    if (!result?.ok) {
+      const message = result?.code === 'vehicle_version_conflict'
+        ? 'This vehicle changed since the Parts row loaded. The latest information will be reloaded; check it and try again.'
+        : 'The Parts ETA could not be saved to the shared vehicle record. No change was made.';
+      window.alert(message);
+      await refreshEmailVehicleLocations();
+      return;
+    }
+    await refreshEmailVehicleLocations();
+    return;
+  }
   recordVehicleAudit(vehicle, eta ? 'Parts worst ETA updated' : 'Parts worst ETA cleared', { eta, previousEta, by: operator });
   saveVehicleEdits(key, {
     pdcPartsPreviousWorstEta: previousEta,
