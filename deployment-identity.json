@@ -6,14 +6,14 @@
     "twoPhysicalWorkstationAuthorityCutover": false
   },
   "artifact": "zero-data static staging site",
-  "cacheVersion": "2026.07.27.16-control-board-cleanup",
+  "cacheVersion": "2026.07.27.17-navision-first-scope-review",
   "deploymentMode": "exact reviewed source blobs; staging.html mapped to index.html",
   "environment": "staging",
-  "generatedAtUtc": "2026-07-27T08:34:36.765428Z",
+  "generatedAtUtc": "2026-07-27T09:04:54.704799Z",
   "migrationLedger": {
-    "appliedThrough": "073",
-    "evidence": "Staging sentinel verified; migration 073 dry-run compiled and applied. Authenticated fail-closed RPC checks passed. Transactional smoke proved PMB Ready for QC -> QC Gate -> named QC sign-off -> RFT and shared Parts ETA persistence, with synthetic rows rolled back.",
-    "ledgerHead": "073",
+    "appliedThrough": "074",
+    "evidence": "Staging sentinel verified; migration 074 applied and cleanly reapplied. Authenticated smoke proved the empty Pilbara scope blocks before review, an exact administrator-reviewed 100-row snapshot releases, changed content remains blocked, and the synthetic approval was removed.",
+    "ledgerHead": "074",
     "migrations": [
       "058",
       "059",
@@ -30,22 +30,23 @@
       "070",
       "071",
       "072",
-      "073"
+      "073",
+      "074"
     ]
   },
   "pendingStagingMigrations": [],
   "releaseChecks": {
-    "aggregateTests": "89 passed, 1 failed, 1 skipped in the full direct JavaScript aggregate; all new Control Board, QC Gate, Parts ETA, layout, lifecycle, syntax and version suites passed. The sole failure is the pre-existing Windows-CRLF-sensitive workshop planner-role static assertion.",
+    "aggregateTests": "All targeted Navision backend, storage safety, shared UI, confirmation, exact first-scope review, review-alignment, syntax and version checks passed.",
     "backupRestore": "PASS \u2014 encrypted backup run 11b91f6c-6c00-48b1-a1f1-f3943f082e23 restored into isolated schema restore_ai_intake_071_20260727; row counts, foreign keys, relationships and format/schema hashes matched; schema dropped after verification",
-    "databasePostApply": "PASS \u2014 migration 073 applied; protected Ready-for-QC and Parts ETA RPCs present; authenticated fail-closed contracts passed; transactional lifecycle and ETA smoke passed with test rows rolled back.",
+    "databasePostApply": "PASS \u2014 migration 074 applied and source-reapplied; exact-content administrator approval, role denial, changed-content rejection and cleanup smokes passed.",
     "humanAiIntake": "Received, What happened, Car and What changed are shown in plain language; activated, modified, unchanged and review-needed outcomes are distinct; field changes render previous value to new value; technical receipt data is collapsed",
-    "humanNavisionResults": "Strongly matched large dealer refreshes may apply while omissions enter reversible temporary holding; the verified replay passed 153 incoming, 153 selected-identity matches, 69 omissions, 0 cross-dealer matches and hard deletion disabled. Structured server safety findings are never reconciled away by zero row-error counts: wrong dealer, cross-dealer, empty, small and weakly matched files show their safety reason and remain blocked before apply.",
-    "literalArtifact": "33/33 deployed Git blobs match source commit 8ab61128833d5401a3b09eb568bbcf3bca8e5781",
-    "production": "Untouched; staging static artifact plus staging-only migration 073",
+    "humanNavisionResults": "An administrator can establish the first empty dealer scope only for one exact full snapshot of at least 100 valid rows. Approval is content-bound, user-bound and expires after two hours. Cross-dealer, invalid, duplicate, stale and changed snapshots remain fail-closed. Later strongly matched refresh omissions continue to enter reversible temporary holding.",
+    "literalArtifact": "33/33 deployed Git blobs match source commit 9b47c1ef09b4439e7463d944ff27e536b6de1066",
+    "production": "Untouched; staging static artifact plus staging-only migrations through 074",
     "uiCleanup": "Control Board current-time line appears only for today and QC is removed from its station list. All-green PMB vehicles require explicit Ready for QC confirmation and move authoritatively to the Vehicle Locations QC Gate. Named QC sign-off moves to RFT and prints a dedicated windscreen label. Parts removes Outstanding station work, persists and refreshes ETA countdowns, and uses the shared Vehicle Locations row height."
   },
   "sourceBranch": "feat/vehicle-locations-pit-qc-signoff-rft",
-  "sourceCommit": "8ab61128833d5401a3b09eb568bbcf3bca8e5781",
+  "sourceCommit": "9b47c1ef09b4439e7463d944ff27e536b6de1066",
   "sourceFiles": [
     {
       "deployedPath": "ai-board-advisor.js",
@@ -54,7 +55,7 @@
     },
     {
       "deployedPath": "app.js",
-      "sha256": "170e04b3ae78784a7a71ba0fcce2ae6de883a795ea20e2845e516eeb431334da",
+      "sha256": "2e96d24afe0c5a7b230c6a52c243a77fb863ebf6b8fac24ff5f4e5213abfc83e",
       "sourcePath": "app.js"
     },
     {
@@ -94,7 +95,7 @@
     },
     {
       "deployedPath": "index.html",
-      "sha256": "6450db39b8fbb7c0782a1bcd59f05e6b54ceb2446768e6479220bd735f4ea2ae",
+      "sha256": "854cbe7072b4630aab13952609be65a2ccf592e66ee8f072151b94bbe2fc5142",
       "sourcePath": "staging.html"
     },
     {
@@ -104,7 +105,7 @@
     },
     {
       "deployedPath": "navision-backend-service.js",
-      "sha256": "36a20f7c6b097d16547d8b63b3a07d0ebb44d3f7d879d0c99a936ca8d8c0fa8e",
+      "sha256": "04d6e34ec33f0a462948085290bd489792644ea51fed580b0a51003ddfa0d370",
       "sourcePath": "navision-backend-service.js"
     },
     {
@@ -129,7 +130,7 @@
     },
     {
       "deployedPath": "pdc-supabase-config.staging.js",
-      "sha256": "c9d35b6c5ba9296ff2d6159bbec7861db502950c265195c34f7a512edcba00c7",
+      "sha256": "3f331fbeb132239a75d599ff6b71843a446039dc6a915cf11988e65d7301c1c7",
       "sourcePath": "pdc-supabase-config.staging.js"
     },
     {
@@ -213,5 +214,5 @@
       "sourcePath": "workshop-shared-actions.js"
     }
   ],
-  "sourceTree": "a627edb826c33410df085622f09653df9efd05f5"
+  "sourceTree": "b8fe0fde9a9c82395788a798b7fec6da9c769e6c"
 }

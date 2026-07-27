@@ -104,6 +104,19 @@ function createNavisionBackendService(options = {}) {
     });
   }
 
+  async function approveInitialScope(rows, metadata = {}) {
+    if (!Array.isArray(rows)) return { ok: false, error: 'rows_must_be_array' };
+    const sourceSystem = String(metadata.sourceSystem || NAVISION_SOURCE_SYSTEM).trim().toLowerCase();
+    const dealerCode = String(metadata.dealerCode || '').trim();
+    if (sourceSystem !== NAVISION_SOURCE_SYSTEM) return { ok: false, error: 'invalid_source_system' };
+    if (!NAVISION_DEALER_CODES.includes(dealerCode)) return { ok: false, error: 'invalid_dealer_code' };
+    return call('approve_navision_initial_scope', {
+      p_rows: rows,
+      p_source_system: sourceSystem,
+      p_dealer_code: dealerCode,
+    });
+  }
+
   async function apply(rows, previewResult, options = {}) {
     if (options.confirmed !== true) return { ok: false, error: 'explicit_confirmation_required' };
     const sourceSystem = String(options.sourceSystem || NAVISION_SOURCE_SYSTEM).trim().toLowerCase();
@@ -207,6 +220,7 @@ function createNavisionBackendService(options = {}) {
     authority: 'staging_shared_navision_backend_only',
     browserLocalAuthorityCutover: false,
     preview,
+    approveInitialScope,
     apply,
     snapshot,
     visibleSnapshot,
