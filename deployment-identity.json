@@ -6,10 +6,10 @@
     "twoPhysicalWorkstationAuthorityCutover": false
   },
   "artifact": "zero-data static staging site",
-  "cacheVersion": "2026.07.27.12-workflow-navision-sublet-fixes",
+  "cacheVersion": "2026.07.27.13-navision-safety-preview",
   "deploymentMode": "exact reviewed source blobs; staging.html mapped to index.html",
   "environment": "staging",
-  "generatedAtUtc": "2026-07-27T07:17:21.564308Z",
+  "generatedAtUtc": "2026-07-27T07:28:50.952345Z",
   "migrationLedger": {
     "appliedThrough": "072",
     "evidence": "Staging sentinel verified; migration 072 dry-run rollback passed before apply; ledger recorded; shared Sublet objects exist; authenticated snapshot returned 24 canonical vehicles, 16 requiring Sublet, including all five reported stock numbers; bounded Navision safety replay returned non-blocking with 153/153 selected identities, 69 omissions routed to temporary holding and hard deletion disabled.",
@@ -38,13 +38,13 @@
     "backupRestore": "PASS \u2014 encrypted backup run 11b91f6c-6c00-48b1-a1f1-f3943f082e23 restored into isolated schema restore_ai_intake_071_20260727; row counts, foreign keys, relationships and format/schema hashes matched; schema dropped after verification",
     "databasePostApply": "PASS \u2014 ledger 072; dedicated RLS-protected shared Sublet tables/RPC present; authenticated snapshot returns 16 active required-Sublet vehicles including the five reported stocks; no vehicle/work-item deletion occurred.",
     "humanAiIntake": "Received, What happened, Car and What changed are shown in plain language; activated, modified, unchanged and review-needed outcomes are distinct; field changes render previous value to new value; technical receipt data is collapsed",
-    "humanNavisionResults": "Strongly matched large dealer refreshes may apply while omissions enter reversible temporary holding; the verified replay passed 153 incoming, 153 selected-identity matches, 69 omissions, 0 cross-dealer matches and hard deletion disabled. Wrong dealer, cross-dealer, empty, small and weakly matched files still fail closed.",
-    "literalArtifact": "33/33 deployed Git blobs match source commit 0e108938ef22f5324e7d328062ecdab262991f47",
+    "humanNavisionResults": "Strongly matched large dealer refreshes may apply while omissions enter reversible temporary holding; the verified replay passed 153 incoming, 153 selected-identity matches, 69 omissions, 0 cross-dealer matches and hard deletion disabled. Structured server safety findings are never reconciled away by zero row-error counts: wrong dealer, cross-dealer, empty, small and weakly matched files show their safety reason and remain blocked before apply.",
+    "literalArtifact": "33/33 deployed Git blobs match source commit 94743e1b793a7a0a8b0332454dbe4426d21ee1ae",
     "production": "Untouched; staging static artifact plus staging-only migration 072",
     "uiCleanup": "Top headers retain only approved login details and Sign out; redundant export/add/upload controls and the ineffective sidebar collapse control are removed. AI Intake no longer asks staff for a routine reason while automatic truthful audit reasons preserve the authoritative decision path. Future workshop booking/rescheduling can proceed before Parts readiness with an automatic planning-risk audit reason; physical-entry gates remain. Sublet consumes canonical Vehicle Locations rows and shared booking edits are server-authoritative and audited."
   },
   "sourceBranch": "feat/vehicle-locations-pit-qc-signoff-rft",
-  "sourceCommit": "0e108938ef22f5324e7d328062ecdab262991f47",
+  "sourceCommit": "94743e1b793a7a0a8b0332454dbe4426d21ee1ae",
   "sourceFiles": [
     {
       "deployedPath": "ai-board-advisor.js",
@@ -53,7 +53,7 @@
     },
     {
       "deployedPath": "app.js",
-      "sha256": "1006e3986cf7d12981ede15b43c6fce67e189d49ab869c8ce147cd1cc1305d5a",
+      "sha256": "29da2caed8a6ef1103988bcbdb40c0cdc112d12a538d465e560ea36ab9824be2",
       "sourcePath": "app.js"
     },
     {
@@ -93,7 +93,7 @@
     },
     {
       "deployedPath": "index.html",
-      "sha256": "c92ed0b064c827926a69c5597fbcef24398248dbd1482b4d6fae0b78161cd41e",
+      "sha256": "e17fd21c79f331461cb2db896c6c416240e311b92827c7a34870a38983195bdd",
       "sourcePath": "staging.html"
     },
     {
@@ -103,7 +103,7 @@
     },
     {
       "deployedPath": "navision-backend-service.js",
-      "sha256": "b709025b82becfa9b1fd516824902b1b32c8d99d209217053203dafeb55b9787",
+      "sha256": "36a20f7c6b097d16547d8b63b3a07d0ebb44d3f7d879d0c99a936ca8d8c0fa8e",
       "sourcePath": "navision-backend-service.js"
     },
     {
@@ -128,7 +128,7 @@
     },
     {
       "deployedPath": "pdc-supabase-config.staging.js",
-      "sha256": "b887a738b77a9e100c1b4449f71bcc918b1e2f1cdc3cffddc6cecdef718ec541",
+      "sha256": "e150d4c41e9eb36ab3d8a44070f4c6663cf7334ee4505292c6f0fa9df10f16eb",
       "sourcePath": "pdc-supabase-config.staging.js"
     },
     {
@@ -212,5 +212,5 @@
       "sourcePath": "workshop-shared-actions.js"
     }
   ],
-  "sourceTree": "e1d1a83489c71361d37782d72244bfe9bfeec952"
+  "sourceTree": "7e234f3529deff613b649e9be60031b2871dd004"
 }

@@ -19,6 +19,8 @@ function navisionProjectRefFromUrl(url = '') {
 
 function navisionPreviewBlockingState(previewData = {}) {
   const counts = previewData?.counts && typeof previewData.counts === 'object' ? previewData.counts : null;
+  const safety = previewData?.safety && typeof previewData.safety === 'object' ? previewData.safety : null;
+  const safetyBlocking = safety?.blocking === true;
   const items = Array.isArray(previewData?.items) ? previewData.items : [];
   const itemInvalid = items.filter(item => item?.classification === 'invalid').length;
   const itemConflict = items.filter(item => item?.classification === 'conflict').length;
@@ -26,13 +28,15 @@ function navisionPreviewBlockingState(previewData = {}) {
   const conflict = Math.max(0, Number(counts?.conflict || 0), itemConflict);
   const affected = invalid + conflict;
   const canReconcileFlag = Boolean(counts) || items.length > 0;
-  const inconsistentFlag = previewData?.blocking === true && affected === 0 && canReconcileFlag;
+  const inconsistentFlag = previewData?.blocking === true && affected === 0 && canReconcileFlag && !safetyBlocking;
   return {
     invalid,
     conflict,
     affected,
+    safetyBlocking,
+    safetyReason: safetyBlocking ? String(safety?.reason || 'safety_review_required') : '',
     inconsistentFlag,
-    blocking: affected > 0 || (previewData?.blocking === true && !canReconcileFlag),
+    blocking: affected > 0 || safetyBlocking || (previewData?.blocking === true && !canReconcileFlag),
   };
 }
 
