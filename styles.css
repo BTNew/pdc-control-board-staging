@@ -11441,17 +11441,23 @@ html[data-row-width="xl"] {
 .email-vehicle-review-line small { color: #9a3412; font-weight: 500; }
 .email-vehicle-review-line:has([data-email-line-include]:not(:checked)) { opacity: .48; background: #f8fafc; border-color: #cbd5e1; }
 .sublet-table-wrap { overflow-x: auto; }
-.sublet-table { min-width: 1420px; }
-.sublet-table td { vertical-align: top; }
-.sublet-table td:first-child { display: grid; gap: 3px; min-width: 170px; }
-.sublet-table input, .sublet-table select, .sublet-table textarea { width: 100%; min-width: 130px; }
-.sublet-table td:nth-child(2) { min-width: 230px; }
-.sublet-table td:nth-child(7) { min-width: 220px; }
-.sublet-table td:last-child { min-width: 160px; }
-.sublet-table td:last-child button { width: 100%; margin-bottom: 6px; }
-.sublet-row.sublet-overdue { background: #fff1f2; }
-.sublet-overdue-label { display: block; margin-top: 5px; color: #b91c1c; font-size: .72rem; }
-.sublet-email-check { display: flex; gap: 6px; align-items: center; margin-top: 5px; font-size: .78rem; }
+.sublet-table { min-width: 980px; table-layout: fixed; }
+.sublet-table th { white-space: nowrap; }
+.sublet-table td { vertical-align: middle; padding-top: 8px; padding-bottom: 8px; }
+.sublet-table .sublet-row { min-height: 62px; background: #fff; }
+.sublet-table .sublet-row:hover { background: #f8fafc; }
+.sublet-table td:first-child { display: grid; gap: 2px; width: 22%; min-width: 190px; }
+.sublet-table td:first-child strong { color: #0f172a; }
+.sublet-table td:first-child span, .sublet-table td:first-child small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sublet-table input, .sublet-table select, .sublet-table textarea { width: 100%; min-width: 0; }
+.sublet-table td:nth-child(2) { width: 27%; min-width: 230px; }
+.sublet-table td:nth-child(2) { display: grid; gap: 6px; }
+.sublet-table td:nth-child(3) { width: 15%; min-width: 145px; }
+.sublet-table td:nth-child(4) { width: 23%; min-width: 220px; }
+.sublet-table td:last-child { width: 13%; min-width: 150px; }
+.sublet-table td:last-child button { width: 100%; margin-bottom: 5px; }
+.sublet-table textarea { min-height: 40px; resize: vertical; }
+.sublet-email-check { display: flex; gap: 6px; align-items: center; margin-top: 5px; font-size: .76rem; color: #475569; }
 .sublet-email-check input { width: auto; min-width: 0; }
 @media (max-width: 900px) { .email-review-row, .email-review-vehicle-fields, .email-vehicle-review-line, .email-intake-upload-panel { grid-template-columns: 1fr; } .email-review-summary { grid-template-columns: 1fr 1fr; } .email-review-open-label { text-align: left; } .email-review-actions, .email-intake-upload-buttons { justify-content: flex-start; } }
 
@@ -12096,7 +12102,9 @@ select[name="pdcLocation"]:focus,
 .ai-intake-review-content { display: grid; gap: 14px; min-width: 0; padding: 15px; }
 .ai-intake-review-meta { display: grid; grid-template-columns: minmax(160px, 1fr) minmax(130px, .65fr) minmax(180px, 1fr); gap: 14px; }
 .ai-intake-review-meta > div { display: grid; align-content: start; gap: 4px; min-width: 0; }
-.ai-intake-review-meta span, .ai-intake-detected-changes > span, .ai-intake-proposed-action > span, .ai-intake-decision-panel label > span { color: #64748b; font-size: .68rem; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; }
+.ai-intake-review-meta span, .ai-intake-email-summary > span, .ai-intake-detected-changes > span, .ai-intake-proposed-action > span, .ai-intake-decision-panel label > span { color: #64748b; font-size: .68rem; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; }
+.ai-intake-email-summary { display: grid; gap: 6px; padding: 11px 13px; border-left: 4px solid #2563eb; border-radius: 7px; background: #eff6ff; }
+.ai-intake-email-summary p { margin: 0; color: #1e293b; font-size: .9rem; font-weight: 600; line-height: 1.5; }
 .ai-intake-review-meta strong, .ai-intake-review-meta .stock-button { overflow-wrap: anywhere; }
 .ai-intake-review-meta small, .ai-intake-proposed-action small { color: #64748b; }
 .ai-intake-detected-changes { display: grid; gap: 6px; }

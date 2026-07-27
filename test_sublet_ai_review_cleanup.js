@@ -1,0 +1,26 @@
+'use strict';
+const fs = require('fs');
+function assert(value, message) { if (!value) throw new Error(message); }
+const app = fs.readFileSync('app.js', 'utf8');
+const styles = fs.readFileSync('styles.css', 'utf8');
+const staging = fs.readFileSync('staging.html', 'utf8');
+const renderStart = app.indexOf('function renderSubletHome()');
+const renderEnd = app.indexOf('\nfunction getNotes(', renderStart);
+const render = app.slice(renderStart, renderEnd);
+assert(render.includes('<th>Vehicle</th><th>Provider</th><th>Booking date</th><th>Notes / email</th><th>Actions</th>'), 'Sublet must use the simplified five-column operational row');
+assert(!render.includes('PO sent'), 'Sublet rows must not show PO sent date');
+assert(!render.includes('Expected return'), 'Sublet rows must not show expected return');
+assert(!render.includes('Actual return'), 'Sublet rows must not show actual return');
+assert(render.includes('pmbSubletBookingDate'), 'Sublet rows must retain booking date');
+assert(render.includes('Provider email sent'), 'Sublet must keep clear provider email status');
+assert(!staging.includes('id="sublet-status-filter"'), 'Return/overdue status filter must be removed with return dates');
+assert(staging.includes('Provider queue, booking dates, notes and controlled email drafts.'), 'Sublet explanation must match the simplified workflow');
+assert(styles.includes('.sublet-table { min-width: 980px; table-layout: fixed; }'), 'Sublet must use the compact Vehicle-Locations-style table layout');
+const summaryIndex = app.indexOf('<section class="ai-intake-email-summary"><span>What the email says</span>');
+const changesIndex = app.indexOf('<section class="ai-intake-detected-changes">', summaryIndex);
+assert(summaryIndex >= 0 && changesIndex > summaryIndex, 'AI email summary must be visible before detected changes');
+assert(app.includes("item.summary || 'No reliable email summary was generated."), 'AI Review must render the server email summary with a safe no-summary warning');
+assert(styles.includes('.ai-intake-email-summary p'), 'Visible AI email summary must have dedicated readable styling');
+const providerDraft = app.slice(app.indexOf('function draftSubletProviderEmail'), app.indexOf('function draftSubletSalesUpdate'));
+assert(!providerDraft.includes('Expected return:'), 'Provider email draft must no longer request expected return');
+console.log('Sublet compact layout and visible AI email-summary checks passed');
