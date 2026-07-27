@@ -357,7 +357,7 @@ assert.ok(source.includes('function workshopOtherDepartmentOverlaps('), 'Same-ve
 assert.ok(source.includes('This vehicle already has an active booking in the requested time window:'), 'Same-vehicle rejection must identify the conflicting plan');
 assert.ok(!source.includes('This vehicle is also planned by another department:'), 'Cross-department warning must not fire merely because another department has any booking - only on real time overlap');
 assert.ok(app.includes('function vehicleReadyForQualityControl('), 'The final QC eligibility gate is missing');
-assert.ok(app.includes('data-qc-complete'), 'The Control Board QC row/action is missing');
+assert.ok(app.includes('data-qc-signoff-rft'), 'The Control Board QC sign-off-to-RFT row/action is missing');
 assert.ok(app.includes('QC sign-off required'), 'RFT must remain gated until QC is complete');
 assert.ok(!app.includes("issues.push('No PMB bucket assigned')"), 'PMB Unallocated must not block RFT');
 assert.ok(app.includes('is-in-bay'), 'Control Board work rows must highlight a vehicle that is physically in a numbered bay');

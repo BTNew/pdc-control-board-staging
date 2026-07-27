@@ -57,7 +57,7 @@ code += String.raw`
   assert(subletDef && subletDef.requireKey === 'pdcRequiresSublet' && subletDef.completeKey === 'pdcCompleteSublet', 'Sublet must be restored as a required/completed row work control');
   assert(pdcJobTriState({ pdcRequiresSublet: true }, subletDef) === 'required', 'A required incomplete Sublet must show the red required state');
   assert(pdcJobTriState({ pdcRequiresSublet: true, pdcCompleteSublet: true }, subletDef) === 'complete', 'A completed Sublet must show the green complete state');
-  assert(JSON.stringify(pdcJobDefsPartsFirst().map(def => def.key)) === JSON.stringify(['parts', 'tint', 'bus4x4', 'hoist', 'fitting', 'fabrication', 'electrical', 'tyre', 'sublet', 'pitInspection']), 'Vehicle rows must use the requested Parts/Tint/Bus 4x4/Hoist/Fitting/Fab/Elec/Tyre/Sublet/Pit order');
+  assert(JSON.stringify(pdcJobDefsPartsFirst().map(def => def.key)) === JSON.stringify(['parts', 'tint', 'bus4x4', 'hoist', 'fitting', 'fabrication', 'electrical', 'tyre', 'sublet']), 'Vehicle rows must use the requested Parts/Tint/Bus 4x4/Hoist/Fitting/Fab/Elec/Tyre/Sublet order; PIT is a location, not a workshop job');
   assert(pdcJobTableCell(basePartsVehicle, partsDef).includes('parts-visual-notordered'), 'Dashboard Parts tick should be greyed when parts are required but not ordered');
   assert(pdcJobTableCell({ ...basePartsVehicle, pdcPartsOrdered: true }, partsDef).includes('parts-visual-onorder'), 'Dashboard Parts tick should show ordered/confirmed state');
   const issuedPartsCell = pdcJobTableCell({ ...basePartsVehicle, pdcCompleteParts: true }, partsDef);

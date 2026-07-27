@@ -7,7 +7,7 @@ code += String.raw`
 (function(){
   function assert(condition, message) { if (!condition) throw new Error(message); }
 
-  assert(/:v[34]$/.test(VEHICLE_TABLE_COLUMN_ORDER_KEY), 'Column order storage key should be bumped after current-stage column changes');
+  assert(/:v5$/.test(VEHICLE_TABLE_COLUMN_ORDER_KEY), 'Column order storage key must reset after removing the PIT work-status column');
   ['hoist', 'fitting', 'tyre', 'navisionNotes'].forEach(id => assert(VEHICLE_TABLE_DEFAULT_COLUMN_IDS.includes(id), 'Default columns missing ' + id));
   ['build', 'sublet'].forEach(id => assert(!VEHICLE_TABLE_DEFAULT_COLUMN_IDS.includes(id), 'Default columns should not include stale ' + id));
 
@@ -19,7 +19,7 @@ code += String.raw`
   assert(updates.pdcCompleteParts === true, 'Parts Complete import column should set pdcCompleteParts');
   assert(updates.pdcRequiresHoist === true, 'HOIST import column should set pdcRequiresHoist');
   assert(updates.pdcCompleteFitting === true, 'Fitting Complete import column should set pdcCompleteFitting');
-  assert(updates.pdcRequiresPitInspection === true, 'PIT INSPECTION import column should set pdcRequiresPitInspection');
+  assert(!Object.prototype.hasOwnProperty.call(updates, 'pdcRequiresPitInspection'), 'Legacy PIT INSPECTION import columns must not recreate a workshop job');
 
   app.data = [];
   exportCsv();
@@ -27,13 +27,13 @@ code += String.raw`
   assert(csv.includes('Requires HOIST'), 'CSV export should include current Hoist required header');
   assert(csv.includes('FITTING Complete'), 'CSV export should include current Fitting complete header');
   assert(csv.includes('Requires TYRE'), 'CSV export should include current Tyre required header');
-  assert(csv.includes('Requires PIT'), 'CSV export should include current Pit required header');
+  assert(!csv.includes('Requires PIT'), 'CSV export must not recreate PIT as a required workshop job');
   assert(!csv.includes('Requires Build'), 'CSV export should not include stale Build required header');
   assert(!csv.includes('Requires Sublet'), 'CSV export should not include stale Sublet required header');
 
   const rftVehicle = { stock: 'RFT001', pdcLocation: 'RFT', manualLocation: 'RFT' };
   const completedRftVehicle = { stock: 'RFT002', pdcLocation: 'RFT', manualLocation: 'RFT', rftCollected: true, rftCollectedAt: '2026-07-06T01:00:00.000Z' };
-  const pmbVehicle = { stock: 'PMB001', pdcLocation: 'PMB', manualLocation: 'PMB', pdcRequiresTint: true, pdcCompleteTint: true };
+  const pmbVehicle = { stock: 'PMB001', pdcLocation: 'PMB', manualLocation: 'PMB', pdcRequiresTint: true, pdcCompleteTint: true, pdcRequiresParts: true, pdcCompleteParts: true };
   assert(incomingBucketForVehicle(rftVehicle) === 'rft', 'Control Board should include RFT vehicles in their own bucket');
   assert(incomingBucketLabel('rft') === 'RFT', 'Control Board RFT bucket label should be RFT');
   assert(vehicleCollectedFromRft(completedRftVehicle), 'Collected RFT vehicles should be marked completed');
@@ -43,7 +43,11 @@ code += String.raw`
   assert(rftHomeRows().length === 1 && rftHomeRows()[0].stock === 'RFT001', 'RFT home should hide vehicles collected from RFT');
   assert(completedVehicleRows().length === 1 && completedVehicleRows()[0].stock === 'RFT002', 'Completed vehicles side menu should show collected RFT vehicles');
   assert(incomingVehicleDetailRow(rftVehicle, 'rft').includes('data-rft-collected-key="RFT001"'), 'RFT rows should expose a collected checkbox');
-  assert(incomingVehicleDetailRow(pmbVehicle, 'pmb').includes('data-transfer-rft-stock="PMB001"'), 'PMB workflow/control-board rows should expose transfer to RFT action');
+  assert(incomingBucketForVehicle(pmbVehicle) === 'qc', 'A PMB Unallocated vehicle with every required station job complete must enter QC: ' + JSON.stringify({ bucket: incomingBucketForVehicle(pmbVehicle), ready: vehicleReadyForQualityControl(pmbVehicle), location: vehiclePdcLocation(pmbVehicle), stage: inferredPmbStage(pmbVehicle), requirements: pdcQualityControlRequirementDefinitions(pmbVehicle).map(def => [def.key, pdcJobComplete(pmbVehicle, def)]) }));
+  assert(incomingVehicleDetailRow(pmbVehicle, 'qc').includes('data-qc-signoff-rft="PMB001"'), 'QC rows must expose the named sign-off to RFT action');
+  const pitVehicle = { stock: 'PIT001', pdcLocation: 'PIT', manualLocation: 'PIT' };
+  assert(incomingBucketForVehicle(pitVehicle) === 'pit', 'PIT must be a Vehicle Locations bucket');
+  assert(incomingVehicleDetailRow(pitVehicle, 'pit').includes('data-pit-return-pmb="PIT001"'), 'PIT rows must provide a return-to-PMB action');
 
   const multiStationVehicle = {
     stock: 'PMB-MULTI',

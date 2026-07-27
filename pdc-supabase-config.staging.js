@@ -7,7 +7,7 @@
 // (vjdtsswhroyguxyfjdkt) or copied over pdc-supabase-config.js.
 //
 // Enables shared (multi-user) workshop scheduling and the vehicle
-// lifecycle (QC complete -> RFT -> Collected) protected RPC path on this
+// lifecycle (PIT location, QC sign-off -> RFT -> Collected) protected RPC path on this
 // staging page only. Both flags are independently opt-in and have no
 // effect on production, which is not configured with either flag.
 
@@ -34,6 +34,6 @@ window.PDC_SUPABASE_CONFIG = {
   vehicleLifecycle: Object.freeze({
     sharedData: true,
     resolverRollbackDirectRead: false,
-    resolverAssetVersion: 'stage2b-c1-review-20260718'
+    resolverAssetVersion: '2026.07.27.03-vehicle-locations-pit-qc-rft'
   })
 };

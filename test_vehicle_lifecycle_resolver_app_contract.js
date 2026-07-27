@@ -40,10 +40,10 @@ console.log('PASS 3: resolver revision Realtime refresh starts and tears down wi
 
 const resolverCallSites = app.match(/await vehicleLifecycleSharedRef\(vehicle\)/g) || [];
 const resolvedGuards = app.match(/ref\.outcome !== 'resolved'/g) || [];
-assert.strictEqual(resolverCallSites.length, 3, 'QC, RFT transfer and collection are the only C1 consumers');
-assert.strictEqual(resolvedGuards.length, 3, 'every C1 consumer must require explicit resolved outcome');
-assert((app.match(/ref\.isArchived/g) || []).length >= 3, 'every lifecycle mutation must reject archived vehicles');
-console.log('PASS 4: all three lifecycle consumers fail closed on outcome and archive state');
+assert.strictEqual(resolverCallSites.length, 4, 'PIT movement, QC sign-off, legacy RFT transfer and collection are the only lifecycle consumers');
+assert.strictEqual(resolvedGuards.length, 4, 'every lifecycle consumer must require an explicit resolved outcome');
+assert((app.match(/ref\.isArchived/g) || []).length >= 4, 'every lifecycle mutation must reject archived vehicles');
+console.log('PASS 4: all four lifecycle consumers fail closed on outcome and archive state');
 
 assert(app.includes("return { outcome: 'service_unavailable' }"));
 assert(app.includes('configured shared lifecycle actions fail closed'));
@@ -62,8 +62,8 @@ assert(/title: 'Vehicle completed and collected'[\s\S]{0,220}shared: true/.test(
   'shared collection salesperson draft must suppress browser-local audit writes');
 console.log('PASS 6: shared lifecycle actions do not create browser-local audit authority');
 
-assert(stagingConfig.includes("resolverAssetVersion: 'stage2b-c1-review-20260718'"));
 const appVersion = (app.match(/const\s+APP_VERSION\s*=\s*['\"]([^'\"]+)['\"]/) || [])[1];
+assert(appVersion && stagingConfig.includes(`resolverAssetVersion: '${appVersion}'`), 'staging lifecycle bridge cache key must match the current APP_VERSION');
 assert(appVersion && stagingHtml.includes(`app.js?v=${appVersion}`), 'staging app cache key must match the current APP_VERSION');
 assert(app.includes('vehicleLifecycle.resolverAssetVersion || APP_VERSION'));
 console.log('PASS 7: staging cache busts both app and resolver module without production-file changes');

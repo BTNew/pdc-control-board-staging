@@ -6,9 +6,9 @@
   <meta name="description" content="PDC vehicle locations, workshop workflow, Parts and scheduling control board." />
   <title>PDC Control Board — Random 100 Vehicle Test</title>
   <link rel="icon" href="favicon.svg" type="image/svg+xml" />
-  <link rel="stylesheet" href="styles.css?v=2026.07.27.02-planner-today-intake-stock" />
-  <link rel="stylesheet" href="desktop-operations.css?v=2026.07.27.02-planner-today-intake-stock" />
-  <link rel="stylesheet" href="workshop-planner.css?v=2026.07.27.02-planner-today-intake-stock" />
+  <link rel="stylesheet" href="styles.css?v=2026.07.27.03-vehicle-locations-pit-qc-rft" />
+  <link rel="stylesheet" href="desktop-operations.css?v=2026.07.27.03-vehicle-locations-pit-qc-rft" />
+  <link rel="stylesheet" href="workshop-planner.css?v=2026.07.27.03-vehicle-locations-pit-qc-rft" />
 </head>
 <body>
   <div class="test-data-banner" style="position:sticky;top:0;z-index:9999;background:#6d28d9;color:#fff;padding:8px 14px;text-align:center;font-weight:700;letter-spacing:.02em;">TEST DATASET — 100 SAMPLE VEHICLES ONLY — separate from live board</div>
@@ -67,7 +67,7 @@
           <div class="panel-header">
             <div>
               <h2>Vehicle Locations list</h2>
-              <p>Searchable daily vehicle board ordered by RFT, PMB, Yard Hold, In Transit, then Overseas/Other. Use Yard Hold rows to transfer straight to PMB and PMB rows to transfer to RFT.</p>
+              <p>Searchable daily vehicle board ordered by RFT, QC, PIT, PMB, YARD HOLD, IT, then OTHER. PIT is a vehicle location, not workshop work. Completing every required station job places the vehicle in QC; a named QC sign-off marks it RFT.</p>
             </div>
             <div class="panel-actions">
               <button class="small-button" id="incoming-collapse-all" type="button">Collapse all rows</button>
@@ -87,13 +87,15 @@
               <label>
                 <span>Bucket</span>
                 <select id="incoming-bucket-filter">
-                  <option value="">All buckets</option>
-                  <option value="rft">RFT</option>
-                  <option value="pmb">PMB</option>
-                  <option value="yardhold">Yard Hold</option>
-                  <option value="transit">In Transit</option>
-                  <option value="overseas">Overseas / Other</option>
-                </select>
+                                  <option value="">All buckets</option>
+                                  <option value="rft">RFT</option>
+                                  <option value="qc">QC</option>
+                                  <option value="pit">PIT</option>
+                                  <option value="pmb">PMB</option>
+                                  <option value="yardhold">YARD HOLD</option>
+                                  <option value="transit">IT</option>
+                                  <option value="overseas">OTHER</option>
+                                </select>
               </label>
               <label>
                 <span>Sales rep</span>
@@ -109,8 +111,7 @@
                 <label><input type="checkbox" name="incoming-work-filter" value="electrical" /> Elec</label>
                 <label><input type="checkbox" name="incoming-work-filter" value="tyre" /> Tyre</label>
                 <label><input type="checkbox" name="incoming-work-filter" value="sublet" /> Sublet</label>
-                <label><input type="checkbox" name="incoming-work-filter" value="pitinspection" /> Pit</label>
-              </fieldset>
+                </fieldset>
               <button class="primary incoming-find-button" id="incoming-find" type="button">Find</button>
               <button class="small-button" id="incoming-clear-filters" type="button">Clear</button>
             </div>
@@ -202,7 +203,7 @@
               <button class="small-button" id="email-selected-update-bar" type="button" disabled>EMAIL UPDATE</button>
               <button class="small-button" id="override-selected-to-yh-bar" type="button" disabled>Override to YH</button>
               <button class="small-button primary" id="transfer-selected-to-pmb-bar" type="button" disabled>Transfer to PMB</button>
-              <button class="small-button primary" id="transfer-selected-to-rft-bar" type="button" disabled>Transfer to RFT</button>
+
               <button class="small-button primary print-labels-button" data-print-selected-zpl type="button" disabled>Print Labels</button>
               <button class="small-button danger-button" id="delete-selected-vehicles-bar" type="button" disabled>Delete selected</button>
               <button class="small-button" id="clear-selected-rows-bar" type="button" disabled>Clear</button>
@@ -457,7 +458,7 @@
             </div>
             <div class="parts-help-strip rft-help-strip">
               <strong>RFT rule:</strong>
-              <span>QC becomes available when all required workshop staging and Parts are complete. QC sign-off unlocks RFT. Pit Inspection remains separately tracked before registration and may be completed before or after QC.</span>
+              <span>QC becomes available only when all required station jobs and Parts are complete and the vehicle is back in PMB Unallocated. PIT is a separate vehicle location, not a workshop job. A named QC sign-off immediately marks the vehicle RFT.</span>
             </div>
             <div id="rft-home-content" class="parts-home-content rft-home-content"></div>
           </section>
@@ -851,11 +852,11 @@
     }());
   </script>
 
-  <script src="data-test-100.js?v=2026.07.27.02-planner-today-intake-stock"></script>
+  <script src="data-test-100.js?v=2026.07.27.03-vehicle-locations-pit-qc-rft"></script>
   <script src="arb-labor-catalog.js?v=2026.07.24.26-pd-document-intake"></script>
   <script src="ai-board-advisor.js?v=2026.07.24.26-pd-document-intake"></script>
-  <script src="workshop-eligibility.js?v=2026.07.27.02-planner-today-intake-stock"></script>
-  <script src="app.js?v=2026.07.27.02-planner-today-intake-stock"></script>
+  <script src="workshop-eligibility.js?v=2026.07.27.03-vehicle-locations-pit-qc-rft"></script>
+  <script src="app.js?v=2026.07.27.03-vehicle-locations-pit-qc-rft"></script>
 
 </body>
 </html>

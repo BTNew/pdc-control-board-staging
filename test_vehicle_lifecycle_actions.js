@@ -87,6 +87,27 @@ function fakeClient(responder) {
   });
 }
 
+// 4b. New Vehicle Locations actions map to the atomic QC sign-off and PIT
+// movement RPCs introduced by staging-only migration 070.
+{
+  const client = fakeClient(() => ({ status: 200, ok: true, body: { ok: true } }));
+  const bridge = buildVehicleLifecycleSharedActions(client, () => 'tok');
+  Promise.all([
+    bridge.qcSignoffToRft({ vehicleId: 'v4', expectedVersion: 8, workItemKey: 'QC', completedSummary: 'all jobs' }),
+    bridge.pitTransferVehicle({ vehicleId: 'v5', expectedVersion: 4, direction: 'to_pit' }),
+  ]).then(() => {
+    assert.strictEqual(client.calls[0].name, 'qc_signoff_to_rft');
+    assert.deepStrictEqual(client.calls[0].params, {
+      p_vehicle_id: 'v4', p_expected_version: 8, p_work_item_key: 'QC', p_completed_summary: 'all jobs',
+    });
+    assert.strictEqual(client.calls[1].name, 'pit_transfer_vehicle');
+    assert.deepStrictEqual(client.calls[1].params, {
+      p_vehicle_id: 'v5', p_expected_version: 4, p_direction: 'to_pit',
+    });
+    console.log('PASS 4b: qcSignoffToRft/pitTransferVehicle map correctly');
+  });
+}
+
 // 5. retryVehicleNotification maps correctly, including the optional
 // recipient email override.
 {
@@ -119,7 +140,8 @@ function fakeClient(responder) {
 {
   const documented = [
     'vehicle_version_conflict', 'already_qc_complete', 'already_collected',
-    'qc_not_complete', 'not_in_active_lifecycle', 'not_in_rft',
+    'qc_not_complete', 'qc_gate_blocked', 'pit_requires_pmb_unallocated',
+    'not_in_pit', 'invalid_pit_direction', 'not_in_active_lifecycle', 'not_in_rft',
     'request_failed', 'missing_expected_version',
   ];
   documented.forEach(code => {

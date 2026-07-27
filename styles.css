@@ -10967,8 +10967,8 @@ textarea {
 
 html {
   --pdc-grid-min: 1486px;
-  --pdc-grid-stations-width: 556px;
-  --pdc-station-template: repeat(10, 52px);
+  --pdc-grid-stations-width: 500px;
+  --pdc-station-template: repeat(9, 52px);
 }
 
 html[data-row-width="compact"] {
@@ -11007,11 +11007,11 @@ html[data-row-width="xl"] {
 .pdc-station-strip,
 .incoming-work-checks,
 #workflow .incoming-work-checks {
-  grid-template-columns: repeat(10, 52px) !important;
+  grid-template-columns: repeat(9, 52px) !important;
   gap: 4px !important;
-  width: 556px !important;
-  min-width: 556px !important;
-  max-width: 556px !important;
+  width: 500px !important;
+  min-width: 500px !important;
+  max-width: 500px !important;
 }
 
 /* Full names appear once, angled over their matching status columns. */
@@ -11122,10 +11122,10 @@ html[data-row-width="xl"] {
   .pdc-station-strip,
   .incoming-work-checks,
   #workflow .incoming-work-checks {
-    grid-template-columns: repeat(10, 52px) !important;
-    width: 556px !important;
-    min-width: 556px !important;
-    max-width: 556px !important;
+    grid-template-columns: repeat(9, 52px) !important;
+    width: 500px !important;
+    min-width: 500px !important;
+    max-width: 500px !important;
   }
 }
 
