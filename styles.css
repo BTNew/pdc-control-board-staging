@@ -12015,10 +12015,10 @@ select[name="pdcLocation"]:focus,
   display: grid;
   gap: 12px;
   margin: 0 0 16px;
-  padding: 16px;
-  border: 1px solid #86efac;
-  border-radius: 14px;
-  background: linear-gradient(180deg, #f0fdf4, #ffffff);
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
 }
 .ai-intake-server-header, .ai-intake-server-toolbar, .ai-intake-server-heading, .ai-intake-server-meta, .ai-intake-server-actions, .ai-intake-history-heading { display: flex; align-items: center; gap: 10px; }
 .ai-intake-server-header, .ai-intake-server-heading, .ai-intake-history-heading { justify-content: space-between; }

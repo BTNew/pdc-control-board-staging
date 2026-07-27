@@ -6,10 +6,10 @@
     "twoPhysicalWorkstationAuthorityCutover": false
   },
   "artifact": "zero-data static staging site",
-  "cacheVersion": "2026.07.27.13-navision-safety-preview",
+  "cacheVersion": "2026.07.27.14-ai-intake-flat-panel",
   "deploymentMode": "exact reviewed source blobs; staging.html mapped to index.html",
   "environment": "staging",
-  "generatedAtUtc": "2026-07-27T07:28:50.952345Z",
+  "generatedAtUtc": "2026-07-27T07:34:47.889736Z",
   "migrationLedger": {
     "appliedThrough": "072",
     "evidence": "Staging sentinel verified; migration 072 dry-run rollback passed before apply; ledger recorded; shared Sublet objects exist; authenticated snapshot returned 24 canonical vehicles, 16 requiring Sublet, including all five reported stock numbers; bounded Navision safety replay returned non-blocking with 153/153 selected identities, 69 omissions routed to temporary holding and hard deletion disabled.",
@@ -39,12 +39,12 @@
     "databasePostApply": "PASS \u2014 ledger 072; dedicated RLS-protected shared Sublet tables/RPC present; authenticated snapshot returns 16 active required-Sublet vehicles including the five reported stocks; no vehicle/work-item deletion occurred.",
     "humanAiIntake": "Received, What happened, Car and What changed are shown in plain language; activated, modified, unchanged and review-needed outcomes are distinct; field changes render previous value to new value; technical receipt data is collapsed",
     "humanNavisionResults": "Strongly matched large dealer refreshes may apply while omissions enter reversible temporary holding; the verified replay passed 153 incoming, 153 selected-identity matches, 69 omissions, 0 cross-dealer matches and hard deletion disabled. Structured server safety findings are never reconciled away by zero row-error counts: wrong dealer, cross-dealer, empty, small and weakly matched files show their safety reason and remain blocked before apply.",
-    "literalArtifact": "33/33 deployed Git blobs match source commit 94743e1b793a7a0a8b0332454dbe4426d21ee1ae",
+    "literalArtifact": "33/33 deployed Git blobs match source commit 1a1ed79c10fa4b288e0ff53bb9b72e6f26e11a5f",
     "production": "Untouched; staging static artifact plus staging-only migration 072",
-    "uiCleanup": "Top headers retain only approved login details and Sign out; redundant export/add/upload controls and the ineffective sidebar collapse control are removed. AI Intake no longer asks staff for a routine reason while automatic truthful audit reasons preserve the authoritative decision path. Future workshop booking/rescheduling can proceed before Parts readiness with an automatic planning-risk audit reason; physical-entry gates remain. Sublet consumes canonical Vehicle Locations rows and shared booking edits are server-authoritative and audited."
+    "uiCleanup": "Top headers retain only approved login details and Sign out; redundant export/add/upload controls and the ineffective sidebar collapse control are removed. AI Intake no longer asks staff for a routine reason, and its green outer outline/gradient container is removed while automatic truthful audit reasons preserve the authoritative decision path. Future workshop booking/rescheduling can proceed before Parts readiness with an automatic planning-risk audit reason; physical-entry gates remain. Sublet consumes canonical Vehicle Locations rows and shared booking edits are server-authoritative and audited."
   },
   "sourceBranch": "feat/vehicle-locations-pit-qc-signoff-rft",
-  "sourceCommit": "94743e1b793a7a0a8b0332454dbe4426d21ee1ae",
+  "sourceCommit": "1a1ed79c10fa4b288e0ff53bb9b72e6f26e11a5f",
   "sourceFiles": [
     {
       "deployedPath": "ai-board-advisor.js",
@@ -53,7 +53,7 @@
     },
     {
       "deployedPath": "app.js",
-      "sha256": "29da2caed8a6ef1103988bcbdb40c0cdc112d12a538d465e560ea36ab9824be2",
+      "sha256": "338f9d3feba81f481c19d29f1099a181365e37539a324889f23d6ccc967a8da3",
       "sourcePath": "app.js"
     },
     {
@@ -93,7 +93,7 @@
     },
     {
       "deployedPath": "index.html",
-      "sha256": "e17fd21c79f331461cb2db896c6c416240e311b92827c7a34870a38983195bdd",
+      "sha256": "e70fc14edf9ccf0f91c32216b537aae9e37d6872c979b4df5236242abdb7dc38",
       "sourcePath": "staging.html"
     },
     {
@@ -128,7 +128,7 @@
     },
     {
       "deployedPath": "pdc-supabase-config.staging.js",
-      "sha256": "e150d4c41e9eb36ab3d8a44070f4c6663cf7334ee4505292c6f0fa9df10f16eb",
+      "sha256": "823d97fd9b207886d3a0146742272da761714c34003d57d594382e7b185e2ba6",
       "sourcePath": "pdc-supabase-config.staging.js"
     },
     {
@@ -143,7 +143,7 @@
     },
     {
       "deployedPath": "styles.css",
-      "sha256": "a70228f08a3aefe40530eb88ab0e6afa4bd7872f4b3578660b19fad145c562f0",
+      "sha256": "315b4e8820a20a76f60215fb7bb5d50f723c55ba049f637e721ddc1c04147911",
       "sourcePath": "styles.css"
     },
     {
@@ -212,5 +212,5 @@
       "sourcePath": "workshop-shared-actions.js"
     }
   ],
-  "sourceTree": "7e234f3529deff613b649e9be60031b2871dd004"
+  "sourceTree": "71f61463298cd07eabe2b52292b81a5772e49961"
 }
