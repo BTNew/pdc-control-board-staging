@@ -8,9 +8,9 @@
   <meta name="description" content="PDC Workshop Control Board — STAGING (separate Supabase project, synthetic data only)." />
   <title>PDC Control Board — STAGING</title>
   <link rel="icon" href="favicon.svg" type="image/svg+xml" />
-  <link rel="stylesheet" href="styles.css?v=2026.07.27.07-authoritative-parts-queue" />
-  <link rel="stylesheet" href="desktop-operations.css?v=2026.07.27.07-authoritative-parts-queue" />
-  <link rel="stylesheet" href="workshop-planner.css?v=2026.07.27.07-authoritative-parts-queue" />
+  <link rel="stylesheet" href="styles.css?v=2026.07.27.08-human-ai-intake-results" />
+  <link rel="stylesheet" href="desktop-operations.css?v=2026.07.27.08-human-ai-intake-results" />
+  <link rel="stylesheet" href="workshop-planner.css?v=2026.07.27.08-human-ai-intake-results" />
 </head>
 <body class="auth-pending" data-auth-state="checking">
   <main class="pdc-auth-gate" id="pdc-auth-gate" aria-labelledby="pdc-auth-title">
@@ -87,7 +87,7 @@
         <div class="brand-text">
           <div class="brand-title">Perth Motor Bodies</div>
           <div class="brand-subtitle">PDC Control Board</div>
-          <div class="app-version" id="app-version">Version 2026.07.27.07-authoritative-parts-queue</div>
+          <div class="app-version" id="app-version">Version 2026.07.27.08-human-ai-intake-results</div>
         </div>
         <button class="sidebar-toggle" id="sidebar-toggle" type="button" aria-label="Collapse sidebar" title="Collapse sidebar">‹</button>
       </div>
@@ -98,7 +98,7 @@
         <button type="button" class="nav-item" id="nav-workshop-rollback" data-view="workshop" data-short="PLAN" title="Temporary combined-planner rollback route">Workshop Planner</button>
         <button type="button" class="nav-item" data-view="visibility" data-short="OPS">Operations</button>
         <button type="button" class="nav-item" data-view="parts" data-short="PA">Parts</button>
-        <button type="button" class="nav-item" data-view="emailreview" data-short="AI">AI Intake Review</button>
+        <button type="button" class="nav-item" data-view="emailreview" data-short="AI">AI Intake</button>
         <button type="button" class="nav-item" data-view="sublet" data-short="SUB">Sublet</button>
         <button type="button" class="nav-item" data-view="rft" data-short="RFT">RFT</button>
         <button type="button" class="nav-item" data-view="completed" data-short="DONE">Completed vehicles</button>
@@ -446,16 +446,17 @@
       <section id="emailreview" class="view">
         <div class="parts-home-layout email-review-layout">
           <section class="panel parts-home-panel email-review-panel">
-            <div class="panel-header"><div><h2>AI Intake Review</h2><p>Authenticated PMB inbox observations and durable Administrator decisions are recorded here. Email evidence is informational; live server checks authorize the one supported staging action.</p></div><span class="badge warning" id="email-review-count">0 pending</span></div>
+            <div class="panel-header"><div><h2>AI Intake</h2><p>A simple record of what arrived, which car it matched, and exactly what changed.</p></div><span class="badge warning" id="email-review-count">0 pending</span></div>
             <section class="ai-intake-server-panel" id="ai-intake-server-panel" aria-labelledby="ai-intake-server-title">
               <div class="ai-intake-server-header">
-                <div><span class="eyebrow">PMB inbox bot · Supabase staging</span><h3 id="ai-intake-server-title">Inbox observations and controlled board activation</h3><p>Every accepted email is fingerprinted and retained. An active Administrator may independently authorize only an exact current Navision Stock activation after the server revalidates identity and revisions.</p></div>
+                <div><span class="eyebrow">PMB email intake</span><h3 id="ai-intake-server-title">Emails received and car changes</h3><p>Each item shows whether a car was activated, modified, left unchanged or needs review. Technical receipt details are available inside each item.</p></div>
                 <div class="ai-intake-server-toolbar"><span class="badge warning" id="ai-intake-server-state">Connecting</span><button class="small-button" id="ai-intake-server-refresh" type="button">Refresh inbox</button></div>
               </div>
-              <div class="table-toolbar ai-intake-server-filter"><label><span>Inbox status</span><select id="ai-intake-server-filter"><option value="pending">Pending observation</option><option value="applied">Applied history</option><option value="rejected">Rejected history</option><option value="all">All inbox observations</option></select></label></div>
-              <div id="ai-intake-server-content"><div class="empty-state compact-empty"><strong>Connecting to staging AI Intake</strong><span>No browser-local fallback is used.</span></div></div>
-              <div class="ai-intake-history-heading"><div><span class="eyebrow">Durable audit trail</span><h3>What the inbox bot noticed and what staff changed</h3></div></div>
-              <div id="ai-intake-history-content"><div class="empty-state compact-empty"><strong>Loading history</strong><span>Noticed, applied and rejected events appear here.</span></div></div>
+              <div class="table-toolbar ai-intake-server-filter"><label><span>Show</span><select id="ai-intake-server-filter"><option value="pending">Needs review</option><option value="applied">Processed</option><option value="rejected">No change made</option><option value="all">Everything received</option></select></label></div>
+              <div class="parts-help-strip"><strong>Safety:</strong><span>Email evidence is informational. An Administrator decision can approve only a controlled board activation after the server matches the exact current Navision car again.</span></div>
+              <div id="ai-intake-server-content"><div class="empty-state compact-empty"><strong>Loading email intake</strong><span>Checking the latest online records.</span></div></div>
+              <div class="ai-intake-history-heading"><div><span class="eyebrow">History</span><h3>What arrived and what happened</h3></div></div>
+              <div id="ai-intake-history-content"><div class="empty-state compact-empty"><strong>Loading history</strong><span>Received, activated, modified and dismissed items appear here.</span></div></div>
             </section>
             <section class="ai-board-advisor-panel" aria-labelledby="ai-board-advisor-title">
               <div class="ai-board-advisor-header">
@@ -986,14 +987,14 @@
   <script src="pdc-auth.js?v=2026.07.24.26-pd-document-intake"></script>
   <script src="pdc-auth-registration.js?v=2026.07.24.26-pd-document-intake"></script>
   <script src="data-staging-empty.js?v=2026.07.24.26-pd-document-intake"></script>
-  <script src="email-board-data.js?v=2026.07.27.07-authoritative-parts-queue"></script>
+  <script src="email-board-data.js?v=2026.07.27.08-human-ai-intake-results"></script>
   <script src="arb-labor-catalog.js?v=2026.07.24.26-pd-document-intake"></script>
   <script src="ai-board-advisor.js?v=2026.07.24.26-pd-document-intake"></script>
   <script src="navision-backend-service.js?v=2026.07.24.26-pd-document-intake"></script>
   <script src="pdc-ai-intake-service.js?v=2026.07.25.03-ai-intake-admin-decision"></script>
-  <script src="workshop-eligibility.js?v=2026.07.27.07-authoritative-parts-queue"></script>
-  <script src="pdc-email-vehicle-location-service.js?v=2026.07.27.07-authoritative-parts-queue"></script>
-  <script src="app.js?v=2026.07.27.07-authoritative-parts-queue"></script>
+  <script src="workshop-eligibility.js?v=2026.07.27.08-human-ai-intake-results"></script>
+  <script src="pdc-email-vehicle-location-service.js?v=2026.07.27.08-human-ai-intake-results"></script>
+  <script src="app.js?v=2026.07.27.08-human-ai-intake-results"></script>
   <script src="key-list-review.js?v=2026.07.23.11-key-list-review"></script>
   <script src="scripts/stage2b_c4_browser_export.js?v=2026.07.22.01-read-only-assessment"></script>
   <script src="staging-browser-assessment.js?v=2026.07.22.01-read-only-assessment"></script>
