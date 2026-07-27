@@ -6,6 +6,7 @@ const root = __dirname;
 const app = fs.readFileSync(path.join(root, 'app.js'), 'utf8');
 const planner = fs.readFileSync(path.join(root, 'workshop-planner.js'), 'utf8');
 const staging = fs.readFileSync(path.join(root, 'staging.html'), 'utf8');
+const styles = fs.readFileSync(path.join(root, 'styles.css'), 'utf8');
 const migration = fs.readFileSync(path.join(root, 'supabase/staging_only/072_navision_safe_overlap_and_shared_sublet.sql'), 'utf8').toLowerCase();
 
 assert(!app.includes('data-ai-intake-reason'), 'AI Intake must not render or read a staff decision-reason field');
@@ -22,6 +23,7 @@ for (const removed of ['id="sidebar-toggle"', 'id="browser-assessment-export"', 
 }
 assert(staging.includes('id="pdc-auth-user"') && staging.includes('id="pdc-auth-signout"'), 'Top chrome must retain login details and Sign out');
 assert(!app.includes("on($('#sidebar-toggle'), 'click', toggleSidebar)"), 'Sidebar must no longer be collapsible');
+assert(/\.ai-intake-server-panel\s*\{[^}]*border:\s*0;[^}]*background:\s*transparent;/s.test(styles), 'AI Intake server panel must not have the green outline container');
 
 assert(app.includes('return vehicleLocationBoardRows().filter(vehicle =>'), 'Sublet queue must use canonical Vehicle Locations rows');
 assert(app.includes('update_pdc_sublet_booking_field') || fs.readFileSync(path.join(root, 'pdc-email-vehicle-location-service.js'), 'utf8').includes('update_pdc_sublet_booking_field'), 'Shared Sublet edits must use the server RPC');

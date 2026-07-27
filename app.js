@@ -1,5 +1,5 @@
-const APP_VERSION = '2026.07.27.13-navision-safety-preview';
-const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.07.27.13-navision-safety-preview';
+const APP_VERSION = '2026.07.27.14-ai-intake-flat-panel';
+const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.07.27.14-ai-intake-flat-panel';
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
 // constant intentionally names only the production ref, never the
