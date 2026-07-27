@@ -8,12 +8,13 @@ function assert(value, message) { if (!value) throw new Error(message); }
 
 (async () => {
   assert(canonicalWorkKey('Pit Inspection') === 'pitinspection' && canonicalWorkKey('PIT_INSPECTION') === 'pitinspection', 'Pit aliases must canonicalize');
-  const server = { id: 's1', permanent_vehicle_id: 'p1', stock_number: 'S-100', vin: 'VIN100', customer_name: 'Server customer', vehicle_description: 'Server vehicle', current_location: 'Other', visible_on_board: true, work_items: [{ work_key: 'tint', required: true, completed: false }, { work_key: 'pit_inspection', required: true, completed: true, completed_at: '2026-07-25T01:00:00Z', completed_by: 'staff' }], parts_required: true, parts_completed: false };
+  const server = { id: 's1', permanent_vehicle_id: 'p1', stock_number: 'S-100', vin: 'VIN100', customer_name: 'Server customer', vehicle_description: 'Server vehicle', current_location: 'Other', visible_on_board: true, work_items: [{ work_key: 'tint', required: true, completed: false }, { work_key: 'sublet', required: true, completed: false }, { work_key: 'pit_inspection', required: true, completed: true, completed_at: '2026-07-25T01:00:00Z', completed_by: 'staff' }], parts_required: true, parts_completed: false, sublet_booking: { provider: 'Provider A', booking_date: '2026-08-04', email_sent: false, version: 3 } };
   const mapped = mapServerVehicle(server);
   assert(mapped.pdcLocation === 'Other' && mapped.pdcSheetVisible === true, 'Other server row must remain board-visible');
   assert(mapped.pdcRequiresTint === true && mapped.pdcCompleteTint === false, 'Required incomplete work must map to a to-be-completed tick');
   assert(mapped.pdcRequiresPitInspection === true && mapped.pdcCompletePitInspection === true, 'Canonical completed work must map');
   assert(mapped.pdcRequiresParts === true && mapped.pdcCompleteParts === false, 'Parts summary flags must be authoritative');
+  assert(mapped.pdcRequiresSublet === true && mapped.pmbSubletProvider === 'Provider A' && mapped.pmbSubletBookingDate === '2026-08-04' && mapped.__subletBookingVersion === 3, 'Shared Sublet requirement and booking fields must map together');
   assert(mapped.__emailVehicleReadOnly === true, 'Email-imported server rows must remain fail-closed for browser-local location mutations');
   assert(mapped.__locationIdentityReadOnly !== true, 'A unique email-imported server row must not be mislabeled as an identity conflict');
 
@@ -38,6 +39,10 @@ function assert(value, message) { if (!value) throw new Error(message); }
   const snapshot = await service.snapshot();
   assert(snapshot.ok && snapshot.data.revision === 7 && /get_pdc_email_vehicle_location_snapshot$/.test(request.url), 'Exact authenticated snapshot RPC must be used');
   assert(request.options.headers.Authorization === 'Bearer approved-token' && request.options.body === '{}', 'Snapshot must use current auth and no browser-supplied authority parameters');
+  const updated = await service.updateSublet('s1', 3, 'booking_date', '2026-08-05');
+  const updateBody = JSON.parse(request.options.body);
+  assert(updated.ok && /update_pdc_sublet_booking_field$/.test(request.url), 'Sublet edits must use the protected shared RPC');
+  assert(updateBody.p_vehicle_id === 's1' && updateBody.p_expected_version === 3 && updateBody.p_field === 'booking_date' && updateBody.p_value === '2026-08-05', 'Sublet updates must bind the canonical vehicle, version, field and value');
   let revision = null; service.subscribe(value => { revision = value; });
   subscription.callback({ new: { revision: 8 } });
   assert(subscription.table === PDC_EMAIL_VEHICLE_REVISION_TABLE && revision === 8, 'Exact realtime revision table must trigger refresh');

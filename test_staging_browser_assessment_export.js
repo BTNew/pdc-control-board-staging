@@ -160,7 +160,7 @@ async function main() {
   assert.deepStrictEqual(blocked, { appended: 1, removed: 1, revoked: 1 }, 'blocked downloads must clean up the anchor and Blob URL');
 
   const staging = fs.readFileSync(path.join(__dirname, 'staging.html'), 'utf8');
-  assert(staging.includes('id="browser-assessment-export"'));
+  assert(!staging.includes('id="browser-assessment-export"'), 'Top headers must contain login details and Sign out only');
   assert(staging.includes('scripts/stage2b_c4_browser_export.js'));
   assert(staging.includes('staging-browser-assessment.js'));
   const index = fs.readFileSync(path.join(__dirname, 'index.html'), 'utf8');

@@ -24,6 +24,7 @@ const context = {
   Date,
   PDC_JOB_DEFS: [{ key: 'sublet', requireKey: 'pdcRequiresSublet', completeKey: 'pdcCompleteSublet' }],
   pdcSheetVehicles: () => fixtures,
+  vehicleLocationBoardRows: () => fixtures,
   pdcJobRequired: (vehicle, def) => vehicle[def.requireKey] === true,
   pdcJobComplete: (vehicle, def) => vehicle[def.completeKey] === true,
   inferredPmbStage: vehicle => vehicle.pmbStage || '',
@@ -34,6 +35,7 @@ const context = {
 vm.createContext(context);
 vm.runInContext(`${appSource.slice(start, end)}\nthis.queueRows = subletRows();\nthis.compareRows = compareSubletBookingProximity;`, context);
 assert.deepStrictEqual(Array.from(context.queueRows, row => row.stock), ['NEEDS', 'HISTORY'], 'Every incomplete required Sublet vehicle must appear even while its current PMB stage is elsewhere; completed history remains visible only when a booking record exists');
+assert(appSource.includes('return vehicleLocationBoardRows().filter(vehicle =>'), 'Sublet must consume the same reconciled canonical rows as Vehicle Locations');
 
 const dated = [
   { stock: 'UNBOOKED', pmbSubletBookingDate: '' },
