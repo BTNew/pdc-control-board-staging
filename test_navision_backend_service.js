@@ -85,6 +85,11 @@ function assert(condition, message) {
   contradictoryPreview.data.data.items = [{ classification: 'changed' }, { classification: 'unchanged' }];
   const reconciled = await first.apply(rows, contradictoryPreview, { ...options, idempotencyKey: 'apply-reconciled' });
   assert(reconciled.ok, 'A stale blocking flag must not prevent server revalidation when exact counts and items contain zero blocking rows');
+  const safetyBlockedPreview = JSON.parse(JSON.stringify(contradictoryPreview));
+  safetyBlockedPreview.data.data.safety = { blocking: true, reason: 'suspicious_partial_snapshot' };
+  const callsBeforeSafetyBlock = calls.length;
+  const safetyBlocked = await first.apply(rows, safetyBlockedPreview, { ...options, idempotencyKey: 'apply-safety-blocked' });
+  assert(!safetyBlocked.ok && safetyBlocked.error === 'preview_has_blocking_issues' && safetyBlocked.data.safetyReason === 'suspicious_partial_snapshot' && calls.length === callsBeforeSafetyBlock, 'A structured server safety block must never be reconciled away as a stale top-level flag');
   const trulyBlockedPreview = JSON.parse(JSON.stringify(preview));
   trulyBlockedPreview.data.data.blocking = false;
   trulyBlockedPreview.data.data.counts = { ...trulyBlockedPreview.data.data.counts, invalid: 1, conflict: 0 };

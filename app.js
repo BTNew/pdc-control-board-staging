@@ -1,5 +1,5 @@
-const APP_VERSION = '2026.07.27.12-workflow-navision-sublet-fixes';
-const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.07.27.12-workflow-navision-sublet-fixes';
+const APP_VERSION = '2026.07.27.13-navision-safety-preview';
+const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.07.27.13-navision-safety-preview';
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
 // constant intentionally names only the production ref, never the
@@ -15394,13 +15394,30 @@ function navisionSharedPreviewBlockingState(data = {}) {
   const invalid = Math.max(0, Number(counts?.invalid || 0));
   const conflict = Math.max(0, Number(counts?.conflict || 0));
   const affected = invalid + conflict;
+  const safety = data?.safety && typeof data.safety === 'object' ? data.safety : null;
+  const safetyBlocking = safety?.blocking === true;
   return {
     invalid,
     conflict,
     affected,
-    inconsistentFlag: data?.blocking === true && affected === 0 && Boolean(counts),
-    blocking: affected > 0 || (data?.blocking === true && !counts),
+    safetyBlocking,
+    safetyReason: safetyBlocking ? String(safety?.reason || 'safety_review_required') : '',
+    inconsistentFlag: data?.blocking === true && affected === 0 && Boolean(counts) && !safetyBlocking,
+    blocking: affected > 0 || safetyBlocking || (data?.blocking === true && !counts),
   };
+}
+
+function navisionSafetyIssueMessage(reason = '') {
+  const messages = {
+    suspicious_partial_snapshot: 'This file omits an unusually large number of current dealer vehicles and may be a partial export.',
+    suspicious_complete_replacement: 'This file would replace the complete current dealer scope.',
+    suspicious_cross_dealer_overlap: 'This file appears to contain records belonging to another dealer.',
+    suspicious_dealer_filename_mismatch: 'The selected dealer does not match the uploaded filename.',
+    suspicious_empty_scope: 'The dealer scope or source file could not be proven safely.',
+    suspicious_tiny_snapshot: 'This file is too small to treat as a complete daily Navision snapshot.',
+    safety_review_required: 'The server safety assessment requires this file to be reviewed before import.',
+  };
+  return messages[reason] || messages.safety_review_required;
 }
 
 function navisionDealerName(dealerCode = '') {
@@ -15510,6 +15527,7 @@ function renderSharedNavisionPreview(state = {}, applied = false) {
     </div>
     <div class="parts-help-strip"><strong>${applied ? 'What happened:' : 'Import rule:'}</strong><span>${applied ? `The shared Navision records were updated. ${added} added, ${changed} modified and ${unchanged} already current.` : 'A Navision upload updates Back End Data only. It does not activate cars, move them, change Parts or alter workshop bookings.'}</span></div>
     ${!applied && blockingState.inconsistentFlag ? '<div class="summary-row warning"><strong>Preview rechecked</strong><span>No invalid or conflicting rows were found. The database will validate the exact preview again before applying any change.</span></div>' : ''}
+    ${!applied && blockingState.safetyBlocking ? `<div class="summary-row error"><strong>Server safety check blocked this import</strong><span>${escapeHtml(navisionSafetyIssueMessage(blockingState.safetyReason))} Nothing was changed.</span></div>` : ''}
     ${renderSharedNavisionChangeDetails(state, data)}
     <details class="navision-technical-details"><summary>Technical details</summary><div class="subtle navision-note">Dealer ${escapeHtml(state.dealerCode || '')} · ${applied ? `receipt ${escapeHtml(data.receipt_id || data.receiptId || 'returned by server')} · revision ${escapeHtml(data.revision ?? data.result_revision ?? '')}` : `preview ${escapeHtml(data.preview_hash || '')}`} · browser check ${escapeHtml(state.browserLocalSha256 || '')}</div></details>`;
 }
@@ -15602,7 +15620,9 @@ async function applySharedNavisionImport() {
   const blockingState = navisionSharedPreviewBlockingState(data);
   if (blockingState.blocking) {
     const { invalid, conflict, affected } = blockingState;
-    window.alert(`${affected} row${affected === 1 ? '' : 's'} need attention (${invalid} invalid, ${conflict} conflicting).\n\nClose this message to see each affected row and how to fix it. Nothing was imported or changed.`);
+    window.alert(blockingState.safetyBlocking
+      ? `${navisionSafetyIssueMessage(blockingState.safetyReason)}\n\nNothing was imported or changed.`
+      : `${affected} row${affected === 1 ? '' : 's'} need attention (${invalid} invalid, ${conflict} conflicting).\n\nClose this message to see each affected row and how to fix it. Nothing was imported or changed.`);
     return;
   }
   if (navisionBrowserAuthoritySha256() !== pending.browserLocalSha256) {

@@ -47,4 +47,6 @@ ok(fs.readFileSync('styles.css','utf8').includes('.navision-import-success-tick'
 ok(app.includes('navisionSharedPreviewBlockingState(data)')&&applyFn.includes('if (blockingState.blocking)'),'shared UI reconciles the blocking flag with exact invalid/conflict evidence');
 ok(!applyFn.includes('if (data.blocking === true ||'),'shared apply no longer reports zero attention rows solely from a contradictory top-level flag');
 ok(service.includes('function navisionPreviewBlockingState(')&&service.includes('inconsistentFlag'),'service rechecks contradictory preview evidence while retaining a fail-closed unknown-state path');
+ok(service.includes('safetyBlocking')&&service.includes("safety?.blocking === true"),'structured server safety findings remain blocking even when row-invalid counts are zero');
+ok(applyFn.includes('navisionSafetyIssueMessage(blockingState.safetyReason)'),'shared apply explains the server safety reason instead of reporting zero bad rows');
 console.log(`Navision shared UI/dealer-scope regression: ${n} assertions passed.`);
