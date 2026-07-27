@@ -34,6 +34,6 @@ window.PDC_SUPABASE_CONFIG = {
   vehicleLifecycle: Object.freeze({
     sharedData: true,
     resolverRollbackDirectRead: false,
-    resolverAssetVersion: '2026.07.27.06-sublet-provider-booking-queue'
+    resolverAssetVersion: '2026.07.27.07-authoritative-parts-queue'
   })
 };

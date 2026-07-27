@@ -1,5 +1,5 @@
-const APP_VERSION = '2026.07.27.06-sublet-provider-booking-queue';
-const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.07.27.06-sublet-provider-booking-queue';
+const APP_VERSION = '2026.07.27.07-authoritative-parts-queue';
+const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.07.27.07-authoritative-parts-queue';
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
 // constant intentionally names only the production ref, never the
@@ -11241,11 +11241,17 @@ function partsMatchesOperationalFilter(vehicle = {}, filter = 'notordered') {
   return ['notordered', 'miscacc'].includes(status);
 }
 
+function partsDepartmentSourceRows() {
+  // Shared authenticated vehicle/work-item authority must feed Parts. The
+  // browser-backed local layer is intentionally empty on zero-data staging.
+  return vehicleLocationBoardRows();
+}
+
 function partsDepartmentRows() {
   const q = ($('#parts-search')?.value || '').trim().toLowerCase();
   const operationalFilter = app.partsOperationalFilter || 'notordered';
   const departmentFilter = $('#parts-department-filter')?.value || '';
-  return pdcSheetVehicles()
+  return partsDepartmentSourceRows()
     .filter(vehicleHasBatchNumber)
     .filter(vehicle => partsMatchesOperationalFilter(vehicle, operationalFilter))
     .filter(vehicle => !departmentFilter || vehicleDepartmentCode(vehicle) === departmentFilter)
@@ -11263,7 +11269,7 @@ function partsDepartmentRows() {
     });
 }
 function renderPartsSummary() {
-  const all = pdcSheetVehicles().filter(vehicleHasBatchNumber);
+  const all = partsDepartmentSourceRows().filter(vehicleHasBatchNumber);
   const filters = [
     ['notordered', 'Parts Not Ordered'],
     ['ordered', 'Parts Ordered'],
@@ -11332,7 +11338,7 @@ function partsQueueRowHtml(vehicle = {}) {
   </tr>`;
 }
 function partsIssuedStoppagePickerHtml() {
-  const issued = pdcSheetVehicles()
+  const issued = partsDepartmentSourceRows()
     .filter(vehicleHasBatchNumber)
     .filter(vehicle => partsDepartmentStatus(vehicle) === 'issued')
     .sort((a, b) => String(displayStockNumber(a) || '').localeCompare(String(displayStockNumber(b) || ''), undefined, { numeric: true }));
