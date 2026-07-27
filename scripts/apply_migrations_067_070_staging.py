@@ -116,7 +116,7 @@ def main() -> None:
             post = {
                 "ledger_head": scalar(cur, "select version from supabase_migrations.schema_migrations order by version desc limit 1"),
                 "pit_planner_disabled": scalar(cur, "select exists(select 1 from public.workshop_stages where code='PIT_INSPECTION' and not planner_enabled)"),
-                "active_pit_bookings": scalar(cur, "select count(*) from public.workshop_bookings b join public.workshop_stages s on s.id=b.stage_id where s.code='PIT_INSPECTION' and b.deleted_at is null and b.status not in('completed','cancelled')"),
+                "active_pit_bookings": scalar(cur, "select count(*) from public.workshop_bookings b join public.workshop_stages s on s.id=b.stage_id where s.code='PIT_INSPECTION' and b.deleted_at is null and b.status::text not in('completed','cancelled','canceled')"),
                 "qc_gate_rpc": scalar(cur, "select to_regprocedure('public.pdc_qc_gate_issues(uuid)') is not null"),
                 "pit_transfer_rpc": scalar(cur, "select to_regprocedure('public.pit_transfer_vehicle(uuid,integer,text)') is not null"),
                 "qc_to_rft_rpc": scalar(cur, "select to_regprocedure('public.qc_signoff_to_rft(uuid,integer,text,text)') is not null"),
