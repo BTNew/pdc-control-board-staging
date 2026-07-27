@@ -9,15 +9,15 @@
   "cacheVersion": "2026.07.27.20-workshop-parts-gate",
   "deploymentMode": "exact reviewed source blobs; staging.html mapped to index.html",
   "environment": "staging",
-  "generatedAtUtc": "2026-07-27T23:09:04.665590Z",
+  "generatedAtUtc": "2026-07-27T23:24:00.022595Z",
   "humanAiIntake": {
     "approvalGate": "Administrator decision remains server-validated; missing summaries disable Approve while Deny remains available.",
     "summary": "Prominent escaped email summary plus explicit Approve/Deny effects; approval fails closed when no readable summary exists."
   },
   "migrationLedger": {
-    "appliedThrough": "078",
-    "evidence": "Migrations 077 and 078 are applied to the approved staging project. Migration 077 separates audited future Parts-incomplete planning from physical Start. Migration 078 gives Viewer read-only snapshot access while every mutation RPC remains operator/administrator gated. Namespaced QA fixtures were removed.",
-    "ledgerHead": "078",
+    "appliedThrough": "079",
+    "evidence": "Migrations through 079 are applied to the approved staging project. Migration 079 replaces the arbitrary 100-row Navision dealer floor with exact original Dealer-column authority. An 83-row Pilbara preview overlapping 83 Broome identities was accepted, while a missing-dealer negative control remained blocked.",
+    "ledgerHead": "079",
     "migrations": [
       "058",
       "059",
@@ -39,23 +39,25 @@
       "075",
       "076",
       "077",
-      "078"
+      "078",
+      "079"
     ]
   },
   "pendingStagingMigrations": [],
   "releaseChecks": {
-    "aggregateTests": "PASS \u2014 98 passed, 0 failed, 1 intentional skip; rendered Parts layout passed at 1920x1080 and 1264x625; controlled-link refusal UI passed 127 assertions.",
+    "aggregateTests": "PASS \u2014 99 passed, 0 failed, 1 intentional skip; rendered Parts layout passed at 1920x1080 and 1264x625; controlled-link refusal UI passed 127 assertions.",
     "aiReviewDecisionContext": true,
     "aiReviewOverlayVersion": "2026.07.27.19-ai-review-decision-context",
     "backupRestore": "PASS \u2014 encrypted backup run 11b91f6c-6c00-48b1-a1f1-f3943f082e23 restored into isolated schema restore_ai_intake_071_20260727; row counts, foreign keys, relationships and format/schema hashes matched; schema dropped after verification",
     "databasePostApply": "PASS \u2014 migration 077 applied; schedule/move/cascade retain audited future planning while start_workshop_work enforces Parts readiness and administrator-only reasoned override.",
     "humanAiIntake": "Received, What happened, Car and What changed are shown in plain language; activated, modified, unchanged and review-needed outcomes are distinct; field changes render previous value to new value; technical receipt data is collapsed",
     "humanNavisionResults": "An administrator can establish the first empty dealer scope only for one exact full snapshot of at least 100 valid rows. Approval is content-bound, user-bound and expires after two hours. Cross-dealer, invalid, duplicate, stale and changed snapshots remain fail-closed. Later strongly matched refresh omissions continue to enter reversible temporary holding.",
-    "literalArtifact": "35/35 deployed Git blobs match source commit 87e952c2ee12c6ed507e138ec3a0401ba1902a3a",
+    "literalArtifact": "35/35 deployed Git blobs match source commit 1c39c6a475d3508a91b6f08d1e6c8e0b435f53e3",
     "mixedDealerNavision": "A report containing both approved dealers is scoped server-side to the selected dealer only when every row carries known original Dealer evidence and the selected scope has at least 100 rows. Preview and Apply use identical filtering; other-dealer rows are reported and ignored, never imported into the selected scope.",
+    "navisionPilbaraExactScope": "PASS \u2014 83-row Pilbara exact-scope preview accepted despite 83 historical Broome identity overlaps; every original Dealer column declared 14450. A missing Dealer-column negative control remained blocked. Hard delete remains disabled.",
     "operationalTooling": "Staging environment and database helpers live under scripts/pdc_staging_runtime.py; operational scripts no longer import test-fixture helper modules.",
     "pilbaraNavision": "Cross-scope Batch overlap no longer blocks a substantial Pilbara extract when every valid source row's original Dealer column explicitly declares 14450. Mixed, missing or contrary Dealer evidence remains blocked; hard deletion is disabled and the browser's selected option alone is not trusted.",
-    "production": "Untouched; staging static artifact plus staging-only migrations through 078",
+    "production": "Untouched; staging static artifact plus staging-only migrations through 079",
     "stagingFixtureCleanup": "PASS \u2014 QA-OVN-20260727-WS, vehicle 7f17d3c5-4ef7-4f4e-9c5d-202607270001, booking 5fb7c7b3-ddcf-49d7-a0e3-a764f2a6b375 and Navision 99072701 active/audit fixture rows were removed.",
     "subletAiReview": "Sublet uses a compact five-column operational table: Vehicle, Provider, Booking date, Notes/email and Actions. PO sent, expected return, actual return and return-status filtering are absent. AI Review shows the server-generated What the email says summary before detected changes and Approve/Deny controls.",
     "uiCleanup": "Control Board current-time line appears only for today and QC is removed from its station list. All-green PMB vehicles require explicit Ready for QC confirmation and move authoritatively to the Vehicle Locations QC Gate. Named QC sign-off moves to RFT and prints a dedicated windscreen label. Parts removes Outstanding station work, persists and refreshes ETA countdowns, and uses the shared Vehicle Locations row height.",
@@ -63,7 +65,7 @@
     "workshopPartsGate": "Future planning does not claim or reserve Parts. Immediate physical Start fails closed for Parts-incomplete vehicles; only an administrator-supplied reason can create the audited entry override."
   },
   "sourceBranch": "fix/staging-overnight-qa-20260727",
-  "sourceCommit": "87e952c2ee12c6ed507e138ec3a0401ba1902a3a",
+  "sourceCommit": "1c39c6a475d3508a91b6f08d1e6c8e0b435f53e3",
   "sourceFiles": [
     {
       "deployedPath": "ai-board-advisor.js",
@@ -241,5 +243,5 @@
       "sourcePath": "pdc-ai-intake-review.js"
     }
   ],
-  "sourceTree": "fa8d772510d861ed18a88d3282a99b9dfce8ddb8"
+  "sourceTree": "18908a52b5d305acce3dbc631fe66f927fd2e878"
 }
