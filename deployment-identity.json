@@ -6,10 +6,10 @@
     "twoPhysicalWorkstationAuthorityCutover": false
   },
   "artifact": "zero-data static staging site",
-  "cacheVersion": "2026.07.27.08-human-ai-intake-results",
+  "cacheVersion": "2026.07.27.09-navision-preview-blocking-fix",
   "deploymentMode": "exact reviewed source blobs; staging.html mapped to index.html",
   "environment": "staging",
-  "generatedAtUtc": "2026-07-27T04:16:49.327427Z",
+  "generatedAtUtc": "2026-07-27T06:16:07.283563Z",
   "migrationLedger": {
     "appliedThrough": "071",
     "evidence": "staging sentinel verified; encrypted pre-migration backup 11b91f6c-6c00-48b1-a1f1-f3943f082e23 restored in an isolated schema with row counts, foreign keys and integrity/hash checks passing; migration 071 rollback rehearsal and controlled apply passed with protected inventory unchanged",
@@ -33,35 +33,35 @@
   },
   "pendingStagingMigrations": [],
   "releaseChecks": {
-    "aggregateTests": "85 of 89 direct JavaScript tests passed; four known unrelated baseline failures (aggregate wrapper, sanitised master-sheet fixture, Navision timeout contract, workshop planner-role guard); focused AI Intake, Navision shared UI, containment, service and staff automation suites passed",
+    "aggregateTests": "86 passed, 1 failed, 1 skipped in the fresh direct JavaScript aggregate; focused Navision service, shared UI, timeout, syntax and version suites passed. The remaining failure is the pre-existing Windows-CRLF-sensitive workshop planner-role static assertion.",
     "backupRestore": "PASS \u2014 encrypted backup run 11b91f6c-6c00-48b1-a1f1-f3943f082e23 restored into isolated schema restore_ai_intake_071_20260727; row counts, foreign keys, relationships and format/schema hashes matched; schema dropped after verification",
     "databasePostApply": "PASS \u2014 ledger 071; 40 AI Intake receipts checked, 29 contain exact bounded change evidence; protected inventory unchanged at 20 vehicles, 61 work items, 18 Parts updates and 2 bookings",
     "humanAiIntake": "Received, What happened, Car and What changed are shown in plain language; activated, modified, unchanged and review-needed outcomes are distinct; field changes render previous value to new value; technical receipt data is collapsed",
-    "humanNavisionResults": "Preview and apply report records received, added, modified, current, missing and blocked; changed fields render previous value to new value; invalid/conflict rows identify the affected row and correction; Navision explicitly reports zero cars activated or moved",
-    "literalArtifact": "33/33 deployed Git blobs match source commit 7b7ac72782cfe0825153d955774361fe8d7486e0",
-    "production": "Untouched; staging static artifact and staging-only migration 071 only"
+    "humanNavisionResults": "Contradictory top-level blocking flags are reconciled against exact invalid/conflict counts and row classifications; zero-issue previews may reach the atomic server apply, while actual invalid/conflict evidence and unknown blocking states still fail closed.",
+    "literalArtifact": "33/33 deployed Git blobs match source commit bfdd2de465857b9669907c0abe4b68e0bf9cfd12",
+    "production": "Untouched; staging static artifact only; no database migration"
   },
   "sourceBranch": "feat/vehicle-locations-pit-qc-signoff-rft",
-  "sourceCommit": "7b7ac72782cfe0825153d955774361fe8d7486e0",
+  "sourceCommit": "bfdd2de465857b9669907c0abe4b68e0bf9cfd12",
   "sourceFiles": [
     {
       "deployedPath": "ai-board-advisor.js",
-      "sha256": "97785220d0b72527327955c39c02e276d33a2c1391f220f211b83996ece07c65",
+      "sha256": "a01dc581a417684c5a3377057bc70a57624bdaa3ad67c24b408eedfa86e0fc4e",
       "sourcePath": "ai-board-advisor.js"
     },
     {
       "deployedPath": "app.js",
-      "sha256": "33a46066c067f68f883e0619ead45e6245852677bdb0bf1253fd5bfd8b07aa4e",
+      "sha256": "50d314cc91a83682fcd9c0de8669a4e920fb4386f02368e24a936fd63bd3fc88",
       "sourcePath": "app.js"
     },
     {
       "deployedPath": "arb-labor-catalog.js",
-      "sha256": "1800e93b325bfd58d9b0131d2105f78b775885bd82e88ceed63d3ecf6100b9fe",
+      "sha256": "db99ee8c4ddf341ce3f948dc04fb70cbe6c66d122be1a262f7074552a2fa49c0",
       "sourcePath": "arb-labor-catalog.js"
     },
     {
       "deployedPath": "assets/brand-logo.svg",
-      "sha256": "7e3c9cb0b7e1f53b931f6cad274583f78a6be67ba554d6a45e57473f5ab611a0",
+      "sha256": "4bffc708627c0ee8de1a997aec6bf3aae7461fb779f2700f41fd47e6645dd28d",
       "sourcePath": "assets/brand-logo.svg"
     },
     {
@@ -71,144 +71,144 @@
     },
     {
       "deployedPath": "data-staging-empty.js",
-      "sha256": "2fa02a231e559b4230ba22ac1c6e1cfa600fcaad9f546f6fb3e2a28b2acab756",
+      "sha256": "d2a9ed658daa1cc5eabb45a78eeb5c7f93ef0146a12e7f8c23d0b028f915c7a9",
       "sourcePath": "data-staging-empty.js"
     },
     {
       "deployedPath": "desktop-operations.css",
-      "sha256": "0217291a89fbdb065879b7a118b3a5e6946f1ef2d0409c1cf05af4b58cb02393",
+      "sha256": "0f5929993a588823670258758919257d5bcb5fac0b5f313b592e96b990088c73",
       "sourcePath": "desktop-operations.css"
     },
     {
       "deployedPath": "email-board-data.js",
-      "sha256": "c0cc888ec98ec64dd1710a75c7ea222d2c5a12993877ef4eebb3f66476e4093b",
+      "sha256": "3b55079afe708ae6842a6ddb61e19e912a8182cdc835a5d4102e4a5815dbace0",
       "sourcePath": "email-board-data.js"
     },
     {
       "deployedPath": "favicon.svg",
-      "sha256": "f1ce1b8f7a37c54801c2ee233c9e67bb2d852cb6ea8af942455d33d85aac046f",
+      "sha256": "f79b374447017a73a77012096c6d031ddb2ad6bf1b647d2efbfd465e6a5f32e6",
       "sourcePath": "favicon.svg"
     },
     {
       "deployedPath": "index.html",
-      "sha256": "f4a0483c8bd8726751f842938cccbc05e316d5e4b978fc3bae247fc02e3878ef",
+      "sha256": "d10f59f9223a6f30a0ad680dba9c4a43d77bff1edcd0a4696cf60b8dd3ed9d58",
       "sourcePath": "staging.html"
     },
     {
       "deployedPath": "key-list-review.js",
-      "sha256": "b0785e79071bd43c066ed3f20623e0a1a2c047bcedd9968cb815a0fe82b43ffe",
+      "sha256": "b6b42659b28b812fcf63b13a60faac8276e866442950f2e55197a8fec0aedf67",
       "sourcePath": "key-list-review.js"
     },
     {
       "deployedPath": "navision-backend-service.js",
-      "sha256": "b9bd7c61217900a49c14cd4f1324bae47001931a10344f9671ad45451c05622e",
+      "sha256": "b709025b82becfa9b1fd516824902b1b32c8d99d209217053203dafeb55b9787",
       "sourcePath": "navision-backend-service.js"
     },
     {
       "deployedPath": "pdc-ai-intake-service.js",
-      "sha256": "78b0f0edcb7cfd8b895f4dd511d5f0c4b45e4fd5f412e044fb905b1e238615f8",
+      "sha256": "dc8fdb4ca33a236c98d6f9e38a15e0c2e32f7bfc2b8b27d31914a1e82bd89be5",
       "sourcePath": "pdc-ai-intake-service.js"
     },
     {
       "deployedPath": "pdc-auth-registration.js",
-      "sha256": "bc45f0a1ec5cfbdfb6ad05a8b499f4a4de2d98f6d150649de98790fae7bd615a",
+      "sha256": "13841fdf4408300d737b880cd4d676d2e49bdf4df65bd0f0c491db9e89da9dab",
       "sourcePath": "pdc-auth-registration.js"
     },
     {
       "deployedPath": "pdc-auth.js",
-      "sha256": "8c464adb0546ba5dddc5f4624fc0a66e007c3841879d0fa52b2f021fd5b3680e",
+      "sha256": "714f679310200f0dbfe232038179c48e8188d473159eddcfbde2ed76108f799b",
       "sourcePath": "pdc-auth.js"
     },
     {
       "deployedPath": "pdc-email-vehicle-location-service.js",
-      "sha256": "ec1cd3b17911d1c9234f82cfea86b8a480612e37ef11a126c7eebfb4defab1d5",
+      "sha256": "7a797e949268ae66c5e84fd2dbe487f5c4868c32ef7baf84c9d1fbc5a2787b5b",
       "sourcePath": "pdc-email-vehicle-location-service.js"
     },
     {
       "deployedPath": "pdc-supabase-config.staging.js",
-      "sha256": "597c4267edfc42abc0dec258412a33ae69bcff2cf5ea2fab85738260189dbc9d",
+      "sha256": "1c6a3113284e283769e55c57b9e9fa7c13dbf173a8bd4c10515de1beda381fd2",
       "sourcePath": "pdc-supabase-config.staging.js"
     },
     {
       "deployedPath": "scripts/stage2b_c4_browser_export.js",
-      "sha256": "afa142651d88f44f40c2e41159e6f37bddc2e0af3fe89408e969e9926fc83f07",
+      "sha256": "5dafeb35a33626fec47aeaa931d17f83f22e436a4f602cbae66914537ab90f18",
       "sourcePath": "scripts/stage2b_c4_browser_export.js"
     },
     {
       "deployedPath": "staging-browser-assessment.js",
-      "sha256": "054f380b889eb8ce7475378478cab6f0927f0a9d15202c4745193e0405dc170e",
+      "sha256": "29acbe12e27d787b12d75614086278ac54e2ffe04bb6dfd755b3cacc7077bded",
       "sourcePath": "staging-browser-assessment.js"
     },
     {
       "deployedPath": "styles.css",
-      "sha256": "5ae072958d2e9a925d97c3de776001fcfa9cad8445bffc18b7b4378ef7385a09",
+      "sha256": "c4d529784ddb8100f13ce7385a1d49f6d669171ce7ec13cb5ca38d6a553dc37d",
       "sourcePath": "styles.css"
     },
     {
       "deployedPath": "vehicle-lifecycle-actions.js",
-      "sha256": "1d4a339137cd7cf96a388b521491a8e9287c69e41481ce5082b0765404455326",
+      "sha256": "c35faf4fc195ce450ffeb815261f3ba9cf71bdf45aab288b708723a9ca108d35",
       "sourcePath": "vehicle-lifecycle-actions.js"
     },
     {
       "deployedPath": "vendor/pdfjs/LICENSE",
-      "sha256": "eb3d7b5485466acbd81f2b496f595ab637d2792e268206b27d99e793bdb67549",
+      "sha256": "0d542e0c8804e39aa7f37eb00da5a762149dc682d7829451287e11b938e94594",
       "sourcePath": "vendor/pdfjs/LICENSE"
     },
     {
       "deployedPath": "vendor/pdfjs/pdf.min.js",
-      "sha256": "86791280654fb3403853a2e3a39212941fd1c4af0c7e3608ae8f85cead458be0",
+      "sha256": "5b5799e6f8c680663207ac5b42ee14eed2a406fa7af48f50c154f0c0b1566946",
       "sourcePath": "vendor/pdfjs/pdf.min.js"
     },
     {
       "deployedPath": "vendor/pdfjs/pdf.worker.min.js",
-      "sha256": "6195a19b81679dfb8fbd6c387aa37cf212c83f02628d768d142925fddc3d88fb",
+      "sha256": "feabdf309770ed24bba31a5467836cdc8cf639c705af27d52b585b041bb8527b",
       "sourcePath": "vendor/pdfjs/pdf.worker.min.js"
     },
     {
       "deployedPath": "vendor/qz/qz-tray.js",
-      "sha256": "2d8c0b7ab912e14a12dab4bf246be8e9555754053e6e12c556196bc8d946fdd1",
+      "sha256": "b0a0afde74511e5284195cc875bc862b1ea4233f6c6aecb3ad485430a56bf4a6",
       "sourcePath": "vendor/qz/qz-tray.js"
     },
     {
       "deployedPath": "vendor/supabase/supabase-2.110.5.js",
-      "sha256": "8c786ef59b285ab2a6710af2f89190ccf1201730651c5ce3bfaded7b1d61f090",
+      "sha256": "8e00fd587eb7c5148c977fa7c425316e8f9f168b3831100d8e2925a9807b5893",
       "sourcePath": "vendor/supabase/supabase-2.110.5.js"
     },
     {
       "deployedPath": "workshop-data-service.js",
-      "sha256": "c6911e7ba994918887dde10f9ee2131ff957ec7478e86d7923ed03061db116d1",
+      "sha256": "058c0fa5128feb482c7f8dd99598cae496fae09e598b02561dd421b1fff130a4",
       "sourcePath": "workshop-data-service.js"
     },
     {
       "deployedPath": "workshop-eligibility.js",
-      "sha256": "932aad0a0fab48db321201e808f9751463372331c549864b3476143e76c665cb",
+      "sha256": "148161fe2823f511214256e9dde138e9eddd633d0f63946205b382bfc87ef3ff",
       "sourcePath": "workshop-eligibility.js"
     },
     {
       "deployedPath": "workshop-planner.css",
-      "sha256": "d52054fd064e2c300da11af4d5919f67d232bdb5931e75c2bf684d20048cb8ce",
+      "sha256": "8067757ebee8dea3f2e18570d3f238b48b17857006676db498a24ada664d6e69",
       "sourcePath": "workshop-planner.css"
     },
     {
       "deployedPath": "workshop-planner.js",
-      "sha256": "6e50b0d4d38a6872155f01e0eaaecc842faee45e247e3f2dd6a42865dca324bb",
+      "sha256": "fe1a1701b4016d3eaacb46b292f25810a8b284a0ee190569cd2e0a8f27f81b26",
       "sourcePath": "workshop-planner.js"
     },
     {
       "deployedPath": "workshop-realtime.js",
-      "sha256": "42743226062ef0bd6ad5bfb3fbf5353b7c13c487e5610cfa18044b7eea63b9bd",
+      "sha256": "484c0a4ebc6e823fbca6eaf7f6c3fe4e563902abfbd3959221d21c19f45c0361",
       "sourcePath": "workshop-realtime.js"
     },
     {
       "deployedPath": "workshop-reference-data-service.js",
-      "sha256": "1931dfe83844d13de8d48a17e2b481a7727b511632d01d70a95d7702db7782ef",
+      "sha256": "ebe98f65a5cea69a42fdad77535f9bcdbf0f61c4013c34e7e7be34866b2682fe",
       "sourcePath": "workshop-reference-data-service.js"
     },
     {
       "deployedPath": "workshop-shared-actions.js",
-      "sha256": "6ac851866b2873ec41b9b34132216b94a2a478891dc5ceb9fe9650ccbf4e41b8",
+      "sha256": "080805d01de233f694099951138d7526cbd6a3aac7c6454985c21b2c1480a71e",
       "sourcePath": "workshop-shared-actions.js"
     }
   ],
-  "sourceTree": "779c2204d4ce6a00a0fbac4a6e706891502bf44b"
+  "sourceTree": "a25c1074011a87a80850c0999eeb239dee7dd9ec"
 }
