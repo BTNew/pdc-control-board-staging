@@ -5,9 +5,9 @@ import argparse, json, re, sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path[:0] = [str(ROOT), str(ROOT / '_staging_test_tools')]
-from _staging_test_tools.staging_conn import get_conn  # noqa:E402
-from _staging_test_tools.staging_env import (  # noqa:E402
+sys.path.insert(0, str(ROOT))
+from scripts.pdc_staging_runtime import get_conn  # noqa:E402
+from scripts.pdc_staging_runtime import (  # noqa:E402
     EXPECTED_STAGING_REF, assert_staging_target, load_local_env, required,
 )
 

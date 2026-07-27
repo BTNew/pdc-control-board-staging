@@ -7,10 +7,10 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path[:0] = [str(ROOT), str(ROOT / "_staging_test_tools")]
+sys.path.insert(0, str(ROOT))
 
-from staging_env import load_local_env  # noqa: E402
-from staging_conn import get_conn  # noqa: E402
+from scripts.pdc_staging_runtime import load_local_env  # noqa: E402
+from scripts.pdc_staging_runtime import get_conn  # noqa: E402
 
 MIGRATION = ROOT / "supabase" / "staging_only" / "066_pdc_authenticated_email_canonical_import.sql"
 EXPECTED_REF = "cdsmnqxtyyoeoznmbidd"

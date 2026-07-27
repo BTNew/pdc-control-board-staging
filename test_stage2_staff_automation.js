@@ -35,5 +35,5 @@ assert.ok(app.includes('aiIntakeStockNavigationHtml(review.stock'), 'Local revie
 assert.ok((app.match(/bindAiIntakeStockNavigation\(/g) || []).length >= 3, 'Both server and local AI Intake renderers must bind Stock navigation');
 assert.ok(css.includes('.email-review-summary'));
 assert.ok(css.includes("content: 'Open review'"));
-assert.ok(css.includes('.sublet-row.sublet-overdue'));
+assert.ok(!css.includes('.sublet-row.sublet-overdue'), 'Simplified provider queue must not retain obsolete expected-return overdue styling');
 console.log('Stage 2 staff automation checks passed');

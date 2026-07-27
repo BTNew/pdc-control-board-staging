@@ -1021,8 +1021,8 @@ if __name__ == '__main__':
     apply_mode = '--apply' in sys.argv[3:]
     rollback_mode = '--vehicle-export-rollback' in sys.argv[3:]
 
-    sys.path.insert(0, '_staging_test_tools')
-    from staging_conn import get_conn  # noqa: E402
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+    from scripts.pdc_staging_runtime import get_conn  # noqa: E402
 
     with open(extract_path) as f:
         extract_data = json.load(f)

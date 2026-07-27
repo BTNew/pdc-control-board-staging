@@ -454,8 +454,8 @@ def run_pilot(evidence_dir, database_url):
     assert_exact_project_guard(database_url=database_url)
     fixture = load_fixture()
     rows = {row["id"]: row for row in fixture["scenarios"]}
-    sys.path.insert(0, str(ROOT / "_staging_test_tools"))
-    from staging_conn import get_conn
+    sys.path.insert(0, str(ROOT))
+    from scripts.pdc_staging_runtime import get_conn
 
     conn = get_conn()
     conn.autocommit = False

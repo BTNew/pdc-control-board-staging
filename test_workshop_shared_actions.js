@@ -68,12 +68,17 @@ async function run() {
     await actions.startWork({ bookingId: 'b1', expectedVersion: 1 });
     await actions.stopWork({ bookingId: 'b1', expectedVersion: 2, reason: 'Waiting on parts' });
     await actions.resumeWork({ bookingId: 'b1', expectedVersion: 3 });
+    await actions.startWork({ bookingId: 'b2', expectedVersion: 4, overrideReason: 'Manager approved immediate entry', metadata: { source: 'planner' } });
     assert.strictEqual(ds.calls[0].name, 'start_workshop_work');
     assert.deepStrictEqual(ds.calls[0].params, { p_booking_id: 'b1', p_expected_version: 1, p_actual_start_at: null, p_metadata: {} });
     assert.strictEqual(ds.calls[1].name, 'stop_workshop_work');
     assert.deepStrictEqual(ds.calls[1].params, { p_booking_id: 'b1', p_expected_version: 2, p_reason: 'Waiting on parts', p_metadata: {} });
     assert.strictEqual(ds.calls[2].name, 'resume_workshop_work');
     assert.deepStrictEqual(ds.calls[2].params, { p_booking_id: 'b1', p_expected_version: 3, p_metadata: {} });
+    assert.deepStrictEqual(ds.calls[3].params, {
+      p_booking_id: 'b2', p_expected_version: 4, p_actual_start_at: null,
+      p_metadata: { source: 'planner', parts_override_reason: 'Manager approved immediate entry' },
+    }, '3b Parts-incomplete Start retry carries the explicit reason inside audited metadata');
     console.log('PASS 3: start/stop/resume all map to the correct RPC + parameters, including the stoppage reason');
   }
 

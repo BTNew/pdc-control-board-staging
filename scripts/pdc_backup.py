@@ -724,8 +724,8 @@ def main():
         print("PDC_BACKUP_ENCRYPTION_KEY is not set.", file=sys.stderr)
         sys.exit(2)
 
-    sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "_staging_test_tools"))
-    from staging_conn import get_conn  # noqa: E402
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+    from scripts.pdc_staging_runtime import get_conn  # noqa: E402
 
     conn = get_conn()
     try:

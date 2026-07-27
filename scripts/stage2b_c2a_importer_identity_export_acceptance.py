@@ -11,9 +11,9 @@ STAGING_REF = "cdsmnqxtyyoeoznmbidd"
 if (ROOT / "supabase" / ".temp" / "project-ref").read_text(encoding="utf-8").strip() != STAGING_REF:
     raise SystemExit("refusing C2a acceptance outside guarded staging")
 
-sys.path.insert(0, str(ROOT / "_staging_test_tools"))
+sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "scripts"))
-from staging_conn import get_conn  # noqa: E402
+from scripts.pdc_staging_runtime import get_conn  # noqa: E402
 from workshop_legacy_import import classify, fetch_reference_data, run_import  # noqa: E402
 
 

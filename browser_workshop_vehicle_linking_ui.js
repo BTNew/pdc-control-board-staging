@@ -19,6 +19,7 @@ for (const candidate of [
 if (!chromium) throw new Error('Playwright is required for the rendered vehicle-link diagnostics regression.');
 
 const plannerPath = path.join(__dirname, 'workshop-planner.js');
+const eligibilityPath = path.join(__dirname, 'workshop-eligibility.js');
 const lifecyclePath = path.join(__dirname, 'vehicle-lifecycle-actions.js');
 const refusal = 'This vehicle is not yet linked to one shared vehicle record. No change was made.';
 const sensitive = {
@@ -44,6 +45,7 @@ function check(value, message) {
 
 (async () => {
   const scripts = {
+    '/workshop-eligibility.js': fs.readFileSync(eligibilityPath),
     '/vehicle-lifecycle-actions.js': fs.readFileSync(lifecyclePath),
     '/workshop-planner.js': fs.readFileSync(plannerPath),
   };
@@ -59,11 +61,13 @@ function check(value, message) {
   await new Promise((resolve, reject) => server.listen(0, '127.0.0.1', error => error ? reject(error) : resolve()));
   const browser = await chromium.launch({ headless: true, executablePath: 'C:/Program Files/Google/Chrome/Application/chrome.exe' });
   const page = await browser.newPage();
+
   try {
     const address = server.address();
     const origin = `http://127.0.0.1:${address.port}`;
     await page.goto(`${origin}/`, { waitUntil: 'domcontentloaded' });
     await page.addScriptTag({ content: `window.escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));` });
+    await page.addScriptTag({ url: `${origin}/workshop-eligibility.js` });
     await page.addScriptTag({ url: `${origin}/vehicle-lifecycle-actions.js` });
     await page.addScriptTag({ url: `${origin}/workshop-planner.js` });
     const viewerReadiness = await page.evaluate(({ stock, uuid }) => {

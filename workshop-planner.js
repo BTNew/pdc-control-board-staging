@@ -649,7 +649,7 @@ function workshopRequireOperatorProfile() {
 // truthful planning-only audit reason. The database remains the authority on
 // role permission and records the exception; live workshop entry/readiness
 // gates are unchanged.
-const WORKSHOP_OVERRIDE_CAPABLE_ACTIONS = new Set(['moveBooking', 'scheduleVehicleWork', 'cascadeSchedule']);
+const WORKSHOP_PLANNING_OVERRIDE_CAPABLE_ACTIONS = new Set(['moveBooking', 'scheduleVehicleWork', 'cascadeSchedule']);
 
 function workshopSharedLegacyAmbiguity(payload = {}) {
   const bookingId = String(payload.bookingId || payload.targetId || '').trim();
@@ -675,9 +675,12 @@ async function workshopDispatchSharedAction(actionName, payload, renderAction = 
   let result;
   try {
     result = await actions[actionName](payload);
-    if (result && result.ok !== true && result.error === 'parts_incomplete' && WORKSHOP_OVERRIDE_CAPABLE_ACTIONS.has(actionName) && !payload.overrideReason) {
+    if (result && result.ok !== true && result.error === 'parts_incomplete' && WORKSHOP_PLANNING_OVERRIDE_CAPABLE_ACTIONS.has(actionName) && !payload.overrideReason) {
       const reason = 'Future workshop booking created before Parts readiness was confirmed';
       result = await actions[actionName]({ ...payload, overrideReason: reason });
+    } else if (result && result.ok !== true && ['parts_incomplete', 'parts_incomplete_entry'].includes(result.error) && actionName === 'startWork' && !payload.overrideReason) {
+      const reason = await workshopOverrideReasonModal();
+      if (reason) result = await actions[actionName]({ ...payload, overrideReason: reason });
     }
   } catch (_error) {
     result = { ok: false, error: 'runtime_failure' };
@@ -713,7 +716,7 @@ function workshopDescribeSharedActionError(result) {
   if (error === 'vehicle_overlap' || (conflict && conflict.conflict_type === 'vehicle_overlap')) {
     return 'This vehicle already has an active booking during this time. Choose a back-to-back or non-overlapping time.';
   }
-  if (error === 'parts_incomplete' || error === 'parts_incomplete_blocked') {
+  if (error === 'parts_incomplete' || error === 'parts_incomplete_blocked' || error === 'parts_incomplete_entry') {
     return 'Parts requirements are incomplete. An authorised override and reason are required.';
   }
   if (error === 'not_editable' || error === 'permission_denied' || error === 'forbidden') {

@@ -48,7 +48,7 @@ import sys
 import uuid
 from datetime import datetime, timezone
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "_staging_test_tools"))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 
 def normalize_name(value):
@@ -438,7 +438,7 @@ def main():
     parser.add_argument("--conflicts-out", help="Write the conflicts-only view to this JSON file for review")
     args = parser.parse_args()
 
-    from staging_conn import get_conn
+    from scripts.pdc_staging_runtime import get_conn
 
     backup = load_backup(args.backup_file)
     conn = get_conn()

@@ -27,8 +27,8 @@ from pathlib import Path
 
 
 def get_conn_module():
-    sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "_staging_test_tools"))
-    from staging_conn import get_conn  # noqa: E402
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+    from scripts.pdc_staging_runtime import get_conn  # noqa: E402
     return get_conn
 
 

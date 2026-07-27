@@ -9,9 +9,9 @@ import argparse, json, sys
 from pathlib import Path
 
 ROOT=Path(__file__).resolve().parents[1]
-sys.path.insert(0,str(ROOT/'_staging_test_tools'))
-from staging_conn import get_conn  # noqa: E402
-from staging_env import EXPECTED_STAGING_REF  # noqa: E402
+sys.path.insert(0, str(ROOT))
+from scripts.pdc_staging_runtime import get_conn  # noqa: E402
+from scripts.pdc_staging_runtime import EXPECTED_STAGING_REF  # noqa: E402
 from release_backup_gate import validate_release_backup  # noqa: E402
 
 MIGRATION=ROOT/'supabase/migrations/045_canonical_work_item_eligibility_and_legacy_stage_reconciliation.sql'

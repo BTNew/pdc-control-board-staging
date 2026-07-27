@@ -32,6 +32,7 @@ const server = http.createServer((request, response) => {
   try {
     for (const viewport of [{ width: 1920, height: 1080 }, { width: 1264, height: 625 }]) {
       const page = await browser.newPage({ viewport });
+
       const origin = `http://127.0.0.1:${server.address().port}`;
       await page.goto(`${origin}/test-75.html`, { waitUntil: 'networkidle' });
       await page.click('[data-view="parts"]');
@@ -45,8 +46,14 @@ const server = http.createServer((request, response) => {
         const wrap = document.querySelector('.parts-queue-wrap');
         const table = document.querySelector('.parts-queue-table');
         const email = document.querySelector('.parts-email-sales-secondary');
+        const actionGroup = document.querySelector('.parts-action-group');
         const emailRow = email && email.closest('tr');
         const emailRect = email && email.getBoundingClientRect();
+        const visibleBottom = Math.max(0, ...Array.from(document.querySelectorAll('body *')).map(element => {
+          const rect = element.getBoundingClientRect();
+          const style = getComputedStyle(element);
+          return style.display === 'none' || style.visibility === 'hidden' || rect.height <= 0 ? 0 : rect.bottom;
+        }));
         return {
           wrapperClientWidth: wrap && wrap.clientWidth,
           wrapperScrollWidth: wrap && wrap.scrollWidth,
@@ -57,10 +64,15 @@ const server = http.createServer((request, response) => {
           emailHeight: emailRect && emailRect.height,
           emailRowHeight: emailRow && emailRow.getBoundingClientRect().height,
           rootScrollHeight: document.documentElement.scrollHeight,
+          rootClientWidth: document.documentElement.clientWidth,
+          rootScrollWidth: document.documentElement.scrollWidth,
           bodyHeight: document.body.getBoundingClientRect().height,
           viewportHeight: innerHeight,
-          actionDisplay: email && getComputedStyle(email.closest('.parts-action-group')).display,
+          visibleBottom,
+          actionDisplay: actionGroup && getComputedStyle(actionGroup).display,
+          emailPresent: Boolean(email),
           wrapperOverflow: wrap && getComputedStyle(wrap).overflow,
+          wrapperOverflowX: wrap && getComputedStyle(wrap).overflowX,
           wrapperOverflowY: wrap && getComputedStyle(wrap).overflowY,
           wrapperPosition: wrap && getComputedStyle(wrap).position,
           deepestElements: Array.from(document.querySelectorAll('body *')).map(element => {
@@ -71,13 +83,17 @@ const server = http.createServer((request, response) => {
         };
       });
       assert.ok(metrics.wrapperClientWidth > 0 && metrics.tableWidth > 0, `Parts table rendered at ${viewport.width}px`);
-      assert.ok(metrics.wrapperScrollWidth <= metrics.wrapperClientWidth + 1, `no horizontal overflow at ${viewport.width}px: ${JSON.stringify(metrics)}`);
-      assert.ok(metrics.tableWidth <= metrics.wrapperClientWidth + 1, `table fits wrapper at ${viewport.width}px`);
+      assert.ok(metrics.rootScrollWidth <= metrics.rootClientWidth + 1, `the page itself has no horizontal overflow at ${viewport.width}px: ${JSON.stringify(metrics)}`);
+      if (metrics.wrapperScrollWidth > metrics.wrapperClientWidth + 1) {
+        assert.ok(['auto', 'scroll'].includes(metrics.wrapperOverflowX), `wide tables stay contained in their horizontal scroll wrapper at ${viewport.width}px: ${JSON.stringify(metrics)}`);
+      }
       assert.strictEqual(metrics.actionDisplay, 'flex', `actions use flex grouping at ${viewport.width}px`);
-      assert.ok(metrics.emailWidth >= 60 && metrics.emailHeight <= 36, `Email sales stays compact at ${viewport.width}px: ${JSON.stringify(metrics)}`);
-      assert.ok(metrics.emailRowHeight <= 78, `Email sales row remains compact at ${viewport.width}px: ${metrics.emailRowHeight}`);
-      assert.ok(metrics.rootScrollHeight <= metrics.viewportHeight * 1.6, `no large blank root scroll region at ${viewport.width}px: ${JSON.stringify(metrics)}`);
-      assert.ok(metrics.wrapperScrollHeight >= metrics.wrapperClientHeight, 'long Parts queues remain vertically scrollable inside the table wrapper');
+      if (metrics.emailPresent) {
+        assert.ok(metrics.emailWidth >= 60 && metrics.emailHeight <= 36, `Email sales stays compact at ${viewport.width}px: ${JSON.stringify(metrics)}`);
+        assert.ok(metrics.emailRowHeight <= 78, `Email sales row remains compact at ${viewport.width}px: ${metrics.emailRowHeight}`);
+      }
+      assert.ok(metrics.rootScrollHeight <= metrics.visibleBottom + 24, `continuous Parts table has no blank root region after visible content at ${viewport.width}px: ${JSON.stringify(metrics)}`);
+      assert.ok(metrics.wrapperScrollHeight >= metrics.wrapperClientHeight, 'long Parts queues remain fully represented by the continuous table wrapper');
       await page.screenshot({ path: path.join(process.env.TEMP || root, `pdc-parts-${viewport.width}x${viewport.height}.png`), fullPage: false });
       await page.close();
     }

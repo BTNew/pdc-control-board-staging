@@ -14,7 +14,12 @@ assert(app.includes("decision === 'apply' ? 'Approved through AI Intake' : 'Deni
 assert(app.includes('service.decide(attempt.proposal, decision, reason, attempt.idempotencyKey)'), 'AI decisions must still use the protected exact proposal/version/idempotency path');
 
 assert(planner.includes("Future workshop booking created before Parts readiness was confirmed"), 'Parts-incomplete future bookings must retain an automatic planning-risk audit reason');
-assert(!planner.includes('const reason = await workshopOverrideReasonModal();'), 'Routine future planning must not prompt staff for a Parts override reason');
+const planningRetry = planner.slice(
+  planner.indexOf('WORKSHOP_PLANNING_OVERRIDE_CAPABLE_ACTIONS'),
+  planner.indexOf("actionName === 'startWork'"),
+);
+assert(!planningRetry.includes('workshopOverrideReasonModal'), 'Routine future planning must not prompt staff for a Parts override reason');
+assert(planner.includes("actionName === 'startWork'") && planner.includes('const reason = await workshopOverrideReasonModal();'), 'Immediate physical entry may request the required administrator override reason');
 assert(planner.includes("new Set(['moveBooking', 'scheduleVehicleWork', 'cascadeSchedule'])"), 'Only booking and rescheduling actions may use the automatic planning retry');
 assert(app.includes('function confirmPartsIncompleteMovement('), 'Physical workshop movement Parts gate must remain intact');
 

@@ -5,9 +5,9 @@ import argparse, json, re, sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path[:0] = [str(ROOT), str(ROOT / '_staging_test_tools')]
-from _staging_test_tools.staging_conn import get_conn  # noqa:E402
-from _staging_test_tools.staging_env import EXPECTED_STAGING_REF, assert_staging_target, load_local_env, required  # noqa:E402
+sys.path.insert(0, str(ROOT))
+from scripts.pdc_staging_runtime import get_conn  # noqa:E402
+from scripts.pdc_staging_runtime import EXPECTED_STAGING_REF, assert_staging_target, load_local_env, required  # noqa:E402
 
 SQL_PATH = ROOT / 'supabase/staging_only/065_pdc_ai_intake_admin_decisions.sql'
 APPROVAL = 'ENABLE EXACT AI INTAKE ADMIN DECISIONS ON STAGING'

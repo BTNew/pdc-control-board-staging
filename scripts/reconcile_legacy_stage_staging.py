@@ -10,9 +10,9 @@ from __future__ import annotations
 import argparse, json, sys
 from pathlib import Path
 ROOT=Path(__file__).resolve().parents[1]
-sys.path.insert(0,str(ROOT/'_staging_test_tools'))
-from staging_conn import get_conn  # noqa: E402
-from staging_env import EXPECTED_STAGING_REF  # noqa: E402
+sys.path.insert(0, str(ROOT))
+from scripts.pdc_staging_runtime import get_conn  # noqa: E402
+from scripts.pdc_staging_runtime import EXPECTED_STAGING_REF  # noqa: E402
 from release_backup_gate import validate_release_backup  # noqa: E402
 IDS=[
  '18e6b520-d3d0-434a-a4a6-9223b45b76af','23bd4310-c542-44f5-a421-bf2ffbda9341',

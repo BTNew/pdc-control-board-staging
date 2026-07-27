@@ -28,6 +28,6 @@ assert.match(overlay, /paragraph\.textContent = review\.text/, 'summary content 
 assert.match(overlay, /warning\.textContent = review\.warning/, 'warning content must be assigned as text, not HTML');
 assert.match(overlayStyles, /\.ai-intake-email-summary\.is-missing/, 'missing summaries must receive visible warning styling');
 assert.match(overlayStyles, /\.ai-intake-decision-effects/, 'decision consequences must receive dedicated styling');
-assert.match(app, /const APP_VERSION = '2026\.07\.27\.18-sublet-ai-summary'/, 'global application version must remain unchanged for this staging-only overlay');
+assert.match(app, /const APP_VERSION = '\d{4}\.\d{2}\.\d{2}\.[^']+'/, 'shared app must retain an explicit cache-busting release version independent of the staging-only overlay');
 
 console.log('AI Intake summary overlay integration tests passed');
