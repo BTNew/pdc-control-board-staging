@@ -34,6 +34,6 @@ window.PDC_SUPABASE_CONFIG = {
   vehicleLifecycle: Object.freeze({
     sharedData: true,
     resolverRollbackDirectRead: false,
-    resolverAssetVersion: '2026.07.27.10-admin-ai-locations-cleanup'
+    resolverAssetVersion: '2026.07.27.11-admin-menu-visibility-fix'
   })
 };

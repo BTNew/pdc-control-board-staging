@@ -6,10 +6,10 @@
     "twoPhysicalWorkstationAuthorityCutover": false
   },
   "artifact": "zero-data static staging site",
-  "cacheVersion": "2026.07.27.10-admin-ai-locations-cleanup",
+  "cacheVersion": "2026.07.27.11-admin-menu-visibility-fix",
   "deploymentMode": "exact reviewed source blobs; staging.html mapped to index.html",
   "environment": "staging",
-  "generatedAtUtc": "2026-07-27T06:37:12.151039Z",
+  "generatedAtUtc": "2026-07-27T06:50:45.280343Z",
   "migrationLedger": {
     "appliedThrough": "071",
     "evidence": "staging sentinel verified; encrypted pre-migration backup 11b91f6c-6c00-48b1-a1f1-f3943f082e23 restored in an isolated schema with row counts, foreign keys and integrity/hash checks passing; migration 071 rollback rehearsal and controlled apply passed with protected inventory unchanged",
@@ -38,12 +38,12 @@
     "databasePostApply": "PASS \u2014 ledger 071; 40 AI Intake receipts checked, 29 contain exact bounded change evidence; protected inventory unchanged at 20 vehicles, 61 work items, 18 Parts updates and 2 bookings",
     "humanAiIntake": "Received, What happened, Car and What changed are shown in plain language; activated, modified, unchanged and review-needed outcomes are distinct; field changes render previous value to new value; technical receipt data is collapsed",
     "humanNavisionResults": "Contradictory top-level blocking flags are reconciled against exact invalid/conflict counts and row classifications; zero-issue previews may reach the atomic server apply, while actual invalid/conflict evidence and unknown blocking states still fail closed.",
-    "literalArtifact": "33/33 deployed Git blobs match source commit 8b54bec989c3b1d9251e7263991e9e2a8dbc01b1",
+    "literalArtifact": "33/33 deployed Git blobs match source commit ee224bbd7a56001ce1c43cc147abab393d6860fa",
     "production": "Untouched; staging static artifact only; no database migration",
-    "uiCleanup": "Operations was removed from staging navigation; the Administrator-only Admin disclosure contains the six requested destinations; Vehicle Locations is search-only; and pending AI Intake cards present authoritative Approve/Deny decisions without changing server authority boundaries."
+    "uiCleanup": "Operations was removed from staging navigation; the Admin disclosure is visible for every approved signed-in staff session and contains the six requested destinations; destination actions remain independently role/RLS-gated; Vehicle Locations is search-only; and pending AI Intake cards present authoritative Approve/Deny decisions."
   },
   "sourceBranch": "feat/vehicle-locations-pit-qc-signoff-rft",
-  "sourceCommit": "8b54bec989c3b1d9251e7263991e9e2a8dbc01b1",
+  "sourceCommit": "ee224bbd7a56001ce1c43cc147abab393d6860fa",
   "sourceFiles": [
     {
       "deployedPath": "ai-board-advisor.js",
@@ -52,7 +52,7 @@
     },
     {
       "deployedPath": "app.js",
-      "sha256": "ff9c4b1ef6ca42d3490b3bc78c2b90e299b6fe8ab31bf25de7206e7c47d43c6c",
+      "sha256": "1b7f94817c5decd223299190a58a89cc2a58b33b9ce84d5658f61d33b4c78c23",
       "sourcePath": "app.js"
     },
     {
@@ -92,7 +92,7 @@
     },
     {
       "deployedPath": "index.html",
-      "sha256": "04a5730a273ef8a1c2705e66f47acb2263d3054b5442032537a272c0c7dc70aa",
+      "sha256": "a2056ea3fd68544eedb038ba21fecd85dcea9517806de12fb9c9567b66f87d2e",
       "sourcePath": "staging.html"
     },
     {
@@ -127,7 +127,7 @@
     },
     {
       "deployedPath": "pdc-supabase-config.staging.js",
-      "sha256": "6b2a9f0858414a6556b7c0ad5d018bb0d19fd0da2ff7e7a9378f8978b7291ce4",
+      "sha256": "5bfb681c0ef1f97422cf85bbbb6df2f4dc527ff82855dd59581bcdb9aeeba701",
       "sourcePath": "pdc-supabase-config.staging.js"
     },
     {
@@ -211,5 +211,5 @@
       "sourcePath": "workshop-shared-actions.js"
     }
   ],
-  "sourceTree": "eb45a668f0e0ddfd3c65875a5d30829158ffbfd0"
+  "sourceTree": "68c2d949f0d4a2698a309fe717bd05f602c76090"
 }
