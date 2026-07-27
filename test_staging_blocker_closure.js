@@ -37,7 +37,7 @@ for (const label of ['Parts Not Ordered', 'Parts Ordered', 'Parts Overdue', 'Par
 for (const action of ['Mark ordered', 'Mark received', 'Parts STOPPAGE', 'Remove Parts STOPPAGE', 'Open vehicle']) {
   assert(app.includes(action), `missing visible action ${action}`);
 }
-for (const field of ['Key</th>', 'Stock</th>', 'JC</th>', 'Vehicle / customer', 'Parts ETA', 'ETA counter', 'Outstanding station work', 'Parts STOPPAGE reason']) {
+for (const field of ['Key</th>', 'Stock</th>', 'JC</th>', 'Vehicle / customer', 'Parts ETA', 'ETA counter', 'Parts STOPPAGE reason']) {
   assert(app.includes(field), `missing Parts field ${field}`);
 }
 assert(!app.includes('toggleVehiclePartsJita'));

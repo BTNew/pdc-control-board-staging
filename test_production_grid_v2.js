@@ -28,7 +28,7 @@ for (const station of ['Parts', 'Tint', 'Hoist', 'Fitting', 'Fabrication', 'Elec
 }
 
 assert.doesNotMatch(app, /truncate\(\s*(?:customer|vehicleCustomerName)/i, 'Customer names must not be truncated');
-assert.match(app, /<th>Key<\/th><th>Stock<\/th><th>JC<\/th><th>Vehicle \/ customer<\/th><th>Parts status<\/th><th>Parts ETA<\/th><th>ETA counter<\/th><th>JITA<\/th><th>Outstanding station work<\/th><th>Parts STOPPAGE reason<\/th><th>Actions<\/th>/);
+assert.match(app, /<th>Key<\/th><th>Stock<\/th><th>JC<\/th><th>Vehicle \/ customer<\/th><th>Parts status<\/th><th>Parts ETA<\/th><th>ETA counter<\/th><th>JITA<\/th><th>Parts STOPPAGE reason<\/th><th>Actions<\/th>/);
 assert.match(app, /<th>Collected<\/th><th>Key<\/th><th>Stock<\/th><th>Job Card<\/th><th>Customer<\/th><th>Vehicle<\/th>/);
 assert.match(app, /<thead><tr><th>Key<\/th><th>Stock \(Batch\)<\/th><th>Job Card<\/th><th>Customer<\/th><th>Salesperson<\/th><th>Model<\/th><th>Colour<\/th>/);
 
@@ -41,7 +41,7 @@ assert.match(v2Css, /\.pdc-grid-stations-heading,[\s\S]*?grid-template-columns:\
 assert.match(v2Css, /\.identity-name \.vehicle-identity-value,[\s\S]*?white-space:\s*normal\s*!important/);
 assert.match(v2Css, /\.incoming-work-label[\s\S]*?white-space:\s*nowrap\s*!important/);
 assert.match(v2Css, /\.incoming-vehicle-card,[\s\S]*?overflow:\s*visible\s*!important/);
-assert.match(desktopCss, /\.parts-queue-table\s*\{[\s\S]*?min-width:\s*1480px/);
+assert.match(desktopCss, /\.parts-queue-table\s*\{[\s\S]*?min-width:\s*1320px/);
 assert.match(v2Css, /\.completed-table\s*\{[\s\S]*?width:\s*1730px\s*!important/);
 assert.match(v2Css, /\.backend-data-table\s*\{[\s\S]*?width:\s*1910px\s*!important/);
 

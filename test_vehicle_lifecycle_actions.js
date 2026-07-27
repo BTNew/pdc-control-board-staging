@@ -93,18 +93,21 @@ function fakeClient(responder) {
   const client = fakeClient(() => ({ status: 200, ok: true, body: { ok: true } }));
   const bridge = buildVehicleLifecycleSharedActions(client, () => 'tok');
   Promise.all([
+    bridge.markReadyForQc({ vehicleId: 'v3', expectedVersion: 7 }),
     bridge.qcSignoffToRft({ vehicleId: 'v4', expectedVersion: 8, workItemKey: 'QC', completedSummary: 'all jobs' }),
     bridge.pitTransferVehicle({ vehicleId: 'v5', expectedVersion: 4, direction: 'to_pit' }),
   ]).then(() => {
-    assert.strictEqual(client.calls[0].name, 'qc_signoff_to_rft');
-    assert.deepStrictEqual(client.calls[0].params, {
+    assert.strictEqual(client.calls[0].name, 'mark_vehicle_ready_for_qc');
+    assert.deepStrictEqual(client.calls[0].params, { p_vehicle_id: 'v3', p_expected_version: 7 });
+    assert.strictEqual(client.calls[1].name, 'qc_signoff_to_rft');
+    assert.deepStrictEqual(client.calls[1].params, {
       p_vehicle_id: 'v4', p_expected_version: 8, p_work_item_key: 'QC', p_completed_summary: 'all jobs',
     });
-    assert.strictEqual(client.calls[1].name, 'pit_transfer_vehicle');
-    assert.deepStrictEqual(client.calls[1].params, {
+    assert.strictEqual(client.calls[2].name, 'pit_transfer_vehicle');
+    assert.deepStrictEqual(client.calls[2].params, {
       p_vehicle_id: 'v5', p_expected_version: 4, p_direction: 'to_pit',
     });
-    console.log('PASS 4b: qcSignoffToRft/pitTransferVehicle map correctly');
+    console.log('PASS 4b: markReadyForQc/qcSignoffToRft/pitTransferVehicle map correctly');
   });
 }
 

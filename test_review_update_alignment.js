@@ -43,7 +43,9 @@ code += String.raw`
   assert(rftHomeRows().length === 1 && rftHomeRows()[0].stock === 'RFT001', 'RFT home should hide vehicles collected from RFT');
   assert(completedVehicleRows().length === 1 && completedVehicleRows()[0].stock === 'RFT002', 'Completed vehicles side menu should show collected RFT vehicles');
   assert(incomingVehicleDetailRow(rftVehicle, 'rft').includes('data-rft-collected-key="RFT001"'), 'RFT rows should expose a collected checkbox');
-  assert(incomingBucketForVehicle(pmbVehicle) === 'qc', 'A PMB Unallocated vehicle with every required station job complete must enter QC: ' + JSON.stringify({ bucket: incomingBucketForVehicle(pmbVehicle), ready: vehicleReadyForQualityControl(pmbVehicle), location: vehiclePdcLocation(pmbVehicle), stage: inferredPmbStage(pmbVehicle), requirements: pdcQualityControlRequirementDefinitions(pmbVehicle).map(def => [def.key, pdcJobComplete(pmbVehicle, def)]) }));
+  assert(incomingBucketForVehicle(pmbVehicle) === 'pmb' && vehicleReadyForQualityControl(pmbVehicle), 'An all-green PMB Unallocated vehicle must remain in PMB until staff confirm Ready for QC');
+  pmbVehicle.pdcLocation = 'QC';
+  assert(incomingBucketForVehicle(pmbVehicle) === 'qc', 'The explicit Ready for QC transition must place the vehicle in the QC Gate bucket');
   assert(incomingVehicleDetailRow(pmbVehicle, 'qc').includes('data-qc-signoff-rft="PMB001"'), 'QC rows must expose the named sign-off to RFT action');
   const pitVehicle = { stock: 'PIT001', pdcLocation: 'PIT', manualLocation: 'PIT' };
   assert(incomingBucketForVehicle(pitVehicle) === 'pit', 'PIT must be a Vehicle Locations bucket');

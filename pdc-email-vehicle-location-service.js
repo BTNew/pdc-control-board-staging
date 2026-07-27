@@ -5,6 +5,7 @@ const PDC_EMAIL_VEHICLE_STAGING_PROJECT_REF = 'cdsmnqxtyyoeoznmbidd';
 const PDC_EMAIL_VEHICLE_REVISION_TABLE = 'pdc_email_vehicle_revision';
 const PDC_EMAIL_VEHICLE_SNAPSHOT_RPC = 'get_pdc_email_vehicle_location_snapshot';
 const PDC_SUBLET_UPDATE_RPC = 'update_pdc_sublet_booking_field';
+const PDC_PARTS_ETA_UPDATE_RPC = 'update_pdc_parts_eta';
 const WORK_FIELDS = Object.freeze({
   bus4x4: ['pdcRequiresBus4x4', 'pdcCompleteBus4x4'], tint: ['pdcRequiresTint', 'pdcCompleteTint'], hoist: ['pdcRequiresHoist', 'pdcCompleteHoist'], fitting: ['pdcRequiresFitting', 'pdcCompleteFitting'], fabrication: ['pdcRequiresFabrication', 'pdcCompleteFabrication'], electrical: ['pdcRequiresElectrical', 'pdcCompleteElectrical'], tyre: ['pdcRequiresTyre', 'pdcCompleteTyre'], sublet: ['pdcRequiresSublet', 'pdcCompleteSublet'], pitinspection: ['pdcRequiresPitInspection', 'pdcCompletePitInspection'], parts: ['pdcRequiresParts', 'pdcCompleteParts'],
 });
@@ -20,7 +21,7 @@ function canonicalWorkKey(value = '') {
 }
 function mapServerVehicle(row = {}) {
   const mapped = {
-    id: String(row.permanent_vehicle_id || row.id || ''), permanentVehicleId: String(row.permanent_vehicle_id || ''), stock: String(row.stock_number || '').trim(), vin: String(row.vin || '').trim(), jobCardNumber: String(row.job_card_number || '').trim(), jobcard: String(row.job_card_number || '').trim(), client: String(row.customer_name || '').trim(), vehicle: String(row.vehicle_description || '').trim(), salesperson: String(row.salesperson_reference || '').trim(), registration: String(row.registration || '').trim(), rego: String(row.registration || '').trim(), navisionKewdaleEta: row.eta_to_kewdale || '', etaAtDealer: row.eta_to_kewdale || '', pdcLocation: String(row.current_location || 'Other').trim() || 'Other', pdcSheetVisible: row.visible_on_board !== false, source: String(row.source_system || 'Authenticated email auto-import'), sourceRecordId: String(row.source_record_id || ''), updatedAt: row.updated_at || '', __emailVehicleServerAuthoritative: true, __emailVehicleReadOnly: true, __emailVehicleId: String(row.id || ''), __subletBookingVersion: Number(row.sublet_booking?.version || 0),
+    id: String(row.permanent_vehicle_id || row.id || ''), permanentVehicleId: String(row.permanent_vehicle_id || ''), stock: String(row.stock_number || '').trim(), vin: String(row.vin || '').trim(), jobCardNumber: String(row.job_card_number || '').trim(), jobcard: String(row.job_card_number || '').trim(), client: String(row.customer_name || '').trim(), vehicle: String(row.vehicle_description || '').trim(), salesperson: String(row.salesperson_reference || '').trim(), registration: String(row.registration || '').trim(), rego: String(row.registration || '').trim(), navisionKewdaleEta: row.eta_to_kewdale || '', etaAtDealer: row.eta_to_kewdale || '', pdcLocation: String(row.current_location || 'Other').trim() || 'Other', pdcSheetVisible: row.visible_on_board !== false, source: String(row.source_system || 'Authenticated email auto-import'), sourceRecordId: String(row.source_record_id || ''), updatedAt: row.updated_at || '', __emailVehicleServerAuthoritative: true, __emailVehicleReadOnly: true, __emailVehicleId: String(row.id || ''), __emailVehicleVersion: Number(row.version || 0), __subletBookingVersion: Number(row.sublet_booking?.version || 0),
   };
   for (const [requiredKey, completeKey] of Object.values(WORK_FIELDS)) { mapped[requiredKey] = false; mapped[completeKey] = false; }
   for (const item of Array.isArray(row.work_items) ? row.work_items : []) {
@@ -31,6 +32,12 @@ function mapServerVehicle(row = {}) {
   }
   if (row.parts_required != null) mapped.pdcRequiresParts = row.parts_required === true;
   if (row.parts_completed != null) mapped.pdcCompleteParts = row.parts_completed === true;
+  const partsUpdate = row.parts_update && typeof row.parts_update === 'object' ? row.parts_update : {};
+  mapped.pdcPartsOrdered = partsUpdate.parts_ordered === true;
+  mapped.pdcPartsStoppage = partsUpdate.parts_stoppage === true;
+  mapped.pdcPartsStoppageReason = String(partsUpdate.parts_stoppage_reason || '');
+  mapped.pdcPartsWorstEta = partsUpdate.worst_eta || '';
+  mapped.pdcPartsWorstEtaUpdatedAt = partsUpdate.updated_at || '';
   const sublet = row.sublet_booking && typeof row.sublet_booking === 'object' ? row.sublet_booking : {};
   mapped.pmbSubletProvider = String(sublet.provider || '');
   mapped.pmbSubletProviderEmail = String(sublet.provider_email || '');
@@ -87,12 +94,21 @@ function createPdcEmailVehicleLocationService(options = {}) {
       return { ok: true, code: body.code || 'updated', data: body.data || body };
     } catch (_error) { return { ok: false, code: 'sublet_update_unavailable', data: null }; }
   }
+  async function updatePartsEta(vehicleId = '', expectedVersion = 0, value = '') {
+    const token = getAccessToken(); if (!token) return { ok: false, code: 'not_authenticated', data: null };
+    try {
+      const response = await request(`${url}/rest/v1/rpc/${PDC_PARTS_ETA_UPDATE_RPC}`, { method: 'POST', headers: { apikey: key, Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ p_vehicle_id: vehicleId, p_expected_version: Number(expectedVersion) || 0, p_worst_eta: String(value || '') || null }) });
+      const body = await response.json();
+      if (!response.ok || !body || body.ok === false) return { ok: false, code: body?.code || body?.error || `HTTP ${response.status}`, data: body?.data || null };
+      return { ok: true, code: body.code || 'updated', data: body.data || body };
+    } catch (_error) { return { ok: false, code: 'parts_eta_update_unavailable', data: null }; }
+  }
   function subscribe(onRevision) {
     if (!subscribeRealtime) return { unsubscribe() {} };
     return subscribeRealtime(PDC_EMAIL_VEHICLE_REVISION_TABLE, event => { if (typeof onRevision === 'function') onRevision(event?.new?.revision ?? null, event); });
   }
-  return { authority: 'supabase_staging_authenticated_email_vehicle', snapshot, updateSublet, subscribe };
+  return { authority: 'supabase_staging_authenticated_email_vehicle', snapshot, updateSublet, updatePartsEta, subscribe };
 }
-const exported = { PDC_EMAIL_VEHICLE_STAGING_PROJECT_REF, PDC_EMAIL_VEHICLE_REVISION_TABLE, PDC_EMAIL_VEHICLE_SNAPSHOT_RPC, PDC_SUBLET_UPDATE_RPC, canonicalWorkKey, mapServerVehicle, reconcileVehicleRows, createPdcEmailVehicleLocationService };
+const exported = { PDC_EMAIL_VEHICLE_STAGING_PROJECT_REF, PDC_EMAIL_VEHICLE_REVISION_TABLE, PDC_EMAIL_VEHICLE_SNAPSHOT_RPC, PDC_SUBLET_UPDATE_RPC, PDC_PARTS_ETA_UPDATE_RPC, canonicalWorkKey, mapServerVehicle, reconcileVehicleRows, createPdcEmailVehicleLocationService };
 if (typeof module !== 'undefined' && module.exports) module.exports = exported;
 if (typeof window !== 'undefined') window.PDC_EMAIL_VEHICLE_LOCATION_SERVICE = exported;

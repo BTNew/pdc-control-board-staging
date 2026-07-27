@@ -338,6 +338,13 @@ function buildVehicleLifecycleSharedActions(client, getAccessToken) {
   }
 
   return {
+    markReadyForQc({ vehicleId, expectedVersion }) {
+      return rpc('mark_vehicle_ready_for_qc', {
+        p_vehicle_id: vehicleId,
+        p_expected_version: expectedVersion,
+      });
+    },
+
     qcSignoffToRft({ vehicleId, expectedVersion, workItemKey, completedSummary }) {
       return rpc('qc_signoff_to_rft', {
         p_vehicle_id: vehicleId,
@@ -398,6 +405,7 @@ function describeVehicleLifecycleActionError(error = '') {
     already_collected: 'This vehicle has already been collected and moved to Completed Vehicles.',
     qc_not_complete: 'QC sign-off is required before this vehicle can be transferred to RFT.',
     qc_gate_blocked: 'QC is locked until every required station job is complete, Parts is clear, and the vehicle is back in PMB Unallocated.',
+    already_ready_for_qc: 'This vehicle is already in the QC Gate.',
     pit_requires_pmb_unallocated: 'PIT movement is available only from PMB Unallocated with no active workshop station.',
     not_in_pit: 'This vehicle is not currently in PIT.',
     invalid_pit_direction: 'The requested PIT movement is invalid and was not applied.',

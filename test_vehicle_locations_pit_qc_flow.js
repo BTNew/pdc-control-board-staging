@@ -8,6 +8,7 @@ const read = name => fs.readFileSync(path.join(root, name), 'utf8');
 const app = read('app.js');
 const lifecycle = read('vehicle-lifecycle-actions.js');
 const migration = read('supabase/staging_only/070_vehicle_locations_pit_qc_signoff_rft.sql');
+const qcGateMigration = read('supabase/staging_only/073_qc_gate_parts_eta_control_board.sql');
 const shells = ['index.html', 'staging.html', 'no-vehicles.html', 'test-50.html', 'test-75.html', 'test-100.html'];
 
 const bucketDefs = app.slice(app.indexOf('const VEHICLE_LOCATION_BUCKET_DEFS'), app.indexOf('const VEHICLE_LOCATION_BUCKET_DEFS') + 1200);
@@ -23,7 +24,8 @@ const productionDefs = app.slice(app.indexOf('const PRODUCTION_FLOW_DEFS'), app.
 assert(!productionDefs.includes("key: 'PIT_INSPECTION'"), 'PIT must not remain a productive workshop station');
 assert(app.includes("{ value: 'PIT', label: 'PIT - Department of Transport inspection' }"), 'PIT must be an explicit vehicle location');
 assert(app.includes("if (manualPdcLocation === 'PIT') return 'pit';"), 'PIT location must map to the PIT board bucket');
-assert(app.includes("if (manualPdcLocation === 'PMB' && (vehicleOrStatus.pdcQcComplete === true || vehicleReadyForQualityControl(vehicleOrStatus))) return 'qc';"), 'Completed station work must promote a PMB vehicle into the QC bucket');
+assert(app.includes("if (manualPdcLocation === 'QC') return 'qc';"), 'Only an explicit QC Gate location must map a vehicle into the QC bucket');
+assert(app.includes('data-ready-for-qc=') && qcGateMigration.includes('mark_vehicle_ready_for_qc'), 'All-green PMB vehicles must use the explicit protected Ready for QC transition');
 assert(app.includes("window.__vehicleLifecycleActions.qcSignoffToRft"), 'QC sign-off must use the atomic server transition to RFT');
 assert(app.includes("data-qc-signoff-rft"), 'QC bucket rows must provide an explicit sign-off action');
 assert(app.includes("data-pit-transfer") && app.includes("data-pit-return-pmb"), 'PMB/PIT rows must provide auditable PIT movement controls');

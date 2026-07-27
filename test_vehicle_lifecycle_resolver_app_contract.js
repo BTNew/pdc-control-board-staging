@@ -40,10 +40,10 @@ console.log('PASS 3: resolver revision Realtime refresh starts and tears down wi
 
 const resolverCallSites = app.match(/await vehicleLifecycleSharedRef\(vehicle\)/g) || [];
 const resolvedGuards = app.match(/ref\.outcome !== 'resolved'/g) || [];
-assert.strictEqual(resolverCallSites.length, 4, 'PIT movement, QC sign-off, legacy RFT transfer and collection are the only lifecycle consumers');
-assert.strictEqual(resolvedGuards.length, 4, 'every lifecycle consumer must require an explicit resolved outcome');
-assert((app.match(/ref\.isArchived/g) || []).length >= 4, 'every lifecycle mutation must reject archived vehicles');
-console.log('PASS 4: all four lifecycle consumers fail closed on outcome and archive state');
+assert.strictEqual(resolverCallSites.length, 5, 'Ready for QC, PIT movement, QC sign-off, legacy RFT transfer and collection are the only lifecycle consumers');
+assert.strictEqual(resolvedGuards.length, 5, 'every lifecycle consumer must require an explicit resolved outcome');
+assert((app.match(/ref\.isArchived/g) || []).length >= 5, 'every lifecycle mutation must reject archived vehicles');
+console.log('PASS 4: all five lifecycle consumers fail closed on outcome and archive state');
 
 assert(app.includes("return { outcome: 'service_unavailable' }"));
 assert(app.includes('configured shared lifecycle actions fail closed'));

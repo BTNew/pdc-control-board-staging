@@ -8,12 +8,13 @@ function assert(value, message) { if (!value) throw new Error(message); }
 
 (async () => {
   assert(canonicalWorkKey('Pit Inspection') === 'pitinspection' && canonicalWorkKey('PIT_INSPECTION') === 'pitinspection', 'Pit aliases must canonicalize');
-  const server = { id: 's1', permanent_vehicle_id: 'p1', stock_number: 'S-100', vin: 'VIN100', customer_name: 'Server customer', vehicle_description: 'Server vehicle', current_location: 'Other', visible_on_board: true, work_items: [{ work_key: 'tint', required: true, completed: false }, { work_key: 'sublet', required: true, completed: false }, { work_key: 'pit_inspection', required: true, completed: true, completed_at: '2026-07-25T01:00:00Z', completed_by: 'staff' }], parts_required: true, parts_completed: false, sublet_booking: { provider: 'Provider A', booking_date: '2026-08-04', email_sent: false, version: 3 } };
+  const server = { id: 's1', permanent_vehicle_id: 'p1', version: 12, stock_number: 'S-100', vin: 'VIN100', customer_name: 'Server customer', vehicle_description: 'Server vehicle', current_location: 'Other', visible_on_board: true, work_items: [{ work_key: 'tint', required: true, completed: false }, { work_key: 'sublet', required: true, completed: false }, { work_key: 'pit_inspection', required: true, completed: true, completed_at: '2026-07-25T01:00:00Z', completed_by: 'staff' }], parts_required: true, parts_completed: false, parts_update: { parts_ordered: true, parts_stoppage: false, worst_eta: '2026-08-12', updated_at: '2026-07-27T01:00:00Z' }, sublet_booking: { provider: 'Provider A', booking_date: '2026-08-04', email_sent: false, version: 3 } };
   const mapped = mapServerVehicle(server);
   assert(mapped.pdcLocation === 'Other' && mapped.pdcSheetVisible === true, 'Other server row must remain board-visible');
   assert(mapped.pdcRequiresTint === true && mapped.pdcCompleteTint === false, 'Required incomplete work must map to a to-be-completed tick');
   assert(mapped.pdcRequiresPitInspection === true && mapped.pdcCompletePitInspection === true, 'Canonical completed work must map');
   assert(mapped.pdcRequiresParts === true && mapped.pdcCompleteParts === false, 'Parts summary flags must be authoritative');
+  assert(mapped.__emailVehicleVersion === 12 && mapped.pdcPartsOrdered === true && mapped.pdcPartsWorstEta === '2026-08-12', 'Vehicle version and shared Parts ETA state must map for authoritative updates and countdowns');
   assert(mapped.pdcRequiresSublet === true && mapped.pmbSubletProvider === 'Provider A' && mapped.pmbSubletBookingDate === '2026-08-04' && mapped.__subletBookingVersion === 3, 'Shared Sublet requirement and booking fields must map together');
   assert(mapped.__emailVehicleReadOnly === true, 'Email-imported server rows must remain fail-closed for browser-local location mutations');
   assert(mapped.__locationIdentityReadOnly !== true, 'A unique email-imported server row must not be mislabeled as an identity conflict');
@@ -43,6 +44,10 @@ function assert(value, message) { if (!value) throw new Error(message); }
   const updateBody = JSON.parse(request.options.body);
   assert(updated.ok && /update_pdc_sublet_booking_field$/.test(request.url), 'Sublet edits must use the protected shared RPC');
   assert(updateBody.p_vehicle_id === 's1' && updateBody.p_expected_version === 3 && updateBody.p_field === 'booking_date' && updateBody.p_value === '2026-08-05', 'Sublet updates must bind the canonical vehicle, version, field and value');
+  const partsEtaUpdated = await service.updatePartsEta('s1', 12, '2026-08-12');
+  const partsEtaBody = JSON.parse(request.options.body);
+  assert(partsEtaUpdated.ok && /update_pdc_parts_eta$/.test(request.url), 'Parts ETA edits must use the protected shared RPC');
+  assert(partsEtaBody.p_vehicle_id === 's1' && partsEtaBody.p_expected_version === 12 && partsEtaBody.p_worst_eta === '2026-08-12', 'Parts ETA updates must bind canonical vehicle identity, vehicle version and date');
   let revision = null; service.subscribe(value => { revision = value; });
   subscription.callback({ new: { revision: 8 } });
   assert(subscription.table === PDC_EMAIL_VEHICLE_REVISION_TABLE && revision === 8, 'Exact realtime revision table must trigger refresh');
