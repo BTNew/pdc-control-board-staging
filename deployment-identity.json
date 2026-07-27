@@ -6,18 +6,18 @@
     "twoPhysicalWorkstationAuthorityCutover": false
   },
   "artifact": "zero-data static staging site",
-  "cacheVersion": "2026.07.27.18-sublet-ai-summary",
+  "cacheVersion": "2026.07.27.20-workshop-parts-gate",
   "deploymentMode": "exact reviewed source blobs; staging.html mapped to index.html",
   "environment": "staging",
-  "generatedAtUtc": "2026-07-27T10:17:10.474502Z",
+  "generatedAtUtc": "2026-07-27T22:53:51.890397Z",
   "humanAiIntake": {
     "approvalGate": "Administrator decision remains server-validated; missing summaries disable Approve while Deny remains available.",
     "summary": "Prominent escaped email summary plus explicit Approve/Deny effects; approval fails closed when no readable summary exists."
   },
   "migrationLedger": {
-    "appliedThrough": "076",
-    "evidence": "Migration 076 passed a genuine rollback dry-run and was applied. Preview smoke scoped a fully evidenced 152-row mixed report to 100 Pilbara rows while ignoring 52 Broome rows; missing Dealer evidence remained blocked. The identical Apply path passed inside a rolled-back transaction and persisted no batch or record changes.",
-    "ledgerHead": "076",
+    "appliedThrough": "077",
+    "evidence": "Migration 077 applied to the approved staging project. Function postchecks confirmed authenticated grants and unchanged operational row counts. A controller successfully moved a future Parts-incomplete booking with a truthful audit reason; unapproved immediate Start remained fail-closed. Namespaced QA fixtures were removed.",
+    "ledgerHead": "077",
     "migrations": [
       "058",
       "059",
@@ -37,27 +37,31 @@
       "073",
       "074",
       "075",
-      "076"
+      "076",
+      "077"
     ]
   },
   "pendingStagingMigrations": [],
   "releaseChecks": {
-    "aggregateTests": "All targeted Navision mixed-report scope, Dealer-column, first-scope, backend replay/storage safety, AI Intake decision-context and version checks passed.",
+    "aggregateTests": "PASS \u2014 97 passed, 0 failed, 1 intentional skip; rendered Parts layout passed at 1920x1080 and 1264x625; controlled-link refusal UI passed 127 assertions.",
     "aiReviewDecisionContext": true,
     "aiReviewOverlayVersion": "2026.07.27.19-ai-review-decision-context",
     "backupRestore": "PASS \u2014 encrypted backup run 11b91f6c-6c00-48b1-a1f1-f3943f082e23 restored into isolated schema restore_ai_intake_071_20260727; row counts, foreign keys, relationships and format/schema hashes matched; schema dropped after verification",
-    "databasePostApply": "PASS \u2014 migration 076 applied; mixed-report Preview and rolled-back Apply paths use the same server scope, and no smoke data persisted.",
+    "databasePostApply": "PASS \u2014 migration 077 applied; schedule/move/cascade retain audited future planning while start_workshop_work enforces Parts readiness and administrator-only reasoned override.",
     "humanAiIntake": "Received, What happened, Car and What changed are shown in plain language; activated, modified, unchanged and review-needed outcomes are distinct; field changes render previous value to new value; technical receipt data is collapsed",
     "humanNavisionResults": "An administrator can establish the first empty dealer scope only for one exact full snapshot of at least 100 valid rows. Approval is content-bound, user-bound and expires after two hours. Cross-dealer, invalid, duplicate, stale and changed snapshots remain fail-closed. Later strongly matched refresh omissions continue to enter reversible temporary holding.",
-    "literalArtifact": "35/35 deployed Git blobs match source commit 739f19b97cca3686a9450e9a08bbfedadf91ef1c",
+    "literalArtifact": "35/35 deployed Git blobs match source commit baa1572a84dd523862e4280f2418d277205db755",
     "mixedDealerNavision": "A report containing both approved dealers is scoped server-side to the selected dealer only when every row carries known original Dealer evidence and the selected scope has at least 100 rows. Preview and Apply use identical filtering; other-dealer rows are reported and ignored, never imported into the selected scope.",
+    "operationalTooling": "Staging environment and database helpers live under scripts/pdc_staging_runtime.py; operational scripts no longer import test-fixture helper modules.",
     "pilbaraNavision": "Cross-scope Batch overlap no longer blocks a substantial Pilbara extract when every valid source row's original Dealer column explicitly declares 14450. Mixed, missing or contrary Dealer evidence remains blocked; hard deletion is disabled and the browser's selected option alone is not trusted.",
-    "production": "Untouched; staging static artifact plus staging-only migrations through 076",
+    "production": "Untouched; staging static artifact plus staging-only migrations through 077",
+    "stagingFixtureCleanup": "PASS \u2014 QA-OVN-20260727-WS, vehicle 7f17d3c5-4ef7-4f4e-9c5d-202607270001, booking 5fb7c7b3-ddcf-49d7-a0e3-a764f2a6b375 and Navision 99072701 active/audit fixture rows were removed.",
     "subletAiReview": "Sublet uses a compact five-column operational table: Vehicle, Provider, Booking date, Notes/email and Actions. PO sent, expected return, actual return and return-status filtering are absent. AI Review shows the server-generated What the email says summary before detected changes and Approve/Deny controls.",
-    "uiCleanup": "Control Board current-time line appears only for today and QC is removed from its station list. All-green PMB vehicles require explicit Ready for QC confirmation and move authoritatively to the Vehicle Locations QC Gate. Named QC sign-off moves to RFT and prints a dedicated windscreen label. Parts removes Outstanding station work, persists and refreshes ETA countdowns, and uses the shared Vehicle Locations row height."
+    "uiCleanup": "Control Board current-time line appears only for today and QC is removed from its station list. All-green PMB vehicles require explicit Ready for QC confirmation and move authoritatively to the Vehicle Locations QC Gate. Named QC sign-off moves to RFT and prints a dedicated windscreen label. Parts removes Outstanding station work, persists and refreshes ETA countdowns, and uses the shared Vehicle Locations row height.",
+    "workshopPartsGate": "Future planning does not claim or reserve Parts. Immediate physical Start fails closed for Parts-incomplete vehicles; only an administrator-supplied reason can create the audited entry override."
   },
-  "sourceBranch": "feat/vehicle-locations-pit-qc-signoff-rft",
-  "sourceCommit": "739f19b97cca3686a9450e9a08bbfedadf91ef1c",
+  "sourceBranch": "fix/staging-overnight-qa-20260727",
+  "sourceCommit": "baa1572a84dd523862e4280f2418d277205db755",
   "sourceFiles": [
     {
       "deployedPath": "ai-board-advisor.js",
@@ -66,7 +70,7 @@
     },
     {
       "deployedPath": "app.js",
-      "sha256": "a3419e872a707d82d204f44a8444e344f8cd7653b3781ddd5b2d127211ead5bc",
+      "sha256": "3728e87a6f8da3ed1327286c08ba678af5ffee1ce7394ae63afce25d1e220461",
       "sourcePath": "app.js"
     },
     {
@@ -106,7 +110,7 @@
     },
     {
       "deployedPath": "index.html",
-      "sha256": "549f90c453a774a125e9a96833a4d31768b53519d22bd667774edb60b6443bac",
+      "sha256": "c7a3b106e75acdaa895352b1434b1bfcfc65a6fa6e9f8b160ef33654b8335d9d",
       "sourcePath": "staging.html"
     },
     {
@@ -141,7 +145,7 @@
     },
     {
       "deployedPath": "pdc-supabase-config.staging.js",
-      "sha256": "e96410a4eef17d42193220098cc3534e27012e89dc6df123a1a4b40dccc3586d",
+      "sha256": "5ec6b8512ada8a9eedcfe3f9c3bded01390ab73bb73a0cb4f2f50306397567fe",
       "sourcePath": "pdc-supabase-config.staging.js"
     },
     {
@@ -206,7 +210,7 @@
     },
     {
       "deployedPath": "workshop-planner.js",
-      "sha256": "9d4ac83cc04ec7e924c439e6eb586a995b697908fdc4ebc8826d6e444d3e9229",
+      "sha256": "c8db54f8d0f0c5371da8c228f78c1bd2eb36be5a6dcc39ef62ac2f0ad78e9a1a",
       "sourcePath": "workshop-planner.js"
     },
     {
@@ -221,7 +225,7 @@
     },
     {
       "deployedPath": "workshop-shared-actions.js",
-      "sha256": "080805d01de233f694099951138d7526cbd6a3aac7c6454985c21b2c1480a71e",
+      "sha256": "75b979a4d0edf73584bb35f5b42ce55869e215eebf5e7d3169416fcb50ff9081",
       "sourcePath": "workshop-shared-actions.js"
     },
     {
@@ -235,5 +239,5 @@
       "sourcePath": "pdc-ai-intake-review.js"
     }
   ],
-  "sourceTree": "7801e430a189de2a9600b4769ba71176e26aabc3"
+  "sourceTree": "fad21db762a5bebe252b4c69045c69452217a751"
 }

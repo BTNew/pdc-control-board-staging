@@ -105,12 +105,14 @@ function buildWorkshopSharedActions(dataService) {
       });
     },
 
-    startWork({ bookingId, expectedVersion, actualStartAt, metadata }) {
+    startWork({ bookingId, expectedVersion, actualStartAt, overrideReason, metadata }) {
+      const actionMetadata = { ...(metadata || {}) };
+      if (overrideReason) actionMetadata.parts_override_reason = overrideReason;
       return mutate('start_workshop_work', {
         p_booking_id: bookingId,
         p_expected_version: expectedVersion,
         p_actual_start_at: actualStartAt ?? null,
-        p_metadata: metadata || {},
+        p_metadata: actionMetadata,
       });
     },
 
