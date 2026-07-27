@@ -370,16 +370,19 @@ function createWorkshopDataService(options) {
       return { ok: false, error: 'request_failed', status: result.status, body: result.body };
     }
     const body = result.body || {};
-    if (body.ok === false && body.error === 'version_conflict') {
+    if (body.ok === false && ['version_conflict', 'vehicle_version_conflict'].includes(body.error)) {
       // Never display an unsaved move as successful: force a fresh
-      // authoritative snapshot so the caller reconciles from truth.
-      loadSnapshot('rejected_stale_mutation');
+      // authoritative snapshot so the caller reconciles from truth. Await the
+      // refresh: returning while it is still in flight lets the UI immediately
+      // reuse the same stale vehicle/booking version and fail forever.
+      await loadSnapshot('rejected_stale_mutation');
       return body;
     }
     if (body.ok === true) {
       // Successful mutation: reconcile from the confirmed result rather
-      // than trusting an optimistic local guess.
-      loadSnapshot('successful_mutation');
+      // than trusting an optimistic local guess. The shared-action caller
+      // renders only after this authoritative refresh has completed.
+      await loadSnapshot('successful_mutation');
     }
     return body;
   }
