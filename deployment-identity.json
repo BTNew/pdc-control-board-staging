@@ -9,7 +9,7 @@
   "cacheVersion": "2026.07.27.20-workshop-parts-gate",
   "deploymentMode": "exact reviewed source blobs; staging.html mapped to index.html",
   "environment": "staging",
-  "generatedAtUtc": "2026-07-27T23:42:08.798430Z",
+  "generatedAtUtc": "2026-07-27T23:48:00.529490Z",
   "humanAiIntake": {
     "approvalGate": "Administrator decision remains server-validated; missing summaries disable Approve while Deny remains available.",
     "summary": "Prominent escaped email summary plus explicit Approve/Deny effects; approval fails closed when no readable summary exists."
@@ -53,7 +53,7 @@
     "databasePostApply": "PASS \u2014 migration 077 applied; schedule/move/cascade retain audited future planning while start_workshop_work enforces Parts readiness and administrator-only reasoned override.",
     "humanAiIntake": "Received, What happened, Car and What changed are shown in plain language; activated, modified, unchanged and review-needed outcomes are distinct; field changes render previous value to new value; technical receipt data is collapsed",
     "humanNavisionResults": "An administrator can establish the first empty dealer scope only for one exact full snapshot of at least 100 valid rows. Approval is content-bound, user-bound and expires after two hours. Cross-dealer, invalid, duplicate, stale and changed snapshots remain fail-closed. Later strongly matched refresh omissions continue to enter reversible temporary holding.",
-    "literalArtifact": "35/35 deployed Git blobs match source commit 95dbd86e35f3a6be4eeeb0601c9669fd36f4d5bb",
+    "literalArtifact": "35/35 deployed Git blobs match source commit 8b6f6d9971f7eb3de8ecc869b7a2c2ecb93797c2",
     "mixedDealerNavision": "A report containing both approved dealers is scoped server-side to the selected dealer only when every row carries known original Dealer evidence and the selected scope has at least 100 rows. Preview and Apply use identical filtering; other-dealer rows are reported and ignored, never imported into the selected scope.",
     "navisionPastedDealerEvidence": "PASS \u2014 the same 83-row Pilbara preview is accepted when Dealer code/name values survive under generic pasted-report headers. A blank explicit Dealer field and ambiguous approved codes remain blocked.",
     "navisionPilbaraExactScope": "PASS \u2014 83-row Pilbara exact-scope preview accepted despite 83 historical Broome identity overlaps; every original Dealer column declared 14450. A missing Dealer-column negative control remained blocked. Hard delete remains disabled.",
@@ -67,7 +67,7 @@
     "workshopPartsGate": "Future planning does not claim or reserve Parts. Immediate physical Start fails closed for Parts-incomplete vehicles; only an administrator-supplied reason can create the audited entry override."
   },
   "sourceBranch": "fix/staging-overnight-qa-20260727",
-  "sourceCommit": "95dbd86e35f3a6be4eeeb0601c9669fd36f4d5bb",
+  "sourceCommit": "8b6f6d9971f7eb3de8ecc869b7a2c2ecb93797c2",
   "sourceFiles": [
     {
       "deployedPath": "ai-board-advisor.js",
@@ -76,7 +76,7 @@
     },
     {
       "deployedPath": "app.js",
-      "sha256": "3728e87a6f8da3ed1327286c08ba678af5ffee1ce7394ae63afce25d1e220461",
+      "sha256": "aa8f11a9b51f9c33fccf90eeb1086485df3991c16aded5375b174125e4ed3be2",
       "sourcePath": "app.js"
     },
     {
@@ -116,7 +116,7 @@
     },
     {
       "deployedPath": "index.html",
-      "sha256": "c7a3b106e75acdaa895352b1434b1bfcfc65a6fa6e9f8b160ef33654b8335d9d",
+      "sha256": "b44f3681ef101f655802914c59fb40da7e9e0e198e8f2fcb70cb9dc1fc972385",
       "sourcePath": "staging.html"
     },
     {
@@ -151,7 +151,7 @@
     },
     {
       "deployedPath": "pdc-supabase-config.staging.js",
-      "sha256": "5ec6b8512ada8a9eedcfe3f9c3bded01390ab73bb73a0cb4f2f50306397567fe",
+      "sha256": "adb4f3b76f4f1ffb41b3b8ec8cc64e9db921361004cf7d680fccfce26ea6af09",
       "sourcePath": "pdc-supabase-config.staging.js"
     },
     {
@@ -245,5 +245,5 @@
       "sourcePath": "pdc-ai-intake-review.js"
     }
   ],
-  "sourceTree": "9c80e9dfbc7e4c88f6f3cb2cc413261c0ed91830"
+  "sourceTree": "aaadc463050110fac4ab5a83bc5a0cb5b9e262a9"
 }

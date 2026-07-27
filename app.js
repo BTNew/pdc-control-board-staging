@@ -1,5 +1,5 @@
-const APP_VERSION = '2026.07.27.20-workshop-parts-gate';
-const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.07.27.20-workshop-parts-gate';
+const APP_VERSION = '2026.07.28.21-navision-pilbara-recheck';
+const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.07.28.21-navision-pilbara-recheck';
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
 // constant intentionally names only the production ref, never the
@@ -15746,13 +15746,35 @@ async function applySharedNavisionImport() {
   }
   const pending = app.pendingSharedNavisionImport;
   if (!pending) return;
-  const data = pending.previewData || {};
-  const counts = data.counts || {};
-  const blockingState = navisionSharedPreviewBlockingState(data);
+  let data = pending.previewData || {};
+  let counts = data.counts || {};
+  let blockingState = navisionSharedPreviewBlockingState(data);
+  const service = navisionSharedBackendService();
+  if (blockingState.blocking) {
+    if (!service) {
+      window.alert('The shared Navision backend is unavailable, so the blocked preview could not be rechecked. Nothing was imported or changed.');
+      return;
+    }
+    const refreshedPreview = await service.preview(pending.rows, pending.metadata);
+    if (!refreshedPreview?.ok) {
+      window.alert(`Shared Navision safety recheck failed: ${refreshedPreview?.error || 'service unavailable'}. Nothing was imported or changed.`);
+      return;
+    }
+    pending.previewResult = refreshedPreview;
+    pending.previewData = navisionSharedPreviewData(refreshedPreview) || {};
+    data = pending.previewData;
+    counts = data.counts || {};
+    blockingState = navisionSharedPreviewBlockingState(data);
+    renderSharedNavisionPreview(pending);
+  }
   if (blockingState.blocking) {
     const { invalid, conflict, affected } = blockingState;
+    const safety = data.safety || {};
+    const serverDetail = blockingState.safetyBlocking
+      ? `\n\nServer check: ${Number(safety.incoming_valid_count || counts.total || 0)} valid row(s), ${Number(safety.cross_dealer_matches || 0)} cross-dealer identity match(es), authority ${String(safety.authority || 'not established')}.`
+      : '';
     window.alert(blockingState.safetyBlocking
-      ? `${navisionSafetyIssueMessage(blockingState.safetyReason)}\n\nNothing was imported or changed.`
+      ? `${navisionSafetyIssueMessage(blockingState.safetyReason)}${serverDetail}\n\nNothing was imported or changed.`
       : `${affected} row${affected === 1 ? '' : 's'} need attention (${invalid} invalid, ${conflict} conflicting).\n\nClose this message to see each affected row and how to fix it. Nothing was imported or changed.`);
     return;
   }
@@ -15764,7 +15786,6 @@ async function applySharedNavisionImport() {
   }
   const totals = ['new', 'changed', 'unchanged', 'missing', 'invalid', 'conflict'].map(key => `${key} ${Number(counts[key] || 0)}`).join(', ');
   if (!window.confirm(`Apply this exact shared Navision preview?\n\nDealer: ${pending.dealerCode}\n${totals}\n\nThis writes only to the shared Navision backend. Browser-local authority, workflow, location, Parts and workshop data will not change.`)) return;
-  const service = navisionSharedBackendService();
   const idempotencyKey = `normal-upload:${pending.dealerCode}:${data.source_hash || sha256Hex(JSON.stringify(pending.rows))}`.slice(0, 200);
   const applyResult = await service.apply(pending.rows, pending.previewResult, { ...pending.metadata, confirmed: true, idempotencyKey });
   if (!applyResult?.ok) {

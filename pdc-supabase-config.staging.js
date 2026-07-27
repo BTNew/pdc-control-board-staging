@@ -34,6 +34,6 @@ window.PDC_SUPABASE_CONFIG = {
   vehicleLifecycle: Object.freeze({
     sharedData: true,
     resolverRollbackDirectRead: false,
-    resolverAssetVersion: '2026.07.27.20-workshop-parts-gate'
+    resolverAssetVersion: '2026.07.28.21-navision-pilbara-recheck'
   })
 };
