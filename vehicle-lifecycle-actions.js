@@ -1,7 +1,7 @@
 'use strict';
 
 /*
- * Vehicle lifecycle shared actions bridge (QC complete -> RFT -> Collected).
+ * Vehicle lifecycle shared actions bridge (PIT location, QC sign-off -> RFT -> Collected).
  *
  * Mirrors the existing workshop-shared-actions.js pattern: maps each
  * frontend action to the exact protected transactional RPC name/parameter
@@ -338,6 +338,15 @@ function buildVehicleLifecycleSharedActions(client, getAccessToken) {
   }
 
   return {
+    qcSignoffToRft({ vehicleId, expectedVersion, workItemKey, completedSummary }) {
+      return rpc('qc_signoff_to_rft', {
+        p_vehicle_id: vehicleId,
+        p_expected_version: expectedVersion,
+        p_work_item_key: workItemKey ?? 'QC',
+        p_completed_summary: completedSummary ?? null,
+      });
+    },
+
     qcCompleteVehicle({ vehicleId, expectedVersion, workItemKey, completedSummary }) {
       return rpc('qc_complete_vehicle', {
         p_vehicle_id: vehicleId,
@@ -351,6 +360,14 @@ function buildVehicleLifecycleSharedActions(client, getAccessToken) {
       return rpc('rft_transfer_vehicle', {
         p_vehicle_id: vehicleId,
         p_expected_version: expectedVersion,
+      });
+    },
+
+    pitTransferVehicle({ vehicleId, expectedVersion, direction }) {
+      return rpc('pit_transfer_vehicle', {
+        p_vehicle_id: vehicleId,
+        p_expected_version: expectedVersion,
+        p_direction: direction,
       });
     },
 
@@ -380,7 +397,11 @@ function describeVehicleLifecycleActionError(error = '') {
     already_qc_complete: 'QC has already been completed for this vehicle.',
     already_collected: 'This vehicle has already been collected and moved to Completed Vehicles.',
     qc_not_complete: 'QC sign-off is required before this vehicle can be transferred to RFT.',
-    not_in_active_lifecycle: 'This vehicle is not currently active in PMB, so it cannot be transferred to RFT.',
+    qc_gate_blocked: 'QC is locked until every required station job is complete, Parts is clear, and the vehicle is back in PMB Unallocated.',
+    pit_requires_pmb_unallocated: 'PIT movement is available only from PMB Unallocated with no active workshop station.',
+    not_in_pit: 'This vehicle is not currently in PIT.',
+    invalid_pit_direction: 'The requested PIT movement is invalid and was not applied.',
+    not_in_active_lifecycle: 'This vehicle is not currently active in PMB, so the lifecycle change was not applied.',
     not_in_rft: 'This vehicle is not currently in RFT, so it cannot be marked collected.',
     request_failed: 'The change could not be saved. Please check your connection and try again.',
     missing_expected_version: 'This action is missing required version information and was not applied.',

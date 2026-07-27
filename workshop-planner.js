@@ -191,6 +191,12 @@ function workshopCoerceWorkDate(date = new Date(), direction = 1) {
   return next;
 }
 
+function workshopDefaultOpenDateKey(value = new Date()) {
+  const candidate = value instanceof Date ? new Date(value) : new Date(value);
+  const safe = Number.isNaN(candidate.getTime()) ? new Date() : candidate;
+  return workshopDateKey(workshopCoerceWorkDate(safe, 1));
+}
+
 function workshopShiftWorkday(date = new Date(), amount = 1) {
   const next = workshopCoerceWorkDate(date, amount < 0 ? -1 : 1);
   let remaining = Math.abs(Number(amount) || 0);
@@ -1030,6 +1036,15 @@ function workshopSaveView(state = {}) {
 function workshopState() {
   if (!app.workshopPlanner) app.workshopPlanner = workshopLoadView();
   return app.workshopPlanner;
+}
+
+function workshopApplyOpenDateDefault(state = workshopState(), now = new Date()) {
+  if (typeof app === 'undefined' || app.pendingWorkshopOpenToday !== true) return false;
+  state.date = workshopDefaultOpenDateKey(now);
+  workshopClearSelectedDetail(state);
+  workshopSaveView(state);
+  app.pendingWorkshopOpenToday = false;
+  return true;
 }
 
 function workshopClearSelectedDetail(state = workshopState()) {
@@ -3380,6 +3395,7 @@ function renderWorkshopPlanner() {
   const root = document.querySelector('#workshop-planner-root');
   if (!root) return;
   const state = workshopState();
+  workshopApplyOpenDateDefault(state);
   const dedicatedStage = normalizePmbStage(window.__activeWorkshopPlannerStage || '');
   const requestedStage = dedicatedStage || normalizePmbStage(app.pendingWorkshopStage || '');
   if (WORKSHOP_STAGE_SEQUENCE.includes(requestedStage)) {
@@ -5391,6 +5407,7 @@ if (typeof module !== 'undefined' && module.exports) {
     workshopShiftEveryLaterPlannedRow,
     workshopDateKey,
     workshopDateFromKey,
+    workshopDefaultOpenDateKey,
     workshopNormalizeStartDate,
     workshopAddWorkMinutes,
     workshopWorkMinutesBetween,

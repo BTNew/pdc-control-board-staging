@@ -6,10 +6,10 @@
     "twoPhysicalWorkstationAuthorityCutover": false
   },
   "artifact": "zero-data static staging site",
-  "cacheVersion": "2026.07.25.04-authenticated-email-auto-import",
+  "cacheVersion": "2026.07.27.03-vehicle-locations-pit-qc-rft",
   "deploymentMode": "exact reviewed source blobs; staging.html mapped to index.html",
   "environment": "staging",
-  "generatedAtUtc": "2026-07-25T11:23:58Z",
+  "generatedAtUtc": "2026-07-27T02:01:26Z",
   "migrationLedger": [
     "042",
     "043",
@@ -38,15 +38,14 @@
     "066"
   ],
   "releaseChecks": {
-    "aggregateTests": "Focused SQL, staging HTTP contract, frontend service, app cache, pdc-control-board source tests and monitor reviewer tests passed; unrelated pre-existing index.html aggregate failures not introduced by this staging-only delta remain outside this release path",
-    "databasePostApply": "migration 066 installed on staging; import and snapshot RPCs present; receipt/revision tables present with RLS; existing vehicles/work_items/bookings remained 0 at postcheck before import replay",
-    "emailImporter": "PDC monitor now has PDC_AUTHENTICATED_EMAIL_AUTO_IMPORT_ENABLED=true and canonical import payload tests passed; ambiguous/conflicting identities fail closed",
-    "independentReview": "parallel specification and security reviews were requested against exact commits 7387f23, dcf269d, a88c283; final response must include any returned findings",
-    "literalArtifact": "33/33 source blobs assembled from exact reviewed source commit",
-    "authenticatedEmailAutoImport": "authenticated vehicle emails can create/update Vehicle Location rows; Navision exact match controls location, unmatched goes Other, work ticks map to canonical scheduling items; no bookings/lifecycle changes are inferred"
+    "aggregateTests": "83 passed, 2 verified pre-existing failures, 1 skipped; final focused PIT/QC/Vehicle Locations, lifecycle resolver, planner, version and syntax checks passed",
+    "databasePostApply": "Frontend-only staging upload. No database migration was applied; existing migration ledger metadata retained and migrations 067-070 remain pending.",
+    "literalArtifact": "33/33 source blobs assembled from exact committed source",
+    "vehicleLocationsPitQcRft": "PIT removed from Workshop Planning; Vehicle Locations ordered RFT, QC, PIT, PMB, YARD HOLD, IT, OTHER; named QC sign-off maps to atomic QC-to-RFT authority when migration 070 is installed",
+    "plannerAndAiIntake": "Workshop Planner opens on today at station entry; exact unambiguous AI Intake Stock links open the canonical vehicle"
   },
-  "sourceBranch": "fix/email-auto-import-work-authority",
-  "sourceCommit": "a88c283b7640de1c4b1ab826bd588ff616ea0069",
+  "sourceBranch": "feat/vehicle-locations-pit-qc-signoff-rft",
+  "sourceCommit": "92e4934fd940e0ad9eda553191d5e5deebadcf82",
   "sourceFiles": [
     {
       "deployedPath": "ai-board-advisor.js",
@@ -55,7 +54,7 @@
     },
     {
       "deployedPath": "app.js",
-      "sha256": "cad6cbdd07404b8020d7f40f675a25ec06edaac92969739ce7b1ae001800bad8",
+      "sha256": "0170ee8e201e57153271404a56676b0f4776e13b5a0b10f8be0860966ff9ec63",
       "sourcePath": "app.js"
     },
     {
@@ -95,7 +94,7 @@
     },
     {
       "deployedPath": "index.html",
-      "sha256": "e9c03e22cec5847b7fb794b94e78f77894c16d9eb39ffc5341d245afa72c8da0",
+      "sha256": "40f531df72667c6e9a74dda8f0a21ded01c73d7f4812e63b73117bf8960b37f2",
       "sourcePath": "staging.html"
     },
     {
@@ -110,7 +109,7 @@
     },
     {
       "deployedPath": "pdc-ai-intake-service.js",
-      "sha256": "dc8fdb4ca33a236c98d6f9e38a15e0c2e32f7bfc2b8b27d31914a1e82bd89be5",
+      "sha256": "78b0f0edcb7cfd8b895f4dd511d5f0c4b45e4fd5f412e044fb905b1e238615f8",
       "sourcePath": "pdc-ai-intake-service.js"
     },
     {
@@ -125,12 +124,12 @@
     },
     {
       "deployedPath": "pdc-email-vehicle-location-service.js",
-      "sha256": "853436ad00c8938509510cae9eb446e35382e4abfc6674713dedfa4b4458dea2",
+      "sha256": "ec1cd3b17911d1c9234f82cfea86b8a480612e37ef11a126c7eebfb4defab1d5",
       "sourcePath": "pdc-email-vehicle-location-service.js"
     },
     {
       "deployedPath": "pdc-supabase-config.staging.js",
-      "sha256": "5fe4e1d2e3d5240b89b0576830c8c0ab6d5ec40e3ed66526d335a0321fbeba62",
+      "sha256": "1cc73384bd715db4e342de12c3b41fb38da45e1d0c9cbac34850424989d229c2",
       "sourcePath": "pdc-supabase-config.staging.js"
     },
     {
@@ -145,12 +144,12 @@
     },
     {
       "deployedPath": "styles.css",
-      "sha256": "28ced01db42987dde079fdc4bf042e44e931e44c671fbce8bc92f9549c741884",
+      "sha256": "51b47542ae443309a42e757e233c27635e98a3c8b4b88bf78fd2dd7c97397e76",
       "sourcePath": "styles.css"
     },
     {
       "deployedPath": "vehicle-lifecycle-actions.js",
-      "sha256": "8fe1fbefce1a9c3ce2295d83154465a4506507a031cd7771e5b74bf0beb91066",
+      "sha256": "1d4a339137cd7cf96a388b521491a8e9287c69e41481ce5082b0765404455326",
       "sourcePath": "vehicle-lifecycle-actions.js"
     },
     {
@@ -185,7 +184,7 @@
     },
     {
       "deployedPath": "workshop-eligibility.js",
-      "sha256": "6eceea401de08243bf01d039fc8ab4b9295782534b9078be0eebc279dc68ba7f",
+      "sha256": "932aad0a0fab48db321201e808f9751463372331c549864b3476143e76c665cb",
       "sourcePath": "workshop-eligibility.js"
     },
     {
@@ -195,7 +194,7 @@
     },
     {
       "deployedPath": "workshop-planner.js",
-      "sha256": "0c7f19f1086d642df14095a6bb1f4f08bb616acdc42d24e1783f4a3669e19e4d",
+      "sha256": "e1ead5fa728f86a658cabe311302043c4f1a87df0a395e9f917186aae7fa66a6",
       "sourcePath": "workshop-planner.js"
     },
     {
@@ -213,5 +212,11 @@
       "sha256": "6ac851866b2873ec41b9b34132216b94a2a478891dc5ceb9fe9650ccbf4e41b8",
       "sourcePath": "workshop-shared-actions.js"
     }
+  ],
+  "pendingStagingMigrations": [
+    "067",
+    "068",
+    "069",
+    "070"
   ]
 }
