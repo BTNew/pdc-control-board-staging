@@ -6,10 +6,12 @@ const app = fs.readFileSync('app.js', 'utf8');
 const planner = fs.readFileSync('workshop-planner.js', 'utf8');
 const styles = fs.readFileSync('styles.css', 'utf8');
 const lifecycle = fs.readFileSync('vehicle-lifecycle-actions.js', 'utf8');
+const staging = fs.readFileSync('staging.html', 'utf8');
 const migration = fs.readFileSync('supabase/staging_only/073_qc_gate_parts_eta_control_board.sql', 'utf8');
 
 const workflowRender = app.slice(app.indexOf('function renderWorkflowBoard()'), app.indexOf('function incomingBucketForVehicle'));
 assert(!workflowRender.includes('control-board-qc-row') && !workflowRender.includes('<span>QC</span>'), 'Control Board must not render QC as a station row');
+assert(!staging.includes('PMB only'), 'Control Board header must not render the redundant PMB only badge');
 assert(workflowRender.includes('control-board-station-list">${stationHtml}</div>'), 'Control Board list must contain canonical workshop stations only');
 assert(planner.includes("workshopDateKey(selectedDate) === workshopDateKey(now)"), 'Moving red time line must be visible only when the selected planner day is today');
 
