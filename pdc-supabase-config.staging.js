@@ -34,6 +34,6 @@ window.PDC_SUPABASE_CONFIG = {
   vehicleLifecycle: Object.freeze({
     sharedData: true,
     resolverRollbackDirectRead: false,
-    resolverAssetVersion: '2026.07.28.38-parts-workshop-customer-columns'
+    resolverAssetVersion: '2026.07.28.39-compact-vehicle-provenance'
   })
 };

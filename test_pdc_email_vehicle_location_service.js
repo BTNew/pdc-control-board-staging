@@ -52,6 +52,10 @@ function assert(value, message) { if (!value) throw new Error(message); }
   const partsOrderedBody = JSON.parse(request.options.body);
   assert(partsOrdered.ok && /mark_pdc_parts_ordered$/.test(request.url), 'Mark Ordered must use the protected shared mutation RPC');
   assert(partsOrderedBody.p_vehicle_id === 's1' && partsOrderedBody.p_expected_version === 12, 'Mark Ordered must bind canonical vehicle identity and vehicle version');
+  const history = await service.vehicleHistory('s1');
+  const historyBody = JSON.parse(request.options.body);
+  assert(history.ok && /get_pdc_vehicle_provenance_history$/.test(request.url), 'Vehicle history must use the protected provenance RPC');
+  assert(historyBody.p_vehicle_id === 's1', 'Vehicle history must bind the canonical vehicle identity');
   let revision = null; service.subscribe(value => { revision = value; });
   subscription.callback({ new: { revision: 8 } });
   assert(subscription.table === PDC_EMAIL_VEHICLE_REVISION_TABLE && revision === 8, 'Exact realtime revision table must trigger refresh');
@@ -60,7 +64,7 @@ function assert(value, message) { if (!value) throw new Error(message); }
   const production = fs.readFileSync('index.html', 'utf8');
   const app = fs.readFileSync('app.js', 'utf8');
   assert(staging.includes('pdc-email-vehicle-location-service.js') && !production.includes('pdc-email-vehicle-location-service.js'), 'Service must load only from staging.html');
-  assert(app.includes("const emailReadOnly = vehicle.__emailVehicleReadOnly === true;") && app.includes("emailReadOnly ? 'Email import · Read only'"), 'Email-imported rows must show an accurate read-only badge instead of a false identity conflict');
+  assert(app.includes("const emailReadOnly = vehicle.__emailVehicleReadOnly === true;") && app.includes("emailReadOnly ? 'Imported by email · Read only'"), 'Email-imported rows must show an accurate source/access badge instead of a false identity conflict');
   assert(staging.includes('Identity conflicts fail closed') && staging.includes('Authenticated email vehicle imports'), 'Staging-only safety copy must be present');
   assert(app.includes('pdc-auth-ready') && app.includes('initEmailVehicleLocationsIfAvailable') && app.includes('pdc-auth-locked'), 'App must bind service lifecycle to approved auth');
   assert(app.includes('reconcileVehicleRows(localRows, app.emailVehicleLocationRows)'), 'Vehicle Location cards must consume authoritative rows');

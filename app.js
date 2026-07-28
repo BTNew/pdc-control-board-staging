@@ -1,5 +1,5 @@
-const APP_VERSION = '2026.07.28.38-parts-workshop-customer-columns';
-const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.07.28.38-parts-workshop-customer-columns';
+const APP_VERSION = '2026.07.28.39-compact-vehicle-provenance';
+const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.07.28.39-compact-vehicle-provenance';
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
 // constant intentionally names only the production ref, never the
@@ -1877,6 +1877,8 @@ const app = {
   vehicleDetailPage: 'details',
   vehicleWorkshopDetailCache: new Map(),
   vehicleWorkshopDetailRequestGeneration: 0,
+  vehicleHistoryCache: new Map(),
+  vehicleHistoryRequestGeneration: 0,
   pendingWorkshopBookingLink: null,
   reviewed: false,
   quickFilter: 'incoming',
@@ -4007,6 +4009,8 @@ function resetEmailVehicleLocations() {
   app.emailVehicleLocationService = null;
   app.emailVehicleLocationRows = [];
   app.emailVehicleLocationRevision = null;
+  app.vehicleHistoryCache = new Map();
+  app.vehicleHistoryRequestGeneration += 1;
   if (app.currentView === 'dashboard') renderIncomingDashboardBoard();
 }
 
@@ -5714,7 +5718,7 @@ function incomingVehicleDetailRow(vehicle = {}, bucketKey = '', options = {}) {
     ? `<div class="wide incoming-sublet-provider"><b>Sublet provider</b><span><select data-pmb-bay-provider-key="${escapeHtml(key)}" data-pmb-bay-provider-stage="SUBLET" aria-label="Sublet provider for ${escapeHtml(stock)}">${subletProviderOptionsHtml(subletProvider)}</select></span></div>`
     : '';
   const primaryAction = locationReadOnly && !protectedLifecycleAllowed
-    ? `<span class="badge neutral">${identityReadOnly ? 'Identity conflict · Read only' : emailReadOnly ? 'Email import · Read only' : sharedReadOnly ? 'Shared Navision · Read only' : 'Shared sync pending · Read only'}</span>`
+    ? `<span class="badge neutral">${identityReadOnly ? 'Identity conflict · Read only' : emailReadOnly ? 'Imported by email · Read only' : sharedReadOnly ? 'Navision source · Read only' : 'Shared sync pending · Read only'}</span>`
     : bucketKey === 'yardhold'
     ? `<button class="primary incoming-transfer-pmb" type="button" data-yh-transfer-pmb="${escapeHtml(key)}" title="Transfer Yard Hold vehicle to PMB">To PMB</button><button class="small-button incoming-open-button" type="button" data-open-stock="${escapeHtml(key)}">Open</button>`
     : bucketKey === 'pmb'
@@ -5795,7 +5799,7 @@ function renderIncomingDashboardBoard() {
     const vehicles = filteredRows.filter(vehicle => incomingBucketForVehicle(vehicle) === def.key)
       .sort((a, b) => (parseDateAU(navisionEtaForVehicle(a))?.getTime() || 9999999999999) - (parseDateAU(navisionEtaForVehicle(b))?.getTime() || 9999999999999));
     const shown = vehicles.map(vehicle => incomingVehicleDetailRow(vehicle, def.key)).join('') || '<div class="pmb-empty-drop">No vehicles match the current filters</div>';
-    const identityHeader = vehicles.length ? productionGridHeaderHtml('incoming-production-grid-header') : '';
+    const identityHeader = vehicles.length ? productionGridHeaderHtml('incoming-production-grid-header', { actionLabel: 'Source / next step' }) : '';
     return `<details class="incoming-bucket incoming-${escapeHtml(def.key)}" ${def.open ? 'open' : ''}>
       <summary class="incoming-bucket-title">
         <span>${escapeHtml(def.label)}</span><strong>${vehicles.length}</strong><small>${escapeHtml(def.hint)}</small>
@@ -10146,15 +10150,92 @@ function vehicleWorkshopHistoryLines(vehicle = {}) {
     });
 }
 
+function compactAuditValue(value) {
+  if (value === null || value === undefined || value === '') return '—';
+  if (typeof value === 'object') {
+    const text = JSON.stringify(value);
+    return text.length > 140 ? `${text.slice(0, 137)}…` : text;
+  }
+  return String(value);
+}
+
+function authoritativeAuditChangeSummary(entry = {}) {
+  const before = entry.before_data && typeof entry.before_data === 'object' ? entry.before_data : {};
+  const after = entry.after_data && typeof entry.after_data === 'object' ? entry.after_data : {};
+  const keys = [...new Set([...Object.keys(before), ...Object.keys(after)])]
+    .filter(key => JSON.stringify(before[key]) !== JSON.stringify(after[key]))
+    .filter(key => !['updated_at', 'version'].includes(key));
+  return keys.slice(0, 10).map(key => `${key.replace(/_/g, ' ')}: ${compactAuditValue(before[key])} → ${compactAuditValue(after[key])}`).join(' · ')
+    || Object.entries(entry.metadata || {}).slice(0, 8).map(([key, value]) => `${key.replace(/_/g, ' ')}: ${compactAuditValue(value)}`).join(' · ');
+}
+
+function vehicleImportProvenanceHtml(vehicle = {}, detail = null) {
+  const emails = Array.isArray(detail?.email_imports) ? detail.email_imports : [];
+  const navision = Array.isArray(detail?.navision_imports) ? detail.navision_imports : [];
+  const rows = [];
+  emails.forEach(item => rows.push({
+    title: 'Authenticated email import',
+    at: item.imported_at || item.source_received_at,
+    text: [`Sender ${item.sender_address || 'not recorded'}`, `Received ${item.source_received_at || 'time not recorded'}`, `Identity ${String(item.identity_source || 'email').replace(/_/g, ' ')}`, item.source_uid ? `Message UID ${item.source_uid}` : '', item.receipt_id ? `Receipt ${item.receipt_id}` : ''].filter(Boolean).join(' · '),
+  }));
+  navision.forEach(item => rows.push({
+    title: 'Shared Navision import',
+    at: item.first_seen_at || item.last_seen_at,
+    text: [`First file ${item.first_source_name || 'not recorded'}`, item.first_seen_at ? `first seen ${item.first_seen_at}` : '', `Latest file ${item.last_source_name || 'not recorded'}`, item.last_seen_at ? `last seen ${item.last_seen_at}` : '', item.last_revision ? `revision ${item.last_revision}` : '', item.source_record_id ? `source record ${item.source_record_id}` : ''].filter(Boolean).join(' · '),
+  }));
+  if (!rows.length) rows.push({
+    title: vehicle.source || (vehicle.importedAt ? 'Navision / tracker import' : 'Tracker or manual record'),
+    at: vehicle.importedAt || vehicle.updatedAt || '',
+    text: [vehicle.sourceRecordId ? `Source record ${vehicle.sourceRecordId}` : '', vehicle.__sharedNavisionActivationSource ? `Board activation ${vehicle.__sharedNavisionActivationSource}` : '', vehicle.__sharedNavisionDealerCode ? `Dealer ${vehicle.__sharedNavisionDealerCode}` : ''].filter(Boolean).join(' · ') || 'The legacy record does not contain a durable import receipt.',
+  });
+  return `<div class="vehicle-provenance-list">${rows.map(row => `<div class="vehicle-provenance-item"><strong>${escapeHtml(row.title)}</strong><span>${escapeHtml(row.at ? `${row.at} · ${row.text}` : row.text)}</span></div>`).join('')}</div>`;
+}
+
 function renderAuditTrailSection(vehicle = {}) {
-  const rows = auditTrailForVehicle(vehicle);
-  if (!rows.length) return '<div class="subtle">No PDC audit events saved for this vehicle yet.</div>';
-  return `<div class="audit-log-list">${rows.map(entry => {
+  const canonicalId = vehicleWorkshopDetailCanonicalId(vehicle);
+  const state = canonicalId ? app.vehicleHistoryCache.get(canonicalId) : null;
+  const detail = state?.status === 'ready' ? state.detail : null;
+  const localRows = auditTrailForVehicle(vehicle);
+  const serverRows = Array.isArray(detail?.audit_events) ? detail.audit_events : [];
+  const movements = Array.isArray(detail?.movements) ? detail.movements : [];
+  const historyRows = [
+    ...movements.map(item => ({ at: item.moved_at, action: 'Vehicle moved', by: item.moved_by || 'Shared authority', detail: [`${item.from_location || 'Unknown'} → ${item.to_location || 'Unknown'}`, item.from_pmb_stage || item.to_pmb_stage ? `${item.from_pmb_stage || 'Unallocated'} → ${item.to_pmb_stage || 'Unallocated'}` : '', item.reason || ''].filter(Boolean).join(' · ') })),
+    ...serverRows.map(item => ({ at: item.created_at, action: `${String(item.action || 'update').replace(/_/g, ' ')} · ${String(item.table_name || 'vehicle').replace(/_/g, ' ')}`, by: item.actor_email || 'System authority', detail: authoritativeAuditChangeSummary(item) })),
+    ...localRows.map(item => ({ at: item.at, action: item.action || 'Update', by: `${item.by || item.user || 'Unknown operator'}${item.role ? ` (${item.role})` : ''}`, detail: Object.entries(item.details || {}).filter(([key, value]) => key !== 'by' && value !== undefined && value !== '').map(([key, value]) => `${key.replace(/_/g, ' ')}: ${compactAuditValue(value)}`).join(' · ') })),
+  ].sort((a, b) => String(b.at || '').localeCompare(String(a.at || ''))).slice(0, 150);
+  const status = !canonicalId ? '<div class="subtle">This legacy vehicle has no canonical shared ID, so only browser-recorded history is available.</div>'
+    : state?.status === 'loading' || !state ? '<div class="subtle" role="status">Loading authoritative import receipts, movements and audit events…</div>'
+      : state.status === 'error' ? `<div class="subtle">Authoritative history unavailable: ${escapeHtml(state.message || 'request failed')}</div>` : '';
+  const list = historyRows.length ? `<div class="audit-log-list">${historyRows.map(entry => {
     const when = parseIsoTimestamp(entry.at);
     const whenLabel = when ? when.toLocaleString('en-AU', { dateStyle: 'short', timeStyle: 'short' }) : 'Unknown time';
-    const detail = entry.details ? Object.entries(entry.details).filter(([key, value]) => !['by'].includes(key) && value !== undefined && value !== '').map(([key, value]) => `${key}: ${value}`).join(' · ') : '';
-    return `<div class="audit-log-item"><strong>${escapeHtml(entry.action || 'Update')}</strong><span>${escapeHtml(whenLabel)} · ${escapeHtml(entry.by || entry.user || 'Unknown operator')}${entry.role ? ` (${escapeHtml(entry.role)})` : ''}${detail ? ` · ${escapeHtml(detail)}` : ''}</span></div>`;
-  }).join('')}</div>`;
+    return `<div class="audit-log-item"><strong>${escapeHtml(entry.action)}</strong><span>${escapeHtml(whenLabel)} · ${escapeHtml(entry.by)}${entry.detail ? ` · ${escapeHtml(entry.detail)}` : ''}</span></div>`;
+  }).join('')}</div>` : '<div class="subtle">No movement or audit events have been recorded for this vehicle yet.</div>';
+  return `<div class="vehicle-audit-detail"><div class="muted-label">How this vehicle was imported</div>${vehicleImportProvenanceHtml(vehicle, detail)}${status}<div class="muted-label vehicle-history-label">Detailed history</div>${list}</div>`;
+}
+
+async function loadVehicleHistoryForDetail(vehicle = {}) {
+  const canonicalId = vehicleWorkshopDetailCanonicalId(vehicle);
+  if (!canonicalId) return;
+  const existing = app.vehicleHistoryCache.get(canonicalId);
+  if (existing && ['loading', 'ready'].includes(existing.status)) return;
+  const service = app.emailVehicleLocationService;
+  if (!service?.vehicleHistory) {
+    app.vehicleHistoryCache.set(canonicalId, { status: 'error', message: 'History service is not available.' });
+    return;
+  }
+  const generation = ++app.vehicleHistoryRequestGeneration;
+  app.vehicleHistoryCache.set(canonicalId, { status: 'loading' });
+  try {
+    const response = await service.vehicleHistory(canonicalId);
+    if (generation !== app.vehicleHistoryRequestGeneration) return;
+    if (!response?.ok) throw new Error(response?.code || 'request failed');
+    app.vehicleHistoryCache.set(canonicalId, { status: 'ready', detail: response.data || {} });
+  } catch (error) {
+    if (generation !== app.vehicleHistoryRequestGeneration) return;
+    app.vehicleHistoryCache.set(canonicalId, { status: 'error', message: error?.message || 'request failed' });
+  }
+  if (vehicleKey(selectedVehicle() || {}) === vehicleKey(vehicle) && !$('#vehicle-modal')?.hidden) renderDetail();
 }
 
 const VEHICLE_WORKSHOP_STATION_PRESENTATION = Object.freeze({
@@ -10604,26 +10685,7 @@ function renderDetail() {
       ${renderPdcJobLinesSection(v)}
       ${renderPurchaseOrderDetailSection(v)}
       ${renderNavisionDetailSection(v)}
-      <div class="detail-metrics">
-        <div class="metric"><span>SP</span><strong title="${escapeHtml(consultantName(v))}">${escapeHtml(salesPersonInitials(consultantName(v)))}</strong></div>
-        ${statusCategory(v) === 'pmb' ? `<div class="metric"><span>Key tag number</span><strong>${escapeHtml(vehiclePmbKeyNumber(v) || 'Not set')}</strong></div>` : ''}
-        <div class="metric"><span>JC Jobcard</span><strong>${escapeHtml(vehicleJobcardNumber(v) || 'Not set')}</strong></div>
-        <div class="metric"><span>Contact</span><strong>${escapeHtml(v.contact || 'Not on Excel')}</strong></div>
-        <div class="metric"><span>Navision ETA</span>${formatEta(v.etaAtDealer)}</div>
-        <div class="metric"><span>PDC location</span><strong>${escapeHtml(pdcLocationLabel(v.pdcLocation) || 'Follow Navision')}</strong></div>
-        <div class="metric"><span>PMB work stream</span><strong>${escapeHtml(pmbStageLabel(inferredPmbStage(v)) || 'Not assigned')}</strong></div>
-        <div class="metric"><span>PMB bay</span><strong>${escapeHtml(pmbBaySummary(v) || 'Not assigned')}</strong></div>
-        <div class="metric"><span>PMB requirements</span><strong>${escapeHtml(pmbRequirementText(v))}</strong></div>
-        <div class="metric"><span>PMB completed</span><strong>${escapeHtml(pdcCompletedJobsText(v))}</strong></div>
-        <div class="metric"><span>PMB outstanding</span><strong>${escapeHtml(pdcOutstandingJobsText(v))}</strong></div>
-        <div class="metric"><span>Blocked</span><strong>${isPdcBlocked(v) ? escapeHtml(pdcBlockReason(v)) : 'No'}</strong></div>
-        <div class="metric"><span>PMB age</span><strong>${statusCategory(v) === 'pmb' ? escapeHtml(pmbAgeDetailText(v)) : 'Not in PMB'}</strong></div>
-        <div class="metric"><span>Production</span><strong>${escapeHtml(v.prodMth || v.group || 'Not shown')}</strong></div>
-        <div class="metric"><span>Port</span><strong>${escapeHtml(v.arrivalPort || 'Not shown')}</strong></div>
-        <div class="metric"><span>Autocare VIN</span><strong>${escapeHtml(v.autocareVin || v.vin || 'Not despatched')}</strong></div>
-        <div class="metric"><span>Autocare load</span><strong>${escapeHtml(v.autocareLoadNumber || 'None')}</strong></div>
-        <div class="metric"><span>JITA Number</span><strong>${escapeHtml(vehicleNavisionJitaNumber(v) || 'None shown')}</strong></div>
-      </div>
+
       <div>
         <div class="muted-label">Status history</div>
         <div class="timeline">
@@ -10637,7 +10699,7 @@ function renderDetail() {
         </div>
       </div>
       <div>
-        <div class="muted-label">PDC audit trail</div>
+        <div class="muted-label">Import & detailed audit trail</div>
         ${renderAuditTrailSection(v)}
       </div>
       <form class="notes-form" data-notes-form>
@@ -10654,6 +10716,7 @@ function renderDetail() {
   `;
   bindVehicleDetailTabs(panel);
   if (activePage === 'work') return;
+  loadVehicleHistoryForDetail(v);
   on($('[data-email-vehicle-update]', panel), 'click', () => draftSelectedVehicleStatusEmail(key));
   bindVehicleLabelButtons(panel);
   on($('[data-remove-vehicle]', panel), 'click', () => removeVehicle(key));
