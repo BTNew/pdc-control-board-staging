@@ -1,5 +1,5 @@
-const APP_VERSION = '2026.07.28.46-workshop-authority';
-const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.07.28.46-workshop-authority';
+const APP_VERSION = '2026.07.28.47-workshop-line-editing';
+const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.07.28.47-workshop-line-editing';
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
 // constant intentionally names only the production ref, never the
@@ -10370,8 +10370,28 @@ function vehicleWorkshopLineDescription(line = {}, fallback = 'Workshop work req
 }
 
 function vehicleWorkshopLineHours(line = {}) {
-  const value = Number(line.confirmedHours ?? line.estimatedHours ?? line.hours);
+  const value = Number(line.confirmedHours ?? line.estimatedHours ?? line.estimated_hours ?? line.hours);
   return Number.isFinite(value) && value > 0 ? value : null;
+}
+
+function vehicleWorkshopLineIdentity(stage = '', line = {}) {
+  const retained = cleanNavisionText(line.workshopLineKey || line.line_key || '');
+  if (retained) return retained;
+  const operationLineId = cleanNavisionText(line.operation_line_id || '');
+  if (/^[0-9a-f-]{36}$/i.test(operationLineId)) return `source:${operationLineId}`;
+  const operationNo = cleanNavisionText(line.operation_no || '').toUpperCase();
+  if (operationNo) return `operation:${operationNo}`;
+  const basis = `${vehicleWorkshopStageCode(stage)}\0${vehicleWorkshopLineDescription(line, '').toLowerCase()}`;
+  let hash = 2166136261;
+  for (let index = 0; index < basis.length; index += 1) {
+    hash ^= basis.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return `display:${vehicleWorkshopStageCode(stage)}:${(hash >>> 0).toString(16).padStart(8, '0')}`;
+}
+
+function vehicleWorkshopCanEditLines() {
+  return ['operator', 'administrator'].includes(String(window.PDC_AUTH_CONTEXT?.role || '').trim().toLowerCase());
 }
 
 function vehicleWorkshopHoursLabel(hours) {
@@ -10475,6 +10495,35 @@ function vehicleWorkshopGroups(vehicle = {}, detail = null) {
       authenticatedEmailOperation: true,
     });
   });
+  const adjustments = Array.isArray(detail?.line_adjustments) ? detail.line_adjustments : [];
+  const adjustmentByKey = new Map(adjustments.filter(item => item?.source_kind !== 'manual' && item?.line_key).map(item => [String(item.line_key), item]));
+  groups.forEach(group => {
+    group.lines = group.lines.map(line => {
+      const lineKey = vehicleWorkshopLineIdentity(group.stage, line);
+      const adjustment = adjustmentByKey.get(lineKey);
+      return adjustment ? {
+        ...line,
+        workshopLineKey: lineKey,
+        description: adjustment.description,
+        estimatedHours: Number(adjustment.estimated_hours),
+        adjustmentId: adjustment.adjustment_id,
+        adjustmentVersion: Number(adjustment.version || 0),
+        workshopManualLine: false,
+      } : { ...line, workshopLineKey: lineKey, adjustmentId: '', adjustmentVersion: 0, workshopManualLine: false };
+    });
+  });
+  adjustments.filter(item => item?.source_kind === 'manual').forEach(item => {
+    const stage = vehicleWorkshopStageCode(item.stage_code);
+    if (!groups.has(stage)) return;
+    groups.get(stage).lines.push({
+      workshopLineKey: item.line_key,
+      description: item.description,
+      estimatedHours: Number(item.estimated_hours),
+      adjustmentId: item.adjustment_id,
+      adjustmentVersion: Number(item.version || 0),
+      workshopManualLine: true,
+    });
+  });
   groups.forEach(group => {
     if (!group.lines.length) {
       const station = vehicleWorkshopStationPresentation(group.stage);
@@ -10487,6 +10536,7 @@ function vehicleWorkshopGroups(vehicle = {}, detail = null) {
 function vehicleWorkshopStationHtml(group = {}, bookingFallback = 'Not booked') {
   const presentation = vehicleWorkshopStationPresentation(group.stage);
   const complete = group.requirements.length > 0 && group.requirements.every(item => item.completed === true);
+  const canEdit = vehicleWorkshopCanEditLines() && !complete;
   const lineHours = group.lines.map(vehicleWorkshopLineHours).filter(value => value !== null);
   const bookingHours = group.bookings.map(booking => Number(booking.default_duration_minutes || 0) / 60).filter(value => Number.isFinite(value) && value > 0);
   const totalHours = lineHours.length ? lineHours.reduce((sum, value) => sum + value, 0) : (bookingHours[0] || null);
@@ -10494,9 +10544,13 @@ function vehicleWorkshopStationHtml(group = {}, bookingFallback = 'Not booked') 
   const lines = group.lines.map((line, index) => {
     const ownHours = vehicleWorkshopLineHours(line);
     const estimate = ownHours ?? (group.lines.length === 1 ? totalHours : null);
-    return `<div class="vehicle-workshop-line"><span class="vehicle-workshop-line-number">${index + 1}</span><span class="vehicle-workshop-line-description"><b>Description</b><strong>${escapeHtml(vehicleWorkshopLineDescription(line, `${presentation.label} work required`))}</strong></span><span class="vehicle-workshop-line-hours"><b>Estimated hours</b><strong>${escapeHtml(vehicleWorkshopHoursLabel(estimate))}</strong></span><span class="vehicle-workshop-line-booking"><b>Booking time</b>${bookingHtml}</span></div>`;
+    const lineKey = vehicleWorkshopLineIdentity(group.stage, line);
+    const description = vehicleWorkshopLineDescription(line, `${presentation.label} work required`);
+    const controls = canEdit ? `<span class="vehicle-workshop-line-actions"><button type="button" data-vehicle-workshop-line-edit data-stage="${escapeHtml(group.stage)}" data-line-key="${escapeHtml(lineKey)}" data-adjustment-id="${escapeHtml(line.adjustmentId || '')}" data-adjustment-version="${escapeHtml(String(line.adjustmentVersion || 0))}" data-description="${escapeHtml(description)}" data-hours="${escapeHtml(estimate ?? '')}">Edit line</button>${line.workshopManualLine ? `<button type="button" class="is-danger" data-vehicle-workshop-line-delete data-adjustment-id="${escapeHtml(line.adjustmentId || '')}" data-adjustment-version="${escapeHtml(String(line.adjustmentVersion || 0))}">Remove</button>` : ''}</span>` : '';
+    return `<div class="vehicle-workshop-line"><span class="vehicle-workshop-line-number">${index + 1}</span><span class="vehicle-workshop-line-description"><b>Description</b><strong>${escapeHtml(description)}</strong></span><span class="vehicle-workshop-line-hours"><b>Estimated hours</b><strong>${escapeHtml(vehicleWorkshopHoursLabel(estimate))}</strong>${controls}</span><span class="vehicle-workshop-line-booking"><b>Booking time</b>${bookingHtml}</span></div>`;
   }).join('');
-  return `<section class="vehicle-workshop-station" data-vehicle-workshop-stage="${escapeHtml(group.stage)}" style="--station-colour:${escapeHtml(presentation.colour)};--station-tint:${escapeHtml(presentation.tint)}"><header><span class="vehicle-workshop-station-code">${escapeHtml(presentation.label.slice(0, 2).toUpperCase())}</span><div><h3>${escapeHtml(presentation.label)}</h3><p>${complete ? 'Required work completed' : 'Required work outstanding'}</p></div><span class="vehicle-workshop-station-status ${complete ? 'is-complete' : 'is-required'}">${complete ? 'Completed' : 'Required'}</span><span class="vehicle-workshop-station-total">${escapeHtml(vehicleWorkshopHoursLabel(totalHours))}</span></header><div class="vehicle-workshop-lines">${lines}</div></section>`;
+  const addButton = canEdit ? `<button type="button" class="vehicle-workshop-line-add" data-vehicle-workshop-line-add data-stage="${escapeHtml(group.stage)}">+ Add line</button>` : '';
+  return `<section class="vehicle-workshop-station" data-vehicle-workshop-stage="${escapeHtml(group.stage)}" style="--station-colour:${escapeHtml(presentation.colour)};--station-tint:${escapeHtml(presentation.tint)}"><header><span class="vehicle-workshop-station-code">${escapeHtml(presentation.label.slice(0, 2).toUpperCase())}</span><div><h3>${escapeHtml(presentation.label)}</h3><p>${complete ? 'Required work completed' : 'Required work outstanding'}</p></div>${addButton}<span class="vehicle-workshop-station-status ${complete ? 'is-complete' : 'is-required'}">${complete ? 'Completed' : 'Required'}</span><span class="vehicle-workshop-station-total">${escapeHtml(vehicleWorkshopHoursLabel(totalHours))}</span></header><div class="vehicle-workshop-lines">${lines}</div></section>`;
 }
 
 function renderVehicleWorkshopWorkPage(vehicle = {}) {
@@ -10562,6 +10616,77 @@ function openVehicleWorkshopBooking(bookingId = '', stage = '', date = '') {
   return true;
 }
 
+async function saveVehicleWorkshopLine({ stage = '', lineKey = '', adjustmentId = '', adjustmentVersion = 0, description = '', hours = '' } = {}) {
+  const vehicle = selectedVehicle() || {};
+  const canonicalId = vehicleWorkshopDetailCanonicalId(vehicle);
+  const detail = canonicalId ? app.vehicleWorkshopDetailCache.get(canonicalId)?.detail : null;
+  if (!vehicleWorkshopCanEditLines() || !canonicalId || !detail) return false;
+  const nextDescription = window.prompt(lineKey ? 'Workshop line description' : 'New Workshop line description', description || '');
+  if (nextDescription === null) return false;
+  const trimmedDescription = cleanNavisionText(nextDescription);
+  if (!trimmedDescription || trimmedDescription.length > 180) {
+    window.alert('Enter a Workshop line description between 1 and 180 characters.');
+    return false;
+  }
+  const nextHours = window.prompt('Estimated hours (quarter-hour increments)', hours || '1');
+  if (nextHours === null) return false;
+  const numericHours = Number(nextHours);
+  if (!Number.isFinite(numericHours) || numericHours < 0.25 || numericHours > 999.75 || Math.round(numericHours * 4) !== numericHours * 4) {
+    window.alert('Estimated hours must be between 0.25 and 999.75 in quarter-hour increments.');
+    return false;
+  }
+  const config = window.PDC_SUPABASE_CONFIG || {};
+  const token = typeof getPdcSupabaseAccessToken === 'function' ? getPdcSupabaseAccessToken() : null;
+  if (!token || !config.url || !config.publishableKey) return false;
+  try {
+    const response = await fetch(`${String(config.url).replace(/\/$/, '')}/rest/v1/rpc/upsert_vehicle_workshop_line_adjustment`, {
+      method: 'POST',
+      headers: { apikey: config.publishableKey, Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        p_vehicle_id: canonicalId,
+        p_adjustment_id: adjustmentId || null,
+        p_expected_version: adjustmentId ? Number(adjustmentVersion || 0) : (lineKey ? 0 : Number(detail.vehicle_version || 0)),
+        p_line_key: lineKey || '',
+        p_stage_code: vehicleWorkshopStageCode(stage),
+        p_description: trimmedDescription,
+        p_estimated_hours: numericHours,
+      }),
+    });
+    const body = await response.json().catch(() => null);
+    if (!response.ok || body?.ok === false) throw new Error(body?.message || body?.code || `Workshop line update failed (${response.status}).`);
+    await loadVehicleWorkshopDetail(vehicle, { force: true });
+    return true;
+  } catch (error) {
+    await loadVehicleWorkshopDetail(vehicle, { force: true });
+    window.alert(error?.message || 'Workshop line update failed. Refresh and try again.');
+    return false;
+  }
+}
+
+async function deleteVehicleWorkshopLine(adjustmentId = '', adjustmentVersion = 0) {
+  const vehicle = selectedVehicle() || {};
+  const canonicalId = vehicleWorkshopDetailCanonicalId(vehicle);
+  if (!vehicleWorkshopCanEditLines() || !canonicalId || !adjustmentId || !window.confirm('Remove this manually added Workshop line?')) return false;
+  const config = window.PDC_SUPABASE_CONFIG || {};
+  const token = typeof getPdcSupabaseAccessToken === 'function' ? getPdcSupabaseAccessToken() : null;
+  if (!token || !config.url || !config.publishableKey) return false;
+  try {
+    const response = await fetch(`${String(config.url).replace(/\/$/, '')}/rest/v1/rpc/delete_vehicle_workshop_line_adjustment`, {
+      method: 'POST',
+      headers: { apikey: config.publishableKey, Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ p_vehicle_id: canonicalId, p_adjustment_id: adjustmentId, p_expected_version: Number(adjustmentVersion || 0) }),
+    });
+    const body = await response.json().catch(() => null);
+    if (!response.ok || body?.ok === false) throw new Error(body?.message || body?.code || `Workshop line removal failed (${response.status}).`);
+    await loadVehicleWorkshopDetail(vehicle, { force: true });
+    return true;
+  } catch (error) {
+    await loadVehicleWorkshopDetail(vehicle, { force: true });
+    window.alert(error?.message || 'Workshop line removal failed. Refresh and try again.');
+    return false;
+  }
+}
+
 function bindVehicleDetailTabs(panel) {
   panel.querySelectorAll('[data-vehicle-detail-tab]').forEach(button => button.addEventListener('click', () => selectVehicleDetailPage(button.dataset.vehicleDetailTab)));
   const tabs = [...panel.querySelectorAll('[data-vehicle-detail-tab]')];
@@ -10573,6 +10698,16 @@ function bindVehicleDetailTabs(panel) {
     selectVehicleDetailPage(tabs[next].dataset.vehicleDetailTab);
   }));
   panel.querySelectorAll('[data-vehicle-workshop-booking-id]').forEach(button => button.addEventListener('click', () => openVehicleWorkshopBooking(button.dataset.vehicleWorkshopBookingId, button.dataset.vehicleWorkshopBookingStage, button.dataset.vehicleWorkshopBookingDate)));
+  panel.querySelectorAll('[data-vehicle-workshop-line-add]').forEach(button => button.addEventListener('click', () => saveVehicleWorkshopLine({ stage: button.dataset.stage })));
+  panel.querySelectorAll('[data-vehicle-workshop-line-edit]').forEach(button => button.addEventListener('click', () => saveVehicleWorkshopLine({
+    stage: button.dataset.stage,
+    lineKey: button.dataset.lineKey,
+    adjustmentId: button.dataset.adjustmentId,
+    adjustmentVersion: Number(button.dataset.adjustmentVersion || 0),
+    description: button.dataset.description,
+    hours: button.dataset.hours,
+  })));
+  panel.querySelectorAll('[data-vehicle-workshop-line-delete]').forEach(button => button.addEventListener('click', () => deleteVehicleWorkshopLine(button.dataset.adjustmentId, Number(button.dataset.adjustmentVersion || 0))));
 }
 
 function selectedVehicle(key = app.selectedStock) {

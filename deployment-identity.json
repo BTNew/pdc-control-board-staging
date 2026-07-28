@@ -6,19 +6,19 @@
     "twoPhysicalWorkstationAuthorityCutover": false
   },
   "artifact": "zero-data static staging site",
-  "backendOnlyMigrationSourceCommit": "72f18ef2ceec9f992f622ce7d93b2213458e75e1",
-  "cacheVersion": "2026.07.28.46-workshop-authority",
+  "backendOnlyMigrationSourceCommit": "750c6b0f72581abe2ca41093d737a3fd24b8322a",
+  "cacheVersion": "2026.07.28.47-workshop-line-editing",
   "deploymentMode": "exact reviewed source blobs; staging.html mapped to index.html",
   "environment": "staging",
-  "generatedAtUtc": "2026-07-28T11:25:44Z",
+  "generatedAtUtc": "2026-07-28T12:05:24Z",
   "humanAiIntake": {
     "approvalGate": "Administrator decision remains server-validated; missing summaries disable Approve while Deny remains available.",
     "summary": "Prominent escaped email summary plus explicit Approve/Deny effects; each email is now a distinct white card separated by an 18px dark-grey gutter (12px on mobile)."
   },
   "migrationLedger": {
-    "appliedThrough": "100",
-    "evidence": "Staging-only migrations 098-100 are atomically applied and ledgered. Workshop loading/PMB transfer is restored, authenticated PD lines are retained, and future planning may leave Parts incomplete without reserving Parts or weakening the physical Start gate.",
-    "ledgerHead": "100",
+    "appliedThrough": "102",
+    "evidence": "Staging-only migrations 098-102 are atomically applied and ledgered. Vehicle Detail Workshop lines are editable through audited operator overlays with immediate stale-version refusal; bookings, Parts, completion and imported source evidence remain separate.",
+    "ledgerHead": "102",
     "migrations": [
       "058",
       "059",
@@ -62,12 +62,14 @@
       "097",
       "098",
       "099",
-      "100"
+      "100",
+      "101",
+      "102"
     ]
   },
   "pendingStagingMigrations": [],
   "releaseChecks": {
-    "aggregateTests": "PASS — 115 passed, 0 failed, 1 intentional skip.",
+    "aggregateTests": "PASS — 116 passed, 0 failed, 1 intentional skip.",
     "aiIntakeCardSeparation": "PASS \u2014 two-card browser proof computed #374151 background, 18px gap, 16px padding and two white cards; mobile override uses a 12px gap and 10px padding.",
     "aiReviewDecisionContext": true,
     "aiReviewOverlayVersion": "2026.07.28.20-ai-review-card-separation",
@@ -88,6 +90,7 @@
     "migration093": "PASS \u2014 rollback dry-run and atomic permanent staging apply with ledger receipt; protected vehicle/work/completion/booking/email-receipt counts unchanged; direct table grants absent; zero production access.",
     "migration096": "PASS — guarded rollback dry-run and permanent staging apply. Unique Stock 12708286 selected one current Navision row despite conflicting PDF identity; canonical Navision fields, additive required work, Parts, audit and idempotent receipt verified; no booking created; authenticated EXECUTE only; zero production access.",
     "workshopAuthority100": "PASS — Controller Best slot created stock 12664966 in active Fab Bay 02 through the deployed browser and was audit-cleaned; Administrator create/cancel passed; stale vehicle version was rejected; Parts overrides were unchanged; migration 100 preserved the administrator-only physical Start gate; zero production access.",
+    "vehicleWorkshopLineEditing102": "PASS — Controller and Administrator each added, persisted, edited and removed an audited Vehicle Detail Workshop line for stock 12611773; 0.25-hour increments, line-version concurrency and completed-stage denial are server enforced; stale edits were rejected immediately; bookings, Parts, work completion and imported operation evidence signatures were unchanged; zero production access.",
     "mixedDealerNavision": "A report containing both approved dealers is scoped server-side to the selected dealer only when every row carries known original Dealer evidence and the selected scope has at least 100 rows. Preview and Apply use identical filtering; other-dealer rows are reported and ignored, never imported into the selected scope.",
     "navisionFullReconciliationTimeout": "PASS \u2014 reproduced SQLSTATE 57014 with a complete 663-row source-evidence payload at the former 8-second API bound. The same atomic preview/apply completed in 5.969/13.875 seconds under the new 30-second signed-in staging bound and was rolled back. A separate authenticated HTTP 10-second probe returned 200; the probe function was then removed.",
     "navisionOperationalLocationCompletion": "PASS \u2014 canonical shared state drives Vehicle Locations and Completed Vehicles; ordinary reconciliation preserves PMB/PIT/QC/RFT/Completed workflow progress; At Dealer with open required work stays active for review.",
@@ -120,7 +123,7 @@
     "production": "UNCHANGED \u2014 no production branch, database, deployment or configuration write."
   },
   "sourceBranch": "integration/staging-parts-workshop-ai-20260728",
-  "sourceCommit": "72f18ef2ceec9f992f622ce7d93b2213458e75e1",
+  "sourceCommit": "750c6b0f72581abe2ca41093d737a3fd24b8322a",
   "sourceFiles": [
     {
       "deployedPath": "ai-board-advisor.js",
@@ -129,7 +132,7 @@
     },
     {
       "deployedPath": "app.js",
-      "sha256": "2d95e7e6018bccc961a44b1fa84dcf846b568d678c3257e48be0006903112a98",
+      "sha256": "806e4f5d5247f588b5451c4b75b15e339d34d584e1358934ff2390698329eb92",
       "sourcePath": "app.js"
     },
     {
@@ -169,7 +172,7 @@
     },
     {
       "deployedPath": "index.html",
-      "sha256": "9f2c41f15de2f3241fbccc1d16da575d978e47a093a6cda36ff8f95930b899e1",
+      "sha256": "9e9cb8e0cd38c14919f15ac21d6dffb895ac9d5dbf6ef4047f2103c9a58d36e5",
       "sourcePath": "staging.html"
     },
     {
@@ -204,7 +207,7 @@
     },
     {
       "deployedPath": "pdc-supabase-config.staging.js",
-      "sha256": "001a4e45294431d717cabe9cd5ff94cedb4f2f68e5427fb452958060a866f57b",
+      "sha256": "eb51fe18c63c873dfd66199066869e0f8e288ccb61f1c69686dc8b75f6d1be44",
       "sourcePath": "pdc-supabase-config.staging.js"
     },
     {
@@ -219,7 +222,7 @@
     },
     {
       "deployedPath": "styles.css",
-      "sha256": "9f1678630ac7f2dc68f36272b02e6bc60c618f67f5c4d5e51763ef1ae5eb5473",
+      "sha256": "6f14c0154d729365d673a2000a1e51bbe1e62a32dc2b40157f5e63e18a5bd59b",
       "sourcePath": "styles.css"
     },
     {
