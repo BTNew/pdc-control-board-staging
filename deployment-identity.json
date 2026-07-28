@@ -6,19 +6,19 @@
     "twoPhysicalWorkstationAuthorityCutover": false
   },
   "artifact": "zero-data static staging site",
-  "backendOnlyMigrationSourceCommit": "1d903dbee75c1da5f57d18672dbd9269714bef90",
-  "cacheVersion": "2026.07.28.40-authenticated-operation-lines",
+  "backendOnlyMigrationSourceCommit": "062eab52e302f8959416e963e4ecee1c36c09fea",
+  "cacheVersion": "2026.07.28.41-navision-stock-authority",
   "deploymentMode": "exact reviewed source blobs; staging.html mapped to index.html",
   "environment": "staging",
-  "generatedAtUtc": "2026-07-28T08:23:14.753280Z",
+  "generatedAtUtc": "2026-07-28T08:54:57Z",
   "humanAiIntake": {
     "approvalGate": "Administrator decision remains server-validated; missing summaries disable Approve while Deny remains available.",
     "summary": "Prominent escaped email summary plus explicit Approve/Deny effects; each email is now a distinct white card separated by an 18px dark-grey gutter (12px on mobile)."
   },
   "migrationLedger": {
-    "appliedThrough": "093",
-    "evidence": "Staging-only migration 093 is atomically applied and ledgered. It adds bounded authenticated job-card operation evidence, add-only canonical work enrichment and no booking authority.",
-    "ledgerHead": "093",
+    "appliedThrough": "096",
+    "evidence": "Staging-only migration 096 is atomically applied and ledgered. One unique current Stock match now makes Navision authoritative for canonical vehicle identity/details while retaining PDF work/evidence; duplicate Stock matches remain blocked.",
+    "ledgerHead": "096",
     "migrations": [
       "058",
       "059",
@@ -55,12 +55,15 @@
       "090",
       "091",
       "092",
-      "093"
+      "093",
+      "094",
+      "095",
+      "096"
     ]
   },
   "pendingStagingMigrations": [],
   "releaseChecks": {
-    "aggregateTests": "PASS \u2014 111 passed, 1 unchanged pre-existing planner-role baseline failure, 1 intentional skip.",
+    "aggregateTests": "PASS \u2014 112 passed, 0 failed, 1 intentional skip; PDC monitor 39 passed, 0 failed.",
     "aiIntakeCardSeparation": "PASS \u2014 two-card browser proof computed #374151 background, 18px gap, 16px padding and two white cards; mobile override uses a 12px gap and 10px padding.",
     "aiReviewDecisionContext": true,
     "aiReviewOverlayVersion": "2026.07.28.20-ai-review-card-separation",
@@ -79,6 +82,7 @@
     "migration091": "PASS \u2014 guarded rollback dry-run and permanent staging apply. Parts mutation, stale-version refusal, PMB/IT candidate scope, IT ETA and before-ETA refusal verified; zero production access.",
     "migration092": "PASS \u2014 guarded rollback dry-run and permanent staging apply. Administrator, Controller and Viewer each read email/Navision provenance and 10 authoritative history events; authenticated EXECUTE only; zero production access.",
     "migration093": "PASS \u2014 rollback dry-run and atomic permanent staging apply with ledger receipt; protected vehicle/work/completion/booking/email-receipt counts unchanged; direct table grants absent; zero production access.",
+    "migration096": "PASS \u2014 guarded rollback dry-run and permanent staging apply. Unique Stock 12708286 selected one current Navision row despite conflicting PDF identity; canonical Navision fields, additive required work, Parts, audit and idempotent receipt verified; no booking created; authenticated EXECUTE only; zero production access.",
     "mixedDealerNavision": "A report containing both approved dealers is scoped server-side to the selected dealer only when every row carries known original Dealer evidence and the selected scope has at least 100 rows. Preview and Apply use identical filtering; other-dealer rows are reported and ignored, never imported into the selected scope.",
     "navisionFullReconciliationTimeout": "PASS \u2014 reproduced SQLSTATE 57014 with a complete 663-row source-evidence payload at the former 8-second API bound. The same atomic preview/apply completed in 5.969/13.875 seconds under the new 30-second signed-in staging bound and was rolled back. A separate authenticated HTTP 10-second probe returned 200; the probe function was then removed.",
     "navisionOperationalLocationCompletion": "PASS \u2014 canonical shared state drives Vehicle Locations and Completed Vehicles; ordinary reconciliation preserves PMB/PIT/QC/RFT/Completed workflow progress; At Dealer with open required work stays active for review.",
@@ -88,7 +92,8 @@
     "pilbaraNavision": "Cross-scope Batch overlap no longer blocks a substantial Pilbara extract when every valid source row's original Dealer column explicitly declares 14450. Mixed, missing or contrary Dealer evidence remains blocked; hard deletion is disabled and the browser's selected option alone is not trusted.",
     "plannerAuthoritativeCandidateGate": "PASS \u2014 blocked Hoist cards are non-draggable, show Scheduling unavailable plus the exact visible authority reason, and no longer offer Best slot. Direct and cascade RPCs both return structured location_ineligible before Parts handling; canonical HTTP trigger errors are decoded without a false stale-version diagnosis.",
     "plannerSearchTyping": "PASS \u2014 debounced planner searches update their result list in place instead of replacing the focused input. Slow ten-character browser typing retains the full value, focus and caret.",
-    "production": "Untouched; staging-only authenticated job-card operation evidence and vehicle-card rendering.",
+    "production": "Untouched; staging-only unique-Stock Navision authority and authenticated email work import.",
+    "stockAuthority12708286": "PASS \u2014 active visible vehicle 12708286 now uses Navision customer APT MANAGEMENT SERVICES PTY LIMITED, HiLux model and YH location; PDF identity override is audited; Tint, Fitting, Fabrication and Parts are required; no booking was created.",
     "salespersonEmailDefaults": "PASS \u2014 the supplied salesperson identities and addresses are in the shared staging directory. FO resolves explicitly to Stephen Peck/SP because both supplied rows use the same unique address; future exact vehicle references receive the shared salesperson ID without overwriting explicit assignments.",
     "screenshotRows": "PASS \u2014 stocks 13044227, 13047383 and 13047384 are canonically Other with null ETA; browser fallback can no longer override that authority from raw production status text.",
     "sidebarInformationCleanup": "PASS \u2014 Source Data and Operational Health cards are absent from every sidebar template; navigation and internal health tracking remain intact.",
