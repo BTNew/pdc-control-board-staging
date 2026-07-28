@@ -63,7 +63,7 @@
   },
   "pendingStagingMigrations": [],
   "releaseChecks": {
-    "aggregateTests": "PASS \u2014 112 passed, 0 failed, 1 intentional skip; PDC monitor 39 passed, 0 failed.",
+    "aggregateTests": "PASS \u2014 112 passed, 0 failed, 1 intentional skip; PDC monitor 40 passed, 0 failed.",
     "aiIntakeCardSeparation": "PASS \u2014 two-card browser proof computed #374151 background, 18px gap, 16px padding and two white cards; mobile override uses a 12px gap and 10px padding.",
     "aiReviewDecisionContext": true,
     "aiReviewOverlayVersion": "2026.07.28.20-ai-review-card-separation",
