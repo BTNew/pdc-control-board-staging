@@ -26,6 +26,7 @@ global.parseIsoTimestamp = value => {
 };
 global.nowIsoString = () => new Date(2026, 6, 14, 10, 0, 0, 0).toISOString();
 global.pmbStageLabel = value => String(value || '');
+global.pmbStageBayCount = stage => String(stage || '').toUpperCase() === 'FABRICATION' ? 13 : 1;
 global.cleanNavisionText = value => String(value == null ? '' : value).trim();
 
 const planner = require('./workshop-planner.js');
@@ -759,7 +760,26 @@ console.log('Workshop planner shared-mode integration seam checks passed');
     assert.strictEqual(planner.workshopBayIsActive('FABRICATION', 99), true, '17f workshopBayIsActive() must remain unchanged (fail open) for rendering existing/historical bookings');
   });
 
-  console.log("PASS 17: workshopBayAvailabilityStatus() distinguishes active/inactive/unavailable/unknown and fails closed for new scheduling, while workshopBayIsActive() remains unchanged for existing/historical bookings");
+  // 17g. Best slot must not advertise an inactive bay and then reject the
+  // same bay at click time. Only a positively confirmed active bay can win.
+  const bestSlotService = {
+    getCachedWorkshopBays: () => ({
+      state: 'connected_read_only',
+      rows: [
+        { id: 'bay-1', code: 'FABRICATION-BAY-01', is_active: false, default_technician_id: null },
+        { id: 'bay-2', code: 'FABRICATION-BAY-02', is_active: true, default_technician_id: null },
+      ],
+    }),
+  };
+  withGlobals({ __workshopReferenceDataService: bestSlotService }, () => {
+    assert.deepStrictEqual(
+      planner.workshopSchedulableBayNumbers('FABRICATION'),
+      [2],
+      '17g best slot candidates must skip inactive Bay 01, include confirmed-active Bay 02, and fail closed on unknown bays',
+    );
+  });
+
+  console.log("PASS 17: bay availability fails closed and Best slot skips inactive bays while historical rendering remains unchanged");
 }
 
 // 18. Transport/runtime failures are converted to safe operator UX and never

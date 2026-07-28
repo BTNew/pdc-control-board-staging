@@ -2423,11 +2423,24 @@ function workshopSlotSummary(stage = '', bay = 1, dateKey = '', startMinutes = 0
   return `${area} · ${when}`;
 }
 
+function workshopSchedulableBayNumbers(stage = '') {
+  const normalizedStage = normalizePmbStage(stage);
+  if (!WORKSHOP_STAGE_SEQUENCE.includes(normalizedStage)) return [];
+  const bays = [];
+  for (let bay = 1; bay <= workshopStageBayCount(normalizedStage); bay += 1) {
+    if (workshopBayAvailabilityStatus(normalizedStage, bay) === 'active') bays.push(bay);
+  }
+  return bays;
+}
+
 function workshopBestStageSlot(stage = '', dateKey = '', hours = workshopDefaultBookingHours(), rows = workshopLoadPlans(), notBeforeMinutes = 0) {
   const normalizedStage = normalizePmbStage(stage);
   if (!WORKSHOP_STAGE_SEQUENCE.includes(normalizedStage)) return null;
   let best = null;
-  for (let bay = 1; bay <= workshopStageBayCount(normalizedStage); bay += 1) {
+  for (const bay of workshopSchedulableBayNumbers(normalizedStage)) {
+    // New work must only be offered against a positively confirmed active
+    // shared bay. Existing/historical bookings still use the deliberately
+    // lenient rendering path in workshopBayIsActive().
     const slot = workshopFirstAvailableStartSlot(normalizedStage, bay, dateKey, hours, rows, notBeforeMinutes);
     if (!slot) continue;
     const candidateStart = workshopDateAtOffset(slot.dateKey, slot.startMinutes).getTime();
@@ -5618,6 +5631,8 @@ if (typeof module !== 'undefined' && module.exports) {
     workshopConfirmOtherDepartmentPlans,
     workshopDateAtOffset,
     workshopMinuteOffset,
+    workshopSchedulableBayNumbers,
+    workshopBestStageSlot,
     extendWorkshopPlan,
   };
   Object.defineProperties(module.exports, {
