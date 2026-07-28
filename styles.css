@@ -12188,3 +12188,66 @@ select[name="pdcLocation"]:focus,
   .ai-intake-review-heading { align-items: flex-start; flex-direction: column; }
   .app-shell.sidebar-collapsed .nav-admin-menu { position: static; width: auto; margin-left: 12px; box-shadow: none; }
 }
+
+/* Vehicle Detail two-page work and booking view. */
+#vehicle-detail .vehicle-detail-header { align-items: center; gap: 18px; }
+.vehicle-detail-header-tools { display: flex; align-items: center; justify-content: flex-end; gap: 12px; min-width: 0; margin-left: auto; }
+.vehicle-detail-tabs { display: inline-flex; align-items: center; gap: 4px; padding: 4px; border: 1px solid #d8e0e8; border-radius: 10px; background: #f1f5f9; }
+.vehicle-detail-tabs button { min-height: 34px; padding: 7px 14px; border: 0; border-radius: 7px; background: transparent; color: #475569; box-shadow: none; font-size: .78rem; font-weight: 900; white-space: nowrap; }
+.vehicle-detail-tabs button:hover { background: #fff; color: #0f172a; }
+.vehicle-detail-tabs button.is-active { background: #fff; color: #b91c1c; box-shadow: 0 1px 4px rgba(15,23,42,.14); }
+.vehicle-detail-tabs button:focus-visible { outline: 3px solid rgba(37,99,235,.28); outline-offset: 2px; }
+.vehicle-workshop-page { display: grid; gap: 14px; padding: 18px; background: #f8fafc; }
+.vehicle-workshop-intro { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; }
+.vehicle-workshop-intro h3 { margin: 0 0 4px; color: #0f172a; font-size: 1rem; }
+.vehicle-workshop-intro p { max-width: 690px; margin: 0; color: #64748b; font-size: .8rem; line-height: 1.45; }
+.vehicle-workshop-legend { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px 10px; max-width: 430px; }
+.vehicle-workshop-legend span { display: inline-flex; align-items: center; gap: 5px; color: #475569; font-size: .69rem; font-weight: 800; }
+.vehicle-workshop-legend i { width: 9px; height: 9px; border-radius: 50%; background: var(--legend-colour); }
+.vehicle-workshop-warning { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 1px solid #f59e0b; border-radius: 9px; background: #fffbeb; color: #92400e; }
+.vehicle-workshop-warning span { font-size: .78rem; }
+.vehicle-workshop-stations { display: grid; gap: 12px; }
+.vehicle-workshop-station { overflow: hidden; border: 1px solid color-mix(in srgb, var(--station-colour) 28%, #dbe3ec); border-left: 6px solid var(--station-colour); border-radius: 11px; background: #fff; box-shadow: 0 2px 8px rgba(15,23,42,.05); }
+.vehicle-workshop-station > header { display: grid; grid-template-columns: 34px minmax(130px, 1fr) auto auto; align-items: center; gap: 10px; min-height: 55px; padding: 9px 12px; border-bottom: 1px solid color-mix(in srgb, var(--station-colour) 18%, #e2e8f0); background: var(--station-tint); }
+.vehicle-workshop-station-code { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 50%; background: var(--station-colour); color: #fff; font-size: .65rem; font-weight: 950; }
+.vehicle-workshop-station h3 { margin: 0; color: #0f172a; font-size: .9rem; }
+.vehicle-workshop-station header p { margin: 2px 0 0; color: #64748b; font-size: .7rem; }
+.vehicle-workshop-station-status, .vehicle-workshop-station-total { display: inline-flex; align-items: center; min-height: 25px; padding: 4px 8px; border-radius: 999px; font-size: .68rem; font-weight: 900; white-space: nowrap; }
+.vehicle-workshop-station-status.is-required { background: #fee2e2; color: #991b1b; }
+.vehicle-workshop-station-status.is-complete { background: #dcfce7; color: #166534; }
+.vehicle-workshop-station-total { border: 1px solid color-mix(in srgb, var(--station-colour) 35%, #cbd5e1); background: #fff; color: #334155; }
+.vehicle-workshop-lines { display: grid; }
+.vehicle-workshop-line { display: grid; grid-template-columns: 24px minmax(220px, 1.5fr) minmax(110px, .45fr) minmax(300px, 1.4fr); align-items: stretch; min-width: 0; border-bottom: 1px solid #e8edf2; }
+.vehicle-workshop-line:last-child { border-bottom: 0; }
+.vehicle-workshop-line > span { display: grid; align-content: center; gap: 3px; min-width: 0; padding: 9px 11px; border-right: 1px solid #edf1f5; }
+.vehicle-workshop-line > span:last-child { border-right: 0; }
+.vehicle-workshop-line-number { place-items: center; padding: 0 !important; background: color-mix(in srgb, var(--station-colour) 7%, #fff); color: var(--station-colour); font-size: .72rem; font-weight: 950; }
+.vehicle-workshop-line b { color: #64748b; font-size: .61rem; font-weight: 850; letter-spacing: .055em; text-transform: uppercase; }
+.vehicle-workshop-line strong { overflow-wrap: anywhere; color: #1e293b; font-size: .78rem; line-height: 1.35; }
+.vehicle-workshop-line-booking { gap: 5px !important; }
+.vehicle-workshop-booking-link { display: block; width: 100%; min-height: 0; padding: 5px 7px; border: 1px solid color-mix(in srgb, var(--station-colour) 30%, #cbd5e1); border-radius: 6px; background: var(--station-tint); color: #1e293b; box-shadow: none; text-align: left; font-size: .72rem; font-weight: 750; line-height: 1.35; }
+.vehicle-workshop-booking-link:hover { border-color: var(--station-colour); background: #fff; color: var(--station-colour); }
+.vehicle-workshop-booking-link b { color: inherit; font-size: inherit; letter-spacing: 0; text-transform: none; }
+.vehicle-workshop-not-booked, .vehicle-workshop-booking-static { color: #64748b; font-size: .74rem; font-weight: 750; line-height: 1.35; }
+
+@media (max-width: 900px) {
+  #vehicle-detail .vehicle-detail-header { align-items: flex-start; }
+  .vehicle-detail-header-tools { align-items: flex-end; flex-direction: column-reverse; }
+  .vehicle-workshop-intro { flex-direction: column; }
+  .vehicle-workshop-legend { justify-content: flex-start; max-width: none; }
+  .vehicle-workshop-line { grid-template-columns: 24px minmax(180px, 1.3fr) minmax(105px, .45fr) minmax(240px, 1.2fr); }
+}
+@media (max-width: 760px) {
+  #vehicle-detail .vehicle-detail-header { flex-direction: column; padding-right: 52px !important; }
+  .vehicle-detail-header-tools { align-items: stretch; width: 100%; margin-left: 0; }
+  .vehicle-detail-tabs { display: grid; grid-template-columns: 1fr 1fr; width: 100%; }
+  .vehicle-detail-tabs button { width: 100%; padding-inline: 8px; }
+  .vehicle-workshop-page { padding: 12px; }
+  .vehicle-workshop-warning { align-items: flex-start; flex-direction: column; }
+  .vehicle-workshop-station > header { grid-template-columns: 34px minmax(0, 1fr) auto; }
+  .vehicle-workshop-station-total { grid-column: 2 / -1; justify-self: start; }
+  .vehicle-workshop-line { grid-template-columns: 24px minmax(0, 1fr); }
+  .vehicle-workshop-line > span { grid-column: 2; border-right: 0; }
+  .vehicle-workshop-line-number { grid-column: 1 !important; grid-row: 1 / span 3; }
+  .vehicle-workshop-line-description, .vehicle-workshop-line-hours { border-bottom: 1px solid #edf1f5; }
+}

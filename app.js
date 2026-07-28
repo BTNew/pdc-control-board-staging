@@ -1,5 +1,5 @@
-const APP_VERSION = '2026.07.28.31-workshop-authoritative-candidate-gate';
-const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.07.28.31-workshop-authoritative-candidate-gate';
+const APP_VERSION = '2026.07.28.32-vehicle-detail-work-bookings';
+const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.07.28.32-vehicle-detail-work-bookings';
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
 // constant intentionally names only the production ref, never the
@@ -1874,6 +1874,10 @@ const app = {
   report: window.VEHICLE_TRACKING_DATA?.report || {},
   currentView: 'dashboard',
   selectedStock: null,
+  vehicleDetailPage: 'details',
+  vehicleWorkshopDetailCache: new Map(),
+  vehicleWorkshopDetailRequestGeneration: 0,
+  pendingWorkshopBookingLink: null,
   reviewed: false,
   quickFilter: 'incoming',
   pmbSubFilter: '',
@@ -3835,9 +3839,14 @@ function initWorkshopSharedServicesIfEnabled() {
     if (typeof createWorkshopDataService !== 'function' || typeof createWorkshopSupabaseClient !== 'function') return;
 
     const client = createWorkshopSupabaseClient(window.PDC_SUPABASE_CONFIG);
-    const plannerDate = typeof workshopState === 'function'
+    const pendingBookingDate = app.pendingWorkshopBookingLink
+      && normalizePmbStage(app.pendingWorkshopBookingLink.stage || '') === normalizePmbStage(app.activeWorkshopPlannerStage || '')
+      ? cleanNavisionText(app.pendingWorkshopBookingLink.date || '')
+      : '';
+    if (pendingBookingDate && typeof workshopState === 'function') workshopState().date = pendingBookingDate;
+    const plannerDate = pendingBookingDate || (typeof workshopState === 'function'
       ? workshopState().date
-      : new Date().toISOString().slice(0, 10);
+      : new Date().toISOString().slice(0, 10));
     const dataService = createWorkshopDataService({
       config: window.PDC_SUPABASE_CONFIG,
       client,
@@ -4101,6 +4110,10 @@ window.addEventListener?.('pdc-auth-locked', () => {
   app.sharedNavisionVisibleRealtimeState = 'idle';
   app.sharedNavisionVisibleReconnectAttempt = 0;
   app.sharedNavisionLocationReadOnlyKeys = new Set();
+  app.vehicleWorkshopDetailRequestGeneration += 1;
+  app.vehicleWorkshopDetailCache = new Map();
+  app.pendingWorkshopBookingLink = null;
+  closeVehicleModal();
   app.selectedRows.clear();
   app.sharedNavisionVisibleRows = [];
   app.sharedNavisionVisibleRevision = null;
@@ -10117,6 +10130,245 @@ function renderAuditTrailSection(vehicle = {}) {
   }).join('')}</div>`;
 }
 
+const VEHICLE_WORKSHOP_STATION_PRESENTATION = Object.freeze({
+  BUS_4X4: { label: 'Bus 4x4', colour: '#2563eb', tint: '#eff6ff' },
+  TINT: { label: 'Tint', colour: '#0891b2', tint: '#ecfeff' },
+  HOIST: { label: 'Hoist', colour: '#7c3aed', tint: '#f5f3ff' },
+  FITTING: { label: 'Fitting', colour: '#a21caf', tint: '#fdf4ff' },
+  FABRICATION: { label: 'Fabrication', colour: '#d97706', tint: '#fffbeb' },
+  ELECTRICAL: { label: 'Electrical', colour: '#16a34a', tint: '#f0fdf4' },
+  TYRE: { label: 'Tyre', colour: '#0f766e', tint: '#f0fdfa' },
+  SUBLET: { label: 'Sublet', colour: '#64748b', tint: '#f8fafc' },
+  PARTS: { label: 'Parts', colour: '#dc2626', tint: '#fef2f2' },
+});
+
+function vehicleWorkshopStageCode(value = '') {
+  const canonical = normalizePmbStage(value);
+  if (canonical) return canonical;
+  return cleanNavisionText(value || '').toUpperCase().replace(/[^A-Z0-9]+/g, '_').replace(/^_+|_+$/g, '') || 'OTHER';
+}
+
+function vehicleWorkshopStationPresentation(stage = '') {
+  const code = vehicleWorkshopStageCode(stage);
+  return VEHICLE_WORKSHOP_STATION_PRESENTATION[code] || { label: pmbStageLabel(code) || code.replace(/_/g, ' '), colour: '#475569', tint: '#f8fafc' };
+}
+
+function vehicleWorkshopDetailCanonicalId(vehicle = {}) {
+  const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  const direct = [vehicle.__emailVehicleId, vehicle.sharedVehicleId, vehicle.__sharedNavisionCanonicalVehicleId, vehicle.permanentVehicleId, vehicle.permanent_vehicle_id, vehicle.id]
+    .map(value => cleanNavisionText(value || ''))
+    .find(value => uuid.test(value));
+  if (direct) return direct;
+  const stock = cleanNavisionText(displayStockNumber(vehicle) || '');
+  const matches = (Array.isArray(app.workshopEligibilitySnapshot?.candidates) ? app.workshopEligibilitySnapshot.candidates : [])
+    .map(candidate => ({ id: candidate?.vehicle_id || candidate?.vehicle?.id || '', stock_number: candidate?.stock_number || candidate?.vehicle?.stock_number || '' }))
+    .filter(row => stock && cleanNavisionText(row.stock_number || '') === stock && uuid.test(String(row.id || '')));
+  const unique = [...new Set(matches.map(row => String(row.id)))];
+  return unique.length === 1 ? unique[0] : '';
+}
+
+function vehicleWorkshopLocalRequirements(vehicle = {}) {
+  return PDC_JOB_DEFS.filter(def => pdcJobRequired(vehicle, def)).map(def => ({
+    work_key: def.key,
+    stage_code: pmbStageForPdcJob(def) || def.key.toUpperCase(),
+    required: true,
+    completed: pdcJobComplete(vehicle, def),
+    completed_at: vehicle[def.completeAtKey] || '',
+  }));
+}
+
+function vehicleWorkshopLineDescription(line = {}, fallback = 'Workshop work required') {
+  return cleanNavisionText(line.description || line.name || line.label || line.code || fallback) || fallback;
+}
+
+function vehicleWorkshopLineHours(line = {}) {
+  const value = Number(line.confirmedHours ?? line.estimatedHours ?? line.hours);
+  return Number.isFinite(value) && value > 0 ? value : null;
+}
+
+function vehicleWorkshopHoursLabel(hours) {
+  const value = Number(hours);
+  if (!Number.isFinite(value) || value <= 0) return 'Estimate not set';
+  const text = Number.isInteger(value) ? value.toFixed(0) : value.toFixed(2).replace(/0+$/, '').replace(/\.$/, '');
+  return `${text} hr${value === 1 ? '' : 's'}`;
+}
+
+function vehicleWorkshopPerthDateKey(value) {
+  const date = value instanceof Date ? value : new Date(value || 0);
+  if (!Number.isFinite(date.getTime())) return '';
+  try {
+    const parts = new Intl.DateTimeFormat('en-CA', { timeZone: 'Australia/Perth', year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(date);
+    const values = Object.fromEntries(parts.map(part => [part.type, part.value]));
+    return `${values.year}-${values.month}-${values.day}`;
+  } catch (_error) {
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+  }
+}
+
+function vehicleWorkshopBookingDateKey(booking = {}) {
+  const source = booking.status === 'completed' ? (booking.actual_end_at || booking.scheduled_start_at) : booking.scheduled_start_at;
+  return source ? vehicleWorkshopPerthDateKey(source) : '';
+}
+
+function vehicleWorkshopBookingTimeLabel(booking = {}) {
+  const start = booking.scheduled_start_at ? new Date(booking.scheduled_start_at) : null;
+  const end = booking.scheduled_end_at ? new Date(booking.scheduled_end_at) : null;
+  if (!start || Number.isNaN(start.getTime())) return 'Booking time unavailable';
+  const dateOptions = { timeZone: 'Australia/Perth', weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' };
+  const timeOptions = { timeZone: 'Australia/Perth', hour: 'numeric', minute: '2-digit' };
+  const startDate = start.toLocaleDateString('en-AU', dateOptions);
+  const from = start.toLocaleTimeString('en-AU', timeOptions);
+  let endLabel = '';
+  if (end && !Number.isNaN(end.getTime())) {
+    const to = end.toLocaleTimeString('en-AU', timeOptions);
+    endLabel = vehicleWorkshopPerthDateKey(end) === vehicleWorkshopPerthDateKey(start)
+      ? to
+      : `${end.toLocaleDateString('en-AU', dateOptions)} · ${to}`;
+  }
+  return `${startDate} · ${from}${endLabel ? `–${endLabel}` : ''}`;
+}
+
+function vehicleWorkshopBookingStatusLabel(status = '') {
+  return ({ queued: 'Queued', planned: 'Booked', started: 'In progress', stoppage: 'STOPPAGE', completed: 'Completed' })[cleanNavisionText(status).toLowerCase()] || 'Booked';
+}
+
+function vehicleWorkshopBookingsForStage(bookings = [], stage = '') {
+  const code = vehicleWorkshopStageCode(stage);
+  const priority = { started: 0, stoppage: 1, planned: 2, queued: 3, completed: 4 };
+  return (Array.isArray(bookings) ? bookings : [])
+    .filter(booking => vehicleWorkshopStageCode(booking.stage_code || '') === code)
+    .sort((a, b) => (priority[a.status] ?? 9) - (priority[b.status] ?? 9)
+      || String(a.scheduled_start_at || '').localeCompare(String(b.scheduled_start_at || ''))
+      || String(a.booking_id || '').localeCompare(String(b.booking_id || '')));
+}
+
+function vehicleWorkshopBookingRowsHtml(bookings = [], fallbackText = 'Not booked') {
+  if (!bookings.length) return `<span class="vehicle-workshop-not-booked">${escapeHtml(fallbackText)}</span>`;
+  return bookings.map(booking => {
+    const bookingId = cleanNavisionText(booking.booking_id || '');
+    const stage = vehicleWorkshopStageCode(booking.stage_code || '');
+    const dateKey = vehicleWorkshopBookingDateKey(booking);
+    const bay = Number(booking.bay_number) > 0 ? `Bay ${Number(booking.bay_number)}` : cleanNavisionText(booking.bay_name || '') || 'Bay not assigned';
+    const label = `${vehicleWorkshopBookingTimeLabel(booking)} · ${bay} · ${vehicleWorkshopBookingStatusLabel(booking.status)}`;
+    if (!bookingId || !WORKSHOP_PLANNER_ROUTE_BY_STAGE[stage] || !dateKey) return `<span class="vehicle-workshop-booking-static">${escapeHtml(label)}</span>`;
+    return `<button type="button" class="vehicle-workshop-booking-link" data-vehicle-workshop-booking-id="${escapeHtml(bookingId)}" data-vehicle-workshop-booking-stage="${escapeHtml(stage)}" data-vehicle-workshop-booking-date="${escapeHtml(dateKey)}" title="Open this exact booking in the ${escapeHtml(vehicleWorkshopStationPresentation(stage).label)} Planner">${escapeHtml(label)} <b>Open planner →</b></button>`;
+  }).join('');
+}
+
+function vehicleWorkshopGroups(vehicle = {}, detail = null) {
+  const requirements = Array.isArray(detail?.requirements) ? detail.requirements : vehicleWorkshopLocalRequirements(vehicle);
+  const bookings = Array.isArray(detail?.bookings) ? detail.bookings : [];
+  const structuredLines = typeof vehiclePdcJobLines === 'function' ? vehiclePdcJobLines(vehicle) : [];
+  const groups = new Map();
+  requirements.filter(item => item?.required === true).forEach(item => {
+    const stage = vehicleWorkshopStageCode(item.stage_code || item.work_key || '');
+    if (!groups.has(stage)) groups.set(stage, { stage, requirements: [], lines: [], bookings: vehicleWorkshopBookingsForStage(bookings, stage) });
+    groups.get(stage).requirements.push(item);
+  });
+  structuredLines.forEach(line => {
+    const stage = vehicleWorkshopStageCode(typeof pdcJobLineStage === 'function' ? pdcJobLineStage(line) : (line.category || line.stage || ''));
+    if (groups.has(stage)) groups.get(stage).lines.push(line);
+  });
+  groups.forEach(group => {
+    if (!group.lines.length) {
+      const station = vehicleWorkshopStationPresentation(group.stage);
+      group.lines.push({ description: `${station.label} work required`, confirmedHours: null, estimatedHours: null, fallback: true });
+    }
+  });
+  return [...groups.values()];
+}
+
+function vehicleWorkshopStationHtml(group = {}, bookingFallback = 'Not booked') {
+  const presentation = vehicleWorkshopStationPresentation(group.stage);
+  const complete = group.requirements.length > 0 && group.requirements.every(item => item.completed === true);
+  const lineHours = group.lines.map(vehicleWorkshopLineHours).filter(value => value !== null);
+  const bookingHours = group.bookings.map(booking => Number(booking.default_duration_minutes || 0) / 60).filter(value => Number.isFinite(value) && value > 0);
+  const totalHours = lineHours.length ? lineHours.reduce((sum, value) => sum + value, 0) : (bookingHours[0] || null);
+  const bookingHtml = vehicleWorkshopBookingRowsHtml(group.bookings, bookingFallback);
+  const lines = group.lines.map((line, index) => {
+    const ownHours = vehicleWorkshopLineHours(line);
+    const estimate = ownHours ?? (group.lines.length === 1 ? totalHours : null);
+    return `<div class="vehicle-workshop-line"><span class="vehicle-workshop-line-number">${index + 1}</span><span class="vehicle-workshop-line-description"><b>Description</b><strong>${escapeHtml(vehicleWorkshopLineDescription(line, `${presentation.label} work required`))}</strong></span><span class="vehicle-workshop-line-hours"><b>Estimated hours</b><strong>${escapeHtml(vehicleWorkshopHoursLabel(estimate))}</strong></span><span class="vehicle-workshop-line-booking"><b>Booking time</b>${bookingHtml}</span></div>`;
+  }).join('');
+  return `<section class="vehicle-workshop-station" data-vehicle-workshop-stage="${escapeHtml(group.stage)}" style="--station-colour:${escapeHtml(presentation.colour)};--station-tint:${escapeHtml(presentation.tint)}"><header><span class="vehicle-workshop-station-code">${escapeHtml(presentation.label.slice(0, 2).toUpperCase())}</span><div><h3>${escapeHtml(presentation.label)}</h3><p>${complete ? 'Required work completed' : 'Required work outstanding'}</p></div><span class="vehicle-workshop-station-status ${complete ? 'is-complete' : 'is-required'}">${complete ? 'Completed' : 'Required'}</span><span class="vehicle-workshop-station-total">${escapeHtml(vehicleWorkshopHoursLabel(totalHours))}</span></header><div class="vehicle-workshop-lines">${lines}</div></section>`;
+}
+
+function renderVehicleWorkshopWorkPage(vehicle = {}) {
+  const canonicalId = vehicleWorkshopDetailCanonicalId(vehicle);
+  const state = canonicalId ? app.vehicleWorkshopDetailCache.get(canonicalId) : null;
+  const bookingFallback = !canonicalId || state?.status === 'error' ? 'Booking data unavailable' : 'Not booked';
+  if (canonicalId && (!state || state.status === 'loading')) return `<div class="vehicle-workshop-page" data-vehicle-workshop-page><div class="vehicle-workshop-intro"><div><h3>Required workshop work</h3><p>Loading authoritative bays, estimated hours and booking times…</p></div></div><div class="empty-state" role="status"><strong>Loading work and bookings</strong><span>No scheduling information is shown until the shared response is confirmed.</span></div></div>`;
+  const groups = vehicleWorkshopGroups(vehicle, state?.status === 'ready' ? state.detail : null);
+  const warning = !canonicalId
+    ? '<div class="vehicle-workshop-warning" role="status"><strong>Booking data unavailable</strong><span>This vehicle is not uniquely linked to shared Workshop authority. Required work is shown, but no booking time is guessed.</span></div>'
+    : state?.status === 'error'
+      ? `<div class="vehicle-workshop-warning" role="status"><strong>Booking data unavailable</strong><span>${escapeHtml(state.message || 'The shared Workshop detail could not be loaded. No booking time is guessed.')}</span></div>`
+      : '';
+  const content = groups.length ? groups.map(group => vehicleWorkshopStationHtml(group, bookingFallback)).join('') : '<div class="empty-state"><strong>No required work</strong><span>This vehicle has no canonical required Workshop work.</span></div>';
+  return `<div class="vehicle-workshop-page" data-vehicle-workshop-page><div class="vehicle-workshop-intro"><div><h3>Required workshop work</h3><p>Every required line shows its description, estimated hours and current booking time. Select a booked time to open that exact Planner position.</p></div><div class="vehicle-workshop-legend">${Object.entries(VEHICLE_WORKSHOP_STATION_PRESENTATION).filter(([stage]) => WORKSHOP_PLANNER_ROUTE_BY_STAGE[stage]).map(([, item]) => `<span style="--legend-colour:${escapeHtml(item.colour)}"><i></i>${escapeHtml(item.label)}</span>`).join('')}</div></div>${warning}<div class="vehicle-workshop-stations">${content}</div></div>`;
+}
+
+async function loadVehicleWorkshopDetail(vehicle = {}, { force = false } = {}) {
+  const canonicalId = vehicleWorkshopDetailCanonicalId(vehicle);
+  if (!canonicalId) return null;
+  const existing = app.vehicleWorkshopDetailCache.get(canonicalId);
+  if (!force && existing && ['loading', 'ready'].includes(existing.status)) return existing.detail || null;
+  const token = typeof getPdcSupabaseAccessToken === 'function' ? getPdcSupabaseAccessToken() : null;
+  const config = window.PDC_SUPABASE_CONFIG || {};
+  if (!token || !config.url || !config.publishableKey) {
+    app.vehicleWorkshopDetailCache.set(canonicalId, { status: 'error', message: 'Sign in again to load authoritative Workshop booking details.' });
+    if (app.vehicleDetailPage === 'work' && vehicleKey(selectedVehicle() || {}) === vehicleKey(vehicle)) renderDetail();
+    return null;
+  }
+  const generation = ++app.vehicleWorkshopDetailRequestGeneration;
+  const selectedKey = vehicleKey(vehicle);
+  app.vehicleWorkshopDetailCache.set(canonicalId, { status: 'loading' });
+  if (app.vehicleDetailPage === 'work' && vehicleKey(selectedVehicle() || {}) === selectedKey) renderDetail();
+  try {
+    const response = await fetch(`${config.url}/rest/v1/rpc/get_vehicle_workshop_detail`, { method: 'POST', headers: { apikey: config.publishableKey, Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ p_vehicle_id: canonicalId }) });
+    if (generation !== app.vehicleWorkshopDetailRequestGeneration) return null;
+    if (!response.ok) throw new Error(response.status === 401 || response.status === 403 ? 'Your account is not authorised to read Workshop booking details.' : `Workshop booking detail request failed (${response.status}).`);
+    const detail = await response.json();
+    if (!detail || String(detail.vehicle_id || '') !== canonicalId || !Array.isArray(detail.requirements) || !Array.isArray(detail.bookings)) throw new Error('The shared Workshop response was incomplete.');
+    app.vehicleWorkshopDetailCache.set(canonicalId, { status: 'ready', detail });
+    if (app.vehicleDetailPage === 'work' && vehicleKey(selectedVehicle() || {}) === selectedKey) renderDetail();
+    return detail;
+  } catch (error) {
+    if (generation !== app.vehicleWorkshopDetailRequestGeneration) return null;
+    app.vehicleWorkshopDetailCache.set(canonicalId, { status: 'error', message: error?.message || 'The shared Workshop detail could not be loaded.' });
+    if (app.vehicleDetailPage === 'work' && vehicleKey(selectedVehicle() || {}) === selectedKey) renderDetail();
+    return null;
+  }
+}
+
+function selectVehicleDetailPage(page = 'details') {
+  app.vehicleDetailPage = page === 'work' ? 'work' : 'details';
+  renderDetail();
+  if (app.vehicleDetailPage === 'work') loadVehicleWorkshopDetail(selectedVehicle() || {}, { force: true });
+}
+
+function openVehicleWorkshopBooking(bookingId = '', stage = '', date = '') {
+  const normalizedStage = vehicleWorkshopStageCode(stage);
+  if (!bookingId || !WORKSHOP_PLANNER_ROUTE_BY_STAGE[normalizedStage] || !/^\d{4}-\d{2}-\d{2}$/.test(date)) return false;
+  app.pendingWorkshopBookingLink = { bookingId, stage: normalizedStage, date };
+  closeVehicleModal();
+  openWorkshopPlannerForStage(normalizedStage);
+  return true;
+}
+
+function bindVehicleDetailTabs(panel) {
+  panel.querySelectorAll('[data-vehicle-detail-tab]').forEach(button => button.addEventListener('click', () => selectVehicleDetailPage(button.dataset.vehicleDetailTab)));
+  const tabs = [...panel.querySelectorAll('[data-vehicle-detail-tab]')];
+  tabs.forEach((button, index) => button.addEventListener('keydown', event => {
+    if (!['ArrowLeft', 'ArrowRight'].includes(event.key)) return;
+    event.preventDefault();
+    const next = event.key === 'ArrowRight' ? (index + 1) % tabs.length : (index - 1 + tabs.length) % tabs.length;
+    tabs[next].focus();
+    selectVehicleDetailPage(tabs[next].dataset.vehicleDetailTab);
+  }));
+  panel.querySelectorAll('[data-vehicle-workshop-booking-id]').forEach(button => button.addEventListener('click', () => openVehicleWorkshopBooking(button.dataset.vehicleWorkshopBookingId, button.dataset.vehicleWorkshopBookingStage, button.dataset.vehicleWorkshopBookingDate)));
+}
+
 function selectedVehicle(key = app.selectedStock) {
   const requested = String(key ?? '').trim();
   if (!requested) return null;
@@ -10193,6 +10445,10 @@ function openVehicleModal(stock) {
   }
   if (!vehicleLocationActionAllowed(vehicle, 'open')) return false;
   app.selectedStock = vehicleKey(vehicle);
+  app.vehicleDetailPage = 'details';
+  app.vehicleWorkshopDetailRequestGeneration += 1;
+  const canonicalId = vehicleWorkshopDetailCanonicalId(vehicle);
+  if (canonicalId) app.vehicleWorkshopDetailCache.delete(canonicalId);
   renderDetail();
   const modal = $('#vehicle-modal');
   if (!modal) return;
@@ -10204,6 +10460,8 @@ function openVehicleModal(stock) {
 
 function closeVehicleModal() {
   const modal = $('#vehicle-modal');
+  app.vehicleWorkshopDetailRequestGeneration += 1;
+  app.vehicleDetailPage = 'details';
   if (!modal) return;
   modal.hidden = true;
   document.body.classList.remove('modal-open');
@@ -10229,9 +10487,21 @@ function renderDetail() {
   const customerWarning = !isCustomerMatch(v);
   const isCompletedVehicle = statusCategory(v) === 'completed';
   const completedLockAttr = isCompletedVehicle ? 'disabled' : '';
+  const activePage = app.vehicleDetailPage === 'work' ? 'work' : 'details';
   panel.innerHTML = `
-    <div class="panel-header"><div><h2 id="vehicle-modal-title">Vehicle detail</h2><p>${stockLabel(v)} ${escapeHtml(displayStockNumber(v))}</p></div>${formatStatus(v)}</div>
-    <div class="detail-body">
+    <div class="panel-header vehicle-detail-header">
+      <div><h2 id="vehicle-modal-title">Vehicle detail</h2><p>${stockLabel(v)} ${escapeHtml(displayStockNumber(v))}</p></div>
+      <div class="vehicle-detail-header-tools">
+        <nav class="vehicle-detail-tabs" role="tablist" aria-label="Vehicle detail pages">
+          <button type="button" role="tab" id="vehicle-detail-tab-details" aria-controls="vehicle-detail-panel-details" aria-selected="${activePage === 'details'}" tabindex="${activePage === 'details' ? '0' : '-1'}" class="${activePage === 'details' ? 'is-active' : ''}" data-vehicle-detail-tab="details">Vehicle details</button>
+          <button type="button" role="tab" id="vehicle-detail-tab-work" aria-controls="vehicle-detail-panel-work" aria-selected="${activePage === 'work'}" tabindex="${activePage === 'work' ? '0' : '-1'}" class="${activePage === 'work' ? 'is-active' : ''}" data-vehicle-detail-tab="work">Work & bookings</button>
+        </nav>
+        ${formatStatus(v)}
+      </div>
+    </div>
+    ${activePage === 'work'
+      ? `<div id="vehicle-detail-panel-work" role="tabpanel" aria-labelledby="vehicle-detail-tab-work">${renderVehicleWorkshopWorkPage(v)}</div>`
+      : `<div id="vehicle-detail-panel-details" role="tabpanel" aria-labelledby="vehicle-detail-tab-details" class="detail-body">
       <div class="detail-title">
         <div><h3>${escapeHtml(v.client || 'New customer')}</h3><p>${escapeHtml(displayVehicle(v))}</p></div>
         <div class="detail-actions">
@@ -10353,8 +10623,10 @@ function renderDetail() {
         <div><strong>Move vehicle to Deleted vehicles</strong><span>Use this only for duplicate, cancelled or incorrectly imported records.</span></div>
         <button class="danger ghost" type="button" data-remove-vehicle="${escapeHtml(key)}">Delete vehicle</button>
       </div>
-    </div>
+    </div>`}
   `;
+  bindVehicleDetailTabs(panel);
+  if (activePage === 'work') return;
   on($('[data-email-vehicle-update]', panel), 'click', () => draftSelectedVehicleStatusEmail(key));
   bindVehicleLabelButtons(panel);
   on($('[data-remove-vehicle]', panel), 'click', () => removeVehicle(key));

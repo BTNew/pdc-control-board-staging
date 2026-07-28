@@ -6,18 +6,19 @@
     "twoPhysicalWorkstationAuthorityCutover": false
   },
   "artifact": "zero-data static staging site",
-  "cacheVersion": "2026.07.28.31-workshop-authoritative-candidate-gate",
+  "backendOnlyMigrationSourceCommit": "f46fa5ea9d136dc11ae9f19fe49d370770cbfd6e",
+  "cacheVersion": "2026.07.28.32-vehicle-detail-work-bookings",
   "deploymentMode": "exact reviewed source blobs; staging.html mapped to index.html",
   "environment": "staging",
-  "generatedAtUtc": "2026-07-28T04:48:09.855106Z",
+  "generatedAtUtc": "2026-07-28T05:39:19.943887Z",
   "humanAiIntake": {
     "approvalGate": "Administrator decision remains server-validated; missing summaries disable Approve while Deny remains available.",
     "summary": "Prominent escaped email summary plus explicit Approve/Deny effects; approval fails closed when no readable summary exists."
   },
   "migrationLedger": {
-    "appliedThrough": "087",
-    "evidence": "Staging-only migrations through 087 are applied to the approved staging project. Migration 087 gates every direct and cascade insert against the authoritative outstanding-candidate schedule_enabled decision before Parts handling.",
-    "ledgerHead": "087",
+    "appliedThrough": "088",
+    "evidence": "Staging-only migrations through 088 are applied to the approved staging project. Migration 088 provides the narrow viewer-readable canonical Vehicle Detail work-and-booking projection; anonymous execution is revoked.",
+    "ledgerHead": "088",
     "migrations": [
       "058",
       "059",
@@ -48,20 +49,24 @@
       "084",
       "085",
       "086",
-      "087"
+      "087",
+      "088"
     ]
   },
   "pendingStagingMigrations": [],
   "releaseChecks": {
-    "aggregateTests": "PASS \u2014 107 passed, 0 failed, 1 intentional skip on the exact source candidate.",
+    "aggregateTests": "PASS \u2014 108 passed, 0 failed, 1 intentional skip on the exact source candidate.",
     "aiReviewDecisionContext": true,
     "aiReviewOverlayVersion": "2026.07.27.19-ai-review-decision-context",
     "backupRestore": "PASS \u2014 encrypted backup run 11b91f6c-6c00-48b1-a1f1-f3943f082e23 restored into isolated schema restore_ai_intake_071_20260727; row counts, foreign keys, relationships and format/schema hashes matched; schema dropped after verification",
+    "browserPredeploy": "PASS \u2014 Administrator, Controller and Viewer each rendered 3 canonical required station cards, 3 described work lines, 3 unique station colours and 1 real booking link; exact Fitting booking deep-link selected the correct planner date and booking. Zero dialogs, console errors, HTTP errors or production requests.",
     "controlBoardPipeline": "PASS \u2014 the redundant description column is removed, the pipeline occupies the full middle width, and a fixed 16px gap separates it from the Planner button. Existing authoritative metrics are unchanged.",
     "databasePostApply": "PASS \u2014 12238276, 12535460, 12705647 and 13001563 are active canonical PMB vehicles. 12660298 is canonical Completed, hidden from the active board, with an audited Delivered - At Dealer completion.",
     "humanAiIntake": "Received, What happened, Car and What changed are shown in plain language; activated, modified, unchanged and review-needed outcomes are distinct; field changes render previous value to new value; technical receipt data is collapsed",
     "humanNavisionResults": "An administrator can establish the first empty dealer scope only for one exact full snapshot of at least 100 valid rows. Approval is content-bound, user-bound and expires after two hours. Cross-dealer, invalid, duplicate, stale and changed snapshots remain fail-closed. Later strongly matched refresh omissions continue to enter reversible temporary holding.",
-    "literalArtifact": "35/35 deployed Git blobs match source commit c8feec2ab214c2233216e60e94d8b97bae0bdd87",
+    "literalArtifact": "35/35 deployed Git blobs match source commit f46fa5ea9d136dc11ae9f19fe49d370770cbfd6e",
+    "migration087": "PASS \u2014 rollback syntax/probe and permanent post-apply checks; BUS_4X4 eligible paths reach parts_incomplete, blocked Hoist direct/cascade paths return location_ineligible, gate helper has no anon/authenticated EXECUTE privilege, and no probe writes were committed. Pre-migration function backup SHA-256 baf586a7b74df4a60217414b50eaf323cc207fd6a3466b9220a0b4867ec023ad.",
+    "migration088": "PASS \u2014 dry-run syntax and Viewer payload probe, permanent staging-only apply, anon EXECUTE revoked, authenticated EXECUTE granted, protected vehicle/work-item/booking counts unchanged, and zero production access.",
     "mixedDealerNavision": "A report containing both approved dealers is scoped server-side to the selected dealer only when every row carries known original Dealer evidence and the selected scope has at least 100 rows. Preview and Apply use identical filtering; other-dealer rows are reported and ignored, never imported into the selected scope.",
     "navisionFullReconciliationTimeout": "PASS \u2014 reproduced SQLSTATE 57014 with a complete 663-row source-evidence payload at the former 8-second API bound. The same atomic preview/apply completed in 5.969/13.875 seconds under the new 30-second signed-in staging bound and was rolled back. A separate authenticated HTTP 10-second probe returned 200; the probe function was then removed.",
     "navisionOperationalLocationCompletion": "PASS \u2014 canonical shared state drives Vehicle Locations and Completed Vehicles; ordinary reconciliation preserves PMB/PIT/QC/RFT/Completed workflow progress; At Dealer with open required work stays active for review.",
@@ -69,21 +74,20 @@
     "navisionPilbaraExactScope": "PASS \u2014 83-row Pilbara exact-scope preview accepted despite 83 historical Broome identity overlaps; every original Dealer column declared 14450. A missing Dealer-column negative control remained blocked. Hard delete remains disabled.",
     "operationalTooling": "Staging environment and database helpers live under scripts/pdc_staging_runtime.py; operational scripts no longer import test-fixture helper modules.",
     "pilbaraNavision": "Cross-scope Batch overlap no longer blocks a substantial Pilbara extract when every valid source row's original Dealer column explicitly declares 14450. Mixed, missing or contrary Dealer evidence remains blocked; hard deletion is disabled and the browser's selected option alone is not trusted.",
+    "plannerAuthoritativeCandidateGate": "PASS \u2014 blocked Hoist cards are non-draggable, show Scheduling unavailable plus the exact visible authority reason, and no longer offer Best slot. Direct and cascade RPCs both return structured location_ineligible before Parts handling; canonical HTTP trigger errors are decoded without a false stale-version diagnosis.",
     "plannerSearchTyping": "PASS \u2014 debounced planner searches update their result list in place instead of replacing the focused input. Slow ten-character browser typing retains the full value, focus and caret.",
-    "production": "Untouched; authoritative-candidate static staging artifact plus staging-only migrations through 087",
+    "production": "Untouched; Vehicle Detail work-and-bookings static staging artifact plus staging-only migrations through 088.",
     "salespersonEmailDefaults": "PASS \u2014 the supplied salesperson identities and addresses are in the shared staging directory. FO resolves explicitly to Stephen Peck/SP because both supplied rows use the same unique address; future exact vehicle references receive the shared salesperson ID without overwriting explicit assignments.",
     "sidebarInformationCleanup": "PASS \u2014 Source Data and Operational Health cards are absent from every sidebar template; navigation and internal health tracking remain intact.",
     "stagingFixtureCleanup": "PASS \u2014 QA-OVN-20260727-WS, vehicle 7f17d3c5-4ef7-4f4e-9c5d-202607270001, booking 5fb7c7b3-ddcf-49d7-a0e3-a764f2a6b375 and Navision 99072701 active/audit fixture rows were removed.",
     "subletAiReview": "Sublet uses a compact five-column operational table: Vehicle, Provider, Booking date, Notes/email and Actions. PO sent, expected return, actual return and return-status filtering are absent. AI Review shows the server-generated What the email says summary before detected changes and Approve/Deny controls.",
     "uiCleanup": "Control Board current-time line appears only for today and QC is removed from its station list. All-green PMB vehicles require explicit Ready for QC confirmation and move authoritatively to the Vehicle Locations QC Gate. Named QC sign-off moves to RFT and prints a dedicated windscreen label. Parts removes Outstanding station work, persists and refreshes ETA countdowns, and uses the shared Vehicle Locations row height.",
+    "vehicleDetailWorkBookings": "PASS \u2014 Vehicle Detail opens on Vehicle details and provides a top-right Work & bookings tab. Every canonical required station is colour coded and shows line description, estimated hours, booking date/time/bay or an explicit Not booked state. Selecting a booking opens the exact station planner, date and booking selection.",
     "viewerReadOnly": "PASS \u2014 repaired the dedicated staging Viewer credential and changed only authoritative read-snapshot RPCs to accept Viewer. Administrator, Controller and Viewer smoke tests completed without page, console or HTTP errors; mutation authority is unchanged.",
-    "workshopPartsGate": "Future planning does not claim or reserve Parts. Immediate physical Start fails closed for Parts-incomplete vehicles; only an administrator-supplied reason can create the audited entry override.",
-    "plannerAuthoritativeCandidateGate": "PASS \u2014 blocked Hoist cards are non-draggable, show Scheduling unavailable plus the exact visible authority reason, and no longer offer Best slot. Direct and cascade RPCs both return structured location_ineligible before Parts handling; canonical HTTP trigger errors are decoded without a false stale-version diagnosis.",
-    "migration087": "PASS \u2014 rollback syntax/probe and permanent post-apply checks; BUS_4X4 eligible paths reach parts_incomplete, blocked Hoist direct/cascade paths return location_ineligible, gate helper has no anon/authenticated EXECUTE privilege, and no probe writes were committed. Pre-migration function backup SHA-256 baf586a7b74df4a60217414b50eaf323cc207fd6a3466b9220a0b4867ec023ad.",
-    "browserPredeploy": "PASS \u2014 exact 35-file static artifact: Administrator and Controller connected_editable; Viewer connected_read_only; each saw 3/3 blocked Hoist cards as unavailable with no dialogs, console errors, HTTP errors, or production requests. Direct no-write probes returned location_ineligible for editable roles and not_editable for Viewer."
+    "workshopPartsGate": "Future planning does not claim or reserve Parts. Immediate physical Start fails closed for Parts-incomplete vehicles; only an administrator-supplied reason can create the audited entry override."
   },
-  "sourceBranch": "fix/staging-planner-authoritative-eligibility-20260728",
-  "sourceCommit": "c8feec2ab214c2233216e60e94d8b97bae0bdd87",
+  "sourceBranch": "feat/staging-vehicle-work-page-20260728",
+  "sourceCommit": "f46fa5ea9d136dc11ae9f19fe49d370770cbfd6e",
   "sourceFiles": [
     {
       "deployedPath": "ai-board-advisor.js",
@@ -92,7 +96,7 @@
     },
     {
       "deployedPath": "app.js",
-      "sha256": "9af11f5f355e97f9f29d7dcbcb9e8d8e9147b7ab09a24782bc9f0cfb62e91fc8",
+      "sha256": "20e789ad75f1ed50c684be4b9b9f64918b3be416c70dc338e8aeef8532177e15",
       "sourcePath": "app.js"
     },
     {
@@ -132,7 +136,7 @@
     },
     {
       "deployedPath": "index.html",
-      "sha256": "73b79234fd025d41dd8618f22b80967408cf27924f823b509f49fda23e48c777",
+      "sha256": "72f312bdc95fdb7de21fed4745e1f5d69bd1733c996e0eb3ae6c675a8d655670",
       "sourcePath": "staging.html"
     },
     {
@@ -167,7 +171,7 @@
     },
     {
       "deployedPath": "pdc-supabase-config.staging.js",
-      "sha256": "90dc30eb6a1fe49bd26eb5ade3b8b7da182874d70f6fbd441200593a45e30749",
+      "sha256": "f3150217dfd1f2fcaf42e982723b4a718f7c23144c3e750b19ab087f78ed8068",
       "sourcePath": "pdc-supabase-config.staging.js"
     },
     {
@@ -182,7 +186,7 @@
     },
     {
       "deployedPath": "styles.css",
-      "sha256": "3c36052139644492be7649559daa1a3b165da4ed54dee7b09c98ed5c8d7c7730",
+      "sha256": "9e7ea8aa6cce3cd18190d7f4a7f9fcbbd28c01c826dbb549c78818d78616e48a",
       "sourcePath": "styles.css"
     },
     {
@@ -232,7 +236,7 @@
     },
     {
       "deployedPath": "workshop-planner.js",
-      "sha256": "b22d3e61670a323aa726ce40f8db55adcace9c33400ac5f0dc2478818637405e",
+      "sha256": "0c8e9aed9fe7f4734339310c23bbc5ff6043b4d6f6af4d2459d9ffc16a51b529",
       "sourcePath": "workshop-planner.js"
     },
     {
@@ -261,6 +265,5 @@
       "sourcePath": "pdc-ai-intake-review.js"
     }
   ],
-  "sourceTree": "d1965f86bee0ba9a11f177424f23294a214fb527",
-  "backendOnlyMigrationSourceCommit": "c8feec2ab214c2233216e60e94d8b97bae0bdd87"
+  "sourceTree": "28ed19acd395ba82179d2bb66c689e8adc967b88"
 }
