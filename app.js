@@ -1,5 +1,5 @@
-const APP_VERSION = '2026.07.28.41-vehicle-detail-operation-lines';
-const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.07.28.41-vehicle-detail-operation-lines';
+const APP_VERSION = '2026.07.28.42-workshop-control-board-loading';
+const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.07.28.42-workshop-control-board-loading';
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
 // constant intentionally names only the production ref, never the
@@ -1886,7 +1886,7 @@ const app = {
   activePmbBayStage: '',
   pmbDraggingKey: '',
   pmbScheduleClockTimer: null,
-  workflowBucketsCollapsed: true,
+  workflowBucketsCollapsed: false,
   workflowSearch: '',
   workshopEligibilitySnapshot: null,
   workshopEligibilityState: 'idle',
@@ -5717,7 +5717,9 @@ function incomingVehicleDetailRow(vehicle = {}, bucketKey = '', options = {}) {
   const authorityPending = !sharedNavisionLocationAuthorityReady();
   const locationReadOnly = sharedReadOnly || identityReadOnly || emailReadOnly || authorityPending;
   const protectedLifecycleAllowed = emailReadOnly && !identityReadOnly && !authorityPending && vehicleLifecycleSharedModeActive()
-    && ((bucketKey === 'pmb' && vehicleReadyForQualityControl(vehicle)) || bucketKey === 'qc');
+    && (bucketKey === 'yardhold'
+      || (bucketKey === 'pmb' && vehicleReadyForQualityControl(vehicle))
+      || bucketKey === 'qc');
   const eta = locationAgeLabel(vehicle);
   const stock = displayStockNumber(vehicle) || vehicleKey(vehicle) || 'No stock';
   const unit = displayVehicle(vehicle) || 'Vehicle not listed';
@@ -9041,11 +9043,12 @@ function pmbRequirementChecklistModal(vehicles = []) {
     overlay.setAttribute('aria-labelledby', 'pmb-requirement-modal-title');
     const previewRows = rows.map((vehicle, index) => {
       const key = vehicleKey(vehicle);
+      const serverAuthoritative = vehicle.__emailVehicleServerAuthoritative === true;
       const checks = PDC_JOB_DEFS.map(def => {
         const checked = pdcJobRequired(vehicle, def) ? 'checked' : '';
-        return `<label class="check-option pdc-toggle-chip pdc-toggle-${escapeHtml(def.key)} ${checked ? 'is-on' : ''}"><input type="checkbox" data-pmb-requirement-row="${index}" data-pmb-requirement-key="${escapeHtml(def.key)}" ${checked} /> <span><b>${escapeHtml(def.short)}</b>${escapeHtml(def.label)}</span></label>`;
+        return `<label class="check-option pdc-toggle-chip pdc-toggle-${escapeHtml(def.key)} ${checked ? 'is-on' : ''}"><input type="checkbox" data-pmb-requirement-row="${index}" data-pmb-requirement-key="${escapeHtml(def.key)}" ${checked} ${serverAuthoritative ? 'disabled' : ''} /> <span><b>${escapeHtml(def.short)}</b>${escapeHtml(def.label)}</span></label>`;
       }).join('');
-      return `<article class="pmb-requirement-row" data-pmb-requirement-vehicle="${escapeHtml(key)}"><div>${vehicleIdentityStackHtml(vehicle)}<small>${escapeHtml(truncate(displayVehicle(vehicle), 52))}</small></div><div class="form-row six-col check-grid slim-job-grid">${checks}</div></article>`;
+      return `<article class="pmb-requirement-row" data-pmb-requirement-vehicle="${escapeHtml(key)}"><div>${vehicleIdentityStackHtml(vehicle)}<small>${escapeHtml(truncate(displayVehicle(vehicle), 52))}</small>${serverAuthoritative ? '<small>Required work is retained from the authenticated email import.</small>' : ''}</div><div class="form-row six-col check-grid slim-job-grid">${checks}</div></article>`;
     }).join('');
     overlay.innerHTML = `
       <section class="modal-card pmb-requirement-modal-card">
@@ -9171,7 +9174,38 @@ async function transferYhVehicleToPmb(key = '') {
   if (!window.confirm(`Transfer ${stock} - ${customer} to PMB?\n\nThis is a manual PDC location change. Future Navision uploads will not move it back.`)) return;
 
   const requirementSelections = await pmbRequirementChecklistModal([vehicle]);
-  if (!requirementSelections || !vehicleLocationActionAllowed(vehicle, 'transfer to PMB')) return;
+  if (!requirementSelections || !vehicleLocationActionAllowed(vehicle, 'transfer to PMB')) return false;
+
+  if (vehicle.__emailVehicleServerAuthoritative === true && vehicleLifecycleSharedModeActive()) {
+    const ref = await vehicleLifecycleSharedRef(vehicle);
+    if (!ref || ref.outcome !== 'resolved') {
+      window.alert(describeVehicleLifecycleResolutionOutcome(ref));
+      return false;
+    }
+    if (ref.isArchived) {
+      window.alert('This vehicle is archived and cannot be moved into PMB. No change was made.');
+      return false;
+    }
+    const result = await window.__vehicleLifecycleActions.pmbTransferVehicle({
+      vehicleId: ref.vehicleId,
+      expectedVersion: ref.version,
+    });
+    if (!result || result.ok !== true) {
+      window.alert(typeof describeVehicleLifecycleActionError === 'function'
+        ? describeVehicleLifecycleActionError(result && result.error)
+        : 'The vehicle could not be moved into PMB.');
+      await refreshEmailVehicleLocations();
+      return false;
+    }
+    reconcileVehicleLifecycleServerResult(vehicle, result);
+    app.quickFilter = 'pmb';
+    app.pmbSubFilter = '';
+    app.activePmbBayStage = '';
+    await refreshEmailVehicleLocations();
+    if (app.currentView === 'workflow') await loadWorkshopEligibilitySnapshot('pmb_transfer');
+    renderAll();
+    return true;
+  }
 
   const transferTime = nowIsoString();
   const edits = loadVehicleEdits();
@@ -12563,6 +12597,11 @@ function vehicleLocationActionAllowed(vehicleOrKey, operation = 'change') {
   const key = vehicleKey(vehicle);
   if (app.sharedNavisionLocationReadOnlyKeys?.has(key)) {
     if (operation === 'open') return true;
+    if (operation === 'transfer to PMB'
+      && vehicle.__emailVehicleServerAuthoritative === true
+      && vehicle.__locationIdentityReadOnly !== true
+      && vehicleLifecycleSharedModeActive()
+      && typeof window.__vehicleLifecycleActions?.pmbTransferVehicle === 'function') return true;
     console.warn('Vehicle action blocked because the Locations identity is read-only.', { operation, key });
     return false;
   }
