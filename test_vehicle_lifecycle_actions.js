@@ -111,6 +111,20 @@ function fakeClient(responder) {
   });
 }
 
+// 4c. Explicit Yard Hold/In Transit to PMB movement uses the protected,
+// version-checked shared RPC rather than browser-local edits.
+{
+  const client = fakeClient(() => ({ status: 200, ok: true, body: { ok: true } }));
+  const bridge = buildVehicleLifecycleSharedActions(client, () => 'tok');
+  bridge.pmbTransferVehicle({ vehicleId: 'v6', expectedVersion: 11 }).then(() => {
+    assert.strictEqual(client.calls[0].name, 'pmb_transfer_vehicle');
+    assert.deepStrictEqual(client.calls[0].params, {
+      p_vehicle_id: 'v6', p_expected_version: 11,
+    });
+    console.log('PASS 4c: pmbTransferVehicle maps to the protected shared RPC');
+  });
+}
+
 // 5. retryVehicleNotification maps correctly, including the optional
 // recipient email override.
 {
@@ -145,7 +159,7 @@ function fakeClient(responder) {
     'vehicle_version_conflict', 'already_qc_complete', 'already_collected',
     'qc_not_complete', 'qc_gate_blocked', 'pit_requires_pmb_unallocated',
     'not_in_pit', 'invalid_pit_direction', 'not_in_active_lifecycle', 'not_in_rft',
-    'request_failed', 'missing_expected_version',
+    'request_failed', 'missing_expected_version', 'pmb_transfer_requires_yh_or_it', 'invalid_vehicle',
   ];
   documented.forEach(code => {
     const message = describeVehicleLifecycleActionError(code);

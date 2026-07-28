@@ -57,7 +57,7 @@ for(const expression of [
   'workshop_add_operational_minutes(v_booking.scheduled_start_at, p_duration_minutes)',
   'workshop_add_operational_minutes(v_new_start,v_shifted.default_duration_minutes)'
 ]) assert(lower.includes(expression),`operational-duration override missing: ${expression}`);
-assert(lower.includes("workshop_require_planner_operator();\n  perform public.workshop_require_version(p_target_expected_version)"),'cascade must use the exact planner-role guard');
+assert(/public\.workshop_require_planner_operator\(\);\s*perform public\.workshop_require_version\(p_target_expected_version\)/.test(lower),'cascade must use the exact schema-qualified planner-role guard');
 assert(lower.includes("at time zone 'australia/perth'"),'technician leave must use the AWST business timezone');
 const cascade=lower.slice(lower.indexOf('create or replace function public.cascade_workshop_schedule'),lower.indexOf('create or replace function public.workshop_validate_booking'));
 assert(!/status\s*=\s*'planned'(?![\s\S]{0,80}deleted_at\s+is\s+null)/.test(cascade),'cascade planned-row paths must exclude soft-deleted rows');

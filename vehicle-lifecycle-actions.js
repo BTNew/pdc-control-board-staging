@@ -338,6 +338,13 @@ function buildVehicleLifecycleSharedActions(client, getAccessToken) {
   }
 
   return {
+    pmbTransferVehicle({ vehicleId, expectedVersion }) {
+      return rpc('pmb_transfer_vehicle', {
+        p_vehicle_id: vehicleId,
+        p_expected_version: expectedVersion,
+      });
+    },
+
     markReadyForQc({ vehicleId, expectedVersion }) {
       return rpc('mark_vehicle_ready_for_qc', {
         p_vehicle_id: vehicleId,
@@ -413,6 +420,8 @@ function describeVehicleLifecycleActionError(error = '') {
     not_in_rft: 'This vehicle is not currently in RFT, so it cannot be marked collected.',
     request_failed: 'The change could not be saved. Please check your connection and try again.',
     missing_expected_version: 'This action is missing required version information and was not applied.',
+    pmb_transfer_requires_yh_or_it: 'Only a vehicle currently at Yard Hold or In Transit can be moved into PMB from this action.',
+    invalid_vehicle: 'The vehicle could not be identified, so no change was made.',
   };
   return MESSAGES[error] || 'The change could not be saved. Please try again or contact an administrator.';
 }
