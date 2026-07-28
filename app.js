@@ -1,5 +1,5 @@
-const APP_VERSION = '2026.07.28.33-toyota-navision-it-eta-gate';
-const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.07.28.33-toyota-navision-it-eta-gate';
+const APP_VERSION = '2026.07.28.34-toyota-navision-status-parity';
+const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.07.28.34-toyota-navision-status-parity';
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
 // constant intentionally names only the production ref, never the
@@ -2179,10 +2179,12 @@ function navisionImportedToyotaTransitCategory(vehicle = {}) {
     vehicle.__sharedNavisionCanonicalLocation || vehicle.current_location || vehicle.currentLocation || vehicle.pdcLocation || ''
   ).toUpperCase();
   const status = normalizeToyotaStatus(navisionLocationSourceText(vehicle));
-  const transit = canonicalLocation === 'IT' || canonicalLocation === 'IN TRANSIT' ||
+  const preArrival = canonicalLocation === 'IT' || canonicalLocation === 'IN TRANSIT' ||
+    status.includes('planned for production') || status.includes('line off complete') ||
+    status.includes('final inspection') || status.includes('ready for shipment') ||
     status.includes('in transit') || status.includes('shipment') || status.includes('wharf') ||
     status.includes('production transit') || /\bit\b/.test(status);
-  if (!transit) return '';
+  if (!preArrival) return '';
   return parseDateAU(kewdaleEtaValue(vehicle)) ? 'prodtransit' : 'other';
 }
 
