@@ -1,5 +1,5 @@
-const APP_VERSION = '2026.07.28.43-workshop-control-board-loading';
-const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.07.28.43-workshop-control-board-loading';
+const APP_VERSION = '2026.07.28.45-authenticated-pd-lines';
+const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.07.28.45-authenticated-pd-lines';
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
 // constant intentionally names only the production ref, never the
@@ -5656,6 +5656,24 @@ function pmbRequiredWorkLabels(vehicle = {}) {
   return pdcRequirementDefinitions(vehicle).map(item => `${item.label}${pdcJobComplete(vehicle, item) ? ' done' : ' required'}`);
 }
 
+function authenticatedOperationLineValid(value = '') {
+  return /^(?:OP(?:[1-9]|[1-9][0-9]{1,2})|PD[0-9]{3}-[A-F0-9]{8})$/.test(String(value || '').trim().toUpperCase());
+}
+
+function authenticatedOperationLineSortValue(value = '') {
+  const key = String(value || '').trim().toUpperCase();
+  const op = key.match(/^OP([0-9]+)$/);
+  if (op) return [0, Number(op[1]), key];
+  const pd = key.match(/^PD([0-9]{3})-/);
+  return [1, pd ? Number(pd[1]) : 9999, key];
+}
+
+function authenticatedOperationLineLabel(value = '') {
+  const key = String(value || '').trim().toUpperCase();
+  const pd = key.match(/^PD([0-9]{3})-/);
+  return pd ? `PD line ${Number(pd[1])}` : key;
+}
+
 function authenticatedEmailOperationLinesHtml(vehicle = {}) {
   const labels = {
     bus4x4: 'Bus 4x4', tint: 'Tint', hoist: 'Hoist / GVM', fitting: 'Fitting',
@@ -5664,12 +5682,16 @@ function authenticatedEmailOperationLinesHtml(vehicle = {}) {
   };
   const operations = (Array.isArray(vehicle.pdcEmailOperationLines) ? vehicle.pdcEmailOperationLines : [])
     .slice(0, 50)
-    .filter(operation => operation && operation.operation_no && operation.description)
-    .sort((a, b) => Number(String(a.operation_no).slice(2)) - Number(String(b.operation_no).slice(2)));
+    .filter(operation => operation && authenticatedOperationLineValid(operation.operation_no) && operation.description)
+    .sort((a, b) => {
+      const left = authenticatedOperationLineSortValue(a.operation_no);
+      const right = authenticatedOperationLineSortValue(b.operation_no);
+      return left[0] - right[0] || left[1] - right[1] || left[2].localeCompare(right[2]);
+    });
   if (!operations.length) return '';
   return `<div class="wide authenticated-email-operations">
-    <b>Operations from authenticated job cards</b>
-    <ol>${operations.map(operation => `<li><strong>${escapeHtml(operation.operation_no)}</strong><span>${escapeHtml(operation.description)}</span><small>${escapeHtml(labels[operation.work_key] || operation.work_key)}</small></li>`).join('')}</ol>
+    <b>Operations from authenticated PD documents and job cards</b>
+    <ol>${operations.map(operation => `<li><strong>${escapeHtml(authenticatedOperationLineLabel(operation.operation_no))}</strong><span>${escapeHtml(operation.description)}</span><small>${escapeHtml(labels[operation.work_key] || operation.work_key)}</small></li>`).join('')}</ol>
   </div>`;
 }
 
@@ -9177,7 +9199,13 @@ async function transferYhVehicleToPmb(key = '') {
   if (!requirementSelections || !vehicleLocationActionAllowed(vehicle, 'transfer to PMB')) return false;
 
   if (vehicle.__emailVehicleServerAuthoritative === true && vehicleLifecycleSharedModeActive()) {
-    const ref = await vehicleLifecycleSharedRef(vehicle);
+    const emailVehicleId = String(vehicle.__emailVehicleId || '').trim();
+    const emailVersion = Number(vehicle.__emailVehicleVersion);
+    const hasExactEmailRef = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(emailVehicleId)
+      && Number.isInteger(emailVersion) && emailVersion >= 0;
+    const ref = hasExactEmailRef
+      ? { outcome: 'resolved', vehicleId: emailVehicleId, version: emailVersion, isArchived: false }
+      : await vehicleLifecycleSharedRef(vehicle);
     if (!ref || ref.outcome !== 'resolved') {
       window.alert(describeVehicleLifecycleResolutionOutcome(ref));
       return false;
@@ -10421,8 +10449,13 @@ function vehicleWorkshopGroups(vehicle = {}, detail = null) {
   const structuredLines = typeof vehiclePdcJobLines === 'function' ? vehiclePdcJobLines(vehicle) : [];
   const authenticatedLines = (Array.isArray(vehicle.pdcEmailOperationLines) ? vehicle.pdcEmailOperationLines : [])
     .slice(0, 50)
-    .filter(line => /^OP(?:[1-9]|[1-9][0-9]{1,2})$/.test(String(line?.operation_no || '')) && line?.description && line?.work_key)
-    .sort((a, b) => Number(String(a.operation_no).slice(2)) - Number(String(b.operation_no).slice(2)));
+    .filter(line => authenticatedOperationLineValid(line?.operation_no) && line?.description && line?.work_key)
+    .sort((a, b) => {
+      const left = authenticatedOperationLineSortValue(a.operation_no);
+      const right = authenticatedOperationLineSortValue(b.operation_no);
+      return left[0] - right[0] || left[1] - right[1] || left[2].localeCompare(right[2]);
+    });
+  const authenticatedDescriptions = new Set(authenticatedLines.map(line => `${vehicleWorkshopStageCode(line.work_key)}\0${cleanNavisionText(line.description).toLowerCase()}`));
   const groups = new Map();
   requirements.filter(item => item?.required === true).forEach(item => {
     const stage = vehicleWorkshopStageCode(item.stage_code || item.work_key || '');
@@ -10431,13 +10464,14 @@ function vehicleWorkshopGroups(vehicle = {}, detail = null) {
   });
   structuredLines.forEach(line => {
     const stage = vehicleWorkshopStageCode(typeof pdcJobLineStage === 'function' ? pdcJobLineStage(line) : (line.category || line.stage || ''));
+    if (authenticatedDescriptions.has(`${stage}\0${cleanNavisionText(vehicleWorkshopLineDescription(line, '')).toLowerCase()}`)) return;
     if (groups.has(stage)) groups.get(stage).lines.push(line);
   });
   authenticatedLines.forEach(line => {
     const stage = vehicleWorkshopStageCode(line.work_key);
     if (groups.has(stage)) groups.get(stage).lines.push({
       ...line,
-      description: `${line.operation_no} · ${line.description}`,
+      description: `${authenticatedOperationLineLabel(line.operation_no)} · ${line.description}`,
       authenticatedEmailOperation: true,
     });
   });
@@ -10551,11 +10585,16 @@ function selectedVehicle(key = app.selectedStock) {
     return null;
   }
   const boardMatches = vehicleLocationBoardRows().filter(vehicle => String(vehicleKey(vehicle) || '').trim() === requested);
-  if (boardMatches.length === 1) return boardMatches[0];
   if (boardMatches.length > 1) {
     console.warn('Vehicle Locations lookup was ambiguous; no vehicle was selected.', { requested, matchCount: boardMatches.length });
     return null;
   }
+  const boardVehicle = boardMatches[0] || null;
+  if (boardVehicle?.__emailVehicleIdentityConflict === true || boardVehicle?.__locationIdentityReadOnly === true) {
+    console.warn('Vehicle Locations identity conflict; no vehicle was selected.', { requested });
+    return null;
+  }
+  if (boardVehicle) return boardVehicle;
   if (canonicalMatches.length === 1) return canonicalMatches[0];
   const aliasMatches = app.data.filter(vehicle => [vehicle.stock, vehicle.batch, vehicle.id]
     .map(value => String(value || '').trim())

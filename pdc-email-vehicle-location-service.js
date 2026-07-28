@@ -38,11 +38,13 @@ function mapServerVehicle(row = {}) {
     work_key: canonicalWorkKey(item?.work_key),
     description: String(item?.description || '').trim().slice(0, 180),
     source_uid: String(item?.source_uid || '').trim().slice(0, 100),
-  })).filter(item => /^OP(?:[1-9]|[1-9][0-9]{1,2})$/.test(item.operation_no)
+  })).filter(item => /^(?:OP(?:[1-9]|[1-9][0-9]{1,2})|PD[0-9]{3}-[A-F0-9]{8})$/.test(item.operation_no)
     && allowedOperationKeys.has(item.work_key) && item.description.length > 0);
   if (row.parts_required != null) mapped.pdcRequiresParts = row.parts_required === true;
   if (row.parts_completed != null) mapped.pdcCompleteParts = row.parts_completed === true;
   const partsUpdate = row.parts_update && typeof row.parts_update === 'object' ? row.parts_update : {};
+
+
   mapped.pdcPartsOrdered = partsUpdate.parts_ordered === true;
   mapped.pdcPartsStoppage = partsUpdate.parts_stoppage === true;
   mapped.pdcPartsStoppageReason = String(partsUpdate.parts_stoppage_reason || '');
