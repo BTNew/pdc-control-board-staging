@@ -1,0 +1,34 @@
+'use strict';
+const assert = require('assert');
+const fs = require('fs');
+const app = fs.readFileSync('app.js','utf8');
+const css = fs.readFileSync('styles.css','utf8');
+const sql = fs.readFileSync('supabase/staging_only/101_vehicle_workshop_line_adjustments.sql','utf8').toLowerCase();
+const conflictSql = fs.readFileSync('supabase/staging_only/102_vehicle_workshop_line_conflict_responses.sql','utf8').toLowerCase();
+
+assert(sql.includes('pdc_staging_environment_sentinel') && sql.includes("project_ref='cdsmnqxtyyoeoznmbidd'"), 'Migration 101 must be staging guarded');
+assert(sql.includes('create table if not exists public.vehicle_workshop_line_adjustments'), 'Adjustments need typed authoritative storage');
+assert(sql.includes('enable row level security') && sql.includes('revoke all on table public.vehicle_workshop_line_adjustments from public,anon,authenticated'), 'Adjustment table must be RLS protected and RPC-only');
+assert(sql.includes("perform public.require_pdc_role('operator')"), 'Mutations must require Controller/Administrator authority');
+assert(sql.includes('p_expected_version') && sql.includes('stale_line_version') && sql.includes('stale_vehicle_version'), 'Mutations need optimistic concurrency');
+assert(sql.includes("'vehicle_workshop_line_adjustments'") && sql.includes('public.audit_events'), 'Every mutation must be audited');
+assert(sql.includes("'bookings_changed',false") && sql.includes("'parts_changed',false") && sql.includes("'completion_changed',false"), 'Line edits must not imply booking, Parts or completion changes');
+assert(sql.includes("source_kind in ('source','display','manual')"), 'Immutable source evidence must be represented by overlays, not rewritten');
+assert(sql.includes("'line_adjustments'"), 'Vehicle detail RPC must return persisted line overlays');
+assert(sql.includes("perform public.require_pdc_role('viewer')"), 'Viewer must retain read-only detail access');
+assert(!/update\s+public\.pdc_authenticated_email_operation_lines/i.test(sql), 'Imported operation evidence must remain immutable');
+assert(!/insert\s+into\s+public\.workshop_bookings|update\s+public\.workshop_bookings/i.test(sql), 'Line editing must not create or alter bookings');
+assert(!/update\s+public\.vehicle_parts_updates|insert\s+into\s+public\.vehicle_parts_updates/i.test(sql), 'Line editing must not alter Parts');
+assert(!/update\s+public\.vehicle_work_items|insert\s+into\s+public\.vehicle_work_items/i.test(sql), 'Line editing must not reopen or complete work');
+assert(conflictSql.includes("'stale_line_version'") && conflictSql.includes("'stale_vehicle_version'"), 'Optimistic conflicts need canonical immediate JSON responses');
+assert(!conflictSql.includes("errcode='40001'") && !conflictSql.includes('errcode = \'40001\''), 'Line conflicts must not use retryable SQLSTATE 40001');
+assert(conflictSql.includes('operationalSignaturesUnchanged'.toLowerCase()) === false, 'Migration SQL must not embed tooling-only claims');
+
+assert(app.includes('data-vehicle-workshop-line-add') && app.includes('data-vehicle-workshop-line-edit'), 'Operator UI must expose add and edit controls');
+assert(app.includes('data-vehicle-workshop-line-delete'), 'Manual lines must expose remove control');
+assert(app.includes('upsert_vehicle_workshop_line_adjustment') && app.includes('delete_vehicle_workshop_line_adjustment'), 'UI must mutate only through authoritative RPCs');
+assert(app.includes('vehicleWorkshopCanEditLines') && app.includes("['operator', 'administrator']"), 'Viewer UI must remain read-only');
+assert(app.includes('line_adjustments') && app.includes('adjustmentVersion'), 'UI must render persisted overlays with versions');
+assert(app.includes('quarter-hour increments') && app.includes('Math.round(numericHours * 4)'), 'Hours must be validated in quarter-hour increments');
+assert(css.includes('.vehicle-workshop-line-add') && css.includes('.vehicle-workshop-line-actions'), 'Editable controls need compact responsive styling');
+console.log('PASS vehicle Workshop line adjustments 101 contract');

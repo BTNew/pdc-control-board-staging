@@ -12213,7 +12213,7 @@ select[name="pdcLocation"]:focus,
 .vehicle-workshop-warning span { font-size: .78rem; }
 .vehicle-workshop-stations { display: grid; gap: 12px; }
 .vehicle-workshop-station { overflow: hidden; border: 1px solid color-mix(in srgb, var(--station-colour) 28%, #dbe3ec); border-left: 6px solid var(--station-colour); border-radius: 11px; background: #fff; box-shadow: 0 2px 8px rgba(15,23,42,.05); }
-.vehicle-workshop-station > header { display: grid; grid-template-columns: 34px minmax(130px, 1fr) auto auto; align-items: center; gap: 10px; min-height: 55px; padding: 9px 12px; border-bottom: 1px solid color-mix(in srgb, var(--station-colour) 18%, #e2e8f0); background: var(--station-tint); }
+.vehicle-workshop-station > header { display: grid; grid-template-columns: 34px minmax(130px, 1fr) auto auto auto; align-items: center; gap: 10px; min-height: 55px; padding: 9px 12px; border-bottom: 1px solid color-mix(in srgb, var(--station-colour) 18%, #e2e8f0); background: var(--station-tint); }
 .vehicle-workshop-station-code { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 50%; background: var(--station-colour); color: #fff; font-size: .65rem; font-weight: 950; }
 .vehicle-workshop-station h3 { margin: 0; color: #0f172a; font-size: .9rem; }
 .vehicle-workshop-station header p { margin: 2px 0 0; color: #64748b; font-size: .7rem; }
@@ -12221,6 +12221,12 @@ select[name="pdcLocation"]:focus,
 .vehicle-workshop-station-status.is-required { background: #fee2e2; color: #991b1b; }
 .vehicle-workshop-station-status.is-complete { background: #dcfce7; color: #166534; }
 .vehicle-workshop-station-total { border: 1px solid color-mix(in srgb, var(--station-colour) 35%, #cbd5e1); background: #fff; color: #334155; }
+.vehicle-workshop-line-add { min-height: 27px; padding: 4px 9px; border: 1px solid color-mix(in srgb, var(--station-colour) 45%, #cbd5e1); border-radius: 7px; background: #fff; color: var(--station-colour); box-shadow: none; font-size: .68rem; font-weight: 900; white-space: nowrap; }
+.vehicle-workshop-line-add:hover { border-color: var(--station-colour); background: var(--station-tint); }
+.vehicle-workshop-line-actions { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 3px; }
+.vehicle-workshop-line-actions button { min-height: 24px; padding: 3px 7px; border: 1px solid #cbd5e1; border-radius: 6px; background: #fff; color: #334155; box-shadow: none; font-size: .64rem; font-weight: 850; }
+.vehicle-workshop-line-actions button:hover { border-color: var(--station-colour); color: var(--station-colour); }
+.vehicle-workshop-line-actions button.is-danger { border-color: #fecaca; color: #b91c1c; }
 .vehicle-workshop-lines { display: grid; }
 .vehicle-workshop-line { display: grid; grid-template-columns: 24px minmax(220px, 1.5fr) minmax(110px, .45fr) minmax(300px, 1.4fr); align-items: stretch; min-width: 0; border-bottom: 1px solid #e8edf2; }
 .vehicle-workshop-line:last-child { border-bottom: 0; }
@@ -12250,6 +12256,8 @@ select[name="pdcLocation"]:focus,
   .vehicle-workshop-page { padding: 12px; }
   .vehicle-workshop-warning { align-items: flex-start; flex-direction: column; }
   .vehicle-workshop-station > header { grid-template-columns: 34px minmax(0, 1fr) auto; }
+  .vehicle-workshop-line-add { grid-column: 2; justify-self: start; }
+  .vehicle-workshop-station-status { grid-column: 3; grid-row: 1; }
   .vehicle-workshop-station-total { grid-column: 2 / -1; justify-self: start; }
   .vehicle-workshop-line { grid-template-columns: 24px minmax(0, 1fr); }
   .vehicle-workshop-line > span { grid-column: 2; border-right: 0; }
