@@ -4,7 +4,7 @@ const fs = require('fs');
 const path = require('path');
 
 global.cleanNavisionText = value => String(value || '').trim();
-global.vehiclePdcLocation = vehicle => vehicle.pdcLocation || vehicle.manualLocation || '';
+global.vehiclePdcLocation = vehicle => ['YH', 'PMB'].includes(String(vehicle.pdcLocation || '').toUpperCase()) ? vehicle.pdcLocation : '';
 global.statusCategory = vehicle => String(vehicle.pdcLocation || '').toUpperCase() === 'PMB' ? 'pmb' : 'other';
 global.kewdaleEtaValue = vehicle => vehicle.kewdaleEta || '';
 global.parseDateAU = value => {

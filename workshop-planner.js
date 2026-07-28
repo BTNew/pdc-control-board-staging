@@ -2596,11 +2596,11 @@ function workshopRefreshDedicatedDate(dateKey = '') {
 }
 
 function workshopVehiclePlanningLocation(vehicle = {}) {
-  const raw = typeof vehiclePdcLocation === 'function'
-    ? vehiclePdcLocation(vehicle)
-    : (vehicle.pdcLocation || vehicle.manualLocation || '');
-  const normalized = cleanNavisionText(raw || '').toUpperCase();
-  if (normalized === 'YH' || normalized === 'IT') return normalized;
+  const direct = vehicle.pdcLocation || vehicle.currentLocation || vehicle.current_location || vehicle.manualLocation || '';
+  const projected = typeof vehiclePdcLocation === 'function' ? vehiclePdcLocation(vehicle) : '';
+  const normalized = cleanNavisionText(direct || projected || '').toUpperCase();
+  if (normalized === 'YH' || normalized.includes('YARD HOLD')) return 'YH';
+  if (normalized === 'IT' || normalized.includes('IN TRANSIT')) return 'IT';
   return statusCategory(vehicle) === 'pmb' || normalized === 'PMB' ? 'PMB' : normalized;
 }
 
