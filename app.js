@@ -1,5 +1,5 @@
-const APP_VERSION = '2026.07.28.49-eta-best-slot-kewdale';
-const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.07.28.49-eta-best-slot-kewdale';
+const APP_VERSION = '2026.07.29.01-vehicle-card-pmb-stations';
+const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.07.29.01-vehicle-card-pmb-stations';
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
 // constant intentionally names only the production ref, never the
@@ -147,7 +147,7 @@ function workshopEligibilityHarnessFallback() {
     ['FABRICATION', 'Fab', 'fabrication', 'planner-fab', 'workshop/fab', true],
     ['ELECTRICAL', 'Elec', 'electrical', 'planner-elec', 'workshop/elec', true],
     ['TYRE', 'Tyre', 'tyre', 'planner-tyre', 'workshop/tyre', true],
-    ['PIT_INSPECTION', 'Pit', 'pitInspection', '', '', false],
+    ['PIT_INSPECTION', 'Pit', 'pitInspection', 'planner-pit', 'workshop/pit', true],
     ['SUBLET', 'Sublet', 'sublet', '', '', false],
   ];
   const stationDefinitions = tuples.map(([code, label, jobKey, route, path, plannerEnabled]) => ({ code, label, jobKey, route, path, plannerEnabled }));
@@ -166,7 +166,6 @@ const WORKSHOP_CANONICAL_STATION_DEFS = WORKSHOP_ELIGIBILITY.stationDefinitions;
 const PMB_STAGE_OPTIONS = [
   { value: '', label: 'UNALLOCATED' },
   ...WORKSHOP_CANONICAL_STATION_DEFS
-    .filter(def => def.code !== 'PIT_INSPECTION')
     .map(def => ({ value: def.code, label: def.label })),
 ];
 
@@ -187,6 +186,7 @@ const PMB_WIP_LIMITS = {
   FABRICATION: 13,
   ELECTRICAL: 10,
   TYRE: 2,
+  PIT_INSPECTION: 1,
   SUBLET: 12,
 };
 
@@ -198,6 +198,7 @@ const PMB_STAGE_BAY_COUNTS = {
   FABRICATION: 13,
   ELECTRICAL: 10,
   TYRE: 2,
+  PIT_INSPECTION: 1,
 };
 
 const PMB_STAGE_CAPACITY_LABELS = {
@@ -216,6 +217,7 @@ const PMB_STAGE_AGE_LIMITS = {
   FABRICATION: 4,
   ELECTRICAL: 2,
   TYRE: 2,
+  PIT_INSPECTION: 1,
 };
 
 const PMB_BAY_MAX_COUNT = 13;
@@ -228,6 +230,7 @@ const PRODUCTION_FLOW_DEFS = [
   { key: 'FABRICATION', label: 'Fab', short: 'Fa', jobKey: 'fabrication', stage: 'FABRICATION', search: /\b(fab|fabricat|tray|canopy|body builder|bodybuilder|steel tray|aluminium tray|tub body|bullbar|bar work)\b/i },
   { key: 'ELECTRICAL', label: 'Elec', short: 'E', jobKey: 'electrical', stage: 'ELECTRICAL', search: /\b(electrical|auto electrical|auto-elec|12v|dual battery|battery system|uhf|spotlight|light bar|beacon|compressor|anderson|redarc|brake controller|dc dc|dcdc|dash cam|camera|reverse camera|power outlet|usb)\b/i },
   { key: 'TYRE', label: 'Tyre', short: 'Ty', jobKey: 'tyre', stage: 'TYRE', search: /\b(tyre|tire|wheel|wheels|alloy|rotation|balance|alignment)\b/i },
+  { key: 'PIT_INSPECTION', label: 'Pit', short: 'PI', jobKey: 'pitInspection', stage: 'PIT_INSPECTION', search: /\b(pit inspection|pit and weigh|inspection)\b/i },
 ];
 const PRODUCTION_DEPARTMENT_VIEWS = {
   'dept-bus-4x4': 'BUS_4X4',
@@ -237,6 +240,7 @@ const PRODUCTION_DEPARTMENT_VIEWS = {
   'dept-fabrication': 'FABRICATION',
   'dept-electrical': 'ELECTRICAL',
   'dept-tyre': 'TYRE',
+  'dept-pit-inspection': 'PIT_INSPECTION',
 };
 const WORKSHOP_STATION_ROUTE_DEFS = Object.freeze(WORKSHOP_ELIGIBILITY.workshopPlannerStationDefinitions().map(def => ({
   view: def.route,
@@ -257,6 +261,7 @@ const PDC_JOB_DEFS = [
   { key: 'fabrication', label: 'FAB', short: 'Fa', requireKey: 'pdcRequiresFabrication', completeKey: 'pdcCompleteFabrication', completeAtKey: 'pdcCompleteFabricationAt', completeByKey: 'pdcCompleteFabricationBy' },
   { key: 'electrical', label: 'ELEC', short: 'E', requireKey: 'pdcRequiresElectrical', completeKey: 'pdcCompleteElectrical', completeAtKey: 'pdcCompleteElectricalAt', completeByKey: 'pdcCompleteElectricalBy' },
   { key: 'tyre', label: 'TYRE', short: 'Ty', requireKey: 'pdcRequiresTyre', completeKey: 'pdcCompleteTyre', completeAtKey: 'pdcCompleteTyreAt', completeByKey: 'pdcCompleteTyreBy' },
+  { key: 'pitInspection', label: 'PIT', short: 'PI', requireKey: 'pdcRequiresPitInspection', completeKey: 'pdcCompletePitInspection', completeAtKey: 'pdcCompletePitInspectionAt', completeByKey: 'pdcCompletePitInspectionBy' },
   { key: 'sublet', label: 'SUBLET', short: 'S', requireKey: 'pdcRequiresSublet', completeKey: 'pdcCompleteSublet', completeAtKey: 'pdcCompleteSubletAt', completeByKey: 'pdcCompleteSubletBy' },
   { key: 'parts', label: 'PARTS', short: 'P', requireKey: 'pdcRequiresParts', completeKey: 'pdcCompleteParts', completeAtKey: 'pdcCompletePartsAt', completeByKey: 'pdcCompletePartsBy' },
 ];
@@ -290,7 +295,7 @@ function pdcJobTriStateControl(vehicle = {}, def = {}, locked = false) {
 const PDC_JOB_BY_REQUIRE_KEY = new Map(PDC_JOB_DEFS.map(def => [def.requireKey, def]));
 const PDC_JOB_BY_COMPLETE_KEY = new Map(PDC_JOB_DEFS.map(def => [def.completeKey, def]));
 const PDC_JOB_BY_KEY = new Map(PDC_JOB_DEFS.map(def => [def.key, def]));
-const PDC_IMPORT_CONTROL_COLUMNS_TEXT = 'BUS 4X4, TINT, HOIST, FITTING, FABRICATION, ELECTRICAL, TYRE, SUBLET, PARTS';
+const PDC_IMPORT_CONTROL_COLUMNS_TEXT = 'BUS 4X4, TINT, HOIST, FITTING, FABRICATION, ELECTRICAL, TYRE, PIT, SUBLET, PARTS';
 
 function currentPdcJobLabelsText() {
   return PDC_JOB_DEFS.map(def => def.label).join(', ');
@@ -391,8 +396,7 @@ function inferredPmbStage(vehicle = {}) {
   // Only a manually assigned PMB work stream should place a vehicle into
   // Required work ticks do not allocate vehicles into productive workshop stations.
   // Required work ticks do not allocate the vehicle into a production bucket.
-  const stage = normalizePmbStage(vehicle.pmbStage || '');
-  return stage === 'PIT_INSPECTION' ? '' : stage;
+  return normalizePmbStage(vehicle.pmbStage || '');
 }
 
 function pmbStageBadge(vehicle = {}) {
@@ -2157,8 +2161,6 @@ function navisionStatusText(vehicleOrStatus = '') {
 
 function vehiclePdcLocation(vehicle = {}) {
   const explicit = normalizePdcLocation(vehicle.pdcLocation || vehicle.pdcStatus || vehicle.manualLocation || '');
-  const legacyPitStage = normalizePmbStage(vehicle.pmbStage || vehicle.pdcWorkStage || vehicle.workStage || '') === 'PIT_INSPECTION';
-  if (legacyPitStage && (!explicit || explicit === 'PMB')) return 'PIT';
   return explicit;
 }
 
@@ -10479,6 +10481,7 @@ function vehicleWorkshopGroups(vehicle = {}, detail = null) {
   const groups = new Map();
   requirements.filter(item => item?.required === true).forEach(item => {
     const stage = vehicleWorkshopStageCode(item.stage_code || item.work_key || '');
+    if (!WORKSHOP_PLANNER_ROUTE_BY_STAGE[stage]) return;
     if (!groups.has(stage)) groups.set(stage, { stage, requirements: [], lines: [], bookings: vehicleWorkshopBookingsForStage(bookings, stage) });
     groups.get(stage).requirements.push(item);
   });
@@ -15442,7 +15445,7 @@ function buildExplicitPdcUpdatesFromImport(row, headerMap) {
     ['pdcRequiresFabrication', ['FABRICATION', 'Fabrication', 'FAB', 'Fab', 'Requires Fabrication', 'Fabrication Required']],
     ['pdcRequiresElectrical', ['ELECTRICAL', 'Electrical', 'Auto Electrical', 'Auto-Electrical', 'Requires Electrical', 'Electrical Required']],
     ['pdcRequiresTyre', ['TYRE', 'Tyre', 'Tire', 'Wheel', 'Requires Tyre', 'Tyre Required']],
-
+    ['pdcRequiresPitInspection', ['PIT INSPECTION', 'Pit Inspection', 'PIT', 'Requires Pit Inspection', 'Pit Inspection Required']],
     ['pdcRequiresParts', ['PARTS', 'Parts', 'Requires Parts', 'Parts Required', 'Parts Needed', 'Parts To Order']],
     ['pdcCompleteTint', ['Tint Complete', 'Tint Completed', 'Tint Done', 'TINT DONE']],
     ['pdcCompleteHoist', ['Hoist Complete', 'Hoist Completed', 'Hoist Done', 'HOIST DONE']],
@@ -15450,7 +15453,7 @@ function buildExplicitPdcUpdatesFromImport(row, headerMap) {
     ['pdcCompleteFabrication', ['Fabrication Complete', 'Fabrication Completed', 'Fabrication Done', 'Fab Complete', 'FAB DONE']],
     ['pdcCompleteElectrical', ['Electrical Complete', 'Electrical Completed', 'Electrical Done', 'ELECTRICAL DONE']],
     ['pdcCompleteTyre', ['Tyre Complete', 'Tyre Completed', 'Tyre Done', 'Tire Complete', 'TYRE DONE']],
-
+    ['pdcCompletePitInspection', ['Pit Inspection Complete', 'Pit Inspection Completed', 'Pit Inspection Done', 'PIT DONE']],
     ['pdcCompleteParts', ['Parts Complete', 'Parts Completed', 'Parts Done', 'PARTS DONE', 'Parts Issued', 'Parts Received']],
     ['pdcBlocked', ['Blocked', 'PDC Blocked', 'Problem Vehicle']],
   ];

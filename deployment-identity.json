@@ -7,10 +7,10 @@
   },
   "artifact": "zero-data static staging site",
   "backendOnlyMigrationSourceCommit": "ee61339fb239203cb96901a9eb8cbdd050d12f25",
-  "cacheVersion": "2026.07.28.49-eta-best-slot-kewdale",
+  "cacheVersion": "2026.07.29.01-vehicle-card-pmb-stations",
   "deploymentMode": "exact reviewed source blobs; staging.html mapped to index.html",
   "environment": "staging",
-  "generatedAtUtc": "2026-07-28T12:41:42Z",
+  "generatedAtUtc": "2026-07-28T22:51:06.224163Z",
   "humanAiIntake": {
     "approvalGate": "Administrator decision remains server-validated; missing summaries disable Approve while Deny remains available.",
     "summary": "Prominent escaped email summary plus explicit Approve/Deny effects; each email is now a distinct white card separated by an 18px dark-grey gutter (12px on mobile)."
@@ -69,7 +69,7 @@
   },
   "pendingStagingMigrations": [],
   "releaseChecks": {
-    "aggregateTests": "PASS — 116 passed, 0 failed, 1 intentional skip.",
+    "aggregateTests": "PASS \u2014 121 passed, 0 failed, 1 intentional skip.",
     "aiIntakeCardSeparation": "PASS \u2014 two-card browser proof computed #374151 background, 18px gap, 16px padding and two white cards; mobile override uses a 12px gap and 10px padding.",
     "aiReviewDecisionContext": true,
     "aiReviewOverlayVersion": "2026.07.28.20-ai-review-card-separation",
@@ -78,9 +78,10 @@
     "browserPredeploy": "PASS \u2014 Administrator, Controller and Viewer each rendered 3 canonical required station cards, 3 described work lines, 3 unique station colours and 1 real booking link; exact Fitting booking deep-link selected the correct planner date and booking. Zero dialogs, console errors, HTTP errors or production requests.",
     "controlBoardPipeline": "PASS \u2014 the redundant description column is removed, the pipeline occupies the full middle width, and a fixed 16px gap separates it from the Planner button. Existing authoritative metrics are unchanged.",
     "databasePostApply": "PASS \u2014 12238276, 12535460, 12705647 and 13001563 are active canonical PMB vehicles. 12660298 is canonical Completed, hidden from the active board, with an audited Delivered - At Dealer completion.",
+    "etaAwareBestSlot": "PASS \u2014 IT candidates parse canonical ETA to Kewdale from ISO or Australian date inputs; Best slot searches active bays from ETA plus seven calendar days and uses the first authoritative available work slot on or after that boundary. Manual Schedule retains the existing ETA boundary; invalid ETA fails closed; 116 tests passed with zero failures and one intentional skip.",
     "humanAiIntake": "Received, What happened, Car and What changed are shown in plain language; activated, modified, unchanged and review-needed outcomes are distinct; field changes render previous value to new value; technical receipt data is collapsed",
     "humanNavisionResults": "An administrator can establish the first empty dealer scope only for one exact full snapshot of at least 100 valid rows. Approval is content-bound, user-bound and expires after two hours. Cross-dealer, invalid, duplicate, stale and changed snapshots remain fail-closed. Later strongly matched refresh omissions continue to enter reversible temporary holding.",
-    "literalArtifact": "35/35 deployed Git blobs match source commit 1d903dbee75c1da5f57d18672dbd9269714bef90",
+    "literalArtifact": "35/35 deployed Git blobs match source commit b8815b6b788a451f619b6be6766318f17270b05a",
     "migration087": "PASS \u2014 rollback syntax/probe and permanent post-apply checks; BUS_4X4 eligible paths reach parts_incomplete, blocked Hoist direct/cascade paths return location_ineligible, gate helper has no anon/authenticated EXECUTE privilege, and no probe writes were committed. Pre-migration function backup SHA-256 baf586a7b74df4a60217414b50eaf323cc207fd6a3466b9220a0b4867ec023ad.",
     "migration088": "PASS \u2014 dry-run syntax and Viewer payload probe, permanent staging-only apply, anon EXECUTE revoked, authenticated EXECUTE granted, protected vehicle/work-item/booking counts unchanged, and zero production access.",
     "migration089": "PASS \u2014 guarded rollback dry-run, permanent staging-only apply and rollback trigger probes. Missing ETA writes fail to Other; authoritative dated writes remain IT; parser and enforcement trigger are unavailable to anon; zero production access.",
@@ -88,10 +89,7 @@
     "migration091": "PASS \u2014 guarded rollback dry-run and permanent staging apply. Parts mutation, stale-version refusal, PMB/IT candidate scope, IT ETA and before-ETA refusal verified; zero production access.",
     "migration092": "PASS \u2014 guarded rollback dry-run and permanent staging apply. Administrator, Controller and Viewer each read email/Navision provenance and 10 authoritative history events; authenticated EXECUTE only; zero production access.",
     "migration093": "PASS \u2014 rollback dry-run and atomic permanent staging apply with ledger receipt; protected vehicle/work/completion/booking/email-receipt counts unchanged; direct table grants absent; zero production access.",
-    "migration096": "PASS — guarded rollback dry-run and permanent staging apply. Unique Stock 12708286 selected one current Navision row despite conflicting PDF identity; canonical Navision fields, additive required work, Parts, audit and idempotent receipt verified; no booking created; authenticated EXECUTE only; zero production access.",
-    "workshopAuthority100": "PASS — Controller Best slot created stock 12664966 in active Fab Bay 02 through the deployed browser and was audit-cleaned; Administrator create/cancel passed; stale vehicle version was rejected; Parts overrides were unchanged; migration 100 preserved the administrator-only physical Start gate; zero production access.",
-    "vehicleWorkshopLineEditing102": "PASS — Controller and Administrator each added, persisted, edited and removed an audited Vehicle Detail Workshop line for stock 12611773; 0.25-hour increments, line-version concurrency and completed-stage denial are server enforced; stale edits were rejected immediately; bookings, Parts, work completion and imported operation evidence signatures were unchanged; zero production access.",
-    "etaAwareBestSlot": "PASS — IT candidates parse canonical ETA to Kewdale from ISO or Australian date inputs; Best slot searches active bays from ETA plus seven calendar days and uses the first authoritative available work slot on or after that boundary. Manual Schedule retains the existing ETA boundary; invalid ETA fails closed; 116 tests passed with zero failures and one intentional skip.",
+    "migration096": "PASS \u2014 guarded rollback dry-run and permanent staging apply. Unique Stock 12708286 selected one current Navision row despite conflicting PDF identity; canonical Navision fields, additive required work, Parts, audit and idempotent receipt verified; no booking created; authenticated EXECUTE only; zero production access.",
     "mixedDealerNavision": "A report containing both approved dealers is scoped server-side to the selected dealer only when every row carries known original Dealer evidence and the selected scope has at least 100 rows. Preview and Apply use identical filtering; other-dealer rows are reported and ignored, never imported into the selected scope.",
     "navisionFullReconciliationTimeout": "PASS \u2014 reproduced SQLSTATE 57014 with a complete 663-row source-evidence payload at the former 8-second API bound. The same atomic preview/apply completed in 5.969/13.875 seconds under the new 30-second signed-in staging bound and was rolled back. A separate authenticated HTTP 10-second probe returned 200; the probe function was then removed.",
     "navisionOperationalLocationCompletion": "PASS \u2014 canonical shared state drives Vehicle Locations and Completed Vehicles; ordinary reconciliation preserves PMB/PIT/QC/RFT/Completed workflow progress; At Dealer with open required work stays active for review.",
@@ -101,7 +99,7 @@
     "pilbaraNavision": "Cross-scope Batch overlap no longer blocks a substantial Pilbara extract when every valid source row's original Dealer column explicitly declares 14450. Mixed, missing or contrary Dealer evidence remains blocked; hard deletion is disabled and the browser's selected option alone is not trusted.",
     "plannerAuthoritativeCandidateGate": "PASS \u2014 blocked Hoist cards are non-draggable, show Scheduling unavailable plus the exact visible authority reason, and no longer offer Best slot. Direct and cascade RPCs both return structured location_ineligible before Parts handling; canonical HTTP trigger errors are decoded without a false stale-version diagnosis.",
     "plannerSearchTyping": "PASS \u2014 debounced planner searches update their result list in place instead of replacing the focused input. Slow ten-character browser typing retains the full value, focus and caret.",
-    "production": "Untouched; staging-only unique-Stock Navision authority and authenticated email work import.",
+    "production": "Untouched; zero-data static staging publication only.",
     "salespersonEmailDefaults": "PASS \u2014 the supplied salesperson identities and addresses are in the shared staging directory. FO resolves explicitly to Stephen Peck/SP because both supplied rows use the same unique address; future exact vehicle references receive the shared salesperson ID without overwriting explicit assignments.",
     "screenshotRows": "PASS \u2014 stocks 13044227, 13047383 and 13047384 are canonically Other with null ETA; browser fallback can no longer override that authority from raw production status text.",
     "sidebarInformationCleanup": "PASS \u2014 Source Data and Operational Health cards are absent from every sidebar template; navigation and internal health tracking remain intact.",
@@ -111,39 +109,41 @@
     "toyotaNavisionItEta": "PASS \u2014 transit-status Toyota Navision rows classify as IT only with a parsed authoritative Kewdale ETA. Missing/invalid ETA classifies as Other; a later Navision ETA update restores IT automatically. Migration 089 reduced canonical IT-without-ETA from 10 to 0, audited 12 backfill rows, and left PMB/PIT/QC/RFT/Completed workflow rows byte-for-byte unchanged.",
     "uiCleanup": "Control Board current-time line appears only for today and QC is removed from its station list. All-green PMB vehicles require explicit Ready for QC confirmation and move authoritatively to the Vehicle Locations QC Gate. Named QC sign-off moves to RFT and prints a dedicated windscreen label. Parts removes Outstanding station work, persists and refreshes ETA countdowns, and uses the shared Vehicle Locations row height.",
     "vehicleDetailProvenance": "PASS \u2014 redundant metrics panel removed; 9 Required Work cells render at uniform 40px height; import method/source and detailed history render for all three roles with zero browser/HTTP errors.",
-    "vehicleDetailWorkBookings": "PASS \u2014 Vehicle Detail opens on Vehicle details and provides a top-right Work & bookings tab. Every canonical required station is colour coded and shows line description, estimated hours, booking date/time/bay or an explicit Not booked state. Selecting a booking opens the exact station planner, date and booking selection.",
+    "vehicleDetailWorkBookings": "PASS \u2014 Vehicle Detail Work & bookings now renders required PMB planner stations only. Parts and Sublet remain authoritative in their dedicated workflows but are excluded from this work card. A behavioral regression proved Electrical remains while Parts and Sublet are omitted.",
+    "vehicleWorkshopLineEditing102": "PASS \u2014 Controller and Administrator each added, persisted, edited and removed an audited Vehicle Detail Workshop line for stock 12611773; 0.25-hour increments, line-version concurrency and completed-stage denial are server enforced; stale edits were rejected immediately; bookings, Parts, work completion and imported operation evidence signatures were unchanged; zero production access.",
     "viewerReadOnly": "PASS \u2014 repaired the dedicated staging Viewer credential and changed only authoritative read-snapshot RPCs to accept Viewer. Administrator, Controller and Viewer smoke tests completed without page, console or HTTP errors; mutation authority is unchanged.",
+    "workshopAuthority100": "PASS \u2014 Controller Best slot created stock 12664966 in active Fab Bay 02 through the deployed browser and was audit-cleaned; Administrator create/cancel passed; stale vehicle version was rejected; Parts overrides were unchanged; migration 100 preserved the administrator-only physical Start gate; zero production access.",
     "workshopCustomer": "PASS \u2014 authoritative customer_name is present in both Workshop overview and station planner rows; vehicle/customer columns are separate and non-overlapping.",
     "workshopPartsGate": "Future planning does not claim or reserve Parts. Immediate physical Start fails closed for Parts-incomplete vehicles; only an administrator-supplied reason can create the audited entry override."
   },
   "releaseVerification": {
-    "aggregateTests": "111 passed, 1 intentional skip, 1 unchanged baseline planner-role guard failure reproduced on the pre-change source.",
+    "aggregateTests": "121 passed, 0 failed, 1 intentional skip.",
     "authenticatedOperationSnapshot": "PASS \u2014 enrolled Viewer snapshot returns 12 operation lines in deterministic OP order after migration 097; exact vehicle has zero workshop bookings.",
     "authenticatedOperationVehicleDetail": "PASS \u2014 Stock 13056899 maps 12 distinct typed operation rows (OP2\u2013OP13) into Tint, Fitting, Electrical, Tyre and Parts detail sections; Sublet remains only the preserved prior coarse requirement.",
-    "focusedTests": "PASS \u2014 version consistency, mapping, vehicle detail, lookup safety, migration 096/097, parser and operation safety contracts.",
+    "focusedTests": "PASS \u2014 vehicle lookup/work-card behavior, vehicle-detail contract, lifecycle cache parity, release version consistency, JavaScript syntax and whitespace checks.",
     "production": "UNCHANGED \u2014 no production branch, database, deployment or configuration write."
   },
-  "sourceBranch": "integration/staging-parts-workshop-ai-20260728",
-  "sourceCommit": "ee61339fb239203cb96901a9eb8cbdd050d12f25",
+  "sourceBranch": "qa/workshop-bulletproof-20260728",
+  "sourceCommit": "b8815b6b788a451f619b6be6766318f17270b05a",
   "sourceFiles": [
     {
       "deployedPath": "ai-board-advisor.js",
-      "sha256": "97785220d0b72527327955c39c02e276d33a2c1391f220f211b83996ece07c65",
+      "sha256": "a01dc581a417684c5a3377057bc70a57624bdaa3ad67c24b408eedfa86e0fc4e",
       "sourcePath": "ai-board-advisor.js"
     },
     {
       "deployedPath": "app.js",
-      "sha256": "3765cc2d2f29ceddab89804ff5568d89a373d9172406c82574aeacfeec5734bc",
+      "sha256": "3d608d181be557a07fec228f031559a9c13e03ebd449f677ff8b493c019be5c9",
       "sourcePath": "app.js"
     },
     {
       "deployedPath": "arb-labor-catalog.js",
-      "sha256": "1800e93b325bfd58d9b0131d2105f78b775885bd82e88ceed63d3ecf6100b9fe",
+      "sha256": "db99ee8c4ddf341ce3f948dc04fb70cbe6c66d122be1a262f7074552a2fa49c0",
       "sourcePath": "arb-labor-catalog.js"
     },
     {
       "deployedPath": "assets/brand-logo.svg",
-      "sha256": "7e3c9cb0b7e1f53b931f6cad274583f78a6be67ba554d6a45e57473f5ab611a0",
+      "sha256": "4bffc708627c0ee8de1a997aec6bf3aae7461fb779f2700f41fd47e6645dd28d",
       "sourcePath": "assets/brand-logo.svg"
     },
     {
@@ -153,72 +153,72 @@
     },
     {
       "deployedPath": "data-staging-empty.js",
-      "sha256": "2fa02a231e559b4230ba22ac1c6e1cfa600fcaad9f546f6fb3e2a28b2acab756",
+      "sha256": "d2a9ed658daa1cc5eabb45a78eeb5c7f93ef0146a12e7f8c23d0b028f915c7a9",
       "sourcePath": "data-staging-empty.js"
     },
     {
       "deployedPath": "desktop-operations.css",
-      "sha256": "d7c116ff17cfdb86d551e587e1362ca11db8327e2e8497ee49b5fb4dae2c2ec9",
+      "sha256": "f3179efdeeaf34ba76dfc10c56aa2c3c59498ee61e60c11e0032abb9d3b51616",
       "sourcePath": "desktop-operations.css"
     },
     {
       "deployedPath": "email-board-data.js",
-      "sha256": "c0cc888ec98ec64dd1710a75c7ea222d2c5a12993877ef4eebb3f66476e4093b",
+      "sha256": "3b55079afe708ae6842a6ddb61e19e912a8182cdc835a5d4102e4a5815dbace0",
       "sourcePath": "email-board-data.js"
     },
     {
       "deployedPath": "favicon.svg",
-      "sha256": "f1ce1b8f7a37c54801c2ee233c9e67bb2d852cb6ea8af942455d33d85aac046f",
+      "sha256": "f79b374447017a73a77012096c6d031ddb2ad6bf1b647d2efbfd465e6a5f32e6",
       "sourcePath": "favicon.svg"
     },
     {
       "deployedPath": "index.html",
-      "sha256": "ccda05c77eaf89b620c3d76ea25cb748f008674f092cd4c88e2b2c1761ac3c7c",
+      "sha256": "3ca62a5f33c73750494a053de4280f0a1c482948d04357c95cdac1100bd98af8",
       "sourcePath": "staging.html"
     },
     {
       "deployedPath": "key-list-review.js",
-      "sha256": "b0785e79071bd43c066ed3f20623e0a1a2c047bcedd9968cb815a0fe82b43ffe",
+      "sha256": "b6b42659b28b812fcf63b13a60faac8276e866442950f2e55197a8fec0aedf67",
       "sourcePath": "key-list-review.js"
     },
     {
       "deployedPath": "navision-backend-service.js",
-      "sha256": "febd7c9c4e3bd4ff4a5ef052e25e7030e1c07e03838ace711ce3376c7736596e",
+      "sha256": "04d6e34ec33f0a462948085290bd489792644ea51fed580b0a51003ddfa0d370",
       "sourcePath": "navision-backend-service.js"
     },
     {
       "deployedPath": "pdc-ai-intake-service.js",
-      "sha256": "78b0f0edcb7cfd8b895f4dd511d5f0c4b45e4fd5f412e044fb905b1e238615f8",
+      "sha256": "dc8fdb4ca33a236c98d6f9e38a15e0c2e32f7bfc2b8b27d31914a1e82bd89be5",
       "sourcePath": "pdc-ai-intake-service.js"
     },
     {
       "deployedPath": "pdc-auth-registration.js",
-      "sha256": "bc45f0a1ec5cfbdfb6ad05a8b499f4a4de2d98f6d150649de98790fae7bd615a",
+      "sha256": "13841fdf4408300d737b880cd4d676d2e49bdf4df65bd0f0c491db9e89da9dab",
       "sourcePath": "pdc-auth-registration.js"
     },
     {
       "deployedPath": "pdc-auth.js",
-      "sha256": "8c464adb0546ba5dddc5f4624fc0a66e007c3841879d0fa52b2f021fd5b3680e",
+      "sha256": "714f679310200f0dbfe232038179c48e8188d473159eddcfbde2ed76108f799b",
       "sourcePath": "pdc-auth.js"
     },
     {
       "deployedPath": "pdc-email-vehicle-location-service.js",
-      "sha256": "88e4ea7f714869d8ba274357439f2d93f1ebd667dae5930408c5cd936d5c865f",
+      "sha256": "f71eaf796a1acec422737e95ee1c0025118a79847375ff7292ea92ba6ac2c22d",
       "sourcePath": "pdc-email-vehicle-location-service.js"
     },
     {
       "deployedPath": "pdc-supabase-config.staging.js",
-      "sha256": "5adc9b958cff107f83537b33d7782434a640cce22e0f6155f0cf63ff3da63429",
+      "sha256": "214d2a7ab67d651ec71a685f20e3aa20a41c38acd07ae9404d1ba787258eb046",
       "sourcePath": "pdc-supabase-config.staging.js"
     },
     {
       "deployedPath": "scripts/stage2b_c4_browser_export.js",
-      "sha256": "afa142651d88f44f40c2e41159e6f37bddc2e0af3fe89408e969e9926fc83f07",
+      "sha256": "5dafeb35a33626fec47aeaa931d17f83f22e436a4f602cbae66914537ab90f18",
       "sourcePath": "scripts/stage2b_c4_browser_export.js"
     },
     {
       "deployedPath": "staging-browser-assessment.js",
-      "sha256": "054f380b889eb8ce7475378478cab6f0927f0a9d15202c4745193e0405dc170e",
+      "sha256": "29acbe12e27d787b12d75614086278ac54e2ffe04bb6dfd755b3cacc7077bded",
       "sourcePath": "staging-browser-assessment.js"
     },
     {
@@ -228,47 +228,47 @@
     },
     {
       "deployedPath": "vehicle-lifecycle-actions.js",
-      "sha256": "8ae434dcbeb402380228b281ae1824ac5a19c416d3917976c3fe36bf316705d8",
+      "sha256": "4effe3e909f6c7377ad2de3627bd7389f2328d2500a5d7647bc967a763c8cd5b",
       "sourcePath": "vehicle-lifecycle-actions.js"
     },
     {
       "deployedPath": "vendor/pdfjs/LICENSE",
-      "sha256": "eb3d7b5485466acbd81f2b496f595ab637d2792e268206b27d99e793bdb67549",
+      "sha256": "0d542e0c8804e39aa7f37eb00da5a762149dc682d7829451287e11b938e94594",
       "sourcePath": "vendor/pdfjs/LICENSE"
     },
     {
       "deployedPath": "vendor/pdfjs/pdf.min.js",
-      "sha256": "86791280654fb3403853a2e3a39212941fd1c4af0c7e3608ae8f85cead458be0",
+      "sha256": "5b5799e6f8c680663207ac5b42ee14eed2a406fa7af48f50c154f0c0b1566946",
       "sourcePath": "vendor/pdfjs/pdf.min.js"
     },
     {
       "deployedPath": "vendor/pdfjs/pdf.worker.min.js",
-      "sha256": "6195a19b81679dfb8fbd6c387aa37cf212c83f02628d768d142925fddc3d88fb",
+      "sha256": "feabdf309770ed24bba31a5467836cdc8cf639c705af27d52b585b041bb8527b",
       "sourcePath": "vendor/pdfjs/pdf.worker.min.js"
     },
     {
       "deployedPath": "vendor/qz/qz-tray.js",
-      "sha256": "2d8c0b7ab912e14a12dab4bf246be8e9555754053e6e12c556196bc8d946fdd1",
+      "sha256": "b0a0afde74511e5284195cc875bc862b1ea4233f6c6aecb3ad485430a56bf4a6",
       "sourcePath": "vendor/qz/qz-tray.js"
     },
     {
       "deployedPath": "vendor/supabase/supabase-2.110.5.js",
-      "sha256": "8c786ef59b285ab2a6710af2f89190ccf1201730651c5ce3bfaded7b1d61f090",
+      "sha256": "8e00fd587eb7c5148c977fa7c425316e8f9f168b3831100d8e2925a9807b5893",
       "sourcePath": "vendor/supabase/supabase-2.110.5.js"
     },
     {
       "deployedPath": "workshop-data-service.js",
-      "sha256": "a7efde0568e233f46c3e1dbdbb9f9c978995a9deb431e61d9d1add6c0ce6609d",
+      "sha256": "8c10298a9c9f36004d6c224b66482dd4db2995ee81f090b5036196627b59203e",
       "sourcePath": "workshop-data-service.js"
     },
     {
       "deployedPath": "workshop-eligibility.js",
-      "sha256": "932aad0a0fab48db321201e808f9751463372331c549864b3476143e76c665cb",
+      "sha256": "19ea6ba77817d3d9a34d2d6671bf2c6b2201588b0a6426b2802d938b9c93c31e",
       "sourcePath": "workshop-eligibility.js"
     },
     {
       "deployedPath": "workshop-planner.css",
-      "sha256": "b91d9d490378c4aa52c26f39a195339f019c24be7d53b6c5d05781aec99ed10a",
+      "sha256": "bbadf1607e4af9b1126ba4c0cdb75edcde0862d5fb0a8466f831e6352dfff555",
       "sourcePath": "workshop-planner.css"
     },
     {
@@ -278,29 +278,29 @@
     },
     {
       "deployedPath": "workshop-realtime.js",
-      "sha256": "42743226062ef0bd6ad5bfb3fbf5353b7c13c487e5610cfa18044b7eea63b9bd",
+      "sha256": "484c0a4ebc6e823fbca6eaf7f6c3fe4e563902abfbd3959221d21c19f45c0361",
       "sourcePath": "workshop-realtime.js"
     },
     {
       "deployedPath": "workshop-reference-data-service.js",
-      "sha256": "1931dfe83844d13de8d48a17e2b481a7727b511632d01d70a95d7702db7782ef",
+      "sha256": "ebe98f65a5cea69a42fdad77535f9bcdbf0f61c4013c34e7e7be34866b2682fe",
       "sourcePath": "workshop-reference-data-service.js"
     },
     {
       "deployedPath": "workshop-shared-actions.js",
-      "sha256": "e3fda614b8d948dc5d8c5d0b5c01acb991ac5d2e094e03e9d48edabb05b1b7e1",
+      "sha256": "75b979a4d0edf73584bb35f5b42ce55869e215eebf5e7d3169416fcb50ff9081",
       "sourcePath": "workshop-shared-actions.js"
     },
     {
       "deployedPath": "pdc-ai-intake-review.css",
-      "sha256": "7356f938d8437d5801c43b13a0af57a8deaf032a83a51c165f6261889703dda7",
+      "sha256": "cc5f0c4039e8e10bcace3cab4ffe73b39cc725e8c3582bf28dbbb54bd9fd5064",
       "sourcePath": "pdc-ai-intake-review.css"
     },
     {
       "deployedPath": "pdc-ai-intake-review.js",
-      "sha256": "aa723c0ea59fd97fb5d6e3b58c3d31498453e34a284799a66f98e6008559da25",
+      "sha256": "575ea073661ea77830c249e6b64e86f9b4fae50708a3609dd1f18653a55e7c04",
       "sourcePath": "pdc-ai-intake-review.js"
     }
   ],
-  "sourceTree": "94b68e14e48771b3821e1e30241bd42395841445"
+  "sourceTree": "a8f74d6deacb4a325bf8f8ad930330ad9042afe9"
 }
