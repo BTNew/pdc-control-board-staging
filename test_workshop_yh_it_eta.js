@@ -44,7 +44,15 @@ assert.strictEqual(yhBlank.ok, true, 'Blank YH ETA must remain schedulable');
 assert.strictEqual(yhBlank.required, false);
 
 const exactEta = planner.workshopEtaScheduleValidation(it, new Date(2026, 6, 22, 8, 0));
-assert.strictEqual(exactEta.ok, true, 'IT booking on ETA date must be allowed');
+assert.strictEqual(exactEta.ok, true, 'IT booking on ETA date must remain available through the manual Schedule action');
+assert.strictEqual(exactEta.bestSlotEarliestDateKey, '2026-07-29', 'Best slot must start its availability search seven calendar days after ETA');
+const isoEta = planner.workshopVehicleEtaConstraint({ ...it, kewdaleEta: '', eta_to_kewdale: '2026-08-05' });
+assert.strictEqual(isoEta.ok, true, 'Canonical ISO ETA from the shared workshop snapshot must be accepted');
+assert.strictEqual(isoEta.earliestDateKey, '2026-08-05');
+assert.strictEqual(isoEta.bestSlotEarliestDateKey, '2026-08-12', 'Canonical ISO ETA must produce the requested ETA-plus-seven-day Best slot boundary');
+const invalidIsoEta = planner.workshopVehicleEtaConstraint({ ...it, kewdaleEta: '', eta_to_kewdale: '2026-02-31' });
+assert.strictEqual(invalidIsoEta.ok, false, 'Malformed canonical ISO ETA must fail closed');
+assert.strictEqual(invalidIsoEta.reason, 'invalid_eta');
 const afterEta = planner.workshopEtaScheduleValidation(it, new Date(2026, 6, 23, 8, 0));
 assert.strictEqual(afterEta.ok, true, 'IT booking after ETA date must be allowed');
 const beforeEta = planner.workshopEtaScheduleValidation(it, new Date(2026, 6, 21, 8, 0));
@@ -88,4 +96,6 @@ assert.ok(!migration.includes('current_location ='), 'Scheduling migration must 
 assert.ok(!/\bpmb_stage\s*=/.test(migration), 'Scheduling migration must not mutate the production bucket');
 assert.ok(!/\bvisible_on_board\s*=/.test(migration), 'Scheduling migration must not mutate board visibility');
 assert.ok(migration.includes('revoke all on function public.workshop_enforce_vehicle_eta()'), 'Trigger helpers must not be directly executable by authenticated clients');
-console.log('Workshop YH/IT ETA regression: 40 assertions passed.');
+assert.ok(plannerSource.includes('bestSlotMinimumDate = etaConstraint.required'), 'Best slot must use the ETA-specific minimum rather than the manual Schedule ETA boundary');
+assert.ok(plannerSource.includes('etaConstraint.bestSlotEarliestDateKey'), 'Best slot must search from ETA plus seven calendar days');
+console.log('Workshop YH/IT ETA regression passed.');
