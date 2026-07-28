@@ -1,5 +1,5 @@
-const APP_VERSION = '2026.07.28.42-workshop-control-board-loading';
-const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.07.28.42-workshop-control-board-loading';
+const APP_VERSION = '2026.07.28.43-workshop-control-board-loading';
+const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.07.28.43-workshop-control-board-loading';
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
 // constant intentionally names only the production ref, never the
@@ -9163,8 +9163,8 @@ async function transferSelectedYhVehiclesToPmb() {
 }
 
 async function transferYhVehicleToPmb(key = '') {
-  const vehicle = app.data.find(v => vehicleKey(v) === key || v.stock === key || v.id === key);
-  if (!vehicle || !vehicleLocationActionAllowed(vehicle, 'transfer to PMB')) return;
+  const vehicle = selectedVehicle(key);
+  if (!vehicle || !vehicleLocationActionAllowed(vehicle, 'transfer to PMB')) return false;
   if (!canTransferVehicleToPmb(vehicle)) {
     window.alert('Only Yard Hold or In Transit vehicles can be transferred to PMB from this button.');
     return;
