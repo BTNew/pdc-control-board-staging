@@ -6,11 +6,11 @@
     "twoPhysicalWorkstationAuthorityCutover": false
   },
   "artifact": "zero-data static staging site",
-  "backendOnlyMigrationSourceCommit": "48ce8e41feec557a50be6fc247f0052c108122ff",
+  "backendOnlyMigrationSourceCommit": "e4671fd220729c266bad9886fbcb62532aa882f7",
   "cacheVersion": "2026.07.28.48-eta-best-slot",
   "deploymentMode": "exact reviewed source blobs; staging.html mapped to index.html",
   "environment": "staging",
-  "generatedAtUtc": "2026-07-28T12:34:31Z",
+  "generatedAtUtc": "2026-07-28T12:39:32Z",
   "humanAiIntake": {
     "approvalGate": "Administrator decision remains server-validated; missing summaries disable Approve while Deny remains available.",
     "summary": "Prominent escaped email summary plus explicit Approve/Deny effects; each email is now a distinct white card separated by an 18px dark-grey gutter (12px on mobile)."
@@ -124,7 +124,7 @@
     "production": "UNCHANGED \u2014 no production branch, database, deployment or configuration write."
   },
   "sourceBranch": "integration/staging-parts-workshop-ai-20260728",
-  "sourceCommit": "48ce8e41feec557a50be6fc247f0052c108122ff",
+  "sourceCommit": "e4671fd220729c266bad9886fbcb62532aa882f7",
   "sourceFiles": [
     {
       "deployedPath": "ai-board-advisor.js",
@@ -273,7 +273,7 @@
     },
     {
       "deployedPath": "workshop-planner.js",
-      "sha256": "92b03ca0e3cdfb51f6c9634f1ab2f78d7ed2a0a5f8ed965d11338cc3c6cec14f",
+      "sha256": "b0440c672c8debf76f4d16ff3c4937fa9d9c316e4fd4dce73c8554abf2883a6e",
       "sourcePath": "workshop-planner.js"
     },
     {
@@ -302,5 +302,5 @@
       "sourcePath": "pdc-ai-intake-review.js"
     }
   ],
-  "sourceTree": "cf8ae36cb0c1b9e079131ffc9563b7797998d7c2"
+  "sourceTree": "325bd7f467fd255ba28ba968348f777c206df3fe"
 }
