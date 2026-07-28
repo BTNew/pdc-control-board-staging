@@ -15,7 +15,7 @@ const appIndex = staging.indexOf('src="app.js');
 const helperIndex = staging.indexOf('src="pdc-ai-intake-review.js');
 assert.ok(helperIndex >= 0, 'summary overlay must be loaded in staging');
 assert.ok(helperIndex > appIndex, 'summary overlay must load after app.js so it can wrap the existing renderer and decision path');
-assert.match(staging, /pdc-ai-intake-review\.css\?v=2026\.07\.27\.19-ai-review-decision-context/, 'staging must load the dedicated overlay stylesheet');
+assert.match(staging, /pdc-ai-intake-review\.css\?v=2026\.07\.28\.20-ai-review-card-separation/, 'staging must load the dedicated overlay stylesheet with the card-separation cache version');
 assert.doesNotMatch(production, /pdc-ai-intake-review\.(?:js|css)/, 'production HTML must remain untouched');
 assert.doesNotMatch(app, /ai-review-decision-context|buildAiIntakeReviewSummary|ai-intake-decision-effects/, 'shared app.js must remain untouched by this staging-only patch');
 assert.doesNotMatch(sharedStyles, /ai-intake-decision-effects/, 'shared production stylesheet must remain untouched');
@@ -28,6 +28,9 @@ assert.match(overlay, /paragraph\.textContent = review\.text/, 'summary content 
 assert.match(overlay, /warning\.textContent = review\.warning/, 'warning content must be assigned as text, not HTML');
 assert.match(overlayStyles, /\.ai-intake-email-summary\.is-missing/, 'missing summaries must receive visible warning styling');
 assert.match(overlayStyles, /\.ai-intake-decision-effects/, 'decision consequences must receive dedicated styling');
+assert.match(overlayStyles, /\.ai-intake-server-list\s*\{[^}]*gap:\s*18px/s, 'email cards must have a clearly visible gap');
+assert.match(overlayStyles, /\.ai-intake-server-list\s*\{[^}]*padding:\s*16px/s, 'email list must expose a dark separator gutter');
+assert.match(overlayStyles, /\.ai-intake-server-list\s*\{[^}]*background:\s*#374151/s, 'email cards must sit on a dark grey list background');
 assert.match(app, /const APP_VERSION = '\d{4}\.\d{2}\.\d{2}\.[^']+'/, 'shared app must retain an explicit cache-busting release version independent of the staging-only overlay');
 
 console.log('AI Intake summary overlay integration tests passed');

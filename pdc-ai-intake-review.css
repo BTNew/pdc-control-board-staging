@@ -1,3 +1,13 @@
+.ai-intake-server-list {
+  gap: 18px;
+  padding: 16px;
+  border-radius: 12px;
+  background: #374151;
+}
+.ai-intake-server-list > .ai-intake-review-card {
+  border-color: #cbd5e1;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, .22);
+}
 .ai-intake-email-summary.is-missing {
   border-color: #fecaca;
   background: #fef2f2;
@@ -35,5 +45,6 @@
   line-height: 1.4;
 }
 @media (max-width: 760px) {
+  .ai-intake-server-list { gap: 12px; padding: 10px; }
   .ai-intake-decision-effects { grid-template-columns: 1fr; }
 }
