@@ -9163,8 +9163,8 @@ async function transferSelectedYhVehiclesToPmb() {
 }
 
 async function transferYhVehicleToPmb(key = '') {
-  const vehicle = app.data.find(v => vehicleKey(v) === key || v.stock === key || v.id === key);
-  if (!vehicle || !vehicleLocationActionAllowed(vehicle, 'transfer to PMB')) return;
+  const vehicle = selectedVehicle(key);
+  if (!vehicle || !vehicleLocationActionAllowed(vehicle, 'transfer to PMB')) return false;
   if (!canTransferVehicleToPmb(vehicle)) {
     window.alert('Only Yard Hold or In Transit vehicles can be transferred to PMB from this button.');
     return;
