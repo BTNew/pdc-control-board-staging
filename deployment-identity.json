@@ -6,10 +6,10 @@
     "twoPhysicalWorkstationAuthorityCutover": false
   },
   "artifact": "zero-data static staging site",
-  "cacheVersion": "2026.07.28.25-key-list-review-cleanup",
+  "cacheVersion": "2026.07.28.26-sublet-queue-layout",
   "deploymentMode": "exact reviewed source blobs; staging.html mapped to index.html",
   "environment": "staging",
-  "generatedAtUtc": "2026-07-28T02:14:01.660496Z",
+  "generatedAtUtc": "2026-07-28T02:22:27.629415Z",
   "humanAiIntake": {
     "approvalGate": "Administrator decision remains server-validated; missing summaries disable Approve while Deny remains available.",
     "summary": "Prominent escaped email summary plus explicit Approve/Deny effects; approval fails closed when no readable summary exists."
@@ -56,7 +56,7 @@
     "databasePostApply": "PASS \u2014 12238276, 12535460, 12705647 and 13001563 are active canonical PMB vehicles. 12660298 is canonical Completed, hidden from the active board, with an audited Delivered - At Dealer completion.",
     "humanAiIntake": "Received, What happened, Car and What changed are shown in plain language; activated, modified, unchanged and review-needed outcomes are distinct; field changes render previous value to new value; technical receipt data is collapsed",
     "humanNavisionResults": "An administrator can establish the first empty dealer scope only for one exact full snapshot of at least 100 valid rows. Approval is content-bound, user-bound and expires after two hours. Cross-dealer, invalid, duplicate, stale and changed snapshots remain fail-closed. Later strongly matched refresh omissions continue to enter reversible temporary holding.",
-    "literalArtifact": "35/35 deployed Git blobs match source commit 7be747c5f704a24458450831e783bf87b95c6dd9",
+    "literalArtifact": "35/35 deployed Git blobs match source commit cacbf0e81fe62fd417cd335f4fdda0d804e040b4",
     "mixedDealerNavision": "A report containing both approved dealers is scoped server-side to the selected dealer only when every row carries known original Dealer evidence and the selected scope has at least 100 rows. Preview and Apply use identical filtering; other-dealer rows are reported and ignored, never imported into the selected scope.",
     "navisionFullReconciliationTimeout": "PASS \u2014 reproduced SQLSTATE 57014 with a complete 663-row source-evidence payload at the former 8-second API bound. The same atomic preview/apply completed in 5.969/13.875 seconds under the new 30-second signed-in staging bound and was rolled back. A separate authenticated HTTP 10-second probe returned 200; the probe function was then removed.",
     "navisionOperationalLocationCompletion": "PASS \u2014 canonical shared state drives Vehicle Locations and Completed Vehicles; ordinary reconciliation preserves PMB/PIT/QC/RFT/Completed workflow progress; At Dealer with open required work stays active for review.",
@@ -74,7 +74,7 @@
     "workshopPartsGate": "Future planning does not claim or reserve Parts. Immediate physical Start fails closed for Parts-incomplete vehicles; only an administrator-supplied reason can create the audited entry override."
   },
   "sourceBranch": "fix/staging-overnight-qa-20260727",
-  "sourceCommit": "7be747c5f704a24458450831e783bf87b95c6dd9",
+  "sourceCommit": "cacbf0e81fe62fd417cd335f4fdda0d804e040b4",
   "sourceFiles": [
     {
       "deployedPath": "ai-board-advisor.js",
@@ -83,7 +83,7 @@
     },
     {
       "deployedPath": "app.js",
-      "sha256": "1e3f80c80ee73e42ff501758ba597319d95e52cfac94b98a52cd7e6e48e014a5",
+      "sha256": "96d6391357c526a17e9aab9ffdfc643a64c930e191ae0fbd0aaade840c5303dd",
       "sourcePath": "app.js"
     },
     {
@@ -123,7 +123,7 @@
     },
     {
       "deployedPath": "index.html",
-      "sha256": "d9d262f19df2ca4ac2066f8a8b5e473022217e188c2908a8f8cebda15ec40314",
+      "sha256": "ea043d01d429f1465c0c5d0f89ac90713f330a4bf7caf8e2b8b150578f11ce92",
       "sourcePath": "staging.html"
     },
     {
@@ -158,7 +158,7 @@
     },
     {
       "deployedPath": "pdc-supabase-config.staging.js",
-      "sha256": "f2ef7f4db9b13ec5c140999f122d7e55d9ec66ae4691651eadee758463e0001d",
+      "sha256": "2ad438dfe14f24397c690bcead4feaad07b19e827bddb9963358356a33556d7c",
       "sourcePath": "pdc-supabase-config.staging.js"
     },
     {
@@ -173,7 +173,7 @@
     },
     {
       "deployedPath": "styles.css",
-      "sha256": "d7a11c97205653445cfc9c441ae31cb5f91e07f4729be628bbbd549ea1dcd613",
+      "sha256": "a2912d10875fdf0ae700cc3915965b6f02d580a41536dce3b02190af5f020334",
       "sourcePath": "styles.css"
     },
     {
@@ -252,5 +252,5 @@
       "sourcePath": "pdc-ai-intake-review.js"
     }
   ],
-  "sourceTree": "f3913a07d4f9eccc2d1a66ac698850a2e35e3d62"
+  "sourceTree": "da62f8f03559815dd6d3c905044dc72cb816a581"
 }
