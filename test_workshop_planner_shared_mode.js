@@ -228,6 +228,35 @@ function completeConfigurationRows(overrides = {}) {
 
 console.log('Workshop planner shared-mode integration seam checks passed');
 
+// 8. A rendered outstanding candidate must retain the same authoritative
+// scheduling decision when the click handler resolves it again by stock.
+// Losing this projection made enabled Schedule/Best slot buttons fail with
+// the generic "Current shared Workshop authority" alert.
+{
+  const vehicleId = '11111111-2222-4333-8444-555555555555';
+  const snapshot = {
+    vehicles: [{ id: vehicleId, stock_number: '12664966', current_location: 'PMB', version: 7 }],
+    work_items: [{ vehicle_id: vehicleId, work_key: 'fabrication', required: true, completed: false }],
+    outstanding_candidates: [{ vehicle_id: vehicleId, stage_code: 'FABRICATION', existing_booking: false, schedule_enabled: true, disabled_reason: '' }],
+  };
+  withGlobals({
+    workshopSharedModeEnabled: cfg => !!(cfg && cfg.workshop && cfg.workshop.sharedData === true),
+    PDC_SUPABASE_CONFIG: { workshop: { sharedData: true } },
+    __activeWorkshopPlannerStage: 'FABRICATION',
+    __workshopDataService: { isEnabled: () => true, getLastSnapshot: () => snapshot },
+  }, () => {
+    const row = planner.workshopVehicle('12664966', 'FABRICATION');
+    assert.ok(row, '8a authoritative candidate resolves by stock');
+    assert.strictEqual(row.id, vehicleId, '8b canonical vehicle UUID is retained');
+    assert.deepStrictEqual(row.__workshopOutstanding, {
+      existingBooking: false,
+      scheduleEnabled: true,
+      disabledReason: '',
+    }, '8c click-time lookup retains the authoritative scheduling projection');
+  });
+  console.log('PASS 8: click-time vehicle lookup retains shared scheduling authority');
+}
+
 // --- Section 14 error mapping: never a raw stack trace / DB error ---
 
 {
