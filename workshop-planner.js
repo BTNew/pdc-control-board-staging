@@ -2818,6 +2818,30 @@ function workshopRevealSearchMatch(query = '') {
   renderWorkshopPlanner();
 }
 
+function workshopBindSearchResultButtons(root = document) {
+  root.querySelectorAll('[data-workshop-search-booking-id]').forEach(button => button.addEventListener('click', () => {
+    workshopSelectSearchBooking(button.dataset.workshopSearchBookingId, button.dataset.workshopSearchVehicleIdentity);
+    workshopScrollToHighlightedVehicle(root);
+  }));
+}
+
+function workshopRefreshSearchResults(root = document, input = null, query = '') {
+  const state = workshopState();
+  state.search = cleanNavisionText(query || '');
+  state.searchOpen = state.search.length >= 2;
+  const results = root.querySelector('#workshop-booking-search-results');
+  const control = input?.closest('.workshop-booking-search');
+  const clear = control?.querySelector('[data-workshop-search-clear]');
+  if (results) {
+    results.innerHTML = state.searchOpen ? workshopSearchResultsHtml(state.search) : '';
+    results.hidden = !state.searchOpen;
+  }
+  control?.classList.toggle('is-open', state.searchOpen);
+  input?.setAttribute('aria-expanded', state.searchOpen ? 'true' : 'false');
+  if (clear) clear.disabled = !state.search;
+  workshopBindSearchResultButtons(root);
+}
+
 function workshopPartsSummary(vehicle = {}) {
   const status = partsDepartmentStatus(vehicle);
   const label = partsDepartmentStatusLabel(status);
@@ -3558,9 +3582,12 @@ function bindWorkshopPlanner(root) {
     if (results && state.searchOpen) results.hidden = false;
   });
   searchInput?.addEventListener('input', event => {
-    workshopState().search = event.target.value;
+    const input = event.currentTarget;
+    workshopState().search = input.value;
     window.clearTimeout(app.workshopPlannerSearchTimer);
-    app.workshopPlannerSearchTimer = window.setTimeout(() => workshopRevealSearchMatch(event.target.value), 180);
+    app.workshopPlannerSearchTimer = window.setTimeout(() => {
+      if (input.isConnected) workshopRefreshSearchResults(root, input, input.value);
+    }, 180);
   });
   searchInput?.addEventListener('keydown', event => {
     if (event.key === 'Escape') {
@@ -3584,10 +3611,7 @@ function bindWorkshopPlanner(root) {
     workshopRevealSearchMatch(event.currentTarget.value);
   });
   root.querySelector('[data-workshop-search-clear]')?.addEventListener('click', () => workshopRevealSearchMatch(''));
-  root.querySelectorAll('[data-workshop-search-booking-id]').forEach(button => button.addEventListener('click', () => {
-    workshopSelectSearchBooking(button.dataset.workshopSearchBookingId, button.dataset.workshopSearchVehicleIdentity);
-    workshopScrollToHighlightedVehicle(root);
-  }));
+  workshopBindSearchResultButtons(root);
   root.querySelector('[data-workshop-detail-toggle]')?.addEventListener('click', () => {
     const state = workshopState();
     const selected = workshopLoadPlans().some(entry => entry.id === state.selectedPlanId);
