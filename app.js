@@ -1,5 +1,5 @@
-const APP_VERSION = '2026.07.28.43-workshop-control-board-loading';
-const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.07.28.43-workshop-control-board-loading';
+const APP_VERSION = '2026.07.28.44-workshop-control-board-loading';
+const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.07.28.44-workshop-control-board-loading';
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
 // constant intentionally names only the production ref, never the
@@ -9177,7 +9177,13 @@ async function transferYhVehicleToPmb(key = '') {
   if (!requirementSelections || !vehicleLocationActionAllowed(vehicle, 'transfer to PMB')) return false;
 
   if (vehicle.__emailVehicleServerAuthoritative === true && vehicleLifecycleSharedModeActive()) {
-    const ref = await vehicleLifecycleSharedRef(vehicle);
+    const emailVehicleId = String(vehicle.__emailVehicleId || '').trim();
+    const emailVersion = Number(vehicle.__emailVehicleVersion);
+    const hasExactEmailRef = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(emailVehicleId)
+      && Number.isInteger(emailVersion) && emailVersion >= 0;
+    const ref = hasExactEmailRef
+      ? { outcome: 'resolved', vehicleId: emailVehicleId, version: emailVersion, isArchived: false }
+      : await vehicleLifecycleSharedRef(vehicle);
     if (!ref || ref.outcome !== 'resolved') {
       window.alert(describeVehicleLifecycleResolutionOutcome(ref));
       return false;
