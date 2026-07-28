@@ -1,5 +1,5 @@
-const APP_VERSION = '2026.07.28.36-parts-workshop-row-layout';
-const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.07.28.36-parts-workshop-row-layout';
+const APP_VERSION = '2026.07.28.37-parts-workshop-customer-columns';
+const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.07.28.37-parts-workshop-customer-columns';
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
 // constant intentionally names only the production ref, never the
@@ -5023,7 +5023,7 @@ function controlBoardStationVehicleHtml(vehicle = {}, stage = '') {
   const targetVehicleKey = eligibility.localVehicleKey || (vehicle.__workshopEligibility ? '' : key);
   const targetAttribute = targetVehicleKey ? `data-open-stock="${escapeHtml(targetVehicleKey)}"` : `data-open-workshop-stage="${escapeHtml(stage)}"`;
   return `<button class="control-board-work-vehicle${blocked ? ' is-blocked' : ''}${inBay ? ' is-in-bay' : ''}${etaDisabled ? ' is-scheduling-disabled' : ''}" type="button" ${targetAttribute} aria-label="Open ${escapeHtml(stock)} for ${escapeHtml(pmbStageLabel(stage))} work">
-    <span class="control-board-work-identity">${vehicleIdentityStackHtml(vehicle)}</span>
+    <span class="control-board-work-identity">${vehicleIdentityStackHtml(vehicle, { includeName: false })}</span>
     <span class="control-board-work-main"><span>${escapeHtml(vehicle.vehicle || 'Vehicle not listed')}</span></span>
     <span class="control-board-work-customer"><b>Customer</b><span>${escapeHtml(vehicleCustomerName(vehicle) || 'Dealer Order')}</span></span>
     <span class="control-board-work-location"><b>Now</b><span>${escapeHtml(currentLabel)}</span></span>
