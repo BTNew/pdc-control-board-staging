@@ -39,6 +39,10 @@ const backup = fs.readFileSync('scripts/pdc_backup.py', 'utf8');
 assert(backup.includes("MIGRATION_093_BACKUP_TABLES = frozenset({'pdc_authenticated_email_operation_lines'})"), 'Migration 093 evidence must be in ledger-gated backup inventory');
 assert(backup.includes('if number >= 93:'), 'Backup must require operation evidence at migration 093');
 
+const replayRevision = fs.readFileSync('supabase/staging_only/094_authenticated_operation_replay_revision.sql', 'utf8').toLowerCase();
+assert(replayRevision.includes('for each row execute function public.bump_pdc_email_vehicle_revision()'), 'Exact operation replays must not bump revision without an inserted row');
+assert(!replayRevision.includes('for each statement execute function public.bump_pdc_email_vehicle_revision()'), 'Operation evidence revision trigger must not be statement-level');
+
 const app = fs.readFileSync('app.js', 'utf8');
 assert(app.includes('function authenticatedEmailOperationLinesHtml('), 'Vehicle cards must have a bounded operation-line renderer');
 assert(app.includes('Operations from authenticated job cards'), 'The card must label operation lines as authenticated job-card evidence');
