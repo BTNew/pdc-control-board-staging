@@ -37,6 +37,9 @@ function mapServerVehicle(row = {}) {
     operation_no: String(item?.operation_no || '').trim().toUpperCase(),
     work_key: canonicalWorkKey(item?.work_key),
     description: String(item?.description || '').trim().slice(0, 180),
+    estimatedHours: item?.estimated_hours != null && item?.estimated_hours !== '' && Number.isFinite(Number(item.estimated_hours))
+      ? Number(item.estimated_hours)
+      : null,
     source_uid: String(item?.source_uid || '').trim().slice(0, 100),
   })).filter(item => /^(?:OP(?:[1-9]|[1-9][0-9]{1,2})|PD[0-9]{3}-[A-F0-9]{8})$/.test(item.operation_no)
     && allowedOperationKeys.has(item.work_key) && item.description.length > 0);

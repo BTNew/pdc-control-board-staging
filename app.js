@@ -1,5 +1,5 @@
-const APP_VERSION = '2026.07.29.01-vehicle-card-pmb-stations';
-const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.07.29.01-vehicle-card-pmb-stations';
+const APP_VERSION = '2026.07.29.02-authenticated-jobcard-hours';
+const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.07.29.02-authenticated-jobcard-hours';
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
 // constant intentionally names only the production ref, never the
@@ -5693,7 +5693,7 @@ function authenticatedEmailOperationLinesHtml(vehicle = {}) {
   if (!operations.length) return '';
   return `<div class="wide authenticated-email-operations">
     <b>Operations from authenticated PD documents and job cards</b>
-    <ol>${operations.map(operation => `<li><strong>${escapeHtml(authenticatedOperationLineLabel(operation.operation_no))}</strong><span>${escapeHtml(operation.description)}</span><small>${escapeHtml(labels[operation.work_key] || operation.work_key)}</small></li>`).join('')}</ol>
+    <ol>${operations.map(operation => `<li><strong>${escapeHtml(authenticatedOperationLineLabel(operation.operation_no))}</strong><span>${escapeHtml(operation.description)}</span><em>${escapeHtml(operation.estimatedHours != null ? `${Number(operation.estimatedHours).toFixed(2)} h` : 'Hours not stated')}</em><small>${escapeHtml(labels[operation.work_key] || operation.work_key)}</small></li>`).join('')}</ol>
   </div>`;
 }
 

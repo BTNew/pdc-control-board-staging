@@ -12316,7 +12316,7 @@ select[name="pdcLocation"]:focus,
 
 .authenticated-email-operations li {
   display: grid;
-  grid-template-columns: minmax(2.8rem, auto) minmax(0, 1fr) auto;
+  grid-template-columns: minmax(2.8rem, auto) minmax(0, 1fr) minmax(5.5rem, auto) auto;
   gap: 0.55rem;
   align-items: start;
   padding: 0.42rem 0.55rem;
@@ -12326,9 +12326,11 @@ select[name="pdcLocation"]:focus,
 }
 
 .authenticated-email-operations li span { min-width: 0; overflow-wrap: anywhere; }
+.authenticated-email-operations li em { color: var(--text, #152238); font-style: normal; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .authenticated-email-operations li small { color: var(--muted, #52606d); font-weight: 700; }
 
 @media (max-width: 700px) {
   .authenticated-email-operations li { grid-template-columns: auto 1fr; }
+  .authenticated-email-operations li em,
   .authenticated-email-operations li small { grid-column: 2; }
 }
