@@ -1,5 +1,5 @@
-const APP_VERSION = '2026.07.28.27-sublet-queue-layout';
-const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.07.28.27-sublet-queue-layout';
+const APP_VERSION = '2026.07.28.28-control-board-pipeline-salesperson-email';
+const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.07.28.28-control-board-pipeline-salesperson-email';
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
 // constant intentionally names only the production ref, never the
@@ -1721,12 +1721,23 @@ function loadSubletProviderRecords(includeInactive = false) {
 }
 
 const DEFAULT_SALESPERSONS = [
-  { initials: 'SL', name: 'Scott Lovett', email: 'scott.lovett@pmgwa.com.au' },
-  { initials: 'CW', name: 'Craig Watson', email: 'craig.watson@broometoyota.com.au' },
-  { initials: 'BG', name: 'Bryce Guthrie', email: 'bryce.guthrie@broometoyota.com.au' },
-  { initials: 'CF', name: 'Clint Franklin', email: 'clint.franklin@pmgwa.com.au' },
   { initials: 'JB', name: 'Jason Battle', email: 'jason.battle@pmgwa.com.au' },
+  { initials: 'KB', name: 'Kevin Bonser', email: 'kevin.bonser@pmgwa.com.au' },
+  { initials: 'CF', name: 'Clint Franklin', email: 'clint.franklin@pmgwa.com.au' },
+  { initials: 'BH', name: 'Brooke Hornby', email: 'brooke.hornby@pmgwa.com.au' },
+  { initials: 'SL', name: 'Scott Lovett', email: 'scott.lovett@pmgwa.com.au' },
+  { initials: 'SP', name: 'Stephen Peck', email: 'stephen.peck@pmgwa.com.au' },
+  { initials: 'PS', name: 'Paul Symmons', email: 'paul.symmons@broometoyota.com.au' },
+  { initials: 'DW', name: 'David Watson', email: 'dave@pmgwa.com.au' },
+  { initials: 'AW', name: 'Andy Weir', email: 'andy.weir@broometoyota.com.au' },
+  { initials: 'BG', name: 'Bryce Guthrie', email: 'bryce.guthrie@broometoyota.com.au' },
+  { initials: 'PM', name: 'Peter Morris', email: 'peter.morris@broometoyota.com.au' },
+  { initials: 'CW', name: 'Craig Watson', email: 'craig.watson@broometoyota.com.au' },
 ];
+const SALESPERSON_CODE_ALIASES = new Map([
+  // The supplied FO (FLEET ORDER UP) row shares Stephen Peck's SP address.
+  ['FO', 'SP'],
+]);
 
 function normalizeSalespersonRecord(record = {}) {
   const initials = cleanNavisionText(record.initials || record.code || record.consultant || '').replace(/[^a-z0-9]/gi, '').toUpperCase().slice(0, 6);
@@ -1768,8 +1779,9 @@ function salespersonRecord(value = '') {
   const clean = cleanNavisionText(value);
   const lower = clean.toLowerCase();
   const isInitialsCode = /^[a-z0-9]{1,6}$/i.test(clean);
+  const lookupCode = isInitialsCode ? (SALESPERSON_CODE_ALIASES.get(clean.toUpperCase()) || clean.toUpperCase()) : '';
   return loadSalespersons().find(record =>
-    (isInitialsCode && record.initials === clean.toUpperCase()) ||
+    (isInitialsCode && record.initials === lookupCode) ||
     record.name.toLowerCase() === lower || record.email.toLowerCase() === lower
   ) || null;
 }
@@ -4987,6 +4999,64 @@ function openWorkshopPlannerForStage(stage = '') {
   showView(route);
 }
 
+function controlBoardStationPipelineMetrics(stage = '', snapshot = app.workshopEligibilitySnapshot) {
+  const normalizedStage = normalizePmbStage(stage);
+  const rows = Array.isArray(snapshot?.pipeline) ? snapshot.pipeline : [];
+  const source = rows.find(row => normalizePmbStage(row?.stage_code || row?.stageCode || '') === normalizedStage);
+  if (!source) return null;
+  const count = value => Math.max(0, Math.floor(Number(value) || 0));
+  return {
+    stage: normalizedStage,
+    it: count(source.it),
+    pmbWaiting: count(source.pmb_waiting ?? source.pmbWaiting),
+    inBays: count(source.in_bays ?? source.inBays),
+    averageBayHours: Math.max(0, Number(source.average_bay_hours ?? source.averageBayHours) || 0),
+    stoppage: count(source.stoppage),
+    completedMtd: count(source.completed_mtd ?? source.completedMtd),
+  };
+}
+
+function controlBoardAverageBayTimeLabel(hours = 0) {
+  const value = Math.max(0, Number(hours) || 0);
+  if (!value) return '—';
+  if (value < 1) return `${Math.max(1, Math.round(value * 60))}m`;
+  if (value < 24) return `${value.toFixed(value < 10 ? 1 : 0)}h`;
+  const days = Math.floor(value / 24);
+  const remainder = Math.round(value % 24);
+  return remainder ? `${days}d ${remainder}h` : `${days}d`;
+}
+
+function controlBoardStationPipelineHtml(stage = '') {
+  const metrics = controlBoardStationPipelineMetrics(stage);
+  if (!metrics) {
+    const unavailable = app.workshopEligibilityState === 'offline_error' || app.workshopEligibilityState === 'permission_denied';
+    return `<span class="control-board-pipeline is-pending" role="status">${escapeHtml(unavailable ? 'Pipeline unavailable' : 'Loading pipeline…')}</span>`;
+  }
+  const average = controlBoardAverageBayTimeLabel(metrics.averageBayHours);
+  const segments = [
+    { key: 'it', label: 'IT', count: metrics.it },
+    { key: 'waiting', label: 'PMB waiting', count: metrics.pmbWaiting },
+    { key: 'bays', label: 'In bays', count: metrics.inBays },
+    { key: 'stoppage', label: 'Stoppage', count: metrics.stoppage },
+    { key: 'complete', label: 'Completed MTD', count: metrics.completedMtd },
+  ];
+  const total = segments.reduce((sum, item) => sum + item.count, 0);
+  const aria = `${pmbStageLabel(metrics.stage)} pipeline: ${metrics.it} IT, ${metrics.pmbWaiting} at PMB waiting, ${metrics.inBays} in bays, average bay time ${average}, ${metrics.stoppage} stoppage, ${metrics.completedMtd} completed month to date.`;
+  const bar = total
+    ? segments.filter(item => item.count > 0).map(item => `<span class="control-board-pipeline-segment is-${escapeHtml(item.key)}" style="--pipeline-weight:${item.count}" title="${escapeHtml(`${item.label}: ${item.count}`)}"><b>${item.count}</b></span>`).join('')
+    : '<span class="control-board-pipeline-empty">No current or month-to-date activity</span>';
+  return `<span class="control-board-pipeline" role="img" aria-label="${escapeHtml(aria)}">
+    <span class="control-board-pipeline-bar">${bar}</span>
+    <span class="control-board-pipeline-legend">
+      <span class="is-it"><i></i>IT <b>${metrics.it}</b></span>
+      <span class="is-waiting"><i></i>PMB wait <b>${metrics.pmbWaiting}</b></span>
+      <span class="is-bays"><i></i>Bays <b>${metrics.inBays}</b><small>avg ${escapeHtml(average)}</small></span>
+      <span class="is-stoppage"><i></i>Stop <b>${metrics.stoppage}</b></span>
+      <span class="is-complete"><i></i>Done MTD <b>${metrics.completedMtd}</b></span>
+    </span>
+  </span>`;
+}
+
 function renderWorkflowBoard() {
   const host = $('#workflow-board');
   if (!host) return;
@@ -5014,6 +5084,7 @@ function renderWorkflowBoard() {
         <span>${escapeHtml(label)}</span>
         <strong>${escapeHtml(countLabel)}</strong>
         <small>Outstanding canonical requirements · PMB/YH immediate · IT ETA-restricted</small>
+        ${controlBoardStationPipelineHtml(stage)}
         <span class="workflow-bucket-actions"><button class="small-button primary" type="button" data-open-workshop-stage="${escapeHtml(stage)}">Open ${escapeHtml(label)} Planner</button></span>
       </summary>
       <div class="control-board-work-list">${rows}</div>
