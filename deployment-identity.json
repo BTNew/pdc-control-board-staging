@@ -6,11 +6,11 @@
     "twoPhysicalWorkstationAuthorityCutover": false
   },
   "artifact": "zero-data static staging site",
-  "backendOnlyMigrationSourceCommit": "e4671fd220729c266bad9886fbcb62532aa882f7",
-  "cacheVersion": "2026.07.28.48-eta-best-slot",
+  "backendOnlyMigrationSourceCommit": "ee61339fb239203cb96901a9eb8cbdd050d12f25",
+  "cacheVersion": "2026.07.28.49-eta-best-slot-kewdale",
   "deploymentMode": "exact reviewed source blobs; staging.html mapped to index.html",
   "environment": "staging",
-  "generatedAtUtc": "2026-07-28T12:39:32Z",
+  "generatedAtUtc": "2026-07-28T12:41:42Z",
   "humanAiIntake": {
     "approvalGate": "Administrator decision remains server-validated; missing summaries disable Approve while Deny remains available.",
     "summary": "Prominent escaped email summary plus explicit Approve/Deny effects; each email is now a distinct white card separated by an 18px dark-grey gutter (12px on mobile)."
@@ -124,7 +124,7 @@
     "production": "UNCHANGED \u2014 no production branch, database, deployment or configuration write."
   },
   "sourceBranch": "integration/staging-parts-workshop-ai-20260728",
-  "sourceCommit": "e4671fd220729c266bad9886fbcb62532aa882f7",
+  "sourceCommit": "ee61339fb239203cb96901a9eb8cbdd050d12f25",
   "sourceFiles": [
     {
       "deployedPath": "ai-board-advisor.js",
@@ -133,7 +133,7 @@
     },
     {
       "deployedPath": "app.js",
-      "sha256": "aa1348c38f2e92e483d7159d3c298dbcf13c8ad85f2ba7d7a946ae2dc979e46e",
+      "sha256": "3765cc2d2f29ceddab89804ff5568d89a373d9172406c82574aeacfeec5734bc",
       "sourcePath": "app.js"
     },
     {
@@ -173,7 +173,7 @@
     },
     {
       "deployedPath": "index.html",
-      "sha256": "e5b531099cc1d675a5b4f528463e52cdf4e5eb6494e5e4577400f686bd74fbab",
+      "sha256": "ccda05c77eaf89b620c3d76ea25cb748f008674f092cd4c88e2b2c1761ac3c7c",
       "sourcePath": "staging.html"
     },
     {
@@ -208,7 +208,7 @@
     },
     {
       "deployedPath": "pdc-supabase-config.staging.js",
-      "sha256": "0d41eee3a9e6d17336d7c0809eee49b718a17b58cde1054ad097efeeb5127ba5",
+      "sha256": "5adc9b958cff107f83537b33d7782434a640cce22e0f6155f0cf63ff3da63429",
       "sourcePath": "pdc-supabase-config.staging.js"
     },
     {
@@ -302,5 +302,5 @@
       "sourcePath": "pdc-ai-intake-review.js"
     }
   ],
-  "sourceTree": "325bd7f467fd255ba28ba968348f777c206df3fe"
+  "sourceTree": "94b68e14e48771b3821e1e30241bd42395841445"
 }
