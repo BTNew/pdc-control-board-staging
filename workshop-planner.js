@@ -649,7 +649,7 @@ function workshopRequireOperatorProfile() {
 // truthful planning-only audit reason. The database remains the authority on
 // role permission and records the exception; live workshop entry/readiness
 // gates are unchanged.
-const WORKSHOP_PLANNING_OVERRIDE_CAPABLE_ACTIONS = new Set(['moveBooking', 'scheduleVehicleWork', 'cascadeSchedule']);
+const WORKSHOP_PLANNING_OVERRIDE_CAPABLE_ACTIONS = new Set(['moveBooking', 'cascadeMoveBooking', 'scheduleVehicleWork', 'cascadeSchedule']);
 
 function workshopSharedLegacyAmbiguity(payload = {}) {
   const bookingId = String(payload.bookingId || payload.targetId || '').trim();

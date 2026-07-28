@@ -1,5 +1,5 @@
-const APP_VERSION = '2026.07.29.03-vehicle-card-slim-bay-cascade';
-const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.07.29.03-vehicle-card-slim-bay-cascade';
+const APP_VERSION = '2026.07.29.04-vehicle-card-identity-parts-cascade';
+const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.07.29.04-vehicle-card-identity-parts-cascade';
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
 // constant intentionally names only the production ref, never the

@@ -33,6 +33,7 @@ assert.deepStrictEqual(
 );
 assert.ok(source.includes('const WORKSHOP_VISIBLE_STAGE_SEQUENCE = WORKSHOP_STAGE_SEQUENCE;'), 'Every canonical planner-enabled station should be visible, with Sublet excluded at the source mapping');
 assert.ok(source.includes("const stageTabs = dedicatedStage ? '' : WORKSHOP_VISIBLE_STAGE_SEQUENCE.map("), 'Combined planner should retain physical station tabs while dedicated planners render no unrelated tabs');
+assert.ok(source.includes("new Set(['moveBooking', 'cascadeMoveBooking', 'scheduleVehicleWork', 'cascadeSchedule'])"), 'Cross-bay planned moves must retain the standard future-Parts planning-only retry');
 
 const friday = new Date(2026, 6, 17, 8, 0, 0, 0);
 const monday = planner.workshopShiftWorkday(friday, 1);

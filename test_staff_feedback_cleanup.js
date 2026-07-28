@@ -20,7 +20,7 @@ const planningRetry = planner.slice(
 );
 assert(!planningRetry.includes('workshopOverrideReasonModal'), 'Routine future planning must not prompt staff for a Parts override reason');
 assert(planner.includes("actionName === 'startWork'") && planner.includes('const reason = await workshopOverrideReasonModal();'), 'Immediate physical entry may request the required administrator override reason');
-assert(planner.includes("new Set(['moveBooking', 'scheduleVehicleWork', 'cascadeSchedule'])"), 'Only booking and rescheduling actions may use the automatic planning retry');
+assert(planner.includes("new Set(['moveBooking', 'cascadeMoveBooking', 'scheduleVehicleWork', 'cascadeSchedule'])"), 'Only booking and rescheduling actions may use the automatic planning retry');
 assert(app.includes('function confirmPartsIncompleteMovement('), 'Physical workshop movement Parts gate must remain intact');
 
 for (const removed of ['id="sidebar-toggle"', 'id="browser-assessment-export"', 'id="export-backup-top"', 'id="add-customer-top"', '>Upload Navision / PD Document</button>']) {

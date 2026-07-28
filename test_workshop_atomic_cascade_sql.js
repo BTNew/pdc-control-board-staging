@@ -58,7 +58,7 @@ assert.ok(
   'Structured target/conflict rejection must roll back the cascade subtransaction and return intact',
 );
 assert.ok(
-  planner.includes("new Set(['moveBooking', 'scheduleVehicleWork', 'cascadeSchedule'])"),
+  planner.includes("new Set(['moveBooking', 'cascadeMoveBooking', 'scheduleVehicleWork', 'cascadeSchedule'])"),
   'Atomic cascade scheduling must retain the existing authorised Parts override retry',
 );
 assert.ok(

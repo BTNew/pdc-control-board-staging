@@ -34,6 +34,7 @@ function mapServerVehicle(row = {}) {
   }
   const allowedOperationKeys = new Set(['bus4x4', 'tint', 'hoist', 'fitting', 'fabrication', 'electrical', 'tyre', 'pitinspection', 'parts']);
   mapped.pdcEmailOperationLines = (Array.isArray(row.operation_lines) ? row.operation_lines : []).slice(0, 50).map(item => ({
+    operation_line_id: String(item?.operation_line_id || '').trim().toLowerCase(),
     operation_no: String(item?.operation_no || '').trim().toUpperCase(),
     work_key: canonicalWorkKey(item?.work_key),
     description: String(item?.description || '').trim().slice(0, 180),
