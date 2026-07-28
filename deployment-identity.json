@@ -6,11 +6,11 @@
     "twoPhysicalWorkstationAuthorityCutover": false
   },
   "artifact": "zero-data static staging site",
-  "backendOnlyMigrationSourceCommit": "6271fb73d445fb626ce248126bb8d506ed2b63ad",
-  "cacheVersion": "2026.07.28.38-parts-workshop-customer-columns",
+  "backendOnlyMigrationSourceCommit": "6c0bff585c603435a177c1e306fd071a543e9d1e",
+  "cacheVersion": "2026.07.28.39-compact-vehicle-provenance",
   "deploymentMode": "exact reviewed source blobs; staging.html mapped to index.html",
   "environment": "staging",
-  "generatedAtUtc": "2026-07-28T07:15:40.163805Z",
+  "generatedAtUtc": "2026-07-28T07:32:34.370393Z",
   "humanAiIntake": {
     "approvalGate": "Administrator decision remains server-validated; missing summaries disable Approve while Deny remains available.",
     "summary": "Prominent escaped email summary plus explicit Approve/Deny effects; each email is now a distinct white card separated by an 18px dark-grey gutter (12px on mobile)."
@@ -68,7 +68,7 @@
     "databasePostApply": "PASS \u2014 12238276, 12535460, 12705647 and 13001563 are active canonical PMB vehicles. 12660298 is canonical Completed, hidden from the active board, with an audited Delivered - At Dealer completion.",
     "humanAiIntake": "Received, What happened, Car and What changed are shown in plain language; activated, modified, unchanged and review-needed outcomes are distinct; field changes render previous value to new value; technical receipt data is collapsed",
     "humanNavisionResults": "An administrator can establish the first empty dealer scope only for one exact full snapshot of at least 100 valid rows. Approval is content-bound, user-bound and expires after two hours. Cross-dealer, invalid, duplicate, stale and changed snapshots remain fail-closed. Later strongly matched refresh omissions continue to enter reversible temporary holding.",
-    "literalArtifact": "35/35 deployed Git blobs match source commit 6271fb73d445fb626ce248126bb8d506ed2b63ad",
+    "literalArtifact": "35/35 deployed Git blobs match source commit 6c0bff585c603435a177c1e306fd071a543e9d1e",
     "migration087": "PASS \u2014 rollback syntax/probe and permanent post-apply checks; BUS_4X4 eligible paths reach parts_incomplete, blocked Hoist direct/cascade paths return location_ineligible, gate helper has no anon/authenticated EXECUTE privilege, and no probe writes were committed. Pre-migration function backup SHA-256 baf586a7b74df4a60217414b50eaf323cc207fd6a3466b9220a0b4867ec023ad.",
     "migration088": "PASS \u2014 dry-run syntax and Viewer payload probe, permanent staging-only apply, anon EXECUTE revoked, authenticated EXECUTE granted, protected vehicle/work-item/booking counts unchanged, and zero production access.",
     "migration089": "PASS \u2014 guarded rollback dry-run, permanent staging-only apply and rollback trigger probes. Missing ETA writes fail to Other; authoritative dated writes remain IT; parser and enforcement trigger are unavailable to anon; zero production access.",
@@ -97,7 +97,7 @@
     "workshopPartsGate": "Future planning does not claim or reserve Parts. Immediate physical Start fails closed for Parts-incomplete vehicles; only an administrator-supplied reason can create the audited entry override."
   },
   "sourceBranch": "integration/staging-parts-workshop-ai-20260728",
-  "sourceCommit": "6271fb73d445fb626ce248126bb8d506ed2b63ad",
+  "sourceCommit": "6c0bff585c603435a177c1e306fd071a543e9d1e",
   "sourceFiles": [
     {
       "deployedPath": "ai-board-advisor.js",
@@ -106,7 +106,7 @@
     },
     {
       "deployedPath": "app.js",
-      "sha256": "0a29bd631226e8246630c41a6ed744148c40cefeb33b47aec9371e8e614ef3be",
+      "sha256": "6b7b021c89504df15a0d083e9270de9635bf0694ff2d3d6b8a0098c967a85ef5",
       "sourcePath": "app.js"
     },
     {
@@ -146,7 +146,7 @@
     },
     {
       "deployedPath": "index.html",
-      "sha256": "c51c4d1e3cb624b1a6178d1b3f0d5453e694ed0bc9457b19118bc27af95e96d7",
+      "sha256": "032779212596b168fb93680db4d1cb5c65f0f9fdeb59818dda1f7e1bc19d2063",
       "sourcePath": "staging.html"
     },
     {
@@ -176,12 +176,12 @@
     },
     {
       "deployedPath": "pdc-email-vehicle-location-service.js",
-      "sha256": "35b65be1332b1f6412bb465cf7058384ea34f64b5f676a9c7a1ef792c2cab42f",
+      "sha256": "dcddb3c886a4c636a78d3886f52db8aa0af6b283433f74464a4b09f66374e288",
       "sourcePath": "pdc-email-vehicle-location-service.js"
     },
     {
       "deployedPath": "pdc-supabase-config.staging.js",
-      "sha256": "5f174a0dd048078d7df0dcd61d3b20573f6233775f209a5885bc777aff983584",
+      "sha256": "83e85d18d0f641f615a7276f80a55021a59cf826b48e43d3cbc209230b4b85e0",
       "sourcePath": "pdc-supabase-config.staging.js"
     },
     {
@@ -196,7 +196,7 @@
     },
     {
       "deployedPath": "styles.css",
-      "sha256": "cc7f0d0acad0dc88f3f46714c07e33f15982771106a7fea8b35649e9a03f102f",
+      "sha256": "85eb297ea20fe38c1102526b6fc7e0633388e68c6971db095df079129d5a3928",
       "sourcePath": "styles.css"
     },
     {
@@ -275,5 +275,5 @@
       "sourcePath": "pdc-ai-intake-review.js"
     }
   ],
-  "sourceTree": "18dc579fe303298c0965baad50ca502063e0f0ba"
+  "sourceTree": "c0725641b1792e6f7a415405eae687f8d48e0696"
 }

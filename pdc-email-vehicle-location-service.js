@@ -7,6 +7,7 @@ const PDC_EMAIL_VEHICLE_SNAPSHOT_RPC = 'get_pdc_email_vehicle_location_snapshot'
 const PDC_SUBLET_UPDATE_RPC = 'update_pdc_sublet_booking_field';
 const PDC_PARTS_ETA_UPDATE_RPC = 'update_pdc_parts_eta';
 const PDC_PARTS_ORDERED_RPC = 'mark_pdc_parts_ordered';
+const PDC_VEHICLE_HISTORY_RPC = 'get_pdc_vehicle_provenance_history';
 const WORK_FIELDS = Object.freeze({
   bus4x4: ['pdcRequiresBus4x4', 'pdcCompleteBus4x4'], tint: ['pdcRequiresTint', 'pdcCompleteTint'], hoist: ['pdcRequiresHoist', 'pdcCompleteHoist'], fitting: ['pdcRequiresFitting', 'pdcCompleteFitting'], fabrication: ['pdcRequiresFabrication', 'pdcCompleteFabrication'], electrical: ['pdcRequiresElectrical', 'pdcCompleteElectrical'], tyre: ['pdcRequiresTyre', 'pdcCompleteTyre'], sublet: ['pdcRequiresSublet', 'pdcCompleteSublet'], pitinspection: ['pdcRequiresPitInspection', 'pdcCompletePitInspection'], parts: ['pdcRequiresParts', 'pdcCompleteParts'],
 });
@@ -113,12 +114,21 @@ function createPdcEmailVehicleLocationService(options = {}) {
       return { ok: true, code: body.code || 'updated', data: body.data || body };
     } catch (_error) { return { ok: false, code: 'parts_ordered_update_unavailable', data: null }; }
   }
+  async function vehicleHistory(vehicleId = '') {
+    const token = getAccessToken(); if (!token) return { ok: false, code: 'not_authenticated', data: null };
+    try {
+      const response = await request(`${url}/rest/v1/rpc/${PDC_VEHICLE_HISTORY_RPC}`, { method: 'POST', headers: { apikey: key, Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ p_vehicle_id: vehicleId }) });
+      const body = await response.json();
+      if (!response.ok || !body || body.ok === false) return { ok: false, code: body?.code || body?.error || `HTTP ${response.status}`, data: body?.data || null };
+      return { ok: true, code: body.code || 'ok', data: body.data || body };
+    } catch (_error) { return { ok: false, code: 'vehicle_history_unavailable', data: null }; }
+  }
   function subscribe(onRevision) {
     if (!subscribeRealtime) return { unsubscribe() {} };
     return subscribeRealtime(PDC_EMAIL_VEHICLE_REVISION_TABLE, event => { if (typeof onRevision === 'function') onRevision(event?.new?.revision ?? null, event); });
   }
-  return { authority: 'supabase_staging_authenticated_email_vehicle', snapshot, updateSublet, updatePartsEta, markPartsOrdered, subscribe };
+  return { authority: 'supabase_staging_authenticated_email_vehicle', snapshot, updateSublet, updatePartsEta, markPartsOrdered, vehicleHistory, subscribe };
 }
-const exported = { PDC_EMAIL_VEHICLE_STAGING_PROJECT_REF, PDC_EMAIL_VEHICLE_REVISION_TABLE, PDC_EMAIL_VEHICLE_SNAPSHOT_RPC, PDC_SUBLET_UPDATE_RPC, PDC_PARTS_ETA_UPDATE_RPC, PDC_PARTS_ORDERED_RPC, canonicalWorkKey, mapServerVehicle, reconcileVehicleRows, createPdcEmailVehicleLocationService };
+const exported = { PDC_EMAIL_VEHICLE_STAGING_PROJECT_REF, PDC_EMAIL_VEHICLE_REVISION_TABLE, PDC_EMAIL_VEHICLE_SNAPSHOT_RPC, PDC_SUBLET_UPDATE_RPC, PDC_PARTS_ETA_UPDATE_RPC, PDC_PARTS_ORDERED_RPC, PDC_VEHICLE_HISTORY_RPC, canonicalWorkKey, mapServerVehicle, reconcileVehicleRows, createPdcEmailVehicleLocationService };
 if (typeof module !== 'undefined' && module.exports) module.exports = exported;
 if (typeof window !== 'undefined') window.PDC_EMAIL_VEHICLE_LOCATION_SERVICE = exported;

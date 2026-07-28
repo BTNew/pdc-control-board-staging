@@ -12256,3 +12256,38 @@ select[name="pdcLocation"]:focus,
   .vehicle-workshop-line-number { grid-column: 1 !important; grid-row: 1 / span 3; }
   .vehicle-workshop-line-description, .vehicle-workshop-line-hours { border-bottom: 1px solid #edf1f5; }
 }
+
+/* 2026-07-28: compact vehicle details and match Required Work controls to Vehicle Locations cells. */
+.vehicle-modal-card .detail-body { padding: 12px !important; gap: 10px !important; }
+.vehicle-modal-card .edit-form { gap: 8px !important; padding: 10px !important; }
+.vehicle-modal-card .form-row { gap: 7px !important; }
+.vehicle-modal-card .form-row.three-col { grid-template-columns: repeat(3, minmax(150px, 1fr)) !important; }
+.vehicle-modal-card .form-row.two-col { grid-template-columns: repeat(2, minmax(170px, 1fr)) !important; }
+.vehicle-modal-card .form-row.one-col { grid-template-columns: minmax(220px, 1fr) !important; }
+.vehicle-modal-card .edit-form input,
+.vehicle-modal-card .edit-form select { min-height: 34px !important; padding: 6px 8px !important; }
+.vehicle-modal-card .section-label { margin-top: 2px !important; }
+.pdc-work-state-grid { display: grid !important; grid-template-columns: repeat(9, minmax(52px, 1fr)) !important; gap: 5px !important; margin-top: 4px !important; }
+.pdc-work-state { position: relative !important; appearance: none !important; border: 1px solid #cbd5e1 !important; border-radius: 6px !important; background: #f8fafc !important; color: #64748b !important; min-height: 40px !important; padding: 4px 5px !important; display: grid !important; grid-template-columns: 1fr !important; grid-template-areas: "label" "code" !important; gap: 2px !important; align-items: center !important; text-align: center !important; cursor: pointer !important; box-shadow: none !important; }
+.pdc-work-state-code { grid-area: code !important; width: 100% !important; height: 15px !important; border-radius: 4px !important; display: inline-flex !important; align-items: center !important; justify-content: center !important; background: #f1f5f9 !important; color: inherit !important; font-size: 0 !important; font-weight: 950 !important; }
+.pdc-work-state-label { grid-area: label !important; font-size: .64rem !important; font-weight: 900 !important; line-height: 1 !important; text-align: center !important; white-space: nowrap !important; }
+.pdc-work-state-status { position: absolute !important; width: 1px !important; height: 1px !important; overflow: hidden !important; clip-path: inset(50%) !important; }
+.pdc-work-state-none { border-color: #dbe4ee !important; background: #f8fafc !important; color: #94a3b8 !important; }
+.pdc-work-state-required { border-color: #fca5a5 !important; background: #fff1f2 !important; color: #9f1239 !important; }
+.pdc-work-state-required .pdc-work-state-code { background: #fff !important; color: #9f1239 !important; }
+.pdc-work-state-required .pdc-work-state-code::after { content: '•'; font-size: .82rem; }
+.pdc-work-state-complete { border-color: #86efac !important; background: #f0fdf4 !important; color: #166534 !important; }
+.pdc-work-state-complete .pdc-work-state-code { background: #fff !important; color: #166534 !important; }
+.pdc-work-state-complete .pdc-work-state-code::after { content: '✓'; font-size: .7rem; }
+.pdc-work-state-none .pdc-work-state-code::after { content: '–'; font-size: .72rem; }
+.pdc-work-state-help { margin-top: 2px !important; }
+@media (max-width: 900px) { .pdc-work-state-grid { grid-template-columns: repeat(5, minmax(50px, 1fr)) !important; } }
+.vehicle-audit-detail { display: grid; gap: 7px; }
+.vehicle-provenance-list { display: grid; gap: 6px; }
+.vehicle-provenance-item { display: grid; gap: 2px; padding: 8px 10px; border: 1px solid #bfdbfe; border-radius: 8px; background: #eff6ff; }
+.vehicle-provenance-item strong { color: #1e3a8a; font-size: .78rem; }
+.vehicle-provenance-item span { color: #475569; font-size: .72rem; line-height: 1.35; overflow-wrap: anywhere; }
+.vehicle-history-label { margin-top: 3px; }
+.audit-log-list { max-height: 340px; overflow-y: auto; }
+.audit-log-item { padding: 7px 9px; }
+.audit-log-item span { overflow-wrap: anywhere; }
