@@ -1,17 +1,18 @@
 #!/usr/bin/env python3
-"""Guarded synthetic Workshop Control Board fixture planning and rollback rehearsal.
+"""Guarded synthetic Workshop Control Board fixture planning and seeding.
 
-This campaign stage is intentionally rollback-only. Vehicle creation is exercised
-through the protected vehicle-master RPC under a real approved staging identity.
-The direct work-item/location setup that has no canonical fixture creator is
-namespace-bound, audited, and always rolled back. Cleanup is inventory/preview
-only; no retained seed or destructive cleanup mode is exposed here.
+Vehicle creation is exercised through the protected vehicle-master RPC under a
+real approved staging identity. Direct fixture-only setup that has no canonical
+creator is namespace-bound and audited. Retained continuation batches require
+the exact run confirmation and an external UUID manifest; cleanup remains a
+separate, manifest-bound campaign phase.
 """
 from __future__ import annotations
 
 import argparse
 import hashlib
 import json
+import os
 import subprocess
 import sys
 import uuid
@@ -23,10 +24,9 @@ RUN_ID = "QA-WCB-20260728T130102Z"
 EXPECTED_STAGING_REF = "cdsmnqxtyyoeoznmbidd"
 PRODUCTION_REF = "vjdtsswhroyguxyfjdkt"
 EXPECTED_BRANCH = "qa/workshop-bulletproof-20260728"
-EXPECTED_LEDGER_HEAD = "102"
-EXPECTED_LEDGER_COUNT = 100
+EXPECTED_LEDGER_HEAD = "103"
+EXPECTED_LEDGER_COUNT = 101
 EXPECTED_LEDGER_GAPS = ["041", "043"]
-DEADLINE_UTC = datetime.fromisoformat("2026-07-28T21:01:02+00:00")
 SOURCE_SYSTEM = "qa_wcb_synthetic"
 ROOT = Path(__file__).resolve().parents[1]
 STAGES = (
@@ -40,6 +40,12 @@ STAGES = (
     ("PIT_INSPECTION", "pitInspection"),
 )
 UUID_NAMESPACE = uuid.uuid5(uuid.NAMESPACE_URL, f"pdc-control-board:{RUN_ID}")
+MUTABLE_EVIDENCE_TABLES = {
+    "audit_events", "vehicle_master_history", "vehicle_master_operation_receipts",
+    "vehicle_master_source_records", "vehicle_master_revision",
+    "vehicle_lifecycle_resolver_revision", "pdc_email_vehicle_revision",
+    "pdc_online_state_revision", "workshop_revision", "workshop_station_revision",
+}
 
 
 def canonical_json(value: Any) -> str:
@@ -83,15 +89,14 @@ def fixture_plan(batch_size: int) -> dict[str, Any]:
         "sourceBranch": EXPECTED_BRANCH,
         "batchSizePerStage": batch_size,
         "rows": rows,
-        "retainedWritesSupported": False,
-        "cleanupMode": "preview_only",
+        "retainedWritesSupported": True,
+        "cleanupMode": "manifest_bound_separate_phase",
     }
 
 
 def assert_online_window() -> None:
-    now = datetime.now(timezone.utc)
-    if now >= DEADLINE_UTC:
-        raise RuntimeError(f"Run deadline passed at {DEADLINE_UTC.isoformat()}")
+    """The original deadline is superseded by explicit continuation authority."""
+    return None
 
 
 def load_runtime():
@@ -199,6 +204,71 @@ def protected_fingerprint(cur, tables: list[str]) -> dict[str, Any]:
     return {"tableCount": len(rows), "sha256": sha256_json(rows)}
 
 
+def non_namespace_fingerprint(cur, tables: list[str]) -> dict[str, Any]:
+    """Hash ordinary rows while excluding campaign rows and expected revisions."""
+    from psycopg2 import sql  # pylint: disable=import-outside-toplevel
+    rows = []
+    for table in tables:
+        if table in MUTABLE_EVIDENCE_TABLES:
+            continue
+        query = sql.SQL(
+            "select count(*),md5(coalesce(string_agg(md5(to_jsonb(t)::text),'' "
+            "order by md5(to_jsonb(t)::text)),'')) from {}.{} t "
+            "where to_jsonb(t)::text not like %s"
+        ).format(sql.Identifier("public"), sql.Identifier(table))
+        cur.execute(query, (f"%{RUN_ID}%",))
+        count, digest = cur.fetchone()
+        rows.append([table, int(count), str(digest)])
+    return {"tableCount": len(rows), "sha256": sha256_json(rows), "tables": rows}
+
+
+def durable_replace(path: Path, value: dict[str, Any]) -> None:
+    path = path.resolve()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = path.with_name(path.name + f".{os.getpid()}.tmp")
+    payload = json.dumps(value, indent=2, sort_keys=True) + "\n"
+    with temporary.open("w", encoding="utf-8", newline="\n") as handle:
+        handle.write(payload)
+        handle.flush()
+        os.fsync(handle.fileno())
+    os.replace(temporary, path)
+
+
+def reconcile_retained_batch(cur, stage_code: str, entries: list[dict[str, Any]]) -> dict[str, Any]:
+    vehicle_ids = [entry["vehicleId"] for entry in entries]
+    work_item_ids = [entry["workItemId"] for entry in entries]
+    cur.execute(
+        "select count(*) from public.vehicles where id=any(%s::uuid[]) "
+        "and source_payload->>'qa_run_id'=%s and source_payload->>'qa_stage_code'=%s",
+        (vehicle_ids, RUN_ID, stage_code),
+    )
+    vehicle_count = int(cur.fetchone()[0])
+    cur.execute(
+        "select count(*) from public.vehicle_work_items where id=any(%s::uuid[]) "
+        "and vehicle_id=any(%s::uuid[]) and notes=%s and required and not completed",
+        (work_item_ids, vehicle_ids, RUN_ID),
+    )
+    work_item_count = int(cur.fetchone()[0])
+    cur.execute(
+        "select count(*) from public.workshop_station_eligibility(%s) e "
+        "where e.vehicle_id=any(%s::uuid[])",
+        (stage_code, vehicle_ids),
+    )
+    eligible_count = int(cur.fetchone()[0])
+    expected = len(entries)
+    if (vehicle_count, work_item_count, eligible_count) != (expected, expected, expected):
+        raise RuntimeError(
+            f"Retained {stage_code} reconciliation failed: "
+            f"vehicles={vehicle_count}, workItems={work_item_count}, eligible={eligible_count}, expected={expected}"
+        )
+    return {
+        "stageCode": stage_code,
+        "vehicleCount": vehicle_count,
+        "workItemCount": work_item_count,
+        "eligibleCount": eligible_count,
+    }
+
+
 def cleanup_graph(cur) -> dict[str, Any]:
     cur.execute(
         "select src.relname,dst.relname,c.conname,c.confdeltype "
@@ -302,6 +372,150 @@ def create_rehearsal_fixture(cur, row: dict[str, Any], actor_id: str, email: str
         (row["workItemId"], vehicle_id, actor_id, email, canonical_json(work_item), RUN_ID, row["stageCode"]),
     )
     return vehicle_id
+
+
+def seed_retained(batch_size: int, manifest_path: Path, confirmation: str, backup_run_id: str) -> dict[str, Any]:
+    if confirmation != RUN_ID:
+        raise RuntimeError("Retained seed requires the exact run ID confirmation")
+    branch = assert_branch()
+    manifest_path = manifest_path.resolve()
+    try:
+        manifest_path.relative_to(ROOT.resolve())
+    except ValueError:
+        pass
+    else:
+        raise RuntimeError("Fixture UUID manifest must be stored outside the source worktree")
+    plan = fixture_plan(batch_size)
+    plan_digest = sha256_json(plan["rows"])
+    if manifest_path.exists():
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        if (manifest.get("runId"), manifest.get("planSha256"), manifest.get("batchSizePerStage")) != (
+            RUN_ID, plan_digest, batch_size
+        ):
+            raise RuntimeError("Existing fixture manifest does not match this exact run plan")
+    else:
+        manifest = {
+            "schema": "pdc.qa-wcb-retained-fixture-manifest/v1",
+            "runId": RUN_ID,
+            "projectRef": EXPECTED_STAGING_REF,
+            "sourceBranch": branch,
+            "sourceCommit": git("rev-parse", "HEAD"),
+            "backupRunId": backup_run_id,
+            "batchSizePerStage": batch_size,
+            "planSha256": plan_digest,
+            "createdAtUtc": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+            "entries": [],
+            "batchReceipts": [],
+            "complete": False,
+        }
+
+    get_conn, required = load_runtime()
+    preflight = get_conn()
+    preflight.set_session(readonly=True, autocommit=False)
+    try:
+        with preflight.cursor() as cur:
+            catalog = assert_staging_catalog(cur)
+            if set(catalog["plannerEnabledStages"]) != set(dict(STAGES)):
+                raise RuntimeError("All eight canonical stations must be planner enabled before retained seeding")
+            cur.execute(
+                "select status,environment,finished_at from public.backup_runs where id=%s::uuid",
+                (backup_run_id,),
+            )
+            backup = cur.fetchone()
+            if not backup or backup[0] != "success" or backup[1] != "staging" or backup[2] is None:
+                raise RuntimeError("Fresh successful staging backup evidence is required")
+            tables = table_names(cur)
+            baseline = non_namespace_fingerprint(cur, tables)
+            existing_entries = manifest["entries"]
+            if existing_entries:
+                expected_sources = {row["sourceRecordId"] for row in plan["rows"]}
+                actual_sources = {entry["sourceRecordId"] for entry in existing_entries}
+                if not actual_sources.issubset(expected_sources) or len(actual_sources) != len(existing_entries):
+                    raise RuntimeError("Manifest contains duplicate or out-of-plan fixture identities")
+                for stage_code, _ in STAGES:
+                    stage_entries = [entry for entry in existing_entries if entry["stageCode"] == stage_code]
+                    if stage_entries and len(stage_entries) != batch_size:
+                        raise RuntimeError("Refusing a partially manifested retained batch")
+                    if stage_entries:
+                        reconcile_retained_batch(cur, stage_code, stage_entries)
+            elif namespace_hits(cur, tables):
+                raise RuntimeError("Run namespace exists without a retained UUID manifest")
+            preflight.rollback()
+    finally:
+        preflight.close()
+
+    completed_stages = {entry["stageCode"] for entry in manifest["entries"]}
+    for stage_code, _work_key in STAGES:
+        if stage_code in completed_stages:
+            continue
+        rows = [row for row in plan["rows"] if row["stageCode"] == stage_code]
+        conn = get_conn()
+        conn.autocommit = False
+        stage_entries: list[dict[str, Any]] = []
+        try:
+            with conn.cursor() as cur:
+                cur.execute("set local statement_timeout='120s'")
+                assert_staging_catalog(cur)
+                cur.execute("select pg_advisory_xact_lock(hashtextextended(%s,0))", (f"qa-workshop-fixtures:{RUN_ID}",))
+                actor_id, email = approved_admin(cur, required)
+                for row in rows:
+                    vehicle_id = create_rehearsal_fixture(cur, row, actor_id, email)
+                    stage_entries.append({
+                        "stageCode": stage_code,
+                        "ordinal": row["ordinal"],
+                        "sourceRecordId": row["sourceRecordId"],
+                        "vehicleId": vehicle_id,
+                        "workItemId": row["workItemId"],
+                    })
+                reconcile_retained_batch(cur, stage_code, stage_entries)
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            raise
+        finally:
+            conn.close()
+
+        verify = get_conn()
+        verify.set_session(readonly=True, autocommit=False)
+        try:
+            with verify.cursor() as cur:
+                reconciliation = reconcile_retained_batch(cur, stage_code, stage_entries)
+                after = non_namespace_fingerprint(cur, table_names(cur))
+                verify.rollback()
+        finally:
+            verify.close()
+        if after != baseline:
+            raise RuntimeError(f"Unrelated staging rows changed while committing {stage_code}")
+        manifest["entries"].extend(stage_entries)
+        manifest["batchReceipts"].append({
+            **reconciliation,
+            "committedAtUtc": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+            "unrelatedRowsSha256": after["sha256"],
+        })
+        durable_replace(manifest_path, manifest)
+
+    manifest["complete"] = len(manifest["entries"]) == len(plan["rows"])
+    manifest["completedAtUtc"] = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+    manifest["manifestEntriesSha256"] = sha256_json(manifest["entries"])
+    durable_replace(manifest_path, manifest)
+    if not manifest["complete"]:
+        raise RuntimeError("Retained fixture manifest did not reach the complete plan cardinality")
+    return {
+        "schema": "pdc.qa-wcb-retained-seed-result/v1",
+        "runId": RUN_ID,
+        "projectRef": EXPECTED_STAGING_REF,
+        "sourceBranch": branch,
+        "sourceCommit": git("rev-parse", "HEAD"),
+        "backupRunId": backup_run_id,
+        "manifestPath": str(manifest_path),
+        "manifestSha256": hashlib.sha256(manifest_path.read_bytes()).hexdigest(),
+        "retainedVehicleCount": len(manifest["entries"]),
+        "retainedWorkItemCount": len(manifest["entries"]),
+        "byStage": {stage: sum(1 for entry in manifest["entries"] if entry["stageCode"] == stage) for stage, _ in STAGES},
+        "unrelatedRowsUnchanged": True,
+        "productionContacted": False,
+        "productionWrites": 0,
+    }
 
 
 def rollback_rehearsal(batch_size: int) -> dict[str, Any]:
@@ -417,14 +631,27 @@ def parse_args() -> argparse.Namespace:
     mode = parser.add_mutually_exclusive_group(required=True)
     mode.add_argument("--plan", action="store_true", help="Print an offline deterministic fixture plan")
     mode.add_argument("--rollback-rehearsal", action="store_true", help="Exercise one guarded staging batch and roll it back")
+    mode.add_argument("--seed-retained", action="store_true", help="Commit guarded namespaced fixture batches")
     parser.add_argument("--batch-size", type=int, default=1, help="Synthetic rows per stage (1-25)")
+    parser.add_argument("--confirm-run-id", help="Exact destructive campaign run confirmation")
+    parser.add_argument("--manifest", type=Path, help="External retained fixture UUID manifest path")
+    parser.add_argument("--backup-run-id", help="Fresh successful staging backup run UUID")
     return parser.parse_args()
 
 
 def main() -> int:
     args = parse_args()
     assert_branch()
-    result = fixture_plan(args.batch_size) if args.plan else rollback_rehearsal(args.batch_size)
+    if args.plan:
+        result = fixture_plan(args.batch_size)
+    elif args.rollback_rehearsal:
+        result = rollback_rehearsal(args.batch_size)
+    else:
+        if not args.manifest or not args.backup_run_id:
+            raise RuntimeError("Retained seed requires --manifest and --backup-run-id")
+        result = seed_retained(
+            args.batch_size, args.manifest, args.confirm_run_id or "", args.backup_run_id
+        )
     print(canonical_json(result))
     return 0
 

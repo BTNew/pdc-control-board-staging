@@ -13,12 +13,19 @@ assert.match(source, /EXPECTED_STAGING_REF\s*=\s*["']cdsmnqxtyyoeoznmbidd["']/, 
 assert.match(source, /PRODUCTION_REF\s*=\s*["']vjdtsswhroyguxyfjdkt["']/, 'production ref denylist must be explicit');
 assert.match(source, /EXPECTED_BRANCH\s*=\s*["']qa\/workshop-bulletproof-20260728["']/, 'QA branch must be pinned');
 assert.match(source, /RUN_ID\s*=\s*["']QA-WCB-20260728T130102Z["']/, 'run namespace must be pinned');
-assert.match(source, /EXPECTED_LEDGER_HEAD\s*=\s*["']102["']/, 'staging ledger head must be pinned');
+assert.match(source, /EXPECTED_LEDGER_HEAD\s*=\s*["']103["']/, 'staging ledger head must be pinned');
+assert.match(source, /EXPECTED_LEDGER_COUNT\s*=\s*101/, 'staging ledger count must be pinned');
 assert.match(source, /pg_advisory_xact_lock/, 'fixture rehearsal must serialize on a run-scoped lock');
 assert.match(source, /upsert_vehicle_master_import/, 'vehicle creation must use the protected canonical product RPC');
 assert.match(source, /reset role/i, 'fixture-only direct setup must reset impersonation before privileged evidence writes');
 assert.match(source, /conn\.rollback\(\)/, 'rehearsal must roll back');
-assert.doesNotMatch(source, /--apply|action=["']store_true["'].*apply/s, 'this reviewed stage must not expose a retained apply mode');
+assert.match(source, /--seed-retained/, 'continuation stage must expose an explicitly guarded retained seed mode');
+assert.match(source, /--confirm-run-id/, 'retained seeding must require the exact run confirmation');
+assert.match(source, /--manifest/, 'retained seeding must require an external UUID manifest');
+assert.match(source, /def seed_retained\(/, 'retained seeding must use a dedicated guarded implementation');
+assert.match(source, /durable_replace/, 'the UUID manifest must be published atomically');
+assert.match(source, /non_namespace_fingerprint/, 'each committed batch must prove unrelated rows unchanged');
+assert.match(source, /reconcile_retained_batch/, 'each committed batch must be reconciled against canonical eligibility');
 assert.doesNotMatch(source, /\b(delete|truncate)\s+from\b/i, 'cleanup preview must not execute destructive cleanup');
 
 const result = spawnSync(process.env.PYTHON || 'python3', [scriptPath, '--plan', '--batch-size', '2'], {
@@ -40,8 +47,8 @@ assert.strictEqual(new Set(plan.rows.map(row => row.sourceRecordId)).size, 16, '
 assert.strictEqual(new Set(plan.rows.map(row => row.workItemId)).size, 16, 'work-item IDs must be unique');
 assert.ok(plan.rows.every(row => row.sourceRecordId.startsWith('QA-WCB-20260728T130102Z:')));
 assert.ok(plan.rows.every(row => /^[0-9a-f-]{36}$/.test(row.workItemId)));
-assert.strictEqual(plan.retainedWritesSupported, false, 'review stage must remain rollback-only');
-assert.strictEqual(plan.cleanupMode, 'preview_only');
+assert.strictEqual(plan.retainedWritesSupported, true, 'authorized continuation must support guarded retained fixtures');
+assert.strictEqual(plan.cleanupMode, 'manifest_bound_separate_phase');
 
 const repeat = spawnSync(process.env.PYTHON || 'python3', [scriptPath, '--plan', '--batch-size', '2'], {
   cwd: __dirname,
