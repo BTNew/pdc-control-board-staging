@@ -6,19 +6,19 @@
     "twoPhysicalWorkstationAuthorityCutover": false
   },
   "artifact": "zero-data static staging site",
-  "backendOnlyMigrationSourceCommit": "ce43d8b1f03f6d8b19d3cd2d82f3235306e205cb",
-  "cacheVersion": "2026.07.28.41-vehicle-detail-operation-lines",
+  "backendOnlyMigrationSourceCommit": "72f18ef2ceec9f992f622ce7d93b2213458e75e1",
+  "cacheVersion": "2026.07.28.46-workshop-authority",
   "deploymentMode": "exact reviewed source blobs; staging.html mapped to index.html",
   "environment": "staging",
-  "generatedAtUtc": "2026-07-28T09:25:18.410902Z",
+  "generatedAtUtc": "2026-07-28T11:25:44Z",
   "humanAiIntake": {
     "approvalGate": "Administrator decision remains server-validated; missing summaries disable Approve while Deny remains available.",
     "summary": "Prominent escaped email summary plus explicit Approve/Deny effects; each email is now a distinct white card separated by an 18px dark-grey gutter (12px on mobile)."
   },
   "migrationLedger": {
-    "appliedThrough": "097",
-    "evidence": "Staging-only migration 097 is atomically applied and ledgered. It restores bounded typed authenticated job-card operation lines to the enrolled Viewer snapshot after migration 096 replaced that read function; no operational rows or bookings changed.",
-    "ledgerHead": "097",
+    "appliedThrough": "100",
+    "evidence": "Staging-only migrations 098-100 are atomically applied and ledgered. Workshop loading/PMB transfer is restored, authenticated PD lines are retained, and future planning may leave Parts incomplete without reserving Parts or weakening the physical Start gate.",
+    "ledgerHead": "100",
     "migrations": [
       "058",
       "059",
@@ -59,12 +59,15 @@
       "094",
       "095",
       "096",
-      "097"
+      "097",
+      "098",
+      "099",
+      "100"
     ]
   },
   "pendingStagingMigrations": [],
   "releaseChecks": {
-    "aggregateTests": "PASS \u2014 112 passed, 0 failed, 1 intentional skip; PDC monitor 40 passed, 0 failed.",
+    "aggregateTests": "PASS — 115 passed, 0 failed, 1 intentional skip.",
     "aiIntakeCardSeparation": "PASS \u2014 two-card browser proof computed #374151 background, 18px gap, 16px padding and two white cards; mobile override uses a 12px gap and 10px padding.",
     "aiReviewDecisionContext": true,
     "aiReviewOverlayVersion": "2026.07.28.20-ai-review-card-separation",
@@ -83,7 +86,8 @@
     "migration091": "PASS \u2014 guarded rollback dry-run and permanent staging apply. Parts mutation, stale-version refusal, PMB/IT candidate scope, IT ETA and before-ETA refusal verified; zero production access.",
     "migration092": "PASS \u2014 guarded rollback dry-run and permanent staging apply. Administrator, Controller and Viewer each read email/Navision provenance and 10 authoritative history events; authenticated EXECUTE only; zero production access.",
     "migration093": "PASS \u2014 rollback dry-run and atomic permanent staging apply with ledger receipt; protected vehicle/work/completion/booking/email-receipt counts unchanged; direct table grants absent; zero production access.",
-    "migration096": "PASS \u2014 guarded rollback dry-run and permanent staging apply. Unique Stock 12708286 selected one current Navision row despite conflicting PDF identity; canonical Navision fields, additive required work, Parts, audit and idempotent receipt verified; no booking created; authenticated EXECUTE only; zero production access.",
+    "migration096": "PASS — guarded rollback dry-run and permanent staging apply. Unique Stock 12708286 selected one current Navision row despite conflicting PDF identity; canonical Navision fields, additive required work, Parts, audit and idempotent receipt verified; no booking created; authenticated EXECUTE only; zero production access.",
+    "workshopAuthority100": "PASS — Controller Best slot created stock 12664966 in active Fab Bay 02 through the deployed browser and was audit-cleaned; Administrator create/cancel passed; stale vehicle version was rejected; Parts overrides were unchanged; migration 100 preserved the administrator-only physical Start gate; zero production access.",
     "mixedDealerNavision": "A report containing both approved dealers is scoped server-side to the selected dealer only when every row carries known original Dealer evidence and the selected scope has at least 100 rows. Preview and Apply use identical filtering; other-dealer rows are reported and ignored, never imported into the selected scope.",
     "navisionFullReconciliationTimeout": "PASS \u2014 reproduced SQLSTATE 57014 with a complete 663-row source-evidence payload at the former 8-second API bound. The same atomic preview/apply completed in 5.969/13.875 seconds under the new 30-second signed-in staging bound and was rolled back. A separate authenticated HTTP 10-second probe returned 200; the probe function was then removed.",
     "navisionOperationalLocationCompletion": "PASS \u2014 canonical shared state drives Vehicle Locations and Completed Vehicles; ordinary reconciliation preserves PMB/PIT/QC/RFT/Completed workflow progress; At Dealer with open required work stays active for review.",
@@ -116,7 +120,7 @@
     "production": "UNCHANGED \u2014 no production branch, database, deployment or configuration write."
   },
   "sourceBranch": "integration/staging-parts-workshop-ai-20260728",
-  "sourceCommit": "ce43d8b1f03f6d8b19d3cd2d82f3235306e205cb",
+  "sourceCommit": "72f18ef2ceec9f992f622ce7d93b2213458e75e1",
   "sourceFiles": [
     {
       "deployedPath": "ai-board-advisor.js",
