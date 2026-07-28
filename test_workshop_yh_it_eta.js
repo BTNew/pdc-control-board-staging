@@ -33,7 +33,7 @@ global.app.data = [yh, it, pmb];
 
 assert.strictEqual(planner.workshopVehiclePlanningLocation(yh), 'YH');
 assert.strictEqual(planner.workshopVehiclePlanningLocation(it), 'IT');
-assert.deepStrictEqual(planner.workshopStageVehicles('FABRICATION').map(row => row.id), ['it-1', 'pmb-1', 'yh-1'], 'YH and IT vehicles with outstanding work must join the normal awaiting-schedule candidates');
+assert.deepStrictEqual(planner.workshopStageVehicles('FABRICATION').map(row => row.id), ['it-1', 'pmb-1'], 'Only PMB and IT-with-ETA vehicles with outstanding station work may join awaiting-schedule candidates');
 assert.deepStrictEqual(planner.workshopStageVehicles('SUBLET'), [], 'Sublet requirement rows must never become planner candidates');
 
 const yhBeforeEta = planner.workshopEtaScheduleValidation(yh, new Date(2026, 6, 20, 8, 0));

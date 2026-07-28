@@ -1,0 +1,21 @@
+'use strict';
+const fs=require('fs');
+function assert(value,message){if(!value)throw new Error(message);}
+const migrationPath='supabase/staging_only/091_parts_ordered_and_workshop_candidate_scope.sql';
+assert(fs.existsSync(migrationPath),'migration 091 must exist');
+const sql=fs.readFileSync(migrationPath,'utf8');
+const app=fs.readFileSync('app.js','utf8');
+const planner=fs.readFileSync('workshop-planner.js','utf8');
+assert(sql.includes("perform public.require_pdc_role('operator')"),'Mark Ordered RPC must require operator authority');
+assert(sql.includes("'action','mark_pdc_parts_ordered'"),'Mark Ordered mutation must be audited');
+assert(sql.includes("v_parts_after.parts_ordered"),'Mark Ordered must verify the canonical appended state');
+assert(sql.includes("in ('PMB','IT')"),'Workshop candidates must be limited to PMB or IT');
+assert(!sql.includes("in('PMB','YH','IT')")&&!sql.includes("in ('PMB','YH','IT')"),'YH must not qualify for workshop candidate rows');
+assert(sql.includes("v.eta_to_kewdale is not null"),'IT candidates must require ETA to Kewdale');
+assert(sql.includes("wi.required and not wi.completed"),'Candidates must require incomplete work for the exact station');
+assert(sql.includes("'customer_name',v.customer_name"),'Overview candidate snapshot must include customer name');
+assert(sql.includes("'it_before_eta'"),'Server scheduling authority must continue rejecting IT bookings before ETA');
+assert(app.includes("client: raw.customer_name || ''"),'Overview candidate mapper must retain customer name');
+assert(app.includes('control-board-work-customer'),'Workshop overview rows must visibly render customer name');
+assert(planner.includes("scheduledDateKey < constraint.earliestDateKey"),'Browser schedule validation must reject dates before ETA');
+console.log('Parts Mark Ordered and workshop candidate/customer/ETA contract passed');

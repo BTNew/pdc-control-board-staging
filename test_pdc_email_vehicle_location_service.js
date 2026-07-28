@@ -48,6 +48,10 @@ function assert(value, message) { if (!value) throw new Error(message); }
   const partsEtaBody = JSON.parse(request.options.body);
   assert(partsEtaUpdated.ok && /update_pdc_parts_eta$/.test(request.url), 'Parts ETA edits must use the protected shared RPC');
   assert(partsEtaBody.p_vehicle_id === 's1' && partsEtaBody.p_expected_version === 12 && partsEtaBody.p_worst_eta === '2026-08-12', 'Parts ETA updates must bind canonical vehicle identity, vehicle version and date');
+  const partsOrdered = await service.markPartsOrdered('s1', 12);
+  const partsOrderedBody = JSON.parse(request.options.body);
+  assert(partsOrdered.ok && /mark_pdc_parts_ordered$/.test(request.url), 'Mark Ordered must use the protected shared mutation RPC');
+  assert(partsOrderedBody.p_vehicle_id === 's1' && partsOrderedBody.p_expected_version === 12, 'Mark Ordered must bind canonical vehicle identity and vehicle version');
   let revision = null; service.subscribe(value => { revision = value; });
   subscription.callback({ new: { revision: 8 } });
   assert(subscription.table === PDC_EMAIL_VEHICLE_REVISION_TABLE && revision === 8, 'Exact realtime revision table must trigger refresh');
