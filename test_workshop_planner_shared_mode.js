@@ -248,13 +248,16 @@ console.log('Workshop planner shared-mode integration seam checks passed');
     ['vehicle_inactive_or_missing', 'vehicle is inactive'],
     ['station_inactive_or_missing', 'station is inactive'],
     ['location_ineligible', 'location is not eligible'],
+    ['active_booking_exists', 'active booking already represents'],
+    ['vehicle_not_eligible_for_station', 'no longer has an outstanding requirement'],
+    ['missing_eta', 'valid ETA to Kewdale'],
     ['it_eta_missing', 'valid ETA to Kewdale'],
     ['it_before_eta', 'before its ETA to Kewdale'],
     ['canonical_requirement_missing_or_completed', 'no incomplete canonical requirement'],
     ['bay_inactive_or_wrong_station', 'active bay'],
     ['technician_inactive_or_missing', 'active Workshop technician'],
     ['technician_leave_conflict', 'technician is on leave'],
-    ['totally_unmapped_backend_error_code', 'could not be saved'],
+    ['totally_unmapped_backend_error_code', 'server rejected this change'],
   ];
   for (const [error, expectedSubstring] of cases) {
     const message = planner.workshopDescribeSharedActionError({ ok: false, error });

@@ -220,6 +220,27 @@ async function run() {
 
   // 8. Revision signal debounces trailing duplicate updates and ignores exact repeats
   {
+    const client = fakeClient([
+      { status: 200, ok: true, body: { revision: 1, vehicles: [] } },
+      { status: 400, ok: false, body: { message: 'Workshop Planner validation rejected booking: {"ok": false, "error": "location_ineligible"}' } },
+      { status: 200, ok: true, body: { revision: 2, vehicles: [] } },
+    ]);
+    const service = createWorkshopDataService({
+      config: { workshop: { sharedData: true } }, client,
+      getAccessToken: () => 'tok', getRole: () => 'operator'
+    });
+    await service.loadSnapshot('initial');
+    const result = await service.mutate('schedule_vehicle_work', {
+      p_vehicle_id: 'v', p_vehicle_expected_version: 1, p_stage_code: 'HOIST', p_bay_number: 1,
+      p_scheduled_start_at: '2030-07-15T03:00:00Z', p_duration_minutes: 60,
+    });
+    assert.strictEqual(result.error, 'location_ineligible', 'known canonical validation errors must survive an HTTP rejection');
+    assert.strictEqual(service.getLastRevision(), 2, 'HTTP rejection must still refresh authoritative state');
+    console.log('PASS 7c: canonical trigger rejection is decoded without a misleading version-conflict message');
+  }
+
+  // 8. Revision signal debounces trailing duplicate updates and ignores exact repeats
+  {
     const timers = makeTimerHarness();
     const client = fakeClient([
       { status: 200, ok: true, body: { revision: 1, vehicles: [] } }, // initial

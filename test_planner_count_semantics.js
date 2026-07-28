@@ -40,6 +40,17 @@ assert(html.includes('Active booking exists · shown here because the requiremen
 assert(html.includes('draggable="false"') && html.includes('Already booked'), 'booked candidate must not create a duplicate booking');
 assert(!html.includes('data-workshop-best-slot-vehicle'), 'booked candidate must not offer another best slot');
 
+const authorityBlocked = {
+  id: 'vehicle-2', stock: 'SANITIZED-2', current_location: 'Other',
+  pmbJobs: { hoist: { required: true, completed: false } },
+  __workshopOutstanding: { existingBooking: false, scheduleEnabled: false, disabledReason: 'location_ineligible' },
+};
+const blockedHtml = planner.workshopQueueCardHtml(authorityBlocked, 'HOIST', '2026-07-23', []);
+assert(blockedHtml.includes('draggable="false"'), 'authoritative ineligible candidate must not be draggable');
+assert(blockedHtml.includes('disabled') && blockedHtml.includes('Vehicle location is not eligible'), 'authoritative location rejection must disable scheduling with a clear reason');
+assert(blockedHtml.includes('workshop-scheduling-unavailable-reason'), 'authoritative disabled reason must be visible on the card, not title-only');
+assert(!blockedHtml.includes('data-workshop-best-slot-vehicle'), 'authoritative ineligible candidate must not offer Best slot');
+
 const sanitized = planner.workshopSnapshotVehicleToPlannerRow(
   { id: 'safe-1', stock_number: 'SAFE-1', customer_name: 'CUSTOMER-SENTINEL', toyotaCustomer: 'TOYOTA-SENTINEL', dealerCustomer: 'DEALER-SENTINEL', notes: 'VEHICLE-NOTES-SENTINEL' },
   [{ vehicle_id: 'safe-1', work_key: 'sublet', required: true, completed: false, notes: 'WORK-NOTES-SENTINEL' }],
