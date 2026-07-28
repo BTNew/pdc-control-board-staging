@@ -740,7 +740,7 @@ function workshopDescribeSharedActionError(result) {
   if (error === 'booking_before_eta' || error === 'it_before_eta') {
     return `This IT vehicle cannot be booked before its ETA to Kewdale. Earliest permitted booking date: ${result.earliest_permitted_date || 'correct the vehicle ETA'}. No booking was created.`;
   }
-  if (error === 'missing_or_invalid_eta' || error === 'it_eta_missing') {
+  if (error === 'missing_or_invalid_eta' || error === 'it_eta_missing' || error === 'missing_eta') {
     return 'IT vehicles require a valid ETA to Kewdale before booking. Correct the ETA and try again. No booking was created.';
   }
   if (error === 'minimum_duration') return 'Workshop bookings must be at least 60 minutes.';
@@ -749,7 +749,9 @@ function workshopDescribeSharedActionError(result) {
   if (error === 'calendar_duration_mismatch' || error === 'invalid_schedule_interval') return 'The booking duration does not match the configured Workshop operating minutes. Choose a valid start and duration.';
   if (error === 'vehicle_inactive_or_missing') return 'This vehicle is inactive or unavailable in the shared Workshop records.';
   if (error === 'station_inactive_or_missing') return 'This Workshop station is inactive or unavailable.';
-  if (error === 'location_ineligible') return 'This vehicle location is not eligible for Workshop scheduling.';
+  if (error === 'location_ineligible') return 'This vehicle location is not eligible for Workshop scheduling. No booking was created.';
+  if (error === 'active_booking_exists') return 'An active booking already represents this Workshop requirement. No duplicate booking was created.';
+  if (error === 'vehicle_not_eligible_for_station') return 'This vehicle no longer has an outstanding requirement for that Workshop station. No booking was created.';
   if (error === 'canonical_requirement_missing_or_completed') return 'This vehicle has no incomplete canonical requirement for that Workshop station.';
   if (error === 'bay_required' || error === 'bay_inactive_or_wrong_station') return 'Choose an active bay belonging to this Workshop station.';
   if (error === 'technician_inactive_or_missing') return 'Choose an active Workshop technician.';
@@ -757,7 +759,7 @@ function workshopDescribeSharedActionError(result) {
   if (error === 'action_unavailable' || error === 'no_response' || error === 'runtime_failure') {
     return 'This action is not currently available in shared mode. No change was made.';
   }
-  return 'This change could not be saved. The planner has refreshed to the latest version.';
+  return 'The server rejected this change. No update was saved, and the planner has reloaded the current shared data.';
 }
 
 function workshopPersistPlanAction(label = 'Workshop planner update', rows = [], vehicle = null, action = '', details = {}) {
@@ -2932,8 +2934,10 @@ function workshopQueueCardHtml(vehicle = {}, stage = workshopState().stage, date
   const hours = workshopCalculatedStageHours(vehicle, stage) || pmbBayHours(vehicle) || workshopDefaultBookingHours();
   const etaConstraint = workshopVehicleEtaConstraint(vehicle);
   const etaDisabled = etaConstraint.required && !etaConstraint.ok;
-  const existingBooking = vehicle.__workshopOutstanding?.existingBooking === true;
-  const schedulingDisabled = etaDisabled || existingBooking;
+  const authoritative = vehicle.__workshopOutstanding;
+  const existingBooking = authoritative?.existingBooking === true;
+  const authorityDisabled = !!authoritative && authoritative.scheduleEnabled !== true;
+  const schedulingDisabled = authorityDisabled || etaDisabled || existingBooking;
   const requirements = pdcRequirementDefinitions(vehicle)
     .filter(def => pdcJobRequired(vehicle, def) && !pdcJobComplete(vehicle, def))
     .map(def => def.label);
@@ -2943,8 +2947,11 @@ function workshopQueueCardHtml(vehicle = {}, stage = workshopState().stage, date
       ? `${etaConstraint.location} · ETA to Kewdale is invalid; scheduling disabled`
       : '';
   const earliestQueueDate = etaConstraint.ok ? workshopDateKeyNotBefore(dateKey, etaConstraint.earliestDateKey) : dateKey;
-  const bestSlot = etaConstraint.ok && !existingBooking ? workshopBestStageSlot(stage, earliestQueueDate, hours, rows) : null;
-  const disabledExplanation = existingBooking ? 'An active booking already represents this requirement' : etaExplanation;
+  const bestSlot = !schedulingDisabled ? workshopBestStageSlot(stage, earliestQueueDate, hours, rows) : null;
+  const authorityExplanation = workshopOutstandingDisabledReasonLabel(authoritative?.disabledReason);
+  const disabledExplanation = existingBooking
+    ? 'An active booking already represents this requirement'
+    : authorityDisabled ? authorityExplanation : etaExplanation;
   return `<article class="workshop-queue-card ${blocked ? 'is-blocked' : ''} ${highlighted ? 'is-search-match' : ''} ${schedulingDisabled ? 'is-scheduling-disabled' : ''}" draggable="${schedulingDisabled ? 'false' : 'true'}" ${schedulingDisabled ? 'aria-disabled="true"' : ''} data-workshop-vehicle-key="${escapeHtml(key)}" data-workshop-job-vehicle="${escapeHtml(key)}" data-workshop-locate-key="${escapeHtml(key)}" title="${escapeHtml(schedulingDisabled ? disabledExplanation : 'Drag onto a bay, use Best slot, or use Schedule')}">
     <strong>JC ${escapeHtml(vehicleJobcardNumber(vehicle) || 'TBA')} · ${escapeHtml(displayStockNumber(vehicle) || 'No stock')}</strong>
     <span>${escapeHtml(vehicle.vehicle || vehicle.toyotaVehicle || 'Vehicle')}</span>
@@ -2955,11 +2962,24 @@ function workshopQueueCardHtml(vehicle = {}, stage = workshopState().stage, date
     ${existingBooking ? '<small class="workshop-booked-line">Active booking exists · shown here because the requirement remains outstanding</small>' : ''}
     ${bestSlot ? `<small class="workshop-slot-hint">Best slot: ${escapeHtml(workshopSlotSummary(stage, bestSlot.bay, bestSlot.dateKey, bestSlot.startMinutes))}</small>` : ''}
     ${blocked ? '<em>STOPPAGE</em>' : ''}
+    ${schedulingDisabled ? `<small class="workshop-scheduling-unavailable-reason">${escapeHtml(disabledExplanation)}</small>` : ''}
     <div class="workshop-queue-actions">
       ${bestSlot ? `<button class="workshop-schedule-button best-slot" type="button" data-workshop-best-slot-vehicle="${escapeHtml(key)}" data-workshop-best-slot-stage="${escapeHtml(stage)}" data-workshop-best-slot-bay="${bestSlot.bay}" data-workshop-best-slot-date="${escapeHtml(bestSlot.dateKey)}" data-workshop-best-slot-start="${bestSlot.startMinutes}" data-workshop-best-slot-hours="${escapeHtml(hours)}">Best slot</button>` : ''}
-      <button class="workshop-schedule-button" type="button" data-workshop-schedule-vehicle="${escapeHtml(key)}" ${schedulingDisabled ? `disabled title="${escapeHtml(disabledExplanation)}"` : ''}>${existingBooking ? 'Already booked' : etaDisabled ? 'Scheduling disabled' : 'Schedule'}</button>
+      <button class="workshop-schedule-button" type="button" data-workshop-schedule-vehicle="${escapeHtml(key)}" ${schedulingDisabled ? `disabled title="${escapeHtml(disabledExplanation)}"` : ''}>${existingBooking ? 'Already booked' : schedulingDisabled ? 'Scheduling unavailable' : 'Schedule'}</button>
     </div>
   </article>`;
+}
+
+function workshopOutstandingDisabledReasonLabel(reason = '') {
+  const messages = {
+    location_ineligible: 'Vehicle location is not eligible for Workshop Planner scheduling',
+    missing_eta: 'ETA to Kewdale is required before this in-transit vehicle can be scheduled',
+    it_eta_missing: 'ETA to Kewdale is required before this in-transit vehicle can be scheduled',
+    it_before_eta: 'This in-transit vehicle cannot be scheduled before its ETA to Kewdale',
+    active_booking_exists: 'An active booking already represents this requirement',
+    vehicle_not_eligible_for_station: 'This vehicle no longer has an outstanding requirement for this department',
+  };
+  return messages[String(reason || '').trim()] || 'Current shared Workshop authority does not permit this booking';
 }
 
 const WORKSHOP_INCREMENTAL_RENDER_BATCH = 12;
@@ -4458,6 +4478,11 @@ async function scheduleWorkshopVehicle({ planId = '', vehicleKeyValue = '', stag
   const existing = rows.find(entry => entry.id === planId) || rows.find(entry => entry.id === workshopPlanId(vehicleKeyValue, stage));
   const vehicle = workshopVehicle(existing?.vehicleKey || vehicleKeyValue);
   if (!vehicle) return false;
+  if (!existing && workshopSharedModeActive() && vehicle.__workshopOutstanding?.scheduleEnabled !== true) {
+    window.alert(`${workshopOutstandingDisabledReasonLabel(vehicle.__workshopOutstanding?.disabledReason)}. No booking was created.`);
+    renderWorkshopPlanner();
+    return false;
+  }
   if (existing && ['started', 'stoppage', 'completed'].includes(existing.status)) {
     window.alert('Started, stopped and completed jobs stay fixed on the planner. Resolve the live job before rescheduling it.');
     return false;
@@ -5503,6 +5528,7 @@ if (typeof module !== 'undefined' && module.exports) {
     workshopPlanLifecycleActionsHtml,
     workshopSelectedDateBookingCount,
     workshopQueueCardHtml,
+    workshopOutstandingDisabledReasonLabel,
     workshopDateKeyNotBefore,
     workshopEtaScheduleValidation,
     workshopEtaRiskForEntry,

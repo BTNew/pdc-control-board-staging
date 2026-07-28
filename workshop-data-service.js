@@ -79,6 +79,27 @@ const WORKSHOP_MUTATION_VERSION_PARAM = Object.freeze({
   approve_parts_incomplete_override: 'p_vehicle_expected_version'
 });
 
+const WORKSHOP_CANONICAL_MUTATION_ERRORS = new Set([
+  'version_conflict', 'vehicle_version_conflict', 'location_ineligible',
+  'missing_eta', 'it_eta_missing', 'it_before_eta',
+  'vehicle_not_eligible_for_station', 'active_booking_exists',
+  'canonical_requirement_missing_or_completed', 'parts_incomplete',
+  'bay_overlap', 'vehicle_overlap', 'calendar_unavailable',
+  'calendar_duration_mismatch', 'invalid_schedule_interval', 'minimum_duration',
+  'bay_inactive_or_wrong_station', 'technician_inactive_or_missing',
+  'technician_leave_conflict', 'technician_overlap'
+]);
+
+function workshopCanonicalMutationError(body) {
+  if (!body || typeof body !== 'object') return '';
+  const direct = String(body.error || '').trim();
+  if (WORKSHOP_CANONICAL_MUTATION_ERRORS.has(direct)) return direct;
+  const message = String(body.message || body.details || '').trim();
+  const match = message.match(/["']error["']\s*:\s*["']([a-z0-9_]+)["']/i);
+  const extracted = match ? String(match[1] || '').toLowerCase() : '';
+  return WORKSHOP_CANONICAL_MUTATION_ERRORS.has(extracted) ? extracted : '';
+}
+
 function workshopSharedModeEnabled(config) {
   return !!(config && config.workshop && config.workshop.sharedData === true);
 }
@@ -367,7 +388,11 @@ function createWorkshopDataService(options) {
         invalidateAuthority(WORKSHOP_CONNECTION_STATE.PERMISSION_DENIED);
         if (!destroyed && getAccessToken()) await loadSnapshot('mutation_permission_recheck');
       }
-      return { ok: false, error: 'request_failed', status: result.status, body: result.body };
+      const canonicalError = workshopCanonicalMutationError(result.body);
+      if (![401, 403].includes(result.status) && !destroyed && getAccessToken()) {
+        await loadSnapshot(canonicalError ? 'rejected_canonical_mutation' : 'rejected_http_mutation');
+      }
+      return { ok: false, error: canonicalError || 'request_failed', status: result.status, body: result.body };
     }
     const body = result.body || {};
     if (body.ok === false && ['version_conflict', 'vehicle_version_conflict'].includes(body.error)) {
