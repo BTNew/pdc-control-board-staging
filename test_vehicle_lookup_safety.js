@@ -34,6 +34,22 @@ code += String.raw`
   assert(selectedVehicle('BATCH-TWO') === second, 'A unique Batch alias should resolve the requested vehicle');
   assert(selectedVehicle('missing-key') === null, 'A missing key must return null instead of the first vehicle');
 
+  app.data = [{ id: 'raw-email-row', stock: '13056899', pdcRequiresElectrical: false, pdcEmailOperationLines: [] }];
+  app.emailVehicleLocationRows = [{ stock: '13056899', pdcRequiresElectrical: true, pdcEmailOperationLines: [{ operation_no: 'OP4', work_key: 'electrical', description: 'Shu Roo supply and fit' }] }];
+  window.PDC_EMAIL_VEHICLE_LOCATION_SERVICE = {
+    reconcileVehicleRows(localRows, serverRows) {
+      return { rows: localRows.map(row => row.stock === '13056899' ? { ...row, ...serverRows[0], __emailVehicleServerAuthoritative: true } : row) };
+    },
+  };
+  const authoritativeEmailVehicle = selectedVehicle('13056899');
+  assert(authoritativeEmailVehicle?.pdcRequiresElectrical === true, 'Vehicle detail must use authoritative email work state instead of the stale raw row');
+  assert(authoritativeEmailVehicle?.pdcEmailOperationLines?.[0]?.operation_no === 'OP4', 'Vehicle detail must retain authenticated operation lines from the reconciled row');
+  const operationGroups = vehicleWorkshopGroups(authoritativeEmailVehicle, { requirements: [{ work_key: 'electrical', stage_code: 'ELECTRICAL', required: true, completed: false }], bookings: [] });
+  assert(operationGroups.length === 1 && operationGroups[0].lines[0].description === 'OP4 · Shu Roo supply and fit', 'Work & bookings must render the authenticated operation number and description in its canonical station');
+  delete window.PDC_EMAIL_VEHICLE_LOCATION_SERVICE;
+  app.emailVehicleLocationRows = [];
+  app.data = [first, second];
+
   const editsBefore = localStorage.getItem(EDITS_KEY);
   const saveResult = saveVehicleEdits('missing-key', { internalStatus: 'Wrongly changed' });
   assert(saveResult === false, 'Saving an unknown vehicle should report failure');

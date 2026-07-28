@@ -47,6 +47,16 @@ assert(exactReplay.includes("'operation_lines_already_imported'"), 'Exact operat
 assert(exactReplay.indexOf('operation_lines_already_imported') < exactReplay.indexOf('return public.import_pdc_authenticated_email_operations_093_internal'), 'Exact replay must return before delegating to mutation statements');
 assert(exactReplay.includes("'booking_created',false"), 'Exact replay receipt must state that no booking was created');
 
+const snapshotRepair = fs.readFileSync('supabase/staging_only/097_authenticated_operation_snapshot.sql', 'utf8').toLowerCase();
+assert(snapshotRepair.includes('create or replace function public.get_pdc_email_vehicle_location_snapshot()'), 'Migration 097 must reassert the deployed staging snapshot contract');
+assert(snapshotRepair.includes("'operation_lines'"), 'Migration 097 snapshot must expose bounded authenticated operation lines');
+assert(snapshotRepair.includes('from public.pdc_authenticated_email_operation_lines ol where ol.vehicle_id=v.id'), 'Migration 097 must source operation lines only from typed evidence for the exact vehicle');
+assert(!/insert\s+into\s+public\.workshop_bookings/i.test(snapshotRepair), 'Snapshot repair must never create bookings');
+assert(!/update\s+public\.(vehicles|vehicle_work_items|workshop_bookings)/i.test(snapshotRepair), 'Snapshot repair must not mutate operational vehicle state');
+const snapshotDeployer = fs.readFileSync('scripts/apply_migration_097_staging.py', 'utf8');
+for (const required of ["EXPECTED_LEDGER_HEAD='096'", "VERSION='097'", 'ROLLBACK_ONLY', "'productionChanged':False", 'lock table supabase_migrations.schema_migrations in exclusive mode', "grantee='authenticated'"])
+  assert(snapshotDeployer.includes(required), `Migration 097 deployer is missing ${required}`);
+
 const app = fs.readFileSync('app.js', 'utf8');
 assert(app.includes('function authenticatedEmailOperationLinesHtml('), 'Vehicle cards must have a bounded operation-line renderer');
 assert(app.includes('Operations from authenticated job cards'), 'The card must label operation lines as authenticated job-card evidence');

@@ -16,6 +16,13 @@ assert(planner.includes('pendingWorkshopBookingLink') && planner.includes('searc
 assert(app.includes('Booking data unavailable') && app.includes('Not booked'), 'Every required line must have a truthful booking-time state');
 assert(app.includes('Estimated hours') && app.includes('Estimate not set'), 'Every required line must have an explicit estimate state without guessing');
 assert(app.includes('vehicleWorkshopLineDescription'), 'Every required line must render a non-empty description');
+const selectedVehicleBody = app.match(/function selectedVehicle\([^]*?\r?\n}\r?\n\r?\nfunction saveVehicleEdits/)?.[0] || '';
+assert(selectedVehicleBody.indexOf('if (canonicalMatches.length > 1)') < selectedVehicleBody.indexOf('const boardMatches'), 'Ambiguous raw canonical identity must fail closed before reconciliation');
+assert(selectedVehicleBody.indexOf('if (boardMatches.length === 1) return boardMatches[0]') < selectedVehicleBody.indexOf('if (canonicalMatches.length === 1) return canonicalMatches[0]'), 'Vehicle detail must prefer the reconciled authoritative Vehicle Locations row over one stale raw local row');
+const workshopGroupsBody = app.match(/function vehicleWorkshopGroups\([^]*?\r?\n}\r?\n\r?\nfunction vehicleWorkshopStationHtml/)?.[0] || '';
+assert(workshopGroupsBody.includes('pdcEmailOperationLines'), 'Vehicle Work & bookings must consume authenticated job-card operation lines');
+assert(workshopGroupsBody.includes('operation_no'), 'Authenticated operation numbers must remain available to the detail renderer');
+assert(workshopGroupsBody.includes('groups.get(stage).lines.push'), 'Authenticated operation lines must be placed into their canonical station group');
 assert(css.includes('.vehicle-workshop-station') && css.includes('--station-colour'), 'Station groups must be colour coded through a shared station colour token');
 assert(css.includes('.vehicle-detail-tabs') && css.includes('@media (max-width: 760px)'), 'Tabs and work rows must have responsive treatment');
 
