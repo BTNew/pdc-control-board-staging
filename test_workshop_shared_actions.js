@@ -61,6 +61,23 @@ async function run() {
     console.log('PASS 2c: cascadeSchedule maps all timestamps to one atomic RPC');
   }
 
+  // 2d. atomic booked-chip move cascade
+  {
+    const ds = fakeDataService();
+    const actions = buildWorkshopSharedActions(ds);
+    await actions.cascadeMoveBooking({
+      bookingId: 'b1', expectedVersion: 4, stageCode: 'FITTING', bayNumber: 3,
+      scheduledStartAt: '2026-07-20T01:30:00Z', durationMinutes: 150,
+    });
+    assert.strictEqual(ds.calls[0].name, 'cascade_workshop_booking_move', 'booked-chip drops must use the atomic move-cascade RPC');
+    assert.deepStrictEqual(ds.calls[0].params, {
+      p_booking_id: 'b1', p_expected_version: 4, p_stage_code: 'FITTING', p_bay_number: 3,
+      p_scheduled_start_at: '2026-07-20T01:30:00Z', p_duration_minutes: 150,
+      p_override_reason: null, p_metadata: {},
+    }, '2d exact parameter shape matches migration 105');
+    console.log('PASS 2d: cascadeMoveBooking maps booked-chip drops to one atomic RPC');
+  }
+
   // 3. startWork / stopWork / resumeWork
   {
     const ds = fakeDataService();

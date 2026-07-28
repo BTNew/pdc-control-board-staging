@@ -195,6 +195,7 @@ assert.deepStrictEqual(
 );
 assert.ok(source.includes("scheduleWorkshopVehicle({ planId, vehicleKeyValue, stage, bay, dateKey, startMinutes, preferRequestedTime: true });"), 'Queue-card lane drops must keep the requested drop time and ask to push later planned work when needed');
 assert.ok(source.includes("moveWorkshopDroppedPlan(planId, stage, bay, dateKey, startMinutes, { preferRequestedTime: true })"), 'Dragged planned bookings must keep the requested drop time and route through queue shifting');
+assert.ok(source.includes("preferRequestedTime && movingBetweenBays ? 'cascadeMoveBooking' : 'moveBooking'"), 'Shared booked-chip drops between bays must atomically push overlapping and later planned jobs');
 assert.ok(source.includes("const previewMinutes = Number(lane.dataset.workshopRequestedStartMinutes);"), 'Daily lane drops must reuse the live preview time so drop coordinates stay exact');
 assert.ok(source.includes("lane.dataset.workshopRequestedStartMinutes = String(safeMinutes);"), 'Lane previews must persist the last hovered planner time for reliable dropping');
 assert.ok(source.includes('function workshopHideLanePreview(lane)'), 'Daily lane drags should hide the preview without losing the last hovered drop time');

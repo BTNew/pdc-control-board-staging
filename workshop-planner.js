@@ -4611,13 +4611,16 @@ async function scheduleWorkshopVehicle({ planId = '', vehicleKeyValue = '', stag
     const durationMinutes = Math.round(hours * 60);
     if (existing && existing.sharedBookingId) {
       if (!workshopRequireSchedulableCandidate(requestedCandidate)) return false;
-      const result = await workshopDispatchSharedAction('moveBooking', {
+      const movingBetweenBays = normalizePmbStage(existing.stage) !== normalizedStage || Number(existing.bay) !== Number(bay);
+      const action = preferRequestedTime && movingBetweenBays ? 'cascadeMoveBooking' : 'moveBooking';
+      const result = await workshopDispatchSharedAction(action, {
         bookingId: existing.sharedBookingId,
         expectedVersion: existing.sharedVersion,
         stageCode: normalizedStage,
         bayNumber: Number(bay),
         scheduledStartAt: start.toISOString(),
         durationMinutes,
+        metadata: { source: preferRequestedTime ? 'planner_chip_drop' : 'planner_booking_move' },
       });
       return !!(result && result.ok);
     }

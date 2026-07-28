@@ -1,5 +1,5 @@
-const APP_VERSION = '2026.07.29.01-vehicle-card-pmb-stations';
-const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.07.29.01-vehicle-card-pmb-stations';
+const APP_VERSION = '2026.07.29.02-vehicle-card-slim-bay-cascade';
+const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.07.29.02-vehicle-card-slim-bay-cascade';
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
 // constant intentionally names only the production ref, never the
@@ -10549,8 +10549,12 @@ function vehicleWorkshopStationHtml(group = {}, bookingFallback = 'Not booked') 
     const estimate = ownHours ?? (group.lines.length === 1 ? totalHours : null);
     const lineKey = vehicleWorkshopLineIdentity(group.stage, line);
     const description = vehicleWorkshopLineDescription(line, `${presentation.label} work required`);
-    const controls = canEdit ? `<span class="vehicle-workshop-line-actions"><button type="button" data-vehicle-workshop-line-edit data-stage="${escapeHtml(group.stage)}" data-line-key="${escapeHtml(lineKey)}" data-adjustment-id="${escapeHtml(line.adjustmentId || '')}" data-adjustment-version="${escapeHtml(String(line.adjustmentVersion || 0))}" data-description="${escapeHtml(description)}" data-hours="${escapeHtml(estimate ?? '')}">Edit line</button>${line.workshopManualLine ? `<button type="button" class="is-danger" data-vehicle-workshop-line-delete data-adjustment-id="${escapeHtml(line.adjustmentId || '')}" data-adjustment-version="${escapeHtml(String(line.adjustmentVersion || 0))}">Remove</button>` : ''}</span>` : '';
-    return `<div class="vehicle-workshop-line"><span class="vehicle-workshop-line-number">${index + 1}</span><span class="vehicle-workshop-line-description"><b>Description</b><strong>${escapeHtml(description)}</strong></span><span class="vehicle-workshop-line-hours"><b>Estimated hours</b><strong>${escapeHtml(vehicleWorkshopHoursLabel(estimate))}</strong>${controls}</span><span class="vehicle-workshop-line-booking"><b>Booking time</b>${bookingHtml}</span></div>`;
+    const mutationData = `data-stage="${escapeHtml(group.stage)}" data-line-key="${escapeHtml(lineKey)}" data-adjustment-id="${escapeHtml(line.adjustmentId || '')}" data-adjustment-version="${escapeHtml(String(line.adjustmentVersion || 0))}" data-description="${escapeHtml(description)}" data-hours="${escapeHtml(estimate ?? '')}"`;
+    const hoursHtml = canEdit
+      ? `<label class="vehicle-workshop-quick-hours" aria-label="Estimated hours for ${escapeHtml(description)}"><input type="number" min="0.25" max="999.75" step="0.25" value="${escapeHtml(estimate ?? '')}" placeholder="Hours" data-vehicle-workshop-hours-input><span>h</span><button type="button" data-vehicle-workshop-hours-save ${mutationData}>Save</button></label>`
+      : `<strong>${escapeHtml(vehicleWorkshopHoursLabel(estimate))}</strong>`;
+    const controls = canEdit ? `<span class="vehicle-workshop-line-actions"><button type="button" data-vehicle-workshop-line-edit ${mutationData}>Edit line</button>${line.workshopManualLine ? `<button type="button" class="is-danger" data-vehicle-workshop-line-delete data-adjustment-id="${escapeHtml(line.adjustmentId || '')}" data-adjustment-version="${escapeHtml(String(line.adjustmentVersion || 0))}">Remove</button>` : ''}</span>` : '<span class="vehicle-workshop-line-actions" aria-hidden="true"></span>';
+    return `<div class="vehicle-workshop-line"><span class="vehicle-workshop-line-number">${index + 1}</span><span class="vehicle-workshop-line-description"><strong>${escapeHtml(description)}</strong></span><span class="vehicle-workshop-line-hours">${hoursHtml}</span><span class="vehicle-workshop-line-booking">${bookingHtml}</span>${controls}</div>`;
   }).join('');
   const addButton = canEdit ? `<button type="button" class="vehicle-workshop-line-add" data-vehicle-workshop-line-add data-stage="${escapeHtml(group.stage)}">+ Add line</button>` : '';
   return `<section class="vehicle-workshop-station" data-vehicle-workshop-stage="${escapeHtml(group.stage)}" style="--station-colour:${escapeHtml(presentation.colour)};--station-tint:${escapeHtml(presentation.tint)}"><header><span class="vehicle-workshop-station-code">${escapeHtml(presentation.label.slice(0, 2).toUpperCase())}</span><div><h3>${escapeHtml(presentation.label)}</h3><p>${complete ? 'Required work completed' : 'Required work outstanding'}</p></div>${addButton}<span class="vehicle-workshop-station-status ${complete ? 'is-complete' : 'is-required'}">${complete ? 'Completed' : 'Required'}</span><span class="vehicle-workshop-station-total">${escapeHtml(vehicleWorkshopHoursLabel(totalHours))}</span></header><div class="vehicle-workshop-lines">${lines}</div></section>`;
@@ -10619,19 +10623,19 @@ function openVehicleWorkshopBooking(bookingId = '', stage = '', date = '') {
   return true;
 }
 
-async function saveVehicleWorkshopLine({ stage = '', lineKey = '', adjustmentId = '', adjustmentVersion = 0, description = '', hours = '' } = {}) {
+async function saveVehicleWorkshopLine({ stage = '', lineKey = '', adjustmentId = '', adjustmentVersion = 0, description = '', hours = '', hoursOnly = false } = {}) {
   const vehicle = selectedVehicle() || {};
   const canonicalId = vehicleWorkshopDetailCanonicalId(vehicle);
   const detail = canonicalId ? app.vehicleWorkshopDetailCache.get(canonicalId)?.detail : null;
   if (!vehicleWorkshopCanEditLines() || !canonicalId || !detail) return false;
-  const nextDescription = window.prompt(lineKey ? 'Workshop line description' : 'New Workshop line description', description || '');
+  const nextDescription = hoursOnly ? description : window.prompt(lineKey ? 'Workshop line description' : 'New Workshop line description', description || '');
   if (nextDescription === null) return false;
   const trimmedDescription = cleanNavisionText(nextDescription);
   if (!trimmedDescription || trimmedDescription.length > 180) {
     window.alert('Enter a Workshop line description between 1 and 180 characters.');
     return false;
   }
-  const nextHours = window.prompt('Estimated hours (quarter-hour increments)', hours || '1');
+  const nextHours = hoursOnly ? hours : window.prompt('Estimated hours (quarter-hour increments)', hours || '1');
   if (nextHours === null) return false;
   const numericHours = Number(nextHours);
   if (!Number.isFinite(numericHours) || numericHours < 0.25 || numericHours > 999.75 || Math.round(numericHours * 4) !== numericHours * 4) {
@@ -10664,6 +10668,29 @@ async function saveVehicleWorkshopLine({ stage = '', lineKey = '', adjustmentId 
     window.alert(error?.message || 'Workshop line update failed. Refresh and try again.');
     return false;
   }
+}
+
+async function saveVehicleWorkshopLineHours(button) {
+  const row = button?.closest?.('.vehicle-workshop-line');
+  const input = row?.querySelector?.('[data-vehicle-workshop-hours-input]');
+  if (!button || !input) return false;
+  button.disabled = true;
+  input.disabled = true;
+  const saved = await saveVehicleWorkshopLine({
+    stage: button.dataset.stage,
+    lineKey: button.dataset.lineKey,
+    adjustmentId: button.dataset.adjustmentId,
+    adjustmentVersion: Number(button.dataset.adjustmentVersion || 0),
+    description: button.dataset.description,
+    hours: input.value,
+    hoursOnly: true,
+  });
+  if (!saved && button.isConnected) {
+    button.disabled = false;
+    input.disabled = false;
+    input.focus();
+  }
+  return saved;
 }
 
 async function deleteVehicleWorkshopLine(adjustmentId = '', adjustmentVersion = 0) {
@@ -10710,6 +10737,12 @@ function bindVehicleDetailTabs(panel) {
     description: button.dataset.description,
     hours: button.dataset.hours,
   })));
+  panel.querySelectorAll('[data-vehicle-workshop-hours-save]').forEach(button => button.addEventListener('click', () => saveVehicleWorkshopLineHours(button)));
+  panel.querySelectorAll('[data-vehicle-workshop-hours-input]').forEach(input => input.addEventListener('keydown', event => {
+    if (event.key !== 'Enter') return;
+    event.preventDefault();
+    input.closest('.vehicle-workshop-line')?.querySelector('[data-vehicle-workshop-hours-save]')?.click();
+  }));
   panel.querySelectorAll('[data-vehicle-workshop-line-delete]').forEach(button => button.addEventListener('click', () => deleteVehicleWorkshopLine(button.dataset.adjustmentId, Number(button.dataset.adjustmentVersion || 0))));
 }
 

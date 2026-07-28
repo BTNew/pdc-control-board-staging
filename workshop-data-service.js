@@ -54,6 +54,7 @@ const WORKSHOP_MUTATION_RPCS = Object.freeze([
   'cancel_workshop_booking',
   'restore_workshop_booking',
   'cascade_workshop_schedule',
+  'cascade_workshop_booking_move',
   'approve_parts_incomplete_override'
 ]);
 
@@ -76,6 +77,7 @@ const WORKSHOP_MUTATION_VERSION_PARAM = Object.freeze({
   cancel_workshop_booking: 'p_expected_version',
   restore_workshop_booking: 'p_expected_version',
   cascade_workshop_schedule: 'p_target_expected_version',
+  cascade_workshop_booking_move: 'p_expected_version',
   approve_parts_incomplete_override: 'p_vehicle_expected_version'
 });
 
@@ -87,7 +89,8 @@ const WORKSHOP_CANONICAL_MUTATION_ERRORS = new Set([
   'bay_overlap', 'vehicle_overlap', 'calendar_unavailable',
   'calendar_duration_mismatch', 'invalid_schedule_interval', 'minimum_duration',
   'bay_inactive_or_wrong_station', 'technician_inactive_or_missing',
-  'technician_leave_conflict', 'technician_overlap'
+  'technician_leave_conflict', 'technician_overlap', 'live_booking_conflict',
+  'concurrent_queue_change'
 ]);
 
 function workshopCanonicalMutationError(body) {

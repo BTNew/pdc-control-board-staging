@@ -27,6 +27,15 @@ assert(workshopGroupsBody.includes('operation_no'), 'Authenticated operation num
 assert(workshopGroupsBody.includes('groups.get(stage).lines.push'), 'Authenticated operation lines must be placed into their canonical station group');
 assert(css.includes('.vehicle-workshop-station') && css.includes('--station-colour'), 'Station groups must be colour coded through a shared station colour token');
 assert(css.includes('.vehicle-detail-tabs') && css.includes('@media (max-width: 760px)'), 'Tabs and work rows must have responsive treatment');
+const stationHtmlStart = app.indexOf('function vehicleWorkshopStationHtml');
+const stationHtmlEnd = app.indexOf('function renderVehicleWorkshopWorkPage', stationHtmlStart);
+const stationHtmlBody = stationHtmlStart >= 0 && stationHtmlEnd > stationHtmlStart ? app.slice(stationHtmlStart, stationHtmlEnd) : '';
+assert(stationHtmlBody.includes('data-vehicle-workshop-hours-input'), 'Editable rows must expose a direct estimated-hours input');
+assert(stationHtmlBody.includes('data-vehicle-workshop-hours-save'), 'Direct estimated-hours editing must have an explicit save action');
+assert(stationHtmlBody.includes('<span class="vehicle-workshop-line-booking">${bookingHtml}</span>${controls}</div>'), 'Edit line must be the final row column after the booking');
+assert(app.includes('saveVehicleWorkshopLineHours'), 'Direct estimated-hours changes must use a dedicated authoritative save handler');
+assert(/\.vehicle-workshop-line\s*\{[^}]*grid-template-columns:[^;]*auto/i.test(css), 'Desktop work rows must reserve a compact final action column');
+assert(/\.vehicle-workshop-line\s*>\s*span\s*\{[^}]*padding:\s*(?:[0-6](?:px)?\s+){1,3}[0-8]px/i.test(css), 'Vehicle workshop row cell padding must stay slim');
 
 assert(/create or replace function public\.get_vehicle_workshop_detail\(p_vehicle_id uuid\)/i.test(sql), 'Migration must add one narrow viewer-readable vehicle workshop detail RPC');
 assert(/perform public\.require_pdc_role\('viewer'\)/i.test(sql), 'Vehicle workshop detail RPC must enforce authenticated viewer authority');
