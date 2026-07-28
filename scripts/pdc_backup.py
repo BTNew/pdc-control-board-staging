@@ -191,6 +191,7 @@ TABLES = [
     "pdc_online_state_revision",
     "pdc_online_operational_state",
     "pdc_online_state_receipts",
+    "pdc_email_vehicle_revision",
     # Vehicle master + everything that hangs off a vehicle
     "vehicles",
     "vehicle_aliases",
@@ -210,16 +211,21 @@ TABLES = [
     "navision_rollback_items",
     "navision_backend_audit",
     "navision_board_activations",
+    "navision_initial_scope_approvals",
     "pdc_email_source_claims",
     "pdc_ai_intake_revision",
     "pdc_ai_intake_proposals",
     "pdc_ai_intake_history",
     "pdc_ai_intake_decision_receipts",
     "vehicle_work_items",
+    "pdc_authenticated_email_import_receipts",
+    "pdc_authenticated_email_operation_lines",
     # Migration 045: service-only canonicalization/reconciliation receipts.
     "legacy_stage_reconciliation_receipts",
     "vehicle_movements",
     "vehicle_parts_updates",
+    "pdc_sublet_bookings",
+    "pdc_sublet_booking_history",
     "vehicle_eta_history",
     "vehicle_timeline_events",
     "vehicle_intelligence_revisions",
@@ -272,6 +278,12 @@ MIGRATION_063_BACKUP_TABLES = frozenset({
     'pdc_ai_intake_proposals', 'pdc_ai_intake_history',
 })
 MIGRATION_065_BACKUP_TABLES = frozenset({'pdc_ai_intake_decision_receipts'})
+MIGRATION_066_BACKUP_TABLES = frozenset({
+    'pdc_authenticated_email_import_receipts', 'pdc_email_vehicle_revision',
+})
+MIGRATION_072_BACKUP_TABLES = frozenset({'pdc_sublet_bookings', 'pdc_sublet_booking_history'})
+MIGRATION_074_BACKUP_TABLES = frozenset({'navision_initial_scope_approvals'})
+MIGRATION_093_BACKUP_TABLES = frozenset({'pdc_authenticated_email_operation_lines'})
 
 
 def required_backup_tables(migration_version):
@@ -279,7 +291,7 @@ def required_backup_tables(migration_version):
     number = migration_number(migration_version)
     if number < 42:
         return frozenset()
-    future = MIGRATION_045_BACKUP_TABLES | MIGRATION_053_BACKUP_TABLES | MIGRATION_054_BACKUP_TABLES | MIGRATION_056_BACKUP_TABLES | MIGRATION_060_BACKUP_TABLES | MIGRATION_061_BACKUP_TABLES | MIGRATION_063_BACKUP_TABLES | MIGRATION_065_BACKUP_TABLES
+    future = MIGRATION_045_BACKUP_TABLES | MIGRATION_053_BACKUP_TABLES | MIGRATION_054_BACKUP_TABLES | MIGRATION_056_BACKUP_TABLES | MIGRATION_060_BACKUP_TABLES | MIGRATION_061_BACKUP_TABLES | MIGRATION_063_BACKUP_TABLES | MIGRATION_065_BACKUP_TABLES | MIGRATION_066_BACKUP_TABLES | MIGRATION_072_BACKUP_TABLES | MIGRATION_074_BACKUP_TABLES | MIGRATION_093_BACKUP_TABLES
     required = frozenset(TABLES).difference(future)
     if number >= 45:
         required |= MIGRATION_045_BACKUP_TABLES
@@ -297,6 +309,14 @@ def required_backup_tables(migration_version):
         required |= MIGRATION_063_BACKUP_TABLES
     if number >= 65:
         required |= MIGRATION_065_BACKUP_TABLES
+    if number >= 66:
+        required |= MIGRATION_066_BACKUP_TABLES
+    if number >= 72:
+        required |= MIGRATION_072_BACKUP_TABLES
+    if number >= 74:
+        required |= MIGRATION_074_BACKUP_TABLES
+    if number >= 93:
+        required |= MIGRATION_093_BACKUP_TABLES
     return required
 
 
@@ -342,7 +362,7 @@ def json_default(value):
     raise TypeError(f"Unsupported type for backup JSON export: {type(value)}")
 
 
-def get_migration_version(cur):
+def get_migration_ledger_version(cur):
     try:
         cur.execute(
             "select version from supabase_migrations.schema_migrations "
@@ -352,6 +372,23 @@ def get_migration_version(cur):
         return row[0] if row else None
     except Exception:
         return None
+
+
+def get_migration_version(cur):
+    """Return the fail-closed schema inventory floor, retaining ledger drift evidence."""
+    ledger = get_migration_ledger_version(cur)
+    number = migration_number(ledger)
+    object_floors = (
+        (66, 'pdc_authenticated_email_import_receipts'),
+        (72, 'pdc_sublet_bookings'),
+        (74, 'navision_initial_scope_approvals'),
+        (93, 'pdc_authenticated_email_operation_lines'),
+    )
+    for floor, table in object_floors:
+        cur.execute("select to_regclass(%s) is not null", (f'public.{table}',))
+        if cur.fetchone()[0]:
+            number = max(number, floor)
+    return f"{number:03d}" if number else ledger
 
 
 def migration_number(version):
@@ -482,6 +519,7 @@ def run_backup(conn, environment, output_dir, encryption_key, kind="scheduled", 
     backup_run_id = str(uuid.uuid4())
     started_at = datetime.now(timezone.utc)
     migration_version = get_migration_version(cur)
+    migration_ledger_version = get_migration_ledger_version(cur)
     file_path = None
     manifest_path = None
     artifact_tmp = None
@@ -506,6 +544,7 @@ def run_backup(conn, environment, output_dir, encryption_key, kind="scheduled", 
     # commit. The migration ledger is then re-read inside the same snapshot.
     cur.execute("set transaction isolation level repeatable read")
     migration_version = get_migration_version(cur)
+    migration_ledger_version = get_migration_ledger_version(cur)
     cur.execute(
         "update public.backup_runs set migration_version=%s where id=%s",
         (migration_version, backup_run_id),
@@ -517,6 +556,7 @@ def run_backup(conn, environment, output_dir, encryption_key, kind="scheduled", 
         "environment": environment,
         "started_at": started_at.isoformat(),
         "migration_version": migration_version,
+        "migration_ledger_version": migration_ledger_version,
         "tables": {},
         "table_hashes": {},
         "schema_objects": {},

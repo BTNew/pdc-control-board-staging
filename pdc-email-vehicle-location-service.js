@@ -32,6 +32,14 @@ function mapServerVehicle(row = {}) {
     if (item.completed_at) mapped[`${fields[1]}At`] = item.completed_at;
     if (item.completed_by) mapped[`${fields[1]}By`] = item.completed_by;
   }
+  const allowedOperationKeys = new Set(['bus4x4', 'tint', 'hoist', 'fitting', 'fabrication', 'electrical', 'tyre', 'pitinspection', 'parts']);
+  mapped.pdcEmailOperationLines = (Array.isArray(row.operation_lines) ? row.operation_lines : []).slice(0, 50).map(item => ({
+    operation_no: String(item?.operation_no || '').trim().toUpperCase(),
+    work_key: canonicalWorkKey(item?.work_key),
+    description: String(item?.description || '').trim().slice(0, 180),
+    source_uid: String(item?.source_uid || '').trim().slice(0, 100),
+  })).filter(item => /^OP(?:[1-9]|[1-9][0-9]{1,2})$/.test(item.operation_no)
+    && allowedOperationKeys.has(item.work_key) && item.description.length > 0);
   if (row.parts_required != null) mapped.pdcRequiresParts = row.parts_required === true;
   if (row.parts_completed != null) mapped.pdcCompleteParts = row.parts_completed === true;
   const partsUpdate = row.parts_update && typeof row.parts_update === 'object' ? row.parts_update : {};
@@ -40,6 +48,7 @@ function mapServerVehicle(row = {}) {
   mapped.pdcPartsStoppageReason = String(partsUpdate.parts_stoppage_reason || '');
   mapped.pdcPartsWorstEta = partsUpdate.worst_eta || '';
   mapped.pdcPartsWorstEtaUpdatedAt = partsUpdate.updated_at || '';
+
   const sublet = row.sublet_booking && typeof row.sublet_booking === 'object' ? row.sublet_booking : {};
   mapped.pmbSubletProvider = String(sublet.provider || '');
   mapped.pmbSubletProviderEmail = String(sublet.provider_email || '');

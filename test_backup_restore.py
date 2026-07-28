@@ -50,17 +50,37 @@ assert len(pdc_backup.WORKSHOP_ALIAS_VALUES_044) == 37
 future_tables = (pdc_backup.MIGRATION_045_BACKUP_TABLES | pdc_backup.MIGRATION_053_BACKUP_TABLES |
                  pdc_backup.MIGRATION_054_BACKUP_TABLES | pdc_backup.MIGRATION_056_BACKUP_TABLES |
                  pdc_backup.MIGRATION_060_BACKUP_TABLES | pdc_backup.MIGRATION_061_BACKUP_TABLES |
-                 pdc_backup.MIGRATION_063_BACKUP_TABLES | pdc_backup.MIGRATION_065_BACKUP_TABLES)
+                 pdc_backup.MIGRATION_063_BACKUP_TABLES | pdc_backup.MIGRATION_065_BACKUP_TABLES |
+                 pdc_backup.MIGRATION_066_BACKUP_TABLES | pdc_backup.MIGRATION_072_BACKUP_TABLES |
+                 pdc_backup.MIGRATION_074_BACKUP_TABLES | pdc_backup.MIGRATION_093_BACKUP_TABLES)
 base_tables = frozenset(pdc_backup.TABLES).difference(future_tables)
 assert pdc_backup.required_backup_tables('044') == base_tables
 assert pdc_backup.required_backup_tables('045') == base_tables | pdc_backup.MIGRATION_045_BACKUP_TABLES
 assert pdc_backup.required_backup_tables('053') == base_tables | pdc_backup.MIGRATION_045_BACKUP_TABLES | pdc_backup.MIGRATION_053_BACKUP_TABLES
 assert pdc_backup.required_backup_tables('054') == base_tables | pdc_backup.MIGRATION_045_BACKUP_TABLES | pdc_backup.MIGRATION_053_BACKUP_TABLES | pdc_backup.MIGRATION_054_BACKUP_TABLES
-assert pdc_backup.required_backup_tables('056') == frozenset(pdc_backup.TABLES).difference(pdc_backup.MIGRATION_060_BACKUP_TABLES | pdc_backup.MIGRATION_061_BACKUP_TABLES | pdc_backup.MIGRATION_063_BACKUP_TABLES | pdc_backup.MIGRATION_065_BACKUP_TABLES)
-assert pdc_backup.required_backup_tables('060') == frozenset(pdc_backup.TABLES).difference(pdc_backup.MIGRATION_061_BACKUP_TABLES | pdc_backup.MIGRATION_063_BACKUP_TABLES | pdc_backup.MIGRATION_065_BACKUP_TABLES)
-assert pdc_backup.required_backup_tables('061') == frozenset(pdc_backup.TABLES).difference(pdc_backup.MIGRATION_063_BACKUP_TABLES | pdc_backup.MIGRATION_065_BACKUP_TABLES)
-assert pdc_backup.required_backup_tables('063') == frozenset(pdc_backup.TABLES).difference(pdc_backup.MIGRATION_065_BACKUP_TABLES)
-assert pdc_backup.required_backup_tables('065') == frozenset(pdc_backup.TABLES)
+post_065 = (pdc_backup.MIGRATION_066_BACKUP_TABLES | pdc_backup.MIGRATION_072_BACKUP_TABLES |
+            pdc_backup.MIGRATION_074_BACKUP_TABLES | pdc_backup.MIGRATION_093_BACKUP_TABLES)
+assert pdc_backup.required_backup_tables('056') == frozenset(pdc_backup.TABLES).difference(
+    pdc_backup.MIGRATION_060_BACKUP_TABLES | pdc_backup.MIGRATION_061_BACKUP_TABLES |
+    pdc_backup.MIGRATION_063_BACKUP_TABLES | pdc_backup.MIGRATION_065_BACKUP_TABLES | post_065)
+assert pdc_backup.required_backup_tables('060') == frozenset(pdc_backup.TABLES).difference(
+    pdc_backup.MIGRATION_061_BACKUP_TABLES | pdc_backup.MIGRATION_063_BACKUP_TABLES |
+    pdc_backup.MIGRATION_065_BACKUP_TABLES | post_065)
+assert pdc_backup.required_backup_tables('061') == frozenset(pdc_backup.TABLES).difference(
+    pdc_backup.MIGRATION_063_BACKUP_TABLES | pdc_backup.MIGRATION_065_BACKUP_TABLES | post_065)
+assert pdc_backup.required_backup_tables('063') == frozenset(pdc_backup.TABLES).difference(
+    pdc_backup.MIGRATION_065_BACKUP_TABLES | post_065)
+assert pdc_backup.required_backup_tables('065') == frozenset(pdc_backup.TABLES).difference(
+    pdc_backup.MIGRATION_066_BACKUP_TABLES | pdc_backup.MIGRATION_072_BACKUP_TABLES |
+    pdc_backup.MIGRATION_074_BACKUP_TABLES | pdc_backup.MIGRATION_093_BACKUP_TABLES)
+assert pdc_backup.required_backup_tables('066') == frozenset(pdc_backup.TABLES).difference(
+    pdc_backup.MIGRATION_072_BACKUP_TABLES | pdc_backup.MIGRATION_074_BACKUP_TABLES |
+    pdc_backup.MIGRATION_093_BACKUP_TABLES)
+assert pdc_backup.required_backup_tables('072') == frozenset(pdc_backup.TABLES).difference(
+    pdc_backup.MIGRATION_074_BACKUP_TABLES | pdc_backup.MIGRATION_093_BACKUP_TABLES)
+assert pdc_backup.required_backup_tables('074') == frozenset(pdc_backup.TABLES).difference(
+    pdc_backup.MIGRATION_093_BACKUP_TABLES)
+assert pdc_backup.required_backup_tables('093') == frozenset(pdc_backup.TABLES)
 assert pdc_backup.migration_number("037_shared") == 37
 
 columns = ["id", "payload"]
