@@ -1067,7 +1067,7 @@ function workshopSelectPlanForDetail(planId = '') {
   state.searchNotice = '';
 }
 
-function workshopVehicle(key = '') {
+function workshopVehicle(key = '', stage = '') {
   const cleanKey = String(key || '').trim();
   if (!cleanKey) return null;
   if (!workshopSharedModeActive()) {
@@ -1080,11 +1080,34 @@ function workshopVehicle(key = '') {
   const matches = vehicles.filter(vehicle => [vehicle.id, vehicle.stock_number, vehicle.permanent_vehicle_id]
     .some(value => String(value || '').trim() === cleanKey));
   if (matches.length !== 1) return null;
-  return workshopSnapshotVehicleToPlannerRow(
+  const plannerRow = workshopSnapshotVehicleToPlannerRow(
     matches[0],
     Array.isArray(snapshot?.work_items) ? snapshot.work_items : [],
-    window.__activeWorkshopPlannerStage || '',
+    stage || window.__activeWorkshopPlannerStage || '',
   );
+  const normalizeStage = value => typeof normalizePmbStage === 'function'
+    ? normalizePmbStage(value)
+    : String(value || '').trim().toUpperCase();
+  const requestedStage = normalizeStage(stage || window.__activeWorkshopPlannerStage || '');
+  if (!requestedStage) return plannerRow;
+  if (!Array.isArray(snapshot?.outstanding_candidates)) return plannerRow;
+  const authorityMatches = snapshot.outstanding_candidates.filter(row => {
+    if (String(row?.vehicle_id || '').trim() !== String(matches[0]?.id || '').trim()) return false;
+    const rowStage = normalizeStage(row?.stage_code || row?.stage || requestedStage);
+    return rowStage === requestedStage;
+  });
+  if (authorityMatches.length !== 1) {
+    return { ...plannerRow, __workshopOutstanding: { existingBooking: false, scheduleEnabled: false, disabledReason: 'authority_unavailable' } };
+  }
+  const authority = authorityMatches[0];
+  return {
+    ...plannerRow,
+    __workshopOutstanding: {
+      existingBooking: authority.existing_booking === true,
+      scheduleEnabled: authority.schedule_enabled === true,
+      disabledReason: authority.disabled_reason || '',
+    },
+  };
 }
 
 // Looks up a vehicle's shared Supabase id + optimistic version from the
@@ -4490,7 +4513,7 @@ async function workshopScheduleSharedNewBooking({
 async function scheduleWorkshopVehicle({ planId = '', vehicleKeyValue = '', stage = '', bay = 0, dateKey = '', startMinutes = 0, hoursValue = null, assigneeValue = null, preferRequestedTime = false } = {}) {
   const rows = workshopLoadPlans();
   const existing = rows.find(entry => entry.id === planId) || rows.find(entry => entry.id === workshopPlanId(vehicleKeyValue, stage));
-  const vehicle = workshopVehicle(existing?.vehicleKey || vehicleKeyValue);
+  const vehicle = workshopVehicle(existing?.vehicleKey || vehicleKeyValue, stage);
   if (!vehicle) return false;
   if (!existing && workshopSharedModeActive() && vehicle.__workshopOutstanding?.scheduleEnabled !== true) {
     window.alert(`${workshopOutstandingDisabledReasonLabel(vehicle.__workshopOutstanding?.disabledReason)}. No booking was created.`);
