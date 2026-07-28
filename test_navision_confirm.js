@@ -152,7 +152,19 @@ code += String.raw`
   assert(!locationRows.some(vehicle => vehicle.stock === '10010012'), 'An import must not become a Locations row merely because it is current in Navision');
   const activatedShared = vehicleLocationBoardRows([], [{ id: 'activated-shared', dealer_code: '14450', stock_number: '10010012', toyota_order_number: 'ORD-SHARED', customer_name: 'Shared Customer', salesperson: 'Alex Sales', model: 'Prado', colour: 'Silver', vehicle_status: 'Delivered - At Body Builder', is_current: true, board_activated: true, activation_source: 'manual' }]);
   assert(activatedShared.length === 1 && activatedShared[0].stock === '10010012', 'A durable manual/email activation must make the shared vehicle visible in Locations');
+  assert(activatedShared[0].pdcLocation === 'PMB', 'An activated canonical Body Builder row must land in PMB');
   assert(activatedShared[0].client === 'Shared Customer' && activatedShared[0].consultant === 'Alex Sales' && activatedShared[0].toyotaVehicle === 'Prado' && activatedShared[0].colour === 'Silver', 'Activated shared rows must carry customer, salesperson, model and colour');
+
+  const atDealerCompleted = { id: 'completed-shared', dealer_code: '14450', stock_number: '10010013', customer_name: 'Completed Customer', model: 'HiLux', vehicle_status: 'Delivered - At Dealer', current_location: 'Completed', lifecycle_state: 'completed', completed_at: '2026-07-28T09:30:00Z', completion_reason: 'Delivered - At Dealer', canonical_vehicle_id: 'canonical-completed', is_current: true, board_activated: false };
+  assert(vehicleLocationBoardRows([], [atDealerCompleted]).length === 0, 'A Delivered-at-Dealer canonical completion must leave active Vehicle Locations');
+  const priorSharedRows = app.sharedNavisionVisibleRows;
+  const priorAppData = app.data;
+  app.sharedNavisionVisibleRows = [atDealerCompleted];
+  app.data = [];
+  const completedSharedRows = completedVehicleRows();
+  assert(completedSharedRows.length === 1 && completedSharedRows[0].stock === '10010013' && completedSharedRows[0].rftCollectedAt === '2026-07-28T09:30:00Z', 'A Delivered-at-Dealer canonical completion must appear in Completed Vehicles');
+  app.sharedNavisionVisibleRows = priorSharedRows;
+  app.data = priorAppData;
 
   const ambiguousLocationRows = vehicleLocationBoardRows(
     [{ id: 'local-ambiguous', stock: 'STOCK-A', order: 'ORDER-B', toyotaStatus: 'Local review required' }],

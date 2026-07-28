@@ -1,5 +1,5 @@
-const APP_VERSION = '2026.07.28.23-sidebar-information-cleanup';
-const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.07.28.23-sidebar-information-cleanup';
+const APP_VERSION = '2026.07.28.24-navision-location-completion';
+const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.07.28.24-navision-location-completion';
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
 // constant intentionally names only the production ref, never the
@@ -11926,7 +11926,17 @@ function bindRftCollectedInputs(root = document) {
 
 function completedVehicleRows() {
   const q = ($('#completed-search')?.value || '').trim().toLowerCase();
-  return app.data
+  const sharedCompleted = activeSharedNavisionRows()
+    .filter(item => String(item.lifecycle_state || '').toLowerCase() === 'completed')
+    .map(sharedNavisionLocationVehicle);
+  const deduplicated = new Map();
+  app.data.concat(sharedCompleted).forEach(vehicle => {
+    if (!vehicleCollectedFromRft(vehicle)) return;
+    const identity = sharedNavisionIdentityToken(displayStockNumber(vehicle) || vehicleKey(vehicle));
+    const retained = deduplicated.get(identity);
+    if (!retained || vehicle.__sharedNavisionCanonicalVehicleId) deduplicated.set(identity, vehicle);
+  });
+  return Array.from(deduplicated.values())
     .filter(vehicleCollectedFromRft)
     .filter(vehicle => {
       if (!q) return true;
@@ -12242,6 +12252,8 @@ function vehicleSharedNavisionIdentityKeys(vehicle = {}) {
 }
 
 function sharedNavisionLocationVehicle(item = {}) {
+  const completed = String(item.lifecycle_state || '').toLowerCase() === 'completed';
+  const canonicalLocation = cleanNavisionText(item.current_location || '');
   return {
     id: `shared-navision-${item.id || sharedNavisionIdentityToken(item.stock_number)}`,
     stock: item.stock_number || '',
@@ -12256,6 +12268,16 @@ function sharedNavisionLocationVehicle(item = {}) {
     navisionLocationStatus: item.vehicle_status || '',
     etaAtDealer: item.eta_to_kewdale || '',
     navisionKewdaleEta: item.eta_to_kewdale || '',
+    pdcLocation: completed ? 'Completed' : (canonicalLocation || currentPdcLocationFromNavision({
+      navisionLocationStatus: item.vehicle_status || '',
+      toyotaStatus: item.vehicle_status || '',
+    })),
+    lifecycleState: item.lifecycle_state || (completed ? 'completed' : 'active'),
+    completedVehicle: completed,
+    rftCollected: completed,
+    rftCollectedAt: item.completed_at || '',
+    rftCollectedBy: item.completed_by_email || 'Navision · Delivered at Dealer',
+    completionReason: item.completion_reason || '',
     importedAt: item.updated_at || '',
     source: 'Shared Navision',
     pdcSheetVisible: true,
@@ -12264,6 +12286,7 @@ function sharedNavisionLocationVehicle(item = {}) {
     __sharedNavisionDealerCode: item.dealer_code || '',
     __sharedNavisionBoardActivated: item.board_activated === true,
     __sharedNavisionActivationSource: item.activation_source || '',
+    __sharedNavisionCanonicalVehicleId: item.canonical_vehicle_id || '',
   };
 }
 
@@ -12364,6 +12387,7 @@ function vehicleLocationBoardRows(localRows = pdcSheetVehicles(), sharedRows = a
       ...vehicle,
       toyotaStatus: shared.toyotaStatus,
       navisionLocationStatus: shared.navisionLocationStatus,
+      pdcLocation: shared.pdcLocation || vehicle.pdcLocation || '',
       etaAtDealer: shared.etaAtDealer,
       navisionKewdaleEta: shared.navisionKewdaleEta,
       importedAt: shared.importedAt || vehicle.importedAt || '',
