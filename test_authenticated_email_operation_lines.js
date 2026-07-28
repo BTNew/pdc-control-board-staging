@@ -5,7 +5,7 @@ function assert(value, message) { if (!value) throw new Error(message); }
 
 const lines = [
   { operation_no: 'OP3', work_key: 'tyre', description: 'TYRE UPGRADE - BFG KO3 A/T X 6', source_uid: '1:193' },
-  { operation_no: 'OP4', work_key: 'electrical', description: 'ULTRASONIC SHU ROO MK5 - MOUNTED TO BULL BAR', source_uid: '1:193' },
+  { operation_no: 'OP4', work_key: 'electrical', description: 'ULTRASONIC SHU ROO MK5 - MOUNTED TO BULL BAR', estimated_hours: '1.25', source_uid: '1:193' },
 ];
 const mapped = mapServerVehicle({
   id: 'vehicle-1', stock_number: '13056899', visible_on_board: true,
@@ -14,6 +14,7 @@ const mapped = mapServerVehicle({
 });
 assert(Array.isArray(mapped.pdcEmailOperationLines) && mapped.pdcEmailOperationLines.length === 2, 'Authenticated operation lines must survive the server-to-card mapping');
 assert(mapped.pdcEmailOperationLines[1].work_key === 'electrical', 'Operation lines must retain their canonical work key');
+assert(mapped.pdcEmailOperationLines[1].estimatedHours === 1.25, 'Authenticated estimated hours must survive the server-to-card mapping as a finite number');
 const pdMapped = mapServerVehicle({ operation_lines: [{ operation_no: 'PD003-A75EB7AE', work_key: 'fitting', description: 'Vehicle Pre-Delivery' }] });
 assert(pdMapped.pdcEmailOperationLines.length === 1, 'Authenticated PD accessory line was not mapped');
 assert(pdMapped.pdcEmailOperationLines[0].operation_no === 'PD003-A75EB7AE', 'Authenticated PD source-line key was not retained');
@@ -77,6 +78,7 @@ assert(app.includes('function authenticatedEmailOperationLinesHtml('), 'Vehicle 
 assert(app.includes('Operations from authenticated PD documents and job cards'), 'The card must label operation lines as authenticated job-card evidence');
 assert(app.includes('pdcEmailOperationLines'), 'The card renderer must consume the mapped operation lines');
 assert(app.includes('escapeHtml(operation.description'), 'Untrusted operation descriptions must be escaped');
+assert(app.includes("operation.estimatedHours != null ? `${Number(operation.estimatedHours).toFixed(2)} h` : 'Hours not stated'"), 'Vehicle cards must render authenticated estimated hours with an explicit missing-hours fallback');
 assert(app.includes('${authenticatedEmailOperationLinesHtml(vehicle)}'), 'The expanded vehicle card must render operation lines');
 
 const staging = fs.readFileSync('staging.html', 'utf8');
