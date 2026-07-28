@@ -34,6 +34,6 @@ window.PDC_SUPABASE_CONFIG = {
   vehicleLifecycle: Object.freeze({
     sharedData: true,
     resolverRollbackDirectRead: false,
-    resolverAssetVersion: '2026.07.28.21-navision-pilbara-recheck'
+    resolverAssetVersion: '2026.07.28.22-planner-search-focus'
   })
 };
