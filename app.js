@@ -1,5 +1,5 @@
-const APP_VERSION = '2026.07.28.34-toyota-navision-status-parity';
-const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.07.28.34-toyota-navision-status-parity';
+const APP_VERSION = '2026.07.28.35-parts-workshop-candidate-scope';
+const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.07.28.35-parts-workshop-candidate-scope';
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
 // constant intentionally names only the production ref, never the
@@ -4625,7 +4625,7 @@ function workshopEligibilityCandidateVehicle(candidate = {}) {
     sharedVehicleId: raw.id,
     stock: raw.stock_number || '', stockNumber: raw.stock_number || '',
     vin: raw.vin || '', jobCardNumber: raw.job_card_number || '',
-    client: '', vehicle: [raw.make, raw.model].filter(Boolean).join(' '),
+    client: raw.customer_name || '', vehicle: [raw.make, raw.model].filter(Boolean).join(' '),
     rego: raw.registration || '', registration: raw.registration || '',
     pdcLocation: raw.current_location || '', manualLocation: raw.current_location || '',
     pmbStage: raw.pmb_stage || '', pmbBayStage: raw.pmb_bay_stage || '', pmbBay: raw.pmb_bay_number || '',
@@ -5025,6 +5025,7 @@ function controlBoardStationVehicleHtml(vehicle = {}, stage = '') {
   return `<button class="control-board-work-vehicle${blocked ? ' is-blocked' : ''}${inBay ? ' is-in-bay' : ''}${etaDisabled ? ' is-scheduling-disabled' : ''}" type="button" ${targetAttribute} aria-label="Open ${escapeHtml(stock)} for ${escapeHtml(pmbStageLabel(stage))} work">
     <span class="control-board-work-identity">${vehicleIdentityStackHtml(vehicle)}</span>
     <span class="control-board-work-main"><strong>${escapeHtml(unit)}</strong></span>
+    <span class="control-board-work-customer"><b>Customer</b><span>${escapeHtml(vehicleCustomerName(vehicle) || 'Dealer Order')}</span></span>
     <span class="control-board-work-location"><b>Now</b><span>${escapeHtml(currentLabel)}</span></span>
     <span class="control-board-work-age"><b>Location</b><span>${escapeHtml(planningLocation)}</span></span>
     ${etaDisabled ? `<span class="badge danger">${escapeHtml(eligibility.disabledReason === 'missing_eta' ? 'ETA missing · disabled' : 'ETA invalid · disabled')}</span>` : blocked ? '<span class="badge danger">Stopped</span>' : inBay ? `<span class="badge info">IN ${escapeHtml(pmbStageLabel(currentStage).toUpperCase())} BAY ${escapeHtml(currentBay)}</span>` : '<span class="badge warning">Work required</span>'}
@@ -5122,7 +5123,7 @@ function renderWorkflowBoard() {
       <summary class="incoming-bucket-title workflow-bucket-title">
         <span>${escapeHtml(label)}</span>
         <strong>${escapeHtml(countLabel)}</strong>
-        <small>Outstanding canonical requirements · PMB/YH immediate · IT ETA-restricted</small>
+        <small>Outstanding canonical requirements · PMB immediate · IT ETA-restricted</small>
         ${controlBoardStationPipelineHtml(stage)}
         <span class="workflow-bucket-actions"><button class="small-button primary" type="button" data-open-workshop-stage="${escapeHtml(stage)}">Open ${escapeHtml(label)} Planner</button></span>
       </summary>
@@ -5136,7 +5137,7 @@ function renderWorkflowBoard() {
   host.innerHTML = `
     ${authorityBanner}
     <div class="branch-header workflow-pmb-header">
-      <div><strong>Workshop work overview</strong><span>Authoritative PMB, YH and IT vehicles appear in every station where required work remains outstanding. IT scheduling is restricted by ETA to Kewdale.</span></div>
+      <div><strong>Workshop work overview</strong><span>Only authoritative PMB vehicles and IT vehicles with a Kewdale ETA appear where required station work remains outstanding. IT scheduling cannot start before that ETA.</span></div>
       <div class="branch-header-actions"><span class="badge neutral">${outstandingVehicleKeys.size} needing work · ${totalPmb} at PMB</span></div>
     </div>
     <div class="workflow-collapsible-board control-board-station-list">${stationHtml}</div>
@@ -11872,9 +11873,30 @@ function renderPartsHome() {
   $$('[data-parts-worst-eta]', host).forEach(input => input.addEventListener('change', () => updateVehiclePartsWorstEta(input.dataset.partsWorstEta, input.value)));
 }
 
-function markVehiclePartsOrdered(key = '') {
+async function markVehiclePartsOrdered(key = '') {
   const vehicle = selectedVehicle(key);
   if (!vehicle) return;
+  if (vehicle.__emailVehicleServerAuthoritative === true) {
+    const service = app.emailVehicleLocationService;
+    if (!service || typeof service.markPartsOrdered !== 'function') {
+      window.alert('The shared Parts service is unavailable. No change was made.');
+      renderPartsHome();
+      return;
+    }
+    const result = await service.markPartsOrdered(vehicle.__emailVehicleId, vehicle.__emailVehicleVersion);
+    if (!result?.ok) {
+      const message = result?.code === 'vehicle_version_conflict'
+        ? 'This vehicle changed since the Parts row loaded. The latest information will be reloaded; check it and try again.'
+        : result?.code === 'parts_already_ordered'
+          ? 'Parts are already marked ordered. The current shared row will be reloaded.'
+          : 'Parts could not be marked ordered on the shared vehicle record. No change was made.';
+      window.alert(message);
+      await refreshEmailVehicleLocations();
+      return;
+    }
+    await refreshEmailVehicleLocations();
+    return;
+  }
   const operator = getCurrentOperatorName();
   recordVehicleAudit(vehicle, 'Parts marked ordered', { by: operator });
   saveVehicleEdits(key, {

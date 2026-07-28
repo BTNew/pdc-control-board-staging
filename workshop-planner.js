@@ -2440,9 +2440,11 @@ function workshopStageVehicles(stage = '') {
   if (!WORKSHOP_ELIGIBILITY_RUNTIME.workshopIsPlannerStage(normalizedStage)) return [];
   const def = pmbStageJobDef(normalizedStage);
   const pmbCandidates = typeof pmbVehiclesNeedingStationWork === 'function' ? pmbVehiclesNeedingStationWork(normalizedStage) : [];
-  const preArrivalCandidates = app.data.filter(vehicle => {
+  const preArrivalCandidates = (app.data || []).filter(vehicle => {
     const planningLocation = workshopVehiclePlanningLocation(vehicle);
-    if (!['YH', 'IT'].includes(planningLocation)) return false;
+    if (planningLocation !== 'IT') return false;
+    const etaConstraint = workshopVehicleEtaConstraint(vehicle);
+    if (!etaConstraint.ok) return false;
     const requiredAndIncomplete = Boolean(def && pdcJobRequired(vehicle, def) && !pdcJobComplete(vehicle, def));
     return requiredAndIncomplete;
   });
