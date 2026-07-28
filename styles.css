@@ -11441,11 +11441,14 @@ html[data-row-width="xl"] {
 .email-vehicle-review-line small { color: #9a3412; font-weight: 500; }
 .email-vehicle-review-line:has([data-email-line-include]:not(:checked)) { opacity: .48; background: #f8fafc; border-color: #cbd5e1; }
 .sublet-operational-filters { grid-template-columns: repeat(2, minmax(180px, 260px)); justify-content: start; }
+#sublet .sublet-filter-chip { min-height: 42px; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 7px 10px; border: 1px solid #cbd5e1; border-radius: 5px; background: #fff; color: #334155; font-size: .72rem; font-weight: 800; cursor: pointer; }
+#sublet .sublet-filter-chip strong { font-size: .9rem; }
+#sublet .sublet-filter-chip.is-active { border-color: #2563eb; background: #dbeafe; color: #1e3a8a; box-shadow: inset 0 -2px 0 #2563eb; }
 .sublet-compact-toolbar { grid-template-columns: minmax(260px, 1.5fr) minmax(210px, .8fr) minmax(210px, .8fr); }
 .sublet-table-wrap { overflow-x: auto; }
 .sublet-table { min-width: 1420px; table-layout: fixed; }
 .sublet-table th { white-space: nowrap; }
-.sublet-table td { vertical-align: middle; padding: 6px 8px; }
+.sublet-table td { vertical-align: middle; padding: 4px 8px; }
 .sublet-table .sublet-summary-row { height: 54px; background: #fff; }
 .sublet-table .sublet-summary-row:hover, .sublet-table .sublet-summary-row.is-expanded { background: #f8fafc; }
 .sublet-table .sublet-summary-row td:nth-child(1) { width: 34px; padding-left: 5px; padding-right: 3px; }
@@ -11458,7 +11461,8 @@ html[data-row-width="xl"] {
 .sublet-table .sublet-summary-row td:nth-child(8) { width: 170px; }
 .sublet-table .sublet-summary-row td:nth-child(9) { width: 150px; }
 .sublet-table .sublet-summary-row td:nth-child(10) { width: 125px; }
-.sublet-table .sublet-summary-row select, .sublet-table .sublet-summary-row input { width: 100%; min-width: 0; height: 38px; }
+.sublet-table .sublet-summary-row select, .sublet-table .sublet-summary-row input { width: 100%; min-width: 0; min-height: 34px; height: 34px; padding-top: 4px; padding-bottom: 4px; }
+.sublet-table .sublet-summary-row .small-button { min-height: 34px; padding-top: 5px; padding-bottom: 5px; }
 .sublet-row-toggle, .sublet-stock-link { border: 0; background: transparent; color: #0f4c81; cursor: pointer; padding: 3px; }
 .sublet-row-toggle { width: 26px; height: 30px; font-size: 1.3rem; line-height: 1; }
 .sublet-stock-link strong { color: #0f172a; }
