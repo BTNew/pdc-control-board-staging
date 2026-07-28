@@ -1,5 +1,5 @@
-const APP_VERSION = '2026.07.28.50-pit-planner-restored';
-const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.07.28.50-pit-planner-restored';
+const APP_VERSION = '2026.07.29.01-vehicle-card-pmb-stations';
+const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.07.29.01-vehicle-card-pmb-stations';
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
 // constant intentionally names only the production ref, never the
@@ -10481,6 +10481,7 @@ function vehicleWorkshopGroups(vehicle = {}, detail = null) {
   const groups = new Map();
   requirements.filter(item => item?.required === true).forEach(item => {
     const stage = vehicleWorkshopStageCode(item.stage_code || item.work_key || '');
+    if (!WORKSHOP_PLANNER_ROUTE_BY_STAGE[stage]) return;
     if (!groups.has(stage)) groups.set(stage, { stage, requirements: [], lines: [], bookings: vehicleWorkshopBookingsForStage(bookings, stage) });
     groups.get(stage).requirements.push(item);
   });

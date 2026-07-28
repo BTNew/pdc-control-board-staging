@@ -51,6 +51,15 @@ code += String.raw`
     pdcJobLines: [{ category: 'Electrical', description: 'Shu Roo supply and fit' }],
   }, { requirements: [{ work_key: 'electrical', stage_code: 'ELECTRICAL', required: true, completed: false }], bookings: [] });
   assert(duplicateGroups[0].lines.length === 1, 'A stale local line identical to authenticated evidence must not render twice');
+  const pmbStationGroups = vehicleWorkshopGroups({}, {
+    requirements: [
+      { work_key: 'electrical', stage_code: 'ELECTRICAL', required: true, completed: false },
+      { work_key: 'parts', stage_code: 'PARTS', required: true, completed: false },
+      { work_key: 'sublet', stage_code: 'SUBLET', required: true, completed: false },
+    ],
+    bookings: [],
+  });
+  assert(pmbStationGroups.map(group => group.stage).join(',') === 'ELECTRICAL', 'Vehicle Work & bookings must show PMB stations only, excluding Parts and Sublet');
   const escapedOperationHtml = authenticatedEmailOperationLinesHtml({
     pdcEmailOperationLines: [{ operation_no: 'PD003-A75EB7AE', work_key: 'fitting', description: '<img src=x onerror=alert(1)>' }],
   });
