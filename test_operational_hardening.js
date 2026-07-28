@@ -15,8 +15,9 @@ for (const transactionLabel of ['Navision import', 'PD Document import', 'Vehicl
 assert.ok(app.indexOf('recoverInterruptedStorageTransaction();') < app.indexOf('const app = {'), 'Interrupted storage recovery must run before app.data is built');
 assert.ok(app.includes('const STORAGE_TRANSACTION_JOURNAL_KEY'), 'Storage recovery journal key is missing');
 
-assert.ok(index.includes('id="operational-health-summary"'), 'Operational health summary is missing from the main shell');
-assert.ok(app.includes('function renderOperationalHealthSummary()'), 'Operational health rendering is missing');
+assert.ok(!index.includes('id="operational-health-summary"'), 'Operational health metadata should not be rendered in the sidebar');
+assert.ok(!index.includes('id="report-date"') && !index.includes('id="report-meta"'), 'Source-data metadata should not be rendered in the sidebar');
+assert.ok(app.includes('function renderOperationalHealthSummary()'), 'Operational health tracking is missing');
 assert.ok(app.includes('OPERATIONAL_HEALTH_KEY'), 'Operational health storage is missing');
 for (const healthField of ['lastNavisionImportAt', 'lastWorkImportAt', 'lastBackupAt']) {
   assert.ok(app.includes(healthField), `Operational health is missing ${healthField}`);

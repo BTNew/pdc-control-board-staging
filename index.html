@@ -8,9 +8,9 @@
   <meta name="description" content="PDC vehicle locations, workshop workflow, Parts and scheduling control board." />
   <title>PMB PDC Control Board</title>
   <link rel="icon" href="favicon.svg" type="image/svg+xml" />
-  <link rel="stylesheet" href="styles.css?v=2026.07.28.22-planner-search-focus" />
-  <link rel="stylesheet" href="desktop-operations.css?v=2026.07.28.22-planner-search-focus" />
-  <link rel="stylesheet" href="workshop-planner.css?v=2026.07.28.22-planner-search-focus" />
+  <link rel="stylesheet" href="styles.css?v=2026.07.28.23-sidebar-information-cleanup" />
+  <link rel="stylesheet" href="desktop-operations.css?v=2026.07.28.23-sidebar-information-cleanup" />
+  <link rel="stylesheet" href="workshop-planner.css?v=2026.07.28.23-sidebar-information-cleanup" />
 </head>
 <body class="auth-pending" data-auth-state="checking">
   <main class="pdc-auth-gate" id="pdc-auth-gate" aria-labelledby="pdc-auth-title">
@@ -45,7 +45,7 @@
         <div class="brand-text">
           <div class="brand-title">Perth Motor Bodies</div>
           <div class="brand-subtitle">PDC Control Board</div>
-          <div class="app-version" id="app-version">Version 2026.07.28.22-planner-search-focus</div>
+          <div class="app-version" id="app-version">Version 2026.07.28.23-sidebar-information-cleanup</div>
         </div>
 
       </div>
@@ -66,15 +66,6 @@
         <button type="button" class="nav-item" data-view="import" data-short="U">Uploads</button>
       </nav>
 
-      <div class="sidebar-card">
-        <div class="muted-label">Source data</div>
-        <strong id="report-date">Loading...</strong>
-        <span id="report-meta">Loading report data</span>
-      </div>
-      <div class="sidebar-card operational-health-card">
-        <div class="muted-label">Operational health</div>
-        <div id="operational-health-summary"><strong>Checking…</strong></div>
-      </div>
     </aside>
 
     <main class="main">
@@ -885,12 +876,12 @@
   <script src="vendor/supabase/supabase-2.110.5.js"></script>
   <script src="pdc-supabase-config.js"></script>
   <script src="pdc-auth.js?v=2026.07.24.26-pd-document-intake"></script>
-  <script src="data.js?v=2026.07.28.22-planner-search-focus"></script>
-  <script src="email-board-data.js?v=2026.07.28.22-planner-search-focus"></script>
+  <script src="data.js?v=2026.07.28.23-sidebar-information-cleanup"></script>
+  <script src="email-board-data.js?v=2026.07.28.23-sidebar-information-cleanup"></script>
   <script src="arb-labor-catalog.js?v=2026.07.24.26-pd-document-intake"></script>
   <script src="ai-board-advisor.js?v=2026.07.24.26-pd-document-intake"></script>
-  <script src="workshop-eligibility.js?v=2026.07.28.22-planner-search-focus"></script>
+  <script src="workshop-eligibility.js?v=2026.07.28.23-sidebar-information-cleanup"></script>
 
-  <script src="app.js?v=2026.07.28.22-planner-search-focus"></script>
+  <script src="app.js?v=2026.07.28.23-sidebar-information-cleanup"></script>
 </body>
 </html>
