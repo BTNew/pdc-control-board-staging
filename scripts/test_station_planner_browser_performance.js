@@ -8,7 +8,7 @@ const TARGET_MS = 2000;
 const STATIONS = [
   ['BUS_4X4', 'bus-4x4'], ['TINT', 'tint'], ['HOIST', 'hoist'],
   ['FITTING', 'fitting'], ['FABRICATION', 'fab'], ['ELECTRICAL', 'elec'],
-  ['TYRE', 'tyre']
+  ['TYRE', 'tyre'], ['PIT_INSPECTION', 'pit']
 ];
 const creds = { email: process.env.PDC_STAGING_ADMIN_EMAIL, password: process.env.PDC_STAGING_ADMIN_PASSWORD };
 if (!creds.email || !creds.password) throw new Error('missing PDC_STAGING_ADMIN_EMAIL/PDC_STAGING_ADMIN_PASSWORD');

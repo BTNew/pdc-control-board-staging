@@ -7,7 +7,7 @@ code += String.raw`
 (function(){
   function assert(condition, message) { if (!condition) throw new Error(message); }
 
-  assert(/:v5$/.test(VEHICLE_TABLE_COLUMN_ORDER_KEY), 'Column order storage key must reset after removing the PIT work-status column');
+  assert(/:v5$/.test(VEHICLE_TABLE_COLUMN_ORDER_KEY), 'Column order storage key must remain compatible with the current dense table layout');
   ['hoist', 'fitting', 'tyre', 'navisionNotes'].forEach(id => assert(VEHICLE_TABLE_DEFAULT_COLUMN_IDS.includes(id), 'Default columns missing ' + id));
   ['build', 'sublet'].forEach(id => assert(!VEHICLE_TABLE_DEFAULT_COLUMN_IDS.includes(id), 'Default columns should not include stale ' + id));
 
@@ -19,7 +19,7 @@ code += String.raw`
   assert(updates.pdcCompleteParts === true, 'Parts Complete import column should set pdcCompleteParts');
   assert(updates.pdcRequiresHoist === true, 'HOIST import column should set pdcRequiresHoist');
   assert(updates.pdcCompleteFitting === true, 'Fitting Complete import column should set pdcCompleteFitting');
-  assert(!Object.prototype.hasOwnProperty.call(updates, 'pdcRequiresPitInspection'), 'Legacy PIT INSPECTION import columns must not recreate a workshop job');
+  assert(updates.pdcRequiresPitInspection === true, 'PIT INSPECTION import column should set the restored workshop requirement');
 
   app.data = [];
   exportCsv();
@@ -27,7 +27,7 @@ code += String.raw`
   assert(csv.includes('Requires HOIST'), 'CSV export should include current Hoist required header');
   assert(csv.includes('FITTING Complete'), 'CSV export should include current Fitting complete header');
   assert(csv.includes('Requires TYRE'), 'CSV export should include current Tyre required header');
-  assert(!csv.includes('Requires PIT'), 'CSV export must not recreate PIT as a required workshop job');
+  assert(csv.includes('Requires PIT'), 'CSV export must include restored Pit Inspection required work');
   assert(!csv.includes('Requires Build'), 'CSV export should not include stale Build required header');
   assert(!csv.includes('Requires Sublet'), 'CSV export should not include stale Sublet required header');
 
@@ -72,13 +72,12 @@ code += String.raw`
   assert(renderWorkflowBoard.toString().includes('data-open-workshop-stage'), 'Each Control Board station must expose an Open Bays route to Workshop Planner');
 
   const stageValues = PMB_STAGE_DEFS.map(def => def.value);
-  ['BUS_4X4', 'TINT', 'HOIST', 'FITTING', 'FABRICATION', 'ELECTRICAL', 'TYRE'].forEach(stage => {
+  ['BUS_4X4', 'TINT', 'HOIST', 'FITTING', 'FABRICATION', 'ELECTRICAL', 'TYRE', 'PIT_INSPECTION'].forEach(stage => {
     assert(stageValues.includes(stage), 'PMB bucket coverage missing ' + stage);
   });
-  assert(!stageValues.includes('PIT_INSPECTION'), 'Pit Inspection must not remain a PMB bay/staging bucket');
   const bayBoardHtml = renderPmbBayBoardHtml('HOIST');
   assert(bayBoardHtml.includes('data-open-pmb-bays="TINT"'), 'PMB bay board should expose Tint bucket tab');
-  assert(!bayBoardHtml.includes('data-open-pmb-bays="PIT_INSPECTION"'), 'PMB bay board must not expose a Pit bucket tab');
+  assert(bayBoardHtml.includes('data-open-pmb-bays="PIT_INSPECTION"'), 'PMB bay board must expose the Pit bucket tab');
   assert(bayBoardHtml.includes('pmb-bay-stage-tabs'), 'PMB bay board should include bucket navigation tabs');
   const bayActionVehicle = { stock: '10015802', keyNumber: '202', jobCardNumber: 'JC13920002', client: 'Kewdale Fleet', pdcLocation: 'PMB', manualLocation: 'PMB', pmbStage: 'HOIST', pdcRequiresHoist: true };
   app.data = [bayActionVehicle];
@@ -95,6 +94,7 @@ code += String.raw`
   assert(!workflowCardHtml.includes('pmb-card-requirements'), 'PMB workflow pill should not show the old all-job tick row');
   assert(pmbStageBayCount('FABRICATION') === 13, 'Fabrication should expose thirteen physical bays');
   assert(pmbStageBayCount('BUS_4X4') === 8, 'Bus 4x4 should expose exactly eight physical bays');
+  assert(pmbStageBayCount('PIT_INSPECTION') === 1, 'Pit Inspection should expose exactly one physical bay');
   const fabCardHtml = pmbBayVehicleCardHtml({ stock: '10015803', keyNumber: '203', jobCardNumber: 'JC13920003', client: 'Fremantle Council', pdcLocation: 'PMB', manualLocation: 'PMB', pmbStage: 'FABRICATION' }, 'FABRICATION');
   assert(!fabCardHtml.includes('data-assign-pmb-bay-number='), 'Fabrication bay pill should stay clean without bay assignment controls');
 

@@ -19,9 +19,9 @@ for (const label of ['RFT', 'QC', 'PIT', 'PMB', 'YARD HOLD', 'IT', 'OTHER']) {
 }
 
 const jobDefs = app.slice(app.indexOf('const PDC_JOB_DEFS'), app.indexOf('function currentPdcJobLabelList'));
-assert(!jobDefs.includes("key: 'pitInspection'"), 'PIT must not remain a workshop job/tick');
+assert(jobDefs.includes("key: 'pitInspection'"), 'Pit Inspection must remain a workshop job/tick');
 const productionDefs = app.slice(app.indexOf('const PRODUCTION_FLOW_DEFS'), app.indexOf('const PRODUCTION_DEPARTMENT_VIEWS'));
-assert(!productionDefs.includes("key: 'PIT_INSPECTION'"), 'PIT must not remain a productive workshop station');
+assert(productionDefs.includes("key: 'PIT_INSPECTION'"), 'Pit Inspection must remain a productive workshop station');
 assert(app.includes("{ value: 'PIT', label: 'PIT - Department of Transport inspection' }"), 'PIT must be an explicit vehicle location');
 assert(app.includes("if (manualPdcLocation === 'PIT') return 'pit';"), 'PIT location must map to the PIT board bucket');
 assert(app.includes("if (manualPdcLocation === 'QC') return 'qc';"), 'Only an explicit QC Gate location must map a vehicle into the QC bucket');
@@ -32,7 +32,9 @@ assert(app.includes("data-pit-transfer") && app.includes("data-pit-return-pmb"),
 
 for (const shell of shells) {
   const html = read(shell);
-  assert(!html.includes('name="incoming-work-filter" value="pitinspection"'), `${shell} must not expose PIT as a workshop work filter`);
+  if (html.includes('name="incoming-work-filter"') || html.includes('id="incoming-work-filter"')) {
+    assert(html.includes('value="pitInspection"'), `${shell} must expose Pit Inspection as a workshop work filter`);
+  }
   if (shell === 'staging.html') {
     assert(!html.includes('id="incoming-bucket-filter"') && html.includes('id="incoming-search"'), 'staging Vehicle Locations must retain search and remove bucket filtering');
   } else {

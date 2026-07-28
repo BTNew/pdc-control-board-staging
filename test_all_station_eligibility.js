@@ -3,7 +3,7 @@
 const assert = require('assert');
 const eligibility = require('./workshop-eligibility.js');
 
-const STATIONS = ['BUS_4X4', 'TINT', 'HOIST', 'FITTING', 'FABRICATION', 'ELECTRICAL', 'TYRE'];
+const STATIONS = ['BUS_4X4', 'TINT', 'HOIST', 'FITTING', 'FABRICATION', 'ELECTRICAL', 'TYRE', 'PIT_INSPECTION'];
 const ALIASES = {
   BUS_4X4: ['Bus4x4', 'Bus 4x4', 'BUS4X4', 'BUS_4X4', 'Department 138'],
   TINT: ['Tint', 'TINTING'],
@@ -12,6 +12,7 @@ const ALIASES = {
   FABRICATION: ['Fabrication', 'Fab'],
   ELECTRICAL: ['Electrical', 'Elec'],
   TYRE: ['Tyre Bay', 'Tyre', 'Tire'],
+  PIT_INSPECTION: ['Pit Inspection', 'Pit', 'Pits'],
 };
 
 assert.deepStrictEqual(eligibility.workshopPlannerStageCodes(), STATIONS);
@@ -132,8 +133,8 @@ assert.throws(() => eligibility.assertWorkshopPlannerTarget('SUBLET'), /not a sc
 const pit = eligibility.workshopStageDefinition('Pit Inspection');
 assert.strictEqual(pit.code, 'PIT_INSPECTION');
 assert.strictEqual(pit.statusVisible, true);
-assert.strictEqual(pit.plannerEnabled, false);
-assert.strictEqual(pit.route, '');
-assert.throws(() => eligibility.assertWorkshopPlannerTarget('PIT_INSPECTION'), /not a schedulable planner station/i);
+assert.strictEqual(pit.plannerEnabled, true);
+assert.strictEqual(pit.route, 'planner-pit');
+assert.strictEqual(eligibility.assertWorkshopPlannerTarget('PIT_INSPECTION'), pit);
 
 console.log(`All-station canonical eligibility regression: ${assertions + 40} assertions passed`);

@@ -28,8 +28,8 @@ assert.strictEqual(planner.WORKSHOP_CONFIG.dayLengthMinutes, 480, 'Workshop day 
 assert.strictEqual(planner.WORKSHOP_CONFIG.defaultBookingDurationMinutes, 180, 'New planner bookings should default to 180 integer minutes');
 assert.deepStrictEqual(
   planner.WORKSHOP_STAGE_SEQUENCE,
-  ['BUS_4X4', 'TINT', 'HOIST', 'FITTING', 'FABRICATION', 'ELECTRICAL', 'TYRE'],
-  'The physical station order must be preserved and Sublet must have no planner',
+  ['BUS_4X4', 'TINT', 'HOIST', 'FITTING', 'FABRICATION', 'ELECTRICAL', 'TYRE', 'PIT_INSPECTION'],
+  'All eight physical stations must be preserved and Sublet must have no planner',
 );
 assert.ok(source.includes('const WORKSHOP_VISIBLE_STAGE_SEQUENCE = WORKSHOP_STAGE_SEQUENCE;'), 'Every canonical planner-enabled station should be visible, with Sublet excluded at the source mapping');
 assert.ok(source.includes("const stageTabs = dedicatedStage ? '' : WORKSHOP_VISIBLE_STAGE_SEQUENCE.map("), 'Combined planner should retain physical station tabs while dedicated planners render no unrelated tabs');
@@ -273,7 +273,7 @@ assert.ok(app.includes("case 'workshop':"), 'Main renderer is missing the Worksh
 assert.ok(app.includes("workshop: 'Workshop Planner'"), 'Workshop Planner page title is missing');
 assert.ok(app.includes('const PMB_SCHEDULE_WORK_START_HOUR = 8;'), 'Legacy PMB schedule start should match the workshop day');
 assert.ok(app.includes('const PMB_SCHEDULE_WORK_END_HOUR = 16;'), 'Legacy PMB schedule finish should match the workshop day');
-assert.ok(app.includes(".filter(def => def.code !== 'PIT_INSPECTION')") && app.includes('.map(def => ({ value: def.code, label: def.label }))'), 'Location options must derive from the canonical station map while excluding the external Pit Inspection task');
+assert.ok(!app.includes(".filter(def => def.code !== 'PIT_INSPECTION')") && app.includes('.map(def => ({ value: def.code, label: def.label }))'), 'Location options must derive from the canonical map and include Pit Inspection as the eighth physical station');
 assert.strictEqual(planner.WORKSHOP_STAGE_SEQUENCE[0], 'BUS_4X4', 'Bus 4x4 must remain the first physical workshop station');
 
 assert.ok(source.includes("vehicleTrackingCoreWorkshopPlan:v1"), 'Planner persistence key is missing');

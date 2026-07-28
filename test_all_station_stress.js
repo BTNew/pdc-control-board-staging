@@ -28,5 +28,5 @@ assert(candidates>0);
 assert(elapsed<5000,`eligibility stress exceeded 5s: ${elapsed.toFixed(2)}ms`);
 assert(heapDelta<64*1024*1024,`eligibility stress retained >64MiB: ${heapDelta}`);
 assert.throws(()=>E.workshopCanonicalEligibility({stage:'SUBLET',vehicles,workItems,bookings}),/not a schedulable planner station/i);
-assert.throws(()=>E.workshopCanonicalEligibility({stage:'PIT_INSPECTION',vehicles,workItems,bookings}),/not a schedulable planner station/i);
-console.log(JSON.stringify({vehicles:500,work_items:1000,bookings:500,planners:stationCodes.length,evaluations,elapsed_ms:Number(elapsed.toFixed(2)),heap_delta_bytes:heapDelta,sublet_rejected:true,pit_inspection_rejected:true}));
+assert(stationCodes.includes('PIT_INSPECTION'));
+console.log(JSON.stringify({vehicles:500,work_items:1000,bookings:500,planners:stationCodes.length,evaluations,elapsed_ms:Number(elapsed.toFixed(2)),heap_delta_bytes:heapDelta,sublet_rejected:true,pit_inspection_enabled:true}));

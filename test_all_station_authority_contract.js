@@ -14,7 +14,8 @@ const corrective = read('supabase/migrations/045_canonical_work_item_eligibility
 const rejected = read('supabase/obsolete_migrations/043_all_station_review_closure_REJECTED_NEVER_APPLY.sql');
 const backup = read('scripts/pdc_backup.py');
 const lifecycle = read('supabase/migrations/050_workshop_tile_completion_and_live_bay.sql');
-const effectiveMigration = `${migration}\n${closure}\n${corrective}\n${lifecycle}`;
+const pitRestore = read('supabase/staging_only/103_restore_pit_inspection_workshop_planner.sql');
+const effectiveMigration = `${migration}\n${closure}\n${corrective}\n${lifecycle}\n${pitRestore}`;
 const index = read('index.html');
 const eligibility = require('./workshop-eligibility.js');
 
@@ -93,13 +94,13 @@ assert(planner.includes('workshopRequirePlannerStage') && planner.includes('This
 assert(migration.includes('workshop_prevent_disabled_planner_booking_mutation'), 'database must block hidden/legacy Sublet scheduling mutations');
 assert(app.includes("key: 'sublet'") && app.includes('function renderSubletHome('), 'Sublet requirement/provider/status workflow must remain');
 const pdcJobs = app.slice(app.indexOf('const PDC_JOB_DEFS = ['), app.indexOf('const PDC_IMPORT_CONTROL_COLUMNS_TEXT'));
-assert(!pdcJobs.includes('pitInspection') && app.includes("{ key: 'pit', label: 'PIT'"), 'PIT must be removed from workshop jobs and represented only as a Vehicle Locations bucket');
+assert(pdcJobs.includes('pitInspection') && app.includes("{ key: 'pit', label: 'PIT'"), 'Pit work and the separate external PIT location must both remain explicit');
 assert(app.includes('pdcQualityControlRequirementDefinitions(vehicle).some(job => !pdcJobComplete(vehicle, job))'), 'QC must still include every other required item, including Sublet');
 assert(app.includes('teardownWorkshopEligibilityOverview({ clearSnapshot: true })'), 'route/auth teardown must not retain stale candidate authority');
 for (const gate of ['scripts/test_station_planner_300_performance.js','scripts/test_station_planner_fixture_performance.js','scripts/test_station_planner_browser_performance.js','test_station_planner_resources.js']) {
-  const inventory = read(gate).match(/const\s+(?:STAGES|STATIONS)\s*=\s*\[([^\]]*)\]/)?.[1] || '';
+  const inventory = read(gate).match(/const\s+(?:STAGES|STATIONS)\s*=\s*\[([\s\S]*?)\];/)?.[1] || '';
   assert(!inventory.includes('SUBLET'), `${gate} must not require the removed Sublet planner`);
-  assert(!inventory.includes('PIT_INSPECTION'), `${gate} must not require the removed Pit Inspection planner`);
+  assert(inventory.includes('PIT_INSPECTION'), `${gate} must cover the restored Pit Inspection planner`);
 }
 
 console.log(`All-station authority/Sublet contract: ${stations.length} stations passed`);
