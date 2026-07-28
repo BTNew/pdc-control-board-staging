@@ -8,10 +8,10 @@
   <meta name="description" content="PDC Workshop Control Board — STAGING (separate Supabase project, synthetic data only)." />
   <title>PDC Control Board — STAGING</title>
   <link rel="icon" href="favicon.svg" type="image/svg+xml" />
-  <link rel="stylesheet" href="styles.css?v=2026.07.28.25-key-list-review-cleanup" />
+  <link rel="stylesheet" href="styles.css?v=2026.07.28.26-sublet-queue-layout" />
   <link rel="stylesheet" href="pdc-ai-intake-review.css?v=2026.07.27.19-ai-review-decision-context" />
-  <link rel="stylesheet" href="desktop-operations.css?v=2026.07.28.25-key-list-review-cleanup" />
-  <link rel="stylesheet" href="workshop-planner.css?v=2026.07.28.25-key-list-review-cleanup" />
+  <link rel="stylesheet" href="desktop-operations.css?v=2026.07.28.26-sublet-queue-layout" />
+  <link rel="stylesheet" href="workshop-planner.css?v=2026.07.28.26-sublet-queue-layout" />
 </head>
 <body class="auth-pending" data-auth-state="checking">
   <main class="pdc-auth-gate" id="pdc-auth-gate" aria-labelledby="pdc-auth-title">
@@ -88,7 +88,7 @@
         <div class="brand-text">
           <div class="brand-title">Perth Motor Bodies</div>
           <div class="brand-subtitle">PDC Control Board</div>
-          <div class="app-version" id="app-version">Version 2026.07.28.25-key-list-review-cleanup</div>
+          <div class="app-version" id="app-version">Version 2026.07.28.26-sublet-queue-layout</div>
         </div>
 
       </div>
@@ -434,7 +434,8 @@
         <div class="parts-home-layout sublet-home-layout">
           <section class="panel parts-home-panel sublet-home-panel">
             <div class="panel-header"><div><h2>Sublet bookings</h2><p>Provider queue, booking dates, notes and controlled email drafts.</p></div><span class="badge neutral" id="sublet-summary">0 shown</span></div>
-                        <div class="table-toolbar advanced-toolbar wide-toolbar"><label><span>Search</span><input id="sublet-search" type="search" placeholder="Stock, customer, provider or notes..."></label><label><span>Provider</span><select id="sublet-provider-filter"><option value="all">All providers</option><option value="unassigned">Unassigned</option></select></label></div>
+            <div class="parts-summary-grid sublet-operational-filters" id="sublet-summary-grid" role="toolbar" aria-label="Sublet booking filters"></div>
+            <div class="table-toolbar advanced-toolbar wide-toolbar sublet-compact-toolbar"><label><span>Search</span><input id="sublet-search" type="search" placeholder="Key, stock, job card, customer, provider or notes..."></label><label><span>Provider</span><select id="sublet-provider-filter"><option value="all">All providers</option><option value="unassigned">Unassigned</option></select></label><label><span>Sort booked rows</span><select id="sublet-sort-filter"><option value="nearest">Nearest booking first</option><option value="date">Booking date first</option><option value="stock">Stock number</option></select></label></div>
             <div class="parts-help-strip"><strong>Sublet rule:</strong><span>SUBLET is a provider queue, not a numbered physical bay. Email actions open reviewed drafts and never send automatically.</span></div>
             <div id="sublet-home-content"></div>
           </section>
@@ -902,14 +903,14 @@
   <script src="pdc-auth.js?v=2026.07.24.26-pd-document-intake"></script>
   <script src="pdc-auth-registration.js?v=2026.07.24.26-pd-document-intake"></script>
   <script src="data-staging-empty.js?v=2026.07.24.26-pd-document-intake"></script>
-  <script src="email-board-data.js?v=2026.07.28.25-key-list-review-cleanup"></script>
+  <script src="email-board-data.js?v=2026.07.28.26-sublet-queue-layout"></script>
   <script src="arb-labor-catalog.js?v=2026.07.24.26-pd-document-intake"></script>
   <script src="ai-board-advisor.js?v=2026.07.24.26-pd-document-intake"></script>
-  <script src="navision-backend-service.js?v=2026.07.28.25-key-list-review-cleanup"></script>
+  <script src="navision-backend-service.js?v=2026.07.28.26-sublet-queue-layout"></script>
   <script src="pdc-ai-intake-service.js?v=2026.07.25.03-ai-intake-admin-decision"></script>
-  <script src="workshop-eligibility.js?v=2026.07.28.25-key-list-review-cleanup"></script>
-  <script src="pdc-email-vehicle-location-service.js?v=2026.07.28.25-key-list-review-cleanup"></script>
-  <script src="app.js?v=2026.07.28.25-key-list-review-cleanup"></script>
+  <script src="workshop-eligibility.js?v=2026.07.28.26-sublet-queue-layout"></script>
+  <script src="pdc-email-vehicle-location-service.js?v=2026.07.28.26-sublet-queue-layout"></script>
+  <script src="app.js?v=2026.07.28.26-sublet-queue-layout"></script>
   <script src="pdc-ai-intake-review.js?v=2026.07.27.19-ai-review-decision-context"></script>
 
   <script src="scripts/stage2b_c4_browser_export.js?v=2026.07.22.01-read-only-assessment"></script>

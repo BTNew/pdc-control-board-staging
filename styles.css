@@ -11440,25 +11440,45 @@ html[data-row-width="xl"] {
 .email-vehicle-review-line .email-line-include input { width: auto; }
 .email-vehicle-review-line small { color: #9a3412; font-weight: 500; }
 .email-vehicle-review-line:has([data-email-line-include]:not(:checked)) { opacity: .48; background: #f8fafc; border-color: #cbd5e1; }
+.sublet-operational-filters { grid-template-columns: repeat(2, minmax(180px, 260px)); justify-content: start; }
+.sublet-compact-toolbar { grid-template-columns: minmax(260px, 1.5fr) minmax(210px, .8fr) minmax(210px, .8fr); }
 .sublet-table-wrap { overflow-x: auto; }
-.sublet-table { min-width: 980px; table-layout: fixed; }
+.sublet-table { min-width: 1420px; table-layout: fixed; }
 .sublet-table th { white-space: nowrap; }
-.sublet-table td { vertical-align: middle; padding-top: 8px; padding-bottom: 8px; }
-.sublet-table .sublet-row { min-height: 62px; background: #fff; }
-.sublet-table .sublet-row:hover { background: #f8fafc; }
-.sublet-table td:first-child { display: grid; gap: 2px; width: 22%; min-width: 190px; }
-.sublet-table td:first-child strong { color: #0f172a; }
-.sublet-table td:first-child span, .sublet-table td:first-child small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.sublet-table input, .sublet-table select, .sublet-table textarea { width: 100%; min-width: 0; }
-.sublet-table td:nth-child(2) { width: 27%; min-width: 230px; }
-.sublet-table td:nth-child(2) { display: grid; gap: 6px; }
-.sublet-table td:nth-child(3) { width: 15%; min-width: 145px; }
-.sublet-table td:nth-child(4) { width: 23%; min-width: 220px; }
-.sublet-table td:last-child { width: 13%; min-width: 150px; }
-.sublet-table td:last-child button { width: 100%; margin-bottom: 5px; }
-.sublet-table textarea { min-height: 40px; resize: vertical; }
-.sublet-email-check { display: flex; gap: 6px; align-items: center; margin-top: 5px; font-size: .76rem; color: #475569; }
+.sublet-table td { vertical-align: middle; padding: 6px 8px; }
+.sublet-table .sublet-summary-row { height: 54px; background: #fff; }
+.sublet-table .sublet-summary-row:hover, .sublet-table .sublet-summary-row.is-expanded { background: #f8fafc; }
+.sublet-table .sublet-summary-row td:nth-child(1) { width: 34px; padding-left: 5px; padding-right: 3px; }
+.sublet-table .sublet-summary-row td:nth-child(2) { width: 66px; }
+.sublet-table .sublet-summary-row td:nth-child(3) { width: 105px; }
+.sublet-table .sublet-summary-row td:nth-child(4) { width: 100px; }
+.sublet-table .sublet-summary-row td:nth-child(5) { width: 240px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sublet-table .sublet-summary-row td:nth-child(6) { width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sublet-table .sublet-summary-row td:nth-child(7) { width: 220px; }
+.sublet-table .sublet-summary-row td:nth-child(8) { width: 170px; }
+.sublet-table .sublet-summary-row td:nth-child(9) { width: 150px; }
+.sublet-table .sublet-summary-row td:nth-child(10) { width: 125px; }
+.sublet-table .sublet-summary-row select, .sublet-table .sublet-summary-row input { width: 100%; min-width: 0; height: 38px; }
+.sublet-row-toggle, .sublet-stock-link { border: 0; background: transparent; color: #0f4c81; cursor: pointer; padding: 3px; }
+.sublet-row-toggle { width: 26px; height: 30px; font-size: 1.3rem; line-height: 1; }
+.sublet-stock-link strong { color: #0f172a; }
+.sublet-status-pill { display: inline-flex; align-items: center; min-height: 26px; padding: 4px 9px; border-radius: 999px; font-size: .72rem; font-weight: 800; white-space: nowrap; }
+.sublet-status-pill.is-to-book { color: #9f1239; background: #fff1f2; border: 1px solid #fecdd3; }
+.sublet-status-pill.is-booked { color: #166534; background: #f0fdf4; border: 1px solid #bbf7d0; }
+.sublet-detail-row td { padding: 10px 12px 12px 42px; background: #f8fafc; border-top: 0; }
+.sublet-detail-grid { display: grid; grid-template-columns: minmax(210px, .8fr) minmax(320px, 1.7fr) minmax(170px, .6fr) minmax(190px, .7fr); gap: 12px; align-items: end; }
+.sublet-detail-grid label { display: grid; gap: 5px; min-width: 0; }
+.sublet-detail-grid label > span { color: #64748b; font-size: .72rem; font-weight: 800; text-transform: uppercase; letter-spacing: .04em; }
+.sublet-detail-grid input, .sublet-detail-grid textarea { width: 100%; min-width: 0; }
+.sublet-detail-grid textarea { min-height: 46px; resize: vertical; }
+.sublet-detail-grid .sublet-email-check { display: flex; }
+.sublet-detail-actions { display: grid; grid-template-columns: 1fr; gap: 6px; }
+.sublet-email-check { display: flex; gap: 6px; align-items: center; margin: 0; font-size: .76rem; color: #475569; }
 .sublet-email-check input { width: auto; min-width: 0; }
+@media (max-width: 1100px) {
+  .sublet-compact-toolbar, .sublet-detail-grid { grid-template-columns: 1fr; }
+  .sublet-detail-row td { padding-left: 12px; }
+}
 @media (max-width: 900px) { .email-review-row, .email-review-vehicle-fields, .email-vehicle-review-line, .email-intake-upload-panel { grid-template-columns: 1fr; } .email-review-summary { grid-template-columns: 1fr 1fr; } .email-review-open-label { text-align: left; } .email-review-actions, .email-intake-upload-buttons { justify-content: flex-start; } }
 
 /* 2026.07.15 audit fixes — contrast, touch targets and compact mobile actions. */

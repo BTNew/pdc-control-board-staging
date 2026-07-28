@@ -33,7 +33,7 @@ const context = {
   vehicleKey: vehicle => vehicle.stock || '',
 };
 vm.createContext(context);
-vm.runInContext(`${appSource.slice(start, end)}\nthis.queueRows = subletRows();\nthis.compareRows = compareSubletBookingProximity;`, context);
+vm.runInContext(`${appSource.slice(start, end)}\nthis.queueRows = subletRows();\nthis.compareRows = compareSubletBookingProximity;\nthis.bookingState = subletBookingState;\nthis.matchesOperationalFilter = subletMatchesOperationalFilter;`, context);
 assert.deepStrictEqual(Array.from(context.queueRows, row => row.stock), ['NEEDS', 'HISTORY'], 'Every incomplete required Sublet vehicle must appear even while its current PMB stage is elsewhere; completed history remains visible only when a booking record exists');
 assert(appSource.includes('return vehicleLocationBoardRows().filter(vehicle =>'), 'Sublet must consume the same reconciled canonical rows as Vehicle Locations');
 
@@ -46,15 +46,25 @@ const dated = [
 ];
 dated.sort((a, b) => context.compareRows(a, b, '2030-07-15'));
 assert.deepStrictEqual(dated.map(row => row.stock), ['TODAY', 'YESTERDAY', 'TOMORROW', 'FAR', 'UNBOOKED'], 'Booking rows must sort by proximity to today, with unbooked rows after dated bookings');
+assert.strictEqual(context.bookingState(dated[0]), 'booked', 'a booking date must classify a row as Sublet Booked');
+assert.strictEqual(context.bookingState(dated[4]), 'to-book', 'a blank booking date must classify a row as Sublet To Book');
+assert.strictEqual(context.matchesOperationalFilter(dated[0], 'booked'), true, 'Booked filter must include dated rows');
+assert.strictEqual(context.matchesOperationalFilter(dated[4], 'to-book'), true, 'To Book filter must include undated rows');
 
 for (const html of [indexSource, stagingSource]) {
   assert(html.includes('id="sublet-provider-filter"'), 'Sublet screen must expose a provider filter');
   assert(html.includes('<option value="unassigned">Unassigned</option>'), 'Provider filter must expose unassigned work');
+  assert(html.includes('id="sublet-summary-grid"'), 'Sublet screen must expose Parts-style operational filter chips');
+  assert(html.includes('id="sublet-sort-filter"'), 'Sublet screen must expose booked-row sorting');
+  assert(html.includes('Nearest booking first'), 'nearest booking must be the default sort option');
 }
 assert(appSource.includes("on($('#sublet-provider-filter'), 'change', renderSubletHome)"), 'Provider filter must rerender the queue');
+assert(appSource.includes("on($('#sublet-sort-filter'), 'change', renderSubletHome)"), 'Sort filter must rerender the queue');
 assert(appSource.includes("data-sublet-field=\"pmbSubletProvider\""), 'Each Sublet row must retain its provider dropdown');
 assert(appSource.includes('type="date" aria-label="Sublet booking date'), 'Each Sublet row must retain its dropdown calendar/date picker');
 assert(appSource.includes("providerFilter === 'unassigned'"), 'Unassigned provider filter must fail closed to blank-provider rows');
 assert(appSource.includes('compareSubletBookingProximity(a, b, sortReference)'), 'Rendered queue must use closest-booking ordering');
+assert(appSource.includes("['to-book', 'Sublet To Book']") && appSource.includes("['booked', 'Sublet Booked']"), 'Sublet must expose Booked and To Book queues');
+assert(appSource.includes('data-sublet-toggle='), 'compact Sublet rows must expand to notes and email controls');
 
 console.log('Sublet booking queue/provider filter contract passed');
