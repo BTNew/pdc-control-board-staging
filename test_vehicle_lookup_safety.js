@@ -46,6 +46,31 @@ code += String.raw`
   assert(authoritativeEmailVehicle?.pdcEmailOperationLines?.[0]?.operation_no === 'OP4', 'Vehicle detail must retain authenticated operation lines from the reconciled row');
   const operationGroups = vehicleWorkshopGroups(authoritativeEmailVehicle, { requirements: [{ work_key: 'electrical', stage_code: 'ELECTRICAL', required: true, completed: false }], bookings: [] });
   assert(operationGroups.length === 1 && operationGroups[0].lines[0].description === 'OP4 · Shu Roo supply and fit', 'Work & bookings must render the authenticated operation number and description in its canonical station');
+  const duplicateGroups = vehicleWorkshopGroups({
+    ...authoritativeEmailVehicle,
+    pdcJobLines: [{ category: 'Electrical', description: 'Shu Roo supply and fit' }],
+  }, { requirements: [{ work_key: 'electrical', stage_code: 'ELECTRICAL', required: true, completed: false }], bookings: [] });
+  assert(duplicateGroups[0].lines.length === 1, 'A stale local line identical to authenticated evidence must not render twice');
+  const escapedOperationHtml = authenticatedEmailOperationLinesHtml({
+    pdcEmailOperationLines: [{ operation_no: 'PD003-A75EB7AE', work_key: 'fitting', description: '<img src=x onerror=alert(1)>' }],
+  });
+  assert(!escapedOperationHtml.includes('<img'), 'Authenticated PD descriptions must not render raw HTML');
+  assert(escapedOperationHtml.includes('&lt;img'), 'Authenticated PD descriptions must be HTML-escaped');
+
+  const canonicalOrdinary = { stock: 'ORDINARY-1', vin: 'VIN-ORDINARY', marker: 'canonical' };
+  const reconciledOrdinary = { ...canonicalOrdinary, id: 'c0a80101-0000-4000-8000-000000000001', permanentVehicleId: 'c0a80101-0000-4000-8000-000000000001', marker: 'reconciled-navision' };
+  app.data = [canonicalOrdinary];
+  app.emailVehicleLocationRows = [reconciledOrdinary];
+  window.PDC_EMAIL_VEHICLE_LOCATION_SERVICE = { reconcileVehicleRows(_localRows, serverRows) { return { rows: serverRows }; } };
+  assert(selectedVehicle('ORDINARY-1') === reconciledOrdinary, 'Vehicle detail must preserve the authoritative reconciled snapshot object and canonical UUID used by PMB transfer');
+
+  app.data = [{ stock: 'CONFLICT-1', vin: 'VIN-A' }];
+  app.emailVehicleLocationRows = [{ stock: 'CONFLICT-1', vin: 'VIN-B' }];
+  window.PDC_EMAIL_VEHICLE_LOCATION_SERVICE = {
+    reconcileVehicleRows() { return { rows: [{ stock: 'CONFLICT-1', vin: 'VIN-A', __emailVehicleIdentityConflict: true, __locationIdentityReadOnly: true }] }; },
+  };
+  assert(selectedVehicle('CONFLICT-1') === null, 'Authenticated Stock/VIN identity conflicts must fail closed');
+
   delete window.PDC_EMAIL_VEHICLE_LOCATION_SERVICE;
   app.emailVehicleLocationRows = [];
   app.data = [first, second];
@@ -55,6 +80,7 @@ code += String.raw`
   assert(saveResult === false, 'Saving an unknown vehicle should report failure');
   assert(first.internalStatus === 'Keep first' && second.internalStatus === 'Keep second', 'A stale key must not mutate another vehicle');
   assert(localStorage.getItem(EDITS_KEY) === editsBefore, 'A stale key must not create a saved edit');
+
 
   const previousSelection = app.selectedStock;
   const previousHref = window.location.href;

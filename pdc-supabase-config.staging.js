@@ -34,6 +34,6 @@ window.PDC_SUPABASE_CONFIG = {
   vehicleLifecycle: Object.freeze({
     sharedData: true,
     resolverRollbackDirectRead: false,
-    resolverAssetVersion: '2026.07.28.44-workshop-control-board-loading'
+    resolverAssetVersion: '2026.07.28.45-authenticated-pd-lines'
   })
 };

@@ -18,7 +18,9 @@ assert(app.includes('Estimated hours') && app.includes('Estimate not set'), 'Eve
 assert(app.includes('vehicleWorkshopLineDescription'), 'Every required line must render a non-empty description');
 const selectedVehicleBody = app.match(/function selectedVehicle\([^]*?\r?\n}\r?\n\r?\nfunction saveVehicleEdits/)?.[0] || '';
 assert(selectedVehicleBody.indexOf('if (canonicalMatches.length > 1)') < selectedVehicleBody.indexOf('const boardMatches'), 'Ambiguous raw canonical identity must fail closed before reconciliation');
-assert(selectedVehicleBody.indexOf('if (boardMatches.length === 1) return boardMatches[0]') < selectedVehicleBody.indexOf('if (canonicalMatches.length === 1) return canonicalMatches[0]'), 'Vehicle detail must prefer the reconciled authoritative Vehicle Locations row over one stale raw local row');
+assert(selectedVehicleBody.includes('if (boardVehicle) return boardVehicle;'), 'Vehicle detail must preserve the unique non-conflicting authoritative board snapshot and canonical UUID');
+assert(selectedVehicleBody.indexOf("if (boardVehicle?.__emailVehicleIdentityConflict === true || boardVehicle?.__locationIdentityReadOnly === true)") < selectedVehicleBody.indexOf('if (boardVehicle) return boardVehicle;'), 'Identity conflicts must fail closed before authoritative board selection');
+assert(selectedVehicleBody.includes("__emailVehicleIdentityConflict") && selectedVehicleBody.includes("__locationIdentityReadOnly"), 'Conflicting reconciled identity must fail closed');
 const workshopGroupsBody = app.match(/function vehicleWorkshopGroups\([^]*?\r?\n}\r?\n\r?\nfunction vehicleWorkshopStationHtml/)?.[0] || '';
 assert(workshopGroupsBody.includes('pdcEmailOperationLines'), 'Vehicle Work & bookings must consume authenticated job-card operation lines');
 assert(workshopGroupsBody.includes('operation_no'), 'Authenticated operation numbers must remain available to the detail renderer');
