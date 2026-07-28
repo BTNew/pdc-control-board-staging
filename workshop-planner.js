@@ -3441,6 +3441,8 @@ function renderWorkshopPlanner() {
   const root = document.querySelector('#workshop-planner-root');
   if (!root) return;
   const state = workshopState();
+  const pendingBookingLink = typeof app !== 'undefined' ? app.pendingWorkshopBookingLink : null;
+  if (pendingBookingLink && /^\d{4}-\d{2}-\d{2}$/.test(String(pendingBookingLink.date || ''))) state.date = pendingBookingLink.date;
   workshopApplyOpenDateDefault(state);
   const dedicatedStage = normalizePmbStage(window.__activeWorkshopPlannerStage || '');
   const requestedStage = dedicatedStage || normalizePmbStage(app.pendingWorkshopStage || '');
@@ -3457,6 +3459,16 @@ function renderWorkshopPlanner() {
     return;
   }
   let plans = dedicatedStage ? workshopLoadPlans() : workshopCascadeAndSave(workshopSyncCompletedPlans());
+  if (pendingBookingLink && normalizePmbStage(pendingBookingLink.stage || '') === stage) {
+    const pendingPlan = plans.find(entry => String(entry.id || '') === String(pendingBookingLink.bookingId || ''));
+    if (pendingPlan) {
+      state.selectedPlanId = pendingPlan.id;
+      state.searchHighlightPlanId = pendingPlan.id;
+      state.search = pendingPlan.vehicle?.stock || pendingPlan.vehicle?.customer || pendingPlan.vehicle?.id || '';
+      workshopSaveView(state);
+      app.pendingWorkshopBookingLink = null;
+    }
+  }
   if (state.selectedPlanId && !plans.some(entry => entry.id === state.selectedPlanId)) workshopClearSelectedDetail(state);
   const selected = plans.find(entry => entry.id === state.selectedPlanId) || null;
   const dateKey = state.date;

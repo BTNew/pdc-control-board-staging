@@ -34,6 +34,6 @@ window.PDC_SUPABASE_CONFIG = {
   vehicleLifecycle: Object.freeze({
     sharedData: true,
     resolverRollbackDirectRead: false,
-    resolverAssetVersion: '2026.07.28.31-workshop-authoritative-candidate-gate'
+    resolverAssetVersion: '2026.07.28.32-vehicle-detail-work-bookings'
   })
 };
