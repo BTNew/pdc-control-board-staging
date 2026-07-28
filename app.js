@@ -1,5 +1,5 @@
-const APP_VERSION = '2026.07.28.32-vehicle-detail-work-bookings';
-const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.07.28.32-vehicle-detail-work-bookings';
+const APP_VERSION = '2026.07.28.33-toyota-navision-it-eta-gate';
+const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.07.28.33-toyota-navision-it-eta-gate';
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
 // constant intentionally names only the production ref, never the
@@ -2164,6 +2164,28 @@ function vehicleCollectedFromRft(vehicle = {}) {
   return Boolean(vehicle.rftCollected || vehicle.rftCollectedAt || vehicle.completedVehicle);
 }
 
+function navisionImportedToyotaTransitCategory(vehicle = {}) {
+  if (!vehicle || typeof vehicle !== 'object' || !vehicleLooksToyota(vehicle)) return '';
+  const source = [
+    vehicle.source,
+    vehicle.sourceSystem,
+    vehicle.source_system,
+    vehicle.recordLifecycle,
+    vehicle.__sharedNavisionReadOnly ? 'shared navision' : '',
+    vehicle.__sharedNavisionRecordId ? 'shared navision' : '',
+  ].map(value => cleanNavisionText(value || '').toLowerCase()).filter(Boolean).join(' ');
+  if (!source.includes('navision')) return '';
+  const canonicalLocation = cleanNavisionText(
+    vehicle.__sharedNavisionCanonicalLocation || vehicle.current_location || vehicle.currentLocation || vehicle.pdcLocation || ''
+  ).toUpperCase();
+  const status = normalizeToyotaStatus(navisionLocationSourceText(vehicle));
+  const transit = canonicalLocation === 'IT' || canonicalLocation === 'IN TRANSIT' ||
+    status.includes('in transit') || status.includes('shipment') || status.includes('wharf') ||
+    status.includes('production transit') || /\bit\b/.test(status);
+  if (!transit) return '';
+  return parseDateAU(kewdaleEtaValue(vehicle)) ? 'prodtransit' : 'other';
+}
+
 function statusCategory(vehicleOrStatus = '') {
   const isVehicle = vehicleOrStatus && typeof vehicleOrStatus === 'object';
   if (isVehicle && vehicleCollectedFromRft(vehicleOrStatus)) return 'completed';
@@ -2177,6 +2199,8 @@ function statusCategory(vehicleOrStatus = '') {
     if (manualPdcLocation === 'RFT') return 'rft';
     if (manualPdcLocation === 'PMB' && vehicleOrStatus.pdcQcComplete === true) return 'qc';
     if (manualPdcLocation === 'PMB') return 'pmb';
+    const navisionTransitCategory = navisionImportedToyotaTransitCategory(vehicleOrStatus);
+    if (navisionTransitCategory) return navisionTransitCategory;
   }
 
   const rawStatus = normalizeToyotaStatus(navisionStatusText(vehicleOrStatus));
@@ -12630,6 +12654,7 @@ function sharedNavisionLocationVehicle(item = {}) {
     __sharedNavisionBoardActivated: item.board_activated === true,
     __sharedNavisionActivationSource: item.activation_source || '',
     __sharedNavisionCanonicalVehicleId: item.canonical_vehicle_id || '',
+    __sharedNavisionCanonicalLocation: canonicalLocation,
   };
 }
 
