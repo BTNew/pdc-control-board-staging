@@ -6,11 +6,11 @@
     "twoPhysicalWorkstationAuthorityCutover": false
   },
   "artifact": "zero-data static staging site",
-  "backendOnlyMigrationSourceCommit": "750c6b0f72581abe2ca41093d737a3fd24b8322a",
-  "cacheVersion": "2026.07.28.47-workshop-line-editing",
+  "backendOnlyMigrationSourceCommit": "48ce8e41feec557a50be6fc247f0052c108122ff",
+  "cacheVersion": "2026.07.28.48-eta-best-slot",
   "deploymentMode": "exact reviewed source blobs; staging.html mapped to index.html",
   "environment": "staging",
-  "generatedAtUtc": "2026-07-28T12:05:24Z",
+  "generatedAtUtc": "2026-07-28T12:34:31Z",
   "humanAiIntake": {
     "approvalGate": "Administrator decision remains server-validated; missing summaries disable Approve while Deny remains available.",
     "summary": "Prominent escaped email summary plus explicit Approve/Deny effects; each email is now a distinct white card separated by an 18px dark-grey gutter (12px on mobile)."
@@ -91,6 +91,7 @@
     "migration096": "PASS — guarded rollback dry-run and permanent staging apply. Unique Stock 12708286 selected one current Navision row despite conflicting PDF identity; canonical Navision fields, additive required work, Parts, audit and idempotent receipt verified; no booking created; authenticated EXECUTE only; zero production access.",
     "workshopAuthority100": "PASS — Controller Best slot created stock 12664966 in active Fab Bay 02 through the deployed browser and was audit-cleaned; Administrator create/cancel passed; stale vehicle version was rejected; Parts overrides were unchanged; migration 100 preserved the administrator-only physical Start gate; zero production access.",
     "vehicleWorkshopLineEditing102": "PASS — Controller and Administrator each added, persisted, edited and removed an audited Vehicle Detail Workshop line for stock 12611773; 0.25-hour increments, line-version concurrency and completed-stage denial are server enforced; stale edits were rejected immediately; bookings, Parts, work completion and imported operation evidence signatures were unchanged; zero production access.",
+    "etaAwareBestSlot": "PASS — IT candidates parse canonical ETA to Kewdale from ISO or Australian date inputs; Best slot searches active bays from ETA plus seven calendar days and uses the first authoritative available work slot on or after that boundary. Manual Schedule retains the existing ETA boundary; invalid ETA fails closed; 116 tests passed with zero failures and one intentional skip.",
     "mixedDealerNavision": "A report containing both approved dealers is scoped server-side to the selected dealer only when every row carries known original Dealer evidence and the selected scope has at least 100 rows. Preview and Apply use identical filtering; other-dealer rows are reported and ignored, never imported into the selected scope.",
     "navisionFullReconciliationTimeout": "PASS \u2014 reproduced SQLSTATE 57014 with a complete 663-row source-evidence payload at the former 8-second API bound. The same atomic preview/apply completed in 5.969/13.875 seconds under the new 30-second signed-in staging bound and was rolled back. A separate authenticated HTTP 10-second probe returned 200; the probe function was then removed.",
     "navisionOperationalLocationCompletion": "PASS \u2014 canonical shared state drives Vehicle Locations and Completed Vehicles; ordinary reconciliation preserves PMB/PIT/QC/RFT/Completed workflow progress; At Dealer with open required work stays active for review.",
@@ -123,7 +124,7 @@
     "production": "UNCHANGED \u2014 no production branch, database, deployment or configuration write."
   },
   "sourceBranch": "integration/staging-parts-workshop-ai-20260728",
-  "sourceCommit": "750c6b0f72581abe2ca41093d737a3fd24b8322a",
+  "sourceCommit": "48ce8e41feec557a50be6fc247f0052c108122ff",
   "sourceFiles": [
     {
       "deployedPath": "ai-board-advisor.js",
@@ -132,7 +133,7 @@
     },
     {
       "deployedPath": "app.js",
-      "sha256": "806e4f5d5247f588b5451c4b75b15e339d34d584e1358934ff2390698329eb92",
+      "sha256": "aa1348c38f2e92e483d7159d3c298dbcf13c8ad85f2ba7d7a946ae2dc979e46e",
       "sourcePath": "app.js"
     },
     {
@@ -172,7 +173,7 @@
     },
     {
       "deployedPath": "index.html",
-      "sha256": "9e9cb8e0cd38c14919f15ac21d6dffb895ac9d5dbf6ef4047f2103c9a58d36e5",
+      "sha256": "e5b531099cc1d675a5b4f528463e52cdf4e5eb6494e5e4577400f686bd74fbab",
       "sourcePath": "staging.html"
     },
     {
@@ -207,7 +208,7 @@
     },
     {
       "deployedPath": "pdc-supabase-config.staging.js",
-      "sha256": "eb51fe18c63c873dfd66199066869e0f8e288ccb61f1c69686dc8b75f6d1be44",
+      "sha256": "0d41eee3a9e6d17336d7c0809eee49b718a17b58cde1054ad097efeeb5127ba5",
       "sourcePath": "pdc-supabase-config.staging.js"
     },
     {
@@ -272,7 +273,7 @@
     },
     {
       "deployedPath": "workshop-planner.js",
-      "sha256": "84e51da2c9225e61aba5b2cd8b253a9dd8283ba8019ebc39a82551f4eb6d838e",
+      "sha256": "92b03ca0e3cdfb51f6c9634f1ab2f78d7ed2a0a5f8ed965d11338cc3c6cec14f",
       "sourcePath": "workshop-planner.js"
     },
     {
@@ -301,5 +302,5 @@
       "sourcePath": "pdc-ai-intake-review.js"
     }
   ],
-  "sourceTree": "668bc02b4f193712a18266c6b913d43e8306529c"
+  "sourceTree": "cf8ae36cb0c1b9e079131ffc9563b7797998d7c2"
 }

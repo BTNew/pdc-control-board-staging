@@ -2606,12 +2606,30 @@ function workshopVehiclePlanningLocation(vehicle = {}) {
 
 function workshopVehicleEtaConstraint(vehicle = {}) {
   const location = workshopVehiclePlanningLocation(vehicle);
-  if (location === 'YH') return { required: false, ok: true, location, earliestDateKey: '' };
-  if (location !== 'IT') return { required: false, ok: true, location, earliestDateKey: '' };
-  const raw = cleanNavisionText(typeof kewdaleEtaValue === 'function' ? kewdaleEtaValue(vehicle) : (vehicle.navisionKewdaleEta || vehicle.navisionEtaDate || ''));
-  const parsed = raw && typeof parseDateAU === 'function' ? parseDateAU(raw) : null;
-  if (!parsed || Number.isNaN(parsed.getTime())) return { required: true, ok: false, location, raw, earliestDateKey: '', reason: raw ? 'invalid_eta' : 'missing_eta' };
-  return { required: true, ok: true, location, raw, earliestDateKey: workshopDateKey(parsed) };
+  if (location === 'YH') return { required: false, ok: true, location, earliestDateKey: '', bestSlotEarliestDateKey: '' };
+  if (location !== 'IT') return { required: false, ok: true, location, earliestDateKey: '', bestSlotEarliestDateKey: '' };
+  const supplied = typeof kewdaleEtaValue === 'function' ? kewdaleEtaValue(vehicle) : '';
+  const raw = cleanNavisionText(supplied || vehicle.eta_to_kewdale || vehicle.navisionKewdaleEta || vehicle.etaAtKewdale || vehicle.navisionEtaDate || '');
+  const iso = raw.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  let parsed = null;
+  if (iso) {
+    const isoDate = new Date(Number(iso[1]), Number(iso[2]) - 1, Number(iso[3]));
+    if (isoDate.getFullYear() === Number(iso[1])
+      && isoDate.getMonth() === Number(iso[2]) - 1
+      && isoDate.getDate() === Number(iso[3])) parsed = isoDate;
+  } else if (raw && typeof parseDateAU === 'function') parsed = parseDateAU(raw);
+  if (!parsed || Number.isNaN(parsed.getTime())) return { required: true, ok: false, location, raw, earliestDateKey: '', bestSlotEarliestDateKey: '', reason: raw ? 'invalid_eta' : 'missing_eta' };
+  const etaDateKey = workshopDateKey(parsed);
+  const bestSlotDate = new Date(parsed);
+  bestSlotDate.setDate(bestSlotDate.getDate() + 7);
+  return {
+    required: true,
+    ok: true,
+    location,
+    raw,
+    earliestDateKey: etaDateKey,
+    bestSlotEarliestDateKey: workshopDateKey(bestSlotDate),
+  };
 }
 
 function workshopDateKeyNotBefore(value = '', minimum = '') {
@@ -2984,7 +3002,10 @@ function workshopQueueCardHtml(vehicle = {}, stage = workshopState().stage, date
     : etaConstraint.reason === 'invalid_eta'
       ? `${etaConstraint.location} · ETA to Kewdale is invalid; scheduling disabled`
       : '';
-  const earliestQueueDate = etaConstraint.ok ? workshopDateKeyNotBefore(dateKey, etaConstraint.earliestDateKey) : dateKey;
+  const bestSlotMinimumDate = etaConstraint.required
+    ? etaConstraint.bestSlotEarliestDateKey
+    : etaConstraint.earliestDateKey;
+  const earliestQueueDate = etaConstraint.ok ? workshopDateKeyNotBefore(dateKey, bestSlotMinimumDate) : dateKey;
   const bestSlot = !schedulingDisabled ? workshopBestStageSlot(stage, earliestQueueDate, hours, rows) : null;
   const authorityExplanation = workshopOutstandingDisabledReasonLabel(authoritative?.disabledReason);
   const disabledExplanation = existingBooking
@@ -2995,7 +3016,7 @@ function workshopQueueCardHtml(vehicle = {}, stage = workshopState().stage, date
     <span>${escapeHtml(vehicle.vehicle || vehicle.toyotaVehicle || 'Vehicle')}</span>
     <span>${escapeHtml(vehicleCustomerName(vehicle) || 'Unknown customer')}</span>
     <small class="workshop-requirements-line">Requirements: ${escapeHtml(requirements.join(', ') || pmbStageLabel(stage))}</small>
-    ${etaConstraint.required ? `<small class="workshop-eta-line ${etaConstraint.ok ? '' : 'is-invalid'}">${escapeHtml(etaConstraint.ok ? `${etaConstraint.location} · earliest ${etaConstraint.earliestDateKey}` : etaExplanation)}</small>` : ''}
+    ${etaConstraint.required ? `<small class="workshop-eta-line ${etaConstraint.ok ? '' : 'is-invalid'}">${escapeHtml(etaConstraint.ok ? `${etaConstraint.location} · ETA ${etaConstraint.earliestDateKey} · Best slot from ${etaConstraint.bestSlotEarliestDateKey}` : etaExplanation)}</small>` : ''}
     <small class="workshop-parts-line parts-${escapeHtml(parts.status)}">Parts: ${escapeHtml(parts.text)}</small>
     ${existingBooking ? '<small class="workshop-booked-line">Active booking exists · shown here because the requirement remains outstanding</small>' : ''}
     ${bestSlot ? `<small class="workshop-slot-hint">Best slot: ${escapeHtml(workshopSlotSummary(stage, bestSlot.bay, bestSlot.dateKey, bestSlot.startMinutes))}</small>` : ''}
