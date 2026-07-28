@@ -10,15 +10,15 @@
   "cacheVersion": "2026.07.28.39-compact-vehicle-provenance",
   "deploymentMode": "exact reviewed source blobs; staging.html mapped to index.html",
   "environment": "staging",
-  "generatedAtUtc": "2026-07-28T07:32:34.370393Z",
+  "generatedAtUtc": "2026-07-28T07:38:43.152984Z",
   "humanAiIntake": {
     "approvalGate": "Administrator decision remains server-validated; missing summaries disable Approve while Deny remains available.",
     "summary": "Prominent escaped email summary plus explicit Approve/Deny effects; each email is now a distinct white card separated by an 18px dark-grey gutter (12px on mobile)."
   },
   "migrationLedger": {
-    "appliedThrough": "091",
-    "evidence": "Staging-only migrations through 091 are applied. Migration 091 adds protected Parts Mark Ordered authority and narrows Workshop candidates to exact required work at PMB or IT with ETA.",
-    "ledgerHead": "091",
+    "appliedThrough": "092",
+    "evidence": "Staging-only migrations through 092 are applied. Migration 092 adds authenticated read-only vehicle provenance, import receipts, movements and detailed audit history.",
+    "ledgerHead": "092",
     "migrations": [
       "058",
       "059",
@@ -53,12 +53,13 @@
       "088",
       "089",
       "090",
-      "091"
+      "091",
+      "092"
     ]
   },
   "pendingStagingMigrations": [],
   "releaseChecks": {
-    "aggregateTests": "PASS \u2014 110 passed, 0 failed, 1 intentional skip.",
+    "aggregateTests": "PASS \u2014 111 passed, 0 failed, 1 intentional skip.",
     "aiIntakeCardSeparation": "PASS \u2014 two-card browser proof computed #374151 background, 18px gap, 16px padding and two white cards; mobile override uses a 12px gap and 10px padding.",
     "aiReviewDecisionContext": true,
     "aiReviewOverlayVersion": "2026.07.28.20-ai-review-card-separation",
@@ -74,6 +75,7 @@
     "migration089": "PASS \u2014 guarded rollback dry-run, permanent staging-only apply and rollback trigger probes. Missing ETA writes fail to Other; authoritative dated writes remain IT; parser and enforcement trigger are unavailable to anon; zero production access.",
     "migration090": "PASS \u2014 guarded rollback dry-run and permanent staging apply. Final Inspection and Planned for Production without ETA resolve Other; dated Planned for Production resolves IT; protected workflow hash unchanged; zero production access.",
     "migration091": "PASS \u2014 guarded rollback dry-run and permanent staging apply. Parts mutation, stale-version refusal, PMB/IT candidate scope, IT ETA and before-ETA refusal verified; zero production access.",
+    "migration092": "PASS \u2014 guarded rollback dry-run and permanent staging apply. Administrator, Controller and Viewer each read email/Navision provenance and 10 authoritative history events; authenticated EXECUTE only; zero production access.",
     "mixedDealerNavision": "A report containing both approved dealers is scoped server-side to the selected dealer only when every row carries known original Dealer evidence and the selected scope has at least 100 rows. Preview and Apply use identical filtering; other-dealer rows are reported and ignored, never imported into the selected scope.",
     "navisionFullReconciliationTimeout": "PASS \u2014 reproduced SQLSTATE 57014 with a complete 663-row source-evidence payload at the former 8-second API bound. The same atomic preview/apply completed in 5.969/13.875 seconds under the new 30-second signed-in staging bound and was rolled back. A separate authenticated HTTP 10-second probe returned 200; the probe function was then removed.",
     "navisionOperationalLocationCompletion": "PASS \u2014 canonical shared state drives Vehicle Locations and Completed Vehicles; ordinary reconciliation preserves PMB/PIT/QC/RFT/Completed workflow progress; At Dealer with open required work stays active for review.",
@@ -83,7 +85,7 @@
     "pilbaraNavision": "Cross-scope Batch overlap no longer blocks a substantial Pilbara extract when every valid source row's original Dealer column explicitly declares 14450. Mixed, missing or contrary Dealer evidence remains blocked; hard deletion is disabled and the browser's selected option alone is not trusted.",
     "plannerAuthoritativeCandidateGate": "PASS \u2014 blocked Hoist cards are non-draggable, show Scheduling unavailable plus the exact visible authority reason, and no longer offer Best slot. Direct and cascade RPCs both return structured location_ineligible before Parts handling; canonical HTTP trigger errors are decoded without a false stale-version diagnosis.",
     "plannerSearchTyping": "PASS \u2014 debounced planner searches update their result list in place instead of replacing the focused input. Slow ten-character browser typing retains the full value, focus and caret.",
-    "production": "Untouched; staging-only Parts and Workshop candidate correction.",
+    "production": "Untouched; staging-only compact Vehicle Detail and read-only provenance history.",
     "salespersonEmailDefaults": "PASS \u2014 the supplied salesperson identities and addresses are in the shared staging directory. FO resolves explicitly to Stephen Peck/SP because both supplied rows use the same unique address; future exact vehicle references receive the shared salesperson ID without overwriting explicit assignments.",
     "screenshotRows": "PASS \u2014 stocks 13044227, 13047383 and 13047384 are canonically Other with null ETA; browser fallback can no longer override that authority from raw production status text.",
     "sidebarInformationCleanup": "PASS \u2014 Source Data and Operational Health cards are absent from every sidebar template; navigation and internal health tracking remain intact.",
@@ -91,6 +93,7 @@
     "subletAiReview": "Sublet uses a compact five-column operational table: Vehicle, Provider, Booking date, Notes/email and Actions. PO sent, expected return, actual return and return-status filtering are absent. AI Review shows the server-generated What the email says summary before detected changes and Approve/Deny controls.",
     "toyotaNavisionItEta": "PASS \u2014 transit-status Toyota Navision rows classify as IT only with a parsed authoritative Kewdale ETA. Missing/invalid ETA classifies as Other; a later Navision ETA update restores IT automatically. Migration 089 reduced canonical IT-without-ETA from 10 to 0, audited 12 backfill rows, and left PMB/PIT/QC/RFT/Completed workflow rows byte-for-byte unchanged.",
     "uiCleanup": "Control Board current-time line appears only for today and QC is removed from its station list. All-green PMB vehicles require explicit Ready for QC confirmation and move authoritatively to the Vehicle Locations QC Gate. Named QC sign-off moves to RFT and prints a dedicated windscreen label. Parts removes Outstanding station work, persists and refreshes ETA countdowns, and uses the shared Vehicle Locations row height.",
+    "vehicleDetailProvenance": "PASS \u2014 redundant metrics panel removed; 9 Required Work cells render at uniform 40px height; import method/source and detailed history render for all three roles with zero browser/HTTP errors.",
     "vehicleDetailWorkBookings": "PASS \u2014 Vehicle Detail opens on Vehicle details and provides a top-right Work & bookings tab. Every canonical required station is colour coded and shows line description, estimated hours, booking date/time/bay or an explicit Not booked state. Selecting a booking opens the exact station planner, date and booking selection.",
     "viewerReadOnly": "PASS \u2014 repaired the dedicated staging Viewer credential and changed only authoritative read-snapshot RPCs to accept Viewer. Administrator, Controller and Viewer smoke tests completed without page, console or HTTP errors; mutation authority is unchanged.",
     "workshopCustomer": "PASS \u2014 authoritative customer_name is present in both Workshop overview and station planner rows; vehicle/customer columns are separate and non-overlapping.",
