@@ -21,7 +21,9 @@ assert.strictEqual(context.timeFn(49),'2d 1h');
 const html=context.htmlFn('TINT');
 for(const text of ['IT <b>2</b>','PMB wait <b>5</b>','Bays <b>3</b>','avg 4.5h','Stop <b>1</b>','Done MTD <b>7</b>']) assert(html.includes(text),`Pipeline missing ${text}`);
 assert(appSource.indexOf('${controlBoardStationPipelineHtml(stage)}')<appSource.indexOf('Open ${escapeHtml(label)} Planner'),'Pipeline must render immediately before the planner action');
-assert(css.includes('grid-template-columns: 20px minmax(100px, 145px) 48px minmax(220px, .7fr) minmax(560px, 1.6fr) auto'),'Control Board row must reserve chart space beside planner buttons');
+assert(css.includes('grid-template-columns: 20px minmax(100px, 145px) 48px minmax(0, 1fr) auto'),'Control Board pipeline must use the full available row width before the planner button');
+assert(css.includes('.control-board-station-row .workflow-bucket-title > small { display: none !important; }'),'Control Board must remove the redundant description column so the pipeline can start earlier');
+assert(css.includes('column-gap: 16px !important'),'Control Board must preserve clear separation between the pipeline and planner action');
 for(const token of ["'it'","'pmb_waiting'","'in_bays'","'average_bay_hours'","'stoppage'","'completed_mtd'","time zone 'Australia/Perth'","b.status='started'","b.status='completed'"]) assert(pipelineSql.includes(token),`Pipeline SQL missing ${token}`);
 assert(pipelineSql.includes("perform public.require_pdc_role('viewer')"),'Pipeline snapshot must preserve Viewer read authority');
 

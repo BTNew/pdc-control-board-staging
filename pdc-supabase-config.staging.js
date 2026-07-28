@@ -34,6 +34,6 @@ window.PDC_SUPABASE_CONFIG = {
   vehicleLifecycle: Object.freeze({
     sharedData: true,
     resolverRollbackDirectRead: false,
-    resolverAssetVersion: '2026.07.28.28-control-board-pipeline-salesperson-email'
+    resolverAssetVersion: '2026.07.28.30-control-board-pipeline-width'
   })
 };
