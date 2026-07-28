@@ -6,19 +6,19 @@
     "twoPhysicalWorkstationAuthorityCutover": false
   },
   "artifact": "zero-data static staging site",
-  "backendOnlyMigrationSourceCommit": "6c0bff585c603435a177c1e306fd071a543e9d1e",
-  "cacheVersion": "2026.07.28.39-compact-vehicle-provenance",
+  "backendOnlyMigrationSourceCommit": "1d903dbee75c1da5f57d18672dbd9269714bef90",
+  "cacheVersion": "2026.07.28.40-authenticated-operation-lines",
   "deploymentMode": "exact reviewed source blobs; staging.html mapped to index.html",
   "environment": "staging",
-  "generatedAtUtc": "2026-07-28T07:38:43.152984Z",
+  "generatedAtUtc": "2026-07-28T08:23:14.753280Z",
   "humanAiIntake": {
     "approvalGate": "Administrator decision remains server-validated; missing summaries disable Approve while Deny remains available.",
     "summary": "Prominent escaped email summary plus explicit Approve/Deny effects; each email is now a distinct white card separated by an 18px dark-grey gutter (12px on mobile)."
   },
   "migrationLedger": {
-    "appliedThrough": "092",
-    "evidence": "Staging-only migrations through 092 are applied. Migration 092 adds authenticated read-only vehicle provenance, import receipts, movements and detailed audit history.",
-    "ledgerHead": "092",
+    "appliedThrough": "093",
+    "evidence": "Staging-only migration 093 is atomically applied and ledgered. It adds bounded authenticated job-card operation evidence, add-only canonical work enrichment and no booking authority.",
+    "ledgerHead": "093",
     "migrations": [
       "058",
       "059",
@@ -54,28 +54,31 @@
       "089",
       "090",
       "091",
-      "092"
+      "092",
+      "093"
     ]
   },
   "pendingStagingMigrations": [],
   "releaseChecks": {
-    "aggregateTests": "PASS \u2014 111 passed, 0 failed, 1 intentional skip.",
+    "aggregateTests": "PASS \u2014 111 passed, 1 unchanged pre-existing planner-role baseline failure, 1 intentional skip.",
     "aiIntakeCardSeparation": "PASS \u2014 two-card browser proof computed #374151 background, 18px gap, 16px padding and two white cards; mobile override uses a 12px gap and 10px padding.",
     "aiReviewDecisionContext": true,
     "aiReviewOverlayVersion": "2026.07.28.20-ai-review-card-separation",
-    "backupRestore": "PASS \u2014 encrypted backup run 11b91f6c-6c00-48b1-a1f1-f3943f082e23 restored into isolated schema restore_ai_intake_071_20260727; row counts, foreign keys, relationships and format/schema hashes matched; schema dropped after verification",
+    "authenticatedEmailOperationLines": "PASS \u2014 bounded parser recovered 12 canonical OP-numbered lines for Stock 13056899 / VIN ending 5877; migration 093 rollback dry-run and permanent staging apply passed; no booking or completion authority; replay and rendered-card verification pending at identity generation.",
+    "backupRestore": "PASS \u2014 encrypted pre-migration backup 044a6581-e853-4223-886e-e46685e89265 restored into isolated schema with all row counts, 180 foreign keys, relationships and format/schema hashes matching; isolated schema dropped.",
     "browserPredeploy": "PASS \u2014 Administrator, Controller and Viewer each rendered 3 canonical required station cards, 3 described work lines, 3 unique station colours and 1 real booking link; exact Fitting booking deep-link selected the correct planner date and booking. Zero dialogs, console errors, HTTP errors or production requests.",
     "controlBoardPipeline": "PASS \u2014 the redundant description column is removed, the pipeline occupies the full middle width, and a fixed 16px gap separates it from the Planner button. Existing authoritative metrics are unchanged.",
     "databasePostApply": "PASS \u2014 12238276, 12535460, 12705647 and 13001563 are active canonical PMB vehicles. 12660298 is canonical Completed, hidden from the active board, with an audited Delivered - At Dealer completion.",
     "humanAiIntake": "Received, What happened, Car and What changed are shown in plain language; activated, modified, unchanged and review-needed outcomes are distinct; field changes render previous value to new value; technical receipt data is collapsed",
     "humanNavisionResults": "An administrator can establish the first empty dealer scope only for one exact full snapshot of at least 100 valid rows. Approval is content-bound, user-bound and expires after two hours. Cross-dealer, invalid, duplicate, stale and changed snapshots remain fail-closed. Later strongly matched refresh omissions continue to enter reversible temporary holding.",
-    "literalArtifact": "35/35 deployed Git blobs match source commit 6c0bff585c603435a177c1e306fd071a543e9d1e",
+    "literalArtifact": "35/35 deployed Git blobs match source commit 1d903dbee75c1da5f57d18672dbd9269714bef90",
     "migration087": "PASS \u2014 rollback syntax/probe and permanent post-apply checks; BUS_4X4 eligible paths reach parts_incomplete, blocked Hoist direct/cascade paths return location_ineligible, gate helper has no anon/authenticated EXECUTE privilege, and no probe writes were committed. Pre-migration function backup SHA-256 baf586a7b74df4a60217414b50eaf323cc207fd6a3466b9220a0b4867ec023ad.",
     "migration088": "PASS \u2014 dry-run syntax and Viewer payload probe, permanent staging-only apply, anon EXECUTE revoked, authenticated EXECUTE granted, protected vehicle/work-item/booking counts unchanged, and zero production access.",
     "migration089": "PASS \u2014 guarded rollback dry-run, permanent staging-only apply and rollback trigger probes. Missing ETA writes fail to Other; authoritative dated writes remain IT; parser and enforcement trigger are unavailable to anon; zero production access.",
     "migration090": "PASS \u2014 guarded rollback dry-run and permanent staging apply. Final Inspection and Planned for Production without ETA resolve Other; dated Planned for Production resolves IT; protected workflow hash unchanged; zero production access.",
     "migration091": "PASS \u2014 guarded rollback dry-run and permanent staging apply. Parts mutation, stale-version refusal, PMB/IT candidate scope, IT ETA and before-ETA refusal verified; zero production access.",
     "migration092": "PASS \u2014 guarded rollback dry-run and permanent staging apply. Administrator, Controller and Viewer each read email/Navision provenance and 10 authoritative history events; authenticated EXECUTE only; zero production access.",
+    "migration093": "PASS \u2014 rollback dry-run and atomic permanent staging apply with ledger receipt; protected vehicle/work/completion/booking/email-receipt counts unchanged; direct table grants absent; zero production access.",
     "mixedDealerNavision": "A report containing both approved dealers is scoped server-side to the selected dealer only when every row carries known original Dealer evidence and the selected scope has at least 100 rows. Preview and Apply use identical filtering; other-dealer rows are reported and ignored, never imported into the selected scope.",
     "navisionFullReconciliationTimeout": "PASS \u2014 reproduced SQLSTATE 57014 with a complete 663-row source-evidence payload at the former 8-second API bound. The same atomic preview/apply completed in 5.969/13.875 seconds under the new 30-second signed-in staging bound and was rolled back. A separate authenticated HTTP 10-second probe returned 200; the probe function was then removed.",
     "navisionOperationalLocationCompletion": "PASS \u2014 canonical shared state drives Vehicle Locations and Completed Vehicles; ordinary reconciliation preserves PMB/PIT/QC/RFT/Completed workflow progress; At Dealer with open required work stays active for review.",
@@ -85,7 +88,7 @@
     "pilbaraNavision": "Cross-scope Batch overlap no longer blocks a substantial Pilbara extract when every valid source row's original Dealer column explicitly declares 14450. Mixed, missing or contrary Dealer evidence remains blocked; hard deletion is disabled and the browser's selected option alone is not trusted.",
     "plannerAuthoritativeCandidateGate": "PASS \u2014 blocked Hoist cards are non-draggable, show Scheduling unavailable plus the exact visible authority reason, and no longer offer Best slot. Direct and cascade RPCs both return structured location_ineligible before Parts handling; canonical HTTP trigger errors are decoded without a false stale-version diagnosis.",
     "plannerSearchTyping": "PASS \u2014 debounced planner searches update their result list in place instead of replacing the focused input. Slow ten-character browser typing retains the full value, focus and caret.",
-    "production": "Untouched; staging-only compact Vehicle Detail and read-only provenance history.",
+    "production": "Untouched; staging-only authenticated job-card operation evidence and vehicle-card rendering.",
     "salespersonEmailDefaults": "PASS \u2014 the supplied salesperson identities and addresses are in the shared staging directory. FO resolves explicitly to Stephen Peck/SP because both supplied rows use the same unique address; future exact vehicle references receive the shared salesperson ID without overwriting explicit assignments.",
     "screenshotRows": "PASS \u2014 stocks 13044227, 13047383 and 13047384 are canonically Other with null ETA; browser fallback can no longer override that authority from raw production status text.",
     "sidebarInformationCleanup": "PASS \u2014 Source Data and Operational Health cards are absent from every sidebar template; navigation and internal health tracking remain intact.",
@@ -100,7 +103,7 @@
     "workshopPartsGate": "Future planning does not claim or reserve Parts. Immediate physical Start fails closed for Parts-incomplete vehicles; only an administrator-supplied reason can create the audited entry override."
   },
   "sourceBranch": "integration/staging-parts-workshop-ai-20260728",
-  "sourceCommit": "6c0bff585c603435a177c1e306fd071a543e9d1e",
+  "sourceCommit": "1d903dbee75c1da5f57d18672dbd9269714bef90",
   "sourceFiles": [
     {
       "deployedPath": "ai-board-advisor.js",
@@ -109,7 +112,7 @@
     },
     {
       "deployedPath": "app.js",
-      "sha256": "6b7b021c89504df15a0d083e9270de9635bf0694ff2d3d6b8a0098c967a85ef5",
+      "sha256": "fa519943d327ce671a3b4d08222cabe73fc37bfd83f9560968df15423b707364",
       "sourcePath": "app.js"
     },
     {
@@ -149,7 +152,7 @@
     },
     {
       "deployedPath": "index.html",
-      "sha256": "032779212596b168fb93680db4d1cb5c65f0f9fdeb59818dda1f7e1bc19d2063",
+      "sha256": "861d8d7da7e766b37688e190ad79c1e675e380d0e11b2251308a2f14a5e4727a",
       "sourcePath": "staging.html"
     },
     {
@@ -179,12 +182,12 @@
     },
     {
       "deployedPath": "pdc-email-vehicle-location-service.js",
-      "sha256": "dcddb3c886a4c636a78d3886f52db8aa0af6b283433f74464a4b09f66374e288",
+      "sha256": "d3da0f8c2c8ea3b1147f163594e78fddf246b33d5b79af46a1e5653bc70ad300",
       "sourcePath": "pdc-email-vehicle-location-service.js"
     },
     {
       "deployedPath": "pdc-supabase-config.staging.js",
-      "sha256": "83e85d18d0f641f615a7276f80a55021a59cf826b48e43d3cbc209230b4b85e0",
+      "sha256": "e06bf8bac575d1510a26b63fb0377bd3e309acb94a08b9ae1558f9f52810ea06",
       "sourcePath": "pdc-supabase-config.staging.js"
     },
     {
@@ -199,7 +202,7 @@
     },
     {
       "deployedPath": "styles.css",
-      "sha256": "85eb297ea20fe38c1102526b6fc7e0633388e68c6971db095df079129d5a3928",
+      "sha256": "83330d1519bcc6345dd62213b58d69cf393aa3ea8c461392ed062087b7601838",
       "sourcePath": "styles.css"
     },
     {
@@ -278,5 +281,5 @@
       "sourcePath": "pdc-ai-intake-review.js"
     }
   ],
-  "sourceTree": "c0725641b1792e6f7a415405eae687f8d48e0696"
+  "sourceTree": "9f89d456fe4bf4dbf26e8f5c8330f712d07738e2"
 }

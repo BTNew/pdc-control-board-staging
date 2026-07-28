@@ -1,5 +1,5 @@
-const APP_VERSION = '2026.07.28.39-compact-vehicle-provenance';
-const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.07.28.39-compact-vehicle-provenance';
+const APP_VERSION = '2026.07.28.40-authenticated-operation-lines';
+const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.07.28.40-authenticated-operation-lines';
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
 // constant intentionally names only the production ref, never the
@@ -5656,6 +5656,23 @@ function pmbRequiredWorkLabels(vehicle = {}) {
   return pdcRequirementDefinitions(vehicle).map(item => `${item.label}${pdcJobComplete(vehicle, item) ? ' done' : ' required'}`);
 }
 
+function authenticatedEmailOperationLinesHtml(vehicle = {}) {
+  const labels = {
+    bus4x4: 'Bus 4x4', tint: 'Tint', hoist: 'Hoist / GVM', fitting: 'Fitting',
+    fabrication: 'Fabrication', electrical: 'Electrical', tyre: 'Tyres',
+    pitinspection: 'Pit inspection', parts: 'Parts',
+  };
+  const operations = (Array.isArray(vehicle.pdcEmailOperationLines) ? vehicle.pdcEmailOperationLines : [])
+    .slice(0, 50)
+    .filter(operation => operation && operation.operation_no && operation.description)
+    .sort((a, b) => Number(String(a.operation_no).slice(2)) - Number(String(b.operation_no).slice(2)));
+  if (!operations.length) return '';
+  return `<div class="wide authenticated-email-operations">
+    <b>Operations from authenticated job cards</b>
+    <ol>${operations.map(operation => `<li><strong>${escapeHtml(operation.operation_no)}</strong><span>${escapeHtml(operation.description)}</span><small>${escapeHtml(labels[operation.work_key] || operation.work_key)}</small></li>`).join('')}</ol>
+  </div>`;
+}
+
 function incomingWorkChecklistHtml(vehicle = {}, options = {}) {
   const key = vehicleKey(vehicle);
   const currentStage = normalizePmbStage(inferredPmbStage(vehicle));
@@ -5766,6 +5783,7 @@ function incomingVehicleDetailRow(vehicle = {}, bucketKey = '', options = {}) {
         ${risk ? `<div class="wide parts-risk-detail"><b>PARTS RISK</b><span>Parts ETA ${escapeHtml(partsWorstEtaLabel(vehicle))} is later than Kewdale ETA ${escapeHtml(kewdaleEtaValue(vehicle))}</span></div>` : ''}
         ${subletProviderField}
         <div class="wide"><b>PMB work required</b><span>${escapeHtml(required)}</span></div>
+        ${authenticatedEmailOperationLinesHtml(vehicle)}
       </div>
     </details>`;
 }

@@ -12291,3 +12291,36 @@ select[name="pdcLocation"]:focus,
 .audit-log-list { max-height: 340px; overflow-y: auto; }
 .audit-log-item { padding: 7px 9px; }
 .audit-log-item span { overflow-wrap: anywhere; }
+
+.authenticated-email-operations {
+  display: grid;
+  gap: 0.45rem;
+  padding-top: 0.25rem;
+}
+
+.authenticated-email-operations ol {
+  display: grid;
+  gap: 0.35rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.authenticated-email-operations li {
+  display: grid;
+  grid-template-columns: minmax(2.8rem, auto) minmax(0, 1fr) auto;
+  gap: 0.55rem;
+  align-items: start;
+  padding: 0.42rem 0.55rem;
+  border: 1px solid var(--line, #d7dde5);
+  border-radius: 0.45rem;
+  background: var(--surface-soft, #f6f8fb);
+}
+
+.authenticated-email-operations li span { min-width: 0; overflow-wrap: anywhere; }
+.authenticated-email-operations li small { color: var(--muted, #52606d); font-weight: 700; }
+
+@media (max-width: 700px) {
+  .authenticated-email-operations li { grid-template-columns: auto 1fr; }
+  .authenticated-email-operations li small { grid-column: 2; }
+}
