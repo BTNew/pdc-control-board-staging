@@ -6,18 +6,18 @@
     "twoPhysicalWorkstationAuthorityCutover": false
   },
   "artifact": "zero-data static staging site",
-  "cacheVersion": "2026.07.28.28-control-board-pipeline-salesperson-email",
+  "cacheVersion": "2026.07.28.30-control-board-pipeline-width",
   "deploymentMode": "exact reviewed source blobs; staging.html mapped to index.html",
   "environment": "staging",
-  "generatedAtUtc": "2026-07-28T02:53:05.175660Z",
+  "generatedAtUtc": "2026-07-28T04:03:34.988585Z",
   "humanAiIntake": {
     "approvalGate": "Administrator decision remains server-validated; missing summaries disable Approve while Deny remains available.",
     "summary": "Prominent escaped email summary plus explicit Approve/Deny effects; approval fails closed when no readable summary exists."
   },
   "migrationLedger": {
-    "appliedThrough": "085",
-    "evidence": "Staging-only migrations through 085 are applied to the approved staging project. Migration 084 adds viewer-readable authoritative per-station pipeline metrics. Migration 085 installs the supplied 12-person shared salesperson roster, exact FO to SP alias, future vehicle resolution trigger, and preserves explicit existing assignments.",
-    "ledgerHead": "085",
+    "appliedThrough": "086",
+    "evidence": "Staging-only migrations through 086 are applied to the approved staging project. Migration 086 is backend-only in this pipeline-width release; the unpublished Reference Data and Workshop Settings frontend is not included.",
+    "ledgerHead": "086",
     "migrations": [
       "058",
       "059",
@@ -46,20 +46,21 @@
       "082",
       "083",
       "084",
-      "085"
+      "085",
+      "086"
     ]
   },
   "pendingStagingMigrations": [],
   "releaseChecks": {
-    "aggregateTests": "PASS \u2014 107 passed, 0 failed, 1 intentional skip, including authoritative pipeline and salesperson default contracts.",
+    "aggregateTests": "PASS \u2014 106 passed, 0 failed, 1 intentional skip on the exact pipeline-only source candidate.",
     "aiReviewDecisionContext": true,
     "aiReviewOverlayVersion": "2026.07.27.19-ai-review-decision-context",
     "backupRestore": "PASS \u2014 encrypted backup run 11b91f6c-6c00-48b1-a1f1-f3943f082e23 restored into isolated schema restore_ai_intake_071_20260727; row counts, foreign keys, relationships and format/schema hashes matched; schema dropped after verification",
-    "controlBoardPipeline": "PASS \u2014 each planner station row shows IT, PMB waiting, active bays, average active bay time excluding accumulated stoppage, stoppages, and Australia/Perth completed month-to-date from shared backend authority.",
+    "controlBoardPipeline": "PASS \u2014 the redundant description column is removed, the pipeline occupies the full middle width, and a fixed 16px gap separates it from the Planner button. Existing authoritative metrics are unchanged.",
     "databasePostApply": "PASS \u2014 12238276, 12535460, 12705647 and 13001563 are active canonical PMB vehicles. 12660298 is canonical Completed, hidden from the active board, with an audited Delivered - At Dealer completion.",
     "humanAiIntake": "Received, What happened, Car and What changed are shown in plain language; activated, modified, unchanged and review-needed outcomes are distinct; field changes render previous value to new value; technical receipt data is collapsed",
     "humanNavisionResults": "An administrator can establish the first empty dealer scope only for one exact full snapshot of at least 100 valid rows. Approval is content-bound, user-bound and expires after two hours. Cross-dealer, invalid, duplicate, stale and changed snapshots remain fail-closed. Later strongly matched refresh omissions continue to enter reversible temporary holding.",
-    "literalArtifact": "35/35 deployed Git blobs match source commit ac67b07cc6bacf12fd084fff29979c1aec6ad322",
+    "literalArtifact": "35/35 deployed Git blobs match source commit ac03bb1069c6ed034cab4c5e3e4a04d99650c5c7",
     "mixedDealerNavision": "A report containing both approved dealers is scoped server-side to the selected dealer only when every row carries known original Dealer evidence and the selected scope has at least 100 rows. Preview and Apply use identical filtering; other-dealer rows are reported and ignored, never imported into the selected scope.",
     "navisionFullReconciliationTimeout": "PASS \u2014 reproduced SQLSTATE 57014 with a complete 663-row source-evidence payload at the former 8-second API bound. The same atomic preview/apply completed in 5.969/13.875 seconds under the new 30-second signed-in staging bound and was rolled back. A separate authenticated HTTP 10-second probe returned 200; the probe function was then removed.",
     "navisionOperationalLocationCompletion": "PASS \u2014 canonical shared state drives Vehicle Locations and Completed Vehicles; ordinary reconciliation preserves PMB/PIT/QC/RFT/Completed workflow progress; At Dealer with open required work stays active for review.",
@@ -68,7 +69,7 @@
     "operationalTooling": "Staging environment and database helpers live under scripts/pdc_staging_runtime.py; operational scripts no longer import test-fixture helper modules.",
     "pilbaraNavision": "Cross-scope Batch overlap no longer blocks a substantial Pilbara extract when every valid source row's original Dealer column explicitly declares 14450. Mixed, missing or contrary Dealer evidence remains blocked; hard deletion is disabled and the browser's selected option alone is not trusted.",
     "plannerSearchTyping": "PASS \u2014 debounced planner searches update their result list in place instead of replacing the focused input. Slow ten-character browser typing retains the full value, focus and caret.",
-    "production": "Untouched; staging static artifact plus staging-only migrations through 085",
+    "production": "Untouched; pipeline-width static staging artifact plus staging-only migrations through 086",
     "salespersonEmailDefaults": "PASS \u2014 the supplied salesperson identities and addresses are in the shared staging directory. FO resolves explicitly to Stephen Peck/SP because both supplied rows use the same unique address; future exact vehicle references receive the shared salesperson ID without overwriting explicit assignments.",
     "sidebarInformationCleanup": "PASS \u2014 Source Data and Operational Health cards are absent from every sidebar template; navigation and internal health tracking remain intact.",
     "stagingFixtureCleanup": "PASS \u2014 QA-OVN-20260727-WS, vehicle 7f17d3c5-4ef7-4f4e-9c5d-202607270001, booking 5fb7c7b3-ddcf-49d7-a0e3-a764f2a6b375 and Navision 99072701 active/audit fixture rows were removed.",
@@ -77,8 +78,8 @@
     "viewerReadOnly": "PASS \u2014 repaired the dedicated staging Viewer credential and changed only authoritative read-snapshot RPCs to accept Viewer. Administrator, Controller and Viewer smoke tests completed without page, console or HTTP errors; mutation authority is unchanged.",
     "workshopPartsGate": "Future planning does not claim or reserve Parts. Immediate physical Start fails closed for Parts-incomplete vehicles; only an administrator-supplied reason can create the audited entry override."
   },
-  "sourceBranch": "fix/staging-overnight-qa-20260727",
-  "sourceCommit": "ac67b07cc6bacf12fd084fff29979c1aec6ad322",
+  "sourceBranch": "fix/staging-pipeline-width-20260728",
+  "sourceCommit": "ac03bb1069c6ed034cab4c5e3e4a04d99650c5c7",
   "sourceFiles": [
     {
       "deployedPath": "ai-board-advisor.js",
@@ -87,7 +88,7 @@
     },
     {
       "deployedPath": "app.js",
-      "sha256": "82f009649979c58248f5714f2c40b9bfc061f3da9088e2b85c6a9c56f6a41f98",
+      "sha256": "15c199795e9ec7d44acfb4f6e662607b50d555b1e4ad0a1686ecd6ebbdda1444",
       "sourcePath": "app.js"
     },
     {
@@ -127,7 +128,7 @@
     },
     {
       "deployedPath": "index.html",
-      "sha256": "6411f97c14d6c0817269312ee88889667bd1f55b0d73da5323b04b6039212884",
+      "sha256": "e8f45b1c56f1b5e863a21de0341382b844ae1725b849a405cf796d2243b48c11",
       "sourcePath": "staging.html"
     },
     {
@@ -162,7 +163,7 @@
     },
     {
       "deployedPath": "pdc-supabase-config.staging.js",
-      "sha256": "24ca8c94142ecb78c3e88ef0a2688894903f70b77adfb88588caca866b8969bb",
+      "sha256": "270a7d5b7caf60ab4c98582ed40e7220517537077d55a253bb9acce15972fed5",
       "sourcePath": "pdc-supabase-config.staging.js"
     },
     {
@@ -177,7 +178,7 @@
     },
     {
       "deployedPath": "styles.css",
-      "sha256": "c86d9ef69bfc74940ee9539218c1fb96657c0db8d012affd81c3ff0d18a50b09",
+      "sha256": "3c36052139644492be7649559daa1a3b165da4ed54dee7b09c98ed5c8d7c7730",
       "sourcePath": "styles.css"
     },
     {
@@ -256,5 +257,6 @@
       "sourcePath": "pdc-ai-intake-review.js"
     }
   ],
-  "sourceTree": "ec9a950fea854dbf6107b7ec0c4c90eaa3e571b7"
+  "sourceTree": "ec9a950fea854dbf6107b7ec0c4c90eaa3e571b7",
+  "backendOnlyMigrationSourceCommit": "b43e31def8c9eec09ed33278b04ca678993d1c5a"
 }
