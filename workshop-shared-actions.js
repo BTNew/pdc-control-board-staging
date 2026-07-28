@@ -87,6 +87,19 @@ function buildWorkshopSharedActions(dataService) {
       });
     },
 
+    cascadeMoveBooking({ bookingId, expectedVersion, stageCode, bayNumber, scheduledStartAt, durationMinutes, overrideReason = null, metadata = {} }) {
+      return mutate('cascade_workshop_booking_move', {
+        p_booking_id: bookingId,
+        p_expected_version: expectedVersion,
+        p_stage_code: stageCode,
+        p_bay_number: bayNumber,
+        p_scheduled_start_at: scheduledStartAt,
+        p_duration_minutes: durationMinutes,
+        p_override_reason: overrideReason || null,
+        p_metadata: metadata,
+      });
+    },
+
     changeBookingBay({ bookingId, expectedVersion, bayNumber, metadata }) {
       return mutate('change_booking_bay', {
         p_booking_id: bookingId,

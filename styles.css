@@ -12223,19 +12223,24 @@ select[name="pdcLocation"]:focus,
 .vehicle-workshop-station-total { border: 1px solid color-mix(in srgb, var(--station-colour) 35%, #cbd5e1); background: #fff; color: #334155; }
 .vehicle-workshop-line-add { min-height: 27px; padding: 4px 9px; border: 1px solid color-mix(in srgb, var(--station-colour) 45%, #cbd5e1); border-radius: 7px; background: #fff; color: var(--station-colour); box-shadow: none; font-size: .68rem; font-weight: 900; white-space: nowrap; }
 .vehicle-workshop-line-add:hover { border-color: var(--station-colour); background: var(--station-tint); }
-.vehicle-workshop-line-actions { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 3px; }
-.vehicle-workshop-line-actions button { min-height: 24px; padding: 3px 7px; border: 1px solid #cbd5e1; border-radius: 6px; background: #fff; color: #334155; box-shadow: none; font-size: .64rem; font-weight: 850; }
+.vehicle-workshop-line-actions { display: flex; flex-wrap: nowrap; justify-content: flex-end; align-items: center; gap: 5px; margin: 0; }
+.vehicle-workshop-line > .vehicle-workshop-line-actions { display: flex; padding-inline: 8px; border-right: 0; }
+.vehicle-workshop-line-actions button { min-height: 24px; padding: 3px 7px; border: 1px solid #cbd5e1; border-radius: 6px; background: #fff; color: #334155; box-shadow: none; font-size: .64rem; font-weight: 850; white-space: nowrap; }
 .vehicle-workshop-line-actions button:hover { border-color: var(--station-colour); color: var(--station-colour); }
 .vehicle-workshop-line-actions button.is-danger { border-color: #fecaca; color: #b91c1c; }
 .vehicle-workshop-lines { display: grid; }
-.vehicle-workshop-line { display: grid; grid-template-columns: 24px minmax(220px, 1.5fr) minmax(110px, .45fr) minmax(300px, 1.4fr); align-items: stretch; min-width: 0; border-bottom: 1px solid #e8edf2; }
+.vehicle-workshop-line { display: grid; grid-template-columns: 24px minmax(220px, 1.7fr) minmax(150px, .55fr) minmax(260px, 1.2fr) auto; align-items: stretch; min-width: 0; min-height: 40px; border-bottom: 1px solid #e8edf2; }
 .vehicle-workshop-line:last-child { border-bottom: 0; }
-.vehicle-workshop-line > span { display: grid; align-content: center; gap: 3px; min-width: 0; padding: 9px 11px; border-right: 1px solid #edf1f5; }
+.vehicle-workshop-line > span { display: grid; align-content: center; gap: 2px; min-width: 0; padding: 5px 8px; border-right: 1px solid #edf1f5; }
 .vehicle-workshop-line > span:last-child { border-right: 0; }
-.vehicle-workshop-line-number { place-items: center; padding: 0 !important; background: color-mix(in srgb, var(--station-colour) 7%, #fff); color: var(--station-colour); font-size: .72rem; font-weight: 950; }
-.vehicle-workshop-line b { color: #64748b; font-size: .61rem; font-weight: 850; letter-spacing: .055em; text-transform: uppercase; }
-.vehicle-workshop-line strong { overflow-wrap: anywhere; color: #1e293b; font-size: .78rem; line-height: 1.35; }
-.vehicle-workshop-line-booking { gap: 5px !important; }
+.vehicle-workshop-line-number { place-items: center; padding: 0 !important; background: color-mix(in srgb, var(--station-colour) 7%, #fff); color: var(--station-colour); font-size: .7rem; font-weight: 950; }
+.vehicle-workshop-line strong { overflow-wrap: anywhere; color: #1e293b; font-size: .75rem; line-height: 1.2; }
+.vehicle-workshop-line-hours { min-width: 0; }
+.vehicle-workshop-quick-hours { display: grid; grid-template-columns: minmax(58px, 78px) auto auto; align-items: center; justify-content: start; gap: 4px; min-width: 0; }
+.vehicle-workshop-quick-hours input { width: 100%; min-width: 58px; height: 27px; padding: 3px 6px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: .72rem; font-weight: 800; }
+.vehicle-workshop-quick-hours > span { color: #64748b; font-size: .68rem; font-weight: 800; }
+.vehicle-workshop-quick-hours button { min-height: 25px; padding: 3px 7px; border: 1px solid color-mix(in srgb, var(--station-colour) 45%, #cbd5e1); border-radius: 6px; background: #fff; color: var(--station-colour); box-shadow: none; font-size: .63rem; font-weight: 900; }
+.vehicle-workshop-line-booking { gap: 3px !important; }
 .vehicle-workshop-booking-link { display: block; width: 100%; min-height: 0; padding: 5px 7px; border: 1px solid color-mix(in srgb, var(--station-colour) 30%, #cbd5e1); border-radius: 6px; background: var(--station-tint); color: #1e293b; box-shadow: none; text-align: left; font-size: .72rem; font-weight: 750; line-height: 1.35; }
 .vehicle-workshop-booking-link:hover { border-color: var(--station-colour); background: #fff; color: var(--station-colour); }
 .vehicle-workshop-booking-link b { color: inherit; font-size: inherit; letter-spacing: 0; text-transform: none; }
@@ -12246,7 +12251,7 @@ select[name="pdcLocation"]:focus,
   .vehicle-detail-header-tools { align-items: flex-end; flex-direction: column-reverse; }
   .vehicle-workshop-intro { flex-direction: column; }
   .vehicle-workshop-legend { justify-content: flex-start; max-width: none; }
-  .vehicle-workshop-line { grid-template-columns: 24px minmax(180px, 1.3fr) minmax(105px, .45fr) minmax(240px, 1.2fr); }
+  .vehicle-workshop-line { grid-template-columns: 24px minmax(180px, 1.35fr) minmax(145px, .55fr) minmax(220px, 1fr) auto; }
 }
 @media (max-width: 760px) {
   #vehicle-detail .vehicle-detail-header { flex-direction: column; padding-right: 52px !important; }
@@ -12261,8 +12266,9 @@ select[name="pdcLocation"]:focus,
   .vehicle-workshop-station-total { grid-column: 2 / -1; justify-self: start; }
   .vehicle-workshop-line { grid-template-columns: 24px minmax(0, 1fr); }
   .vehicle-workshop-line > span { grid-column: 2; border-right: 0; }
-  .vehicle-workshop-line-number { grid-column: 1 !important; grid-row: 1 / span 3; }
-  .vehicle-workshop-line-description, .vehicle-workshop-line-hours { border-bottom: 1px solid #edf1f5; }
+  .vehicle-workshop-line-number { grid-column: 1 !important; grid-row: 1 / span 4; }
+  .vehicle-workshop-line-description, .vehicle-workshop-line-hours, .vehicle-workshop-line-booking { border-bottom: 1px solid #edf1f5; }
+  .vehicle-workshop-line > .vehicle-workshop-line-actions { justify-content: flex-start; }
 }
 
 /* 2026-07-28: compact vehicle details and match Required Work controls to Vehicle Locations cells. */
