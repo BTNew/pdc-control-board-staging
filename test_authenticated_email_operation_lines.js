@@ -42,6 +42,10 @@ assert(backup.includes('if number >= 93:'), 'Backup must require operation evide
 const replayRevision = fs.readFileSync('supabase/staging_only/094_authenticated_operation_replay_revision.sql', 'utf8').toLowerCase();
 assert(replayRevision.includes('for each row execute function public.bump_pdc_email_vehicle_revision()'), 'Exact operation replays must not bump revision without an inserted row');
 assert(!replayRevision.includes('for each statement execute function public.bump_pdc_email_vehicle_revision()'), 'Operation evidence revision trigger must not be statement-level');
+const exactReplay = fs.readFileSync('supabase/staging_only/095_authenticated_operation_exact_replay.sql', 'utf8').toLowerCase();
+assert(exactReplay.includes("'operation_lines_already_imported'"), 'Exact operation replays need an explicit no-mutation receipt');
+assert(exactReplay.indexOf('operation_lines_already_imported') < exactReplay.indexOf('return public.import_pdc_authenticated_email_operations_093_internal'), 'Exact replay must return before delegating to mutation statements');
+assert(exactReplay.includes("'booking_created',false"), 'Exact replay receipt must state that no booking was created');
 
 const app = fs.readFileSync('app.js', 'utf8');
 assert(app.includes('function authenticatedEmailOperationLinesHtml('), 'Vehicle cards must have a bounded operation-line renderer');
