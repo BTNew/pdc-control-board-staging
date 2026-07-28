@@ -6,19 +6,19 @@
     "twoPhysicalWorkstationAuthorityCutover": false
   },
   "artifact": "zero-data static staging site",
-  "backendOnlyMigrationSourceCommit": "062eab52e302f8959416e963e4ecee1c36c09fea",
-  "cacheVersion": "2026.07.28.41-navision-stock-authority",
+  "backendOnlyMigrationSourceCommit": "ce43d8b1f03f6d8b19d3cd2d82f3235306e205cb",
+  "cacheVersion": "2026.07.28.41-vehicle-detail-operation-lines",
   "deploymentMode": "exact reviewed source blobs; staging.html mapped to index.html",
   "environment": "staging",
-  "generatedAtUtc": "2026-07-28T08:54:57Z",
+  "generatedAtUtc": "2026-07-28T09:25:18.410902Z",
   "humanAiIntake": {
     "approvalGate": "Administrator decision remains server-validated; missing summaries disable Approve while Deny remains available.",
     "summary": "Prominent escaped email summary plus explicit Approve/Deny effects; each email is now a distinct white card separated by an 18px dark-grey gutter (12px on mobile)."
   },
   "migrationLedger": {
-    "appliedThrough": "096",
-    "evidence": "Staging-only migration 096 is atomically applied and ledgered. One unique current Stock match now makes Navision authoritative for canonical vehicle identity/details while retaining PDF work/evidence; duplicate Stock matches remain blocked.",
-    "ledgerHead": "096",
+    "appliedThrough": "097",
+    "evidence": "Staging-only migration 097 is atomically applied and ledgered. It restores bounded typed authenticated job-card operation lines to the enrolled Viewer snapshot after migration 096 replaced that read function; no operational rows or bookings changed.",
+    "ledgerHead": "097",
     "migrations": [
       "058",
       "059",
@@ -58,7 +58,8 @@
       "093",
       "094",
       "095",
-      "096"
+      "096",
+      "097"
     ]
   },
   "pendingStagingMigrations": [],
@@ -93,11 +94,11 @@
     "plannerAuthoritativeCandidateGate": "PASS \u2014 blocked Hoist cards are non-draggable, show Scheduling unavailable plus the exact visible authority reason, and no longer offer Best slot. Direct and cascade RPCs both return structured location_ineligible before Parts handling; canonical HTTP trigger errors are decoded without a false stale-version diagnosis.",
     "plannerSearchTyping": "PASS \u2014 debounced planner searches update their result list in place instead of replacing the focused input. Slow ten-character browser typing retains the full value, focus and caret.",
     "production": "Untouched; staging-only unique-Stock Navision authority and authenticated email work import.",
-    "stockAuthority12708286": "PASS \u2014 active visible vehicle 12708286 now uses Navision customer APT MANAGEMENT SERVICES PTY LIMITED, HiLux model and YH location; PDF identity override is audited; Tint, Fitting, Fabrication and Parts are required; no booking was created.",
     "salespersonEmailDefaults": "PASS \u2014 the supplied salesperson identities and addresses are in the shared staging directory. FO resolves explicitly to Stephen Peck/SP because both supplied rows use the same unique address; future exact vehicle references receive the shared salesperson ID without overwriting explicit assignments.",
     "screenshotRows": "PASS \u2014 stocks 13044227, 13047383 and 13047384 are canonically Other with null ETA; browser fallback can no longer override that authority from raw production status text.",
     "sidebarInformationCleanup": "PASS \u2014 Source Data and Operational Health cards are absent from every sidebar template; navigation and internal health tracking remain intact.",
     "stagingFixtureCleanup": "PASS \u2014 QA-OVN-20260727-WS, vehicle 7f17d3c5-4ef7-4f4e-9c5d-202607270001, booking 5fb7c7b3-ddcf-49d7-a0e3-a764f2a6b375 and Navision 99072701 active/audit fixture rows were removed.",
+    "stockAuthority12708286": "PASS \u2014 active visible vehicle 12708286 now uses Navision customer APT MANAGEMENT SERVICES PTY LIMITED, HiLux model and YH location; PDF identity override is audited; Tint, Fitting, Fabrication and Parts are required; no booking was created.",
     "subletAiReview": "Sublet uses a compact five-column operational table: Vehicle, Provider, Booking date, Notes/email and Actions. PO sent, expected return, actual return and return-status filtering are absent. AI Review shows the server-generated What the email says summary before detected changes and Approve/Deny controls.",
     "toyotaNavisionItEta": "PASS \u2014 transit-status Toyota Navision rows classify as IT only with a parsed authoritative Kewdale ETA. Missing/invalid ETA classifies as Other; a later Navision ETA update restores IT automatically. Migration 089 reduced canonical IT-without-ETA from 10 to 0, audited 12 backfill rows, and left PMB/PIT/QC/RFT/Completed workflow rows byte-for-byte unchanged.",
     "uiCleanup": "Control Board current-time line appears only for today and QC is removed from its station list. All-green PMB vehicles require explicit Ready for QC confirmation and move authoritatively to the Vehicle Locations QC Gate. Named QC sign-off moves to RFT and prints a dedicated windscreen label. Parts removes Outstanding station work, persists and refreshes ETA countdowns, and uses the shared Vehicle Locations row height.",
@@ -107,27 +108,34 @@
     "workshopCustomer": "PASS \u2014 authoritative customer_name is present in both Workshop overview and station planner rows; vehicle/customer columns are separate and non-overlapping.",
     "workshopPartsGate": "Future planning does not claim or reserve Parts. Immediate physical Start fails closed for Parts-incomplete vehicles; only an administrator-supplied reason can create the audited entry override."
   },
+  "releaseVerification": {
+    "aggregateTests": "111 passed, 1 intentional skip, 1 unchanged baseline planner-role guard failure reproduced on the pre-change source.",
+    "authenticatedOperationSnapshot": "PASS \u2014 enrolled Viewer snapshot returns 12 operation lines in deterministic OP order after migration 097; exact vehicle has zero workshop bookings.",
+    "authenticatedOperationVehicleDetail": "PASS \u2014 Stock 13056899 maps 12 distinct typed operation rows (OP2\u2013OP13) into Tint, Fitting, Electrical, Tyre and Parts detail sections; Sublet remains only the preserved prior coarse requirement.",
+    "focusedTests": "PASS \u2014 version consistency, mapping, vehicle detail, lookup safety, migration 096/097, parser and operation safety contracts.",
+    "production": "UNCHANGED \u2014 no production branch, database, deployment or configuration write."
+  },
   "sourceBranch": "integration/staging-parts-workshop-ai-20260728",
-  "sourceCommit": "1d903dbee75c1da5f57d18672dbd9269714bef90",
+  "sourceCommit": "ce43d8b1f03f6d8b19d3cd2d82f3235306e205cb",
   "sourceFiles": [
     {
       "deployedPath": "ai-board-advisor.js",
-      "sha256": "a01dc581a417684c5a3377057bc70a57624bdaa3ad67c24b408eedfa86e0fc4e",
+      "sha256": "97785220d0b72527327955c39c02e276d33a2c1391f220f211b83996ece07c65",
       "sourcePath": "ai-board-advisor.js"
     },
     {
       "deployedPath": "app.js",
-      "sha256": "fa519943d327ce671a3b4d08222cabe73fc37bfd83f9560968df15423b707364",
+      "sha256": "2d95e7e6018bccc961a44b1fa84dcf846b568d678c3257e48be0006903112a98",
       "sourcePath": "app.js"
     },
     {
       "deployedPath": "arb-labor-catalog.js",
-      "sha256": "db99ee8c4ddf341ce3f948dc04fb70cbe6c66d122be1a262f7074552a2fa49c0",
+      "sha256": "1800e93b325bfd58d9b0131d2105f78b775885bd82e88ceed63d3ecf6100b9fe",
       "sourcePath": "arb-labor-catalog.js"
     },
     {
       "deployedPath": "assets/brand-logo.svg",
-      "sha256": "4bffc708627c0ee8de1a997aec6bf3aae7461fb779f2700f41fd47e6645dd28d",
+      "sha256": "7e3c9cb0b7e1f53b931f6cad274583f78a6be67ba554d6a45e57473f5ab611a0",
       "sourcePath": "assets/brand-logo.svg"
     },
     {
@@ -137,154 +145,154 @@
     },
     {
       "deployedPath": "data-staging-empty.js",
-      "sha256": "d2a9ed658daa1cc5eabb45a78eeb5c7f93ef0146a12e7f8c23d0b028f915c7a9",
+      "sha256": "2fa02a231e559b4230ba22ac1c6e1cfa600fcaad9f546f6fb3e2a28b2acab756",
       "sourcePath": "data-staging-empty.js"
     },
     {
       "deployedPath": "desktop-operations.css",
-      "sha256": "f3179efdeeaf34ba76dfc10c56aa2c3c59498ee61e60c11e0032abb9d3b51616",
+      "sha256": "d7c116ff17cfdb86d551e587e1362ca11db8327e2e8497ee49b5fb4dae2c2ec9",
       "sourcePath": "desktop-operations.css"
     },
     {
       "deployedPath": "email-board-data.js",
-      "sha256": "3b55079afe708ae6842a6ddb61e19e912a8182cdc835a5d4102e4a5815dbace0",
+      "sha256": "c0cc888ec98ec64dd1710a75c7ea222d2c5a12993877ef4eebb3f66476e4093b",
       "sourcePath": "email-board-data.js"
     },
     {
       "deployedPath": "favicon.svg",
-      "sha256": "f79b374447017a73a77012096c6d031ddb2ad6bf1b647d2efbfd465e6a5f32e6",
+      "sha256": "f1ce1b8f7a37c54801c2ee233c9e67bb2d852cb6ea8af942455d33d85aac046f",
       "sourcePath": "favicon.svg"
     },
     {
       "deployedPath": "index.html",
-      "sha256": "861d8d7da7e766b37688e190ad79c1e675e380d0e11b2251308a2f14a5e4727a",
+      "sha256": "9f2c41f15de2f3241fbccc1d16da575d978e47a093a6cda36ff8f95930b899e1",
       "sourcePath": "staging.html"
     },
     {
       "deployedPath": "key-list-review.js",
-      "sha256": "b6b42659b28b812fcf63b13a60faac8276e866442950f2e55197a8fec0aedf67",
+      "sha256": "b0785e79071bd43c066ed3f20623e0a1a2c047bcedd9968cb815a0fe82b43ffe",
       "sourcePath": "key-list-review.js"
     },
     {
       "deployedPath": "navision-backend-service.js",
-      "sha256": "04d6e34ec33f0a462948085290bd489792644ea51fed580b0a51003ddfa0d370",
+      "sha256": "febd7c9c4e3bd4ff4a5ef052e25e7030e1c07e03838ace711ce3376c7736596e",
       "sourcePath": "navision-backend-service.js"
     },
     {
       "deployedPath": "pdc-ai-intake-service.js",
-      "sha256": "dc8fdb4ca33a236c98d6f9e38a15e0c2e32f7bfc2b8b27d31914a1e82bd89be5",
+      "sha256": "78b0f0edcb7cfd8b895f4dd511d5f0c4b45e4fd5f412e044fb905b1e238615f8",
       "sourcePath": "pdc-ai-intake-service.js"
     },
     {
       "deployedPath": "pdc-auth-registration.js",
-      "sha256": "13841fdf4408300d737b880cd4d676d2e49bdf4df65bd0f0c491db9e89da9dab",
+      "sha256": "bc45f0a1ec5cfbdfb6ad05a8b499f4a4de2d98f6d150649de98790fae7bd615a",
       "sourcePath": "pdc-auth-registration.js"
     },
     {
       "deployedPath": "pdc-auth.js",
-      "sha256": "714f679310200f0dbfe232038179c48e8188d473159eddcfbde2ed76108f799b",
+      "sha256": "8c464adb0546ba5dddc5f4624fc0a66e007c3841879d0fa52b2f021fd5b3680e",
       "sourcePath": "pdc-auth.js"
     },
     {
       "deployedPath": "pdc-email-vehicle-location-service.js",
-      "sha256": "d3da0f8c2c8ea3b1147f163594e78fddf246b33d5b79af46a1e5653bc70ad300",
+      "sha256": "88e4ea7f714869d8ba274357439f2d93f1ebd667dae5930408c5cd936d5c865f",
       "sourcePath": "pdc-email-vehicle-location-service.js"
     },
     {
       "deployedPath": "pdc-supabase-config.staging.js",
-      "sha256": "e06bf8bac575d1510a26b63fb0377bd3e309acb94a08b9ae1558f9f52810ea06",
+      "sha256": "001a4e45294431d717cabe9cd5ff94cedb4f2f68e5427fb452958060a866f57b",
       "sourcePath": "pdc-supabase-config.staging.js"
     },
     {
       "deployedPath": "scripts/stage2b_c4_browser_export.js",
-      "sha256": "5dafeb35a33626fec47aeaa931d17f83f22e436a4f602cbae66914537ab90f18",
+      "sha256": "afa142651d88f44f40c2e41159e6f37bddc2e0af3fe89408e969e9926fc83f07",
       "sourcePath": "scripts/stage2b_c4_browser_export.js"
     },
     {
       "deployedPath": "staging-browser-assessment.js",
-      "sha256": "29acbe12e27d787b12d75614086278ac54e2ffe04bb6dfd755b3cacc7077bded",
+      "sha256": "054f380b889eb8ce7475378478cab6f0927f0a9d15202c4745193e0405dc170e",
       "sourcePath": "staging-browser-assessment.js"
     },
     {
       "deployedPath": "styles.css",
-      "sha256": "83330d1519bcc6345dd62213b58d69cf393aa3ea8c461392ed062087b7601838",
+      "sha256": "9f1678630ac7f2dc68f36272b02e6bc60c618f67f5c4d5e51763ef1ae5eb5473",
       "sourcePath": "styles.css"
     },
     {
       "deployedPath": "vehicle-lifecycle-actions.js",
-      "sha256": "0a974408e427e8d1d38314a4364e5d7812437004784bf88165ecbe1db99e6373",
+      "sha256": "8ae434dcbeb402380228b281ae1824ac5a19c416d3917976c3fe36bf316705d8",
       "sourcePath": "vehicle-lifecycle-actions.js"
     },
     {
       "deployedPath": "vendor/pdfjs/LICENSE",
-      "sha256": "0d542e0c8804e39aa7f37eb00da5a762149dc682d7829451287e11b938e94594",
+      "sha256": "eb3d7b5485466acbd81f2b496f595ab637d2792e268206b27d99e793bdb67549",
       "sourcePath": "vendor/pdfjs/LICENSE"
     },
     {
       "deployedPath": "vendor/pdfjs/pdf.min.js",
-      "sha256": "5b5799e6f8c680663207ac5b42ee14eed2a406fa7af48f50c154f0c0b1566946",
+      "sha256": "86791280654fb3403853a2e3a39212941fd1c4af0c7e3608ae8f85cead458be0",
       "sourcePath": "vendor/pdfjs/pdf.min.js"
     },
     {
       "deployedPath": "vendor/pdfjs/pdf.worker.min.js",
-      "sha256": "feabdf309770ed24bba31a5467836cdc8cf639c705af27d52b585b041bb8527b",
+      "sha256": "6195a19b81679dfb8fbd6c387aa37cf212c83f02628d768d142925fddc3d88fb",
       "sourcePath": "vendor/pdfjs/pdf.worker.min.js"
     },
     {
       "deployedPath": "vendor/qz/qz-tray.js",
-      "sha256": "b0a0afde74511e5284195cc875bc862b1ea4233f6c6aecb3ad485430a56bf4a6",
+      "sha256": "2d8c0b7ab912e14a12dab4bf246be8e9555754053e6e12c556196bc8d946fdd1",
       "sourcePath": "vendor/qz/qz-tray.js"
     },
     {
       "deployedPath": "vendor/supabase/supabase-2.110.5.js",
-      "sha256": "8e00fd587eb7c5148c977fa7c425316e8f9f168b3831100d8e2925a9807b5893",
+      "sha256": "8c786ef59b285ab2a6710af2f89190ccf1201730651c5ce3bfaded7b1d61f090",
       "sourcePath": "vendor/supabase/supabase-2.110.5.js"
     },
     {
       "deployedPath": "workshop-data-service.js",
-      "sha256": "8c10298a9c9f36004d6c224b66482dd4db2995ee81f090b5036196627b59203e",
+      "sha256": "a7efde0568e233f46c3e1dbdbb9f9c978995a9deb431e61d9d1add6c0ce6609d",
       "sourcePath": "workshop-data-service.js"
     },
     {
       "deployedPath": "workshop-eligibility.js",
-      "sha256": "148161fe2823f511214256e9dde138e9eddd633d0f63946205b382bfc87ef3ff",
+      "sha256": "932aad0a0fab48db321201e808f9751463372331c549864b3476143e76c665cb",
       "sourcePath": "workshop-eligibility.js"
     },
     {
       "deployedPath": "workshop-planner.css",
-      "sha256": "bbadf1607e4af9b1126ba4c0cdb75edcde0862d5fb0a8466f831e6352dfff555",
+      "sha256": "b91d9d490378c4aa52c26f39a195339f019c24be7d53b6c5d05781aec99ed10a",
       "sourcePath": "workshop-planner.css"
     },
     {
       "deployedPath": "workshop-planner.js",
-      "sha256": "cbd1f0c403c2addf6045499fa202a8c025d63661d7b6ab66a7e4c45b24cc2e5c",
+      "sha256": "84e51da2c9225e61aba5b2cd8b253a9dd8283ba8019ebc39a82551f4eb6d838e",
       "sourcePath": "workshop-planner.js"
     },
     {
       "deployedPath": "workshop-realtime.js",
-      "sha256": "484c0a4ebc6e823fbca6eaf7f6c3fe4e563902abfbd3959221d21c19f45c0361",
+      "sha256": "42743226062ef0bd6ad5bfb3fbf5353b7c13c487e5610cfa18044b7eea63b9bd",
       "sourcePath": "workshop-realtime.js"
     },
     {
       "deployedPath": "workshop-reference-data-service.js",
-      "sha256": "ebe98f65a5cea69a42fdad77535f9bcdbf0f61c4013c34e7e7be34866b2682fe",
+      "sha256": "1931dfe83844d13de8d48a17e2b481a7727b511632d01d70a95d7702db7782ef",
       "sourcePath": "workshop-reference-data-service.js"
     },
     {
       "deployedPath": "workshop-shared-actions.js",
-      "sha256": "75b979a4d0edf73584bb35f5b42ce55869e215eebf5e7d3169416fcb50ff9081",
+      "sha256": "e3fda614b8d948dc5d8c5d0b5c01acb991ac5d2e094e03e9d48edabb05b1b7e1",
       "sourcePath": "workshop-shared-actions.js"
     },
     {
       "deployedPath": "pdc-ai-intake-review.css",
-      "sha256": "cc5f0c4039e8e10bcace3cab4ffe73b39cc725e8c3582bf28dbbb54bd9fd5064",
+      "sha256": "7356f938d8437d5801c43b13a0af57a8deaf032a83a51c165f6261889703dda7",
       "sourcePath": "pdc-ai-intake-review.css"
     },
     {
       "deployedPath": "pdc-ai-intake-review.js",
-      "sha256": "575ea073661ea77830c249e6b64e86f9b4fae50708a3609dd1f18653a55e7c04",
+      "sha256": "aa723c0ea59fd97fb5d6e3b58c3d31498453e34a284799a66f98e6008559da25",
       "sourcePath": "pdc-ai-intake-review.js"
     }
   ],
-  "sourceTree": "9f89d456fe4bf4dbf26e8f5c8330f712d07738e2"
+  "sourceTree": "668bc02b4f193712a18266c6b913d43e8306529c"
 }

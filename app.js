@@ -1,5 +1,5 @@
-const APP_VERSION = '2026.07.28.40-authenticated-operation-lines';
-const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.07.28.40-authenticated-operation-lines';
+const APP_VERSION = '2026.07.28.41-vehicle-detail-operation-lines';
+const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.07.28.41-vehicle-detail-operation-lines';
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
 // constant intentionally names only the production ref, never the
@@ -10385,6 +10385,10 @@ function vehicleWorkshopGroups(vehicle = {}, detail = null) {
   const requirements = Array.isArray(detail?.requirements) ? detail.requirements : vehicleWorkshopLocalRequirements(vehicle);
   const bookings = Array.isArray(detail?.bookings) ? detail.bookings : [];
   const structuredLines = typeof vehiclePdcJobLines === 'function' ? vehiclePdcJobLines(vehicle) : [];
+  const authenticatedLines = (Array.isArray(vehicle.pdcEmailOperationLines) ? vehicle.pdcEmailOperationLines : [])
+    .slice(0, 50)
+    .filter(line => /^OP(?:[1-9]|[1-9][0-9]{1,2})$/.test(String(line?.operation_no || '')) && line?.description && line?.work_key)
+    .sort((a, b) => Number(String(a.operation_no).slice(2)) - Number(String(b.operation_no).slice(2)));
   const groups = new Map();
   requirements.filter(item => item?.required === true).forEach(item => {
     const stage = vehicleWorkshopStageCode(item.stage_code || item.work_key || '');
@@ -10394,6 +10398,14 @@ function vehicleWorkshopGroups(vehicle = {}, detail = null) {
   structuredLines.forEach(line => {
     const stage = vehicleWorkshopStageCode(typeof pdcJobLineStage === 'function' ? pdcJobLineStage(line) : (line.category || line.stage || ''));
     if (groups.has(stage)) groups.get(stage).lines.push(line);
+  });
+  authenticatedLines.forEach(line => {
+    const stage = vehicleWorkshopStageCode(line.work_key);
+    if (groups.has(stage)) groups.get(stage).lines.push({
+      ...line,
+      description: `${line.operation_no} · ${line.description}`,
+      authenticatedEmailOperation: true,
+    });
   });
   groups.forEach(group => {
     if (!group.lines.length) {
@@ -10498,8 +10510,8 @@ function bindVehicleDetailTabs(panel) {
 function selectedVehicle(key = app.selectedStock) {
   const requested = String(key ?? '').trim();
   if (!requested) return null;
+
   const canonicalMatches = app.data.filter(vehicle => String(vehicleKey(vehicle) || '').trim() === requested);
-  if (canonicalMatches.length === 1) return canonicalMatches[0];
   if (canonicalMatches.length > 1) {
     console.warn('Vehicle lookup was ambiguous; no vehicle was selected.', { requested, matchCount: canonicalMatches.length });
     return null;
@@ -10510,6 +10522,7 @@ function selectedVehicle(key = app.selectedStock) {
     console.warn('Vehicle Locations lookup was ambiguous; no vehicle was selected.', { requested, matchCount: boardMatches.length });
     return null;
   }
+  if (canonicalMatches.length === 1) return canonicalMatches[0];
   const aliasMatches = app.data.filter(vehicle => [vehicle.stock, vehicle.batch, vehicle.id]
     .map(value => String(value || '').trim())
     .includes(requested));
