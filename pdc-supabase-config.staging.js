@@ -34,6 +34,6 @@ window.PDC_SUPABASE_CONFIG = {
   vehicleLifecycle: Object.freeze({
     sharedData: true,
     resolverRollbackDirectRead: false,
-    resolverAssetVersion: '2026.07.28.48-eta-best-slot'
+    resolverAssetVersion: '2026.07.28.49-eta-best-slot-kewdale'
   })
 };
