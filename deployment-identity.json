@@ -6,10 +6,10 @@
     "twoPhysicalWorkstationAuthorityCutover": false
   },
   "artifact": "zero-data static staging site",
-  "cacheVersion": "2026.07.28.22-planner-search-focus",
+  "cacheVersion": "2026.07.28.23-sidebar-information-cleanup",
   "deploymentMode": "exact reviewed source blobs; staging.html mapped to index.html",
   "environment": "staging",
-  "generatedAtUtc": "2026-07-28T00:56:59.877103Z",
+  "generatedAtUtc": "2026-07-28T01:05:47.946208Z",
   "humanAiIntake": {
     "approvalGate": "Administrator decision remains server-validated; missing summaries disable Approve while Deny remains available.",
     "summary": "Prominent escaped email summary plus explicit Approve/Deny effects; approval fails closed when no readable summary exists."
@@ -48,14 +48,14 @@
   },
   "pendingStagingMigrations": [],
   "releaseChecks": {
-    "aggregateTests": "PASS \u2014 103 passed, 0 failed, 1 intentional skip; rendered Parts layout passed at 1920x1080 and 1264x625; controlled-link refusal UI passed 127 assertions.",
+    "aggregateTests": "PASS \u2014 104 passed, 0 failed, 1 intentional skip; rendered Parts layout passed at 1920x1080 and 1264x625; controlled-link refusal UI passed 127 assertions.",
     "aiReviewDecisionContext": true,
     "aiReviewOverlayVersion": "2026.07.27.19-ai-review-decision-context",
     "backupRestore": "PASS \u2014 encrypted backup run 11b91f6c-6c00-48b1-a1f1-f3943f082e23 restored into isolated schema restore_ai_intake_071_20260727; row counts, foreign keys, relationships and format/schema hashes matched; schema dropped after verification",
     "databasePostApply": "PASS \u2014 migration 077 applied; schedule/move/cascade retain audited future planning while start_workshop_work enforces Parts readiness and administrator-only reasoned override.",
     "humanAiIntake": "Received, What happened, Car and What changed are shown in plain language; activated, modified, unchanged and review-needed outcomes are distinct; field changes render previous value to new value; technical receipt data is collapsed",
     "humanNavisionResults": "An administrator can establish the first empty dealer scope only for one exact full snapshot of at least 100 valid rows. Approval is content-bound, user-bound and expires after two hours. Cross-dealer, invalid, duplicate, stale and changed snapshots remain fail-closed. Later strongly matched refresh omissions continue to enter reversible temporary holding.",
-    "literalArtifact": "35/35 deployed Git blobs match source commit f2b11f43372375771b994aa7b3a89f37d46bd327",
+    "literalArtifact": "35/35 deployed Git blobs match source commit aec4f20ff39694701f233bc1abf2fe01f70b3a54",
     "mixedDealerNavision": "A report containing both approved dealers is scoped server-side to the selected dealer only when every row carries known original Dealer evidence and the selected scope has at least 100 rows. Preview and Apply use identical filtering; other-dealer rows are reported and ignored, never imported into the selected scope.",
     "navisionFullReconciliationTimeout": "PASS \u2014 reproduced SQLSTATE 57014 with a complete 663-row source-evidence payload at the former 8-second API bound. The same atomic preview/apply completed in 5.969/13.875 seconds under the new 30-second signed-in staging bound and was rolled back. A separate authenticated HTTP 10-second probe returned 200; the probe function was then removed.",
     "navisionPastedDealerEvidence": "PASS \u2014 the same 83-row Pilbara preview is accepted when Dealer code/name values survive under generic pasted-report headers. A blank explicit Dealer field and ambiguous approved codes remain blocked.",
@@ -64,6 +64,7 @@
     "pilbaraNavision": "Cross-scope Batch overlap no longer blocks a substantial Pilbara extract when every valid source row's original Dealer column explicitly declares 14450. Mixed, missing or contrary Dealer evidence remains blocked; hard deletion is disabled and the browser's selected option alone is not trusted.",
     "plannerSearchTyping": "PASS \u2014 debounced planner searches update their result list in place instead of replacing the focused input. Slow ten-character browser typing retains the full value, focus and caret.",
     "production": "Untouched; staging static artifact plus staging-only migrations through 082",
+    "sidebarInformationCleanup": "PASS \u2014 Source Data and Operational Health cards are absent from every sidebar template; navigation and internal health tracking remain intact.",
     "stagingFixtureCleanup": "PASS \u2014 QA-OVN-20260727-WS, vehicle 7f17d3c5-4ef7-4f4e-9c5d-202607270001, booking 5fb7c7b3-ddcf-49d7-a0e3-a764f2a6b375 and Navision 99072701 active/audit fixture rows were removed.",
     "subletAiReview": "Sublet uses a compact five-column operational table: Vehicle, Provider, Booking date, Notes/email and Actions. PO sent, expected return, actual return and return-status filtering are absent. AI Review shows the server-generated What the email says summary before detected changes and Approve/Deny controls.",
     "uiCleanup": "Control Board current-time line appears only for today and QC is removed from its station list. All-green PMB vehicles require explicit Ready for QC confirmation and move authoritatively to the Vehicle Locations QC Gate. Named QC sign-off moves to RFT and prints a dedicated windscreen label. Parts removes Outstanding station work, persists and refreshes ETA countdowns, and uses the shared Vehicle Locations row height.",
@@ -71,7 +72,7 @@
     "workshopPartsGate": "Future planning does not claim or reserve Parts. Immediate physical Start fails closed for Parts-incomplete vehicles; only an administrator-supplied reason can create the audited entry override."
   },
   "sourceBranch": "fix/staging-overnight-qa-20260727",
-  "sourceCommit": "f2b11f43372375771b994aa7b3a89f37d46bd327",
+  "sourceCommit": "aec4f20ff39694701f233bc1abf2fe01f70b3a54",
   "sourceFiles": [
     {
       "deployedPath": "ai-board-advisor.js",
@@ -80,7 +81,7 @@
     },
     {
       "deployedPath": "app.js",
-      "sha256": "a9f8d53bafea37d2836ea0793f2c8ad1f6359f14a17538c298478307808870d5",
+      "sha256": "019516a5969bb9ad10e6dc157734d1ff45365bb8a3eb721c66a6ba0facbe3cdc",
       "sourcePath": "app.js"
     },
     {
@@ -120,7 +121,7 @@
     },
     {
       "deployedPath": "index.html",
-      "sha256": "56a4ca89df41e3cbaa002a4adfbaad415d82044da2de8cf8667b1625d4cf6a08",
+      "sha256": "4b2f76f04b1eb10da24d1ae8d9e1d67ec447b8293af16ff50c21e5c9a65efbbf",
       "sourcePath": "staging.html"
     },
     {
@@ -155,7 +156,7 @@
     },
     {
       "deployedPath": "pdc-supabase-config.staging.js",
-      "sha256": "d1038c0d0f8cafa1c4a083795727f1c5071ff54b9584d933e66c303ccf282c42",
+      "sha256": "d71bceecfdaa0f517c12662d057680853e4c3ce2d85c5f49f0ffb7c5227f72bc",
       "sourcePath": "pdc-supabase-config.staging.js"
     },
     {
@@ -249,5 +250,5 @@
       "sourcePath": "pdc-ai-intake-review.js"
     }
   ],
-  "sourceTree": "b6805618c3f29233911d2c3aba4c4f501ea72f6e"
+  "sourceTree": "14fc75dfc5231fb7b8852c0fb2e91907be87d652"
 }
