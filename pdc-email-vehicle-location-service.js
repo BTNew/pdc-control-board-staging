@@ -53,6 +53,7 @@ function mapServerVehicle(row = {}) {
   mapped.pdcPartsStoppage = partsUpdate.parts_stoppage === true;
   mapped.pdcPartsStoppageReason = String(partsUpdate.parts_stoppage_reason || '');
   mapped.pdcPartsWorstEta = partsUpdate.worst_eta || '';
+  mapped.pdcPartsPreviousWorstEta = partsUpdate.previous_worst_eta || '';
   mapped.pdcPartsWorstEtaUpdatedAt = partsUpdate.updated_at || '';
 
   const sublet = row.sublet_booking && typeof row.sublet_booking === 'object' ? row.sublet_booking : {};

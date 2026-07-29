@@ -34,6 +34,6 @@ window.PDC_SUPABASE_CONFIG = {
   vehicleLifecycle: Object.freeze({
     sharedData: true,
     resolverRollbackDirectRead: false,
-    resolverAssetVersion: '2026.07.29.07-compact-location-operations'
+    resolverAssetVersion: '2026.07.29.08-parts-eta-persistence-countdown'
   })
 };
