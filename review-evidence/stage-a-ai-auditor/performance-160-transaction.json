@@ -1,0 +1,924 @@
+{
+  "auditor_objects_remaining_after_rollback": {
+    "pdc_auditor_booking_work_relations": false,
+    "pdc_auditor_finding_evidence": false,
+    "pdc_auditor_finding_history": false,
+    "pdc_auditor_finding_occurrences": false,
+    "pdc_auditor_findings": false,
+    "pdc_auditor_report_runs": false,
+    "pdc_auditor_revision": false,
+    "pdc_auditor_risk_scores": false,
+    "pdc_auditor_rule_config": false,
+    "pdc_auditor_runs": false,
+    "pdc_auditor_user_dealer_scopes": false,
+    "pdc_auditor_worker_identities": false
+  },
+  "campaign": "stage-a-160-rollback-only-v1",
+  "canonical_navision_isolation": {
+    "method": "valid transactional transition of existing current records to not_in_latest_batch; fully restored by rollback",
+    "updated_existing_current_rows": {
+      "14450": 755,
+      "37047": 240
+    }
+  },
+  "committed": false,
+  "database_snapshot_evidence": {
+    "bytes": 453407,
+    "path": "review-evidence/stage-a-ai-auditor/performance-160-database-snapshot.json",
+    "rows": 160,
+    "sha256": "953e1e59501436baa9953a1638bbf64878b27ed2233402e2e97550b6875783a9"
+  },
+  "database_snapshot_rpc": {
+    "14450": {
+      "max_ms": 778.07,
+      "operational_revision": "f7ee79e94ae27b1c361ad51856fac468f910867cedd2551b6a65f4ccfece01bd",
+      "p50_ms": 210.31,
+      "p95_ms": 281.33,
+      "payload_bytes": 226027,
+      "response_revision": "b9045cbb5cefcba601ac0c127ea0115b508f069793271296cb0fd08fd896d361",
+      "rows": 80,
+      "samples": 25
+    },
+    "37047": {
+      "max_ms": 233.9,
+      "operational_revision": "5d8708c4b16e5ca29c3caabc59e6269bf5d761d083c8ab52b11dbb282a64bbe1",
+      "p50_ms": 205.98,
+      "p95_ms": 225.04,
+      "payload_bytes": 225927,
+      "response_revision": "a9a74b7ea41addb0afcfaac2cf168a1fc1e5ad66fe941ba12c5f4599d2f48fb9",
+      "rows": 80,
+      "samples": 10
+    }
+  },
+  "dealer_distribution": {
+    "14450": 80,
+    "37047": 80
+  },
+  "deterministic_engine": {
+    "canonical_fixture_rule_coverage": {
+      "catalogue_rules": 54,
+      "gate_passed": true,
+      "matrix": {
+        "APPROVED_PARALLEL_COMPATIBLE_WORK": {
+          "evidence_count": 2,
+          "finding_count": 1,
+          "finding_id": "rec_2ef5d9113fb309b8",
+          "severity": "info"
+        },
+        "BAY_OVERLAP": {
+          "evidence_count": 2,
+          "finding_count": 1,
+          "finding_id": "rec_aa4a9180a0c9bd76",
+          "severity": "critical"
+        },
+        "BOOKING_AUTHORITY_INVALID": {
+          "evidence_count": 1,
+          "finding_count": 1,
+          "finding_id": "rec_a22e0ba35fe0c2e1",
+          "severity": "critical"
+        },
+        "BOOKING_DURATION_MISMATCH": {
+          "evidence_count": 3,
+          "finding_count": 1,
+          "finding_id": "rec_50a9d6fafd065039",
+          "severity": "medium"
+        },
+        "BOOKING_DURATION_TOO_LONG": {
+          "evidence_count": 3,
+          "finding_count": 1,
+          "finding_id": "rec_a1c7d1ce192035de",
+          "severity": "medium"
+        },
+        "BOOKING_DURATION_TOO_SHORT": {
+          "evidence_count": 3,
+          "finding_count": 1,
+          "finding_id": "rec_06c2dbc2ea962c32",
+          "severity": "medium"
+        },
+        "BOOKING_INTERVAL_INVALID": {
+          "evidence_count": 2,
+          "finding_count": 1,
+          "finding_id": "rec_95ffc826fcb83275",
+          "severity": "critical"
+        },
+        "BOOKING_OUTSIDE_HOURS": {
+          "evidence_count": 2,
+          "finding_count": 1,
+          "finding_id": "rec_273501a6a8739ad7",
+          "severity": "high"
+        },
+        "BOOKING_STATUS_INVALID": {
+          "evidence_count": 1,
+          "finding_count": 1,
+          "finding_id": "rec_fac935d4ab238ff0",
+          "severity": "medium"
+        },
+        "BOOKING_STOPPAGE": {
+          "evidence_count": 2,
+          "finding_count": 1,
+          "finding_id": "rec_86b694f0fbdd1f33",
+          "severity": "critical"
+        },
+        "BOOKING_VEHICLE_UNRESOLVED": {
+          "evidence_count": 1,
+          "finding_count": 1,
+          "finding_id": "rec_2a9c20b1061a82d8",
+          "severity": "critical"
+        },
+        "BOOKING_WITHOUT_ACTIVE_CANONICAL_WORK": {
+          "evidence_count": 3,
+          "finding_count": 1,
+          "finding_id": "rec_a757e42d2bd3e0a0",
+          "severity": "critical"
+        },
+        "CANCELLED_NO_REPLACEMENT": {
+          "evidence_count": 1,
+          "finding_count": 1,
+          "finding_id": "rec_235fb378dec3be1e",
+          "severity": "high"
+        },
+        "CANCELLED_WORK_MISSING_REASON": {
+          "evidence_count": 1,
+          "finding_count": 1,
+          "finding_id": "rec_7b57986b649da1a8",
+          "severity": "medium"
+        },
+        "COMPLETED_INACTIVE_WORK_BOOKED": {
+          "evidence_count": 2,
+          "finding_count": 1,
+          "finding_id": "rec_a7d7d8efa6c02d98",
+          "severity": "high"
+        },
+        "COMPLETED_WORK_MISSING_EVIDENCE": {
+          "evidence_count": 2,
+          "finding_count": 1,
+          "finding_id": "rec_d8e7321ea5ddb985",
+          "severity": "high"
+        },
+        "DUPLICATE_ACTIVE_BOOKING": {
+          "evidence_count": 1,
+          "finding_count": 1,
+          "finding_id": "rec_16922b0b521b8eaa",
+          "severity": "critical"
+        },
+        "DUPLICATE_BOOKING_ID": {
+          "evidence_count": 1,
+          "finding_count": 1,
+          "finding_id": "rec_d0ed92949259a027",
+          "severity": "critical"
+        },
+        "DUPLICATE_VEHICLE_ID": {
+          "evidence_count": 1,
+          "finding_count": 1,
+          "finding_id": "rec_b0ade5fbbeb0b684",
+          "severity": "critical"
+        },
+        "DUPLICATE_WORK_ID": {
+          "evidence_count": 1,
+          "finding_count": 1,
+          "finding_id": "rec_b5698ec657c19d4a",
+          "severity": "critical"
+        },
+        "FORGOTTEN_WORK": {
+          "evidence_count": 2,
+          "finding_count": 1,
+          "finding_id": "rec_7c83b85e9fdf2b3b",
+          "severity": "medium"
+        },
+        "FUTURE_BOOKING_MARKED_STARTED": {
+          "evidence_count": 2,
+          "finding_count": 1,
+          "finding_id": "rec_564f8ae5bd2a2cb0",
+          "severity": "high"
+        },
+        "HOLIDAY_CALENDAR_COVERAGE_LIMIT": {
+          "evidence_count": 2,
+          "finding_count": 1,
+          "finding_id": "rec_35a8dd16864a4979",
+          "severity": "high"
+        },
+        "IT_AT_ETA_NO_PLAN": {
+          "evidence_count": 1,
+          "finding_count": 1,
+          "finding_id": "rec_39cbe8be3f15ba36",
+          "severity": "high"
+        },
+        "LABOUR_HOURS_MISSING": {
+          "evidence_count": 1,
+          "finding_count": 1,
+          "finding_id": "rec_57fbc73912795cbd",
+          "severity": "medium"
+        },
+        "LABOUR_HOURS_NEGATIVE": {
+          "evidence_count": 1,
+          "finding_count": 1,
+          "finding_id": "rec_b881566441176aec",
+          "severity": "high"
+        },
+        "LABOUR_HOURS_ZERO": {
+          "evidence_count": 1,
+          "finding_count": 1,
+          "finding_id": "rec_f53aeee6ff1cd8af",
+          "severity": "medium"
+        },
+        "LABOUR_PROVENANCE_MISSING": {
+          "evidence_count": 1,
+          "finding_count": 1,
+          "finding_id": "rec_e149bfafe3204761",
+          "severity": "medium"
+        },
+        "NEXT_DEPARTMENT_UNPLANNED": {
+          "evidence_count": 1,
+          "finding_count": 1,
+          "finding_id": "rec_1aabb33fed4bfdc7",
+          "severity": "medium"
+        },
+        "NO_PROGRESS": {
+          "evidence_count": 1,
+          "finding_count": 1,
+          "finding_id": "rec_85837e0ea4bcb208",
+          "severity": "high"
+        },
+        "PARTS_ACTIVE_STOPPAGE_BOOKED_OR_STARTED": {
+          "evidence_count": 2,
+          "finding_count": 1,
+          "finding_id": "rec_aeb53144b89d847d",
+          "severity": "critical"
+        },
+        "PARTS_CONFIDENCE_LIMIT": {
+          "evidence_count": 3,
+          "finding_count": 1,
+          "finding_id": "rec_978d027c4de33031",
+          "severity": "medium"
+        },
+        "PARTS_NOT_CONFIRMED_ONE_WORKING_DAY": {
+          "evidence_count": 1,
+          "finding_count": 1,
+          "finding_id": "rec_7342129c9c953f19",
+          "severity": "high"
+        },
+        "PARTS_ORDERED_OR_UNKNOWN_THREE_WORKING_DAYS": {
+          "evidence_count": 1,
+          "finding_count": 1,
+          "finding_id": "rec_3b46c0415fcccd1d",
+          "severity": "high"
+        },
+        "PARTS_READY_NO_FUTURE_BOOKING": {
+          "evidence_count": 1,
+          "finding_count": 1,
+          "finding_id": "rec_624aff205b712037",
+          "severity": "medium"
+        },
+        "PARTS_RECEIVED_WITH_STOPPAGE": {
+          "evidence_count": 1,
+          "finding_count": 1,
+          "finding_id": "rec_6e864bd4c0ea3f56",
+          "severity": "high"
+        },
+        "PARTS_REQUIRED_TODAY": {
+          "evidence_count": 1,
+          "finding_count": 1,
+          "finding_id": "rec_f233560dd58d14f9",
+          "severity": "high"
+        },
+        "QC_NOT_RFT": {
+          "evidence_count": 2,
+          "finding_count": 1,
+          "finding_id": "rec_c33a3cb204e224f1",
+          "severity": "high"
+        },
+        "RFT_NOT_COLLECTED": {
+          "evidence_count": 1,
+          "finding_count": 1,
+          "finding_id": "rec_96022a1bd132fca0",
+          "severity": "medium"
+        },
+        "SNAPSHOT_AUTHORITY_INVALID": {
+          "evidence_count": 3,
+          "finding_count": 1,
+          "finding_id": "rec_8fa84a4fe1d21cb3",
+          "severity": "critical"
+        },
+        "SNAPSHOT_DEALER_SCOPE_VIOLATION": {
+          "evidence_count": 1,
+          "finding_count": 1,
+          "finding_id": "rec_6257af0f8e14ff88",
+          "severity": "critical"
+        },
+        "STALE_STOPPAGE": {
+          "evidence_count": 1,
+          "finding_count": 1,
+          "finding_id": "rec_f5638490b41b1fc6",
+          "severity": "high"
+        },
+        "STARTED_WORK_WITHOUT_STARTED_BOOKING": {
+          "evidence_count": 1,
+          "finding_count": 1,
+          "finding_id": "rec_fd755b344a816f07",
+          "severity": "high"
+        },
+        "STATION_COMPATIBILITY_UNKNOWN": {
+          "evidence_count": 3,
+          "finding_count": 1,
+          "finding_id": "rec_8ee455932651f530",
+          "severity": "critical"
+        },
+        "STATION_INCOMPATIBLE": {
+          "evidence_count": 3,
+          "finding_count": 1,
+          "finding_id": "rec_2ab3463580822156",
+          "severity": "critical"
+        },
+        "STOPPAGE_DETAILS_INCOMPLETE": {
+          "evidence_count": 1,
+          "finding_count": 1,
+          "finding_id": "rec_f2f61b6b4e6268d0",
+          "severity": "high"
+        },
+        "SUBLET_PLANNER_FORBIDDEN": {
+          "evidence_count": 1,
+          "finding_count": 1,
+          "finding_id": "rec_07344563905734ff",
+          "severity": "critical"
+        },
+        "TECHNICIAN_OVERLAP": {
+          "evidence_count": 2,
+          "finding_count": 1,
+          "finding_id": "rec_c9bec88b9f3d18f4",
+          "severity": "critical"
+        },
+        "VEHICLE_OVERLAP": {
+          "evidence_count": 2,
+          "finding_count": 1,
+          "finding_id": "rec_c4c0255aafdb5396",
+          "severity": "critical"
+        },
+        "WORKFLOW_SEQUENCE_INVALID": {
+          "evidence_count": 1,
+          "finding_count": 1,
+          "finding_id": "rec_b9a2f2e6e79d7b50",
+          "severity": "high"
+        },
+        "WORKFLOW_STATUS_INVALID": {
+          "evidence_count": 1,
+          "finding_count": 1,
+          "finding_id": "rec_0e146999964c0dc5",
+          "severity": "medium"
+        },
+        "WORK_MULTIPLE_ACTIVE_BOOKINGS": {
+          "evidence_count": 1,
+          "finding_count": 1,
+          "finding_id": "rec_a12d2da2f70d84a7",
+          "severity": "high"
+        },
+        "WORK_STOPPAGE": {
+          "evidence_count": 2,
+          "finding_count": 1,
+          "finding_id": "rec_4ed4de3f2fcd73de",
+          "severity": "critical"
+        },
+        "YH_READY_NOT_REVIEWED": {
+          "evidence_count": 1,
+          "finding_count": 1,
+          "finding_id": "rec_bd64a724a1a25c0d",
+          "severity": "medium"
+        }
+      },
+      "missing_rule_ids": [],
+      "represented_rules": 54
+    },
+    "database_snapshot_observed_rule_coverage": {
+      "catalogue_rules": 54,
+      "claim": "observed in the 160-row database-derived snapshot only; not the catalogue-completeness gate",
+      "missing_rule_ids": [
+        "APPROVED_PARALLEL_COMPATIBLE_WORK",
+        "BAY_OVERLAP",
+        "BOOKING_AUTHORITY_INVALID",
+        "BOOKING_DURATION_MISMATCH",
+        "BOOKING_DURATION_TOO_LONG",
+        "BOOKING_DURATION_TOO_SHORT",
+        "BOOKING_INTERVAL_INVALID",
+        "BOOKING_STATUS_INVALID",
+        "BOOKING_VEHICLE_UNRESOLVED",
+        "CANCELLED_NO_REPLACEMENT",
+        "CANCELLED_WORK_MISSING_REASON",
+        "COMPLETED_INACTIVE_WORK_BOOKED",
+        "DUPLICATE_ACTIVE_BOOKING",
+        "DUPLICATE_BOOKING_ID",
+        "DUPLICATE_VEHICLE_ID",
+        "DUPLICATE_WORK_ID",
+        "FORGOTTEN_WORK",
+        "FUTURE_BOOKING_MARKED_STARTED",
+        "HOLIDAY_CALENDAR_COVERAGE_LIMIT",
+        "IT_AT_ETA_NO_PLAN",
+        "LABOUR_HOURS_MISSING",
+        "LABOUR_HOURS_NEGATIVE",
+        "LABOUR_PROVENANCE_MISSING",
+        "NEXT_DEPARTMENT_UNPLANNED",
+        "NO_PROGRESS",
+        "PARTS_ACTIVE_STOPPAGE_BOOKED_OR_STARTED",
+        "PARTS_NOT_CONFIRMED_ONE_WORKING_DAY",
+        "PARTS_ORDERED_OR_UNKNOWN_THREE_WORKING_DAYS",
+        "PARTS_READY_NO_FUTURE_BOOKING",
+        "PARTS_RECEIVED_WITH_STOPPAGE",
+        "PARTS_REQUIRED_TODAY",
+        "QC_NOT_RFT",
+        "RFT_NOT_COLLECTED",
+        "SNAPSHOT_AUTHORITY_INVALID",
+        "SNAPSHOT_DEALER_SCOPE_VIOLATION",
+        "STALE_STOPPAGE",
+        "STARTED_WORK_WITHOUT_STARTED_BOOKING",
+        "STATION_INCOMPATIBLE",
+        "STOPPAGE_DETAILS_INCOMPLETE",
+        "SUBLET_PLANNER_FORBIDDEN",
+        "TECHNICIAN_OVERLAP",
+        "VEHICLE_OVERLAP",
+        "WORKFLOW_SEQUENCE_INVALID",
+        "WORKFLOW_STATUS_INVALID",
+        "WORK_MULTIPLE_ACTIVE_BOOKINGS",
+        "WORK_STOPPAGE",
+        "YH_READY_NOT_REVIEWED"
+      ],
+      "represented_rule_ids": [
+        "BOOKING_OUTSIDE_HOURS",
+        "BOOKING_STOPPAGE",
+        "BOOKING_WITHOUT_ACTIVE_CANONICAL_WORK",
+        "COMPLETED_WORK_MISSING_EVIDENCE",
+        "LABOUR_HOURS_ZERO",
+        "PARTS_CONFIDENCE_LIMIT",
+        "STATION_COMPATIBILITY_UNKNOWN"
+      ],
+      "represented_rules": 7
+    },
+    "dealers": {
+      "14450": {
+        "findings": 293,
+        "metric": {
+          "max_ms": 32.25,
+          "p50_ms": 9.848300000000052,
+          "p95_ms": 11.71079999999995,
+          "samples": 100
+        },
+        "result_sha256": "0af80248b56177d5aa9348c4992942fe6eb553eefeb85c5afa325ceb1c970b60",
+        "rule_ids": [
+          "BOOKING_STOPPAGE",
+          "BOOKING_WITHOUT_ACTIVE_CANONICAL_WORK",
+          "COMPLETED_WORK_MISSING_EVIDENCE",
+          "LABOUR_HOURS_ZERO",
+          "PARTS_CONFIDENCE_LIMIT",
+          "STATION_COMPATIBILITY_UNKNOWN"
+        ],
+        "vehicles": 80
+      },
+      "37047": {
+        "findings": 293,
+        "metric": {
+          "max_ms": 14.408200000000079,
+          "p50_ms": 9.280900000000202,
+          "p95_ms": 10.922000000000025,
+          "samples": 100
+        },
+        "result_sha256": "552e97db46f88ef995d08e1a52d3d65c41f6e32dff8fa9512b74b75cc163198b",
+        "rule_ids": [
+          "BOOKING_OUTSIDE_HOURS",
+          "BOOKING_STOPPAGE",
+          "BOOKING_WITHOUT_ACTIVE_CANONICAL_WORK",
+          "COMPLETED_WORK_MISSING_EVIDENCE",
+          "LABOUR_HOURS_ZERO",
+          "PARTS_CONFIDENCE_LIMIT",
+          "STATION_COMPATIBILITY_UNKNOWN"
+        ],
+        "vehicles": 80
+      }
+    },
+    "samples": 100
+  },
+  "during_transaction": {
+    "enabled_trigger_count_before": 67,
+    "enabled_trigger_count_during": 76,
+    "migration_ledger_unchanged": true,
+    "no_trigger_disabled": true
+  },
+  "findings_submit_refresh": {
+    "auditor_revision_changed": true,
+    "exact_replay_result": {
+      "code": "exact_replay",
+      "ok": true,
+      "run_id": "d74ed919-0574-5be8-bd83-e4d5bc8d2cc0"
+    },
+    "finding": {
+      "finding_id": "1599ec03-19e4-5c2b-afe8-7b05b20a1862",
+      "last_seen_run_id": "d74ed919-0574-5be8-bd83-e4d5bc8d2cc0",
+      "lifecycle_status": "current",
+      "rule_key": "data_quality_missing_hours"
+    },
+    "operational_revision_unchanged": true,
+    "refresh_ms": 586.79,
+    "snapshot_rpc_refresh_ms": 510.83,
+    "submit_ms": 276.76,
+    "submit_result": {
+      "code": "findings_appended",
+      "finding_count": 1,
+      "ok": true,
+      "run_id": "d74ed919-0574-5be8-bd83-e4d5bc8d2cc0"
+    }
+  },
+  "fixture_namespace_uuid": "f9e2724a-dc60-4a34-a940-ea9bb4a57dce",
+  "fixture_setup_counts": {
+    "actual": {
+      "navision_backend_records": 160,
+      "navision_import_batches": 2,
+      "trigger_created_audit_events": 0,
+      "trigger_created_booking_history": 0,
+      "vehicle_parts_updates": 160,
+      "vehicle_work_items": 320,
+      "vehicles": 160,
+      "workshop_bookings": 42
+    },
+    "exact": true,
+    "expected": {
+      "navision_backend_records": 160,
+      "navision_import_batches": 2,
+      "vehicle_parts_updates": 160,
+      "vehicle_work_items": 320,
+      "vehicles": 160,
+      "workshop_bookings": 42
+    }
+  },
+  "migration": "supabase/staging_only/115_beta_ai_auditor_foundation.sql",
+  "migration_sha256": "bdda95e854c0a5d8007f9c6610eb973e13d46743c7a5d1919ccabaefca49119c",
+  "operational_after": {
+    "combined_sha256": "7468e336a3689090ef0f7b19fc59139ea1e78676ad69a845ba2c6b3bb38ae4af",
+    "enabled_operational_trigger_count": 67,
+    "migration_ledger": {
+      "rows": 112,
+      "sha256": "191b584de4c1c5f0c11633f17d777aa91dc39f2454ecc39c05f56eac9a04d945"
+    },
+    "tables": {
+      "audit_events": {
+        "present": true,
+        "rows": 1455,
+        "sha256": "1af5ecc374cbf01a0001377f8446a1060aaa37458986ff4bcb84f9277f8de3b2"
+      },
+      "navision_backend_records": {
+        "present": true,
+        "rows": 1013,
+        "sha256": "001328a209508c143b5a8ce81893db77119dd889353bdfbe5a429e8dcec603c1"
+      },
+      "navision_backend_revision": {
+        "present": true,
+        "rows": 1,
+        "sha256": "d3d302cb102e0a242cc9eed1be05b81c8f19994362025af592c062111077a2a1"
+      },
+      "navision_import_batches": {
+        "present": true,
+        "rows": 8,
+        "sha256": "ddfbbb139ef11c24fd0f1ed378d01bbd92b448711f5a3edcf3a6885109d9ca3b"
+      },
+      "pdc_ai_intake_history": {
+        "present": true,
+        "rows": 220,
+        "sha256": "8f14968fe0dd373af0c6e76bed44c92bc6371f9a23d6f73f8a352f5cabf77330"
+      },
+      "pdc_ai_intake_proposals": {
+        "present": true,
+        "rows": 122,
+        "sha256": "76a36059a0d0ec69d3059e963ccc234ea28cb1b5274cd87b034249d01d11c677"
+      },
+      "pdc_ai_intake_revision": {
+        "present": true,
+        "rows": 1,
+        "sha256": "5110b5a5e41a84ee827dde4dda6c44f7ed304faf20d7b16bba6528ff27a701f1"
+      },
+      "pdc_authenticated_email_operation_lines": {
+        "present": true,
+        "rows": 244,
+        "sha256": "fcd878f67702d38ba53041b38a54a08021d2889b6bce9150ba9ce5dbb7c23252"
+      },
+      "pdc_email_vehicle_revision": {
+        "present": true,
+        "rows": 1,
+        "sha256": "ad1c2bfe5e2fda3dda990f19344891daf38bb62f12c8d4f6c4a1a2b39d3c4fbe"
+      },
+      "pdc_sublet_bookings": {
+        "present": true,
+        "rows": 4,
+        "sha256": "4be845cb1c8ca82dbda12c666f5f79fc11a21914bd147ba3b1c67b2cc4bcf337"
+      },
+      "vehicle_aliases": {
+        "present": true,
+        "rows": 152,
+        "sha256": "8998ff9c3b45742f22de0bc687d8073c548f7f7dbb7f9d69d0e21786b5d5cd01"
+      },
+      "vehicle_lifecycle_resolver_revision": {
+        "present": true,
+        "rows": 1,
+        "sha256": "7992bd194ba25f4be11473b212547ec37b6975667f5c30d7e63d0bf036633f04"
+      },
+      "vehicle_master_history": {
+        "present": true,
+        "rows": 733,
+        "sha256": "20abef5ea3d73703a25f82b9f25f3ed9ab4fb4a6f54cd034f6fcda1726515907"
+      },
+      "vehicle_master_revision": {
+        "present": true,
+        "rows": 1,
+        "sha256": "423fdf8451b1c94674e993ecc5fcb2a8d67d97a4e8f49be171d37bbb23717d13"
+      },
+      "vehicle_master_source_records": {
+        "present": true,
+        "rows": 152,
+        "sha256": "55ea8befc5df232f4d9084dddc0084e57ab27921ad86a31148521ead6cee76af"
+      },
+      "vehicle_movements": {
+        "present": true,
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "vehicle_notifications": {
+        "present": true,
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "vehicle_parts_updates": {
+        "present": true,
+        "rows": 65,
+        "sha256": "d0c3685e959a655952847dcf5a7d4c2f9ed97f5e762cda9fed983348b6109ff7"
+      },
+      "vehicle_sublet_providers": {
+        "present": true,
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "vehicle_work_items": {
+        "present": true,
+        "rows": 365,
+        "sha256": "94d5d0f30934fa4aceb978e5716641bd8c167ceadd95eac67b5ad3783e77e550"
+      },
+      "vehicle_workshop_line_adjustments": {
+        "present": true,
+        "rows": 16,
+        "sha256": "fe3b43fee5f44a50b729eb4cbf5b419b12dd58ce4e77fb2ba9933561ba12d33f"
+      },
+      "vehicles": {
+        "present": true,
+        "rows": 220,
+        "sha256": "1ad5f79db3e13b526efa7a1554cfb1d4ed6ff836195d57485198f018df6eadde"
+      },
+      "workshop_bays": {
+        "present": true,
+        "rows": 45,
+        "sha256": "0b7cac5b83124422056a076ab17f5a55f4d26ec71057093c7a90e2afaa648ae1"
+      },
+      "workshop_booking_assignments": {
+        "present": true,
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "workshop_booking_history": {
+        "present": true,
+        "rows": 150,
+        "sha256": "9a5cbc27590d31a12bbcf4995aa431fa5d3aed77e679f2a89a93c58242485474"
+      },
+      "workshop_bookings": {
+        "present": true,
+        "rows": 52,
+        "sha256": "6dedd09910ae1a1386be089688f97162356a04064770015c4d776a78daee0aea"
+      },
+      "workshop_revision": {
+        "present": true,
+        "rows": 1,
+        "sha256": "33111b76d72c2aec418cd07c552e04c549bf524fb86897bdf87a89fa77a292c8"
+      },
+      "workshop_settings": {
+        "present": true,
+        "rows": 9,
+        "sha256": "94b9bfb599f36add79e107e5245353e1d5a598982128e27ebbb2101b3a530884"
+      },
+      "workshop_stages": {
+        "present": true,
+        "rows": 9,
+        "sha256": "6aca0c6c87b80db66151a36445bc113a4eb476c117ae283021b62ddc219322ef"
+      },
+      "workshop_station_revision": {
+        "present": true,
+        "rows": 9,
+        "sha256": "9e2ef92a13f21f0e38c96ec4cbae4f5046e2da58e9ec65f4bed3bb7188b0f5c2"
+      },
+      "workshop_technicians": {
+        "present": true,
+        "rows": 5,
+        "sha256": "5bf53ef78a53eaae2e900f592eea3f365bde3fc5f7b75057e990a40afd07b762"
+      }
+    }
+  },
+  "operational_before": {
+    "combined_sha256": "7468e336a3689090ef0f7b19fc59139ea1e78676ad69a845ba2c6b3bb38ae4af",
+    "enabled_operational_trigger_count": 67,
+    "migration_ledger": {
+      "rows": 112,
+      "sha256": "191b584de4c1c5f0c11633f17d777aa91dc39f2454ecc39c05f56eac9a04d945"
+    },
+    "tables": {
+      "audit_events": {
+        "present": true,
+        "rows": 1455,
+        "sha256": "1af5ecc374cbf01a0001377f8446a1060aaa37458986ff4bcb84f9277f8de3b2"
+      },
+      "navision_backend_records": {
+        "present": true,
+        "rows": 1013,
+        "sha256": "001328a209508c143b5a8ce81893db77119dd889353bdfbe5a429e8dcec603c1"
+      },
+      "navision_backend_revision": {
+        "present": true,
+        "rows": 1,
+        "sha256": "d3d302cb102e0a242cc9eed1be05b81c8f19994362025af592c062111077a2a1"
+      },
+      "navision_import_batches": {
+        "present": true,
+        "rows": 8,
+        "sha256": "ddfbbb139ef11c24fd0f1ed378d01bbd92b448711f5a3edcf3a6885109d9ca3b"
+      },
+      "pdc_ai_intake_history": {
+        "present": true,
+        "rows": 220,
+        "sha256": "8f14968fe0dd373af0c6e76bed44c92bc6371f9a23d6f73f8a352f5cabf77330"
+      },
+      "pdc_ai_intake_proposals": {
+        "present": true,
+        "rows": 122,
+        "sha256": "76a36059a0d0ec69d3059e963ccc234ea28cb1b5274cd87b034249d01d11c677"
+      },
+      "pdc_ai_intake_revision": {
+        "present": true,
+        "rows": 1,
+        "sha256": "5110b5a5e41a84ee827dde4dda6c44f7ed304faf20d7b16bba6528ff27a701f1"
+      },
+      "pdc_authenticated_email_operation_lines": {
+        "present": true,
+        "rows": 244,
+        "sha256": "fcd878f67702d38ba53041b38a54a08021d2889b6bce9150ba9ce5dbb7c23252"
+      },
+      "pdc_email_vehicle_revision": {
+        "present": true,
+        "rows": 1,
+        "sha256": "ad1c2bfe5e2fda3dda990f19344891daf38bb62f12c8d4f6c4a1a2b39d3c4fbe"
+      },
+      "pdc_sublet_bookings": {
+        "present": true,
+        "rows": 4,
+        "sha256": "4be845cb1c8ca82dbda12c666f5f79fc11a21914bd147ba3b1c67b2cc4bcf337"
+      },
+      "vehicle_aliases": {
+        "present": true,
+        "rows": 152,
+        "sha256": "8998ff9c3b45742f22de0bc687d8073c548f7f7dbb7f9d69d0e21786b5d5cd01"
+      },
+      "vehicle_lifecycle_resolver_revision": {
+        "present": true,
+        "rows": 1,
+        "sha256": "7992bd194ba25f4be11473b212547ec37b6975667f5c30d7e63d0bf036633f04"
+      },
+      "vehicle_master_history": {
+        "present": true,
+        "rows": 733,
+        "sha256": "20abef5ea3d73703a25f82b9f25f3ed9ab4fb4a6f54cd034f6fcda1726515907"
+      },
+      "vehicle_master_revision": {
+        "present": true,
+        "rows": 1,
+        "sha256": "423fdf8451b1c94674e993ecc5fcb2a8d67d97a4e8f49be171d37bbb23717d13"
+      },
+      "vehicle_master_source_records": {
+        "present": true,
+        "rows": 152,
+        "sha256": "55ea8befc5df232f4d9084dddc0084e57ab27921ad86a31148521ead6cee76af"
+      },
+      "vehicle_movements": {
+        "present": true,
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "vehicle_notifications": {
+        "present": true,
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "vehicle_parts_updates": {
+        "present": true,
+        "rows": 65,
+        "sha256": "d0c3685e959a655952847dcf5a7d4c2f9ed97f5e762cda9fed983348b6109ff7"
+      },
+      "vehicle_sublet_providers": {
+        "present": true,
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "vehicle_work_items": {
+        "present": true,
+        "rows": 365,
+        "sha256": "94d5d0f30934fa4aceb978e5716641bd8c167ceadd95eac67b5ad3783e77e550"
+      },
+      "vehicle_workshop_line_adjustments": {
+        "present": true,
+        "rows": 16,
+        "sha256": "fe3b43fee5f44a50b729eb4cbf5b419b12dd58ce4e77fb2ba9933561ba12d33f"
+      },
+      "vehicles": {
+        "present": true,
+        "rows": 220,
+        "sha256": "1ad5f79db3e13b526efa7a1554cfb1d4ed6ff836195d57485198f018df6eadde"
+      },
+      "workshop_bays": {
+        "present": true,
+        "rows": 45,
+        "sha256": "0b7cac5b83124422056a076ab17f5a55f4d26ec71057093c7a90e2afaa648ae1"
+      },
+      "workshop_booking_assignments": {
+        "present": true,
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "workshop_booking_history": {
+        "present": true,
+        "rows": 150,
+        "sha256": "9a5cbc27590d31a12bbcf4995aa431fa5d3aed77e679f2a89a93c58242485474"
+      },
+      "workshop_bookings": {
+        "present": true,
+        "rows": 52,
+        "sha256": "6dedd09910ae1a1386be089688f97162356a04064770015c4d776a78daee0aea"
+      },
+      "workshop_revision": {
+        "present": true,
+        "rows": 1,
+        "sha256": "33111b76d72c2aec418cd07c552e04c549bf524fb86897bdf87a89fa77a292c8"
+      },
+      "workshop_settings": {
+        "present": true,
+        "rows": 9,
+        "sha256": "94b9bfb599f36add79e107e5245353e1d5a598982128e27ebbb2101b3a530884"
+      },
+      "workshop_stages": {
+        "present": true,
+        "rows": 9,
+        "sha256": "6aca0c6c87b80db66151a36445bc113a4eb476c117ae283021b62ddc219322ef"
+      },
+      "workshop_station_revision": {
+        "present": true,
+        "rows": 9,
+        "sha256": "9e2ef92a13f21f0e38c96ec4cbae4f5046e2da58e9ec65f4bed3bb7188b0f5c2"
+      },
+      "workshop_technicians": {
+        "present": true,
+        "rows": 5,
+        "sha256": "5bf53ef78a53eaae2e900f592eea3f365bde3fc5f7b75057e990a40afd07b762"
+      }
+    }
+  },
+  "provenance": {
+    "browser_metrics": "not collected in this transaction-only run",
+    "database_snapshot_rpc": "direct PostgreSQL call to the real migration-115 get_pdc_auditor_snapshot RPC inside the rollback-only transaction",
+    "deterministic_engine": "real pdc-ai-auditor-stage-a.js over the captured real RPC wire payload",
+    "findings": "real migration-115 submit_pdc_auditor_findings RPC and authenticated RLS refresh inside the same transaction",
+    "postgrest": "not exercised; no live PostgREST claim",
+    "realtime": "not exercised; no live Realtime claim"
+  },
+  "role_boundaries": {
+    "14450": {
+      "auth_user_id": "557dba7f-fd70-4b9e-aa7b-b83b717682a7",
+      "findings_submit_allowed": true,
+      "role": "administrator",
+      "snapshot_allowed": true,
+      "worker_enrolled": true
+    },
+    "37047": {
+      "auth_user_id": "519126fa-0f97-43df-895b-3a950d51ac6f",
+      "findings_submit_denied": true,
+      "role": "viewer",
+      "snapshot_allowed": true,
+      "worker_enrolled": false
+    }
+  },
+  "rollback_complete": true,
+  "rollback_fixture_counts": {
+    "navision_backend_records": 0,
+    "navision_import_batches": 0,
+    "trigger_created_audit_events": 0,
+    "trigger_created_booking_history": 0,
+    "vehicle_parts_updates": 0,
+    "vehicle_work_items": 0,
+    "vehicles": 0,
+    "workshop_bookings": 0
+  },
+  "rollback_verification": {
+    "enabled_trigger_count_equal": true,
+    "fixture_counts_all_zero": true,
+    "migration_ledger_equal": true,
+    "migration_objects_absent": true,
+    "operational_combined_hash_equal": true,
+    "operational_table_hashes_equal": true
+  },
+  "synthetic_vehicles": 160
+}

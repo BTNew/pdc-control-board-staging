@@ -641,7 +641,6 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> int:
     args = parse_args()
-    assert_branch()
     if args.plan:
         result = fixture_plan(args.batch_size)
     elif args.rollback_rehearsal:

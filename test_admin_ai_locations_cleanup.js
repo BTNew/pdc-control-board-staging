@@ -42,7 +42,7 @@ assert(styles.includes('.incoming-search-panel.incoming-search-only'), 'Search-o
 
 const intake = staging.slice(staging.indexOf('<section id="emailreview"'), staging.indexOf('<section id="sublet"'));
 assert(intake.includes('AI / Email Intake') && intake.includes('Approve or deny the items that need a decision.'), 'AI Intake heading must be concise and decision-focused');
-assert(intake.includes('class="ai-board-advisor-panel"') && intake.includes('aria-labelledby="ai-board-advisor-title" hidden'), 'Read-only advisor must be preserved but removed from the staff-facing intake screen');
+assert(!intake.includes('ai-board-advisor-panel') && staging.includes('<section id="ai-auditor"'), 'Read-only auditing must be separate from the staff-facing intake screen');
 assert(intake.includes('class="email-intake-upload-panel"') && intake.includes('aria-label="AI file assistant upload" hidden'), 'Legacy local upload drafts must be preserved but removed from the staff-facing intake screen');
 assert(app.includes('>✓ Approve</button>') && app.includes('>× Deny</button>'), 'Tricky pending intake items must expose Approve and Deny actions');
 assert(app.includes("data-ai-intake-apply=") && app.includes("data-ai-intake-reject="), 'Approve and Deny labels must retain the authoritative apply/reject handlers');

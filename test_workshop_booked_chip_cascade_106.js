@@ -4,8 +4,16 @@ const assert = require('assert');
 const fs = require('fs');
 const crypto = require('crypto');
 
-const migration104 = fs.readFileSync('supabase/staging_only/104_authenticated_operation_estimated_hours.sql');
-const migration105 = fs.readFileSync('supabase/staging_only/105_authenticated_operation_hours_exact_replay.sql');
+const canonicalSqlBytes = file => {
+  const source = fs.readFileSync(file, 'utf8');
+  const carriageReturn = String.fromCharCode(13);
+  const lineFeed = String.fromCharCode(10);
+  const canonical = source.split(carriageReturn + lineFeed).join(lineFeed);
+  assert.ok(!canonical.includes(carriageReturn), `${file} must not contain lone carriage returns`);
+  return Buffer.from(canonical, 'utf8');
+};
+const migration104 = canonicalSqlBytes('supabase/staging_only/104_authenticated_operation_estimated_hours.sql');
+const migration105 = canonicalSqlBytes('supabase/staging_only/105_authenticated_operation_hours_exact_replay.sql');
 assert.strictEqual(crypto.createHash('sha256').update(migration104).digest('hex'), '7d71db064f66ec588a151bc3f2bb0b4e08091b4bcb6929d0e30d27a8518a15f5', 'Migration 104 source must exactly match the applied staging ledger');
 assert.strictEqual(crypto.createHash('sha256').update(migration105).digest('hex'), 'c72ee9a0fccf697006849fd12d1b9b9de6aa2b3ca18407575a0f7a82d96be3f5', 'Migration 105 source must exactly match the applied staging ledger');
 

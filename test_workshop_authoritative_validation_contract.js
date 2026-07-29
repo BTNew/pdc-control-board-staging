@@ -84,6 +84,15 @@ for(const file of operational){
   const rel=path.relative(root,file);
   if(fixtureOnly.test(rel)) continue;
   const source=fs.readFileSync(file,'utf8');
+  if(rel.replace(/\\/g,'/')==='scripts/benchmark_stage_a_150_transaction.py'){
+    assert(/N\s*=\s*1(?:6\d|[7-9]\d|\d{3,})\b/.test(source),'Stage A benchmark must create at least 160 transaction-only fixtures');
+    assert(source.includes('PROJECT_REF = "cdsmnqxtyyoeoznmbidd"') && /assert\s+baseline_q\.fetchone\(\)\[0\]\s*==\s*PROJECT_REF/.test(source),'Stage A benchmark must pin the staging project sentinel');
+    assert(/autocommit\s*=\s*False/.test(source),'Stage A benchmark must own one rollback-safe transaction');
+    assert(/\b(?:c|conn|connection)\.rollback\(\)/.test(source),'Stage A benchmark must explicitly roll back all fixture DML');
+    assert(!/\bc\.commit\(\)|\bconn\.commit\(\)/.test(source),'Stage A benchmark must never commit fixture DML');
+    assert(!forbidden.slice(0,3).some(pattern=>pattern.test(source)),'Stage A benchmark must not disable guards or call low-level booking helpers');
+    continue;
+  }
   if(rel.replace(/\\/g,'/')==='scripts/workshop_legacy_import.py'){
     assert(source.includes('WORKSHOP_LEGACY_DIRECT_APPLY_DISABLED = True'),'legacy direct apply tripwire missing');
     assert(/if apply and WORKSHOP_LEGACY_DIRECT_APPLY_DISABLED:\s*\n\s*raise RuntimeError/.test(source),'legacy apply must fail closed before direct DML');

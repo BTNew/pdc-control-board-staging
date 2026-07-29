@@ -1,0 +1,97 @@
+{
+  "schema": "pdc.stage-a.hermesrevolution-runtime-proof/v1",
+  "captured_at_utc": "2026-07-29T06:52:39.315767+00:00",
+  "profile": "work-receipting",
+  "config_check_exit": 0,
+  "enabled_toolsets": [
+    "web",
+    "browser",
+    "file",
+    "vision",
+    "skills",
+    "todo",
+    "memory",
+    "session_search",
+    "clarify",
+    "computer_use"
+  ],
+  "disabled_toolsets": [
+    "terminal",
+    "code_execution",
+    "video",
+    "image_gen",
+    "video_gen",
+    "x_search",
+    "tts",
+    "context_engine",
+    "delegation",
+    "cronjob",
+    "homeassistant",
+    "spotify",
+    "yuanbao"
+  ],
+  "required_denials": {
+    "terminal_disabled": true,
+    "code_execution_disabled": true,
+    "cronjob_disabled": true
+  },
+  "read_only_assistance_available": true,
+  "profile_env_key_count": 16,
+  "prohibited_operational_key_names": [],
+  "mailbox_or_supabase_writer_credentials_absent": true,
+  "cron_list_exit": 0,
+  "cron_jobs_zero": true,
+  "schedule": {
+    "enabled": false,
+    "external_delivery_enabled": false,
+    "all_jobs_disabled": true,
+    "timezone": "Australia/Perth"
+  },
+  "backup": {
+    "path": "C:\\Users\\nwmgr\\AppData\\Local\\hermes\\profiles\\work-receipting\\backups\\pre-pmb-ai-auditor-stage-a-20260729T122704+0800",
+    "exists": true,
+    "files": [
+      {
+        "path": "config-stage-a-role-change.patch",
+        "bytes": 613,
+        "sha256": "420f58599a105a60b47ed3c4bc61a49bd01fb262e01bbeb93649d2390f74d88a"
+      },
+      {
+        "path": "config.yaml",
+        "bytes": 16473,
+        "sha256": "c2eb91dbc43c0d003c46c8ce743630b3fae645c27270731ff73fb5fe7f205909"
+      },
+      {
+        "path": "gateway-service/Hermes_Gateway_work-receipting.cmd",
+        "bytes": 661,
+        "sha256": "eb99320c2c9834ad8f0af015513345df188988fd413b1a1c437b1cd7eb0eb34a"
+      },
+      {
+        "path": "gateway-service/Hermes_Gateway_work-receipting.vbs",
+        "bytes": 1081,
+        "sha256": "0d034971dda9ba19f0c0b480d9ab83039a447c0d274efc161e5cea666dc3222f"
+      },
+      {
+        "path": "Hermes_Gateway_work-receipting.xml",
+        "bytes": 1538,
+        "sha256": "d6212103f333016e380f44a2aa5ebf0099919a29c76848e9de2f69ba7404f6a0"
+      },
+      {
+        "path": "manifest.json",
+        "bytes": 1853,
+        "sha256": "1039cef5a33bcdfbce214283dc6509e38543a0016fa79a2e0139e15dc089edaf"
+      },
+      {
+        "path": "SOUL-stage-a-role-change.patch",
+        "bytes": 7341,
+        "sha256": "e1297d8a076ddd1e3a5b038f1d35e6e6701e512bb060a3f91311713251802cf4"
+      },
+      {
+        "path": "SOUL.md",
+        "bytes": 8884,
+        "sha256": "908ff184e9bd518b4db920159cd77bf815c643ded9482d34184d0dba7c75b3ed"
+      }
+    ]
+  },
+  "source_guardrails_present": true
+}

@@ -53,7 +53,7 @@ assert.ok(css.includes('/* Phase 2 read-only AI Board Advisor. */'));
 assert.ok(css.includes('.ai-board-advisor-panel'));
 assert.ok(css.includes('.ai-board-finding.ai-board-critical'));
 
-const pages = ['index.html', 'staging.html', 'test-50.html', 'test-75.html', 'test-100.html', 'no-vehicles.html'];
+const pages = ['index.html', 'test-50.html', 'test-75.html', 'test-100.html', 'no-vehicles.html'];
 pages.forEach(file => {
   const html = fs.readFileSync(path.join(root, file), 'utf8');
   assert.strictEqual((html.match(/id="ai-board-advisor-title"/g) || []).length, 1, `${file} needs one labelled advisor heading`);
@@ -78,5 +78,8 @@ assert.ok(auth.includes("new CustomEvent('pdc-auth-locked'"), 'every session rev
 const lockHandler = app.slice(app.indexOf("window.addEventListener?.('pdc-auth-locked'"), app.indexOf('function renderWorkshopPlannerWhenReady'));
 assert.ok(lockHandler.includes("document.getElementById('ai-board-advisor-content')"), 'auth lock handler must target the rendered advisor data');
 assert.ok(lockHandler.includes('advisorHost.replaceChildren()'), 'auth lock handler must clear prior-session advisory business data');
+const staging = fs.readFileSync(path.join(root, 'staging.html'), 'utf8');
+assert.strictEqual((staging.match(/id="ai-board-advisor-title"/g) || []).length, 0, 'staging moves Board Advisor out of AI Intake');
+assert.ok(staging.includes('id="ai-auditor"') && staging.includes('BETA – READ ONLY / APPROVAL REQUIRED'), 'staging must expose the separate Stage A Auditor');
 
 console.log('Phase Two advisory AI integration and authority contracts passed');

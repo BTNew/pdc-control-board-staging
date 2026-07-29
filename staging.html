@@ -10,6 +10,7 @@
   <link rel="icon" href="favicon.svg" type="image/svg+xml" />
   <link rel="stylesheet" href="styles.css?v=2026.07.29.10-operational-mutation-reliability" />
   <link rel="stylesheet" href="pdc-ai-intake-review.css?v=2026.07.28.20-ai-review-card-separation" />
+  <link rel="stylesheet" href="ai-auditor.css?v=2026.07.29.11-ai-auditor-stage-a" />
   <link rel="stylesheet" href="desktop-operations.css?v=2026.07.29.10-operational-mutation-reliability" />
   <link rel="stylesheet" href="workshop-planner.css?v=2026.07.29.10-operational-mutation-reliability" />
 </head>
@@ -99,6 +100,7 @@
         <button type="button" class="nav-item" id="nav-workshop-rollback" data-view="workshop" data-short="PLAN" title="Temporary combined-planner rollback route">Workshop Planner</button>
         <button type="button" class="nav-item" data-view="parts" data-short="PA">Parts</button>
         <button type="button" class="nav-item" data-view="emailreview" data-short="AI">AI Intake</button>
+        <button type="button" class="nav-item" data-view="ai-auditor" data-short="AUD">BETA – AI Auditor</button>
         <button type="button" class="nav-item" data-view="sublet" data-short="SUB">Sublet</button>
         <button type="button" class="nav-item" data-view="rft" data-short="RFT">RFT</button>
         <div class="nav-admin-group" id="nav-admin-group" hidden>
@@ -397,13 +399,6 @@
               <div class="ai-intake-history-heading"><div><span class="eyebrow">History</span><h3>What arrived and what happened</h3></div></div>
               <div id="ai-intake-history-content"><div class="empty-state compact-empty"><strong>Loading history</strong><span>Received, activated, modified and dismissed items appear here.</span></div></div>
             </section>
-            <section class="ai-board-advisor-panel" aria-labelledby="ai-board-advisor-title" hidden>
-              <div class="ai-board-advisor-header">
-                <div><span class="eyebrow">Phase 2 · Board advisor</span><h3 id="ai-board-advisor-title">Workshop and Parts priorities</h3><p>Transparent deterministic checks rank risks for human review. This advisor cannot change vehicles, bookings, Parts, workflow or messages.</p></div>
-                <div class="ai-board-advisor-actions"><span class="badge ready">Advisory only</span><button class="small-button" id="ai-board-refresh" type="button">Refresh advice</button></div>
-              </div>
-              <div id="ai-board-advisor-content"><div class="empty-state compact-empty"><strong>Calculating read-only advice</strong><span>No operational data is changed.</span></div></div>
-            </section>
             <section class="email-intake-upload-panel" aria-label="AI file assistant upload" hidden>
               <div class="email-intake-upload-copy">
                 <span class="eyebrow">Phase 1 · AI file assistant</span>
@@ -426,6 +421,63 @@
             <div id="ai-intake-status" class="email-intake-status" hidden><div class="empty-state compact-empty"><strong>No files queued</strong><span>Add one or more files above to create review drafts.</span></div></div>
             <div class="table-toolbar" hidden><label><span>Status</span><select id="email-review-status-filter"><option value="pending">Pending review</option><option value="applied">Applied</option><option value="rejected">Rejected</option><option value="all">All proposals</option></select></label></div>
             <div id="email-intake-review-content" hidden></div>
+          </section>
+        </div>
+      </section>
+
+      <section id="ai-auditor" class="view" aria-labelledby="ai-auditor-heading">
+        <div class="ai-auditor-shell">
+          <div class="ai-auditor-read-only-banner" role="status">
+            <strong>BETA – READ ONLY / APPROVAL REQUIRED</strong>
+            <span>Findings are evidence for staff review. This Stage A view cannot change operational records.</span>
+          </div>
+          <section class="panel ai-auditor-panel">
+            <div class="panel-header ai-auditor-header">
+              <div>
+                <span class="eyebrow">Stage A · authenticated snapshot</span>
+                <h2 id="ai-auditor-heading">BETA – AI Auditor</h2>
+                <p>Review deterministic findings from the dedicated auditor snapshot. Unavailable or unverified authority is never replaced with browser data.</p>
+              </div>
+              <button class="small-button" id="ai-auditor-refresh" type="button">Refresh snapshot</button>
+            </div>
+            <div class="ai-auditor-state" id="ai-auditor-state" role="status" aria-live="polite" aria-busy="true">
+              <strong>Auditor not assessed</strong><span>Open this view while signed in to request the read-only snapshot.</span>
+            </div>
+            <div class="ai-auditor-summary-grid" id="ai-auditor-summary" aria-label="Auditor category summary">
+              <article><span>Critical issues</span><strong>—</strong></article>
+              <article><span>High-priority issues</span><strong>—</strong></article>
+              <article><span>Bookings without valid jobs</span><strong>—</strong></article>
+              <article><span>Missing estimated hours</span><strong>—</strong></article>
+              <article><span>Parts risks</span><strong>—</strong></article>
+              <article><span>Double bookings</span><strong>—</strong></article>
+              <article><span>Active stoppages</span><strong>—</strong></article>
+              <article><span>Forgotten vehicles</span><strong>—</strong></article>
+              <article><span>Workflow problems</span><strong>—</strong></article>
+              <article><span>Recommendations awaiting approval</span><strong>—</strong></article>
+            </div>
+            <div class="ai-auditor-filters" role="search" aria-label="Filter displayed auditor recommendations">
+              <label><span>Severity</span><select id="ai-auditor-severity-filter"><option value="all">All severities</option><option value="critical">Critical</option><option value="high">High</option><option value="medium">Medium</option><option value="low">Low</option></select></label>
+              <label><span>Category</span><select id="ai-auditor-category-filter"><option value="all">All categories</option><option value="parts_risk">Parts risks</option><option value="double_bookings">Double bookings</option><option value="active_stoppages">Active stoppages</option><option value="forgotten_vehicles">Forgotten vehicles</option><option value="workflow_problems">Workflow problems</option><option value="data_quality">Data quality</option></select></label>
+              <label><span>Search</span><input id="ai-auditor-search" type="search" autocomplete="off" placeholder="Rule, vehicle, issue or evidence" /></label>
+              <span id="ai-auditor-filter-summary" aria-live="polite">Authoritative totals are not changed by filters.</span>
+            </div>
+            <div class="ai-auditor-report-tabs" role="tablist" aria-label="Manual report views">
+              <button type="button" role="tab" id="ai-auditor-tab-morning" aria-controls="ai-auditor-report" aria-selected="true" data-ai-auditor-report="morning">Morning Workshop Briefing</button>
+              <button type="button" role="tab" id="ai-auditor-tab-midday" aria-controls="ai-auditor-report" aria-selected="false" tabindex="-1" data-ai-auditor-report="midday">Midday Risk Review</button>
+              <button type="button" role="tab" id="ai-auditor-tab-eod" aria-controls="ai-auditor-report" aria-selected="false" tabindex="-1" data-ai-auditor-report="eod">End-of-Day Carryover</button>
+              <button type="button" role="tab" id="ai-auditor-tab-critical" aria-controls="ai-auditor-report" aria-selected="false" tabindex="-1" data-ai-auditor-report="critical">Critical Issues</button>
+            </div>
+            <div id="ai-auditor-report" class="ai-auditor-report" role="tabpanel" aria-labelledby="ai-auditor-tab-morning">
+              <div class="empty-state"><strong>No trusted auditor snapshot</strong><span>Findings remain hidden until the dedicated service succeeds.</span></div>
+            </div>
+            <footer class="ai-auditor-decisions" aria-label="Stage C decisions unavailable">
+              <div><strong>Stage C decision workflow not enabled</strong><span>Decisions require a separately reviewed approval workflow.</span></div>
+              <div class="ai-auditor-decision-actions">
+                <button type="button" disabled>Approve</button>
+                <button type="button" disabled>Deny</button>
+                <button type="button" disabled>Snooze</button>
+              </div>
+            </footer>
           </section>
         </div>
       </section>
@@ -910,6 +962,7 @@
   <script src="pdc-ai-intake-service.js?v=2026.07.25.03-ai-intake-admin-decision"></script>
   <script src="workshop-eligibility.js?v=2026.07.29.10-operational-mutation-reliability"></script>
   <script src="pdc-email-vehicle-location-service.js?v=2026.07.29.10-operational-mutation-reliability"></script>
+  <script src="pdc-ai-auditor-stage-a.js?v=2026.07.29.12-stage-a-ui-service"></script>
   <script src="app.js?v=2026.07.29.10-operational-mutation-reliability"></script>
   <script src="pdc-ai-intake-review.js?v=2026.07.27.19-ai-review-decision-context"></script>
 

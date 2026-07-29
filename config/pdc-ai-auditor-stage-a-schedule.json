@@ -1,0 +1,52 @@
+{
+  "schema_version": "pdc-auditor-stage-a-schedule-v1",
+  "environment": "staging",
+  "enabled": false,
+  "external_delivery_enabled": false,
+  "timezone": "Australia/Perth",
+  "working_calendar": {
+    "status": "provisional_pending_approval",
+    "working_days": [
+      "Monday",
+      "Tuesday",
+      "Wednesday",
+      "Thursday",
+      "Friday"
+    ],
+    "working_hour_start": "08:00",
+    "working_hour_end_exclusive": "16:00",
+    "public_holiday_dates": [],
+    "public_holiday_policy": "No holiday exclusions are assumed until an Administrator enters approved dates. Findings disclose this coverage limit."
+  },
+  "prepared_jobs": [
+    {
+      "id": "stage-a-working-hours-audit",
+      "enabled": false,
+      "cron": "*/15 8-15 * * 1-5",
+      "local_execution_window": "08:00-15:45",
+      "action": "deterministic_audit"
+    },
+    {
+      "id": "stage-a-morning-briefing",
+      "enabled": false,
+      "cron": "0 7 * * 1-5",
+      "local_execution_time": "07:00",
+      "action": "prepare_internal_morning_report"
+    },
+    {
+      "id": "stage-a-midday-review",
+      "enabled": false,
+      "cron": "0 12 * * 1-5",
+      "local_execution_time": "12:00",
+      "action": "prepare_internal_midday_report"
+    },
+    {
+      "id": "stage-a-carryover-report",
+      "enabled": false,
+      "cron": "30 15 * * 1-5",
+      "local_execution_time": "15:30",
+      "action": "prepare_internal_carryover_report"
+    }
+  ],
+  "activation_requires": "Separate written approval after Stage A deployment approval; not part of this change."
+}

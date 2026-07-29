@@ -1,0 +1,136 @@
+/* Staging Stage A AI Auditor: read-only presentation only. */
+.ai-auditor-shell {
+  display: grid;
+  gap: 14px;
+}
+
+.ai-auditor-read-only-banner {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 11px 16px;
+  border: 2px solid #9a3412;
+  border-radius: 12px;
+  background: #fff7ed;
+  color: #7c2d12;
+  box-shadow: 0 5px 18px rgba(124, 45, 18, .12);
+}
+.ai-auditor-read-only-banner strong { letter-spacing: .04em; }
+.ai-auditor-read-only-banner span { font-size: .86rem; font-weight: 650; }
+#vehicle-modal .ai-auditor-read-only-banner { position: static; z-index: auto; }
+
+.ai-auditor-panel { display: grid; gap: 16px; }
+.ai-auditor-header { align-items: flex-start; }
+.ai-auditor-header h2 { margin: 2px 0 4px; }
+.ai-auditor-header p { max-width: 76ch; }
+.ai-auditor-state {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  min-height: 46px;
+  padding: 11px 13px;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  background: #f8fafc;
+  color: #334155;
+}
+.ai-auditor-state[data-state="ready"] { border-color: #86efac; background: #f0fdf4; color: #166534; }
+.ai-auditor-state[data-state="unavailable"] { border-color: #fca5a5; background: #fef2f2; color: #991b1b; }
+.ai-auditor-state span { font-size: .86rem; }
+
+.ai-auditor-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(108px, 1fr));
+  gap: 9px;
+}
+.ai-auditor-summary-grid article {
+  min-height: 82px;
+  padding: 11px;
+  border: 1px solid #dbe3ee;
+  border-top: 4px solid var(--auditor-category-colour, #64748b);
+  border-radius: 10px;
+  background: #fff;
+}
+.ai-auditor-summary-grid span { display: block; color: #64748b; font-size: .73rem; font-weight: 800; text-transform: uppercase; }
+.ai-auditor-summary-grid strong { display: block; margin-top: 7px; color: #0f172a; font-size: 1.65rem; }
+
+.ai-auditor-filters { display: grid; grid-template-columns: minmax(150px, .8fr) minmax(170px, 1fr) minmax(220px, 2fr); gap: 9px; align-items: end; }
+.ai-auditor-filters label { display: grid; gap: 4px; }
+.ai-auditor-filters label span { color: #475569; font-size: .72rem; font-weight: 800; text-transform: uppercase; }
+.ai-auditor-filters select,
+.ai-auditor-filters input { width: 100%; min-height: 38px; border: 1px solid #cbd5e1; border-radius: 8px; background: #fff; padding: 7px 9px; }
+.ai-auditor-filters > span { grid-column: 1 / -1; color: #64748b; font-size: .78rem; }
+
+.ai-auditor-report-tabs { display: flex; flex-wrap: wrap; gap: 6px; border-bottom: 1px solid #dbe3ee; }
+.ai-auditor-report-tabs button {
+  margin-bottom: -1px;
+  padding: 9px 15px;
+  border: 1px solid transparent;
+  border-radius: 9px 9px 0 0;
+  background: transparent;
+  color: #475569;
+  font-weight: 800;
+}
+.ai-auditor-report-tabs button[aria-selected="true"] { border-color: #cbd5e1 #cbd5e1 #fff; background: #fff; color: #0f172a; }
+.ai-auditor-report-tabs button:focus-visible,
+.ai-auditor-finding button:focus-visible,
+.ai-auditor-evidence summary:focus-visible,
+.ai-auditor-header button:focus-visible {
+  outline: 3px solid rgba(37, 99, 235, .38);
+  outline-offset: 2px;
+}
+.ai-auditor-report { min-height: 230px; }
+.ai-auditor-report-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
+.ai-auditor-report-heading h3 { margin: 0; }
+.ai-auditor-report-heading span { color: #64748b; font-size: .8rem; }
+.ai-auditor-findings { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; }
+.ai-auditor-finding { display: grid; gap: 9px; padding: 13px; border: 1px solid #dbe3ee; border-left: 5px solid var(--auditor-category-colour, #64748b); border-radius: 10px; background: #fff; }
+.ai-auditor-finding-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.ai-auditor-finding-title { display: grid; gap: 3px; }
+.ai-auditor-finding-title span { color: #64748b; font-size: .76rem; font-weight: 800; text-transform: uppercase; }
+.ai-auditor-finding p { margin: 0; color: #334155; line-height: 1.45; }
+.ai-auditor-evidence { border-top: 1px solid #e2e8f0; padding-top: 8px; }
+.ai-auditor-evidence summary { width: max-content; cursor: pointer; color: #1d4ed8; font-weight: 800; }
+.ai-auditor-evidence ul { display: grid; gap: 5px; margin: 8px 0 0; padding-left: 21px; color: #475569; }
+.ai-auditor-open-vehicle { white-space: nowrap; }
+.ai-auditor-limitations { color: #7c2d12; font-size: .8rem; font-weight: 700; }
+
+.ai-auditor-decisions { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 13px; border: 1px dashed #94a3b8; border-radius: 10px; background: #f8fafc; }
+.ai-auditor-decisions > div:first-child { display: grid; gap: 2px; }
+.ai-auditor-decisions span { color: #64748b; font-size: .8rem; }
+.ai-auditor-decision-actions { display: flex; gap: 6px; }
+.ai-auditor-decision-actions button { padding: 7px 11px; border: 1px solid #cbd5e1; border-radius: 8px; }
+
+/* The Stage A job-card projection is a read-only, horizontally scrollable table. */
+.vehicle-workshop-job-card-wrap { overflow-x: auto; border: 1px solid #dbe3ee; border-radius: 9px; background: #fff; }
+.vehicle-workshop-job-card { width: 100%; min-width: 1540px; border-collapse: collapse; table-layout: fixed; }
+.vehicle-workshop-job-card tr.vehicle-workshop-line { display: table-row; }
+.vehicle-workshop-job-card tr.vehicle-workshop-line > td { display: table-cell; }
+.vehicle-workshop-job-card th,
+.vehicle-workshop-job-card td { padding: 7px 8px; border-right: 1px solid #e2e8f0; border-bottom: 1px solid #e2e8f0; vertical-align: top; text-align: left; font-size: .75rem; overflow-wrap: anywhere; }
+.vehicle-workshop-job-card th { background: #f8fafc; color: #475569; font-size: .68rem; letter-spacing: .03em; text-transform: uppercase; }
+.vehicle-workshop-job-card th:first-child { width: 230px; }
+.vehicle-workshop-job-card td:last-child,
+.vehicle-workshop-job-card th:last-child { border-right: 0; }
+.vehicle-workshop-job-card tr:last-child td { border-bottom: 0; }
+.vehicle-workshop-job-card .vehicle-workshop-booking-link { max-width: 220px; }
+.vehicle-workshop-station-bookings { padding: 9px 11px; border-top: 1px solid #e2e8f0; background: #f8fafc; }
+.vehicle-workshop-station-bookings > strong { display: block; margin-bottom: 5px; font-size: .72rem; color: #475569; text-transform: uppercase; }
+
+@media (max-width: 1180px) {
+  .ai-auditor-summary-grid { grid-template-columns: repeat(4, minmax(120px, 1fr)); }
+}
+@media (max-width: 760px) {
+  .ai-auditor-read-only-banner,
+  .ai-auditor-decisions,
+  .ai-auditor-finding-header { align-items: stretch; flex-direction: column; }
+  .ai-auditor-summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .ai-auditor-state { align-items: flex-start; flex-direction: column; }
+  .ai-auditor-filters { grid-template-columns: 1fr; }
+  .ai-auditor-decision-actions { width: 100%; }
+  .ai-auditor-decision-actions button { flex: 1; }
+}

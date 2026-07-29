@@ -1,0 +1,1325 @@
+{
+  "authenticated_browser_passed": true,
+  "finished_at": "2026-07-29T09:12:30.104760+00:00",
+  "matrix": {
+    "auditor_local_storage_reads": 0,
+    "authoritative_totals_filter_invariance": true,
+    "dealer_scope": {
+      "dealers": {
+        "administrator": "14450",
+        "controller": "14450",
+        "viewer": "37047"
+      },
+      "same_dealer_admin_controller_equal": true,
+      "viewer_dealer_isolated": true
+    },
+    "disabled_actions_zero_dispatch": true,
+    "hard_refresh_forgery_irrelevant": true,
+    "history_navigation_return": true,
+    "realtime_channels": {
+      "after_refresh": {
+        "administrator": {
+          "auditorCount": 1,
+          "count": 11,
+          "states": [
+            "joined",
+            "joined",
+            "joined",
+            "joined",
+            "joined",
+            "joined",
+            "joined",
+            "joined",
+            "joined",
+            "joined",
+            "joined"
+          ],
+          "topics": [
+            "realtime:pdc-reference-pdc_ai_intake_revision",
+            "realtime:pdc-reference-pdc_email_vehicle_revision",
+            "realtime:pdc-reference-salespeople",
+            "realtime:pdc-reference-sublet_providers",
+            "realtime:pdc-reference-vehicle_lifecycle_resolver_revision",
+            "realtime:pdc-reference-workshop_bays",
+            "realtime:pdc-reference-workshop_settings",
+            "realtime:pdc-reference-workshop_technicians",
+            "realtime:pdc_auditor_revision_read_only",
+            "realtime:pdc_navision_visible_revision",
+            "realtime:pdc_user_roles_own_row:administrator2@staging.pdc-workshop.example.com"
+          ]
+        },
+        "controller": {
+          "auditorCount": 1,
+          "count": 10,
+          "states": [
+            "joined",
+            "joined",
+            "joined",
+            "joined",
+            "joined",
+            "joined",
+            "joined",
+            "joined",
+            "joined",
+            "joined"
+          ],
+          "topics": [
+            "realtime:pdc-reference-pdc_email_vehicle_revision",
+            "realtime:pdc-reference-salespeople",
+            "realtime:pdc-reference-sublet_providers",
+            "realtime:pdc-reference-vehicle_lifecycle_resolver_revision",
+            "realtime:pdc-reference-workshop_bays",
+            "realtime:pdc-reference-workshop_settings",
+            "realtime:pdc-reference-workshop_technicians",
+            "realtime:pdc_auditor_revision_read_only",
+            "realtime:pdc_navision_visible_revision",
+            "realtime:pdc_user_roles_own_row:controllerb@staging.pdc-workshop.example.com"
+          ]
+        },
+        "viewer": {
+          "auditorCount": 1,
+          "count": 5,
+          "states": [
+            "joined",
+            "joined",
+            "joined",
+            "joined",
+            "joined"
+          ],
+          "topics": [
+            "realtime:pdc-reference-pdc_email_vehicle_revision",
+            "realtime:pdc-reference-vehicle_lifecycle_resolver_revision",
+            "realtime:pdc_auditor_revision_read_only",
+            "realtime:pdc_navision_visible_revision",
+            "realtime:pdc_user_roles_own_row:viewer@staging.pdc-workshop.example.com"
+          ]
+        }
+      },
+      "after_teardown": {
+        "administrator": {
+          "auditorCount": 0,
+          "count": 10,
+          "states": [
+            "joined",
+            "joined",
+            "joined",
+            "joined",
+            "joined",
+            "joined",
+            "joined",
+            "joined",
+            "joined",
+            "joined"
+          ],
+          "topics": [
+            "realtime:pdc-reference-pdc_ai_intake_revision",
+            "realtime:pdc-reference-pdc_email_vehicle_revision",
+            "realtime:pdc-reference-salespeople",
+            "realtime:pdc-reference-sublet_providers",
+            "realtime:pdc-reference-vehicle_lifecycle_resolver_revision",
+            "realtime:pdc-reference-workshop_bays",
+            "realtime:pdc-reference-workshop_settings",
+            "realtime:pdc-reference-workshop_technicians",
+            "realtime:pdc_navision_visible_revision",
+            "realtime:pdc_user_roles_own_row:administrator2@staging.pdc-workshop.example.com"
+          ]
+        },
+        "controller": {
+          "auditorCount": 0,
+          "count": 9,
+          "states": [
+            "joined",
+            "joined",
+            "joined",
+            "joined",
+            "joined",
+            "joined",
+            "joined",
+            "joined",
+            "joined"
+          ],
+          "topics": [
+            "realtime:pdc-reference-pdc_email_vehicle_revision",
+            "realtime:pdc-reference-salespeople",
+            "realtime:pdc-reference-sublet_providers",
+            "realtime:pdc-reference-vehicle_lifecycle_resolver_revision",
+            "realtime:pdc-reference-workshop_bays",
+            "realtime:pdc-reference-workshop_settings",
+            "realtime:pdc-reference-workshop_technicians",
+            "realtime:pdc_navision_visible_revision",
+            "realtime:pdc_user_roles_own_row:controllerb@staging.pdc-workshop.example.com"
+          ]
+        },
+        "viewer": {
+          "auditorCount": 0,
+          "count": 4,
+          "states": [
+            "joined",
+            "joined",
+            "joined",
+            "joined"
+          ],
+          "topics": [
+            "realtime:pdc-reference-pdc_email_vehicle_revision",
+            "realtime:pdc-reference-vehicle_lifecycle_resolver_revision",
+            "realtime:pdc_navision_visible_revision",
+            "realtime:pdc_user_roles_own_row:viewer@staging.pdc-workshop.example.com"
+          ]
+        }
+      },
+      "initial": {
+        "administrator": {
+          "auditorCount": 1,
+          "count": 11,
+          "states": [
+            "joined",
+            "joined",
+            "joined",
+            "joined",
+            "joined",
+            "joined",
+            "joined",
+            "joined",
+            "joined",
+            "joined",
+            "joined"
+          ],
+          "topics": [
+            "realtime:pdc-reference-pdc_ai_intake_revision",
+            "realtime:pdc-reference-pdc_email_vehicle_revision",
+            "realtime:pdc-reference-salespeople",
+            "realtime:pdc-reference-sublet_providers",
+            "realtime:pdc-reference-vehicle_lifecycle_resolver_revision",
+            "realtime:pdc-reference-workshop_bays",
+            "realtime:pdc-reference-workshop_settings",
+            "realtime:pdc-reference-workshop_technicians",
+            "realtime:pdc_auditor_revision_read_only",
+            "realtime:pdc_navision_visible_revision",
+            "realtime:pdc_user_roles_own_row:administrator2@staging.pdc-workshop.example.com"
+          ]
+        },
+        "controller": {
+          "auditorCount": 1,
+          "count": 10,
+          "states": [
+            "joined",
+            "joined",
+            "joined",
+            "joined",
+            "joined",
+            "joined",
+            "joined",
+            "joined",
+            "joined",
+            "joined"
+          ],
+          "topics": [
+            "realtime:pdc-reference-pdc_email_vehicle_revision",
+            "realtime:pdc-reference-salespeople",
+            "realtime:pdc-reference-sublet_providers",
+            "realtime:pdc-reference-vehicle_lifecycle_resolver_revision",
+            "realtime:pdc-reference-workshop_bays",
+            "realtime:pdc-reference-workshop_settings",
+            "realtime:pdc-reference-workshop_technicians",
+            "realtime:pdc_auditor_revision_read_only",
+            "realtime:pdc_navision_visible_revision",
+            "realtime:pdc_user_roles_own_row:controllerb@staging.pdc-workshop.example.com"
+          ]
+        },
+        "viewer": {
+          "auditorCount": 1,
+          "count": 5,
+          "states": [
+            "joined",
+            "joined",
+            "joined",
+            "joined",
+            "joined"
+          ],
+          "topics": [
+            "realtime:pdc-reference-pdc_email_vehicle_revision",
+            "realtime:pdc-reference-vehicle_lifecycle_resolver_revision",
+            "realtime:pdc_auditor_revision_read_only",
+            "realtime:pdc_navision_visible_revision",
+            "realtime:pdc_user_roles_own_row:viewer@staging.pdc-workshop.example.com"
+          ]
+        }
+      },
+      "joined_samples": {
+        "administrator": 1,
+        "controller": 1,
+        "viewer": 1
+      }
+    },
+    "role_views": {
+      "administrator": true,
+      "controller": true,
+      "runtime_roles": {
+        "administrator": "administrator",
+        "controller": "operator",
+        "viewer": "viewer"
+      },
+      "viewer": true
+    },
+    "sanitized_authoritative_snapshots": {
+      "administrator": {
+        "forbiddenKeys": [],
+        "serializedBytes": 329488,
+        "topLevelKeys": [
+          "active_rule_configs",
+          "as_of",
+          "code",
+          "dealer_code",
+          "environment",
+          "generated_at",
+          "has_more",
+          "items",
+          "next_vehicle_id",
+          "ok",
+          "operational_revision",
+          "page_manifest",
+          "page_size",
+          "relationship_semantics",
+          "resources",
+          "response_revision",
+          "revision",
+          "rule_set_hash",
+          "snapshot_contract_version",
+          "source_revisions",
+          "station_compatibility",
+          "vehicles",
+          "working_calendar"
+        ]
+      },
+      "controller": {
+        "forbiddenKeys": [],
+        "serializedBytes": 329488,
+        "topLevelKeys": [
+          "active_rule_configs",
+          "as_of",
+          "code",
+          "dealer_code",
+          "environment",
+          "generated_at",
+          "has_more",
+          "items",
+          "next_vehicle_id",
+          "ok",
+          "operational_revision",
+          "page_manifest",
+          "page_size",
+          "relationship_semantics",
+          "resources",
+          "response_revision",
+          "revision",
+          "rule_set_hash",
+          "snapshot_contract_version",
+          "source_revisions",
+          "station_compatibility",
+          "vehicles",
+          "working_calendar"
+        ]
+      },
+      "viewer": {
+        "forbiddenKeys": [],
+        "serializedBytes": 479834,
+        "topLevelKeys": [
+          "active_rule_configs",
+          "as_of",
+          "code",
+          "dealer_code",
+          "environment",
+          "generated_at",
+          "has_more",
+          "items",
+          "next_vehicle_id",
+          "ok",
+          "operational_revision",
+          "page_manifest",
+          "page_size",
+          "relationship_semantics",
+          "resources",
+          "response_revision",
+          "revision",
+          "rule_set_hash",
+          "snapshot_contract_version",
+          "source_revisions",
+          "station_compatibility",
+          "vehicles",
+          "working_calendar"
+        ]
+      }
+    },
+    "viewer_denials": {
+      "config_status": 403,
+      "cross_dealer_rows": 0,
+      "direct_mutation_status": 403,
+      "operational_rpc_status": 403,
+      "submission_code": "22023",
+      "submission_status": 400
+    }
+  },
+  "migration_ledger_modified": false,
+  "operational_after": {
+    "audit_events": {
+      "md5": "a27af766877b0482a9f6525217153cc7",
+      "rows": 1455
+    },
+    "navision_backend_records": {
+      "md5": "d9217a138314a291943d265c324481e0",
+      "rows": 1013
+    },
+    "navision_backend_revision": {
+      "md5": "d584ca42f8a4ca39d9e08a2fd78f90c8",
+      "rows": 1
+    },
+    "pdc_ai_intake_history": {
+      "md5": "faf1337b49b5f05917862d2a2cc26abc",
+      "rows": 220
+    },
+    "pdc_ai_intake_proposals": {
+      "md5": "c2fc0f474787be00e39570eae8fe42be",
+      "rows": 122
+    },
+    "pdc_ai_intake_revision": {
+      "md5": "8923afd3a65d2d593f0d95867d0d9cbc",
+      "rows": 1
+    },
+    "pdc_authenticated_email_operation_lines": {
+      "md5": "eb53085392bd68f6132a5291cc1f9d88",
+      "rows": 244
+    },
+    "pdc_email_vehicle_revision": {
+      "md5": "ed759949a6bb354321f20607becffb54",
+      "rows": 1
+    },
+    "pdc_staging_environment_sentinel": {
+      "md5": "72d8128c31a31b3a6f7740ef1f60118a",
+      "rows": 1
+    },
+    "pdc_sublet_bookings": {
+      "md5": "e1bad08cff06526ca72aafb002ac5305",
+      "rows": 4
+    },
+    "pdc_user_roles": {
+      "md5": "e5d8c4e28adf632a3e6eb1a172e9c7f6",
+      "rows": 7
+    },
+    "vehicle_aliases": {
+      "md5": "d372a9c3b1c6cad7eddfc404cdee9008",
+      "rows": 152
+    },
+    "vehicle_lifecycle_resolver_revision": {
+      "md5": "47bbeb20e5e5aeec32647663346b0c39",
+      "rows": 1
+    },
+    "vehicle_master_history": {
+      "md5": "8beaac0ef87b6a54f8bc0ceb965b3879",
+      "rows": 733
+    },
+    "vehicle_master_revision": {
+      "md5": "f7088e5463a84d5ebd00aa69d6e68417",
+      "rows": 1
+    },
+    "vehicle_master_source_records": {
+      "md5": "e89209cfca1064ce2922aa337fcdb878",
+      "rows": 152
+    },
+    "vehicle_movements": {
+      "md5": "d41d8cd98f00b204e9800998ecf8427e",
+      "rows": 0
+    },
+    "vehicle_notifications": {
+      "md5": "d41d8cd98f00b204e9800998ecf8427e",
+      "rows": 0
+    },
+    "vehicle_parts_updates": {
+      "md5": "6a94b4a043ccd0385597e468bb23d583",
+      "rows": 65
+    },
+    "vehicle_sublet_providers": {
+      "md5": "d41d8cd98f00b204e9800998ecf8427e",
+      "rows": 0
+    },
+    "vehicle_work_items": {
+      "md5": "d58887877570a010ab8ffefe6002a67e",
+      "rows": 365
+    },
+    "vehicle_workshop_line_adjustments": {
+      "md5": "615330a224b07c6459df385ecfdf2c35",
+      "rows": 16
+    },
+    "vehicles": {
+      "md5": "8a25de5e842e1f2c6d06bafc0395a837",
+      "rows": 220
+    },
+    "workshop_bays": {
+      "md5": "43cf7235047182e69b71ec864cd61257",
+      "rows": 45
+    },
+    "workshop_booking_assignments": {
+      "md5": "d41d8cd98f00b204e9800998ecf8427e",
+      "rows": 0
+    },
+    "workshop_booking_history": {
+      "md5": "b129e7b08d3030aa4f6c3d663c2f27ed",
+      "rows": 150
+    },
+    "workshop_bookings": {
+      "md5": "03df006e0122e14298ae691ab23958ff",
+      "rows": 52
+    },
+    "workshop_revision": {
+      "md5": "43a7320b3fd1969e5974be87b7e62013",
+      "rows": 1
+    },
+    "workshop_settings": {
+      "md5": "7953a68d16d58553725fc970c8dba4a1",
+      "rows": 9
+    },
+    "workshop_stages": {
+      "md5": "10b00138a6102ff649e969b6960b24b7",
+      "rows": 9
+    },
+    "workshop_station_revision": {
+      "md5": "59bf2bf4ece17a11f2a8f3a4360e14f6",
+      "rows": 9
+    },
+    "workshop_technicians": {
+      "md5": "856b502bc51eec1409c70198e1c99305",
+      "rows": 5
+    }
+  },
+  "operational_before": {
+    "audit_events": {
+      "md5": "a27af766877b0482a9f6525217153cc7",
+      "rows": 1455
+    },
+    "navision_backend_records": {
+      "md5": "d9217a138314a291943d265c324481e0",
+      "rows": 1013
+    },
+    "navision_backend_revision": {
+      "md5": "d584ca42f8a4ca39d9e08a2fd78f90c8",
+      "rows": 1
+    },
+    "pdc_ai_intake_history": {
+      "md5": "faf1337b49b5f05917862d2a2cc26abc",
+      "rows": 220
+    },
+    "pdc_ai_intake_proposals": {
+      "md5": "c2fc0f474787be00e39570eae8fe42be",
+      "rows": 122
+    },
+    "pdc_ai_intake_revision": {
+      "md5": "8923afd3a65d2d593f0d95867d0d9cbc",
+      "rows": 1
+    },
+    "pdc_authenticated_email_operation_lines": {
+      "md5": "eb53085392bd68f6132a5291cc1f9d88",
+      "rows": 244
+    },
+    "pdc_email_vehicle_revision": {
+      "md5": "ed759949a6bb354321f20607becffb54",
+      "rows": 1
+    },
+    "pdc_staging_environment_sentinel": {
+      "md5": "72d8128c31a31b3a6f7740ef1f60118a",
+      "rows": 1
+    },
+    "pdc_sublet_bookings": {
+      "md5": "e1bad08cff06526ca72aafb002ac5305",
+      "rows": 4
+    },
+    "pdc_user_roles": {
+      "md5": "e5d8c4e28adf632a3e6eb1a172e9c7f6",
+      "rows": 7
+    },
+    "vehicle_aliases": {
+      "md5": "d372a9c3b1c6cad7eddfc404cdee9008",
+      "rows": 152
+    },
+    "vehicle_lifecycle_resolver_revision": {
+      "md5": "47bbeb20e5e5aeec32647663346b0c39",
+      "rows": 1
+    },
+    "vehicle_master_history": {
+      "md5": "8beaac0ef87b6a54f8bc0ceb965b3879",
+      "rows": 733
+    },
+    "vehicle_master_revision": {
+      "md5": "f7088e5463a84d5ebd00aa69d6e68417",
+      "rows": 1
+    },
+    "vehicle_master_source_records": {
+      "md5": "e89209cfca1064ce2922aa337fcdb878",
+      "rows": 152
+    },
+    "vehicle_movements": {
+      "md5": "d41d8cd98f00b204e9800998ecf8427e",
+      "rows": 0
+    },
+    "vehicle_notifications": {
+      "md5": "d41d8cd98f00b204e9800998ecf8427e",
+      "rows": 0
+    },
+    "vehicle_parts_updates": {
+      "md5": "6a94b4a043ccd0385597e468bb23d583",
+      "rows": 65
+    },
+    "vehicle_sublet_providers": {
+      "md5": "d41d8cd98f00b204e9800998ecf8427e",
+      "rows": 0
+    },
+    "vehicle_work_items": {
+      "md5": "d58887877570a010ab8ffefe6002a67e",
+      "rows": 365
+    },
+    "vehicle_workshop_line_adjustments": {
+      "md5": "615330a224b07c6459df385ecfdf2c35",
+      "rows": 16
+    },
+    "vehicles": {
+      "md5": "8a25de5e842e1f2c6d06bafc0395a837",
+      "rows": 220
+    },
+    "workshop_bays": {
+      "md5": "43cf7235047182e69b71ec864cd61257",
+      "rows": 45
+    },
+    "workshop_booking_assignments": {
+      "md5": "d41d8cd98f00b204e9800998ecf8427e",
+      "rows": 0
+    },
+    "workshop_booking_history": {
+      "md5": "b129e7b08d3030aa4f6c3d663c2f27ed",
+      "rows": 150
+    },
+    "workshop_bookings": {
+      "md5": "03df006e0122e14298ae691ab23958ff",
+      "rows": 52
+    },
+    "workshop_revision": {
+      "md5": "43a7320b3fd1969e5974be87b7e62013",
+      "rows": 1
+    },
+    "workshop_settings": {
+      "md5": "7953a68d16d58553725fc970c8dba4a1",
+      "rows": 9
+    },
+    "workshop_stages": {
+      "md5": "10b00138a6102ff649e969b6960b24b7",
+      "rows": 9
+    },
+    "workshop_station_revision": {
+      "md5": "59bf2bf4ece17a11f2a8f3a4360e14f6",
+      "rows": 9
+    },
+    "workshop_technicians": {
+      "md5": "856b502bc51eec1409c70198e1c99305",
+      "rows": 5
+    }
+  },
+  "operational_unchanged": true,
+  "performance": {
+    "deterministic_audit": {
+      "max_ms": 4.7,
+      "p50_ms": 2.4,
+      "p95_ms": 3.5,
+      "samples": 100
+    },
+    "dom_refresh": {
+      "after": {
+        "evidence": 113,
+        "findings": 113,
+        "nodes": 19932
+      },
+      "before": {
+        "evidence": 113,
+        "findings": 113,
+        "nodes": 19932
+      },
+      "node_growth": 0,
+      "samples": 20
+    },
+    "evidence_open": {
+      "max_ms": 0,
+      "p50_ms": 0.0,
+      "p95_ms": 0.0,
+      "samples": 50
+    },
+    "filter_response": {
+      "max_ms": 3,
+      "p50_ms": 1.9,
+      "p95_ms": 2.2,
+      "samples": 100
+    },
+    "initial_page_render": {
+      "max_ms": 2420.59,
+      "p50_ms": 2138.47,
+      "p95_ms": 2392.38,
+      "samples": 3
+    },
+    "memory_refresh": {
+      "first_bytes": 18200000,
+      "growth_bytes": 0,
+      "last_bytes": 18200000,
+      "samples": 20
+    },
+    "realtime_convergence": {
+      "max_ms": 268.37,
+      "samples": 1
+    },
+    "snapshot_rpc": {
+      "max_ms": 461.1,
+      "p50_ms": 322.1,
+      "p95_ms": 364.67,
+      "samples": 20
+    },
+    "vehicle_detail": {
+      "max_ms": 84.43,
+      "samples": 1
+    }
+  },
+  "roles": {
+    "administrator": {
+      "dealer": "14450",
+      "ids": [
+        "rec_26b1017a0142cd52",
+        "rec_3b3b901d2725afc4",
+        "rec_a5b3e627ec7bea49",
+        "rec_ee70cb3d3d804f22",
+        "rec_42152858b23a5565",
+        "rec_4a925212de2b4d42",
+        "rec_6f0435847528bb8c",
+        "rec_cb5adbd5e5a168ee",
+        "rec_8bf1ec607db60339",
+        "rec_db02af0a9d370b63",
+        "rec_945eabe0a8ca1b20",
+        "rec_2e3b8baf1c604e3d",
+        "rec_371b3f0f1d67de78",
+        "rec_6f2154cce0c9a9db",
+        "rec_73562829449ad89d",
+        "rec_89605ebdcf4fa654",
+        "rec_9d879f9aa5c6497e",
+        "rec_a940bfeac479dcc8",
+        "rec_ad5d50d907b13716",
+        "rec_c576a74be2a7e2ea",
+        "rec_c8894b67c3156fcf",
+        "rec_dd723d9b64b8343c",
+        "rec_dfbf30b0f820424d",
+        "rec_03b71ae2e468be9f",
+        "rec_0a72e9facb9efabd",
+        "rec_0e870094a06ed955",
+        "rec_108ff50c5f857611",
+        "rec_1700d9ddee2094ee",
+        "rec_180cbf0cee1a10ac",
+        "rec_1b371be17cd0fa51",
+        "rec_1fc3e7a230a88f14",
+        "rec_234b5ed0cab33067",
+        "rec_25ddb8845d78e551",
+        "rec_262e20568302c5c5",
+        "rec_34d3b19679809f00",
+        "rec_38ebda395bbc90df",
+        "rec_3d5717e34b9b1134",
+        "rec_45ea3f13fd470302",
+        "rec_460a6bdea8e5966f",
+        "rec_461c02eb7b6dae01",
+        "rec_511de7a8699be2ec",
+        "rec_536bb44d0baea41c",
+        "rec_53c8284f83a8dd33",
+        "rec_55879495c10cc419",
+        "rec_558e1d9013cf3e8a",
+        "rec_56f252f6daf4d0ee",
+        "rec_576c973d9f4a5815",
+        "rec_5cc1b7291aae03dc",
+        "rec_60a750cf3bddf1e0",
+        "rec_6308a40e545eb347",
+        "rec_76a31b6ae5fb0a4f",
+        "rec_7b6876a857ad928d",
+        "rec_7c851549efc63083",
+        "rec_817155df5ea0dc39",
+        "rec_83210cfec3bf2f98",
+        "rec_87dbb9491fb34c33",
+        "rec_8bca04b6235599dd",
+        "rec_955628f74e3098ec",
+        "rec_9a6f3550f9a83a9c",
+        "rec_a423c5db550ce744",
+        "rec_a7951c61191a3935",
+        "rec_a8e18b782a24275b",
+        "rec_aa40eddd27d04133",
+        "rec_ae463470c5f86140",
+        "rec_af55fdc236585410",
+        "rec_b1ff985f833154b8",
+        "rec_bdcb7e46736fc7e0",
+        "rec_c032fb28d8283d68",
+        "rec_c3cb0b2472f8df8f",
+        "rec_c64c0de627facd8c",
+        "rec_cc13b0344e24e414",
+        "rec_d03196bfb28efeb4",
+        "rec_d07f9ec9cad61484",
+        "rec_d19eff4065bd84c2",
+        "rec_d3947940ed11c55c",
+        "rec_d4896916cd41729d",
+        "rec_d6c92f4abd008758",
+        "rec_d83cb1bc76942d14",
+        "rec_dba6e711a3a6f267",
+        "rec_dd3cb202de3009bb",
+        "rec_e27b705fd951231a",
+        "rec_e9557b4c0bc8f84a",
+        "rec_efa72d1cbeb0e207",
+        "rec_f17edc5aca5255a7",
+        "rec_f24bd52ee03a2298",
+        "rec_f97beb86ac64f7d0",
+        "rec_fbfb6957942166d0",
+        "rec_fc1993e1a1d11836",
+        "rec_fca753c634b29a94",
+        "rec_fe8bd1e4b623bddb",
+        "rec_0e0a940a43a42782",
+        "rec_143b597b66469d8e",
+        "rec_16dbd46932534246",
+        "rec_216671211806784e",
+        "rec_37ad6ac9e64d933b",
+        "rec_5ac818cc42909519",
+        "rec_5f743e67a0c570e7",
+        "rec_6dd53f125d611530",
+        "rec_744bf3e4a3209640",
+        "rec_7624af04f864f658",
+        "rec_79c296df70102f45",
+        "rec_8f884e4313800555",
+        "rec_a518a8e9702662a6",
+        "rec_a988852d8de303b1",
+        "rec_b1f69da0bda737ca",
+        "rec_b45a1f0fdcfc76e0",
+        "rec_c29865a302467cb7",
+        "rec_eb0fc40ef24d244f",
+        "rec_ed27b142b7748d8f",
+        "rec_ee43713ccc416667",
+        "rec_eeee93b3c176e297",
+        "rec_f6588a827f483629",
+        "rec_f97c6b0b85341482"
+      ],
+      "localAuthorityKeys": [],
+      "revision": "d69f41155a2d2f55c662e79a2894cfa9385427f6eff208f435d6a6dfd0155955",
+      "role": "administrator",
+      "state": "ready",
+      "totals": [
+        "8",
+        "1",
+        "4",
+        "67",
+        "23",
+        "0",
+        "0",
+        "12",
+        "0",
+        "113"
+      ]
+    },
+    "controller": {
+      "dealer": "14450",
+      "ids": [
+        "rec_26b1017a0142cd52",
+        "rec_3b3b901d2725afc4",
+        "rec_a5b3e627ec7bea49",
+        "rec_ee70cb3d3d804f22",
+        "rec_42152858b23a5565",
+        "rec_4a925212de2b4d42",
+        "rec_6f0435847528bb8c",
+        "rec_cb5adbd5e5a168ee",
+        "rec_8bf1ec607db60339",
+        "rec_db02af0a9d370b63",
+        "rec_945eabe0a8ca1b20",
+        "rec_2e3b8baf1c604e3d",
+        "rec_371b3f0f1d67de78",
+        "rec_6f2154cce0c9a9db",
+        "rec_73562829449ad89d",
+        "rec_89605ebdcf4fa654",
+        "rec_9d879f9aa5c6497e",
+        "rec_a940bfeac479dcc8",
+        "rec_ad5d50d907b13716",
+        "rec_c576a74be2a7e2ea",
+        "rec_c8894b67c3156fcf",
+        "rec_dd723d9b64b8343c",
+        "rec_dfbf30b0f820424d",
+        "rec_03b71ae2e468be9f",
+        "rec_0a72e9facb9efabd",
+        "rec_0e870094a06ed955",
+        "rec_108ff50c5f857611",
+        "rec_1700d9ddee2094ee",
+        "rec_180cbf0cee1a10ac",
+        "rec_1b371be17cd0fa51",
+        "rec_1fc3e7a230a88f14",
+        "rec_234b5ed0cab33067",
+        "rec_25ddb8845d78e551",
+        "rec_262e20568302c5c5",
+        "rec_34d3b19679809f00",
+        "rec_38ebda395bbc90df",
+        "rec_3d5717e34b9b1134",
+        "rec_45ea3f13fd470302",
+        "rec_460a6bdea8e5966f",
+        "rec_461c02eb7b6dae01",
+        "rec_511de7a8699be2ec",
+        "rec_536bb44d0baea41c",
+        "rec_53c8284f83a8dd33",
+        "rec_55879495c10cc419",
+        "rec_558e1d9013cf3e8a",
+        "rec_56f252f6daf4d0ee",
+        "rec_576c973d9f4a5815",
+        "rec_5cc1b7291aae03dc",
+        "rec_60a750cf3bddf1e0",
+        "rec_6308a40e545eb347",
+        "rec_76a31b6ae5fb0a4f",
+        "rec_7b6876a857ad928d",
+        "rec_7c851549efc63083",
+        "rec_817155df5ea0dc39",
+        "rec_83210cfec3bf2f98",
+        "rec_87dbb9491fb34c33",
+        "rec_8bca04b6235599dd",
+        "rec_955628f74e3098ec",
+        "rec_9a6f3550f9a83a9c",
+        "rec_a423c5db550ce744",
+        "rec_a7951c61191a3935",
+        "rec_a8e18b782a24275b",
+        "rec_aa40eddd27d04133",
+        "rec_ae463470c5f86140",
+        "rec_af55fdc236585410",
+        "rec_b1ff985f833154b8",
+        "rec_bdcb7e46736fc7e0",
+        "rec_c032fb28d8283d68",
+        "rec_c3cb0b2472f8df8f",
+        "rec_c64c0de627facd8c",
+        "rec_cc13b0344e24e414",
+        "rec_d03196bfb28efeb4",
+        "rec_d07f9ec9cad61484",
+        "rec_d19eff4065bd84c2",
+        "rec_d3947940ed11c55c",
+        "rec_d4896916cd41729d",
+        "rec_d6c92f4abd008758",
+        "rec_d83cb1bc76942d14",
+        "rec_dba6e711a3a6f267",
+        "rec_dd3cb202de3009bb",
+        "rec_e27b705fd951231a",
+        "rec_e9557b4c0bc8f84a",
+        "rec_efa72d1cbeb0e207",
+        "rec_f17edc5aca5255a7",
+        "rec_f24bd52ee03a2298",
+        "rec_f97beb86ac64f7d0",
+        "rec_fbfb6957942166d0",
+        "rec_fc1993e1a1d11836",
+        "rec_fca753c634b29a94",
+        "rec_fe8bd1e4b623bddb",
+        "rec_0e0a940a43a42782",
+        "rec_143b597b66469d8e",
+        "rec_16dbd46932534246",
+        "rec_216671211806784e",
+        "rec_37ad6ac9e64d933b",
+        "rec_5ac818cc42909519",
+        "rec_5f743e67a0c570e7",
+        "rec_6dd53f125d611530",
+        "rec_744bf3e4a3209640",
+        "rec_7624af04f864f658",
+        "rec_79c296df70102f45",
+        "rec_8f884e4313800555",
+        "rec_a518a8e9702662a6",
+        "rec_a988852d8de303b1",
+        "rec_b1f69da0bda737ca",
+        "rec_b45a1f0fdcfc76e0",
+        "rec_c29865a302467cb7",
+        "rec_eb0fc40ef24d244f",
+        "rec_ed27b142b7748d8f",
+        "rec_ee43713ccc416667",
+        "rec_eeee93b3c176e297",
+        "rec_f6588a827f483629",
+        "rec_f97c6b0b85341482"
+      ],
+      "localAuthorityKeys": [],
+      "revision": "d69f41155a2d2f55c662e79a2894cfa9385427f6eff208f435d6a6dfd0155955",
+      "role": "operator",
+      "state": "ready",
+      "totals": [
+        "8",
+        "1",
+        "4",
+        "67",
+        "23",
+        "0",
+        "0",
+        "12",
+        "0",
+        "113"
+      ]
+    },
+    "viewer": {
+      "dealer": "37047",
+      "ids": [
+        "rec_0e8d66dd8c510e1d",
+        "rec_1a4ea84d016da196",
+        "rec_4be873aad616bd42",
+        "rec_881025e5609473b1",
+        "rec_bf998c4ac1295001",
+        "rec_edc65f1ba6df443b",
+        "rec_f0598ea50af6863a",
+        "rec_6471005cbe46797e",
+        "rec_9d6c8390fca02ecb",
+        "rec_c3eb859201eed177",
+        "rec_cc1d34836530fa97",
+        "rec_e1eaedf664de9e35",
+        "rec_e41faf093ab0598f",
+        "rec_0a6b0a6ac42c79ca",
+        "rec_847ea314309e6e2d",
+        "rec_408f0e0900b6af56",
+        "rec_62044b0024ea20e0",
+        "rec_876156178631041b",
+        "rec_aefad02aa01f24ec",
+        "rec_b94fd7ed7247fb7f",
+        "rec_1ef0fe3ad325dcb8",
+        "rec_2767343e42e8eeb9",
+        "rec_2c2d834fede8ecfd",
+        "rec_3b5d5ffb7d9c5275",
+        "rec_415dd7a4084c846e",
+        "rec_461a7d65202096d3",
+        "rec_484670b52f21b721",
+        "rec_4a5b8116109720f6",
+        "rec_4e1306e7624d01d9",
+        "rec_57367ff0b2698031",
+        "rec_60abd708c1198034",
+        "rec_6468cf78d2b9a14c",
+        "rec_714663d2ece37148",
+        "rec_7a6ac991eddb4ddd",
+        "rec_9dbf113fbf358eff",
+        "rec_bf40184a015cc597",
+        "rec_ce684cd05bc540ad",
+        "rec_e6a058c2c2b99fa1",
+        "rec_ec9fe9b58d8aa3ce",
+        "rec_f0872582304125b5",
+        "rec_049f5bbc574dad8e",
+        "rec_09c88658b3032d92",
+        "rec_0e4698f5bf661a3d",
+        "rec_178e5b686a6da5e6",
+        "rec_18d4f365b1fc0703",
+        "rec_19f45ed824a7388c",
+        "rec_1afaa7d23a71beb9",
+        "rec_23f8744a4a4babbc",
+        "rec_2a4b72dc2351eb5b",
+        "rec_2f057e1cc2cf1183",
+        "rec_347813c6b4d36d24",
+        "rec_364a39229ec1fb82",
+        "rec_3a557ba22553e246",
+        "rec_3b9a0ff2f0408bfc",
+        "rec_3f73891b1e4af724",
+        "rec_4088aaaf4e0e3522",
+        "rec_40f9d4880aa8cd49",
+        "rec_41b4ed5427fd7cc4",
+        "rec_41c17923c6928292",
+        "rec_445930b122518476",
+        "rec_49fa8447b1b02e6d",
+        "rec_4ffd488cda735d33",
+        "rec_512e40537fd51db9",
+        "rec_56ac730b60a9630e",
+        "rec_57fbbb2bcea85595",
+        "rec_5db5f1a80c385caf",
+        "rec_660e0e31971ad609",
+        "rec_664a180cfb491b88",
+        "rec_67e07048214232cc",
+        "rec_6888d23557a24547",
+        "rec_690b06b6012cdd9b",
+        "rec_69febfde6c358d13",
+        "rec_6dbfed4361474ddb",
+        "rec_6fcfad41deb377dc",
+        "rec_70b3d3c26be00c2a",
+        "rec_71328c8b7a3b087f",
+        "rec_733fd71070be7b58",
+        "rec_74c0ce9ba1b3712a",
+        "rec_78bd9f66db1c3a36",
+        "rec_7df2a08c93a2e7c3",
+        "rec_8190c0bbada0af9b",
+        "rec_8857d645396e7d5b",
+        "rec_88861667c4d15fa7",
+        "rec_8d49d010fc06c2df",
+        "rec_8d9a269067749223",
+        "rec_8dc379fdc18b34d3",
+        "rec_8f4fa34560784ab4",
+        "rec_96007f1e4bc973a3",
+        "rec_9667f3c5d38dea92",
+        "rec_99883e759246c2d3",
+        "rec_9b5db1f0b2423c09",
+        "rec_a04bbc61482b1213",
+        "rec_a0d6594c15313aa3",
+        "rec_a3df636cb20eb890",
+        "rec_a57946c9a677b7e2",
+        "rec_af0ef00374ef5247",
+        "rec_b4ef09da067312a8",
+        "rec_b5c4224052948658",
+        "rec_b6695c6c3a617cd9",
+        "rec_b6cd5210680da46e",
+        "rec_b766dbe7cac7ef68",
+        "rec_bba8f065b0358084",
+        "rec_bcb967ea668e79b6",
+        "rec_bf414fb022d41676",
+        "rec_c21e2512dc452184",
+        "rec_c5d9dac38a9d345d",
+        "rec_c8bf9ffe2175bed5",
+        "rec_cd01b9c43bd9219f",
+        "rec_cda466dc4758e914",
+        "rec_cf08b9c40e2bb809",
+        "rec_cf5254443baae393",
+        "rec_d384b4aecca9fdac",
+        "rec_d420720d18936747",
+        "rec_da6955a5f70a246b",
+        "rec_de9fab3101f1c92e",
+        "rec_eaf0ea986d32d6f7",
+        "rec_f18b196a0788fb27",
+        "rec_f2b95608a5388886",
+        "rec_f3dac4baca10a472",
+        "rec_f4ed2c0e796ca579",
+        "rec_fdb290b1752cfd30",
+        "rec_fee0783f22825d13",
+        "rec_ff56d4cc62d09619",
+        "rec_ffd6a21ec4a49022",
+        "rec_06a1cf4278ed45e9",
+        "rec_082b0612967bc430",
+        "rec_138623df4fe34657",
+        "rec_15fc8386d664f726",
+        "rec_1660a1f7e0898d52",
+        "rec_1dfe02da65ee096f",
+        "rec_3b890b133f5a7bcb",
+        "rec_565403ddd990cdde",
+        "rec_5b6881dae2f5604f",
+        "rec_62ef71f0d0bcb94e",
+        "rec_733e9523e235eaea",
+        "rec_7961a9de96cc8e38",
+        "rec_83785a1c636e3618",
+        "rec_86c805abb66d154b",
+        "rec_8c6693ded31081a9",
+        "rec_92fb937086736506",
+        "rec_9472b430dc7ff06f",
+        "rec_ac532f8eacaec6ad",
+        "rec_c6aa18bd2e7b5687",
+        "rec_c8b50fc8d3bc26f5",
+        "rec_cb6b83578f156bf2",
+        "rec_d59107b916fc9f60",
+        "rec_ffd72a8c096d09e0"
+      ],
+      "localAuthorityKeys": [],
+      "revision": "f6129ebbfa15c22add2dd7a09ad27a6d33050077adbaf39f41a0cb863ee3bc29",
+      "role": "viewer",
+      "state": "ready",
+      "totals": [
+        "13",
+        "3",
+        "7",
+        "84",
+        "23",
+        "0",
+        "0",
+        "20",
+        "1",
+        "147"
+      ]
+    }
+  },
+  "screenshots": [
+    {
+      "captured_at": "2026-07-29T09:11:40.289633+00:00",
+      "dealer_code": "14450",
+      "file": "role-administrator-1920x1080.png",
+      "identity_redacted": true,
+      "role": "administrator",
+      "sha256": "19078ed9d050ae596ed709a827d1606ce3f4bc793af9af54585cecbcaf32483f",
+      "snapshot_revision": "d69f41155a2d2f55c662e79a2894cfa9385427f6eff208f435d6a6dfd0155955",
+      "viewport": {
+        "height": 1080,
+        "width": 1920
+      },
+      "zoom": 1.0
+    },
+    {
+      "captured_at": "2026-07-29T09:11:43.207888+00:00",
+      "dealer_code": "37047",
+      "file": "role-viewer-1920x1080.png",
+      "identity_redacted": true,
+      "role": "viewer",
+      "sha256": "40cbe4002added2caffba635566989353b5848f4e4e3e9fbd06ba15869314330",
+      "snapshot_revision": "f6129ebbfa15c22add2dd7a09ad27a6d33050077adbaf39f41a0cb863ee3bc29",
+      "viewport": {
+        "height": 1080,
+        "width": 1920
+      },
+      "zoom": 1.0
+    },
+    {
+      "captured_at": "2026-07-29T09:11:44.312553+00:00",
+      "dealer_code": "",
+      "file": "access-denied-authenticated-controller.png",
+      "identity_redacted": true,
+      "role": "controller",
+      "sha256": "e8af218cd3a3a3df85b401f0f1d43eb2553ace9167bb43d6789e285e2490c28f",
+      "snapshot_revision": "",
+      "viewport": {
+        "height": 1080,
+        "width": 1920
+      },
+      "zoom": 1.0
+    },
+    {
+      "captured_at": "2026-07-29T09:11:46.403197+00:00",
+      "dealer_code": "14450",
+      "file": "role-controller-1920x1080.png",
+      "identity_redacted": true,
+      "role": "controller",
+      "sha256": "f9b668ae0a305c1640c3e7512d3082ca79680ff6950976ebd7f145d73767c11c",
+      "snapshot_revision": "d69f41155a2d2f55c662e79a2894cfa9385427f6eff208f435d6a6dfd0155955",
+      "viewport": {
+        "height": 1080,
+        "width": 1920
+      },
+      "zoom": 1.0
+    },
+    {
+      "captured_at": "2026-07-29T09:12:12.015629+00:00",
+      "dealer_code": "14450",
+      "file": "summary-queue-1920x1080-zoom-100.png",
+      "identity_redacted": true,
+      "role": "administrator",
+      "sha256": "e6953e46238b9d47345de7b7ad98807d58e737ad51b05e7b54aea2800d22d127",
+      "snapshot_revision": "a615b6969dfb0c14e92435ded69488dbe8c993bb2e6716f6adfab3203bf03af8",
+      "viewport": {
+        "height": 1080,
+        "width": 1920
+      },
+      "zoom": 1.0
+    },
+    {
+      "captured_at": "2026-07-29T09:12:12.797793+00:00",
+      "dealer_code": "14450",
+      "file": "summary-queue-1366x768-zoom-100.png",
+      "identity_redacted": true,
+      "role": "administrator",
+      "sha256": "28e31e3c0e6bed27e0831a74d6dc40189527e8c612394e3e071d25bf9656b501",
+      "snapshot_revision": "a615b6969dfb0c14e92435ded69488dbe8c993bb2e6716f6adfab3203bf03af8",
+      "viewport": {
+        "height": 768,
+        "width": 1366
+      },
+      "zoom": 1.0
+    },
+    {
+      "captured_at": "2026-07-29T09:12:13.854305+00:00",
+      "dealer_code": "14450",
+      "file": "summary-queue-1920x1080-zoom-90.png",
+      "identity_redacted": true,
+      "role": "administrator",
+      "sha256": "786de934510d33ef35a0068a2835e328da4c914ea602183d18027492b823fff4",
+      "snapshot_revision": "a615b6969dfb0c14e92435ded69488dbe8c993bb2e6716f6adfab3203bf03af8",
+      "viewport": {
+        "height": 1080,
+        "width": 1920
+      },
+      "zoom": 0.9
+    },
+    {
+      "captured_at": "2026-07-29T09:12:14.955900+00:00",
+      "dealer_code": "14450",
+      "file": "summary-queue-1920x1080-zoom-110.png",
+      "identity_redacted": true,
+      "role": "administrator",
+      "sha256": "6814df68fe0cbf56d15b82a248c70d529c2c27e40885ffde9cfe63651f35fac8",
+      "snapshot_revision": "a615b6969dfb0c14e92435ded69488dbe8c993bb2e6716f6adfab3203bf03af8",
+      "viewport": {
+        "height": 1080,
+        "width": 1920
+      },
+      "zoom": 1.1
+    },
+    {
+      "captured_at": "2026-07-29T09:12:16.129392+00:00",
+      "dealer_code": "14450",
+      "file": "evidence-panel-1920x1080.png",
+      "identity_redacted": true,
+      "role": "administrator",
+      "sha256": "3789f6fca2f32845a7e4a0ff674f52bedd59d82f1d134e1dd48fb2b6d5ca572e",
+      "snapshot_revision": "a615b6969dfb0c14e92435ded69488dbe8c993bb2e6716f6adfab3203bf03af8",
+      "viewport": {
+        "height": 1080,
+        "width": 1920
+      },
+      "zoom": 1.0
+    },
+    {
+      "captured_at": "2026-07-29T09:12:17.287177+00:00",
+      "dealer_code": "14450",
+      "file": "vehicle-job-card-1920x1080.png",
+      "identity_redacted": true,
+      "role": "administrator",
+      "sha256": "f475f836b267b25e4c1378a67fcd7ba7fad24f74961be0301ddddd3bdfa9ebce",
+      "snapshot_revision": "a615b6969dfb0c14e92435ded69488dbe8c993bb2e6716f6adfab3203bf03af8",
+      "viewport": {
+        "height": 1080,
+        "width": 1920
+      },
+      "zoom": 1.0
+    },
+    {
+      "captured_at": "2026-07-29T09:12:17.635782+00:00",
+      "dealer_code": "14450",
+      "file": "empty-filter-state-1366x768.png",
+      "identity_redacted": true,
+      "role": "administrator",
+      "sha256": "d8650579ed013a7afe7f2bb068320d9c15a32c21bdcdfc7f561c4b2f9fd8f94b",
+      "snapshot_revision": "a615b6969dfb0c14e92435ded69488dbe8c993bb2e6716f6adfab3203bf03af8",
+      "viewport": {
+        "height": 768,
+        "width": 1366
+      },
+      "zoom": 1.0
+    },
+    {
+      "captured_at": "2026-07-29T09:12:18.666726+00:00",
+      "dealer_code": "",
+      "file": "loading-state-authenticated.png",
+      "identity_redacted": true,
+      "role": "administrator",
+      "sha256": "5da4ee2939f1c6ce83fcd40e55e68952624932e9f514a06404602873751d0b12",
+      "snapshot_revision": "",
+      "viewport": {
+        "height": 768,
+        "width": 1366
+      },
+      "zoom": 1.0
+    },
+    {
+      "captured_at": "2026-07-29T09:12:19.116548+00:00",
+      "dealer_code": "",
+      "file": "error-state-authenticated.png",
+      "identity_redacted": true,
+      "role": "administrator",
+      "sha256": "c28d7dcefe2e265992d136b1de5e66f310180032f2e6201a6c3a9cd6ed6eb2c1",
+      "snapshot_revision": "",
+      "viewport": {
+        "height": 768,
+        "width": 1366
+      },
+      "zoom": 1.0
+    }
+  ],
+  "started_at": "2026-07-29T09:11:28.392122+00:00",
+  "temporary_migration_committed": true,
+  "temporary_objects_absent": true,
+  "temporary_objects_after": {
+    "functions": 0,
+    "policies": 0,
+    "publication_members": 0,
+    "relations": 0,
+    "restore_schemas": 0,
+    "triggers": 0
+  },
+  "temporary_objects_before": {
+    "functions": 0,
+    "policies": 0,
+    "publication_members": 0,
+    "relations": 0,
+    "restore_schemas": 0,
+    "triggers": 0
+  }
+}
