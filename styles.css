@@ -12372,6 +12372,8 @@ button.vehicle-workshop-line-number:focus-visible { position: relative; z-index:
 
 .authenticated-email-operations li span { min-width: 0; overflow-wrap: anywhere; }
 .authenticated-email-operations li em { color: var(--text, #152238); font-style: normal; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.authenticated-email-operations li em.is-ai-estimate { color: #c2410c; font-weight: 800; }
+.authenticated-email-operations li em.is-ai-estimate .ai-estimate-label { display: block; color: #c2410c; font-size: 0.68rem; font-weight: 800; letter-spacing: 0.02em; text-transform: uppercase; }
 
 .incoming-vehicle-detail-grid .authenticated-email-operations {
   grid-column: 1 / -1 !important;

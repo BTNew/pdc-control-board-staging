@@ -7,18 +7,19 @@
   },
   "artifact": "zero-data static staging site",
   "backendOnlyMigrationSourceCommit": "adbd7e2c6b700a888532ead42e6cbc92508b7999",
-  "cacheVersion": "2026.07.29.07-compact-location-operations",
+  "hourProvenanceSourceCommit": "88ce1000d7b863ffb6b64a3a4b164340e105f3cd",
+  "cacheVersion": "2026.07.29.08-ai-hour-provenance",
   "deploymentMode": "exact reviewed source blobs; staging.html mapped to index.html",
   "environment": "staging",
-  "generatedAtUtc": "2026-07-29T01:05:20.297492Z",
+  "generatedAtUtc": "2026-07-29T01:27:40Z",
   "humanAiIntake": {
     "approvalGate": "Administrator decision remains server-validated; missing summaries disable Approve while Deny remains available.",
     "summary": "Prominent escaped email summary plus explicit Approve/Deny effects; each email is now a distinct white card separated by an 18px dark-grey gutter (12px on mobile)."
   },
   "migrationLedger": {
-    "appliedThrough": "108",
-    "evidence": "Staging-only migrations through 108 are applied and ledgered. Migration 106 atomically moves booked chips across bays; migration 107 preserves durable authenticated operation identity; migration 108 removes Pit inspection from Workshop bay scheduling while retaining its required-work/QC authority.",
-    "ledgerHead": "108",
+    "appliedThrough": "109",
+    "evidence": "Staging-only migrations through 109 are applied and ledgered. Migration 109 preserves durable operation identity, records job_card versus ai_estimate hour provenance, and keeps booking/completion/Parts authority unchanged.",
+    "ledgerHead": "109",
     "migrations": [
       "058",
       "059",
@@ -70,7 +71,8 @@
       "105",
       "106",
       "107",
-      "108"
+      "108",
+      "109"
     ]
   },
   "pendingStagingMigrations": [],
@@ -80,7 +82,7 @@
     "aiReviewDecisionContext": true,
     "aiReviewOverlayVersion": "2026.07.28.20-ai-review-card-separation",
     "authenticatedEmailOperationLines": "PASS \u2014 bounded parser recovered 12 canonical OP-numbered lines for Stock 13056899 / VIN ending 5877; migration 093 rollback dry-run and permanent staging apply passed; no booking or completion authority; replay and rendered-card verification pending at identity generation.",
-    "authenticatedOperationHours": "PASS \u2014 exact applied migration 104/105 sources are pinned by SHA-256; typed authenticated hours map to cards and render with an explicit missing-hours fallback.",
+    "authenticatedOperationHours": "PASS — explicit job-card hours win; migration 109 records job_card versus ai_estimate provenance; AI estimates render orange with an explicit label while job-card hours retain normal styling.",
     "backupRestore": "PASS \u2014 encrypted pre-migration backup 044a6581-e853-4223-886e-e46685e89265 restored into isolated schema with all row counts, 180 foreign keys, relationships and format/schema hashes matching; isolated schema dropped.",
     "browserPredeploy": "PASS \u2014 Administrator, Controller and Viewer each rendered 3 canonical required station cards, 3 described work lines, 3 unique station colours and 1 real booking link; exact Fitting booking deep-link selected the correct planner date and booking. Zero dialogs, console errors, HTTP errors or production requests.",
     "controlBoardPipeline": "PASS \u2014 the redundant description column is removed, the pipeline occupies the full middle width, and a fixed 16px gap separates it from the Planner button. Existing authoritative metrics are unchanged.",
@@ -100,7 +102,8 @@
     "migration096": "PASS \u2014 guarded rollback dry-run and permanent staging apply. Unique Stock 12708286 selected one current Navision row despite conflicting PDF identity; canonical Navision fields, additive required work, Parts, audit and idempotent receipt verified; no booking created; authenticated EXECUTE only; zero production access.",
     "migration106BookedChipCascade": "PASS \u2014 guarded rollback compile, permanent staging apply, already-applied checksum verification and rollback-only functional cross-bay rehearsal. The dropped planned chip kept its exact bay/time, one occupied planned chip shifted later with history/version updates, live work remained fixed, and production was untouched.",
     "migration107OperationIdentity": "PASS \u2014 guarded rollback rehearsal and permanent staging apply exposed each operation_line_id, remapped six unambiguous legacy adjustments with audit, found zero ambiguous adjustments, preserved protected operational signatures and left production untouched.",
-    "migration108PitPlannerRemoval": "PASS \u2014 rollback rehearsal and permanent staging apply found zero active Pit bookings, disabled the Pit planner/bay, preserved the Pit required-work/QC gate, and left protected operational signatures unchanged.",
+    "migration108PitPlannerRemoval": "PASS — rollback rehearsal and permanent staging apply found zero active Pit bookings, disabled the Pit planner/bay, preserved the Pit required-work/QC gate, and left protected operational signatures unchanged.",
+    "migration109HourProvenance": "PASS — rollback rehearsal and permanent staging apply preserved protected operational signatures; authenticated replay corrected Stock 13016934 OP5 to its 1.50 job-card hours, tagged three missing-hour values as AI estimates, created no booking, and left work/Parts completion unchanged.",
     "mixedDealerNavision": "A report containing both approved dealers is scoped server-side to the selected dealer only when every row carries known original Dealer evidence and the selected scope has at least 100 rows. Preview and Apply use identical filtering; other-dealer rows are reported and ignored, never imported into the selected scope.",
     "navisionFullReconciliationTimeout": "PASS \u2014 reproduced SQLSTATE 57014 with a complete 663-row source-evidence payload at the former 8-second API bound. The same atomic preview/apply completed in 5.969/13.875 seconds under the new 30-second signed-in staging bound and was rolled back. A separate authenticated HTTP 10-second probe returned 200; the probe function was then removed.",
     "navisionOperationalLocationCompletion": "PASS \u2014 canonical shared state drives Vehicle Locations and Completed Vehicles; ordinary reconciliation preserves PMB/PIT/QC/RFT/Completed workflow progress; At Dealer with open required work stays active for review.",
@@ -138,6 +141,7 @@
     "migration106": "APPLIED and rollback-rehearsed on staging; operational table signatures unchanged; productionChanged=false.",
     "migration107": "APPLIED after rollback rehearsal; six unambiguous legacy overlays remapped, zero ambiguous overlays, protected operational signatures unchanged; productionChanged=false.",
     "migration108": "APPLIED after rollback rehearsal; zero active Pit bookings/bays, Pit requirement retained, protected operational signatures unchanged; productionChanged=false.",
+    "migration109": "APPLIED after rollback rehearsal; job_card/ai_estimate provenance is typed, Stock 13016934 replay is revision-stable, booking/completion/Parts unchanged; productionChanged=false.",
     "production": "UNCHANGED \u2014 no production branch, database, deployment or configuration write."
   },
   "sourceBranch": "qa/workshop-bulletproof-20260728",
@@ -150,7 +154,7 @@
     },
     {
       "deployedPath": "app.js",
-      "sha256": "52e041336b6995d5e83293f7ddbef2559a4c5628a10b727a879889fedc254ea8",
+      "sha256": "8135ed8ee1df850881600e9e8a3c67d9d97c384dac76ba9d1906028e65a55a9f",
       "sourcePath": "app.js"
     },
     {
@@ -190,7 +194,7 @@
     },
     {
       "deployedPath": "index.html",
-      "sha256": "df204731f6c2535ab52fb04f9db419aabb4bf4ce1f879caf43cd47c3a03c03a4",
+      "sha256": "dcb1328776bf88ca9667bda6f088221990b1ef0f82a147f44613d55fa45e3fbb",
       "sourcePath": "staging.html"
     },
     {
@@ -220,12 +224,12 @@
     },
     {
       "deployedPath": "pdc-email-vehicle-location-service.js",
-      "sha256": "f5f541f9216ef049b085ddc40e4b737c257b50def6b11148b33b7892b3c6981c",
+      "sha256": "a4eed15f90fc2c0398c236277afad2271f3670f08682ac7bb1a070a35e62a49c",
       "sourcePath": "pdc-email-vehicle-location-service.js"
     },
     {
       "deployedPath": "pdc-supabase-config.staging.js",
-      "sha256": "573bee9b2c87af8a19a1b3c36767275ddca393bc9436a4360f8bdeaaa123c027",
+      "sha256": "0ad944c330bd2c55d970677dc5bd98ee63d1ad1e59e809fd3fd7aec36a0cfcf9",
       "sourcePath": "pdc-supabase-config.staging.js"
     },
     {
@@ -240,7 +244,7 @@
     },
     {
       "deployedPath": "styles.css",
-      "sha256": "acbdebc3a98b6a1f72dba099eddea37819c0c369525fc644c8519151ace8c17a",
+      "sha256": "9a6d3a7e0d4f7089e3373060404698d64863a516a111c6fd26818c07d22b33bf",
       "sourcePath": "styles.css"
     },
     {

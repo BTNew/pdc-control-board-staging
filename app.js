@@ -5705,7 +5705,13 @@ function authenticatedEmailOperationLinesHtml(vehicle = {}) {
     <b>Operations from authenticated PD documents and job cards</b>
     <div class="authenticated-operation-station-grid">${stationColumns.map(station => `<section class="authenticated-operation-station" data-operation-station="${escapeHtml(station.stage)}" style="--station-colour:${escapeHtml(station.colour)};--station-tint:${escapeHtml(station.tint)}">
       <header><strong>${escapeHtml(station.label)}</strong><small>${station.operations.length} job${station.operations.length === 1 ? '' : 's'}</small></header>
-      <ol aria-label="${escapeHtml(`${station.label} jobs`)}">${station.operations.map(operation => `<li><strong>${escapeHtml(authenticatedOperationLineLabel(operation.operation_no))}</strong><span>${escapeHtml(operation.description)}</span><em>${escapeHtml(operation.estimatedHours != null ? `${Number(operation.estimatedHours).toFixed(2)} h` : 'Hours not stated')}</em></li>`).join('')}</ol>
+      <ol aria-label="${escapeHtml(`${station.label} jobs`)}">${station.operations.map(operation => {
+        const aiEstimate = operation.estimatedHours != null && operation.estimatedHoursSource === 'ai_estimate';
+        const hoursText = operation.estimatedHours == null ? 'Hours not stated' : `${Number(operation.estimatedHours).toFixed(2)} h`;
+        const hoursClass = aiEstimate ? ' class="is-ai-estimate" title="AI-generated estimate; verify before scheduling"' : '';
+        const estimateLabel = aiEstimate ? '<span class="ai-estimate-label">AI estimate</span>' : '';
+        return `<li><strong>${escapeHtml(authenticatedOperationLineLabel(operation.operation_no))}</strong><span>${escapeHtml(operation.description)}</span><em${hoursClass}>${escapeHtml(hoursText)}${estimateLabel}</em></li>`;
+      }).join('')}</ol>
     </section>`).join('')}</div>
   </div>`;
 }
