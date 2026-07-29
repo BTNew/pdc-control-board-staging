@@ -36,4 +36,10 @@ const css = fs.readFileSync('styles.css', 'utf8');
 for (const required of ['.authenticated-operation-station-grid', '.authenticated-operation-station', '.authenticated-operation-station > header', 'var(--station-colour)', 'var(--station-tint)']) {
   assert(css.includes(required), `Station-column CSS is missing ${required}`);
 }
+assert(css.includes('@media (max-width: 620px)') && css.includes('grid-template-columns: 1fr'), 'station columns must collapse responsively');
+assert(css.includes('.incoming-vehicle-detail-grid .authenticated-email-operations') && css.includes('grid-column: 1 / -1'), 'operation station cards must span the full expanded-row width');
+const detailStart = source.indexOf('function incomingVehicleDetailRow');
+const detailEnd = source.indexOf('function renderIncomingDashboardBoard', detailStart);
+const detailSource = source.slice(detailStart, detailEnd);
+assert(!detailSource.includes('PMB work required') && !detailSource.includes('pmbRequiredWorkLabels'), 'redundant PMB work-required summary must be omitted because operation lines are authoritative');
 console.log('Vehicle Locations authenticated jobs station-column regression checks passed');

@@ -1,5 +1,5 @@
-const APP_VERSION = '2026.07.29.06-vehicle-location-station-columns';
-const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.07.29.06-vehicle-location-station-columns';
+const APP_VERSION = '2026.07.29.07-compact-location-operations';
+const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.07.29.07-compact-location-operations';
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
 // constant intentionally names only the production ref, never the
@@ -5654,10 +5654,6 @@ function setWorkflowWidthMode(mode = 'standard') {
   applyWorkflowWidthMode(normalized);
 }
 
-function pmbRequiredWorkLabels(vehicle = {}) {
-  return pdcRequirementDefinitions(vehicle).map(item => `${item.label}${pdcJobComplete(vehicle, item) ? ' done' : ' required'}`);
-}
-
 function authenticatedOperationLineValid(value = '') {
   return /^(?:OP(?:[1-9]|[1-9][0-9]{1,2})|PD[0-9]{3}-[A-F0-9]{8})$/.test(String(value || '').trim().toUpperCase());
 }
@@ -5770,7 +5766,6 @@ function incomingVehicleDetailRow(vehicle = {}, bucketKey = '', options = {}) {
   const vin = vehicle.vin || vehicle.VIN || vehicle.chassis || vehicle.chassisNo || '—';
   const age = pmbAgeLabel(vehicle);
   const workChecks = incomingWorkChecklistHtml(vehicle, { stationTransfer: bucketKey === 'pmb' && options.stationTransfer !== false });
-  const required = pmbRequiredWorkLabels(vehicle).join(', ') || 'No PMB work flagged';
   const stage = inferredPmbStage(vehicle);
   const rowStatus = incomingGridStatusLabel(vehicle, bucketKey);
   const subletProvider = pmbBaySubletProvider(vehicle);
@@ -5825,7 +5820,6 @@ function incomingVehicleDetailRow(vehicle = {}, bucketKey = '', options = {}) {
         <div><b>Bucket</b><span>${escapeHtml(incomingBucketLabel(bucketKey))}</span></div>
         ${risk ? `<div class="wide parts-risk-detail"><b>PARTS RISK</b><span>Parts ETA ${escapeHtml(partsWorstEtaLabel(vehicle))} is later than Kewdale ETA ${escapeHtml(kewdaleEtaValue(vehicle))}</span></div>` : ''}
         ${subletProviderField}
-        <div class="wide"><b>PMB work required</b><span>${escapeHtml(required)}</span></div>
         ${authenticatedEmailOperationLinesHtml(vehicle)}
       </div>
     </details>`;
