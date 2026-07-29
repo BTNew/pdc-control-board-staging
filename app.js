@@ -1,5 +1,5 @@
-const APP_VERSION = '2026.07.29.09-parts-eta-and-hour-provenance';
-const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.07.29.09-parts-eta-and-hour-provenance';
+const APP_VERSION = '2026.07.29.10-operational-mutation-reliability';
+const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.07.29.10-operational-mutation-reliability';
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
 // constant intentionally names only the production ref, never the
@@ -1934,6 +1934,7 @@ const app = {
   emailVehicleLocationRevision: null,
   emailVehicleLocationGeneration: 0,
   emailVehicleLocationRealtime: null,
+  subletMutationQueues: new Map(),
   navisionImport: loadJson(NAVISION_IMPORT_RESULTS_KEY, null),
   pendingNavisionImport: null,
   navisionFileName: '',
@@ -10954,15 +10955,51 @@ function closeVehicleModal() {
   document.body.classList.remove('modal-open');
 }
 
-function removeVehicle(stock) {
+async function removeVehicle(stock) {
   const vehicle = selectedVehicle(stock);
-  if (!vehicle || !vehicleLocationActionAllowed(vehicle, 'delete')) return;
+  if (!vehicle || !vehicleLocationActionAllowed(vehicle, 'delete')) return false;
   const label = `${vehicleIdentityTitle(vehicle) || 'this vehicle'} - ${vehicleCustomerName(vehicle) || 'Unknown customer'}`;
-  if (!window.confirm(`Move ${label} to Deleted vehicles?\n\nThe record can still be reviewed on the Deleted vehicles screen.`)) return;
+  if (!window.confirm(`Move ${label} to Deleted vehicles?\n\nThe record can still be reviewed on the Deleted vehicles screen.`)) return false;
+
+  if (vehicle.__emailVehicleServerAuthoritative === true && vehicleLifecycleSharedModeActive()) {
+    const reason = cleanNavisionText(window.prompt('Reason for deleting this vehicle (required):', '') || '');
+    if (!reason) {
+      window.alert('A deletion reason is required. No vehicle was changed.');
+      return false;
+    }
+    const ref = await vehicleLifecycleSharedRef(vehicle);
+    if (!ref || ref.outcome !== 'resolved') {
+      window.alert(describeVehicleLifecycleResolutionOutcome(ref));
+      return false;
+    }
+    if (ref.isArchived) {
+      window.alert('This vehicle is already in Deleted or Completed vehicles.');
+      await refreshEmailVehicleLocations();
+      closeVehicleModal();
+      return false;
+    }
+    const result = await window.__vehicleLifecycleActions.markVehicleDeleted({
+      vehicleId: ref.vehicleId,
+      expectedVersion: ref.version,
+      reason,
+    });
+    if (!result || result.ok !== true) {
+      await refreshEmailVehicleLocations();
+      window.alert(typeof describeVehicleLifecycleActionError === 'function'
+        ? describeVehicleLifecycleActionError(result?.error)
+        : 'The vehicle could not be moved to Deleted vehicles.');
+      return false;
+    }
+    await refreshEmailVehicleLocations();
+    closeVehicleModal();
+    renderAll();
+    return true;
+  }
 
   removeVehiclesFromTracker([vehicle]);
   refreshAfterVehicleRemoval();
   closeVehicleModal();
+  return true;
 }
 
 function renderDetail() {
@@ -12916,6 +12953,10 @@ function vehicleLocationActionAllowed(vehicleOrKey, operation = 'change') {
       && vehicle.__locationIdentityReadOnly !== true
       && vehicleLifecycleSharedModeActive()
       && typeof window.__vehicleLifecycleActions?.pmbTransferVehicle === 'function') return true;
+    if (operation === 'delete'
+      && vehicle.__emailVehicleServerAuthoritative === true
+      && vehicleLifecycleSharedModeActive()
+      && typeof window.__vehicleLifecycleActions?.markVehicleDeleted === 'function') return true;
     console.warn('Vehicle action blocked because the Locations identity is read-only.', { operation, key });
     return false;
   }
@@ -18963,42 +19004,82 @@ const SUBLET_SERVER_FIELD_MAP = Object.freeze({
   pmbSubletEmailSent: 'email_sent',
 });
 
+function queueSubletVehicleMutation(vehicleId = '', mutation) {
+  const id = cleanNavisionText(vehicleId || '');
+  if (!id || typeof mutation !== 'function') return Promise.resolve(false);
+  const previous = app.subletMutationQueues.get(id) || Promise.resolve();
+  const current = previous.catch(() => false).then(mutation);
+  app.subletMutationQueues.set(id, current);
+  return current.finally(() => {
+    if (app.subletMutationQueues.get(id) === current) app.subletMutationQueues.delete(id);
+  });
+}
+
+function subletMutationFieldMatches(vehicle = {}, field = '', cleanValue = '') {
+  if (field === 'pmbSubletEmailSent') return vehicle[field] === (cleanValue === 'true');
+  return cleanNavisionText(vehicle[field] || '') === cleanValue;
+}
+
+async function refreshSubletMutationAuthority(key = '', vehicleId = '', minimumVersion = 0, field = '', cleanValue = '') {
+  for (let attempt = 0; attempt < 4; attempt += 1) {
+    await refreshEmailVehicleLocations();
+    const current = subletVehicleByKey(key);
+    const versionReady = current && current.__emailVehicleId === vehicleId
+      && Number(current.__subletBookingVersion) >= Number(minimumVersion || 0);
+    if (versionReady && (!field || subletMutationFieldMatches(current, field, cleanValue))) return current;
+    await new Promise(resolve => window.setTimeout(resolve, 75));
+  }
+  return null;
+}
+
 async function updateSubletField(key = '', field = '', value = '') {
-  const allowed = new Set(['pmbSubletProvider', 'pmbSubletProviderEmail', 'pmbSubletPoSentDate', 'pmbSubletBookingDate', 'pmbSubletExpectedReturnDate', 'pmbSubletActualReturnDate', 'pmbSubletNotes']);
-  if (!allowed.has(field)) return;
+  const allowed = new Set(['pmbSubletProvider', 'pmbSubletProviderEmail', 'pmbSubletPoSentDate', 'pmbSubletBookingDate', 'pmbSubletExpectedReturnDate', 'pmbSubletActualReturnDate', 'pmbSubletNotes', 'pmbSubletEmailSent']);
+  if (!allowed.has(field)) return false;
   const vehicle = subletVehicleByKey(key);
-  if (!vehicle) return;
+  if (!vehicle) return false;
   const cleanValue = cleanNavisionText(value || '');
   if (vehicle.__emailVehicleServerAuthoritative === true) {
     const service = app.emailVehicleLocationService;
     if (!service?.updateSublet || !vehicle.__emailVehicleId) {
       window.alert('Shared Sublet booking service is unavailable. No change was made.');
-      return;
+      return false;
     }
-    const response = await service.updateSublet(vehicle.__emailVehicleId, vehicle.__subletBookingVersion, SUBLET_SERVER_FIELD_MAP[field], cleanValue);
-    if (!response?.ok) {
-      await refreshEmailVehicleLocations();
-      window.alert(response?.code === 'version_conflict'
-        ? 'This Sublet booking changed on another computer. It has been refreshed; please retry your change.'
-        : `Shared Sublet update failed: ${response?.code || 'unknown_error'}. No change was made.`);
-      return;
-    }
-    await refreshEmailVehicleLocations();
-    return;
+    const vehicleId = vehicle.__emailVehicleId;
+    return queueSubletVehicleMutation(vehicleId, async () => {
+      let current = subletVehicleByKey(key);
+      if (!current || current.__emailVehicleId !== vehicleId) return false;
+      let response = await service.updateSublet(vehicleId, current.__subletBookingVersion, SUBLET_SERVER_FIELD_MAP[field], cleanValue);
+      if (response?.code === 'version_conflict') {
+        current = await refreshSubletMutationAuthority(key, vehicleId, Number(response?.data?.current_version || 0));
+        if (!current || current.__emailVehicleId !== vehicleId) return false;
+        response = await service.updateSublet(vehicleId, current.__subletBookingVersion, SUBLET_SERVER_FIELD_MAP[field], cleanValue);
+      }
+      if (!response?.ok) {
+        await refreshEmailVehicleLocations();
+        window.alert(response?.code === 'version_conflict'
+          ? 'This Sublet booking changed again while your update was being saved. It has been refreshed; please retry your change.'
+          : `Shared Sublet update failed: ${response?.code || 'unknown_error'}. No change was made.`);
+        return false;
+      }
+      const nextVersion = Number(response?.data?.version);
+      const reconciled = await refreshSubletMutationAuthority(key, vehicleId, nextVersion, field, cleanValue);
+      if (!reconciled) {
+        window.alert('Your Sublet change was saved, but the latest shared row is still loading. Refresh the page before making another change.');
+        return false;
+      }
+      return true;
+    });
   }
   recordVehicleAudit(vehicle, 'Sublet booking updated', { field, value: cleanValue, by: getCurrentOperatorName() });
   saveVehicleEdits(key, { [field]: cleanValue, pmbSubletUpdatedAt: nowIsoString(), pmbSubletUpdatedBy: getCurrentOperatorName() });
+  return true;
 }
 
 async function setSubletEmailSent(key = '', sent = false) {
   const vehicle = subletVehicleByKey(key);
   if (!vehicle) return;
   if (vehicle.__emailVehicleServerAuthoritative === true) {
-    const service = app.emailVehicleLocationService;
-    const response = await service?.updateSublet?.(vehicle.__emailVehicleId, vehicle.__subletBookingVersion, SUBLET_SERVER_FIELD_MAP.pmbSubletEmailSent, sent ? 'true' : 'false');
-    if (!response?.ok) window.alert(`Shared Sublet email-status update failed: ${response?.code || 'unknown_error'}. No change was made.`);
-    await refreshEmailVehicleLocations();
-    return;
+    return updateSubletField(key, 'pmbSubletEmailSent', sent ? 'true' : 'false');
   }
   recordVehicleAudit(vehicle, sent ? 'Sublet email marked sent' : 'Sublet email marked not sent', { by: getCurrentOperatorName() });
   saveVehicleEdits(key, { pmbSubletEmailSent: Boolean(sent), pmbSubletEmailSentAt: sent ? nowIsoString() : '', pmbSubletEmailSentBy: sent ? getCurrentOperatorName() : '' });

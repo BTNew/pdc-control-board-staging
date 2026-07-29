@@ -1,0 +1,13 @@
+'use strict';
+const assert=require('assert');const fs=require('fs');
+const app=fs.readFileSync('app.js','utf8');
+assert(app.includes('subletMutationQueues: new Map()'),'Sublet mutations need a per-vehicle queue');
+assert(app.includes('function queueSubletVehicleMutation('),'Sublet mutation queue helper missing');
+const body=app.slice(app.indexOf('async function updateSubletField('),app.indexOf('async function setSubletEmailSent('));
+assert(body.includes("if (response?.code === 'version_conflict')"),'A stale Sublet version must trigger one authoritative refresh');
+assert((body.match(/service\.updateSublet\(/g)||[]).length===2,'Sublet update must attempt once and retry at most once');
+assert(body.includes('current = subletVehicleByKey(key)')&&body.includes('current.__subletBookingVersion'),'Retry must use the refreshed authoritative booking version');
+assert(body.includes('refreshSubletMutationAuthority(key, vehicleId'),'Retry and success paths must wait for authoritative Sublet reconciliation');
+assert(app.includes('function subletMutationFieldMatches('),'Successful writes must reconcile both the returned version and requested field value before the next queued field');
+assert(body.includes('return queueSubletVehicleMutation(vehicleId'),'Projected-row Sublet writes must be serialized per vehicle');
+console.log('Sublet queued mutation and one-retry concurrency contracts passed');

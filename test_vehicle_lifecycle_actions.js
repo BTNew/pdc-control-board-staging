@@ -8,6 +8,7 @@
 const assert = require('assert');
 const {
   vehicleLifecycleSharedModeEnabled,
+  buildVehicleLifecycleIdentityInput,
   buildVehicleLifecycleSharedActions,
   describeVehicleLifecycleActionError,
 } = require('./vehicle-lifecycle-actions.js');
@@ -22,6 +23,14 @@ const {
   console.log('PASS 1: vehicleLifecycleSharedModeEnabled requires explicit opt-in');
 }
 
+{
+  const projectedId = 'f34f1184-063f-5e72-891e-19de319d88d4';
+  const input = buildVehicleLifecycleIdentityInput({ __emailVehicleId: projectedId, stock: '13016934' });
+  assert.strictEqual(input.p_vehicle_id, projectedId, 'Projected authenticated vehicle UUID must be used as canonical lifecycle identity');
+  assert.strictEqual(input.p_stock_number, '13016934');
+  console.log('PASS identity: authenticated projected vehicle UUID reaches lifecycle resolver');
+}
+
 function fakeClient(responder) {
   const calls = [];
   return {
@@ -31,6 +40,24 @@ function fakeClient(responder) {
       return responder(name, params);
     },
   };
+}
+
+// Vehicle Detail deletion maps to the established protected lifecycle RPC and
+// normalises its legacy row return into the shared-action result contract.
+{
+  const deletedRow = { id: 'v-delete', lifecycle_state: 'deleted', version: 8 };
+  const client = fakeClient(() => ({ status: 200, ok: true, body: deletedRow }));
+  const bridge = buildVehicleLifecycleSharedActions(client, () => 'tok-delete');
+  bridge.markVehicleDeleted({ vehicleId: 'v-delete', expectedVersion: 7, reason: 'Duplicate import' }).then(result => {
+    assert.strictEqual(client.calls[0].name, 'mark_vehicle_deleted');
+    assert.deepStrictEqual(client.calls[0].params, {
+      p_vehicle_id: 'v-delete',
+      p_expected_version: 7,
+      p_reason: 'Duplicate import',
+    });
+    assert.deepStrictEqual(result, { ok: true, vehicle: deletedRow });
+    console.log('PASS delete: markVehicleDeleted maps and normalises the protected deletion RPC');
+  });
 }
 
 // 2. qcCompleteVehicle maps to qc_complete_vehicle with the exact parameter

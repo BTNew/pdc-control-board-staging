@@ -44,6 +44,11 @@ assert(app.includes("addEventListener('dragstart', event => beginVehicleWorkshop
 assert(app.includes('workshopScheduleVehicleNextAvailable(payload)'), 'Schedule next available must delegate to the established Workshop Planner authority');
 assert(planner.includes('async function workshopScheduleVehicleNextAvailable'), 'Planner must own next-available slot selection and authoritative scheduling');
 assert(planner.includes('etaConstraint.earliestDateKey') && planner.includes('workshopBestStageSlot'), 'Next-available scheduling must obey the ETA floor and operational bay/calendar rules');
+const nextAvailableStart = planner.indexOf('async function workshopScheduleVehicleNextAvailable');
+const nextAvailableEnd = planner.indexOf('async function scheduleWorkshopVehicle', nextAvailableStart);
+const nextAvailableBody = nextAvailableStart >= 0 && nextAvailableEnd > nextAvailableStart ? planner.slice(nextAvailableStart, nextAvailableEnd) : '';
+assert(nextAvailableBody.includes("await service.setScope({ stageCode: normalizedStage, dateFrom: slot.dateKey, dateTo: slot.dateKey })"), 'Next-available booking must switch the authoritative snapshot to the selected future date before mutation so the created chip is visible immediately');
+assert(nextAvailableBody.indexOf('await service.setScope({ stageCode: normalizedStage, dateFrom: slot.dateKey') < nextAvailableBody.indexOf('return scheduleWorkshopVehicle({'), 'Future-date scope reconciliation must complete before booking creation');
 assert(/\.vehicle-workshop-line\s*\{[^}]*grid-template-columns:[^;]*auto/i.test(css), 'Desktop work rows must reserve a compact final action column');
 assert(/\.vehicle-workshop-line\s*>\s*span\s*\{[^}]*padding:\s*(?:[0-6](?:px)?\s+){1,3}[0-8]px/i.test(css), 'Vehicle workshop row cell padding must stay slim');
 
