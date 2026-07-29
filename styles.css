@@ -12373,6 +12373,10 @@ button.vehicle-workshop-line-number:focus-visible { position: relative; z-index:
 .authenticated-email-operations li span { min-width: 0; overflow-wrap: anywhere; }
 .authenticated-email-operations li em { color: var(--text, #152238); font-style: normal; font-variant-numeric: tabular-nums; white-space: nowrap; }
 
+.incoming-vehicle-detail-grid .authenticated-email-operations {
+  grid-column: 1 / -1 !important;
+}
+
 @media (max-width: 700px) {
   .authenticated-operation-station-grid { grid-template-columns: 1fr; }
 }

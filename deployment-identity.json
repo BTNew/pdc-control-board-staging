@@ -6,11 +6,11 @@
     "twoPhysicalWorkstationAuthorityCutover": false
   },
   "artifact": "zero-data static staging site",
-  "backendOnlyMigrationSourceCommit": "314c981e94a1694e404743e334c3a2e83a41458c",
-  "cacheVersion": "2026.07.29.06-vehicle-location-station-columns",
+  "backendOnlyMigrationSourceCommit": "adbd7e2c6b700a888532ead42e6cbc92508b7999",
+  "cacheVersion": "2026.07.29.07-compact-location-operations",
   "deploymentMode": "exact reviewed source blobs; staging.html mapped to index.html",
   "environment": "staging",
-  "generatedAtUtc": "2026-07-29T00:53:13.033474Z",
+  "generatedAtUtc": "2026-07-29T01:05:20.297492Z",
   "humanAiIntake": {
     "approvalGate": "Administrator decision remains server-validated; missing summaries disable Approve while Deny remains available.",
     "summary": "Prominent escaped email summary plus explicit Approve/Deny effects; each email is now a distinct white card separated by an 18px dark-grey gutter (12px on mobile)."
@@ -89,7 +89,7 @@
     "futurePartsCascadeMove": "PASS \u2014 cross-bay booked-chip moves use the same truthful planning-only Parts retry as existing booking/rescheduling actions; immediate physical Start remains separately manager-gated.",
     "humanAiIntake": "Received, What happened, Car and What changed are shown in plain language; activated, modified, unchanged and review-needed outcomes are distinct; field changes render previous value to new value; technical receipt data is collapsed",
     "humanNavisionResults": "An administrator can establish the first empty dealer scope only for one exact full snapshot of at least 100 valid rows. Approval is content-bound, user-bound and expires after two hours. Cross-dealer, invalid, duplicate, stale and changed snapshots remain fail-closed. Later strongly matched refresh omissions continue to enter reversible temporary holding.",
-    "literalArtifact": "35/35 deployed Git blobs match source commit 314c981e94a1694e404743e334c3a2e83a41458c",
+    "literalArtifact": "35/35 deployed Git blobs match source commit adbd7e2c6b700a888532ead42e6cbc92508b7999",
     "migration087": "PASS \u2014 rollback syntax/probe and permanent post-apply checks; BUS_4X4 eligible paths reach parts_incomplete, blocked Hoist direct/cascade paths return location_ineligible, gate helper has no anon/authenticated EXECUTE privilege, and no probe writes were committed. Pre-migration function backup SHA-256 baf586a7b74df4a60217414b50eaf323cc207fd6a3466b9220a0b4867ec023ad.",
     "migration088": "PASS \u2014 dry-run syntax and Viewer payload probe, permanent staging-only apply, anon EXECUTE revoked, authenticated EXECUTE granted, protected vehicle/work-item/booking counts unchanged, and zero production access.",
     "migration089": "PASS \u2014 guarded rollback dry-run, permanent staging-only apply and rollback trigger probes. Missing ETA writes fail to Other; authoritative dated writes remain IT; parser and enforcement trigger are unavailable to anon; zero production access.",
@@ -121,7 +121,7 @@
     "uiCleanup": "Control Board current-time line appears only for today and QC is removed from its station list. All-green PMB vehicles require explicit Ready for QC confirmation and move authoritatively to the Vehicle Locations QC Gate. Named QC sign-off moves to RFT and prints a dedicated windscreen label. Parts removes Outstanding station work, persists and refreshes ETA countdowns, and uses the shared Vehicle Locations row height.",
     "vehicleDetailProvenance": "PASS \u2014 redundant metrics panel removed; 9 Required Work cells render at uniform 40px height; import method/source and detailed history render for all three roles with zero browser/HTTP errors.",
     "vehicleDetailWorkBookings": "PASS \u2014 Vehicle Work & bookings operation numbers drag to authoritative Planner bays, unbooked rows offer Schedule next available, and any Save persists every entered estimated-hours field before one authoritative refresh.",
-    "vehicleLocationStationJobColumns": "PASS \u2014 authenticated operation lines are grouped into responsive station-specific columns in canonical workflow order; only stations with jobs render, each card carries its station colour, and stock 13016934 rendered 14 jobs across six correctly filtered cards without overflow.",
+    "vehicleLocationStationJobColumns": "PASS \u2014 authenticated operation lines are grouped into responsive station-specific columns in canonical workflow order; the redundant PMB work-required prose is removed, operation cards span the full detail width, and stock 13016934 rendered 14 jobs across one compact row of six correctly filtered cards without overflow.",
     "vehicleWorkshopLineEditing102": "PASS \u2014 Controller and Administrator each added, persisted, edited and removed an audited Vehicle Detail Workshop line for stock 12611773; 0.25-hour increments, line-version concurrency and completed-stage denial are server enforced; stale edits were rejected immediately; bookings, Parts, work completion and imported operation evidence signatures were unchanged; zero production access.",
     "viewerReadOnly": "PASS \u2014 repaired the dedicated staging Viewer credential and changed only authoritative read-snapshot RPCs to accept Viewer. Administrator, Controller and Viewer smoke tests completed without page, console or HTTP errors; mutation authority is unchanged.",
     "workshopAuthority100": "PASS \u2014 Controller Best slot created stock 12664966 in active Fab Bay 02 through the deployed browser and was audit-cleaned; Administrator create/cancel passed; stale vehicle version was rejected; Parts overrides were unchanged; migration 100 preserved the administrator-only physical Start gate; zero production access.",
@@ -133,7 +133,7 @@
     "aggregateTests": "124 passed, 0 failed, 1 intentional skip.",
     "authenticatedOperationSnapshot": "PASS \u2014 enrolled Viewer snapshot returns 12 operation lines in deterministic OP order after migration 097; exact vehicle has zero workshop bookings.",
     "authenticatedOperationVehicleDetail": "PASS \u2014 Stock 13056899 maps 12 distinct typed operation rows (OP2\u2013OP13) into Tint, Fitting, Electrical, Tyre and Parts detail sections; Sublet remains only the preserved prior coarse requirement.",
-    "browserPredeploy": "PASS \u2014 local zero-data test page rendered compact 40px operation rows, inline numeric hours plus Save, and Edit line in the final right-hand column without clipping or overlap.",
+    "browserPredeploy": "PASS \u2014 authenticated local staging rendered stock 13016934 with no PMB work-required summary, six full-width station cards in one compact row, 14 operation lines and no grid overflow.",
     "focusedTests": "PASS \u2014 compact row/end-action/inline-hours contracts, authenticated hour mapping/rendering, booked-chip atomic cascade, planner/shared-action bridge, version consistency, JavaScript syntax and whitespace.",
     "migration106": "APPLIED and rollback-rehearsed on staging; operational table signatures unchanged; productionChanged=false.",
     "migration107": "APPLIED after rollback rehearsal; six unambiguous legacy overlays remapped, zero ambiguous overlays, protected operational signatures unchanged; productionChanged=false.",
@@ -141,7 +141,7 @@
     "production": "UNCHANGED \u2014 no production branch, database, deployment or configuration write."
   },
   "sourceBranch": "qa/workshop-bulletproof-20260728",
-  "sourceCommit": "314c981e94a1694e404743e334c3a2e83a41458c",
+  "sourceCommit": "adbd7e2c6b700a888532ead42e6cbc92508b7999",
   "sourceFiles": [
     {
       "deployedPath": "ai-board-advisor.js",
@@ -150,7 +150,7 @@
     },
     {
       "deployedPath": "app.js",
-      "sha256": "2d79db01dd89cfeb5e1b6a27ad1732d69aedec7720774d6b2897b65ab40e245f",
+      "sha256": "52e041336b6995d5e83293f7ddbef2559a4c5628a10b727a879889fedc254ea8",
       "sourcePath": "app.js"
     },
     {
@@ -190,7 +190,7 @@
     },
     {
       "deployedPath": "index.html",
-      "sha256": "fe95eb05eb891702b69d40adb9cccc6010d8db40356dd3a6e31b2bf32f069629",
+      "sha256": "df204731f6c2535ab52fb04f9db419aabb4bf4ce1f879caf43cd47c3a03c03a4",
       "sourcePath": "staging.html"
     },
     {
@@ -225,7 +225,7 @@
     },
     {
       "deployedPath": "pdc-supabase-config.staging.js",
-      "sha256": "ee04efafcdf9472fcb73ea8c101ed8a60f8932a8364adfcd973741944a25525b",
+      "sha256": "573bee9b2c87af8a19a1b3c36767275ddca393bc9436a4360f8bdeaaa123c027",
       "sourcePath": "pdc-supabase-config.staging.js"
     },
     {
@@ -240,7 +240,7 @@
     },
     {
       "deployedPath": "styles.css",
-      "sha256": "6f456cc358dc4f8080c67485f9190c697aed712ec7ccd20f91af9a16c73f79ce",
+      "sha256": "acbdebc3a98b6a1f72dba099eddea37819c0c369525fc644c8519151ace8c17a",
       "sourcePath": "styles.css"
     },
     {
@@ -319,5 +319,5 @@
       "sourcePath": "pdc-ai-intake-review.js"
     }
   ],
-  "sourceTree": "9ec36a88872958542b3fa76d61c8b89ae9b164f6"
+  "sourceTree": "5d2065f5fbbfdcb15d54f9748ee03cb36fb66c50"
 }
