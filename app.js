@@ -1,5 +1,5 @@
-const APP_VERSION = '2026.07.29.05-vehicle-drag-next-save-all-no-pit';
-const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.07.29.05-vehicle-drag-next-save-all-no-pit';
+const APP_VERSION = '2026.07.29.06-vehicle-location-station-columns';
+const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.07.29.06-vehicle-location-station-columns';
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
 // constant intentionally names only the production ref, never the
@@ -5676,24 +5676,41 @@ function authenticatedOperationLineLabel(value = '') {
   return pd ? `PD line ${Number(pd[1])}` : key;
 }
 
+const AUTHENTICATED_OPERATION_STATION_ORDER = Object.freeze([
+  { key: 'bus4x4', stage: 'BUS_4X4', label: 'Bus 4x4', colour: '#2563eb', tint: '#eff6ff' },
+  { key: 'tint', stage: 'TINT', label: 'Tint', colour: '#0891b2', tint: '#ecfeff' },
+  { key: 'hoist', stage: 'HOIST', label: 'Hoist / GVM', colour: '#7c3aed', tint: '#f5f3ff' },
+  { key: 'fitting', stage: 'FITTING', label: 'Fitting', colour: '#a21caf', tint: '#fdf4ff' },
+  { key: 'fabrication', stage: 'FABRICATION', label: 'Fabrication', colour: '#d97706', tint: '#fffbeb' },
+  { key: 'electrical', stage: 'ELECTRICAL', label: 'Electrical', colour: '#16a34a', tint: '#f0fdf4' },
+  { key: 'tyre', stage: 'TYRE', label: 'Tyres', colour: '#0f766e', tint: '#f0fdfa' },
+  { key: 'pitinspection', stage: 'PIT_INSPECTION', label: 'Pit inspection', colour: '#475569', tint: '#f8fafc' },
+  { key: 'parts', stage: 'PARTS', label: 'Parts', colour: '#dc2626', tint: '#fef2f2' },
+]);
+
 function authenticatedEmailOperationLinesHtml(vehicle = {}) {
-  const labels = {
-    bus4x4: 'Bus 4x4', tint: 'Tint', hoist: 'Hoist / GVM', fitting: 'Fitting',
-    fabrication: 'Fabrication', electrical: 'Electrical', tyre: 'Tyres',
-    pitinspection: 'Pit inspection', parts: 'Parts',
-  };
   const operations = (Array.isArray(vehicle.pdcEmailOperationLines) ? vehicle.pdcEmailOperationLines : [])
     .slice(0, 50)
-    .filter(operation => operation && authenticatedOperationLineValid(operation.operation_no) && operation.description)
+    .filter(operation => operation
+      && authenticatedOperationLineValid(operation.operation_no)
+      && operation.description
+      && AUTHENTICATED_OPERATION_STATION_ORDER.some(station => station.key === String(operation.work_key || '').trim().toLowerCase()))
     .sort((a, b) => {
       const left = authenticatedOperationLineSortValue(a.operation_no);
       const right = authenticatedOperationLineSortValue(b.operation_no);
       return left[0] - right[0] || left[1] - right[1] || left[2].localeCompare(right[2]);
     });
   if (!operations.length) return '';
+  const stationColumns = AUTHENTICATED_OPERATION_STATION_ORDER.map(station => ({
+    ...station,
+    operations: operations.filter(operation => String(operation.work_key || '').trim().toLowerCase() === station.key),
+  })).filter(station => station.operations.length);
   return `<div class="wide authenticated-email-operations">
     <b>Operations from authenticated PD documents and job cards</b>
-    <ol>${operations.map(operation => `<li><strong>${escapeHtml(authenticatedOperationLineLabel(operation.operation_no))}</strong><span>${escapeHtml(operation.description)}</span><em>${escapeHtml(operation.estimatedHours != null ? `${Number(operation.estimatedHours).toFixed(2)} h` : 'Hours not stated')}</em><small>${escapeHtml(labels[operation.work_key] || operation.work_key)}</small></li>`).join('')}</ol>
+    <div class="authenticated-operation-station-grid">${stationColumns.map(station => `<section class="authenticated-operation-station" data-operation-station="${escapeHtml(station.stage)}" style="--station-colour:${escapeHtml(station.colour)};--station-tint:${escapeHtml(station.tint)}">
+      <header><strong>${escapeHtml(station.label)}</strong><small>${station.operations.length} job${station.operations.length === 1 ? '' : 's'}</small></header>
+      <ol aria-label="${escapeHtml(`${station.label} jobs`)}">${station.operations.map(operation => `<li><strong>${escapeHtml(authenticatedOperationLineLabel(operation.operation_no))}</strong><span>${escapeHtml(operation.description)}</span><em>${escapeHtml(operation.estimatedHours != null ? `${Number(operation.estimatedHours).toFixed(2)} h` : 'Hours not stated')}</em></li>`).join('')}</ol>
+    </section>`).join('')}</div>
   </div>`;
 }
 
