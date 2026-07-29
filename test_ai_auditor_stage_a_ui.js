@@ -76,6 +76,8 @@ assert.ok(css.includes('.ai-auditor-read-only-banner'), 'persistent read-only ba
 assert.ok(css.includes('.ai-auditor-summary-grid'), 'summary cards must be styled');
 assert.ok(css.includes(':focus-visible'), 'auditor controls must have visible keyboard focus');
 assert.ok(css.includes('@media (max-width: 760px)'), 'auditor view must have constrained-width treatment');
+assert.ok(css.includes('padding-right: 68px'), 'vehicle modal read-only copy must reserve space for the close control');
+assert.ok(css.includes('.vehicle-detail-page > .summary-grid article { display: grid; gap: 3px; }'), 'auditor snapshot detail labels and values must remain visually separated');
 
 const jobStart = app.indexOf('function vehicleWorkshopJobCardValue');
 const jobEnd = app.indexOf('function renderVehicleWorkshopWorkPage', jobStart);

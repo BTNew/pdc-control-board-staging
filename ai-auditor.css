@@ -21,7 +21,8 @@
 }
 .ai-auditor-read-only-banner strong { letter-spacing: .04em; }
 .ai-auditor-read-only-banner span { font-size: .86rem; font-weight: 650; }
-#vehicle-modal .ai-auditor-read-only-banner { position: static; z-index: auto; }
+#vehicle-modal .ai-auditor-read-only-banner { position: static; z-index: auto; padding-right: 68px; }
+#vehicle-modal .vehicle-detail-page > .summary-grid article { display: grid; gap: 3px; }
 
 .ai-auditor-panel { display: grid; gap: 16px; }
 .ai-auditor-header { align-items: flex-start; }
