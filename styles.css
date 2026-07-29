@@ -12233,7 +12233,13 @@ select[name="pdcLocation"]:focus,
 .vehicle-workshop-line:last-child { border-bottom: 0; }
 .vehicle-workshop-line > span { display: grid; align-content: center; gap: 2px; min-width: 0; padding: 5px 8px; border-right: 1px solid #edf1f5; }
 .vehicle-workshop-line > span:last-child { border-right: 0; }
-.vehicle-workshop-line-number { place-items: center; padding: 0 !important; background: color-mix(in srgb, var(--station-colour) 7%, #fff); color: var(--station-colour); font-size: .7rem; font-weight: 950; }
+.vehicle-workshop-line-number { display: grid; place-items: center; padding: 0 !important; border: 0; border-radius: 0; background: color-mix(in srgb, var(--station-colour) 7%, #fff); color: var(--station-colour); box-shadow: none; font-size: .7rem; font-weight: 950; }
+button.vehicle-workshop-line-number { cursor: grab; touch-action: none; }
+button.vehicle-workshop-line-number:active { cursor: grabbing; background: color-mix(in srgb, var(--station-colour) 18%, #fff); }
+button.vehicle-workshop-line-number:focus-visible { position: relative; z-index: 2; outline: 3px solid color-mix(in srgb, var(--station-colour) 55%, #fff); outline-offset: -3px; }
+.vehicle-workshop-line-actions .vehicle-workshop-schedule-next { border-color: #86efac; background: #f0fdf4; color: #166534; }
+.vehicle-workshop-line-actions .vehicle-workshop-schedule-next:hover { border-color: #16a34a; color: #166534; }
+#vehicle-modal.vehicle-workshop-drag-handoff { opacity: 0; pointer-events: none; }
 .vehicle-workshop-line strong { overflow-wrap: anywhere; color: #1e293b; font-size: .75rem; line-height: 1.2; }
 .vehicle-workshop-line-hours { min-width: 0; }
 .vehicle-workshop-quick-hours { display: grid; grid-template-columns: minmax(58px, 78px) auto auto; align-items: center; justify-content: start; gap: 4px; min-width: 0; }
