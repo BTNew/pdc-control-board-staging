@@ -3,6 +3,7 @@
 const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
+const vm = require('vm');
 
 const root = __dirname;
 const read = file => fs.readFileSync(path.join(root, file), 'utf8').replace(/\r\n/g, '\n');
@@ -63,7 +64,7 @@ const snapshotDetailBlock = block.slice(snapshotDetailStart, snapshotDetailEnd);
 assert.ok(snapshotDetailBlock.includes('BETA – READ ONLY / APPROVAL REQUIRED'), 'snapshot Vehicle Detail must retain the read-only authority banner');
 assert.ok(!/(approve|deny|snooze|save|edit|delete|schedule|mutate|rpc\/)\s*[\("']/i.test(snapshotDetailBlock), 'snapshot Vehicle Detail fallback must expose no operational action path');
 assert.ok(block.includes('Stage C decision workflow not enabled'), 'rendered decision state must preserve exact disabled copy');
-assert.ok(block.includes('reportMembership') && block.includes('evaluated.reports'), 'manual report tabs must consume deterministic engine report projections');
+assert.ok(block.includes('reportMembership') && block.includes('evaluated?.projections?.reports'), 'manual report tabs must consume deterministic engine report projections');
 assert.ok(block.includes('return result?.hasReportProjections ? explicitlyScoped : findings'), 'an intentionally empty deterministic report projection must remain empty rather than falling back to every finding');
 assert.ok(block.includes('has_more: false') && block.includes('next_vehicle_id: null'), 'merged authoritative pagination must be normalized as complete before strict adaptation');
 [
@@ -71,6 +72,13 @@ assert.ok(block.includes('has_more: false') && block.includes('next_vehicle_id: 
   'saveVehicleEdits(', '.mutate(', 'applyEmailReview(', 'rejectEmailReview('
 ].forEach(token => assert.ok(!block.includes(token), `auditor block must not depend on ${token}`));
 assert.ok(!/rpc\/[a-z0-9_]*(schedule|move|update|apply|approve|deny|snooze|send)/i.test(block), 'auditor block must contain no operational RPC endpoint');
+
+const projectionStart = block.indexOf('function pdcAuditorProjectedReports');
+const projectionEnd = block.indexOf('function pdcAuditorEvaluateSnapshot', projectionStart);
+const projectedReports = vm.runInNewContext(`(${block.slice(projectionStart, projectionEnd).replace(/^function pdcAuditorProjectedReports/, 'function')})`);
+const projectionFixture = { projections: { reports: { morning: { findings: [{ id: 'one' }] }, midday: { findings: [] }, eod: { findings: [] } } } };
+assert.deepStrictEqual(JSON.parse(JSON.stringify(projectedReports(projectionFixture))), projectionFixture.projections.reports, 'engine-to-UI report projection boundary must execute against projections.reports');
+assert.strictEqual(projectedReports({ reports: projectionFixture.projections.reports }), null, 'legacy top-level reports must not masquerade as the deterministic projection contract');
 
 assert.ok(css.includes('.ai-auditor-read-only-banner'), 'persistent read-only banner must be styled');
 assert.ok(css.includes('.ai-auditor-summary-grid'), 'summary cards must be styled');

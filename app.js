@@ -18182,6 +18182,11 @@ function pdcAuditorNormalizeFinding(item = {}, index = 0) {
   };
 }
 
+function pdcAuditorProjectedReports(evaluated = {}) {
+  const reports = evaluated?.projections?.reports;
+  return reports && typeof reports === 'object' ? reports : null;
+}
+
 function pdcAuditorEvaluateSnapshot(snapshot = {}) {
   const engine = window.PdcAiAuditorStageA;
   let evaluated = null;
@@ -18195,9 +18200,10 @@ function pdcAuditorEvaluateSnapshot(snapshot = {}) {
     : Array.isArray(snapshot.findings) ? snapshot.findings
       : Array.isArray(snapshot.auditor_findings) ? snapshot.auditor_findings : null;
   if (!sourceFindings) return null;
+  const projectedReports = pdcAuditorProjectedReports(evaluated);
   const reportMembership = new Map();
-  if (evaluated.reports && typeof evaluated.reports === 'object') {
-    Object.entries(evaluated.reports).forEach(([reportName, report]) => {
+  if (projectedReports) {
+    Object.entries(projectedReports).forEach(([reportName, report]) => {
       (Array.isArray(report?.findings) ? report.findings : []).forEach(finding => {
         const id = String(finding?.id || finding?.finding_id || '');
         if (!id) return;
@@ -18214,7 +18220,7 @@ function pdcAuditorEvaluateSnapshot(snapshot = {}) {
     revision: snapshot.revision,
     asOf: snapshot.as_of || snapshot.asOf || snapshot.generated_at,
     version: pdcAuditorSafeText(evaluated.version || snapshot.schema_version || 'Stage A', 60),
-    hasReportProjections: Boolean(evaluated.reports && typeof evaluated.reports === 'object'),
+    hasReportProjections: Boolean(projectedReports),
     findings,
   };
 }

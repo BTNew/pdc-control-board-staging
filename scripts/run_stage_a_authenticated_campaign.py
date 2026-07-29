@@ -7,7 +7,7 @@ The migration ledger is fingerprinted but never written.  A successful run requi
 cleanup, 32 operational/authority hashes, and a fresh-connection absence check.
 """
 from __future__ import annotations
-import contextlib, hashlib, json, os, re, subprocess, threading, time, uuid
+import contextlib, hashlib, json, os, re, subprocess, tempfile, threading, time, uuid
 from datetime import datetime, timezone
 from http.server import ThreadingHTTPServer, SimpleHTTPRequestHandler
 from pathlib import Path
@@ -112,11 +112,30 @@ class QuietHandler(SimpleHTTPRequestHandler):
     def log_message(self, *_args): pass
 
 
-def start_server():
-    handler = lambda *args, **kwargs: QuietHandler(*args, directory=str(ROOT), **kwargs)
+def start_server(root=ROOT):
+    handler = lambda *args, **kwargs: QuietHandler(*args, directory=str(root), **kwargs)
     server = ThreadingHTTPServer(("127.0.0.1", 0), handler)
     threading.Thread(target=server.serve_forever, daemon=True).start()
     return server
+
+
+def materialize_exact_git_tree(commit: str, destination: Path) -> None:
+    """Write raw Git blobs without checkout/archive EOL conversion."""
+    entries = subprocess.check_output(
+        ["git", "ls-tree", "-r", "-z", "--format=%(objectmode) %(objectname)%x09%(path)", commit],
+        cwd=ROOT,
+    ).split(b"\0")
+    for entry in entries:
+        if not entry:
+            continue
+        metadata, raw_path = entry.split(b"\t", 1)
+        mode, blob_sha = metadata.decode("ascii").split(" ", 1)
+        if mode not in ("100644", "100755"):
+            raise RuntimeError(f"unsupported exact-tree mode {mode}")
+        relative = Path(raw_path.decode("utf-8"))
+        target = destination / relative
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(subprocess.check_output(["git", "cat-file", "blob", blob_sha], cwd=ROOT))
 
 
 def role_row(cur, email, label):
@@ -385,7 +404,7 @@ def cleanup_temp_objects(conn):
 
 
 def main():
-    global EVIDENCE
+    global EVIDENCE, SQL_PATH
     expected_sha = os.environ.get("PDC_STAGE_A_EXPECTED_SHA", "").strip().lower()
     if not re.fullmatch(r"[0-9a-f]{40}", expected_sha):
         raise SystemExit("PDC_STAGE_A_EXPECTED_SHA must pin the exact reviewed commit")
@@ -398,11 +417,15 @@ def main():
     if external_evidence:
         EVIDENCE = Path(external_evidence).resolve()
     EVIDENCE.mkdir(parents=True, exist_ok=True)
+    exact_tree = tempfile.TemporaryDirectory(prefix=f"pdc-stage-a-{expected_sha[:12]}-")
+    served_root = Path(exact_tree.name)
+    materialize_exact_git_tree(expected_sha, served_root)
+    SQL_PATH = served_root / "supabase" / "staging_only" / "115_beta_ai_auditor_foundation.sql"
     dsn=os.environ.get('PDC_STAGING_DATABASE_URL','')
     required=['PDC_STAGING_ADMIN_EMAIL','PDC_STAGING_ADMIN_PASSWORD','PDC_STAGING_CONTROLLER_A_EMAIL','PDC_STAGING_CONTROLLER_A_PASSWORD','PDC_STAGING_VIEWER_EMAIL','PDC_STAGING_VIEWER_PASSWORD']
     if not dsn or any(not os.environ.get(k) for k in required): raise SystemExit('staging campaign environment is incomplete')
     served_assets = ["staging.html", "app.js", "ai-auditor.css", "pdc-ai-auditor-stage-a.js", "supabase/staging_only/115_beta_ai_auditor_foundation.sql"]
-    result={"started_at":datetime.now(timezone.utc).isoformat(),"source_provenance":{"expected_commit":expected_sha,"head_commit":head_sha,"tree":tree_sha,"clean_worktree_before_serve":True,"served_root":str(ROOT),"served_asset_sha256":{name:sha256_file(ROOT/name) for name in served_assets}},"temporary_migration_committed":False,"migration_ledger_modified":False,"screenshots":[],"roles":{},"performance":{},"matrix":{}}
+    result={"started_at":datetime.now(timezone.utc).isoformat(),"source_provenance":{"expected_commit":expected_sha,"head_commit":head_sha,"tree":tree_sha,"clean_worktree_before_serve":True,"exact_git_blob_materialization":True,"served_asset_sha256":{name:sha256_file(served_root/name) for name in served_assets}},"temporary_migration_committed":False,"migration_ledger_modified":False,"screenshots":[],"roles":{},"performance":{},"matrix":{}}
     server=None
     before=None
     publication_pre=False
@@ -434,7 +457,7 @@ def main():
                 cur.execute("insert into public.pdc_auditor_revision(dealer_code,environment,event_type) values(%s,'staging','config_appended')",(dealer,))
             conn.commit(); result['temporary_migration_committed']=True
 
-        server=start_server(); url=f"http://127.0.0.1:{server.server_port}/staging.html#ai-auditor"
+        server=start_server(served_root); url=f"http://127.0.0.1:{server.server_port}/staging.html#ai-auditor"
         with sync_playwright() as p:
             browser=p.chromium.launch(headless=True)
             contexts={}; pages={}
@@ -478,6 +501,21 @@ def main():
             base_totals=auditor_state(admin)['totals']; admin.select_option('#ai-auditor-severity-filter','high'); assert auditor_state(admin)['totals']==base_totals; admin.select_option('#ai-auditor-severity-filter','all')
             viewer_totals=auditor_state(viewer)['totals']; viewer.select_option('#ai-auditor-category-filter','workflow_problems'); assert auditor_state(viewer)['totals']==viewer_totals; viewer.select_option('#ai-auditor-category-filter','all')
             result['matrix']['authoritative_totals_filter_invariance']=True
+            report_projection=admin.evaluate("""() => {
+              const evaluated=window.PdcAiAuditorStageA.analyze(app.pdcAuditorSnapshot);
+              const reports=evaluated?.projections?.reports||{};
+              const out={};
+              for(const name of ['morning','midday','eod','critical']){
+                selectPdcAuditorReport(name);
+                const expected=(reports[name]?.findings||[]).map(x=>String(x.id||x.finding_id||'')).sort();
+                const actual=pdcAuditorFindingsForReport(app.pdcAuditorResult,name).map(x=>String(x.id||'')).sort();
+                out[name]={expected,actual,equal:JSON.stringify(expected)===JSON.stringify(actual)};
+              }
+              selectPdcAuditorReport('morning');
+              return out;
+            }""")
+            assert all(row['equal'] for row in report_projection.values())
+            result['matrix']['deterministic_report_projection_parity']=report_projection
             sanitization={k:snapshot_sanitization(pages[k]) for k in pages}
             assert all(not row['forbiddenKeys'] for row in sanitization.values())
             result['matrix']['sanitized_authoritative_snapshots']=sanitization
@@ -575,6 +613,7 @@ def main():
                 result['temporary_objects_absent']=not any(result['temporary_objects_after'].values())
         result['finished_at']=datetime.now(timezone.utc).isoformat()
         (EVIDENCE/'authenticated-campaign.json').write_text(json.dumps(result,indent=2,sort_keys=True),encoding='utf-8')
+        exact_tree.cleanup()
     if not result.get('authenticated_browser_passed') or not result.get('operational_unchanged') or not result.get('temporary_objects_absent'): raise SystemExit(1)
     print(json.dumps(result,indent=2,sort_keys=True))
 
