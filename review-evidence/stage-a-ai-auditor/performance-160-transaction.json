@@ -23,29 +23,29 @@
   },
   "committed": false,
   "database_snapshot_evidence": {
-    "bytes": 453407,
+    "bytes": 455032,
     "path": "review-evidence/stage-a-ai-auditor/performance-160-database-snapshot.json",
     "rows": 160,
-    "sha256": "953e1e59501436baa9953a1638bbf64878b27ed2233402e2e97550b6875783a9"
+    "sha256": "f220e3f890052a0f4a4e4818a173e8b0e5fe59cfa18ce7e6a48b83922960d14d"
   },
   "database_snapshot_rpc": {
     "14450": {
-      "max_ms": 778.07,
-      "operational_revision": "f7ee79e94ae27b1c361ad51856fac468f910867cedd2551b6a65f4ccfece01bd",
-      "p50_ms": 210.31,
-      "p95_ms": 281.33,
-      "payload_bytes": 226027,
-      "response_revision": "b9045cbb5cefcba601ac0c127ea0115b508f069793271296cb0fd08fd896d361",
+      "max_ms": 1213.85,
+      "operational_revision": "f0681ea4f475580ae0b94ed5d49a2e1739243fe181ce39faa038d0856d98ca39",
+      "p50_ms": 206.84,
+      "p95_ms": 280.24,
+      "payload_bytes": 226824,
+      "response_revision": "9dd64c9f36cee1ad5c252fe74ab0f5547b35bfdf8daee2cda35bee54e87b5447",
       "rows": 80,
       "samples": 25
     },
     "37047": {
-      "max_ms": 233.9,
-      "operational_revision": "5d8708c4b16e5ca29c3caabc59e6269bf5d761d083c8ab52b11dbb282a64bbe1",
-      "p50_ms": 205.98,
-      "p95_ms": 225.04,
-      "payload_bytes": 225927,
-      "response_revision": "a9a74b7ea41addb0afcfaac2cf168a1fc1e5ad66fe941ba12c5f4599d2f48fb9",
+      "max_ms": 225.98,
+      "operational_revision": "f7be2b188bed75e516126731837e874222e9ee63a1bede3a0ad0c0f526f7c99b",
+      "p50_ms": 207.16,
+      "p95_ms": 222.16,
+      "payload_bytes": 226723,
+      "response_revision": "500e2bf23c2e44148658ad075efb6832bc55b0a10c6abd840404d11491eb3173",
       "rows": 80,
       "samples": 10
     }
@@ -428,6 +428,7 @@
         "SNAPSHOT_DEALER_SCOPE_VIOLATION",
         "STALE_STOPPAGE",
         "STARTED_WORK_WITHOUT_STARTED_BOOKING",
+        "STATION_COMPATIBILITY_UNKNOWN",
         "STATION_INCOMPATIBLE",
         "STOPPAGE_DETAILS_INCOMPLETE",
         "SUBLET_PLANNER_FORBIDDEN",
@@ -445,48 +446,45 @@
         "BOOKING_WITHOUT_ACTIVE_CANONICAL_WORK",
         "COMPLETED_WORK_MISSING_EVIDENCE",
         "LABOUR_HOURS_ZERO",
-        "PARTS_CONFIDENCE_LIMIT",
-        "STATION_COMPATIBILITY_UNKNOWN"
+        "PARTS_CONFIDENCE_LIMIT"
       ],
-      "represented_rules": 7
+      "represented_rules": 6
     },
     "dealers": {
       "14450": {
-        "findings": 293,
+        "findings": 272,
         "metric": {
-          "max_ms": 32.25,
-          "p50_ms": 9.848300000000052,
-          "p95_ms": 11.71079999999995,
+          "max_ms": 28.7894,
+          "p50_ms": 9.403400000000033,
+          "p95_ms": 10.973700000000008,
           "samples": 100
         },
-        "result_sha256": "0af80248b56177d5aa9348c4992942fe6eb553eefeb85c5afa325ceb1c970b60",
+        "result_sha256": "9c9e67be9eac7bef3e20e2f708d7dd608fc68c82a32b02c78509cb7f996e9321",
         "rule_ids": [
           "BOOKING_STOPPAGE",
           "BOOKING_WITHOUT_ACTIVE_CANONICAL_WORK",
           "COMPLETED_WORK_MISSING_EVIDENCE",
           "LABOUR_HOURS_ZERO",
-          "PARTS_CONFIDENCE_LIMIT",
-          "STATION_COMPATIBILITY_UNKNOWN"
+          "PARTS_CONFIDENCE_LIMIT"
         ],
         "vehicles": 80
       },
       "37047": {
-        "findings": 293,
+        "findings": 272,
         "metric": {
-          "max_ms": 14.408200000000079,
-          "p50_ms": 9.280900000000202,
-          "p95_ms": 10.922000000000025,
+          "max_ms": 12.843099999999822,
+          "p50_ms": 8.976999999999862,
+          "p95_ms": 10.59660000000008,
           "samples": 100
         },
-        "result_sha256": "552e97db46f88ef995d08e1a52d3d65c41f6e32dff8fa9512b74b75cc163198b",
+        "result_sha256": "6c46ba2ff7e954c13be1c312560419f5ab62488933b6cd883374393045aaab2e",
         "rule_ids": [
           "BOOKING_OUTSIDE_HOURS",
           "BOOKING_STOPPAGE",
           "BOOKING_WITHOUT_ACTIVE_CANONICAL_WORK",
           "COMPLETED_WORK_MISSING_EVIDENCE",
           "LABOUR_HOURS_ZERO",
-          "PARTS_CONFIDENCE_LIMIT",
-          "STATION_COMPATIBILITY_UNKNOWN"
+          "PARTS_CONFIDENCE_LIMIT"
         ],
         "vehicles": 80
       }
@@ -513,9 +511,9 @@
       "rule_key": "data_quality_missing_hours"
     },
     "operational_revision_unchanged": true,
-    "refresh_ms": 586.79,
-    "snapshot_rpc_refresh_ms": 510.83,
-    "submit_ms": 276.76,
+    "refresh_ms": 573.92,
+    "snapshot_rpc_refresh_ms": 495.74,
+    "submit_ms": 473.99,
     "submit_result": {
       "code": "findings_appended",
       "finding_count": 1,
@@ -546,7 +544,7 @@
     }
   },
   "migration": "supabase/staging_only/115_beta_ai_auditor_foundation.sql",
-  "migration_sha256": "bdda95e854c0a5d8007f9c6610eb973e13d46743c7a5d1919ccabaefca49119c",
+  "migration_sha256": "fa653dc704400fa071af33f63eabbc531c3c7911c87d98e7b21f6a177790b0bc",
   "operational_after": {
     "combined_sha256": "7468e336a3689090ef0f7b19fc59139ea1e78676ad69a845ba2c6b3bb38ae4af",
     "enabled_operational_trigger_count": 67,
@@ -885,6 +883,13 @@
     "postgrest": "not exercised; no live PostgREST claim",
     "realtime": "not exercised; no live Realtime claim"
   },
+  "relation_revision_content_hash_probe": {
+    "after": 936754313252787,
+    "before": 3845285440535482,
+    "changed": true,
+    "lower_source_revision_successor": 1,
+    "probe_rolled_back": true
+  },
   "role_boundaries": {
     "14450": {
       "auth_user_id": "557dba7f-fd70-4b9e-aa7b-b83b717682a7",
@@ -919,6 +924,11 @@
     "migration_objects_absent": true,
     "operational_combined_hash_equal": true,
     "operational_table_hashes_equal": true
+  },
+  "station_compatibility_projection_gate": {
+    "configured_pairs_per_dealer": 5,
+    "passed": true,
+    "unknown_findings_present": false
   },
   "synthetic_vehicles": 160
 }

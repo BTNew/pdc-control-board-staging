@@ -189,6 +189,7 @@ def read_snapshot(q, samples: int = 1) -> tuple[dict, list[float], list[dict]]:
             assert items
             manifest.append({
                 "page_number": page_number,
+                "page_size": 100,
                 "after_vehicle_id": str(after) if after else None,
                 "first_vehicle_id": str(items[0]["vehicle_id"]),
                 "last_vehicle_id": str(items[-1]["vehicle_id"]),
@@ -337,6 +338,21 @@ def main() -> None:
                    where s.code='FITTING' and s.active and s.planner_enabled group by s.id"""
             )
             stage, bays = q.fetchone()
+            station_pairs = [{"station": str(bay), "work_type": "fitting", "allowed": True} for bay in bays]
+            for dealer in DEALERS:
+                q.execute(
+                    """insert into public.pdc_auditor_rule_config(
+                         dealer_code,environment,rule_key,config_version,config,provisional)
+                       values(%s,'staging','station_compatibility',2,%s::jsonb,false)""",
+                    (dealer, json.dumps({
+                        "mode": "default_deny",
+                        "allowed_pairs": station_pairs,
+                        "unknown_station_action": "flag_and_do_not_link",
+                        "booking_work_link_policy": "explicit_fk_only",
+                        "canonical_candidates_are_diagnostic_only": True,
+                    })),
+                )
+                assert q.rowcount == 1
             q.execute("select transaction_timestamp()")
             recorded_at = q.fetchone()[0]
             base = datetime(2026, 8, 3, 0, 0, tzinfo=timezone.utc)
@@ -469,6 +485,32 @@ def main() -> None:
                 }
             assert sum(len(snapshot["items"]) for snapshot in snapshots.values()) == N
 
+            # A lower source_revision successor must still alter the content-derived
+            # relation revision; max(source_revision) would miss this authority change.
+            set_actor(q, admin_id, admin_email)
+            q.execute("""select relation_id,booking_id,work_item_id,relation_kind from public.pdc_auditor_booking_work_relations
+                         where dealer_code='14450' and source_revision>1 order by source_revision desc limit 1""")
+            predecessor, relation_booking, relation_work, relation_kind = q.fetchone()
+            q.execute("savepoint relation_revision_probe")
+            q.execute("""insert into public.pdc_auditor_booking_work_relations(
+                         relation_id,dealer_code,environment,booking_id,work_item_id,relation_kind,
+                         relation_action,supersedes_relation_id,source_revision,source_recorded_at)
+                         values(%s,'14450','staging',%s,%s,%s,'revoked',%s,1,%s)""",
+                      (uid("relation-revision-low-successor"), relation_booking, relation_work,
+                       relation_kind, predecessor, recorded_at))
+            changed_snapshot, _, _ = read_snapshot(q, samples=1)
+            before_relation_revision = snapshots["14450"]["source_revisions"]["auditor_relation_revision"]
+            after_relation_revision = changed_snapshot["source_revisions"]["auditor_relation_revision"]
+            assert after_relation_revision != before_relation_revision
+            q.execute("rollback to savepoint relation_revision_probe")
+            result["relation_revision_content_hash_probe"] = {
+                "lower_source_revision_successor": 1,
+                "before": before_relation_revision,
+                "after": after_relation_revision,
+                "changed": True,
+                "probe_rolled_back": True,
+            }
+
             # Viewer can read only its server-derived dealer and cannot submit worker findings.
             set_actor(q, viewer_id, viewer_email)
             viewer_run = {
@@ -517,6 +559,13 @@ def main() -> None:
                 "rows": N,
             }
             result["deterministic_engine"] = engine_benchmark(SNAP)
+            for dealer, engine_row in result["deterministic_engine"]["dealers"].items():
+                assert "STATION_COMPATIBILITY_UNKNOWN" not in engine_row["rule_ids"], dealer
+            result["station_compatibility_projection_gate"] = {
+                "configured_pairs_per_dealer": len(station_pairs),
+                "unknown_findings_present": False,
+                "passed": True,
+            }
 
             # Submit one deterministic engine-derived recommendation shape through the real RPC.
             set_actor(q, admin_id, admin_email)

@@ -170,6 +170,7 @@ def capture_snapshot(cur, page_size=100) -> tuple[dict, list[dict]]:
             "last_vehicle_id": str(rows[-1]["vehicle_id"]),
             "operational_revision": page["operational_revision"],
             "page_number": number,
+            "page_size": page_size,
             "response_revision": page["response_revision"],
         }
         pages.append(manifest)
@@ -243,7 +244,7 @@ def generic_fk_proof(cur) -> dict:
     return {"constraints_checked": len(constraints), "validated": validated, "orphan_rows": 0}
 
 
-def encrypted_restore_proof(cur) -> dict:
+def encrypted_logical_payload_round_trip_proof(cur) -> dict:
     key = secrets.token_hex(32)
     schema = f"pdc_auditor_restore_{uuid.uuid4().hex[:12]}"
     backup = {}
@@ -272,7 +273,13 @@ def encrypted_restore_proof(cur) -> dict:
     cur.execute("select to_regnamespace(%s) is null", (schema,))
     if not cur.fetchone()[0]:
         raise AssertionError("restore schema residue")
-    return {"algorithm": "OpenPGP AES-256 symmetric (in-memory)", "ciphertext_bytes": len(encrypted), "tables_restored": len(AUDITOR_TABLES), "restore_schema_removed": True}
+    return {
+        "scope": "encrypted logical row-payload round trip only; not a schema, ACL, RLS, publication or disaster-recovery restore",
+        "algorithm": "OpenPGP AES-256 symmetric (in-memory)",
+        "ciphertext_bytes": len(encrypted),
+        "table_payloads_round_tripped": len(AUDITOR_TABLES),
+        "temporary_schema_removed": True,
+    }
 
 
 def run() -> dict:
@@ -362,6 +369,21 @@ def run() -> dict:
             def finding(value, n, finding_id=None):
                 return {"category":"data_quality","confidence":0.8,"detected_at":(datetime(2035,1,1,tzinfo=timezone.utc)+timedelta(minutes=n)).isoformat().replace("+00:00","Z"),"entity_id":vehicle_id,"entity_type":"vehicle","evidence":[{"boolean_value":None,"entity_id":vehicle_id,"entity_type":"vehicle","field_code":"version","numeric_value":value,"signal_code":"proof_signal","timestamp_value":None}],"finding_id":finding_id or str(uuid.uuid4()),"risk_score":25,"rule_key":"proof_rule","scoring_version":"proof-v2","severity":"medium","summary_code":"proof_recommendation"}
 
+            # A complete worker submission is accepted only from canonical 100-row pages.
+            # Caller-declared boundaries are reconstructed server-side before any write.
+            probe_findings = [finding(1, 0)]
+            fabricated_pages = [dict(page) for page in pages]
+            fabricated_pages[0]["first_vehicle_id"] = fabricated_pages[0]["last_vehicle_id"]
+            fabricated_run = payload(cur, snapshot, fabricated_pages, dealer, 0, probe_findings)
+            fabricated_manifest_rejected = reject(
+                cur, "select public.submit_pdc_auditor_findings(%s::jsonb,%s::jsonb)",
+                (json.dumps(fabricated_run), json.dumps(probe_findings)), "pdc_auditor_incomplete_snapshot")
+            wrong_page_size = [dict(page, page_size=17) for page in pages]
+            wrong_page_size_run = payload(cur, snapshot, wrong_page_size, dealer, 0, probe_findings)
+            noncanonical_submission_page_size_rejected = reject(
+                cur, "select public.submit_pdc_auditor_findings(%s::jsonb,%s::jsonb)",
+                (json.dumps(wrong_page_size_run), json.dumps(probe_findings)), "pdc_auditor_incomplete_snapshot")
+
             runs = []
             sequences = [[finding(1,1,stable_input_id)],[finding(1,2)],[],[finding(1,4)],[finding(2,5)]]
             for n, findings in enumerate(sequences, 1):
@@ -418,7 +440,7 @@ def run() -> dict:
                 raise AssertionError("RLS/direct-write contract failed")
 
             fk = generic_fk_proof(cur)
-            restore = encrypted_restore_proof(cur)
+            logical_backup = encrypted_logical_payload_round_trip_proof(cur)
             during_operational = table_hashes(cur)
             if during_operational != before_operational:
                 raise AssertionError("Stage A changed operational table hashes")
@@ -429,14 +451,14 @@ def run() -> dict:
                 "actor_role": role, "dealer_code": dealer, "dealer_vehicle_count": dealer_vehicle_count,
                 "bounded_pagination": {"submission_pages": len(pages), "small_page_size": min(17,dealer_vehicle_count), "small_pages": len(small_pages), "unique_cursors": True},
                 "lifecycle": {"stable_finding_rows": finding_rows, "stable_finding_ids": stable_ids, "persisted_first_finding_id": persisted_id, "occurrences": occurrences, "history": history, "status": status, "evidence_change_recorded": True, "resolved_then_reappeared": True, "exact_replay": True},
-                "rejections": {"wrong_submission_environment": wrong_submission_env, "wrong_dealer": wrong_dealer, "viewer_worker": viewer_rejected or "SKIP:no approved viewer fixture"},
+                "rejections": {"wrong_submission_environment": wrong_submission_env, "wrong_dealer": wrong_dealer, "viewer_worker": viewer_rejected or "SKIP:no approved viewer fixture", "fabricated_page_manifest": fabricated_manifest_rejected, "noncanonical_submission_page_size": noncanonical_submission_page_size_rejected},
                 "security": {"claims_simulated_with_request_jwt_claims": True, "forged_jwt_dealer_ignored": True, "rls_own_rows": rls_own_count, "authenticated_direct_write": direct_write, "service_role_used": False},
                 "payload_hash_computed_server_side": True,
                 "operational_hashes_before": before_operational,
                 "operational_hashes_during": during_operational,
                 "operational_unchanged_during": True,
                 "foreign_keys": fk,
-                "encrypted_backup_isolated_restore": restore,
+                "encrypted_logical_payload_round_trip_not_disaster_restore": logical_backup,
             })
         finally:
             conn.rollback()
@@ -457,8 +479,11 @@ def run() -> dict:
                    "migration_ledger_before": ledger_before, "migration_ledger_after": ledger_after,
                    "operational_hashes_after_rollback": after_operational, "passed": True})
     OUT_JSON.parent.mkdir(parents=True, exist_ok=True)
-    OUT_JSON.write_text(json.dumps(result, indent=2, sort_keys=True, default=str) + "\n", encoding="utf-8")
-    OUT_MD.write_text("# Migration 115 rollback proof\n\n**PASS** — static contract, exact predecessor/version identity, rollback-only apply/replay, schema/RPC, authenticated RLS and worker rejection, lifecycle identity/evidence/resolution/reappearance/exact replay, bounded pagination, wrong-environment/dealer rejection, operational hashes, encrypted in-memory backup/isolated restore, all public FKs, and fresh-connection rollback absence passed.\n\n- Migration SHA-256: `" + result["static"]["migration_sha256"] + "`\n- Operational tables hashed: **" + str(len(OPERATIONAL)) + "**\n- Public FKs checked: **" + str(result["foreign_keys"]["constraints_checked"]) + "**\n- Evidence JSON: `review-evidence/stage-a-ai-auditor/rollback-proof-115.json`\n- Commit performed: **no**\n", encoding="utf-8")
+    evidence_result = dict(result)
+    for sensitive_connection_key in ("project_ref", "database_host", "database", "database_actor", "app_project_ref_setting"):
+        evidence_result[sensitive_connection_key] = "[REDACTED]"
+    OUT_JSON.write_text(json.dumps(evidence_result, indent=2, sort_keys=True, default=str) + "\n", encoding="utf-8")
+    OUT_MD.write_text("# Migration 115 rollback proof\n\n**PASS** — static contract, exact predecessor/version identity, rollback-only apply/replay, schema/RPC, authenticated RLS and worker rejection, lifecycle identity/evidence/resolution/reappearance/exact replay, server-reconstructed canonical submission pages, wrong-environment/dealer rejection, operational hashes, all public FKs, and fresh-connection rollback restoration/absence passed.\n\nThe encrypted exercise is explicitly limited to an in-memory logical row-payload encryption/decryption round trip. It is **not** claimed as a schema, ACL, RLS, publication, or disaster-recovery restore.\n\n- Migration SHA-256: `" + result["static"]["migration_sha256"] + "`\n- Operational tables hashed: **" + str(len(OPERATIONAL)) + "**\n- Public FKs checked: **" + str(result["foreign_keys"]["constraints_checked"]) + "**\n- Evidence JSON: `review-evidence/stage-a-ai-auditor/rollback-proof-115.json`\n- Commit performed: **no**\n", encoding="utf-8")
     return result
 
 

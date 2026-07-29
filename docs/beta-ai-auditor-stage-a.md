@@ -32,7 +32,9 @@ The Stage A snapshot is dealer-scoped, revision-bearing, bounded and sanitized. 
 
 It excludes customer names, registration/VIN, actor/sender/provider email, telephone, mailbox identifiers, raw email or document text, source payloads, audit before/after JSON, arbitrary metadata and operational mutation capability.
 
-A booking-to-work relation is accepted only when an explicit durable relation exists. Where only stage/vehicle candidates exist, the snapshot exposes candidate IDs and match count. The rule engine reports zero or multiple candidates and does not create a link or fuzzy backfill.
+A booking-to-work relation is accepted only when one explicit durable relation exists. Legacy, absent, revoked, duplicate, cross-vehicle or cross-dealer relations are returned only as bounded relationship-status codes; candidate IDs are never exposed or used as authority. The relation revision is a deterministic content hash, so an insertion or revocation changes the snapshot even when a source revision number is lower than an existing maximum.
+
+The read RPC accepts page sizes from 1–100. Browser reads merge at most five 100-row pages and normalize the merged envelope as complete before strict adaptation. Finding submission has a narrower explicit contract: complete worker manifests must use canonical 100-row pages. The server reconstructs every declared page and verifies its cursor, count, first/last vehicle IDs, dealer, operational revision and response revision before any finding can be stored or resolved.
 
 ## Finding lifecycle
 
@@ -73,6 +75,8 @@ The same evidence contributes once to a component. Severity floors keep critical
 ## Internal reports
 
 Morning Workshop Briefing, Midday Risk Review, End-of-Day Carryover and Critical Issues are deterministic page projections. They are manually generated/viewed and not scheduled, emailed, sent to Telegram or otherwise delivered.
+
+Authenticated browser evidence is run only from a clean worktree pinned by `PDC_STAGE_A_EXPECTED_SHA`. The evidence records the commit, tree and SHA-256 of every served Stage A asset. Viewport-labelled screenshots capture the viewport rather than a full-page image.
 
 ## Stage A limitations
 

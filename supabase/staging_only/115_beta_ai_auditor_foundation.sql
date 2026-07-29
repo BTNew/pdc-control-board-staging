@@ -438,8 +438,7 @@ security definer
 set search_path=pg_catalog,public
 as $vehicle_dealer$
   select case
-    when count(*)>0
-     and count(distinct r.dealer_code)=1
+    when count(*)=1
      and min(r.dealer_code) in ('14450','37047')
     then min(r.dealer_code)
     else null
@@ -628,8 +627,12 @@ begin
   select coalesce(revision,0) into v_email_revision from public.pdc_email_vehicle_revision where singleton;
   select coalesce(max(revision_id),0) into v_auditor_revision
     from public.pdc_auditor_revision where dealer_code=v_dealer and environment='staging';
-  select coalesce(max(source_revision),0) into v_relation_revision
-    from public.pdc_auditor_booking_work_relations where dealer_code=v_dealer and environment='staging';
+  select coalesce((('x'||substr(encode(extensions.digest(convert_to(coalesce(string_agg(
+      concat_ws(':',relation_id::text,booking_id::text,work_item_id::text,relation_kind,relation_action,
+        source_revision::text,extract(epoch from source_recorded_at)::text,active::text,coalesce(supersedes_relation_id::text,'')),
+      '|' order by relation_id),''),'UTF8'),'sha256'),'hex'),1,13))::bit(52)::bigint),0)
+    into v_relation_revision
+  from public.pdc_auditor_booking_work_relations where dealer_code=v_dealer and environment='staging';
   select coalesce(max(config_version),0) into v_config_revision
     from public.pdc_auditor_rule_config where dealer_code=v_dealer and environment='staging';
   v_operational_revision := public.pdc_auditor_operational_revision(v_dealer);
@@ -651,7 +654,8 @@ begin
     'parameters',case c.rule_key
       when 'station_compatibility' then jsonb_build_object(
         'mode',c.config->'mode','unknown_station_action',c.config->'unknown_station_action',
-        'booking_work_link_policy',c.config->'booking_work_link_policy')
+        'booking_work_link_policy',c.config->'booking_work_link_policy',
+        'allowed_pairs',coalesce(c.config->'allowed_pairs','[]'::jsonb))
       when 'department_mismatch_thresholds' then jsonb_build_object(
         'status',c.config->'status','minimum_sample_size',c.config->'minimum_sample_size',
         'warning_ratio',c.config->'warning_ratio','high_ratio',c.config->'high_ratio','action',c.config->'action')
@@ -910,7 +914,7 @@ begin
       || case when v_calendar_config is null then '{}'::jsonb
         else jsonb_build_object('public_holidays',v_calendar_config->'public_holidays') end,
     'active_rule_configs',v_configs,
-    'station_compatibility',coalesce((select c->'parameters' from jsonb_array_elements(v_configs) c where c->>'rule_key'='station_compatibility' limit 1),'{}'::jsonb),
+    'station_compatibility',coalesce((select c->'parameters'->'allowed_pairs' from jsonb_array_elements(v_configs) c where c->>'rule_key'='station_compatibility' limit 1),'[]'::jsonb),
     'resources',v_resources,
     'page_manifest',jsonb_build_object('after_vehicle_id',p_after_vehicle_id,'returned_count',v_page_item_count,
       'total_scoped_vehicle_count',v_total_vehicle_count,'page_limit',v_limit,'has_more',v_has_more,
@@ -945,8 +949,11 @@ declare
   v_computed_payload_hash text;
   v_manifest_hash text;
   v_current_snapshot jsonb;
+  v_server_page jsonb;
   v_page jsonb;
   v_page_count integer;
+  v_page_index integer := 0;
+  v_after_vehicle_id uuid;
   v_vehicle_count integer;
   v_manifest_vehicle_count integer := 0;
   v_previous_last_vehicle_id text;
@@ -1001,14 +1008,34 @@ begin
     raise exception 'pdc_auditor_incomplete_snapshot' using errcode='22023';
   end if;
   v_page_count := jsonb_array_length(p_run->'snapshot_page_manifest');
+  v_computed_payload_hash := encode(extensions.digest(convert_to(
+    (p_run-array['payload_hash','request_hash']::text[])::text||'|'||p_findings::text,'UTF8'),'sha256'),'hex');
+  if v_computed_payload_hash<>p_run->>'payload_hash' or v_request_hash<>v_computed_payload_hash then
+    raise exception 'pdc_auditor_payload_hash_mismatch' using errcode='22023';
+  end if;
+  -- Exact replays are immutable no-op acknowledgements. Authenticate and verify their
+  -- payload before freshness/page reconstruction, because a prior accepted run advances
+  -- auditor_revision and intentionally makes its old page revision stale.
+  perform pg_advisory_xact_lock(hashtextextended('pdc-auditor-complete-run:'||v_dealer,0));
+  select run_id,payload_hash into v_existing,v_existing_payload_hash from public.pdc_auditor_runs
+    where dealer_code=v_dealer and environment=v_environment and request_hash=v_request_hash;
+  if found then
+    if v_existing <> v_run_id or v_existing_payload_hash<>v_computed_payload_hash then
+      raise exception 'pdc_auditor_request_hash_conflict' using errcode='23505';
+    end if;
+    return jsonb_build_object('ok',true,'code','exact_replay','run_id',v_existing);
+  end if;
   for v_page in select value from jsonb_array_elements(p_run->'snapshot_page_manifest') loop
     if jsonb_typeof(v_page) is distinct from 'object'
        or (select array_agg(k order by k) from jsonb_object_keys(v_page) k)
-         is distinct from array['after_vehicle_id','first_vehicle_id','has_more','item_count','last_vehicle_id','operational_revision','page_number','response_revision']::text[]
+         is distinct from array['after_vehicle_id','first_vehicle_id','has_more','item_count','last_vehicle_id','operational_revision','page_number','page_size','response_revision']::text[]
        or jsonb_typeof(v_page->'item_count') is distinct from 'number'
        or (v_page->>'item_count')::integer not between 1 and 100
        or jsonb_typeof(v_page->'page_number') is distinct from 'number'
-       or (v_page->>'page_number')::integer <> v_manifest_vehicle_count/100+1
+       or jsonb_typeof(v_page->'has_more') is distinct from 'boolean'
+       or (v_page->>'page_number')::integer <> v_page_index+1
+       or jsonb_typeof(v_page->'page_size') is distinct from 'number'
+       or (v_page->>'page_size')::integer <> 100
        or v_page->>'response_revision' <> p_run->>'snapshot_response_revision'
        or v_page->>'operational_revision' <> p_run->>'operational_revision'
        or (v_manifest_vehicle_count=0 and jsonb_typeof(v_page->'after_vehicle_id') <> 'null')
@@ -1017,8 +1044,24 @@ begin
        or coalesce(v_page->>'last_vehicle_id','') !~ '^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$' then
       raise exception 'pdc_auditor_incomplete_snapshot' using errcode='22023';
     end if;
+    begin
+      v_after_vehicle_id := case when jsonb_typeof(v_page->'after_vehicle_id')='null' then null
+        else (v_page->>'after_vehicle_id')::uuid end;
+    exception when invalid_text_representation then
+      raise exception 'pdc_auditor_incomplete_snapshot' using errcode='22023';
+    end;
+    v_server_page := public.get_pdc_auditor_snapshot(v_after_vehicle_id,100);
+    if jsonb_array_length(v_server_page->'items')<>(v_page->>'item_count')::integer
+       or v_server_page->>'response_revision'<>v_page->>'response_revision'
+       or v_server_page->>'operational_revision'<>v_page->>'operational_revision'
+       or (v_server_page->>'has_more')::boolean is distinct from (v_page->>'has_more')::boolean
+       or v_server_page->'items'->0->>'vehicle_id' is distinct from v_page->>'first_vehicle_id'
+       or v_server_page->'items'->((v_page->>'item_count')::integer-1)->>'vehicle_id' is distinct from v_page->>'last_vehicle_id' then
+      raise exception 'pdc_auditor_incomplete_snapshot' using errcode='22023';
+    end if;
     v_manifest_vehicle_count := v_manifest_vehicle_count+(v_page->>'item_count')::integer;
-    v_previous_last_vehicle_id := v_page->>'last_vehicle_id';
+    v_previous_last_vehicle_id := v_server_page->'items'->((v_page->>'item_count')::integer-1)->>'vehicle_id';
+    v_page_index := v_page_index+1;
   end loop;
   select value into v_page from jsonb_array_elements(p_run->'snapshot_page_manifest') with ordinality p(value,n)
     order by n desc limit 1;
@@ -1032,21 +1075,6 @@ begin
     raise exception 'pdc_auditor_incomplete_snapshot' using errcode='22023';
   end if;
   v_manifest_hash := encode(extensions.digest(convert_to((p_run->'snapshot_page_manifest')::text,'UTF8'),'sha256'),'hex');
-  v_computed_payload_hash := encode(extensions.digest(convert_to(
-    (p_run-array['payload_hash','request_hash']::text[])::text||'|'||p_findings::text,'UTF8'),'sha256'),'hex');
-  if v_computed_payload_hash<>p_run->>'payload_hash' or v_request_hash<>v_computed_payload_hash then
-    raise exception 'pdc_auditor_payload_hash_mismatch' using errcode='22023';
-  end if;
-  -- Complete runs and exact replays are serialized per dealer so lifecycle ordering is stable.
-  perform pg_advisory_xact_lock(hashtextextended('pdc-auditor-complete-run:'||v_dealer,0));
-  select run_id,payload_hash into v_existing,v_existing_payload_hash from public.pdc_auditor_runs
-    where dealer_code=v_dealer and environment=v_environment and request_hash=v_request_hash;
-  if found then
-    if v_existing <> v_run_id or v_existing_payload_hash<>v_computed_payload_hash then
-      raise exception 'pdc_auditor_request_hash_conflict' using errcode='23505';
-    end if;
-    return jsonb_build_object('ok',true,'code','exact_replay','run_id',v_existing);
-  end if;
   v_current_snapshot := public.get_pdc_auditor_snapshot(null,least(100,v_vehicle_count));
   if v_current_snapshot->>'response_revision' <> p_run->>'snapshot_response_revision'
      or v_current_snapshot->>'operational_revision' <> p_run->>'operational_revision'
@@ -1285,6 +1313,25 @@ begin
          where h !~ '^\d{4}-\d{2}-\d{2}$')
      ) then
     raise exception 'pdc_auditor_invalid_working_calendar' using errcode='22023';
+  end if;
+  if p_rule_key='station_compatibility' and (
+       (select array_agg(k order by k) from jsonb_object_keys(p_config) k)
+         is distinct from array['allowed_pairs','booking_work_link_policy','canonical_candidates_are_diagnostic_only','mode','unknown_station_action']::text[]
+       or p_config->>'mode'<>'default_deny'
+       or p_config->>'unknown_station_action'<>'flag_and_do_not_link'
+       or p_config->>'booking_work_link_policy'<>'explicit_fk_only'
+       or jsonb_typeof(p_config->'canonical_candidates_are_diagnostic_only') is distinct from 'boolean'
+       or jsonb_typeof(p_config->'allowed_pairs') is distinct from 'array'
+       or jsonb_array_length(p_config->'allowed_pairs')>100
+       or exists(select 1 from jsonb_array_elements(p_config->'allowed_pairs') pair
+         where jsonb_typeof(pair)<>'object'
+           or (select array_agg(k order by k) from jsonb_object_keys(pair) k)
+             is distinct from array['allowed','station','work_type']::text[]
+           or coalesce(pair->>'station','') !~ '^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
+           or coalesce(pair->>'work_type','') !~ '^[a-z][a-z0-9_-]{0,63}$'
+           or jsonb_typeof(pair->'allowed') is distinct from 'boolean')
+     ) then
+    raise exception 'pdc_auditor_invalid_station_compatibility' using errcode='22023';
   end if;
   perform pg_advisory_xact_lock(hashtextextended('pdc-auditor-config:'||v_dealer||':'||p_rule_key,0));
   select coalesce(max(config_version),0)+1 into v_version

@@ -44,6 +44,7 @@ assert.ok(block.includes('authority !== auditorAuthorityIdentity()'), 'stale cal
 assert.ok(block.includes('resetPdcAuditorAuthorityState'), 'auth loss must have one synchronous reset path');
 assert.ok(block.includes('subscribePdcAuditorRealtime'), 'auditor must subscribe to revision invalidation');
 assert.ok(block.includes("table: 'pdc_auditor_revision'"), 'Realtime must observe only the auditor revision table');
+assert.ok(block.includes('filter: `dealer_code=eq.${dealer}`'), 'Realtime invalidation must be explicitly filtered to the authenticated snapshot dealer');
 assert.ok(block.includes('Realtime is invalidation only'), 'Realtime events must refetch rather than become authority');
 assert.ok(block.includes('pdcAuditorFilteredFindings'), 'display filters must be isolated from authoritative summary totals');
 assert.ok(block.includes('Summary cards remain authoritative totals.'), 'filter result copy must preserve total semantics');
@@ -52,12 +53,19 @@ assert.ok(block.includes('details class="ai-auditor-evidence"'), 'findings must 
 assert.ok(block.includes('data-ai-auditor-open-vehicle'), 'findings must expose Open Vehicle');
 assert.ok(block.includes('function openPdcAuditorSnapshotVehicleDetail'), 'Open Vehicle must have an authenticated-snapshot read-only fallback');
 assert.ok(block.includes("String(row?.vehicle_id || '').trim() === id"), 'snapshot Vehicle Detail fallback must require one exact authoritative vehicle identity');
+const openVehicleStart = block.indexOf('function openPdcAuditorVehicle');
+const openVehicleEnd = block.indexOf('function pdcAuditorSeverityRank', openVehicleStart);
+const openVehicleBlock = block.slice(openVehicleStart, openVehicleEnd);
+['selectedVehicle(', 'openVehicleModal(', 'emailVehicleLocationRows', '__workshopDataService'].forEach(token => assert.ok(!openVehicleBlock.includes(token), `Open Vehicle must never reach adjacent authority via ${token}`));
 const snapshotDetailStart = block.indexOf('function openPdcAuditorSnapshotVehicleDetail');
 const snapshotDetailEnd = block.indexOf('function openPdcAuditorVehicle', snapshotDetailStart);
 const snapshotDetailBlock = block.slice(snapshotDetailStart, snapshotDetailEnd);
 assert.ok(snapshotDetailBlock.includes('BETA – READ ONLY / APPROVAL REQUIRED'), 'snapshot Vehicle Detail must retain the read-only authority banner');
 assert.ok(!/(approve|deny|snooze|save|edit|delete|schedule|mutate|rpc\/)\s*[\("']/i.test(snapshotDetailBlock), 'snapshot Vehicle Detail fallback must expose no operational action path');
 assert.ok(block.includes('Stage C decision workflow not enabled'), 'rendered decision state must preserve exact disabled copy');
+assert.ok(block.includes('reportMembership') && block.includes('evaluated.reports'), 'manual report tabs must consume deterministic engine report projections');
+assert.ok(block.includes('return result?.hasReportProjections ? explicitlyScoped : findings'), 'an intentionally empty deterministic report projection must remain empty rather than falling back to every finding');
+assert.ok(block.includes('has_more: false') && block.includes('next_vehicle_id: null'), 'merged authoritative pagination must be normalized as complete before strict adaptation');
 [
   'pdcSheetVehicles(', 'localStorage', 'sessionStorage', 'loadJson(', 'saveJson(',
   'saveVehicleEdits(', '.mutate(', 'applyEmailReview(', 'rejectEmailReview('

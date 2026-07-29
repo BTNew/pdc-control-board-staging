@@ -7,7 +7,7 @@ The migration ledger is fingerprinted but never written.  A successful run requi
 cleanup, 32 operational/authority hashes, and a fresh-connection absence check.
 """
 from __future__ import annotations
-import contextlib, hashlib, json, os, re, threading, time, uuid
+import contextlib, hashlib, json, os, re, subprocess, threading, time, uuid
 from datetime import datetime, timezone
 from http.server import ThreadingHTTPServer, SimpleHTTPRequestHandler
 from pathlib import Path
@@ -309,7 +309,7 @@ def capture(page, name, result, role, zoom=1.0):
     }""", [os.environ.get(k, "") for k in (
         "PDC_STAGING_ADMIN_EMAIL", "PDC_STAGING_CONTROLLER_A_EMAIL", "PDC_STAGING_VIEWER_EMAIL")])
     path = EVIDENCE / name
-    page.screenshot(path=str(path), full_page=True)
+    page.screenshot(path=str(path), full_page=False)
     viewport = page.viewport_size or {}
     state = auditor_state(page)
     result["screenshots"].append({
@@ -385,11 +385,24 @@ def cleanup_temp_objects(conn):
 
 
 def main():
+    global EVIDENCE
+    expected_sha = os.environ.get("PDC_STAGE_A_EXPECTED_SHA", "").strip().lower()
+    if not re.fullmatch(r"[0-9a-f]{40}", expected_sha):
+        raise SystemExit("PDC_STAGE_A_EXPECTED_SHA must pin the exact reviewed commit")
+    head_sha = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip().lower()
+    tree_sha = subprocess.check_output(["git", "rev-parse", "HEAD^{tree}"], cwd=ROOT, text=True).strip().lower()
+    status = subprocess.check_output(["git", "status", "--porcelain"], cwd=ROOT, text=True)
+    if head_sha != expected_sha or status:
+        raise SystemExit("refusing browser campaign: HEAD differs from the pinned SHA or worktree is dirty")
+    external_evidence = os.environ.get("PDC_STAGE_A_EVIDENCE_DIR", "").strip()
+    if external_evidence:
+        EVIDENCE = Path(external_evidence).resolve()
     EVIDENCE.mkdir(parents=True, exist_ok=True)
     dsn=os.environ.get('PDC_STAGING_DATABASE_URL','')
     required=['PDC_STAGING_ADMIN_EMAIL','PDC_STAGING_ADMIN_PASSWORD','PDC_STAGING_CONTROLLER_A_EMAIL','PDC_STAGING_CONTROLLER_A_PASSWORD','PDC_STAGING_VIEWER_EMAIL','PDC_STAGING_VIEWER_PASSWORD']
     if not dsn or any(not os.environ.get(k) for k in required): raise SystemExit('staging campaign environment is incomplete')
-    result={"started_at":datetime.now(timezone.utc).isoformat(),"temporary_migration_committed":False,"migration_ledger_modified":False,"screenshots":[],"roles":{},"performance":{},"matrix":{}}
+    served_assets = ["staging.html", "app.js", "ai-auditor.css", "pdc-ai-auditor-stage-a.js", "supabase/staging_only/115_beta_ai_auditor_foundation.sql"]
+    result={"started_at":datetime.now(timezone.utc).isoformat(),"source_provenance":{"expected_commit":expected_sha,"head_commit":head_sha,"tree":tree_sha,"clean_worktree_before_serve":True,"served_root":str(ROOT),"served_asset_sha256":{name:sha256_file(ROOT/name) for name in served_assets}},"temporary_migration_committed":False,"migration_ledger_modified":False,"screenshots":[],"roles":{},"performance":{},"matrix":{}}
     server=None
     before=None
     publication_pre=False

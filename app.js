@@ -18100,7 +18100,24 @@ function createPdcAuditorSnapshotService({ config = {}, getAccessToken = () => n
         }
         items.push(...pageItems);
         if (!page.has_more) {
-          const snapshot = { ...firstPage, revision: firstPage.response_revision, as_of: firstPage.generated_at, items, vehicles: items };
+          const snapshot = {
+            ...firstPage,
+            revision: firstPage.response_revision,
+            as_of: firstPage.generated_at,
+            page_size: firstPage.page_size,
+            has_more: false,
+            next_vehicle_id: null,
+            page_manifest: {
+              ...(firstPage.page_manifest || {}),
+              after_vehicle_id: null,
+              returned_count: items.length,
+              total_scoped_vehicle_count: items.length,
+              has_more: false,
+              next_vehicle_id: null,
+            },
+            items,
+            vehicles: items,
+          };
           retainedSnapshot = snapshot;
           return { ok: true, snapshot };
         }
@@ -18178,11 +18195,26 @@ function pdcAuditorEvaluateSnapshot(snapshot = {}) {
     : Array.isArray(snapshot.findings) ? snapshot.findings
       : Array.isArray(snapshot.auditor_findings) ? snapshot.auditor_findings : null;
   if (!sourceFindings) return null;
-  const findings = sourceFindings.slice(0, 500).map(pdcAuditorNormalizeFinding);
+  const reportMembership = new Map();
+  if (evaluated.reports && typeof evaluated.reports === 'object') {
+    Object.entries(evaluated.reports).forEach(([reportName, report]) => {
+      (Array.isArray(report?.findings) ? report.findings : []).forEach(finding => {
+        const id = String(finding?.id || finding?.finding_id || '');
+        if (!id) return;
+        if (!reportMembership.has(id)) reportMembership.set(id, []);
+        reportMembership.get(id).push(String(reportName).toLowerCase());
+      });
+    });
+  }
+  const findings = sourceFindings.slice(0, 500).map((finding, index) => pdcAuditorNormalizeFinding({
+    ...finding,
+    report_views: reportMembership.get(String(finding?.id || finding?.finding_id || '')) || finding?.report_views,
+  }, index));
   return {
     revision: snapshot.revision,
     asOf: snapshot.as_of || snapshot.asOf || snapshot.generated_at,
     version: pdcAuditorSafeText(evaluated.version || snapshot.schema_version || 'Stage A', 60),
+    hasReportProjections: Boolean(evaluated.reports && typeof evaluated.reports === 'object'),
     findings,
   };
 }
@@ -18219,11 +18251,12 @@ function pdcAuditorService() {
   return app.pdcAuditorService;
 }
 
-function subscribePdcAuditorRealtime() {
+function subscribePdcAuditorRealtime(dealerCode = '') {
   const client = window.PDC_SUPABASE;
-  if (app.pdcAuditorRealtime || !client || typeof client.channel !== 'function' || !auditorAuthorityIdentity()) return app.pdcAuditorRealtime;
+  const dealer = String(dealerCode || '').trim();
+  if (app.pdcAuditorRealtime || !client || typeof client.channel !== 'function' || !auditorAuthorityIdentity() || !/^\d{5}$/.test(dealer)) return app.pdcAuditorRealtime;
   app.pdcAuditorRealtime = client.channel('pdc_auditor_revision_read_only')
-    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'pdc_auditor_revision' }, () => {
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'pdc_auditor_revision', filter: `dealer_code=eq.${dealer}` }, () => {
       // Realtime is invalidation only. Authority always comes from a fresh RPC snapshot.
       if (document.getElementById('ai-auditor')?.classList.contains('active')) loadPdcAuditorSnapshot({ force: true });
       else app.pdcAuditorService?.invalidate?.();
@@ -18248,7 +18281,6 @@ async function loadPdcAuditorSnapshot({ force = false } = {}) {
     renderPdcAuditor();
     return false;
   }
-  subscribePdcAuditorRealtime();
   const response = await service.getAuditorSnapshot();
   if (generation !== app.pdcAuditorGeneration || service !== app.pdcAuditorService || authority !== auditorAuthorityIdentity()) return false;
   const result = response.ok ? pdcAuditorEvaluateSnapshot(response.snapshot) : null;
@@ -18265,6 +18297,7 @@ async function loadPdcAuditorSnapshot({ force = false } = {}) {
   app.pdcAuditorSnapshot = response.snapshot;
   app.pdcAuditorResult = result;
   app.pdcAuditorState = 'ready';
+  subscribePdcAuditorRealtime(response.snapshot.dealer_code);
   renderPdcAuditor();
   return true;
 }
@@ -18273,7 +18306,7 @@ function pdcAuditorFindingsForReport(result = app.pdcAuditorResult, report = app
   const findings = Array.isArray(result?.findings) ? result.findings : [];
   if (report === 'critical') return findings.filter(item => item.severity === 'critical');
   const explicitlyScoped = findings.filter(item => item.reportViews.includes(report));
-  return explicitlyScoped.length ? explicitlyScoped : findings;
+  return result?.hasReportProjections ? explicitlyScoped : findings;
 }
 
 function pdcAuditorFilteredFindings(findings = []) {
@@ -18310,20 +18343,6 @@ function openPdcAuditorSnapshotVehicleDetail(row = {}) {
 function openPdcAuditorVehicle(vehicleId = '') {
   const id = String(vehicleId || '').trim();
   if (!id) return false;
-  const workshopSnapshot = window.__workshopDataService?.getTrustedSnapshot?.();
-  const rows = [
-    ...(Array.isArray(app.emailVehicleLocationRows) ? app.emailVehicleLocationRows : []),
-    ...(Array.isArray(workshopSnapshot?.vehicles) ? workshopSnapshot.vehicles : []),
-  ];
-  const matches = rows.filter(row => {
-    const values = [row.id, row.vehicle_id, row.permanent_vehicle_id, row.sharedVehicleId, row.__emailVehicleId].map(value => String(value || '').trim());
-    return values.includes(id);
-  });
-  const unique = [...new Map(matches.map(row => [String(row.id || row.vehicle_id || row.permanent_vehicle_id || row.sharedVehicleId || row.__emailVehicleId), row])).values()];
-  if (unique.length === 1) {
-    const key = vehicleKey(unique[0]);
-    if (selectedVehicle(key) && openVehicleModal(key) === true) return true;
-  }
   const auditorRows = Array.isArray(app.pdcAuditorSnapshot?.items) ? app.pdcAuditorSnapshot.items : [];
   const exact = auditorRows.filter(row => String(row?.vehicle_id || '').trim() === id);
   return exact.length === 1 ? openPdcAuditorSnapshotVehicleDetail(exact[0]) : false;

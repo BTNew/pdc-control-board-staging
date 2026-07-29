@@ -106,6 +106,9 @@ assert.ok(snapshot.includes('public.pdc_auditor_vehicle_dealer(v.id)=v_dealer'))
 assert.ok(snapshot.includes('public.pdc_auditor_operational_revision(v_dealer)'));
 assert.ok(!snapshot.includes('v.source_batch_id=v_dealer'), 'vehicles.source_batch_id is forbidden dealer authority');
 assert.ok(!snapshot.includes('rv.source_batch_id=v_dealer'), 'related vehicle source_batch_id is forbidden dealer authority');
+assert.ok(snapshot.includes('string_agg(') && snapshot.includes("'sha256'"), 'relation revision must be a deterministic content hash, not max(source_revision)');
+assert.ok(!snapshot.includes('max(source_revision),0) into v_relation_revision'), 'relation revision must change for lower-revision inserts and revocations');
+assert.ok(snapshot.includes("c->'parameters'->'allowed_pairs'"), 'station compatibility must project its exact allowed-pair array');
 
 for (const status of [
   'explicit_linked_active', 'exact_authoritative_linked_active',
@@ -159,6 +162,9 @@ assert.ok(submit.includes('extensions.digest'));
 assert.ok(submit.includes('pdc_auditor_payload_hash_mismatch'));
 assert.ok(submit.includes('pdc_auditor_snapshot_revision_mismatch'));
 assert.ok(submit.includes('pdc_auditor_incomplete_snapshot'));
+assert.ok(submit.includes('v_server_page := public.get_pdc_auditor_snapshot(v_after_vehicle_id,100)'), 'submission must reconstruct every declared page server-side');
+assert.ok(submit.includes("(v_page->>'page_size')::integer <> 100"), 'complete worker submissions must explicitly require canonical 100-row pages');
+assert.ok(submit.includes("v_server_page->'items'->0->>'vehicle_id' is distinct from v_page->>'first_vehicle_id'"), 'submission must verify canonical page boundaries');
 assert.ok(submit.includes('pdc_auditor_json_has_sensitive_key(p_findings)'), 'nested sanitisation guard missing');
 
 const allowedWrites = new Set([
@@ -180,5 +186,7 @@ assert.ok(lower.includes("execute format('drop policy if exists %i on public.%i'
 assert.ok((lower.match(/on conflict\(dealer_code,environment,rule_key,config_version\) do nothing/g) || []).length === 2);
 const publications = [...lower.matchAll(/alter publication\s+supabase_realtime\s+add table\s+public\.([a-z0-9_]+)/g)].map(m => m[1]);
 assert.deepStrictEqual(publications, ['pdc_auditor_revision']);
+const dealerAuthority = body('pdc_auditor_vehicle_dealer', '$vehicle_dealer$');
+assert.ok(dealerAuthority.includes('when count(*)=1'), 'duplicate current Navision authority must fail closed even when dealer codes agree');
 
 console.log('Beta AI auditor Stage A static contract checks passed: exact relation authority, fail-closed linkage, bounded sanitized canonical snapshot, revisions, RLS/ACL and auditor-only writes (source shape only)');

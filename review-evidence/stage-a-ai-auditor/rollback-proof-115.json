@@ -1,6 +1,6 @@
 {
   "actor_role": "administrator",
-  "app_project_ref_setting": null,
+  "app_project_ref_setting": "[REDACTED]",
   "apply": {
     "all_auditor_tables_present": true,
     "immutable_trigger_count": 9,
@@ -14,16 +14,17 @@
     "unique_cursors": true
   },
   "committed": false,
-  "database": "postgres",
-  "database_actor": "postgres",
-  "database_host": "aws-0-ap-southeast-2.pooler.supabase.com",
+  "database": "[REDACTED]",
+  "database_actor": "[REDACTED]",
+  "database_host": "[REDACTED]",
   "dealer_code": "37047",
   "dealer_vehicle_count": 33,
-  "encrypted_backup_isolated_restore": {
+  "encrypted_logical_payload_round_trip_not_disaster_restore": {
     "algorithm": "OpenPGP AES-256 symmetric (in-memory)",
-    "ciphertext_bytes": 3222,
-    "restore_schema_removed": true,
-    "tables_restored": 12
+    "ciphertext_bytes": 3239,
+    "scope": "encrypted logical row-payload round trip only; not a schema, ACL, RLS, publication or disaster-recovery restore",
+    "table_payloads_round_tripped": 12,
+    "temporary_schema_removed": true
   },
   "foreign_keys": {
     "constraints_checked": 218,
@@ -40,7 +41,7 @@
       "resolved": 1
     },
     "occurrences": 4,
-    "persisted_first_finding_id": "f94e0948-a2f2-4551-89d9-0c8305ef9279",
+    "persisted_first_finding_id": "5edb4299-6e79-40f8-94ca-7ed15ff5e48e",
     "resolved_then_reappeared": true,
     "stable_finding_ids": 1,
     "stable_finding_rows": 1,
@@ -104,7 +105,7 @@
       "rows": 4
     },
     "pdc_user_roles": {
-      "md5": "e5a001f099259a72619129a9f4020039",
+      "md5": "7bb22f936994775e17c0df1e99ceebbd",
       "rows": 7
     },
     "vehicle_aliases": {
@@ -234,7 +235,7 @@
       "rows": 4
     },
     "pdc_user_roles": {
-      "md5": "e5a001f099259a72619129a9f4020039",
+      "md5": "7bb22f936994775e17c0df1e99ceebbd",
       "rows": 7
     },
     "vehicle_aliases": {
@@ -364,7 +365,7 @@
       "rows": 4
     },
     "pdc_user_roles": {
-      "md5": "e5a001f099259a72619129a9f4020039",
+      "md5": "7bb22f936994775e17c0df1e99ceebbd",
       "rows": 7
     },
     "vehicle_aliases": {
@@ -455,8 +456,10 @@
   "operational_unchanged_during": true,
   "passed": true,
   "payload_hash_computed_server_side": true,
-  "project_ref": "cdsmnqxtyyoeoznmbidd",
+  "project_ref": "[REDACTED]",
   "rejections": {
+    "fabricated_page_manifest": "pdc_auditor_incomplete_snapshot",
+    "noncanonical_submission_page_size": "pdc_auditor_incomplete_snapshot",
     "viewer_worker": "pdc_auditor_worker_unauthorized",
     "wrong_dealer": "pdc_auditor_worker_unauthorized",
     "wrong_submission_environment": "pdc_auditor_invalid_run"
@@ -502,7 +505,7 @@
       "submission_dml_auditor_only": true,
       "worker_excludes_viewer": true
     },
-    "migration_sha256": "bdda95e854c0a5d8007f9c6610eb973e13d46743c7a5d1919ccabaefca49119c"
+    "migration_sha256": "fa653dc704400fa071af33f63eabbc531c3c7911c87d98e7b21f6a177790b0bc"
   },
   "wrong_environment_migration_rejected": "PDC_AUDITOR_115_STAGING_SENTINEL_MISMATCH"
 }
