@@ -76,9 +76,27 @@ assert.ok(!/rpc\/[a-z0-9_]*(schedule|move|update|apply|approve|deny|snooze|send)
 const projectionStart = block.indexOf('function pdcAuditorProjectedReports');
 const projectionEnd = block.indexOf('function pdcAuditorEvaluateSnapshot', projectionStart);
 const projectedReports = vm.runInNewContext(`(${block.slice(projectionStart, projectionEnd).replace(/^function pdcAuditorProjectedReports/, 'function')})`);
-const projectionFixture = { projections: { reports: { morning: { findings: [{ id: 'one' }] }, midday: { findings: [] }, eod: { findings: [] } } } };
+const projectionFixture = { projections: { reports: { morning: [{ recommendationId: 'one' }], midday: [], eod: [] } } };
 assert.deepStrictEqual(JSON.parse(JSON.stringify(projectedReports(projectionFixture))), projectionFixture.projections.reports, 'engine-to-UI report projection boundary must execute against projections.reports');
 assert.strictEqual(projectedReports({ reports: projectionFixture.projections.reports }), null, 'legacy top-level reports must not masquerade as the deterministic projection contract');
+const evaluationEnd = block.indexOf('function resetPdcAuditorAuthorityState', projectionStart);
+const engineFixture = {
+  version: 'test',
+  findings: [{ id: 'one' }, { id: 'two' }],
+  projections: { reports: { morning: [{ recommendationId: 'one' }, { recommendationId: 'two' }], midday: [], eod: [{ recommendationId: 'two' }], critical: [] } },
+};
+const evaluationContext = vm.createContext({
+  window: { PdcAiAuditorStageA: { analyze: () => engineFixture } },
+  pdcAuditorNormalizeFinding: finding => finding,
+  pdcAuditorSafeText: value => String(value),
+});
+vm.runInContext(block.slice(projectionStart, evaluationEnd), evaluationContext);
+const boundaryResult = vm.runInContext('pdcAuditorEvaluateSnapshot({ revision: "r1" })', evaluationContext);
+assert.deepStrictEqual(JSON.parse(JSON.stringify(boundaryResult.findings.map(finding => [finding.id, finding.report_views]))), [
+  ['one', ['morning']],
+  ['two', ['morning', 'eod']],
+], 'engine report arrays and recommendationId membership must cross the UI boundary without fallback');
+assert.strictEqual(boundaryResult.hasReportProjections, true, 'intentionally empty deterministic projections must remain authoritative');
 
 assert.ok(css.includes('.ai-auditor-read-only-banner'), 'persistent read-only banner must be styled');
 assert.ok(css.includes('.ai-auditor-summary-grid'), 'summary cards must be styled');

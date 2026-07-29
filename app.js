@@ -18204,8 +18204,9 @@ function pdcAuditorEvaluateSnapshot(snapshot = {}) {
   const reportMembership = new Map();
   if (projectedReports) {
     Object.entries(projectedReports).forEach(([reportName, report]) => {
-      (Array.isArray(report?.findings) ? report.findings : []).forEach(finding => {
-        const id = String(finding?.id || finding?.finding_id || '');
+      const reportFindings = Array.isArray(report) ? report : Array.isArray(report?.findings) ? report.findings : [];
+      reportFindings.forEach(finding => {
+        const id = String(finding?.id || finding?.finding_id || finding?.recommendationId || '');
         if (!id) return;
         if (!reportMembership.has(id)) reportMembership.set(id, []);
         reportMembership.get(id).push(String(reportName).toLowerCase());

@@ -507,7 +507,7 @@ def main():
               const out={};
               for(const name of ['morning','midday','eod','critical']){
                 selectPdcAuditorReport(name);
-                const expected=(reports[name]?.findings||[]).map(x=>String(x.id||x.finding_id||'')).sort();
+                const expected=(Array.isArray(reports[name])?reports[name]:(reports[name]?.findings||[])).map(x=>String(x.id||x.finding_id||x.recommendationId||'')).sort();
                 const actual=pdcAuditorFindingsForReport(app.pdcAuditorResult,name).map(x=>String(x.id||'')).sort();
                 out[name]={expected,actual,equal:JSON.stringify(expected)===JSON.stringify(actual)};
               }
