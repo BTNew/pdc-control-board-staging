@@ -94,11 +94,11 @@ function buildVehicleLifecycleIdentityInput(vehicle = {}) {
     vehicle.pdcJobcard, vehicle.jobcard, vehicle.jobCard, vehicle.jobcardNumber,
     vehicle.jobCardNumber, vehicle.jcJobcard, vehicle.jc,
   ], normalizeLifecycleSourceIdentifier, state);
-  if (jobCardNumber && !sourceSystem && !state.invalidField) state.invalidField = 'job_card_source_system';
   const result = {
     p_vehicle_id: chooseLifecycleIdentityText('vehicle_id', [
       vehicle.sharedVehicleId, vehicle.shared_vehicle_id, vehicle.vehicleId,
       vehicle.vehicle_id, vehicle.canonicalVehicleId, vehicle.canonical_vehicle_id,
+      vehicle.__emailVehicleId,
     ], normalizeLifecycleUuid, state),
     p_stock_number: chooseLifecycleIdentityText('stock_number', [
       vehicle.stock, vehicle.stockNumber, vehicle.stock_number,
@@ -117,8 +117,12 @@ function buildVehicleLifecycleIdentityInput(vehicle = {}) {
     ], normalizeLifecycleSourceIdentifier, state),
   };
   const clean = Object.fromEntries(Object.entries(result).filter(([, value]) => value !== null));
-  if (clean.p_source_record_id && !clean.p_source_system && !state.invalidField) {
-    state.invalidField = 'source_identity';
+  if (clean.p_vehicle_id && !clean.p_source_system) {
+    delete clean.p_job_card_number;
+    delete clean.p_source_record_id;
+  } else if (!state.invalidField) {
+    if (clean.p_job_card_number && !clean.p_source_system) state.invalidField = 'job_card_source_system';
+    if (clean.p_source_record_id && !clean.p_source_system) state.invalidField = 'source_identity';
   }
   if (state.invalidField) {
     Object.defineProperty(clean, '__invalidIdentityField', {
@@ -338,6 +342,17 @@ function buildVehicleLifecycleSharedActions(client, getAccessToken) {
   }
 
   return {
+    async markVehicleDeleted({ vehicleId, expectedVersion, reason }) {
+      const result = await rpc('mark_vehicle_deleted', {
+        p_vehicle_id: vehicleId,
+        p_expected_version: expectedVersion,
+        p_reason: reason ?? null,
+      });
+      if (result?.ok === false || result?.error) return result;
+      if (result?.id && result?.lifecycle_state === 'deleted') return { ok: true, vehicle: result };
+      return result;
+    },
+
     pmbTransferVehicle({ vehicleId, expectedVersion }) {
       return rpc('pmb_transfer_vehicle', {
         p_vehicle_id: vehicleId,
@@ -420,6 +435,7 @@ function describeVehicleLifecycleActionError(error = '') {
     not_in_rft: 'This vehicle is not currently in RFT, so it cannot be marked collected.',
     request_failed: 'The change could not be saved. Please check your connection and try again.',
     missing_expected_version: 'This action is missing required version information and was not applied.',
+    vehicle_not_found: 'This vehicle is no longer available in the shared database.',
     pmb_transfer_requires_yh_or_it: 'Only a vehicle currently at Yard Hold or In Transit can be moved into PMB from this action.',
     invalid_vehicle: 'The vehicle could not be identified, so no change was made.',
   };

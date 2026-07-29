@@ -4598,6 +4598,9 @@ async function workshopScheduleVehicleNextAvailable({ vehicleId = '', vehicleKey
   state.stage = normalizedStage;
   state.date = slot.dateKey;
   workshopSaveView(state);
+  if (workshopSharedModeActive() && service?.setScope) {
+    await service.setScope({ stageCode: normalizedStage, dateFrom: slot.dateKey, dateTo: slot.dateKey });
+  }
   return scheduleWorkshopVehicle({
     vehicleKeyValue: vehicleId || vehicleKeyValue,
     stage: normalizedStage,
