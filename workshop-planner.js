@@ -2726,7 +2726,19 @@ function workshopBookingsForEntry(plans = [], entry = {}) {
 function workshopSearchMatches(query = '', plans = workshopLoadPlans()) {
   const clean = cleanNavisionText(query || '').toLowerCase();
   if (clean.length < 2) return [];
-  return app.data
+  const snapshot = window.__workshopDataService?.getLastSnapshot?.();
+  const snapshotWorkItems = Array.isArray(snapshot?.work_items) ? snapshot.work_items : [];
+  const snapshotRows = (Array.isArray(snapshot?.vehicles) ? snapshot.vehicles : [])
+    .map(vehicle => workshopSnapshotVehicleToPlannerRow(vehicle, snapshotWorkItems, workshopState().stage));
+  const eligibilityRows = (Array.isArray(app.workshopEligibilitySnapshot?.candidates) ? app.workshopEligibilitySnapshot.candidates : [])
+    .map(candidate => candidate?.vehicle ? workshopSnapshotVehicleToPlannerRow(candidate.vehicle, candidate.work_items || candidate.requirements || [], candidate.stage_code || workshopState().stage) : null)
+    .filter(Boolean);
+  const pool = [...new Map([...app.data, ...snapshotRows, ...eligibilityRows].map(vehicle => {
+    const sharedId = String(vehicle?.sharedVehicleId || vehicle?.id || '').trim();
+    const key = sharedId || String(vehicleKey(vehicle) || '').trim();
+    return [key, vehicle];
+  }).filter(([key]) => key)).values()];
+  return pool
     .filter(vehicle => workshopVehicleSearchText(vehicle).includes(clean))
     .map(vehicle => {
       const key = vehicleKey(vehicle);
@@ -3874,6 +3886,8 @@ function bindWorkshopLane(lane) {
         : fallbackStartMinutes;
     const planId = event.dataTransfer.getData('application/x-workshop-plan-id');
     const vehicleKeyValue = event.dataTransfer.getData('application/x-workshop-vehicle-key') || event.dataTransfer.getData('text/plain');
+    const dragHours = Number(event.dataTransfer.getData('application/x-workshop-duration-hours'));
+    event.dataTransfer.dropEffect = planId ? 'move' : 'copy';
     const stage = targetStage;
     const bay = targetBay;
     const dateKey = targetDate;
@@ -3882,7 +3896,7 @@ function bindWorkshopLane(lane) {
       void moveWorkshopDroppedPlan(planId, stage, bay, dateKey, startMinutes, { preferRequestedTime: true });
       return;
     }
-    scheduleWorkshopVehicle({ planId, vehicleKeyValue, stage, bay, dateKey, startMinutes, preferRequestedTime: true });
+    scheduleWorkshopVehicle({ planId, vehicleKeyValue, stage, bay, dateKey, startMinutes, hoursValue: Number.isFinite(dragHours) && dragHours > 0 ? dragHours : null, preferRequestedTime: true });
   });
 }
 
@@ -4542,6 +4556,57 @@ async function workshopScheduleSharedNewBooking({
     renderWorkshopPlanner();
   }
   return !!(result && result.ok);
+}
+
+async function workshopScheduleVehicleNextAvailable({ vehicleId = '', vehicleKeyValue = '', stage = '', hours = 0 } = {}) {
+  const normalizedStage = workshopRequirePlannerStage(stage);
+  if (!WORKSHOP_STAGE_SEQUENCE.includes(normalizedStage)) {
+    window.alert('This work type does not use a Workshop bay. No booking was created.');
+    return false;
+  }
+  const service = window.__workshopDataService;
+  if (workshopSharedModeActive() && service?.setScope) {
+    const dateKey = workshopState().date || workshopDefaultOpenDateKey();
+    await service.setScope({ stageCode: normalizedStage, dateFrom: dateKey, dateTo: dateKey });
+    if (typeof service.loadSnapshot === 'function') await service.loadSnapshot('vehicle_detail_schedule_next');
+  }
+  const vehicle = workshopVehicle(vehicleId || vehicleKeyValue, normalizedStage);
+  if (!vehicle) {
+    window.alert('This vehicle is not present in the authoritative outstanding-work queue for this station. Refresh the Control Board and try again. No booking was created.');
+    renderWorkshopPlanner();
+    return false;
+  }
+  if (workshopSharedModeActive() && vehicle.__workshopOutstanding?.scheduleEnabled !== true) {
+    window.alert(`${workshopOutstandingDisabledReasonLabel(vehicle.__workshopOutstanding?.disabledReason)}. No booking was created.`);
+    renderWorkshopPlanner();
+    return false;
+  }
+  const estimate = workshopClampDurationHours(Number(hours) > 0 ? Number(hours) : workshopCalculatedStageHours(vehicle, normalizedStage) || pmbBayHours(vehicle) || workshopDefaultBookingHours());
+  const etaConstraint = workshopVehicleEtaConstraint(vehicle);
+  if (etaConstraint.required && !etaConstraint.ok) {
+    workshopRequireEtaSchedule(vehicle, new Date(0));
+    return false;
+  }
+  const today = workshopDefaultOpenDateKey();
+  const earliestDate = workshopDateKeyNotBefore(today, etaConstraint.earliestDateKey || '');
+  const slot = workshopBestStageSlot(normalizedStage, earliestDate, estimate, workshopLoadPlans());
+  if (!slot) {
+    window.alert('No active bay has an available operational slot for this work. No booking was created.');
+    return false;
+  }
+  const state = workshopState();
+  state.stage = normalizedStage;
+  state.date = slot.dateKey;
+  workshopSaveView(state);
+  return scheduleWorkshopVehicle({
+    vehicleKeyValue: vehicleId || vehicleKeyValue,
+    stage: normalizedStage,
+    bay: slot.bay,
+    dateKey: slot.dateKey,
+    startMinutes: slot.startMinutes,
+    hoursValue: estimate,
+    preferRequestedTime: true,
+  });
 }
 
 async function scheduleWorkshopVehicle({ planId = '', vehicleKeyValue = '', stage = '', bay = 0, dateKey = '', startMinutes = 0, hoursValue = null, assigneeValue = null, preferRequestedTime = false } = {}) {
@@ -5645,6 +5710,8 @@ if (typeof module !== 'undefined' && module.exports) {
     workshopReferenceTechnicianRef,
     workshopSelectedTechnicianRef,
     workshopScheduleSharedNewBooking,
+    workshopScheduleVehicleNextAvailable,
+    workshopSearchMatches,
     workshopSharedBayRef,
     workshopBayIsActive,
     workshopBayAvailabilityStatus,

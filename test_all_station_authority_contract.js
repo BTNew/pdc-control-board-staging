@@ -100,7 +100,7 @@ assert(app.includes('teardownWorkshopEligibilityOverview({ clearSnapshot: true }
 for (const gate of ['scripts/test_station_planner_300_performance.js','scripts/test_station_planner_fixture_performance.js','scripts/test_station_planner_browser_performance.js','test_station_planner_resources.js']) {
   const inventory = read(gate).match(/const\s+(?:STAGES|STATIONS)\s*=\s*\[([\s\S]*?)\];/)?.[1] || '';
   assert(!inventory.includes('SUBLET'), `${gate} must not require the removed Sublet planner`);
-  assert(inventory.includes('PIT_INSPECTION'), `${gate} must cover the restored Pit Inspection planner`);
+  assert(!inventory.includes('PIT_INSPECTION'), `${gate} must not treat Pit inspection as a Workshop bay planner`);
 }
 
 console.log(`All-station authority/Sublet contract: ${stations.length} stations passed`);

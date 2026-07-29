@@ -15,7 +15,7 @@ const ALIASES = {
   PIT_INSPECTION: ['Pit Inspection', 'Pit', 'Pits'],
 };
 
-assert.deepStrictEqual(eligibility.workshopPlannerStageCodes(), STATIONS);
+assert.deepStrictEqual(eligibility.workshopPlannerStageCodes(), STATIONS.filter(stage => stage !== 'PIT_INSPECTION'));
 assert.strictEqual(eligibility.workshopStageDefinition('SUBLET').plannerEnabled, false);
 assert.strictEqual(eligibility.workshopStageDefinition('SUBLET').route, '');
 assert.strictEqual(eligibility.workshopIsPlannerStage('SUBLET'), false);
@@ -36,7 +36,7 @@ function booking(vehicleId, stage, status = 'planned') {
 }
 
 let assertions = 0;
-for (const stage of STATIONS) {
+for (const stage of eligibility.workshopPlannerStageCodes()) {
   const def = eligibility.workshopStageDefinition(stage);
   const other = STATIONS.find(value => value !== stage);
   const vehicles = [
@@ -133,8 +133,8 @@ assert.throws(() => eligibility.assertWorkshopPlannerTarget('SUBLET'), /not a sc
 const pit = eligibility.workshopStageDefinition('Pit Inspection');
 assert.strictEqual(pit.code, 'PIT_INSPECTION');
 assert.strictEqual(pit.statusVisible, true);
-assert.strictEqual(pit.plannerEnabled, true);
-assert.strictEqual(pit.route, 'planner-pit');
-assert.strictEqual(eligibility.assertWorkshopPlannerTarget('PIT_INSPECTION'), pit);
+assert.strictEqual(pit.plannerEnabled, false);
+assert.strictEqual(pit.route, '');
+assert.throws(() => eligibility.assertWorkshopPlannerTarget('PIT_INSPECTION'));
 
 console.log(`All-station canonical eligibility regression: ${assertions + 40} assertions passed`);

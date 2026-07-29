@@ -32,8 +32,18 @@ const stationHtmlEnd = app.indexOf('function renderVehicleWorkshopWorkPage', sta
 const stationHtmlBody = stationHtmlStart >= 0 && stationHtmlEnd > stationHtmlStart ? app.slice(stationHtmlStart, stationHtmlEnd) : '';
 assert(stationHtmlBody.includes('data-vehicle-workshop-hours-input'), 'Editable rows must expose a direct estimated-hours input');
 assert(stationHtmlBody.includes('data-vehicle-workshop-hours-save'), 'Direct estimated-hours editing must have an explicit save action');
-assert(stationHtmlBody.includes('<span class="vehicle-workshop-line-booking">${bookingHtml}</span>${controls}</div>'), 'Edit line must be the final row column after the booking');
+assert(stationHtmlBody.includes('data-vehicle-workshop-line-handle') && stationHtmlBody.includes('draggable="true"'), 'Visible operation numbers must be draggable Workshop bay handles');
+assert(stationHtmlBody.includes('data-vehicle-workshop-schedule-next') && stationHtmlBody.includes('Schedule next available'), 'Every unbooked editable Workshop row must expose Schedule next available');
+assert(stationHtmlBody.includes('<span class="vehicle-workshop-line-booking">${bookingHtml}</span>${controls}</div>'), 'Scheduling and edit controls must remain the final row column after the booking');
 assert(app.includes('saveVehicleWorkshopLineHours'), 'Direct estimated-hours changes must use a dedicated authoritative save handler');
+const bulkHoursStart = app.indexOf('async function saveVehicleWorkshopLineHours');
+const bulkHoursEnd = app.indexOf('async function scheduleVehicleWorkshopNextAvailable', bulkHoursStart);
+const bulkHoursBody = bulkHoursStart >= 0 && bulkHoursEnd > bulkHoursStart ? app.slice(bulkHoursStart, bulkHoursEnd) : '';
+assert(bulkHoursBody.includes("querySelectorAll('.vehicle-workshop-line')") && bulkHoursBody.includes('Promise.all'), 'Saving any row must save every populated estimated-hours input before one authoritative refresh');
+assert(app.includes("addEventListener('dragstart', event => beginVehicleWorkshopLineDrag(event, handle))"), 'Operation handles must wire dragstart to the Planner handoff');
+assert(app.includes('workshopScheduleVehicleNextAvailable(payload)'), 'Schedule next available must delegate to the established Workshop Planner authority');
+assert(planner.includes('async function workshopScheduleVehicleNextAvailable'), 'Planner must own next-available slot selection and authoritative scheduling');
+assert(planner.includes('etaConstraint.earliestDateKey') && planner.includes('workshopBestStageSlot'), 'Next-available scheduling must obey the ETA floor and operational bay/calendar rules');
 assert(/\.vehicle-workshop-line\s*\{[^}]*grid-template-columns:[^;]*auto/i.test(css), 'Desktop work rows must reserve a compact final action column');
 assert(/\.vehicle-workshop-line\s*>\s*span\s*\{[^}]*padding:\s*(?:[0-6](?:px)?\s+){1,3}[0-8]px/i.test(css), 'Vehicle workshop row cell padding must stay slim');
 

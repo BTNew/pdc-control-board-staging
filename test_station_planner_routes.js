@@ -99,8 +99,8 @@ function testRoutesAndIsolationContracts() {
 
   assert(app.includes('WORKSHOP_ELIGIBILITY.workshopPlannerStationDefinitions()'), 'routes must derive from the canonical planner-enabled station map');
   assert(!app.includes("view: 'planner-sublet'") && !app.includes("path: 'workshop/sublet'"), 'Sublet must have no planner route');
-  assert(app.includes("'planner-pit', 'workshop/pit', true"), 'Pit Inspection must expose the eighth planner route');
-  assert.strictEqual(require('./workshop-eligibility.js').workshopIsPlannerStage('PIT_INSPECTION'), true, 'Pit Inspection must be planner-enabled');
+  assert(app.includes("['PIT_INSPECTION', 'Pit', 'pitInspection', '', '', false]"), 'Pit Inspection must remain workflow-visible without a Workshop Planner route');
+  assert.strictEqual(require('./workshop-eligibility.js').workshopIsPlannerStage('PIT_INSPECTION'), false, 'Pit Inspection must not own a Workshop bay');
   assert(app.includes('const WORKSHOP_CONTROL_BOARD_STATIONS = PMB_BAY_STATION_SEQUENCE'), 'Control Board planner stations must use the same canonical planner-only set');
   assert(app.includes('WORKSHOP_PLANNER_ROUTE_BY_STAGE[normalizedStage]'));
   assert(app.includes("window.addEventListener('popstate', restoreRoute)"));

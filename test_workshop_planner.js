@@ -28,10 +28,10 @@ assert.strictEqual(planner.WORKSHOP_CONFIG.dayLengthMinutes, 480, 'Workshop day 
 assert.strictEqual(planner.WORKSHOP_CONFIG.defaultBookingDurationMinutes, 180, 'New planner bookings should default to 180 integer minutes');
 assert.deepStrictEqual(
   planner.WORKSHOP_STAGE_SEQUENCE,
-  ['BUS_4X4', 'TINT', 'HOIST', 'FITTING', 'FABRICATION', 'ELECTRICAL', 'TYRE', 'PIT_INSPECTION'],
-  'All eight physical stations must be preserved and Sublet must have no planner',
+  ['BUS_4X4', 'TINT', 'HOIST', 'FITTING', 'FABRICATION', 'ELECTRICAL', 'TYRE'],
+  'Only the seven schedulable Workshop bay stations must be preserved; Pit and Sublet have no Planner',
 );
-assert.ok(source.includes('const WORKSHOP_VISIBLE_STAGE_SEQUENCE = WORKSHOP_STAGE_SEQUENCE;'), 'Every canonical planner-enabled station should be visible, with Sublet excluded at the source mapping');
+assert.ok(source.includes('const WORKSHOP_VISIBLE_STAGE_SEQUENCE = WORKSHOP_STAGE_SEQUENCE;'), 'Workshop planner tabs must use the canonical planner-enabled station set');
 assert.ok(source.includes("const stageTabs = dedicatedStage ? '' : WORKSHOP_VISIBLE_STAGE_SEQUENCE.map("), 'Combined planner should retain physical station tabs while dedicated planners render no unrelated tabs');
 assert.ok(source.includes("new Set(['moveBooking', 'cascadeMoveBooking', 'scheduleVehicleWork', 'cascadeSchedule'])"), 'Cross-bay planned moves must retain the standard future-Parts planning-only retry');
 
@@ -194,7 +194,7 @@ assert.deepStrictEqual(
   { dateKey: planner.workshopDateKey(horizonDate), startMinutes: 0 },
   'Automatic scheduling must search beyond one month so vehicles can be planned many months ahead',
 );
-assert.ok(source.includes("scheduleWorkshopVehicle({ planId, vehicleKeyValue, stage, bay, dateKey, startMinutes, preferRequestedTime: true });"), 'Queue-card lane drops must keep the requested drop time and ask to push later planned work when needed');
+assert.ok(source.includes("hoursValue: Number.isFinite(dragHours) && dragHours > 0 ? dragHours : null, preferRequestedTime: true"), 'Queue-card lane drops must preserve the Vehicle-detail estimate, requested drop time and cascade authority');
 assert.ok(source.includes("moveWorkshopDroppedPlan(planId, stage, bay, dateKey, startMinutes, { preferRequestedTime: true })"), 'Dragged planned bookings must keep the requested drop time and route through queue shifting');
 assert.ok(source.includes("preferRequestedTime && movingBetweenBays ? 'cascadeMoveBooking' : 'moveBooking'"), 'Shared booked-chip drops between bays must atomically push overlapping and later planned jobs');
 assert.ok(source.includes("const previewMinutes = Number(lane.dataset.workshopRequestedStartMinutes);"), 'Daily lane drops must reuse the live preview time so drop coordinates stay exact');

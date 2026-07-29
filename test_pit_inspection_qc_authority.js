@@ -16,13 +16,13 @@ const shells = ['index.html', 'staging.html', 'no-vehicles.html', 'test-50.html'
 // current_location continues to represent Department of Transport movement.
 const pit = eligibility.workshopStageDefinition('Pit Inspection');
 assert(pit && pit.code === 'PIT_INSPECTION');
-assert.strictEqual(pit.plannerEnabled, true);
-assert.strictEqual(pit.route, 'planner-pit');
-assert.strictEqual(pit.path, 'workshop/pit');
-assert(eligibility.workshopPlannerStageCodes().includes('PIT_INSPECTION'));
-assert.strictEqual(eligibility.assertWorkshopPlannerTarget('PIT_INSPECTION'), pit);
+assert.strictEqual(pit.plannerEnabled, false);
+assert.strictEqual(pit.route, '');
+assert.strictEqual(pit.path, '');
+assert(!eligibility.workshopPlannerStageCodes().includes('PIT_INSPECTION'));
+assert.throws(() => eligibility.assertWorkshopPlannerTarget('PIT_INSPECTION'));
 
-assert(app.includes("'planner-pit', 'workshop/pit', true"));
+assert(app.includes("['PIT_INSPECTION', 'Pit', 'pitInspection', '', '', false]"));
 assert(app.includes("'dept-pit-inspection': 'PIT_INSPECTION'"));
 const jobs = app.slice(app.indexOf('const PDC_JOB_DEFS = ['), app.indexOf('const PDC_IMPORT_CONTROL_COLUMNS_TEXT'));
 assert(jobs.includes('pitInspection'), 'Pit must be a workshop job/checklist item');

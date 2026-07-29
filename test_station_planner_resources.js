@@ -4,7 +4,7 @@ const assert = require('assert');
 const { createWorkshopDataService } = require('./workshop-data-service.js');
 const { createWorkshopRealtimeManager } = require('./workshop-realtime.js');
 
-const STAGES = ['BUS_4X4', 'TINT', 'HOIST', 'FITTING', 'FABRICATION', 'ELECTRICAL', 'TYRE', 'PIT_INSPECTION'];
+const STAGES = ['BUS_4X4', 'TINT', 'HOIST', 'FITTING', 'FABRICATION', 'ELECTRICAL', 'TYRE'];
 
 async function measure(scope) {
   const rpcCalls = [];
