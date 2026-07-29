@@ -79,7 +79,8 @@ assert(app.includes('function authenticatedEmailOperationLinesHtml('), 'Vehicle 
 assert(app.includes('Operations from authenticated PD documents and job cards'), 'The card must label operation lines as authenticated job-card evidence');
 assert(app.includes('pdcEmailOperationLines'), 'The card renderer must consume the mapped operation lines');
 assert(app.includes('escapeHtml(operation.description'), 'Untrusted operation descriptions must be escaped');
-assert(app.includes("operation.estimatedHours != null ? `${Number(operation.estimatedHours).toFixed(2)} h` : 'Hours not stated'"), 'Vehicle cards must render authenticated estimated hours with an explicit missing-hours fallback');
+assert(app.includes("const hoursText = operation.estimatedHours == null ? 'Hours not stated' : `${Number(operation.estimatedHours).toFixed(2)} h`;"), 'Vehicle cards must render authenticated estimated hours with an explicit missing-hours fallback');
+assert(app.includes("operation.estimatedHoursSource === 'ai_estimate'") && app.includes('AI estimate'), 'AI-derived hours must remain visibly distinct from authoritative job-card hours');
 assert(app.includes("return `source:${operationLineId}`"), 'Vehicle workshop overlays must prefer the durable operation-line UUID over document-local operation numbers');
 assert(app.includes('${authenticatedEmailOperationLinesHtml(vehicle)}'), 'The expanded vehicle card must render operation lines');
 
