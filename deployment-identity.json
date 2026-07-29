@@ -6,20 +6,20 @@
     "twoPhysicalWorkstationAuthorityCutover": false
   },
   "artifact": "zero-data static staging site",
-  "backendOnlyMigrationSourceCommit": "adbd7e2c6b700a888532ead42e6cbc92508b7999",
-  "hourProvenanceSourceCommit": "88ce1000d7b863ffb6b64a3a4b164340e105f3cd",
-  "cacheVersion": "2026.07.29.08-ai-hour-provenance",
+  "backendOnlyMigrationSourceCommit": "3a46340f05aeb98f9a7233ea021e192d67646333",
+  "cacheVersion": "2026.07.29.09-parts-eta-and-hour-provenance",
   "deploymentMode": "exact reviewed source blobs; staging.html mapped to index.html",
   "environment": "staging",
-  "generatedAtUtc": "2026-07-29T01:27:40Z",
+  "generatedAtUtc": "2026-07-29T01:56:45.881209Z",
+  "hourProvenanceSourceCommit": "88ce1000d7b863ffb6b64a3a4b164340e105f3cd",
   "humanAiIntake": {
     "approvalGate": "Administrator decision remains server-validated; missing summaries disable Approve while Deny remains available.",
     "summary": "Prominent escaped email summary plus explicit Approve/Deny effects; each email is now a distinct white card separated by an 18px dark-grey gutter (12px on mobile)."
   },
   "migrationLedger": {
-    "appliedThrough": "109",
-    "evidence": "Staging-only migrations through 109 are applied and ledgered. Migration 109 preserves durable operation identity, records job_card versus ai_estimate hour provenance, and keeps booking/completion/Parts authority unchanged.",
-    "ledgerHead": "109",
+    "appliedThrough": "110",
+    "evidence": "Staging-only migrations through 110 are applied and ledgered. Migration 109 preserves authenticated operation-hour provenance; migration 110 restores Parts ETA/countdown and Sublet projections omitted by the replacement snapshot while preserving operation identity and hour provenance.",
+    "ledgerHead": "110",
     "migrations": [
       "058",
       "059",
@@ -72,17 +72,18 @@
       "106",
       "107",
       "108",
-      "109"
+      "109",
+      "110"
     ]
   },
   "pendingStagingMigrations": [],
   "releaseChecks": {
-    "aggregateTests": "PASS \u2014 124 passed, 0 failed, 1 intentional skip.",
+    "aggregateTests": "PASS \u2014 125 passed, 0 failed, 1 intentional skip.",
     "aiIntakeCardSeparation": "PASS \u2014 two-card browser proof computed #374151 background, 18px gap, 16px padding and two white cards; mobile override uses a 12px gap and 10px padding.",
     "aiReviewDecisionContext": true,
     "aiReviewOverlayVersion": "2026.07.28.20-ai-review-card-separation",
     "authenticatedEmailOperationLines": "PASS \u2014 bounded parser recovered 12 canonical OP-numbered lines for Stock 13056899 / VIN ending 5877; migration 093 rollback dry-run and permanent staging apply passed; no booking or completion authority; replay and rendered-card verification pending at identity generation.",
-    "authenticatedOperationHours": "PASS — explicit job-card hours win; migration 109 records job_card versus ai_estimate provenance; AI estimates render orange with an explicit label while job-card hours retain normal styling.",
+    "authenticatedOperationHours": "PASS \u2014 migration 109 job-card versus AI-estimate provenance is preserved; typed provenance maps to cards, AI estimates stay visibly orange/labeled, and missing hours retain an explicit fallback.",
     "backupRestore": "PASS \u2014 encrypted pre-migration backup 044a6581-e853-4223-886e-e46685e89265 restored into isolated schema with all row counts, 180 foreign keys, relationships and format/schema hashes matching; isolated schema dropped.",
     "browserPredeploy": "PASS \u2014 Administrator, Controller and Viewer each rendered 3 canonical required station cards, 3 described work lines, 3 unique station colours and 1 real booking link; exact Fitting booking deep-link selected the correct planner date and booking. Zero dialogs, console errors, HTTP errors or production requests.",
     "controlBoardPipeline": "PASS \u2014 the redundant description column is removed, the pipeline occupies the full middle width, and a fixed 16px gap separates it from the Planner button. Existing authoritative metrics are unchanged.",
@@ -91,7 +92,7 @@
     "futurePartsCascadeMove": "PASS \u2014 cross-bay booked-chip moves use the same truthful planning-only Parts retry as existing booking/rescheduling actions; immediate physical Start remains separately manager-gated.",
     "humanAiIntake": "Received, What happened, Car and What changed are shown in plain language; activated, modified, unchanged and review-needed outcomes are distinct; field changes render previous value to new value; technical receipt data is collapsed",
     "humanNavisionResults": "An administrator can establish the first empty dealer scope only for one exact full snapshot of at least 100 valid rows. Approval is content-bound, user-bound and expires after two hours. Cross-dealer, invalid, duplicate, stale and changed snapshots remain fail-closed. Later strongly matched refresh omissions continue to enter reversible temporary holding.",
-    "literalArtifact": "35/35 deployed Git blobs match source commit adbd7e2c6b700a888532ead42e6cbc92508b7999",
+    "literalArtifact": "35/35 deployed Git blobs match source commit 3a46340f05aeb98f9a7233ea021e192d67646333",
     "migration087": "PASS \u2014 rollback syntax/probe and permanent post-apply checks; BUS_4X4 eligible paths reach parts_incomplete, blocked Hoist direct/cascade paths return location_ineligible, gate helper has no anon/authenticated EXECUTE privilege, and no probe writes were committed. Pre-migration function backup SHA-256 baf586a7b74df4a60217414b50eaf323cc207fd6a3466b9220a0b4867ec023ad.",
     "migration088": "PASS \u2014 dry-run syntax and Viewer payload probe, permanent staging-only apply, anon EXECUTE revoked, authenticated EXECUTE granted, protected vehicle/work-item/booking counts unchanged, and zero production access.",
     "migration089": "PASS \u2014 guarded rollback dry-run, permanent staging-only apply and rollback trigger probes. Missing ETA writes fail to Other; authoritative dated writes remain IT; parser and enforcement trigger are unavailable to anon; zero production access.",
@@ -102,14 +103,16 @@
     "migration096": "PASS \u2014 guarded rollback dry-run and permanent staging apply. Unique Stock 12708286 selected one current Navision row despite conflicting PDF identity; canonical Navision fields, additive required work, Parts, audit and idempotent receipt verified; no booking created; authenticated EXECUTE only; zero production access.",
     "migration106BookedChipCascade": "PASS \u2014 guarded rollback compile, permanent staging apply, already-applied checksum verification and rollback-only functional cross-bay rehearsal. The dropped planned chip kept its exact bay/time, one occupied planned chip shifted later with history/version updates, live work remained fixed, and production was untouched.",
     "migration107OperationIdentity": "PASS \u2014 guarded rollback rehearsal and permanent staging apply exposed each operation_line_id, remapped six unambiguous legacy adjustments with audit, found zero ambiguous adjustments, preserved protected operational signatures and left production untouched.",
-    "migration108PitPlannerRemoval": "PASS — rollback rehearsal and permanent staging apply found zero active Pit bookings, disabled the Pit planner/bay, preserved the Pit required-work/QC gate, and left protected operational signatures unchanged.",
-    "migration109HourProvenance": "PASS — rollback rehearsal and permanent staging apply preserved protected operational signatures; authenticated replay corrected Stock 13016934 OP5 to its 1.50 job-card hours, tagged three missing-hour values as AI estimates, created no booking, and left work/Parts completion unchanged.",
+    "migration108PitPlannerRemoval": "PASS \u2014 rollback rehearsal and permanent staging apply found zero active Pit bookings, disabled the Pit planner/bay, preserved the Pit required-work/QC gate, and left protected operational signatures unchanged.",
+    "migration109HourProvenance": "PASS \u2014 rollback rehearsal and permanent staging apply preserved protected operational signatures; authenticated replay corrected Stock 13016934 OP5 to its 1.50 job-card hours, tagged three missing-hour values as AI estimates, created no booking, and left work/Parts completion unchanged.",
+    "migration110PartsEtaSnapshot": "PASS \u2014 rollback rehearsal and permanent staging apply verified one persisted authoritative Parts ETA across 42 restricted snapshot vehicles, preserved protected operational signatures, retained migration 109 operation-hour provenance, restored Sublet projection and left production untouched.",
     "mixedDealerNavision": "A report containing both approved dealers is scoped server-side to the selected dealer only when every row carries known original Dealer evidence and the selected scope has at least 100 rows. Preview and Apply use identical filtering; other-dealer rows are reported and ignored, never imported into the selected scope.",
     "navisionFullReconciliationTimeout": "PASS \u2014 reproduced SQLSTATE 57014 with a complete 663-row source-evidence payload at the former 8-second API bound. The same atomic preview/apply completed in 5.969/13.875 seconds under the new 30-second signed-in staging bound and was rolled back. A separate authenticated HTTP 10-second probe returned 200; the probe function was then removed.",
     "navisionOperationalLocationCompletion": "PASS \u2014 canonical shared state drives Vehicle Locations and Completed Vehicles; ordinary reconciliation preserves PMB/PIT/QC/RFT/Completed workflow progress; At Dealer with open required work stays active for review.",
     "navisionPastedDealerEvidence": "PASS \u2014 the same 83-row Pilbara preview is accepted when Dealer code/name values survive under generic pasted-report headers. A blank explicit Dealer field and ambiguous approved codes remain blocked.",
     "navisionPilbaraExactScope": "PASS \u2014 83-row Pilbara exact-scope preview accepted despite 83 historical Broome identity overlaps; every original Dealer column declared 14450. A missing Dealer-column negative control remained blocked. Hard delete remains disabled.",
     "operationalTooling": "Staging environment and database helpers live under scripts/pdc_staging_runtime.py; operational scripts no longer import test-fixture helper modules.",
+    "partsEtaPersistenceCountdown": "PASS \u2014 the restricted authenticated-email snapshot again projects current/previous Parts ETA and shared Parts state. Stock 12238276 saved 2026-08-02 through the protected version-bound RPC, rendered +4 Days, survived a full reload, and was restored to 2026-08-01 with +3 Days after another reload.",
     "pilbaraNavision": "Cross-scope Batch overlap no longer blocks a substantial Pilbara extract when every valid source row's original Dealer column explicitly declares 14450. Mixed, missing or contrary Dealer evidence remains blocked; hard deletion is disabled and the browser's selected option alone is not trusted.",
     "plannerAuthoritativeCandidateGate": "PASS \u2014 blocked Hoist cards are non-draggable, show Scheduling unavailable plus the exact visible authority reason, and no longer offer Best slot. Direct and cascade RPCs both return structured location_ineligible before Parts handling; canonical HTTP trigger errors are decoded without a false stale-version diagnosis.",
     "plannerSearchTyping": "PASS \u2014 debounced planner searches update their result list in place instead of replacing the focused input. Slow ten-character browser typing retains the full value, focus and caret.",
@@ -133,19 +136,20 @@
     "workshopPlannerVehicleDiscovery": "PASS \u2014 authoritative station-snapshot candidates are included in Planner search, so IT stock 13016934 is discoverable despite not existing in the browser-local base dataset; its ETA remains the minimum booking date."
   },
   "releaseVerification": {
-    "aggregateTests": "124 passed, 0 failed, 1 intentional skip.",
+    "aggregateTests": "125 passed, 0 failed, 1 intentional skip.",
     "authenticatedOperationSnapshot": "PASS \u2014 enrolled Viewer snapshot returns 12 operation lines in deterministic OP order after migration 097; exact vehicle has zero workshop bookings.",
     "authenticatedOperationVehicleDetail": "PASS \u2014 Stock 13056899 maps 12 distinct typed operation rows (OP2\u2013OP13) into Tint, Fitting, Electrical, Tyre and Parts detail sections; Sublet remains only the preserved prior coarse requirement.",
-    "browserPredeploy": "PASS \u2014 authenticated local staging rendered stock 13016934 with no PMB work-required summary, six full-width station cards in one compact row, 14 operation lines and no grid overflow.",
-    "focusedTests": "PASS \u2014 compact row/end-action/inline-hours contracts, authenticated hour mapping/rendering, booked-chip atomic cascade, planner/shared-action bridge, version consistency, JavaScript syntax and whitespace.",
+    "browserPredeploy": "PASS \u2014 authenticated live staging saved stock 12238276 Parts ETA from 2026-08-01 to 2026-08-02, rendered +4 Days, survived full reload, restored the original ETA and +3 Days after a second reload, with zero console errors, failed requests or production requests.",
+    "focusedTests": "PASS \u2014 projected Parts ETA snapshot/persistence authority, current/previous ETA mapping, countdown rendering, version consistency, JavaScript/Python syntax and whitespace.",
     "migration106": "APPLIED and rollback-rehearsed on staging; operational table signatures unchanged; productionChanged=false.",
     "migration107": "APPLIED after rollback rehearsal; six unambiguous legacy overlays remapped, zero ambiguous overlays, protected operational signatures unchanged; productionChanged=false.",
     "migration108": "APPLIED after rollback rehearsal; zero active Pit bookings/bays, Pit requirement retained, protected operational signatures unchanged; productionChanged=false.",
-    "migration109": "APPLIED after rollback rehearsal; job_card/ai_estimate provenance is typed, Stock 13016934 replay is revision-stable, booking/completion/Parts unchanged; productionChanged=false.",
+    "migration109": "RECOVERED verbatim from the immutable staging ledger at SHA-256 13bcf057a78634a6bb52afe1842d6a303a62a6cec925a6a7692d1aea419cabbe; operation-hour provenance retained.",
+    "migration110": "APPLIED after rollback rehearsal; current/previous Parts ETA and Sublet projections restored, one authoritative ETA fixture verified, protected operational signatures unchanged; productionChanged=false.",
     "production": "UNCHANGED \u2014 no production branch, database, deployment or configuration write."
   },
   "sourceBranch": "qa/workshop-bulletproof-20260728",
-  "sourceCommit": "adbd7e2c6b700a888532ead42e6cbc92508b7999",
+  "sourceCommit": "3a46340f05aeb98f9a7233ea021e192d67646333",
   "sourceFiles": [
     {
       "deployedPath": "ai-board-advisor.js",
@@ -154,7 +158,7 @@
     },
     {
       "deployedPath": "app.js",
-      "sha256": "8135ed8ee1df850881600e9e8a3c67d9d97c384dac76ba9d1906028e65a55a9f",
+      "sha256": "f91f0aada5e67e4c896406ab52629766f4143cc2ce796f18fd1a3c7c479a8f65",
       "sourcePath": "app.js"
     },
     {
@@ -194,7 +198,7 @@
     },
     {
       "deployedPath": "index.html",
-      "sha256": "dcb1328776bf88ca9667bda6f088221990b1ef0f82a147f44613d55fa45e3fbb",
+      "sha256": "687605f53af3189e173596d4fbc8257616fe4b640bfbc5b6f0583da0bca874c0",
       "sourcePath": "staging.html"
     },
     {
@@ -224,12 +228,12 @@
     },
     {
       "deployedPath": "pdc-email-vehicle-location-service.js",
-      "sha256": "a4eed15f90fc2c0398c236277afad2271f3670f08682ac7bb1a070a35e62a49c",
+      "sha256": "49a86ba6e13859359f835e065b126652df5ad72a16000368642c64280f0261ce",
       "sourcePath": "pdc-email-vehicle-location-service.js"
     },
     {
       "deployedPath": "pdc-supabase-config.staging.js",
-      "sha256": "0ad944c330bd2c55d970677dc5bd98ee63d1ad1e59e809fd3fd7aec36a0cfcf9",
+      "sha256": "ff493a9ac688445ac4e87049f98a3bfe771ed8bc1540c4dd08db4ee6b5d2a689",
       "sourcePath": "pdc-supabase-config.staging.js"
     },
     {
@@ -323,5 +327,5 @@
       "sourcePath": "pdc-ai-intake-review.js"
     }
   ],
-  "sourceTree": "5d2065f5fbbfdcb15d54f9748ee03cb36fb66c50"
+  "sourceTree": "cd32f52dd7ae9b1318670a3138f750d3f0abed44"
 }
