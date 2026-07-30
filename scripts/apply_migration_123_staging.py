@@ -93,7 +93,7 @@ def main():
             for token in ("finding_last_seen_run_id=p_last_seen_run_id", "v_existing.reason is distinct from v_reason", "v_snapshot->>'rule_set_hash'"):
                 if token.lower() not in decide.lower():
                     raise RuntimeError("effective decision hardening missing")
-            if "d.finding_last_seen_run_id = f.last_seen_run_id" not in queue.lower():
+            if not re.search(r"d\.finding_last_seen_run_id\s*=\s*f\.last_seen_run_id", queue, re.I):
                 raise RuntimeError("effective review queue exact-run join missing")
             conn.commit()
         receipt.update({"status": "applied", "prior_ledger_head": "122", "ledger_head_after": "123", "non_auditor_signatures_unchanged": True, "exact_occurrence_binding": True, "rule_freshness": True, "contained_email_import_acl_preserved": True})
