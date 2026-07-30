@@ -68,6 +68,9 @@ assert.ok(block.includes('Approval is not execution') || html.includes('Approval
 assert.ok(block.includes('operational_change !== false') && block.includes('execution_reference != null'), 'the client must reject any decision receipt that implies execution');
 assert.ok(block.includes('reportMembership') && block.includes('evaluated?.projections?.reports'), 'manual report tabs must consume deterministic engine report projections');
 assert.ok(block.includes('return result?.hasReportProjections ? explicitlyScoped : findings'), 'an intentionally empty deterministic report projection must remain empty rather than falling back to every finding');
+assert.ok(block.includes('function pdcAuditorDecisionDate'), 'recorded Auditor decisions must use a dedicated safe date formatter');
+assert.ok(!block.includes('formatDate(recorded.decidedAt)'), 'recorded decisions must not call an undefined generic date formatter');
+assert.ok(block.includes('pdcAuditorDecisionDate(recorded.decidedAt)'), 'recorded decision rendering must call the tested Auditor formatter');
 assert.ok(block.includes('has_more: false') && block.includes('next_vehicle_id: null'), 'merged authoritative pagination must be normalized as complete before strict adaptation');
 [
   'pdcSheetVehicles(', 'localStorage', 'sessionStorage', 'loadJson(', 'saveJson(',

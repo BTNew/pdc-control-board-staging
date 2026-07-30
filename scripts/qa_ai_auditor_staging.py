@@ -8,7 +8,7 @@ from pathlib import Path
 
 from playwright.sync_api import sync_playwright
 
-URL = "https://btnew.github.io/pdc-control-board-staging/?auditorRelease=b23d6f8#ai-auditor"
+URL = "https://btnew.github.io/pdc-control-board-staging/?auditorRelease=20260730-03-recorded-decision-render#ai-auditor"
 PRODUCTION_REF = "vjdtsswhroyguxyfjdkt"
 ROOT = Path(__file__).resolve().parents[1]
 EVIDENCE = ROOT / "review-evidence/ai-auditor-human-review"
