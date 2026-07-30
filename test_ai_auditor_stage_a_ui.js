@@ -90,7 +90,7 @@ const engineFixture = {
 const evaluationContext = vm.createContext({
   window: { PdcAiAuditorStageA: { analyze: () => engineFixture } },
   pdcAuditorNormalizeFinding: finding => finding,
-  pdcAuditorBindReviewFinding: finding => finding,
+  pdcAuditorBindReviewFindings: findings => findings,
   pdcAuditorSafeText: value => String(value),
 });
 vm.runInContext(block.slice(projectionStart, evaluationEnd), evaluationContext);

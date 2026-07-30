@@ -91,6 +91,42 @@ function response(body, ok = true, status = 200) {
   const stale = await staleService.decideFinding({ findingId, evidenceFingerprint: evidence, lastSeenRunId: runId, decision: 'approved' });
   assert.strictEqual(stale.code, 'stale');
 
+  const committedQueue = { ...queue, items: [{ ...queue.items[0], decision: {
+    decision_id: '33333333-3333-4333-8333-333333333333', status: 'approved', reason: null, operational_change: false,
+  } }] };
+  const reconciledResponses = [
+    response({ response_revision: 'b'.repeat(64), generated_at: '2026-07-30T00:00:00Z', environment: 'staging', dealer_code: '14450', page_size: 100, has_more: false, next_vehicle_id: null, items: [] }),
+    response(committedQueue),
+  ];
+  let dispatched = false;
+  const reconciledService = context.createPdcAuditorSnapshotService({
+    config: { url: 'https://staging.invalid', publishableKey: 'public-key' },
+    getAccessToken: () => token,
+    fetchImpl: async () => {
+      if (!dispatched) { dispatched = true; throw new Error('transport lost after dispatch'); }
+      return reconciledResponses.shift();
+    },
+  });
+  const reconciled = await reconciledService.decideFinding({ findingId, evidenceFingerprint: evidence, lastSeenRunId: runId, decision: 'approved' });
+  assert.strictEqual(reconciled.ok, true, 'authoritative queue must reconcile a post-dispatch transport loss');
+  assert.strictEqual(reconciled.reconciled, true);
+
+  const unknownResponses = [
+    response({ response_revision: 'b'.repeat(64), generated_at: '2026-07-30T00:00:00Z', environment: 'staging', dealer_code: '14450', page_size: 100, has_more: false, next_vehicle_id: null, items: [] }),
+    response(queue),
+  ];
+  dispatched = false;
+  const unknownService = context.createPdcAuditorSnapshotService({
+    config: { url: 'https://staging.invalid', publishableKey: 'public-key' },
+    getAccessToken: () => token,
+    fetchImpl: async () => {
+      if (!dispatched) { dispatched = true; throw new Error('transport lost after dispatch'); }
+      return unknownResponses.shift();
+    },
+  });
+  const unknown = await unknownService.decideFinding({ findingId, evidenceFingerprint: evidence, lastSeenRunId: runId, decision: 'approved' });
+  assert.strictEqual(unknown.code, 'decision_outcome_unknown', 'absence after an ambiguous response must not be reported as definitive non-recording');
+
   authority = '';
   const unavailable = await service.getAuditorSnapshot();
   assert.strictEqual(unavailable.code, 'unavailable');
