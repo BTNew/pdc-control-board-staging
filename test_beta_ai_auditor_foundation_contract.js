@@ -4,8 +4,8 @@ const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
 
-const migrationPath = path.join(__dirname, 'supabase', 'staging_only', '115_beta_ai_auditor_foundation.sql');
-assert.ok(fs.existsSync(migrationPath), 'migration 115 is missing');
+const migrationPath = path.join(__dirname, 'supabase', 'staging_only', '121_beta_ai_auditor_foundation.sql');
+assert.ok(fs.existsSync(migrationPath), 'migration 121 is missing');
 const sql = fs.readFileSync(migrationPath, 'utf8').replace(/\r\n/g, '\n');
 const lower = sql.toLowerCase();
 
@@ -22,9 +22,11 @@ function tableDdl(name) {
   return lower.slice(start, end);
 }
 
-assert.match(lower, /^-- staging-only migration 115:/);
-assert.match(lower, /version = '114'[\s\S]*contain_multi_attachment_email_import/);
-assert.match(lower, /version = '115'[\s\S]*beta_ai_auditor_foundation/);
+assert.match(lower, /^-- staging-only migration 121:/);
+assert.match(lower, /version = '119'[\s\S]*contain_attachment_attested_atomic_email_import/);
+assert.match(lower, /version = '120'[\s\S]*contain_legacy_authenticated_vehicle_email_import/);
+assert.match(lower, /version = '121'[\s\S]*beta_ai_auditor_foundation/);
+assert.match(lower, /pdc_auditor_121_email_import_containment_required/);
 assert.match(lower, /begin;[\s\S]*commit;\s*$/);
 assert.ok(lower.includes("project_ref = 'cdsmnqxtyyoeoznmbidd'"));
 assert.ok(!lower.includes('service_role'), 'service-role credentials/grants are forbidden');

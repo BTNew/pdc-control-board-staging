@@ -1,0 +1,513 @@
+{
+  "actor_role": "administrator",
+  "app_project_ref_setting": "[REDACTED]",
+  "apply": {
+    "all_auditor_tables_present": true,
+    "immutable_trigger_count": 9,
+    "migration_exact_replay": true,
+    "rpc_count": 7
+  },
+  "bounded_pagination": {
+    "small_page_size": 17,
+    "small_pages": 2,
+    "submission_pages": 1,
+    "unique_cursors": true
+  },
+  "committed": false,
+  "database": "[REDACTED]",
+  "database_actor": "[REDACTED]",
+  "database_host": "[REDACTED]",
+  "dealer_code": "37047",
+  "dealer_vehicle_count": 33,
+  "encrypted_logical_payload_round_trip_not_disaster_restore": {
+    "algorithm": "OpenPGP AES-256 symmetric (in-memory)",
+    "ciphertext_bytes": 3239,
+    "scope": "encrypted logical row-payload round trip only; not a schema, ACL, RLS, publication or disaster-recovery restore",
+    "table_payloads_round_tripped": 12,
+    "temporary_schema_removed": true
+  },
+  "foreign_keys": {
+    "constraints_checked": 221,
+    "orphan_rows": 0,
+    "validated": 221
+  },
+  "lifecycle": {
+    "evidence_change_recorded": true,
+    "exact_replay": true,
+    "history": {
+      "observed": 2,
+      "opened": 1,
+      "reopened": 1,
+      "resolved": 1
+    },
+    "occurrences": 4,
+    "persisted_first_finding_id": "f12a3bdb-55f7-419a-9e53-12af9d63bfbc",
+    "resolved_then_reappeared": true,
+    "stable_finding_ids": 1,
+    "stable_finding_rows": 1,
+    "status": "current"
+  },
+  "migration": 121,
+  "migration_ledger_after": {
+    "beta_ai_auditor_rows": 0,
+    "conflicting_121_rows": 0,
+    "md5": "2de933cb9906274e2120cdef9e6a25fa",
+    "predecessor_119_rows": 1,
+    "predecessor_120_rows": 1,
+    "rows": 116
+  },
+  "migration_ledger_before": {
+    "beta_ai_auditor_rows": 0,
+    "conflicting_121_rows": 0,
+    "md5": "2de933cb9906274e2120cdef9e6a25fa",
+    "predecessor_119_rows": 1,
+    "predecessor_120_rows": 1,
+    "rows": 116
+  },
+  "migration_name": "beta_ai_auditor_foundation",
+  "operational_hashes_after_rollback": {
+    "audit_events": {
+      "md5": "02ba27418bb361f99fd1d33e63f58a1b",
+      "rows": 1756
+    },
+    "navision_backend_records": {
+      "md5": "48e6a45ced235217339ed11d54b1b716",
+      "rows": 1072
+    },
+    "navision_backend_revision": {
+      "md5": "49b3ae3963cebe965083abe407e65f83",
+      "rows": 1
+    },
+    "pdc_ai_intake_history": {
+      "md5": "87208133325130ae0dc75a02ea3592ef",
+      "rows": 259
+    },
+    "pdc_ai_intake_proposals": {
+      "md5": "e3d638b276a1acc7833d424fd3bd301b",
+      "rows": 144
+    },
+    "pdc_ai_intake_revision": {
+      "md5": "e18f1870060475a68a866a627213862e",
+      "rows": 1
+    },
+    "pdc_authenticated_email_operation_lines": {
+      "md5": "52661bf0f016126b7575628bf23820fd",
+      "rows": 254
+    },
+    "pdc_email_vehicle_revision": {
+      "md5": "4adf94c2bdc5fcedb0330ea745e87146",
+      "rows": 1
+    },
+    "pdc_staging_environment_sentinel": {
+      "md5": "72d8128c31a31b3a6f7740ef1f60118a",
+      "rows": 1
+    },
+    "pdc_sublet_bookings": {
+      "md5": "e1bad08cff06526ca72aafb002ac5305",
+      "rows": 4
+    },
+    "pdc_user_roles": {
+      "md5": "f3c988fafd8e5018df8aebbc8d8059fb",
+      "rows": 7
+    },
+    "vehicle_aliases": {
+      "md5": "d372a9c3b1c6cad7eddfc404cdee9008",
+      "rows": 152
+    },
+    "vehicle_lifecycle_resolver_revision": {
+      "md5": "01c42a848d3c5a8f3fba68ad0b068504",
+      "rows": 1
+    },
+    "vehicle_master_history": {
+      "md5": "c0a2c37d0dd61c847b86d982440aff2c",
+      "rows": 949
+    },
+    "vehicle_master_revision": {
+      "md5": "e4aca3dabfe31fdbaca6683f8e67b449",
+      "rows": 1
+    },
+    "vehicle_master_source_records": {
+      "md5": "e89209cfca1064ce2922aa337fcdb878",
+      "rows": 152
+    },
+    "vehicle_movements": {
+      "md5": "d41d8cd98f00b204e9800998ecf8427e",
+      "rows": 0
+    },
+    "vehicle_notifications": {
+      "md5": "d41d8cd98f00b204e9800998ecf8427e",
+      "rows": 0
+    },
+    "vehicle_parts_updates": {
+      "md5": "d73581d7c9f7ac8a550c6423a47a94ed",
+      "rows": 72
+    },
+    "vehicle_sublet_providers": {
+      "md5": "d41d8cd98f00b204e9800998ecf8427e",
+      "rows": 0
+    },
+    "vehicle_work_items": {
+      "md5": "c7ff86ab93405b7f9f1ad996c7b8befe",
+      "rows": 391
+    },
+    "vehicle_workshop_line_adjustments": {
+      "md5": "615330a224b07c6459df385ecfdf2c35",
+      "rows": 16
+    },
+    "vehicles": {
+      "md5": "765ff8556e9d6a5b396086dd788cf1b8",
+      "rows": 224
+    },
+    "workshop_bays": {
+      "md5": "43cf7235047182e69b71ec864cd61257",
+      "rows": 45
+    },
+    "workshop_booking_assignments": {
+      "md5": "d41d8cd98f00b204e9800998ecf8427e",
+      "rows": 0
+    },
+    "workshop_booking_history": {
+      "md5": "af661913affbcdcbce6eddd04f2508f7",
+      "rows": 190
+    },
+    "workshop_bookings": {
+      "md5": "066dc4da40ca9754118441bf6e99a520",
+      "rows": 54
+    },
+    "workshop_revision": {
+      "md5": "27333ae20897b5b4ea247c06439857aa",
+      "rows": 1
+    },
+    "workshop_settings": {
+      "md5": "7953a68d16d58553725fc970c8dba4a1",
+      "rows": 9
+    },
+    "workshop_stages": {
+      "md5": "10b00138a6102ff649e969b6960b24b7",
+      "rows": 9
+    },
+    "workshop_station_revision": {
+      "md5": "1f547533336a3934643a6362c7eb14f0",
+      "rows": 9
+    },
+    "workshop_technicians": {
+      "md5": "856b502bc51eec1409c70198e1c99305",
+      "rows": 5
+    }
+  },
+  "operational_hashes_before": {
+    "audit_events": {
+      "md5": "02ba27418bb361f99fd1d33e63f58a1b",
+      "rows": 1756
+    },
+    "navision_backend_records": {
+      "md5": "48e6a45ced235217339ed11d54b1b716",
+      "rows": 1072
+    },
+    "navision_backend_revision": {
+      "md5": "49b3ae3963cebe965083abe407e65f83",
+      "rows": 1
+    },
+    "pdc_ai_intake_history": {
+      "md5": "87208133325130ae0dc75a02ea3592ef",
+      "rows": 259
+    },
+    "pdc_ai_intake_proposals": {
+      "md5": "e3d638b276a1acc7833d424fd3bd301b",
+      "rows": 144
+    },
+    "pdc_ai_intake_revision": {
+      "md5": "e18f1870060475a68a866a627213862e",
+      "rows": 1
+    },
+    "pdc_authenticated_email_operation_lines": {
+      "md5": "52661bf0f016126b7575628bf23820fd",
+      "rows": 254
+    },
+    "pdc_email_vehicle_revision": {
+      "md5": "4adf94c2bdc5fcedb0330ea745e87146",
+      "rows": 1
+    },
+    "pdc_staging_environment_sentinel": {
+      "md5": "72d8128c31a31b3a6f7740ef1f60118a",
+      "rows": 1
+    },
+    "pdc_sublet_bookings": {
+      "md5": "e1bad08cff06526ca72aafb002ac5305",
+      "rows": 4
+    },
+    "pdc_user_roles": {
+      "md5": "f3c988fafd8e5018df8aebbc8d8059fb",
+      "rows": 7
+    },
+    "vehicle_aliases": {
+      "md5": "d372a9c3b1c6cad7eddfc404cdee9008",
+      "rows": 152
+    },
+    "vehicle_lifecycle_resolver_revision": {
+      "md5": "01c42a848d3c5a8f3fba68ad0b068504",
+      "rows": 1
+    },
+    "vehicle_master_history": {
+      "md5": "c0a2c37d0dd61c847b86d982440aff2c",
+      "rows": 949
+    },
+    "vehicle_master_revision": {
+      "md5": "e4aca3dabfe31fdbaca6683f8e67b449",
+      "rows": 1
+    },
+    "vehicle_master_source_records": {
+      "md5": "e89209cfca1064ce2922aa337fcdb878",
+      "rows": 152
+    },
+    "vehicle_movements": {
+      "md5": "d41d8cd98f00b204e9800998ecf8427e",
+      "rows": 0
+    },
+    "vehicle_notifications": {
+      "md5": "d41d8cd98f00b204e9800998ecf8427e",
+      "rows": 0
+    },
+    "vehicle_parts_updates": {
+      "md5": "d73581d7c9f7ac8a550c6423a47a94ed",
+      "rows": 72
+    },
+    "vehicle_sublet_providers": {
+      "md5": "d41d8cd98f00b204e9800998ecf8427e",
+      "rows": 0
+    },
+    "vehicle_work_items": {
+      "md5": "c7ff86ab93405b7f9f1ad996c7b8befe",
+      "rows": 391
+    },
+    "vehicle_workshop_line_adjustments": {
+      "md5": "615330a224b07c6459df385ecfdf2c35",
+      "rows": 16
+    },
+    "vehicles": {
+      "md5": "765ff8556e9d6a5b396086dd788cf1b8",
+      "rows": 224
+    },
+    "workshop_bays": {
+      "md5": "43cf7235047182e69b71ec864cd61257",
+      "rows": 45
+    },
+    "workshop_booking_assignments": {
+      "md5": "d41d8cd98f00b204e9800998ecf8427e",
+      "rows": 0
+    },
+    "workshop_booking_history": {
+      "md5": "af661913affbcdcbce6eddd04f2508f7",
+      "rows": 190
+    },
+    "workshop_bookings": {
+      "md5": "066dc4da40ca9754118441bf6e99a520",
+      "rows": 54
+    },
+    "workshop_revision": {
+      "md5": "27333ae20897b5b4ea247c06439857aa",
+      "rows": 1
+    },
+    "workshop_settings": {
+      "md5": "7953a68d16d58553725fc970c8dba4a1",
+      "rows": 9
+    },
+    "workshop_stages": {
+      "md5": "10b00138a6102ff649e969b6960b24b7",
+      "rows": 9
+    },
+    "workshop_station_revision": {
+      "md5": "1f547533336a3934643a6362c7eb14f0",
+      "rows": 9
+    },
+    "workshop_technicians": {
+      "md5": "856b502bc51eec1409c70198e1c99305",
+      "rows": 5
+    }
+  },
+  "operational_hashes_during": {
+    "audit_events": {
+      "md5": "02ba27418bb361f99fd1d33e63f58a1b",
+      "rows": 1756
+    },
+    "navision_backend_records": {
+      "md5": "48e6a45ced235217339ed11d54b1b716",
+      "rows": 1072
+    },
+    "navision_backend_revision": {
+      "md5": "49b3ae3963cebe965083abe407e65f83",
+      "rows": 1
+    },
+    "pdc_ai_intake_history": {
+      "md5": "87208133325130ae0dc75a02ea3592ef",
+      "rows": 259
+    },
+    "pdc_ai_intake_proposals": {
+      "md5": "e3d638b276a1acc7833d424fd3bd301b",
+      "rows": 144
+    },
+    "pdc_ai_intake_revision": {
+      "md5": "e18f1870060475a68a866a627213862e",
+      "rows": 1
+    },
+    "pdc_authenticated_email_operation_lines": {
+      "md5": "52661bf0f016126b7575628bf23820fd",
+      "rows": 254
+    },
+    "pdc_email_vehicle_revision": {
+      "md5": "4adf94c2bdc5fcedb0330ea745e87146",
+      "rows": 1
+    },
+    "pdc_staging_environment_sentinel": {
+      "md5": "72d8128c31a31b3a6f7740ef1f60118a",
+      "rows": 1
+    },
+    "pdc_sublet_bookings": {
+      "md5": "e1bad08cff06526ca72aafb002ac5305",
+      "rows": 4
+    },
+    "pdc_user_roles": {
+      "md5": "f3c988fafd8e5018df8aebbc8d8059fb",
+      "rows": 7
+    },
+    "vehicle_aliases": {
+      "md5": "d372a9c3b1c6cad7eddfc404cdee9008",
+      "rows": 152
+    },
+    "vehicle_lifecycle_resolver_revision": {
+      "md5": "01c42a848d3c5a8f3fba68ad0b068504",
+      "rows": 1
+    },
+    "vehicle_master_history": {
+      "md5": "c0a2c37d0dd61c847b86d982440aff2c",
+      "rows": 949
+    },
+    "vehicle_master_revision": {
+      "md5": "e4aca3dabfe31fdbaca6683f8e67b449",
+      "rows": 1
+    },
+    "vehicle_master_source_records": {
+      "md5": "e89209cfca1064ce2922aa337fcdb878",
+      "rows": 152
+    },
+    "vehicle_movements": {
+      "md5": "d41d8cd98f00b204e9800998ecf8427e",
+      "rows": 0
+    },
+    "vehicle_notifications": {
+      "md5": "d41d8cd98f00b204e9800998ecf8427e",
+      "rows": 0
+    },
+    "vehicle_parts_updates": {
+      "md5": "d73581d7c9f7ac8a550c6423a47a94ed",
+      "rows": 72
+    },
+    "vehicle_sublet_providers": {
+      "md5": "d41d8cd98f00b204e9800998ecf8427e",
+      "rows": 0
+    },
+    "vehicle_work_items": {
+      "md5": "c7ff86ab93405b7f9f1ad996c7b8befe",
+      "rows": 391
+    },
+    "vehicle_workshop_line_adjustments": {
+      "md5": "615330a224b07c6459df385ecfdf2c35",
+      "rows": 16
+    },
+    "vehicles": {
+      "md5": "765ff8556e9d6a5b396086dd788cf1b8",
+      "rows": 224
+    },
+    "workshop_bays": {
+      "md5": "43cf7235047182e69b71ec864cd61257",
+      "rows": 45
+    },
+    "workshop_booking_assignments": {
+      "md5": "d41d8cd98f00b204e9800998ecf8427e",
+      "rows": 0
+    },
+    "workshop_booking_history": {
+      "md5": "af661913affbcdcbce6eddd04f2508f7",
+      "rows": 190
+    },
+    "workshop_bookings": {
+      "md5": "066dc4da40ca9754118441bf6e99a520",
+      "rows": 54
+    },
+    "workshop_revision": {
+      "md5": "27333ae20897b5b4ea247c06439857aa",
+      "rows": 1
+    },
+    "workshop_settings": {
+      "md5": "7953a68d16d58553725fc970c8dba4a1",
+      "rows": 9
+    },
+    "workshop_stages": {
+      "md5": "10b00138a6102ff649e969b6960b24b7",
+      "rows": 9
+    },
+    "workshop_station_revision": {
+      "md5": "1f547533336a3934643a6362c7eb14f0",
+      "rows": 9
+    },
+    "workshop_technicians": {
+      "md5": "856b502bc51eec1409c70198e1c99305",
+      "rows": 5
+    }
+  },
+  "operational_unchanged_during": true,
+  "passed": true,
+  "payload_hash_computed_server_side": true,
+  "project_ref": "[REDACTED]",
+  "rejections": {
+    "fabricated_page_manifest": "pdc_auditor_incomplete_snapshot",
+    "noncanonical_submission_page_size": "pdc_auditor_incomplete_snapshot",
+    "viewer_worker": "pdc_auditor_worker_unauthorized",
+    "wrong_dealer": "pdc_auditor_worker_unauthorized",
+    "wrong_submission_environment": "pdc_auditor_invalid_run"
+  },
+  "rollback": {
+    "fresh_connection": true,
+    "migration_ledger_unchanged": true,
+    "migration_objects_absent": true,
+    "object_state": {
+      "pdc_auditor_booking_work_relations": false,
+      "pdc_auditor_finding_evidence": false,
+      "pdc_auditor_finding_history": false,
+      "pdc_auditor_finding_occurrences": false,
+      "pdc_auditor_findings": false,
+      "pdc_auditor_report_runs": false,
+      "pdc_auditor_revision": false,
+      "pdc_auditor_risk_scores": false,
+      "pdc_auditor_rule_config": false,
+      "pdc_auditor_runs": false,
+      "pdc_auditor_user_dealer_scopes": false,
+      "pdc_auditor_worker_identities": false
+    },
+    "operational_hashes_unchanged": true
+  },
+  "security": {
+    "authenticated_direct_write": false,
+    "claims_simulated_with_request_jwt_claims": true,
+    "forged_jwt_dealer_ignored": true,
+    "rls_own_rows": 1,
+    "service_role_used": false
+  },
+  "service_role_used": false,
+  "static": {
+    "checks": {
+      "all_expected_objects_present": true,
+      "migration_identity": true,
+      "no_service_role_grant": true,
+      "outer_transaction": true,
+      "realtime_revision_only": true,
+      "recursive_sensitive_key_guard": true,
+      "server_payload_hash": true,
+      "staging_sentinel": true,
+      "submission_dml_auditor_only": true,
+      "worker_excludes_viewer": true
+    },
+    "migration_sha256": "23e91bd8d9f5dfc7173d24b3c0d56b91dfe020a392439d06822e833b04dfd5ef"
+  },
+  "wrong_environment_migration_rejected": "PDC_AUDITOR_121_STAGING_SENTINEL_MISMATCH"
+}

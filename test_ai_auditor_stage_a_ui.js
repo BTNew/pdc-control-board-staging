@@ -12,16 +12,16 @@ const app = read('app.js');
 const css = read('ai-auditor.css');
 
 assert.strictEqual((html.match(/data-view="ai-auditor"/g) || []).length, 1, 'staging must expose one dedicated AI Auditor navigation item');
-assert.ok(html.includes('>BETA – AI Auditor<'), 'navigation must use the exact beta label');
+assert.ok(html.includes('>AI Auditor<'), 'navigation must use the exact AI Auditor label');
 assert.strictEqual((html.match(/id="ai-auditor"/g) || []).length, 1, 'staging must expose one dedicated auditor view');
-assert.ok(html.includes('BETA – READ ONLY / APPROVAL REQUIRED'), 'the persistent authority banner must be present in markup');
+assert.ok(html.includes('BETA – HUMAN REVIEW / NO AUTOMATIC CHANGES'), 'the persistent non-execution banner must be present in markup');
 assert.ok(!html.includes('class="ai-board-advisor-panel"'), 'Board Advisor must be removed from staging AI Intake');
 assert.ok(html.includes('ai-auditor.css?'), 'staging must load the isolated auditor stylesheet');
 
 const auditorSection = html.slice(html.indexOf('<section id="ai-auditor"'), html.indexOf('<section id="sublet"'));
 ['Morning Workshop Briefing', 'Midday Risk Review', 'End-of-Day Carryover', 'Critical Issues'].forEach(label => assert.ok(auditorSection.includes(`>${label}<`), `${label} manual report view must exist`));
-['Approve', 'Deny', 'Snooze'].forEach(label => assert.ok(new RegExp(`disabled[^>]*>${label}<|>${label}<[^]*?disabled`).test(auditorSection), `${label} must be visibly disabled`));
-assert.ok(auditorSection.includes('Stage C decision workflow not enabled'), 'Stage C disabled copy must be exact');
+assert.ok(auditorSection.includes('Approval is not execution'), 'the decision safety boundary must be explicit');
+assert.ok(!auditorSection.includes('>Snooze<'), 'the requested review workflow must expose only Approve and Deny');
 assert.ok(auditorSection.includes('role="tablist"') && auditorSection.includes('role="tabpanel"'), 'manual report views must use accessible tab semantics');
 assert.ok(auditorSection.includes('aria-live="polite"') && auditorSection.includes('aria-busy="true"'), 'auditor load state must be announced accessibly');
 ['ai-auditor-severity-filter', 'ai-auditor-category-filter', 'ai-auditor-search', 'ai-auditor-filter-summary'].forEach(id => assert.ok(auditorSection.includes(`id="${id}"`), `${id} must exist`));
@@ -61,9 +61,11 @@ const openVehicleBlock = block.slice(openVehicleStart, openVehicleEnd);
 const snapshotDetailStart = block.indexOf('function openPdcAuditorSnapshotVehicleDetail');
 const snapshotDetailEnd = block.indexOf('function openPdcAuditorVehicle', snapshotDetailStart);
 const snapshotDetailBlock = block.slice(snapshotDetailStart, snapshotDetailEnd);
-assert.ok(snapshotDetailBlock.includes('BETA – READ ONLY / APPROVAL REQUIRED'), 'snapshot Vehicle Detail must retain the read-only authority banner');
+assert.ok(snapshotDetailBlock.includes('BETA – HUMAN REVIEW / NO AUTOMATIC CHANGES'), 'snapshot Vehicle Detail must retain the non-execution authority banner');
 assert.ok(!/(approve|deny|snooze|save|edit|delete|schedule|mutate|rpc\/)\s*[\("']/i.test(snapshotDetailBlock), 'snapshot Vehicle Detail fallback must expose no operational action path');
-assert.ok(block.includes('Stage C decision workflow not enabled'), 'rendered decision state must preserve exact disabled copy');
+assert.ok(block.includes('data-ai-auditor-decision="approved"') && block.includes('data-ai-auditor-decision="denied"'), 'rendered recommendations must expose Approve and Deny review controls');
+assert.ok(block.includes('Approval is not execution') || html.includes('Approval is not execution'), 'decision rendering must preserve the non-execution boundary');
+assert.ok(block.includes('operational_change !== false') && block.includes('execution_reference != null'), 'the client must reject any decision receipt that implies execution');
 assert.ok(block.includes('reportMembership') && block.includes('evaluated?.projections?.reports'), 'manual report tabs must consume deterministic engine report projections');
 assert.ok(block.includes('return result?.hasReportProjections ? explicitlyScoped : findings'), 'an intentionally empty deterministic report projection must remain empty rather than falling back to every finding');
 assert.ok(block.includes('has_more: false') && block.includes('next_vehicle_id: null'), 'merged authoritative pagination must be normalized as complete before strict adaptation');
@@ -88,6 +90,7 @@ const engineFixture = {
 const evaluationContext = vm.createContext({
   window: { PdcAiAuditorStageA: { analyze: () => engineFixture } },
   pdcAuditorNormalizeFinding: finding => finding,
+  pdcAuditorBindReviewFinding: finding => finding,
   pdcAuditorSafeText: value => String(value),
 });
 vm.runInContext(block.slice(projectionStart, evaluationEnd), evaluationContext);

@@ -1,10 +1,10 @@
-# BETA – AI Auditor · Stage A architecture
+# BETA – AI Auditor · Stage A foundation and Stage B human review
 
-Persistent status: **BETA – READ ONLY / APPROVAL REQUIRED**
+Persistent status: **BETA – HUMAN REVIEW / NO AUTOMATIC CHANGES**
 
 ## Scope
 
-Stage A audits canonical PMB Control Board state with deterministic rules. It may store audit runs, findings, evidence, risk projections and manually generated internal report projections. It cannot approve, deny, snooze, mutate operations, activate schedules or deliver reports externally.
+Stage A audits canonical PMB Control Board state with deterministic rules. Stage B lets authorised humans record **Approve** or **Deny** against an exact current published finding. The Auditor cannot mutate operations, activate schedules or deliver reports externally; a human decision is a disposition only and cannot execute the recommendation.
 
 PMB PDC Monitor remains the only authority for mailbox intake, document interpretation, exact vehicle matching, activation, initial canonical work, confirmed labour evidence, Parts/Sublet requirements and source-evidence preservation.
 
@@ -40,7 +40,7 @@ The read RPC accepts page sizes from 1–100. Browser reads merge at most five 1
 
 A stable fingerprint binds dealer, rule version, rule ID, canonical entity IDs and revisions, and normalized evidence hash. Exact unchanged evidence reuses the same recommendation. The first-detected timestamp is preserved; last-detected updates on subsequent runs; last-evidence-change updates only when evidence changes. A finding resolves only when the deterministic condition disappears. Reappearance after resolution creates a new occurrence while retaining history.
 
-Stage A findings contain no executable operation, mutation payload, approval state or external-delivery instruction.
+Stage A findings contain no executable operation or mutation payload. Stage B decision rows bind the finding ID, exact evidence fingerprint and last-seen run, and always store `operational_change=false` with no execution reference.
 
 ## Deterministic rule families
 
@@ -85,4 +85,4 @@ Authenticated browser evidence is run only from a clean worktree pinned by `PDC_
 - Parts evidence is often vehicle-level, reducing confidence.
 - Stoppage owner, next action, review and expected resolution may be missing; absence is reported, not fabricated.
 - Holiday exclusions require an approved date list.
-- Approve, Deny and Snooze are disabled and reserved for a separately approved Stage C.
+- Approve/Deny is available only for one exact current authenticated finding and only to Operator or Administrator roles. Deny requires a reason. Decisions are immutable and idempotent; they never execute work.

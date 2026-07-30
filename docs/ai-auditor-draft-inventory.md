@@ -23,7 +23,7 @@ Untracked files:
 - `ai-auditor.css`
 - `docs/beta-ai-auditor-design.md`
 - `supabase/staging_only/111_preserve_stoppage_when_returning_to_unallocated.sql` — unrelated
-- `supabase/staging_only/115_beta_ai_auditor_foundation.sql`
+- `supabase/staging_only/121_beta_ai_auditor_foundation.sql`
 - `test_beta_ai_auditor_preview.js`
 - `test_stoppage_return_to_unallocated_111.js` — unrelated
 - `test_workshop_planner_station_work_preview.js` — unrelated

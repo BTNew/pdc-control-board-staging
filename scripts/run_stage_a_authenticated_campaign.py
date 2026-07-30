@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Authenticated Stage A campaign against a temporary migration-115 staging install.
+"""Authenticated Stage A campaign against a temporary migration-121 staging install.
 
 This is deliberately a live-only runner: importing/compiling it performs no I/O.  Runtime
 credentials are read only from environment variables and are never copied into evidence.
@@ -18,9 +18,9 @@ from playwright.sync_api import sync_playwright
 
 ROOT = Path(__file__).resolve().parents[1]
 EVIDENCE = ROOT / "review-evidence" / "stage-a-ai-auditor" / "authenticated"
-SQL_PATH = ROOT / "supabase" / "staging_only" / "115_beta_ai_auditor_foundation.sql"
+SQL_PATH = ROOT / "supabase" / "staging_only" / "121_beta_ai_auditor_foundation.sql"
 PROJECT_REF = "cdsmnqxtyyoeoznmbidd"
-CAMPAIGN_LOCK = 115_20260729
+CAMPAIGN_LOCK = 121_20260729
 OPERATIONAL = [
     "vehicles", "vehicle_work_items", "workshop_bookings", "workshop_booking_assignments",
     "workshop_booking_history", "vehicle_parts_updates", "vehicle_movements", "audit_events",
@@ -66,7 +66,7 @@ def migration_body():
     body = re.sub(r"(?im)^\s*begin;\s*$", "", sql, count=1)
     body = re.sub(r"(?im)^\s*commit;\s*$", "", body, count=1)
     if body == sql or re.search(r"(?im)^\s*(begin|commit);\s*$", body):
-        raise RuntimeError("failed to isolate migration 115 transaction body")
+        raise RuntimeError("failed to isolate migration 121 transaction body")
     return body
 
 
@@ -90,10 +90,10 @@ def hash_tables(cur):
 
 def ledger_signature(cur):
     cur.execute("""select count(*),md5(coalesce(string_agg(to_jsonb(t)::text,'' order by version,name),'')),
-      count(*) filter(where version='115' and name='beta_ai_auditor_foundation')
+      count(*) filter(where version='121' and name='beta_ai_auditor_foundation')
       from supabase_migrations.schema_migrations t""")
     rows, digest, campaign_rows = cur.fetchone()
-    return {"rows": rows, "md5": digest, "beta_ai_auditor_115_rows": campaign_rows}
+    return {"rows": rows, "md5": digest, "beta_ai_auditor_121_rows": campaign_rows}
 
 
 def percentile(values, p):
@@ -318,7 +318,7 @@ def wait_channel_joined(page, timeout=20000):
 
 def capture(page, name, result, role, zoom=1.0):
     # Redact authenticated identity text and all form values before every capture.  The
-    # authoritative snapshot itself is already allowlisted/sanitized by migration 115.
+    # authoritative snapshot itself is already allowlisted/sanitized by migration 121.
     page.evaluate("""emails => {
       const needles=emails.map(x=>String(x||'').toLowerCase()).filter(Boolean);
       document.querySelectorAll('input').forEach(x=>{x.value='';});
@@ -387,7 +387,7 @@ def worker_authorization_probe(page, state):
 
 
 def cleanup_temp_objects(conn):
-    """Remove only the exact migration-115 object inventory; baseline must have been empty."""
+    """Remove only the exact migration-121 object inventory; baseline must have been empty."""
     with contextlib.suppress(Exception):
         conn.rollback()
     cur = conn.cursor()
@@ -420,11 +420,11 @@ def main():
     exact_tree = tempfile.TemporaryDirectory(prefix=f"pdc-stage-a-{expected_sha[:12]}-")
     served_root = Path(exact_tree.name)
     materialize_exact_git_tree(expected_sha, served_root)
-    SQL_PATH = served_root / "supabase" / "staging_only" / "115_beta_ai_auditor_foundation.sql"
+    SQL_PATH = served_root / "supabase" / "staging_only" / "121_beta_ai_auditor_foundation.sql"
     dsn=os.environ.get('PDC_STAGING_DATABASE_URL','')
     required=['PDC_STAGING_ADMIN_EMAIL','PDC_STAGING_ADMIN_PASSWORD','PDC_STAGING_CONTROLLER_A_EMAIL','PDC_STAGING_CONTROLLER_A_PASSWORD','PDC_STAGING_VIEWER_EMAIL','PDC_STAGING_VIEWER_PASSWORD']
     if not dsn or any(not os.environ.get(k) for k in required): raise SystemExit('staging campaign environment is incomplete')
-    served_assets = ["staging.html", "app.js", "ai-auditor.css", "pdc-ai-auditor-stage-a.js", "supabase/staging_only/115_beta_ai_auditor_foundation.sql"]
+    served_assets = ["staging.html", "app.js", "ai-auditor.css", "pdc-ai-auditor-stage-a.js", "supabase/staging_only/121_beta_ai_auditor_foundation.sql"]
     result={"started_at":datetime.now(timezone.utc).isoformat(),"source_provenance":{"expected_commit":expected_sha,"head_commit":head_sha,"tree":tree_sha,"clean_worktree_before_serve":True,"exact_git_blob_materialization":True,"served_asset_sha256":{name:sha256_file(served_root/name) for name in served_assets}},"temporary_migration_committed":False,"migration_ledger_modified":False,"screenshots":[],"roles":{},"performance":{},"matrix":{}}
     server=None
     before=None

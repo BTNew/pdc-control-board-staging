@@ -103,8 +103,20 @@
 .ai-auditor-decisions { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 13px; border: 1px dashed #94a3b8; border-radius: 10px; background: #f8fafc; }
 .ai-auditor-decisions > div:first-child { display: grid; gap: 2px; }
 .ai-auditor-decisions span { color: #64748b; font-size: .8rem; }
-.ai-auditor-decision-actions { display: flex; gap: 6px; }
-.ai-auditor-decision-actions button { padding: 7px 11px; border: 1px solid #cbd5e1; border-radius: 8px; }
+.ai-auditor-decision-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; padding-top: 9px; border-top: 1px solid #e2e8f0; }
+.ai-auditor-decision-actions button { padding: 7px 13px; border: 1px solid #cbd5e1; border-radius: 8px; background: #fff; font-weight: 800; cursor: pointer; }
+.ai-auditor-decision-actions button[data-ai-auditor-decision="approved"] { border-color: #15803d; color: #166534; background: #f0fdf4; }
+.ai-auditor-decision-actions button[data-ai-auditor-decision="denied"] { border-color: #b91c1c; color: #991b1b; background: #fef2f2; }
+.ai-auditor-decision-actions button:disabled { cursor: wait; opacity: .58; }
+.ai-auditor-decision-actions small { flex-basis: 100%; color: #64748b; }
+.ai-auditor-decision-message { margin: 0 0 10px; padding: 9px 11px; border: 1px solid #93c5fd; border-radius: 9px; background: #eff6ff; color: #1e3a8a; font-weight: 750; }
+.ai-auditor-review-status { display: grid; gap: 2px; padding: 9px 11px; border: 1px solid #cbd5e1; border-radius: 9px; background: #f8fafc; }
+.ai-auditor-review-status strong { text-transform: uppercase; letter-spacing: .035em; font-size: .76rem; }
+.ai-auditor-review-status span { color: #475569; font-size: .78rem; }
+.ai-auditor-review-status p { margin-top: 4px; }
+.ai-auditor-review-status.is-approved { border-color: #86efac; background: #f0fdf4; color: #166534; }
+.ai-auditor-review-status.is-denied { border-color: #fecaca; background: #fef2f2; color: #991b1b; }
+.ai-auditor-review-status.is-pending { border-color: #fde68a; background: #fffbeb; color: #92400e; }
 
 /* The Stage A job-card projection is a read-only, horizontally scrollable table. */
 .vehicle-workshop-job-card-wrap { overflow-x: auto; border: 1px solid #dbe3ee; border-radius: 9px; background: #fff; }

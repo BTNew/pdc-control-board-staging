@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Stage A migration 115 proof: static + live apply inside one rollback-only transaction."""
+"""Stage A migration 121 proof: static + live apply inside one rollback-only transaction."""
 from __future__ import annotations
 
 import hashlib
@@ -16,9 +16,9 @@ from urllib.parse import urlparse
 import psycopg
 
 ROOT = Path(__file__).resolve().parents[2]
-MIGRATION = ROOT / "supabase" / "staging_only" / "115_beta_ai_auditor_foundation.sql"
-OUT_JSON = ROOT / "review-evidence" / "stage-a-ai-auditor" / "rollback-proof-115.json"
-OUT_MD = ROOT / "review-evidence" / "stage-a-ai-auditor" / "rollback-proof-115.md"
+MIGRATION = ROOT / "supabase" / "staging_only" / "121_beta_ai_auditor_foundation.sql"
+OUT_JSON = ROOT / "review-evidence" / "stage-a-ai-auditor" / "rollback-proof-121.json"
+OUT_MD = ROOT / "review-evidence" / "stage-a-ai-auditor" / "rollback-proof-121.md"
 PROJECT_REF = "cdsmnqxtyyoeoznmbidd"
 AUDITOR_TABLES = [
     "pdc_auditor_user_dealer_scopes", "pdc_auditor_worker_identities",
@@ -40,7 +40,7 @@ OPERATIONAL = [
     "navision_backend_records", "vehicle_master_history", "vehicle_master_source_records",
     "vehicle_aliases", "pdc_authenticated_email_operation_lines",
     "vehicle_workshop_line_adjustments", "vehicle_sublet_providers", "pdc_sublet_bookings",
-    # Additional operational/authority/configuration relations read by migration 115 and the
+    # Additional operational/authority/configuration relations read by migration 121 and the
     # authenticated browser campaign. Hashing read dependencies prevents a narrow immutability claim.
     "navision_backend_revision", "pdc_ai_intake_revision", "pdc_email_vehicle_revision",
     "pdc_staging_environment_sentinel", "pdc_user_roles", "vehicle_lifecycle_resolver_revision",
@@ -72,8 +72,8 @@ def static_contract(source: str) -> dict:
             forbidden_dml.append(f"{verb}:{table}")
     checks = {
         "outer_transaction": source.lstrip().startswith("--") and "begin;" in lowered and lowered.rstrip().endswith("commit;"),
-        "staging_sentinel": PROJECT_REF in source and "PDC_AUDITOR_115_STAGING_SENTINEL_MISMATCH" in source,
-        "migration_identity": "version = '114'" in source and "contain_multi_attachment_email_import" in source and "version = '115'" in source,
+        "staging_sentinel": PROJECT_REF in source and "PDC_AUDITOR_121_STAGING_SENTINEL_MISMATCH" in source,
+        "migration_identity": "version = '119'" in source and "contain_attachment_attested_atomic_email_import" in source and "version = '120'" in source and "contain_legacy_authenticated_vehicle_email_import" in source and "version = '121'" in source,
         "all_expected_objects_present": not missing,
         "submission_dml_auditor_only": not forbidden_dml,
         "recursive_sensitive_key_guard": "with recursive walk" in lowered and "pdc_auditor_json_has_sensitive_key(p_findings)" in lowered,
@@ -118,14 +118,16 @@ def table_hashes(cur) -> dict:
 
 def migration_ledger_signature(cur) -> dict:
     cur.execute("""select count(*),md5(coalesce(string_agg(to_jsonb(t)::text,'' order by version,name),'')),
-      count(*) filter(where version='115' and name='beta_ai_auditor_foundation'),
-      count(*) filter(where version='115' and name<>'beta_ai_auditor_foundation'),
-      count(*) filter(where version='114' and name='contain_multi_attachment_email_import')
+      count(*) filter(where version='121' and name='beta_ai_auditor_foundation'),
+      count(*) filter(where version='121' and name<>'beta_ai_auditor_foundation'),
+      count(*) filter(where version='119' and name='contain_attachment_attested_atomic_email_import'),
+      count(*) filter(where version='120' and name='contain_legacy_authenticated_vehicle_email_import')
       from supabase_migrations.schema_migrations t""")
-    rows, digest, beta_rows, conflicting_115_rows, predecessor_114_rows = cur.fetchone()
+    rows, digest, beta_rows, conflicting_121_rows, predecessor_119_rows, predecessor_120_rows = cur.fetchone()
     return {"rows": rows, "md5": digest, "beta_ai_auditor_rows": beta_rows,
-            "conflicting_115_rows": conflicting_115_rows,
-            "predecessor_114_rows": predecessor_114_rows}
+            "conflicting_121_rows": conflicting_121_rows,
+            "predecessor_119_rows": predecessor_119_rows,
+            "predecessor_120_rows": predecessor_120_rows}
 
 
 def reject(cur, sql: str, params, token: str) -> str:
@@ -288,14 +290,14 @@ def run() -> dict:
         raise RuntimeError("PDC_STAGING_DATABASE_URL is required")
     host = pin_url(dsn)
     source = migration_source()
-    result = {"committed": False, "migration": 115, "migration_name": "beta_ai_auditor_foundation", "project_ref": PROJECT_REF, "database_host": host, "static": static_contract(source)}
+    result = {"committed": False, "migration": 121, "migration_name": "beta_ai_auditor_foundation", "project_ref": PROJECT_REF, "database_host": host, "static": static_contract(source)}
     with psycopg.connect(dsn, autocommit=True) as probe:
         before_objects = object_state(probe)
         with probe.cursor() as cur:
             before_operational = table_hashes(cur)
             ledger_before = migration_ledger_signature(cur)
     if any(before_objects.values()):
-        raise AssertionError(f"migration 115 objects already exist before rollback proof: {before_objects}")
+        raise AssertionError(f"migration 121 objects already exist before rollback proof: {before_objects}")
 
     with psycopg.connect(dsn, autocommit=False) as conn:
         try:
@@ -310,7 +312,7 @@ def run() -> dict:
 
             cur.execute("savepoint wrong_environment")
             cur.execute("update public.pdc_staging_environment_sentinel set project_ref='wrong-project-proof' where singleton")
-            wrong_env = reject(cur, migration_body(source), None, "PDC_AUDITOR_115_STAGING_SENTINEL_MISMATCH")
+            wrong_env = reject(cur, migration_body(source), None, "PDC_AUDITOR_121_STAGING_SENTINEL_MISMATCH")
             cur.execute("rollback to savepoint wrong_environment")
             cur.execute(migration_body(source))
 
@@ -483,13 +485,13 @@ def run() -> dict:
     for sensitive_connection_key in ("project_ref", "database_host", "database", "database_actor", "app_project_ref_setting"):
         evidence_result[sensitive_connection_key] = "[REDACTED]"
     OUT_JSON.write_text(json.dumps(evidence_result, indent=2, sort_keys=True, default=str) + "\n", encoding="utf-8")
-    OUT_MD.write_text("# Migration 115 rollback proof\n\n**PASS** — static contract, exact predecessor/version identity, rollback-only apply/replay, schema/RPC, authenticated RLS and worker rejection, lifecycle identity/evidence/resolution/reappearance/exact replay, server-reconstructed canonical submission pages, wrong-environment/dealer rejection, operational hashes, all public FKs, and fresh-connection rollback restoration/absence passed.\n\nThe encrypted exercise is explicitly limited to an in-memory logical row-payload encryption/decryption round trip. It is **not** claimed as a schema, ACL, RLS, publication, or disaster-recovery restore.\n\n- Migration SHA-256: `" + result["static"]["migration_sha256"] + "`\n- Operational tables hashed: **" + str(len(OPERATIONAL)) + "**\n- Public FKs checked: **" + str(result["foreign_keys"]["constraints_checked"]) + "**\n- Evidence JSON: `review-evidence/stage-a-ai-auditor/rollback-proof-115.json`\n- Commit performed: **no**\n", encoding="utf-8")
+    OUT_MD.write_text("# Migration 121 rollback proof\n\n**PASS** — static contract, exact predecessor/version identity, rollback-only apply/replay, schema/RPC, authenticated RLS and worker rejection, lifecycle identity/evidence/resolution/reappearance/exact replay, server-reconstructed canonical submission pages, wrong-environment/dealer rejection, operational hashes, all public FKs, and fresh-connection rollback restoration/absence passed.\n\nThe encrypted exercise is explicitly limited to an in-memory logical row-payload encryption/decryption round trip. It is **not** claimed as a schema, ACL, RLS, publication, or disaster-recovery restore.\n\n- Migration SHA-256: `" + result["static"]["migration_sha256"] + "`\n- Operational tables hashed: **" + str(len(OPERATIONAL)) + "**\n- Public FKs checked: **" + str(result["foreign_keys"]["constraints_checked"]) + "**\n- Evidence JSON: `review-evidence/stage-a-ai-auditor/rollback-proof-121.json`\n- Commit performed: **no**\n", encoding="utf-8")
     return result
 
 
 def main() -> int:
     result = run()
-    print(json.dumps({"PASS": result["passed"], "migration": 115, "migration_name": "beta_ai_auditor_foundation", "operational_tables_hashed": len(OPERATIONAL), "public_fks_checked": result["foreign_keys"]["constraints_checked"], "snapshot_vehicles": result["dealer_vehicle_count"], "evidence_json": str(OUT_JSON), "evidence_md": str(OUT_MD), "committed": False}, indent=2))
+    print(json.dumps({"PASS": result["passed"], "migration": 121, "migration_name": "beta_ai_auditor_foundation", "operational_tables_hashed": len(OPERATIONAL), "public_fks_checked": result["foreign_keys"]["constraints_checked"], "snapshot_vehicles": result["dealer_vehicle_count"], "evidence_json": str(OUT_JSON), "evidence_md": str(OUT_MD), "committed": False}, indent=2))
     return 0
 
 if __name__ == "__main__":

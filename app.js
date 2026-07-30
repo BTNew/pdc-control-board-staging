@@ -1941,6 +1941,8 @@ const app = {
   pdcAuditorGeneration: 0,
   pdcAuditorRealtime: null,
   pdcAuditorPage: 0,
+  pdcAuditorDecisionInFlight: false,
+  pdcAuditorDecisionMessage: '',
   emailVehicleLocationService: null,
   emailVehicleLocationRows: [],
   emailVehicleLocationRevision: null,
@@ -18045,7 +18047,7 @@ const PDC_AUDITOR_CATEGORY_DEFS = Object.freeze([
   { key: 'active_stoppages', label: 'Active stoppages', colour: '#be123c', matches: item => item.ruleId.includes('STOPPAGE') },
   { key: 'forgotten_vehicles', label: 'Forgotten vehicles', colour: '#0f766e', matches: item => /(FORGOTTEN|NO_FUTURE_BOOKING|NO_PROGRESS|NO_REPLACEMENT|NOT_REVIEWED|NOT_COLLECTED)/.test(item.ruleId) },
   { key: 'workflow_problems', label: 'Workflow problems', colour: '#475569', matches: item => item.category === 'workflow' || /(QC_|RFT_|COMPLETED_|WORKFLOW_|SUBLET_|LOCATION_)/.test(item.ruleId) },
-  { key: 'awaiting_approval', label: 'Recommendations awaiting approval', colour: '#64748b', matches: () => true },
+  { key: 'awaiting_approval', label: 'Recommendations awaiting approval', colour: '#64748b', matches: item => item.review && !item.review.decision },
 ]);
 
 function auditorAuthorityIdentity() {
@@ -18118,6 +18120,24 @@ function createPdcAuditorSnapshotService({ config = {}, getAccessToken = () => n
             items,
             vehicles: items,
           };
+          const queueResponse = await fetchImpl(`${String(config.url).replace(/\/$/, '')}/rest/v1/rpc/get_pdc_auditor_review_queue`, {
+            method: 'POST',
+            headers: { apikey: config.publishableKey, Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ p_limit: 200 }),
+          });
+          if (destroyed || generation !== lifecycleGeneration || authority !== auditorAuthorityIdentity() || token !== getAccessToken()) return { ok: false, code: 'superseded' };
+          if (!queueResponse.ok) {
+            invalidate();
+            return { ok: false, code: queueResponse.status === 401 || queueResponse.status === 403 ? 'permission_denied' : 'review_queue_unavailable', status: queueResponse.status };
+          }
+          const queue = await queueResponse.json();
+          if (destroyed || generation !== lifecycleGeneration || authority !== auditorAuthorityIdentity() || token !== getAccessToken()) return { ok: false, code: 'superseded' };
+          if (!queue || queue.ok !== true || queue.environment !== 'staging' || queue.dealer_code !== snapshot.dealer_code || !Array.isArray(queue.items) || queue.items.length > 200) {
+            invalidate();
+            return { ok: false, code: 'invalid_review_queue' };
+          }
+          snapshot.reviewQueue = queue.items;
+          snapshot.reviewCanDecide = queue.can_decide === true;
           retainedSnapshot = snapshot;
           return { ok: true, snapshot };
         }
@@ -18136,6 +18156,43 @@ function createPdcAuditorSnapshotService({ config = {}, getAccessToken = () => n
     }
   }
 
+  async function decideFinding({ findingId = '', evidenceFingerprint = '', lastSeenRunId = '', decision = '', reason = null } = {}) {
+    if (destroyed) return { ok: false, code: 'destroyed' };
+    const token = getAccessToken();
+    const authority = auditorAuthorityIdentity();
+    if (!token || !authority || !config.url || !config.publishableKey || typeof fetchImpl !== 'function') return { ok: false, code: 'unavailable' };
+    if (!/^[0-9a-f-]{36}$/i.test(findingId) || !/^[a-f0-9]{64}$/.test(evidenceFingerprint)
+        || !/^[0-9a-f-]{36}$/i.test(lastSeenRunId) || !['approved', 'denied'].includes(decision)) return { ok: false, code: 'invalid_decision' };
+    const cleanReason = String(reason || '').trim();
+    if ((decision === 'denied' && (cleanReason.length < 3 || cleanReason.length > 500)) || cleanReason.length > 500) return { ok: false, code: 'invalid_reason' };
+    const generation = lifecycleGeneration;
+    try {
+      const response = await fetchImpl(`${String(config.url).replace(/\/$/, '')}/rest/v1/rpc/record_pdc_auditor_decision`, {
+        method: 'POST',
+        headers: { apikey: config.publishableKey, Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          p_finding_id: findingId,
+          p_evidence_fingerprint: evidenceFingerprint,
+          p_last_seen_run_id: lastSeenRunId,
+          p_decision: decision,
+          p_reason: cleanReason || null,
+        }),
+      });
+      if (destroyed || generation !== lifecycleGeneration || authority !== auditorAuthorityIdentity() || token !== getAccessToken()) return { ok: false, code: 'superseded' };
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        const message = String(error?.message || error?.code || '').toLowerCase();
+        return { ok: false, code: message.includes('stale') ? 'stale' : message.includes('already_decided') ? 'already_decided' : response.status === 401 || response.status === 403 ? 'permission_denied' : 'decision_failed' };
+      }
+      const data = await response.json();
+      if (!data || data.ok !== true || data.operational_change !== false || data.execution_reference != null || !['approved', 'denied'].includes(data.status)) return { ok: false, code: 'invalid_decision_receipt' };
+      invalidate();
+      return { ok: true, data };
+    } catch (_error) {
+      return { ok: false, code: 'decision_unavailable' };
+    }
+  }
+
   function destroy() {
     if (destroyed) return;
     destroyed = true;
@@ -18144,6 +18201,7 @@ function createPdcAuditorSnapshotService({ config = {}, getAccessToken = () => n
 
   return {
     getAuditorSnapshot,
+    decideFinding,
     getTrustedSnapshot: () => (destroyed ? null : retainedSnapshot),
     invalidate,
     destroy,
@@ -18179,6 +18237,38 @@ function pdcAuditorNormalizeFinding(item = {}, index = 0) {
     vehicleLabel: pdcAuditorSafeText(item.stock_number || item.stock || item.vehicle_label || vehicleId, 100),
     sourceRef,
     reportViews: (Array.isArray(item.report_views) ? item.report_views : []).map(value => String(value || '').toLowerCase()),
+    scope: (Array.isArray(item.scope) ? item.scope : []).map(value => pdcAuditorSafeText(value, 100)).filter(Boolean).slice(0, 12),
+  };
+}
+
+function pdcAuditorBindReviewFinding(finding, queue = []) {
+  const scope = new Set([finding.vehicleId, ...(finding.scope || [])].filter(Boolean));
+  const ruleId = String(finding.ruleId || '').toUpperCase();
+  const candidates = (Array.isArray(queue) ? queue : []).filter(item => item
+    && item.lifecycle_status === 'current'
+    && String(item.rule_key || '').toUpperCase() === ruleId
+    && scope.has(String(item.entity_id || ''))
+    && /^[0-9a-f-]{36}$/i.test(String(item.finding_id || ''))
+    && /^[0-9a-f-]{36}$/i.test(String(item.last_seen_run_id || ''))
+    && /^[a-f0-9]{64}$/.test(String(item.evidence_fingerprint || '')));
+  if (candidates.length !== 1) return { ...finding, review: null };
+  const item = candidates[0];
+  const decision = item.decision && ['approved', 'denied'].includes(item.decision.status) ? {
+    status: item.decision.status,
+    reason: pdcAuditorSafeText(item.decision.reason || '', 500),
+    decidedAt: pdcAuditorSafeText(item.decision.decided_at || '', 80),
+    decidedByRole: pdcAuditorSafeText(item.decision.decided_by_role || '', 40),
+    operationalChange: item.decision.operational_change === true,
+  } : null;
+  if (decision?.operationalChange) return { ...finding, review: null };
+  return {
+    ...finding,
+    review: {
+      findingId: String(item.finding_id),
+      evidenceFingerprint: String(item.evidence_fingerprint),
+      lastSeenRunId: String(item.last_seen_run_id),
+      decision,
+    },
   };
 }
 
@@ -18213,10 +18303,10 @@ function pdcAuditorEvaluateSnapshot(snapshot = {}) {
       });
     });
   }
-  const findings = sourceFindings.slice(0, 500).map((finding, index) => pdcAuditorNormalizeFinding({
+  const findings = sourceFindings.slice(0, 500).map((finding, index) => pdcAuditorBindReviewFinding(pdcAuditorNormalizeFinding({
     ...finding,
     report_views: reportMembership.get(String(finding?.id || finding?.finding_id || '')) || finding?.report_views,
-  }, index));
+  }, index), snapshot.reviewQueue));
   return {
     revision: snapshot.revision,
     asOf: snapshot.as_of || snapshot.asOf || snapshot.generated_at,
@@ -18236,6 +18326,8 @@ function resetPdcAuditorAuthorityState() {
   app.pdcAuditorResult = null;
   app.pdcAuditorState = 'idle';
   app.pdcAuditorError = '';
+  app.pdcAuditorDecisionInFlight = false;
+  app.pdcAuditorDecisionMessage = '';
   const state = document.getElementById('ai-auditor-state');
   const summary = document.getElementById('ai-auditor-summary');
   const report = document.getElementById('ai-auditor-report');
@@ -18340,7 +18432,7 @@ function openPdcAuditorSnapshotVehicleDetail(row = {}) {
   const bookings = Array.isArray(row.bookings) ? row.bookings : [];
   const workRows = workItems.map(item => `<tr><td>${escapeHtml(item.work_key || '—')}</td><td>${escapeHtml(item.status || '—')}</td><td>${escapeHtml(item.completed_at || '—')}</td></tr>`).join('');
   const bookingRows = bookings.map(item => `<tr><td>${escapeHtml(item.stage_code || '—')}</td><td>${escapeHtml(item.status || '—')}</td><td>${escapeHtml(item.scheduled_start_at || '—')}</td><td>${escapeHtml(item.scheduled_end_at || '—')}</td></tr>`).join('');
-  host.innerHTML = `<div class="vehicle-detail-page"><div class="ai-auditor-read-only-banner" role="status"><strong>BETA – READ ONLY / APPROVAL REQUIRED</strong><span>This exact vehicle detail is rendered only from the authenticated auditor snapshot.</span></div><div class="panel-header"><div><span class="eyebrow">Vehicle Detail · read only</span><h2 id="vehicle-modal-title">${escapeHtml(row.stock_number || row.key_number || 'Authenticated vehicle')}</h2><p>${escapeHtml(row.model || 'Model unavailable')}</p></div></div><div class="summary-grid"><article><span>Location</span><strong>${escapeHtml(row.location?.code || '—')}</strong></article><article><span>Workshop status</span><strong>${escapeHtml(row.workshop?.status || '—')}</strong></article><article><span>Lifecycle</span><strong>${escapeHtml(row.lifecycle?.state || '—')}</strong></article></div><section><h3>Work</h3><div class="table-wrap"><table class="data-table compact-table"><thead><tr><th>Work</th><th>Status</th><th>Completed</th></tr></thead><tbody>${workRows || '<tr><td colspan="3">No authoritative work rows</td></tr>'}</tbody></table></div></section><section><h3>Bookings</h3><div class="table-wrap"><table class="data-table compact-table"><thead><tr><th>Stage</th><th>Status</th><th>Start</th><th>End</th></tr></thead><tbody>${bookingRows || '<tr><td colspan="4">No explicit authoritative bookings</td></tr>'}</tbody></table></div></section></div>`;
+  host.innerHTML = `<div class="vehicle-detail-page"><div class="ai-auditor-read-only-banner" role="status"><strong>BETA – HUMAN REVIEW / NO AUTOMATIC CHANGES</strong><span>This exact vehicle detail is rendered only from the authenticated auditor snapshot.</span></div><div class="panel-header"><div><span class="eyebrow">Vehicle Detail · read only</span><h2 id="vehicle-modal-title">${escapeHtml(row.stock_number || row.key_number || 'Authenticated vehicle')}</h2><p>${escapeHtml(row.model || 'Model unavailable')}</p></div></div><div class="summary-grid"><article><span>Location</span><strong>${escapeHtml(row.location?.code || '—')}</strong></article><article><span>Workshop status</span><strong>${escapeHtml(row.workshop?.status || '—')}</strong></article><article><span>Lifecycle</span><strong>${escapeHtml(row.lifecycle?.state || '—')}</strong></article></div><section><h3>Work</h3><div class="table-wrap"><table class="data-table compact-table"><thead><tr><th>Work</th><th>Status</th><th>Completed</th></tr></thead><tbody>${workRows || '<tr><td colspan="3">No authoritative work rows</td></tr>'}</tbody></table></div></section><section><h3>Bookings</h3><div class="table-wrap"><table class="data-table compact-table"><thead><tr><th>Stage</th><th>Status</th><th>Start</th><th>End</th></tr></thead><tbody>${bookingRows || '<tr><td colspan="4">No explicit authoritative bookings</td></tr>'}</tbody></table></div></section></div>`;
   modal.hidden = false;
   document.body.classList.add('modal-open');
   $('#modal-close')?.focus();
@@ -18360,6 +18452,50 @@ function selectPdcAuditorReport(report = 'morning') {
   app.pdcAuditorReport = allowed.includes(report) ? report : 'morning';
   renderPdcAuditor();
   document.querySelector(`[data-ai-auditor-report="${app.pdcAuditorReport}"]`)?.focus();
+}
+
+async function pdcAuditorRecordDecision(finding, decision) {
+  if (app.pdcAuditorDecisionInFlight || !finding?.review || finding.review.decision) return false;
+  const service = pdcAuditorService();
+  if (!service || app.pdcAuditorSnapshot?.reviewCanDecide !== true) return false;
+  let reason = null;
+  if (decision === 'approved') {
+    if (!window.confirm('Approve this recommendation?\n\nThis records your review decision only. It will not change any vehicle, booking, Parts, location, workflow or provider.')) return false;
+  } else {
+    reason = window.prompt('Why are you denying this recommendation? (3–500 characters)');
+    if (reason == null) return false;
+    reason = String(reason).trim();
+    if (reason.length < 3 || reason.length > 500) {
+      app.pdcAuditorDecisionMessage = 'Enter a denial reason between 3 and 500 characters.';
+      renderPdcAuditor();
+      return false;
+    }
+  }
+  app.pdcAuditorDecisionInFlight = true;
+  app.pdcAuditorDecisionMessage = `${decision === 'approved' ? 'Approving' : 'Denying'} recommendation…`;
+  renderPdcAuditor();
+  const receipt = await service.decideFinding({
+    findingId: finding.review.findingId,
+    evidenceFingerprint: finding.review.evidenceFingerprint,
+    lastSeenRunId: finding.review.lastSeenRunId,
+    decision,
+    reason,
+  });
+  app.pdcAuditorDecisionInFlight = false;
+  if (!receipt?.ok) {
+    app.pdcAuditorDecisionMessage = receipt?.code === 'stale'
+      ? 'This recommendation is stale. Refresh the Auditor before deciding.'
+      : receipt?.code === 'already_decided'
+        ? 'This recommendation already has a different decision.'
+        : receipt?.code === 'permission_denied'
+          ? 'Your role cannot record Auditor decisions.'
+          : 'The decision was not recorded. No operational changes were made.';
+    renderPdcAuditor();
+    return false;
+  }
+  app.pdcAuditorDecisionMessage = `${decision === 'approved' ? 'Approved' : 'Denied'} — review recorded. No operational changes were made.`;
+  await loadPdcAuditorSnapshot({ force: true });
+  return true;
 }
 
 function renderPdcAuditor() {
@@ -18395,16 +18531,28 @@ function renderPdcAuditor() {
   const reportFindings = pdcAuditorFilteredFindings(authoritativeReportFindings);
   if (filterSummary) filterSummary.textContent = `Showing ${reportFindings.length} of ${authoritativeReportFindings.length} recommendations in this report. Summary cards remain authoritative totals.`;
   const reportLabel = ({ morning: 'Morning', midday: 'Midday', eod: 'EOD', critical: 'Critical' })[app.pdcAuditorReport];
-  reportHost.innerHTML = `<div class="ai-auditor-report-heading"><h3>${escapeHtml(reportLabel)} report</h3><span>Manual read-only view · ${reportFindings.length} finding${reportFindings.length === 1 ? '' : 's'}</span></div>${reportFindings.length ? `<ol class="ai-auditor-findings">${reportFindings.map(item => {
+  const decisionMessage = app.pdcAuditorDecisionMessage
+    ? `<div class="ai-auditor-decision-message" role="status">${escapeHtml(app.pdcAuditorDecisionMessage)}</div>` : '';
+  reportHost.innerHTML = `<div class="ai-auditor-report-heading"><h3>${escapeHtml(reportLabel)} report</h3><span>Human review · ${reportFindings.length} finding${reportFindings.length === 1 ? '' : 's'}</span></div>${decisionMessage}${reportFindings.length ? `<ol class="ai-auditor-findings">${reportFindings.map(item => {
     const def = PDC_AUDITOR_CATEGORY_DEFS.find(category => category.key === item.category) || PDC_AUDITOR_CATEGORY_DEFS.at(-1);
-    return `<li class="ai-auditor-finding" style="--auditor-category-colour:${def.colour}"><div class="ai-auditor-finding-header"><div class="ai-auditor-finding-title"><span>${escapeHtml(def.label)} · ${escapeHtml(item.severity)}</span><strong>${escapeHtml(item.title)}</strong>${item.vehicleLabel ? `<small>Vehicle ${escapeHtml(item.vehicleLabel)}</small>` : ''}</div>${item.vehicleId ? `<button class="small-button ai-auditor-open-vehicle" type="button" data-ai-auditor-open-vehicle="${escapeHtml(item.vehicleId)}">Open Vehicle</button>` : ''}</div><p>${escapeHtml(item.explanation)}</p>${item.recommendedAction ? `<div class="ai-auditor-limitations"><strong>Recommended staff action:</strong> ${escapeHtml(item.recommendedAction)}</div>` : ''}<details class="ai-auditor-evidence"><summary>View Evidence (${item.evidence.length})</summary>${item.evidence.length ? `<ul>${item.evidence.map(value => `<li>${escapeHtml(value)}</li>`).join('')}</ul>` : '<p>No displayable evidence was supplied by the snapshot.</p>'}</details>${item.sourceRef ? `<small>Source ref: ${escapeHtml(item.sourceRef)}</small>` : ''}${item.limitation ? `<div class="ai-auditor-limitations">Evidence limitation: ${escapeHtml(item.limitation)}</div>` : ''}</li>`;
-  }).join('')}</ol>` : '<div class="empty-state"><strong>No findings in this report view</strong><span>This is not an approval or guarantee. Continue normal staff checks.</span></div>'}<div class="sr-only">Stage C decision workflow not enabled</div>`;
+    const recorded = item.review?.decision;
+    const decisionHtml = recorded
+      ? `<div class="ai-auditor-review-status is-${escapeHtml(recorded.status)}"><strong>${recorded.status === 'approved' ? 'Approved' : 'Denied'}</strong><span>${recorded.decidedAt ? `Recorded ${escapeHtml(formatDate(recorded.decidedAt))}` : 'Decision recorded'} · no operational change</span>${recorded.reason ? `<p>${escapeHtml(recorded.reason)}</p>` : ''}</div>`
+      : item.review && app.pdcAuditorSnapshot?.reviewCanDecide === true
+        ? `<div class="ai-auditor-decision-actions" aria-label="Review recommendation"><button type="button" data-ai-auditor-decision="approved" data-finding-id="${escapeHtml(item.id)}" ${app.pdcAuditorDecisionInFlight ? 'disabled' : ''}>Approve</button><button type="button" data-ai-auditor-decision="denied" data-finding-id="${escapeHtml(item.id)}" ${app.pdcAuditorDecisionInFlight ? 'disabled' : ''}>Deny</button><small>Records review only — it does not execute the recommendation.</small></div>`
+        : `<div class="ai-auditor-review-status is-pending"><strong>${item.review ? 'View only' : 'Awaiting Auditor publication'}</strong><span>${item.review ? 'Operator or Administrator access is required to decide.' : 'Approve/Deny becomes available after this exact finding is published by the authenticated Auditor.'}</span></div>`;
+    return `<li class="ai-auditor-finding" style="--auditor-category-colour:${def.colour}"><div class="ai-auditor-finding-header"><div class="ai-auditor-finding-title"><span>${escapeHtml(def.label)} · ${escapeHtml(item.severity)}</span><strong>${escapeHtml(item.title)}</strong>${item.vehicleLabel ? `<small>Vehicle ${escapeHtml(item.vehicleLabel)}</small>` : ''}</div>${item.vehicleId ? `<button class="small-button ai-auditor-open-vehicle" type="button" data-ai-auditor-open-vehicle="${escapeHtml(item.vehicleId)}">Open Vehicle</button>` : ''}</div><p>${escapeHtml(item.explanation)}</p>${item.recommendedAction ? `<div class="ai-auditor-limitations"><strong>Recommended staff action:</strong> ${escapeHtml(item.recommendedAction)}</div>` : ''}<details class="ai-auditor-evidence"><summary>View Evidence (${item.evidence.length})</summary>${item.evidence.length ? `<ul>${item.evidence.map(value => `<li>${escapeHtml(value)}</li>`).join('')}</ul>` : '<p>No displayable evidence was supplied by the snapshot.</p>'}</details>${item.sourceRef ? `<small>Source ref: ${escapeHtml(item.sourceRef)}</small>` : ''}${item.limitation ? `<div class="ai-auditor-limitations">Evidence limitation: ${escapeHtml(item.limitation)}</div>` : ''}${decisionHtml}</li>`;
+  }).join('')}</ol>` : '<div class="empty-state"><strong>No findings in this report view</strong><span>This is not an approval or guarantee. Continue normal staff checks.</span></div>'}`;
   $$('[data-ai-auditor-open-vehicle]', reportHost).forEach(button => button.addEventListener('click', () => {
     if (!openPdcAuditorVehicle(button.dataset.aiAuditorOpenVehicle)) {
       button.setAttribute('aria-describedby', 'ai-auditor-state');
       state.dataset.state = 'unavailable';
       state.innerHTML = '<strong>Vehicle detail unavailable</strong><span>The snapshot identity did not uniquely match the authenticated vehicle projection. No first match was selected.</span>';
     }
+  }));
+  $$('[data-ai-auditor-decision]', reportHost).forEach(button => button.addEventListener('click', () => {
+    const finding = reportFindings.find(item => item.id === button.dataset.findingId);
+    if (finding) pdcAuditorRecordDecision(finding, button.dataset.aiAuditorDecision);
   }));
 }
 

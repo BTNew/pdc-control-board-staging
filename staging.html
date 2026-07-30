@@ -10,7 +10,7 @@
   <link rel="icon" href="favicon.svg" type="image/svg+xml" />
   <link rel="stylesheet" href="styles.css?v=2026.07.29.10-operational-mutation-reliability" />
   <link rel="stylesheet" href="pdc-ai-intake-review.css?v=2026.07.28.20-ai-review-card-separation" />
-  <link rel="stylesheet" href="ai-auditor.css?v=2026.07.29.11-ai-auditor-stage-a" />
+  <link rel="stylesheet" href="ai-auditor.css?v=2026.07.30.01-auditor-human-decisions" />
   <link rel="stylesheet" href="desktop-operations.css?v=2026.07.29.10-operational-mutation-reliability" />
   <link rel="stylesheet" href="workshop-planner.css?v=2026.07.29.10-operational-mutation-reliability" />
 </head>
@@ -100,7 +100,7 @@
         <button type="button" class="nav-item" id="nav-workshop-rollback" data-view="workshop" data-short="PLAN" title="Temporary combined-planner rollback route">Workshop Planner</button>
         <button type="button" class="nav-item" data-view="parts" data-short="PA">Parts</button>
         <button type="button" class="nav-item" data-view="emailreview" data-short="AI">AI Intake</button>
-        <button type="button" class="nav-item" data-view="ai-auditor" data-short="AUD">BETA – AI Auditor</button>
+        <button type="button" class="nav-item" data-view="ai-auditor" data-short="AUD">AI Auditor</button>
         <button type="button" class="nav-item" data-view="sublet" data-short="SUB">Sublet</button>
         <button type="button" class="nav-item" data-view="rft" data-short="RFT">RFT</button>
         <div class="nav-admin-group" id="nav-admin-group" hidden>
@@ -428,15 +428,15 @@
       <section id="ai-auditor" class="view" aria-labelledby="ai-auditor-heading">
         <div class="ai-auditor-shell">
           <div class="ai-auditor-read-only-banner" role="status">
-            <strong>BETA – READ ONLY / APPROVAL REQUIRED</strong>
-            <span>Findings are evidence for staff review. This Stage A view cannot change operational records.</span>
+            <strong>BETA – HUMAN REVIEW / NO AUTOMATIC CHANGES</strong>
+            <span>Approve or Deny records an auditable staff decision only. It never changes a vehicle, booking, Parts, location, workflow or provider.</span>
           </div>
           <section class="panel ai-auditor-panel">
             <div class="panel-header ai-auditor-header">
               <div>
-                <span class="eyebrow">Stage A · authenticated snapshot</span>
+                <span class="eyebrow">Stage B · authenticated findings and human decisions</span>
                 <h2 id="ai-auditor-heading">BETA – AI Auditor</h2>
-                <p>Review deterministic findings from the dedicated auditor snapshot. Unavailable or unverified authority is never replaced with browser data.</p>
+                <p>Review evidence-backed recommendations. Operator and Administrator decisions are immutable, revision-bound and non-executable.</p>
               </div>
               <button class="small-button" id="ai-auditor-refresh" type="button">Refresh snapshot</button>
             </div>
@@ -470,13 +470,8 @@
             <div id="ai-auditor-report" class="ai-auditor-report" role="tabpanel" aria-labelledby="ai-auditor-tab-morning">
               <div class="empty-state"><strong>No trusted auditor snapshot</strong><span>Findings remain hidden until the dedicated service succeeds.</span></div>
             </div>
-            <footer class="ai-auditor-decisions" aria-label="Stage C decisions unavailable">
-              <div><strong>Stage C decision workflow not enabled</strong><span>Decisions require a separately reviewed approval workflow.</span></div>
-              <div class="ai-auditor-decision-actions">
-                <button type="button" disabled>Approve</button>
-                <button type="button" disabled>Deny</button>
-                <button type="button" disabled>Snooze</button>
-              </div>
+            <footer class="ai-auditor-decisions" aria-label="Decision safety boundary">
+              <div><strong>Approval is not execution</strong><span>Approve and Deny only record the human review outcome against the exact Auditor evidence. Any operational change requires a separate authorised workflow.</span></div>
             </footer>
           </section>
         </div>
@@ -963,7 +958,7 @@
   <script src="workshop-eligibility.js?v=2026.07.29.10-operational-mutation-reliability"></script>
   <script src="pdc-email-vehicle-location-service.js?v=2026.07.29.10-operational-mutation-reliability"></script>
   <script src="pdc-ai-auditor-stage-a.js?v=2026.07.29.12-stage-a-ui-service"></script>
-  <script src="app.js?v=2026.07.29.10-operational-mutation-reliability"></script>
+  <script src="app.js?v=2026.07.30.01-auditor-human-decisions"></script>
   <script src="pdc-ai-intake-review.js?v=2026.07.27.19-ai-review-decision-context"></script>
 
   <script src="scripts/stage2b_c4_browser_export.js?v=2026.07.22.01-read-only-assessment"></script>

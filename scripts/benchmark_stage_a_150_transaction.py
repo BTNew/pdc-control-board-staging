@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Rollback-only Stage A 160-vehicle database/engine benchmark for migration 115.
+"""Rollback-only Stage A 160-vehicle database/engine benchmark for migration 121.
 
 The campaign preserves all operational triggers and canonical Navision authority. It
 never writes the migration ledger and never commits. Browser/PostgREST/Realtime are
@@ -21,7 +21,7 @@ from pathlib import Path
 import psycopg
 
 ROOT = Path(__file__).resolve().parents[1]
-SQL = ROOT / "supabase/staging_only/115_beta_ai_auditor_foundation.sql"
+SQL = ROOT / "supabase/staging_only/121_beta_ai_auditor_foundation.sql"
 OUT = ROOT / "review-evidence/stage-a-ai-auditor/performance-160-transaction.json"
 SNAP = ROOT / "review-evidence/stage-a-ai-auditor/performance-160-database-snapshot.json"
 N = 160

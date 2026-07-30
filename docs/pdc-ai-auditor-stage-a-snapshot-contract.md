@@ -10,7 +10,7 @@ The caller's UUID and lower-case email must agree with `auth.users`, one approve
 
 | Field | Authoritative source | Dealer scope | Revision | Sanitisation | Certainty |
 |---|---|---|---|---|---|
-| `environment` | migration constant | staging only | migration 115 | exact enum | confirmed |
+| `environment` | migration constant | staging only | migration 121 | exact enum | confirmed |
 | `dealer_code` | caller scope RPC | exact enrolled dealer | scope row | allow-list `14450`/`37047` | confirmed |
 | `generated_at` | database clock | response only | not authority | UTC timestamp | confirmed |
 | `response_revision` | deterministic MD5 identity of non-secret source revisions | exact dealer | all revisions below | hexadecimal revision identity (not used as a security primitive) | confirmed |
@@ -52,7 +52,7 @@ All nested collections are deterministically ordered and individually bounded (1
 
 `workshop_bookings` has no canonical work-item foreign key. Therefore Stage A never guesses from vehicle identity, stage/station names, words, timing, or legacy metadata.
 
-The append-only `pdc_auditor_booking_work_relations` table is the only relationship authority. It stores an exact booking UUID, exact work-item UUID, dealer/environment, relation kind (`explicit_fk` or independently approved `authoritative_relation`), source revision/time and a supersession chain. It has no browser write grant and no Stage A mutation RPC. No rows are seeded from legacy metadata. A future backfill must be a separate reviewed migration/preview; migration 115 performs none.
+The append-only `pdc_auditor_booking_work_relations` table is the only relationship authority. It stores an exact booking UUID, exact work-item UUID, dealer/environment, relation kind (`explicit_fk` or independently approved `authoritative_relation`), source revision/time and a supersession chain. It has no browser write grant and no Stage A mutation RPC. No rows are seeded from legacy metadata. A future backfill must be a separate reviewed migration/preview; migration 121 performs none.
 
 Snapshot relationship states:
 

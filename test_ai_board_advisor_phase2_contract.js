@@ -80,6 +80,6 @@ assert.ok(lockHandler.includes("document.getElementById('ai-board-advisor-conten
 assert.ok(lockHandler.includes('advisorHost.replaceChildren()'), 'auth lock handler must clear prior-session advisory business data');
 const staging = fs.readFileSync(path.join(root, 'staging.html'), 'utf8');
 assert.strictEqual((staging.match(/id="ai-board-advisor-title"/g) || []).length, 0, 'staging moves Board Advisor out of AI Intake');
-assert.ok(staging.includes('id="ai-auditor"') && staging.includes('BETA – READ ONLY / APPROVAL REQUIRED'), 'staging must expose the separate Stage A Auditor');
+assert.ok(staging.includes('id="ai-auditor"') && staging.includes('BETA – HUMAN REVIEW / NO AUTOMATIC CHANGES'), 'staging must expose the separate non-executable AI Auditor review surface');
 
 console.log('Phase Two advisory AI integration and authority contracts passed');

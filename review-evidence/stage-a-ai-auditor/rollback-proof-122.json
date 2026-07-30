@@ -1,0 +1,18 @@
+{
+  "committed": false,
+  "conflicting_decision_rejected": true,
+  "execution_reference": null,
+  "history_immutable": true,
+  "idempotent_replay": true,
+  "migration": 122,
+  "migration_name": "ai_auditor_human_review_decisions",
+  "migration_sha256": "93ab61ab2b3f98421373aaca69b7fe414cba573eeaac60bf3fb0d6ff0f3c9de7",
+  "operational_change": false,
+  "operational_signatures_unchanged": true,
+  "passed": true,
+  "project_ref": "[REDACTED]",
+  "queue_items": 1,
+  "role": "administrator",
+  "rollback_restored": true,
+  "viewer_rejected": true
+}

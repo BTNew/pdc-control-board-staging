@@ -1,7 +1,6 @@
--- Staging-only migration 115: beta AI auditor read-only foundation.
--- Deployment predecessor identity: live staging ledger 114 = contain_multi_attachment_email_import.
--- Repository migration 110 and its predecessors provide the tracked schema dependencies; live-only
--- staging migrations 111/112/113/114 are verified by ledger identity and are never overwritten by this file.
+-- Staging-only migration 121: beta AI auditor read-only foundation.
+-- Deployment predecessor identity: live staging ledger 120 = contain_legacy_authenticated_vehicle_email_import.
+-- Staging migrations 119/120 preserve the contained email-import boundary and are verified below.
 -- This migration creates auditor-owned append/history data only. It never writes operational tables.
 begin;
 
@@ -12,20 +11,29 @@ begin
        select 1 from public.pdc_staging_environment_sentinel
        where singleton and project_ref = 'cdsmnqxtyyoeoznmbidd'
      ) then
-    raise exception 'PDC_AUDITOR_115_STAGING_SENTINEL_MISMATCH';
+    raise exception 'PDC_AUDITOR_121_STAGING_SENTINEL_MISMATCH';
   end if;
   if to_regclass('supabase_migrations.schema_migrations') is null
      or not exists (
        select 1 from supabase_migrations.schema_migrations
-       where version = '114' and name = 'contain_multi_attachment_email_import'
+       where version = '119' and name = 'contain_attachment_attested_atomic_email_import'
+     )
+     or not exists (
+       select 1 from supabase_migrations.schema_migrations
+       where version = '120' and name = 'contain_legacy_authenticated_vehicle_email_import'
      ) then
-    raise exception 'PDC_AUDITOR_115_PREDECESSOR_114_IDENTITY_MISMATCH';
+    raise exception 'PDC_AUDITOR_121_PREDECESSOR_120_IDENTITY_MISMATCH';
   end if;
   if exists (
        select 1 from supabase_migrations.schema_migrations
-       where version = '115' and name <> 'beta_ai_auditor_foundation'
+       where version = '121' and name <> 'beta_ai_auditor_foundation'
      ) then
-    raise exception 'PDC_AUDITOR_115_VERSION_CONFLICT';
+    raise exception 'PDC_AUDITOR_121_VERSION_CONFLICT';
+  end if;
+  if has_function_privilege('authenticated', 'public.attest_pdc_authenticated_email_attachments(text,jsonb)', 'EXECUTE')
+     or has_function_privilege('authenticated', 'public.import_pdc_authenticated_vehicle_attachment(text,integer,text,jsonb,jsonb)', 'EXECUTE')
+     or has_function_privilege('authenticated', 'public.import_pdc_authenticated_vehicle_email(text,text,text,text,text,jsonb,timestamp with time zone,text,jsonb,jsonb)', 'EXECUTE') then
+    raise exception 'PDC_AUDITOR_121_EMAIL_IMPORT_CONTAINMENT_REQUIRED';
   end if;
   if to_regclass('public.vehicles') is null
      or to_regclass('public.vehicle_work_items') is null
@@ -40,7 +48,7 @@ begin
      or to_regclass('public.pdc_sublet_bookings') is null
      or to_regprocedure('public.workshop_stage_code_for_work_key(text)') is null
      or to_regprocedure('public.get_pdc_email_vehicle_location_snapshot()') is null then
-    raise exception 'PDC_AUDITOR_115_DEPENDENCY_110_MISSING';
+    raise exception 'PDC_AUDITOR_121_DEPENDENCY_110_MISSING';
   end if;
 end;
 $guard$;
