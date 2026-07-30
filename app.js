@@ -18156,6 +18156,23 @@ function createPdcAuditorSnapshotService({ config = {}, getAccessToken = () => n
     }
   }
 
+  async function reconcileDecision({ findingId, evidenceFingerprint, lastSeenRunId, decision, reason }) {
+    const refreshed = await getAuditorSnapshot();
+    if (!refreshed.ok) return { ok: false, code: 'decision_outcome_unknown' };
+    const item = (refreshed.snapshot.reviewQueue || []).find(row => String(row?.finding_id || '') === findingId
+      && String(row?.evidence_fingerprint || '') === evidenceFingerprint
+      && String(row?.last_seen_run_id || '') === lastSeenRunId);
+    const recorded = item?.decision;
+    if (!recorded) return { ok: false, code: 'decision_outcome_unknown' };
+    const recordedReason = String(recorded.reason || '').trim();
+    if (recorded.status !== decision || recordedReason !== String(reason || '').trim()) return { ok: false, code: 'already_decided' };
+    if (recorded.operational_change === true) return { ok: false, code: 'invalid_decision_receipt' };
+    return { ok: true, reconciled: true, data: {
+      decision_id: String(recorded.decision_id || ''), status: recorded.status,
+      reason: recorded.reason || null, operational_change: false, execution_reference: null,
+    } };
+  }
+
   async function decideFinding({ findingId = '', evidenceFingerprint = '', lastSeenRunId = '', decision = '', reason = null } = {}) {
     if (destroyed) return { ok: false, code: 'destroyed' };
     const token = getAccessToken();
@@ -18180,16 +18197,23 @@ function createPdcAuditorSnapshotService({ config = {}, getAccessToken = () => n
       });
       if (destroyed || generation !== lifecycleGeneration || authority !== auditorAuthorityIdentity() || token !== getAccessToken()) return { ok: false, code: 'superseded' };
       if (!response.ok) {
-        const error = await response.json().catch(() => ({}));
+        const error = await response.json().catch(() => null);
         const message = String(error?.message || error?.code || '').toLowerCase();
-        return { ok: false, code: message.includes('stale') ? 'stale' : message.includes('already_decided') ? 'already_decided' : response.status === 401 || response.status === 403 ? 'permission_denied' : 'decision_failed' };
+        if (message.includes('stale')) return { ok: false, code: 'stale' };
+        if (message.includes('already_decided')) return { ok: false, code: 'already_decided' };
+        if (response.status === 401 || response.status === 403) return { ok: false, code: 'permission_denied' };
+        return reconcileDecision({ findingId, evidenceFingerprint, lastSeenRunId, decision, reason: cleanReason });
       }
-      const data = await response.json();
-      if (!data || data.ok !== true || data.operational_change !== false || data.execution_reference != null || !['approved', 'denied'].includes(data.status)) return { ok: false, code: 'invalid_decision_receipt' };
+      const data = await response.json().catch(() => null);
+      if (data?.operational_change === true || data?.execution_reference != null) return { ok: false, code: 'invalid_decision_receipt' };
+      if (!data || data.ok !== true || data.operational_change !== false || !['approved', 'denied'].includes(data.status)) {
+        return reconcileDecision({ findingId, evidenceFingerprint, lastSeenRunId, decision, reason: cleanReason });
+      }
       invalidate();
       return { ok: true, data };
     } catch (_error) {
-      return { ok: false, code: 'decision_unavailable' };
+      if (destroyed || generation !== lifecycleGeneration || authority !== auditorAuthorityIdentity() || token !== getAccessToken()) return { ok: false, code: 'superseded' };
+      return reconcileDecision({ findingId, evidenceFingerprint, lastSeenRunId, decision, reason: cleanReason });
     }
   }
 
@@ -18225,6 +18249,7 @@ function pdcAuditorNormalizeFinding(item = {}, index = 0) {
   const sourceRef = pdcAuditorSafeText(item.source_ref || item.sourceRef || item.rule_id || item.rule || '', 120);
   return {
     id: pdcAuditorSafeText(item.finding_id || item.id || `${pdcAuditorCategory(item.category)}:${sourceRef || index}`, 160),
+    engineFingerprint: pdcAuditorSafeText(item.fingerprint || '', 100),
     category: pdcAuditorCategory(item.category || item.kind || item.rule_category),
     ruleId: pdcAuditorSafeText(item.ruleId || item.rule_id || item.rule || '', 100).toUpperCase(),
     severity: ['critical', 'high', 'medium', 'low'].includes(String(item.severity || '').toLowerCase()) ? String(item.severity).toLowerCase() : 'medium',
@@ -18241,36 +18266,53 @@ function pdcAuditorNormalizeFinding(item = {}, index = 0) {
   };
 }
 
-function pdcAuditorBindReviewFinding(finding, queue = []) {
-  const scope = new Set([finding.vehicleId, ...(finding.scope || [])].filter(Boolean));
-  const ruleId = String(finding.ruleId || '').toUpperCase();
-  const candidates = (Array.isArray(queue) ? queue : []).filter(item => item
-    && item.lifecycle_status === 'current'
-    && String(item.rule_key || '').toUpperCase() === ruleId
-    && scope.has(String(item.entity_id || ''))
-    && /^[0-9a-f-]{36}$/i.test(String(item.finding_id || ''))
-    && /^[0-9a-f-]{36}$/i.test(String(item.last_seen_run_id || ''))
-    && /^[a-f0-9]{64}$/.test(String(item.evidence_fingerprint || '')));
-  if (candidates.length !== 1) return { ...finding, review: null };
-  const item = candidates[0];
-  const decision = item.decision && ['approved', 'denied'].includes(item.decision.status) ? {
-    status: item.decision.status,
-    reason: pdcAuditorSafeText(item.decision.reason || '', 500),
-    decidedAt: pdcAuditorSafeText(item.decision.decided_at || '', 80),
-    decidedByRole: pdcAuditorSafeText(item.decision.decided_by_role || '', 40),
-    operationalChange: item.decision.operational_change === true,
-  } : null;
-  if (decision?.operationalChange) return { ...finding, review: null };
-  return {
-    ...finding,
-    review: {
-      findingId: String(item.finding_id),
-      evidenceFingerprint: String(item.evidence_fingerprint),
-      lastSeenRunId: String(item.last_seen_run_id),
-      decision,
-    },
-  };
-}
+function pdcAuditorReviewCandidates(finding, queue = [], source = {}) {
+    const scope = new Set([finding.vehicleId, ...(finding.scope || [])].filter(Boolean));
+    const ruleId = String(finding.ruleId || '').toUpperCase();
+    return Array.isArray(queue) ? queue.filter(item => {
+      if (!item || item.lifecycle_status !== 'current') return false;
+      if (String(item.rule_key || '').toUpperCase() !== ruleId) return false;
+      if (!scope.has(String(item.entity_id || ''))) return false;
+      if (String(item.run_operational_revision || '') !== String(source.operational_revision || '')) return false;
+      if (String(item.run_rule_set_hash || '') !== String(source.rule_set_hash || '')) return false;
+      if (String(item.run_model_key || '') !== 'deterministic-stage-a-rules') return false;
+      return /^[0-9a-f-]{36}$/i.test(String(item.finding_id || ''))
+        && /^[0-9a-f-]{36}$/i.test(String(item.last_seen_run_id || ''))
+        && /^[a-f0-9]{64}$/.test(String(item.stable_fingerprint || ''))
+        && /^[a-f0-9]{64}$/.test(String(item.evidence_fingerprint || ''));
+    }) : [];
+  }
+
+  function pdcAuditorBindReviewFindings(findings = [], queue = [], source = {}) {
+    const candidates = findings.map(finding => pdcAuditorReviewCandidates(finding, queue, source));
+    const usage = new Map();
+    candidates.forEach(rows => rows.forEach(item => {
+      const id = String(item.finding_id || '');
+      if (id) usage.set(id, (usage.get(id) || 0) + 1);
+    }));
+    return findings.map((finding, index) => {
+      const rows = candidates[index];
+      if (rows.length !== 1 || usage.get(String(rows[0].finding_id || '')) !== 1) return { ...finding, review: null };
+      const item = rows[0];
+      const decision = item.decision && ['approved', 'denied'].includes(item.decision.status) ? {
+        status: item.decision.status,
+        reason: pdcAuditorSafeText(item.decision.reason || '', 500),
+        decidedAt: pdcAuditorSafeText(item.decision.decided_at || '', 80),
+        decidedByRole: pdcAuditorSafeText(item.decision.decided_by_role || '', 40),
+        operationalChange: item.decision.operational_change === true,
+      } : null;
+      if (decision?.operationalChange) return { ...finding, review: null };
+      return {
+        ...finding,
+        review: {
+          findingId: String(item.finding_id),
+          evidenceFingerprint: String(item.evidence_fingerprint),
+          lastSeenRunId: String(item.last_seen_run_id),
+          decision,
+        },
+      };
+    });
+  }
 
 function pdcAuditorProjectedReports(evaluated = {}) {
   const reports = evaluated?.projections?.reports;
@@ -18303,10 +18345,11 @@ function pdcAuditorEvaluateSnapshot(snapshot = {}) {
       });
     });
   }
-  const findings = sourceFindings.slice(0, 500).map((finding, index) => pdcAuditorBindReviewFinding(pdcAuditorNormalizeFinding({
+  const normalizedFindings = sourceFindings.slice(0, 500).map((finding, index) => pdcAuditorNormalizeFinding({
     ...finding,
     report_views: reportMembership.get(String(finding?.id || finding?.finding_id || '')) || finding?.report_views,
-  }, index), snapshot.reviewQueue));
+  }, index));
+  const findings = pdcAuditorBindReviewFindings(normalizedFindings, snapshot.reviewQueue, snapshot);
   return {
     revision: snapshot.revision,
     asOf: snapshot.as_of || snapshot.asOf || snapshot.generated_at,
@@ -18489,7 +18532,9 @@ async function pdcAuditorRecordDecision(finding, decision) {
         ? 'This recommendation already has a different decision.'
         : receipt?.code === 'permission_denied'
           ? 'Your role cannot record Auditor decisions.'
-          : 'The decision was not recorded. No operational changes were made.';
+          : receipt?.code === 'decision_outcome_unknown'
+            ? 'The decision result could not be confirmed. Refresh before retrying; do not submit a different decision.'
+            : 'The decision could not be accepted. No operational action was requested.';
     renderPdcAuditor();
     return false;
   }
