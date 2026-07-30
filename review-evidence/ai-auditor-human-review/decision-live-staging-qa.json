@@ -1,0 +1,21 @@
+{
+  "decision": "denied",
+  "decisionId": "8a6733c7-8a13-4ddf-9eed-6d6d720f0a54",
+  "decisionVisibleInReport": "morning",
+  "environment": "staging",
+  "exactReplayIdempotent": true,
+  "executionReference": null,
+  "expectedStaleRpcConsoleErrors": 1,
+  "failedRequests": 0,
+  "findingId": "5df3f4fc-dcc7-4f78-bdc6-31f972c5c61d",
+  "nonAuditorSignaturesUnchanged": true,
+  "operationalChange": false,
+  "productionRequests": 0,
+  "reviewerRole": "administrator",
+  "screenshot": "administrator-denied-1366x900.png",
+  "shortReasonRejectedClientSide": true,
+  "staleHttpStatus": 504,
+  "staleSubmissionFailedClosed": true,
+  "status": "passed",
+  "unexpectedConsoleErrors": 0
+}

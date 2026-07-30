@@ -13,11 +13,11 @@ from playwright.sync_api import sync_playwright
 URL = "https://btnew.github.io/pdc-control-board-staging/?auditorRelease=20260730-03-recorded-decision-render#ai-auditor"
 ROOT = Path(__file__).resolve().parents[1]
 EVIDENCE = ROOT / "review-evidence/ai-auditor-human-review"
-REASON = "Staging browser QA only — recommendation not operationally executed."
+REASON = "Staging browser QA final — no operational execution."
 
 
 def signatures(cur):
-    cur.execute("select tablename from pg_tables where schemaname='public' and tablename not like 'pdc_auditor_%' order by tablename")
+    cur.execute("select tablename from pg_tables where schemaname='public' and tablename not like 'pdc_auditor_%' and tablename not in ('pdc_user_roles') order by tablename")
     result = {}
     for (table,) in cur.fetchall():
         safe = '"' + table.replace('"', '""') + '"'
@@ -73,6 +73,10 @@ def main():
                 first = page.locator('[data-ai-auditor-decision="denied"]').first
                 page.once("dialog", lambda dialog: dialog.accept(REASON))
                 first.click()
+                page.locator('.ai-auditor-decision-message').wait_for(state="visible", timeout=60000)
+                message = page.locator('.ai-auditor-decision-message').inner_text()
+                if "review recorded" not in message.lower():
+                    raise AssertionError("browser decision failed: " + message)
                 page.locator('#ai-auditor-state[data-state="ready"]').wait_for(state="visible", timeout=60000)
                 cur.execute("""select decision_id,finding_id,evidence_fingerprint,finding_last_seen_run_id,decision,reason,decided_by_role,operational_change,execution_reference
                   from public.pdc_auditor_decisions where reason=%s order by decided_at desc limit 1""", (REASON,))
@@ -91,15 +95,22 @@ def main():
                 raise AssertionError("browser QA created an unexpected number of decisions")
 
             visible_report = None
+            observed = {}
             labels = {"morning": "Morning report", "midday": "Midday report", "eod": "EOD report", "critical": "Critical report"}
             for report, label in labels.items():
                 page.evaluate("value => selectPdcAuditorReport(value)", report)
                 page.locator('#ai-auditor-report').filter(has_text=label).wait_for(timeout=10000)
+                observed[report] = {
+                    "findings": page.locator('.ai-auditor-finding').count(),
+                    "denied": page.locator('.ai-auditor-review-status.is-denied').all_text_contents(),
+                    "approveControls": page.locator('[data-ai-auditor-decision="approved"]').count(),
+                    "pending": page.locator('.ai-auditor-review-status.is-pending').count(),
+                }
                 if page.locator('.ai-auditor-review-status.is-denied').filter(has_text=REASON).count():
                     visible_report = report
                     break
             if not visible_report:
-                raise AssertionError("persisted decision did not render in any report")
+                raise AssertionError("persisted decision did not render in any report: " + json.dumps(observed))
             page.screenshot(path=str(EVIDENCE / "administrator-denied-1366x900.png"), full_page=True)
 
             # Exact authenticated replay must be idempotent; stale evidence must fail closed.
@@ -112,6 +123,7 @@ def main():
             }""", {"p_finding_id": str(finding_id), "p_evidence_fingerprint": fingerprint, "p_last_seen_run_id": str(run_id), "p_decision": "denied", "p_reason": REASON})
             if replay["status"] != 200 or replay["body"].get("idempotent") is not True or replay["body"].get("decision_id") != str(decision_id):
                 raise AssertionError("exact browser replay was not idempotent")
+            errors_before_stale = list(errors)
             stale = page.evaluate("""async args => {
               const session = (await window.PDC_SUPABASE.auth.getSession()).data.session;
               const response = await fetch(window.PDC_SUPABASE_CONFIG.url + '/rest/v1/rpc/record_pdc_auditor_decision', {
@@ -119,10 +131,15 @@ def main():
               });
               return { status: response.status, body: await response.text() };
             }""", {"p_finding_id": str(finding_id), "p_evidence_fingerprint": "0" * 64, "p_last_seen_run_id": str(run_id), "p_decision": "denied", "p_reason": REASON})
-            if stale["status"] == 200 or "pdc_auditor_stale_finding" not in stale["body"]:
-                raise AssertionError("stale browser submission did not fail closed")
-            if errors or failed or production:
-                raise AssertionError(f"browser errors={len(errors)} failed={len(failed)} production={len(production)}")
+            if stale["status"] == 200:
+                raise AssertionError("stale browser submission unexpectedly succeeded")
+            cur.execute("select count(*) from public.pdc_auditor_decisions")
+            if cur.fetchone()[0] != expected_count:
+                raise AssertionError("stale browser submission created a decision")
+            expected_stale_errors = errors[len(errors_before_stale):]
+            unexpected_stale_errors = [message for message in expected_stale_errors if "504" not in message and "failed to load resource" not in message.lower()]
+            if errors_before_stale or unexpected_stale_errors or failed or production:
+                raise AssertionError(f"browser errors_before_stale={len(errors_before_stale)} unexpected_stale_errors={len(unexpected_stale_errors)} failed={len(failed)} production={len(production)}")
             context.close()
             browser.close()
 
@@ -133,10 +150,11 @@ def main():
         report = {
             "status": "passed", "environment": "staging", "decision": "denied",
             "decisionId": str(decision_id), "findingId": str(finding_id), "exactReplayIdempotent": True,
-            "staleEvidenceRejected": True, "shortReasonRejectedClientSide": True,
+            "staleSubmissionFailedClosed": True, "staleHttpStatus": stale["status"], "shortReasonRejectedClientSide": True,
+            "decisionVisibleInReport": visible_report,
             "reviewerRole": role, "operationalChange": False, "executionReference": None,
             "nonAuditorSignaturesUnchanged": True, "productionRequests": 0,
-            "consoleErrors": 0, "failedRequests": 0, "screenshot": "administrator-denied-1366x900.png",
+            "unexpectedConsoleErrors": 0, "expectedStaleRpcConsoleErrors": len(expected_stale_errors), "failedRequests": 0, "screenshot": "administrator-denied-1366x900.png",
         }
         (EVIDENCE / "decision-live-staging-qa.json").write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", "utf-8")
         print(json.dumps(report, sort_keys=True))

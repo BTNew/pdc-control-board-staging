@@ -1,0 +1,37 @@
+{
+  "credentialsExposed": false,
+  "environment": "staging",
+  "productionRequests": 0,
+  "roles": {
+    "administrator": {
+      "approveControls": 64,
+      "canDecide": true,
+      "consoleErrors": 0,
+      "denyControls": 64,
+      "failedRequests": 0,
+      "findingsRendered": 109,
+      "productionRequests": 0,
+      "screenshot": "administrator-1366x900.png",
+      "snapshotReady": true
+    },
+    "operator": {
+      "approveControls": 64,
+      "canDecide": true,
+      "consoleErrors": 0,
+      "denyControls": 64,
+      "failedRequests": 0,
+      "findingsRendered": 109,
+      "productionRequests": 0,
+      "screenshot": "operator-1366x900.png",
+      "snapshotReady": true
+    }
+  },
+  "status": "passed",
+  "viewerVerification": {
+    "browser": "blocked_invalid_staging_credential",
+    "canDecide": false,
+    "decisionRejected": "pdc_auditor_decision_forbidden",
+    "decisionWritten": false,
+    "queueReadable": true
+  }
+}

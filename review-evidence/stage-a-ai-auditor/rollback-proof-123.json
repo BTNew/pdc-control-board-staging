@@ -1,0 +1,17 @@
+{
+  "changed_reason_rejected": true,
+  "committed": false,
+  "exact_replay": true,
+  "migration": 123,
+  "migration_name": "harden_ai_auditor_human_review_binding",
+  "migration_sha256": "1f8cfd3ba184ee7d2f5fa2cd1ad6f5dca31aa99719ef5444cbced0477d9dea2b",
+  "operational_change": false,
+  "operational_signatures_unchanged": true,
+  "passed": true,
+  "project_ref": "[REDACTED]",
+  "resolved_replay": true,
+  "rollback_restored": true,
+  "rule_change_stale": true,
+  "same_evidence_new_run_separate": true,
+  "viewer_rejected": true
+}
