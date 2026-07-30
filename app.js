@@ -1929,6 +1929,20 @@ const app = {
   serverAiIntakeRealtime: null,
   serverAiIntakeDecisionInFlight: false,
   serverAiIntakeDecisionAttempts: new Map(),
+  pdcAuditorService: null,
+  pdcAuditorSnapshot: null,
+  pdcAuditorResult: null,
+  pdcAuditorState: 'idle',
+  pdcAuditorError: '',
+  pdcAuditorReport: 'morning',
+  pdcAuditorSeverityFilter: 'all',
+  pdcAuditorCategoryFilter: 'all',
+  pdcAuditorSearch: '',
+  pdcAuditorGeneration: 0,
+  pdcAuditorRealtime: null,
+  pdcAuditorPage: 0,
+  pdcAuditorDecisionInFlight: false,
+  pdcAuditorDecisionMessage: '',
   emailVehicleLocationService: null,
   emailVehicleLocationRows: [],
   emailVehicleLocationRevision: null,
@@ -2976,6 +2990,22 @@ function bindNav() {
   on($('#email-review-status-filter'), 'change', renderEmailIntakeReview);
   // Do not pass the click event as the explicit analysis clock.
   on($('#ai-board-refresh'), 'click', () => renderAiBoardAdvisor());
+  on($('#ai-auditor-refresh'), 'click', () => loadPdcAuditorSnapshot({ force: true }));
+  on($('#ai-auditor-severity-filter'), 'change', event => { app.pdcAuditorSeverityFilter = event.target.value || 'all'; renderPdcAuditor(); });
+  on($('#ai-auditor-category-filter'), 'change', event => { app.pdcAuditorCategoryFilter = event.target.value || 'all'; renderPdcAuditor(); });
+  on($('#ai-auditor-search'), 'input', event => { app.pdcAuditorSearch = String(event.target.value || ''); renderPdcAuditor(); });
+  $$('[data-ai-auditor-report]').forEach(button => {
+    button.addEventListener('click', () => selectPdcAuditorReport(button.dataset.aiAuditorReport));
+    button.addEventListener('keydown', event => {
+      if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+      event.preventDefault();
+      const tabs = $$('[data-ai-auditor-report]');
+      const current = tabs.indexOf(button);
+      const next = event.key === 'Home' ? 0 : event.key === 'End' ? tabs.length - 1
+        : (current + (event.key === 'ArrowRight' ? 1 : -1) + tabs.length) % tabs.length;
+      selectPdcAuditorReport(tabs[next].dataset.aiAuditorReport);
+    });
+  });
   on($('#ai-intake-upload'), 'change', handleAiFileAssistantSelect);
   on($('#ai-intake-analyze'), 'click', analyzeAiFileAssistantUploads);
   on($('#ai-intake-clear'), 'click', () => clearAiFileAssistantUploads());
@@ -3648,6 +3678,7 @@ function showView(view, options) {
     schedule: 'Production',
     parts: 'Parts',
     emailreview: 'AI Intake',
+    'ai-auditor': 'BETA – AI Auditor',
     sublet: 'Sublet',
     rft: 'RFT',
     completed: 'Completed vehicles',
@@ -3675,6 +3706,7 @@ const HEAVY_VIEW_HOSTS = Object.freeze({
   workshop: ['workshop-planner-root'],
   parts: ['parts-home-content', 'parts-summary-grid'],
   emailreview: ['email-intake-review-content'],
+  'ai-auditor': ['ai-auditor-report'],
   sublet: ['sublet-home-content'],
   rft: ['rft-home-content', 'rft-summary-grid'],
   completed: ['completed-vehicles-content'],
@@ -4070,6 +4102,8 @@ window.addEventListener?.('pdc-auth-ready', () => {
   const navItem = document.getElementById('nav-user-management');
   if (navItem) navItem.hidden = false;
   if (app.currentView === 'emailreview' && typeof renderAiBoardAdvisor === 'function') renderAiBoardAdvisor();
+  resetPdcAuditorAuthorityState();
+  if (app.currentView === 'ai-auditor') loadPdcAuditorSnapshot({ force: true });
   resetServerAiIntakeAuthorityState({ clearData: true });
   initServerAiIntakeIfAvailable();
   refreshServerAiIntake({ silent: true });
@@ -4088,6 +4122,7 @@ window.addEventListener?.('pdc-auth-ready', () => {
 // (or silently re-deriving UI from) previously-loaded operational data.
 window.addEventListener?.('pdc-auth-locked', () => {
   resetEmailVehicleLocations();
+  resetPdcAuditorAuthorityState();
   const advisorHost = document.getElementById('ai-board-advisor-content');
   if (advisorHost) advisorHost.replaceChildren();
   cancelWorkshopPlannerRender();
@@ -4217,6 +4252,10 @@ function renderActiveView() {
       break;
     case 'emailreview':
       renderEmailIntakeReview();
+      break;
+    case 'ai-auditor':
+      renderPdcAuditor();
+      if (app.pdcAuditorState === 'idle') loadPdcAuditorSnapshot();
       break;
     case 'sublet':
       renderSubletHome();
@@ -10411,6 +10450,7 @@ function vehicleWorkshopLineIdentity(stage = '', line = {}) {
 }
 
 function vehicleWorkshopCanEditLines() {
+  if (document.getElementById('ai-auditor')?.classList.contains('active')) return false;
   return ['operator', 'administrator'].includes(String(window.PDC_AUTH_CONTEXT?.role || '').trim().toLowerCase());
 }
 
@@ -10486,6 +10526,9 @@ function vehicleWorkshopBookingRowsHtml(bookings = [], fallbackText = 'Not booke
 function vehicleWorkshopGroups(vehicle = {}, detail = null) {
   const requirements = Array.isArray(detail?.requirements) ? detail.requirements : vehicleWorkshopLocalRequirements(vehicle);
   const bookings = Array.isArray(detail?.bookings) ? detail.bookings : [];
+  const authoritativeJobCardLines = Array.isArray(detail?.job_card_lines) ? detail.job_card_lines
+    : Array.isArray(detail?.operation_lines) ? detail.operation_lines
+      : Array.isArray(detail?.work_lines) ? detail.work_lines : [];
   const structuredLines = typeof vehiclePdcJobLines === 'function' ? vehiclePdcJobLines(vehicle) : [];
   const authenticatedLines = (Array.isArray(vehicle.pdcEmailOperationLines) ? vehicle.pdcEmailOperationLines : [])
     .slice(0, 50)
@@ -10515,6 +10558,14 @@ function vehicleWorkshopGroups(vehicle = {}, detail = null) {
       description: `${authenticatedOperationLineLabel(line.operation_no)} · ${line.description}`,
       authenticatedEmailOperation: true,
     });
+  });
+  authoritativeJobCardLines.slice(0, 250).forEach(line => {
+    const stage = vehicleWorkshopStageCode(line.stage_code || line.department_code || line.work_key || '');
+    if (!groups.has(stage)) return;
+    const lineIdentity = vehicleWorkshopLineIdentity(stage, line);
+    const existingIndex = groups.get(stage).lines.findIndex(existing => vehicleWorkshopLineIdentity(stage, existing) === lineIdentity);
+    if (existingIndex >= 0) groups.get(stage).lines[existingIndex] = { ...groups.get(stage).lines[existingIndex], ...line, authoritativeJobCardLine: true };
+    else groups.get(stage).lines.push({ ...line, authoritativeJobCardLine: true });
   });
   const adjustments = Array.isArray(detail?.line_adjustments) ? detail.line_adjustments : [];
   const adjustmentByKey = new Map(adjustments.filter(item => item?.source_kind !== 'manual' && item?.line_key).map(item => [String(item.line_key), item]));
@@ -10554,38 +10605,91 @@ function vehicleWorkshopGroups(vehicle = {}, detail = null) {
   return [...groups.values()];
 }
 
-function vehicleWorkshopStationHtml(group = {}, bookingFallback = 'Not booked', vehicle = {}) {
+function vehicleWorkshopJobCardValue(line = {}, keys = [], fallback = '—') {
+  const value = keys.map(key => line?.[key]).find(item => item !== null && item !== undefined && String(item).trim() !== '');
+  if (value === undefined) return fallback;
+  if (typeof value === 'boolean') return value ? 'Yes' : 'No';
+  return cleanNavisionText(value) || fallback;
+}
+
+function vehicleWorkshopBookingsForLine(group = {}, line = {}) {
+  const lineIds = [line.work_item_id, line.workItemId, line.operation_line_id, line.source_line_id, line.line_id]
+    .map(value => String(value || '').trim()).filter(Boolean);
+  if (!lineIds.length) return group.lines.length === 1 ? group.bookings : [];
+  return group.bookings.filter(booking => [booking.work_item_id, booking.operation_line_id, booking.source_line_id, booking.line_id]
+    .map(value => String(value || '').trim()).some(value => value && lineIds.includes(value)));
+}
+
+function vehicleWorkshopJobCardBookedActual(line = {}, bookings = []) {
+  const booked = vehicleWorkshopJobCardValue(line, ['booked_hours', 'bookedHours'], '');
+  const actual = vehicleWorkshopJobCardValue(line, ['actual_hours', 'actualHours'], '');
+  if (booked || actual) return [booked ? `Booked ${booked}h` : '', actual ? `Actual ${actual}h` : ''].filter(Boolean).join(' · ');
+  const bookingMinutes = bookings.reduce((sum, booking) => sum + Number(booking.default_duration_minutes || 0), 0);
+  const actualMinutes = bookings.reduce((sum, booking) => sum + Number(booking.actual_duration_minutes || 0), 0);
+  return [bookingMinutes > 0 ? `Booked ${(bookingMinutes / 60).toFixed(2).replace(/\.00$/, '')}h` : '', actualMinutes > 0 ? `Actual ${(actualMinutes / 60).toFixed(2).replace(/\.00$/, '')}h` : ''].filter(Boolean).join(' · ') || 'Not recorded';
+}
+
+function vehicleWorkshopHoursClass(line = {}, estimate = null) {
+  const provenance = cleanNavisionText(line.provenance || line.estimate_provenance || line.estimated_hours_source || line.source_kind || line.source_type || line.source || '').toLowerCase();
+  const confirmed = Number(line.confirmedHours ?? line.confirmed_hours);
+  if (Number.isFinite(confirmed) && confirmed > 0) return { label: 'Confirmed hours', value: confirmed };
+  if (estimate === null || !Number.isFinite(Number(estimate)) || Number(estimate) <= 0) return { label: 'Unknown hours', value: null };
+  if (/supplier|provider|sublet/.test(provenance)) return { label: 'Supplier estimate', value: Number(estimate) };
+  if (/\bai\b|model/.test(provenance)) return { label: 'AI estimate', value: Number(estimate) };
+  if (/histor|previous|catalog|default/.test(provenance)) return { label: 'Historical estimate', value: Number(estimate) };
+  if (/confirm|staff|authenticated|manual/.test(provenance)) return { label: 'Confirmed hours', value: Number(estimate) };
+  return { label: 'Unknown hours', value: Number(estimate) };
+}
+
+function vehicleWorkshopJobCardTableHtml(group = {}, bookingFallback = 'Not booked', vehicle = {}) {
   const presentation = vehicleWorkshopStationPresentation(group.stage);
   const complete = group.requirements.length > 0 && group.requirements.every(item => item.completed === true);
   const canEdit = vehicleWorkshopCanEditLines() && !complete;
   const lineHours = group.lines.map(vehicleWorkshopLineHours).filter(value => value !== null);
   const bookingHours = group.bookings.map(booking => Number(booking.default_duration_minutes || 0) / 60).filter(value => Number.isFinite(value) && value > 0);
   const totalHours = lineHours.length ? lineHours.reduce((sum, value) => sum + value, 0) : (bookingHours[0] || null);
-  const bookingHtml = vehicleWorkshopBookingRowsHtml(group.bookings, bookingFallback);
   const activeBooking = group.bookings.find(booking => ['queued', 'planned'].includes(String(booking.status || '').toLowerCase())) || null;
   const canonicalVehicleId = vehicleWorkshopDetailCanonicalId(vehicle);
   const vehicleIdentity = vehicleKey(vehicle);
-  const lines = group.lines.map((line, index) => {
+  const rows = group.lines.map((line, index) => {
     const ownHours = vehicleWorkshopLineHours(line);
     const estimate = ownHours ?? (group.lines.length === 1 ? totalHours : null);
     const lineKey = vehicleWorkshopLineIdentity(group.stage, line);
     const description = vehicleWorkshopLineDescription(line, `${presentation.label} work required`);
+    const lineBookings = vehicleWorkshopBookingsForLine(group, line);
+    const hoursClass = vehicleWorkshopHoursClass(line, estimate);
     const mutationData = `data-stage="${escapeHtml(group.stage)}" data-line-key="${escapeHtml(lineKey)}" data-adjustment-id="${escapeHtml(line.adjustmentId || '')}" data-adjustment-version="${escapeHtml(String(line.adjustmentVersion || 0))}" data-description="${escapeHtml(description)}" data-hours="${escapeHtml(estimate ?? '')}"`;
     const hoursHtml = canEdit
       ? `<label class="vehicle-workshop-quick-hours" aria-label="Estimated hours for ${escapeHtml(description)}"><input type="number" min="0.25" max="999.75" step="0.25" value="${escapeHtml(estimate ?? '')}" placeholder="Hours" data-vehicle-workshop-hours-input><span>h</span><button type="button" data-vehicle-workshop-hours-save ${mutationData}>Save</button></label>`
-      : `<strong>${escapeHtml(vehicleWorkshopHoursLabel(estimate))}</strong>`;
+      : `<strong>${escapeHtml(hoursClass.value === null ? hoursClass.label : `${hoursClass.label}: ${vehicleWorkshopHoursLabel(hoursClass.value)}`)}</strong>`;
     const scheduleButton = canEdit && canonicalVehicleId && WORKSHOP_PLANNER_ROUTE_BY_STAGE[group.stage] && !activeBooking
-      ? `<button type="button" class="vehicle-workshop-schedule-next" data-vehicle-workshop-schedule-next ${mutationData} data-vehicle-id="${escapeHtml(canonicalVehicleId)}" data-vehicle-key="${escapeHtml(vehicleIdentity)}">Schedule next available</button>`
-      : '';
-    const controls = canEdit ? `<span class="vehicle-workshop-line-actions">${scheduleButton}<button type="button" data-vehicle-workshop-line-edit ${mutationData}>Edit line</button>${line.workshopManualLine ? `<button type="button" class="is-danger" data-vehicle-workshop-line-delete data-adjustment-id="${escapeHtml(line.adjustmentId || '')}" data-adjustment-version="${escapeHtml(String(line.adjustmentVersion || 0))}">Remove</button>` : ''}</span>` : '<span class="vehicle-workshop-line-actions" aria-hidden="true"></span>';
+      ? `<button type="button" class="vehicle-workshop-schedule-next" data-vehicle-workshop-schedule-next ${mutationData} data-vehicle-id="${escapeHtml(canonicalVehicleId)}" data-vehicle-key="${escapeHtml(vehicleIdentity)}">Schedule next available</button>` : '';
+    const controls = canEdit ? `<span class="vehicle-workshop-line-actions">${scheduleButton}<button type="button" data-vehicle-workshop-line-edit ${mutationData}>Edit line</button>${line.workshopManualLine ? `<button type="button" class="is-danger" data-vehicle-workshop-line-delete data-adjustment-id="${escapeHtml(line.adjustmentId || '')}" data-adjustment-version="${escapeHtml(String(line.adjustmentVersion || 0))}">Remove</button>` : ''}</span>` : '';
     const handleData = `data-vehicle-workshop-line-handle data-stage="${escapeHtml(group.stage)}" data-vehicle-id="${escapeHtml(canonicalVehicleId)}" data-vehicle-key="${escapeHtml(vehicleIdentity)}" data-booking-id="${escapeHtml(activeBooking?.booking_id || activeBooking?.id || '')}" data-hours="${escapeHtml(totalHours ?? estimate ?? '')}"`;
     const number = canEdit && canonicalVehicleId && WORKSHOP_PLANNER_ROUTE_BY_STAGE[group.stage]
       ? `<button type="button" class="vehicle-workshop-line-number" draggable="true" ${handleData} aria-label="Drag ${escapeHtml(description)} to a workshop bay">${index + 1}</button>`
       : `<span class="vehicle-workshop-line-number">${index + 1}</span>`;
-    return `<div class="vehicle-workshop-line">${number}<span class="vehicle-workshop-line-description"><strong>${escapeHtml(description)}</strong></span><span class="vehicle-workshop-line-hours">${hoursHtml}</span><span class="vehicle-workshop-line-booking">${bookingHtml}</span>${controls}</div>`;
+    const partsDependency = vehicleWorkshopJobCardValue(line, ['parts_dependency', 'partsDependency', 'requires_parts', 'requiresParts'], 'None recorded');
+    const partsStatus = vehicleWorkshopJobCardValue(line, ['parts_status', 'partsStatus'], 'Status not recorded');
+    const completion = line.completed === true || line.is_completed === true
+      ? `Completed${line.completed_at ? ` · ${cleanNavisionText(line.completed_at)}` : ''}`
+      : vehicleWorkshopJobCardValue(line, ['completion_status', 'completionStatus'], complete ? 'Completed' : 'Outstanding');
+    const bookingCell = lineBookings.length ? vehicleWorkshopBookingRowsHtml(lineBookings, bookingFallback)
+      : (group.bookings.length ? '<span class="vehicle-workshop-booking-static">Station booking shown below</span>' : `<span class="vehicle-workshop-not-booked">${escapeHtml(bookingFallback)}</span>`);
+    return `<tr class="vehicle-workshop-line"><td><div class="vehicle-workshop-line-description">${number}<strong>${escapeHtml(description)}</strong></div>${controls}</td><td>${escapeHtml(presentation.label)}</td><td class="vehicle-workshop-line-hours">${hoursHtml}</td><td>${escapeHtml(vehicleWorkshopJobCardValue(line, ['labour_class', 'labor_class', 'work_class', 'class_code', 'class'], 'Unclassified'))}</td><td>${escapeHtml(vehicleWorkshopJobCardValue(line, ['provenance', 'source_kind', 'source_type', 'source'], line.authenticatedEmailOperation ? 'Authenticated email operation' : 'Recorded requirement'))}</td><td>${escapeHtml(vehicleWorkshopJobCardBookedActual(line, lineBookings))}</td><td>${escapeHtml(`${partsDependency} · ${partsStatus}`)}</td><td>${escapeHtml(vehicleWorkshopJobCardValue(line, ['sublet_provider', 'subletProvider', 'provider_name', 'provider'], 'Not applicable'))}</td><td class="vehicle-workshop-line-booking">${bookingCell}</td><td>${escapeHtml(vehicleWorkshopJobCardValue(line, ['status', 'work_status', 'line_status'], complete ? 'Completed' : 'Required'))}</td><td>${escapeHtml(vehicleWorkshopJobCardValue(line, ['source_ref', 'source_reference', 'source_line_ref', 'operation_no'], lineKey))}</td><td>${escapeHtml(completion)}</td></tr>`;
   }).join('');
-  const addButton = canEdit ? `<button type="button" class="vehicle-workshop-line-add" data-vehicle-workshop-line-add data-stage="${escapeHtml(group.stage)}">+ Add line</button>` : '';
-  return `<section class="vehicle-workshop-station" data-vehicle-workshop-stage="${escapeHtml(group.stage)}" style="--station-colour:${escapeHtml(presentation.colour)};--station-tint:${escapeHtml(presentation.tint)}"><header><span class="vehicle-workshop-station-code">${escapeHtml(presentation.label.slice(0, 2).toUpperCase())}</span><div><h3>${escapeHtml(presentation.label)}</h3><p>${complete ? 'Required work completed' : 'Required work outstanding'}</p></div>${addButton}<span class="vehicle-workshop-station-status ${complete ? 'is-complete' : 'is-required'}">${complete ? 'Completed' : 'Required'}</span><span class="vehicle-workshop-station-total">${escapeHtml(vehicleWorkshopHoursLabel(totalHours))}</span></header><div class="vehicle-workshop-lines">${lines}</div></section>`;
+  return `<div class="vehicle-workshop-job-card-wrap"><table class="vehicle-workshop-job-card"><thead><tr><th scope="col">Description</th><th scope="col">Department</th><th scope="col">Estimated hours</th><th scope="col">Class</th><th scope="col">Provenance</th><th scope="col">Booked / actual</th><th scope="col">Parts dependency / status</th><th scope="col">Sublet provider</th><th scope="col">Booking</th><th scope="col">Status</th><th scope="col">Source ref</th><th scope="col">Completion</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+}
+
+function vehicleWorkshopStationHtml(group = {}, bookingFallback = 'Not booked', vehicle = {}) {
+  const presentation = vehicleWorkshopStationPresentation(group.stage);
+  const complete = group.requirements.length > 0 && group.requirements.every(item => item.completed === true);
+  const lineHours = group.lines.map(vehicleWorkshopLineHours).filter(value => value !== null);
+  const bookingHours = group.bookings.map(booking => Number(booking.default_duration_minutes || 0) / 60).filter(value => Number.isFinite(value) && value > 0);
+  const totalHours = lineHours.length ? lineHours.reduce((sum, value) => sum + value, 0) : (bookingHours[0] || null);
+  const addButton = vehicleWorkshopCanEditLines() && !complete ? `<button type="button" class="vehicle-workshop-line-add" data-vehicle-workshop-line-add data-stage="${escapeHtml(group.stage)}">+ Add line</button>` : '';
+  const stationBookings = group.bookings.length ? `<div class="vehicle-workshop-station-bookings"><strong>Station bookings</strong>${vehicleWorkshopBookingRowsHtml(group.bookings, bookingFallback)}</div>` : '';
+  return `<section class="vehicle-workshop-station" data-vehicle-workshop-stage="${escapeHtml(group.stage)}" style="--station-colour:${escapeHtml(presentation.colour)};--station-tint:${escapeHtml(presentation.tint)}"><header><span class="vehicle-workshop-station-code">${escapeHtml(presentation.label.slice(0, 2).toUpperCase())}</span><div><h3>${escapeHtml(presentation.label)}</h3><p>${complete ? 'Required work completed' : 'Required work outstanding'}</p></div>${addButton}<span class="vehicle-workshop-station-status ${complete ? 'is-complete' : 'is-required'}">${complete ? 'Completed' : 'Required'}</span><span class="vehicle-workshop-station-total">${escapeHtml(vehicleWorkshopHoursLabel(totalHours))}</span></header>${vehicleWorkshopJobCardTableHtml(group, bookingFallback, vehicle)}${stationBookings}</section>`;
 }
 
 function renderVehicleWorkshopWorkPage(vehicle = {}) {
@@ -17931,6 +18035,525 @@ function renderAiBoardAdvisor(nowIso = nowIsoString()) {
       </li>`).join('')}</ol>` : '<div class="empty-state compact-empty"><strong>No deterministic risks detected</strong><span>This is not an approval or guarantee. Continue normal staff checks and refresh when data changes.</span></div>'}
   `;
   return result;
+}
+
+const PDC_AUDITOR_CATEGORY_DEFS = Object.freeze([
+  { key: 'critical_issues', label: 'Critical issues', colour: '#dc2626', matches: item => item.severity === 'critical' },
+  { key: 'high_priority', label: 'High-priority issues', colour: '#ea580c', matches: item => item.severity === 'high' },
+  { key: 'invalid_job_booking', label: 'Bookings without valid jobs', colour: '#b91c1c', matches: item => /BOOKING_(WITHOUT|WORK_AUTHORITY|INACTIVE|CANCELLED)/.test(item.ruleId) },
+  { key: 'missing_hours', label: 'Missing estimated hours', colour: '#d97706', matches: item => /(ESTIMATE|LABOUR_HOURS).*(MISSING|ZERO|INVALID)|LABOUR_PROVENANCE_MISSING/.test(item.ruleId) },
+  { key: 'parts_risk', label: 'Parts risks', colour: '#2563eb', aliases: ['parts', 'parts_dependency'], matches: item => item.category === 'parts_risk' || item.ruleId.startsWith('PARTS_') },
+  { key: 'double_bookings', label: 'Double bookings', colour: '#7c3aed', matches: item => /(CONFLICT|OVERLAP|MULTIPLE_ACTIVE_BOOKINGS|DUPLICATE_ACTIVE_BOOKING)/.test(item.ruleId) },
+  { key: 'active_stoppages', label: 'Active stoppages', colour: '#be123c', matches: item => item.ruleId.includes('STOPPAGE') },
+  { key: 'forgotten_vehicles', label: 'Forgotten vehicles', colour: '#0f766e', matches: item => /(FORGOTTEN|NO_FUTURE_BOOKING|NO_PROGRESS|NO_REPLACEMENT|NOT_REVIEWED|NOT_COLLECTED)/.test(item.ruleId) },
+  { key: 'workflow_problems', label: 'Workflow problems', colour: '#475569', matches: item => item.category === 'workflow' || /(QC_|RFT_|COMPLETED_|WORKFLOW_|SUBLET_|LOCATION_)/.test(item.ruleId) },
+  { key: 'awaiting_approval', label: 'Recommendations awaiting approval', colour: '#64748b', matches: item => item.review && !item.review.decision },
+]);
+
+function auditorAuthorityIdentity() {
+  return String(window.PDC_AUTH_CONTEXT?.userId || window.PDC_AUTH_CONTEXT?.email || '');
+}
+
+function createPdcAuditorSnapshotService({ config = {}, getAccessToken = () => null, fetchImpl = window.fetch?.bind(window) } = {}) {
+  let lifecycleGeneration = 0;
+  let destroyed = false;
+  let retainedSnapshot = null;
+
+  function invalidate() {
+    lifecycleGeneration += 1;
+    retainedSnapshot = null;
+  }
+
+  async function getAuditorSnapshot() {
+    if (destroyed) return { ok: false, code: 'destroyed' };
+    const token = getAccessToken();
+    const authority = auditorAuthorityIdentity();
+    if (!token || !authority || !config.url || !config.publishableKey || typeof fetchImpl !== 'function') {
+      invalidate();
+      return { ok: false, code: 'unavailable' };
+    }
+    const generation = lifecycleGeneration;
+    try {
+      let firstPage = null;
+      let afterVehicleId = null;
+      const items = [];
+      for (let pageIndex = 0; pageIndex < 5; pageIndex += 1) {
+        const response = await fetchImpl(`${String(config.url).replace(/\/$/, '')}/rest/v1/rpc/get_pdc_auditor_snapshot`, {
+          method: 'POST',
+          headers: { apikey: config.publishableKey, Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ p_after_vehicle_id: afterVehicleId, p_page_size: 100 }),
+        });
+        if (destroyed || generation !== lifecycleGeneration || authority !== auditorAuthorityIdentity() || token !== getAccessToken()) return { ok: false, code: 'superseded' };
+        if (!response.ok) {
+          invalidate();
+          return { ok: false, code: response.status === 401 || response.status === 403 ? 'permission_denied' : 'unavailable', status: response.status };
+        }
+        const page = await response.json();
+        if (destroyed || generation !== lifecycleGeneration || authority !== auditorAuthorityIdentity() || token !== getAccessToken()) return { ok: false, code: 'superseded' };
+        const pageItems = Array.isArray(page?.items) ? page.items : Array.isArray(page?.vehicles) ? page.vehicles : null;
+        if (!page || typeof page !== 'object' || !page.response_revision || !page.generated_at || !page.dealer_code || !pageItems || pageItems.length > 100) {
+          invalidate();
+          return { ok: false, code: 'invalid_snapshot' };
+        }
+        if (!firstPage) firstPage = page;
+        else if (page.response_revision !== firstPage.response_revision || page.dealer_code !== firstPage.dealer_code || page.environment !== firstPage.environment) {
+          invalidate();
+          return { ok: false, code: 'snapshot_changed_during_pagination' };
+        }
+        items.push(...pageItems);
+        if (!page.has_more) {
+          const snapshot = {
+            ...firstPage,
+            revision: firstPage.response_revision,
+            as_of: firstPage.generated_at,
+            page_size: firstPage.page_size,
+            has_more: false,
+            next_vehicle_id: null,
+            page_manifest: {
+              ...(firstPage.page_manifest || {}),
+              after_vehicle_id: null,
+              returned_count: items.length,
+              total_scoped_vehicle_count: items.length,
+              has_more: false,
+              next_vehicle_id: null,
+            },
+            items,
+            vehicles: items,
+          };
+          const queueResponse = await fetchImpl(`${String(config.url).replace(/\/$/, '')}/rest/v1/rpc/get_pdc_auditor_review_queue`, {
+            method: 'POST',
+            headers: { apikey: config.publishableKey, Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ p_limit: 200 }),
+          });
+          if (destroyed || generation !== lifecycleGeneration || authority !== auditorAuthorityIdentity() || token !== getAccessToken()) return { ok: false, code: 'superseded' };
+          if (!queueResponse.ok) {
+            invalidate();
+            return { ok: false, code: queueResponse.status === 401 || queueResponse.status === 403 ? 'permission_denied' : 'review_queue_unavailable', status: queueResponse.status };
+          }
+          const queue = await queueResponse.json();
+          if (destroyed || generation !== lifecycleGeneration || authority !== auditorAuthorityIdentity() || token !== getAccessToken()) return { ok: false, code: 'superseded' };
+          if (!queue || queue.ok !== true || queue.environment !== 'staging' || queue.dealer_code !== snapshot.dealer_code || !Array.isArray(queue.items) || queue.items.length > 200) {
+            invalidate();
+            return { ok: false, code: 'invalid_review_queue' };
+          }
+          snapshot.reviewQueue = queue.items;
+          snapshot.reviewCanDecide = queue.can_decide === true;
+          retainedSnapshot = snapshot;
+          return { ok: true, snapshot };
+        }
+        if (!page.next_vehicle_id || page.next_vehicle_id === afterVehicleId) {
+          invalidate();
+          return { ok: false, code: 'invalid_snapshot' };
+        }
+        afterVehicleId = page.next_vehicle_id;
+      }
+      invalidate();
+      return { ok: false, code: 'snapshot_too_large' };
+    } catch (_error) {
+      if (destroyed || generation !== lifecycleGeneration) return { ok: false, code: 'superseded' };
+      invalidate();
+      return { ok: false, code: 'unavailable' };
+    }
+  }
+
+  async function decideFinding({ findingId = '', evidenceFingerprint = '', lastSeenRunId = '', decision = '', reason = null } = {}) {
+    if (destroyed) return { ok: false, code: 'destroyed' };
+    const token = getAccessToken();
+    const authority = auditorAuthorityIdentity();
+    if (!token || !authority || !config.url || !config.publishableKey || typeof fetchImpl !== 'function') return { ok: false, code: 'unavailable' };
+    if (!/^[0-9a-f-]{36}$/i.test(findingId) || !/^[a-f0-9]{64}$/.test(evidenceFingerprint)
+        || !/^[0-9a-f-]{36}$/i.test(lastSeenRunId) || !['approved', 'denied'].includes(decision)) return { ok: false, code: 'invalid_decision' };
+    const cleanReason = String(reason || '').trim();
+    if ((decision === 'denied' && (cleanReason.length < 3 || cleanReason.length > 500)) || cleanReason.length > 500) return { ok: false, code: 'invalid_reason' };
+    const generation = lifecycleGeneration;
+    try {
+      const response = await fetchImpl(`${String(config.url).replace(/\/$/, '')}/rest/v1/rpc/record_pdc_auditor_decision`, {
+        method: 'POST',
+        headers: { apikey: config.publishableKey, Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          p_finding_id: findingId,
+          p_evidence_fingerprint: evidenceFingerprint,
+          p_last_seen_run_id: lastSeenRunId,
+          p_decision: decision,
+          p_reason: cleanReason || null,
+        }),
+      });
+      if (destroyed || generation !== lifecycleGeneration || authority !== auditorAuthorityIdentity() || token !== getAccessToken()) return { ok: false, code: 'superseded' };
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        const message = String(error?.message || error?.code || '').toLowerCase();
+        return { ok: false, code: message.includes('stale') ? 'stale' : message.includes('already_decided') ? 'already_decided' : response.status === 401 || response.status === 403 ? 'permission_denied' : 'decision_failed' };
+      }
+      const data = await response.json();
+      if (!data || data.ok !== true || data.operational_change !== false || data.execution_reference != null || !['approved', 'denied'].includes(data.status)) return { ok: false, code: 'invalid_decision_receipt' };
+      invalidate();
+      return { ok: true, data };
+    } catch (_error) {
+      return { ok: false, code: 'decision_unavailable' };
+    }
+  }
+
+  function destroy() {
+    if (destroyed) return;
+    destroyed = true;
+    invalidate();
+  }
+
+  return {
+    getAuditorSnapshot,
+    decideFinding,
+    getTrustedSnapshot: () => (destroyed ? null : retainedSnapshot),
+    invalidate,
+    destroy,
+  };
+}
+
+function pdcAuditorCategory(value = '') {
+  const normalized = cleanNavisionText(value).toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+  return PDC_AUDITOR_CATEGORY_DEFS.find(def => def.key === normalized || (Array.isArray(def.aliases) && def.aliases.includes(normalized)))?.key || 'data_quality';
+}
+
+function pdcAuditorSafeText(value = '', max = 420) {
+  return cleanNavisionText(value).slice(0, max);
+}
+
+function pdcAuditorNormalizeFinding(item = {}, index = 0) {
+  const evidence = (Array.isArray(item.evidence) ? item.evidence : [])
+    .map(value => typeof value === 'string' ? value : (value?.label || value?.value || value?.fact || ''))
+    .map(value => pdcAuditorSafeText(value, 300)).filter(Boolean).slice(0, 12);
+  const vehicleId = pdcAuditorSafeText(item.vehicle_id || item.vehicleId || item.entity_id || '', 80);
+  const sourceRef = pdcAuditorSafeText(item.source_ref || item.sourceRef || item.rule_id || item.rule || '', 120);
+  return {
+    id: pdcAuditorSafeText(item.finding_id || item.id || `${pdcAuditorCategory(item.category)}:${sourceRef || index}`, 160),
+    category: pdcAuditorCategory(item.category || item.kind || item.rule_category),
+    ruleId: pdcAuditorSafeText(item.ruleId || item.rule_id || item.rule || '', 100).toUpperCase(),
+    severity: ['critical', 'high', 'medium', 'low'].includes(String(item.severity || '').toLowerCase()) ? String(item.severity).toLowerCase() : 'medium',
+    title: pdcAuditorSafeText(item.title || item.summary || item.issue || 'Finding requires review', 180),
+    explanation: pdcAuditorSafeText(item.explanation || item.issue || item.description || item.reason || 'Review the recorded evidence before taking any action.'),
+    recommendedAction: pdcAuditorSafeText(item.recommendedAction || item.recommended_action || item.recommendation || ''),
+    evidence,
+    limitation: pdcAuditorSafeText(item.limitation || item.limitations || ''),
+    vehicleId,
+    vehicleLabel: pdcAuditorSafeText(item.stock_number || item.stock || item.vehicle_label || vehicleId, 100),
+    sourceRef,
+    reportViews: (Array.isArray(item.report_views) ? item.report_views : []).map(value => String(value || '').toLowerCase()),
+    scope: (Array.isArray(item.scope) ? item.scope : []).map(value => pdcAuditorSafeText(value, 100)).filter(Boolean).slice(0, 12),
+  };
+}
+
+function pdcAuditorBindReviewFinding(finding, queue = []) {
+  const scope = new Set([finding.vehicleId, ...(finding.scope || [])].filter(Boolean));
+  const ruleId = String(finding.ruleId || '').toUpperCase();
+  const candidates = (Array.isArray(queue) ? queue : []).filter(item => item
+    && item.lifecycle_status === 'current'
+    && String(item.rule_key || '').toUpperCase() === ruleId
+    && scope.has(String(item.entity_id || ''))
+    && /^[0-9a-f-]{36}$/i.test(String(item.finding_id || ''))
+    && /^[0-9a-f-]{36}$/i.test(String(item.last_seen_run_id || ''))
+    && /^[a-f0-9]{64}$/.test(String(item.evidence_fingerprint || '')));
+  if (candidates.length !== 1) return { ...finding, review: null };
+  const item = candidates[0];
+  const decision = item.decision && ['approved', 'denied'].includes(item.decision.status) ? {
+    status: item.decision.status,
+    reason: pdcAuditorSafeText(item.decision.reason || '', 500),
+    decidedAt: pdcAuditorSafeText(item.decision.decided_at || '', 80),
+    decidedByRole: pdcAuditorSafeText(item.decision.decided_by_role || '', 40),
+    operationalChange: item.decision.operational_change === true,
+  } : null;
+  if (decision?.operationalChange) return { ...finding, review: null };
+  return {
+    ...finding,
+    review: {
+      findingId: String(item.finding_id),
+      evidenceFingerprint: String(item.evidence_fingerprint),
+      lastSeenRunId: String(item.last_seen_run_id),
+      decision,
+    },
+  };
+}
+
+function pdcAuditorProjectedReports(evaluated = {}) {
+  const reports = evaluated?.projections?.reports;
+  return reports && typeof reports === 'object' ? reports : null;
+}
+
+function pdcAuditorEvaluateSnapshot(snapshot = {}) {
+  const engine = window.PdcAiAuditorStageA;
+  let evaluated = null;
+  if (engine && typeof engine.analyze === 'function') {
+    try { evaluated = engine.analyze(snapshot); } catch (_error) { return null; }
+  } else {
+    evaluated = snapshot.auditor || snapshot.result || snapshot;
+  }
+  if (!evaluated || typeof evaluated !== 'object') return null;
+  const sourceFindings = Array.isArray(evaluated.findings) ? evaluated.findings
+    : Array.isArray(snapshot.findings) ? snapshot.findings
+      : Array.isArray(snapshot.auditor_findings) ? snapshot.auditor_findings : null;
+  if (!sourceFindings) return null;
+  const projectedReports = pdcAuditorProjectedReports(evaluated);
+  const reportMembership = new Map();
+  if (projectedReports) {
+    Object.entries(projectedReports).forEach(([reportName, report]) => {
+      const reportFindings = Array.isArray(report) ? report : Array.isArray(report?.findings) ? report.findings : [];
+      reportFindings.forEach(finding => {
+        const id = String(finding?.id || finding?.finding_id || finding?.recommendationId || '');
+        if (!id) return;
+        if (!reportMembership.has(id)) reportMembership.set(id, []);
+        reportMembership.get(id).push(String(reportName).toLowerCase());
+      });
+    });
+  }
+  const findings = sourceFindings.slice(0, 500).map((finding, index) => pdcAuditorBindReviewFinding(pdcAuditorNormalizeFinding({
+    ...finding,
+    report_views: reportMembership.get(String(finding?.id || finding?.finding_id || '')) || finding?.report_views,
+  }, index), snapshot.reviewQueue));
+  return {
+    revision: snapshot.revision,
+    asOf: snapshot.as_of || snapshot.asOf || snapshot.generated_at,
+    version: pdcAuditorSafeText(evaluated.version || snapshot.schema_version || 'Stage A', 60),
+    hasReportProjections: Boolean(projectedReports),
+    findings,
+  };
+}
+
+function resetPdcAuditorAuthorityState() {
+  app.pdcAuditorGeneration += 1;
+  try { app.pdcAuditorService?.destroy?.(); } catch (_error) { /* synchronous fail-closed teardown */ }
+  try { if (app.pdcAuditorRealtime) window.PDC_SUPABASE?.removeChannel?.(app.pdcAuditorRealtime); } catch (_error) { /* teardown remains fail closed */ }
+  app.pdcAuditorRealtime = null;
+  app.pdcAuditorService = null;
+  app.pdcAuditorSnapshot = null;
+  app.pdcAuditorResult = null;
+  app.pdcAuditorState = 'idle';
+  app.pdcAuditorError = '';
+  app.pdcAuditorDecisionInFlight = false;
+  app.pdcAuditorDecisionMessage = '';
+  const state = document.getElementById('ai-auditor-state');
+  const summary = document.getElementById('ai-auditor-summary');
+  const report = document.getElementById('ai-auditor-report');
+  if (state) {
+    state.dataset.state = 'unavailable';
+    state.setAttribute('aria-busy', 'false');
+    state.replaceChildren();
+  }
+  if (summary) summary.replaceChildren();
+  if (report) report.replaceChildren();
+}
+
+function pdcAuditorService() {
+  if (app.pdcAuditorService) return app.pdcAuditorService;
+  if (!auditorAuthorityIdentity() || !getPdcSupabaseAccessToken()) return null;
+  app.pdcAuditorService = createPdcAuditorSnapshotService({
+    config: window.PDC_SUPABASE_CONFIG || {},
+    getAccessToken: () => getPdcSupabaseAccessToken(),
+  });
+  return app.pdcAuditorService;
+}
+
+function subscribePdcAuditorRealtime(dealerCode = '') {
+  const client = window.PDC_SUPABASE;
+  const dealer = String(dealerCode || '').trim();
+  if (app.pdcAuditorRealtime || !client || typeof client.channel !== 'function' || !auditorAuthorityIdentity() || !/^\d{5}$/.test(dealer)) return app.pdcAuditorRealtime;
+  app.pdcAuditorRealtime = client.channel('pdc_auditor_revision_read_only')
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'pdc_auditor_revision', filter: `dealer_code=eq.${dealer}` }, () => {
+      // Realtime is invalidation only. Authority always comes from a fresh RPC snapshot.
+      if (document.getElementById('ai-auditor')?.classList.contains('active')) loadPdcAuditorSnapshot({ force: true });
+      else app.pdcAuditorService?.invalidate?.();
+    })
+    .subscribe();
+  return app.pdcAuditorRealtime;
+}
+
+async function loadPdcAuditorSnapshot({ force = false } = {}) {
+  if (app.pdcAuditorState === 'loading' && !force) return false;
+  const service = pdcAuditorService();
+  const authority = auditorAuthorityIdentity();
+  const generation = ++app.pdcAuditorGeneration;
+  app.pdcAuditorSnapshot = null;
+  app.pdcAuditorResult = null;
+  app.pdcAuditorState = 'loading';
+  app.pdcAuditorError = '';
+  renderPdcAuditor();
+  if (!service || !authority) {
+    app.pdcAuditorState = 'unavailable';
+    app.pdcAuditorError = 'Sign in with an approved account to request the dedicated auditor snapshot.';
+    renderPdcAuditor();
+    return false;
+  }
+  const response = await service.getAuditorSnapshot();
+  if (generation !== app.pdcAuditorGeneration || service !== app.pdcAuditorService || authority !== auditorAuthorityIdentity()) return false;
+  const result = response.ok ? pdcAuditorEvaluateSnapshot(response.snapshot) : null;
+  if (!response.ok || !result) {
+    app.pdcAuditorSnapshot = null;
+    app.pdcAuditorResult = null;
+    app.pdcAuditorState = 'unavailable';
+    app.pdcAuditorError = response.code === 'permission_denied'
+      ? 'Your current account is not authorised to read the auditor snapshot.'
+      : 'Auditor snapshot unavailable. No browser or retained operational data was used.';
+    renderPdcAuditor();
+    return false;
+  }
+  app.pdcAuditorSnapshot = response.snapshot;
+  app.pdcAuditorResult = result;
+  app.pdcAuditorState = 'ready';
+  subscribePdcAuditorRealtime(response.snapshot.dealer_code);
+  renderPdcAuditor();
+  return true;
+}
+
+function pdcAuditorFindingsForReport(result = app.pdcAuditorResult, report = app.pdcAuditorReport) {
+  const findings = Array.isArray(result?.findings) ? result.findings : [];
+  if (report === 'critical') return findings.filter(item => item.severity === 'critical');
+  const explicitlyScoped = findings.filter(item => item.reportViews.includes(report));
+  return result?.hasReportProjections ? explicitlyScoped : findings;
+}
+
+function pdcAuditorFilteredFindings(findings = []) {
+  const severity = app.pdcAuditorSeverityFilter || 'all';
+  const category = app.pdcAuditorCategoryFilter || 'all';
+  const query = cleanNavisionText(app.pdcAuditorSearch || '').toLowerCase();
+  return findings.filter(item => {
+    if (severity !== 'all' && item.severity !== severity) return false;
+    if (category !== 'all') {
+      const def = PDC_AUDITOR_CATEGORY_DEFS.find(entry => entry.key === category);
+      if (!def || typeof def.matches !== 'function' || !def.matches(item)) return false;
+    }
+    if (!query) return true;
+    return [item.ruleId, item.title, item.explanation, item.vehicleLabel, item.sourceRef, ...(item.evidence || [])]
+      .some(value => String(value || '').toLowerCase().includes(query));
+  });
+}
+
+function openPdcAuditorSnapshotVehicleDetail(row = {}) {
+  const modal = $('#vehicle-modal');
+  const host = $('#vehicle-detail');
+  if (!modal || !host || !row || typeof row !== 'object') return false;
+  const workItems = Array.isArray(row.work_items) ? row.work_items : [];
+  const bookings = Array.isArray(row.bookings) ? row.bookings : [];
+  const workRows = workItems.map(item => `<tr><td>${escapeHtml(item.work_key || '—')}</td><td>${escapeHtml(item.status || '—')}</td><td>${escapeHtml(item.completed_at || '—')}</td></tr>`).join('');
+  const bookingRows = bookings.map(item => `<tr><td>${escapeHtml(item.stage_code || '—')}</td><td>${escapeHtml(item.status || '—')}</td><td>${escapeHtml(item.scheduled_start_at || '—')}</td><td>${escapeHtml(item.scheduled_end_at || '—')}</td></tr>`).join('');
+  host.innerHTML = `<div class="vehicle-detail-page"><div class="ai-auditor-read-only-banner" role="status"><strong>BETA – HUMAN REVIEW / NO AUTOMATIC CHANGES</strong><span>This exact vehicle detail is rendered only from the authenticated auditor snapshot.</span></div><div class="panel-header"><div><span class="eyebrow">Vehicle Detail · read only</span><h2 id="vehicle-modal-title">${escapeHtml(row.stock_number || row.key_number || 'Authenticated vehicle')}</h2><p>${escapeHtml(row.model || 'Model unavailable')}</p></div></div><div class="summary-grid"><article><span>Location</span><strong>${escapeHtml(row.location?.code || '—')}</strong></article><article><span>Workshop status</span><strong>${escapeHtml(row.workshop?.status || '—')}</strong></article><article><span>Lifecycle</span><strong>${escapeHtml(row.lifecycle?.state || '—')}</strong></article></div><section><h3>Work</h3><div class="table-wrap"><table class="data-table compact-table"><thead><tr><th>Work</th><th>Status</th><th>Completed</th></tr></thead><tbody>${workRows || '<tr><td colspan="3">No authoritative work rows</td></tr>'}</tbody></table></div></section><section><h3>Bookings</h3><div class="table-wrap"><table class="data-table compact-table"><thead><tr><th>Stage</th><th>Status</th><th>Start</th><th>End</th></tr></thead><tbody>${bookingRows || '<tr><td colspan="4">No explicit authoritative bookings</td></tr>'}</tbody></table></div></section></div>`;
+  modal.hidden = false;
+  document.body.classList.add('modal-open');
+  $('#modal-close')?.focus();
+  return true;
+}
+
+function openPdcAuditorVehicle(vehicleId = '') {
+  const id = String(vehicleId || '').trim();
+  if (!id) return false;
+  const auditorRows = Array.isArray(app.pdcAuditorSnapshot?.items) ? app.pdcAuditorSnapshot.items : [];
+  const exact = auditorRows.filter(row => String(row?.vehicle_id || '').trim() === id);
+  return exact.length === 1 ? openPdcAuditorSnapshotVehicleDetail(exact[0]) : false;
+}
+
+function selectPdcAuditorReport(report = 'morning') {
+  const allowed = ['morning', 'midday', 'eod', 'critical'];
+  app.pdcAuditorReport = allowed.includes(report) ? report : 'morning';
+  renderPdcAuditor();
+  document.querySelector(`[data-ai-auditor-report="${app.pdcAuditorReport}"]`)?.focus();
+}
+
+async function pdcAuditorRecordDecision(finding, decision) {
+  if (app.pdcAuditorDecisionInFlight || !finding?.review || finding.review.decision) return false;
+  const service = pdcAuditorService();
+  if (!service || app.pdcAuditorSnapshot?.reviewCanDecide !== true) return false;
+  let reason = null;
+  if (decision === 'approved') {
+    if (!window.confirm('Approve this recommendation?\n\nThis records your review decision only. It will not change any vehicle, booking, Parts, location, workflow or provider.')) return false;
+  } else {
+    reason = window.prompt('Why are you denying this recommendation? (3–500 characters)');
+    if (reason == null) return false;
+    reason = String(reason).trim();
+    if (reason.length < 3 || reason.length > 500) {
+      app.pdcAuditorDecisionMessage = 'Enter a denial reason between 3 and 500 characters.';
+      renderPdcAuditor();
+      return false;
+    }
+  }
+  app.pdcAuditorDecisionInFlight = true;
+  app.pdcAuditorDecisionMessage = `${decision === 'approved' ? 'Approving' : 'Denying'} recommendation…`;
+  renderPdcAuditor();
+  const receipt = await service.decideFinding({
+    findingId: finding.review.findingId,
+    evidenceFingerprint: finding.review.evidenceFingerprint,
+    lastSeenRunId: finding.review.lastSeenRunId,
+    decision,
+    reason,
+  });
+  app.pdcAuditorDecisionInFlight = false;
+  if (!receipt?.ok) {
+    app.pdcAuditorDecisionMessage = receipt?.code === 'stale'
+      ? 'This recommendation is stale. Refresh the Auditor before deciding.'
+      : receipt?.code === 'already_decided'
+        ? 'This recommendation already has a different decision.'
+        : receipt?.code === 'permission_denied'
+          ? 'Your role cannot record Auditor decisions.'
+          : 'The decision was not recorded. No operational changes were made.';
+    renderPdcAuditor();
+    return false;
+  }
+  app.pdcAuditorDecisionMessage = `${decision === 'approved' ? 'Approved' : 'Denied'} — review recorded. No operational changes were made.`;
+  await loadPdcAuditorSnapshot({ force: true });
+  return true;
+}
+
+function renderPdcAuditor() {
+  const state = $('#ai-auditor-state');
+  const summary = $('#ai-auditor-summary');
+  const reportHost = $('#ai-auditor-report');
+  if (!state || !summary || !reportHost) return;
+  const result = app.pdcAuditorResult;
+  const ready = app.pdcAuditorState === 'ready' && result;
+  state.dataset.state = ready ? 'ready' : (app.pdcAuditorState === 'loading' ? 'loading' : 'unavailable');
+  state.setAttribute('aria-busy', String(app.pdcAuditorState === 'loading'));
+  state.innerHTML = app.pdcAuditorState === 'loading'
+    ? '<strong>Requesting auditor snapshot</strong><span>Findings stay hidden until current authenticated authority is confirmed.</span>'
+    : ready
+      ? `<strong>Read-only snapshot ready</strong><span>Revision ${escapeHtml(String(result.revision))} · as of ${escapeHtml(String(result.asOf))} · engine ${escapeHtml(result.version)}</span>`
+      : `<strong>Auditor not assessed</strong><span>${escapeHtml(app.pdcAuditorError || 'The dedicated auditor snapshot is not available. No fallback data was used.')}</span>`;
+  const findings = ready ? result.findings : [];
+  const filterSummary = $('#ai-auditor-filter-summary');
+  summary.innerHTML = PDC_AUDITOR_CATEGORY_DEFS.map(def => `<article style="--auditor-category-colour:${def.colour}"><span>${escapeHtml(def.label)}</span><strong>${ready ? findings.filter(item => typeof def.matches === 'function' ? def.matches(item) : item.category === def.key).length : '—'}</strong></article>`).join('');
+  $$('[data-ai-auditor-report]').forEach(button => {
+    const selected = button.dataset.aiAuditorReport === app.pdcAuditorReport;
+    button.setAttribute('aria-selected', String(selected));
+    button.tabIndex = selected ? 0 : -1;
+  });
+  const activeTab = $(`[data-ai-auditor-report="${app.pdcAuditorReport}"]`);
+  if (activeTab) reportHost.setAttribute('aria-labelledby', activeTab.id);
+  if (!ready) {
+    if (filterSummary) filterSummary.textContent = 'Authoritative totals are not changed by filters.';
+    reportHost.innerHTML = '<div class="empty-state"><strong>No trusted auditor snapshot</strong><span>Findings remain hidden until the dedicated service succeeds.</span></div>';
+    return;
+  }
+  const authoritativeReportFindings = pdcAuditorFindingsForReport(result, app.pdcAuditorReport);
+  const reportFindings = pdcAuditorFilteredFindings(authoritativeReportFindings);
+  if (filterSummary) filterSummary.textContent = `Showing ${reportFindings.length} of ${authoritativeReportFindings.length} recommendations in this report. Summary cards remain authoritative totals.`;
+  const reportLabel = ({ morning: 'Morning', midday: 'Midday', eod: 'EOD', critical: 'Critical' })[app.pdcAuditorReport];
+  const decisionMessage = app.pdcAuditorDecisionMessage
+    ? `<div class="ai-auditor-decision-message" role="status">${escapeHtml(app.pdcAuditorDecisionMessage)}</div>` : '';
+  reportHost.innerHTML = `<div class="ai-auditor-report-heading"><h3>${escapeHtml(reportLabel)} report</h3><span>Human review · ${reportFindings.length} finding${reportFindings.length === 1 ? '' : 's'}</span></div>${decisionMessage}${reportFindings.length ? `<ol class="ai-auditor-findings">${reportFindings.map(item => {
+    const def = PDC_AUDITOR_CATEGORY_DEFS.find(category => category.key === item.category) || PDC_AUDITOR_CATEGORY_DEFS.at(-1);
+    const recorded = item.review?.decision;
+    const decisionHtml = recorded
+      ? `<div class="ai-auditor-review-status is-${escapeHtml(recorded.status)}"><strong>${recorded.status === 'approved' ? 'Approved' : 'Denied'}</strong><span>${recorded.decidedAt ? `Recorded ${escapeHtml(formatDate(recorded.decidedAt))}` : 'Decision recorded'} · no operational change</span>${recorded.reason ? `<p>${escapeHtml(recorded.reason)}</p>` : ''}</div>`
+      : item.review && app.pdcAuditorSnapshot?.reviewCanDecide === true
+        ? `<div class="ai-auditor-decision-actions" aria-label="Review recommendation"><button type="button" data-ai-auditor-decision="approved" data-finding-id="${escapeHtml(item.id)}" ${app.pdcAuditorDecisionInFlight ? 'disabled' : ''}>Approve</button><button type="button" data-ai-auditor-decision="denied" data-finding-id="${escapeHtml(item.id)}" ${app.pdcAuditorDecisionInFlight ? 'disabled' : ''}>Deny</button><small>Records review only — it does not execute the recommendation.</small></div>`
+        : `<div class="ai-auditor-review-status is-pending"><strong>${item.review ? 'View only' : 'Awaiting Auditor publication'}</strong><span>${item.review ? 'Operator or Administrator access is required to decide.' : 'Approve/Deny becomes available after this exact finding is published by the authenticated Auditor.'}</span></div>`;
+    return `<li class="ai-auditor-finding" style="--auditor-category-colour:${def.colour}"><div class="ai-auditor-finding-header"><div class="ai-auditor-finding-title"><span>${escapeHtml(def.label)} · ${escapeHtml(item.severity)}</span><strong>${escapeHtml(item.title)}</strong>${item.vehicleLabel ? `<small>Vehicle ${escapeHtml(item.vehicleLabel)}</small>` : ''}</div>${item.vehicleId ? `<button class="small-button ai-auditor-open-vehicle" type="button" data-ai-auditor-open-vehicle="${escapeHtml(item.vehicleId)}">Open Vehicle</button>` : ''}</div><p>${escapeHtml(item.explanation)}</p>${item.recommendedAction ? `<div class="ai-auditor-limitations"><strong>Recommended staff action:</strong> ${escapeHtml(item.recommendedAction)}</div>` : ''}<details class="ai-auditor-evidence"><summary>View Evidence (${item.evidence.length})</summary>${item.evidence.length ? `<ul>${item.evidence.map(value => `<li>${escapeHtml(value)}</li>`).join('')}</ul>` : '<p>No displayable evidence was supplied by the snapshot.</p>'}</details>${item.sourceRef ? `<small>Source ref: ${escapeHtml(item.sourceRef)}</small>` : ''}${item.limitation ? `<div class="ai-auditor-limitations">Evidence limitation: ${escapeHtml(item.limitation)}</div>` : ''}${decisionHtml}</li>`;
+  }).join('')}</ol>` : '<div class="empty-state"><strong>No findings in this report view</strong><span>This is not an approval or guarantee. Continue normal staff checks.</span></div>'}`;
+  $$('[data-ai-auditor-open-vehicle]', reportHost).forEach(button => button.addEventListener('click', () => {
+    if (!openPdcAuditorVehicle(button.dataset.aiAuditorOpenVehicle)) {
+      button.setAttribute('aria-describedby', 'ai-auditor-state');
+      state.dataset.state = 'unavailable';
+      state.innerHTML = '<strong>Vehicle detail unavailable</strong><span>The snapshot identity did not uniquely match the authenticated vehicle projection. No first match was selected.</span>';
+    }
+  }));
+  $$('[data-ai-auditor-decision]', reportHost).forEach(button => button.addEventListener('click', () => {
+    const finding = reportFindings.find(item => item.id === button.dataset.findingId);
+    if (finding) pdcAuditorRecordDecision(finding, button.dataset.aiAuditorDecision);
+  }));
 }
 
 function loadAiFileAssistantReviews() {
