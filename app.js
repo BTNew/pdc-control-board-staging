@@ -18543,6 +18543,13 @@ async function pdcAuditorRecordDecision(finding, decision) {
   return true;
 }
 
+function pdcAuditorDecisionDate(value = '') {
+  const parsed = new Date(String(value || ''));
+  return Number.isNaN(parsed.getTime())
+    ? 'Decision time unavailable'
+    : parsed.toLocaleString('en-AU', { dateStyle: 'medium', timeStyle: 'short' });
+}
+
 function renderPdcAuditor() {
   const state = $('#ai-auditor-state');
   const summary = $('#ai-auditor-summary');
@@ -18582,7 +18589,7 @@ function renderPdcAuditor() {
     const def = PDC_AUDITOR_CATEGORY_DEFS.find(category => category.key === item.category) || PDC_AUDITOR_CATEGORY_DEFS.at(-1);
     const recorded = item.review?.decision;
     const decisionHtml = recorded
-      ? `<div class="ai-auditor-review-status is-${escapeHtml(recorded.status)}"><strong>${recorded.status === 'approved' ? 'Approved' : 'Denied'}</strong><span>${recorded.decidedAt ? `Recorded ${escapeHtml(formatDate(recorded.decidedAt))}` : 'Decision recorded'} · no operational change</span>${recorded.reason ? `<p>${escapeHtml(recorded.reason)}</p>` : ''}</div>`
+      ? `<div class="ai-auditor-review-status is-${escapeHtml(recorded.status)}"><strong>${recorded.status === 'approved' ? 'Approved' : 'Denied'}</strong><span>${recorded.decidedAt ? `Recorded ${escapeHtml(pdcAuditorDecisionDate(recorded.decidedAt))}` : 'Decision recorded'} · no operational change</span>${recorded.reason ? `<p>${escapeHtml(recorded.reason)}</p>` : ''}</div>`
       : item.review && app.pdcAuditorSnapshot?.reviewCanDecide === true
         ? `<div class="ai-auditor-decision-actions" aria-label="Review recommendation"><button type="button" data-ai-auditor-decision="approved" data-finding-id="${escapeHtml(item.id)}" ${app.pdcAuditorDecisionInFlight ? 'disabled' : ''}>Approve</button><button type="button" data-ai-auditor-decision="denied" data-finding-id="${escapeHtml(item.id)}" ${app.pdcAuditorDecisionInFlight ? 'disabled' : ''}>Deny</button><small>Records review only — it does not execute the recommendation.</small></div>`
         : `<div class="ai-auditor-review-status is-pending"><strong>${item.review ? 'View only' : 'Awaiting Auditor publication'}</strong><span>${item.review ? 'Operator or Administrator access is required to decide.' : 'Approve/Deny becomes available after this exact finding is published by the authenticated Auditor.'}</span></div>`;

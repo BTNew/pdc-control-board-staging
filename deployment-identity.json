@@ -18,11 +18,11 @@
     "schedulesAdded": false
   },
   "artifact": "zero-data static staging site",
-  "backendOnlyMigrationSourceCommit": "5e18243df7b505ee0d8e4902b3f7099e6f6d21a5",
-  "cacheVersion": "2026.07.30.02-auditor-binding-hardening",
+  "backendOnlyMigrationSourceCommit": "0cb8dee00f1fe6016d981ac204ba4d5da0c8979c",
+  "cacheVersion": "2026.07.30.03-recorded-decision-render",
   "deploymentMode": "exact reviewed source blobs; staging.html mapped to index.html",
   "environment": "staging",
-  "generatedAtUtc": "2026-07-30T09:20:36Z",
+  "generatedAtUtc": "2026-07-30T09:35:58Z",
   "hourProvenanceSourceCommit": "88ce1000d7b863ffb6b64a3a4b164340e105f3cd",
   "humanAiIntake": {
     "approvalGate": "Administrator decision remains server-validated; missing summaries disable Approve while Deny remains available.",
@@ -119,7 +119,7 @@
     "futurePartsCascadeMove": "PASS \u2014 cross-bay booked-chip moves use the same truthful planning-only Parts retry as existing booking/rescheduling actions; immediate physical Start remains separately manager-gated.",
     "humanAiIntake": "Received, What happened, Car and What changed are shown in plain language; activated, modified, unchanged and review-needed outcomes are distinct; field changes render previous value to new value; technical receipt data is collapsed",
     "humanNavisionResults": "An administrator can establish the first empty dealer scope only for one exact full snapshot of at least 100 valid rows. Approval is content-bound, user-bound and expires after two hours. Cross-dealer, invalid, duplicate, stale and changed snapshots remain fail-closed. Later strongly matched refresh omissions continue to enter reversible temporary holding.",
-    "literalArtifact": "37/37 staged deployment Git blobs match source commit 5e18243df7b505ee0d8e4902b3f7099e6f6d21a5; hashes are computed from normalized Git blob bytes.",
+    "literalArtifact": "37/37 staged deployment Git blobs match source commit 0cb8dee00f1fe6016d981ac204ba4d5da0c8979c; hashes are computed from normalized Git blob bytes.",
     "migration087": "PASS \u2014 rollback syntax/probe and permanent post-apply checks; BUS_4X4 eligible paths reach parts_incomplete, blocked Hoist direct/cascade paths return location_ineligible, gate helper has no anon/authenticated EXECUTE privilege, and no probe writes were committed. Pre-migration function backup SHA-256 baf586a7b74df4a60217414b50eaf323cc207fd6a3466b9220a0b4867ec023ad.",
     "migration088": "PASS \u2014 dry-run syntax and Viewer payload probe, permanent staging-only apply, anon EXECUTE revoked, authenticated EXECUTE granted, protected vehicle/work-item/booking counts unchanged, and zero production access.",
     "migration089": "PASS \u2014 guarded rollback dry-run, permanent staging-only apply and rollback trigger probes. Missing ETA writes fail to Other; authoritative dated writes remain IT; parser and enforcement trigger are unavailable to anon; zero production access.",
@@ -177,7 +177,7 @@
     "production": "UNCHANGED \u2014 staging-only database migrations and zero-data static staging publication."
   },
   "sourceBranch": "feat/ai-auditor-decisions-20260730",
-  "sourceCommit": "5e18243df7b505ee0d8e4902b3f7099e6f6d21a5",
+  "sourceCommit": "0cb8dee00f1fe6016d981ac204ba4d5da0c8979c",
   "sourceFiles": [
     {
       "deployedPath": "ai-auditor.css",
@@ -191,7 +191,7 @@
     },
     {
       "deployedPath": "app.js",
-      "sha256": "5ea1107077f6e002056b75f5351b4aa60108516d8a0b1dba3d8348145426fe8d",
+      "sha256": "5d0e7262a558749515547e26a24a3eb8854afe68bd8e1d78702b214933d2b789",
       "sourcePath": "app.js"
     },
     {
@@ -231,7 +231,7 @@
     },
     {
       "deployedPath": "index.html",
-      "sha256": "7f472e3f5f9c78a81c39829afb10c0a627ce47013f255c3bbfb57c1584063450",
+      "sha256": "137c79869a3057d336fe36ee1b08a3ec30ce757f79aa3808f646c5bb06ee6547",
       "sourcePath": "staging.html"
     },
     {
@@ -365,5 +365,5 @@
       "sourcePath": "workshop-shared-actions.js"
     }
   ],
-  "sourceTree": "d1562f668cfd834b7696eb3ac3e83f0e0d974b86"
+  "sourceTree": "16b4e939984c0079fb9b9bb2b9cd75d84f9c4bd2"
 }
