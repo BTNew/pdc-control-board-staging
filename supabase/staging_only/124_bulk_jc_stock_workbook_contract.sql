@@ -400,8 +400,8 @@ begin
     select count(*) into v_operational_exact_count from public.vehicles v where v.deleted_at is null and v.lifecycle_state='active' and public.normalize_vehicle_stock_number(v.stock_number)=v_stock and upper(btrim(coalesce(v.job_card_number,'')))=v_jc;
     select count(*) into v_operational_partial_count from public.vehicles v where v.deleted_at is null and v.lifecycle_state='active' and ((public.normalize_vehicle_stock_number(v.stock_number)=v_stock and upper(btrim(coalesce(v.job_card_number,'')))<>v_jc) or (upper(btrim(coalesce(v.job_card_number,'')))=v_jc and public.normalize_vehicle_stock_number(v.stock_number)<>v_stock));
     v_reason:=null;
-    if v_exact_count=1 then v_classification:='navision_exact'; v_accepted:=v_accepted+1;
-    elsif v_exact_count>1 then v_classification:='quarantined'; v_reason:='multiple_current_exact_pair_matches'; v_quarantine:=v_quarantine+1; v_blocked:=v_blocked+1;
+    if v_exact_count=1 and v_stock_count=1 and v_jc_count=1 then v_classification:='navision_exact'; v_accepted:=v_accepted+1;
+    elsif v_exact_count>1 or v_stock_count>1 or v_jc_count>1 then v_classification:='quarantined'; v_reason:='multiple_current_identity_matches'; v_quarantine:=v_quarantine+1; v_blocked:=v_blocked+1;
     elsif v_stock_count>0 or v_jc_count>0 then v_classification:='quarantined'; v_reason:='partial_identity_disagreement'; v_quarantine:=v_quarantine+1; v_blocked:=v_blocked+1;
     elsif v_operational_partial_count>0 or v_operational_exact_count>1 then v_classification:='quarantined'; v_reason:='operational_identity_conflict'; v_quarantine:=v_quarantine+1; v_blocked:=v_blocked+1;
     elsif v_resolution='manager_override_no_current_navision_match' and v_auth.allow_no_current_navision_override then v_classification:='manager_override_no_current_navision_match'; v_reason:='no_current_navision_match'; v_quarantine:=v_quarantine+1; v_accepted:=v_accepted+1;
@@ -454,6 +454,10 @@ begin
     v_row_no:=(v_row->>'row_no')::integer; v_jc:=upper(btrim(v_row->>'job_card_number')); v_stock:=public.normalize_vehicle_stock_number(v_row->>'stock_number'); v_ops:=v_row->'operations'; v_backend_id:=null; v_vehicle_id:=null; v_vehicle_before:=null;
     select case when exists(select 1 from public.pdc_bulk_workbook_quarantine q where q.preview_id=p_preview_id and q.row_no=v_row_no and q.manager_override_selected) then 'manager_override_no_current_navision_match' else 'navision_exact' end into v_classification;
     if v_classification='navision_exact' then
+      if (select count(*) from public.navision_backend_records r where r.source_system='microsoft_navision' and r.record_status='current' and r.is_current and public.normalize_vehicle_stock_number(r.normalized_data->>'batch')=v_stock)<>1
+         or (select count(*) from public.navision_backend_records r where r.source_system='microsoft_navision' and r.record_status='current' and r.is_current and upper(btrim(coalesce(r.normalized_data->>'jobCardNumber','')))=v_jc)<>1 then
+        raise exception 'pdc_bulk_workbook_navision_identity_no_longer_unique row %',v_row_no using errcode='40001';
+      end if;
       select r.id into strict v_backend_id from public.navision_backend_records r where r.source_system='microsoft_navision' and r.record_status='current' and r.is_current and public.normalize_vehicle_stock_number(r.normalized_data->>'batch')=v_stock and upper(btrim(coalesce(r.normalized_data->>'jobCardNumber','')))=v_jc;
       select canonical_vehicle_id into v_vehicle_before from public.navision_board_activations where backend_record_id=v_backend_id;
       insert into public.navision_board_activations(backend_record_id,activation_source,activated_stock_number,activated_by,activated_by_email,active)
@@ -464,7 +468,7 @@ begin
       if v_vehicle_before is null then v_total_vehicles_added:=v_total_vehicles_added+1; end if;
       v_identity_source:='navision_exact';
     else
-      if exists(select 1 from public.navision_backend_records r where r.source_system='microsoft_navision' and r.record_status='current' and r.is_current and public.normalize_vehicle_stock_number(r.normalized_data->>'batch')=v_stock and upper(btrim(coalesce(r.normalized_data->>'jobCardNumber','')))=v_jc) then raise exception 'pdc_bulk_workbook_override_stale_navision_match row %',v_row_no using errcode='40001'; end if;
+      if exists(select 1 from public.navision_backend_records r where r.source_system='microsoft_navision' and r.record_status='current' and r.is_current and (public.normalize_vehicle_stock_number(r.normalized_data->>'batch')=v_stock or upper(btrim(coalesce(r.normalized_data->>'jobCardNumber','')))=v_jc)) then raise exception 'pdc_bulk_workbook_override_stale_or_conflicting_navision_identity row %',v_row_no using errcode='40001'; end if;
       select count(*),min(v.id::text)::uuid into v_existing_vehicle_count,v_vehicle_id from public.vehicles v where v.deleted_at is null and v.lifecycle_state='active' and public.normalize_vehicle_stock_number(v.stock_number)=v_stock and upper(btrim(coalesce(v.job_card_number,'')))=v_jc;
       if v_existing_vehicle_count>1 or exists(select 1 from public.vehicles v where v.deleted_at is null and v.lifecycle_state='active' and ((public.normalize_vehicle_stock_number(v.stock_number)=v_stock and upper(btrim(coalesce(v.job_card_number,'')))<>v_jc) or (upper(btrim(coalesce(v.job_card_number,'')))=v_jc and public.normalize_vehicle_stock_number(v.stock_number)<>v_stock))) then raise exception 'pdc_bulk_workbook_override_operational_identity_conflict row %',v_row_no using errcode='40001'; end if;
       if v_existing_vehicle_count=0 then
