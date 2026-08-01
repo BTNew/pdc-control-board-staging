@@ -12387,3 +12387,175 @@ button.vehicle-workshop-line-number:focus-visible { position: relative; z-index:
   .authenticated-email-operations li { grid-template-columns: auto 1fr; }
   .authenticated-email-operations li em { grid-column: 2; }
 }
+
+/* 2026-08-02 complete-view cosmetic audit.
+   Keep dense operational matrices horizontally scrollable, while preventing
+   ordinary page chrome and summary cards from being squeezed or cut off. */
+@media (max-width: 620px) {
+  .app-shell {
+    grid-template-columns: 64px minmax(0, 1fr) !important;
+  }
+
+  .sidebar {
+    padding-inline: 6px !important;
+  }
+
+  .topbar {
+    gap: 10px !important;
+  }
+
+  .topbar-actions {
+    width: 100% !important;
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 7px !important;
+    overflow: visible !important;
+    padding-bottom: 0 !important;
+  }
+
+  .topbar-actions button {
+    min-width: 0 !important;
+    width: 100% !important;
+    white-space: normal !important;
+    text-wrap: balance;
+  }
+
+  .visibility-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  .visibility-card:last-child:nth-child(odd) {
+    grid-column: 1 / -1;
+  }
+
+  .schedule-panel > .panel-header,
+  .department-panel > .panel-header {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) !important;
+    align-items: start !important;
+  }
+
+  .schedule-panel > .panel-header > .badge,
+  .department-panel > .panel-header > .badge {
+    width: 100%;
+    min-width: 0;
+    justify-content: flex-start;
+    white-space: normal;
+    text-align: left;
+  }
+
+  #workflow.view.active #workflow-collapse-all {
+    position: static !important;
+    inset: auto !important;
+    box-shadow: none !important;
+  }
+
+  #workflow.view.active .panel-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 7px;
+  }
+
+  .control-board-station-list,
+  .control-board-station-row {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+  }
+
+  .control-board-station-row .workflow-bucket-title,
+  .control-board-station-row:not([open]) .workflow-bucket-title {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    grid-template-columns: 20px minmax(0, 1fr) auto !important;
+    gap: 5px 8px !important;
+  }
+
+  .control-board-work-overview {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+  }
+
+  .control-board-station-row .workflow-bucket-title > span:first-of-type {
+    grid-column: 2 !important;
+    grid-row: 1 !important;
+  }
+
+  .control-board-station-row .workflow-bucket-title > strong {
+    grid-column: 3 !important;
+    grid-row: 1 !important;
+  }
+
+  .control-board-station-row .workflow-bucket-title > small {
+    grid-column: 2 / -1 !important;
+    grid-row: 2 !important;
+    overflow: visible !important;
+    white-space: normal !important;
+  }
+
+  .control-board-station-row .workflow-bucket-actions {
+    grid-column: 2 / -1 !important;
+    grid-row: 3 !important;
+    min-width: 0 !important;
+    justify-self: start !important;
+  }
+
+  #parts .parts-table-wrap {
+    overflow-x: auto !important;
+    overflow-y: auto !important;
+    overscroll-behavior-inline: contain;
+    scrollbar-gutter: stable both-edges;
+  }
+
+  #parts .parts-queue-table {
+    width: 980px !important;
+    min-width: 980px !important;
+    table-layout: fixed !important;
+  }
+
+  #parts .parts-help-strip::after {
+    content: "Swipe the queue horizontally to see ETA, blockers, stages and actions \2192";
+    display: block;
+    margin-top: 5px;
+    color: #1d4ed8;
+    font-weight: 800;
+  }
+
+  #parts .parts-queue-customer {
+    display: grid !important;
+    gap: 3px;
+    align-content: start;
+  }
+
+  #parts .parts-queue-row > td,
+  #parts .parts-queue-row > td * {
+    word-break: normal !important;
+    overflow-wrap: normal;
+  }
+
+  .tv-issue-row .vehicle-identity-columns {
+    width: 100%;
+    min-width: 0 !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 3px 8px !important;
+  }
+
+  .tv-issue-row .vehicle-identity-cell {
+    min-width: 0 !important;
+  }
+
+  .tv-issue-row .vehicle-identity-cell.identity-name {
+    grid-column: 1 / -1;
+  }
+
+  .tv-issue-row .vehicle-identity-value {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}

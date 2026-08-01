@@ -19,10 +19,25 @@
   },
   "artifact": "zero-data static staging site",
   "backendOnlyMigrationSourceCommit": "0cb8dee00f1fe6016d981ac204ba4d5da0c8979c",
-  "cacheVersion": "2026.07.30.03-recorded-decision-render",
-  "deploymentMode": "exact reviewed source blobs; staging.html mapped to index.html",
+  "cacheVersion": "2026.08.02.01-cosmetic-view-audit",
+  "cosmeticOverlay": {
+    "baseDeploymentCommit": "1cb92bd2f06882eb26a99a746eb9eaab0ebcf9e7",
+    "databaseChanges": false,
+    "predeployEvidenceZipSha256": "41ec54309264df5e99cc3cec73256383f088e05c10c4eced569776a314a24d4e",
+    "productionChanges": false,
+    "sourceBranch": "fix/full-site-cosmetic-audit-20260802",
+    "sourceCommit": "f9bb895e15fdfa76b93515f9a13bdf90f1b32fbe",
+    "sourceFiles": [
+      "styles.css",
+      "workshop-planner.css",
+      "app.js cache version",
+      "index.html cache version"
+    ],
+    "verification": "55 passed, 0 failed, 2 documented fixture skips; 75 before and 75 after application screenshots plus 3 before and 3 after login screenshots; zero browser-console errors and zero document-level horizontal overflow"
+  },
+  "deploymentMode": "existing exact staging release plus a source-commit-bound responsive cosmetic overlay",
   "environment": "staging",
-  "generatedAtUtc": "2026-07-30T09:35:58Z",
+  "generatedAtUtc": "2026-08-01T21:59:38Z",
   "hourProvenanceSourceCommit": "88ce1000d7b863ffb6b64a3a4b164340e105f3cd",
   "humanAiIntake": {
     "approvalGate": "Administrator decision remains server-validated; missing summaries disable Approve while Deny remains available.",
@@ -104,6 +119,7 @@
   "pendingStagingMigrations": [],
   "releaseChecks": {
     "aggregateTests": "135 Node test files passed; 0 failed; 1 intentional master-sheet fixture skip. 15 Python tests and all focused Auditor tests passed.",
+    "cosmeticAudit": "PASS — 25 application view states across desktop, tablet and mobile, plus the public login page, produced 156 paired before/after full-page screenshots. Source tests passed 55/55 with two documented fixture skips; all 75 after-state application captures had zero browser-console errors, zero duplicate IDs and zero document-level horizontal overflow.",
     "aiAuditorFindings": "PASS — current exact complete 26-vehicle dealer snapshot published 62 typed findings; review queue returns 61 undecided findings and 1 immutable denied disposition.",
     "aiAuditorHumanReview": "PASS — Administrator and Operator authenticated browser QA rendered 109 deterministic findings and 64 aggregate report controls per action with zero unexpected errors; one Deny persisted, rendered with its reason, replayed idempotently, produced no execution reference or operational mutation, and sent zero production requests. Viewer queue access returned can_decide=false and mutation was rejected server-side; Viewer browser sign-in was blocked by its invalid staging credential and was not reset.",
     "aiIntakeCardSeparation": "PASS \u2014 two-card browser proof computed #374151 background, 18px gap, 16px padding and two white cards; mobile override uses a 12px gap and 10px padding.",
@@ -191,7 +207,8 @@
     },
     {
       "deployedPath": "app.js",
-      "sha256": "5d0e7262a558749515547e26a24a3eb8854afe68bd8e1d78702b214933d2b789",
+      "sha256": "b79186be21e6a628fc2e32876eeb063429934aee72272d72b37ea4acef0c6c72",
+      "cosmeticOverlaySourceCommit": "f9bb895e15fdfa76b93515f9a13bdf90f1b32fbe",
       "sourcePath": "app.js"
     },
     {
@@ -231,7 +248,8 @@
     },
     {
       "deployedPath": "index.html",
-      "sha256": "137c79869a3057d336fe36ee1b08a3ec30ce757f79aa3808f646c5bb06ee6547",
+      "sha256": "14e698fd25f32711df1983a7160fd36772dd8ef0d220cac322ba0fcb3fba0433",
+      "cosmeticOverlaySourceCommit": "f9bb895e15fdfa76b93515f9a13bdf90f1b32fbe",
       "sourcePath": "staging.html"
     },
     {
@@ -296,7 +314,8 @@
     },
     {
       "deployedPath": "styles.css",
-      "sha256": "9a6d3a7e0d4f7089e3373060404698d64863a516a111c6fd26818c07d22b33bf",
+      "sha256": "927ceb19b0ebc27530c26c21bceb2715960a2fe16eb6e15147963890580de65e",
+      "cosmeticOverlaySourceCommit": "f9bb895e15fdfa76b93515f9a13bdf90f1b32fbe",
       "sourcePath": "styles.css"
     },
     {
@@ -341,7 +360,8 @@
     },
     {
       "deployedPath": "workshop-planner.css",
-      "sha256": "bbadf1607e4af9b1126ba4c0cdb75edcde0862d5fb0a8466f831e6352dfff555",
+      "sha256": "58d41866e40738d602d552342e4cfe3f115753935dfb3a86195770cd2eb8c834",
+      "cosmeticOverlaySourceCommit": "f9bb895e15fdfa76b93515f9a13bdf90f1b32fbe",
       "sourcePath": "workshop-planner.css"
     },
     {
