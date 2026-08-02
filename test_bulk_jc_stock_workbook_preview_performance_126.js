@@ -1,0 +1,26 @@
+'use strict';
+const assert = require('assert');
+const fs = require('fs');
+const path = require('path');
+const root = __dirname;
+const p125 = fs.readFileSync(path.join(root,'supabase','staging_only','125_fix_bulk_workbook_operation_number_contract.sql'),'utf8').replace(/\r\n/g,'\n');
+const p126 = fs.readFileSync(path.join(root,'supabase','staging_only','126_short_circuit_bulk_workbook_work_authority_quarantine.sql'),'utf8').replace(/\r\n/g,'\n');
+const rollback = fs.readFileSync(path.join(root,'supabase','staging_only','126_short_circuit_bulk_workbook_work_authority_quarantine.rollback.sql'),'utf8').replace(/\r\n/g,'\n');
+const extract = sql => {
+  const match = sql.match(/create or replace function public\.preview_pdc_bulk_jc_stock_workbook\(p_workbook_sha256 text,p_payload jsonb\)[\s\S]*?\n\$preview\$;/i);
+  assert(match,'Preview function missing');
+  return match[0];
+};
+assert(p126.includes("project_ref='cdsmnqxtyyoeoznmbidd'"));
+assert(p126.includes("version='125' and name='fix_bulk_workbook_operation_number_contract'"));
+assert(p126.includes("values('126','short_circuit_bulk_workbook_work_authority_quarantine'"));
+const fn126=extract(p126).toLowerCase();
+assert(fn126.includes("set statement_timeout='60s'"));
+const loop=fn126.indexOf('for v_row in select value from jsonb_array_elements(v_payload) loop');
+const missing=fn126.indexOf("if exists(select 1 from jsonb_array_elements(v_row->'operations') o where o->'work_key'='null'::jsonb) then",loop);
+const identityScan=fn126.indexOf('select count(*) into v_exact from public.navision_backend_records',loop);
+assert(loop>=0 && missing>loop && identityScan>missing,'missing work authority must short-circuit before identity scans');
+assert(fn126.includes("v_reason:='missing_authoritative_work_key';\n    else"));
+assert(rollback.includes('PDC_BULK_126_ROLLBACK_PREVIEW_ACTIVITY_PRESENT_RECOVERY_REQUIRED'));
+assert.strictEqual(extract(rollback),extract(p125),'rollback must restore the exact migration-125 Preview function');
+console.log('Migration 126 work-authority short-circuit contract passed');
