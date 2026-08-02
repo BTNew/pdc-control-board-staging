@@ -1170,8 +1170,9 @@ button.workshop-search-result:hover, button.workshop-search-result:focus-visible
   .workshop-link-readiness-summary { grid-template-columns: repeat(2, minmax(110px, 1fr)); }
 }
 
-/* 2026-08-02 complete-view cosmetic audit: keep planner controls readable on
-   phones while retaining the intentionally scrollable bay timeline. */
+/* Reconciled from the verified current staging artifact during the
+   production-readiness topology reset. Keep mobile planner controls readable
+   while retaining the intentionally scrollable bay timeline. */
 @media (max-width: 620px) {
   .workshop-planner-header {
     gap: 12px;

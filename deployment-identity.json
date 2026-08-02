@@ -1,25 +1,40 @@
 {
-  "artifact": "zero-data static staging site",
+  "artifact": "zero-embedded-data static staging site",
   "environment": "staging",
-  "generatedAtUtc": "2026-08-02T19:28:43Z",
-  "deploymentMode": "Full current staging UI restored with compact vehicle Work & bookings rows; Administrator workbook review preserved",
-  "baseDeploymentCommit": "63e656482365ac30824664e0c19b3205ea11c1e4",
+  "generatedAtUtc": "2026-08-02T20:06:33Z",
+  "deploymentMode": "Production-readiness staging topology reset: obsolete routes fail closed; cache assets refreshed; current operational UI and Administrator workbook review preserved",
+  "baseDeploymentCommit": "61e0cdf33c264bf970644d750c2e7aee409595ad",
   "sourceRepository": "BTNew/pdc-control-board",
-  "sourceBranch": "fix/staging-compact-work-bookings-20260803",
-  "sourceCommit": "fc517a317a43a4ce03ae08407a3703ea5dd5f055",
-  "sourceTree": "5498088fa5907c77c2722e31e125e7ac4ad1491a",
-  "cacheVersion": "2026.08.03.01-compact-work-bookings",
+  "sourceBranch": "campaign/staging-production-readiness-reset-20260803",
+  "sourceCommit": "1afa7675281ddcfc9679dc969bb42b0c6be6d366",
+  "sourceTree": "da20d659550553de2045cb2c605ec701664b4459",
+  "cacheVersion": "2026.08.03.02-production-readiness-staging-reset",
   "stagingProjectRef": "cdsmnqxtyyoeoznmbidd",
   "zeroData": true,
   "mailboxAuthority": false,
   "outboundEmailAuthority": false,
   "productionActivation": false,
-  "twoPhysicalWorkstationAuthorityCutover": false,
+  "pilotActivation": false,
   "migrationLedger": {
     "appliedThrough": "127",
     "ledgerHead": "127",
     "migration": "admin_bulk_workbook_review_page",
     "rollbackAvailable": true
+  },
+  "retiredRoutes": [
+    "pipeline",
+    "visibility",
+    "tv",
+    "schedule",
+    "department"
+  ],
+  "serviceWorkers": [],
+  "localScreenshotServersActive": 0,
+  "syntheticInventory": {
+    "approvedNamespace": "QA-WCB-20260728T130102Z",
+    "total": 152,
+    "active": 0,
+    "retainedNonFixtureRecords": 73
   },
   "workbookReview": {
     "administratorOnly": true,
@@ -29,24 +44,156 @@
     "applyReceipts": 0
   },
   "releaseChecks": {
-    "aggregateTests": "137 passed, 0 failed, 1 documented skip",
-    "focusedTests": "compact Work & bookings, Administrator review/security and syntax checks passed",
-    "tabletVisual": "compact station cards fit without horizontal overflow; 12-column table removed; description, hours, booking progress and actions retained",
-    "roleSecurity": "Administrator-only Import Review and demotion purge preserved",
+    "aggregateTests": "138 passed, 0 failed, 1 documented skip",
+    "focusedTests": "retired routes, bounded browser cleanup, Administrator review/security and syntax checks passed",
+    "assetParity": "all deployed source files byte-identical to exact source worktree before commit",
+    "roleSecurity": "Administrator-only Import Review and PMB Monitor viewer/narrow capability model preserved",
     "production": "unchanged"
   },
   "sourceFiles": [
     {
-      "sourcePath": "staging.html",
-      "deployedPath": "index.html",
-      "sha256": "a9ea97f7e75b341b3863b6bdb4acb0d30f7ca4895ac20819986034294f1975fb",
-      "bytes": 63866
+      "sourcePath": "ai-auditor.css",
+      "deployedPath": "ai-auditor.css",
+      "sha256": "42082df36786db1d64a4cba7f3e5638edfd22fac401d8857c780470f0eb1a10c",
+      "bytes": 8492
+    },
+    {
+      "sourcePath": "ai-board-advisor.js",
+      "deployedPath": "ai-board-advisor.js",
+      "sha256": "a01dc581a417684c5a3377057bc70a57624bdaa3ad67c24b408eedfa86e0fc4e",
+      "bytes": 19046
     },
     {
       "sourcePath": "app.js",
       "deployedPath": "app.js",
-      "sha256": "8fa23bea33eac89bab8f6aad4f1ac4bb419ce4e806cfd83a5ceec73c4a066078",
-      "bytes": 1027543
+      "sha256": "b5bc0b377c9c3bf00aba9a25b0bc10eeb66a4a88c6c0fa7191fe3f131f3a0ec3",
+      "bytes": 1028009
+    },
+    {
+      "sourcePath": "arb-labor-catalog.js",
+      "deployedPath": "arb-labor-catalog.js",
+      "sha256": "db99ee8c4ddf341ce3f948dc04fb70cbe6c66d122be1a262f7074552a2fa49c0",
+      "bytes": 144811
+    },
+    {
+      "sourcePath": "assets/brand-logo.svg",
+      "deployedPath": "assets/brand-logo.svg",
+      "sha256": "4bffc708627c0ee8de1a997aec6bf3aae7461fb779f2700f41fd47e6645dd28d",
+      "bytes": 425
+    },
+    {
+      "sourcePath": "assets/pmb-logo.png",
+      "deployedPath": "assets/pmb-logo.png",
+      "sha256": "b795f771135b94768d211ca912472fd7d74e324cf27d5d03a354380344b7a923",
+      "bytes": 24917
+    },
+    {
+      "sourcePath": "data-staging-empty.js",
+      "deployedPath": "data-staging-empty.js",
+      "sha256": "d2a9ed658daa1cc5eabb45a78eeb5c7f93ef0146a12e7f8c23d0b028f915c7a9",
+      "bytes": 454
+    },
+    {
+      "sourcePath": "desktop-operations.css",
+      "deployedPath": "desktop-operations.css",
+      "sha256": "f3179efdeeaf34ba76dfc10c56aa2c3c59498ee61e60c11e0032abb9d3b51616",
+      "bytes": 19424
+    },
+    {
+      "sourcePath": "email-board-data.js",
+      "deployedPath": "email-board-data.js",
+      "sha256": "3b55079afe708ae6842a6ddb61e19e912a8182cdc835a5d4102e4a5815dbace0",
+      "bytes": 669
+    },
+    {
+      "sourcePath": "favicon.svg",
+      "deployedPath": "favicon.svg",
+      "sha256": "f79b374447017a73a77012096c6d031ddb2ad6bf1b647d2efbfd465e6a5f32e6",
+      "bytes": 256
+    },
+    {
+      "sourcePath": "staging.html",
+      "deployedPath": "index.html",
+      "sha256": "f9685056c15107fc349a79a51f0902689649a2f1fa2c095bb57b00e73239807f",
+      "bytes": 64154
+    },
+    {
+      "sourcePath": "key-list-review.js",
+      "deployedPath": "key-list-review.js",
+      "sha256": "b6b42659b28b812fcf63b13a60faac8276e866442950f2e55197a8fec0aedf67",
+      "bytes": 9967
+    },
+    {
+      "sourcePath": "navision-backend-service.js",
+      "deployedPath": "navision-backend-service.js",
+      "sha256": "04d6e34ec33f0a462948085290bd489792644ea51fed580b0a51003ddfa0d370",
+      "bytes": 12482
+    },
+    {
+      "sourcePath": "pdc-ai-auditor-stage-a.js",
+      "deployedPath": "pdc-ai-auditor-stage-a.js",
+      "sha256": "4bbd85af3f05d6c2be6997b648ef3d584c4b3e00d5c69f7a218d3c92b3f17228",
+      "bytes": 62182
+    },
+    {
+      "sourcePath": "pdc-ai-intake-review.css",
+      "deployedPath": "pdc-ai-intake-review.css",
+      "sha256": "cc5f0c4039e8e10bcace3cab4ffe73b39cc725e8c3582bf28dbbb54bd9fd5064",
+      "bytes": 1154
+    },
+    {
+      "sourcePath": "pdc-ai-intake-review.js",
+      "deployedPath": "pdc-ai-intake-review.js",
+      "sha256": "575ea073661ea77830c249e6b64e86f9b4fae50708a3609dd1f18653a55e7c04",
+      "bytes": 5337
+    },
+    {
+      "sourcePath": "pdc-ai-intake-service.js",
+      "deployedPath": "pdc-ai-intake-service.js",
+      "sha256": "dc8fdb4ca33a236c98d6f9e38a15e0c2e32f7bfc2b8b27d31914a1e82bd89be5",
+      "bytes": 7012
+    },
+    {
+      "sourcePath": "pdc-auth-registration.js",
+      "deployedPath": "pdc-auth-registration.js",
+      "sha256": "13841fdf4408300d737b880cd4d676d2e49bdf4df65bd0f0c491db9e89da9dab",
+      "bytes": 5895
+    },
+    {
+      "sourcePath": "pdc-auth.js",
+      "deployedPath": "pdc-auth.js",
+      "sha256": "714f679310200f0dbfe232038179c48e8188d473159eddcfbde2ed76108f799b",
+      "bytes": 34216
+    },
+    {
+      "sourcePath": "pdc-bulk-workbook-admin-review.js",
+      "deployedPath": "pdc-bulk-workbook-admin-review.js",
+      "sha256": "c628e67f31eb8cab0e338e3a770dd132e75d2fe543c94a3c5e45457dbf20eea6",
+      "bytes": 10797
+    },
+    {
+      "sourcePath": "pdc-email-vehicle-location-service.js",
+      "deployedPath": "pdc-email-vehicle-location-service.js",
+      "sha256": "49a86ba6e13859359f835e065b126652df5ad72a16000368642c64280f0261ce",
+      "bytes": 13913
+    },
+    {
+      "sourcePath": "pdc-supabase-config.staging.js",
+      "deployedPath": "pdc-supabase-config.staging.js",
+      "sha256": "d9b863cf790d4eb2c891b0bebcfe5ce37f027901c611c83adbaf162ea7b22018",
+      "bytes": 1718
+    },
+    {
+      "sourcePath": "scripts/stage2b_c4_browser_export.js",
+      "deployedPath": "scripts/stage2b_c4_browser_export.js",
+      "sha256": "5dafeb35a33626fec47aeaa931d17f83f22e436a4f602cbae66914537ab90f18",
+      "bytes": 14310
+    },
+    {
+      "sourcePath": "staging-browser-assessment.js",
+      "deployedPath": "staging-browser-assessment.js",
+      "sha256": "29acbe12e27d787b12d75614086278ac54e2ffe04bb6dfd755b3cacc7077bded",
+      "bytes": 3935
     },
     {
       "sourcePath": "styles.css",
@@ -55,16 +202,106 @@
       "bytes": 374069
     },
     {
-      "sourcePath": "pdc-supabase-config.staging.js",
-      "deployedPath": "pdc-supabase-config.staging.js",
-      "sha256": "59d68b3d1f5cf8e44be08c3876ccd889e9942042b5d2e61d8ef13e859a32183f",
-      "bytes": 1705
+      "sourcePath": "supabase/staging_only/096_navision_stock_number_authority.sql",
+      "deployedPath": "supabase/staging_only/096_navision_stock_number_authority.sql",
+      "sha256": "0a49c9f00af867b84c8ffa1bb6cb71c59948e52c58ed2af8adcea762647004c5",
+      "bytes": 38712
     },
     {
-      "sourcePath": "pdc-bulk-workbook-admin-review.js",
-      "deployedPath": "pdc-bulk-workbook-admin-review.js",
-      "sha256": "c628e67f31eb8cab0e338e3a770dd132e75d2fe543c94a3c5e45457dbf20eea6",
-      "bytes": 10797
+      "sourcePath": "supabase/staging_only/098_workshop_control_board_vehicle_loading.sql",
+      "deployedPath": "supabase/staging_only/098_workshop_control_board_vehicle_loading.sql",
+      "sha256": "8079c1b836e3c9638d796cb7478465c3cea33834864a40923c5f0be67d38020c",
+      "bytes": 10376
+    },
+    {
+      "sourcePath": "supabase/staging_only/099_authenticated_pd_accessory_lines.sql",
+      "deployedPath": "supabase/staging_only/099_authenticated_pd_accessory_lines.sql",
+      "sha256": "d71e38ad1a8a3829002762b5072eb37f322cb194585b2013399bcffae4dbcbbf",
+      "bytes": 14056
+    },
+    {
+      "sourcePath": "test_navision_stock_authority_096.js",
+      "deployedPath": "test_navision_stock_authority_096.js",
+      "sha256": "e97bdb96eec71b3e79e06bb29d043449cfc7253da487df4d03bf72ef4b84089b",
+      "bytes": 1988
+    },
+    {
+      "sourcePath": "vehicle-lifecycle-actions.js",
+      "deployedPath": "vehicle-lifecycle-actions.js",
+      "sha256": "33ee5ae8874ab630f719d21137a15c59cd0a6e279a048c5d4125b665ef2a2aed",
+      "bytes": 18796
+    },
+    {
+      "sourcePath": "vendor/pdfjs/LICENSE",
+      "deployedPath": "vendor/pdfjs/LICENSE",
+      "sha256": "0d542e0c8804e39aa7f37eb00da5a762149dc682d7829451287e11b938e94594",
+      "bytes": 10174
+    },
+    {
+      "sourcePath": "vendor/pdfjs/pdf.min.js",
+      "deployedPath": "vendor/pdfjs/pdf.min.js",
+      "sha256": "5b5799e6f8c680663207ac5b42ee14eed2a406fa7af48f50c154f0c0b1566946",
+      "bytes": 320004
+    },
+    {
+      "sourcePath": "vendor/pdfjs/pdf.worker.min.js",
+      "deployedPath": "vendor/pdfjs/pdf.worker.min.js",
+      "sha256": "feabdf309770ed24bba31a5467836cdc8cf639c705af27d52b585b041bb8527b",
+      "bytes": 1087212
+    },
+    {
+      "sourcePath": "vendor/qz/qz-tray.js",
+      "deployedPath": "vendor/qz/qz-tray.js",
+      "sha256": "b0a0afde74511e5284195cc875bc862b1ea4233f6c6aecb3ad485430a56bf4a6",
+      "bytes": 148138
+    },
+    {
+      "sourcePath": "vendor/supabase/supabase-2.110.5.js",
+      "deployedPath": "vendor/supabase/supabase-2.110.5.js",
+      "sha256": "8e00fd587eb7c5148c977fa7c425316e8f9f168b3831100d8e2925a9807b5893",
+      "bytes": 206885
+    },
+    {
+      "sourcePath": "workshop-data-service.js",
+      "deployedPath": "workshop-data-service.js",
+      "sha256": "02f01028a2a6f3d6d9284de397d3efe19817a47364289867c206be947c087520",
+      "bytes": 19271
+    },
+    {
+      "sourcePath": "workshop-eligibility.js",
+      "deployedPath": "workshop-eligibility.js",
+      "sha256": "148161fe2823f511214256e9dde138e9eddd633d0f63946205b382bfc87ef3ff",
+      "bytes": 9494
+    },
+    {
+      "sourcePath": "workshop-planner.css",
+      "deployedPath": "workshop-planner.css",
+      "sha256": "21f1f806b0bb289172b775602c1979c2f31d63cc62c6ff8f972003d5325c17c4",
+      "bytes": 43286
+    },
+    {
+      "sourcePath": "workshop-planner.js",
+      "deployedPath": "workshop-planner.js",
+      "sha256": "b7da3d3e59cb91deba3c104051e279e7ceb6a9926043f5e33afa33fff9c45ac4",
+      "bytes": 325481
+    },
+    {
+      "sourcePath": "workshop-realtime.js",
+      "deployedPath": "workshop-realtime.js",
+      "sha256": "484c0a4ebc6e823fbca6eaf7f6c3fe4e563902abfbd3959221d21c19f45c0361",
+      "bytes": 9237
+    },
+    {
+      "sourcePath": "workshop-reference-data-service.js",
+      "deployedPath": "workshop-reference-data-service.js",
+      "sha256": "ebe98f65a5cea69a42fdad77535f9bcdbf0f61c4013c34e7e7be34866b2682fe",
+      "bytes": 28440
+    },
+    {
+      "sourcePath": "workshop-shared-actions.js",
+      "deployedPath": "workshop-shared-actions.js",
+      "sha256": "7a1cbc87e394f0ec8db1b7fb3da543fc3ac9e13a0d44be9e3e5f8447dd87df3b",
+      "bytes": 8003
     }
   ]
 }

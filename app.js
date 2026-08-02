@@ -1,5 +1,5 @@
-const APP_VERSION = '2026.08.03.01-compact-work-bookings';
-const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.08.03.01-compact-work-bookings';
+const APP_VERSION = '2026.08.03.02-production-readiness-staging-reset';
+const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.08.03.02-production-readiness-staging-reset';
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
 // constant intentionally names only the production ref, never the
@@ -2826,6 +2826,11 @@ function workshopCombinedPlannerRollbackEnabled() {
   return configured === true;
 }
 
+// These prototype boards were never part of the production-intended menu.
+// Keep their implementation temporarily as historical source evidence, but
+// fail closed when an obsolete saved hash or bookmark attempts to open one.
+const RETIRED_STAGING_VIEW_IDS = new Set(['pipeline', 'visibility', 'tv', 'schedule', 'department']);
+
 function workshopViewFromLocation() {
   let path = '';
   try {
@@ -2838,7 +2843,8 @@ function workshopViewFromLocation() {
   if (path === 'workshop') return workshopCombinedPlannerRollbackEnabled() ? 'workshop' : 'workflow';
   if (path.startsWith('workshop/')) return 'workflow';
   const candidate = path.replaceAll('/', '-');
-  return document.getElementById(candidate) || document.querySelector(`[data-view="${candidate}"]`) ? candidate : 'dashboard';
+  if (RETIRED_STAGING_VIEW_IDS.has(candidate)) return 'dashboard';
+  return document.querySelector(`[data-view="${candidate}"]`) ? candidate : 'dashboard';
 }
 
 function workshopLocationPathForView(view = '') {
@@ -3678,6 +3684,7 @@ function renderAdminWorkbookImportReview() {
 function showView(view, options) {
   options = options || {};
   let requestedView = view || 'dashboard';
+  if (RETIRED_STAGING_VIEW_IDS.has(requestedView)) requestedView = 'dashboard';
   if (requestedView.startsWith('planner-') && !WORKSHOP_PLANNER_VIEWS[requestedView]) requestedView = 'workflow';
   if (requestedView === 'workshop' && !workshopCombinedPlannerRollbackEnabled()) requestedView = 'workflow';
   const departmentStage = PRODUCTION_DEPARTMENT_VIEWS[requestedView] || '';
