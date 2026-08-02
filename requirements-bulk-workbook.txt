@@ -1,0 +1,2 @@
+# Isolated dependencies for the safe retained-workbook adapter/runner.
+openpyxl==3.1.5
