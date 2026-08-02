@@ -1,0 +1,26 @@
+'use strict';
+const assert = require('assert');
+const fs = require('fs');
+const path = require('path');
+const root = __dirname;
+const p124 = fs.readFileSync(path.join(root,'supabase','staging_only','124_bulk_jc_stock_workbook_contract.sql'),'utf8').replace(/\r\n/g,'\n');
+const p125 = fs.readFileSync(path.join(root,'supabase','staging_only','125_fix_bulk_workbook_operation_number_contract.sql'),'utf8').replace(/\r\n/g,'\n');
+const rollback = fs.readFileSync(path.join(root,'supabase','staging_only','125_fix_bulk_workbook_operation_number_contract.rollback.sql'),'utf8').replace(/\r\n/g,'\n');
+const oldRx = '^OP([1-9]|[1-9][0-9]{1,2})$';
+const newRx = '^OP(00[1-9]|0[1-9][0-9]|100)$';
+const extract = sql => {
+  const match = sql.match(/create or replace function public\.preview_pdc_bulk_jc_stock_workbook\(p_workbook_sha256 text,p_payload jsonb\)[\s\S]*?\n\$preview\$;/i);
+  assert(match,'Preview function missing');
+  return match[0];
+};
+assert(p125.includes("project_ref='cdsmnqxtyyoeoznmbidd'"));
+assert(p125.includes("to_regclass('public.pdc_production_environment_sentinel') is not null"));
+assert(p125.includes("version='124' and name='bulk_jc_stock_workbook_contract'"));
+assert(p125.includes("values('125','fix_bulk_workbook_operation_number_contract'"));
+assert(extract(p125).includes(newRx));
+assert(!extract(p125).includes(oldRx));
+assert.strictEqual(extract(p125), extract(p124).replace(oldRx,newRx), '125 may only change the operation-number regex in Preview');
+assert(rollback.includes('PDC_BULK_125_ROLLBACK_ACTIVITY_PRESENT_RECOVERY_REQUIRED'));
+assert(extract(rollback).includes(oldRx));
+assert(!extract(rollback).includes(newRx));
+console.log('Migration 125 workbook operation-number contract passed');
