@@ -1,14 +1,14 @@
 {
   "artifact": "zero-data static staging site",
   "environment": "staging",
-  "generatedAtUtc": "2026-08-02T06:32:26Z",
-  "deploymentMode": "Administrator-only guarded workbook Preview review UI with role-demotion purge",
-  "baseDeploymentCommit": "1a7caebc3633d0c04f82a50fd113f4e2d8c6a55e",
+  "generatedAtUtc": "2026-08-02T19:28:43Z",
+  "deploymentMode": "Full current staging UI restored with compact vehicle Work & bookings rows; Administrator workbook review preserved",
+  "baseDeploymentCommit": "63e656482365ac30824664e0c19b3205ea11c1e4",
   "sourceRepository": "BTNew/pdc-control-board",
-  "sourceBranch": "feat/staging-admin-workbook-import-review-20260802",
-  "sourceCommit": "f6c272fbbc74f3d4570d2b911195e39e1108d3d0",
-  "sourceTree": "3ebfe4816128ff02db5336fd28d14b6ae138078e",
-  "cacheVersion": "2026.08.02.03-admin-import-role-demotion",
+  "sourceBranch": "fix/staging-compact-work-bookings-20260803",
+  "sourceCommit": "fc517a317a43a4ce03ae08407a3703ea5dd5f055",
+  "sourceTree": "5498088fa5907c77c2722e31e125e7ac4ad1491a",
+  "cacheVersion": "2026.08.03.01-compact-work-bookings",
   "stagingProjectRef": "cdsmnqxtyyoeoznmbidd",
   "zeroData": true,
   "mailboxAuthority": false,
@@ -25,44 +25,40 @@
     "administratorOnly": true,
     "readOnly": true,
     "operationalApply": false,
-    "vehicleRows": 411,
-    "operationRows": 3530,
     "acceptedRows": 0,
-    "quarantinedVehicleRows": 411,
-    "quarantinedOperationRows": 3530,
-    "applyReceipts": 0,
-    "pageSize": 25,
-    "searchEnabled": true
+    "applyReceipts": 0
   },
   "releaseChecks": {
-    "aggregateTests": "61 passed, 0 failed, 2 documented skips",
-    "javascriptSyntax": "all tracked JavaScript files passed node --check",
-    "migrationRehearsal": "migration 127 compiled inside a staging transaction and rolled back cleanly before permanent apply",
-    "migrationApply": "ledger 126 to 127; protected table counts unchanged; security-definer stable read function; EXECUTE only for authenticated and owner",
-    "authenticatedRpc": "Administrator page 1 and page 2 returned HTTP 200 with 25 stable non-overlapping rows each; Controller failed closed; anonymous returned HTTP 401",
-    "authenticatedBrowser": "Exact source rendered 25 Administrator rows and 258 operation lines on page 1, 25 rows on page 2, search empty-state and the 411/3530/0 summary against live staging; Controller navigation stayed hidden and made zero workbook-review calls; request hosts were localhost and the staging project only; zero unexpected severe console errors (one pre-existing unrelated get_workshop_snapshot 403 retained as evidence)",
-    "roleDemotionRemediation": "Exact source cleared the review host on route leave, purged retained evidence on Administrator-to-Controller demotion, hid navigation, suppressed pending results and made zero post-demotion review calls",
-    "backup": "encrypted manual staging backup run cb55611d-598d-44f8-a369-601a366d8c12 completed before migration apply",
+    "aggregateTests": "137 passed, 0 failed, 1 documented skip",
+    "focusedTests": "compact Work & bookings, Administrator review/security and syntax checks passed",
+    "tabletVisual": "compact station cards fit without horizontal overflow; 12-column table removed; description, hours, booking progress and actions retained",
+    "roleSecurity": "Administrator-only Import Review and demotion purge preserved",
     "production": "unchanged"
   },
   "sourceFiles": [
     {
       "sourcePath": "staging.html",
       "deployedPath": "index.html",
-      "sha256": "6defafdea299ac678dc0992c18d7c54665fa17d4f84a594103945fb2d67fc993",
-      "bytes": 62964
+      "sha256": "30a845e7f516c6550710a66f94ffdc4879f8214c66557ed10b7cc5437e52b1a8",
+      "bytes": 64842
     },
     {
       "sourcePath": "app.js",
       "deployedPath": "app.js",
-      "sha256": "821d4b69dcf4075558f02961b2f78dabf095d3cf3eda03848cd674bc8e84e424",
-      "bytes": 818311
+      "sha256": "8fa23bea33eac89bab8f6aad4f1ac4bb419ce4e806cfd83a5ceec73c4a066078",
+      "bytes": 1027543
     },
     {
       "sourcePath": "styles.css",
       "deployedPath": "styles.css",
-      "sha256": "8ea707e7f6923f420676f4c727951286d9947a1a417f3c554fb20235cba18de6",
-      "bytes": 337914
+      "sha256": "af361dceec38ed190d405ca1c37b04e3af8244375e77f020fab9e36e50198afe",
+      "bytes": 386675
+    },
+    {
+      "sourcePath": "pdc-supabase-config.staging.js",
+      "deployedPath": "pdc-supabase-config.staging.js",
+      "sha256": "59d68b3d1f5cf8e44be08c3876ccd889e9942042b5d2e61d8ef13e859a32183f",
+      "bytes": 1705
     },
     {
       "sourcePath": "pdc-bulk-workbook-admin-review.js",
