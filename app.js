@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.02.02-admin-import-review';
+const APP_VERSION = '2026.08.02.03-admin-import-role-demotion';
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
 // constant intentionally names only the production ref, never the
@@ -3369,6 +3369,9 @@ function showView(view) {
   const requestedView = view || 'dashboard';
   const departmentStage = PRODUCTION_DEPARTMENT_VIEWS[requestedView] || '';
   const nextView = departmentStage ? 'department' : requestedView;
+  if (app.currentView === 'admin-import' && nextView !== 'admin-import') {
+    destroyAdminWorkbookImportReview();
+  }
   releaseHeavyViewDom(app.currentView, nextView);
   if (requestedView !== 'workflow') {
     app.activePmbBayStage = '';
@@ -3710,6 +3713,7 @@ window.addEventListener?.('pdc-auth-ready', () => {
   if (typeof refreshWorkshopReferenceData === 'function') refreshWorkshopReferenceData();
   const navItem = document.getElementById('nav-user-management');
   if (navItem) navItem.hidden = !(typeof backupStatusSharedModeReady === 'function' && backupStatusSharedModeReady());
+  if (window.PDC_AUTH_CONTEXT?.role !== 'administrator') destroyAdminWorkbookImportReview();
   updateAdminWorkbookImportNavigation();
   if (app.currentView === 'admin-import') renderAdminWorkbookImportReview();
   if (app.currentView === 'emailreview' && typeof renderAiBoardAdvisor === 'function') renderAiBoardAdvisor();
