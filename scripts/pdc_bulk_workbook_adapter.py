@@ -25,6 +25,52 @@ HEADERS = ("JC Number", "Stock Number", "Operation", "Estimated Hours")
 CONTROL_RE = re.compile(r"[\x00-\x1f\x7f-\x9f]")
 MAX_ROWS = 500
 MAX_OPERATIONS = 100
+STAGE_MAPPING_POLICY = "pmb-workshop-stages-v1"
+PLACEHOLDER_OPERATION = "no operation available"
+
+
+def _normalized_words(value: str) -> str:
+    return " ".join(re.sub(r"[^a-z0-9]+", " ", value.casefold()).split())
+
+
+def is_placeholder_operation(description: str) -> bool:
+    return _normalized_words(description) == PLACEHOLDER_OPERATION
+
+
+def _contains_any(text: str, phrases: tuple[str, ...]) -> bool:
+    return any(phrase in text for phrase in phrases)
+
+
+def infer_work_key(description: str) -> str:
+    """Map a real workbook operation to one deterministic PMB workshop stage."""
+    text = _normalized_words(description)
+    if not text or text == PLACEHOLDER_OPERATION:
+        raise WorkbookContractError("placeholder operation has no workshop stage")
+    if _contains_any(text, ("pte tray at cost", "sublet", "outsourc")):
+        return "sublet"
+    if _contains_any(text, ("pre delivery", "predelivery", "pdi", "fill with fuel", "fuel fill")):
+        return "pitInspection"
+    if "tint" in text:
+        return "tint"
+    if _contains_any(text, ("4x4 bus", "bus 4x4", "4x4 conversion", "four by four conversion")):
+        return "bus4x4"
+    if _contains_any(text, ("gvm", "suspension", "shock absorber", "leaf spring", "coil spring", "lift kit", "ome ")):
+        return "hoist"
+    if _contains_any(text, ("tyre", "tire", "wheel alignment", "spare wheel", "spare rim", "steel rim", "alloy rim", "wheel nut indicator")):
+        return "tyre"
+    if _contains_any(text, ("left loose", "loose in vehicle", "loose in car", "supply only", "do not fit")):
+        return "PARTS"
+    if _contains_any(text, (
+        "battery", "isolator", "minebar", "lightbar", "headlamp", "lamp", "beacon",
+        "reverse buzzer", "brake controller", "uhf", "gme", "radio", "aerial", "antenna",
+        "wiring", "wired", "switch", "camera", "dashcam", "plug", "usb", "electrical",
+        "electric", "sounder", "siren", "horn", "inverter", "solar", "redarc", "strobe",
+        "narva", " led ", "alarm", "tracker", " gps ", "ignition", "hand brake",
+    )):
+        return "electrical"
+    if _contains_any(text, ("fabricat", "weld", "custom bracket", "tray modification", "chassis modification")):
+        return "fabrication"
+    return "fitting"
 
 
 class WorkbookContractError(ValueError):
@@ -74,7 +120,7 @@ def canonical_payload_bytes(payload: list[dict[str, Any]]) -> bytes:
     return json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"), allow_nan=False).encode("utf-8")
 
 
-def adapt_workbook(path: str | Path) -> AdaptedWorkbook:
+def adapt_workbook(path: str | Path, stage_mapping_policy: str | None = None) -> AdaptedWorkbook:
     workbook_path = Path(path)
     if workbook_path.suffix.lower() != ".xlsx":
         raise WorkbookContractError("only .xlsx workbooks are accepted")
@@ -107,13 +153,17 @@ def adapt_workbook(path: str | Path) -> AdaptedWorkbook:
             jc = _text(values[0], "JC", 60)
             stock = _text(values[1], "Stock", 80)
             description = _text(values[2], "Operation / Kit", 180)
-            hours, source = _hours(values[3])
             key = (jc, stock)
             if key not in groups:
                 if len(groups) >= MAX_ROWS:
                     raise WorkbookContractError(f"workbook exceeds {MAX_ROWS} JC/Stock groups")
                 groups[key] = []
                 seen_operations[key] = set()
+            if stage_mapping_policy == STAGE_MAPPING_POLICY and is_placeholder_operation(description):
+                continue
+            if stage_mapping_policy not in (None, STAGE_MAPPING_POLICY):
+                raise WorkbookContractError("unsupported workshop-stage mapping policy")
+            hours, source = _hours(values[3])
             duplicate_key = (description, hours)
             if duplicate_key in seen_operations[key]:
                 raise WorkbookContractError("duplicate operation within a JC/Stock group")
@@ -122,8 +172,8 @@ def adapt_workbook(path: str | Path) -> AdaptedWorkbook:
             if len(operations) >= MAX_OPERATIONS:
                 raise WorkbookContractError(f"JC/Stock group exceeds {MAX_OPERATIONS} operations")
             operations.append({
-                "operation_no": f"OP{len(operations) + 1:03d}",
-                "work_key": None,
+                "operation_no": f"OP{len(operations) + 1}",
+                "work_key": infer_work_key(description) if stage_mapping_policy else None,
                 "description": description,
                 "estimated_hours": hours,
                 "estimated_hours_source": source,
@@ -150,6 +200,12 @@ def adapt_workbook(path: str | Path) -> AdaptedWorkbook:
         "missing_hours_count": operation_count - len(hours_values),
         "estimated_hours_total": round(math.fsum(float(value) for value in hours_values), 2),
         "max_operations_per_pair": max(len(row["operations"]) for row in payload),
+        "stage_mapping_policy": stage_mapping_policy,
+        "stage_counts": {
+            key: sum(1 for row in payload for op in row["operations"] if op["work_key"] == key)
+            for key in sorted({op["work_key"] for row in payload for op in row["operations"] if op["work_key"] is not None})
+        },
+        "stock_only_rows": sum(1 for row in payload if not row["operations"]),
     }
     return AdaptedWorkbook(payload, canonical, evidence)
 
@@ -181,10 +237,11 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("workbook", type=Path)
     parser.add_argument("--payload-out", type=Path, required=True, help="exclusive output path for canonical business payload")
+    parser.add_argument("--stage-map-policy", choices=[STAGE_MAPPING_POLICY])
     add_assertion_arguments(parser)
     args = parser.parse_args(argv)
     try:
-        adapted = adapt_workbook(args.workbook)
+        adapted = adapt_workbook(args.workbook, stage_mapping_policy=args.stage_map_policy)
         assert_expected(adapted.evidence, args)
         args.payload_out.write_bytes(adapted.canonical_json)
         print(json.dumps(adapted.evidence, sort_keys=True, separators=(",", ":")))
