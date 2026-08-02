@@ -102,8 +102,8 @@ def execute(
         )
         if not structurally_valid:
             raise RunnerError("Apply requires all three exact Preview confirmations")
-        if args.confirm_workbook_sha256 != adapted.evidence["workbook_sha256"] or args.confirm_payload_sha256 != adapted.evidence["payload_sha256"]:
-            raise RunnerError("Apply hash confirmations do not match the current workbook payload")
+        if args.confirm_workbook_sha256 != adapted.evidence["workbook_sha256"]:
+            raise RunnerError("Apply workbook confirmation does not match the current workbook")
     url, key = config["PDC_STAGING_SUPABASE_URL"], config["PDC_STAGING_ANON_KEY"]
 
     # Authorization is deliberately performed only with the named administrator
@@ -115,6 +115,19 @@ def execute(
     token = auth.get("access_token")
     if not isinstance(token, str) or not token:
         raise RunnerError("staging administrator authorization failed")
+
+    authorization = post(url, key, "/rest/v1/rpc/authorize_pdc_bulk_jc_stock_workbook", {
+        "p_workbook_sha256": adapted.evidence["workbook_sha256"],
+        "p_expected_pair_count": adapted.evidence["jc_stock_pair_count"],
+        "p_expected_operation_count": adapted.evidence["operation_count"],
+    }, token)
+    authorization_code = authorization.get("code")
+    if authorization.get("ok") is not True or authorization_code not in ("authorized", "exact_authorization_replay"):
+        safe_code = authorization_code if isinstance(authorization_code, str) and re.fullmatch(r"[a-z0-9_]{1,80}", authorization_code) else "authorization_failed"
+        raise RunnerError(f"Workbook authorization did not succeed ({safe_code})")
+    authorization_data = authorization.get("data") if isinstance(authorization.get("data"), dict) else {}
+    if authorization_data.get("workbook_sha256") != adapted.evidence["workbook_sha256"]:
+        raise RunnerError("Workbook authorization binding mismatch")
 
     preview = post(url, key, "/rest/v1/rpc/preview_pdc_bulk_jc_stock_workbook", {
         "p_workbook_sha256": adapted.evidence["workbook_sha256"],
@@ -130,22 +143,42 @@ def execute(
     payload_sha = _binding(data, "payload_sha256", SHA_RE)
     if workbook_sha != adapted.evidence["workbook_sha256"]:
         raise RunnerError("Preview workbook binding mismatch")
-    if payload_sha != adapted.evidence["payload_sha256"]:
-        raise RunnerError("Preview payload binding mismatch")
+    server_counts = {}
+    for field in ("row_count", "operation_count", "accepted_count", "quarantine_count", "operation_quarantine_count", "blocked_count"):
+        value = data.get(field) if isinstance(data, dict) else None
+        if not isinstance(value, int) or isinstance(value, bool) or value < 0:
+            raise RunnerError(f"Preview aggregate binding missing ({field})")
+        server_counts[field] = value
+    if server_counts["row_count"] != adapted.evidence["jc_stock_pair_count"] or server_counts["operation_count"] != adapted.evidence["operation_count"]:
+        raise RunnerError("Preview aggregate binding mismatch")
+    if server_counts["accepted_count"] + server_counts["quarantine_count"] != server_counts["row_count"]:
+        raise RunnerError("Preview vehicle classification mismatch")
+    if server_counts["operation_quarantine_count"] > server_counts["operation_count"] or server_counts["blocked_count"] != 0:
+        raise RunnerError("Preview quarantine/blocking mismatch")
+    applyable = data.get("applyable") if isinstance(data, dict) else None
+    if not isinstance(applyable, bool) or applyable != (server_counts["accepted_count"] > 0):
+        raise RunnerError("Preview Apply eligibility mismatch")
 
     output = {
         "code": code,
+        "authorization_code": authorization_code,
         "preview_id": preview_id,
         "workbook_sha256": workbook_sha,
         "payload_sha256": payload_sha,
+        "local_payload_file_sha256": adapted.evidence["payload_sha256"],
         "jc_stock_pair_count": adapted.evidence["jc_stock_pair_count"],
         "operation_count": adapted.evidence["operation_count"],
         "estimated_hours_count": adapted.evidence["estimated_hours_count"],
         "missing_hours_count": adapted.evidence["missing_hours_count"],
+        "max_operations_per_pair": adapted.evidence["max_operations_per_pair"],
+        **server_counts,
+        "applyable": applyable,
     }
     if not args.apply:
         output["apply_performed"] = False
         return output
+    if not applyable:
+        raise RunnerError("Preview is not Apply-able")
 
     if confirmations != (preview_id, workbook_sha, payload_sha):
         raise RunnerError("Apply confirmations do not exactly match Preview bindings")
@@ -163,11 +196,12 @@ def execute(
         "code": apply_code,
         "apply_performed": True,
         "receipt_hash": apply_data.get("receipt_hash") if SHA_RE.fullmatch(str(apply_data.get("receipt_hash", ""))) else None,
-        "row_count": apply_data.get("row_count") if isinstance(apply_data.get("row_count"), int) else None,
+        "accepted_count": apply_data.get("accepted_count") if isinstance(apply_data.get("accepted_count"), int) else None,
         "quarantine_count": apply_data.get("quarantine_count") if isinstance(apply_data.get("quarantine_count"), int) else None,
-        "vehicles_added": apply_data.get("vehicles_added") if isinstance(apply_data.get("vehicles_added"), int) else None,
+        "operation_quarantine_count": apply_data.get("operation_quarantine_count") if isinstance(apply_data.get("operation_quarantine_count"), int) else None,
         "operation_lines_added": apply_data.get("operation_lines_added") if isinstance(apply_data.get("operation_lines_added"), int) else None,
-        "estimated_hours_added": apply_data.get("estimated_hours_added") if isinstance(apply_data.get("estimated_hours_added"), int) else None,
+        "work_items_added": apply_data.get("work_items_added") if isinstance(apply_data.get("work_items_added"), int) else None,
+        "zero_add_replay": apply_data.get("zero_add_replay") if isinstance(apply_data.get("zero_add_replay"), bool) else None,
     })
     return output
 

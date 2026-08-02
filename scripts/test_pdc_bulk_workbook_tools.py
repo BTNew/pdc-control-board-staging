@@ -17,7 +17,7 @@ from scripts.pdc_bulk_workbook_adapter import WorkbookContractError, adapt_workb
 from scripts.run_pdc_bulk_workbook_staging import EXPECTED_URL, RunnerError, _post, execute
 
 
-HEADERS = ("JC", "Stock", "Operation / Kit", "Schedule Hrs")
+HEADERS = ("JC Number", "Stock Number", "Operation", "Estimated Hours")
 ADMIN_ENV = {
     "PDC_STAGING_SUPABASE_URL": EXPECTED_URL,
     "PDC_STAGING_ANON_KEY": "anon-public-value",
@@ -53,6 +53,7 @@ def args(path: Path, *, apply=False, preview_id=None, workbook_sha=None, payload
         expect_hours_count=None,
         expect_missing_hours=None,
         expect_hours_total=None,
+        expect_max_operations=None,
     )
 
 
@@ -142,24 +143,34 @@ class RunnerTests(unittest.TestCase):
 
     def transport(self, adapted, calls, include_apply=False):
         preview_id = "12345678-1234-4123-8123-123456789abc"
+        server_payload_sha = "b" * 64
 
         def post(url, key, path, body, token=None):
             calls.append((url, key, path, body, token))
             if path.startswith("/auth/"):
                 return {"access_token": "access-secret"}
+            if path.endswith("authorize_pdc_bulk_jc_stock_workbook"):
+                return {"ok": True, "code": "authorized", "data": {
+                    "authorization_id": "22345678-1234-4123-8123-123456789abc",
+                    "workbook_sha256": adapted.evidence["workbook_sha256"],
+                }}
             if path.endswith("preview_pdc_bulk_jc_stock_workbook"):
                 return {"ok": True, "code": "preview_ready", "data": {
                     "preview_id": preview_id,
                     "workbook_sha256": adapted.evidence["workbook_sha256"],
-                    "payload_sha256": adapted.evidence["payload_sha256"],
+                    "payload_sha256": server_payload_sha,
+                    "row_count": 1, "operation_count": 1, "accepted_count": 1,
+                    "quarantine_count": 0, "operation_quarantine_count": 0,
+                    "blocked_count": 0, "applyable": True,
                 }}
             if include_apply and path.endswith("apply_pdc_bulk_jc_stock_workbook"):
                 return {"ok": True, "code": "applied", "data": {
-                    "receipt_hash": "a" * 64, "row_count": 1, "quarantine_count": 0,
-                    "vehicles_added": 1, "operation_lines_added": 1, "estimated_hours_added": 1,
+                    "receipt_hash": "a" * 64, "accepted_count": 1, "quarantine_count": 0,
+                    "operation_quarantine_count": 0, "operation_lines_added": 1,
+                    "work_items_added": 1, "zero_add_replay": False,
                 }}
             raise AssertionError(path)
-        return preview_id, post
+        return preview_id, server_payload_sha, post
 
     def test_staging_guard(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -172,11 +183,12 @@ class RunnerTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             path, adapted = self.workbook(directory)
             calls = []
-            _, post = self.transport(adapted, calls)
+            _, _, post = self.transport(adapted, calls)
             result = execute(args(path), ADMIN_ENV, post)
             self.assertFalse(result["apply_performed"])
             self.assertEqual([call[2] for call in calls], [
                 "/auth/v1/token?grant_type=password",
+                "/rest/v1/rpc/authorize_pdc_bulk_jc_stock_workbook",
                 "/rest/v1/rpc/preview_pdc_bulk_jc_stock_workbook",
             ])
             self.assertEqual(calls[0][3], {"email": ADMIN_ENV["PDC_STAGING_ADMIN_EMAIL"], "password": ADMIN_ENV["PDC_STAGING_ADMIN_PASSWORD"]})
@@ -188,13 +200,13 @@ class RunnerTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             path, adapted = self.workbook(directory)
             calls = []
-            preview_id, post = self.transport(adapted, calls, include_apply=True)
+            preview_id, server_payload_sha, post = self.transport(adapted, calls, include_apply=True)
             incomplete = args(path, apply=True, preview_id=preview_id, workbook_sha=adapted.evidence["workbook_sha256"])
             with self.assertRaisesRegex(RunnerError, "confirmations"):
                 execute(incomplete, ADMIN_ENV, post)
             self.assertEqual(calls, [])
             calls.clear()
-            exact = args(path, apply=True, preview_id=preview_id, workbook_sha=adapted.evidence["workbook_sha256"], payload_sha=adapted.evidence["payload_sha256"])
+            exact = args(path, apply=True, preview_id=preview_id, workbook_sha=adapted.evidence["workbook_sha256"], payload_sha=server_payload_sha)
             result = execute(exact, ADMIN_ENV, post)
             self.assertTrue(result["apply_performed"])
             self.assertEqual(result["code"], "applied")

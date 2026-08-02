@@ -21,7 +21,7 @@ from typing import Any
 from openpyxl import load_workbook
 
 SHEET_NAME = "Hermes Import"
-HEADERS = ("JC", "Stock", "Operation / Kit", "Schedule Hrs")
+HEADERS = ("JC Number", "Stock Number", "Operation", "Estimated Hours")
 CONTROL_RE = re.compile(r"[\x00-\x1f\x7f-\x9f]")
 MAX_ROWS = 500
 MAX_OPERATIONS = 100
@@ -149,6 +149,7 @@ def adapt_workbook(path: str | Path) -> AdaptedWorkbook:
         "estimated_hours_count": len(hours_values),
         "missing_hours_count": operation_count - len(hours_values),
         "estimated_hours_total": round(math.fsum(float(value) for value in hours_values), 2),
+        "max_operations_per_pair": max(len(row["operations"]) for row in payload),
     }
     return AdaptedWorkbook(payload, canonical, evidence)
 
@@ -160,6 +161,7 @@ def assert_expected(evidence: dict[str, Any], args: argparse.Namespace) -> None:
         "estimated_hours_count": args.expect_hours_count,
         "missing_hours_count": args.expect_missing_hours,
         "estimated_hours_total": args.expect_hours_total,
+        "max_operations_per_pair": args.expect_max_operations,
     }
     for field, expected in checks.items():
         if expected is not None and evidence[field] != expected:
@@ -172,6 +174,7 @@ def add_assertion_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--expect-hours-count", type=int)
     parser.add_argument("--expect-missing-hours", type=int)
     parser.add_argument("--expect-hours-total", type=float)
+    parser.add_argument("--expect-max-operations", type=int)
 
 
 def main(argv: list[str] | None = None) -> int:

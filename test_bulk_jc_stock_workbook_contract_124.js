@@ -52,10 +52,12 @@ assert(!lower.includes('unresolved_rows_blocked'));
 for (const token of [
   "source_system='microsoft_navision'", "record_status='current'", 'r.is_current',
   'v_exact=1 and v_stock_count=1 and v_jc_count=1', "classification='unique_exact_current'",
-  "'approved_key_list'", 'canonical_vehicle_id', 'completed_at is null',
+  'canonical_vehicle_id', 'completed_at is null',
 ]) has(token);
 assert(!/insert\s+into\s+public\.vehicles/i.test(sql), 'Apply must never create unmatched vehicles');
 assert(!/update\s+public\.vehicles/i.test(sql), 'Apply must not rewrite operational vehicle state');
+assert(!/insert\s+into\s+public\.navision_board_activations/i.test(sql), 'Apply must not create an activation');
+assert(!/update\s+public\.navision_board_activations/i.test(sql), 'Apply must not mutate an activation');
 assert(!/insert\s+into\s+public\.workshop_bookings/i.test(sql));
 assert(!/insert\s+into\s+public\.vehicle_parts_updates/i.test(sql), 'Apply must not create Parts state/completion');
 
@@ -100,7 +102,7 @@ for (const signature of [
   'apply_pdc_bulk_jc_stock_workbook(uuid,text,text)',
   'read_pdc_bulk_jc_stock_workbook_receipt(uuid)',
 ]) {
-  has(`revoke all on function public.${signature} from public,anon,authenticated`);
+  has(`revoke all on function public.${signature} from public,anon,authenticated,service_role`);
   has(`grant execute on function public.${signature} to authenticated`);
 }
 assert((lower.match(/security definer/g) || []).length >= 5);

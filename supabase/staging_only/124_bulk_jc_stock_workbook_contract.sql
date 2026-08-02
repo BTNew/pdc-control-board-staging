@@ -10,7 +10,8 @@ select pg_advisory_xact_lock(hashtextextended('pdc-staging-migration-124-bulk-wo
 do $guard$
 begin
   if to_regclass('public.pdc_staging_environment_sentinel') is null
-     or not exists(select 1 from public.pdc_staging_environment_sentinel where singleton and project_ref='cdsmnqxtyyoeoznmbidd') then
+     or not exists(select 1 from public.pdc_staging_environment_sentinel where singleton and project_ref='cdsmnqxtyyoeoznmbidd')
+     or to_regclass('public.pdc_production_environment_sentinel') is not null then
     raise exception 'PDC_BULK_124_STAGING_SENTINEL_MISMATCH';
   end if;
   if to_regclass('supabase_migrations.schema_migrations') is null
@@ -139,7 +140,12 @@ create or replace function public.pdc_bulk_workbook_actor_scope()
 returns jsonb language plpgsql stable security definer set search_path=pg_catalog,public as $scope$
 declare v_uid uuid:=auth.uid(); v_email text:=lower(btrim(coalesce(auth.jwt()->>'email',''))); v_count integer;
 begin
-  if not public.pdc_monitor_staging_guard() or v_uid is null or v_email='' then return public.navision_backend_response(false,'unauthorized'); end if;
+  if to_regclass('public.pdc_staging_environment_sentinel') is null
+     or to_regclass('public.pdc_production_environment_sentinel') is not null
+     or not exists(select 1 from public.pdc_staging_environment_sentinel where singleton and project_ref='cdsmnqxtyyoeoznmbidd')
+     or v_uid is null or v_email='' then
+    return public.navision_backend_response(false,'unauthorized');
+  end if;
   select count(*) into v_count from public.pdc_user_roles r
   join auth.users u on u.id=v_uid and lower(u.email)=v_email
   where r.auth_user_id=v_uid and lower(r.email)=v_email and r.role='administrator' and r.active and r.account_status='approved';
@@ -151,7 +157,7 @@ $scope$;
 create or replace function public.authorize_pdc_bulk_jc_stock_workbook(
   p_workbook_sha256 text, p_expected_pair_count integer, p_expected_operation_count integer
 ) returns jsonb language plpgsql security definer set search_path=pg_catalog,public,extensions as $authorize$
-declare v_scope jsonb:=public.pdc_bulk_workbook_actor_scope(); v_uid uuid; v_sha text:=lower(btrim(coalesce(p_workbook_sha256,''))); v_id uuid; v_expires timestamptz;
+declare v_scope jsonb:=public.pdc_bulk_workbook_actor_scope(); v_uid uuid; v_sha text:=lower(btrim(coalesce(p_workbook_sha256,''))); v_id uuid; v_expires timestamptz; v_existing public.pdc_bulk_workbook_authorizations%rowtype;
 begin
   if not coalesce((v_scope->>'ok')::boolean,false) then return v_scope; end if;
   v_uid:=(v_scope->'data'->>'actor_id')::uuid;
@@ -159,6 +165,18 @@ begin
     return public.navision_backend_response(false,'invalid_authorization_binding');
   end if;
   perform pg_advisory_xact_lock(hashtextextended('pdc-bulk-workbook-authorize:'||v_uid::text,0));
+  select * into v_existing from public.pdc_bulk_workbook_authorizations
+   where actor_id=v_uid and workbook_sha256=v_sha
+     and expected_pair_count=p_expected_pair_count and expected_operation_count=p_expected_operation_count
+     and status in ('available','claimed','applied')
+     and (status<>'available' or expires_at>clock_timestamp())
+   order by created_at desc limit 1;
+  if found then
+    return public.navision_backend_response(true,'exact_authorization_replay',jsonb_build_object(
+      'authorization_id',v_existing.authorization_id,'workbook_sha256',v_sha,
+      'expected_pair_count',p_expected_pair_count,'expected_operation_count',p_expected_operation_count,
+      'expires_at',v_existing.expires_at,'status',v_existing.status));
+  end if;
   update public.pdc_bulk_workbook_authorizations set status='expired'
    where actor_id=v_uid and status='available' and expires_at<=clock_timestamp();
   v_expires:=clock_timestamp()+interval '2 hours';
@@ -172,9 +190,9 @@ create or replace function public.preview_pdc_bulk_jc_stock_workbook(p_workbook_
 returns jsonb language plpgsql security definer set search_path=pg_catalog,public,extensions as $preview$
 declare
   v_scope jsonb:=public.pdc_bulk_workbook_actor_scope(); v_uid uuid; v_sha text:=lower(btrim(coalesce(p_workbook_sha256,'')));
-  v_payload jsonb:=coalesce(p_payload,'null'::jsonb); v_payload_sha text; v_auth public.pdc_bulk_workbook_authorizations%rowtype;
+  v_payload jsonb:=coalesce(p_payload,'null'::jsonb); v_payload_sha text; v_auth public.pdc_bulk_workbook_authorizations%rowtype; v_existing_preview public.pdc_bulk_workbook_previews%rowtype;
   v_preview_id uuid:=gen_random_uuid(); v_row jsonb; v_row_no integer; v_jc text; v_stock text; v_reason text;
-  v_exact integer; v_stock_count integer; v_jc_count integer; v_oper_exact integer; v_oper_partial integer; v_ops integer;
+  v_exact integer; v_stock_count integer; v_jc_count integer; v_oper_exact integer; v_oper_partial integer; v_bound integer; v_ops integer;
   v_rows integer; v_operation_count integer; v_accepted integer:=0; v_quarantine integer:=0; v_operation_quarantine integer:=0;
 begin
   if not coalesce((v_scope->>'ok')::boolean,false) then return v_scope; end if; v_uid:=(v_scope->'data'->>'actor_id')::uuid;
@@ -216,7 +234,14 @@ begin
   if not found then
     select * into v_auth from public.pdc_bulk_workbook_authorizations a where a.actor_id=v_uid and a.workbook_sha256=v_sha and a.claimed_payload_sha256=v_payload_sha and a.status in ('claimed','applied') order by a.created_at desc limit 1;
     if not found then return public.navision_backend_response(false,'authorization_not_available_or_count_mismatch'); end if;
-    return public.navision_backend_response(true,'exact_preview_replay',jsonb_build_object('preview_id',v_auth.claimed_preview_id,'authorization_id',v_auth.authorization_id,'workbook_sha256',v_sha,'payload_sha256',v_payload_sha));
+    select * into strict v_existing_preview from public.pdc_bulk_workbook_previews where preview_id=v_auth.claimed_preview_id and actor_id=v_uid;
+    return public.navision_backend_response(true,'exact_preview_replay',jsonb_build_object(
+      'preview_id',v_auth.claimed_preview_id,'authorization_id',v_auth.authorization_id,
+      'workbook_sha256',v_sha,'payload_sha256',v_payload_sha,
+      'row_count',v_existing_preview.row_count,'operation_count',v_existing_preview.operation_count,
+      'accepted_count',v_existing_preview.accepted_count,'quarantine_count',v_existing_preview.quarantine_count,
+      'operation_quarantine_count',v_existing_preview.operation_quarantine_count,
+      'blocked_count',v_existing_preview.blocked_count,'applyable',v_existing_preview.accepted_count>0));
   end if;
   create temporary table pg_temp.pdc_bulk_classification(row_no integer primary key,jc text,stock text,reason text,op_quarantine integer,row_payload jsonb) on commit drop;
   for v_row in select value from jsonb_array_elements(v_payload) loop
@@ -226,10 +251,19 @@ begin
     select count(*) into v_jc_count from public.navision_backend_records r where r.source_system='microsoft_navision' and r.record_status='current' and r.is_current and upper(btrim(coalesce(r.normalized_data->>'jobCardNumber','')))=v_jc;
     select count(*) into v_oper_exact from public.vehicles v where v.deleted_at is null and v.lifecycle_state='active' and public.normalize_vehicle_stock_number(v.stock_number)=v_stock and upper(btrim(coalesce(v.job_card_number,'')))=v_jc;
     select count(*) into v_oper_partial from public.vehicles v where v.deleted_at is null and v.lifecycle_state='active' and ((public.normalize_vehicle_stock_number(v.stock_number)=v_stock and upper(btrim(coalesce(v.job_card_number,'')))<>v_jc) or (upper(btrim(coalesce(v.job_card_number,'')))=v_jc and public.normalize_vehicle_stock_number(v.stock_number)<>v_stock));
+    select count(*) into v_bound
+    from public.navision_backend_records r
+    join public.navision_board_activations a on a.backend_record_id=r.id and a.active and a.completed_at is null
+    join public.vehicles v on v.id=a.canonical_vehicle_id and v.deleted_at is null and v.lifecycle_state='active'
+    where r.source_system='microsoft_navision' and r.record_status='current' and r.is_current
+      and public.normalize_vehicle_stock_number(r.normalized_data->>'batch')=v_stock
+      and upper(btrim(coalesce(r.normalized_data->>'jobCardNumber','')))=v_jc
+      and public.normalize_vehicle_stock_number(v.stock_number)=v_stock
+      and upper(btrim(coalesce(v.job_card_number,'')))=v_jc;
     v_reason:=null;
     if exists(select 1 from jsonb_array_elements(v_row->'operations') o where o->'work_key'='null'::jsonb) then v_reason:='missing_authoritative_work_key';
-    elsif v_exact=1 and v_stock_count=1 and v_jc_count=1 and (v_oper_partial>0 or v_oper_exact>1) then v_reason:='operational_identity_conflict';
-    elsif v_exact=1 and v_stock_count=1 and v_jc_count=1 then v_accepted:=v_accepted+1;
+    elsif v_exact=1 and v_stock_count=1 and v_jc_count=1 and v_bound=1 and v_oper_exact=1 and v_oper_partial=0 then v_accepted:=v_accepted+1;
+    elsif v_exact=1 and v_stock_count=1 and v_jc_count=1 then v_reason:='operational_identity_conflict';
     elsif v_exact>1 or v_stock_count>1 or v_jc_count>1 then v_reason:='multiple_current_identity_matches';
     elsif v_stock_count>0 or v_jc_count>0 then v_reason:='partial_identity_disagreement';
     elsif v_oper_partial>0 then v_reason:='operational_identity_conflict';
@@ -264,22 +298,39 @@ begin
   if v_auth.claimed_preview_id<>v_preview.preview_id or v_auth.workbook_sha256<>lower(btrim(p_workbook_sha256)) or v_auth.claimed_payload_sha256<>lower(btrim(p_payload_sha256)) or v_preview.workbook_sha256<>lower(btrim(p_workbook_sha256)) or v_preview.payload_sha256<>lower(btrim(p_payload_sha256)) or public.pdc_bulk_workbook_canonical_payload_sha256(v_preview.preview_payload)<>v_preview.payload_sha256 then return public.navision_backend_response(false,'apply_binding_mismatch'); end if;
   -- Exact replay is deliberately before every operational INSERT/UPDATE.
   select * into v_existing from public.pdc_bulk_workbook_apply_receipts where preview_id=p_preview_id;
-  if found then return public.navision_backend_response(true,'exact_replay',jsonb_build_object('receipt_id',v_existing.receipt_id,'preview_id',p_preview_id,'workbook_sha256',v_existing.workbook_sha256,'payload_sha256',v_existing.payload_sha256,'operation_lines_added',0,'work_items_added',0,'zero_add_replay',true)); end if;
+  if found then return public.navision_backend_response(true,'exact_replay',jsonb_build_object(
+    'receipt_id',v_existing.receipt_id,'preview_id',p_preview_id,
+    'workbook_sha256',v_existing.workbook_sha256,'payload_sha256',v_existing.payload_sha256,
+    'accepted_count',v_existing.accepted_count,'quarantine_count',v_existing.quarantine_count,
+    'operation_quarantine_count',v_existing.operation_quarantine_count,
+    'operation_lines_added',v_existing.operation_lines_added,'work_items_added',v_existing.work_items_added,
+    'receipt_hash',v_existing.receipt_hash,'zero_add_replay',true)); end if;
   if v_preview.accepted_count=0 then return public.navision_backend_response(false,'zero_accepted_preview'); end if;
   if v_auth.status<>'claimed' or v_auth.expires_at<=clock_timestamp() or v_preview.blocked_count<>0 or v_preview.row_count<>v_auth.expected_pair_count or v_preview.operation_count<>v_auth.expected_operation_count then return public.navision_backend_response(false,'authorization_or_preview_not_applyable'); end if;
   for v_row in select value from jsonb_array_elements(v_preview.preview_payload) r where not exists(select 1 from public.pdc_bulk_workbook_quarantine q where q.preview_id=p_preview_id and q.row_no=(r.value->>'row_no')::integer) order by (value->>'row_no')::integer loop
     v_row_no:=(v_row->>'row_no')::integer; v_jc:=upper(btrim(v_row->>'job_card_number')); v_stock:=public.normalize_vehicle_stock_number(v_row->>'stock_number');
     if (select count(*) from public.navision_backend_records r where r.source_system='microsoft_navision' and r.record_status='current' and r.is_current and public.normalize_vehicle_stock_number(r.normalized_data->>'batch')=v_stock)<>1
        or (select count(*) from public.navision_backend_records r where r.source_system='microsoft_navision' and r.record_status='current' and r.is_current and upper(btrim(coalesce(r.normalized_data->>'jobCardNumber','')))=v_jc)<>1
-       or (select count(*) from public.vehicles v where v.deleted_at is null and v.lifecycle_state='active' and public.normalize_vehicle_stock_number(v.stock_number)=v_stock and upper(btrim(coalesce(v.job_card_number,'')))=v_jc)>1
+       or (select count(*)
+           from public.navision_backend_records r
+           join public.navision_board_activations a on a.backend_record_id=r.id and a.active and a.completed_at is null
+           join public.vehicles v on v.id=a.canonical_vehicle_id and v.deleted_at is null and v.lifecycle_state='active'
+           where r.source_system='microsoft_navision' and r.record_status='current' and r.is_current
+             and public.normalize_vehicle_stock_number(r.normalized_data->>'batch')=v_stock
+             and upper(btrim(coalesce(r.normalized_data->>'jobCardNumber','')))=v_jc
+             and public.normalize_vehicle_stock_number(v.stock_number)=v_stock
+             and upper(btrim(coalesce(v.job_card_number,'')))=v_jc)<>1
        or exists(select 1 from public.vehicles v where v.deleted_at is null and v.lifecycle_state='active' and ((public.normalize_vehicle_stock_number(v.stock_number)=v_stock and upper(btrim(coalesce(v.job_card_number,'')))<>v_jc) or (upper(btrim(coalesce(v.job_card_number,'')))=v_jc and public.normalize_vehicle_stock_number(v.stock_number)<>v_stock)))
     then raise exception 'pdc_bulk_workbook_identity_no_longer_unique row %',v_row_no using errcode='40001'; end if;
-    select r.id into strict v_backend from public.navision_backend_records r where r.source_system='microsoft_navision' and r.record_status='current' and r.is_current and public.normalize_vehicle_stock_number(r.normalized_data->>'batch')=v_stock and upper(btrim(coalesce(r.normalized_data->>'jobCardNumber','')))=v_jc;
-    insert into public.navision_board_activations(backend_record_id,activation_source,activated_stock_number,activated_by,activated_by_email,active)
-    values(v_backend,'approved_key_list',v_stock,v_uid,v_email,true)
-    on conflict(backend_record_id) do update set active=true,updated_at=clock_timestamp() where not public.navision_board_activations.active and public.navision_board_activations.completed_at is null;
-    select canonical_vehicle_id into v_vehicle from public.navision_board_activations where backend_record_id=v_backend and active and completed_at is null;
-    if v_vehicle is null then raise exception 'pdc_bulk_workbook_navision_activation_failed row %',v_row_no using errcode='40001'; end if;
+    select r.id,a.canonical_vehicle_id into strict v_backend,v_vehicle
+    from public.navision_backend_records r
+    join public.navision_board_activations a on a.backend_record_id=r.id and a.active and a.completed_at is null
+    join public.vehicles v on v.id=a.canonical_vehicle_id and v.deleted_at is null and v.lifecycle_state='active'
+    where r.source_system='microsoft_navision' and r.record_status='current' and r.is_current
+      and public.normalize_vehicle_stock_number(r.normalized_data->>'batch')=v_stock
+      and upper(btrim(coalesce(r.normalized_data->>'jobCardNumber','')))=v_jc
+      and public.normalize_vehicle_stock_number(v.stock_number)=v_stock
+      and upper(btrim(coalesce(v.job_card_number,'')))=v_jc;
     v_source_hash:=encode(extensions.digest(convert_to(v_preview.payload_sha256||':'||v_row_no::text,'UTF8'),'sha256'),'hex'); v_source_uid:='bulk-workbook:'||p_preview_id::text||':'||v_row_no::text;
     insert into public.pdc_authenticated_email_import_receipts(actor_id,idempotency_key,request_hash,source_hash,evidence_hash,source_uid,sender_address,source_received_at,stock_number,vin,backend_record_id,vehicle_id,identity_source,required_work,response)
     values(v_uid,v_source_uid,v_preview.payload_sha256,v_source_hash,v_source_hash,v_source_uid,v_email,v_preview.created_at,v_stock,null,v_backend,v_vehicle,'navision_exact',(select jsonb_agg(k order by k) from (select distinct o->>'work_key' k from jsonb_array_elements(v_row->'operations') o) x),jsonb_build_object('source','pdc_bulk_workbook_124','preview_id',p_preview_id,'row_no',v_row_no,'booking_created',false,'completed_work_reopened',false))
@@ -329,20 +380,20 @@ alter table public.pdc_bulk_workbook_previews enable row level security;
 alter table public.pdc_bulk_workbook_quarantine enable row level security;
 alter table public.pdc_bulk_workbook_apply_receipts enable row level security;
 alter table public.pdc_bulk_workbook_row_receipts enable row level security;
-revoke all on table public.pdc_bulk_workbook_authorizations,public.pdc_bulk_workbook_previews,public.pdc_bulk_workbook_quarantine,public.pdc_bulk_workbook_apply_receipts,public.pdc_bulk_workbook_row_receipts from public,anon,authenticated;
-revoke all on function public.pdc_bulk_workbook_actor_scope() from public,anon,authenticated;
-revoke all on function public.pdc_bulk_workbook_canonical_payload_sha256(jsonb) from public,anon,authenticated;
-revoke all on function public.authorize_pdc_bulk_jc_stock_workbook(text,integer,integer) from public,anon,authenticated;
+revoke all on table public.pdc_bulk_workbook_authorizations,public.pdc_bulk_workbook_previews,public.pdc_bulk_workbook_quarantine,public.pdc_bulk_workbook_apply_receipts,public.pdc_bulk_workbook_row_receipts from public,anon,authenticated,service_role;
+revoke all on function public.pdc_bulk_workbook_actor_scope() from public,anon,authenticated,service_role;
+revoke all on function public.pdc_bulk_workbook_canonical_payload_sha256(jsonb) from public,anon,authenticated,service_role;
+revoke all on function public.authorize_pdc_bulk_jc_stock_workbook(text,integer,integer) from public,anon,authenticated,service_role;
 grant execute on function public.authorize_pdc_bulk_jc_stock_workbook(text,integer,integer) to authenticated;
-revoke all on function public.preview_pdc_bulk_jc_stock_workbook(text,jsonb) from public,anon,authenticated;
+revoke all on function public.preview_pdc_bulk_jc_stock_workbook(text,jsonb) from public,anon,authenticated,service_role;
 grant execute on function public.preview_pdc_bulk_jc_stock_workbook(text,jsonb) to authenticated;
-revoke all on function public.apply_pdc_bulk_jc_stock_workbook(uuid,text,text) from public,anon,authenticated;
+revoke all on function public.apply_pdc_bulk_jc_stock_workbook(uuid,text,text) from public,anon,authenticated,service_role;
 grant execute on function public.apply_pdc_bulk_jc_stock_workbook(uuid,text,text) to authenticated;
-revoke all on function public.read_pdc_bulk_jc_stock_workbook_receipt(uuid) from public,anon,authenticated;
+revoke all on function public.read_pdc_bulk_jc_stock_workbook_receipt(uuid) from public,anon,authenticated,service_role;
 grant execute on function public.read_pdc_bulk_jc_stock_workbook_receipt(uuid) to authenticated;
 
 insert into supabase_migrations.schema_migrations(version,name,statements)
-values('124','bulk_jc_stock_workbook_contract',array['staging-only Administrator-authorized exact workbook preview/apply; unresolved identity and null work authority quarantined; zero-accepted Apply denied; unique-current Navision activation; direct bounded operation/work-item writes preserving completion; aggregate readback']);
+values('124','bulk_jc_stock_workbook_contract',array['staging-only Administrator-authorized exact workbook preview/apply; unresolved identity and null work authority quarantined; zero-accepted Apply denied; existing unique-current Navision/canonical vehicle binding required; direct bounded operation/work-item writes preserving completion; aggregate readback']);
 comment on function public.authorize_pdc_bulk_jc_stock_workbook(text,integer,integer) is 'Approved active Administrator authorization bound to workbook SHA and expected pair/operation counts; expires within two hours.';
 comment on function public.preview_pdc_bulk_jc_stock_workbook(text,jsonb) is 'Fail-closed Preview retaining immutable vehicle/work-authority quarantine; quarantine is nonblocking and zero accepted is valid but not Apply-able.';
 comment on function public.apply_pdc_bulk_jc_stock_workbook(uuid,text,text) is 'Exact-bound Apply for accepted unique-current Navision rows only; exact replay precedes DML; never creates unmatched vehicles, bookings, completion, or Parts completion.';
