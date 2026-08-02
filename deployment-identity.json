@@ -39,8 +39,8 @@
     {
       "sourcePath": "staging.html",
       "deployedPath": "index.html",
-      "sha256": "30a845e7f516c6550710a66f94ffdc4879f8214c66557ed10b7cc5437e52b1a8",
-      "bytes": 64842
+      "sha256": "a9ea97f7e75b341b3863b6bdb4acb0d30f7ca4895ac20819986034294f1975fb",
+      "bytes": 63866
     },
     {
       "sourcePath": "app.js",
@@ -51,8 +51,8 @@
     {
       "sourcePath": "styles.css",
       "deployedPath": "styles.css",
-      "sha256": "af361dceec38ed190d405ca1c37b04e3af8244375e77f020fab9e36e50198afe",
-      "bytes": 386675
+      "sha256": "2f156e4a2f3cd563606e8b31be44d5a50165b46a552cd49ec0bcbb2ed2eaeaa5",
+      "bytes": 374069
     },
     {
       "sourcePath": "pdc-supabase-config.staging.js",
