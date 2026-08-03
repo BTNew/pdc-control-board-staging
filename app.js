@@ -1,5 +1,5 @@
-const APP_VERSION = '2026.08.03.05-isolated-role-authority';
-const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.08.03.05-isolated-role-authority';
+const APP_VERSION = '2026.08.03.06-bounded-parts-pagination';
+const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.08.03.06-bounded-parts-pagination';
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
 // constant intentionally names only the production ref, never the
@@ -1886,6 +1886,7 @@ const app = {
   pendingWorkshopBookingLink: null,
   reviewed: false,
   quickFilter: 'incoming',
+  partsPageOffset: 0,
   pmbSubFilter: '',
   activePmbBayStage: '',
   pmbDraggingKey: '',
@@ -12457,6 +12458,7 @@ function renderPartsSummary() {
   }).join('');
   $$('[data-parts-operational-filter]', host).forEach(button => button.addEventListener('click', () => {
     app.partsOperationalFilter = button.dataset.partsOperationalFilter || 'notordered';
+    app.partsPageOffset = 0;
     renderPartsHome();
   }));
 }
@@ -12545,13 +12547,28 @@ function renderPartsHome() {
     bindPartsIssuedStoppagePicker(host);
     return;
   }
-  host.innerHTML = `${stoppagePicker}<div class="parts-table-wrap parts-queue-wrap"><table class="data-table compact-table parts-queue-table">
+  const pageSize = 50;
+  const lastPageOffset = Math.max(0, Math.floor((rows.length - 1) / pageSize) * pageSize);
+  const pageOffset = Math.min(lastPageOffset, Math.max(0, Number(app.partsPageOffset) || 0));
+  const visibleRows = rows.slice(pageOffset, pageOffset + pageSize);
+  const pageStart = pageOffset + 1;
+  const pageEnd = pageOffset + visibleRows.length;
+  const paging = `<div class="parts-load-more"><span>Showing ${pageStart}–${pageEnd} of ${rows.length} matching vehicles.</span><div><button class="small-button" type="button" data-parts-page-previous ${pageOffset === 0 ? 'disabled' : ''}>Previous 50</button><button class="small-button" type="button" data-parts-page-next ${pageEnd >= rows.length ? 'disabled' : ''}>Next 50</button></div></div>`;
+  host.innerHTML = `${stoppagePicker}${paging}<div class="parts-table-wrap parts-queue-wrap"><table class="data-table compact-table parts-queue-table">
     <thead><tr>
       <th>Key</th><th>Stock</th><th>JC</th><th>Vehicle / customer</th><th>Parts status</th><th>Parts ETA</th><th>ETA counter</th><th>JITA</th><th>Parts STOPPAGE reason</th><th>Actions</th>
     </tr></thead>
-    <tbody>${rows.map(partsQueueRowHtml).join('')}</tbody></table></div>`;
+    <tbody>${visibleRows.map(partsQueueRowHtml).join('')}</tbody></table></div>`;
   bindPartsIssuedStoppagePicker(host);
   bindPartsQueueActionButtons(host);
+  host.querySelector('[data-parts-page-previous]')?.addEventListener('click', () => {
+    app.partsPageOffset = Math.max(0, pageOffset - pageSize);
+    renderPartsHome();
+  });
+  host.querySelector('[data-parts-page-next]')?.addEventListener('click', () => {
+    app.partsPageOffset = Math.min(lastPageOffset, pageOffset + pageSize);
+    renderPartsHome();
+  });
   setupPartsEtaCounterClock();
   $$('[data-parts-worst-eta]', host).forEach(input => input.addEventListener('change', () => updateVehiclePartsWorstEta(input.dataset.partsWorstEta, input.value)));
 }
