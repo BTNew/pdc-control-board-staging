@@ -1,14 +1,14 @@
 {
   "artifact": "zero-embedded-data static staging site",
   "environment": "staging",
-  "generatedAtUtc": "2026-08-03T01:35:59Z",
-  "deploymentMode": "Production-readiness staging route-authority fix: Control Board exit clears candidate data while preserving the independently fail-closed role monitor channel",
-  "baseDeploymentCommit": "c4783f2",
+  "generatedAtUtc": "2026-08-03T02:10:06Z",
+  "deploymentMode": "Production-readiness staging authority fix: workshop station Realtime uses an isolated nonpersistent client so operational channels cannot close the fail-closed own-role monitor",
+  "baseDeploymentCommit": "e2dcd2f",
   "sourceRepository": "BTNew/pdc-control-board",
   "sourceBranch": "campaign/staging-production-readiness-reset-20260803",
-  "sourceCommit": "fd9d1b5edd874b9288627cdaa4d1aa6829fa25e5",
-  "sourceTree": "6a2e61af89c224ae78853ecbcd9fd8d3a9b5b330",
-  "cacheVersion": "2026.08.03.03-realtime-route-authority-fix",
+  "sourceCommit": "265b1d05c87c2047af1b0699359c790cee4e6caa",
+  "sourceTree": "64945b76e6bd7c0ba81b27074636146c5147c9d0",
+  "cacheVersion": "2026.08.03.04-isolated-workshop-realtime",
   "stagingProjectRef": "cdsmnqxtyyoeoznmbidd",
   "zeroData": true,
   "mailboxAuthority": false,
@@ -66,8 +66,8 @@
     {
       "sourcePath": "app.js",
       "deployedPath": "app.js",
-      "sha256": "f242db2340616d371f4ece6527884c3c1ef5dd630ec757cfd9e42a56adb4e574",
-      "bytes": 1028456
+      "sha256": "0e69884fd3656c9227f20951f5bdf18d5343e073396af8424fba8e1b51240b87",
+      "bytes": 1029760
     },
     {
       "sourcePath": "arb-labor-catalog.js",
@@ -114,8 +114,8 @@
     {
       "sourcePath": "staging.html",
       "deployedPath": "index.html",
-      "sha256": "b3e0f123e7c1a4d0f358edb96004f8696669a4cbd29d6a9d25b658bff31acdfc",
-      "bytes": 64022
+      "sha256": "1af6b2cac4a8ed85a3853da46974ca730b81bad9bf9c554d8f33f84593ac5c3f",
+      "bytes": 63978
     },
     {
       "sourcePath": "key-list-review.js",
@@ -180,8 +180,8 @@
     {
       "sourcePath": "pdc-supabase-config.staging.js",
       "deployedPath": "pdc-supabase-config.staging.js",
-      "sha256": "72956b5b3367aba2fd9b085665b07ddd67fb29d88caab213281ca65458342c67",
-      "bytes": 1712
+      "sha256": "53c1d9ba873125ee4e1cd3815d3d97c59c539bc206dc92c5547ebe39c783a323",
+      "bytes": 1710
     },
     {
       "sourcePath": "scripts/stage2b_c4_browser_export.js",

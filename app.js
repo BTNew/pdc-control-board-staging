@@ -1,5 +1,5 @@
-const APP_VERSION = '2026.08.03.03-realtime-route-authority-fix';
-const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.08.03.03-realtime-route-authority-fix';
+const APP_VERSION = '2026.08.03.04-isolated-workshop-realtime';
+const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.08.03.04-isolated-workshop-realtime';
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
 // constant intentionally names only the production ref, never the
@@ -3848,8 +3848,8 @@ function getPdcSupabaseAccessToken() {
 }
 
 function createPdcSupabaseRealtimeSubscription(config, handlers, scope = null) {
-  const client = window.PDC_SUPABASE;
-  if (!client || typeof client.channel !== 'function') {
+  const sharedClient = window.PDC_SUPABASE;
+  if (!sharedClient || typeof sharedClient.channel !== 'function') {
     const status = 'CLIENT_UNAVAILABLE';
     if (typeof handlers?.onStatus === 'function') handlers.onStatus(status);
     if (typeof handlers?.onError === 'function') handlers.onError(status);
@@ -3857,6 +3857,31 @@ function createPdcSupabaseRealtimeSubscription(config, handlers, scope = null) {
   }
   const stageCode = String(scope?.stageCode || '').trim().toUpperCase();
   const allStations = scope?.allStations === true;
+  let client = sharedClient;
+  let isolatedRealtimeClient = false;
+  // Workshop station subscriptions are isolated from the fail-closed own-role
+  // monitor. Operational channel pressure or teardown must never close the
+  // channel that proves the signed-in user's continuing authority.
+  if ((stageCode || allStations) && typeof window.supabase?.createClient === 'function') {
+    const accessToken = getPdcSupabaseAccessToken();
+    if (accessToken && config?.url && config?.publishableKey) {
+      try {
+        client = window.supabase.createClient(config.url, config.publishableKey, {
+          auth: {
+            persistSession: false,
+            autoRefreshToken: false,
+            detectSessionInUrl: false,
+            storageKey: `pdc-workshop-realtime-${stageCode || 'all-stations'}`,
+          },
+        });
+        client.realtime?.setAuth?.(accessToken);
+        isolatedRealtimeClient = true;
+      } catch (_error) {
+        client = sharedClient;
+        isolatedRealtimeClient = false;
+      }
+    }
+  }
   const table = stageCode || allStations ? 'workshop_station_revision' : 'workshop_revision';
   const filter = stageCode ? `stage_code=eq.${stageCode}` : undefined;
   const changeSpec = { event: '*', schema: 'public', table, ...(filter ? { filter } : {}) };
@@ -3877,7 +3902,14 @@ function createPdcSupabaseRealtimeSubscription(config, handlers, scope = null) {
     });
   return {
     requiresSubscribedStatus: true,
-    unsubscribe: () => client.removeChannel(channel)
+    unsubscribe: () => {
+      const removed = client.removeChannel(channel);
+      if (isolatedRealtimeClient) {
+        if (removed && typeof removed.finally === 'function') removed.finally(() => client.realtime?.disconnect?.());
+        else client.realtime?.disconnect?.();
+      }
+      return removed;
+    }
   };
 }
 
