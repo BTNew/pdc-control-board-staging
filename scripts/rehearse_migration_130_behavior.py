@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Rollback-only behavioral rehearsal for Migration 130 on approved staging."""
 from __future__ import annotations
-import json, os, sys
+import argparse, json, os, sys
 from datetime import datetime, timezone
 from pathlib import Path
 import psycopg
@@ -21,6 +21,9 @@ def one(cur, sql, params=()):
 
 
 def main() -> None:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--installed", action="store_true", help="Test the installed staging function; fixtures still roll back")
+    args = parser.parse_args()
     load_local_env()
     dsn = os.environ.get("PDC_STAGING_DIRECT_DATABASE_URL") or os.environ.get("PDC_STAGING_DATABASE_URL")
     if not dsn:
@@ -35,15 +38,17 @@ def main() -> None:
         with conn.cursor() as cur:
             if one(cur, "select project_ref from public.pdc_staging_environment_sentinel where singleton") != EXPECTED_REF:
                 raise RuntimeError("wrong staging project")
-            if one(cur, "select exists(select 1 from supabase_migrations.schema_migrations where version='130')"):
-                raise RuntimeError("Migration 130 already installed; rollback rehearsal expected pre-deploy")
+            installed = one(cur, "select exists(select 1 from supabase_migrations.schema_migrations where version='130')")
+            if installed is not args.installed:
+                raise RuntimeError(f"Migration 130 installed state mismatch: installed={installed}, expected={args.installed}")
             before = {
                 "vehicles": one(cur, "select count(*) from public.vehicles"),
                 "activations": one(cur, "select count(*) from public.navision_board_activations"),
                 "bookings": one(cur, "select count(*) from public.workshop_bookings"),
                 "work_items": one(cur, "select count(*) from public.vehicle_work_items"),
             }
-            cur.execute(sql)
+            if not args.installed:
+                cur.execute(sql)
             cur.execute("set local statement_timeout='180s'")
             cur.execute("""
                 select w.user_id,u.email
@@ -153,7 +158,7 @@ def main() -> None:
                 raise RuntimeError(f"unexpected booking/work side effects: {before} -> {after}")
             report = {
                 "ok": True,
-                "mode": "rollback_behavioral_rehearsal",
+                "mode": "installed_behavioral_rehearsal" if args.installed else "rollback_behavioral_rehearsal",
                 "exact_batch_count": 2,
                 "visible_vehicle_count": 2,
                 "vin_required": False,
@@ -166,10 +171,10 @@ def main() -> None:
             }
         conn.rollback()
         with conn.cursor() as cur:
-            if one(cur, "select exists(select 1 from supabase_migrations.schema_migrations where version='130')"):
-                raise RuntimeError("rollback rehearsal leaked migration ledger state")
-            if one(cur, "select to_regclass('public.pdc_authenticated_email_batch_receipts') is not null"):
-                raise RuntimeError("rollback rehearsal leaked receipt table")
+            installed_after = one(cur, "select exists(select 1 from supabase_migrations.schema_migrations where version='130')")
+            table_after = one(cur, "select to_regclass('public.pdc_authenticated_email_batch_receipts') is not null")
+            if installed_after is not args.installed or table_after is not args.installed:
+                raise RuntimeError("behavioral rehearsal changed installed schema state")
         conn.rollback()
         print(json.dumps(report, sort_keys=True))
     except Exception:
