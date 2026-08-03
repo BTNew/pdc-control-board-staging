@@ -300,6 +300,9 @@ begin
     source_received_at,normalized_stocks,backend_record_ids,vehicle_ids,response
   ) values(v_actor_id,v_key,v_request_hash,v_source_hash,v_evidence_hash,v_source_uid,v_sender,
     p_source_received_at,v_stocks,v_backend_ids,v_vehicle_ids,v_response);
+  update public.pdc_email_vehicle_revision
+  set revision=revision+1,updated_at=clock_timestamp()
+  where singleton;
   return v_response;
 exception when unique_violation then
   raise exception using errcode='P0001',message='PDC_EMAIL_132_IDENTITY_OR_RECEIPT_CONFLICT';

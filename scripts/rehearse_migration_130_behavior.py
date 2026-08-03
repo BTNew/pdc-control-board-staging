@@ -119,12 +119,20 @@ def main() -> None:
                 select public.import_pdc_authenticated_backend_batches(
                   %s,%s,%s,%s,%s,%s::jsonb,%s::timestamptz,%s,%s::jsonb)
             """
+            revision_before_positive = one(cur, "select revision from public.pdc_email_vehicle_revision where singleton")
             positive = one(cur, call_sql, params)
+            revision_after_positive = one(cur, "select revision from public.pdc_email_vehicle_revision where singleton")
             replay = one(cur, call_sql, params)
+            revision_after_replay = one(cur, "select revision from public.pdc_email_vehicle_revision where singleton")
             if not positive.get("ok") or positive.get("code") != "backend_batches_imported":
                 raise RuntimeError(f"positive fan-out failed: {positive}")
             if replay != positive:
                 raise RuntimeError("exact replay did not return the retained response")
+            if args.migration_132 and not (
+                revision_after_positive > revision_before_positive
+                and revision_after_replay == revision_after_positive
+            ):
+                raise RuntimeError("Vehicle Locations revision did not advance exactly on the original import")
             data = positive.get("data") or {}
             if data.get("requested_count") != 2 or data.get("imported_count") != 2 or data.get("vin_required") is not False:
                 raise RuntimeError(f"positive result contract mismatch: {positive}")
@@ -237,6 +245,8 @@ def main() -> None:
                 "activation_delta": after["activations"]-before["activations"],
                 "navision_revision_delta": after["navision_revision"]-before["navision_revision"],
                 "navision_audit_delta": after["navision_audit"]-before["navision_audit"],
+                "vehicle_location_revision_advanced": True if args.migration_132 else None,
+                "replay_revision_delta": revision_after_replay-revision_after_positive,
             }
         conn.rollback()
         with conn.cursor() as cur:

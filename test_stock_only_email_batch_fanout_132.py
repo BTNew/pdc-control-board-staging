@@ -32,6 +32,7 @@ require("booking_created',false")
 require("pdc_authenticated_email_batch_receipts")
 require("get_pdc_email_vehicle_location_snapshot")
 require("v.id=any(r.vehicle_ids)")
+require("update public.pdc_email_vehicle_revision")
 require("grant execute on function public.import_pdc_authenticated_backend_batches")
 require("to authenticated")
 
