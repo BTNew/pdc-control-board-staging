@@ -1,5 +1,5 @@
-const APP_VERSION = '2026.08.03.02-production-readiness-staging-reset';
-const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.08.03.02-production-readiness-staging-reset';
+const APP_VERSION = '2026.08.03.03-realtime-route-authority-fix';
+const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.08.03.03-realtime-route-authority-fix';
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
 // constant intentionally names only the production ref, never the
@@ -3700,7 +3700,14 @@ function showView(view, options) {
     && (!previousWasPlanner || previousRequestedView !== requestedView);
   if (enteringWorkshopPlanner) app.pendingWorkshopOpenToday = true;
   if (previousWasPlanner && previousRequestedView !== requestedView) teardownWorkshopPlannerScope({ preserveShell: switchingPlannerStation });
-  if (previousRequestedView === 'workflow' && requestedView !== 'workflow') teardownWorkshopEligibilityOverview({ clearSnapshot: true });
+  if (previousRequestedView === 'workflow' && requestedView !== 'workflow') {
+    // Keep the authority Realtime channel alive while switching application
+    // views. Removing this channel from the shared auth client can close the
+    // independently fail-closed role monitor and lock an otherwise approved
+    // user. Candidate data is still cleared immediately and re-fetched on
+    // every Control Board re-entry.
+    teardownWorkshopEligibilityOverview({ clearSnapshot: true, preserveSubscription: true });
+  }
   releaseHeavyViewDom(app.currentView, nextView);
   if (requestedView !== 'workflow') {
     app.activePmbBayStage = '';
@@ -4592,14 +4599,16 @@ function workshopEligibilitySharedAuthorityEnabled() {
   return window.PDC_SUPABASE_CONFIG?.workshop?.sharedData === true;
 }
 
-function teardownWorkshopEligibilityOverview({ clearSnapshot = false } = {}) {
+function teardownWorkshopEligibilityOverview({ clearSnapshot = false, preserveSubscription = false } = {}) {
   app.workshopEligibilityRequestGeneration += 1;
-  app.workshopEligibilityRevisionPending = false;
-  const realtime = app.workshopEligibilityRealtime;
-  app.workshopEligibilityRealtime = null;
-  if (app.workshopEligibilityReconnectTimer) clearTimeout(app.workshopEligibilityReconnectTimer);
-  app.workshopEligibilityReconnectTimer = null;
-  try { realtime?.unsubscribe?.(); } catch (_error) { /* best effort */ }
+  if (!preserveSubscription) {
+    app.workshopEligibilityRevisionPending = false;
+    const realtime = app.workshopEligibilityRealtime;
+    app.workshopEligibilityRealtime = null;
+    if (app.workshopEligibilityReconnectTimer) clearTimeout(app.workshopEligibilityReconnectTimer);
+    app.workshopEligibilityReconnectTimer = null;
+    try { realtime?.unsubscribe?.(); } catch (_error) { /* best effort */ }
+  }
   if (clearSnapshot) {
     app.workshopEligibilitySnapshot = null;
     app.workshopEligibilityState = 'idle';

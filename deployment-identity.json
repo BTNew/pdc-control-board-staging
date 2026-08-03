@@ -1,14 +1,14 @@
 {
   "artifact": "zero-embedded-data static staging site",
   "environment": "staging",
-  "generatedAtUtc": "2026-08-02T20:06:33Z",
-  "deploymentMode": "Production-readiness staging topology reset: obsolete routes fail closed; cache assets refreshed; current operational UI and Administrator workbook review preserved",
-  "baseDeploymentCommit": "61e0cdf33c264bf970644d750c2e7aee409595ad",
+  "generatedAtUtc": "2026-08-03T01:35:59Z",
+  "deploymentMode": "Production-readiness staging route-authority fix: Control Board exit clears candidate data while preserving the independently fail-closed role monitor channel",
+  "baseDeploymentCommit": "c4783f2",
   "sourceRepository": "BTNew/pdc-control-board",
   "sourceBranch": "campaign/staging-production-readiness-reset-20260803",
-  "sourceCommit": "1afa7675281ddcfc9679dc969bb42b0c6be6d366",
-  "sourceTree": "da20d659550553de2045cb2c605ec701664b4459",
-  "cacheVersion": "2026.08.03.02-production-readiness-staging-reset",
+  "sourceCommit": "fd9d1b5edd874b9288627cdaa4d1aa6829fa25e5",
+  "sourceTree": "6a2e61af89c224ae78853ecbcd9fd8d3a9b5b330",
+  "cacheVersion": "2026.08.03.03-realtime-route-authority-fix",
   "stagingProjectRef": "cdsmnqxtyyoeoznmbidd",
   "zeroData": true,
   "mailboxAuthority": false,
@@ -16,10 +16,10 @@
   "productionActivation": false,
   "pilotActivation": false,
   "migrationLedger": {
-    "appliedThrough": "127",
-    "ledgerHead": "127",
-    "migration": "admin_bulk_workbook_review_page",
-    "rollbackAvailable": true
+    "appliedThrough": "129",
+    "ledgerHead": "129",
+    "migration": "bulk_stock_only_vehicle_privacy_guard",
+    "rollbackAvailable": false
   },
   "retiredRoutes": [
     "pipeline",
@@ -66,8 +66,8 @@
     {
       "sourcePath": "app.js",
       "deployedPath": "app.js",
-      "sha256": "b5bc0b377c9c3bf00aba9a25b0bc10eeb66a4a88c6c0fa7191fe3f131f3a0ec3",
-      "bytes": 1028009
+      "sha256": "f242db2340616d371f4ece6527884c3c1ef5dd630ec757cfd9e42a56adb4e574",
+      "bytes": 1028456
     },
     {
       "sourcePath": "arb-labor-catalog.js",
@@ -114,8 +114,8 @@
     {
       "sourcePath": "staging.html",
       "deployedPath": "index.html",
-      "sha256": "f9685056c15107fc349a79a51f0902689649a2f1fa2c095bb57b00e73239807f",
-      "bytes": 64154
+      "sha256": "b3e0f123e7c1a4d0f358edb96004f8696669a4cbd29d6a9d25b658bff31acdfc",
+      "bytes": 64022
     },
     {
       "sourcePath": "key-list-review.js",
@@ -180,8 +180,8 @@
     {
       "sourcePath": "pdc-supabase-config.staging.js",
       "deployedPath": "pdc-supabase-config.staging.js",
-      "sha256": "d9b863cf790d4eb2c891b0bebcfe5ce37f027901c611c83adbaf162ea7b22018",
-      "bytes": 1718
+      "sha256": "72956b5b3367aba2fd9b085665b07ddd67fb29d88caab213281ca65458342c67",
+      "bytes": 1712
     },
     {
       "sourcePath": "scripts/stage2b_c4_browser_export.js",
