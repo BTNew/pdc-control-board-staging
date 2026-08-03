@@ -1,5 +1,5 @@
-const APP_VERSION = '2026.08.03.07-autonomous-accessibility-trial';
-const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.08.03.07-autonomous-accessibility-trial';
+const APP_VERSION = '2026.08.03.08-workshop-perth-timezone-fix';
+const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.08.03.08-workshop-perth-timezone-fix';
 const PDC_BASE_DOCUMENT_TITLE = String(document.title || '').trim() || 'PDC Control Board';
 const routeDocumentTitle = title => `${title} — ${PDC_BASE_DOCUMENT_TITLE}`;
 
