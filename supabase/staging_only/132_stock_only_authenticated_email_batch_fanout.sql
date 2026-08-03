@@ -122,7 +122,7 @@ begin
   end if;
   perform 1 from public.pdc_email_source_claims c
   where c.source_hash=v_source_hash and c.contract_name='pdc_ai_intake_063'
-  for share;
+  for update;
   if not found then
     return public.navision_backend_response(false,'source_not_observed');
   end if;
