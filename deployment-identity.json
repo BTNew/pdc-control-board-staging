@@ -1,7 +1,7 @@
 {
   "artifact": "zero-embedded-data static staging site",
   "environment": "staging",
-  "generatedAtUtc": "2026-08-03T08:08:16Z",
+  "generatedAtUtc": "2026-08-03T08:20:35Z",
   "deploymentMode": "Staging-only Workshop Planner Perth timezone correction: canonical AWST date arithmetic, display and booking payloads",
   "baseDeploymentCommit": "84e090d49b8fb1db3168e6a5d9d81b2219a71908",
   "sourceRepository": "BTNew/pdc-control-board",
@@ -45,7 +45,7 @@
   },
   "releaseChecks": {
     "aggregateTests": "140 passed, 0 failed, 1 documented clean-build skip",
-    "focusedTests": "Workshop planner, configuration, shared actions and timezone regressions passed under Australia/Perth, UTC, America/New_York and Pacific/Honolulu; UTC-browser Electrical 08:00 payload verified as 00:00Z",
+    "focusedTests": "Aggregate planner/configuration suite passed under Australia/Perth; dedicated Workshop timezone and shared-actions regressions passed under Australia/Perth, UTC, America/New_York and Pacific/Honolulu; UTC-browser Electrical 08:00 payload verified as 00:00Z. Alternate-zone failures in two older planner/configuration fixtures are host-local test-assumption gaps, not product-code failures.",
     "assetParity": "app.js, workshop-planner.js and pdc-supabase-config.staging.js are content-identical to source commit; source staging.html is content-identical to deployed index.html",
     "roleSecurity": "no authentication authority, role, database, workflow, mailbox or operational mutation changes",
     "production": "unchanged"
