@@ -9,6 +9,7 @@
     role: null,
     initialized: false,
     ownRoleChannel: null,
+    ownRoleRealtimeClient: null,
     ownRoleSubscriptionAttempt: null,
     passwordSetupUserId: null,
     // Monotonic ownership tokens for asynchronous session and role checks.
@@ -122,14 +123,20 @@
     state.ownRoleChannelGeneration += 1;
     state.ownRoleSubscriptionAttempt?.finish(false);
     state.ownRoleSubscriptionAttempt = null;
-    if (state.ownRoleChannel && state.client && typeof state.client.removeChannel === 'function') {
+    const realtimeClient = state.ownRoleRealtimeClient || state.client;
+    if (state.ownRoleChannel && realtimeClient && typeof realtimeClient.removeChannel === 'function') {
       try {
-        state.client.removeChannel(state.ownRoleChannel);
+        const removed = realtimeClient.removeChannel(state.ownRoleChannel);
+        if (state.ownRoleRealtimeClient) {
+          if (removed && typeof removed.finally === 'function') removed.finally(() => realtimeClient.realtime?.disconnect?.());
+          else realtimeClient.realtime?.disconnect?.();
+        }
       } catch (_err) {
         // best-effort; the channel may already be closed
       }
     }
     state.ownRoleChannel = null;
+    state.ownRoleRealtimeClient = null;
   }
 
   function lockOwnRoleAuthority(reason, role = null) {
@@ -172,7 +179,22 @@
       };
       state.ownRoleSubscriptionAttempt = { finish };
       try {
-        const channel = state.client
+        let realtimeClient = state.client;
+        const config = authConfig();
+        const accessToken = String(state.session?.access_token || '').trim();
+        if (accessToken && config.url && config.publishableKey && typeof window.supabase?.createClient === 'function') {
+          realtimeClient = window.supabase.createClient(config.url, config.publishableKey, {
+            auth: {
+              persistSession: false,
+              autoRefreshToken: false,
+              detectSessionInUrl: false,
+              storageKey: 'pdc-own-role-realtime-authority',
+            },
+          });
+          realtimeClient.realtime?.setAuth?.(accessToken);
+          state.ownRoleRealtimeClient = realtimeClient;
+        }
+        const channel = realtimeClient
           .channel(`pdc_user_roles_own_row:${email}`)
           .on(
             'postgres_changes',

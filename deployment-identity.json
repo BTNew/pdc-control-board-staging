@@ -1,14 +1,14 @@
 {
   "artifact": "zero-embedded-data static staging site",
   "environment": "staging",
-  "generatedAtUtc": "2026-08-03T02:10:06Z",
-  "deploymentMode": "Production-readiness staging authority fix: workshop station Realtime uses an isolated nonpersistent client so operational channels cannot close the fail-closed own-role monitor",
-  "baseDeploymentCommit": "e2dcd2f",
+  "generatedAtUtc": "2026-08-03T02:30:03Z",
+  "deploymentMode": "Production-readiness staging authority fix: both workshop station and fail-closed own-role Realtime use dedicated nonpersistent clients, eliminating cross-channel route lockouts",
+  "baseDeploymentCommit": "8978c8a",
   "sourceRepository": "BTNew/pdc-control-board",
   "sourceBranch": "campaign/staging-production-readiness-reset-20260803",
-  "sourceCommit": "265b1d05c87c2047af1b0699359c790cee4e6caa",
-  "sourceTree": "64945b76e6bd7c0ba81b27074636146c5147c9d0",
-  "cacheVersion": "2026.08.03.04-isolated-workshop-realtime",
+  "sourceCommit": "e2c451729282e55a1701450be70d9f14ffdd96d7",
+  "sourceTree": "44753e0937beb46723e5e93840393be4498b5058",
+  "cacheVersion": "2026.08.03.05-isolated-role-authority",
   "stagingProjectRef": "cdsmnqxtyyoeoznmbidd",
   "zeroData": true,
   "mailboxAuthority": false,
@@ -66,8 +66,8 @@
     {
       "sourcePath": "app.js",
       "deployedPath": "app.js",
-      "sha256": "0e69884fd3656c9227f20951f5bdf18d5343e073396af8424fba8e1b51240b87",
-      "bytes": 1029760
+      "sha256": "299a072849c0dd29932b08cc2b233a612640e3fa445e043798bb9e96d9a84730",
+      "bytes": 1029754
     },
     {
       "sourcePath": "arb-labor-catalog.js",
@@ -114,8 +114,8 @@
     {
       "sourcePath": "staging.html",
       "deployedPath": "index.html",
-      "sha256": "1af6b2cac4a8ed85a3853da46974ca730b81bad9bf9c554d8f33f84593ac5c3f",
-      "bytes": 63978
+      "sha256": "18cdfb95603eeb2654322e5e1920ddc05dc376b002bc99bf56a9d51c0ada8146",
+      "bytes": 63912
     },
     {
       "sourcePath": "key-list-review.js",
@@ -162,8 +162,8 @@
     {
       "sourcePath": "pdc-auth.js",
       "deployedPath": "pdc-auth.js",
-      "sha256": "714f679310200f0dbfe232038179c48e8188d473159eddcfbde2ed76108f799b",
-      "bytes": 34216
+      "sha256": "915f1c6441e7f3f7c72b900bf0ee83da528a316eda498db42451456beca90fa7",
+      "bytes": 35346
     },
     {
       "sourcePath": "pdc-bulk-workbook-admin-review.js",
@@ -180,8 +180,8 @@
     {
       "sourcePath": "pdc-supabase-config.staging.js",
       "deployedPath": "pdc-supabase-config.staging.js",
-      "sha256": "53c1d9ba873125ee4e1cd3815d3d97c59c539bc206dc92c5547ebe39c783a323",
-      "bytes": 1710
+      "sha256": "7d1cc777737066067b7c16dc8790bb9d878ebc1464c57c2a8d16e29dbfd8d1bb",
+      "bytes": 1707
     },
     {
       "sourcePath": "scripts/stage2b_c4_browser_export.js",
