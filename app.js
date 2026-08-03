@@ -1,5 +1,8 @@
-const APP_VERSION = '2026.08.03.06-bounded-parts-pagination';
-const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.08.03.06-bounded-parts-pagination';
+const APP_VERSION = '2026.08.03.07-autonomous-accessibility-trial';
+const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.08.03.07-autonomous-accessibility-trial';
+const PDC_BASE_DOCUMENT_TITLE = String(document.title || '').trim() || 'PDC Control Board';
+const routeDocumentTitle = title => `${title} — ${PDC_BASE_DOCUMENT_TITLE}`;
+
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
 // constant intentionally names only the production ref, never the
@@ -2967,11 +2970,37 @@ function syncAdminNavigationVisibility() {
   return allowed;
 }
 
+function navigationItemVisible(item) {
+  if (!item || item.hidden) return false;
+  for (let parent = item.parentElement; parent; parent = parent.parentElement) {
+    if (parent.hidden) return false;
+  }
+  return true;
+}
+
+function updateNavigationCurrentState(requestedView, plannerStage, adminActive) {
+  const destinations = $$('.nav-item[data-view]');
+  const adminToggle = $('#nav-admin-toggle');
+  const candidates = adminToggle ? [...destinations, adminToggle] : destinations;
+  candidates.forEach(item => item.removeAttribute('aria-current'));
+  const activeDestination = destinations.find(item => navigationItemVisible(item) && (
+    item.dataset.view === requestedView || (plannerStage && item.dataset.view === 'workshop')
+  ));
+  const currentDestination = activeDestination
+    || (adminActive && navigationItemVisible(adminToggle) ? adminToggle : null);
+  currentDestination?.setAttribute('aria-current', 'page');
+}
+
 function bindNav() {
   $$('.nav-item[data-view]').forEach(btn => btn.addEventListener('click', () => showView(btn.dataset.view)));
   on($('#nav-admin-toggle'), 'click', () => {
     if (!syncAdminNavigationVisibility()) return;
     setAdminNavigationExpanded($('#nav-admin-toggle')?.getAttribute('aria-expanded') !== 'true');
+    updateNavigationCurrentState(
+      app.currentRequestedView || app.currentView || 'dashboard',
+      app.activeWorkshopPlannerStage || '',
+      $('#nav-admin-toggle')?.classList.contains('active') || false
+    );
   });
   syncAdminNavigationVisibility();
   if (!window.__pdcWorkshopRouteListenersInstalled && typeof window.addEventListener === 'function') {
@@ -3730,6 +3759,7 @@ function showView(view, options) {
   const adminActive = adminViews.has(requestedView);
   $('#nav-admin-toggle')?.classList.toggle('active', adminActive);
   if (adminActive && syncAdminNavigationVisibility()) setAdminNavigationExpanded(true);
+  updateNavigationCurrentState(requestedView, plannerStage, adminActive);
   const departmentDef = departmentStage ? PRODUCTION_FLOW_DEFS.find(def => def.key === departmentStage) : null;
   const titleMap = {
     dashboard: 'Vehicle Locations',
@@ -3747,15 +3777,18 @@ function showView(view, options) {
     completed: 'Completed vehicles',
     deleted: 'Deleted vehicles',
     backend: 'Back End Data',
+    'user-management': 'User Management',
     lists: 'Setup',
     'admin-import': 'Admin Import',
     import: 'Uploads',
     zpl: 'Label Tools'
   };
-  const pageTitle = $('#page-title');
-  if (pageTitle) pageTitle.textContent = departmentDef
+  const resolvedTitle = departmentDef
     ? departmentDef.label
     : (plannerStage ? `${pmbStageLabel(plannerStage)} Planner` : (titleMap[requestedView] || 'Control Board'));
+  const pageTitle = $('#page-title');
+  if (pageTitle) pageTitle.textContent = resolvedTitle;
+  document.title = routeDocumentTitle(resolvedTitle);
   if (requestedView !== 'dashboard' && app.frozenHeaderCleanup) {
     app.frozenHeaderCleanup();
     app.frozenHeaderCleanup = null;
@@ -4199,6 +4232,11 @@ window.addEventListener?.('pdc-auth-ready', () => {
   if (navItem) navItem.hidden = false;
   if (window.PDC_AUTH_CONTEXT?.role !== 'administrator') destroyAdminWorkbookImportReview();
   updateAdminWorkbookImportNavigation();
+  updateNavigationCurrentState(
+    app.currentRequestedView || app.currentView || 'dashboard',
+    app.activeWorkshopPlannerStage || '',
+    $('#nav-admin-toggle')?.classList.contains('active') || false
+  );
   if (app.currentView === 'admin-import') renderAdminWorkbookImportReview();
   if (app.currentView === 'emailreview' && typeof renderAiBoardAdvisor === 'function') renderAiBoardAdvisor();
   resetPdcAuditorAuthorityState();
@@ -4294,6 +4332,11 @@ window.addEventListener?.('pdc-auth-locked', () => {
   if (navItem) navItem.hidden = true;
   const importNavItem = document.getElementById('nav-admin-import');
   if (importNavItem) importNavItem.hidden = true;
+  updateNavigationCurrentState(
+    app.currentRequestedView || app.currentView || 'dashboard',
+    app.activeWorkshopPlannerStage || '',
+    $('#nav-admin-toggle')?.classList.contains('active') || false
+  );
   destroyAdminWorkbookImportReview();
 });
 

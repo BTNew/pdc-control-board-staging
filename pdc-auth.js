@@ -636,15 +636,18 @@
 
   function showCreateAccountForm() {
     setMessage('Create your PDC account', 'Enter your details below. An administrator must approve your account before you can access any data.', 'create-account');
+    el('pdc-signup-full-name')?.focus();
   }
 
   function showForgotPasswordForm() {
     setMessage('Reset your password', 'Enter your work email and we will send you a password reset link.', 'forgot-password');
+    el('pdc-forgot-email')?.focus();
   }
 
   function showSignInForm() {
     const config = authConfig();
     setMessage(config.mode === 'microsoft' ? 'Microsoft sign-in required' : 'PDC staff sign-in', config.mode === 'microsoft' ? 'Use your approved work Microsoft account to open the PDC Control Board.' : 'Use your individually assigned PDC email and password.', 'signed-out');
+    el('pdc-login-email')?.focus();
   }
 
   async function initialize() {
