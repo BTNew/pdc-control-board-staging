@@ -6,6 +6,7 @@ import sys
 
 ROOT = Path(__file__).resolve().parent
 SQL = (ROOT / "supabase" / "staging_only" / "128_stock_only_stage_mapped_workbook_import.sql").read_text(encoding="utf-8")
+PRIVACY_SQL = (ROOT / "supabase" / "staging_only" / "129_bulk_stock_only_vehicle_privacy_guard.sql").read_text(encoding="utf-8")
 RUNNER = (ROOT / "scripts" / "run_pdc_bulk_workbook_staging.py").read_text(encoding="utf-8")
 
 for required in (
@@ -48,6 +49,14 @@ assert "alter table public.pdc_bulk_workbook_row_receipts alter column backend_r
 assert "check(operation_count>=0)" in SQL
 assert "source JC and key numbers ignored as identity authority" in SQL
 assert 'timeout=180' in RUNNER
+for required in (
+    "enforce_pdc_bulk_stock_only_vehicle_privacy",
+    "new.customer_name:=null",
+    "new.key_number:=null",
+    "source_payload ? 'bulk_preview_id'",
+    "version=version+1",
+):
+    assert required in PRIVACY_SQL, required
 
 sys.path.insert(0, str(ROOT))
 from scripts import run_pdc_bulk_workbook_staging as runner
