@@ -1,14 +1,14 @@
 {
   "artifact": "zero-embedded-data static staging site",
   "environment": "staging",
-  "generatedAtUtc": "2026-08-03T05:26:41Z",
-  "deploymentMode": "Bounded autonomous staging accessibility trial: auth-form focus, branded route titles, and visibility-aware current navigation state",
+  "generatedAtUtc": "2026-08-03T08:08:16Z",
+  "deploymentMode": "Staging-only Workshop Planner Perth timezone correction: canonical AWST date arithmetic, display and booking payloads",
   "baseDeploymentCommit": "84e090d49b8fb1db3168e6a5d9d81b2219a71908",
   "sourceRepository": "BTNew/pdc-control-board",
-  "sourceBranch": "trial/staging-autonomous-qa-20260803",
-  "sourceCommit": "0b730fe5b89644af607b8b26af0fa6f2298a2cd7",
-  "sourceTree": "fe680666269507c539d4820e4f6db9adee0a82e2",
-  "cacheVersion": "2026.08.03.07-autonomous-accessibility-trial",
+  "sourceBranch": "pressure/staging-workshop-10h-20260803",
+  "sourceCommit": "8f345de48ec3eea21bdd60779fa87c5f550d3133",
+  "sourceTree": "c862ebf5497a491090f91029dfa75996521b3c7c",
+  "cacheVersion": "2026.08.03.08-workshop-perth-timezone-fix",
   "stagingProjectRef": "cdsmnqxtyyoeoznmbidd",
   "zeroData": true,
   "mailboxAuthority": false,
@@ -44,9 +44,9 @@
     "applyReceipts": 0
   },
   "releaseChecks": {
-    "aggregateTests": "139 passed, 0 failed, 1 documented clean-build skip",
-    "focusedTests": "auth focus, branded route titles, singular visibility-aware aria-current, auth lifecycle, version consistency and JavaScript syntax checks passed",
-    "assetParity": "all deployed source files content-identical to exact source worktree after Git text normalization before commit",
+    "aggregateTests": "140 passed, 0 failed, 1 documented clean-build skip",
+    "focusedTests": "Workshop planner, configuration, shared actions and timezone regressions passed under Australia/Perth, UTC, America/New_York and Pacific/Honolulu; UTC-browser Electrical 08:00 payload verified as 00:00Z",
+    "assetParity": "app.js, workshop-planner.js and pdc-supabase-config.staging.js are content-identical to source commit; source staging.html is content-identical to deployed index.html",
     "roleSecurity": "no authentication authority, role, database, workflow, mailbox or operational mutation changes",
     "production": "unchanged"
   },
@@ -66,8 +66,8 @@
     {
       "sourcePath": "app.js",
       "deployedPath": "app.js",
-      "sha256": "c79acf40ec16d3499cdf3e931ca3878e4055a57ee671a0c7d3b690b99057548c",
-      "bytes": 1032908
+      "sha256": "7e2797352f3fb98eda9b296e9160e6d47aac4d8e66b304ca62c486fe68146cb7",
+      "bytes": 1032902
     },
     {
       "sourcePath": "arb-labor-catalog.js",
@@ -114,8 +114,8 @@
     {
       "sourcePath": "staging.html",
       "deployedPath": "index.html",
-      "sha256": "d7e7f6d13e5430fa2d3080b58046dbd24765cd0e5a347c533ba14d6f3b770f22",
-      "bytes": 64066
+      "sha256": "144d505a4147beb7df52df845a395f034c6f93198d2edc1bdb1c9af63f1e4131",
+      "bytes": 64000
     },
     {
       "sourcePath": "key-list-review.js",
@@ -180,8 +180,8 @@
     {
       "sourcePath": "pdc-supabase-config.staging.js",
       "deployedPath": "pdc-supabase-config.staging.js",
-      "sha256": "08e67587b9c0c8ea49df33a2ea1b5e80db8bd481ce2a7ed74a1c659b6027423d",
-      "bytes": 1714
+      "sha256": "5d3f313bc6afc94b4f07844a9338ac9b40b524590e810b7dada18098c35b0f1d",
+      "bytes": 1711
     },
     {
       "sourcePath": "scripts/stage2b_c4_browser_export.js",
@@ -282,8 +282,8 @@
     {
       "sourcePath": "workshop-planner.js",
       "deployedPath": "workshop-planner.js",
-      "sha256": "b7da3d3e59cb91deba3c104051e279e7ceb6a9926043f5e33afa33fff9c45ac4",
-      "bytes": 325481
+      "sha256": "35ec8c86dfed6a90f4264ca28473d066a1243ce919379a4a053530af9c004e29",
+      "bytes": 328791
     },
     {
       "sourcePath": "workshop-realtime.js",
