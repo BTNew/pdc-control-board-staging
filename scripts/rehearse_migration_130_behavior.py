@@ -44,6 +44,8 @@ def main() -> None:
             if one(cur, "select project_ref from public.pdc_staging_environment_sentinel where singleton") != EXPECTED_REF:
                 raise RuntimeError("wrong staging project")
             installed = one(cur, "select exists(select 1 from supabase_migrations.schema_migrations where version='130')")
+            migration_132_installed = one(cur, "select exists(select 1 from supabase_migrations.schema_migrations where version='132')")
+            exercise_132 = args.migration_132 or (args.installed and migration_132_installed)
             expected_130 = args.installed or args.migration_132
             if installed is not expected_130:
                 raise RuntimeError(f"Migration 130 installed state mismatch: installed={installed}, expected={expected_130}")
@@ -57,6 +59,9 @@ def main() -> None:
                 "activations": one(cur, "select count(*) from public.navision_board_activations"),
                 "bookings": one(cur, "select count(*) from public.workshop_bookings"),
                 "work_items": one(cur, "select count(*) from public.vehicle_work_items"),
+                "parts_updates": one(cur, "select count(*) from public.vehicle_parts_updates"),
+                "movements": one(cur, "select count(*) from public.vehicle_movements"),
+                "notifications": one(cur, "select count(*) from public.vehicle_notifications"),
                 "navision_revision": one(cur, "select revision from public.navision_backend_revision where singleton"),
                 "navision_audit": one(cur, "select count(*) from public.navision_backend_audit"),
             }
@@ -129,7 +134,7 @@ def main() -> None:
                 raise RuntimeError(f"positive fan-out failed: {positive}")
             if replay != positive:
                 raise RuntimeError("exact replay did not return the retained response")
-            if args.migration_132 and not (
+            if exercise_132 and not (
                 revision_after_positive > revision_before_positive
                 and revision_after_replay == revision_after_positive
             ):
@@ -268,7 +273,7 @@ def main() -> None:
             if one(cur, "select count(*) from public.vehicles where stock_number_normalized=%s", (stocks[2],)) != 0:
                 raise RuntimeError("late fan-out failure left a partial vehicle")
 
-            if args.migration_132:
+            if exercise_132:
                 cur.execute("select normalized_data->>'vin' from public.navision_backend_records where public.normalize_vehicle_stock_number(normalized_data->>'batch')=%s and is_current and record_status='current'", (stocks[2],))
                 conflict_vin = cur.fetchone()[0]
                 if not one(cur, "select public.is_valid_vehicle_vin(%s)", (conflict_vin,)):
@@ -329,15 +334,20 @@ def main() -> None:
             after = {
                 "bookings": one(cur, "select count(*) from public.workshop_bookings"),
                 "work_items": one(cur, "select count(*) from public.vehicle_work_items"),
+                "parts_updates": one(cur, "select count(*) from public.vehicle_parts_updates"),
+                "movements": one(cur, "select count(*) from public.vehicle_movements"),
+                "notifications": one(cur, "select count(*) from public.vehicle_notifications"),
                 "activations": one(cur, "select count(*) from public.navision_board_activations"),
                 "navision_revision": one(cur, "select revision from public.navision_backend_revision where singleton"),
                 "navision_audit": one(cur, "select count(*) from public.navision_backend_audit"),
             }
             expected_after = {
                 "bookings": before["bookings"], "work_items": before["work_items"],
+                "parts_updates": before["parts_updates"], "movements": before["movements"],
+                "notifications": before["notifications"],
                 "activations": before["activations"], "navision_revision": before["navision_revision"],
                 "navision_audit": before["navision_audit"],
-            } if args.migration_132 else {
+            } if exercise_132 else {
                 "bookings": before["bookings"], "work_items": before["work_items"],
                 "activations": after["activations"], "navision_revision": after["navision_revision"],
                 "navision_audit": after["navision_audit"],
@@ -354,20 +364,23 @@ def main() -> None:
                 "unmatched_fail_closed": True,
                 "duplicate_stock_fail_closed": True,
                 "atomic_late_failure": True,
-                "vin_conflict_non_authoritative": True if args.migration_132 else None,
-                "active_vin_alias_conflict_non_authoritative": True if args.migration_132 else None,
-                "cross_contract_batch_then_single_guarded": True if args.migration_132 else None,
-                "cross_contract_single_then_batch_guarded": True if args.migration_132 else None,
-                "legacy_single_import_execute_revoked": True if args.migration_132 else None,
-                "stock_alias_positive_match_projected": True if args.migration_132 else None,
-                "stock_alias_canonical_value_preserved": True if args.migration_132 else None,
+                "vin_conflict_non_authoritative": True if exercise_132 else None,
+                "active_vin_alias_conflict_non_authoritative": True if exercise_132 else None,
+                "cross_contract_batch_then_single_guarded": True if exercise_132 else None,
+                "cross_contract_single_then_batch_guarded": True if exercise_132 else None,
+                "legacy_single_import_execute_revoked": True if exercise_132 else None,
+                "stock_alias_positive_match_projected": True if exercise_132 else None,
+                "stock_alias_canonical_value_preserved": True if exercise_132 else None,
                 "protected_lifecycle_fail_closed": True,
                 "booking_delta": 0,
                 "work_item_delta": 0,
+                "parts_update_delta": after["parts_updates"]-before["parts_updates"],
+                "movement_delta": after["movements"]-before["movements"],
+                "notification_delta": after["notifications"]-before["notifications"],
                 "activation_delta": after["activations"]-before["activations"],
                 "navision_revision_delta": after["navision_revision"]-before["navision_revision"],
                 "navision_audit_delta": after["navision_audit"]-before["navision_audit"],
-                "vehicle_location_revision_advanced": True if args.migration_132 else None,
+                "vehicle_location_revision_advanced": True if exercise_132 else None,
                 "replay_revision_delta": revision_after_replay-revision_after_positive,
             }
         conn.rollback()
