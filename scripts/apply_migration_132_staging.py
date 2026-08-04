@@ -18,7 +18,7 @@ from staging_env import assert_staging_target, load_local_env  # noqa: E402
 
 MIGRATION = ROOT / "supabase" / "staging_only" / "132_stock_only_authenticated_email_batch_fanout.sql"
 EXPECTED_REF = "cdsmnqxtyyoeoznmbidd"
-EXPECTED_MIGRATION_SHA256 = "c9e7d8b291e8fe036a728cb1efb2b559986b5cf86fcd25675523d85a4e721db2"
+EXPECTED_MIGRATION_SHA256 = "7b913e6eb88ebf59b6eae8b21610c2b4ba5fedb2d4b61c4dff0ba0e21bed1f23"
 SIGNATURE = "public.import_pdc_authenticated_backend_batches(text,text,text,text,text,jsonb,timestamp with time zone,text,jsonb)"
 LEGACY_SIGNATURE = "public.import_pdc_authenticated_vehicle_email(text,text,text,text,text,jsonb,timestamp with time zone,text,jsonb,jsonb)"
 

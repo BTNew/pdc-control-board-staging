@@ -58,7 +58,12 @@ forbid("v.vin_normalized=v_vin\n      union")
 assert LOWER.rindex("a.alias_type_normalized='stock_number'") < LOWER.index("pdc_email_132_postcondition_failed")
 assert LOWER.rindex("a.normalized_alias_value=v_stock") < LOWER.index("pdc_email_132_postcondition_failed")
 
-# Complete validation must precede all canonical writes.
+# Complete validation must precede all canonical writes, and the shared global
+# Navision advisory lock must precede vehicle/alias table locks to match Admin Apply.
+nav_lock = LOWER.index("pg_advisory_xact_lock(hashtextextended('navision-backend-store',0))")
+table_lock = LOWER.index("lock table public.vehicles,public.vehicle_aliases")
+assert nav_lock < table_lock
+assert table_lock < LOWER.index("insert into public.vehicles")
 assert LOWER.index("-- validate the complete fan-out before the first write") < LOWER.index("insert into public.vehicles")
 assert LOWER.index("for v_index in 1..cardinality(v_stocks) loop") < LOWER.index("insert into public.pdc_authenticated_email_batch_receipts")
 print("authenticated email stock-only batch fan-out Migration 132 contract: ok")

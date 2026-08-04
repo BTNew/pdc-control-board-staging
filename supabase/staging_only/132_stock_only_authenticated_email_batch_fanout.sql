@@ -205,8 +205,8 @@ begin
 
   -- Validate the complete fan-out before the first write. Stock is the only
   -- positive identity authority. VIN is checked solely as a conflict guard.
-  lock table public.vehicles,public.vehicle_aliases in share row exclusive mode;
   perform pg_advisory_xact_lock(hashtextextended('navision-backend-store',0));
+  lock table public.vehicles,public.vehicle_aliases in share row exclusive mode;
   for v_index in 1..cardinality(v_stocks) loop
     v_stock:=v_stocks[v_index];
     select coalesce(array_agg(id order by id),'{}'::uuid[]) into v_candidate_backend_ids
