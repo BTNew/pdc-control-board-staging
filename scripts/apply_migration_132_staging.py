@@ -4,6 +4,8 @@ import argparse
 import hashlib
 import json
 import os
+import re
+import subprocess
 import sys
 from pathlib import Path
 
@@ -16,6 +18,7 @@ from staging_env import assert_staging_target, load_local_env  # noqa: E402
 
 MIGRATION = ROOT / "supabase" / "staging_only" / "132_stock_only_authenticated_email_batch_fanout.sql"
 EXPECTED_REF = "cdsmnqxtyyoeoznmbidd"
+EXPECTED_MIGRATION_SHA256 = "c9e7d8b291e8fe036a728cb1efb2b559986b5cf86fcd25675523d85a4e721db2"
 SIGNATURE = "public.import_pdc_authenticated_backend_batches(text,text,text,text,text,jsonb,timestamp with time zone,text,jsonb)"
 LEGACY_SIGNATURE = "public.import_pdc_authenticated_vehicle_email(text,text,text,text,text,jsonb,timestamp with time zone,text,jsonb,jsonb)"
 
@@ -38,8 +41,11 @@ def state(cur) -> dict:
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--apply", action="store_true")
+    parser.add_argument("--expected-commit")
     parser.add_argument("--fault-inject-postcheck-failure", action="store_true", help=argparse.SUPPRESS)
     args = parser.parse_args()
+    if args.apply and (not args.expected_commit or not re.fullmatch(r"[a-f0-9]{40}", args.expected_commit)):
+        raise RuntimeError("--apply requires the exact reviewed 40-character --expected-commit")
     if args.fault_inject_postcheck_failure and not args.apply:
         raise RuntimeError("fault injection requires --apply")
     load_local_env()
@@ -49,6 +55,21 @@ def main() -> None:
     assert_staging_target(database_url=dsn)
     sql = MIGRATION.read_text(encoding="utf-8")
     sha = hashlib.sha256(MIGRATION.read_bytes()).hexdigest()
+    if sha != EXPECTED_MIGRATION_SHA256:
+        raise RuntimeError(f"Migration 132 digest mismatch: {sha}")
+    if args.apply:
+        actual_commit = subprocess.run(
+            ["git", "rev-parse", "HEAD"], cwd=ROOT, check=True,
+            capture_output=True, text=True,
+        ).stdout.strip()
+        worktree_status = subprocess.run(
+            ["git", "status", "--porcelain", "--untracked-files=all"], cwd=ROOT, check=True,
+            capture_output=True, text=True,
+        ).stdout.strip()
+        if actual_commit != args.expected_commit:
+            raise RuntimeError(f"reviewed commit mismatch: expected={args.expected_commit}, actual={actual_commit}")
+        if worktree_status:
+            raise RuntimeError("refusing migration apply from a dirty worktree")
     conn = psycopg.connect(dsn)
     try:
         with conn.cursor() as cur:

@@ -53,6 +53,11 @@ forbid("insert into public.navision_board_activations")
 forbid("update public.navision_board_activations")
 forbid("v.vin_normalized=v_vin\n      union")
 
+# Alias-only Stock identity must satisfy the final postcondition without
+# rewriting the vehicle's canonical Stock number.
+assert LOWER.rindex("a.alias_type_normalized='stock_number'") < LOWER.index("pdc_email_132_postcondition_failed")
+assert LOWER.rindex("a.normalized_alias_value=v_stock") < LOWER.index("pdc_email_132_postcondition_failed")
+
 # Complete validation must precede all canonical writes.
 assert LOWER.index("-- validate the complete fan-out before the first write") < LOWER.index("insert into public.vehicles")
 assert LOWER.index("for v_index in 1..cardinality(v_stocks) loop") < LOWER.index("insert into public.pdc_authenticated_email_batch_receipts")

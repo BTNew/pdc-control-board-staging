@@ -28,7 +28,11 @@ def state(dsn):
 
 load_local_env(); dsn=os.environ.get('PDC_STAGING_DIRECT_DATABASE_URL') or os.environ.get('PDC_STAGING_DATABASE_URL'); assert_staging_target(database_url=dsn)
 before=state(dsn)
-proc=subprocess.run([sys.executable,str(ROOT/'scripts'/'apply_migration_132_staging.py'),'--apply','--fault-inject-postcheck-failure'],capture_output=True,text=True,env=os.environ.copy())
+expected_commit=subprocess.run(['git','rev-parse','HEAD'],cwd=ROOT,check=True,capture_output=True,text=True).stdout.strip()
+proc=subprocess.run([
+    sys.executable,str(ROOT/'scripts'/'apply_migration_132_staging.py'),
+    '--apply','--expected-commit',expected_commit,'--fault-inject-postcheck-failure'
+],capture_output=True,text=True,env=os.environ.copy())
 after=state(dsn)
 assert proc.returncode != 0, 'fault injection unexpectedly succeeded'
 assert 'intentional postcheck failure before commit' in (proc.stdout+proc.stderr)

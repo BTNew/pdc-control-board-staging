@@ -345,8 +345,24 @@ begin
           'source_hash',v_source_hash,'evidence_hash',v_evidence_hash,'stock_only_authority',true,
           'vin_identity_authority',false,'booking_created',false));
     end if;
-    if not exists(select 1 from public.vehicles v where v.id=v_vehicle_id and v.stock_number_normalized=v_stock
-      and v.lifecycle_state='active' and v.deleted_at is null and v.visible_on_board) then
+    if not exists(
+      select 1
+      from public.vehicles v
+      where v.id=v_vehicle_id
+        and v.lifecycle_state='active'
+        and v.deleted_at is null
+        and v.visible_on_board
+        and (
+          v.stock_number_normalized=v_stock
+          or exists(
+            select 1 from public.vehicle_aliases a
+            where a.vehicle_id=v.id
+              and a.active
+              and a.alias_type_normalized='stock_number'
+              and a.normalized_alias_value=v_stock
+          )
+        )
+    ) then
       raise exception using errcode='P0001',message='PDC_EMAIL_132_POSTCONDITION_FAILED';
     end if;
   end loop;

@@ -36,7 +36,7 @@ def main() -> None:
     migration_path = MIGRATION_132 if args.migration_132 else MIGRATION
     sql = migration_path.read_text(encoding="utf-8")
     sql = sql.replace("begin;", "", 1).rsplit("commit;", 1)[0]
-    source_hashes = ["a" * 64, "b" * 64, "c" * 64, "d" * 64]
+    source_hashes = ["a" * 64, "b" * 64, "c" * 64, "d" * 64, "e" * 64]
     conn = psycopg.connect(dsn)
     report = {}
     try:
@@ -92,11 +92,12 @@ def main() -> None:
                 select u.stock from unique_rows u
                 where not exists(select 1 from public.navision_board_activations a where a.backend_record_id=u.id)
                   and not exists(select 1 from public.vehicles v where v.stock_number_normalized=u.stock)
-                order by u.id limit 3
+                  and not exists(select 1 from public.vehicle_aliases a where a.active and a.alias_type_normalized='stock_number' and a.normalized_alias_value=u.stock)
+                order by u.id limit 4
             """)
             stocks = [row[0] for row in cur.fetchall()]
-            if len(stocks) != 3:
-                raise RuntimeError("three unused exact staging Back End stocks are required for rehearsal")
+            if len(stocks) != 4:
+                raise RuntimeError("four unused exact staging Back End stocks are required for rehearsal")
             for index, source_hash in enumerate(source_hashes, 1):
                 cur.execute("insert into public.pdc_email_source_claims(source_hash,contract_name,proposal_ref) values(%s,'pdc_ai_intake_063',%s)", (source_hash, f"qa-130-{index}"))
             claims = json.dumps({"sub": str(actor_id), "email": actor_email, "role": "authenticated"})
@@ -196,6 +197,47 @@ def main() -> None:
 
             if one(cur, "select has_function_privilege('authenticated','public.import_pdc_authenticated_vehicle_email(text,text,text,text,text,jsonb,timestamp with time zone,text,jsonb,jsonb)','EXECUTE')"):
                 raise RuntimeError("legacy one-vehicle importer retained authenticated execute")
+
+            # Active Stock aliases are positive identity authority. The import
+            # must retain the canonical Stock while projecting the linked vehicle.
+            cur.execute("""
+                select v.id
+                from public.vehicles v
+                where v.lifecycle_state='active' and v.deleted_at is null
+                  and v.stock_number_normalized is not null
+                  and v.stock_number_normalized<>all(%s)
+                  and v.id<>all(%s)
+                order by v.id limit 1
+            """, (stocks, [positive_vehicle_id]))
+            alias_vehicle = cur.fetchone()
+            if not alias_vehicle:
+                raise RuntimeError("no safe active vehicle available for Stock-alias rehearsal")
+            alias_vehicle_id = alias_vehicle[0]
+            cur.execute("""
+                insert into public.vehicle_aliases(vehicle_id,alias_type,alias_value,active,created_by,updated_by)
+                values(%s,'stock_number',%s,true,%s,%s)
+            """, (alias_vehicle_id, stocks[3], actor_id, actor_id))
+            alias_revision_before = one(cur, "select revision from public.pdc_email_vehicle_revision where singleton")
+            alias_params = (
+                "pdc-email-batch-qa132stockaliasabcdef", source_hashes[4], "6" * 64,
+                "qa-132-stock-alias", "qa@pmgwa.com.au", json.dumps(auth),
+                datetime.now(timezone.utc).isoformat(), "QA Migration 132 Stock alias", json.dumps([stocks[3]]),
+            )
+            cur.execute("set local role authenticated")
+            cur.execute("select set_config('request.jwt.claims',%s,true)", (claims,))
+            alias_result = one(cur, call_sql, alias_params)
+            if not alias_result.get("ok") or alias_result.get("code") != "backend_batches_imported":
+                raise RuntimeError(f"Stock-alias import failed: {alias_result}")
+            alias_snapshot = one(cur, "select public.get_pdc_email_vehicle_location_snapshot()")
+            alias_replay = one(cur, call_sql, alias_params)
+            cur.execute("reset role")
+            alias_revision_after = one(cur, "select revision from public.pdc_email_vehicle_revision where singleton")
+            if alias_replay != alias_result or alias_revision_after != alias_revision_before + 1:
+                raise RuntimeError("Stock-alias replay was not idempotent")
+            if one(cur, "select count(*) from public.vehicles where stock_number_normalized=%s", (stocks[3],)) != 0:
+                raise RuntimeError("Stock-alias import rewrote or duplicated canonical Stock")
+            if not any(str(row.get("id")) == str(alias_vehicle_id) for row in alias_snapshot.get("data", {}).get("vehicles", [])):
+                raise RuntimeError("Stock-alias linked vehicle missing from Vehicle Locations projection")
 
             cur.execute("set local role authenticated")
             cur.execute("select set_config('request.jwt.claims',%s,true)", (claims,))
@@ -317,6 +359,8 @@ def main() -> None:
                 "cross_contract_batch_then_single_guarded": True if args.migration_132 else None,
                 "cross_contract_single_then_batch_guarded": True if args.migration_132 else None,
                 "legacy_single_import_execute_revoked": True if args.migration_132 else None,
+                "stock_alias_positive_match_projected": True if args.migration_132 else None,
+                "stock_alias_canonical_value_preserved": True if args.migration_132 else None,
                 "protected_lifecycle_fail_closed": True,
                 "booking_delta": 0,
                 "work_item_delta": 0,
