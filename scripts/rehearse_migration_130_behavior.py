@@ -143,6 +143,60 @@ def main() -> None:
             if one(cur, "select count(*) from public.pdc_authenticated_email_batch_receipts where source_hash=%s", (source_hashes[0],)) != 1:
                 raise RuntimeError("aggregate receipt missing")
 
+            # Batch -> legacy sequencing: the cross-contract trigger must reject
+            # a single receipt for an already batch-consumed source.
+            positive_vehicle_id = one(cur, "select id from public.vehicles where stock_number_normalized=%s", (stocks[0],))
+            cur.execute("savepoint qa132_cross_contract")
+            try:
+                cur.execute("""
+                    insert into public.pdc_authenticated_email_import_receipts(
+                      actor_id,idempotency_key,request_hash,source_hash,evidence_hash,source_uid,
+                      sender_address,source_received_at,stock_number,vin,backend_record_id,vehicle_id,
+                      identity_source,required_work,response
+                    ) values(
+                      %s,'pdc-email-import-qa132-cross-contract',repeat('3',64),%s,repeat('4',64),
+                      'qa-132-cross-contract','qa@pmgwa.com.au',clock_timestamp(),%s,null,null,%s,
+                      'operational_exact','[]'::jsonb,'{}'::jsonb
+                    )
+                """, (actor_id, source_hashes[0], stocks[0], positive_vehicle_id))
+            except psycopg.errors.UniqueViolation:
+                cur.execute("rollback to savepoint qa132_cross_contract")
+            else:
+                cur.execute("rollback to savepoint qa132_cross_contract")
+                raise RuntimeError("cross-contract guard unexpectedly allowed legacy receipt")
+            finally:
+                cur.execute("release savepoint qa132_cross_contract")
+            if one(cur, "select count(*) from public.pdc_authenticated_email_import_receipts where source_hash=%s", (source_hashes[0],)) != 0:
+                raise RuntimeError("batch-consumed source leaked into legacy receipts")
+
+            # Legacy -> batch sequencing: an existing single receipt must fail
+            # before any batch vehicle write or aggregate receipt.
+            cur.execute("""
+                select r.source_hash
+                from public.pdc_authenticated_email_import_receipts r
+                join public.pdc_email_source_claims c on c.source_hash=r.source_hash
+                order by r.created_at desc limit 1
+            """)
+            historical = cur.fetchone()
+            if not historical:
+                raise RuntimeError("cross-contract rehearsal requires one historical single receipt")
+            historical_source_hash = historical[0]
+            cur.execute("set local role authenticated")
+            cur.execute("select set_config('request.jwt.claims',%s,true)", (claims,))
+            consumed = one(cur, call_sql, (
+                "pdc-email-batch-qa132legacyconsumedabcd", historical_source_hash, "5" * 64,
+                "qa-132-legacy-consumed", "qa@pmgwa.com.au", json.dumps(auth),
+                datetime.now(timezone.utc).isoformat(), "QA Migration 132 legacy source consumed", json.dumps([stocks[2]]),
+            ))
+            if consumed.get("ok") or consumed.get("code") != "source_already_consumed":
+                raise RuntimeError(f"legacy-consumed source did not fail closed: {consumed}")
+            cur.execute("reset role")
+            if one(cur, "select count(*) from public.pdc_authenticated_email_batch_receipts where source_hash=%s", (historical_source_hash,)) != 0:
+                raise RuntimeError("legacy-consumed source leaked into batch receipts")
+
+            if one(cur, "select has_function_privilege('authenticated','public.import_pdc_authenticated_vehicle_email(text,text,text,text,text,jsonb,timestamp with time zone,text,jsonb,jsonb)','EXECUTE')"):
+                raise RuntimeError("legacy one-vehicle importer retained authenticated execute")
+
             cur.execute("set local role authenticated")
             cur.execute("select set_config('request.jwt.claims',%s,true)", (claims,))
             unmatched = one(cur, call_sql, (
@@ -260,6 +314,9 @@ def main() -> None:
                 "atomic_late_failure": True,
                 "vin_conflict_non_authoritative": True if args.migration_132 else None,
                 "active_vin_alias_conflict_non_authoritative": True if args.migration_132 else None,
+                "cross_contract_batch_then_single_guarded": True if args.migration_132 else None,
+                "cross_contract_single_then_batch_guarded": True if args.migration_132 else None,
+                "legacy_single_import_execute_revoked": True if args.migration_132 else None,
                 "protected_lifecycle_fail_closed": True,
                 "booking_delta": 0,
                 "work_item_delta": 0,

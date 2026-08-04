@@ -21,6 +21,54 @@ begin
 end
 $guard$;
 
+-- One immutable email source may be consumed by exactly one import contract.
+-- The shared advisory lock serializes the legacy single-import function and
+-- this batch contract; receipt triggers close both sequential and race paths.
+create or replace function public.pdc_email_receipt_single_source_guard()
+returns trigger
+language plpgsql
+security definer
+set search_path=pg_catalog,public
+as $source_guard$
+begin
+  if new.source_hash is null or new.source_hash!~'^[a-f0-9]{64}$' then
+    raise exception using errcode='23505',message='PDC_EMAIL_SOURCE_INVALID';
+  end if;
+  perform pg_advisory_xact_lock(hashtextextended('pdc-email-source:'||new.source_hash,0));
+  if tg_table_name='pdc_authenticated_email_import_receipts' then
+    if exists(select 1 from public.pdc_authenticated_email_batch_receipts r where r.source_hash=new.source_hash) then
+      raise exception using errcode='23505',message='PDC_EMAIL_SOURCE_ALREADY_BATCH_CONSUMED';
+    end if;
+  elsif tg_table_name='pdc_authenticated_email_batch_receipts' then
+    if exists(select 1 from public.pdc_authenticated_email_import_receipts r where r.source_hash=new.source_hash) then
+      raise exception using errcode='23505',message='PDC_EMAIL_SOURCE_ALREADY_SINGLE_CONSUMED';
+    end if;
+  else
+    raise exception using errcode='P0001',message='PDC_EMAIL_SOURCE_GUARD_WRONG_TABLE';
+  end if;
+  return new;
+end
+$source_guard$;
+revoke all on function public.pdc_email_receipt_single_source_guard()
+from public,anon,authenticated,service_role;
+
+drop trigger if exists pdc_email_single_receipt_source_guard on public.pdc_authenticated_email_import_receipts;
+create trigger pdc_email_single_receipt_source_guard
+before insert on public.pdc_authenticated_email_import_receipts
+for each row execute function public.pdc_email_receipt_single_source_guard();
+
+drop trigger if exists pdc_email_batch_receipt_source_guard on public.pdc_authenticated_email_batch_receipts;
+create trigger pdc_email_batch_receipt_source_guard
+before insert on public.pdc_authenticated_email_batch_receipts
+for each row execute function public.pdc_email_receipt_single_source_guard();
+
+-- Migration 132 supersedes the one-vehicle importer. Keeping it non-executable
+-- prevents legacy VIN/work/Parts mutation while preserving its old receipts for
+-- projections and immutable-source conflict checks.
+revoke all on function public.import_pdc_authenticated_vehicle_email(
+  text,text,text,text,text,jsonb,timestamptz,text,jsonb,jsonb
+) from public,anon,authenticated,service_role;
+
 create or replace function public.import_pdc_authenticated_backend_batches(
   p_idempotency_key text,
   p_source_hash text,
@@ -120,6 +168,7 @@ begin
      or v_subject~*'\m(cancelled|canceled|cancellation)\M' then
     return public.navision_backend_response(false,'evidence_expired_or_cancelled');
   end if;
+  perform pg_advisory_xact_lock(hashtextextended('pdc-email-source:'||v_source_hash,0));
   perform 1 from public.pdc_email_source_claims c
   where c.source_hash=v_source_hash and c.contract_name='pdc_ai_intake_063'
   for update;
@@ -377,7 +426,8 @@ grant execute on function public.get_pdc_email_vehicle_location_snapshot() to au
 insert into supabase_migrations.schema_migrations(version,name,statements)
 values('132','stock_only_authenticated_email_batch_fanout',array[
   'stock-only direct canonical vehicle import without Navision activation/VIN reconciliation',
-  'complete prevalidation, protected lifecycle, aggregate idempotency receipt, Vehicle Locations projection'
+  'complete prevalidation, protected lifecycle, aggregate idempotency receipt, Vehicle Locations projection',
+  'single-consumption advisory lock and cross-contract receipt guards; legacy one-vehicle importer revoked'
 ]);
 
 comment on function public.import_pdc_authenticated_backend_batches(text,text,text,text,text,jsonb,timestamptz,text,jsonb) is

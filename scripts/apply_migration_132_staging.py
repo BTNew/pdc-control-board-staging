@@ -17,6 +17,7 @@ from staging_env import assert_staging_target, load_local_env  # noqa: E402
 MIGRATION = ROOT / "supabase" / "staging_only" / "132_stock_only_authenticated_email_batch_fanout.sql"
 EXPECTED_REF = "cdsmnqxtyyoeoznmbidd"
 SIGNATURE = "public.import_pdc_authenticated_backend_batches(text,text,text,text,text,jsonb,timestamp with time zone,text,jsonb)"
+LEGACY_SIGNATURE = "public.import_pdc_authenticated_vehicle_email(text,text,text,text,text,jsonb,timestamp with time zone,text,jsonb,jsonb)"
 
 
 def state(cur) -> dict:
@@ -37,7 +38,10 @@ def state(cur) -> dict:
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--apply", action="store_true")
+    parser.add_argument("--fault-inject-postcheck-failure", action="store_true", help=argparse.SUPPRESS)
     args = parser.parse_args()
+    if args.fault_inject_postcheck_failure and not args.apply:
+        raise RuntimeError("fault injection requires --apply")
     load_local_env()
     dsn = os.environ.get("PDC_STAGING_DIRECT_DATABASE_URL") or os.environ.get("PDC_STAGING_DATABASE_URL")
     if not dsn:
@@ -72,17 +76,40 @@ def main() -> None:
         if not args.apply:
             print(json.dumps({"ok": True, "mode": "rehearsal", "migration": "132", "sha256": sha, "operational_counts_unchanged": True}, sort_keys=True))
             return
+        migration_body = sql.replace("begin;", "", 1).rsplit("commit;", 1)[0]
         with conn.cursor() as cur:
-            cur.execute(sql)
+            cur.execute(migration_body)
+            cur.execute("""
+              select
+                exists(select 1 from supabase_migrations.schema_migrations where version='132' and name='stock_only_authenticated_email_batch_fanout'),
+                has_function_privilege('authenticated',%s,'EXECUTE'),
+                has_function_privilege('anon',%s,'EXECUTE'),
+                has_function_privilege('service_role',%s,'EXECUTE'),
+                has_function_privilege('authenticated',%s,'EXECUTE'),
+                exists(select 1 from pg_trigger where tgrelid='public.pdc_authenticated_email_import_receipts'::regclass and tgname='pdc_email_single_receipt_source_guard' and not tgisinternal),
+                exists(select 1 from pg_trigger where tgrelid='public.pdc_authenticated_email_batch_receipts'::regclass and tgname='pdc_email_batch_receipt_source_guard' and not tgisinternal)
+            """, (SIGNATURE, SIGNATURE, SIGNATURE, LEGACY_SIGNATURE))
+            ledger, auth_exec, anon_exec, service_exec, legacy_exec, single_guard, batch_guard = cur.fetchone()
+            after = state(cur)
+            if args.fault_inject_postcheck_failure:
+                raise RuntimeError("intentional postcheck failure before commit")
+            if not ledger or not auth_exec or anon_exec or service_exec or legacy_exec or not single_guard or not batch_guard or after != before:
+                raise RuntimeError(
+                    f"postcheck failed before commit: ledger={ledger}, "
+                    f"privileges={(auth_exec, anon_exec, service_exec, legacy_exec)}, "
+                    f"guards={(single_guard, batch_guard)}, counts={before}->{after}"
+                )
         conn.commit()
         with conn.cursor() as cur:
-            cur.execute("select exists(select 1 from supabase_migrations.schema_migrations where version='132' and name='stock_only_authenticated_email_batch_fanout'),has_function_privilege('authenticated',%s,'EXECUTE'),has_function_privilege('anon',%s,'EXECUTE'),has_function_privilege('service_role',%s,'EXECUTE')", (SIGNATURE, SIGNATURE, SIGNATURE))
-            ledger, auth_exec, anon_exec, service_exec = cur.fetchone()
-            after = state(cur)
-            if not ledger or not auth_exec or anon_exec or service_exec or after != before:
-                raise RuntimeError(f"postcheck failed: ledger={ledger}, privileges={(auth_exec, anon_exec, service_exec)}, counts={before}->{after}")
+            cur.execute("select exists(select 1 from supabase_migrations.schema_migrations where version='132'),has_function_privilege('authenticated',%s,'EXECUTE'),has_function_privilege('authenticated',%s,'EXECUTE')", (SIGNATURE, LEGACY_SIGNATURE))
+            persisted, persisted_batch_exec, persisted_legacy_exec = cur.fetchone()
+            if not persisted or not persisted_batch_exec or persisted_legacy_exec:
+                raise RuntimeError("persisted postcheck failed after verified commit")
         conn.rollback()
-        print(json.dumps({"ok": True, "mode": "apply", "migration": "132", "sha256": sha, "authenticated_execute": True, "anon_execute": False, "service_role_execute": False, "operational_counts_unchanged": True}, sort_keys=True))
+        print(json.dumps({"ok": True, "mode": "apply", "migration": "132", "sha256": sha, "authenticated_execute": True, "legacy_execute": False, "anon_execute": False, "service_role_execute": False, "cross_contract_guards": True, "operational_counts_unchanged": True}, sort_keys=True))
+    except Exception:
+        conn.rollback()
+        raise
     finally:
         conn.close()
 
