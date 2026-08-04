@@ -202,8 +202,19 @@ begin
     v_vin:=case when public.is_valid_vehicle_vin(v_record.normalized_data->>'vin')
       then nullif(public.normalize_vehicle_vin(v_record.normalized_data->>'vin'),'') else null end;
     if v_vin is not null then
-      select coalesce(array_agg(v.id order by v.id),'{}'::uuid[]) into v_vin_vehicle_ids
-      from public.vehicles v where v.vin_normalized=v_vin;
+      select coalesce(array_agg(distinct vehicle_id order by vehicle_id),'{}'::uuid[])
+      into v_vin_vehicle_ids
+      from (
+        select v.id as vehicle_id
+        from public.vehicles v
+        where v.vin_normalized=v_vin
+        union all
+        select a.vehicle_id
+        from public.vehicle_aliases a
+        where a.active
+          and a.alias_type_normalized='vin'
+          and a.normalized_alias_value=v_vin
+      ) vin_candidates;
       if exists(select 1 from unnest(v_vin_vehicle_ids) id where v_vehicle_id is null or id<>v_vehicle_id) then
         return public.navision_backend_response(false,'vin_conflict_non_authoritative',jsonb_build_object('stock_index',v_index));
       end if;

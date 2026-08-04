@@ -195,6 +195,26 @@ def main() -> None:
                 if one(cur, "select count(*) from public.vehicles where stock_number_normalized=%s", (stocks[2],)) != 0:
                     raise RuntimeError("VIN conflict created or relinked the requested stock")
 
+                # The same conflict must fail closed when the VIN is owned only
+                # by an active alias on another vehicle.
+                cur.execute("update public.vehicles set vin=null where id=%s", (conflict_vehicle[0],))
+                cur.execute("""
+                    insert into public.vehicle_aliases(vehicle_id,alias_type,alias_value,active,created_by,updated_by)
+                    values(%s,'vin',%s,true,%s,%s)
+                """, (conflict_vehicle[0], conflict_vin, actor_id, actor_id))
+                cur.execute("set local role authenticated")
+                cur.execute("select set_config('request.jwt.claims',%s,true)", (claims,))
+                vin_alias_conflict = one(cur, call_sql, (
+                    "pdc-email-batch-qa132vinaliasconflictabcd", source_hashes[3], "2" * 64,
+                    "qa-132-source-4-alias", "qa@pmgwa.com.au", json.dumps(auth),
+                    datetime.now(timezone.utc).isoformat(), "QA Migration 132 VIN alias conflict", json.dumps([stocks[2]]),
+                ))
+                if vin_alias_conflict.get("ok") or vin_alias_conflict.get("code") != "vin_conflict_non_authoritative":
+                    raise RuntimeError(f"active VIN alias conflict was not rejected: {vin_alias_conflict}")
+                cur.execute("reset role")
+                if one(cur, "select count(*) from public.vehicles where stock_number_normalized=%s", (stocks[2],)) != 0:
+                    raise RuntimeError("VIN alias conflict created or relinked the requested stock")
+
             cur.execute("set local role authenticated")
             cur.execute("select set_config('request.jwt.claims',%s,true)", (claims,))
 
@@ -239,6 +259,7 @@ def main() -> None:
                 "duplicate_stock_fail_closed": True,
                 "atomic_late_failure": True,
                 "vin_conflict_non_authoritative": True if args.migration_132 else None,
+                "active_vin_alias_conflict_non_authoritative": True if args.migration_132 else None,
                 "protected_lifecycle_fail_closed": True,
                 "booking_delta": 0,
                 "work_item_delta": 0,
