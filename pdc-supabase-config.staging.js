@@ -34,6 +34,6 @@ window.PDC_SUPABASE_CONFIG = {
   vehicleLifecycle: Object.freeze({
     sharedData: true,
     resolverRollbackDirectRead: false,
-    resolverAssetVersion: '2026.08.03.08-workshop-perth-timezone-fix'
+    resolverAssetVersion: '2026.08.05.01-menu-navigation-performance',
   })
 };

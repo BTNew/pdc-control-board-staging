@@ -1,14 +1,14 @@
 {
   "artifact": "zero-embedded-data static staging site",
   "environment": "staging",
-  "generatedAtUtc": "2026-08-03T08:20:35Z",
-  "deploymentMode": "Staging-only Workshop Planner Perth timezone correction: canonical AWST date arithmetic, display and booking payloads",
-  "baseDeploymentCommit": "84e090d49b8fb1db3168e6a5d9d81b2219a71908",
+  "generatedAtUtc": "2026-08-05T05:21:39Z",
+  "deploymentMode": "Staging-only menu navigation performance repair: indexed vehicle reconciliation and one snapshot per route render",
+  "baseDeploymentCommit": "3d030bd54bc34acb7829fbea989254c325520bcd",
   "sourceRepository": "BTNew/pdc-control-board",
-  "sourceBranch": "pressure/staging-workshop-10h-20260803",
-  "sourceCommit": "8f345de48ec3eea21bdd60779fa87c5f550d3133",
-  "sourceTree": "c862ebf5497a491090f91029dfa75996521b3c7c",
-  "cacheVersion": "2026.08.03.08-workshop-perth-timezone-fix",
+  "sourceBranch": "fix/staging-menu-navigation-performance-20260805",
+  "sourceCommit": "e2fc08972fa4cb8269a09d5a48df9e9d83784783",
+  "sourceTree": "5b2be1d78062b0c52e58299e2877dc5ff6b44a98",
+  "cacheVersion": "2026.08.05.01-menu-navigation-performance",
   "stagingProjectRef": "cdsmnqxtyyoeoznmbidd",
   "zeroData": true,
   "mailboxAuthority": false,
@@ -16,9 +16,9 @@
   "productionActivation": false,
   "pilotActivation": false,
   "migrationLedger": {
-    "appliedThrough": "129",
-    "ledgerHead": "129",
-    "migration": "bulk_stock_only_vehicle_privacy_guard",
+    "appliedThrough": "133",
+    "ledgerHead": "133",
+    "migration": "email_import_receipt_acl_hardening",
     "rollbackAvailable": false
   },
   "retiredRoutes": [
@@ -44,11 +44,12 @@
     "applyReceipts": 0
   },
   "releaseChecks": {
-    "aggregateTests": "140 passed, 0 failed, 1 documented clean-build skip",
-    "focusedTests": "Aggregate planner/configuration suite passed under Australia/Perth; dedicated Workshop timezone and shared-actions regressions passed under Australia/Perth, UTC, America/New_York and Pacific/Honolulu; UTC-browser Electrical 08:00 payload verified as 00:00Z. Alternate-zone failures in two older planner/configuration fixtures are host-local test-assumption gaps, not product-code failures.",
-    "assetParity": "app.js, workshop-planner.js and pdc-supabase-config.staging.js are content-identical to source commit; source staging.html is content-identical to deployed index.html",
-    "roleSecurity": "no authentication authority, role, database, workflow, mailbox or operational mutation changes",
-    "production": "unchanged"
+    "aggregateTests": "141 passed, 0 failed, 1 documented clean-build skip",
+    "focusedTests": "Authenticated desktop/mobile menu benchmark: 28 transitions; click p95 13,589.0 ms to 287.4 ms; 5,000-row indexed reconciliation regression passed",
+    "assetParity": "Every deployment allowlist file is content-identical to source commit; source staging.html is deployed as index.html",
+    "roleSecurity": "No authentication authority, role, database, workflow, mailbox or operational mutation changes",
+    "production": "unchanged",
+    "excludedRelease": "Undeployed Workshop .09 artifact is not included; source is based directly on deployed .08 source commit 8f345de48ec3eea21bdd60779fa87c5f550d3133"
   },
   "sourceFiles": [
     {
@@ -66,8 +67,8 @@
     {
       "sourcePath": "app.js",
       "deployedPath": "app.js",
-      "sha256": "7e2797352f3fb98eda9b296e9160e6d47aac4d8e66b304ca62c486fe68146cb7",
-      "bytes": 1032902
+      "sha256": "5ae314af0a1787b77461199322779281a1d28358566f2e76a74e1d78f1ad3828",
+      "bytes": 1034108
     },
     {
       "sourcePath": "arb-labor-catalog.js",
@@ -114,7 +115,7 @@
     {
       "sourcePath": "staging.html",
       "deployedPath": "index.html",
-      "sha256": "144d505a4147beb7df52df845a395f034c6f93198d2edc1bdb1c9af63f1e4131",
+      "sha256": "6eebb0a70244a9f43c18701fa002ccd2f84c88c87042d8297850acf0c8968d53",
       "bytes": 64000
     },
     {
@@ -174,14 +175,14 @@
     {
       "sourcePath": "pdc-email-vehicle-location-service.js",
       "deployedPath": "pdc-email-vehicle-location-service.js",
-      "sha256": "49a86ba6e13859359f835e065b126652df5ad72a16000368642c64280f0261ce",
-      "bytes": 13913
+      "sha256": "e86d2ea25d15d39520ff9fe3e2f2592a67061c783b38c1688f11abe963266538",
+      "bytes": 14169
     },
     {
       "sourcePath": "pdc-supabase-config.staging.js",
       "deployedPath": "pdc-supabase-config.staging.js",
-      "sha256": "5d3f313bc6afc94b4f07844a9338ac9b40b524590e810b7dada18098c35b0f1d",
-      "bytes": 1711
+      "sha256": "bfc55812f0de8debb06d4d194d40858c6f0540af25cdc6787a3d1f9c30228daa",
+      "bytes": 1712
     },
     {
       "sourcePath": "scripts/stage2b_c4_browser_export.js",
@@ -303,5 +304,21 @@
       "sha256": "7a1cbc87e394f0ec8db1b7fb3da543fc3ac9e13a0d44be9e3e5f8447dd87df3b",
       "bytes": 8003
     }
-  ]
+  ],
+  "performanceEvidence": {
+    "authenticatedTransitions": 28,
+    "viewports": [
+      "desktop",
+      "mobile"
+    ],
+    "publicBaselineClickP95Ms": 13589.0,
+    "candidateClickP95Ms": 287.4,
+    "p95ReductionPercent": 97.9,
+    "partsDesktopWorstBeforeMs": 13897.6,
+    "partsDesktopWorstAfterMs": 301.5,
+    "emailReviewDesktopWorstBeforeMs": 12785.2,
+    "emailReviewDesktopWorstAfterMs": 122.6,
+    "consoleErrors": 0,
+    "productionRequests": 0
+  }
 }

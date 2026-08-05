@@ -1,5 +1,5 @@
-const APP_VERSION = '2026.08.03.08-workshop-perth-timezone-fix';
-const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.08.03.08-workshop-perth-timezone-fix';
+const APP_VERSION = '2026.08.05.01-menu-navigation-performance';
+const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.08.05.01-menu-navigation-performance';
 const PDC_BASE_DOCUMENT_TITLE = String(document.title || '').trim() || 'PDC Control Board';
 const routeDocumentTitle = title => `${title} — ${PDC_BASE_DOCUMENT_TITLE}`;
 
@@ -12463,11 +12463,11 @@ function partsDepartmentSourceRows() {
   return vehicleLocationBoardRows();
 }
 
-function partsDepartmentRows() {
+function partsDepartmentRows(sourceRows = null) {
   const q = ($('#parts-search')?.value || '').trim().toLowerCase();
   const operationalFilter = app.partsOperationalFilter || 'notordered';
   const departmentFilter = $('#parts-department-filter')?.value || '';
-  return partsDepartmentSourceRows()
+  return (Array.isArray(sourceRows) ? sourceRows : partsDepartmentSourceRows())
     .filter(vehicleHasBatchNumber)
     .filter(vehicle => partsMatchesOperationalFilter(vehicle, operationalFilter))
     .filter(vehicle => !departmentFilter || vehicleDepartmentCode(vehicle) === departmentFilter)
@@ -12484,8 +12484,8 @@ function partsDepartmentRows() {
         || String(displayStockNumber(a) || '').localeCompare(String(displayStockNumber(b) || ''), undefined, { numeric: true });
     });
 }
-function renderPartsSummary() {
-  const all = partsDepartmentSourceRows().filter(vehicleHasBatchNumber);
+function renderPartsSummary(sourceRows = null) {
+  const all = (Array.isArray(sourceRows) ? sourceRows : partsDepartmentSourceRows()).filter(vehicleHasBatchNumber);
   const filters = [
     ['notordered', 'Parts Not Ordered'],
     ['ordered', 'Parts Ordered'],
@@ -12553,8 +12553,8 @@ function partsQueueRowHtml(vehicle = {}) {
     <td>${partsQueueActionsHtml(vehicle, status)}</td>
   </tr>`;
 }
-function partsIssuedStoppagePickerHtml() {
-  const issued = partsDepartmentSourceRows()
+function partsIssuedStoppagePickerHtml(sourceRows = null) {
+  const issued = (Array.isArray(sourceRows) ? sourceRows : partsDepartmentSourceRows())
     .filter(vehicleHasBatchNumber)
     .filter(vehicle => partsDepartmentStatus(vehicle) === 'issued')
     .sort((a, b) => String(displayStockNumber(a) || '').localeCompare(String(displayStockNumber(b) || ''), undefined, { numeric: true }));
@@ -12580,11 +12580,12 @@ function renderPartsHome() {
   const host = $('#parts-home-content');
   const summaryHost = $('#parts-summary-grid');
   if (!host && !summaryHost) return;
-  const rows = partsDepartmentRows();
+  const sourceRows = partsDepartmentSourceRows();
+  const rows = partsDepartmentRows(sourceRows);
   setupPartsEtaCounterClock();
-  renderPartsSummary(rows);
+  renderPartsSummary(sourceRows);
   if (!host) return;
-  const stoppagePicker = (app.partsOperationalFilter || 'notordered') === 'stoppage' ? partsIssuedStoppagePickerHtml() : '';
+  const stoppagePicker = (app.partsOperationalFilter || 'notordered') === 'stoppage' ? partsIssuedStoppagePickerHtml(sourceRows) : '';
   if (!rows.length) {
     host.innerHTML = `${stoppagePicker}<div class="empty-state"><strong>No vehicles match the current parts filter</strong><span>Clear search or change the Parts status filter.</span></div>`;
     bindPartsIssuedStoppagePicker(host);
@@ -13508,18 +13509,33 @@ function vehicleLocationBoardRows(localRows = pdcSheetVehicles(), sharedRows = a
   const currentShared = activeSharedNavisionRows(sharedRows);
   const localVehicles = deduplicateLocalLocationRows(localRows);
   const candidatesByLocal = new Map();
+  const conflictsByLocal = new Map();
   const sharedCandidateCounts = new Map();
+  const sharedByStock = new Map();
+  currentShared.forEach(item => {
+    const identity = sharedNavisionIdentityPartsFromItem(item);
+    if (!identity.stock) return;
+    const candidates = sharedByStock.get(identity.stock) || [];
+    candidates.push({ item, dealer: identity.dealer });
+    sharedByStock.set(identity.stock, candidates);
+  });
 
   localVehicles.forEach(vehicle => {
-    const matches = currentShared.filter(item => sharedNavisionIdentityRelation(vehicle, item) === 'match');
+    const identity = sharedNavisionIdentityPartsFromVehicle(vehicle);
+    const candidates = identity.stock ? (sharedByStock.get(identity.stock) || []) : [];
+    const matches = candidates
+      .filter(candidate => !(identity.dealer && candidate.dealer && identity.dealer !== candidate.dealer))
+      .map(candidate => candidate.item);
+    const hasConflict = candidates.some(candidate => identity.dealer && candidate.dealer && identity.dealer !== candidate.dealer);
     candidatesByLocal.set(vehicle, matches);
+    conflictsByLocal.set(vehicle, hasConflict);
     matches.forEach(item => sharedCandidateCounts.set(item, Number(sharedCandidateCounts.get(item) || 0) + 1));
   });
 
   const consumedShared = new Set();
   const mergedLocal = localVehicles.map(vehicle => {
     const matches = candidatesByLocal.get(vehicle) || [];
-    const hasConflictingIdentity = currentShared.some(item => sharedNavisionIdentityRelation(vehicle, item) === 'conflict');
+    const hasConflictingIdentity = conflictsByLocal.get(vehicle) === true;
     const mayMergeAuthoritativeNavision = !vehicle.__locationIdentityReadOnly || vehicle.__emailVehicleServerAuthoritative === true;
     const item = mayMergeAuthoritativeNavision && matches.length === 1 && sharedCandidateCounts.get(matches[0]) === 1 ? matches[0] : null;
     const identityAmbiguous = Boolean(vehicle.__locationIdentityReadOnly || hasConflictingIdentity || matches.length > 1 || (matches.length === 1 && !item));
@@ -19170,10 +19186,10 @@ function aiIntakeHumanChangesHtml(outcome = {}) {
   return `<ul class="ai-intake-change-list">${outcome.changes.map(change => `<li><strong>${escapeHtml(change.label)}:</strong> ${escapeHtml(change.before)} → ${escapeHtml(change.after)}</li>`).join('')}</ul>`;
 }
 
-function aiIntakeVehicleForStock(stock = '') {
+function aiIntakeVehicleForStock(stock = '', boardRows = null) {
   const identity = cleanNavisionText(stock).toUpperCase();
   if (!identity) return null;
-  const exactRows = vehicleLocationBoardRows().filter(vehicle => [vehicle.stockNumber, vehicle.stock, vehicle.stock_number, vehicle.batch]
+  const exactRows = (Array.isArray(boardRows) ? boardRows : vehicleLocationBoardRows()).filter(vehicle => [vehicle.stockNumber, vehicle.stock, vehicle.stock_number, vehicle.batch]
     .some(value => cleanNavisionText(value).toUpperCase() === identity));
   const matches = [...new Map(exactRows.map(vehicle => {
     const canonicalKey = cleanNavisionText(vehicle.permanentVehicleId || vehicle.permanent_vehicle_id || vehicle.__sharedNavisionRecordId || vehicle.id || vehicleKey(vehicle));
@@ -19185,7 +19201,7 @@ function aiIntakeVehicleForStock(stock = '') {
 function aiIntakeStockNavigationHtml(stock = '', matchedVehicle = null, options = {}) {
   const identity = cleanNavisionText(stock);
   const label = `${options.includeStockLabel === false ? '' : 'Stock '}${identity || 'Not found'}`;
-  const vehicle = matchedVehicle || aiIntakeVehicleForStock(identity);
+  const vehicle = matchedVehicle || aiIntakeVehicleForStock(identity, options.boardRows);
   const key = vehicle ? vehicleKey(vehicle) : '';
   if (!identity || !key) return `<strong>${escapeHtml(label)}</strong>`;
   return `<button class="stock-link stock-button ai-intake-stock-link" type="button" data-open-stock="${escapeHtml(key)}" title="Open ${escapeHtml(label)} vehicle card" aria-label="Open ${escapeHtml(label)} vehicle card">${escapeHtml(label)}</button>`;
@@ -19220,6 +19236,7 @@ function renderServerAiIntake() {
     return;
   }
   const rows = Array.isArray(app.serverAiIntakeItems) ? app.serverAiIntakeItems : [];
+  const stockNavigationRows = rows.some(item => item.stock_number) ? vehicleLocationBoardRows() : [];
   if (!rows.length) {
     host.innerHTML = state === 'synchronized'
       ? '<div class="empty-state compact-empty"><strong>No emails match this filter</strong><span>Choose another filter, or refresh the inbox.</span></div>'
@@ -19240,7 +19257,7 @@ function renderServerAiIntake() {
           <div class="ai-intake-review-content">
             <div class="ai-intake-review-meta">
               <div><span>Sender</span><strong>${escapeHtml(item.sender_address || 'Unknown sender')}</strong></div>
-              <div><span>Matched stock</span>${item.stock_number ? aiIntakeStockNavigationHtml(item.stock_number, null, { includeStockLabel: false }) : '<strong>Not matched</strong>'}</div>
+              <div><span>Matched stock</span>${item.stock_number ? aiIntakeStockNavigationHtml(item.stock_number, null, { includeStockLabel: false, boardRows: stockNavigationRows }) : '<strong>Not matched</strong>'}</div>
               <div><span>Matched car</span><strong>${escapeHtml(item.authoritative_vehicle || 'Not matched yet')}</strong><small>${item.authoritative_location ? `Location: ${escapeHtml(item.authoritative_location)}` : ''}</small></div>
             </div>
             <section class="ai-intake-email-summary"><span>What the email says</span><p>${escapeHtml(item.summary || 'No reliable email summary was generated. Deny this item or open the technical details before deciding.')}</p></section>
