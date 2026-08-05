@@ -9,7 +9,7 @@
   <title>PDC Control Board — STAGING</title>
   <link rel="icon" href="favicon.svg" type="image/svg+xml" />
   <link rel="stylesheet" href="styles.css?v=2026.08.05.02-ai-intake-triage-labels" />
-  <link rel="stylesheet" href="pdc-ai-intake-review.css?v=2026.07.28.20-ai-review-card-separation" />
+  <link rel="stylesheet" href="pdc-ai-intake-review.css?v=2026.08.05.04-detected-change-preview" />
   <link rel="stylesheet" href="ai-auditor.css?v=2026.08.05.02-ai-intake-triage-labels" />
   <link rel="stylesheet" href="desktop-operations.css?v=2026.08.05.02-ai-intake-triage-labels" />
   <link rel="stylesheet" href="workshop-planner.css?v=2026.08.05.02-ai-intake-triage-labels" />
@@ -395,7 +395,7 @@
                 <div class="ai-intake-server-toolbar"><span class="badge warning" id="ai-intake-server-state">Connecting</span><button class="small-button" id="ai-intake-server-refresh" type="button">Refresh inbox</button></div>
               </div>
               <div class="table-toolbar ai-intake-server-filter"><label><span>Show</span><select id="ai-intake-server-filter"><option value="pending">Needs review</option><option value="applied">Processed</option><option value="rejected">No change made</option><option value="all">Everything received</option></select></label></div>
-              <div class="parts-help-strip ai-intake-information"><strong>Information only</strong><span>Email content is not operational authority. Administrator approval can only perform a controlled board activation after the server matches and validates the exact current Navision car.</span></div>
+              <div class="parts-help-strip ai-intake-information"><strong>Information only</strong><span>Email content is not operational authority. Every card shows its detected current → proposed changes and the no-change rejection outcome. Administrator approval appears only for a server-validated executable proposal; the current decision service remains limited to controlled board activation.</span></div>
               <div id="ai-intake-server-content"><div class="empty-state compact-empty"><strong>Loading email intake</strong><span>Checking the latest online records.</span></div></div>
               <div class="ai-intake-history-heading"><div><span class="eyebrow">History</span><h3>What arrived and what happened</h3></div></div>
               <div id="ai-intake-history-content"><div class="empty-state compact-empty"><strong>Loading history</strong><span>Received, activated, modified and dismissed items appear here.</span></div></div>
@@ -967,7 +967,7 @@
   <script src="pdc-ai-auditor-stage-a.js?v=2026.08.05.02-ai-intake-triage-labels"></script>
   <script src="pdc-bulk-workbook-admin-review.js?v=2026.08.05.02-ai-intake-triage-labels"></script>
   <script src="app.js?v=2026.08.05.02-ai-intake-triage-labels&amp;auditor=2026.07.30.03-recorded-decision-render"></script>
-  <script src="pdc-ai-intake-review.js?v=2026.08.05.03-review-only-warning"></script>
+  <script src="pdc-ai-intake-review.js?v=2026.08.05.04-detected-change-preview"></script>
 
   <script src="scripts/stage2b_c4_browser_export.js?v=2026.08.05.02-ai-intake-triage-labels"></script>
   <script src="staging-browser-assessment.js?v=2026.08.05.02-ai-intake-triage-labels"></script>

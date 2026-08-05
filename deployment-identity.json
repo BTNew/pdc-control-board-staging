@@ -1,14 +1,14 @@
 {
   "artifact": "zero-embedded-data static staging site",
   "environment": "staging",
-  "generatedAtUtc": "2026-08-05T06:04:29Z",
-  "deploymentMode": "Staging-only menu performance repair plus truthful AI Intake activation/rejection/dismissal and missing-summary wording",
-  "baseDeploymentCommit": "3d030bd54bc34acb7829fbea989254c325520bcd",
+  "generatedAtUtc": "2026-08-05T06:52:44Z",
+  "deploymentMode": "Staging-only typed AI Intake detected-change previews; operational authority unchanged",
+  "baseDeploymentCommit": "3037b3acab4de04588aff3b2f16299d0c644adca",
   "sourceRepository": "BTNew/pdc-control-board",
-  "sourceBranch": "fix/staging-menu-navigation-performance-20260805",
-  "sourceCommit": "3648f2c1b99f33fcf0afcfdc0a7087a40b03da8f",
-  "sourceTree": "9479fa9541d265b7bc354ed5b5d7f01e58df314b",
-  "cacheVersion": "2026.08.05.02-ai-intake-triage-labels",
+  "sourceBranch": "feature/ai-intake-detected-change-preview-20260805",
+  "sourceCommit": "8457712aeada23d329faafaa79e0e009ca9cd118",
+  "sourceTree": "5479cc1a49624f1cdcb44a06467fdd4b9499decf",
+  "cacheVersion": "2026.08.05.04-detected-change-preview",
   "stagingProjectRef": "cdsmnqxtyyoeoznmbidd",
   "zeroData": true,
   "mailboxAuthority": false,
@@ -44,12 +44,12 @@
     "applyReceipts": 0
   },
   "releaseChecks": {
-    "aggregateTests": "141 passed, 0 failed, 1 documented clean-build skip",
-    "focusedTests": "Authenticated desktop/mobile artifact benchmark: 28 transitions, click p95 269.4 ms; AI Intake snapshot: 63 cards (10 actionable, 53 review-only), 0 label/effect/warning violations, 0 console errors, 0 production requests; missing-summary review-only wording unit/integration regression passed",
+    "aggregateTests": "142 passed, 0 failed, 1 documented clean-build skip",
+    "focusedTests": "Typed preview unit/integration/containment passed; authenticated local staging: 63 cards, 10 actionable change rows, 10 approval panels, 63 no-change rejection/dismissal panels, zero console/page errors, zero unexpected origins, zero horizontal overflow; desktop and 390px mobile visual QA passed",
     "assetParity": "Every deployment allowlist file is content-identical to source commit; source staging.html is deployed as index.html",
-    "roleSecurity": "Apply/reject RPC, role gate, exact proposal/version, idempotency and fail-closed authority unchanged; review-only remains non-actionable",
+    "roleSecurity": "Existing protected board-activation decision authority unchanged. WPC/Parts are display-contract-only until a server-generated immutable preview and canonical protected mutator exist. Email prose and monitor observations cannot create executable authority.",
     "production": "unchanged",
-    "excludedRelease": "Undeployed Workshop .09 artifact is not included; source is based directly on deployed .08 source commit 8f345de48ec3eea21bdd60779fa87c5f550d3133"
+    "excludedRelease": "No database migration, mailbox/pdc-monitor change, WPC/Parts operational executor, Workshop .09 artifact, production main, DNS or pilot activation is included"
   },
   "sourceFiles": [
     {
@@ -115,8 +115,8 @@
     {
       "sourcePath": "staging.html",
       "deployedPath": "index.html",
-      "sha256": "0de73c839d2d5ca93756f20730cf7d6d1f34e7d6c0d655998ff086afe12967e2",
-      "bytes": 63986
+      "sha256": "5e1138d8895d4867f293e7c5ac6e71fc8258762293306268ad8ffae4d9875bc4",
+      "bytes": 64100
     },
     {
       "sourcePath": "key-list-review.js",
@@ -139,14 +139,14 @@
     {
       "sourcePath": "pdc-ai-intake-review.css",
       "deployedPath": "pdc-ai-intake-review.css",
-      "sha256": "cc5f0c4039e8e10bcace3cab4ffe73b39cc725e8c3582bf28dbbb54bd9fd5064",
-      "bytes": 1154
+      "sha256": "07a8c403862dd04db193775ac37d9e39d2c4718a5dd864fd9913eaaaf1738b37",
+      "bytes": 3688
     },
     {
       "sourcePath": "pdc-ai-intake-review.js",
       "deployedPath": "pdc-ai-intake-review.js",
-      "sha256": "a15f73b3381c200b9f5ace7bb415898c445112f5693f06219ddac37cc3e3512c",
-      "bytes": 5950
+      "sha256": "3da67f3d6028a45f97dfb50925bd9b81d328b2744fc0635ac8e6a4511cef8890",
+      "bytes": 13531
     },
     {
       "sourcePath": "pdc-ai-intake-service.js",
@@ -321,5 +321,25 @@
     "consoleErrors": 0,
     "productionRequests": 0
   },
-  "overlayCacheVersion": "2026.08.05.03-review-only-warning"
+  "overlayCacheVersion": "2026.08.05.03-review-only-warning",
+  "operationalPreview": {
+    "boardActivation": {
+      "preview": true,
+      "approvalSupported": true,
+      "decisionService": "existing protected activation RPC"
+    },
+    "wpcComplete": {
+      "previewContract": true,
+      "approvalSupported": false,
+      "block": "server-generated immutable proposal and canonical batch completion RPC not installed"
+    },
+    "partsComplete": {
+      "previewContract": true,
+      "approvalSupported": false,
+      "block": "exact Parts side-effect contract and protected shared RPC not installed"
+    },
+    "rejectOrDismissMutatesOperationalData": false,
+    "browserInfersChangesFromEmailText": false,
+    "monitorObservationsGrantPreviewAuthority": false
+  }
 }
