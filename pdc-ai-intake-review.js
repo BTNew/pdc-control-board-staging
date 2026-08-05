@@ -3,11 +3,14 @@
 function buildAiIntakeReviewSummary(item = {}) {
   const text = String(item.summary || '').replace(/\s+/g, ' ').trim();
   if (text) return { available: true, approvalReady: true, text, warning: '' };
+  const reviewOnly = item.action_type === 'review_only';
   return {
     available: false,
     approvalReady: false,
     text: 'No email summary is available for this review.',
-    warning: 'Do not approve this proposal until the source email has a readable summary.',
+    warning: reviewOnly
+      ? 'Review the source email before dismissing this information-only item.'
+      : 'Do not approve this proposal until the source email has a readable summary.',
   };
 }
 
@@ -105,6 +108,11 @@ function installAiIntakeReviewOverlay(windowRef = window, documentRef = document
       const proposal = typeof app !== 'undefined' && Array.isArray(app.serverAiIntakeItems)
         ? app.serverAiIntakeItems.find(item => String(item?.proposal_id || '') === String(proposalId || ''))
         : null;
+      if (proposal?.action_type === 'review_only') {
+        windowRef.alert('Approval blocked: this is an information-only item. Review it and use Dismiss; no car can be changed.');
+        renderServerAiIntake();
+        return false;
+      }
       if (!proposal || !buildAiIntakeReviewSummary(proposal).approvalReady) {
         windowRef.alert('Approval blocked: this intake item has no readable email summary. Reject it or refresh after the source evidence is reviewed.');
         renderServerAiIntake();
