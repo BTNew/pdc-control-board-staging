@@ -55,19 +55,21 @@ function enhanceAiIntakeReviewCard(card, item, documentRef = document) {
   }
   if (effects) {
     effects.replaceChildren();
+    if (item.action_type === 'board_activate_only') {
+      appendDecisionEffect(
+        documentRef,
+        effects,
+        'If approved',
+        'The server re-checks the exact current Navision match, then activates that car on the Control Board if validation passes.',
+      );
+    }
     appendDecisionEffect(
       documentRef,
       effects,
-      'If approved',
+      item.action_type === 'board_activate_only' ? 'If rejected' : 'If dismissed',
       item.action_type === 'board_activate_only'
-        ? 'The server re-checks the exact current Navision match, then activates that car on the Control Board if validation passes.'
-        : 'Approval is not available for this information-only item.',
-    );
-    appendDecisionEffect(
-      documentRef,
-      effects,
-      'If denied',
-      'The proposal is rejected. No vehicle details or Control Board location are changed.',
+        ? 'The activation proposal is rejected. No vehicle details or Control Board location are changed.'
+        : 'The evidence is marked reviewed and removed from Needs review. No vehicle details or Control Board location are changed.',
     );
   }
 
@@ -104,7 +106,7 @@ function installAiIntakeReviewOverlay(windowRef = window, documentRef = document
         ? app.serverAiIntakeItems.find(item => String(item?.proposal_id || '') === String(proposalId || ''))
         : null;
       if (!proposal || !buildAiIntakeReviewSummary(proposal).approvalReady) {
-        windowRef.alert('Approval blocked: this intake item has no readable email summary. Deny it or refresh after the source evidence is reviewed.');
+        windowRef.alert('Approval blocked: this intake item has no readable email summary. Reject it or refresh after the source evidence is reviewed.');
         renderServerAiIntake();
         return false;
       }

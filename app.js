@@ -1,5 +1,5 @@
-const APP_VERSION = '2026.08.05.01-menu-navigation-performance';
-const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.08.05.01-menu-navigation-performance';
+const APP_VERSION = '2026.08.05.02-ai-intake-triage-labels';
+const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.08.05.02-ai-intake-triage-labels';
 const PDC_BASE_DOCUMENT_TITLE = String(document.title || '').trim() || 'PDC Control Board';
 const routeDocumentTitle = title => `${title} — ${PDC_BASE_DOCUMENT_TITLE}`;
 
@@ -19173,7 +19173,8 @@ function aiIntakeAuditChangeSummary(item = {}) {
 
 function aiIntakeHumanOutcome(item = {}) {
   const audit = aiIntakeAuditChangeSummary(item);
-  if (item.status === 'pending') return { ...audit, badge: 'NEEDS REVIEW', title: 'Email received — waiting for review', message: item.action_type === 'board_activate_only' ? 'This may activate the matching Navision car after an Administrator checks it.' : 'No car has been changed.' };
+  if (item.status === 'pending' && item.action_type === 'board_activate_only') return { ...audit, badge: 'NEEDS APPROVAL', title: 'Activation proposed — waiting for review', message: 'This may activate the matching Navision car after an Administrator checks it.' };
+  if (item.status === 'pending') return { ...audit, badge: 'REVIEW ONLY', title: 'Information received — review and dismiss', message: 'No operational action is available for this item. Dismissing it records that the evidence was reviewed without changing a car.' };
   if (item.status === 'rejected') return { ...audit, badge: 'NO CHANGE', title: 'Reviewed — no car changed', message: item.decision_reason || 'This email was dismissed.' };
   if (audit.activated) return { ...audit, badge: 'CAR ACTIVATED', title: 'Car activated', message: 'The matching car is now active on the control board.' };
   if (audit.modified) return { ...audit, badge: 'CAR MODIFIED', title: 'Existing car modified', message: 'The changes made from this email are listed below.' };
@@ -19248,6 +19249,7 @@ function renderServerAiIntake() {
       const actionable = item.action_type === 'board_activate_only';
       const outcome = aiIntakeHumanOutcome(item);
       const statusClass = serverAiIntakeStatusClass(item.status);
+      const rejectLabel = actionable ? '× Reject' : 'Dismiss';
       return `<article class="ai-intake-server-row ai-intake-review-card" data-status="${escapeHtml(item.status || '')}" data-ai-intake-proposal="${escapeHtml(item.proposal_id || '')}">
         <header class="ai-intake-review-heading">
           <div class="ai-intake-review-title"><span class="ai-intake-mail-icon" aria-hidden="true">✉</span><strong>${escapeHtml(item.subject || 'Email received')}</strong><span class="badge ${statusClass}">${escapeHtml(outcome.badge)}</span></div>
@@ -19264,7 +19266,7 @@ function renderServerAiIntake() {
             <section class="ai-intake-detected-changes"><span>Detected changes</span>${aiIntakeHumanChangesHtml(outcome)}</section>
             <div class="ai-intake-proposed-action"><span>Proposed action</span><strong>${actionable ? 'Activate matching car on Control Board' : escapeHtml(outcome.title)}</strong><small>${escapeHtml(outcome.message)}</small></div>
           </div>
-          ${pending ? `<aside class="ai-intake-decision-panel">${actionable ? `<button class="primary ai-intake-approve" type="button" data-ai-intake-apply="${escapeHtml(item.proposal_id)}" ${canDecide ? '' : 'disabled title="Active Administrator access required"'}>✓ Approve</button>` : ''}<button class="small-button ai-intake-deny" type="button" data-ai-intake-reject="${escapeHtml(item.proposal_id)}" ${canDecide ? '' : 'disabled title="Active Administrator access required"'}>× Deny</button></aside>` : `<aside class="ai-intake-decision-panel ai-intake-decision-complete"><strong>${escapeHtml(outcome.title)}</strong><span>Processed by ${escapeHtml(item.decided_by_email || 'System')}</span><small>${escapeHtml(item.decided_at ? operationalHealthDateLabel(item.decided_at) : '')}</small></aside>`}
+          ${pending ? `<aside class="ai-intake-decision-panel">${actionable ? `<button class="primary ai-intake-approve" type="button" data-ai-intake-apply="${escapeHtml(item.proposal_id)}" ${canDecide ? '' : 'disabled title="Active Administrator access required"'}>✓ Approve activation</button>` : ''}<button class="small-button ai-intake-deny" type="button" data-ai-intake-reject="${escapeHtml(item.proposal_id)}" ${canDecide ? '' : 'disabled title="Active Administrator access required"'}>${rejectLabel}</button></aside>` : `<aside class="ai-intake-decision-panel ai-intake-decision-complete"><strong>${escapeHtml(outcome.title)}</strong><span>Processed by ${escapeHtml(item.decided_by_email || 'System')}</span><small>${escapeHtml(item.decided_at ? operationalHealthDateLabel(item.decided_at) : '')}</small></aside>`}
         </div>
         <details class="ai-intake-technical-details"><summary>Email and technical details</summary><div class="ai-intake-server-meta"><span>UID ${escapeHtml(item.source_uid || '—')}</span><span>Receipt ${escapeHtml(item.fingerprint || '—')}</span><span>Action ${escapeHtml(item.action_type || 'review_only')}</span></div></details>
       </article>`;
@@ -19339,9 +19341,14 @@ async function decideServerAiIntake(proposalId = '', decision = '') {
   // Staff no longer have to type a reason for routine triage.
   // truthful audit reason so the protected RPC and durable history still record
   // what happened without inventing user-authored detail.
-  const reason = decision === 'apply' ? 'Approved through AI Intake' : 'Denied through AI Intake';
+  const informationOnly = proposal.action_type !== 'board_activate_only';
+  const reason = decision === 'apply'
+    ? 'Approved activation through AI Intake'
+    : informationOnly ? 'Dismissed information-only item through AI Intake' : 'Rejected activation through AI Intake';
   if (decision === 'apply' && !window.confirm(`Approve this intake item for Stock ${proposal.stock_number || 'unknown'}? Email evidence is informational only. The server will revalidate the exact Navision record and revision, preserve its location, and make no other operational change.`)) return false;
-  if (decision === 'reject' && !window.confirm('Deny this intake item? No car will be changed.')) return false;
+  if (decision === 'reject' && !window.confirm(informationOnly
+    ? 'Dismiss this information-only item? It will leave Needs review and no car will be changed.'
+    : 'Reject this activation proposal? No car will be changed.')) return false;
   const attempt = serverAiIntakeDecisionAttempt(proposal, decision, reason);
   app.serverAiIntakeDecisionInFlight = true;
   renderServerAiIntake();

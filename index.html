@@ -8,11 +8,11 @@
   <meta name="description" content="PDC Workshop Control Board — STAGING (separate Supabase project, synthetic data only)." />
   <title>PDC Control Board — STAGING</title>
   <link rel="icon" href="favicon.svg" type="image/svg+xml" />
-  <link rel="stylesheet" href="styles.css?v=2026.08.05.01-menu-navigation-performance" />
+  <link rel="stylesheet" href="styles.css?v=2026.08.05.02-ai-intake-triage-labels" />
   <link rel="stylesheet" href="pdc-ai-intake-review.css?v=2026.07.28.20-ai-review-card-separation" />
-  <link rel="stylesheet" href="ai-auditor.css?v=2026.08.05.01-menu-navigation-performance" />
-  <link rel="stylesheet" href="desktop-operations.css?v=2026.08.05.01-menu-navigation-performance" />
-  <link rel="stylesheet" href="workshop-planner.css?v=2026.08.05.01-menu-navigation-performance" />
+  <link rel="stylesheet" href="ai-auditor.css?v=2026.08.05.02-ai-intake-triage-labels" />
+  <link rel="stylesheet" href="desktop-operations.css?v=2026.08.05.02-ai-intake-triage-labels" />
+  <link rel="stylesheet" href="workshop-planner.css?v=2026.08.05.02-ai-intake-triage-labels" />
 </head>
 <body class="auth-pending" data-auth-state="checking">
   <main class="pdc-auth-gate" id="pdc-auth-gate" aria-labelledby="pdc-auth-title">
@@ -89,7 +89,7 @@
         <div class="brand-text">
           <div class="brand-title">Perth Motor Bodies</div>
           <div class="brand-subtitle">PDC Control Board</div>
-          <div class="app-version" id="app-version">Version 2026.08.05.01-menu-navigation-performance</div>
+          <div class="app-version" id="app-version">Version 2026.08.05.02-ai-intake-triage-labels</div>
         </div>
 
       </div>
@@ -388,10 +388,10 @@
       <section id="emailreview" class="view">
         <div class="parts-home-layout email-review-layout">
           <section class="panel parts-home-panel email-review-panel">
-            <div class="panel-header"><div><h2>AI / Email Intake</h2><p>Review only the emails that need an Administrator decision.</p></div><span class="badge warning" id="email-review-count">0 pending</span></div>
+            <div class="panel-header"><div><h2>AI / Email Intake</h2><p>Approve validated car activations or dismiss information-only evidence after review.</p></div><span class="badge warning" id="email-review-count">0 pending</span></div>
             <section class="ai-intake-server-panel" id="ai-intake-server-panel" aria-labelledby="ai-intake-server-title">
               <div class="ai-intake-server-header">
-                <div><span class="eyebrow">PMB email intake</span><h3 id="ai-intake-server-title">Emails received</h3><p>Approve or deny the items that need a decision. Completed items remain available in the filter and history.</p></div>
+                <div><span class="eyebrow">PMB email intake</span><h3 id="ai-intake-server-title">Emails received</h3><p>Approve validated activation proposals, reject invalid proposals, or dismiss information-only items. Completed items remain available in the filter and history.</p></div>
                 <div class="ai-intake-server-toolbar"><span class="badge warning" id="ai-intake-server-state">Connecting</span><button class="small-button" id="ai-intake-server-refresh" type="button">Refresh inbox</button></div>
               </div>
               <div class="table-toolbar ai-intake-server-filter"><label><span>Show</span><select id="ai-intake-server-filter"><option value="pending">Needs review</option><option value="applied">Processed</option><option value="rejected">No change made</option><option value="all">Everything received</option></select></label></div>
@@ -953,24 +953,24 @@
 
 
   <script src="vendor/supabase/supabase-2.110.5.js"></script>
-  <script src="pdc-supabase-config.staging.js?v=2026.08.05.01-menu-navigation-performance"></script>
-  <script src="pdc-auth.js?v=2026.08.05.01-menu-navigation-performance"></script>
-  <script src="pdc-auth-registration.js?v=2026.08.05.01-menu-navigation-performance"></script>
-  <script src="data-staging-empty.js?v=2026.08.05.01-menu-navigation-performance"></script>
-  <script src="email-board-data.js?v=2026.08.05.01-menu-navigation-performance"></script>
-  <script src="arb-labor-catalog.js?v=2026.08.05.01-menu-navigation-performance"></script>
-  <script src="ai-board-advisor.js?v=2026.08.05.01-menu-navigation-performance"></script>
-  <script src="navision-backend-service.js?v=2026.08.05.01-menu-navigation-performance"></script>
-  <script src="pdc-ai-intake-service.js?v=2026.08.05.01-menu-navigation-performance"></script>
-  <script src="workshop-eligibility.js?v=2026.08.05.01-menu-navigation-performance"></script>
-  <script src="pdc-email-vehicle-location-service.js?v=2026.08.05.01-menu-navigation-performance"></script>
-  <script src="pdc-ai-auditor-stage-a.js?v=2026.08.05.01-menu-navigation-performance"></script>
-  <script src="pdc-bulk-workbook-admin-review.js?v=2026.08.05.01-menu-navigation-performance"></script>
-  <script src="app.js?v=2026.08.05.01-menu-navigation-performance&amp;auditor=2026.07.30.03-recorded-decision-render"></script>
-  <script src="pdc-ai-intake-review.js?v=2026.08.05.01-menu-navigation-performance"></script>
+  <script src="pdc-supabase-config.staging.js?v=2026.08.05.02-ai-intake-triage-labels"></script>
+  <script src="pdc-auth.js?v=2026.08.05.02-ai-intake-triage-labels"></script>
+  <script src="pdc-auth-registration.js?v=2026.08.05.02-ai-intake-triage-labels"></script>
+  <script src="data-staging-empty.js?v=2026.08.05.02-ai-intake-triage-labels"></script>
+  <script src="email-board-data.js?v=2026.08.05.02-ai-intake-triage-labels"></script>
+  <script src="arb-labor-catalog.js?v=2026.08.05.02-ai-intake-triage-labels"></script>
+  <script src="ai-board-advisor.js?v=2026.08.05.02-ai-intake-triage-labels"></script>
+  <script src="navision-backend-service.js?v=2026.08.05.02-ai-intake-triage-labels"></script>
+  <script src="pdc-ai-intake-service.js?v=2026.08.05.02-ai-intake-triage-labels"></script>
+  <script src="workshop-eligibility.js?v=2026.08.05.02-ai-intake-triage-labels"></script>
+  <script src="pdc-email-vehicle-location-service.js?v=2026.08.05.02-ai-intake-triage-labels"></script>
+  <script src="pdc-ai-auditor-stage-a.js?v=2026.08.05.02-ai-intake-triage-labels"></script>
+  <script src="pdc-bulk-workbook-admin-review.js?v=2026.08.05.02-ai-intake-triage-labels"></script>
+  <script src="app.js?v=2026.08.05.02-ai-intake-triage-labels&amp;auditor=2026.07.30.03-recorded-decision-render"></script>
+  <script src="pdc-ai-intake-review.js?v=2026.08.05.02-ai-intake-triage-labels"></script>
 
-  <script src="scripts/stage2b_c4_browser_export.js?v=2026.08.05.01-menu-navigation-performance"></script>
-  <script src="staging-browser-assessment.js?v=2026.08.05.01-menu-navigation-performance"></script>
+  <script src="scripts/stage2b_c4_browser_export.js?v=2026.08.05.02-ai-intake-triage-labels"></script>
+  <script src="staging-browser-assessment.js?v=2026.08.05.02-ai-intake-triage-labels"></script>
 
 </body>
 </html>

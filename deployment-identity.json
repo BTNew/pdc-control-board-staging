@@ -1,14 +1,14 @@
 {
   "artifact": "zero-embedded-data static staging site",
   "environment": "staging",
-  "generatedAtUtc": "2026-08-05T05:21:39Z",
-  "deploymentMode": "Staging-only menu navigation performance repair: indexed vehicle reconciliation and one snapshot per route render",
+  "generatedAtUtc": "2026-08-05T05:46:20Z",
+  "deploymentMode": "Staging-only menu navigation performance repair plus truthful AI Intake activation/rejection/dismissal labels",
   "baseDeploymentCommit": "3d030bd54bc34acb7829fbea989254c325520bcd",
   "sourceRepository": "BTNew/pdc-control-board",
   "sourceBranch": "fix/staging-menu-navigation-performance-20260805",
-  "sourceCommit": "e2fc08972fa4cb8269a09d5a48df9e9d83784783",
-  "sourceTree": "5b2be1d78062b0c52e58299e2877dc5ff6b44a98",
-  "cacheVersion": "2026.08.05.01-menu-navigation-performance",
+  "sourceCommit": "7f45fe84512ef3e9622338cd38403a372b560145",
+  "sourceTree": "7149e47a1e6db11fbe8453703abeee4d487cef49",
+  "cacheVersion": "2026.08.05.02-ai-intake-triage-labels",
   "stagingProjectRef": "cdsmnqxtyyoeoznmbidd",
   "zeroData": true,
   "mailboxAuthority": false,
@@ -45,9 +45,9 @@
   },
   "releaseChecks": {
     "aggregateTests": "141 passed, 0 failed, 1 documented clean-build skip",
-    "focusedTests": "Authenticated desktop/mobile menu benchmark: 28 transitions; click p95 13,589.0 ms to 287.4 ms; 5,000-row indexed reconciliation regression passed",
+    "focusedTests": "Authenticated desktop/mobile menu benchmark: 28 transitions, artifact click p95 272.9 ms; AI Intake artifact snapshot: 63 cards (10 actionable, 53 review-only), 0 label violations, 0 console errors, 0 production requests",
     "assetParity": "Every deployment allowlist file is content-identical to source commit; source staging.html is deployed as index.html",
-    "roleSecurity": "No authentication authority, role, database, workflow, mailbox or operational mutation changes",
+    "roleSecurity": "Apply/reject RPC, role gate, exact proposal/version, idempotency and fail-closed authority unchanged; review-only remains non-actionable",
     "production": "unchanged",
     "excludedRelease": "Undeployed Workshop .09 artifact is not included; source is based directly on deployed .08 source commit 8f345de48ec3eea21bdd60779fa87c5f550d3133"
   },
@@ -67,8 +67,8 @@
     {
       "sourcePath": "app.js",
       "deployedPath": "app.js",
-      "sha256": "5ae314af0a1787b77461199322779281a1d28358566f2e76a74e1d78f1ad3828",
-      "bytes": 1034108
+      "sha256": "b131a2d69fe80d7ff5cc011f6e0ca4fc796103a3f767fffbc2e525eaacd2f09c",
+      "bytes": 1034739
     },
     {
       "sourcePath": "arb-labor-catalog.js",
@@ -115,8 +115,8 @@
     {
       "sourcePath": "staging.html",
       "deployedPath": "index.html",
-      "sha256": "6eebb0a70244a9f43c18701fa002ccd2f84c88c87042d8297850acf0c8968d53",
-      "bytes": 64000
+      "sha256": "cd609822a2942c319371ac9b7a1bc53a98790866ef8ecd3aab3a96c8f241ecd5",
+      "bytes": 63990
     },
     {
       "sourcePath": "key-list-review.js",
@@ -145,8 +145,8 @@
     {
       "sourcePath": "pdc-ai-intake-review.js",
       "deployedPath": "pdc-ai-intake-review.js",
-      "sha256": "575ea073661ea77830c249e6b64e86f9b4fae50708a3609dd1f18653a55e7c04",
-      "bytes": 5337
+      "sha256": "0e4c8f7bd162f65367b5ee6fde14cde642b714059147f893a3f1d91b517f3a1b",
+      "bytes": 5549
     },
     {
       "sourcePath": "pdc-ai-intake-service.js",
@@ -181,8 +181,8 @@
     {
       "sourcePath": "pdc-supabase-config.staging.js",
       "deployedPath": "pdc-supabase-config.staging.js",
-      "sha256": "bfc55812f0de8debb06d4d194d40858c6f0540af25cdc6787a3d1f9c30228daa",
-      "bytes": 1712
+      "sha256": "467c47aa506a823ff71e975cb0757ea92ca5b033b6445c6950eef3d957dcf852",
+      "bytes": 1708
     },
     {
       "sourcePath": "scripts/stage2b_c4_browser_export.js",
