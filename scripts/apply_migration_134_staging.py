@@ -17,7 +17,7 @@ from staging_env import assert_staging_target, load_local_env
 
 MIGRATION = ROOT / "supabase" / "staging_only" / "134_navision_preserve_deleted_canonical_identity.sql"
 EXPECTED_REF = "cdsmnqxtyyoeoznmbidd"
-EXPECTED_SHA = "d33c9969a1a10b870f528ef246a00852d95905a44a8bd9df4657029b3d335382"
+EXPECTED_SHA = "b83e030498bca1987f95f465be27b09778afbb68040da2a78aa06fc7c78128b4"
 WRAPPER = "public.reconcile_navision_operational_record(uuid,uuid,text)"
 RETAINED = "public.reconcile_navision_operational_record_pre134(uuid,uuid,text)"
 

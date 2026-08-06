@@ -39,6 +39,18 @@ class NavisionMigration134StaticTests(unittest.TestCase):
         self.assertNotIn("delete from public.vehicles", executable)
 
     def test_triggers_are_rebound_to_the_new_wrapper(self):
+        self.assertIn(
+            "create or replace function public.trigger_reconcile_navision_operational_record()",
+            self.lower,
+        )
+        self.assertIn(
+            "perform public.reconcile_navision_operational_record(",
+            self.lower,
+        )
+        self.assertIn(
+            "revoke all on function public.trigger_reconcile_navision_operational_record()",
+            self.lower,
+        )
         self.assertIn("drop trigger if exists navision_record_operational_reconcile", self.lower)
         self.assertIn("drop trigger if exists navision_activation_operational_reconcile", self.lower)
         self.assertEqual(

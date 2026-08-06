@@ -111,8 +111,32 @@ $reconcile$;
 revoke all on function public.reconcile_navision_operational_record(uuid,uuid,text)
   from public,anon,authenticated;
 
--- PostgreSQL triggers retain the original function OID across a rename, so recreate both
--- triggers explicitly to bind them to the guarded Migration 134 wrapper.
+-- Replace the small trigger dispatcher with its unchanged behavior so every pooled session
+-- invalidates any cached call plan and resolves the new guarded reconciler by name.
+create or replace function public.trigger_reconcile_navision_operational_record()
+returns trigger
+language plpgsql
+security definer
+set search_path=pg_catalog,public
+as $trigger$
+declare v_backend_record_id uuid;
+begin
+  if pg_trigger_depth()>1 then return new; end if;
+  if tg_table_name='navision_board_activations' then
+    v_backend_record_id:=new.backend_record_id;
+  else
+    v_backend_record_id:=new.id;
+  end if;
+  perform public.reconcile_navision_operational_record(
+    v_backend_record_id,auth.uid(),public.current_actor_email()
+  );
+  return new;
+end;
+$trigger$;
+revoke all on function public.trigger_reconcile_navision_operational_record()
+  from public,anon,authenticated;
+
+-- Recreate both trigger definitions explicitly after replacing the dispatcher.
 drop trigger if exists navision_record_operational_reconcile on public.navision_backend_records;
 create trigger navision_record_operational_reconcile
 after insert or update of normalized_data,is_current,record_status on public.navision_backend_records
