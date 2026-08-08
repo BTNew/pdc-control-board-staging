@@ -54,7 +54,7 @@ def main() -> None:
         if snapshot_result["error"]:
             raise AssertionError(f"snapshot RPC failed: {snapshot_result['error']}")
         snapshot = snapshot_result["data"] or {}
-        vehicles = snapshot.get("vehicles") or []
+        vehicles = snapshot.get("locations") or snapshot.get("vehicles") or []
         if len(vehicles) != 325:
             raise AssertionError(f"live visible vehicle count mismatch: {len(vehicles)}")
         locations = Counter(row.get("current_location") for row in vehicles)
