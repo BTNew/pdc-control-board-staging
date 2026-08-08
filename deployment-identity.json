@@ -56,7 +56,7 @@
   "releaseChecks": {
     "aggregateTests": "142 passed, 0 failed, 1 documented clean-build skip",
     "focusedTests": "Exact 3-hour clicked-row behavioral regression passed with unrelated 1.1-hour row; vehicle-detail contract and version consistency passed",
-    "assetParity": "Bounded app.js row-save patch and cache markers layered onto staging commit db5b955; unrelated staging integrations preserved",
+    "assetParity": "Raw Git blobs for app.js, index.html and staging config match served HTTPS bytes; bounded patch layered onto staging commit db5b955",
     "roleSecurity": "Live RFT authority helper private; reset and evidence receipts remain RLS-enabled/private; Migration 138 records data-integrity scope without a disaster-recovery claim",
     "production": "unchanged",
     "excludedRelease": "No production repository/main, production database, mailbox/pdc-monitor, DNS or pilot activation included"
@@ -77,8 +77,8 @@
     {
       "sourcePath": "app.js",
       "deployedPath": "app.js",
-      "sha256": "02f41e2ca40a374d82eef9140040fcce7b52dc269fb727033d9857d3a6e5b128",
-      "bytes": 1054829
+      "sha256": "27c852dd2922cf5f69a4abfab5c8f52daa6024e3fc80952a4e25190fd073dfe9",
+      "bytes": 1034769
     },
     {
       "sourcePath": "arb-labor-catalog.js",
@@ -125,8 +125,8 @@
     {
       "sourcePath": "staging.html",
       "deployedPath": "index.html",
-      "sha256": "4d65b7dc4d0dd058a37bdec6829c30c815d42d3632eedbaaa1828404c0c3820e",
-      "bytes": 64887
+      "sha256": "2de6becd2d7d7643c829430fc2eb4e1c1f6c4a5994b45f6907d777ba6a5f5e13",
+      "bytes": 63911
     },
     {
       "sourcePath": "key-list-review.js",
@@ -191,8 +191,8 @@
     {
       "sourcePath": "pdc-supabase-config.staging.js",
       "deployedPath": "pdc-supabase-config.staging.js",
-      "sha256": "1b25437bdb0be04a1bd293ea51cd5de4e349542b7c0fa96d0ffa5cc81132f332",
-      "bytes": 1738
+      "sha256": "e069c4209c5ff30411ae35a378334278a862b028e8f307c5db441552a3709d07",
+      "bytes": 1699
     },
     {
       "sourcePath": "scripts/stage2b_c4_browser_export.js",
