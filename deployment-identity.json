@@ -1,7 +1,7 @@
 {
   "artifact": "zero-embedded-data static staging site",
   "environment": "staging",
-  "generatedAtUtc": "2026-08-08T12:14:50Z",
+  "generatedAtUtc": "2026-08-08T12:18:25Z",
   "deploymentMode": "Staging-only Navision From-TWA IT parity patch layered onto staging commit fe397f4; existing staging authority/UI shell preserved",
   "baseDeploymentCommit": "fe397f4cb37a3b7ac4b1631688156e13b8d5c402",
   "sourceRepository": "BTNew/pdc-control-board",
@@ -66,7 +66,7 @@
   "releaseChecks": {
     "aggregateTests": "143 passed, 0 failed, 1 documented clean-build skip",
     "focusedTests": "TWA status/ETA parity, version consistency, migration preview/apply gates and all-station live stock reconciliation passed",
-    "assetParity": "Layered app/index/config patch preserves staging commit fe397f4; migration 139 is byte-identical to source cd47981; deployment identity hashes bind every served asset",
+    "assetParity": "All 43 declared served assets are bound to exact Git blob bytes from staging publication commit db83926; layered app function equals source cd47981; migration 139 is byte-identical to source.",
     "roleSecurity": "Authenticated authoritative workshop snapshot connected; exact station sets matched; direct internal location helper remains non-public through its private dependency",
     "production": "unchanged",
     "excludedRelease": "No production repository/main, production database, mailbox/pdc-monitor, DNS or pilot activation included"
@@ -75,32 +75,32 @@
     {
       "sourcePath": "ai-auditor.css",
       "deployedPath": "ai-auditor.css",
-      "sha256": "85ba6f48a206cd7b3b5433725a96dcda0c51b927cb18e280556fc1f5e9b64a8c",
-      "bytes": 8641
+      "sha256": "42082df36786db1d64a4cba7f3e5638edfd22fac401d8857c780470f0eb1a10c",
+      "bytes": 8492
     },
     {
       "sourcePath": "ai-board-advisor.js",
       "deployedPath": "ai-board-advisor.js",
-      "sha256": "97785220d0b72527327955c39c02e276d33a2c1391f220f211b83996ece07c65",
-      "bytes": 19394
+      "sha256": "a01dc581a417684c5a3377057bc70a57624bdaa3ad67c24b408eedfa86e0fc4e",
+      "bytes": 19046
     },
     {
       "sourcePath": "app.js",
       "deployedPath": "app.js",
-      "sha256": "3d5229e8f1b2c489e54e9ac1fc5929af69d0e42a08564ccf0f4b842ab93d0f40",
-      "bytes": 1067585
+      "sha256": "efb9da294a9ab7901877c41aa72bcf478072108974b77eafa5cb30d943abe116",
+      "bytes": 1047324
     },
     {
       "sourcePath": "arb-labor-catalog.js",
       "deployedPath": "arb-labor-catalog.js",
-      "sha256": "1800e93b325bfd58d9b0131d2105f78b775885bd82e88ceed63d3ecf6100b9fe",
-      "bytes": 144813
+      "sha256": "db99ee8c4ddf341ce3f948dc04fb70cbe6c66d122be1a262f7074552a2fa49c0",
+      "bytes": 144811
     },
     {
       "sourcePath": "assets/brand-logo.svg",
       "deployedPath": "assets/brand-logo.svg",
-      "sha256": "7e3c9cb0b7e1f53b931f6cad274583f78a6be67ba554d6a45e57473f5ab611a0",
-      "bytes": 430
+      "sha256": "4bffc708627c0ee8de1a997aec6bf3aae7461fb779f2700f41fd47e6645dd28d",
+      "bytes": 425
     },
     {
       "sourcePath": "assets/pmb-logo.png",
@@ -111,134 +111,134 @@
     {
       "sourcePath": "data-staging-empty.js",
       "deployedPath": "data-staging-empty.js",
-      "sha256": "2fa02a231e559b4230ba22ac1c6e1cfa600fcaad9f546f6fb3e2a28b2acab756",
-      "bytes": 466
+      "sha256": "d2a9ed658daa1cc5eabb45a78eeb5c7f93ef0146a12e7f8c23d0b028f915c7a9",
+      "bytes": 454
     },
     {
       "sourcePath": "desktop-operations.css",
       "deployedPath": "desktop-operations.css",
-      "sha256": "d7c116ff17cfdb86d551e587e1362ca11db8327e2e8497ee49b5fb4dae2c2ec9",
-      "bytes": 19983
+      "sha256": "f3179efdeeaf34ba76dfc10c56aa2c3c59498ee61e60c11e0032abb9d3b51616",
+      "bytes": 19424
     },
     {
       "sourcePath": "email-board-data.js",
       "deployedPath": "email-board-data.js",
-      "sha256": "c0cc888ec98ec64dd1710a75c7ea222d2c5a12993877ef4eebb3f66476e4093b",
-      "bytes": 685
+      "sha256": "3b55079afe708ae6842a6ddb61e19e912a8182cdc835a5d4102e4a5815dbace0",
+      "bytes": 669
     },
     {
       "sourcePath": "favicon.svg",
       "deployedPath": "favicon.svg",
-      "sha256": "f1ce1b8f7a37c54801c2ee233c9e67bb2d852cb6ea8af942455d33d85aac046f",
-      "bytes": 257
+      "sha256": "f79b374447017a73a77012096c6d031ddb2ad6bf1b647d2efbfd465e6a5f32e6",
+      "bytes": 256
     },
     {
       "sourcePath": "staging.html",
       "deployedPath": "index.html",
-      "sha256": "57c6e595ef7684f35c7228b664e70ea076624d359256d70e0fcb8a0134c29e58",
-      "bytes": 66455
+      "sha256": "9a8ddf3e55deb625ebdbb57b726aea5025bf906ab20b0de27881a17b3497dc88",
+      "bytes": 65471
     },
     {
       "sourcePath": "key-list-review.js",
       "deployedPath": "key-list-review.js",
-      "sha256": "b0785e79071bd43c066ed3f20623e0a1a2c047bcedd9968cb815a0fe82b43ffe",
-      "bytes": 10154
+      "sha256": "b6b42659b28b812fcf63b13a60faac8276e866442950f2e55197a8fec0aedf67",
+      "bytes": 9967
     },
     {
       "sourcePath": "navision-backend-service.js",
       "deployedPath": "navision-backend-service.js",
-      "sha256": "febd7c9c4e3bd4ff4a5ef052e25e7030e1c07e03838ace711ce3376c7736596e",
-      "bytes": 12723
+      "sha256": "04d6e34ec33f0a462948085290bd489792644ea51fed580b0a51003ddfa0d370",
+      "bytes": 12482
     },
     {
       "sourcePath": "pdc-ai-auditor-stage-a.js",
       "deployedPath": "pdc-ai-auditor-stage-a.js",
-      "sha256": "05aff99f0c588842af068509677abad0c65fb8fabda6a17fabe3e01f8173896b",
-      "bytes": 62478
+      "sha256": "4bbd85af3f05d6c2be6997b648ef3d584c4b3e00d5c69f7a218d3c92b3f17228",
+      "bytes": 62182
     },
     {
       "sourcePath": "pdc-ai-intake-review.css",
       "deployedPath": "pdc-ai-intake-review.css",
-      "sha256": "bb4728937bb5a0ec1f178eda26df6b49c3bb1d365044c0dc6738d166567f57dd",
-      "bytes": 3796
+      "sha256": "07a8c403862dd04db193775ac37d9e39d2c4718a5dd864fd9913eaaaf1738b37",
+      "bytes": 3688
     },
     {
       "sourcePath": "pdc-ai-intake-review.js",
       "deployedPath": "pdc-ai-intake-review.js",
-      "sha256": "368310c472158f080473a868446e3239c2b437c3fd0e5e5108d91cee06f1359b",
-      "bytes": 13825
+      "sha256": "3da67f3d6028a45f97dfb50925bd9b81d328b2744fc0635ac8e6a4511cef8890",
+      "bytes": 13531
     },
     {
       "sourcePath": "pdc-ai-intake-service.js",
       "deployedPath": "pdc-ai-intake-service.js",
-      "sha256": "78b0f0edcb7cfd8b895f4dd511d5f0c4b45e4fd5f412e044fb905b1e238615f8",
-      "bytes": 7147
+      "sha256": "dc8fdb4ca33a236c98d6f9e38a15e0c2e32f7bfc2b8b27d31914a1e82bd89be5",
+      "bytes": 7012
     },
     {
       "sourcePath": "pdc-auth-registration.js",
       "deployedPath": "pdc-auth-registration.js",
-      "sha256": "bc45f0a1ec5cfbdfb6ad05a8b499f4a4de2d98f6d150649de98790fae7bd615a",
-      "bytes": 6021
+      "sha256": "13841fdf4408300d737b880cd4d676d2e49bdf4df65bd0f0c491db9e89da9dab",
+      "bytes": 5895
     },
     {
       "sourcePath": "pdc-auth.js",
       "deployedPath": "pdc-auth.js",
-      "sha256": "7edeaaba09a02c64ce07d22d204a4643eac99a7a94ff461ab275734f308143ab",
-      "bytes": 36252
+      "sha256": "59d502d6ec15f071bb65ac0f5d81e16ae7738e8a77f4c389abbdfc0a4a626798",
+      "bytes": 35460
     },
     {
       "sourcePath": "pdc-bulk-workbook-admin-review.js",
       "deployedPath": "pdc-bulk-workbook-admin-review.js",
-      "sha256": "283fb447f2a00de5bb6a58584cb49dd56df5a3bbb3b0d46ebe2f7033c77ebd1c",
-      "bytes": 11019
+      "sha256": "c628e67f31eb8cab0e338e3a770dd132e75d2fe543c94a3c5e45457dbf20eea6",
+      "bytes": 10797
     },
     {
       "sourcePath": "pdc-email-vehicle-location-service.js",
       "deployedPath": "pdc-email-vehicle-location-service.js",
-      "sha256": "fbf5a4a7106f05044c188714554f28a773abce865787d101c7f8a77e7f30c8c6",
-      "bytes": 14435
+      "sha256": "b5fbbd3c26459469b499a8a39dfafb844d9afc5f133d6fa8bef1fa496c19319d",
+      "bytes": 14270
     },
     {
       "sourcePath": "pdc-supabase-config.staging.js",
       "deployedPath": "pdc-supabase-config.staging.js",
-      "sha256": "d428f832e38f2fb4424e73d97f934085fd2ea310a578a5e80267a3cfe61ecd62",
-      "bytes": 1751
+      "sha256": "5fe0dc0dec7d3651c7867798eeb66b97132e9bd5f56b0db909a1d5297ab3eff1",
+      "bytes": 1712
     },
     {
       "sourcePath": "scripts/stage2b_c4_browser_export.js",
       "deployedPath": "scripts/stage2b_c4_browser_export.js",
-      "sha256": "afa142651d88f44f40c2e41159e6f37bddc2e0af3fe89408e969e9926fc83f07",
-      "bytes": 14592
+      "sha256": "5dafeb35a33626fec47aeaa931d17f83f22e436a4f602cbae66914537ab90f18",
+      "bytes": 14310
     },
     {
       "sourcePath": "staging-browser-assessment.js",
       "deployedPath": "staging-browser-assessment.js",
-      "sha256": "054f380b889eb8ce7475378478cab6f0927f0a9d15202c4745193e0405dc170e",
-      "bytes": 4036
+      "sha256": "29acbe12e27d787b12d75614086278ac54e2ffe04bb6dfd755b3cacc7077bded",
+      "bytes": 3935
     },
     {
       "sourcePath": "styles.css",
       "deployedPath": "styles.css",
-      "sha256": "db2224d4209bb6c7844ba05fa0c921da80278e087b00692b2c53df3658eba3e7",
-      "bytes": 391752
+      "sha256": "76e22b9ff25bb867aeb2a4923f49b84e0a03f95909005c146cd2b161f36ff058",
+      "bytes": 379096
     },
     {
       "sourcePath": "supabase/staging_only/096_navision_stock_number_authority.sql",
       "deployedPath": "supabase/staging_only/096_navision_stock_number_authority.sql",
-      "sha256": "30929ab93e9f749dc486e6b14d90ffd1bf438e7bb94654fb7fb62ea6595443f2",
-      "bytes": 39436
+      "sha256": "0a49c9f00af867b84c8ffa1bb6cb71c59948e52c58ed2af8adcea762647004c5",
+      "bytes": 38712
     },
     {
       "sourcePath": "supabase/staging_only/098_workshop_control_board_vehicle_loading.sql",
       "deployedPath": "supabase/staging_only/098_workshop_control_board_vehicle_loading.sql",
-      "sha256": "4c1aee6ac6f64dd4b51f1b6534df64c0b3a6d988269762d8692a24c4b01938fe",
-      "bytes": 10586
+      "sha256": "8079c1b836e3c9638d796cb7478465c3cea33834864a40923c5f0be67d38020c",
+      "bytes": 10376
     },
     {
       "sourcePath": "supabase/staging_only/099_authenticated_pd_accessory_lines.sql",
       "deployedPath": "supabase/staging_only/099_authenticated_pd_accessory_lines.sql",
-      "sha256": "00da3dd2590c6a892b5a4d78ae2986567fbfde2dc5cad9e25bd00dc3b776d96f",
-      "bytes": 14294
+      "sha256": "d71e38ad1a8a3829002762b5072eb37f322cb194585b2013399bcffae4dbcbbf",
+      "bytes": 14056
     },
     {
       "sourcePath": "supabase/staging_only/139_navision_from_twa_it_parity.sql",
@@ -249,86 +249,86 @@
     {
       "sourcePath": "test_navision_stock_authority_096.js",
       "deployedPath": "test_navision_stock_authority_096.js",
-      "sha256": "6f929f45b7baafc3774121c4ad081fa77478988cafd4cae37625b3057633df35",
-      "bytes": 2016
+      "sha256": "e97bdb96eec71b3e79e06bb29d043449cfc7253da487df4d03bf72ef4b84089b",
+      "bytes": 1988
     },
     {
       "sourcePath": "vehicle-lifecycle-actions.js",
       "deployedPath": "vehicle-lifecycle-actions.js",
-      "sha256": "b7e460f8f9c7e3403f1a08ca9340fe9128ca9698796f4a9c03f76377e02766d9",
-      "bytes": 19260
+      "sha256": "33ee5ae8874ab630f719d21137a15c59cd0a6e279a048c5d4125b665ef2a2aed",
+      "bytes": 18796
     },
     {
       "sourcePath": "vendor/pdfjs/LICENSE",
       "deployedPath": "vendor/pdfjs/LICENSE",
-      "sha256": "eb3d7b5485466acbd81f2b496f595ab637d2792e268206b27d99e793bdb67549",
-      "bytes": 10351
+      "sha256": "0d542e0c8804e39aa7f37eb00da5a762149dc682d7829451287e11b938e94594",
+      "bytes": 10174
     },
     {
       "sourcePath": "vendor/pdfjs/pdf.min.js",
       "deployedPath": "vendor/pdfjs/pdf.min.js",
-      "sha256": "86791280654fb3403853a2e3a39212941fd1c4af0c7e3608ae8f85cead458be0",
-      "bytes": 320025
+      "sha256": "5b5799e6f8c680663207ac5b42ee14eed2a406fa7af48f50c154f0c0b1566946",
+      "bytes": 320004
     },
     {
       "sourcePath": "vendor/pdfjs/pdf.worker.min.js",
       "deployedPath": "vendor/pdfjs/pdf.worker.min.js",
-      "sha256": "6195a19b81679dfb8fbd6c387aa37cf212c83f02628d768d142925fddc3d88fb",
-      "bytes": 1087233
+      "sha256": "feabdf309770ed24bba31a5467836cdc8cf639c705af27d52b585b041bb8527b",
+      "bytes": 1087212
     },
     {
       "sourcePath": "vendor/qz/qz-tray.js",
       "deployedPath": "vendor/qz/qz-tray.js",
-      "sha256": "2d8c0b7ab912e14a12dab4bf246be8e9555754053e6e12c556196bc8d946fdd1",
-      "bytes": 151112
+      "sha256": "b0a0afde74511e5284195cc875bc862b1ea4233f6c6aecb3ad485430a56bf4a6",
+      "bytes": 148138
     },
     {
       "sourcePath": "vendor/supabase/supabase-2.110.5.js",
       "deployedPath": "vendor/supabase/supabase-2.110.5.js",
-      "sha256": "8c786ef59b285ab2a6710af2f89190ccf1201730651c5ce3bfaded7b1d61f090",
-      "bytes": 206896
+      "sha256": "8e00fd587eb7c5148c977fa7c425316e8f9f168b3831100d8e2925a9807b5893",
+      "bytes": 206885
     },
     {
       "sourcePath": "workshop-data-service.js",
       "deployedPath": "workshop-data-service.js",
-      "sha256": "f3713c1fe5825a6805606649267873d4e694634b4cc22130b14991198e680be7",
-      "bytes": 19744
+      "sha256": "02f01028a2a6f3d6d9284de397d3efe19817a47364289867c206be947c087520",
+      "bytes": 19271
     },
     {
       "sourcePath": "workshop-eligibility.js",
       "deployedPath": "workshop-eligibility.js",
-      "sha256": "932aad0a0fab48db321201e808f9751463372331c549864b3476143e76c665cb",
-      "bytes": 9652
+      "sha256": "148161fe2823f511214256e9dde138e9eddd633d0f63946205b382bfc87ef3ff",
+      "bytes": 9494
     },
     {
       "sourcePath": "workshop-planner.css",
       "deployedPath": "workshop-planner.css",
-      "sha256": "7dbc734eef9783a110eb9f58aa7cb5eff60959326597579129eaee632f537c68",
-      "bytes": 44547
+      "sha256": "21f1f806b0bb289172b775602c1979c2f31d63cc62c6ff8f972003d5325c17c4",
+      "bytes": 43286
     },
     {
       "sourcePath": "workshop-planner.js",
       "deployedPath": "workshop-planner.js",
-      "sha256": "830cefb1f8808544baa8290cfe358280efb6a016166b1b8744a76fa680fe6096",
-      "bytes": 338725
+      "sha256": "568ed63fa862f42cbd7b0c46ff1aa7e7a71a984731b02fd6e54c73c6fd9304f4",
+      "bytes": 332855
     },
     {
       "sourcePath": "workshop-realtime.js",
       "deployedPath": "workshop-realtime.js",
-      "sha256": "42743226062ef0bd6ad5bfb3fbf5353b7c13c487e5610cfa18044b7eea63b9bd",
-      "bytes": 9477
+      "sha256": "484c0a4ebc6e823fbca6eaf7f6c3fe4e563902abfbd3959221d21c19f45c0361",
+      "bytes": 9237
     },
     {
       "sourcePath": "workshop-reference-data-service.js",
       "deployedPath": "workshop-reference-data-service.js",
-      "sha256": "1931dfe83844d13de8d48a17e2b481a7727b511632d01d70a95d7702db7782ef",
-      "bytes": 29002
+      "sha256": "ebe98f65a5cea69a42fdad77535f9bcdbf0f61c4013c34e7e7be34866b2682fe",
+      "bytes": 28440
     },
     {
       "sourcePath": "workshop-shared-actions.js",
       "deployedPath": "workshop-shared-actions.js",
-      "sha256": "750d262bd06accb0ac55e377d200498a1d8d4155f79109a833decfb3e12b2f86",
-      "bytes": 8215
+      "sha256": "7a1cbc87e394f0ec8db1b7fb3da543fc3ac9e13a0d44be9e3e5f8447dd87df3b",
+      "bytes": 8003
     }
   ],
   "performanceEvidence": {
@@ -432,5 +432,6 @@
     "restoreSchemaCleanupVerified": true,
     "productionChanged": false
   },
-  "localScreenshotServersActive": 0
+  "localScreenshotServersActive": 0,
+  "publicationAssetCommit": "db83926f199d17f6f85b2bc2d085de9b11401650"
 }
