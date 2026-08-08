@@ -716,6 +716,9 @@ function workshopDescribeSharedActionError(result) {
   if (error === 'vehicle_overlap' || (conflict && conflict.conflict_type === 'vehicle_overlap')) {
     return 'This vehicle already has an active booking during this time. Choose a back-to-back or non-overlapping time.';
   }
+  if (error === 'sublet_away') {
+    return 'This vehicle is away on Sublet on that date. Record its actual return or choose a date after it is back.';
+  }
   if (error === 'parts_incomplete' || error === 'parts_incomplete_blocked' || error === 'parts_incomplete_entry') {
     return 'Parts requirements are incomplete. An authorised override and reason are required.';
   }

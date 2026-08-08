@@ -11440,7 +11440,7 @@ html[data-row-width="xl"] {
 .email-vehicle-review-line .email-line-include input { width: auto; }
 .email-vehicle-review-line small { color: #9a3412; font-weight: 500; }
 .email-vehicle-review-line:has([data-email-line-include]:not(:checked)) { opacity: .48; background: #f8fafc; border-color: #cbd5e1; }
-.sublet-operational-filters { grid-template-columns: repeat(2, minmax(180px, 260px)); justify-content: start; }
+.sublet-operational-filters { grid-template-columns: repeat(3, minmax(160px, 240px)); justify-content: start; }
 #sublet .sublet-filter-chip { min-height: 42px; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 7px 10px; border: 1px solid #cbd5e1; border-radius: 5px; background: #fff; color: #334155; font-size: .72rem; font-weight: 800; cursor: pointer; }
 #sublet .sublet-filter-chip strong { font-size: .9rem; }
 #sublet .sublet-filter-chip.is-active { border-color: #2563eb; background: #dbeafe; color: #1e3a8a; box-shadow: inset 0 -2px 0 #2563eb; }
@@ -11466,12 +11466,15 @@ html[data-row-width="xl"] {
 .sublet-calendar-grid.is-week .sublet-calendar-day { min-height: 360px; }
 .sublet-calendar-day.is-outside-month { background: #f1f5f9; }
 .sublet-calendar-day.is-today { box-shadow: inset 0 0 0 2px #2563eb; }
+.sublet-calendar-day.is-drag-target { background: #dbeafe; box-shadow: inset 0 0 0 3px #2563eb; }
 .sublet-calendar-day > header { display: flex; align-items: center; justify-content: space-between; min-height: 23px; margin-bottom: 5px; color: #334155; font-size: .72rem; font-weight: 900; }
 .sublet-calendar-day.is-outside-month > header { color: #94a3b8; }
 .sublet-calendar-day > header b { padding: 2px 5px; border-radius: 999px; background: #dbeafe; color: #1e3a8a; font-size: .58rem; }
 .sublet-calendar-day-events { display: grid; gap: 5px; }
 .sublet-calendar-event { display: grid; gap: 2px; width: 100%; min-width: 0; min-height: 0; padding: 6px 7px; border: 1px solid #93c5fd; border-left: 4px solid #2563eb; border-radius: 6px; background: #eff6ff; color: #1e3a8a; box-shadow: none; text-align: left; }
 .sublet-calendar-event:hover { filter: brightness(.98); transform: translateY(-1px); }
+.sublet-calendar-event[draggable="true"] { cursor: grab; }
+.sublet-calendar-event.is-dragging { cursor: grabbing; opacity: .48; }
 .sublet-calendar-event span, .sublet-calendar-event strong, .sublet-calendar-event small, .sublet-calendar-event em { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .sublet-calendar-event span { font-size: .64rem; font-weight: 950; text-transform: uppercase; }
 .sublet-calendar-event strong { color: #0f172a; font-size: .7rem; }
@@ -11483,7 +11486,7 @@ html[data-row-width="xl"] {
 .sublet-compact-toolbar { grid-template-columns: minmax(260px, 1.5fr) minmax(210px, .8fr) minmax(210px, .8fr); }
 .sublet-compact-toolbar label[hidden] { display: none !important; }
 .sublet-table-wrap { overflow-x: auto; }
-.sublet-table { min-width: 1580px; table-layout: fixed; }
+.sublet-table { min-width: 1680px; table-layout: fixed; }
 .sublet-table th { white-space: nowrap; }
 .sublet-table td { vertical-align: middle; padding: 4px 8px; }
 .sublet-table .sublet-summary-row { height: 54px; background: #fff; }
@@ -11492,13 +11495,14 @@ html[data-row-width="xl"] {
 .sublet-table .sublet-summary-row td:nth-child(2) { width: 66px; }
 .sublet-table .sublet-summary-row td:nth-child(3) { width: 105px; }
 .sublet-table .sublet-summary-row td:nth-child(4) { width: 100px; }
-.sublet-table .sublet-summary-row td:nth-child(5) { width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.sublet-table .sublet-summary-row td:nth-child(6) { width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.sublet-table .sublet-summary-row td:nth-child(7) { width: 200px; }
-.sublet-table .sublet-summary-row td:nth-child(8) { width: 155px; }
+.sublet-table .sublet-summary-row td:nth-child(5) { width: 95px; }
+.sublet-table .sublet-summary-row td:nth-child(6) { width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sublet-table .sublet-summary-row td:nth-child(7) { width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sublet-table .sublet-summary-row td:nth-child(8) { width: 200px; }
 .sublet-table .sublet-summary-row td:nth-child(9) { width: 155px; }
-.sublet-table .sublet-summary-row td:nth-child(10) { width: 145px; }
-.sublet-table .sublet-summary-row td:nth-child(11) { width: 120px; }
+.sublet-table .sublet-summary-row td:nth-child(10) { width: 155px; }
+.sublet-table .sublet-summary-row td:nth-child(11) { width: 145px; }
+.sublet-table .sublet-summary-row td:nth-child(12) { width: 120px; }
 .sublet-table .sublet-summary-row select, .sublet-table .sublet-summary-row input { width: 100%; min-width: 0; min-height: 34px; height: 34px; padding-top: 4px; padding-bottom: 4px; }
 .sublet-table .sublet-summary-row .small-button { min-height: 34px; padding-top: 5px; padding-bottom: 5px; }
 .sublet-row-toggle, .sublet-stock-link { border: 0; background: transparent; color: #0f4c81; cursor: pointer; padding: 3px; }
@@ -11507,6 +11511,9 @@ html[data-row-width="xl"] {
 .sublet-status-pill { display: inline-flex; align-items: center; min-height: 26px; padding: 4px 9px; border-radius: 999px; font-size: .72rem; font-weight: 800; white-space: nowrap; }
 .sublet-status-pill.is-to-book { color: #9f1239; background: #fff1f2; border: 1px solid #fecdd3; }
 .sublet-status-pill.is-booked { color: #166534; background: #f0fdf4; border: 1px solid #bbf7d0; }
+.sublet-status-pill.is-returned { color: #14532d; background: #dcfce7; border: 1px solid #86efac; }
+.sublet-returned-check { display: inline-flex; align-items: center; gap: 6px; min-height: 34px; margin: 0; color: #166534; font-size: .72rem; font-weight: 850; }
+.sublet-table .sublet-summary-row .sublet-returned-check input { width: 18px; min-width: 18px; height: 18px; min-height: 18px; }
 .sublet-detail-row td { padding: 10px 12px 12px 42px; background: #f8fafc; border-top: 0; }
 .sublet-detail-grid { display: grid; grid-template-columns: minmax(210px, .75fr) minmax(155px, .5fr) minmax(300px, 1.4fr) minmax(170px, .55fr) minmax(190px, .65fr); gap: 12px; align-items: end; }
 .sublet-detail-grid label { display: grid; gap: 5px; min-width: 0; }

@@ -7,7 +7,7 @@ const staging = fs.readFileSync('staging.html', 'utf8');
 const renderStart = app.indexOf('function renderSubletHome()');
 const renderEnd = app.indexOf('\nfunction getNotes(', renderStart);
 const render = app.slice(renderStart, renderEnd);
-assert(render.includes('<th aria-label="Expand"></th><th>Key</th><th>Stock</th><th>Job card</th><th>Customer</th><th>Vehicle</th><th>Provider</th><th>Booking date</th><th>Due back</th><th>Status</th><th>Actions</th>'), 'Sublet must use compact Vehicle-Locations-style operational rows with due-back visibility');
+assert(render.includes('<th aria-label="Expand"></th><th>Key</th><th>Stock</th><th>Job card</th><th>Returned</th><th>Customer</th><th>Vehicle</th><th>Provider</th><th>Booking date</th><th>Due back</th><th>Status</th><th>Actions</th>'), 'Sublet must keep the Back action visible beside Job Card while retaining due-back and status columns');
 assert(!render.includes('PO sent'), 'Sublet rows must not show PO sent date');
 assert(render.includes('Expected Sublet return date'), 'Sublet rows must expose the expected return date for calendar planning');
 assert(render.includes('Actual return'), 'Expanded Sublet details must expose the actual return date');
@@ -17,7 +17,7 @@ assert(render.includes('Sublet To Book') && render.includes('Sublet Booked'), 'S
 assert(!render.includes('pmbBayNumber('), 'Sublet rows must not render physical bay icons or bay numbers');
 assert(!staging.includes('id="sublet-status-filter"'), 'Return/overdue status filter must be removed with return dates');
 assert(staging.includes('Provider queue, booking dates, notes and controlled email drafts.'), 'Sublet explanation must match the simplified workflow');
-assert(styles.includes('.sublet-table { min-width: 1580px; table-layout: fixed; }'), 'Sublet must retain a compact fixed table layout with the added due-back column');
+assert(styles.includes('.sublet-table {') && styles.includes('min-width: 1680px;') && styles.includes('table-layout: fixed;'), 'Sublet must retain a compact fixed table layout with due-back and Returned columns');
 assert(styles.includes('.sublet-table .sublet-summary-row { height: 54px;'), 'Sublet summary rows must stay compact');
 const summaryIndex = app.indexOf('<section class="ai-intake-email-summary"><span>What the email says</span>');
 const changesIndex = app.indexOf('<section class="ai-intake-detected-changes">', summaryIndex);

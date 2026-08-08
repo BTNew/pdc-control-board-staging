@@ -90,7 +90,7 @@ const WORKSHOP_CANONICAL_MUTATION_ERRORS = new Set([
   'calendar_duration_mismatch', 'invalid_schedule_interval', 'minimum_duration',
   'bay_inactive_or_wrong_station', 'technician_inactive_or_missing',
   'technician_leave_conflict', 'technician_overlap', 'live_booking_conflict',
-  'concurrent_queue_change'
+  'concurrent_queue_change', 'sublet_away'
 ]);
 
 function workshopCanonicalMutationError(body) {
