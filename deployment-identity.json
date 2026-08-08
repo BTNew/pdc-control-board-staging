@@ -1,14 +1,14 @@
 {
   "artifact": "zero-embedded-data static staging site",
   "environment": "staging",
-  "generatedAtUtc": "2026-08-08T12:18:25Z",
-  "deploymentMode": "Staging-only Navision From-TWA IT parity patch layered onto staging commit fe397f4; existing staging authority/UI shell preserved",
-  "baseDeploymentCommit": "fe397f4cb37a3b7ac4b1631688156e13b8d5c402",
+  "generatedAtUtc": "2026-08-08T22:46:57Z",
+  "deploymentMode": "Staging-only authoritative Sublet returned/calendar/workshop-availability release layered onto staging commit e13faa5; existing staging authority/UI shell preserved",
+  "baseDeploymentCommit": "e13faa5657ee4d42bc3c1c2d2c7dc08cd8669e54",
   "sourceRepository": "BTNew/pdc-control-board",
-  "sourceBranch": "fix/staging-ai-intake-auto-activation-20260808",
-  "sourceCommit": "cd479818ce112b76358c417f974a2d5b88d5ccc2",
-  "sourceTree": "cd1f59f1bb16105ec84f46d46e4701ca42f73552",
-  "cacheVersion": "2026.08.08.08-navision-from-twa-it-parity",
+  "sourceBranch": "feat/staging-sublet-return-drag-conflicts-20260808",
+  "sourceCommit": "a66012a6174b87bf174a43f613cd9838015d018c",
+  "sourceTree": "42c498663d0301c7918ae88d9c0bacda02d96217",
+  "cacheVersion": "2026.08.08.09-sublet-return-drag-workshop-availability",
   "stagingProjectRef": "cdsmnqxtyyoeoznmbidd",
   "zeroData": true,
   "mailboxAuthority": false,
@@ -16,29 +16,31 @@
   "productionActivation": false,
   "pilotActivation": false,
   "migrationLedger": {
-    "appliedThrough": "139",
-    "ledgerHead": "139",
-    "migration": "navision_from_twa_it_parity",
+    "appliedThrough": "140",
+    "ledgerHead": "140",
+    "migration": "sublet_return_calendar_and_workshop_availability",
     "rollbackAvailable": true,
-    "actualBackupManifestSha256": "b624e1942c621ffed0fa8bbb610a8fa704f0d691a69a0917c666c8930b6d930a",
-    "dataIntegrityReceiptSha256": "a46427bc6ac0df0a0bfac5b2ed48ad11fe2eb0a92a714076b61df5e27de93bdb",
+    "actualBackupManifestSha256": "9cbe04e6431934e1d8a08733d225c45aae881da05e198997f8996b91cff40878",
+    "dataIntegrityReceiptSha256": "e69fe6c5e6192b5b55c2c7783733f38a9a583f3fdeaf309670e6dc6a33ae317c",
+    "backupFormat": "pdc-staging-public-csv-gzip-v1",
+    "backupRelations": 115,
+    "backupRows": 28594,
     "exactCsvHeadersVerified": true,
-    "fullSchemaRestoreVerified": true,
+    "fullSchemaRestoreVerified": false,
     "disasterRecoveryVerified": false,
     "migration136Sha256": "2a6416aac34f7b01e5688d7e61a24c48ae964c85f3eaaa4d021863dbac753032",
     "migration137Sha256": "842df2e12dd913a0e63ef8c7fc382590093e6e55a7bdbcf95a8a8fd0544fefc6",
     "migration138Sha256": "1a6638951e9982886afdfc47d0b4362b57a15539a1abbaddf8d37e5dcfbc21a3",
     "exceptionPayloadSha256": "c6450f3b6a43aa05f3ef80441d8f2ece265b05a9c424eb4a834fb60a8e423c88",
     "migration139Sha256": "b8979cf18eeb13489489d4ea8439f33632960a48e0604fc4ea13a67ac2cd54d3",
-    "encryptedBackupFileSha256": "0d0ec790d4ad039cb6625b8a2c798b1ffb39accfdc15f0e305ac7884e0409409",
-    "encryptedBackupRelations": 115,
-    "encryptedBackupRows": 28501,
+    "migration140Sha256": "26aa53ed08f72d1a10e46ffedbdd49cfc00d24b7374774e05e9bc60608ad524c",
     "isolatedRestoreVerified": true,
-    "restoredForeignKeys": 244,
+    "restoredForeignKeys": 150,
     "skippedForeignKeys": 0,
-    "twaRowsMovedOtherToIt": 45,
-    "migrationAuditRows": 45,
-    "nonTargetVehicleHashPreserved": true
+    "subletRows": 8,
+    "preExistingWorkshopSubletOverlaps": 0,
+    "postApplyWorkshopSubletOverlaps": 0,
+    "productionChanged": false
   },
   "retiredRoutes": [
     "pipeline",
@@ -87,8 +89,8 @@
     {
       "sourcePath": "app.js",
       "deployedPath": "app.js",
-      "sha256": "efb9da294a9ab7901877c41aa72bcf478072108974b77eafa5cb30d943abe116",
-      "bytes": 1047324
+      "sha256": "442472afe3e0c74f9ed3a8e2b51e02add77075acd23df852b73db2988d83d784",
+      "bytes": 1045690
     },
     {
       "sourcePath": "arb-labor-catalog.js",
@@ -135,8 +137,8 @@
     {
       "sourcePath": "staging.html",
       "deployedPath": "index.html",
-      "sha256": "9a8ddf3e55deb625ebdbb57b726aea5025bf906ab20b0de27881a17b3497dc88",
-      "bytes": 65471
+      "sha256": "480e3934dc0f714d62b81e2779fd9d175a2443679e677fb04933bf2fd0f653d5",
+      "bytes": 64806
     },
     {
       "sourcePath": "key-list-review.js",
@@ -195,14 +197,14 @@
     {
       "sourcePath": "pdc-email-vehicle-location-service.js",
       "deployedPath": "pdc-email-vehicle-location-service.js",
-      "sha256": "b5fbbd3c26459469b499a8a39dfafb844d9afc5f133d6fa8bef1fa496c19319d",
-      "bytes": 14270
+      "sha256": "b36f9a47ceff433ef3391232a8999344319d5a8b2abd2d89cc01efc28d23e3aa",
+      "bytes": 14603
     },
     {
       "sourcePath": "pdc-supabase-config.staging.js",
       "deployedPath": "pdc-supabase-config.staging.js",
-      "sha256": "5fe0dc0dec7d3651c7867798eeb66b97132e9bd5f56b0db909a1d5297ab3eff1",
-      "bytes": 1712
+      "sha256": "913dfe7a2b8014546d23392c896b65badaabe496b159a4dc414a21cad09ed7b8",
+      "bytes": 1724
     },
     {
       "sourcePath": "scripts/stage2b_c4_browser_export.js",
@@ -219,8 +221,8 @@
     {
       "sourcePath": "styles.css",
       "deployedPath": "styles.css",
-      "sha256": "76e22b9ff25bb867aeb2a4923f49b84e0a03f95909005c146cd2b161f36ff058",
-      "bytes": 379096
+      "sha256": "95678416eefc5989809e6d1ae669d93bd40c3f5301b626bb5cd99c735b642a67",
+      "bytes": 375273
     },
     {
       "sourcePath": "supabase/staging_only/096_navision_stock_number_authority.sql",
@@ -245,6 +247,12 @@
       "deployedPath": "supabase/staging_only/139_navision_from_twa_it_parity.sql",
       "sha256": "b8979cf18eeb13489489d4ea8439f33632960a48e0604fc4ea13a67ac2cd54d3",
       "bytes": 5808
+    },
+    {
+      "sourcePath": "supabase/staging_only/140_sublet_return_calendar_and_workshop_availability.sql",
+      "deployedPath": "supabase/staging_only/140_sublet_return_calendar_and_workshop_availability.sql",
+      "sha256": "26aa53ed08f72d1a10e46ffedbdd49cfc00d24b7374774e05e9bc60608ad524c",
+      "bytes": 20939
     },
     {
       "sourcePath": "test_navision_stock_authority_096.js",
@@ -291,8 +299,8 @@
     {
       "sourcePath": "workshop-data-service.js",
       "deployedPath": "workshop-data-service.js",
-      "sha256": "02f01028a2a6f3d6d9284de397d3efe19817a47364289867c206be947c087520",
-      "bytes": 19271
+      "sha256": "8fc79813a13ed52c7e73089839b5b72c2e7fa74c11d2436c643b33b46021dcbb",
+      "bytes": 19286
     },
     {
       "sourcePath": "workshop-eligibility.js",
@@ -309,8 +317,8 @@
     {
       "sourcePath": "workshop-planner.js",
       "deployedPath": "workshop-planner.js",
-      "sha256": "568ed63fa862f42cbd7b0c46ff1aa7e7a71a984731b02fd6e54c73c6fd9304f4",
-      "bytes": 332855
+      "sha256": "184ade03f1790b5cd79562da88d4a9697f73b88da5a5a5642f76792618232688",
+      "bytes": 325637
     },
     {
       "sourcePath": "workshop-realtime.js",
@@ -424,14 +432,14 @@
     "rftWithCurrentDealerDeliveryAuthority": 3,
     "immutableAttestations": 1,
     "correctiveAuditEvents": 1,
-    "backupTablesRestored": 111,
-    "backupRowsRestored": 27356,
-    "foreignKeysChecked": 145,
+    "backupTablesRestored": 115,
+    "backupRowsRestored": 28594,
+    "foreignKeysChecked": 150,
     "foreignKeyViolations": 0,
     "restoreTransactionRolledBack": true,
     "restoreSchemaCleanupVerified": true,
     "productionChanged": false
   },
   "localScreenshotServersActive": 0,
-  "publicationAssetCommit": "db83926f199d17f6f85b2bc2d085de9b11401650"
+  "publicationAssetCommit": "bbace1cd6a0ec1aaa368b0f84ca4e89f209cf1d0"
 }
