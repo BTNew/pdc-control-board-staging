@@ -1,5 +1,5 @@
-const APP_VERSION = '2026.08.08.07-sublet-calendar-hardening';
-const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.08.08.07-sublet-calendar-hardening';
+const APP_VERSION = '2026.08.08.08-navision-from-twa-it-parity';
+const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.08.08.08-navision-from-twa-it-parity';
 const PDC_BASE_DOCUMENT_TITLE = String(document.title || '').trim() || 'PDC Control Board';
 const routeDocumentTitle = title => `${title} — ${PDC_BASE_DOCUMENT_TITLE}`;
 
@@ -2205,7 +2205,10 @@ function navisionImportedToyotaTransitCategory(vehicle = {}) {
     vehicle.__sharedNavisionCanonicalLocation || vehicle.current_location || vehicle.currentLocation || vehicle.pdcLocation || ''
   ).toUpperCase();
   const status = normalizeToyotaStatus(navisionLocationSourceText(vehicle));
+  const fromTwaDespatch = status.includes('from twa') &&
+    (status.includes('despatch') || status.includes('dispatch'));
   const preArrival = canonicalLocation === 'IT' || canonicalLocation === 'IN TRANSIT' ||
+    fromTwaDespatch ||
     status.includes('planned for production') || status.includes('line off complete') ||
     status.includes('final inspection') || status.includes('ready for shipment') ||
     status.includes('in transit') || status.includes('shipment') || status.includes('wharf') ||

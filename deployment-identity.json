@@ -1,14 +1,14 @@
 {
   "artifact": "zero-embedded-data static staging site",
   "environment": "staging",
-  "generatedAtUtc": "2026-08-08T08:25:34Z",
-  "deploymentMode": "Staging-only row-scoped Workshop estimated-hours save fix layered onto the clean matched-workbook reset release",
-  "baseDeploymentCommit": "db5b9551c74801a79652abe0514d0086fa712624",
+  "generatedAtUtc": "2026-08-08T12:14:50Z",
+  "deploymentMode": "Staging-only Navision From-TWA IT parity patch layered onto staging commit fe397f4; existing staging authority/UI shell preserved",
+  "baseDeploymentCommit": "fe397f4cb37a3b7ac4b1631688156e13b8d5c402",
   "sourceRepository": "BTNew/pdc-control-board",
   "sourceBranch": "fix/staging-ai-intake-auto-activation-20260808",
-  "sourceCommit": "72e900015522799e5e589d84d4534501d113c559",
-  "sourceTree": "bb4ae34d5b42e6a77501b791a7e9802641736016",
-  "cacheVersion": "2026.08.08.05-row-hours-save",
+  "sourceCommit": "cd479818ce112b76358c417f974a2d5b88d5ccc2",
+  "sourceTree": "cd1f59f1bb16105ec84f46d46e4701ca42f73552",
+  "cacheVersion": "2026.08.08.08-navision-from-twa-it-parity",
   "stagingProjectRef": "cdsmnqxtyyoeoznmbidd",
   "zeroData": true,
   "mailboxAuthority": false,
@@ -16,19 +16,29 @@
   "productionActivation": false,
   "pilotActivation": false,
   "migrationLedger": {
-    "appliedThrough": "138",
-    "ledgerHead": "138",
-    "migration": "correct_reset_backup_evidence_scope",
+    "appliedThrough": "139",
+    "ledgerHead": "139",
+    "migration": "navision_from_twa_it_parity",
     "rollbackAvailable": true,
     "actualBackupManifestSha256": "b624e1942c621ffed0fa8bbb610a8fa704f0d691a69a0917c666c8930b6d930a",
     "dataIntegrityReceiptSha256": "a46427bc6ac0df0a0bfac5b2ed48ad11fe2eb0a92a714076b61df5e27de93bdb",
     "exactCsvHeadersVerified": true,
-    "fullSchemaRestoreVerified": false,
+    "fullSchemaRestoreVerified": true,
     "disasterRecoveryVerified": false,
     "migration136Sha256": "2a6416aac34f7b01e5688d7e61a24c48ae964c85f3eaaa4d021863dbac753032",
     "migration137Sha256": "842df2e12dd913a0e63ef8c7fc382590093e6e55a7bdbcf95a8a8fd0544fefc6",
     "migration138Sha256": "1a6638951e9982886afdfc47d0b4362b57a15539a1abbaddf8d37e5dcfbc21a3",
-    "exceptionPayloadSha256": "c6450f3b6a43aa05f3ef80441d8f2ece265b05a9c424eb4a834fb60a8e423c88"
+    "exceptionPayloadSha256": "c6450f3b6a43aa05f3ef80441d8f2ece265b05a9c424eb4a834fb60a8e423c88",
+    "migration139Sha256": "b8979cf18eeb13489489d4ea8439f33632960a48e0604fc4ea13a67ac2cd54d3",
+    "encryptedBackupFileSha256": "0d0ec790d4ad039cb6625b8a2c798b1ffb39accfdc15f0e305ac7884e0409409",
+    "encryptedBackupRelations": 115,
+    "encryptedBackupRows": 28501,
+    "isolatedRestoreVerified": true,
+    "restoredForeignKeys": 244,
+    "skippedForeignKeys": 0,
+    "twaRowsMovedOtherToIt": 45,
+    "migrationAuditRows": 45,
+    "nonTargetVehicleHashPreserved": true
   },
   "retiredRoutes": [
     "pipeline",
@@ -54,10 +64,10 @@
     "applyReceipts": 1
   },
   "releaseChecks": {
-    "aggregateTests": "142 passed, 0 failed, 1 documented clean-build skip",
-    "focusedTests": "Exact 3-hour clicked-row behavioral regression passed with unrelated 1.1-hour row; vehicle-detail contract and version consistency passed",
-    "assetParity": "Raw Git blobs for app.js, index.html and staging config match served HTTPS bytes; bounded patch layered onto staging commit db5b955",
-    "roleSecurity": "Live RFT authority helper private; reset and evidence receipts remain RLS-enabled/private; Migration 138 records data-integrity scope without a disaster-recovery claim",
+    "aggregateTests": "143 passed, 0 failed, 1 documented clean-build skip",
+    "focusedTests": "TWA status/ETA parity, version consistency, migration preview/apply gates and all-station live stock reconciliation passed",
+    "assetParity": "Layered app/index/config patch preserves staging commit fe397f4; migration 139 is byte-identical to source cd47981; deployment identity hashes bind every served asset",
+    "roleSecurity": "Authenticated authoritative workshop snapshot connected; exact station sets matched; direct internal location helper remains non-public through its private dependency",
     "production": "unchanged",
     "excludedRelease": "No production repository/main, production database, mailbox/pdc-monitor, DNS or pilot activation included"
   },
@@ -77,8 +87,8 @@
     {
       "sourcePath": "app.js",
       "deployedPath": "app.js",
-      "sha256": "27c852dd2922cf5f69a4abfab5c8f52daa6024e3fc80952a4e25190fd073dfe9",
-      "bytes": 1034769
+      "sha256": "3d5229e8f1b2c489e54e9ac1fc5929af69d0e42a08564ccf0f4b842ab93d0f40",
+      "bytes": 1067585
     },
     {
       "sourcePath": "arb-labor-catalog.js",
@@ -125,8 +135,8 @@
     {
       "sourcePath": "staging.html",
       "deployedPath": "index.html",
-      "sha256": "2de6becd2d7d7643c829430fc2eb4e1c1f6c4a5994b45f6907d777ba6a5f5e13",
-      "bytes": 63911
+      "sha256": "57c6e595ef7684f35c7228b664e70ea076624d359256d70e0fcb8a0134c29e58",
+      "bytes": 66455
     },
     {
       "sourcePath": "key-list-review.js",
@@ -191,8 +201,8 @@
     {
       "sourcePath": "pdc-supabase-config.staging.js",
       "deployedPath": "pdc-supabase-config.staging.js",
-      "sha256": "e069c4209c5ff30411ae35a378334278a862b028e8f307c5db441552a3709d07",
-      "bytes": 1699
+      "sha256": "d428f832e38f2fb4424e73d97f934085fd2ea310a578a5e80267a3cfe61ecd62",
+      "bytes": 1751
     },
     {
       "sourcePath": "scripts/stage2b_c4_browser_export.js",
@@ -209,8 +219,8 @@
     {
       "sourcePath": "styles.css",
       "deployedPath": "styles.css",
-      "sha256": "af361dceec38ed190d405ca1c37b04e3af8244375e77f020fab9e36e50198afe",
-      "bytes": 386675
+      "sha256": "db2224d4209bb6c7844ba05fa0c921da80278e087b00692b2c53df3658eba3e7",
+      "bytes": 391752
     },
     {
       "sourcePath": "supabase/staging_only/096_navision_stock_number_authority.sql",
@@ -229,6 +239,12 @@
       "deployedPath": "supabase/staging_only/099_authenticated_pd_accessory_lines.sql",
       "sha256": "00da3dd2590c6a892b5a4d78ae2986567fbfde2dc5cad9e25bd00dc3b776d96f",
       "bytes": 14294
+    },
+    {
+      "sourcePath": "supabase/staging_only/139_navision_from_twa_it_parity.sql",
+      "deployedPath": "supabase/staging_only/139_navision_from_twa_it_parity.sql",
+      "sha256": "b8979cf18eeb13489489d4ea8439f33632960a48e0604fc4ea13a67ac2cd54d3",
+      "bytes": 5808
     },
     {
       "sourcePath": "test_navision_stock_authority_096.js",
