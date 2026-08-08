@@ -39,7 +39,8 @@ assert(app.includes('saveVehicleWorkshopLineHours'), 'Direct estimated-hours cha
 const bulkHoursStart = app.indexOf('async function saveVehicleWorkshopLineHours');
 const bulkHoursEnd = app.indexOf('async function scheduleVehicleWorkshopNextAvailable', bulkHoursStart);
 const bulkHoursBody = bulkHoursStart >= 0 && bulkHoursEnd > bulkHoursStart ? app.slice(bulkHoursStart, bulkHoursEnd) : '';
-assert(bulkHoursBody.includes("querySelectorAll('.vehicle-workshop-line')") && bulkHoursBody.includes('Promise.all'), 'Saving any row must save every populated estimated-hours input before one authoritative refresh');
+assert(bulkHoursBody.includes("closest?.('.vehicle-workshop-line')") && bulkHoursBody.includes("row?.querySelector?.('[data-vehicle-workshop-hours-input]')"), 'Saving a row must resolve only the clicked row and its hours input');
+assert(!bulkHoursBody.includes("querySelectorAll('.vehicle-workshop-line')") && !bulkHoursBody.includes('Promise.all'), 'A row Save must not validate or update unrelated populated rows');
 assert(app.includes("addEventListener('dragstart', event => beginVehicleWorkshopLineDrag(event, handle))"), 'Operation handles must wire dragstart to the Planner handoff');
 assert(app.includes('workshopScheduleVehicleNextAvailable(payload)'), 'Schedule next available must delegate to the established Workshop Planner authority');
 assert(planner.includes('async function workshopScheduleVehicleNextAvailable'), 'Planner must own next-available slot selection and authoritative scheduling');

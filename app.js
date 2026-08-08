@@ -1,5 +1,5 @@
-const APP_VERSION = '2026.08.08.04-clean-workbook-reset-qa';
-const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.08.08.04-clean-workbook-reset-qa';
+const APP_VERSION = '2026.08.08.05-row-hours-save';
+const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.08.08.05-row-hours-save';
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
 // constant intentionally names only the production ref, never the
@@ -10813,41 +10813,38 @@ async function saveVehicleWorkshopLine({ stage = '', lineKey = '', adjustmentId 
 
 async function saveVehicleWorkshopLineHours(button) {
   const page = button?.closest?.('[data-vehicle-workshop-page]');
-  if (!button || !page) return false;
-  const rows = [...page.querySelectorAll('.vehicle-workshop-line')].map(row => {
-    const save = row.querySelector('[data-vehicle-workshop-hours-save]');
-    const input = row.querySelector('[data-vehicle-workshop-hours-input]');
-    return save && input ? { save, input } : null;
-  }).filter(item => item && String(item.input.value || '').trim() !== '');
-  if (!rows.length) {
-    window.alert('Enter at least one estimated-hours value before saving.');
+  const row = button?.closest?.('.vehicle-workshop-line');
+  const input = row?.querySelector?.('[data-vehicle-workshop-hours-input]');
+  if (!button || !page || !row || !input) return false;
+  const rawValue = String(input.value || '').trim();
+  if (!rawValue) {
+    window.alert('Enter an estimated-hours value before saving this row.');
+    input.focus();
     return false;
   }
-  const invalid = rows.find(({ input }) => {
-    const value = Number(input.value);
-    return !Number.isFinite(value) || value < 0.25 || value > 999.75 || Math.round(value * 4) !== value * 4;
-  });
-  if (invalid) {
-    window.alert('Every estimated-hours field must be between 0.25 and 999.75 in quarter-hour increments before Save can update all rows.');
-    invalid.input.focus();
+  const value = Number(rawValue);
+  if (!Number.isFinite(value) || value < 0.25 || value > 999.75 || Math.round(value * 4) !== value * 4) {
+    window.alert('Estimated hours must be between 0.25 and 999.75 in quarter-hour increments.');
+    input.focus();
     return false;
   }
-  rows.forEach(({ save, input }) => { save.disabled = true; input.disabled = true; });
-  const results = await Promise.all(rows.map(({ save, input }) => saveVehicleWorkshopLine({
-    stage: save.dataset.stage,
-    lineKey: save.dataset.lineKey,
-    adjustmentId: save.dataset.adjustmentId,
-    adjustmentVersion: Number(save.dataset.adjustmentVersion || 0),
-    description: save.dataset.description,
-    hours: input.value,
+  button.disabled = true;
+  input.disabled = true;
+  const saved = await saveVehicleWorkshopLine({
+    stage: button.dataset.stage,
+    lineKey: button.dataset.lineKey,
+    adjustmentId: button.dataset.adjustmentId,
+    adjustmentVersion: Number(button.dataset.adjustmentVersion || 0),
+    description: button.dataset.description,
+    hours: rawValue,
     hoursOnly: true,
     refresh: false,
     showError: false,
-  })));
+  });
   const vehicle = selectedVehicle() || {};
   await loadVehicleWorkshopDetail(vehicle, { force: true });
-  if (results.every(Boolean)) return true;
-  window.alert('One or more estimated-hour rows could not be saved. The authoritative values have been reloaded; review them and try again.');
+  if (saved) return true;
+  window.alert('This estimated-hour row could not be saved. The authoritative value has been reloaded; review it and try again.');
   return false;
 }
 
