@@ -1,14 +1,14 @@
 {
   "artifact": "zero-embedded-data static staging site",
   "environment": "staging",
-  "generatedAtUtc": "2026-08-08T04:42:11Z",
-  "deploymentMode": "Staging-only clean matched-workbook reset hardening; live Navision RFT authority, exact exception and restore attestations, preserved JC provenance through authoritative board mapping",
-  "baseDeploymentCommit": "05d249a21c6225bbb85b273c34c791f4c528771f",
+  "generatedAtUtc": "2026-08-08T08:25:34Z",
+  "deploymentMode": "Staging-only row-scoped Workshop estimated-hours save fix layered onto the clean matched-workbook reset release",
+  "baseDeploymentCommit": "db5b9551c74801a79652abe0514d0086fa712624",
   "sourceRepository": "BTNew/pdc-control-board",
   "sourceBranch": "fix/staging-ai-intake-auto-activation-20260808",
-  "sourceCommit": "49fe95612ecb3e2ff79e3bc118f23a103b6ee4ba",
-  "sourceTree": "6cfde947bd287ee4ae22cc27acae6247e321cc91",
-  "cacheVersion": "2026.08.08.04-clean-workbook-reset-qa",
+  "sourceCommit": "72e900015522799e5e589d84d4534501d113c559",
+  "sourceTree": "bb4ae34d5b42e6a77501b791a7e9802641736016",
+  "cacheVersion": "2026.08.08.05-row-hours-save",
   "stagingProjectRef": "cdsmnqxtyyoeoznmbidd",
   "zeroData": true,
   "mailboxAuthority": false,
@@ -16,14 +16,18 @@
   "productionActivation": false,
   "pilotActivation": false,
   "migrationLedger": {
-    "appliedThrough": "137",
-    "ledgerHead": "137",
-    "migration": "harden_reset_136_authority_and_evidence",
+    "appliedThrough": "138",
+    "ledgerHead": "138",
+    "migration": "correct_reset_backup_evidence_scope",
     "rollbackAvailable": true,
-    "legacyClaimedBackupManifestSha256": "b624e19411f00eabf9128ea166dd75bb3c43945a2edc9ef716419ce60b6d930a",
     "actualBackupManifestSha256": "b624e1942c621ffed0fa8bbb610a8fa704f0d691a69a0917c666c8930b6d930a",
-    "isolatedRestoreReceiptSha256": "7f7d027f1a0da08982241b9d6f7a553b09908fed93c56f1e934e60a4cee1b439",
+    "dataIntegrityReceiptSha256": "a46427bc6ac0df0a0bfac5b2ed48ad11fe2eb0a92a714076b61df5e27de93bdb",
+    "exactCsvHeadersVerified": true,
+    "fullSchemaRestoreVerified": false,
+    "disasterRecoveryVerified": false,
+    "migration136Sha256": "2a6416aac34f7b01e5688d7e61a24c48ae964c85f3eaaa4d021863dbac753032",
     "migration137Sha256": "842df2e12dd913a0e63ef8c7fc382590093e6e55a7bdbcf95a8a8fd0544fefc6",
+    "migration138Sha256": "1a6638951e9982886afdfc47d0b4362b57a15539a1abbaddf8d37e5dcfbc21a3",
     "exceptionPayloadSha256": "c6450f3b6a43aa05f3ef80441d8f2ece265b05a9c424eb4a834fb60a8e423c88"
   },
   "retiredRoutes": [
@@ -34,7 +38,6 @@
     "department"
   ],
   "serviceWorkers": [],
-  "localScreenshotServersActive": 0,
   "workbookReview": {
     "administratorOnly": true,
     "readOnly": false,
@@ -51,10 +54,10 @@
     "applyReceipts": 1
   },
   "releaseChecks": {
-    "aggregateTests": "140 passed, 0 failed, 1 documented clean-build skip",
-    "focusedTests": "8 workbook Python tests passed; Migration 137 rehearsal and late-fault rollback passed; isolated backup restore 111 tables/27,356 rows and 145 FK checks passed",
-    "assetParity": "Bounded Job Card mapper/cache patch layered onto staging commit 05d249a; newer staging-only integrations preserved",
-    "roleSecurity": "Live RFT authority helper private; reset and attestation receipts RLS-enabled/private; migration-runner attribution correction preserved immutable history",
+    "aggregateTests": "142 passed, 0 failed, 1 documented clean-build skip",
+    "focusedTests": "Exact 3-hour clicked-row behavioral regression passed with unrelated 1.1-hour row; vehicle-detail contract and version consistency passed",
+    "assetParity": "Bounded app.js row-save patch and cache markers layered onto staging commit db5b955; unrelated staging integrations preserved",
+    "roleSecurity": "Live RFT authority helper private; reset and evidence receipts remain RLS-enabled/private; Migration 138 records data-integrity scope without a disaster-recovery claim",
     "production": "unchanged",
     "excludedRelease": "No production repository/main, production database, mailbox/pdc-monitor, DNS or pilot activation included"
   },
@@ -74,8 +77,8 @@
     {
       "sourcePath": "app.js",
       "deployedPath": "app.js",
-      "sha256": "a88a732005de6745a17920d67e3bb79440f5cfce7391aa46adaffe54aecdd438",
-      "bytes": 1055217
+      "sha256": "02f41e2ca40a374d82eef9140040fcce7b52dc269fb727033d9857d3a6e5b128",
+      "bytes": 1054829
     },
     {
       "sourcePath": "arb-labor-catalog.js",
@@ -122,8 +125,8 @@
     {
       "sourcePath": "staging.html",
       "deployedPath": "index.html",
-      "sha256": "66450923534a04035208a7524d9d7c86cc84a0ef41fe358fb3ba670df433d6ed",
-      "bytes": 65076
+      "sha256": "4d65b7dc4d0dd058a37bdec6829c30c815d42d3632eedbaaa1828404c0c3820e",
+      "bytes": 64887
     },
     {
       "sourcePath": "key-list-review.js",
@@ -188,8 +191,8 @@
     {
       "sourcePath": "pdc-supabase-config.staging.js",
       "deployedPath": "pdc-supabase-config.staging.js",
-      "sha256": "c5dd3d0a04b803c3039d45754a44c2380092240f2ae4811a916aabba01b438fa",
-      "bytes": 1747
+      "sha256": "1b25437bdb0be04a1bd293ea51cd5de4e349542b7c0fa96d0ffa5cc81132f332",
+      "bytes": 1738
     },
     {
       "sourcePath": "scripts/stage2b_c4_browser_export.js",
@@ -412,5 +415,6 @@
     "restoreTransactionRolledBack": true,
     "restoreSchemaCleanupVerified": true,
     "productionChanged": false
-  }
+  },
+  "localScreenshotServersActive": 0
 }
