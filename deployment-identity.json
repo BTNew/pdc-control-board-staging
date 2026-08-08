@@ -1,14 +1,14 @@
 {
   "artifact": "zero-embedded-data static staging site",
   "environment": "staging",
-  "generatedAtUtc": "2026-08-08T03:48:07Z",
-  "deploymentMode": "Staging-only clean matched-workbook board reset; exact Navision authority, operation and exception receipts",
-  "baseDeploymentCommit": "edbf71d17e96d3c2b3f1dfaab1b796427bdfe331",
+  "generatedAtUtc": "2026-08-08T04:34:47Z",
+  "deploymentMode": "Staging-only clean matched-workbook reset hardening; live Navision RFT authority, exact exception and restore attestations, JC provenance fix",
+  "baseDeploymentCommit": "d4f2f82233b3191a12d1472c1f6c2afaaea4ed0b",
   "sourceRepository": "BTNew/pdc-control-board",
   "sourceBranch": "fix/staging-ai-intake-auto-activation-20260808",
-  "sourceCommit": "cf9595117e87cf4ba11353eaa7f0de163ea6c040",
-  "sourceTree": "a214189a2f1e42c4039757399c0da38a1f807240",
-  "cacheVersion": "2026.08.08.02-clean-workbook-reset",
+  "sourceCommit": "e744e24a059527f1df66e43e2b0d793e2242c3d9",
+  "sourceTree": "9ba8728fe7c9a00596926ad0d2a3f6f3d39f58e5",
+  "cacheVersion": "2026.08.08.03-clean-workbook-reset-hardened",
   "stagingProjectRef": "cdsmnqxtyyoeoznmbidd",
   "zeroData": true,
   "mailboxAuthority": false,
@@ -16,11 +16,15 @@
   "productionActivation": false,
   "pilotActivation": false,
   "migrationLedger": {
-    "appliedThrough": "136",
-    "ledgerHead": "136",
-    "migration": "clean_workbook_board_reset",
+    "appliedThrough": "137",
+    "ledgerHead": "137",
+    "migration": "harden_reset_136_authority_and_evidence",
     "rollbackAvailable": true,
-    "backupManifestSha256": "b624e19411f00eabf9128ea166dd75bb3c43945a2edc9ef716419ce60b6d930a"
+    "legacyClaimedBackupManifestSha256": "b624e19411f00eabf9128ea166dd75bb3c43945a2edc9ef716419ce60b6d930a",
+    "actualBackupManifestSha256": "b624e1942c621ffed0fa8bbb610a8fa704f0d691a69a0917c666c8930b6d930a",
+    "isolatedRestoreReceiptSha256": "7f7d027f1a0da08982241b9d6f7a553b09908fed93c56f1e934e60a4cee1b439",
+    "migration137Sha256": "842df2e12dd913a0e63ef8c7fc382590093e6e55a7bdbcf95a8a8fd0544fefc6",
+    "exceptionPayloadSha256": "c6450f3b6a43aa05f3ef80441d8f2ece265b05a9c424eb4a834fb60a8e423c88"
   },
   "retiredRoutes": [
     "pipeline",
@@ -47,10 +51,10 @@
     "applyReceipts": 1
   },
   "releaseChecks": {
-    "aggregateTests": "139 passed, 0 failed, 1 documented clean-build skip",
-    "focusedTests": "8 workbook Python tests passed; full transactional rehearsal and late-fault rollback passed",
-    "assetParity": "Bounded three-file patch layered onto staging baseline edbf71d; newer staging-only integrations preserved",
-    "roleSecurity": "Reset function private to database owner; receipts RLS-enabled and private from public/anon/authenticated/service_role",
+    "aggregateTests": "140 passed, 0 failed, 1 documented clean-build skip",
+    "focusedTests": "8 workbook Python tests passed; Migration 137 rehearsal and late-fault rollback passed; isolated backup restore 111 tables/27,356 rows and 145 FK checks passed",
+    "assetParity": "Bounded three-file hardening patch layered onto staging commit d4f2f822; newer staging-only integrations preserved",
+    "roleSecurity": "Live RFT authority helper private; reset and attestation receipts RLS-enabled/private; migration-runner attribution correction preserved immutable history",
     "production": "unchanged",
     "excludedRelease": "No production repository/main, production database, mailbox/pdc-monitor, DNS or pilot activation included"
   },
@@ -70,8 +74,8 @@
     {
       "sourcePath": "app.js",
       "deployedPath": "app.js",
-      "sha256": "85098ba3ca192c81256bb67679b4657a9e98cf55649cb50e3e1902867a1759a4",
-      "bytes": 1054914
+      "sha256": "40b957d320be67823c26c7abf08ffe8eb4f4be7a0a9b7ebb7cdc1f0129259ffd",
+      "bytes": 1055229
     },
     {
       "sourcePath": "arb-labor-catalog.js",
@@ -118,8 +122,8 @@
     {
       "sourcePath": "staging.html",
       "deployedPath": "index.html",
-      "sha256": "a7719c43f7c0b3042172f71c213a741227e1ce268b81be7786937dc97dcb996a",
-      "bytes": 65013
+      "sha256": "ebb7d57c47e38268a40bae3c32a0d3118a2520ffa15acf18a573fdb3978663e5",
+      "bytes": 65202
     },
     {
       "sourcePath": "key-list-review.js",
@@ -184,8 +188,8 @@
     {
       "sourcePath": "pdc-supabase-config.staging.js",
       "deployedPath": "pdc-supabase-config.staging.js",
-      "sha256": "aecb14806047a686ac2277ffe0dcddeb3971a538073f77a1dddeb21296148d81",
-      "bytes": 1744
+      "sha256": "973f47f80efcdd5a9fbd2d368be473c4b37e7ec13eaef0bbffbc572c8c6152ee",
+      "bytes": 1753
     },
     {
       "sourcePath": "scripts/stage2b_c4_browser_export.js",
@@ -391,6 +395,22 @@
     "partsUpdates": 0,
     "lineAdjustments": 0,
     "subletBookings": 0,
+    "productionChanged": false
+  },
+  "hardeningEvidence": {
+    "currentNavisionRftAuthority": true,
+    "exactlyOneCurrentCanonicalRecordRequired": true,
+    "mutableResetLocationMarkersRemaining": 0,
+    "rftVehicles": 3,
+    "rftWithCurrentDealerDeliveryAuthority": 3,
+    "immutableAttestations": 1,
+    "correctiveAuditEvents": 1,
+    "backupTablesRestored": 111,
+    "backupRowsRestored": 27356,
+    "foreignKeysChecked": 145,
+    "foreignKeyViolations": 0,
+    "restoreTransactionRolledBack": true,
+    "restoreSchemaCleanupVerified": true,
     "productionChanged": false
   }
 }

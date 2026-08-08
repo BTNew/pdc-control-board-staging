@@ -34,6 +34,6 @@ window.PDC_SUPABASE_CONFIG = {
   vehicleLifecycle: Object.freeze({
     sharedData: true,
     resolverRollbackDirectRead: false,
-    resolverAssetVersion: '2026.08.08.02-clean-workbook-reset',
+    resolverAssetVersion: '2026.08.08.03-clean-workbook-reset-hardened',
   })
 };
