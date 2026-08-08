@@ -113,8 +113,15 @@ def main() -> None:
             if f"JC {job_card}" not in modal_text:
                 raise AssertionError("repeated Job Card identity missing from vehicle modal")
         page.screenshot(path=str(EVIDENCE / "repeated-stock-job-cards.png"), full_page=True)
-        page.evaluate("closeVehicleModal()")
-        page.click("[data-view='workshop']")
+        page.evaluate("() => document.querySelector('#modal-close').click()")
+        page.locator("#vehicle-modal").wait_for(state="hidden", timeout=30000)
+        page.click("[data-view='workflow']")
+        station_planner = page.locator("[data-open-workshop-stage]").first
+        station_planner.wait_for(state="visible", timeout=30000)
+        planner_stage = station_planner.get_attribute("data-open-workshop-stage") or ""
+        if not planner_stage:
+            raise AssertionError("Control Board station planner stage missing")
+        station_planner.click()
         page.locator("#workshop-planner-root").wait_for(state="visible", timeout=30000)
         page.wait_for_timeout(1500)
         planner_bookings = page.locator("[data-workshop-booking-id],.workshop-booking-card").count()
@@ -124,7 +131,7 @@ def main() -> None:
             raise AssertionError(f"browser errors={len(errors)} failed={len(failed)} production={len(production)}")
         output.update({"ok": True, "release": "2026.08.08.04-clean-workbook-reset-qa", "stagingProjectRef": STAGING_REF,
             "vehicles": len(vehicles), "locations": dict(sorted(locations.items())), "operations": len(lines),
-            "repeatedJobCardCount": len(repeated_jcs), "plannerBookings": planner_bookings,
+            "repeatedJobCardCount": len(repeated_jcs), "plannerStage": planner_stage, "plannerBookings": planner_bookings,
             "consoleErrors": 0, "failedRequests": 0, "productionRequests": 0,
             "screenshot": "repeated-stock-job-cards.png"})
         context.close()
