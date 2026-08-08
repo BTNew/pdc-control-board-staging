@@ -67,4 +67,74 @@ assert(appSource.includes('compareSubletBookingProximity(a, b, sortReference)'),
 assert(appSource.includes("['to-book', 'Sublet To Book']") && appSource.includes("['booked', 'Sublet Booked']"), 'Sublet must expose Booked and To Book queues');
 assert(appSource.includes('data-sublet-toggle='), 'compact Sublet rows must expand to notes and email controls');
 
-console.log('Sublet booking queue/provider filter contract passed');
+const raceStart = appSource.indexOf('const SUBLET_SERVER_FIELD_MAP');
+const raceEnd = appSource.indexOf('async function setSubletEmailSent(', raceStart);
+assert(raceStart >= 0 && raceEnd > raceStart, 'Sublet mutation block must remain extractable for race testing');
+const raceVehicle = {
+  __emailVehicleServerAuthoritative: true,
+  __emailVehicleId: 'vehicle-1',
+  __subletBookingVersion: 1,
+  pmbSubletBookingDate: '2026-08-01',
+  pmbSubletExpectedReturnDate: '2026-08-10',
+};
+const raceCalls = [];
+const raceAlerts = [];
+const serverToVehicleField = {
+  booking_date: 'pmbSubletBookingDate',
+  expected_return_date: 'pmbSubletExpectedReturnDate',
+  actual_return_date: 'pmbSubletActualReturnDate',
+};
+const raceContext = {
+  Map,
+  Number,
+  Promise,
+  Set,
+  app: {
+    subletMutationQueues: new Map(),
+    emailVehicleLocationService: {
+      updateSublet: async (_id, _version, field, value) => {
+        raceCalls.push({ field, value });
+        const vehicleField = serverToVehicleField[field];
+        if (vehicleField) raceVehicle[vehicleField] = value;
+        raceVehicle.__subletBookingVersion += 1;
+        return { ok: true, data: { version: raceVehicle.__subletBookingVersion } };
+      },
+    },
+  },
+  cleanNavisionText: value => String(value || '').trim(),
+  subletVehicleByKey: () => raceVehicle,
+  subletDateChangeError: (vehicle, field, value) => {
+    const booking = field === 'pmbSubletBookingDate' ? value : vehicle.pmbSubletBookingDate;
+    const expected = field === 'pmbSubletExpectedReturnDate' ? value : vehicle.pmbSubletExpectedReturnDate;
+    if (booking && expected && expected < booking) return field === 'pmbSubletBookingDate'
+      ? 'Booking date cannot be after the expected return date.'
+      : 'Expected return date cannot be before the booking date.';
+    return '';
+  },
+  refreshEmailVehicleLocations: async () => {},
+  renderSubletHome: () => {},
+  recordVehicleAudit: () => {},
+  saveVehicleEdits: () => {},
+  getCurrentOperatorName: () => 'QA',
+  nowIsoString: () => '2026-08-08T00:00:00Z',
+  window: {
+    alert: message => raceAlerts.push(message),
+    setTimeout: callback => callback(),
+  },
+};
+vm.createContext(raceContext);
+vm.runInContext(`${appSource.slice(raceStart, raceEnd)}\nthis.updateSubletFieldForRace = updateSubletField;`, raceContext);
+
+(async () => {
+  const first = raceContext.updateSubletFieldForRace('KEY', 'pmbSubletBookingDate', '2026-08-09');
+  const second = raceContext.updateSubletFieldForRace('KEY', 'pmbSubletExpectedReturnDate', '2026-08-05');
+  const results = await Promise.all([first, second]);
+  assert.deepStrictEqual(results, [true, false], 'Queued second edit must be revalidated against the first saved edit');
+  assert.deepStrictEqual(raceCalls, [{ field: 'booking_date', value: '2026-08-09' }], 'Invalid queued return date must never reach the shared service');
+  assert.strictEqual(raceVehicle.pmbSubletExpectedReturnDate, '2026-08-10', 'Invalid queued edit must leave the authoritative return date unchanged');
+  assert(raceAlerts.includes('Expected return date cannot be before the booking date.'), 'Rejected queued edit must explain the date-order conflict');
+  console.log('Sublet booking queue/provider filter and race contract passed');
+})().catch(error => {
+  console.error(error);
+  process.exitCode = 1;
+});

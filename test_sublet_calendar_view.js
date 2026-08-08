@@ -80,6 +80,10 @@ for (const html of shells) {
 assert(app.includes('data-sublet-field="pmbSubletExpectedReturnDate"'), 'Booked rows must expose the expected return date');
 assert(app.includes('data-sublet-field="pmbSubletActualReturnDate"'), 'Expanded details must expose the actual return date');
 assert(app.includes('data-sublet-calendar-event'), 'Calendar cards must expose stable event hooks');
+assert(app.includes('role="columnheader"'), 'Calendar weekday headings must be exposed to assistive technology');
+assert(app.includes('role="gridcell" aria-label="${escapeHtml(fullDate)}"'), 'Every calendar date, including empty dates, must have an accessible full-date label');
+assert(app.includes('role="grid" aria-label="${escapeHtml(`Sublet ${range.mode} calendar, ${subletCalendarRangeLabel(range)}`)}"'), 'Calendar grid must expose its view mode and visible range');
+assert(!app.includes('sublet-calendar-weekdays" aria-hidden="true"'), 'Calendar weekday headings must not be hidden from assistive technology');
 assert(app.includes("openVehicleModal(button.dataset.openStock)"), 'Calendar events must reuse the existing vehicle opener');
 assert(app.includes("on($('#sublet-calendar-view'), 'click'"), 'Calendar view control must be wired');
 assert(css.includes('.sublet-calendar-grid') && css.includes('.sublet-calendar-event.is-due-back') && css.includes('.sublet-calendar-event.is-returned'), 'Calendar must style its grid and event meanings');

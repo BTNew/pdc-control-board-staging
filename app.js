@@ -1,5 +1,5 @@
-const APP_VERSION = '2026.08.08.06-sublet-calendar';
-const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.08.08.06-sublet-calendar';
+const APP_VERSION = '2026.08.08.07-sublet-calendar-hardening';
+const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.08.08.07-sublet-calendar-hardening';
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
 // constant intentionally names only the production ref, never the
@@ -19785,18 +19785,19 @@ function renderSubletCalendar(rows = []) {
     if (!eventsByDate.has(event.date)) eventsByDate.set(event.date, []);
     eventsByDate.get(event.date).push(event);
   });
-  const weekdayHeadings = range.days.slice(0, 7).map(date => `<span>${escapeHtml(subletCalendarDateLabel(date, { weekday: 'short' }))}</span>`).join('');
+  const weekdayHeadings = range.days.slice(0, 7).map(date => `<span role="columnheader">${escapeHtml(subletCalendarDateLabel(date, { weekday: 'short' }))}</span>`).join('');
   const days = range.days.map(date => {
     const outside = range.mode === 'month' && !date.startsWith(range.month);
     const events = eventsByDate.get(date) || [];
-    const eventHtml = events.map(event => `<button class="sublet-calendar-event is-${escapeHtml(event.type)} ${event.missingReturn ? 'is-missing-return' : ''}" type="button" data-sublet-calendar-event="${escapeHtml(`${event.type}:${event.key}:${date}`)}" data-open-stock="${escapeHtml(event.key)}" aria-label="${escapeHtml(`${event.label}: stock ${event.stock}, ${event.provider}, ${subletCalendarDateLabel(date, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`)}"><span>${escapeHtml(event.label)} · ${escapeHtml(event.stock)}</span><strong>${escapeHtml(event.provider)}</strong><small>${escapeHtml([event.customer, event.vehicle].filter(Boolean).join(' · '))}</small>${event.missingReturn ? '<em>Return date needed</em>' : ''}</button>`).join('');
-    return `<section class="sublet-calendar-day ${outside ? 'is-outside-month' : ''} ${date === today ? 'is-today' : ''}" data-sublet-calendar-date="${escapeHtml(date)}"><header><span>${escapeHtml(subletCalendarDateLabel(date, range.mode === 'month' ? { day: 'numeric' } : { day: 'numeric', month: 'short' }))}</span>${date === today ? '<b>Today</b>' : ''}</header><div class="sublet-calendar-day-events">${eventHtml}</div></section>`;
+    const fullDate = subletCalendarDateLabel(date, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+    const eventHtml = events.map(event => `<button class="sublet-calendar-event is-${escapeHtml(event.type)} ${event.missingReturn ? 'is-missing-return' : ''}" type="button" data-sublet-calendar-event="${escapeHtml(`${event.type}:${event.key}:${date}`)}" data-open-stock="${escapeHtml(event.key)}" aria-label="${escapeHtml(`${event.label}: stock ${event.stock}, ${event.provider}, ${fullDate}`)}"><span>${escapeHtml(event.label)} · ${escapeHtml(event.stock)}</span><strong>${escapeHtml(event.provider)}</strong><small>${escapeHtml([event.customer, event.vehicle].filter(Boolean).join(' · '))}</small>${event.missingReturn ? '<em>Return date needed</em>' : ''}</button>`).join('');
+    return `<section class="sublet-calendar-day ${outside ? 'is-outside-month' : ''} ${date === today ? 'is-today' : ''}" data-sublet-calendar-date="${escapeHtml(date)}" role="gridcell" aria-label="${escapeHtml(fullDate)}"><header><span>${escapeHtml(subletCalendarDateLabel(date, range.mode === 'month' ? { day: 'numeric' } : { day: 'numeric', month: 'short' }))}</span>${date === today ? '<b>Today</b>' : ''}</header><div class="sublet-calendar-day-events">${eventHtml}</div></section>`;
   }).join('');
   const missingReturns = rows.filter(vehicle => plainDateValue(vehicle.pmbSubletBookingDate) && !plainDateValue(vehicle.pmbSubletExpectedReturnDate) && !plainDateValue(vehicle.pmbSubletActualReturnDate)).length;
   return `<div class="sublet-calendar-shell">
     <div class="sublet-calendar-legend" aria-label="Calendar legend"><span class="is-outgoing"><i></i>Going out</span><span class="is-due-back"><i></i>Due back</span><span class="is-returned"><i></i>Returned</span>${missingReturns ? `<strong>${missingReturns} ${missingReturns === 1 ? 'vehicle needs' : 'vehicles need'} a return date</strong>` : ''}</div>
-    <div class="sublet-calendar-weekdays" aria-hidden="true">${weekdayHeadings}</div>
-    <div class="sublet-calendar-grid is-${escapeHtml(range.mode)}">${days}</div>
+    <div class="sublet-calendar-weekdays" role="row">${weekdayHeadings}</div>
+    <div class="sublet-calendar-grid is-${escapeHtml(range.mode)}" role="grid" aria-label="${escapeHtml(`Sublet ${range.mode} calendar, ${subletCalendarRangeLabel(range)}`)}">${days}</div>
   </div>`;
 }
 
@@ -19906,10 +19907,19 @@ async function updateSubletField(key = '', field = '', value = '') {
     return queueSubletVehicleMutation(vehicleId, async () => {
       let current = subletVehicleByKey(key);
       if (!current || current.__emailVehicleId !== vehicleId) return false;
+      const rejectInvalidCurrentDateOrder = currentVehicle => {
+        const currentDateError = subletDateChangeError(currentVehicle, field, cleanValue);
+        if (!currentDateError) return false;
+        window.alert(currentDateError);
+        renderSubletHome();
+        return true;
+      };
+      if (rejectInvalidCurrentDateOrder(current)) return false;
       let response = await service.updateSublet(vehicleId, current.__subletBookingVersion, SUBLET_SERVER_FIELD_MAP[field], cleanValue);
       if (response?.code === 'version_conflict') {
         current = await refreshSubletMutationAuthority(key, vehicleId, Number(response?.data?.current_version || 0));
         if (!current || current.__emailVehicleId !== vehicleId) return false;
+        if (rejectInvalidCurrentDateOrder(current)) return false;
         response = await service.updateSublet(vehicleId, current.__subletBookingVersion, SUBLET_SERVER_FIELD_MAP[field], cleanValue);
       }
       if (!response?.ok) {
