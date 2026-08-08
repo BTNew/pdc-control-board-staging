@@ -1,5 +1,5 @@
-const APP_VERSION = '2026.08.08.07-sublet-calendar-hardening';
-const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.08.08.07-sublet-calendar-hardening';
+const APP_VERSION = '2026.08.08.08-navision-from-twa-it-parity';
+const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.08.08.08-navision-from-twa-it-parity';
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
 // constant intentionally names only the production ref, never the
@@ -2201,7 +2201,10 @@ function navisionImportedToyotaTransitCategory(vehicle = {}) {
     vehicle.__sharedNavisionCanonicalLocation || vehicle.current_location || vehicle.currentLocation || vehicle.pdcLocation || ''
   ).toUpperCase();
   const status = normalizeToyotaStatus(navisionLocationSourceText(vehicle));
+  const fromTwaDespatch = status.includes('from twa') &&
+    (status.includes('despatch') || status.includes('dispatch'));
   const preArrival = canonicalLocation === 'IT' || canonicalLocation === 'IN TRANSIT' ||
+    fromTwaDespatch ||
     status.includes('planned for production') || status.includes('line off complete') ||
     status.includes('final inspection') || status.includes('ready for shipment') ||
     status.includes('in transit') || status.includes('shipment') || status.includes('wharf') ||
