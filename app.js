@@ -1,5 +1,5 @@
-const APP_VERSION = '2026.08.08.03-clean-workbook-reset-hardened';
-const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.08.08.03-clean-workbook-reset-hardened';
+const APP_VERSION = '2026.08.08.04-clean-workbook-reset-qa';
+const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.08.08.04-clean-workbook-reset-qa';
 const PDC_BASE_DOCUMENT_TITLE = String(document.title || '').trim() || 'PDC Control Board';
 const routeDocumentTitle = title => `${title} — ${PDC_BASE_DOCUMENT_TITLE}`;
 

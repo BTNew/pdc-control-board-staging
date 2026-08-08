@@ -37,6 +37,7 @@ function mapServerVehicle(row = {}) {
     operation_line_id: String(item?.operation_line_id || '').trim().toLowerCase(),
     operation_no: String(item?.operation_no || '').trim().toUpperCase(),
     work_key: canonicalWorkKey(item?.work_key),
+    job_card_number: String(item?.job_card_number || item?.jobCardNumber || '').trim().slice(0, 80),
     description: String(item?.description || '').trim().slice(0, 180),
     estimatedHours: item?.estimated_hours != null && item?.estimated_hours !== '' && Number.isFinite(Number(item.estimated_hours))
       ? Number(item.estimated_hours)
