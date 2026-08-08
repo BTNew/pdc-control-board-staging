@@ -1,8 +1,5 @@
-const APP_VERSION = '2026.08.08.08-navision-from-twa-it-parity';
-const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.08.08.08-navision-from-twa-it-parity';
-const PDC_BASE_DOCUMENT_TITLE = String(document.title || '').trim() || 'PDC Control Board';
-const routeDocumentTitle = title => `${title} — ${PDC_BASE_DOCUMENT_TITLE}`;
-
+const APP_VERSION = '2026.08.08.09-sublet-return-drag-workshop-availability';
+const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.08.08.09-sublet-return-drag-workshop-availability';
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
 // constant intentionally names only the production ref, never the
@@ -1889,7 +1886,6 @@ const app = {
   pendingWorkshopBookingLink: null,
   reviewed: false,
   quickFilter: 'incoming',
-  partsPageOffset: 0,
   pmbSubFilter: '',
   activePmbBayStage: '',
   pmbDraggingKey: '',
@@ -2836,11 +2832,6 @@ function workshopCombinedPlannerRollbackEnabled() {
   return configured === true;
 }
 
-// These prototype boards were never part of the production-intended menu.
-// Keep their implementation temporarily as historical source evidence, but
-// fail closed when an obsolete saved hash or bookmark attempts to open one.
-const RETIRED_STAGING_VIEW_IDS = new Set(['pipeline', 'visibility', 'tv', 'schedule', 'department']);
-
 function workshopViewFromLocation() {
   let path = '';
   try {
@@ -2853,8 +2844,7 @@ function workshopViewFromLocation() {
   if (path === 'workshop') return workshopCombinedPlannerRollbackEnabled() ? 'workshop' : 'workflow';
   if (path.startsWith('workshop/')) return 'workflow';
   const candidate = path.replaceAll('/', '-');
-  if (RETIRED_STAGING_VIEW_IDS.has(candidate)) return 'dashboard';
-  return document.querySelector(`[data-view="${candidate}"]`) ? candidate : 'dashboard';
+  return document.getElementById(candidate) || document.querySelector(`[data-view="${candidate}"]`) ? candidate : 'dashboard';
 }
 
 function workshopLocationPathForView(view = '') {
@@ -2976,37 +2966,11 @@ function syncAdminNavigationVisibility() {
   return allowed;
 }
 
-function navigationItemVisible(item) {
-  if (!item || item.hidden) return false;
-  for (let parent = item.parentElement; parent; parent = parent.parentElement) {
-    if (parent.hidden) return false;
-  }
-  return true;
-}
-
-function updateNavigationCurrentState(requestedView, plannerStage, adminActive) {
-  const destinations = $$('.nav-item[data-view]');
-  const adminToggle = $('#nav-admin-toggle');
-  const candidates = adminToggle ? [...destinations, adminToggle] : destinations;
-  candidates.forEach(item => item.removeAttribute('aria-current'));
-  const activeDestination = destinations.find(item => navigationItemVisible(item) && (
-    item.dataset.view === requestedView || (plannerStage && item.dataset.view === 'workshop')
-  ));
-  const currentDestination = activeDestination
-    || (adminActive && navigationItemVisible(adminToggle) ? adminToggle : null);
-  currentDestination?.setAttribute('aria-current', 'page');
-}
-
 function bindNav() {
   $$('.nav-item[data-view]').forEach(btn => btn.addEventListener('click', () => showView(btn.dataset.view)));
   on($('#nav-admin-toggle'), 'click', () => {
     if (!syncAdminNavigationVisibility()) return;
     setAdminNavigationExpanded($('#nav-admin-toggle')?.getAttribute('aria-expanded') !== 'true');
-    updateNavigationCurrentState(
-      app.currentRequestedView || app.currentView || 'dashboard',
-      app.activeWorkshopPlannerStage || '',
-      $('#nav-admin-toggle')?.classList.contains('active') || false
-    );
   });
   syncAdminNavigationVisibility();
   if (!window.__pdcWorkshopRouteListenersInstalled && typeof window.addEventListener === 'function') {
@@ -3679,63 +3643,14 @@ function teardownWorkshopPlannerScope(options) {
   } else if (root) root.replaceChildren();
 }
 
-let PDC_BULK_WORKBOOK_ADMIN_REVIEW = null;
-
-function adminWorkbookImportReviewReady() {
-  return Boolean(
-    window.PDC_AUTH_CONTEXT?.role === 'administrator'
-    && window.PDC_SUPABASE
-    && typeof window.PDC_SUPABASE.rpc === 'function'
-    && typeof window.createPdcBulkWorkbookAdminReview === 'function'
-  );
-}
-
-function updateAdminWorkbookImportNavigation() {
-  const navItem = document.getElementById('nav-admin-import');
-  if (navItem) navItem.hidden = !adminWorkbookImportReviewReady();
-}
-
-function destroyAdminWorkbookImportReview() {
-  if (PDC_BULK_WORKBOOK_ADMIN_REVIEW && typeof PDC_BULK_WORKBOOK_ADMIN_REVIEW.destroy === 'function') {
-    PDC_BULK_WORKBOOK_ADMIN_REVIEW.destroy();
-  }
-  PDC_BULK_WORKBOOK_ADMIN_REVIEW = null;
-  const host = document.getElementById('admin-import-content');
-  if (host) host.replaceChildren();
-}
-
-function renderAdminWorkbookImportReview() {
-  const host = document.getElementById('admin-import-content');
-  if (!host) return;
-  updateAdminWorkbookImportNavigation();
-  if (!adminWorkbookImportReviewReady()) {
-    destroyAdminWorkbookImportReview();
-    host.innerHTML = '<div class="empty-state compact-empty"><strong>Administrator access required</strong><span>This page contains protected Excel import evidence.</span></div>';
-    return;
-  }
-  if (!PDC_BULK_WORKBOOK_ADMIN_REVIEW) {
-    PDC_BULK_WORKBOOK_ADMIN_REVIEW = window.createPdcBulkWorkbookAdminReview({
-      client: window.PDC_SUPABASE,
-      getAuthContext: () => window.PDC_AUTH_CONTEXT || null,
-      escapeHtml,
-      limit: 25,
-    });
-  }
-  PDC_BULK_WORKBOOK_ADMIN_REVIEW.render(host);
-}
-
 function showView(view, options) {
   options = options || {};
   let requestedView = view || 'dashboard';
-  if (RETIRED_STAGING_VIEW_IDS.has(requestedView)) requestedView = 'dashboard';
   if (requestedView.startsWith('planner-') && !WORKSHOP_PLANNER_VIEWS[requestedView]) requestedView = 'workflow';
   if (requestedView === 'workshop' && !workshopCombinedPlannerRollbackEnabled()) requestedView = 'workflow';
   const departmentStage = PRODUCTION_DEPARTMENT_VIEWS[requestedView] || '';
   const plannerStage = WORKSHOP_PLANNER_VIEWS[requestedView] || '';
   const nextView = departmentStage ? 'department' : (plannerStage ? 'workshop' : requestedView);
-  if (app.currentView === 'admin-import' && nextView !== 'admin-import') {
-    destroyAdminWorkbookImportReview();
-  }
   const previousRequestedView = app.currentRequestedView || app.currentView || 'dashboard';
   const previousWasPlanner = previousRequestedView === 'workshop' || Boolean(WORKSHOP_PLANNER_VIEWS[previousRequestedView]);
   const switchingPlannerStation = previousWasPlanner && Boolean(plannerStage) && previousRequestedView !== requestedView;
@@ -3743,14 +3658,7 @@ function showView(view, options) {
     && (!previousWasPlanner || previousRequestedView !== requestedView);
   if (enteringWorkshopPlanner) app.pendingWorkshopOpenToday = true;
   if (previousWasPlanner && previousRequestedView !== requestedView) teardownWorkshopPlannerScope({ preserveShell: switchingPlannerStation });
-  if (previousRequestedView === 'workflow' && requestedView !== 'workflow') {
-    // Keep the authority Realtime channel alive while switching application
-    // views. Removing this channel from the shared auth client can close the
-    // independently fail-closed role monitor and lock an otherwise approved
-    // user. Candidate data is still cleared immediately and re-fetched on
-    // every Control Board re-entry.
-    teardownWorkshopEligibilityOverview({ clearSnapshot: true, preserveSubscription: true });
-  }
+  if (previousRequestedView === 'workflow' && requestedView !== 'workflow') teardownWorkshopEligibilityOverview({ clearSnapshot: true });
   releaseHeavyViewDom(app.currentView, nextView);
   if (requestedView !== 'workflow') {
     app.activePmbBayStage = '';
@@ -3768,11 +3676,10 @@ function showView(view, options) {
   if (document.body?.dataset) document.body.dataset.currentView = requestedView;
   $$('.view').forEach(el => el.classList.toggle('active', el.id === requestedView || (departmentStage && el.id === 'department') || (plannerStage && el.id === 'workshop')));
   $$('.nav-item[data-view]').forEach(el => el.classList.toggle('active', el.dataset.view === requestedView || (plannerStage && el.dataset.view === 'workshop')));
-  const adminViews = new Set(['user-management', 'admin-import', 'lists', 'import', 'deleted', 'completed', 'backend']);
+  const adminViews = new Set(['user-management', 'lists', 'import', 'deleted', 'completed', 'backend']);
   const adminActive = adminViews.has(requestedView);
   $('#nav-admin-toggle')?.classList.toggle('active', adminActive);
   if (adminActive && syncAdminNavigationVisibility()) setAdminNavigationExpanded(true);
-  updateNavigationCurrentState(requestedView, plannerStage, adminActive);
   const departmentDef = departmentStage ? PRODUCTION_FLOW_DEFS.find(def => def.key === departmentStage) : null;
   const titleMap = {
     dashboard: 'Vehicle Locations',
@@ -3790,18 +3697,14 @@ function showView(view, options) {
     completed: 'Completed vehicles',
     deleted: 'Deleted vehicles',
     backend: 'Back End Data',
-    'user-management': 'User Management',
     lists: 'Setup',
-    'admin-import': 'Admin Import',
     import: 'Uploads',
     zpl: 'Label Tools'
   };
-  const resolvedTitle = departmentDef
+  const pageTitle = $('#page-title');
+  if (pageTitle) pageTitle.textContent = departmentDef
     ? departmentDef.label
     : (plannerStage ? `${pmbStageLabel(plannerStage)} Planner` : (titleMap[requestedView] || 'Control Board'));
-  const pageTitle = $('#page-title');
-  if (pageTitle) pageTitle.textContent = resolvedTitle;
-  document.title = routeDocumentTitle(resolvedTitle);
   if (requestedView !== 'dashboard' && app.frozenHeaderCleanup) {
     app.frozenHeaderCleanup();
     app.frozenHeaderCleanup = null;
@@ -3895,8 +3798,8 @@ function getPdcSupabaseAccessToken() {
 }
 
 function createPdcSupabaseRealtimeSubscription(config, handlers, scope = null) {
-  const sharedClient = window.PDC_SUPABASE;
-  if (!sharedClient || typeof sharedClient.channel !== 'function') {
+  const client = window.PDC_SUPABASE;
+  if (!client || typeof client.channel !== 'function') {
     const status = 'CLIENT_UNAVAILABLE';
     if (typeof handlers?.onStatus === 'function') handlers.onStatus(status);
     if (typeof handlers?.onError === 'function') handlers.onError(status);
@@ -3904,31 +3807,6 @@ function createPdcSupabaseRealtimeSubscription(config, handlers, scope = null) {
   }
   const stageCode = String(scope?.stageCode || '').trim().toUpperCase();
   const allStations = scope?.allStations === true;
-  let client = sharedClient;
-  let isolatedRealtimeClient = false;
-  // Workshop station subscriptions are isolated from the fail-closed own-role
-  // monitor. Operational channel pressure or teardown must never close the
-  // channel that proves the signed-in user's continuing authority.
-  if ((stageCode || allStations) && typeof window.supabase?.createClient === 'function') {
-    const accessToken = getPdcSupabaseAccessToken();
-    if (accessToken && config?.url && config?.publishableKey) {
-      try {
-        client = window.supabase.createClient(config.url, config.publishableKey, {
-          auth: {
-            persistSession: false,
-            autoRefreshToken: false,
-            detectSessionInUrl: false,
-            storageKey: `pdc-workshop-realtime-${stageCode || 'all-stations'}`,
-          },
-        });
-        client.realtime?.setAuth?.(accessToken);
-        isolatedRealtimeClient = true;
-      } catch (_error) {
-        client = sharedClient;
-        isolatedRealtimeClient = false;
-      }
-    }
-  }
   const table = stageCode || allStations ? 'workshop_station_revision' : 'workshop_revision';
   const filter = stageCode ? `stage_code=eq.${stageCode}` : undefined;
   const changeSpec = { event: '*', schema: 'public', table, ...(filter ? { filter } : {}) };
@@ -3949,14 +3827,7 @@ function createPdcSupabaseRealtimeSubscription(config, handlers, scope = null) {
     });
   return {
     requiresSubscribedStatus: true,
-    unsubscribe: () => {
-      const removed = client.removeChannel(channel);
-      if (isolatedRealtimeClient) {
-        if (removed && typeof removed.finally === 'function') removed.finally(() => client.realtime?.disconnect?.());
-        else client.realtime?.disconnect?.();
-      }
-      return removed;
-    }
+    unsubscribe: () => client.removeChannel(channel)
   };
 }
 
@@ -4243,14 +4114,6 @@ window.addEventListener?.('pdc-auth-ready', () => {
   syncAdminNavigationVisibility();
   const navItem = document.getElementById('nav-user-management');
   if (navItem) navItem.hidden = false;
-  if (window.PDC_AUTH_CONTEXT?.role !== 'administrator') destroyAdminWorkbookImportReview();
-  updateAdminWorkbookImportNavigation();
-  updateNavigationCurrentState(
-    app.currentRequestedView || app.currentView || 'dashboard',
-    app.activeWorkshopPlannerStage || '',
-    $('#nav-admin-toggle')?.classList.contains('active') || false
-  );
-  if (app.currentView === 'admin-import') renderAdminWorkbookImportReview();
   if (app.currentView === 'emailreview' && typeof renderAiBoardAdvisor === 'function') renderAiBoardAdvisor();
   resetPdcAuditorAuthorityState();
   if (app.currentView === 'ai-auditor') loadPdcAuditorSnapshot({ force: true });
@@ -4343,14 +4206,6 @@ window.addEventListener?.('pdc-auth-locked', () => {
   setAdminNavigationExpanded(false);
   const navItem = document.getElementById('nav-user-management');
   if (navItem) navItem.hidden = true;
-  const importNavItem = document.getElementById('nav-admin-import');
-  if (importNavItem) importNavItem.hidden = true;
-  updateNavigationCurrentState(
-    app.currentRequestedView || app.currentView || 'dashboard',
-    app.activeWorkshopPlannerStage || '',
-    $('#nav-admin-toggle')?.classList.contains('active') || false
-  );
-  destroyAdminWorkbookImportReview();
 });
 
 function renderWorkshopPlannerWhenReady() {
@@ -4435,9 +4290,6 @@ function renderActiveView() {
       break;
     case 'user-management':
       renderUserManagementScreen();
-      break;
-    case 'admin-import':
-      renderAdminWorkbookImportReview();
       break;
     case 'import':
       renderReviewTable(false);
@@ -4688,16 +4540,14 @@ function workshopEligibilitySharedAuthorityEnabled() {
   return window.PDC_SUPABASE_CONFIG?.workshop?.sharedData === true;
 }
 
-function teardownWorkshopEligibilityOverview({ clearSnapshot = false, preserveSubscription = false } = {}) {
+function teardownWorkshopEligibilityOverview({ clearSnapshot = false } = {}) {
   app.workshopEligibilityRequestGeneration += 1;
-  if (!preserveSubscription) {
-    app.workshopEligibilityRevisionPending = false;
-    const realtime = app.workshopEligibilityRealtime;
-    app.workshopEligibilityRealtime = null;
-    if (app.workshopEligibilityReconnectTimer) clearTimeout(app.workshopEligibilityReconnectTimer);
-    app.workshopEligibilityReconnectTimer = null;
-    try { realtime?.unsubscribe?.(); } catch (_error) { /* best effort */ }
-  }
+  app.workshopEligibilityRevisionPending = false;
+  const realtime = app.workshopEligibilityRealtime;
+  app.workshopEligibilityRealtime = null;
+  if (app.workshopEligibilityReconnectTimer) clearTimeout(app.workshopEligibilityReconnectTimer);
+  app.workshopEligibilityReconnectTimer = null;
+  try { realtime?.unsubscribe?.(); } catch (_error) { /* best effort */ }
   if (clearSnapshot) {
     app.workshopEligibilitySnapshot = null;
     app.workshopEligibilityState = 'idle';
@@ -10813,7 +10663,7 @@ function vehicleWorkshopHoursClass(line = {}, estimate = null) {
   return { label: 'Unknown hours', value: Number(estimate) };
 }
 
-function vehicleWorkshopJobCardCompactHtml(group = {}, bookingFallback = 'Not booked', vehicle = {}) {
+function vehicleWorkshopJobCardTableHtml(group = {}, bookingFallback = 'Not booked', vehicle = {}) {
   const presentation = vehicleWorkshopStationPresentation(group.stage);
   const complete = group.requirements.length > 0 && group.requirements.every(item => item.completed === true);
   const canEdit = vehicleWorkshopCanEditLines() && !complete;
@@ -10836,15 +10686,21 @@ function vehicleWorkshopJobCardCompactHtml(group = {}, bookingFallback = 'Not bo
       : `<strong>${escapeHtml(hoursClass.value === null ? hoursClass.label : `${hoursClass.label}: ${vehicleWorkshopHoursLabel(hoursClass.value)}`)}</strong>`;
     const scheduleButton = canEdit && canonicalVehicleId && WORKSHOP_PLANNER_ROUTE_BY_STAGE[group.stage] && !activeBooking
       ? `<button type="button" class="vehicle-workshop-schedule-next" data-vehicle-workshop-schedule-next ${mutationData} data-vehicle-id="${escapeHtml(canonicalVehicleId)}" data-vehicle-key="${escapeHtml(vehicleIdentity)}">Schedule next available</button>` : '';
-    const controls = canEdit ? `<span class="vehicle-workshop-line-actions">${scheduleButton}<button type="button" data-vehicle-workshop-line-edit ${mutationData}>Edit line</button>${line.workshopManualLine ? `<button type="button" class="is-danger" data-vehicle-workshop-line-delete data-adjustment-id="${escapeHtml(line.adjustmentId || '')}" data-adjustment-version="${escapeHtml(String(line.adjustmentVersion || 0))}">Remove</button>` : ''}</span>` : '<span class="vehicle-workshop-line-actions" aria-hidden="true"></span>';
+    const controls = canEdit ? `<span class="vehicle-workshop-line-actions">${scheduleButton}<button type="button" data-vehicle-workshop-line-edit ${mutationData}>Edit line</button>${line.workshopManualLine ? `<button type="button" class="is-danger" data-vehicle-workshop-line-delete data-adjustment-id="${escapeHtml(line.adjustmentId || '')}" data-adjustment-version="${escapeHtml(String(line.adjustmentVersion || 0))}">Remove</button>` : ''}</span>` : '';
     const handleData = `data-vehicle-workshop-line-handle data-stage="${escapeHtml(group.stage)}" data-vehicle-id="${escapeHtml(canonicalVehicleId)}" data-vehicle-key="${escapeHtml(vehicleIdentity)}" data-booking-id="${escapeHtml(activeBooking?.booking_id || activeBooking?.id || '')}" data-hours="${escapeHtml(totalHours ?? estimate ?? '')}"`;
     const number = canEdit && canonicalVehicleId && WORKSHOP_PLANNER_ROUTE_BY_STAGE[group.stage]
       ? `<button type="button" class="vehicle-workshop-line-number" draggable="true" ${handleData} aria-label="Drag ${escapeHtml(description)} to a workshop bay">${index + 1}</button>`
       : `<span class="vehicle-workshop-line-number">${index + 1}</span>`;
-    const progress = vehicleWorkshopJobCardBookedActual(line, lineBookings);
-    return `<div class="vehicle-workshop-line">${number}<span class="vehicle-workshop-line-description"><strong>${escapeHtml(description)}</strong></span><span class="vehicle-workshop-line-hours">${hoursHtml}</span><span class="vehicle-workshop-line-booking"><span class="vehicle-workshop-booking-static">${escapeHtml(progress)}</span></span>${controls}</div>`;
+    const partsDependency = vehicleWorkshopJobCardValue(line, ['parts_dependency', 'partsDependency', 'requires_parts', 'requiresParts'], 'None recorded');
+    const partsStatus = vehicleWorkshopJobCardValue(line, ['parts_status', 'partsStatus'], 'Status not recorded');
+    const completion = line.completed === true || line.is_completed === true
+      ? `Completed${line.completed_at ? ` · ${cleanNavisionText(line.completed_at)}` : ''}`
+      : vehicleWorkshopJobCardValue(line, ['completion_status', 'completionStatus'], complete ? 'Completed' : 'Outstanding');
+    const bookingCell = lineBookings.length ? vehicleWorkshopBookingRowsHtml(lineBookings, bookingFallback)
+      : (group.bookings.length ? '<span class="vehicle-workshop-booking-static">Station booking shown below</span>' : `<span class="vehicle-workshop-not-booked">${escapeHtml(bookingFallback)}</span>`);
+    return `<tr class="vehicle-workshop-line"><td><div class="vehicle-workshop-line-description">${number}<strong>${escapeHtml(description)}</strong></div>${controls}</td><td>${escapeHtml(presentation.label)}</td><td class="vehicle-workshop-line-hours">${hoursHtml}</td><td>${escapeHtml(vehicleWorkshopJobCardValue(line, ['labour_class', 'labor_class', 'work_class', 'class_code', 'class'], 'Unclassified'))}</td><td>${escapeHtml(vehicleWorkshopJobCardValue(line, ['provenance', 'source_kind', 'source_type', 'source'], line.authenticatedEmailOperation ? 'Authenticated email operation' : 'Recorded requirement'))}</td><td>${escapeHtml(vehicleWorkshopJobCardBookedActual(line, lineBookings))}</td><td>${escapeHtml(`${partsDependency} · ${partsStatus}`)}</td><td>${escapeHtml(vehicleWorkshopJobCardValue(line, ['sublet_provider', 'subletProvider', 'provider_name', 'provider'], 'Not applicable'))}</td><td class="vehicle-workshop-line-booking">${bookingCell}</td><td>${escapeHtml(vehicleWorkshopJobCardValue(line, ['status', 'work_status', 'line_status'], complete ? 'Completed' : 'Required'))}</td><td>${escapeHtml(vehicleWorkshopJobCardValue(line, ['source_ref', 'source_reference', 'source_line_ref', 'operation_no'], lineKey))}</td><td>${escapeHtml(completion)}</td></tr>`;
   }).join('');
-  return `<div class="vehicle-workshop-lines">${rows}</div>`;
+  return `<div class="vehicle-workshop-job-card-wrap"><table class="vehicle-workshop-job-card"><thead><tr><th scope="col">Description</th><th scope="col">Department</th><th scope="col">Estimated hours</th><th scope="col">Class</th><th scope="col">Provenance</th><th scope="col">Booked / actual</th><th scope="col">Parts dependency / status</th><th scope="col">Sublet provider</th><th scope="col">Booking</th><th scope="col">Status</th><th scope="col">Source ref</th><th scope="col">Completion</th></tr></thead><tbody>${rows}</tbody></table></div>`;
 }
 
 function vehicleWorkshopStationHtml(group = {}, bookingFallback = 'Not booked', vehicle = {}) {
@@ -10855,7 +10711,7 @@ function vehicleWorkshopStationHtml(group = {}, bookingFallback = 'Not booked', 
   const totalHours = lineHours.length ? lineHours.reduce((sum, value) => sum + value, 0) : (bookingHours[0] || null);
   const addButton = vehicleWorkshopCanEditLines() && !complete ? `<button type="button" class="vehicle-workshop-line-add" data-vehicle-workshop-line-add data-stage="${escapeHtml(group.stage)}">+ Add line</button>` : '';
   const stationBookings = group.bookings.length ? `<div class="vehicle-workshop-station-bookings"><strong>Station bookings</strong>${vehicleWorkshopBookingRowsHtml(group.bookings, bookingFallback)}</div>` : '';
-  return `<section class="vehicle-workshop-station" data-vehicle-workshop-stage="${escapeHtml(group.stage)}" style="--station-colour:${escapeHtml(presentation.colour)};--station-tint:${escapeHtml(presentation.tint)}"><header><span class="vehicle-workshop-station-code">${escapeHtml(presentation.label.slice(0, 2).toUpperCase())}</span><div><h3>${escapeHtml(presentation.label)}</h3><p>${complete ? 'Required work completed' : 'Required work outstanding'}</p></div>${addButton}<span class="vehicle-workshop-station-status ${complete ? 'is-complete' : 'is-required'}">${complete ? 'Completed' : 'Required'}</span><span class="vehicle-workshop-station-total">${escapeHtml(vehicleWorkshopHoursLabel(totalHours))}</span></header>${vehicleWorkshopJobCardCompactHtml(group, bookingFallback, vehicle)}${stationBookings}</section>`;
+  return `<section class="vehicle-workshop-station" data-vehicle-workshop-stage="${escapeHtml(group.stage)}" style="--station-colour:${escapeHtml(presentation.colour)};--station-tint:${escapeHtml(presentation.tint)}"><header><span class="vehicle-workshop-station-code">${escapeHtml(presentation.label.slice(0, 2).toUpperCase())}</span><div><h3>${escapeHtml(presentation.label)}</h3><p>${complete ? 'Required work completed' : 'Required work outstanding'}</p></div>${addButton}<span class="vehicle-workshop-station-status ${complete ? 'is-complete' : 'is-required'}">${complete ? 'Completed' : 'Required'}</span><span class="vehicle-workshop-station-total">${escapeHtml(vehicleWorkshopHoursLabel(totalHours))}</span></header>${vehicleWorkshopJobCardTableHtml(group, bookingFallback, vehicle)}${stationBookings}</section>`;
 }
 
 function renderVehicleWorkshopWorkPage(vehicle = {}) {
@@ -10870,7 +10726,7 @@ function renderVehicleWorkshopWorkPage(vehicle = {}) {
       ? `<div class="vehicle-workshop-warning" role="status"><strong>Booking data unavailable</strong><span>${escapeHtml(state.message || 'The shared Workshop detail could not be loaded. No booking time is guessed.')}</span></div>`
       : '';
   const content = groups.length ? groups.map(group => vehicleWorkshopStationHtml(group, bookingFallback, vehicle)).join('') : '<div class="empty-state"><strong>No required work</strong><span>This vehicle has no canonical required Workshop work.</span></div>';
-  return `<div class="vehicle-workshop-page" data-vehicle-workshop-page><div class="vehicle-workshop-intro"><div><h3>Required workshop work</h3><p>Work lines, hours and current station bookings.</p></div></div>${warning}<div class="vehicle-workshop-stations">${content}</div></div>`;
+  return `<div class="vehicle-workshop-page" data-vehicle-workshop-page><div class="vehicle-workshop-intro"><div><h3>Required workshop work</h3><p>Every required line shows its description, estimated hours and current booking time. Select a booked time to open that exact Planner position.</p></div><div class="vehicle-workshop-legend">${Object.entries(VEHICLE_WORKSHOP_STATION_PRESENTATION).filter(([stage]) => WORKSHOP_PLANNER_ROUTE_BY_STAGE[stage]).map(([, item]) => `<span style="--legend-colour:${escapeHtml(item.colour)}"><i></i>${escapeHtml(item.label)}</span>`).join('')}</div></div>${warning}<div class="vehicle-workshop-stations">${content}</div></div>`;
 }
 
 async function loadVehicleWorkshopDetail(vehicle = {}, { force = false } = {}) {
@@ -12482,11 +12338,11 @@ function partsDepartmentSourceRows() {
   return vehicleLocationBoardRows();
 }
 
-function partsDepartmentRows(sourceRows = null) {
+function partsDepartmentRows() {
   const q = ($('#parts-search')?.value || '').trim().toLowerCase();
   const operationalFilter = app.partsOperationalFilter || 'notordered';
   const departmentFilter = $('#parts-department-filter')?.value || '';
-  return (Array.isArray(sourceRows) ? sourceRows : partsDepartmentSourceRows())
+  return partsDepartmentSourceRows()
     .filter(vehicleHasBatchNumber)
     .filter(vehicle => partsMatchesOperationalFilter(vehicle, operationalFilter))
     .filter(vehicle => !departmentFilter || vehicleDepartmentCode(vehicle) === departmentFilter)
@@ -12503,8 +12359,8 @@ function partsDepartmentRows(sourceRows = null) {
         || String(displayStockNumber(a) || '').localeCompare(String(displayStockNumber(b) || ''), undefined, { numeric: true });
     });
 }
-function renderPartsSummary(sourceRows = null) {
-  const all = (Array.isArray(sourceRows) ? sourceRows : partsDepartmentSourceRows()).filter(vehicleHasBatchNumber);
+function renderPartsSummary() {
+  const all = partsDepartmentSourceRows().filter(vehicleHasBatchNumber);
   const filters = [
     ['notordered', 'Parts Not Ordered'],
     ['ordered', 'Parts Ordered'],
@@ -12520,7 +12376,6 @@ function renderPartsSummary(sourceRows = null) {
   }).join('');
   $$('[data-parts-operational-filter]', host).forEach(button => button.addEventListener('click', () => {
     app.partsOperationalFilter = button.dataset.partsOperationalFilter || 'notordered';
-    app.partsPageOffset = 0;
     renderPartsHome();
   }));
 }
@@ -12572,8 +12427,8 @@ function partsQueueRowHtml(vehicle = {}) {
     <td>${partsQueueActionsHtml(vehicle, status)}</td>
   </tr>`;
 }
-function partsIssuedStoppagePickerHtml(sourceRows = null) {
-  const issued = (Array.isArray(sourceRows) ? sourceRows : partsDepartmentSourceRows())
+function partsIssuedStoppagePickerHtml() {
+  const issued = partsDepartmentSourceRows()
     .filter(vehicleHasBatchNumber)
     .filter(vehicle => partsDepartmentStatus(vehicle) === 'issued')
     .sort((a, b) => String(displayStockNumber(a) || '').localeCompare(String(displayStockNumber(b) || ''), undefined, { numeric: true }));
@@ -12599,39 +12454,23 @@ function renderPartsHome() {
   const host = $('#parts-home-content');
   const summaryHost = $('#parts-summary-grid');
   if (!host && !summaryHost) return;
-  const sourceRows = partsDepartmentSourceRows();
-  const rows = partsDepartmentRows(sourceRows);
+  const rows = partsDepartmentRows();
   setupPartsEtaCounterClock();
-  renderPartsSummary(sourceRows);
+  renderPartsSummary(rows);
   if (!host) return;
-  const stoppagePicker = (app.partsOperationalFilter || 'notordered') === 'stoppage' ? partsIssuedStoppagePickerHtml(sourceRows) : '';
+  const stoppagePicker = (app.partsOperationalFilter || 'notordered') === 'stoppage' ? partsIssuedStoppagePickerHtml() : '';
   if (!rows.length) {
     host.innerHTML = `${stoppagePicker}<div class="empty-state"><strong>No vehicles match the current parts filter</strong><span>Clear search or change the Parts status filter.</span></div>`;
     bindPartsIssuedStoppagePicker(host);
     return;
   }
-  const pageSize = 50;
-  const lastPageOffset = Math.max(0, Math.floor((rows.length - 1) / pageSize) * pageSize);
-  const pageOffset = Math.min(lastPageOffset, Math.max(0, Number(app.partsPageOffset) || 0));
-  const visibleRows = rows.slice(pageOffset, pageOffset + pageSize);
-  const pageStart = pageOffset + 1;
-  const pageEnd = pageOffset + visibleRows.length;
-  const paging = `<div class="parts-load-more"><span>Showing ${pageStart}–${pageEnd} of ${rows.length} matching vehicles.</span><div><button class="small-button" type="button" data-parts-page-previous ${pageOffset === 0 ? 'disabled' : ''}>Previous 50</button><button class="small-button" type="button" data-parts-page-next ${pageEnd >= rows.length ? 'disabled' : ''}>Next 50</button></div></div>`;
-  host.innerHTML = `${stoppagePicker}${paging}<div class="parts-table-wrap parts-queue-wrap"><table class="data-table compact-table parts-queue-table">
+  host.innerHTML = `${stoppagePicker}<div class="parts-table-wrap parts-queue-wrap"><table class="data-table compact-table parts-queue-table">
     <thead><tr>
       <th>Key</th><th>Stock</th><th>JC</th><th>Vehicle / customer</th><th>Parts status</th><th>Parts ETA</th><th>ETA counter</th><th>JITA</th><th>Parts STOPPAGE reason</th><th>Actions</th>
     </tr></thead>
-    <tbody>${visibleRows.map(partsQueueRowHtml).join('')}</tbody></table></div>`;
+    <tbody>${rows.map(partsQueueRowHtml).join('')}</tbody></table></div>`;
   bindPartsIssuedStoppagePicker(host);
   bindPartsQueueActionButtons(host);
-  host.querySelector('[data-parts-page-previous]')?.addEventListener('click', () => {
-    app.partsPageOffset = Math.max(0, pageOffset - pageSize);
-    renderPartsHome();
-  });
-  host.querySelector('[data-parts-page-next]')?.addEventListener('click', () => {
-    app.partsPageOffset = Math.min(lastPageOffset, pageOffset + pageSize);
-    renderPartsHome();
-  });
   setupPartsEtaCounterClock();
   $$('[data-parts-worst-eta]', host).forEach(input => input.addEventListener('change', () => updateVehiclePartsWorstEta(input.dataset.partsWorstEta, input.value)));
 }
@@ -13528,33 +13367,18 @@ function vehicleLocationBoardRows(localRows = pdcSheetVehicles(), sharedRows = a
   const currentShared = activeSharedNavisionRows(sharedRows);
   const localVehicles = deduplicateLocalLocationRows(localRows);
   const candidatesByLocal = new Map();
-  const conflictsByLocal = new Map();
   const sharedCandidateCounts = new Map();
-  const sharedByStock = new Map();
-  currentShared.forEach(item => {
-    const identity = sharedNavisionIdentityPartsFromItem(item);
-    if (!identity.stock) return;
-    const candidates = sharedByStock.get(identity.stock) || [];
-    candidates.push({ item, dealer: identity.dealer });
-    sharedByStock.set(identity.stock, candidates);
-  });
 
   localVehicles.forEach(vehicle => {
-    const identity = sharedNavisionIdentityPartsFromVehicle(vehicle);
-    const candidates = identity.stock ? (sharedByStock.get(identity.stock) || []) : [];
-    const matches = candidates
-      .filter(candidate => !(identity.dealer && candidate.dealer && identity.dealer !== candidate.dealer))
-      .map(candidate => candidate.item);
-    const hasConflict = candidates.some(candidate => identity.dealer && candidate.dealer && identity.dealer !== candidate.dealer);
+    const matches = currentShared.filter(item => sharedNavisionIdentityRelation(vehicle, item) === 'match');
     candidatesByLocal.set(vehicle, matches);
-    conflictsByLocal.set(vehicle, hasConflict);
     matches.forEach(item => sharedCandidateCounts.set(item, Number(sharedCandidateCounts.get(item) || 0) + 1));
   });
 
   const consumedShared = new Set();
   const mergedLocal = localVehicles.map(vehicle => {
     const matches = candidatesByLocal.get(vehicle) || [];
-    const hasConflictingIdentity = conflictsByLocal.get(vehicle) === true;
+    const hasConflictingIdentity = currentShared.some(item => sharedNavisionIdentityRelation(vehicle, item) === 'conflict');
     const mayMergeAuthoritativeNavision = !vehicle.__locationIdentityReadOnly || vehicle.__emailVehicleServerAuthoritative === true;
     const item = mayMergeAuthoritativeNavision && matches.length === 1 && sharedCandidateCounts.get(matches[0]) === 1 ? matches[0] : null;
     const identityAmbiguous = Boolean(vehicle.__locationIdentityReadOnly || hasConflictingIdentity || matches.length > 1 || (matches.length === 1 && !item));
@@ -19192,8 +19016,7 @@ function aiIntakeAuditChangeSummary(item = {}) {
 
 function aiIntakeHumanOutcome(item = {}) {
   const audit = aiIntakeAuditChangeSummary(item);
-  if (item.status === 'pending' && item.action_type === 'board_activate_only') return { ...audit, badge: 'NEEDS APPROVAL', title: 'Activation proposed — waiting for review', message: 'This may activate the matching Navision car after an Administrator checks it.' };
-  if (item.status === 'pending') return { ...audit, badge: 'REVIEW ONLY', title: 'Information received — review and dismiss', message: 'No operational action is available for this item. Dismissing it records that the evidence was reviewed without changing a car.' };
+  if (item.status === 'pending') return { ...audit, badge: 'NEEDS REVIEW', title: 'Email received — waiting for review', message: item.action_type === 'board_activate_only' ? 'This may activate the matching Navision car after an Administrator checks it.' : 'No car has been changed.' };
   if (item.status === 'rejected') return { ...audit, badge: 'NO CHANGE', title: 'Reviewed — no car changed', message: item.decision_reason || 'This email was dismissed.' };
   if (audit.activated) return { ...audit, badge: 'CAR ACTIVATED', title: 'Car activated', message: 'The matching car is now active on the control board.' };
   if (audit.modified) return { ...audit, badge: 'CAR MODIFIED', title: 'Existing car modified', message: 'The changes made from this email are listed below.' };
@@ -19206,10 +19029,10 @@ function aiIntakeHumanChangesHtml(outcome = {}) {
   return `<ul class="ai-intake-change-list">${outcome.changes.map(change => `<li><strong>${escapeHtml(change.label)}:</strong> ${escapeHtml(change.before)} → ${escapeHtml(change.after)}</li>`).join('')}</ul>`;
 }
 
-function aiIntakeVehicleForStock(stock = '', boardRows = null) {
+function aiIntakeVehicleForStock(stock = '') {
   const identity = cleanNavisionText(stock).toUpperCase();
   if (!identity) return null;
-  const exactRows = (Array.isArray(boardRows) ? boardRows : vehicleLocationBoardRows()).filter(vehicle => [vehicle.stockNumber, vehicle.stock, vehicle.stock_number, vehicle.batch]
+  const exactRows = vehicleLocationBoardRows().filter(vehicle => [vehicle.stockNumber, vehicle.stock, vehicle.stock_number, vehicle.batch]
     .some(value => cleanNavisionText(value).toUpperCase() === identity));
   const matches = [...new Map(exactRows.map(vehicle => {
     const canonicalKey = cleanNavisionText(vehicle.permanentVehicleId || vehicle.permanent_vehicle_id || vehicle.__sharedNavisionRecordId || vehicle.id || vehicleKey(vehicle));
@@ -19221,7 +19044,7 @@ function aiIntakeVehicleForStock(stock = '', boardRows = null) {
 function aiIntakeStockNavigationHtml(stock = '', matchedVehicle = null, options = {}) {
   const identity = cleanNavisionText(stock);
   const label = `${options.includeStockLabel === false ? '' : 'Stock '}${identity || 'Not found'}`;
-  const vehicle = matchedVehicle || aiIntakeVehicleForStock(identity, options.boardRows);
+  const vehicle = matchedVehicle || aiIntakeVehicleForStock(identity);
   const key = vehicle ? vehicleKey(vehicle) : '';
   if (!identity || !key) return `<strong>${escapeHtml(label)}</strong>`;
   return `<button class="stock-link stock-button ai-intake-stock-link" type="button" data-open-stock="${escapeHtml(key)}" title="Open ${escapeHtml(label)} vehicle card" aria-label="Open ${escapeHtml(label)} vehicle card">${escapeHtml(label)}</button>`;
@@ -19256,7 +19079,6 @@ function renderServerAiIntake() {
     return;
   }
   const rows = Array.isArray(app.serverAiIntakeItems) ? app.serverAiIntakeItems : [];
-  const stockNavigationRows = rows.some(item => item.stock_number) ? vehicleLocationBoardRows() : [];
   if (!rows.length) {
     host.innerHTML = state === 'synchronized'
       ? '<div class="empty-state compact-empty"><strong>No emails match this filter</strong><span>Choose another filter, or refresh the inbox.</span></div>'
@@ -19268,7 +19090,6 @@ function renderServerAiIntake() {
       const actionable = item.action_type === 'board_activate_only';
       const outcome = aiIntakeHumanOutcome(item);
       const statusClass = serverAiIntakeStatusClass(item.status);
-      const rejectLabel = actionable ? '× Reject' : 'Dismiss';
       return `<article class="ai-intake-server-row ai-intake-review-card" data-status="${escapeHtml(item.status || '')}" data-ai-intake-proposal="${escapeHtml(item.proposal_id || '')}">
         <header class="ai-intake-review-heading">
           <div class="ai-intake-review-title"><span class="ai-intake-mail-icon" aria-hidden="true">✉</span><strong>${escapeHtml(item.subject || 'Email received')}</strong><span class="badge ${statusClass}">${escapeHtml(outcome.badge)}</span></div>
@@ -19278,14 +19099,14 @@ function renderServerAiIntake() {
           <div class="ai-intake-review-content">
             <div class="ai-intake-review-meta">
               <div><span>Sender</span><strong>${escapeHtml(item.sender_address || 'Unknown sender')}</strong></div>
-              <div><span>Matched stock</span>${item.stock_number ? aiIntakeStockNavigationHtml(item.stock_number, null, { includeStockLabel: false, boardRows: stockNavigationRows }) : '<strong>Not matched</strong>'}</div>
+              <div><span>Matched stock</span>${item.stock_number ? aiIntakeStockNavigationHtml(item.stock_number, null, { includeStockLabel: false }) : '<strong>Not matched</strong>'}</div>
               <div><span>Matched car</span><strong>${escapeHtml(item.authoritative_vehicle || 'Not matched yet')}</strong><small>${item.authoritative_location ? `Location: ${escapeHtml(item.authoritative_location)}` : ''}</small></div>
             </div>
             <section class="ai-intake-email-summary"><span>What the email says</span><p>${escapeHtml(item.summary || 'No reliable email summary was generated. Deny this item or open the technical details before deciding.')}</p></section>
             <section class="ai-intake-detected-changes"><span>Detected changes</span>${aiIntakeHumanChangesHtml(outcome)}</section>
             <div class="ai-intake-proposed-action"><span>Proposed action</span><strong>${actionable ? 'Activate matching car on Control Board' : escapeHtml(outcome.title)}</strong><small>${escapeHtml(outcome.message)}</small></div>
           </div>
-          ${pending ? `<aside class="ai-intake-decision-panel">${actionable ? `<button class="primary ai-intake-approve" type="button" data-ai-intake-apply="${escapeHtml(item.proposal_id)}" ${canDecide ? '' : 'disabled title="Active Administrator access required"'}>✓ Approve activation</button>` : ''}<button class="small-button ai-intake-deny" type="button" data-ai-intake-reject="${escapeHtml(item.proposal_id)}" ${canDecide ? '' : 'disabled title="Active Administrator access required"'}>${rejectLabel}</button></aside>` : `<aside class="ai-intake-decision-panel ai-intake-decision-complete"><strong>${escapeHtml(outcome.title)}</strong><span>Processed by ${escapeHtml(item.decided_by_email || 'System')}</span><small>${escapeHtml(item.decided_at ? operationalHealthDateLabel(item.decided_at) : '')}</small></aside>`}
+          ${pending ? `<aside class="ai-intake-decision-panel">${actionable ? `<button class="primary ai-intake-approve" type="button" data-ai-intake-apply="${escapeHtml(item.proposal_id)}" ${canDecide ? '' : 'disabled title="Active Administrator access required"'}>✓ Approve</button>` : ''}<button class="small-button ai-intake-deny" type="button" data-ai-intake-reject="${escapeHtml(item.proposal_id)}" ${canDecide ? '' : 'disabled title="Active Administrator access required"'}>× Deny</button></aside>` : `<aside class="ai-intake-decision-panel ai-intake-decision-complete"><strong>${escapeHtml(outcome.title)}</strong><span>Processed by ${escapeHtml(item.decided_by_email || 'System')}</span><small>${escapeHtml(item.decided_at ? operationalHealthDateLabel(item.decided_at) : '')}</small></aside>`}
         </div>
         <details class="ai-intake-technical-details"><summary>Email and technical details</summary><div class="ai-intake-server-meta"><span>UID ${escapeHtml(item.source_uid || '—')}</span><span>Receipt ${escapeHtml(item.fingerprint || '—')}</span><span>Action ${escapeHtml(item.action_type || 'review_only')}</span></div></details>
       </article>`;
@@ -19360,14 +19181,9 @@ async function decideServerAiIntake(proposalId = '', decision = '') {
   // Staff no longer have to type a reason for routine triage.
   // truthful audit reason so the protected RPC and durable history still record
   // what happened without inventing user-authored detail.
-  const informationOnly = proposal.action_type !== 'board_activate_only';
-  const reason = decision === 'apply'
-    ? 'Approved activation through AI Intake'
-    : informationOnly ? 'Dismissed information-only item through AI Intake' : 'Rejected activation through AI Intake';
+  const reason = decision === 'apply' ? 'Approved through AI Intake' : 'Denied through AI Intake';
   if (decision === 'apply' && !window.confirm(`Approve this intake item for Stock ${proposal.stock_number || 'unknown'}? Email evidence is informational only. The server will revalidate the exact Navision record and revision, preserve its location, and make no other operational change.`)) return false;
-  if (decision === 'reject' && !window.confirm(informationOnly
-    ? 'Dismiss this information-only item? It will leave Needs review and no car will be changed.'
-    : 'Reject this activation proposal? No car will be changed.')) return false;
+  if (decision === 'reject' && !window.confirm('Deny this intake item? No car will be changed.')) return false;
   const attempt = serverAiIntakeDecisionAttempt(proposal, decision, reason);
   app.serverAiIntakeDecisionInFlight = true;
   renderServerAiIntake();
@@ -19811,11 +19627,13 @@ function compareSubletBookingProximity(a = {}, b = {}, referenceDate = new Date(
 }
 
 function subletBookingState(vehicle = {}) {
+  if (plainDateValue(vehicle.pmbSubletActualReturnDate)) return 'returned';
   return plainDateValue(vehicle.pmbSubletBookingDate) ? 'booked' : 'to-book';
 }
 
 function subletMatchesOperationalFilter(vehicle = {}, filter = 'to-book') {
-  return subletBookingState(vehicle) === (filter === 'booked' ? 'booked' : 'to-book');
+  const requested = ['booked', 'returned'].includes(filter) ? filter : 'to-book';
+  return subletBookingState(vehicle) === requested;
 }
 
 function compareSubletBookingDate(a = {}, b = {}) {
@@ -19888,11 +19706,28 @@ function subletCalendarEvents(rows = []) {
     || String(a.stock).localeCompare(String(b.stock), undefined, { numeric: true }));
 }
 
+function subletCalendarEventField(type = '') {
+  return ({
+    outgoing: 'pmbSubletBookingDate',
+    'due-back': 'pmbSubletExpectedReturnDate',
+    returned: 'pmbSubletActualReturnDate',
+  })[String(type || '')] || '';
+}
+
+function subletAwayOnDate(vehicle = {}, dateKey = '') {
+  const date = plainDateValue(dateKey);
+  const booking = plainDateValue(vehicle.pmbSubletBookingDate);
+  const actual = plainDateValue(vehicle.pmbSubletActualReturnDate);
+  if (!date || !booking || date < booking) return false;
+  return !actual || date < actual;
+}
+
 function subletDateChangeError(vehicle = {}, field = '', value = '') {
   const next = plainDateValue(value);
   const booking = field === 'pmbSubletBookingDate' ? next : plainDateValue(vehicle.pmbSubletBookingDate);
   const expected = field === 'pmbSubletExpectedReturnDate' ? next : plainDateValue(vehicle.pmbSubletExpectedReturnDate);
   const actual = field === 'pmbSubletActualReturnDate' ? next : plainDateValue(vehicle.pmbSubletActualReturnDate);
+  if (!booking && (expected || actual)) return 'Set the Sublet booking date before setting a return date.';
   if (booking && expected && expected < booking) return field === 'pmbSubletBookingDate'
     ? 'Booking date cannot be after the expected return date.'
     : 'Expected return date cannot be before the booking date.';
@@ -19977,8 +19812,8 @@ function renderSubletCalendar(rows = []) {
     const outside = range.mode === 'month' && !date.startsWith(range.month);
     const events = eventsByDate.get(date) || [];
     const fullDate = subletCalendarDateLabel(date, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
-    const eventHtml = events.map(event => `<button class="sublet-calendar-event is-${escapeHtml(event.type)} ${event.missingReturn ? 'is-missing-return' : ''}" type="button" data-sublet-calendar-event="${escapeHtml(`${event.type}:${event.key}:${date}`)}" data-open-stock="${escapeHtml(event.key)}" aria-label="${escapeHtml(`${event.label}: stock ${event.stock}, ${event.provider}, ${fullDate}`)}"><span>${escapeHtml(event.label)} · ${escapeHtml(event.stock)}</span><strong>${escapeHtml(event.provider)}</strong><small>${escapeHtml([event.customer, event.vehicle].filter(Boolean).join(' · '))}</small>${event.missingReturn ? '<em>Return date needed</em>' : ''}</button>`).join('');
-    return `<section class="sublet-calendar-day ${outside ? 'is-outside-month' : ''} ${date === today ? 'is-today' : ''}" data-sublet-calendar-date="${escapeHtml(date)}" role="gridcell" aria-label="${escapeHtml(fullDate)}"><header><span>${escapeHtml(subletCalendarDateLabel(date, range.mode === 'month' ? { day: 'numeric' } : { day: 'numeric', month: 'short' }))}</span>${date === today ? '<b>Today</b>' : ''}</header><div class="sublet-calendar-day-events">${eventHtml}</div></section>`;
+    const eventHtml = events.map(event => `<button class="sublet-calendar-event is-${escapeHtml(event.type)} ${event.missingReturn ? 'is-missing-return' : ''}" type="button" draggable="true" data-sublet-calendar-event="${escapeHtml(`${event.type}:${event.key}:${date}`)}" data-sublet-calendar-drag-key="${escapeHtml(event.key)}" data-sublet-calendar-drag-type="${escapeHtml(event.type)}" data-sublet-calendar-drag-date="${escapeHtml(date)}" data-open-stock="${escapeHtml(event.key)}" aria-label="${escapeHtml(`${event.label}: stock ${event.stock}, ${event.provider}, ${fullDate}. Drag to move this date, or use the date field in List View.`)}"><span>${escapeHtml(event.label)} · ${escapeHtml(event.stock)}</span><strong>${escapeHtml(event.provider)}</strong><small>${escapeHtml([event.customer, event.vehicle].filter(Boolean).join(' · '))}</small>${event.missingReturn ? '<em>Return date needed</em>' : ''}</button>`).join('');
+    return `<section class="sublet-calendar-day ${outside ? 'is-outside-month' : ''} ${date === today ? 'is-today' : ''}" data-sublet-calendar-date="${escapeHtml(date)}" data-sublet-calendar-drop-date="${escapeHtml(date)}" role="gridcell" aria-label="${escapeHtml(fullDate)}"><header><span>${escapeHtml(subletCalendarDateLabel(date, range.mode === 'month' ? { day: 'numeric' } : { day: 'numeric', month: 'short' }))}</span>${date === today ? '<b>Today</b>' : ''}</header><div class="sublet-calendar-day-events">${eventHtml}</div></section>`;
   }).join('');
   const missingReturns = rows.filter(vehicle => plainDateValue(vehicle.pmbSubletBookingDate) && !plainDateValue(vehicle.pmbSubletExpectedReturnDate) && !plainDateValue(vehicle.pmbSubletActualReturnDate)).length;
   return `<div class="sublet-calendar-shell">
@@ -19988,6 +19823,77 @@ function renderSubletCalendar(rows = []) {
   </div>`;
 }
 
+function clearSubletCalendarDragTargets(host = null) {
+  $$('[data-sublet-calendar-drop-date]', host || $('#sublet-home-content')).forEach(day => day.classList.remove('is-drag-target'));
+}
+
+function beginSubletCalendarDrag(event, card) {
+  const payload = {
+    key: cleanNavisionText(card?.dataset?.subletCalendarDragKey || ''),
+    type: cleanNavisionText(card?.dataset?.subletCalendarDragType || ''),
+    date: plainDateValue(card?.dataset?.subletCalendarDragDate || ''),
+  };
+  if (!payload.key || !subletCalendarEventField(payload.type) || !payload.date || !event?.dataTransfer) {
+    event?.preventDefault?.();
+    return false;
+  }
+  event.dataTransfer.effectAllowed = 'move';
+  event.dataTransfer.setData('application/x-pdc-sublet-calendar', JSON.stringify(payload));
+  event.dataTransfer.setData('text/plain', JSON.stringify(payload));
+  app.subletCalendarDragData = payload;
+  card.classList.add('is-dragging');
+  return true;
+}
+
+function subletCalendarDragPayload(event) {
+  const retained = app.subletCalendarDragData;
+  let raw = '';
+  if (event?.dataTransfer) {
+    raw = event.dataTransfer.getData('application/x-pdc-sublet-calendar') || event.dataTransfer.getData('text/plain');
+  }
+  try {
+    const payload = raw ? JSON.parse(raw) : retained;
+    const field = subletCalendarEventField(payload.type);
+    return payload.key && field && plainDateValue(payload.date) ? { ...payload, field } : null;
+  } catch (_error) {
+    return null;
+  }
+}
+
+async function dropSubletCalendarEvent(event, targetDate = '') {
+  event?.preventDefault?.();
+  const payload = subletCalendarDragPayload(event);
+  const date = plainDateValue(targetDate);
+  app.subletCalendarDragData = null;
+  clearSubletCalendarDragTargets();
+  if (!payload || !date || date === payload.date) return false;
+  return updateSubletField(payload.key, payload.field, date);
+}
+
+function bindSubletCalendarInteractions(host) {
+  $$('[data-sublet-calendar-event]', host).forEach(card => {
+    card.addEventListener('dragstart', event => beginSubletCalendarDrag(event, card));
+    card.addEventListener('dragend', () => {
+      app.subletCalendarDragData = null;
+      card.classList.remove('is-dragging');
+      clearSubletCalendarDragTargets(host);
+    });
+  });
+  $$('[data-sublet-calendar-drop-date]', host).forEach(day => {
+    day.addEventListener('dragover', event => {
+      if (!subletCalendarDragPayload(event)) return;
+      event.preventDefault();
+      event.dataTransfer.dropEffect = 'move';
+      clearSubletCalendarDragTargets(host);
+      day.classList.add('is-drag-target');
+    });
+    day.addEventListener('dragleave', event => {
+      if (!day.contains(event.relatedTarget)) day.classList.remove('is-drag-target');
+    });
+    day.addEventListener('drop', event => { void dropSubletCalendarEvent(event, day.dataset.subletCalendarDropDate); });
+  });
+}
+
 function renderSubletSummary(rows = []) {
   const host = $('#sublet-summary-grid');
   if (!host) return;
@@ -19995,13 +19901,14 @@ function renderSubletSummary(rows = []) {
   const filters = [
     ['to-book', 'Sublet To Book'],
     ['booked', 'Sublet Booked'],
+    ['returned', 'Returned'],
   ];
   host.innerHTML = filters.map(([key, label]) => {
     const count = rows.filter(vehicle => subletMatchesOperationalFilter(vehicle, key)).length;
     return `<button class="parts-filter-chip sublet-filter-chip ${key === active ? 'is-active' : ''}" type="button" data-sublet-operational-filter="${key}" aria-pressed="${key === active}"><span>${escapeHtml(label)}</span><strong>${count}</strong></button>`;
   }).join('');
   $$('[data-sublet-operational-filter]', host).forEach(button => button.addEventListener('click', () => {
-    app.subletOperationalFilter = button.dataset.subletOperationalFilter === 'booked' ? 'booked' : 'to-book';
+    app.subletOperationalFilter = ['booked', 'returned'].includes(button.dataset.subletOperationalFilter) ? button.dataset.subletOperationalFilter : 'to-book';
     if (app.subletOperationalFilter === 'to-book') app.subletViewMode = 'list';
     renderSubletHome();
   }));
@@ -20111,9 +20018,12 @@ async function updateSubletField(key = '', field = '', value = '') {
       }
       if (!response?.ok) {
         await refreshEmailVehicleLocations();
-        window.alert(response?.code === 'version_conflict'
+        const message = response?.code === 'version_conflict'
           ? 'This Sublet booking changed again while your update was being saved. It has been refreshed; please retry your change.'
-          : `Shared Sublet update failed: ${response?.code || 'unknown_error'}. No change was made.`);
+          : response?.code === 'workshop_booking_conflict'
+            ? 'That Sublet date would overlap an existing Workshop booking for this vehicle. Move the Workshop booking first; no Sublet change was made.'
+            : `Shared Sublet update failed: ${response?.code || 'unknown_error'}. No change was made.`;
+        window.alert(message);
         return false;
       }
       const nextVersion = Number(response?.data?.version);
@@ -20128,6 +20038,11 @@ async function updateSubletField(key = '', field = '', value = '') {
   recordVehicleAudit(vehicle, 'Sublet booking updated', { field, value: cleanValue, by: getCurrentOperatorName() });
   saveVehicleEdits(key, { [field]: cleanValue, pmbSubletUpdatedAt: nowIsoString(), pmbSubletUpdatedBy: getCurrentOperatorName() });
   return true;
+}
+
+function setSubletReturned(key = '', returned = false, referenceDate = new Date()) {
+  const value = returned ? subletTodayDateKey(referenceDate) : '';
+  return updateSubletField(key, 'pmbSubletActualReturnDate', value);
 }
 
 async function setSubletEmailSent(key = '', sent = false) {
@@ -20172,14 +20087,16 @@ function renderSubletHome() {
   app.subletViewMode = app.subletViewMode === 'calendar' ? 'calendar' : 'list';
   app.subletCalendarMode = app.subletCalendarMode === 'month' ? 'month' : 'week';
   if (app.subletViewMode === 'calendar') app.subletOperationalFilter = 'booked';
-  app.subletOperationalFilter = app.subletOperationalFilter === 'booked' ? 'booked' : 'to-book';
+  app.subletOperationalFilter = ['booked', 'returned'].includes(app.subletOperationalFilter) ? app.subletOperationalFilter : 'to-book';
   app.subletExpandedRows = app.subletExpandedRows instanceof Set ? app.subletExpandedRows : new Set();
   renderSubletSummary(allRows);
   const providerFilter = syncSubletProviderFilter(allRows);
   const sortMode = cleanNavisionText($('#sublet-sort-filter')?.value || 'nearest');
   const sortReference = new Date();
   const rows = allRows.filter(vehicle => {
-    if (!subletMatchesOperationalFilter(vehicle, app.subletOperationalFilter)) return false;
+    if (app.subletViewMode === 'calendar') {
+      if (subletBookingState(vehicle) === 'to-book') return false;
+    } else if (!subletMatchesOperationalFilter(vehicle, app.subletOperationalFilter)) return false;
     const provider = normalizeSubletProviderName(pmbBaySubletProvider(vehicle));
     if (providerFilter === 'unassigned' && provider) return false;
     if (!['all', 'unassigned'].includes(providerFilter) && provider.toLowerCase() !== normalizeSubletProviderName(providerFilter).toLowerCase()) return false;
@@ -20196,6 +20113,7 @@ function renderSubletHome() {
   if (count) count.textContent = `${rows.length} shown · ${unbooked} to book · ${booked} booked`;
   if (app.subletViewMode === 'calendar') {
     host.innerHTML = renderSubletCalendar(rows);
+    bindSubletCalendarInteractions(host);
     $$('[data-open-stock]', host).forEach(button => button.addEventListener('click', () => openVehicleModal(button.dataset.openStock)));
     return;
   }
@@ -20204,25 +20122,28 @@ function renderSubletHome() {
     host.innerHTML = '<div class="empty-state"><strong>No Sublet vehicles match this filter</strong><span>Vehicles appear automatically when Sublet work is required. Adjust the filters or mark Sublet as required on the vehicle.</span></div>';
     return;
   }
-  host.innerHTML = `<div class="sublet-table-wrap"><table class="data-table compact-table sublet-table"><thead><tr><th aria-label="Expand"></th><th>Key</th><th>Stock</th><th>Job card</th><th>Customer</th><th>Vehicle</th><th>Provider</th><th>Booking date</th><th>Due back</th><th>Status</th><th>Actions</th></tr></thead><tbody>${rows.map(vehicle => {
+  host.innerHTML = `<div class="sublet-table-wrap"><table class="data-table compact-table sublet-table"><thead><tr><th aria-label="Expand"></th><th>Key</th><th>Stock</th><th>Job card</th><th>Returned</th><th>Customer</th><th>Vehicle</th><th>Provider</th><th>Booking date</th><th>Due back</th><th>Status</th><th>Actions</th></tr></thead><tbody>${rows.map(vehicle => {
     const key = vehicleKey(vehicle);
     const stock = displayStockNumber(vehicle) || 'vehicle';
     const accessibleStock = escapeHtml(stock);
     const expanded = app.subletExpandedRows.has(key);
     const state = subletBookingState(vehicle);
+    const returned = state === 'returned';
+    const statusLabel = returned ? 'Returned' : (subletAwayOnDate(vehicle, subletTodayDateKey()) ? 'Away on Sublet' : (state === 'booked' ? 'Sublet Booked' : 'Sublet To Book'));
     return `<tr class="sublet-row sublet-summary-row ${expanded ? 'is-expanded' : ''}">
       <td><button class="sublet-row-toggle" type="button" data-sublet-toggle="${escapeHtml(key)}" aria-expanded="${expanded}" aria-label="${expanded ? 'Collapse' : 'Expand'} Sublet details for ${accessibleStock}">${expanded ? '▾' : '›'}</button></td>
       <td><strong>${escapeHtml(vehicleKeyNumber(vehicle) || '—')}</strong></td>
       <td><button class="sublet-stock-link" type="button" data-open-stock="${escapeHtml(key)}"><strong>${escapeHtml(stock === 'vehicle' ? '—' : stock)}</strong></button></td>
       <td><strong>${escapeHtml(vehicleJobcardNumber(vehicle) || '—')}</strong></td>
+      <td><label class="sublet-returned-check"><input type="checkbox" aria-label="Mark stock ${accessibleStock} returned from Sublet" data-sublet-returned="${escapeHtml(key)}" ${returned ? 'checked' : ''}><span>Back</span></label></td>
       <td><strong title="${escapeHtml(vehicleCustomerName(vehicle) || 'Dealer Order')}">${escapeHtml(vehicleCustomerName(vehicle) || 'Dealer Order')}</strong></td>
       <td><span title="${escapeHtml(displayVehicle(vehicle) || '')}">${escapeHtml(displayVehicle(vehicle) || '—')}</span></td>
       <td><select aria-label="Sublet provider for ${accessibleStock}" data-sublet-field="pmbSubletProvider" data-sublet-key="${escapeHtml(key)}">${subletProviderOptionsHtml(pmbBaySubletProvider(vehicle))}</select></td>
       <td><input type="date" aria-label="Sublet booking date for ${accessibleStock}" value="${escapeHtml(plainDateValue(vehicle.pmbSubletBookingDate))}" data-sublet-field="pmbSubletBookingDate" data-sublet-key="${escapeHtml(key)}"></td>
       <td><input type="date" aria-label="Expected Sublet return date for ${accessibleStock}" value="${escapeHtml(plainDateValue(vehicle.pmbSubletExpectedReturnDate))}" data-sublet-field="pmbSubletExpectedReturnDate" data-sublet-key="${escapeHtml(key)}"></td>
-      <td><span class="sublet-status-pill ${state === 'booked' ? 'is-booked' : 'is-to-book'}">${state === 'booked' ? 'Sublet Booked' : 'Sublet To Book'}</span></td>
+      <td><span class="sublet-status-pill is-${escapeHtml(state)}">${escapeHtml(statusLabel)}</span></td>
       <td><button class="small-button" type="button" data-open-stock="${escapeHtml(key)}">Open vehicle</button></td>
-    </tr>${expanded ? `<tr class="sublet-detail-row"><td colspan="11"><div class="sublet-detail-grid">
+    </tr>${expanded ? `<tr class="sublet-detail-row"><td colspan="12"><div class="sublet-detail-grid">
       <label><span>Provider email</span><input type="email" aria-label="Sublet provider email for ${accessibleStock}" placeholder="Provider email" value="${escapeHtml(vehicle.pmbSubletProviderEmail || '')}" data-sublet-field="pmbSubletProviderEmail" data-sublet-key="${escapeHtml(key)}"></label>
       <label><span>Actual return</span><input type="date" aria-label="Actual Sublet return date for ${accessibleStock}" value="${escapeHtml(plainDateValue(vehicle.pmbSubletActualReturnDate))}" data-sublet-field="pmbSubletActualReturnDate" data-sublet-key="${escapeHtml(key)}"></label>
       <label class="sublet-notes-field"><span>Notes</span><textarea rows="2" aria-label="Sublet notes for ${accessibleStock}" data-sublet-field="pmbSubletNotes" data-sublet-key="${escapeHtml(key)}">${escapeHtml(vehicle.pmbSubletNotes || '')}</textarea></label>
@@ -20231,6 +20152,7 @@ function renderSubletHome() {
     </div></td></tr>` : ''}`;
   }).join('')}</tbody></table></div>`;
   $$('[data-sublet-field]', host).forEach(input => input.addEventListener('change', () => updateSubletField(input.dataset.subletKey, input.dataset.subletField, input.value)));
+  $$('[data-sublet-returned]', host).forEach(input => input.addEventListener('change', () => setSubletReturned(input.dataset.subletReturned, input.checked)));
   $$('[data-sublet-email-sent]', host).forEach(input => input.addEventListener('change', () => setSubletEmailSent(input.dataset.subletEmailSent, input.checked)));
   $$('[data-sublet-provider-email]', host).forEach(button => button.addEventListener('click', () => draftSubletProviderEmail(button.dataset.subletProviderEmail)));
   $$('[data-sublet-sales-email]', host).forEach(button => button.addEventListener('click', () => draftSubletSalesUpdate(button.dataset.subletSalesEmail)));

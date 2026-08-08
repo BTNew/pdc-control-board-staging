@@ -8,11 +8,20 @@ const PDC_SUBLET_UPDATE_RPC = 'update_pdc_sublet_booking_field';
 const PDC_PARTS_ETA_UPDATE_RPC = 'update_pdc_parts_eta';
 const PDC_PARTS_ORDERED_RPC = 'mark_pdc_parts_ordered';
 const PDC_VEHICLE_HISTORY_RPC = 'get_pdc_vehicle_provenance_history';
+const PDC_SUBLET_CANONICAL_ERRORS = new Set(['version_conflict', 'workshop_booking_conflict', 'sublet_away']);
 const WORK_FIELDS = Object.freeze({
   bus4x4: ['pdcRequiresBus4x4', 'pdcCompleteBus4x4'], tint: ['pdcRequiresTint', 'pdcCompleteTint'], hoist: ['pdcRequiresHoist', 'pdcCompleteHoist'], fitting: ['pdcRequiresFitting', 'pdcCompleteFitting'], fabrication: ['pdcRequiresFabrication', 'pdcCompleteFabrication'], electrical: ['pdcRequiresElectrical', 'pdcCompleteElectrical'], tyre: ['pdcRequiresTyre', 'pdcCompleteTyre'], sublet: ['pdcRequiresSublet', 'pdcCompleteSublet'], pitinspection: ['pdcRequiresPitInspection', 'pdcCompletePitInspection'], parts: ['pdcRequiresParts', 'pdcCompleteParts'],
 });
 function projectRef(url = '') { const match = String(url || '').trim().match(/^https:\/\/([a-z0-9]+)\.supabase\.co(?:\/|$)/i); return match ? match[1].toLowerCase() : ''; }
 function identity(value = '') { return String(value || '').trim().toUpperCase().replace(/[\s-]+/g, ''); }
+function subletResponseCode(body, status) {
+  const direct = String(body?.code || body?.error || '').trim();
+  if (PDC_SUBLET_CANONICAL_ERRORS.has(direct)) return direct;
+  const message = String(body?.message || body?.details || '').trim();
+  const match = message.match(/["']error["']\s*:\s*["']([a-z0-9_]+)["']/i);
+  const extracted = String(match?.[1] || '').toLowerCase();
+  return PDC_SUBLET_CANONICAL_ERRORS.has(extracted) ? extracted : (direct || `HTTP ${status}`);
+}
 function canonicalWorkKey(value = '') {
   const key = String(value || '').trim().toLowerCase().replace(/[^a-z0-9]/g, '');
   if (['pit', 'pitinspection', 'inspectionpit', 'pitinspect'].includes(key)) return 'pitinspection';
@@ -75,22 +84,11 @@ function rowIdentities(row = {}) { return { stock: identity(row.stock_number ?? 
 function reconcileVehicleRows(localRows = [], serverRows = []) {
   const local = Array.isArray(localRows) ? localRows : [];
   const visibleServer = (Array.isArray(serverRows) ? serverRows : []).filter(row => row && row.visible_on_board !== false);
-  const indexes = { stock: new Map(), vin: new Map() };
-  local.forEach((row, index) => {
-    const keys = rowIdentities(row);
-    for (const type of ['stock', 'vin']) {
-      const value = keys[type];
-      if (!value) continue;
-      const matches = indexes[type].get(value) || [];
-      matches.push(index);
-      indexes[type].set(value, matches);
-    }
-  });
   const replaced = new Set(); const conflicts = new Set(); const additions = [];
   for (const serverRow of visibleServer) {
     const serverId = rowIdentities(serverRow);
-    const stockMatches = serverId.stock ? (indexes.stock.get(serverId.stock) || []) : [];
-    const vinMatches = serverId.vin ? (indexes.vin.get(serverId.vin) || []) : [];
+    const stockMatches = serverId.stock ? local.map((row, i) => rowIdentities(row).stock === serverId.stock ? i : -1).filter(i => i >= 0) : [];
+    const vinMatches = serverId.vin ? local.map((row, i) => rowIdentities(row).vin === serverId.vin ? i : -1).filter(i => i >= 0) : [];
     const candidates = new Set([...stockMatches, ...vinMatches]);
     const stockIndex = stockMatches.length === 1 ? stockMatches[0] : -1; const vinIndex = vinMatches.length === 1 ? vinMatches[0] : -1;
     const ambiguous = stockMatches.length > 1 || vinMatches.length > 1 || (stockIndex >= 0 && vinIndex >= 0 && stockIndex !== vinIndex);
@@ -123,7 +121,7 @@ function createPdcEmailVehicleLocationService(options = {}) {
     try {
       const response = await request(`${url}/rest/v1/rpc/${PDC_SUBLET_UPDATE_RPC}`, { method: 'POST', headers: { apikey: key, Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ p_vehicle_id: vehicleId, p_expected_version: Number(expectedVersion) || 0, p_field: field, p_value: String(value ?? '') }) });
       const body = await response.json();
-      if (!response.ok || !body || body.ok === false) return { ok: false, code: body?.code || `HTTP ${response.status}`, data: body?.data || null };
+      if (!response.ok || !body || body.ok === false) return { ok: false, code: subletResponseCode(body, response.status), data: body?.data || null };
       return { ok: true, code: body.code || 'updated', data: body.data || body };
     } catch (_error) { return { ok: false, code: 'sublet_update_unavailable', data: null }; }
   }
