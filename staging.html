@@ -8,11 +8,11 @@
   <meta name="description" content="PDC Workshop Control Board — STAGING (separate Supabase project, synthetic data only)." />
   <title>PDC Control Board — STAGING</title>
   <link rel="icon" href="favicon.svg" type="image/svg+xml" />
-  <link rel="stylesheet" href="styles.css?v=2026.08.08.05-row-hours-save" />
+  <link rel="stylesheet" href="styles.css?v=2026.08.08.06-sublet-calendar" />
   <link rel="stylesheet" href="pdc-ai-intake-review.css?v=2026.07.28.20-ai-review-card-separation" />
   <link rel="stylesheet" href="ai-auditor.css?v=2026.07.30.02-auditor-binding-hardening" />
-  <link rel="stylesheet" href="desktop-operations.css?v=2026.08.08.05-row-hours-save" />
-  <link rel="stylesheet" href="workshop-planner.css?v=2026.08.08.05-row-hours-save" />
+  <link rel="stylesheet" href="desktop-operations.css?v=2026.08.08.06-sublet-calendar" />
+  <link rel="stylesheet" href="workshop-planner.css?v=2026.08.08.06-sublet-calendar" />
 </head>
 <body class="auth-pending" data-auth-state="checking">
   <main class="pdc-auth-gate" id="pdc-auth-gate" aria-labelledby="pdc-auth-title">
@@ -89,7 +89,7 @@
         <div class="brand-text">
           <div class="brand-title">Perth Motor Bodies</div>
           <div class="brand-subtitle">PDC Control Board</div>
-          <div class="app-version" id="app-version">Version 2026.08.08.05-row-hours-save</div>
+          <div class="app-version" id="app-version">Version 2026.08.08.06-sublet-calendar</div>
         </div>
 
       </div>
@@ -482,6 +482,13 @@
           <section class="panel parts-home-panel sublet-home-panel">
             <div class="panel-header"><div><h2>Sublet bookings</h2><p>Provider queue, booking dates, notes and controlled email drafts.</p></div><span class="badge neutral" id="sublet-summary">0 shown</span></div>
             <div class="parts-summary-grid sublet-operational-filters" id="sublet-summary-grid" role="toolbar" aria-label="Sublet booking filters"></div>
+            <div class="sublet-view-toolbar">
+              <div class="sublet-view-switch" role="group" aria-label="Sublet display view"><button class="small-button is-active" id="sublet-list-view" type="button" aria-pressed="true">List View</button><button class="small-button" id="sublet-calendar-view" type="button" aria-pressed="false">Calendar View</button></div>
+              <div class="sublet-calendar-controls" id="sublet-calendar-controls" hidden>
+                <div class="sublet-calendar-navigation"><button class="small-button" id="sublet-calendar-previous" type="button" aria-label="Previous calendar period">‹</button><button class="small-button" id="sublet-calendar-today" type="button">Today</button><button class="small-button" id="sublet-calendar-next" type="button" aria-label="Next calendar period">›</button><strong id="sublet-calendar-range-label" aria-live="polite"></strong></div>
+                <div class="sublet-calendar-period-switch" role="group" aria-label="Sublet calendar period"><button class="small-button is-active" id="sublet-calendar-week" type="button" aria-pressed="true">Week</button><button class="small-button" id="sublet-calendar-month" type="button" aria-pressed="false">Month</button></div>
+              </div>
+            </div>
             <div class="table-toolbar advanced-toolbar wide-toolbar sublet-compact-toolbar"><label><span>Search</span><input id="sublet-search" type="search" placeholder="Key, stock, job card, customer, provider or notes..."></label><label><span>Provider</span><select id="sublet-provider-filter"><option value="all">All providers</option><option value="unassigned">Unassigned</option></select></label><label><span>Sort booked rows</span><select id="sublet-sort-filter"><option value="nearest">Nearest booking first</option><option value="date">Booking date first</option><option value="stock">Stock number</option></select></label></div>
             <div class="parts-help-strip"><strong>Sublet rule:</strong><span>SUBLET is a provider queue, not a numbered physical bay. Email actions open reviewed drafts and never send automatically.</span></div>
             <div id="sublet-home-content"></div>
@@ -950,15 +957,15 @@
   <script src="pdc-auth.js?v=2026.07.24.26-pd-document-intake"></script>
   <script src="pdc-auth-registration.js?v=2026.07.24.26-pd-document-intake"></script>
   <script src="data-staging-empty.js?v=2026.07.24.26-pd-document-intake"></script>
-  <script src="email-board-data.js?v=2026.08.08.05-row-hours-save"></script>
+  <script src="email-board-data.js?v=2026.08.08.06-sublet-calendar"></script>
   <script src="arb-labor-catalog.js?v=2026.07.24.26-pd-document-intake"></script>
   <script src="ai-board-advisor.js?v=2026.07.24.26-pd-document-intake"></script>
-  <script src="navision-backend-service.js?v=2026.08.08.05-row-hours-save"></script>
+  <script src="navision-backend-service.js?v=2026.08.08.06-sublet-calendar"></script>
   <script src="pdc-ai-intake-service.js?v=2026.07.25.03-ai-intake-admin-decision"></script>
-  <script src="workshop-eligibility.js?v=2026.08.08.05-row-hours-save"></script>
-  <script src="pdc-email-vehicle-location-service.js?v=2026.08.08.05-row-hours-save"></script>
+  <script src="workshop-eligibility.js?v=2026.08.08.06-sublet-calendar"></script>
+  <script src="pdc-email-vehicle-location-service.js?v=2026.08.08.06-sublet-calendar"></script>
   <script src="pdc-ai-auditor-stage-a.js?v=2026.07.29.12-stage-a-ui-service"></script>
-  <script src="app.js?v=2026.08.08.05-row-hours-save&amp;auditor=2026.07.30.03-recorded-decision-render"></script>
+  <script src="app.js?v=2026.08.08.06-sublet-calendar&amp;auditor=2026.07.30.03-recorded-decision-render"></script>
   <script src="pdc-ai-intake-review.js?v=2026.07.27.19-ai-review-decision-context"></script>
 
   <script src="scripts/stage2b_c4_browser_export.js?v=2026.07.22.01-read-only-assessment"></script>

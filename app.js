@@ -1,5 +1,5 @@
-const APP_VERSION = '2026.08.08.05-row-hours-save';
-const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.08.08.05-row-hours-save';
+const APP_VERSION = '2026.08.08.06-sublet-calendar';
+const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.08.08.06-sublet-calendar';
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
 // constant intentionally names only the production ref, never the
@@ -1949,6 +1949,9 @@ const app = {
   emailVehicleLocationGeneration: 0,
   emailVehicleLocationRealtime: null,
   subletMutationQueues: new Map(),
+  subletViewMode: 'list',
+  subletCalendarMode: 'week',
+  subletCalendarAnchor: '',
   navisionImport: loadJson(NAVISION_IMPORT_RESULTS_KEY, null),
   pendingNavisionImport: null,
   navisionFileName: '',
@@ -3014,6 +3017,13 @@ function bindNav() {
   on($('#sublet-search'), 'input', renderSubletHome);
   on($('#sublet-provider-filter'), 'change', renderSubletHome);
   on($('#sublet-sort-filter'), 'change', renderSubletHome);
+  on($('#sublet-list-view'), 'click', () => selectSubletView('list'));
+  on($('#sublet-calendar-view'), 'click', () => selectSubletView('calendar'));
+  on($('#sublet-calendar-week'), 'click', () => selectSubletCalendarMode('week'));
+  on($('#sublet-calendar-month'), 'click', () => selectSubletCalendarMode('month'));
+  on($('#sublet-calendar-previous'), 'click', () => moveSubletCalendar(-1));
+  on($('#sublet-calendar-today'), 'click', () => moveSubletCalendar(0));
+  on($('#sublet-calendar-next'), 'click', () => moveSubletCalendar(1));
   on($('#schedule-search'), 'input', renderScheduleBoard);
   on($('#schedule-department-filter'), 'change', renderScheduleBoard);
   on($('#department-search'), 'input', renderProductionDepartmentBoard);
@@ -19630,6 +19640,166 @@ function compareSubletBookingDate(a = {}, b = {}) {
   return String(displayStockNumber(a) || vehicleKey(a) || '').localeCompare(String(displayStockNumber(b) || vehicleKey(b) || ''), undefined, { numeric: true });
 }
 
+function subletDateKeyFromOrdinal(ordinal) {
+  if (!Number.isFinite(Number(ordinal))) return '';
+  const date = new Date(Number(ordinal));
+  return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}-${String(date.getUTCDate()).padStart(2, '0')}`;
+}
+
+function subletShiftDate(dateKey = '', days = 0) {
+  const ordinal = subletDateOrdinal(dateKey);
+  return ordinal === null ? '' : subletDateKeyFromOrdinal(ordinal + Number(days || 0) * 86400000);
+}
+
+function subletTodayDateKey(referenceDate = new Date()) {
+  if (!(referenceDate instanceof Date) || Number.isNaN(referenceDate.getTime())) return '';
+  return `${referenceDate.getFullYear()}-${String(referenceDate.getMonth() + 1).padStart(2, '0')}-${String(referenceDate.getDate()).padStart(2, '0')}`;
+}
+
+function subletCalendarRange(mode = 'week', anchorDate = '') {
+  const anchor = plainDateValue(anchorDate) || subletTodayDateKey();
+  const anchorOrdinal = subletDateOrdinal(anchor);
+  const safeAnchor = anchorOrdinal === null ? subletTodayDateKey() : anchor;
+  const parts = safeAnchor.split('-').map(Number);
+  const calendarMode = mode === 'month' ? 'month' : 'week';
+  let periodStart = safeAnchor;
+  let periodEnd = safeAnchor;
+  if (calendarMode === 'month') {
+    periodStart = `${parts[0]}-${String(parts[1]).padStart(2, '0')}-01`;
+    periodEnd = subletDateKeyFromOrdinal(Date.UTC(parts[0], parts[1], 0));
+  }
+  const startOrdinal = subletDateOrdinal(periodStart);
+  const endOrdinal = subletDateOrdinal(periodEnd);
+  const startDay = new Date(startOrdinal).getUTCDay();
+  const endDay = new Date(endOrdinal).getUTCDay();
+  const start = subletShiftDate(periodStart, -((startDay + 6) % 7));
+  const end = subletShiftDate(periodEnd, (7 - endDay) % 7);
+  const days = [];
+  for (let key = start; key && key <= end; key = subletShiftDate(key, 1)) days.push(key);
+  return { mode: calendarMode, anchor: safeAnchor, month: safeAnchor.slice(0, 7), start, end, days };
+}
+
+function subletCalendarEvents(rows = []) {
+  const events = [];
+  (Array.isArray(rows) ? rows : []).forEach(vehicle => {
+    const key = vehicleKey(vehicle);
+    const stock = displayStockNumber(vehicle) || 'Vehicle';
+    const provider = pmbBaySubletProvider(vehicle) || 'Provider not assigned';
+    const customer = vehicleCustomerName(vehicle) || 'Dealer Order';
+    const description = displayVehicle(vehicle) || '';
+    const bookingDate = plainDateValue(vehicle.pmbSubletBookingDate);
+    const expectedReturnDate = plainDateValue(vehicle.pmbSubletExpectedReturnDate);
+    const actualReturnDate = plainDateValue(vehicle.pmbSubletActualReturnDate);
+    const common = { key, stock, provider, customer, vehicle: description };
+    if (bookingDate) events.push({ ...common, date: bookingDate, type: 'outgoing', label: 'Going out', missingReturn: !expectedReturnDate && !actualReturnDate });
+    if (actualReturnDate) events.push({ ...common, date: actualReturnDate, type: 'returned', label: 'Returned', missingReturn: false });
+    else if (expectedReturnDate) events.push({ ...common, date: expectedReturnDate, type: 'due-back', label: 'Due back', missingReturn: false });
+  });
+  const typeOrder = { outgoing: 0, 'due-back': 1, returned: 2 };
+  return events.sort((a, b) => a.date.localeCompare(b.date)
+    || Number(typeOrder[a.type] ?? 9) - Number(typeOrder[b.type] ?? 9)
+    || String(a.stock).localeCompare(String(b.stock), undefined, { numeric: true }));
+}
+
+function subletDateChangeError(vehicle = {}, field = '', value = '') {
+  const next = plainDateValue(value);
+  const booking = field === 'pmbSubletBookingDate' ? next : plainDateValue(vehicle.pmbSubletBookingDate);
+  const expected = field === 'pmbSubletExpectedReturnDate' ? next : plainDateValue(vehicle.pmbSubletExpectedReturnDate);
+  const actual = field === 'pmbSubletActualReturnDate' ? next : plainDateValue(vehicle.pmbSubletActualReturnDate);
+  if (booking && expected && expected < booking) return field === 'pmbSubletBookingDate'
+    ? 'Booking date cannot be after the expected return date.'
+    : 'Expected return date cannot be before the booking date.';
+  if (booking && actual && actual < booking) return field === 'pmbSubletBookingDate'
+    ? 'Booking date cannot be after the actual return date.'
+    : 'Actual return date cannot be before the booking date.';
+  return '';
+}
+
+function selectSubletView(mode = 'list') {
+  app.subletViewMode = mode === 'calendar' ? 'calendar' : 'list';
+  if (app.subletViewMode === 'calendar') app.subletOperationalFilter = 'booked';
+  renderSubletHome();
+}
+
+function selectSubletCalendarMode(mode = 'week') {
+  app.subletCalendarMode = mode === 'month' ? 'month' : 'week';
+  renderSubletHome();
+}
+
+function moveSubletCalendar(direction = 0) {
+  const mode = app.subletCalendarMode === 'month' ? 'month' : 'week';
+  const anchor = plainDateValue(app.subletCalendarAnchor) || subletTodayDateKey();
+  if (!Number(direction)) app.subletCalendarAnchor = subletTodayDateKey();
+  else if (mode === 'week') app.subletCalendarAnchor = subletShiftDate(anchor, Number(direction) * 7);
+  else {
+    const [year, month] = anchor.split('-').map(Number);
+    app.subletCalendarAnchor = subletDateKeyFromOrdinal(Date.UTC(year, month - 1 + Number(direction), 1));
+  }
+  renderSubletHome();
+}
+
+function subletCalendarDateLabel(dateKey = '', options = {}) {
+  const ordinal = subletDateOrdinal(dateKey);
+  if (ordinal === null) return '';
+  return new Intl.DateTimeFormat('en-AU', { timeZone: 'UTC', ...options }).format(new Date(ordinal));
+}
+
+function subletCalendarRangeLabel(range = {}) {
+  if (range.mode === 'month') return subletCalendarDateLabel(`${range.month}-01`, { month: 'long', year: 'numeric' });
+  const start = subletCalendarDateLabel(range.start, { day: 'numeric', month: 'short' });
+  const end = subletCalendarDateLabel(range.end, { day: 'numeric', month: 'short', year: 'numeric' });
+  return `${start} – ${end}`;
+}
+
+function syncSubletViewControls(range = null) {
+  const calendar = app.subletViewMode === 'calendar';
+  const mode = app.subletCalendarMode === 'month' ? 'month' : 'week';
+  const listButton = $('#sublet-list-view');
+  const calendarButton = $('#sublet-calendar-view');
+  const controls = $('#sublet-calendar-controls');
+  const sortLabel = $('#sublet-sort-filter')?.closest?.('label');
+  [[listButton, !calendar], [calendarButton, calendar]].forEach(([button, active]) => {
+    if (!button) return;
+    button.classList.toggle('is-active', active);
+    button.setAttribute('aria-pressed', String(active));
+  });
+  if (controls) controls.hidden = !calendar;
+  if (sortLabel) sortLabel.hidden = calendar;
+  [['week', $('#sublet-calendar-week')], ['month', $('#sublet-calendar-month')]].forEach(([key, button]) => {
+    if (!button) return;
+    const active = key === mode;
+    button.classList.toggle('is-active', active);
+    button.setAttribute('aria-pressed', String(active));
+  });
+  const label = $('#sublet-calendar-range-label');
+  if (label) label.textContent = range ? subletCalendarRangeLabel(range) : '';
+}
+
+function renderSubletCalendar(rows = []) {
+  const range = subletCalendarRange(app.subletCalendarMode, app.subletCalendarAnchor);
+  app.subletCalendarAnchor = range.anchor;
+  syncSubletViewControls(range);
+  const today = subletTodayDateKey();
+  const eventsByDate = new Map();
+  subletCalendarEvents(rows).forEach(event => {
+    if (!eventsByDate.has(event.date)) eventsByDate.set(event.date, []);
+    eventsByDate.get(event.date).push(event);
+  });
+  const weekdayHeadings = range.days.slice(0, 7).map(date => `<span>${escapeHtml(subletCalendarDateLabel(date, { weekday: 'short' }))}</span>`).join('');
+  const days = range.days.map(date => {
+    const outside = range.mode === 'month' && !date.startsWith(range.month);
+    const events = eventsByDate.get(date) || [];
+    const eventHtml = events.map(event => `<button class="sublet-calendar-event is-${escapeHtml(event.type)} ${event.missingReturn ? 'is-missing-return' : ''}" type="button" data-sublet-calendar-event="${escapeHtml(`${event.type}:${event.key}:${date}`)}" data-open-stock="${escapeHtml(event.key)}" aria-label="${escapeHtml(`${event.label}: stock ${event.stock}, ${event.provider}, ${subletCalendarDateLabel(date, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`)}"><span>${escapeHtml(event.label)} · ${escapeHtml(event.stock)}</span><strong>${escapeHtml(event.provider)}</strong><small>${escapeHtml([event.customer, event.vehicle].filter(Boolean).join(' · '))}</small>${event.missingReturn ? '<em>Return date needed</em>' : ''}</button>`).join('');
+    return `<section class="sublet-calendar-day ${outside ? 'is-outside-month' : ''} ${date === today ? 'is-today' : ''}" data-sublet-calendar-date="${escapeHtml(date)}"><header><span>${escapeHtml(subletCalendarDateLabel(date, range.mode === 'month' ? { day: 'numeric' } : { day: 'numeric', month: 'short' }))}</span>${date === today ? '<b>Today</b>' : ''}</header><div class="sublet-calendar-day-events">${eventHtml}</div></section>`;
+  }).join('');
+  const missingReturns = rows.filter(vehicle => plainDateValue(vehicle.pmbSubletBookingDate) && !plainDateValue(vehicle.pmbSubletExpectedReturnDate) && !plainDateValue(vehicle.pmbSubletActualReturnDate)).length;
+  return `<div class="sublet-calendar-shell">
+    <div class="sublet-calendar-legend" aria-label="Calendar legend"><span class="is-outgoing"><i></i>Going out</span><span class="is-due-back"><i></i>Due back</span><span class="is-returned"><i></i>Returned</span>${missingReturns ? `<strong>${missingReturns} ${missingReturns === 1 ? 'vehicle needs' : 'vehicles need'} a return date</strong>` : ''}</div>
+    <div class="sublet-calendar-weekdays" aria-hidden="true">${weekdayHeadings}</div>
+    <div class="sublet-calendar-grid is-${escapeHtml(range.mode)}">${days}</div>
+  </div>`;
+}
+
 function renderSubletSummary(rows = []) {
   const host = $('#sublet-summary-grid');
   if (!host) return;
@@ -19644,6 +19814,7 @@ function renderSubletSummary(rows = []) {
   }).join('');
   $$('[data-sublet-operational-filter]', host).forEach(button => button.addEventListener('click', () => {
     app.subletOperationalFilter = button.dataset.subletOperationalFilter === 'booked' ? 'booked' : 'to-book';
+    if (app.subletOperationalFilter === 'to-book') app.subletViewMode = 'list';
     renderSubletHome();
   }));
 }
@@ -19719,6 +19890,12 @@ async function updateSubletField(key = '', field = '', value = '') {
   const vehicle = subletVehicleByKey(key);
   if (!vehicle) return false;
   const cleanValue = cleanNavisionText(value || '');
+  const dateError = subletDateChangeError(vehicle, field, cleanValue);
+  if (dateError) {
+    window.alert(dateError);
+    renderSubletHome();
+    return false;
+  }
   if (vehicle.__emailVehicleServerAuthoritative === true) {
     const service = app.emailVehicleLocationService;
     if (!service?.updateSublet || !vehicle.__emailVehicleId) {
@@ -19795,6 +19972,9 @@ function renderSubletHome() {
   if (!host) return;
   const search = cleanNavisionText($('#sublet-search')?.value || '').toLowerCase();
   const allRows = subletRows();
+  app.subletViewMode = app.subletViewMode === 'calendar' ? 'calendar' : 'list';
+  app.subletCalendarMode = app.subletCalendarMode === 'month' ? 'month' : 'week';
+  if (app.subletViewMode === 'calendar') app.subletOperationalFilter = 'booked';
   app.subletOperationalFilter = app.subletOperationalFilter === 'booked' ? 'booked' : 'to-book';
   app.subletExpandedRows = app.subletExpandedRows instanceof Set ? app.subletExpandedRows : new Set();
   renderSubletSummary(allRows);
@@ -19817,11 +19997,17 @@ function renderSubletHome() {
   const booked = allRows.length - unbooked;
   const count = $('#sublet-summary');
   if (count) count.textContent = `${rows.length} shown · ${unbooked} to book · ${booked} booked`;
+  if (app.subletViewMode === 'calendar') {
+    host.innerHTML = renderSubletCalendar(rows);
+    $$('[data-open-stock]', host).forEach(button => button.addEventListener('click', () => openVehicleModal(button.dataset.openStock)));
+    return;
+  }
+  syncSubletViewControls(null);
   if (!rows.length) {
     host.innerHTML = '<div class="empty-state"><strong>No Sublet vehicles match this filter</strong><span>Vehicles appear automatically when Sublet work is required. Adjust the filters or mark Sublet as required on the vehicle.</span></div>';
     return;
   }
-  host.innerHTML = `<div class="sublet-table-wrap"><table class="data-table compact-table sublet-table"><thead><tr><th aria-label="Expand"></th><th>Key</th><th>Stock</th><th>Job card</th><th>Customer</th><th>Vehicle</th><th>Provider</th><th>Booking date</th><th>Status</th><th>Actions</th></tr></thead><tbody>${rows.map(vehicle => {
+  host.innerHTML = `<div class="sublet-table-wrap"><table class="data-table compact-table sublet-table"><thead><tr><th aria-label="Expand"></th><th>Key</th><th>Stock</th><th>Job card</th><th>Customer</th><th>Vehicle</th><th>Provider</th><th>Booking date</th><th>Due back</th><th>Status</th><th>Actions</th></tr></thead><tbody>${rows.map(vehicle => {
     const key = vehicleKey(vehicle);
     const stock = displayStockNumber(vehicle) || 'vehicle';
     const accessibleStock = escapeHtml(stock);
@@ -19836,10 +20022,12 @@ function renderSubletHome() {
       <td><span title="${escapeHtml(displayVehicle(vehicle) || '')}">${escapeHtml(displayVehicle(vehicle) || '—')}</span></td>
       <td><select aria-label="Sublet provider for ${accessibleStock}" data-sublet-field="pmbSubletProvider" data-sublet-key="${escapeHtml(key)}">${subletProviderOptionsHtml(pmbBaySubletProvider(vehicle))}</select></td>
       <td><input type="date" aria-label="Sublet booking date for ${accessibleStock}" value="${escapeHtml(plainDateValue(vehicle.pmbSubletBookingDate))}" data-sublet-field="pmbSubletBookingDate" data-sublet-key="${escapeHtml(key)}"></td>
+      <td><input type="date" aria-label="Expected Sublet return date for ${accessibleStock}" value="${escapeHtml(plainDateValue(vehicle.pmbSubletExpectedReturnDate))}" data-sublet-field="pmbSubletExpectedReturnDate" data-sublet-key="${escapeHtml(key)}"></td>
       <td><span class="sublet-status-pill ${state === 'booked' ? 'is-booked' : 'is-to-book'}">${state === 'booked' ? 'Sublet Booked' : 'Sublet To Book'}</span></td>
       <td><button class="small-button" type="button" data-open-stock="${escapeHtml(key)}">Open vehicle</button></td>
-    </tr>${expanded ? `<tr class="sublet-detail-row"><td colspan="10"><div class="sublet-detail-grid">
+    </tr>${expanded ? `<tr class="sublet-detail-row"><td colspan="11"><div class="sublet-detail-grid">
       <label><span>Provider email</span><input type="email" aria-label="Sublet provider email for ${accessibleStock}" placeholder="Provider email" value="${escapeHtml(vehicle.pmbSubletProviderEmail || '')}" data-sublet-field="pmbSubletProviderEmail" data-sublet-key="${escapeHtml(key)}"></label>
+      <label><span>Actual return</span><input type="date" aria-label="Actual Sublet return date for ${accessibleStock}" value="${escapeHtml(plainDateValue(vehicle.pmbSubletActualReturnDate))}" data-sublet-field="pmbSubletActualReturnDate" data-sublet-key="${escapeHtml(key)}"></label>
       <label class="sublet-notes-field"><span>Notes</span><textarea rows="2" aria-label="Sublet notes for ${accessibleStock}" data-sublet-field="pmbSubletNotes" data-sublet-key="${escapeHtml(key)}">${escapeHtml(vehicle.pmbSubletNotes || '')}</textarea></label>
       <label class="sublet-email-check"><input type="checkbox" data-sublet-email-sent="${escapeHtml(key)}" ${vehicle.pmbSubletEmailSent ? 'checked' : ''}> Provider email sent</label>
       <div class="sublet-detail-actions"><button class="small-button" type="button" data-sublet-provider-email="${escapeHtml(key)}">Draft provider email</button><button class="small-button" type="button" data-sublet-sales-email="${escapeHtml(key)}">Draft sales update</button></div>
