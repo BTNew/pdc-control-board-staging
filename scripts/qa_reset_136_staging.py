@@ -14,7 +14,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(Path.home() / "pdc-control-board" / "_staging_test_tools"))
 from staging_env import load_local_env
 
-URL = "https://btnew.github.io/pdc-control-board-staging/?resetRelease=20260808-03-clean-workbook-reset-hardened"
+URL = "https://btnew.github.io/pdc-control-board-staging/?resetRelease=20260808-04-clean-workbook-reset-qa"
 STAGING_REF = "cdsmnqxtyyoeoznmbidd"
 PRODUCTION_REF = "vjdtsswhroyguxyfjdkt"
 PREVIEW = ROOT / "artifacts" / "reset_136_preview.json"
@@ -44,7 +44,7 @@ def main() -> None:
         page.on("requestfailed", lambda request: failed.append(request.url))
         page.on("request", lambda request: production.append(request.url) if PRODUCTION_REF in request.url else None)
         page.goto(URL, wait_until="networkidle", timeout=60000)
-        if page.locator("#app-version").inner_text().strip() != "Version 2026.08.08.03-clean-workbook-reset-hardened":
+        if page.locator("#app-version").inner_text().strip() != "Version 2026.08.08.04-clean-workbook-reset-qa":
             raise AssertionError("live staging release marker mismatch")
         page.wait_for_function("window.PDC_SUPABASE_CONFIG && typeof window.PDC_SUPABASE_CONFIG.projectRef === 'string'", timeout=30000)
         configured_ref = page.evaluate("window.PDC_SUPABASE_CONFIG.projectRef")
@@ -122,7 +122,7 @@ def main() -> None:
             raise AssertionError(f"workshop planner rendered stale bookings: {planner_bookings}")
         if errors or failed or production:
             raise AssertionError(f"browser errors={len(errors)} failed={len(failed)} production={len(production)}")
-        output.update({"ok": True, "release": "2026.08.08.03-clean-workbook-reset-hardened", "stagingProjectRef": STAGING_REF,
+        output.update({"ok": True, "release": "2026.08.08.04-clean-workbook-reset-qa", "stagingProjectRef": STAGING_REF,
             "vehicles": len(vehicles), "locations": dict(sorted(locations.items())), "operations": len(lines),
             "repeatedJobCardCount": len(repeated_jcs), "plannerBookings": planner_bookings,
             "consoleErrors": 0, "failedRequests": 0, "productionRequests": 0,
