@@ -27,6 +27,8 @@ _staging_test_tools/*
 !_staging_test_tools/*.py
 !_staging_test_tools/.env.example
 _build/
+artifacts/
+.venv-reset/
 
 # The committed Python tests and blank/fake template make the staging suite
 # independently reproducible. A populated .env remains ignored by the global

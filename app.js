@@ -1,5 +1,5 @@
-const APP_VERSION = '2026.07.29.10-operational-mutation-reliability';
-const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.07.29.10-operational-mutation-reliability';
+const APP_VERSION = '2026.08.08.02-clean-workbook-reset';
+const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.08.08.02-clean-workbook-reset';
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
 // constant intentionally names only the production ref, never the
@@ -10553,9 +10553,10 @@ function vehicleWorkshopGroups(vehicle = {}, detail = null) {
   });
   authenticatedLines.forEach(line => {
     const stage = vehicleWorkshopStageCode(line.work_key);
+    const jobCard = cleanNavisionText(line.job_card_number || line.jobCardNumber || '');
     if (groups.has(stage)) groups.get(stage).lines.push({
       ...line,
-      description: `${authenticatedOperationLineLabel(line.operation_no)} · ${line.description}`,
+      description: `${jobCard ? `JC ${jobCard} · ` : ''}${authenticatedOperationLineLabel(line.operation_no)} · ${line.description}`,
       authenticatedEmailOperation: true,
     });
   });
