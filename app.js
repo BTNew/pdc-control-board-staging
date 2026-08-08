@@ -1,5 +1,5 @@
-const APP_VERSION = '2026.08.05.02-ai-intake-triage-labels';
-const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.08.05.02-ai-intake-triage-labels';
+const APP_VERSION = '2026.08.08.01-fitting-live-projection';
+const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.08.08.01-fitting-live-projection';
 const PDC_BASE_DOCUMENT_TITLE = String(document.title || '').trim() || 'PDC Control Board';
 const routeDocumentTitle = title => `${title} — ${PDC_BASE_DOCUMENT_TITLE}`;
 

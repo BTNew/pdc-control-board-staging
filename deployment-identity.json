@@ -1,14 +1,14 @@
 {
   "artifact": "zero-embedded-data static staging site",
   "environment": "staging",
-  "generatedAtUtc": "2026-08-05T06:52:44Z",
-  "deploymentMode": "Staging-only typed AI Intake detected-change previews; operational authority unchanged",
-  "baseDeploymentCommit": "3037b3acab4de04588aff3b2f16299d0c644adca",
+  "generatedAtUtc": "2026-08-08T00:58:35Z",
+  "deploymentMode": "Staging-only Fitting live-overrun projection; render-only authority and operational data unchanged",
+  "baseDeploymentCommit": "b0778d98ec9abccc20fecd525e893f25728c705d",
   "sourceRepository": "BTNew/pdc-control-board",
-  "sourceBranch": "feature/ai-intake-detected-change-preview-20260805",
-  "sourceCommit": "8457712aeada23d329faafaa79e0e009ca9cd118",
-  "sourceTree": "5479cc1a49624f1cdcb44a06467fdd4b9499decf",
-  "cacheVersion": "2026.08.05.04-detected-change-preview",
+  "sourceBranch": "fix/staging-fitting-live-projection-20260806",
+  "sourceCommit": "4af88adcc01dd22c09b35fcceb1ed740c757e402",
+  "sourceTree": "ad4ac58fd3109bd3b84ecddc0562ae28063584dd",
+  "cacheVersion": "2026.08.08.01-fitting-live-projection",
   "stagingProjectRef": "cdsmnqxtyyoeoznmbidd",
   "zeroData": true,
   "mailboxAuthority": false,
@@ -16,9 +16,9 @@
   "productionActivation": false,
   "pilotActivation": false,
   "migrationLedger": {
-    "appliedThrough": "133",
-    "ledgerHead": "133",
-    "migration": "email_import_receipt_acl_hardening",
+    "appliedThrough": "134",
+    "ledgerHead": "134",
+    "migration": "navision_preserve_deleted_canonical_identity",
     "rollbackAvailable": false
   },
   "retiredRoutes": [
@@ -44,12 +44,12 @@
     "applyReceipts": 0
   },
   "releaseChecks": {
-    "aggregateTests": "142 passed, 0 failed, 1 documented clean-build skip",
-    "focusedTests": "Typed preview unit/integration/containment passed; authenticated local staging: 63 cards, 10 actionable change rows, 10 approval panels, 63 no-change rejection/dismissal panels, zero console/page errors, zero unexpected origins, zero horizontal overflow; desktop and 390px mobile visual QA passed",
-    "assetParity": "Every deployment allowlist file is content-identical to source commit; source staging.html is deployed as index.html",
-    "roleSecurity": "Existing protected board-activation decision authority unchanged. WPC/Parts are display-contract-only until a server-generated immutable preview and canonical protected mutator exist. Email prose and monitor observations cannot create executable authority.",
+    "aggregateTests": "143 passed, 0 failed, 1 documented clean-build skip",
+    "focusedTests": "Real 7 August Fitting RPC-shaped projection passed under UTC, America/Los_Angeles and Australia/Perth; authenticated candidate browser moved Bay 1 planned work off Friday, preserved Bay 2, showed Bays 1/3/4/5 live, performed zero passive view writes, and recorded zero console/page/request/HTTP errors and zero production requests",
+    "assetParity": "Changed deployment allowlist files are content-identical to source commit; source staging.html is deployed as index.html",
+    "roleSecurity": "Existing operator/administrator mutation authority unchanged; projection is render-only and shared booking rows remain authoritative",
     "production": "unchanged",
-    "excludedRelease": "No database migration, mailbox/pdc-monitor change, WPC/Parts operational executor, Workshop .09 artifact, production main, DNS or pilot activation is included"
+    "excludedRelease": "No database migration, mailbox/pdc-monitor change, production main, DNS or pilot activation is included"
   },
   "sourceFiles": [
     {
@@ -67,7 +67,7 @@
     {
       "sourcePath": "app.js",
       "deployedPath": "app.js",
-      "sha256": "b131a2d69fe80d7ff5cc011f6e0ca4fc796103a3f767fffbc2e525eaacd2f09c",
+      "sha256": "90d8cc1a9298536cc71dd8bf13027cf5c098731bfbe5ca1274e6d085950986d1",
       "bytes": 1034739
     },
     {
@@ -115,7 +115,7 @@
     {
       "sourcePath": "staging.html",
       "deployedPath": "index.html",
-      "sha256": "5e1138d8895d4867f293e7c5ac6e71fc8258762293306268ad8ffae4d9875bc4",
+      "sha256": "44df1ec039722d3afa79c181ebcdf77886725fcc2d6b700decc28fa14522e4f6",
       "bytes": 64100
     },
     {
@@ -181,7 +181,7 @@
     {
       "sourcePath": "pdc-supabase-config.staging.js",
       "deployedPath": "pdc-supabase-config.staging.js",
-      "sha256": "467c47aa506a823ff71e975cb0757ea92ca5b033b6445c6950eef3d957dcf852",
+      "sha256": "1bbe3043737ba38df6b1fc028aea75e8b1a8120a6855e0563f0e1d26ba9bc546",
       "bytes": 1708
     },
     {
@@ -283,8 +283,8 @@
     {
       "sourcePath": "workshop-planner.js",
       "deployedPath": "workshop-planner.js",
-      "sha256": "35ec8c86dfed6a90f4264ca28473d066a1243ce919379a4a053530af9c004e29",
-      "bytes": 328791
+      "sha256": "568ed63fa862f42cbd7b0c46ff1aa7e7a71a984731b02fd6e54c73c6fd9304f4",
+      "bytes": 332855
     },
     {
       "sourcePath": "workshop-realtime.js",
@@ -341,5 +341,32 @@
     "rejectOrDismissMutatesOperationalData": false,
     "browserInfersChangesFromEmailText": false,
     "monitorObservationsGrantPreviewAuthority": false
+  },
+  "fittingLiveProjection": {
+    "selectedDate": "2026-08-07",
+    "preDeployment": {
+      "bay1StartedVisible": true,
+      "bay1LaterPlannedVisible": true,
+      "passiveViewWrites": 1
+    },
+    "candidate": {
+      "bay1StartedVisible": true,
+      "bay1LaterPlannedVisible": false,
+      "bay2IndependentPlannedVisible": true,
+      "liveBays": [
+        1,
+        3,
+        4,
+        5
+      ],
+      "passiveViewWrites": 0
+    },
+    "stopConditions": [
+      "stoppage",
+      "completed"
+    ],
+    "authoritativeRowsMutated": 0,
+    "browserErrors": 0,
+    "productionRequests": 0
   }
 }

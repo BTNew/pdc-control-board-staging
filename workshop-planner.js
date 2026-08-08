@@ -476,11 +476,32 @@ function workshopEntryUsesConfiguredOvertime(entry = {}) {
 
 function workshopEntryIsOvertime(entry = {}, now = new Date()) {
   if (!workshopEntryIsLive(entry)) return false;
-  return workshopLatestWorkMoment(now) > workshopEntryEnd(entry);
+  const comparisonMoment = entry.status === 'stoppage'
+    ? parseIsoTimestamp(entry.stoppageAt || entry.stoppage_started_at || '')
+    : now;
+  if (!comparisonMoment) return false;
+  return workshopLatestWorkMoment(comparisonMoment) > workshopEntryEnd(entry);
+}
+
+function workshopStoppedEffectiveEnd(entry = {}) {
+  const plannedEnd = workshopEntryEnd(entry);
+  const stoppedAt = parseIsoTimestamp(entry.stoppageAt || entry.stoppage_started_at || '');
+  if (!stoppedAt) return plannedEnd;
+  const latest = workshopLatestWorkMoment(stoppedAt);
+  if (latest <= plannedEnd) return plannedEnd;
+
+  // A stoppage freezes occupancy at its authoritative timestamp. Snap forward
+  // only to the display increment; unlike a running job, do not add another
+  // increment on every later wall-clock tick.
+  const minuteOfDay = workshopMinuteOfDay(latest);
+  if (minuteOfDay >= WORKSHOP_PLANNER_CONFIG.dayEndMinutes) return latest;
+  return workshopNormalizeStartDate(latest);
 }
 
 function workshopEntryEffectiveEnd(entry = {}, now = new Date()) {
   const plannedEnd = workshopEntryEnd(entry);
+  if (!workshopEntryIsLive(entry)) return plannedEnd;
+  if (entry.status === 'stoppage') return workshopStoppedEffectiveEnd(entry);
   if (!workshopEntryIsOvertime(entry, now)) return plannedEnd;
   const latest = workshopLatestWorkMoment(now);
   return workshopAddWorkMinutes(latest, WORKSHOP_PLANNER_CONFIG.schedulingIncrementMinutes);
@@ -566,9 +587,11 @@ function workshopMapSnapshotBookingToLegacyRow(booking = {}, vehicleById = null)
     sharedBookingId: booking.booking_id,
     sharedVersion: booking.version,
     sharedVehicleId,
-    // sharedVehicleId remains the only authority. The display key is resolved
-    // from the separately scoped vehicle DTO; UUID fallback keeps the booking
-    // renderable without inventing or reverse-matching mutable identifiers.
+    sharedBayId: String(bay?.id || '').trim(),
+    // Immutable shared vehicle and bay UUIDs remain the resource authority.
+    // The display key is resolved from the separately scoped vehicle DTO;
+    // UUID fallback keeps the booking renderable without inventing or
+    // reverse-matching mutable identifiers.
     vehicleKey: vehicle.stock_number || vehicle.permanent_vehicle_id || sharedVehicleId,
     stage: normalizePmbStage(stage.code || ''),
     bay: bay ? Number(bay.bay_number) || 0 : 0,
@@ -1096,7 +1119,8 @@ function workshopApplyOpenDateDefault(state = workshopState(), now = new Date())
   if (typeof app === 'undefined' || app.pendingWorkshopOpenToday !== true) return false;
   state.date = workshopDefaultOpenDateKey(now);
   workshopClearSelectedDetail(state);
-  workshopSaveView(state);
+  // Route entry is a passive view operation. Keep the default in memory and
+  // persist only after an explicit date/stage choice or protected action.
   app.pendingWorkshopOpenToday = false;
   return true;
 }
@@ -2416,6 +2440,20 @@ function workshopRequireAvailableAssignee(entry = {}, rows = workshopLoadPlans()
 function workshopEntryIsLive(entry = {}) {
   if (!['started', 'stoppage'].includes(entry.status)) return false;
 
+  // Shared snapshots carry immutable booking, vehicle and physical-bay UUIDs.
+  // Those protected DTO identities are authoritative even when legacy mirror
+  // fields on vehicles have not been populated. Never trust shared status text
+  // without all three identities and a valid canonical bay number.
+  if (entry.sharedBookingId || entry.sharedVehicleId || entry.sharedBayId) {
+    return Boolean(
+      entry.sharedBookingId
+      && entry.sharedVehicleId
+      && entry.sharedBayId
+      && Number.isInteger(Number(entry.bay))
+      && Number(entry.bay) > 0
+    );
+  }
+
   const vehicle = workshopVehicle(entry.vehicleKey);
   return Boolean(vehicle && Number(pmbBayNumber(vehicle, entry.stage)) === Number(entry.bay));
 }
@@ -2436,6 +2474,32 @@ function workshopCascadePlans(rows = workshopLoadPlans(), now = new Date()) {
     changed = true;
   }
   return { rows: nextRows, changed };
+}
+
+function workshopProjectLiveSchedule(rows = [], now = new Date()) {
+  // Dedicated station routes render a fresh authoritative snapshot on every
+  // clock tick. Project live overruns into display-only start times without
+  // altering that snapshot or copying synthetic updatedAt/version values into
+  // rows later used by action handlers. The baseline marker also makes this
+  // helper idempotent if an already-projected result is accidentally reused.
+  const baselineRows = (Array.isArray(rows) ? rows : []).map(entry => {
+    const baselineStartAt = entry.__workshopProjectionBaseStartAt || entry.startAt;
+    const baseline = { ...entry, startAt: baselineStartAt };
+    delete baseline.__workshopProjectionBaseStartAt;
+    delete baseline.__workshopProjectedByLiveOverrun;
+    return baseline;
+  });
+  const projectedById = new Map(workshopCascadePlans(baselineRows, now).rows.map(entry => [entry.id, entry]));
+  return baselineRows.map(entry => {
+    const projected = projectedById.get(entry.id);
+    if (!projected || projected.startAt === entry.startAt) return { ...entry };
+    return {
+      ...entry,
+      startAt: projected.startAt,
+      __workshopProjectionBaseStartAt: entry.startAt,
+      __workshopProjectedByLiveOverrun: true,
+    };
+  });
 }
 
 function workshopCascadeAndSave(rows = workshopLoadPlans(), now = new Date()) {
@@ -2508,17 +2572,14 @@ function workshopDateLabel(dateKey = '') {
 }
 
 function workshopSyncCompletedPlans(rows = workshopLoadPlans()) {
-  let changed = false;
-  const next = rows.map(entry => {
+  return rows.map(entry => {
     if (entry.status === 'completed') return entry;
     const vehicle = workshopVehicle(entry.vehicleKey);
     const def = vehicle ? pmbStageJobDef(entry.stage) : null;
     if (!vehicle || !def || !pdcJobComplete(vehicle, def)) return entry;
-    changed = true;
-    return { ...entry, status: 'completed', completedAt: vehicle[def.completeAtKey] || nowIsoString(), updatedAt: nowIsoString() };
+    const completedAt = vehicle[def.completeAtKey] || entry.completedAt || '';
+    return { ...entry, status: 'completed', ...(completedAt ? { completedAt } : {}) };
   });
-  if (changed && !workshopSharedModeActive()) workshopSavePlans(next);
-  return next;
 }
 
 function workshopStageVehicles(stage = '') {
@@ -3168,10 +3229,12 @@ function workshopPlanChipHtml(entry = {}, dateKey = '', rows = workshopLoadPlans
   const draggable = entry.status !== 'completed' && !entry.legacyAmbiguityReason;
   const assignee = cleanNavisionText(entry.assignee || '') || workshopBayMechanic(entry.stage, entry.bay) || '';
   const statusLabel = entry.status === 'completed' ? 'COMPLETED' : entry.status === 'stoppage' ? 'STOPPAGE' : entry.status === 'started' ? 'LIVE' : 'PLANNED';
+  const segmentTimeLabel = `${workshopTimeLabelFromMinutes(segment.start)}–${workshopTimeLabelFromMinutes(segment.end)}`;
+  const segmentContinuationLabel = `${segment.continuesFromPrevious ? ' · continues from previous workday' : ''}${segment.continuesNext ? ' · continues next workday' : ''}`;
   const lifecycleActionsHtml = workshopPlanLifecycleActionsHtml(entry);
   const classes = [blocked ? 'is-blocked' : '', started ? 'is-started' : '', overtime ? 'is-overtime' : '', etaRisk ? 'is-eta-risk' : '', segment.usesConfiguredOvertime ? 'uses-configured-overtime' : '', segment.historicalOnClosure ? 'historical-on-closure' : '', assigneeConflict ? 'has-assignee-conflict' : '', entry.status === 'stoppage' ? 'is-stoppage' : '', lifecycleActionsHtml ? 'has-lifecycle-actions' : '', selected ? 'is-selected' : '', highlighted ? 'is-search-match' : '', segment.continuesFromPrevious ? 'continues-from-previous' : '', segment.continuesNext ? 'continues-next' : ''].filter(Boolean).join(' ');
   const conflictNote = assigneeConflict ? ` · WARNING: ${entry.assignee} is booked on another vehicle at this time` : '';
-  return `<article class="workshop-plan-chip ${classes}" ${draggable ? 'draggable="true"' : ''} data-workshop-plan-id="${escapeHtml(entry.id)}" data-workshop-job-vehicle="${escapeHtml(entry.vehicleKey)}" data-workshop-locate-key="${escapeHtml(entry.vehicleKey)}" style="--plan-left:${left}%;--plan-width:${width}%;" title="${escapeHtml(`${workshopEntryTimeLabel(entry)} · ${entry.hours}h total${conflictNote} · double-click for vehicle job${entry.status === 'completed' ? ' · completed history stays fixed' : entry.status === 'planned' ? ' · drag to reschedule' : ' · drag to move this live job safely'}`)}">
+  return `<article class="workshop-plan-chip ${classes}" ${draggable ? 'draggable="true"' : ''} data-workshop-plan-id="${escapeHtml(entry.id)}" data-workshop-job-vehicle="${escapeHtml(entry.vehicleKey)}" data-workshop-locate-key="${escapeHtml(entry.vehicleKey)}" style="--plan-left:${left}%;--plan-width:${width}%;" title="${escapeHtml(`${segmentTimeLabel}${segmentContinuationLabel} · ${entry.hours}h total${conflictNote} · double-click for vehicle job${entry.status === 'completed' ? ' · completed history stays fixed' : entry.status === 'planned' ? ' · drag to reschedule' : ' · drag to move this live job safely'}`)}">
     <button class="workshop-plan-main" type="button" data-workshop-select-plan="${escapeHtml(entry.id)}">
       <strong>JC ${escapeHtml(vehicleJobcardNumber(vehicle) || 'TBA')} · ${escapeHtml(displayStockNumber(vehicle) || 'No stock')}</strong>
       <span>${escapeHtml(vehicle.vehicle || vehicle.toyotaVehicle || 'Vehicle')}</span>
@@ -3584,7 +3647,11 @@ function renderWorkshopPlanner() {
     renderHost.innerHTML = workshopStationSnapshotEmptyStateHtml(stage);
     return;
   }
-  let plans = dedicatedStage ? workshopLoadPlans() : workshopCascadeAndSave(workshopSyncCompletedPlans());
+  const authoritativePlans = dedicatedStage ? workshopLoadPlans() : workshopSyncCompletedPlans();
+  // Every clock-rendered route uses the same pure projection. Each render
+  // starts again from the authoritative snapshot/local store, so projected
+  // starts never become persistence authority or accumulate drift.
+  let plans = workshopProjectLiveSchedule(authoritativePlans, new Date());
   if (pendingBookingLink && normalizePmbStage(pendingBookingLink.stage || '') === stage) {
     const pendingPlan = plans.find(entry => String(entry.id || '') === String(pendingBookingLink.bookingId || ''));
     if (pendingPlan) {
@@ -5285,7 +5352,9 @@ function workshopWeeklyCardHtml(entry = {}, dateKey = '') {
   const draggable = entry.status !== 'completed';
   const assignee = cleanNavisionText(entry.assignee || '') || workshopBayMechanic(entry.stage, entry.bay) || '';
   const statusLabel = entry.status === 'stoppage' ? 'STOPPAGE' : entry.status === 'started' ? 'LIVE' : 'PLANNED';
-  return `<article class="workshop-week-card ${entry.status !== 'planned' ? 'is-live' : ''} ${segment.usesConfiguredOvertime ? 'uses-configured-overtime' : ''} ${segment.historicalOnClosure ? 'historical-on-closure' : ''}" ${draggable ? 'draggable="true"' : ''} data-workshop-week-plan="${escapeHtml(entry.id)}" data-workshop-job-vehicle="${escapeHtml(entry.vehicleKey)}" style="--week-top:${top}%;--week-height:${height}%;" title="${escapeHtml(`${workshopEntryTimeLabel(entry)} · ${entry.hours} hours${segment.usesConfiguredOvertime ? ' · configured overtime' : ''}${segment.historicalOnClosure ? ' · historical booking on closure' : ''}${entry.status === 'completed' ? ' · completed history stays fixed' : entry.status === 'planned' ? ' · drag to another day/time' : ' · drag to move this live job safely'}`)}">
+  const segmentTimeLabel = `${workshopTimeLabelFromMinutes(segment.start)}–${workshopTimeLabelFromMinutes(segment.end)}`;
+  const segmentContinuationLabel = `${segment.continuesFromPrevious ? ' · continues from previous workday' : ''}${segment.continuesNext ? ' · continues next workday' : ''}`;
+  return `<article class="workshop-week-card ${entry.status !== 'planned' ? 'is-live' : ''} ${segment.usesConfiguredOvertime ? 'uses-configured-overtime' : ''} ${segment.historicalOnClosure ? 'historical-on-closure' : ''}" ${draggable ? 'draggable="true"' : ''} data-workshop-week-plan="${escapeHtml(entry.id)}" data-workshop-job-vehicle="${escapeHtml(entry.vehicleKey)}" style="--week-top:${top}%;--week-height:${height}%;" title="${escapeHtml(`${segmentTimeLabel}${segmentContinuationLabel} · ${entry.hours} hours${segment.usesConfiguredOvertime ? ' · configured overtime' : ''}${segment.historicalOnClosure ? ' · historical booking on closure' : ''}${entry.status === 'completed' ? ' · completed history stays fixed' : entry.status === 'planned' ? ' · drag to another day/time' : ' · drag to move this live job safely'}`)}">
     <strong>JC ${escapeHtml(vehicleJobcardNumber(vehicle) || 'TBA')}</strong>
     <span>${escapeHtml(vehicle.vehicle || vehicle.toyotaVehicle || 'Vehicle')}</span>
     <small>${escapeHtml(`${statusLabel}${assignee ? ` · ${assignee}` : ''}`)}</small>
@@ -5367,7 +5436,8 @@ function openWorkshopWeeklyView(stage = '', bay = 1, anchorDate = '') {
   document.querySelector('[data-workshop-week-overlay]')?.remove();
   const weekStart = workshopWeekStart(anchorDate || workshopState().date);
   const dates = workshopWeekDates(weekStart);
-  const plans = workshopCascadeAndSave(workshopLoadPlans()).filter(entry => entry.stage === normalizedStage && Number(entry.bay) === Number(bay) && entry.status !== 'completed');
+  const plans = workshopProjectLiveSchedule(workshopSyncCompletedPlans(workshopLoadPlans()), new Date())
+    .filter(entry => entry.stage === normalizedStage && Number(entry.bay) === Number(bay) && entry.status !== 'completed');
   const columns = dates.map(date => {
     const dateKey = workshopDateKey(date);
     const isClosure = workshopIsClosureDate(date);
@@ -5698,10 +5768,13 @@ if (typeof module !== 'undefined' && module.exports) {
     workshopDateFromKey,
     workshopDateAtOffset,
     workshopDefaultOpenDateKey,
+    workshopApplyOpenDateDefault,
     workshopNormalizeStartDate,
     workshopAddWorkMinutes,
     workshopWorkMinutesBetween,
     workshopCascadePlans,
+    workshopProjectLiveSchedule,
+    workshopSyncCompletedPlans,
     workshopEntrySegmentForDate,
     workshopEntryStart,
     workshopEntryEnd,
@@ -5710,6 +5783,7 @@ if (typeof module !== 'undefined' && module.exports) {
     workshopResolveBookingSelection,
     workshopBookingsForEntry,
     workshopEntryUsesConfiguredOvertime,
+    workshopEntryIsLive,
     workshopEntryIsOvertime,
     workshopEntryHasAssigneeConflict,
     workshopAssigneeConflict,

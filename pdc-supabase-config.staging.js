@@ -34,6 +34,6 @@ window.PDC_SUPABASE_CONFIG = {
   vehicleLifecycle: Object.freeze({
     sharedData: true,
     resolverRollbackDirectRead: false,
-    resolverAssetVersion: '2026.08.05.02-ai-intake-triage-labels',
+    resolverAssetVersion: '2026.08.08.01-fitting-live-projection',
   })
 };
