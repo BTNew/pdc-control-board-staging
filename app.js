@@ -1,5 +1,5 @@
-const APP_VERSION = '2026.08.08.01-fitting-live-projection';
-const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.08.08.01-fitting-live-projection';
+const APP_VERSION = '2026.08.08.02-clean-workbook-reset';
+const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.08.08.02-clean-workbook-reset';
 const PDC_BASE_DOCUMENT_TITLE = String(document.title || '').trim() || 'PDC Control Board';
 const routeDocumentTitle = title => `${title} — ${PDC_BASE_DOCUMENT_TITLE}`;
 
@@ -10703,9 +10703,10 @@ function vehicleWorkshopGroups(vehicle = {}, detail = null) {
   });
   authenticatedLines.forEach(line => {
     const stage = vehicleWorkshopStageCode(line.work_key);
+    const jobCard = cleanNavisionText(line.job_card_number || line.jobCardNumber || '');
     if (groups.has(stage)) groups.get(stage).lines.push({
       ...line,
-      description: `${authenticatedOperationLineLabel(line.operation_no)} · ${line.description}`,
+      description: `${jobCard ? `JC ${jobCard} · ` : ''}${authenticatedOperationLineLabel(line.operation_no)} · ${line.description}`,
       authenticatedEmailOperation: true,
     });
   });

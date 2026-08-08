@@ -1,14 +1,14 @@
 {
   "artifact": "zero-embedded-data static staging site",
   "environment": "staging",
-  "generatedAtUtc": "2026-08-08T00:58:35Z",
-  "deploymentMode": "Staging-only Fitting live-overrun projection; render-only authority and operational data unchanged",
-  "baseDeploymentCommit": "b0778d98ec9abccc20fecd525e893f25728c705d",
+  "generatedAtUtc": "2026-08-08T03:48:07Z",
+  "deploymentMode": "Staging-only clean matched-workbook board reset; exact Navision authority, operation and exception receipts",
+  "baseDeploymentCommit": "edbf71d17e96d3c2b3f1dfaab1b796427bdfe331",
   "sourceRepository": "BTNew/pdc-control-board",
-  "sourceBranch": "fix/staging-fitting-live-projection-20260806",
-  "sourceCommit": "4af88adcc01dd22c09b35fcceb1ed740c757e402",
-  "sourceTree": "ad4ac58fd3109bd3b84ecddc0562ae28063584dd",
-  "cacheVersion": "2026.08.08.01-fitting-live-projection",
+  "sourceBranch": "fix/staging-ai-intake-auto-activation-20260808",
+  "sourceCommit": "cf9595117e87cf4ba11353eaa7f0de163ea6c040",
+  "sourceTree": "a214189a2f1e42c4039757399c0da38a1f807240",
+  "cacheVersion": "2026.08.08.02-clean-workbook-reset",
   "stagingProjectRef": "cdsmnqxtyyoeoznmbidd",
   "zeroData": true,
   "mailboxAuthority": false,
@@ -16,10 +16,11 @@
   "productionActivation": false,
   "pilotActivation": false,
   "migrationLedger": {
-    "appliedThrough": "134",
-    "ledgerHead": "134",
-    "migration": "navision_preserve_deleted_canonical_identity",
-    "rollbackAvailable": false
+    "appliedThrough": "136",
+    "ledgerHead": "136",
+    "migration": "clean_workbook_board_reset",
+    "rollbackAvailable": true,
+    "backupManifestSha256": "b624e19411f00eabf9128ea166dd75bb3c43945a2edc9ef716419ce60b6d930a"
   },
   "retiredRoutes": [
     "pipeline",
@@ -30,57 +31,59 @@
   ],
   "serviceWorkers": [],
   "localScreenshotServersActive": 0,
-  "syntheticInventory": {
-    "approvedNamespace": "QA-WCB-20260728T130102Z",
-    "total": 152,
-    "active": 0,
-    "retainedNonFixtureRecords": 73
-  },
   "workbookReview": {
     "administratorOnly": true,
-    "readOnly": true,
-    "operationalApply": false,
-    "acceptedRows": 0,
-    "applyReceipts": 0
+    "readOnly": false,
+    "operationalApply": true,
+    "workbookPairs": 411,
+    "workbookStocks": 403,
+    "workbookOperations": 3483,
+    "acceptedRows": 330,
+    "acceptedStocks": 325,
+    "acceptedOperations": 2943,
+    "exceptionRows": 81,
+    "exceptionStocks": 78,
+    "exceptionOperations": 540,
+    "applyReceipts": 1
   },
   "releaseChecks": {
-    "aggregateTests": "143 passed, 0 failed, 1 documented clean-build skip",
-    "focusedTests": "Real 7 August Fitting RPC-shaped projection passed under UTC, America/Los_Angeles and Australia/Perth; authenticated candidate browser moved Bay 1 planned work off Friday, preserved Bay 2, showed Bays 1/3/4/5 live, performed zero passive view writes, and recorded zero console/page/request/HTTP errors and zero production requests",
-    "assetParity": "Changed deployment allowlist files are content-identical to source commit; source staging.html is deployed as index.html",
-    "roleSecurity": "Existing operator/administrator mutation authority unchanged; projection is render-only and shared booking rows remain authoritative",
+    "aggregateTests": "139 passed, 0 failed, 1 documented clean-build skip",
+    "focusedTests": "8 workbook Python tests passed; full transactional rehearsal and late-fault rollback passed",
+    "assetParity": "Bounded three-file patch layered onto staging baseline edbf71d; newer staging-only integrations preserved",
+    "roleSecurity": "Reset function private to database owner; receipts RLS-enabled and private from public/anon/authenticated/service_role",
     "production": "unchanged",
-    "excludedRelease": "No database migration, mailbox/pdc-monitor change, production main, DNS or pilot activation is included"
+    "excludedRelease": "No production repository/main, production database, mailbox/pdc-monitor, DNS or pilot activation included"
   },
   "sourceFiles": [
     {
       "sourcePath": "ai-auditor.css",
       "deployedPath": "ai-auditor.css",
-      "sha256": "42082df36786db1d64a4cba7f3e5638edfd22fac401d8857c780470f0eb1a10c",
-      "bytes": 8492
+      "sha256": "85ba6f48a206cd7b3b5433725a96dcda0c51b927cb18e280556fc1f5e9b64a8c",
+      "bytes": 8641
     },
     {
       "sourcePath": "ai-board-advisor.js",
       "deployedPath": "ai-board-advisor.js",
-      "sha256": "a01dc581a417684c5a3377057bc70a57624bdaa3ad67c24b408eedfa86e0fc4e",
-      "bytes": 19046
+      "sha256": "97785220d0b72527327955c39c02e276d33a2c1391f220f211b83996ece07c65",
+      "bytes": 19394
     },
     {
       "sourcePath": "app.js",
       "deployedPath": "app.js",
-      "sha256": "90d8cc1a9298536cc71dd8bf13027cf5c098731bfbe5ca1274e6d085950986d1",
-      "bytes": 1034739
+      "sha256": "85098ba3ca192c81256bb67679b4657a9e98cf55649cb50e3e1902867a1759a4",
+      "bytes": 1054914
     },
     {
       "sourcePath": "arb-labor-catalog.js",
       "deployedPath": "arb-labor-catalog.js",
-      "sha256": "db99ee8c4ddf341ce3f948dc04fb70cbe6c66d122be1a262f7074552a2fa49c0",
-      "bytes": 144811
+      "sha256": "1800e93b325bfd58d9b0131d2105f78b775885bd82e88ceed63d3ecf6100b9fe",
+      "bytes": 144813
     },
     {
       "sourcePath": "assets/brand-logo.svg",
       "deployedPath": "assets/brand-logo.svg",
-      "sha256": "4bffc708627c0ee8de1a997aec6bf3aae7461fb779f2700f41fd47e6645dd28d",
-      "bytes": 425
+      "sha256": "7e3c9cb0b7e1f53b931f6cad274583f78a6be67ba554d6a45e57473f5ab611a0",
+      "bytes": 430
     },
     {
       "sourcePath": "assets/pmb-logo.png",
@@ -91,218 +94,218 @@
     {
       "sourcePath": "data-staging-empty.js",
       "deployedPath": "data-staging-empty.js",
-      "sha256": "d2a9ed658daa1cc5eabb45a78eeb5c7f93ef0146a12e7f8c23d0b028f915c7a9",
-      "bytes": 454
+      "sha256": "2fa02a231e559b4230ba22ac1c6e1cfa600fcaad9f546f6fb3e2a28b2acab756",
+      "bytes": 466
     },
     {
       "sourcePath": "desktop-operations.css",
       "deployedPath": "desktop-operations.css",
-      "sha256": "f3179efdeeaf34ba76dfc10c56aa2c3c59498ee61e60c11e0032abb9d3b51616",
-      "bytes": 19424
+      "sha256": "d7c116ff17cfdb86d551e587e1362ca11db8327e2e8497ee49b5fb4dae2c2ec9",
+      "bytes": 19983
     },
     {
       "sourcePath": "email-board-data.js",
       "deployedPath": "email-board-data.js",
-      "sha256": "3b55079afe708ae6842a6ddb61e19e912a8182cdc835a5d4102e4a5815dbace0",
-      "bytes": 669
+      "sha256": "c0cc888ec98ec64dd1710a75c7ea222d2c5a12993877ef4eebb3f66476e4093b",
+      "bytes": 685
     },
     {
       "sourcePath": "favicon.svg",
       "deployedPath": "favicon.svg",
-      "sha256": "f79b374447017a73a77012096c6d031ddb2ad6bf1b647d2efbfd465e6a5f32e6",
-      "bytes": 256
+      "sha256": "f1ce1b8f7a37c54801c2ee233c9e67bb2d852cb6ea8af942455d33d85aac046f",
+      "bytes": 257
     },
     {
       "sourcePath": "staging.html",
       "deployedPath": "index.html",
-      "sha256": "44df1ec039722d3afa79c181ebcdf77886725fcc2d6b700decc28fa14522e4f6",
-      "bytes": 64100
+      "sha256": "a7719c43f7c0b3042172f71c213a741227e1ce268b81be7786937dc97dcb996a",
+      "bytes": 65013
     },
     {
       "sourcePath": "key-list-review.js",
       "deployedPath": "key-list-review.js",
-      "sha256": "b6b42659b28b812fcf63b13a60faac8276e866442950f2e55197a8fec0aedf67",
-      "bytes": 9967
+      "sha256": "b0785e79071bd43c066ed3f20623e0a1a2c047bcedd9968cb815a0fe82b43ffe",
+      "bytes": 10154
     },
     {
       "sourcePath": "navision-backend-service.js",
       "deployedPath": "navision-backend-service.js",
-      "sha256": "04d6e34ec33f0a462948085290bd489792644ea51fed580b0a51003ddfa0d370",
-      "bytes": 12482
+      "sha256": "febd7c9c4e3bd4ff4a5ef052e25e7030e1c07e03838ace711ce3376c7736596e",
+      "bytes": 12723
     },
     {
       "sourcePath": "pdc-ai-auditor-stage-a.js",
       "deployedPath": "pdc-ai-auditor-stage-a.js",
-      "sha256": "4bbd85af3f05d6c2be6997b648ef3d584c4b3e00d5c69f7a218d3c92b3f17228",
-      "bytes": 62182
+      "sha256": "05aff99f0c588842af068509677abad0c65fb8fabda6a17fabe3e01f8173896b",
+      "bytes": 62478
     },
     {
       "sourcePath": "pdc-ai-intake-review.css",
       "deployedPath": "pdc-ai-intake-review.css",
-      "sha256": "07a8c403862dd04db193775ac37d9e39d2c4718a5dd864fd9913eaaaf1738b37",
-      "bytes": 3688
+      "sha256": "bb4728937bb5a0ec1f178eda26df6b49c3bb1d365044c0dc6738d166567f57dd",
+      "bytes": 3796
     },
     {
       "sourcePath": "pdc-ai-intake-review.js",
       "deployedPath": "pdc-ai-intake-review.js",
-      "sha256": "3da67f3d6028a45f97dfb50925bd9b81d328b2744fc0635ac8e6a4511cef8890",
-      "bytes": 13531
+      "sha256": "368310c472158f080473a868446e3239c2b437c3fd0e5e5108d91cee06f1359b",
+      "bytes": 13825
     },
     {
       "sourcePath": "pdc-ai-intake-service.js",
       "deployedPath": "pdc-ai-intake-service.js",
-      "sha256": "dc8fdb4ca33a236c98d6f9e38a15e0c2e32f7bfc2b8b27d31914a1e82bd89be5",
-      "bytes": 7012
+      "sha256": "78b0f0edcb7cfd8b895f4dd511d5f0c4b45e4fd5f412e044fb905b1e238615f8",
+      "bytes": 7147
     },
     {
       "sourcePath": "pdc-auth-registration.js",
       "deployedPath": "pdc-auth-registration.js",
-      "sha256": "13841fdf4408300d737b880cd4d676d2e49bdf4df65bd0f0c491db9e89da9dab",
-      "bytes": 5895
+      "sha256": "bc45f0a1ec5cfbdfb6ad05a8b499f4a4de2d98f6d150649de98790fae7bd615a",
+      "bytes": 6021
     },
     {
       "sourcePath": "pdc-auth.js",
       "deployedPath": "pdc-auth.js",
-      "sha256": "59d502d6ec15f071bb65ac0f5d81e16ae7738e8a77f4c389abbdfc0a4a626798",
-      "bytes": 35460
+      "sha256": "7edeaaba09a02c64ce07d22d204a4643eac99a7a94ff461ab275734f308143ab",
+      "bytes": 36252
     },
     {
       "sourcePath": "pdc-bulk-workbook-admin-review.js",
       "deployedPath": "pdc-bulk-workbook-admin-review.js",
-      "sha256": "c628e67f31eb8cab0e338e3a770dd132e75d2fe543c94a3c5e45457dbf20eea6",
-      "bytes": 10797
+      "sha256": "283fb447f2a00de5bb6a58584cb49dd56df5a3bbb3b0d46ebe2f7033c77ebd1c",
+      "bytes": 11019
     },
     {
       "sourcePath": "pdc-email-vehicle-location-service.js",
       "deployedPath": "pdc-email-vehicle-location-service.js",
-      "sha256": "e86d2ea25d15d39520ff9fe3e2f2592a67061c783b38c1688f11abe963266538",
-      "bytes": 14169
+      "sha256": "5ed1b0d2bf43bf14e0eff269b74106ab4268d82ee5057df0004b85d9250b3d63",
+      "bytes": 14333
     },
     {
       "sourcePath": "pdc-supabase-config.staging.js",
       "deployedPath": "pdc-supabase-config.staging.js",
-      "sha256": "1bbe3043737ba38df6b1fc028aea75e8b1a8120a6855e0563f0e1d26ba9bc546",
-      "bytes": 1708
+      "sha256": "aecb14806047a686ac2277ffe0dcddeb3971a538073f77a1dddeb21296148d81",
+      "bytes": 1744
     },
     {
       "sourcePath": "scripts/stage2b_c4_browser_export.js",
       "deployedPath": "scripts/stage2b_c4_browser_export.js",
-      "sha256": "5dafeb35a33626fec47aeaa931d17f83f22e436a4f602cbae66914537ab90f18",
-      "bytes": 14310
+      "sha256": "afa142651d88f44f40c2e41159e6f37bddc2e0af3fe89408e969e9926fc83f07",
+      "bytes": 14592
     },
     {
       "sourcePath": "staging-browser-assessment.js",
       "deployedPath": "staging-browser-assessment.js",
-      "sha256": "29acbe12e27d787b12d75614086278ac54e2ffe04bb6dfd755b3cacc7077bded",
-      "bytes": 3935
+      "sha256": "054f380b889eb8ce7475378478cab6f0927f0a9d15202c4745193e0405dc170e",
+      "bytes": 4036
     },
     {
       "sourcePath": "styles.css",
       "deployedPath": "styles.css",
-      "sha256": "2f156e4a2f3cd563606e8b31be44d5a50165b46a552cd49ec0bcbb2ed2eaeaa5",
-      "bytes": 374069
+      "sha256": "af361dceec38ed190d405ca1c37b04e3af8244375e77f020fab9e36e50198afe",
+      "bytes": 386675
     },
     {
       "sourcePath": "supabase/staging_only/096_navision_stock_number_authority.sql",
       "deployedPath": "supabase/staging_only/096_navision_stock_number_authority.sql",
-      "sha256": "0a49c9f00af867b84c8ffa1bb6cb71c59948e52c58ed2af8adcea762647004c5",
-      "bytes": 38712
+      "sha256": "30929ab93e9f749dc486e6b14d90ffd1bf438e7bb94654fb7fb62ea6595443f2",
+      "bytes": 39436
     },
     {
       "sourcePath": "supabase/staging_only/098_workshop_control_board_vehicle_loading.sql",
       "deployedPath": "supabase/staging_only/098_workshop_control_board_vehicle_loading.sql",
-      "sha256": "8079c1b836e3c9638d796cb7478465c3cea33834864a40923c5f0be67d38020c",
-      "bytes": 10376
+      "sha256": "4c1aee6ac6f64dd4b51f1b6534df64c0b3a6d988269762d8692a24c4b01938fe",
+      "bytes": 10586
     },
     {
       "sourcePath": "supabase/staging_only/099_authenticated_pd_accessory_lines.sql",
       "deployedPath": "supabase/staging_only/099_authenticated_pd_accessory_lines.sql",
-      "sha256": "d71e38ad1a8a3829002762b5072eb37f322cb194585b2013399bcffae4dbcbbf",
-      "bytes": 14056
+      "sha256": "00da3dd2590c6a892b5a4d78ae2986567fbfde2dc5cad9e25bd00dc3b776d96f",
+      "bytes": 14294
     },
     {
       "sourcePath": "test_navision_stock_authority_096.js",
       "deployedPath": "test_navision_stock_authority_096.js",
-      "sha256": "e97bdb96eec71b3e79e06bb29d043449cfc7253da487df4d03bf72ef4b84089b",
-      "bytes": 1988
+      "sha256": "6f929f45b7baafc3774121c4ad081fa77478988cafd4cae37625b3057633df35",
+      "bytes": 2016
     },
     {
       "sourcePath": "vehicle-lifecycle-actions.js",
       "deployedPath": "vehicle-lifecycle-actions.js",
-      "sha256": "33ee5ae8874ab630f719d21137a15c59cd0a6e279a048c5d4125b665ef2a2aed",
-      "bytes": 18796
+      "sha256": "b7e460f8f9c7e3403f1a08ca9340fe9128ca9698796f4a9c03f76377e02766d9",
+      "bytes": 19260
     },
     {
       "sourcePath": "vendor/pdfjs/LICENSE",
       "deployedPath": "vendor/pdfjs/LICENSE",
-      "sha256": "0d542e0c8804e39aa7f37eb00da5a762149dc682d7829451287e11b938e94594",
-      "bytes": 10174
+      "sha256": "eb3d7b5485466acbd81f2b496f595ab637d2792e268206b27d99e793bdb67549",
+      "bytes": 10351
     },
     {
       "sourcePath": "vendor/pdfjs/pdf.min.js",
       "deployedPath": "vendor/pdfjs/pdf.min.js",
-      "sha256": "5b5799e6f8c680663207ac5b42ee14eed2a406fa7af48f50c154f0c0b1566946",
-      "bytes": 320004
+      "sha256": "86791280654fb3403853a2e3a39212941fd1c4af0c7e3608ae8f85cead458be0",
+      "bytes": 320025
     },
     {
       "sourcePath": "vendor/pdfjs/pdf.worker.min.js",
       "deployedPath": "vendor/pdfjs/pdf.worker.min.js",
-      "sha256": "feabdf309770ed24bba31a5467836cdc8cf639c705af27d52b585b041bb8527b",
-      "bytes": 1087212
+      "sha256": "6195a19b81679dfb8fbd6c387aa37cf212c83f02628d768d142925fddc3d88fb",
+      "bytes": 1087233
     },
     {
       "sourcePath": "vendor/qz/qz-tray.js",
       "deployedPath": "vendor/qz/qz-tray.js",
-      "sha256": "b0a0afde74511e5284195cc875bc862b1ea4233f6c6aecb3ad485430a56bf4a6",
-      "bytes": 148138
+      "sha256": "2d8c0b7ab912e14a12dab4bf246be8e9555754053e6e12c556196bc8d946fdd1",
+      "bytes": 151112
     },
     {
       "sourcePath": "vendor/supabase/supabase-2.110.5.js",
       "deployedPath": "vendor/supabase/supabase-2.110.5.js",
-      "sha256": "8e00fd587eb7c5148c977fa7c425316e8f9f168b3831100d8e2925a9807b5893",
-      "bytes": 206885
+      "sha256": "8c786ef59b285ab2a6710af2f89190ccf1201730651c5ce3bfaded7b1d61f090",
+      "bytes": 206896
     },
     {
       "sourcePath": "workshop-data-service.js",
       "deployedPath": "workshop-data-service.js",
-      "sha256": "02f01028a2a6f3d6d9284de397d3efe19817a47364289867c206be947c087520",
-      "bytes": 19271
+      "sha256": "f3713c1fe5825a6805606649267873d4e694634b4cc22130b14991198e680be7",
+      "bytes": 19744
     },
     {
       "sourcePath": "workshop-eligibility.js",
       "deployedPath": "workshop-eligibility.js",
-      "sha256": "148161fe2823f511214256e9dde138e9eddd633d0f63946205b382bfc87ef3ff",
-      "bytes": 9494
+      "sha256": "932aad0a0fab48db321201e808f9751463372331c549864b3476143e76c665cb",
+      "bytes": 9652
     },
     {
       "sourcePath": "workshop-planner.css",
       "deployedPath": "workshop-planner.css",
-      "sha256": "21f1f806b0bb289172b775602c1979c2f31d63cc62c6ff8f972003d5325c17c4",
-      "bytes": 43286
+      "sha256": "7dbc734eef9783a110eb9f58aa7cb5eff60959326597579129eaee632f537c68",
+      "bytes": 44547
     },
     {
       "sourcePath": "workshop-planner.js",
       "deployedPath": "workshop-planner.js",
-      "sha256": "568ed63fa862f42cbd7b0c46ff1aa7e7a71a984731b02fd6e54c73c6fd9304f4",
-      "bytes": 332855
+      "sha256": "830cefb1f8808544baa8290cfe358280efb6a016166b1b8744a76fa680fe6096",
+      "bytes": 338725
     },
     {
       "sourcePath": "workshop-realtime.js",
       "deployedPath": "workshop-realtime.js",
-      "sha256": "484c0a4ebc6e823fbca6eaf7f6c3fe4e563902abfbd3959221d21c19f45c0361",
-      "bytes": 9237
+      "sha256": "42743226062ef0bd6ad5bfb3fbf5353b7c13c487e5610cfa18044b7eea63b9bd",
+      "bytes": 9477
     },
     {
       "sourcePath": "workshop-reference-data-service.js",
       "deployedPath": "workshop-reference-data-service.js",
-      "sha256": "ebe98f65a5cea69a42fdad77535f9bcdbf0f61c4013c34e7e7be34866b2682fe",
-      "bytes": 28440
+      "sha256": "1931dfe83844d13de8d48a17e2b481a7727b511632d01d70a95d7702db7782ef",
+      "bytes": 29002
     },
     {
       "sourcePath": "workshop-shared-actions.js",
       "deployedPath": "workshop-shared-actions.js",
-      "sha256": "7a1cbc87e394f0ec8db1b7fb3da543fc3ac9e13a0d44be9e3e5f8447dd87df3b",
-      "bytes": 8003
+      "sha256": "750d262bd06accb0ac55e377d200498a1d8d4155f79109a833decfb3e12b2f86",
+      "bytes": 8215
     }
   ],
   "performanceEvidence": {
@@ -368,5 +371,26 @@
     "authoritativeRowsMutated": 0,
     "browserErrors": 0,
     "productionRequests": 0
+  },
+  "stagingReset": {
+    "workbookSha256": "d89a36dce52994acf34c234a6fc988c11b3ca1aa76a11123fdbacd8d507ffaa3",
+    "migrationSha256": "2a6416aac34f7b01e5688d7e61a24c48ae964c85f3eaaa4d021863dbac753032",
+    "acceptedPayloadSha256": "f9606af816433a3dcecf1bebaf41c6c4a8b206fec81679ddfafd8808524c0741",
+    "activeStocks": 325,
+    "locations": {
+      "PMB": 121,
+      "IT": 72,
+      "YH": 50,
+      "Other": 79,
+      "RFT": 3
+    },
+    "operationLines": 2943,
+    "requiredIncompleteWorkItems": 994,
+    "bookings": 0,
+    "completedWork": 0,
+    "partsUpdates": 0,
+    "lineAdjustments": 0,
+    "subletBookings": 0,
+    "productionChanged": false
   }
 }
