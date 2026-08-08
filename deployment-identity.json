@@ -1,14 +1,14 @@
 {
   "artifact": "zero-embedded-data static staging site",
   "environment": "staging",
-  "generatedAtUtc": "2026-08-08T22:46:57Z",
-  "deploymentMode": "Staging-only authoritative Sublet returned/calendar/workshop-availability release layered onto staging commit e13faa5; existing staging authority/UI shell preserved",
-  "baseDeploymentCommit": "e13faa5657ee4d42bc3c1c2d2c7dc08cd8669e54",
+  "generatedAtUtc": "2026-08-08T23:19:49Z",
+  "deploymentMode": "Staging-only Sublet delayed-review correction layered onto staging commit 8250e22; queued/rebind/concurrency/Perth-date authority added",
+  "baseDeploymentCommit": "8250e2239ec54282add3ed023bf33b0d439a1928",
   "sourceRepository": "BTNew/pdc-control-board",
   "sourceBranch": "feat/staging-sublet-return-drag-conflicts-20260808",
-  "sourceCommit": "a66012a6174b87bf174a43f613cd9838015d018c",
-  "sourceTree": "42c498663d0301c7918ae88d9c0bacda02d96217",
-  "cacheVersion": "2026.08.08.09-sublet-return-drag-workshop-availability",
+  "sourceCommit": "cb749eb7e095ffffc18c871c431c31b0f4ebbd16",
+  "sourceTree": "110f4b6e68d42521a67c9e6ed03103cea0e4e62c",
+  "cacheVersion": "2026.08.08.10-sublet-review-corrections",
   "stagingProjectRef": "cdsmnqxtyyoeoznmbidd",
   "zeroData": true,
   "mailboxAuthority": false,
@@ -16,12 +16,12 @@
   "productionActivation": false,
   "pilotActivation": false,
   "migrationLedger": {
-    "appliedThrough": "140",
-    "ledgerHead": "140",
-    "migration": "sublet_return_calendar_and_workshop_availability",
+    "appliedThrough": "141",
+    "ledgerHead": "141",
+    "migration": "sublet_queued_rebind_and_concurrency_corrections",
     "rollbackAvailable": true,
-    "actualBackupManifestSha256": "9cbe04e6431934e1d8a08733d225c45aae881da05e198997f8996b91cff40878",
-    "dataIntegrityReceiptSha256": "e69fe6c5e6192b5b55c2c7783733f38a9a583f3fdeaf309670e6dc6a33ae317c",
+    "actualBackupManifestSha256": "4b6f96416bb73794fe1a6afbacb10993df82ee0ca6386b5d9eb4aa86d02ae773",
+    "dataIntegrityReceiptSha256": "fe95c9c2740cde0295719a437c1f5be9be81107029baa596cb5130b619ac853c",
     "backupFormat": "pdc-staging-public-csv-gzip-v1",
     "backupRelations": 115,
     "backupRows": 28594,
@@ -34,6 +34,7 @@
     "exceptionPayloadSha256": "c6450f3b6a43aa05f3ef80441d8f2ece265b05a9c424eb4a834fb60a8e423c88",
     "migration139Sha256": "b8979cf18eeb13489489d4ea8439f33632960a48e0604fc4ea13a67ac2cd54d3",
     "migration140Sha256": "26aa53ed08f72d1a10e46ffedbdd49cfc00d24b7374774e05e9bc60608ad524c",
+    "migration141Sha256": "39eae0c00b6e0008acdd626cf651efcced5a6e3354c7f71feccd9535404d5666",
     "isolatedRestoreVerified": true,
     "restoredForeignKeys": 150,
     "skippedForeignKeys": 0,
@@ -89,8 +90,8 @@
     {
       "sourcePath": "app.js",
       "deployedPath": "app.js",
-      "sha256": "442472afe3e0c74f9ed3a8e2b51e02add77075acd23df852b73db2988d83d784",
-      "bytes": 1045690
+      "sha256": "6d1f0a69fc1b390d8141406f8e94fd5ed4d346bfe68b86e77677a544868fbb37",
+      "bytes": 1046382
     },
     {
       "sourcePath": "arb-labor-catalog.js",
@@ -137,8 +138,8 @@
     {
       "sourcePath": "staging.html",
       "deployedPath": "index.html",
-      "sha256": "480e3934dc0f714d62b81e2779fd9d175a2443679e677fb04933bf2fd0f653d5",
-      "bytes": 64806
+      "sha256": "f5d5ea10e071dca7e84e24062165caf953ea96f4afaaf96cd1db75f671cb3123",
+      "bytes": 64671
     },
     {
       "sourcePath": "key-list-review.js",
@@ -203,8 +204,8 @@
     {
       "sourcePath": "pdc-supabase-config.staging.js",
       "deployedPath": "pdc-supabase-config.staging.js",
-      "sha256": "913dfe7a2b8014546d23392c896b65badaabe496b159a4dc414a21cad09ed7b8",
-      "bytes": 1724
+      "sha256": "eaa5512e0c4b3d7ee27b7a2d7948c1cc54b809b2efa730243dc16a7c144b54eb",
+      "bytes": 1709
     },
     {
       "sourcePath": "scripts/stage2b_c4_browser_export.js",
@@ -253,6 +254,12 @@
       "deployedPath": "supabase/staging_only/140_sublet_return_calendar_and_workshop_availability.sql",
       "sha256": "26aa53ed08f72d1a10e46ffedbdd49cfc00d24b7374774e05e9bc60608ad524c",
       "bytes": 20939
+    },
+    {
+      "sourcePath": "supabase/staging_only/141_sublet_queued_rebind_and_concurrency_corrections.sql",
+      "deployedPath": "supabase/staging_only/141_sublet_queued_rebind_and_concurrency_corrections.sql",
+      "sha256": "39eae0c00b6e0008acdd626cf651efcced5a6e3354c7f71feccd9535404d5666",
+      "bytes": 7348
     },
     {
       "sourcePath": "test_navision_stock_authority_096.js",
@@ -441,5 +448,5 @@
     "productionChanged": false
   },
   "localScreenshotServersActive": 0,
-  "publicationAssetCommit": "bbace1cd6a0ec1aaa368b0f84ca4e89f209cf1d0"
+  "publicationAssetCommit": "4fbfcd6b119a1b08b5b5e662cd94466f14208bbd"
 }
