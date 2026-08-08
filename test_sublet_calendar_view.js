@@ -5,10 +5,11 @@ const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
 
-const root = __dirname;
+const root = process.env.PDC_TEST_ROOT ? path.resolve(process.env.PDC_TEST_ROOT) : __dirname;
+const shellNames = fs.existsSync(path.join(root, 'staging.html')) ? ['index.html', 'staging.html'] : ['index.html'];
 const app = fs.readFileSync(path.join(root, 'app.js'), 'utf8');
 const css = fs.readFileSync(path.join(root, 'styles.css'), 'utf8');
-const shells = ['index.html', 'staging.html'].map(name => fs.readFileSync(path.join(root, name), 'utf8'));
+const shells = shellNames.map(name => fs.readFileSync(path.join(root, name), 'utf8'));
 
 const start = app.indexOf('function plainDateValue(');
 const end = app.indexOf('function renderSubletSummary(', start);
