@@ -34,6 +34,6 @@ window.PDC_SUPABASE_CONFIG = {
   vehicleLifecycle: Object.freeze({
     sharedData: true,
     resolverRollbackDirectRead: false,
-    resolverAssetVersion: '2026.08.08.09-sublet-return-drag-workshop-availability'
+    resolverAssetVersion: '2026.08.08.10-sublet-review-corrections'
   })
 };

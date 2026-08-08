@@ -7,7 +7,10 @@ const body=app.slice(app.indexOf('async function updateSubletField('),app.indexO
 assert(body.includes("if (response?.code === 'version_conflict')"),'A stale Sublet version must trigger one authoritative refresh');
 assert((body.match(/service\.updateSublet\(/g)||[]).length===2,'Sublet update must attempt once and retry at most once');
 assert(body.includes('current = subletVehicleByKey(key)')&&body.includes('current.__subletBookingVersion'),'Retry must use the refreshed authoritative booking version');
+assert(body.includes('originallyObservedValue'),'A stale retry must retain the field value originally observed by the operator');
+assert(body.includes('subletMutationFieldMatches(current, field, originallyObservedValue)'),'A stale retry must stop when that same field changed remotely');
+assert(body.includes('changed by another user'),'A same-field stale conflict must tell the operator to reapply rather than silently overwrite');
 assert(body.includes('refreshSubletMutationAuthority(key, vehicleId'),'Retry and success paths must wait for authoritative Sublet reconciliation');
 assert(app.includes('function subletMutationFieldMatches('),'Successful writes must reconcile both the returned version and requested field value before the next queued field');
 assert(body.includes('return queueSubletVehicleMutation(vehicleId'),'Projected-row Sublet writes must be serialized per vehicle');
-console.log('Sublet queued mutation and one-retry concurrency contracts passed');
+console.log('Sublet queued mutation and same-field-safe one-retry concurrency contracts passed');

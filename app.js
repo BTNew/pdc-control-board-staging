@@ -1,5 +1,5 @@
-const APP_VERSION = '2026.08.08.09-sublet-return-drag-workshop-availability';
-const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.08.08.09-sublet-return-drag-workshop-availability';
+const APP_VERSION = '2026.08.08.10-sublet-review-corrections';
+const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.08.08.10-sublet-review-corrections';
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
 // constant intentionally names only the production ref, never the
@@ -19658,7 +19658,16 @@ function subletShiftDate(dateKey = '', days = 0) {
 
 function subletTodayDateKey(referenceDate = new Date()) {
   if (!(referenceDate instanceof Date) || Number.isNaN(referenceDate.getTime())) return '';
-  return `${referenceDate.getFullYear()}-${String(referenceDate.getMonth() + 1).padStart(2, '0')}-${String(referenceDate.getDate()).padStart(2, '0')}`;
+  const parts = new Intl.DateTimeFormat('en-AU', {
+    timeZone: 'Australia/Perth',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(referenceDate).reduce((values, part) => {
+    if (part.type !== 'literal') values[part.type] = part.value;
+    return values;
+  }, {});
+  return parts.year && parts.month && parts.day ? `${parts.year}-${parts.month}-${parts.day}` : '';
 }
 
 function subletCalendarRange(mode = 'week', anchorDate = '') {
@@ -19998,6 +20007,9 @@ async function updateSubletField(key = '', field = '', value = '') {
       return false;
     }
     const vehicleId = vehicle.__emailVehicleId;
+    const originallyObservedValue = field === 'pmbSubletEmailSent'
+      ? String(vehicle[field] === true)
+      : cleanNavisionText(vehicle[field] || '');
     return queueSubletVehicleMutation(vehicleId, async () => {
       let current = subletVehicleByKey(key);
       if (!current || current.__emailVehicleId !== vehicleId) return false;
@@ -20013,6 +20025,11 @@ async function updateSubletField(key = '', field = '', value = '') {
       if (response?.code === 'version_conflict') {
         current = await refreshSubletMutationAuthority(key, vehicleId, Number(response?.data?.current_version || 0));
         if (!current || current.__emailVehicleId !== vehicleId) return false;
+        if (!subletMutationFieldMatches(current, field, originallyObservedValue)) {
+          window.alert('This Sublet field was changed by another user. The latest value has been loaded; please review it and reapply your change if still required.');
+          renderSubletHome();
+          return false;
+        }
         if (rejectInvalidCurrentDateOrder(current)) return false;
         response = await service.updateSublet(vehicleId, current.__subletBookingVersion, SUBLET_SERVER_FIELD_MAP[field], cleanValue);
       }
