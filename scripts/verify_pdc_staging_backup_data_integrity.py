@@ -55,8 +55,8 @@ def validate_backup() -> tuple[dict, int]:
             reader = csv.reader(handle)
             header = next(reader)
             rows = sum(1 for _ in reader)
-        manifest_columns = {column["name"] for column in entry["columns"]}
-        if not header or not set(header).issubset(manifest_columns):
+        expected_csv_columns = [column["name"] for column in entry["columns"] if column.get("is_generated") != "ALWAYS"]
+        if header != expected_csv_columns:
             raise RuntimeError(f"backup CSV header/schema mismatch: {entry['table']}")
         entry["_restore_columns"] = header
         if rows != int(entry["row_count"]):
@@ -78,7 +78,7 @@ def main() -> None:
     if not dsn:
         raise RuntimeError("staging database URL is not configured")
     assert_staging_target(database_url=dsn)
-    schema_name = "pdc_restore_verify_" + uuid.uuid4().hex[:12]
+    schema_name = "pdc_data_integrity_" + uuid.uuid4().hex[:12]
     tables = {entry["table"]: entry for entry in manifest["tables"]}
     restored_rows = 0
     fk_checked = 0
@@ -106,7 +106,7 @@ def main() -> None:
                     cur.execute(sql.SQL("select count(*) from {}.{}").format(sql.Identifier(schema_name), sql.Identifier(table_name)))
                     count = cur.fetchone()[0]
                     if count != int(entry["row_count"]):
-                        raise RuntimeError(f"isolated restore row mismatch: {table_name}")
+                        raise RuntimeError(f"logical data-load row mismatch: {table_name}")
                     restored_rows += count
                 cur.execute("""
                     select con.conname,child.relname,parent.relname,
@@ -137,7 +137,7 @@ def main() -> None:
                     cur.execute(query)
                     violations = cur.fetchone()[0]
                     if violations:
-                        raise RuntimeError(f"isolated restore FK violation: {constraint}={violations}")
+                        raise RuntimeError(f"logical data-load FK violation: {constraint}={violations}")
                     fk_checked += 1
                 cur.execute("select to_char(clock_timestamp() at time zone 'UTC','YYYY-MM-DD\"T\"HH24:MI:SS.MS\"Z\"')")
                 verified_at = cur.fetchone()[0]
@@ -145,15 +145,20 @@ def main() -> None:
                 cur.execute("select to_regnamespace(%s) is null", (schema_name,))
                 cleanup_verified = bool(cur.fetchone()[0])
                 if not cleanup_verified:
-                    raise RuntimeError("isolated restore schema cleanup failed")
+                    raise RuntimeError("logical data-load schema cleanup failed")
                 conn.rollback()
     except Exception:
         raise
     if restored_rows != expected_rows:
-        raise RuntimeError("isolated restore total mismatch")
+        raise RuntimeError("logical data-load total mismatch")
     receipt = {
         "ok": True,
-        "contract": "pdc-staging-backup-isolated-restore-v1",
+        "contract": "pdc-staging-backup-data-integrity-v2",
+        "verification_scope": "exact_csv_headers_hashes_rows_and_logical_foreign_keys",
+        "full_schema_restore_verified": False,
+        "schema_ddl_applied": False,
+        "types_constraints_defaults_sequences_indexes_triggers_rls_functions_verified": False,
+        "disaster_recovery_receipt": False,
         "project_ref": EXPECTED_REF,
         "backup_path": str(BACKUP),
         "manifest_sha256": EXPECTED_MANIFEST_SHA,
@@ -162,18 +167,18 @@ def main() -> None:
         "restored_row_count": restored_rows,
         "foreign_keys_checked": fk_checked,
         "foreign_key_violations": 0,
-        "isolated_schema": schema_name,
+        "temporary_validation_schema": schema_name,
         "transaction_rolled_back": True,
         "cleanup_verified": cleanup_verified,
         "production_changed": False,
         "verified_at_utc": verified_at,
     }
-    output = BACKUP / "restore_verification"
+    output = BACKUP / "data_integrity_verification"
     output.mkdir(exist_ok=True)
-    receipt_path = output / "isolated_restore_receipt.json"
+    receipt_path = output / "data_integrity_receipt.json"
     receipt_path.write_text(json.dumps(receipt, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     receipt_sha = sha256_file(receipt_path)
-    (output / "isolated_restore_receipt.sha256").write_text(f"{receipt_sha}  isolated_restore_receipt.json\n", encoding="ascii")
+    (output / "data_integrity_receipt.sha256").write_text(f"{receipt_sha}  data_integrity_receipt.json\n", encoding="ascii")
     print(json.dumps({**receipt, "receipt_sha256": receipt_sha}, sort_keys=True))
 
 

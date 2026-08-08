@@ -4,7 +4,8 @@ const assert = require('assert');
 const sql = fs.readFileSync('supabase/staging_only/137_harden_reset_136_authority_and_evidence.sql', 'utf8');
 const installer137 = fs.readFileSync('scripts/apply_migration_137_staging.py', 'utf8');
 const installer136 = fs.readFileSync('scripts/apply_migration_136_staging.py', 'utf8');
-const restore = fs.readFileSync('scripts/verify_pdc_staging_backup_restore.py', 'utf8');
+const dataIntegrity = fs.readFileSync('scripts/verify_pdc_staging_backup_data_integrity.py', 'utf8');
+const correction138 = fs.readFileSync('supabase/staging_only/138_correct_reset_backup_evidence_scope.sql', 'utf8');
 const qa = fs.readFileSync('scripts/qa_reset_136_staging.py', 'utf8');
 
 assert.match(sql, /pdc_staging_environment_sentinel[\s\S]*cdsmnqxtyyoeoznmbidd/);
@@ -32,12 +33,18 @@ for (const source of [installer137, installer136]) {
   assert.match(source, /foreign_key_violations/);
   assert.match(source, /cleanup_verified/);
 }
-assert.match(restore, /sha256_file\(manifest_path\)/);
-assert.match(restore, /restored_row_count/);
-assert.match(restore, /foreign_keys_checked/);
-assert.match(restore, /foreign_key_violations/);
-assert.match(restore, /drop schema/);
-assert.match(restore, /conn\.rollback\(\)/);
+assert.match(dataIntegrity, /sha256_file\(manifest_path\)/);
+assert.match(dataIntegrity, /restored_row_count/);
+assert.match(dataIntegrity, /foreign_keys_checked/);
+assert.match(dataIntegrity, /foreign_key_violations/);
+assert.match(dataIntegrity, /drop schema/);
+assert.match(dataIntegrity, /conn\.rollback\(\)/);
+assert.match(dataIntegrity, /if header != expected_csv_columns/);
+assert.ok(!dataIntegrity.includes('set(header).issubset'));
+assert.match(dataIntegrity, /"full_schema_restore_verified": False/);
+assert.match(dataIntegrity, /"disaster_recovery_receipt": False/);
+assert.match(correction138, /pdc_staging_reset_evidence_corrections/);
+assert.match(correction138, /full_schema_restore_verified boolean not null check\(not full_schema_restore_verified\)/);
 
 const preAuthCheck = qa.indexOf('configured_ref = page.evaluate');
 const credentialEntry = qa.indexOf('page.fill("#pdc-login-email"');
