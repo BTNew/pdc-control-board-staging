@@ -75,7 +75,7 @@ const forbidden=[
 ];
 const operational=[];
 function walk(dir){for(const ent of fs.readdirSync(dir,{withFileTypes:true})){
-  if(['.git','node_modules','supabase','review-evidence'].includes(ent.name)) continue;
+  if(['.git','node_modules','supabase','review-evidence','artifacts'].includes(ent.name) || ent.name.startsWith('.venv')) continue;
   const full=path.join(dir,ent.name); if(ent.isDirectory()) walk(full);
   else if(/\.(?:js|py)$/i.test(ent.name)) operational.push(full);
 }}

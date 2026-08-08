@@ -14,13 +14,17 @@ import psycopg2
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(Path.home() / "pdc-control-board" / "_staging_test_tools"))
+sys.path.insert(0, str(ROOT / "scripts"))
 from staging_env import assert_staging_target, load_local_env
+from verify_pdc_staging_backup_restore import BACKUP, EXPECTED_MANIFEST_SHA, sha256_file, validate_backup
 
 MIGRATION = ROOT / "supabase" / "staging_only" / "136_clean_workbook_board_reset.sql"
 PREVIEW = ROOT / "artifacts" / "reset_136_preview.json"
 EXPECTED_REF = "cdsmnqxtyyoeoznmbidd"
 EXPECTED_SHA = "2a6416aac34f7b01e5688d7e61a24c48ae964c85f3eaaa4d021863dbac753032"
-EXPECTED_BACKUP_SHA = "b624e19411f00eabf9128ea166dd75bb3c43945a2edc9ef716419ce60b6d930a"
+EXPECTED_BACKUP_SHA = EXPECTED_MANIFEST_SHA
+LEGACY_CLAIMED_BACKUP_SHA = "b624e19411f00eabf9128ea166dd75bb3c43945a2edc9ef716419ce60b6d930a"
+EXPECTED_RESTORE_RECEIPT_SHA = "7f7d027f1a0da08982241b9d6f7a553b09908fed93c56f1e934e60a4cee1b439"
 EXPECTED_WORKBOOK_SHA = "d89a36dce52994acf34c234a6fc988c11b3ca1aa76a11123fdbacd8d507ffaa3"
 VERSION = "136"
 NAME = "clean_workbook_board_reset"
@@ -151,6 +155,24 @@ def verify(cur, preview, result=None):
             "exact_stock_rows": len(actual_stocks), "exact_operation_rows": len(actual_operations), "exact_work_items": len(actual_work)}
 
 
+def validate_backup_evidence():
+    manifest, total_rows = validate_backup()
+    receipt_path = BACKUP / "restore_verification" / "isolated_restore_receipt.json"
+    checksum_path = BACKUP / "restore_verification" / "isolated_restore_receipt.sha256"
+    if not receipt_path.is_file() or not checksum_path.is_file():
+        raise RuntimeError("isolated restore receipt missing")
+    if sha256_file(receipt_path) != EXPECTED_RESTORE_RECEIPT_SHA or checksum_path.read_text(encoding="ascii").split()[0] != EXPECTED_RESTORE_RECEIPT_SHA:
+        raise RuntimeError("isolated restore receipt digest mismatch")
+    receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+    if receipt.get("manifest_sha256") != EXPECTED_BACKUP_SHA or receipt.get("table_count") != 111 or receipt.get("restored_row_count") != 27356 \
+       or receipt.get("foreign_key_violations") != 0 or int(receipt.get("foreign_keys_checked") or 0) < 145 \
+       or receipt.get("transaction_rolled_back") is not True or receipt.get("cleanup_verified") is not True or receipt.get("production_changed") is not False:
+        raise RuntimeError("isolated restore receipt contract mismatch")
+    if len(manifest["tables"]) != 111 or total_rows != 27356:
+        raise RuntimeError("backup inventory mismatch")
+    return receipt
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--apply", action="store_true")
@@ -159,6 +181,7 @@ def main():
     args = parser.parse_args()
     if args.apply and (not args.expected_commit or not re.fullmatch(r"[a-f0-9]{40}", args.expected_commit)):
         raise RuntimeError("--apply requires exact reviewed --expected-commit")
+    validate_backup_evidence()
     load_local_env()
     dsn = os.environ.get("PDC_STAGING_DIRECT_DATABASE_URL") or os.environ.get("PDC_STAGING_DATABASE_URL")
     if not dsn:
@@ -188,7 +211,7 @@ def main():
                     raise RuntimeError(f"unexpected Migration 136 ledger pre-state: {head}")
                 before = pre_state(cur)
                 cur.execute(migration_body(raw.decode("utf-8")))
-                cur.execute("select public.apply_pdc_staging_workbook_reset_136(%s::jsonb,%s)", (json.dumps(preview, separators=(",", ":")), EXPECTED_BACKUP_SHA))
+                cur.execute("select public.apply_pdc_staging_workbook_reset_136(%s::jsonb,%s)", (json.dumps(preview, separators=(",", ":")), LEGACY_CLAIMED_BACKUP_SHA))
                 result = cur.fetchone()[0]
                 cur.execute("insert into supabase_migrations.schema_migrations(version,statements,name) values(%s,%s,%s)", (VERSION, [raw.decode("utf-8")], NAME))
                 outcome = verify(cur, preview, result)

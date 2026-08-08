@@ -6,6 +6,7 @@ import os
 import sys
 from collections import Counter
 from pathlib import Path
+from urllib.parse import urlparse
 
 from playwright.sync_api import sync_playwright
 
@@ -13,7 +14,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(Path.home() / "pdc-control-board" / "_staging_test_tools"))
 from staging_env import load_local_env
 
-URL = "https://btnew.github.io/pdc-control-board-staging/?resetRelease=20260808-02-clean-workbook-reset"
+URL = "https://btnew.github.io/pdc-control-board-staging/?resetRelease=20260808-03-clean-workbook-reset-hardened"
 STAGING_REF = "cdsmnqxtyyoeoznmbidd"
 PRODUCTION_REF = "vjdtsswhroyguxyfjdkt"
 PREVIEW = ROOT / "artifacts" / "reset_136_preview.json"
@@ -21,6 +22,9 @@ EVIDENCE = ROOT / "artifacts" / "reset_136_live_qa"
 
 
 def main() -> None:
+    parsed_url = urlparse(URL)
+    if parsed_url.scheme != "https" or parsed_url.hostname != "btnew.github.io" or not parsed_url.path.startswith("/pdc-control-board-staging/") or PRODUCTION_REF in URL:
+        raise RuntimeError("QA URL is not the exact staging Pages target")
     load_local_env()
     email = os.environ.get("PDC_STAGING_ADMIN_EMAIL")
     password = os.environ.get("PDC_STAGING_ADMIN_PASSWORD")
@@ -40,8 +44,12 @@ def main() -> None:
         page.on("requestfailed", lambda request: failed.append(request.url))
         page.on("request", lambda request: production.append(request.url) if PRODUCTION_REF in request.url else None)
         page.goto(URL, wait_until="networkidle", timeout=60000)
-        if page.locator("#app-version").inner_text().strip() != "Version 2026.08.08.02-clean-workbook-reset":
+        if page.locator("#app-version").inner_text().strip() != "Version 2026.08.08.03-clean-workbook-reset-hardened":
             raise AssertionError("live staging release marker mismatch")
+        page.wait_for_function("window.PDC_SUPABASE_CONFIG && typeof window.PDC_SUPABASE_CONFIG.projectRef === 'string'", timeout=30000)
+        configured_ref = page.evaluate("window.PDC_SUPABASE_CONFIG.projectRef")
+        if configured_ref != STAGING_REF or production:
+            raise AssertionError(f"pre-auth staging target mismatch: configured={configured_ref} production_requests={len(production)}")
         page.fill("#pdc-login-email", email)
         page.fill("#pdc-login-password", password)
         page.click("#pdc-password-login")
@@ -54,7 +62,10 @@ def main() -> None:
         if snapshot_result["error"]:
             raise AssertionError(f"snapshot RPC failed: {snapshot_result['error']}")
         snapshot = snapshot_result["data"] or {}
-        vehicles = snapshot.get("locations") or snapshot.get("vehicles") or []
+        if snapshot.get("ok") is False:
+            raise AssertionError(f"snapshot contract failed: {snapshot.get('code')}")
+        payload = snapshot.get("data") if isinstance(snapshot.get("data"), dict) else snapshot
+        vehicles = payload.get("vehicles") or payload.get("locations") or []
         if len(vehicles) != 325:
             raise AssertionError(f"live visible vehicle count mismatch: {len(vehicles)}")
         locations = Counter(row.get("current_location") for row in vehicles)
@@ -73,9 +84,31 @@ def main() -> None:
         if not repeated:
             raise AssertionError("no repeated-Stock multi-Job-Card vehicle found")
         repeated_jcs = sorted({line["job_card_number"] for line in repeated["operation_lines"]})
-        page.evaluate("stock => openVehicleModal(stock)", repeated["stock_number"])
+        authority_ready = False
+        for _ in range(60):
+            authority_ready = bool(page.evaluate("() => typeof vehicleLocationBoardRows === 'function' && vehicleLocationBoardRows().length === 325 && typeof sharedNavisionLocationAuthorityReady === 'function' && sharedNavisionLocationAuthorityReady()"))
+            if authority_ready:
+                break
+            page.wait_for_timeout(1000)
+        if not authority_ready:
+            raise AssertionError("shared Navision authority did not reconcile for 325 board rows")
+        modal_open = page.evaluate("""stock => {
+          const target = vehicleLocationBoardRows().find(row => String(row.stock_number || row.stock || row.batch || '').trim().toUpperCase() === String(stock).trim().toUpperCase());
+          if (!target) return { ok: false, reason: 'board_row_not_found' };
+          const key = vehicleKey(target);
+          return { ok: openVehicleModal(key) === true, keyPresent: Boolean(key) };
+        }""", repeated["stock_number"])
+        if not modal_open.get("ok") or not modal_open.get("keyPresent"):
+            raise AssertionError(f"vehicle modal did not open through canonical board identity: {modal_open}")
         page.locator("#vehicle-modal:not([hidden])").wait_for(state="visible", timeout=30000)
-        modal_text = page.locator("#vehicle-modal").inner_text()
+        page.click("#vehicle-detail-tab-work")
+        modal_text = ""
+        for _ in range(30):
+            modal_text = page.locator("#vehicle-modal").inner_text()
+            if all(f"JC {job_card}" in modal_text for job_card in repeated_jcs):
+                break
+            page.wait_for_timeout(1000)
+        (EVIDENCE / "repeated-stock-modal.txt").write_text(modal_text, encoding="utf-8")
         for job_card in repeated_jcs:
             if f"JC {job_card}" not in modal_text:
                 raise AssertionError("repeated Job Card identity missing from vehicle modal")
@@ -89,7 +122,7 @@ def main() -> None:
             raise AssertionError(f"workshop planner rendered stale bookings: {planner_bookings}")
         if errors or failed or production:
             raise AssertionError(f"browser errors={len(errors)} failed={len(failed)} production={len(production)}")
-        output.update({"ok": True, "release": "2026.08.08.02-clean-workbook-reset", "stagingProjectRef": STAGING_REF,
+        output.update({"ok": True, "release": "2026.08.08.03-clean-workbook-reset-hardened", "stagingProjectRef": STAGING_REF,
             "vehicles": len(vehicles), "locations": dict(sorted(locations.items())), "operations": len(lines),
             "repeatedJobCardCount": len(repeated_jcs), "plannerBookings": planner_bookings,
             "consoleErrors": 0, "failedRequests": 0, "productionRequests": 0,

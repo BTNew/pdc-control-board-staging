@@ -1,5 +1,5 @@
-const APP_VERSION = '2026.08.08.02-clean-workbook-reset';
-const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.08.08.02-clean-workbook-reset';
+const APP_VERSION = '2026.08.08.03-clean-workbook-reset-hardened';
+const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.08.08.03-clean-workbook-reset-hardened';
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
 // constant intentionally names only the production ref, never the
@@ -10565,8 +10565,16 @@ function vehicleWorkshopGroups(vehicle = {}, detail = null) {
     if (!groups.has(stage)) return;
     const lineIdentity = vehicleWorkshopLineIdentity(stage, line);
     const existingIndex = groups.get(stage).lines.findIndex(existing => vehicleWorkshopLineIdentity(stage, existing) === lineIdentity);
-    if (existingIndex >= 0) groups.get(stage).lines[existingIndex] = { ...groups.get(stage).lines[existingIndex], ...line, authoritativeJobCardLine: true };
-    else groups.get(stage).lines.push({ ...line, authoritativeJobCardLine: true });
+    if (existingIndex >= 0) {
+      const existing = groups.get(stage).lines[existingIndex];
+      groups.get(stage).lines[existingIndex] = {
+        ...existing,
+        ...line,
+        description: existing.authenticatedEmailOperation === true ? existing.description : line.description,
+        job_card_number: existing.job_card_number || line.job_card_number || line.jobCardNumber || null,
+        authoritativeJobCardLine: true,
+      };
+    } else groups.get(stage).lines.push({ ...line, authoritativeJobCardLine: true });
   });
   const adjustments = Array.isArray(detail?.line_adjustments) ? detail.line_adjustments : [];
   const adjustmentByKey = new Map(adjustments.filter(item => item?.source_kind !== 'manual' && item?.line_key).map(item => [String(item.line_key), item]));
