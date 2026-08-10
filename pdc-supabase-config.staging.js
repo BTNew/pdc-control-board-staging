@@ -34,6 +34,6 @@ window.PDC_SUPABASE_CONFIG = {
   vehicleLifecycle: Object.freeze({
     sharedData: true,
     resolverRollbackDirectRead: false,
-    resolverAssetVersion: '2026.08.10.13-operation-routing-hours'
+    resolverAssetVersion: '2026.08.10.14-operation-routing-hours'
   })
 };

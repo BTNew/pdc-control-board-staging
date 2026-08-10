@@ -1,13 +1,13 @@
 {
   "artifact": "zero-embedded-data static staging site",
   "environment": "staging",
-  "generatedAtUtc": "2026-08-10T12:33:05Z",
+  "generatedAtUtc": "2026-08-10T12:44:13Z",
   "deploymentMode": "Staging-only audited operation routing, exact estimated-line station hours, retained canonical document binding",
-  "baseDeploymentCommit": "d4eb530f61d28600ffee069fd20a03d3dd1ab447",
+  "baseDeploymentCommit": "8775109c8530768e030fb74da0e201a0a5c54f58",
   "sourceRepository": "BTNew/pdc-control-board",
   "sourceBranch": "feat/staging-operation-routing-hours-20260810",
-  "sourceCommit": "5b07c7f9d92398e1cf047d8a8b6ab435ed5f21a2",
-  "sourceTree": "b90b0579cb4b84a223484162f7df9b30e2c5a1bf",
+  "sourceCommit": "a16223fcb0d740a06dafb0fb9ff9abb506157903",
+  "sourceTree": "e28de83287456a475fbd6903a759a7372dc4525b",
   "cacheVersion": "2026.08.10.13-operation-routing-hours",
   "stagingProjectRef": "cdsmnqxtyyoeoznmbidd",
   "zeroData": true,
@@ -73,13 +73,11 @@
     "applyReceipts": 1
   },
   "releaseChecks": {
-    "aggregateTests": "156 passed, 0 failed, 1 documented clean-build skip",
-    "focusedTests": "Audited station overlay, effective-line regrouping, station hour totals, migration 148 and version checks passed",
-    "databaseRehearsal": "PASS rollback-only exact and differing canonical document hashes; all changes rolled back",
-    "assetParity": "PASS exact SHA-256 parity: staging.html->index.html, app.js, styles.css and pdc-supabase-config.staging.js",
-    "production": "unchanged",
-    "excludedRelease": "No production repository/main, production database, mailbox/pdc-monitor, DNS or pilot activation included",
-    "browserConsole": "Pending authenticated staging publication QA"
+    "sourceTests": "PASS - 156 passed, 0 failed, 1 intentional zero-data skip",
+    "migration148": "PASS - applied to staging",
+    "retainedReplay": "PASS - 1 receipt, 16 lines, 3 work items; exact replay idempotent",
+    "assetParity": "PASS - exact source-to-staging hashes verified",
+    "authenticatedBrowser": "Pending live .14 build"
   },
   "sourceFiles": [
     {
@@ -97,7 +95,7 @@
     {
       "sourcePath": "app.js",
       "deployedPath": "app.js",
-      "sha256": "016fe9303d67134d56a3cfaa7a66f5c2093016e08ab0247e7edd4a8edb7a30c0",
+      "sha256": "f5d75af76f7d967c2c17985ea431f9bba43324246a4bac633c4f976be5d5d69c",
       "bytes": 1064302
     },
     {
@@ -145,7 +143,7 @@
     {
       "sourcePath": "staging.html",
       "deployedPath": "index.html",
-      "sha256": "afdcc7730780584e8a7e66c616c3e5a531d03afa8885393a0e6425852a335e89",
+      "sha256": "4a095f7c88cda32048ed8d70acff4b32bbb1948c5758bd36cdc91dac3f69b8f9",
       "bytes": 63336
     },
     {
@@ -211,7 +209,7 @@
     {
       "sourcePath": "pdc-supabase-config.staging.js",
       "deployedPath": "pdc-supabase-config.staging.js",
-      "sha256": "a4923313ec157583317e27b2f5069a3a1cefe6b61ab579cf2bef09528f13ea16",
+      "sha256": "e2fd7c4afa33629d5e49b0fdef08c18ac31649b3481d6663eada896b9c776253",
       "bytes": 1707
     },
     {
@@ -468,5 +466,8 @@
   },
   "localScreenshotServersActive": 0,
   "publicationAssetCommit": "44f4c9fb407316230a32319b6e3c082481c90da7",
-  "verifiedArtifactCommit": "44f4c9fb407316230a32319b6e3c082481c90da7"
+  "verifiedArtifactCommit": "44f4c9fb407316230a32319b6e3c082481c90da7",
+  "migrationLedgerHead": "148 bind_canonical_document_evidence_to_retained_source",
+  "migrationLedgerHeadNumber": 148,
+  "migrationLedgerHeadName": "bind_canonical_document_evidence_to_retained_source"
 }
