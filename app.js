@@ -1,5 +1,5 @@
-const APP_VERSION = '2026.08.10.08-direct-workshop-planners';
-const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.08.10.08-direct-workshop-planners';
+const APP_VERSION = '2026.08.10.09-workshop-live-best-slot';
+const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.08.10.09-workshop-live-best-slot';
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
 // constant intentionally names only the production ref, never the
@@ -10838,7 +10838,7 @@ function vehicleWorkshopCompactLinesHtml(group = {}, bookingFallback = 'Not book
       ? `<label class="vehicle-workshop-quick-hours" aria-label="Estimated hours for ${escapeHtml(description)}"><input type="number" min="0.25" max="999.75" step="0.25" value="${escapeHtml(estimate ?? '')}" placeholder="Hours" data-vehicle-workshop-hours-input><span>h</span><button type="button" data-vehicle-workshop-hours-save ${mutationData}>Save</button></label>`
       : `<strong>${escapeHtml(hoursClass.value === null ? hoursClass.label : `${hoursClass.label}: ${vehicleWorkshopHoursLabel(hoursClass.value)}`)}</strong>`;
     const scheduleButton = canEdit && canonicalVehicleId && WORKSHOP_PLANNER_ROUTE_BY_STAGE[group.stage] && !activeBooking
-      ? `<button type="button" class="vehicle-workshop-schedule-next" data-vehicle-workshop-schedule-next ${mutationData} data-vehicle-id="${escapeHtml(canonicalVehicleId)}" data-vehicle-key="${escapeHtml(vehicleIdentity)}">Schedule next available</button>` : '';
+      ? `<button type="button" class="vehicle-workshop-schedule-next" data-vehicle-workshop-schedule-next ${mutationData} data-vehicle-id="${escapeHtml(canonicalVehicleId)}" data-vehicle-key="${escapeHtml(vehicleIdentity)}" title="Choose the earliest available time across all active bays">Best slot</button>` : '';
     const controls = canEdit ? `<span class="vehicle-workshop-line-actions">${scheduleButton}<button type="button" data-vehicle-workshop-line-edit ${mutationData}>Edit line</button>${line.workshopManualLine ? `<button type="button" class="is-danger" data-vehicle-workshop-line-delete data-adjustment-id="${escapeHtml(line.adjustmentId || '')}" data-adjustment-version="${escapeHtml(String(line.adjustmentVersion || 0))}">Remove</button>` : ''}</span>` : '';
     const handleData = `data-vehicle-workshop-line-handle data-stage="${escapeHtml(group.stage)}" data-vehicle-id="${escapeHtml(canonicalVehicleId)}" data-vehicle-key="${escapeHtml(vehicleIdentity)}" data-booking-id="${escapeHtml(activeBooking?.booking_id || activeBooking?.id || '')}" data-hours="${escapeHtml(totalHours ?? estimate ?? '')}"`;
     const number = canEdit && canonicalVehicleId && WORKSHOP_PLANNER_ROUTE_BY_STAGE[group.stage]
@@ -11024,8 +11024,6 @@ async function scheduleVehicleWorkshopNextAvailable(button) {
     stage: button.dataset.stage,
     hours: enteredHours || Number(button.dataset.hours || 0),
   };
-  const saved = await saveVehicleWorkshopLineHours(button.closest('.vehicle-workshop-line')?.querySelector('[data-vehicle-workshop-hours-save]'));
-  if (!saved) return false;
   closeVehicleModal();
   openWorkshopPlannerForStage(payload.stage);
   return workshopScheduleVehicleNextAvailable(payload);

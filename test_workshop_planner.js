@@ -98,6 +98,55 @@ const cascaded = planner.workshopCascadePlans(collisionRows, new Date(2026, 6, 1
 assert.ok(cascaded.changed, 'A later planned booking must cascade after earlier work overruns');
 assert.strictEqual(cascaded.rows.find(row => row.vehicleKey === 'next').startAt, new Date(2026, 6, 14, 10, 45).toISOString(), 'The later booking must move by the live overrun while preserving its queue position');
 assert.strictEqual(cascaded.rows.find(row => row.vehicleKey === 'next').hours, 3, 'Cascade must preserve booking duration');
+const nonQuarterQueue = [
+  collisionRows[0],
+  { ...collisionRows[1], id: 'FABRICATION::queued-back-to-back', startAt: new Date(2026, 6, 14, 11, 0).toISOString() },
+];
+const nonQuarterCascade = planner.workshopCascadePlans(nonQuarterQueue, new Date(2026, 6, 14, 12, 7));
+const nonQuarterFollower = nonQuarterCascade.rows.find(row => row.id === 'FABRICATION::queued-back-to-back');
+assert.strictEqual(nonQuarterFollower.startAt, new Date(2026, 6, 14, 12, 30).toISOString(), 'A partial-quarter live overrun must round the follower delay up, never leave an overlap');
+assert.ok(planner.workshopEntryStart(nonQuarterFollower) >= planner.workshopEntryEffectiveEnd(nonQuarterQueue[0], new Date(2026, 6, 14, 12, 7)), 'The shifted follower must start at or after the live pill end');
+const completedAnchorRows = [
+  { ...collisionRows[0], status: 'completed', actualEndAt: new Date(2026, 6, 14, 12, 7).toISOString() },
+  { ...collisionRows[1], id: 'FABRICATION::after-complete', startAt: new Date(2026, 6, 14, 11, 0).toISOString() },
+];
+const completedCascade = planner.workshopCascadePlans(completedAnchorRows, new Date(2026, 6, 14, 14, 0));
+assert.strictEqual(completedCascade.rows.find(row => row.id === 'FABRICATION::after-complete').startAt, new Date(2026, 6, 14, 12, 15).toISOString(), 'Completing an overrun must freeze the final push at actual_end_at instead of snapping followers back');
+const sharedLiveRow = {
+  ...collisionRows[0],
+  id: 'shared-live',
+  sharedBookingId: 'booking-live',
+  sharedVehicleId: 'vehicle-live',
+  sharedBayId: 'bay-live',
+};
+global.selectedVehicle = () => null;
+assert.strictEqual(
+  planner.workshopEntryEffectiveEnd(sharedLiveRow, new Date(2026, 6, 14, 12, 0)).toISOString(),
+  new Date(2026, 6, 14, 12, 15).toISOString(),
+  'A canonical started booking must advance from shared booking/bay identity even when the browser PMB bay mirror is stale',
+);
+const stoppedRows = [
+  {
+    ...sharedLiveRow,
+    id: 'shared-stoppage',
+    status: 'stoppage',
+    stoppageAt: new Date(2026, 6, 14, 11, 15).toISOString(),
+  },
+  { ...collisionRows[1], id: 'after-stoppage', startAt: new Date(2026, 6, 14, 11, 0).toISOString() },
+];
+const stoppedAtNoon = planner.workshopCascadePlans(stoppedRows, new Date(2026, 6, 14, 12, 0));
+const stoppedHoursLater = planner.workshopCascadePlans(stoppedRows, new Date(2026, 6, 14, 15, 0));
+assert.strictEqual(
+  planner.workshopEntryEffectiveEnd(stoppedRows[0], new Date(2026, 6, 14, 15, 0)).toISOString(),
+  new Date(2026, 6, 14, 11, 30).toISOString(),
+  'STOPPAGE must freeze live occupancy at the canonical stoppage timestamp plus one display increment',
+);
+assert.strictEqual(
+  stoppedAtNoon.rows.find(row => row.id === 'after-stoppage').startAt,
+  stoppedHoursLater.rows.find(row => row.id === 'after-stoppage').startAt,
+  'A stopped booking must not keep pushing the later queue as wall-clock time advances',
+);
+global.selectedVehicle = key => ({ id: key });
 const backToBack = { id: 'FABRICATION::back-to-back', vehicleKey: 'next', stage: 'FABRICATION', bay: 1, startAt: new Date(2026, 6, 14, 11, 0).toISOString(), hours: 3, status: 'planned' };
 assert.strictEqual(planner.workshopHasConflict(backToBack, [{ ...collisionRows[0], status: 'planned' }]), null, 'Back-to-back same-bay bookings must remain allowed');
 const differentStageSameBay = { id: 'HOIST::same-bay-number', vehicleKey: 'same-bay-number', stage: 'HOIST', bay: 1, startAt: nextStart.toISOString(), hours: 3, status: 'planned' };
@@ -183,6 +232,19 @@ const bestFabSlot = planner.workshopBestStageSlot('FABRICATION', '2026-07-16', 3
   { id: 'FABRICATION::bay-2', vehicleKey: 'bay-2', stage: 'FABRICATION', bay: 2, startAt: new Date(2026, 6, 16, 11, 0).toISOString(), hours: 3, status: 'planned' },
 ]);
 assert.deepStrictEqual(bestFabSlot, { stage: 'FABRICATION', bay: 2, dateKey: '2026-07-16', startMinutes: 0 }, 'Best-slot suggestions should choose the earliest open bay across the stage, not only the current bay');
+const boundedAllBaySlot = planner.workshopBestStageSlot('FITTING', '2026-07-16', 8, Array.from({ length: 5 }, (_, index) => ({
+  id: `FITTING::bounded-${index + 1}`,
+  vehicleKey: `bounded-${index + 1}`,
+  stage: 'FITTING',
+  bay: index + 1,
+  startAt: new Date(2026, 6, 16, 8, 0).toISOString(),
+  hours: 8,
+  status: 'planned',
+})), 0, '2026-07-16');
+assert.strictEqual(boundedAllBaySlot, null, 'An authoritative Best-slot window must not invent an empty opening after the loaded date range');
+assert.ok(source.includes('let plans = workshopCascadePlans(authoritativePlans, new Date()).rows;'), 'Dedicated planners must render the pure live schedule projection');
+assert.ok(!source.includes('dedicatedStage ? workshopLoadPlans() : workshopCascadeAndSave'), 'Dedicated planners must not bypass live projection or persist clock-driven movement');
+assert.ok(source.includes('for (let windowIndex = 0; windowIndex < 9 && !slot; windowIndex += 1)'), 'Shared Best slot must search consecutive authoritative date windows');
 assert.match(planner.workshopSlotSummary('FABRICATION', 2, '2026-07-16', 0), /Fab · Bay 02 · Thu,? 16\/07,?.*8:00 am/i, 'Slot summaries should show the stage, bay and suggested work time clearly');
 let horizonDate = new Date(2026, 5, 17, 8, 0, 0, 0);
 const longHorizonRows = [];

@@ -34,7 +34,7 @@ const stationHtmlBody = stationHtmlStart >= 0 && stationHtmlEnd > stationHtmlSta
 assert(stationHtmlBody.includes('data-vehicle-workshop-hours-input'), 'Editable rows must expose a direct estimated-hours input');
 assert(stationHtmlBody.includes('data-vehicle-workshop-hours-save'), 'Direct estimated-hours editing must have an explicit save action');
 assert(stationHtmlBody.includes('data-vehicle-workshop-line-handle') && stationHtmlBody.includes('draggable="true"'), 'Visible operation numbers must be draggable Workshop bay handles');
-assert(stationHtmlBody.includes('data-vehicle-workshop-schedule-next') && stationHtmlBody.includes('Schedule next available'), 'Every unbooked editable Workshop row must expose Schedule next available');
+assert(stationHtmlBody.includes('data-vehicle-workshop-schedule-next') && stationHtmlBody.includes('Best slot'), 'Every unbooked editable Workshop row must expose Best slot');
 assert(stationHtmlBody.includes('vehicle-workshop-line-actions') && stationHtmlBody.includes('vehicle-workshop-line-booking'), 'Scheduling/edit controls and booking state must remain on each compact work row');
 assert(stationHtmlBody.includes('<div class="vehicle-workshop-lines">') && !stationHtmlBody.includes('<table class="vehicle-workshop-job-card">'), 'Work & bookings must use compact rows, never the wide audit table');
 assert(!stationHtmlBody.includes('<th scope="col">Department</th>') && !stationHtmlBody.includes('<th scope="col">Provenance</th>') && !stationHtmlBody.includes('<th scope="col">Parts dependency / status</th>') && !stationHtmlBody.includes('<th scope="col">Sublet provider</th>'), 'Operational detail must not expose audit-only columns');
@@ -46,7 +46,12 @@ const bulkHoursBody = bulkHoursStart >= 0 && bulkHoursEnd > bulkHoursStart ? app
 assert(bulkHoursBody.includes("closest?.('.vehicle-workshop-line')") && bulkHoursBody.includes("row?.querySelector?.('[data-vehicle-workshop-hours-input]')"), 'Saving a row must resolve only the clicked row and its hours input');
 assert(!bulkHoursBody.includes("querySelectorAll('.vehicle-workshop-line')") && !bulkHoursBody.includes('Promise.all'), 'A row Save must not validate or update unrelated populated rows');
 assert(app.includes("addEventListener('dragstart', event => beginVehicleWorkshopLineDrag(event, handle))"), 'Operation handles must wire dragstart to the Planner handoff');
-assert(app.includes('workshopScheduleVehicleNextAvailable(payload)'), 'Schedule next available must delegate to the established Workshop Planner authority');
+assert(app.includes('workshopScheduleVehicleNextAvailable(payload)'), 'Best slot must delegate to the established Workshop Planner authority');
+const detailBestSlotStart = app.indexOf('async function scheduleVehicleWorkshopNextAvailable');
+const detailBestSlotEnd = app.indexOf('function beginVehicleWorkshopLineDrag', detailBestSlotStart);
+const detailBestSlotBody = detailBestSlotStart >= 0 && detailBestSlotEnd > detailBestSlotStart ? app.slice(detailBestSlotStart, detailBestSlotEnd) : '';
+assert(!detailBestSlotBody.includes('saveVehicleWorkshopLineHours'), 'Best slot must not rewrite or quarter-hour validate imported operation estimates before scheduling');
+assert(detailBestSlotBody.includes("querySelectorAll('[data-vehicle-workshop-hours-input]')"), 'Best slot must use the full station estimate shown on the Work & bookings screen');
 assert(planner.includes('async function workshopScheduleVehicleNextAvailable'), 'Planner must own next-available slot selection and authoritative scheduling');
 assert(planner.includes('etaConstraint.earliestDateKey') && planner.includes('workshopBestStageSlot'), 'Next-available scheduling must obey the ETA floor and operational bay/calendar rules');
 const nextAvailableStart = planner.indexOf('async function workshopScheduleVehicleNextAvailable');
