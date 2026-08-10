@@ -77,7 +77,7 @@
     "migration148": "PASS - applied to staging",
     "retainedReplay": "PASS - 1 receipt, 16 lines, 3 work items; exact replay idempotent",
     "assetParity": "PASS - exact source-to-staging hashes verified",
-    "authenticatedBrowser": "Pending live .16 build"
+    "authenticatedBrowser": "PASS - Stock 13045140; 16 selectors; 3 station choices; exact 10.81/2.70/0.00 hour totals; zero severe console errors; zero desktop/mobile overflow"
   },
   "sourceFiles": [
     {
