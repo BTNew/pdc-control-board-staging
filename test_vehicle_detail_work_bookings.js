@@ -27,7 +27,7 @@ assert(workshopGroupsBody.includes('pdcEmailOperationLines'), 'Vehicle Work & bo
 assert(workshopGroupsBody.includes('operation_no'), 'Authenticated operation numbers must remain available to the detail renderer');
 assert(workshopGroupsBody.includes('groups.get(stage).lines.push'), 'Authenticated operation lines must be placed into their canonical station group');
 assert(css.includes('.vehicle-workshop-station') && css.includes('--station-colour'), 'Station groups must be colour coded through a shared station colour token');
-assert(css.includes('.vehicle-detail-tabs') && css.includes('@media (max-width: 760px)'), 'Tabs and work rows must have responsive treatment');
+assert(css.includes('@media (max-width: 900px)') && css.includes('grid-template-columns: 24px minmax(150px, 1.25fr) minmax(118px, .55fr) minmax(105px, .75fr) auto') && css.includes('.vehicle-workshop-line > .vehicle-workshop-line-actions { flex-wrap: wrap; }'), 'Compact work rows must switch before tablet-width actions can overlap booking content');
 const stationHtmlStart = app.indexOf('function vehicleWorkshopCompactLinesHtml');
 const stationHtmlEnd = app.indexOf('function renderVehicleWorkshopWorkPage', stationHtmlStart);
 const stationHtmlBody = stationHtmlStart >= 0 && stationHtmlEnd > stationHtmlStart ? app.slice(stationHtmlStart, stationHtmlEnd) : '';
