@@ -109,11 +109,20 @@ function testRoutesAndIsolationContracts() {
   assert(app.includes('teardownWorkshopPlannerScope({ preserveShell: switchingPlannerStation })'));
   assert(app.includes('window.__workshopRealtimeManager?.stop?.()'));
   assert(app.includes("scope: app.activeWorkshopPlannerStage ?"));
-  assert(index.includes('id="nav-workshop-rollback"'));
-  assert(staging.includes('id="nav-workshop-rollback"'));
-  for (const shell of ['no-vehicles.html', 'test-50.html', 'test-75.html', 'test-100.html']) {
-    assert(read(shell).includes('id="nav-workshop-rollback"'), `${shell} must honor the explicit rollback flag`);
+  for (const [view, _path, stage] of ROUTES) {
+    const expectedLink = `class="nav-item nav-workshop-item" data-view="${view}"`;
+    assert(index.includes(expectedLink), `index must link directly to ${stage}`);
+    assert(staging.includes(expectedLink), `staging must link directly to ${stage}`);
   }
+  assert(index.includes('class="nav-section-label">Workshop Planners</div>'));
+  assert(staging.includes('class="nav-section-label">Workshop Planners</div>'));
+  assert(!index.includes('id="nav-workshop-rollback"'));
+  assert(!staging.includes('id="nav-workshop-rollback"'));
+  assert(!index.includes('<section id="pipeline"'));
+  assert(!staging.includes('<section id="pipeline"'));
+  assert(app.includes("if (path === 'pipeline') return 'workflow';"), 'obsolete Pipeline hashes must restore to Control Board');
+  assert(app.includes("if (requestedView === 'pipeline') requestedView = 'workflow';"), 'obsolete Pipeline requests must redirect safely to Control Board');
+  assert(!app.includes("case 'pipeline':"), 'obsolete Pipeline renderer must not remain route-accessible');
   assert(app.includes('combinedPlannerRollback'));
   assert(app.includes('return configured === true'), 'combined planner rollback must fail closed unless explicitly enabled');
   assert(stagingConfig.includes('stationRoutes: { combinedPlannerRollback: false }'), 'staging must enter through station-first routes, never the combined planner');

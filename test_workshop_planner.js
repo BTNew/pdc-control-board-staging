@@ -19,6 +19,7 @@ const source = fs.readFileSync(path.join(root, 'workshop-planner.js'), 'utf8');
 const css = fs.readFileSync(path.join(root, 'workshop-planner.css'), 'utf8');
 const globalCss = fs.readFileSync(path.join(root, 'styles.css'), 'utf8');
 const htmlFiles = ['index.html', 'no-vehicles.html', 'test-50.html', 'test-75.html', 'test-100.html'];
+const workshopPlannerNavViews = ['planner-bus-4x4', 'planner-tint', 'planner-hoist', 'planner-fitting', 'planner-fab', 'planner-elec', 'planner-tyre'];
 const appVersion = (app.match(/const APP_VERSION = '([^']+)'/) || [])[1];
 assert.ok(appVersion, 'app.js must define APP_VERSION');
 
@@ -419,7 +420,11 @@ assert.ok(globalCss.includes('.pmb-card-move-button {'), 'PMB movement buttons m
 
 for (const file of htmlFiles) {
   const html = fs.readFileSync(path.join(root, file), 'utf8');
-  assert.ok(html.includes('data-view="workshop"'), `${file} is missing the Workshop Planner navigation item`);
+  for (const view of workshopPlannerNavViews) {
+    assert.ok(html.includes(`class="nav-item nav-workshop-item" data-view="${view}"`), `${file} is missing direct Workshop Planner link ${view}`);
+  }
+  assert.ok(!html.includes('data-view="workshop"'), `${file} must not expose the combined Workshop Planner navigation item`);
+  assert.ok(!html.includes('<section id="pipeline"'), `${file} must not expose the obsolete Vehicle Pipeline view`);
   assert.ok(html.includes('id="workshop-planner-root"'), `${file} is missing the Workshop Planner host`);
   assert.ok(html.includes(`workshop-planner.css?v=${appVersion}`), `${file} is missing the planner stylesheet`);
   assert.ok(!html.includes('<script src="workshop-planner.js'), `${file} must not eagerly load the planner script`);

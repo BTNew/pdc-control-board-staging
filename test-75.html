@@ -6,9 +6,9 @@
   <meta name="description" content="PDC vehicle locations, workshop workflow, Parts and scheduling control board." />
   <title>PDC Control Board — Random 75 Vehicle Test</title>
   <link rel="icon" href="favicon.svg" type="image/svg+xml" />
-  <link rel="stylesheet" href="styles.css?v=2026.08.10.07-admin-workshop-mobile-nav" />
-  <link rel="stylesheet" href="desktop-operations.css?v=2026.08.10.07-admin-workshop-mobile-nav" />
-  <link rel="stylesheet" href="workshop-planner.css?v=2026.08.10.07-admin-workshop-mobile-nav" />
+  <link rel="stylesheet" href="styles.css?v=2026.08.10.08-direct-workshop-planners" />
+  <link rel="stylesheet" href="desktop-operations.css?v=2026.08.10.08-direct-workshop-planners" />
+  <link rel="stylesheet" href="workshop-planner.css?v=2026.08.10.08-direct-workshop-planners" />
 </head>
 <body>
   <div class="test-data-banner" style="position:sticky;top:0;z-index:9999;background:#6d28d9;color:#fff;padding:8px 14px;text-align:center;font-weight:700;letter-spacing:.02em;">TEST DATASET — 75 SAMPLE VEHICLES ONLY — separate from live board</div>
@@ -27,7 +27,14 @@
       <nav class="nav">
         <button type="button" class="nav-item active" data-view="dashboard" data-short="LOC">Vehicle Locations</button>
         <button type="button" class="nav-item" data-view="workflow" data-short="CB">Control Board</button>
-        <button type="button" class="nav-item" id="nav-workshop-rollback" data-view="workshop" data-short="PLAN">Workshop Planner (rollback)</button>
+        <div class="nav-section-label">Workshop Planners</div>
+        <button type="button" class="nav-item nav-workshop-item" data-view="planner-bus-4x4" data-short="B4">Bus 4×4</button>
+        <button type="button" class="nav-item nav-workshop-item" data-view="planner-tint" data-short="T">Tint</button>
+        <button type="button" class="nav-item nav-workshop-item" data-view="planner-hoist" data-short="H">Hoist</button>
+        <button type="button" class="nav-item nav-workshop-item" data-view="planner-fitting" data-short="F">Fitting</button>
+        <button type="button" class="nav-item nav-workshop-item" data-view="planner-fab" data-short="FAB">Fabrication</button>
+        <button type="button" class="nav-item nav-workshop-item" data-view="planner-elec" data-short="ELEC">Electrical</button>
+        <button type="button" class="nav-item nav-workshop-item" data-view="planner-tyre" data-short="TY">Tyre</button>
         <button type="button" class="nav-item" data-view="parts" data-short="PA">Parts</button>
         <button type="button" class="nav-item" data-view="emailreview" data-short="AI">AI Intake Review</button>
         <button type="button" class="nav-item" data-view="sublet" data-short="SUB">Sublet</button>
@@ -257,18 +264,6 @@
         </section>
       </section>
 
-      <section id="pipeline" class="view">
-        <div class="panel">
-          <div class="panel-header">
-            <div>
-              <h2>Vehicle pipeline</h2>
-              <p>Grouped by workflow stage so the team can see vehicles moving from production/transit into Yard Hold, PMB and RFT.</p>
-            </div>
-            <span class="badge neutral" id="pipeline-count">0 vehicles</span>
-          </div>
-          <div class="kanban" id="kanban"></div>
-        </div>
-      </section>
 
       <section id="tv" class="view">
         <div class="panel tv-board-panel">
@@ -853,11 +848,11 @@
     }());
   </script>
 
-  <script src="data-test-75.js?v=2026.08.10.07-admin-workshop-mobile-nav"></script>
+  <script src="data-test-75.js?v=2026.08.10.08-direct-workshop-planners"></script>
   <script src="arb-labor-catalog.js?v=2026.07.24.26-pd-document-intake"></script>
   <script src="ai-board-advisor.js?v=2026.07.24.26-pd-document-intake"></script>
-  <script src="workshop-eligibility.js?v=2026.08.10.07-admin-workshop-mobile-nav"></script>
-  <script src="app.js?v=2026.08.10.07-admin-workshop-mobile-nav"></script>
+  <script src="workshop-eligibility.js?v=2026.08.10.08-direct-workshop-planners"></script>
+  <script src="app.js?v=2026.08.10.08-direct-workshop-planners"></script>
 
 </body>
 </html>

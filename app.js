@@ -1,5 +1,5 @@
-const APP_VERSION = '2026.08.10.07-admin-workshop-mobile-nav';
-const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.08.10.07-admin-workshop-mobile-nav';
+const APP_VERSION = '2026.08.10.08-direct-workshop-planners';
+const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.08.10.08-direct-workshop-planners';
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
 // constant intentionally names only the production ref, never the
@@ -2840,6 +2840,7 @@ function workshopViewFromLocation() {
     return 'dashboard';
   }
   if (!path) return 'dashboard';
+  if (path === 'pipeline') return 'workflow';
   if (WORKSHOP_PLANNER_ROUTE_BY_PATH[path]) return WORKSHOP_PLANNER_ROUTE_BY_PATH[path];
   if (path === 'workshop') return workshopCombinedPlannerRollbackEnabled() ? 'workshop' : 'workflow';
   if (path.startsWith('workshop/')) return 'workflow';
@@ -2870,8 +2871,6 @@ function init() {
   const visibleRows = pdcSheetVehicles();
   app.selectedStock = vehicleKey(visibleRows.find(v => v.toyotaStatus) || visibleRows[0] || app.data[0]);
   bindNav();
-  const rollbackNav = $('#nav-workshop-rollback');
-  if (rollbackNav) rollbackNav.hidden = !workshopCombinedPlannerRollbackEnabled();
   populateFilters();
   showView(workshopViewFromLocation(), { historyMode: 'replace' });
   updateNavisionImportButton();
@@ -3646,6 +3645,7 @@ function teardownWorkshopPlannerScope(options) {
 function showView(view, options) {
   options = options || {};
   let requestedView = view || 'dashboard';
+  if (requestedView === 'pipeline') requestedView = 'workflow';
   if (requestedView.startsWith('planner-') && !WORKSHOP_PLANNER_VIEWS[requestedView]) requestedView = 'workflow';
   if (requestedView === 'workshop' && !workshopCombinedPlannerRollbackEnabled()) requestedView = 'workflow';
   const departmentStage = PRODUCTION_DEPARTMENT_VIEWS[requestedView] || '';
@@ -3691,7 +3691,6 @@ function showView(view, options) {
     dashboard: 'Vehicle Locations',
     workflow: 'Control Board',
     workshop: 'Workshop Planner',
-    pipeline: 'Vehicle Pipeline',
     visibility: 'Operational Visibility',
     tv: 'PDC TV Board',
     schedule: 'Production',
@@ -3738,7 +3737,6 @@ const HEAVY_VIEW_HOSTS = Object.freeze({
   backend: ['backend-data-content'],
   department: ['department-content'],
   schedule: ['schedule-content'],
-  pipeline: ['kanban'],
   visibility: ['visibility-content'],
   tv: ['tv-content'],
 });
@@ -4360,9 +4358,6 @@ function renderActiveView() {
       break;
     case 'department':
       renderProductionDepartmentBoard();
-      break;
-    case 'pipeline':
-      renderKanban();
       break;
     case 'visibility':
       renderOperationalVisibility();
