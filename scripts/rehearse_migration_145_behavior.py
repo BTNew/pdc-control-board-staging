@@ -8,9 +8,12 @@ sys.path.insert(0,str(Path.home()/'pdc-control-board'/'_staging_test_tools'))
 from staging_env import load_local_env,assert_staging_target
 M=ROOT/'supabase'/'staging_only'/'145_explicit_receipt_only_monitor_importer_and_parts_normalization.sql'
 M146=ROOT/'supabase'/'staging_only'/'146_bind_monitor_import_to_retained_proposal.sql'
+M147=ROOT/'supabase'/'staging_only'/'147_bind_monitor_import_to_activation_stock.sql'
 def one(c,q,p=()): c.execute(q,p); return c.fetchone()[0]
+def snap(c,table,where='true',params=()):
+ return one(c,f"select md5(coalesce(string_agg(to_jsonb(t)::text,E'\\n' order by to_jsonb(t)::text),'')) from public.{table} t where {where}",params)
 def main():
- parser=argparse.ArgumentParser(); parser.add_argument('--installed',action='store_true'); parser.add_argument('--candidate-146',action='store_true'); args=parser.parse_args()
+ parser=argparse.ArgumentParser(); parser.add_argument('--installed',action='store_true'); parser.add_argument('--candidate-146',action='store_true'); parser.add_argument('--candidate-147',action='store_true'); args=parser.parse_args()
  load_local_env(); d=os.environ.get('PDC_STAGING_DIRECT_DATABASE_URL') or os.environ.get('PDC_STAGING_DATABASE_URL'); assert_staging_target(database_url=d)
  s=M.read_text(); body=s.replace('begin;','',1).rsplit('commit;',1)[0]; conn=psycopg.connect(d); report={}
  try:
@@ -25,9 +28,20 @@ def main():
    if not actor: raise RuntimeError('exact-bound enrolled Viewer missing')
    c.execute("select v.id,to_jsonb(v),to_jsonb(a),to_jsonb(r) from public.navision_backend_records r join public.navision_board_activations a on a.backend_record_id=r.id join public.vehicles v on v.id=a.canonical_vehicle_id where r.is_current and public.normalize_vehicle_stock_number(r.normalized_data->>'batch')='13045140'")
    vehicle_id,vehicle_before,activation_before,backend_before=c.fetchone()
+   immutable_snapshots={
+    'unrelated_vehicles':snap(c,'vehicles','id<>%s',(vehicle_id,)),
+    'activations':snap(c,'navision_board_activations'),
+    'backend':snap(c,'navision_backend_records'),
+    'bookings':snap(c,'workshop_bookings'),
+    'parts':snap(c,'vehicle_parts_updates'),
+    'ai_proposals':snap(c,'pdc_ai_intake_proposals'),
+    'ai_history':snap(c,'pdc_ai_intake_history'),
+   }
    baseline=(one(c,'select count(*) from public.workshop_bookings'),one(c,'select count(*) from public.vehicle_parts_updates'),one(c,'select count(*) from public.navision_board_activations'),one(c,'select count(*) from public.pdc_ai_intake_history'),one(c,'select revision from public.pdc_email_vehicle_revision where singleton'))
    mutation_baseline=(one(c,'select count(*) from public.pdc_authenticated_email_import_receipts'),one(c,'select count(*) from public.vehicle_work_items'),one(c,'select revision from public.pdc_email_vehicle_revision where singleton'))
-   if args.candidate_146:
+   if args.candidate_147:
+    s147=M147.read_text(); c.execute(s147.replace('begin;','',1).rsplit('commit;',1)[0])
+   elif args.candidate_146:
     s146=M146.read_text(); c.execute(s146.replace('begin;','',1).rsplit('commit;',1)[0])
    elif not args.installed: c.execute(body)
    claims=json.dumps({'sub':str(actor[0]),'email':actor[1],'role':'authenticated'}); c.execute('set local role authenticated'); c.execute("select set_config('request.jwt.claims',%s,true)",(claims,))
@@ -41,6 +55,12 @@ def main():
    c.execute('reset role')
    mutation_after=(one(c,'select count(*) from public.pdc_authenticated_email_import_receipts'),one(c,'select count(*) from public.vehicle_work_items'),one(c,'select revision from public.pdc_email_vehicle_revision where singleton'))
    if tampered_result.get('code')!='source_proposal_binding_mismatch' or mutation_after!=mutation_baseline: raise RuntimeError(f'tampered proposal binding was not fail-closed: {tampered_result}')
+   c.execute('savepoint activation_stock_mismatch')
+   c.execute("update public.navision_board_activations set activated_stock_number='99999999' where canonical_vehicle_id=%s",(vehicle_id,))
+   c.execute('set local role authenticated')
+   activation_mismatch=one(c,call,((key+'activation'),)+params[1:])
+   c.execute('reset role'); c.execute('rollback to savepoint activation_stock_mismatch')
+   if activation_mismatch.get('code')!='active_canonical_link_required': raise RuntimeError(f'activation Stock mismatch was not fail-closed: {activation_mismatch}')
    c.execute('set local role authenticated')
    revision_before=one(c,'select revision from public.pdc_email_vehicle_revision where singleton'); result=one(c,call,params); replay=one(c,call,params)
    if not result.get('ok') or result.get('code')!='canonical_receipt_and_work_imported' or replay!=result: raise RuntimeError(f'v4 import/replay failed: {result} / {replay}')
@@ -58,11 +78,22 @@ def main():
    if one(c,'select count(*) from public.pdc_authenticated_email_import_receipts where source_hash=%s',(source,))!=1 or one(c,'select count(*) from public.pdc_authenticated_email_operation_lines where source_hash=%s',(source,))!=16: raise RuntimeError('receipt/line count mismatch')
    final=(one(c,'select count(*) from public.workshop_bookings'),one(c,'select count(*) from public.vehicle_parts_updates'),one(c,'select count(*) from public.navision_board_activations'),one(c,'select count(*) from public.pdc_ai_intake_history'))
    if final!=baseline[:4] or one(c,'select count(*) from public.vehicles')!=vehicle_count_before: raise RuntimeError(f'forbidden side mutation: {baseline[:4]} -> {final}')
-   report={'ok':True,'transaction':'rolled_back','stock':'13045140','jc':'J139125431','receipt':1,'operation_lines':16,'work_items':4,'fitting':True,'electrical':True,'tint':True,'parts_normalized_to_PARTS':True,'source_proposal_binding':True,'tampered_evidence_rejected':True,'existing_vehicle_only':True,'activation_unchanged':True,'backend_unchanged':True,'no_booking':True,'no_parts_side_write':True,'no_ai_mutation':True,'replay_idempotent':True,'realtime_revision_advanced':rev_after>revision_before}
+   immutable_after={
+    'unrelated_vehicles':snap(c,'vehicles','id<>%s',(vehicle_id,)),
+    'activations':snap(c,'navision_board_activations'),
+    'backend':snap(c,'navision_backend_records'),
+    'bookings':snap(c,'workshop_bookings'),
+    'parts':snap(c,'vehicle_parts_updates'),
+    'ai_proposals':snap(c,'pdc_ai_intake_proposals'),
+    'ai_history':snap(c,'pdc_ai_intake_history'),
+   }
+   if immutable_after!=immutable_snapshots: raise RuntimeError(f'forbidden content mutation: {immutable_snapshots} -> {immutable_after}')
+   report={'ok':True,'transaction':'rolled_back','stock':'13045140','jc':'J139125431','receipt':1,'operation_lines':16,'work_items':4,'fitting':True,'electrical':True,'tint':True,'parts_normalized_to_PARTS':True,'source_proposal_binding':True,'tampered_evidence_rejected':True,'activation_stock_binding':True,'activation_stock_mismatch_rejected':True,'existing_vehicle_only':True,'activation_unchanged':True,'backend_unchanged':True,'full_content_fingerprints_unchanged':True,'no_booking':True,'no_parts_side_write':True,'no_ai_mutation':True,'replay_idempotent':True,'realtime_revision_advanced':rev_after>revision_before}
    conn.rollback()
   with conn.cursor() as c:
-   if one(c,"select exists(select 1 from supabase_migrations.schema_migrations where version='145')") is not (args.installed or args.candidate_146): raise RuntimeError('Migration 145 ledger state mismatch after rollback')
-   if one(c,"select exists(select 1 from supabase_migrations.schema_migrations where version='146')") is not args.installed: raise RuntimeError('Migration 146 ledger state mismatch after rollback')
+   if one(c,"select exists(select 1 from supabase_migrations.schema_migrations where version='145')") is not (args.installed or args.candidate_146 or args.candidate_147): raise RuntimeError('Migration 145 ledger state mismatch after rollback')
+   if one(c,"select exists(select 1 from supabase_migrations.schema_migrations where version='146')") is not (args.installed or args.candidate_147): raise RuntimeError('Migration 146 ledger state mismatch after rollback')
+   if one(c,"select exists(select 1 from supabase_migrations.schema_migrations where version='147')") is not args.installed: raise RuntimeError('Migration 147 ledger state mismatch after rollback')
    if one(c,"select count(*) from public.pdc_authenticated_email_import_receipts where source_hash=%s",(source,))!=0: raise RuntimeError('rollback leaked receipt')
   conn.rollback(); report['rollback_verified']=True
  finally: conn.close()

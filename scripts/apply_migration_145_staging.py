@@ -38,12 +38,20 @@ def main():
   with conn.cursor() as c:
    if one(c,'select project_ref from public.pdc_staging_environment_sentinel where singleton')!='cdsmnqxtyyoeoznmbidd' or one(c,"select to_regclass('public.pdc_production_environment_sentinel') is not null"): raise RuntimeError('staging sentinel mismatch')
    if one(c,'select version from supabase_migrations.schema_migrations order by version::integer desc limit 1')!='144' or one(c,"select exists(select 1 from supabase_migrations.schema_migrations where version='145')"): raise RuntimeError('ledger pre-state mismatch')
-   before=data(c); old=one(c,'select pg_get_functiondef(%s::regprocedure)',(SIG,)); c.execute(body(raw.decode())); outcome=verify(c,before)
+   before=data(c); old=one(c,'select pg_get_functiondef(%s::regprocedure)',(SIG,)); old_hours=one(c,'select pg_get_functiondef(%s::regprocedure)',(HOURS,))
+   old_hours_meta=one(c,"select jsonb_build_object('comment',obj_description(oid,'pg_proc'),'prosecdef',prosecdef,'proconfig',proconfig) from pg_proc where oid=%s::regprocedure",(HOURS,))
+   old_hours_acl={r:one(c,"select has_function_privilege(%s,%s,'EXECUTE')",(r,HOURS)) for r in ('public','anon','authenticated','service_role')}
+   c.execute(body(raw.decode())); outcome=verify(c,before)
    if a.apply: conn.commit()
    else:
     conn.rollback()
     with conn.cursor() as q:
-     if one(q,'select pg_get_functiondef(%s::regprocedure)',(SIG,))!=old or data(q)!=before or one(q,"select exists(select 1 from supabase_migrations.schema_migrations where version='145')"): raise RuntimeError('rollback leaked')
+     restored_hours_meta=one(q,"select jsonb_build_object('comment',obj_description(oid,'pg_proc'),'prosecdef',prosecdef,'proconfig',proconfig) from pg_proc where oid=%s::regprocedure",(HOURS,))
+     restored_hours_acl={r:one(q,"select has_function_privilege(%s,%s,'EXECUTE')",(r,HOURS)) for r in ('public','anon','authenticated','service_role')}
+     if (one(q,'select pg_get_functiondef(%s::regprocedure)',(SIG,))!=old
+         or one(q,'select pg_get_functiondef(%s::regprocedure)',(HOURS,))!=old_hours
+         or restored_hours_meta!=old_hours_meta or restored_hours_acl!=old_hours_acl
+         or data(q)!=before or one(q,"select exists(select 1 from supabase_migrations.schema_migrations where version='145')")): raise RuntimeError('rollback leaked or did not restore hours importer')
     print(json.dumps({'ok':True,'mode':'rehearsal','migration':'145','sha256':sha,'outcome':outcome,'rollback_verified':True},sort_keys=True)); return
   with conn.cursor() as c:
    if one(c,"select count(*) from supabase_migrations.schema_migrations where version='145' and name='explicit_receipt_only_monitor_importer_and_parts_normalization'")!=1: raise RuntimeError('ledger persistence failed')
