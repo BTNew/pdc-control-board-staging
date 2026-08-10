@@ -118,22 +118,6 @@
 .ai-auditor-review-status.is-denied { border-color: #fecaca; background: #fef2f2; color: #991b1b; }
 .ai-auditor-review-status.is-pending { border-color: #fde68a; background: #fffbeb; color: #92400e; }
 
-/* The Stage A job-card projection is a read-only, horizontally scrollable table. */
-.vehicle-workshop-job-card-wrap { overflow-x: auto; border: 1px solid #dbe3ee; border-radius: 9px; background: #fff; }
-.vehicle-workshop-job-card { width: 100%; min-width: 1540px; border-collapse: collapse; table-layout: fixed; }
-.vehicle-workshop-job-card tr.vehicle-workshop-line { display: table-row; }
-.vehicle-workshop-job-card tr.vehicle-workshop-line > td { display: table-cell; }
-.vehicle-workshop-job-card th,
-.vehicle-workshop-job-card td { padding: 7px 8px; border-right: 1px solid #e2e8f0; border-bottom: 1px solid #e2e8f0; vertical-align: top; text-align: left; font-size: .75rem; overflow-wrap: anywhere; }
-.vehicle-workshop-job-card th { background: #f8fafc; color: #475569; font-size: .68rem; letter-spacing: .03em; text-transform: uppercase; }
-.vehicle-workshop-job-card th:first-child { width: 230px; }
-.vehicle-workshop-job-card td:last-child,
-.vehicle-workshop-job-card th:last-child { border-right: 0; }
-.vehicle-workshop-job-card tr:last-child td { border-bottom: 0; }
-.vehicle-workshop-job-card .vehicle-workshop-booking-link { max-width: 220px; }
-.vehicle-workshop-station-bookings { padding: 9px 11px; border-top: 1px solid #e2e8f0; background: #f8fafc; }
-.vehicle-workshop-station-bookings > strong { display: block; margin-bottom: 5px; font-size: .72rem; color: #475569; text-transform: uppercase; }
-
 @media (max-width: 1180px) {
   .ai-auditor-summary-grid { grid-template-columns: repeat(4, minmax(120px, 1fr)); }
 }

@@ -1,5 +1,5 @@
-const APP_VERSION = '2026.08.08.10-sublet-review-corrections';
-const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.08.08.10-sublet-review-corrections';
+const APP_VERSION = '2026.08.10.01-slim-work-bookings';
+const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.08.10.01-slim-work-bookings';
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
 // constant intentionally names only the production ref, never the
@@ -10663,7 +10663,7 @@ function vehicleWorkshopHoursClass(line = {}, estimate = null) {
   return { label: 'Unknown hours', value: Number(estimate) };
 }
 
-function vehicleWorkshopJobCardTableHtml(group = {}, bookingFallback = 'Not booked', vehicle = {}) {
+function vehicleWorkshopCompactLinesHtml(group = {}, bookingFallback = 'Not booked', vehicle = {}) {
   const presentation = vehicleWorkshopStationPresentation(group.stage);
   const complete = group.requirements.length > 0 && group.requirements.every(item => item.completed === true);
   const canEdit = vehicleWorkshopCanEditLines() && !complete;
@@ -10691,16 +10691,13 @@ function vehicleWorkshopJobCardTableHtml(group = {}, bookingFallback = 'Not book
     const number = canEdit && canonicalVehicleId && WORKSHOP_PLANNER_ROUTE_BY_STAGE[group.stage]
       ? `<button type="button" class="vehicle-workshop-line-number" draggable="true" ${handleData} aria-label="Drag ${escapeHtml(description)} to a workshop bay">${index + 1}</button>`
       : `<span class="vehicle-workshop-line-number">${index + 1}</span>`;
-    const partsDependency = vehicleWorkshopJobCardValue(line, ['parts_dependency', 'partsDependency', 'requires_parts', 'requiresParts'], 'None recorded');
-    const partsStatus = vehicleWorkshopJobCardValue(line, ['parts_status', 'partsStatus'], 'Status not recorded');
-    const completion = line.completed === true || line.is_completed === true
-      ? `Completed${line.completed_at ? ` · ${cleanNavisionText(line.completed_at)}` : ''}`
-      : vehicleWorkshopJobCardValue(line, ['completion_status', 'completionStatus'], complete ? 'Completed' : 'Outstanding');
     const bookingCell = lineBookings.length ? vehicleWorkshopBookingRowsHtml(lineBookings, bookingFallback)
       : (group.bookings.length ? '<span class="vehicle-workshop-booking-static">Station booking shown below</span>' : `<span class="vehicle-workshop-not-booked">${escapeHtml(bookingFallback)}</span>`);
-    return `<tr class="vehicle-workshop-line"><td><div class="vehicle-workshop-line-description">${number}<strong>${escapeHtml(description)}</strong></div>${controls}</td><td>${escapeHtml(presentation.label)}</td><td class="vehicle-workshop-line-hours">${hoursHtml}</td><td>${escapeHtml(vehicleWorkshopJobCardValue(line, ['labour_class', 'labor_class', 'work_class', 'class_code', 'class'], 'Unclassified'))}</td><td>${escapeHtml(vehicleWorkshopJobCardValue(line, ['provenance', 'source_kind', 'source_type', 'source'], line.authenticatedEmailOperation ? 'Authenticated email operation' : 'Recorded requirement'))}</td><td>${escapeHtml(vehicleWorkshopJobCardBookedActual(line, lineBookings))}</td><td>${escapeHtml(`${partsDependency} · ${partsStatus}`)}</td><td>${escapeHtml(vehicleWorkshopJobCardValue(line, ['sublet_provider', 'subletProvider', 'provider_name', 'provider'], 'Not applicable'))}</td><td class="vehicle-workshop-line-booking">${bookingCell}</td><td>${escapeHtml(vehicleWorkshopJobCardValue(line, ['status', 'work_status', 'line_status'], complete ? 'Completed' : 'Required'))}</td><td>${escapeHtml(vehicleWorkshopJobCardValue(line, ['source_ref', 'source_reference', 'source_line_ref', 'operation_no'], lineKey))}</td><td>${escapeHtml(completion)}</td></tr>`;
+    const progress = vehicleWorkshopJobCardBookedActual(line, lineBookings);
+    const progressHtml = progress === 'Not recorded' ? '' : `<small>${escapeHtml(progress)}</small>`;
+    return `<div class="vehicle-workshop-line">${number}<span class="vehicle-workshop-line-description"><strong>${escapeHtml(description)}</strong></span><span class="vehicle-workshop-line-hours">${hoursHtml}</span><span class="vehicle-workshop-line-booking">${progressHtml}${bookingCell}</span>${controls}</div>`;
   }).join('');
-  return `<div class="vehicle-workshop-job-card-wrap"><table class="vehicle-workshop-job-card"><thead><tr><th scope="col">Description</th><th scope="col">Department</th><th scope="col">Estimated hours</th><th scope="col">Class</th><th scope="col">Provenance</th><th scope="col">Booked / actual</th><th scope="col">Parts dependency / status</th><th scope="col">Sublet provider</th><th scope="col">Booking</th><th scope="col">Status</th><th scope="col">Source ref</th><th scope="col">Completion</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+  return `<div class="vehicle-workshop-lines">${rows}</div>`;
 }
 
 function vehicleWorkshopStationHtml(group = {}, bookingFallback = 'Not booked', vehicle = {}) {
@@ -10711,14 +10708,14 @@ function vehicleWorkshopStationHtml(group = {}, bookingFallback = 'Not booked', 
   const totalHours = lineHours.length ? lineHours.reduce((sum, value) => sum + value, 0) : (bookingHours[0] || null);
   const addButton = vehicleWorkshopCanEditLines() && !complete ? `<button type="button" class="vehicle-workshop-line-add" data-vehicle-workshop-line-add data-stage="${escapeHtml(group.stage)}">+ Add line</button>` : '';
   const stationBookings = group.bookings.length ? `<div class="vehicle-workshop-station-bookings"><strong>Station bookings</strong>${vehicleWorkshopBookingRowsHtml(group.bookings, bookingFallback)}</div>` : '';
-  return `<section class="vehicle-workshop-station" data-vehicle-workshop-stage="${escapeHtml(group.stage)}" style="--station-colour:${escapeHtml(presentation.colour)};--station-tint:${escapeHtml(presentation.tint)}"><header><span class="vehicle-workshop-station-code">${escapeHtml(presentation.label.slice(0, 2).toUpperCase())}</span><div><h3>${escapeHtml(presentation.label)}</h3><p>${complete ? 'Required work completed' : 'Required work outstanding'}</p></div>${addButton}<span class="vehicle-workshop-station-status ${complete ? 'is-complete' : 'is-required'}">${complete ? 'Completed' : 'Required'}</span><span class="vehicle-workshop-station-total">${escapeHtml(vehicleWorkshopHoursLabel(totalHours))}</span></header>${vehicleWorkshopJobCardTableHtml(group, bookingFallback, vehicle)}${stationBookings}</section>`;
+  return `<section class="vehicle-workshop-station" data-vehicle-workshop-stage="${escapeHtml(group.stage)}" style="--station-colour:${escapeHtml(presentation.colour)};--station-tint:${escapeHtml(presentation.tint)}"><header><span class="vehicle-workshop-station-code">${escapeHtml(presentation.label.slice(0, 2).toUpperCase())}</span><div><h3>${escapeHtml(presentation.label)}</h3><p>${complete ? 'Required work completed' : 'Required work outstanding'}</p></div>${addButton}<span class="vehicle-workshop-station-status ${complete ? 'is-complete' : 'is-required'}">${complete ? 'Completed' : 'Required'}</span><span class="vehicle-workshop-station-total">${escapeHtml(vehicleWorkshopHoursLabel(totalHours))}</span></header>${vehicleWorkshopCompactLinesHtml(group, bookingFallback, vehicle)}${stationBookings}</section>`;
 }
 
 function renderVehicleWorkshopWorkPage(vehicle = {}) {
   const canonicalId = vehicleWorkshopDetailCanonicalId(vehicle);
   const state = canonicalId ? app.vehicleWorkshopDetailCache.get(canonicalId) : null;
   const bookingFallback = !canonicalId || state?.status === 'error' ? 'Booking data unavailable' : 'Not booked';
-  if (canonicalId && (!state || state.status === 'loading')) return `<div class="vehicle-workshop-page" data-vehicle-workshop-page><div class="vehicle-workshop-intro"><div><h3>Required workshop work</h3><p>Loading authoritative bays, estimated hours and booking times…</p></div></div><div class="empty-state" role="status"><strong>Loading work and bookings</strong><span>No scheduling information is shown until the shared response is confirmed.</span></div></div>`;
+  if (canonicalId && (!state || state.status === 'loading')) return `<div class="vehicle-workshop-page" data-vehicle-workshop-page><div class="vehicle-workshop-intro"><h3>Required work</h3></div><div class="empty-state" role="status"><strong>Loading work and bookings</strong><span>No scheduling information is shown until the shared response is confirmed.</span></div></div>`;
   const groups = vehicleWorkshopGroups(vehicle, state?.status === 'ready' ? state.detail : null);
   const warning = !canonicalId
     ? '<div class="vehicle-workshop-warning" role="status"><strong>Booking data unavailable</strong><span>This vehicle is not uniquely linked to shared Workshop authority. Required work is shown, but no booking time is guessed.</span></div>'
@@ -10726,7 +10723,7 @@ function renderVehicleWorkshopWorkPage(vehicle = {}) {
       ? `<div class="vehicle-workshop-warning" role="status"><strong>Booking data unavailable</strong><span>${escapeHtml(state.message || 'The shared Workshop detail could not be loaded. No booking time is guessed.')}</span></div>`
       : '';
   const content = groups.length ? groups.map(group => vehicleWorkshopStationHtml(group, bookingFallback, vehicle)).join('') : '<div class="empty-state"><strong>No required work</strong><span>This vehicle has no canonical required Workshop work.</span></div>';
-  return `<div class="vehicle-workshop-page" data-vehicle-workshop-page><div class="vehicle-workshop-intro"><div><h3>Required workshop work</h3><p>Every required line shows its description, estimated hours and current booking time. Select a booked time to open that exact Planner position.</p></div><div class="vehicle-workshop-legend">${Object.entries(VEHICLE_WORKSHOP_STATION_PRESENTATION).filter(([stage]) => WORKSHOP_PLANNER_ROUTE_BY_STAGE[stage]).map(([, item]) => `<span style="--legend-colour:${escapeHtml(item.colour)}"><i></i>${escapeHtml(item.label)}</span>`).join('')}</div></div>${warning}<div class="vehicle-workshop-stations">${content}</div></div>`;
+  return `<div class="vehicle-workshop-page" data-vehicle-workshop-page><div class="vehicle-workshop-intro"><h3>Required work</h3></div>${warning}<div class="vehicle-workshop-stations">${content}</div></div>`;
 }
 
 async function loadVehicleWorkshopDetail(vehicle = {}, { force = false } = {}) {
