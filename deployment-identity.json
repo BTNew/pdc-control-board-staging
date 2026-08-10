@@ -1,14 +1,14 @@
 {
   "artifact": "zero-embedded-data static staging site",
   "environment": "staging",
-  "generatedAtUtc": "2026-08-10T07:33:51.149885Z",
-  "deploymentMode": "Staging-only Admin and Workshop corrections, plus post-deploy mobile Admin navigation QA correction",
-  "baseDeploymentCommit": "cc90104edec719caa49e203ae8264e4a2626d9f1",
+  "generatedAtUtc": "2026-08-10T08:01:03Z",
+  "deploymentMode": "Staging-only direct Workshop Planner navigation; obsolete Pipeline view retired",
+  "baseDeploymentCommit": "99d6b395ace5068ef6fd273a3fe0c074bee03ed3",
   "sourceRepository": "BTNew/pdc-control-board",
-  "sourceBranch": "feat/staging-admin-workshop-fixes-20260810",
-  "sourceCommit": "f5b9bd2e7f580a4c8c505a9651c4ed0bdfcd7409",
-  "sourceTree": "9a6fc8f663a8d5698934bcdaecb0abe248411e21",
-  "cacheVersion": "2026.08.10.07-admin-workshop-mobile-nav",
+  "sourceBranch": "feat/staging-direct-workshop-planners-20260810",
+  "sourceCommit": "1e937a35caa7cc6d94290aae06e8538eaea2661a",
+  "sourceTree": "e10b0c14d01a6e39a418ae7b2121603a4a99c488",
+  "cacheVersion": "2026.08.10.08-direct-workshop-planners",
   "stagingProjectRef": "cdsmnqxtyyoeoznmbidd",
   "zeroData": true,
   "mailboxAuthority": false,
@@ -71,14 +71,14 @@
     "applyReceipts": 1
   },
   "releaseChecks": {
-    "aggregateTests": "148 passed, 0 failed, 1 documented clean-build skip; focused Admin/Workshop regression 32 assertions",
-    "focusedTests": "29 migration/UI assertions; isolated restore; live rollback-only migration, partial-write and multiple-Parts-history probes passed",
-    "browserLayout": "PASS authenticated desktop and 520px mobile: compact one-row navigation, zero document overflow, Admin/Navision/Backup routes, PMB stock 12704377 and Fitting station snapshot verified",
-    "assetParity": "PASS GitHub Pages served exact app.js and styles.css hashes for source commit 1354ffa8b55613c260fd55370cf7372fb2ac71c6",
+    "aggregateTests": "148 passed, 0 failed, 1 documented clean-build skip",
+    "focusedTests": "Station route, direct navigation, retired Pipeline route, Workshop planner and release-version checks passed",
+    "browserLayout": "PASS local desktop browser: seven direct planner links, Fitting active at #/workshop/fitting, scroll-safe sidebar, Pipeline DOM absent; responsive source contracts passed",
+    "assetParity": "PASS pre-publication logical Git blob parity for staging.html->index.html, app.js, styles.css and pdc-supabase-config.staging.js",
     "production": "unchanged",
     "excludedRelease": "No production repository/main, production database, mailbox/pdc-monitor, DNS or pilot activation included",
-    "browserConsole": "Station-scoped authenticated RPC 200. Legacy combined get_workshop_snapshot 403 is the intentional service_role-only boundary from migration 044.",
-    "independentReview": "MAJOR exact-ledger-tip finding corrected: apply rejects any numeric version >141; rollback uses overflow-safe numeric >142; 33 focused and 148 aggregate tests passed"
+    "browserConsole": "Local direct navigation produced no console or route errors; authenticated live staging acceptance remains bound to publication",
+    "independentReview": "Navigation-only frontend delta; canonical Workshop state, station-scoped RPC and mutation paths unchanged"
   },
   "sourceFiles": [
     {
@@ -96,8 +96,8 @@
     {
       "sourcePath": "app.js",
       "deployedPath": "app.js",
-      "sha256": "f3d5ee5dc93c6bfd531b876615501f062acc1a0d0cf244940897077214a941fe",
-      "bytes": 1058682
+      "sha256": "60ce61234e58e961d67ac678d3cbb88c7966e26fcca5b50bab55751b4cd6fe4f",
+      "bytes": 1058542
     },
     {
       "sourcePath": "arb-labor-catalog.js",
@@ -144,8 +144,8 @@
     {
       "sourcePath": "staging.html",
       "deployedPath": "index.html",
-      "sha256": "fa9e1770513aff1e4165131e3628ccf8c441aad251024b6d06606364aad2b5d9",
-      "bytes": 63090
+      "sha256": "40303a5cd8c4211456ca407d7f5cac7d202a7685fdf2d7d640d547941fc8c91a",
+      "bytes": 63323
     },
     {
       "sourcePath": "key-list-review.js",
@@ -210,8 +210,8 @@
     {
       "sourcePath": "pdc-supabase-config.staging.js",
       "deployedPath": "pdc-supabase-config.staging.js",
-      "sha256": "7efb3bf9cc609e7b8c7d1978ec3463f8f50f03e00921c9884712f72f3eae04e2",
-      "bytes": 1709
+      "sha256": "82b3144986a215bbf97f62ebcc38ccb399f32c23fea7543299a7768fcffd04d8",
+      "bytes": 1708
     },
     {
       "sourcePath": "scripts/stage2b_c4_browser_export.js",
@@ -228,8 +228,8 @@
     {
       "sourcePath": "styles.css",
       "deployedPath": "styles.css",
-      "sha256": "479737119d06dbd385a6c4bcc4d6c9fc458ba11664cd64ea4005a23ef0fba41f",
-      "bytes": 377620
+      "sha256": "d455a92480a583de9549cd555ee7a6a95c2844bd17734f0a94bc3e494ce32c3c",
+      "bytes": 378397
     },
     {
       "sourcePath": "supabase/staging_only/096_navision_stock_number_authority.sql",
@@ -466,6 +466,6 @@
     "productionChanged": false
   },
   "localScreenshotServersActive": 0,
-  "publicationAssetCommit": "4fbfcd6b119a1b08b5b5e662cd94466f14208bbd",
-  "verifiedArtifactCommit": "341aa4c5f3c179c8b6cee0a7368b394043f69566"
+  "publicationAssetCommit": "44f4c9fb407316230a32319b6e3c082481c90da7",
+  "verifiedArtifactCommit": "44f4c9fb407316230a32319b6e3c082481c90da7"
 }
