@@ -26,7 +26,7 @@ assert.ok(appVersion, 'app.js must define APP_VERSION');
 assert.strictEqual(planner.WORKSHOP_CONFIG.dayStartMinutes, 480, 'Workshop boot config must start at integer minute 480');
 assert.strictEqual(planner.WORKSHOP_CONFIG.dayEndMinutes, 960, 'Workshop boot config must finish at integer minute 960');
 assert.strictEqual(planner.WORKSHOP_CONFIG.dayLengthMinutes, 480, 'Workshop day should contain 480 integer minutes');
-assert.strictEqual(planner.WORKSHOP_CONFIG.defaultBookingDurationMinutes, 180, 'New planner bookings should default to 180 integer minutes');
+assert.strictEqual(planner.WORKSHOP_CONFIG.defaultBookingDurationMinutes, 60, 'Missing estimates should use only the one-hour safety fallback, never the removed three-hour test default');
 assert.deepStrictEqual(
   planner.WORKSHOP_STAGE_SEQUENCE,
   ['BUS_4X4', 'TINT', 'HOIST', 'FITTING', 'FABRICATION', 'ELECTRICAL', 'TYRE'],
