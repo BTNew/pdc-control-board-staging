@@ -1,14 +1,14 @@
 {
   "artifact": "zero-embedded-data static staging site",
   "environment": "staging",
-  "generatedAtUtc": "2026-08-10T20:44:32Z",
-  "deploymentMode": "Staging Workshop station-click correction: clicking a job opens its Station picker without background planner navigation; drag-to-planner remains separate",
-  "baseDeploymentCommit": "dceb49b66f30b23039bd5d9d2527b9e09ef34b8a",
+  "generatedAtUtc": "2026-08-10T22:21:41Z",
+  "deploymentMode": "Staging Workshop source-operation station move: station-only audited RPC preserves exact imported hours/description; completed source/target work remains locked",
+  "baseDeploymentCommit": "c0ff0999a1223aeef627f42afd3634b65404e8c5",
   "sourceRepository": "BTNew/pdc-control-board",
-  "sourceBranch": "feat/staging-ai-auditor-upload-proposals-20260810",
-  "sourceCommit": "2e15c9c373bf60b05c370f7edc4cefed9da3ac0a",
-  "sourceTree": "b3ece9a169ca1dd7e71c6292b5744def9a05ae25",
-  "cacheVersion": "2026.08.11.18-workshop-station-click",
+  "sourceBranch": "fix/staging-station-move-source-hours-20260811",
+  "sourceCommit": "2e69de0cbc5e23e35d55ce23b7c8f748aa038f25",
+  "sourceTree": "b6a513e0c16d721e28f848511e351fa88369de6b",
+  "cacheVersion": "2026.08.11.20-source-station-move",
   "stagingProjectRef": "cdsmnqxtyyoeoznmbidd",
   "zeroData": true,
   "mailboxAuthority": false,
@@ -16,9 +16,9 @@
   "productionActivation": false,
   "pilotActivation": false,
   "migrationLedger": {
-    "appliedThrough": "148",
-    "ledgerHead": "148",
-    "migration": "bind_canonical_document_evidence_to_retained_source",
+    "appliedThrough": "150",
+    "ledgerHead": "150",
+    "migration": "move_source_lines_between_workshop_stations + lock_source_and_target_completion_for_station_moves",
     "rollbackAvailable": true,
     "actualBackupManifestSha256": "cffdc554210a6a8077072a2dcfc9816c3b2c02f1588b4d2da6976e36a3d4b82d",
     "dataIntegrityReceiptSha256": "ead6953ee7dbbf5a8883a19d56707aa2f3fe525eedf8c101fafeae4fa0ffd359",
@@ -47,7 +47,23 @@
     "legacyQueuedStoppagesRepaired": 1,
     "unallocatedStoppagesAfterApply": 1,
     "migration148Sha256": "2731530f97e5b132ce67bd87d0b98312d944de413acb8e1e400462afa51341b5",
-    "canonicalDocumentBindingRehearsal": true
+    "canonicalDocumentBindingRehearsal": true,
+    "migration149Sha256": "256b7945cb5a3ef14f1c5ac88bdff5f77535684389f878b729af42fcc97d692b",
+    "migration150Sha256": "1ad56011d89ef3bf8f7efd189ae33324cdff148c145f76076d5cefdef2444a8e",
+    "stationMoveRuntimeVerified": true,
+    "runtimeStock": "12535460",
+    "runtimeTestedHours": [
+      "0.10",
+      "6.60",
+      "1.60",
+      "0.30",
+      "0.80",
+      "0.00",
+      null
+    ],
+    "runtimeRollbackOnly": true,
+    "completedSourceRejected": true,
+    "forbiddenOperationalTablesUnchanged": true
   },
   "retiredRoutes": [
     "pipeline",
@@ -73,14 +89,18 @@
     "applyReceipts": 1
   },
   "releaseChecks": {
-    "sourceTests": "PASS - 158 passed, 0 failed, 1 intentional clean-build fixture skip",
+    "sourceTests": "PASS - 159 passed, 0 failed, 1 intentional clean-build fixture skip",
     "migration148": "PASS - applied to staging",
     "retainedReplay": "PASS - 1 receipt, 16 lines, 3 work items; exact replay idempotent",
-    "assetParity": "PASS - live HTTP bytes for index.html, app.js and staging config exactly match the source-bound publication bytes",
+    "assetParity": "Pending publication and live verification",
     "authenticatedBrowser": "PASS scoped live outer click-path smoke - version 2026.08.11.18, Station selector focused, route unchanged, planner not focused, zero console/JS errors; operational mutation not invoked",
     "independentReview": "Pending exact-current blocker/major review",
     "documentUploadFocused": "PASS - SHA-256 binding, source-line cardinality, explicit-hours controls, operation identity, station normalization, purge/race, and accessibility",
-    "workshopStationClick": "PASS - outer visible handle binding invokes station-first helper; native picker with focus fallback; audited change handler unchanged"
+    "workshopStationClick": "PASS - outer visible handle binding invokes station-first helper; native picker with focus fallback; audited change handler unchanged",
+    "migration149": "PASS - exact pinned migration applied and verified on staging",
+    "migration150": "PASS - exact pinned completion-lock hardening applied and verified on staging",
+    "stationMoveRuntime": "PASS - Stock 12535460; seven null/zero/non-quarter source-hour lines moved in rollback-only rehearsal; exact descriptions/hours preserved; completed source rejected; forbidden tables unchanged",
+    "localBrowser": "PASS - version .20 loaded; narrow station-only RPC helper present; source branch precedes hours prompt"
   },
   "sourceFiles": [
     {
@@ -98,8 +118,8 @@
     {
       "sourcePath": "app.js",
       "deployedPath": "app.js",
-      "sha256": "a13b9c4924298f554e1a96c1008904bd1001eb9d88270e8dc26636e45ea75edf",
-      "bytes": 1080632
+      "sha256": "673f111d355582edaabbfdd3e85db856777846a3034cdccc0a2d6a39d6229c91",
+      "bytes": 1082700
     },
     {
       "sourcePath": "arb-labor-catalog.js",
@@ -146,8 +166,8 @@
     {
       "sourcePath": "staging.html",
       "deployedPath": "index.html",
-      "sha256": "6c446a528f3f74edd2f433e47517dc13f6b7e93df29ee8c6e6b0122ae3f5133e",
-      "bytes": 63550
+      "sha256": "7049794ea27b660915d206d484761ea777ea8268394e56f0b2b067d714723fdb",
+      "bytes": 63514
     },
     {
       "sourcePath": "key-list-review.js",
@@ -212,8 +232,8 @@
     {
       "sourcePath": "pdc-supabase-config.staging.js",
       "deployedPath": "pdc-supabase-config.staging.js",
-      "sha256": "13f96697efc192bb34454dba8a088b3146fbf6183d79a8a17648c8bf73eb4400",
-      "bytes": 1706
+      "sha256": "f9301e2ea1a80396c7022a14790dd867001e193a242b44ab2994e6e72e3a0612",
+      "bytes": 1703
     },
     {
       "sourcePath": "scripts/stage2b_c4_browser_export.js",
@@ -280,6 +300,18 @@
       "deployedPath": "supabase/staging_only/142_vehicle_work_states_and_unallocated_stoppages.sql",
       "sha256": "27121790b4cbbbf204d899eaf0122a7a5bd5e43a5dc7cde1bde1cc2ddc053704",
       "bytes": 15986
+    },
+    {
+      "sourcePath": "supabase/staging_only/149_move_source_lines_between_workshop_stations.sql",
+      "deployedPath": "supabase/staging_only/149_move_source_lines_between_workshop_stations.sql",
+      "sha256": "256b7945cb5a3ef14f1c5ac88bdff5f77535684389f878b729af42fcc97d692b",
+      "bytes": 9618
+    },
+    {
+      "sourcePath": "supabase/staging_only/150_lock_source_and_target_completion_for_station_moves.sql",
+      "deployedPath": "supabase/staging_only/150_lock_source_and_target_completion_for_station_moves.sql",
+      "sha256": "1ad56011d89ef3bf8f7efd189ae33324cdff148c145f76076d5cefdef2444a8e",
+      "bytes": 8825
     },
     {
       "sourcePath": "test_navision_stock_authority_096.js",

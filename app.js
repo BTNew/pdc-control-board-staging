@@ -1,5 +1,5 @@
-const APP_VERSION = '2026.08.11.18-workshop-station-click';
-const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.08.11.18-workshop-station-click';
+const APP_VERSION = '2026.08.11.20-source-station-move';
+const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.08.11.20-source-station-move';
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
 // constant intentionally names only the production ref, never the
@@ -11076,11 +11076,49 @@ async function saveVehicleWorkshopLineHours(button) {
   return false;
 }
 
+async function moveVehicleWorkshopSourceLineStage(select, targetStage) {
+  const vehicle = selectedVehicle() || {};
+  const canonicalId = vehicleWorkshopDetailCanonicalId(vehicle);
+  const detail = canonicalId ? app.vehicleWorkshopDetailCache.get(canonicalId)?.detail : null;
+  const lineKey = String(select?.dataset?.lineKey || '');
+  if (!select || !vehicleWorkshopCanEditLines() || !canonicalId || !detail || !/^source:[0-9a-f-]{36}$/i.test(lineKey)) return false;
+  const config = window.PDC_SUPABASE_CONFIG || {};
+  const token = typeof getPdcSupabaseAccessToken === 'function' ? getPdcSupabaseAccessToken() : null;
+  if (!token || !config.url || !config.publishableKey) return false;
+  try {
+    const response = await fetch(`${String(config.url).replace(/\/$/, '')}/rest/v1/rpc/move_vehicle_workshop_source_line_stage`, {
+      method: 'POST',
+      headers: { apikey: config.publishableKey, Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        p_vehicle_id: canonicalId,
+        p_adjustment_id: select.dataset.adjustmentId || null,
+        p_expected_version: select.dataset.adjustmentId ? Number(select.dataset.adjustmentVersion || 0) : 0,
+        p_line_key: lineKey,
+        p_stage_code: targetStage,
+      }),
+    });
+    const body = await response.json().catch(() => null);
+    if (!response.ok || body?.ok === false) throw new Error(body?.message || body?.code || `Workshop station move failed (${response.status}).`);
+    await loadVehicleWorkshopDetail(vehicle, { force: true });
+    return true;
+  } catch (error) {
+    await loadVehicleWorkshopDetail(vehicle, { force: true });
+    window.alert(error?.message || 'Workshop station move failed. The authoritative station has been reloaded; review it and try again.');
+    return false;
+  }
+}
+
 async function moveVehicleWorkshopLineStage(select) {
   if (!select) return false;
   const previousStage = vehicleWorkshopStageCode(select.dataset.stage || '');
   const targetStage = vehicleWorkshopStageCode(select.value || '');
   if (!targetStage || targetStage === previousStage) return true;
+  if (/^source:[0-9a-f-]{36}$/i.test(String(select.dataset.lineKey || ''))) {
+    select.disabled = true;
+    const moved = await moveVehicleWorkshopSourceLineStage(select, targetStage);
+    if (!moved) select.value = previousStage;
+    return moved;
+  }
   let hours = Number(select.dataset.hours || 0);
   if (!Number.isFinite(hours) || hours < 0.25 || Math.round(hours * 4) !== hours * 4) {
     const entered = window.prompt('Enter estimated hours before moving this job (quarter-hour increments)', hours > 0 ? String(hours) : '1');
