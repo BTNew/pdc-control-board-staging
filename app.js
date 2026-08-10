@@ -1,5 +1,5 @@
-const APP_VERSION = '2026.08.10.15-operation-routing-hours';
-const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.08.10.15-operation-routing-hours';
+const APP_VERSION = '2026.08.10.16-operation-routing-hours';
+const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.08.10.16-operation-routing-hours';
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
 // constant intentionally names only the production ref, never the
@@ -4269,6 +4269,9 @@ function renderWorkshopPlannerWhenReady() {
 
 function ensureDashboardWorkshopProjectionReady() {
   const sharedMode = window.PDC_SUPABASE_CONFIG?.workshop?.sharedData === true;
+  // The shared backend deliberately denies the legacy broad snapshot. Dashboard work chips are
+  // sourced from canonical requirements/operation lines; planners load only their selected station.
+  if (sharedMode) return false;
   if (typeof workshopLoadPlans === 'function') {
     initWorkshopSharedServicesIfEnabled();
     const service = window.__workshopDataService;
@@ -11343,6 +11346,7 @@ function openAuthenticatedOperationWorkshop(stock) {
   if (!modal) return false;
   modal.hidden = false;
   document.body.classList.add('modal-open');
+  loadVehicleWorkshopDetail(vehicle, { force: true });
   $('#modal-close')?.focus();
   return true;
 }
