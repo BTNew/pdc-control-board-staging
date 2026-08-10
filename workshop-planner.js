@@ -547,6 +547,7 @@ function workshopMapSnapshotBookingToLegacyRow(booking = {}, vehicleById = null)
     stoppageAt: booking.stoppage_started_at || '',
     stoppageMinutes: Number(booking.stoppage_accumulated_minutes || 0),
     actualStartAt: booking.actual_start_at || '',
+    actualEndAt: booking.actual_end_at || '',
     actualHours: booking.actual_start_at && booking.actual_end_at
       ? (new Date(booking.actual_end_at).getTime() - new Date(booking.actual_start_at).getTime()) / 3600000
       : undefined,
@@ -2489,7 +2490,8 @@ function workshopDateLabel(dateKey = '') {
   return date ? date.toLocaleDateString('en-AU', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) : '';
 }
 
-function workshopSyncCompletedPlans(rows = workshopLoadPlans()) {
+function workshopSyncCompletedPlans(rows = workshopLoadPlans(), options = {}) {
+  const persist = options.persist !== false;
   let changed = false;
   const next = rows.map(entry => {
     if (entry.status === 'completed') return entry;
@@ -2499,7 +2501,7 @@ function workshopSyncCompletedPlans(rows = workshopLoadPlans()) {
     changed = true;
     return { ...entry, status: 'completed', completedAt: vehicle[def.completeAtKey] || nowIsoString(), updatedAt: nowIsoString() };
   });
-  if (changed && !workshopSharedModeActive()) workshopSavePlans(next);
+  if (changed && persist && !workshopSharedModeActive()) workshopSavePlans(next);
   return next;
 }
 
@@ -3580,7 +3582,8 @@ function workshopSelectedDateBookingCount(activeRows = [], completedRows = [], s
   return activeRows.length + completedRows.length;
 }
 
-function renderWorkshopPlanner() {
+function renderWorkshopPlanner(options = {}) {
+  const projectionOnly = options.projectionOnly === true;
   if (workshopSharedModeActive()) workshopSyncConfigFromSharedSettings();
   const root = document.querySelector('#workshop-planner-root');
   if (!root) return;
@@ -3602,7 +3605,9 @@ function renderWorkshopPlanner() {
     renderHost.innerHTML = workshopStationSnapshotEmptyStateHtml(stage);
     return;
   }
-  const authoritativePlans = dedicatedStage ? workshopLoadPlans() : workshopSyncCompletedPlans();
+  const authoritativePlans = dedicatedStage
+    ? workshopLoadPlans()
+    : workshopSyncCompletedPlans(undefined, { persist: !projectionOnly });
   // Clock-driven movement is a pure projection. Authoritative booking rows
   // change only after an explicit protected mutation succeeds.
   let plans = workshopCascadePlans(authoritativePlans, new Date()).rows;
@@ -5683,7 +5688,7 @@ function setupWorkshopPlannerClock() {
       updateWorkshopNowLine(document.querySelector('#workshop-planner-root') || document);
       return;
     }
-    renderWorkshopPlanner();
+    renderWorkshopPlanner({ projectionOnly: true });
   }, 60000);
 }
 

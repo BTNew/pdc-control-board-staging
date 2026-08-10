@@ -148,6 +148,8 @@ function testRoutesAndIsolationContracts() {
   assert(planner.includes('workshopPlannerVehiclesForStage(stage)'));
   assert(planner.includes('let plans = workshopCascadePlans(authoritativePlans, new Date()).rows;'), 'opening a dedicated route must apply the pure live schedule projection');
   assert(!planner.includes('dedicatedStage ? workshopLoadPlans() : workshopCascadeAndSave'), 'clock-driven dedicated-route rendering must never persist projected booking movement');
+  assert(planner.includes('renderWorkshopPlanner({ projectionOnly: true });'), 'minute clock refresh must explicitly request projection-only rendering');
+  assert(planner.includes("workshopSyncCompletedPlans(undefined, { persist: !projectionOnly })"), 'projection-only rendering must disable transitive completion persistence');
   assert(planner.includes('service.setScope({ stageCode: stage, dateFrom: dateKey, dateTo: dateKey })'));
 
   assert(migration.includes('where b.stage_id = v_stage_id'));

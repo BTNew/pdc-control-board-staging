@@ -139,6 +139,19 @@ function completeConfigurationRows(overrides = {}) {
   }, new Map([['veh-123', { id: 'veh-123', stock_number: 'STK-999' }]]));
   assert.strictEqual(minimal.vehicleKey, 'STK-999', '4j migration-044 minimal booking DTO resolves display identity from separately scoped vehicles');
   assert.ok(minimal.id && minimal.vehicleKey && minimal.sharedVehicleId, '4k production-shaped minimal DTO survives planner filtering');
+  const completed = planner.workshopMapSnapshotBookingToLegacyRow({
+    ...booking,
+    status: 'completed',
+    scheduled_start_at: '2026-07-20T00:00:00.000Z',
+    actual_start_at: '2026-07-20T00:00:00.000Z',
+    actual_end_at: '2026-07-20T04:07:00.000Z',
+  });
+  assert.strictEqual(completed.actualEndAt, '2026-07-20T04:07:00.000Z', '4l canonical actual_end_at must map to the completed projection field');
+  const completedCascade = planner.workshopCascadePlans([
+    completed,
+    { id: 'b-follower', vehicleKey: 'veh-follower', stage: 'HOIST', bay: 2, startAt: '2026-07-20T03:00:00.000Z', hours: 3, status: 'planned' },
+  ], new Date('2026-07-20T06:00:00.000Z'));
+  assert.strictEqual(completedCascade.rows.find(row => row.id === 'b-follower').startAt, '2026-07-20T04:15:00.000Z', '4m canonical completion overrun must freeze and push the same-bay follower to the next increment');
   console.log('PASS 4: snapshot booking DTO maps cleanly onto the existing legacy row shape');
 }
 
