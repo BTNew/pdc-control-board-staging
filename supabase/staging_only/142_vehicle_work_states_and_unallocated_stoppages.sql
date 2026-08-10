@@ -199,11 +199,31 @@ begin
     return jsonb_build_object('ok', false, 'error', 'vehicle_version_conflict', 'current_version', v_vehicle.version);
   end if;
 
+  -- Validate the complete requested state map before the first durable write.
+  -- The vehicle row lock serializes this decision with the canonical vehicle
+  -- mutation paths, while this full pass guarantees a structured rejection is
+  -- side-effect free for every key in the request.
   foreach v_input_key in array v_allowed loop
     v_state := lower(trim(coalesce(p_work_states->>v_input_key, '')));
     if v_state not in ('none','required','complete') then
       return jsonb_build_object('ok', false, 'error', 'invalid_work_state', 'work_key', v_input_key);
     end if;
+    if v_input_key <> 'parts' then
+      v_work_key := case when v_input_key = 'pitInspection' then 'pitinspection' else lower(v_input_key) end;
+      v_stage := public.workshop_stage_code_for_work_key(v_work_key);
+      if v_state in ('none','complete') and exists(
+        select 1 from public.workshop_bookings b
+        join public.workshop_stages s on s.id=b.stage_id
+        where b.vehicle_id=p_vehicle_id and upper(s.code)=upper(v_stage)
+          and b.status::text not in ('completed','deleted','cancelled')
+      ) then
+        return jsonb_build_object('ok', false, 'error', 'active_booking_exists', 'work_key', v_work_key, 'stage_code', v_stage);
+      end if;
+    end if;
+  end loop;
+
+  foreach v_input_key in array v_allowed loop
+    v_state := lower(trim(coalesce(p_work_states->>v_input_key, '')));
 
     if v_input_key = 'parts' then
       select * into v_parts_before
@@ -234,15 +254,6 @@ begin
     end if;
 
     v_work_key := case when v_input_key = 'pitInspection' then 'pitinspection' else lower(v_input_key) end;
-    v_stage := public.workshop_stage_code_for_work_key(v_work_key);
-    if v_state in ('none','complete') and exists(
-      select 1 from public.workshop_bookings b
-      join public.workshop_stages s on s.id=b.stage_id
-      where b.vehicle_id=p_vehicle_id and upper(s.code)=upper(v_stage)
-        and b.status::text not in ('completed','deleted','cancelled')
-    ) then
-      return jsonb_build_object('ok', false, 'error', 'active_booking_exists', 'work_key', v_work_key, 'stage_code', v_stage);
-    end if;
 
     select * into v_before from public.vehicle_work_items where vehicle_id=p_vehicle_id and work_key=v_work_key for update;
     insert into public.vehicle_work_items(vehicle_id,work_key,required,completed,completed_by,completed_at,updated_at)
@@ -281,7 +292,7 @@ begin
     'vehicle_id',p_vehicle_id,
     'vehicle_version',v_vehicle.version,
     'work_items',coalesce((select jsonb_agg(jsonb_build_object('work_key',wi.work_key,'required',wi.required,'completed',wi.completed,'completed_at',wi.completed_at,'completed_by',wi.completed_by) order by wi.work_key) from public.vehicle_work_items wi where wi.vehicle_id=p_vehicle_id),'[]'::jsonb),
-    'parts',coalesce((select to_jsonb(pu) from public.vehicle_parts_updates pu where pu.vehicle_id=p_vehicle_id),'{}'::jsonb)
+    'parts',coalesce((select to_jsonb(pu) from public.vehicle_parts_updates pu where pu.vehicle_id=p_vehicle_id order by pu.updated_at desc, pu.id desc limit 1),'{}'::jsonb)
   );
 end;
 $$;
