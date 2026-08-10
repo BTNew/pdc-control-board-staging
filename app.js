@@ -1,5 +1,5 @@
-const APP_VERSION = '2026.08.10.02-slim-work-bookings-tablet';
-const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.08.10.02-slim-work-bookings-tablet';
+const APP_VERSION = '2026.08.10.03-workshop-ui-followups';
+const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.08.10.03-workshop-ui-followups';
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
 // constant intentionally names only the production ref, never the
@@ -3901,7 +3901,7 @@ function initWorkshopReferenceDataServiceIfAvailable() {
 // wiring, which are already app.js concerns for the rest of the site.
 function initWorkshopSharedServicesIfEnabled() {
   if (typeof workshopSharedModeEnabled !== 'function' || !workshopSharedModeEnabled(window.PDC_SUPABASE_CONFIG)) return;
-  if (app.currentView !== 'workshop') return;
+  if (!['workshop', 'dashboard'].includes(app.currentView)) return;
   // The auth-ready event can fire while the lazy module chain is between
   // workshop-data-service.js and workshop-realtime.js on a slower network.
   // Do not create the data service in that gap: doing so activates the
@@ -3935,10 +3935,12 @@ function initWorkshopSharedServicesIfEnabled() {
       getRole: () => (typeof window.PDC_AUTH_CONTEXT !== 'undefined' ? window.PDC_AUTH_CONTEXT?.role : null),
       onStateChange: () => {
         if (app.currentView === 'workshop') scheduleWorkshopPlannerRender();
+        if (app.currentView === 'dashboard') renderIncomingDashboardBoard();
         if (app.currentView === 'emailreview' && typeof renderAiBoardAdvisor === 'function') renderAiBoardAdvisor();
       },
       onSnapshot: () => {
         if (app.currentView === 'workshop') scheduleWorkshopPlannerRender();
+        if (app.currentView === 'dashboard') renderIncomingDashboardBoard();
         if (app.currentView === 'emailreview' && typeof renderAiBoardAdvisor === 'function') renderAiBoardAdvisor();
       }
     });
@@ -3968,6 +3970,7 @@ function initWorkshopSharedServicesIfEnabled() {
       ),
       onStatusChange: () => {
         if (app.currentView === 'workshop') scheduleWorkshopPlannerRender();
+        if (app.currentView === 'dashboard') renderIncomingDashboardBoard();
       }
     });
     window.__workshopRealtimeManager.start();
@@ -4241,6 +4244,50 @@ function renderWorkshopPlannerWhenReady() {
       const message = root.querySelector('span');
       if (message) message.textContent = error.message || String(error);
     });
+}
+
+function ensureDashboardWorkshopProjectionReady() {
+  const sharedMode = window.PDC_SUPABASE_CONFIG?.workshop?.sharedData === true;
+  if (typeof workshopLoadPlans === 'function') {
+    initWorkshopSharedServicesIfEnabled();
+    const service = window.__workshopDataService;
+    if (sharedMode && service?.getScope?.()) {
+      if (!window.__dashboardWorkshopScopeResetting) {
+        window.__dashboardWorkshopScopeResetting = true;
+        window.__workshopRealtimeManager?.stop?.();
+        window.__workshopRealtimeManager = null;
+        Promise.resolve(service.setScope(null)).then(() => {
+          window.__dashboardWorkshopScopeResetting = false;
+          if (app.currentView !== 'dashboard') return;
+          initWorkshopSharedServicesIfEnabled();
+          renderIncomingDashboardBoard();
+        }).catch(error => {
+          window.__dashboardWorkshopScopeResetting = false;
+          console.warn('Workshop completion projection scope could not reset.', error);
+        });
+      }
+      return false;
+    }
+    return !sharedMode || Boolean(service?.getLastSnapshot?.());
+  }
+  if (window.__dashboardWorkshopProjectionLoading) return false;
+  window.__dashboardWorkshopProjectionLoading = true;
+  loadExternalScript(`workshop-data-service.js?v=${encodeURIComponent(APP_VERSION)}`, 'workshop-data-service-script')
+    .then(() => loadExternalScript(`workshop-realtime.js?v=${encodeURIComponent(APP_VERSION)}`, 'workshop-realtime-script'))
+    .then(() => loadExternalScript(`workshop-shared-actions.js?v=${encodeURIComponent(APP_VERSION)}`, 'workshop-shared-actions-script'))
+    .catch(() => { /* read-only projection remains unavailable */ })
+    .then(() => loadExternalScript(`workshop-planner.js?v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}`, 'workshop-planner-script'))
+    .then(() => {
+      window.__dashboardWorkshopProjectionLoading = false;
+      if (app.currentView !== 'dashboard') return;
+      initWorkshopSharedServicesIfEnabled();
+      renderIncomingDashboardBoard();
+    })
+    .catch(error => {
+      window.__dashboardWorkshopProjectionLoading = false;
+      console.warn('Workshop completion projection could not load.', error);
+    });
+  return false;
 }
 
 function renderActiveView() {
@@ -5206,7 +5253,7 @@ function renderWorkflowBoard() {
     event.stopPropagation();
     openWorkshopPlannerForStage(button.dataset.openWorkshopStage);
   }));
-  $$('[data-open-stock]', host).forEach(button => button.addEventListener('click', () => openVehicleModal(button.dataset.openStock)));
+  $$('[data-open-stock]', host).forEach(button => button.addEventListener('click', () => openVehicleCardFromVisibleBoard(button.dataset.openStock, button)));
 
   updateCollapseToggleButtons();
   scheduleWorkflowFloatingHeaderUpdate();
@@ -5769,10 +5816,45 @@ function authenticatedEmailOperationLinesHtml(vehicle = {}) {
   </div>`;
 }
 
+function vehicleWorkshopBookingProjection(vehicle = {}, options = {}) {
+  const unavailable = { activeBookings: [], available: false, bookingRequired: false, label: '', latestEnd: null, missingStages: [], requiredStages: [] };
+  const plansAvailable = Array.isArray(options.plans) || typeof workshopLoadPlans === 'function';
+  if (options.available === false || !plansAvailable) return unavailable;
+  const requiredStages = [...new Set(pdcJobDefsPartsFirst()
+    .filter(def => pdcJobRequired(vehicle, def) && !pdcJobComplete(vehicle, def))
+    .map(def => pmbStageForPdcJob(def))
+    .filter(stage => stage && WORKSHOP_PLANNER_ROUTE_BY_STAGE[stage]))];
+  const plans = Array.isArray(options.plans) ? options.plans : workshopLoadPlans();
+  const canonicalId = vehicleWorkshopDetailCanonicalId(vehicle);
+  const key = String(vehicleKey(vehicle) || '').trim();
+  const activeBookings = (Array.isArray(plans) ? plans : []).filter(entry => {
+    if (['completed', 'deleted', 'cancelled'].includes(String(entry?.status || '').toLowerCase())) return false;
+    const identityMatches = canonicalId
+      ? String(entry?.sharedVehicleId || '').trim() === canonicalId
+      : String(entry?.vehicleKey || '').trim() === key;
+    return identityMatches && normalizePmbStage(entry?.stage);
+  });
+  const bookedStages = new Set(activeBookings.map(entry => normalizePmbStage(entry.stage)).filter(Boolean));
+  const missingStages = requiredStages.filter(stage => !bookedStages.has(stage));
+  const endTimes = activeBookings.map(entry => {
+    if (typeof workshopEntryEnd === 'function') return workshopEntryEnd(entry);
+    const start = parseIsoTimestamp(entry?.startAt || '');
+    return start ? new Date(start.getTime() + Math.max(0, Number(entry?.hours) || 0) * 3600000) : null;
+  }).filter(date => date instanceof Date && !Number.isNaN(date.getTime()));
+  const latestEnd = endTimes.length ? new Date(Math.max(...endTimes.map(date => date.getTime()))) : null;
+  const bookingRequired = statusCategory(vehicle) === 'pmb' && requiredStages.length > 0 && activeBookings.length === 0;
+  const label = latestEnd
+    ? `${missingStages.length ? 'Latest booking' : 'Est. complete'} ${latestEnd.toLocaleDateString('en-AU', { day: '2-digit', month: '2-digit' })} ${latestEnd.toLocaleTimeString('en-AU', { hour: 'numeric', minute: '2-digit' })}`
+    : bookingRequired ? 'Booking required' : '';
+  return { activeBookings, available: true, bookingRequired, label, latestEnd, missingStages, requiredStages };
+}
+
 function incomingWorkChecklistHtml(vehicle = {}, options = {}) {
   const key = vehicleKey(vehicle);
   const currentStage = normalizePmbStage(inferredPmbStage(vehicle));
-  return `<div class="incoming-work-checks pdc-station-strip" aria-label="Required work stations">${pdcJobDefsPartsFirst().map(def => {
+  const bookingProjection = options.bookingProjection || vehicleWorkshopBookingProjection(vehicle);
+  const bookingWarning = bookingProjection.bookingRequired;
+  return `<div class="incoming-work-checks pdc-station-strip" data-workshop-booking-required="${bookingWarning ? 'true' : 'false'}" aria-label="Required work stations${bookingWarning ? '; workshop booking required' : ''}"${bookingWarning ? ' title="Required PMB work is not booked into a workshop bay"' : ''}>${pdcJobDefsPartsFirst().map(def => {
     const required = pdcJobRequired(vehicle, def);
     const complete = pdcJobComplete(vehicle, def);
     const stage = pmbStageForPdcJob(def);
@@ -5824,7 +5906,11 @@ function incomingVehicleDetailRow(vehicle = {}, bucketKey = '', options = {}) {
   const rego = vehicle.rego || vehicle.registration || '—';
   const vin = vehicle.vin || vehicle.VIN || vehicle.chassis || vehicle.chassisNo || '—';
   const age = pmbAgeLabel(vehicle);
-  const workChecks = incomingWorkChecklistHtml(vehicle, { stationTransfer: bucketKey === 'pmb' && options.stationTransfer !== false });
+  const bookingProjection = vehicleWorkshopBookingProjection(vehicle, {
+    available: options.workshopProjectionAvailable,
+    plans: options.workshopPlans,
+  });
+  const workChecks = incomingWorkChecklistHtml(vehicle, { stationTransfer: bucketKey === 'pmb' && options.stationTransfer !== false, bookingProjection });
   const stage = inferredPmbStage(vehicle);
   const rowStatus = incomingGridStatusLabel(vehicle, bucketKey);
   const subletProvider = pmbBaySubletProvider(vehicle);
@@ -5867,7 +5953,7 @@ function incomingVehicleDetailRow(vehicle = {}, bucketKey = '', options = {}) {
         <span class="incoming-card-stock">${identitySummary}</span>
         <span class="incoming-card-main"><strong title="${escapeHtml(unit)}">${escapeHtml(unit)}</strong></span>
         <span class="incoming-card-work-wrap">${workChecks}</span>
-        <span class="incoming-card-meta incoming-card-age ${escapeHtml('pmb-age-' + onSiteDaysClass(vehicle))}"><b>${bucketKey === 'pmb' ? 'PMB' : bucketKey === 'qc' ? 'QC' : bucketKey === 'pit' ? 'PIT' : bucketKey === 'yardhold' ? 'YH' : 'ETA'}</b><span>${escapeHtml(eta)}</span></span>
+        <span class="incoming-card-meta incoming-card-age ${escapeHtml('pmb-age-' + onSiteDaysClass(vehicle))}${bookingProjection.bookingRequired ? ' needs-workshop-booking' : ''}"><b>${bucketKey === 'pmb' ? 'PMB' : bucketKey === 'qc' ? 'QC' : bucketKey === 'pit' ? 'PIT' : bucketKey === 'yardhold' ? 'YH' : 'ETA'}</b><span>${escapeHtml(eta)}${bookingProjection.label ? `<small>${escapeHtml(bookingProjection.label)}</small>` : ''}</span></span>
         <span class="incoming-card-meta incoming-card-status"><b>Status</b><span>${partsRiskBadge(vehicle)}${vehicleDepartmentBadge(vehicle)}${escapeHtml(rowStatus)}</span></span>
         <span class="incoming-card-action">${primaryAction}${labelAction}${deleteAction}</span>
       </summary>
@@ -5887,6 +5973,8 @@ function incomingVehicleDetailRow(vehicle = {}, bucketKey = '', options = {}) {
 function renderIncomingDashboardBoard() {
   const host = $('#incoming-main-board');
   if (!host) return;
+  const workshopProjectionAvailable = ensureDashboardWorkshopProjectionReady();
+  const workshopPlans = workshopProjectionAvailable && typeof workshopLoadPlans === 'function' ? workshopLoadPlans() : null;
   const rows = vehicleLocationBoardRows().filter(vehicle => incomingBucketForVehicle(vehicle) && !vehicleCollectedFromRft(vehicle));
   if (!sharedNavisionLocationAuthorityReady()) app.selectedRows.clear();
   else [...app.selectedRows].forEach(key => {
@@ -5912,7 +6000,7 @@ function renderIncomingDashboardBoard() {
     if (filters.bucket && filters.bucket !== def.key) return '';
     const vehicles = filteredRows.filter(vehicle => incomingBucketForVehicle(vehicle) === def.key)
       .sort((a, b) => (parseDateAU(navisionEtaForVehicle(a))?.getTime() || 9999999999999) - (parseDateAU(navisionEtaForVehicle(b))?.getTime() || 9999999999999));
-    const shown = vehicles.map(vehicle => incomingVehicleDetailRow(vehicle, def.key)).join('') || '<div class="pmb-empty-drop">No vehicles match the current filters</div>';
+    const shown = vehicles.map(vehicle => incomingVehicleDetailRow(vehicle, def.key, { workshopPlans, workshopProjectionAvailable })).join('') || '<div class="pmb-empty-drop">No vehicles match the current filters</div>';
     const identityHeader = vehicles.length ? productionGridHeaderHtml('incoming-production-grid-header', { actionLabel: 'Source / next step' }) : '';
     return `<details class="incoming-bucket incoming-${escapeHtml(def.key)}" ${def.open ? 'open' : ''}>
       <summary class="incoming-bucket-title">
@@ -5923,7 +6011,7 @@ function renderIncomingDashboardBoard() {
   }).join('');
   $$('[data-open-stock]', host).forEach(button => button.addEventListener('click', event => {
     event.stopPropagation();
-    openVehicleModal(button.dataset.openStock);
+    openVehicleCardFromVisibleBoard(button.dataset.openStock, button);
   }));
   bindVehicleLabelButtons(host);
   $$('[data-incoming-delete]', host).forEach(button => button.addEventListener('click', event => {
@@ -11045,6 +11133,35 @@ function saveVehicleEdits(key, updates, options = {}) {
   return true;
 }
 
+async function openVehicleCardFromVisibleBoard(stock, trigger = null) {
+  const key = String(stock || '').trim();
+  if (!key) return false;
+  const vehicle = selectedVehicle(key);
+  if (vehicle && vehicleLocationActionAllowed(vehicle, 'open')) {
+    openVehicleModal(key);
+    return true;
+  }
+  if (!sharedNavisionVisibilityConfigured()) return false;
+  trigger?.classList.add('is-loading');
+  trigger?.setAttribute('aria-busy', 'true');
+  try {
+    const deadline = Date.now() + 8000;
+    while (Date.now() < deadline && !sharedNavisionLocationAuthorityReady()) {
+      await new Promise(resolve => setTimeout(resolve, 200));
+    }
+    const refreshed = selectedVehicle(key);
+    if (!refreshed || !vehicleLocationActionAllowed(refreshed, 'open')) {
+      window.alert('Vehicle details are still syncing. Please click the stock number again in a moment.');
+      return false;
+    }
+    openVehicleModal(key);
+    return true;
+  } finally {
+    trigger?.classList.remove('is-loading');
+    trigger?.removeAttribute('aria-busy');
+  }
+}
+
 function openVehicleModal(stock) {
   const vehicle = selectedVehicle(stock);
   if (!vehicle) {
@@ -15206,16 +15323,34 @@ function updateNavisionImportButton() {
   const button = $('#import-navision');
   const applyButton = $('#apply-navision-shared');
   const clear = $('#navision-clear');
+  const applying = app.navisionSharedApplyInFlight === true;
   if (button) {
-    button.disabled = !raw || (sharedMode && (!roleAllowed || !['14450', '37047'].includes(dealerCode)));
+    button.disabled = applying || !raw || (sharedMode && (!roleAllowed || !['14450', '37047'].includes(dealerCode)));
     button.title = sharedMode && !roleAllowed ? 'Importer or administrator access is required.' : '';
   }
   if (applyButton) {
-    applyButton.disabled = !app.pendingSharedNavisionImport || (sharedMode && !roleAllowed);
+    applyButton.disabled = applying || !app.pendingSharedNavisionImport || (sharedMode && !roleAllowed);
     applyButton.title = sharedMode && !roleAllowed ? 'Importer or administrator access is required.' : '';
+    applyButton.classList.toggle('is-loading', applying);
+    applyButton.setAttribute('aria-busy', applying ? 'true' : 'false');
+    applyButton.innerHTML = applying
+      ? '<span class="navision-button-spinner" aria-hidden="true"></span><span>Applying Navision import…</span>'
+      : 'Confirm and apply shared import';
   }
-  if (clear) clear.disabled = !raw && !app.navisionImport && !app.pendingSharedNavisionImport;
+  if (clear) clear.disabled = applying || (!raw && !app.navisionImport && !app.pendingSharedNavisionImport);
   updateNavisionControlStats(app.pendingNavisionImport || app.navisionImport);
+}
+
+function setNavisionSharedApplyBusy(busy = false) {
+  app.navisionSharedApplyInFlight = busy === true;
+  updateNavisionImportButton();
+}
+
+function navisionWaitForBusyPaint() {
+  return new Promise(resolve => {
+    if (typeof window.requestAnimationFrame === 'function') window.requestAnimationFrame(() => resolve());
+    else setTimeout(resolve, 0);
+  });
 }
 
 async function handleNavisionFileSelect(event) {
@@ -16763,6 +16898,7 @@ function importNavisionVehiclesLocal(text = '') {
 }
 
 async function applySharedNavisionImport() {
+  if (app.navisionSharedApplyInFlight === true) return;
   if (!navisionSharedImportRoleAllowed()) {
     updateNavisionImportAccessStatus(true);
     window.alert('Importer or administrator access is required for shared Navision imports. Nothing changed.');
@@ -16770,6 +16906,16 @@ async function applySharedNavisionImport() {
   }
   const pending = app.pendingSharedNavisionImport;
   if (!pending) return;
+  setNavisionSharedApplyBusy(true);
+  await navisionWaitForBusyPaint();
+  try {
+    return await applySharedNavisionImportPending(pending);
+  } finally {
+    setNavisionSharedApplyBusy(false);
+  }
+}
+
+async function applySharedNavisionImportPending(pending) {
   let data = pending.previewData || {};
   let counts = data.counts || {};
   let blockingState = navisionSharedPreviewBlockingState(data);

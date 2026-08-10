@@ -2796,10 +2796,10 @@ function workshopSearchResultsHtml(query = '', plans = workshopLoadPlans()) {
     };
     const archived = match.archived ? '<span class="workshop-search-alert">Archived vehicle</span>' : '';
     if (!match.bookings.length) {
-      return `<article class="workshop-search-result is-unbooked" data-workshop-search-vehicle-identity="${escapeHtml(match.vehicleIdentity)}">
-        <div><strong>Key ${escapeHtml(identity.key)} · Stock ${escapeHtml(identity.stock)} · JC ${escapeHtml(identity.jobcard)}</strong><span>${escapeHtml(identity.customer)} · ${escapeHtml(identity.description)}</span></div>
-        <div class="workshop-search-result-state">${archived}<strong>No booking found</strong><span>This vehicle has no workshop booking.</span></div>
-      </article>`;
+      return `<button type="button" class="workshop-search-result is-unbooked" data-workshop-search-unbooked-identity="${escapeHtml(match.vehicleIdentity)}">
+        <span class="workshop-search-result-vehicle"><strong>Key ${escapeHtml(identity.key)} · Stock ${escapeHtml(identity.stock)} · JC ${escapeHtml(identity.jobcard)}</strong><span>${escapeHtml(identity.customer)} · ${escapeHtml(identity.description)}</span></span>
+        <span class="workshop-search-result-state">${archived}<strong>Select unbooked vehicle</strong><span>Show and highlight this vehicle in the unallocated candidate lane.</span></span>
+      </button>`;
     }
     return match.bookings.map((entry, bookingIndex) => {
       const meta = workshopBookingSearchMeta(entry);
@@ -2896,6 +2896,30 @@ function workshopBindSearchResultButtons(root = document) {
     workshopSelectSearchBooking(button.dataset.workshopSearchBookingId, button.dataset.workshopSearchVehicleIdentity);
     workshopScrollToHighlightedVehicle(root);
   }));
+  root.querySelectorAll('[data-workshop-search-unbooked-identity]').forEach(button => button.addEventListener('click', () => {
+    workshopSelectUnbookedSearchVehicle(button.dataset.workshopSearchUnbookedIdentity);
+    workshopScrollToHighlightedVehicle(root);
+  }));
+}
+
+function workshopSelectUnbookedSearchVehicle(vehicleIdentity = '') {
+  const state = workshopState();
+  const match = workshopSearchMatches(state.search, workshopLoadPlans()).find(item => item.vehicleIdentity === vehicleIdentity && !item.bookings.length);
+  if (!match) {
+    state.searchOpen = true;
+    renderWorkshopPlanner();
+    return false;
+  }
+  state.highlightVehicleKey = match.vehicleKey;
+  state.searchHighlightPlanId = '';
+  state.selectedPlanId = '';
+  state.searchOpen = false;
+  state.detailCollapsedForSelection = true;
+  state.detailManualOpen = false;
+  state.searchNotice = 'Unbooked vehicle highlighted in the candidate lane. Choose Best slot or Schedule.';
+  workshopSaveView(state);
+  renderWorkshopPlanner();
+  return true;
 }
 
 function workshopRefreshSearchResults(root = document, input = null, query = '') {
