@@ -2687,6 +2687,18 @@ body.vehicle-table-header-pinned #vehicle-table thead {
   font-size: .86rem;
   color: #166534;
 }
+.navision-button-spinner {
+  width: 14px;
+  height: 14px;
+  flex: 0 0 14px;
+  border: 2px solid rgba(255, 255, 255, .5);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: navision-button-spin .7s linear infinite;
+}
+#apply-navision-shared.is-loading { display: inline-flex; align-items: center; justify-content: center; gap: 7px; cursor: wait; }
+@keyframes navision-button-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .navision-button-spinner { animation-duration: 1.4s; } }
 .navision-summary-grid {
   grid-template-columns: repeat(4, minmax(0, 1fr));
 }
@@ -7172,6 +7184,16 @@ body.pmb-schedule-adjusting .pmb-schedule-chip-slim {
   overflow-x: auto;
   scrollbar-width: thin;
 }
+.incoming-work-checks[data-workshop-booking-required="true"] {
+  padding: 4px;
+  border: 2px solid #f59e0b;
+  border-radius: 8px;
+  background: #fffbeb;
+  box-shadow: 0 0 0 2px rgba(245, 158, 11, .16);
+}
+.incoming-card-age span { display: grid; gap: 1px; }
+.incoming-card-age small { color: #1e3a8a; font-size: .62rem; font-weight: 900; line-height: 1.1; white-space: nowrap; }
+.incoming-card-age.needs-workshop-booking small { color: #b45309; }
 .incoming-work-check {
   display: inline-flex;
   align-items: center;

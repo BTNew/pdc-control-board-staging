@@ -70,7 +70,7 @@ function testRecoveryAndAuthLifecycleContracts() {
   assert(source.includes("document.removeEventListener('visibilitychange', onVisibility)"), 'inactive visibility listeners must be disposed');
   assert(source.includes("window.__workshopDataService?.onTokenRefresh?.();"), 'auth-ready role/token changes must invalidate and reload existing planner authority');
   assert(source.includes("if (app.currentView === 'workshop' && typeof initWorkshopSharedServicesIfEnabled === 'function')"));
-  assert(source.includes("if (app.currentView !== 'workshop') return;"));
+  assert(source.includes("if (!['workshop', 'dashboard'].includes(app.currentView)) return;"));
 }
 
 testRollbackFailClosed();
