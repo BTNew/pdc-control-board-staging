@@ -1,14 +1,14 @@
 {
   "artifact": "zero-embedded-data static staging site",
   "environment": "staging",
-  "generatedAtUtc": "2026-08-10T02:09:49.571709Z",
-  "deploymentMode": "Staging-only slimline Work & bookings UI; audit-only table columns removed; operational description, hours, booking state and actions retained",
-  "baseDeploymentCommit": "6c7ed3b362f943b333914bee9a51814e8ef5e50f",
+  "generatedAtUtc": "2026-08-10T02:20:46.472220Z",
+  "deploymentMode": "Staging-only slimline Work & bookings UI with tablet overlap correction; audit-only table columns removed; operational description, hours, booking state and actions retained",
+  "baseDeploymentCommit": "43898d669471646bc89c87d37462fe3a3ca22ca0",
   "sourceRepository": "BTNew/pdc-control-board",
   "sourceBranch": "feat/staging-sublet-return-drag-conflicts-20260808",
-  "sourceCommit": "d6edbb132210be8f690cb6de242bb57886d24c4f",
-  "sourceTree": "5d2aed3a7067523e854f86a9be32d3edff1c27fa",
-  "cacheVersion": "2026.08.10.01-slim-work-bookings",
+  "sourceCommit": "bf62f6c96b47b1d69849313cb494f50ece62d84f",
+  "sourceTree": "fbf0fa5c2739e1f0ffe7666bbc28a39ef971d01d",
+  "cacheVersion": "2026.08.10.02-slim-work-bookings-tablet",
   "stagingProjectRef": "cdsmnqxtyyoeoznmbidd",
   "zeroData": true,
   "mailboxAuthority": false,
@@ -69,7 +69,7 @@
   "releaseChecks": {
     "aggregateTests": "146 passed, 0 failed, 1 documented clean-build skip",
     "focusedTests": "Slimline Work & bookings, Stage A Auditor boundary, syntax and responsive browser probes passed",
-    "browserLayout": "Desktop and 760px: six 40px rows, 0px horizontal overflow, 0 audit tables; 520px stacked mobile: 0px overflow",
+    "browserLayout": "Desktop, 768px and 820px: 40px rows, 0px horizontal overflow, 0px booking/action overlap, 0 audit tables; 520px stacked mobile: 0px overflow",
     "assetParity": "Exact public artifact hashes recorded below; post-push GitHub Pages hash verification required",
     "production": "unchanged",
     "excludedRelease": "No production repository/main, production database, mailbox/pdc-monitor, DNS or pilot activation included"
@@ -90,8 +90,8 @@
     {
       "sourcePath": "app.js",
       "deployedPath": "app.js",
-      "sha256": "2671180dabffed493f91c062a9f18b190ac610aeb0fdaf4c64d2cd66558265e3",
-      "bytes": 1043984
+      "sha256": "e94b17ea480fdf6a2f272d10897b5d7d93e5c5963cf500b540958e859ba094cf",
+      "bytes": 1043998
     },
     {
       "sourcePath": "arb-labor-catalog.js",
@@ -138,8 +138,8 @@
     {
       "sourcePath": "staging.html",
       "deployedPath": "index.html",
-      "sha256": "915d9b697402ba7c8f846bdba4b7543c72e4ac86a6e0505dd083de094f3dbc9b",
-      "bytes": 64601
+      "sha256": "58eb196f802762fca52d2b5a5b67b25334d74e2b5c36db5fadce01fadb0a0db7",
+      "bytes": 64671
     },
     {
       "sourcePath": "key-list-review.js",
@@ -204,8 +204,8 @@
     {
       "sourcePath": "pdc-supabase-config.staging.js",
       "deployedPath": "pdc-supabase-config.staging.js",
-      "sha256": "31a5218b48eb042d20675fa80a1f9a4789d770485d9148cb8baae34a1c1f614b",
-      "bytes": 1702
+      "sha256": "d7d9cb0d19de26c530141538be4e935972628a5e66fc9e9fa38670bd167cf52f",
+      "bytes": 1709
     },
     {
       "sourcePath": "scripts/stage2b_c4_browser_export.js",
@@ -222,8 +222,8 @@
     {
       "sourcePath": "styles.css",
       "deployedPath": "styles.css",
-      "sha256": "fd91348ce82cc30ad7413075b0a2c69958f557613d65ed53f9ae970fa2afcb27",
-      "bytes": 375878
+      "sha256": "22f745f3bd947605518fbd9693191bdb6e9127bb9daeea63f76e1e3a2bce29f8",
+      "bytes": 375959
     },
     {
       "sourcePath": "supabase/staging_only/096_navision_stock_number_authority.sql",

@@ -12317,7 +12317,8 @@ button.vehicle-workshop-line-number:focus-visible { position: relative; z-index:
   .vehicle-detail-header-tools { align-items: flex-end; flex-direction: column-reverse; }
   .vehicle-workshop-intro { flex-direction: column; }
   .vehicle-workshop-legend { justify-content: flex-start; max-width: none; }
-  .vehicle-workshop-line { grid-template-columns: 24px minmax(180px, 1.35fr) minmax(145px, .55fr) minmax(220px, 1fr) auto; }
+  .vehicle-workshop-line { grid-template-columns: 24px minmax(150px, 1.25fr) minmax(118px, .55fr) minmax(105px, .75fr) auto; }
+  .vehicle-workshop-line > .vehicle-workshop-line-actions { flex-wrap: wrap; }
 }
 @media (max-width: 760px) {
   #vehicle-detail .vehicle-detail-header { flex-direction: column; padding-right: 52px !important; }
