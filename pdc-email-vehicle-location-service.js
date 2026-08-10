@@ -84,11 +84,26 @@ function rowIdentities(row = {}) { return { stock: identity(row.stock_number ?? 
 function reconcileVehicleRows(localRows = [], serverRows = []) {
   const local = Array.isArray(localRows) ? localRows : [];
   const visibleServer = (Array.isArray(serverRows) ? serverRows : []).filter(row => row && row.visible_on_board !== false);
+  const localStockIndexes = new Map();
+  const localVinIndexes = new Map();
+  local.forEach((row, index) => {
+    const ids = rowIdentities(row);
+    if (ids.stock) {
+      const bucket = localStockIndexes.get(ids.stock) || [];
+      bucket.push(index);
+      localStockIndexes.set(ids.stock, bucket);
+    }
+    if (ids.vin) {
+      const bucket = localVinIndexes.get(ids.vin) || [];
+      bucket.push(index);
+      localVinIndexes.set(ids.vin, bucket);
+    }
+  });
   const replaced = new Set(); const conflicts = new Set(); const additions = [];
   for (const serverRow of visibleServer) {
     const serverId = rowIdentities(serverRow);
-    const stockMatches = serverId.stock ? local.map((row, i) => rowIdentities(row).stock === serverId.stock ? i : -1).filter(i => i >= 0) : [];
-    const vinMatches = serverId.vin ? local.map((row, i) => rowIdentities(row).vin === serverId.vin ? i : -1).filter(i => i >= 0) : [];
+    const stockMatches = serverId.stock ? (localStockIndexes.get(serverId.stock) || []) : [];
+    const vinMatches = serverId.vin ? (localVinIndexes.get(serverId.vin) || []) : [];
     const candidates = new Set([...stockMatches, ...vinMatches]);
     const stockIndex = stockMatches.length === 1 ? stockMatches[0] : -1; const vinIndex = vinMatches.length === 1 ? vinMatches[0] : -1;
     const ambiguous = stockMatches.length > 1 || vinMatches.length > 1 || (stockIndex >= 0 && vinIndex >= 0 && stockIndex !== vinIndex);

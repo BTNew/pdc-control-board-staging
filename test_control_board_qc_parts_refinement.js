@@ -27,7 +27,7 @@ const partsRow = app.slice(app.indexOf('function partsQueueRowHtml'), app.indexO
 assert(!partsRow.includes('partsOutstandingStationWork') && !partsRow.includes('parts-outstanding-work'), 'Parts rows must not render the removed station-work cell');
 assert(styles.includes('#parts { --pdc-row-height: 46px; }') && styles.includes('#parts .parts-queue-row > td { height: var(--pdc-row-height);'), 'Parts row height must equal the default Vehicle Locations 46px row height');
 assert(app.includes('service.updatePartsEta(vehicle.__emailVehicleId, vehicle.__emailVehicleVersion, eta)'), 'Parts ETA must save through shared authority with optimistic concurrency');
-assert(app.includes('setupPartsEtaCounterClock()') && app.includes('data-parts-eta-counter='), 'Parts ETA countdown must refresh while the board remains open');
+assert(/setupPartsEtaCounterClock\((?:sourceRows)?\)/.test(app) && app.includes('window.setInterval(refreshPartsEtaCounters, 60000)') && app.includes('data-parts-eta-counter='), 'Parts ETA countdown must refresh while the board remains open');
 assert(migration.includes('create or replace function public.update_pdc_parts_eta') && migration.includes("'parts_update'"), 'Shared Parts ETA RPC and snapshot data must be defined');
 
 console.log('Control Board today-line, QC Gate, QC label and Parts table refinement checks passed');

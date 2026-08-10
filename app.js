@@ -1,5 +1,5 @@
-const APP_VERSION = '2026.08.10.09-workshop-live-best-slot';
-const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.08.10.09-workshop-live-best-slot';
+const APP_VERSION = '2026.08.10.10-parts-speed-admin-lists';
+const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.08.10.10-parts-speed-admin-lists';
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
 // constant intentionally names only the production ref, never the
@@ -3289,7 +3289,10 @@ function renderAdminList(host, items, removeAttr, emptyText) {
     host.innerHTML = `<div class="empty-state compact-empty"><strong>No entries yet</strong><span>${escapeHtml(emptyText)}</span></div>`;
     return;
   }
-  host.innerHTML = items.map(item => `<span class="admin-chip"><strong>${escapeHtml(item)}</strong><button type="button" class="text-button" ${removeAttr}="${escapeHtml(item)}">Remove</button></span>`).join('');
+  host.innerHTML = `<div class="admin-reference-table-wrap"><table class="admin-reference-table">
+    <thead><tr><th>Name</th><th>Status</th><th>Actions</th></tr></thead>
+    <tbody>${items.map(item => `<tr><td><strong>${escapeHtml(item)}</strong></td><td><span class="admin-status-badge is-active">Active</span></td><td class="admin-table-actions"><button type="button" class="text-button admin-action-danger" ${removeAttr}="${escapeHtml(item)}">Remove</button></td></tr>`).join('')}</tbody>
+  </table></div>`;
 }
 
 function renderAdminLists() {
@@ -3418,7 +3421,7 @@ async function renderBackupStatusPanel() {
 // re-verifies the caller is an active administrator server-side. This
 // frontend code is a convenience UI, not the security boundary.
 // ---------------------------------------------------------------------
-const USER_MANAGEMENT_STATE = { tab: 'pending', rows: [], realtimeChannel: null };
+const USER_MANAGEMENT_STATE = { tab: 'all', rows: [], realtimeChannel: null };
 
 function userManagementSharedModeReady() {
   return backupStatusSharedModeReady(); // same gating: shared mode + signed-in administrator
@@ -3468,14 +3471,13 @@ function userManagementRowActionsHtml(row) {
 
 function userManagementRowHtml(row) {
   const roleLabel = row.role === 'operator' ? 'controller' : (row.role || '—');
+  const status = cleanNavisionText(row.account_status || (row.active ? 'approved' : 'disabled')).toLowerCase();
+  const statusLabel = status ? status.charAt(0).toUpperCase() + status.slice(1) : 'Unknown';
   return `<tr>
-    <td>${escapeHtml(row.full_name || row.display_name || '—')}</td>
+    <td><strong>${escapeHtml(row.full_name || row.display_name || '—')}</strong></td>
     <td>${escapeHtml(row.email)}</td>
-    <td>${escapeHtml(roleLabel)}</td>
-    <td>${row.registered_at ? escapeHtml(new Date(row.registered_at).toLocaleString()) : (row.created_at ? escapeHtml(new Date(row.created_at).toLocaleString()) : '—')}</td>
-    <td>${row.approved_at ? escapeHtml(new Date(row.approved_at).toLocaleString()) : '—'}</td>
-    <td>${row.last_sign_in_at ? escapeHtml(new Date(row.last_sign_in_at).toLocaleString()) : 'Never'}</td>
-    <td>${row.account_status === 'disabled' ? `${row.disabled_at ? escapeHtml(new Date(row.disabled_at).toLocaleDateString()) : ''} ${row.disabled_reason ? '— ' + escapeHtml(row.disabled_reason) : ''}` : '—'}</td>
+    <td class="admin-role-cell">${escapeHtml(roleLabel)}</td>
+    <td><span class="admin-status-badge is-${escapeHtml(status)}">${escapeHtml(statusLabel)}</span></td>
     <td class="um-actions-cell">${userManagementRowActionsHtml(row)}</td>
   </tr>`;
 }
@@ -3502,14 +3504,16 @@ async function renderUserManagementScreen() {
     return;
   }
 
-  const filtered = USER_MANAGEMENT_STATE.rows.filter(row => row.account_status === USER_MANAGEMENT_STATE.tab);
+  const filtered = USER_MANAGEMENT_STATE.tab === 'all'
+    ? USER_MANAGEMENT_STATE.rows
+    : USER_MANAGEMENT_STATE.rows.filter(row => row.account_status === USER_MANAGEMENT_STATE.tab);
   if (!filtered.length) {
     host.innerHTML = `<div class="empty-state compact-empty"><strong>No ${escapeHtml(USER_MANAGEMENT_STATE.tab)} accounts</strong></div>`;
     return;
   }
 
-  host.innerHTML = `<div class="parts-table-wrap"><table class="data-table compact-table">
-    <thead><tr><th>Full name</th><th>Email</th><th>Role</th><th>Registered</th><th>Approved</th><th>Last login</th><th>Disabled</th><th>Actions</th></tr></thead>
+  host.innerHTML = `<div class="admin-reference-table-wrap"><table class="admin-reference-table user-admin-table">
+    <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Status</th><th>Actions</th></tr></thead>
     <tbody>${filtered.map(userManagementRowHtml).join('')}</tbody>
   </table></div>`;
 
@@ -12373,17 +12377,24 @@ function partsWorstEtaCountdownClass(vehicle = {}) {
   return 'today';
 }
 
-function refreshPartsEtaCounters() {
+function refreshPartsEtaCounters(sourceRows = null) {
+  const rows = Array.isArray(sourceRows) ? sourceRows : partsDepartmentSourceRows();
+  const rowsByKey = new Map();
+  rows.forEach(vehicle => {
+    const key = String(vehicleKey(vehicle) || '').trim();
+    if (!key) return;
+    rowsByKey.set(key, rowsByKey.has(key) ? null : vehicle);
+  });
   $$('[data-parts-eta-counter]').forEach(node => {
-    const vehicle = selectedVehicle(node.dataset.partsEtaCounter || '');
+    const vehicle = rowsByKey.get(String(node.dataset.partsEtaCounter || '').trim()) || null;
     if (!vehicle) return;
     node.className = `parts-eta-countdown ${partsWorstEtaCountdownClass(vehicle)}`;
     node.textContent = partsWorstEtaCountdownLabel(vehicle) || '—';
   });
 }
 
-function setupPartsEtaCounterClock() {
-  refreshPartsEtaCounters();
+function setupPartsEtaCounterClock(sourceRows = null) {
+  refreshPartsEtaCounters(sourceRows);
   if (app.partsEtaCounterTimer || typeof window.setInterval !== 'function') return;
   app.partsEtaCounterTimer = window.setInterval(refreshPartsEtaCounters, 60000);
 }
@@ -12534,11 +12545,11 @@ function partsDepartmentSourceRows() {
   return vehicleLocationBoardRows();
 }
 
-function partsDepartmentRows() {
+function partsDepartmentRows(sourceRows = partsDepartmentSourceRows()) {
   const q = ($('#parts-search')?.value || '').trim().toLowerCase();
   const operationalFilter = app.partsOperationalFilter || 'notordered';
   const departmentFilter = $('#parts-department-filter')?.value || '';
-  return partsDepartmentSourceRows()
+  return sourceRows
     .filter(vehicleHasBatchNumber)
     .filter(vehicle => partsMatchesOperationalFilter(vehicle, operationalFilter))
     .filter(vehicle => !departmentFilter || vehicleDepartmentCode(vehicle) === departmentFilter)
@@ -12555,8 +12566,8 @@ function partsDepartmentRows() {
         || String(displayStockNumber(a) || '').localeCompare(String(displayStockNumber(b) || ''), undefined, { numeric: true });
     });
 }
-function renderPartsSummary() {
-  const all = partsDepartmentSourceRows().filter(vehicleHasBatchNumber);
+function renderPartsSummary(sourceRows = partsDepartmentSourceRows()) {
+  const all = sourceRows.filter(vehicleHasBatchNumber);
   const filters = [
     ['notordered', 'Parts Not Ordered'],
     ['ordered', 'Parts Ordered'],
@@ -12623,8 +12634,8 @@ function partsQueueRowHtml(vehicle = {}) {
     <td>${partsQueueActionsHtml(vehicle, status)}</td>
   </tr>`;
 }
-function partsIssuedStoppagePickerHtml() {
-  const issued = partsDepartmentSourceRows()
+function partsIssuedStoppagePickerHtml(sourceRows = partsDepartmentSourceRows()) {
+  const issued = sourceRows
     .filter(vehicleHasBatchNumber)
     .filter(vehicle => partsDepartmentStatus(vehicle) === 'issued')
     .sort((a, b) => String(displayStockNumber(a) || '').localeCompare(String(displayStockNumber(b) || ''), undefined, { numeric: true }));
@@ -12650,11 +12661,11 @@ function renderPartsHome() {
   const host = $('#parts-home-content');
   const summaryHost = $('#parts-summary-grid');
   if (!host && !summaryHost) return;
-  const rows = partsDepartmentRows();
-  setupPartsEtaCounterClock();
-  renderPartsSummary(rows);
+  const sourceRows = partsDepartmentSourceRows();
+  const rows = partsDepartmentRows(sourceRows);
+  renderPartsSummary(sourceRows);
   if (!host) return;
-  const stoppagePicker = (app.partsOperationalFilter || 'notordered') === 'stoppage' ? partsIssuedStoppagePickerHtml() : '';
+  const stoppagePicker = (app.partsOperationalFilter || 'notordered') === 'stoppage' ? partsIssuedStoppagePickerHtml(sourceRows) : '';
   if (!rows.length) {
     host.innerHTML = `${stoppagePicker}<div class="empty-state"><strong>No vehicles match the current parts filter</strong><span>Clear search or change the Parts status filter.</span></div>`;
     bindPartsIssuedStoppagePicker(host);
@@ -12667,7 +12678,7 @@ function renderPartsHome() {
     <tbody>${rows.map(partsQueueRowHtml).join('')}</tbody></table></div>`;
   bindPartsIssuedStoppagePicker(host);
   bindPartsQueueActionButtons(host);
-  setupPartsEtaCounterClock();
+  setupPartsEtaCounterClock(sourceRows);
   $$('[data-parts-worst-eta]', host).forEach(input => input.addEventListener('change', () => updateVehiclePartsWorstEta(input.dataset.partsWorstEta, input.value)));
 }
 
@@ -13562,19 +13573,38 @@ function vehicleLocationBoardRows(localRows = pdcSheetVehicles(), sharedRows = a
   }
   const currentShared = activeSharedNavisionRows(sharedRows);
   const localVehicles = deduplicateLocalLocationRows(localRows);
+  const sharedByStock = new Map();
+  currentShared.forEach(item => {
+    const stock = sharedNavisionIdentityPartsFromItem(item).stock;
+    if (!stock) return;
+    const bucket = sharedByStock.get(stock) || [];
+    bucket.push(item);
+    sharedByStock.set(stock, bucket);
+  });
   const candidatesByLocal = new Map();
+  const conflictsByLocal = new Map();
   const sharedCandidateCounts = new Map();
 
   localVehicles.forEach(vehicle => {
-    const matches = currentShared.filter(item => sharedNavisionIdentityRelation(vehicle, item) === 'match');
+    const localIdentity = sharedNavisionIdentityPartsFromVehicle(vehicle);
+    const candidates = localIdentity.stock ? (sharedByStock.get(localIdentity.stock) || []) : [];
+    const matches = candidates.filter(item => {
+      const sharedIdentity = sharedNavisionIdentityPartsFromItem(item);
+      return !(localIdentity.dealer && sharedIdentity.dealer && localIdentity.dealer !== sharedIdentity.dealer);
+    });
+    const hasConflict = candidates.some(item => {
+      const sharedIdentity = sharedNavisionIdentityPartsFromItem(item);
+      return Boolean(localIdentity.dealer && sharedIdentity.dealer && localIdentity.dealer !== sharedIdentity.dealer);
+    });
     candidatesByLocal.set(vehicle, matches);
+    conflictsByLocal.set(vehicle, hasConflict);
     matches.forEach(item => sharedCandidateCounts.set(item, Number(sharedCandidateCounts.get(item) || 0) + 1));
   });
 
   const consumedShared = new Set();
   const mergedLocal = localVehicles.map(vehicle => {
     const matches = candidatesByLocal.get(vehicle) || [];
-    const hasConflictingIdentity = currentShared.some(item => sharedNavisionIdentityRelation(vehicle, item) === 'conflict');
+    const hasConflictingIdentity = conflictsByLocal.get(vehicle) === true;
     const mayMergeAuthoritativeNavision = !vehicle.__locationIdentityReadOnly || vehicle.__emailVehicleServerAuthoritative === true;
     const item = mayMergeAuthoritativeNavision && matches.length === 1 && sharedCandidateCounts.get(matches[0]) === 1 ? matches[0] : null;
     const identityAmbiguous = Boolean(vehicle.__locationIdentityReadOnly || hasConflictingIdentity || matches.length > 1 || (matches.length === 1 && !item));
