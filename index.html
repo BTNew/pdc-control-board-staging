@@ -8,9 +8,9 @@
   <meta name="description" content="PDC vehicle locations, workshop workflow, Parts and scheduling control board." />
   <title>PMB PDC Control Board</title>
   <link rel="icon" href="favicon.svg" type="image/svg+xml" />
-  <link rel="stylesheet" href="styles.css?v=2026.08.10.11-workshop-completion-projection" />
-  <link rel="stylesheet" href="desktop-operations.css?v=2026.08.10.11-workshop-completion-projection" />
-  <link rel="stylesheet" href="workshop-planner.css?v=2026.08.10.11-workshop-completion-projection" />
+  <link rel="stylesheet" href="styles.css?v=2026.08.10.12-setup-backup-pmb-ops" />
+  <link rel="stylesheet" href="desktop-operations.css?v=2026.08.10.12-setup-backup-pmb-ops" />
+  <link rel="stylesheet" href="workshop-planner.css?v=2026.08.10.12-setup-backup-pmb-ops" />
 </head>
 <body class="auth-pending" data-auth-state="checking">
   <main class="pdc-auth-gate" id="pdc-auth-gate" aria-labelledby="pdc-auth-title">
@@ -45,7 +45,7 @@
         <div class="brand-text">
           <div class="brand-title">Perth Motor Bodies</div>
           <div class="brand-subtitle">PDC Control Board</div>
-          <div class="app-version" id="app-version">Version 2026.08.10.11-workshop-completion-projection</div>
+          <div class="app-version" id="app-version">Version 2026.08.10.12-setup-backup-pmb-ops</div>
         </div>
 
       </div>
@@ -609,16 +609,6 @@
 
       <section id="lists" class="view">
         <div class="pdc-lists-layout">
-          <section class="panel pdc-list-panel backup-status-panel" id="backup-status-panel" hidden>
-            <div class="panel-header">
-              <div>
-                <h2>Automated backup status</h2>
-                <p>Server-side encrypted backups of all operational data. Administrator-only. Staging and production are tracked completely separately.</p>
-              </div>
-              <button class="small-button" id="backup-status-refresh" type="button">Refresh</button>
-            </div>
-            <div id="backup-status-content"><div class="empty-state compact-empty"><strong>Loading backup status…</strong></div></div>
-          </section>
 
           <section class="panel pdc-list-panel admin-reference-panel">
             <div class="panel-header">
@@ -662,6 +652,17 @@
               <button class="primary" id="add-salesperson-button" type="button">Add salesperson</button>
             </div>
             <div class="admin-chip-list salesperson-chip-list" id="salesperson-list-admin"></div>
+          </section>
+
+          <section class="panel pdc-list-panel backup-status-panel compact-backup-status-panel" id="backup-status-panel" hidden>
+            <div class="panel-header compact">
+              <div>
+                <h2>Automated backup status</h2>
+                <p>Encrypted server backups · administrator only</p>
+              </div>
+              <button class="small-button" id="backup-status-refresh" type="button">Refresh</button>
+            </div>
+            <div id="backup-status-content"><div class="empty-state compact-empty"><strong>Loading backup status…</strong></div></div>
           </section>
         </div>
       </section>
@@ -849,12 +850,12 @@
   <script src="vendor/supabase/supabase-2.110.5.js"></script>
   <script src="pdc-supabase-config.js"></script>
   <script src="pdc-auth.js?v=2026.07.24.26-pd-document-intake"></script>
-  <script src="data.js?v=2026.08.10.11-workshop-completion-projection"></script>
-  <script src="email-board-data.js?v=2026.08.10.11-workshop-completion-projection"></script>
+  <script src="data.js?v=2026.08.10.12-setup-backup-pmb-ops"></script>
+  <script src="email-board-data.js?v=2026.08.10.12-setup-backup-pmb-ops"></script>
   <script src="arb-labor-catalog.js?v=2026.07.24.26-pd-document-intake"></script>
   <script src="ai-board-advisor.js?v=2026.07.24.26-pd-document-intake"></script>
-  <script src="workshop-eligibility.js?v=2026.08.10.11-workshop-completion-projection"></script>
+  <script src="workshop-eligibility.js?v=2026.08.10.12-setup-backup-pmb-ops"></script>
 
-  <script src="app.js?v=2026.08.10.11-workshop-completion-projection"></script>
+  <script src="app.js?v=2026.08.10.12-setup-backup-pmb-ops"></script>
 </body>
 </html>

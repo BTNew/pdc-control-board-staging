@@ -4966,6 +4966,47 @@ body.pmb-station-mode .pmb-bay-board-header strong {
 .admin-status-badge.is-rejected { background: #fee2e2; color: #b42318; }
 #user-management-panel { grid-column: 1 / -1; }
 .admin-reference-panel { grid-column: 1 / -1; }
+.compact-backup-status-panel {
+  grid-column: 1 / -1;
+  min-height: 0;
+}
+.compact-backup-status-panel .panel-header {
+  padding: 11px 16px;
+}
+.compact-backup-status-panel .panel-header h2 {
+  font-size: 1rem;
+}
+.compact-backup-status-panel .panel-header p {
+  margin-top: 2px;
+  font-size: .76rem;
+}
+.compact-backup-status-panel .backup-status-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 7px;
+  padding: 10px 14px 13px;
+}
+.compact-backup-status-panel .visibility-card {
+  min-height: 0;
+  padding: 8px 10px;
+  border-radius: 9px;
+}
+.compact-backup-status-panel .visibility-card span {
+  font-size: .61rem;
+  line-height: 1.15;
+}
+.compact-backup-status-panel .visibility-card strong {
+  margin-top: 3px;
+  font-size: .9rem;
+  line-height: 1.2;
+  letter-spacing: -.015em;
+}
+.compact-backup-status-panel .parts-help-strip,
+.compact-backup-status-panel .hosting-security-warning {
+  margin: 0 14px 10px;
+}
+@media (max-width: 760px) {
+  .compact-backup-status-panel .backup-status-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
 .user-management-tabs {
   display: flex;
   flex-wrap: wrap;

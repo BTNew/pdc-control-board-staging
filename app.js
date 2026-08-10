@@ -1,5 +1,5 @@
-const APP_VERSION = '2026.08.10.11-workshop-completion-projection';
-const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.08.10.11-workshop-completion-projection';
+const APP_VERSION = '2026.08.10.12-setup-backup-pmb-ops';
+const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.08.10.12-setup-backup-pmb-ops';
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
 // constant intentionally names only the production ref, never the
@@ -3338,6 +3338,14 @@ function formatBackupBytes(bytes) {
   return `${value.toFixed(unitIndex === 0 ? 0 : 1)} ${units[unitIndex]}`;
 }
 
+function formatBackupStatusDate(value) {
+  const date = new Date(value || '');
+  if (Number.isNaN(date.getTime())) return '—';
+  return date.toLocaleString('en-AU', {
+    day: 'numeric', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit',
+  });
+}
+
 async function renderBackupStatusPanel() {
   const panel = $('#backup-status-panel');
   const host = $('#backup-status-content');
@@ -3385,7 +3393,7 @@ async function renderBackupStatusPanel() {
     let nextScheduledLabel = '—';
     if (lastSuccess && lastSuccess.started_at) {
       const nextDate = new Date(new Date(lastSuccess.started_at).getTime() + 3 * 60 * 60 * 1000);
-      nextScheduledLabel = nextDate.toLocaleString();
+      nextScheduledLabel = formatBackupStatusDate(nextDate);
     }
 
     const alertBanner = consecutiveFailures >= 3
@@ -3396,13 +3404,13 @@ async function renderBackupStatusPanel() {
       ${alertBanner}
       <div class="visibility-grid backup-status-grid">
         <div class="visibility-card"><span class="muted-label">Environment</span><strong>${escapeHtml(environment)}</strong></div>
-        <div class="visibility-card"><span class="muted-label">Last successful backup</span><strong>${lastSuccess ? new Date(lastSuccess.started_at).toLocaleString() : 'Never'}</strong></div>
+        <div class="visibility-card"><span class="muted-label">Last successful</span><strong>${lastSuccess ? formatBackupStatusDate(lastSuccess.started_at) : 'Never'}</strong></div>
         <div class="visibility-card"><span class="muted-label">Next scheduled backup</span><strong>${escapeHtml(nextScheduledLabel)}</strong></div>
-        <div class="visibility-card"><span class="muted-label">Last backup size</span><strong>${lastSuccess ? formatBackupBytes(lastSuccess.file_size_bytes) : '—'}</strong></div>
-        <div class="visibility-card"><span class="muted-label">Backup location</span><strong>Encrypted file store (server-side, outside the live database)</strong></div>
-        <div class="visibility-card"><span class="muted-label">Last restore test</span><strong>${lastRestoreTest ? `${new Date(lastRestoreTest.started_at).toLocaleString()} — ${lastRestoreTest.row_count_matches ? 'passed' : 'FAILED'}` : 'Never run'}</strong></div>
-        <div class="visibility-card"><span class="muted-label">Recent failures</span><strong>${consecutiveFailures} consecutive</strong></div>
-        <div class="visibility-card"><span class="muted-label">Retention policy</span><strong>7d / 30d daily / 12w weekly / 12mo monthly</strong></div>
+        <div class="visibility-card"><span class="muted-label">Last size</span><strong>${lastSuccess ? formatBackupBytes(lastSuccess.file_size_bytes) : '—'}</strong></div>
+        <div class="visibility-card"><span class="muted-label">Storage</span><strong title="Encrypted file store outside the live database">Encrypted off-database</strong></div>
+        <div class="visibility-card"><span class="muted-label">Restore test</span><strong>${lastRestoreTest ? `${formatBackupStatusDate(lastRestoreTest.started_at)} · ${lastRestoreTest.row_count_matches ? 'Passed' : 'FAILED'}` : 'Never run'}</strong></div>
+        <div class="visibility-card"><span class="muted-label">Failures</span><strong>${consecutiveFailures} consecutive</strong></div>
+        <div class="visibility-card"><span class="muted-label">Retention</span><strong>7d / 30d / 12w / 12mo</strong></div>
       </div>
       ${recentFailures.length ? `<div class="parts-help-strip"><strong>Recent failure detail:</strong><span>${recentFailures.map(run => `${escapeHtml(new Date(run.started_at).toLocaleString())} — ${escapeHtml(run.error_message || 'unknown error')}`).join(' · ')}</span></div>` : ''}
     `;
