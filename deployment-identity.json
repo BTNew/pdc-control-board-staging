@@ -1,14 +1,14 @@
 {
   "artifact": "zero-embedded-data static staging site",
   "environment": "staging",
-  "generatedAtUtc": "2026-08-10T22:39:02Z",
-  "deploymentMode": "Staging Workshop source-operation station move: station-only audited RPC preserves exact imported hours/description; completed source/target work remains locked",
+  "generatedAtUtc": "2026-08-10T23:05:57Z",
+  "deploymentMode": "Staging Workshop planner chips use authoritative per-station operation estimated hours; removed three-hour test default",
   "baseDeploymentCommit": "8e954b84c7d3ccc92a6149aa48fca0db59a6bf84",
   "sourceRepository": "BTNew/pdc-control-board",
   "sourceBranch": "fix/staging-station-move-source-hours-20260811",
-  "sourceCommit": "3e4d0e1ac5231ae478a56fcd3651279d9e3bfcb1",
-  "sourceTree": "a44c056c099f663a7039b4bed2f31fafa275ee81",
-  "cacheVersion": "2026.08.11.21-source-station-role-render",
+  "sourceCommit": "adba32defc59e755818dd56bb8d7313812578fc2",
+  "sourceTree": "90326875ead6f2323912ecee2b00f9081ca9cb71",
+  "cacheVersion": "2026.08.11.22-operation-estimate-chips",
   "stagingProjectRef": "cdsmnqxtyyoeoznmbidd",
   "zeroData": true,
   "mailboxAuthority": false,
@@ -16,8 +16,8 @@
   "productionActivation": false,
   "pilotActivation": false,
   "migrationLedger": {
-    "appliedThrough": "151",
-    "ledgerHead": "151",
+    "appliedThrough": "152",
+    "ledgerHead": "152",
     "migration": "move_source_lines_between_workshop_stations + lock_source_and_target_completion_for_station_moves",
     "rollbackAvailable": true,
     "actualBackupManifestSha256": "cffdc554210a6a8077072a2dcfc9816c3b2c02f1588b4d2da6976e36a3d4b82d",
@@ -66,7 +66,10 @@
     "forbiddenOperationalTablesUnchanged": true,
     "migration151": "151_require_exact_workshop_role_for_source_station_moves.sql",
     "migration151Sha256": "220f9bd3a05a66345e4158ce6c017d638c390982dc87d2dbad472944f65cfcb8",
-    "exactRoleBoundary": "PASS - Viewer/Importer denied; Operator/Administrator accepted"
+    "exactRoleBoundary": "PASS - Viewer/Importer denied; Operator/Administrator accepted",
+    "migration152": "152_planner_chip_operation_estimated_hours.sql",
+    "migration152Sha256": "5f1a32ab45e2fc695d67e650bf4eab5fd475be5065c48d0549833ac911113b57",
+    "operationEstimateRuntime": "PASS - Stock 12661296 FITTING 6.50h; prior stored test duration 180m; shared fallback changed to 60m"
   },
   "retiredRoutes": [
     "pipeline",
@@ -92,10 +95,10 @@
     "applyReceipts": 1
   },
   "releaseChecks": {
-    "sourceTests": "PASS - 159 passed, 0 failed, 1 intentional clean-build fixture skip",
+    "sourceTests": "PASS - 160 passed, 0 failed, 1 intentional clean-build fixture skip",
     "migration148": "PASS - applied to staging",
     "retainedReplay": "PASS - 1 receipt, 16 lines, 3 work items; exact replay idempotent",
-    "assetParity": "PASS - live .21 index.html and app.js SHA-256 exactly match publication commit 4e80e22fc0c8da6329a45f9a1558757bf7541b82",
+    "assetParity": "Pending .22 live publication verification",
     "authenticatedBrowser": "NOT RUN - no browser credentials used; role boundary and mutation behavior verified directly in rollback-only staging transactions",
     "independentReview": "Three major findings received and remediated; exact-current remediation review pending",
     "documentUploadFocused": "PASS - SHA-256 binding, source-line cardinality, explicit-hours controls, operation identity, station normalization, purge/race, and accessibility",
@@ -103,11 +106,13 @@
     "migration149": "PASS - exact pinned migration applied and verified on staging",
     "migration150": "PASS - exact pinned completion-lock hardening applied and verified on staging",
     "stationMoveRuntime": "PASS - Stock 12535460; seven null/zero/non-quarter source-hour lines moved in rollback-only rehearsal; exact descriptions/hours preserved; completed source rejected; forbidden tables unchanged",
-    "localBrowser": "PASS - .21 loaded; decorated authenticated description retained; NULL/blank hours remain missing; 0 and 6.60 preserved; narrow source RPC present; zero console/JS errors",
-    "liveBrowser": "PASS - .21 loaded; decorated authenticated description retained; NULL/blank hours remain missing; 0 and 6.60 preserved; narrow source RPC present; zero console/JS errors",
-    "pagesDeployment": "PASS - GitHub Pages run 31439259254",
+    "localBrowser": "PASS - .22 shell loaded; workshop planner contains 60-minute fallback and authoritative estimated_operation_hours override; removed three-hour rule absent; zero JS errors",
+    "liveBrowser": "Pending .22 live browser verification",
+    "pagesDeployment": "Pending .22 Pages run",
     "migration151": "PASS - exact SHA-pinned migration applied; Viewer/Importer denied; Operator/Administrator accepted",
-    "sourceReloadRendering": "PASS - authenticated description prefix preserved; NULL/blank hours remain missing; explicit zero and 6.60 precision preserved"
+    "sourceReloadRendering": "PASS - authenticated description prefix preserved; NULL/blank hours remain missing; explicit zero and 6.60 precision preserved",
+    "migration152": "PASS - exact SHA-pinned migration applied; helper and DTO return Stock 12661296 FITTING 6.50h; fallback 60m; ACL verified",
+    "operationEstimateChip": "PASS - authoritative operation estimate overrides stored/default booking duration for chip width and scheduling"
   },
   "sourceFiles": [
     {
@@ -125,8 +130,8 @@
     {
       "sourcePath": "app.js",
       "deployedPath": "app.js",
-      "sha256": "a34ccf2781dc01e7b57bfd19b5dc6b6eb169414e2f97be4f937c256a99d2ac42",
-      "bytes": 1083249
+      "sha256": "85f1c4599a5d47c1263ad19a23618e556159c321f711cd2c93812b1b2d94846c",
+      "bytes": 1083245
     },
     {
       "sourcePath": "arb-labor-catalog.js",
@@ -173,8 +178,8 @@
     {
       "sourcePath": "staging.html",
       "deployedPath": "index.html",
-      "sha256": "6a622aa3dc6e828134153c134ce620ef244717e6e3f8671be7a4954bbbf4e463",
-      "bytes": 63598
+      "sha256": "0cbc8b19209aabf6131a4fdad514cec2433ed1a882c859d1a7a93f7bb52f31a4",
+      "bytes": 63574
     },
     {
       "sourcePath": "key-list-review.js",
@@ -239,8 +244,8 @@
     {
       "sourcePath": "pdc-supabase-config.staging.js",
       "deployedPath": "pdc-supabase-config.staging.js",
-      "sha256": "8dae1b1af1c1fddaf91cab35e8bcb304859051721725c20dfdc652f831b76e1b",
-      "bytes": 1710
+      "sha256": "56d519cb8640065794842be8c7f73386b2bfcdfd0072e6c0533378fa82b58934",
+      "bytes": 1708
     },
     {
       "sourcePath": "scripts/stage2b_c4_browser_export.js",
@@ -321,6 +326,18 @@
       "bytes": 8825
     },
     {
+      "sourcePath": "supabase/staging_only/151_require_exact_workshop_role_for_source_station_moves.sql",
+      "deployedPath": "supabase/staging_only/151_require_exact_workshop_role_for_source_station_moves.sql",
+      "sha256": "220f9bd3a05a66345e4158ce6c017d638c390982dc87d2dbad472944f65cfcb8",
+      "bytes": 3928
+    },
+    {
+      "sourcePath": "supabase/staging_only/152_planner_chip_operation_estimated_hours.sql",
+      "deployedPath": "supabase/staging_only/152_planner_chip_operation_estimated_hours.sql",
+      "sha256": "5f1a32ab45e2fc695d67e650bf4eab5fd475be5065c48d0549833ac911113b57",
+      "bytes": 11070
+    },
+    {
       "sourcePath": "test_navision_stock_authority_096.js",
       "deployedPath": "test_navision_stock_authority_096.js",
       "sha256": "6f929f45b7baafc3774121c4ad081fa77478988cafd4cae37625b3057633df35",
@@ -383,8 +400,8 @@
     {
       "sourcePath": "workshop-planner.js",
       "deployedPath": "workshop-planner.js",
-      "sha256": "bd6fef4f7ee58811ec207e1c29490347a3e19ffaf38134fa63946f82fd02cc80",
-      "bytes": 338842
+      "sha256": "be959a190fb7ce014cd78d7f764b1748b46e9a5e9ead03969551f77dd5c5cd79",
+      "bytes": 333885
     },
     {
       "sourcePath": "workshop-realtime.js",
@@ -403,12 +420,6 @@
       "deployedPath": "workshop-shared-actions.js",
       "sha256": "750d262bd06accb0ac55e377d200498a1d8d4155f79109a833decfb3e12b2f86",
       "bytes": 8215
-    },
-    {
-      "sourcePath": "supabase/staging_only/151_require_exact_workshop_role_for_source_station_moves.sql",
-      "deployedPath": "supabase/staging_only/151_require_exact_workshop_role_for_source_station_moves.sql",
-      "sha256": "220f9bd3a05a66345e4158ce6c017d638c390982dc87d2dbad472944f65cfcb8",
-      "bytes": 3928
     }
   ],
   "performanceEvidence": {

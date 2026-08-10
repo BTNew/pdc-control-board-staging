@@ -20,7 +20,9 @@ const WORKSHOP_BOOT_CONFIG = Object.freeze({
   dayEndMinutes: 16 * 60,
   dayLengthMinutes: 8 * 60,
   schedulingIncrementMinutes: 15,
-  defaultBookingDurationMinutes: 3 * 60,
+  // One hour is only a fail-safe when no authoritative operation estimate exists.
+  // The original three-hour test/default must never override a job's estimated time.
+  defaultBookingDurationMinutes: 60,
   workingDayIndexes: Object.freeze([1, 2, 3, 4, 5]),
   closureDateKeys: Object.freeze([]),
   breakWindowsByDateOrScope: Object.freeze([]),
@@ -525,6 +527,8 @@ function workshopMapSnapshotBookingToLegacyRow(booking = {}, vehicleById = null)
   const stage = booking.stage || {};
   const bay = booking.bay || null;
   const assignment = booking.assignment || null;
+  const estimatedOperationHours = Number(booking.estimated_operation_hours);
+  const storedBookingHours = Number(booking.default_duration_minutes || 0) / 60;
   const legacyStatus = { queued: 'planned', planned: 'planned', started: 'started', stoppage: 'stoppage', completed: 'completed', deleted: 'deleted' }[booking.status] || 'planned';
   return {
     id: booking.booking_id,
@@ -539,7 +543,9 @@ function workshopMapSnapshotBookingToLegacyRow(booking = {}, vehicleById = null)
     stage: normalizePmbStage(stage.code || ''),
     bay: bay ? Number(bay.bay_number) || 0 : 0,
     startAt: booking.scheduled_start_at,
-    hours: Number(booking.default_duration_minutes || 0) / 60 || workshopDefaultBookingHours(),
+    hours: Number.isFinite(estimatedOperationHours) && estimatedOperationHours > 0
+      ? estimatedOperationHours
+      : storedBookingHours || workshopDefaultBookingHours(),
     assignee: assignment ? assignment.technician_name || '' : '',
     technicianId: assignment ? assignment.technician_id || '' : '',
     status: legacyStatus,
@@ -2529,6 +2535,7 @@ function workshopSnapshotVehicleToPlannerRow(vehicle = {}, workItems = [], stage
   const etaToKewdale = isoEta ? `${isoEta[3]}/${isoEta[2]}/${isoEta[1]}` : rawEta;
   const jobDef = typeof pmbJobDefForStage === 'function' ? pmbJobDefForStage(stage) : null;
   const stageWorkItems = workItems.filter(item => String(item?.vehicle_id || '') === String(vehicle.id || ''));
+  const estimatedHoursByStage = vehicle.workshop_estimated_hours_by_stage;
   const pmbJobs = {};
   stageWorkItems.forEach(item => {
     const key = String(item.work_key || jobDef?.key || '').trim();
@@ -2565,6 +2572,9 @@ function workshopSnapshotVehicleToPlannerRow(vehicle = {}, workItems = [], stage
     navisionKewdaleEta: etaToKewdale,
     etaAtKewdale: etaToKewdale,
     pmbJobs,
+    workshopEstimatedHoursByStage: estimatedHoursByStage && typeof estimatedHoursByStage === 'object' && !Array.isArray(estimatedHoursByStage)
+      ? { ...estimatedHoursByStage }
+      : {},
     version: vehicle.version
   };
 }
@@ -2614,6 +2624,9 @@ function workshopPlannerVehiclesForStage(stage = '') {
     return {
       ...scoped,
       pmbJobs: { ...scoped.pmbJobs },
+      workshopEstimatedHoursByStage: Number(authority?.estimated_hours) > 0
+        ? { ...scoped.workshopEstimatedHoursByStage, [dedicatedStage]: Number(authority.estimated_hours) }
+        : scoped.workshopEstimatedHoursByStage,
       __workshopOutstanding: outstanding,
       sharedVehicleId: vehicle.id,
       id: vehicle.id
