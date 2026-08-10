@@ -76,8 +76,8 @@
     "sourceTests": "PASS - 157 passed, 0 failed, 1 intentional clean-build fixture skip",
     "migration148": "PASS - applied to staging",
     "retainedReplay": "PASS - 1 receipt, 16 lines, 3 work items; exact replay idempotent",
-    "assetParity": "PASS - changed publication assets copied from exact source commit blobs and hash verified pre-commit",
-    "authenticatedBrowser": "Pending live 2026.08.10.17 build verification",
+    "assetParity": "PASS - live HTTP bytes for HTML and four changed runtime assets match exact source commit blobs",
+    "authenticatedBrowser": "PASS scoped - exact-source local upload/hash/purge/mobile QA completed before publication; live locked 390x844 shell loaded with no startup-failure marker; no live credential impersonation used",
     "independentReview": "PASS - blocker/major-only exact-current review; seven original issues and follow-up fixes verified",
     "documentUploadFocused": "PASS - SHA-256 binding, source-line cardinality, explicit-hours controls, operation identity, station normalization, purge/race, and accessibility"
   },
@@ -467,8 +467,8 @@
     "productionChanged": false
   },
   "localScreenshotServersActive": 0,
-  "publicationAssetCommit": "pending-publication-commit",
-  "verifiedArtifactCommit": "pending-live-verification",
+  "publicationAssetCommit": "591734151a3e196d12f672a31fa676198db640c4",
+  "verifiedArtifactCommit": "591734151a3e196d12f672a31fa676198db640c4",
   "migrationLedgerHead": "148 bind_canonical_document_evidence_to_retained_source",
   "migrationLedgerHeadNumber": 148,
   "migrationLedgerHeadName": "bind_canonical_document_evidence_to_retained_source",
