@@ -566,7 +566,7 @@ let workshopSharedPlansCache = { snapshot: null, bookings: null, rows: null };
 
 function workshopLoadPlans() {
   if (workshopSharedModeActive()) {
-    const snapshot = window.__workshopDataService.getLastSnapshot();
+    const snapshot = window.__workshopDataService.getTrustedSnapshot?.();
     const bookings = snapshot && Array.isArray(snapshot.bookings) ? snapshot.bookings : null;
     if (bookings) {
       if (snapshot === workshopSharedPlansCache.snapshot
@@ -2729,7 +2729,7 @@ function workshopBookingsForEntry(plans = [], entry = {}) {
 function workshopSearchMatches(query = '', plans = workshopLoadPlans()) {
   const clean = cleanNavisionText(query || '').toLowerCase();
   if (clean.length < 2) return [];
-  const snapshot = window.__workshopDataService?.getLastSnapshot?.();
+  const snapshot = window.__workshopDataService?.getTrustedSnapshot?.();
   const snapshotWorkItems = Array.isArray(snapshot?.work_items) ? snapshot.work_items : [];
   const snapshotRows = (Array.isArray(snapshot?.vehicles) ? snapshot.vehicles : [])
     .map(vehicle => workshopSnapshotVehicleToPlannerRow(vehicle, snapshotWorkItems, workshopState().stage));
@@ -2748,6 +2748,12 @@ function workshopSearchMatches(query = '', plans = workshopLoadPlans()) {
       const sharedRef = workshopSharedModeActive() ? workshopSharedVehicleRef({ vehicleKey: key }) : null;
       const vehicleIdentity = sharedRef?.vehicleId ? `shared:${sharedRef.vehicleId}` : `legacy:${key}`;
       const bookings = workshopSortBookingsClosest((Array.isArray(plans) ? plans : []).filter(entry => workshopPlanVehicleIdentity(entry) === vehicleIdentity));
+      const candidateAuthority = sharedRef?.vehicleId
+        ? (Array.isArray(snapshot?.outstanding_candidates) ? snapshot.outstanding_candidates : []).find(candidate => (
+          String(candidate?.vehicle_id || '').trim() === String(sharedRef.vehicleId)
+          && normalizePmbStage(candidate?.stage_code || candidate?.stage || workshopState().stage) === normalizePmbStage(workshopState().stage)
+        ))
+        : null;
       return {
         vehicle,
         vehicleKey: key,
@@ -2755,6 +2761,8 @@ function workshopSearchMatches(query = '', plans = workshopLoadPlans()) {
         rank: workshopSearchRank(vehicle, clean),
         archived: Boolean(vehicle.isArchived || vehicle.archivedAt || statusCategory(vehicle) === 'deleted'),
         bookings,
+        candidateAvailable: candidateAuthority?.schedule_enabled === true,
+        candidateDisabledReason: candidateAuthority?.disabled_reason || '',
       };
     })
     .sort((a, b) => a.rank - b.rank
@@ -2796,6 +2804,15 @@ function workshopSearchResultsHtml(query = '', plans = workshopLoadPlans()) {
     };
     const archived = match.archived ? '<span class="workshop-search-alert">Archived vehicle</span>' : '';
     if (!match.bookings.length) {
+      if (!match.candidateAvailable || match.archived) {
+        const reason = match.archived
+          ? 'Archived vehicles cannot be scheduled.'
+          : (match.candidateDisabledReason || 'This vehicle is not currently available in the selected station candidate lane.');
+        return `<article class="workshop-search-result is-unbooked is-scheduling-disabled" aria-disabled="true">
+          <span class="workshop-search-result-vehicle"><strong>Key ${escapeHtml(identity.key)} · Stock ${escapeHtml(identity.stock)} · JC ${escapeHtml(identity.jobcard)}</strong><span>${escapeHtml(identity.customer)} · ${escapeHtml(identity.description)}</span></span>
+          <span class="workshop-search-result-state">${archived}<strong>Scheduling unavailable</strong><span>${escapeHtml(reason)}</span></span>
+        </article>`;
+      }
       return `<button type="button" class="workshop-search-result is-unbooked" data-workshop-search-unbooked-identity="${escapeHtml(match.vehicleIdentity)}">
         <span class="workshop-search-result-vehicle"><strong>Key ${escapeHtml(identity.key)} · Stock ${escapeHtml(identity.stock)} · JC ${escapeHtml(identity.jobcard)}</strong><span>${escapeHtml(identity.customer)} · ${escapeHtml(identity.description)}</span></span>
         <span class="workshop-search-result-state">${archived}<strong>Select unbooked vehicle</strong><span>Show and highlight this vehicle in the unallocated candidate lane.</span></span>
@@ -2904,7 +2921,7 @@ function workshopBindSearchResultButtons(root = document) {
 
 function workshopSelectUnbookedSearchVehicle(vehicleIdentity = '') {
   const state = workshopState();
-  const match = workshopSearchMatches(state.search, workshopLoadPlans()).find(item => item.vehicleIdentity === vehicleIdentity && !item.bookings.length);
+  const match = workshopSearchMatches(state.search, workshopLoadPlans()).find(item => item.vehicleIdentity === vehicleIdentity && !item.bookings.length && item.candidateAvailable && !item.archived);
   if (!match) {
     state.searchOpen = true;
     renderWorkshopPlanner();

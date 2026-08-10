@@ -244,7 +244,7 @@ console.log('Workshop planner shared-mode integration seam checks passed');
     workshopSharedModeEnabled: cfg => !!(cfg && cfg.workshop && cfg.workshop.sharedData === true),
     PDC_SUPABASE_CONFIG: { workshop: { sharedData: true } },
     __activeWorkshopPlannerStage: 'FABRICATION',
-    __workshopDataService: { isEnabled: () => true, getLastSnapshot: () => snapshot },
+    __workshopDataService: { isEnabled: () => true, getLastSnapshot: () => snapshot, getTrustedSnapshot: () => snapshot },
   }, () => {
     const row = planner.workshopVehicle('12664966', 'FABRICATION');
     assert.ok(row, '8a authoritative candidate resolves by stock');
@@ -329,7 +329,7 @@ console.log('Workshop planner shared-mode integration seam checks passed');
   withGlobals({
     workshopSharedModeEnabled: () => true,
     PDC_SUPABASE_CONFIG: { workshop: { sharedData: true } },
-    __workshopDataService: { isEnabled: () => true, getLastSnapshot: () => snapshot },
+    __workshopDataService: { isEnabled: () => true, getLastSnapshot: () => snapshot, getTrustedSnapshot: () => snapshot },
   }, () => {
     assert.deepStrictEqual(planner.workshopSharedVehicleRef('STK-1'), { vehicleId: 'veh-a', version: 5 }, '10b resolves one unique stock_number');
     assert.deepStrictEqual(planner.workshopSharedVehicleRef('perm-2'), { vehicleId: 'veh-b', version: 9 }, '10c resolves one unique permanent_vehicle_id');
@@ -354,7 +354,7 @@ console.log('Workshop planner shared-mode integration seam checks passed');
   withGlobals({
     workshopSharedModeEnabled: () => true,
     PDC_SUPABASE_CONFIG: { workshop: { sharedData: true } },
-    __workshopDataService: { isEnabled: () => true, getLastSnapshot: () => snapshot },
+    __workshopDataService: { isEnabled: () => true, getLastSnapshot: () => snapshot, getTrustedSnapshot: () => snapshot },
   }, () => {
     assert.deepStrictEqual(
       planner.workshopSharedVehicleRef('DUP-1'),
@@ -400,7 +400,7 @@ console.log('Workshop planner shared-mode integration seam checks passed');
   withGlobals({
     workshopSharedModeEnabled: () => true,
     PDC_SUPABASE_CONFIG: { workshop: { sharedData: true } },
-    __workshopDataService: { isEnabled: () => true, getLastSnapshot: () => snapshot },
+    __workshopDataService: { isEnabled: () => true, getLastSnapshot: () => snapshot, getTrustedSnapshot: () => snapshot },
   }, () => {
     assert.deepStrictEqual(planner.workshopSharedTechnicianRef('Alex'), { technicianId: 'tech-alex' }, '11b resolves from the bookings list');
     assert.deepStrictEqual(planner.workshopSharedTechnicianRef('Beta'), { technicianId: 'tech-beta' }, '11c resolves from the active_stoppages list too');
@@ -820,6 +820,7 @@ console.log('Workshop planner shared-mode integration seam checks passed');
       __workshopDataService: {
         isEnabled: () => true,
         getLastSnapshot: () => ({ bookings: duplicateBookings, vehicles: [] }),
+        getTrustedSnapshot: () => ({ bookings: duplicateBookings, vehicles: [] }),
       },
       __workshopSharedActions: {
         startWork: async () => { ambiguityDispatches += 1; return { ok: true }; },

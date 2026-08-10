@@ -74,8 +74,15 @@ projection = projectionContext.vehicleWorkshopBookingProjection({});
 assert.strictEqual(projection.bookingRequired, false);
 assert.strictEqual(projection.missingStages.length, 0);
 assert(projection.label.startsWith('Est. complete '));
+projectionContext.pdcJobDefsPartsFirst = () => [{ key: 'fitting' }, { key: 'electrical' }];
+projectionContext.pmbStageForPdcJob = def => def.key === 'fitting' ? 'FITTING' : 'ELECTRICAL';
+projectionContext.WORKSHOP_PLANNER_ROUTE_BY_STAGE.ELECTRICAL = 'workshop-electrical';
+projection = projectionContext.vehicleWorkshopBookingProjection({});
+assert.strictEqual(projection.bookingRequired, true, 'a partial booking must still warn about the missing required department');
+assert.deepStrictEqual(Array.from(projection.missingStages), ['ELECTRICAL']);
+assert(projection.label.startsWith('Latest booking '));
 assert(appSource.includes('data-workshop-booking-required'));
-assert(appSource.includes('Required PMB work is not booked into a workshop bay'));
+assert(appSource.includes('One or more required PMB workshop departments are not booked'));
 assert(css.includes('.incoming-work-checks[data-workshop-booking-required="true"]'));
 
 // An unbooked search match must be a button that highlights the candidate lane without creating a booking.
@@ -88,7 +95,7 @@ let rendered = 0;
 const plannerContext = {
   workshopState: () => plannerState,
   workshopLoadPlans: () => [],
-  workshopSearchMatches: () => [{ vehicleIdentity: 'shared:vehicle-1', vehicleKey: '12546480', bookings: [] }],
+  workshopSearchMatches: () => [{ vehicleIdentity: 'shared:vehicle-1', vehicleKey: '12546480', bookings: [], candidateAvailable: true, archived: false }],
   workshopSaveView: () => {},
   renderWorkshopPlanner: () => { rendered += 1; },
 };

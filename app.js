@@ -1,5 +1,5 @@
-const APP_VERSION = '2026.08.10.03-workshop-ui-followups';
-const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.08.10.03-workshop-ui-followups';
+const APP_VERSION = '2026.08.10.04-workshop-ui-review-hotfix';
+const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.08.10.04-workshop-ui-review-hotfix';
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
 // constant intentionally names only the production ref, never the
@@ -3657,6 +3657,11 @@ function showView(view, options) {
   const enteringWorkshopPlanner = nextView === 'workshop'
     && (!previousWasPlanner || previousRequestedView !== requestedView);
   if (enteringWorkshopPlanner) app.pendingWorkshopOpenToday = true;
+  // Dashboard completion projection deliberately uses an unscoped Workshop
+  // service. Never reuse it for a station planner with different authority.
+  if (enteringWorkshopPlanner && !previousWasPlanner && window.__workshopDataService) {
+    teardownWorkshopPlannerScope();
+  }
   if (previousWasPlanner && previousRequestedView !== requestedView) teardownWorkshopPlannerScope({ preserveShell: switchingPlannerStation });
   if (previousRequestedView === 'workflow' && requestedView !== 'workflow') teardownWorkshopEligibilityOverview({ clearSnapshot: true });
   releaseHeavyViewDom(app.currentView, nextView);
@@ -4268,7 +4273,7 @@ function ensureDashboardWorkshopProjectionReady() {
       }
       return false;
     }
-    return !sharedMode || Boolean(service?.getLastSnapshot?.());
+    return !sharedMode || Boolean(service?.getTrustedSnapshot?.());
   }
   if (window.__dashboardWorkshopProjectionLoading) return false;
   window.__dashboardWorkshopProjectionLoading = true;
@@ -5842,7 +5847,7 @@ function vehicleWorkshopBookingProjection(vehicle = {}, options = {}) {
     return start ? new Date(start.getTime() + Math.max(0, Number(entry?.hours) || 0) * 3600000) : null;
   }).filter(date => date instanceof Date && !Number.isNaN(date.getTime()));
   const latestEnd = endTimes.length ? new Date(Math.max(...endTimes.map(date => date.getTime()))) : null;
-  const bookingRequired = statusCategory(vehicle) === 'pmb' && requiredStages.length > 0 && activeBookings.length === 0;
+  const bookingRequired = statusCategory(vehicle) === 'pmb' && missingStages.length > 0;
   const label = latestEnd
     ? `${missingStages.length ? 'Latest booking' : 'Est. complete'} ${latestEnd.toLocaleDateString('en-AU', { day: '2-digit', month: '2-digit' })} ${latestEnd.toLocaleTimeString('en-AU', { hour: 'numeric', minute: '2-digit' })}`
     : bookingRequired ? 'Booking required' : '';
@@ -5854,7 +5859,7 @@ function incomingWorkChecklistHtml(vehicle = {}, options = {}) {
   const currentStage = normalizePmbStage(inferredPmbStage(vehicle));
   const bookingProjection = options.bookingProjection || vehicleWorkshopBookingProjection(vehicle);
   const bookingWarning = bookingProjection.bookingRequired;
-  return `<div class="incoming-work-checks pdc-station-strip" data-workshop-booking-required="${bookingWarning ? 'true' : 'false'}" aria-label="Required work stations${bookingWarning ? '; workshop booking required' : ''}"${bookingWarning ? ' title="Required PMB work is not booked into a workshop bay"' : ''}>${pdcJobDefsPartsFirst().map(def => {
+  return `<div class="incoming-work-checks pdc-station-strip" data-workshop-booking-required="${bookingWarning ? 'true' : 'false'}" aria-label="Required work stations${bookingWarning ? '; workshop booking incomplete' : ''}"${bookingWarning ? ' title="One or more required PMB workshop departments are not booked"' : ''}>${pdcJobDefsPartsFirst().map(def => {
     const required = pdcJobRequired(vehicle, def);
     const complete = pdcJobComplete(vehicle, def);
     const stage = pmbStageForPdcJob(def);
@@ -15348,9 +15353,40 @@ function setNavisionSharedApplyBusy(busy = false) {
 
 function navisionWaitForBusyPaint() {
   return new Promise(resolve => {
-    if (typeof window.requestAnimationFrame === 'function') window.requestAnimationFrame(() => resolve());
-    else setTimeout(resolve, 0);
+    let settled = false;
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      resolve();
+    };
+    const fallback = setTimeout(finish, 250);
+    if (typeof window.requestAnimationFrame === 'function') {
+      window.requestAnimationFrame(() => {
+        clearTimeout(fallback);
+        finish();
+      });
+    }
   });
+}
+
+function navisionSharedApplyAuthorityIdentity() {
+  const context = window.PDC_AUTH_CONTEXT || {};
+  return [context.userId || context.user_id || '', context.email || '', context.role || '']
+    .map(value => String(value || '').trim().toLowerCase())
+    .join('|');
+}
+
+function navisionSharedPendingStillCurrent(pending, authorityIdentity = '') {
+  const raw = ($('#navision-paste')?.value || '').trim();
+  const dealerCode = ($('#navision-dealer-code')?.value || '').trim();
+  return Boolean(
+    pending
+    && app.pendingSharedNavisionImport === pending
+    && navisionSharedImportRoleAllowed()
+    && (!authorityIdentity || navisionSharedApplyAuthorityIdentity() === authorityIdentity)
+    && pending.dealerCode === dealerCode
+    && pending.sourceTextSha256 === sha256Hex(raw)
+  );
 }
 
 async function handleNavisionFileSelect(event) {
@@ -16906,20 +16942,25 @@ async function applySharedNavisionImport() {
   }
   const pending = app.pendingSharedNavisionImport;
   if (!pending) return;
+  const authorityIdentity = navisionSharedApplyAuthorityIdentity();
   setNavisionSharedApplyBusy(true);
-  await navisionWaitForBusyPaint();
   try {
-    return await applySharedNavisionImportPending(pending);
+    await navisionWaitForBusyPaint();
+    if (!navisionSharedPendingStillCurrent(pending, authorityIdentity)) {
+      window.alert('Import authority or preview input changed before apply. Preview again; nothing was changed.');
+      return;
+    }
+    return await applySharedNavisionImportPending(pending, authorityIdentity);
   } finally {
     setNavisionSharedApplyBusy(false);
   }
 }
 
-async function applySharedNavisionImportPending(pending) {
+async function applySharedNavisionImportPending(pending, authorityIdentity = '') {
   let data = pending.previewData || {};
   let counts = data.counts || {};
   let blockingState = navisionSharedPreviewBlockingState(data);
-  const service = navisionSharedBackendService();
+  let service = navisionSharedBackendService();
   if (blockingState.blocking) {
     if (!service) {
       window.alert('The shared Navision backend is unavailable, so the blocked preview could not be rechecked. Nothing was imported or changed.');
@@ -16956,6 +16997,11 @@ async function applySharedNavisionImportPending(pending) {
   }
   const totals = ['new', 'changed', 'unchanged', 'missing', 'invalid', 'conflict'].map(key => `${key} ${Number(counts[key] || 0)}`).join(', ');
   if (!window.confirm(`Apply this exact shared Navision preview?\n\nDealer: ${pending.dealerCode}\n${totals}\n\nThis writes only to the shared Navision backend. Browser-local authority, workflow, location, Parts and workshop data will not change.`)) return;
+  service = navisionSharedBackendService();
+  if (!service || !navisionSharedPendingStillCurrent(pending, authorityIdentity)) {
+    window.alert('Import authority, service, or preview input changed before dispatch. Preview again; nothing was changed.');
+    return;
+  }
   const idempotencyKey = `normal-upload:${pending.dealerCode}:${data.source_hash || sha256Hex(JSON.stringify(pending.rows))}`.slice(0, 200);
   const applyResult = await service.apply(pending.rows, pending.previewResult, { ...pending.metadata, confirmed: true, idempotencyKey });
   if (!applyResult?.ok) {
