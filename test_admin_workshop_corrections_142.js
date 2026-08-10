@@ -6,6 +6,7 @@ const app = fs.readFileSync('app.js', 'utf8');
 const planner = fs.readFileSync('workshop-planner.js', 'utf8');
 const css = fs.readFileSync('workshop-planner.css', 'utf8');
 const sql = fs.readFileSync('supabase/staging_only/142_vehicle_work_states_and_unallocated_stoppages.sql', 'utf8');
+const rollbackSql = fs.readFileSync('supabase/staging_only/142_vehicle_work_states_and_unallocated_stoppages.rollback.sql', 'utf8');
 let count = 0;
 const ok = (value, message) => { assert.ok(value, message); count += 1; };
 
@@ -38,5 +39,9 @@ ok(sql.includes("else 'stoppage'::public.workshop_booking_status"), 'explicit st
 ok(sql.includes('stoppage_reason = v_stoppage_reason'), 'just-move clears legacy stoppage reason instead of retaining it');
 ok(sql.includes("status = 'stoppage'::public.workshop_booking_status"), 'migration repairs legacy queued stoppage anomalies');
 ok(sql.includes("new.status='stoppage'") && sql.includes('new.bay_id is null'), 'validation admits only explicit unallocated stoppages');
+ok(sql.includes("project_ref='cdsmnqxtyyoeoznmbidd'") && sql.includes("version='141' and name='sublet_queued_rebind_and_concurrency_corrections'"), 'migration is staging-contained and requires exact predecessor 141');
+ok(sql.includes("values('142','vehicle_work_states_and_unallocated_stoppages'"), 'migration records its exact ledger identity');
+ok(rollbackSql.includes("version='142' and name='vehicle_work_states_and_unallocated_stoppages'") && rollbackSql.includes('version::integer>142'), 'rollback requires exact migration 142 at the ledger tip');
+ok(rollbackSql.includes("delete from supabase_migrations.schema_migrations") && rollbackSql.includes("where version='142' and name='vehicle_work_states_and_unallocated_stoppages'"), 'rollback removes only its exact ledger row');
 
 console.log(`Admin/workshop correction regression: ${count} assertions passed.`);

@@ -1,6 +1,26 @@
 -- Guarded rollback for 142_vehicle_work_states_and_unallocated_stoppages.sql.
 begin;
 
+do $guard$
+begin
+  if not exists (
+    select 1 from public.pdc_staging_environment_sentinel
+    where singleton and project_ref='cdsmnqxtyyoeoznmbidd'
+  ) or to_regclass('public.pdc_production_environment_sentinel') is not null then
+    raise exception 'Migration 142 rollback is staging-only';
+  end if;
+  if not exists (
+    select 1 from supabase_migrations.schema_migrations
+    where version='142' and name='vehicle_work_states_and_unallocated_stoppages'
+  ) or exists (
+    select 1 from supabase_migrations.schema_migrations
+    where version~'^[0-9]+$' and version::integer>142
+  ) then
+    raise exception 'Migration 142 rollback ledger guard failed';
+  end if;
+end;
+$guard$;
+
 -- The previous validator cannot represent an unallocated stoppage. Return any
 -- such row to queued through a transaction-scoped lifecycle authorization.
 do $$
@@ -151,5 +171,16 @@ begin
   end if;
   return new;
 end $$;
+
+delete from supabase_migrations.schema_migrations
+where version='142' and name='vehicle_work_states_and_unallocated_stoppages';
+
+do $postcondition$
+begin
+  if exists(select 1 from supabase_migrations.schema_migrations where version='142') then
+    raise exception 'Migration 142 rollback ledger delete failed';
+  end if;
+end;
+$postcondition$;
 
 commit;

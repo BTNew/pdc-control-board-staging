@@ -2,6 +2,25 @@
 -- Replaces the unreleased operation-routing migration 142 candidate.
 begin;
 
+do $guard$
+begin
+  if not exists (
+    select 1 from public.pdc_staging_environment_sentinel
+    where singleton and project_ref='cdsmnqxtyyoeoznmbidd'
+  ) or to_regclass('public.pdc_production_environment_sentinel') is not null then
+    raise exception 'Migration 142 is staging-only';
+  end if;
+  if not exists (
+    select 1 from supabase_migrations.schema_migrations
+    where version='141' and name='sublet_queued_rebind_and_concurrency_corrections'
+  ) or exists (
+    select 1 from supabase_migrations.schema_migrations where version='142'
+  ) then
+    raise exception 'Migration 142 predecessor/target guard failed';
+  end if;
+end;
+$guard$;
+
 create or replace function public.workshop_return_booking_to_queue(
   p_booking_id uuid,
   p_expected_version integer,
@@ -301,5 +320,9 @@ revoke all on function public.set_pdc_vehicle_work_states(uuid,integer,jsonb) fr
 grant execute on function public.set_pdc_vehicle_work_states(uuid,integer,jsonb) to authenticated,service_role;
 comment on function public.set_pdc_vehicle_work_states(uuid,integer,jsonb) is
 'Operator/admin canonical tri-state requirement update with vehicle-version concurrency, active-booking protection, audit and Workshop revision.';
+
+insert into supabase_migrations.schema_migrations(version,name,statements)
+values('142','vehicle_work_states_and_unallocated_stoppages',array['canonical work states and unallocated stoppage persistence'])
+on conflict(version) do nothing;
 
 commit;
