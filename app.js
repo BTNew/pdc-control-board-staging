@@ -10634,8 +10634,10 @@ function vehicleWorkshopLineDescription(line = {}, fallback = 'Workshop work req
 }
 
 function vehicleWorkshopLineHours(line = {}) {
-  const value = Number(line.confirmedHours ?? line.estimatedHours ?? line.estimated_hours ?? line.hours);
-  return Number.isFinite(value) && value > 0 ? value : null;
+  const raw = [line.confirmedHours, line.estimatedHours, line.estimated_hours, line.hours]
+    .find(value => value !== null && value !== undefined && String(value).trim() !== '');
+  const value = Number(raw);
+  return Number.isFinite(value) && value >= 0 ? value : null;
 }
 
 function vehicleWorkshopLineIdentity(stage = '', line = {}) {
@@ -10664,8 +10666,9 @@ function vehicleWorkshopCanEditLines() {
 }
 
 function vehicleWorkshopHoursLabel(hours) {
+  if (hours === null || hours === undefined || String(hours).trim() === '') return 'Estimate not set';
   const value = Number(hours);
-  if (!Number.isFinite(value) || value <= 0) return 'Estimate not set';
+  if (!Number.isFinite(value) || value < 0) return 'Estimate not set';
   const text = Number.isInteger(value) ? value.toFixed(0) : value.toFixed(2).replace(/0+$/, '').replace(/\.$/, '');
   return `${text} hr${value === 1 ? '' : 's'}`;
 }
@@ -10857,14 +10860,16 @@ function vehicleWorkshopJobCardBookedActual(line = {}, bookings = []) {
 }
 
 function vehicleWorkshopHoursClass(line = {}, estimate = null) {
-  const provenance = cleanNavisionText(line.provenance || line.estimate_provenance || line.estimated_hours_source || line.source_kind || line.source_type || line.source || '').toLowerCase();
-  const confirmed = Number(line.confirmedHours ?? line.confirmed_hours);
-  if (Number.isFinite(confirmed) && confirmed > 0) return { label: 'Confirmed hours', value: confirmed };
-  if (estimate === null || !Number.isFinite(Number(estimate)) || Number(estimate) <= 0) return { label: 'Unknown hours', value: null };
+  const provenance = cleanNavisionText(line.provenance || line.estimateProvenance || line.estimate_provenance || line.estimatedHoursSource || line.estimated_hours_source || line.hoursProvenance || line.hours_provenance || line.source_kind || line.source_type || line.source || '').toLowerCase();
+  const confirmedRaw = [line.confirmedHours, line.confirmed_hours]
+    .find(value => value !== null && value !== undefined && String(value).trim() !== '');
+  const confirmed = Number(confirmedRaw);
+  if (Number.isFinite(confirmed) && confirmed >= 0) return { label: 'Confirmed hours', value: confirmed };
+  if (estimate === null || estimate === undefined || String(estimate).trim() === '' || !Number.isFinite(Number(estimate)) || Number(estimate) < 0) return { label: 'Unknown hours', value: null };
   if (/supplier|provider|sublet/.test(provenance)) return { label: 'Supplier estimate', value: Number(estimate) };
   if (/\bai\b|model/.test(provenance)) return { label: 'AI estimate', value: Number(estimate) };
   if (/histor|previous|catalog|default/.test(provenance)) return { label: 'Historical estimate', value: Number(estimate) };
-  if (/confirm|staff|authenticated|manual/.test(provenance)) return { label: 'Confirmed hours', value: Number(estimate) };
+  if (/job[_ -]?card|confirm|staff|authenticated|manual/.test(provenance)) return { label: 'Confirmed hours', value: Number(estimate) };
   return { label: 'Unknown hours', value: Number(estimate) };
 }
 
@@ -10878,6 +10883,7 @@ function vehicleWorkshopCompactLinesHtml(group = {}, bookingFallback = 'Not book
   const activeBooking = group.bookings.find(booking => ['queued', 'planned'].includes(String(booking.status || '').toLowerCase())) || null;
   const canonicalVehicleId = vehicleWorkshopDetailCanonicalId(vehicle);
   const vehicleIdentity = vehicleKey(vehicle);
+  const hasSchedulableHours = Number.isFinite(totalHours) && totalHours > 0;
   const rows = group.lines.map((line, index) => {
     const ownHours = vehicleWorkshopLineHours(line);
     const estimate = ownHours ?? (group.lines.length === 1 ? totalHours : null);
@@ -10889,7 +10895,7 @@ function vehicleWorkshopCompactLinesHtml(group = {}, bookingFallback = 'Not book
     const hoursHtml = canEdit
       ? `<label class="vehicle-workshop-quick-hours" aria-label="Estimated hours for ${escapeHtml(description)}"><input type="number" min="0.25" max="999.75" step="0.25" value="${escapeHtml(estimate ?? '')}" placeholder="Hours" data-vehicle-workshop-hours-input><span>h</span><button type="button" data-vehicle-workshop-hours-save ${mutationData}>Save</button></label>`
       : `<strong>${escapeHtml(hoursClass.value === null ? hoursClass.label : `${hoursClass.label}: ${vehicleWorkshopHoursLabel(hoursClass.value)}`)}</strong>`;
-    const scheduleButton = canEdit && canonicalVehicleId && WORKSHOP_PLANNER_ROUTE_BY_STAGE[group.stage] && !activeBooking
+    const scheduleButton = canEdit && hasSchedulableHours && canonicalVehicleId && WORKSHOP_PLANNER_ROUTE_BY_STAGE[group.stage] && !activeBooking
       ? `<button type="button" class="vehicle-workshop-schedule-next" data-vehicle-workshop-schedule-next ${mutationData} data-vehicle-id="${escapeHtml(canonicalVehicleId)}" data-vehicle-key="${escapeHtml(vehicleIdentity)}" title="Choose the earliest available time across all active bays">Best slot</button>` : '';
     const stationOptions = validStages.map(stage => {
       const option = vehicleWorkshopStationPresentation(stage);
@@ -10899,7 +10905,7 @@ function vehicleWorkshopCompactLinesHtml(group = {}, bookingFallback = 'Not book
       ? `<label class="vehicle-workshop-line-station"><span>Station</span><select data-vehicle-workshop-line-stage ${mutationData}>${stationOptions}</select></label>` : '';
     const controls = canEdit ? `<span class="vehicle-workshop-line-actions">${moveControl}${scheduleButton}<button type="button" data-vehicle-workshop-line-edit ${mutationData}>Edit line</button>${line.workshopManualLine ? `<button type="button" class="is-danger" data-vehicle-workshop-line-delete data-adjustment-id="${escapeHtml(line.adjustmentId || '')}" data-adjustment-version="${escapeHtml(String(line.adjustmentVersion || 0))}">Remove</button>` : ''}</span>` : '';
     const handleData = `data-vehicle-workshop-line-handle data-stage="${escapeHtml(group.stage)}" data-vehicle-id="${escapeHtml(canonicalVehicleId)}" data-vehicle-key="${escapeHtml(vehicleIdentity)}" data-booking-id="${escapeHtml(activeBooking?.booking_id || activeBooking?.id || '')}" data-hours="${escapeHtml(totalHours ?? estimate ?? '')}"`;
-    const number = canEdit && canonicalVehicleId && WORKSHOP_PLANNER_ROUTE_BY_STAGE[group.stage]
+    const number = canEdit && hasSchedulableHours && canonicalVehicleId && WORKSHOP_PLANNER_ROUTE_BY_STAGE[group.stage]
       ? `<button type="button" class="vehicle-workshop-line-number" draggable="true" ${handleData} aria-label="Drag ${escapeHtml(description)} to a workshop bay">${index + 1}</button>`
       : `<span class="vehicle-workshop-line-number">${index + 1}</span>`;
     const bookingCell = lineBookings.length ? vehicleWorkshopBookingRowsHtml(lineBookings, bookingFallback)
