@@ -12483,6 +12483,9 @@ select[name="pdcLocation"]:focus,
 .vehicle-workshop-line-actions button { min-height: 24px; padding: 3px 7px; border: 1px solid #cbd5e1; border-radius: 6px; background: #fff; color: #334155; box-shadow: none; font-size: .64rem; font-weight: 850; white-space: nowrap; }
 .vehicle-workshop-line-actions button:hover { border-color: var(--station-colour); color: var(--station-colour); }
 .vehicle-workshop-line-actions button.is-danger { border-color: #fecaca; color: #b91c1c; }
+.vehicle-workshop-line-station { display: grid; grid-template-columns: auto minmax(84px, 112px); align-items: center; gap: 4px; color: #64748b; font-size: .6rem; font-weight: 850; }
+.vehicle-workshop-line-station select { width: 100%; min-height: 25px; padding: 2px 22px 2px 6px; border: 1px solid color-mix(in srgb, var(--station-colour) 35%, #cbd5e1); border-radius: 6px; background: #fff; color: #334155; font-size: .65rem; font-weight: 850; }
+.vehicle-workshop-line-station select:focus { border-color: var(--station-colour); outline: 2px solid color-mix(in srgb, var(--station-colour) 22%, transparent); }
 .vehicle-workshop-lines { display: grid; }
 .vehicle-workshop-line { display: grid; grid-template-columns: 24px minmax(220px, 1.7fr) minmax(150px, .55fr) minmax(260px, 1.2fr) auto; align-items: stretch; min-width: 0; min-height: 40px; border-bottom: 1px solid #e8edf2; }
 .vehicle-workshop-line:last-child { border-bottom: 0; }
@@ -12581,6 +12584,10 @@ button.vehicle-workshop-line-number:focus-visible { position: relative; z-index:
   padding-top: 0.25rem;
 }
 
+.authenticated-email-operations-heading { display: flex; justify-content: space-between; align-items: center; gap: .65rem; }
+.authenticated-email-operations-heading .small-button { min-height: 28px; padding: .3rem .65rem; border: 1px solid #93c5fd; border-radius: .45rem; background: #eff6ff; color: #1d4ed8; box-shadow: none; font-size: .7rem; font-weight: 900; white-space: nowrap; }
+.authenticated-email-operations-heading .small-button:hover { border-color: #2563eb; background: #dbeafe; }
+
 .authenticated-operation-station-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
@@ -12647,6 +12654,7 @@ button.vehicle-workshop-line-number:focus-visible { position: relative; z-index:
 }
 
 @media (max-width: 440px) {
+  .authenticated-email-operations-heading { align-items: flex-start; flex-direction: column; }
   .authenticated-email-operations li { grid-template-columns: auto 1fr; }
   .authenticated-email-operations li em { grid-column: 2; }
 }

@@ -1,5 +1,5 @@
-const APP_VERSION = '2026.08.10.12-setup-backup-pmb-ops';
-const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.08.10.12-setup-backup-pmb-ops';
+const APP_VERSION = '2026.08.10.13-operation-routing-hours';
+const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.08.10.13-operation-routing-hours';
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
 // constant intentionally names only the production ref, never the
@@ -5871,10 +5871,23 @@ function authenticatedEmailOperationLinesHtml(vehicle = {}) {
     ...station,
     operations: operations.filter(operation => String(operation.work_key || '').trim().toLowerCase() === station.key),
   })).filter(station => station.operations.length);
+  const vehicleIdentity = typeof vehicleKey === 'function'
+    ? vehicleKey(vehicle)
+    : String(vehicle?.stock || vehicle?.stockNumber || vehicle?.stock_number || '').trim();
+  let canMoveJobs = false;
+  try { canMoveJobs = typeof vehicleWorkshopCanEditLines === 'function' && vehicleWorkshopCanEditLines(); } catch (_) { canMoveJobs = false; }
   return `<div class="wide authenticated-email-operations">
-    <b>Operations from authenticated PD documents and job cards</b>
-    <div class="authenticated-operation-station-grid">${stationColumns.map(station => `<section class="authenticated-operation-station" data-operation-station="${escapeHtml(station.stage)}" style="--station-colour:${escapeHtml(station.colour)};--station-tint:${escapeHtml(station.tint)}">
-      <header><strong>${escapeHtml(station.label)}</strong><small>${station.operations.length} job${station.operations.length === 1 ? '' : 's'}</small></header>
+    <div class="authenticated-email-operations-heading"><b>Operations from authenticated PD documents and job cards</b>${canMoveJobs && vehicleIdentity ? `<button type="button" class="small-button" data-auth-operation-work="${escapeHtml(vehicleIdentity)}">Move jobs</button>` : ''}</div>
+    <div class="authenticated-operation-station-grid">${stationColumns.map(station => {
+      const statedHours = station.operations.map(operation => {
+        if (operation?.estimatedHours === null || operation?.estimatedHours === undefined || operation?.estimatedHours === '') return null;
+        const value = Number(operation.estimatedHours);
+        return Number.isFinite(value) && value >= 0 ? value : null;
+      }).filter(value => value !== null);
+      const totalHours = statedHours.length ? statedHours.reduce((sum, value) => sum + value, 0) : null;
+      const totalHoursLabel = totalHours === null ? 'Unknown hours' : `${totalHours.toFixed(2)} h`;
+      return `<section class="authenticated-operation-station" data-operation-station="${escapeHtml(station.stage)}" style="--station-colour:${escapeHtml(station.colour)};--station-tint:${escapeHtml(station.tint)}">
+      <header><strong>${escapeHtml(station.label)}</strong><small>${station.operations.length} job${station.operations.length === 1 ? '' : 's'} · ${escapeHtml(totalHoursLabel)}</small></header>
       <ol aria-label="${escapeHtml(`${station.label} jobs`)}">${station.operations.map(operation => {
         const aiEstimate = operation.estimatedHours != null && operation.estimatedHoursSource === 'ai_estimate';
         const hoursText = operation.estimatedHours == null ? 'Hours not stated' : `${Number(operation.estimatedHours).toFixed(2)} h`;
@@ -5882,7 +5895,8 @@ function authenticatedEmailOperationLinesHtml(vehicle = {}) {
         const estimateLabel = aiEstimate ? '<span class="ai-estimate-label">AI estimate</span>' : '';
         return `<li><strong>${escapeHtml(authenticatedOperationLineLabel(operation.operation_no))}</strong><span>${escapeHtml(operation.description)}</span><em${hoursClass}>${escapeHtml(hoursText)}${estimateLabel}</em></li>`;
       }).join('')}</ol>
-    </section>`).join('')}</div>
+    </section>`;
+    }).join('')}</div>
   </div>`;
 }
 
@@ -6123,6 +6137,10 @@ function renderIncomingDashboardBoard() {
     select.addEventListener('click', event => event.stopPropagation());
     select.addEventListener('change', () => updatePmbBaySubletProvider(select.dataset.pmbBayProviderKey, select.dataset.pmbBayProviderStage, select.value));
   });
+  $$('[data-auth-operation-work]', host).forEach(button => button.addEventListener('click', event => {
+    event.stopPropagation();
+    if (openVehicleModal(button.dataset.authOperationWork)) selectVehicleDetailPage('work');
+  }));
   bindFixFirstRows(host);
   bindRftCollectedInputs(host);
   bindIncomingCardSelection(host);
@@ -10756,21 +10774,30 @@ function vehicleWorkshopGroups(vehicle = {}, detail = null) {
   });
   const adjustments = Array.isArray(detail?.line_adjustments) ? detail.line_adjustments : [];
   const adjustmentByKey = new Map(adjustments.filter(item => item?.source_kind !== 'manual' && item?.line_key).map(item => [String(item.line_key), item]));
+  const relocatedLines = [];
   groups.forEach(group => {
-    group.lines = group.lines.map(line => {
+    group.lines = group.lines.flatMap(line => {
       const lineKey = vehicleWorkshopLineIdentity(group.stage, line);
       const adjustment = adjustmentByKey.get(lineKey);
-      return adjustment ? {
+      const adjustedLine = adjustment ? {
         ...line,
         workshopLineKey: lineKey,
+        sourceWorkshopStage: group.stage,
         description: adjustment.description,
         estimatedHours: Number(adjustment.estimated_hours),
         adjustmentId: adjustment.adjustment_id,
         adjustmentVersion: Number(adjustment.version || 0),
         workshopManualLine: false,
-      } : { ...line, workshopLineKey: lineKey, adjustmentId: '', adjustmentVersion: 0, workshopManualLine: false };
+      } : { ...line, workshopLineKey: lineKey, sourceWorkshopStage: group.stage, adjustmentId: '', adjustmentVersion: 0, workshopManualLine: false };
+      const targetStage = adjustment ? vehicleWorkshopStageCode(adjustment.stage_code) : group.stage;
+      if (targetStage !== group.stage && groups.has(targetStage)) {
+        relocatedLines.push({ targetStage, line: adjustedLine });
+        return [];
+      }
+      return [adjustedLine];
     });
   });
+  relocatedLines.forEach(({ targetStage, line }) => groups.get(targetStage).lines.push(line));
   adjustments.filter(item => item?.source_kind === 'manual').forEach(item => {
     const stage = vehicleWorkshopStageCode(item.stage_code);
     if (!groups.has(stage)) return;
@@ -10828,7 +10855,7 @@ function vehicleWorkshopHoursClass(line = {}, estimate = null) {
   return { label: 'Unknown hours', value: Number(estimate) };
 }
 
-function vehicleWorkshopCompactLinesHtml(group = {}, bookingFallback = 'Not booked', vehicle = {}) {
+function vehicleWorkshopCompactLinesHtml(group = {}, bookingFallback = 'Not booked', vehicle = {}, validStages = []) {
   const presentation = vehicleWorkshopStationPresentation(group.stage);
   const complete = group.requirements.length > 0 && group.requirements.every(item => item.completed === true);
   const canEdit = vehicleWorkshopCanEditLines() && !complete;
@@ -10851,7 +10878,13 @@ function vehicleWorkshopCompactLinesHtml(group = {}, bookingFallback = 'Not book
       : `<strong>${escapeHtml(hoursClass.value === null ? hoursClass.label : `${hoursClass.label}: ${vehicleWorkshopHoursLabel(hoursClass.value)}`)}</strong>`;
     const scheduleButton = canEdit && canonicalVehicleId && WORKSHOP_PLANNER_ROUTE_BY_STAGE[group.stage] && !activeBooking
       ? `<button type="button" class="vehicle-workshop-schedule-next" data-vehicle-workshop-schedule-next ${mutationData} data-vehicle-id="${escapeHtml(canonicalVehicleId)}" data-vehicle-key="${escapeHtml(vehicleIdentity)}" title="Choose the earliest available time across all active bays">Best slot</button>` : '';
-    const controls = canEdit ? `<span class="vehicle-workshop-line-actions">${scheduleButton}<button type="button" data-vehicle-workshop-line-edit ${mutationData}>Edit line</button>${line.workshopManualLine ? `<button type="button" class="is-danger" data-vehicle-workshop-line-delete data-adjustment-id="${escapeHtml(line.adjustmentId || '')}" data-adjustment-version="${escapeHtml(String(line.adjustmentVersion || 0))}">Remove</button>` : ''}</span>` : '';
+    const stationOptions = validStages.map(stage => {
+      const option = vehicleWorkshopStationPresentation(stage);
+      return `<option value="${escapeHtml(stage)}"${stage === group.stage ? ' selected' : ''}>${escapeHtml(option.label)}</option>`;
+    }).join('');
+    const moveControl = canEdit && !line.fallback && validStages.length > 1
+      ? `<label class="vehicle-workshop-line-station"><span>Station</span><select data-vehicle-workshop-line-stage ${mutationData}>${stationOptions}</select></label>` : '';
+    const controls = canEdit ? `<span class="vehicle-workshop-line-actions">${moveControl}${scheduleButton}<button type="button" data-vehicle-workshop-line-edit ${mutationData}>Edit line</button>${line.workshopManualLine ? `<button type="button" class="is-danger" data-vehicle-workshop-line-delete data-adjustment-id="${escapeHtml(line.adjustmentId || '')}" data-adjustment-version="${escapeHtml(String(line.adjustmentVersion || 0))}">Remove</button>` : ''}</span>` : '';
     const handleData = `data-vehicle-workshop-line-handle data-stage="${escapeHtml(group.stage)}" data-vehicle-id="${escapeHtml(canonicalVehicleId)}" data-vehicle-key="${escapeHtml(vehicleIdentity)}" data-booking-id="${escapeHtml(activeBooking?.booking_id || activeBooking?.id || '')}" data-hours="${escapeHtml(totalHours ?? estimate ?? '')}"`;
     const number = canEdit && canonicalVehicleId && WORKSHOP_PLANNER_ROUTE_BY_STAGE[group.stage]
       ? `<button type="button" class="vehicle-workshop-line-number" draggable="true" ${handleData} aria-label="Drag ${escapeHtml(description)} to a workshop bay">${index + 1}</button>`
@@ -10865,7 +10898,7 @@ function vehicleWorkshopCompactLinesHtml(group = {}, bookingFallback = 'Not book
   return `<div class="vehicle-workshop-lines">${rows}</div>`;
 }
 
-function vehicleWorkshopStationHtml(group = {}, bookingFallback = 'Not booked', vehicle = {}) {
+function vehicleWorkshopStationHtml(group = {}, bookingFallback = 'Not booked', vehicle = {}, validStages = []) {
   const presentation = vehicleWorkshopStationPresentation(group.stage);
   const complete = group.requirements.length > 0 && group.requirements.every(item => item.completed === true);
   const lineHours = group.lines.map(vehicleWorkshopLineHours).filter(value => value !== null);
@@ -10873,7 +10906,7 @@ function vehicleWorkshopStationHtml(group = {}, bookingFallback = 'Not booked', 
   const totalHours = lineHours.length ? lineHours.reduce((sum, value) => sum + value, 0) : (bookingHours[0] || null);
   const addButton = vehicleWorkshopCanEditLines() && !complete ? `<button type="button" class="vehicle-workshop-line-add" data-vehicle-workshop-line-add data-stage="${escapeHtml(group.stage)}">+ Add line</button>` : '';
   const stationBookings = group.bookings.length ? `<div class="vehicle-workshop-station-bookings"><strong>Station bookings</strong>${vehicleWorkshopBookingRowsHtml(group.bookings, bookingFallback)}</div>` : '';
-  return `<section class="vehicle-workshop-station" data-vehicle-workshop-stage="${escapeHtml(group.stage)}" style="--station-colour:${escapeHtml(presentation.colour)};--station-tint:${escapeHtml(presentation.tint)}"><header><span class="vehicle-workshop-station-code">${escapeHtml(presentation.label.slice(0, 2).toUpperCase())}</span><div><h3>${escapeHtml(presentation.label)}</h3><p>${complete ? 'Required work completed' : 'Required work outstanding'}</p></div>${addButton}<span class="vehicle-workshop-station-status ${complete ? 'is-complete' : 'is-required'}">${complete ? 'Completed' : 'Required'}</span><span class="vehicle-workshop-station-total">${escapeHtml(vehicleWorkshopHoursLabel(totalHours))}</span></header>${vehicleWorkshopCompactLinesHtml(group, bookingFallback, vehicle)}${stationBookings}</section>`;
+  return `<section class="vehicle-workshop-station" data-vehicle-workshop-stage="${escapeHtml(group.stage)}" style="--station-colour:${escapeHtml(presentation.colour)};--station-tint:${escapeHtml(presentation.tint)}"><header><span class="vehicle-workshop-station-code">${escapeHtml(presentation.label.slice(0, 2).toUpperCase())}</span><div><h3>${escapeHtml(presentation.label)}</h3><p>${complete ? 'Required work completed' : 'Required work outstanding'}</p></div>${addButton}<span class="vehicle-workshop-station-status ${complete ? 'is-complete' : 'is-required'}">${complete ? 'Completed' : 'Required'}</span><span class="vehicle-workshop-station-total">${escapeHtml(vehicleWorkshopHoursLabel(totalHours))}</span></header>${vehicleWorkshopCompactLinesHtml(group, bookingFallback, vehicle, validStages)}${stationBookings}</section>`;
 }
 
 function renderVehicleWorkshopWorkPage(vehicle = {}) {
@@ -10887,7 +10920,8 @@ function renderVehicleWorkshopWorkPage(vehicle = {}) {
     : state?.status === 'error'
       ? `<div class="vehicle-workshop-warning" role="status"><strong>Booking data unavailable</strong><span>${escapeHtml(state.message || 'The shared Workshop detail could not be loaded. No booking time is guessed.')}</span></div>`
       : '';
-  const content = groups.length ? groups.map(group => vehicleWorkshopStationHtml(group, bookingFallback, vehicle)).join('') : '<div class="empty-state"><strong>No required work</strong><span>This vehicle has no canonical required Workshop work.</span></div>';
+  const validStages = groups.filter(group => group.requirements.some(item => item?.required === true && item?.completed !== true)).map(group => group.stage);
+  const content = groups.length ? groups.map(group => vehicleWorkshopStationHtml(group, bookingFallback, vehicle, validStages)).join('') : '<div class="empty-state"><strong>No required work</strong><span>This vehicle has no canonical required Workshop work.</span></div>';
   return `<div class="vehicle-workshop-page" data-vehicle-workshop-page><div class="vehicle-workshop-intro"><h3>Required work</h3></div>${warning}<div class="vehicle-workshop-stations">${content}</div></div>`;
 }
 
@@ -11023,6 +11057,38 @@ async function saveVehicleWorkshopLineHours(button) {
   return false;
 }
 
+async function moveVehicleWorkshopLineStage(select) {
+  if (!select) return false;
+  const previousStage = vehicleWorkshopStageCode(select.dataset.stage || '');
+  const targetStage = vehicleWorkshopStageCode(select.value || '');
+  if (!targetStage || targetStage === previousStage) return true;
+  let hours = Number(select.dataset.hours || 0);
+  if (!Number.isFinite(hours) || hours < 0.25 || Math.round(hours * 4) !== hours * 4) {
+    const entered = window.prompt('Enter estimated hours before moving this job (quarter-hour increments)', hours > 0 ? String(hours) : '1');
+    if (entered === null) { select.value = previousStage; return false; }
+    hours = Number(entered);
+  }
+  if (!Number.isFinite(hours) || hours < 0.25 || hours > 999.75 || Math.round(hours * 4) !== hours * 4) {
+    window.alert('Estimated hours must be between 0.25 and 999.75 in quarter-hour increments.');
+    select.value = previousStage;
+    return false;
+  }
+  select.disabled = true;
+  const saved = await saveVehicleWorkshopLine({
+    stage: targetStage,
+    lineKey: select.dataset.lineKey,
+    adjustmentId: select.dataset.adjustmentId,
+    adjustmentVersion: Number(select.dataset.adjustmentVersion || 0),
+    description: select.dataset.description,
+    hours,
+    hoursOnly: true,
+    refresh: true,
+    showError: true,
+  });
+  if (!saved) select.value = previousStage;
+  return saved;
+}
+
 async function scheduleVehicleWorkshopNextAvailable(button) {
   if (!button || typeof workshopScheduleVehicleNextAvailable !== 'function') return false;
   const station = button.closest('[data-vehicle-workshop-stage]');
@@ -11115,6 +11181,7 @@ function bindVehicleDetailTabs(panel) {
     description: button.dataset.description,
     hours: button.dataset.hours,
   })));
+  panel.querySelectorAll('[data-vehicle-workshop-line-stage]').forEach(select => select.addEventListener('change', () => moveVehicleWorkshopLineStage(select)));
   panel.querySelectorAll('[data-vehicle-workshop-hours-save]').forEach(button => button.addEventListener('click', () => saveVehicleWorkshopLineHours(button)));
   panel.querySelectorAll('[data-vehicle-workshop-hours-input]').forEach(input => input.addEventListener('keydown', event => {
     if (event.key !== 'Enter') return;
