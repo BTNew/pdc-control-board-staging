@@ -1,7 +1,7 @@
 {
   "artifact": "zero-embedded-data static staging site",
   "environment": "staging",
-  "generatedAtUtc": "2026-08-10T07:29:04.158204Z",
+  "generatedAtUtc": "2026-08-10T07:30:50.057090Z",
   "deploymentMode": "Staging-only Admin and Workshop corrections, plus post-deploy mobile Admin navigation QA correction",
   "baseDeploymentCommit": "013b901205d28b3128dfc619fc70e5c8b70652f8",
   "sourceRepository": "BTNew/pdc-control-board",
@@ -73,10 +73,11 @@
   "releaseChecks": {
     "aggregateTests": "148 passed, 0 failed, 1 documented clean-build skip; focused Admin/Workshop regression 32 assertions",
     "focusedTests": "29 migration/UI assertions; isolated restore; live rollback-only migration, partial-write and multiple-Parts-history probes passed",
-    "browserLayout": "Authenticated desktop passed; mobile Admin navigation corrected to one compact scroll row; post-correction live screenshot required",
-    "assetParity": "Prepared exact source hashes; post-push GitHub Pages parity required",
+    "browserLayout": "PASS authenticated desktop and 520px mobile: compact one-row navigation, zero document overflow, Admin/Navision/Backup routes, PMB stock 12704377 and Fitting station snapshot verified",
+    "assetParity": "PASS GitHub Pages served exact app.js and styles.css hashes for source commit 1354ffa8b55613c260fd55370cf7372fb2ac71c6",
     "production": "unchanged",
-    "excludedRelease": "No production repository/main, production database, mailbox/pdc-monitor, DNS or pilot activation included"
+    "excludedRelease": "No production repository/main, production database, mailbox/pdc-monitor, DNS or pilot activation included",
+    "browserConsole": "Station-scoped authenticated RPC 200. Legacy combined get_workshop_snapshot 403 is the intentional service_role-only boundary from migration 044."
   },
   "sourceFiles": [
     {
@@ -464,5 +465,6 @@
     "productionChanged": false
   },
   "localScreenshotServersActive": 0,
-  "publicationAssetCommit": "4fbfcd6b119a1b08b5b5e662cd94466f14208bbd"
+  "publicationAssetCommit": "4fbfcd6b119a1b08b5b5e662cd94466f14208bbd",
+  "verifiedArtifactCommit": "341aa4c5f3c179c8b6cee0a7368b394043f69566"
 }
