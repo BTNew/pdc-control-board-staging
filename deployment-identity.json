@@ -1,14 +1,14 @@
 {
   "artifact": "zero-embedded-data static staging site",
   "environment": "staging",
-  "generatedAtUtc": "2026-08-10T20:03:48Z",
-  "deploymentMode": "Staging-only read-only AI Auditor document upload proposals with source-byte-bound evidence and conservative estimated-hour review",
-  "baseDeploymentCommit": "008cca06bda671e4852103baa78765f306424c06",
+  "generatedAtUtc": "2026-08-10T20:44:32Z",
+  "deploymentMode": "Staging Workshop station-click correction: clicking a job opens its Station picker without background planner navigation; drag-to-planner remains separate",
+  "baseDeploymentCommit": "dceb49b66f30b23039bd5d9d2527b9e09ef34b8a",
   "sourceRepository": "BTNew/pdc-control-board",
   "sourceBranch": "feat/staging-ai-auditor-upload-proposals-20260810",
-  "sourceCommit": "41f1f5da800d91b54c976645dbc581df6e806730",
-  "sourceTree": "eec73b64bb2a210029cbfee8afc1d0a92b04f40b",
-  "cacheVersion": "2026.08.10.17-ai-auditor-upload-proposals",
+  "sourceCommit": "2e15c9c373bf60b05c370f7edc4cefed9da3ac0a",
+  "sourceTree": "b3ece9a169ca1dd7e71c6292b5744def9a05ae25",
+  "cacheVersion": "2026.08.11.18-workshop-station-click",
   "stagingProjectRef": "cdsmnqxtyyoeoznmbidd",
   "zeroData": true,
   "mailboxAuthority": false,
@@ -73,13 +73,14 @@
     "applyReceipts": 1
   },
   "releaseChecks": {
-    "sourceTests": "PASS - 157 passed, 0 failed, 1 intentional clean-build fixture skip",
+    "sourceTests": "PASS - 158 passed, 0 failed, 1 intentional clean-build fixture skip",
     "migration148": "PASS - applied to staging",
     "retainedReplay": "PASS - 1 receipt, 16 lines, 3 work items; exact replay idempotent",
-    "assetParity": "PASS - live HTTP bytes for HTML and four changed runtime assets match exact source commit blobs",
-    "authenticatedBrowser": "PASS scoped - exact-source local upload/hash/purge/mobile QA completed before publication; live locked 390x844 shell loaded with no startup-failure marker; no live credential impersonation used",
-    "independentReview": "PASS - blocker/major-only exact-current review; seven original issues and follow-up fixes verified",
-    "documentUploadFocused": "PASS - SHA-256 binding, source-line cardinality, explicit-hours controls, operation identity, station normalization, purge/race, and accessibility"
+    "assetParity": "PASS - app.js, staging.html→index.html and staging config copied from exact source commit blobs and hash verified pre-commit",
+    "authenticatedBrowser": "PASS scoped local visible click-path smoke - station selector focused, route hash unchanged, planner not focused, zero console errors; live verification pending",
+    "independentReview": "Pending exact-current blocker/major review",
+    "documentUploadFocused": "PASS - SHA-256 binding, source-line cardinality, explicit-hours controls, operation identity, station normalization, purge/race, and accessibility",
+    "workshopStationClick": "PASS - outer visible handle binding invokes station-first helper; native picker with focus fallback; audited change handler unchanged"
   },
   "sourceFiles": [
     {
@@ -97,8 +98,8 @@
     {
       "sourcePath": "app.js",
       "deployedPath": "app.js",
-      "sha256": "998f273b6a4792dcfe44f41360b29d5cced34e260483354c0f6d20ef92f2202a",
-      "bytes": 1079501
+      "sha256": "a13b9c4924298f554e1a96c1008904bd1001eb9d88270e8dc26636e45ea75edf",
+      "bytes": 1080632
     },
     {
       "sourcePath": "arb-labor-catalog.js",
@@ -145,8 +146,8 @@
     {
       "sourcePath": "staging.html",
       "deployedPath": "index.html",
-      "sha256": "e26868f19f8dc31083821f1f1bd28a22e4ec40ca5abb3277086b4820aee5ba09",
-      "bytes": 63610
+      "sha256": "6c446a528f3f74edd2f433e47517dc13f6b7e93df29ee8c6e6b0122ae3f5133e",
+      "bytes": 63550
     },
     {
       "sourcePath": "key-list-review.js",
@@ -211,8 +212,8 @@
     {
       "sourcePath": "pdc-supabase-config.staging.js",
       "deployedPath": "pdc-supabase-config.staging.js",
-      "sha256": "2fefe317c34d9ed66c760e4437b57bc7fea0dcbf07dcd5fef32a22092dd7b5bd",
-      "bytes": 1711
+      "sha256": "13f96697efc192bb34454dba8a088b3146fbf6183d79a8a17648c8bf73eb4400",
+      "bytes": 1706
     },
     {
       "sourcePath": "scripts/stage2b_c4_browser_export.js",
@@ -467,14 +468,14 @@
     "productionChanged": false
   },
   "localScreenshotServersActive": 0,
-  "publicationAssetCommit": "591734151a3e196d12f672a31fa676198db640c4",
-  "verifiedArtifactCommit": "591734151a3e196d12f672a31fa676198db640c4",
+  "publicationAssetCommit": "pending-publication-commit",
+  "verifiedArtifactCommit": "pending-live-verification",
   "migrationLedgerHead": "148 bind_canonical_document_evidence_to_retained_source",
   "migrationLedgerHeadNumber": 148,
   "migrationLedgerHeadName": "bind_canonical_document_evidence_to_retained_source",
   "candidateReviewIdentity": {
-    "preCommitHead": "db37821d0bc32f4b6b43a6f9ea5f84b550938985",
-    "worktreeContentSha256": "37a64abdaddce519aad70c90706e072b48d39a17ac5b36734556119ef5f9ab80",
-    "independentReview": "PASS"
+    "sourceCommit": "2e15c9c373bf60b05c370f7edc4cefed9da3ac0a",
+    "sourceTree": "b3ece9a169ca1dd7e71c6292b5744def9a05ae25",
+    "independentReview": "pending"
   }
 }
