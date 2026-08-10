@@ -168,6 +168,13 @@ function workshopDateFromKey(value = '') {
   return workshopSetClock(new Date(year, month - 1, day), WORKSHOP_PLANNER_CONFIG.dayStartMinutes);
 }
 
+function workshopCalendarDateKeyOffset(value = '', days = 0) {
+  const date = workshopDateFromKey(value);
+  if (!date) return '';
+  date.setDate(date.getDate() + Number(days || 0));
+  return workshopDateKey(date);
+}
+
 function workshopDefaultBookingHours() {
   return WORKSHOP_PLANNER_CONFIG.defaultBookingDurationMinutes / 60;
 }
@@ -426,13 +433,21 @@ function workshopEntryUsesConfiguredOvertime(entry = {}) {
 
 function workshopEntryIsOvertime(entry = {}, now = new Date()) {
   if (!workshopEntryIsLive(entry)) return false;
-  return workshopLatestWorkMoment(now) > workshopEntryEnd(entry);
+  const stoppageMoment = entry.status === 'stoppage' ? parseIsoTimestamp(entry.stoppageAt || '') : null;
+  if (entry.status === 'stoppage' && !stoppageMoment) return false;
+  const liveMoment = stoppageMoment || now;
+  return workshopLatestWorkMoment(liveMoment) > workshopEntryEnd(entry);
 }
 
 function workshopEntryEffectiveEnd(entry = {}, now = new Date()) {
   const plannedEnd = workshopEntryEnd(entry);
+  if (entry.status === 'completed') {
+    const actualEnd = parseIsoTimestamp(entry.actualEndAt || '');
+    return actualEnd && actualEnd > plannedEnd ? actualEnd : plannedEnd;
+  }
   if (!workshopEntryIsOvertime(entry, now)) return plannedEnd;
-  const latest = workshopLatestWorkMoment(now);
+  const liveMoment = entry.status === 'stoppage' ? parseIsoTimestamp(entry.stoppageAt || '') : now;
+  const latest = workshopLatestWorkMoment(liveMoment || plannedEnd);
   return workshopAddWorkMinutes(latest, WORKSHOP_PLANNER_CONFIG.schedulingIncrementMinutes);
 }
 
@@ -516,6 +531,7 @@ function workshopMapSnapshotBookingToLegacyRow(booking = {}, vehicleById = null)
     sharedBookingId: booking.booking_id,
     sharedVersion: booking.version,
     sharedVehicleId,
+    sharedBayId: bay ? String(bay.id || bay.bay_id || booking.bay_id || '') : String(booking.bay_id || ''),
     // sharedVehicleId remains the only authority. The display key is resolved
     // from the separately scoped vehicle DTO; UUID fallback keeps the booking
     // renderable without inventing or reverse-matching mutable identifiers.
@@ -530,6 +546,7 @@ function workshopMapSnapshotBookingToLegacyRow(booking = {}, vehicleById = null)
     stoppageReason: booking.stoppage_reason || '',
     stoppageAt: booking.stoppage_started_at || '',
     stoppageMinutes: Number(booking.stoppage_accumulated_minutes || 0),
+    actualStartAt: booking.actual_start_at || '',
     actualHours: booking.actual_start_at && booking.actual_end_at
       ? (new Date(booking.actual_end_at).getTime() - new Date(booking.actual_start_at).getTime()) / 3600000
       : undefined,
@@ -2231,7 +2248,11 @@ function workshopShiftTrailingPlannedRows(candidate = {}, otherRows = [], { conf
 }
 
 function workshopShiftEveryLaterPlannedRow(candidate = {}, otherRows = [], shiftMinutes = 0) {
-  const delay = Math.max(0, workshopSnapMinutes(shiftMinutes));
+  // A live overrun must never round backwards and leave a queued card
+  // overlapping the live card. Round the delay up to the next planner tick.
+  const rawDelay = Math.max(0, Number(shiftMinutes) || 0);
+  const increment = WORKSHOP_PLANNER_CONFIG.schedulingIncrementMinutes;
+  const delay = rawDelay > 0 ? Math.ceil(rawDelay / increment) * increment : 0;
   const candidateStart = workshopEntryStart(candidate);
   if (!delay || Number.isNaN(candidateStart.getTime())) return { rows: otherRows.map(row => ({ ...row })), moved: [] };
   const later = otherRows
@@ -2369,6 +2390,10 @@ function workshopRequireAvailableAssignee(entry = {}, rows = workshopLoadPlans()
 function workshopEntryIsLive(entry = {}) {
   if (!['started', 'stoppage'].includes(entry.status)) return false;
 
+  // Shared snapshots already contain canonical booking, vehicle and bay
+  // identities. Do not depend on a lagging browser-local PMB bay mirror.
+  if (entry.sharedBookingId && entry.sharedVehicleId && entry.sharedBayId && Number(entry.bay) > 0) return true;
+
   const vehicle = workshopVehicle(entry.vehicleKey);
   return Boolean(vehicle && Number(pmbBayNumber(vehicle, entry.stage)) === Number(entry.bay));
 }
@@ -2376,10 +2401,13 @@ function workshopEntryIsLive(entry = {}) {
 function workshopCascadePlans(rows = workshopLoadPlans(), now = new Date()) {
   let nextRows = rows.map(entry => ({ ...entry, hours: entry.status === 'completed' ? entry.hours : workshopClampDurationHours(entry.hours) }));
   let changed = nextRows.some((entry, index) => entry.hours !== rows[index].hours);
-  const liveRows = nextRows
-    .filter(entry => workshopEntryIsLive(entry) && workshopEntryIsOvertime(entry, now))
+  const scheduleAnchors = nextRows
+    .filter(entry => {
+      if (workshopEntryIsLive(entry)) return workshopEntryIsOvertime(entry, now);
+      return entry.status === 'completed' && workshopEntryEffectiveEnd(entry, now) > workshopEntryEnd(entry);
+    })
     .sort((a, b) => workshopEntryStart(a) - workshopEntryStart(b));
-  for (const live of liveRows) {
+  for (const live of scheduleAnchors) {
     const delay = workshopWorkMinutesBetween(workshopEntryEnd(live), workshopEntryEffectiveEnd(live, now));
     if (delay <= 0) continue;
     const shifted = workshopShiftEveryLaterPlannedRow(live, nextRows.filter(row => row.id !== live.id), delay);
@@ -2436,7 +2464,7 @@ function workshopSchedulableBayNumbers(stage = '') {
   return bays;
 }
 
-function workshopBestStageSlot(stage = '', dateKey = '', hours = workshopDefaultBookingHours(), rows = workshopLoadPlans(), notBeforeMinutes = 0) {
+function workshopBestStageSlot(stage = '', dateKey = '', hours = workshopDefaultBookingHours(), rows = workshopLoadPlans(), notBeforeMinutes = 0, notAfterDateKey = '') {
   const normalizedStage = normalizePmbStage(stage);
   if (!WORKSHOP_STAGE_SEQUENCE.includes(normalizedStage)) return null;
   let best = null;
@@ -2446,6 +2474,7 @@ function workshopBestStageSlot(stage = '', dateKey = '', hours = workshopDefault
     // lenient rendering path in workshopBayIsActive().
     const slot = workshopFirstAvailableStartSlot(normalizedStage, bay, dateKey, hours, rows, notBeforeMinutes);
     if (!slot) continue;
+    if (notAfterDateKey && slot.dateKey > notAfterDateKey) continue;
     const candidateStart = workshopDateAtOffset(slot.dateKey, slot.startMinutes).getTime();
     const bestStart = best ? workshopDateAtOffset(best.dateKey, best.startMinutes).getTime() : Number.POSITIVE_INFINITY;
     if (!best || candidateStart < bestStart || (candidateStart === bestStart && bay < best.bay)) {
@@ -3573,7 +3602,11 @@ function renderWorkshopPlanner() {
     renderHost.innerHTML = workshopStationSnapshotEmptyStateHtml(stage);
     return;
   }
-  let plans = dedicatedStage ? workshopLoadPlans() : workshopCascadeAndSave(workshopSyncCompletedPlans());
+  const authoritativePlans = dedicatedStage ? workshopLoadPlans() : workshopSyncCompletedPlans();
+  // Clock-driven movement is a pure projection. Authoritative booking rows
+  // change only after an explicit protected mutation succeeds.
+  let plans = workshopCascadePlans(authoritativePlans, new Date()).rows;
+  if (dedicatedStage) plans = plans.filter(entry => entry.stage === dedicatedStage);
   if (pendingBookingLink && normalizePmbStage(pendingBookingLink.stage || '') === stage) {
     const pendingPlan = plans.find(entry => String(entry.id || '') === String(pendingBookingLink.bookingId || ''));
     if (pendingPlan) {
@@ -4631,11 +4664,30 @@ async function workshopScheduleVehicleNextAvailable({ vehicleId = '', vehicleKey
     workshopRequireEtaSchedule(vehicle, new Date(0));
     return false;
   }
-  const today = workshopDefaultOpenDateKey();
+  const nextOperationalMoment = workshopNormalizeStartDate(new Date());
+  const today = workshopDateKey(nextOperationalMoment);
   const earliestDate = workshopDateKeyNotBefore(today, etaConstraint.earliestDateKey || '');
-  const slot = workshopBestStageSlot(normalizedStage, earliestDate, estimate, workshopLoadPlans());
+  let slot = null;
+  if (workshopSharedModeActive() && service?.setScope) {
+    // The authorised station snapshot permits a maximum 31-day date offset.
+    // Search consecutive authoritative windows so later days are never
+    // mistaken for empty and every confirmed active bay is compared.
+    let windowStart = earliestDate;
+    for (let windowIndex = 0; windowIndex < 9 && !slot; windowIndex += 1) {
+      const windowEnd = workshopCalendarDateKeyOffset(windowStart, 31);
+      await service.setScope({ stageCode: normalizedStage, dateFrom: windowStart, dateTo: windowEnd });
+      const notBeforeMinutes = windowIndex === 0 && windowStart === today
+        ? Math.max(0, workshopMinuteOffset(nextOperationalMoment))
+        : 0;
+      slot = workshopBestStageSlot(normalizedStage, windowStart, estimate, workshopLoadPlans(), notBeforeMinutes, windowEnd);
+      windowStart = workshopCalendarDateKeyOffset(windowEnd, 1);
+    }
+  } else {
+    const notBeforeMinutes = earliestDate === today ? Math.max(0, workshopMinuteOffset(nextOperationalMoment)) : 0;
+    slot = workshopBestStageSlot(normalizedStage, earliestDate, estimate, workshopLoadPlans(), notBeforeMinutes);
+  }
   if (!slot) {
-    window.alert('No active bay has an available operational slot for this work. No booking was created.');
+    window.alert('No active bay has an available operational slot in the searched planning horizon. No booking was created.');
     return false;
   }
   const state = workshopState();
@@ -5700,6 +5752,7 @@ if (typeof module !== 'undefined' && module.exports) {
     workshopShiftEveryLaterPlannedRow,
     workshopDateKey,
     workshopDateFromKey,
+    workshopCalendarDateKeyOffset,
     workshopDefaultOpenDateKey,
     workshopNormalizeStartDate,
     workshopAddWorkMinutes,
@@ -5708,6 +5761,7 @@ if (typeof module !== 'undefined' && module.exports) {
     workshopEntrySegmentForDate,
     workshopEntryStart,
     workshopEntryEnd,
+    workshopEntryEffectiveEnd,
     workshopSortBookingsClosest,
     workshopPlanVehicleIdentity,
     workshopResolveBookingSelection,
