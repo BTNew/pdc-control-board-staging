@@ -4882,6 +4882,112 @@ body.pmb-station-mode .pmb-bay-board-header strong {
   padding: 2px 4px;
   color: #b91c1c;
 }
+.admin-reference-table-wrap {
+  width: 100%;
+  overflow-x: auto;
+  border: 1px solid #d7dce2;
+  background: #fff;
+}
+.admin-reference-table {
+  width: 100%;
+  border-collapse: collapse;
+  color: #111827;
+  font-size: .82rem;
+}
+.admin-reference-table th {
+  padding: 11px 14px;
+  border-bottom: 1px solid #d7dce2;
+  background: #eef0f2;
+  color: #667085;
+  font-size: .68rem;
+  font-weight: 800;
+  letter-spacing: .025em;
+  text-align: left;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.admin-reference-table td {
+  height: 41px;
+  padding: 8px 14px;
+  border-bottom: 1px solid #d7dce2;
+  vertical-align: middle;
+}
+.admin-reference-table tbody tr:last-child td { border-bottom: 0; }
+.admin-reference-table tbody tr:hover { background: #f8fafc; }
+.admin-reference-table th:last-child,
+.admin-reference-table td:last-child { text-align: right; }
+.admin-table-actions,
+.um-actions-cell {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 9px;
+  white-space: nowrap;
+}
+.admin-reference-table .text-button {
+  min-height: 0;
+  padding: 2px 3px;
+  border: 0;
+  background: transparent;
+  color: #d21f3c;
+  font-size: .72rem;
+  font-weight: 700;
+}
+.admin-reference-table .admin-action-danger { color: #d21f3c; }
+.admin-reference-table .um-role-select {
+  min-width: 112px;
+  min-height: 30px;
+  padding: 3px 24px 3px 8px;
+  font-size: .74rem;
+}
+.admin-reference-table .small-button {
+  min-height: 28px;
+  padding: 4px 8px;
+  font-size: .7rem;
+}
+.admin-role-cell {
+  font-size: .7rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+.admin-status-badge {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 3px;
+  padding: 2px 7px;
+  background: #e1f7e8;
+  color: #08783f;
+  font-size: .67rem;
+  font-weight: 700;
+  line-height: 1.25;
+}
+.admin-status-badge.is-pending { background: #fff2c7; color: #8a5b00; }
+.admin-status-badge.is-disabled,
+.admin-status-badge.is-rejected { background: #fee2e2; color: #b42318; }
+#user-management-panel { grid-column: 1 / -1; }
+.admin-reference-panel { grid-column: 1 / -1; }
+.user-management-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 0 14px 10px;
+}
+.user-management-tab {
+  min-height: 30px;
+  padding: 4px 11px;
+  border: 1px solid #d7dce2;
+  border-radius: 6px;
+  background: #fff;
+  color: #475467;
+  font-size: .72rem;
+  font-weight: 700;
+}
+.user-management-tab:hover { background: #f8fafc; }
+.user-management-tab.active {
+  border-color: #111827;
+  background: #111827;
+  color: #fff;
+}
 @media (max-width: 980px) {
   .pdc-lists-layout { grid-template-columns: 1fr; }
   .kpi-grid { grid-template-columns: repeat(2, minmax(130px, 1fr)) !important; }
