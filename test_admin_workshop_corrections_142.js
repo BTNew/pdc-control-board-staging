@@ -5,6 +5,7 @@ const assert = require('assert');
 const app = fs.readFileSync('app.js', 'utf8');
 const planner = fs.readFileSync('workshop-planner.js', 'utf8');
 const css = fs.readFileSync('workshop-planner.css', 'utf8');
+const layoutCss = fs.readFileSync('styles.css', 'utf8');
 const sql = fs.readFileSync('supabase/staging_only/142_vehicle_work_states_and_unallocated_stoppages.sql', 'utf8');
 const rollbackSql = fs.readFileSync('supabase/staging_only/142_vehicle_work_states_and_unallocated_stoppages.rollback.sql', 'utf8');
 let count = 0;
@@ -23,6 +24,9 @@ ok(planner.includes('Required jobs for ${escapeHtml(pmbStageLabel(stage))}'), 's
 ok(planner.includes('const calculatedHours = currentPlan ? workshopClampDurationHours(currentPlan.hours)'), 'modal planned time is sourced from the selected booking chip');
 ok(planner.includes('name="estimated_hours"') && planner.includes('value="${escapeHtml(calculatedHours)}"'), 'estimated-hours field matches selected booking hours');
 ok(css.includes('.workshop-required-job-list'), 'station required jobs have dedicated styling');
+ok(layoutCss.includes('.sidebar .nav .nav-admin-group'), 'mobile Admin group stays in the compact navigation row');
+ok(layoutCss.includes('.sidebar .nav .nav-admin-toggle > span { display: none; }'), 'mobile Admin toggle uses its compact data-short label');
+ok(layoutCss.includes('.sidebar .nav .nav-admin-menu {\n    display: flex;'), 'mobile Admin submenu uses a single-row flex layout');
 
 ok(sql.includes('create or replace function public.set_pdc_vehicle_work_states('), 'migration defines canonical work-state mutation');
 ok(sql.includes("perform public.require_pdc_role('operator')"), 'mutation requires operator/admin authority');
