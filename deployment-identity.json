@@ -1,13 +1,13 @@
 {
   "artifact": "zero-embedded-data static staging site",
   "environment": "staging",
-  "generatedAtUtc": "2026-08-10T12:44:13Z",
+  "generatedAtUtc": "2026-08-10T12:48:56Z",
   "deploymentMode": "Staging-only audited operation routing, exact estimated-line station hours, retained canonical document binding",
-  "baseDeploymentCommit": "8775109c8530768e030fb74da0e201a0a5c54f58",
+  "baseDeploymentCommit": "20f0cd53a9c439746967e12fbe820079deb6a6c6",
   "sourceRepository": "BTNew/pdc-control-board",
   "sourceBranch": "feat/staging-operation-routing-hours-20260810",
-  "sourceCommit": "a16223fcb0d740a06dafb0fb9ff9abb506157903",
-  "sourceTree": "e28de83287456a475fbd6903a759a7372dc4525b",
+  "sourceCommit": "6894f79e0f259acd97e3498156e93053cfb41e94",
+  "sourceTree": "f06e6a1fc09f5945dc8c8b05657c7510e2a2dea9",
   "cacheVersion": "2026.08.10.13-operation-routing-hours",
   "stagingProjectRef": "cdsmnqxtyyoeoznmbidd",
   "zeroData": true,
@@ -77,7 +77,7 @@
     "migration148": "PASS - applied to staging",
     "retainedReplay": "PASS - 1 receipt, 16 lines, 3 work items; exact replay idempotent",
     "assetParity": "PASS - exact source-to-staging hashes verified",
-    "authenticatedBrowser": "Pending live .14 build"
+    "authenticatedBrowser": "Pending live .15 build"
   },
   "sourceFiles": [
     {
@@ -95,8 +95,8 @@
     {
       "sourcePath": "app.js",
       "deployedPath": "app.js",
-      "sha256": "f5d75af76f7d967c2c17985ea431f9bba43324246a4bac633c4f976be5d5d69c",
-      "bytes": 1064302
+      "sha256": "ec4ba2673658901be9948af688d4694fb8a2805c8977a2d8961ac8e3a1a63fe8",
+      "bytes": 1065234
     },
     {
       "sourcePath": "arb-labor-catalog.js",
@@ -143,7 +143,7 @@
     {
       "sourcePath": "staging.html",
       "deployedPath": "index.html",
-      "sha256": "4a095f7c88cda32048ed8d70acff4b32bbb1948c5758bd36cdc91dac3f69b8f9",
+      "sha256": "ee42e0684b0c2daf2efecca87810454ce637e8d59cec679f4aae9ea56dabc2be",
       "bytes": 63336
     },
     {
@@ -209,7 +209,7 @@
     {
       "sourcePath": "pdc-supabase-config.staging.js",
       "deployedPath": "pdc-supabase-config.staging.js",
-      "sha256": "e2fd7c4afa33629d5e49b0fdef08c18ac31649b3481d6663eada896b9c776253",
+      "sha256": "d18ac4759f1e987e71c8f897a75446f608f6b9e4b463dc9766d00c2eb4e38384",
       "bytes": 1707
     },
     {
