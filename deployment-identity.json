@@ -1,14 +1,14 @@
 {
   "artifact": "zero-embedded-data static staging site",
   "environment": "staging",
-  "generatedAtUtc": "2026-08-10T07:14:17.081438Z",
-  "deploymentMode": "Staging-only Admin navigation and Workshop correction release: Navision Uploads/Backup separation, canonical work-state save, unallocated stoppage persistence, planner modal job/hour corrections and PMB visibility",
-  "baseDeploymentCommit": "55ee6a9744e505c0a37bef68a5a11d3f4f701256",
+  "generatedAtUtc": "2026-08-10T07:29:04.158204Z",
+  "deploymentMode": "Staging-only Admin and Workshop corrections, plus post-deploy mobile Admin navigation QA correction",
+  "baseDeploymentCommit": "013b901205d28b3128dfc619fc70e5c8b70652f8",
   "sourceRepository": "BTNew/pdc-control-board",
   "sourceBranch": "feat/staging-admin-workshop-fixes-20260810",
-  "sourceCommit": "0530c50349d8f795fdec55fd4f6e1539413f295c",
-  "sourceTree": "c21c4df7c4ed06bfce8e5ad168c7d151d67aadd2",
-  "cacheVersion": "2026.08.10.06-admin-workshop-corrections",
+  "sourceCommit": "1354ffa8b55613c260fd55370cf7372fb2ac71c6",
+  "sourceTree": "24d07c87826dc75f17b7cfda925b2a46cdbaa78c",
+  "cacheVersion": "2026.08.10.07-admin-workshop-mobile-nav",
   "stagingProjectRef": "cdsmnqxtyyoeoznmbidd",
   "zeroData": true,
   "mailboxAuthority": false,
@@ -71,10 +71,10 @@
     "applyReceipts": 1
   },
   "releaseChecks": {
-    "aggregateTests": "148 passed, 0 failed, 1 documented clean-build skip",
+    "aggregateTests": "148 passed, 0 failed, 1 documented clean-build skip; focused Admin/Workshop regression 32 assertions",
     "focusedTests": "29 migration/UI assertions; isolated restore; live rollback-only migration, partial-write and multiple-Parts-history probes passed",
-    "browserLayout": "Pending post-push authenticated desktop/mobile browser QA",
-    "assetParity": "Exact public artifact hashes recorded below; post-push GitHub Pages hash verification required",
+    "browserLayout": "Authenticated desktop passed; mobile Admin navigation corrected to one compact scroll row; post-correction live screenshot required",
+    "assetParity": "Prepared exact source hashes; post-push GitHub Pages parity required",
     "production": "unchanged",
     "excludedRelease": "No production repository/main, production database, mailbox/pdc-monitor, DNS or pilot activation included"
   },
@@ -94,8 +94,8 @@
     {
       "sourcePath": "app.js",
       "deployedPath": "app.js",
-      "sha256": "bbfdae6d9ccddaf2de53a32ade914e696d9e78660749358de13f1456cf763c8f",
-      "bytes": 1058684
+      "sha256": "f3d5ee5dc93c6bfd531b876615501f062acc1a0d0cf244940897077214a941fe",
+      "bytes": 1058682
     },
     {
       "sourcePath": "arb-labor-catalog.js",
@@ -142,8 +142,8 @@
     {
       "sourcePath": "staging.html",
       "deployedPath": "index.html",
-      "sha256": "1008f9e27a2601dafcb5016e4309540300a657e9a55ca0267930a3cb9e337901",
-      "bytes": 63101
+      "sha256": "fa9e1770513aff1e4165131e3628ccf8c441aad251024b6d06606364aad2b5d9",
+      "bytes": 63090
     },
     {
       "sourcePath": "key-list-review.js",
@@ -208,8 +208,8 @@
     {
       "sourcePath": "pdc-supabase-config.staging.js",
       "deployedPath": "pdc-supabase-config.staging.js",
-      "sha256": "3b91263c6a0e019caf4b3d4af2f187a9bc417afbc5dc091a8687fe9a91232466",
-      "bytes": 1710
+      "sha256": "7efb3bf9cc609e7b8c7d1978ec3463f8f50f03e00921c9884712f72f3eae04e2",
+      "bytes": 1709
     },
     {
       "sourcePath": "scripts/stage2b_c4_browser_export.js",
@@ -226,8 +226,8 @@
     {
       "sourcePath": "styles.css",
       "deployedPath": "styles.css",
-      "sha256": "85b335a1fc3354094e62377434b5cf55222966f7c43011b164683bebc410fdff",
-      "bytes": 389406
+      "sha256": "479737119d06dbd385a6c4bcc4d6c9fc458ba11664cd64ea4005a23ef0fba41f",
+      "bytes": 377620
     },
     {
       "sourcePath": "supabase/staging_only/096_navision_stock_number_authority.sql",
