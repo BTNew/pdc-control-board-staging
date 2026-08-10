@@ -1,24 +1,33 @@
 const assert = require('assert');
 const fs = require('fs');
-const path = require('path');
 
-const html = fs.readFileSync(path.join(__dirname, 'index.html'), 'utf8');
-const stagingHtml = fs.readFileSync(path.join(__dirname, 'staging.html'), 'utf8');
-const css = fs.readFileSync(path.join(__dirname, 'styles.css'), 'utf8');
+const html = fs.readFileSync('index.html', 'utf8');
+const staging = fs.readFileSync('staging.html', 'utf8');
+const fallback = fs.readFileSync('no-vehicles.html', 'utf8');
+const app = fs.readFileSync('app.js', 'utf8');
 
-assert.ok(html.includes('<h2>1. Daily Navision import</h2>'), 'Production daily Navision import must remain the first upload');
-assert.ok(stagingHtml.includes('<h2>1. Daily Navision import · shared backend</h2>'), 'Staging shared-backend flow must be clearly labelled as the first upload');
-assert.ok(stagingHtml.includes('migration-037/038 shared staging service'), 'Staging shared upload must identify the migration-038 scoped safety layer');
-assert.ok(html.includes('<h2>2. Upload PD Document</h2>'), 'PD Document upload must follow Navision');
-assert.ok(!html.includes('id="po-scan-card"') && !stagingHtml.includes('id="po-scan-card"'), 'Purchase-order upload must not be offered');
-assert.ok(css.includes('#import .navision-layout { order: 1; }'), 'Navision layout must render first');
-assert.ok(css.includes('#import .po-job-layout { order: 2;'), 'PO/job-card layout must render second');
-assert.ok(css.includes('#import .autocare-layout { order: 3; }'), 'Autocare layout must render after PO/job-card');
-assert.ok(css.includes('#import .backup-layout { order: 4; }'), 'Backup/restore must render last');
+for (const [name, shell] of [['source', html], ['staging', staging], ['fallback', fallback]]) {
+  assert.ok(shell.includes('>Navision Uploads</button>'), `${name} shell exposes Navision Uploads`);
+  assert.ok(shell.includes('>Backup / Restore</button>'), `${name} shell exposes Backup / Restore as its own tab`);
+  assert.ok(shell.includes('id="backup" class="view"'), `${name} shell has a separate backup view`);
+  assert.ok(shell.includes('Autocare Despatch Upload'), `${name} shell labels Autocare upload`);
+  assert.ok(!shell.includes('Upload PD Document'), `${name} shell removes PD Document upload`);
+  assert.ok(!shell.includes('dashboard-pd-upload'), `${name} shell removes PD Document controls`);
+  assert.ok(!shell.includes('Export current local Navision data'), `${name} shell removes local Navision export`);
+}
 
-['dashboard-import-pd','dashboard-clear-pd','dashboard-pd-upload','dashboard-pd-paste','dashboard-pd-status'].forEach(id => {
-  const count = (html.match(new RegExp(`id="${id}"`, 'g')) || []).length;
-  assert.strictEqual(count, 1, `${id} should appear exactly once`);
-});
+assert.ok(staging.includes('Select Dealer to Import'), 'staging labels the exact dealer selector clearly');
+const navisionPanelStart = staging.indexOf('<h2>Navision import results</h2>');
+const navisionPanelEnd = staging.indexOf('</section>', navisionPanelStart);
+const navisionPanel = staging.slice(navisionPanelStart, navisionPanelEnd);
+const controls = ['>Preview Data</button>', '>Confirm and Apply</button>', '>Clear</button>'];
+const positions = controls.map(text => navisionPanel.indexOf(text));
+assert.ok(positions.every(position => position >= 0), 'staging contains Preview Data, Confirm and Apply, and Clear');
+assert.ok(positions[0] < positions[1] && positions[1] < positions[2], 'staging action order is Preview Data, Confirm and Apply, Clear');
+assert.ok(!html.includes('id="navision-dealer-code"') && !html.includes('id="apply-navision-shared"'), 'production template does not expose staging-only shared import RPC controls');
+const adminRoutes = app.match(/const adminViews = new Set\(\[([^\]]+)\]\)/);
+assert.ok(adminRoutes && adminRoutes[1].includes("'backup'"), 'backup route remains administrator-only');
+assert.ok(app.includes("backup: 'Backup / Restore'"), 'backup view has its own title');
+assert.ok(!html.includes('id="po-scan-card"') && !staging.includes('id="po-scan-card"'), 'purchase-order upload remains absent');
 
-console.log('Upload order regression checks passed');
+console.log('Admin upload and backup layout regression checks passed');

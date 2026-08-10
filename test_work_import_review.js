@@ -148,7 +148,7 @@ assert.ok(source.includes('focusVehiclesAfterWorkImport(successfulImports.map(re
 
 for (const htmlName of ['index.html', 'staging.html', 'no-vehicles.html']) {
   const html = fs.readFileSync(path.join(__dirname, htmlName), 'utf8');
-  assert.ok(html.includes('id="dashboard-pd-drop"'), `${htmlName} must provide the PD Document upload path`);
+  assert.ok(!html.includes('id="dashboard-pd-drop"') && !html.includes('id="pd-scan-card"') && !html.includes('id="pd-file"'), `${htmlName} must not provide a PD Document upload path`);
   assert.ok(!html.includes('id="po-scan-card"') && !html.includes('id="po-file"'), `${htmlName} must not provide a purchase-order upload path`);
   assert.ok(!/job\s*card\s*\/\s*pd|upload\s+job\s*card/i.test(html), `${htmlName} must not offer a job-card upload path`);
   assert.ok(!/toyota\s+order/i.test(html), `${htmlName} must not display Toyota order`);

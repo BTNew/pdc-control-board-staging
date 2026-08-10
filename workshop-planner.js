@@ -5459,6 +5459,24 @@ function workshopJobLineRowsHtml(vehicle = {}) {
   </div>`).join('');
 }
 
+function workshopRequiredJobsForStageHtml(vehicle = {}, stage = '', stageLines = []) {
+  const normalizedStage = normalizePmbStage(stage);
+  const def = typeof pmbStageJobDef === 'function' ? pmbStageJobDef(normalizedStage) : null;
+  const rows = [];
+  const seen = new Set();
+  (Array.isArray(stageLines) ? stageLines : []).forEach(line => {
+    const text = cleanNavisionText(line?.text || line?.description || '');
+    if (!text || seen.has(text.toLowerCase())) return;
+    seen.add(text.toLowerCase());
+    rows.push(text);
+  });
+  if (!rows.length && def && pdcJobRequired(vehicle, def) && !pdcJobComplete(vehicle, def)) {
+    rows.push(`${pmbStageLabel(normalizedStage)} work required — no imported job-line description supplied`);
+  }
+  if (!rows.length) return '<div class="workshop-job-lines-empty">No outstanding required jobs are recorded for this station.</div>';
+  return `<ul class="workshop-required-job-list">${rows.map(text => `<li>${escapeHtml(text)}</li>`).join('')}</ul>`;
+}
+
 function openWorkshopVehicleJob(key = '', requestedStage = '', requestedPlanId = '') {
   const vehicle = workshopVehicle(key);
   if (!vehicle) return;
@@ -5480,7 +5498,7 @@ function openWorkshopVehicleJob(key = '', requestedStage = '', requestedPlanId =
   overlay.setAttribute('aria-modal', 'true');
   overlay.innerHTML = `<section class="modal-card workshop-job-card">
     <button class="modal-close" type="button" data-workshop-job-close aria-label="Close vehicle job">×</button>
-    <header><div><h2>${escapeHtml(pmbStageLabel(stage))} vehicle job</h2><p>Only ${escapeHtml(pmbStageLabel(stage))} time is shown for this bay. Allocate imported job lines to another work area when needed.</p></div><span class="badge neutral">AI lines + manual time</span></header>
+    <header><div><h2>${escapeHtml(pmbStageLabel(stage))} vehicle job</h2><p>Only ${escapeHtml(pmbStageLabel(stage))} time is shown for this bay. Required jobs below are scoped to this station.</p></div><span class="badge neutral">Required jobs + planned time</span></header>
     <div class="workshop-job-vehicle-summary">
       <strong>${escapeHtml(displayStockNumber(vehicle) || 'No stock')} · ${escapeHtml(vehicleCustomerName(vehicle) || 'Unknown customer')}</strong>
       <span>${escapeHtml(vehicle.vehicle || vehicle.toyotaVehicle || 'Vehicle')} · Job Card ${escapeHtml(vehicleJobcardNumber(vehicle) || 'TBA')}</span>
@@ -5492,6 +5510,7 @@ function openWorkshopVehicleJob(key = '', requestedStage = '', requestedPlanId =
         <div><strong>${escapeHtml(pmbStageLabel(stage))} planned time</strong><span><strong data-workshop-estimated-hours-total>${escapeHtml(calculatedHours)}</strong> hours total · ${stageLines.length} imported line${stageLines.length === 1 ? '' : 's'} allocated here</span></div>
         <label><span>Estimated hours for this bay</span><input type="number" name="estimated_hours" min="1" step="0.25" value="${escapeHtml(calculatedHours)}"></label>
       </section>
+      <section class="workshop-required-jobs"><header><strong>Required jobs for ${escapeHtml(pmbStageLabel(stage))}</strong><span>Canonical requirement plus imported lines allocated to this station.</span></header>${workshopRequiredJobsForStageHtml(vehicle, stage, stageLines)}</section>
       <section class="workshop-job-lines"><header><strong>Imported job lines</strong><span>Change the work area to allocate a line elsewhere.</span></header>${workshopJobLineRowsHtml(vehicle)}</section>
       <div class="workshop-job-notes"><strong>Team notes</strong><span>${escapeHtml(teamNotesText(vehicle) || 'No additional team notes.')}</span></div>
       <div class="edit-actions"><button class="secondary" type="button" data-workshop-job-close>Cancel</button><button class="primary" type="submit">Save estimated time / allocation</button><button class="small-button" type="button" data-workshop-job-full-vehicle="${escapeHtml(vehicleKey(vehicle))}">Open full vehicle</button></div>

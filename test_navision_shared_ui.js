@@ -6,11 +6,11 @@ const start=app.indexOf('async function importNavisionVehicles()'); const end=ap
 const applyEnd=app.indexOf('\nfunction ',end+2); const applyFn=app.slice(end,applyEnd);
 let n=0; const ok=(v,m)=>{assert.ok(v,m);n++;};
 ok(!html.includes('Daily Navision import · shared backend')&&!html.includes('id="navision-dealer-code"'),'production shell does not expose the staging-only shared flow');
-ok(html.includes('id="navision-remove-missing"')&&html.includes('Import vehicle updates'),'production shell retains its browser-local upload flow');
+ok(html.includes('id="import-navision"')&&html.includes('Preview Data')&&!html.includes('id="apply-navision-shared"'),'production shell retains its browser-local upload flow without staging apply controls');
 ok(!html.includes('navision-backend-service.js'),'production shell does not load the staging-only service');
-ok(html.includes('Export current local Navision data'),'recovery export retained');
+ok(!html.includes('Export current local Navision data')&&!stagingHtml.includes('Export current local Navision data'),'obsolete local Navision export removed from both shells');
 ok(stagingHtml.includes('Daily Navision import · shared backend')&&stagingHtml.includes('Pilbara Toyota · 14450')&&stagingHtml.includes('Broome Toyota · 37047'),'deployed staging shell carries the same scoped shared UI');
-ok(stagingHtml.includes('id="export-local-navision"')&&stagingHtml.includes('id="apply-navision-shared"')&&!stagingHtml.includes('id="navision-remove-missing"'),'deployed staging shell retains recovery export and removes local retirement apply');
+ok(stagingHtml.includes('id="apply-navision-shared"')&&!stagingHtml.includes('id="export-local-navision"')&&!stagingHtml.includes('id="navision-remove-missing"'),'deployed staging shell keeps protected apply while removing local export and retirement apply');
 ok(previewFn.includes('.preview(rows, metadata)'),'normal preview uses shared service');
 ok(previewFn.includes("if (!$('#navision-dealer-code')) return importNavisionVehiclesLocal(text)"),'non-staging shell retains the browser-local import path');
 ok(app.includes('vehicle.navisionRawEvidence = rawEvidence')&&app.includes('columns: rawHeaders.map'),'accepted shared rows retain every parsed source heading and value');

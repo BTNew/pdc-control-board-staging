@@ -6,9 +6,9 @@
   <meta name="description" content="PDC vehicle locations, workshop workflow, Parts and scheduling control board." />
   <title>Vehicle Tracking Core - No Vehicle Details</title>
   <link rel="icon" href="favicon.svg" type="image/svg+xml" />
-  <link rel="stylesheet" href="styles.css?v=2026.08.10.04-workshop-ui-review-hotfix" />
-  <link rel="stylesheet" href="desktop-operations.css?v=2026.08.10.04-workshop-ui-review-hotfix" />
-  <link rel="stylesheet" href="workshop-planner.css?v=2026.08.10.04-workshop-ui-review-hotfix" />
+  <link rel="stylesheet" href="styles.css?v=2026.08.10.06-admin-workshop-corrections" />
+  <link rel="stylesheet" href="desktop-operations.css?v=2026.08.10.06-admin-workshop-corrections" />
+  <link rel="stylesheet" href="workshop-planner.css?v=2026.08.10.06-admin-workshop-corrections" />
 </head>
 <body>
   <div class="app-shell" id="app-shell">
@@ -18,7 +18,7 @@
         <div class="brand-text">
           <div class="brand-title">Perth Motor Bodies</div>
           <div class="brand-subtitle">Clean Review Board</div>
-          <div class="app-version" id="app-version">Version 2026.08.10.04-workshop-ui-review-hotfix</div>
+          <div class="app-version" id="app-version">Version 2026.08.10.06-admin-workshop-corrections</div>
         </div>
 
       </div>
@@ -35,7 +35,8 @@
         <button type="button" class="nav-item" data-view="deleted" data-short="DEL">Deleted vehicles</button>
         <button type="button" class="nav-item" data-view="backend" data-short="DATA">Back End Data</button>
         <button type="button" class="nav-item" data-view="lists" data-short="SET">Setup</button>
-        <button type="button" class="nav-item" data-view="import" data-short="U">Uploads</button>
+        <button type="button" class="nav-item" data-view="import" data-short="NAV">Navision Uploads</button>
+        <button type="button" class="nav-item" data-view="backup" data-short="BAK">Backup / Restore</button>
       </nav>
 
     </aside>
@@ -135,27 +136,6 @@
             </div>
           </div>
           <textarea id="dashboard-navision-paste" class="quick-navision-textarea" rows="5" spellcheck="false" placeholder="Order&#9;Batch&#9;Production Month&#9;Model Description&#9;Sub Location Description&#9;ETA At Kewdale Yard..."></textarea>
-        </section>
-        <section class="panel span-12 pd-import-panel" hidden>
-          <div class="panel-header compact">
-            <div>
-              <h2>Quick import PD check-form</h2>
-              <p>Drop a PD check-form PDF or paste its text to attach accessory fitment work to the matching vehicle.</p>
-            </div>
-            <div class="panel-actions">
-              <button class="primary" id="dashboard-import-pd" type="button" disabled>Import PD work</button>
-              <button class="small-button" id="dashboard-clear-pd" type="button" disabled>Clear</button>
-            </div>
-          </div>
-          <div class="pd-import-grid">
-            <label class="drop-zone pd-drop-zone" id="dashboard-pd-drop">
-              <input id="dashboard-pd-upload" type="file" accept=".pdf,.txt,text/plain,application/pdf" multiple />
-              <strong>Drop PD PDF here</strong>
-              <span>or click to choose files</span>
-            </label>
-            <textarea id="dashboard-pd-paste" class="quick-navision-textarea" rows="5" spellcheck="false" aria-label="PD check-form text" placeholder="Paste PD check-form text here..."></textarea>
-          </div>
-          <div id="dashboard-pd-status" class="po-status-list pd-status-list"></div>
         </section>
         <div class="pmb-branch-grid" id="pmb-branch-grid" hidden></div>
         <section class="panel span-12 legacy-incoming-table-panel" hidden>
@@ -600,7 +580,7 @@
         </div>
       </section>
 
-      <section id="import" class="view">
+      <section id="backup" class="view">
 
         <div class="import-layout backup-layout">
           <section class="panel import-card" id="backup-card">
@@ -633,7 +613,9 @@
             </div>
           </section>
         </div>
+      </section>
 
+      <section id="import" class="view">
         <div class="import-layout navision-layout">
           <section class="panel import-card" id="navision-scan-card">
             <div class="panel-header compact">
@@ -692,7 +674,7 @@
           <section class="panel import-card" id="autocare-scan-card">
             <div class="panel-header compact">
               <div>
-                <h2>Upload Autocare despatch notice</h2>
+                <h2>Autocare Despatch Upload</h2>
                 <p>Scans Autocare ePOD despatch notices. A matched vehicle becomes active at PMB and lands in Unallocated; an existing PMB bucket is retained, and RFT or Completed vehicles are never moved backwards.</p>
               </div>
             </div>
@@ -734,22 +716,6 @@
           </section>
         </div>
 
-        <div class="import-layout po-job-layout">
-          <section class="panel import-card pd-import-panel">
-            <div class="panel-header compact">
-              <div>
-                <h2>2. Upload PD Document</h2>
-                <p>Upload the Toyota Pre Delivery Check Form. It supplies vehicle details, required work and any named Sublet provider for staff review.</p>
-              </div>
-              <div class="panel-actions"><button class="primary" id="dashboard-import-pd" type="button" disabled>Review PD Document</button><button class="small-button" id="dashboard-clear-pd" type="button" disabled>Clear</button></div>
-            </div>
-            <div class="pd-import-grid">
-              <label class="drop-zone pd-drop-zone" id="dashboard-pd-drop"><input id="dashboard-pd-upload" type="file" accept=".pdf,.txt,text/plain,application/pdf" multiple /><span class="drop-icon">PD</span><strong>Drop PD Document here</strong><span>PDF or extracted text containing a Stock number or VIN.</span></label>
-              <textarea id="dashboard-pd-paste" class="quick-navision-textarea" rows="7" spellcheck="false" aria-label="PD Document text" placeholder="Paste PD Document text here..."></textarea>
-            </div>
-            <div id="dashboard-pd-status" class="po-status-list pd-status-list"></div>
-          </section>
-        </div>
       </section>
     </main>
   </div>
@@ -812,11 +778,11 @@
     }
   </script>
 
-  <script src="data-no-vehicles.js?v=2026.08.10.04-workshop-ui-review-hotfix"></script>
+  <script src="data-no-vehicles.js?v=2026.08.10.06-admin-workshop-corrections"></script>
   <script src="arb-labor-catalog.js?v=2026.07.24.26-pd-document-intake"></script>
   <script src="ai-board-advisor.js?v=2026.07.24.26-pd-document-intake"></script>
-  <script src="workshop-eligibility.js?v=2026.08.10.04-workshop-ui-review-hotfix"></script>
-  <script src="app.js?v=2026.08.10.04-workshop-ui-review-hotfix"></script>
+  <script src="workshop-eligibility.js?v=2026.08.10.06-admin-workshop-corrections"></script>
+  <script src="app.js?v=2026.08.10.06-admin-workshop-corrections"></script>
 
 </body>
 </html>

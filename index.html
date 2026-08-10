@@ -8,9 +8,9 @@
   <meta name="description" content="PDC vehicle locations, workshop workflow, Parts and scheduling control board." />
   <title>PMB PDC Control Board</title>
   <link rel="icon" href="favicon.svg" type="image/svg+xml" />
-  <link rel="stylesheet" href="styles.css?v=2026.08.10.04-workshop-ui-review-hotfix" />
-  <link rel="stylesheet" href="desktop-operations.css?v=2026.08.10.04-workshop-ui-review-hotfix" />
-  <link rel="stylesheet" href="workshop-planner.css?v=2026.08.10.04-workshop-ui-review-hotfix" />
+  <link rel="stylesheet" href="styles.css?v=2026.08.10.06-admin-workshop-corrections" />
+  <link rel="stylesheet" href="desktop-operations.css?v=2026.08.10.06-admin-workshop-corrections" />
+  <link rel="stylesheet" href="workshop-planner.css?v=2026.08.10.06-admin-workshop-corrections" />
 </head>
 <body class="auth-pending" data-auth-state="checking">
   <main class="pdc-auth-gate" id="pdc-auth-gate" aria-labelledby="pdc-auth-title">
@@ -45,7 +45,7 @@
         <div class="brand-text">
           <div class="brand-title">Perth Motor Bodies</div>
           <div class="brand-subtitle">PDC Control Board</div>
-          <div class="app-version" id="app-version">Version 2026.08.10.04-workshop-ui-review-hotfix</div>
+          <div class="app-version" id="app-version">Version 2026.08.10.06-admin-workshop-corrections</div>
         </div>
 
       </div>
@@ -63,7 +63,8 @@
         <button type="button" class="nav-item" data-view="deleted" data-short="DEL">Deleted vehicles</button>
         <button type="button" class="nav-item" data-view="backend" data-short="DATA">Back End Data</button>
         <button type="button" class="nav-item" data-view="lists" data-short="SET">Setup</button>
-        <button type="button" class="nav-item" data-view="import" data-short="U">Uploads</button>
+        <button type="button" class="nav-item" data-view="import" data-short="NAV">Navision Uploads</button>
+        <button type="button" class="nav-item" data-view="backup" data-short="BAK">Backup / Restore</button>
       </nav>
 
     </aside>
@@ -670,8 +671,7 @@
         </div>
       </section>
 
-      <section id="import" class="view">
-
+      <section id="backup" class="view">
         <div class="import-layout backup-layout">
           <section class="panel import-card" id="backup-card">
             <div class="panel-header compact">
@@ -703,12 +703,14 @@
             </div>
           </section>
         </div>
+      </section>
 
+      <section id="import" class="view">
         <div class="import-layout navision-layout">
           <section class="panel import-card" id="navision-scan-card">
             <div class="panel-header compact">
               <div>
-                <h2>1. Daily Navision import</h2>
+                <h2>Daily Navision import</h2>
                 <p>Paste rows copied from Navision, or upload .txt / .tsv / .csv / .xlsx. A normal daily Navision upload stores every vehicle in Back End Data without placing new vehicles on the PDC Sheet.</p>
               </div>
               <div class="panel-actions">
@@ -732,11 +734,10 @@
             <div class="panel-header">
               <div>
                 <h2>Navision import results</h2>
-                <p>Daily Navision data refreshes ETA to Kewdale, JITA, status and identifiers in Back End Data. An approved PD Document or manual action promotes a matching vehicle to the PDC Sheet.</p>
+                <p>Daily Navision data refreshes ETA to Kewdale, JITA, status and identifiers in Back End Data. Approved operational intake or a manual action promotes a matching vehicle to the PDC Sheet.</p>
               </div>
               <div class="panel-actions">
-                <button class="small-button" id="export-local-navision" type="button">Export current local Navision data</button>
-                <button class="primary" id="import-navision" type="button" disabled>Import vehicle updates</button>
+                <button class="primary" id="import-navision" type="button" disabled>Preview Data</button>
                 <button class="small-button" id="navision-clear" type="button" disabled>Clear</button>
               </div>
             </div>
@@ -745,51 +746,19 @@
                 <span>Paste Navision or spreadsheet rows</span>
                 <textarea id="navision-paste" rows="8" spellcheck="false" placeholder="Batch&#9;Production Month&#9;Compliance Date&#9;Model Description&#9;Suffix Description&#9;..."></textarea>
               </label>
-              <label class="sync-option">
-                <input id="navision-remove-missing" type="checkbox" checked />
-                <span><strong>Retire missing Navision-only back-end vehicles</strong> — after a current full dump, only unpromoted Navision back-end rows that disappear are moved to Deleted. Manual, PD Document and PDC Sheet vehicles are never removed by this option.</span>
-              </label>
-              <div class="subtle navision-note">Batch is the Stock number and matching authority. Every new daily Navision row remains back-end-only. Use an approved PD Document or the manual action to bring a matching vehicle onto the PDC Sheet.</div>
+              <div class="subtle navision-note">Batch is the Stock number and matching authority. Every new daily Navision row remains back-end-only until approved operational intake or a manual action promotes it.</div>
             </div>
             <div class="navision-status-list" id="navision-status-list">
-              <div class="empty-state compact-empty"><strong>No Navision text imported</strong><span>Paste copied Navision rows, or upload a text/CSV/XLSX file, then click Import vehicle updates.</span></div>
+              <div class="empty-state compact-empty"><strong>No Navision text imported</strong><span>Paste copied Navision rows, or upload a text/CSV/XLSX file, then click Preview Data.</span></div>
             </div>
           </section>
         </div>
-
-        <div class="import-layout po-job-layout">
-          <section class="panel import-card pd-import-panel">
-            <div class="panel-header compact">
-              <div>
-                <h2>2. Upload PD Document</h2>
-                <p>Upload the Toyota Pre Delivery Check Form. It supplies the vehicle details, required work and any named Sublet provider for staff review.</p>
-              </div>
-              <div class="panel-actions">
-                <button class="primary" id="dashboard-import-pd" type="button" disabled>Review PD Document</button>
-                <button class="small-button" id="dashboard-clear-pd" type="button" disabled>Clear</button>
-              </div>
-            </div>
-            <div class="pd-import-grid">
-              <label class="drop-zone pd-drop-zone" id="dashboard-pd-drop">
-                <input id="dashboard-pd-upload" type="file" accept=".pdf,.txt,text/plain,application/pdf" multiple />
-                <span class="drop-icon">PD</span>
-                <strong>Drop PD Document here</strong>
-                <span>PDF or extracted text containing a Stock number or VIN. A vehicle and required-work review opens before anything is saved.</span>
-              </label>
-              <textarea id="dashboard-pd-paste" class="quick-navision-textarea" rows="7" spellcheck="false" aria-label="PD Document text" placeholder="Paste PD Document text here..."></textarea>
-            </div>
-            <div id="dashboard-pd-status" class="po-status-list pd-status-list"></div>
-          </section>
-
-
-        </div>
-
 
         <div class="import-layout autocare-layout">
           <section class="panel import-card" id="autocare-scan-card">
             <div class="panel-header compact">
               <div>
-                <h2>Upload Autocare despatch notice</h2>
+                <h2>Autocare Despatch Upload</h2>
                 <p>Scans Autocare ePOD despatch notices. A matched vehicle becomes active at PMB and lands in Unallocated; an existing PMB bucket is retained, and RFT or Completed vehicles are never moved backwards.</p>
               </div>
             </div>
@@ -885,12 +854,12 @@
   <script src="vendor/supabase/supabase-2.110.5.js"></script>
   <script src="pdc-supabase-config.js"></script>
   <script src="pdc-auth.js?v=2026.07.24.26-pd-document-intake"></script>
-  <script src="data.js?v=2026.08.10.04-workshop-ui-review-hotfix"></script>
-  <script src="email-board-data.js?v=2026.08.10.04-workshop-ui-review-hotfix"></script>
+  <script src="data.js?v=2026.08.10.06-admin-workshop-corrections"></script>
+  <script src="email-board-data.js?v=2026.08.10.06-admin-workshop-corrections"></script>
   <script src="arb-labor-catalog.js?v=2026.07.24.26-pd-document-intake"></script>
   <script src="ai-board-advisor.js?v=2026.07.24.26-pd-document-intake"></script>
-  <script src="workshop-eligibility.js?v=2026.08.10.04-workshop-ui-review-hotfix"></script>
+  <script src="workshop-eligibility.js?v=2026.08.10.06-admin-workshop-corrections"></script>
 
-  <script src="app.js?v=2026.08.10.04-workshop-ui-review-hotfix"></script>
+  <script src="app.js?v=2026.08.10.06-admin-workshop-corrections"></script>
 </body>
 </html>
