@@ -1,5 +1,5 @@
-const APP_VERSION = '2026.08.10.13-operation-routing-hours';
-const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.08.10.13-operation-routing-hours';
+const APP_VERSION = '2026.08.10.14-operation-routing-hours';
+const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.08.10.14-operation-routing-hours';
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
 // constant intentionally names only the production ref, never the
@@ -6139,7 +6139,8 @@ function renderIncomingDashboardBoard() {
   });
   $$('[data-auth-operation-work]', host).forEach(button => button.addEventListener('click', event => {
     event.stopPropagation();
-    if (openVehicleModal(button.dataset.authOperationWork)) selectVehicleDetailPage('work');
+    openVehicleModal(button.dataset.authOperationWork);
+    selectVehicleDetailPage('work');
   }));
   bindFixFirstRows(host);
   bindRftCollectedInputs(host);
