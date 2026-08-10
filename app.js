@@ -1,5 +1,5 @@
-const APP_VERSION = '2026.08.10.17-ai-auditor-upload-proposals';
-const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.08.10.17-ai-auditor-upload-proposals';
+const APP_VERSION = '2026.08.11.18-workshop-station-click';
+const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.08.11.18-workshop-station-click';
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
 // constant intentionally names only the production ref, never the
@@ -11180,6 +11180,32 @@ async function deleteVehicleWorkshopLine(adjustmentId = '', adjustmentVersion = 
   }
 }
 
+function activateVehicleWorkshopLineHandle(handle) {
+  const line = handle?.closest?.('.vehicle-workshop-line');
+  const stationSelect = line?.querySelector?.('[data-vehicle-workshop-line-stage]');
+  if (stationSelect) {
+    stationSelect.focus();
+    if (typeof stationSelect.showPicker === 'function') {
+      try { stationSelect.showPicker(); } catch (_) { /* focus remains a safe fallback */ }
+    }
+    return true;
+  }
+  const schedule = line?.querySelector?.('[data-vehicle-workshop-schedule-next]');
+  if (schedule) {
+    schedule.focus();
+    return true;
+  }
+  if (handle?.dataset?.bookingId) {
+    return openVehicleWorkshopBooking(
+      handle.dataset.bookingId,
+      handle.dataset.stage,
+      vehicleWorkshopBookingDateKey((app.vehicleWorkshopDetailCache.get(handle.dataset.vehicleId)?.detail?.bookings || [])
+        .find(row => String(row.booking_id || row.id || '') === handle.dataset.bookingId) || {})
+    );
+  }
+  return false;
+}
+
 function bindVehicleDetailTabs(panel) {
   panel.querySelectorAll('[data-vehicle-detail-tab]').forEach(button => button.addEventListener('click', () => selectVehicleDetailPage(button.dataset.vehicleDetailTab)));
   const tabs = [...panel.querySelectorAll('[data-vehicle-detail-tab]')];
@@ -11212,11 +11238,7 @@ function bindVehicleDetailTabs(panel) {
   panel.querySelectorAll('[data-vehicle-workshop-line-handle]').forEach(handle => {
     handle.addEventListener('dragstart', event => beginVehicleWorkshopLineDrag(event, handle));
     handle.addEventListener('dragend', finishVehicleWorkshopLineDrag);
-    handle.addEventListener('click', () => {
-      const schedule = handle.closest('.vehicle-workshop-line')?.querySelector('[data-vehicle-workshop-schedule-next]');
-      if (schedule) schedule.focus();
-      else if (handle.dataset.bookingId) openVehicleWorkshopBooking(handle.dataset.bookingId, handle.dataset.stage, vehicleWorkshopBookingDateKey((app.vehicleWorkshopDetailCache.get(handle.dataset.vehicleId)?.detail?.bookings || []).find(row => String(row.booking_id || row.id || '') === handle.dataset.bookingId) || {}));
-    });
+    handle.addEventListener('click', () => activateVehicleWorkshopLineHandle(handle));
   });
 }
 
