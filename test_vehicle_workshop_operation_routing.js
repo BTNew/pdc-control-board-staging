@@ -8,8 +8,12 @@ const app = fs.readFileSync(path.join(__dirname, 'app.js'), 'utf8');
 const css = fs.readFileSync(path.join(__dirname, 'styles.css'), 'utf8');
 
 assert(app.includes('data-auth-operation-work'), 'email operation cards must expose the Move jobs entry point');
-assert(app.includes("openVehicleModal(button.dataset.authOperationWork);\n    selectVehicleDetailPage('work');"), 'Move jobs must open the modal before selecting the authoritative Workshop page');
-assert(!app.includes("if (openVehicleModal(button.dataset.authOperationWork))"), 'Move jobs must not depend on the void modal opener returning true');
+assert(app.includes('openAuthenticatedOperationWorkshop(button.dataset.authOperationWork)'), 'Move jobs must use the Workshop-only canonical opener');
+const workshopOpener = app.slice(app.indexOf('function openAuthenticatedOperationWorkshop('), app.indexOf('function closeVehicleModal('));
+assert(workshopOpener.includes('vehicleWorkshopDetailCanonicalId(vehicle)'), 'Workshop-only opener must require canonical vehicle identity');
+assert(workshopOpener.includes('vehicleWorkshopCanEditLines()'), 'Workshop-only opener must require operator/admin edit authority');
+assert(!workshopOpener.includes('vehicleLocationActionAllowed'), 'Workshop-only opener must not weaken or reuse location/lifecycle mutation authority');
+assert(workshopOpener.includes("app.vehicleDetailPage = 'work'"), 'Workshop-only opener must open directly on the Work page');
 assert(app.includes('data-vehicle-workshop-line-stage'), 'editable Workshop lines must expose a station selector');
 assert(app.includes('moveVehicleWorkshopLineStage(select)'), 'station selector must use the audited line-adjustment save path');
 assert(app.includes('sourceWorkshopStage: group.stage'), 'source station must remain available as immutable provenance');

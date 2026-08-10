@@ -1,5 +1,5 @@
-const APP_VERSION = '2026.08.10.14-operation-routing-hours';
-const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.08.10.14-operation-routing-hours';
+const APP_VERSION = '2026.08.10.15-operation-routing-hours';
+const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.08.10.15-operation-routing-hours';
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
 // constant intentionally names only the production ref, never the
@@ -6139,8 +6139,7 @@ function renderIncomingDashboardBoard() {
   });
   $$('[data-auth-operation-work]', host).forEach(button => button.addEventListener('click', event => {
     event.stopPropagation();
-    openVehicleModal(button.dataset.authOperationWork);
-    selectVehicleDetailPage('work');
+    openAuthenticatedOperationWorkshop(button.dataset.authOperationWork);
   }));
   bindFixFirstRows(host);
   bindRftCollectedInputs(host);
@@ -11320,6 +11319,28 @@ function openVehicleModal(stock) {
   renderDetail();
   const modal = $('#vehicle-modal');
   if (!modal) return;
+  modal.hidden = false;
+  document.body.classList.add('modal-open');
+  $('#modal-close')?.focus();
+  return true;
+}
+
+function openAuthenticatedOperationWorkshop(stock) {
+  const vehicle = selectedVehicle(stock);
+  const canonicalId = vehicle ? vehicleWorkshopDetailCanonicalId(vehicle) : '';
+  if (!vehicle || !canonicalId || !vehicleWorkshopCanEditLines()) {
+    window.alert('Workshop jobs are not available for editing. Refresh the list and try again. No work was changed.');
+    return false;
+  }
+  // This is intentionally separate from the location/lifecycle editor. It opens only the
+  // canonical Workshop overlay; every write still goes through the operator-only audited RPC.
+  app.selectedStock = vehicleKey(vehicle);
+  app.vehicleDetailPage = 'work';
+  app.vehicleWorkshopDetailRequestGeneration += 1;
+  app.vehicleWorkshopDetailCache.delete(canonicalId);
+  renderDetail();
+  const modal = $('#vehicle-modal');
+  if (!modal) return false;
   modal.hidden = false;
   document.body.classList.add('modal-open');
   $('#modal-close')?.focus();
