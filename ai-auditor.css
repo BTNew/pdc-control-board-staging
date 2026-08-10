@@ -118,16 +118,43 @@
 .ai-auditor-review-status.is-denied { border-color: #fecaca; background: #fef2f2; color: #991b1b; }
 .ai-auditor-review-status.is-pending { border-color: #fde68a; background: #fffbeb; color: #92400e; }
 
+.ai-auditor-upload-panel { display: grid; grid-template-columns: minmax(0, 1fr) minmax(280px, .9fr); gap: 16px; margin: 0; padding: 14px; border: 1px solid #bfdbfe; border-radius: 12px; background: #eff6ff; }
+.ai-auditor-document-upload-copy,
+.ai-auditor-document-upload-actions { display: grid; gap: 8px; align-content: start; }
+.ai-auditor-document-upload-copy p { margin: 0; color: #475569; }
+.ai-auditor-document-drop-zone { min-height: 112px; }
+.ai-auditor-document-drop-zone:focus-visible { outline: 3px solid #2563eb; outline-offset: 3px; }
+.ai-auditor-document-drop-zone.is-dragover { border-color: #2563eb; background: #dbeafe; box-shadow: 0 0 0 3px rgba(37, 99, 235, .16); }
+.ai-auditor-document-upload-buttons { display: flex; gap: 8px; justify-content: flex-end; }
+.ai-auditor-document-status { display: grid; gap: 8px; }
+.ai-auditor-upload-proposals { display: grid; gap: 10px; }
+.ai-auditor-upload-proposal-list { display: grid; gap: 10px; }
+.ai-auditor-upload-proposal { display: grid; gap: 10px; padding: 13px; border: 1px solid #cbd5e1; border-radius: 10px; background: #fff; }
+.ai-auditor-upload-proposal-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.ai-auditor-upload-proposal-heading h3,
+.ai-auditor-upload-proposal-heading p { margin: 0; }
+.ai-auditor-upload-proposal-heading > div { display: grid; gap: 4px; }
+.ai-auditor-upload-warnings { margin: 0; padding-left: 20px; color: #92400e; }
+.ai-auditor-upload-evidence { margin: 0; color: #334155; font-size: .82rem; overflow-wrap: anywhere; }
+.ai-auditor-upload-evidence code { font-size: .76rem; }
+.ai-auditor-upload-evidence.is-unbound { color: #b91c1c; }
+.ai-auditor-upload-proposal .table-wrap { max-height: 280px; overflow: auto; }
+.ai-auditor-upload-proposal button:focus-visible,
+.ai-auditor-upload-panel input:focus-visible,
+.ai-auditor-upload-panel button:focus-visible { outline: 3px solid rgba(37, 99, 235, .38); outline-offset: 2px; }
+
 @media (max-width: 1180px) {
   .ai-auditor-summary-grid { grid-template-columns: repeat(4, minmax(120px, 1fr)); }
 }
 @media (max-width: 760px) {
   .ai-auditor-read-only-banner,
   .ai-auditor-decisions,
-  .ai-auditor-finding-header { align-items: stretch; flex-direction: column; }
+  .ai-auditor-finding-header,
+  .ai-auditor-upload-proposal-heading { align-items: stretch; flex-direction: column; }
   .ai-auditor-summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .ai-auditor-state { align-items: flex-start; flex-direction: column; }
-  .ai-auditor-filters { grid-template-columns: 1fr; }
+  .ai-auditor-filters,
+  .ai-auditor-upload-panel { grid-template-columns: 1fr; }
   .ai-auditor-decision-actions { width: 100%; }
   .ai-auditor-decision-actions button { flex: 1; }
 }

@@ -1,14 +1,14 @@
 {
   "artifact": "zero-embedded-data static staging site",
   "environment": "staging",
-  "generatedAtUtc": "2026-08-10T12:53:52Z",
-  "deploymentMode": "Staging-only audited operation routing, exact estimated-line station hours, retained canonical document binding",
-  "baseDeploymentCommit": "35a9b3d851e1ce107c260b920179b02db81c5b0c",
+  "generatedAtUtc": "2026-08-10T20:03:48Z",
+  "deploymentMode": "Staging-only read-only AI Auditor document upload proposals with source-byte-bound evidence and conservative estimated-hour review",
+  "baseDeploymentCommit": "008cca06bda671e4852103baa78765f306424c06",
   "sourceRepository": "BTNew/pdc-control-board",
-  "sourceBranch": "feat/staging-operation-routing-hours-20260810",
-  "sourceCommit": "db37821d0bc32f4b6b43a6f9ea5f84b550938985",
-  "sourceTree": "6ae445e18ba8370c15d96f4cd4b7c4369b39b2f1",
-  "cacheVersion": "2026.08.10.13-operation-routing-hours",
+  "sourceBranch": "feat/staging-ai-auditor-upload-proposals-20260810",
+  "sourceCommit": "41f1f5da800d91b54c976645dbc581df6e806730",
+  "sourceTree": "eec73b64bb2a210029cbfee8afc1d0a92b04f40b",
+  "cacheVersion": "2026.08.10.17-ai-auditor-upload-proposals",
   "stagingProjectRef": "cdsmnqxtyyoeoznmbidd",
   "zeroData": true,
   "mailboxAuthority": false,
@@ -73,18 +73,20 @@
     "applyReceipts": 1
   },
   "releaseChecks": {
-    "sourceTests": "PASS - 156 passed, 0 failed, 1 intentional zero-data skip",
+    "sourceTests": "PASS - 157 passed, 0 failed, 1 intentional clean-build fixture skip",
     "migration148": "PASS - applied to staging",
     "retainedReplay": "PASS - 1 receipt, 16 lines, 3 work items; exact replay idempotent",
-    "assetParity": "PASS - exact source-to-staging hashes verified",
-    "authenticatedBrowser": "PASS - Stock 13045140; 16 selectors; 3 station choices; exact 10.81/2.70/0.00 hour totals; zero severe console errors; zero desktop/mobile overflow"
+    "assetParity": "PASS - changed publication assets copied from exact source commit blobs and hash verified pre-commit",
+    "authenticatedBrowser": "Pending live 2026.08.10.17 build verification",
+    "independentReview": "PASS - blocker/major-only exact-current review; seven original issues and follow-up fixes verified",
+    "documentUploadFocused": "PASS - SHA-256 binding, source-line cardinality, explicit-hours controls, operation identity, station normalization, purge/race, and accessibility"
   },
   "sourceFiles": [
     {
       "sourcePath": "ai-auditor.css",
       "deployedPath": "ai-auditor.css",
-      "sha256": "c15bbd928f48844e95a2e85732830cc3c3b4a238eba4dc6719c96d06b1983c93",
-      "bytes": 7212
+      "sha256": "c69b084fb957e03fc663d276dc4322657d0f9fd3cc3da96130c894d1b848a846",
+      "bytes": 9115
     },
     {
       "sourcePath": "ai-board-advisor.js",
@@ -95,8 +97,8 @@
     {
       "sourcePath": "app.js",
       "deployedPath": "app.js",
-      "sha256": "68973c9b69a18b07fdc1a1c46e24d4f17ecb523ec4cca9d7dba0e4449bbdd934",
-      "bytes": 1065518
+      "sha256": "998f273b6a4792dcfe44f41360b29d5cced34e260483354c0f6d20ef92f2202a",
+      "bytes": 1079501
     },
     {
       "sourcePath": "arb-labor-catalog.js",
@@ -143,8 +145,8 @@
     {
       "sourcePath": "staging.html",
       "deployedPath": "index.html",
-      "sha256": "8a4ced268b8ccc944354367f29566735ffbebaf39b3ca7da9e95bbb791c6f322",
-      "bytes": 63336
+      "sha256": "e26868f19f8dc31083821f1f1bd28a22e4ec40ca5abb3277086b4820aee5ba09",
+      "bytes": 63610
     },
     {
       "sourcePath": "key-list-review.js",
@@ -161,8 +163,8 @@
     {
       "sourcePath": "pdc-ai-auditor-stage-a.js",
       "deployedPath": "pdc-ai-auditor-stage-a.js",
-      "sha256": "05aff99f0c588842af068509677abad0c65fb8fabda6a17fabe3e01f8173896b",
-      "bytes": 62478
+      "sha256": "d3aef030ebf02562c2909114be7528e1bfe74ebf8452299ace473531edaf3d2e",
+      "bytes": 66630
     },
     {
       "sourcePath": "pdc-ai-intake-review.css",
@@ -209,8 +211,8 @@
     {
       "sourcePath": "pdc-supabase-config.staging.js",
       "deployedPath": "pdc-supabase-config.staging.js",
-      "sha256": "5494a7fe4e0d79d9fdd2d1964cf108eacc89c793f44b1e7c6918b0dccf4091e1",
-      "bytes": 1707
+      "sha256": "2fefe317c34d9ed66c760e4437b57bc7fea0dcbf07dcd5fef32a22092dd7b5bd",
+      "bytes": 1711
     },
     {
       "sourcePath": "scripts/stage2b_c4_browser_export.js",
@@ -465,9 +467,14 @@
     "productionChanged": false
   },
   "localScreenshotServersActive": 0,
-  "publicationAssetCommit": "44f4c9fb407316230a32319b6e3c082481c90da7",
-  "verifiedArtifactCommit": "44f4c9fb407316230a32319b6e3c082481c90da7",
+  "publicationAssetCommit": "pending-publication-commit",
+  "verifiedArtifactCommit": "pending-live-verification",
   "migrationLedgerHead": "148 bind_canonical_document_evidence_to_retained_source",
   "migrationLedgerHeadNumber": 148,
-  "migrationLedgerHeadName": "bind_canonical_document_evidence_to_retained_source"
+  "migrationLedgerHeadName": "bind_canonical_document_evidence_to_retained_source",
+  "candidateReviewIdentity": {
+    "preCommitHead": "db37821d0bc32f4b6b43a6f9ea5f84b550938985",
+    "worktreeContentSha256": "37a64abdaddce519aad70c90706e072b48d39a17ac5b36734556119ef5f9ab80",
+    "independentReview": "PASS"
+  }
 }
