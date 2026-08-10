@@ -20,17 +20,18 @@ function buildDealerSnapshot(dealer, ordinal, count = 48) {
     bookings[1].startAt = '2026-07-30T02:00:00.000Z'; bookings[1].endAt = '2026-07-30T04:00:00.000Z'; bookings[3].startAt = '2026-07-30T03:00:00.000Z'; bookings[3].endAt = '2026-07-30T05:00:00.000Z';
     stationCompatibility.push({ station: `${dealer}-shared-conflict`, workType: 'FAB', allowed: true });
   }
-  return { authoritative: true, dealer, snapshotRevision: `snapshot-${ordinal}`, vehicleRevision: `vehicles-${ordinal}`, workRevision: `work-${ordinal}`, bookingRevision: `bookings-${ordinal}`, vehicles, workItems, bookings, parts: [], stationCompatibility, parallelCompatibility: [], config: { timezone: 'Australia/Perth', holidays: ['2026-07-27'], forgottenWorkingDays: 3 } };
+  return { authoritative: true, dealer, snapshotRevision: `snapshot-${ordinal}`, vehicleRevision: `vehicles-${ordinal}`, workRevision: `work-${ordinal}`, bookingRevision: `bookings-${ordinal}`, vehicles, workItems, bookings, operationLines: [], parts: [], stationCompatibility, parallelCompatibility: [], config: { timezone: 'Australia/Perth', holidays: ['2026-07-27'], forgottenWorkingDays: 3 } };
 }
 
 function directBase() {
   return { authoritative: true, dealer: 'dealer-rule', snapshotRevision: 's1', vehicleRevision: 'v1', workRevision: 'w1', bookingRevision: 'b1',
     vehicles: [{ id: 'v1', dealer: 'dealer-rule', Key: 'KEY-1', stock: 'STK-1', model: 'Hilux', location: 'Workshop', revision: 'vr1' }],
     workItems: [{ id: 'w1', dealer: 'dealer-rule', vehicleId: 'v1', revision: 'wr1', type: 'FAB', status: 'queued', createdAt: NOW_ISO, estimatedHours: 1, labourProvenance: 'staff-confirmed' }],
-    bookings: [], parts: [], stationCompatibility: [{ station: 'B1', workType: 'FAB', allowed: true }, { station: 'B1', workType: 'QC', allowed: true }], parallelCompatibility: [], config: { holidays: [] } };
+    bookings: [], operationLines: [], parts: [], stationCompatibility: [{ station: 'B1', workType: 'FAB', allowed: true }, { station: 'B1', workType: 'QC', allowed: true }], parallelCompatibility: [], config: { holidays: [] } };
 }
 function booking(id='b1', workId='w1', overrides={}) { return { id, dealer: 'dealer-rule', revision: `${id}-r`, vehicleId: 'v1', workId, type: 'FAB', department: 'FAB', station: 'B1', technicianId: `t-${id}`, status: 'planned', startAt: '2026-07-30T01:00:00.000Z', endAt: '2026-07-30T02:00:00.000Z', expectedDurationMinutes: 60, ...overrides }; }
 function jobParts(overrides={}) { return { id: 'p1', dealer: 'dealer-rule', vehicleId: 'v1', workId: 'w1', scope: 'job-specific', vehicleConfidence: 1, jobConfidence: 1, status: 'not-confirmed', createdAt: '2026-07-27T00:00:00.000Z', ...overrides }; }
+function operationLine(overrides={}) { return { id: 'o1', dealer: 'dealer-rule', vehicleId: 'v1', workKey: 'FITTING', estimatedHours: 1, hoursProvenance: 'job_card', ...overrides }; }
 function buildRuleFixture(id) {
   const s=directBase(), w=s.workItems[0], v=s.vehicles[0];
   switch(id) {
@@ -39,6 +40,8 @@ function buildRuleFixture(id) {
     case 'HOLIDAY_CALENDAR_COVERAGE_LIMIT': delete s.config.holidays; break;
     case 'DUPLICATE_VEHICLE_ID': s.vehicles.push({...v}); break;
     case 'DUPLICATE_WORK_ID': s.workItems.push({...w}); break;
+    case 'DUPLICATE_OPERATION_LINE_ID': s.operationLines=[operationLine(),operationLine()]; break;
+    case 'OPERATION_LINE_AUTHORITY_INVALID': s.operationLines=[operationLine({id:''})]; break;
     case 'DUPLICATE_BOOKING_ID': s.bookings=[booking(),booking()]; break;
     case 'BOOKING_AUTHORITY_INVALID': s.bookings=[booking('b1','w1',{revision:''})]; break;
     case 'BOOKING_VEHICLE_UNRESOLVED': s.bookings=[booking('b1','w1',{vehicleId:'absent'})]; break;
@@ -58,6 +61,10 @@ function buildRuleFixture(id) {
     case 'LABOUR_HOURS_ZERO': w.estimatedHours=0; break;
     case 'LABOUR_HOURS_NEGATIVE': w.estimatedHours=-1; break;
     case 'LABOUR_PROVENANCE_MISSING': w.labourProvenance=''; break;
+    case 'OPERATION_LINE_HOURS_MISSING': s.operationLines=[operationLine({estimatedHours:null})]; break;
+    case 'OPERATION_LINE_HOURS_NEGATIVE': s.operationLines=[operationLine({estimatedHours:-1})]; break;
+    case 'OPERATION_LINE_HOURS_PROVENANCE_UNKNOWN': s.operationLines=[operationLine({hoursProvenance:'unknown'})]; break;
+    case 'OPERATION_LINE_STAGE_MISSING': s.operationLines=[operationLine({workKey:''})]; break;
     case 'BOOKING_DURATION_TOO_SHORT': s.bookings=[booking('b1','w1',{endAt:'2026-07-30T01:10:00.000Z',expectedDurationMinutes:10})]; break;
     case 'BOOKING_DURATION_TOO_LONG': s.bookings=[booking('b1','w1',{endAt:'2026-07-30T10:00:00.000Z',expectedDurationMinutes:540})]; break;
     case 'BOOKING_DURATION_MISMATCH': s.bookings=[booking('b1','w1',{expectedDurationMinutes:120})]; break;

@@ -8,11 +8,11 @@
   <meta name="description" content="PDC Workshop Control Board — STAGING (separate Supabase project, synthetic data only)." />
   <title>PDC Control Board — STAGING</title>
   <link rel="icon" href="favicon.svg" type="image/svg+xml" />
-  <link rel="stylesheet" href="styles.css?v=2026.08.10.16-operation-routing-hours" />
+  <link rel="stylesheet" href="styles.css?v=2026.08.10.17-ai-auditor-upload-proposals" />
   <link rel="stylesheet" href="pdc-ai-intake-review.css?v=2026.07.28.20-ai-review-card-separation" />
-  <link rel="stylesheet" href="ai-auditor.css?v=2026.08.10.16-operation-routing-hours" />
-  <link rel="stylesheet" href="desktop-operations.css?v=2026.08.10.16-operation-routing-hours" />
-  <link rel="stylesheet" href="workshop-planner.css?v=2026.08.10.16-operation-routing-hours" />
+  <link rel="stylesheet" href="ai-auditor.css?v=2026.08.10.17-ai-auditor-upload-proposals" />
+  <link rel="stylesheet" href="desktop-operations.css?v=2026.08.10.17-ai-auditor-upload-proposals" />
+  <link rel="stylesheet" href="workshop-planner.css?v=2026.08.10.17-ai-auditor-upload-proposals" />
 </head>
 <body class="auth-pending" data-auth-state="checking">
   <main class="pdc-auth-gate" id="pdc-auth-gate" aria-labelledby="pdc-auth-title">
@@ -89,7 +89,7 @@
         <div class="brand-text">
           <div class="brand-title">Perth Motor Bodies</div>
           <div class="brand-subtitle">PDC Control Board</div>
-          <div class="app-version" id="app-version">Version 2026.08.10.16-operation-routing-hours</div>
+          <div class="app-version" id="app-version">Version 2026.08.10.17-ai-auditor-upload-proposals</div>
         </div>
 
       </div>
@@ -395,27 +395,6 @@
               <div class="ai-intake-history-heading"><div><span class="eyebrow">History</span><h3>What arrived and what happened</h3></div></div>
               <div id="ai-intake-history-content"><div class="empty-state compact-empty"><strong>Loading history</strong><span>Received, activated, modified and dismissed items appear here.</span></div></div>
             </section>
-            <section class="email-intake-upload-panel" aria-label="AI file assistant upload" hidden>
-              <div class="email-intake-upload-copy">
-                <span class="eyebrow">Phase 1 · AI file assistant</span>
-                <strong>Drop PDFs or text files to analyse into safe review drafts</strong>
-                <p>Uploads are analysed locally and turned into non-operational drafts only. They cannot write to vehicles or online staging.</p>
-              </div>
-              <div class="email-intake-upload-actions">
-                <label class="drop-zone email-intake-drop-zone" for="ai-intake-upload">
-                  <input id="ai-intake-upload" type="file" accept=".pdf,.txt,.csv,.tsv,.json,text/plain,text/csv,application/json,application/pdf" multiple />
-                  <div class="drop-icon navision-icon">AI</div>
-                  <strong>Select files for analysis</strong>
-                  <span>PD Documents and Parts notes</span>
-                </label>
-                <div class="email-intake-upload-buttons">
-                  <button class="primary" id="ai-intake-analyze" type="button" disabled>Analyse files</button>
-                  <button class="small-button" id="ai-intake-clear" type="button">Clear files</button>
-                </div>
-              </div>
-            </section>
-            <div id="ai-intake-status" class="email-intake-status" hidden><div class="empty-state compact-empty"><strong>No files queued</strong><span>Add one or more files above to create review drafts.</span></div></div>
-            <div class="table-toolbar" hidden><label><span>Status</span><select id="email-review-status-filter"><option value="pending">Pending review</option><option value="applied">Applied</option><option value="rejected">Rejected</option><option value="all">All proposals</option></select></label></div>
             <div id="email-intake-review-content" hidden></div>
           </section>
         </div>
@@ -436,6 +415,27 @@
               </div>
               <button class="small-button" id="ai-auditor-refresh" type="button">Refresh snapshot</button>
             </div>
+            <section class="ai-auditor-document-upload-panel ai-auditor-upload-panel" aria-labelledby="ai-auditor-upload-title">
+              <div class="ai-auditor-document-upload-copy">
+                <span class="eyebrow">Document review intake</span>
+                <strong id="ai-auditor-upload-title">Upload job cards or Sublet information</strong>
+                <p>The Auditor extracts operation lines, suggested stations and estimated hours into review-only proposals. Uploaded evidence never changes Workshop data automatically.</p>
+              </div>
+              <div class="ai-auditor-document-upload-actions">
+                <label class="drop-zone ai-auditor-document-drop-zone" id="ai-auditor-document-drop-zone" for="ai-intake-upload" role="button" tabindex="0" aria-describedby="ai-auditor-upload-help">
+                  <input id="ai-intake-upload" type="file" accept=".pdf,.txt,.csv,.tsv,text/plain,text/csv,application/pdf" multiple />
+                  <div class="drop-icon navision-icon">AI</div>
+                  <strong>Select job cards or Sublet files</strong>
+                  <span id="ai-auditor-upload-help">PDF, TXT, CSV or TSV · review only</span>
+                </label>
+                <div class="ai-auditor-document-upload-buttons">
+                  <button class="primary" id="ai-intake-analyze" type="button" disabled>Analyse files</button>
+                  <button class="small-button" id="ai-intake-clear" type="button">Clear files</button>
+                </div>
+              </div>
+            </section>
+            <div id="ai-intake-status" class="ai-auditor-document-status" aria-live="polite"><div class="empty-state compact-empty"><strong>No files queued</strong><span>Add one or more files above to create review-only proposals.</span></div></div>
+            <div id="ai-auditor-upload-proposals" class="ai-auditor-upload-proposals"><div class="empty-state compact-empty"><strong>No uploaded document proposals</strong><span>Uploaded files stay review-only and are cleared when this page session resets.</span></div></div>
             <div class="ai-auditor-state" id="ai-auditor-state" role="status" aria-live="polite" aria-busy="true">
               <strong>Auditor not assessed</strong><span>Open this view while signed in to request the read-only snapshot.</span>
             </div>
@@ -922,19 +922,19 @@
 
 
   <script src="vendor/supabase/supabase-2.110.5.js"></script>
-  <script src="pdc-supabase-config.staging.js?v=2026.08.10.16-operation-routing-hours"></script>
+  <script src="pdc-supabase-config.staging.js?v=2026.08.10.17-ai-auditor-upload-proposals"></script>
   <script src="pdc-auth.js?v=2026.07.24.26-pd-document-intake"></script>
   <script src="pdc-auth-registration.js?v=2026.07.24.26-pd-document-intake"></script>
   <script src="data-staging-empty.js?v=2026.07.24.26-pd-document-intake"></script>
-  <script src="email-board-data.js?v=2026.08.10.16-operation-routing-hours"></script>
+  <script src="email-board-data.js?v=2026.08.10.17-ai-auditor-upload-proposals"></script>
   <script src="arb-labor-catalog.js?v=2026.07.24.26-pd-document-intake"></script>
   <script src="ai-board-advisor.js?v=2026.07.24.26-pd-document-intake"></script>
-  <script src="navision-backend-service.js?v=2026.08.10.16-operation-routing-hours"></script>
+  <script src="navision-backend-service.js?v=2026.08.10.17-ai-auditor-upload-proposals"></script>
   <script src="pdc-ai-intake-service.js?v=2026.07.25.03-ai-intake-admin-decision"></script>
-  <script src="workshop-eligibility.js?v=2026.08.10.16-operation-routing-hours"></script>
-  <script src="pdc-email-vehicle-location-service.js?v=2026.08.10.16-operation-routing-hours"></script>
-  <script src="pdc-ai-auditor-stage-a.js?v=2026.07.29.12-stage-a-ui-service"></script>
-  <script src="app.js?v=2026.08.10.16-operation-routing-hours&amp;auditor=2026.07.30.03-recorded-decision-render"></script>
+  <script src="workshop-eligibility.js?v=2026.08.10.17-ai-auditor-upload-proposals"></script>
+  <script src="pdc-email-vehicle-location-service.js?v=2026.08.10.17-ai-auditor-upload-proposals"></script>
+  <script src="pdc-ai-auditor-stage-a.js?v=2026.08.10.17-ai-auditor-upload-proposals"></script>
+  <script src="app.js?v=2026.08.10.17-ai-auditor-upload-proposals&amp;auditor=2026.07.30.03-recorded-decision-render"></script>
   <script src="pdc-ai-intake-review.js?v=2026.07.27.19-ai-review-decision-context"></script>
 
   <script src="scripts/stage2b_c4_browser_export.js?v=2026.07.22.01-read-only-assessment"></script>

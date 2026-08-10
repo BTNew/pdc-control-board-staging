@@ -41,10 +41,12 @@ for (const removed of ['id="kpi-grid"', 'id="incoming-status-filter"', 'id="inco
 }
 assert(styles.includes('.incoming-search-panel.incoming-search-only'), 'Search-only Vehicle Locations layout needs responsive styling');
 
-const intake = staging.slice(staging.indexOf('<section id="emailreview"'), staging.indexOf('<section id="sublet"'));
+const intake = staging.slice(staging.indexOf('<section id="emailreview"'), staging.indexOf('<section id="ai-auditor"'));
+const auditor = staging.slice(staging.indexOf('<section id="ai-auditor"'), staging.indexOf('<section id="sublet"'));
 assert(intake.includes('AI / Email Intake') && intake.includes('Approve or deny the items that need a decision.'), 'AI Intake heading must be concise and decision-focused');
 assert(!intake.includes('ai-board-advisor-panel') && staging.includes('<section id="ai-auditor"'), 'Read-only auditing must be separate from the staff-facing intake screen');
-assert(intake.includes('class="email-intake-upload-panel"') && intake.includes('aria-label="AI file assistant upload" hidden'), 'Legacy local upload drafts must be preserved but removed from the staff-facing intake screen');
+assert(!intake.includes('id="ai-intake-upload"') && auditor.includes('id="ai-auditor-document-drop-zone"'), 'Job-card/Sublet file review must be isolated to the read-only Auditor surface');
+assert(auditor.includes('Uploaded evidence never changes Workshop data automatically.') && !/data-ai-auditor-apply|applyPdcAuditorDocument/.test(auditor), 'Auditor uploads must remain review-only with no direct apply path');
 assert(app.includes('>✓ Approve</button>') && app.includes('>× Deny</button>'), 'Tricky pending intake items must expose Approve and Deny actions');
 assert(app.includes("data-ai-intake-apply=") && app.includes("data-ai-intake-reject="), 'Approve and Deny labels must retain the authoritative apply/reject handlers');
 assert(app.includes("service.decide(attempt.proposal, decision, reason, attempt.idempotencyKey)"), 'Decisions must still use authoritative idempotent server apply');

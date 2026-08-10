@@ -1,5 +1,5 @@
-const APP_VERSION = '2026.08.10.16-operation-routing-hours';
-const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.08.10.16-operation-routing-hours';
+const APP_VERSION = '2026.08.10.17-ai-auditor-upload-proposals';
+const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.08.10.17-ai-auditor-upload-proposals';
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
 // constant intentionally names only the production ref, never the
@@ -1917,6 +1917,7 @@ const app = {
   autocareScan: loadJson(AUTOCARE_RESULTS_KEY, null),
   aiIntakeFiles: [],
   aiIntakeStatus: [],
+  aiIntakeAnalysisGeneration: 0,
   serverAiIntakeService: null,
   serverAiIntakeState: 'idle',
   serverAiIntakeError: '',
@@ -1943,6 +1944,7 @@ const app = {
   pdcAuditorPage: 0,
   pdcAuditorDecisionInFlight: false,
   pdcAuditorDecisionMessage: '',
+  pdcAuditorDocumentProposals: [],
   emailVehicleLocationService: null,
   emailVehicleLocationRows: [],
   emailVehicleLocationRevision: null,
@@ -3012,6 +3014,10 @@ function bindNav() {
     });
   });
   on($('#ai-intake-upload'), 'change', handleAiFileAssistantSelect);
+  on($('#ai-auditor-document-drop-zone'), 'dragover', handleAiFileAssistantDragOver);
+  on($('#ai-auditor-document-drop-zone'), 'dragleave', handleAiFileAssistantDragLeave);
+  on($('#ai-auditor-document-drop-zone'), 'drop', handleAiFileAssistantDrop);
+  on($('#ai-auditor-document-drop-zone'), 'keydown', handleAiFileAssistantDropZoneKeydown);
   on($('#ai-intake-analyze'), 'click', analyzeAiFileAssistantUploads);
   on($('#ai-intake-clear'), 'click', () => clearAiFileAssistantUploads());
   on($('#ai-intake-server-refresh'), 'click', () => refreshServerAiIntake());
@@ -10648,9 +10654,13 @@ function vehicleWorkshopLineIdentity(stage = '', line = {}) {
   return `display:${vehicleWorkshopStageCode(stage)}:${(hash >>> 0).toString(16).padStart(8, '0')}`;
 }
 
+function vehicleWorkshopRoleCanEditLines() {
+  return ['operator', 'administrator'].includes(String(window.PDC_AUTH_CONTEXT?.role || '').trim().toLowerCase());
+}
+
 function vehicleWorkshopCanEditLines() {
   if (document.getElementById('ai-auditor')?.classList.contains('active')) return false;
-  return ['operator', 'administrator'].includes(String(window.PDC_AUTH_CONTEXT?.role || '').trim().toLowerCase());
+  return vehicleWorkshopRoleCanEditLines();
 }
 
 function vehicleWorkshopHoursLabel(hours) {
@@ -11331,7 +11341,14 @@ function openVehicleModal(stock) {
 function openAuthenticatedOperationWorkshop(stock) {
   const vehicle = selectedVehicle(stock);
   const canonicalId = vehicle ? vehicleWorkshopDetailCanonicalId(vehicle) : '';
-  if (!vehicle || !canonicalId || !vehicleWorkshopCanEditLines()) {
+  if (!vehicle || !canonicalId || !vehicleWorkshopRoleCanEditLines()) {
+    window.alert('Workshop jobs are not available for editing. Refresh the list and try again. No work was changed.');
+    return false;
+  }
+  // Leave the read-only Auditor before opening the separately authorised Workshop editor.
+  // Every write still passes through vehicleWorkshopCanEditLines and the audited RPC.
+  showView('dashboard');
+  if (!vehicleWorkshopCanEditLines()) {
     window.alert('Workshop jobs are not available for editing. Refresh the list and try again. No work was changed.');
     return false;
   }
@@ -18787,6 +18804,9 @@ function resetPdcAuditorAuthorityState() {
   app.pdcAuditorError = '';
   app.pdcAuditorDecisionInFlight = false;
   app.pdcAuditorDecisionMessage = '';
+  app.pdcAuditorDocumentProposals = [];
+  app.aiIntakeFiles = [];
+  clearAiFileAssistantUploads();
   const state = document.getElementById('ai-auditor-state');
   const summary = document.getElementById('ai-auditor-summary');
   const report = document.getElementById('ai-auditor-report');
@@ -18971,6 +18991,11 @@ function renderPdcAuditor() {
   const summary = $('#ai-auditor-summary');
   const reportHost = $('#ai-auditor-report');
   if (!state || !summary || !reportHost) return;
+  const canUploadEvidence = app.pdcAuditorSnapshot?.reviewCanDecide === true;
+  const uploadInput = $('#ai-intake-upload');
+  const uploadAnalyze = $('#ai-intake-analyze');
+  if (uploadInput) uploadInput.disabled = !canUploadEvidence;
+  if (uploadAnalyze) uploadAnalyze.disabled = !canUploadEvidence || !(Array.isArray(app.aiIntakeFiles) && app.aiIntakeFiles.length);
   const result = app.pdcAuditorResult;
   const ready = app.pdcAuditorState === 'ready' && result;
   state.dataset.state = ready ? 'ready' : (app.pdcAuditorState === 'loading' ? 'loading' : 'unavailable');
@@ -19021,6 +19046,108 @@ function renderPdcAuditor() {
   $$('[data-ai-auditor-decision]', reportHost).forEach(button => button.addEventListener('click', () => {
     const finding = reportFindings.find(item => item.id === button.dataset.findingId);
     if (finding) pdcAuditorRecordDecision(finding, button.dataset.aiAuditorDecision);
+  }));
+}
+
+function pdcAuditorSuggestedStage(description = '') {
+  const value = cleanNavisionText(description).toLowerCase();
+  if (!value) return '';
+  if (/\b(?:electrical|electric|wire|wiring|battery|light|camera|sensor|radio|uhf|solar)\b/.test(value)) return 'ELECTRICAL';
+  if (/\btint(?:ing|ed)?\b/.test(value)) return 'TINT';
+  if (/\b(?:pit inspection|final pit inspection)\b/.test(value)) return 'PIT_INSPECTION';
+  if (/\b(?:hoist|underbody inspection|pre[- ]?delivery inspection)\b/.test(value)) return 'HOIST';
+  if (/\b(?:fabricat(?:e|ion)|weld|cutting|bracket)\b/.test(value)) return 'FABRICATION';
+  if (/\b(?:tyre|tire|wheel|alignment)\b/.test(value)) return 'TYRE';
+  if (/\b(?:bus\s*4x4|4x4 conversion)\b/.test(value)) return 'BUS_4X4';
+  if (/\b(?:fit|fitting|install|installation|mount|bullbar|towbar|rack|step|snorkel|accessor(?:y|ies))\b/.test(value)) return 'FITTING';
+  return '';
+}
+
+function pdcAuditorUploadedOperationLines(text = '') {
+  const rows = [];
+  String(text || '').replace(/\r\n?/g, '\n').split('\n').forEach((raw, index) => {
+    const line = cleanNavisionText(raw);
+    if (!line || line.length > 500) return;
+    const labelled = line.match(/(?:estimated\s*)?(?:labou?r\s*)?(?:hours?|hrs?)\s*[:=-]?\s*(\d+(?:\.\d{1,2})?)/i);
+    const trailing = line.match(/(?:^|\s)(\d+(?:\.\d{1,2})?)\s*(?:h|hr|hrs|hours)\s*$/i);
+    const match = labelled || trailing;
+    if (!match) return;
+    const estimatedHours = Number(match[1]);
+    if (!Number.isFinite(estimatedHours) || estimatedHours < 0 || estimatedHours > 999.75) return;
+    const description = cleanNavisionText(line
+      .replace(match[0], ' ')
+      .replace(/^\s*(?:op(?:eration)?\s*)[#:-]?\s*[a-z0-9-]{1,16}\s*[:.)-]?\s*/i, '')
+      .replace(/^\s*[a-z0-9-]{1,16}\s*[:.)-]\s+/i, ''))
+      .slice(0, 180);
+    if (!description || /^total\b/i.test(description)) return;
+    const stage = pdcAuditorSuggestedStage(description);
+    rows.push({
+      id: `upload-line:${index + 1}:${description.toLowerCase()}`,
+      description,
+      estimatedHours,
+      stage,
+      sourceLine: index + 1,
+    });
+  });
+  return rows;
+}
+
+function pdcAuditorUploadedDocumentProposal(text = '', file = {}, sourceEvidence = {}) {
+  const sourceText = String(text || '');
+  const flattened = cleanNavisionText(sourceText);
+  const filename = cleanNavisionText(file?.name || 'uploaded document');
+  const stock = (flattened.match(/\bstock\s*(?:no\.?|number|#)?\s*[:#-]?\s*([a-z0-9-]{5,20})\b/i) || [])[1] || '';
+  const jobCard = (flattened.match(/\b(?:job\s*card|j\/?c)\s*(?:no\.?|number|#)?\s*[:#-]?\s*([a-z0-9-]{3,24})\b/i) || [])[1] || '';
+  const documentType = /\bsublet\b|\bprovider\b|\bexpected\s+return\b/i.test(`${filename} ${flattened}`)
+    ? 'Sublet information'
+    : /\bjob\s*card\b|\bj\/?c\b/i.test(`${filename} ${flattened}`)
+      ? 'Job card'
+      : 'Workshop document';
+  const lines = pdcAuditorUploadedOperationLines(sourceText);
+  const warnings = [];
+  if (!stock) warnings.push('Stock number was not found; exact vehicle binding is required before any staff adjustment.');
+  if (!lines.length) warnings.push('No operation line with an explicit estimated-hour value was detected.');
+  if (lines.some(line => !line.stage)) warnings.push('One or more operation lines have no safe station match and require staff classification.');
+  const sha256 = String(sourceEvidence?.sha256 || '').toLowerCase();
+  return {
+    id: sha256 ? `auditor-upload:${sha256}` : aiFileAssistantReviewId('auditor-upload-unbound'),
+    filename,
+    documentType,
+    stock: cleanNavisionText(stock).toUpperCase(),
+    jobCard: cleanNavisionText(jobCard).toUpperCase(),
+    lines,
+    warnings,
+    sourceEvidence: {
+      sha256,
+      byteLength: Number(sourceEvidence?.byteLength || 0),
+      mediaType: cleanNavisionText(sourceEvidence?.mediaType || file?.type || ''),
+      lastModified: Number(sourceEvidence?.lastModified || file?.lastModified || 0),
+    },
+    receivedAt: nowIsoString(),
+  };
+}
+
+function renderPdcAuditorDocumentProposals() {
+  const host = $('#ai-auditor-upload-proposals');
+  if (!host) return;
+  const proposals = Array.isArray(app.pdcAuditorDocumentProposals) ? app.pdcAuditorDocumentProposals : [];
+  if (!proposals.length) {
+    host.innerHTML = '<div class="empty-state compact-empty"><strong>No uploaded document proposals</strong><span>Uploaded files stay review-only and are cleared when this page session resets.</span></div>';
+    return;
+  }
+  host.innerHTML = `<div class="ai-auditor-upload-proposal-list">${proposals.map(proposal => {
+    const lines = proposal.lines || [];
+    const evidence = proposal.sourceEvidence || {};
+    const lineRows = lines.map(line => `<tr><td>${escapeHtml(line.sourceLine)}</td><td>${escapeHtml(line.description)}</td><td>${escapeHtml(line.stage ? pmbStageLabel(line.stage) : 'Review required')}</td><td>${escapeHtml(Number(line.estimatedHours).toFixed(2))}h</td></tr>`).join('');
+    const warningHtml = (proposal.warnings || []).length
+      ? `<ul class="ai-auditor-upload-warnings">${proposal.warnings.map(warning => `<li>${escapeHtml(warning)}</li>`).join('')}</ul>` : '';
+    const evidenceHtml = evidence.sha256 ? `<p class="ai-auditor-upload-evidence"><strong>Evidence SHA-256:</strong> <code>${escapeHtml(evidence.sha256)}</code> · ${escapeHtml(evidence.byteLength)} bytes</p>` : '<p class="ai-auditor-upload-evidence is-unbound"><strong>Evidence hash unavailable — proposal is not reviewable.</strong></p>';
+    return `<article class="ai-auditor-upload-proposal"><div class="ai-auditor-upload-proposal-heading"><div><span class="eyebrow">Review-only ${escapeHtml(proposal.documentType)}</span><h3>${escapeHtml(proposal.filename)}</h3><p>Stock ${escapeHtml(proposal.stock || 'not detected')} · JC ${escapeHtml(proposal.jobCard || 'not detected')} · ${lines.length} estimated line${lines.length === 1 ? '' : 's'}</p></div>${proposal.stock && evidence.sha256 ? `<button type="button" class="small-button" data-ai-auditor-review-stock="${escapeHtml(proposal.stock)}">Open Workshop to review</button>` : ''}</div>${evidenceHtml}${warningHtml}${lines.length ? `<div class="table-wrap"><table class="data-table compact-table"><thead><tr><th>Source line</th><th>Operation</th><th>Suggested station</th><th>Document hours</th></tr></thead><tbody>${lineRows}</tbody></table></div>` : ''}<div class="ai-auditor-limitations"><strong>No automatic changes:</strong> this extraction is evidence for staff review only. Any accepted station/hour edit must be made through the separate audited Workshop control.</div></article>`;
+  }).join('')}</div>`;
+  $$('[data-ai-auditor-review-stock]', host).forEach(button => button.addEventListener('click', () => {
+    if (!openAuthenticatedOperationWorkshop(button.dataset.aiAuditorReviewStock)) {
+      setAiFileAssistantStatus([{ ok: false, title: 'Exact vehicle not found', message: `Stock ${button.dataset.aiAuditorReviewStock} did not resolve uniquely in the authenticated Workshop data.` }]);
+    }
   }));
 }
 
@@ -19190,26 +19317,105 @@ function updateAiFileAssistantButtons() {
   const files = Array.isArray(app.aiIntakeFiles) ? app.aiIntakeFiles : [];
   const analyze = $('#ai-intake-analyze');
   const clear = $('#ai-intake-clear');
+  const auditorAllowed = !$('#ai-auditor-upload-proposals') || app.pdcAuditorSnapshot?.reviewCanDecide === true;
   if (analyze) {
-    analyze.disabled = !files.length;
+    analyze.disabled = !files.length || !auditorAllowed;
     analyze.textContent = files.length ? `Analyse files (${files.length})` : 'Analyse files';
   }
-  if (clear) clear.disabled = !files.length;
+  if (clear) {
+    const proposals = Array.isArray(app.pdcAuditorDocumentProposals) ? app.pdcAuditorDocumentProposals : [];
+    clear.disabled = !files.length && !proposals.length;
+  }
+}
+
+async function aiFileAssistantSourceEvidence(file) {
+  if (!globalThis.crypto?.subtle || typeof file?.arrayBuffer !== 'function') throw new Error('Secure file hashing is unavailable.');
+  const bytes = await file.arrayBuffer();
+  const digest = await globalThis.crypto.subtle.digest('SHA-256', bytes);
+  const sha256 = [...new Uint8Array(digest)].map(value => value.toString(16).padStart(2, '0')).join('');
+  return Object.freeze({
+    sha256,
+    byteLength: bytes.byteLength,
+    mediaType: cleanNavisionText(file?.type || ''),
+    lastModified: Number(file?.lastModified || 0),
+  });
+}
+
+function aiFileAssistantAcceptedFiles(files = []) {
+  return [...(files || [])].slice(0, 10).filter(file => {
+    const name = String(file?.name || '');
+    const type = String(file?.type || '').toLowerCase();
+    const size = Number(file?.size || 0);
+    const supported = /\.(?:pdf|txt|csv|tsv)$/i.test(name) || ['application/pdf', 'text/plain', 'text/csv', 'text/tab-separated-values'].includes(type);
+    return supported && Number.isFinite(size) && size <= 10 * 1024 * 1024;
+  });
 }
 
 function handleAiFileAssistantSelect(event) {
-  app.aiIntakeFiles = [...(event?.target?.files || [])];
+  app.aiIntakeAnalysisGeneration += 1;
+  if ($('#ai-auditor-upload-proposals') && app.pdcAuditorSnapshot?.reviewCanDecide !== true) {
+    app.aiIntakeFiles = [];
+    if (event?.target) event.target.value = '';
+    updateAiFileAssistantButtons();
+    setAiFileAssistantStatus([{ ok: false, title: 'Upload not authorised', message: 'Operator or Administrator access is required to analyse Workshop evidence.' }]);
+    return false;
+  }
+  const selected = [...(event?.target?.files || [])];
+  app.aiIntakeFiles = aiFileAssistantAcceptedFiles(selected);
   updateAiFileAssistantButtons();
   setAiFileAssistantStatus(app.aiIntakeFiles.length
     ? [{ ok: true, title: `${app.aiIntakeFiles.length} file${app.aiIntakeFiles.length === 1 ? '' : 's'} ready`, message: app.aiIntakeFiles.map(file => cleanNavisionText(file.name || 'uploaded file')).join(', ') }]
-    : []);
+    : [{ ok: false, title: 'No supported files', message: 'Use up to 10 PDF, TXT, CSV or TSV files, each no larger than 10 MB.' }]);
+  return app.aiIntakeFiles.length > 0;
 }
 
-function clearAiFileAssistantUploads(preserveStatus = false) {
+function handleAiFileAssistantDragOver(event) {
+  event?.preventDefault?.();
+  if (app.pdcAuditorSnapshot?.reviewCanDecide !== true) return;
+  if (event?.dataTransfer) event.dataTransfer.dropEffect = 'copy';
+  event?.currentTarget?.classList?.add('is-dragover');
+}
+
+function handleAiFileAssistantDragLeave(event) {
+  event?.preventDefault?.();
+  event?.currentTarget?.classList?.remove('is-dragover');
+}
+
+function handleAiFileAssistantDropZoneKeydown(event) {
+  if (!['Enter', ' '].includes(event?.key)) return;
+  event.preventDefault();
+  if (app.pdcAuditorSnapshot?.reviewCanDecide !== true) {
+    setAiFileAssistantStatus([{ ok: false, title: 'Upload not authorised', message: 'Operator or Administrator access is required to analyse Workshop evidence.' }]);
+    return;
+  }
+  $('#ai-intake-upload')?.click?.();
+}
+
+function handleAiFileAssistantDrop(event) {
+  event?.preventDefault?.();
+  event?.currentTarget?.classList?.remove('is-dragover');
+  app.aiIntakeAnalysisGeneration += 1;
+  if (app.pdcAuditorSnapshot?.reviewCanDecide !== true) {
+    setAiFileAssistantStatus([{ ok: false, title: 'Upload not authorised', message: 'Operator or Administrator access is required to analyse Workshop evidence.' }]);
+    return false;
+  }
+  const dropped = [...(event?.dataTransfer?.files || [])];
+  app.aiIntakeFiles = aiFileAssistantAcceptedFiles(dropped);
+  updateAiFileAssistantButtons();
+  setAiFileAssistantStatus(app.aiIntakeFiles.length
+    ? [{ ok: true, title: `${app.aiIntakeFiles.length} dropped file${app.aiIntakeFiles.length === 1 ? '' : 's'} ready`, message: app.aiIntakeFiles.map(file => cleanNavisionText(file.name || 'uploaded file')).join(', ') }]
+    : [{ ok: false, title: 'No supported files', message: 'Use up to 10 PDF, TXT, CSV or TSV files, each no larger than 10 MB.' }]);
+  return app.aiIntakeFiles.length > 0;
+}
+
+function clearAiFileAssistantUploads(preserveStatus = false, preserveProposals = false) {
+  app.aiIntakeAnalysisGeneration += 1;
   app.aiIntakeFiles = [];
+  if (!preserveProposals) app.pdcAuditorDocumentProposals = [];
   const input = $('#ai-intake-upload');
   if (input) input.value = '';
   updateAiFileAssistantButtons();
+  renderPdcAuditorDocumentProposals();
   if (!preserveStatus) setAiFileAssistantStatus([]);
 }
 
@@ -19221,20 +19427,48 @@ async function analyzeAiFileAssistantUploads() {
   }
   const analyzeButton = $('#ai-intake-analyze');
   if (analyzeButton) analyzeButton.disabled = true;
+  const auditorUpload = Boolean($('#ai-auditor-upload-proposals'));
+  if (auditorUpload && app.pdcAuditorSnapshot?.reviewCanDecide !== true) {
+    setAiFileAssistantStatus([{ ok: false, title: 'Upload not authorised', message: 'Operator or Administrator access is required to analyse Workshop evidence.' }]);
+    clearAiFileAssistantUploads(true);
+    return false;
+  }
+  const analysisGeneration = ++app.aiIntakeAnalysisGeneration;
+  const analysisIsCurrent = () => analysisGeneration === app.aiIntakeAnalysisGeneration
+    && (!auditorUpload || app.pdcAuditorSnapshot?.reviewCanDecide === true);
   const results = [];
+  const proposals = [];
   const createdReviews = [];
   for (const file of files) {
     try {
       const isPdf = /\.pdf$/i.test(file.name || '') || file.type === 'application/pdf';
       const text = isPdf ? await extractTextFromPdfFile(file) : await file.text();
-      const result = analyzeAiAssistantText(text, file);
-      results.push({ ok: result.ok, title: file.name, message: result.message });
-      if (result.ok && result.review) createdReviews.push(result.review);
+      if (!analysisIsCurrent()) return false;
+      if (auditorUpload) {
+        const sourceEvidence = await aiFileAssistantSourceEvidence(file);
+        if (!analysisIsCurrent()) return false;
+        const proposal = pdcAuditorUploadedDocumentProposal(text, file, sourceEvidence);
+        proposals.push(proposal);
+        results.push({
+          ok: proposal.lines.length > 0,
+          title: file.name,
+          message: `${proposal.documentType}: checked ${proposal.lines.length} operation line${proposal.lines.length === 1 ? '' : 's'} with explicit estimated hours. Review proposal created; no operational change was made.`,
+        });
+      } else {
+        const result = analyzeAiAssistantText(text, file);
+        results.push({ ok: result.ok, title: file.name, message: result.message });
+        if (result.ok && result.review) createdReviews.push(result.review);
+      }
     } catch (error) {
+      if (!analysisIsCurrent()) return false;
       results.push({ ok: false, title: file.name || 'uploaded file', message: error.message || String(error) });
     }
   }
-  if (createdReviews.length) {
+  if (!analysisIsCurrent()) return false;
+  if (auditorUpload) {
+    app.pdcAuditorDocumentProposals = proposals;
+    renderPdcAuditorDocumentProposals();
+  } else if (createdReviews.length) {
     runStorageTransaction('Save AI file assistant review drafts', [AI_FILE_ASSISTANT_REVIEWS_KEY], () => {
       const existing = loadAiFileAssistantReviews();
       const merged = new Map(existing.map(item => [String(item.id || ''), item]));
@@ -19243,9 +19477,9 @@ async function analyzeAiFileAssistantUploads() {
     });
     renderEmailIntakeReview();
   }
-  setAiFileAssistantStatus(results.length ? results : [{ ok: false, title: 'AI file assistant', message: 'No files were analysed.' }]);
-  clearAiFileAssistantUploads(true);
-  return createdReviews.length > 0;
+  setAiFileAssistantStatus(results.length ? results : [{ ok: false, title: auditorUpload ? 'AI Auditor document review' : 'AI file assistant', message: 'No files were analysed.' }]);
+  clearAiFileAssistantUploads(true, auditorUpload);
+  return auditorUpload ? proposals.length > 0 : createdReviews.length > 0;
 }
 
 function serverAiIntakeAuthMarker() {

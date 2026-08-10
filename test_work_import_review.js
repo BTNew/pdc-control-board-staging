@@ -150,7 +150,15 @@ for (const htmlName of ['index.html', 'staging.html', 'no-vehicles.html']) {
   const html = fs.readFileSync(path.join(__dirname, htmlName), 'utf8');
   assert.ok(!html.includes('id="dashboard-pd-drop"') && !html.includes('id="pd-scan-card"') && !html.includes('id="pd-file"'), `${htmlName} must not provide a PD Document upload path`);
   assert.ok(!html.includes('id="po-scan-card"') && !html.includes('id="po-file"'), `${htmlName} must not provide a purchase-order upload path`);
-  assert.ok(!/job\s*card\s*\/\s*pd|upload\s+job\s*card/i.test(html), `${htmlName} must not offer a job-card upload path`);
+  if (htmlName === 'staging.html') {
+    const auditorStart = html.indexOf('<section id="ai-auditor"');
+    const auditorEnd = html.indexOf('<section id="sublet"', auditorStart);
+    const auditor = html.slice(auditorStart, auditorEnd);
+    assert.ok(auditor.includes('id="ai-intake-upload"') && auditor.includes('Uploaded evidence never changes Workshop data automatically.'), 'staging job-card upload must be isolated to the read-only Auditor proposal surface');
+    assert.ok(!/data-ai-auditor-apply|applyPdcAuditorDocument/.test(auditor), 'staging Auditor upload must not expose a direct apply path');
+  } else {
+    assert.ok(!/job\s*card\s*\/\s*pd|upload\s+job\s*card/i.test(html), `${htmlName} must not offer a job-card upload path`);
+  }
   assert.ok(!/toyota\s+order/i.test(html), `${htmlName} must not display Toyota order`);
 }
 assert.ok(!/toyota\s+order/i.test(source), 'Application UI and matching logic must not display or name Toyota order');

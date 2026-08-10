@@ -16,7 +16,7 @@ function audit(s, at=fixtures.NOW_ISO, options) { return auditor.auditSnapshot(s
 
 // Machine-readable catalogue completeness and one executable positive fixture per rule.
 assert.ok(Array.isArray(auditor.RULE_CATALOGUE));
-assert.strictEqual(auditor.RULE_CATALOGUE.length, 54);
+assert.strictEqual(auditor.RULE_CATALOGUE.length, 60);
 assert.strictEqual(new Set(auditor.RULE_CATALOGUE.map(r => r.id)).size, auditor.RULE_CATALOGUE.length);
 const requiredCatalogueFields=['id','name','authoritativeInputs','exactCondition','exclusions','severity','risk','confidenceSemantics','recommendedAction','stableDedupeIdentity','resolutionCondition','limitations'];
 for(const rule of auditor.RULE_CATALOGUE){
@@ -57,7 +57,7 @@ assert.deepStrictEqual(sessionA,sessionB,'session transition is nondeterministic
 
 // Input/database ordering cannot affect full output.
 const reversed=clone(fixtures.snapshots[0]);
-['vehicles','workItems','bookings','stationCompatibility','parallelCompatibility','parts'].forEach(k=>reversed[k].reverse());
+['vehicles','workItems','bookings','operationLines','stationCompatibility','parallelCompatibility','parts'].forEach(k=>reversed[k].reverse());
 assert.deepStrictEqual(audit(reversed),first,'database/input order changed output');
 const rotated=clone(fixtures.snapshots[0]);
 for(const k of ['vehicles','workItems','bookings','stationCompatibility']) if(rotated[k].length) rotated[k].push(rotated[k].shift());
@@ -102,6 +102,14 @@ const noCalendar=fixtures.buildRuleFixture('FORGOTTEN_WORK'); delete noCalendar.
 const noCalendarResult=audit(noCalendar);
 assert.ok(has(noCalendarResult,'HOLIDAY_CALENDAR_COVERAGE_LIMIT'));
 for(const id of ['FORGOTTEN_WORK','NO_PROGRESS','PARTS_NOT_CONFIRMED_ONE_WORKING_DAY','PARTS_ORDERED_OR_UNKNOWN_THREE_WORKING_DAYS','RFT_NOT_COLLECTED']) assert.ok(!has(noCalendarResult,id),`${id} must be suppressed without holidays`);
+
+// Every authenticated operation line is checked independently; an explicit 0.00 remains valid source evidence.
+const operationHours=cleanBase();
+operationHours.operationLines=[{id:'op-zero',dealer:operationHours.dealer,vehicleId:'v1',workKey:'TINT',estimatedHours:0,hoursProvenance:'job_card'}];
+const operationHoursResult=audit(operationHours);
+assert.ok(!has(operationHoursResult,'OPERATION_LINE_HOURS_MISSING'),'explicit 0.00 must not become missing');
+assert.ok(!has(operationHoursResult,'OPERATION_LINE_HOURS_NEGATIVE'),'explicit 0.00 must not become negative');
+assert.ok(!has(operationHoursResult,'OPERATION_LINE_HOURS_PROVENANCE_UNKNOWN'),'job-card provenance must remain confirmed');
 
 // 08:00–16:00 local boundaries; end exactly 16:00 is valid, one minute later is not.
 const boundary=cleanBase(); boundary.bookings=[{id:'b1',dealer:boundary.dealer,revision:'br',vehicleId:'v1',workId:'w1',type:'FAB',station:'B1',status:'planned',startAt:'2026-07-30T07:00:00.000Z',endAt:'2026-07-30T08:00:00.000Z',expectedDurationMinutes:60}];
@@ -161,8 +169,8 @@ const rpcSnapshot={ok:true,code:'pdc_auditor_snapshot',snapshot_contract_version
     lifecycle:{state:'active'},workshop:{status:'workshop'},location:{code:'YH'},quality:{},
     work_items:[{work_item_id:'22222222-2222-4222-8222-222222222222',work_key:'fitting',required:true,completed:false,status:'required',updated_at:fixtures.NOW_ISO,hours:{confirmed_hours:0,estimated_hours:2,provenance:'ai_estimate'}}],
     bookings:[{booking_id:'33333333-3333-4333-8333-333333333333',stage_code:'fitting',bay_id:'bay-rpc',status:'planned',scheduled_start_at:'2026-07-20T01:00:00.000Z',scheduled_end_at:'2026-07-20T03:00:00.000Z',relationship_status:'legacy_no_relation_unlinked',linked_work_item_id:null,canonical_match_count:1,booking_version:5,duration_minutes:120,assignments:[]}],
-    parts:{scope:'vehicle_level',vehicle_level:true,job_specific:false,parts_required:true,parts_ordered:false,parts_received:false,updated_at:fixtures.NOW_ISO,classification:'confirmed'},operation_lines:[],line_adjustments:[],movement_events:[],workflow_events:[],
-    collection_completeness:{work_items:{returned:1,total:1,limit:100,complete:true},bookings:{returned:1,total:1,limit:100,complete:true},operation_lines:{returned:0,total:0,limit:100,complete:true},line_adjustments:{returned:0,total:0,limit:100,complete:true},movement_events:{returned:0,total:0,limit:25,complete:true},workflow_events:{returned:0,total:0,limit:100,complete:true}}}],station_compatibility:[],parallel_compatibility:[]};
+    parts:{scope:'vehicle_level',vehicle_level:true,job_specific:false,parts_required:true,parts_ordered:false,parts_received:false,updated_at:fixtures.NOW_ISO,classification:'confirmed'},operation_lines:[{operation_line_id:'44444444-4444-4444-8444-444444444444',work_key:'tint',estimated_hours:0,hours_provenance:'job_card',created_at:fixtures.NOW_ISO}],line_adjustments:[],movement_events:[],workflow_events:[],
+    collection_completeness:{work_items:{returned:1,total:1,limit:100,complete:true},bookings:{returned:1,total:1,limit:100,complete:true},operation_lines:{returned:1,total:1,limit:100,complete:true},line_adjustments:{returned:0,total:0,limit:100,complete:true},movement_events:{returned:0,total:0,limit:25,complete:true},workflow_events:{returned:0,total:0,limit:100,complete:true}}}],station_compatibility:[],parallel_compatibility:[]};
 const rpcAudit=auditor.analyze(rpcSnapshot);
 for(const generatedAt of ['2026-07-29T07:33:54.514117Z','2026-07-29T07:33:54.514117+00:00']){
   const postgresTimestamp=clone(rpcSnapshot);postgresTimestamp.generated_at=generatedAt;
@@ -179,6 +187,8 @@ assert.ok(has(rpcAudit,'PARTS_CONFIDENCE_LIMIT'),'vehicle-level Parts must creat
 assert.ok(!has(rpcAudit,'PARTS_JOB_SPECIFIC_NOT_CONFIRMED'),'vehicle-level Parts must not become job-level unsafe evidence');
 assert.ok(has(rpcAudit,'HOLIDAY_CALENDAR_COVERAGE_LIMIT'),'missing holiday configuration must fail safely');
 const adapted=auditor.adaptAuthoritativeSnapshot(rpcSnapshot);
+assert.strictEqual(adapted.snapshot.operationLines.length,1,'every authenticated operation line must enter the deterministic audit snapshot');
+assert.deepStrictEqual(adapted.snapshot.operationLines[0],{id:'44444444-4444-4444-8444-444444444444',operationLineId:'44444444-4444-4444-8444-444444444444',dealer:'14450',vehicleId:'11111111-1111-4111-8111-111111111111',workKey:'tint',estimatedHours:0,hoursProvenance:'job_card',createdAt:fixtures.NOW_ISO});
 assert.strictEqual(adapted.snapshot.bookings[0].workId,'','canonical_match_count is diagnostic and must never synthesize a link');
 for(const [mutate,message] of [
   [x=>{x.ok=false;},/ok\/code\/contract/],
