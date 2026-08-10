@@ -76,8 +76,8 @@
     "sourceTests": "PASS - 158 passed, 0 failed, 1 intentional clean-build fixture skip",
     "migration148": "PASS - applied to staging",
     "retainedReplay": "PASS - 1 receipt, 16 lines, 3 work items; exact replay idempotent",
-    "assetParity": "PASS - app.js, staging.html→index.html and staging config copied from exact source commit blobs and hash verified pre-commit",
-    "authenticatedBrowser": "PASS scoped local visible click-path smoke - station selector focused, route hash unchanged, planner not focused, zero console errors; live verification pending",
+    "assetParity": "PASS - live HTTP bytes for index.html, app.js and staging config exactly match the source-bound publication bytes",
+    "authenticatedBrowser": "PASS scoped live outer click-path smoke - version 2026.08.11.18, Station selector focused, route unchanged, planner not focused, zero console/JS errors; operational mutation not invoked",
     "independentReview": "Pending exact-current blocker/major review",
     "documentUploadFocused": "PASS - SHA-256 binding, source-line cardinality, explicit-hours controls, operation identity, station normalization, purge/race, and accessibility",
     "workshopStationClick": "PASS - outer visible handle binding invokes station-first helper; native picker with focus fallback; audited change handler unchanged"
@@ -468,8 +468,8 @@
     "productionChanged": false
   },
   "localScreenshotServersActive": 0,
-  "publicationAssetCommit": "pending-publication-commit",
-  "verifiedArtifactCommit": "pending-live-verification",
+  "publicationAssetCommit": "07307b0d2b58dd3bea6a32a6920fcc243da2f416",
+  "verifiedArtifactCommit": "07307b0d2b58dd3bea6a32a6920fcc243da2f416",
   "migrationLedgerHead": "148 bind_canonical_document_evidence_to_retained_source",
   "migrationLedgerHeadNumber": 148,
   "migrationLedgerHeadName": "bind_canonical_document_evidence_to_retained_source",
