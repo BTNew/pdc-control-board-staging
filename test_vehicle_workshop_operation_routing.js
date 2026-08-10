@@ -14,6 +14,9 @@ assert(workshopOpener.includes('vehicleWorkshopDetailCanonicalId(vehicle)'), 'Wo
 assert(workshopOpener.includes('vehicleWorkshopCanEditLines()'), 'Workshop-only opener must require operator/admin edit authority');
 assert(!workshopOpener.includes('vehicleLocationActionAllowed'), 'Workshop-only opener must not weaken or reuse location/lifecycle mutation authority');
 assert(workshopOpener.includes("app.vehicleDetailPage = 'work'"), 'Workshop-only opener must open directly on the Work page');
+assert(workshopOpener.includes('loadVehicleWorkshopDetail(vehicle, { force: true })'), 'Workshop-only opener must load the canonical Workshop detail');
+const dashboardProjection = app.slice(app.indexOf('function ensureDashboardWorkshopProjectionReady('), app.indexOf('function renderActiveView('));
+assert(dashboardProjection.indexOf('if (sharedMode) return false') < dashboardProjection.indexOf('initWorkshopSharedServicesIfEnabled()'), 'shared dashboard must fail closed before the forbidden broad Workshop snapshot can initialize');
 assert(app.includes('data-vehicle-workshop-line-stage'), 'editable Workshop lines must expose a station selector');
 assert(app.includes('moveVehicleWorkshopLineStage(select)'), 'station selector must use the audited line-adjustment save path');
 assert(app.includes('sourceWorkshopStage: group.stage'), 'source station must remain available as immutable provenance');
