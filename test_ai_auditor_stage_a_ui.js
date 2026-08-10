@@ -113,14 +113,12 @@ assert.ok(css.includes('.vehicle-detail-page > .summary-grid article { display: 
 
 const jobStart = app.indexOf('function vehicleWorkshopJobCardValue');
 const jobEnd = app.indexOf('function renderVehicleWorkshopWorkPage', jobStart);
-assert.ok(jobStart >= 0 && jobEnd > jobStart, 'job-card column renderer must exist');
+assert.ok(jobStart >= 0 && jobEnd > jobStart, 'compact work-row renderer must exist');
 const jobBlock = app.slice(jobStart, jobEnd);
-[
-  'Description', 'Department', 'Estimated hours', 'Class', 'Provenance',
-  'Booked / actual', 'Parts dependency / status', 'Sublet provider',
-  'Booking', 'Status', 'Source ref', 'Completion'
-].forEach(label => assert.ok(jobBlock.includes(label), `job-card must show ${label}`));
-assert.ok(jobBlock.includes('scope="col"'), 'job-card columns must use accessible table headers');
+assert.ok(jobBlock.includes('<div class="vehicle-workshop-lines">'), 'Vehicle Detail must render compact work rows');
+assert.ok(!jobBlock.includes('<table class="vehicle-workshop-job-card">') && !jobBlock.includes('scope="col"'), 'Vehicle Detail must not render the audit export table');
+['Department', 'Provenance', 'Parts dependency / status', 'Sublet provider', 'Source ref', 'Completion'].forEach(label => assert.ok(!jobBlock.includes(`<th scope="col">${label}</th>`), `slimline Vehicle Detail must omit ${label}`));
+assert.ok(jobBlock.includes('vehicle-workshop-line-description') && jobBlock.includes('vehicle-workshop-line-hours') && jobBlock.includes('vehicle-workshop-line-booking') && jobBlock.includes('vehicle-workshop-line-actions'), 'compact rows must retain description, hours, booking state and actions');
 assert.ok(jobBlock.includes('vehicleWorkshopBookingsForLine'), 'line bookings must use explicit line relations rather than duplicating every station booking');
 ['Confirmed hours', 'Historical estimate', 'Supplier estimate', 'AI estimate', 'Unknown hours'].forEach(label => assert.ok(jobBlock.includes(label), `job-card must distinguish ${label}`));
 assert.ok(app.includes("document.getElementById('ai-auditor')?.classList.contains('active')"), 'Vehicle Detail opened from the auditor must suppress all job-card edit controls');

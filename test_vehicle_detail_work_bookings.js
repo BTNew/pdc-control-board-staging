@@ -5,6 +5,7 @@ const fs = require('fs');
 const app = fs.readFileSync('app.js', 'utf8');
 const planner = fs.readFileSync('workshop-planner.js', 'utf8');
 const css = fs.readFileSync('styles.css', 'utf8');
+const auditorCss = fs.readFileSync('ai-auditor.css', 'utf8');
 const sql = fs.readFileSync('supabase/staging_only/088_vehicle_workshop_detail_page.sql', 'utf8');
 
 assert(app.includes('role="tablist"') && app.includes('data-vehicle-detail-tab="details"') && app.includes('data-vehicle-detail-tab="work"'), 'Vehicle detail header must expose two accessible pages');
@@ -27,14 +28,17 @@ assert(workshopGroupsBody.includes('operation_no'), 'Authenticated operation num
 assert(workshopGroupsBody.includes('groups.get(stage).lines.push'), 'Authenticated operation lines must be placed into their canonical station group');
 assert(css.includes('.vehicle-workshop-station') && css.includes('--station-colour'), 'Station groups must be colour coded through a shared station colour token');
 assert(css.includes('.vehicle-detail-tabs') && css.includes('@media (max-width: 760px)'), 'Tabs and work rows must have responsive treatment');
-const stationHtmlStart = app.indexOf('function vehicleWorkshopJobCardTableHtml');
+const stationHtmlStart = app.indexOf('function vehicleWorkshopCompactLinesHtml');
 const stationHtmlEnd = app.indexOf('function renderVehicleWorkshopWorkPage', stationHtmlStart);
 const stationHtmlBody = stationHtmlStart >= 0 && stationHtmlEnd > stationHtmlStart ? app.slice(stationHtmlStart, stationHtmlEnd) : '';
 assert(stationHtmlBody.includes('data-vehicle-workshop-hours-input'), 'Editable rows must expose a direct estimated-hours input');
 assert(stationHtmlBody.includes('data-vehicle-workshop-hours-save'), 'Direct estimated-hours editing must have an explicit save action');
 assert(stationHtmlBody.includes('data-vehicle-workshop-line-handle') && stationHtmlBody.includes('draggable="true"'), 'Visible operation numbers must be draggable Workshop bay handles');
 assert(stationHtmlBody.includes('data-vehicle-workshop-schedule-next') && stationHtmlBody.includes('Schedule next available'), 'Every unbooked editable Workshop row must expose Schedule next available');
-assert(stationHtmlBody.includes('${controls}</td>') && stationHtmlBody.includes('vehicle-workshop-line-booking'), 'Scheduling and edit controls must remain associated with the job-card row while booking remains a dedicated column');
+assert(stationHtmlBody.includes('vehicle-workshop-line-actions') && stationHtmlBody.includes('vehicle-workshop-line-booking'), 'Scheduling/edit controls and booking state must remain on each compact work row');
+assert(stationHtmlBody.includes('<div class="vehicle-workshop-lines">') && !stationHtmlBody.includes('<table class="vehicle-workshop-job-card">'), 'Work & bookings must use compact rows, never the wide audit table');
+assert(!stationHtmlBody.includes('<th scope="col">Department</th>') && !stationHtmlBody.includes('<th scope="col">Provenance</th>') && !stationHtmlBody.includes('<th scope="col">Parts dependency / status</th>') && !stationHtmlBody.includes('<th scope="col">Sublet provider</th>'), 'Operational detail must not expose audit-only columns');
+assert(!/(^|\n)\.vehicle-workshop-job-card\s*\{/m.test(auditorCss), 'AI Auditor CSS must not globally override Vehicle Detail work rows');
 assert(app.includes('saveVehicleWorkshopLineHours'), 'Direct estimated-hours changes must use a dedicated authoritative save handler');
 const bulkHoursStart = app.indexOf('async function saveVehicleWorkshopLineHours');
 const bulkHoursEnd = app.indexOf('async function scheduleVehicleWorkshopNextAvailable', bulkHoursStart);
