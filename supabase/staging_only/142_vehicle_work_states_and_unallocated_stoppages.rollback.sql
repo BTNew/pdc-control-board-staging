@@ -14,7 +14,7 @@ begin
     where version='142' and name='vehicle_work_states_and_unallocated_stoppages'
   ) or exists (
     select 1 from supabase_migrations.schema_migrations
-    where version~'^[0-9]+$' and version::integer>142
+    where version~'^[0-9]+$' and version::numeric>142
   ) then
     raise exception 'Migration 142 rollback ledger guard failed';
   end if;

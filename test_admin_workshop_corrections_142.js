@@ -44,8 +44,9 @@ ok(sql.includes('stoppage_reason = v_stoppage_reason'), 'just-move clears legacy
 ok(sql.includes("status = 'stoppage'::public.workshop_booking_status"), 'migration repairs legacy queued stoppage anomalies');
 ok(sql.includes("new.status='stoppage'") && sql.includes('new.bay_id is null'), 'validation admits only explicit unallocated stoppages');
 ok(sql.includes("project_ref='cdsmnqxtyyoeoznmbidd'") && sql.includes("version='141' and name='sublet_queued_rebind_and_concurrency_corrections'"), 'migration is staging-contained and requires exact predecessor 141');
+ok(sql.includes("version~'^[0-9]+$' and version::numeric>141"), 'migration rejects a 141-plus-later ledger with missing 142');
 ok(sql.includes("values('142','vehicle_work_states_and_unallocated_stoppages'"), 'migration records its exact ledger identity');
-ok(rollbackSql.includes("version='142' and name='vehicle_work_states_and_unallocated_stoppages'") && rollbackSql.includes('version::integer>142'), 'rollback requires exact migration 142 at the ledger tip');
+ok(rollbackSql.includes("version='142' and name='vehicle_work_states_and_unallocated_stoppages'") && rollbackSql.includes('version::numeric>142'), 'rollback requires exact migration 142 at the ledger tip without integer overflow');
 ok(rollbackSql.includes("delete from supabase_migrations.schema_migrations") && rollbackSql.includes("where version='142' and name='vehicle_work_states_and_unallocated_stoppages'"), 'rollback removes only its exact ledger row');
 
 console.log(`Admin/workshop correction regression: ${count} assertions passed.`);
