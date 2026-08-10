@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Rollback-only behavior and privilege rehearsal for staging Migration 144."""
 from __future__ import annotations
-import hashlib, json, os, sys, uuid
+import argparse, hashlib, json, os, sys, uuid
 from datetime import datetime, timezone
 from pathlib import Path
 import psycopg
@@ -30,6 +30,9 @@ def set_actor(cur,identity):
 def reset_actor(cur): cur.execute("reset role")
 
 def main():
+    parser=argparse.ArgumentParser()
+    parser.add_argument('--installed',action='store_true')
+    args=parser.parse_args()
     load_local_env(); dsn=os.environ.get('PDC_STAGING_DIRECT_DATABASE_URL') or os.environ.get('PDC_STAGING_DATABASE_URL')
     assert_staging_target(database_url=dsn)
     sql=MIGRATION.read_text(encoding='utf-8'); body=sql.replace('begin;','',1).rsplit('commit;',1)[0]
@@ -38,7 +41,10 @@ def main():
     try:
       with conn.cursor() as cur:
         baseline=counts(cur)
-        cur.execute(body)
+        installed=one(cur,"select exists(select 1 from supabase_migrations.schema_migrations where version='144' and name='restore_narrow_pdc_monitor_canonical_importer')")
+        if installed is not args.installed:
+          raise RuntimeError(f'Migration 144 installed state mismatch: installed={installed}, expected={args.installed}')
+        if not args.installed: cur.execute(body)
         cur.execute("""select w.user_id,u.email from public.pdc_monitor_stage_activation_writers w
           join auth.users u on u.id=w.user_id join public.pdc_user_roles r on r.email=lower(u.email)
           where w.active and w.revoked_at is null and r.role='viewer' and r.active and r.account_status='approved'
@@ -111,7 +117,7 @@ def main():
         conn.rollback()
       with conn.cursor() as cur:
         if counts(cur)!=baseline: raise RuntimeError('rollback did not restore baseline counts')
-        if one(cur,"select exists(select 1 from supabase_migrations.schema_migrations where version='144')"): raise RuntimeError('rollback leaked ledger 144')
+        if one(cur,"select exists(select 1 from supabase_migrations.schema_migrations where version='144')") is not args.installed: raise RuntimeError('rollback changed ledger 144 state')
       conn.rollback(); report['rollback_verified']=True
     except Exception:
       conn.rollback(); raise
