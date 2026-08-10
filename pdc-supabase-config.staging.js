@@ -34,6 +34,6 @@ window.PDC_SUPABASE_CONFIG = {
   vehicleLifecycle: Object.freeze({
     sharedData: true,
     resolverRollbackDirectRead: false,
-    resolverAssetVersion: '2026.08.11.20-source-station-move'
+    resolverAssetVersion: '2026.08.11.21-source-station-role-render'
   })
 };

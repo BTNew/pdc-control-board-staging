@@ -1,5 +1,5 @@
-const APP_VERSION = '2026.08.11.20-source-station-move';
-const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.08.11.20-source-station-move';
+const APP_VERSION = '2026.08.11.21-source-station-role-render';
+const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.08.11.21-source-station-role-render';
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
 // constant intentionally names only the production ref, never the
@@ -10735,6 +10735,17 @@ function vehicleWorkshopBookingRowsHtml(bookings = [], fallbackText = 'Not booke
   }).join('');
 }
 
+function vehicleWorkshopAdjustedSourceDescription(line = {}, adjustment = {}) {
+  if (line?.authenticatedEmailOperation === true) return String(line.description || '');
+  return String(adjustment?.description ?? line?.description ?? '');
+}
+
+function vehicleWorkshopAdjustedSourceHours(value) {
+  if (value === null || value === undefined || String(value).trim() === '') return null;
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? numeric : null;
+}
+
 function vehicleWorkshopGroups(vehicle = {}, detail = null) {
   const requirements = Array.isArray(detail?.requirements) ? detail.requirements : vehicleWorkshopLocalRequirements(vehicle);
   const bookings = Array.isArray(detail?.bookings) ? detail.bookings : [];
@@ -10799,8 +10810,8 @@ function vehicleWorkshopGroups(vehicle = {}, detail = null) {
         ...line,
         workshopLineKey: lineKey,
         sourceWorkshopStage: group.stage,
-        description: adjustment.description,
-        estimatedHours: Number(adjustment.estimated_hours),
+        description: vehicleWorkshopAdjustedSourceDescription(line, adjustment),
+        estimatedHours: vehicleWorkshopAdjustedSourceHours(adjustment.estimated_hours),
         adjustmentId: adjustment.adjustment_id,
         adjustmentVersion: Number(adjustment.version || 0),
         workshopManualLine: false,
