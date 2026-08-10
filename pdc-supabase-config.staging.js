@@ -34,6 +34,6 @@ window.PDC_SUPABASE_CONFIG = {
   vehicleLifecycle: Object.freeze({
     sharedData: true,
     resolverRollbackDirectRead: false,
-    resolverAssetVersion: '2026.08.10.07-admin-workshop-mobile-nav'
+    resolverAssetVersion: '2026.08.10.08-direct-workshop-planners'
   })
 };
