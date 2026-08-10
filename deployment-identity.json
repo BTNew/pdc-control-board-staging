@@ -1,14 +1,14 @@
 {
   "artifact": "zero-embedded-data static staging site",
   "environment": "staging",
-  "generatedAtUtc": "2026-08-10T08:01:03Z",
-  "deploymentMode": "Staging-only direct Workshop Planner navigation; obsolete Pipeline view retired",
-  "baseDeploymentCommit": "99d6b395ace5068ef6fd273a3fe0c074bee03ed3",
+  "generatedAtUtc": "2026-08-10T12:33:05Z",
+  "deploymentMode": "Staging-only audited operation routing, exact estimated-line station hours, retained canonical document binding",
+  "baseDeploymentCommit": "d4eb530f61d28600ffee069fd20a03d3dd1ab447",
   "sourceRepository": "BTNew/pdc-control-board",
-  "sourceBranch": "feat/staging-direct-workshop-planners-20260810",
-  "sourceCommit": "1e937a35caa7cc6d94290aae06e8538eaea2661a",
-  "sourceTree": "e10b0c14d01a6e39a418ae7b2121603a4a99c488",
-  "cacheVersion": "2026.08.10.08-direct-workshop-planners",
+  "sourceBranch": "feat/staging-operation-routing-hours-20260810",
+  "sourceCommit": "5b07c7f9d92398e1cf047d8a8b6ab435ed5f21a2",
+  "sourceTree": "b90b0579cb4b84a223484162f7df9b30e2c5a1bf",
+  "cacheVersion": "2026.08.10.13-operation-routing-hours",
   "stagingProjectRef": "cdsmnqxtyyoeoznmbidd",
   "zeroData": true,
   "mailboxAuthority": false,
@@ -16,9 +16,9 @@
   "productionActivation": false,
   "pilotActivation": false,
   "migrationLedger": {
-    "appliedThrough": "142",
-    "ledgerHead": "142",
-    "migration": "vehicle_work_states_and_unallocated_stoppages",
+    "appliedThrough": "148",
+    "ledgerHead": "148",
+    "migration": "bind_canonical_document_evidence_to_retained_source",
     "rollbackAvailable": true,
     "actualBackupManifestSha256": "cffdc554210a6a8077072a2dcfc9816c3b2c02f1588b4d2da6976e36a3d4b82d",
     "dataIntegrityReceiptSha256": "ead6953ee7dbbf5a8883a19d56707aa2f3fe525eedf8c101fafeae4fa0ffd359",
@@ -45,7 +45,9 @@
     "migration142Sha256": "b367abb480ffb13680ef57350b4089a7cd19521844b6654f89c69a87803f905e",
     "migration142RollbackSha256": "079dacce047be4731635ef3d226f25866047552633f69fcb75b0e7089a9bde5b",
     "legacyQueuedStoppagesRepaired": 1,
-    "unallocatedStoppagesAfterApply": 1
+    "unallocatedStoppagesAfterApply": 1,
+    "migration148Sha256": "2731530f97e5b132ce67bd87d0b98312d944de413acb8e1e400462afa51341b5",
+    "canonicalDocumentBindingRehearsal": true
   },
   "retiredRoutes": [
     "pipeline",
@@ -71,14 +73,13 @@
     "applyReceipts": 1
   },
   "releaseChecks": {
-    "aggregateTests": "148 passed, 0 failed, 1 documented clean-build skip",
-    "focusedTests": "Station route, direct navigation, retired Pipeline route, Workshop planner and release-version checks passed",
-    "browserLayout": "PASS local desktop browser: seven direct planner links, Fitting active at #/workshop/fitting, scroll-safe sidebar, Pipeline DOM absent; responsive source contracts passed",
-    "assetParity": "PASS pre-publication logical Git blob parity for staging.html->index.html, app.js, styles.css and pdc-supabase-config.staging.js",
+    "aggregateTests": "156 passed, 0 failed, 1 documented clean-build skip",
+    "focusedTests": "Audited station overlay, effective-line regrouping, station hour totals, migration 148 and version checks passed",
+    "databaseRehearsal": "PASS rollback-only exact and differing canonical document hashes; all changes rolled back",
+    "assetParity": "PASS exact SHA-256 parity: staging.html->index.html, app.js, styles.css and pdc-supabase-config.staging.js",
     "production": "unchanged",
     "excludedRelease": "No production repository/main, production database, mailbox/pdc-monitor, DNS or pilot activation included",
-    "browserConsole": "Local direct navigation produced no console or route errors; authenticated live staging acceptance remains bound to publication",
-    "independentReview": "Navigation-only frontend delta; canonical Workshop state, station-scoped RPC and mutation paths unchanged"
+    "browserConsole": "Pending authenticated staging publication QA"
   },
   "sourceFiles": [
     {
@@ -96,8 +97,8 @@
     {
       "sourcePath": "app.js",
       "deployedPath": "app.js",
-      "sha256": "60ce61234e58e961d67ac678d3cbb88c7966e26fcca5b50bab55751b4cd6fe4f",
-      "bytes": 1058542
+      "sha256": "016fe9303d67134d56a3cfaa7a66f5c2093016e08ab0247e7edd4a8edb7a30c0",
+      "bytes": 1064302
     },
     {
       "sourcePath": "arb-labor-catalog.js",
@@ -144,8 +145,8 @@
     {
       "sourcePath": "staging.html",
       "deployedPath": "index.html",
-      "sha256": "40303a5cd8c4211456ca407d7f5cac7d202a7685fdf2d7d640d547941fc8c91a",
-      "bytes": 63323
+      "sha256": "afdcc7730780584e8a7e66c616c3e5a531d03afa8885393a0e6425852a335e89",
+      "bytes": 63336
     },
     {
       "sourcePath": "key-list-review.js",
@@ -204,14 +205,14 @@
     {
       "sourcePath": "pdc-email-vehicle-location-service.js",
       "deployedPath": "pdc-email-vehicle-location-service.js",
-      "sha256": "c564de6c4aa2de8222774f5b19896f9b1fc842c295bdca1f69dfccaf0e57b3d0",
-      "bytes": 14766
+      "sha256": "3271e84ea0077d63a6ac44a82c6af334b2aa6e17a4ac4d14c90ad72465b3d10b",
+      "bytes": 15147
     },
     {
       "sourcePath": "pdc-supabase-config.staging.js",
       "deployedPath": "pdc-supabase-config.staging.js",
-      "sha256": "82b3144986a215bbf97f62ebcc38ccb399f32c23fea7543299a7768fcffd04d8",
-      "bytes": 1708
+      "sha256": "a4923313ec157583317e27b2f5069a3a1cefe6b61ab579cf2bef09528f13ea16",
+      "bytes": 1707
     },
     {
       "sourcePath": "scripts/stage2b_c4_browser_export.js",
@@ -228,8 +229,8 @@
     {
       "sourcePath": "styles.css",
       "deployedPath": "styles.css",
-      "sha256": "d455a92480a583de9549cd555ee7a6a95c2844bd17734f0a94bc3e494ce32c3c",
-      "bytes": 378397
+      "sha256": "c83c8f1eda9012210de0733f4941945ab0b696ed307155a366c9d33cd5450bb9",
+      "bytes": 383151
     },
     {
       "sourcePath": "supabase/staging_only/096_navision_stock_number_authority.sql",
@@ -270,14 +271,14 @@
     {
       "sourcePath": "supabase/staging_only/142_vehicle_work_states_and_unallocated_stoppages.rollback.sql",
       "deployedPath": "supabase/staging_only/142_vehicle_work_states_and_unallocated_stoppages.rollback.sql",
-      "sha256": "079dacce047be4731635ef3d226f25866047552633f69fcb75b0e7089a9bde5b",
-      "bytes": 7144
+      "sha256": "5dbda53f771b9eef0571b4c60d70f613e5bd025bef0ce81f5853e09ae6ba5bee",
+      "bytes": 7330
     },
     {
       "sourcePath": "supabase/staging_only/142_vehicle_work_states_and_unallocated_stoppages.sql",
       "deployedPath": "supabase/staging_only/142_vehicle_work_states_and_unallocated_stoppages.sql",
-      "sha256": "b367abb480ffb13680ef57350b4089a7cd19521844b6654f89c69a87803f905e",
-      "bytes": 15655
+      "sha256": "27121790b4cbbbf204d899eaf0122a7a5bd5e43a5dc7cde1bde1cc2ddc053704",
+      "bytes": 15986
     },
     {
       "sourcePath": "test_navision_stock_authority_096.js",
@@ -336,14 +337,14 @@
     {
       "sourcePath": "workshop-planner.css",
       "deployedPath": "workshop-planner.css",
-      "sha256": "bba1c288cf0bd4409e5916dbb91a73e70ad28be85acd85cf64432ea0779895ff",
-      "bytes": 43800
+      "sha256": "f8c6bf063a2853e1e45ac2cfa1d4a57a9d4af1aaee751820b3948e0807a17ee3",
+      "bytes": 45065
     },
     {
       "sourcePath": "workshop-planner.js",
       "deployedPath": "workshop-planner.js",
-      "sha256": "28d325f48c3a655c196a9fb424ff68528741bb356316ab7141e02d5d69a33ad7",
-      "bytes": 329496
+      "sha256": "bd6fef4f7ee58811ec207e1c29490347a3e19ffaf38134fa63946f82fd02cc80",
+      "bytes": 338842
     },
     {
       "sourcePath": "workshop-realtime.js",
