@@ -8,6 +8,7 @@ async function main() {
   const appText = fs.readFileSync(path.join(__dirname, 'app.js'), 'utf8');
   const sql = fs.readFileSync(path.join(__dirname, 'supabase', 'staging_only', '149_move_source_lines_between_workshop_stations.sql'), 'utf8').toLowerCase();
   const hardeningSql = fs.readFileSync(path.join(__dirname, 'supabase', 'staging_only', '150_lock_source_and_target_completion_for_station_moves.sql'), 'utf8').toLowerCase();
+  const exactRoleSql = fs.readFileSync(path.join(__dirname, 'supabase', 'staging_only', '151_require_exact_workshop_role_for_source_station_moves.sql'), 'utf8').toLowerCase();
 
   const sourceMoveStart = appText.indexOf('async function moveVehicleWorkshopSourceLineStage(');
   const lineMoveStart = appText.indexOf('async function moveVehicleWorkshopLineStage(');
@@ -19,7 +20,8 @@ async function main() {
   assert(sourceMoveText.includes('/rpc/move_vehicle_workshop_source_line_stage'), 'source operation move must use its narrow audited RPC');
   assert(!sourceMoveText.includes('p_estimated_hours') && !sourceMoveText.includes('p_description'), 'browser must not rewrite source hours or description during a station move');
 
-  assert(sql.includes("require_pdc_role('operator')"), 'RPC must require Operator authority');
+  assert(exactRoleSql.includes('public.workshop_require_planner_operator()'), 'final RPC must require exact Workshop Operator/Administrator authority');
+  assert(exactRoleSql.includes("position('public.require_pdc_role' in v_definition)>0"), 'final migration must fail if the Importer-compatible inherited gate remains');
   assert(sql.includes("v_line_key !~ '^source:"), 'RPC must accept only durable source operation identity');
   assert(sql.includes('and wi.required and not wi.completed'), 'target station must be required and incomplete');
   assert(hardeningSql.includes('v_current_stage:=v_before.stage_code') && hardeningSql.includes('workshop_source_stage_completed_or_unavailable'), 'current effective source station must also remain required and incomplete');
@@ -33,6 +35,19 @@ async function main() {
     assert(!hardenedMoveSql.includes(forbidden), `hardened station-only RPC must not mutate ${forbidden}`);
   }
   assert(sql.includes("'hours_changed',false") && sql.includes("'bookings_changed',false") && sql.includes("'completion_changed',false") && sql.includes("'location_changed',false"), 'audit metadata must explicitly record the station-only mutation boundary');
+
+  const adjustedHelperStart = appText.indexOf('function vehicleWorkshopAdjustedSourceDescription(');
+  const groupsStart = appText.indexOf('function vehicleWorkshopGroups(', adjustedHelperStart);
+  assert(adjustedHelperStart > 0 && groupsStart > adjustedHelperStart, 'post-reload source adjustment helpers must exist');
+  const adjustedHelpers = Function(`${appText.slice(adjustedHelperStart, groupsStart)}; return { vehicleWorkshopAdjustedSourceDescription, vehicleWorkshopAdjustedSourceHours };`)();
+  assert.strictEqual(adjustedHelpers.vehicleWorkshopAdjustedSourceDescription(
+    { authenticatedEmailOperation: true, description: 'JC JC9 · OP1 · Fit bar' },
+    { description: 'Fit bar' }
+  ), 'JC JC9 · OP1 · Fit bar', 'post-reload rendering must retain the authenticated job-card/operation prefix');
+  assert.strictEqual(adjustedHelpers.vehicleWorkshopAdjustedSourceHours(null), null, 'SQL NULL hours must remain missing after reload');
+  assert.strictEqual(adjustedHelpers.vehicleWorkshopAdjustedSourceHours(''), null, 'blank hours must remain missing after reload');
+  assert.strictEqual(adjustedHelpers.vehicleWorkshopAdjustedSourceHours('0.00'), 0, 'explicit zero hours must remain zero');
+  assert.strictEqual(adjustedHelpers.vehicleWorkshopAdjustedSourceHours('6.60'), 6.6, 'precise source hours must remain precise');
 
   const calls = [];
   let reloads = 0;
