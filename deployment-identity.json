@@ -1,13 +1,13 @@
 {
   "artifact": "zero-embedded-data static staging site",
   "environment": "staging",
-  "generatedAtUtc": "2026-08-10T07:30:50.057090Z",
+  "generatedAtUtc": "2026-08-10T07:33:51.149885Z",
   "deploymentMode": "Staging-only Admin and Workshop corrections, plus post-deploy mobile Admin navigation QA correction",
-  "baseDeploymentCommit": "013b901205d28b3128dfc619fc70e5c8b70652f8",
+  "baseDeploymentCommit": "cc90104edec719caa49e203ae8264e4a2626d9f1",
   "sourceRepository": "BTNew/pdc-control-board",
   "sourceBranch": "feat/staging-admin-workshop-fixes-20260810",
-  "sourceCommit": "1354ffa8b55613c260fd55370cf7372fb2ac71c6",
-  "sourceTree": "24d07c87826dc75f17b7cfda925b2a46cdbaa78c",
+  "sourceCommit": "f5b9bd2e7f580a4c8c505a9651c4ed0bdfcd7409",
+  "sourceTree": "9a6fc8f663a8d5698934bcdaecb0abe248411e21",
   "cacheVersion": "2026.08.10.07-admin-workshop-mobile-nav",
   "stagingProjectRef": "cdsmnqxtyyoeoznmbidd",
   "zeroData": true,
@@ -42,8 +42,8 @@
     "preExistingWorkshopSubletOverlaps": 0,
     "postApplyWorkshopSubletOverlaps": 0,
     "productionChanged": false,
-    "migration142Sha256": "3ccdb5a686de584940af2ae4c635b3d91123c02dca9e70ed0343b0aae522b627",
-    "migration142RollbackSha256": "d967cb2df340fbc7b735b67ffaaec1c18a3ff7a3610bc3198b9693c0ac723ed1",
+    "migration142Sha256": "b367abb480ffb13680ef57350b4089a7cd19521844b6654f89c69a87803f905e",
+    "migration142RollbackSha256": "079dacce047be4731635ef3d226f25866047552633f69fcb75b0e7089a9bde5b",
     "legacyQueuedStoppagesRepaired": 1,
     "unallocatedStoppagesAfterApply": 1
   },
@@ -77,7 +77,8 @@
     "assetParity": "PASS GitHub Pages served exact app.js and styles.css hashes for source commit 1354ffa8b55613c260fd55370cf7372fb2ac71c6",
     "production": "unchanged",
     "excludedRelease": "No production repository/main, production database, mailbox/pdc-monitor, DNS or pilot activation included",
-    "browserConsole": "Station-scoped authenticated RPC 200. Legacy combined get_workshop_snapshot 403 is the intentional service_role-only boundary from migration 044."
+    "browserConsole": "Station-scoped authenticated RPC 200. Legacy combined get_workshop_snapshot 403 is the intentional service_role-only boundary from migration 044.",
+    "independentReview": "MAJOR exact-ledger-tip finding corrected: apply rejects any numeric version >141; rollback uses overflow-safe numeric >142; 33 focused and 148 aggregate tests passed"
   },
   "sourceFiles": [
     {
@@ -269,14 +270,14 @@
     {
       "sourcePath": "supabase/staging_only/142_vehicle_work_states_and_unallocated_stoppages.rollback.sql",
       "deployedPath": "supabase/staging_only/142_vehicle_work_states_and_unallocated_stoppages.rollback.sql",
-      "sha256": "d967cb2df340fbc7b735b67ffaaec1c18a3ff7a3610bc3198b9693c0ac723ed1",
+      "sha256": "079dacce047be4731635ef3d226f25866047552633f69fcb75b0e7089a9bde5b",
       "bytes": 7144
     },
     {
       "sourcePath": "supabase/staging_only/142_vehicle_work_states_and_unallocated_stoppages.sql",
       "deployedPath": "supabase/staging_only/142_vehicle_work_states_and_unallocated_stoppages.sql",
-      "sha256": "3ccdb5a686de584940af2ae4c635b3d91123c02dca9e70ed0343b0aae522b627",
-      "bytes": 15529
+      "sha256": "b367abb480ffb13680ef57350b4089a7cd19521844b6654f89c69a87803f905e",
+      "bytes": 15655
     },
     {
       "sourcePath": "test_navision_stock_authority_096.js",

@@ -15,6 +15,9 @@ begin
     where version='141' and name='sublet_queued_rebind_and_concurrency_corrections'
   ) or exists (
     select 1 from supabase_migrations.schema_migrations where version='142'
+  ) or exists (
+    select 1 from supabase_migrations.schema_migrations
+    where version~'^[0-9]+$' and version::numeric>141
   ) then
     raise exception 'Migration 142 predecessor/target guard failed';
   end if;
