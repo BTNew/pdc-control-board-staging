@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 from __future__ import annotations
-import json,os,sys,uuid
+import argparse,json,os,sys,uuid
 from pathlib import Path
 import psycopg
 ROOT=Path(__file__).resolve().parents[1]
@@ -9,6 +9,7 @@ from staging_env import load_local_env,assert_staging_target
 M=ROOT/'supabase'/'staging_only'/'145_explicit_receipt_only_monitor_importer_and_parts_normalization.sql'
 def one(c,q,p=()): c.execute(q,p); return c.fetchone()[0]
 def main():
+ parser=argparse.ArgumentParser(); parser.add_argument('--installed',action='store_true'); args=parser.parse_args()
  load_local_env(); d=os.environ.get('PDC_STAGING_DIRECT_DATABASE_URL') or os.environ.get('PDC_STAGING_DATABASE_URL'); assert_staging_target(database_url=d)
  s=M.read_text(); body=s.replace('begin;','',1).rsplit('commit;',1)[0]; conn=psycopg.connect(d); report={}
  try:
@@ -24,7 +25,7 @@ def main():
    c.execute("select v.id,to_jsonb(v),to_jsonb(a),to_jsonb(r) from public.navision_backend_records r join public.navision_board_activations a on a.backend_record_id=r.id join public.vehicles v on v.id=a.canonical_vehicle_id where r.is_current and public.normalize_vehicle_stock_number(r.normalized_data->>'batch')='13045140'")
    vehicle_id,vehicle_before,activation_before,backend_before=c.fetchone()
    baseline=(one(c,'select count(*) from public.workshop_bookings'),one(c,'select count(*) from public.vehicle_parts_updates'),one(c,'select count(*) from public.navision_board_activations'),one(c,'select count(*) from public.pdc_ai_intake_history'),one(c,'select revision from public.pdc_email_vehicle_revision where singleton'))
-   c.execute(body)
+   if not args.installed: c.execute(body)
    claims=json.dumps({'sub':str(actor[0]),'email':actor[1],'role':'authenticated'}); c.execute('set local role authenticated'); c.execute("select set_config('request.jwt.claims',%s,true)",(claims,))
    key='pdc-email-import-qa145'+uuid.uuid4().hex
    vehicle={'cancelled':False,'conflicts':[],'customer_name':'FULTON HOGAN INDUSTRIES PTY LTD','eta_to_kewdale':None,'job_card_number':'J139125431','registration':None,'stock_numbers':['13045140'],'toyota_order_number':None,'vehicle_description':'Retained authenticated evidence','vins':['MR0REBHV100548367']}
@@ -50,7 +51,7 @@ def main():
    report={'ok':True,'transaction':'rolled_back','stock':'13045140','jc':'J139125431','receipt':1,'operation_lines':16,'work_items':4,'fitting':True,'electrical':True,'tint':True,'parts_normalized_to_PARTS':True,'existing_vehicle_only':True,'activation_unchanged':True,'backend_unchanged':True,'no_booking':True,'no_parts_side_write':True,'no_ai_mutation':True,'replay_idempotent':True,'realtime_revision_advanced':rev_after>revision_before}
    conn.rollback()
   with conn.cursor() as c:
-   if one(c,"select exists(select 1 from supabase_migrations.schema_migrations where version='145')"): raise RuntimeError('rollback leaked ledger')
+   if one(c,"select exists(select 1 from supabase_migrations.schema_migrations where version='145')") is not args.installed: raise RuntimeError('ledger state mismatch after rollback')
    if one(c,"select count(*) from public.pdc_authenticated_email_import_receipts where source_hash=%s",(source,))!=0: raise RuntimeError('rollback leaked receipt')
   conn.rollback(); report['rollback_verified']=True
  finally: conn.close()
