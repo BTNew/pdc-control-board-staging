@@ -62,7 +62,7 @@ def main():
    conn.rollback()
   with conn.cursor() as c:
    if one(c,"select exists(select 1 from supabase_migrations.schema_migrations where version='145')") is not (args.installed or args.candidate_146): raise RuntimeError('Migration 145 ledger state mismatch after rollback')
-   if one(c,"select exists(select 1 from supabase_migrations.schema_migrations where version='146')"): raise RuntimeError('Migration 146 rollback leaked ledger')
+   if one(c,"select exists(select 1 from supabase_migrations.schema_migrations where version='146')") is not args.installed: raise RuntimeError('Migration 146 ledger state mismatch after rollback')
    if one(c,"select count(*) from public.pdc_authenticated_email_import_receipts where source_hash=%s",(source,))!=0: raise RuntimeError('rollback leaked receipt')
   conn.rollback(); report['rollback_verified']=True
  finally: conn.close()
