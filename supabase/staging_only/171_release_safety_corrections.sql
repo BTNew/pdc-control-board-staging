@@ -422,10 +422,19 @@ grant execute on function public.process_pdc_email_communication(uuid,text,text,
 -- so Admin never waits for rows while holding bay locks: it fails retryably.
 create or replace function public.workshop_admin_lock_physical_bays(p_first uuid,p_second uuid default null)
 returns void language plpgsql security definer set search_path=pg_catalog,public as $admin_locks$
-declare v_bay uuid;
+declare v_bay uuid;v_technician uuid;
 begin
   for v_bay in select distinct x from unnest(array[p_first,p_second])x where x is not null order by x loop
     perform public.workshop_lock_resources(v_bay,null);
+  end loop;
+  for v_technician in
+    select distinct a.technician_id from public.workshop_booking_assignments a
+    join public.workshop_bookings b on b.id=a.booking_id
+    where a.released_at is null and b.deleted_at is null and b.bay_id in(p_first,coalesce(p_second,p_first))
+      and b.status in('queued','planned','started','stoppage')
+    order by a.technician_id
+  loop
+    perform public.workshop_lock_resources(null,v_technician);
   end loop;
   begin
     perform 1 from public.workshop_bookings b
