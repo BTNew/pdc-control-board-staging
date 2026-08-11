@@ -109,23 +109,32 @@ def validate_communication_request(request: Mapping[str, Any]) -> dict[str, Any]
     }
 
 
-def _communication_readback(data: dict[str, Any], expected_actions: list[dict[str, Any]]) -> dict[str, Any]:
+def _communication_readback(data: dict[str, Any], checked: dict[str, Any]) -> dict[str, Any]:
+    expected_actions = checked["extraction"]["actions"]
     required = {"receipt_id", "intake_id", "attachment_id", "vehicle_id", "action_count", "actions", "booking_created", "location_changed"}
     if set(data) != required:
         raise RuntimeContractError("communication readback keys are invalid")
     receipt_id = _uuid(data["receipt_id"], "readback receipt_id")
     vehicle_id = _uuid(data["vehicle_id"], "readback vehicle_id")
-    _uuid(data["intake_id"], "readback intake_id")
-    _uuid(data["attachment_id"], "readback attachment_id")
+    if _uuid(data["intake_id"], "readback intake_id") != checked["intake_id"]:
+        raise RuntimeContractError("communication readback intake_id differs from request")
+    if _uuid(data["attachment_id"], "readback attachment_id") != checked["provider"]["attachment_id"]:
+        raise RuntimeContractError("communication readback attachment_id differs from request")
     if data["booking_created"] is not False or data["location_changed"] is not False:
         raise RuntimeContractError("communication readback violates no-booking/location invariant")
     actions = data["actions"]
-    if data["action_count"] != len(expected_actions) or not isinstance(actions, list) or len(actions) != len(expected_actions):
+    count = data["action_count"]
+    if isinstance(count, bool) or not isinstance(count, int) or count != len(expected_actions) or not isinstance(actions, list) or len(actions) != len(expected_actions):
         raise RuntimeContractError("communication readback action count is invalid")
     for expected, observed_value in zip(expected_actions, actions):
         observed = _object(observed_value, "communication readback action")
         _exact_keys(observed, {"source_action_no", "action_type", "evidence", "requested_action", "before_data", "after_data"}, "communication readback action")
-        if observed["source_action_no"] != expected["source_action_no"] or observed["action_type"] != expected["action_type"] or observed["evidence"] != expected["evidence"] or observed["requested_action"] != expected:
+        if (isinstance(observed["source_action_no"], bool)
+                or not isinstance(observed["source_action_no"], int)
+                or observed["source_action_no"] != expected["source_action_no"]
+                or observed["action_type"] != expected["action_type"]
+                or observed["evidence"] != expected["evidence"]
+                or observed["requested_action"] != expected):
             raise RuntimeContractError("communication readback action differs from request")
         if observed["before_data"] is not None and not isinstance(observed["before_data"], dict):
             raise RuntimeContractError("communication readback before_data is invalid")
@@ -154,7 +163,7 @@ def execute_communication_request(service_client: RpcClient, actor_client: RpcCl
     if not isinstance(processed, dict) or processed.get("ok") is not True:
         return _failure(processed, "operational_processing", "processing_failed")
     code, data = _success_envelope(processed, SUCCESS_COMMUNICATION_CODES, "communication processing")
-    readback = _communication_readback(data, checked["extraction"]["actions"])
+    readback = _communication_readback(data, checked)
     return {"ok": True, "phase": "complete", "code": code, **readback}
 
 

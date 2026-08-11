@@ -286,34 +286,134 @@ def _attestation_success(result: Any) -> str:
 
 
 def _failure(result: Any, phase: str, fallback: str) -> dict[str, Any]:
-    code = result.get("code") if isinstance(result, dict) and isinstance(result.get("code"), str) else fallback
-    return {"ok": False, "phase": phase, "code": code[:120]}
+    # A response body is remote-controlled even when it is valid JSON.  Keep the
+    # public runtime result to local, phase-specific enums only.
+    return {"ok": False, "phase": phase, "code": fallback}
 
 
-def _jobcard_readback(data: dict[str, Any], expected_count: int, code: str) -> dict[str, Any]:
-    receipt_id = _uuid(data.get("receipt_id"), "readback receipt_id")
-    vehicle_id = _uuid(data.get("vehicle_id"), "readback vehicle_id")
-    count = data.get("operation_count")
+def _positive_int(value: Any, label: str, maximum: int = 2_147_483_647) -> int:
+    if isinstance(value, bool) or not isinstance(value, int) or not 1 <= value <= maximum:
+        raise RuntimeContractError(f"{label} is invalid")
+    return value
+
+
+def _decimal(value: Any, label: str) -> Decimal:
+    if isinstance(value, bool) or not isinstance(value, (int, float, Decimal)) or (isinstance(value, float) and not math.isfinite(value)):
+        raise RuntimeContractError(f"{label} must be a finite number")
+    try:
+        parsed = Decimal(str(value))
+        if not parsed.is_finite() or parsed != parsed.quantize(Decimal("0.01")):
+            raise RuntimeContractError(f"{label} has invalid precision")
+    except InvalidOperation as exc:
+        raise RuntimeContractError(f"{label} is invalid") from exc
+    if not Decimal("0") < parsed <= Decimal("99999999.99"):
+        raise RuntimeContractError(f"{label} is outside bounds")
+    return parsed
+
+
+def _receipt_operation_lines(
+    value: Any, expected_lines: list[dict[str, Any]], *, canonical: bool,
+) -> tuple[list[dict[str, Any]], Decimal]:
+    if not isinstance(value, list) or len(value) != len(expected_lines):
+        raise RuntimeContractError("job-card readback operation_lines are invalid")
+    total = Decimal("0")
+    line_ids: set[str] = set()
+    base_keys = {"source_row_no", "operation_no", "work_key", "description", "estimated_hours"}
+    expected_keys = base_keys | ({"operation_line_id", "estimated_hours_source"} if canonical else set())
+    for index, (observed_value, expected) in enumerate(zip(value, expected_lines), 1):
+        observed = _object(observed_value, f"readback operation_lines[{index}]")
+        _exact_keys(observed, expected_keys, "readback operation line")
+        for key in ("source_row_no", "operation_no", "work_key", "description"):
+            if observed[key] != expected[key] or type(observed[key]) is not type(expected[key]):
+                raise RuntimeContractError("job-card readback operation line differs from request")
+        observed_hours = _decimal(observed["estimated_hours"], "readback operation estimated_hours")
+        if observed_hours != _decimal(expected["estimated_hours"], "request operation estimated_hours"):
+            raise RuntimeContractError("job-card readback operation hours differ from request")
+        total += observed_hours
+        if canonical:
+            line_id = _uuid(observed["operation_line_id"], "canonical operation line ID")
+            if line_id in line_ids or observed["estimated_hours_source"] != "job_card":
+                raise RuntimeContractError("canonical operation line metadata is invalid")
+            line_ids.add(line_id)
+    return value, total
+
+
+def _jobcard_readback(data: dict[str, Any], checked: dict[str, Any], code: str) -> dict[str, Any]:
+    extraction = checked["extraction"]
+    expected_lines = extraction["operation_lines"]
+    expected_count = len(expected_lines)
+    canonical_keys = {
+        "receipt_id", "intake_id", "attachment_id", "parent_source_hash", "attachment_source_hash",
+        "attachment_size_bytes", "attachment_content_type", "source_uid", "proposal_id",
+        "canonical_import_receipt_id", "vehicle_id", "vehicle_version", "backend_record_id",
+        "backend_record_version", "job_card_number", "requested_payload_sha256", "operation_sha256",
+        "operation_count", "estimated_hours_sum", "canonical_operation_line_ids", "operation_lines",
+        "canonical_import_response", "booking_created", "completion_created", "location_scheduled",
+    }
+    non_navision_keys = {
+        "receipt_id", "vehicle_id", "vehicle_created", "operation_count", "operation_lines",
+        "initial_location", "booking_created", "completion_created",
+    }
+    _exact_keys(data, canonical_keys if code == "jobcard_attachment_receipt" else non_navision_keys, "job-card readback")
+    receipt_id = _uuid(data["receipt_id"], "readback receipt_id")
+    vehicle_id = _uuid(data["vehicle_id"], "readback vehicle_id")
+    count = data["operation_count"]
     if isinstance(count, bool) or not isinstance(count, int) or count != expected_count:
         raise RuntimeContractError("job-card readback operation_count does not match request")
-    if code == "non_navision_jobcard_receipt" and type(data.get("vehicle_created")) is not bool:
-        raise RuntimeContractError("non-Navision readback vehicle_created is invalid")
-    lines = data.get("operation_lines")
-    if not isinstance(lines, list) or len(lines) != expected_count:
-        raise RuntimeContractError("job-card readback operation_lines are invalid")
-    if data.get("booking_created") is not False or data.get("completion_created") is not False:
+    _, operation_sum = _receipt_operation_lines(data["operation_lines"], expected_lines, canonical=code == "jobcard_attachment_receipt")
+    if data["booking_created"] is not False or data["completion_created"] is not False:
         raise RuntimeContractError("job-card readback violates no-booking/completion invariant")
-    hours = data.get("estimated_hours_sum")
+
+    hours: int | float | None = None
     if code == "jobcard_attachment_receipt":
-        if data.get("location_scheduled") is not False:
+        if _uuid(data["intake_id"], "readback intake_id") != checked["intake_id"]:
+            raise RuntimeContractError("job-card readback intake_id differs from request")
+        if _uuid(data["attachment_id"], "readback attachment_id") != checked["provider"]["attachment_id"]:
+            raise RuntimeContractError("job-card readback attachment_id differs from request")
+        if _hex64(data["parent_source_hash"], "readback parent_source_hash") != checked["source_hash"]:
+            raise RuntimeContractError("job-card readback parent source hash differs from request")
+        if _hex64(data["attachment_source_hash"], "readback attachment_source_hash") != checked["attachment_hash"]:
+            raise RuntimeContractError("job-card readback attachment source hash differs from request")
+        _positive_int(data["attachment_size_bytes"], "readback attachment_size_bytes", 10_485_760)
+        _text(data["attachment_content_type"], "readback attachment_content_type", 1, 255)
+        _text(data["source_uid"], "readback source_uid", 1, 100)
+        for key in ("proposal_id", "canonical_import_receipt_id", "backend_record_id"):
+            _uuid(data[key], f"readback {key}")
+        _positive_int(data["vehicle_version"], "readback vehicle_version")
+        _positive_int(data["backend_record_version"], "readback backend_record_version")
+        if data["job_card_number"] != extraction["email_vehicle"]["job_card_number"]:
+            raise RuntimeContractError("job-card readback job_card_number differs from request")
+        _hex64(data["requested_payload_sha256"], "readback requested_payload_sha256")
+        _hex64(data["operation_sha256"], "readback operation_sha256")
+        canonical_response = data["canonical_import_response"]
+        _exact_keys(canonical_response, {
+            "observation", "vehicle_import", "operation_import", "booking_created",
+            "completion_created", "location_scheduled",
+        }, "job-card canonical import response")
+        if (not isinstance(canonical_response["observation"], dict)
+                or not isinstance(canonical_response["vehicle_import"], dict)
+                or not isinstance(canonical_response["operation_import"], dict)
+                or canonical_response["booking_created"] is not False
+                or canonical_response["completion_created"] is not False
+                or canonical_response["location_scheduled"] is not False):
+            raise RuntimeContractError("job-card canonical import response is invalid")
+        if data["location_scheduled"] is not False:
             raise RuntimeContractError("job-card readback violates no-location-scheduling invariant")
-        line_ids = data.get("canonical_operation_line_ids")
-        if not isinstance(line_ids, list) or len(line_ids) != expected_count:
+        ids = data["canonical_operation_line_ids"]
+        if not isinstance(ids, list) or len(ids) != expected_count:
             raise RuntimeContractError("job-card canonical operation IDs are invalid")
-        for line_id in line_ids:
-            _uuid(line_id, "canonical operation line ID")
-        if isinstance(hours, bool) or not isinstance(hours, (int, float)) or not math.isfinite(float(hours)) or float(hours) <= 0:
-            raise RuntimeContractError("job-card readback estimated_hours_sum is invalid")
+        normalized_ids = [_uuid(item, "canonical operation line ID") for item in ids]
+        if len(set(normalized_ids)) != expected_count or normalized_ids != [line["operation_line_id"] for line in data["operation_lines"]]:
+            raise RuntimeContractError("job-card canonical operation IDs differ from operation lines")
+        if _decimal(data["estimated_hours_sum"], "job-card readback estimated_hours_sum") != operation_sum:
+            raise RuntimeContractError("job-card readback estimated_hours_sum differs from operation rows")
+        hours = data["estimated_hours_sum"]
+    else:
+        if type(data["vehicle_created"]) is not bool:
+            raise RuntimeContractError("non-Navision readback vehicle_created is invalid")
+        expected_location = "PMB" if data["vehicle_created"] else None
+        if data["initial_location"] != expected_location:
+            raise RuntimeContractError("non-Navision readback initial_location is invalid")
     return {"receipt_id": receipt_id, "vehicle_id": vehicle_id, "operation_count": count, "estimated_hours_sum": hours}
 
 
@@ -335,9 +435,7 @@ def execute_jobcard_request(service_client: RpcClient, actor_client: RpcClient, 
     expected_success_code = "jobcard_attachment_receipt"
     if not isinstance(processed, dict) or processed.get("ok") is not True:
         code = processed.get("code") if isinstance(processed, dict) else None
-        vehicle = checked["extraction"]["email_vehicle"]
-        fallback = code == "backend_stock_not_found" or (code == "email_vehicle_not_exact_or_conflicted" and vehicle["stock_numbers"] == [] and len(vehicle["vins"]) == 1)
-        if not fallback:
+        if code != "backend_stock_not_found":
             return _failure(processed, "operational_processing", "processing_failed")
         processed = actor_client.rpc(NON_NAVISION_PROCESS_RPC, payload)
         expected_success_code = "non_navision_jobcard_receipt"
@@ -346,7 +444,7 @@ def execute_jobcard_request(service_client: RpcClient, actor_client: RpcClient, 
     code, data = _success_envelope(processed, SUCCESS_JOB_CARD_CODES, "job-card processing")
     if code != expected_success_code:
         raise RuntimeContractError("job-card processing returned a success code for the wrong RPC path")
-    readback = _jobcard_readback(data, len(checked["extraction"]["operation_lines"]), code)
+    readback = _jobcard_readback(data, checked, code)
     return {"ok": True, "phase": "complete", "attestation_code": attestation_code, "code": code, **readback}
 
 

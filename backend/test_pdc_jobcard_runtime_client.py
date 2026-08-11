@@ -41,14 +41,32 @@ def request_fixture():
 
 
 def canonical_data():
-    return {"receipt_id": RECEIPT_ID, "vehicle_id": VEHICLE_ID, "operation_count": 1,
-            "estimated_hours_sum": 1.5, "operation_lines": [{}], "canonical_operation_line_ids": [LINE_ID],
-            "booking_created": False, "completion_created": False, "location_scheduled": False}
+    return {
+        "receipt_id": RECEIPT_ID, "intake_id": INTAKE_ID, "attachment_id": ATTACHMENT_ID,
+        "parent_source_hash": HASH_A, "attachment_source_hash": HASH_B, "attachment_size_bytes": 123,
+        "attachment_content_type": "application/pdf", "source_uid": "source-1",
+        "proposal_id": "77777777-7777-4777-8777-777777777777",
+        "canonical_import_receipt_id": "88888888-8888-4888-8888-888888888888",
+        "vehicle_id": VEHICLE_ID, "vehicle_version": 2,
+        "backend_record_id": "99999999-9999-4999-8999-999999999999", "backend_record_version": 3,
+        "job_card_number": "JC-SYNTHETIC-1", "requested_payload_sha256": HASH_C,
+        "operation_sha256": "d" * 64, "operation_count": 1, "estimated_hours_sum": 1.5,
+        "canonical_operation_line_ids": [LINE_ID], "operation_lines": [{
+            "source_row_no": 1, "operation_no": "OP1", "operation_line_id": LINE_ID,
+            "work_key": "fitting", "description": "Synthetic fitting operation",
+            "estimated_hours": 1.5, "estimated_hours_source": "job_card",
+        }], "canonical_import_response": {
+            "observation": {}, "vehicle_import": {}, "operation_import": {},
+            "booking_created": False, "completion_created": False, "location_scheduled": False,
+        }, "booking_created": False,
+        "completion_created": False, "location_scheduled": False,
+    }
 
 
 def non_navision_data():
     return {"receipt_id": RECEIPT_ID, "vehicle_id": VEHICLE_ID, "operation_count": 1,
-            "vehicle_created": True, "operation_lines": [{}], "booking_created": False, "completion_created": False}
+            "vehicle_created": True, "operation_lines": [{"source_row_no": 1, "operation_no": "OP1", "work_key": "fitting", "description": "Synthetic fitting operation", "estimated_hours": 1.5}],
+            "initial_location": "PMB", "booking_created": False, "completion_created": False}
 
 
 def attestation():
@@ -99,6 +117,64 @@ class RuntimeClientTests(unittest.TestCase):
         )
         result = execute_jobcard_request(service, actor, request_fixture())
         self.assertFalse(result["ok"]); self.assertEqual(len(calls), 2)
+
+    def test_vin_only_conflict_never_uses_non_navision_fallback(self):
+        request = request_fixture()
+        request["extraction"]["email_vehicle"]["stock_numbers"] = []
+        request["extraction"]["email_vehicle"]["vins"] = ["JH4TB2H26CC000000"]
+        service, actor, calls = clients(
+            [attestation()],
+            [{"ok": False, "code": "email_vehicle_not_exact_or_conflicted", "data": {}}],
+        )
+        result = execute_jobcard_request(service, actor, request)
+        self.assertEqual(result, {"ok": False, "phase": "operational_processing", "code": "processing_failed"})
+        self.assertEqual([name for _, name, _ in calls], [ATTEST_RPC, PROCESS_RPC])
+
+    def test_remote_failure_codes_are_never_relayed(self):
+        for remote, expected in (
+            ("attacker_controlled_remote_detail", "attestation_failed"),
+            ("sql_error_users_password", "processing_failed"),
+        ):
+            with self.subTest(remote=remote):
+                service_replies = [{"ok": False, "code": remote, "data": {}}] if expected == "attestation_failed" else [attestation()]
+                actor_replies = [] if expected == "attestation_failed" else [{"ok": False, "code": remote, "data": {}}]
+                service, actor, _ = clients(service_replies, actor_replies)
+                result = execute_jobcard_request(service, actor, request_fixture())
+                self.assertEqual(result["code"], expected)
+                self.assertNotIn(remote, json.dumps(result))
+
+    def test_canonical_receipt_is_exact_and_request_bound(self):
+        mutations = []
+        for key, value in (("intake_id", ATTACHMENT_ID), ("attachment_id", INTAKE_ID),
+                           ("parent_source_hash", HASH_B), ("attachment_source_hash", HASH_A),
+                           ("job_card_number", "OTHER")):
+            data = canonical_data(); data[key] = value; mutations.append(data)
+        data = canonical_data(); data["unexpected"] = True; mutations.append(data)
+        data = canonical_data(); data["operation_lines"][0]["description"] = "tampered"; mutations.append(data)
+        data = canonical_data(); data["operation_lines"][0]["operation_line_id"] = "77777777-7777-4777-8777-777777777777"; mutations.append(data)
+        data = canonical_data(); data["estimated_hours_sum"] = 1.51; mutations.append(data)
+        data = canonical_data(); data["operation_count"] = True; mutations.append(data)
+        for data in mutations:
+            with self.subTest(data=data):
+                service, actor, _ = clients([attestation()], [{"ok": True, "code": "jobcard_attachment_receipt", "data": data}])
+                with self.assertRaises(RuntimeContractError):
+                    execute_jobcard_request(service, actor, request_fixture())
+
+    def test_non_navision_receipt_is_exact_and_matches_operation_rows(self):
+        mutations = []
+        data = non_navision_data(); data["unexpected"] = True; mutations.append(data)
+        data = non_navision_data(); data["operation_lines"][0]["source_row_no"] = 2; mutations.append(data)
+        data = non_navision_data(); data["operation_lines"][0]["estimated_hours"] = 1.51; mutations.append(data)
+        data = non_navision_data(); data["initial_location"] = None; mutations.append(data)
+        data = non_navision_data(); data["operation_count"] = True; mutations.append(data)
+        for data in mutations:
+            with self.subTest(data=data):
+                service, actor, _ = clients([attestation()], [
+                    {"ok": False, "code": "backend_stock_not_found", "data": {}},
+                    {"ok": True, "code": "non_navision_jobcard_receipt", "data": data},
+                ])
+                with self.assertRaises(RuntimeContractError):
+                    execute_jobcard_request(service, actor, request_fixture())
 
     def test_invalid_jobcard_shapes_make_zero_rpc_calls(self):
         cases = []

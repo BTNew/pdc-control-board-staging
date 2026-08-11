@@ -1,7 +1,14 @@
 import copy
+import io
+import json
+import sys
+import tempfile
 import unittest
+from pathlib import Path
+from unittest.mock import patch
 
 from backend.pdc_communication_runtime_client import PROCESS_COMMUNICATION_RPC
+from backend import pdc_email_monitor_pipeline as pipeline
 from backend.pdc_email_monitor_pipeline import execute_retained_intake
 from backend.pdc_jobcard_runtime_client import ATTEST_RPC, PROCESS_RPC, RuntimeContractError, STAGING_URL
 
@@ -49,9 +56,22 @@ class Client:
             return {"ok": True, "code": "provider_observation_attested", "data": {"observation_id": O, "request_sha256": H}}
         if name == PROCESS_RPC:
             return {"ok": True, "code": "jobcard_attachment_receipt", "data": {
-                "receipt_id": R, "vehicle_id": V, "operation_count": 1, "estimated_hours_sum": 1.0,
-                "operation_lines": [{}], "canonical_operation_line_ids": [L], "booking_created": False,
-                "completion_created": False, "location_scheduled": False}}
+                "receipt_id": R, "intake_id": I, "attachment_id": A,
+                "parent_source_hash": H, "attachment_source_hash": D,
+                "attachment_size_bytes": 123, "attachment_content_type": "application/pdf",
+                "source_uid": "source-1", "proposal_id": "77777777-7777-4777-8777-777777777777",
+                "canonical_import_receipt_id": "88888888-8888-4888-8888-888888888888",
+                "vehicle_id": V, "vehicle_version": 1,
+                "backend_record_id": "99999999-9999-4999-8999-999999999999", "backend_record_version": 1,
+                "job_card_number": "J1", "requested_payload_sha256": H, "operation_sha256": D,
+                "operation_count": 1, "estimated_hours_sum": 1.0,
+                "operation_lines": [{"source_row_no": 1, "operation_no": "OP1", "operation_line_id": L,
+                    "work_key": "fitting", "description": "Fit accessory", "estimated_hours": 1.0,
+                    "estimated_hours_source": "job_card"}],
+                "canonical_operation_line_ids": [L], "canonical_import_response": {
+                    "observation": {}, "vehicle_import": {}, "operation_import": {},
+                    "booking_created": False, "completion_created": False, "location_scheduled": False},
+                "booking_created": False, "completion_created": False, "location_scheduled": False}}
         if name == PROCESS_COMMUNICATION_RPC:
             action = payload["p_extraction"]["actions"][0]
             return {"ok": True, "code": "communication_receipt", "data": {
@@ -81,6 +101,21 @@ class PipelineTests(unittest.TestCase):
             result = execute_retained_intake(service, actor, item)
             self.assertEqual(result["phase"], "review_required"); self.assertFalse(result["mutation_attempted"]); self.assertEqual(calls, [])
 
+    def test_conditional_and_future_phrases_require_review_before_any_rpc(self):
+        for text in (
+            "Stock 12657478. Parts complete subject to approval.",
+            "Stock 12657478. Parts complete later today.",
+            "Stock 12657478. Sublet booked 14/08/2026 upon manager sign-off.",
+            "Stock 12657478. Add UHF to this vehicle this afternoon.",
+        ):
+            with self.subTest(text=text):
+                service, actor, calls = self.clients(); item = base("communication"); item["retained_text"] = text
+                result = execute_retained_intake(service, actor, item)
+                self.assertEqual(result["phase"], "review_required")
+                self.assertFalse(result["mutation_attempted"])
+                self.assertFalse(result["message_sent"])
+                self.assertEqual(calls, [])
+
     def test_non_string_retained_text_is_rejected_with_zero_rpc(self):
         for value in (None, 0, ["Stock 12657478. Parts complete."], {"text": "Parts complete"}):
             service, actor, calls = self.clients(); item = base("communication"); item["retained_text"] = value
@@ -94,6 +129,27 @@ class PipelineTests(unittest.TestCase):
         item["extraction"]["authentication"] = item["provider"]["authentication"]
         result = execute_retained_intake(service, actor, item)
         self.assertTrue(result["ok"]); self.assertEqual([row[1] for row in calls], [ATTEST_RPC, PROCESS_RPC])
+
+    def test_one_shot_cli_uses_profile_owned_file_and_sanitized_output(self):
+        with tempfile.TemporaryDirectory() as directory:
+            request_path = Path(directory) / "retained.json"
+            request_path.write_text(json.dumps(base("communication") | {"retained_text": "Stock 12657478. Parts Complete."}), encoding="utf-8")
+            output = io.StringIO()
+            with patch.object(sys, "argv", ["pdc_email_monitor_pipeline", "--request", str(request_path)]), \
+                 patch.object(pipeline, "clients_from_environment", return_value=(object(), object())), \
+                 patch.object(pipeline, "execute_retained_intake", return_value={"ok": True, "phase": "complete", "code": "communication_receipt"}), \
+                 patch("sys.stdout", output):
+                self.assertEqual(pipeline.main(), 0)
+            self.assertEqual(json.loads(output.getvalue()), {"ok": True, "phase": "complete", "code": "communication_receipt"})
+
+    def test_one_shot_cli_invalid_json_is_fail_closed_and_sanitized(self):
+        with tempfile.TemporaryDirectory() as directory:
+            request_path = Path(directory) / "retained.json"
+            request_path.write_text("{not-json", encoding="utf-8")
+            output = io.StringIO()
+            with patch.object(sys, "argv", ["pdc_email_monitor_pipeline", "--request", str(request_path)]), patch("sys.stdout", output):
+                self.assertEqual(pipeline.main(), 1)
+            self.assertEqual(json.loads(output.getvalue()), {"ok": False, "phase": "preflight", "code": "request_json_invalid", "mutation_attempted": False})
 
 
 if __name__ == "__main__":

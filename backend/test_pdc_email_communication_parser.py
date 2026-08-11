@@ -102,6 +102,23 @@ class CommunicationParserTests(unittest.TestCase):
                 self.assertFalse(result["auto_applicable"])
                 self.assertEqual(result["actions"], [])
 
+    def test_conditional_and_future_constructions_fail_closed(self):
+        samples = (
+            "Stock 12657478. Parts complete subject to approval.",
+            "Stock 12657478. Parts complete pending manager approval.",
+            "Stock 12657478. Parts complete after approval.",
+            "Stock 12657478. Parts complete later today.",
+            "Stock 12657478. Parts complete this afternoon.",
+            "Stock 12657478. Parts complete by close of business.",
+            "Stock 12657478. Sublet booked 14/08/2026 upon approval.",
+            "Stock 12657478. Add UHF to this vehicle after sign-off.",
+        )
+        for text in samples:
+            with self.subTest(text=text):
+                result = parse_communication_actions(text)
+                self.assertFalse(result["auto_applicable"])
+                self.assertEqual(result["actions"], [])
+
     def test_remove_accessory_does_not_add(self):
         result = parse_communication_actions("Stock 12657478. Please remove and add long range tank to this job.")
         self.assertFalse(result["auto_applicable"])
