@@ -353,6 +353,14 @@ function buildVehicleLifecycleSharedActions(client, getAccessToken) {
       return result;
     },
 
+    purgeVehicleFromBoard({ vehicleId, expectedVersion, reason }) {
+      return rpc('purge_vehicle_from_board', {
+        p_vehicle_id: vehicleId,
+        p_expected_version: expectedVersion,
+        p_reason: reason ?? null,
+      });
+    },
+
     pmbTransferVehicle({ vehicleId, expectedVersion }) {
       return rpc('pmb_transfer_vehicle', {
         p_vehicle_id: vehicleId,
@@ -436,6 +444,7 @@ function describeVehicleLifecycleActionError(error = '') {
     request_failed: 'The change could not be saved. Please check your connection and try again.',
     missing_expected_version: 'This action is missing required version information and was not applied.',
     vehicle_not_found: 'This vehicle is no longer available in the shared database.',
+    administrator_required: 'Only an administrator can permanently remove a vehicle from every Board screen.',
     pmb_transfer_requires_yh_or_it: 'Only a vehicle currently at Yard Hold or In Transit can be moved into PMB from this action.',
     invalid_vehicle: 'The vehicle could not be identified, so no change was made.',
   };

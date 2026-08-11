@@ -1,0 +1,11 @@
+'use strict';
+const assert=require('assert');const fs=require('fs');
+const sql=fs.readFileSync('supabase/staging_only/154_monitor_updates_and_complete_board_purge.sql','utf8');
+const app=fs.readFileSync('app.js','utf8');const actions=fs.readFileSync('vehicle-lifecycle-actions.js','utf8');
+for(const token of ['workshop_sync_vehicle_stage_booking_duration','v_original_claims','v_initiator_uid','PDC_154_WORKSHOP_SYSTEM_ACTOR_MISSING','apply_pdc_authenticated_parts_completion','source_proposal_binding_mismatch','monotonic','purge_vehicle_from_board','purge_all_staging_board_vehicles','REMOVE ALL STAGING BOARD VEHICLES FOR BULK UPLOAD TEST','immutable_evidence_retained'])assert(sql.includes(token),`Migration154 missing ${token}`);
+assert(sql.includes("r.role='viewer'")&&sql.includes('pdc_monitor_stage_activation_writers'),'Monitor update contracts must retain exact approved Viewer/writer authority');
+assert(sql.includes('delete from public.workshop_bookings')&&sql.includes('delete from public.vehicle_work_items')&&sql.includes('delete from public.vehicle_parts_updates')&&sql.includes('delete from public.vehicle_workshop_line_adjustments'),'Complete Board purge must remove all mutable Workshop/Parts projections');
+assert(!sql.includes('delete from public.pdc_authenticated_email_import_receipts')&&!sql.includes('delete from public.pdc_authenticated_email_operation_lines')&&!sql.includes('delete from public.audit_events'),'Purge must retain immutable email and audit evidence');
+assert(actions.includes("rpc('purge_vehicle_from_board'"),'Lifecycle bridge must call complete purge RPC');
+assert(app.includes('Permanently remove')&&app.includes('Immutable source and audit evidence will be retained'),'UI must describe complete Board purge and evidence retention');
+console.log('Monitor update and complete Board purge contract passed');

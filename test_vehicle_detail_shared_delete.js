@@ -5,10 +5,11 @@ const remove=app.slice(app.indexOf('async function removeVehicle('),app.indexOf(
 assert(remove.includes("vehicle.__emailVehicleServerAuthoritative === true && vehicleLifecycleSharedModeActive()"),'Projected Vehicle Detail deletion must use shared lifecycle authority');
 assert(remove.includes("window.prompt('Reason for deleting this vehicle (required):'"),'Shared deletion must require an audited reason');
 assert(remove.includes('vehicleLifecycleSharedRef(vehicle)'),'Shared deletion must resolve canonical identity and fresh version');
-assert(remove.includes('window.__vehicleLifecycleActions.markVehicleDeleted({'),'Vehicle Detail deletion must dispatch the protected action');
+assert(remove.includes('window.__vehicleLifecycleActions.purgeVehicleFromBoard({'),'Vehicle Detail deletion must dispatch the complete Board purge action');
+assert(remove.includes('Immutable source and audit evidence will be retained'),'Complete removal warning must distinguish mutable Board state from retained evidence');
 assert(remove.includes('await refreshEmailVehicleLocations()'),'Deletion must refresh authoritative projected rows');
 const allowed=app.slice(app.indexOf('function vehicleLocationActionAllowed('),app.indexOf('function renderSharedNavisionVisibilityState('));
 assert(allowed.includes("operation === 'delete'")&&allowed.includes('markVehicleDeleted'),'Read-only projection guard must explicitly allow protected shared deletion');
-assert(actions.includes("rpc('mark_vehicle_deleted'"),'Lifecycle bridge must call mark_vehicle_deleted');
+assert(actions.includes("rpc('purge_vehicle_from_board'"),'Lifecycle bridge must call purge_vehicle_from_board');
 for(const key of ['p_vehicle_id: vehicleId','p_expected_version: expectedVersion','p_reason: reason ?? null'])assert(actions.includes(key),`Shared deletion payload missing ${key}`);
 console.log('Vehicle Detail shared deletion contracts passed');
