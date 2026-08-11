@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 """Rollback-only behavioral proof for PMB email Migrations 160/161."""
 from __future__ import annotations
-import hashlib,json,os,re,uuid
+import hashlib,json,os,re,sys,uuid
 from pathlib import Path
 import psycopg2
 from psycopg2.extras import Json
-from scripts.pdc_staging_runtime import assert_staging_target
 ROOT=Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:sys.path.insert(0,str(ROOT))
+from scripts.pdc_staging_runtime import assert_staging_target
 FILES=[ROOT/'supabase'/'staging_only'/'160_email_communication_board_actions.sql',ROOT/'supabase'/'staging_only'/'161_non_navision_jobcard_board_creation.sql']
 SENDER='craig.watson@broometoyota.com.au'
 AUTH={'dkim_aligned':True,'dmarc_aligned':True,'gmail_authentication_results':True,'sender_domain':'broometoyota.com.au','spf_aligned':True}
@@ -101,6 +102,18 @@ def main():
    ux=dict(vx);ux['canonical_attachment_id']=ua;ux['canonical_document_hash']=ud;ux['actions']=[{'source_action_no':'1','action_type':'parts_complete','evidence':'Parts Complete'}]
    claims(c,'authenticated',actor,email);rejected_without_delta("select public.process_pdc_email_communication(%s,%s,%s,%s,'pdc-monitor')",(ui,up,sha(json.dumps(ux,sort_keys=True)),Json(ux)),'communication_actions_invalid')
 
+   # Identifier claims are exact alphanumeric tokens, never substrings of a
+   # larger Stock, VIN or job-card token.
+   for retained,claimed in (
+    ('Stock 9123456789','12345678'),
+    ('VIN XJH4KA8260MC000001Y','JH4KA8260MC000001'),
+    ('Job Card XJC-COMM-000001Y','JC-COMM-000001'),
+   ):
+    c.execute("select public.pdc_email_exact_identifier_token_count(%s,%s)",(retained,claimed));assert c.fetchone()==(0,),(retained,claimed)
+   super_text=f'Stock 9{comm_stock}9. Parts Complete.'
+   sui,sua,sup,sud=evidence('superstring-stock',super_text);sux=dict(vx);sux['canonical_attachment_id']=sua;sux['canonical_document_hash']=sud
+   claims(c,'authenticated',actor,email);rejected_without_delta("select public.process_pdc_email_communication(%s,%s,%s,%s,'pdc-monitor')",(sui,sup,sha(json.dumps(sux,sort_keys=True)),Json(sux)),'communication_retained_text_mismatch')
+
    # A late Sublet failure must roll back earlier Parts/accessory mutations and receipts.
    fail_stock='94'+non_stock[2:]
    c.execute("""insert into public.vehicles(permanent_vehicle_id,stock_number,job_card_number,lifecycle_state,visible_on_board,current_location,pmb_stage,source_payload,created_by,updated_by) values(%s,%s,%s,'active',true,'PMB','UNALLOCATED','{}',%s,%s) returning id::text,version""",(f'FIX-FAIL-{seq}',fail_stock,f'JC-FAIL-{seq}',actor,actor));fail_vehicle,fail_version=c.fetchone()
@@ -137,6 +150,9 @@ def main():
    c.execute("""select count(*),bool_and(parser_contract='pmb-email-work-v2/operation-line-v1'),
      bool_and(source_start>=0 and source_end>source_start and length(retained_source_text)>0)
      from public.pdc_non_navision_jobcard_source_row_receipts where receipt_id=%s""",(ndat['receipt_id'],));assert c.fetchone()==(2,True,True)
+   c.execute("select source_start,source_end,retained_source_text from public.pdc_non_navision_jobcard_source_row_receipts where receipt_id=%s order by source_row_no",(ndat['receipt_id'],))
+   for source_start,source_end,retained_source_text in c.fetchall():
+    assert non_text[source_start:source_end]==retained_source_text,(source_start,source_end,retained_source_text)
 
    # Swapped tuple members and malformed scalars are rejected before every operational delta.
    si,sa,sp,sd=evidence('swapped-hours',f'Stock 95{non_stock[2:]}. Job Card JC-SWAP-{seq}. Fit long range tank 3.25 hours. Install UHF 1.5 hours.')

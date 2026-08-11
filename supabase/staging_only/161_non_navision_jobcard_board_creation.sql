@@ -209,12 +209,15 @@ begin
   return public.navision_backend_response(false,'non_navision_evidence_binding_failed');
  end if;
  v_retained:=public.pdc_email_normalized_clause(v_attachment.extracted_text);
- if position(lower(v_job) in v_retained)=0 or (v_stock is not null and position(lower(v_stock) in v_retained)=0)
-    or (v_vin is not null and position(lower(v_vin) in regexp_replace(v_retained,'[^a-z0-9]','','g'))=0)
+ if public.pdc_email_exact_identifier_token_count(v_attachment.extracted_text,v_job)<>1
+    or (v_stock is not null and public.pdc_email_exact_identifier_token_count(v_attachment.extracted_text,v_stock)<>1)
+    or (v_vin is not null and public.pdc_email_exact_identifier_token_count(v_attachment.extracted_text,v_vin)<>1)
     or exists(select 1 from jsonb_array_elements(v_lines) a where
       (select count(*) from regexp_split_to_table(v_attachment.extracted_text,
         E'[!?](?=\\s|$)|\\.(?=\\s|$)|\\r?\\n') clause
-       where public.pdc_email_jobcard_clause_matches(clause,a->>'description',public.pdc_email_safe_positive_numeric(a->'estimated_hours',999.99)))<>1) then
+       where public.pdc_email_jobcard_clause_matches(clause,a->>'description',public.pdc_email_safe_positive_numeric(a->'estimated_hours',999.99))
+         and (length(v_attachment.extracted_text)-length(replace(v_attachment.extracted_text,btrim(clause),'')))
+             /nullif(length(btrim(clause)),0)=1)<>1) then
   return public.navision_backend_response(false,'non_navision_retained_text_mismatch');
  end if;
  perform pg_advisory_xact_lock(hashtextextended('pdc-email-evidence-consumption:'||v_source,0));
@@ -311,7 +314,12 @@ begin
     strpos(v_attachment.extracted_text,btrim(clause))-1+length(btrim(clause))
   into strict v_source_clause,v_source_start,v_source_end
   from regexp_split_to_table(v_attachment.extracted_text,E'[!?](?=\\s|$)|\\.(?=\\s|$)|\\r?\\n') clause
-  where public.pdc_email_jobcard_clause_matches(clause,v_line->>'description',public.pdc_email_safe_positive_numeric(v_line->'estimated_hours',999.99));
+  where public.pdc_email_jobcard_clause_matches(clause,v_line->>'description',public.pdc_email_safe_positive_numeric(v_line->'estimated_hours',999.99))
+    and (length(v_attachment.extracted_text)-length(replace(v_attachment.extracted_text,btrim(clause),'')))
+        /nullif(length(btrim(clause)),0)=1;
+  if substring(v_attachment.extracted_text from v_source_start+1 for v_source_end-v_source_start) is distinct from v_source_clause then
+   raise exception 'PDC_161_SOURCE_COORDINATE_BINDING_FAILED:%',v_line->>'source_row_no' using errcode='40001';
+  end if;
   insert into public.pdc_authenticated_email_operation_lines(import_receipt_id,vehicle_id,source_hash,source_uid,operation_no,work_key,description,operation_fingerprint,
    estimated_hours,estimated_hours_source,job_card_number,source_row_no,source_contract)
   values(v_import.receipt_id,v_vehicle.id,v_source,v_source_uid,v_line->>'operation_no',v_work_key,v_line->>'description',v_fingerprint,

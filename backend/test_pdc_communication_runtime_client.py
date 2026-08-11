@@ -1,4 +1,5 @@
 import copy
+import hashlib
 import unittest
 
 from backend.pdc_communication_runtime_client import (
@@ -33,11 +34,14 @@ def fixture(action=None):
 def communication_data(request=None):
     request = request or fixture()
     action = request["extraction"]["actions"][0]
+    retained_clause = " ".join(action["evidence"].split()).strip(" .,;:-").lower()
     return {
         "receipt_id": "33333333-3333-4333-8333-333333333333", "intake_id": INTAKE_ID,
         "attachment_id": ATTACHMENT_ID, "vehicle_id": "44444444-4444-4444-8444-444444444444",
         "action_count": 1, "actions": [{
             "source_action_no": 1, "action_type": action["action_type"], "evidence": action["evidence"],
+            "retained_clause": retained_clause,
+            "retained_clause_sha256": hashlib.sha256(retained_clause.encode("utf-8")).hexdigest(),
             "requested_action": action, "before_data": None, "after_data": {},
         }], "booking_created": False, "location_changed": False,
     }
@@ -143,6 +147,16 @@ class CommunicationRuntimeClientTests(unittest.TestCase):
                 [attestation()], [reply]
             )
             with self.assertRaises(RuntimeContractError):
+                execute_communication_request(service, actor, fixture())
+
+    def test_producer_receipt_clause_and_hash_are_exact(self):
+        for field, value in (("retained_clause", "different"), ("retained_clause_sha256", "0" * 64)):
+            data = communication_data()
+            data["actions"][0][field] = value
+            service, actor, _ = clients(
+                [attestation()], [{"ok": True, "code": "communication_receipt", "data": data}]
+            )
+            with self.subTest(field=field), self.assertRaises(RuntimeContractError):
                 execute_communication_request(service, actor, fixture())
 
 

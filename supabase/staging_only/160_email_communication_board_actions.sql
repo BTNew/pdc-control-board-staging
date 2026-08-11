@@ -131,6 +131,15 @@ set search_path=pg_catalog as $safe$
 select lower(btrim(regexp_replace(p_value,'[[:space:]]+',' ','g'),' .,;:-')) $safe$;
 revoke all on function public.pdc_email_normalized_clause(text) from public,anon,authenticated,service_role;
 
+create function public.pdc_email_exact_identifier_token_count(p_text text,p_identifier text) returns integer
+language sql immutable strict set search_path=pg_catalog as $safe$
+select count(*)::integer
+from regexp_split_to_table(upper(p_text),'[^A-Z0-9/-]+') token
+where token<>''
+  and regexp_replace(token,'[^A-Z0-9]','','g')=regexp_replace(upper(btrim(p_identifier)),'[^A-Z0-9]','','g')
+$safe$;
+revoke all on function public.pdc_email_exact_identifier_token_count(text,text) from public,anon,authenticated,service_role;
+
 create function public.read_pdc_email_communication_receipt(p_receipt_id uuid)
 returns jsonb language plpgsql stable security definer set search_path=pg_catalog,public,extensions as $read$
 declare v_actor uuid:=auth.uid();v_receipt public.pdc_email_communication_receipts%rowtype;v_actions jsonb;begin
@@ -263,14 +272,14 @@ begin
     return public.navision_backend_response(false,'communication_evidence_binding_failed');
   end if;
   v_retained:=public.pdc_email_normalized_clause(v_attachment.extracted_text);
-  if (v_stock is not null and position(lower(v_stock) in v_retained)=0)
-     or (v_vin is not null and position(lower(v_vin) in regexp_replace(v_retained,'[^a-z0-9]','','g'))=0)
-     or (v_job is not null and position(lower(v_job) in v_retained)=0)
+  if (v_stock is not null and public.pdc_email_exact_identifier_token_count(v_attachment.extracted_text,v_stock)<>1)
+     or (v_vin is not null and public.pdc_email_exact_identifier_token_count(v_attachment.extracted_text,v_vin)<>1)
+     or (v_job is not null and public.pdc_email_exact_identifier_token_count(v_attachment.extracted_text,v_job)<>1)
      or exists(select 1 from jsonb_array_elements(v_actions) a where
        (select count(*) from regexp_split_to_table(v_attachment.extracted_text,
           E'[!?](?=\\s|$)|\\.(?=\\s|$)|\\r?\\n') clause
         where public.pdc_email_normalized_clause(clause)=public.pdc_email_normalized_clause(a->>'evidence'))<>1
-       or (a->>'evidence')~* '(^|[^[:alnum:]_])(if|when|once|unless|provided|assuming|can|could|would|should|will|shall|may|might|expected?|expecting|proposed?|proposal|planned?|intended?|due|tentative|provisional|perhaps|maybe|soon|tomorrow|pending|outstanding|waiting|cancelled?|not|no|never|without|remove|delete|incomplete)([^[:alnum:]_]|$)|[?]|(^|[^0-9])[0-9]{1,3}[[:space:]]*%'
+       or (a->>'evidence')~* '(^|[^[:alnum:]_])(if|when|once|unless|provided|assuming|can|could|would|should|will|shall|may|might|expected?|expecting|proposed?|proposal|planned?|intended?|due|tentative|provisional|perhaps|maybe|soon|tomorrow|pending|outstanding|waiting|after|following|upon|condition|approval|approv(e|es|ed|ing)|authorisation|authorization|sign[ -]?off|cancelled?|not|no|never|without|remove|delete|incomplete)([^[:alnum:]_]|$)|[?]|(^|[^0-9])[0-9]{1,3}[[:space:]]*%'
        or (a->>'action_type'='parts_complete' and not (a->>'evidence')~* '(^|[^a-z0-9_])parts?[^a-z0-9_].{0,60}(complete|completed|received)([^a-z0-9_]|$)')
        or (a->>'action_type'='set_sublet_booking_date' and (not (a->>'evidence')~* 'sub[ -]?let.{0,120}(booked|booking|scheduled)'
          or not (lower(a->>'evidence') like '%'||lower(a->>'booking_date')||'%'

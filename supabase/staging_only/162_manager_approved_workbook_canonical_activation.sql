@@ -378,13 +378,8 @@ begin
  if not found then return public.navision_backend_response(false,'canonical_authorization_missing');end if;
  select * into pr from public.pdc_pmb_workbook_previews where preview_id=au.preview_id for share;
  if not found or au.workbook_sha256<>lower(btrim(coalesce(p_workbook_sha256,''))) or au.payload_sha256<>lower(btrim(coalesce(p_payload_sha256,'')))
-   or au.expected_activation_count<>p_expected_activation_count or au.expires_at<=clock_timestamp() then
-  return public.navision_backend_response(false,'canonical_apply_binding_mismatch_or_expired');end if;
- for m in select * from public.pdc_pmb_canonical_manager_approvals where preview_id=au.preview_id order by pair_id loop
-  perform pg_advisory_xact_lock(hashtextextended('pdc-pmb-canonical-pair:'||m.pair_id::text,0));
-  perform 1 from public.navision_backend_records where id=m.backend_record_id for update;
-  if m.target_vehicle_id is not null then perform pg_advisory_xact_lock(hashtextextended('pdc:board-purge:'||m.target_vehicle_id::text,0));perform 1 from public.vehicles where id=m.target_vehicle_id for update;end if;
- end loop;
+   or au.expected_activation_count<>p_expected_activation_count then
+  return public.navision_backend_response(false,'canonical_apply_binding_mismatch');end if;
  perform 1 from public.pdc_user_roles x where x.auth_user_id=uid and lower(x.email)=email and x.role='administrator'
    and x.active and x.account_status='approved' for share;
  if not found then return public.navision_backend_response(false,'administrator_required');end if;
@@ -392,6 +387,20 @@ begin
  if found then return public.navision_backend_response(true,'exact_canonical_apply_replay',jsonb_build_object('receipt_id',old.receipt_id,
   'receipt_hash',old.receipt_hash,'activated_pair_count',old.activated_pair_count,'vehicles_created',old.vehicles_created,
   'vehicles_reactivated',old.vehicles_reactivated,'repreview_required',true,'zero_add_replay',true));end if;
+ if au.expires_at<=clock_timestamp() then
+  return public.navision_backend_response(false,'canonical_authorization_expired');end if;
+ -- Close the empty-identity race before taking any row lock. These locks
+ -- conflict with every Navision/activation/vehicle/alias INSERT or UPDATE,
+ -- including writers that do not participate in the canonical advisory locks.
+ lock table public.navision_backend_records in share row exclusive mode;
+ lock table public.navision_board_activations in share row exclusive mode;
+ lock table public.vehicles in share row exclusive mode;
+ lock table public.vehicle_aliases in share row exclusive mode;
+ for m in select * from public.pdc_pmb_canonical_manager_approvals where preview_id=au.preview_id order by pair_id loop
+  perform pg_advisory_xact_lock(hashtextextended('pdc-pmb-canonical-pair:'||m.pair_id::text,0));
+  perform 1 from public.navision_backend_records where id=m.backend_record_id for update;
+  if m.target_vehicle_id is not null then perform pg_advisory_xact_lock(hashtextextended('pdc:board-purge:'||m.target_vehicle_id::text,0));perform 1 from public.vehicles where id=m.target_vehicle_id for update;end if;
+ end loop;
  select revision into rev from public.navision_backend_revision where singleton for update;
  if rev is distinct from au.backend_revision then return public.navision_backend_response(false,'backend_revision_conflict');end if;
  create temporary table if not exists pg_temp.pdc162_candidates(pair_id uuid primary key,manager_approval_id uuid,action text,backend_id uuid unique,

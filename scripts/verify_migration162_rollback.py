@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Explicit rollback-only schema/security proof for staging Migration162.
+"""Explicit rollback-only schema/security proof for staging Migrations160-162.
 
 This script never commits. It refuses to connect unless PDC_162_ROLLBACK_ONLY=YES,
-uses the shared structured staging-target guard, applies Migration162 inside one
+uses the shared structured staging-target guard, applies Migrations160-162 inside one
 outer transaction, checks its effective ACL/immutability/function contracts,
 rolls back, then proves from a fresh connection that no 162 objects/ledger row remain.
 It intentionally does not approve or activate any operational pair.
@@ -17,8 +17,14 @@ if str(ROOT) not in sys.path:sys.path.insert(0,str(ROOT))
 import psycopg2
 from scripts.pdc_staging_runtime import assert_staging_target
 
-MIGRATION=ROOT/'supabase'/'staging_only'/'162_manager_approved_workbook_canonical_activation.sql'
+MIGRATIONS=(
+ ROOT/'supabase'/'staging_only'/'160_email_communication_board_actions.sql',
+ ROOT/'supabase'/'staging_only'/'161_non_navision_jobcard_board_creation.sql',
+ ROOT/'supabase'/'staging_only'/'162_manager_approved_workbook_canonical_activation.sql',
+)
 TABLES=(
+ 'pdc_email_communication_receipts','pdc_email_communication_action_receipts','pdc_email_evidence_consumptions',
+ 'pdc_non_navision_jobcard_receipts','pdc_non_navision_jobcard_source_row_receipts',
  'pdc_pmb_canonical_manager_authorities','pdc_pmb_canonical_manager_approvals','pdc_pmb_canonical_admin_countersignatures',
  'pdc_pmb_canonical_apply_authorizations','pdc_pmb_canonical_apply_receipts','pdc_pmb_canonical_pair_receipts',
 )
@@ -42,13 +48,13 @@ def main()->int:
   raise SystemExit('Refusing: set PDC_162_ROLLBACK_ONLY=YES for explicit rollback-only execution')
  dsn=os.getenv('PDC_STAGING_DIRECT_DATABASE_URL') or os.getenv('PDC_STAGING_DATABASE_URL')
  assert_staging_target(database_url=dsn)
- sql=body(MIGRATION.read_text(encoding='utf-8'))
+ sources=[body(path.read_text(encoding='utf-8')) for path in MIGRATIONS]
  con=psycopg2.connect(dsn);con.autocommit=False
  try:
   with con.cursor() as cur:
-   cur.execute("select exists(select 1 from supabase_migrations.schema_migrations where version='162')")
-   if cur.fetchone()[0]:raise AssertionError('Migration162 is already applied; pre-deployment rollback proof is not applicable')
-   cur.execute(sql)
+   cur.execute("select count(*) from supabase_migrations.schema_migrations where version in ('160','161','162')")
+   if cur.fetchone()!=(0,):raise AssertionError('Migrations160-162 already partly applied; pre-deployment rollback proof is not applicable')
+   for source in sources:cur.execute(source)
    cur.execute("select name from supabase_migrations.schema_migrations where version='162'")
    assert cur.fetchone()==('manager_approved_workbook_canonical_activation',)
    for table in TABLES:
@@ -69,23 +75,51 @@ def main()->int:
    cur.execute("select pg_get_functiondef('public.apply_pdc_pmb_canonical_activations(uuid,text,text,integer,text)'::regprocedure)")
    definition=cur.fetchone()[0].lower()
    for marker in ('exact_canonical_apply_replay','backend_revision_conflict','canonical_candidate_drift',
-                  'canonical_approval_set_hash_conflict','repreview_required','migration157_apply_not_bypassed'):
+                  'canonical_approval_set_hash_conflict','repreview_required','migration157_apply_not_bypassed',
+                  'lock table public.navision_backend_records in share row exclusive mode',
+                  'lock table public.navision_board_activations in share row exclusive mode',
+                  'lock table public.vehicles in share row exclusive mode',
+                  'lock table public.vehicle_aliases in share row exclusive mode'):
     assert marker in definition,marker
+   assert definition.index('lock table public.navision_backend_records') < definition.index('pdc_pmb_workbook_canonical_candidate'),definition
+   # A second session cannot establish any competing canonical identity while
+   # Apply's complete identity-surface locks are held.
+   for table in ('navision_backend_records','navision_board_activations','vehicles','vehicle_aliases'):
+    cur.execute(f'lock table public.{table} in share row exclusive mode')
+   competing=psycopg2.connect(dsn);competing.autocommit=False
+   try:
+    with competing.cursor() as other:
+     other.execute("set local lock_timeout='500ms'")
+     for statement in (
+      "update public.navision_backend_records set updated_at=updated_at where id=(select id from public.navision_backend_records order by id limit 1)",
+      "update public.navision_board_activations set updated_at=updated_at where backend_record_id=(select backend_record_id from public.navision_board_activations order by backend_record_id limit 1)",
+      "update public.vehicles set updated_at=updated_at where id=(select id from public.vehicles order by id limit 1)",
+      "update public.vehicle_aliases set updated_at=updated_at where id=(select id from public.vehicle_aliases order by id limit 1)",
+     ):
+      try:
+       other.execute(statement)
+      except psycopg2.Error as exc:
+       assert exc.pgcode=='55P03',exc
+       competing.rollback();other.execute("set local lock_timeout='500ms'")
+      else:
+       raise AssertionError('competing identity writer was not blocked')
+   finally:
+    competing.rollback();competing.close()
   con.rollback()
  finally:
   con.rollback();con.close()
  fresh=psycopg2.connect(dsn);fresh.autocommit=True
  try:
   with fresh.cursor() as cur:
-   cur.execute("select exists(select 1 from supabase_migrations.schema_migrations where version='162')")
-   assert cur.fetchone()==(False,)
+   cur.execute("select count(*) from supabase_migrations.schema_migrations where version in ('160','161','162')")
+   assert cur.fetchone()==(0,)
    for table in TABLES:
     cur.execute("select to_regclass(%s)",(f'public.{table}',));assert cur.fetchone()==(None,),table
    for signature in FUNCTIONS:
     cur.execute("select to_regprocedure(%s)",(f'public.{signature}',));assert cur.fetchone()==(None,),signature
  finally:
   fresh.close()
- print({'ok':True,'mode':'rollback_only','migration':'162','ledger_restored_to':'161','created_objects_absent':True,
+ print({'ok':True,'mode':'rollback_only','migrations':'160-162','ledger_restored_to':'159','created_objects_absent':True,
         'direct_table_privileges_denied':True,'service_role_rpc_execute_denied':True,'authenticated_public_rpcs_present_in_transaction':True})
  return 0
 if __name__=='__main__':raise SystemExit(main())

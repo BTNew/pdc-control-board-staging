@@ -65,7 +65,9 @@ def canonical_data():
 
 def non_navision_data():
     return {"receipt_id": RECEIPT_ID, "vehicle_id": VEHICLE_ID, "operation_count": 1,
-            "vehicle_created": True, "operation_lines": [{"source_row_no": 1, "operation_no": "OP1", "work_key": "fitting", "description": "Synthetic fitting operation", "estimated_hours": 1.5}],
+            "vehicle_created": True, "operation_lines": [{"source_row_no": 1, "operation_no": "OP1", "work_key": "fitting", "description": "Synthetic fitting operation", "estimated_hours": 1.5,
+                "parser_contract": "pmb-email-work-v2/operation-line-v1", "source_start": 0, "source_end": 31,
+                "retained_source_text": "Synthetic fitting operation 1.5"}],
             "initial_location": "PMB", "booking_created": False, "completion_created": False}
 
 

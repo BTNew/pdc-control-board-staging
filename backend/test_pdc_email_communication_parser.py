@@ -112,6 +112,10 @@ class CommunicationParserTests(unittest.TestCase):
             "Stock 12657478. Parts complete by close of business.",
             "Stock 12657478. Sublet booked 14/08/2026 upon approval.",
             "Stock 12657478. Add UHF to this vehicle after sign-off.",
+            "Stock 12657478. Parts complete following manager approval.",
+            "Stock 12657478. Parts complete after the manager approves.",
+            "Stock 12657478. Parts complete following manager sign-off.",
+            "Stock 12657478. Parts complete on condition that QA approves.",
         )
         for text in samples:
             with self.subTest(text=text):

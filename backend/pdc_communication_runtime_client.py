@@ -2,6 +2,7 @@
 """Fail-closed two-authority runtime client for PMB communication actions."""
 from __future__ import annotations
 
+import hashlib
 import re
 from datetime import date
 from typing import Any, Mapping
@@ -128,13 +129,17 @@ def _communication_readback(data: dict[str, Any], checked: dict[str, Any]) -> di
         raise RuntimeContractError("communication readback action count is invalid")
     for expected, observed_value in zip(expected_actions, actions):
         observed = _object(observed_value, "communication readback action")
-        _exact_keys(observed, {"source_action_no", "action_type", "evidence", "requested_action", "before_data", "after_data"}, "communication readback action")
+        _exact_keys(observed, {"source_action_no", "action_type", "evidence", "retained_clause", "retained_clause_sha256", "requested_action", "before_data", "after_data"}, "communication readback action")
+        retained_clause = re.sub(r"\s+", " ", expected["evidence"]).strip(" .,;:-").lower()
+        retained_hash = hashlib.sha256(retained_clause.encode("utf-8")).hexdigest()
         if (isinstance(observed["source_action_no"], bool)
                 or not isinstance(observed["source_action_no"], int)
                 or observed["source_action_no"] != expected["source_action_no"]
                 or observed["action_type"] != expected["action_type"]
                 or observed["evidence"] != expected["evidence"]
-                or observed["requested_action"] != expected):
+                or observed["requested_action"] != expected
+                or observed["retained_clause"] != retained_clause
+                or observed["retained_clause_sha256"] != retained_hash):
             raise RuntimeContractError("communication readback action differs from request")
         if observed["before_data"] is not None and not isinstance(observed["before_data"], dict):
             raise RuntimeContractError("communication readback before_data is invalid")

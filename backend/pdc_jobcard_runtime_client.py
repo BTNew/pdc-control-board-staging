@@ -319,7 +319,10 @@ def _receipt_operation_lines(
     total = Decimal("0")
     line_ids: set[str] = set()
     base_keys = {"source_row_no", "operation_no", "work_key", "description", "estimated_hours"}
-    expected_keys = base_keys | ({"operation_line_id", "estimated_hours_source"} if canonical else set())
+    expected_keys = base_keys | (
+        {"operation_line_id", "estimated_hours_source"} if canonical else
+        {"parser_contract", "source_start", "source_end", "retained_source_text"}
+    )
     for index, (observed_value, expected) in enumerate(zip(value, expected_lines), 1):
         observed = _object(observed_value, f"readback operation_lines[{index}]")
         _exact_keys(observed, expected_keys, "readback operation line")
@@ -335,6 +338,14 @@ def _receipt_operation_lines(
             if line_id in line_ids or observed["estimated_hours_source"] != "job_card":
                 raise RuntimeContractError("canonical operation line metadata is invalid")
             line_ids.add(line_id)
+        else:
+            if observed["parser_contract"] != "pmb-email-work-v2/operation-line-v1":
+                raise RuntimeContractError("non-Navision operation parser contract is invalid")
+            start, end, retained = observed["source_start"], observed["source_end"], observed["retained_source_text"]
+            if (isinstance(start, bool) or not isinstance(start, int) or start < 0
+                    or isinstance(end, bool) or not isinstance(end, int) or end <= start
+                    or not isinstance(retained, str) or not retained.strip() or end - start != len(retained)):
+                raise RuntimeContractError("non-Navision operation source coordinates are invalid")
     return value, total
 
 

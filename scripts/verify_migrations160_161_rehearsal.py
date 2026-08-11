@@ -6,14 +6,16 @@ import hashlib
 import json
 import os
 import re
+import sys
 from pathlib import Path
 from typing import Any
 
 import psycopg2
 
-from scripts.pdc_staging_runtime import assert_staging_target
-
 ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+from scripts.pdc_staging_runtime import assert_staging_target
 FILES = [
     ROOT / "supabase" / "staging_only" / "160_email_communication_board_actions.sql",
     ROOT / "supabase" / "staging_only" / "161_non_navision_jobcard_board_creation.sql",
