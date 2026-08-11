@@ -1,5 +1,5 @@
-const APP_VERSION = '2026.08.11.22-operation-estimate-chips';
-const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.08.11.22-operation-estimate-chips';
+const APP_VERSION = '2026.08.11.23-operation-estimate-review-remediation';
+const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.08.11.23-operation-estimate-review-remediation';
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
 // constant intentionally names only the production ref, never the
