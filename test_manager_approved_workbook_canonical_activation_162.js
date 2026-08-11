@@ -100,7 +100,7 @@ assert(!apply.includes('job_card_number='),'Migration162 direct DML must not ass
 assert(!/grant execute on function public\.(?:manager_approve|administrator_countersign|authorize|apply)_pdc_pmb_canonical[^;]+to service_role/i.test(lower));
 assert.strictEqual(sha('supabase/staging_only/157_bounded_pmb_workbook_importer_review.sql'),'a2ad32471fdfb1104fa6f4d16f50d5bbcb441728de266f08a6a7afc9caeafaf5','Migration157 drift');
 assert.strictEqual(sha('supabase/staging_only/158_pmb_email_board_purge_reactivation.sql'),'0365d20d174fa496d552d6c50041bdbbd60ef59b13a250004c503bb6776b8836','Migration158 drift');
-assert.strictEqual(sha('supabase/staging_only/161_non_navision_jobcard_board_creation.sql'),'b2a447bd1412da545673713d97f3c67474bb6e8440e3db079ed96e66fa4ecc09','Migration161 drift');
+assert.strictEqual(sha('supabase/staging_only/161_non_navision_jobcard_board_creation.sql'),'19d680e7b9a44c1016c6062e58ad3d51be66ba75be2d0c2f7c82755f84daa513','Migration161 drift');
 const installer=fs.readFileSync(path.join(root,'scripts','apply_staging_migrations_160_162.py'),'utf8');
 [
  'report.get("artifact_sha256") != artifact_hash','report.get("artifact_size_bytes") != artifact.stat().st_size',

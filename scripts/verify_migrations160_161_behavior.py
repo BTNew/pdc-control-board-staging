@@ -183,7 +183,28 @@ def main():
    oldx=dict(nx);oldx['canonical_attachment_id']=old_a;oldx['canonical_document_hash']=old_d;oldx['email_vehicle']=dict(nx['email_vehicle']);oldx['email_vehicle']['job_card_number']=old_job;oldx['email_vehicle']['stock_numbers']=[old_stock]
    claims(c,'authenticated',actor,email);c.execute("select public.process_pdc_non_navision_jobcard(%s,%s,%s,%s,'pdc-monitor')",(old_i,old_p,sha('oldx'),Json(oldx)));oldr=c.fetchone()[0];assert oldr.get('ok') is False and oldr.get('code')=='non_navision_evidence_binding_failed',oldr
    c.execute("select count(*) from public.vehicles where stock_number_normalized=%s",(oldx['email_vehicle']['stock_numbers'][0],));assert c.fetchone()[0]==0
-   print(json.dumps({'ok':True,'mode':'rollback_behavior','communication_actions':3,'parts_complete':True,'sublet_date':'2026-08-21','accessory_hours':'1.00','atomic_failure_rollback':True,'canonical_navision_guard':True,'non_navision_created_at':'PMB','non_navision_operations':2,'replay_safe':True,'stale_replay_safe':True,'stale_rejected':True,'retained_text_binding':True,'complete_clause_binding':True,'compound_accessory_rejected':True,'importer_only_mutation':True,'duplicate_actions_rejected':True,'completed_work_protected':True,'identity_agreement':True,'cross_family_single_use':True,'operation_lines_immutable':True,'atomic_source_coordinates':True,'swapped_hours_rejected':True,'swapped_work_keys_rejected':True,'malformed_scalars_stable':True,'rejection_zero_deltas':True,'bookings_created':0},sort_keys=True))
+
+   # The identity-table locks acquired by the actual RPCs exclude uncooperative
+   # concurrent writers until this transaction completes.
+   competing=psycopg2.connect(dsn);competing.autocommit=False
+   try:
+    with competing.cursor() as other:
+     other.execute("set local lock_timeout='500ms'")
+     for statement in (
+      "update public.navision_backend_records set updated_at=updated_at where id=(select id from public.navision_backend_records order by id limit 1)",
+      "update public.navision_board_activations set updated_at=updated_at where backend_record_id=(select backend_record_id from public.navision_board_activations order by backend_record_id limit 1)",
+      "update public.vehicles set updated_at=updated_at where id=(select id from public.vehicles order by id limit 1)",
+      "update public.vehicle_aliases set updated_at=updated_at where id=(select id from public.vehicle_aliases order by id limit 1)",
+     ):
+      try:
+       other.execute(statement)
+       raise AssertionError(f'identity writer was not excluded: {statement}')
+      except psycopg2.Error as exc:
+       assert exc.pgcode=='55P03',(statement,exc.pgcode)
+       competing.rollback();other.execute("set local lock_timeout='500ms'")
+   finally:
+    competing.rollback();competing.close()
+   print(json.dumps({'ok':True,'mode':'rollback_behavior','communication_actions':3,'parts_complete':True,'sublet_date':'2026-08-21','accessory_hours':'1.00','atomic_failure_rollback':True,'canonical_navision_guard':True,'non_navision_created_at':'PMB','non_navision_operations':2,'replay_safe':True,'stale_replay_safe':True,'stale_rejected':True,'retained_text_binding':True,'complete_clause_binding':True,'compound_accessory_rejected':True,'importer_only_mutation':True,'duplicate_actions_rejected':True,'completed_work_protected':True,'identity_agreement':True,'identity_writer_exclusion':True,'cross_family_single_use':True,'operation_lines_immutable':True,'atomic_source_coordinates':True,'swapped_hours_rejected':True,'swapped_work_keys_rejected':True,'malformed_scalars_stable':True,'rejection_zero_deltas':True,'bookings_created':0},sort_keys=True))
   con.rollback();return 0
  finally:
   con.rollback();con.close()

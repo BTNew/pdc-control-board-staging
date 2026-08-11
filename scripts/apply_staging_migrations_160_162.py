@@ -20,8 +20,8 @@ from scripts.pdc_backup import deterministic_table_hash, export_table  # noqa: E
 from staging_env import assert_staging_target, load_local_env  # noqa: E402
 
 MIGRATIONS = (
-    ("160", "email_communication_board_actions", "b78f1b8b610eb9348954723b2c1e734ad401cc20cfa0b6204257b6f9317520bc"),
-    ("161", "non_navision_jobcard_board_creation", "b2a447bd1412da545673713d97f3c67474bb6e8440e3db079ed96e66fa4ecc09"),
+    ("160", "email_communication_board_actions", "f33da554b862794b08d077f0944677ecbec55edb4814d54784c9f08d84da6396"),
+    ("161", "non_navision_jobcard_board_creation", "19d680e7b9a44c1016c6062e58ad3d51be66ba75be2d0c2f7c82755f84daa513"),
     ("162", "manager_approved_workbook_canonical_activation", "09e80662b0f861a03b39544b9238334c6df6b0e9e9dd343b45501be0ceaada4b"),
 )
 TABLES = (

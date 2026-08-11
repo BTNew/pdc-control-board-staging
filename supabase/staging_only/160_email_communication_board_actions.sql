@@ -307,6 +307,13 @@ begin
     return public.navision_backend_response(false,'communication_evidence_already_consumed');
   end if;
 
+  -- Freeze every identity surface before computing Stock/VIN/job-card sets.
+  -- This closes empty-set and cross-identifier races with uncooperative writers.
+  lock table public.navision_backend_records in share row exclusive mode;
+  lock table public.navision_board_activations in share row exclusive mode;
+  lock table public.vehicles in share row exclusive mode;
+  lock table public.vehicle_aliases in share row exclusive mode;
+
   select coalesce(array_agg(distinct id order by id),'{}'::uuid[]) into v_stock_candidates from (
     select v.id from public.vehicles v where v.deleted_at is null and v_stock is not null and v.stock_number_normalized=v_stock
     union all select a.vehicle_id from public.vehicle_aliases a where a.active and v_stock is not null

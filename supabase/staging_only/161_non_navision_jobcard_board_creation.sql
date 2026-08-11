@@ -226,6 +226,11 @@ begin
   return public.navision_backend_response(false,'non_navision_evidence_already_consumed');
  end if;
  perform pg_advisory_xact_lock(hashtextextended('navision-backend-store',0));
+ -- Freeze Navision and operational identity surfaces before absence/pairing checks.
+ lock table public.navision_backend_records in share row exclusive mode;
+ lock table public.navision_board_activations in share row exclusive mode;
+ lock table public.vehicles in share row exclusive mode;
+ lock table public.vehicle_aliases in share row exclusive mode;
  select coalesce(array_agg(distinct b.id order by b.id),'{}'::uuid[]) into v_stock_navision
  from public.navision_backend_records b where b.source_system='microsoft_navision' and b.dealer_code in('14450','37047')
   and b.is_current and b.record_status='current' and v_stock is not null

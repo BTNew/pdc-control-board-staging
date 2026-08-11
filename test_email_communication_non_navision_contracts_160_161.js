@@ -18,7 +18,12 @@ for (const [name, sql] of [['160', comm], ['161', nonnav]]) {
   assert(/r\.role='importer'/.test(sql) && !/r\.role in\('viewer','importer'\)/.test(sql), `${name}: operational role must be Importer-only`);
   assert(/pdc_email_evidence_consumptions/.test(sql), `${name}: global evidence-consumption guard missing`);
   assert(/unique_violation/.test(sql), `${name}: replay/identity conflict handling missing`);
+  for (const table of ['navision_backend_records','navision_board_activations','vehicles','vehicle_aliases']) {
+    assert(sql.includes(`lock table public.${table} in share row exclusive mode`), `${name}: identity table lock missing for ${table}`);
+  }
 }
+assert(comm.indexOf('lock table public.vehicles in share row exclusive mode') < comm.indexOf('into v_job_candidates'), '160: identity locks must precede job-card candidate scan');
+assert(nonnav.indexOf('lock table public.vehicles in share row exclusive mode') < nonnav.indexOf('into v_job_navision'), '161: identity locks must precede Navision/job-card absence scan');
 
 assert(/parts_complete/.test(comm) && /parts_received/.test(comm), '160: Parts completion action missing');
 assert(/set_sublet_booking_date/.test(comm) && /update_pdc_sublet_booking_field/.test(comm), '160: Sublet date action missing');
