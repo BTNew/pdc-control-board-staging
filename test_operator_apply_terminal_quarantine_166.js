@@ -1,0 +1,20 @@
+#!/usr/bin/env node
+const fs=require('fs'),crypto=require('crypto');
+const assert=(v,m)=>{if(!v)throw new Error(m)};
+const sql=fs.readFileSync('supabase/staging_only/166_operator_apply_and_terminal_quarantine.sql','utf8');
+const sha=p=>crypto.createHash('sha256').update(fs.readFileSync(p)).digest('hex');
+assert(sha('supabase/staging_only/165_receipt_bound_retained_jobcard_classification.sql')==='a058fdca7940488a2f9099de00ddb2da0f094468a691b3d1d8a7e07bc32e249b','Migration165 drift');
+assert(/version='165' and name='receipt_bound_retained_jobcard_classification'/.test(sql),'exact predecessor missing');
+assert(/pdc_monitor_staging_guard\(\)/.test(sql)&&/version>'165'/.test(sql),'staging/newer guards missing');
+assert(/create or replace function public\.pdc_pmb_workbook_operator_scope/.test(sql),'private Operator scope missing');
+assert((sql.match(/pdc_pmb_workbook_operator_scope\(\)/g)||[]).length===4,'Apply must use Operator scope twice and retain definition/revoke');
+assert(/r\.role='operator'/.test(sql)&&/operator_required/.test(sql),'approved active Operator enforcement missing');
+assert(/stock_number='13056899' and classification in\('exact_current_stock'/.test(sql),'terminal exclusion must not block eligible batch');
+assert(/Freeze and validate every identity before the first operational mutation/.test(sql),'pre-DML identity freeze missing');
+assert(/uuid_generate_v5[\s\S]*pmb157:[\s\S]*select \* into v_vehicle from public\.vehicles where id=v_vehicle_id/.test(sql),'deterministic shared Stock vehicle reuse missing');
+assert(/source_system<>'pdc_pmb_workbook'[\s\S]*source_batch_id<>v_preview\.workbook_sha256/.test(sql),'shared vehicle provenance guard missing');
+for(const idx of ['vehicles_master_stock_unique_idx','vehicles_master_vin_unique_idx','vehicles_master_source_unique_idx']) assert(sql.includes(idx),idx+' rebuild missing');
+assert((sql.match(/deleted_at is null/g)||[]).length>=8,'live-row identity filters incomplete');
+assert(/pdc_authenticated_email_operation_lines/.test(sql)&&/on conflict\(source_hash,operation_no\) do nothing/.test(sql),'operation receipt replay contract missing');
+assert(/values\('166','operator_apply_and_terminal_quarantine'/.test(sql),'ledger entry missing');
+console.log('Migration166 Operator/apply/quarantine/shared-Stock contracts passed');
