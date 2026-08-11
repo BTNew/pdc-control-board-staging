@@ -37,10 +37,11 @@ revoke all on table public.pdc_pmb_canonical_manager_authorities from public,ano
 
 create or replace function public.configure_pdc_pmb_canonical_manager_authority(p_user_id uuid,p_active boolean,p_confirmation text)
 returns jsonb language plpgsql security definer set search_path=pg_catalog,public as $manager_authority$
-declare uid uuid:=auth.uid();email text:=lower(btrim(coalesce(auth.jwt()->>'email','')));x public.pdc_user_roles%rowtype;old jsonb;fresh jsonb;
+declare uid uuid:=auth.uid();email text:=lower(btrim(coalesce(auth.jwt()->>'email','')));x public.pdc_user_roles%rowtype;old jsonb;fresh jsonb;expected_confirmation text;
 begin
+ expected_confirmation:=case when p_active then 'AUTHORIZE WORKBOOK CANONICAL MANAGER' else 'REVOKE WORKBOOK CANONICAL MANAGER' end;
  if not public.pdc_monitor_staging_guard() or uid is null or p_user_id is null or p_active is null
-   or p_confirmation is distinct from case when p_active then 'AUTHORIZE WORKBOOK CANONICAL MANAGER' else 'REVOKE WORKBOOK CANONICAL MANAGER' end
+   or p_confirmation is distinct from expected_confirmation
  then return public.navision_backend_response(false,'invalid_manager_authority_request');end if;
  perform pg_advisory_xact_lock(hashtextextended('pdc162-manager:'||p_user_id::text,0));
  select r.* into x from public.pdc_user_roles r where r.auth_user_id=uid and lower(r.email)=email and r.active and r.account_status='approved' and r.role='administrator';
