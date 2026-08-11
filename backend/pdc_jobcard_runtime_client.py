@@ -21,6 +21,7 @@ from typing import Any, Mapping
 STAGING_PROJECT_REF = "cdsmnqxtyyoeoznmbidd"
 ATTEST_RPC = "attest_pdc_provider_email_observation"
 PROCESS_RPC = "process_email_intake_work"
+NON_NAVISION_PROCESS_RPC = "process_pdc_non_navision_jobcard"
 SUCCESS_ATTEST_CODES = {"provider_observation_attested", "provider_observation_already_attested"}
 HEX64 = set("0123456789abcdef")
 
@@ -159,15 +160,33 @@ def execute_jobcard_request(
     })
     if attested.get("ok") is not True or attested.get("code") not in SUCCESS_ATTEST_CODES:
         return {"ok": False, "phase": "provider_attestation", "code": str(attested.get("code") or "attestation_failed")}
-    processed = actor_client.rpc(PROCESS_RPC, {
+    process_payload = {
         "p_intake_id": checked["intake_id"],
         "p_expected_source_hash": checked["source_hash"],
         "p_extraction_hash": checked["extraction_hash"],
         "p_extraction": checked["extraction"],
         "p_actor": "pdc-monitor",
-    })
+    }
+    processed = actor_client.rpc(PROCESS_RPC, process_payload)
     if processed.get("ok") is not True:
-        return {"ok": False, "phase": "operational_processing", "code": str(processed.get("code") or "processing_failed")}
+        code = str(processed.get("code") or "processing_failed")
+        vehicle = checked["extraction"].get("email_vehicle")
+        stock_numbers = vehicle.get("stock_numbers") if isinstance(vehicle, dict) else None
+        vins = vehicle.get("vins") if isinstance(vehicle, dict) else None
+        job_card = str(vehicle.get("job_card_number") or "").strip() if isinstance(vehicle, dict) else ""
+        missing_stock_identity = (
+            code == "email_vehicle_not_exact_or_conflicted"
+            and stock_numbers == []
+            and isinstance(vins, list)
+            and len(vins) == 1
+            and bool(job_card)
+        )
+        if code == "backend_stock_not_found" or missing_stock_identity:
+            processed = actor_client.rpc(NON_NAVISION_PROCESS_RPC, process_payload)
+            if processed.get("ok") is not True:
+                return {"ok": False, "phase": "non_navision_processing", "code": str(processed.get("code") or "processing_failed")}
+        else:
+            return {"ok": False, "phase": "operational_processing", "code": code}
     data = processed.get("data") if isinstance(processed.get("data"), dict) else {}
     return {
         "ok": True,

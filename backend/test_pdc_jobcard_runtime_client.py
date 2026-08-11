@@ -5,6 +5,7 @@ from unittest.mock import patch
 try:
     from backend.pdc_jobcard_runtime_client import (
         ATTEST_RPC,
+        NON_NAVISION_PROCESS_RPC,
         PROCESS_RPC,
         RpcClient,
         RuntimeContractError,
@@ -14,6 +15,7 @@ try:
 except ModuleNotFoundError:
     from pdc_jobcard_runtime_client import (
         ATTEST_RPC,
+        NON_NAVISION_PROCESS_RPC,
         PROCESS_RPC,
         RpcClient,
         RuntimeContractError,
@@ -120,6 +122,38 @@ class RuntimeClientTests(unittest.TestCase):
         self.assertFalse(result["ok"])
         self.assertEqual(result["phase"], "provider_attestation")
         self.assertEqual(len(calls), 1)
+
+    def test_backend_stock_not_found_uses_guarded_non_navision_fallback(self):
+        calls = []
+        service = FakeClient("service_role", "service-secret", [
+            {"ok": True, "code": "provider_observation_attested"}
+        ], calls)
+        actor = FakeClient("authenticated_monitor", "actor-jwt", [
+            {"ok": False, "code": "backend_stock_not_found"},
+            {"ok": True, "code": "non_navision_jobcard_receipt", "data": {
+                "receipt_id": "receipt-nv", "vehicle_id": "vehicle-nv", "operation_count": 1,
+            }},
+        ], calls)
+        result = execute_jobcard_request(service, actor, request_fixture())
+        self.assertTrue(result["ok"])
+        self.assertEqual(
+            [(authority, name) for authority, name, _ in calls],
+            [("service_role", ATTEST_RPC), ("authenticated_monitor", PROCESS_RPC),
+             ("authenticated_monitor", NON_NAVISION_PROCESS_RPC)],
+        )
+
+    def test_unrelated_canonical_failure_does_not_fallback(self):
+        calls = []
+        service = FakeClient("service_role", "service-secret", [
+            {"ok": True, "code": "provider_observation_attested"}
+        ], calls)
+        actor = FakeClient("authenticated_monitor", "actor-jwt", [
+            {"ok": False, "code": "provider_observation_required_or_mismatch"}
+        ], calls)
+        result = execute_jobcard_request(service, actor, request_fixture())
+        self.assertFalse(result["ok"])
+        self.assertEqual(result["phase"], "operational_processing")
+        self.assertEqual(len(calls), 2)
 
     def test_shared_credential_is_rejected_before_any_rpc(self):
         calls = []
