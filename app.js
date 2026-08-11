@@ -1,5 +1,5 @@
-const APP_VERSION = '2026.08.11.30-workbook-workshop-release';
-const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.08.11.30-workbook-workshop-release';
+const APP_VERSION = '2026.08.12.32-sublet-calendar-return';
+const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.08.12.32-sublet-calendar-return';
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
 // constant intentionally names only the production ref, never the
@@ -20645,7 +20645,12 @@ function renderSubletCalendar(rows = []) {
     const outside = range.mode === 'month' && !date.startsWith(range.month);
     const events = eventsByDate.get(date) || [];
     const fullDate = subletCalendarDateLabel(date, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
-    const eventHtml = events.map(event => `<button class="sublet-calendar-event is-${escapeHtml(event.type)} ${event.overdue ? 'is-overdue' : ''} ${event.missingReturn ? 'is-missing-return' : ''}" type="button" draggable="true" data-sublet-calendar-event="${escapeHtml(`${event.type}:${event.mutationKey}:${date}`)}" data-sublet-calendar-drag-key="${escapeHtml(event.mutationKey)}" data-sublet-calendar-drag-type="${escapeHtml(event.type)}" data-sublet-calendar-drag-date="${escapeHtml(date)}" data-open-stock="${escapeHtml(event.key)}" aria-label="${escapeHtml(`${event.label}: stock ${event.stock}, ${event.provider}, ${fullDate}. Drag to move this date, or use the date field in List View.`)}"><span>${escapeHtml(event.label)} · ${escapeHtml(event.stock)}</span><strong>${escapeHtml(event.provider)}</strong><small>${escapeHtml([event.customer, event.vehicle].filter(Boolean).join(' · '))}</small>${event.overdue ? '<em>OVERDUE</em>' : (event.missingReturn ? '<em>Return date needed</em>' : '')}</button>`).join('');
+    const eventHtml = events.map(event => {
+      const returnCheck = event.type === 'due-back' && event.bookingId
+        ? `<label class="sublet-calendar-returned-check" title="Mark this Sublet booking returned"><input type="checkbox" data-sublet-calendar-returned="${escapeHtml(event.mutationKey)}" aria-label="Mark stock ${escapeHtml(event.stock)}, ${escapeHtml(event.provider)}, returned from Sublet"><span>Back</span></label>`
+        : '';
+      return `<article class="sublet-calendar-event is-${escapeHtml(event.type)} ${event.overdue ? 'is-overdue' : ''} ${event.missingReturn ? 'is-missing-return' : ''}" draggable="true" data-sublet-calendar-event="${escapeHtml(`${event.type}:${event.mutationKey}:${date}`)}" data-sublet-calendar-drag-key="${escapeHtml(event.mutationKey)}" data-sublet-calendar-drag-type="${escapeHtml(event.type)}" data-sublet-calendar-drag-date="${escapeHtml(date)}"><button class="sublet-calendar-event-open" type="button" data-open-stock="${escapeHtml(event.key)}" aria-label="${escapeHtml(`${event.label}: stock ${event.stock}, ${event.provider}, ${fullDate}. Drag the card to move this date, or use the date field in List View.`)}"><span>${escapeHtml(event.label)} · ${escapeHtml(event.stock)}</span><strong>${escapeHtml(event.provider)}</strong><small>${escapeHtml([event.customer, event.vehicle].filter(Boolean).join(' · '))}</small>${event.overdue ? '<em>OVERDUE</em>' : (event.missingReturn ? '<em>Return date needed</em>' : '')}</button>${returnCheck}</article>`;
+    }).join('');
     return `<section class="sublet-calendar-day ${outside ? 'is-outside-month' : ''} ${date === today ? 'is-today' : ''}" data-sublet-calendar-date="${escapeHtml(date)}" data-sublet-calendar-drop-date="${escapeHtml(date)}" role="gridcell" aria-label="${escapeHtml(fullDate)}"><header><span>${escapeHtml(subletCalendarDateLabel(date, range.mode === 'month' ? { day: 'numeric' } : { day: 'numeric', month: 'short' }))}</span>${date === today ? '<b>Today</b>' : ''}</header><div class="sublet-calendar-day-events">${eventHtml}</div></section>`;
   }).join('');
   const missingReturns = rows.filter(vehicle => plainDateValue(vehicle.pmbSubletBookingDate) && !plainDateValue(vehicle.pmbSubletExpectedReturnDate) && !plainDateValue(vehicle.pmbSubletActualReturnDate)).length;
@@ -20705,13 +20710,28 @@ async function dropSubletCalendarEvent(event, targetDate = '') {
 
 function bindSubletCalendarInteractions(host) {
   $$('[data-sublet-calendar-event]', host).forEach(card => {
-    card.addEventListener('dragstart', event => beginSubletCalendarDrag(event, card));
+    card.addEventListener('dragstart', event => {
+      if (event.target?.closest?.('[data-sublet-calendar-returned]')) {
+        event.preventDefault();
+        return;
+      }
+      beginSubletCalendarDrag(event, card);
+    });
     card.addEventListener('dragend', () => {
       app.subletCalendarDragData = null;
       card.classList.remove('is-dragging');
       clearSubletCalendarDragTargets(host);
     });
   });
+  $$('[data-sublet-calendar-returned]', host).forEach(input => input.addEventListener('change', async () => {
+    if (!input.checked || input.disabled) return;
+    input.disabled = true;
+    const saved = await setSubletReturned(input.dataset.subletCalendarReturned, true);
+    if (!saved) {
+      input.checked = false;
+      input.disabled = false;
+    }
+  }));
   $$('[data-sublet-calendar-drop-date]', host).forEach(day => {
     day.addEventListener('dragover', event => {
       if (!subletCalendarDragPayload(event)) return;
