@@ -1,10 +1,5 @@
 #!/usr/bin/env python
-"""Fail-closed staging client for retained PMB job cards.
-
-Migration 173 permits the explicitly enrolled Importer monitor to attest the
-same immutable, hash-bound provider evidence it imports.  A service-role
-attester remains supported, but is no longer required by this runtime.
-"""
+"""Fail-closed two-authority staging client for retained PMB job cards."""
 from __future__ import annotations
 
 import argparse
@@ -264,18 +259,10 @@ def validate_request(request: Mapping[str, Any]) -> dict[str, Any]:
 
 
 def _validate_authority_clients(service_client: RpcClient, actor_client: RpcClient) -> None:
-    service_authority = getattr(service_client, "authority", None)
-    if service_authority not in {"service_role", "authenticated_monitor"} or getattr(actor_client, "authority", None) != "authenticated_monitor":
-        raise RuntimeContractError("client authorities are invalid")
+    if getattr(service_client, "authority", None) != "service_role" or getattr(actor_client, "authority", None) != "authenticated_monitor":
+        raise RuntimeContractError("client authorities are not separated")
     if _strict_staging_url(getattr(service_client, "url", None)) != _strict_staging_url(getattr(actor_client, "url", None)):
         raise RuntimeContractError("client staging URLs differ")
-    if service_authority == "authenticated_monitor":
-        if (
-            getattr(service_client, "apikey", None) != getattr(actor_client, "apikey", None)
-            or getattr(service_client, "bearer", None) != getattr(actor_client, "bearer", None)
-        ):
-            raise RuntimeContractError("enrolled Importer attestation must use the same actor session")
-        return
     service_key = getattr(service_client, "bearer", None)
     if getattr(service_client, "apikey", None) != service_key:
         raise RuntimeContractError("service-role apikey and bearer must be the same service credential")
@@ -518,17 +505,15 @@ def clients_from_environment() -> tuple[RpcClient, RpcClient]:
     url = _strict_staging_url(os.environ.get("SUPABASE_URL", "").strip())
     service_key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "").strip()
     anon_key = os.environ.get("SUPABASE_ANON_KEY", "").strip()
-    if not anon_key:
-        raise RuntimeContractError("staging anon key is required")
-    if service_key and service_key == anon_key:
+    if not service_key or not anon_key:
+        raise RuntimeContractError("staging service-role and anon keys are required")
+    if service_key == anon_key:
         raise RuntimeContractError("service-role and anon credentials must be distinct")
     direct_actor = os.environ.get("PDC_MONITOR_ACCESS_TOKEN", "").strip()
     if direct_actor and direct_actor in {service_key, anon_key}:
         raise RuntimeContractError("service-role, anon and monitor actor credentials must be pairwise distinct")
     actor_token = _actor_access_token(url, anon_key)
-    actor_client = RpcClient(url, anon_key, actor_token, "authenticated_monitor")
-    attestation_client = RpcClient(url, service_key, service_key, "service_role") if service_key else actor_client
-    clients = (attestation_client, actor_client)
+    clients = (RpcClient(url, service_key, service_key, "service_role"), RpcClient(url, anon_key, actor_token, "authenticated_monitor"))
     _validate_authority_clients(*clients)
     return clients
 
