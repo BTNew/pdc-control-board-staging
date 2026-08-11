@@ -1,0 +1,13 @@
+const fs = require('fs');
+const vm = require('vm');
+const assert = require('assert');
+const source = fs.readFileSync('vehicle-location-lifecycle.js', 'utf8');
+const context = { window: {}, Intl, Date, Set, Object, String, Number, Boolean, JSON };
+vm.createContext(context);
+vm.runInContext("const exported = 'existing browser global'; const PDC_BUSINESS_TIME_ZONE = 'existing';", context);
+vm.runInContext(source, context, { filename: 'vehicle-location-lifecycle.js' });
+assert(context.window.PDC_VEHICLE_LOCATION_LIFECYCLE, 'browser export must exist');
+assert.strictEqual(context.window.PDC_VEHICLE_LOCATION_LIFECYCLE.PDC_BUSINESS_TIME_ZONE, 'Australia/Perth');
+vm.runInContext(source, context, { filename: 'vehicle-location-lifecycle-reload.js' });
+assert(context.window.PDC_VEHICLE_LOCATION_LIFECYCLE, 'cache-busted reload must remain safe');
+console.log('Vehicle location lifecycle browser module isolation passed');

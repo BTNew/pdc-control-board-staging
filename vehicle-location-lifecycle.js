@@ -1,5 +1,7 @@
 'use strict';
 
+(function vehicleLocationLifecycleModule() {
+
 const PDC_BUSINESS_TIME_ZONE = 'Australia/Perth';
 const YARD_HOLD_STATUSES = Object.freeze(new Set([
   'waiting pd2',
@@ -126,3 +128,4 @@ const exported = {
 };
 if (typeof module !== 'undefined' && module.exports) module.exports = exported;
 if (typeof window !== 'undefined') window.PDC_VEHICLE_LOCATION_LIFECYCLE = exported;
+})();
