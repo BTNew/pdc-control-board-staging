@@ -48,8 +48,12 @@ def infer_work_key(description: str) -> str:
         raise WorkbookContractError("placeholder operation has no workshop stage")
     if _contains_any(text, ("pte tray at cost", "sublet", "outsourc")):
         return "sublet"
-    if _contains_any(text, ("pre delivery", "predelivery", "pdi", "fill with fuel", "fuel fill")):
+    # PMB routing: PD/PDI/pre-delivery work belongs to Fitting. Pit is
+    # reserved for an explicit pit/weigh instruction, not generic inspection.
+    if "pit" in text.split() or _contains_any(text, ("pit and weigh", "pit weigh", "weighbridge")):
         return "pitInspection"
+    if _contains_any(text, ("pre delivery", "predelivery", "pdi", "fill with fuel", "fuel fill")):
+        return "fitting"
     if "tint" in text:
         return "tint"
     if _contains_any(text, ("4x4 bus", "bus 4x4", "4x4 conversion", "four by four conversion")):

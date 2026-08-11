@@ -7,8 +7,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parent / "scripts"))
 import pdc_bulk_workbook_adapter as adapter
 
 CASES = {
-    "Complete Pre-Delivery Inspection": "pitInspection",
-    "Fill with Fuel": "pitInspection",
+    "Complete Pre-Delivery Inspection": "fitting",
+    "PDI": "fitting",
+    "Fill with Fuel": "fitting",
+    "PIT AND WEIGH": "pitInspection",
     "Window Tint": "tint",
     "OME 3550Kg Nitro+ GVM Premium Includes Wheel Alignment": "hoist",
     "6x TYRES TO Bridgestone": "tyre",
