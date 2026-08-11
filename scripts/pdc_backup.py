@@ -257,6 +257,75 @@ TABLES = [
     "email_response_drafts",
     "import_runs",
     "label_print_events",
+    # Current staging-ledger operational/review/evidence relations. Keep the
+    # explicit allow-list exact: backup preflight compares it with live public
+    # tables before any import mutation.
+    "backup_runs",
+    "pdc_ai_intake_auto_activation_receipts",
+    "pdc_ai_intake_auto_backlog_receipts",
+    "pdc_attachment_atomic_contract",
+    "pdc_auditor_booking_work_relations",
+    "pdc_auditor_decisions",
+    "pdc_auditor_finding_evidence",
+    "pdc_auditor_finding_history",
+    "pdc_auditor_finding_occurrences",
+    "pdc_auditor_findings",
+    "pdc_auditor_report_runs",
+    "pdc_auditor_revision",
+    "pdc_auditor_risk_scores",
+    "pdc_auditor_rule_config",
+    "pdc_auditor_runs",
+    "pdc_auditor_user_dealer_scopes",
+    "pdc_auditor_worker_identities",
+    "pdc_authenticated_email_attachment_claims",
+    "pdc_authenticated_email_attachment_manifests",
+    "pdc_authenticated_email_batch_receipts",
+    "pdc_bulk_workbook_apply_receipts",
+    "pdc_bulk_workbook_authorizations",
+    "pdc_bulk_workbook_previews",
+    "pdc_bulk_workbook_quarantine",
+    "pdc_bulk_workbook_row_receipts",
+    "pdc_email_intake_work_receipts",
+    "pdc_email_communication_receipts",
+    "pdc_email_communication_action_receipts",
+    "pdc_email_evidence_consumptions",
+    "pdc_non_navision_jobcard_receipts",
+    "pdc_non_navision_jobcard_source_row_receipts",
+    "pdc_jobcard_attachment_import_receipts",
+    "pdc_jobcard_attachment_source_row_receipts",
+    "pdc_key_list_apply_receipt_rows",
+    "pdc_key_list_decision_receipts",
+    "pdc_key_list_proposal_revision",
+    "pdc_key_list_proposal_rows",
+    "pdc_key_list_proposals",
+    "pdc_monitor_exact_sender_enrollments",
+    "pdc_pmb_workbook_apply_authorizations",
+    "pdc_pmb_workbook_apply_receipts",
+    "pdc_pmb_workbook_operation_reviews",
+    "pdc_pmb_workbook_pair_approvals",
+    "pdc_pmb_workbook_pair_receipts",
+    "pdc_pmb_workbook_pair_reviews",
+    "pdc_pmb_workbook_previews",
+    "pdc_pmb_canonical_manager_authorities",
+    "pdc_pmb_canonical_manager_approvals",
+    "pdc_pmb_canonical_admin_countersignatures",
+    "pdc_pmb_canonical_apply_authorizations",
+    "pdc_pmb_canonical_apply_receipts",
+    "pdc_pmb_canonical_pair_receipts",
+    "pdc_provider_email_observations",
+    "pdc_staging_backup_restoration_receipts",
+    "pdc_staging_board_purge_receipts",
+    "pdc_staging_environment_sentinel",
+    "pdc_staging_reset_attestations",
+    "pdc_staging_reset_batches",
+    "pdc_staging_reset_evidence_corrections",
+    "pdc_staging_reset_rows",
+    "pdc_staging_verified_backup_manifests",
+    "restore_test_runs",
+    "sublet_provider_aliases",
+    "vehicle_sublet_providers",
+    "vehicle_workshop_line_adjustments",
+    "workshop_transition_authorizations",
     # Audit trail last (references everything above)
     "audit_events",
 ]
@@ -284,6 +353,15 @@ MIGRATION_066_BACKUP_TABLES = frozenset({
 MIGRATION_072_BACKUP_TABLES = frozenset({'pdc_sublet_bookings', 'pdc_sublet_booking_history'})
 MIGRATION_074_BACKUP_TABLES = frozenset({'navision_initial_scope_approvals'})
 MIGRATION_093_BACKUP_TABLES = frozenset({'pdc_authenticated_email_operation_lines'})
+MIGRATION_160_BACKUP_TABLES = frozenset({
+    'pdc_email_communication_receipts', 'pdc_email_communication_action_receipts', 'pdc_email_evidence_consumptions',
+})
+MIGRATION_161_BACKUP_TABLES = frozenset({'pdc_non_navision_jobcard_receipts', 'pdc_non_navision_jobcard_source_row_receipts'})
+MIGRATION_162_BACKUP_TABLES = frozenset({
+    'pdc_pmb_canonical_manager_authorities', 'pdc_pmb_canonical_manager_approvals',
+    'pdc_pmb_canonical_admin_countersignatures', 'pdc_pmb_canonical_apply_authorizations',
+    'pdc_pmb_canonical_apply_receipts', 'pdc_pmb_canonical_pair_receipts',
+})
 
 
 def required_backup_tables(migration_version):
@@ -291,7 +369,11 @@ def required_backup_tables(migration_version):
     number = migration_number(migration_version)
     if number < 42:
         return frozenset()
-    future = MIGRATION_045_BACKUP_TABLES | MIGRATION_053_BACKUP_TABLES | MIGRATION_054_BACKUP_TABLES | MIGRATION_056_BACKUP_TABLES | MIGRATION_060_BACKUP_TABLES | MIGRATION_061_BACKUP_TABLES | MIGRATION_063_BACKUP_TABLES | MIGRATION_065_BACKUP_TABLES | MIGRATION_066_BACKUP_TABLES | MIGRATION_072_BACKUP_TABLES | MIGRATION_074_BACKUP_TABLES | MIGRATION_093_BACKUP_TABLES
+    future = (MIGRATION_045_BACKUP_TABLES | MIGRATION_053_BACKUP_TABLES | MIGRATION_054_BACKUP_TABLES |
+              MIGRATION_056_BACKUP_TABLES | MIGRATION_060_BACKUP_TABLES | MIGRATION_061_BACKUP_TABLES |
+              MIGRATION_063_BACKUP_TABLES | MIGRATION_065_BACKUP_TABLES | MIGRATION_066_BACKUP_TABLES |
+              MIGRATION_072_BACKUP_TABLES | MIGRATION_074_BACKUP_TABLES | MIGRATION_093_BACKUP_TABLES |
+              MIGRATION_160_BACKUP_TABLES | MIGRATION_161_BACKUP_TABLES | MIGRATION_162_BACKUP_TABLES)
     required = frozenset(TABLES).difference(future)
     if number >= 45:
         required |= MIGRATION_045_BACKUP_TABLES
@@ -317,6 +399,12 @@ def required_backup_tables(migration_version):
         required |= MIGRATION_074_BACKUP_TABLES
     if number >= 93:
         required |= MIGRATION_093_BACKUP_TABLES
+    if number >= 160:
+        required |= MIGRATION_160_BACKUP_TABLES
+    if number >= 161:
+        required |= MIGRATION_161_BACKUP_TABLES
+    if number >= 162:
+        required |= MIGRATION_162_BACKUP_TABLES
     return required
 
 
@@ -460,10 +548,22 @@ def export_schema_metadata(cur, schema_name, table_names):
                    c.condeferred, pg_get_constraintdef(c.oid, true) as definition
             from pg_constraint c join pg_class t on t.oid=c.conrelid
             join pg_namespace n on n.oid=t.relnamespace
-            where n.nspname=%s and t.relname=%s order by c.conname
+            where n.nspname=%s and t.relname=%s and c.contype <> 't' order by c.conname
             """, (schema_name, table),
         )
         constraints = [dict(zip([d.name for d in cur.description], row)) for row in cur.fetchall()]
+        cur.execute(
+            """
+            select tg.tgname as name, pg_get_triggerdef(tg.oid, true) as definition,
+                   tg.tgenabled as enabled
+            from pg_trigger tg
+            join pg_class t on t.oid=tg.tgrelid
+            join pg_namespace n on n.oid=t.relnamespace
+            where n.nspname=%s and t.relname=%s and not tg.tgisinternal
+            order by tg.tgname
+            """, (schema_name, table),
+        )
+        triggers = [dict(zip([d.name for d in cur.description], row)) for row in cur.fetchall()]
         cur.execute(
             """
             select i.relname as name, x.indisunique, x.indisprimary,
@@ -496,7 +596,7 @@ def export_schema_metadata(cur, schema_name, table_names):
             sequence_ident = '"' + sequence["name"].replace('"', '""') + '"'
             cur.execute(f"select last_value, is_called from {schema_ident}.{sequence_ident}")
             sequence["last_value"], sequence["is_called"] = cur.fetchone()
-        structure = {"columns": columns, "constraints": constraints, "indexes": indexes, "sequences": sequences}
+        structure = {"columns": columns, "constraints": constraints, "indexes": indexes, "sequences": sequences, "triggers": triggers}
         metadata[table] = {
             **structure,
             "sha256": hashlib.sha256(json.dumps(structure, default=json_default, sort_keys=True, separators=(",", ":")).encode("utf-8")).hexdigest(),

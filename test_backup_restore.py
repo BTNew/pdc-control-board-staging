@@ -47,40 +47,21 @@ assert "workshop_stage_aliases" in pdc_backup.TABLES
 assert len(pdc_backup.WORKSHOP_ALIASES_042) == 22
 assert len(pdc_backup.WORKSHOP_ALIASES_044) == 37
 assert len(pdc_backup.WORKSHOP_ALIAS_VALUES_044) == 37
-future_tables = (pdc_backup.MIGRATION_045_BACKUP_TABLES | pdc_backup.MIGRATION_053_BACKUP_TABLES |
-                 pdc_backup.MIGRATION_054_BACKUP_TABLES | pdc_backup.MIGRATION_056_BACKUP_TABLES |
-                 pdc_backup.MIGRATION_060_BACKUP_TABLES | pdc_backup.MIGRATION_061_BACKUP_TABLES |
-                 pdc_backup.MIGRATION_063_BACKUP_TABLES | pdc_backup.MIGRATION_065_BACKUP_TABLES |
-                 pdc_backup.MIGRATION_066_BACKUP_TABLES | pdc_backup.MIGRATION_072_BACKUP_TABLES |
-                 pdc_backup.MIGRATION_074_BACKUP_TABLES | pdc_backup.MIGRATION_093_BACKUP_TABLES)
-base_tables = frozenset(pdc_backup.TABLES).difference(future_tables)
-assert pdc_backup.required_backup_tables('044') == base_tables
-assert pdc_backup.required_backup_tables('045') == base_tables | pdc_backup.MIGRATION_045_BACKUP_TABLES
-assert pdc_backup.required_backup_tables('053') == base_tables | pdc_backup.MIGRATION_045_BACKUP_TABLES | pdc_backup.MIGRATION_053_BACKUP_TABLES
-assert pdc_backup.required_backup_tables('054') == base_tables | pdc_backup.MIGRATION_045_BACKUP_TABLES | pdc_backup.MIGRATION_053_BACKUP_TABLES | pdc_backup.MIGRATION_054_BACKUP_TABLES
-post_065 = (pdc_backup.MIGRATION_066_BACKUP_TABLES | pdc_backup.MIGRATION_072_BACKUP_TABLES |
-            pdc_backup.MIGRATION_074_BACKUP_TABLES | pdc_backup.MIGRATION_093_BACKUP_TABLES)
-assert pdc_backup.required_backup_tables('056') == frozenset(pdc_backup.TABLES).difference(
-    pdc_backup.MIGRATION_060_BACKUP_TABLES | pdc_backup.MIGRATION_061_BACKUP_TABLES |
-    pdc_backup.MIGRATION_063_BACKUP_TABLES | pdc_backup.MIGRATION_065_BACKUP_TABLES | post_065)
-assert pdc_backup.required_backup_tables('060') == frozenset(pdc_backup.TABLES).difference(
-    pdc_backup.MIGRATION_061_BACKUP_TABLES | pdc_backup.MIGRATION_063_BACKUP_TABLES |
-    pdc_backup.MIGRATION_065_BACKUP_TABLES | post_065)
-assert pdc_backup.required_backup_tables('061') == frozenset(pdc_backup.TABLES).difference(
-    pdc_backup.MIGRATION_063_BACKUP_TABLES | pdc_backup.MIGRATION_065_BACKUP_TABLES | post_065)
-assert pdc_backup.required_backup_tables('063') == frozenset(pdc_backup.TABLES).difference(
-    pdc_backup.MIGRATION_065_BACKUP_TABLES | post_065)
-assert pdc_backup.required_backup_tables('065') == frozenset(pdc_backup.TABLES).difference(
-    pdc_backup.MIGRATION_066_BACKUP_TABLES | pdc_backup.MIGRATION_072_BACKUP_TABLES |
-    pdc_backup.MIGRATION_074_BACKUP_TABLES | pdc_backup.MIGRATION_093_BACKUP_TABLES)
-assert pdc_backup.required_backup_tables('066') == frozenset(pdc_backup.TABLES).difference(
-    pdc_backup.MIGRATION_072_BACKUP_TABLES | pdc_backup.MIGRATION_074_BACKUP_TABLES |
-    pdc_backup.MIGRATION_093_BACKUP_TABLES)
-assert pdc_backup.required_backup_tables('072') == frozenset(pdc_backup.TABLES).difference(
-    pdc_backup.MIGRATION_074_BACKUP_TABLES | pdc_backup.MIGRATION_093_BACKUP_TABLES)
-assert pdc_backup.required_backup_tables('074') == frozenset(pdc_backup.TABLES).difference(
-    pdc_backup.MIGRATION_093_BACKUP_TABLES)
-assert pdc_backup.required_backup_tables('093') == frozenset(pdc_backup.TABLES)
+versioned_tables = {
+    45: pdc_backup.MIGRATION_045_BACKUP_TABLES, 53: pdc_backup.MIGRATION_053_BACKUP_TABLES,
+    54: pdc_backup.MIGRATION_054_BACKUP_TABLES, 56: pdc_backup.MIGRATION_056_BACKUP_TABLES,
+    60: pdc_backup.MIGRATION_060_BACKUP_TABLES, 61: pdc_backup.MIGRATION_061_BACKUP_TABLES,
+    63: pdc_backup.MIGRATION_063_BACKUP_TABLES, 65: pdc_backup.MIGRATION_065_BACKUP_TABLES,
+    66: pdc_backup.MIGRATION_066_BACKUP_TABLES, 72: pdc_backup.MIGRATION_072_BACKUP_TABLES,
+    74: pdc_backup.MIGRATION_074_BACKUP_TABLES, 93: pdc_backup.MIGRATION_093_BACKUP_TABLES,
+    160: pdc_backup.MIGRATION_160_BACKUP_TABLES, 161: pdc_backup.MIGRATION_161_BACKUP_TABLES,
+    162: pdc_backup.MIGRATION_162_BACKUP_TABLES,
+}
+all_versioned = frozenset().union(*versioned_tables.values())
+base_tables = frozenset(pdc_backup.TABLES).difference(all_versioned)
+for version in (44, 45, 53, 54, 56, 60, 61, 63, 65, 66, 72, 74, 93, 159, 160, 161, 162):
+    expected = base_tables | frozenset().union(*(tables for introduced, tables in versioned_tables.items() if introduced <= version))
+    assert pdc_backup.required_backup_tables(str(version).zfill(3)) == expected, version
 assert pdc_backup.migration_number("037_shared") == 37
 
 columns = ["id", "payload"]
@@ -424,5 +405,21 @@ assert ".commit(" not in restore_function_source, "Restore helper must leave DDL
 assert "if not report[\"all_checks_passed\"]" in restore_function_source, "Failed parity must abort before caller commit"
 main_source = inspect.getsource(pdc_restore.main)
 assert main_source.index("if args.drop_after:") < main_source.index("conn.commit()") < main_source.index("print(json.dumps(report"), "Drop-after cleanup and report persistence must commit atomically before success output"
+
+class TriggerCursor:
+    def __init__(self): self.statements = []
+    def execute(self, statement, params=None): self.statements.append((statement, params))
+
+trigger_cursor = TriggerCursor()
+restored_triggers = pdc_restore.create_format_v2_triggers(trigger_cursor, "restore_gate", {
+    "sample": {"triggers": [{
+        "name": "sample_guard", "enabled": "A",
+        "definition": "CREATE CONSTRAINT TRIGGER sample_guard AFTER INSERT ON public.sample DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION public.sample_guard()",
+    }]}
+}, ["sample"])
+assert restored_triggers == [("sample", "sample_guard", "A")]
+assert 'ON "restore_gate"."sample"' in trigger_cursor.statements[0][0]
+assert 'enable always trigger "sample_guard"' in trigger_cursor.statements[1][0].lower()
+assert "triggers" in inspect.getsource(pdc_backup.export_schema_metadata)
 
 print("Backup format-2 exact evidence, historical structure, fail-closed inventory and legacy compatibility checks passed")

@@ -162,7 +162,8 @@ def validate_backup_contract(data):
             raise RuntimeError(f"Format-2 row hash evidence is inconsistent: {table}")
         if not isinstance(schema[table], dict) or not isinstance(schema[table].get("sha256"), str):
             raise RuntimeError(f"Format-2 schema evidence is incomplete: {table}")
-        structure = {key: schema[table].get(key, []) for key in ("columns", "constraints", "indexes", "sequences")}
+        keys = ("columns", "constraints", "indexes", "sequences", "triggers") if "triggers" in schema[table] else ("columns", "constraints", "indexes", "sequences")
+        structure = {key: schema[table].get(key, []) for key in keys}
         expected_schema_hash = hashlib.sha256(json.dumps(
             structure, default=json_default, sort_keys=True, separators=(",", ":")
         ).encode("utf-8")).hexdigest()
@@ -232,7 +233,7 @@ def create_format_v2_structure(cur, schema_name, schema_objects, table_order):
             column_sql.append(definition)
         cur.execute(f'create table {quote_ident(schema_name)}.{quote_ident(table)} (' + ", ".join(column_sql) + ")")
         for constraint in details.get("constraints", []):
-            if constraint.get("contype") != "f":
+            if constraint.get("contype") not in {"f", "t"}:
                 cur.execute(f'alter table {quote_ident(schema_name)}.{quote_ident(table)} add constraint {quote_ident(constraint["conname"])} {constraint["definition"]}')
 
 
@@ -249,6 +250,31 @@ def create_format_v2_indexes(cur, schema_name, schema_objects, table_order):
                 raise RuntimeError(f"Cannot reconstruct index definition: {table}.{index.get('name')}")
             unique = "unique " if index.get("indisunique") else ""
             cur.execute(f'create {unique}index {quote_ident(index["name"])} on {quote_ident(schema_name)}.{quote_ident(table)}' + definition[using_at:])
+
+
+def create_format_v2_triggers(cur, schema_name, schema_objects, table_order):
+    """Recreate retained user triggers only after all rows and FKs exist."""
+    restored = []
+    modes = {"O": "enable", "D": "disable", "R": "enable replica", "A": "enable always"}
+    for table in table_order:
+        for trigger in schema_objects.get(table, {}).get("triggers", []):
+            definition = str(trigger.get("definition") or "")
+            pattern = rf'(?i)(\sON\s+)(?:(?:"?public"?)\.)?"?{re.escape(table)}"?(\s+)'
+            replacement = rf'\1{quote_ident(schema_name)}.{quote_ident(table)}\2'
+            target_definition, count = re.subn(pattern, replacement, definition, count=1)
+            if count != 1:
+                raise RuntimeError(f"Cannot rebind trigger target: {table}.{trigger.get('name')}")
+            cur.execute(target_definition)
+            enabled = str(trigger.get("enabled") or "O")
+            if enabled not in modes:
+                raise RuntimeError(f"Unsupported trigger enabled mode: {table}.{trigger.get('name')}={enabled}")
+            if enabled != "O":
+                cur.execute(
+                    f'alter table {quote_ident(schema_name)}.{quote_ident(table)} '
+                    f'{modes[enabled]} trigger {quote_ident(trigger["name"])}'
+                )
+            restored.append((table, trigger.get("name"), enabled))
+    return restored
 
 
 def foreign_keys_from_evidence(schema_objects, payload_tables):
@@ -310,7 +336,7 @@ def synchronize_non_fk_constraints(cur, schema_name, table_names):
                               pg_get_constraintdef(con.oid,true)
                        from pg_constraint con join pg_class c on c.oid=con.conrelid
                        join pg_namespace n on n.oid=c.relnamespace
-                       where n.nspname=%s and c.relname=any(%s) and con.contype<>'f'
+                       where n.nspname=%s and c.relname=any(%s) and con.contype not in ('f','t')
                        order by c.relname,con.conname""", (schema, list(table_names)))
         return [tuple(row) for row in cur.fetchall()]
 
@@ -500,10 +526,13 @@ def _canonical_schema_value(value, schema_name):
     return value
 
 
-def _canonical_structure(details, schema_name):
-    structure = {key: copy.deepcopy(details.get(key, [])) for key in ("columns", "constraints", "indexes", "sequences")}
-    for key, name_key in (("constraints", "conname"), ("indexes", "name"), ("sequences", "name")):
-        structure[key] = sorted(structure[key], key=lambda row: str(row.get(name_key, "")))
+def _canonical_structure(details, schema_name, include_triggers=True):
+    keys = ("columns", "constraints", "indexes", "sequences", "triggers") if include_triggers else ("columns", "constraints", "indexes", "sequences")
+    structure = {key: copy.deepcopy(details.get(key, [])) for key in keys}
+    sort_keys = (("constraints", "conname"), ("indexes", "name"), ("sequences", "name"), ("triggers", "name"))
+    for key, name_key in sort_keys:
+        if key in structure:
+            structure[key] = sorted(structure[key], key=lambda row: str(row.get(name_key, "")))
     return _canonical_schema_value(structure, schema_name)
 
 
@@ -541,12 +570,14 @@ def verify_format_v2_evidence(cur, schema_name, data):
     actual_schema = export_schema_metadata(cur, schema_name, list(data["schema_objects"]))
     schema_report = {}
     for table, expected in data["schema_objects"].items():
-        raw_structure = {key: expected.get(key, []) for key in ("columns", "constraints", "indexes", "sequences")}
+        include_triggers = "triggers" in expected
+        keys = ("columns", "constraints", "indexes", "sequences", "triggers") if include_triggers else ("columns", "constraints", "indexes", "sequences")
+        raw_structure = {key: expected.get(key, []) for key in keys}
         evidence_hash = hashlib.sha256(json.dumps(raw_structure, default=json_default, sort_keys=True, separators=(",", ":")).encode("utf-8")).hexdigest()
         source_evidence_valid = evidence_hash == expected.get("sha256")
         effective_expected = _notification_expected_schema(expected) if table == "vehicle_notifications" else expected
-        expected_canonical = _canonical_structure(effective_expected, "public")
-        actual_canonical = _canonical_structure(actual_schema.get(table, {}), schema_name)
+        expected_canonical = _canonical_structure(effective_expected, "public", include_triggers)
+        actual_canonical = _canonical_structure(actual_schema.get(table, {}), schema_name, include_triggers)
         expected_canonical_hash = hashlib.sha256(json.dumps(expected_canonical, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
         actual_canonical_hash = hashlib.sha256(json.dumps(actual_canonical, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
         matched = source_evidence_valid and expected_canonical == actual_canonical
@@ -755,6 +786,9 @@ def restore_backup(conn, backup_file_path, encryption_key, schema_name=None):
     restored_sequences = [] if contract["legacy"] else restore_sequence_state(
         cur, schema_name, data["schema_objects"], table_order
     )
+    restored_triggers = [] if contract["legacy"] else create_format_v2_triggers(
+        cur, schema_name, data["schema_objects"], table_order
+    )
 
     report = verify_restore(cur, schema_name, data["row_counts"], data.get("tables"))
     format_evidence = verify_format_v2_evidence(cur, schema_name, data)
@@ -771,6 +805,7 @@ def restore_backup(conn, backup_file_path, encryption_key, schema_name=None):
     report["foreign_keys_added"] = len(fk_added)
     report["foreign_keys_skipped"] = fk_skipped
     report["sequences_restored"] = restored_sequences
+    report["triggers_restored"] = restored_triggers
     # Independent-review remediation (finding #9): a skipped/invalid
     # foreign key used to be recorded but NOT reflected in
     # all_checks_passed -- "full restore passed" did not actually prove
@@ -807,11 +842,11 @@ def main():
         cur.execute(
             """
             insert into public.restore_test_runs
-                (environment, target_schema, status, finished_at,
+                (backup_run_id, environment, target_schema, status, finished_at,
                  verification_report, row_count_matches)
-            values (%s, %s, %s, now(), %s, %s)
+            values (%s, %s, %s, %s, now(), %s, %s)
             """,
-            ("staging", report["schema_name"],
+            (report["backup_run_id"], "staging", report["schema_name"],
              "success" if report["all_checks_passed"] else "failed",
              json.dumps(report), not report["row_count_mismatches"]),
         )
