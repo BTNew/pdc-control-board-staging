@@ -55,11 +55,12 @@ versioned_tables = {
     66: pdc_backup.MIGRATION_066_BACKUP_TABLES, 72: pdc_backup.MIGRATION_072_BACKUP_TABLES,
     74: pdc_backup.MIGRATION_074_BACKUP_TABLES, 93: pdc_backup.MIGRATION_093_BACKUP_TABLES,
     160: pdc_backup.MIGRATION_160_BACKUP_TABLES, 161: pdc_backup.MIGRATION_161_BACKUP_TABLES,
-    162: pdc_backup.MIGRATION_162_BACKUP_TABLES, 170: pdc_backup.MIGRATION_170_BACKUP_TABLES,
+    162: pdc_backup.MIGRATION_162_BACKUP_TABLES, 168: pdc_backup.MIGRATION_168_BACKUP_TABLES,
+    170: pdc_backup.MIGRATION_170_BACKUP_TABLES,
 }
 all_versioned = frozenset().union(*versioned_tables.values())
 base_tables = frozenset(pdc_backup.TABLES).difference(all_versioned)
-for version in (44, 45, 53, 54, 56, 60, 61, 63, 65, 66, 72, 74, 93, 159, 160, 161, 162, 169, 170):
+for version in (44, 45, 53, 54, 56, 60, 61, 63, 65, 66, 72, 74, 93, 159, 160, 161, 162, 167, 168, 169, 170):
     expected = base_tables | frozenset().union(*(tables for introduced, tables in versioned_tables.items() if introduced <= version))
     assert pdc_backup.required_backup_tables(str(version).zfill(3)) == expected, version
 assert pdc_backup.migration_number("037_shared") == 37
