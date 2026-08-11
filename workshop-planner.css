@@ -1263,3 +1263,51 @@ button.workshop-search-result:hover, button.workshop-search-result:focus-visible
     line-height: 1.45;
   }
 }
+
+/* Administrator downtime blocks are deliberately yellow and visually distinct
+   from the preserved orange missing-booking warning treatment. */
+.workshop-admin-block {
+  position: absolute;
+  z-index: 8;
+  top: 7px;
+  bottom: 7px;
+  left: var(--plan-left);
+  width: max(38px, var(--plan-width));
+  box-sizing: border-box;
+  padding: 7px 18px 7px 8px;
+  overflow: visible;
+  border: 2px solid #9a6a00;
+  border-radius: 9px;
+  background: #ffd84d;
+  color: #3c2a00;
+  box-shadow: 0 3px 8px rgba(74, 49, 0, .2);
+  cursor: grab;
+  touch-action: manipulation;
+}
+.workshop-admin-block:focus-visible { outline: 3px solid #315bce; outline-offset: 2px; }
+.workshop-admin-block strong, .workshop-admin-block small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.workshop-admin-block-controls {
+  display: none;
+  position: absolute;
+  z-index: 3;
+  top: calc(100% + 3px);
+  left: 0;
+  padding: 4px;
+  gap: 3px;
+  border: 1px solid #9a6a00;
+  border-radius: 7px;
+  background: #fff8d7;
+  box-shadow: 0 3px 10px rgba(0,0,0,.2);
+  white-space: nowrap;
+}
+.workshop-admin-block:hover .workshop-admin-block-controls,
+.workshop-admin-block:focus-within .workshop-admin-block-controls { display: flex; }
+.workshop-admin-block-controls button { min-height: 32px; padding: 4px 7px; border: 1px solid #9a6a00; border-radius: 5px; background: white; color: #3c2a00; }
+.workshop-admin-block-resize { position: absolute; inset: 0 0 0 auto; width: 13px; border-left: 2px dotted #6f4d00; cursor: ew-resize; touch-action: none; }
+.workshop-status-legend .admin { border-color: #9a6a00; background: #ffd84d; color: #3c2a00; }
+.workshop-admin-block-add { border-color: #9a6a00 !important; background: #ffd84d !important; color: #3c2a00 !important; }
+.workshop-admin-block-modal { max-width: 680px; }
+@media (pointer: coarse) {
+  .workshop-admin-block-controls { display: flex; }
+  .workshop-admin-block { min-height: 64px; }
+}

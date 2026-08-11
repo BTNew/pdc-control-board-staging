@@ -236,6 +236,10 @@ TABLES = [
     "workshop_bookings",
     "workshop_booking_assignments",
     "workshop_booking_history",
+    # Migration 143: restore the parent block before immutable evidence rows.
+    "workshop_admin_blocks",
+    "workshop_admin_block_history",
+    "workshop_admin_block_receipts",
     "workshop_parts_overrides",
     "workshop_revision",
     "workshop_station_revision",
@@ -362,6 +366,10 @@ MIGRATION_162_BACKUP_TABLES = frozenset({
     'pdc_pmb_canonical_admin_countersignatures', 'pdc_pmb_canonical_apply_authorizations',
     'pdc_pmb_canonical_apply_receipts', 'pdc_pmb_canonical_pair_receipts',
 })
+MIGRATION_170_BACKUP_TABLES = frozenset({
+    'workshop_admin_blocks', 'workshop_admin_block_history',
+    'workshop_admin_block_receipts',
+})
 
 
 def required_backup_tables(migration_version):
@@ -373,7 +381,8 @@ def required_backup_tables(migration_version):
               MIGRATION_056_BACKUP_TABLES | MIGRATION_060_BACKUP_TABLES | MIGRATION_061_BACKUP_TABLES |
               MIGRATION_063_BACKUP_TABLES | MIGRATION_065_BACKUP_TABLES | MIGRATION_066_BACKUP_TABLES |
               MIGRATION_072_BACKUP_TABLES | MIGRATION_074_BACKUP_TABLES | MIGRATION_093_BACKUP_TABLES |
-              MIGRATION_160_BACKUP_TABLES | MIGRATION_161_BACKUP_TABLES | MIGRATION_162_BACKUP_TABLES)
+              MIGRATION_160_BACKUP_TABLES | MIGRATION_161_BACKUP_TABLES | MIGRATION_162_BACKUP_TABLES |
+              MIGRATION_170_BACKUP_TABLES)
     required = frozenset(TABLES).difference(future)
     if number >= 45:
         required |= MIGRATION_045_BACKUP_TABLES
@@ -405,6 +414,8 @@ def required_backup_tables(migration_version):
         required |= MIGRATION_161_BACKUP_TABLES
     if number >= 162:
         required |= MIGRATION_162_BACKUP_TABLES
+    if number >= 170:
+        required |= MIGRATION_170_BACKUP_TABLES
     return required
 
 
@@ -471,6 +482,7 @@ def get_migration_version(cur):
         (72, 'pdc_sublet_bookings'),
         (74, 'navision_initial_scope_approvals'),
         (93, 'pdc_authenticated_email_operation_lines'),
+        (143, 'workshop_admin_blocks'),
     )
     for floor, table in object_floors:
         cur.execute("select to_regclass(%s) is not null", (f'public.{table}',))

@@ -55,7 +55,11 @@ const WORKSHOP_MUTATION_RPCS = Object.freeze([
   'restore_workshop_booking',
   'cascade_workshop_schedule',
   'cascade_workshop_booking_move',
-  'approve_parts_incomplete_override'
+  'approve_parts_incomplete_override',
+  'create_workshop_admin_block',
+  'move_workshop_admin_block',
+  'resize_workshop_admin_block',
+  'delete_workshop_admin_block'
 ]);
 
 // Every RPC above requires exactly one non-null expected-version parameter.
@@ -78,7 +82,11 @@ const WORKSHOP_MUTATION_VERSION_PARAM = Object.freeze({
   restore_workshop_booking: 'p_expected_version',
   cascade_workshop_schedule: 'p_target_expected_version',
   cascade_workshop_booking_move: 'p_expected_version',
-  approve_parts_incomplete_override: 'p_vehicle_expected_version'
+  approve_parts_incomplete_override: 'p_vehicle_expected_version',
+  create_workshop_admin_block: 'p_expected_revision',
+  move_workshop_admin_block: 'p_expected_version',
+  resize_workshop_admin_block: 'p_expected_version',
+  delete_workshop_admin_block: 'p_expected_version'
 });
 
 const WORKSHOP_CANONICAL_MUTATION_ERRORS = new Set([
@@ -90,7 +98,9 @@ const WORKSHOP_CANONICAL_MUTATION_ERRORS = new Set([
   'calendar_duration_mismatch', 'invalid_schedule_interval', 'minimum_duration',
   'bay_inactive_or_wrong_station', 'technician_inactive_or_missing',
   'technician_leave_conflict', 'technician_overlap', 'live_booking_conflict',
-  'concurrent_queue_change', 'sublet_away'
+  'concurrent_queue_change', 'sublet_away',
+  'admin_block_conflict', 'fixed_booking_conflict', 'invalid_admin_block_type',
+  'admin_block_not_found', 'invalid_label'
 ]);
 
 function workshopCanonicalMutationError(body) {

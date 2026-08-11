@@ -3171,26 +3171,56 @@ function bindNav() {
 }
 
 
-function addMechanicFromAdminInput() {
+function workshopTechnicianAdminCanMutate(role = window.PDC_AUTH_CONTEXT?.role) {
+  return String(role || '').trim().toLowerCase() === 'administrator';
+}
+
+async function addMechanicFromAdminInput() {
   const input = $('#mechanic-name-input');
   const entered = cleanNavisionText(input?.value || '');
-  if (!entered) return;
+  if (!entered) return false;
+  // add_technician remains administrator-only at the RPC/RLS boundary. The UI
+  // mirrors that existing authority instead of inviting an operator to submit
+  // a request that the server must reject.
+  if (!workshopTechnicianAdminCanMutate()) {
+    window.alert('Administrator access is required to add mechanics. No request was sent.');
+    return false;
+  }
   const service = typeof initWorkshopReferenceDataServiceIfAvailable === 'function' ? initWorkshopReferenceDataServiceIfAvailable() : null;
-  if (!service) { window.alert('Cannot reach the shared mechanic list right now. Check your connection and try again.'); return; }
-  service.addTechnician(entered).then(result => {
-    if (!result.ok) {
-      window.alert(result.error === 'duplicate_name' ? `"${entered}" is already on the mechanic list.` : (result.error || 'Could not add mechanic.'));
-      return;
+  if (!service) {
+    window.alert('Cannot reach the shared mechanic list right now. Check your connection and try again.');
+    return false;
+  }
+  try {
+    const result = await service.addTechnician(entered);
+    if (!result || result.ok !== true) {
+      window.alert(result?.error === 'duplicate_name'
+        ? `"${entered}" is already on the mechanic list.`
+        : result?.error === 'permission_denied'
+          ? 'Administrator access is required to add mechanics. No mechanic was added.'
+          : 'Could not add mechanic. Check your connection and try again.');
+      return false;
     }
     if (input) input.value = '';
+    // mutate() already performs an authoritative reload; explicitly await a
+    // final list refresh so this outer handler renders only confirmed rows.
+    await service.listTechnicians(true);
     renderAdminLists();
     renderKpis();
-  });
+    return true;
+  } catch (_error) {
+    window.alert('Could not add mechanic. Check your connection and try again.');
+    return false;
+  }
 }
 
 function removeMechanicFromAdminList(name = '') {
   const clean = cleanNavisionText(name);
   if (!clean) return;
+  if (!workshopTechnicianAdminCanMutate()) {
+    window.alert('Administrator access is required to remove mechanics. No request was sent.');
+    return;
+  }
   if (!window.confirm(`Remove mechanic "${clean}" from the dropdown list? Existing vehicle history will stay on the vehicle.`)) return;
   const service = typeof initWorkshopReferenceDataServiceIfAvailable === 'function' ? initWorkshopReferenceDataServiceIfAvailable() : null;
   if (!service) { window.alert('Cannot reach the shared mechanic list right now. Check your connection and try again.'); return; }
@@ -3290,20 +3320,30 @@ function removeSalespersonFromAdminList(initials = '') {
   });
 }
 
-function renderAdminList(host, items, removeAttr, emptyText) {
+function renderAdminList(host, items, removeAttr, emptyText, options = {}) {
   if (!host) return;
   if (!items.length) {
     host.innerHTML = `<div class="empty-state compact-empty"><strong>No entries yet</strong><span>${escapeHtml(emptyText)}</span></div>`;
     return;
   }
+  const disabled = options.canMutate === false ? 'disabled title="Administrator access is required"' : '';
   host.innerHTML = `<div class="admin-reference-table-wrap"><table class="admin-reference-table">
     <thead><tr><th>Name</th><th>Status</th><th>Actions</th></tr></thead>
-    <tbody>${items.map(item => `<tr><td><strong>${escapeHtml(item)}</strong></td><td><span class="admin-status-badge is-active">Active</span></td><td class="admin-table-actions"><button type="button" class="text-button admin-action-danger" ${removeAttr}="${escapeHtml(item)}">Remove</button></td></tr>`).join('')}</tbody>
+    <tbody>${items.map(item => `<tr><td><strong>${escapeHtml(item)}</strong></td><td><span class="admin-status-badge is-active">Active</span></td><td class="admin-table-actions"><button type="button" class="text-button admin-action-danger" ${removeAttr}="${escapeHtml(item)}" ${disabled}>Remove</button></td></tr>`).join('')}</tbody>
   </table></div>`;
 }
 
 function renderAdminLists() {
-  renderAdminList($('#mechanic-list-admin'), loadMechanics(), 'data-remove-mechanic', 'Add mechanics so they appear in the bay assignment dropdowns.');
+  const canManageTechnicians = workshopTechnicianAdminCanMutate();
+  const mechanicInput = $('#mechanic-name-input');
+  const mechanicButton = $('#add-mechanic-list-button');
+  [mechanicInput, mechanicButton].filter(Boolean).forEach(control => {
+    control.disabled = !canManageTechnicians;
+    control.title = canManageTechnicians ? '' : 'Administrator access is required to manage mechanics.';
+  });
+  renderAdminList($('#mechanic-list-admin'), loadMechanics(), 'data-remove-mechanic', canManageTechnicians
+    ? 'Add mechanics so they appear in the bay assignment dropdowns.'
+    : 'The shared mechanic roster is read-only for this account. An administrator can add or remove mechanics.', { canMutate: canManageTechnicians });
   renderAdminList($('#sublet-provider-list-admin'), loadSubletProviders(), 'data-remove-provider', 'Add outside providers for specialist work records.');
   const salesHost = $('#salesperson-list-admin');
   if (salesHost) {
@@ -6946,16 +6986,29 @@ function subletProviderOptionsHtml(current = '') {
   return `<option value="">Unassigned</option>${combined.map(name => `<option value="${escapeHtml(name)}"${name === selected ? ' selected' : ''}>${escapeHtml(name)}</option>`).join('')}`;
 }
 
-function addMechanicFromPrompt() {
+async function addMechanicFromPrompt() {
+  if (!workshopTechnicianAdminCanMutate()) {
+    window.alert('Administrator access is required to add mechanics. No request was sent.');
+    return false;
+  }
   const entered = cleanNavisionText(window.prompt('Enter mechanic / technician name:', '') || '');
-  if (!entered) return;
+  if (!entered) return false;
   const service = typeof initWorkshopReferenceDataServiceIfAvailable === 'function' ? initWorkshopReferenceDataServiceIfAvailable() : null;
-  if (!service) { window.alert('Cannot reach the shared mechanic list right now. Check your connection and try again.'); return; }
-  service.addTechnician(entered).then(result => {
-    if (!result.ok && result.error !== 'duplicate_name') { window.alert(result.error || 'Could not add mechanic.'); return; }
+  if (!service) { window.alert('Cannot reach the shared mechanic list right now. Check your connection and try again.'); return false; }
+  try {
+    const result = await service.addTechnician(entered);
+    if (!result || result.ok !== true) {
+      window.alert(result?.error === 'duplicate_name' ? `"${entered}" is already on the mechanic list.` : 'Could not add mechanic.');
+      return false;
+    }
+    await service.listTechnicians(true);
     renderKpis();
     renderAdminLists();
-  });
+    return true;
+  } catch (_error) {
+    window.alert('Could not add mechanic. Check your connection and try again.');
+    return false;
+  }
 }
 
 function addSubletProviderFromPrompt() {
@@ -11461,18 +11514,31 @@ function closeVehicleModal() {
   document.body.classList.remove('modal-open');
 }
 
+function vehicleRequiresCanonicalSharedDelete(vehicle = {}) {
+  return vehicle.__emailVehicleServerAuthoritative === true
+    || vehicle.__sharedNavisionReadOnly === true
+    || vehicle.__locationIdentityReadOnly === true
+    || Boolean(String(vehicle.__sharedNavisionCanonicalVehicleId || vehicle.sharedVehicleId || '').trim());
+}
+
 async function removeVehicle(stock) {
   const vehicle = selectedVehicle(stock);
   if (!vehicle || !vehicleLocationActionAllowed(vehicle, 'delete')) return false;
   const label = `${vehicleIdentityTitle(vehicle) || 'this vehicle'} - ${vehicleCustomerName(vehicle) || 'Unknown customer'}`;
   if (!window.confirm(`Permanently remove ${label} from every Board screen?\n\nWorkshop bookings, requirements, Parts and mutable Board state will be removed. Immutable source and audit evidence will be retained for safety.`)) return false;
 
-  if (vehicle.__emailVehicleServerAuthoritative === true && vehicleLifecycleSharedModeActive()) {
+  if (vehicleRequiresCanonicalSharedDelete(vehicle)) {
+    if (!vehicleLifecycleSharedModeActive() || typeof window.__vehicleLifecycleActions?.markVehicleDeleted !== 'function') {
+      window.alert('Shared vehicle deletion is unavailable. No vehicle was changed.');
+      return false;
+    }
     const reason = cleanNavisionText(window.prompt('Reason for deleting this vehicle (required):', '') || '');
     if (!reason) {
       window.alert('A deletion reason is required. No vehicle was changed.');
       return false;
     }
+    // Resolve exactly one current canonical UUID and version at click time.
+    // Projection/source flags never provide deletion authority by themselves.
     const ref = await vehicleLifecycleSharedRef(vehicle);
     if (!ref || ref.outcome !== 'resolved') {
       window.alert(describeVehicleLifecycleResolutionOutcome(ref));
@@ -11484,7 +11550,7 @@ async function removeVehicle(stock) {
       closeVehicleModal();
       return false;
     }
-    const result = await window.__vehicleLifecycleActions.purgeVehicleFromBoard({
+    const result = await window.__vehicleLifecycleActions.markVehicleDeleted({
       vehicleId: ref.vehicleId,
       expectedVersion: ref.version,
       reason,
@@ -11502,6 +11568,8 @@ async function removeVehicle(stock) {
     return true;
   }
 
+  // A shared/Navision row never reaches browser-local deletion after an
+  // ambiguous, stale, archived, unauthorized, or unavailable resolution.
   removeVehiclesFromTracker([vehicle]);
   refreshAfterVehicleRemoval();
   closeVehicleModal();
@@ -13487,7 +13555,7 @@ function vehicleLocationActionAllowed(vehicleOrKey, operation = 'change') {
       && vehicleLifecycleSharedModeActive()
       && typeof window.__vehicleLifecycleActions?.pmbTransferVehicle === 'function') return true;
     if (operation === 'delete'
-      && vehicle.__emailVehicleServerAuthoritative === true
+      && vehicleRequiresCanonicalSharedDelete(vehicle)
       && vehicleLifecycleSharedModeActive()
       && typeof window.__vehicleLifecycleActions?.markVehicleDeleted === 'function') return true;
     console.warn('Vehicle action blocked because the Locations identity is read-only.', { operation, key });
