@@ -73,12 +73,16 @@ const authorize=body('authorize_pdc_pmb_canonical_activation_apply');
 const apply=body('apply_pdc_pmb_canonical_activations');
 [
  "p_confirmation<>'apply manager approved canonical activations'",'exact_canonical_apply_replay','backend_revision_conflict',
+ 'lock table public.navision_backend_records in share row exclusive mode','lock table public.navision_board_activations in share row exclusive mode',
+ 'lock table public.vehicles in share row exclusive mode','lock table public.vehicle_aliases in share row exclusive mode',
  'administrator_countersignature_missing_or_not_independent','canonical_candidate_drift','canonical_frozen_count_mismatch','canonical_approval_set_hash_conflict',
  "action='reactivate_complete_board_purge'","activation_source='manual'",'reconcile_navision_operational_record',
  'pdc_162_backend_revision_postcondition_failed','pdc_162_canonical_postcondition_failed','pair_aggregate_sha256','repreview_required',
  'migration157_apply_not_bypassed','booking_mutated',"'parts_mutated',false","'work_mutated',false"
 ].forEach(x=>assert(apply.includes(x),`Apply missing ${x}`));
 ordered(apply,"x.role='administrator'",'exact_canonical_apply_replay','Replay disclosure must require current Administrator authority');
+ordered(apply,'exact_canonical_apply_replay','canonical_authorization_expired','Authorized replay must succeed before authorization expiry is enforced');
+ordered(apply,'canonical_authorization_expired','lock table public.navision_backend_records in share row exclusive mode','Identity locks must precede all candidate checks and DML');
 ordered(apply,'canonical_approval_set_hash_conflict',"if m.action='reactivate_complete_board_purge'",'All pair validation must finish before operational DML');
 assert(!apply.includes('insert into public.vehicle_work_items'),'Migration162 must not import workbook work');
 assert(!apply.includes('insert into public.vehicle_parts_updates'),'Migration162 must not mutate Parts');
