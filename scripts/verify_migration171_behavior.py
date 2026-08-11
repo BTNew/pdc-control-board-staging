@@ -24,6 +24,10 @@ def main():
  try:
   with con.cursor() as c:
    c.execute("set local statement_timeout='180s'");c.execute(body())
+   c.execute("""select has_function_privilege('service_role','public.reconcile_navision_operational_record(uuid,uuid,text)','execute'),
+     has_function_privilege('service_role','public.reconcile_navision_operational_record_pre171(uuid,uuid,text)','execute')""")
+   assert c.fetchone()==(False,False)
+   c.execute("select version,name from supabase_migrations.schema_migrations where version='171'");assert c.fetchone()==('171','release_safety_corrections')
    c.execute("select auth_user_id,email from public.pdc_user_roles where role::text='administrator' and active and account_status='approved' order by email limit 1");actor,email=c.fetchone();claims(c,actor,email)
    tag=uuid.uuid4().hex[:10];
    def vehicle(label,stock,deleted=False):

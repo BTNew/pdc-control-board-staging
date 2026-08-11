@@ -195,8 +195,8 @@ begin
   return public.reconcile_navision_operational_record_pre171(p_backend_record_id,p_actor_id,p_actor_email);
 end
 $reconcile$;
-revoke all on function public.reconcile_navision_operational_record(uuid,uuid,text) from public,anon,authenticated;
-revoke all on function public.reconcile_navision_operational_record_pre171(uuid,uuid,text) from public,anon,authenticated;
+revoke all on function public.reconcile_navision_operational_record(uuid,uuid,text) from public,anon,authenticated,service_role;
+revoke all on function public.reconcile_navision_operational_record_pre171(uuid,uuid,text) from public,anon,authenticated,service_role;
 
 -- Canonical Sublet and Workshop scheduling share one deterministic lock order.
 create or replace function public.pdc_lock_canonical_sublet_vehicle(p_vehicle_id uuid)
