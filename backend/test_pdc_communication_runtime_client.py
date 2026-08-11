@@ -101,6 +101,21 @@ class CommunicationRuntimeClientTests(unittest.TestCase):
         result = execute_communication_request(service, actor, fixture())
         self.assertFalse(result["ok"]); self.assertEqual(len(calls), 1)
 
+    def test_failure_codes_are_fixed_not_remote_controlled(self):
+        remote = "arbitrary_remote_body_code"
+        service, actor, _ = clients([{"ok": False, "code": remote, "data": {}}], [])
+        self.assertEqual(execute_communication_request(service, actor, fixture())["code"], "attestation_failed")
+        service, actor, _ = clients([attestation()], [{"ok": False, "code": remote, "data": {}}])
+        self.assertEqual(execute_communication_request(service, actor, fixture())["code"], "processing_failed")
+
+    def test_receipt_intake_and_attachment_are_request_bound_and_count_is_strict(self):
+        for key, value in (("intake_id", ATTACHMENT_ID), ("attachment_id", INTAKE_ID), ("action_count", True)):
+            with self.subTest(key=key):
+                data = communication_data(); data[key] = value
+                service, actor, _ = clients([attestation()], [{"ok": True, "code": "communication_receipt", "data": data}])
+                with self.assertRaises(RuntimeContractError):
+                    execute_communication_request(service, actor, fixture())
+
     def test_credentials_are_pairwise_separated_before_rpc(self):
         calls = []
         service = FakeClient("service_role", "service-secret", "service-secret", [], calls)

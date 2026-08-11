@@ -2,18 +2,20 @@
 """Fail-closed dispatcher for one profile-owned retained PMB intake item."""
 from __future__ import annotations
 
+import argparse
 import hashlib
 import json
+from pathlib import Path
 from typing import Any, Mapping
 
 try:
     from backend.pdc_email_communication_parser import parse_communication_actions
     from backend.pdc_communication_runtime_client import execute_communication_request
-    from backend.pdc_jobcard_runtime_client import RpcClient, RuntimeContractError, execute_jobcard_request
+    from backend.pdc_jobcard_runtime_client import RpcClient, RuntimeContractError, clients_from_environment, execute_jobcard_request
 except ModuleNotFoundError:
     from pdc_email_communication_parser import parse_communication_actions
     from pdc_communication_runtime_client import execute_communication_request
-    from pdc_jobcard_runtime_client import RpcClient, RuntimeContractError, execute_jobcard_request
+    from pdc_jobcard_runtime_client import RpcClient, RuntimeContractError, clients_from_environment, execute_jobcard_request
 
 _PROVIDER_KEYS = {"attachment_id", "attachment_source_hash", "provider_message_id", "provider_authserv_id", "authentication"}
 
@@ -72,4 +74,35 @@ def execute_retained_intake(service_client: RpcClient, actor_client: RpcClient, 
     })
 
 
-__all__ = ["execute_retained_intake"]
+def _request_from_path(path_text: str) -> dict[str, Any]:
+    path = Path(path_text)
+    size = path.stat().st_size
+    if not 1 <= size <= 10_485_760:
+        raise RuntimeContractError("retained request file size is invalid")
+    value = json.loads(path.read_text(encoding="utf-8"))
+    return _mapping(value, "intake item")
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description="Execute one profile-owned retained PMB intake item using separated staging authorities")
+    parser.add_argument("--request", required=True, help="Path to one profile-owned retained intake JSON file")
+    args = parser.parse_args()
+    try:
+        item = _request_from_path(args.request)
+        service_client, actor_client = clients_from_environment()
+        result = execute_retained_intake(service_client, actor_client, item)
+    except OSError:
+        result = {"ok": False, "phase": "preflight", "code": "request_file_unavailable", "mutation_attempted": False}
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        result = {"ok": False, "phase": "preflight", "code": "request_json_invalid", "mutation_attempted": False}
+    except RuntimeContractError:
+        result = {"ok": False, "phase": "preflight", "code": "runtime_contract_invalid", "mutation_attempted": False}
+    print(json.dumps(result, sort_keys=True, separators=(",", ":"), allow_nan=False))
+    return 0 if result.get("ok") is True else 1
+
+
+__all__ = ["execute_retained_intake", "main"]
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
