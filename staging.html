@@ -476,7 +476,7 @@
       <section id="sublet" class="view">
         <div class="parts-home-layout sublet-home-layout">
           <section class="panel parts-home-panel sublet-home-panel">
-            <div class="panel-header"><div><h2>Sublet bookings</h2><p>Provider queue, booking dates, notes and controlled email drafts.</p></div><span class="badge neutral" id="sublet-summary">0 shown</span></div>
+            <div class="panel-header"><div><h2>Sublet bookings</h2><p>Provider queue, booking dates, notes and controlled email drafts.</p></div><div class="panel-actions"><button class="primary" id="sublet-create-open" type="button">Create Sublet</button><span class="badge neutral" id="sublet-summary">0 shown</span></div></div>
             <div class="parts-summary-grid sublet-operational-filters" id="sublet-summary-grid" role="toolbar" aria-label="Sublet booking filters"></div>
             <div class="sublet-view-toolbar">
               <div class="sublet-view-switch" role="group" aria-label="Sublet display view"><button class="small-button is-active" id="sublet-list-view" type="button" aria-pressed="true">List View</button><button class="small-button" id="sublet-calendar-view" type="button" aria-pressed="false">Calendar View</button></div>
@@ -491,6 +491,19 @@
           </section>
         </div>
       </section>
+      <dialog id="sublet-create-dialog" class="sublet-create-dialog" aria-labelledby="sublet-create-title">
+        <form id="sublet-create-form" method="dialog" novalidate>
+          <header><div><span class="eyebrow">Independent provider booking</span><h2 id="sublet-create-title">Create Sublet</h2></div><button class="small-button" id="sublet-create-close" type="button" aria-label="Close Create Sublet dialog">×</button></header>
+          <label><span>Canonical vehicle</span><input id="sublet-create-vehicle-search" type="search" autocomplete="off" aria-describedby="sublet-create-vehicle-help" placeholder="Exact stock or customer name" required><input id="sublet-create-vehicle-id" type="hidden"><small id="sublet-create-vehicle-help">Choose one exact canonical result. Ambiguous text is never accepted.</small></label>
+          <div id="sublet-create-vehicle-results" class="sublet-create-results" role="listbox" aria-label="Canonical vehicle matches"></div>
+          <label><span>Provider</span><select id="sublet-create-provider" required><option value="">Select provider</option></select></label>
+          <div class="sublet-create-dates"><label><span>Out / booking date</span><input id="sublet-create-out-date" type="date" required></label><label><span>Expected return</span><input id="sublet-create-return-date" type="date" required></label></div>
+          <label><span>Provider email (optional, required for attested email updates)</span><input id="sublet-create-provider-email" type="email" autocomplete="off"></label>
+          <label><span>Notes</span><textarea id="sublet-create-notes" rows="3" maxlength="2000"></textarea></label>
+          <p id="sublet-create-error" class="sublet-create-error" role="alert" aria-live="assertive"></p>
+          <footer><button class="small-button" id="sublet-create-cancel" type="button">Cancel</button><button class="primary" type="submit">Create booking</button></footer>
+        </form>
+      </dialog>
 
       <section id="rft" class="view">
         <div class="parts-home-layout rft-home-layout">

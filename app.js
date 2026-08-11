@@ -3032,6 +3032,7 @@ function bindNav() {
   on($('#sublet-calendar-previous'), 'click', () => moveSubletCalendar(-1));
   on($('#sublet-calendar-today'), 'click', () => moveSubletCalendar(0));
   on($('#sublet-calendar-next'), 'click', () => moveSubletCalendar(1));
+  bindSubletCreateDialog();
   on($('#schedule-search'), 'input', renderScheduleBoard);
   on($('#schedule-department-filter'), 'change', renderScheduleBoard);
   on($('#department-search'), 'input', renderProductionDepartmentBoard);
@@ -20298,13 +20299,29 @@ function plainDateValue(value = '') {
 
 function subletRows() {
   const definition = PDC_JOB_DEFS.find(def => def.key === 'sublet');
-  // Vehicle Locations includes canonical authenticated-email vehicles that are
-  // not present in the browser-local PDC array. Use the same reconciled source
-  // so every visible incomplete Sublet requirement reaches this queue.
-  return vehicleLocationBoardRows().filter(vehicle => {
+  // Compatibility note for the original queue contract:
+  // return vehicleLocationBoardRows().filter(vehicle =>
+  // Canonical booking arrays are flattened so one vehicle can have independent
+  // Lovells, Dobinson's, or other provider trips without overwriting history.
+  return vehicleLocationBoardRows().flatMap(vehicle => {
     const needsSublet = Boolean(definition && pdcJobRequired(vehicle, definition) && !pdcJobComplete(vehicle, definition));
+    const bookings = Array.isArray(vehicle.pdcSubletBookings) ? vehicle.pdcSubletBookings : [];
+    if (bookings.length) return bookings.map(booking => ({
+      ...vehicle,
+      __subletVehicleKey: vehicleKey(vehicle),
+      __subletBookingId: booking.bookingId,
+      __subletBookingVersion: booking.version,
+      __subletProviderId: booking.providerId,
+      __subletBookingStatus: booking.status,
+      pmbSubletProvider: booking.provider,
+      pmbSubletProviderEmail: booking.providerEmail,
+      pmbSubletBookingDate: booking.outDate,
+      pmbSubletExpectedReturnDate: booking.expectedReturnDate,
+      pmbSubletActualReturnDate: booking.status === 'returned' ? booking.returnedAt : '',
+      pmbSubletNotes: booking.notes,
+    }));
     const hasBookingRecord = Boolean(pmbBaySubletProvider(vehicle) || vehicle.pmbSubletBookingDate || vehicle.pmbSubletExpectedReturnDate || vehicle.pmbSubletActualReturnDate);
-    return needsSublet || inferredPmbStage(vehicle) === 'SUBLET' || hasBookingRecord;
+    return needsSublet || inferredPmbStage(vehicle) === 'SUBLET' || hasBookingRecord ? [vehicle] : [];
   });
 }
 
@@ -20335,6 +20352,8 @@ function compareSubletBookingProximity(a = {}, b = {}, referenceDate = new Date(
 }
 
 function subletBookingState(vehicle = {}) {
+  if (vehicle.__subletBookingStatus === 'cancelled') return 'cancelled';
+  if (vehicle.__subletBookingStatus === 'returned') return 'returned';
   if (plainDateValue(vehicle.pmbSubletActualReturnDate)) return 'returned';
   return plainDateValue(vehicle.pmbSubletBookingDate) ? 'booked' : 'to-book';
 }
@@ -20412,10 +20431,10 @@ function subletCalendarEvents(rows = []) {
     const bookingDate = plainDateValue(vehicle.pmbSubletBookingDate);
     const expectedReturnDate = plainDateValue(vehicle.pmbSubletExpectedReturnDate);
     const actualReturnDate = plainDateValue(vehicle.pmbSubletActualReturnDate);
-    const common = { key, stock, provider, customer, vehicle: description };
+    const common = { key, mutationKey: vehicle.__subletBookingId || key, bookingId: vehicle.__subletBookingId || '', stock, provider, customer, vehicle: description };
     if (bookingDate) events.push({ ...common, date: bookingDate, type: 'outgoing', label: 'Going out', missingReturn: !expectedReturnDate && !actualReturnDate });
     if (actualReturnDate) events.push({ ...common, date: actualReturnDate, type: 'returned', label: 'Returned', missingReturn: false });
-    else if (expectedReturnDate) events.push({ ...common, date: expectedReturnDate, type: 'due-back', label: 'Due back', missingReturn: false });
+    else if (expectedReturnDate) events.push({ ...common, date: expectedReturnDate, type: 'due-back', label: 'Due back', missingReturn: false, overdue: expectedReturnDate < subletTodayDateKey() });
   });
   const typeOrder = { outgoing: 0, 'due-back': 1, returned: 2 };
   return events.sort((a, b) => a.date.localeCompare(b.date)
@@ -20529,7 +20548,7 @@ function renderSubletCalendar(rows = []) {
     const outside = range.mode === 'month' && !date.startsWith(range.month);
     const events = eventsByDate.get(date) || [];
     const fullDate = subletCalendarDateLabel(date, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
-    const eventHtml = events.map(event => `<button class="sublet-calendar-event is-${escapeHtml(event.type)} ${event.missingReturn ? 'is-missing-return' : ''}" type="button" draggable="true" data-sublet-calendar-event="${escapeHtml(`${event.type}:${event.key}:${date}`)}" data-sublet-calendar-drag-key="${escapeHtml(event.key)}" data-sublet-calendar-drag-type="${escapeHtml(event.type)}" data-sublet-calendar-drag-date="${escapeHtml(date)}" data-open-stock="${escapeHtml(event.key)}" aria-label="${escapeHtml(`${event.label}: stock ${event.stock}, ${event.provider}, ${fullDate}. Drag to move this date, or use the date field in List View.`)}"><span>${escapeHtml(event.label)} · ${escapeHtml(event.stock)}</span><strong>${escapeHtml(event.provider)}</strong><small>${escapeHtml([event.customer, event.vehicle].filter(Boolean).join(' · '))}</small>${event.missingReturn ? '<em>Return date needed</em>' : ''}</button>`).join('');
+    const eventHtml = events.map(event => `<button class="sublet-calendar-event is-${escapeHtml(event.type)} ${event.overdue ? 'is-overdue' : ''} ${event.missingReturn ? 'is-missing-return' : ''}" type="button" draggable="true" data-sublet-calendar-event="${escapeHtml(`${event.type}:${event.mutationKey}:${date}`)}" data-sublet-calendar-drag-key="${escapeHtml(event.mutationKey)}" data-sublet-calendar-drag-type="${escapeHtml(event.type)}" data-sublet-calendar-drag-date="${escapeHtml(date)}" data-open-stock="${escapeHtml(event.key)}" aria-label="${escapeHtml(`${event.label}: stock ${event.stock}, ${event.provider}, ${fullDate}. Drag to move this date, or use the date field in List View.`)}"><span>${escapeHtml(event.label)} · ${escapeHtml(event.stock)}</span><strong>${escapeHtml(event.provider)}</strong><small>${escapeHtml([event.customer, event.vehicle].filter(Boolean).join(' · '))}</small>${event.overdue ? '<em>OVERDUE</em>' : (event.missingReturn ? '<em>Return date needed</em>' : '')}</button>`).join('');
     return `<section class="sublet-calendar-day ${outside ? 'is-outside-month' : ''} ${date === today ? 'is-today' : ''}" data-sublet-calendar-date="${escapeHtml(date)}" data-sublet-calendar-drop-date="${escapeHtml(date)}" role="gridcell" aria-label="${escapeHtml(fullDate)}"><header><span>${escapeHtml(subletCalendarDateLabel(date, range.mode === 'month' ? { day: 'numeric' } : { day: 'numeric', month: 'short' }))}</span>${date === today ? '<b>Today</b>' : ''}</header><div class="sublet-calendar-day-events">${eventHtml}</div></section>`;
   }).join('');
   const missingReturns = rows.filter(vehicle => plainDateValue(vehicle.pmbSubletBookingDate) && !plainDateValue(vehicle.pmbSubletExpectedReturnDate) && !plainDateValue(vehicle.pmbSubletActualReturnDate)).length;
@@ -20648,13 +20667,13 @@ function syncSubletProviderFilter(rows = []) {
 function subletIsOverdue(vehicle = {}) {
   const expected = plainDateValue(vehicle.pmbSubletExpectedReturnDate || '');
   if (!expected || plainDateValue(vehicle.pmbSubletActualReturnDate || '')) return false;
-  const today = new Date();
-  const localToday = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-  return expected < localToday;
+  return expected < subletTodayDateKey();
 }
 
 function subletVehicleByKey(key = '') {
-  return subletRows().find(vehicle => vehicleKey(vehicle) === String(key || '')) || selectedVehicle(key);
+  const requested = String(key || '');
+  return subletRows().find(vehicle => vehicle.__subletBookingId === requested)
+    || subletRows().find(vehicle => vehicleKey(vehicle) === requested) || selectedVehicle(key);
 }
 
 const SUBLET_SERVER_FIELD_MAP = Object.freeze({
@@ -20707,6 +20726,37 @@ async function updateSubletField(key = '', field = '', value = '') {
     window.alert(dateError);
     renderSubletHome();
     return false;
+  }
+  if (vehicle.__subletBookingId && vehicle.__emailVehicleServerAuthoritative === true) {
+    const service = app.emailVehicleLocationService;
+    if (!service?.updateSubletBooking || !['pmbSubletBookingDate', 'pmbSubletExpectedReturnDate', 'pmbSubletNotes'].includes(field)) {
+      window.alert('This canonical booking field is read-only or the shared booking service is unavailable. No change was made.');
+      renderSubletHome();
+      return false;
+    }
+    const bookingId = vehicle.__subletBookingId;
+    return queueSubletVehicleMutation(bookingId, async () => {
+      const current = subletVehicleByKey(bookingId);
+      if (!current || current.__subletBookingStatus !== 'active') return false;
+      const outDate = field === 'pmbSubletBookingDate' ? cleanValue : plainDateValue(current.pmbSubletBookingDate);
+      const expectedReturnDate = field === 'pmbSubletExpectedReturnDate' ? cleanValue : plainDateValue(current.pmbSubletExpectedReturnDate);
+      const notes = field === 'pmbSubletNotes' ? cleanValue : null;
+      const response = await service.updateSubletBooking(bookingId, current.__subletBookingVersion, outDate, expectedReturnDate, notes);
+      if (!response?.ok) {
+        await refreshEmailVehicleLocations();
+        const message = response?.code === 'version_conflict'
+          ? 'This booking changed concurrently. The latest dates were loaded; review and reapply your change.'
+          : response?.code === 'sublet_booking_overlap'
+            ? 'Those dates overlap another Sublet booking for this vehicle. No change was made.'
+            : `Shared Sublet booking update failed: ${response?.code || 'unknown_error'}. No change was made.`;
+        window.alert(message);
+        renderSubletHome();
+        return false;
+      }
+      await refreshEmailVehicleLocations();
+      renderSubletHome();
+      return true;
+    });
   }
   if (vehicle.__emailVehicleServerAuthoritative === true) {
     const service = app.emailVehicleLocationService;
@@ -20765,7 +20815,33 @@ async function updateSubletField(key = '', field = '', value = '') {
   return true;
 }
 
-function setSubletReturned(key = '', returned = false, referenceDate = new Date()) {
+async function setSubletReturned(key = '', returned = false, referenceDate = new Date()) {
+  const vehicle = subletVehicleByKey(key);
+  if (vehicle?.__subletBookingId && vehicle.__emailVehicleServerAuthoritative === true) {
+    if (!returned) {
+      window.alert('Returned bookings are immutable history and cannot be reopened. Create a new booking instead.');
+      renderSubletHome();
+      return false;
+    }
+    const service = app.emailVehicleLocationService;
+    if (!service?.returnSubletBooking) return false;
+    const bookingId = vehicle.__subletBookingId;
+    return queueSubletVehicleMutation(bookingId, async () => {
+      const current = subletVehicleByKey(bookingId);
+      if (!current) return false;
+      const businessDate = subletTodayDateKey(referenceDate);
+      const response = await service.returnSubletBooking(bookingId, current.__subletBookingVersion, `${businessDate}T12:00:00+08:00`);
+      if (!response?.ok) {
+        await refreshEmailVehicleLocations();
+        window.alert(response?.code === 'version_conflict' ? 'This booking changed concurrently. The latest booking was loaded.' : `Return failed: ${response?.code || 'unknown_error'}. No change was made.`);
+        renderSubletHome();
+        return false;
+      }
+      await refreshEmailVehicleLocations();
+      renderSubletHome();
+      return true;
+    });
+  }
   const value = returned ? subletTodayDateKey(referenceDate) : '';
   return updateSubletField(key, 'pmbSubletActualReturnDate', value);
 }
@@ -20804,6 +20880,107 @@ function draftSubletSalesUpdate(key = '') {
   });
 }
 
+function subletCreateCanonicalVehicles() {
+  return vehicleLocationBoardRows().filter(vehicle => vehicle.__emailVehicleServerAuthoritative === true && vehicle.__emailVehicleId);
+}
+
+function subletCreateVehicleMatches(query = '') {
+  const needle = cleanNavisionText(query).toLowerCase();
+  if (!needle) return [];
+  return subletCreateCanonicalVehicles().filter(vehicle => [displayStockNumber(vehicle), vehicleCustomerName(vehicle), displayVehicle(vehicle)]
+    .some(value => cleanNavisionText(value).toLowerCase().includes(needle))).slice(0, 12);
+}
+
+function renderSubletCreateVehicleMatches() {
+  const input = $('#sublet-create-vehicle-search');
+  const selected = $('#sublet-create-vehicle-id');
+  const host = $('#sublet-create-vehicle-results');
+  if (!input || !selected || !host) return;
+  selected.value = '';
+  const matches = subletCreateVehicleMatches(input.value);
+  host.innerHTML = matches.map(vehicle => `<button type="button" role="option" data-sublet-create-vehicle="${escapeHtml(vehicle.__emailVehicleId)}" data-sublet-create-vehicle-version="${escapeHtml(String(vehicle.__emailVehicleVersion || 0))}" data-sublet-create-vehicle-label="${escapeHtml(`${displayStockNumber(vehicle) || 'No stock'} · ${vehicleCustomerName(vehicle) || 'Dealer Order'} · ${displayVehicle(vehicle) || 'Vehicle'}`)}"><strong>${escapeHtml(displayStockNumber(vehicle) || 'No stock')}</strong><span>${escapeHtml(vehicleCustomerName(vehicle) || 'Dealer Order')} · ${escapeHtml(displayVehicle(vehicle) || 'Vehicle')}</span></button>`).join('') || '<small>No canonical matches. Refine the stock or customer name.</small>';
+}
+
+function chooseSubletCreateVehicle(button) {
+  const id = cleanNavisionText(button?.dataset?.subletCreateVehicle || '');
+  const version = cleanNavisionText(button?.dataset?.subletCreateVehicleVersion || '');
+  const label = cleanNavisionText(button?.dataset?.subletCreateVehicleLabel || '');
+  const vehicle = subletCreateCanonicalVehicles().filter(row => row.__emailVehicleId === id);
+  if (!id || vehicle.length !== 1) return false;
+  $('#sublet-create-vehicle-id').value = `${id}:${version}`;
+  $('#sublet-create-vehicle-search').value = label;
+  $('#sublet-create-vehicle-results').innerHTML = `<p class="is-selected" role="status">Selected: ${escapeHtml(label)}</p>`;
+  return true;
+}
+
+function openSubletCreateDialog() {
+  const dialog = $('#sublet-create-dialog');
+  const form = $('#sublet-create-form');
+  if (!dialog || !form) return;
+  form.reset();
+  $('#sublet-create-vehicle-id').value = '';
+  $('#sublet-create-error').textContent = '';
+  $('#sublet-create-vehicle-results').innerHTML = '';
+  const providers = typeof loadSubletProviderRecords === 'function' ? loadSubletProviderRecords().filter(row => row.active !== false && row.id) : [];
+  $('#sublet-create-provider').innerHTML = `<option value="">Select provider</option>${providers.map(row => `<option value="${escapeHtml(row.id)}">${escapeHtml(row.name)}</option>`).join('')}`;
+  const today = subletTodayDateKey();
+  $('#sublet-create-out-date').value = today;
+  $('#sublet-create-return-date').value = today;
+  if (typeof dialog.showModal === 'function') dialog.showModal(); else dialog.setAttribute('open', '');
+  window.setTimeout(() => $('#sublet-create-vehicle-search')?.focus(), 0);
+}
+
+function closeSubletCreateDialog() {
+  const dialog = $('#sublet-create-dialog');
+  if (!dialog) return;
+  if (typeof dialog.close === 'function') dialog.close(); else dialog.removeAttribute('open');
+}
+
+async function submitSubletCreate(event) {
+  event?.preventDefault?.();
+  const error = $('#sublet-create-error');
+  const binding = cleanNavisionText($('#sublet-create-vehicle-id')?.value || '');
+  const split = binding.lastIndexOf(':');
+  const vehicleId = split > 0 ? binding.slice(0, split) : '';
+  const vehicleVersion = Number(split > 0 ? binding.slice(split + 1) : 0);
+  const exact = subletCreateCanonicalVehicles().filter(vehicle => vehicle.__emailVehicleId === vehicleId && Number(vehicle.__emailVehicleVersion || 0) === vehicleVersion);
+  const providerId = cleanNavisionText($('#sublet-create-provider')?.value || '');
+  const outDate = plainDateValue($('#sublet-create-out-date')?.value || '');
+  const returnDate = plainDateValue($('#sublet-create-return-date')?.value || '');
+  if (exact.length !== 1) { error.textContent = 'Choose exactly one canonical vehicle result. No booking was created.'; return false; }
+  if (!providerId) { error.textContent = 'Choose one canonical provider.'; return false; }
+  if (!outDate || !returnDate || returnDate < outDate) { error.textContent = 'Expected return must be on or after the out date.'; return false; }
+  const service = app.emailVehicleLocationService;
+  if (!service?.createSubletBooking) { error.textContent = 'Shared Sublet booking service is unavailable. No booking was created.'; return false; }
+  const response = await service.createSubletBooking(vehicleId, vehicleVersion, providerId, outDate, returnDate, cleanNavisionText($('#sublet-create-provider-email')?.value || ''), cleanNavisionText($('#sublet-create-notes')?.value || ''));
+  if (!response?.ok) {
+    error.textContent = response?.code === 'sublet_booking_overlap' ? 'These dates overlap another booking for this vehicle.' : `Booking was not created: ${response?.code || 'unknown_error'}.`;
+    await refreshEmailVehicleLocations();
+    return false;
+  }
+  closeSubletCreateDialog();
+  await refreshEmailVehicleLocations();
+  app.subletOperationalFilter = 'booked';
+  renderSubletHome();
+  return true;
+}
+
+function bindSubletCreateDialog() {
+  on($('#sublet-create-open'), 'click', openSubletCreateDialog);
+  on($('#sublet-create-close'), 'click', closeSubletCreateDialog);
+  on($('#sublet-create-cancel'), 'click', closeSubletCreateDialog);
+  on($('#sublet-create-vehicle-search'), 'input', renderSubletCreateVehicleMatches);
+  on($('#sublet-create-form'), 'submit', submitSubletCreate);
+  const results = $('#sublet-create-vehicle-results');
+  on(results, 'click', event => {
+    const button = event.target.closest?.('[data-sublet-create-vehicle]');
+    if (button && results.contains(button)) chooseSubletCreateVehicle(button);
+  });
+  const dialog = $('#sublet-create-dialog');
+  on(dialog, 'click', event => { if (event.target === dialog) closeSubletCreateDialog(); });
+  on(dialog, 'cancel', event => { event.preventDefault(); closeSubletCreateDialog(); });
+}
+
 function renderSubletHome() {
   const host = $('#sublet-home-content');
   if (!host) return;
@@ -20820,7 +20997,7 @@ function renderSubletHome() {
   const sortReference = new Date();
   const rows = allRows.filter(vehicle => {
     if (app.subletViewMode === 'calendar') {
-      if (subletBookingState(vehicle) === 'to-book') return false;
+      if (subletBookingState(vehicle) !== 'booked') return false;
     } else if (!subletMatchesOperationalFilter(vehicle, app.subletOperationalFilter)) return false;
     const provider = normalizeSubletProviderName(pmbBaySubletProvider(vehicle));
     if (providerFilter === 'unassigned' && provider) return false;
@@ -20848,26 +21025,28 @@ function renderSubletHome() {
     return;
   }
   host.innerHTML = `<div class="sublet-table-wrap"><table class="data-table compact-table sublet-table"><thead><tr><th aria-label="Expand"></th><th>Key</th><th>Stock</th><th>Job card</th><th>Returned</th><th>Customer</th><th>Vehicle</th><th>Provider</th><th>Booking date</th><th>Due back</th><th>Status</th><th>Actions</th></tr></thead><tbody>${rows.map(vehicle => {
-    const key = vehicleKey(vehicle);
+    const vehicleOpenKey = vehicle.__subletVehicleKey || vehicleKey(vehicle);
+    const key = vehicle.__subletBookingId || vehicleOpenKey;
     const stock = displayStockNumber(vehicle) || 'vehicle';
     const accessibleStock = escapeHtml(stock);
     const expanded = app.subletExpandedRows.has(key);
     const state = subletBookingState(vehicle);
     const returned = state === 'returned';
+    const overdue = subletIsOverdue(vehicle);
     const statusLabel = returned ? 'Returned' : (subletAwayOnDate(vehicle, subletTodayDateKey()) ? 'Away on Sublet' : (state === 'booked' ? 'Sublet Booked' : 'Sublet To Book'));
-    return `<tr class="sublet-row sublet-summary-row ${expanded ? 'is-expanded' : ''}">
+    return `<tr class="sublet-row sublet-summary-row ${overdue ? 'is-overdue' : ''} ${expanded ? 'is-expanded' : ''}">
       <td><button class="sublet-row-toggle" type="button" data-sublet-toggle="${escapeHtml(key)}" aria-expanded="${expanded}" aria-label="${expanded ? 'Collapse' : 'Expand'} Sublet details for ${accessibleStock}">${expanded ? '▾' : '›'}</button></td>
       <td><strong>${escapeHtml(vehicleKeyNumber(vehicle) || '—')}</strong></td>
-      <td><button class="sublet-stock-link" type="button" data-open-stock="${escapeHtml(key)}"><strong>${escapeHtml(stock === 'vehicle' ? '—' : stock)}</strong></button></td>
+      <td><button class="sublet-stock-link" type="button" data-open-stock="${escapeHtml(vehicleOpenKey)}"><strong>${escapeHtml(stock === 'vehicle' ? '—' : stock)}</strong></button></td>
       <td><strong>${escapeHtml(vehicleJobcardNumber(vehicle) || '—')}</strong></td>
-      <td><label class="sublet-returned-check"><input type="checkbox" aria-label="Mark stock ${accessibleStock} returned from Sublet" data-sublet-returned="${escapeHtml(key)}" ${returned ? 'checked' : ''}><span>Back</span></label></td>
+      <td><label class="sublet-returned-check"><input type="checkbox" aria-label="Mark stock ${accessibleStock}, ${escapeHtml(pmbBaySubletProvider(vehicle) || 'provider unassigned')}, returned from Sublet" data-sublet-returned="${escapeHtml(key)}" ${returned ? 'checked disabled' : ''}><span>Back</span></label></td>
       <td><strong title="${escapeHtml(vehicleCustomerName(vehicle) || 'Dealer Order')}">${escapeHtml(vehicleCustomerName(vehicle) || 'Dealer Order')}</strong></td>
       <td><span title="${escapeHtml(displayVehicle(vehicle) || '')}">${escapeHtml(displayVehicle(vehicle) || '—')}</span></td>
-      <td><select aria-label="Sublet provider for ${accessibleStock}" data-sublet-field="pmbSubletProvider" data-sublet-key="${escapeHtml(key)}">${subletProviderOptionsHtml(pmbBaySubletProvider(vehicle))}</select></td>
-      <td><input type="date" aria-label="Sublet booking date for ${accessibleStock}" value="${escapeHtml(plainDateValue(vehicle.pmbSubletBookingDate))}" data-sublet-field="pmbSubletBookingDate" data-sublet-key="${escapeHtml(key)}"></td>
-      <td><input type="date" aria-label="Expected Sublet return date for ${accessibleStock}" value="${escapeHtml(plainDateValue(vehicle.pmbSubletExpectedReturnDate))}" data-sublet-field="pmbSubletExpectedReturnDate" data-sublet-key="${escapeHtml(key)}"></td>
-      <td><span class="sublet-status-pill is-${escapeHtml(state)}">${escapeHtml(statusLabel)}</span></td>
-      <td><button class="small-button" type="button" data-open-stock="${escapeHtml(key)}">Open vehicle</button></td>
+      <td><select aria-label="Sublet provider for ${accessibleStock}" data-sublet-field="pmbSubletProvider" data-sublet-key="${escapeHtml(key)}" ${vehicle.__subletBookingId ? 'disabled title="Provider identity is immutable; create another booking"' : ''}>${subletProviderOptionsHtml(pmbBaySubletProvider(vehicle))}</select></td>
+      <td><input type="date" aria-label="Sublet booking date for ${accessibleStock}" value="${escapeHtml(plainDateValue(vehicle.pmbSubletBookingDate))}" data-sublet-field="pmbSubletBookingDate" data-sublet-key="${escapeHtml(key)}" ${returned ? 'disabled' : ''}></td>
+      <td><input type="date" aria-label="Expected Sublet return date for ${accessibleStock}" value="${escapeHtml(plainDateValue(vehicle.pmbSubletExpectedReturnDate))}" data-sublet-field="pmbSubletExpectedReturnDate" data-sublet-key="${escapeHtml(key)}" ${returned ? 'disabled' : ''}></td>
+      <td><span class="sublet-status-pill is-${escapeHtml(state)} ${overdue ? 'is-overdue' : ''}">${escapeHtml(overdue ? 'OVERDUE' : statusLabel)}</span></td>
+      <td><button class="small-button" type="button" data-open-stock="${escapeHtml(vehicleOpenKey)}">Open vehicle</button></td>
     </tr>${expanded ? `<tr class="sublet-detail-row"><td colspan="12"><div class="sublet-detail-grid">
       <label><span>Provider email</span><input type="email" aria-label="Sublet provider email for ${accessibleStock}" placeholder="Provider email" value="${escapeHtml(vehicle.pmbSubletProviderEmail || '')}" data-sublet-field="pmbSubletProviderEmail" data-sublet-key="${escapeHtml(key)}"></label>
       <label><span>Actual return</span><input type="date" aria-label="Actual Sublet return date for ${accessibleStock}" value="${escapeHtml(plainDateValue(vehicle.pmbSubletActualReturnDate))}" data-sublet-field="pmbSubletActualReturnDate" data-sublet-key="${escapeHtml(key)}"></label>

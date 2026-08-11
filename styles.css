@@ -11681,6 +11681,28 @@ html[data-row-width="xl"] {
 .sublet-calendar-event.is-due-back { border-color: #fdba74; border-left-color: #f97316; background: #fff7ed; color: #9a3412; }
 .sublet-calendar-event.is-returned { border-color: #86efac; border-left-color: #16a34a; background: #f0fdf4; color: #166534; }
 .sublet-calendar-event.is-missing-return { border-bottom-color: #f59e0b; }
+@keyframes sublet-overdue-flash { 0%, 100% { background: #fee2e2; box-shadow: 0 0 0 0 rgba(220,38,38,0); } 50% { background: #fecaca; box-shadow: 0 0 0 3px rgba(220,38,38,.24); } }
+.sublet-calendar-event.is-overdue, .sublet-summary-row.is-overdue > td, .sublet-status-pill.is-overdue { border-color: #dc2626; color: #991b1b; animation: sublet-overdue-flash 1.15s ease-in-out infinite; }
+.sublet-calendar-event.is-overdue { border-left-color: #b91c1c; }
+.sublet-summary-row.is-overdue > td:first-child { border-left: 5px solid #dc2626; }
+.sublet-create-dialog { width: min(620px, calc(100vw - 28px)); max-height: calc(100vh - 28px); padding: 0; border: 0; border-radius: 12px; box-shadow: 0 24px 80px rgba(15,23,42,.35); }
+.sublet-create-dialog::backdrop { background: rgba(15,23,42,.55); }
+.sublet-create-dialog form { display: grid; gap: 12px; padding: 20px; }
+.sublet-create-dialog header, .sublet-create-dialog footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.sublet-create-dialog h2 { margin: 2px 0 0; }
+.sublet-create-dialog label { display: grid; gap: 5px; color: #334155; font-size: .78rem; font-weight: 800; }
+.sublet-create-dialog input, .sublet-create-dialog select, .sublet-create-dialog textarea { width: 100%; }
+.sublet-create-dialog label small { color: #64748b; font-weight: 600; }
+.sublet-create-dates { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.sublet-create-results { max-height: 190px; display: grid; gap: 5px; overflow: auto; }
+.sublet-create-results button { display: grid; gap: 2px; min-height: 44px; padding: 7px 10px; border: 1px solid #cbd5e1; border-radius: 6px; background: #fff; text-align: left; cursor: pointer; }
+.sublet-create-results button:hover, .sublet-create-results button:focus-visible { border-color: #2563eb; background: #eff6ff; }
+.sublet-create-results button span, .sublet-create-results small { color: #64748b; font-size: .72rem; }
+.sublet-create-results .is-selected { margin: 0; padding: 8px 10px; border: 1px solid #86efac; border-radius: 6px; background: #f0fdf4; color: #166534; font-weight: 800; }
+.sublet-create-error { min-height: 20px; margin: 0; color: #b91c1c; font-weight: 800; }
+@media (prefers-reduced-motion: reduce) {
+  .sublet-calendar-event.is-overdue, .sublet-summary-row.is-overdue > td, .sublet-status-pill.is-overdue { animation: none; background: #fee2e2; outline: 2px solid #dc2626; outline-offset: -2px; }
+}
 .sublet-compact-toolbar { grid-template-columns: minmax(260px, 1.5fr) minmax(210px, .8fr) minmax(210px, .8fr); }
 .sublet-compact-toolbar label[hidden] { display: none !important; }
 .sublet-table-wrap { overflow-x: auto; }
