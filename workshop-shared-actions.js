@@ -201,6 +201,48 @@ function buildWorkshopSharedActions(dataService) {
         p_metadata: metadata || {},
       });
     },
+
+    createAdminBlock({ expectedRevision, stageCode, bayNumber, blockType, label, scheduledStartAt, durationMinutes, metadata }) {
+      return mutate('create_workshop_admin_block', {
+        p_expected_revision: expectedRevision,
+        p_stage_code: stageCode,
+        p_bay_number: bayNumber,
+        p_block_type: blockType,
+        p_label: label || null,
+        p_scheduled_start_at: scheduledStartAt,
+        p_duration_minutes: durationMinutes,
+        p_metadata: metadata || {},
+      });
+    },
+
+    moveAdminBlock({ blockId, expectedVersion, stageCode, bayNumber, scheduledStartAt, metadata }) {
+      return mutate('move_workshop_admin_block', {
+        p_block_id: blockId,
+        p_expected_version: expectedVersion,
+        p_stage_code: stageCode,
+        p_bay_number: bayNumber,
+        p_scheduled_start_at: scheduledStartAt,
+        p_metadata: metadata || {},
+      });
+    },
+
+    resizeAdminBlock({ blockId, expectedVersion, durationMinutes, metadata }) {
+      return mutate('resize_workshop_admin_block', {
+        p_block_id: blockId,
+        p_expected_version: expectedVersion,
+        p_duration_minutes: durationMinutes,
+        p_metadata: metadata || {},
+      });
+    },
+
+    deleteAdminBlock({ blockId, expectedVersion, reason, metadata }) {
+      return mutate('delete_workshop_admin_block', {
+        p_block_id: blockId,
+        p_expected_version: expectedVersion,
+        p_reason: reason || null,
+        p_metadata: metadata || {},
+      });
+    },
   };
 }
 

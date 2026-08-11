@@ -5,6 +5,9 @@ const PDC_EMAIL_VEHICLE_STAGING_PROJECT_REF = 'cdsmnqxtyyoeoznmbidd';
 const PDC_EMAIL_VEHICLE_REVISION_TABLE = 'pdc_email_vehicle_revision';
 const PDC_EMAIL_VEHICLE_SNAPSHOT_RPC = 'get_pdc_email_vehicle_location_snapshot';
 const PDC_SUBLET_UPDATE_RPC = 'update_pdc_sublet_booking_field';
+const PDC_SUBLET_CREATE_RPC = 'create_pdc_sublet_booking';
+const PDC_SUBLET_BOOKING_UPDATE_RPC = 'update_pdc_sublet_booking';
+const PDC_SUBLET_RETURN_RPC = 'return_pdc_sublet_booking';
 const PDC_PARTS_ETA_UPDATE_RPC = 'update_pdc_parts_eta';
 const PDC_PARTS_ORDERED_RPC = 'mark_pdc_parts_ordered';
 const PDC_VEHICLE_HISTORY_RPC = 'get_pdc_vehicle_provenance_history';
@@ -32,7 +35,7 @@ function canonicalWorkKey(value = '') {
 }
 function mapServerVehicle(row = {}) {
   const mapped = {
-    id: String(row.permanent_vehicle_id || row.id || ''), permanentVehicleId: String(row.permanent_vehicle_id || ''), stock: String(row.stock_number || '').trim(), vin: String(row.vin || '').trim(), jobCardNumber: String(row.job_card_number || '').trim(), jobcard: String(row.job_card_number || '').trim(), client: String(row.customer_name || '').trim(), vehicle: String(row.vehicle_description || '').trim(), salesperson: String(row.salesperson_reference || '').trim(), registration: String(row.registration || '').trim(), rego: String(row.registration || '').trim(), navisionKewdaleEta: row.eta_to_kewdale || '', etaAtDealer: row.eta_to_kewdale || '', pdcLocation: String(row.current_location || 'Other').trim() || 'Other', pdcSheetVisible: row.visible_on_board !== false, source: String(row.source_system || 'Authenticated email auto-import'), sourceRecordId: String(row.source_record_id || ''), updatedAt: row.updated_at || '', __emailVehicleServerAuthoritative: true, __emailVehicleReadOnly: true, __emailVehicleId: String(row.id || ''), __emailVehicleVersion: Number(row.version || 0), __subletBookingVersion: Number(row.sublet_booking?.version || 0),
+    id: String(row.permanent_vehicle_id || row.id || ''), permanentVehicleId: String(row.permanent_vehicle_id || ''), stock: String(row.stock_number || '').trim(), vin: String(row.vin || '').trim(), jobCardNumber: String(row.job_card_number || '').trim(), jobcard: String(row.job_card_number || '').trim(), client: String(row.customer_name || '').trim(), vehicle: String(row.vehicle_description || '').trim(), salesperson: String(row.salesperson_reference || '').trim(), registration: String(row.registration || '').trim(), rego: String(row.registration || '').trim(), navisionKewdaleEta: row.eta_to_kewdale || '', etaAtDealer: row.eta_to_kewdale || '', pdcLocation: String(row.current_location || 'Other').trim() || 'Other', dateToPmb: row.date_to_pmb || '', dateToRft: row.date_to_rft || '', deliveredToDealerDate: row.delivered_to_dealer_date || '', pdcSheetVisible: row.visible_on_board !== false, source: String(row.source_system || 'Authenticated email auto-import'), sourceRecordId: String(row.source_record_id || ''), updatedAt: row.updated_at || '', __emailVehicleServerAuthoritative: true, __emailVehicleReadOnly: true, __emailVehicleId: String(row.id || ''), __emailVehicleVersion: Number(row.version || 0), __subletBookingVersion: Number(row.sublet_booking?.version || 0),
   };
   for (const [requiredKey, completeKey] of Object.values(WORK_FIELDS)) { mapped[requiredKey] = false; mapped[completeKey] = false; }
   for (const item of Array.isArray(row.work_items) ? row.work_items : []) {
@@ -69,7 +72,25 @@ function mapServerVehicle(row = {}) {
   mapped.pdcPartsPreviousWorstEta = partsUpdate.previous_worst_eta || '';
   mapped.pdcPartsWorstEtaUpdatedAt = partsUpdate.updated_at || '';
 
-  const sublet = row.sublet_booking && typeof row.sublet_booking === 'object' ? row.sublet_booking : {};
+  const canonicalBookings = (Array.isArray(row.sublet_bookings) ? row.sublet_bookings : []).map(booking => ({
+    bookingId: String(booking?.booking_id || ''), vehicleId: String(booking?.vehicle_id || row.id || ''),
+    vehicleVersion: Number(booking?.vehicle_version || row.version || 0), providerId: String(booking?.provider_id || ''),
+    provider: String(booking?.provider_name || ''), providerEmail: String(booking?.provider_email || ''),
+    outDate: booking?.out_date || '', expectedReturnDate: booking?.expected_return_date || '',
+    status: ['active', 'returned', 'cancelled'].includes(String(booking?.status || '')) ? String(booking.status) : 'cancelled',
+    returnedAt: booking?.returned_at || '', returnedBy: String(booking?.returned_by || ''), notes: String(booking?.notes || ''),
+    version: Number(booking?.version || 0), updatedAt: booking?.updated_at || '',
+  })).filter(booking => booking.bookingId && booking.providerId);
+  mapped.pdcSubletBookings = canonicalBookings;
+  mapped.__subletActiveCount = Number(row.sublet_active_count ?? canonicalBookings.filter(booking => booking.status === 'active').length);
+  const activeBridge = canonicalBookings.filter(booking => booking.status === 'active').sort((a, b) => a.outDate.localeCompare(b.outDate))[0];
+  const latestBridge = canonicalBookings.slice().sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt)))[0];
+  const bridge = activeBridge || latestBridge;
+  const sublet = bridge ? {
+    provider: bridge.provider, provider_email: bridge.providerEmail, booking_date: bridge.outDate,
+    expected_return_date: bridge.expectedReturnDate, actual_return_date: bridge.returnedAt,
+    notes: bridge.notes, version: bridge.version,
+  } : (row.sublet_booking && typeof row.sublet_booking === 'object' ? row.sublet_booking : {});
   mapped.pmbSubletProvider = String(sublet.provider || '');
   mapped.pmbSubletProviderEmail = String(sublet.provider_email || '');
   mapped.pmbSubletPoSentDate = sublet.po_sent_date || '';
@@ -78,6 +99,7 @@ function mapServerVehicle(row = {}) {
   mapped.pmbSubletActualReturnDate = sublet.actual_return_date || '';
   mapped.pmbSubletNotes = String(sublet.notes || '');
   mapped.pmbSubletEmailSent = sublet.email_sent === true;
+  if (canonicalBookings.length) mapped.pdcCompleteSublet = mapped.__subletActiveCount === 0;
   return mapped;
 }
 function rowIdentities(row = {}) { return { stock: identity(row.stock_number ?? row.stock), vin: identity(row.vin ?? row.VIN ?? row.chassis ?? row.chassisNo) }; }
@@ -140,6 +162,24 @@ function createPdcEmailVehicleLocationService(options = {}) {
       return { ok: true, code: body.code || 'updated', data: body.data || body };
     } catch (_error) { return { ok: false, code: 'sublet_update_unavailable', data: null }; }
   }
+  async function subletRpc(name, payload, unavailableCode) {
+    const token = getAccessToken(); if (!token) return { ok: false, code: 'not_authenticated', data: null };
+    try {
+      const response = await request(`${url}/rest/v1/rpc/${name}`, { method: 'POST', headers: { apikey: key, Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+      const body = await response.json();
+      if (!response.ok || !body || body.ok === false) return { ok: false, code: subletResponseCode(body, response.status), data: body?.data || null };
+      return { ok: true, code: body.code || 'ok', data: body.data || body };
+    } catch (_error) { return { ok: false, code: unavailableCode, data: null }; }
+  }
+  function createSubletBooking(vehicleId = '', vehicleVersion = 0, providerId = '', outDate = '', expectedReturnDate = '', providerEmail = '', notes = '') {
+    return subletRpc(PDC_SUBLET_CREATE_RPC, { p_vehicle_id: vehicleId, p_vehicle_version: Number(vehicleVersion) || 0, p_provider_id: providerId, p_out_date: outDate, p_expected_return_date: expectedReturnDate, p_provider_email: providerEmail, p_notes: notes }, 'sublet_create_unavailable');
+  }
+  function updateSubletBooking(bookingId = '', expectedVersion = 0, outDate = '', expectedReturnDate = '', notes = null) {
+    return subletRpc(PDC_SUBLET_BOOKING_UPDATE_RPC, { p_booking_id: bookingId, p_expected_version: Number(expectedVersion) || 0, p_out_date: outDate, p_expected_return_date: expectedReturnDate, p_notes: notes }, 'sublet_update_unavailable');
+  }
+  function returnSubletBooking(bookingId = '', expectedVersion = 0, returnedAt = null) {
+    return subletRpc(PDC_SUBLET_RETURN_RPC, { p_booking_id: bookingId, p_expected_version: Number(expectedVersion) || 0, p_returned_at: returnedAt }, 'sublet_return_unavailable');
+  }
   async function updatePartsEta(vehicleId = '', expectedVersion = 0, value = '') {
     const token = getAccessToken(); if (!token) return { ok: false, code: 'not_authenticated', data: null };
     try {
@@ -171,8 +211,8 @@ function createPdcEmailVehicleLocationService(options = {}) {
     if (!subscribeRealtime) return { unsubscribe() {} };
     return subscribeRealtime(PDC_EMAIL_VEHICLE_REVISION_TABLE, event => { if (typeof onRevision === 'function') onRevision(event?.new?.revision ?? null, event); });
   }
-  return { authority: 'supabase_staging_authenticated_email_vehicle', snapshot, updateSublet, updatePartsEta, markPartsOrdered, vehicleHistory, subscribe };
+  return { authority: 'supabase_staging_authenticated_email_vehicle', snapshot, updateSublet, createSubletBooking, updateSubletBooking, returnSubletBooking, updatePartsEta, markPartsOrdered, vehicleHistory, subscribe };
 }
-const exported = { PDC_EMAIL_VEHICLE_STAGING_PROJECT_REF, PDC_EMAIL_VEHICLE_REVISION_TABLE, PDC_EMAIL_VEHICLE_SNAPSHOT_RPC, PDC_SUBLET_UPDATE_RPC, PDC_PARTS_ETA_UPDATE_RPC, PDC_PARTS_ORDERED_RPC, PDC_VEHICLE_HISTORY_RPC, canonicalWorkKey, mapServerVehicle, reconcileVehicleRows, createPdcEmailVehicleLocationService };
+const exported = { PDC_EMAIL_VEHICLE_STAGING_PROJECT_REF, PDC_EMAIL_VEHICLE_REVISION_TABLE, PDC_EMAIL_VEHICLE_SNAPSHOT_RPC, PDC_SUBLET_UPDATE_RPC, PDC_SUBLET_CREATE_RPC, PDC_SUBLET_BOOKING_UPDATE_RPC, PDC_SUBLET_RETURN_RPC, PDC_PARTS_ETA_UPDATE_RPC, PDC_PARTS_ORDERED_RPC, PDC_VEHICLE_HISTORY_RPC, canonicalWorkKey, mapServerVehicle, reconcileVehicleRows, createPdcEmailVehicleLocationService };
 if (typeof module !== 'undefined' && module.exports) module.exports = exported;
 if (typeof window !== 'undefined') window.PDC_EMAIL_VEHICLE_LOCATION_SERVICE = exported;

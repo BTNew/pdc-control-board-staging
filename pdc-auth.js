@@ -9,7 +9,6 @@
     role: null,
     initialized: false,
     ownRoleChannel: null,
-    ownRoleRealtimeClient: null,
     ownRoleSubscriptionAttempt: null,
     passwordSetupUserId: null,
     // Monotonic ownership tokens for asynchronous session and role checks.
@@ -59,6 +58,28 @@
     const id = String(session?.user?.id || '').trim();
     const email = String(session?.user?.email || '').trim().toLowerCase();
     return id && email ? `${id}\n${email}` : '';
+  }
+
+  function canContinueAuthorizedSession(event, session) {
+    if (event !== 'TOKEN_REFRESHED' && event !== 'SIGNED_IN') return false;
+    if (!session || state.sessionAcceptanceBlocked || state.passwordSetupRequired || state.passwordSetupUserId) return false;
+    if (state.pendingProviderSessionGeneration !== null || state.validatingSession) return false;
+    const currentPrincipal = authPrincipalKey(state.session);
+    const nextPrincipal = authPrincipalKey(session);
+    const contextEmail = String(window.PDC_AUTH_CONTEXT?.email || '').trim().toLowerCase();
+    const nextEmail = String(session.user?.email || '').trim().toLowerCase();
+    return Boolean(
+      state.session
+      && currentPrincipal
+      && currentPrincipal === nextPrincipal
+      && state.session.user?.id === session.user?.id
+      && approvedRole(state.role, nextEmail)
+      && state.ownRoleChannel
+      && !state.ownRoleSubscriptionAttempt
+      && window.PDC_AUTH_CONTEXT?.userId === session.user?.id
+      && contextEmail === nextEmail
+      && window.PDC_AUTH_CONTEXT?.role === state.role?.role
+    );
   }
 
   function setMessage(title, detail, mode = 'signed-out') {
@@ -123,20 +144,14 @@
     state.ownRoleChannelGeneration += 1;
     state.ownRoleSubscriptionAttempt?.finish(false);
     state.ownRoleSubscriptionAttempt = null;
-    const realtimeClient = state.ownRoleRealtimeClient || state.client;
-    if (state.ownRoleChannel && realtimeClient && typeof realtimeClient.removeChannel === 'function') {
+    if (state.ownRoleChannel && state.client && typeof state.client.removeChannel === 'function') {
       try {
-        const removed = realtimeClient.removeChannel(state.ownRoleChannel);
-        if (state.ownRoleRealtimeClient) {
-          if (removed && typeof removed.finally === 'function') removed.finally(() => realtimeClient.realtime?.disconnect?.());
-          else realtimeClient.realtime?.disconnect?.();
-        }
+        state.client.removeChannel(state.ownRoleChannel);
       } catch (_err) {
         // best-effort; the channel may already be closed
       }
     }
     state.ownRoleChannel = null;
-    state.ownRoleRealtimeClient = null;
   }
 
   function lockOwnRoleAuthority(reason, role = null) {
@@ -179,22 +194,7 @@
       };
       state.ownRoleSubscriptionAttempt = { finish };
       try {
-        let realtimeClient = state.client;
-        const config = authConfig();
-        const accessToken = String(state.session?.access_token || '').trim();
-        if (accessToken && config.url && config.publishableKey && typeof window.supabase?.createClient === 'function') {
-          realtimeClient = window.supabase.createClient(config.url, config.publishableKey, {
-            auth: {
-              persistSession: false,
-              autoRefreshToken: false,
-              detectSessionInUrl: false,
-              storageKey: 'pdc-own-role-realtime-authority',
-            },
-          });
-          realtimeClient.realtime?.setAuth?.(accessToken);
-          state.ownRoleRealtimeClient = realtimeClient;
-        }
-        const channel = realtimeClient
+        const channel = state.client
           .channel(`pdc_user_roles_own_row:${email}`)
           .on(
             'postgres_changes',
@@ -636,18 +636,15 @@
 
   function showCreateAccountForm() {
     setMessage('Create your PDC account', 'Enter your details below. An administrator must approve your account before you can access any data.', 'create-account');
-    el('pdc-signup-full-name')?.focus();
   }
 
   function showForgotPasswordForm() {
     setMessage('Reset your password', 'Enter your work email and we will send you a password reset link.', 'forgot-password');
-    el('pdc-forgot-email')?.focus();
   }
 
   function showSignInForm() {
     const config = authConfig();
     setMessage(config.mode === 'microsoft' ? 'Microsoft sign-in required' : 'PDC staff sign-in', config.mode === 'microsoft' ? 'Use your approved work Microsoft account to open the PDC Control Board.' : 'Use your individually assigned PDC email and password.', 'signed-out');
-    el('pdc-login-email')?.focus();
   }
 
   async function initialize() {
@@ -689,24 +686,17 @@
       // uncorrelated callbacks until its generation completes.
       if (session && state.pendingProviderSessionGeneration !== null) return;
       if (session && state.explicitSessionUserId && session.user?.id !== state.explicitSessionUserId) return;
-      // Supabase silently rotates access tokens for a still-signed-in user.
+      // Supabase silently rotates access tokens for a still-signed-in user,
+      // and may also emit same-principal SIGNED_IN when a hidden tab returns
+      // to the foreground. Both are continuity events only while the exact
+      // approved identity and its trusted own-role monitor remain installed.
       // The already-approved context remains continuously monitored by the
       // user's role-row channel, so tearing the whole app down and recreating
       // that channel here adds no authority proof and can strand a healthy tab
       // on the checking overlay if Realtime subscription is briefly delayed.
       // Any different user, absent context/monitor, or blocked session still
       // takes the full fail-closed applySession() path below.
-      if (
-        event === 'TOKEN_REFRESHED'
-        && session
-        && !state.sessionAcceptanceBlocked
-        && state.session?.user?.id
-        && state.session.user.id === session.user?.id
-        && authPrincipalKey(state.session) === authPrincipalKey(session)
-        && state.role
-        && state.ownRoleChannel
-        && window.PDC_AUTH_CONTEXT?.userId === session.user?.id
-      ) {
+      if (canContinueAuthorizedSession(event, session)) {
         state.session = session;
         state.user = session.user;
         window.__pdcCachedAccessToken = session.access_token || null;
@@ -714,7 +704,7 @@
         // reconciliation even while the live role monitor remains subscribed.
         // Revalidation runs without tearing down a proven context; any denial,
         // lookup failure, or role change is still handled fail-closed.
-        if (state.roleLookupInFlight === 0) {
+        if (event === 'TOKEN_REFRESHED' && state.roleLookupInFlight === 0) {
           Promise.resolve()
             .then(() => handleOwnRoleRowChanged())
             .catch(() => lockOwnRoleAuthority('role_check_failed'));

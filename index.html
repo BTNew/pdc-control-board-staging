@@ -8,11 +8,11 @@
   <meta name="description" content="PDC Workshop Control Board — STAGING (separate Supabase project, synthetic data only)." />
   <title>PDC Control Board — STAGING</title>
   <link rel="icon" href="favicon.svg" type="image/svg+xml" />
-  <link rel="stylesheet" href="styles.css?v=2026.08.11.24-monitor-updates-complete-board-purge" />
+  <link rel="stylesheet" href="styles.css?v=2026.08.11.30-workbook-workshop-release" />
   <link rel="stylesheet" href="pdc-ai-intake-review.css?v=2026.07.28.20-ai-review-card-separation" />
-  <link rel="stylesheet" href="ai-auditor.css?v=2026.08.11.24-monitor-updates-complete-board-purge" />
-  <link rel="stylesheet" href="desktop-operations.css?v=2026.08.11.24-monitor-updates-complete-board-purge" />
-  <link rel="stylesheet" href="workshop-planner.css?v=2026.08.11.24-monitor-updates-complete-board-purge" />
+  <link rel="stylesheet" href="ai-auditor.css?v=2026.08.11.30-workbook-workshop-release" />
+  <link rel="stylesheet" href="desktop-operations.css?v=2026.08.11.30-workbook-workshop-release" />
+  <link rel="stylesheet" href="workshop-planner.css?v=2026.08.11.30-workbook-workshop-release" />
 </head>
 <body class="auth-pending" data-auth-state="checking">
   <main class="pdc-auth-gate" id="pdc-auth-gate" aria-labelledby="pdc-auth-title">
@@ -89,7 +89,7 @@
         <div class="brand-text">
           <div class="brand-title">Perth Motor Bodies</div>
           <div class="brand-subtitle">PDC Control Board</div>
-          <div class="app-version" id="app-version">Version 2026.08.11.24-monitor-updates-complete-board-purge</div>
+          <div class="app-version" id="app-version">Version 2026.08.11.30-workbook-workshop-release</div>
         </div>
 
       </div>
@@ -476,7 +476,7 @@
       <section id="sublet" class="view">
         <div class="parts-home-layout sublet-home-layout">
           <section class="panel parts-home-panel sublet-home-panel">
-            <div class="panel-header"><div><h2>Sublet bookings</h2><p>Provider queue, booking dates, notes and controlled email drafts.</p></div><span class="badge neutral" id="sublet-summary">0 shown</span></div>
+            <div class="panel-header"><div><h2>Sublet bookings</h2><p>Provider queue, booking dates, notes and controlled email drafts.</p></div><div class="panel-actions"><button class="primary" id="sublet-create-open" type="button">Create Sublet</button><span class="badge neutral" id="sublet-summary">0 shown</span></div></div>
             <div class="parts-summary-grid sublet-operational-filters" id="sublet-summary-grid" role="toolbar" aria-label="Sublet booking filters"></div>
             <div class="sublet-view-toolbar">
               <div class="sublet-view-switch" role="group" aria-label="Sublet display view"><button class="small-button is-active" id="sublet-list-view" type="button" aria-pressed="true">List View</button><button class="small-button" id="sublet-calendar-view" type="button" aria-pressed="false">Calendar View</button></div>
@@ -491,6 +491,19 @@
           </section>
         </div>
       </section>
+      <dialog id="sublet-create-dialog" class="sublet-create-dialog" aria-labelledby="sublet-create-title">
+        <form id="sublet-create-form" method="dialog" novalidate>
+          <header><div><span class="eyebrow">Independent provider booking</span><h2 id="sublet-create-title">Create Sublet</h2></div><button class="small-button" id="sublet-create-close" type="button" aria-label="Close Create Sublet dialog">×</button></header>
+          <label><span>Canonical vehicle</span><input id="sublet-create-vehicle-search" type="search" autocomplete="off" aria-describedby="sublet-create-vehicle-help" placeholder="Exact stock or customer name" required><input id="sublet-create-vehicle-id" type="hidden"><small id="sublet-create-vehicle-help">Choose one exact canonical result. Ambiguous text is never accepted.</small></label>
+          <div id="sublet-create-vehicle-results" class="sublet-create-results" role="listbox" aria-label="Canonical vehicle matches"></div>
+          <label><span>Provider</span><select id="sublet-create-provider" required><option value="">Select provider</option></select></label>
+          <div class="sublet-create-dates"><label><span>Out / booking date</span><input id="sublet-create-out-date" type="date" required></label><label><span>Expected return</span><input id="sublet-create-return-date" type="date" required></label></div>
+          <label><span>Provider email (optional, required for attested email updates)</span><input id="sublet-create-provider-email" type="email" autocomplete="off"></label>
+          <label><span>Notes</span><textarea id="sublet-create-notes" rows="3" maxlength="2000"></textarea></label>
+          <p id="sublet-create-error" class="sublet-create-error" role="alert" aria-live="assertive"></p>
+          <footer><button class="small-button" id="sublet-create-cancel" type="button">Cancel</button><button class="primary" type="submit">Create booking</button></footer>
+        </form>
+      </dialog>
 
       <section id="rft" class="view">
         <div class="parts-home-layout rft-home-layout">
@@ -922,19 +935,20 @@
 
 
   <script src="vendor/supabase/supabase-2.110.5.js"></script>
-  <script src="pdc-supabase-config.staging.js?v=2026.08.11.24-monitor-updates-complete-board-purge"></script>
-  <script src="pdc-auth.js?v=2026.07.24.26-pd-document-intake"></script>
+  <script src="pdc-supabase-config.staging.js?v=2026.08.11.30-workbook-workshop-release"></script>
+  <script src="pdc-auth.js?v=2026.08.11.27-auth-foreground"></script>
   <script src="pdc-auth-registration.js?v=2026.07.24.26-pd-document-intake"></script>
   <script src="data-staging-empty.js?v=2026.07.24.26-pd-document-intake"></script>
-  <script src="email-board-data.js?v=2026.08.11.24-monitor-updates-complete-board-purge"></script>
+  <script src="email-board-data.js?v=2026.08.11.30-workbook-workshop-release"></script>
   <script src="arb-labor-catalog.js?v=2026.07.24.26-pd-document-intake"></script>
   <script src="ai-board-advisor.js?v=2026.07.24.26-pd-document-intake"></script>
-  <script src="navision-backend-service.js?v=2026.08.11.24-monitor-updates-complete-board-purge"></script>
+  <script src="navision-backend-service.js?v=2026.08.11.30-workbook-workshop-release"></script>
   <script src="pdc-ai-intake-service.js?v=2026.07.25.03-ai-intake-admin-decision"></script>
-  <script src="workshop-eligibility.js?v=2026.08.11.24-monitor-updates-complete-board-purge"></script>
-  <script src="pdc-email-vehicle-location-service.js?v=2026.08.11.24-monitor-updates-complete-board-purge"></script>
-  <script src="pdc-ai-auditor-stage-a.js?v=2026.08.11.24-monitor-updates-complete-board-purge"></script>
-  <script src="app.js?v=2026.08.11.24-monitor-updates-complete-board-purge&amp;auditor=2026.07.30.03-recorded-decision-render"></script>
+  <script src="workshop-eligibility.js?v=2026.08.11.30-workbook-workshop-release"></script>
+  <script src="pdc-email-vehicle-location-service.js?v=2026.08.11.30-workbook-workshop-release"></script>
+  <script src="pdc-ai-auditor-stage-a.js?v=2026.08.11.30-workbook-workshop-release"></script>
+  <script src="vehicle-location-lifecycle.js?v=2026.08.11.30-staging-integration"></script>
+  <script src="app.js?v=2026.08.11.30-workbook-workshop-release&amp;auditor=2026.07.30.03-recorded-decision-render"></script>
   <script src="pdc-ai-intake-review.js?v=2026.07.27.19-ai-review-decision-context"></script>
 
   <script src="scripts/stage2b_c4_browser_export.js?v=2026.07.22.01-read-only-assessment"></script>
