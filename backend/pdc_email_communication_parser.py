@@ -30,6 +30,10 @@ _NEGATED_PARTS = re.compile(
 _PARTS_UNCERTAIN = re.compile(r"\?|\b(?:when|once|if|soon|tomorrow|next\s+week|\d{1,3}\s*%)\b", re.I)
 _PARTS_COMPLETE = re.compile(r"\bparts?\s+(?:are\s+|is\s+|now\s+|have\s+been\s+)?(?:complete|completed|received|ready)\b", re.I)
 _SUBLET_CLAUSE = re.compile(r"\bsub[ -]?let\b[^\r\n.!?]{0,120}\b(?:booked|booking|scheduled)\b[^\r\n.!?]{0,120}", re.I)
+_SUBLET_UNCERTAIN = re.compile(
+    r"\b(?:not\s+booked|isn['’]?t\s+booked|aren['’]?t\s+booked|will\s+be\s+booked|should\s+be\s+booked|proposed|tentative|provisional|cancel(?:led)?)\b|\?",
+    re.I,
+)
 _ADD_ACCESSORY = re.compile(
     r"\b(?:please\s+)?(?:add|fit|install)\s+(?:an?\s+|the\s+)?(.{3,120}?)\s+(?:to|onto|on)\s+(?:this\s+)?(?:job|job\s*card|vehicle)\b",
     re.I,
@@ -121,6 +125,10 @@ def parse_communication_actions(text: str) -> dict[str, Any]:
 
     for match in _SUBLET_CLAUSE.finditer(text):
         clause = _clean(match.group(0), 240)
+        local_context = text[max(0, match.start() - 40):min(len(text), match.end() + 2)]
+        if _SUBLET_UNCERTAIN.search(local_context):
+            review.append("sublet_booking_negated_or_uncertain")
+            continue
         booking_date = _parse_date(clause)
         if not booking_date:
             review.append("sublet_booking_date_missing_or_ambiguous")

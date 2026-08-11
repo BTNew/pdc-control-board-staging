@@ -48,6 +48,16 @@ class CommunicationParserTests(unittest.TestCase):
         result = parse_communication_actions("Stock 12657478. Sublet booked tomorrow.")
         self.assertFalse(result["auto_applicable"])
         self.assertIn("sublet_booking_date_missing_or_ambiguous", result["review_reasons"])
+        for text in (
+            "Stock 12657478. Sublet not booked for 14/08/2026.",
+            "Stock 12657478. Sublet will be booked for 14/08/2026.",
+            "Stock 12657478. Proposed sublet booking 14/08/2026.",
+            "Stock 12657478. Can sublet be booked for 14/08/2026?",
+        ):
+            with self.subTest(text=text):
+                candidate = parse_communication_actions(text)
+                self.assertFalse(candidate["auto_applicable"])
+                self.assertNotIn("set_sublet_booking_date", [a.get("action_type") for a in candidate["actions"]])
 
     def test_long_range_tank_adds_unscheduled_fitting_work(self):
         result = parse_communication_actions("Stock 12657478. Please add long range tank to this job.")
