@@ -22,7 +22,12 @@ _JOB_CARD_PATTERNS = (
     re.compile(r"\b(?:job\s*card|jobcard|repair\s*order|jc)\s*(?:no\.?|number)?\s*[:#-]?\s*([A-Z0-9][A-Z0-9-]{3,31})\b", re.I),
 )
 _VIN_PATTERN = re.compile(r"\b(?:VIN|chassis)\s*[:#-]?\s*([A-HJ-NPR-Z0-9]{17})\b", re.I)
-_NEGATED_PARTS = re.compile(r"\b(?:parts?\s+(?:are\s+)?(?:not|aren['’]?t|isn['’]?t)\s+(?:complete|completed|received)|parts?\s+(?:incomplete|outstanding|waiting|pending))\b", re.I)
+_NEGATED_PARTS = re.compile(
+    r"\bparts?\b[^.!?\n]{0,60}\b(?:not|aren['’]?t|are\s+not|isn['’]?t|is\s+not|won['’]?t|will\s+not|incomplete|waiting|outstanding|pending|almost|nearly|expect(?:ed)?|should\s+be|will\s+be)\b[^.!?\n]{0,40}\b(?:complete|completed|received|ready)\b"
+    r"|\bparts?\b[^.!?\n]{0,40}\b(?:incomplete|waiting|outstanding|pending)\b",
+    re.I,
+)
+_PARTS_UNCERTAIN = re.compile(r"\?|\b(?:when|once|if|soon|tomorrow|next\s+week|\d{1,3}\s*%)\b", re.I)
 _PARTS_COMPLETE = re.compile(r"\bparts?\s+(?:are\s+|is\s+|now\s+|have\s+been\s+)?(?:complete|completed|received|ready)\b", re.I)
 _SUBLET_CLAUSE = re.compile(r"\bsub[ -]?let\b[^\r\n.!?]{0,120}\b(?:booked|booking|scheduled)\b[^\r\n.!?]{0,120}", re.I)
 _ADD_ACCESSORY = re.compile(
@@ -100,11 +105,19 @@ def parse_communication_actions(text: str) -> dict[str, Any]:
     actions: list[dict[str, Any]] = []
     review: list[str] = []
 
+    parts_match = _PARTS_COMPLETE.search(text)
     if _NEGATED_PARTS.search(text):
         review.append("parts_completion_negated_or_uncertain")
-    elif _PARTS_COMPLETE.search(text):
-        match = _PARTS_COMPLETE.search(text)
-        actions.append({"source_action_no": len(actions) + 1, "action_type": "parts_complete", "evidence": _clean(match.group(0), 180)})
+    elif parts_match:
+        starts = [text.rfind(mark, 0, parts_match.start()) for mark in (".", "!", "?", "\n")]
+        clause_start = max(starts) + 1
+        ends = [pos for mark in (".", "!", "?", "\n") if (pos := text.find(mark, parts_match.end())) >= 0]
+        clause_end = min(ends) + 1 if ends else min(len(text), parts_match.end() + 120)
+        parts_clause = text[clause_start:clause_end]
+        if _PARTS_UNCERTAIN.search(parts_clause):
+            review.append("parts_completion_negated_or_uncertain")
+        else:
+            actions.append({"source_action_no": len(actions) + 1, "action_type": "parts_complete", "evidence": _clean(parts_match.group(0), 180)})
 
     for match in _SUBLET_CLAUSE.finditer(text):
         clause = _clean(match.group(0), 240)

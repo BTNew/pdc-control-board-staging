@@ -17,6 +17,17 @@ class CommunicationParserTests(unittest.TestCase):
         self.assertFalse(result["auto_applicable"])
         self.assertEqual(result["actions"], [])
         self.assertIn("parts_completion_negated_or_uncertain", result["review_reasons"])
+        for text in (
+            "Stock 12657478. Parts aren't complete.",
+            "Stock 12657478. Parts will be complete tomorrow.",
+            "Stock 12657478. Parts are almost complete.",
+            "Stock 12657478. Are parts complete?",
+            "Stock 12657478. Parts 90% complete.",
+        ):
+            with self.subTest(text=text):
+                candidate = parse_communication_actions(text)
+                self.assertFalse(candidate["auto_applicable"])
+                self.assertNotIn("parts_complete", [a.get("action_type") for a in candidate["actions"]])
 
     def test_sublet_australian_date(self):
         result = parse_communication_actions("JC J139124136 - Sublet booked for 14/08/2026.")
