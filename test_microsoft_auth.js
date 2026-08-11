@@ -86,6 +86,8 @@ async function testAuthGenerationOwnership() {
   );
   const events = [];
   const lockedObservations = [];
+  let historyReplacements = 0;
+  let serviceStops = 0;
   const nodes = {
     'pdc-login-email': { value: '' },
     'pdc-login-password': { value: '' },
@@ -100,7 +102,7 @@ async function testAuthGenerationOwnership() {
     CustomEvent: function CustomEvent(type, init) { this.type = type; this.detail = init?.detail; },
     window: {
       location: { origin: 'http://localhost:8765', pathname: '/index.html', search: '', hash: '' },
-      history: { replaceState() {} },
+      history: { replaceState() { historyReplacements += 1; } },
       addEventListener() {},
       dispatchEvent(event) {
         events.push(event);
@@ -116,6 +118,7 @@ async function testAuthGenerationOwnership() {
       },
       setTimeout,
       clearTimeout,
+      stopWorkshopReferenceDataReconciliationTimer() { serviceStops += 1; },
     },
     document: {
       readyState: 'loading',
@@ -131,6 +134,7 @@ async function testAuthGenerationOwnership() {
   const internals = raceContext.window.__PDC_AUTH_INTERNALS;
   const roleResponses = [];
   const roleChannels = [];
+  let roleQueryCount = 0;
   let failChannelCreation = false;
   let autoSubscribe = true;
   const client = {
@@ -139,6 +143,7 @@ async function testAuthGenerationOwnership() {
         select() { return this; },
         eq() { return this; },
         maybeSingle() {
+          roleQueryCount += 1;
           const response = roleResponses.shift();
           if (!response) throw new Error('missing role response');
           return response;
@@ -404,13 +409,61 @@ async function testAuthGenerationOwnership() {
   assert.strictEqual(lockedObservations.length, refreshLockCount, 'same-user token refresh emits no authority lock event');
   assert.strictEqual(raceContext.window.PDC_AUTH_CONTEXT.userId, 'B', 'same-user token refresh retains approved context');
 
+  // Supabase also emits SIGNED_IN for an already-signed-in user when a tab
+  // returns to the foreground. This is session continuity, not a new login:
+  // retain the already-proven role/context/monitor and update only the fresh
+  // session, user, and token authority surfaces.
+  const foregroundAuthGeneration = internals.state.authGeneration;
+  const foregroundRoleChannel = internals.state.ownRoleChannel;
+  const foregroundRoleQueryCount = roleQueryCount;
+  const foregroundChannelCount = roleChannels.length;
+  const foregroundLockCount = lockedObservations.length;
+  const foregroundReadyCount = events.filter(event => event.type === 'pdc-auth-ready').length;
+  const foregroundHistoryCount = historyReplacements;
+  const foregroundServiceStopCount = serviceStops;
+  const foregroundSessionB = { ...refreshedSessionB, access_token: 'session-b-foreground-token' };
+  authStateCallback('SIGNED_IN', foregroundSessionB);
+  await new Promise(resolve => setTimeout(resolve, 0));
+  await new Promise(resolve => setTimeout(resolve, 0));
+  assert.strictEqual(internals.state.session, foregroundSessionB, 'same-user foreground SIGNED_IN publishes the replacement session');
+  assert.strictEqual(internals.state.user, foregroundSessionB.user, 'same-user foreground SIGNED_IN publishes the replacement user');
+  assert.strictEqual(raceContext.window.__pdcCachedAccessToken, 'session-b-foreground-token', 'same-user foreground SIGNED_IN updates the cached access token');
+  assert.strictEqual(internals.state.authGeneration, foregroundAuthGeneration, 'same-user foreground SIGNED_IN does not revoke/revalidate authority');
+  assert.strictEqual(internals.state.ownRoleChannel, foregroundRoleChannel, 'same-user foreground SIGNED_IN retains the trusted own-role monitor');
+  assert.strictEqual(roleQueryCount, foregroundRoleQueryCount, 'same-user foreground SIGNED_IN does not query the role row');
+  assert.strictEqual(roleChannels.length, foregroundChannelCount, 'same-user foreground SIGNED_IN does not replace operational listeners');
+  assert.strictEqual(lockedObservations.length, foregroundLockCount, 'same-user foreground SIGNED_IN emits no authority lock event');
+  assert.strictEqual(events.filter(event => event.type === 'pdc-auth-ready').length, foregroundReadyCount, 'same-user foreground SIGNED_IN emits no duplicate ready event');
+  assert.strictEqual(historyReplacements, foregroundHistoryCount, 'same-user foreground SIGNED_IN does not mutate route/history state');
+  assert.strictEqual(serviceStops, foregroundServiceStopCount, 'same-user foreground SIGNED_IN does not tear down application services');
+  assert.strictEqual(raceContext.window.PDC_AUTH_CONTEXT.userId, 'B', 'same-user foreground SIGNED_IN retains approved context');
+
+  // A matching identity is not sufficient without the installed monitor.
+  // The event must take the normal lock-and-revalidate path rather than
+  // inheriting authority from an unmonitored session.
+  internals.state.ownRoleChannel = null;
+  const missingMonitorRole = deferred();
+  roleResponses.push(missingMonitorRole.promise);
+  const missingMonitorSessionB = { ...foregroundSessionB, access_token: 'session-b-missing-monitor-token' };
+  const locksBeforeMissingMonitor = lockedObservations.length;
+  authStateCallback('SIGNED_IN', missingMonitorSessionB);
+  await new Promise(resolve => setTimeout(resolve, 0));
+  assert.strictEqual(internals.state.session, null, 'same-user SIGNED_IN without a monitor revokes the prior session while revalidating');
+  assert.strictEqual(raceContext.window.PDC_AUTH_CONTEXT, undefined, 'same-user SIGNED_IN without a monitor revokes the prior context');
+  assert.ok(lockedObservations.length > locksBeforeMissingMonitor, 'same-user SIGNED_IN without a monitor emits a lock event');
+  missingMonitorRole.resolve(approvedFor('b@example.com', 'viewer'));
+  await new Promise(resolve => setTimeout(resolve, 0));
+  await new Promise(resolve => setTimeout(resolve, 0));
+  assert.strictEqual(internals.state.session, missingMonitorSessionB, 'missing-monitor fallback republishes only after role and monitor proof');
+  assert.ok(internals.state.ownRoleChannel, 'missing-monitor fallback installs a fresh trusted monitor');
+
   // A role-row revocation already in flight remains authoritative across a
   // same-principal token refresh. The refresh must neither invalidate the
   // consumed Realtime event nor retain stale authority when it resolves.
   const refreshRaceDisabled = deferred();
   roleResponses.push(refreshRaceDisabled.promise);
   const pendingRefreshRaceRole = internals.handleOwnRoleRowChanged();
-  const refreshDuringRoleLookup = { ...refreshedSessionB, access_token: 'session-b-race-refresh' };
+  const refreshDuringRoleLookup = { ...missingMonitorSessionB, access_token: 'session-b-race-refresh' };
   authStateCallback('TOKEN_REFRESHED', refreshDuringRoleLookup);
   await new Promise(resolve => setTimeout(resolve, 0));
   refreshRaceDisabled.resolve({ data: { email: 'b@example.com', role: 'viewer', active: false, account_status: 'disabled' }, error: null });
@@ -420,7 +473,7 @@ async function testAuthGenerationOwnership() {
   assert.strictEqual(raceContext.window.__pdcCachedAccessToken, undefined, 'in-flight disabled role result clears refreshed token');
   assert.strictEqual(internals.state.session, null, 'in-flight disabled role result revokes refreshed session');
 
-  // Re-authorize B, then prove a same-id/different-email refresh cannot use
+  // Re-authorize B, then prove a same-id/different-email SIGNED_IN cannot use
   // the continuity path or retain the old email-bound monitor/context.
   roleResponses.push(Promise.resolve(approvedFor('b@example.com', 'viewer')));
   await internals.applySession(refreshedSessionB);
@@ -430,12 +483,12 @@ async function testAuthGenerationOwnership() {
     user: { ...refreshedSessionB.user, email: 'unapproved@example.com' },
   };
   roleResponses.push(Promise.resolve({ data: null, error: null }));
-  authStateCallback('TOKEN_REFRESHED', changedEmailSessionB);
+  authStateCallback('SIGNED_IN', changedEmailSessionB);
   await new Promise(resolve => setTimeout(resolve, 0));
   await new Promise(resolve => setTimeout(resolve, 0));
-  assert.strictEqual(raceContext.window.PDC_AUTH_CONTEXT, undefined, 'same-id/different-email refresh fails closed');
-  assert.strictEqual(raceContext.window.__pdcCachedAccessToken, undefined, 'same-id/different-email refresh cannot retain the old token authority');
-  assert.strictEqual(internals.state.session, null, 'same-id/different-email refresh cannot retain the old session authority');
+  assert.strictEqual(raceContext.window.PDC_AUTH_CONTEXT, undefined, 'same-id/different-email SIGNED_IN fails closed');
+  assert.strictEqual(raceContext.window.__pdcCachedAccessToken, undefined, 'same-id/different-email SIGNED_IN cannot retain the old token authority');
+  assert.strictEqual(internals.state.session, null, 'same-id/different-email SIGNED_IN cannot retain the old session authority');
 
   roleResponses.push(Promise.resolve(approvedFor('b@example.com', 'viewer')));
   await internals.applySession(refreshedSessionB);
