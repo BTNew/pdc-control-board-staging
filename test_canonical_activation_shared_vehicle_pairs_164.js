@@ -1,0 +1,21 @@
+#!/usr/bin/env node
+const fs=require('fs'),crypto=require('crypto');
+const assert=(v,m)=>{if(!v)throw new Error(m)};
+const sql=fs.readFileSync('supabase/staging_only/164_canonical_activation_shared_vehicle_pairs.sql','utf8');
+const sha=p=>crypto.createHash('sha256').update(fs.readFileSync(p)).digest('hex');
+assert(sha('supabase/staging_only/163_canonical_activation_runtime_ambiguity_fix.sql')==='a686017b17abd09c130e6684de76c36102ac6cb4ed32180ffd72a3d575019f54','Migration163 source drift');
+assert(/version='163' and name='canonical_activation_runtime_ambiguity_fix'/.test(sql),'exact predecessor missing');
+assert(/version>'163'/.test(sql),'newer-ledger refusal missing');
+assert(/pdc_monitor_staging_guard\(\)/.test(sql),'staging guard missing');
+assert(/create or replace function public\.apply_pdc_pmb_canonical_activations/.test(sql),'Apply replacement missing');
+assert(/#variable_conflict use_column/.test(sql),'safe compile policy missing');
+assert(/select distinct on \(m\.backend_record_id\)/.test(sql),'distinct backend activation loop missing');
+assert(/having count\(distinct f\.backend_id\)>1/.test(sql),'duplicate VIN guard must distinguish backend identities');
+assert(/canonical_duplicate_backend_binding_conflict/.test(sql),'same-backend binding consistency guard missing');
+assert(/canonical_vehicle_multiple_backend_conflict/.test(sql),'multi-backend vehicle conflict guard missing');
+assert(/multiple retained job-card pairs may bind to the same vehicle/.test(sql),'shared vehicle contract missing');
+assert(/rev\+created\+reactivated/.test(sql),'revision postcondition must use distinct activations');
+assert(/pdc_pmb_canonical_pair_receipts/.test(sql),'pair receipt loop missing');
+assert(/values\('164','canonical_activation_shared_vehicle_pairs'/.test(sql),'Migration164 ledger entry missing');
+assert(/revoke all[^;]+service_role/is.test(sql) && !/grant execute[^;]+service_role/is.test(sql),'service-role boundary changed');
+console.log('Migration164 shared canonical vehicle-pair contracts passed');
