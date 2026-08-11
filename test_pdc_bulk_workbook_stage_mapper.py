@@ -9,7 +9,8 @@ import pdc_bulk_workbook_adapter as adapter
 CASES = {
     "Complete Pre-Delivery Inspection": "fitting",
     "PDI": "fitting",
-    "Fill with Fuel": "fitting",
+    "PD": "fitting",
+    "Fill with Fuel": "pitInspection",
     "PIT AND WEIGH": "pitInspection",
     "Window Tint": "tint",
     "OME 3550Kg Nitro+ GVM Premium Includes Wheel Alignment": "hoist",
@@ -21,9 +22,23 @@ CASES = {
     "4x4 Bus conversion": "bus4x4",
     "Custom bracket fabrication and welding": "fabrication",
     "PTE Tray at Cost Refer PTE Quote": "sublet",
-    "First Aid Kit left loose in vehicle": "PARTS",
+    "First Aid Kit left loose in vehicle": "fitting",
+    "Safety Triangle kit left loose in vehicle": "fitting",
+    "1.0 KG FIRE EXTINGUISHER left loose": "fitting",
+    "Bonnet Protector - Dark Tint": "fitting",
+    "Bonnet Protector - Matte Tint": "fitting",
+    "Headlamp Covers": "fitting",
+    "ARB Frontier Long Range Tank": "hoist",
+    "Long Range Replacement Fuel Tank": "hoist",
+    "Front Canvas Seat Covers": "fitting",
+    "All Seat Covers": "fitting",
+    "Recovery Points Rear Pair - Broome to supply": "fitting",
+    "BROOME TO SUPPLY CARGO BARRIER": "fitting",
+    "OME Suspension Upgrade": "hoist",
+    "EXTRA SPARE GENUINE RIM - BROOME TO SUPPLY": "tyre",
     "Steel Bull Bar - Commercial": "fitting",
-    "Tow Bar with Smart Wiring": "electrical",
+    "Tow Bar with Smart Wiring": "fitting",
+    "Tool kit left loose in vehicle": "PARTS",
 }
 
 for description, expected in CASES.items():
@@ -33,5 +48,5 @@ for description, expected in CASES.items():
 assert adapter.is_placeholder_operation("No operation available")
 assert adapter.is_placeholder_operation("  NO OPERATION AVAILABLE  ")
 assert not adapter.is_placeholder_operation("Fit tow bar")
-assert adapter.STAGE_MAPPING_POLICY == "pmb-workshop-stages-v1"
+assert adapter.STAGE_MAPPING_POLICY == "pmb-workshop-stages-v2"
 print("PDC bulk workbook workshop-stage mapping contract passed.")

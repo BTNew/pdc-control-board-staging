@@ -25,7 +25,7 @@ HEADERS = ("JC Number", "Stock Number", "Operation", "Estimated Hours")
 CONTROL_RE = re.compile(r"[\x00-\x1f\x7f-\x9f]")
 MAX_ROWS = 500
 MAX_OPERATIONS = 100
-STAGE_MAPPING_POLICY = "pmb-workshop-stages-v1"
+STAGE_MAPPING_POLICY = "pmb-workshop-stages-v2"
 PLACEHOLDER_OPERATION = "no operation available"
 
 
@@ -46,21 +46,30 @@ def infer_work_key(description: str) -> str:
     text = _normalized_words(description)
     if not text or text == PLACEHOLDER_OPERATION:
         raise WorkbookContractError("placeholder operation has no workshop stage")
+    # Craig-verified routing exceptions must run before broad words such as
+    # tint, headlamp, loose, or wiring can influence the department.
+    if _contains_any(text, (
+        "first aid kit", "fire extinguisher", "safety triangle", "bonnet protector",
+        "headlamp cover", "headlight cover", "seat cover", "pre delivery",
+        "predelivery", "pdi", "recovery point", "tow bar",
+    )):
+        return "fitting"
+    if _contains_any(text, (
+        "long range tank", "long range fuel tank", "replacement fuel tank",
+        "arb frontier tank", "arb frontier fuel tank",
+    )):
+        return "hoist"
     if _contains_any(text, ("pte tray at cost", "sublet", "outsourc")):
         return "sublet"
-    # PMB routing: PD/PDI/pre-delivery work belongs to Fitting. Pit is
-    # reserved for an explicit pit/weigh instruction, not generic inspection.
-    if "pit" in text.split() or _contains_any(text, ("pit and weigh", "pit weigh", "weighbridge")):
+    if "pit" in text.split() or _contains_any(text, ("pit and weigh", "pit weigh", "weighbridge", "fill with fuel", "fuel fill")):
         return "pitInspection"
-    if _contains_any(text, ("pre delivery", "predelivery", "pdi", "fill with fuel", "fuel fill")):
-        return "fitting"
     if "tint" in text:
         return "tint"
     if _contains_any(text, ("4x4 bus", "bus 4x4", "4x4 conversion", "four by four conversion")):
         return "bus4x4"
-    if _contains_any(text, ("gvm", "suspension", "shock absorber", "leaf spring", "coil spring", "lift kit", "ome ")):
+    if _contains_any(text, ("gvm", "suspension", "shock absorber", "leaf spring", "coil spring", "lift kit")) or re.search(r"\bome\b", text):
         return "hoist"
-    if _contains_any(text, ("tyre", "tire", "wheel alignment", "spare wheel", "spare rim", "steel rim", "alloy rim", "wheel nut indicator")):
+    if _contains_any(text, ("tyre", "tire", "wheel alignment", "spare wheel", "spare rim", "steel rim", "alloy rim", "wheel nut indicator")) or re.search(r"\brim\b", text):
         return "tyre"
     if _contains_any(text, ("left loose", "loose in vehicle", "loose in car", "supply only", "do not fit")):
         return "PARTS"
