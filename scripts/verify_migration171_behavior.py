@@ -80,13 +80,22 @@ def main():
       values(%s,%s,%s,'planned',%s,%s,%s,%s,%s) returning id""",(veh,stage,bay,st,en,duration,actor,actor));ids.append(c.fetchone()[0])
    c.execute("""insert into public.workshop_bookings(vehicle_id,stage_id,bay_id,status,scheduled_start_at,scheduled_end_at,default_duration_minutes,created_by,updated_by)
      values(%s,%s,%s,'planned',%s,%s,120,%s,%s) returning id""",(v1,stage,other_bay,end1,external_end,actor,actor));external_booking=c.fetchone()[0]
+   # Canonical Sublet creation must fail against scheduled Workshop work.
+   c.execute('savepoint canonical_sublet_overlap')
+   try:
+    c.execute("select public.create_pdc_sublet_booking(%s,1,%s,%s,%s,%s,%s)",(v2,provider,start.date(),start.date(),'overlap@example.invalid','fixture overlap'))
+    overlap_result=c.fetchone()[0];assert overlap_result.get('ok') is False,overlap_result
+   except psycopg2.Error as exc:
+    assert exc.pgcode=='23514',exc
+    c.execute('rollback to savepoint canonical_sublet_overlap')
+   c.execute('release savepoint canonical_sublet_overlap')
    c.execute("select public.workshop_current_revision()");revision=c.fetchone()[0]
    c.execute("select public.create_workshop_admin_block(%s,%s,%s,'admin','Fixture',%s,60,'{}'::jsonb)",(revision,stage_code,bay_no,start));block=c.fetchone()[0];assert block.get('ok') is True,block;assert block['repack']['shifted_count']==2,block
    c.execute("select scheduled_start_at,scheduled_end_at,default_duration_minutes from public.workshop_bookings where id=%s",(ids[0],));first_time=c.fetchone()
    c.execute("select scheduled_start_at,scheduled_end_at,default_duration_minutes from public.workshop_bookings where id=%s",(ids[1],));second_time=c.fetchone()
    assert first_time[0]==external_end and first_time[2]==120,first_time
    assert second_time[0]==first_time[1] and second_time[2]==60,second_time
-   print(json.dumps({'ok':True,'migration':171,'alias_live_owner':True,'active_raw_unique':True,'reactivation_guard':True,'alias_versioned_deactivation':True,'historical_identity_retained':historical,'sublet_replay_bound':True,'sublet_expected_version_bound':True,'sublet_cancel_evidenced':True,'admin_adjacent_cascade':True,'admin_effective_duration':True,'admin_same_vehicle_conflict':True},sort_keys=True))
+   print(json.dumps({'ok':True,'migration':171,'alias_live_owner':True,'active_raw_unique':True,'reactivation_guard':True,'alias_versioned_deactivation':True,'historical_identity_retained':historical,'sublet_replay_bound':True,'sublet_expected_version_bound':True,'sublet_cancel_evidenced':True,'canonical_sublet_workshop_conflict':True,'admin_adjacent_cascade':True,'admin_effective_duration':True,'admin_same_vehicle_conflict':True},sort_keys=True))
   con.rollback();return 0
  finally:con.rollback();con.close()
 if __name__=='__main__':raise SystemExit(main())

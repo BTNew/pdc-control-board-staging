@@ -1,5 +1,7 @@
 -- Staging-only append correction for identity, location, Sublet and Admin repack safety.
 begin;
+set local lock_timeout='10s';
+set local statement_timeout='300s';
 select pg_advisory_xact_lock(hashtextextended('pdc-staging-migration-171',0));
 
 do $guard$
@@ -134,6 +136,29 @@ before update of deleted_at on public.vehicles for each row
 when(old.deleted_at is not null and new.deleted_at is null)
 execute function public.enforce_vehicle_reactivation_identity_uniqueness();
 
+-- A row UPDATE locks the alias before its BEFORE trigger can lock the owner. A
+-- soft delete already owns the vehicle row, so it must never wait for such an
+-- alias row. NOWAIT converts that inversion into an explicit retry instead of
+-- a deadlock; the normal AFTER trigger then performs versioned deactivation.
+create or replace function public.prelock_vehicle_aliases_for_soft_delete()
+returns trigger language plpgsql security definer set search_path=pg_catalog,public as $alias_prelock$
+begin
+  if old.deleted_at is null and new.deleted_at is not null then
+    begin
+      perform 1 from public.vehicle_aliases a where a.vehicle_id=old.id and a.active order by a.id for update nowait;
+    exception when lock_not_available then
+      raise exception 'concurrent alias mutation; retry vehicle deletion' using errcode='40001';
+    end;
+  end if;
+  return new;
+end
+$alias_prelock$;
+revoke all on function public.prelock_vehicle_aliases_for_soft_delete() from public,anon,authenticated,service_role;
+drop trigger if exists vehicles_alias_prelock_for_soft_delete on public.vehicles;
+create trigger vehicles_alias_prelock_for_soft_delete before update of deleted_at on public.vehicles
+for each row when(old.deleted_at is null and new.deleted_at is not null)
+execute function public.prelock_vehicle_aliases_for_soft_delete();
+
 -- Restore the helper name used by Migration169 to the established Migration089
 -- parser contract, then wrap the reconciler with Migration134's deleted guard.
 create or replace function public.navision_kewdale_eta(p_data jsonb)
@@ -153,6 +178,7 @@ declare v_record public.navision_backend_records%rowtype;v_stock text;v_vin text
 begin
   if not public.pdc_monitor_staging_guard() then return public.navision_backend_response(false,'wrong_environment');end if;
   if p_backend_record_id is null then return public.navision_backend_response(false,'invalid_input');end if;
+  perform pg_advisory_xact_lock(hashtextextended('navision-backend-store',0));
   perform pg_advisory_xact_lock(hashtextextended('navision-operational-record:'||p_backend_record_id::text,0));
   select * into v_record from public.navision_backend_records where id=p_backend_record_id for update;
   if not found or not v_record.is_current or v_record.record_status<>'current' then
@@ -172,6 +198,48 @@ $reconcile$;
 revoke all on function public.reconcile_navision_operational_record(uuid,uuid,text) from public,anon,authenticated;
 revoke all on function public.reconcile_navision_operational_record_pre171(uuid,uuid,text) from public,anon,authenticated;
 
+-- Canonical Sublet and Workshop scheduling share one deterministic lock order.
+create or replace function public.pdc_lock_canonical_sublet_vehicle(p_vehicle_id uuid)
+returns void language plpgsql security definer set search_path=pg_catalog,public as $sublet_locks$
+begin
+  perform pg_advisory_xact_lock(hashtextextended('pdc-sublet-workshop:'||p_vehicle_id::text,0));
+  perform pg_advisory_xact_lock(hashtextextended('pdc-sublet-booking:'||p_vehicle_id::text,0));
+  perform pg_advisory_xact_lock(hashtextextended('pdc-sublet-instance:'||p_vehicle_id::text,0));
+end
+$sublet_locks$;
+revoke all on function public.pdc_lock_canonical_sublet_vehicle(uuid) from public,anon,authenticated,service_role;
+
+create or replace function public.pdc_sublet_away_on_date(p_vehicle_id uuid,p_workshop_date date)
+returns boolean language sql stable security definer set search_path=pg_catalog,public as $canonical_away$
+ select exists(select 1 from public.pdc_sublet_booking_instances i
+   where i.vehicle_id=p_vehicle_id and i.status in('active','returned') and p_workshop_date>=i.out_date
+     and (i.status='active' or p_workshop_date<(i.returned_at at time zone 'Australia/Perth')::date));
+$canonical_away$;
+revoke all on function public.pdc_sublet_away_on_date(uuid,date) from public,anon,authenticated,service_role;
+
+create or replace function public.pdc_canonical_sublet_workshop_overlap_guard()
+returns trigger language plpgsql security definer set search_path=pg_catalog,public as $canonical_overlap$
+declare v_return_date date;
+begin
+  perform public.pdc_lock_canonical_sublet_vehicle(new.vehicle_id);
+  if new.status='cancelled' then return new;end if;
+  v_return_date:=case when new.status='returned' then (new.returned_at at time zone 'Australia/Perth')::date else null end;
+  if exists(select 1 from public.workshop_bookings b
+    where b.vehicle_id=new.vehicle_id and b.deleted_at is null and b.status in('queued','planned','started','stoppage')
+      and daterange(new.out_date,v_return_date,'[)') && daterange(
+        (b.scheduled_start_at at time zone 'Australia/Perth')::date,
+        ((public.workshop_booking_effective_end_at(b.id)-interval '1 microsecond') at time zone 'Australia/Perth')::date+1,'[)')) then
+    raise exception '%',jsonb_build_object('error','workshop_booking_conflict','vehicle_id',new.vehicle_id)::text using errcode='23514';
+  end if;
+  return new;
+end
+$canonical_overlap$;
+revoke all on function public.pdc_canonical_sublet_workshop_overlap_guard() from public,anon,authenticated,service_role;
+drop trigger if exists pdc_canonical_sublet_workshop_overlap_guard on public.pdc_sublet_booking_instances;
+create trigger pdc_canonical_sublet_workshop_overlap_guard
+before insert or update of vehicle_id,out_date,returned_at,status on public.pdc_sublet_booking_instances
+for each row execute function public.pdc_canonical_sublet_workshop_overlap_guard();
+
 -- Canonical Sublet cancellation is versioned and evidenced. Vehicle deletion
 -- cancels active rows but retains booking/history/receipt evidence.
 create or replace function public.cancel_pdc_sublet_booking(p_booking_id uuid,p_expected_version bigint,p_reason text default null)
@@ -183,7 +251,7 @@ begin
   if length(btrim(coalesce(p_reason,'')))>500 then return public.navision_backend_response(false,'invalid_reason');end if;
   select vehicle_id into v_vehicle_id from public.pdc_sublet_booking_instances where booking_id=p_booking_id;
   if not found then return public.navision_backend_response(false,'booking_not_found');end if;
-  perform pg_advisory_xact_lock(hashtextextended('pdc-sublet-instance:'||v_vehicle_id::text,0));
+  perform public.pdc_lock_canonical_sublet_vehicle(v_vehicle_id);
   select * into v_before from public.pdc_sublet_booking_instances where booking_id=p_booking_id for update;
   if not found then return public.navision_backend_response(false,'booking_not_found');end if;
   if v_before.version<>coalesce(p_expected_version,0) then return public.navision_backend_response(false,'version_conflict',jsonb_build_object('current_version',v_before.version));end if;
@@ -207,7 +275,7 @@ declare v_row public.pdc_sublet_booking_instances%rowtype;v_after public.pdc_sub
 begin
   if old.deleted_at is null and new.deleted_at is not null then
     v_actor:=coalesce(auth.uid(),new.updated_by,old.updated_by);
-    perform pg_advisory_xact_lock(hashtextextended('pdc-sublet-instance:'||new.id::text,0));
+    perform public.pdc_lock_canonical_sublet_vehicle(new.id);
     for v_row in select * from public.pdc_sublet_booking_instances where vehicle_id=new.id and status='active' order by booking_id for update loop
       update public.pdc_sublet_booking_instances set status='cancelled',cancelled_at=clock_timestamp(),cancelled_by=v_actor,
         version=version+1,updated_at=clock_timestamp(),updated_by=v_actor where booking_id=v_row.booking_id returning * into v_after;
@@ -238,7 +306,7 @@ begin
   if not public.pdc_sublet_actor_allowed() then return public.navision_backend_response(false,'unauthorized');end if;
   select vehicle_id into v_vehicle_id from public.pdc_sublet_booking_instances where booking_id=p_booking_id;
   if not found then return public.navision_backend_response(false,'booking_not_found');end if;
-  perform pg_advisory_xact_lock(hashtextextended('pdc-sublet-instance:'||v_vehicle_id::text,0));
+  perform public.pdc_lock_canonical_sublet_vehicle(v_vehicle_id);
   return public.update_pdc_sublet_booking_pre171(p_booking_id,p_expected_version,p_out_date,p_expected_return_date,p_notes);
 end
 $update_wrapper$;
@@ -256,7 +324,7 @@ begin
   if not public.pdc_sublet_actor_allowed() then return public.navision_backend_response(false,'unauthorized');end if;
   select vehicle_id into v_vehicle_id from public.pdc_sublet_booking_instances where booking_id=p_booking_id;
   if not found then return public.navision_backend_response(false,'booking_not_found');end if;
-  perform pg_advisory_xact_lock(hashtextextended('pdc-sublet-instance:'||v_vehicle_id::text,0));
+  perform public.pdc_lock_canonical_sublet_vehicle(v_vehicle_id);
   return public.return_pdc_sublet_booking_pre171(p_booking_id,p_expected_version,p_returned_at);
 end
 $return_wrapper$;
@@ -279,7 +347,7 @@ begin
      or (p_attachment_sha256 is not null and lower(p_attachment_sha256)!~'^[0-9a-f]{64}$') then
     return public.navision_backend_response(false,'invalid_evidence');
   end if;
-  perform pg_advisory_xact_lock(hashtextextended('pdc-sublet-instance:'||p_vehicle_id::text,0));
+  perform public.pdc_lock_canonical_sublet_vehicle(p_vehicle_id);
   select count(distinct p.id),(array_agg(distinct p.id))[1] into v_provider_count,v_provider_id
   from public.sublet_providers p left join public.sublet_provider_aliases a on a.provider_id=p.id
   where p.active and (lower(p.name)=lower(btrim(p_provider_name)) or a.source_key=public.sublet_provider_match_key(p_provider_name));
@@ -314,7 +382,8 @@ begin
   return public.navision_backend_response(true,'email_updated',jsonb_build_object('receipt_id',v_receipt.receipt_id,'booking_id',v_after.booking_id,'version',v_after.version,'revision',v_revision));
 exception when unique_violation then
   select * into v_receipt from public.pdc_sublet_email_update_receipts where replay_key=p_replay_key;
-  if not found or v_receipt.vehicle_id<>p_vehicle_id or v_receipt.provider_id<>v_provider_id
+  if not found then raise;end if;
+  if v_receipt.vehicle_id<>p_vehicle_id or v_receipt.provider_id<>v_provider_id
      or v_receipt.sender_email<>lower(btrim(p_sender_email)) or v_receipt.message_id<>p_message_id
      or v_receipt.attachment_sha256 is distinct from lower(p_attachment_sha256)
      or v_receipt.evidence<>coalesce(p_evidence,'{}'::jsonb) or v_receipt.language_kind<>p_language_kind
@@ -326,6 +395,27 @@ end
 $email$;
 revoke all on function public.apply_pdc_sublet_email_update(text,uuid,text,text,text,date,date,text,text,timestamptz,jsonb,bigint) from public,anon,authenticated;
 grant execute on function public.apply_pdc_sublet_email_update(text,uuid,text,text,text,date,date,text,text,timestamptz,jsonb,bigint) to authenticated;
+
+-- Migration160's generic Sublet action captured legacy before/after state. Fail
+-- that obsolete path closed and require the provider-attested, canonical UUID,
+-- payload-bound contract above; all other communication actions are unchanged.
+alter function public.process_pdc_email_communication(uuid,text,text,jsonb,text)
+  rename to process_pdc_email_communication_pre171;
+create function public.process_pdc_email_communication(p_intake_id uuid,p_expected_source_hash text,p_extraction_hash text,p_extraction jsonb,p_actor text)
+returns jsonb language plpgsql security definer set search_path=pg_catalog,public,extensions set statement_timeout='180s' as $communication_wrapper$
+begin
+  if public.pdc_monitor_staging_guard() and auth.uid() is not null and lower(btrim(coalesce(p_actor,'')))='pdc-monitor'
+     and exists(select 1 from public.pdc_user_roles r where r.auth_user_id=auth.uid() and r.role='importer' and r.active and r.account_status='approved')
+     and jsonb_typeof(p_extraction)='object' and jsonb_typeof(p_extraction->'actions')='array'
+     and exists(select 1 from jsonb_array_elements(p_extraction->'actions')a where a->>'action_type'='set_sublet_booking_date') then
+    return public.navision_backend_response(false,'provider_attested_sublet_contract_required');
+  end if;
+  return public.process_pdc_email_communication_pre171(p_intake_id,p_expected_source_hash,p_extraction_hash,p_extraction,p_actor);
+end
+$communication_wrapper$;
+revoke all on function public.process_pdc_email_communication_pre171(uuid,text,text,jsonb,text) from public,anon,authenticated,service_role;
+revoke all on function public.process_pdc_email_communication(uuid,text,text,jsonb,text) from public,anon,authenticated,service_role;
+grant execute on function public.process_pdc_email_communication(uuid,text,text,jsonb,text) to authenticated;
 
 -- Admin mutations lock every affected planned row before the same ordered bay
 -- advisory namespace used by ordinary booking mutations. This removes the
