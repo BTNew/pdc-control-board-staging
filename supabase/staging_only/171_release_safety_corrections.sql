@@ -176,11 +176,14 @@ revoke all on function public.reconcile_navision_operational_record_pre171(uuid,
 -- cancels active rows but retains booking/history/receipt evidence.
 create or replace function public.cancel_pdc_sublet_booking(p_booking_id uuid,p_expected_version bigint,p_reason text default null)
 returns jsonb language plpgsql security definer set search_path=pg_catalog,public as $cancel$
-declare v_user uuid:=auth.uid();v_before public.pdc_sublet_booking_instances%rowtype;v_after public.pdc_sublet_booking_instances%rowtype;v_revision bigint;
+declare v_user uuid:=auth.uid();v_vehicle_id uuid;v_before public.pdc_sublet_booking_instances%rowtype;v_after public.pdc_sublet_booking_instances%rowtype;v_revision bigint;
 begin
   if not public.pdc_monitor_staging_guard() then return public.navision_backend_response(false,'wrong_environment');end if;
   if not public.pdc_sublet_actor_allowed() then return public.navision_backend_response(false,'unauthorized');end if;
   if length(btrim(coalesce(p_reason,'')))>500 then return public.navision_backend_response(false,'invalid_reason');end if;
+  select vehicle_id into v_vehicle_id from public.pdc_sublet_booking_instances where booking_id=p_booking_id;
+  if not found then return public.navision_backend_response(false,'booking_not_found');end if;
+  perform pg_advisory_xact_lock(hashtextextended('pdc-sublet-instance:'||v_vehicle_id::text,0));
   select * into v_before from public.pdc_sublet_booking_instances where booking_id=p_booking_id for update;
   if not found then return public.navision_backend_response(false,'booking_not_found');end if;
   if v_before.version<>coalesce(p_expected_version,0) then return public.navision_backend_response(false,'version_conflict',jsonb_build_object('current_version',v_before.version));end if;
@@ -204,6 +207,7 @@ declare v_row public.pdc_sublet_booking_instances%rowtype;v_after public.pdc_sub
 begin
   if old.deleted_at is null and new.deleted_at is not null then
     v_actor:=coalesce(auth.uid(),new.updated_by,old.updated_by);
+    perform pg_advisory_xact_lock(hashtextextended('pdc-sublet-instance:'||new.id::text,0));
     for v_row in select * from public.pdc_sublet_booking_instances where vehicle_id=new.id and status='active' order by booking_id for update loop
       update public.pdc_sublet_booking_instances set status='cancelled',cancelled_at=clock_timestamp(),cancelled_by=v_actor,
         version=version+1,updated_at=clock_timestamp(),updated_by=v_actor where booking_id=v_row.booking_id returning * into v_after;
@@ -220,6 +224,45 @@ drop trigger if exists vehicles_cancel_active_sublets_on_delete on public.vehicl
 create trigger vehicles_cancel_active_sublets_on_delete before update of deleted_at on public.vehicles
 for each row when(old.deleted_at is null and new.deleted_at is not null)
 execute function public.cancel_active_sublets_on_vehicle_delete();
+
+-- All canonical instance writers use advisory -> booking-row order. Renamed
+-- implementations retain their validation/evidence logic but are no longer
+-- directly executable by API roles.
+alter function public.update_pdc_sublet_booking(uuid,bigint,date,date,text)
+  rename to update_pdc_sublet_booking_pre171;
+create function public.update_pdc_sublet_booking(p_booking_id uuid,p_expected_version bigint,p_out_date date,p_expected_return_date date,p_notes text default null)
+returns jsonb language plpgsql security definer set search_path=pg_catalog,public as $update_wrapper$
+declare v_vehicle_id uuid;
+begin
+  if not public.pdc_monitor_staging_guard() then return public.navision_backend_response(false,'wrong_environment');end if;
+  if not public.pdc_sublet_actor_allowed() then return public.navision_backend_response(false,'unauthorized');end if;
+  select vehicle_id into v_vehicle_id from public.pdc_sublet_booking_instances where booking_id=p_booking_id;
+  if not found then return public.navision_backend_response(false,'booking_not_found');end if;
+  perform pg_advisory_xact_lock(hashtextextended('pdc-sublet-instance:'||v_vehicle_id::text,0));
+  return public.update_pdc_sublet_booking_pre171(p_booking_id,p_expected_version,p_out_date,p_expected_return_date,p_notes);
+end
+$update_wrapper$;
+revoke all on function public.update_pdc_sublet_booking_pre171(uuid,bigint,date,date,text) from public,anon,authenticated,service_role;
+revoke all on function public.update_pdc_sublet_booking(uuid,bigint,date,date,text) from public,anon,authenticated,service_role;
+grant execute on function public.update_pdc_sublet_booking(uuid,bigint,date,date,text) to authenticated;
+
+alter function public.return_pdc_sublet_booking(uuid,bigint,timestamptz)
+  rename to return_pdc_sublet_booking_pre171;
+create function public.return_pdc_sublet_booking(p_booking_id uuid,p_expected_version bigint,p_returned_at timestamptz default clock_timestamp())
+returns jsonb language plpgsql security definer set search_path=pg_catalog,public as $return_wrapper$
+declare v_vehicle_id uuid;
+begin
+  if not public.pdc_monitor_staging_guard() then return public.navision_backend_response(false,'wrong_environment');end if;
+  if not public.pdc_sublet_actor_allowed() then return public.navision_backend_response(false,'unauthorized');end if;
+  select vehicle_id into v_vehicle_id from public.pdc_sublet_booking_instances where booking_id=p_booking_id;
+  if not found then return public.navision_backend_response(false,'booking_not_found');end if;
+  perform pg_advisory_xact_lock(hashtextextended('pdc-sublet-instance:'||v_vehicle_id::text,0));
+  return public.return_pdc_sublet_booking_pre171(p_booking_id,p_expected_version,p_returned_at);
+end
+$return_wrapper$;
+revoke all on function public.return_pdc_sublet_booking_pre171(uuid,bigint,timestamptz) from public,anon,authenticated,service_role;
+revoke all on function public.return_pdc_sublet_booking(uuid,bigint,timestamptz) from public,anon,authenticated,service_role;
+grant execute on function public.return_pdc_sublet_booking(uuid,bigint,timestamptz) to authenticated;
 
 -- Provider email exact-one resolution is serialized per vehicle. Replay keys are
 -- accepted only when every immutable request/evidence field matches the receipt.
@@ -249,7 +292,7 @@ begin
       and v_receipt.evidence=coalesce(p_evidence,'{}'::jsonb) and v_receipt.language_kind=p_language_kind
       and v_receipt.applied_out_date is not distinct from p_out_date
       and v_receipt.applied_expected_return_date is not distinct from p_expected_return_date
-      and v_receipt.received_at=p_received_at;
+      and v_receipt.received_at=p_received_at and v_receipt.prior_version=coalesce(p_expected_version,0);
     if not v_replay_match then return public.navision_backend_response(false,'replay_conflict');end if;
     return public.navision_backend_response(true,'replayed',jsonb_build_object('receipt_id',v_receipt.receipt_id,'booking_id',v_receipt.booking_id,'version',v_receipt.resulting_version));
   end if;
@@ -276,7 +319,7 @@ exception when unique_violation then
      or v_receipt.attachment_sha256 is distinct from lower(p_attachment_sha256)
      or v_receipt.evidence<>coalesce(p_evidence,'{}'::jsonb) or v_receipt.language_kind<>p_language_kind
      or v_receipt.applied_out_date is distinct from p_out_date or v_receipt.applied_expected_return_date is distinct from p_expected_return_date
-     or v_receipt.received_at<>p_received_at then return public.navision_backend_response(false,'replay_conflict');end if;
+     or v_receipt.received_at<>p_received_at or v_receipt.prior_version<>coalesce(p_expected_version,0) then return public.navision_backend_response(false,'replay_conflict');end if;
   return public.navision_backend_response(true,'replayed',jsonb_build_object('receipt_id',v_receipt.receipt_id,'booking_id',v_receipt.booking_id,'version',v_receipt.resulting_version));
 when exclusion_violation then return public.navision_backend_response(false,'sublet_booking_overlap');
 end
@@ -284,50 +327,101 @@ $email$;
 revoke all on function public.apply_pdc_sublet_email_update(text,uuid,text,text,text,date,date,text,text,timestamptz,jsonb,bigint) from public,anon,authenticated;
 grant execute on function public.apply_pdc_sublet_email_update(text,uuid,text,text,text,date,date,text,text,timestamptz,jsonb,bigint) to authenticated;
 
--- Plan all forward-only shifts first, then apply them latest-first. This clears
--- each occupied bay/technician interval before the preceding booking moves.
+-- Admin mutations lock every affected planned row before the same ordered bay
+-- advisory namespace used by ordinary booking mutations. This removes the
+-- old bay-advisory -> booking-row inversion.
+create or replace function public.workshop_admin_lock_physical_bays(p_first uuid,p_second uuid default null)
+returns void language plpgsql security definer set search_path=pg_catalog,public as $admin_locks$
+declare v_bay uuid;
+begin
+  perform 1 from public.workshop_bookings b
+    where b.bay_id in(p_first,coalesce(p_second,p_first)) and b.deleted_at is null
+      and b.status in('queued','planned','started','stoppage')
+    order by b.id for update;
+  for v_bay in select distinct x from unnest(array[p_first,p_second])x where x is not null order by x loop
+    perform public.workshop_lock_resources(v_bay,null);
+  end loop;
+end
+$admin_locks$;
+revoke all on function public.workshop_admin_lock_physical_bays(uuid,uuid) from public,anon,authenticated,service_role;
+
+create or replace function public.workshop_enforce_admin_block_fixed_booking_conflict()
+returns trigger language plpgsql security definer set search_path=pg_catalog,public as $fixed_guard$
+begin
+  if new.deleted_at is not null then return new;end if;
+  if exists(select 1 from public.workshop_bookings b
+    where b.bay_id=new.bay_id and b.deleted_at is null and b.status in('queued','started','stoppage','completed')
+      and b.scheduled_start_at<new.scheduled_end_at
+      and public.workshop_booking_effective_end_at(b.id)>new.scheduled_start_at) then
+    raise exception '%',jsonb_build_object('error','fixed_booking_conflict','bay_id',new.bay_id)::text using errcode='23514';
+  end if;
+  return new;
+end
+$fixed_guard$;
+revoke all on function public.workshop_enforce_admin_block_fixed_booking_conflict() from public,anon,authenticated,service_role;
+drop trigger if exists workshop_admin_blocks_fixed_booking_conflict on public.workshop_admin_blocks;
+create trigger workshop_admin_blocks_fixed_booking_conflict
+before insert or update of bay_id,scheduled_start_at,scheduled_end_at,deleted_at on public.workshop_admin_blocks
+for each row execute function public.workshop_enforce_admin_block_fixed_booking_conflict();
+
+-- Plan all forward-only shifts across every canonical exclusion dimension,
+-- then apply them latest-first. This clears each occupied bay/technician
+-- interval before the preceding booking moves.
 create or replace function public.workshop_admin_repack_planned(p_bay_id uuid,p_from timestamptz,p_metadata jsonb default '{}'::jsonb)
 returns jsonb language plpgsql security definer set search_path=pg_catalog,public as $repack$
 declare
   v_booking public.workshop_bookings%rowtype;v_start timestamptz;v_end timestamptz;v_block_end timestamptz;v_fixed_end timestamptz;v_tech_end timestamptz;
+  v_vehicle_end timestamptz;v_leave_date date;v_effective_duration integer;
   v_technician uuid;v_cursor timestamptz:=p_from;v_plan jsonb:='[]'::jsonb;v_item jsonb;v_before jsonb;v_after jsonb;v_shifted uuid[]:='{}'::uuid[];v_guard integer;
 begin
   -- The caller owns the bay advisory lock; lock the complete planned set in a deterministic order.
   for v_booking in select * from public.workshop_bookings b
-    where b.bay_id=p_bay_id and b.status='planned' and b.deleted_at is null and b.scheduled_end_at>p_from
+    where b.bay_id=p_bay_id and b.status='planned' and b.deleted_at is null and public.workshop_booking_effective_end_at(b.id)>p_from
     order by b.scheduled_start_at,b.id for update loop
     select a.technician_id into v_technician from public.workshop_booking_assignments a
       where a.booking_id=v_booking.id and a.released_at is null
       order by case when a.assignment_type='primary' then 0 else 1 end,a.assigned_at desc limit 1;
+    v_effective_duration:=public.workshop_booking_effective_duration_minutes(v_booking.id);
+    if v_effective_duration is null or v_effective_duration<60 then raise exception 'Invalid effective booking duration' using errcode='22023';end if;
     v_start:=greatest(v_booking.scheduled_start_at,v_cursor);v_guard:=0;
     loop
       v_guard:=v_guard+1;if v_guard>1000 then raise exception 'Workshop admin repack guard exceeded' using errcode='54000';end if;
-      v_end:=public.workshop_add_operational_minutes(v_start,v_booking.default_duration_minutes);
+      v_start:=public.workshop_next_calendar_window(v_start,v_effective_duration);
+      v_end:=public.workshop_add_operational_minutes(v_start,v_effective_duration);
       select max(a.scheduled_end_at) into v_block_end from public.workshop_admin_blocks a
         where a.bay_id=p_bay_id and a.deleted_at is null and a.scheduled_start_at<v_end and a.scheduled_end_at>v_start;
-      select max(b.scheduled_end_at) into v_fixed_end from public.workshop_bookings b
+      select max(public.workshop_booking_effective_end_at(b.id)) into v_fixed_end from public.workshop_bookings b
         where b.bay_id=p_bay_id and b.id<>v_booking.id and b.deleted_at is null and b.status in('queued','started','stoppage','completed')
-          and b.scheduled_start_at<v_end and b.scheduled_end_at>v_start;
+          and b.scheduled_start_at<v_end and public.workshop_booking_effective_end_at(b.id)>v_start;
+      select max(public.workshop_booking_effective_end_at(b.id)) into v_vehicle_end from public.workshop_bookings b
+        where b.vehicle_id=v_booking.vehicle_id and b.id<>v_booking.id and b.deleted_at is null
+          and b.status in('queued','planned','started','stoppage')
+          and not (b.bay_id=p_bay_id and b.status='planned' and public.workshop_booking_effective_end_at(b.id)>p_from)
+          and b.scheduled_start_at<v_end and public.workshop_booking_effective_end_at(b.id)>v_start;
       v_tech_end:=null;
+      v_leave_date:=null;
       if v_technician is not null then
-        select max(a.scheduled_end_at) into v_tech_end from public.workshop_booking_assignments a
+        select max(greatest(a.scheduled_end_at,public.workshop_booking_effective_end_at(a.booking_id))) into v_tech_end from public.workshop_booking_assignments a
           join public.workshop_bookings b on b.id=a.booking_id
           where a.technician_id=v_technician and a.released_at is null and a.booking_id<>v_booking.id
-            and not (b.bay_id=p_bay_id and b.status='planned' and b.deleted_at is null and b.scheduled_end_at>p_from)
-            and a.scheduled_start_at<v_end and a.scheduled_end_at>v_start;
+            and not (b.bay_id=p_bay_id and b.status='planned' and b.deleted_at is null and public.workshop_booking_effective_end_at(b.id)>p_from)
+            and a.scheduled_start_at<v_end and greatest(a.scheduled_end_at,public.workshop_booking_effective_end_at(a.booking_id))>v_start;
+        v_leave_date:=public.workshop_technician_leave_date(v_technician,v_start,v_end);
       end if;
-      exit when v_block_end is null and v_fixed_end is null and v_tech_end is null;
-      v_start:=greatest(coalesce(v_block_end,v_start),coalesce(v_fixed_end,v_start),coalesce(v_tech_end,v_start));
+      exit when v_block_end is null and v_fixed_end is null and v_vehicle_end is null and v_tech_end is null and v_leave_date is null;
+      v_start:=greatest(coalesce(v_block_end,v_start),coalesce(v_fixed_end,v_start),coalesce(v_vehicle_end,v_start),coalesce(v_tech_end,v_start),
+        coalesce(((v_leave_date+1)::timestamp at time zone 'Australia/Perth'),v_start));
     end loop;
     v_cursor:=v_end;
-    v_plan:=v_plan||jsonb_build_array(jsonb_build_object('booking_id',v_booking.id,'scheduled_start_at',v_start,'scheduled_end_at',v_end,'technician_id',v_technician));
+    v_plan:=v_plan||jsonb_build_array(jsonb_build_object('booking_id',v_booking.id,'scheduled_start_at',v_start,'scheduled_end_at',v_end,'duration_minutes',v_effective_duration,'technician_id',v_technician));
   end loop;
   for v_item in select value from jsonb_array_elements(v_plan) order by (value->>'scheduled_start_at')::timestamptz desc,(value->>'booking_id')::uuid desc loop
     select * into v_booking from public.workshop_bookings where id=(v_item->>'booking_id')::uuid for update;
     v_start:=(v_item->>'scheduled_start_at')::timestamptz;v_end:=(v_item->>'scheduled_end_at')::timestamptz;
     if v_start is distinct from v_booking.scheduled_start_at then
       v_before:=public.workshop_booking_snapshot(v_booking.id);
-      update public.workshop_bookings set scheduled_start_at=v_start,scheduled_end_at=v_end,updated_by=auth.uid(),updated_at=clock_timestamp(),version=version+1
+      v_effective_duration:=(v_item->>'duration_minutes')::integer;
+      update public.workshop_bookings set scheduled_start_at=v_start,scheduled_end_at=v_end,default_duration_minutes=v_effective_duration,updated_by=auth.uid(),updated_at=clock_timestamp(),version=version+1
         where id=v_booking.id and status='planned' and deleted_at is null;
       if not found then raise exception 'Concurrent planned queue change' using errcode='40001';end if;
       v_technician:=nullif(v_item->>'technician_id','')::uuid;

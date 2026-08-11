@@ -56,26 +56,37 @@ def main():
    c.execute("select public.apply_pdc_sublet_email_update(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",args);first=c.fetchone()[0];assert first.get('ok') is True and first.get('code')=='email_updated',first
    c.execute("select public.apply_pdc_sublet_email_update(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",args);replayed=c.fetchone()[0];assert replayed.get('ok') is True and replayed.get('code')=='replayed',replayed
    bad=list(args);bad[7]='altered-'+tag;c.execute("select public.apply_pdc_sublet_email_update(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",tuple(bad));conflict=c.fetchone()[0];assert conflict.get('ok') is False and conflict.get('code')=='replay_conflict',conflict
+   bad_version=list(args);bad_version[11]=version+99;c.execute("select public.apply_pdc_sublet_email_update(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",tuple(bad_version));version_conflict=c.fetchone()[0];assert version_conflict.get('ok') is False and version_conflict.get('code')=='replay_conflict',version_conflict
    c.execute("select public.cancel_pdc_sublet_booking(%s,%s,'fixture cancellation')",(bid,first['data']['version']));cancelled=c.fetchone()[0];assert cancelled.get('ok') is True and cancelled.get('code')=='cancelled',cancelled
    c.execute("select count(*) from public.pdc_sublet_booking_instance_history where booking_id=%s and action='cancelled'",(bid,));assert c.fetchone()==(1,)
    # Adjacent planned bookings cascade latest-first around a new Admin block.
-   c.execute("""select s.id,s.code,b.id,b.bay_number,wk.work_key from public.workshop_stages s join public.workshop_bays b on b.stage_id=s.id
+   c.execute("""select s.id,s.code,b.id,b.bay_number,wk.work_key,
+     (select b2.id from public.workshop_bays b2 where b2.stage_id=s.id and b2.id<>b.id and b2.is_active and not b2.is_sublet_row order by b2.bay_number limit 1)
+     from public.workshop_stages s join public.workshop_bays b on b.stage_id=s.id
      join lateral(select wi.work_key from public.vehicle_work_items wi where public.workshop_stage_code_for_work_key(wi.work_key)=s.code limit 1) wk on true
-     where s.active and s.planner_enabled and s.is_physical and b.is_active and not b.is_sublet_row order by s.code,b.bay_number limit 1""");stage,stage_code,bay,bay_no,work_key=c.fetchone()
+     where s.active and s.planner_enabled and s.is_physical and b.is_active and not b.is_sublet_row
+       and exists(select 1 from public.workshop_bays b2 where b2.stage_id=s.id and b2.id<>b.id and b2.is_active and not b2.is_sublet_row)
+     order by s.code,b.bay_number limit 1""");stage,stage_code,bay,bay_no,work_key,other_bay=c.fetchone()
    c.execute("""select ts from generate_series(date_trunc('minute',clock_timestamp())+interval '1 day',date_trunc('minute',clock_timestamp())+interval '30 days',interval '15 minutes') ts
      where public.workshop_calendar_minute_available(ts) and public.workshop_operational_minutes_between(ts,public.workshop_add_operational_minutes(ts,180))=180 order by ts limit 1""");start=c.fetchone()[0]
    v1,_=vehicle('BOOK1','86'+tag[:6],False);v2,_=vehicle('BOOK2','87'+tag[:6],False)
    c.execute("insert into public.vehicle_work_items(vehicle_id,work_key,required,completed) values(%s,%s,true,false),(%s,%s,true,false)",(v1,work_key,v2,work_key))
-   end1=None
-   c.execute("select public.workshop_add_operational_minutes(%s,60),public.workshop_add_operational_minutes(%s,120)",(start,start));end1,end2=c.fetchone()
+   c.execute("""insert into public.vehicle_workshop_line_adjustments(vehicle_id,line_key,source_kind,stage_code,description,estimated_hours,created_by,updated_by)
+     values(%s,%s,'manual',%s,'Migration 171 effective duration fixture',2.00,%s,%s)""",(v1,'manual:fixture:'+tag,stage_code,actor,actor))
+   c.execute("select public.workshop_add_operational_minutes(%s,120),public.workshop_add_operational_minutes(%s,180),public.workshop_add_operational_minutes(%s,240)",(start,start,start));end1,end2,external_end=c.fetchone()
    ids=[]
-   for veh,st,en in ((v1,start,end1),(v2,end1,end2)):
+   for veh,st,en,duration in ((v1,start,end1,120),(v2,end1,end2,60)):
     c.execute("""insert into public.workshop_bookings(vehicle_id,stage_id,bay_id,status,scheduled_start_at,scheduled_end_at,default_duration_minutes,created_by,updated_by)
-      values(%s,%s,%s,'planned',%s,%s,60,%s,%s) returning id""",(veh,stage,bay,st,en,actor,actor));ids.append(c.fetchone()[0])
+      values(%s,%s,%s,'planned',%s,%s,%s,%s,%s) returning id""",(veh,stage,bay,st,en,duration,actor,actor));ids.append(c.fetchone()[0])
+   c.execute("""insert into public.workshop_bookings(vehicle_id,stage_id,bay_id,status,scheduled_start_at,scheduled_end_at,default_duration_minutes,created_by,updated_by)
+     values(%s,%s,%s,'planned',%s,%s,120,%s,%s) returning id""",(v1,stage,other_bay,end1,external_end,actor,actor));external_booking=c.fetchone()[0]
    c.execute("select public.workshop_current_revision()");revision=c.fetchone()[0]
    c.execute("select public.create_workshop_admin_block(%s,%s,%s,'admin','Fixture',%s,60,'{}'::jsonb)",(revision,stage_code,bay_no,start));block=c.fetchone()[0];assert block.get('ok') is True,block;assert block['repack']['shifted_count']==2,block
-   c.execute("select scheduled_start_at,scheduled_end_at from public.workshop_bookings where id=any(%s::uuid[]) order by scheduled_start_at",(ids,));times=c.fetchall();assert times[0][0]==end1 and times[0][1]==end2 and times[1][0]==end2,times
-   print(json.dumps({'ok':True,'migration':171,'alias_live_owner':True,'active_raw_unique':True,'reactivation_guard':True,'alias_versioned_deactivation':True,'historical_identity_retained':historical,'sublet_replay_bound':True,'sublet_cancel_evidenced':True,'admin_adjacent_cascade':True},sort_keys=True))
+   c.execute("select scheduled_start_at,scheduled_end_at,default_duration_minutes from public.workshop_bookings where id=%s",(ids[0],));first_time=c.fetchone()
+   c.execute("select scheduled_start_at,scheduled_end_at,default_duration_minutes from public.workshop_bookings where id=%s",(ids[1],));second_time=c.fetchone()
+   assert first_time[0]==external_end and first_time[2]==120,first_time
+   assert second_time[0]==first_time[1] and second_time[2]==60,second_time
+   print(json.dumps({'ok':True,'migration':171,'alias_live_owner':True,'active_raw_unique':True,'reactivation_guard':True,'alias_versioned_deactivation':True,'historical_identity_retained':historical,'sublet_replay_bound':True,'sublet_expected_version_bound':True,'sublet_cancel_evidenced':True,'admin_adjacent_cascade':True,'admin_effective_duration':True,'admin_same_vehicle_conflict':True},sort_keys=True))
   con.rollback();return 0
  finally:con.rollback();con.close()
 if __name__=='__main__':raise SystemExit(main())
