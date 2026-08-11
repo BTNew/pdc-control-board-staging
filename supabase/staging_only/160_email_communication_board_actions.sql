@@ -200,7 +200,13 @@ begin
       values(v_actor,'pdc-email-import-'||substring(v_request,1,64),v_request,v_source,lower(v_attachment.source_hash),v_source_uid,
         lower(v_intake.sender_email),v_intake.received_at,v_vehicle.stock_number,v_vehicle.vin,null,null,v_vehicle.id,'operational_exact',v_required_work,
         public.navision_backend_response(true,'communication_source_bound',jsonb_build_object('vehicle_id',v_vehicle.id,'booking_created',false)))
+      on conflict(source_hash) do nothing
       returning * into v_import;
+      if v_import is null then
+        select * into v_import from public.pdc_authenticated_email_import_receipts
+        where source_hash=v_source and actor_id=v_actor and vehicle_id=v_vehicle.id;
+        if not found then raise exception using errcode='P0001',message='source receipt belongs to another vehicle'; end if;
+      end if;
     end if;
 
     for v_action in select value from jsonb_array_elements(v_actions) order by (value->>'source_action_no')::integer loop
