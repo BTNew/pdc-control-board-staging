@@ -5,7 +5,7 @@
   "source_commit": "e80f6750242f867a1358783693b119c4adf42c20",
   "parent_staging_commit": "d907baa1ca500b6daee31910019827010c7198ab",
   "parent_deployment_identity_sha256": "60d0f8994fb0834a03cae463420e1e35aa631258a90e2087b6f60ec645fce78f",
-  "staging_commit": "__PENDING_STAGING_COMMIT__",
+  "staging_commit": "574d63dd2b0e90e296cb9b0a6f1f6219123ee1fa",
   "staging_project_ref": "cdsmnqxtyyoeoznmbidd",
   "zero_data": true,
   "mailbox_authority": false,
