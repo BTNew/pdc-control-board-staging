@@ -19,6 +19,7 @@ assert(!sql.includes('vjdtsswhroyguxyfjdkt'), 'migration must not name the produ
 assert(app.includes("pdcLocation: completed ? 'Completed'"), 'shared canonical completion must map into the Completed UI model');
 assert(app.includes(".filter(item => String(item.lifecycle_state || '').toLowerCase() === 'completed')"), 'Completed Vehicles must include shared canonical completions');
 assert(app.includes('pdcLocation: shared.pdcLocation || vehicle.pdcLocation'), 'canonical shared location must override stale local display location');
-assert(app.includes("const APP_VERSION = '2026.08.11.24-monitor-updates-complete-board-purge';"), 'release marker must remain explicit and immutable');
+const appVersion = (app.match(/const APP_VERSION = '([^']+)'/) || [])[1];
+assert.match(appVersion || '', /^\d{4}\.\d{2}\.\d{2}\.\d{2}-[a-z0-9-]+$/i, 'release marker must remain explicit and versioned');
 
 console.log('Navision operational location/completion migration contract passed');

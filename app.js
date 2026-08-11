@@ -91,7 +91,7 @@ const CRM_BACKUP_STORAGE_KEYS = [
 const PDC_LOCATION_OPTIONS = [
   { value: '', label: 'Follow Navision until Yard Hold' },
   { value: 'YH', label: 'YH - Yard Hold' },
-  { value: 'PMB', label: 'PMB - Perth Motor Bodies' },
+  { value: 'PMB', label: 'Released to PMB' },
   { value: 'PIT', label: 'PIT - Department of Transport inspection' },
   { value: 'QC', label: 'QC - Ready for QC / QC Gate', systemOnly: true },
   { value: 'RFT', label: 'RFT - set by QC sign-off', systemOnly: true },
@@ -4947,6 +4947,9 @@ function reconcileVehicleLifecycleServerResult(vehicle = {}, result = {}) {
   vehicle.pdcQcCompleteAt = authoritative.qc_completed_at || '';
   vehicle.pdcQcCompleteBy = authoritative.qc_completed_by || '';
   vehicle.rftTransferredAt = authoritative.rft_transferred_at || '';
+  vehicle.dateToPmb = authoritative.date_to_pmb || vehicle.dateToPmb || '';
+  vehicle.dateToRft = authoritative.date_to_rft || vehicle.dateToRft || '';
+  vehicle.deliveredToDealerDate = authoritative.delivered_to_dealer_date || vehicle.deliveredToDealerDate || '';
 }
 
 function vehicleReadyForQualityControl(vehicle = {}) {
@@ -9412,6 +9415,7 @@ async function transferSelectedYhVehiclesToPmb() {
       manualLocation: 'PMB',
       pdcLocationLocked: true,
       navisionLocationLocked: true,
+      dateToPmb: vehicle.dateToPmb || window.PDC_VEHICLE_LOCATION_LIFECYCLE?.businessDateInTimeZone?.(new Date()) || transferTime.slice(0, 10),
       pmbEnteredAt: pmbEnteredTimestamp(vehicle) || transferTime,
       pmbTransferredAt: vehicle.pmbTransferredAt || transferTime,
       pdcLocationUpdatedAt: transferTime,
@@ -9509,6 +9513,7 @@ async function transferYhVehicleToPmb(key = '') {
     manualLocation: 'PMB',
     pdcLocationLocked: true,
     navisionLocationLocked: true,
+    dateToPmb: vehicle.dateToPmb || window.PDC_VEHICLE_LOCATION_LIFECYCLE?.businessDateInTimeZone?.(new Date()) || transferTime.slice(0, 10),
     pmbEnteredAt: pmbEnteredTimestamp(vehicle) || transferTime,
     pmbTransferredAt: vehicle.pmbTransferredAt || transferTime,
     pdcLocationUpdatedAt: transferTime,
@@ -9644,6 +9649,7 @@ async function transferVehiclesToRft(vehicles = [], options = {}) {
       manualLocation: 'RFT',
       pdcLocationLocked: true,
       rftTransferredAt: transferTime,
+      dateToRft: vehicle.dateToRft || window.PDC_VEHICLE_LOCATION_LIFECYCLE?.businessDateInTimeZone?.(new Date()) || transferTime.slice(0, 10),
       pdcLocationUpdatedAt: transferTime,
       pmbEnteredAt: pmbEnteredTimestamp(vehicle) || transferTime,
     });
@@ -13302,6 +13308,7 @@ async function markRftVehicleCollected(key, collected = true) {
     rftCollected: true,
     completedVehicle: true,
     rftCollectedAt: vehicle.rftCollectedAt || now,
+    deliveredToDealerDate: vehicle.deliveredToDealerDate || window.PDC_VEHICLE_LOCATION_LIFECYCLE?.businessDateInTimeZone?.(new Date()) || now.slice(0, 10),
     rftCollectedBy: vehicle.rftCollectedBy || operator,
   });
   offerSalespersonChangeEmail(vehicle, {
@@ -13363,14 +13370,14 @@ function renderCompletedVehicles() {
   host.innerHTML = `<div class="parts-table-wrap completed-table-wrap pdc-grid-table-wrap"><table class="data-table compact-table completed-table pdc-grid-table">
     <thead><tr>
       <th>Collected</th><th>Key</th><th>Stock</th><th>Job Card</th><th>Customer</th><th>Vehicle</th>
-      <th>Collected time</th><th>PMB start</th><th>RFT date</th><th>Days at PMB</th><th>Collected by</th><th>Completed stations</th><th>Actions</th>
+      <th>Delivered to Dealer</th><th>Date to PMB</th><th>Date to RFT</th><th>Days at PMB</th><th>Completed by</th><th>Completed stations</th><th>Actions</th>
     </tr></thead>
     <tbody>${rows.map(vehicle => {
       const key = vehicleKey(vehicle);
       const collectedAt = parseIsoTimestamp(vehicle.rftCollectedAt || '');
-      const collectedLabel = collectedAt ? collectedAt.toLocaleString('en-AU', { dateStyle: 'short', timeStyle: 'short' }) : '';
-      const pmbStartLabel = shortDateAu(completedPmbStartDate(vehicle)) || '—';
-      const rftDateLabel = shortDateAu(completedRftDate(vehicle)) || '—';
+      const collectedLabel = shortDateAu(vehicle.deliveredToDealerDate || '') || (collectedAt ? collectedAt.toLocaleString('en-AU', { dateStyle: 'short', timeStyle: 'short' }) : '—');
+      const pmbStartLabel = shortDateAu(vehicle.dateToPmb || '') || shortDateAu(completedPmbStartDate(vehicle)) || '—';
+      const rftDateLabel = shortDateAu(vehicle.dateToRft || '') || shortDateAu(completedRftDate(vehicle)) || '—';
       const pmbDaysLabel = completedPmbDaysLabel(vehicle);
       return `<tr class="completed-vehicle-row">
         <td><label class="rft-collected-check completed-collected-check is-locked" title="Collected vehicles are locked"><input type="checkbox" checked disabled /> <span>Collected</span></label></td>
@@ -13673,6 +13680,9 @@ function sharedNavisionLocationVehicle(item = {}) {
     navisionLocationStatus: item.vehicle_status || '',
     etaAtDealer: item.eta_to_kewdale || '',
     navisionKewdaleEta: item.eta_to_kewdale || '',
+    dateToPmb: item.date_to_pmb || '',
+    dateToRft: item.date_to_rft || '',
+    deliveredToDealerDate: item.delivered_to_dealer_date || '',
     pdcLocation: completed ? 'Completed' : (canonicalLocation || currentPdcLocationFromNavision({
       navisionLocationStatus: item.vehicle_status || '',
       toyotaStatus: item.vehicle_status || '',
@@ -13939,7 +13949,11 @@ function navisionTextIsBodyBuilder(text = '') {
   return /\bbody\s*-?\s*builder\b|\bbodybuilder\b|\bpmb\b/.test(normalized) || normalized.includes('perth motor bodies');
 }
 
-function currentPdcLocationFromNavision(vehicle = {}) {
+function currentPdcLocationFromNavision(vehicle = {}, existing = {}) {
+  const lifecycle = window.PDC_VEHICLE_LOCATION_LIFECYCLE;
+  if (lifecycle?.resolveVehicleLifecycleLocation) {
+    return lifecycle.resolveVehicleLifecycleLocation({ ...existing, ...vehicle }, { now: new Date() }).location;
+  }
   const automatic = navisionAutoPdcLocation(vehicle);
   if (automatic) return automatic;
   const locationStatus = normalizeToyotaStatus(vehicle.navisionLocationStatus || vehicle.locationStatus || '');
@@ -13956,9 +13970,14 @@ function currentPdcLocationFromNavision(vehicle = {}) {
 }
 
 function navisionDerivedLocationUpdates(incoming = {}, existing = {}) {
-  const nextLocation = currentPdcLocationFromNavision(incoming);
+  const lifecycle = window.PDC_VEHICLE_LOCATION_LIFECYCLE;
+  const decision = lifecycle?.resolveVehicleLifecycleLocation
+    ? lifecycle.resolveVehicleLifecycleLocation({ ...existing, ...incoming }, { now: new Date() })
+    : null;
+  const nextLocation = decision?.location || currentPdcLocationFromNavision(incoming, existing);
   const previousLocation = vehiclePdcLocation(existing);
   const now = nowIsoString();
+  const businessDate = decision?.businessDate || now.slice(0, 10);
   const updates = {
     pdcLocation: nextLocation,
     manualLocation: '',
@@ -13969,6 +13988,7 @@ function navisionDerivedLocationUpdates(incoming = {}, existing = {}) {
   if (nextLocation !== previousLocation) updates.pdcLocationUpdatedAt = now;
   if (nextLocation === 'PMB' && previousLocation !== 'PMB') {
     Object.assign(updates, {
+      dateToPmb: existing.dateToPmb || existing.date_to_pmb || businessDate,
       pmbEnteredAt: pmbEnteredTimestamp(existing) || now,
       pmbTransferredAt: existing.pmbTransferredAt || now,
       pmbStage: '',
@@ -13988,8 +14008,17 @@ function navisionDerivedLocationUpdates(incoming = {}, existing = {}) {
       pmbSubletProvider: '',
     });
   }
-  if (nextLocation === 'RFT' && previousLocation !== 'RFT') updates.rftTransferredAt = existing.rftTransferredAt || now;
-  if (previousLocation === 'PMB' && nextLocation !== 'PMB') {
+  if (nextLocation === 'RFT' && previousLocation !== 'RFT') {
+    updates.rftTransferredAt = existing.rftTransferredAt || now;
+    updates.dateToRft = existing.dateToRft || existing.date_to_rft || businessDate;
+  }
+  if (nextLocation === 'Completed') {
+    updates.completedVehicle = true;
+    updates.rftCollected = true;
+    updates.rftCollectedAt = existing.rftCollectedAt || now;
+    updates.deliveredToDealerDate = existing.deliveredToDealerDate || existing.delivered_to_dealer_date || businessDate;
+  }
+  if (previousLocation === 'PMB' && !['PMB', 'Completed'].includes(nextLocation)) {
     Object.assign(updates, {
       pmbStage: '',
       pdcWorkStage: '',
