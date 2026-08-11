@@ -1,5 +1,5 @@
-const APP_VERSION = '2026.08.12.33-sublet-return-importer';
-const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.08.12.33-sublet-return-importer';
+const APP_VERSION = '2026.08.12.34-safe-sublet-key-snapshot';
+const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.08.12.34-safe-sublet-key-snapshot';
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
 // constant intentionally names only the production ref, never the
@@ -20727,8 +20727,7 @@ function bindSubletCalendarInteractions(host) {
   $$('[data-sublet-calendar-returned]', host).forEach(input => input.addEventListener('change', async () => {
     if (!input.checked || input.disabled) return;
     input.disabled = true;
-    const returnedOn = [subletTodayDateKey(), plainDateValue(input.dataset.subletCalendarOutDate)].filter(Boolean).sort().pop();
-    const saved = await setSubletReturned(input.dataset.subletCalendarReturned, true, returnedOn);
+    const saved = await setSubletReturned(input.dataset.subletCalendarReturned, true);
     if (!saved) {
       input.checked = false;
       input.disabled = false;
@@ -20948,11 +20947,22 @@ async function setSubletReturned(key = '', returned = false, referenceDate = new
     return queueSubletVehicleMutation(bookingId, async () => {
       const current = subletVehicleByKey(bookingId);
       if (!current) return false;
-      const businessDate = plainDateValue(referenceDate) || subletTodayDateKey(referenceDate instanceof Date ? referenceDate : new Date());
+      const businessDate = subletTodayDateKey(referenceDate instanceof Date ? referenceDate : new Date());
+      const outDate = plainDateValue(current.pmbSubletBookingDate);
+      if (outDate && businessDate < outDate) {
+        window.alert(`This booking cannot be marked Back before its Going Out date (${outDate}). Correct the Going Out date first.`);
+        renderSubletHome();
+        return false;
+      }
       const response = await service.returnSubletBooking(bookingId, current.__subletBookingVersion, `${businessDate}T12:00:00+08:00`);
       if (!response?.ok) {
         await refreshEmailVehicleLocations();
-        window.alert(response?.code === 'version_conflict' ? 'This booking changed concurrently. The latest booking was loaded.' : `Return failed: ${response?.code || 'unknown_error'}. No change was made.`);
+        const message = response?.code === 'version_conflict'
+          ? 'This booking changed concurrently. The latest booking was loaded.'
+          : response?.code === 'invalid_return'
+            ? 'This booking cannot be marked Back before its Going Out date. Correct the Going Out date first.'
+            : `Return failed: ${response?.code || 'unknown_error'}. No change was made.`;
+        window.alert(message);
         renderSubletHome();
         return false;
       }
