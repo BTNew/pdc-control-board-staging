@@ -35,7 +35,7 @@ _UNCERTAIN_OR_NEGATED = re.compile(
     r"will|shall|going\s+to|expect(?:ed|ing)?|propos(?:e|ed|al)|plan(?:ned)?|"
     r"intend(?:ed|s|ing)?|due|to\s+be|tentative(?:ly)?|provisional(?:ly)?|perhaps|maybe|soon|tomorrow|next\s+week|"
     r"subject\s+to|conditional\s+(?:on|upon)|on\s+condition(?:\s+that)?|contingent\s+(?:on|upon)|depend(?:ent|ing)\s+(?:on|upon)|pending|awaiting|"
-    r"(?:after|following|upon)(?:\s+[a-z]+){0,4}\s+(?:approv(?:al|e|es|ed|ing)|authoris(?:ation|e|es|ed|ing)|authoriz(?:ation|e|es|ed|ing)|sign[ -]?off)|"
+    r"\b(?:after|following|upon)\b|"
     r"later(?:\s+(?:today|on|this\s+(?:morning|afternoon|evening)))?|"
     r"this\s+(?:morning|afternoon|evening)|tonight|next\s+(?:day|month|year)|in\s+the\s+future|at\s+a\s+later\s+(?:time|date)|"
     r"by\s+(?:close\s+of\s+business|end\s+of\s+day)|eventually|"

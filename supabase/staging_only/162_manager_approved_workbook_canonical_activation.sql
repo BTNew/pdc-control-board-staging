@@ -441,7 +441,8 @@ begin
     board_purged_at=null,board_purge_reason=null,board_purged_by=null,version=version+1,updated_by=uid,updated_at=clock_timestamp()
    where id=m.target_vehicle_id returning * into v;
    update public.navision_board_activations set active=true,activation_source='manual',activated_stock_number=r.normalized_data->>'batch',
-    activated_at=clock_timestamp(),activated_by=uid,activated_by_email=email,canonical_vehicle_id=v.id,updated_at=clock_timestamp()
+    activated_at=clock_timestamp(),activated_by=uid,activated_by_email=email,canonical_vehicle_id=v.id,
+    completed_at=null,completion_reason=null,completed_by=null,completed_by_email=null,updated_at=clock_timestamp()
    where backend_record_id=r.id returning * into activation;
    if activation.backend_record_id is null then raise exception 'PDC_162_REACTIVATION_BINDING_LOST:%',m.pair_id using errcode='40001';end if;
    vehicle_id:=v.id;reactivated:=reactivated+1;

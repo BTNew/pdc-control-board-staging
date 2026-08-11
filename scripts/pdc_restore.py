@@ -837,6 +837,10 @@ def main():
     conn = get_conn()
     try:
         report = restore_backup(conn, args.backup_file, encryption_key.encode(), args.schema_name)
+        artifact_path = Path(args.backup_file).resolve(strict=True)
+        report["artifact_path"] = str(artifact_path)
+        report["artifact_size_bytes"] = artifact_path.stat().st_size
+        report["artifact_sha256"] = hashlib.sha256(artifact_path.read_bytes()).hexdigest()
 
         cur = conn.cursor()
         cur.execute(

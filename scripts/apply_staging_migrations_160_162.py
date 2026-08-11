@@ -22,7 +22,7 @@ from staging_env import assert_staging_target, load_local_env  # noqa: E402
 MIGRATIONS = (
     ("160", "email_communication_board_actions", "b78f1b8b610eb9348954723b2c1e734ad401cc20cfa0b6204257b6f9317520bc"),
     ("161", "non_navision_jobcard_board_creation", "b2a447bd1412da545673713d97f3c67474bb6e8440e3db079ed96e66fa4ecc09"),
-    ("162", "manager_approved_workbook_canonical_activation", "a2e1e442750d9b92a2ee38c1db3fe7c4327119b3085acb7bb411868512da7a79"),
+    ("162", "manager_approved_workbook_canonical_activation", "09e80662b0f861a03b39544b9238334c6df6b0e9e9dd343b45501be0ceaada4b"),
 )
 TABLES = (
     "pdc_email_communication_receipts", "pdc_email_communication_action_receipts",
@@ -32,14 +32,7 @@ TABLES = (
     "pdc_pmb_canonical_apply_authorizations", "pdc_pmb_canonical_apply_receipts",
     "pdc_pmb_canonical_pair_receipts",
 )
-RECOVERY_BINDING_TABLES = (
-    "vehicles", "vehicle_aliases", "navision_backend_records", "navision_board_activations",
-    "navision_backend_revision", "vehicle_master_revision", "vehicle_lifecycle_resolver_revision",
-    "vehicle_work_items", "pdc_authenticated_email_import_receipts", "pdc_authenticated_email_operation_lines",
-    "pdc_pmb_workbook_previews", "pdc_pmb_workbook_pair_reviews", "pdc_pmb_workbook_operation_reviews",
-    "pdc_pmb_workbook_pair_approvals", "pdc_pmb_workbook_apply_authorizations", "pdc_pmb_workbook_apply_receipts",
-    "pdc_pmb_workbook_pair_receipts", "pdc_user_roles", "pdc_monitor_stage_activation_writers",
-)
+RECOVERY_EVIDENCE_TABLES = {"backup_runs", "restore_test_runs"}
 FUNCTION_ACL = {
     "public.process_pdc_email_communication(uuid,text,text,jsonb,text)": {"authenticated": True, "service_role": False},
     "public.process_pdc_non_navision_jobcard(uuid,text,text,jsonb,text)": {"authenticated": True, "service_role": False},
@@ -64,7 +57,7 @@ def body(source: str) -> str:
     return source[start.end():commits[-1].start()]
 
 
-def operational_state(cur, relations: tuple[str, ...] | None = None) -> dict[str, tuple[int, str]]:
+def operational_state(cur, relations=None):
     if relations is None:
         cur.execute(
             "select tablename from pg_catalog.pg_tables where schemaname='public' and tablename<>all(%s) order by tablename",
@@ -73,12 +66,22 @@ def operational_state(cur, relations: tuple[str, ...] | None = None) -> dict[str
         relations = tuple(row[0] for row in cur.fetchall())
     result: dict[str, tuple[int, str]] = {}
     for name in relations:
-        cur.execute(sql.SQL("""
-            select count(*)::bigint,
-                   encode(extensions.digest(convert_to(coalesce(string_agg(to_jsonb(t)::text,E'\\n' order by to_jsonb(t)::text),''),'UTF8'),'sha256'),'hex')
-            from {}.{} t
-        """).format(sql.Identifier("public"), sql.Identifier(name)))
-        result[name] = cur.fetchone()
+        digest = hashlib.sha256()
+        count = 0
+        stream = cur.connection.cursor(name=f"pdc_fingerprint_{uuid.uuid4().hex}")
+        stream.itersize = 1000
+        try:
+            stream.execute(sql.SQL("select to_jsonb(t)::text from {}.{} t order by to_jsonb(t)::text").format(
+                sql.Identifier("public"), sql.Identifier(name)
+            ))
+            for (row_text,) in stream:
+                encoded = row_text.encode("utf-8")
+                digest.update(len(encoded).to_bytes(8, "big"))
+                digest.update(encoded)
+                count += 1
+        finally:
+            stream.close()
+        result[name] = (count, digest.hexdigest())
     return result
 
 
@@ -116,6 +119,9 @@ def validate_recovery_gate(cur, manifest_arg: str, restore_run_arg: str) -> dict
     if (restored_backup != backup_run_id or environment != "staging" or status != "success" or row_counts_match is not True
             or report.get("all_checks_passed") is not True or report.get("migration_version") != "159"
             or report.get("backup_run_id") != backup_run_id or report.get("foreign_keys_skipped") != []
+            or report.get("artifact_sha256") != artifact_hash
+            or report.get("artifact_size_bytes") != artifact.stat().st_size
+            or Path(report.get("artifact_path", "")).resolve() != artifact
             or report.get("foreign_keys_added") != report.get("foreign_keys_discovered")
             or format_evidence.get("all_hashes_match") is not True
             or format_evidence.get("all_schema_objects_match") is not True
@@ -124,9 +130,15 @@ def validate_recovery_gate(cur, manifest_arg: str, restore_run_arg: str) -> dict
         raise RuntimeError("isolated restore evidence is incomplete or mismatched")
     if scalar(cur, "select to_regnamespace(%s) is not null", (schema_name,)):
         raise RuntimeError("isolated restore schema was not cleaned up")
-    for table in RECOVERY_BINDING_TABLES:
+    current_public_tables = set()
+    cur.execute("select tablename from pg_catalog.pg_tables where schemaname='public'")
+    current_public_tables = {row[0] for row in cur.fetchall()}
+    manifest_tables = set(manifest["table_hashes"])
+    if current_public_tables - set(TABLES) != manifest_tables:
+        raise RuntimeError("backup operational table inventory no longer matches staging")
+    for table in sorted(manifest_tables - RECOVERY_EVIDENCE_TABLES):
         columns, rows = export_table(cur, table)
-        if deterministic_table_hash(columns, rows) != manifest["table_hashes"].get(table):
+        if deterministic_table_hash(columns, rows) != manifest["table_hashes"][table]:
             raise RuntimeError(f"backup no longer matches current staging recovery state ({table})")
     return {"backup_run_id": backup_run_id, "backup_sha256": artifact_hash, "restore_run_id": restore_run_id}
 
@@ -178,6 +190,10 @@ def main() -> int:
             raise RuntimeError(f"migration {version} digest mismatch: {actual}")
         sources.append(raw.decode("utf-8"))
         hashes[version] = actual
+    created_function_names = sorted(set(re.findall(
+        r"create\s+(?:or\s+replace\s+)?function\s+public\.([A-Za-z0-9_]+)\s*\(",
+        "\n".join(sources), re.I,
+    )))
     if args.apply:
         if not args.expected_commit or not re.fullmatch(r"[a-f0-9]{40}", args.expected_commit):
             raise RuntimeError("exact reviewed commit required")
@@ -199,6 +215,11 @@ def main() -> int:
             latest = scalar(cur, "select version from supabase_migrations.schema_migrations order by version::integer desc limit 1")
             if latest != "159" or scalar(cur, "select count(*) from supabase_migrations.schema_migrations where version in ('160','161','162')"):
                 raise RuntimeError(f"ledger pre-state mismatch: latest={latest}")
+            stray_tables = [name for name in TABLES if scalar(cur, "select to_regclass(%s) is not null", (f"public.{name}",))]
+            cur.execute("select proname from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and proname=any(%s) order by proname", (created_function_names,))
+            stray_functions = [row[0] for row in cur.fetchall()]
+            if stray_tables or stray_functions:
+                raise RuntimeError(f"predecessor schema drift: tables={stray_tables}, functions={stray_functions}")
             recovery = validate_recovery_gate(cur, args.backup_manifest, args.restore_run_id) if args.apply else None
             before = operational_state(cur)
             for source in sources:

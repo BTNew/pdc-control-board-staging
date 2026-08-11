@@ -114,6 +114,9 @@ class CommunicationParserTests(unittest.TestCase):
             "Stock 12657478. Add UHF to this vehicle after sign-off.",
             "Stock 12657478. Parts complete following manager approval.",
             "Stock 12657478. Parts complete after the manager approves.",
+            "Stock 12657478. Parts complete after QA passes.",
+            "Stock 12657478. Parts complete following inspection.",
+            "Stock 12657478. Parts complete upon payment.",
             "Stock 12657478. Parts complete following manager sign-off.",
             "Stock 12657478. Parts complete on condition that QA approves.",
         )

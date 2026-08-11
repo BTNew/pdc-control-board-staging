@@ -9,7 +9,9 @@ It intentionally does not approve or activate any operational pair.
 """
 from __future__ import annotations
 import os
+import hashlib
 import re
+import subprocess
 import sys
 from pathlib import Path
 ROOT=Path(__file__).resolve().parents[1]
@@ -21,6 +23,11 @@ MIGRATIONS=(
  ROOT/'supabase'/'staging_only'/'160_email_communication_board_actions.sql',
  ROOT/'supabase'/'staging_only'/'161_non_navision_jobcard_board_creation.sql',
  ROOT/'supabase'/'staging_only'/'162_manager_approved_workbook_canonical_activation.sql',
+)
+EXPECTED_SHA256=(
+ 'b78f1b8b610eb9348954723b2c1e734ad401cc20cfa0b6204257b6f9317520bc',
+ 'b2a447bd1412da545673713d97f3c67474bb6e8440e3db079ed96e66fa4ecc09',
+ '09e80662b0f861a03b39544b9238334c6df6b0e9e9dd343b45501be0ceaada4b',
 )
 TABLES=(
  'pdc_email_communication_receipts','pdc_email_communication_action_receipts','pdc_email_evidence_consumptions',
@@ -46,6 +53,14 @@ def body(text:str)->str:
 def main()->int:
  if os.getenv('PDC_162_ROLLBACK_ONLY')!='YES':
   raise SystemExit('Refusing: set PDC_162_ROLLBACK_ONLY=YES for explicit rollback-only execution')
+ expected_commit=os.getenv('PDC_162_EXPECTED_COMMIT','')
+ head=subprocess.run(['git','rev-parse','HEAD'],cwd=ROOT,check=True,capture_output=True,text=True).stdout.strip()
+ dirty=subprocess.run(['git','status','--porcelain','--untracked-files=all'],cwd=ROOT,check=True,capture_output=True,text=True).stdout.strip()
+ if not re.fullmatch(r'[a-f0-9]{40}',expected_commit) or head!=expected_commit or dirty:
+  raise SystemExit('Refusing: exact clean reviewed commit must match PDC_162_EXPECTED_COMMIT')
+ actual_hashes=tuple(hashlib.sha256(path.read_bytes()).hexdigest() for path in MIGRATIONS)
+ if actual_hashes!=EXPECTED_SHA256:
+  raise SystemExit(f'Refusing: migration source digest mismatch {actual_hashes}')
  dsn=os.getenv('PDC_STAGING_DIRECT_DATABASE_URL') or os.getenv('PDC_STAGING_DATABASE_URL')
  assert_staging_target(database_url=dsn)
  sources=[body(path.read_text(encoding='utf-8')) for path in MIGRATIONS]

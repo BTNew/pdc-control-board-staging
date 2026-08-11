@@ -167,6 +167,8 @@ class RuntimeClientTests(unittest.TestCase):
         data = non_navision_data(); data["unexpected"] = True; mutations.append(data)
         data = non_navision_data(); data["operation_lines"][0]["source_row_no"] = 2; mutations.append(data)
         data = non_navision_data(); data["operation_lines"][0]["estimated_hours"] = 1.51; mutations.append(data)
+        data = non_navision_data(); data["operation_lines"][0]["retained_source_text"] = "X" * 31; mutations.append(data)
+        data = non_navision_data(); data["operation_lines"][0]["retained_source_text"] = "Synthetic fitting operation 2.5"; mutations.append(data)
         data = non_navision_data(); data["initial_location"] = None; mutations.append(data)
         data = non_navision_data(); data["operation_count"] = True; mutations.append(data)
         for data in mutations:

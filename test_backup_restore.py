@@ -404,6 +404,9 @@ restore_function_source = inspect.getsource(pdc_restore.restore_backup)
 assert ".commit(" not in restore_function_source, "Restore helper must leave DDL, load and verification in the caller-owned transaction"
 assert "if not report[\"all_checks_passed\"]" in restore_function_source, "Failed parity must abort before caller commit"
 main_source = inspect.getsource(pdc_restore.main)
+for required in ('artifact_path', 'artifact_size_bytes', 'artifact_sha256'):
+    assert required in main_source, f"Restore receipt must bind exact backup {required}"
+assert main_source.index('report["artifact_sha256"]') < main_source.index("insert into public.restore_test_runs"), "Exact artifact identity must be persisted in the restore receipt before commit"
 assert main_source.index("if args.drop_after:") < main_source.index("conn.commit()") < main_source.index("print(json.dumps(report"), "Drop-after cleanup and report persistence must commit atomically before success output"
 
 class TriggerCursor:

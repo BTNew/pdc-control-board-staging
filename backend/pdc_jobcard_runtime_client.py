@@ -344,8 +344,21 @@ def _receipt_operation_lines(
             start, end, retained = observed["source_start"], observed["source_end"], observed["retained_source_text"]
             if (isinstance(start, bool) or not isinstance(start, int) or start < 0
                     or isinstance(end, bool) or not isinstance(end, int) or end <= start
-                    or not isinstance(retained, str) or not retained.strip() or end - start != len(retained)):
+                    or not isinstance(retained, str) or not retained.strip()
+                    or end - start != len(retained) or end > 500000):
                 raise RuntimeContractError("non-Navision operation source coordinates are invalid")
+            retained_normalized = " ".join(retained.split()).casefold()
+            description_normalized = " ".join(expected["description"].split()).casefold()
+            if description_normalized not in retained_normalized:
+                raise RuntimeContractError("non-Navision retained source text is not bound to the requested description")
+            numeric_values: list[Decimal] = []
+            for token in re.findall(r"(?<![A-Za-z0-9])\d+(?:\.\d+)?(?![A-Za-z0-9])", retained):
+                try:
+                    numeric_values.append(Decimal(token))
+                except InvalidOperation:
+                    continue
+            if expected["estimated_hours"] not in numeric_values:
+                raise RuntimeContractError("non-Navision retained source text is not bound to the requested hours")
     return value, total
 
 

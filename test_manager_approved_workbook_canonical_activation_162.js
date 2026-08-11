@@ -76,7 +76,7 @@ const apply=body('apply_pdc_pmb_canonical_activations');
  'lock table public.navision_backend_records in share row exclusive mode','lock table public.navision_board_activations in share row exclusive mode',
  'lock table public.vehicles in share row exclusive mode','lock table public.vehicle_aliases in share row exclusive mode',
  'administrator_countersignature_missing_or_not_independent','canonical_candidate_drift','canonical_frozen_count_mismatch','canonical_approval_set_hash_conflict',
- "action='reactivate_complete_board_purge'","activation_source='manual'",'reconcile_navision_operational_record',
+ "action='reactivate_complete_board_purge'","activation_source='manual'",'completed_at=null','completion_reason=null','completed_by=null','completed_by_email=null','reconcile_navision_operational_record',
  'pdc_162_backend_revision_postcondition_failed','pdc_162_canonical_postcondition_failed','pair_aggregate_sha256','repreview_required',
  'migration157_apply_not_bypassed','booking_mutated',"'parts_mutated',false","'work_mutated',false"
 ].forEach(x=>assert(apply.includes(x),`Apply missing ${x}`));
@@ -101,4 +101,13 @@ assert(!/grant execute on function public\.(?:manager_approve|administrator_coun
 assert.strictEqual(sha('supabase/staging_only/157_bounded_pmb_workbook_importer_review.sql'),'a2ad32471fdfb1104fa6f4d16f50d5bbcb441728de266f08a6a7afc9caeafaf5','Migration157 drift');
 assert.strictEqual(sha('supabase/staging_only/158_pmb_email_board_purge_reactivation.sql'),'0365d20d174fa496d552d6c50041bdbbd60ef59b13a250004c503bb6776b8836','Migration158 drift');
 assert.strictEqual(sha('supabase/staging_only/161_non_navision_jobcard_board_creation.sql'),'b2a447bd1412da545673713d97f3c67474bb6e8440e3db079ed96e66fa4ecc09','Migration161 drift');
+const installer=fs.readFileSync(path.join(root,'scripts','apply_staging_migrations_160_162.py'),'utf8');
+[
+ 'report.get("artifact_sha256") != artifact_hash','report.get("artifact_size_bytes") != artifact.stat().st_size',
+ 'manifest_tables - RECOVERY_EVIDENCE_TABLES','backup operational table inventory no longer matches staging',
+ 'cursor(name=f"pdc_fingerprint_','predecessor schema drift'
+].forEach(x=>assert(installer.includes(x),`Installer release gate missing ${x}`));
+assert(!installer.includes('string_agg(to_jsonb(t)::text'),'Operational fingerprint must stream rather than aggregate whole tables');
+const restore=fs.readFileSync(path.join(root,'scripts','pdc_restore.py'),'utf8');
+['report["artifact_path"]','report["artifact_size_bytes"]','report["artifact_sha256"]'].forEach(x=>assert(restore.includes(x),`Restore receipt binding missing ${x}`));
 console.log('Migration162 Manager-approved canonical activation contract passed');
