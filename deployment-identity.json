@@ -18,7 +18,7 @@
   },
   "tests": {
     "aggregate": {
-      "passed": 161,
+      "passed": 162,
       "failed": 0,
       "skipped": 1
     },
