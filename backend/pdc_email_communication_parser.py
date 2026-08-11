@@ -23,12 +23,12 @@ _JOB_CARD_PATTERNS = (
 )
 _VIN_PATTERN = re.compile(r"\b(?:VIN|chassis)\s*[:#-]?\s*([A-HJ-NPR-Z0-9]{17})\b", re.I)
 _NEGATED_PARTS = re.compile(
-    r"\bparts?\b[^.!?\n]{0,60}\b(?:not|aren['’]?t|are\s+not|isn['’]?t|is\s+not|won['’]?t|will\s+not|incomplete|waiting|outstanding|pending|almost|nearly|expect(?:ed)?|should\s+be|will\s+be)\b[^.!?\n]{0,40}\b(?:complete|completed|received|ready)\b"
+    r"\bparts?\b[^.!?\n]{0,60}\b(?:not|aren['’]?t|are\s+not|isn['’]?t|is\s+not|won['’]?t|will\s+not|incomplete|waiting|outstanding|pending|almost|nearly|expect(?:ed)?|should\s+be|will\s+be)\b[^.!?\n]{0,40}\b(?:complete|completed|received)\b"
     r"|\bparts?\b[^.!?\n]{0,40}\b(?:incomplete|waiting|outstanding|pending)\b",
     re.I,
 )
 _PARTS_UNCERTAIN = re.compile(r"\?|\b(?:when|once|if|soon|tomorrow|next\s+week|\d{1,3}\s*%)\b", re.I)
-_PARTS_COMPLETE = re.compile(r"\bparts?\s+(?:are\s+|is\s+|now\s+|have\s+been\s+)?(?:complete|completed|received|ready)\b", re.I)
+_PARTS_COMPLETE = re.compile(r"\bparts?\s+(?:are\s+|is\s+|now\s+|have\s+been\s+)?(?:complete|completed|received)\b", re.I)
 _SUBLET_CLAUSE = re.compile(r"\bsub[ -]?let\b[^\r\n.!?]{0,120}\b(?:booked|booking|scheduled)\b[^\r\n.!?]{0,120}", re.I)
 _SUBLET_UNCERTAIN = re.compile(
     r"\b(?:not\s+booked|isn['’]?t\s+booked|aren['’]?t\s+booked|will\s+be\s+booked|should\s+be\s+booked|proposed|tentative|provisional|cancel(?:led)?)\b|\?",

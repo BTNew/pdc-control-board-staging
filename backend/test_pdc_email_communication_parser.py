@@ -23,6 +23,7 @@ class CommunicationParserTests(unittest.TestCase):
             "Stock 12657478. Parts are almost complete.",
             "Stock 12657478. Are parts complete?",
             "Stock 12657478. Parts 90% complete.",
+            "Stock 12657478. Parts are ready to order.",
         ):
             with self.subTest(text=text):
                 candidate = parse_communication_actions(text)
