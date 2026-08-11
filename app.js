@@ -1,5 +1,5 @@
-const APP_VERSION = '2026.08.11.22-operation-estimate-chips';
-const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.08.11.22-operation-estimate-chips';
+const APP_VERSION = '2026.08.11.24-monitor-updates-complete-board-purge';
+const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.08.11.24-monitor-updates-complete-board-purge';
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
 // constant intentionally names only the production ref, never the
@@ -11458,7 +11458,7 @@ async function removeVehicle(stock) {
   const vehicle = selectedVehicle(stock);
   if (!vehicle || !vehicleLocationActionAllowed(vehicle, 'delete')) return false;
   const label = `${vehicleIdentityTitle(vehicle) || 'this vehicle'} - ${vehicleCustomerName(vehicle) || 'Unknown customer'}`;
-  if (!window.confirm(`Move ${label} to Deleted vehicles?\n\nThe record can still be reviewed on the Deleted vehicles screen.`)) return false;
+  if (!window.confirm(`Permanently remove ${label} from every Board screen?\n\nWorkshop bookings, requirements, Parts and mutable Board state will be removed. Immutable source and audit evidence will be retained for safety.`)) return false;
 
   if (vehicle.__emailVehicleServerAuthoritative === true && vehicleLifecycleSharedModeActive()) {
     const reason = cleanNavisionText(window.prompt('Reason for deleting this vehicle (required):', '') || '');
@@ -11477,7 +11477,7 @@ async function removeVehicle(stock) {
       closeVehicleModal();
       return false;
     }
-    const result = await window.__vehicleLifecycleActions.markVehicleDeleted({
+    const result = await window.__vehicleLifecycleActions.purgeVehicleFromBoard({
       vehicleId: ref.vehicleId,
       expectedVersion: ref.version,
       reason,
@@ -11486,7 +11486,7 @@ async function removeVehicle(stock) {
       await refreshEmailVehicleLocations();
       window.alert(typeof describeVehicleLifecycleActionError === 'function'
         ? describeVehicleLifecycleActionError(result?.error)
-        : 'The vehicle could not be moved to Deleted vehicles.');
+        : 'The vehicle could not be completely removed from the Board.');
       return false;
     }
     await refreshEmailVehicleLocations();
@@ -11624,7 +11624,7 @@ function renderDetail() {
       </form>
       <div class="notes-list">${notes.map(n => `<div class="note-pill">${escapeHtml(n)}</div>`).join('') || '<div class="subtle">No notes added yet.</div>'}</div>
       <div class="detail-danger-zone">
-        <div><strong>Move vehicle to Deleted vehicles</strong><span>Use this only for duplicate, cancelled or incorrectly imported records.</span></div>
+        <div><strong>Permanently remove vehicle from Board</strong><span>Removes all mutable Board, Workshop and Parts state. Immutable source and audit evidence is retained.</span></div>
         <button class="danger ghost" type="button" data-remove-vehicle="${escapeHtml(key)}">Delete vehicle</button>
       </div>
     </div>`}

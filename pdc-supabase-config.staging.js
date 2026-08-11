@@ -34,6 +34,6 @@ window.PDC_SUPABASE_CONFIG = {
   vehicleLifecycle: Object.freeze({
     sharedData: true,
     resolverRollbackDirectRead: false,
-    resolverAssetVersion: '2026.08.11.22-operation-estimate-chips'
+    resolverAssetVersion: '2026.08.11.24-monitor-updates-complete-board-purge'
   })
 };
