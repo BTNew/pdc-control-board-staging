@@ -79,6 +79,29 @@ class CommunicationParserTests(unittest.TestCase):
         self.assertFalse(result["auto_applicable"])
         self.assertIn("accessory_not_in_approved_vocabulary", result["review_reasons"])
 
+    def test_approved_accessory_token_inside_compound_phrase_is_rejected(self):
+        for description in ("premium bull bar package", "bull bar and winch", "custom UHF console"):
+            with self.subTest(description=description):
+                result = parse_communication_actions(f"Stock 12657478. Add {description} to this job.")
+                self.assertFalse(result["auto_applicable"])
+                self.assertEqual(result["actions"], [])
+                self.assertIn("accessory_not_in_approved_vocabulary", result["review_reasons"])
+
+    def test_every_action_rejects_clause_scoped_uncertainty(self):
+        samples = (
+            "Stock 12657478. If possible, parts are complete.",
+            "Stock 12657478. Parts complete when approved.",
+            "Stock 12657478. Sublet booked 14/08/2026, but may change.",
+            "Stock 12657478. Add UHF to this vehicle tomorrow.",
+            "Stock 12657478. Could you add UHF to this vehicle?",
+            "Stock 12657478. Add UHF to this vehicle, not now.",
+        )
+        for text in samples:
+            with self.subTest(text=text):
+                result = parse_communication_actions(text)
+                self.assertFalse(result["auto_applicable"])
+                self.assertEqual(result["actions"], [])
+
     def test_remove_accessory_does_not_add(self):
         result = parse_communication_actions("Stock 12657478. Please remove and add long range tank to this job.")
         self.assertFalse(result["auto_applicable"])
@@ -99,6 +122,13 @@ class CommunicationParserTests(unittest.TestCase):
         self.assertTrue(result["auto_applicable"])
         self.assertEqual(result["identity"]["stock_numbers"], ["12657478"])
 
+    def test_cross_category_identity_is_review_only_without_resolver(self):
+        result = parse_communication_actions(
+            "Stock 12657478. VIN JH4TB2H26CC000000. Parts complete."
+        )
+        self.assertFalse(result["auto_applicable"])
+        self.assertIn("vehicle_identity_ambiguous", result["review_reasons"])
+
     def test_multiple_actions_preserve_source_order(self):
         result = parse_communication_actions(
             "Stock 12657478. Parts complete. Sublet booked 14/08/2026. Please add long range tank to this job."
@@ -110,6 +140,12 @@ class CommunicationParserTests(unittest.TestCase):
     def test_unbounded_or_binary_text_fails_closed(self):
         self.assertFalse(parse_communication_actions("x" * (MAX_TEXT_CHARS + 1))["auto_applicable"])
         self.assertFalse(parse_communication_actions("Stock 12657478\x00 Parts complete")["auto_applicable"])
+
+    def test_action_evidence_is_not_silently_truncated(self):
+        result = parse_communication_actions("Stock 12657478. " + "context " * 40 + "Parts complete.")
+        self.assertFalse(result["auto_applicable"])
+        self.assertEqual(result["actions"], [])
+        self.assertIn("action_evidence_invalid", result["review_reasons"])
 
 
 if __name__ == "__main__":

@@ -64,6 +64,48 @@ for each row execute function public.pdc_jobcard_attachment_receipt_reject_mutat
 create trigger pdc_email_communication_action_receipts_immutable before update or delete on public.pdc_email_communication_action_receipts
 for each row execute function public.pdc_jobcard_attachment_receipt_reject_mutation();
 
+-- One retained provider-observed source may drive exactly one terminal operation family.
+create table public.pdc_email_evidence_consumptions(
+  source_hash text primary key check(source_hash~'^[a-f0-9]{64}$'),
+  intake_id uuid not null unique references public.ai_email_intake(id) on delete restrict,
+  attachment_id uuid not null references public.ai_email_attachments(id) on delete restrict,
+  observation_id uuid not null unique references public.pdc_provider_email_observations(observation_id) on delete restrict,
+  actor_id uuid not null references auth.users(id) on delete restrict,
+  vehicle_id uuid not null references public.vehicles(id) on delete restrict,
+  operation_family text not null check(operation_family in('communication','non_navision_jobcard')),
+  request_sha256 text not null unique check(request_sha256~'^[a-f0-9]{64}$'),
+  receipt_id uuid not null unique,
+  created_at timestamptz not null default clock_timestamp()
+);
+alter table public.pdc_email_evidence_consumptions enable row level security;
+revoke all on table public.pdc_email_evidence_consumptions from public,anon,authenticated,service_role;
+create trigger pdc_email_evidence_consumptions_immutable before update or delete on public.pdc_email_evidence_consumptions
+for each row execute function public.pdc_jobcard_attachment_receipt_reject_mutation();
+
+create function public.pdc_email_import_receipt_consumption_guard() returns trigger language plpgsql security definer
+set search_path=pg_catalog,public,extensions as $guard$
+begin
+  perform pg_advisory_xact_lock(hashtextextended('pdc-email-evidence-consumption:'||new.source_hash,0));
+  if exists(select 1 from public.pdc_email_evidence_consumptions c where c.source_hash=new.source_hash) then
+    raise exception 'retained email evidence already consumed' using errcode='23505';
+  end if;
+  return new;
+end $guard$;
+revoke all on function public.pdc_email_import_receipt_consumption_guard() from public,anon,authenticated,service_role;
+create trigger pdc_email_import_receipt_consumption_guard before insert on public.pdc_authenticated_email_import_receipts
+for each row execute function public.pdc_email_import_receipt_consumption_guard();
+
+create function public.pdc_email_operation_line_reject_mutation() returns trigger language plpgsql security definer
+set search_path=pg_catalog,public as $immutable$
+begin raise exception 'authenticated email source operation lines are immutable' using errcode='55000';end $immutable$;
+revoke all on function public.pdc_email_operation_line_reject_mutation() from public,anon,authenticated,service_role;
+create trigger pdc_email_communication_operation_lines_immutable before update or delete on public.pdc_authenticated_email_operation_lines
+for each row when (old.source_contract='pmb-email-communications-v1') execute function public.pdc_email_operation_line_reject_mutation();
+
+create function public.pdc_email_safe_date(p_value text) returns date language plpgsql immutable strict
+set search_path=pg_catalog as $safe$ begin return p_value::date;exception when others then return null;end $safe$;
+revoke all on function public.pdc_email_safe_date(text) from public,anon,authenticated,service_role;
+
 create function public.read_pdc_email_communication_receipt(p_receipt_id uuid)
 returns jsonb language plpgsql stable security definer set search_path=pg_catalog,public,extensions as $read$
 declare v_actor uuid:=auth.uid();v_receipt public.pdc_email_communication_receipts%rowtype;v_actions jsonb;begin
@@ -97,7 +139,7 @@ declare
   v_intake public.ai_email_intake%rowtype;v_attachment public.ai_email_attachments%rowtype;v_observation public.pdc_provider_email_observations%rowtype;
   v_receipt public.pdc_email_communication_receipts%rowtype;v_vehicle public.vehicles%rowtype;v_parts public.vehicle_parts_updates%rowtype;
   v_work public.vehicle_work_items%rowtype;v_sublet public.pdc_sublet_bookings%rowtype;v_import public.pdc_authenticated_email_import_receipts%rowtype;
-  v_identity jsonb;v_actions jsonb;v_action jsonb;v_candidates uuid[];v_stock text;v_vin text;v_job text;v_type text;v_evidence text;
+  v_identity jsonb;v_actions jsonb;v_action jsonb;v_candidates uuid[];v_stock text;v_vin text;v_job text;v_type text;v_evidence text;v_retained text;v_norm_evidence text;
   v_before jsonb;v_after jsonb;v_result jsonb;v_failure jsonb;v_receipt_id uuid:=gen_random_uuid();v_source_uid text;v_action_hash text;
   v_required_work jsonb:='[]'::jsonb;v_work_key text;v_description text;v_date date;v_line_id uuid;v_operation_no text;v_now timestamptz:=clock_timestamp();
 begin
@@ -113,7 +155,7 @@ begin
     return public.navision_backend_response(false,'invalid_communication_extraction');
   end if;
   perform 1 from public.pdc_user_roles r where r.auth_user_id=v_actor and lower(r.email)=v_email
-    and r.role in('viewer','importer') and r.active and r.account_status='approved' for share;
+    and r.role='importer' and r.active and r.account_status='approved' for share;
   if not found then return public.navision_backend_response(false,'unauthorized'); end if;
   perform 1 from public.pdc_monitor_stage_activation_writers w where w.user_id=v_actor and w.active and w.revoked_at is null for share;
   if not found then return public.navision_backend_response(false,'unauthorized'); end if;
@@ -142,10 +184,8 @@ begin
   if not found or v_observation.parent_source_hash<>v_source or v_observation.attachment_source_hash<>lower(v_payload->>'canonical_document_hash')
      or v_observation.authentication is distinct from v_payload->'authentication' or lower(v_intake.source_hash)<>v_source
      or lower(v_attachment.source_hash)<>lower(v_payload->>'canonical_document_hash')
-     or v_intake.duplicate_of is not null or v_intake.received_at is null or v_intake.received_at>clock_timestamp()+interval '5 minutes'
-     or v_intake.received_at<clock_timestamp()-interval '30 days'
-     or not exists(select 1 from public.pdc_monitor_exact_sender_enrollments e where e.active and e.sender_sha256=
-       encode(extensions.digest(convert_to(lower(btrim(v_intake.sender_email)),'UTF8'),'sha256'),'hex')) then
+     or v_attachment.text_extraction_status<>'extracted' or nullif(btrim(coalesce(v_attachment.extracted_text,'')),'') is null
+     or length(v_attachment.extracted_text)>500000 then
     return public.navision_backend_response(false,'communication_evidence_binding_failed');
   end if;
 
@@ -155,14 +195,19 @@ begin
     or length(coalesce(a->>'evidence','')) not between 3 and 240 or a->>'evidence' is distinct from btrim(a->>'evidence')
     or (a->>'evidence')~'[[:cntrl:]]'
     or (a->>'action_type'='parts_complete' and (select array_agg(k order by k) from jsonb_object_keys(a) k) is distinct from array['action_type','evidence','source_action_no']::text[])
-    or (a->>'action_type'='set_sublet_booking_date' and ((select array_agg(k order by k) from jsonb_object_keys(a) k) is distinct from array['action_type','booking_date','evidence','source_action_no']::text[] or coalesce(a->>'booking_date','')!~'^20[0-9]{2}-[0-9]{2}-[0-9]{2}$'))
+    or (a->>'action_type'='set_sublet_booking_date' and ((select array_agg(k order by k) from jsonb_object_keys(a) k) is distinct from array['action_type','booking_date','evidence','source_action_no']::text[] or public.pdc_email_safe_date(a->>'booking_date') is null))
     or (a->>'action_type'='add_accessory_work' and ((select array_agg(k order by k) from jsonb_object_keys(a) k) is distinct from array['action_type','description','evidence','source_action_no','work_key']::text[]
-      or a->>'work_key' not in('fitting','fabrication','electrical','tyre') or length(coalesce(a->>'description','')) not between 3 and 120))
-  ) then return public.navision_backend_response(false,'communication_actions_invalid'); end if;
+      or (a->>'description',a->>'work_key') not in(('Long range tank','fitting'),('UHF radio','electrical'),('Towbar','fitting'),('Canopy','fabrication'),('Tray','fabrication'),('Tyre upgrade','tyre'),('Spotlights','electrical'),('Light bar','electrical'))))
+  ) or (select count(*) from jsonb_array_elements(v_actions) a where a->>'action_type'='parts_complete')>1
+    or (select count(*) from jsonb_array_elements(v_actions) a where a->>'action_type'='set_sublet_booking_date')>1
+    or (select count(*) from jsonb_array_elements(v_actions) a where a->>'action_type'='add_accessory_work')<>
+       (select count(distinct a->>'work_key') from jsonb_array_elements(v_actions) a where a->>'action_type'='add_accessory_work') then
+    return public.navision_backend_response(false,'communication_actions_invalid');
+  end if;
 
   perform pg_advisory_xact_lock(hashtextextended('pdc-email-communication-160:'||p_intake_id::text,0));
   v_server_hash:=encode(extensions.digest(convert_to(v_payload::text,'UTF8'),'sha256'),'hex');
-  v_request:=encode(extensions.digest(convert_to(jsonb_build_object('contract_version','160.1','actor_id',v_actor,'intake_id',p_intake_id,
+  v_request:=encode(extensions.digest(convert_to(jsonb_build_object('contract_version','160.2','actor_id',v_actor,'intake_id',p_intake_id,
     'source_hash',v_source,'extraction_hash',v_extraction_hash,'server_hash',v_server_hash,'payload',v_payload)::text,'UTF8'),'sha256'),'hex');
   select * into v_receipt from public.pdc_email_communication_receipts where intake_id=p_intake_id;
   if found then
@@ -171,6 +216,44 @@ begin
       return public.navision_backend_response(false,'communication_replay_conflict');
     end if;
     return public.read_pdc_email_communication_receipt(v_receipt.receipt_id);
+  end if;
+
+  if v_intake.duplicate_of is not null or v_intake.received_at is null or v_intake.received_at>clock_timestamp()+interval '5 minutes'
+     or v_intake.received_at<clock_timestamp()-interval '30 days'
+     or not exists(select 1 from public.pdc_monitor_exact_sender_enrollments e where e.active and e.sender_sha256=
+       encode(extensions.digest(convert_to(lower(btrim(v_intake.sender_email)),'UTF8'),'sha256'),'hex')) then
+    return public.navision_backend_response(false,'communication_evidence_binding_failed');
+  end if;
+  v_retained:=lower(regexp_replace(v_attachment.extracted_text,'[[:space:]]+',' ','g'));
+  if (v_stock is not null and position(lower(v_stock) in v_retained)=0)
+     or (v_vin is not null and position(lower(v_vin) in regexp_replace(v_retained,'[^a-z0-9]','','g'))=0)
+     or (v_job is not null and position(lower(v_job) in v_retained)=0)
+     or exists(select 1 from jsonb_array_elements(v_actions) a where
+       position(lower(regexp_replace(a->>'evidence','[[:space:]]+',' ','g')) in v_retained)=0
+       or (a->>'evidence')~* '(^|[^[:alnum:]_])(if|can|could|would|should|will|may|might|proposed|tentative|provisional|cancelled?|not)([^[:alnum:]_]|$)|\?'
+       or (a->>'action_type'='parts_complete' and not (a->>'evidence')~* '(^|[^a-z0-9_])parts?[^a-z0-9_].{0,60}(complete|completed|received)([^a-z0-9_]|$)')
+       or (a->>'action_type'='set_sublet_booking_date' and (not (a->>'evidence')~* 'sub[ -]?let.{0,120}(booked|booking|scheduled)'
+         or not (lower(a->>'evidence') like '%'||lower(a->>'booking_date')||'%'
+           or lower(a->>'evidence') like '%'||lower(to_char(public.pdc_email_safe_date(a->>'booking_date'),'DD/MM/YYYY'))||'%'
+           or lower(a->>'evidence') like '%'||lower(to_char(public.pdc_email_safe_date(a->>'booking_date'),'DD-MM-YYYY'))||'%'
+           or lower(a->>'evidence') like '%'||lower(to_char(public.pdc_email_safe_date(a->>'booking_date'),'FMDD FMMonth YYYY'))||'%')))
+       or (a->>'action_type'='add_accessory_work' and (not (a->>'evidence')~* '(^|[^[:alnum:]_])(add|fit|install)([^[:alnum:]_]|$)'
+         or case a->>'description'
+           when 'Long range tank' then not (a->>'evidence')~* 'long[ -]?range( fuel)? tank'
+           when 'UHF radio' then not (a->>'evidence')~* '(^|[^[:alnum:]_])uhf([^[:alnum:]_]|$)'
+           when 'Towbar' then not (a->>'evidence')~* 'tow[ -]?bar'
+           when 'Canopy' then not (a->>'evidence')~* '(^|[^[:alnum:]_])canopy([^[:alnum:]_]|$)'
+           when 'Tray' then not (a->>'evidence')~* '(^|[^[:alnum:]_])tray([^[:alnum:]_]|$)'
+           when 'Tyre upgrade' then not (a->>'evidence')~* '(^|[^[:alnum:]_])(tyre|tire)s?([^[:alnum:]_]|$)'
+           when 'Spotlights' then not (a->>'evidence')~* 'spot[ -]?lights?'
+           when 'Light bar' then not (a->>'evidence')~* 'light[ -]?bar'
+           else true end))
+     ) then return public.navision_backend_response(false,'communication_retained_text_mismatch'); end if;
+
+  perform pg_advisory_xact_lock(hashtextextended('pdc-email-evidence-consumption:'||v_source,0));
+  if exists(select 1 from public.pdc_email_evidence_consumptions c where c.source_hash=v_source)
+     or exists(select 1 from public.pdc_authenticated_email_import_receipts r where r.source_hash=v_source) then
+    return public.navision_backend_response(false,'communication_evidence_already_consumed');
   end if;
 
   select coalesce(array_agg(distinct id order by id),'{}'::uuid[]) into v_candidates from (
@@ -188,6 +271,19 @@ begin
      or upper(btrim(coalesce(v_vehicle.current_location,'')))='COMPLETED' then
     return public.navision_backend_response(false,'communication_vehicle_protected');
   end if;
+  if (v_stock is not null and v_vehicle.stock_number_normalized is distinct from v_stock
+      and not exists(select 1 from public.vehicle_aliases a where a.vehicle_id=v_vehicle.id and a.active and a.alias_type_normalized='stock_number' and a.normalized_alias_value=v_stock))
+     or (v_vin is not null and v_vehicle.vin_normalized is distinct from v_vin
+      and not exists(select 1 from public.vehicle_aliases a where a.vehicle_id=v_vehicle.id and a.active and a.alias_type_normalized='vin' and a.normalized_alias_value=v_vin))
+     or (v_job is not null and upper(btrim(coalesce(v_vehicle.job_card_number,''))) is distinct from v_job) then
+    return public.navision_backend_response(false,'communication_vehicle_identity_disagreement');
+  end if;
+  perform 1 from public.vehicle_work_items w where w.vehicle_id=v_vehicle.id and w.work_key in
+    (select a->>'work_key' from jsonb_array_elements(v_actions) a where a->>'action_type'='add_accessory_work') for update;
+  if exists(select 1 from public.vehicle_work_items w where w.vehicle_id=v_vehicle.id and w.completed and w.work_key in
+    (select a->>'work_key' from jsonb_array_elements(v_actions) a where a->>'action_type'='add_accessory_work')) then
+    return public.navision_backend_response(false,'communication_completed_work_protected');
+  end if;
 
   begin
     -- One operational receipt lets approved added work appear in existing canonical job-line views.
@@ -200,13 +296,7 @@ begin
       values(v_actor,'pdc-email-import-'||substring(v_request,1,64),v_request,v_source,lower(v_attachment.source_hash),v_source_uid,
         lower(v_intake.sender_email),v_intake.received_at,v_vehicle.stock_number,v_vehicle.vin,null,null,v_vehicle.id,'operational_exact',v_required_work,
         public.navision_backend_response(true,'communication_source_bound',jsonb_build_object('vehicle_id',v_vehicle.id,'booking_created',false)))
-      on conflict(source_hash) do nothing
       returning * into v_import;
-      if v_import is null then
-        select * into v_import from public.pdc_authenticated_email_import_receipts
-        where source_hash=v_source and actor_id=v_actor and vehicle_id=v_vehicle.id;
-        if not found then raise exception using errcode='P0001',message='source receipt belongs to another vehicle'; end if;
-      end if;
     end if;
 
     for v_action in select value from jsonb_array_elements(v_actions) order by (value->>'source_action_no')::integer loop
@@ -237,7 +327,7 @@ begin
         v_before:=case when found then to_jsonb(v_work) else null end;
         insert into public.vehicle_work_items(vehicle_id,work_key,required,completed,completed_by,completed_at,notes,updated_at)
         values(v_vehicle.id,v_work_key,true,false,null,null,'Added from authenticated retained communication: '||v_description,v_now)
-        on conflict(vehicle_id,work_key) do update set required=true,completed=false,completed_by=null,completed_at=null,
+        on conflict(vehicle_id,work_key) do update set required=true,
           notes='New explicit communication work: '||v_description,updated_at=v_now;
         v_action_hash:=encode(extensions.digest(convert_to(v_action::text,'UTF8'),'sha256'),'hex');
         insert into public.pdc_authenticated_email_operation_lines(import_receipt_id,vehicle_id,source_hash,source_uid,operation_no,work_key,description,
@@ -259,6 +349,8 @@ begin
     update public.vehicles set version=version+1,updated_at=v_now,updated_by=v_actor where id=v_vehicle.id returning * into v_vehicle;
     v_result:=public.navision_backend_response(true,'communication_applied',jsonb_build_object('receipt_id',v_receipt_id,'vehicle_id',v_vehicle.id,
       'vehicle_version',v_vehicle.version,'action_count',jsonb_array_length(v_actions),'booking_created',false,'location_changed',false));
+    insert into public.pdc_email_evidence_consumptions(source_hash,intake_id,attachment_id,observation_id,actor_id,vehicle_id,operation_family,request_sha256,receipt_id)
+    values(v_source,p_intake_id,v_attachment.id,v_observation.observation_id,v_actor,v_vehicle.id,'communication',v_request,v_receipt_id);
     insert into public.pdc_email_communication_receipts(receipt_id,contract_version,actor_id,actor_email,intake_id,attachment_id,source_hash,
       attachment_hash,extraction_hash,server_extraction_hash,request_sha256,vehicle_id,action_count,response)
     values(v_receipt_id,'pmb-email-communications-v1',v_actor,v_email,p_intake_id,v_attachment.id,v_source,lower(v_attachment.source_hash),

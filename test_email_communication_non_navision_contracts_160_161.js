@@ -14,6 +14,9 @@ for (const [name, sql] of [['160', comm], ['161', nonnav]]) {
   assert(/before update or delete/.test(sql), `${name}: immutable receipt trigger missing`);
   assert(/duplicate_of is not null/.test(sql), `${name}: duplicate intake guard missing`);
   assert(/received_at<clock_timestamp\(\)-interval '30 days'/.test(sql), `${name}: stale intake guard missing`);
+  assert(/extracted_text/.test(sql) && /text_extraction_status\s*<>\s*'extracted'/.test(sql), `${name}: retained extracted-text binding missing`);
+  assert(/r\.role='importer'/.test(sql) && !/r\.role in\('viewer','importer'\)/.test(sql), `${name}: operational role must be Importer-only`);
+  assert(/pdc_email_evidence_consumptions/.test(sql), `${name}: global evidence-consumption guard missing`);
   assert(/unique_violation/.test(sql), `${name}: replay/identity conflict handling missing`);
 }
 
@@ -26,6 +29,10 @@ assert(/location_changed',false/.test(comm), '160: no-location postcondition mis
 assert(!/update public\.vehicles set[^;]*current_location/is.test(comm), '160: communication must not change location');
 assert(!/insert into public\.workshop_bookings/i.test(comm), '160: communication must not create workshop booking');
 assert(/communication_vehicle_ambiguous/.test(comm) && /communication_vehicle_protected/.test(comm), '160: exact/protected vehicle gates missing');
+assert(/communication_vehicle_identity_disagreement/.test(comm), '160: all populated vehicle identifiers must agree');
+assert(/communication_completed_work_protected/.test(comm) && !/do update set required=true,completed=false/.test(comm), '160: completed work reopening forbidden');
+assert(/communication_actions_invalid/.test(comm) && /count\(\*\) from jsonb_array_elements\(v_actions\)/.test(comm), '160: contradictory/duplicate action rejection missing');
+assert(comm.indexOf("code='communication_receipt'") < comm.indexOf("received_at<clock_timestamp()-interval '30 days'"), '160: exact replay must precede freshness rejection');
 
 assert(/backend_stock_not_found/.test(nonnav) === false, '161: fallback must not trust caller failure code');
 assert(/v_navision>0[^;]*navision_record_requires_canonical_path/.test(nonnav), '161: current Navision path exclusion missing');
@@ -33,6 +40,12 @@ assert(/'active',true,'PMB','UNALLOCATED'/.test(nonnav), '161: new vehicle PMB i
 assert(/'Nissan'/.test(nonnav) && /'Isuzu'/.test(nonnav), '161: non-Toyota make handling missing');
 assert(/cardinality\(v_candidates\)>1/.test(nonnav), '161: ambiguous operational identity guard missing');
 assert(/non_navision_operational_vehicle_protected/.test(nonnav), '161: completed/deleted vehicle protection missing');
+assert(/non_navision_vehicle_identity_disagreement/.test(nonnav), '161: all populated vehicle identifiers must agree');
+assert(/non_navision_completed_work_protected/.test(nonnav) && !/do update set required=true,completed=false/.test(nonnav), '161: completed work reopening forbidden');
+assert(/operation_lines_sha256/.test(nonnav) && /non_navision_receipt_drift/.test(nonnav), '161: immutable ordered operation digest missing');
+assert(/jsonb_typeof\(a->'source_row_no'\)<>'number'/.test(nonnav), '161: source-row type/canonical sequence guard missing');
+assert(/pdc_non_navision_operation_lines_immutable/.test(nonnav), '161: operation-line immutability missing');
+assert(nonnav.indexOf("code='non_navision_jobcard_receipt'") < nonnav.indexOf("received_at<clock_timestamp()-interval '30 days'"), '161: exact replay must precede freshness rejection');
 assert(/pdc_authenticated_email_operation_lines/.test(nonnav), '161: canonical operation lines missing');
 assert(/estimated_hours_source[\s\S]*'job_card'/.test(nonnav), '161: authoritative job-card hours provenance missing');
 assert(/'vehicle_created',v_created/.test(nonnav), '161: create/reuse evidence missing');

@@ -25,23 +25,31 @@ create table public.pdc_non_navision_jobcard_receipts(
  extraction_hash text not null check(extraction_hash~'^[a-f0-9]{64}$'),server_extraction_hash text not null check(server_extraction_hash~'^[a-f0-9]{64}$'),
  request_sha256 text not null unique check(request_sha256~'^[a-f0-9]{64}$'),canonical_import_receipt_id uuid not null unique references public.pdc_authenticated_email_import_receipts(receipt_id) on delete restrict,
  vehicle_id uuid not null references public.vehicles(id) on delete restrict,vehicle_created boolean not null,operation_count integer not null check(operation_count between 1 and 50),
+ operation_lines_sha256 text not null check(operation_lines_sha256~'^[a-f0-9]{64}$'),
  response jsonb not null check(jsonb_typeof(response)='object'),created_at timestamptz not null default clock_timestamp()
 );
 alter table public.pdc_non_navision_jobcard_receipts enable row level security;
 revoke all on table public.pdc_non_navision_jobcard_receipts from public,anon,authenticated,service_role;
 create trigger pdc_non_navision_jobcard_receipts_immutable before update or delete on public.pdc_non_navision_jobcard_receipts
 for each row execute function public.pdc_jobcard_attachment_receipt_reject_mutation();
+create unique index pdc_non_navision_operation_lines_receipt_row_unique on public.pdc_authenticated_email_operation_lines(import_receipt_id,source_row_no)
+where source_contract='pmb-non-navision-jobcard-161';
+create trigger pdc_non_navision_operation_lines_immutable before update or delete on public.pdc_authenticated_email_operation_lines
+for each row when (old.source_contract='pmb-non-navision-jobcard-161') execute function public.pdc_email_operation_line_reject_mutation();
 
 create function public.read_pdc_non_navision_jobcard_receipt(p_receipt_id uuid)
-returns jsonb language plpgsql stable security definer set search_path=pg_catalog,public as $read$
-declare v_actor uuid:=auth.uid();v_r public.pdc_non_navision_jobcard_receipts%rowtype;v_lines jsonb;begin
+returns jsonb language plpgsql stable security definer set search_path=pg_catalog,public,extensions as $read$
+declare v_actor uuid:=auth.uid();v_r public.pdc_non_navision_jobcard_receipts%rowtype;v_lines jsonb;v_digest text;begin
  if not public.pdc_monitor_staging_guard() or v_actor is null then return public.navision_backend_response(false,'unauthorized');end if;
  select * into v_r from public.pdc_non_navision_jobcard_receipts where receipt_id=p_receipt_id and actor_id=v_actor;
  if not found then return public.navision_backend_response(false,'receipt_not_found');end if;
- select coalesce(jsonb_agg(jsonb_build_object('operation_no',operation_no,'work_key',work_key,'description',description,
-  'estimated_hours',estimated_hours,'estimated_hours_source',estimated_hours_source,'source_row_no',source_row_no) order by source_row_no),'[]'::jsonb)
+ select coalesce(jsonb_agg(jsonb_build_object('description',description,'estimated_hours',estimated_hours,'operation_no',operation_no,
+  'source_row_no',source_row_no,'work_key',work_key) order by source_row_no),'[]'::jsonb)
  into v_lines from public.pdc_authenticated_email_operation_lines where import_receipt_id=v_r.canonical_import_receipt_id;
- if jsonb_array_length(v_lines)<>v_r.operation_count then return public.navision_backend_response(false,'non_navision_receipt_drift');end if;
+ v_digest:=encode(extensions.digest(convert_to(v_lines::text,'UTF8'),'sha256'),'hex');
+ if jsonb_array_length(v_lines)<>v_r.operation_count or v_digest<>v_r.operation_lines_sha256 then
+  return public.navision_backend_response(false,'non_navision_receipt_drift');
+ end if;
  return public.navision_backend_response(true,'non_navision_jobcard_receipt',jsonb_build_object('receipt_id',v_r.receipt_id,'vehicle_id',v_r.vehicle_id,
   'vehicle_created',v_r.vehicle_created,'operation_count',v_r.operation_count,'operation_lines',v_lines,'initial_location',case when v_r.vehicle_created then 'PMB' else null end,
   'booking_created',false,'completion_created',false));
@@ -59,7 +67,7 @@ declare
  v_r public.pdc_non_navision_jobcard_receipts%rowtype;v_import public.pdc_authenticated_email_import_receipts%rowtype;v_vehicle public.vehicles%rowtype;
  v_email_vehicle jsonb;v_lines jsonb;v_required jsonb;v_line jsonb;v_stock text;v_vin text;v_job text;v_candidates uuid[];v_navision integer;
  v_created boolean:=false;v_receipt_id uuid:=gen_random_uuid();v_source_uid text;v_work_key text;v_work public.vehicle_work_items%rowtype;
- v_operation_id uuid;v_fingerprint text;v_result jsonb;v_now timestamptz:=clock_timestamp();v_make text;v_description text;
+ v_operation_id uuid;v_fingerprint text;v_result jsonb;v_now timestamptz:=clock_timestamp();v_make text;v_description text;v_retained text;v_lines_digest text;
 begin
  if not public.pdc_monitor_staging_guard() or v_actor is null or v_email='' or lower(btrim(coalesce(p_actor,'')))<>'pdc-monitor'
    or v_source!~'^[a-f0-9]{64}$' or v_xhash!~'^[a-f0-9]{64}$' or jsonb_typeof(v_payload)<>'object'
@@ -70,7 +78,7 @@ begin
    or jsonb_typeof(v_payload->'required_work')<>'array' or jsonb_array_length(v_payload->'required_work') not between 1 and 10 then
   return public.navision_backend_response(false,'invalid_non_navision_extraction');
  end if;
- perform 1 from public.pdc_user_roles r where r.auth_user_id=v_actor and lower(r.email)=v_email and r.role in('viewer','importer') and r.active and r.account_status='approved' for share;
+ perform 1 from public.pdc_user_roles r where r.auth_user_id=v_actor and lower(r.email)=v_email and r.role='importer' and r.active and r.account_status='approved' for share;
  if not found then return public.navision_backend_response(false,'unauthorized');end if;
  perform 1 from public.pdc_monitor_stage_activation_writers w where w.user_id=v_actor and w.active and w.revoked_at is null for share;
  if not found then return public.navision_backend_response(false,'unauthorized');end if;
@@ -90,8 +98,11 @@ begin
  end if;
  if exists(select 1 from jsonb_array_elements(v_lines) with ordinality x(a,n) where jsonb_typeof(a)<>'object'
    or (select array_agg(k order by k) from jsonb_object_keys(a) k) is distinct from array['description','estimated_hours','operation_no','source_row_no','work_key']::text[]
-   or a->>'operation_no' is distinct from 'OP'||n::text or coalesce(a->>'work_key','') not in('bus4x4','tint','hoist','fitting','fabrication','electrical','tyre','pitInspection','PARTS')
-   or length(coalesce(a->>'description','')) not between 1 and 180 or jsonb_typeof(a->'estimated_hours')<>'number'
+   or a->>'operation_no' is distinct from 'OP'||n::text or jsonb_typeof(a->'source_row_no')<>'number'
+   or (a->>'source_row_no')::numeric<>n::numeric or (a->>'source_row_no')::numeric<>trunc((a->>'source_row_no')::numeric)
+   or coalesce(a->>'work_key','') not in('bus4x4','tint','hoist','fitting','fabrication','electrical','tyre','pitInspection','PARTS')
+   or length(coalesce(a->>'description','')) not between 1 and 180 or a->>'description' is distinct from btrim(a->>'description')
+   or (a->>'description')~'[[:cntrl:]]' or jsonb_typeof(a->'estimated_hours')<>'number'
    or (a->>'estimated_hours')::numeric<=0 or (a->>'estimated_hours')::numeric>999.99)
    or jsonb_array_length(v_lines)<>(select count(distinct a->>'source_row_no') from jsonb_array_elements(v_lines) a)
    or (select array_agg(distinct a->>'work_key' order by a->>'work_key') from jsonb_array_elements(v_lines) a)
@@ -104,19 +115,39 @@ begin
  select * into v_observation from public.pdc_provider_email_observations where intake_id=p_intake_id and attachment_id=v_attachment.id for share;
  if not found or v_observation.parent_source_hash<>v_source or v_observation.attachment_source_hash<>lower(v_payload->>'canonical_document_hash')
    or v_observation.authentication is distinct from v_payload->'authentication' or lower(v_intake.source_hash)<>v_source
-   or v_intake.duplicate_of is not null or v_intake.received_at is null or v_intake.received_at<clock_timestamp()-interval '30 days'
-   or not exists(select 1 from public.pdc_monitor_exact_sender_enrollments e where e.active and e.sender_sha256=
-     encode(extensions.digest(convert_to(lower(btrim(v_intake.sender_email)),'UTF8'),'sha256'),'hex')) then
+   or lower(v_attachment.source_hash)<>lower(v_payload->>'canonical_document_hash')
+   or v_attachment.text_extraction_status<>'extracted' or nullif(btrim(coalesce(v_attachment.extracted_text,'')),'') is null
+   or length(v_attachment.extracted_text)>500000 then
   return public.navision_backend_response(false,'non_navision_evidence_binding_failed');
  end if;
  perform pg_advisory_xact_lock(hashtextextended('pdc-non-navision-jobcard-161:'||p_intake_id::text,0));
  v_server:=encode(extensions.digest(convert_to(v_payload::text,'UTF8'),'sha256'),'hex');
- v_request:=encode(extensions.digest(convert_to(jsonb_build_object('contract','161.1','actor_id',v_actor,'intake_id',p_intake_id,'source',v_source,
+ v_request:=encode(extensions.digest(convert_to(jsonb_build_object('contract','161.2','actor_id',v_actor,'intake_id',p_intake_id,'source',v_source,
   'extraction_hash',v_xhash,'server_hash',v_server,'payload',v_payload)::text,'UTF8'),'sha256'),'hex');
  select * into v_r from public.pdc_non_navision_jobcard_receipts where intake_id=p_intake_id;
  if found then
-  if v_r.actor_id<>v_actor or v_r.request_sha256<>v_request then return public.navision_backend_response(false,'non_navision_replay_conflict');end if;
+  if v_r.actor_id<>v_actor or v_r.source_hash<>v_source or v_r.extraction_hash<>v_xhash or v_r.server_extraction_hash<>v_server
+     or v_r.request_sha256<>v_request then return public.navision_backend_response(false,'non_navision_replay_conflict');end if;
   return public.read_pdc_non_navision_jobcard_receipt(v_r.receipt_id);
+ end if;
+ if v_intake.duplicate_of is not null or v_intake.received_at is null or v_intake.received_at>clock_timestamp()+interval '5 minutes'
+   or v_intake.received_at<clock_timestamp()-interval '30 days'
+   or not exists(select 1 from public.pdc_monitor_exact_sender_enrollments e where e.active and e.sender_sha256=
+     encode(extensions.digest(convert_to(lower(btrim(v_intake.sender_email)),'UTF8'),'sha256'),'hex')) then
+  return public.navision_backend_response(false,'non_navision_evidence_binding_failed');
+ end if;
+ v_retained:=lower(regexp_replace(v_attachment.extracted_text,'[[:space:]]+',' ','g'));
+ if position(lower(v_job) in v_retained)=0 or (v_stock is not null and position(lower(v_stock) in v_retained)=0)
+    or (v_vin is not null and position(lower(v_vin) in regexp_replace(v_retained,'[^a-z0-9]','','g'))=0)
+    or exists(select 1 from jsonb_array_elements(v_lines) a where
+      position(lower(regexp_replace(a->>'description','[[:space:]]+',' ','g')) in v_retained)=0
+      or position(lower(a->>'estimated_hours') in v_retained)=0) then
+  return public.navision_backend_response(false,'non_navision_retained_text_mismatch');
+ end if;
+ perform pg_advisory_xact_lock(hashtextextended('pdc-email-evidence-consumption:'||v_source,0));
+ if exists(select 1 from public.pdc_email_evidence_consumptions c where c.source_hash=v_source)
+    or exists(select 1 from public.pdc_authenticated_email_import_receipts r where r.source_hash=v_source) then
+  return public.navision_backend_response(false,'non_navision_evidence_already_consumed');
  end if;
  perform pg_advisory_xact_lock(hashtextextended('navision-backend-store',0));
  select count(*) into v_navision from public.navision_backend_records b where b.source_system='microsoft_navision' and b.dealer_code in('14450','37047')
@@ -135,9 +166,21 @@ begin
  if cardinality(v_candidates)=1 then
   select * into v_vehicle from public.vehicles where id=v_candidates[1] for update;
   if v_vehicle.lifecycle_state<>'active' or v_vehicle.deleted_at is not null or v_vehicle.board_purged_at is not null or v_vehicle.rft_collected_at is not null
-    or upper(btrim(coalesce(v_vehicle.current_location,'')))='COMPLETED' or not v_vehicle.visible_on_board
-    or (nullif(upper(btrim(coalesce(v_vehicle.job_card_number,''))),'') is not null and upper(btrim(v_vehicle.job_card_number))<>v_job) then
+    or upper(btrim(coalesce(v_vehicle.current_location,'')))='COMPLETED' or not v_vehicle.visible_on_board then
    return public.navision_backend_response(false,'non_navision_operational_vehicle_protected');
+  end if;
+  if upper(btrim(coalesce(v_vehicle.job_card_number,''))) is distinct from v_job
+    or (v_stock is not null and v_vehicle.stock_number_normalized is distinct from v_stock
+      and not exists(select 1 from public.vehicle_aliases a where a.vehicle_id=v_vehicle.id and a.active and a.alias_type_normalized='stock_number' and a.normalized_alias_value=v_stock))
+    or (v_vin is not null and v_vehicle.vin_normalized is distinct from v_vin
+      and not exists(select 1 from public.vehicle_aliases a where a.vehicle_id=v_vehicle.id and a.active and a.alias_type_normalized='vin' and a.normalized_alias_value=v_vin)) then
+   return public.navision_backend_response(false,'non_navision_vehicle_identity_disagreement');
+  end if;
+  perform 1 from public.vehicle_work_items w where w.vehicle_id=v_vehicle.id and w.work_key in
+    (select x from jsonb_array_elements_text(v_required) x) for update;
+  if exists(select 1 from public.vehicle_work_items w where w.vehicle_id=v_vehicle.id and w.completed and w.work_key in
+    (select x from jsonb_array_elements_text(v_required) x)) then
+   return public.navision_backend_response(false,'non_navision_completed_work_protected');
   end if;
   update public.vehicles set job_card_number=coalesce(job_card_number,v_job),customer_name=coalesce(customer_name,nullif(btrim(v_email_vehicle->>'customer_name'),'')),
    vehicle_description=coalesce(vehicle_description,nullif(btrim(v_email_vehicle->>'vehicle_description'),'')),registration=coalesce(registration,nullif(btrim(v_email_vehicle->>'registration'),'')),
@@ -168,15 +211,20 @@ begin
    (v_line->>'estimated_hours')::numeric,'job_card',v_job,(v_line->>'source_row_no')::integer,'pmb-non-navision-jobcard-161') returning operation_line_id into v_operation_id;
   insert into public.vehicle_work_items(vehicle_id,work_key,required,completed,notes,updated_at)
   values(v_vehicle.id,v_work_key,true,false,'Required by retained non-Navision job card '||v_job,v_now)
-  on conflict(vehicle_id,work_key) do update set required=true,completed=false,completed_by=null,completed_at=null,updated_at=v_now;
+  on conflict(vehicle_id,work_key) do update set required=true,updated_at=v_now;
  end loop;
+ select encode(extensions.digest(convert_to(coalesce(jsonb_agg(jsonb_build_object('description',description,'estimated_hours',estimated_hours,
+  'operation_no',operation_no,'source_row_no',source_row_no,'work_key',work_key) order by source_row_no),'[]'::jsonb)::text,'UTF8'),'sha256'),'hex')
+ into v_lines_digest from public.pdc_authenticated_email_operation_lines where import_receipt_id=v_import.receipt_id;
  if exists(select 1 from jsonb_array_elements_text(v_required) x where x='PARTS') then
   insert into public.vehicle_parts_updates(vehicle_id,parts_required,updated_by,updated_at) values(v_vehicle.id,true,v_actor,v_now);
  end if;
+ insert into public.pdc_email_evidence_consumptions(source_hash,intake_id,attachment_id,observation_id,actor_id,vehicle_id,operation_family,request_sha256,receipt_id)
+ values(v_source,p_intake_id,v_attachment.id,v_observation.observation_id,v_actor,v_vehicle.id,'non_navision_jobcard',v_request,v_receipt_id);
  insert into public.pdc_non_navision_jobcard_receipts(receipt_id,actor_id,actor_email,intake_id,attachment_id,source_hash,attachment_hash,extraction_hash,
-  server_extraction_hash,request_sha256,canonical_import_receipt_id,vehicle_id,vehicle_created,operation_count,response)
+  server_extraction_hash,request_sha256,canonical_import_receipt_id,vehicle_id,vehicle_created,operation_count,operation_lines_sha256,response)
  values(v_receipt_id,v_actor,v_email,p_intake_id,v_attachment.id,v_source,lower(v_attachment.source_hash),v_xhash,v_server,v_request,v_import.receipt_id,
-  v_vehicle.id,v_created,jsonb_array_length(v_lines),v_result);
+  v_vehicle.id,v_created,jsonb_array_length(v_lines),v_lines_digest,v_result);
  insert into public.audit_events(action,table_name,row_id,vehicle_id,actor_id,actor_email,before_data,after_data,metadata)
  values(case when v_created then 'insert'::public.audit_action else 'update'::public.audit_action end,'pdc_non_navision_jobcard_receipts',v_receipt_id,v_vehicle.id,
   v_actor,v_email,null,to_jsonb(v_vehicle),jsonb_build_object('source','pdc_non_navision_jobcard_161','source_hash',v_source,'vehicle_created',v_created,
