@@ -417,20 +417,24 @@ revoke all on function public.process_pdc_email_communication_pre171(uuid,text,t
 revoke all on function public.process_pdc_email_communication(uuid,text,text,jsonb,text) from public,anon,authenticated,service_role;
 grant execute on function public.process_pdc_email_communication(uuid,text,text,jsonb,text) to authenticated;
 
--- Admin mutations lock every affected planned row before the same ordered bay
--- advisory namespace used by ordinary booking mutations. This removes the
--- old bay-advisory -> booking-row inversion.
+-- Admin mutations follow estimate synchronization's advisory-first order. An
+-- ordinary booking mutation can already own a row before requesting the bay,
+-- so Admin never waits for rows while holding bay locks: it fails retryably.
 create or replace function public.workshop_admin_lock_physical_bays(p_first uuid,p_second uuid default null)
 returns void language plpgsql security definer set search_path=pg_catalog,public as $admin_locks$
 declare v_bay uuid;
 begin
-  perform 1 from public.workshop_bookings b
-    where b.bay_id in(p_first,coalesce(p_second,p_first)) and b.deleted_at is null
-      and b.status in('queued','planned','started','stoppage')
-    order by b.id for update;
   for v_bay in select distinct x from unnest(array[p_first,p_second])x where x is not null order by x loop
     perform public.workshop_lock_resources(v_bay,null);
   end loop;
+  begin
+    perform 1 from public.workshop_bookings b
+      where b.bay_id in(p_first,coalesce(p_second,p_first)) and b.deleted_at is null
+        and b.status in('queued','planned','started','stoppage')
+      order by b.id for update nowait;
+  exception when lock_not_available then
+    raise exception 'concurrent workshop booking mutation; retry Admin block change' using errcode='40001';
+  end;
 end
 $admin_locks$;
 revoke all on function public.workshop_admin_lock_physical_bays(uuid,uuid) from public,anon,authenticated,service_role;

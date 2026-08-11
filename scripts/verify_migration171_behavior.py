@@ -67,8 +67,7 @@ def main():
      where s.active and s.planner_enabled and s.is_physical and b.is_active and not b.is_sublet_row
        and exists(select 1 from public.workshop_bays b2 where b2.stage_id=s.id and b2.id<>b.id and b2.is_active and not b2.is_sublet_row)
      order by s.code,b.bay_number limit 1""");stage,stage_code,bay,bay_no,work_key,other_bay=c.fetchone()
-   c.execute("""select ts from generate_series(date_trunc('minute',clock_timestamp())+interval '1 day',date_trunc('minute',clock_timestamp())+interval '30 days',interval '15 minutes') ts
-     where public.workshop_calendar_minute_available(ts) and public.workshop_operational_minutes_between(ts,public.workshop_add_operational_minutes(ts,180))=180 order by ts limit 1""");start=c.fetchone()[0]
+   c.execute("select public.workshop_next_calendar_window(date_trunc('minute',clock_timestamp())+interval '1 day',180)");start=c.fetchone()[0];assert start
    v1,_=vehicle('BOOK1','86'+tag[:6],False);v2,_=vehicle('BOOK2','87'+tag[:6],False)
    c.execute("insert into public.vehicle_work_items(vehicle_id,work_key,required,completed) values(%s,%s,true,false),(%s,%s,true,false)",(v1,work_key,v2,work_key))
    c.execute("""insert into public.vehicle_workshop_line_adjustments(vehicle_id,line_key,source_kind,stage_code,description,estimated_hours,created_by,updated_by)
