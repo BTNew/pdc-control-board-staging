@@ -24,9 +24,13 @@ assert(lower.includes('grant execute on function public.return_pdc_sublet_bookin
 
 assert(app.includes("event.type === 'due-back' && event.bookingId"), 'Only canonical Due Back pills may expose the return checkbox');
 assert(app.includes('data-sublet-calendar-returned="${escapeHtml(event.mutationKey)}"'), 'Due Back pills must expose a booking-scoped return checkbox');
-assert(app.includes('await setSubletReturned(input.dataset.subletCalendarReturned, true)'), 'Calendar checkbox must use the existing canonical return action');
+assert(app.includes('data-sublet-calendar-out-date="${escapeHtml(event.bookingDate)}"'), 'Calendar return control must retain the canonical outgoing date');
+assert(app.includes('const returnedOn = [subletTodayDateKey(), plainDateValue(input.dataset.subletCalendarOutDate)].filter(Boolean).sort().pop()'), 'Calendar returns must not send a timestamp before the outgoing date');
+assert(app.includes('await setSubletReturned(input.dataset.subletCalendarReturned, true, returnedOn)'), 'Calendar checkbox must use the existing canonical return action with a valid return date');
+assert(app.includes("event.keyNumber ? `Key ${event.keyNumber}` : ''"), 'Every Sublet calendar pill must include the key number when available');
 assert(app.includes("event.target?.closest?.('[data-sublet-calendar-returned]')"), 'Using the checkbox must not accidentally start a calendar drag');
 assert(app.includes("if (!saved) {\n      input.checked = false;"), 'Failed returns must reset the checkbox');
 assert(css.includes('.sublet-calendar-returned-check'), 'Calendar return checkbox must have an explicit compact style');
+assert(css.includes('position: absolute; top: 4px; right: 5px'), 'Back control must stay on the stock identity row without increasing pill height');
 
 console.log('Sublet calendar return and last-booking station completion contract passed');

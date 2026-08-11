@@ -33,6 +33,7 @@ const context = {
   pmbBaySubletProvider: vehicle => vehicle.provider || '',
   displayStockNumber: vehicle => vehicle.stock || '',
   vehicleKey: vehicle => vehicle.key || vehicle.stock || '',
+  vehicleKeyNumber: vehicle => vehicle.keyNumber || vehicle.keyNo || '',
   vehicleCustomerName: vehicle => vehicle.customer || '',
   displayVehicle: vehicle => vehicle.vehicle || '',
 };

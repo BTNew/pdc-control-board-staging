@@ -1,5 +1,5 @@
-const APP_VERSION = '2026.08.12.32-sublet-calendar-return';
-const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.08.12.32-sublet-calendar-return';
+const APP_VERSION = '2026.08.12.33-sublet-return-importer';
+const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.08.12.33-sublet-return-importer';
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
 // constant intentionally names only the production ref, never the
@@ -20528,7 +20528,7 @@ function subletCalendarEvents(rows = []) {
     const bookingDate = plainDateValue(vehicle.pmbSubletBookingDate);
     const expectedReturnDate = plainDateValue(vehicle.pmbSubletExpectedReturnDate);
     const actualReturnDate = plainDateValue(vehicle.pmbSubletActualReturnDate);
-    const common = { key, mutationKey: vehicle.__subletBookingId || key, bookingId: vehicle.__subletBookingId || '', stock, provider, customer, vehicle: description };
+    const common = { key, mutationKey: vehicle.__subletBookingId || key, bookingId: vehicle.__subletBookingId || '', stock, keyNumber: vehicleKeyNumber(vehicle), provider, customer, vehicle: description, bookingDate };
     if (bookingDate) events.push({ ...common, date: bookingDate, type: 'outgoing', label: 'Going out', missingReturn: !expectedReturnDate && !actualReturnDate });
     if (actualReturnDate) events.push({ ...common, date: actualReturnDate, type: 'returned', label: 'Returned', missingReturn: false });
     else if (expectedReturnDate) events.push({ ...common, date: expectedReturnDate, type: 'due-back', label: 'Due back', missingReturn: false, overdue: expectedReturnDate < subletTodayDateKey() });
@@ -20647,9 +20647,10 @@ function renderSubletCalendar(rows = []) {
     const fullDate = subletCalendarDateLabel(date, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
     const eventHtml = events.map(event => {
       const returnCheck = event.type === 'due-back' && event.bookingId
-        ? `<label class="sublet-calendar-returned-check" title="Mark this Sublet booking returned"><input type="checkbox" data-sublet-calendar-returned="${escapeHtml(event.mutationKey)}" aria-label="Mark stock ${escapeHtml(event.stock)}, ${escapeHtml(event.provider)}, returned from Sublet"><span>Back</span></label>`
+        ? `<label class="sublet-calendar-returned-check" title="Mark this Sublet booking returned"><input type="checkbox" data-sublet-calendar-returned="${escapeHtml(event.mutationKey)}" data-sublet-calendar-out-date="${escapeHtml(event.bookingDate)}" aria-label="Mark stock ${escapeHtml(event.stock)}, ${escapeHtml(event.provider)}, returned from Sublet"><span>Back</span></label>`
         : '';
-      return `<article class="sublet-calendar-event is-${escapeHtml(event.type)} ${event.overdue ? 'is-overdue' : ''} ${event.missingReturn ? 'is-missing-return' : ''}" draggable="true" data-sublet-calendar-event="${escapeHtml(`${event.type}:${event.mutationKey}:${date}`)}" data-sublet-calendar-drag-key="${escapeHtml(event.mutationKey)}" data-sublet-calendar-drag-type="${escapeHtml(event.type)}" data-sublet-calendar-drag-date="${escapeHtml(date)}"><button class="sublet-calendar-event-open" type="button" data-open-stock="${escapeHtml(event.key)}" aria-label="${escapeHtml(`${event.label}: stock ${event.stock}, ${event.provider}, ${fullDate}. Drag the card to move this date, or use the date field in List View.`)}"><span>${escapeHtml(event.label)} · ${escapeHtml(event.stock)}</span><strong>${escapeHtml(event.provider)}</strong><small>${escapeHtml([event.customer, event.vehicle].filter(Boolean).join(' · '))}</small>${event.overdue ? '<em>OVERDUE</em>' : (event.missingReturn ? '<em>Return date needed</em>' : '')}</button>${returnCheck}</article>`;
+      const identity = [event.label, event.stock, event.keyNumber ? `Key ${event.keyNumber}` : ''].filter(Boolean).join(' · ');
+      return `<article class="sublet-calendar-event is-${escapeHtml(event.type)} ${event.overdue ? 'is-overdue' : ''} ${event.missingReturn ? 'is-missing-return' : ''}" draggable="true" data-sublet-calendar-event="${escapeHtml(`${event.type}:${event.mutationKey}:${date}`)}" data-sublet-calendar-drag-key="${escapeHtml(event.mutationKey)}" data-sublet-calendar-drag-type="${escapeHtml(event.type)}" data-sublet-calendar-drag-date="${escapeHtml(date)}"><button class="sublet-calendar-event-open" type="button" data-open-stock="${escapeHtml(event.key)}" aria-label="${escapeHtml(`${event.label}: stock ${event.stock}${event.keyNumber ? `, key ${event.keyNumber}` : ''}, ${event.provider}, ${fullDate}. Drag the card to move this date, or use the date field in List View.`)}"><span>${escapeHtml(identity)}</span><strong>${escapeHtml(event.provider)}</strong><small>${escapeHtml([event.customer, event.vehicle].filter(Boolean).join(' · '))}</small>${event.overdue ? '<em>OVERDUE</em>' : (event.missingReturn ? '<em>Return date needed</em>' : '')}</button>${returnCheck}</article>`;
     }).join('');
     return `<section class="sublet-calendar-day ${outside ? 'is-outside-month' : ''} ${date === today ? 'is-today' : ''}" data-sublet-calendar-date="${escapeHtml(date)}" data-sublet-calendar-drop-date="${escapeHtml(date)}" role="gridcell" aria-label="${escapeHtml(fullDate)}"><header><span>${escapeHtml(subletCalendarDateLabel(date, range.mode === 'month' ? { day: 'numeric' } : { day: 'numeric', month: 'short' }))}</span>${date === today ? '<b>Today</b>' : ''}</header><div class="sublet-calendar-day-events">${eventHtml}</div></section>`;
   }).join('');
@@ -20726,7 +20727,8 @@ function bindSubletCalendarInteractions(host) {
   $$('[data-sublet-calendar-returned]', host).forEach(input => input.addEventListener('change', async () => {
     if (!input.checked || input.disabled) return;
     input.disabled = true;
-    const saved = await setSubletReturned(input.dataset.subletCalendarReturned, true);
+    const returnedOn = [subletTodayDateKey(), plainDateValue(input.dataset.subletCalendarOutDate)].filter(Boolean).sort().pop();
+    const saved = await setSubletReturned(input.dataset.subletCalendarReturned, true, returnedOn);
     if (!saved) {
       input.checked = false;
       input.disabled = false;
@@ -20946,7 +20948,7 @@ async function setSubletReturned(key = '', returned = false, referenceDate = new
     return queueSubletVehicleMutation(bookingId, async () => {
       const current = subletVehicleByKey(bookingId);
       if (!current) return false;
-      const businessDate = subletTodayDateKey(referenceDate);
+      const businessDate = plainDateValue(referenceDate) || subletTodayDateKey(referenceDate instanceof Date ? referenceDate : new Date());
       const response = await service.returnSubletBooking(bookingId, current.__subletBookingVersion, `${businessDate}T12:00:00+08:00`);
       if (!response?.ok) {
         await refreshEmailVehicleLocations();

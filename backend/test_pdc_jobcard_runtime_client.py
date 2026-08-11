@@ -94,6 +94,19 @@ def clients(service_replies, actor_replies):
 
 
 class RuntimeClientTests(unittest.TestCase):
+    def test_enrolled_importer_can_attest_and_process_without_service_role(self):
+        calls = []
+        actor = FakeClient(
+            "authenticated_monitor", "anon-public", "actor-token",
+            [attestation(), {"ok": True, "code": "jobcard_attachment_receipt", "data": canonical_data()}], calls,
+        )
+        result = execute_jobcard_request(actor, actor, request_fixture())
+        self.assertTrue(result["ok"])
+        self.assertEqual([(a, n) for a, n, _ in calls], [
+            ("authenticated_monitor", ATTEST_RPC),
+            ("authenticated_monitor", PROCESS_RPC),
+        ])
+
     def test_service_attests_then_actor_processes_strict_readback(self):
         service, actor, calls = clients(
             [attestation()],
