@@ -20710,7 +20710,13 @@ async function dropSubletCalendarEvent(event, targetDate = '') {
 
 function bindSubletCalendarInteractions(host) {
   $$('[data-sublet-calendar-event]', host).forEach(card => {
-    card.addEventListener('dragstart', event => beginSubletCalendarDrag(event, card));
+    card.addEventListener('dragstart', event => {
+      if (event.target?.closest?.('[data-sublet-calendar-returned]')) {
+        event.preventDefault();
+        return;
+      }
+      beginSubletCalendarDrag(event, card);
+    });
     card.addEventListener('dragend', () => {
       app.subletCalendarDragData = null;
       card.classList.remove('is-dragging');
