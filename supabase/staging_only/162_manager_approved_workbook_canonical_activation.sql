@@ -171,12 +171,14 @@ create function public.pdc_pmb_workbook_canonical_candidate(p_pair_id uuid)
 returns jsonb language plpgsql stable security definer set search_path=pg_catalog,public as $candidate$
 declare
  p public.pdc_pmb_workbook_pair_reviews%rowtype;r public.navision_backend_records%rowtype;v public.vehicles%rowtype;
- a public.navision_board_activations%rowtype;backend_ids uuid[]:='{}';owner_ids uuid[]:='{}';vin_ids uuid[]:='{}';stock text;vin text;
+ a public.navision_board_activations%rowtype;backend_ids uuid[]:='{}';owner_ids uuid[]:='{}';vin_ids uuid[]:='{}';stock text;target_vin text;
 begin
  if not public.pdc_monitor_staging_guard() or p_pair_id is null then return jsonb_build_object('eligible',false,'reason','wrong_environment_or_input');end if;
  select * into p from public.pdc_pmb_workbook_pair_reviews where pair_id=p_pair_id;
- if not found or p.classification<>'terminal_identity_conflict' or p.reason_code<>'canonical_stock_activation_or_owner_conflict'
-   or p.stock_number is null then return jsonb_build_object('eligible',false,'reason','pair_not_canonical_activation_quarantine');end if;
+ if not found or p.stock_number is null
+   or not ((p.classification='no_current_stock_manager_override_required' and p.reason_code='manager_stock_only_create_required')
+        or (p.classification='terminal_identity_conflict' and p.reason_code='canonical_stock_activation_or_owner_conflict'))
+ then return jsonb_build_object('eligible',false,'reason','pair_not_canonical_activation_quarantine');end if;
  stock:=public.normalize_vehicle_stock_number(p.stock_number);
  if stock='13056899' then return jsonb_build_object('eligible',false,'reason','terminal_excluded_stock13056899');end if;
  select coalesce(array_agg(x.id order by x.id),'{}'::uuid[]) into backend_ids from public.navision_backend_records x
@@ -185,15 +187,15 @@ begin
  if cardinality(backend_ids)<>1 then return jsonb_build_object('eligible',false,'reason','current_navision_stock_not_exactly_one');end if;
  select * into strict r from public.navision_backend_records where id=backend_ids[1];
  if public.navision_operational_location(r.normalized_data)='Completed' then return jsonb_build_object('eligible',false,'reason','protected_backend_completed');end if;
- vin:=case when public.is_valid_vehicle_vin(r.normalized_data->>'vin') then public.normalize_vehicle_vin(r.normalized_data->>'vin') else null end;
+ target_vin:=case when public.is_valid_vehicle_vin(r.normalized_data->>'vin') then public.normalize_vehicle_vin(r.normalized_data->>'vin') else null end;
  select coalesce(array_agg(distinct vehicle_id order by vehicle_id),'{}'::uuid[]) into owner_ids from(
   select x.id vehicle_id from public.vehicles x where x.stock_number_normalized=stock
   union all select x.vehicle_id from public.vehicle_aliases x where x.alias_type_normalized='stock_number' and x.normalized_alias_value=stock
  ) owners;
- if vin is not null then
+ if target_vin is not null then
   select coalesce(array_agg(distinct vehicle_id order by vehicle_id),'{}'::uuid[]) into vin_ids from(
-   select x.id vehicle_id from public.vehicles x where x.vin_normalized=vin
-   union all select x.vehicle_id from public.vehicle_aliases x where x.alias_type_normalized='vin' and x.normalized_alias_value=vin
+   select x.id vehicle_id from public.vehicles x where x.vin_normalized=target_vin
+   union all select x.vehicle_id from public.vehicle_aliases x where x.alias_type_normalized='vin' and x.normalized_alias_value=target_vin
   ) owners;
  end if;
  if r.canonical_vehicle_id is null then

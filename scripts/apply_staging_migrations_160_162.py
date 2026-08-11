@@ -18,7 +18,7 @@ from staging_env import assert_staging_target, load_local_env  # noqa: E402
 MIGRATIONS = (
     ("160", "email_communication_board_actions", "6c24cfa241a3a6c0104e3c51f932a2d4120e73e9e9ae473ede988d27a7cd9522"),
     ("161", "non_navision_jobcard_board_creation", "9199d131eabc817d509e64deaf04adedaa8e150409133e8265f51d6cd039eaee"),
-    ("162", "manager_approved_workbook_canonical_activation", "82882062d36baa41d722136d651d089b147a33e34ae9d3a0c4096df363d2aa3b"),
+    ("162", "manager_approved_workbook_canonical_activation", "eb09e2164db7d5cc6ac4510d216d854ff3e0fc85514ff06c9da57751246fe6b9"),
 )
 TABLES = (
     "pdc_email_communication_receipts", "pdc_email_communication_action_receipts",

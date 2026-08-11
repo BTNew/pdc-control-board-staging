@@ -38,7 +38,8 @@ has('pdc_pmb_workbook_reject_mutation()');has('revoke all on table public.%i fro
 
 const candidate=body('pdc_pmb_workbook_canonical_candidate');
 [
- "p.classification<>'terminal_identity_conflict'","p.reason_code<>'canonical_stock_activation_or_owner_conflict'","stock='13056899'",
+ "p.classification='no_current_stock_manager_override_required'","p.reason_code='manager_stock_only_create_required'",
+ "p.classification='terminal_identity_conflict'","p.reason_code='canonical_stock_activation_or_owner_conflict'","stock='13056899'",
  "source_system='microsoft_navision'","dealer_code in('14450','37047')",'cardinality(backend_ids)<>1',"navision_operational_location(r.normalized_data)='completed'",
  "action','create_canonical_vehicle'",'r.canonical_vehicle_id is null','cardinality(owner_ids)<>0','cardinality(vin_ids)<>0',
  'source_record_id_normalized','navision_board_activations',"action','reactivate_complete_board_purge'",'v.board_purged_at is null',
