@@ -1,4 +1,5 @@
 import copy
+import hashlib
 import io
 import json
 import sys
@@ -74,9 +75,12 @@ class Client:
                 "booking_created": False, "completion_created": False, "location_scheduled": False}}
         if name == PROCESS_COMMUNICATION_RPC:
             action = payload["p_extraction"]["actions"][0]
+            retained_clause = " ".join(action["evidence"].split()).strip(" .,;:-").lower()
             return {"ok": True, "code": "communication_receipt", "data": {
                 "receipt_id": R, "intake_id": I, "attachment_id": A, "vehicle_id": V,
-                "action_count": 1, "actions": [{"source_action_no": 1, "action_type": action["action_type"], "evidence": action["evidence"], "requested_action": action, "before_data": None, "after_data": {}}],
+                "action_count": 1, "actions": [{"source_action_no": 1, "action_type": action["action_type"], "evidence": action["evidence"],
+                    "retained_clause": retained_clause, "retained_clause_sha256": hashlib.sha256(retained_clause.encode("utf-8")).hexdigest(),
+                    "requested_action": action, "before_data": None, "after_data": {}}],
                 "booking_created": False, "location_changed": False,
             }}
         raise AssertionError(f"unexpected RPC {name}")
