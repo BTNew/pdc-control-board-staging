@@ -55,6 +55,7 @@ const navigation = require('./workshop-navigation');
 })();
 
 (function staleHighlightReplacementAndClear() {
+  assert.strictEqual(typeof navigation.replaceWorkshopHighlight, 'function', 'CommonJS runtime must export the DOM highlight bridge');
   const events = [];
   const controller = navigation.createWorkshopHighlightController({
     applyHighlight: (target, state) => events.push(['apply', target, state.pulseClass]),

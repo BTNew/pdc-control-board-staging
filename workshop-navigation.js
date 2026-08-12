@@ -190,6 +190,40 @@ function createWorkshopHighlightController(options = {}) {
   });
 }
 
+/**
+ * Replace the visible Workshop navigation highlight in a DOM subtree.
+ * Stale highlights are removed before applying a visible animated or
+ * reduced-motion replacement.
+ */
+function replaceWorkshopHighlight(root, target, options = {}) {
+  if (!root || typeof root.querySelectorAll !== 'function') return null;
+  const pulseClass = text(options.highlightClass) || 'is-workshop-navigation-pulse';
+  const reducedMotionClass = text(options.reducedMotionClass) || `${pulseClass}-reduced-motion`;
+  const staleSelector = text(options.staleSelector) || `.${pulseClass}, .${reducedMotionClass}`;
+  const stale = Array.from(root.querySelectorAll(staleSelector));
+  stale.forEach(element => {
+    if (!element?.classList) return;
+    element.classList.remove(pulseClass);
+    element.classList.remove(reducedMotionClass);
+  });
+
+  if (!target?.classList) return null;
+  const motionPreference = Object.prototype.hasOwnProperty.call(options, 'prefersReducedMotion')
+    ? options.prefersReducedMotion
+    : (typeof window !== 'undefined' && typeof window.matchMedia === 'function'
+      ? window.matchMedia('(prefers-reduced-motion: reduce)')
+      : false);
+  const presentation = highlightPresentation(motionPreference);
+  const appliedClass = presentation.reducedMotion ? reducedMotionClass : pulseClass;
+  target.classList.add(appliedClass);
+  return Object.freeze({
+    target,
+    presentation,
+    appliedClass,
+    cleared: Object.freeze(stale.slice()),
+  });
+}
+
 function numericHours(value) {
   if (value === '' || value === null || value === undefined) return null;
   const number = typeof value === 'number' ? value : Number(value);
@@ -257,6 +291,7 @@ const workshopNavigation = Object.freeze({
   resolveStockResultTarget,
   highlightPresentation,
   createWorkshopHighlightController,
+  replaceWorkshopHighlight,
   projectWorkshopHours,
 });
 

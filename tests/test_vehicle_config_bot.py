@@ -91,9 +91,37 @@ class VehicleConfigCsvTests(unittest.TestCase):
             bot.CellChange(1, "Description", "invented", evidence("Hidden"))
         tampered = self.root / "tampered.csv"
         tampered.write_text(self.source.read_text(encoding="utf-8").replace(
-            "Keep wording", "Changed wording"), encoding="utf-8", newline="")
+            'no,100,150,"Keep wording"',
+            'no,121.00,150,"Changed wording"'), encoding="utf-8", newline="")
         with self.assertRaisesRegex(bot.ValidationError, "unauthorized CSV change"):
             bot._validate_csv(self.source, tampered, [change(1, "Cost", 121)])
+
+    def test_rejects_target_value_different_from_approved_proposal(self):
+        tampered = self.root / "tampered-target.csv"
+        tampered.write_text(self.source.read_text(encoding="utf-8").replace(
+            "no,100,150", "no,999.00,150"), encoding="utf-8", newline="")
+        with self.assertRaisesRegex(bot.ValidationError, "target mismatch"):
+            bot._validate_csv(self.source, tampered, [change(1, "Cost", 121)])
+
+    def test_rejects_malformed_untargeted_row(self):
+        malformed = self.root / "malformed.csv"
+        malformed.write_text(
+            self.source.read_text(encoding="utf-8").replace(
+                "A2,Solis panel,no,200,300,Formula-like =A1",
+                "A2,Solis panel,no,200,300"),
+            encoding="utf-8", newline="",
+        )
+        destination = self.root / "reviewed.csv"
+        with self.assertRaisesRegex(bot.ValidationError, "data row 2 has a different column count"):
+            bot.apply_file(malformed, destination, [change(1, "Cost", 121)])
+        self.assertFalse(destination.exists())
+        self.assertIn("Formula-like =A1", self.source.read_text(encoding="utf-8"))
+
+    def test_rejects_in_place_output_and_preserves_original(self):
+        before = self.source.read_bytes()
+        with self.assertRaisesRegex(bot.ValidationError, "source and destination must differ"):
+            bot.apply_file(self.source, self.source, [change(1, "Cost", 121)])
+        self.assertEqual(self.source.read_bytes(), before)
 
     def test_review_validates_without_leaving_output(self):
         changes = [change(1, "Sell", 175)]

@@ -27,11 +27,65 @@ test('actual control-board tiles carry deterministic Work and bookings context',
   assert(source.includes('buildWorkBookingsNavigationIntent'));
 });
 
-test('planner runtime clears stale highlight and replaces it through navigation helper', () => {
-  const source = read('workshop-planner.js');
-  assert(source.includes("querySelectorAll('.is-workshop-navigation-pulse')"));
-  assert(source.includes('WorkshopNavigation.replaceWorkshopHighlight'));
-  assert(source.includes("'(prefers-reduced-motion: reduce)'"));
+test('planner runtime executes exported highlight API for stale clear, replacement pulse, and reduced motion', () => {
+  const source = read('workshop-navigation.js');
+  const browser = { matchMedia: () => ({ matches: false }) };
+  const context = { window: browser };
+  require('vm').runInNewContext(source, context, { filename: 'workshop-navigation.js' });
+  assert.strictEqual(typeof browser.WorkshopNavigation.replaceWorkshopHighlight, 'function');
+
+  function element(...initial) {
+    const classes = new Set(initial);
+    return {
+      classList: {
+        add: value => classes.add(value),
+        remove: value => classes.delete(value),
+        contains: value => classes.has(value),
+      },
+    };
+  }
+  const stale = element('is-workshop-navigation-pulse');
+  const first = element();
+  const reduced = element();
+  const root = {
+    querySelectorAll: selector => [stale, first, reduced].filter(item =>
+      selector.split(',').some(token => item.classList.contains(token.trim().slice(1)))),
+  };
+
+  const normalResult = browser.WorkshopNavigation.replaceWorkshopHighlight(root, first, {
+    highlightClass: 'is-workshop-navigation-pulse',
+    reducedMotionClass: 'is-workshop-navigation-pulse-reduced-motion',
+    prefersReducedMotion: false,
+  });
+  assert.strictEqual(stale.classList.contains('is-workshop-navigation-pulse'), false, 'stale pulse must clear');
+  assert.strictEqual(first.classList.contains('is-workshop-navigation-pulse'), true, 'replacement must visibly pulse');
+  assert.strictEqual(normalResult.presentation.animate, true);
+
+  const reducedResult = browser.WorkshopNavigation.replaceWorkshopHighlight(root, reduced, {
+    highlightClass: 'is-workshop-navigation-pulse',
+    reducedMotionClass: 'is-workshop-navigation-pulse-reduced-motion',
+    prefersReducedMotion: { matches: true },
+  });
+  assert.strictEqual(first.classList.contains('is-workshop-navigation-pulse'), false, 'second replacement must clear prior target');
+  assert.strictEqual(reduced.classList.contains('is-workshop-navigation-pulse-reduced-motion'), true, 'reduced motion keeps visible replacement');
+  assert.strictEqual(reduced.classList.contains('is-workshop-navigation-pulse'), false, 'reduced motion must not pulse');
+  assert.strictEqual(reducedResult.presentation.animate, false);
+});
+
+test('changed runtime assets share one cache/provenance candidate', () => {
+  const candidate = '2026.08.12.38-workshop-highlight-runtime';
+  for (const name of ['index.html', 'staging.html']) {
+    const html = read(name);
+    assert(html.includes(`styles.css?v=${candidate}`));
+    assert(html.includes(`workshop-navigation.js?v=${candidate}`));
+    assert(html.includes(`app.js?v=${candidate}`));
+    assert(html.includes(`Version ${candidate}`));
+  }
+  const appSource = read('app.js');
+  assert(appSource.includes(`const APP_VERSION = '${candidate}'`));
+  assert(appSource.includes('const WORKSHOP_PLANNER_SCRIPT_VERSION = APP_VERSION'));
+  assert(appSource.includes('workshop-data-service.js?v=${encodeURIComponent(APP_VERSION)}'));
+  assert(appSource.includes('workshop-planner.js?v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}'));
 });
 
 test('hours projection is rendered with evidence and strict precedence helper', () => {

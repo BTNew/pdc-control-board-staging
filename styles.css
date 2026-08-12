@@ -11073,16 +11073,19 @@ textarea {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .is-workshop-navigation-pulse { animation: none !important; scroll-behavior: auto; }
+  .is-workshop-navigation-pulse,
+  .is-workshop-navigation-pulse-reduced-motion { animation: none !important; scroll-behavior: auto; }
 }
 
-.is-workshop-navigation-pulse {
-  animation: workshop-navigation-pulse 1.35s ease-out 2;
+.is-workshop-navigation-pulse,
+.is-workshop-navigation-pulse-reduced-motion {
   outline: 4px solid #0d6efd;
   outline-offset: 3px;
   position: relative;
   z-index: 4;
 }
+.is-workshop-navigation-pulse { animation: workshop-navigation-pulse 1.35s ease-out 2; }
+.is-workshop-navigation-pulse-reduced-motion { animation: none; }
 @keyframes workshop-navigation-pulse {
   0%, 100% { box-shadow: 0 0 0 0 rgba(13, 110, 253, .55); }
   50% { box-shadow: 0 0 0 12px rgba(13, 110, 253, 0); }

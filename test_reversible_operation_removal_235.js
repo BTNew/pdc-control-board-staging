@@ -23,4 +23,11 @@ assert(/if found then[\s\S]*already_removed[\s\S]*v_existing\.realtime_revision/
 assert(/if found then return public\.navision_backend_response\(v_existing\.outcome='restored'[\s\S]*v_existing\.realtime_revision/i.test(sql),'undo replay returns its original revision without mutation');
 assert(/not found or to_jsonb\(v_current\)<>v_receipt\.removed_value[\s\S]*'conflict_preserved'[\s\S]*'later_manual_or_protected_change'/i.test(sql),'undo preserves a later conflicting adjustment instead of overwriting it');
 assert(/previous_value is null[\s\S]*set active=true[\s\S]*else[\s\S]*jsonb_populate_record[\s\S]*version=v_current\.version\+1/i.test(sql),'undo restores either the source-backed effective line or the prior overlay with one exact adjustment version increment');
+const sharedLock='pdc-operation-line-evidence-serialization-v1:';
+assert((sql.match(new RegExp(sharedLock,'g'))||[]).length===6,'shared lock must appear in both publisher paths, patch guards/postconditions, and removal');
+assert(sql.includes("'8164fd754e9b9757efbded9e18db8d089e66decbb7c108b050d0ecd2a7b46428'"),'publisher patch requires exact pre-patch prosrc SHA-256');
+assert(/v_after_security<>v_before_security[\s\S]*PDC_235_AUDITOR_PUBLISHER_POSTCONDITION_FAILED/i.test(sql),'publisher authority/security metadata must remain byte-for-byte equivalent');
+assert(/v_evidence->>'entity_type'='operation_line'[\s\S]*pg_advisory_xact_lock[\s\S]*pdc_auditor_entity_in_scope/i.test(sql),'publisher locks before validating operation-line evidence');
+assert(/v_evidence->>'entity_type'='operation_line'[\s\S]*pg_advisory_xact_lock[\s\S]*insert into public\.pdc_auditor_finding_evidence/i.test(sql),'publisher locks before inserting operation-line evidence');
+assert(/remove_pdc_workshop_operation_line_235[\s\S]*pg_advisory_xact_lock\(hashtextextended\([\s\S]*pdc-operation-line-evidence-serialization-v1:[\s\S]*pdc_auditor_finding_evidence/i.test(sql),'removal takes the same lock before its absent-row evidence check');
 console.log('Reversible operation removal migration static tests passed.');

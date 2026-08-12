@@ -5,7 +5,9 @@
 `vehicle_config_bot.py` is a credential-free, network-free CSV processing core. It may
 change only existing `Hidden`, `Cost`, and `Sell` cells. The complete before/after CSV
 gate preserves headers, row count/order, column count, IDs, descriptions, notes, and
-every non-target value.
+every non-target value. Every data row is required to have exactly the header's column
+count, including rows with no proposed change, and every output target must exactly equal
+its normalized approved `CellChange.value`.
 
 XLSX mutation is intentionally **disabled and fails closed**. `openpyxl` and similar
 workbook round trips can rewrite unrelated OOXML (including data validation and package
@@ -64,7 +66,9 @@ from `uv` resolving the declared test dependency when it is not cached).
 4. A future adapter must map an immutable platform user ID to an explicit allowlist.
    Display names and usernames are not authorization.
 5. Require Review before Apply, retain the original, emit a separate reviewed output,
-   and quarantine validation failures. Never bypass `apply_file`.
+   and quarantine validation failures. `apply_file` rejects identical source and
+   destination paths before writing, so in-place replacement cannot destroy the original.
+   Never bypass `apply_file`.
 
 ## Activation boundary
 

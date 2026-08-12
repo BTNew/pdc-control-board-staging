@@ -501,7 +501,7 @@ for (const file of htmlFiles) {
   assert.ok(html.includes(`workshop-planner.css?v=${appVersion}`), `${file} is missing the planner stylesheet`);
   assert.ok(!html.includes('<script src="workshop-planner.js'), `${file} must not eagerly load the planner script`);
 }
-assert.ok(app.includes(`const WORKSHOP_PLANNER_SCRIPT_VERSION = '${appVersion}';`), 'Workshop Planner must carry the current canonical eligibility cache-bust version');
+assert.ok(app.includes('const WORKSHOP_PLANNER_SCRIPT_VERSION = APP_VERSION;'), 'Workshop Planner must inherit the current APP_VERSION cache-bust key');
 assert.ok(app.includes("loadExternalScript(`workshop-planner.js?v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}`"), 'app.js must lazy-load the Workshop Planner with its dedicated cache-bust version');
 
 console.log('Workshop planner regression checks passed');

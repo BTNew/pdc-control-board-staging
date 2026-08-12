@@ -19,6 +19,69 @@ begin
 end
 $guard$;
 
+-- The Auditor publisher and removal RPC must serialize on the same absent-row
+-- key. Patch the existing publisher in place so its authentication, complete-
+-- snapshot validation, append-only evidence, grants, and caller contract stay
+-- exactly as installed by migration 121. The prosrc digest makes this patch
+-- fail closed if any byte of that function body has drifted.
+do $patch_auditor_publisher$
+declare
+  v_signature constant regprocedure := 'public.submit_pdc_auditor_findings(jsonb,jsonb)'::regprocedure;
+  v_definition text;
+  v_source text;
+  v_before_security jsonb;
+  v_after_security jsonb;
+  v_validation_marker text := $old$      if not public.pdc_auditor_entity_in_scope(v_dealer,v_evidence->>'entity_type',v_entity_id) then$old$;
+  v_validation_replacement text := $new$      if v_evidence->>'entity_type'='operation_line' then
+        perform pg_advisory_xact_lock(hashtextextended(
+          'pdc-operation-line-evidence-serialization-v1:'||v_entity_id::text,0));
+      end if;
+      if not public.pdc_auditor_entity_in_scope(v_dealer,v_evidence->>'entity_type',v_entity_id) then$new$;
+  v_insert_marker text := $old$      insert into public.pdc_auditor_finding_evidence($old$;
+  v_insert_replacement text := $new$      if v_evidence->>'entity_type'='operation_line' then
+        perform pg_advisory_xact_lock(hashtextextended(
+          'pdc-operation-line-evidence-serialization-v1:'||
+          (v_evidence->>'entity_id')::uuid::text,0));
+      end if;
+      insert into public.pdc_auditor_finding_evidence($new$;
+begin
+  select p.prosrc,
+         jsonb_build_object(
+           'owner',p.proowner,'acl',p.proacl,'security_definer',p.prosecdef,
+           'leakproof',p.proleakproof,'strict',p.proisstrict,'volatility',p.provolatile,
+           'parallel',p.proparallel,'config',p.proconfig,'language',p.prolang)
+    into strict v_source,v_before_security
+    from pg_proc p where p.oid=v_signature;
+  if encode(extensions.digest(convert_to(v_source,'UTF8'),'sha256'),'hex')
+       <> '8164fd754e9b9757efbded9e18db8d089e66decbb7c108b050d0ecd2a7b46428'
+     or not (v_before_security @> jsonb_build_object(
+       'security_definer',true,'leakproof',false,'strict',false,'volatility','v','parallel','u')) then
+    raise exception 'PDC_235_AUDITOR_PUBLISHER_EXACT_DEFINITION_DRIFT' using errcode='55000';
+  end if;
+  select pg_get_functiondef(v_signature) into strict v_definition;
+  if (length(v_definition)-length(replace(v_definition,v_validation_marker,'')))/length(v_validation_marker)<>1
+     or (length(v_definition)-length(replace(v_definition,v_insert_marker,'')))/length(v_insert_marker)<>1
+     or position('pdc-operation-line-evidence-serialization-v1:' in v_definition)>0 then
+    raise exception 'PDC_235_AUDITOR_PUBLISHER_PATCH_ANCHOR_DRIFT' using errcode='55000';
+  end if;
+  execute replace(replace(v_definition,v_validation_marker,v_validation_replacement),
+                  v_insert_marker,v_insert_replacement);
+  select jsonb_build_object(
+           'owner',p.proowner,'acl',p.proacl,'security_definer',p.prosecdef,
+           'leakproof',p.proleakproof,'strict',p.proisstrict,'volatility',p.provolatile,
+           'parallel',p.proparallel,'config',p.proconfig,'language',p.prolang)
+    into strict v_after_security from pg_proc p where p.oid=v_signature;
+  select pg_get_functiondef(v_signature) into strict v_definition;
+  if v_after_security<>v_before_security
+     or (length(v_definition)-length(replace(v_definition,'pdc-operation-line-evidence-serialization-v1:','')))
+          /length('pdc-operation-line-evidence-serialization-v1:')<>2
+     or position(v_validation_replacement in v_definition)=0
+     or position(v_insert_replacement in v_definition)=0 then
+    raise exception 'PDC_235_AUDITOR_PUBLISHER_POSTCONDITION_FAILED' using errcode='55000';
+  end if;
+end
+$patch_auditor_publisher$;
+
 create table public.pdc_workshop_operation_removal_receipts_235(
   receipt_id uuid primary key default gen_random_uuid(),
   idempotency_key text not null check(length(idempotency_key) between 8 and 160),
@@ -100,7 +163,10 @@ begin
   v_evidence_hash:=encode(extensions.digest(convert_to(v_evidence::text,'UTF8'),'sha256'),'hex');
   v_request:=encode(extensions.digest(convert_to(concat_ws('|','remove_operation_235_v1',p_operation_line_id,
     coalesce(p_expected_adjustment_version,0),v_reason,v_evidence_hash,v_key,v_actor),'UTF8'),'sha256'),'hex');
-  perform pg_advisory_xact_lock(hashtextextended('pdc-operation-removal-235:'||p_operation_line_id::text,0));
+  -- Shared with submit_pdc_auditor_findings: unlike a row lock, this also
+  -- serializes the no-evidence-row case through the overlay mutation.
+  perform pg_advisory_xact_lock(hashtextextended(
+    'pdc-operation-line-evidence-serialization-v1:'||p_operation_line_id::text,0));
   select * into v_existing from public.pdc_workshop_operation_removal_receipts_235 where actor_id=v_actor and idempotency_key=v_key;
   if found then
     if v_existing.request_sha256<>v_request then return public.navision_backend_response(false,'idempotency_conflict'); end if;
@@ -240,7 +306,8 @@ insert into supabase_migrations.schema_migrations(version,name,statements) value
   '235','reversible_workshop_operation_removal',array[
     'soft-remove operation lines only through protected adjustment overlays; preserve immutable source lines',
     'append reason actor timestamp previous value source evidence and Undo receipts with idempotency and conflict checks',
-    'recalculate required work and publish the existing Realtime vehicle revision without moving bookings locations or lifecycle'
+    'recalculate required work and publish the existing Realtime vehicle revision without moving bookings locations or lifecycle',
+    'serialize operation-line evidence publication and removal on one advisory transaction lock key'
   ]
 );
 commit;

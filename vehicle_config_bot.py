@@ -252,7 +252,9 @@ def apply_file(source: str | os.PathLike[str], destination: str | os.PathLike[st
         raise UnsupportedFormatError("XLSX mutation is disabled until exact OOXML preservation is proven")
     if src.suffix.lower() != ".csv":
         raise UnsupportedFormatError("only CSV is currently supported")
-    if dst.resolve() != src.resolve() and dst.exists():
+    if dst.resolve() == src.resolve():
+        raise ValidationError("source and destination must differ; retain the original and write a separate reviewed file")
+    if dst.exists():
         raise ValidationError("destination already exists")
     dst.parent.mkdir(parents=True, exist_ok=True)
     fd, name = tempfile.mkstemp(prefix=".vehicle-config-", suffix=".csv", dir=dst.parent)
@@ -285,14 +287,15 @@ def _apply_csv(src: Path, out: Path, changes: Sequence[CellChange]) -> None:
     header = rows[0]
     if len(header) != len(set(header)):
         raise ValidationError("CSV headers must be unique")
+    for row_number, row in enumerate(rows[1:], start=1):
+        if len(row) != len(header):
+            raise ValidationError(f"data row {row_number} has a different column count")
     indexes = {name: index for index, name in enumerate(header)}
     for change in changes:
         if change.field not in indexes:
             raise ValidationError(f"missing required header: {change.field}")
         if change.row >= len(rows):
             raise ValidationError(f"data row {change.row} does not exist")
-        if len(rows[change.row]) != len(header):
-            raise ValidationError(f"data row {change.row} has a different column count")
         rows[change.row][indexes[change.field]] = str(change.value)
     newline = "\r\n" if b"\r\n" in src.read_bytes() else "\n"
     with out.open("w", encoding=encoding, newline="") as handle:
@@ -308,10 +311,20 @@ def _validate_csv(before: Path, after: Path, changes: Sequence[CellChange]) -> N
         raise ValidationError("CSV structure changed")
     if not old or old[0] != new[0]:
         raise ValidationError("CSV headers or column order changed")
-    allowed = {(c.row, old[0].index(c.field)) for c in changes}
+    width = len(old[0])
+    for label, rows in (("source", old), ("output", new)):
+        for row_number, row in enumerate(rows[1:], start=1):
+            if len(row) != width:
+                raise ValidationError(f"{label} data row {row_number} has a different column count")
+    targets = {(c.row, old[0].index(c.field)): str(c.value) for c in changes}
+    for (row, col), approved_value in targets.items():
+        if new[row][col] != approved_value:
+            raise ValidationError(
+                f"CSV target mismatch at row {row}, column {col + 1}: output does not equal approved value"
+            )
     for r, (old_row, new_row) in enumerate(zip(old, new)):
         for col, (a, b) in enumerate(zip(old_row, new_row)):
-            if a != b and (r, col) not in allowed:
+            if a != b and (r, col) not in targets:
                 raise ValidationError(f"unauthorized CSV change at row {r}, column {col + 1}")
 
 

@@ -2937,13 +2937,16 @@ function workshopScrollToHighlightedVehicle(root = document) {
   const planId = state.searchHighlightPlanId;
   if (!key && !planId) return;
   window.requestAnimationFrame(() => {
-    root.querySelectorAll('.is-workshop-navigation-pulse').forEach(element => element.classList.remove('is-workshop-navigation-pulse'));
     const bookingTarget = planId ? Array.from(root.querySelectorAll('[data-workshop-plan-id]')).find(element => element.dataset.workshopPlanId === planId) : null;
     const vehicleTarget = key ? Array.from(root.querySelectorAll('[data-workshop-locate-key]')).find(element => element.dataset.workshopLocateKey === key) : null;
     const target = bookingTarget || vehicleTarget;
     target?.scrollIntoView({ behavior: window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches ? 'auto' : 'smooth', block: 'center', inline: 'center' });
     if (target && window.WorkshopNavigation?.replaceWorkshopHighlight) {
-      window.WorkshopNavigation.replaceWorkshopHighlight(root, target, { highlightClass: 'is-workshop-navigation-pulse', staleSelector: '.is-workshop-navigation-pulse' });
+      window.WorkshopNavigation.replaceWorkshopHighlight(root, target, {
+        highlightClass: 'is-workshop-navigation-pulse',
+        reducedMotionClass: 'is-workshop-navigation-pulse-reduced-motion',
+        staleSelector: '.is-workshop-navigation-pulse, .is-workshop-navigation-pulse-reduced-motion',
+      });
     }
   });
 }
