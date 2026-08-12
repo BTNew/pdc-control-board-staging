@@ -1,13 +1,13 @@
 {
   "environment": "staging",
   "application_version": "2026.08.12.36-delete-vehicle",
-  "source_commit": "5d7dc3cfd7b09ae129dbff2431caaf8956fc25a1",
+  "source_commit": "fdd8bf65243ada3fd1f06e16848a295cc23b098b",
   "parent_staging_commit": "76e20e7aa94b31f72bf780f9f00a1dfb75f83534",
   "staging_project_ref": "cdsmnqxtyyoeoznmbidd",
   "production_unchanged": true,
   "mailbox_authority": false,
   "pilot_enabled": false,
-  "deployed_at_utc": "2026-08-12T08:45:27.315786+00:00",
+  "deployed_at_utc": "2026-08-12T08:56:07.217583+00:00",
   "files": {
     "app.js": {
       "sha256": "099f61580be4cd1cb226364234004269d425408bd22141e1bbc69a0d1f0e95bb",
@@ -48,6 +48,10 @@
     "supabase/staging_only/210_vehicle_archive_postgrest_overload_fix.sql": {
       "sha256": "c18877cce41dc2a10b809beda459833f3699b7bbcc014f41b965504c246a54d0",
       "bytes": 2904
+    },
+    "supabase/staging_only/211_vehicle_archive_environment_reattestation.sql": {
+      "sha256": "05742b1b1ee79a6cd1c5976220aa0349d3b52bef87ed7cdf0b9f7cffce16fce5",
+      "bytes": 3468
     }
   }
 }
