@@ -136,4 +136,11 @@ end
 $legacy_overlap$;
 revoke all on function public.pdc_sublet_booking_workshop_overlap_guard() from public,anon,authenticated,service_role;
 
+insert into supabase_migrations.schema_migrations(version,name,statements) values(
+  '234','sublet_expected_return_conflict_details',array[
+    'bound active Sublet absence by actual return or expected return while preserving open-ended protection when neither exists',
+    'retain transaction advisory locking and return useful Perth-date conflict identity details',
+    'change no existing bookings dates locations lifecycle Parts or history rows'
+  ]
+);
 commit;

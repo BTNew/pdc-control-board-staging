@@ -210,4 +210,11 @@ revoke all on function public.undo_pdc_workshop_operation_removal_235(uuid,text)
 grant execute on function public.remove_pdc_workshop_operation_line_235(uuid,integer,text,jsonb,text) to authenticated;
 grant execute on function public.undo_pdc_workshop_operation_removal_235(uuid,text) to authenticated;
 
+insert into supabase_migrations.schema_migrations(version,name,statements) values(
+  '235','reversible_workshop_operation_removal',array[
+    'soft-remove operation lines only through protected adjustment overlays; preserve immutable source lines',
+    'append reason actor timestamp previous value source evidence and Undo receipts with idempotency and conflict checks',
+    'recalculate required work and publish the existing Realtime vehicle revision without moving bookings locations or lifecycle'
+  ]
+);
 commit;

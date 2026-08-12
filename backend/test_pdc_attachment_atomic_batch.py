@@ -1,0 +1,107 @@
+import copy
+import unittest
+
+from backend.pdc_attachment_atomic_batch import (
+    AttachmentBatchContractError,
+    EXPECTED_UID478_ATTACHMENTS,
+    execute_uid478_batch,
+)
+
+
+def descriptor(expected, seed):
+    value = copy.deepcopy(expected)
+    value.update({
+        "attachment_id": f"00000000-0000-4000-8000-{seed:012d}",
+        "sha256": f"{seed:x}" * 64,
+        "original_extracted_values": {
+            "job_card_number": expected["job_card_number"],
+            "line_count": expected["line_count"],
+            "stock_number": expected["stock_number"],
+            "vin": expected["vin"],
+        },
+        "match_evidence": {"outcome": "exact", "backend_vehicle_ids": [f"vehicle-{seed}"]},
+    })
+    value["sha256"] = value["sha256"][:64]
+    return value
+
+
+def fixture():
+    return {
+        "mailbox": "pmbcontroller@gmail.com",
+        "uidvalidity": 1,
+        "uid": 478,
+        "received_at": "2026-08-12T01:02:03+00:00",
+        "attachments": [descriptor(expected, i + 1) for i, expected in enumerate(EXPECTED_UID478_ATTACHMENTS)],
+    }
+
+
+class AttachmentAtomicBatchTests(unittest.TestCase):
+    def test_dispatches_all_four_independently_and_high_water_is_eligible(self):
+        calls = []
+        result = execute_uid478_batch(fixture(), {}, lambda item: calls.append(item["file_name"]) or {"status": "applied", "receipt_id": "r-" + item["file_name"]})
+        self.assertEqual(calls, [x["file_name"] for x in EXPECTED_UID478_ATTACHMENTS])
+        self.assertEqual([x["status"] for x in result["attachments"]], ["applied"] * 4)
+        self.assertTrue(result["all_terminal"])
+        self.assertTrue(result["high_water_eligible"])
+        self.assertEqual(result["next_high_water_uid"], 478)
+
+    def test_review_is_terminal_and_does_not_block_later_attachments(self):
+        calls = []
+        def executor(item):
+            calls.append(item["file_name"])
+            return {"status": "review" if len(calls) == 1 else "applied", "receipt_id": f"r{len(calls)}"}
+        result = execute_uid478_batch(fixture(), {}, executor)
+        self.assertEqual(len(calls), 4)
+        self.assertEqual(result["attachments"][0]["status"], "review")
+        self.assertTrue(result["high_water_eligible"])
+
+    def test_exact_terminal_replay_skips_executor(self):
+        value = fixture()
+        first = value["attachments"][0]
+        existing = {(first["attachment_id"], first["sha256"]): {"status": "applied", "receipt_id": "existing"}}
+        calls = []
+        result = execute_uid478_batch(value, existing, lambda item: calls.append(item) or {"status": "review", "receipt_id": "new"})
+        self.assertEqual(len(calls), 3)
+        self.assertTrue(result["attachments"][0]["replayed"])
+        self.assertEqual(result["attachments"][0]["receipt_id"], "existing")
+
+    def test_nonterminal_or_exception_does_not_block_other_attachments_or_high_water(self):
+        calls = []
+        def executor(item):
+            calls.append(item["file_name"])
+            if len(calls) == 2:
+                raise RuntimeError("temporary")
+            return {"status": "applied", "receipt_id": f"r{len(calls)}"}
+        result = execute_uid478_batch(fixture(), {}, executor)
+        self.assertEqual(len(calls), 4)
+        self.assertEqual(result["attachments"][1]["status"], "attempt")
+        self.assertFalse(result["high_water_eligible"])
+        self.assertIsNone(result["next_high_water_uid"])
+
+    def test_fails_closed_before_dispatch_for_wrong_mailbox_generation_or_uid(self):
+        for field, value in (("uidvalidity", 2), ("uid", 477), ("uid", 479)):
+            candidate = fixture(); candidate[field] = value; calls = []
+            with self.subTest(field=field, value=value), self.assertRaises(AttachmentBatchContractError):
+                execute_uid478_batch(candidate, {}, lambda item: calls.append(item))
+            self.assertEqual(calls, [])
+
+    def test_fails_closed_for_missing_duplicate_reordered_or_drifted_descriptor(self):
+        variants = []
+        missing = fixture(); missing["attachments"].pop(); variants.append(missing)
+        duplicate = fixture(); duplicate["attachments"][3] = copy.deepcopy(duplicate["attachments"][0]); variants.append(duplicate)
+        reordered = fixture(); reordered["attachments"].reverse(); variants.append(reordered)
+        drifted = fixture(); drifted["attachments"][0]["line_count"] = 19; variants.append(drifted)
+        bad_hash = fixture(); bad_hash["attachments"][0]["sha256"] = "x" * 64; variants.append(bad_hash)
+        for candidate in variants:
+            calls = []
+            with self.assertRaises(AttachmentBatchContractError):
+                execute_uid478_batch(candidate, {}, lambda item: calls.append(item))
+            self.assertEqual(calls, [])
+
+    def test_executor_cannot_claim_terminal_without_receipt(self):
+        with self.assertRaises(AttachmentBatchContractError):
+            execute_uid478_batch(fixture(), {}, lambda item: {"status": "applied"})
+
+
+if __name__ == "__main__":
+    unittest.main()
