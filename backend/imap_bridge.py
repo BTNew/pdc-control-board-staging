@@ -76,6 +76,7 @@ class IntakeMessage:
     recipient_mailbox: str = ""
     provider_authserv_id: str = ""
     provider_authentication: dict[str, Any] = field(default_factory=dict)
+    provider_uid: str = ""
     attachments: list[AttachmentRecord] = field(default_factory=list)
 
 
@@ -272,6 +273,7 @@ def make_intake(uid: str, raw_bytes: bytes, message: Message, attachment_dir: Pa
         recipient_mailbox=recipient_mailbox(message),
         provider_authserv_id=authserv_id,
         provider_authentication=authentication,
+        provider_uid=f"imap_uid:{uid}",
         attachments=attachments,
     )
 
@@ -313,11 +315,13 @@ def connect_imap(host: str, port: int, username: str, password: str) -> imaplib.
     return client
 
 
-def search_uids(client: imaplib.IMAP4_SSL, folder: str, unread_only: bool, limit: int) -> list[str]:
+def search_uids(client: imaplib.IMAP4_SSL, folder: str, unread_only: bool, limit: int, minimum_uid: int = 1) -> list[str]:
     status, _ = client.select(f'"{folder}"', readonly=True)
     if status != "OK":
         raise RuntimeError(f"Could not select IMAP folder: {folder}")
-    criteria = "UNSEEN" if unread_only else "ALL"
+    criteria = f"UID {max(1, minimum_uid)}:*"
+    if unread_only:
+        criteria = f"(UNSEEN UID {max(1, minimum_uid)}:*)"
     status, data = client.uid("SEARCH", None, criteria)
     if status != "OK":
         raise RuntimeError(f"IMAP search failed for criteria: {criteria}")
@@ -425,7 +429,7 @@ def post_to_supabase(intake: IntakeMessage) -> None:
     message.pop("attachments", None)
     message.pop("status", None)
     message.pop("processing_result", None)
-    message["provider_uid"] = intake.graph_message_id
+    message["provider_uid"] = intake.provider_uid
     request = urllib.request.Request(
         f"{base}/rest/v1/rpc/enqueue_pdc_email_intake",
         data=json.dumps({"p_message": message, "p_attachments": attachments}, default=str).encode("utf-8"),
@@ -454,6 +458,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--attachment-dir", default=str(DEFAULT_ATTACHMENT_DIR))
     parser.add_argument("--evidence-dir", default=str(DEFAULT_EVIDENCE_DIR))
     parser.add_argument("--max-body-chars", type=int, default=int(os.environ.get("IMAP_BRIDGE_MAX_BODY_CHARS", "50000")))
+    parser.add_argument("--minimum-uid", type=int, default=None, help="Hard mailbox UID floor; staging pilot requires 471 or later")
     parser.add_argument("--all", action="store_true", help="Read all messages instead of unread only")
     parser.add_argument("--dry-run", action="store_true", help="Print parsed records; do not post to Supabase or update state")
     parser.add_argument("--probe", action="store_true", help="Only test login/folder/search and print counts")
@@ -473,6 +478,10 @@ def main() -> int:
     args.password = args.password or os.environ.get("IMAP_BRIDGE_PASSWORD") or os.environ.get("OUTLOOK_IMAP_PASSWORD") or ""
     args.folder = args.folder or os.environ.get("IMAP_BRIDGE_FOLDER", "Inbox")
     args.limit = args.limit or int(os.environ.get("IMAP_BRIDGE_LIMIT", "10"))
+    args.minimum_uid = args.minimum_uid or int(os.environ.get("IMAP_BRIDGE_MINIMUM_UID", "471"))
+    if args.minimum_uid < 471:
+        safe_print("Refusing mailbox UID floor below 471 for the staging pilot.")
+        return 2
     if not args.username or not args.password:
         safe_print("Missing IMAP credentials. Set IMAP_BRIDGE_USERNAME and IMAP_BRIDGE_PASSWORD in backend/.env or the environment.")
         return 2
@@ -483,7 +492,7 @@ def main() -> int:
         safe_print("For Gmail this usually requires IMAP access plus a Google App Password. For Outlook.com this may require IMAP to be enabled and/or an app password if MFA is enabled.")
         return 3
     try:
-        uids = search_uids(client, args.folder, unread_only=not args.all, limit=args.limit)
+        uids = search_uids(client, args.folder, unread_only=not args.all, limit=args.limit, minimum_uid=args.minimum_uid)
         if args.probe:
             safe_print(json.dumps({
                 "ok": True,
@@ -491,6 +500,7 @@ def main() -> int:
                 "folder": args.folder,
                 "username": args.username,
                 "mode": "all" if args.all else "unread_only",
+                "minimum_uid": args.minimum_uid,
                 "uids_found_limited": len(uids),
             }, indent=2))
             return 0

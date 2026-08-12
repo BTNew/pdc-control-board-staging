@@ -64,6 +64,8 @@ function assert(value, message) { if (!value) throw new Error(message); }
   assert(service.authority === 'supabase_staging_ai_intake_only', 'Authority marker must be server-only staging');
   assert((await service.snapshot('pending', 999)).ok, 'Snapshot should succeed');
   assert(calls[0].name === 'get_pdc_ai_intake_snapshot' && calls[0].params.p_page_size === 250, 'Snapshot must call exact bounded RPC');
+  assert((await service.monitorStatus()).ok, 'Authenticated Monitor status should succeed');
+  assert(calls[1].name === 'get_pdc_email_monitor_status' && Object.keys(calls[1].params).length === 0, 'Monitor status must call exact zero-argument staging RPC');
   const proposal = { proposal_id: '00000000-0000-4000-8000-000000000001', version: 1, inbox_revision: 3, navision_revision: 241, action_type: 'board_activate_only', fingerprint: 'A1B2C3D4E5F60708' };
   const key = 'pdc-ai-intake-00000000-0000-4000-8000-000000000009';
   const shortReason = await service.decide(proposal, 'apply', 'short', key);

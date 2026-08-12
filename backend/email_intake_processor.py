@@ -707,6 +707,9 @@ class SupabaseClient:
 
 
 def run_once(client: SupabaseClient, limit: int = 20) -> dict[str, Any]:
+    started = client.rpc("record_pdc_email_monitor_cycle", {"p_running_status": "running", "p_error_code": None, "p_error": None})
+    if started.get("ok") is not True:
+        raise RuntimeError("monitor cycle start telemetry failed")
     summary: dict[str, Any] = {"ok": True, "seen": 0, "processed": 0, "review": 0, "duplicates": 0, "failed": 0, "results": []}
     transient_codes = {"database_unavailable", "temporary_failure", "processing_failed", "backend_unavailable", "timeout"}
     for record in client.pending_intakes(limit):
@@ -736,6 +739,15 @@ def run_once(client: SupabaseClient, limit: int = 20) -> dict[str, Any]:
             try: client.record_result(intake_id, claim_token, False, {}, "worker_exception", error, isinstance(exc, (urllib.error.URLError, TimeoutError)))
             except Exception as record_exc: error += f"; result_record_error={type(record_exc).__name__}: {record_exc}"
             summary["results"].append({"intake_id": intake_id, "code": "failed_processing", "ok": False, "error": error[:500]})
+    final_state = "idle" if summary["ok"] else "degraded"
+    error_detail = "" if summary["ok"] else json.dumps(summary["results"][-5:], default=str)[:8000]
+    recorded = client.rpc("record_pdc_email_monitor_cycle", {
+        "p_running_status": final_state,
+        "p_error_code": None if summary["ok"] else "email_processing_failed",
+        "p_error": None if summary["ok"] else error_detail,
+    })
+    if recorded.get("ok") is not True:
+        raise RuntimeError("monitor cycle finish telemetry failed")
     return summary
 
 def _monitor_access_token(url: str, anon_key: str) -> str:
