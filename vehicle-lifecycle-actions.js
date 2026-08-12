@@ -363,7 +363,6 @@ function buildVehicleLifecycleSharedActions(client, getAccessToken) {
         p_expected_version: expectedVersion,
         p_confirmation_stock: stockConfirmation,
         p_reason: reason ?? null,
-        ...(resetTest ? {} : { p_kind: 'manual_delete' }),
       });
     },
 
@@ -375,11 +374,14 @@ function buildVehicleLifecycleSharedActions(client, getAccessToken) {
       });
     },
 
-    adminAllowOneVehicleRecreation({ tombstoneId, stockConfirmation, reason }) {
+    adminAllowOneVehicleRecreation({ tombstoneId, stockConfirmation, reason, sourceHash, evidenceHash, sourceUid }) {
       return rpc('pdc_admin_allow_vehicle_recreation_once', {
         p_tombstone_id: tombstoneId,
         p_confirmation_stock: stockConfirmation,
         p_reason: reason ?? null,
+        p_source_hash: sourceHash,
+        p_evidence_hash: evidenceHash,
+        p_source_uid: sourceUid,
         p_ttl_minutes: 30,
       });
     },
@@ -388,24 +390,6 @@ function buildVehicleLifecycleSharedActions(client, getAccessToken) {
       return rpc('pdc_admin_archived_vehicle_snapshot', { p_tombstone_id: null, p_limit: 100 });
     },
 
-    async markVehicleDeleted({ vehicleId, expectedVersion, reason }) {
-      const result = await rpc('mark_vehicle_deleted', {
-        p_vehicle_id: vehicleId,
-        p_expected_version: expectedVersion,
-        p_reason: reason ?? null,
-      });
-      if (result?.ok === false || result?.error) return result;
-      if (result?.id && result?.lifecycle_state === 'deleted') return { ok: true, vehicle: result };
-      return result;
-    },
-
-    purgeVehicleFromBoard({ vehicleId, expectedVersion, reason }) {
-      return rpc('purge_vehicle_from_board', {
-        p_vehicle_id: vehicleId,
-        p_expected_version: expectedVersion,
-        p_reason: reason ?? null,
-      });
-    },
 
     pmbTransferVehicle({ vehicleId, expectedVersion }) {
       return rpc('pmb_transfer_vehicle', {

@@ -102,7 +102,7 @@ def main():
         assert status == 200 and len(active_before) == 1
 
         # Viewer, AI-Auditor/importer and monitor-scoped Viewer cannot archive.
-        params = {"p_vehicle_id": str(vehicle_id), "p_expected_version": version, "p_confirmation_stock": STOCK, "p_reason": REASON, "p_kind": "manual_delete"}
+        params = {"p_vehicle_id": str(vehicle_id), "p_expected_version": version, "p_confirmation_stock": STOCK, "p_reason": REASON}
         viewer_denial = rpc(tokens["viewer"], "pdc_admin_archive_vehicle", params)
         auditor_denial = rpc(tokens["auditor"], "pdc_admin_archive_vehicle", params)
         monitor_denial = rpc(tokens["monitor"], "pdc_admin_archive_vehicle", params)
@@ -145,9 +145,10 @@ def main():
         cur.execute("select version from public.vehicles where id=%s", (vehicle_id,)); reset_version=cur.fetchone()[0]
         reset = response_ok(rpc(admin,"pdc_admin_reset_staging_test_vehicle",{"p_vehicle_id":str(vehicle_id),"p_expected_version":reset_version,"p_confirmation_stock":STOCK,"p_reason":"Reset disposable Email Monitor acceptance vehicle"}),"vehicle_reset")
         reset_tombstone = reset["data"]["tombstone_id"]
-        response_ok(rpc(admin,"pdc_admin_allow_vehicle_recreation_once",{"p_tombstone_id":reset_tombstone,"p_confirmation_stock":STOCK,"p_reason":"Allow controlled disposable Email Monitor recreation","p_ttl_minutes":30}),"recreation_authorized_once")
+        source_hash = "a" * 64; evidence_hash = "b" * 64; source_uid = "delete-205-live-email-uid"
+        response_ok(rpc(admin,"pdc_admin_allow_vehicle_recreation_once",{"p_tombstone_id":reset_tombstone,"p_confirmation_stock":STOCK,"p_reason":"Allow controlled disposable Email Monitor recreation","p_source_hash":source_hash,"p_evidence_hash":evidence_hash,"p_source_uid":source_uid,"p_ttl_minutes":30}),"recreation_authorized_once")
         recreated_id=str(uuid.uuid4())
-        cur.execute("insert into public.vehicles(id,permanent_vehicle_id,stock_number,customer_name,lifecycle_state,visible_on_board,current_location,source_system,source_batch_id,source_record_id,source_payload,created_by,updated_by) values(%s,%s,%s,'Recreated disposable vehicle','active',true,'PMB','authenticated_email','pdc-monitor',%s,'{}',%s,%s)", (recreated_id,"EMAIL-"+STOCK,STOCK,"EMAIL-"+STOCK,actor,actor)); conn.commit()
+        cur.execute("insert into public.vehicles(id,permanent_vehicle_id,stock_number,customer_name,lifecycle_state,visible_on_board,current_location,source_system,source_batch_id,source_record_id,source_payload,created_by,updated_by) values(%s,%s,%s,'Recreated disposable vehicle','active',true,'PMB','authenticated_email','pdc-monitor',%s,jsonb_build_object('source_hash',%s,'attachment_hash',%s),%s,%s)", (recreated_id,"EMAIL-"+STOCK,STOCK,source_uid,source_hash,evidence_hash,actor,actor)); conn.commit()
         cur.execute("select consumed_at is not null,consumed_vehicle_id::text from public.pdc_vehicle_recreation_permissions where tombstone_id=%s",(reset_tombstone,)); consumed,consumed_id=cur.fetchone(); assert consumed and consumed_id==recreated_id
         second_blocked=False
         try:

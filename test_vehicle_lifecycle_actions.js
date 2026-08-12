@@ -42,23 +42,6 @@ function fakeClient(responder) {
   };
 }
 
-// Vehicle Detail deletion maps to the established protected lifecycle RPC and
-// normalises its legacy row return into the shared-action result contract.
-{
-  const deletedRow = { id: 'v-delete', lifecycle_state: 'deleted', version: 8 };
-  const client = fakeClient(() => ({ status: 200, ok: true, body: deletedRow }));
-  const bridge = buildVehicleLifecycleSharedActions(client, () => 'tok-delete');
-  bridge.markVehicleDeleted({ vehicleId: 'v-delete', expectedVersion: 7, reason: 'Duplicate import' }).then(result => {
-    assert.strictEqual(client.calls[0].name, 'mark_vehicle_deleted');
-    assert.deepStrictEqual(client.calls[0].params, {
-      p_vehicle_id: 'v-delete',
-      p_expected_version: 7,
-      p_reason: 'Duplicate import',
-    });
-    assert.deepStrictEqual(result, { ok: true, vehicle: deletedRow });
-    console.log('PASS delete: markVehicleDeleted maps and normalises the protected deletion RPC');
-  });
-}
 
 // 2. qcCompleteVehicle maps to qc_complete_vehicle with the exact parameter
 // names/defaults used by migration 016.
@@ -189,13 +172,13 @@ function fakeClient(responder) {
   Promise.all([
     bridge.adminArchiveVehicle({ vehicleId: 'v205', expectedVersion: 12, stockConfirmation: '13016934', reason: 'Duplicate test', resetTest: true }),
     bridge.adminRestoreVehicle({ tombstoneId: 't205', stockConfirmation: '13016934', reason: 'Validated restore' }),
-    bridge.adminAllowOneVehicleRecreation({ tombstoneId: 't205', stockConfirmation: '13016934', reason: 'Corrected source retry' }),
+    bridge.adminAllowOneVehicleRecreation({ tombstoneId: 't205', stockConfirmation: '13016934', reason: 'Corrected source retry', sourceHash: 'a'.repeat(64), evidenceHash: 'b'.repeat(64), sourceUid: 'gmail-uid-205' }),
     bridge.adminDeletedVehicleSnapshot(),
   ]).then(() => {
     assert.deepStrictEqual(client.calls.map(call => ({ name: call.name, params: call.params })), [
       { name: 'pdc_admin_reset_staging_test_vehicle', params: { p_vehicle_id: 'v205', p_expected_version: 12, p_confirmation_stock: '13016934', p_reason: 'Duplicate test' } },
       { name: 'pdc_admin_restore_vehicle', params: { p_tombstone_id: 't205', p_confirmation_stock: '13016934', p_reason: 'Validated restore' } },
-      { name: 'pdc_admin_allow_vehicle_recreation_once', params: { p_tombstone_id: 't205', p_confirmation_stock: '13016934', p_reason: 'Corrected source retry', p_ttl_minutes: 30 } },
+      { name: 'pdc_admin_allow_vehicle_recreation_once', params: { p_tombstone_id: 't205', p_confirmation_stock: '13016934', p_reason: 'Corrected source retry', p_source_hash: 'a'.repeat(64), p_evidence_hash: 'b'.repeat(64), p_source_uid: 'gmail-uid-205', p_ttl_minutes: 30 } },
       { name: 'pdc_admin_archived_vehicle_snapshot', params: { p_tombstone_id: null, p_limit: 100 } },
     ]);
     assert(client.calls.every(call => call.token === 'admin-token'));

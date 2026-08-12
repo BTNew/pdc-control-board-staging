@@ -2972,6 +2972,13 @@ function syncAdminNavigationVisibility() {
   return allowed;
 }
 
+function resetDeletedVehicleAuthorityState() {
+  app.deletedVehicleSnapshotGeneration += 1;
+  app.deletedVehicleSnapshotRows = [];
+  app.deletedVehicleSnapshotState = 'idle';
+  app.deletedVehicleSnapshotError = '';
+}
+
 function bindNav() {
   $$('.nav-item[data-view]').forEach(btn => btn.addEventListener('click', () => showView(btn.dataset.view)));
   on($('#nav-admin-toggle'), 'click', () => {
@@ -3709,6 +3716,12 @@ function teardownWorkshopPlannerScope(options) {
 function showView(view, options) {
   options = options || {};
   let requestedView = view || 'dashboard';
+  // Hidden navigation is not an authority boundary. Reject direct/hash/history
+  // routing before changing state, history, active classes or menu expansion.
+  if (requestedView === 'deleted' && !vehicleLifecycleAdministratorActive()) {
+    resetDeletedVehicleAuthorityState();
+    requestedView = 'dashboard';
+  }
   if (requestedView === 'pipeline') requestedView = 'workflow';
   if (requestedView.startsWith('planner-') && !WORKSHOP_PLANNER_VIEWS[requestedView]) requestedView = 'workflow';
   if (requestedView === 'workshop' && !workshopCombinedPlannerRollbackEnabled()) requestedView = 'workflow';
@@ -4212,7 +4225,11 @@ window.addEventListener?.('pdc-auth-ready', () => {
   }
   if (typeof initVehicleLifecycleSharedActionsIfEnabled === 'function') initVehicleLifecycleSharedActionsIfEnabled();
   if (typeof refreshWorkshopReferenceData === 'function') refreshWorkshopReferenceData();
+  resetDeletedVehicleAuthorityState();
   syncAdminNavigationVisibility();
+  if (!vehicleLifecycleAdministratorActive() && (app.currentView === 'deleted' || app.currentRequestedView === 'deleted')) {
+    showView('dashboard', { historyMode: 'replace' });
+  }
   const navItem = document.getElementById('nav-user-management');
   if (navItem) navItem.hidden = false;
   if (app.currentView === 'emailreview' && typeof renderAiBoardAdvisor === 'function') renderAiBoardAdvisor();
@@ -4236,6 +4253,7 @@ window.addEventListener?.('pdc-auth-ready', () => {
 // (or silently re-deriving UI from) previously-loaded operational data.
 window.addEventListener?.('pdc-auth-locked', () => {
   resetEmailVehicleLocations();
+  resetDeletedVehicleAuthorityState();
   resetPdcAuditorAuthorityState();
   const advisorHost = document.getElementById('ai-board-advisor-content');
   if (advisorHost) advisorHost.replaceChildren();
@@ -4296,6 +4314,7 @@ window.addEventListener?.('pdc-auth-locked', () => {
   app.vehicleWorkshopDetailCache = new Map();
   app.pendingWorkshopBookingLink = null;
   closeVehicleModal();
+  if (app.currentView === 'deleted' || app.currentRequestedView === 'deleted') showView('dashboard', { historyMode: 'replace' });
   app.selectedRows.clear();
   app.sharedNavisionVisibleRows = [];
   app.sharedNavisionVisibleRevision = null;
@@ -11579,7 +11598,7 @@ async function removeVehicle(stock, { resetTest = false } = {}) {
   }
   const actionLabel = resetTest ? 'Reset Staging Test Vehicle' : 'Delete Vehicle';
   if (!window.confirm(`${actionLabel}\n\nStock Number: ${stockNumber}\nCustomer: ${customer}\nVehicle UUID: ${vehicleUuid}\n\nThis archives the vehicle from active Board screens while retaining its tombstone and audit evidence.`)) return false;
-  const stockConfirmation = cleanNavisionText(window.prompt(`Type the exact Stock Number (${stockNumber}) to confirm:`, '') || '');
+  const stockConfirmation = window.prompt(`Type the exact Stock Number (${stockNumber}) to confirm:`, '') ?? '';
   if (stockConfirmation !== stockNumber) {
     window.alert('Stock Number confirmation did not match exactly. No vehicle was changed.');
     return false;
@@ -13570,7 +13589,8 @@ async function runDeletedVehicleAdminAction(tombstoneId, action) {
   if (!row || row.restored) return false;
   const label = action === 'restore' ? 'Restore Vehicle' : 'Allow one controlled recreation';
   if (action !== 'restore' && (!row.resetEligible || row.recreationAllowed || row.recreationConsumed)) return false;
-  const stockConfirmation = cleanNavisionText(window.prompt(`Type the exact Stock Number (${row.stockNumber}) to confirm:`, '') || '');
+  if (!window.confirm(`${label}\n\nStock Number: ${row.stockNumber}\nCustomer: ${row.customerName || 'Unknown customer'}\nVehicle UUID: ${row.id}\nTombstone type: ${row.resetEligible ? 'Staging reset' : 'Manual delete'}\n\nContinue to exact Stock Number confirmation?`)) return false;
+  const stockConfirmation = window.prompt(`Type the exact Stock Number (${row.stockNumber}) to confirm:`, '') ?? '';
   if (stockConfirmation !== row.stockNumber) {
     window.alert('Stock Number confirmation did not match exactly. No vehicle was changed.');
     return false;
@@ -13580,8 +13600,19 @@ async function runDeletedVehicleAdminAction(tombstoneId, action) {
     window.alert('A reason is required. No vehicle was changed.');
     return false;
   }
+  let evidenceBinding = {};
+  if (action !== 'restore') {
+    const sourceHash = window.prompt('Authenticated email source SHA-256 (64 lowercase hex characters):', '') ?? '';
+    const evidenceHash = window.prompt('Authenticated email evidence SHA-256 (64 lowercase hex characters):', '') ?? '';
+    const sourceUid = window.prompt('Exact authenticated email source UID:', '') ?? '';
+    if (!/^[a-f0-9]{64}$/.test(sourceHash) || !/^[a-f0-9]{64}$/.test(evidenceHash) || sourceUid.length < 1 || sourceUid.length > 100) {
+      window.alert('Exact authenticated email evidence is required. No recreation was authorized.');
+      return false;
+    }
+    evidenceBinding = { sourceHash, evidenceHash, sourceUid };
+  }
   const method = action === 'restore' ? 'adminRestoreVehicle' : 'adminAllowOneVehicleRecreation';
-  const result = await window.__vehicleLifecycleActions[method]({ tombstoneId, stockConfirmation, reason });
+  const result = await window.__vehicleLifecycleActions[method]({ tombstoneId, stockConfirmation, reason, ...evidenceBinding });
   if (!result || result.ok !== true) {
     window.alert(vehicleLifecycleActionErrorMessage(result));
     await loadDeletedVehicleSnapshot({ force: true });

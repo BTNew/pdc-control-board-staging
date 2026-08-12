@@ -10,6 +10,7 @@ const sql = fs.readFileSync(sqlPath, 'utf8');
 const sql206 = fs.readFileSync(sql206Path, 'utf8');
 const sql207 = fs.readFileSync(path.join(__dirname, 'supabase', 'staging_only', '207_admin_vehicle_actor_lock_volatility.sql'), 'utf8');
 const sql208 = fs.readFileSync(path.join(__dirname, 'supabase', 'staging_only', '208_archived_vehicle_snapshot_lock_volatility.sql'), 'utf8');
+const sql209 = fs.readFileSync(path.join(__dirname, 'supabase', 'staging_only', '209_vehicle_lifecycle_review_hardening.sql'), 'utf8');
 const lower = sql.toLowerCase();
 
 function has(re, message) { assert.ok(re.test(sql), message); }
@@ -98,4 +99,21 @@ assert.ok(/revoke all on function public\.pdc_admin_archived_vehicle_snapshot\(u
 assert.ok(/grant execute on function public\.pdc_admin_archived_vehicle_snapshot\(uuid,integer\) to authenticated/i.test(sql208), 'Migration 208 must retain authenticated entry with internal Administrator validation');
 assert.ok(/values\('208','archived_vehicle_snapshot_lock_volatility'/i.test(sql208), 'Migration 208 ledger row missing');
 
-console.log('Migration 205 recoverable vehicle lifecycle and migrations 206-208 corrections contract tests passed.');
+assert.ok(/v_head is distinct from '208'[\s\S]*v_name is distinct from 'archived_vehicle_snapshot_lock_volatility'/i.test(sql209), 'Migration 209 must require exact numeric head 208');
+for (const signature of ['mark_vehicle_deleted\\(uuid,integer,text\\)', 'restore_vehicle\\(uuid,integer,text\\)', 'purge_vehicle_from_board\\(uuid,integer,text\\)', 'purge_all_staging_board_vehicles\\(text,text\\)']) {
+  assert.ok(new RegExp(`revoke all on function public\\.${signature}[\\s\\S]*from public,anon,authenticated,service_role`, 'i').test(sql209), `Migration 209 must retire ${signature}`);
+}
+assert.ok(/revoke all on function public\.pdc_admin_archive_vehicle\(uuid,integer,text,text,text\)/i.test(sql209), 'Caller-controlled tombstone-kind helper must be revoked');
+assert.ok(/create or replace function public\.pdc_admin_archive_vehicle\([\s\S]*p_reason text[\s\S]*select public\.pdc_admin_archive_vehicle\(p_vehicle_id,p_expected_version,p_confirmation_stock,p_reason,'manual_delete'\)/i.test(sql209), 'Public manual archive wrapper must hard-code manual_delete');
+for (const token of ['intended_source_hash', 'intended_evidence_hash', 'intended_source_uid', 'intended_evidence_digest', 'recreation_authorization_conflict']) {
+  assert.ok(sql209.includes(token), `Migration 209 missing evidence binding ${token}`);
+}
+assert.ok(/new\.source_payload->>'source_hash'[\s\S]*new\.source_payload->>'attachment_hash'[\s\S]*new\.source_record_id/i.test(sql209), 'Recreation gate must bind to current creator vehicle evidence metadata');
+assert.ok(!/rename to pdc_import_authenticated_vehicle_email_legacy_066/i.test(sql209), 'Migration 209 must not wrap the obsolete canonical importer');
+assert.ok(/rename to pdc_process_non_navision_jobcard_pre209/i.test(sql209), 'Current non-Navision job-card creator must be wrapped for recreation evidence context');
+for (const setting of ['pdc.recreation_source_hash', 'pdc.recreation_evidence_hash', 'pdc.recreation_source_uid']) {
+  assert.ok(sql209.includes(setting), `Current job-card wrapper missing ${setting}`);
+}
+assert.ok(/values\('209','vehicle_lifecycle_review_hardening'/i.test(sql209), 'Migration 209 ledger row missing');
+
+console.log('Migration 205 recoverable vehicle lifecycle and migrations 206-209 hardening contract tests passed.');
