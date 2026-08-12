@@ -26,6 +26,7 @@ import re
 import ssl
 import sys
 import urllib.error
+import urllib.parse
 import urllib.request
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
@@ -39,11 +40,13 @@ SUPPORTED_ATTACHMENT_EXTENSIONS = {
     ".pdf", ".doc", ".docx", ".xls", ".xlsx", ".csv", ".txt",
     ".jpg", ".jpeg", ".png", ".tif", ".tiff", ".bmp", ".heic",
 }
-MAX_ATTACHMENT_BYTES = 25 * 1024 * 1024
+MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024
 DEFAULT_STATE = Path(os.environ.get("IMAP_BRIDGE_STATE", "backend/.imap_bridge_processed.json"))
 DEFAULT_ATTACHMENT_DIR = Path(os.environ.get("IMAP_BRIDGE_ATTACHMENT_DIR", "backend/.imap_attachments"))
+DEFAULT_EVIDENCE_DIR = Path(os.environ.get("IMAP_BRIDGE_EVIDENCE_DIR", "backend/.imap_evidence"))
 DEFAULT_IMAP_HOST = "outlook.office365.com"
 DEFAULT_IMAP_PORT = 993
+STAGING_PROJECT_REF = "cdsmnqxtyyoeoznmbidd"
 
 
 @dataclass
@@ -70,6 +73,9 @@ class IntakeMessage:
     source_hash: str = ""
     status: str = "received"
     processing_result: dict[str, Any] = field(default_factory=dict)
+    recipient_mailbox: str = ""
+    provider_authserv_id: str = ""
+    provider_authentication: dict[str, Any] = field(default_factory=dict)
     attachments: list[AttachmentRecord] = field(default_factory=list)
 
 
@@ -169,6 +175,39 @@ def message_received_at(message: Message) -> str | None:
         return None
 
 
+def provider_authentication(message: Message, sender_email: str) -> tuple[str, dict[str, Any]]:
+    """Extract bounded Gmail Authentication-Results evidence; never infer a pass."""
+    values = message.get_all("Authentication-Results", [])
+    sender_domain = sender_email.rsplit("@", 1)[-1].lower() if "@" in sender_email else ""
+    for raw in values:
+        unfolded = re.sub(r"\s+", " ", str(raw or "")).strip()
+        authserv = unfolded.split(";", 1)[0].strip().lower()
+        if authserv != "mx.google.com":
+            continue
+        spf_domain = (re.search(r"\bspf=pass\b[^;]*\bsmtp\.mailfrom=([^\s;]+)", unfolded, re.I) or [None, ""])[1].strip("<>").lower()
+        dkim_domain = (re.search(r"\bdkim=pass\b[^;]*\bheader\.d=([^\s;]+)", unfolded, re.I) or [None, ""])[1].strip("<>").lower()
+        dmarc_domain = (re.search(r"\bdmarc=pass\b[^;]*\bheader\.from=([^\s;]+)", unfolded, re.I) or [None, ""])[1].strip("<>").lower()
+        aligned = lambda domain: domain == sender_domain or domain.endswith("." + sender_domain)
+        spf = bool(sender_domain and aligned(spf_domain))
+        dkim = bool(sender_domain and aligned(dkim_domain))
+        dmarc = bool(sender_domain and aligned(dmarc_domain))
+        if sender_domain and (spf or dkim or dmarc):
+            return authserv, {
+                "dkim_aligned": dkim, "dmarc_aligned": dmarc,
+                "gmail_authentication_results": True, "sender_domain": sender_domain,
+                "spf_aligned": spf,
+            }
+    return "", {}
+
+
+def recipient_mailbox(message: Message) -> str:
+    for header in ("Delivered-To", "X-Original-To", "To"):
+        addresses = getaddresses(message.get_all(header, []))
+        if len(addresses) == 1 and addresses[0][1]:
+            return addresses[0][1].lower()
+    return ""
+
+
 def safe_filename(filename: str) -> str:
     filename = decode_mime(filename) or "attachment"
     filename = re.sub(r"[\\/:*?\"<>|]+", "_", filename).strip()
@@ -216,6 +255,7 @@ def make_intake(uid: str, raw_bytes: bytes, message: Message, attachment_dir: Pa
     attachments = save_attachments(message, attachment_dir, save_attachments_flag)
     source_hash = hashlib.sha256(raw_bytes).hexdigest()
     stable_id = internet_message_id or f"imap:{uid}:{source_hash[:24]}"
+    authserv_id, authentication = provider_authentication(message, sender_email)
     return IntakeMessage(
         graph_message_id=f"imap:{stable_id}",
         graph_thread_id=references[:512],
@@ -229,8 +269,24 @@ def make_intake(uid: str, raw_bytes: bytes, message: Message, attachment_dir: Pa
         parsed_text=parsed_text,
         source_hash=source_hash,
         processing_result={"source": "imap", "imap_uid": uid},
+        recipient_mailbox=recipient_mailbox(message),
+        provider_authserv_id=authserv_id,
+        provider_authentication=authentication,
         attachments=attachments,
     )
+
+
+def retain_raw_email(raw_bytes: bytes, source_hash: str, evidence_dir: Path, save: bool = True) -> str:
+    """Retain original RFC822 bytes under a content-addressed, non-executable name."""
+    if not save or not raw_bytes or not source_hash:
+        return ""
+    evidence_dir.mkdir(parents=True, exist_ok=True)
+    path = evidence_dir / f"{source_hash}.eml"
+    if not path.exists():
+        temporary = path.with_suffix(".eml.tmp")
+        temporary.write_bytes(raw_bytes)
+        os.replace(temporary, path)
+    return str(path.resolve())
 
 
 def load_processed(path: Path) -> set[str]:
@@ -287,38 +343,103 @@ def mark_seen(client: imaplib.IMAP4_SSL, folder: str, uid: str) -> None:
     client.uid("STORE", uid, "+FLAGS", "(\\Seen)")
 
 
-def supabase_insert_url() -> tuple[str, str]:
-    base = os.environ.get("SUPABASE_URL", "").rstrip("/")
-    key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY") or os.environ.get("SUPABASE_ANON_KEY") or ""
-    if not base or not key:
-        raise RuntimeError("SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required for posting intake records")
-    return f"{base}/rest/v1/ai_email_intake", key
-
-
-def post_to_supabase(intake: IntakeMessage) -> None:
-    url, key = supabase_insert_url()
-    payload = asdict(intake)
-    payload.pop("attachments", None)
-    data = json.dumps(payload, default=str).encode("utf-8")
+def _monitor_access_token(base: str, anon_key: str) -> str:
+    direct = os.environ.get("PDC_MONITOR_ACCESS_TOKEN", "").strip()
+    if direct:
+        return direct
+    email_address = os.environ.get("PDC_MONITOR_EMAIL", "").strip()
+    password = os.environ.get("PDC_MONITOR_PASSWORD", "")
+    if not email_address or not password:
+        raise RuntimeError("Scoped PDC Monitor Viewer credentials are required")
     request = urllib.request.Request(
-        url,
-        data=data,
+        f"{base}/auth/v1/token?grant_type=password",
+        data=json.dumps({"email": email_address, "password": password}).encode("utf-8"),
         method="POST",
-        headers={
-            "apikey": key,
-            "Authorization": f"Bearer {key}",
-            "Content-Type": "application/json",
-            "Prefer": "resolution=ignore-duplicates,return=minimal",
-        },
+        headers={"apikey": anon_key, "Content-Type": "application/json"},
     )
     try:
         with urllib.request.urlopen(request, timeout=30) as response:
-            if response.status not in {200, 201, 204}:
-                raise RuntimeError(f"Supabase insert returned HTTP {response.status}")
-    except urllib.error.HTTPError as exc:
-        body = exc.read().decode("utf-8", errors="replace")
-        raise RuntimeError(f"Supabase insert failed HTTP {exc.code}: {body}") from exc
+            result = json.loads(response.read(65537).decode("utf-8"))
+    except (urllib.error.HTTPError, urllib.error.URLError, json.JSONDecodeError) as exc:
+        raise RuntimeError("PDC Monitor Viewer authentication failed") from exc
+    token = result.get("access_token") if isinstance(result, dict) else None
+    if not isinstance(token, str) or len(token) < 8:
+        raise RuntimeError("PDC Monitor Viewer authentication returned no token")
+    return token
 
+
+def supabase_scoped_client() -> tuple[str, str, str]:
+    base = os.environ.get("SUPABASE_URL", "").rstrip("/")
+    anon_key = os.environ.get("SUPABASE_ANON_KEY", "").strip()
+    if not base or not anon_key:
+        raise RuntimeError("Staging SUPABASE_URL and SUPABASE_ANON_KEY are required")
+    if STAGING_PROJECT_REF not in (urllib.parse.urlparse(base).hostname or ""):
+        raise RuntimeError(f"Refusing non-staging Supabase project; required project is {STAGING_PROJECT_REF}")
+    token = _monitor_access_token(base, anon_key)
+    if token == anon_key:
+        raise RuntimeError("Scoped Monitor token must differ from anon key")
+    return base, anon_key, token
+
+
+def _upload_attachment(base: str, anon_key: str, token: str, attachment: AttachmentRecord) -> str:
+    if not attachment.local_path or not attachment.source_hash:
+        return ""
+    path = Path(attachment.local_path)
+    if not path.is_file() or path.stat().st_size > 10 * 1024 * 1024:
+        return ""
+    safe_name = re.sub(r"[^A-Za-z0-9._-]+", "_", attachment.filename)[:120] or "attachment"
+    object_path = f"{attachment.source_hash}/{safe_name}"
+    quoted = urllib.parse.quote(object_path, safe="/")
+    request = urllib.request.Request(
+        f"{base}/storage/v1/object/pdc-email-intake-private/{quoted}",
+        data=path.read_bytes(), method="POST",
+        headers={"apikey": anon_key, "Authorization": f"Bearer {token}",
+                 "Content-Type": attachment.content_type or "application/octet-stream", "x-upsert": "false"},
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=60) as response:
+            if response.status not in {200, 201}:
+                raise RuntimeError(f"Attachment upload returned HTTP {response.status}")
+    except urllib.error.HTTPError as exc:
+        if exc.code != 409:
+            exc.read(4096)
+            raise RuntimeError(f"Attachment upload failed HTTP {exc.code}") from exc
+    return f"pdc-email-intake-private/{object_path}"
+
+
+def post_to_supabase(intake: IntakeMessage) -> None:
+    base, anon_key, token = supabase_scoped_client()
+    attachments: list[dict[str, Any]] = []
+    for attachment in intake.attachments:
+        if not attachment.source_hash:
+            continue
+        storage_path = _upload_attachment(base, anon_key, token, attachment)
+        attachments.append({
+            "file_name": attachment.filename,
+            "content_type": attachment.content_type,
+            "size_bytes": attachment.size_bytes,
+            "source_hash": attachment.source_hash,
+            "storage_path": storage_path,
+        })
+    message = asdict(intake)
+    message.pop("attachments", None)
+    message.pop("status", None)
+    message.pop("processing_result", None)
+    message["provider_uid"] = intake.graph_message_id
+    request = urllib.request.Request(
+        f"{base}/rest/v1/rpc/enqueue_pdc_email_intake",
+        data=json.dumps({"p_message": message, "p_attachments": attachments}, default=str).encode("utf-8"),
+        method="POST",
+        headers={"apikey": anon_key, "Authorization": f"Bearer {token}", "Content-Type": "application/json"},
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=30) as response:
+            result = json.loads(response.read(1048577).decode("utf-8"))
+    except urllib.error.HTTPError as exc:
+        exc.read(4096)
+        raise RuntimeError(f"Scoped Supabase enqueue failed HTTP {exc.code}") from exc
+    if not isinstance(result, dict) or result.get("ok") is not True:
+        raise RuntimeError("Scoped Supabase enqueue returned an invalid response")
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Read Outlook.com/IMAP email into PMB AI Intake")
@@ -331,6 +452,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--limit", type=int, default=None)
     parser.add_argument("--state", default=str(DEFAULT_STATE))
     parser.add_argument("--attachment-dir", default=str(DEFAULT_ATTACHMENT_DIR))
+    parser.add_argument("--evidence-dir", default=str(DEFAULT_EVIDENCE_DIR))
     parser.add_argument("--max-body-chars", type=int, default=int(os.environ.get("IMAP_BRIDGE_MAX_BODY_CHARS", "50000")))
     parser.add_argument("--all", action="store_true", help="Read all messages instead of unread only")
     parser.add_argument("--dry-run", action="store_true", help="Print parsed records; do not post to Supabase or update state")
@@ -387,6 +509,17 @@ def main() -> int:
                 save_attachments_flag=not args.no_save_attachments,
                 max_body_chars=args.max_body_chars,
             )
+            raw_evidence_path = retain_raw_email(
+                raw,
+                intake.source_hash,
+                Path(args.evidence_dir),
+                save=not args.no_save_attachments,
+            )
+            intake.processing_result.update({
+                "raw_email_path": raw_evidence_path,
+                "raw_email_sha256": intake.source_hash,
+                "attachment_hashes": [item.source_hash for item in intake.attachments if item.source_hash],
+            })
             dedupe = intake.graph_message_id or intake.source_hash
             if dedupe in processed:
                 skipped += 1

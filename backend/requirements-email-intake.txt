@@ -1,0 +1,5 @@
+# Local-only attachment extraction dependencies for the PDC staging watcher.
+# Install with: uv pip install --python backend/.venv/Scripts/python.exe -r backend/requirements-email-intake.txt
+pillow==12.3.0
+python-calamine==0.8.2
+rapidocr-onnxruntime==1.4.4
