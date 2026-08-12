@@ -8,9 +8,11 @@ REQUIRED_RPC_MARKERS={
  "backend/pdc_jobcard_runtime_client.py":["ATTEST_RPC = \"attest_pdc_provider_email_observation\"","PROCESS_RPC = \"process_email_intake_work\"","def _strict_staging_url"],
  "backend/email_intake_processor.py":["process_claimed_pdc_email_intake_work","attest_pdc_provider_email_observation","record_pdc_email_monitor_cycle","def _is_exact_staging_url"],
  "backend/pdc_supervised_learning_client.py":["COMMAND_RPC = \"execute_pdc_supervised_learning_command\"","MONITOR_READ_RPC","MONITOR_APPLY_RPC","def _strict_url"],
- "backend/imap_bridge.py":["IMAP_BRIDGE_MINIMUM_UID", "if args.minimum_uid < 471", "enqueue_pdc_email_intake"],
+ "backend/pdc_supervised_telegram_ingress.py":["CRAIG_TELEGRAM_ID = 7828138290","PDC_SUPERVISED_TELEGRAM_CHAT_ID","execute_command"],
+ "backend/imap_bridge.py":["IMAP_BRIDGE_MINIMUM_UID", "if args.minimum_uid < 471", "IMAP_BRIDGE_UIDVALIDITY", "IMAP_BRIDGE_ACTIVATION_HIGH_WATER_UID", "activation_high_water_uid + 1", "enqueue_pdc_email_intake"],
  "supabase/staging_only/159_bounded_jobcard_attachment_canonical_adapter.sql":["pdc_jobcard_attachment_import_receipts","process_email_intake_work","attest_pdc_provider_email_observation"],
- "supabase/staging_only/223_supervised_monitor_pilot_activation.sql":["minimum_uid bigint not null check(minimum_uid>=471)","if u<p.minimum_uid then raise exception 'pdc_monitor_uid_before_pilot_floor'","outbound_email_enabled boolean not null default false check(not outbound_email_enabled)"]}
+ "supabase/staging_only/223_supervised_monitor_pilot_activation.sql":["minimum_uid bigint not null check(minimum_uid>=471)","if u<p.minimum_uid then raise exception 'pdc_monitor_uid_before_pilot_floor'","outbound_email_enabled boolean not null default false check(not outbound_email_enabled)"],
+ "supabase/staging_only/224_close_monitor_direct_table_dml.sql":["revoke insert,update,delete,truncate,references,trigger on table public.ai_email_intake","revoke insert,update,delete,truncate,references,trigger on table public.monitored_mailboxes","close_monitor_direct_table_dml"]}
 FORBIDDEN_SECRET_NAMES=re.compile(r"(password|secret|token|refresh|private[_-]?key)",re.I)
 
 def fail(msg): raise ValueError(msg)
@@ -24,7 +26,7 @@ def main(argv=None):
  if data.get('release_version','')=='' or data.get('source_sha','')=='' or data.get('staging_deployment_sha','')=='': fail('provenance missing')
  for key in ('source_sha','staging_deployment_sha'):
   if not re.fullmatch(r'[0-9a-f]{40}',str(data[key])): fail(f'{key} invalid')
- if data.get('migration_head')!=223: fail('migration head mismatch')
+ if data.get('migration_head')!=224: fail('migration head mismatch')
  if data.get('expected_staging_project_ref')!=EXPECTED_REF: fail('staging project mismatch')
  if data.get('mailbox_uid_floor',0)<471 or data.get('denied_uid_probe')!=470: fail('UID floor contract mismatch')
  if data.get('outbound_email_enabled') is not False: fail('outbound email must be disabled')
@@ -56,7 +58,7 @@ def main(argv=None):
   raw=(root/rel).read_bytes()
   if private_key_signature in raw or jwt_signature in raw: forbidden.append(rel)
  if forbidden: fail('credential material signature found: '+','.join(forbidden))
- print(json.dumps({'ok':True,'activation_ready':True,'release_version':data['release_version'],'source_sha':data['source_sha'],'staging_deployment_sha':data['staging_deployment_sha'],'migration_head':223,'project_ref':EXPECTED_REF,'canonical_rpc_adapter_verified':True,'attachment_atomic_import_gate_enabled':True,'supervised_learning_runtime_verified':True,'mailbox_uid_floor':data['mailbox_uid_floor'],'uid_470_denied':True,'outbound_email_enabled':False,'non_staging_urls_rejected':True},sort_keys=True))
+ print(json.dumps({'ok':True,'activation_ready':True,'release_version':data['release_version'],'source_sha':data['source_sha'],'staging_deployment_sha':data['staging_deployment_sha'],'migration_head':224,'project_ref':EXPECTED_REF,'canonical_rpc_adapter_verified':True,'attachment_atomic_import_gate_enabled':True,'supervised_learning_runtime_verified':True,'direct_table_dml_revoked':True,'mailbox_uid_floor':data['mailbox_uid_floor'],'uid_470_denied':True,'outbound_email_enabled':False,'non_staging_urls_rejected':True},sort_keys=True))
  return 0
 if __name__=='__main__':
  try: raise SystemExit(main())

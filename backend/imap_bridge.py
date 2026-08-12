@@ -330,6 +330,17 @@ def search_uids(client: imaplib.IMAP4_SSL, folder: str, unread_only: bool, limit
     return uids[-limit:]
 
 
+def selected_uidvalidity(client: imaplib.IMAP4_SSL) -> int:
+    """Return the selected mailbox generation, failing closed if unavailable."""
+    status, data = client.response("UIDVALIDITY")
+    if status != "UIDVALIDITY" or not data:
+        raise RuntimeError("IMAP UIDVALIDITY unavailable after readonly select")
+    raw = data[-1].decode("ascii", errors="strict") if isinstance(data[-1], bytes) else str(data[-1])
+    if not raw.isdigit() or int(raw) < 1:
+        raise RuntimeError("IMAP UIDVALIDITY is invalid")
+    return int(raw)
+
+
 def fetch_message(client: imaplib.IMAP4_SSL, uid: str) -> tuple[bytes, Message]:
     status, data = client.uid("FETCH", uid, "(RFC822)")
     if status != "OK" or not data:
@@ -467,6 +478,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--evidence-dir", default=str(DEFAULT_EVIDENCE_DIR))
     parser.add_argument("--max-body-chars", type=int, default=int(os.environ.get("IMAP_BRIDGE_MAX_BODY_CHARS", "50000")))
     parser.add_argument("--minimum-uid", type=int, default=None, help="Hard mailbox UID floor; staging pilot requires 471 or later")
+    parser.add_argument("--expected-uidvalidity", type=int, default=None, help="Required mailbox generation captured during owner-profile activation")
+    parser.add_argument("--activation-high-water-uid", type=int, default=None, help="Future-only activation baseline; runtime searches strictly above it")
     parser.add_argument("--all", action="store_true", help="Read all messages instead of unread only")
     parser.add_argument("--dry-run", action="store_true", help="Print parsed records; do not post to Supabase or update state")
     parser.add_argument("--probe", action="store_true", help="Only test login/folder/search and print counts")
@@ -490,6 +503,12 @@ def main() -> int:
     if args.minimum_uid < 471:
         safe_print("Refusing mailbox UID floor below 471 for the staging pilot.")
         return 2
+    args.expected_uidvalidity = args.expected_uidvalidity or int(os.environ.get("IMAP_BRIDGE_UIDVALIDITY", "0"))
+    args.activation_high_water_uid = args.activation_high_water_uid or int(os.environ.get("IMAP_BRIDGE_ACTIVATION_HIGH_WATER_UID", "0"))
+    if args.expected_uidvalidity < 1 or args.activation_high_water_uid < 477:
+        safe_print("Refusing mailbox polling until owner-profile UIDVALIDITY and future-only high-water UID are captured (high-water must be at least 477).")
+        return 2
+    args.minimum_uid = max(args.minimum_uid, args.activation_high_water_uid + 1)
     if not args.username or not args.password:
         safe_print("Missing IMAP credentials. Set IMAP_BRIDGE_USERNAME and IMAP_BRIDGE_PASSWORD in backend/.env or the environment.")
         return 2
@@ -500,6 +519,14 @@ def main() -> int:
         safe_print("For Gmail this usually requires IMAP access plus a Google App Password. For Outlook.com this may require IMAP to be enabled and/or an app password if MFA is enabled.")
         return 3
     try:
+        # Select read-only before comparing UIDVALIDITY. A generation mismatch is
+        # terminal and occurs before SEARCH/FETCH, so reused numeric UIDs cannot run.
+        status, _ = client.select(f'"{args.folder}"', readonly=True)
+        if status != "OK":
+            raise RuntimeError(f"Could not select IMAP folder: {args.folder}")
+        actual_uidvalidity = selected_uidvalidity(client)
+        if actual_uidvalidity != args.expected_uidvalidity:
+            raise RuntimeError("IMAP UIDVALIDITY changed; capture a new future-only activation baseline before polling")
         uids = search_uids(client, args.folder, unread_only=not args.all, limit=args.limit, minimum_uid=args.minimum_uid)
         if args.probe:
             safe_print(json.dumps({
@@ -509,6 +536,8 @@ def main() -> int:
                 "username": args.username,
                 "mode": "all" if args.all else "unread_only",
                 "minimum_uid": args.minimum_uid,
+                "uidvalidity": actual_uidvalidity,
+                "activation_high_water_uid": args.activation_high_water_uid,
                 "uids_found_limited": len(uids),
             }, indent=2))
             return 0
