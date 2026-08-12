@@ -9,6 +9,13 @@ every non-target value. Every data row is required to have exactly the header's 
 count, including rows with no proposed change, and every output target must exactly equal
 its normalized approved `CellChange.value`.
 
+Input is accepted only when its header exactly matches this canonical Revolution schema
+(case, spelling, underscores, and order included): `Type`, `Franchise_Id`, `Range_Id`,
+`Model_Id`, `Accessory_Id`, `Hidden`, `Franchise_Description`, `Range_Description`,
+`Model_Description`, `Accessory_Description`, `Cost`, `Sell`, `Colour`, `Trim`,
+`Operation_Id`. Six-column, renamed, duplicate, missing, extra, and reordered headers are
+rejected before destination output is published; the source remains unchanged.
+
 XLSX mutation is intentionally **disabled and fails closed**. `openpyxl` and similar
 workbook round trips can rewrite unrelated OOXML (including data validation and package
 metadata). Until exact normalized package preservation is independently proven, the

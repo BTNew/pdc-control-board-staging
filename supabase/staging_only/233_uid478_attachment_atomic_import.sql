@@ -38,6 +38,25 @@ alter table public.pdc_jobcard_attachment_import_receipts
 -- untouched and continue to resolve through parent_source_hash; only new 233 imports
 -- populate the attachment-derived canonical_source_hash.
 
+-- Canonical hash byte contract (shared with pdc_attachment_atomic_batch.py):
+-- each ordered text field is UTF-8 encoded and prefixed by its unsigned 32-bit
+-- big-endian byte length. PostgreSQL int4send emits that exact network-order
+-- prefix. Domain strings separate canonical-source and message-aggregate hashes.
+create function public.pdc_233_length_prefixed_sha256(p_values text[])
+returns text language plpgsql immutable security definer set search_path=pg_catalog,extensions as $hash$
+declare v_payload bytea:=''::bytea;v_value text;v_bytes bytea;
+begin
+  if p_values is null or array_position(p_values,null) is not null then
+    raise exception 'PDC_233_CANONICAL_HASH_NULL_FIELD' using errcode='22023';
+  end if;
+  foreach v_value in array p_values loop
+    v_bytes:=convert_to(v_value,'UTF8');
+    v_payload:=v_payload||int4send(octet_length(v_bytes))||v_bytes;
+  end loop;
+  return encode(digest(v_payload,'sha256'),'hex');
+end $hash$;
+revoke all on function public.pdc_233_length_prefixed_sha256(text[]) from public,anon,authenticated,service_role;
+
 do $generalise_canonical_import$
 declare d text;
 begin
@@ -50,7 +69,7 @@ begin
     $newdecl$v_parent_hash text:=lower(btrim(coalesce(p_expected_parent_hash,'')));
   v_canonical_source_hash text;$newdecl$);
   d:=replace(d,'v_source_uid:=''pdc-jc-159:''||encode(extensions.digest(convert_to(',
-    'v_canonical_source_hash:=encode(extensions.digest(convert_to(jsonb_build_object(''contract_version'',''233.1'',''intake_id'',p_intake_id,''attachment_id'',p_attachment_id,''parent_source_hash'',v_parent_hash,''attachment_source_hash'',v_attachment_hash)::text,''UTF8''),''sha256''),''hex'');'||E'\n  '||'v_source_uid:=''pdc-jc-159:''||encode(extensions.digest(convert_to(');
+    'v_canonical_source_hash:=public.pdc_233_length_prefixed_sha256(array[''pdc-attachment-canonical-source'',''233.1'',p_intake_id::text,p_attachment_id::text,v_parent_hash,v_attachment_hash]);'||E'\n  '||'v_source_uid:=''pdc-jc-159:''||encode(extensions.digest(convert_to(');
   d:=replace(d,'v_submit:=public.submit_pdc_ai_intake_observation('||E'\n      v_parent_hash,v_attachment_hash,v_source_uid','v_submit:=public.submit_pdc_ai_intake_observation('||E'\n      v_canonical_source_hash,v_attachment_hash,v_source_uid');
   d:=replace(d,'v_vehicle_result:=public.import_pdc_authenticated_vehicle_email('||E'\n      v_idempotency_key,v_parent_hash,v_attachment_hash,v_source_uid','v_vehicle_result:=public.import_pdc_authenticated_vehicle_email('||E'\n      v_idempotency_key,v_canonical_source_hash,v_attachment_hash,v_source_uid');
   d:=replace(d,'public.import_pdc_authenticated_email_operations_with_hours('||E'\n      v_parent_hash,v_source_uid','public.import_pdc_authenticated_email_operations_with_hours('||E'\n      v_canonical_source_hash,v_source_uid');
@@ -74,10 +93,10 @@ begin
   if position('ol.source_hash=v_receipt.parent_source_hash' in d)=0 or position('ir.source_hash=v_receipt.parent_source_hash' in d)=0 or position('p.source_hash=v_receipt.parent_source_hash' in d)=0 then
     raise exception 'PDC_233_CANONICAL_READ_FUNCTION_DRIFT' using errcode='55000';
   end if;
-  d:=replace(d,'ol.source_hash=v_receipt.parent_source_hash','ol.source_hash=v_receipt.canonical_source_hash');
-  d:=replace(d,'ir.source_hash=v_receipt.parent_source_hash','ir.source_hash=v_receipt.canonical_source_hash');
-  d:=replace(d,'p.source_hash=v_receipt.parent_source_hash','p.source_hash=v_receipt.canonical_source_hash');
-  d:=replace(d,'''parent_source_hash'',v_receipt.parent_source_hash,''attachment_source_hash'',v_receipt.attachment_source_hash','''parent_source_hash'',v_receipt.parent_source_hash,''canonical_source_hash'',v_receipt.canonical_source_hash,''attachment_source_hash'',v_receipt.attachment_source_hash');
+  d:=replace(d,'ol.source_hash=v_receipt.parent_source_hash','ol.source_hash=coalesce(v_receipt.canonical_source_hash,v_receipt.parent_source_hash)');
+  d:=replace(d,'ir.source_hash=v_receipt.parent_source_hash','ir.source_hash=coalesce(v_receipt.canonical_source_hash,v_receipt.parent_source_hash)');
+  d:=replace(d,'p.source_hash=v_receipt.parent_source_hash','p.source_hash=coalesce(v_receipt.canonical_source_hash,v_receipt.parent_source_hash)');
+  d:=replace(d,'''parent_source_hash'',v_receipt.parent_source_hash,''attachment_source_hash'',v_receipt.attachment_source_hash','''parent_source_hash'',v_receipt.parent_source_hash,''canonical_source_hash'',coalesce(v_receipt.canonical_source_hash,v_receipt.parent_source_hash),''attachment_source_hash'',v_receipt.attachment_source_hash');
   execute d;
 end $generalise_canonical_read$;
 
@@ -275,7 +294,7 @@ begin
   if v_count<>4 or v_terminal<>4 or cardinality(v_ids)<>4 then
     return jsonb_build_object('ok',false,'code','attachments_not_all_terminal','all_attachments_terminal',false,'high_water_eligible',false);
   end if;
-  v_digest:=encode(extensions.digest(convert_to(jsonb_build_object('contract','233.1','intake_id',p_intake_id,'uidvalidity',1,'uid',478,'terminal_receipt_ids',v_ids)::text,'UTF8'),'sha256'),'hex');
+  v_digest:=public.pdc_233_length_prefixed_sha256(array['pdc-uid478-message-aggregate','233.1',p_intake_id::text,'1','478']||v_ids::text[]);
   select * into v_existing from public.pdc_uid478_message_receipts where intake_id=p_intake_id;
   if found then
     if v_existing.aggregate_sha256<>v_digest or v_existing.actor_id is distinct from (v_scope->>'user_id')::uuid
@@ -311,10 +330,10 @@ begin
   select pg_get_functiondef('public.read_pdc_jobcard_attachment_import_receipt(uuid)'::regprocedure) into read_d;
   if position('pdc-provider-email-observation-233:' in d)=0
      or position('where intake_id=p_intake_id and attachment_id=p_attachment_id' in d)=0
-     or position('v_canonical_source_hash:=encode' in canonical_d)=0
+     or position('v_canonical_source_hash:=public.pdc_233_length_prefixed_sha256' in canonical_d)=0
      or position('v_canonical_source_hash,v_attachment_hash,v_source_uid' in canonical_d)=0
      or position('source_hash=v_canonical_source_hash' in canonical_d)=0
-     or position('canonical_source_hash' in read_d)=0
+     or position('coalesce(v_receipt.canonical_source_hash,v_receipt.parent_source_hash)' in read_d)=0
      or has_function_privilege('service_role','public.record_pdc_uid478_attachment_terminal(uuid,text,jsonb,jsonb,uuid)','EXECUTE') then
     raise exception 'PDC_233_POSTCONDITION_FAILED' using errcode='55000';
   end if;

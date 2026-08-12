@@ -7,7 +7,6 @@ from __future__ import annotations
 
 import re
 import hashlib
-import json
 from collections.abc import Callable, Mapping, Sequence
 from typing import Any
 
@@ -96,16 +95,44 @@ def _terminal_receipt(value: Any, label: str) -> dict[str, Any]:
     return receipt
 
 
+def _length_prefixed_sha256(*values: str) -> str:
+    """Hash the migration-233 canonical byte contract.
+
+    Each ordered value is UTF-8 encoded and preceded by its unsigned 32-bit
+    big-endian byte length.  Values are never JSON rendered.  PostgreSQL's
+    ``int4send(octet_length(convert_to(value, 'UTF8')))`` produces the same
+    prefix bytes.
+    """
+    digest = hashlib.sha256()
+    for value in values:
+        if not isinstance(value, str):
+            raise AttachmentBatchContractError("canonical hash values must be strings")
+        encoded = value.encode("utf-8")
+        if len(encoded) > 0x7FFFFFFF:
+            raise AttachmentBatchContractError("canonical hash value is too long")
+        digest.update(len(encoded).to_bytes(4, "big"))
+        digest.update(encoded)
+    return digest.hexdigest()
+
+
+def _ordered_terminal_receipts(receipts: Sequence[Mapping[str, Any]]) -> list[Mapping[str, Any]]:
+    # SQL uses: array_agg(terminal_receipt_id order by attachment_file_name).
+    return sorted(receipts, key=lambda row: row["file_name"])
+
+
 def _aggregate_sha256(intake_id: str, receipts: Sequence[Mapping[str, Any]]) -> str:
-    payload = {"contract": "233.1", "intake_id": intake_id, "uidvalidity": 1, "uid": 478,
-               "terminal_receipt_ids": [row["receipt_id"] for row in receipts]}
-    return hashlib.sha256(json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+    ordered = _ordered_terminal_receipts(receipts)
+    return _length_prefixed_sha256(
+        "pdc-uid478-message-aggregate", "233.1", intake_id, "1", "478",
+        *(row["receipt_id"] for row in ordered),
+    )
 
 
 def _canonical_source_hash(intake_id: str, attachment_id: str, parent_hash: str, attachment_hash: str) -> str:
-    payload = {"contract_version": "233.1", "intake_id": intake_id, "attachment_id": attachment_id,
-               "parent_source_hash": parent_hash, "attachment_source_hash": attachment_hash}
-    return hashlib.sha256(json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+    return _length_prefixed_sha256(
+        "pdc-attachment-canonical-source", "233.1", intake_id, attachment_id,
+        parent_hash, attachment_hash,
+    )
 
 
 def execute_uid478_batch(
@@ -149,13 +176,15 @@ def execute_uid478_batch(
     all_terminal = len(results) == 4 and all(row.get("status") in _TERMINAL for row in results)
     aggregate = None
     if all_terminal and callable(message_receipt_executor):
-        expected_digest = _aggregate_sha256(envelope["intake_id"], results)
+        ordered_receipts = _ordered_terminal_receipts(results)
+        terminal_receipt_ids = [row["receipt_id"] for row in ordered_receipts]
+        expected_digest = _aggregate_sha256(envelope["intake_id"], ordered_receipts)
         aggregate = _object(message_receipt_executor({
             "intake_id": envelope["intake_id"], "uidvalidity": 1, "uid": 478,
-            "terminal_receipt_ids": [row["receipt_id"] for row in results], "aggregate_sha256": expected_digest,
+            "terminal_receipt_ids": terminal_receipt_ids, "aggregate_sha256": expected_digest,
         }), "message receipt response")
         if (aggregate.get("intake_id") != envelope["intake_id"] or aggregate.get("uidvalidity") != 1
-                or aggregate.get("uid") != 478 or aggregate.get("terminal_receipt_ids") != [row["receipt_id"] for row in results]
+                or aggregate.get("uid") != 478 or aggregate.get("terminal_receipt_ids") != terminal_receipt_ids
                 or aggregate.get("aggregate_sha256") != expected_digest or not aggregate.get("persisted")):
             raise AttachmentBatchContractError("message aggregate receipt binding mismatch")
     high_water_eligible = all_terminal and aggregate is not None

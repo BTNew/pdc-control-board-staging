@@ -19,6 +19,23 @@ from pathlib import Path
 from typing import Any, Iterable, Sequence
 
 ALLOWED_FIELDS = frozenset({"Hidden", "Cost", "Sell"})
+REVOLUTION_CSV_HEADER = (
+    "Type",
+    "Franchise_Id",
+    "Range_Id",
+    "Model_Id",
+    "Accessory_Id",
+    "Hidden",
+    "Franchise_Description",
+    "Range_Description",
+    "Model_Description",
+    "Accessory_Description",
+    "Cost",
+    "Sell",
+    "Colour",
+    "Trim",
+    "Operation_Id",
+)
 PRIVILEGED_COMMANDS = frozenset({"remember", "correct", "disable", "undo"})
 
 
@@ -280,13 +297,21 @@ def _csv_document(path: Path) -> tuple[str, csv.Dialect, list[list[str]]]:
     return encoding, dialect, list(csv.reader(io.StringIO(text, newline=""), dialect))
 
 
-def _apply_csv(src: Path, out: Path, changes: Sequence[CellChange]) -> None:
-    encoding, dialect, rows = _csv_document(src)
+def _require_revolution_header(rows: Sequence[Sequence[str]]) -> None:
     if not rows:
         raise ValidationError("CSV has no header row")
+    header = tuple(rows[0])
+    if header != REVOLUTION_CSV_HEADER:
+        raise ValidationError(
+            "CSV header must exactly match the canonical Revolution 15-column schema "
+            "in name and order"
+        )
+
+
+def _apply_csv(src: Path, out: Path, changes: Sequence[CellChange]) -> None:
+    encoding, dialect, rows = _csv_document(src)
+    _require_revolution_header(rows)
     header = rows[0]
-    if len(header) != len(set(header)):
-        raise ValidationError("CSV headers must be unique")
     for row_number, row in enumerate(rows[1:], start=1):
         if len(row) != len(header):
             raise ValidationError(f"data row {row_number} has a different column count")
@@ -307,6 +332,8 @@ def _apply_csv(src: Path, out: Path, changes: Sequence[CellChange]) -> None:
 def _validate_csv(before: Path, after: Path, changes: Sequence[CellChange]) -> None:
     _, _, old = _csv_document(before)
     _, _, new = _csv_document(after)
+    _require_revolution_header(old)
+    _require_revolution_header(new)
     if len(old) != len(new) or any(len(a) != len(b) for a, b in zip(old, new)):
         raise ValidationError("CSV structure changed")
     if not old or old[0] != new[0]:

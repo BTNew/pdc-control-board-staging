@@ -31,9 +31,9 @@ class VehicleConfigCsvTests(unittest.TestCase):
         self.root = Path(self.tempdir.name)
         self.source = self.root / "vehicle-config.csv"
         self.source.write_text(
-            "Code,Description,Hidden,Cost,Sell,Notes\r\n"
-            'A1,"Tow bar, black",no,100,150,"Keep wording"\r\n'
-            "A2,Solis panel,no,200,300,Formula-like =A1\r\n",
+            ",".join(bot.REVOLUTION_CSV_HEADER) + "\r\n"
+            'Accessory,T,LC,LC300,A1,no,Toyota,LandCruiser,LC300,"Tow bar, black",100,150,Black,Leather,OP1\r\n'
+            "Accessory,T,LC,LC300,A2,no,Toyota,LandCruiser,LC300,Solis panel,200,300,White,Cloth,OP2\r\n",
             encoding="utf-8", newline="",
         )
 
@@ -52,15 +52,54 @@ class VehicleConfigCsvTests(unittest.TestCase):
             change(2, "Sell", 450),
         ])
         after = self.read_rows(destination)
-        self.assertEqual(after[1][2], "yes")
-        self.assertEqual(after[1][3], "121.00")
-        self.assertEqual(after[2][4], "450.00")
+        self.assertEqual(after[1][5], "yes")
+        self.assertEqual(after[1][10], "121.00")
+        self.assertEqual(after[2][11], "450.00")
         self.assertEqual(before[0], after[0])
-        self.assertEqual([r[:2] for r in before[1:]], [r[:2] for r in after[1:]])
-        self.assertEqual([r[5] for r in before[1:]], [r[5] for r in after[1:]])
+        self.assertEqual([r[:5] for r in before[1:]], [r[:5] for r in after[1:]])
+        self.assertEqual([r[6:10] + r[12:] for r in before[1:]],
+                         [r[6:10] + r[12:] for r in after[1:]])
         changed = {(r, c) for r in range(len(before)) for c in range(len(before[r]))
                    if before[r][c] != after[r][c]}
-        self.assertEqual(changed, {(1, 2), (1, 3), (2, 4)})
+        self.assertEqual(changed, {(1, 5), (1, 10), (2, 11)})
+
+    def test_accepts_exact_canonical_revolution_15_column_header(self):
+        destination = self.root / "canonical-reviewed.csv"
+        bot.apply_file(self.source, destination, [change(1, "Cost", 121)])
+        self.assertEqual(tuple(self.read_rows(destination)[0]), bot.REVOLUTION_CSV_HEADER)
+
+    def assert_schema_rejected_without_output(self, header):
+        source = self.root / "invalid-schema.csv"
+        destination = self.root / "must-not-exist.csv"
+        source.write_text(
+            ",".join(header) + "\n" + ",".join(["x"] * len(header)) + "\n",
+            encoding="utf-8", newline="",
+        )
+        before = source.read_bytes()
+        with self.assertRaisesRegex(bot.ValidationError, "canonical Revolution 15-column schema"):
+            bot.apply_file(source, destination, [change(1, "Cost", 121)])
+        self.assertEqual(source.read_bytes(), before)
+        self.assertFalse(destination.exists())
+
+    def test_rejects_six_column_header_without_output(self):
+        self.assert_schema_rejected_without_output(
+            ["Code", "Description", "Hidden", "Cost", "Sell", "Notes"]
+        )
+
+    def test_rejects_reordered_canonical_header_without_output(self):
+        header = list(bot.REVOLUTION_CSV_HEADER)
+        header[10], header[11] = header[11], header[10]
+        self.assert_schema_rejected_without_output(header)
+
+    def test_rejects_renamed_canonical_header_without_output(self):
+        header = list(bot.REVOLUTION_CSV_HEADER)
+        header[4] = "AccessoryId"
+        self.assert_schema_rejected_without_output(header)
+
+    def test_rejects_duplicate_header_without_output(self):
+        header = list(bot.REVOLUTION_CSV_HEADER)
+        header[4] = "Model_Id"
+        self.assert_schema_rejected_without_output(header)
 
     def test_second_apply_is_idempotent(self):
         first, second = self.root / "first.csv", self.root / "second.csv"
@@ -91,15 +130,16 @@ class VehicleConfigCsvTests(unittest.TestCase):
             bot.CellChange(1, "Description", "invented", evidence("Hidden"))
         tampered = self.root / "tampered.csv"
         tampered.write_text(self.source.read_text(encoding="utf-8").replace(
-            'no,100,150,"Keep wording"',
-            'no,121.00,150,"Changed wording"'), encoding="utf-8", newline="")
+            '"Tow bar, black",100,150',
+            '"Changed wording",121.00,150'), encoding="utf-8", newline="")
         with self.assertRaisesRegex(bot.ValidationError, "unauthorized CSV change"):
             bot._validate_csv(self.source, tampered, [change(1, "Cost", 121)])
 
     def test_rejects_target_value_different_from_approved_proposal(self):
         tampered = self.root / "tampered-target.csv"
         tampered.write_text(self.source.read_text(encoding="utf-8").replace(
-            "no,100,150", "no,999.00,150"), encoding="utf-8", newline="")
+            '"Tow bar, black",100,150', '"Tow bar, black",999.00,150'),
+            encoding="utf-8", newline="")
         with self.assertRaisesRegex(bot.ValidationError, "target mismatch"):
             bot._validate_csv(self.source, tampered, [change(1, "Cost", 121)])
 
@@ -107,15 +147,15 @@ class VehicleConfigCsvTests(unittest.TestCase):
         malformed = self.root / "malformed.csv"
         malformed.write_text(
             self.source.read_text(encoding="utf-8").replace(
-                "A2,Solis panel,no,200,300,Formula-like =A1",
-                "A2,Solis panel,no,200,300"),
+                "Solis panel,200,300,White,Cloth,OP2",
+                "Solis panel,200,300,White,Cloth"),
             encoding="utf-8", newline="",
         )
         destination = self.root / "reviewed.csv"
         with self.assertRaisesRegex(bot.ValidationError, "data row 2 has a different column count"):
             bot.apply_file(malformed, destination, [change(1, "Cost", 121)])
         self.assertFalse(destination.exists())
-        self.assertIn("Formula-like =A1", self.source.read_text(encoding="utf-8"))
+        self.assertIn("Solis panel,200,300,White,Cloth,OP2", self.source.read_text(encoding="utf-8"))
 
     def test_rejects_in_place_output_and_preserves_original(self):
         before = self.source.read_bytes()

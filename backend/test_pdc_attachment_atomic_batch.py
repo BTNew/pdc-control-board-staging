@@ -4,6 +4,8 @@ import unittest
 from backend.pdc_attachment_atomic_batch import (
     AttachmentBatchContractError,
     EXPECTED_UID478_ATTACHMENTS,
+    _aggregate_sha256,
+    _canonical_source_hash,
     execute_uid478_batch,
 )
 
@@ -52,6 +54,32 @@ class AttachmentAtomicBatchTests(unittest.TestCase):
         self.assertTrue(result["all_terminal"])
         self.assertTrue(result["high_water_eligible"])
         self.assertEqual(result["next_high_water_uid"], 478)
+
+    def test_canonical_source_hash_has_stable_cross_runtime_vector(self):
+        value = fixture()
+        attachment = value["attachments"][0]
+        self.assertEqual(
+            _canonical_source_hash(value["intake_id"], attachment["attachment_id"], value["parent_source_hash"], attachment["sha256"]),
+            "4c697bca10772f8cd52d71fd347b0d6e699c4207d52ecb4eb190030c36904e28",
+        )
+
+    def test_aggregate_orders_by_attachment_file_name_under_shuffled_input(self):
+        value = fixture()
+        rows = [
+            {"file_name": item["file_name"], "receipt_id": item["attachment_id"]}
+            for item in value["attachments"]
+        ]
+        shuffled = [rows[2], rows[0], rows[3], rows[1]]
+        self.assertEqual(_aggregate_sha256(value["intake_id"], rows), _aggregate_sha256(value["intake_id"], shuffled))
+        requests = []
+        receipts = {item["attachment_id"]: "receipt-" + item["file_name"] for item in value["attachments"]}
+        execute_uid478_batch(
+            value, {},
+            lambda item: {"status": "applied", "receipt_id": receipts[item["attachment_id"]]},
+            lambda request: requests.append(request) or persist_aggregate(request),
+        )
+        expected = [receipts[item["attachment_id"]] for item in sorted(value["attachments"], key=lambda item: item["file_name"])]
+        self.assertEqual(requests[0]["terminal_receipt_ids"], expected)
 
     def test_review_is_terminal_and_does_not_block_later_attachments(self):
         calls = []
