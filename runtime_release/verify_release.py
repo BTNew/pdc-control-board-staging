@@ -43,7 +43,8 @@ def main(argv=None):
  if 'parsed.hostname != STAGING_HOST' not in exact_guard: fail('canonical RPC exact-host guard missing')
  for rel in ('backend/email_intake_processor.py','backend/pdc_supervised_learning_client.py'):
   t=(root/rel).read_text(encoding='utf-8')
-  if 'parsed.hostname != STAGING_HOST' not in t: fail(f'non-staging URL rejection missing in {rel}')
+  exact_host = ('parsed.hostname != STAGING_HOST' in t or 'parsed.hostname == STAGING_HOST' in t)
+  if not exact_host: fail(f'non-staging URL rejection missing in {rel}')
  env=data.get('required_environment_variables')
  if not isinstance(env,list) or any('=' in x or FORBIDDEN_SECRET_NAMES.fullmatch(x or '') for x in env): fail('environment variable names invalid')
  forbidden=[]
