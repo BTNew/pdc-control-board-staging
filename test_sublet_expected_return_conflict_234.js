@@ -1,0 +1,14 @@
+'use strict';
+const assert=require('assert');
+const fs=require('fs');
+const sql=fs.readFileSync('supabase/staging_only/234_sublet_expected_return_conflict_details.sql','utf8');
+assert(sql.includes("project_ref='cdsmnqxtyyoeoznmbidd'"));
+assert(sql.includes("version='233'"));
+assert(sql.includes("expected_return_date+1"),'expected return must bound active Sublet through that Perth date');
+assert(sql.includes("at time zone 'Australia/Perth'"));
+assert(sql.includes("workshop_booking_id"));
+assert(sql.includes("workshop_start_date_perth"));
+assert(sql.includes("perform public.pdc_lock_canonical_sublet_vehicle(new.vehicle_id)"));
+assert(sql.includes("status in('queued','planned','started','stoppage')"));
+assert(!/delete\s+from\s+public\.(vehicles|pdc_sublet)/i.test(sql));
+console.log('Sublet expected-return conflict migration static tests passed.');
