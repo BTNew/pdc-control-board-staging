@@ -37,3 +37,21 @@
 
 ## Durable status
 This file is the restart checkpoint. Git commits on the overnight branch are the authoritative implementation checkpoints. Credentials and secret material must never be added here.
+
+## Implementation checkpoint
+- Exact implementation SHA before this checkpoint update: `d7034799b4066d7eafe457a9c79ac7c7523b21c3`.
+- Proposed append-only staging migrations `232`–`236` rehearse sequentially against permanent head `231` in one rollback-only transaction; none is permanently applied yet.
+- Scope: mechanic/default-technician trigger and exclusive history; UID478 attachment-atomic receipts; bounded Sublet expected-return conflicts; reversible operation soft removal; authorised fuel-fill rule.
+- Full JavaScript regression: 194 passed, 0 failed, 1 intentional skip.
+- Python discovery: 33 passed, 3 optional XLSX skips. Syntax/compile and diff checks passed.
+- UID478 was not replayed; `pdc-monitor` mailbox and credentials were not accessed.
+- AI Auditor was not activated; `work-receipting` credentials and gateway were not accessed.
+- Website helper/QC/notification modules and Vehicle Config processing core are foundations, not proof of integrated/activated runtime behavior.
+- Three exact-SHA independent reviews are in progress: database security, frontend/provenance and Vehicle Config integrity.
+
+## Resume protocol
+1. Verify clean worktree and exact HEAD.
+2. Read the three independent reviews and fix every valid finding; any source change requires reviews against the new SHA.
+3. Confirm permanent staging migration head remains `231` before applying `232`–`236` sequentially.
+4. Do not deploy or claim activation for owning-profile runtimes from development.
+5. Keep production, main and DNS untouched.
