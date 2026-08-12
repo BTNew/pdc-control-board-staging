@@ -1,119 +1,93 @@
 {
   "environment": "staging",
-  "application_version": "2026.08.12.38-supervised-monitor-handoff-security",
-  "source_commit": "bf403f75dd4545bbb339e444ce1a38c25c4235ee",
-  "parent_staging_commit": "c0156f73a5a83d2d10b08239074bc5455bb2921d",
+  "application_version": "2026.08.12.38-workshop-highlight-runtime",
+  "source_commit": "d9877f658f486c84e3db6a8e42284c98d34a6cc3",
+  "parent_staging_commit": "4c86b319aa5f45e4cfecfe6726506b366077cc7b",
   "staging_project_ref": "cdsmnqxtyyoeoznmbidd",
   "production_unchanged": true,
-  "mailbox_authority": true,
-  "pilot_enabled": true,
-  "deployed_at_utc": "2026-08-12T11:58:16.184502+00:00",
-  "files": {
-    "app.js": {
-      "sha256": "8f35d449eb78a7bd332c30e5d5fc22a5053b9f6b68f4e73b255f785318655a9f",
-      "bytes": 1114143
+  "main_unchanged": true,
+  "dns_unchanged": true,
+  "pilot_activation_changed": false,
+  "mailbox_runtime_changed": false,
+  "deployed_at_utc": "2026-08-12T16:08:13.724737+00:00",
+  "database_migration_head": 236,
+  "database_migrations": {
+    "232": {
+      "name": "workshop_mechanic_bay_assignment_repair",
+      "source_path": "supabase/staging_only/232_workshop_mechanic_bay_assignment_repair.sql",
+      "sha256": "c060f40717eee5c370dad1940c94552d006ae5a23d08766f8c2457abe0be6b2f",
+      "bytes": 7756
     },
-    "index.html": {
-      "sha256": "3021de0cef7dcefb164efe0b71b43172277b32c85e4625ce955df55a1f39c146",
-      "bytes": 66547
+    "233": {
+      "name": "uid478_attachment_atomic_import",
+      "source_path": "supabase/staging_only/233_uid478_attachment_atomic_import.sql",
+      "sha256": "bb8edbb977626d1241ad0f08b39084d690ea5bdd9a664bd72e625410af2bd5f2",
+      "bytes": 30270
     },
-    "vehicle-lifecycle-actions.js": {
-      "sha256": "988dbbd483f2b66dc69e66908e26f5aab421b28017e9c69328e33d11e7758dcb",
-      "bytes": 20910
+    "234": {
+      "name": "sublet_expected_return_conflict_details",
+      "source_path": "supabase/staging_only/234_sublet_expected_return_conflict_details.sql",
+      "sha256": "ec53ffa33931588dc12ddbd1bab4ee9412f628954d5dd45990ddb85433c5b37c",
+      "bytes": 7730
     },
-    "pdc-supabase-config.staging.js": {
-      "sha256": "6a2dad2160e6faa7d2755be6b9d7968aae6ae40d241cb72cb54a39a868caefd7",
-      "bytes": 1698
+    "235": {
+      "name": "reversible_workshop_operation_removal",
+      "source_path": "supabase/staging_only/235_reversible_workshop_operation_removal.sql",
+      "sha256": "7f593785c7592420532319e17115785cfe450b1c767ab555e590ec6a9ab1f4bb",
+      "bytes": 21626
     },
-    "supabase/staging_only/205_admin_recoverable_vehicle_archive.sql": {
-      "sha256": "c7ba8d1d2eef87a1cac030cc45f1e8de71082eae849347debc70e096be6cf155",
-      "bytes": 26333
-    },
-    "supabase/staging_only/206_recoverable_archive_booking_history_identity.sql": {
-      "sha256": "80058a204fd456f4ec551191c6cba6d97b6310a4417c22c0e11d93e473075d75",
-      "bytes": 6937
-    },
-    "supabase/staging_only/207_admin_vehicle_actor_lock_volatility.sql": {
-      "sha256": "45d69f618c26d6de17e653779903e0e0647a2a56331c4d88c676f64304dcf8ea",
-      "bytes": 2212
-    },
-    "supabase/staging_only/208_archived_vehicle_snapshot_lock_volatility.sql": {
-      "sha256": "7901b5d2e47865689bb10a0993c42f53f800dbae356e11d398ca4f1f1778ef9f",
-      "bytes": 2750
-    },
-    "supabase/staging_only/209_vehicle_lifecycle_review_hardening.sql": {
-      "sha256": "535d989182e795ea2eb273a8ea8ac616d459e83d6a749fea70cac95a02479a7c",
-      "bytes": 16009
-    },
-    "supabase/staging_only/210_vehicle_archive_postgrest_overload_fix.sql": {
-      "sha256": "c18877cce41dc2a10b809beda459833f3699b7bbcc014f41b965504c246a54d0",
-      "bytes": 2904
-    },
-    "supabase/staging_only/211_vehicle_archive_environment_reattestation.sql": {
-      "sha256": "05742b1b1ee79a6cd1c5976220aa0349d3b52bef87ed7cdf0b9f7cffce16fce5",
-      "bytes": 3468
-    },
-    "supabase/staging_only/212_retained_uid_1477_recreation_import.sql": {
-      "sha256": "7224ec15fd5b361fd441e1edbec0b1c07be9504176d848d5398a0b1ef4245d52",
-      "bytes": 19474
-    },
-    "supabase/staging_only/213_persistent_supervised_email_learning.sql": {
-      "sha256": "92561ef6436b2b3bb8117cb9588e412e1df6ffb957903f6c4808d958fe205dc0",
-      "bytes": 55013
-    },
-    "supabase/staging_only/214_supervised_learning_review_undo_hardening.sql": {
-      "sha256": "17a58011e4a1cbb821fa206cae0b912341c8ad0baf8fc9a8fd0051620bab765c",
-      "bytes": 12070
-    },
-    "supabase/staging_only/215_telegram_supervised_command_completeness.sql": {
-      "sha256": "5ee97929905a785370d1729382c84f44ea0edb6c6068362bdc1d9172880bafc8",
-      "bytes": 9055
-    },
-    "supabase/staging_only/216_supervised_rule_list_column_qualification.sql": {
-      "sha256": "86e5fe0e60c2a2aab69754cd9b43a264560e06a3f1ec0b2e814d57e27eca9704",
-      "bytes": 3102
-    },
-    "supabase/staging_only/217_supervised_correction_evidence_and_admin_telegram_enrollment.sql": {
-      "sha256": "bc554a2348f1a66c50633ac429a830d2267683cb7fd70b9a587acf44e8112b89",
-      "bytes": 6874
-    },
-    "supabase/staging_only/218_supervised_active_version_and_hours_guard.sql": {
-      "sha256": "d3d189f786be2d51e92eb64653c6e7bae490662f1bb53a690a47959064ee83e8",
-      "bytes": 5201
-    },
-    "supabase/staging_only/219_supervised_active_version_schema_fix.sql": {
-      "sha256": "929d8d1530f9c124bb698f1c06e012195cf760449367c55fa2d25e621c43f232",
-      "bytes": 5475
-    },
-    "supabase/staging_only/220_supervised_active_winner_repair.sql": {
-      "sha256": "9c74b01f047a870db7870d4331c2cf8ce07f066a57d12f43642e81c21213688c",
-      "bytes": 5862
-    },
-    "supabase/staging_only/221_supervised_replay_undo_precedence_hardening.sql": {
-      "sha256": "db50895db1a35c9d59bc8ee4cf4422952a586e74abce1784c33a68e2833d0e5f",
-      "bytes": 11254
-    },
-    "supabase/staging_only/222_supervised_review_standard_hours.sql": {
-      "sha256": "5ab79c6e333522df632e345c43bc31c82143d74901342fd0c45a6c7addacfb0a",
-      "bytes": 4162
-    },
-    "pdc-ai-intake-service.js": {
-      "sha256": "0212c9c485fc78115e0f4a5a7138944bc56f0de7d2ef097b49bc2841d09186f2",
-      "bytes": 7114
-    },
-    "supabase/staging_only/223_supervised_monitor_pilot_activation.sql": {
-      "sha256": "d8ebc72ada4bc2075973a0221e09672357548827df26943e8ceb76d8d1ff9874",
-      "bytes": 7423
-    },
-    "supabase/staging_only/224_close_monitor_direct_table_dml.sql": {
-      "sha256": "bcea5395b75012feb377d0afdfc397d9faf761ebcef2e06626dc05295e09f50a",
-      "bytes": 4100
+    "236": {
+      "name": "complete_authorised_operation_rules",
+      "source_path": "supabase/staging_only/236_complete_authorised_operation_rules.sql",
+      "sha256": "1d745084da2593711d65eb60566bf905cf2c760523f54935415f64026a81f1a5",
+      "bytes": 3674
     }
   },
-  "supervised_learning_migration_head": 224,
-  "runtime_monitor_source_only": false,
-  "runtime_handoff_published": true,
-  "runtime_release_id": "pdc-monitor-staging-runtime-2026.08.12.5",
-  "runtime_release_source_remote": "https://github.com/BTNew/pdc-control-board.git",
-  "runtime_release_source_tag": "pdc-monitor-staging-runtime-2026.08.12.5"
+  "files": {
+    "index.html": {
+      "source_path": "staging.html",
+      "sha256": "f70656b8982d21592b65f9f210c11d33d3f135884f55ca3f1bf810d98ea67790",
+      "bytes": 66773
+    },
+    "app.js": {
+      "source_path": "app.js",
+      "sha256": "9b9fa9c07cfa5d0d6702633cf283be1210b4d02440d5bee04b276feb2d847c50",
+      "bytes": 1124944
+    },
+    "styles.css": {
+      "source_path": "styles.css",
+      "sha256": "ffdc69582160e3489fc6097657c05accebdf5574a3690814a0b0ce251b44e8b4",
+      "bytes": 388054
+    },
+    "desktop-operations.css": {
+      "source_path": "desktop-operations.css",
+      "sha256": "f3179efdeeaf34ba76dfc10c56aa2c3c59498ee61e60c11e0032abb9d3b51616",
+      "bytes": 19424
+    },
+    "workshop-planner.css": {
+      "source_path": "workshop-planner.css",
+      "sha256": "b5f4f0c929852b520dbf4f533577afcaa8e0ddda941a6b5d3d766a03be30b599",
+      "bytes": 45738
+    },
+    "workshop-navigation.js": {
+      "source_path": "workshop-navigation.js",
+      "sha256": "c9ef41a6f9925c9b7befaee174e2e1a9d57b80a749c5b7f4076afd1e5a905dcb",
+      "bytes": 11455
+    },
+    "workshop-planner.js": {
+      "source_path": "workshop-planner.js",
+      "sha256": "3429776763898e7fab40d4a474b4a4c767f1f61eca41018ae72e59439098cc63",
+      "bytes": 347345
+    },
+    "workshop-data-service.js": {
+      "source_path": "workshop-data-service.js",
+      "sha256": "480cb424662e06e354f05d7ea8190234756cb220aa26f1bf5ff1877d7b591c1b",
+      "bytes": 23076
+    },
+    "pdc-supabase-config.staging.js": {
+      "source_path": "pdc-supabase-config.staging.js",
+      "sha256": "44c57469f6e48e25901b4fe33ca147a7b576afd3a5c55a48a53d31e38f1ff5db",
+      "bytes": 1710
+    }
+  }
 }
