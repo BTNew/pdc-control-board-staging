@@ -12,6 +12,7 @@ const sql207 = fs.readFileSync(path.join(__dirname, 'supabase', 'staging_only', 
 const sql208 = fs.readFileSync(path.join(__dirname, 'supabase', 'staging_only', '208_archived_vehicle_snapshot_lock_volatility.sql'), 'utf8');
 const sql209 = fs.readFileSync('supabase/staging_only/209_vehicle_lifecycle_review_hardening.sql', 'utf8');
 const sql210 = fs.readFileSync('supabase/staging_only/210_vehicle_archive_postgrest_overload_fix.sql', 'utf8');
+const sql211 = fs.readFileSync('supabase/staging_only/211_vehicle_archive_environment_reattestation.sql', 'utf8');
 const lower = sql.toLowerCase();
 
 function has(re, message) { assert.ok(re.test(sql), message); }
@@ -124,5 +125,15 @@ for (const setting of ['pdc.recreation_source_hash', 'pdc.recreation_evidence_ha
   assert.ok(sql209.includes(setting), `Current job-card wrapper missing ${setting}`);
 }
 assert.ok(/values\('209','vehicle_lifecycle_review_hardening'/i.test(sql209), 'Migration 209 ledger row missing');
+assert.ok(/public\.pdc_monitor_staging_guard\(\)/i.test(sql211), 'Migration 211 must independently require the staging runtime guard');
+assert.ok(/pdc_staging_environment_sentinel[\s\S]*project_ref='cdsmnqxtyyoeoznmbidd'/i.test(sql211), 'Migration 211 must independently bind the staging project sentinel');
+assert.ok(/to_regclass\('public\.pdc_production_environment_sentinel'\) is not null/i.test(sql211), 'Migration 211 must fail closed when the production sentinel exists');
+assert.ok(/v_head is distinct from '210'[\s\S]*v_name is distinct from 'vehicle_archive_postgrest_overload_fix'/i.test(sql211), 'Migration 211 must require exact migration 210 head');
+assert.ok(/pdc_admin_archive_vehicle_impl\(uuid,integer,text,text,text\)[\s\S]*from public,anon,authenticated,service_role/i.test(sql211), 'Migration 211 must re-attest the private helper ACL');
+assert.ok(/pdc_admin_archive_vehicle\(uuid,integer,text,text\)[\s\S]*pdc_admin_reset_staging_test_vehicle\(uuid,integer,text,text\)[\s\S]*to authenticated/i.test(sql211), 'Migration 211 must re-attest only the public wrappers for authenticated use');
+for (const signature of ['mark_vehicle_deleted\\(uuid,integer,text\\)', 'restore_vehicle\\(uuid,integer,text\\)', 'purge_vehicle_from_board\\(uuid,integer,text\\)', 'purge_all_staging_board_vehicles\\(text,text\\)']) {
+  assert.ok(new RegExp(`public\\.${signature}`, 'i').test(sql211), `Migration 211 must re-attest retired ${signature}`);
+}
+assert.ok(/values\('211','vehicle_archive_environment_reattestation'/i.test(sql211), 'Migration 211 ledger row missing');
 
-console.log('Migration 205 recoverable vehicle lifecycle and migrations 206-209 hardening contract tests passed.');
+console.log('Migration 205 recoverable vehicle lifecycle and migrations 206-211 hardening contract tests passed.');

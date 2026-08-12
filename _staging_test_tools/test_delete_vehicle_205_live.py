@@ -145,7 +145,7 @@ def main():
         cur.execute("select version from public.vehicles where id=%s", (vehicle_id,)); reset_version=cur.fetchone()[0]
         reset = response_ok(rpc(admin,"pdc_admin_reset_staging_test_vehicle",{"p_vehicle_id":str(vehicle_id),"p_expected_version":reset_version,"p_confirmation_stock":STOCK,"p_reason":"Reset disposable Email Monitor acceptance vehicle"}),"vehicle_reset")
         reset_tombstone = reset["data"]["tombstone_id"]
-        source_hash = "a" * 64; evidence_hash = "b" * 64; source_uid = "delete-205-live-email-uid"
+        source_hash = "a" * 64; evidence_hash = "b" * 64; source_uid = "delete-205-live-email-uid-" + uuid.uuid4().hex
         response_ok(rpc(admin,"pdc_admin_allow_vehicle_recreation_once",{"p_tombstone_id":reset_tombstone,"p_confirmation_stock":STOCK,"p_reason":"Allow controlled disposable Email Monitor recreation","p_source_hash":source_hash,"p_evidence_hash":evidence_hash,"p_source_uid":source_uid,"p_ttl_minutes":30}),"recreation_authorized_once")
         recreated_id=str(uuid.uuid4())
         cur.execute("insert into public.vehicles(id,permanent_vehicle_id,stock_number,customer_name,lifecycle_state,visible_on_board,current_location,source_system,source_batch_id,source_record_id,source_payload,created_by,updated_by) values(%s,%s,%s,'Recreated disposable vehicle','active',true,'PMB','authenticated_email','pdc-monitor',%s,jsonb_build_object('source_hash',%s,'attachment_hash',%s),%s,%s)", (recreated_id,"EMAIL-"+STOCK,STOCK,source_uid,source_hash,evidence_hash,actor,actor)); conn.commit()
