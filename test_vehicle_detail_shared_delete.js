@@ -6,6 +6,7 @@ const app = fs.readFileSync('app.js', 'utf8');
 const actions = fs.readFileSync('vehicle-lifecycle-actions.js', 'utf8');
 const remove = app.slice(app.indexOf('async function removeVehicle('), app.indexOf('function renderDetail('));
 const detail = app.slice(app.indexOf('function renderDetail('), app.indexOf('function renderNavisionDetailSection('));
+const allowed = app.slice(app.indexOf('function vehicleLocationActionAllowed('), app.indexOf('function renderSharedNavisionVisibilityState('));
 
 assert(remove.includes('vehicleLifecycleAdministratorActive()'), 'Delete must require Administrator role');
 assert(remove.includes('vehicleLifecycleSharedModeActive()'), 'Delete must require shared lifecycle mode');
@@ -27,4 +28,10 @@ assert(detail.includes('vehicleLifecycleStagingResetAllowed()'), 'Reset control 
 assert(detail.includes('>Reset Staging Test Vehicle</button>'), 'Staging detail must offer reset control');
 assert(actions.includes("'pdc_admin_archive_vehicle'"), 'Lifecycle bridge must call pdc_admin_archive_vehicle');
 assert(actions.includes("'pdc_admin_reset_staging_test_vehicle'"), 'Lifecycle bridge must call the staging reset RPC');
+assert(allowed.includes("operation === 'delete'"), 'Read-only canonical rows must have an explicit Delete authority path');
+assert(allowed.includes('vehicleLifecycleAdministratorActive()'), 'Read-only canonical Delete must require Administrator authority');
+assert(allowed.includes("typeof window.__vehicleLifecycleActions?.adminArchiveVehicle === 'function'"), 'Read-only canonical Delete must require the current archive bridge');
+assert(!allowed.includes('vehicleRequiresCanonicalSharedDelete'), 'Read-only Delete must not call the retired helper');
+assert(!allowed.includes('markVehicleDeleted'), 'Read-only Delete must not require the retired bridge');
+assert(app.includes("onStatus: status => { if (status === 'SUBSCRIBED') onChange({ reconnect: true }); }"), 'Email Vehicle Realtime must reconcile authoritatively on subscribe/reconnect');
 console.log('Vehicle Detail shared Administrator delete/reset contracts passed');

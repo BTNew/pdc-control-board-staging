@@ -127,6 +127,9 @@ begin
  v_digest:=encode(extensions.digest(jsonb_build_object('source_hash',v_source,'evidence_hash',v_evidence,'source_uid',v_source_uid)::text,'sha256'),'hex');
  perform pg_advisory_xact_lock(hashtextextended('pdc:vehicle-tombstone:'||p_tombstone_id::text,0));select * into t from public.pdc_vehicle_tombstones where tombstone_id=p_tombstone_id for share;
  if not found or exists(select 1 from public.pdc_vehicle_lifecycle_events e where e.tombstone_id=t.tombstone_id and e.event_kind='restored') then return public.navision_backend_response(false,'vehicle_not_tombstoned');end if;
+ -- Revalidate Administrator authority after all blocking tombstone locks. A role
+ -- revoked while this call waited must not authorize recreation.
+ s:=public.pdc_admin_vehicle_actor();if not coalesce((s->>'ok')::boolean,false) then return s;end if;v_uid:=(s->'data'->>'actor_id')::uuid;v_email:=s->'data'->>'actor_email';
  if p_confirmation_stock is distinct from t.normalized_stock then return public.navision_backend_response(false,'invalid_input',jsonb_build_object('detail','confirmation_stock_mismatch'));end if;
  if t.tombstone_kind<>'staging_reset' then return public.navision_backend_response(false,'manual_tombstone_restore_required');end if;
  if exists(select 1 from public.pdc_vehicle_recreation_permissions x where x.tombstone_id=t.tombstone_id and x.consumed_at is not null) then return public.navision_backend_response(false,'recreation_authorization_consumed');end if;

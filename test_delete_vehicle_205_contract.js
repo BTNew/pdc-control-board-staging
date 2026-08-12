@@ -111,6 +111,8 @@ for (const token of ['intended_source_hash', 'intended_evidence_hash', 'intended
 assert.ok(/new\.source_payload->>'source_hash'[\s\S]*new\.source_payload->>'attachment_hash'[\s\S]*new\.source_record_id/i.test(sql209), 'Recreation gate must bind to current creator vehicle evidence metadata');
 assert.ok(!/rename to pdc_import_authenticated_vehicle_email_legacy_066/i.test(sql209), 'Migration 209 must not wrap the obsolete canonical importer');
 assert.ok(/rename to pdc_process_non_navision_jobcard_pre209/i.test(sql209), 'Current non-Navision job-card creator must be wrapped for recreation evidence context');
+assert.ok((sql209.match(/s:=public\.pdc_admin_vehicle_actor\(\)/g) || []).length >= 2, 'Recreation authorization must revalidate Administrator authority after locks');
+assert.ok(/for share;[\s\S]{0,500}s:=public\.pdc_admin_vehicle_actor\(\)/i.test(sql209), 'Post-lock Administrator revalidation missing');
 for (const setting of ['pdc.recreation_source_hash', 'pdc.recreation_evidence_hash', 'pdc.recreation_source_uid']) {
   assert.ok(sql209.includes(setting), `Current job-card wrapper missing ${setting}`);
 }

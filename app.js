@@ -4196,7 +4196,12 @@ function initEmailVehicleLocationsIfAvailable() {
       app.emailVehicleLocationService = module.createPdcEmailVehicleLocationService({
         config: window.PDC_SUPABASE_CONFIG || {},
         getAccessToken: () => getPdcSupabaseAccessToken(),
-        subscribeRealtime: (tableName, onChange) => createPdcSupabaseTableRealtimeSubscription(tableName, { onChange }),
+        subscribeRealtime: (tableName, onChange) => createPdcSupabaseTableRealtimeSubscription(tableName, {
+          onChange,
+          // Reconcile authoritatively after every initial subscription/reconnect
+          // so events missed while disconnected cannot leave active/deleted views stale.
+          onStatus: status => { if (status === 'SUBSCRIBED') onChange({ reconnect: true }); },
+        }),
       });
     } catch (_error) { return null; }
   }
@@ -13708,9 +13713,10 @@ function vehicleLocationActionAllowed(vehicleOrKey, operation = 'change') {
       && vehicleLifecycleSharedModeActive()
       && typeof window.__vehicleLifecycleActions?.pmbTransferVehicle === 'function') return true;
     if (operation === 'delete'
-      && vehicleRequiresCanonicalSharedDelete(vehicle)
+      && vehicle.__emailVehicleServerAuthoritative === true
+      && vehicleLifecycleAdministratorActive()
       && vehicleLifecycleSharedModeActive()
-      && typeof window.__vehicleLifecycleActions?.markVehicleDeleted === 'function') return true;
+      && typeof window.__vehicleLifecycleActions?.adminArchiveVehicle === 'function') return true;
     console.warn('Vehicle action blocked because the Locations identity is read-only.', { operation, key });
     return false;
   }
