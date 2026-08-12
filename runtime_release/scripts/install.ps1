@@ -14,6 +14,7 @@ New-Item $releaseDir -ItemType Directory -Force|Out-Null
 Copy-Item (Join-Path $BundleRoot '*') $releaseDir -Recurse -Force
 & (Join-Path $releaseDir 'scripts\verify.ps1') -BundleRoot $releaseDir -ExpectedManifestSha256 $ExpectedManifestSha256
 if($LASTEXITCODE -ne 0){throw 'Installed-byte verification failed.'}
+Set-Content (Join-Path $releaseDir 'MANIFEST_SHA256') $ExpectedManifestSha256 -Encoding ascii
 New-Item (Join-Path $InstallRoot 'config') -ItemType Directory -Force|Out-Null
 if(-not(Test-Path (Join-Path $InstallRoot 'config\runtime.env'))){Copy-Item (Join-Path $releaseDir 'templates\runtime.env.example') (Join-Path $InstallRoot 'config\runtime.env.example') -Force}
 Set-Content (Join-Path $InstallRoot 'CURRENT') $manifest.release_version -Encoding ascii
