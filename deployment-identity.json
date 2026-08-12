@@ -1,15 +1,15 @@
 {
   "environment": "staging",
-  "application_version": "2026.08.12.38-workshop-highlight-runtime",
-  "source_commit": "d9877f658f486c84e3db6a8e42284c98d34a6cc3",
-  "parent_staging_commit": "a0a4b879e5592044d5f8c0d148921c81c2918a87",
+  "application_version": "2026.08.13.39-workshop-tile-authority",
+  "source_commit": "62c67771e6204f13917867a9ed4fff1cb246e175",
+  "parent_staging_commit": "998f4170c5881f203501ba1db19d88e8685cd83b",
   "staging_project_ref": "cdsmnqxtyyoeoznmbidd",
   "production_unchanged": true,
   "main_unchanged": true,
   "dns_unchanged": true,
   "pilot_activation_changed": false,
   "mailbox_runtime_changed": false,
-  "deployed_at_utc": "2026-08-12T16:11:53.440011+00:00",
+  "deployed_at_utc": "2026-08-12T22:13:58.417157+00:00",
   "database_migration_head": 236,
   "database_migrations": {
     "232": {
@@ -56,8 +56,8 @@
     },
     "app.js": {
       "source_path": "app.js",
-      "sha256": "9b9fa9c07cfa5d0d6702633cf283be1210b4d02440d5bee04b276feb2d847c50",
-      "bytes": 1124944
+      "sha256": "38541c3806a4007a080284bf31c6d8438008297a052fe89b39619f182807ec1f",
+      "bytes": 1125100
     },
     "arb-labor-catalog.js": {
       "source_path": "arb-labor-catalog.js",
@@ -131,8 +131,8 @@
     },
     "pdc-supabase-config.staging.js": {
       "source_path": "pdc-supabase-config.staging.js",
-      "sha256": "44c57469f6e48e25901b4fe33ca147a7b576afd3a5c55a48a53d31e38f1ff5db",
-      "bytes": 1710
+      "sha256": "a832863fd2b67a34e96f347a67ae1e84e2417ac14f17b2a9101e8dde6073ac2d",
+      "bytes": 1707
     },
     "scripts/stage2b_c4_browser_export.js": {
       "source_path": "scripts/stage2b_c4_browser_export.js",
@@ -221,8 +221,8 @@
     },
     "index.html": {
       "source_path": "staging.html",
-      "sha256": "f70656b8982d21592b65f9f210c11d33d3f135884f55ca3f1bf810d98ea67790",
-      "bytes": 66773
+      "sha256": "dfe372874127f8801b92910790c975b6b2f59a361ad93b45ec087bc84462dcc7",
+      "bytes": 66734
     }
   }
 }
