@@ -1,7 +1,7 @@
 {
   "environment": "staging",
   "application_version": "2026.08.12.38-supervised-monitor-handoff-security",
-  "source_commit": "08035e4eb2de72d027b0e72d2c07f6d819c9bbbe",
+  "source_commit": "aeec5213c131656ecf6a535d249f948d4fd3a90d",
   "parent_staging_commit": "c0156f73a5a83d2d10b08239074bc5455bb2921d",
   "staging_project_ref": "cdsmnqxtyyoeoznmbidd",
   "production_unchanged": true,
@@ -113,7 +113,7 @@
   "supervised_learning_migration_head": 224,
   "runtime_monitor_source_only": false,
   "runtime_handoff_published": true,
-  "runtime_release_id": "pdc-monitor-staging-runtime-2026.08.12.3",
+  "runtime_release_id": "pdc-monitor-staging-runtime-2026.08.12.4",
   "runtime_release_source_remote": "https://github.com/BTNew/pdc-control-board.git",
-  "runtime_release_source_tag": "pdc-monitor-staging-runtime-2026.08.12.3"
+  "runtime_release_source_tag": "pdc-monitor-staging-runtime-2026.08.12.4"
 }
