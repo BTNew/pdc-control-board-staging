@@ -193,6 +193,14 @@ function createWorkshopReferenceDataService(options) {
     return WORKSHOP_REFERENCE_CONNECTION_STATE.OFFLINE_ERROR;
   }
 
+  function rpcFailureCode(body, fallback = 'request_failed') {
+    if (!body || typeof body !== 'object') return fallback;
+    if (typeof body.error === 'string' && body.error.trim()) return body.error.trim();
+    if (typeof body.code === 'string' && body.code.trim()) return body.code.trim();
+    if (typeof body.message === 'string' && body.message.trim()) return body.message.trim();
+    return fallback;
+  }
+
   async function loadResource(resourceKey, includeInactive) {
     const resource = WORKSHOP_REFERENCE_RESOURCES[resourceKey];
     if (!resource) throw new Error(`workshop-reference-data-service: unknown resource '${resourceKey}'`);
@@ -294,7 +302,7 @@ function createWorkshopReferenceDataService(options) {
     }
     if (!ok) {
       setState(resourceKey, WORKSHOP_REFERENCE_CONNECTION_STATE.OFFLINE_ERROR, body);
-      return { ok: false, error: 'request_failed', detail: body };
+      return { ok: false, error: rpcFailureCode(body), detail: body };
     }
     if (body && body.ok === true) {
       setState(resourceKey, WORKSHOP_REFERENCE_CONNECTION_STATE.CONNECTED_EDITABLE);
@@ -526,7 +534,7 @@ function createWorkshopReferenceDataService(options) {
         p_key: key, p_expected_version: expectedVersion, p_value: value
       });
       if (status === 401 || status === 403 || (body && body.code === '42501')) return { ok: false, error: 'permission_denied', detail: body };
-      if (!ok) return { ok: false, error: 'request_failed', detail: body };
+      if (!ok) return { ok: false, error: rpcFailureCode(body), detail: body };
       // Independent-review remediation (finding 7): every OTHER
       // reference mutation (add/edit/set_active for technicians,
       // salespeople, sublet providers, bays) already calls

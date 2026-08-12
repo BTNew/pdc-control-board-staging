@@ -2,14 +2,14 @@
   "environment": "staging",
   "application_version": "2026.08.12.38-workshop-highlight-runtime",
   "source_commit": "d9877f658f486c84e3db6a8e42284c98d34a6cc3",
-  "parent_staging_commit": "4c86b319aa5f45e4cfecfe6726506b366077cc7b",
+  "parent_staging_commit": "a0a4b879e5592044d5f8c0d148921c81c2918a87",
   "staging_project_ref": "cdsmnqxtyyoeoznmbidd",
   "production_unchanged": true,
   "main_unchanged": true,
   "dns_unchanged": true,
   "pilot_activation_changed": false,
   "mailbox_runtime_changed": false,
-  "deployed_at_utc": "2026-08-12T16:08:13.724737+00:00",
+  "deployed_at_utc": "2026-08-12T16:11:53.440011+00:00",
   "database_migration_head": 236,
   "database_migrations": {
     "232": {
@@ -44,50 +44,185 @@
     }
   },
   "files": {
-    "index.html": {
-      "source_path": "staging.html",
-      "sha256": "f70656b8982d21592b65f9f210c11d33d3f135884f55ca3f1bf810d98ea67790",
-      "bytes": 66773
+    "ai-auditor.css": {
+      "source_path": "ai-auditor.css",
+      "sha256": "c69b084fb957e03fc663d276dc4322657d0f9fd3cc3da96130c894d1b848a846",
+      "bytes": 9115
+    },
+    "ai-board-advisor.js": {
+      "source_path": "ai-board-advisor.js",
+      "sha256": "a01dc581a417684c5a3377057bc70a57624bdaa3ad67c24b408eedfa86e0fc4e",
+      "bytes": 19046
     },
     "app.js": {
       "source_path": "app.js",
       "sha256": "9b9fa9c07cfa5d0d6702633cf283be1210b4d02440d5bee04b276feb2d847c50",
       "bytes": 1124944
     },
-    "styles.css": {
-      "source_path": "styles.css",
-      "sha256": "ffdc69582160e3489fc6097657c05accebdf5574a3690814a0b0ce251b44e8b4",
-      "bytes": 388054
+    "arb-labor-catalog.js": {
+      "source_path": "arb-labor-catalog.js",
+      "sha256": "db99ee8c4ddf341ce3f948dc04fb70cbe6c66d122be1a262f7074552a2fa49c0",
+      "bytes": 144811
+    },
+    "assets/pmb-logo.png": {
+      "source_path": "assets/pmb-logo.png",
+      "sha256": "b795f771135b94768d211ca912472fd7d74e324cf27d5d03a354380344b7a923",
+      "bytes": 24917
+    },
+    "data-staging-empty.js": {
+      "source_path": "data-staging-empty.js",
+      "sha256": "d2a9ed658daa1cc5eabb45a78eeb5c7f93ef0146a12e7f8c23d0b028f915c7a9",
+      "bytes": 454
     },
     "desktop-operations.css": {
       "source_path": "desktop-operations.css",
       "sha256": "f3179efdeeaf34ba76dfc10c56aa2c3c59498ee61e60c11e0032abb9d3b51616",
       "bytes": 19424
     },
-    "workshop-planner.css": {
-      "source_path": "workshop-planner.css",
-      "sha256": "b5f4f0c929852b520dbf4f533577afcaa8e0ddda941a6b5d3d766a03be30b599",
-      "bytes": 45738
+    "email-board-data.js": {
+      "source_path": "email-board-data.js",
+      "sha256": "3b55079afe708ae6842a6ddb61e19e912a8182cdc835a5d4102e4a5815dbace0",
+      "bytes": 669
     },
-    "workshop-navigation.js": {
-      "source_path": "workshop-navigation.js",
-      "sha256": "c9ef41a6f9925c9b7befaee174e2e1a9d57b80a749c5b7f4076afd1e5a905dcb",
-      "bytes": 11455
+    "favicon.svg": {
+      "source_path": "favicon.svg",
+      "sha256": "f79b374447017a73a77012096c6d031ddb2ad6bf1b647d2efbfd465e6a5f32e6",
+      "bytes": 256
     },
-    "workshop-planner.js": {
-      "source_path": "workshop-planner.js",
-      "sha256": "3429776763898e7fab40d4a474b4a4c767f1f61eca41018ae72e59439098cc63",
-      "bytes": 347345
+    "navision-backend-service.js": {
+      "source_path": "navision-backend-service.js",
+      "sha256": "04d6e34ec33f0a462948085290bd489792644ea51fed580b0a51003ddfa0d370",
+      "bytes": 12482
+    },
+    "pdc-ai-auditor-stage-a.js": {
+      "source_path": "pdc-ai-auditor-stage-a.js",
+      "sha256": "d3aef030ebf02562c2909114be7528e1bfe74ebf8452299ace473531edaf3d2e",
+      "bytes": 66630
+    },
+    "pdc-ai-intake-review.css": {
+      "source_path": "pdc-ai-intake-review.css",
+      "sha256": "cc5f0c4039e8e10bcace3cab4ffe73b39cc725e8c3582bf28dbbb54bd9fd5064",
+      "bytes": 1154
+    },
+    "pdc-ai-intake-review.js": {
+      "source_path": "pdc-ai-intake-review.js",
+      "sha256": "575ea073661ea77830c249e6b64e86f9b4fae50708a3609dd1f18653a55e7c04",
+      "bytes": 5337
+    },
+    "pdc-ai-intake-service.js": {
+      "source_path": "pdc-ai-intake-service.js",
+      "sha256": "0212c9c485fc78115e0f4a5a7138944bc56f0de7d2ef097b49bc2841d09186f2",
+      "bytes": 7114
+    },
+    "pdc-auth-registration.js": {
+      "source_path": "pdc-auth-registration.js",
+      "sha256": "13841fdf4408300d737b880cd4d676d2e49bdf4df65bd0f0c491db9e89da9dab",
+      "bytes": 5895
+    },
+    "pdc-auth.js": {
+      "source_path": "pdc-auth.js",
+      "sha256": "aa38bf6d8879e780f2c61d761b5becfe34453e2b1a714b2ecd68568332cc68f9",
+      "bytes": 35232
+    },
+    "pdc-email-vehicle-location-service.js": {
+      "source_path": "pdc-email-vehicle-location-service.js",
+      "sha256": "716a847a6f22bb03b542ffa6b50576f8273db9f51f22fd3da26eb978f703bd99",
+      "bytes": 19113
+    },
+    "pdc-supabase-config.staging.js": {
+      "source_path": "pdc-supabase-config.staging.js",
+      "sha256": "44c57469f6e48e25901b4fe33ca147a7b576afd3a5c55a48a53d31e38f1ff5db",
+      "bytes": 1710
+    },
+    "scripts/stage2b_c4_browser_export.js": {
+      "source_path": "scripts/stage2b_c4_browser_export.js",
+      "sha256": "5dafeb35a33626fec47aeaa931d17f83f22e436a4f602cbae66914537ab90f18",
+      "bytes": 14310
+    },
+    "staging-browser-assessment.js": {
+      "source_path": "staging-browser-assessment.js",
+      "sha256": "29acbe12e27d787b12d75614086278ac54e2ffe04bb6dfd755b3cacc7077bded",
+      "bytes": 3935
+    },
+    "styles.css": {
+      "source_path": "styles.css",
+      "sha256": "ffdc69582160e3489fc6097657c05accebdf5574a3690814a0b0ce251b44e8b4",
+      "bytes": 388054
+    },
+    "vehicle-lifecycle-actions.js": {
+      "source_path": "vehicle-lifecycle-actions.js",
+      "sha256": "988dbbd483f2b66dc69e66908e26f5aab421b28017e9c69328e33d11e7758dcb",
+      "bytes": 20910
+    },
+    "vehicle-location-lifecycle.js": {
+      "source_path": "vehicle-location-lifecycle.js",
+      "sha256": "004d4cc4abed034af9fae3f4cb189fd9c0c18142aaf8477fc14eef3953fd416d",
+      "bytes": 6070
+    },
+    "vendor/pdfjs/pdf.min.js": {
+      "source_path": "vendor/pdfjs/pdf.min.js",
+      "sha256": "5b5799e6f8c680663207ac5b42ee14eed2a406fa7af48f50c154f0c0b1566946",
+      "bytes": 320004
+    },
+    "vendor/pdfjs/pdf.worker.min.js": {
+      "source_path": "vendor/pdfjs/pdf.worker.min.js",
+      "sha256": "feabdf309770ed24bba31a5467836cdc8cf639c705af27d52b585b041bb8527b",
+      "bytes": 1087212
+    },
+    "vendor/qz/qz-tray.js": {
+      "source_path": "vendor/qz/qz-tray.js",
+      "sha256": "b0a0afde74511e5284195cc875bc862b1ea4233f6c6aecb3ad485430a56bf4a6",
+      "bytes": 148138
+    },
+    "vendor/supabase/supabase-2.110.5.js": {
+      "source_path": "vendor/supabase/supabase-2.110.5.js",
+      "sha256": "8e00fd587eb7c5148c977fa7c425316e8f9f168b3831100d8e2925a9807b5893",
+      "bytes": 206885
     },
     "workshop-data-service.js": {
       "source_path": "workshop-data-service.js",
       "sha256": "480cb424662e06e354f05d7ea8190234756cb220aa26f1bf5ff1877d7b591c1b",
       "bytes": 23076
     },
-    "pdc-supabase-config.staging.js": {
-      "source_path": "pdc-supabase-config.staging.js",
-      "sha256": "44c57469f6e48e25901b4fe33ca147a7b576afd3a5c55a48a53d31e38f1ff5db",
-      "bytes": 1710
+    "workshop-eligibility.js": {
+      "source_path": "workshop-eligibility.js",
+      "sha256": "148161fe2823f511214256e9dde138e9eddd633d0f63946205b382bfc87ef3ff",
+      "bytes": 9494
+    },
+    "workshop-navigation.js": {
+      "source_path": "workshop-navigation.js",
+      "sha256": "c9ef41a6f9925c9b7befaee174e2e1a9d57b80a749c5b7f4076afd1e5a905dcb",
+      "bytes": 11455
+    },
+    "workshop-planner.css": {
+      "source_path": "workshop-planner.css",
+      "sha256": "b5f4f0c929852b520dbf4f533577afcaa8e0ddda941a6b5d3d766a03be30b599",
+      "bytes": 45738
+    },
+    "workshop-planner.js": {
+      "source_path": "workshop-planner.js",
+      "sha256": "3429776763898e7fab40d4a474b4a4c767f1f61eca41018ae72e59439098cc63",
+      "bytes": 347345
+    },
+    "workshop-realtime.js": {
+      "source_path": "workshop-realtime.js",
+      "sha256": "484c0a4ebc6e823fbca6eaf7f6c3fe4e563902abfbd3959221d21c19f45c0361",
+      "bytes": 9237
+    },
+    "workshop-reference-data-service.js": {
+      "source_path": "workshop-reference-data-service.js",
+      "sha256": "8d303653ff6b3805e9c3b620272e8be3986b61cce0e46dec1b576b192fbe2844",
+      "bytes": 28861
+    },
+    "workshop-shared-actions.js": {
+      "source_path": "workshop-shared-actions.js",
+      "sha256": "8a5a18064cb2bf63a64f4a708a08e9ddad1a398d687e1704c482e6732bfd52c7",
+      "bytes": 9497
+    },
+    "index.html": {
+      "source_path": "staging.html",
+      "sha256": "f70656b8982d21592b65f9f210c11d33d3f135884f55ca3f1bf810d98ea67790",
+      "bytes": 66773
     }
   }
 }
