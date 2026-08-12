@@ -298,15 +298,20 @@ def resolve_active_rule(client: RpcClient, operation_code: str, operation_descri
         if data["rule"] is not None:
             raise SupervisedLearningContractError("unmatched monitor read returned a rule")
         return {"ok": True, "code": "active_lessons", "data": {"matched": False, "rule": None}}
-    rule = dict(_exact(data["rule"], {"lesson_id", "version", "target_mapping", "pricing"}, "active rule"))
+    rule = dict(_exact(data["rule"], {"lesson_id", "version", "target_mapping", "estimated_hours", "pricing"}, "active rule"))
     _uuid(rule["lesson_id"], "active rule lesson_id")
     if isinstance(rule["version"], bool) or not isinstance(rule["version"], int) or rule["version"] < 1:
         raise SupervisedLearningContractError("active rule version is invalid")
     _text(rule["target_mapping"], "active rule target_mapping", 1, 120)
+    if rule["estimated_hours"] is not None:
+        hours = Decimal(str(rule["estimated_hours"]))
+        if not hours.is_finite() or hours <= 0:
+            raise SupervisedLearningContractError("active rule estimated_hours is invalid")
+        rule["estimated_hours"] = str(hours)
     rule["pricing"] = validate_pricing(rule["pricing"])
     applied = _result(client.rpc(MONITOR_APPLY_RPC, {
         "p_scope": scope, "p_lesson_id": rule["lesson_id"], "p_expected_version": rule["version"],
-        "p_resolution": {"target_mapping": rule["target_mapping"], "pricing": rule["pricing"],
+        "p_resolution": {"target_mapping": rule["target_mapping"], "estimated_hours": rule["estimated_hours"], "pricing": rule["pricing"],
                          "display_description": display, "jc_metadata": jc_metadata},
     }), "monitor rule apply")
     return applied

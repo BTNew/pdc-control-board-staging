@@ -127,7 +127,7 @@ class SupervisedLearningClientTests(unittest.TestCase):
         self.assertEqual(restarted.calls[0][1]["p_action"], "list_active")
 
     def test_monitor_resolver_reads_then_applies_exact_rule_with_jc_metadata(self):
-        rule = {"lesson_id": LESSON_ID, "version": 3, "target_mapping": "fitting", "pricing": PRICING}
+        rule = {"lesson_id": LESSON_ID, "version": 3, "target_mapping": "fitting", "estimated_hours": "6.5", "pricing": PRICING}
         client = FakeClient("scoped_monitor", [
             envelope("active_lessons", {"matched": True, "rule": rule}),
             envelope("lesson_activated", {"applied": True}),

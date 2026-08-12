@@ -7,7 +7,7 @@ def main():
  with psycopg2.connect(u) as c:
   c.autocommit=False
   with c.cursor() as q:
-   q.execute("select public.pdc_monitor_staging_guard(),(select max(version::int) from supabase_migrations.schema_migrations where version~'^[0-9]+$'),to_regclass('public.pdc_production_environment_sentinel')");assert q.fetchone()==(True,217,None)
+   q.execute("select public.pdc_monitor_staging_guard(),(select max(version::int) from supabase_migrations.schema_migrations where version~'^[0-9]+$'),to_regclass('public.pdc_production_environment_sentinel')");assert q.fetchone()==(True,222,None)
    q.execute("select auth_user_id::text,lower(email) from public.pdc_user_roles where role='administrator' and lower(email)='craig.watson@broometoyota.com.au'");craig=q.fetchone();claims(q,craig)
    # Simulate a fresh bot process by persisting through the database command RPC,
    # then discarding all local state and reading the new row back.
@@ -20,9 +20,11 @@ def main():
    q.execute("select r.auth_user_id::text,lower(r.email) from public.pdc_user_roles r join public.pdc_monitor_stage_activation_writers w on w.user_id=r.auth_user_id where lower(r.email)='pdc.email.monitor.staging@pmb.local' and w.active and w.revoked_at is null");monitor=q.fetchone();claims(q,monitor)
    scope={'operation_code':'OP17','operation_description':'OP17 test recovery points','current_mapping':'fitting'}
    q.execute("select public.read_pdc_supervised_learning_rule(%s::jsonb)",(json.dumps(scope),));read=q.fetchone()[0];assert read['data']['matched'] and read['data']['rule']['version']==1,read
-   resolution={'target_mapping':'fitting','pricing':None,'display_description':'OP17 test recovery points','jc_metadata':{'original_operation_description':'JC-123: OP17 test recovery points','jc_prefix_stripped':True}}
+   resolution={'target_mapping':'fitting','estimated_hours':str(read['data']['rule']['estimated_hours']),'pricing':None,'display_description':'OP17 test recovery points','jc_metadata':{'original_operation_description':'JC-123: OP17 test recovery points','jc_prefix_stripped':True}}
    q.execute("select public.apply_pdc_supervised_learning_rule(%s::jsonb,%s,1,%s::jsonb)",(json.dumps(scope),lesson,json.dumps(resolution)));applied=q.fetchone()[0];assert applied['ok'],applied
-   q.execute("select count(*) from public.pdc_supervised_monitor_applications where rule_version_id=%s",(lesson,));assert q.fetchone()[0]==1
+   wrong_scope={'operation_code':'UNRELATED-220','operation_description':'unrelated operation','current_mapping':'fitting'}
+   q.execute("select public.apply_pdc_supervised_learning_rule(%s::jsonb,%s,1,%s::jsonb)",(json.dumps(wrong_scope),lesson,json.dumps(resolution)));assert q.fetchone()[0]['code']=='conflict'
+
    # Manual/protected batch behavior already left two protected lines and eight applied.
    q.execute("select batch_id from public.pdc_supervised_correction_batches where idempotency_key='migration-213-authorised-exact-active-lines'");batch=q.fetchone()[0]
    q.execute("select outcome,count(*) from public.pdc_supervised_apply_receipts where batch_id=%s and outcome in('applied','protected') group by outcome",(batch,));out=dict(q.fetchall());assert out.get('applied')==8 and out.get('protected')==2,out

@@ -668,7 +668,13 @@ class SupabaseClient:
                 line["work_type"] = WORK_KEY_TYPES[work_key]
                 line["assignment_reason"] = f"persistent supervised rule ({data.get('precedence') or 'rule'})"
                 line["confidence"] = 1.0
-                line["supervised_rule"] = {"version_id": data.get("version_id"), "precedence": data.get("precedence")}
+                line["supervised_rule"] = {"version_id": data.get("version_id"), "version_no": data.get("version_no"), "precedence": data.get("precedence")}
+                if data.get("estimated_hours") is not None:
+                    hours = Decimal(str(data["estimated_hours"]))
+                    if not hours.is_finite() or hours <= 0:
+                        raise RuntimeError("supervised rule returned invalid estimated hours")
+                    line["estimated_hours"] = hours
+                    line["estimated_hours_source"] = "persistent_supervised_rule"
             line["applied_description"] = operation_display_description(
                 str(line.get("original_description") or ""), str(proposal.fields.get("jc_number") or "")
             )
