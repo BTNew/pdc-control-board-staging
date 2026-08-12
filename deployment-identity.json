@@ -2,12 +2,12 @@
   "environment": "staging",
   "application_version": "2026.08.12.36-delete-vehicle",
   "source_commit": "332be0a80b69292df3d5005505b068e964148946",
-  "parent_staging_commit": "d8d889388473aa9db7a76f4e7742ca1da9737fed",
+  "parent_staging_commit": "d49f0e9cb34c2abeabf325f029d0905ef464482d",
   "staging_project_ref": "cdsmnqxtyyoeoznmbidd",
   "production_unchanged": true,
   "mailbox_authority": false,
   "pilot_enabled": false,
-  "deployed_at_utc": "2026-08-12T10:48:44.935519+00:00",
+  "deployed_at_utc": "2026-08-12T10:49:33.428719+00:00",
   "files": {
     "app.js": {
       "sha256": "099f61580be4cd1cb226364234004269d425408bd22141e1bbc69a0d1f0e95bb",
@@ -58,8 +58,8 @@
       "bytes": 19474
     },
     "supabase/staging_only/213_persistent_supervised_email_learning.sql": {
-      "sha256": "96e37b8c07f1eabd203ef90a96d8900617153aad9f7cf17ae0ee5e4d60da2d2e",
-      "bytes": 55210
+      "sha256": "92561ef6436b2b3bb8117cb9588e412e1df6ffb957903f6c4808d958fe205dc0",
+      "bytes": 55013
     },
     "supabase/staging_only/214_supervised_learning_review_undo_hardening.sql": {
       "sha256": "17a58011e4a1cbb821fa206cae0b912341c8ad0baf8fc9a8fd0051620bab765c",
