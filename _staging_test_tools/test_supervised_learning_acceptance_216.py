@@ -7,7 +7,7 @@ def main():
  with psycopg2.connect(u) as c:
   c.autocommit=False
   with c.cursor() as q:
-   q.execute("select public.pdc_monitor_staging_guard(),(select max(version::int) from supabase_migrations.schema_migrations where version~'^[0-9]+$'),to_regclass('public.pdc_production_environment_sentinel')");assert q.fetchone()==(True,216,None)
+   q.execute("select public.pdc_monitor_staging_guard(),(select max(version::int) from supabase_migrations.schema_migrations where version~'^[0-9]+$'),to_regclass('public.pdc_production_environment_sentinel')");assert q.fetchone()==(True,217,None)
    q.execute("select auth_user_id::text,lower(email) from public.pdc_user_roles where role='administrator' and lower(email)='craig.watson@broometoyota.com.au'");craig=q.fetchone();claims(q,craig)
    # Simulate a fresh bot process by persisting through the database command RPC,
    # then discarding all local state and reading the new row back.
