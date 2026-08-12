@@ -10,7 +10,8 @@ const sql = fs.readFileSync(sqlPath, 'utf8');
 const sql206 = fs.readFileSync(sql206Path, 'utf8');
 const sql207 = fs.readFileSync(path.join(__dirname, 'supabase', 'staging_only', '207_admin_vehicle_actor_lock_volatility.sql'), 'utf8');
 const sql208 = fs.readFileSync(path.join(__dirname, 'supabase', 'staging_only', '208_archived_vehicle_snapshot_lock_volatility.sql'), 'utf8');
-const sql209 = fs.readFileSync(path.join(__dirname, 'supabase', 'staging_only', '209_vehicle_lifecycle_review_hardening.sql'), 'utf8');
+const sql209 = fs.readFileSync('supabase/staging_only/209_vehicle_lifecycle_review_hardening.sql', 'utf8');
+const sql210 = fs.readFileSync('supabase/staging_only/210_vehicle_archive_postgrest_overload_fix.sql', 'utf8');
 const lower = sql.toLowerCase();
 
 function has(re, message) { assert.ok(re.test(sql), message); }
@@ -113,6 +114,12 @@ assert.ok(!/rename to pdc_import_authenticated_vehicle_email_legacy_066/i.test(s
 assert.ok(/rename to pdc_process_non_navision_jobcard_pre209/i.test(sql209), 'Current non-Navision job-card creator must be wrapped for recreation evidence context');
 assert.ok((sql209.match(/s:=public\.pdc_admin_vehicle_actor\(\)/g) || []).length >= 2, 'Recreation authorization must revalidate Administrator authority after locks');
 assert.ok(/for share;[\s\S]{0,500}s:=public\.pdc_admin_vehicle_actor\(\)/i.test(sql209), 'Post-lock Administrator revalidation missing');
+assert.ok(/expected 209 vehicle_lifecycle_review_hardening/i.test(sql210), 'Migration 210 must require exact migration 209 head');
+assert.ok(/alter function public\.pdc_admin_archive_vehicle\(uuid,integer,text,text,text\)[\s\S]*rename to pdc_admin_archive_vehicle_impl/i.test(sql210), 'Migration 210 must rename the ambiguous private helper');
+assert.ok(!/p_kind text default/i.test(sql210), 'Migration 210 must not create another ambiguous helper default');
+assert.ok(/revoke all on function public\.pdc_admin_archive_vehicle_impl\(uuid,integer,text,text,text\) from public,anon,authenticated,service_role/i.test(sql210), 'Renamed private five-argument archive helper must remain inaccessible');
+assert.ok(/pdc_admin_archive_vehicle_impl\(p_vehicle_id,p_expected_version,p_confirmation_stock,p_reason,'manual_delete'\)/i.test(sql210), 'Public archive wrapper must bind manual_delete');
+assert.ok(/pdc_admin_archive_vehicle_impl\(p_vehicle_id,p_expected_version,p_confirmation_stock,p_reason,'staging_reset'\)/i.test(sql210), 'Reset wrapper must bind staging_reset');
 for (const setting of ['pdc.recreation_source_hash', 'pdc.recreation_evidence_hash', 'pdc.recreation_source_uid']) {
   assert.ok(sql209.includes(setting), `Current job-card wrapper missing ${setting}`);
 }
