@@ -1,21 +1,21 @@
 {
   "environment": "staging",
-  "application_version": "2026.08.12.36-delete-vehicle",
-  "source_commit": "9f537610129903fefd889123af3450f2991529fc",
-  "parent_staging_commit": "90ebbd39ed020697709a96ef5b07d2e46d50d78e",
+  "application_version": "2026.08.12.37-supervised-monitor-pilot",
+  "source_commit": "7e64264dfba4633e6bd92fd0be54449647f37647",
+  "parent_staging_commit": "3f18049517f2cf94a4c42fecc9b7e53b35030c4e",
   "staging_project_ref": "cdsmnqxtyyoeoznmbidd",
   "production_unchanged": true,
-  "mailbox_authority": false,
-  "pilot_enabled": false,
-  "deployed_at_utc": "2026-08-12T11:11:57.227317+00:00",
+  "mailbox_authority": true,
+  "pilot_enabled": true,
+  "deployed_at_utc": "2026-08-12T11:44:36.195951+00:00",
   "files": {
     "app.js": {
-      "sha256": "099f61580be4cd1cb226364234004269d425408bd22141e1bbc69a0d1f0e95bb",
-      "bytes": 1112174
+      "sha256": "8f35d449eb78a7bd332c30e5d5fc22a5053b9f6b68f4e73b255f785318655a9f",
+      "bytes": 1114143
     },
     "index.html": {
-      "sha256": "0ad8e17a80c7b6383bfc270476f2fbd5a21c2bc74332a185bd6aab44cd049ac4",
-      "bytes": 65625
+      "sha256": "3021de0cef7dcefb164efe0b71b43172277b32c85e4625ce955df55a1f39c146",
+      "bytes": 66547
     },
     "vehicle-lifecycle-actions.js": {
       "sha256": "988dbbd483f2b66dc69e66908e26f5aab421b28017e9c69328e33d11e7758dcb",
@@ -96,7 +96,15 @@
     "supabase/staging_only/222_supervised_review_standard_hours.sql": {
       "sha256": "5ab79c6e333522df632e345c43bc31c82143d74901342fd0c45a6c7addacfb0a",
       "bytes": 4162
+    },
+    "pdc-ai-intake-service.js": {
+      "sha256": "0212c9c485fc78115e0f4a5a7138944bc56f0de7d2ef097b49bc2841d09186f2",
+      "bytes": 7114
+    },
+    "supabase/staging_only/223_supervised_monitor_pilot_activation.sql": {
+      "sha256": "d8ebc72ada4bc2075973a0221e09672357548827df26943e8ceb76d8d1ff9874",
+      "bytes": 7423
     }
   },
-  "supervised_learning_migration_head": 222
+  "supervised_learning_migration_head": 223
 }

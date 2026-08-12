@@ -117,6 +117,10 @@ function createPdcAiIntakeService(options = {}) {
     });
   }
 
+  function monitorStatus() {
+    return call('get_pdc_email_monitor_status', {});
+  }
+
   function subscribe(onRevision) {
     if (!subscribeRealtime) return { unsubscribe() {} };
     return subscribeRealtime(PDC_AI_INTAKE_REVISION_TABLE, event => {
@@ -124,7 +128,7 @@ function createPdcAiIntakeService(options = {}) {
     });
   }
 
-  return { projectRef: PDC_AI_INTAKE_STAGING_PROJECT_REF, authority: 'supabase_staging_ai_intake_only', snapshot, decide, subscribe };
+  return { projectRef: PDC_AI_INTAKE_STAGING_PROJECT_REF, authority: 'supabase_staging_ai_intake_only', snapshot, decide, monitorStatus, subscribe };
 }
 
 if (typeof module !== 'undefined' && module.exports) {

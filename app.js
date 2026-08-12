@@ -19884,6 +19884,35 @@ function initServerAiIntakeIfAvailable() {
   return service;
 }
 
+async function refreshPdcEmailMonitorStatus(service, authority, lifecycle, generation) {
+  const host = $('#pdc-email-monitor-status');
+  const details = $('#pdc-email-monitor-error');
+  if (!host || typeof service?.monitorStatus !== 'function') return false;
+  const response = await service.monitorStatus();
+  if (generation !== app.serverAiIntakeGeneration
+      || lifecycle !== app.serverAiIntakeLifecycleGeneration
+      || authority !== serverAiIntakeAuthMarker()
+      || service !== app.serverAiIntakeService) return false;
+  if (!response.ok) {
+    host.innerHTML = '<article><span>Pilot</span><strong>Unavailable</strong></article>';
+    if (details) details.textContent = String(response.code || 'Monitor status unavailable');
+    return false;
+  }
+  const status = response.data || {};
+  const label = value => value === null || value === undefined || value === '' ? '—' : String(value);
+  const when = value => value ? new Date(value).toLocaleString() : '—';
+  host.innerHTML = [
+    ['Pilot', status.pilot_enabled ? 'Enabled' : 'Disabled'],
+    ['Service', label(status.running_status)], ['Queue', label(status.queue_count)],
+    ['Failed', label(status.failed_count)], ['Review', label(status.review_count)],
+    ['Mailbox start', `UID ${label(status.minimum_uid)}`],
+    ['Last success', when(status.last_successful_run)],
+    ['Last error', label(status.last_error_code)],
+  ].map(([name, value]) => `<article><span>${escapeHtml(name)}</span><strong>${escapeHtml(value)}</strong></article>`).join('');
+  if (details) details.textContent = JSON.stringify(status, null, 2);
+  return true;
+}
+
 async function refreshServerAiIntake(options = {}) {
   const authority = serverAiIntakeAuthMarker();
   const lifecycle = app.serverAiIntakeLifecycleGeneration;
@@ -19901,6 +19930,12 @@ async function refreshServerAiIntake(options = {}) {
   if (!options.silent) app.serverAiIntakeState = 'loading';
   renderServerAiIntake();
   const response = await service.snapshot(filter, 150);
+  const monitorStatusPromise = refreshPdcEmailMonitorStatus(service, authority, lifecycle, generation);
+  if (generation !== app.serverAiIntakeGeneration
+      || lifecycle !== app.serverAiIntakeLifecycleGeneration
+      || authority !== serverAiIntakeAuthMarker()
+      || service !== app.serverAiIntakeService) return false;
+  await monitorStatusPromise;
   if (generation !== app.serverAiIntakeGeneration
       || lifecycle !== app.serverAiIntakeLifecycleGeneration
       || authority !== serverAiIntakeAuthMarker()
