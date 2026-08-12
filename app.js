@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.12.38-workshop-highlight-runtime';
+const APP_VERSION = '2026.08.13.39-workshop-tile-authority';
 const WORKSHOP_PLANNER_SCRIPT_VERSION = APP_VERSION;
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
@@ -8149,10 +8149,10 @@ function confirmPartsIncompleteMovement(vehicle = {}, stage = '') {
   const nextStage = normalizePmbStage(stage);
   const partsStatus = partsDepartmentStatus(vehicle);
   if (!partsIncompleteMovementStage(nextStage) || ['issued', 'notrequired'].includes(partsStatus)) return { updates: {}, audit: null };
-  const operator = cleanNavisionText(localStorage.getItem(OPERATOR_NAME_KEY) || '');
-  const role = cleanNavisionText(localStorage.getItem(OPERATOR_ROLE_KEY) || '');
+  const operator = cleanNavisionText(window.PDC_AUTH_CONTEXT?.displayName || window.PDC_AUTH_CONTEXT?.email || localStorage.getItem(OPERATOR_NAME_KEY) || '');
+  const role = cleanNavisionText(window.PDC_AUTH_CONTEXT?.role || localStorage.getItem(OPERATOR_ROLE_KEY) || '');
   if (!operator || !role) {
-    window.alert('Set your operator name and role before moving a Parts-incomplete vehicle into a physical bay. No vehicle was changed.');
+    window.alert('Your authenticated operator identity and role are unavailable. Sign out and back in before moving a Parts-incomplete vehicle into a physical bay. No vehicle was changed.');
     return null;
   }
   if (!partsMovementOverrideRoleAllowed(role)) {

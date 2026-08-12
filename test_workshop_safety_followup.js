@@ -85,6 +85,8 @@ const confirmEnd = appSource.indexOf('async function movePmbVehicleToStage(');
 const confirmSource = appSource.slice(confirmStart, confirmEnd);
 assert.ok(!confirmSource.includes('recordVehicleAudit('), 'The override dialog must not write an audit before the bay movement commits');
 assert.ok(!confirmSource.includes('saveVehicleEdits('), 'The override dialog must not mutate vehicle state before the bay movement commits');
+assert.ok(appSource.includes("window.PDC_AUTH_CONTEXT?.displayName || window.PDC_AUTH_CONTEXT?.email || localStorage.getItem(OPERATOR_NAME_KEY)"), 'Parts-gated tile movement must use the authenticated operator identity before legacy browser-local fallback');
+assert.ok(appSource.includes("window.PDC_AUTH_CONTEXT?.role || localStorage.getItem(OPERATOR_ROLE_KEY)"), 'Authenticated Administrator authority must take precedence over stale or missing browser-local operator roles');
 assert.ok(appSource.includes("if (partsDecision === null) return;"), 'Cancelled override must return before mutation');
 assert.ok(appSource.includes("runStorageTransaction('Assign vehicle to PMB bay', [EDITS_KEY, AUDIT_LOG_KEY, ...extraTransactionKeys]"), 'Bay assignment, override audit and vehicle edits must share one transaction');
 assert.ok(appSource.includes("recordVehicleAudit(vehicle, 'Parts-incomplete movement override', partsDecision.audit)"), 'Approved override reason must be audited during the committed movement');
