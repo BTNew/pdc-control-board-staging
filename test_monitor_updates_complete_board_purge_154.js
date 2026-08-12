@@ -6,6 +6,7 @@ for(const token of ['workshop_sync_vehicle_stage_booking_duration','v_original_c
 assert(sql.includes("r.role='viewer'")&&sql.includes('pdc_monitor_stage_activation_writers'),'Monitor update contracts must retain exact approved Viewer/writer authority');
 assert(sql.includes('delete from public.workshop_bookings')&&sql.includes('delete from public.vehicle_work_items')&&sql.includes('delete from public.vehicle_parts_updates')&&sql.includes('delete from public.vehicle_workshop_line_adjustments'),'Complete Board purge must remove all mutable Workshop/Parts projections');
 assert(!sql.includes('delete from public.pdc_authenticated_email_import_receipts')&&!sql.includes('delete from public.pdc_authenticated_email_operation_lines')&&!sql.includes('delete from public.audit_events'),'Purge must retain immutable email and audit evidence');
-assert(actions.includes("rpc('purge_vehicle_from_board'"),'Lifecycle bridge must call complete purge RPC');
-assert(app.includes('Permanently remove')&&app.includes('Immutable source and audit evidence will be retained'),'UI must describe complete Board purge and evidence retention');
+assert(actions.includes("rpc('purge_vehicle_from_board'"),'Legacy lifecycle bridge must retain complete purge RPC for migration-154 compatibility');
+assert(app.includes('Archives this vehicle from active Board screens')&&app.includes('Tombstone and audit evidence are retained'),'Current UI must describe migration-205 recoverable archive and evidence retention');
+assert(!app.includes('Permanently remove vehicle from Board'),'Current UI must not offer the migration-154 destructive purge path');
 console.log('Monitor update and complete Board purge contract passed');

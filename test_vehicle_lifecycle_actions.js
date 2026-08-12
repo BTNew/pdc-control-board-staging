@@ -164,17 +164,42 @@ function fakeClient(responder) {
   });
 }
 
-// 6. A failed HTTP-level request (not a 200 with ok:false body) is
-// surfaced as a structured { ok: false, error: 'request_failed', ... }
-// rather than throwing or returning the raw fetch result.
+// 6. HTTP failures preserve the exact backend body, message and code.
 {
-  const client = fakeClient(() => ({ status: 500, ok: false, body: { message: 'boom' } }));
+  const response = { status: 409, ok: false, body: { code: 'stock_confirmation_mismatch', message: 'Stock confirmation must exactly match 13016934.' } };
+  const client = fakeClient(() => response);
   const bridge = buildVehicleLifecycleSharedActions(client, () => 'tok');
   bridge.qcCompleteVehicle({ vehicleId: 'v4', expectedVersion: 1 }).then(result => {
     assert.strictEqual(result.ok, false, '6a failed request reports ok:false');
-    assert.strictEqual(result.error, 'request_failed', '6b failed request uses the request_failed error code');
-    assert.strictEqual(result.status, 500, '6c failed request status is preserved for diagnostics');
-    console.log('PASS 6: HTTP-level failures are surfaced as a structured, non-throwing result');
+    assert.strictEqual(result.error, 'stock_confirmation_mismatch', '6b exact backend code is preserved');
+    assert.strictEqual(result.code, 'stock_confirmation_mismatch', '6c code has a dedicated field');
+    assert.strictEqual(result.message, 'Stock confirmation must exactly match 13016934.', '6d exact backend message is preserved');
+    assert.strictEqual(result.status, 409, '6e failed request status is preserved');
+    assert.strictEqual(result.body, response.body, '6f exact response body is preserved');
+    assert.strictEqual(result.response, response, '6g complete transport response is preserved');
+    assert.strictEqual(describeVehicleLifecycleActionError(result), 'Stock confirmation must exactly match 13016934. (stock_confirmation_mismatch)', '6h formatter displays exact server message and code');
+    console.log('PASS 6: HTTP-level failures preserve exact backend response/message/body/code');
+  });
+}
+
+// 6b. Migration 205 Administrator lifecycle RPCs use exact parameter shapes.
+{
+  const client = fakeClient(() => ({ status: 200, ok: true, body: { ok: true } }));
+  const bridge = buildVehicleLifecycleSharedActions(client, () => 'admin-token');
+  Promise.all([
+    bridge.adminArchiveVehicle({ vehicleId: 'v205', expectedVersion: 12, stockConfirmation: '13016934', reason: 'Duplicate test', resetTest: true }),
+    bridge.adminRestoreVehicle({ tombstoneId: 't205', stockConfirmation: '13016934', reason: 'Validated restore' }),
+    bridge.adminAllowOneVehicleRecreation({ tombstoneId: 't205', stockConfirmation: '13016934', reason: 'Corrected source retry' }),
+    bridge.adminDeletedVehicleSnapshot(),
+  ]).then(() => {
+    assert.deepStrictEqual(client.calls.map(call => ({ name: call.name, params: call.params })), [
+      { name: 'pdc_admin_reset_staging_test_vehicle', params: { p_vehicle_id: 'v205', p_expected_version: 12, p_confirmation_stock: '13016934', p_reason: 'Duplicate test' } },
+      { name: 'pdc_admin_restore_vehicle', params: { p_tombstone_id: 't205', p_confirmation_stock: '13016934', p_reason: 'Validated restore' } },
+      { name: 'pdc_admin_allow_vehicle_recreation_once', params: { p_tombstone_id: 't205', p_confirmation_stock: '13016934', p_reason: 'Corrected source retry', p_ttl_minutes: 30 } },
+      { name: 'pdc_admin_archived_vehicle_snapshot', params: { p_tombstone_id: null, p_limit: 100 } },
+    ]);
+    assert(client.calls.every(call => call.token === 'admin-token'));
+    console.log('PASS 6b: migration 205 Administrator lifecycle RPC parameter shapes are exact');
   });
 }
 

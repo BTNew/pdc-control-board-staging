@@ -1950,6 +1950,10 @@ const app = {
   emailVehicleLocationRevision: null,
   emailVehicleLocationGeneration: 0,
   emailVehicleLocationRealtime: null,
+  deletedVehicleSnapshotRows: [],
+  deletedVehicleSnapshotState: 'idle',
+  deletedVehicleSnapshotError: '',
+  deletedVehicleSnapshotGeneration: 0,
   subletMutationQueues: new Map(),
   subletViewMode: 'list',
   subletCalendarMode: 'week',
@@ -2957,12 +2961,13 @@ function setAdminNavigationExpanded(expanded) {
 
 function syncAdminNavigationVisibility() {
   const group = $('#nav-admin-group');
-  if (!group) return false;
   // The group also contains destinations historically available to approved
   // non-administrator staff. Every destination and write remains role/RLS
   // gated; hiding this disclosure is not an authority boundary.
   const allowed = Boolean(window.PDC_AUTH_CONTEXT?.userId || window.PDC_AUTH_CONTEXT?.email);
-  group.hidden = !allowed;
+  if (group) group.hidden = !allowed;
+  const deletedNav = document.querySelector('.nav-item[data-view="deleted"]');
+  if (deletedNav) deletedNav.hidden = !vehicleLifecycleAdministratorActive();
   if (!allowed) setAdminNavigationExpanded(false);
   return allowed;
 }
@@ -4121,6 +4126,28 @@ function vehicleLifecycleSharedModeActive() {
     && vehicleLifecycleSharedModeEnabled(window.PDC_SUPABASE_CONFIG);
 }
 
+function vehicleLifecycleAdministratorActive() {
+  return window.PDC_AUTH_CONTEXT?.role === 'administrator';
+}
+
+function vehicleLifecycleStagingResetAllowed() {
+  const config = window.PDC_SUPABASE_CONFIG || {};
+  return vehicleLifecycleSharedModeActive()
+    && config.projectRef === 'cdsmnqxtyyoeoznmbidd'
+    && String(config.url || '').replace(/\/$/, '') === 'https://cdsmnqxtyyoeoznmbidd.supabase.co';
+}
+
+function vehicleLifecycleActionErrorMessage(result = {}) {
+  return typeof describeVehicleLifecycleActionError === 'function'
+    ? describeVehicleLifecycleActionError(result)
+    : (result?.message || result?.body?.message || result?.error || 'The vehicle lifecycle action failed.');
+}
+
+async function refreshVehicleLifecycleLocationsAndRender() {
+  await refreshEmailVehicleLocations();
+  renderAll();
+}
+
 function resetEmailVehicleLocations() {
   app.emailVehicleLocationGeneration += 1;
   try { app.emailVehicleLocationRealtime?.unsubscribe?.(); } catch (_error) { /* best-effort teardown */ }
@@ -4160,7 +4187,10 @@ function initEmailVehicleLocationsIfAvailable() {
       });
     } catch (_error) { return null; }
   }
-  if (!app.emailVehicleLocationRealtime) app.emailVehicleLocationRealtime = app.emailVehicleLocationService.subscribe(() => refreshEmailVehicleLocations());
+  if (!app.emailVehicleLocationRealtime) app.emailVehicleLocationRealtime = app.emailVehicleLocationService.subscribe(() => {
+    refreshEmailVehicleLocations();
+    if (vehicleLifecycleAdministratorActive() && app.deletedVehicleSnapshotState !== 'idle') loadDeletedVehicleSnapshot({ force: true });
+  });
   refreshEmailVehicleLocations();
   return app.emailVehicleLocationService;
 }
@@ -11514,64 +11544,64 @@ function closeVehicleModal() {
   document.body.classList.remove('modal-open');
 }
 
-function vehicleRequiresCanonicalSharedDelete(vehicle = {}) {
-  return vehicle.__emailVehicleServerAuthoritative === true
-    || vehicle.__sharedNavisionReadOnly === true
-    || vehicle.__locationIdentityReadOnly === true
-    || Boolean(String(vehicle.__sharedNavisionCanonicalVehicleId || vehicle.sharedVehicleId || '').trim());
-}
-
-async function removeVehicle(stock) {
+async function removeVehicle(stock, { resetTest = false } = {}) {
   const vehicle = selectedVehicle(stock);
   if (!vehicle || !vehicleLocationActionAllowed(vehicle, 'delete')) return false;
-  const label = `${vehicleIdentityTitle(vehicle) || 'this vehicle'} - ${vehicleCustomerName(vehicle) || 'Unknown customer'}`;
-  if (!window.confirm(`Permanently remove ${label} from every Board screen?\n\nWorkshop bookings, requirements, Parts and mutable Board state will be removed. Immutable source and audit evidence will be retained for safety.`)) return false;
-
-  if (vehicleRequiresCanonicalSharedDelete(vehicle)) {
-    if (!vehicleLifecycleSharedModeActive() || typeof window.__vehicleLifecycleActions?.markVehicleDeleted !== 'function') {
-      window.alert('Shared vehicle deletion is unavailable. No vehicle was changed.');
-      return false;
-    }
-    const reason = cleanNavisionText(window.prompt('Reason for deleting this vehicle (required):', '') || '');
-    if (!reason) {
-      window.alert('A deletion reason is required. No vehicle was changed.');
-      return false;
-    }
-    // Resolve exactly one current canonical UUID and version at click time.
-    // Projection/source flags never provide deletion authority by themselves.
-    const ref = await vehicleLifecycleSharedRef(vehicle);
-    if (!ref || ref.outcome !== 'resolved') {
-      window.alert(describeVehicleLifecycleResolutionOutcome(ref));
-      return false;
-    }
-    if (ref.isArchived) {
-      window.alert('This vehicle is already in Deleted or Completed vehicles.');
-      await refreshEmailVehicleLocations();
-      closeVehicleModal();
-      return false;
-    }
-    const result = await window.__vehicleLifecycleActions.markVehicleDeleted({
-      vehicleId: ref.vehicleId,
-      expectedVersion: ref.version,
-      reason,
-    });
-    if (!result || result.ok !== true) {
-      await refreshEmailVehicleLocations();
-      window.alert(typeof describeVehicleLifecycleActionError === 'function'
-        ? describeVehicleLifecycleActionError(result?.error)
-        : 'The vehicle could not be completely removed from the Board.');
-      return false;
-    }
-    await refreshEmailVehicleLocations();
-    closeVehicleModal();
-    renderAll();
-    return true;
+  if (!vehicleLifecycleAdministratorActive()) {
+    window.alert('Administrator access is required. No vehicle was changed.');
+    return false;
+  }
+  if (!vehicleLifecycleSharedModeActive() || typeof window.__vehicleLifecycleActions?.adminArchiveVehicle !== 'function') {
+    window.alert('Shared vehicle lifecycle service is unavailable. No vehicle was changed.');
+    return false; // Fail closed: destructive shared-mode actions never use localStorage.
+  }
+  if (resetTest && !vehicleLifecycleStagingResetAllowed()) {
+    window.alert('Reset Staging Test Vehicle is available only in the staging environment. No vehicle was changed.');
+    return false;
   }
 
-  // A shared/Navision row never reaches browser-local deletion after an
-  // ambiguous, stale, archived, unauthorized, or unavailable resolution.
-  removeVehiclesFromTracker([vehicle]);
-  refreshAfterVehicleRemoval();
+  const ref = await vehicleLifecycleSharedRef(vehicle);
+  if (!ref || ref.outcome !== 'resolved') {
+    window.alert(describeVehicleLifecycleResolutionOutcome(ref));
+    return false;
+  }
+  if (ref.isArchived) {
+    window.alert('This vehicle is already in Deleted or Completed vehicles.');
+    await refreshVehicleLifecycleLocationsAndRender();
+    return false;
+  }
+  const stockNumber = cleanNavisionText(displayStockNumber(vehicle) || '');
+  const customer = cleanNavisionText(vehicleCustomerName(vehicle) || 'Unknown customer');
+  const vehicleUuid = cleanNavisionText(ref.vehicleId || '');
+  if (!stockNumber || !vehicleUuid) {
+    window.alert('The exact Stock Number or vehicle UUID is unavailable. No vehicle was changed.');
+    return false;
+  }
+  const actionLabel = resetTest ? 'Reset Staging Test Vehicle' : 'Delete Vehicle';
+  if (!window.confirm(`${actionLabel}\n\nStock Number: ${stockNumber}\nCustomer: ${customer}\nVehicle UUID: ${vehicleUuid}\n\nThis archives the vehicle from active Board screens while retaining its tombstone and audit evidence.`)) return false;
+  const stockConfirmation = cleanNavisionText(window.prompt(`Type the exact Stock Number (${stockNumber}) to confirm:`, '') || '');
+  if (stockConfirmation !== stockNumber) {
+    window.alert('Stock Number confirmation did not match exactly. No vehicle was changed.');
+    return false;
+  }
+  const reason = cleanNavisionText(window.prompt(`Reason for ${resetTest ? 'resetting this staging test vehicle' : 'deleting this vehicle'} (required):`, '') || '');
+  if (!reason) {
+    window.alert('A reason is required. No vehicle was changed.');
+    return false;
+  }
+  const result = await window.__vehicleLifecycleActions.adminArchiveVehicle({
+    vehicleId: ref.vehicleId,
+    expectedVersion: ref.version,
+    stockConfirmation,
+    reason,
+    resetTest,
+  });
+  if (!result || result.ok !== true) {
+    await refreshVehicleLifecycleLocationsAndRender();
+    window.alert(vehicleLifecycleActionErrorMessage(result));
+    return false;
+  }
+  await refreshVehicleLifecycleLocationsAndRender();
   closeVehicleModal();
   return true;
 }
@@ -11698,10 +11728,14 @@ function renderDetail() {
         <button class="primary" type="submit">Add note</button>
       </form>
       <div class="notes-list">${notes.map(n => `<div class="note-pill">${escapeHtml(n)}</div>`).join('') || '<div class="subtle">No notes added yet.</div>'}</div>
-      <div class="detail-danger-zone">
-        <div><strong>Permanently remove vehicle from Board</strong><span>Removes all mutable Board, Workshop and Parts state. Immutable source and audit evidence is retained.</span></div>
-        <button class="danger ghost" type="button" data-remove-vehicle="${escapeHtml(key)}">Delete vehicle</button>
+      ${vehicleLifecycleAdministratorActive() && vehicleLifecycleSharedModeActive() ? `<div class="detail-danger-zone">
+        <div><strong>Delete Vehicle</strong><span>Archives this vehicle from active Board screens. Tombstone and audit evidence are retained.</span></div>
+        <button class="danger ghost" type="button" data-remove-vehicle="${escapeHtml(key)}">Delete Vehicle</button>
       </div>
+      ${vehicleLifecycleStagingResetAllowed() ? `<div class="detail-danger-zone">
+        <div><strong>Reset Staging Test Vehicle</strong><span>Staging-only reset for an Administrator-controlled test vehicle.</span></div>
+        <button class="danger ghost" type="button" data-reset-test-vehicle="${escapeHtml(key)}">Reset Staging Test Vehicle</button>
+      </div>` : ''}` : ''}
     </div>`}
   `;
   bindVehicleDetailTabs(panel);
@@ -11710,6 +11744,7 @@ function renderDetail() {
   on($('[data-email-vehicle-update]', panel), 'click', () => draftSelectedVehicleStatusEmail(key));
   bindVehicleLabelButtons(panel);
   on($('[data-remove-vehicle]', panel), 'click', () => removeVehicle(key));
+  on($('[data-reset-test-vehicle]', panel), 'click', () => removeVehicle(key, { resetTest: true }));
   on($('[data-modal-cancel]', panel), 'click', closeVehicleModal);
 
   $$('[data-confirm-pdc-job-line]', panel).forEach(button => {
@@ -13484,42 +13519,129 @@ function deletedVehicleRows() {
     });
 }
 
+function deletedVehicleSnapshotRecord(row = {}) {
+  const tombstone = row.tombstone && typeof row.tombstone === 'object' ? row.tombstone : row;
+  const vehicleSnapshot = row.vehicle_snapshot && typeof row.vehicle_snapshot === 'object' ? row.vehicle_snapshot : {};
+  const events = Array.isArray(row.lifecycle_events) ? row.lifecycle_events : [];
+  return {
+    ...row,
+    tombstoneId: row.tombstone_id || tombstone.tombstone_id || '',
+    id: row.vehicle_id || row.id || tombstone.vehicle_id || tombstone.id || '',
+    version: Number(row.version ?? tombstone.version ?? vehicleSnapshot.version ?? 0),
+    stockNumber: row.stock_number || tombstone.stock_number || '',
+    customerName: row.customer_name || tombstone.customer_name || vehicleSnapshot.customer_name || '',
+    vehicleDescription: row.vehicle_description || vehicleSnapshot.vehicle_description || [row.make || tombstone.make || vehicleSnapshot.make, row.model || tombstone.model || vehicleSnapshot.model].filter(Boolean).join(' '),
+    deletedAt: row.deleted_at || row.archived_at || tombstone.deleted_at || tombstone.archived_at || '',
+    deletedBy: row.deleted_by_email || row.deleted_by || row.archived_by || tombstone.deleted_by_email || tombstone.deleted_by || tombstone.archived_by || '',
+    deleteReason: row.delete_reason || row.archive_reason || row.reason || tombstone.delete_reason || tombstone.reason || '',
+    resetEligible: (row.tombstone_kind || tombstone.tombstone_kind) === 'staging_reset',
+    restored: events.some(event => event?.event_kind === 'restored'),
+    recreationAllowed: events.some(event => event?.event_kind === 'recreation_authorized')
+      && !events.some(event => event?.event_kind === 'recreation_consumed'),
+    recreationConsumed: events.some(event => event?.event_kind === 'recreation_consumed'),
+  };
+}
+
+async function loadDeletedVehicleSnapshot({ force = false } = {}) {
+  if (!vehicleLifecycleAdministratorActive() || !vehicleLifecycleSharedModeActive()
+      || typeof window.__vehicleLifecycleActions?.adminDeletedVehicleSnapshot !== 'function') return false;
+  if (!force && ['loading', 'ready'].includes(app.deletedVehicleSnapshotState)) return true;
+  const generation = ++app.deletedVehicleSnapshotGeneration;
+  app.deletedVehicleSnapshotState = 'loading';
+  app.deletedVehicleSnapshotError = '';
+  const result = await window.__vehicleLifecycleActions.adminDeletedVehicleSnapshot();
+  if (generation !== app.deletedVehicleSnapshotGeneration) return false;
+  if (!result || result.ok === false || result.error) {
+    app.deletedVehicleSnapshotState = 'error';
+    app.deletedVehicleSnapshotError = vehicleLifecycleActionErrorMessage(result);
+  } else {
+    const payload = result?.data && typeof result.data === 'object' ? result.data : result;
+    const rows = Array.isArray(payload) ? payload : (payload?.items || payload?.vehicles || payload?.deleted_vehicles || payload?.rows || []);
+    app.deletedVehicleSnapshotRows = rows.map(deletedVehicleSnapshotRecord);
+    app.deletedVehicleSnapshotState = 'ready';
+  }
+  if (app.currentView === 'deleted') renderDeletedVehicles();
+  return app.deletedVehicleSnapshotState === 'ready';
+}
+
+async function runDeletedVehicleAdminAction(tombstoneId, action) {
+  if (!vehicleLifecycleAdministratorActive()) return false;
+  const row = app.deletedVehicleSnapshotRows.find(item => String(item.tombstoneId) === String(tombstoneId));
+  if (!row || row.restored) return false;
+  const label = action === 'restore' ? 'Restore Vehicle' : 'Allow one controlled recreation';
+  if (action !== 'restore' && (!row.resetEligible || row.recreationAllowed || row.recreationConsumed)) return false;
+  const stockConfirmation = cleanNavisionText(window.prompt(`Type the exact Stock Number (${row.stockNumber}) to confirm:`, '') || '');
+  if (stockConfirmation !== row.stockNumber) {
+    window.alert('Stock Number confirmation did not match exactly. No vehicle was changed.');
+    return false;
+  }
+  const reason = cleanNavisionText(window.prompt(`Reason for ${label.toLowerCase()} (required):`, '') || '');
+  if (!reason) {
+    window.alert('A reason is required. No vehicle was changed.');
+    return false;
+  }
+  const method = action === 'restore' ? 'adminRestoreVehicle' : 'adminAllowOneVehicleRecreation';
+  const result = await window.__vehicleLifecycleActions[method]({ tombstoneId, stockConfirmation, reason });
+  if (!result || result.ok !== true) {
+    window.alert(vehicleLifecycleActionErrorMessage(result));
+    await loadDeletedVehicleSnapshot({ force: true });
+    await refreshVehicleLifecycleLocationsAndRender();
+    return false;
+  }
+  await loadDeletedVehicleSnapshot({ force: true });
+  await refreshVehicleLifecycleLocationsAndRender();
+  return true;
+}
+
 function renderDeletedVehicles() {
   const host = $('#deleted-vehicles-content');
   if (!host) return;
-  const rows = deletedVehicleRows();
-  if (!rows.length) {
-    host.innerHTML = '<div class="empty-state"><strong>No deleted vehicles saved</strong><span>Vehicles deleted from the Control Board or RFT will appear here with their audit trail.</span></div>';
+  if (!vehicleLifecycleAdministratorActive()) {
+    host.innerHTML = '<div class="empty-state"><strong>Administrator access required</strong><span>Deleted vehicle tombstones and lifecycle actions are restricted to Administrators.</span></div>';
     return;
   }
-  host.innerHTML = `<div class="incoming-vertical-list deleted-compact-list">${productionGridHeaderHtml('deleted-production-grid-header', { meta1Label: 'Deleted', meta2Label: 'Deleted by', actionLabel: 'Record' })}${rows.map(record => {
-    const vehicle = record.vehicle || { stock: record.key };
-    const key = record.key || vehicleKey(vehicle);
-    const deletedAt = parseIsoTimestamp(record.deletedAt || '');
-    const deletedLabel = deletedAt ? deletedAt.toLocaleString('en-AU', { dateStyle: 'short', timeStyle: 'short' }) : 'Unknown time';
-    const customer = vehicleCustomerName(vehicle) || 'Unknown customer';
-    const unit = displayVehicle(vehicle) || 'Vehicle not listed';
-    return `
-      <details class="incoming-vehicle-card pdc-production-grid-card deleted-vehicle-row" data-deleted-row="${escapeHtml(key)}">
-        <summary class="incoming-vehicle-summary pdc-production-grid-row deleted-vehicle-summary">
-          <span class="pdc-grid-select-spacer" aria-hidden="true"></span>
-          <span class="incoming-card-stock">${vehicleIdentityStackHtml(vehicle, { className: 'incoming-identity' })}</span>
-          <span class="incoming-card-main"><strong title="${escapeHtml(unit)}">${escapeHtml(unit)}</strong></span>
-          <span class="incoming-card-work-wrap">${incomingWorkChecklistHtml(vehicle)}</span>
-          <span class="incoming-card-meta incoming-card-age"><b>Deleted</b><span>${escapeHtml(deletedLabel)}</span></span>
-          <span class="incoming-card-meta"><b>By</b><span>${escapeHtml(record.deletedBy || 'Unknown')}</span></span>
-          <span class="incoming-card-action deleted-card-actions"><span class="parts-status-pill blocked">Deleted</span><button class="small-button" type="button" disabled title="Deleted vehicle records cannot be deleted again">Locked</button></span>
-        </summary>
-        <div class="incoming-vehicle-detail-grid deleted-vehicle-detail-grid">
-          <div><b>Stock</b><span>${escapeHtml(displayStockNumber(vehicle) || key)}</span></div>
-
-          <div><b>Key</b><span>${escapeHtml(vehicleKeyNumber(vehicle) || '—')}</span></div>
-          <div><b>Deleted by</b><span>${escapeHtml(record.deletedBy || 'Unknown')}${record.deletedRole ? ` (${escapeHtml(record.deletedRole)})` : ''}</span></div>
-          <div class="wide"><b>Movement / deletion log</b>${renderAuditTrailSection(vehicle)}</div>
+  if (!vehicleLifecycleSharedModeActive()) {
+    host.innerHTML = '<div class="empty-state"><strong>Shared lifecycle unavailable</strong><span>Deleted vehicles cannot be managed from local browser storage.</span></div>';
+    return;
+  }
+  if (app.deletedVehicleSnapshotState === 'idle') {
+    host.innerHTML = '<div class="empty-state"><strong>Loading Deleted Vehicles…</strong></div>';
+    loadDeletedVehicleSnapshot();
+    return;
+  }
+  if (app.deletedVehicleSnapshotState === 'loading') {
+    host.innerHTML = '<div class="empty-state"><strong>Loading Deleted Vehicles…</strong></div>';
+    return;
+  }
+  if (app.deletedVehicleSnapshotState === 'error') {
+    host.innerHTML = `<div class="empty-state"><strong>Could not load Deleted Vehicles</strong><span>${escapeHtml(app.deletedVehicleSnapshotError)}</span></div>`;
+    return;
+  }
+  const q = ($('#deleted-search')?.value || '').trim().toLowerCase();
+  const rows = app.deletedVehicleSnapshotRows.filter(row => !q || [row.stockNumber, row.customerName, row.vehicleDescription, row.id, row.deletedBy, row.deleteReason].join(' ').toLowerCase().includes(q));
+  if (!rows.length) {
+    host.innerHTML = '<div class="empty-state"><strong>No deleted vehicles</strong><span>No matching server tombstones were returned.</span></div>';
+    return;
+  }
+  host.innerHTML = `<div class="incoming-vertical-list deleted-compact-list">${rows.map(row => `
+    <details class="incoming-vehicle-card deleted-vehicle-row">
+      <summary class="incoming-vehicle-summary"><strong>${escapeHtml(row.stockNumber || 'No stock number')}</strong><span>${escapeHtml(row.customerName || 'Unknown customer')}</span><span class="parts-status-pill blocked">Deleted</span></summary>
+      <div class="incoming-vehicle-detail-grid deleted-vehicle-detail-grid">
+        <div><b>Stock Number</b><span>${escapeHtml(row.stockNumber || '—')}</span></div>
+        <div><b>Customer</b><span>${escapeHtml(row.customerName || '—')}</span></div>
+        <div><b>Vehicle</b><span>${escapeHtml(row.vehicleDescription || '—')}</span></div>
+        <div><b>Vehicle UUID</b><span>${escapeHtml(row.id || '—')}</span></div>
+        <div><b>Deleted at</b><span>${escapeHtml(row.deletedAt || '—')}</span></div>
+        <div><b>Deleted by</b><span>${escapeHtml(row.deletedBy || '—')}</span></div>
+        <div class="wide"><b>Reason</b><span>${escapeHtml(row.deleteReason || '—')}</span></div>
+        <div class="wide deleted-card-actions">
+          <button class="small-button primary" type="button" data-restore-deleted-vehicle="${escapeHtml(row.tombstoneId)}" ${row.restored ? 'disabled title="Vehicle has already been restored"' : ''}>Restore Vehicle</button>
+          ${row.resetEligible ? `<button class="small-button" type="button" data-allow-vehicle-recreation="${escapeHtml(row.tombstoneId)}" ${(row.recreationAllowed || row.recreationConsumed || row.restored) ? `disabled title="${row.recreationConsumed ? 'One-time recreation permission was consumed' : row.restored ? 'Vehicle has been restored' : 'One controlled recreation is already allowed'}"` : ''}>Allow one controlled recreation</button>` : ''}
         </div>
-      </details>`;
-  }).join('')}</div>`;
-  updateCollapseToggleButtons();
+      </div>
+    </details>`).join('')}</div>`;
+  $$('[data-restore-deleted-vehicle]', host).forEach(button => button.addEventListener('click', () => runDeletedVehicleAdminAction(button.dataset.restoreDeletedVehicle, 'restore')));
+  $$('[data-allow-vehicle-recreation]', host).forEach(button => button.addEventListener('click', () => runDeletedVehicleAdminAction(button.dataset.allowVehicleRecreation, 'recreate')));
 }
 
 function sharedNavisionVisibleData(result = null) {
