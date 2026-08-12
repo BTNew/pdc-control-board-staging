@@ -1,13 +1,13 @@
 {
   "environment": "staging",
   "application_version": "2026.08.12.37-supervised-monitor-pilot",
-  "source_commit": "7e64264dfba4633e6bd92fd0be54449647f37647",
-  "parent_staging_commit": "3f18049517f2cf94a4c42fecc9b7e53b35030c4e",
+  "source_commit": "9d947b3468bb27e54e186c8e839ccf0861721263",
+  "parent_staging_commit": "6108c9edc424e1cc0f3b52d07b1510133013708f",
   "staging_project_ref": "cdsmnqxtyyoeoznmbidd",
   "production_unchanged": true,
   "mailbox_authority": true,
   "pilot_enabled": true,
-  "deployed_at_utc": "2026-08-12T11:44:36.195951+00:00",
+  "deployed_at_utc": "2026-08-12T11:48:30.488411+00:00",
   "files": {
     "app.js": {
       "sha256": "8f35d449eb78a7bd332c30e5d5fc22a5053b9f6b68f4e73b255f785318655a9f",
@@ -106,5 +106,6 @@
       "bytes": 7423
     }
   },
-  "supervised_learning_migration_head": 223
+  "supervised_learning_migration_head": 223,
+  "runtime_monitor_source_only": true
 }
