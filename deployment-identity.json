@@ -52,6 +52,10 @@
     "supabase/staging_only/211_vehicle_archive_environment_reattestation.sql": {
       "sha256": "05742b1b1ee79a6cd1c5976220aa0349d3b52bef87ed7cdf0b9f7cffce16fce5",
       "bytes": 3468
+    },
+    "supabase/staging_only/212_retained_uid_1477_recreation_import.sql": {
+      "sha256": "7224ec15fd5b361fd441e1edbec0b1c07be9504176d848d5398a0b1ef4245d52",
+      "bytes": 19474
     }
   }
 }
