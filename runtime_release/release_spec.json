@@ -1,0 +1,27 @@
+{
+  "release_series": "pdc-monitor-staging-runtime",
+  "expected_staging_project_ref": "cdsmnqxtyyoeoznmbidd",
+  "migration_head": 223,
+  "mailbox_uid_floor": 471,
+  "denied_uid_probe": 470,
+  "outbound_email_enabled": false,
+  "attachment_atomic_import_gate_enabled": true,
+  "windows_service_name": "PDC-PMB-Email-Monitor-Staging",
+  "entry_point": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts\\run-cycle.ps1",
+  "health_check_command": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts\\health-check.ps1",
+  "rollback_command": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts\\rollback.ps1",
+  "required_environment_variables": [
+    "SUPABASE_URL",
+    "SUPABASE_ANON_KEY",
+    "PDC_MONITOR_ACCESS_TOKEN",
+    "IMAP_BRIDGE_HOST",
+    "IMAP_BRIDGE_USERNAME",
+    "IMAP_BRIDGE_PASSWORD",
+    "IMAP_BRIDGE_FOLDER",
+    "IMAP_BRIDGE_MINIMUM_UID",
+    "IMAP_BRIDGE_MARK_READ",
+    "PDC_MONITOR_GATEWAY_INSTANCE_ID",
+    "PDC_SUPERVISED_MONITOR_JWT",
+    "PDC_SUPERVISED_ACTOR_JWT"
+  ]
+}

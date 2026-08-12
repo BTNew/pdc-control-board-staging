@@ -89,15 +89,14 @@ def run_step(argv: list[str], timeout: int) -> dict[str, Any]:
     return {"ok": completed.returncode == 0, "returncode": completed.returncode, "result": parsed}
 
 
-def record_database_cycle(status: str, error_code: str | None = None, error: str | None = None) -> bool:
+def record_database_cycle(env_path: Path, status: str, error_code: str | None = None, error: str | None = None) -> bool:
     """Record importer/processor wrapper state through the scoped staging identity."""
     try:
-        from backend.email_intake_processor import SupabaseClient, _monitor_access_token, load_dotenv
-        env_path = BACKEND / ".env.staging"
+        from backend.email_intake_processor import SupabaseClient, _is_exact_staging_url, _monitor_access_token, load_dotenv
         load_dotenv(env_path)
         url = os.environ.get("SUPABASE_URL", os.environ.get("PDC_STAGING_SUPABASE_URL", "")).strip()
         anon_key = os.environ.get("SUPABASE_ANON_KEY", os.environ.get("PDC_STAGING_ANON_KEY", "")).strip()
-        if "cdsmnqxtyyoeoznmbidd.supabase.co" not in url or not anon_key:
+        if not _is_exact_staging_url(url) or not anon_key:
             return False
         client = SupabaseClient(url, anon_key, _monitor_access_token(url, anon_key))
         try:
@@ -111,7 +110,7 @@ def record_database_cycle(status: str, error_code: str | None = None, error: str
         return False
 
 
-def run_cycle(import_timeout: int = 180, process_timeout: int = 300) -> int:
+def run_cycle(env_path: Path, import_timeout: int = 180, process_timeout: int = 300) -> int:
     started = datetime.now(timezone.utc).isoformat()
     try:
         lock = acquire_lock(LOCK_PATH)
@@ -121,17 +120,17 @@ def run_cycle(import_timeout: int = 180, process_timeout: int = 300) -> int:
     try:
         importer = run_step([
             sys.executable, str(BACKEND / "imap_bridge.py"),
-            "--env-file", str(BACKEND / ".env.staging"),
+            "--env-file", str(env_path),
         ], import_timeout)
         if not importer["ok"]:
             status = {"ok": False, "at": started, "phase": "email_import", "email_import": importer}
-            record_database_cycle("degraded", "email_import_failed", json.dumps(importer["result"], default=str)[:8000])
+            record_database_cycle(env_path, "degraded", "email_import_failed", json.dumps(importer["result"], default=str)[:8000])
             atomic_json(STATUS_PATH, status)
             print(json.dumps(status, sort_keys=True))
             return 1
         processor = run_step([
             sys.executable, str(BACKEND / "email_intake_processor.py"),
-            "--env-file", str(BACKEND / ".env.staging"),
+            "--env-file", str(env_path),
         ], process_timeout)
         status = {
             "ok": bool(processor["ok"]),
@@ -143,7 +142,7 @@ def run_cycle(import_timeout: int = 180, process_timeout: int = 300) -> int:
         }
         atomic_json(STATUS_PATH, status)
         if not status["ok"]:
-            record_database_cycle("degraded", "email_processing_failed", json.dumps(processor["result"], default=str)[:8000])
+            record_database_cycle(env_path, "degraded", "email_processing_failed", json.dumps(processor["result"], default=str)[:8000])
         print(json.dumps(status, sort_keys=True))
         return 0 if status["ok"] else 1
     finally:
@@ -152,10 +151,11 @@ def run_cycle(import_timeout: int = 180, process_timeout: int = 300) -> int:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Run one independent PDC email watcher cycle")
+    parser.add_argument("--env-file", type=Path, default=BACKEND / ".env.staging")
     parser.add_argument("--import-timeout", type=int, default=180)
     parser.add_argument("--process-timeout", type=int, default=300)
     args = parser.parse_args()
-    return run_cycle(args.import_timeout, args.process_timeout)
+    return run_cycle(args.env_file.resolve(), args.import_timeout, args.process_timeout)
 
 
 if __name__ == "__main__":
