@@ -1,21 +1,23 @@
 [CmdletBinding()] param(
  [string]$BundleRoot=(Split-Path -Parent $PSScriptRoot),
  [string]$InstallRoot="$env:ProgramData\PDCMonitor\Staging",
+ [Parameter(Mandatory=$true)][string]$ExpectedManifestSha256,
  [switch]$StaticOnly
 )
 $ErrorActionPreference='Stop';$service='PDC-PMB-Email-Monitor-Staging'
-& (Join-Path $BundleRoot 'scripts\verify.ps1') -BundleRoot $BundleRoot
+& (Join-Path $BundleRoot 'scripts\verify.ps1') -BundleRoot $BundleRoot -ExpectedManifestSha256 $ExpectedManifestSha256
 if($LASTEXITCODE -ne 0){throw 'Bundle verification failed.'}
 $manifest=Get-Content (Join-Path $BundleRoot 'release-manifest.json') -Raw|ConvertFrom-Json
 $releaseDir=Join-Path $InstallRoot ("releases\"+$manifest.release_version)
 if(Test-Path $releaseDir){Remove-Item $releaseDir -Recurse -Force}
 New-Item $releaseDir -ItemType Directory -Force|Out-Null
 Copy-Item (Join-Path $BundleRoot '*') $releaseDir -Recurse -Force
-& (Join-Path $releaseDir 'scripts\verify.ps1') -BundleRoot $releaseDir
+& (Join-Path $releaseDir 'scripts\verify.ps1') -BundleRoot $releaseDir -ExpectedManifestSha256 $ExpectedManifestSha256
 if($LASTEXITCODE -ne 0){throw 'Installed-byte verification failed.'}
 New-Item (Join-Path $InstallRoot 'config') -ItemType Directory -Force|Out-Null
 if(-not(Test-Path (Join-Path $InstallRoot 'config\runtime.env'))){Copy-Item (Join-Path $releaseDir 'templates\runtime.env.example') (Join-Path $InstallRoot 'config\runtime.env.example') -Force}
 Set-Content (Join-Path $InstallRoot 'CURRENT') $manifest.release_version -Encoding ascii
+Set-Content (Join-Path $InstallRoot 'MANIFEST_SHA256') $ExpectedManifestSha256 -Encoding ascii
 if($StaticOnly){[pscustomobject]@{ok=$true;static_only=$true;task_registered=$false;intake_started=$false;release=$manifest.release_version;path=$releaseDir}|ConvertTo-Json -Compress;exit 0}
 $python=(Get-Command python.exe -ErrorAction Stop).Source
 $venv=Join-Path $releaseDir '.venv'; & $python -m venv $venv

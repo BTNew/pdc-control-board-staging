@@ -16,8 +16,10 @@ FORBIDDEN_SECRET_NAMES=re.compile(r"(password|secret|token|refresh|private[_-]?k
 def fail(msg): raise ValueError(msg)
 def digest(path): return hashlib.sha256(path.read_bytes()).hexdigest()
 def main(argv=None):
- p=argparse.ArgumentParser();p.add_argument('--bundle',default=str(Path(__file__).resolve().parents[1]));a=p.parse_args(argv)
+ p=argparse.ArgumentParser();p.add_argument('--bundle',default=str(Path(__file__).resolve().parents[1]));p.add_argument('--expected-manifest-sha256',required=True);a=p.parse_args(argv)
  root=Path(a.bundle).resolve(); mp=root/'release-manifest.json'
+ if not re.fullmatch(r'[0-9a-f]{64}',a.expected_manifest_sha256): fail('expected manifest checksum invalid')
+ if digest(mp)!=a.expected_manifest_sha256: fail('manifest checksum mismatch')
  data=json.loads(mp.read_text(encoding='utf-8'))
  if data.get('release_version','')=='' or data.get('source_sha','')=='' or data.get('staging_deployment_sha','')=='': fail('provenance missing')
  for key in ('source_sha','staging_deployment_sha'):

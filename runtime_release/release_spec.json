@@ -8,7 +8,11 @@
   "attachment_atomic_import_gate_enabled": true,
   "windows_service_name": "PDC-PMB-Email-Monitor-Staging",
   "entry_point": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts\\run-cycle.ps1",
+  "verification_command": "python verify_release.py --bundle . --expected-manifest-sha256 <PUBLISHED_MANIFEST_SHA256>",
+  "installation_command": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts\\install.ps1 -BundleRoot . -ExpectedManifestSha256 <PUBLISHED_MANIFEST_SHA256>",
+  "start_command": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts\\start.ps1",
   "health_check_command": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts\\health-check.ps1",
+  "stop_command": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts\\stop.ps1",
   "rollback_command": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts\\rollback.ps1",
   "required_environment_variables": [
     "SUPABASE_URL",
