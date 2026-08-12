@@ -1,13 +1,13 @@
 {
   "environment": "staging",
   "application_version": "2026.08.12.36-delete-vehicle",
-  "source_commit": "09be75c58b601da32c6d836d4f4eea59172c84ab",
-  "parent_staging_commit": "3b8e5a3911990ec97b00ce3350c4e04986f6a7a5",
+  "source_commit": "9f537610129903fefd889123af3450f2991529fc",
+  "parent_staging_commit": "90ebbd39ed020697709a96ef5b07d2e46d50d78e",
   "staging_project_ref": "cdsmnqxtyyoeoznmbidd",
   "production_unchanged": true,
   "mailbox_authority": false,
   "pilot_enabled": false,
-  "deployed_at_utc": "2026-08-12T10:55:02.086158+00:00",
+  "deployed_at_utc": "2026-08-12T11:11:57.227317+00:00",
   "files": {
     "app.js": {
       "sha256": "099f61580be4cd1cb226364234004269d425408bd22141e1bbc69a0d1f0e95bb",
@@ -76,7 +76,27 @@
     "supabase/staging_only/217_supervised_correction_evidence_and_admin_telegram_enrollment.sql": {
       "sha256": "bc554a2348f1a66c50633ac429a830d2267683cb7fd70b9a587acf44e8112b89",
       "bytes": 6874
+    },
+    "supabase/staging_only/218_supervised_active_version_and_hours_guard.sql": {
+      "sha256": "d3d189f786be2d51e92eb64653c6e7bae490662f1bb53a690a47959064ee83e8",
+      "bytes": 5201
+    },
+    "supabase/staging_only/219_supervised_active_version_schema_fix.sql": {
+      "sha256": "929d8d1530f9c124bb698f1c06e012195cf760449367c55fa2d25e621c43f232",
+      "bytes": 5475
+    },
+    "supabase/staging_only/220_supervised_active_winner_repair.sql": {
+      "sha256": "9c74b01f047a870db7870d4331c2cf8ce07f066a57d12f43642e81c21213688c",
+      "bytes": 5862
+    },
+    "supabase/staging_only/221_supervised_replay_undo_precedence_hardening.sql": {
+      "sha256": "db50895db1a35c9d59bc8ee4cf4422952a586e74abce1784c33a68e2833d0e5f",
+      "bytes": 11254
+    },
+    "supabase/staging_only/222_supervised_review_standard_hours.sql": {
+      "sha256": "5ab79c6e333522df632e345c43bc31c82143d74901342fd0c45a6c7addacfb0a",
+      "bytes": 4162
     }
   },
-  "supervised_learning_migration_head": 217
+  "supervised_learning_migration_head": 222
 }
