@@ -1,7 +1,7 @@
 {
   "environment": "staging",
   "application_version": "2026.08.12.36-delete-vehicle",
-  "source_commit": "1433b30b3bafeba03590cdbfd6114ebfd020cae5",
+  "source_commit": "0305cb2e1c902ee96552ec683c55d6edaaf60ebf",
   "parent_staging_commit": "76e20e7aa94b31f72bf780f9f00a1dfb75f83534",
   "staging_project_ref": "cdsmnqxtyyoeoznmbidd",
   "production_unchanged": true,
