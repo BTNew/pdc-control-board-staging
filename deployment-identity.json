@@ -1,7 +1,7 @@
 {
   "environment": "staging",
-  "application_version": "2026.08.12.37-supervised-monitor-pilot",
-  "source_commit": "854a629570d318d6ba2bd4211a840b9097c3ec63",
+  "application_version": "2026.08.12.38-supervised-monitor-handoff-security",
+  "source_commit": "08035e4eb2de72d027b0e72d2c07f6d819c9bbbe",
   "parent_staging_commit": "c0156f73a5a83d2d10b08239074bc5455bb2921d",
   "staging_project_ref": "cdsmnqxtyyoeoznmbidd",
   "production_unchanged": true,
@@ -104,12 +104,16 @@
     "supabase/staging_only/223_supervised_monitor_pilot_activation.sql": {
       "sha256": "d8ebc72ada4bc2075973a0221e09672357548827df26943e8ceb76d8d1ff9874",
       "bytes": 7423
+    },
+    "supabase/staging_only/224_close_monitor_direct_table_dml.sql": {
+      "sha256": "bcea5395b75012feb377d0afdfc397d9faf761ebcef2e06626dc05295e09f50a",
+      "bytes": 4100
     }
   },
-  "supervised_learning_migration_head": 223,
+  "supervised_learning_migration_head": 224,
   "runtime_monitor_source_only": false,
   "runtime_handoff_published": true,
-  "runtime_release_id": "pdc-monitor-staging-runtime-2026.08.12.2",
+  "runtime_release_id": "pdc-monitor-staging-runtime-2026.08.12.3",
   "runtime_release_source_remote": "https://github.com/BTNew/pdc-control-board.git",
-  "runtime_release_source_tag": "pdc-monitor-staging-runtime-2026.08.12.2"
+  "runtime_release_source_tag": "pdc-monitor-staging-runtime-2026.08.12.3"
 }
