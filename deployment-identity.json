@@ -1,13 +1,13 @@
 {
   "environment": "staging",
   "application_version": "2026.08.12.37-supervised-monitor-pilot",
-  "source_commit": "9d947b3468bb27e54e186c8e839ccf0861721263",
-  "parent_staging_commit": "6108c9edc424e1cc0f3b52d07b1510133013708f",
+  "source_commit": "938bd80808559c93ceb9d52b18c2c67b51b4c7c0",
+  "parent_staging_commit": "c0156f73a5a83d2d10b08239074bc5455bb2921d",
   "staging_project_ref": "cdsmnqxtyyoeoznmbidd",
   "production_unchanged": true,
   "mailbox_authority": true,
   "pilot_enabled": true,
-  "deployed_at_utc": "2026-08-12T11:48:30.488411+00:00",
+  "deployed_at_utc": "2026-08-12T11:58:16.184502+00:00",
   "files": {
     "app.js": {
       "sha256": "8f35d449eb78a7bd332c30e5d5fc22a5053b9f6b68f4e73b255f785318655a9f",
