@@ -77,6 +77,7 @@ for (const role of ['operator', 'importer', 'administrator']) {
   vm.runInContext(
     functionSource('serverAiIntakeAuthMarker', 'resetServerAiIntakeAuthorityState')
       + functionSource('resetServerAiIntakeAuthorityState', 'serverAiIntakeService')
+      + functionSource('refreshPdcEmailMonitorStatus', 'refreshServerAiIntake')
       + functionSource('refreshServerAiIntake', 'serverAuthoritativeAiIntakeEnabled'),
     context,
   );

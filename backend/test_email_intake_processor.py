@@ -12,6 +12,8 @@ try:
         extract_attachment,
         extract_job_lines,
         operation_display_description,
+        _is_exact_staging_url,
+        run_once,
     )
 except ModuleNotFoundError:
     from email_intake_processor import (
@@ -22,10 +24,37 @@ except ModuleNotFoundError:
         extract_attachment,
         extract_job_lines,
         operation_display_description,
+        _is_exact_staging_url,
+        run_once,
     )
 
 
 class EmailIntakeProcessorTests(unittest.TestCase):
+    def test_supabase_url_guard_requires_exact_staging_origin(self):
+        self.assertTrue(_is_exact_staging_url("https://cdsmnqxtyyoeoznmbidd.supabase.co"))
+        for value in (
+            "https://evil-cdsmnqxtyyoeoznmbidd.attacker.example",
+            "http://cdsmnqxtyyoeoznmbidd.supabase.co",
+            "https://cdsmnqxtyyoeoznmbidd.supabase.co.evil",
+            "https://cdsmnqxtyyoeoznmbidd.supabase.co/path",
+            "https://user@cdsmnqxtyyoeoznmbidd.supabase.co",
+        ):
+            self.assertFalse(_is_exact_staging_url(value), value)
+
+    def test_queue_lookup_failure_records_terminal_degraded_cycle(self):
+        class Client:
+            def __init__(self): self.calls = []
+            def rpc(self, name, params):
+                self.calls.append((name, params))
+                return {"ok": True}
+            def pending_intakes(self, _limit):
+                raise RuntimeError("queue unavailable")
+        client = Client()
+        with self.assertRaisesRegex(RuntimeError, "queue unavailable"):
+            run_once(client)
+        self.assertEqual([call[1]["p_running_status"] for call in client.calls], ["running", "degraded"])
+        self.assertEqual(client.calls[-1][1]["p_error_code"], "queue_lookup_failed")
+
     def test_three_distinct_job_lines_produce_three_independent_lines(self):
         body = """
         Stock Number: 47123

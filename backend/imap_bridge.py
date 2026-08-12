@@ -47,6 +47,7 @@ DEFAULT_EVIDENCE_DIR = Path(os.environ.get("IMAP_BRIDGE_EVIDENCE_DIR", "backend/
 DEFAULT_IMAP_HOST = "outlook.office365.com"
 DEFAULT_IMAP_PORT = 993
 STAGING_PROJECT_REF = "cdsmnqxtyyoeoznmbidd"
+STAGING_HOST = f"{STAGING_PROJECT_REF}.supabase.co"
 
 
 @dataclass
@@ -377,7 +378,14 @@ def supabase_scoped_client() -> tuple[str, str, str]:
     anon_key = os.environ.get("SUPABASE_ANON_KEY", "").strip()
     if not base or not anon_key:
         raise RuntimeError("Staging SUPABASE_URL and SUPABASE_ANON_KEY are required")
-    if STAGING_PROJECT_REF not in (urllib.parse.urlparse(base).hostname or ""):
+    try:
+        parsed = urllib.parse.urlsplit(base)
+        port = parsed.port
+    except ValueError as exc:
+        raise RuntimeError("Refusing invalid staging Supabase URL") from exc
+    if (parsed.scheme != "https" or parsed.hostname != STAGING_HOST or port is not None
+            or parsed.username is not None or parsed.password is not None
+            or parsed.path not in ("", "/") or parsed.query or parsed.fragment):
         raise RuntimeError(f"Refusing non-staging Supabase project; required project is {STAGING_PROJECT_REF}")
     token = _monitor_access_token(base, anon_key)
     if token == anon_key:

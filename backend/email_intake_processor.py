@@ -24,6 +24,7 @@ import urllib.request
 import zipfile
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
+from decimal import Decimal
 from pathlib import Path
 from typing import Any, Iterable
 
@@ -35,6 +36,7 @@ except ModuleNotFoundError:
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_ENV = ROOT / "backend" / ".env.staging"
 STAGING_PROJECT_REF = "cdsmnqxtyyoeoznmbidd"
+STAGING_HOST = f"{STAGING_PROJECT_REF}.supabase.co"
 MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024
 MAX_EXTRACTED_CHARS = 120_000
 SUPPORTED_EXTENSIONS = {
@@ -712,7 +714,19 @@ def run_once(client: SupabaseClient, limit: int = 20) -> dict[str, Any]:
         raise RuntimeError("monitor cycle start telemetry failed")
     summary: dict[str, Any] = {"ok": True, "seen": 0, "processed": 0, "review": 0, "duplicates": 0, "failed": 0, "results": []}
     transient_codes = {"database_unavailable", "temporary_failure", "processing_failed", "backend_unavailable", "timeout"}
-    for record in client.pending_intakes(limit):
+    try:
+        records = client.pending_intakes(limit)
+    except Exception as exc:
+        error = f"{type(exc).__name__}: {exc}"[:8000]
+        recorded = client.rpc("record_pdc_email_monitor_cycle", {
+            "p_running_status": "degraded",
+            "p_error_code": "queue_lookup_failed",
+            "p_error": error,
+        })
+        if recorded.get("ok") is not True:
+            raise RuntimeError(f"monitor queue lookup failed and finish telemetry failed: {error}") from exc
+        raise
+    for record in records:
         summary["seen"] += 1
         intake_id = str(record["id"])
         claim_token = str(record.get("claim_token") or "")
@@ -764,6 +778,17 @@ def _monitor_access_token(url: str, anon_key: str) -> str:
     return token
 
 
+def _is_exact_staging_url(value: str) -> bool:
+    try:
+        parsed = urllib.parse.urlsplit(value)
+        port = parsed.port
+    except (TypeError, ValueError):
+        return False
+    return (parsed.scheme == "https" and parsed.hostname == STAGING_HOST and port is None
+            and parsed.username is None and parsed.password is None
+            and parsed.path in ("", "/") and not parsed.query and not parsed.fragment)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Process retained PDC email intake into idempotent work-item proposals")
     parser.add_argument("--env-file", default=str(DEFAULT_ENV))
@@ -781,7 +806,7 @@ def main() -> int:
     if not url or not anon_key:
         print(json.dumps({"ok": False, "error": "STAGING SUPABASE_URL and SUPABASE_ANON_KEY are required in the ignored backend/.env.staging"}))
         return 2
-    if STAGING_PROJECT_REF not in (urllib.parse.urlparse(url).hostname or ""):
+    if not _is_exact_staging_url(url):
         print(json.dumps({"ok": False, "error": "Refusing non-staging Supabase project", "required_project_ref": STAGING_PROJECT_REF}))
         return 3
     try:
