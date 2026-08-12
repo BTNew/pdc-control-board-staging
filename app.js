@@ -4145,9 +4145,16 @@ function vehicleLifecycleAdministratorActive() {
 
 function vehicleLifecycleStagingResetAllowed() {
   const config = window.PDC_SUPABASE_CONFIG || {};
+  const location = window.location || {};
+  const origin = String(location.origin || '').replace(/\/$/, '');
+  const pathname = String(location.pathname || '');
+  const approvedPath = pathname === '/pdc-control-board-staging/'
+    || pathname === '/pdc-control-board-staging/index.html';
   return vehicleLifecycleSharedModeActive()
     && config.projectRef === 'cdsmnqxtyyoeoznmbidd'
-    && String(config.url || '').replace(/\/$/, '') === 'https://cdsmnqxtyyoeoznmbidd.supabase.co';
+    && String(config.url || '').replace(/\/$/, '') === 'https://cdsmnqxtyyoeoznmbidd.supabase.co'
+    && origin === 'https://btnew.github.io'
+    && approvedPath;
 }
 
 function vehicleLifecycleActionErrorMessage(result = {}) {

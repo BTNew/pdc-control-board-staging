@@ -7,6 +7,7 @@ const actions = fs.readFileSync('vehicle-lifecycle-actions.js', 'utf8');
 const remove = app.slice(app.indexOf('async function removeVehicle('), app.indexOf('function renderDetail('));
 const detail = app.slice(app.indexOf('function renderDetail('), app.indexOf('function renderNavisionDetailSection('));
 const allowed = app.slice(app.indexOf('function vehicleLocationActionAllowed('), app.indexOf('function renderSharedNavisionVisibilityState('));
+const resetGuard = app.slice(app.indexOf('function vehicleLifecycleStagingResetAllowed('), app.indexOf('function vehicleLifecycleActionErrorMessage('));
 
 assert(remove.includes('vehicleLifecycleAdministratorActive()'), 'Delete must require Administrator role');
 assert(remove.includes('vehicleLifecycleSharedModeActive()'), 'Delete must require shared lifecycle mode');
@@ -26,6 +27,9 @@ assert(detail.includes('vehicleLifecycleAdministratorActive() && vehicleLifecycl
 assert(detail.includes('>Delete Vehicle</button>'), 'Active detail must show Delete Vehicle');
 assert(detail.includes('vehicleLifecycleStagingResetAllowed()'), 'Reset control must use staging guard');
 assert(detail.includes('>Reset Staging Test Vehicle</button>'), 'Staging detail must offer reset control');
+assert(resetGuard.includes("origin === 'https://btnew.github.io'"), 'Reset guard must require the approved staging Pages origin');
+assert(resetGuard.includes("pathname === '/pdc-control-board-staging/'"), 'Reset guard must require the approved staging Pages root path');
+assert(resetGuard.includes("pathname === '/pdc-control-board-staging/index.html'"), 'Reset guard must permit only the approved explicit staging index path');
 assert(actions.includes("'pdc_admin_archive_vehicle'"), 'Lifecycle bridge must call pdc_admin_archive_vehicle');
 assert(actions.includes("'pdc_admin_reset_staging_test_vehicle'"), 'Lifecycle bridge must call the staging reset RPC');
 assert(allowed.includes("operation === 'delete'"), 'Read-only canonical rows must have an explicit Delete authority path');
