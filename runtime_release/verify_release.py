@@ -48,9 +48,11 @@ def main(argv=None):
  env=data.get('required_environment_variables')
  if not isinstance(env,list) or any('=' in x or FORBIDDEN_SECRET_NAMES.fullmatch(x or '') for x in env): fail('environment variable names invalid')
  forbidden=[]
+ private_key_signature = b'BEGIN ' + b'PRIVATE KEY'
+ jwt_signature = b'eyJ' + b'hbGciOi'
  for rel in files:
   raw=(root/rel).read_bytes()
-  if b'BEGIN PRIVATE KEY' in raw or b'eyJhbGciOi' in raw: forbidden.append(rel)
+  if private_key_signature in raw or jwt_signature in raw: forbidden.append(rel)
  if forbidden: fail('credential material signature found: '+','.join(forbidden))
  print(json.dumps({'ok':True,'activation_ready':True,'release_version':data['release_version'],'source_sha':data['source_sha'],'staging_deployment_sha':data['staging_deployment_sha'],'migration_head':223,'project_ref':EXPECTED_REF,'canonical_rpc_adapter_verified':True,'attachment_atomic_import_gate_enabled':True,'supervised_learning_runtime_verified':True,'mailbox_uid_floor':data['mailbox_uid_floor'],'uid_470_denied':True,'outbound_email_enabled':False,'non_staging_urls_rejected':True},sort_keys=True))
  return 0
