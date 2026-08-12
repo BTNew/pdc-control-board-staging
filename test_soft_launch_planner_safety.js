@@ -37,7 +37,7 @@ assert.strictEqual(planner.workshopNewBookingValidation(future, now).ok, true, '
 
 const duringToday = new Date(2030, 6, 15, 10, 40, 0, 0);
 const todaySlot = planner.workshopFirstAvailableStartSlot('TYRE', 1, '2030-07-15', 1, [], 0, 2, duringToday);
-assert.deepStrictEqual(todaySlot, { dateKey: '2030-07-15', startMinutes: 165 }, 'Today Best slot must round 10:40 up to 10:45, never offer the elapsed 8:00 start');
+assert.deepStrictEqual(todaySlot, { dateKey: '2030-07-15', startMinutes: 225 }, 'Today Best slot must round 10:40 up to 10:45, never offer the elapsed 7:00 start');
 const afterHours = new Date(2030, 6, 15, 16, 5, 0, 0);
 const nextDaySlot = planner.workshopFirstAvailableStartSlot('TYRE', 1, '2030-07-15', 1, [], 0, 2, afterHours);
 assert.deepStrictEqual(nextDaySlot, { dateKey: '2030-07-16', startMinutes: 0 }, 'After-hours Best slot must advance to the next workday');

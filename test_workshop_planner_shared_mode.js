@@ -505,16 +505,16 @@ console.log('Workshop planner shared-mode integration seam checks passed');
 }
 
 // 13. workshopDateAtOffset: exact drag/drop time-coordinate calculation.
-// Dropping at 10:30am (150 minutes after 8:00am) must resolve to exactly
-// 10:30, never snap back to the workshop start time.
+// Dropping at 9:30am (150 minutes after 7:00am) must resolve exactly,
+// never snapping back to the workshop start time.
 {
   const dateKey = '2026-07-17';
-  const tenThirty = planner.workshopDateAtOffset(dateKey, 150);
-  assert.strictEqual(tenThirty.getHours(), 10, '13a dropping at minute-offset 150 must resolve to 10am, not 8am');
-  assert.strictEqual(tenThirty.getMinutes(), 30, '13b dropping at minute-offset 150 must resolve to :30, not :00');
-  const eightAm = planner.workshopDateAtOffset(dateKey, 0);
-  assert.strictEqual(eightAm.getHours(), 8, '13c minute-offset 0 must still resolve to 8am (the actual start, not an accidental default)');
-  assert.strictEqual(planner.workshopMinuteOffset(tenThirty), 150, '13d workshopMinuteOffset must round-trip back to the same 150-minute offset');
+  const nineThirty = planner.workshopDateAtOffset(dateKey, 150);
+  assert.strictEqual(nineThirty.getHours(), 9, '13a dropping at minute-offset 150 must resolve to 9am, not 7am');
+  assert.strictEqual(nineThirty.getMinutes(), 30, '13b dropping at minute-offset 150 must resolve to :30, not :00');
+  const sevenAm = planner.workshopDateAtOffset(dateKey, 0);
+  assert.strictEqual(sevenAm.getHours(), 7, '13c minute-offset 0 must resolve to the 7am workshop start');
+  assert.strictEqual(planner.workshopMinuteOffset(nineThirty), 150, '13d workshopMinuteOffset must round-trip back to the same 150-minute offset');
   console.log('PASS 13: workshopDateAtOffset resolves drag/drop pixel-derived minute offsets to the exact requested time, never snapping to day start');
 }
 

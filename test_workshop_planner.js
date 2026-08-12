@@ -23,9 +23,9 @@ const workshopPlannerNavViews = ['planner-bus-4x4', 'planner-tint', 'planner-hoi
 const appVersion = (app.match(/const APP_VERSION = '([^']+)'/) || [])[1];
 assert.ok(appVersion, 'app.js must define APP_VERSION');
 
-assert.strictEqual(planner.WORKSHOP_CONFIG.dayStartMinutes, 480, 'Workshop boot config must start at integer minute 480');
+assert.strictEqual(planner.WORKSHOP_CONFIG.dayStartMinutes, 420, 'Workshop boot config must start at 7:00am (integer minute 420)');
 assert.strictEqual(planner.WORKSHOP_CONFIG.dayEndMinutes, 960, 'Workshop boot config must finish at integer minute 960');
-assert.strictEqual(planner.WORKSHOP_CONFIG.dayLengthMinutes, 480, 'Workshop day should contain 480 integer minutes');
+assert.strictEqual(planner.WORKSHOP_CONFIG.dayLengthMinutes, 540, 'Workshop day should contain 540 integer minutes from 7:00am to 4:00pm');
 assert.strictEqual(planner.WORKSHOP_CONFIG.defaultBookingDurationMinutes, 60, 'Missing estimates should use only the one-hour safety fallback, never the removed three-hour test default');
 assert.deepStrictEqual(
   planner.WORKSHOP_STAGE_SEQUENCE,
@@ -51,7 +51,7 @@ assert.deepStrictEqual(planner.workshopWeekDates(weekStart).map(date => date.get
 
 assert.strictEqual(planner.workshopSnapMinutes(22), 15, 'Times should snap to 15-minute intervals');
 assert.strictEqual(planner.workshopSnapMinutes(23), 30, 'Times should snap to the nearest 15 minutes');
-assert.strictEqual(planner.workshopClampStartMinutes(500), 465, 'Latest start must be 3:45pm');
+assert.strictEqual(planner.workshopClampStartMinutes(600), 525, 'Latest start must be 3:45pm relative to the 7:00am day start');
 assert.strictEqual(planner.workshopClampLineHours(0.5), 0.5, 'Imported job lines may retain sub-three-hour estimates');
 assert.strictEqual(planner.workshopClampDurationHours(0.5), 1, 'Planner bookings must enforce the approved one-hour minimum');
 assert.strictEqual(planner.workshopClampDurationHours(20), 20, 'Workshop jobs must not have a maximum-hour limit');
@@ -70,7 +70,7 @@ assert.match(source, /metadata: \{ source: 'manual_estimated_time' \}/, 'Shared 
 const longJobEnd = planner.workshopAddWorkMinutes(new Date(2026, 6, 17, 14, 0, 0, 0), 12 * 60);
 assert.strictEqual(longJobEnd.getDay(), 2, 'A 12-hour Friday job should carry through Monday into Tuesday');
 assert.strictEqual(longJobEnd.getDate(), 21, 'A 12-hour Friday job should finish on Tuesday 21 July');
-assert.strictEqual(longJobEnd.getHours(), 10, 'Carried work should finish at 10:00am Tuesday');
+assert.strictEqual(longJobEnd.getHours(), 8, 'Carried work should finish at 8:00am Tuesday with the 7:00am workshop start');
 assert.ok(planner.workshopIntervalsOverlap(60, 120, 90, 150), 'Overlapping bay slots should be detected');
 assert.ok(!planner.workshopIntervalsOverlap(60, 120, 120, 180), 'Back-to-back bay slots should be allowed');
 
@@ -82,6 +82,16 @@ global.nowIsoString = () => new Date(2026, 6, 14, 10, 0, 0, 0).toISOString();
 global.vehicleKey = vehicle => vehicle.id;
 global.pmbBayNumber = vehicle => vehicle.bay || '';
 global.cleanNavisionText = value => String(value || '').trim();
+assert.strictEqual(
+  planner.workshopNewBookingValidation({ startAt: new Date(2030, 6, 15, 6, 45).toISOString(), hours: 1 }, new Date(2030, 6, 14, 12, 0)).error,
+  'outside_work_window',
+  'A future booking before 7:00am must be rejected',
+);
+assert.strictEqual(
+  planner.workshopNewBookingValidation({ startAt: new Date(2030, 6, 15, 7, 0).toISOString(), hours: 1 }, new Date(2030, 6, 14, 12, 0)).ok,
+  true,
+  'A future booking at exactly 7:00am must be accepted',
+);
 global.app = { data: [{ id: 'active', bay: 1 }, { id: 'next', bay: '' }] };
 global.selectedVehicle = key => {
   const matches = global.app.data.filter(vehicle => vehicle.id === key);
@@ -218,38 +228,38 @@ global.selectedVehicle = key => warningVehicles[key] || null;
 const firstLaterSlot = planner.workshopFirstAvailableStartMinutes('FITTING', 1, '2026-07-16', 3, [
   { id: 'FITTING::occupied', vehicleKey: 'occupied', stage: 'FITTING', bay: 1, startAt: new Date(2026, 6, 16, 8, 0).toISOString(), hours: 3, status: 'planned' },
 ]);
-assert.strictEqual(firstLaterSlot, 180, 'The direct scheduler should suggest 11:00am after an 8:00am–11:00am booking in the same bay');
+assert.strictEqual(firstLaterSlot, 240, 'The direct scheduler should suggest 11:00am after an 8:00am–11:00am booking when offsets begin at 7:00am');
 const queueDropBackToBackSlot = planner.workshopFirstAvailableStartSlot('TINT', 2, '2026-06-17', 3, [
   { id: 'TINT::12544489', vehicleKey: '12544489', stage: 'TINT', bay: 2, startAt: new Date(2026, 5, 17, 9, 30).toISOString(), hours: 3, status: 'planned' },
 ]);
-assert.deepStrictEqual(queueDropBackToBackSlot, { dateKey: '2026-06-17', startMinutes: 270 }, 'A new queue card should start at 12:30pm directly after the existing 9:30am–12:30pm booking');
+assert.deepStrictEqual(queueDropBackToBackSlot, { dateKey: '2026-06-17', startMinutes: 330 }, 'A new queue card should start at 12:30pm directly after the existing 9:30am–12:30pm booking');
 const nextWorkdaySequenceSlot = planner.workshopFirstAvailableStartSlot('TINT', 2, '2026-06-17', 3, [
-  { id: 'TINT::full-day', vehicleKey: 'full-day', stage: 'TINT', bay: 2, startAt: new Date(2026, 5, 17, 8, 0).toISOString(), hours: 8, status: 'planned' },
+  { id: 'TINT::full-day', vehicleKey: 'full-day', stage: 'TINT', bay: 2, startAt: new Date(2026, 5, 17, 7, 0).toISOString(), hours: 9, status: 'planned' },
 ]);
-assert.deepStrictEqual(nextWorkdaySequenceSlot, { dateKey: '2026-06-18', startMinutes: 0 }, 'A full bay day should advance the next vehicle to 8:00am on the following workday');
+assert.deepStrictEqual(nextWorkdaySequenceSlot, { dateKey: '2026-06-18', startMinutes: 0 }, 'A full bay day should advance the next vehicle to 7:00am on the following workday');
 const bestFabSlot = planner.workshopBestStageSlot('FABRICATION', '2026-07-16', 3, [
   { id: 'FABRICATION::bay-1', vehicleKey: 'bay-1', stage: 'FABRICATION', bay: 1, startAt: new Date(2026, 6, 16, 8, 0).toISOString(), hours: 3, status: 'planned' },
   { id: 'FABRICATION::bay-2', vehicleKey: 'bay-2', stage: 'FABRICATION', bay: 2, startAt: new Date(2026, 6, 16, 11, 0).toISOString(), hours: 3, status: 'planned' },
 ]);
 assert.deepStrictEqual(bestFabSlot, { stage: 'FABRICATION', bay: 2, dateKey: '2026-07-16', startMinutes: 0 }, 'Best-slot suggestions should choose the earliest open bay across the stage, not only the current bay');
-const boundedAllBaySlot = planner.workshopBestStageSlot('FITTING', '2026-07-16', 8, Array.from({ length: 5 }, (_, index) => ({
+const boundedAllBaySlot = planner.workshopBestStageSlot('FITTING', '2026-07-16', 9, Array.from({ length: 5 }, (_, index) => ({
   id: `FITTING::bounded-${index + 1}`,
   vehicleKey: `bounded-${index + 1}`,
   stage: 'FITTING',
   bay: index + 1,
-  startAt: new Date(2026, 6, 16, 8, 0).toISOString(),
-  hours: 8,
+  startAt: new Date(2026, 6, 16, 7, 0).toISOString(),
+  hours: 9,
   status: 'planned',
 })), 0, '2026-07-16');
 assert.strictEqual(boundedAllBaySlot, null, 'An authoritative Best-slot window must not invent an empty opening after the loaded date range');
 assert.ok(source.includes('let plans = workshopCascadePlans(authoritativePlans, new Date()).rows;'), 'Dedicated planners must render the pure live schedule projection');
 assert.ok(!source.includes('dedicatedStage ? workshopLoadPlans() : workshopCascadeAndSave'), 'Dedicated planners must not bypass live projection or persist clock-driven movement');
 assert.ok(source.includes('for (let windowIndex = 0; windowIndex < 9 && !slot; windowIndex += 1)'), 'Shared Best slot must search consecutive authoritative date windows');
-assert.match(planner.workshopSlotSummary('FABRICATION', 2, '2026-07-16', 0), /Fab · Bay 02 · Thu,? 16\/07,?.*8:00 am/i, 'Slot summaries should show the stage, bay and suggested work time clearly');
-let horizonDate = new Date(2026, 5, 17, 8, 0, 0, 0);
+assert.match(planner.workshopSlotSummary('FABRICATION', 2, '2026-07-16', 0), /Fab · Bay 02 · Thu,? 16\/07,?.*7:00 am/i, 'Slot summaries should show the stage, bay and suggested work time clearly');
+let horizonDate = new Date(2026, 5, 17, 7, 0, 0, 0);
 const longHorizonRows = [];
 for (let index = 0; index < 25; index += 1) {
-  longHorizonRows.push({ id: `HOIST::full-day-${index}`, vehicleKey: `full-day-${index}`, stage: 'HOIST', bay: 1, startAt: horizonDate.toISOString(), hours: 8, status: 'planned' });
+  longHorizonRows.push({ id: `HOIST::full-day-${index}`, vehicleKey: `full-day-${index}`, stage: 'HOIST', bay: 1, startAt: horizonDate.toISOString(), hours: 9, status: 'planned' });
   horizonDate = planner.workshopNextWorkdayDate(horizonDate);
 }
 assert.deepStrictEqual(
@@ -330,13 +340,13 @@ const fridayLater = [
 ];
 const everyLater = planner.workshopShiftEveryLaterPlannedRow(fridayCascadeBase, fridayLater, 60);
 assert.deepStrictEqual(everyLater.moved.map(row => row.id), ['HOIST::later-1', 'HOIST::later-2'], 'Every later booking in the same bay must move in original order');
-assert.strictEqual(everyLater.moved[0].startAt, new Date(2030, 6, 22, 8, 30).toISOString(), 'Cascade must skip the weekend and continue on the next operational day');
+assert.strictEqual(everyLater.moved[0].startAt, new Date(2030, 6, 22, 7, 30).toISOString(), 'Cascade must skip the weekend and continue at the 7:00am operational day');
 assert.strictEqual(everyLater.moved[1].startAt, new Date(2030, 6, 22, 11, 0).toISOString(), 'The same operational delay must apply to all later bookings');
 assert.deepStrictEqual(everyLater.moved.map(row => row.hours), [2, 3], 'Cascade must preserve every later duration');
 
 assert.ok(app.includes("case 'workshop':"), 'Main renderer is missing the Workshop Planner view');
 assert.ok(app.includes("workshop: 'Workshop Planner'"), 'Workshop Planner page title is missing');
-assert.ok(app.includes('const PMB_SCHEDULE_WORK_START_HOUR = 8;'), 'Legacy PMB schedule start should match the workshop day');
+assert.ok(app.includes('const PMB_SCHEDULE_WORK_START_HOUR = 7;'), 'Legacy PMB schedule start should match the 7:00am workshop day');
 assert.ok(app.includes('const PMB_SCHEDULE_WORK_END_HOUR = 16;'), 'Legacy PMB schedule finish should match the workshop day');
 assert.ok(!app.includes(".filter(def => def.code !== 'PIT_INSPECTION')") && app.includes('.map(def => ({ value: def.code, label: def.label }))'), 'Location options must derive from the canonical map and include Pit Inspection as the eighth physical station');
 assert.strictEqual(planner.WORKSHOP_STAGE_SEQUENCE[0], 'BUS_4X4', 'Bus 4x4 must remain the first physical workshop station');
