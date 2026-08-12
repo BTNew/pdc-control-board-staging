@@ -1,17 +1,17 @@
 {
   "environment": "staging",
   "application_version": "2026.08.12.36-delete-vehicle",
-  "source_commit": "5690ca962e98c210bdff8a3fb23e735a713290ea",
+  "source_commit": "5d7dc3cfd7b09ae129dbff2431caaf8956fc25a1",
   "parent_staging_commit": "76e20e7aa94b31f72bf780f9f00a1dfb75f83534",
   "staging_project_ref": "cdsmnqxtyyoeoznmbidd",
   "production_unchanged": true,
   "mailbox_authority": false,
   "pilot_enabled": false,
-  "deployed_at_utc": "2026-08-12T08:03:59.018970+00:00",
+  "deployed_at_utc": "2026-08-12T08:45:27.315786+00:00",
   "files": {
     "app.js": {
-      "sha256": "1133241c35cc5c55a80e05e70b4ccaceea809d57f579dd3330dc5ea6ba223372",
-      "bytes": 1111822
+      "sha256": "099f61580be4cd1cb226364234004269d425408bd22141e1bbc69a0d1f0e95bb",
+      "bytes": 1112174
     },
     "index.html": {
       "sha256": "0ad8e17a80c7b6383bfc270476f2fbd5a21c2bc74332a185bd6aab44cd049ac4",
