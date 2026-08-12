@@ -1,0 +1,19 @@
+{
+  "approved_auditor_source": "c4183d54583fdb6253f5c6575031de63a79ba82b",
+  "files": {
+    "docs/overnight-checkpoint-20260812.md": {
+      "bytes": 2500,
+      "sha256": "b5b9ba435237e81f6ff8385b2f12a85725454753180c31d3b727d21509fd9e67"
+    },
+    "handoffs/pdc-monitor-uid478-install.md": {
+      "bytes": 4596,
+      "sha256": "59503164a05d9573637bd38af1692c082afd9e311a80ba70d9cb9710b8b6efde"
+    },
+    "handoffs/work-receipting-auditor-install.md": {
+      "bytes": 4186,
+      "sha256": "8257a06f105ee882462edc1b2b5903ce2df42b74b9f86bd3c9ef5066ce0cfa3d"
+    }
+  },
+  "schema": "pdc-staging-handoff-v1",
+  "staging_project": "cdsmnqxtyyoeoznmbidd"
+}
