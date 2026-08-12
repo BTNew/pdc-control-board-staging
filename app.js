@@ -1,5 +1,5 @@
-const APP_VERSION = '2026.08.12.34-safe-sublet-key-snapshot';
-const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.08.12.34-safe-sublet-key-snapshot';
+const APP_VERSION = '2026.08.12.35-workshop-7am';
+const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.08.12.35-workshop-7am';
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
 // constant intentionally names only the production ref, never the
@@ -7058,7 +7058,7 @@ function nextOutstandingPmbStage(vehicle = {}, currentStage = '') {
 
 
 const PMB_SCHEDULE_DAYS = 5;
-const PMB_SCHEDULE_WORK_START_HOUR = 8;
+const PMB_SCHEDULE_WORK_START_HOUR = 7;
 const PMB_SCHEDULE_WORK_END_HOUR = 16;
 const PMB_SCHEDULE_WORK_HOURS_PER_DAY = PMB_SCHEDULE_WORK_END_HOUR - PMB_SCHEDULE_WORK_START_HOUR;
 const PMB_SCHEDULE_HOUR_SCALE = 72;

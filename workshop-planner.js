@@ -16,9 +16,9 @@ const WORKSHOP_VISIBLE_STAGE_SEQUENCE = WORKSHOP_STAGE_SEQUENCE;
 const WORKSHOP_DAY_NAME_TO_INDEX = { sunday: 0, monday: 1, tuesday: 2, wednesday: 3, thursday: 4, friday: 5, saturday: 6 };
 const WORKSHOP_INDEX_TO_DAY_NAME = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
 const WORKSHOP_BOOT_CONFIG = Object.freeze({
-  dayStartMinutes: 8 * 60,
+  dayStartMinutes: 7 * 60,
   dayEndMinutes: 16 * 60,
-  dayLengthMinutes: 8 * 60,
+  dayLengthMinutes: 9 * 60,
   schedulingIncrementMinutes: 15,
   // One hour is only a fail-safe when no authoritative operation estimate exists.
   // The original three-hour test/default must never override a job's estimated time.
