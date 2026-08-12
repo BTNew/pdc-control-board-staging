@@ -1,7 +1,7 @@
 {
   "environment": "staging",
   "application_version": "2026.08.12.37-supervised-monitor-pilot",
-  "source_commit": "2101b3a1f0fb412eddb818f15056e8622427cea5",
+  "source_commit": "7f0095090cd1d2f56df6cab45b4ba2f714e2d107",
   "parent_staging_commit": "c0156f73a5a83d2d10b08239074bc5455bb2921d",
   "staging_project_ref": "cdsmnqxtyyoeoznmbidd",
   "production_unchanged": true,
