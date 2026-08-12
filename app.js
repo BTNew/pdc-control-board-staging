@@ -3187,6 +3187,20 @@ function workshopTechnicianAdminCanMutate(role = window.PDC_AUTH_CONTEXT?.role) 
   return String(role || '').trim().toLowerCase() === 'administrator';
 }
 
+function workshopReferenceMutationMessage(result, fallback) {
+  const code = String(result?.error || '').trim();
+  const detail = String(result?.detail?.message || result?.detail?.details || '').trim();
+  if (code === 'duplicate_name') return 'That name is already on the list.';
+  if (code === 'duplicate_code') return 'That mechanic code is already in use.';
+  if (code === 'name_required') return 'Enter a mechanic name.';
+  if (code === 'permission_denied') return 'Administrator access is required. No change was made.';
+  if (code === 'technician_already_assigned_to_bay') return 'That mechanic is already the default for another bay.';
+  if (code === 'version_conflict') return 'This shared record changed while you were editing it. It has been refreshed; retry your change.';
+  if (detail) return `${fallback} (${detail})`;
+  if (code && code !== 'request_failed') return `${fallback} (${code})`;
+  return fallback;
+}
+
 async function addMechanicFromAdminInput() {
   const input = $('#mechanic-name-input');
   const entered = cleanNavisionText(input?.value || '');
@@ -3206,11 +3220,10 @@ async function addMechanicFromAdminInput() {
   try {
     const result = await service.addTechnician(entered);
     if (!result || result.ok !== true) {
+      const fallback = 'Could not add mechanic. Check your connection and try again.';
       window.alert(result?.error === 'duplicate_name'
         ? `"${entered}" is already on the mechanic list.`
-        : result?.error === 'permission_denied'
-          ? 'Administrator access is required to add mechanics. No mechanic was added.'
-          : 'Could not add mechanic. Check your connection and try again.');
+        : workshopReferenceMutationMessage(result, fallback));
       return false;
     }
     if (input) input.value = '';

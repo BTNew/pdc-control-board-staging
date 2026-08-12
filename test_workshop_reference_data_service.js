@@ -86,6 +86,21 @@ function makeFakeClient(responses) {
 })();
 
 // ---------------------------------------------------------------------
+// 3c. Non-permission HTTP failures preserve the server's useful error
+//     instead of collapsing every failure to request_failed.
+// ---------------------------------------------------------------------
+(async () => {
+  const client = makeFakeClient({
+    list_workshop_bays: { status: 200, ok: true, body: [] },
+    set_bay_default_technician: { status: 400, ok: false, body: { code: '21000', message: 'UPDATE requires a WHERE clause' } }
+  });
+  const service = createWorkshopReferenceDataService({ client, getAccessToken: () => 'tok' });
+  const result = await service.setBayDefaultTechnician('bay-1', 1, null);
+  check('3c backend SQLSTATE is preserved for useful diagnostics', () => assert.strictEqual(result.error, '21000'));
+  check('3d backend detail remains available to the UI', () => assert.strictEqual(result.detail.message, 'UPDATE requires a WHERE clause'));
+})();
+
+// ---------------------------------------------------------------------
 // 4. Successful add -> state becomes connected_editable, and the service
 //    automatically re-loads the list afterward (resync, not a guess)
 // ---------------------------------------------------------------------
