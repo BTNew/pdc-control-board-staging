@@ -2,6 +2,7 @@
 begin;
 set local lock_timeout='20s';
 set local statement_timeout='180s';
+select pg_advisory_xact_lock(hashtextextended('pdc-staging-migration-installation',0));
 
 -- Apply only after the attachment-atomic successor reserved as migration 233.
 do $guard$
@@ -10,6 +11,7 @@ begin
      or not exists(select 1 from public.pdc_staging_environment_sentinel where singleton and project_ref='cdsmnqxtyyoeoznmbidd')
      or to_regclass('public.pdc_production_environment_sentinel') is not null
      or not exists(select 1 from supabase_migrations.schema_migrations where version='233')
+     or exists(select 1 from supabase_migrations.schema_migrations where version~'^[0-9]+$' and version::numeric>233)
      or exists(select 1 from supabase_migrations.schema_migrations where version='234') then
     raise exception 'PDC_234_STAGING_OR_PREDECESSOR_MISMATCH' using errcode='55000';
   end if;

@@ -1,25 +1,25 @@
-"""Credential-free, fail-closed processing core for Vehicle Config workbooks.
+"""Credential-free, fail-closed processing core for Vehicle Config CSV files.
 
-The module deliberately contains no network, bot-token, or Supabase integration.  A
-trusted adapter may turn a reviewed :class:`ChangeSet` into a file update, but this
-module always validates the resulting document before replacing the destination.
+Every proposal is typed, evidence-bound, and validated before any output is written.
+XLSX mutation intentionally fails closed: OOXML package preservation has not yet been
+proven, and loading/saving with a workbook library can silently rewrite unrelated XML.
 """
 from __future__ import annotations
 
 import csv
 import io
+import math
 import os
 import re
 import tempfile
-from copy import copy
 from dataclasses import dataclass
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
+from enum import Enum
 from pathlib import Path
 from typing import Any, Iterable, Sequence
 
 ALLOWED_FIELDS = frozenset({"Hidden", "Cost", "Sell"})
 PRIVILEGED_COMMANDS = frozenset({"remember", "correct", "disable", "undo"})
-READ_COMMANDS = frozenset({"review", "apply", "explain", "show unresolved"})
 
 
 class VehicleConfigError(Exception):
@@ -27,10 +27,6 @@ class VehicleConfigError(Exception):
 
 
 class UnsupportedFormatError(VehicleConfigError):
-    pass
-
-
-class WorkbookDependencyError(VehicleConfigError):
     pass
 
 
@@ -42,14 +38,103 @@ class AuthorizationError(VehicleConfigError):
     pass
 
 
+class TaxSemantics(str, Enum):
+    NOT_APPLICABLE = "not-applicable"
+    EX_GST = "ex-gst"
+    INC_GST = "inc-gst"
+
+
+_FIELD_TAX = {
+    "Hidden": TaxSemantics.NOT_APPLICABLE,
+    "Cost": TaxSemantics.EX_GST,
+    "Sell": TaxSemantics.INC_GST,
+}
+
+
+@dataclass(frozen=True)
+class ProposalEvidence:
+    """Immutable provenance for one proposed value."""
+
+    source: str
+    reference: str
+    authorizer: str
+    tax_semantics: TaxSemantics
+
+    def __post_init__(self) -> None:
+        for name in ("source", "reference", "authorizer"):
+            value = getattr(self, name)
+            if not isinstance(value, str) or not value.strip():
+                raise ValidationError(f"evidence {name} must be non-empty")
+        if not isinstance(self.tax_semantics, TaxSemantics):
+            raise ValidationError("evidence tax_semantics must be a TaxSemantics value")
+
+    @property
+    def authorized_identity(self) -> str:
+        """The immutable identity that authorized this evidence."""
+        return self.authorizer
+
+
 @dataclass(frozen=True)
 class CellChange:
-    """One proposed edit, addressed by sheet, one-based data row, and header."""
+    """A typed, evidence-bound edit to one existing CSV data cell."""
 
     row: int
     field: str
-    value: Any
+    value: str | Decimal
+    evidence: ProposalEvidence
     sheet: str | None = None
+
+    def __post_init__(self) -> None:
+        if self.field not in ALLOWED_FIELDS:
+            raise ValidationError(f"field {self.field!r} is not editable")
+        if isinstance(self.row, bool) or not isinstance(self.row, int) or self.row < 1:
+            raise ValidationError("row must be a one-based positive integer")
+        if not isinstance(self.evidence, ProposalEvidence):
+            raise ValidationError("change requires ProposalEvidence")
+        expected = _FIELD_TAX[self.field]
+        if self.evidence.tax_semantics is not expected:
+            raise ValidationError(f"{self.field} requires {expected.value} tax semantics")
+        if self.field == "Hidden":
+            if not isinstance(self.value, str):
+                raise ValidationError("Hidden must be yes or no")
+            normalized = self.value.strip().lower()
+            if normalized not in {"yes", "no"}:
+                raise ValidationError("Hidden must be yes or no")
+            object.__setattr__(self, "value", normalized)
+        else:
+            object.__setattr__(self, "value", _plain_amount(self.value, self.field))
+
+
+@dataclass(frozen=True)
+class ApprovedAmount:
+    """An immutable approved amount plus its scoped provenance."""
+
+    amount: Decimal | int | float
+    source: str
+    reference: str
+    authorized_identity: str
+    tax_semantics: TaxSemantics
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "amount", _plain_amount(self.amount, "amount"))
+        ProposalEvidence(self.source, self.reference, self.authorized_identity, self.tax_semantics)
+
+
+@dataclass(frozen=True)
+class HiluxGvmEvidence:
+    model: str
+    amount_inc_gst: Decimal | int | float
+    source: str
+    reference: str
+    authorized_identity: str
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.model, str) or not self.model.strip():
+            raise ValidationError("Hilux GVM evidence requires a model")
+        if "hilux" not in " ".join(self.model.lower().split()):
+            raise ValidationError("Hilux GVM evidence must be scoped to a Hilux model")
+        object.__setattr__(self, "amount_inc_gst", _plain_amount(self.amount_inc_gst, "Hilux GVM amount"))
+        ProposalEvidence(self.source, self.reference, self.authorized_identity, TaxSemantics.INC_GST)
 
 
 @dataclass(frozen=True)
@@ -65,20 +150,34 @@ class PricingResult:
     sell_inc_gst: Decimal
     solis_applied: bool
     hilux_gvm_inc_gst: Decimal
+    base_sell_reference: str
 
 
 FREIGHT_COST_EX_GST = {
-    "kununurra": Decimal("830.00"),
-    "halls creek": Decimal("830.00"),
-    "fitzroy crossing": Decimal("830.00"),
-    "derby": Decimal("600.00"),
+    "kununurra": Decimal("830.00"), "halls creek": Decimal("830.00"),
+    "fitzroy crossing": Decimal("830.00"), "derby": Decimal("600.00"),
 }
 
 
-def calculate_pmb_sell(pmb_cost_ex_gst: Any) -> Decimal:
-    """PMB sell is explicit cost +10% margin, then 10% GST."""
-    cost = _money(pmb_cost_ex_gst, "pmb_cost_ex_gst")
-    return (cost * Decimal("1.10") * Decimal("1.10")).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+def _plain_amount(value: Any, name: str) -> Decimal:
+    """Accept only actual finite, non-negative numeric objects (never strings/bools)."""
+    if isinstance(value, bool) or not isinstance(value, (int, float, Decimal)):
+        raise ValidationError(f"{name} must be a plain numeric value")
+    if isinstance(value, float) and not math.isfinite(value):
+        raise ValidationError(f"{name} must be finite and non-negative")
+    try:
+        result = Decimal(str(value))
+    except (InvalidOperation, ValueError) as exc:
+        raise ValidationError(f"{name} must be a plain numeric value") from exc
+    if not result.is_finite() or result < 0:
+        raise ValidationError(f"{name} must be finite and non-negative")
+    return result.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+
+
+def calculate_pmb_sell(cost: ApprovedAmount) -> Decimal:
+    if not isinstance(cost, ApprovedAmount) or cost.tax_semantics is not TaxSemantics.EX_GST:
+        raise ValidationError("PMB cost requires approved ex-GST evidence")
+    return (cost.amount * Decimal("1.10") * Decimal("1.10")).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
 
 def calculate_freight(destination: str) -> tuple[Decimal, Decimal]:
@@ -86,60 +185,32 @@ def calculate_freight(destination: str) -> tuple[Decimal, Decimal]:
     if key not in FREIGHT_COST_EX_GST:
         raise ValidationError("freight destination has no approved price evidence")
     cost = FREIGHT_COST_EX_GST[key]
-    sell = (cost * Decimal("1.20") * Decimal("1.10")).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
-    return cost, sell
+    return cost, (cost * Decimal("1.20") * Decimal("1.10")).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
 
 def approved_pd_pricing() -> tuple[Decimal, Decimal]:
     return Decimal("300.00"), Decimal("1995.00")
 
 
-def _money(value: Any, name: str) -> Decimal:
-    try:
-        result = Decimal(str(value))
-    except (InvalidOperation, ValueError) as exc:
-        raise ValidationError(f"{name} must be a decimal amount") from exc
-    if not result.is_finite() or result < 0:
-        raise ValidationError(f"{name} must be a finite, non-negative amount")
-    return result.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
-
-
-def calculate_pricing(
-    *,
-    cost_ex_gst: Any,
-    sell_inc_gst: Any,
-    solis: bool = False,
-    hilux_gvm_inc_gst: Any = 0,
-    hilux_gvm_approved: bool = False,
-) -> PricingResult:
-    """Use only supplied ARB/base evidence; Solis is the sole automatic add-on.
-
-    Cost input is ex GST and Sell input is inclusive GST. A Hilux GVM amount is
-    accepted only when the caller also supplies explicit approval evidence.
-    """
-
-    cost = _money(cost_ex_gst, "cost_ex_gst")
-    sell = _money(sell_inc_gst, "sell_inc_gst")
-    gvm = _money(hilux_gvm_inc_gst, "hilux_gvm_inc_gst")
-    if gvm and not hilux_gvm_approved:
-        raise ValidationError("Hilux GVM pricing requires explicit approval")
-    solis_charge = Decimal("150.00") if solis else Decimal("0.00")
-    return PricingResult(
-        cost_ex_gst=cost,
-        sell_inc_gst=(sell + solis_charge + gvm).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP),
-        solis_applied=bool(solis),
-        hilux_gvm_inc_gst=gvm,
-    )
+def calculate_pricing(*, cost: ApprovedAmount, base_sell: ApprovedAmount,
+                      solis: bool = False, hilux_gvm: HiluxGvmEvidence | None = None) -> PricingResult:
+    """Recompute from immutable base evidence; Solis is therefore added exactly once."""
+    if not isinstance(cost, ApprovedAmount) or cost.tax_semantics is not TaxSemantics.EX_GST:
+        raise ValidationError("cost requires approved ex-GST base evidence")
+    if not isinstance(base_sell, ApprovedAmount) or base_sell.tax_semantics is not TaxSemantics.INC_GST:
+        raise ValidationError("sell requires approved inc-GST base evidence")
+    if not isinstance(solis, bool):
+        raise ValidationError("solis must be boolean")
+    if hilux_gvm is not None and not isinstance(hilux_gvm, HiluxGvmEvidence):
+        raise ValidationError("Hilux GVM requires scoped evidence")
+    gvm = hilux_gvm.amount_inc_gst if hilux_gvm else Decimal("0.00")
+    sell = base_sell.amount + (Decimal("150.00") if solis else 0) + gvm
+    return PricingResult(cost.amount, sell.quantize(Decimal("0.01")), solis, gvm, base_sell.reference)
 
 
 def parse_command(text: str, *, authorized_identity: str | None = None) -> ParsedCommand:
-    """Parse the small command surface, requiring identity for learning/mutation stubs."""
-
     normalized = " ".join(text.strip().split())
-    match = re.fullmatch(
-        r"(?i)(show\s+unresolved|review|apply|explain|remember|correct|disable|undo)(?:\s+(.*))?",
-        normalized,
-    )
+    match = re.fullmatch(r"(?i)(show\s+unresolved|review|apply|explain|remember|correct|disable|undo)(?:\s+(.*))?", normalized)
     if not match:
         raise ValidationError("unsupported command")
     action = match.group(1).lower()
@@ -152,24 +223,20 @@ def parse_command(text: str, *, authorized_identity: str | None = None) -> Parse
 
 
 def execute_privileged_stub(command: ParsedCommand) -> None:
-    """Fail closed: persistence/learning is intentionally outside this foundation."""
-
     if command.action not in PRIVILEGED_COMMANDS:
         raise ValidationError("not a privileged command")
-    raise VehicleConfigError(
-        f"{command.action.title()} is not configured; an authorized credential-backed adapter is required"
-    )
+    raise VehicleConfigError(f"{command.action.title()} is not configured; an authorized credential-backed adapter is required")
 
 
 def _require_changes(changes: Iterable[CellChange]) -> tuple[CellChange, ...]:
     result = tuple(changes)
-    seen: set[tuple[str | None, int, str]] = set()
+    seen: set[tuple[int, str]] = set()
     for change in result:
-        if change.field not in ALLOWED_FIELDS:
-            raise ValidationError(f"field {change.field!r} is not editable")
-        if isinstance(change.row, bool) or not isinstance(change.row, int) or change.row < 1:
-            raise ValidationError("row must be a one-based positive integer")
-        key = (change.sheet, change.row, change.field)
+        if not isinstance(change, CellChange):
+            raise ValidationError("all changes must be CellChange proposals")
+        if change.sheet is not None:
+            raise ValidationError("sheet is unsupported because XLSX mutation is disabled")
+        key = (change.row, change.field)
         if key in seen:
             raise ValidationError(f"duplicate change target: {key}")
         seen.add(key)
@@ -177,28 +244,23 @@ def _require_changes(changes: Iterable[CellChange]) -> tuple[CellChange, ...]:
 
 
 def apply_file(source: str | os.PathLike[str], destination: str | os.PathLike[str], changes: Iterable[CellChange]) -> None:
-    """Apply edits through a temporary file and a strict before/after gate."""
-
     src, dst = Path(source), Path(destination)
     if not src.is_file():
         raise ValidationError(f"source does not exist: {src}")
     requested = _require_changes(changes)
-    suffix = src.suffix.lower()
-    if suffix not in {".csv", ".xlsx"}:
-        raise UnsupportedFormatError("only CSV and XLSX are supported")
+    if src.suffix.lower() == ".xlsx":
+        raise UnsupportedFormatError("XLSX mutation is disabled until exact OOXML preservation is proven")
+    if src.suffix.lower() != ".csv":
+        raise UnsupportedFormatError("only CSV is currently supported")
     if dst.resolve() != src.resolve() and dst.exists():
         raise ValidationError("destination already exists")
     dst.parent.mkdir(parents=True, exist_ok=True)
-    fd, temp_name = tempfile.mkstemp(prefix=".vehicle-config-", suffix=suffix, dir=dst.parent)
+    fd, name = tempfile.mkstemp(prefix=".vehicle-config-", suffix=".csv", dir=dst.parent)
     os.close(fd)
-    temp = Path(temp_name)
+    temp = Path(name)
     try:
-        if suffix == ".csv":
-            _apply_csv(src, temp, requested)
-            _validate_csv(src, temp, requested)
-        else:
-            _apply_xlsx(src, temp, requested)
-            _validate_xlsx(src, temp, requested)
+        _apply_csv(src, temp, requested)
+        _validate_csv(src, temp, requested)
         os.replace(temp, dst)
     except Exception:
         temp.unlink(missing_ok=True)
@@ -225,28 +287,18 @@ def _apply_csv(src: Path, out: Path, changes: Sequence[CellChange]) -> None:
         raise ValidationError("CSV headers must be unique")
     indexes = {name: index for index, name in enumerate(header)}
     for change in changes:
-        if change.sheet is not None:
-            raise ValidationError("CSV changes cannot specify a sheet")
         if change.field not in indexes:
             raise ValidationError(f"missing required header: {change.field}")
-        physical_row = change.row
-        if physical_row >= len(rows):
+        if change.row >= len(rows):
             raise ValidationError(f"data row {change.row} does not exist")
-        if len(rows[physical_row]) != len(header):
+        if len(rows[change.row]) != len(header):
             raise ValidationError(f"data row {change.row} has a different column count")
-        rows[physical_row][indexes[change.field]] = str(change.value)
+        rows[change.row][indexes[change.field]] = str(change.value)
     newline = "\r\n" if b"\r\n" in src.read_bytes() else "\n"
     with out.open("w", encoding=encoding, newline="") as handle:
-        writer = csv.writer(
-            handle,
-            delimiter=dialect.delimiter,
-            quotechar=dialect.quotechar,
-            escapechar=dialect.escapechar,
-            doublequote=dialect.doublequote,
-            quoting=dialect.quoting,
-            lineterminator=newline,
-        )
-        writer.writerows(rows)
+        csv.writer(handle, delimiter=dialect.delimiter, quotechar=dialect.quotechar,
+                   escapechar=dialect.escapechar, doublequote=dialect.doublequote,
+                   quoting=dialect.quoting, lineterminator=newline).writerows(rows)
 
 
 def _validate_csv(before: Path, after: Path, changes: Sequence[CellChange]) -> None:
@@ -256,108 +308,14 @@ def _validate_csv(before: Path, after: Path, changes: Sequence[CellChange]) -> N
         raise ValidationError("CSV structure changed")
     if not old or old[0] != new[0]:
         raise ValidationError("CSV headers or column order changed")
-    allowed = {(change.row, old[0].index(change.field)) for change in changes}
-    for row_index, (old_row, new_row) in enumerate(zip(old, new)):
-        for col_index, (old_value, new_value) in enumerate(zip(old_row, new_row)):
-            if old_value != new_value and (row_index, col_index) not in allowed:
-                raise ValidationError(f"unauthorized CSV change at row {row_index}, column {col_index + 1}")
-
-
-def _openpyxl():
-    try:
-        import openpyxl  # type: ignore
-    except ImportError as exc:
-        raise WorkbookDependencyError("XLSX support requires the optional 'openpyxl' package") from exc
-    return openpyxl
-
-
-def _sheet_headers(sheet: Any) -> dict[str, int]:
-    headers: dict[str, int] = {}
-    for cell in sheet[1]:
-        if cell.value is not None:
-            if not isinstance(cell.value, str) or cell.value in headers:
-                raise ValidationError(f"sheet {sheet.title!r} has invalid or duplicate headers")
-            headers[cell.value] = cell.column
-    return headers
-
-
-def _apply_xlsx(src: Path, out: Path, changes: Sequence[CellChange]) -> None:
-    openpyxl = _openpyxl()
-    keep_vba = src.suffix.lower() == ".xlsm"
-    workbook = openpyxl.load_workbook(src, data_only=False, keep_vba=keep_vba)
-    try:
-        for change in changes:
-            if change.sheet is None:
-                if len(workbook.sheetnames) != 1:
-                    raise ValidationError("sheet is required for a multi-sheet workbook")
-                sheet = workbook[workbook.sheetnames[0]]
-            elif change.sheet not in workbook.sheetnames:
-                raise ValidationError(f"sheet does not exist: {change.sheet}")
-            else:
-                sheet = workbook[change.sheet]
-            headers = _sheet_headers(sheet)
-            if change.field not in headers:
-                raise ValidationError(f"missing required header: {change.field}")
-            physical_row = change.row + 1
-            if physical_row > sheet.max_row:
-                raise ValidationError(f"data row {change.row} does not exist")
-            sheet.cell(physical_row, headers[change.field]).value = change.value
-        workbook.save(out)
-    finally:
-        workbook.close()
-
-
-def _style_signature(cell: Any) -> tuple[Any, ...]:
-    return (
-        cell.style_id,
-        cell.number_format,
-        copy(cell.alignment),
-        copy(cell.protection),
-    )
-
-
-def _validate_xlsx(before: Path, after: Path, changes: Sequence[CellChange]) -> None:
-    openpyxl = _openpyxl()
-    old_book = openpyxl.load_workbook(before, data_only=False)
-    new_book = openpyxl.load_workbook(after, data_only=False)
-    try:
-        if old_book.sheetnames != new_book.sheetnames:
-            raise ValidationError("sheet names or order changed")
-        allowed: set[tuple[str, int, int]] = set()
-        for change in changes:
-            sheet_name = change.sheet or old_book.sheetnames[0]
-            headers = _sheet_headers(old_book[sheet_name])
-            allowed.add((sheet_name, change.row + 1, headers[change.field]))
-        for sheet_name in old_book.sheetnames:
-            old, new = old_book[sheet_name], new_book[sheet_name]
-            if (old.max_row, old.max_column) != (new.max_row, new.max_column):
-                raise ValidationError(f"sheet structure changed: {sheet_name}")
-            if list(old.merged_cells.ranges) != list(new.merged_cells.ranges):
-                raise ValidationError(f"merged cells changed: {sheet_name}")
-            for row in range(1, old.max_row + 1):
-                for column in range(1, old.max_column + 1):
-                    a, b = old.cell(row, column), new.cell(row, column)
-                    target = (sheet_name, row, column)
-                    if a.value != b.value and target not in allowed:
-                        raise ValidationError(f"unauthorized XLSX change at {sheet_name}!{b.coordinate}")
-                    if _style_signature(a) != _style_signature(b):
-                        raise ValidationError(f"formatting changed at {sheet_name}!{b.coordinate}")
-            if old.freeze_panes != new.freeze_panes or old.sheet_format != new.sheet_format:
-                raise ValidationError(f"sheet formatting changed: {sheet_name}")
-            for key, dimension in old.column_dimensions.items():
-                if key not in new.column_dimensions or dimension.width != new.column_dimensions[key].width:
-                    raise ValidationError(f"column formatting changed: {sheet_name}!{key}")
-            for key, dimension in old.row_dimensions.items():
-                if key not in new.row_dimensions or dimension.height != new.row_dimensions[key].height:
-                    raise ValidationError(f"row formatting changed: {sheet_name}!{key}")
-    finally:
-        old_book.close()
-        new_book.close()
+    allowed = {(c.row, old[0].index(c.field)) for c in changes}
+    for r, (old_row, new_row) in enumerate(zip(old, new)):
+        for col, (a, b) in enumerate(zip(old_row, new_row)):
+            if a != b and (r, col) not in allowed:
+                raise ValidationError(f"unauthorized CSV change at row {r}, column {col + 1}")
 
 
 def review_file(path: str | os.PathLike[str], changes: Iterable[CellChange]) -> tuple[CellChange, ...]:
-    """Validate proposed targets without writing a file; suitable for Review adapters."""
-
     requested = _require_changes(changes)
     src = Path(path)
     fd, name = tempfile.mkstemp(suffix=src.suffix)

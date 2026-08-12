@@ -6,6 +6,8 @@ must provide already-retained descriptors, existing terminal receipts, and an ex
 from __future__ import annotations
 
 import re
+import hashlib
+import json
 from collections.abc import Callable, Mapping, Sequence
 from typing import Any
 
@@ -42,8 +44,12 @@ def _object(value: Any, label: str) -> dict[str, Any]:
 
 def _validate_fixture(message: Mapping[str, Any]) -> tuple[dict[str, Any], list[dict[str, Any]]]:
     value = _object(message, "message")
-    if set(value) != {"mailbox", "uidvalidity", "uid", "received_at", "attachments"}:
+    if set(value) != {"intake_id", "parent_source_hash", "mailbox", "uidvalidity", "uid", "received_at", "attachments"}:
         raise AttachmentBatchContractError("message keys are invalid")
+    if not isinstance(value["intake_id"], str) or not _UUID.fullmatch(value["intake_id"]):
+        raise AttachmentBatchContractError("intake_id is invalid")
+    if not isinstance(value["parent_source_hash"], str) or not _SHA256.fullmatch(value["parent_source_hash"]):
+        raise AttachmentBatchContractError("parent_source_hash is invalid")
     # This helper deliberately cannot be widened by caller configuration.  In
     # particular, 470-477 and every mailbox generation other than 1 fail closed.
     if value["mailbox"] != "pmbcontroller@gmail.com" or value["uidvalidity"] != 1 or value["uid"] != 478:
@@ -90,14 +96,27 @@ def _terminal_receipt(value: Any, label: str) -> dict[str, Any]:
     return receipt
 
 
+def _aggregate_sha256(intake_id: str, receipts: Sequence[Mapping[str, Any]]) -> str:
+    payload = {"contract": "233.1", "intake_id": intake_id, "uidvalidity": 1, "uid": 478,
+               "terminal_receipt_ids": [row["receipt_id"] for row in receipts]}
+    return hashlib.sha256(json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+
+
+def _canonical_source_hash(intake_id: str, attachment_id: str, parent_hash: str, attachment_hash: str) -> str:
+    payload = {"contract_version": "233.1", "intake_id": intake_id, "attachment_id": attachment_id,
+               "parent_source_hash": parent_hash, "attachment_source_hash": attachment_hash}
+    return hashlib.sha256(json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+
+
 def execute_uid478_batch(
     message: Mapping[str, Any],
-    existing_terminal_receipts: Mapping[tuple[str, str], Mapping[str, Any]],
+    existing_terminal_receipts: Mapping[tuple[str, str, str], Mapping[str, Any]],
     executor: Callable[[dict[str, Any]], Mapping[str, Any]],
+    message_receipt_executor: Callable[[dict[str, Any]], Mapping[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """Validate and independently dispatch all unresolved UID478 attachments.
 
-    Existing receipts are keyed by ``(attachment_id, sha256)``. Exact terminal
+    Existing receipts are keyed by ``(intake_id, attachment_id, sha256)``. Exact terminal
     replay is returned without invoking the executor. Executor exceptions become a
     nonterminal attempt result and do not prevent dispatch of later attachments.
     """
@@ -107,30 +126,44 @@ def execute_uid478_batch(
 
     results: list[dict[str, Any]] = []
     for item in attachments:
-        key = (item["attachment_id"], item["sha256"])
+        key = (envelope["intake_id"], item["attachment_id"], item["sha256"])
         if key in existing_terminal_receipts:
             receipt = _terminal_receipt(existing_terminal_receipts[key], "existing receipt")
-            results.append({"attachment_id": key[0], "file_name": item["file_name"], **receipt, "replayed": True})
+            results.append({"intake_id": key[0], "attachment_id": key[1], "sha256": key[2], "file_name": item["file_name"], **receipt, "replayed": True})
             continue
-        dispatch = {**item, "mailbox": envelope["mailbox"], "mailbox_uidvalidity": 1,
+        dispatch = {**item, "intake_id": envelope["intake_id"], "parent_source_hash": envelope["parent_source_hash"],
+                    "canonical_source_hash": _canonical_source_hash(envelope["intake_id"], item["attachment_id"], envelope["parent_source_hash"], item["sha256"]),
+                    "mailbox": envelope["mailbox"], "mailbox_uidvalidity": 1,
                     "mailbox_uid": 478, "message_received_at": envelope["received_at"]}
         try:
             response = _object(executor(dispatch), "executor response")
         except AttachmentBatchContractError:
             raise
         except Exception as exc:  # each attachment is an independent attempt
-            results.append({"attachment_id": key[0], "file_name": item["file_name"],
+            results.append({"intake_id": key[0], "attachment_id": key[1], "sha256": key[2], "file_name": item["file_name"],
                             "status": "attempt", "error_type": type(exc).__name__, "replayed": False})
             continue
         receipt = _terminal_receipt(response, "executor response")
-        results.append({"attachment_id": key[0], "file_name": item["file_name"], **receipt, "replayed": False})
+        results.append({"intake_id": key[0], "attachment_id": key[1], "sha256": key[2], "file_name": item["file_name"], **receipt, "replayed": False})
 
     all_terminal = len(results) == 4 and all(row.get("status") in _TERMINAL for row in results)
+    aggregate = None
+    if all_terminal and callable(message_receipt_executor):
+        expected_digest = _aggregate_sha256(envelope["intake_id"], results)
+        aggregate = _object(message_receipt_executor({
+            "intake_id": envelope["intake_id"], "uidvalidity": 1, "uid": 478,
+            "terminal_receipt_ids": [row["receipt_id"] for row in results], "aggregate_sha256": expected_digest,
+        }), "message receipt response")
+        if (aggregate.get("intake_id") != envelope["intake_id"] or aggregate.get("uidvalidity") != 1
+                or aggregate.get("uid") != 478 or aggregate.get("terminal_receipt_ids") != [row["receipt_id"] for row in results]
+                or aggregate.get("aggregate_sha256") != expected_digest or not aggregate.get("persisted")):
+            raise AttachmentBatchContractError("message aggregate receipt binding mismatch")
+    high_water_eligible = all_terminal and aggregate is not None
     return {
-        "mailbox": envelope["mailbox"], "uidvalidity": 1, "uid": 478,
+        "intake_id": envelope["intake_id"], "mailbox": envelope["mailbox"], "uidvalidity": 1, "uid": 478,
         "attachments": results, "terminal_count": sum(row.get("status") in _TERMINAL for row in results),
-        "all_terminal": all_terminal, "high_water_eligible": all_terminal,
-        "next_high_water_uid": 478 if all_terminal else None,
+        "all_terminal": all_terminal, "message_receipt": aggregate, "high_water_eligible": high_water_eligible,
+        "next_high_water_uid": 478 if high_water_eligible else None,
     }
 
 

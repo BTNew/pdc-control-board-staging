@@ -462,6 +462,71 @@ function createWorkshopDataService(options) {
   };
 }
 
+/**
+ * Authenticated migration-235 bridge. Kept separate from booking mutations
+ * because removal has its own receipt/idempotency contract. The UI role check
+ * is only presentation; the protected RPC remains lifecycle/RLS authority.
+ */
+function createWorkshopOperationRemovalService(options = {}) {
+  const client = options.client;
+  const getAccessToken = options.getAccessToken || (() => null);
+  const getRole = options.getRole || (() => null);
+  const refresh = options.refresh || (async () => {});
+  let generation = 0;
+
+  function administratorReady() {
+    return String(getRole() || '').trim().toLowerCase() === 'administrator'
+      && Boolean(getAccessToken()) && client && typeof client.rpc === 'function';
+  }
+
+  async function invoke(name, params) {
+    if (!administratorReady()) return { ok: false, error: 'permission_denied' };
+    const token = getAccessToken();
+    const requestGeneration = generation;
+    let output;
+    try {
+      const response = await client.rpc(token, name, params);
+      if (requestGeneration !== generation || token !== getAccessToken()) return { ok: false, error: 'authority_superseded' };
+      if (!response || !response.ok) {
+        output = { ok: false, error: response?.status === 401 || response?.status === 403 ? 'permission_denied' : 'request_failed', status: response?.status, body: response?.body };
+      } else {
+        const body = response.body && typeof response.body === 'object' ? response.body : {};
+        output = body.ok === true ? body : { ...body, ok: false, error: body.code || body.error || 'request_failed' };
+      }
+    } catch (_error) {
+      output = { ok: false, error: 'network_failure' };
+    }
+    try { await refresh(output); } catch (_error) {
+      return { ok: false, error: 'authoritative_refresh_failed', mutationResult: output };
+    }
+    return output;
+  }
+
+  return Object.freeze({
+    isAdministratorReady: administratorReady,
+    removeOperation({ operationLineId, expectedAdjustmentVersion, reason, sourceEvidence, idempotencyKey } = {}) {
+      const cleanReason = String(reason || '').trim();
+      const cleanKey = String(idempotencyKey || '').trim();
+      if (!operationLineId || cleanReason.length < 3 || cleanReason.length > 500 || cleanKey.length < 8 || cleanKey.length > 160 || !sourceEvidence || typeof sourceEvidence !== 'object' || Array.isArray(sourceEvidence)) {
+        return Promise.resolve({ ok: false, error: 'invalid_input' });
+      }
+      return invoke('remove_pdc_workshop_operation_line_235', {
+        p_operation_line_id: operationLineId,
+        p_expected_adjustment_version: Number(expectedAdjustmentVersion || 0),
+        p_reason: cleanReason,
+        p_source_evidence: sourceEvidence,
+        p_idempotency_key: cleanKey,
+      });
+    },
+    undoRemoval({ receiptId, reason } = {}) {
+      const cleanReason = String(reason || '').trim();
+      if (!receiptId || cleanReason.length < 3 || cleanReason.length > 500) return Promise.resolve({ ok: false, error: 'invalid_input' });
+      return invoke('undo_pdc_workshop_operation_removal_235', { p_receipt_id: receiptId, p_reason: cleanReason });
+    },
+    invalidateAuthority() { generation += 1; },
+  });
+}
+
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
     WORKSHOP_CONNECTION_STATE,
@@ -470,7 +535,8 @@ if (typeof module !== 'undefined' && module.exports) {
     workshopSharedModeEnabled,
     normalizeWorkshopSnapshotScope,
     createWorkshopSupabaseClient,
-    createWorkshopDataService
+    createWorkshopDataService,
+    createWorkshopOperationRemovalService
   };
 }
 if (typeof window !== 'undefined') {
@@ -480,4 +546,5 @@ if (typeof window !== 'undefined') {
   window.workshopSharedModeEnabled = workshopSharedModeEnabled;
   window.createWorkshopSupabaseClient = createWorkshopSupabaseClient;
   window.createWorkshopDataService = createWorkshopDataService;
+  window.createWorkshopOperationRemovalService = createWorkshopOperationRemovalService;
 }

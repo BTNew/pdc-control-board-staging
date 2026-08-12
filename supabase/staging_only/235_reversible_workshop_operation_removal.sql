@@ -2,6 +2,7 @@
 begin;
 set local lock_timeout='20s';
 set local statement_timeout='180s';
+select pg_advisory_xact_lock(hashtextextended('pdc-staging-migration-installation',0));
 
 do $guard$
 begin
@@ -9,6 +10,7 @@ begin
      or not exists(select 1 from public.pdc_staging_environment_sentinel where singleton and project_ref='cdsmnqxtyyoeoznmbidd')
      or to_regclass('public.pdc_production_environment_sentinel') is not null
      or not exists(select 1 from supabase_migrations.schema_migrations where version='234')
+     or exists(select 1 from supabase_migrations.schema_migrations where version~'^[0-9]+$' and version::numeric>234)
      or exists(select 1 from supabase_migrations.schema_migrations where version='235')
      or to_regprocedure('public.pdc_auditor_recalculate_required_work_226(uuid[])') is null
      or to_regprocedure('public.pdc_auditor_reject_history_mutation()') is null then
@@ -86,6 +88,7 @@ declare
   v_evidence_hash text;
   v_receipt uuid:=gen_random_uuid();
   v_revision bigint;
+  v_effective_stage text;
 begin
   if not public.pdc_monitor_staging_guard() or v_actor is null or v_email='' or v_role not in('operator','administrator') then
     return public.navision_backend_response(false,'unauthorized');
@@ -117,6 +120,20 @@ begin
   select * into v_before from public.vehicle_workshop_line_adjustments
    where vehicle_id=v_source.vehicle_id and line_key='source:'||p_operation_line_id::text for update;
   v_has_before:=found;
+  v_effective_stage:=coalesce(
+    case when v_has_before and v_before.active then v_before.stage_code end,
+    public.workshop_stage_code_for_work_key(v_source.work_key),upper(v_source.work_key));
+  -- Lock and reject immutable Auditor evidence and live planner rows before
+  -- changing the effective operation overlay. The repeat immediately before
+  -- mutation protects against relevant changes made while this RPC waited.
+  perform 1 from public.pdc_auditor_finding_evidence
+   where entity_type='operation_line' and entity_id=p_operation_line_id for share;
+  if found then return public.navision_backend_response(false,'auditor_evidence_protected'); end if;
+  perform 1 from public.workshop_bookings b join public.workshop_stages s on s.id=b.stage_id
+   where b.vehicle_id=v_source.vehicle_id and b.deleted_at is null
+     and b.status::text not in('completed','cancelled') and s.code=v_effective_stage
+   for share of b;
+  if found then return public.navision_backend_response(false,'live_workshop_booking_protected'); end if;
   if v_has_before and (v_before.manual_assignment_locked or coalesce(v_before.correction_origin,'') not in('','ai_auditor','manual_operator')) then
     return public.navision_backend_response(false,'manual_or_protected_overlay');
   end if;
@@ -125,6 +142,15 @@ begin
   end if;
   if v_has_before and not v_before.active and v_before.correction_origin='manual_operator' then
     return public.navision_backend_response(false,'already_removed_without_matching_key');
+  end if;
+  if exists(select 1 from public.pdc_auditor_finding_evidence
+      where entity_type='operation_line' and entity_id=p_operation_line_id) then
+    return public.navision_backend_response(false,'auditor_evidence_protected');
+  end if;
+  if exists(select 1 from public.workshop_bookings b join public.workshop_stages s on s.id=b.stage_id
+      where b.vehicle_id=v_source.vehicle_id and b.deleted_at is null
+        and b.status::text not in('completed','cancelled') and s.code=v_effective_stage) then
+    return public.navision_backend_response(false,'live_workshop_booking_protected');
   end if;
   if not v_has_before then
     insert into public.vehicle_workshop_line_adjustments(
@@ -142,7 +168,7 @@ begin
     where adjustment_id=v_before.adjustment_id returning * into v_after;
   end if;
   perform public.pdc_auditor_recalculate_required_work_226(array[v_source.vehicle_id]);
-  update public.pdc_email_vehicle_revision set revision=revision+1,updated_at=clock_timestamp() where singleton returning revision into v_revision;
+  select revision into strict v_revision from public.pdc_email_vehicle_revision where singleton;
   insert into public.pdc_workshop_operation_removal_receipts_235(
     receipt_id,idempotency_key,request_sha256,operation_line_id,vehicle_id,adjustment_id,actor_id,actor_email,
     reason,previous_value,removed_value,source_evidence,source_evidence_sha256,adjustment_version,realtime_revision
@@ -197,7 +223,7 @@ begin
     where adjustment_id=v_current.adjustment_id returning * into v_after;
   end if;
   perform public.pdc_auditor_recalculate_required_work_226(array[v_receipt.vehicle_id]);
-  update public.pdc_email_vehicle_revision set revision=revision+1,updated_at=clock_timestamp() where singleton returning revision into v_revision;
+  select revision into strict v_revision from public.pdc_email_vehicle_revision where singleton;
   insert into public.pdc_workshop_operation_removal_undo_receipts_235(
     undo_receipt_id,removal_receipt_id,actor_id,actor_email,reason,before_undo,after_undo,outcome,realtime_revision
   ) values(v_undo,p_receipt_id,v_actor,v_email,v_reason,to_jsonb(v_current),to_jsonb(v_after),'restored',v_revision);

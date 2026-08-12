@@ -1,12 +1,14 @@
 -- Staging-only migration 236: complete the authorised future Monitor/Auditor rule inventory.
 begin;
 set local lock_timeout='20s';set local statement_timeout='180s';
+select pg_advisory_xact_lock(hashtextextended('pdc-staging-migration-installation',0));
 do $guard$
 begin
  if to_regclass('public.pdc_staging_environment_sentinel') is null
     or not exists(select 1 from public.pdc_staging_environment_sentinel where singleton and project_ref='cdsmnqxtyyoeoznmbidd')
     or to_regclass('public.pdc_production_environment_sentinel') is not null
     or not exists(select 1 from supabase_migrations.schema_migrations where version='235')
+    or exists(select 1 from supabase_migrations.schema_migrations where version~'^[0-9]+$' and version::numeric>235)
     or exists(select 1 from supabase_migrations.schema_migrations where version='236') then
    raise exception 'PDC_236_STAGING_OR_LEDGER_MISMATCH' using errcode='55000';
  end if;

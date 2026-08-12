@@ -27,6 +27,8 @@ def descriptor(expected, seed):
 
 def fixture():
     return {
+        "intake_id": "10000000-0000-4000-8000-000000000478",
+        "parent_source_hash": "a" * 64,
         "mailbox": "pmbcontroller@gmail.com",
         "uidvalidity": 1,
         "uid": 478,
@@ -35,12 +37,18 @@ def fixture():
     }
 
 
+def persist_aggregate(request):
+    return {**request, "persisted": True, "message_receipt_id": "message-478"}
+
+
 class AttachmentAtomicBatchTests(unittest.TestCase):
     def test_dispatches_all_four_independently_and_high_water_is_eligible(self):
         calls = []
-        result = execute_uid478_batch(fixture(), {}, lambda item: calls.append(item["file_name"]) or {"status": "applied", "receipt_id": "r-" + item["file_name"]})
-        self.assertEqual(calls, [x["file_name"] for x in EXPECTED_UID478_ATTACHMENTS])
+        result = execute_uid478_batch(fixture(), {}, lambda item: calls.append(item) or {"status": "applied", "receipt_id": "r-" + item["file_name"]}, persist_aggregate)
+        self.assertEqual([item["file_name"] for item in calls], [x["file_name"] for x in EXPECTED_UID478_ATTACHMENTS])
         self.assertEqual([x["status"] for x in result["attachments"]], ["applied"] * 4)
+        self.assertEqual(len({item["canonical_source_hash"] for item in calls}), 4)
+        self.assertEqual({item["parent_source_hash"] for item in calls}, {"a" * 64})
         self.assertTrue(result["all_terminal"])
         self.assertTrue(result["high_water_eligible"])
         self.assertEqual(result["next_high_water_uid"], 478)
@@ -50,7 +58,7 @@ class AttachmentAtomicBatchTests(unittest.TestCase):
         def executor(item):
             calls.append(item["file_name"])
             return {"status": "review" if len(calls) == 1 else "applied", "receipt_id": f"r{len(calls)}"}
-        result = execute_uid478_batch(fixture(), {}, executor)
+        result = execute_uid478_batch(fixture(), {}, executor, persist_aggregate)
         self.assertEqual(len(calls), 4)
         self.assertEqual(result["attachments"][0]["status"], "review")
         self.assertTrue(result["high_water_eligible"])
@@ -58,7 +66,7 @@ class AttachmentAtomicBatchTests(unittest.TestCase):
     def test_exact_terminal_replay_skips_executor(self):
         value = fixture()
         first = value["attachments"][0]
-        existing = {(first["attachment_id"], first["sha256"]): {"status": "applied", "receipt_id": "existing"}}
+        existing = {(value["intake_id"], first["attachment_id"], first["sha256"]): {"status": "applied", "receipt_id": "existing"}}
         calls = []
         result = execute_uid478_batch(value, existing, lambda item: calls.append(item) or {"status": "review", "receipt_id": "new"})
         self.assertEqual(len(calls), 3)
@@ -101,6 +109,30 @@ class AttachmentAtomicBatchTests(unittest.TestCase):
     def test_executor_cannot_claim_terminal_without_receipt(self):
         with self.assertRaises(AttachmentBatchContractError):
             execute_uid478_batch(fixture(), {}, lambda item: {"status": "applied"})
+
+    def test_terminal_attachments_need_persisted_aggregate_for_high_water(self):
+        result = execute_uid478_batch(fixture(), {}, lambda item: {"status": "applied", "receipt_id": item["attachment_id"]})
+        self.assertTrue(result["all_terminal"])
+        self.assertFalse(result["high_water_eligible"])
+        self.assertIsNone(result["next_high_water_uid"])
+
+    def test_rejects_cross_attachment_and_cross_intake_receipt_substitution(self):
+        value = fixture()
+        first, second = value["attachments"][:2]
+        substitutions = [
+            {(value["intake_id"], first["attachment_id"], second["sha256"]): {"status": "applied", "receipt_id": "wrong-attachment"}},
+            {("20000000-0000-4000-8000-000000000478", first["attachment_id"], first["sha256"]): {"status": "applied", "receipt_id": "wrong-intake"}},
+        ]
+        for existing in substitutions:
+            calls = []
+            execute_uid478_batch(value, existing, lambda item: calls.append(item["attachment_id"]) or {"status": "review", "receipt_id": item["attachment_id"]})
+            self.assertIn(first["attachment_id"], calls)
+
+    def test_rejects_substituted_message_aggregate(self):
+        def substituted(request):
+            return {**request, "intake_id": "20000000-0000-4000-8000-000000000478", "persisted": True}
+        with self.assertRaisesRegex(AttachmentBatchContractError, "aggregate receipt binding"):
+            execute_uid478_batch(fixture(), {}, lambda item: {"status": "applied", "receipt_id": item["attachment_id"]}, substituted)
 
 
 if __name__ == "__main__":

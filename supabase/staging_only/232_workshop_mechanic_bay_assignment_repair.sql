@@ -83,7 +83,7 @@ create trigger workshop_record_bay_default_history_232
 
 create or replace function public.set_bay_default_technician(
   p_bay_id uuid,p_expected_version integer,p_technician_id uuid)
-returns jsonb language plpgsql security definer set search_path=public as $fn$
+returns jsonb language plpgsql security definer set search_path=pg_catalog,public as $fn$
 declare
   v_before public.workshop_bays%rowtype;
   v_after public.workshop_bays%rowtype;

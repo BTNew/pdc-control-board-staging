@@ -10,6 +10,7 @@ assert(sql.includes("'technician_already_assigned_to_bay'"), 'useful exclusivity
 assert(sql.includes("'idempotent',true"), 'exact replay is idempotent');
 assert(sql.includes("where id=p_bay_id and version=p_expected_version"), 'bay update is version-bound');
 assert(sql.includes("revoke all on function public.set_bay_default_technician(uuid,integer,uuid) from public,anon,service_role"), 'RPC excludes public/anon/service_role');
+assert(/set_bay_default_technician\([\s\S]*?security definer set search_path=pg_catalog,public as \$fn\$/i.test(sql), 'SECURITY DEFINER RPC trusts only pg_catalog,public');
 const bumpBody = sql.slice(
   sql.indexOf('create or replace function public.workshop_bump_all_station_revisions()'),
   sql.indexOf('revoke all on function public.workshop_bump_all_station_revisions()')

@@ -27,6 +27,60 @@ alter table public.pdc_provider_email_observations
   drop constraint pdc_provider_email_observations_provider_message_id_key,
   add constraint pdc_provider_email_observations_intake_attachment_key unique(intake_id,attachment_id);
 
+-- Retain the parent message hash as evidence, but use an immutable
+-- attachment-derived digest as canonical source identity so all four attachments
+-- can pass older unique source-hash constraints independently.
+alter table public.pdc_jobcard_attachment_import_receipts
+  drop constraint pdc_jobcard_attachment_import_receipts_parent_source_hash_key,
+  add column canonical_source_hash text check(canonical_source_hash is null or canonical_source_hash~'^[a-f0-9]{64}$'),
+  add constraint pdc_jobcard_attachment_import_receipts_canonical_source_hash_key unique(canonical_source_hash);
+-- Migration-159 receipts are immutable evidence. Historical rows remain byte-for-byte
+-- untouched and continue to resolve through parent_source_hash; only new 233 imports
+-- populate the attachment-derived canonical_source_hash.
+
+do $generalise_canonical_import$
+declare d text;
+begin
+  select pg_get_functiondef('public.import_pdc_jobcard_attachment_canonical(uuid,uuid,text,text,jsonb,jsonb,jsonb,jsonb)'::regprocedure) into d;
+  if position($decl$v_parent_hash text:=lower(btrim(coalesce(p_expected_parent_hash,'')));$decl$ in d)=0
+     or position('v_submit:=public.submit_pdc_ai_intake_observation(' in d)=0 then
+    raise exception 'PDC_233_CANONICAL_IMPORT_FUNCTION_DRIFT' using errcode='55000';
+  end if;
+  d:=replace(d,$decl$v_parent_hash text:=lower(btrim(coalesce(p_expected_parent_hash,'')));$decl$,
+    $newdecl$v_parent_hash text:=lower(btrim(coalesce(p_expected_parent_hash,'')));
+  v_canonical_source_hash text;$newdecl$);
+  d:=replace(d,'v_source_uid:=''pdc-jc-159:''||encode(extensions.digest(convert_to(',
+    'v_canonical_source_hash:=encode(extensions.digest(convert_to(jsonb_build_object(''contract_version'',''233.1'',''intake_id'',p_intake_id,''attachment_id'',p_attachment_id,''parent_source_hash'',v_parent_hash,''attachment_source_hash'',v_attachment_hash)::text,''UTF8''),''sha256''),''hex'');'||E'\n  '||'v_source_uid:=''pdc-jc-159:''||encode(extensions.digest(convert_to(');
+  d:=replace(d,'v_submit:=public.submit_pdc_ai_intake_observation('||E'\n      v_parent_hash,v_attachment_hash,v_source_uid','v_submit:=public.submit_pdc_ai_intake_observation('||E'\n      v_canonical_source_hash,v_attachment_hash,v_source_uid');
+  d:=replace(d,'v_vehicle_result:=public.import_pdc_authenticated_vehicle_email('||E'\n      v_idempotency_key,v_parent_hash,v_attachment_hash,v_source_uid','v_vehicle_result:=public.import_pdc_authenticated_vehicle_email('||E'\n      v_idempotency_key,v_canonical_source_hash,v_attachment_hash,v_source_uid');
+  d:=replace(d,'public.import_pdc_authenticated_email_operations_with_hours('||E'\n      v_parent_hash,v_source_uid','public.import_pdc_authenticated_email_operations_with_hours('||E'\n      v_canonical_source_hash,v_source_uid');
+  d:=replace(d,'where actor_id=v_actor and source_hash=v_parent_hash and source_uid=v_source_uid for share;','where actor_id=v_actor and source_hash=v_canonical_source_hash and source_uid=v_source_uid for share;');
+  d:=replace(d,'on ol.source_hash=v_parent_hash and ol.source_uid=v_source_uid','on ol.source_hash=v_canonical_source_hash and ol.source_uid=v_source_uid');
+  d:=replace(d,'where source_hash=v_parent_hash)<>v_operation_count','where source_hash=v_canonical_source_hash)<>v_operation_count');
+  d:=replace(d,'attachment_source_hash,attachment_size_bytes,attachment_content_type,source_uid,proposal_id','attachment_source_hash,canonical_source_hash,attachment_size_bytes,attachment_content_type,source_uid,proposal_id');
+  d:=replace(d,'v_attachment_hash,v_attachment.size_bytes,lower(v_attachment.content_type),v_source_uid,v_proposal_id','v_attachment_hash,v_canonical_source_hash,v_attachment.size_bytes,lower(v_attachment.content_type),v_source_uid,v_proposal_id');
+  d:=replace(d,'where source_hash=v_parent_hash and operation_no=v_item->>''operation_no'';','where source_hash=v_canonical_source_hash and operation_no=v_item->>''operation_no'';');
+  d:=replace(d,$old_status$v_intake.status in ('duplicate_detected','failed','ignored','vehicle_created','vehicle_updated')$old_status$,
+    $new_status$(v_intake.status in ('duplicate_detected','failed','ignored','vehicle_created') or (v_intake.status='vehicle_updated' and v_intake.processing_result->>'uid478_attachment_atomic_contract' is distinct from '233.1'))$new_status$);
+  d:=replace(d,$old_result$'jobcard_attachment_imported_at',clock_timestamp())$old_result$,
+    $new_result$'jobcard_attachment_imported_at',clock_timestamp(),'uid478_attachment_atomic_contract','233.1')$new_result$);
+  execute d;
+end $generalise_canonical_import$;
+
+do $generalise_canonical_read$
+declare d text;
+begin
+  select pg_get_functiondef('public.read_pdc_jobcard_attachment_import_receipt(uuid)'::regprocedure) into d;
+  if position('ol.source_hash=v_receipt.parent_source_hash' in d)=0 or position('ir.source_hash=v_receipt.parent_source_hash' in d)=0 or position('p.source_hash=v_receipt.parent_source_hash' in d)=0 then
+    raise exception 'PDC_233_CANONICAL_READ_FUNCTION_DRIFT' using errcode='55000';
+  end if;
+  d:=replace(d,'ol.source_hash=v_receipt.parent_source_hash','ol.source_hash=v_receipt.canonical_source_hash');
+  d:=replace(d,'ir.source_hash=v_receipt.parent_source_hash','ir.source_hash=v_receipt.canonical_source_hash');
+  d:=replace(d,'p.source_hash=v_receipt.parent_source_hash','p.source_hash=v_receipt.canonical_source_hash');
+  d:=replace(d,'''parent_source_hash'',v_receipt.parent_source_hash,''attachment_source_hash'',v_receipt.attachment_source_hash','''parent_source_hash'',v_receipt.parent_source_hash,''canonical_source_hash'',v_receipt.canonical_source_hash,''attachment_source_hash'',v_receipt.attachment_source_hash');
+  execute d;
+end $generalise_canonical_read$;
+
 -- Patch the current Migration177 implementation rather than replacing its security,
 -- authentication, sender, mailbox, and caller-compatible contract.
 do $generalise_observation$
@@ -156,7 +210,8 @@ begin
      or p_message_received_at is null or coalesce(p_attachment_sha256,'')!~'^[a-f0-9]{64}$'
      or not public.pdc_uid478_validate_attachment_fixture(p_attachment_file_name,p_original_extracted_values)
      or jsonb_typeof(p_match_evidence) is distinct from 'object' or p_match_evidence='{}'::jsonb
-     or jsonb_typeof(p_attempt_metadata) is distinct from 'object' then
+     or jsonb_typeof(p_attempt_metadata) is distinct from 'object'
+     or coalesce(lower(p_attempt_metadata->>'parent_source_hash'),'')!~'^[a-f0-9]{64}$' then
     raise exception 'UIDVALIDITY1_UID478_ONLY' using errcode='22023';
   end if;
   perform 1 from public.ai_email_attachments a where a.id=p_attachment_id and a.intake_id=p_intake_id
@@ -178,14 +233,26 @@ end $attempt$;
 create function public.record_pdc_uid478_attachment_terminal(
   p_attempt_receipt_id uuid,p_terminal_status text,p_review_metadata jsonb,p_applied_metadata jsonb,p_canonical_import_receipt_id uuid
 ) returns jsonb language plpgsql security definer set search_path=pg_catalog,public,extensions as $terminal$
-declare v_scope jsonb:=public.pdc_monitor_actor_scope();v_attempt public.pdc_uid478_attachment_attempt_receipts%rowtype;v_existing public.pdc_uid478_attachment_terminal_receipts%rowtype;v_id uuid;v_request text;
+declare v_scope jsonb:=public.pdc_monitor_actor_scope();v_attempt public.pdc_uid478_attachment_attempt_receipts%rowtype;v_existing public.pdc_uid478_attachment_terminal_receipts%rowtype;v_canonical public.pdc_jobcard_attachment_import_receipts%rowtype;v_id uuid;v_request text;
 begin
-  select * into v_attempt from public.pdc_uid478_attachment_attempt_receipts where attempt_receipt_id=p_attempt_receipt_id for share;
+  select * into v_attempt from public.pdc_uid478_attachment_attempt_receipts where attempt_receipt_id=p_attempt_receipt_id for update;
   if not found then raise exception 'PDC_233_ATTEMPT_NOT_FOUND' using errcode='P0002'; end if;
+  if v_attempt.actor_id is distinct from (v_scope->>'user_id')::uuid then raise exception 'PDC_233_ATTEMPT_ACTOR_MISMATCH' using errcode='42501'; end if;
   if (p_terminal_status='review' and jsonb_typeof(p_review_metadata)='object' and p_review_metadata<>'{}'::jsonb and p_applied_metadata is null and p_canonical_import_receipt_id is null)
      is not true and
      (p_terminal_status='applied' and p_review_metadata is null and jsonb_typeof(p_applied_metadata)='object' and p_applied_metadata<>'{}'::jsonb and p_canonical_import_receipt_id is not null)
      is not true then raise exception 'PDC_233_TERMINAL_METADATA_INVALID' using errcode='22023'; end if;
+  if p_terminal_status='applied' then
+    select * into v_canonical from public.pdc_jobcard_attachment_import_receipts where receipt_id=p_canonical_import_receipt_id for update;
+    if not found or v_canonical.intake_id is distinct from v_attempt.intake_id
+       or v_canonical.attachment_id is distinct from v_attempt.attachment_id
+       or v_canonical.parent_source_hash is distinct from lower(v_attempt.attempt_metadata->>'parent_source_hash')
+       or v_canonical.attachment_source_hash is distinct from v_attempt.attachment_sha256
+       or v_canonical.actor_id is distinct from v_attempt.actor_id
+       or v_canonical.actor_id is distinct from (v_scope->>'user_id')::uuid then
+      raise exception 'PDC_233_CANONICAL_RECEIPT_BINDING_MISMATCH' using errcode='22023';
+    end if;
+  end if;
   v_request:=encode(extensions.digest(convert_to(jsonb_build_object('contract','233.1','attempt_receipt_id',p_attempt_receipt_id,'status',p_terminal_status,'review',p_review_metadata,'applied',p_applied_metadata,'canonical_receipt',p_canonical_import_receipt_id)::text,'UTF8'),'sha256'),'hex');
   perform pg_advisory_xact_lock(hashtextextended('pdc-uid478-terminal:'||v_attempt.intake_id::text||':'||v_attempt.attachment_id::text,0));
   select * into v_existing from public.pdc_uid478_attachment_terminal_receipts where intake_id=v_attempt.intake_id and attachment_id=v_attempt.attachment_id;
@@ -211,11 +278,21 @@ begin
   v_digest:=encode(extensions.digest(convert_to(jsonb_build_object('contract','233.1','intake_id',p_intake_id,'uidvalidity',1,'uid',478,'terminal_receipt_ids',v_ids)::text,'UTF8'),'sha256'),'hex');
   select * into v_existing from public.pdc_uid478_message_receipts where intake_id=p_intake_id;
   if found then
-    if v_existing.aggregate_sha256<>v_digest then raise exception 'PDC_233_MESSAGE_REPLAY_CONFLICT' using errcode='23505'; end if;
+    if v_existing.aggregate_sha256<>v_digest or v_existing.actor_id is distinct from (v_scope->>'user_id')::uuid
+       or v_existing.terminal_receipt_ids is distinct from v_ids or not v_existing.all_attachments_terminal
+       or not v_existing.high_water_eligible then raise exception 'PDC_233_MESSAGE_REPLAY_CONFLICT' using errcode='23505'; end if;
     return jsonb_build_object('ok',true,'code','message_already_terminal','message_receipt_id',v_existing.message_receipt_id,'all_attachments_terminal',true,'high_water_eligible',true,'high_water_uid',478);
   end if;
   insert into public.pdc_uid478_message_receipts(contract_version,intake_id,actor_id,mailbox_address,mailbox_uidvalidity,mailbox_uid,message_received_at,attachment_count,terminal_attachment_count,terminal_receipt_ids,all_attachments_terminal,high_water_eligible,aggregate_sha256)
   values('233.1',p_intake_id,(v_scope->>'user_id')::uuid,'pmbcontroller@gmail.com',1,478,v_received,4,4,v_ids,true,true,v_digest) returning message_receipt_id into v_id;
+  select * into v_existing from public.pdc_uid478_message_receipts where message_receipt_id=v_id for share;
+  if not found or v_existing.intake_id is distinct from p_intake_id
+     or v_existing.actor_id is distinct from (v_scope->>'user_id')::uuid
+     or v_existing.terminal_receipt_ids is distinct from v_ids
+     or v_existing.aggregate_sha256 is distinct from v_digest
+     or not v_existing.all_attachments_terminal or not v_existing.high_water_eligible then
+    raise exception 'PDC_233_MESSAGE_RECEIPT_VERIFY_FAILED' using errcode='55000';
+  end if;
   return jsonb_build_object('ok',true,'code','message_terminal','message_receipt_id',v_id,'all_attachments_terminal',true,'high_water_eligible',true,'high_water_uid',478);
 end $aggregate$;
 
@@ -227,11 +304,17 @@ revoke all on function public.finalize_pdc_uid478_message(uuid) from public,anon
 grant execute on function public.finalize_pdc_uid478_message(uuid) to authenticated;
 
 do $verify$
-declare d text;
+declare d text; canonical_d text; read_d text;
 begin
   select pg_get_functiondef('public.attest_pdc_provider_email_observation(uuid,uuid,text,text,text,text,jsonb)'::regprocedure) into d;
+  select pg_get_functiondef('public.import_pdc_jobcard_attachment_canonical(uuid,uuid,text,text,jsonb,jsonb,jsonb,jsonb)'::regprocedure) into canonical_d;
+  select pg_get_functiondef('public.read_pdc_jobcard_attachment_import_receipt(uuid)'::regprocedure) into read_d;
   if position('pdc-provider-email-observation-233:' in d)=0
      or position('where intake_id=p_intake_id and attachment_id=p_attachment_id' in d)=0
+     or position('v_canonical_source_hash:=encode' in canonical_d)=0
+     or position('v_canonical_source_hash,v_attachment_hash,v_source_uid' in canonical_d)=0
+     or position('source_hash=v_canonical_source_hash' in canonical_d)=0
+     or position('canonical_source_hash' in read_d)=0
      or has_function_privilege('service_role','public.record_pdc_uid478_attachment_terminal(uuid,text,jsonb,jsonb,uuid)','EXECUTE') then
     raise exception 'PDC_233_POSTCONDITION_FAILED' using errcode='55000';
   end if;

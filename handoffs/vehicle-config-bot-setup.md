@@ -1,73 +1,74 @@
-# Vehicle Config Bot — isolated setup handoff
+# Vehicle Config core — isolated setup handoff
 
 ## Scope and safety boundary
 
-`vehicle_config_bot.py` is a credential-free processing core. It reads and writes only
-local CSV/XLSX files and has no Telegram, Supabase, HTTP, production, or network code.
-Only existing `Hidden`, `Cost`, and `Sell` cells may change. Its strict before/after
-gate rejects changed headers, rows, columns, sheets, formulas, wording, or formatting.
+`vehicle_config_bot.py` is a credential-free, network-free CSV processing core. It may
+change only existing `Hidden`, `Cost`, and `Sell` cells. The complete before/after CSV
+gate preserves headers, row count/order, column count, IDs, descriptions, notes, and
+every non-target value.
+
+XLSX mutation is intentionally **disabled and fails closed**. `openpyxl` and similar
+workbook round trips can rewrite unrelated OOXML (including data validation and package
+metadata). Until exact normalized package preservation is independently proven, the
+core rejects every `.xlsx` apply before creating output. Convert an approved source to
+the fixed-format import CSV outside this core; never bypass this guard.
+
+## Proposal and pricing contract
+
+Every `CellChange` requires `ProposalEvidence` containing a non-empty source,
+reference, immutable authorized identity, and field-correct tax semantics:
+
+- `Hidden`: normalized strictly to lowercase `yes` or `no`; tax is `not-applicable`.
+- `Cost`: finite, non-negative plain numeric Python value; tax is `ex-gst`.
+- `Sell`: finite, non-negative plain numeric Python value; tax is `inc-gst`.
+
+Strings, booleans, formulas, currency text, comma-formatted values, NaN, infinity, and
+negative amounts are rejected. This prevents callers from inventing spreadsheet values
+or smuggling formulas through a generic cell-change API.
+
+Pricing accepts immutable `ApprovedAmount` evidence. Solis sell is recomputed from the
+approved base sell and adds exactly `$150.00` once; it never uses a previously updated
+output as an incrementing base. Hilux GVM requires `HiluxGvmEvidence` scoped with a
+Hilux model, amount, source, reference, and authorized identity. A bare approval boolean
+is not accepted. PMB requires approved ex-GST evidence. Freight and PD remain the narrow
+explicit constants documented in the Vehicle Config rules.
 
 The command parser recognizes `Review`, `Apply`, `Explain`, and `Show unresolved`.
-`Remember`, `Correct`, `Disable`, and `Undo` are deliberately non-persistent stubs:
-they require a non-empty authorized identity and then fail closed until a separately
-reviewed, credential-backed adapter exists.
-
-Pricing helpers are deliberately narrow: PMB sell requires explicit PMB cost evidence
-and applies +10% then GST; PD is $300 ex GST / $1,995 inc GST; the four authorised
-freight destinations use their exact costs then +20% and GST; Solis adds $150 once;
-Hilux GVM requires an explicit approval flag. ARB fitted retail, Hidden prefixes,
-compatibility, components, fitting times and the dual-battery asterisk are not inferred
-by this core and require approved evidence in a future reviewed adapter.
+`Remember`, `Correct`, `Disable`, and `Undo` require an authorized identity and then
+fail closed until a separately reviewed credential-backed adapter exists.
 
 ## Dependencies and local verification
 
-Python's standard library is sufficient for CSV. XLSX is optional and requires
-`openpyxl`; if absent, XLSX operations return a clear dependency error and XLSX tests
-skip. Install it only inside the isolated runtime environment, not globally.
+CSV processing uses the standard library. `openpyxl` is a test-only dependency used to
+construct XLSX exploit fixtures proving formula targets and data-validation surfaces
+are rejected without output.
 
-From the repository root:
+From the repository root, run the exact full test command:
 
 ```sh
-python3 -m unittest discover -s tests -p 'test_vehicle_config_bot.py' -v
+uv run --with openpyxl python -m unittest discover -s tests -p 'test_vehicle_config_bot.py' -v
 ```
 
-No test contacts a network or production service. Tests create temporary fixtures.
+Tests are local, temporary, and make no network or production calls at runtime (apart
+from `uv` resolving the declared test dependency when it is not cached).
 
 ## Isolated runtime profile
 
-1. Create a dedicated OS account or service identity for Vehicle Config. Do not reuse
-   an administrator, developer, PDC production, or personal profile.
-2. Create a dedicated virtual environment and install only reviewed, pinned runtime
-   dependencies. Grant the identity read access to an inbox directory and write access
-   to separate review/output/quarantine directories; deny repository and production
-   database access.
-3. Keep any future bot token in an OS-protected credential store (for example Windows
-   Credential Manager/DPAPI) scoped to that service identity. Never put a token in
-   source, `.env` files, command arguments, logs, screenshots, tickets, handoffs, or
-   chat. **Do not send a token in chat.** This foundation needs no token.
-4. A future transport adapter must map its immutable platform user ID to an explicit
-   authorization allowlist before passing identity to a privileged command. Display
-   names/usernames are not authorization. Keep Supabase and production credentials out
-   of this profile unless a separately approved design adds them.
-5. The adapter must use `Review` before `Apply`, retain the original file, write a new
-   reviewed output, and quarantine every validation failure. It must never bypass
-   `apply_file` or its before/after gate.
+1. Use a dedicated non-administrator OS/service identity. Grant only read access to an
+   inbox and write access to separate review/output/quarantine directories.
+2. Install only reviewed pinned dependencies in an isolated environment. The runtime
+   core itself needs no workbook library, token, database, or network permission.
+3. Keep any future transport secret in an OS-protected credential store scoped to that
+   service identity. Never place secrets in source, `.env`, arguments, logs, tickets,
+   screenshots, handoffs, or chat.
+4. A future adapter must map an immutable platform user ID to an explicit allowlist.
+   Display names and usernames are not authorization.
+5. Require Review before Apply, retain the original, emit a separate reviewed output,
+   and quarantine validation failures. Never bypass `apply_file`.
 
-## Auto-start procedure (no secrets)
+## Activation boundary
 
-After an adapter is independently reviewed and configured:
-
-1. Create a Windows Task Scheduler task that runs under the dedicated service identity.
-2. Trigger **At startup** with a short delay; select “Run whether user is logged on or
-   not” and “Do not start a new instance.” Do not embed credentials or tokens in the
-   action or arguments.
-3. Set the action to the isolated virtual environment's Python executable and the
-   reviewed adapter script. Set “Start in” to its locked runtime directory.
-4. Configure bounded restart-on-failure, execution timeout, and local non-secret logs.
-   Do not log workbook contents, identities beyond audit IDs, or credential values.
-5. Reboot-test with a token-free dry-run fixture first. Verify the task runs as the
-   dedicated identity, cannot reach production, creates only review output, and fails
-   closed when authorization/dependency/validation checks fail.
-
-There are intentionally no real token values, account passwords, connection strings,
-Supabase keys, network endpoints, or production activation steps in this handoff.
+This is a processing core, not an activated bot. Any future auto-start, transport,
+persistent queue, receipts, recovery, or production access requires a separate design
+and exact-SHA review. There are no credentials, endpoints, deployment steps, or
+production activation instructions in this handoff.
