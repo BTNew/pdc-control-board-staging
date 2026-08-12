@@ -1,32 +1,53 @@
 {
   "environment": "staging",
-  "application_version": "2026.08.12.35-workshop-7am",
-  "source_commit": "61f8ba3a1cc3d20923f1aff1f777160bcd671d84",
-  "deployed_at_utc": "2026-08-12T00:20:19.507100+00:00",
+  "application_version": "2026.08.12.36-delete-vehicle",
+  "source_commit": "570e54e428633fb5920eb9c3c6775d19015cefc9",
+  "parent_staging_commit": "76e20e7aa94b31f72bf780f9f00a1dfb75f83534",
+  "staging_project_ref": "cdsmnqxtyyoeoznmbidd",
+  "production_unchanged": true,
+  "mailbox_authority": false,
+  "pilot_enabled": false,
+  "deployed_at_utc": "2026-08-12T08:03:59.018970+00:00",
   "files": {
     "app.js": {
-      "sha256": "e5f664ff224303bd4c42fe42fa198faf16cf365c1a2fa25a7683dffe4980dcbe",
-      "bytes": 1101812
-    },
-    "workshop-planner.js": {
-      "sha256": "46d89fb12cc683f61ce41a007e9fd25d7adf5a06c8da60e2fc9bcf1048b5cad1",
-      "bytes": 346535
-    },
-    "workshop-planner.css": {
-      "sha256": "b5f4f0c929852b520dbf4f533577afcaa8e0ddda941a6b5d3d766a03be30b599",
-      "bytes": 45738
-    },
-    "pdc-supabase-config.staging.js": {
-      "sha256": "a2be5685463a59136e1f177ac93271d8df15b916ef3f314eee3987699b646ac1",
-      "bytes": 1696
+      "sha256": "1133241c35cc5c55a80e05e70b4ccaceea809d57f579dd3330dc5ea6ba223372",
+      "bytes": 1111822
     },
     "index.html": {
-      "sha256": "0a8ba3c75034867ab3222b3249ae0b45f3256cc8ba4e6315f6a933d1d35f2853",
-      "bytes": 65601
+      "sha256": "0ad8e17a80c7b6383bfc270476f2fbd5a21c2bc74332a185bd6aab44cd049ac4",
+      "bytes": 65625
+    },
+    "vehicle-lifecycle-actions.js": {
+      "sha256": "988dbbd483f2b66dc69e66908e26f5aab421b28017e9c69328e33d11e7758dcb",
+      "bytes": 20910
+    },
+    "pdc-supabase-config.staging.js": {
+      "sha256": "6a2dad2160e6faa7d2755be6b9d7968aae6ae40d241cb72cb54a39a868caefd7",
+      "bytes": 1698
+    },
+    "supabase/staging_only/205_admin_recoverable_vehicle_archive.sql": {
+      "sha256": "c7ba8d1d2eef87a1cac030cc45f1e8de71082eae849347debc70e096be6cf155",
+      "bytes": 26333
+    },
+    "supabase/staging_only/206_recoverable_archive_booking_history_identity.sql": {
+      "sha256": "80058a204fd456f4ec551191c6cba6d97b6310a4417c22c0e11d93e473075d75",
+      "bytes": 6937
+    },
+    "supabase/staging_only/207_admin_vehicle_actor_lock_volatility.sql": {
+      "sha256": "45d69f618c26d6de17e653779903e0e0647a2a56331c4d88c676f64304dcf8ea",
+      "bytes": 2212
+    },
+    "supabase/staging_only/208_archived_vehicle_snapshot_lock_volatility.sql": {
+      "sha256": "7901b5d2e47865689bb10a0993c42f53f800dbae356e11d398ca4f1f1778ef9f",
+      "bytes": 2750
+    },
+    "supabase/staging_only/209_vehicle_lifecycle_review_hardening.sql": {
+      "sha256": "535d989182e795ea2eb273a8ea8ac616d459e83d6a749fea70cac95a02479a7c",
+      "bytes": 16009
+    },
+    "supabase/staging_only/210_vehicle_archive_postgrest_overload_fix.sql": {
+      "sha256": "c18877cce41dc2a10b809beda459833f3699b7bbcc014f41b965504c246a54d0",
+      "bytes": 2904
     }
-  },
-  "database": {
-    "workshop_day_start_time": "07:00",
-    "workshop_setting_version": 36
   }
 }

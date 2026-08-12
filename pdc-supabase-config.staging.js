@@ -34,6 +34,6 @@ window.PDC_SUPABASE_CONFIG = {
   vehicleLifecycle: Object.freeze({
     sharedData: true,
     resolverRollbackDirectRead: false,
-    resolverAssetVersion: '2026.08.12.35-workshop-7am'
+    resolverAssetVersion: '2026.08.12.36-delete-vehicle'
   })
 };

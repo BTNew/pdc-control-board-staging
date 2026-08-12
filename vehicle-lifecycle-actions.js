@@ -336,30 +336,60 @@ function buildVehicleLifecycleSharedActions(client, getAccessToken) {
     const token = typeof getAccessToken === 'function' ? getAccessToken() : null;
     const result = await client.rpc(token, name, params);
     if (!result.ok) {
-      return { ok: false, error: 'request_failed', status: result.status, body: result.body };
+      const body = result.body;
+      const serverCode = body && typeof body === 'object'
+        ? (body.code || body.error || body.error_code)
+        : null;
+      const serverMessage = body && typeof body === 'object'
+        ? (body.message || body.error_description || body.details)
+        : (typeof body === 'string' ? body : null);
+      return {
+        ok: false,
+        error: serverCode || 'request_failed',
+        code: serverCode || null,
+        message: serverMessage || result.message || null,
+        status: result.status,
+        body,
+        response: result,
+      };
     }
     return result.body || {};
   }
 
   return {
-    async markVehicleDeleted({ vehicleId, expectedVersion, reason }) {
-      const result = await rpc('mark_vehicle_deleted', {
+    adminArchiveVehicle({ vehicleId, expectedVersion, stockConfirmation, reason, resetTest = false }) {
+      return rpc(resetTest ? 'pdc_admin_reset_staging_test_vehicle' : 'pdc_admin_archive_vehicle', {
         p_vehicle_id: vehicleId,
         p_expected_version: expectedVersion,
+        p_confirmation_stock: stockConfirmation,
         p_reason: reason ?? null,
       });
-      if (result?.ok === false || result?.error) return result;
-      if (result?.id && result?.lifecycle_state === 'deleted') return { ok: true, vehicle: result };
-      return result;
     },
 
-    purgeVehicleFromBoard({ vehicleId, expectedVersion, reason }) {
-      return rpc('purge_vehicle_from_board', {
-        p_vehicle_id: vehicleId,
-        p_expected_version: expectedVersion,
+    adminRestoreVehicle({ tombstoneId, stockConfirmation, reason }) {
+      return rpc('pdc_admin_restore_vehicle', {
+        p_tombstone_id: tombstoneId,
+        p_confirmation_stock: stockConfirmation,
         p_reason: reason ?? null,
       });
     },
+
+    adminAllowOneVehicleRecreation({ tombstoneId, stockConfirmation, reason, sourceHash, evidenceHash, sourceUid }) {
+      return rpc('pdc_admin_allow_vehicle_recreation_once', {
+        p_tombstone_id: tombstoneId,
+        p_confirmation_stock: stockConfirmation,
+        p_reason: reason ?? null,
+        p_source_hash: sourceHash,
+        p_evidence_hash: evidenceHash,
+        p_source_uid: sourceUid,
+        p_ttl_minutes: 30,
+      });
+    },
+
+    adminDeletedVehicleSnapshot() {
+      return rpc('pdc_admin_archived_vehicle_snapshot', { p_tombstone_id: null, p_limit: 100 });
+    },
+
 
     pmbTransferVehicle({ vehicleId, expectedVersion }) {
       return rpc('pmb_transfer_vehicle', {
@@ -429,6 +459,19 @@ function buildVehicleLifecycleSharedActions(client, getAccessToken) {
 // workshopDescribeSharedActionError() in workshop-planner.js. Staff should
 // never see a raw backend error code.
 function describeVehicleLifecycleActionError(error = '') {
+  if (error && typeof error === 'object') {
+    const body = error.body;
+    const exactMessage = error.message
+      || (body && typeof body === 'object' && (body.message || body.error_description || body.details))
+      || (typeof body === 'string' ? body : '');
+    const exactCode = error.code
+      || (body && typeof body === 'object' && (body.code || body.error || body.error_code))
+      || (error.error !== 'request_failed' ? error.error : '');
+    if (exactMessage && exactCode && !String(exactMessage).includes(String(exactCode))) return `${exactMessage} (${exactCode})`;
+    if (exactMessage) return String(exactMessage);
+    if (exactCode) return String(exactCode);
+    error = error.error || '';
+  }
   const MESSAGES = {
     vehicle_version_conflict: 'This vehicle changed since you loaded it. The latest information has been reloaded - please check and try again.',
     already_qc_complete: 'QC has already been completed for this vehicle.',
