@@ -8,7 +8,7 @@ from __future__ import annotations
 import os
 import re
 from pathlib import Path
-from urllib.parse import urlsplit
+from urllib.parse import unquote, urlsplit
 
 import psycopg2
 
@@ -54,6 +54,8 @@ def _reject_target(value: str, host: str) -> None:
 def _parsed_endpoint(value: str):
     if type(value) is not str or not value or value != value.strip() or any(ord(char) <= 0x20 or ord(char) == 0x7F for char in value):
         _reject_target("", "invalid endpoint")
+    if PRODUCTION_REF in value.lower() or PRODUCTION_REF in unquote(value).lower():
+        _reject_target(value, "production marker")
     try:
         parsed = urlsplit(value)
         host = parsed.hostname or ""

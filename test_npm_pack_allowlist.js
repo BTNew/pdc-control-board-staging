@@ -15,9 +15,32 @@ assert.strictEqual(result.status,0,result.stderr || result.stdout);
 const report = JSON.parse(result.stdout);
 const files = report.flatMap(item => item.files || []).map(item => item.path);
 assert.ok(files.includes('app.js'),'package allowlist must retain the application source');
+assert.ok(files.includes('ai-auditor.css'),'package allowlist must retain the stylesheet required by staging.html and the packaged Stage-A UI regression');
 assert.ok(files.includes('tests/sql/ai_auditor_253/07_typed_value_boundaries.sql'),'package allowlist must retain migration regression evidence');
 assert.ok(!files.some(file => /(?:^|\/)(?:\.env$|\.env\.(?:local|staging|production)$|.*\.log$|pdc_auditor_253_test_signing_boundaries\.sql$)/.test(file)),'secret/evidence/runtime residue entered npm package');
 assert.ok(!files.includes('pdc-supabase-config.js'),'environment-specific browser config must never be a package input');
+
+// Materialize exactly the reported package members and exercise the packaged
+// regression suite. The child marker prevents this test from recursively
+// materializing another package while preserving all allowlist assertions.
+if (process.env.PDC_PACKAGE_MATERIALIZED_CHILD !== '1') {
+  const materialized = fs.mkdtempSync(path.join(os.tmpdir(),'pdc-npm-pack-materialized-'));
+  try {
+    for (const file of files) {
+      const source = path.resolve(file);
+      const target = path.join(materialized,file);
+      fs.mkdirSync(path.dirname(target),{recursive:true});
+      fs.copyFileSync(source,target);
+    }
+    const packagedRegression = spawnSync(process.execPath,['test_all.js'],{
+      cwd:materialized,
+      encoding:'utf8',
+      env:{...process.env,PDC_PACKAGE_MATERIALIZED_CHILD:'1'},
+    });
+    assert.strictEqual(packagedRegression.status,0,packagedRegression.stderr || packagedRegression.stdout);
+    assert.match(packagedRegression.stdout,/Test summary: 9 passed, 0 failed, 0 skipped/,'materialized npm package regression summary mismatch');
+  } finally { fs.rmSync(materialized,{recursive:true,force:true}); }
+}
 
 // Standard npm pack runs prepack. Prove its Git gate rejects an arbitrary
 // untracked JavaScript file that the broad static-site allowlist would match.

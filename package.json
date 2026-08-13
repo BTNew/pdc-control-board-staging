@@ -5,6 +5,7 @@
   "description": "Dependency-free regression checks for the PDC Control Board static application.",
   "files": [
     "app.js",
+    "ai-auditor.css",
     "index.html",
     "staging.html",
     "styles.css",
