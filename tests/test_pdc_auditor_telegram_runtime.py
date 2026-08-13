@@ -135,6 +135,26 @@ class TypedIntentTests(unittest.TestCase):
         self.assertEqual(runtime.parse_instruction("Undo the selected Auditor run", {"selected_run_id": RUN, "selected_run_revision_after": HASH})["selected_scope"],
             {"contract": runtime.UNDO_SELECTION_CONTRACT, "run_id": RUN, "run_revision_after": HASH})
 
+    def test_compose_requires_exactly_six_distinct_reviewed_proposals(self):
+        proposals = [str(uuid.UUID(int=i, version=4)) for i in range(1, 7)]
+        expected = {"contract": runtime.COMPOSE_SELECTION_CONTRACT, "proposal_ids": proposals}
+        self.assertEqual(runtime.parse_instruction("Compose these reviewed corrections",
+            {"reviewed_proposal_ids": proposals}),
+            {"action": "compose_reviewed_proposals", "mode": "compose", "selected_scope": expected})
+        for bad in (proposals[:5], proposals[:5] + [proposals[0]], ["invalid"] * 6):
+            self.assertEqual(runtime.parse_instruction("Compose these reviewed corrections",
+                {"reviewed_proposal_ids": bad})["action"], "clarification")
+
+    def test_compose_dispatches_only_exact_bounded_rpc(self):
+        proposals = [str(uuid.UUID(int=i, version=4)) for i in range(1, 7)]
+        selected = {"contract": runtime.COMPOSE_SELECTION_CONTRACT, "proposal_ids": proposals}
+        client = FakeClient([{"ok": True, "code": "typed_mixed_proposal_created", "data": {}}])
+        result = execute(client, "Compose these reviewed corrections",
+            {"reviewed_proposal_ids": proposals}, signed_envelope("Compose these reviewed corrections", selected))
+        self.assertTrue(result["ok"])
+        self.assertEqual(client.calls, [(runtime.COMPOSE_RPC,
+            {"p_proposals": proposals, "p_gateway_envelope": signed_envelope("Compose these reviewed corrections", selected)})])
+
     def test_apply_prefix_still_only_selects_apply_mode_plan(self):
         command = runtime.parse_instruction("Apply edit operation code to X1", {"operation_ref": SRC1})
         self.assertEqual(command["action"], "edit")
@@ -142,6 +162,17 @@ class TypedIntentTests(unittest.TestCase):
 
 
 class GatewayEnvelopeTests(unittest.TestCase):
+    def test_runtime_rejects_key_shorter_than_database_minimum(self):
+        text = "Review duplicate bullbars"
+        scope = intent({"operation_refs": [SRC1, SRC2]}, "remove_duplicate",
+            duplicate_proof="database_exact", survivor_operation_ref=SRC1)
+        envelope = signed_envelope(text, scope)
+        short = b"sixteen-byte-key"
+        envelope["signature"] = hmac.new(short, runtime.gateway_signing_bytes(envelope), hashlib.sha256).hexdigest()
+        with self.assertRaisesRegex(runtime.AuditorContractError, "signing key is unavailable"):
+            runtime.validate_gateway_envelope(envelope, instruction=text, selected_scope=scope,
+                key_resolver=lambda _key_id: short, now=NOW)
+
     def test_literal_iso_length_prefix_known_answer(self):
         text = "Review duplicate bullbars"
         duplicate_context = {"operation_refs": [SRC1, SRC2], "trusted_intent": {"survivor_operation_ref": SRC1}}

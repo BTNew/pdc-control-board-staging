@@ -2,13 +2,37 @@
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../../.." && pwd)"
 PGBIN="${PGBIN:-C:/Users/nwmgr/HermesWorkspaces/development/local-postgresql-17-correct/pgsql/bin}"
-DB="pdc_auditor_253_test"
+BASE="pdc_auditor_253_test"
+VECTOR_LOAD="tests/sql/ai_auditor_253/vector.load.sql"
 cd "$ROOT"
-python -c 'import json;d=json.load(open("tests/fixtures/ai_auditor_signing_vectors_253.json",encoding="utf-8"));s=json.dumps(d,ensure_ascii=False,separators=(",",":"));open("tests/sql/ai_auditor_253/vector.load.sql","w",encoding="utf-8").write("insert into vector values ($json$"+s+"$json$::jsonb);"+chr(10))'
-"$PGBIN/dropdb.exe" -h 127.0.0.1 -p 55432 -U nwmgr --if-exists "$DB"
-"$PGBIN/createdb.exe" -h 127.0.0.1 -p 55432 -U nwmgr "$DB"
-trap '"$PGBIN/dropdb.exe" -h 127.0.0.1 -p 55432 -U nwmgr --if-exists "$DB" >/dev/null 2>&1; rm -f tests/sql/ai_auditor_253/vector.load.sql' EXIT
-"$PGBIN/psql.exe" -X -v ON_ERROR_STOP=1 -h 127.0.0.1 -p 55432 -U nwmgr -d "$DB" -f tests/sql/ai_auditor_253/00_fixture.sql
-"$PGBIN/psql.exe" -X -v ON_ERROR_STOP=1 -h 127.0.0.1 -p 55432 -U nwmgr -d "$DB" -f supabase/staging_only/253_ai_auditor_typed_operation_control.sql
-"$PGBIN/psql.exe" -X -v ON_ERROR_STOP=1 -h 127.0.0.1 -p 55432 -U nwmgr -d "$DB" -f tests/sql/ai_auditor_253/01_assertions.sql
-"$PGBIN/psql.exe" -X -v ON_ERROR_STOP=1 -h 127.0.0.1 -p 55432 -U nwmgr -d "$DB" -f tests/sql/ai_auditor_253/02_behavior.sql
+trap 'rm -f "$VECTOR_LOAD"' EXIT
+python3 - <<'PY'
+import json
+from pathlib import Path
+v=Path('tests/fixtures/ai_auditor_signing_vectors_253.json').read_text(encoding='utf-8')
+Path('tests/sql/ai_auditor_253/vector.load.sql').write_text("insert into vector values ($json$"+v+"$json$::jsonb);\n",encoding='utf-8')
+PY
+
+fresh_db() {
+  local db="$1"
+  "$PGBIN/dropdb.exe" --if-exists -h 127.0.0.1 -p 55432 -U nwmgr "$db"
+  "$PGBIN/createdb.exe" -h 127.0.0.1 -p 55432 -U nwmgr "$db"
+  "$PGBIN/psql.exe" -X -v ON_ERROR_STOP=1 -h 127.0.0.1 -p 55432 -U nwmgr -d "$db" -f tests/sql/ai_auditor_253/00_fixture.sql
+  "$PGBIN/psql.exe" -X -v ON_ERROR_STOP=1 -h 127.0.0.1 -p 55432 -U nwmgr -d "$db" -f supabase/staging_only/253_ai_auditor_typed_operation_control.sql
+  "$PGBIN/psql.exe" -X -v ON_ERROR_STOP=1 -h 127.0.0.1 -p 55432 -U nwmgr -d "$db" -f tests/sql/ai_auditor_253/01_assertions.sql
+}
+
+fresh_db "${BASE}_individual"
+"$PGBIN/psql.exe" -X -v ON_ERROR_STOP=1 -h 127.0.0.1 -p 55432 -U nwmgr -d "${BASE}_individual" -f tests/sql/ai_auditor_253/02_seed.sql
+"$PGBIN/psql.exe" -X -v ON_ERROR_STOP=1 -h 127.0.0.1 -p 55432 -U nwmgr -d "${BASE}_individual" -f tests/sql/ai_auditor_253/05_individual_paths.sql
+
+fresh_db "${BASE}_mixed"
+"$PGBIN/psql.exe" -X -v ON_ERROR_STOP=1 -h 127.0.0.1 -p 55432 -U nwmgr -d "${BASE}_mixed" -f tests/sql/ai_auditor_253/02_seed.sql
+"$PGBIN/psql.exe" -X -v ON_ERROR_STOP=1 -h 127.0.0.1 -p 55432 -U nwmgr -d "${BASE}_mixed" -f tests/sql/ai_auditor_253/03_mixed_behavior.sql
+
+fresh_db "${BASE}_auth"
+"$PGBIN/psql.exe" -X -v ON_ERROR_STOP=1 -h 127.0.0.1 -p 55432 -U nwmgr -d "${BASE}_auth" -f tests/sql/ai_auditor_253/02_seed.sql
+"$PGBIN/psql.exe" -X -v ON_ERROR_STOP=1 -h 127.0.0.1 -p 55432 -U nwmgr -d "${BASE}_auth" -f tests/sql/ai_auditor_253/04_authenticated_sessions.sql
+
+fresh_db "${BASE}_legacy"
+"$PGBIN/psql.exe" -X -v ON_ERROR_STOP=1 -h 127.0.0.1 -p 55432 -U nwmgr -d "${BASE}_legacy" -f tests/sql/ai_auditor_253/02_behavior.sql

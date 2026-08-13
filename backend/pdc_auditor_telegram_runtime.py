@@ -25,6 +25,7 @@ STAGING_PROJECT = "cdsmnqxtyyoeoznmbidd"
 STAGING_URL = f"https://{STAGING_PROJECT}.supabase.co"
 CRAIG_TELEGRAM_ID = 7828138290
 PLAN_RPC = "plan_pdc_auditor_typed_instruction_253"
+COMPOSE_RPC = "compose_pdc_auditor_typed_plan_253"
 APPLY_RPC = "apply_pdc_auditor_typed_plan_253"
 RULE_RPC = "rule_pdc_auditor_telegram_227"
 UNDO_RPC = "undo_last_pdc_auditor_typed_run_253"
@@ -59,6 +60,7 @@ def _exact_url(value: str) -> str:
 
 
 INTENT_CONTRACT = "pdc-auditor-bounded-intent-253-v1"
+COMPOSE_SELECTION_CONTRACT = "pdc-auditor-compose-selection-253-v1"
 APPLY_SELECTION_CONTRACT = "pdc-auditor-apply-selection-253-v1"
 UNDO_SELECTION_CONTRACT = "pdc-auditor-undo-selection-253-v1"
 QUERY_SELECTION_CONTRACT = "pdc-auditor-query-selection-253-v1"
@@ -262,6 +264,19 @@ def parse_instruction(instruction: str, context: Mapping[str, Any] | None = None
         raise AuditorContractError("instruction is invalid")
     c, t = dict(context or {}), _norm(instruction)
 
+    if t == "compose these reviewed corrections":
+        proposals = c.get("reviewed_proposal_ids")
+        try:
+            if not isinstance(proposals, list) or len(proposals) != 6:
+                raise AuditorContractError("reviewed_proposal_ids")
+            proposal_ids = [_uuid(value, "reviewed_proposal_id") for value in proposals]
+            if len(set(proposal_ids)) != 6:
+                raise AuditorContractError("reviewed_proposal_ids")
+        except AuditorContractError:
+            return _clarify("Select exactly six distinct reviewed proposals: Add, Edit, Split, Combine, Reorder and Remove Duplicate.")
+        selected = {"contract": COMPOSE_SELECTION_CONTRACT, "proposal_ids": proposal_ids}
+        return {"action": "compose_reviewed_proposals", "mode": "compose", "selected_scope": selected}
+
     if t == "apply these corrections":
         try:
             proposal_id = _uuid(c.get("reviewed_proposal_id"), "reviewed_proposal_id")
@@ -435,7 +450,7 @@ def validate_gateway_envelope(envelope: Any, *, instruction: str,
     if not isinstance(signature, str) or not re.fullmatch(r"[A-Fa-f0-9]{64}", signature):
         raise AuditorContractError("gateway signature is invalid")
     key = key_resolver(value["key_id"])
-    if not isinstance(key, bytes) or len(key) < 16:
+    if not isinstance(key, bytes) or len(key) < 32:
         raise AuditorContractError("gateway signing key is unavailable")
     expected = hmac.new(key, gateway_signing_bytes(value), hashlib.sha256).hexdigest()
     if not hmac.compare_digest(signature.lower(), expected):
@@ -452,7 +467,7 @@ class RpcClient:
         self.bearer = bearer
 
     def rpc(self, name: str, payload: dict[str, Any]) -> dict[str, Any]:
-        if name not in {PLAN_RPC, APPLY_RPC, RULE_RPC, UNDO_RPC, QUERY_RPC}:
+        if name not in {PLAN_RPC, COMPOSE_RPC, APPLY_RPC, RULE_RPC, UNDO_RPC, QUERY_RPC}:
             raise AuditorContractError("RPC is not allowlisted")
         req = Request(f"{self.url}/rest/v1/rpc/{name}", data=canonical_json(payload), headers={
             "apikey": self.apikey, "Authorization": f"Bearer {self.bearer}",
@@ -488,6 +503,9 @@ def execute_bound(client: RpcClient, update: Any, *, expected_chat_id: int,
         return client.rpc(RULE_RPC, {"p_action": action, "p_scope": selected_scope, "p_evidence": evidence})
     if command["mode"] == "undo":
         return client.rpc(UNDO_RPC, {"p_gateway_envelope": envelope})
+    if command["mode"] == "compose":
+        return client.rpc(COMPOSE_RPC, {"p_proposals": selected_scope["proposal_ids"],
+                                        "p_gateway_envelope": envelope})
     if command["mode"] == "apply_reviewed":
         return client.rpc(APPLY_RPC, {"p_proposal": selected_scope["proposal_id"],
             "p_proposal_version": selected_scope["proposal_version"],

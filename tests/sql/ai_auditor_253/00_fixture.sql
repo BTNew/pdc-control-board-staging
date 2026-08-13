@@ -23,7 +23,7 @@ create type public.pdc_role as enum('viewer','operator','importer','administrato
 create type public.pdc_account_status as enum('pending','approved','disabled','rejected');
 create type public.vehicle_lifecycle_state as enum('active','rft','completed','deleted');
 create type public.audit_action as enum('insert','update','move','import','delete','restore','rft','role_change','reference_change','rollback');
-create table public.pdc_user_roles(id uuid primary key default gen_random_uuid(),email text unique not null,role public.pdc_role not null,active boolean not null,auth_user_id uuid references auth.users(id),account_status public.pdc_account_status not null);
+create table public.pdc_user_roles(id uuid primary key default gen_random_uuid(),email text unique not null,role public.pdc_role not null,active boolean not null,auth_user_id uuid references auth.users(id),account_status public.pdc_account_status not null,approved_at timestamptz,disabled_at timestamptz);
 create table public.vehicles(id uuid primary key,permanent_vehicle_id text unique not null,stock_number text,job_card_number text,lifecycle_state public.vehicle_lifecycle_state not null default 'active',current_location text,rft_collected_at timestamptz,deleted_at timestamptz);
 create table public.vehicle_work_items(id uuid primary key default gen_random_uuid(),vehicle_id uuid not null references public.vehicles(id),work_key text not null,required boolean not null default false,completed boolean not null default false,completed_by uuid references auth.users(id),completed_at timestamptz,notes text,updated_at timestamptz not null default clock_timestamp(),unique(vehicle_id,work_key));
 create table public.audit_events(id uuid primary key default gen_random_uuid(),action public.audit_action not null,table_name text,row_id uuid,vehicle_id uuid,actor_id uuid,actor_email text,before_data jsonb,after_data jsonb,metadata jsonb not null default '{}',created_at timestamptz default clock_timestamp());
@@ -53,7 +53,7 @@ create function public.pdc_auditor_operational_revision(text) returns text langu
 create function public.pdc_auditor_telegram_actor_scope_225(bigint) returns jsonb language sql stable as $$select jsonb_build_object('service_identity_id','10000000-0000-4000-8000-000000000001','service_user_id','10000000-0000-4000-8000-000000000002','service_email','auditor@example.test','admin_user_id','10000000-0000-4000-8000-000000000003','admin_email','craig@example.test','dealer_code','14450') where $1=7828138290$$;
 
 insert into auth.users values('10000000-0000-4000-8000-000000000002','auditor@example.test','{}'),('10000000-0000-4000-8000-000000000003','craig@example.test','{}');
-insert into public.pdc_user_roles(email,role,active,auth_user_id,account_status) values('craig@example.test','administrator',true,'10000000-0000-4000-8000-000000000003','approved');
+insert into public.pdc_user_roles(email,role,active,auth_user_id,account_status,approved_at,disabled_at) values('craig@example.test','administrator',true,'10000000-0000-4000-8000-000000000003','approved',clock_timestamp(),null);
 insert into public.pdc_auditor_user_dealer_scopes values('10000000-0000-4000-8000-000000000003','craig@example.test','craig@example.test','14450','staging',true);
 grant usage on schema auth to authenticated;
 grant select on auth.users,public.pdc_user_roles,public.pdc_auditor_user_dealer_scopes to authenticated;

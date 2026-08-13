@@ -1,6 +1,11 @@
 -- Executable migration-253 behavior checks on the disposable loopback fixture only.
 \set ON_ERROR_STOP on
 
+-- Real controlled RPCs require the enrolled Auditor database session as well as
+-- the signed Telegram/Admin authority carried by the envelope.
+select set_config('request.jwt.claim.sub','10000000-0000-4000-8000-000000000002',false);
+select set_config('request.jwt.claims','{"sub":"10000000-0000-4000-8000-000000000002","email":"auditor@example.test","role":"authenticated"}',false);
+
 insert into public.pdc_auditor_gateway_keys_253(gateway_instance_id,key_id,hmac_key,active,valid_from,valid_until,provisioned_by)
 values('fixture-gateway','fixture-key',decode(repeat('42',32),'hex'),true,clock_timestamp()-interval '1 hour',clock_timestamp()+interval '1 hour','10000000-0000-4000-8000-000000000003');
 
@@ -84,8 +89,9 @@ do $$declare scope jsonb; env jsonb; changed jsonb; first_result jsonb; second_r
  scope:=jsonb_build_object('contract','pdc-auditor-query-selection-253-v1','vehicle_id','20000000-0000-4000-8000-000000000010','job_card_number','J10');
  env:=pg_temp.envelope('Why was this changed',scope,'44000000-0000-4000-8000-000000000001','query-replay-fixture-nonce');
  first_result:=public.query_pdc_auditor_typed_253('operation_snapshot',scope,env);
+ update public.pdc_authenticated_email_operation_lines set description='Query state changed after first signed result' where operation_line_id='30000000-0000-4000-8000-000000000010';
  second_result:=public.query_pdc_auditor_typed_253('operation_snapshot',scope,env);
- if first_result<>second_result then raise exception 'exact replay changed result';end if;
+ if first_result<>second_result then raise exception 'exact replay changed stored result';end if;
  changed:=pg_temp.envelope('Why was this changed',jsonb_set(scope,'{job_card_number}','"J10-CHANGED"'),'44000000-0000-4000-8000-000000000001','query-replay-fixture-nonce-2');
  begin perform public.query_pdc_auditor_typed_253('operation_snapshot',changed->'selected_scope',changed);raise exception 'conflicting delivery replay accepted';exception when unique_violation then null;end;
 end$$;

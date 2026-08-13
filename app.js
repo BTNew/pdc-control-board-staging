@@ -19413,7 +19413,7 @@ function subscribePdcAuditorRealtime(dealerCode = '') {
       // Never overlap an unresolved authoritative request. Its successful load
       // will subscribe a replacement channel whose SUBSCRIBED reconciliation
       // covers this invalidation; otherwise the next visible/manual load retries.
-      if (pdcAuditorRealtimeViewActive() && !refreshWasInFlight) void loadPdcAuditorSnapshot({ force: true });
+      if (pdcAuditorRealtimeViewActive() && !refreshWasInFlight && app.pdcAuditorState !== 'loading') void loadPdcAuditorSnapshot({ force: true });
     }
   });
   return app.pdcAuditorRealtime;
