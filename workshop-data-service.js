@@ -362,12 +362,20 @@ function createWorkshopDataService(options) {
     return loadSnapshot('scope_changed');
   }
 
+  async function recoverEditableAuthority() {
+    for (let attempt = 0; attempt < 20; attempt += 1) {
+      await loadSnapshot(attempt === 0 ? 'mutation_preflight' : 'mutation_preflight_wait');
+      if (isEditable() && snapshotTrusted && !pendingReloadTimer && !activeLoadToken && !trailingReloadRequested) return true;
+      if (!enabled || destroyed || !getAccessToken()) return false;
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+    return false;
+  }
+
   function ensureEditable() {
     if (isEditable() && snapshotTrusted && !pendingReloadTimer && !activeLoadToken && !trailingReloadRequested) return true;
     if (!enabled || destroyed || !getAccessToken()) return false;
-    return loadSnapshot('mutation_preflight').then(() => (
-      isEditable() && snapshotTrusted && !pendingReloadTimer && !activeLoadToken && !trailingReloadRequested
-    ));
+    return recoverEditableAuthority();
   }
 
   async function mutate(rpcName, params) {
