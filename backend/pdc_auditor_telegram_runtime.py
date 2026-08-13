@@ -58,7 +58,7 @@ def _exact_url(value: str) -> str:
     return STAGING_URL
 
 
-INTENT_CONTRACT = "pdc-auditor-operation-intent-253-v1"
+INTENT_CONTRACT = "pdc-auditor-bounded-intent-253-v1"
 APPLY_SELECTION_CONTRACT = "pdc-auditor-apply-selection-253-v1"
 UNDO_SELECTION_CONTRACT = "pdc-auditor-undo-selection-253-v1"
 QUERY_SELECTION_CONTRACT = "pdc-auditor-query-selection-253-v1"
@@ -186,7 +186,6 @@ def _parse_typed_mutation(text: str, context: Mapping[str, Any]) -> tuple[str, d
     duplicate = "duplicate" in t and (t.startswith("duplicate ") or any(
         v in t for v in ("review", "find", "show", "remove", "delete", "deduplicate")))
     if duplicate:
-        if not selector and ("bullbar" in t or "bull bar" in t): selector = {"category": "bullbar"}
         if not selector: return ("", {})
         desired: dict[str, Any] = {"duplicate_proof": "database_exact"}
         if "operation_refs" in selector:
@@ -249,10 +248,9 @@ def _parse_typed_mutation(text: str, context: Mapping[str, Any]) -> tuple[str, d
         return "combine", _intent(selector, context, survivor_operation_ref=survivor, new_value=new)
 
     if re.match(r"^reorder\b", t):
-        if set(selector) not in ({"vehicle_id"}, {"job_card_number"}): return ("", {})
         try: ordered = _operation_refs(trusted.get("ordered_operation_refs"), "ordered_operation_refs")
         except AuditorContractError: return ("", {})
-        return "reorder", _intent(selector, context, ordered_operation_refs=ordered,
+        return "reorder", _intent({"operation_refs": ordered}, context,
                                   complete_effective_set=True)
     return None
 
@@ -280,11 +278,17 @@ def parse_instruction(instruction: str, context: Mapping[str, Any] | None = None
                     "proposal_version": proposal_version, **hashes}
         return {"action": "apply_reviewed_proposal", "mode": "apply_reviewed", "selected_scope": selected}
 
-    if t in {"undo the last auditor run", "undo last auditor run"}:
-        run_id = c.get("selected_run_id")
-        selected = ({"contract": UNDO_SELECTION_CONTRACT, "run_id": _uuid(run_id, "selected_run_id")}
-                    if run_id is not None else {"contract": UNDO_SELECTION_CONTRACT, "latest": True})
-        return {"action": "undo_last_run", "mode": "undo", "selected_scope": selected}
+    if t == "undo the selected auditor run":
+        try:
+            run_id = _uuid(c.get("selected_run_id"), "selected_run_id")
+            revision = c.get("selected_run_revision_after")
+            if not isinstance(revision, str) or not re.fullmatch(r"[0-9a-f]{64}", revision):
+                raise AuditorContractError("selected_run_revision_after is invalid")
+        except AuditorContractError:
+            return _clarify("Select the exact Auditor run and its reviewed after-state revision.")
+        selected = {"contract": UNDO_SELECTION_CONTRACT, "run_id": run_id,
+                    "run_revision_after": revision}
+        return {"action": "undo_selected_run", "mode": "undo", "selected_scope": selected}
 
     if t.startswith("why did you change") or t.startswith("why was this changed"):
         try:

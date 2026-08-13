@@ -73,10 +73,10 @@ class TypedIntentTests(unittest.TestCase):
         self.assertEqual(runtime.parse_instruction("Change genuine GVM upgrades to 5 hours"),
             {"action": "edit", "mode": "apply", "selected_scope": intent(
                 {"category": "gvm_upgrade"}, "edit", new_value={"estimated_hours": 5.0})})
-        self.assertEqual(runtime.parse_instruction("Review duplicate bullbars"),
+        self.assertEqual(runtime.parse_instruction("Review duplicate bullbars", {"operation_refs": [SRC1, SRC2], "trusted_intent": {"survivor_operation_ref": SRC1}}),
             {"action": "remove_duplicate", "mode": "review", "selected_scope": intent(
-                {"category": "bullbar"}, "remove_duplicate", duplicate_proof="database_exact")})
-        self.assertNotIn("review_category", repr(runtime.parse_instruction("Review duplicate bullbars")))
+                {"operation_refs": [SRC1, SRC2]}, "remove_duplicate", duplicate_proof="database_exact", survivor_operation_ref=SRC1)})
+        self.assertNotIn("review_category", repr(runtime.parse_instruction("Review duplicate bullbars", {"operation_refs": [SRC1, SRC2], "trusted_intent": {"survivor_operation_ref": SRC1}})))
 
     def test_exactly_one_strict_selector(self):
         for context in ({}, {"operation_ref": SRC1, "vehicle_id": VEHICLE},
@@ -116,7 +116,7 @@ class TypedIntentTests(unittest.TestCase):
         self.assertEqual(runtime.parse_instruction("Reorder operation lines", {"vehicle_id": VEHICLE})["action"], "clarification")
         reorder = runtime.parse_instruction("Reorder operation lines", {"vehicle_id": VEHICLE,
             "trusted_intent": {"ordered_operation_refs": [SRC2, SRC1, AUD1]}})
-        self.assertEqual(reorder["selected_scope"]["desire"]["ordered_operation_refs"], [SRC2, SRC1, AUD1])
+        self.assertEqual(reorder["selected_scope"]["selector"]["operation_refs"], [SRC2, SRC1, AUD1])
         self.assertIs(reorder["selected_scope"]["desire"]["complete_effective_set"], True)
 
     def test_apply_and_undo_have_exact_selection_contracts(self):
@@ -132,10 +132,8 @@ class TypedIntentTests(unittest.TestCase):
         for missing in reviewed:
             bad = dict(reviewed); bad.pop(missing)
             self.assertEqual(runtime.parse_instruction("Apply these corrections", bad)["action"], "clarification")
-        self.assertEqual(runtime.parse_instruction("Undo last auditor run")["selected_scope"],
-            {"contract": runtime.UNDO_SELECTION_CONTRACT, "latest": True})
-        self.assertEqual(runtime.parse_instruction("Undo last auditor run", {"selected_run_id": RUN})["selected_scope"],
-            {"contract": runtime.UNDO_SELECTION_CONTRACT, "run_id": RUN})
+        self.assertEqual(runtime.parse_instruction("Undo the selected Auditor run", {"selected_run_id": RUN, "selected_run_revision_after": HASH})["selected_scope"],
+            {"contract": runtime.UNDO_SELECTION_CONTRACT, "run_id": RUN, "run_revision_after": HASH})
 
     def test_apply_prefix_still_only_selects_apply_mode_plan(self):
         command = runtime.parse_instruction("Apply edit operation code to X1", {"operation_ref": SRC1})
@@ -146,7 +144,8 @@ class TypedIntentTests(unittest.TestCase):
 class GatewayEnvelopeTests(unittest.TestCase):
     def test_literal_iso_length_prefix_known_answer(self):
         text = "Review duplicate bullbars"
-        scope = intent({"category": "bullbar"}, "remove_duplicate", duplicate_proof="database_exact")
+        duplicate_context = {"operation_refs": [SRC1, SRC2], "trusted_intent": {"survivor_operation_ref": SRC1}}
+        scope = intent({"operation_refs": [SRC1, SRC2]}, "remove_duplicate", duplicate_proof="database_exact", survivor_operation_ref=SRC1)
         envelope = signed_envelope(text, scope)
         expected = (
             b'pdc-auditor-envelope-253-v1\n'
@@ -160,7 +159,7 @@ class GatewayEnvelopeTests(unittest.TestCase):
             b'selected_scope:' + str(len(runtime.canonical_json(scope))).encode() + b':' + runtime.canonical_json(scope) + b'\n'
             b'telegram_evidence:' + str(len(runtime.canonical_json(envelope['telegram_evidence']))).encode() + b':' + runtime.canonical_json(envelope['telegram_evidence']))
         self.assertEqual(runtime.gateway_signing_bytes(envelope), expected)
-        self.assertEqual(envelope["signature"], "1fd6fe7208b8b66cf4e1798ea6c7ae1864735617c6b058dd48434ad41a651e41")
+        self.assertEqual(envelope["signature"], "e81eb0b70300844e78718651b10b56a55c202ebfa39a1ee6ddef011ae5dffe0a")
 
 
     def test_shared_canonical_vectors(self):
@@ -176,7 +175,8 @@ class GatewayEnvelopeTests(unittest.TestCase):
 
     def test_signature_hash_scope_uuid_and_time_validation_precede_rpc(self):
         text = "Review duplicate bullbars"
-        scope = intent({"category": "bullbar"}, "remove_duplicate", duplicate_proof="database_exact")
+        duplicate_context = {"operation_refs": [SRC1, SRC2], "trusted_intent": {"survivor_operation_ref": SRC1}}
+        scope = intent({"operation_refs": [SRC1, SRC2]}, "remove_duplicate", duplicate_proof="database_exact", survivor_operation_ref=SRC1)
         envelope = signed_envelope(text, scope)
         verified = runtime.validate_gateway_envelope(envelope, instruction=text, selected_scope=scope,
             telegram_evidence=envelope["telegram_evidence"], key_resolver=lambda _: KEY, now=NOW)
@@ -195,7 +195,7 @@ class RuntimeContractTests(unittest.TestCase):
     def test_review_and_mutation_both_plan_only_with_exact_payload(self):
         review = {"ok": True, "code": "planned", "data": {"proposal_id": PROPOSAL, "proposal_version": PROPOSAL_VERSION, "proposal_hash": HASH, "typed_item_set_hash": HASH, "final_scope_hash": HASH, "expected_row_versions_hash": HASH}}
         client = FakeClient([review])
-        self.assertIs(execute(client, "Review duplicate bullbars"), review)
+        self.assertIs(execute(client, "Review duplicate bullbars", {"operation_refs": [SRC1, SRC2], "trusted_intent": {"survivor_operation_ref": SRC1}}), review)
         name, payload = client.calls[0]
         self.assertEqual(name, runtime.PLAN_RPC)
         self.assertEqual(payload["p_action"], "remove_duplicate")
@@ -235,10 +235,10 @@ class RuntimeContractTests(unittest.TestCase):
         self.assertEqual(query_client.calls[0][1]["p_action"], "operation_snapshot")
 
         undo_client = FakeClient([{"ok": True}])
-        execute(undo_client, "Undo last auditor run", {"selected_run_id": RUN})
+        execute(undo_client, "Undo the selected Auditor run", {"selected_run_id": RUN, "selected_run_revision_after": HASH})
         self.assertEqual(undo_client.calls[0][0], runtime.UNDO_RPC)
         self.assertEqual(undo_client.calls[0][1]["p_gateway_envelope"]["selected_scope"], {
-            "contract": runtime.UNDO_SELECTION_CONTRACT, "run_id": RUN})
+            "contract": runtime.UNDO_SELECTION_CONTRACT, "run_id": RUN, "run_revision_after": HASH})
 
         rule_client = FakeClient([{"ok": True}])
         execute(rule_client, "Show rules")
@@ -253,10 +253,11 @@ class RuntimeContractTests(unittest.TestCase):
 
         no_calls = FakeClient([])
         text = "Review duplicate bullbars"
-        scope = runtime.parse_instruction(text)["selected_scope"]
+        duplicate_context = {"operation_refs": [SRC1, SRC2], "trusted_intent": {"survivor_operation_ref": SRC1}}
+        scope = runtime.parse_instruction(text, duplicate_context)["selected_scope"]
         bad = signed_envelope(text, scope); bad["signature"] = "0" * 64
         with self.assertRaisesRegex(runtime.AuditorContractError, "signature"):
-            execute(no_calls, text, envelope=bad)
+            execute(no_calls, text, duplicate_context, envelope=bad)
         self.assertEqual(no_calls.calls, [])
 
     def test_rpc_allowlist(self):
