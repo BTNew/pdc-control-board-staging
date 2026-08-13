@@ -31,7 +31,7 @@ assert(app.includes('Correct the Going Out date first.'), 'Future-date failures 
 assert(app.includes('await setSubletReturned(input.dataset.subletCalendarReturned, true)'), 'Calendar checkbox must use the canonical return action without fabricating a future return date');
 assert(app.includes("event.keyNumber ? `Key ${event.keyNumber}` : ''"), 'Every Sublet calendar pill must include the key number when available');
 assert(app.includes("event.target?.closest?.('[data-sublet-calendar-returned]')"), 'Using the checkbox must not accidentally start a calendar drag');
-assert(app.includes("if (!saved) {\n      input.checked = false;"), 'Failed returns must reset the checkbox');
+assert(/if \(!saved\) \{\s*input\.checked = false;/.test(app), 'Failed returns must reset the checkbox');
 assert(css.includes('.sublet-calendar-returned-check'), 'Calendar return checkbox must have an explicit compact style');
 assert(css.includes('position: absolute; top: 4px; right: 5px'), 'Back control must stay on the stock identity row without increasing pill height');
 

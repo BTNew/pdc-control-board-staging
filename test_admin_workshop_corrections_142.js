@@ -26,7 +26,7 @@ ok(planner.includes('name="estimated_hours"') && planner.includes('value="${esca
 ok(css.includes('.workshop-required-job-list'), 'station required jobs have dedicated styling');
 ok(layoutCss.includes('.sidebar .nav .nav-admin-group'), 'mobile Admin group stays in the compact navigation row');
 ok(layoutCss.includes('.sidebar .nav .nav-admin-toggle > span { display: none; }'), 'mobile Admin toggle uses its compact data-short label');
-ok(layoutCss.includes('.sidebar .nav .nav-admin-menu {\n    display: flex;'), 'mobile Admin submenu uses a single-row flex layout');
+ok(/\.sidebar \.nav \.nav-admin-menu\s*\{\s*display:\s*flex;/.test(layoutCss), 'mobile Admin submenu uses a single-row flex layout');
 
 ok(sql.includes('create or replace function public.set_pdc_vehicle_work_states('), 'migration defines canonical work-state mutation');
 ok(sql.includes("perform public.require_pdc_role('operator')"), 'mutation requires operator/admin authority');

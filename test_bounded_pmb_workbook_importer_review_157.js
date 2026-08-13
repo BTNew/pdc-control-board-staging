@@ -19,7 +19,8 @@ function body(name){
  const from=start+m.index+m[0].length;const end=sql.indexOf(`${m[1]};`,from);assert(end>=0,`unterminated ${name}`);return lower.slice(start,end+m[1].length+1);
 }
 function ordered(b,a,z,label){const ai=b.indexOf(a.toLowerCase()),zi=b.indexOf(z.toLowerCase());assert(ai>=0&&zi>=0&&ai<zi,label||`${a} must precede ${z}`);}
-function sha(file){return crypto.createHash('sha256').update(fs.readFileSync(path.join(root,file))).digest('hex');}
+// SQL artifact identity is content-based, not checkout-platform line-ending based.
+function sha(file){return crypto.createHash('sha256').update(fs.readFileSync(path.join(root,file),'utf8').replace(/\r\n/g,'\n')).digest('hex');}
 
 has('begin;');has("version='156'");has("name='monitor_parts_and_complete_purge_review_remediation'");has("values('157','bounded_pmb_workbook_importer_review'");
 assert(502<=600,'Migration157 must support the retained 502-pair workbook');

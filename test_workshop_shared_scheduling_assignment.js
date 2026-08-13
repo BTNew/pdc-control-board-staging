@@ -12,11 +12,13 @@ global.cleanNavisionText = value => String(value == null ? '' : value).trim();
 global.nowIsoString = () => new Date(2026, 6, 20, 9, 0, 0, 0).toISOString();
 global.pmbStageLabel = value => String(value || '');
 
+global.document = { querySelector: () => null };
 global.window = {
   alert: () => {},
   addEventListener: () => {},
   workshopSharedModeEnabled: cfg => !!(cfg && cfg.workshop && cfg.workshop.sharedData === true),
   PDC_SUPABASE_CONFIG: { workshop: { sharedData: true } },
+  PDC_AUTH_CONTEXT: { role: 'administrator' },
 };
 
 const planner = require('./workshop-planner.js');
@@ -64,10 +66,13 @@ function request(assignee, stage = 'HOIST') {
 
 async function attempt(options) {
   const calls = [];
-  const ok = await planner.workshopScheduleSharedNewBooking(options, async (name, payload) => {
-    calls.push({ name, payload });
-    return { ok: true };
-  });
+  window.__workshopSharedActions = {
+    administratorScheduleVehicle: async payload => {
+      calls.push({ name: 'administratorScheduleVehicle', payload });
+      return { ok: true };
+    },
+  };
+  const ok = await planner.workshopScheduleSharedNewBooking(options);
   return { ok, calls };
 }
 
@@ -77,8 +82,8 @@ async function run() {
   let result = await attempt(request('Active Tech'));
   assert.strictEqual(result.ok, true, 'active selected technician schedules successfully');
   assert.strictEqual(result.calls.length, 1, 'active selected technician dispatches exactly one action');
-  assert.strictEqual(result.calls[0].name, 'cascadeSchedule');
-  assert.strictEqual(result.calls[0].payload.shiftMinutes, 120, 'insert cascade delay equals the inserted booking duration');
+  assert.strictEqual(result.calls[0].name, 'administratorScheduleVehicle');
+  assert.strictEqual(result.calls[0].payload.durationMinutes, 120, 'controlled endpoint receives the inserted booking duration');
   assert.strictEqual(result.calls[0].payload.technicianId, activeId, 'stable reference UUID is retained in the scheduling payload');
   console.log('PASS 1: active selected technician dispatches the stable UUID');
 
@@ -92,17 +97,17 @@ async function run() {
   installSharedState({ technicians: [{ id: activeId, name: 'Active Tech', active: true }] });
   window.__workshopDataService.getTrustedSnapshot = () => ({ vehicles: [{ id: 'vehicle-uuid', version: 8 }] });
   const retryCalls = [];
-  const retried = await planner.workshopScheduleSharedNewBooking(request(''), async (name, payload) => {
-    retryCalls.push({ name, payload });
-    return retryCalls.length === 1
-      ? { ok: false, error: 'vehicle_version_conflict' }
-      : { ok: true };
-  });
-  assert.strictEqual(retried, true, 'stale vehicle scheduling should recover without a second user action');
-  assert.strictEqual(retryCalls.length, 2, 'vehicle version conflict is retried exactly once');
-  assert.strictEqual(retryCalls[0].payload.targetExpectedVersion, 7);
-  assert.strictEqual(retryCalls[1].payload.targetExpectedVersion, 8, 'retry uses the freshly trusted authoritative version');
-  console.log('PASS 2a: stale vehicle version refreshes and retries the unchanged insert once');
+  window.__workshopSharedActions = {
+    administratorScheduleVehicle: async payload => {
+      retryCalls.push({ name: 'administratorScheduleVehicle', payload });
+      return { ok: false, error: 'vehicle_version_conflict' };
+    },
+  };
+  const retried = await planner.workshopScheduleSharedNewBooking(request(''));
+  assert.strictEqual(retried, false, 'stale full intent must require a new deliberate drag');
+  assert.strictEqual(retryCalls.length, 1, 'vehicle version conflict must not mutate or replay intent automatically');
+  assert.strictEqual(retryCalls[0].payload.vehicleExpectedVersion, 7);
+  console.log('PASS 2a: stale vehicle version fails closed without changing the idempotent intent');
 
   result = await attempt(request('', 'SUBLET'));
   assert.strictEqual(result.ok, false, 'Sublet cannot be scheduled through the generic shared booking helper');

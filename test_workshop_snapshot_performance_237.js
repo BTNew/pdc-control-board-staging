@@ -13,7 +13,7 @@ assert(lower.includes("version::numeric>236") && lower.includes("version='237'")
 assert(lower.includes("pg_advisory_xact_lock(hashtextextended('pdc-staging-migration-installation',0))"), 'Migration 237 must share the staging installation lock');
 assert(lower.includes('workshop_add_operational_minutes_pre237'), 'Migration 237 must retain a private parity baseline');
 assert(lower.includes('revoke all on function public.workshop_add_operational_minutes_pre237'), 'The parity baseline must not be an alternate operational path');
-const optimizedStart = lower.indexOf('create or replace function public.workshop_add_operational_minutes(\n');
+const optimizedStart = lower.search(/create or replace function public\.workshop_add_operational_minutes\(\r?\n/);
 const optimizedEnd = lower.indexOf('-- consolidate station eligibility', optimizedStart);
 const optimizedDuration = lower.slice(optimizedStart, optimizedEnd);
 assert(optimizedDuration.includes("select jsonb_object_agg(key,value)"), 'Calendar settings must be loaded once per duration calculation');

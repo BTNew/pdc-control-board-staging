@@ -2,7 +2,7 @@
 const fs=require('fs'),crypto=require('crypto');
 const assert=(v,m)=>{if(!v)throw new Error(m)};
 const sql=fs.readFileSync('supabase/staging_only/166_operator_apply_and_terminal_quarantine.sql','utf8');
-const sha=p=>crypto.createHash('sha256').update(fs.readFileSync(p)).digest('hex');
+const sha=p=>crypto.createHash('sha256').update(fs.readFileSync(p,'utf8').replace(/\r\n/g,'\n')).digest('hex');
 assert(sha('supabase/staging_only/165_receipt_bound_retained_jobcard_classification.sql')==='a058fdca7940488a2f9099de00ddb2da0f094468a691b3d1d8a7e07bc32e249b','Migration165 drift');
 assert(/version='165' and name='receipt_bound_retained_jobcard_classification'/.test(sql),'exact predecessor missing');
 assert(/pdc_monitor_staging_guard\(\)/.test(sql)&&/version>'165'/.test(sql),'staging/newer guards missing');

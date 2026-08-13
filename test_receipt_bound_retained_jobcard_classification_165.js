@@ -2,7 +2,7 @@
 const fs=require('fs'),crypto=require('crypto');
 const assert=(v,m)=>{if(!v)throw new Error(m)};
 const sql=fs.readFileSync('supabase/staging_only/165_receipt_bound_retained_jobcard_classification.sql','utf8');
-const sha=p=>crypto.createHash('sha256').update(fs.readFileSync(p)).digest('hex');
+const sha=p=>crypto.createHash('sha256').update(fs.readFileSync(p,'utf8').replace(/\r\n/g,'\n')).digest('hex');
 assert(sha('supabase/staging_only/164_canonical_activation_shared_vehicle_pairs.sql')==='e54868ee95dd8ecd0b2f0e8e50e4142adcb36930e822b0a9539923d3b1ff6ded','Migration164 source drift');
 assert(/version='164' and name='canonical_activation_shared_vehicle_pairs'/.test(sql),'exact predecessor missing');
 assert(/version>'164'/.test(sql) && /pdc_monitor_staging_guard\(\)/.test(sql),'staging/newer-ledger guards missing');

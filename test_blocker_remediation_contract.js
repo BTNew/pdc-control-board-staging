@@ -80,7 +80,7 @@ assert(sql.includes('Ambiguous historical PITSHOIST/PITINSPECTION'), 'historical
 
 assert(app.includes('failWorkshopEligibilityOverviewSubscription') && app.includes('workshopEligibilityRequestGeneration += 1'), 'aggregate authority loss must invalidate requests');
 assert(service.includes('onAuthorityLost,') && service.includes('activeLoadToken !== loadToken'), 'station late responses must be generation-invalidated');
-assert(service.includes('!snapshotTrusted || pendingReloadTimer || activeLoadToken') && service.includes('setState(WORKSHOP_CONNECTION_STATE.RECONNECTING)'), 'revision signals must immediately make stale snapshots non-actionable');
+assert(service.includes('snapshotTrusted = false;') && service.includes('pendingReloadTimer') && service.includes('activeLoadToken') && service.includes('setState(WORKSHOP_CONNECTION_STATE.RECONNECTING)'), 'revision signals must immediately make stale snapshots non-actionable');
 assert(realtime.includes('dataService.onAuthorityLost?.()'), 'channel failures/replacements/disposal must invalidate station authority');
 
 console.log(`Blocker remediation contract passed: ${vehicleFields.length} vehicle DTO fields, ${wrapperNames.length} safe wrappers`);

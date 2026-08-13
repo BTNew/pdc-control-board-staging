@@ -176,7 +176,7 @@ for (const token of ["'booking_created',false", "'completion_created',false", "'
 assert(!/\b(insert into|update|delete from)\s+public\.workshop_bookings\b/i.test(adapter), 'Wrapper must not schedule bookings');
 assert(!/\b(insert into|update|delete from)\s+public\.vehicle_parts_updates\b/i.test(adapter), 'Wrapper must not mutate Parts completion');
 
-has(sql, "values(\n    '159','bounded_jobcard_attachment_canonical_adapter'");
+has(lower.replace(/\r\n/g, '\n'), "values(\n    '159','bounded_jobcard_attachment_canonical_adapter'");
 for (const token of [
   'create function public.process_email_intake_work(',
   "'authentication','canonical_attachment_id','canonical_document_hash','contract_version'",

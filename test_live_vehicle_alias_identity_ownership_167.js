@@ -2,7 +2,7 @@
 const fs=require('fs'),crypto=require('crypto');
 const assert=(v,m)=>{if(!v)throw new Error(m)};
 const sql=fs.readFileSync('supabase/staging_only/167_live_vehicle_alias_identity_ownership.sql','utf8');
-const sha=p=>crypto.createHash('sha256').update(fs.readFileSync(p)).digest('hex');
+const sha=p=>crypto.createHash('sha256').update(fs.readFileSync(p,'utf8').replace(/\r\n/g,'\n')).digest('hex');
 assert(sha('supabase/staging_only/166_operator_apply_and_terminal_quarantine.sql')==='7354760cf412959d09116b83de96b989212fb7d1d4a865d33c5514f4e6e6701a','Migration166 drift');
 assert(/pdc_monitor_staging_guard\(\)/.test(sql)&&/version='166' and name='operator_apply_and_terminal_quarantine'/.test(sql)&&/version>'166'/.test(sql),'staging/predecessor guards missing');
 assert(sql.indexOf('lock table public.vehicles')<sql.indexOf('lock table public.vehicle_aliases'),'identity lock order drift');

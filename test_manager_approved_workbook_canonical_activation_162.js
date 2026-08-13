@@ -18,7 +18,8 @@ function body(name){
  return lower.slice(start,end+m[1].length+1);
 }
 function ordered(s,a,b,msg){const x=s.indexOf(a.toLowerCase()),y=s.indexOf(b.toLowerCase());assert(x>=0&&y>=0&&x<y,msg||`${a} must precede ${b}`);}
-function sha(rel){return crypto.createHash('sha256').update(fs.readFileSync(path.join(root,rel))).digest('hex');}
+// SQL artifact identity is content-based, not checkout-platform line-ending based.
+function sha(rel){return crypto.createHash('sha256').update(fs.readFileSync(path.join(root,rel),'utf8').replace(/\r\n/g,'\n')).digest('hex');}
 
 has("version='161'");has("version='157'");has("values('162','manager_approved_workbook_canonical_activation'");
 has("to_regclass('public.pdc_production_environment_sentinel') is not null");

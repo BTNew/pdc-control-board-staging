@@ -2,7 +2,7 @@
 const fs=require('fs'),crypto=require('crypto');
 const assert=(v,m)=>{if(!v)throw new Error(m)};
 const sql=fs.readFileSync('supabase/staging_only/164_canonical_activation_shared_vehicle_pairs.sql','utf8');
-const sha=p=>crypto.createHash('sha256').update(fs.readFileSync(p)).digest('hex');
+const sha=p=>crypto.createHash('sha256').update(fs.readFileSync(p,'utf8').replace(/\r\n/g,'\n')).digest('hex');
 assert(sha('supabase/staging_only/163_canonical_activation_runtime_ambiguity_fix.sql')==='93b97c535d47f27db3e56de8a1db2b6f9296b7b17e2f8cad3b6c51ec04e9bdb1','Migration163 source drift');
 assert(/version='163' and name='canonical_activation_runtime_ambiguity_fix'/.test(sql),'exact predecessor missing');
 assert(/version>'163'/.test(sql),'newer-ledger refusal missing');

@@ -19,13 +19,14 @@ end $guard$;
 revoke all on function public.schedule_vehicle_work(uuid,integer,text,integer,timestamptz,integer,uuid,text,jsonb) from public,anon,authenticated,service_role;
 revoke all on function public.cascade_workshop_schedule(text,uuid,integer,text,integer,timestamptz,integer,uuid,integer,text,jsonb) from public,anon,authenticated,service_role;
 revoke all on function public.move_workshop_booking(uuid,integer,text,integer,timestamptz,integer,text,jsonb) from public,anon,authenticated,service_role;
+revoke all on function public.cascade_workshop_booking_move(uuid,integer,text,integer,timestamptz,integer,text,jsonb) from public,anon,authenticated,service_role;
 revoke all on function public.resize_workshop_booking(uuid,integer,integer,jsonb) from public,anon,authenticated,service_role;
 revoke all on function public.change_booking_bay(uuid,integer,integer,jsonb) from public,anon,authenticated,service_role;
 
 do $verify$
 declare n text;
 begin
- foreach n in array array['schedule_vehicle_work','cascade_workshop_schedule','move_workshop_booking','resize_workshop_booking','change_booking_bay'] loop
+ foreach n in array array['schedule_vehicle_work','cascade_workshop_schedule','move_workshop_booking','cascade_workshop_booking_move','resize_workshop_booking','change_booking_bay'] loop
   if exists(select 1 from pg_proc p join pg_namespace s on s.oid=p.pronamespace where s.nspname='public' and p.proname=n and (has_function_privilege('public',p.oid,'execute') or has_function_privilege('anon',p.oid,'execute') or has_function_privilege('authenticated',p.oid,'execute') or has_function_privilege('service_role',p.oid,'execute'))) then
    raise exception 'PDC_250_RPC_GRANT_VERIFY_FAILED:%',n using errcode='55000';
   end if;
@@ -33,6 +34,6 @@ begin
 end $verify$;
 
 insert into supabase_migrations.schema_migrations(version,name,statements)
-values('250','revoke_service_role_legacy_workshop_rpc',array['staging-only forward closure: legacy scheduling RPCs denied to public, anon, authenticated and service_role'])
+values('250','revoke_service_role_legacy_workshop_rpc',array['staging-only forward closure: schedule, cascade schedule, move, cascade move, resize and bay-change legacy RPCs denied to public, anon, authenticated and service_role'])
 on conflict(version) do update set name=excluded.name,statements=excluded.statements where supabase_migrations.schema_migrations.name=excluded.name;
 commit;

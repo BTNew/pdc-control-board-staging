@@ -5,7 +5,7 @@ const assert=(v,m)=>{if(!v)throw new Error(m);};
 const p='supabase/staging_only/163_canonical_activation_runtime_ambiguity_fix.sql';
 const sql=fs.readFileSync(p,'utf8');
 const lower=sql.toLowerCase();
-const sha=x=>crypto.createHash('sha256').update(fs.readFileSync(x)).digest('hex');
+const sha=x=>crypto.createHash('sha256').update(fs.readFileSync(x,'utf8').replace(/\r\n/g,'\n')).digest('hex');
 assert(sha('supabase/staging_only/162_manager_approved_workbook_canonical_activation.sql')==='09e80662b0f861a03b39544b9238334c6df6b0e9e9dd343b45501be0ceaada4b','Migration162 source drift');
 assert((sql.match(/#variable_conflict use_column/g)||[]).length===5,'all five authenticated RPCs require use_column compilation policy');
 assert(!/declare[^;\n]*\bemail\s+text/i.test(sql),'ambiguous local email variable remains');
