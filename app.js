@@ -19171,14 +19171,20 @@ async function loadPdcAuditorPendingOperation() {
   const generation = Number(app.pdcAuditorGeneration || 0);
   const token = getPdcSupabaseAccessToken();
   const role = String(window.PDC_AUTH_CONTEXT?.role || '').toLowerCase();
+  const authority = auditorAuthorityIdentity();
+  const config = pdcAuditorOperationGatewayConfig();
+  if (!token || role !== 'administrator' || !authority || !config) return false;
   const operationOwner = {};
   app.pdcAuditorOperationOwner = operationOwner;
   app.pdcAuditorOperationBusy = true; app.pdcAuditorPendingOperation = null; renderPdcAuditorPendingOperation();
   try {
-    const receipt = await callPdcAuditorOperationGateway('status');
+    const receipt = await callPdcAuditorOperationGateway('status', { config, token });
     if (generation !== Number(app.pdcAuditorGeneration || 0)
         || token !== getPdcSupabaseAccessToken()
         || role !== String(window.PDC_AUTH_CONTEXT?.role || '').toLowerCase()
+        || authority !== auditorAuthorityIdentity()
+        || config.url !== pdcAuditorOperationGatewayConfig()?.url
+        || config.instance !== pdcAuditorOperationGatewayConfig()?.instance
         || app.pdcAuditorOperationOwner !== operationOwner) return false;
     app.pdcAuditorPendingOperation = receipt;
     return Boolean(app.pdcAuditorPendingOperation);
