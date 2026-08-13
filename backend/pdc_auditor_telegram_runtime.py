@@ -235,6 +235,7 @@ def _parse_typed_mutation(text: str, context: Mapping[str, Any]) -> tuple[str, d
         if not isinstance(children, list) or not 2 <= len(children) <= 20: return ("", {})
         try: typed_children = [_new_value(child, complete=True) for child in children]
         except AuditorContractError: return ("", {})
+        if any("ordered_position" in child for child in typed_children): return ("", {})
         return "split", _intent(selector, context, children=typed_children)
 
     if re.match(r"^combine\b", t):
@@ -244,6 +245,7 @@ def _parse_typed_mutation(text: str, context: Mapping[str, Any]) -> tuple[str, d
             survivor = _operation_ref(survivor, "survivor_operation_ref")
             new = _new_value(trusted.get("new_value"), complete=True)
         except AuditorContractError: return ("", {})
+        if "operation_code" not in new: return ("", {})
         if survivor not in selector["operation_refs"]: raise AuditorContractError("combine survivor is not selected")
         return "combine", _intent(selector, context, survivor_operation_ref=survivor, new_value=new)
 
