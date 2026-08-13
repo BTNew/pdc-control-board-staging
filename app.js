@@ -19131,36 +19131,64 @@ function pdcAuditorOperationReceipt(value) {
   return clean;
 }
 
-const pdcAuditorOperationOrigins = new WeakMap();
+const {
+  pdcAuditorOperationOriginCurrent,
+  callPdcAuditorOperationGateway,
+} = (() => {
+  const origins = new WeakMap();
 
-function pdcAuditorOperationReceiptSnapshot(receipt) {
-  const normalized = pdcAuditorOperationReceipt(receipt);
-  return normalized ? JSON.stringify(normalized) : '';
-}
+  function receiptSnapshot(receipt) {
+    const normalized = pdcAuditorOperationReceipt(receipt);
+    return normalized ? JSON.stringify(normalized) : '';
+  }
 
-const pdcAuditorBindOperationOrigin = (receipt, captured) => {
-  const receiptSnapshot = pdcAuditorOperationReceiptSnapshot(receipt);
-  if (!receiptSnapshot || !captured?.config || !captured.token || !captured.authority) return null;
-  pdcAuditorOperationOrigins.set(receipt, {
-    url: captured.config.url,
-    instance: captured.config.instance,
-    token: captured.token,
-    authority: captured.authority,
-    receiptSnapshot,
+  function bindReceipt(receipt, captured) {
+    const snapshot = receiptSnapshot(receipt);
+    if (!snapshot || !captured?.config || !captured.token || !captured.authority) return null;
+    origins.set(receipt, {
+      url: captured.config.url,
+      instance: captured.config.instance,
+      token: captured.token,
+      authority: captured.authority,
+      snapshot,
+    });
+    return receipt;
+  }
+
+  function originCurrent(receipt, config, token, authority) {
+    const origin = receipt && typeof receipt === 'object' ? origins.get(receipt) : null;
+    return Boolean(origin && config && token && authority
+      && origin.snapshot === receiptSnapshot(receipt)
+      && receipt.instance_id === origin.instance
+      && origin.url === config.url
+      && origin.instance === config.instance
+      && origin.token === token
+      && origin.authority === authority);
+  }
+
+  async function callGateway(action, captured = null) {
+    const config = captured?.config || pdcAuditorOperationGatewayConfig();
+    const token = captured?.token || getPdcSupabaseAccessToken();
+    const authority = captured?.authority || auditorAuthorityIdentity();
+    if (!config || !token || !authority || String(window.PDC_AUTH_CONTEXT?.role || '').toLowerCase() !== 'administrator') return null;
+    const pending = captured?.pending || app.pdcAuditorPendingOperation;
+    if (action !== 'status' && !originCurrent(pending, config, token, authority)) return null;
+    const confirmation = action === 'apply' ? 'Apply these corrections' : action === 'undo' ? 'Undo the selected Auditor run' : null;
+    const binding = action === 'apply' ? pending?.proposal_id : action === 'undo' ? pending?.run_id : null;
+    const response = await fetch(`${config.url}/v1/auditor-operation/${action}`, { method: action === 'status' ? 'GET' : 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', 'X-PDC-Auditor-Gateway': config.instance },
+      body: action === 'status' ? undefined : JSON.stringify({ confirmation, binding }) });
+    if (!response.ok) throw new Error(`gateway_${response.status}`);
+    const receipt = pdcAuditorOperationReceipt(await response.json());
+    if (!receipt || receipt.instance_id !== config.instance) throw new Error('invalid_gateway_receipt');
+    return bindReceipt(receipt, { config, token, authority });
+  }
+
+  return Object.freeze({
+    pdcAuditorOperationOriginCurrent: originCurrent,
+    callPdcAuditorOperationGateway: callGateway,
   });
-  return receipt;
-};
-
-function pdcAuditorOperationOriginCurrent(receipt, config, token, authority) {
-  const origin = receipt && typeof receipt === 'object' ? pdcAuditorOperationOrigins.get(receipt) : null;
-  return Boolean(origin && config && token && authority
-    && origin.receiptSnapshot === pdcAuditorOperationReceiptSnapshot(receipt)
-    && receipt.instance_id === origin.instance
-    && origin.url === config.url
-    && origin.instance === config.instance
-    && origin.token === token
-    && origin.authority === authority);
-}
+})();
 
 function renderPdcAuditorPendingOperation() {
   const host = $('#ai-auditor-operation-state');
@@ -19184,24 +19212,6 @@ function renderPdcAuditorPendingOperation() {
   else host.innerHTML = `<strong>No pending operation</strong><span>${escapeHtml(pending.message || 'The signed gateway reported no confirmable operation.')}</span>`;
 }
 
-async function callPdcAuditorOperationGateway(action, captured = null) {
-  const config = captured?.config || pdcAuditorOperationGatewayConfig();
-  const token = captured?.token || getPdcSupabaseAccessToken();
-  const authority = captured?.authority || auditorAuthorityIdentity();
-  if (!config || !token || !authority || String(window.PDC_AUTH_CONTEXT?.role || '').toLowerCase() !== 'administrator') return null;
-  const pending = captured?.pending || app.pdcAuditorPendingOperation;
-  if (action !== 'status' && !pdcAuditorOperationOriginCurrent(pending, config, token, authority)) return null;
-  const confirmation = action === 'apply' ? 'Apply these corrections' : action === 'undo' ? 'Undo the selected Auditor run' : null;
-  const binding = action === 'apply' ? pending?.proposal_id : action === 'undo' ? pending?.run_id : null;
-  const response = await fetch(`${config.url}/v1/auditor-operation/${action}`, { method: action === 'status' ? 'GET' : 'POST',
-    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', 'X-PDC-Auditor-Gateway': config.instance },
-    body: action === 'status' ? undefined : JSON.stringify({ confirmation, binding }) });
-  if (!response.ok) throw new Error(`gateway_${response.status}`);
-  const receipt = pdcAuditorOperationReceipt(await response.json());
-  if (!receipt || receipt.instance_id !== config.instance) throw new Error('invalid_gateway_receipt');
-  return receipt;
-}
-
 async function loadPdcAuditorPendingOperation() {
   if (app.pdcAuditorOperationBusy) return false;
   const generation = Number(app.pdcAuditorGeneration || 0);
@@ -19222,7 +19232,7 @@ async function loadPdcAuditorPendingOperation() {
         || config.url !== pdcAuditorOperationGatewayConfig()?.url
         || config.instance !== pdcAuditorOperationGatewayConfig()?.instance
         || app.pdcAuditorOperationOwner !== operationOwner) return false;
-    app.pdcAuditorPendingOperation = pdcAuditorBindOperationOrigin(receipt, { config, token, authority });
+    app.pdcAuditorPendingOperation = receipt;
     return Boolean(app.pdcAuditorPendingOperation);
   }
   catch (_error) { return false; }
@@ -19287,7 +19297,7 @@ async function confirmPdcAuditorPendingOperation(action) {
       releaseBusy();
       return false;
     }
-    app.pdcAuditorPendingOperation = pdcAuditorBindOperationOrigin(receipt, { config, token, authority });
+    app.pdcAuditorPendingOperation = receipt;
     releaseBusy();
     return true;
   }
