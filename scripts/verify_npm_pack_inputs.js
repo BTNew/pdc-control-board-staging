@@ -7,7 +7,7 @@ const { spawnSync } = require('child_process');
 
 const probe = spawnSync('git', ['rev-parse', '--is-inside-work-tree'], { encoding: 'utf8' });
 if (probe.status === 0 && probe.stdout.trim() === 'true') {
-  const status = spawnSync('git', ['status', '--porcelain=v1', '--untracked-files=all'], { encoding: 'utf8' });
+  const status = spawnSync('git', ['status', '--porcelain=v1', '--untracked-files=all', '--ignored=matching'], { encoding: 'utf8' });
   if (status.status !== 0) {
     console.error('NPM_PACK_INPUTS_BLOCKED: unable to verify Git worktree state');
     process.exit(1);

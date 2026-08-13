@@ -155,8 +155,14 @@ def _new_value(value: Any, *, complete: bool) -> dict[str, Any]:
     if "estimated_hours" in result: result["estimated_hours"] = _hours(result["estimated_hours"])
     if "operation_code" in result and (not isinstance(result["operation_code"], str) or not re.fullmatch(r"[A-Za-z0-9._/-]{1,64}", result["operation_code"])):
         raise AuditorContractError("operation_code is invalid")
-    if "ordered_position" in result and (isinstance(result["ordered_position"], bool) or not isinstance(result["ordered_position"], int) or not 1 <= result["ordered_position"] <= 10000):
-        raise AuditorContractError("ordered_position is invalid")
+    if "ordered_position" in result:
+        ordered = result["ordered_position"]
+        if isinstance(ordered, bool) or not isinstance(ordered, (int, float)):
+            raise AuditorContractError("ordered_position is invalid")
+        ordered_num = float(ordered)
+        if not ordered_num.is_integer() or not 1 <= ordered_num <= 10000:
+            raise AuditorContractError("ordered_position is invalid")
+        result["ordered_position"] = int(ordered_num)
     return result
 
 

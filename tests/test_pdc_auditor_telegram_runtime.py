@@ -98,6 +98,21 @@ class TypedIntentTests(unittest.TestCase):
         self.assertEqual(runtime.parse_instruction(text, context), {"action": "add", "mode": "apply",
             "selected_scope": intent({"vehicle_id": VEHICLE}, "add", new_value=context["trusted_intent"]["new_value"])})
 
+    def test_ordered_position_accepts_canonical_integral_numeric_semantics(self):
+        for good in (1, 1.0, 1e0, 10000.0):
+            with self.subTest(good=good):
+                self.assertEqual(runtime._new_value({
+                    "description": "Fit bullbar", "work_key": "fitting", "estimated_hours": 3.25,
+                    "operation_code": "BB01", "ordered_position": good
+                }, complete=True)["ordered_position"], int(good))
+        for bad in (1.25, 0, 10000.5, 10001, True, "1"):
+            with self.subTest(bad=bad):
+                with self.assertRaises(runtime.AuditorContractError):
+                    runtime._new_value({
+                        "description": "Fit bullbar", "work_key": "fitting", "estimated_hours": 3.25,
+                        "operation_code": "BB01", "ordered_position": bad
+                    }, complete=True)
+
     def test_split_combine_and_reorder_never_invent_structured_values(self):
         self.assertEqual(runtime.parse_instruction("Split this operation into A and B", {"operation_ref": SRC1})["action"], "clarification")
         children = [{"description": "Fit", "work_key": "fitting", "estimated_hours": 2.0},

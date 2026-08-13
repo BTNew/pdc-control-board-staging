@@ -19167,10 +19167,23 @@ async function callPdcAuditorOperationGateway(action) {
 
 async function loadPdcAuditorPendingOperation() {
   if (app.pdcAuditorOperationBusy) return false;
+  const generation = Number(app.pdcAuditorGeneration || 0);
+  const token = getPdcSupabaseAccessToken();
+  const role = String(window.PDC_AUTH_CONTEXT?.role || '').toLowerCase();
   app.pdcAuditorOperationBusy = true; app.pdcAuditorPendingOperation = null; renderPdcAuditorPendingOperation();
-  try { app.pdcAuditorPendingOperation = await callPdcAuditorOperationGateway('status'); return Boolean(app.pdcAuditorPendingOperation); }
+  try {
+    const receipt = await callPdcAuditorOperationGateway('status');
+    if (generation !== Number(app.pdcAuditorGeneration || 0) || token !== getPdcSupabaseAccessToken() || role !== String(window.PDC_AUTH_CONTEXT?.role || '').toLowerCase()) return false;
+    app.pdcAuditorPendingOperation = receipt;
+    return Boolean(app.pdcAuditorPendingOperation);
+  }
   catch (_error) { return false; }
-  finally { app.pdcAuditorOperationBusy = false; renderPdcAuditorPendingOperation(); }
+  finally {
+    if (generation === Number(app.pdcAuditorGeneration || 0) && token === getPdcSupabaseAccessToken() && role === String(window.PDC_AUTH_CONTEXT?.role || '').toLowerCase()) {
+      app.pdcAuditorOperationBusy = false;
+      renderPdcAuditorPendingOperation();
+    }
+  }
 }
 
 async function confirmPdcAuditorPendingOperation(action) {

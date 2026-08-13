@@ -19,11 +19,13 @@ begin
  foreach value in array array[
   '{"description":123,"estimated_hours":1.5,"operation_code":"OK","work_key":"hoist"}'::jsonb,
   '{"description":"ok","estimated_hours":1.5,"operation_code":"BAD CODE!","work_key":"hoist"}'::jsonb,
-  '{"description":"ok","estimated_hours":1.5,"operation_code":"OK","ordered_position":1.0,"work_key":"hoist"}'::jsonb,
+  '{"description":"ok","estimated_hours":1.5,"operation_code":"OK","ordered_position":1.25,"work_key":"hoist"}'::jsonb,
   '{"description":"ok","estimated_hours":1.5,"operation_code":"OK","ordered_position":10001,"work_key":"hoist"}'::jsonb
  ] loop
   if public.pdc_auditor_valid_new_value_253(value,true,true,false) then raise exception 'invalid complete value accepted: %',value;end if;
  end loop;
+ if not public.pdc_auditor_valid_new_value_253('{"description":"ok","estimated_hours":1.5,"operation_code":"OK","ordered_position":1e0,"work_key":"hoist"}'::jsonb,true,true,false) then raise exception 'canonical integral exponent value rejected';end if;
+ if public.pdc_auditor_valid_new_value_253('{"description":"ok","estimated_hours":1.5,"operation_code":"OK","ordered_position":1.25,"work_key":"hoist"}'::jsonb,true,true,false) then raise exception 'fractional ordered position accepted';end if;
  if not public.pdc_auditor_valid_new_value_253('{"description":"ok","estimated_hours":1.5,"operation_code":"OK-1/a.b","ordered_position":10000,"work_key":"hoist"}'::jsonb,true,true,false) then raise exception 'valid complete value rejected';end if;
  if public.pdc_auditor_valid_new_value_253('{"description":"ok","estimated_hours":1,"work_key":"hoist"}'::jsonb,true,false,true) then raise exception 'required operation code omitted';end if;
  if public.pdc_auditor_valid_new_value_253('{"description":"ok","estimated_hours":1,"operation_code":"OK","ordered_position":2,"work_key":"hoist"}'::jsonb,true,false,true) then raise exception 'disallowed ordered position accepted';end if;
@@ -47,6 +49,15 @@ begin
   exception when sqlstate '22023' then if sqlerrm<>errors[i] then raise exception 'wrong % rejection: %',actions[i],sqlerrm;end if;
   end;
  end loop;
+end$$;
+
+do $$
+declare scope jsonb;env jsonb;accepted jsonb;
+begin
+ scope:=jsonb_build_object('contract','pdc-auditor-bounded-intent-253-v1','action','add','apply_unambiguous',true,'selector',jsonb_build_object('vehicle_id','20000000-0000-4000-8000-000000000010'),'desire',jsonb_build_object('new_value',jsonb_build_object('description','ok','estimated_hours',1.5,'operation_code','OK','ordered_position',1e0,'work_key','hoist')));
+ env:=pg_temp.envelope7('Typed boundary acceptance add canonical integer exponent',scope,'85000000-0000-4000-8000-000000000099'::uuid,'typed-boundary-add-exponent');
+ accepted:=public.plan_pdc_auditor_typed_instruction_253('add','review',scope,env);
+ if accepted->>'code'<>'typed_review_proposal_created' then raise exception 'canonical integral exponent direct add rejected: %',accepted;end if;
 end$$;
 
 select 'AI_AUDITOR_253_TYPED_VALUE_BOUNDARIES_PASS' result;

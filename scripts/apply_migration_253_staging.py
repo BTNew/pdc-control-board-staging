@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import importlib.util
 import json
 import os
 import re
@@ -9,12 +10,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-import psycopg2
-
 ROOT = Path(__file__).resolve().parents[1]
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
-from scripts.pdc_staging_runtime import assert_staging_target, load_local_env
 
 EXPECTED_REF = "cdsmnqxtyyoeoznmbidd"
 MIGRATION_PATH = "supabase/staging_only/253_ai_auditor_typed_operation_control.sql"
@@ -54,6 +50,36 @@ def git(*args: str) -> bytes:
 
 def exact_blob(commit: str, path: str) -> bytes:
     return git("show", f"{commit}:{path}")
+
+
+def load_repo_helper(module_name: str, relative_path: str):
+    target = ROOT / relative_path
+    spec = importlib.util.spec_from_file_location(module_name, target)
+    if not spec or not spec.loader:
+        raise RuntimeError(f"unable to load repository helper: {relative_path}")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def import_site_module(module_name: str):
+    original = list(sys.path)
+    try:
+        filtered = []
+        for entry in original:
+            try:
+                resolved = Path(entry or ".").resolve()
+            except Exception:
+                filtered.append(entry)
+                continue
+            if resolved == ROOT or ROOT in resolved.parents:
+                continue
+            filtered.append(entry)
+        sys.path[:] = filtered
+        module = __import__(module_name)
+    finally:
+        sys.path[:] = original
+    return module
 
 
 def transaction_body(source: str) -> str:
@@ -196,6 +222,13 @@ def main() -> int:
     staged_dirty = git("diff", "--cached", "--name-only").decode().strip()
     if resolved != args.expected_commit or head != args.expected_commit or tracked_dirty or staged_dirty:
         raise RuntimeError("exact reviewed commit/clean tracked worktree required")
+    try:
+        psycopg2 = import_site_module("psycopg2")  # type: ignore
+    except Exception as exc:
+        raise RuntimeError("psycopg2 import failed after exact-SHA preflight") from exc
+    runtime = load_repo_helper("pdc_staging_runtime_exact_253", "scripts/pdc_staging_runtime.py")
+    assert_staging_target = runtime.assert_staging_target
+    load_local_env = runtime.load_local_env
     if args.apply:
         required = {name: getattr(args, name) for name in ("change_id", "window_id", "operator", "observer", "stop_authority")}
         if any(not str(value or "").strip() for value in required.values()):

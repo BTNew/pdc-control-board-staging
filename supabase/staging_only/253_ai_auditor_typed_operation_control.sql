@@ -246,7 +246,7 @@ select case when jsonb_typeof(p_value) is distinct from 'object' then false else
  and (not p_value ? 'estimated_hours' or (jsonb_typeof(p_value->'estimated_hours')='number' and (p_value->>'estimated_hours')::numeric between 0.25 and 999.75 and mod((p_value->>'estimated_hours')::numeric,0.25)=0))
  and (not p_value ? 'work_key' or (jsonb_typeof(p_value->'work_key')='string' and p_value->>'work_key' in('fitting','tint','hoist','electrical','fabrication','tyre','pitInspection')))
  and (not p_value ? 'operation_code' or (jsonb_typeof(p_value->'operation_code')='string' and p_value->>'operation_code' ~ '^[A-Za-z0-9._/-]{1,64}$'))
- and (not p_value ? 'ordered_position' or (jsonb_typeof(p_value->'ordered_position')='number' and (p_value->'ordered_position')::text ~ '^[1-9][0-9]*$' and (p_value->>'ordered_position')::numeric between 1 and 10000)) end;
+ and (not p_value ? 'ordered_position' or (jsonb_typeof(p_value->'ordered_position')='number' and (p_value->>'ordered_position')::numeric between 1 and 10000 and trunc((p_value->>'ordered_position')::numeric)=(p_value->>'ordered_position')::numeric)) end;
 $valid$;
 revoke all on function public.pdc_auditor_valid_new_value_253(jsonb,boolean,boolean,boolean) from public,anon,authenticated,service_role;
 
