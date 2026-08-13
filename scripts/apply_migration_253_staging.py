@@ -1,5 +1,12 @@
 from __future__ import annotations
 
+import sys
+
+if not sys.flags.isolated:
+    raise RuntimeError(
+        "isolated Python is required; invoke with: python -I scripts/apply_migration_253_staging.py"
+    )
+
 import argparse
 import hashlib
 import importlib.util
@@ -7,7 +14,6 @@ import json
 import os
 import re
 import subprocess
-import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
