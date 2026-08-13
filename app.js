@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.13.43-craig-vehicle-drag-parts-nonblocking';
+const APP_VERSION = '2026.08.13.44-craig-session-gateway-recovery';
 const WORKSHOP_PLANNER_SCRIPT_VERSION = APP_VERSION;
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
