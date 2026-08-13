@@ -19171,16 +19171,22 @@ async function loadPdcAuditorPendingOperation() {
   const generation = Number(app.pdcAuditorGeneration || 0);
   const token = getPdcSupabaseAccessToken();
   const role = String(window.PDC_AUTH_CONTEXT?.role || '').toLowerCase();
+  const operationOwner = {};
+  app.pdcAuditorOperationOwner = operationOwner;
   app.pdcAuditorOperationBusy = true; app.pdcAuditorPendingOperation = null; renderPdcAuditorPendingOperation();
   try {
     const receipt = await callPdcAuditorOperationGateway('status');
-    if (generation !== Number(app.pdcAuditorGeneration || 0) || token !== getPdcSupabaseAccessToken() || role !== String(window.PDC_AUTH_CONTEXT?.role || '').toLowerCase()) return false;
+    if (generation !== Number(app.pdcAuditorGeneration || 0)
+        || token !== getPdcSupabaseAccessToken()
+        || role !== String(window.PDC_AUTH_CONTEXT?.role || '').toLowerCase()
+        || app.pdcAuditorOperationOwner !== operationOwner) return false;
     app.pdcAuditorPendingOperation = receipt;
     return Boolean(app.pdcAuditorPendingOperation);
   }
   catch (_error) { return false; }
   finally {
-    if (generation === Number(app.pdcAuditorGeneration || 0) && token === getPdcSupabaseAccessToken() && role === String(window.PDC_AUTH_CONTEXT?.role || '').toLowerCase()) {
+    if (app.pdcAuditorOperationOwner === operationOwner) {
+      app.pdcAuditorOperationOwner = null;
       app.pdcAuditorOperationBusy = false;
       renderPdcAuditorPendingOperation();
     }
@@ -19202,7 +19208,9 @@ async function confirmPdcAuditorPendingOperation(action) {
     : [value?.state, value?.run_id, value?.run_revision_after])
     .map(part => String(part ?? '')).join('\n');
   const pendingBinding = operationBinding(pending);
-  const operationCurrent = () => token === getPdcSupabaseAccessToken()
+  const operationOwner = {};
+  const ownsBusy = () => app.pdcAuditorOperationOwner === operationOwner;
+  const authorityCurrent = () => token === getPdcSupabaseAccessToken()
     && role === String(window.PDC_AUTH_CONTEXT?.role || '').toLowerCase()
     && role === 'administrator'
     && authority === auditorAuthorityIdentity()
@@ -19210,8 +19218,7 @@ async function confirmPdcAuditorPendingOperation(action) {
     && pendingBinding === operationBinding(app.pdcAuditorPendingOperation)
     && config.url === pdcAuditorOperationGatewayConfig()?.url
     && config.instance === pdcAuditorOperationGatewayConfig()?.instance;
-  const operationOwner = {};
-  const ownsBusy = () => app.pdcAuditorOperationOwner === operationOwner;
+  const ownsPublication = () => authorityCurrent() && ownsBusy();
   const releaseBusy = () => {
     if (!ownsBusy()) return;
     app.pdcAuditorOperationOwner = null;
@@ -19220,19 +19227,19 @@ async function confirmPdcAuditorPendingOperation(action) {
   };
   const exact = action === 'apply' ? `${pending.proposal_id} / ${pending.proposal_hash}` : `${pending.run_id} / ${pending.run_revision_after}`;
   if (!window.confirm(`${action === 'apply' ? 'Apply' : 'Undo'} exact signed operation?\n${exact}`)) return false;
-  if (!operationCurrent() || app.pdcAuditorOperationBusy) return false;
+  if (!authorityCurrent() || app.pdcAuditorOperationBusy) return false;
   app.pdcAuditorOperationOwner = operationOwner;
   app.pdcAuditorOperationBusy = true;
   renderPdcAuditorPendingOperation();
   try {
     const receipt = await callPdcAuditorOperationGateway(action, { config, token, pending });
-    if (!receipt || !operationCurrent()) {
+    if (!receipt || !ownsPublication()) {
       releaseBusy();
       return false;
     }
     const reload = loadPdcAuditorSnapshot({ force: true });
     const loaded = await reload;
-    if (!loaded || !operationCurrent()) {
+    if (!loaded || !ownsPublication()) {
       releaseBusy();
       return false;
     }
@@ -19241,7 +19248,7 @@ async function confirmPdcAuditorPendingOperation(action) {
     return true;
   }
   catch (_error) {
-    if (operationCurrent()) app.pdcAuditorPendingOperation = null;
+    if (ownsPublication()) app.pdcAuditorPendingOperation = null;
     releaseBusy();
     return false;
   }

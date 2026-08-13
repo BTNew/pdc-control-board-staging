@@ -73,6 +73,41 @@ console.log('AI Auditor auth-change operation-state teardown passed');
   assert.strictEqual(nodes['#ai-auditor-operation-undo'].disabled,true,'undo must remain disabled after stale response');
   console.log('AI Auditor in-flight auth-reset race teardown passed');
 
+  raceToken = 'STATUS_GENERATION_JWT';
+  raceAuthority = 'STATUS_GENERATION_ACCOUNT';
+  race.window.PDC_AUTH_CONTEXT.role = 'administrator';
+  race.app.pdcAuditorGeneration = 8;
+  race.app.pdcAuditorPendingOperation = null;
+  race.app.pdcAuditorOperationBusy = false;
+  race.app.pdcAuditorOperationOwner = null;
+  const staleStatus = vm.runInContext('loadPdcAuditorPendingOperation()', race);
+  race.app.pdcAuditorGeneration += 1;
+  resolveFetch({ ok:true, json:async()=>({ state:'undo_available', instance_id:'gw-staging-1', run_id:'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee', run_revision_after:'e'.repeat(64) }) });
+  assert.strictEqual(await staleStatus,false,'same-authority stale-generation status result must be withheld');
+  assert.strictEqual(race.app.pdcAuditorPendingOperation,null,'stale-generation status must not publish a receipt');
+  assert.strictEqual(race.app.pdcAuditorOperationBusy,false,'stale-generation status must release its own busy latch');
+  assert.strictEqual(race.app.pdcAuditorOperationOwner,null,'stale-generation status must release its owner');
+  console.log('AI Auditor same-authority stale status liveness passed');
+
+  race.app.pdcAuditorGeneration += 1;
+  race.app.pdcAuditorPendingOperation = null;
+  race.app.pdcAuditorOperationBusy = false;
+  race.app.pdcAuditorOperationOwner = null;
+  const replacedStatus = vm.runInContext('loadPdcAuditorPendingOperation()', race);
+  const replacementStatusOwner = { replacement:true };
+  const replacementStatusPending = { state:'none', instance_id:'gw-staging-1', message:'replacement status owns latch' };
+  race.app.pdcAuditorOperationOwner = replacementStatusOwner;
+  race.app.pdcAuditorOperationBusy = true;
+  race.app.pdcAuditorPendingOperation = replacementStatusPending;
+  resolveFetch({ ok:true, json:async()=>({ state:'undo_available', instance_id:'gw-staging-1', run_id:'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee', run_revision_after:'e'.repeat(64) }) });
+  assert.strictEqual(await replacedStatus,false,'owner-replaced status must be superseded');
+  assert.strictEqual(race.app.pdcAuditorPendingOperation,replacementStatusPending,'old status must not overwrite replacement pending state');
+  assert.strictEqual(race.app.pdcAuditorOperationBusy,true,'old status must not release replacement busy latch');
+  assert.strictEqual(race.app.pdcAuditorOperationOwner,replacementStatusOwner,'old status must not clear replacement owner');
+  race.app.pdcAuditorOperationBusy = false;
+  race.app.pdcAuditorOperationOwner = null;
+  console.log('AI Auditor status owner-only replacement isolation passed');
+
   const originalPending = {
     state:'pending_apply', instance_id:'gw-staging-1',
     proposal_id:'11111111-2222-4333-8444-555555555555', proposal_version:9,
@@ -174,6 +209,29 @@ console.log('AI Auditor auth-change operation-state teardown passed');
     assert.strictEqual(race.app.pdcAuditorOperationBusy,false,`${action} stale invocation must release its own busy lock`);
   }
   console.log('AI Auditor captured Apply/Undo dispatch and stale busy ownership passed');
+
+  for (const [action, initial] of [['apply', originalPending], ['undo', undoPending]]) {
+    raceToken = `OWNER_ONLY_${action.toUpperCase()}_TOKEN`;
+    raceAuthority = `OWNER_ONLY_${action.toUpperCase()}_ACCOUNT`;
+    race.app.pdcAuditorGeneration += 1;
+    race.app.pdcAuditorPendingOperation = initial;
+    race.app.pdcAuditorOperationBusy = false;
+    race.app.pdcAuditorOperationOwner = null;
+    snapshotLoads = 0;
+    const ownerOnly = vm.runInContext(`confirmPdcAuditorPendingOperation('${action}')`, race);
+    const replacementOwner = { replacement:action };
+    race.app.pdcAuditorOperationOwner = replacementOwner;
+    race.app.pdcAuditorOperationBusy = true;
+    resolveFetch({ ok:true, json:async()=>({ state:'completed', instance_id:'gw-staging-1', message:'old owner completed' }) });
+    assert.strictEqual(await ownerOnly,false,`${action} must not publish after owner-only replacement`);
+    assert.strictEqual(snapshotLoads,0,`${action} owner-only replacement must start zero reloads`);
+    assert.strictEqual(race.app.pdcAuditorPendingOperation,initial,`${action} owner-only replacement must preserve exact pending state`);
+    assert.strictEqual(race.app.pdcAuditorOperationBusy,true,`${action} old continuation must not release replacement latch`);
+    assert.strictEqual(race.app.pdcAuditorOperationOwner,replacementOwner,`${action} old continuation must not clear replacement owner`);
+    race.app.pdcAuditorOperationBusy = false;
+    race.app.pdcAuditorOperationOwner = null;
+  }
+  console.log('AI Auditor Apply/Undo owner-only replacement isolation passed');
 
   raceToken = 'CURRENT_SUCCESS_JWT';
   raceAuthority = 'CURRENT_SUCCESS_ACCOUNT';
