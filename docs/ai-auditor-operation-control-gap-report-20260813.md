@@ -1,6 +1,6 @@
 # AI Auditor implementation-ready gap report
 
-Source baseline reviewed: `6132e8571a054af7f66d691b3af26ae773ca9517` plus regression-only changes on `fix/clean-regression-baseline-20260813`.
+Source baseline reviewed: `6132e8571a054af7f66d691b3af26ae773ca9517`; this report is committed with the regression/security candidate and must be rebound to that final exact SHA after the final review commit.
 
 Scope: source inspection only. No profile, mailbox, gateway, credential, staging database, staging record, Pages, migration or production access was used.
 
@@ -33,12 +33,12 @@ This is **not deployment-ready**. The installation handoff explicitly blocks act
 | Remove duplicates | Implemented narrowly for duplicate bullbars and protected duplicate evidence. | Generalise only through deterministic duplicate families with exact survivor selection. Ambiguity/manual/completed rows must remain review-only. |
 | Department corrections | Present through `move`/`line_department` and rule-driven intended department. | Add exhaustive department allowlist parity and contract tests for all stations; reject unsupported Sublet/Parts/booking semantics. |
 | Estimated-hours corrections | Present through `edit`, `stock_hours`, `gvm_hours`, quarter-hour validation and overlays. | Document precedence between authenticated source, manual later correction and Auditor overlay; add aggregate recalculation assertions. |
-| Batch Review and Apply | 225 supports review/apply plans up to 250 items; 226 applies one immutable plan atomically. | Add explicit browser/Telegram confirmation showing count, ambiguity/exclusion totals and plan hash. Apply must require the exact reviewed plan and unchanged operational revision. |
+| Batch Review and Apply | 225 supports review/apply plans up to 250 items; 226 applies one immutable plan atomically. | There is no browser implementation for 225/226 Review/Apply. The Python adapter immediately applies a successful non-review plan, so a distinct explicit confirmation step is absent. Add confirmation showing count, ambiguity/exclusion totals and plan hash; Apply must require that exact reviewed plan and unchanged operational revision. |
 | Protected manual values | 225 has manual/completed protection and exclusion codes; 226 uses overlays and conflict-preserving Undo. | Formalise field-level protection for manual description, department, hours, completion and subsequent staff edits; add negative tests for each mutation shape. |
 | Complete before/after history | 226 stores plan evidence and adjustment before/after rows with apply/rollback receipts. | For add/split/combine/reorder, receipt must capture the complete ordered effective operation set, required-work projection and aggregate hours before/after—not only per-overlay rows. |
 | Instruction evidence | Telegram IDs, exact instruction text/hash and immutable plan/run evidence exist. | Mandatory gateway-signed envelope remains missing. Persist verified sender/chat/message/update, gateway instance, bot identity, timestamps, nonce/key ID and canonical signature validation. |
 | Recalculate hours and required-work identifiers | 226 recalculates non-completed `vehicle_work_items` from effective lines. | Add an authoritative aggregate-hours projection/readback and verify exact required-work identifier set after every apply and Undo. Never change completed rows. |
-| Realtime publication | 229 publishes adjustment and run-revision tables. | Add consumer contract proving two authenticated website sessions invalidate/refetch once per whole run; do not publish secret instruction content. |
+| Realtime publication | 229 publishes `vehicle_workshop_line_adjustments` and `pdc_auditor_workshop_revisions`. | **Current blocker:** the browser still subscribes to the older `pdc_auditor_revision` table, not migration 229's run-revision publication. Wire the operation-control consumer to the new publication and prove two authenticated website sessions invalidate/refetch once per whole run; do not publish secret instruction content. |
 | Whole-run Undo | 226 provides last-run rollback, per-change audit and conflict preservation. | Extend Undo to all new action types and complete ordered-set/aggregate state. Exact replay must be zero-add; later manual changes must be preserved or cause controlled whole-run conflict per documented policy. |
 | Prevent vehicle deletion | Current apply design changes only line-adjustment overlays and required-work projection. | Add static and database postconditions proving no Auditor RPC can insert/update/delete vehicles or invoke lifecycle/delete RPCs. |
 | Prevent unauthorised booking changes | Current 225–226 design does not write booking tables. Administrator migration 244 separately denies Auditor identities. | Add explicit forbidden-call inventory tests for all booking/scheduling RPCs and ensure Auditor functions have no EXECUTE path to private legacy functions. |
@@ -56,6 +56,8 @@ This is **not deployment-ready**. The installation handoff explicitly blocks act
 
 - Existing 225–231 source: **substantial partial implementation**.
 - Missing operation shapes and complete ordered-set history: **not implemented**.
-- Gateway-signature boundary: **not implemented; activation blocker**.
-- New migration in this workstream: **not drafted**, because the exact append/split/combine/reorder data model and protection policy require a separately reviewed design and migration number beyond current head 250.
+- Gateway-signature boundary: **not implemented; activation blocker**. Current 225/226/runtime evidence contains sender/chat/message/update/bot/text/hash only; it lacks gateway instance, immutable delivery UUID, key ID/nonce, verified timestamps and a validated canonical signature.
+- Realtime operation-control consumer: **not implemented; activation blocker** because the browser listens to the old Stage A revision table.
+- Separate Apply confirmation UX: **not implemented**; non-review runtime commands currently plan and immediately call Apply.
+- Administrator closure migration: **drafted as append-only migration 251 with a focused static contract; not applied**. It closes the current and retained pre-116 cascade-move signatures plus all other legacy scheduling/move/resize/bay-change RPCs. The separate Auditor add/split/combine/reorder schema still requires a later independently reviewed migration beyond 251.
 - Deployment/activation: **not performed and not authorised**.
