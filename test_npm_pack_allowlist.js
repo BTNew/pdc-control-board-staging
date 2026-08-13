@@ -71,13 +71,16 @@ try {
   fs.copyFileSync('scripts/verify_npm_pack_inputs.js',path.join(byteGateTemp,'scripts','verify_npm_pack_inputs.js'));
   fs.writeFileSync(path.join(byteGateTemp,'package.json'),JSON.stringify({files:['input.js']}));
   fs.writeFileSync(path.join(byteGateTemp,'README.md'),'readme\n');
-  fs.writeFileSync(path.join(byteGateTemp,'input.js'),'line1\nline2\n');
+  const largeLfInput = 'line\n'.repeat(300000);
+  fs.writeFileSync(path.join(byteGateTemp,'input.js'),largeLfInput);
   assert.strictEqual(spawnSync('git',['init','-q'],{cwd:byteGateTemp}).status,0);
   assert.strictEqual(spawnSync('git',['config','user.name','PDC Test'],{cwd:byteGateTemp}).status,0);
   assert.strictEqual(spawnSync('git',['config','user.email','pdc-test@example.invalid'],{cwd:byteGateTemp}).status,0);
   assert.strictEqual(spawnSync('git',['add','package.json','README.md','input.js','scripts/verify_npm_pack_inputs.js'],{cwd:byteGateTemp}).status,0);
   assert.strictEqual(spawnSync('git',['commit','-q','-m','test baseline'],{cwd:byteGateTemp}).status,0);
-  fs.writeFileSync(path.join(byteGateTemp,'input.js'),'line1\r\nline2\r\n');
+  const exactLargeInput = spawnSync(process.execPath,[path.join(byteGateTemp,'scripts','verify_npm_pack_inputs.js')],{cwd:byteGateTemp,encoding:'utf8'});
+  assert.strictEqual(exactLargeInput.status,0,exactLargeInput.stderr || exactLargeInput.stdout);
+  fs.writeFileSync(path.join(byteGateTemp,'input.js'),largeLfInput.replaceAll('\n','\r\n'));
   assert.strictEqual(spawnSync('git',['update-index','--assume-unchanged','input.js'],{cwd:byteGateTemp}).status,0);
   assert.strictEqual(spawnSync('git',['status','--porcelain=v1'],{cwd:byteGateTemp,encoding:'utf8'}).stdout,'','test setup must make status alone appear clean');
   const byteBlocked = spawnSync(process.execPath,[path.join(byteGateTemp,'scripts','verify_npm_pack_inputs.js')],{

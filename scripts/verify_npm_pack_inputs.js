@@ -9,7 +9,10 @@ const path = require('path');
 const { spawnSync } = require('child_process');
 
 function runGit(args, options = {}) {
-  return spawnSync('git', args, { encoding: options.encoding || 'utf8' });
+  return spawnSync('git', args, {
+    encoding: options.encoding || 'utf8',
+    maxBuffer: 64 * 1024 * 1024,
+  });
 }
 
 function packageInputFiles() {
