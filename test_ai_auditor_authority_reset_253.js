@@ -60,6 +60,9 @@ console.log('AI Auditor auth-change operation-state teardown passed');
   });
   let raceToken = 'OLD_ACCOUNT_JWT';
   vm.runInContext(asyncSource.slice(blockStart, blockEnd), race);
+  const bindCurrentOrigin = () => vm.runInContext(`pdcAuditorBindOperationOrigin(app.pdcAuditorPendingOperation, {
+    config: pdcAuditorOperationGatewayConfig(), token: getPdcSupabaseAccessToken(), authority: auditorAuthorityIdentity()
+  })`, race);
   const pending = vm.runInContext('loadPdcAuditorPendingOperation()', race);
   raceToken = 'NEW_ACCOUNT_JWT';
   raceAuthority = 'NEW_ACCOUNT';
@@ -151,6 +154,7 @@ console.log('AI Auditor auth-change operation-state teardown passed');
   raceAuthority = 'OLD_MUTATION_ACCOUNT';
   race.app.pdcAuditorGeneration = 9;
   race.app.pdcAuditorPendingOperation = originalPending;
+  bindCurrentOrigin();
   race.app.pdcAuditorOperationBusy = false;
   const confirming = vm.runInContext("confirmPdcAuditorPendingOperation('apply')", race);
   raceToken = 'REPLACEMENT_ACCOUNT_JWT';
@@ -170,6 +174,7 @@ console.log('AI Auditor auth-change operation-state teardown passed');
   raceAuthority = 'CURRENT_ACCOUNT';
   race.app.pdcAuditorGeneration = 11;
   race.app.pdcAuditorPendingOperation = originalPending;
+  bindCurrentOrigin();
   race.app.pdcAuditorOperationBusy = false;
   const replaced = vm.runInContext("confirmPdcAuditorPendingOperation('apply')", race);
   race.app.pdcAuditorPendingOperation = { ...originalPending, proposal_version:10 };
@@ -182,6 +187,7 @@ console.log('AI Auditor auth-change operation-state teardown passed');
   raceToken = '';
   race.app.pdcAuditorGeneration = 12;
   race.app.pdcAuditorPendingOperation = originalPending;
+  bindCurrentOrigin();
   race.app.pdcAuditorOperationBusy = false;
   assert.strictEqual(await vm.runInContext("confirmPdcAuditorPendingOperation('apply')", race),false,'missing token must fail before confirmation or gateway dispatch');
   assert.strictEqual(race.app.pdcAuditorPendingOperation,originalPending,'missing-token rejection must not mutate pending authority');
@@ -191,6 +197,27 @@ console.log('AI Auditor auth-change operation-state teardown passed');
     state:'undo_available', instance_id:'gw-staging-1',
     run_id:'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee', run_revision_after:'e'.repeat(64),
   };
+
+  for (const [action, pendingFromGatewayA] of [['apply', originalPending], ['undo', undoPending]]) {
+    raceToken = `ORIGIN_${action.toUpperCase()}_TOKEN`;
+    raceAuthority = `ORIGIN_${action.toUpperCase()}_ACCOUNT`;
+    race.window.PDC_AUTH_CONTEXT.role = 'administrator';
+    race.window.PDC_SUPABASE_CONFIG.auditorOperationGateway = { url:'https://gateway-a.staging.example/auditor', instanceId:'gw-staging-1' };
+    race.app.pdcAuditorPendingOperation = pendingFromGatewayA;
+    bindCurrentOrigin();
+    race.app.pdcAuditorOperationBusy = false;
+    race.app.pdcAuditorOperationOwner = null;
+    race.window.PDC_SUPABASE_CONFIG.auditorOperationGateway = { url:'https://gateway-b.staging.example/auditor', instanceId:'gw-staging-2' };
+    const callsBefore = fetchCalls;
+    assert.strictEqual(await vm.runInContext(`confirmPdcAuditorPendingOperation('${action}')`, race),false,`${action} must reject a receipt loaded from a different gateway origin`);
+    assert.strictEqual(fetchCalls,callsBefore,`${action} gateway-A receipt must dispatch zero requests through gateway B`);
+    assert.strictEqual(race.app.pdcAuditorPendingOperation,pendingFromGatewayA,`${action} origin rejection must not rewrite the stale receipt`);
+    vm.runInContext('renderPdcAuditorPendingOperation()', race);
+    assert.strictEqual(nodes[`#ai-auditor-operation-${action}`].disabled,true,`${action} control must be disabled when receipt origin differs from current gateway`);
+  }
+  race.window.PDC_SUPABASE_CONFIG.auditorOperationGateway = { url:'https://gateway.staging.example/auditor', instanceId:'gw-staging-1' };
+  console.log('AI Auditor gateway-origin A-to-B Apply/Undo denial passed');
+
   for (const [action, initial, replacement] of [
     ['apply', originalPending, { ...originalPending, proposal_id:'99999999-8888-4777-8666-555555555555' }],
     ['undo', undoPending, { ...undoPending, run_id:'99999999-8888-4777-8666-555555555555' }],
@@ -200,6 +227,7 @@ console.log('AI Auditor auth-change operation-state teardown passed');
     race.window.PDC_AUTH_CONTEXT.role = 'administrator';
     race.app.pdcAuditorGeneration += 1;
     race.app.pdcAuditorPendingOperation = initial;
+    bindCurrentOrigin();
     race.app.pdcAuditorOperationBusy = false;
     race.app.pdcAuditorOperationOwner = null;
     const callsBefore = fetchCalls;
@@ -223,6 +251,7 @@ console.log('AI Auditor auth-change operation-state teardown passed');
     raceAuthority = `DISPATCH_${action.toUpperCase()}_ACCOUNT_A`;
     race.app.pdcAuditorGeneration += 1;
     race.app.pdcAuditorPendingOperation = initial;
+    bindCurrentOrigin();
     race.app.pdcAuditorOperationBusy = false;
     race.app.pdcAuditorOperationOwner = null;
     const requestIndex = gatewayRequests.length;
@@ -248,6 +277,7 @@ console.log('AI Auditor auth-change operation-state teardown passed');
     raceAuthority = `OWNER_ONLY_${action.toUpperCase()}_ACCOUNT`;
     race.app.pdcAuditorGeneration += 1;
     race.app.pdcAuditorPendingOperation = initial;
+    bindCurrentOrigin();
     race.app.pdcAuditorOperationBusy = false;
     race.app.pdcAuditorOperationOwner = null;
     snapshotLoads = 0;
@@ -270,6 +300,7 @@ console.log('AI Auditor auth-change operation-state teardown passed');
   raceAuthority = 'CURRENT_SUCCESS_ACCOUNT';
   race.app.pdcAuditorGeneration = 13;
   race.app.pdcAuditorPendingOperation = originalPending;
+  bindCurrentOrigin();
   race.app.pdcAuditorOperationBusy = false;
   snapshotLoads = 0;
   race.loadPdcAuditorSnapshot = ()=>{
@@ -288,6 +319,7 @@ console.log('AI Auditor auth-change operation-state teardown passed');
 
   race.app.pdcAuditorGeneration = 15;
   race.app.pdcAuditorPendingOperation = originalPending;
+  bindCurrentOrigin();
   race.app.pdcAuditorOperationBusy = false;
   snapshotLoads = 0;
   race.loadPdcAuditorSnapshot = ()=>{
@@ -308,6 +340,7 @@ console.log('AI Auditor auth-change operation-state teardown passed');
     raceAuthority = `GENERATION_${action.toUpperCase()}_ACCOUNT`;
     race.app.pdcAuditorGeneration += 1;
     race.app.pdcAuditorPendingOperation = initial;
+    bindCurrentOrigin();
     race.app.pdcAuditorOperationBusy = false;
     race.app.pdcAuditorOperationOwner = null;
     snapshotLoads = 0;

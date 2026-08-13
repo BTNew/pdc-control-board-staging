@@ -19131,6 +19131,29 @@ function pdcAuditorOperationReceipt(value) {
   return clean;
 }
 
+const pdcAuditorOperationOrigins = new WeakMap();
+
+function pdcAuditorBindOperationOrigin(receipt, captured) {
+  if (!receipt || typeof receipt !== 'object' || !captured?.config || !captured.token || !captured.authority) return null;
+  pdcAuditorOperationOrigins.set(receipt, {
+    url: captured.config.url,
+    instance: captured.config.instance,
+    token: captured.token,
+    authority: captured.authority,
+  });
+  return receipt;
+}
+
+function pdcAuditorOperationOriginCurrent(receipt, config, token, authority) {
+  const origin = receipt && typeof receipt === 'object' ? pdcAuditorOperationOrigins.get(receipt) : null;
+  return Boolean(origin && config && token && authority
+    && receipt.instance_id === origin.instance
+    && origin.url === config.url
+    && origin.instance === config.instance
+    && origin.token === token
+    && origin.authority === authority);
+}
+
 function renderPdcAuditorPendingOperation() {
   const host = $('#ai-auditor-operation-state');
   const applyButton = $('#ai-auditor-operation-apply');
@@ -19139,7 +19162,10 @@ function renderPdcAuditorPendingOperation() {
   const config = pdcAuditorOperationGatewayConfig();
   const admin = String(window.PDC_AUTH_CONTEXT?.role || '').toLowerCase() === 'administrator';
   const pending = app.pdcAuditorPendingOperation;
-  const available = Boolean(config && admin && getPdcSupabaseAccessToken() && !app.pdcAuditorOperationBusy);
+  const token = getPdcSupabaseAccessToken();
+  const authority = auditorAuthorityIdentity();
+  const available = Boolean(config && admin && token && authority && !app.pdcAuditorOperationBusy
+    && pdcAuditorOperationOriginCurrent(pending, config, token, authority));
   applyButton.disabled = !(available && pending?.state === 'pending_apply');
   undoButton.disabled = !(available && pending?.state === 'undo_available');
   if (!config) { host.innerHTML = '<strong>Signed gateway not configured</strong><span>Apply and Undo are disabled. No direct database fallback exists.</span>'; return; }
@@ -19153,8 +19179,10 @@ function renderPdcAuditorPendingOperation() {
 async function callPdcAuditorOperationGateway(action, captured = null) {
   const config = captured?.config || pdcAuditorOperationGatewayConfig();
   const token = captured?.token || getPdcSupabaseAccessToken();
-  if (!config || !token || String(window.PDC_AUTH_CONTEXT?.role || '').toLowerCase() !== 'administrator') return null;
+  const authority = captured?.authority || auditorAuthorityIdentity();
+  if (!config || !token || !authority || String(window.PDC_AUTH_CONTEXT?.role || '').toLowerCase() !== 'administrator') return null;
   const pending = captured?.pending || app.pdcAuditorPendingOperation;
+  if (action !== 'status' && !pdcAuditorOperationOriginCurrent(pending, config, token, authority)) return null;
   const confirmation = action === 'apply' ? 'Apply these corrections' : action === 'undo' ? 'Undo the selected Auditor run' : null;
   const binding = action === 'apply' ? pending?.proposal_id : action === 'undo' ? pending?.run_id : null;
   const response = await fetch(`${config.url}/v1/auditor-operation/${action}`, { method: action === 'status' ? 'GET' : 'POST',
@@ -19178,7 +19206,7 @@ async function loadPdcAuditorPendingOperation() {
   app.pdcAuditorOperationOwner = operationOwner;
   app.pdcAuditorOperationBusy = true; app.pdcAuditorPendingOperation = null; renderPdcAuditorPendingOperation();
   try {
-    const receipt = await callPdcAuditorOperationGateway('status', { config, token });
+    const receipt = await callPdcAuditorOperationGateway('status', { config, token, authority });
     if (generation !== Number(app.pdcAuditorGeneration || 0)
         || token !== getPdcSupabaseAccessToken()
         || role !== String(window.PDC_AUTH_CONTEXT?.role || '').toLowerCase()
@@ -19186,7 +19214,7 @@ async function loadPdcAuditorPendingOperation() {
         || config.url !== pdcAuditorOperationGatewayConfig()?.url
         || config.instance !== pdcAuditorOperationGatewayConfig()?.instance
         || app.pdcAuditorOperationOwner !== operationOwner) return false;
-    app.pdcAuditorPendingOperation = receipt;
+    app.pdcAuditorPendingOperation = pdcAuditorBindOperationOrigin(receipt, { config, token, authority });
     return Boolean(app.pdcAuditorPendingOperation);
   }
   catch (_error) { return false; }
@@ -19208,6 +19236,7 @@ async function confirmPdcAuditorPendingOperation(action) {
   const config = pdcAuditorOperationGatewayConfig();
   if (!token || role !== 'administrator' || !authority || !config) return false;
   if ((action === 'apply' && pending?.state !== 'pending_apply') || (action === 'undo' && pending?.state !== 'undo_available')) return false;
+  if (!pdcAuditorOperationOriginCurrent(pending, config, token, authority)) return false;
   const operationBinding = value => (action === 'apply'
     ? [value?.state, value?.proposal_id, value?.proposal_version, value?.proposal_hash,
         value?.typed_item_set_hash, value?.final_scope_hash, value?.expected_row_versions_hash]
@@ -19222,6 +19251,7 @@ async function confirmPdcAuditorPendingOperation(action) {
     && authority === auditorAuthorityIdentity()
     && app.pdcAuditorPendingOperation === pending
     && pendingBinding === operationBinding(app.pdcAuditorPendingOperation)
+    && pdcAuditorOperationOriginCurrent(app.pdcAuditorPendingOperation, config, token, authority)
     && config.url === pdcAuditorOperationGatewayConfig()?.url
     && config.instance === pdcAuditorOperationGatewayConfig()?.instance;
   const ownsPublication = () => authorityCurrent() && ownsBusy();
@@ -19238,7 +19268,7 @@ async function confirmPdcAuditorPendingOperation(action) {
   app.pdcAuditorOperationBusy = true;
   renderPdcAuditorPendingOperation();
   try {
-    const receipt = await callPdcAuditorOperationGateway(action, { config, token, pending });
+    const receipt = await callPdcAuditorOperationGateway(action, { config, token, authority, pending });
     if (!receipt || !ownsPublication()) {
       releaseBusy();
       return false;
@@ -19249,7 +19279,7 @@ async function confirmPdcAuditorPendingOperation(action) {
       releaseBusy();
       return false;
     }
-    app.pdcAuditorPendingOperation = receipt;
+    app.pdcAuditorPendingOperation = pdcAuditorBindOperationOrigin(receipt, { config, token, authority });
     releaseBusy();
     return true;
   }
