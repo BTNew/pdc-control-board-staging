@@ -19331,6 +19331,15 @@ async function refreshPdcAuditorAfterRealtimeInvalidation(realtimeGeneration, au
     if (app.pdcAuditorRealtimeRefreshGeneration === realtimeGeneration) {
       app.pdcAuditorRealtimeRefreshInFlight = false;
       app.pdcAuditorRealtimeRefreshGeneration = 0;
+      const replacementGeneration = app.pdcAuditorRealtimeGeneration;
+      const replacementAuthority = auditorAuthorityIdentity();
+      const replacementDealer = app.pdcAuditorRealtimeDealer;
+      if (replacementGeneration !== realtimeGeneration
+        && pdcAuditorRealtimeViewActive()
+        && app.pdcAuditorRealtimePendingGeneration > app.pdcAuditorRealtimeCoveredGeneration
+        && replacementAuthority && replacementDealer) {
+        void refreshPdcAuditorAfterRealtimeInvalidation(replacementGeneration, replacementAuthority, replacementDealer);
+      }
     }
   }
 }

@@ -197,7 +197,12 @@ begin
  if lower(p_envelope->>'signature')<>encode(extensions.hmac(signing,k.hmac_key,'sha256'),'hex') then raise exception 'PDC_253_BAD_SIGNATURE' using errcode='42501';end if;
  reqhash:=encode(extensions.digest(convert_to(p_purpose||'|','UTF8')||signing,'sha256'),'hex');perform pg_advisory_xact_lock(hashtextextended('pdc-253-delivery:'||(p_envelope->>'delivery_uuid'),0));
  select * into d from public.pdc_auditor_signed_deliveries_253 where delivery_uuid=(p_envelope->>'delivery_uuid')::uuid;
- if found then if d.request_content_hash<>reqhash or d.purpose<>p_purpose then raise exception 'PDC_253_CONFLICTING_DELIVERY_REPLAY' using errcode='23505';end if;select stored_result into result from public.pdc_auditor_signed_delivery_results_253 where delivery_uuid=d.delivery_uuid;return jsonb_build_object('delivery_uuid',d.delivery_uuid,'actor',jsonb_build_object('service_identity_id',d.service_identity_id,'service_user_id',d.service_auth_user_id,'service_email',d.service_email,'admin_user_id',d.authorizing_admin_user_id,'admin_email',d.authorizing_admin_email,'dealer_code',d.dealer_code),'request_content_hash',reqhash,'stored_result',result,'replay',true);end if;
+ if found then
+  if d.request_content_hash<>reqhash or d.purpose<>p_purpose then raise exception 'PDC_253_CONFLICTING_DELIVERY_REPLAY' using errcode='23505';end if;
+  actor:=public.pdc_auditor_telegram_actor_scope_225((telegram->>'telegram_sender_id')::bigint);
+  if (actor->>'service_identity_id')::uuid<>d.service_identity_id or (actor->>'service_user_id')::uuid<>d.service_auth_user_id or actor->>'service_email'<>d.service_email or (actor->>'admin_user_id')::uuid<>d.authorizing_admin_user_id or actor->>'admin_email'<>d.authorizing_admin_email or actor->>'dealer_code'<>d.dealer_code then raise exception 'PDC_253_REPLAY_ACTOR_NO_LONGER_AUTHORIZED' using errcode='42501';end if;
+  select stored_result into result from public.pdc_auditor_signed_delivery_results_253 where delivery_uuid=d.delivery_uuid;return jsonb_build_object('delivery_uuid',d.delivery_uuid,'actor',actor,'request_content_hash',reqhash,'stored_result',result,'replay',true);
+ end if;
  if exists(select 1 from public.pdc_auditor_signed_deliveries_253 where (gateway_instance_id,key_id,nonce)=(p_envelope->>'gateway_instance_id',p_envelope->>'key_id',p_envelope->>'nonce')) then raise exception 'PDC_253_NONCE_REPLAY' using errcode='23505';end if;
  actor:=public.pdc_auditor_telegram_actor_scope_225((telegram->>'telegram_sender_id')::bigint);
  insert into public.pdc_auditor_signed_deliveries_253 values((p_envelope->>'delivery_uuid')::uuid,p_envelope->>'gateway_instance_id',p_envelope->>'key_id',p_envelope->>'nonce',issued,expires,lower(p_envelope->>'instruction_sha256'),p_envelope->'selected_scope',lower(p_envelope->>'signature'),telegram,p_purpose,reqhash,(actor->>'service_identity_id')::uuid,(actor->>'service_user_id')::uuid,actor->>'service_email',(actor->>'admin_user_id')::uuid,actor->>'admin_email',actor->>'dealer_code',clock_timestamp());
@@ -223,8 +228,17 @@ begin
   raise exception 'PDC_253_INVALID_BOUNDED_INTENT' using errcode='22023';
  end if;
  selector:=p_selected_scope->'selector';desire:=p_selected_scope->'desire';derived_items:='[]'::jsonb;
+ -- Every signed action has one exact selector/desire schema; unknown fields fail closed.
+ if (p_action='edit' and selector ? 'category' and ((select array_agg(k order by k) from jsonb_object_keys(selector)k)<>array['category']::text[] or (select array_agg(k order by k) from jsonb_object_keys(desire)k)<>array['new_value']::text[]))
+ or (p_action='edit' and not selector ? 'category' and ((select array_agg(k order by k) from jsonb_object_keys(selector)k)<>array['operation_ref']::text[] or (select array_agg(k order by k) from jsonb_object_keys(desire)k)<>array['new_value']::text[]))
+ or (p_action='split' and ((select array_agg(k order by k) from jsonb_object_keys(selector)k)<>array['operation_ref']::text[] or (select array_agg(k order by k) from jsonb_object_keys(desire)k)<>array['children']::text[]))
+ or (p_action='add' and ((select array_agg(k order by k) from jsonb_object_keys(selector)k)<>array['vehicle_id']::text[] or (select array_agg(k order by k) from jsonb_object_keys(desire)k)<>array['new_value']::text[]))
+ or (p_action='combine' and ((select array_agg(k order by k) from jsonb_object_keys(selector)k)<>array['operation_refs']::text[] or (select array_agg(k order by k) from jsonb_object_keys(desire)k)<>array['new_value','survivor_operation_ref']::text[]))
+ or (p_action='reorder' and ((select array_agg(k order by k) from jsonb_object_keys(selector)k)<>array['operation_refs']::text[] or (select array_agg(k order by k) from jsonb_object_keys(desire)k)<>array['complete_effective_set']::text[] or desire->'complete_effective_set'<>'true'::jsonb))
+ or (p_action='remove_duplicate' and ((select array_agg(k order by k) from jsonb_object_keys(selector)k)<>array['operation_refs']::text[] or (select array_agg(k order by k) from jsonb_object_keys(desire)k)<>array['duplicate_proof','survivor_operation_ref']::text[] or desire->>'duplicate_proof'<>'database_exact')) then raise exception 'PDC_253_EXACT_INTENT_SCHEMA_REQUIRED' using errcode='22023';end if;
  -- Exact selectors are normalized to source:<uuid>/auditor:<uuid>.  Bare UUIDs are rejected.
- if p_action in('edit','split') then
+ if p_action='edit' and selector ? 'category' then null;
+ elsif p_action in('edit','split') then
   if (select array_agg(k order by k) from jsonb_object_keys(selector)k)<>array['operation_ref']::text[] or selector->>'operation_ref'!~'^(source|auditor):[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$' then raise exception 'PDC_253_EXACT_NAMESPACED_REF_REQUIRED' using errcode='22023';end if;
   select jsonb_build_array(jsonb_build_object('action',p_action,'vehicle_id',n.vehicle_id,'job_card_number',coalesce(n.job_card_number,''),'operation_identifier',n.operation_ref,'reason','bounded exact operation intent')||case when p_action='edit' then jsonb_build_object('new_value',desire->'new_value') else jsonb_build_object('children',desire->'children') end) into derived_items from public.pdc_auditor_normalized_operation_lines_253 n where n.operation_ref=selector->>'operation_ref' and n.active;
  elsif p_action in('combine','reorder','remove_duplicate') then
