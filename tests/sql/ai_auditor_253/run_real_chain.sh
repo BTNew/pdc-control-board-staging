@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 SOURCE_ROOT="$(cd "$(dirname "$0")/../../.." && pwd)"
+SOURCE_GIT_ROOT="$(cygpath -m "$SOURCE_ROOT")"
 PGBIN="${PGBIN:-C:/Users/nwmgr/HermesWorkspaces/development/local-postgresql-17-correct/pgsql/bin}"
 HOST="127.0.0.1"
 PORT="55432"
@@ -12,15 +13,15 @@ EXPECTED_SHA="${EXPECTED_SHA:-}"
   echo "EXPECTED_SHA must be the exact 40-character commit to verify" >&2
   exit 1
 }
-resolved_sha="$(git -C "$SOURCE_ROOT" rev-parse --verify "$EXPECTED_SHA^{commit}")"
-head_sha="$(git -C "$SOURCE_ROOT" rev-parse HEAD)"
+resolved_sha="$(git -C "$SOURCE_GIT_ROOT" rev-parse --verify "$EXPECTED_SHA^{commit}")"
+head_sha="$(git -C "$SOURCE_GIT_ROOT" rev-parse HEAD)"
 [[ "$resolved_sha" == "$EXPECTED_SHA" && "$head_sha" == "$EXPECTED_SHA" ]] || {
   echo "exact-SHA mismatch: expected $EXPECTED_SHA, HEAD $head_sha, resolved $resolved_sha" >&2
   exit 1
 }
 self_path="tests/sql/ai_auditor_253/run_real_chain.sh"
-self_blob="$(git -C "$SOURCE_ROOT" hash-object --path="$self_path" "$SOURCE_ROOT/$self_path")"
-expected_self_blob="$(git -C "$SOURCE_ROOT" rev-parse "$EXPECTED_SHA:$self_path")"
+self_blob="$(git -C "$SOURCE_GIT_ROOT" hash-object --path="$self_path" "$SOURCE_GIT_ROOT/$self_path")"
+expected_self_blob="$(git -C "$SOURCE_GIT_ROOT" rev-parse "$EXPECTED_SHA:$self_path")"
 [[ "$self_blob" == "$expected_self_blob" ]] || {
   echo "runner bytes differ from exact SHA" >&2
   exit 1
@@ -28,7 +29,7 @@ expected_self_blob="$(git -C "$SOURCE_ROOT" rev-parse "$EXPECTED_SHA:$self_path"
 
 ARCHIVE_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/pdc-ai-auditor-063-${EXPECTED_SHA:0:12}.XXXXXX")"
 trap 'rm -rf "$ARCHIVE_ROOT"' EXIT
-git -C "$SOURCE_ROOT" archive --format=tar "$EXPECTED_SHA" | tar -xf - -C "$ARCHIVE_ROOT"
+git -C "$SOURCE_GIT_ROOT" archive --format=tar "$EXPECTED_SHA" | tar -xf - -C "$ARCHIVE_ROOT"
 ROOT="$ARCHIVE_ROOT"
 cd "$ROOT"
 
