@@ -27,6 +27,9 @@ PUBLIC_RPCS = (
     "public.undo_last_pdc_auditor_typed_run_253(jsonb)",
     "public.query_pdc_auditor_typed_253(text,jsonb,jsonb)",
 )
+PRIVATE_FUNCTIONS = (
+    "public.pdc_auditor_valid_new_value_253(jsonb,boolean,boolean,boolean)",
+)
 PRIVATE_TABLES = (
     "pdc_auditor_gateway_keys_253",
     "pdc_auditor_signed_deliveries_253",
@@ -130,6 +133,30 @@ def verify_install(cur, owner: str, source: str) -> dict:
         acl = {role: scalar(cur, "select has_function_privilege(%s,%s,'EXECUTE')", (role, signature)) for role in ("public", "anon", "authenticated", "service_role")}
         if acl != {"public": False, "anon": False, "authenticated": True, "service_role": False}:
             raise RuntimeError(f"RPC ACL mismatch: {signature} {acl}")
+    for signature in PRIVATE_FUNCTIONS:
+        cur.execute(
+            "select pg_get_userbyid(proowner),prosecdef,provolatile,proconfig "
+            "from pg_proc where oid=%s::regprocedure",
+            (signature,),
+        )
+        row = cur.fetchone()
+        if (
+            not row
+            or row[0] != owner
+            or row[1]
+            or row[2] != "i"
+            or not row[3]
+            or not any(value.startswith("search_path=pg_catalog") for value in row[3])
+        ):
+            raise RuntimeError(
+                f"private-function owner/invoker/immutable/search-path mismatch: {signature} {row!r}"
+            )
+        acl = {
+            role: scalar(cur, "select has_function_privilege(%s,%s,'EXECUTE')", (role, signature))
+            for role in ("public", "anon", "authenticated", "service_role")
+        }
+        if acl != {"public": False, "anon": False, "authenticated": False, "service_role": False}:
+            raise RuntimeError(f"private-function ACL mismatch: {signature} {acl}")
     if scalar(cur, "select count(*) from public.pdc_auditor_gateway_keys_253") != 0:
         raise RuntimeError("gateway key table was not empty after structural installation")
     if not scalar(cur, "select exists(select 1 from pg_constraint where conrelid='public.pdc_auditor_telegram_deliveries_230'::regclass and contype='c' and pg_get_constraintdef(oid) like '%%pdc_auditor_signed_deliveries_253%%')"):
@@ -143,7 +170,7 @@ def verify_install(cur, owner: str, source: str) -> dict:
         raise RuntimeError(f"immutable trigger coverage too small: {immutable_count}")
     if "PDC_253_TELEGRAM_DELIVERY_ALREADY_CONSUMED" not in scalar(cur, "select pg_get_functiondef('public.pdc_auditor_verify_envelope_253(text,jsonb)'::regprocedure)"):
         raise RuntimeError("global Telegram replay denial missing from verifier")
-    return {"owner": owner, "private_tables": len(PRIVATE_TABLES), "public_rpcs": len(PUBLIC_RPCS), "immutable_triggers": immutable_count, "gateway_keys_empty": True, "realtime_publication": True}
+    return {"owner": owner, "private_tables": len(PRIVATE_TABLES), "public_rpcs": len(PUBLIC_RPCS), "private_functions": len(PRIVATE_FUNCTIONS), "immutable_triggers": immutable_count, "gateway_keys_empty": True, "realtime_publication": True}
 
 
 def main() -> int:
