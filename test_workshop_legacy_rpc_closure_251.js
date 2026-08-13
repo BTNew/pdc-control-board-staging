@@ -7,6 +7,7 @@ const authority = fs.readFileSync('supabase/staging_only/244_workshop_admin_auth
 const legacy = [
   'schedule_vehicle_work(uuid,integer,text,integer,timestamptz,integer,uuid,text,jsonb)',
   'cascade_workshop_schedule(text,uuid,integer,text,integer,timestamptz,integer,uuid,integer,text,jsonb)',
+  'cascade_workshop_schedule_pre_087(text,uuid,integer,text,integer,timestamptz,integer,uuid,integer,text,jsonb)',
   'move_workshop_booking(uuid,integer,text,integer,timestamptz,integer,text,jsonb)',
   'cascade_workshop_booking_move(uuid,integer,text,integer,timestamptz,integer,text,jsonb)',
   'cascade_workshop_booking_move_pre_116(uuid,integer,text,integer,timestamptz,integer,text,jsonb)',
@@ -40,5 +41,6 @@ for (const signature of controlled) assert(sql.includes(`'public.${signature}'`)
 assert(sql.includes("has_function_privilege('service_role',endpoint,'execute')"));
 assert(sql.includes("not has_function_privilege('authenticated',endpoint,'execute')"));
 assert(sql.includes('pre-116 cascade move'));
+assert(sql.includes('pre-087 cascade schedule'));
 assert(!/grant\s+execute/.test(sql), 'draft closure must not add grants');
-console.log('Draft migration 251 contract passed: exact seven-RPC closure and authenticated-only controlled endpoint postconditions');
+console.log('Draft migration 251 contract passed: exact eight-RPC closure and authenticated-only controlled endpoint postconditions');

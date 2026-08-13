@@ -30,6 +30,7 @@ $guard$;
 
 revoke all on function public.schedule_vehicle_work(uuid,integer,text,integer,timestamptz,integer,uuid,text,jsonb) from public,anon,authenticated,service_role;
 revoke all on function public.cascade_workshop_schedule(text,uuid,integer,text,integer,timestamptz,integer,uuid,integer,text,jsonb) from public,anon,authenticated,service_role;
+revoke all on function public.cascade_workshop_schedule_pre_087(text,uuid,integer,text,integer,timestamptz,integer,uuid,integer,text,jsonb) from public,anon,authenticated,service_role;
 revoke all on function public.move_workshop_booking(uuid,integer,text,integer,timestamptz,integer,text,jsonb) from public,anon,authenticated,service_role;
 revoke all on function public.cascade_workshop_booking_move(uuid,integer,text,integer,timestamptz,integer,text,jsonb) from public,anon,authenticated,service_role;
 revoke all on function public.cascade_workshop_booking_move_pre_116(uuid,integer,text,integer,timestamptz,integer,text,jsonb) from public,anon,authenticated,service_role;
@@ -44,6 +45,7 @@ begin
   foreach signature in array array[
     'public.schedule_vehicle_work(uuid,integer,text,integer,timestamptz,integer,uuid,text,jsonb)',
     'public.cascade_workshop_schedule(text,uuid,integer,text,integer,timestamptz,integer,uuid,integer,text,jsonb)',
+    'public.cascade_workshop_schedule_pre_087(text,uuid,integer,text,integer,timestamptz,integer,uuid,integer,text,jsonb)',
     'public.move_workshop_booking(uuid,integer,text,integer,timestamptz,integer,text,jsonb)',
     'public.cascade_workshop_booking_move(uuid,integer,text,integer,timestamptz,integer,text,jsonb)',
     'public.cascade_workshop_booking_move_pre_116(uuid,integer,text,integer,timestamptz,integer,text,jsonb)',
@@ -83,7 +85,7 @@ $verify$;
 
 insert into supabase_migrations.schema_migrations(version,name,statements)
 values('251','exact_complete_legacy_workshop_rpc_closure',array[
-  'staging-only exact closure: schedule, cascade schedule, move, cascade move, pre-116 cascade move, resize and bay-change RPCs denied to public, anon, authenticated and service_role',
+  'staging-only exact closure: schedule, cascade schedule, pre-087 cascade schedule, move, cascade move, pre-116 cascade move, resize and bay-change RPCs denied to public, anon, authenticated and service_role',
   'Administrator controlled endpoints remain authenticated-only and enforce Administrator authority internally',
   'production untouched'
 ]);
