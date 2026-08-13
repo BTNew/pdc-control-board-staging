@@ -132,13 +132,13 @@ def verify_install(cur, owner: str, source: str) -> dict:
             raise RuntimeError(f"RPC ACL mismatch: {signature} {acl}")
     if scalar(cur, "select count(*) from public.pdc_auditor_gateway_keys_253") != 0:
         raise RuntimeError("gateway key table was not empty after structural installation")
-    if not scalar(cur, "select exists(select 1 from pg_constraint where conrelid='public.pdc_auditor_telegram_deliveries_230'::regclass and contype='c' and pg_get_constraintdef(oid) like '%pdc_auditor_signed_deliveries_253%')"):
+    if not scalar(cur, "select exists(select 1 from pg_constraint where conrelid='public.pdc_auditor_telegram_deliveries_230'::regclass and contype='c' and pg_get_constraintdef(oid) like '%%pdc_auditor_signed_deliveries_253%%')"):
         raise RuntimeError("global Telegram delivery source constraint was not extended")
     if not scalar(cur, "select exists(select 1 from pg_policies where schemaname='public' and tablename='pdc_auditor_workshop_revisions' and policyname='pdc_auditor_workshop_revisions_admin_read_253')"):
         raise RuntimeError("Administrator Realtime policy missing")
     if not scalar(cur, "select exists(select 1 from pg_publication_tables where pubname='supabase_realtime' and schemaname='public' and tablename='pdc_auditor_workshop_revisions')"):
         raise RuntimeError("revision table is absent from supabase_realtime publication")
-    immutable_count = scalar(cur, "select count(*) from pg_trigger where not tgisinternal and tgname like '%253%immutable%'")
+    immutable_count = scalar(cur, "select count(*) from pg_trigger where not tgisinternal and tgname like '%%253%%immutable%%'")
     if immutable_count < 9:
         raise RuntimeError(f"immutable trigger coverage too small: {immutable_count}")
     if "PDC_253_TELEGRAM_DELIVERY_ALREADY_CONSUMED" not in scalar(cur, "select pg_get_functiondef('public.pdc_auditor_verify_envelope_253(text,jsonb)'::regprocedure)"):
