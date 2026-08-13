@@ -251,7 +251,7 @@ def main() -> int:
     if not dsn:
         raise RuntimeError("staging database URL is not configured")
     assert_staging_target(database_url=dsn)
-    connection = psycopg2.connect(dsn)
+    connection = psycopg2.connect(dsn, sslmode="require")
     try:
         owner = None
         with connection.cursor() as cur:

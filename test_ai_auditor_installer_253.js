@@ -23,6 +23,7 @@ for (const required of [
   'exact reviewed commit/clean tracked worktree required',
   'if not sys.flags.isolated:',
   'isolated Python is required',
+  'psycopg2.connect(dsn, sslmode="require")',
 ]) assert.ok(source.includes(required),`installer contract missing: ${required}`);
 assert.ok(source.includes("version='253'"),'rollback readback must check the exact migration ledger');
 assert.ok(source.includes("to_regclass('public.pdc_auditor_gateway_keys_253') is not null"),'rollback readback must check private object residue');
