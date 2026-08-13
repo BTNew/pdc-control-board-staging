@@ -1,16 +1,16 @@
 {
   "environment": "staging",
-  "application_version": "2026.08.13.40-workshop-admin-tile-moves",
-  "source_commit": "1df2d72bde41dc88a8f2d7f14009ebac6eec8435",
-  "parent_staging_commit": "7077f85b49d52bae42947402bbfbfb98f0003a13",
+  "application_version": "2026.08.13.41-workshop-admin-role-cast",
+  "source_commit": "97e187bf60f52f446c9a2d81481d92738a518157",
+  "parent_staging_commit": "2cdd589d0679210dac8d73d19f7370eb9bac20ab",
   "staging_project_ref": "cdsmnqxtyyoeoznmbidd",
   "production_unchanged": true,
   "main_unchanged": true,
   "dns_unchanged": true,
   "pilot_activation_changed": false,
   "mailbox_runtime_changed": false,
-  "deployed_at_utc": "2026-08-13T01:12:33.188411+00:00",
-  "database_migration_head": 238,
+  "deployed_at_utc": "2026-08-13T01:31:44.743072+00:00",
+  "database_migration_head": 239,
   "database_migrations": {
     "232": {
       "name": "workshop_mechanic_bay_assignment_repair",
@@ -51,6 +51,12 @@
       "source_path": "supabase/staging_only/238_workshop_admin_tile_move_receipts_and_undo.sql",
       "sha256": "aefb774972b221c8a335f5653530b7fa2184bbaedac5c11def72c6e9436bb211",
       "bytes": 14543
+    },
+    "239": {
+      "name": "workshop_admin_role_enum_cast",
+      "source_path": "supabase/staging_only/239_workshop_admin_role_enum_cast.sql",
+      "sha256": "0fffba89a545fe2ef5a1ad8f8c88e7fd92b4b12d39970ac070399f2e8a404017",
+      "bytes": 1541
     }
   },
   "files": {
