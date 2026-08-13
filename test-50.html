@@ -2,50 +2,23 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="robots" content="noindex, nofollow, noarchive">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'none'; connect-src 'self' https://vjdtsswhroyguxyfjdkt.supabase.co wss://vjdtsswhroyguxyfjdkt.supabase.co; font-src 'self'; form-action 'self'; img-src 'self' data:; object-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; worker-src 'self' blob:">
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="description" content="PDC vehicle locations, workshop workflow, Parts and scheduling control board." />
-  <title>PMB PDC Control Board</title>
+  <title>PDC Control Board — 50 Vehicle Test</title>
   <link rel="icon" href="favicon.svg" type="image/svg+xml" />
   <link rel="stylesheet" href="styles.css?v=2026.08.13.45-admin-authority-intent-undo-pointer" />
   <link rel="stylesheet" href="desktop-operations.css?v=2026.08.13.45-admin-authority-intent-undo-pointer" />
   <link rel="stylesheet" href="workshop-planner.css?v=2026.08.13.45-admin-authority-intent-undo-pointer" />
 </head>
-<body class="auth-pending" data-auth-state="checking">
-  <main class="pdc-auth-gate" id="pdc-auth-gate" aria-labelledby="pdc-auth-title">
-    <section class="pdc-auth-card">
-      <img class="pdc-auth-brand" src="assets/pmb-logo.png" alt="Perth Motor Bodies" />
-      <p class="eyebrow">PDC Control Board</p>
-      <h1 id="pdc-auth-title">Checking secure sign-in…</h1>
-      <p id="pdc-auth-detail">Checking for an existing approved staff session.</p>
-      <div class="pdc-auth-actions">
-        <form class="pdc-password-form" id="pdc-password-form" hidden>
-          <label><span>Email address</span><input id="pdc-login-email" type="email" autocomplete="username" required /></label>
-          <label><span>Password</span><input id="pdc-login-password" type="password" autocomplete="current-password" required /></label>
-          <button class="primary" id="pdc-password-login" type="submit">Sign in</button>
-        </form>
-        <form class="pdc-password-form" id="pdc-new-password-form" hidden>
-          <label><span>New password</span><input id="pdc-new-password" type="password" autocomplete="new-password" minlength="12" required /></label>
-          <label><span>Confirm new password</span><input id="pdc-confirm-password" type="password" autocomplete="new-password" minlength="12" required /></label>
-          <button class="primary" id="pdc-save-password" type="submit">Save password</button>
-        </form>
-        <button class="primary" id="pdc-microsoft-login" type="button" hidden>Sign in with Microsoft</button>
-        <button class="ghost" id="pdc-auth-denied-signout" type="button" hidden>Use another account</button>
-      </div>
-      <small>Only individually approved staff accounts can load operational data. Public account registration is disabled.</small>
-    </section>
-  </main>
-  <noscript><div class="pdc-auth-noscript">JavaScript is required for secure staff sign-in.</div></noscript>
-
-  <div class="app-shell" id="app-shell" inert aria-hidden="true">
+<body>
+  <div class="test-data-banner" style="position:sticky;top:0;z-index:9999;background:#7c2d12;color:#fff;padding:8px 14px;text-align:center;font-weight:700;letter-spacing:.02em;">TEST DATASET — 50 SAMPLE VEHICLES ONLY</div>
+  <div class="app-shell" id="app-shell">
     <aside class="sidebar" aria-label="Application navigation">
       <div class="brand">
         <div class="brand-logo-wrap" aria-hidden="true"><img class="brand-logo" src="assets/pmb-logo.png" alt="" onerror="this.hidden=true; this.nextElementSibling.hidden=false" /><span class="brand-logo-fallback" hidden>VT</span></div>
         <div class="brand-text">
           <div class="brand-title">Perth Motor Bodies</div>
           <div class="brand-subtitle">PDC Control Board</div>
-          <div class="app-version" id="app-version">Version 2026.08.13.45-admin-authority-intent-undo-pointer</div>
         </div>
 
       </div>
@@ -61,7 +34,6 @@
         <button type="button" class="nav-item nav-workshop-item" data-view="planner-fab" data-short="FAB">Fabrication</button>
         <button type="button" class="nav-item nav-workshop-item" data-view="planner-elec" data-short="ELEC">Electrical</button>
         <button type="button" class="nav-item nav-workshop-item" data-view="planner-tyre" data-short="TY">Tyre</button>
-        <button type="button" class="nav-item" data-view="visibility" data-short="OPS">Operations</button>
         <button type="button" class="nav-item" data-view="parts" data-short="PA">Parts</button>
         <button type="button" class="nav-item" data-view="emailreview" data-short="AI">AI Intake Review</button>
         <button type="button" class="nav-item" data-view="sublet" data-short="SUB">Sublet</button>
@@ -70,8 +42,7 @@
         <button type="button" class="nav-item" data-view="deleted" data-short="DEL">Deleted vehicles</button>
         <button type="button" class="nav-item" data-view="backend" data-short="DATA">Back End Data</button>
         <button type="button" class="nav-item" data-view="lists" data-short="SET">Setup</button>
-        <button type="button" class="nav-item" data-view="import" data-short="NAV">Navision Uploads</button>
-        <button type="button" class="nav-item" data-view="backup" data-short="BAK">Backup / Restore</button>
+        <button type="button" class="nav-item" data-view="import" data-short="U">Uploads</button>
       </nav>
 
     </aside>
@@ -83,24 +54,18 @@
           <h1 id="page-title">Vehicle Locations</h1>
         </div>
         <div class="topbar-actions">
-          <span class="pdc-auth-user" id="pdc-auth-user" hidden></span>
-          <button class="ghost" id="pdc-auth-signout" type="button" hidden>Sign out</button>
 
         </div>
       </header>
 
-      <div class="hosting-security-warning" id="hosting-security-warning" role="alert" hidden>
-        <strong>Production hosting warning</strong>
-        <span>This public static host contains bundled vehicle data. Move production use to authenticated hosting before publishing live customer records.</span>
-      </div>
-
       <section id="dashboard" class="view active">
         <div class="kpi-grid" id="kpi-grid"></div>
+
         <section class="panel span-12 incoming-board-panel">
           <div class="panel-header">
             <div>
               <h2>Vehicle Locations list</h2>
-              <p>Searchable daily vehicle board ordered by RFT, QC, PIT, PMB, YARD HOLD, IT, then OTHER. Pit Inspection is a required workshop station; Department of Transport PIT remains a separate vehicle location. Completing every required station job places the vehicle in QC; a named QC sign-off marks it RFT.</p>
+              <p>Searchable daily vehicle board ordered by RFT, QC, PIT, PMB, YARD HOLD, IT, then OTHER. PIT is a vehicle location, not workshop work. Completing every required station job places the vehicle in QC; a named QC sign-off marks it RFT.</p>
             </div>
             <div class="panel-actions">
               <button class="small-button" id="incoming-collapse-all" type="button">Collapse all rows</button>
@@ -130,37 +95,35 @@
                                   <option value="overseas">OTHER</option>
                                 </select>
               </label>
+              <label>
+                <span>Sales rep</span>
+                <select id="incoming-rep-filter"><option value="">All reps</option></select>
+              </label>
+              <label>
+                <span>Work type</span>
+                <select id="incoming-work-filter">
+                  <option value="">All work</option>
+                  <option value="bus4x4">Bus 4x4</option>
+                  <option value="tint">Tint</option>
+                  <option value="hoist">Hoist</option>
+                  <option value="fitting">Fitting</option>
+                  <option value="fabrication">Fab</option>
+                  <option value="electrical">Elec</option>
+                  <option value="tyre">Tyre</option>
+                  <option value="pitInspection">Pit</option>
+
+                  <option value="parts">Parts</option>
+                </select>
+              </label>
               <button class="primary incoming-find-button" id="incoming-find" type="button">Find</button>
               <button class="small-button" id="incoming-clear-filters" type="button">Clear</button>
             </div>
-            <details class="incoming-more-filters" id="incoming-more-filters">
-              <summary><span data-incoming-more-filter-label>More filters</span></summary>
-              <div class="incoming-more-filter-grid">
-                <label>
-                  <span>Sales rep</span>
-                  <select id="incoming-rep-filter"><option value="">All reps</option></select>
-                </label>
-                <fieldset class="incoming-work-filter-checks" aria-label="Work type filters">
-                  <legend>Work type</legend>
-                  <label><input type="checkbox" name="incoming-work-filter" value="tint" /> Tint</label>
-                  <label><input type="checkbox" name="incoming-work-filter" value="bus4x4" /> Bus 4x4</label>
-                  <label><input type="checkbox" name="incoming-work-filter" value="hoist" /> Hoist</label>
-                  <label><input type="checkbox" name="incoming-work-filter" value="fitting" /> Fitting</label>
-                  <label><input type="checkbox" name="incoming-work-filter" value="fabrication" /> Fab</label>
-                  <label><input type="checkbox" name="incoming-work-filter" value="electrical" /> Elec</label>
-                  <label><input type="checkbox" name="incoming-work-filter" value="tyre" /> Tyre</label>
-                  <label><input type="checkbox" name="incoming-work-filter" value="pitInspection" /> Pit</label>
-                  <label><input type="checkbox" name="incoming-work-filter" value="sublet" /> Sublet</label>
-                </fieldset>
-              </div>
-            </details>
             <div class="incoming-filter-meta" id="incoming-filter-summary">All active incoming vehicles</div>
           </div>
           <div class="inline-selection-bar" id="incoming-selection-bar" aria-live="polite">
             <strong id="incoming-selection-count">0 selected</strong>
             <span class="subtle">Tick vehicles below to transfer them, delete them, or select one vehicle to email its salesperson an update.</span>
             <div class="inline-selection-actions">
-              <button class="small-button primary print-labels-button" data-print-selected-zpl type="button" hidden disabled>Print Labels</button>
               <button class="small-button" id="incoming-email-selected-update" type="button" disabled>EMAIL UPDATE</button>
               <button class="small-button primary" id="incoming-transfer-selected-pmb" type="button" disabled>Transfer selected YH → PMB</button>
               <button class="small-button danger-button" id="incoming-delete-selected" type="button" disabled>Delete selected</button>
@@ -183,6 +146,27 @@
           </div>
           <textarea id="dashboard-navision-paste" class="quick-navision-textarea" rows="5" spellcheck="false" placeholder="Order&#9;Batch&#9;Production Month&#9;Model Description&#9;Sub Location Description&#9;ETA At Kewdale Yard..."></textarea>
         </section>
+        <section class="panel span-12 pd-import-panel" hidden>
+          <div class="panel-header compact">
+            <div>
+              <h2>Quick import PD check-form</h2>
+              <p>Drop a PD check-form PDF or paste its text to attach accessory fitment work to the matching vehicle.</p>
+            </div>
+            <div class="panel-actions">
+              <button class="primary" id="dashboard-import-pd" type="button" disabled>Import PD work</button>
+              <button class="small-button" id="dashboard-clear-pd" type="button" disabled>Clear</button>
+            </div>
+          </div>
+          <div class="pd-import-grid">
+            <label class="drop-zone pd-drop-zone" id="dashboard-pd-drop">
+              <input id="dashboard-pd-upload" type="file" accept=".pdf,.txt,text/plain,application/pdf" multiple />
+              <strong>Drop PD PDF here</strong>
+              <span>or click to choose files</span>
+            </label>
+            <textarea id="dashboard-pd-paste" class="quick-navision-textarea" rows="5" spellcheck="false" aria-label="PD check-form text" placeholder="Paste PD check-form text here..."></textarea>
+          </div>
+          <div id="dashboard-pd-status" class="po-status-list pd-status-list"></div>
+        </section>
         <div class="pmb-branch-grid" id="pmb-branch-grid" hidden></div>
         <section class="panel span-12 legacy-incoming-table-panel" hidden>
           <div class="panel-header">
@@ -204,7 +188,7 @@
           <div class="table-toolbar advanced-toolbar wide-toolbar table-global-toolbar">
             <label>
               <span>Search</span>
-              <input id="search" type="search" placeholder="Stock, client, vehicle, notes..." />
+              <input id="search" type="search" placeholder="Stock, Toyota order, client, vehicle, notes..." />
             </label>
             <label>
               <span>Source</span>
@@ -223,7 +207,7 @@
               <button class="small-button" id="override-selected-to-yh-bar" type="button" disabled>Override to YH</button>
               <button class="small-button primary" id="transfer-selected-to-pmb-bar" type="button" disabled>Transfer to PMB</button>
 
-              <button class="small-button primary print-labels-button" data-print-selected-zpl type="button" hidden disabled>Print Labels</button>
+              <button class="small-button primary print-labels-button" data-print-selected-zpl type="button" disabled>Print Labels</button>
               <button class="small-button danger-button" id="delete-selected-vehicles-bar" type="button" disabled>Delete selected</button>
               <button class="small-button" id="clear-selected-rows-bar" type="button" disabled>Clear</button>
             </div>
@@ -366,21 +350,22 @@
       </section>
 
       <section id="parts" class="view">
-        <div class="parts-home-layout">
-          <section class="panel parts-home-panel">
-            <div class="panel-header parts-compact-header">
-              <div><h2>Parts</h2><p>Order, receive and clear workshop parts blockers.</p></div>
-              <button class="small-button" id="parts-export-csv" type="button">Export CSV</button>
-            </div>
-            <div class="parts-summary-grid parts-operational-filters" id="parts-summary-grid" role="toolbar" aria-label="Parts queue filters"></div>
-            <div class="table-toolbar parts-toolbar parts-compact-toolbar">
-              <label class="parts-search-field"><span>Search</span><input id="parts-search" type="search" placeholder="Key, stock, JC, customer or vehicle" /></label>
-              <label><span>Department</span><select id="parts-department-filter"><option value="">All departments</option><option value="138">138 Bus 4x4</option><option value="137">137 Fab</option><option value="139">139 PD</option></select></label>
-            </div>
-            <div id="parts-home-content" class="parts-home-content"></div>
-          </section>
-        </div>
-      </section>
+              <div class="parts-home-layout">
+                <section class="panel parts-home-panel">
+                  <div class="panel-header parts-compact-header">
+                    <div><h2>Parts</h2><p>Order, receive and clear workshop parts blockers.</p></div>
+                    <button class="small-button" id="parts-export-csv" type="button">Export CSV</button>
+                  </div>
+                  <div class="parts-summary-grid parts-operational-filters" id="parts-summary-grid" role="toolbar" aria-label="Parts queue filters"></div>
+                  <div class="table-toolbar parts-toolbar parts-compact-toolbar">
+                    <label class="parts-search-field"><span>Search</span><input id="parts-search" type="search" placeholder="Key, stock, JC, customer or vehicle" /></label>
+                    <label><span>Department</span><select id="parts-department-filter"><option value="">All departments</option><option value="138">138 Bus 4x4</option><option value="137">137 Fab</option><option value="139">139 PD</option></select></label>
+                  </div>
+                  <div id="parts-home-content" class="parts-home-content"></div>
+                </section>
+              </div>
+            </section>
+
 
       <section id="emailreview" class="view">
         <div class="parts-home-layout email-review-layout">
@@ -404,7 +389,7 @@
                   <input id="ai-intake-upload" type="file" accept=".pdf,.txt,.csv,.tsv,.json,text/plain,text/csv,application/json,application/pdf" multiple />
                   <div class="drop-icon navision-icon">AI</div>
                   <strong>Select files for analysis</strong>
-                  <span>PD Documents and Parts notes</span>
+                  <span>PO PDFs, PD/job card text, parts notes or other file dumps</span>
                 </label>
                 <div class="email-intake-upload-buttons">
                   <button class="primary" id="ai-intake-analyze" type="button" disabled>Analyse files</button>
@@ -423,34 +408,13 @@
       <section id="sublet" class="view">
         <div class="parts-home-layout sublet-home-layout">
           <section class="panel parts-home-panel sublet-home-panel">
-            <div class="panel-header"><div><h2>Sublet bookings</h2><p>Provider queue, booking dates, notes and controlled email drafts.</p></div><div class="panel-actions"><button class="primary" id="sublet-create-open" type="button">Create Sublet</button><span class="badge neutral" id="sublet-summary">0 shown</span></div></div>
-            <div class="parts-summary-grid sublet-operational-filters" id="sublet-summary-grid" role="toolbar" aria-label="Sublet booking filters"></div>
-            <div class="sublet-view-toolbar">
-              <div class="sublet-view-switch" role="group" aria-label="Sublet display view"><button class="small-button is-active" id="sublet-list-view" type="button" aria-pressed="true">List View</button><button class="small-button" id="sublet-calendar-view" type="button" aria-pressed="false">Calendar View</button></div>
-              <div class="sublet-calendar-controls" id="sublet-calendar-controls" hidden>
-                <div class="sublet-calendar-navigation"><button class="small-button" id="sublet-calendar-previous" type="button" aria-label="Previous calendar period">‹</button><button class="small-button" id="sublet-calendar-today" type="button">Today</button><button class="small-button" id="sublet-calendar-next" type="button" aria-label="Next calendar period">›</button><strong id="sublet-calendar-range-label" aria-live="polite"></strong></div>
-                <div class="sublet-calendar-period-switch" role="group" aria-label="Sublet calendar period"><button class="small-button is-active" id="sublet-calendar-week" type="button" aria-pressed="true">Week</button><button class="small-button" id="sublet-calendar-month" type="button" aria-pressed="false">Month</button></div>
-              </div>
-            </div>
-            <div class="table-toolbar advanced-toolbar wide-toolbar sublet-compact-toolbar"><label><span>Search</span><input id="sublet-search" type="search" placeholder="Key, stock, job card, customer, provider or notes..."></label><label><span>Provider</span><select id="sublet-provider-filter"><option value="all">All providers</option><option value="unassigned">Unassigned</option></select></label><label><span>Sort booked rows</span><select id="sublet-sort-filter"><option value="nearest">Nearest booking first</option><option value="date">Booking date first</option><option value="stock">Stock number</option></select></label></div>
+            <div class="panel-header"><div><h2>Sublet bookings</h2><p>Provider queue, booking dates, notes and controlled email drafts.</p></div><span class="badge neutral" id="sublet-summary">0 shown</span></div>
+                        <div class="table-toolbar advanced-toolbar wide-toolbar"><label><span>Search</span><input id="sublet-search" type="search" placeholder="Stock, customer, provider or notes..."></label><label><span>Provider</span><select id="sublet-provider-filter"><option value="all">All providers</option><option value="unassigned">Unassigned</option></select></label></div>
             <div class="parts-help-strip"><strong>Sublet rule:</strong><span>SUBLET is a provider queue, not a numbered physical bay. Email actions open reviewed drafts and never send automatically.</span></div>
             <div id="sublet-home-content"></div>
           </section>
         </div>
       </section>
-      <dialog id="sublet-create-dialog" class="sublet-create-dialog" aria-labelledby="sublet-create-title">
-        <form id="sublet-create-form" method="dialog" novalidate>
-          <header><div><span class="eyebrow">Independent provider booking</span><h2 id="sublet-create-title">Create Sublet</h2></div><button class="small-button" id="sublet-create-close" type="button" aria-label="Close Create Sublet dialog">×</button></header>
-          <label><span>Canonical vehicle</span><input id="sublet-create-vehicle-search" type="search" autocomplete="off" aria-describedby="sublet-create-vehicle-help" placeholder="Exact stock or customer name" required><input id="sublet-create-vehicle-id" type="hidden"><small id="sublet-create-vehicle-help">Choose one exact canonical result. Ambiguous text is never accepted.</small></label>
-          <div id="sublet-create-vehicle-results" class="sublet-create-results" role="listbox" aria-label="Canonical vehicle matches"></div>
-          <label><span>Provider</span><select id="sublet-create-provider" required><option value="">Select provider</option></select></label>
-          <div class="sublet-create-dates"><label><span>Out / booking date</span><input id="sublet-create-out-date" type="date" required></label><label><span>Expected return</span><input id="sublet-create-return-date" type="date" required></label></div>
-          <label><span>Provider email (optional, required for attested email updates)</span><input id="sublet-create-provider-email" type="email" autocomplete="off"></label>
-          <label><span>Notes</span><textarea id="sublet-create-notes" rows="3" maxlength="2000"></textarea></label>
-          <p id="sublet-create-error" class="sublet-create-error" role="alert" aria-live="assertive"></p>
-          <footer><button class="small-button" id="sublet-create-cancel" type="button">Cancel</button><button class="primary" type="submit">Create booking</button></footer>
-        </form>
-      </dialog>
 
       <section id="rft" class="view">
         <div class="parts-home-layout rft-home-layout">
@@ -513,11 +477,11 @@
               <strong>Collected:</strong>
               <span>Collected vehicles are locked once marked complete, so rows cannot be unticked back to RFT from this screen.</span>
             </div>
-            <section id="completed-pmb-statistics" class="completed-statistics-panel" aria-label="Completed vehicle PMB turnaround statistics"></section>
             <div id="completed-vehicles-content" class="parts-home-content completed-home-content"></div>
           </section>
         </div>
       </section>
+
 
       <section id="deleted" class="view">
         <div class="parts-home-layout deleted-home-layout">
@@ -553,34 +517,16 @@
             <div class="panel-header">
               <div>
                 <h2>Back End Data</h2>
-                <p>Online shared Navision imports are visible here to every approved staff account, alongside this browser's operational tracker rows.</p>
+                <p>All imported/current tracker vehicles plus rows moved to Deleted after a later Navision dump no longer contains them.</p>
               </div>
               <div class="panel-actions">
                 <span class="status-pill" id="backend-data-count">0 current · 0 deleted</span>
-                <button class="small-button" id="backend-data-refresh-shared" type="button">Refresh shared imports</button>
                 <button class="small-button" type="button" data-view-target="import">Upload Navision dump</button>
               </div>
             </div>
-            <div class="table-toolbar advanced-toolbar wide-toolbar backend-data-toolbar">
-              <label>
-                <span>Search vehicles</span>
-                <input id="backend-data-search" type="search" placeholder="Stock, VIN, customer or vehicle..." />
-              </label>
-              <label>
-                <span>Show</span>
-                <select id="backend-data-state-filter">
-                  <option value="all">All back-end data</option>
-                  <option value="backend">Back end only</option>
-                  <option value="active">Active / PDC Sheet</option>
-                  <option value="shared">Shared Navision imports</option>
-                  <option value="deleted">Deleted</option>
-                </select>
-              </label>
-              <button class="small-button" id="backend-data-clear-search" type="button">Clear</button>
-            </div>
             <div class="parts-help-strip">
-              <strong>Online Navision visibility:</strong>
-              <span>Shared imported rows update automatically for signed-in staff and remain read-only here. Moving a vehicle into operational workflow still requires the separately approved vehicle-authority process.</span>
+              <strong>Navision refresh:</strong>
+              <span>Full Navision imports now bring in every row. If cleanup is enabled, vehicles missing from the new dump move to Deleted and no longer show on Vehicle Locations.</span>
             </div>
             <div id="backend-data-content" class="parts-home-content backend-data-content"></div>
           </section>
@@ -596,7 +542,6 @@
               <p>Paste rows only when troubleshooting. Normal workflow is tick vehicles on the dashboard and click Print Labels.</p>
             </div>
             <div class="panel-actions">
-              <button class="primary" id="zpl-print" type="button" disabled>Print with QZ Tray</button>
               <button class="small-button" id="zpl-generate" type="button">Preview ZPL</button>
               <button class="small-button" id="zpl-copy" type="button" disabled>Copy ZPL</button>
               <button class="small-button" id="zpl-clear" type="button">Clear</button>
@@ -622,8 +567,7 @@
 
       <section id="lists" class="view">
         <div class="pdc-lists-layout">
-
-          <section class="panel pdc-list-panel admin-reference-panel">
+          <section class="panel pdc-list-panel">
             <div class="panel-header">
               <div>
                 <h2>Mechanic list</h2>
@@ -637,10 +581,10 @@
             <div class="admin-chip-list" id="mechanic-list-admin"></div>
           </section>
 
-          <section class="panel pdc-list-panel admin-reference-panel">
+          <section class="panel pdc-list-panel">
             <div class="panel-header">
               <div>
-                <h2>Sublet provider list</h2>
+                <h2>External providers</h2>
                 <p>Add tint, fabrication, tray, electrical, upholstery or other outside providers used by the PDC team.</p>
               </div>
             </div>
@@ -650,37 +594,11 @@
             </div>
             <div class="admin-chip-list" id="sublet-provider-list-admin"></div>
           </section>
-
-          <section class="panel pdc-list-panel salesperson-list-panel">
-            <div class="panel-header">
-              <div>
-                <h2>Salespersons</h2>
-                <p>Add salesperson initials, name and email. These entries populate the vehicle salesperson dropdown and email recipient lookup.</p>
-              </div>
-            </div>
-            <div class="list-admin-form salesperson-admin-form">
-              <input id="salesperson-initials-input" type="text" maxlength="6" aria-label="Salesperson initials" placeholder="Initials, e.g. CW" />
-              <input id="salesperson-name-input" type="text" aria-label="Salesperson full name" placeholder="Full name" />
-              <input id="salesperson-email-input" type="email" aria-label="Salesperson email address" placeholder="Email address" />
-              <button class="primary" id="add-salesperson-button" type="button">Add salesperson</button>
-            </div>
-            <div class="admin-chip-list salesperson-chip-list" id="salesperson-list-admin"></div>
-          </section>
-
-          <section class="panel pdc-list-panel backup-status-panel compact-backup-status-panel" id="backup-status-panel" hidden>
-            <div class="panel-header compact">
-              <div>
-                <h2>Automated backup status</h2>
-                <p>Encrypted server backups · administrator only</p>
-              </div>
-              <button class="small-button" id="backup-status-refresh" type="button">Refresh</button>
-            </div>
-            <div id="backup-status-content"><div class="empty-state compact-empty"><strong>Loading backup status…</strong></div></div>
-          </section>
         </div>
       </section>
 
-      <section id="backup" class="view">
+      <section id="import" class="view">
+
         <div class="import-layout backup-layout">
           <section class="panel import-card" id="backup-card">
             <div class="panel-header compact">
@@ -712,25 +630,20 @@
             </div>
           </section>
         </div>
-      </section>
 
-      <section id="import" class="view">
         <div class="import-layout navision-layout">
           <section class="panel import-card" id="navision-scan-card">
             <div class="panel-header compact">
               <div>
-                <h2>Daily Navision import</h2>
-                <p>Paste rows copied from Navision, or upload .txt / .tsv / .csv / .xlsx. A normal daily Navision upload stores every vehicle in Back End Data without placing new vehicles on the PDC Sheet.</p>
-              </div>
-              <div class="panel-actions">
-                <a class="small-button" href="random-100-vehicles.csv" download>Download random 100-vehicle CSV</a>
+                <h2>Upload Navision text or Excel</h2>
+                <p>Paste tab-separated rows copied from Navision, or upload .txt / .tsv / .csv / .xlsx. a normal daily Navision upload stores every vehicle in Back End Data without placing new vehicles on the PDC Sheet.</p>
               </div>
             </div>
             <label class="drop-zone navision-drop-zone" for="navision-upload">
               <input id="navision-upload" type="file" accept=".txt,.tsv,.csv,.xlsx,text/plain,text/tab-separated-values,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" />
               <span class="drop-icon navision-icon">XLSX</span>
               <strong>Select Navision text or Excel</strong>
-              <span>Uses Navision Batch as Stock to update existing rows and store new vehicles in Back End Data. XLSX files are converted in the browser.</span>
+              <span>Uses Batch/stock, order or VIN to update existing rows and store new vehicles in Back End Data. XLSX files are converted in the browser.</span>
             </label>
             <div class="scan-card">
               <div class="scan-line navision-file"><span>File / paste</span><strong>Waiting for text</strong></div>
@@ -743,32 +656,41 @@
             <div class="panel-header">
               <div>
                 <h2>Navision import results</h2>
-                <p>Daily Navision data refreshes ETA to Kewdale, JITA, status and identifiers in Back End Data. Approved operational intake or a manual action promotes a matching vehicle to the PDC Sheet.</p>
+                <p>Daily Navision data refreshes ETA to Kewdale, JITA, status and identifiers in Back End Data. Separate work files and manual inputs promote matching vehicles to the PDC Sheet.</p>
               </div>
               <div class="panel-actions">
-                <button class="primary" id="import-navision" type="button" disabled>Preview Data</button>
+                <button class="primary" id="import-navision" type="button" disabled>Import vehicle updates</button>
                 <button class="small-button" id="navision-clear" type="button" disabled>Clear</button>
               </div>
             </div>
             <div class="navision-paste-panel">
               <label class="zpl-field">
                 <span>Paste Navision or spreadsheet rows</span>
-                <textarea id="navision-paste" rows="8" spellcheck="false" placeholder="Batch&#9;Production Month&#9;Compliance Date&#9;Model Description&#9;Suffix Description&#9;..."></textarea>
+                <textarea id="navision-paste" rows="8" spellcheck="false" placeholder="Order&#9;Batch&#9;Production Month&#9;Compliance Date&#9;Model Description&#9;Suffix Description&#9;..."></textarea>
               </label>
-              <div class="subtle navision-note">Batch is the Stock number and matching authority. Every new daily Navision row remains back-end-only until approved operational intake or a manual action promotes it.</div>
+              <label class="sync-option">
+                <input id="navision-pmb-only" type="checkbox" checked />
+                <span><strong>This is a PDC work / job file</strong> — keeps the board focused on vehicles we have a purchase order or clear PMB/body-builder work signal for. Untick only when doing a full Navision refresh.</span>
+              </label>
+              <label class="sync-option">
+                <input id="navision-remove-missing" type="checkbox" />
+                <span><strong>Retire missing Navision-only back-end vehicles</strong> — only unpromoted Navision back-end rows that disappear from a full dump are eligible. Manual, PO, PD check-form and PDC Sheet vehicles are protected.</span>
+              </label>
+              <div class="subtle navision-note">Matching priority: Batch / stock number first, then Toyota order number, then VIN when WMI + VDS Number + Frame are available. For existing vehicles, Navision updates source data only until Yard Hold. PMB/RFT movement is manual in the vehicle popup and will not be overwritten by future imports. Dealer Comments appear in Navision Notes. Rows marked as Cut But Vehicle are highlighted light blue. Optional spreadsheet columns: TINT, HOIST, FITTING, FABRICATION, ELECTRICAL, TYRE, PIT INSPECTION, PARTS, PMB Bucket, PDC Location or Blocked can deliberately update PDC controls. PMB-only import accepts rows with Body Builder, PMB/PDC Location, PMB Bucket, tray ordered, or explicit job columns such as TINT/HOIST/FITTING/FABRICATION/ELECTRICAL/TYRE/PIT INSPECTION/PARTS.</div>
             </div>
             <div class="navision-status-list" id="navision-status-list">
-              <div class="empty-state compact-empty"><strong>No Navision text imported</strong><span>Paste copied Navision rows, or upload a text/CSV/XLSX file, then click Preview Data.</span></div>
+              <div class="empty-state compact-empty"><strong>No Navision text imported</strong><span>Paste copied Navision rows, or upload a text/CSV/XLSX file, then click Import vehicle updates.</span></div>
             </div>
           </section>
         </div>
+
 
         <div class="import-layout autocare-layout">
           <section class="panel import-card" id="autocare-scan-card">
             <div class="panel-header compact">
               <div>
-                <h2>Autocare Despatch Upload</h2>
-                <p>Scans Autocare ePOD despatch notices. A matched vehicle becomes active at PMB and lands in Unallocated; an existing PMB bucket is retained, and RFT or Completed vehicles are never moved backwards.</p>
+                <h2>Upload Autocare despatch notice</h2>
+                <p>Scans Autocare ePOD despatch notices, marks matched vehicles as Autocare despatched, and highlights those rows orange without replacing the Navision Sub Location status.</p>
               </div>
             </div>
             <label class="drop-zone autocare-drop-zone" for="autocare-upload">
@@ -780,7 +702,7 @@
             <div class="scan-card">
               <div class="scan-line autocare-files"><span>Files selected</span><strong>0 files</strong></div>
               <div class="scan-line autocare-detected"><span>Vehicles detected</span><strong>0 detected</strong></div>
-              <div class="scan-line autocare-matched"><span>Matched / PMB arrival</span><strong>0 matched</strong></div>
+              <div class="scan-line autocare-matched"><span>Matched and marked</span><strong>0 matched</strong></div>
               <button class="primary full" id="scan-autocare" type="button" disabled>Scan Autocare notice</button>
             </div>
           </section>
@@ -809,6 +731,37 @@
           </section>
         </div>
 
+        <div class="import-layout po-layout">
+          <section class="panel import-card" id="po-scan-card">
+            <div class="panel-header compact">
+              <div>
+                <h2>Upload purchase orders</h2>
+                <p>Uploading a PO automatically records a PMB fitment PO for the matched vehicle.</p>
+              </div>
+            </div>
+            <label class="drop-zone" for="po-upload">
+              <input id="po-upload" type="file" accept="application/pdf,.pdf" multiple />
+              <span class="drop-icon">PO</span>
+              <strong>Drop or select PO PDFs</strong>
+              <span>Use stock number in the filename for automatic matching, or upload from a vehicle popup.</span>
+            </label>
+            <div class="scan-card">
+              <div class="scan-line po-files"><span>Files selected</span><strong>0 files</strong></div>
+              <div class="scan-line po-matched"><span>Matched vehicles</span><strong>0 matched</strong></div>
+            </div>
+          </section>
+          <section class="panel review-panel">
+            <div class="panel-header">
+              <div>
+                <h2>PO matching results</h2>
+                <p>PO items stay out of the Task dropdown.</p>
+              </div>
+            </div>
+            <div class="po-status-list" id="po-status-list">
+              <div class="empty-state compact-empty"><strong>No PO uploaded</strong><span>Matched upload results will appear here.</span></div>
+            </div>
+          </section>
+        </div>
       </section>
     </main>
   </div>
@@ -831,7 +784,7 @@
       </div>
       <form class="new-customer-form customer-form" id="new-customer-form">
         <div class="form-row two-col">
-          <label><span class="muted-label">SP</span><select name="consultant" data-new-customer-salesperson><option value="">Unassigned</option></select></label>
+          <label><span class="muted-label">SP</span><input name="consultant" placeholder="e.g. BG" /></label>
           <label><span class="muted-label">Stock number</span><input type="text" name="stock" placeholder="TBA or stock #" /></label>
         </div>
         <div class="form-row two-col">
@@ -839,9 +792,8 @@
           <label><span class="muted-label">Contact</span><input type="text" name="contact" placeholder="Phone or email" /></label>
         </div>
         <label><span class="muted-label">Vehicle</span><input type="text" name="vehicle" required placeholder="Vehicle type / grade only" /></label>
-        <div class="form-row two-col">
+        <div class="form-row one-col">
           <label><span class="muted-label">Task</span><select name="internalStatus" id="new-customer-task"></select></label>
-          <label><span class="muted-label">JC Jobcard Number</span><input type="text" name="pdcJobcard" placeholder="Workshop jobcard #" /></label>
         </div>
         <div class="edit-actions">
           <button class="primary" type="submit">Add vehicle</button>
@@ -859,18 +811,38 @@
     </div>
   </template>
 
+  <script>
+    // Keep the 50-vehicle test page separate from the live board's saved browser data.
+    (function () {
+      try {
+        var realStorage = window.localStorage;
+        var prefix = 'pdc-control-board-test-50:';
+        var proxy = {
+          getItem: function (key) { return realStorage.getItem(prefix + key); },
+          setItem: function (key, value) { return realStorage.setItem(prefix + key, value); },
+          removeItem: function (key) { return realStorage.removeItem(prefix + key); },
+          clear: function () {
+            Object.keys(realStorage).filter(function (key) { return key.indexOf(prefix) === 0; }).forEach(function (key) { realStorage.removeItem(key); });
+          },
+          key: function (index) {
+            var keys = Object.keys(realStorage).filter(function (key) { return key.indexOf(prefix) === 0; });
+            return keys[index] ? keys[index].slice(prefix.length) : null;
+          },
+          get length() { return Object.keys(realStorage).filter(function (key) { return key.indexOf(prefix) === 0; }).length; }
+        };
+        Object.defineProperty(window, 'localStorage', { value: proxy, configurable: true });
+      } catch (error) {
+        console.warn('Test storage isolation unavailable', error);
+      }
+    }());
+  </script>
 
-  <script src="vendor/supabase/supabase-2.110.5.js"></script>
-  <script src="pdc-supabase-config.js"></script>
-  <script src="pdc-auth.js?v=2026.08.11.27-auth-foreground"></script>
-  <script src="data.js?v=2026.08.13.45-admin-authority-intent-undo-pointer"></script>
-  <script src="email-board-data.js?v=2026.08.13.45-admin-authority-intent-undo-pointer"></script>
+  <script src="data-test-50.js?v=2026.08.13.45-admin-authority-intent-undo-pointer"></script>
   <script src="arb-labor-catalog.js?v=2026.07.24.26-pd-document-intake"></script>
   <script src="ai-board-advisor.js?v=2026.07.24.26-pd-document-intake"></script>
   <script src="workshop-eligibility.js?v=2026.08.13.45-admin-authority-intent-undo-pointer"></script>
-  <script src="workshop-navigation.js?v=2026.08.13.45-admin-authority-intent-undo-pointer"></script>
-
   <script src="vehicle-location-lifecycle.js?v=2026.08.11.31-lifecycle-module"></script>
   <script src="app.js?v=2026.08.13.45-admin-authority-intent-undo-pointer"></script>
+
 </body>
 </html>
