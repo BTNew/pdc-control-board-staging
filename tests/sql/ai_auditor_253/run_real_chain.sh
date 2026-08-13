@@ -29,7 +29,11 @@ expected_self_blob="$(git -C "$SOURCE_GIT_ROOT" rev-parse "$EXPECTED_SHA:$self_p
 
 ARCHIVE_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/pdc-ai-auditor-063-${EXPECTED_SHA:0:12}.XXXXXX")"
 trap 'rm -rf "$ARCHIVE_ROOT"' EXIT
-git -C "$SOURCE_GIT_ROOT" archive --format=tar "$EXPECTED_SHA" | tar -xf - -C "$ARCHIVE_ROOT"
+while IFS= read -r path; do
+  [[ -n "$path" ]] || continue
+  mkdir -p "$ARCHIVE_ROOT/$(dirname "$path")"
+  git -C "$SOURCE_GIT_ROOT" show "$EXPECTED_SHA:$path" > "$ARCHIVE_ROOT/$path"
+done < <(git -C "$SOURCE_GIT_ROOT" ls-tree -r --name-only "$EXPECTED_SHA")
 ROOT="$ARCHIVE_ROOT"
 cd "$ROOT"
 
