@@ -39,7 +39,8 @@ assert.match(sql, /grant execute on function public\.cascade_workshop_booking_mo
 assert(actions.includes("mutate('cascade_workshop_booking_move'"), 'Shared actions must map booked-chip cascade moves to migration 106');
 assert(service.includes("'cascade_workshop_booking_move'"), 'The data service allow-list must include the new protected RPC');
 const scheduleBody = planner.match(/async function scheduleWorkshopVehicle\([^]*?\r?\n}\r?\n\r?\nasync function saveWorkshopDetailForm/)?.[0] || '';
-assert(scheduleBody.includes("preferRequestedTime && movingBetweenBays ? 'cascadeMoveBooking' : 'moveBooking'"), 'Exact-time chip drops between bays must use the atomic move cascade');
-assert(scheduleBody.includes('cascadeMoveBooking'), 'Booked chip drops must route through the shared cascade action');
+assert(scheduleBody.includes("const cascade = preferRequestedTime && movingBetweenBays"), 'Exact-time chip drops between bays must select atomic cascade semantics');
+assert(scheduleBody.includes("? 'administratorMoveBooking'"), 'Administrator booked-chip drops must route through the narrow receipt-bound move wrapper');
+assert(scheduleBody.includes("(cascade ? 'cascadeMoveBooking' : 'moveBooking')"), 'Non-Administrator legacy route must retain exact cascade selection pending its server-side grant result');
 
 console.log('Booked Workshop chip move-cascade contracts passed');

@@ -59,7 +59,9 @@ const WORKSHOP_MUTATION_RPCS = Object.freeze([
   'create_workshop_admin_block',
   'move_workshop_admin_block',
   'resize_workshop_admin_block',
-  'delete_workshop_admin_block'
+  'delete_workshop_admin_block',
+  'administrator_move_workshop_booking',
+  'undo_administrator_workshop_booking_move'
 ]);
 
 // Every RPC above requires exactly one non-null expected-version parameter.
@@ -86,7 +88,9 @@ const WORKSHOP_MUTATION_VERSION_PARAM = Object.freeze({
   create_workshop_admin_block: 'p_expected_revision',
   move_workshop_admin_block: 'p_expected_version',
   resize_workshop_admin_block: 'p_expected_version',
-  delete_workshop_admin_block: 'p_expected_version'
+  delete_workshop_admin_block: 'p_expected_version',
+  administrator_move_workshop_booking: 'p_expected_version',
+  undo_administrator_workshop_booking_move: 'p_expected_version'
 });
 
 const WORKSHOP_CANONICAL_MUTATION_ERRORS = new Set([
@@ -100,7 +104,9 @@ const WORKSHOP_CANONICAL_MUTATION_ERRORS = new Set([
   'technician_leave_conflict', 'technician_overlap', 'live_booking_conflict',
   'concurrent_queue_change', 'sublet_away',
   'admin_block_conflict', 'fixed_booking_conflict', 'invalid_admin_block_type',
-  'admin_block_not_found', 'invalid_label'
+  'admin_block_not_found', 'invalid_label',
+  'protected_booking', 'receipt_not_found', 'undo_actor_mismatch',
+  'already_undone', 'undo_expired', 'undo_conflict'
 ]);
 
 function workshopCanonicalMutationError(body) {

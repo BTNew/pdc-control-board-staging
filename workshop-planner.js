@@ -587,6 +587,41 @@ function workshopAnnotateLegacyAmbiguity(rows = []) {
 }
 
 let workshopSharedPlansCache = { snapshot: null, bookings: null, rows: null };
+let workshopLastAdministratorMove = null;
+
+function workshopAdministratorCanMove(role = window.PDC_AUTH_CONTEXT?.role) {
+  return String(role || '').trim().toLowerCase() === 'administrator';
+}
+
+function workshopNewRequestId() {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') return crypto.randomUUID();
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+    const r = Math.floor(Math.random() * 16);
+    return (c === 'x' ? r : (r & 3) | 8).toString(16);
+  });
+}
+
+function workshopRememberAdministratorMove(result = {}) {
+  if (!result.receipt_id || !result.booking_id || !Number.isFinite(Number(result.booking_version))) return;
+  workshopLastAdministratorMove = {
+    receiptId: String(result.receipt_id),
+    bookingId: String(result.booking_id),
+    expectedVersion: Number(result.booking_version),
+  };
+}
+
+async function workshopUndoLastAdministratorMove() {
+  const receipt = workshopLastAdministratorMove;
+  if (!receipt || !workshopAdministratorCanMove()) return false;
+  const result = await workshopDispatchSharedAction('undoAdministratorBookingMove', {
+    receiptId: receipt.receiptId,
+    expectedVersion: receipt.expectedVersion,
+    requestId: workshopNewRequestId(),
+  });
+  if (!result?.ok) return false;
+  workshopLastAdministratorMove = null;
+  return true;
+}
 
 function workshopAdminBlockCanMutate(role = window.PDC_AUTH_CONTEXT?.role) {
   return String(role || '').trim().toLowerCase() === 'administrator';
@@ -3837,6 +3872,7 @@ function renderWorkshopPlanner(options = {}) {
         <button class="small-button" type="button" data-workshop-date-shift="1">Next ›</button>
         <button class="small-button" type="button" data-workshop-today>Today</button>
         <button class="small-button" type="button" data-workshop-weekly-view>Weekly view</button>
+        ${sharedModeActive && workshopLastAdministratorMove && workshopAdministratorCanMove() ? '<button class="small-button" type="button" data-workshop-undo-admin-move>Undo last move</button>' : ''}
         ${sharedModeActive && workshopAdminBlockCanMutate() ? '<button class="small-button workshop-admin-block-add" type="button" data-workshop-add-admin-block>+ Admin block</button>' : ''}
         ${sharedModeActive && workshopVehicleLinkCanPersist() ? '<button class="small-button" type="button" data-workshop-link-readiness>Review shared links</button>' : ''}
         <button class="small-button warning-button" type="button" data-workshop-parts-warning>Draft next-day parts warning</button>
@@ -3904,6 +3940,9 @@ function bindWorkshopPlanner(root) {
     workshopSaveView(state);
     if (!workshopRefreshDedicatedDate(state.date)) renderWorkshopPlanner();
   }));
+  root.querySelector('[data-workshop-undo-admin-move]')?.addEventListener('click', async () => {
+    await workshopUndoLastAdministratorMove();
+  });
   root.querySelector('[data-workshop-today]')?.addEventListener('click', () => {
     const state = workshopState();
     state.date = workshopDateKey(workshopCoerceWorkDate(new Date(), 1));
@@ -4989,7 +5028,10 @@ async function scheduleWorkshopVehicle({ planId = '', vehicleKeyValue = '', stag
     if (existing && existing.sharedBookingId) {
       if (!workshopRequireSchedulableCandidate(requestedCandidate)) return false;
       const movingBetweenBays = normalizePmbStage(existing.stage) !== normalizedStage || Number(existing.bay) !== Number(bay);
-      const action = preferRequestedTime && movingBetweenBays ? 'cascadeMoveBooking' : 'moveBooking';
+      const cascade = preferRequestedTime && movingBetweenBays;
+      const action = workshopAdministratorCanMove()
+        ? 'administratorMoveBooking'
+        : (cascade ? 'cascadeMoveBooking' : 'moveBooking');
       const result = await workshopDispatchSharedAction(action, {
         bookingId: existing.sharedBookingId,
         expectedVersion: existing.sharedVersion,
@@ -4997,8 +5039,11 @@ async function scheduleWorkshopVehicle({ planId = '', vehicleKeyValue = '', stag
         bayNumber: Number(bay),
         scheduledStartAt: start.toISOString(),
         durationMinutes,
-        metadata: { source: preferRequestedTime ? 'planner_chip_drop' : 'planner_booking_move' },
+        requestId: workshopNewRequestId(),
+        cascade,
+        metadata: { source: preferRequestedTime ? 'planner_chip_drop' : 'planner_booking_move', reason: 'website_drag_drop' },
       });
+      if (workshopAdministratorCanMove() && result?.ok) workshopRememberAdministratorMove(result);
       return !!(result && result.ok);
     }
     const vehicleRef = await workshopVerifiedCanonicalVehicleRef(vehicle);
