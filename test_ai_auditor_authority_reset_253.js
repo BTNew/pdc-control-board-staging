@@ -39,12 +39,14 @@ console.log('AI Auditor auth-change operation-state teardown passed');
     '#ai-auditor-operation-undo': { disabled:true },
   };
   let snapshotLoads = 0;
+  let raceAuthority = 'OLD_ACCOUNT';
   const race = vm.createContext({
     app: { pdcAuditorGeneration: 7, pdcAuditorPendingOperation:null, pdcAuditorOperationBusy:false },
     window: { confirm:()=>true, PDC_SUPABASE_CONFIG:{ auditorOperationGateway:{ url:'https://gateway.staging.example/auditor', instanceId:'gw-staging-1' } }, PDC_AUTH_CONTEXT:{ role:'administrator' } },
     $: selector => nodes[selector] || null,
     escapeHtml: value=>String(value),
     getPdcSupabaseAccessToken: ()=> raceToken,
+    auditorAuthorityIdentity: ()=> raceAuthority,
     fetch: async()=> new Promise(resolve=>{ resolveFetch=resolve; }),
     loadPdcAuditorSnapshot: async()=>{ snapshotLoads += 1; },
   });
@@ -52,6 +54,7 @@ console.log('AI Auditor auth-change operation-state teardown passed');
   vm.runInContext(asyncSource.slice(blockStart, blockEnd), race);
   const pending = vm.runInContext('loadPdcAuditorPendingOperation()', race);
   raceToken = 'NEW_ACCOUNT_JWT';
+  raceAuthority = 'NEW_ACCOUNT';
   race.app.pdcAuditorGeneration = 8;
   race.app.pdcAuditorPendingOperation = null;
   race.app.pdcAuditorOperationBusy = false;
@@ -69,11 +72,13 @@ console.log('AI Auditor auth-change operation-state teardown passed');
     final_scope_hash:'c'.repeat(64), expected_row_versions_hash:'d'.repeat(64),
   };
   raceToken = 'OLD_MUTATION_ACCOUNT_JWT';
+  raceAuthority = 'OLD_MUTATION_ACCOUNT';
   race.app.pdcAuditorGeneration = 9;
   race.app.pdcAuditorPendingOperation = originalPending;
   race.app.pdcAuditorOperationBusy = false;
   const confirming = vm.runInContext("confirmPdcAuditorPendingOperation('apply')", race);
   raceToken = 'REPLACEMENT_ACCOUNT_JWT';
+  raceAuthority = 'REPLACEMENT_ACCOUNT';
   race.app.pdcAuditorGeneration = 10;
   race.app.pdcAuditorPendingOperation = null;
   race.app.pdcAuditorOperationBusy = false;
@@ -86,6 +91,7 @@ console.log('AI Auditor auth-change operation-state teardown passed');
   console.log('AI Auditor stale Apply/Undo completion teardown passed');
 
   raceToken = 'CURRENT_ACCOUNT_JWT';
+  raceAuthority = 'CURRENT_ACCOUNT';
   race.app.pdcAuditorGeneration = 11;
   race.app.pdcAuditorPendingOperation = originalPending;
   race.app.pdcAuditorOperationBusy = false;
@@ -104,4 +110,41 @@ console.log('AI Auditor auth-change operation-state teardown passed');
   assert.strictEqual(await vm.runInContext("confirmPdcAuditorPendingOperation('apply')", race),false,'missing token must fail before confirmation or gateway dispatch');
   assert.strictEqual(race.app.pdcAuditorPendingOperation,originalPending,'missing-token rejection must not mutate pending authority');
   console.log('AI Auditor missing-token confirmation denial passed');
+
+  raceToken = 'CURRENT_SUCCESS_JWT';
+  raceAuthority = 'CURRENT_SUCCESS_ACCOUNT';
+  race.app.pdcAuditorGeneration = 13;
+  race.app.pdcAuditorPendingOperation = originalPending;
+  race.app.pdcAuditorOperationBusy = false;
+  snapshotLoads = 0;
+  race.loadPdcAuditorSnapshot = ()=>{
+    snapshotLoads += 1;
+    race.app.pdcAuditorGeneration += 1;
+    return Promise.resolve(true);
+  };
+  const success = vm.runInContext("confirmPdcAuditorPendingOperation('apply')", race);
+  const successReceipt = { state:'completed', instance_id:'gw-staging-1', message:'current mutation completed' };
+  resolveFetch({ ok:true, json:async()=>successReceipt });
+  assert.strictEqual(await success,true,'current-authority success must own the snapshot generation increment');
+  assert.strictEqual(snapshotLoads,1,'current-authority success must perform one authoritative reload');
+  assert.strictEqual(race.app.pdcAuditorPendingOperation.state,'completed','successful receipt must publish after authoritative reload');
+  assert.strictEqual(race.app.pdcAuditorOperationBusy,false,'successful completion must release operation busy state');
+  console.log('AI Auditor current-authority success generation handoff passed');
+
+  race.app.pdcAuditorGeneration = 15;
+  race.app.pdcAuditorPendingOperation = originalPending;
+  race.app.pdcAuditorOperationBusy = false;
+  snapshotLoads = 0;
+  race.loadPdcAuditorSnapshot = ()=>{
+    snapshotLoads += 1;
+    race.app.pdcAuditorGeneration += 1;
+    return Promise.resolve(false);
+  };
+  const failedReload = vm.runInContext("confirmPdcAuditorPendingOperation('apply')", race);
+  resolveFetch({ ok:true, json:async()=>successReceipt });
+  assert.strictEqual(await failedReload,false,'failed authoritative reload must not report mutation success');
+  assert.strictEqual(snapshotLoads,1,'failed authoritative reload must be attempted once');
+  assert.strictEqual(race.app.pdcAuditorPendingOperation,originalPending,'failed reload must not publish the mutation receipt');
+  assert.strictEqual(race.app.pdcAuditorOperationBusy,false,'failed reload under current authority must release busy state');
+  console.log('AI Auditor failed-reload busy-state release passed');
 })().catch(error=>{ console.error(error); process.exit(1); });

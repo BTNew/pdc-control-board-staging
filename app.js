@@ -19189,41 +19189,60 @@ async function loadPdcAuditorPendingOperation() {
 async function confirmPdcAuditorPendingOperation(action) {
   if (app.pdcAuditorOperationBusy || !['apply', 'undo'].includes(action)) return false;
   const pending = app.pdcAuditorPendingOperation;
-  const generation = Number(app.pdcAuditorGeneration || 0);
+  let generation = Number(app.pdcAuditorGeneration || 0);
   const token = getPdcSupabaseAccessToken();
   const role = String(window.PDC_AUTH_CONTEXT?.role || '').toLowerCase();
-  if (!token || role !== 'administrator') return false;
-  const pendingBinding = action === 'apply'
-    ? `${pending?.proposal_id || ''}:${pending?.proposal_version || ''}:${pending?.proposal_hash || ''}`
-    : `${pending?.run_id || ''}:${pending?.run_revision_after || ''}`;
+  const authority = auditorAuthorityIdentity();
+  if (!token || role !== 'administrator' || !authority) return false;
+  if ((action === 'apply' && pending?.state !== 'pending_apply') || (action === 'undo' && pending?.state !== 'undo_available')) return false;
+  const operationBinding = value => (action === 'apply'
+    ? [value?.state, value?.proposal_id, value?.proposal_version, value?.proposal_hash,
+        value?.typed_item_set_hash, value?.final_scope_hash, value?.expected_row_versions_hash]
+    : [value?.state, value?.run_id, value?.run_revision_after])
+    .map(part => String(part ?? '')).join('\n');
+  const pendingBinding = operationBinding(pending);
   const authorityCurrent = () => generation === Number(app.pdcAuditorGeneration || 0)
     && token === getPdcSupabaseAccessToken()
     && role === String(window.PDC_AUTH_CONTEXT?.role || '').toLowerCase()
     && role === 'administrator'
-    && pendingBinding === (action === 'apply'
-      ? `${app.pdcAuditorPendingOperation?.proposal_id || ''}:${app.pdcAuditorPendingOperation?.proposal_version || ''}:${app.pdcAuditorPendingOperation?.proposal_hash || ''}`
-      : `${app.pdcAuditorPendingOperation?.run_id || ''}:${app.pdcAuditorPendingOperation?.run_revision_after || ''}`);
-  if ((action === 'apply' && pending?.state !== 'pending_apply') || (action === 'undo' && pending?.state !== 'undo_available')) return false;
+    && authority === auditorAuthorityIdentity()
+    && app.pdcAuditorPendingOperation === pending
+    && pendingBinding === operationBinding(app.pdcAuditorPendingOperation);
   const exact = action === 'apply' ? `${pending.proposal_id} / ${pending.proposal_hash}` : `${pending.run_id} / ${pending.run_revision_after}`;
   if (!window.confirm(`${action === 'apply' ? 'Apply' : 'Undo'} exact signed operation?\n${exact}`)) return false;
   app.pdcAuditorOperationBusy = true; renderPdcAuditorPendingOperation();
   try {
     const receipt = await callPdcAuditorOperationGateway(action);
-    if (!receipt || !authorityCurrent() || app.pdcAuditorPendingOperation !== pending) return false;
-    await loadPdcAuditorSnapshot({ force: true });
-    if (!authorityCurrent() || app.pdcAuditorPendingOperation !== pending) return false;
+    if (!receipt || !authorityCurrent()) {
+      if (authorityCurrent()) {
+        app.pdcAuditorOperationBusy = false;
+        renderPdcAuditorPendingOperation();
+      }
+      return false;
+    }
+    const reload = loadPdcAuditorSnapshot({ force: true });
+    generation = Number(app.pdcAuditorGeneration || 0);
+    if (!authorityCurrent()) return false;
+    const loaded = await reload;
+    if (!loaded || !authorityCurrent()) {
+      if (authorityCurrent()) {
+        app.pdcAuditorOperationBusy = false;
+        renderPdcAuditorPendingOperation();
+      }
+      return false;
+    }
     app.pdcAuditorPendingOperation = receipt;
+    app.pdcAuditorOperationBusy = false;
+    renderPdcAuditorPendingOperation();
     return true;
   }
   catch (_error) {
-    if (authorityCurrent() && app.pdcAuditorPendingOperation === pending) app.pdcAuditorPendingOperation = null;
-    return false;
-  }
-  finally {
     if (authorityCurrent()) {
+      app.pdcAuditorPendingOperation = null;
       app.pdcAuditorOperationBusy = false;
       renderPdcAuditorPendingOperation();
     }
+    return false;
   }
 }
 
