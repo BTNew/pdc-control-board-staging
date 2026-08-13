@@ -8,7 +8,7 @@ from __future__ import annotations
 import os
 import re
 from pathlib import Path
-from urllib.parse import parse_qsl, urlparse
+from urllib.parse import urlsplit
 
 import psycopg2
 
@@ -30,16 +30,16 @@ def load_local_env() -> None:
         os.environ.setdefault(key.strip(), value.strip())
 
 
-def required(name: str) -> str:
+def required(name: str, *, preserve_raw: bool = False) -> str:
     load_local_env()
-    value = os.environ.get(name, "").strip()
-    if not value:
+    raw_value = os.environ.get(name, "")
+    if not raw_value.strip():
         raise RuntimeError(
             f"Missing required environment variable {name}. Configure the "
             "ignored _staging_test_tools/.env file or process environment; "
             "never commit credentials."
         )
-    return value
+    return raw_value if preserve_raw else raw_value.strip()
 
 
 def _reject_target(value: str, host: str) -> None:
@@ -52,12 +52,14 @@ def _reject_target(value: str, host: str) -> None:
 
 
 def _parsed_endpoint(value: str):
+    if type(value) is not str or not value or value != value.strip() or any(ord(char) <= 0x20 or ord(char) == 0x7F for char in value):
+        _reject_target("", "invalid endpoint")
     try:
-        parsed = urlparse(value)
-        host = (parsed.hostname or "").lower().rstrip(".")
+        parsed = urlsplit(value)
+        host = parsed.hostname or ""
         port = parsed.port
-    except (TypeError, ValueError):
-        _reject_target(str(value), "invalid endpoint")
+    except (TypeError, ValueError, UnicodeError):
+        _reject_target("", "invalid endpoint")
     return parsed, host, port
 
 
@@ -70,25 +72,38 @@ def assert_staging_target(
         raise RuntimeError("No staging endpoint supplied to target guard")
     if project_url:
         parsed, host, port = _parsed_endpoint(project_url)
-        if parsed.scheme.lower() != "https" or parsed.username is not None or parsed.password is not None or host != f"{EXPECTED_STAGING_REF}.supabase.co" or port not in (None, 443):
+        if (
+            parsed.scheme != "https"
+            or parsed.username is not None
+            or parsed.password is not None
+            or host != f"{EXPECTED_STAGING_REF}.supabase.co"
+            or port is not None
+            or parsed.path not in ("", "/")
+            or parsed.query
+            or parsed.fragment
+        ):
             _reject_target(project_url, host or "unknown host")
     if database_url:
         parsed, host, port = _parsed_endpoint(database_url)
-        scheme = parsed.scheme.lower()
-        direct = host == f"db.{EXPECTED_STAGING_REF}.supabase.co" and (parsed.username or "").lower() == "postgres" and port in (None, 5432)
+        direct = host == f"db.{EXPECTED_STAGING_REF}.supabase.co" and parsed.username == "postgres" and port == 5432
         pooler = (
-            bool(re.fullmatch(r"aws-[0-9]+-[a-z0-9-]+\.pooler\.supabase\.com", host))
-            and (parsed.username or "").lower() == f"postgres.{EXPECTED_STAGING_REF}"
+            bool(re.fullmatch(r"aws-[0-9]+-[a-z0-9]+(?:-[a-z0-9]+)*\.pooler\.supabase\.com", host))
+            and parsed.username == f"postgres.{EXPECTED_STAGING_REF}"
             and port in (5432, 6543)
         )
-        query = parse_qsl(parsed.query, keep_blank_values=True)
-        safe_query = len(query) <= 1 and all(key.lower() == "sslmode" and value.lower() in ("require", "verify-ca", "verify-full") for key, value in query)
-        if scheme not in ("postgres", "postgresql") or parsed.path != "/postgres" or not safe_query or not (direct or pooler):
+        if (
+            parsed.scheme not in ("postgres", "postgresql")
+            or parsed.path != "/postgres"
+            or parsed.query
+            or parsed.fragment
+            or not parsed.password
+            or not (direct or pooler)
+        ):
             _reject_target(database_url, host or "unknown host")
 
 
 def get_conn():
     """Connect only to the explicitly approved staging PostgreSQL endpoint."""
-    database_url = required("PDC_STAGING_DATABASE_URL")
+    database_url = required("PDC_STAGING_DATABASE_URL", preserve_raw=True)
     assert_staging_target(database_url=database_url)
-    return psycopg2.connect(database_url)
+    return psycopg2.connect(database_url, sslmode="require")

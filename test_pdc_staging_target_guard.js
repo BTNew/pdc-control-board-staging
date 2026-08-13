@@ -5,18 +5,23 @@ const { spawnSync } = require('child_process');
 const probe = String.raw`
 import importlib.util
 import json
+import os
 import sys
 import types
 
-sys.modules['psycopg2'] = types.SimpleNamespace(connect=None)
+connector_calls = []
+def connector_spy(*args, **kwargs):
+    connector_calls.append((args, kwargs))
+    return 'connection-spy-result'
+sys.modules['psycopg2'] = types.SimpleNamespace(connect=connector_spy)
 spec = importlib.util.spec_from_file_location('pdc_staging_runtime_guard_test', 'scripts/pdc_staging_runtime.py')
 module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)
 ref = module.EXPECTED_STAGING_REF
 accepted = [
     ('project', f'https://{ref}.supabase.co'),
-    ('project', f'https://{ref}.supabase.co:443/rest/v1/'),
-    ('database', f'postgresql://postgres:placeholder@db.{ref}.supabase.co:5432/postgres?sslmode=require'),
+    ('project', f'https://{ref}.supabase.co/'),
+    ('database', f'postgresql://postgres:placeholder@db.{ref}.supabase.co:5432/postgres'),
     ('database', f'postgres://postgres.{ref}:placeholder@aws-0-ap-southeast-1.pooler.supabase.com:5432/postgres'),
     ('database', f'postgresql://postgres.{ref}:placeholder@aws-0-ap-southeast-1.pooler.supabase.com:6543/postgres'),
 ]
@@ -29,6 +34,11 @@ rejected = [
     ('project', f'https://{ref}.supabase.co:444'),
     ('project', f'https://user@{ref}.supabase.co'),
     ('project', f'https://{ref}.supabase.co:notaport'),
+    ('project', f'https://{ref}.supabase.co:443'),
+    ('project', f'https://{ref}.supabase.co/rest/v1/'),
+    ('project', f'https://{ref}.supabase.co/?x=1'),
+    ('project', f'https://{ref}.supabase.co/#fragment'),
+    ('project', f'https://{ref}.supabase.co./'),
     ('database', f'postgresql://{ref}:placeholder@attacker.example:5432/postgres'),
     ('database', f'postgresql://postgres:placeholder@attacker.example:5432/postgres?project={ref}'),
     ('database', f'postgresql://postgres:placeholder@{ref}.attacker.example:5432/postgres'),
@@ -42,19 +52,44 @@ rejected = [
     ('database', f'postgresql://postgres:placeholder@db.{ref}.supabase.co:5432/postgres?service=attacker'),
     ('database', f'postgresql://postgres:placeholder@db.{ref}.supabase.co:5432/other_database'),
     ('database', f'postgresql://postgres:placeholder@db.{ref}.supabase.co:notaport/postgres'),
+    ('database', f'postgresql://postgres:placeholder@db.{ref}.supabase.co/postgres'),
+    ('database', f'postgresql://Postgres:placeholder@db.{ref}.supabase.co:5432/postgres'),
+    ('database', f'postgresql://postgres@db.{ref}.supabase.co:5432/postgres'),
+    ('database', f'postgresql://postgres:@db.{ref}.supabase.co:5432/postgres'),
+    ('database', f'postgresql://postgres:placeholder@db.{ref}.supabase.co.:5432/postgres'),
+    ('database', f'postgresql://postgres:placeholder@db.{ref}.supabase.co:5432/postgres?sslmode=require'),
+    ('database', f'postgresql://postgres:placeholder@db.{ref}.supabase.co:5432/postgres#fragment'),
+    ('database', f' postgresql://postgres:placeholder@db.{ref}.supabase.co:5432/postgres'),
+    ('database', f'postgresql://postgres:placeholder@db.{ref}.supabase.co:5432/postgres\\n'),
+    ('database', f'postgresql://postgres:{ref}@attacker.example:5432/postgres'),
 ]
 for kind, value in accepted:
     module.assert_staging_target(**{f'{kind}_url': value})
 for kind, value in rejected:
+    before = len(connector_calls)
     try:
-        module.assert_staging_target(**{f'{kind}_url': value})
-    except Exception:
+        if kind == 'database':
+            os.environ['PDC_STAGING_DATABASE_URL'] = value
+            module.get_conn()
+        else:
+            module.assert_staging_target(project_url=value)
+    except Exception as error:
+        assert len(connector_calls) == before
+        assert 'placeholder' not in str(error)
         continue
     raise AssertionError(f'guard accepted spoofed {kind} endpoint: {value}')
-print(json.dumps({'accepted': len(accepted), 'rejected': len(rejected)}))
+database_accepted = [value for kind, value in accepted if kind == 'database']
+for value in database_accepted:
+    os.environ['PDC_STAGING_DATABASE_URL'] = value
+    assert module.get_conn() == 'connection-spy-result'
+assert len(connector_calls) == len(database_accepted)
+for value, (args, kwargs) in zip(database_accepted, connector_calls):
+    assert args == (value,)
+    assert kwargs == {'sslmode': 'require'}
+print(json.dumps({'accepted': len(accepted), 'rejected': len(rejected), 'connector_calls': len(connector_calls)}))
 `;
 const result = spawnSync('python3', ['-I', '-c', probe], { encoding: 'utf8' });
 assert.strictEqual(result.status, 0, result.stderr || result.stdout);
 const report = JSON.parse(result.stdout.trim());
-assert.deepStrictEqual(report, { accepted: 5, rejected: 21 });
-console.log('PDC staging parsed-host endpoint guard passed');
+assert.deepStrictEqual(report, { accepted: 5, rejected: 36, connector_calls: 3 });
+console.log('PDC staging parsed-host endpoint and connector-spy guard passed');
