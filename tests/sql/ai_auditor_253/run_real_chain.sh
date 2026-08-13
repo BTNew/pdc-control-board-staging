@@ -1,13 +1,38 @@
 #!/usr/bin/env bash
 set -euo pipefail
-ROOT="$(cd "$(dirname "$0")/../../.." && pwd)"
+SOURCE_ROOT="$(cd "$(dirname "$0")/../../.." && pwd)"
 PGBIN="${PGBIN:-C:/Users/nwmgr/HermesWorkspaces/development/local-postgresql-17-correct/pgsql/bin}"
 HOST="127.0.0.1"
 PORT="55432"
 USER="nwmgr"
 DB="pdc_auditor_253_real_lineage_063"
+EXPECTED_SHA="${EXPECTED_SHA:-}"
+
+[[ "$EXPECTED_SHA" =~ ^[0-9a-f]{40}$ ]] || {
+  echo "EXPECTED_SHA must be the exact 40-character commit to verify" >&2
+  exit 1
+}
+resolved_sha="$(git -C "$SOURCE_ROOT" rev-parse --verify "$EXPECTED_SHA^{commit}")"
+head_sha="$(git -C "$SOURCE_ROOT" rev-parse HEAD)"
+[[ "$resolved_sha" == "$EXPECTED_SHA" && "$head_sha" == "$EXPECTED_SHA" ]] || {
+  echo "exact-SHA mismatch: expected $EXPECTED_SHA, HEAD $head_sha, resolved $resolved_sha" >&2
+  exit 1
+}
+self_path="tests/sql/ai_auditor_253/run_real_chain.sh"
+self_blob="$(git -C "$SOURCE_ROOT" hash-object --path="$self_path" "$SOURCE_ROOT/$self_path")"
+expected_self_blob="$(git -C "$SOURCE_ROOT" rev-parse "$EXPECTED_SHA:$self_path")"
+[[ "$self_blob" == "$expected_self_blob" ]] || {
+  echo "runner bytes differ from exact SHA" >&2
+  exit 1
+}
+
+ARCHIVE_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/pdc-ai-auditor-063-${EXPECTED_SHA:0:12}.XXXXXX")"
+trap 'rm -rf "$ARCHIVE_ROOT"' EXIT
+git -C "$SOURCE_ROOT" archive --format=tar "$EXPECTED_SHA" | tar -xf - -C "$ARCHIVE_ROOT"
+ROOT="$ARCHIVE_ROOT"
 cd "$ROOT"
 
+echo "EXACT_SHA $EXPECTED_SHA"
 psql_db() { "$PGBIN/psql.exe" -X -v ON_ERROR_STOP=1 -h "$HOST" -p "$PORT" -U "$USER" -d "$1" "${@:2}"; }
 
 "$PGBIN/dropdb.exe" --if-exists -h "$HOST" -p "$PORT" -U "$USER" "$DB"
@@ -65,8 +90,7 @@ for raw_n in $(seq 1 53); do
   apply_migration "${files[0]}"
 done
 
-# Migration 063's exact prerequisite lineage. 061 and 062 were later staging
-# experiments, not applied predecessors; forcing either into the ledger would be false.
+# Canonical migration-063 staging lineage, matching scripts/apply_migration_063_staging.py.
 apply_migration supabase/migrations/054_dedicated_monitor_exact_identity_read.sql
 apply_migration supabase/migrations/055_navision_temporary_holding_fail_safe.sql
 apply_migration supabase/migrations/056_online_only_shared_operational_state.sql
@@ -74,11 +98,21 @@ apply_migration supabase/migrations/057_online_state_realtime_revision_access.sq
 apply_migration supabase/migrations/058_online_vehicle_lifecycle_projection.sql
 apply_migration supabase/migrations/059_atomic_online_state_batch.sql
 apply_migration supabase/staging_only/060_pdc_monitor_approved_stage_activation.sql
+apply_migration supabase/staging_only/061_pdc_monitor_new_build_board_intake.sql
+apply_migration supabase/staging_only/062_disable_pdc_monitor_new_build_intake.sql
 apply_migration supabase/staging_only/063_pdc_ai_intake_inbox_history.sql
 
 psql_db "$DB" -Atc "
  do \$\$
+ declare
+   v_versions text[];
  begin
+   select array_agg(version order by version::int) into v_versions
+   from supabase_migrations.schema_migrations
+   where version::int between 53 and 63;
+   if v_versions <> array['053','054','055','056','057','058','059','060','061','062','063']::text[] then
+     raise exception 'LOCAL_063_CANONICAL_LEDGER_MISMATCH: %', v_versions;
+   end if;
    if not exists(
      select 1 from supabase_migrations.schema_migrations
      where version='060' and name='pdc_monitor_approved_stage_activation'
@@ -88,17 +122,25 @@ psql_db "$DB" -Atc "
    end if;
    if not exists(
      select 1 from supabase_migrations.schema_migrations
+     where version='061' and name='pdc_monitor_new_build_board_intake'
+   ) or to_regclass('public.pdc_monitor_new_build_intake_approvals') is null then
+     raise exception 'LOCAL_061_CANONICAL_PAYLOAD_MISSING';
+   end if;
+   if not exists(
+     select 1 from supabase_migrations.schema_migrations
+     where version='062' and name='disable_pdc_monitor_new_build_intake'
+   ) or to_regprocedure('public.admin_approve_pdc_monitor_new_build_intake(text,text,text,uuid,text,timestamp with time zone,text,uuid,bigint,text)') is not null
+      or to_regprocedure('public.pdc_monitor_execute_approved_new_build_intake(uuid)') is not null then
+     raise exception 'LOCAL_062_CONTAINMENT_POSTCONDITION_FAILED';
+   end if;
+   if not exists(
+     select 1 from supabase_migrations.schema_migrations
      where version='063' and name='pdc_ai_intake_inbox_history'
    ) or to_regclass('public.pdc_ai_intake_proposals') is null
       or to_regclass('public.pdc_ai_intake_history') is null then
      raise exception 'LOCAL_063_POSTCONDITION_FAILED';
    end if;
-   if exists(
-     select 1 from supabase_migrations.schema_migrations where version in ('061','062')
-   ) then
-     raise exception 'LOCAL_063_FALSE_PREDECESSOR_PRESENT';
-   end if;
  end
  \$\$;
- select 'AI_AUDITOR_253_REAL_LINEAGE_001_063_PASS';
+ select 'AI_AUDITOR_253_CANONICAL_LINEAGE_001_063_PASS';
 "
