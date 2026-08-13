@@ -1,5 +1,5 @@
--- Staging-only DRAFT migration 253: signed typed operation Apply/Undo.
--- SOURCE ONLY: do not apply this file from the feature branch.
+-- Staging-only migration 253: signed typed operation Apply/Undo.
+-- Install only through the exact-SHA guarded staging installer after independent approval.
 -- Migration 251 remains untouched/unapplied; rejected migration 252 is not a predecessor.
 begin;
 set local lock_timeout='10s';
@@ -12,7 +12,7 @@ begin
      or not exists(select 1 from public.pdc_staging_environment_sentinel where singleton and project_ref='cdsmnqxtyyoeoznmbidd')
      or to_regclass('public.pdc_production_environment_sentinel') is not null
      or to_regclass('supabase_migrations.schema_migrations') is null
-     or not exists(select 1 from supabase_migrations.schema_migrations where version='250')
+     or not exists(select 1 from supabase_migrations.schema_migrations where version='250' and name='revoke_service_role_legacy_workshop_rpc' and statements=array['staging-only forward closure: legacy scheduling RPCs denied to public, anon, authenticated and service_role'])
      or exists(select 1 from supabase_migrations.schema_migrations where version='252')
      or exists(select 1 from supabase_migrations.schema_migrations where version~'^[0-9]+$' and version::integer>250)
      or exists(select 1 from supabase_migrations.schema_migrations where version='253') then
@@ -24,11 +24,22 @@ begin
      or to_regclass('public.vehicle_work_items') is null
      or to_regclass('public.audit_events') is null
      or to_regclass('public.pdc_auditor_workshop_revisions') is null
+     or to_regclass('public.pdc_auditor_telegram_deliveries_230') is null
      or to_regprocedure('public.pdc_auditor_telegram_actor_scope_225(bigint)') is null
      or to_regprocedure('public.pdc_auditor_reject_history_mutation()') is null then
     raise exception 'PDC_253_DEPENDENCY_MISSING' using errcode='55000';
   end if;
 end $guard$;
+
+-- Migration 230 owns the one global Telegram delivery namespace. Extend its
+-- source discriminator for typed deliveries while retaining the existing two
+-- domains and both natural-key uniqueness constraints.
+do $delivery_registry_shape$ declare c record; begin
+ for c in select conname from pg_constraint where conrelid='public.pdc_auditor_telegram_deliveries_230'::regclass and contype='c' and pg_get_constraintdef(oid) ilike '%source_table%' loop
+  execute format('alter table public.pdc_auditor_telegram_deliveries_230 drop constraint %I',c.conname);
+ end loop;
+ alter table public.pdc_auditor_telegram_deliveries_230 add constraint pdc_auditor_telegram_deliveries_source_253 check(source_table in('pdc_auditor_telegram_instructions_225','pdc_auditor_rule_commands_227','pdc_auditor_signed_deliveries_253'));
+end $delivery_registry_shape$;
 
 -- Empty after installation. Key provisioning is deliberately outside every API role and RPC.
 create table public.pdc_auditor_gateway_keys_253(
@@ -184,7 +195,7 @@ end $bytes$;
 revoke all on function public.pdc_auditor_signing_bytes_253(jsonb) from public,anon,authenticated,service_role;
 
 create function public.pdc_auditor_verify_envelope_253(p_purpose text,p_envelope jsonb) returns jsonb language plpgsql security definer set search_path=pg_catalog,public,extensions as $verify$
-declare k public.pdc_auditor_gateway_keys_253%rowtype;actor jsonb;signing bytea;reqhash text;d public.pdc_auditor_signed_deliveries_253%rowtype;result jsonb;telegram jsonb;issued timestamptz;expires timestamptz;
+declare k public.pdc_auditor_gateway_keys_253%rowtype;actor jsonb;signing bytea;reqhash text;d public.pdc_auditor_signed_deliveries_253%rowtype;result jsonb;telegram jsonb;issued timestamptz;expires timestamptz;delivery uuid;
 begin
  if jsonb_typeof(p_envelope)<>'object' or (select array_agg(x order by x) from jsonb_object_keys(p_envelope)x) is distinct from array['delivery_uuid','expires_at','gateway_instance_id','instruction_sha256','issued_at','key_id','nonce','selected_scope','signature','telegram_evidence']::text[] then raise exception 'PDC_253_INVALID_ENVELOPE_FIELDS' using errcode='22023';end if;
  telegram:=p_envelope->'telegram_evidence';
@@ -197,8 +208,8 @@ begin
  if not found then raise exception 'PDC_253_GATEWAY_KEY_INVALID' using errcode='42501';end if;
  signing:=public.pdc_auditor_signing_bytes_253(p_envelope);
  if lower(p_envelope->>'signature')<>encode(extensions.hmac(signing,k.hmac_key,'sha256'),'hex') then raise exception 'PDC_253_BAD_SIGNATURE' using errcode='42501';end if;
- reqhash:=encode(extensions.digest(convert_to(p_purpose||'|','UTF8')||signing,'sha256'),'hex');perform pg_advisory_xact_lock(hashtextextended('pdc-253-delivery:'||(p_envelope->>'delivery_uuid'),0));
- select * into d from public.pdc_auditor_signed_deliveries_253 where delivery_uuid=(p_envelope->>'delivery_uuid')::uuid;
+ delivery:=(p_envelope->>'delivery_uuid')::uuid;reqhash:=encode(extensions.digest(convert_to(p_purpose||'|','UTF8')||signing,'sha256'),'hex');perform pg_advisory_xact_lock(hashtextextended('pdc-253-delivery:'||delivery,0));
+ select * into d from public.pdc_auditor_signed_deliveries_253 where delivery_uuid=delivery;
  if found then
   if d.request_content_hash<>reqhash or d.purpose<>p_purpose then raise exception 'PDC_253_CONFLICTING_DELIVERY_REPLAY' using errcode='23505';end if;
   actor:=public.pdc_auditor_telegram_actor_scope_225((telegram->>'telegram_sender_id')::bigint);
@@ -209,7 +220,13 @@ begin
  if exists(select 1 from public.pdc_auditor_signed_deliveries_253 where (gateway_instance_id,key_id,nonce)=(p_envelope->>'gateway_instance_id',p_envelope->>'key_id',p_envelope->>'nonce')) then raise exception 'PDC_253_NONCE_REPLAY' using errcode='23505';end if;
  actor:=public.pdc_auditor_telegram_actor_scope_225((telegram->>'telegram_sender_id')::bigint);
  if auth.uid() is distinct from (actor->>'service_user_id')::uuid or lower(btrim(coalesce(auth.jwt()->>'email','')))<>lower(actor->>'service_email') then raise exception 'PDC_253_AUTHENTICATED_AUDITOR_SESSION_REQUIRED' using errcode='42501';end if;
- insert into public.pdc_auditor_signed_deliveries_253 values((p_envelope->>'delivery_uuid')::uuid,p_envelope->>'gateway_instance_id',p_envelope->>'key_id',p_envelope->>'nonce',issued,expires,lower(p_envelope->>'instruction_sha256'),p_envelope->'selected_scope',lower(p_envelope->>'signature'),telegram,p_purpose,reqhash,(actor->>'service_identity_id')::uuid,(actor->>'service_user_id')::uuid,actor->>'service_email',(actor->>'admin_user_id')::uuid,actor->>'admin_email',actor->>'dealer_code',clock_timestamp());
+ perform pg_advisory_xact_lock(hashtextextended('pdc-230-message:'||(telegram->>'telegram_chat_id')||':'||(telegram->>'telegram_message_id'),0));
+ perform pg_advisory_xact_lock(hashtextextended('pdc-230-update:'||(telegram->>'bot_identity')||':'||(telegram->>'telegram_update_id'),0));
+ begin
+  insert into public.pdc_auditor_telegram_deliveries_230(delivery_domain,telegram_sender_id,telegram_chat_id,telegram_message_id,telegram_update_id,bot_identity,original_instruction,instruction_sha256,source_table,source_id)
+  values('operation',(telegram->>'telegram_sender_id')::bigint,(telegram->>'telegram_chat_id')::bigint,(telegram->>'telegram_message_id')::bigint,(telegram->>'telegram_update_id')::bigint,telegram->>'bot_identity',telegram->>'original_instruction',lower(telegram->>'instruction_sha256'),'pdc_auditor_signed_deliveries_253',delivery);
+ exception when unique_violation then raise exception 'PDC_253_TELEGRAM_DELIVERY_ALREADY_CONSUMED' using errcode='23505';end;
+ insert into public.pdc_auditor_signed_deliveries_253 values(delivery,p_envelope->>'gateway_instance_id',p_envelope->>'key_id',p_envelope->>'nonce',issued,expires,lower(p_envelope->>'instruction_sha256'),p_envelope->'selected_scope',lower(p_envelope->>'signature'),telegram,p_purpose,reqhash,(actor->>'service_identity_id')::uuid,(actor->>'service_user_id')::uuid,actor->>'service_email',(actor->>'admin_user_id')::uuid,actor->>'admin_email',actor->>'dealer_code',clock_timestamp());
  return jsonb_build_object('delivery_uuid',p_envelope->>'delivery_uuid','actor',actor,'request_content_hash',reqhash,'replay',false);
 exception when invalid_text_representation or datetime_field_overflow then raise exception 'PDC_253_INVALID_ENVELOPE_VALUE' using errcode='22023';end $verify$;
 revoke all on function public.pdc_auditor_verify_envelope_253(text,jsonb) from public,anon,authenticated,service_role;
@@ -449,6 +466,6 @@ revoke all on function public.apply_pdc_auditor_typed_plan_253(uuid,integer,text
 revoke all on function public.undo_last_pdc_auditor_typed_run_253(jsonb) from public,anon,authenticated,service_role;grant execute on function public.undo_last_pdc_auditor_typed_run_253(jsonb) to authenticated;
 revoke all on function public.query_pdc_auditor_typed_253(text,jsonb,jsonb) from public,anon,authenticated,service_role;grant execute on function public.query_pdc_auditor_typed_253(text,jsonb,jsonb) to authenticated;
 
-insert into supabase_migrations.schema_migrations(version,name,statements) values('253','ai_auditor_typed_operation_control',array['source-only exact-250 predecessor with migration 251 unused','exact ISO-UTC ten-field runtime envelope with length-prefixed ordered signing bytes and top-level Telegram evidence','bounded contract/action/selector/desire intent expanded server-side; caller candidates, old values, disposition and proof forbidden','separate signed Apply binds exact plan_id and plan_hash plus exact Craig confirmation instruction','source and auditor namespaces remain disjoint text refs across edit split combine reorder and duplicate operations','migration-228 duplicate proof requires source UID and fingerprint, distinct source hashes and rejects variant quantity kit side and stage ambiguity','only affected current and target work keys protect completed work; unrelated completed departments do not block','logical effective snapshots exclude inactive tombstones and false non-completed requirements while preserving append-only rows and stable effective IDs','strict whole-run Undo preflights final scope receipts once, restores reverse mutations, verifies exact initial logical scopes, then seals undone','Administrator browser Realtime SELECT requires exact active approved role and active auth UUID/email/dealer/environment scope; no DML sequence or key provisioning authority']);
+insert into supabase_migrations.schema_migrations(version,name,statements) values('253','ai_auditor_typed_operation_control',array['exact migration-250 name and statement predecessor with migrations 251/252 unused','global migration-230 Telegram message/update reservation plus exact 253 delivery UUID and gateway nonce replay control','exact ISO-UTC ten-field runtime envelope with length-prefixed ordered signing bytes and top-level Telegram evidence','bounded contract/action/selector/desire intent expanded server-side; caller candidates, old values, disposition and proof forbidden','separate signed Apply binds exact plan_id and plan_hash plus exact Craig confirmation instruction','source and auditor namespaces remain disjoint text refs across edit split combine reorder and duplicate operations','migration-228 duplicate proof requires source UID and fingerprint, distinct source hashes and rejects variant quantity kit side and stage ambiguity','only affected current and target work keys protect completed work; unrelated completed departments do not block','logical effective snapshots exclude inactive tombstones and false non-completed requirements while preserving append-only rows and stable effective IDs','strict whole-run Undo preflights final scope receipts once, restores reverse mutations, verifies exact initial logical scopes, then seals undone','Administrator browser Realtime SELECT requires exact active approved role and active auth UUID/email/dealer/environment scope; no DML sequence or key provisioning authority']);
 notify pgrst,'reload schema';
 commit;

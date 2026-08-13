@@ -52,3 +52,4 @@ fresh_db "${BASE}_auth"
 
 fresh_db "${BASE}_legacy"
 "$PGBIN/psql.exe" -X -v ON_ERROR_STOP=1 -h 127.0.0.1 -p 55432 -U nwmgr -d "${BASE}_legacy" -f tests/sql/ai_auditor_253/02_behavior.sql
+"$PGBIN/psql.exe" -X -v ON_ERROR_STOP=1 -h 127.0.0.1 -p 55432 -U nwmgr -d "${BASE}_legacy" -f tests/sql/ai_auditor_253/06_forward_disable.sql

@@ -29,6 +29,7 @@ assert.strictEqual(Buffer.from(VECTOR_BYTES).toString('hex'),VECTOR_HEX);
 assert.strictEqual(crypto.createHmac('sha256',Buffer.from('00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff','hex')).update(Buffer.from(VECTOR_HEX,'hex')).digest('hex'),VECTOR_SIGNATURE);
 has(bytes,["e'pdc-auditor-envelope-253-v1\\n'","array['gateway_instance_id','delivery_uuid','key_id','nonce','issued_at','expires_at','instruction_sha256','selected_scope','telegram_evidence']","octet_length(raw)","f||':'||octet_length(raw)::text||':'"],'exact signing bytes');
 has(verify,["jsonb_typeof(p_envelope->'issued_at')<>'string'","(\\.\\d{1,6})?z$","expires-issued>interval '300 seconds'",'pdc_auditor_signing_bytes_253(p_envelope)','extensions.hmac(signing'],'runtime envelope');
+has(verify,['pdc_auditor_telegram_deliveries_230',"'pdc_auditor_signed_deliveries_253'",'pdc_253_telegram_delivery_already_consumed',"'pdc-230-message:'","'pdc-230-update:'"],'global Telegram replay reservation');
 assert(!verify.includes("p_envelope-'signature'"),'must not sign compact whole envelope');
 
 // Planner contract: immutable candidates are server-expanded from bounded selector/desire.

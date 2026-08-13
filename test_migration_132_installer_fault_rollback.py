@@ -1,9 +1,11 @@
 from __future__ import annotations
-import os, subprocess, sys
+import os, subprocess, sys, unittest
 from pathlib import Path
 import psycopg
 
 ROOT=Path(__file__).parent
+if os.environ.get('PDC_RUN_LIVE_STAGING_FAULT_TESTS') != '1':
+    raise unittest.SkipTest('set PDC_RUN_LIVE_STAGING_FAULT_TESTS=1 for credentialed live-staging rollback probe')
 sys.path.insert(0,str(Path.home()/'pdc-control-board'/'_staging_test_tools'))
 from staging_env import load_local_env,assert_staging_target
 

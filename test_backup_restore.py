@@ -12,10 +12,14 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent
 SCRIPTS = ROOT / "scripts"
 sys.path.insert(0, str(SCRIPTS))
-psycopg2 = types.ModuleType("psycopg2")
-psycopg2.extras = types.ModuleType("psycopg2.extras")
-sys.modules.setdefault("psycopg2", psycopg2)
-sys.modules.setdefault("psycopg2.extras", psycopg2.extras)
+try:
+    import psycopg2  # type: ignore
+    import psycopg2.extras  # type: ignore
+except ImportError:
+    psycopg2 = types.ModuleType("psycopg2")
+    psycopg2.extras = types.ModuleType("psycopg2.extras")
+    sys.modules["psycopg2"] = psycopg2
+    sys.modules["psycopg2.extras"] = psycopg2.extras
 cryptography = types.ModuleType("cryptography")
 fernet = types.ModuleType("cryptography.fernet")
 fernet.Fernet = object

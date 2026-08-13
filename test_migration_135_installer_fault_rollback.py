@@ -15,7 +15,7 @@ SCRIPT = ROOT / "scripts" / "apply_migration_135_staging.py"
 sys.path.insert(0, str(Path.home() / "pdc-control-board" / "_staging_test_tools"))
 
 
-@unittest.skipUnless(psycopg2 is not None, "requires the protected staging Python environment")
+@unittest.skipUnless(psycopg2 is not None and os.environ.get("PDC_RUN_LIVE_STAGING_FAULT_TESTS") == "1", "set PDC_RUN_LIVE_STAGING_FAULT_TESTS=1 for credentialed live-staging rollback probe")
 class Migration135InstallerFaultRollbackTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):

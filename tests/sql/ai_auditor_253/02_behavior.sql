@@ -16,7 +16,7 @@ begin
  issued:=to_char(clock_timestamp() at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"');
  expires:=to_char((clock_timestamp()+interval '2 minutes') at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"');
  digest:=encode(extensions.digest(convert_to(p_instruction,'UTF8'),'sha256'),'hex');
- evidence:=jsonb_build_object('bot_identity','pdc-auditor-staging','instruction_sha256',digest,'original_instruction',p_instruction,'telegram_chat_id',7828138290,'telegram_message_id',1,'telegram_sender_id',7828138290,'telegram_update_id',1);
+ evidence:=jsonb_build_object('bot_identity','pdc-auditor-staging','instruction_sha256',digest,'original_instruction',p_instruction,'telegram_chat_id',7828138290,'telegram_message_id',abs(hashtextextended(p_delivery::text,0))%2147483646+1,'telegram_sender_id',7828138290,'telegram_update_id',abs(hashtextextended(p_delivery::text,1))%2147483647);
  env:=jsonb_build_object('gateway_instance_id','fixture-gateway','delivery_uuid',p_delivery,'key_id','fixture-key','nonce',p_nonce,'issued_at',issued,'expires_at',expires,'instruction_sha256',digest,'selected_scope',p_scope,'telegram_evidence',evidence,'signature',repeat('0',64));
  return jsonb_set(env,'{signature}',to_jsonb(encode(extensions.hmac(public.pdc_auditor_signing_bytes_253(env),decode(repeat('42',32),'hex'),'sha256'),'hex')));
 end$$;
@@ -94,6 +94,19 @@ do $$declare scope jsonb; env jsonb; changed jsonb; first_result jsonb; second_r
  if first_result<>second_result then raise exception 'exact replay changed stored result';end if;
  changed:=pg_temp.envelope('Why was this changed',jsonb_set(scope,'{job_card_number}','"J10-CHANGED"'),'44000000-0000-4000-8000-000000000001','query-replay-fixture-nonce-2');
  begin perform public.query_pdc_auditor_typed_253('operation_snapshot',changed->'selected_scope',changed);raise exception 'conflicting delivery replay accepted';exception when unique_violation then null;end;
+end$$;
+
+-- The same Telegram message/update cannot be consumed again under a fresh
+-- delivery UUID and nonce, even when the new envelope is otherwise valid.
+do $$declare scope jsonb;first_env jsonb;second_env jsonb;begin
+ scope:=jsonb_build_object('contract','pdc-auditor-query-selection-253-v1','vehicle_id','20000000-0000-4000-8000-000000000010','job_card_number','J10');
+ first_env:=pg_temp.envelope('Global Telegram replay probe',scope,'44000000-0000-4000-8000-000000000010','global-replay-first-nonce');
+ perform public.query_pdc_auditor_typed_253('operation_snapshot',scope,first_env);
+ second_env:=pg_temp.envelope('Global Telegram replay probe',scope,'44000000-0000-4000-8000-000000000011','global-replay-second-nonce');
+ second_env:=jsonb_set(second_env,'{telegram_evidence}',first_env->'telegram_evidence');
+ second_env:=jsonb_set(second_env,'{signature}',to_jsonb(encode(extensions.hmac(public.pdc_auditor_signing_bytes_253(second_env),decode(repeat('42',32),'hex'),'sha256'),'hex')));
+ begin perform public.query_pdc_auditor_typed_253('operation_snapshot',scope,second_env);raise exception 'cross-delivery Telegram replay accepted';exception when unique_violation then if sqlerrm<>'PDC_253_TELEGRAM_DELIVERY_ALREADY_CONSUMED' then raise;end if;end;
+ if (select count(*) from public.pdc_auditor_telegram_deliveries_230 where telegram_chat_id=(first_env->'telegram_evidence'->>'telegram_chat_id')::bigint and telegram_message_id=(first_env->'telegram_evidence'->>'telegram_message_id')::bigint)<>1 then raise exception 'global Telegram reservation count mismatch';end if;
 end$$;
 
 -- A forced failure during a multi-write split must roll back the entire plan,

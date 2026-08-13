@@ -64,7 +64,7 @@ from scripts import run_pdc_bulk_workbook_staging as runner
 workbook = Path(r"C:\Users\nwmgr\Documents\PDC-JC-Stock-Operations-Import-20260802\Hermes_PDC_JC_Stock_Operations_Matched.xlsx")
 args = runner.parser().parse_args([
     str(workbook),
-    "--stage-map-policy", "pmb-workshop-stages-v1",
+    "--stage-map-policy", "pmb-workshop-stages-v2",
     "--expect-pairs", "411",
     "--expect-operations", "3483",
     "--expect-hours-count", "3280",
@@ -85,16 +85,16 @@ def fake_post(url, key, path, body, token=None):
             "payload_sha256": body["p_payload_sha256"],
             "expected_pair_count": 411,
             "expected_operation_count": 3483,
-            "stage_mapping_policy": "pmb-workshop-stages-v1",
+            "stage_mapping_policy": "pmb-workshop-stages-v2",
             "status": "available",
         }}
     if path.endswith("preview_pdc_bulk_stock_stage_workbook"):
-        payload_sha = runner.adapt_workbook(workbook, stage_mapping_policy="pmb-workshop-stages-v1").evidence["payload_sha256"]
+        payload_sha = runner.adapt_workbook(workbook, stage_mapping_policy="pmb-workshop-stages-v2").evidence["payload_sha256"]
         return {"ok": True, "code": "stock_stage_preview_ready", "data": {
             "preview_id": "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
             "workbook_sha256": hashlib.sha256(workbook.read_bytes()).hexdigest(),
             "payload_sha256": payload_sha,
-            "stage_mapping_policy": "pmb-workshop-stages-v1",
+            "stage_mapping_policy": "pmb-workshop-stages-v2",
             "row_count": 411,
             "operation_count": 3483,
             "accepted_count": 411,
@@ -120,5 +120,5 @@ assert seen[1][0].endswith("authorize_pdc_bulk_stock_stage_workbook")
 assert seen[1][1]["p_payload_sha256"] == result["local_payload_file_sha256"]
 assert seen[2][0].endswith("preview_pdc_bulk_stock_stage_workbook")
 assert seen[2][1]["p_authorized_payload_sha256"] == result["local_payload_file_sha256"]
-assert seen[2][1]["p_stage_mapping_policy"] == "pmb-workshop-stages-v1"
+assert seen[2][1]["p_stage_mapping_policy"] == "pmb-workshop-stages-v2"
 print("PDC stock-only stage-mapped workbook import contract passed.")

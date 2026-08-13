@@ -6,7 +6,7 @@ select set_config('request.jwt.claims','{"sub":"10000000-0000-4000-8000-00000000
 create function pg_temp.auth_env4(p_instruction text,p_scope jsonb,p_delivery uuid,p_nonce text) returns jsonb
 language plpgsql security definer set search_path=pg_catalog,public,extensions as $$declare issued text;expires text;evidence jsonb;env jsonb;digest text;begin
  issued:=to_char(clock_timestamp() at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"');expires:=to_char((clock_timestamp()+interval '2 minutes') at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"');digest:=encode(extensions.digest(convert_to(p_instruction,'UTF8'),'sha256'),'hex');
- evidence:=jsonb_build_object('bot_identity','pdc-auditor-staging','instruction_sha256',digest,'original_instruction',p_instruction,'telegram_chat_id',7828138290,'telegram_message_id',4,'telegram_sender_id',7828138290,'telegram_update_id',4);
+ evidence:=jsonb_build_object('bot_identity','pdc-auditor-staging','instruction_sha256',digest,'original_instruction',p_instruction,'telegram_chat_id',7828138290,'telegram_message_id',abs(hashtextextended(p_delivery::text,0))%2147483646+1,'telegram_sender_id',7828138290,'telegram_update_id',abs(hashtextextended(p_delivery::text,1))%2147483647);
  env:=jsonb_build_object('gateway_instance_id','fixture-gateway','delivery_uuid',p_delivery,'key_id','fixture-key','nonce',p_nonce,'issued_at',issued,'expires_at',expires,'instruction_sha256',digest,'selected_scope',p_scope,'telegram_evidence',evidence,'signature',repeat('0',64));
  return jsonb_set(env,'{signature}',to_jsonb(encode(extensions.hmac(public.pdc_auditor_signing_bytes_253(env),decode(repeat('42',32),'hex'),'sha256'),'hex')));end$$;
 grant execute on function pg_temp.auth_env4(text,jsonb,uuid,text) to authenticated;
