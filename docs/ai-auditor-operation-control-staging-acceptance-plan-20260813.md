@@ -13,6 +13,7 @@ Acceptance must bind all of the following before any preflight:
 - approved Pages/runtime SHA, if a later deployment is separately authorised;
 - scoped ordinary Viewer service UUID/email and approved Administrator enrolment;
 - gateway instance/key identifier generated through a separate audited secret-provisioning ceremony.
+- absolute canonical path and SHA-256 of the approved PEM CA bundle used for PostgreSQL `verify-full` hostname and certificate verification.
 
 Any identity change invalidates the acceptance run.
 
@@ -23,12 +24,13 @@ Any identity change invalidates the acceptance run.
 3. Rollback operator, observer, incident contact and stop authority confirm the whole window.
 4. Current staging database backup/recovery evidence and migration ledger are captured read-only.
 5. Gateway key material is generated outside source, chat and logs; only its identifier and public audit metadata enter evidence.
+6. `PDC_STAGING_SSLROOTCERT` names an approved absolute, regular, non-symlink PEM CA bundle and `PDC_STAGING_SSLROOTCERT_SHA256` contains its approved exact SHA-256. Missing, relative, unreadable, malformed, unpinned or changed CA material is a hard stop before connector acquisition.
 
 ## Rollback-only rehearsal
 
 In one explicit transaction that is always rolled back:
 
-1. Verify project/staging sentinels, production-sentinel absence, exact migration head and isolated Python mode; every installer invocation must use `python3 -I`, and a non-isolated invocation is a hard failure.
+1. Before any credential-bearing connection, verify the exact parsed staging endpoint and explicit TLS peer-identity configuration: `sslmode=verify-full`, the canonical `PDC_STAGING_SSLROOTCERT` path, its approved SHA-256, and hostname verification for the DSN host. Then verify project/staging sentinels, production-sentinel absence, exact migration head and isolated Python mode; every installer invocation must use `python3 -I`, and a non-isolated invocation is a hard failure.
 2. Run `python3 -I scripts/apply_migration_253_staging.py --expected-commit <approved-full-sha>` in its default rollback-only mode; it must materialize immutable Git-object bytes and reject migration 251/252 state.
 3. Inspect RLS, exact function signatures and grants.
 4. Prove direct table DML denial for Viewer, Monitor, Importer, ordinary authenticated and service-role test principals.
@@ -66,6 +68,7 @@ Before commit, rollback means aborting the installer transaction; its default re
 ## Immediate stop conditions
 
 - sentinel, project, migration-head, SHA or identity mismatch;
+- missing/changed CA bundle, non-`verify-full` TLS mode, or any certificate/hostname verification failure;
 - any direct-table grant or callable revoked/generic RPC;
 - any booking, vehicle lifecycle/location, user or completed-work mutation;
 - partial Apply or partial Undo;

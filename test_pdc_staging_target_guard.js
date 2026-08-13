@@ -4,9 +4,12 @@ const { spawnSync } = require('child_process');
 
 const probe = String.raw`
 import importlib.util
+import hashlib
 import json
 import os
+from pathlib import Path
 import sys
+import tempfile
 import types
 
 connector_calls = []
@@ -18,6 +21,15 @@ spec = importlib.util.spec_from_file_location('pdc_staging_runtime_guard_test', 
 module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)
 ref = module.EXPECTED_STAGING_REF
+ca_dir = tempfile.TemporaryDirectory(prefix='pdc-staging-ca-')
+ca_path = Path(ca_dir.name) / 'trusted-root.pem'
+ca_path.write_text(
+    '-----BEGIN CERTIFICATE-----\\nTEST-ONLY-CA\\n-----END CERTIFICATE-----\\n',
+    encoding='ascii',
+)
+os.environ[module.SSLROOTCERT_ENV] = str(ca_path.resolve())
+ca_sha256 = hashlib.sha256(ca_path.read_bytes()).hexdigest()
+os.environ[module.SSLROOTCERT_SHA256_ENV] = ca_sha256
 accepted = [
     ('project', f'https://{ref}.supabase.co'),
     ('project', f'https://{ref}.supabase.co/'),
@@ -86,17 +98,61 @@ for kind, value in rejected:
         continue
     raise AssertionError(f'guard accepted spoofed {kind} endpoint: {value}')
 database_accepted = [value for kind, value in accepted if kind == 'database']
+valid_database = database_accepted[0]
+tls_rejected = []
+os.environ.pop(module.SSLROOTCERT_ENV, None)
+tls_rejected.append('missing')
+os.environ[module.SSLROOTCERT_ENV] = 'relative-ca.pem'
+tls_rejected.append('relative')
+os.environ[module.SSLROOTCERT_ENV] = str((Path(ca_dir.name) / 'missing.pem').resolve())
+tls_rejected.append('missing-file')
+non_pem = Path(ca_dir.name) / 'not-a-ca.txt'
+non_pem.write_text('not a certificate', encoding='ascii')
+os.environ[module.SSLROOTCERT_ENV] = str(non_pem.resolve())
+tls_rejected.append('non-pem')
+os.environ[module.SSLROOTCERT_ENV] = str(ca_path.resolve())
+os.environ.pop(module.SSLROOTCERT_SHA256_ENV, None)
+tls_rejected.append('missing-sha256')
+os.environ[module.SSLROOTCERT_SHA256_ENV] = '0' * 64
+tls_rejected.append('wrong-sha256')
+for label in tls_rejected:
+    if label == 'missing':
+        os.environ.pop(module.SSLROOTCERT_ENV, None)
+    elif label == 'relative':
+        os.environ[module.SSLROOTCERT_ENV] = 'relative-ca.pem'
+    elif label == 'missing-file':
+        os.environ[module.SSLROOTCERT_ENV] = str((Path(ca_dir.name) / 'missing.pem').resolve())
+    elif label == 'non-pem':
+        os.environ[module.SSLROOTCERT_ENV] = str(non_pem.resolve())
+    else:
+        os.environ[module.SSLROOTCERT_ENV] = str(ca_path.resolve())
+    if label == 'missing-sha256':
+        os.environ.pop(module.SSLROOTCERT_SHA256_ENV, None)
+    elif label == 'wrong-sha256':
+        os.environ[module.SSLROOTCERT_SHA256_ENV] = '0' * 64
+    else:
+        os.environ[module.SSLROOTCERT_SHA256_ENV] = ca_sha256
+    before = len(connector_calls)
+    os.environ['PDC_STAGING_DATABASE_URL'] = valid_database
+    try:
+        module.get_conn()
+    except Exception:
+        assert len(connector_calls) == before
+    else:
+        raise AssertionError(f'TLS guard accepted {label} CA configuration')
+os.environ[module.SSLROOTCERT_ENV] = str(ca_path.resolve())
+os.environ[module.SSLROOTCERT_SHA256_ENV] = ca_sha256
 for value in database_accepted:
     os.environ['PDC_STAGING_DATABASE_URL'] = value
     assert module.get_conn() == 'connection-spy-result'
 assert len(connector_calls) == len(database_accepted)
 for value, (args, kwargs) in zip(database_accepted, connector_calls):
     assert args == (value,)
-    assert kwargs == {'sslmode': 'require'}
-print(json.dumps({'accepted': len(accepted), 'rejected': len(rejected), 'connector_calls': len(connector_calls)}))
+    assert kwargs == {'sslmode': 'verify-full', 'sslrootcert': str(ca_path.resolve())}
+print(json.dumps({'accepted': len(accepted), 'rejected': len(rejected), 'tls_rejected': len(tls_rejected), 'connector_calls': len(connector_calls)}))
 `;
 const result = spawnSync('python3', ['-I', '-c', probe], { encoding: 'utf8' });
 assert.strictEqual(result.status, 0, result.stderr || result.stdout);
 const report = JSON.parse(result.stdout.trim());
-assert.deepStrictEqual(report, { accepted: 5, rejected: 43, connector_calls: 3 });
+assert.deepStrictEqual(report, { accepted: 5, rejected: 43, tls_rejected: 6, connector_calls: 3 });
 console.log('PDC staging parsed-host endpoint and connector-spy guard passed');

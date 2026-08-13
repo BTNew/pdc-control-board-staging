@@ -7,15 +7,16 @@ from __future__ import annotations
 
 import os
 import re
+import hashlib
 from pathlib import Path
 from urllib.parse import unquote, urlsplit
-
-import psycopg2
 
 EXPECTED_STAGING_REF = "cdsmnqxtyyoeoznmbidd"
 PRODUCTION_REF = "vjdtsswhroyguxyfjdkt"
 ROOT = Path(__file__).resolve().parents[1]
 ENV_PATH = ROOT / "_staging_test_tools" / ".env"
+SSLROOTCERT_ENV = "PDC_STAGING_SSLROOTCERT"
+SSLROOTCERT_SHA256_ENV = "PDC_STAGING_SSLROOTCERT_SHA256"
 
 
 def load_local_env() -> None:
@@ -78,6 +79,44 @@ def _parsed_endpoint(value: str):
     return parsed, host, port
 
 
+def trusted_sslrootcert() -> str:
+    """Return an explicit trusted CA bundle for verify-full connections."""
+    raw = required(SSLROOTCERT_ENV, preserve_raw=True)
+    if (
+        raw != raw.strip()
+        or any(ord(char) <= 0x20 or ord(char) == 0x7F for char in raw)
+    ):
+        raise RuntimeError("Refusing invalid staging TLS CA path")
+    path = Path(raw)
+    if not path.is_absolute() or path.is_symlink() or not path.is_file():
+        raise RuntimeError(
+            "PDC_STAGING_SSLROOTCERT must name an absolute, regular, non-symlink CA bundle"
+        )
+    resolved = path.resolve(strict=True)
+    if resolved != path.absolute():
+        raise RuntimeError("Refusing non-canonical staging TLS CA path")
+    try:
+        payload = resolved.read_bytes()
+    except OSError as exc:
+        raise RuntimeError("Unable to read staging TLS CA bundle") from exc
+    if (
+        b"-----BEGIN CERTIFICATE-----" not in payload
+        or b"-----END CERTIFICATE-----" not in payload
+    ):
+        raise RuntimeError("Staging TLS CA bundle does not contain a PEM certificate")
+    expected_sha256 = required(SSLROOTCERT_SHA256_ENV).lower()
+    if not re.fullmatch(r"[0-9a-f]{64}", expected_sha256):
+        raise RuntimeError("PDC_STAGING_SSLROOTCERT_SHA256 must be an exact SHA-256")
+    actual_sha256 = hashlib.sha256(payload).hexdigest()
+    if actual_sha256 != expected_sha256:
+        raise RuntimeError("Staging TLS CA bundle SHA-256 mismatch")
+    return str(resolved)
+
+
+def staging_tls_kwargs() -> dict[str, str]:
+    return {"sslmode": "verify-full", "sslrootcert": trusted_sslrootcert()}
+
+
 def assert_staging_target(
     project_url: str | None = None,
     database_url: str | None = None,
@@ -121,4 +160,6 @@ def get_conn():
     """Connect only to the explicitly approved staging PostgreSQL endpoint."""
     database_url = required("PDC_STAGING_DATABASE_URL", preserve_raw=True)
     assert_staging_target(database_url=database_url)
-    return psycopg2.connect(database_url, sslmode="require")
+    tls_kwargs = staging_tls_kwargs()
+    import psycopg2
+    return psycopg2.connect(database_url, **tls_kwargs)

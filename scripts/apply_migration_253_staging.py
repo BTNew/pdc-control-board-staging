@@ -228,13 +228,10 @@ def main() -> int:
     staged_dirty = git("diff", "--cached", "--name-only").decode().strip()
     if resolved != args.expected_commit or head != args.expected_commit or tracked_dirty or staged_dirty:
         raise RuntimeError("exact reviewed commit/clean tracked worktree required")
-    try:
-        psycopg2 = import_site_module("psycopg2")  # type: ignore
-    except Exception as exc:
-        raise RuntimeError("psycopg2 import failed after exact-SHA preflight") from exc
     runtime = load_repo_helper("pdc_staging_runtime_exact_253", "scripts/pdc_staging_runtime.py")
     assert_staging_target = runtime.assert_staging_target
     load_local_env = runtime.load_local_env
+    staging_tls_kwargs = runtime.staging_tls_kwargs
     if args.apply:
         required = {name: getattr(args, name) for name in ("change_id", "window_id", "operator", "observer", "stop_authority")}
         if any(not str(value or "").strip() for value in required.values()):
@@ -251,7 +248,12 @@ def main() -> int:
     if not dsn:
         raise RuntimeError("staging database URL is not configured")
     assert_staging_target(database_url=dsn)
-    connection = psycopg2.connect(dsn, sslmode="require")
+    tls_kwargs = staging_tls_kwargs()
+    try:
+        psycopg2 = import_site_module("psycopg2")  # type: ignore
+    except Exception as exc:
+        raise RuntimeError("psycopg2 import failed after exact-SHA/endpoint/TLS preflight") from exc
+    connection = psycopg2.connect(dsn, **tls_kwargs)
     try:
         owner = None
         with connection.cursor() as cur:
