@@ -11,3 +11,4 @@ trap '"$PGBIN/dropdb.exe" -h 127.0.0.1 -p 55432 -U nwmgr --if-exists "$DB" >/dev
 "$PGBIN/psql.exe" -X -v ON_ERROR_STOP=1 -h 127.0.0.1 -p 55432 -U nwmgr -d "$DB" -f tests/sql/ai_auditor_253/00_fixture.sql
 "$PGBIN/psql.exe" -X -v ON_ERROR_STOP=1 -h 127.0.0.1 -p 55432 -U nwmgr -d "$DB" -f supabase/staging_only/253_ai_auditor_typed_operation_control.sql
 "$PGBIN/psql.exe" -X -v ON_ERROR_STOP=1 -h 127.0.0.1 -p 55432 -U nwmgr -d "$DB" -f tests/sql/ai_auditor_253/01_assertions.sql
+"$PGBIN/psql.exe" -X -v ON_ERROR_STOP=1 -h 127.0.0.1 -p 55432 -U nwmgr -d "$DB" -f tests/sql/ai_auditor_253/02_behavior.sql

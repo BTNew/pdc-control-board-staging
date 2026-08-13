@@ -245,6 +245,7 @@ def _parse_typed_mutation(text: str, context: Mapping[str, Any]) -> tuple[str, d
             new = _new_value(trusted.get("new_value"), complete=True)
         except AuditorContractError: return ("", {})
         if "operation_code" not in new: return ("", {})
+        if "ordered_position" in new: return ("", {})
         if survivor not in selector["operation_refs"]: raise AuditorContractError("combine survivor is not selected")
         return "combine", _intent(selector, context, survivor_operation_ref=survivor, new_value=new)
 
