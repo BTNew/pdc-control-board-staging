@@ -8,6 +8,7 @@ from __future__ import annotations
 import os
 import re
 import hashlib
+import ssl
 from pathlib import Path
 from urllib.parse import unquote, urlsplit
 
@@ -104,6 +105,11 @@ def trusted_sslrootcert() -> str:
         or b"-----END CERTIFICATE-----" not in payload
     ):
         raise RuntimeError("Staging TLS CA bundle does not contain a PEM certificate")
+    try:
+        tls_context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+        tls_context.load_verify_locations(cafile=str(resolved))
+    except (OSError, ssl.SSLError) as exc:
+        raise RuntimeError("Staging TLS CA bundle is not a parseable certificate bundle") from exc
     expected_sha256 = required(SSLROOTCERT_SHA256_ENV).lower()
     if not re.fullmatch(r"[0-9a-f]{64}", expected_sha256):
         raise RuntimeError("PDC_STAGING_SSLROOTCERT_SHA256 must be an exact SHA-256")

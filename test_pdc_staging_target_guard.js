@@ -23,10 +23,7 @@ spec.loader.exec_module(module)
 ref = module.EXPECTED_STAGING_REF
 ca_dir = tempfile.TemporaryDirectory(prefix='pdc-staging-ca-')
 ca_path = Path(ca_dir.name) / 'trusted-root.pem'
-ca_path.write_text(
-    '-----BEGIN CERTIFICATE-----\\nTEST-ONLY-CA\\n-----END CERTIFICATE-----\\n',
-    encoding='ascii',
-)
+ca_path.write_bytes(Path('tests/fixtures/pdc_test_root_ca.pem').read_bytes())
 os.environ[module.SSLROOTCERT_ENV] = str(ca_path.resolve())
 ca_sha256 = hashlib.sha256(ca_path.read_bytes()).hexdigest()
 os.environ[module.SSLROOTCERT_SHA256_ENV] = ca_sha256
@@ -110,6 +107,13 @@ non_pem = Path(ca_dir.name) / 'not-a-ca.txt'
 non_pem.write_text('not a certificate', encoding='ascii')
 os.environ[module.SSLROOTCERT_ENV] = str(non_pem.resolve())
 tls_rejected.append('non-pem')
+malformed_pem = Path(ca_dir.name) / 'malformed-ca.pem'
+malformed_pem.write_text(
+    '-----BEGIN CERTIFICATE-----\\nNOT-A-CERTIFICATE\\n-----END CERTIFICATE-----\\n',
+    encoding='ascii',
+)
+os.environ[module.SSLROOTCERT_ENV] = str(malformed_pem.resolve())
+tls_rejected.append('malformed-pem')
 os.environ[module.SSLROOTCERT_ENV] = str(ca_path.resolve())
 os.environ.pop(module.SSLROOTCERT_SHA256_ENV, None)
 tls_rejected.append('missing-sha256')
@@ -124,6 +128,8 @@ for label in tls_rejected:
         os.environ[module.SSLROOTCERT_ENV] = str((Path(ca_dir.name) / 'missing.pem').resolve())
     elif label == 'non-pem':
         os.environ[module.SSLROOTCERT_ENV] = str(non_pem.resolve())
+    elif label == 'malformed-pem':
+        os.environ[module.SSLROOTCERT_ENV] = str(malformed_pem.resolve())
     else:
         os.environ[module.SSLROOTCERT_ENV] = str(ca_path.resolve())
     if label == 'missing-sha256':
@@ -154,5 +160,5 @@ print(json.dumps({'accepted': len(accepted), 'rejected': len(rejected), 'tls_rej
 const result = spawnSync('python3', ['-I', '-c', probe], { encoding: 'utf8' });
 assert.strictEqual(result.status, 0, result.stderr || result.stdout);
 const report = JSON.parse(result.stdout.trim());
-assert.deepStrictEqual(report, { accepted: 5, rejected: 43, tls_rejected: 6, connector_calls: 3 });
+assert.deepStrictEqual(report, { accepted: 5, rejected: 43, tls_rejected: 7, connector_calls: 3 });
 console.log('PDC staging parsed-host endpoint and connector-spy guard passed');

@@ -35,6 +35,7 @@ for (const required of [
   'sslmode": "verify-full"',
   'sslrootcert": trusted_sslrootcert()',
   'Staging TLS CA bundle SHA-256 mismatch',
+  'Staging TLS CA bundle is not a parseable certificate bundle',
 ]) assert.ok(runtimeSource.includes(required),`runtime TLS contract missing: ${required}`);
 assert.ok(source.includes("version='253'"),'rollback readback must check the exact migration ledger');
 assert.ok(source.includes("to_regclass('public.pdc_auditor_gateway_keys_253') is not null"),'rollback readback must check private object residue');
