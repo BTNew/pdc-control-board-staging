@@ -1,16 +1,16 @@
 {
   "environment": "staging",
-  "application_version": "2026.08.13.41-workshop-admin-role-cast",
-  "source_commit": "97e187bf60f52f446c9a2d81481d92738a518157",
-  "parent_staging_commit": "2cdd589d0679210dac8d73d19f7370eb9bac20ab",
+  "application_version": "2026.08.13.42-workshop-admin-move-live-verified",
+  "source_commit": "fb4450ec202f3ef85ecd42600b64a213a3b96011",
+  "parent_staging_commit": "03e421eecf7453eda29fe9f5d67e9f43dbf605a7",
   "staging_project_ref": "cdsmnqxtyyoeoznmbidd",
   "production_unchanged": true,
   "main_unchanged": true,
   "dns_unchanged": true,
   "pilot_activation_changed": false,
   "mailbox_runtime_changed": false,
-  "deployed_at_utc": "2026-08-13T01:31:44.743072+00:00",
-  "database_migration_head": 239,
+  "deployed_at_utc": "2026-08-13T01:39:24.175997+00:00",
+  "database_migration_head": 242,
   "database_migrations": {
     "232": {
       "name": "workshop_mechanic_bay_assignment_repair",
@@ -57,6 +57,24 @@
       "source_path": "supabase/staging_only/239_workshop_admin_role_enum_cast.sql",
       "sha256": "0fffba89a545fe2ef5a1ad8f8c88e7fd92b4b12d39970ac070399f2e8a404017",
       "bytes": 1541
+    },
+    "240": {
+      "name": "workshop_admin_account_state_guard",
+      "source_path": "supabase/staging_only/240_workshop_admin_account_state_guard.sql",
+      "sha256": "18239d1b1f876854879425b77e5c918fc5ac43f864ced3a1016f20384040d64c",
+      "bytes": 1571
+    },
+    "241": {
+      "name": "workshop_admin_undo_ambiguous_booking_fix",
+      "source_path": "supabase/staging_only/241_workshop_admin_undo_ambiguous_booking_fix.sql",
+      "sha256": "f757d30f251d43ea9ec9bbfa3939d87fdfe5260b1a2ec9c2bbde4676d64a821b",
+      "bytes": 5076
+    },
+    "242": {
+      "name": "workshop_admin_undo_alias_collision_fix",
+      "source_path": "supabase/staging_only/242_workshop_admin_undo_alias_collision_fix.sql",
+      "sha256": "8e3c83cac23fa5c3a6ffa94d5b7e4f191076d4db596d8ea6fcad0e41c75fbab9",
+      "bytes": 5057
     }
   },
   "files": {
