@@ -19189,13 +19189,42 @@ async function loadPdcAuditorPendingOperation() {
 async function confirmPdcAuditorPendingOperation(action) {
   if (app.pdcAuditorOperationBusy || !['apply', 'undo'].includes(action)) return false;
   const pending = app.pdcAuditorPendingOperation;
+  const generation = Number(app.pdcAuditorGeneration || 0);
+  const token = getPdcSupabaseAccessToken();
+  const role = String(window.PDC_AUTH_CONTEXT?.role || '').toLowerCase();
+  if (!token || role !== 'administrator') return false;
+  const pendingBinding = action === 'apply'
+    ? `${pending?.proposal_id || ''}:${pending?.proposal_version || ''}:${pending?.proposal_hash || ''}`
+    : `${pending?.run_id || ''}:${pending?.run_revision_after || ''}`;
+  const authorityCurrent = () => generation === Number(app.pdcAuditorGeneration || 0)
+    && token === getPdcSupabaseAccessToken()
+    && role === String(window.PDC_AUTH_CONTEXT?.role || '').toLowerCase()
+    && role === 'administrator'
+    && pendingBinding === (action === 'apply'
+      ? `${app.pdcAuditorPendingOperation?.proposal_id || ''}:${app.pdcAuditorPendingOperation?.proposal_version || ''}:${app.pdcAuditorPendingOperation?.proposal_hash || ''}`
+      : `${app.pdcAuditorPendingOperation?.run_id || ''}:${app.pdcAuditorPendingOperation?.run_revision_after || ''}`);
   if ((action === 'apply' && pending?.state !== 'pending_apply') || (action === 'undo' && pending?.state !== 'undo_available')) return false;
   const exact = action === 'apply' ? `${pending.proposal_id} / ${pending.proposal_hash}` : `${pending.run_id} / ${pending.run_revision_after}`;
   if (!window.confirm(`${action === 'apply' ? 'Apply' : 'Undo'} exact signed operation?\n${exact}`)) return false;
   app.pdcAuditorOperationBusy = true; renderPdcAuditorPendingOperation();
-  try { app.pdcAuditorPendingOperation = await callPdcAuditorOperationGateway(action); await loadPdcAuditorSnapshot({ force: true }); return true; }
-  catch (_error) { app.pdcAuditorPendingOperation = null; return false; }
-  finally { app.pdcAuditorOperationBusy = false; renderPdcAuditorPendingOperation(); }
+  try {
+    const receipt = await callPdcAuditorOperationGateway(action);
+    if (!receipt || !authorityCurrent() || app.pdcAuditorPendingOperation !== pending) return false;
+    await loadPdcAuditorSnapshot({ force: true });
+    if (!authorityCurrent() || app.pdcAuditorPendingOperation !== pending) return false;
+    app.pdcAuditorPendingOperation = receipt;
+    return true;
+  }
+  catch (_error) {
+    if (authorityCurrent() && app.pdcAuditorPendingOperation === pending) app.pdcAuditorPendingOperation = null;
+    return false;
+  }
+  finally {
+    if (authorityCurrent()) {
+      app.pdcAuditorOperationBusy = false;
+      renderPdcAuditorPendingOperation();
+    }
+  }
 }
 
 function pdcAuditorCategory(value = '') {

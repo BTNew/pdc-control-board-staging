@@ -16,7 +16,6 @@
     "workshop-shared-actions.js",
     "vehicle-lifecycle-actions.js",
     "pdc-auth.js",
-    "pdc-supabase-config.js",
     "pdc-supabase-config.staging.js",
     "data.js",
     "data-staging-empty.js",
@@ -56,7 +55,8 @@
     "test_ai_auditor_review_binding.js",
     "test_ai_auditor_signed_gateway_ui_253.js",
     "test_ai_auditor_stage_a_ui.js",
-    "test_npm_pack_allowlist.js"
+    "test_npm_pack_allowlist.js",
+    "test_pdc_staging_target_guard.js"
   ],
   "scripts": {
     "test": "node test_all.js",

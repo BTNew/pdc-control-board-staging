@@ -6,8 +6,9 @@ imports, production fallback, password-file fallback, or hard-coded secret.
 from __future__ import annotations
 
 import os
+import re
 from pathlib import Path
-from urllib.parse import urlparse
+from urllib.parse import parse_qsl, urlparse
 
 import psycopg2
 
@@ -41,24 +42,49 @@ def required(name: str) -> str:
     return value
 
 
+def _reject_target(value: str, host: str) -> None:
+    if PRODUCTION_REF in value.lower():
+        raise RuntimeError("Refusing to run staging operation against production")
+    raise RuntimeError(
+        f"Refusing non-staging target {host!r}; expected project "
+        f"reference {EXPECTED_STAGING_REF}."
+    )
+
+
+def _parsed_endpoint(value: str):
+    try:
+        parsed = urlparse(value)
+        host = (parsed.hostname or "").lower().rstrip(".")
+        port = parsed.port
+    except (TypeError, ValueError):
+        _reject_target(str(value), "invalid endpoint")
+    return parsed, host, port
+
+
 def assert_staging_target(
     project_url: str | None = None,
     database_url: str | None = None,
 ) -> None:
-    """Reject production and every endpoint not naming the approved staging ref."""
-    values = [value for value in (project_url, database_url) if value]
-    if not values:
+    """Accept only the exact approved Supabase staging HTTPS/PostgreSQL hosts."""
+    if not project_url and not database_url:
         raise RuntimeError("No staging endpoint supplied to target guard")
-    for value in values:
-        lowered = value.lower()
-        if PRODUCTION_REF in lowered:
-            raise RuntimeError("Refusing to run staging operation against production")
-        if EXPECTED_STAGING_REF not in lowered:
-            host = urlparse(value).hostname or "unknown host"
-            raise RuntimeError(
-                f"Refusing non-staging target {host!r}; expected project "
-                f"reference {EXPECTED_STAGING_REF}."
-            )
+    if project_url:
+        parsed, host, port = _parsed_endpoint(project_url)
+        if parsed.scheme.lower() != "https" or parsed.username is not None or parsed.password is not None or host != f"{EXPECTED_STAGING_REF}.supabase.co" or port not in (None, 443):
+            _reject_target(project_url, host or "unknown host")
+    if database_url:
+        parsed, host, port = _parsed_endpoint(database_url)
+        scheme = parsed.scheme.lower()
+        direct = host == f"db.{EXPECTED_STAGING_REF}.supabase.co" and (parsed.username or "").lower() == "postgres" and port in (None, 5432)
+        pooler = (
+            bool(re.fullmatch(r"aws-[0-9]+-[a-z0-9-]+\.pooler\.supabase\.com", host))
+            and (parsed.username or "").lower() == f"postgres.{EXPECTED_STAGING_REF}"
+            and port in (5432, 6543)
+        )
+        query = parse_qsl(parsed.query, keep_blank_values=True)
+        safe_query = len(query) <= 1 and all(key.lower() == "sslmode" and value.lower() in ("require", "verify-ca", "verify-full") for key, value in query)
+        if scheme not in ("postgres", "postgresql") or parsed.path != "/postgres" or not safe_query or not (direct or pooler):
+            _reject_target(database_url, host or "unknown host")
 
 
 def get_conn():
