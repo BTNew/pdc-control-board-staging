@@ -13,8 +13,13 @@ do $$ declare d jsonb; x jsonb; got text; begin
  if encode(extensions.hmac(public.pdc_auditor_signing_bytes_253(d->'envelope'->'value'),decode(d->'envelope'->>'hmac_key_hex','hex'),'sha256'),'hex')<>d->'envelope'->>'signature_hex' then raise exception 'HMAC mismatch';end if;
 end $$;
 
--- Catalog/ACL checks that do not require live Supabase.
+-- Catalog/ACL and authentic predecessor-ledger checks that do not require live Supabase.
 do $$ declare t text; begin
+ if exists(select 1 from supabase_migrations.schema_migrations where name='baseline_head') then raise exception 'synthetic predecessor ledger found'; end if;
+ if (select jsonb_object_agg(version,name order by version::int) from supabase_migrations.schema_migrations where version::int between 239 and 250)
+    is distinct from '{"239":"workshop_admin_role_enum_cast","240":"workshop_admin_account_state_guard","241":"workshop_admin_undo_ambiguous_booking_fix","242":"workshop_admin_undo_alias_collision_fix","243":"craig_vehicle_drag_parts_non_blocking","244":"workshop_admin_authority_intent_receipt_undo","245":"workshop_admin_create_undo_audit_order","246":"workshop_admin_intent_hash_schema","247":"workshop_admin_null_role_fail_closed","248":"workshop_admin_create_undo_history_identity","249":"workshop_admin_create_undo_history_order","250":"revoke_service_role_legacy_workshop_rpc"}'::jsonb then
+   raise exception 'authentic predecessor ledger mismatch';
+ end if;
  foreach t in array array['pdc_auditor_gateway_keys_253','pdc_auditor_signed_deliveries_253','pdc_auditor_signed_delivery_results_253','pdc_auditor_typed_plans_253','pdc_auditor_typed_plan_items_253','pdc_auditor_typed_runs_253','pdc_auditor_typed_scope_receipts_253','pdc_auditor_typed_change_receipts_253','pdc_auditor_typed_undo_receipts_253'] loop
   if not (select relrowsecurity from pg_class where oid=('public.'||t)::regclass) then raise exception '% RLS disabled',t;end if;
   if has_table_privilege('authenticated','public.'||t,'SELECT,INSERT,UPDATE,DELETE') then raise exception '% client privilege leak',t;end if;
