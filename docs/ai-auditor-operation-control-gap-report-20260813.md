@@ -1,6 +1,8 @@
 # AI Auditor implementation-ready gap report
 
-Source baseline reviewed: `6132e8571a054af7f66d691b3af26ae773ca9517`; this report is committed with the regression/security candidate and must be rebound to that final exact SHA after the final review commit.
+Source baseline reviewed: `6132e8571a054af7f66d691b3af26ae773ca9517`.
+
+Final source candidate reviewed by this report: `8c953f43237a7e0cda690ffdaddfff067345fac5`. This document-only follow-up commit changes no reviewed runtime, migration or test artifact; its own exact SHA is reported in the final task evidence.
 
 Scope: source inspection only. No profile, mailbox, gateway, credential, staging database, staging record, Pages, migration or production access was used.
 
@@ -60,5 +62,5 @@ This is **not deployment-ready**. The installation handoff explicitly blocks act
 - Realtime operation-control consumer: **not implemented; activation blocker** because the browser listens to the old Stage A revision table.
 - Separate Apply confirmation UX: **not implemented**; non-review runtime commands currently plan and immediately call Apply.
 - Migrations 225–231 lack focused SQL-contract and database-execution tests; existing runtime/Stage-A tests do not prove installation, scoped denials, database Apply/Undo, two-session Realtime or booking/vehicle postconditions.
-- Administrator closure migration: **drafted as append-only migration 251 with a focused static contract; not applied**. It closes the current and retained pre-116 cascade-move signatures plus all other legacy scheduling/move/resize/bay-change RPCs. The separate Auditor add/split/combine/reorder schema still requires a later independently reviewed migration beyond 251.
+- Administrator closure migration: **drafted as append-only migration 251 with a focused static contract; not applied**. It closes all eight identified legacy signatures, including retained pre-087 cascade-schedule and pre-116 cascade-move implementations. It also privatizes the pre-251 Administrator create implementation and exposes an authenticated-only wrapper that rejects explicit null `p_cascade`, keeping request intent, execution path and receipt state identical. The separate Auditor add/split/combine/reorder schema still requires a later independently reviewed migration beyond 251.
 - Deployment/activation: **not performed and not authorised**.
