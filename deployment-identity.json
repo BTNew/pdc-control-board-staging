@@ -1,16 +1,16 @@
 {
   "environment": "staging",
-  "application_version": "2026.08.13.39-workshop-tile-authority",
-  "source_commit": "62c67771e6204f13917867a9ed4fff1cb246e175",
-  "parent_staging_commit": "998f4170c5881f203501ba1db19d88e8685cd83b",
+  "application_version": "2026.08.13.40-workshop-admin-tile-moves",
+  "source_commit": "1df2d72bde41dc88a8f2d7f14009ebac6eec8435",
+  "parent_staging_commit": "7077f85b49d52bae42947402bbfbfb98f0003a13",
   "staging_project_ref": "cdsmnqxtyyoeoznmbidd",
   "production_unchanged": true,
   "main_unchanged": true,
   "dns_unchanged": true,
   "pilot_activation_changed": false,
   "mailbox_runtime_changed": false,
-  "deployed_at_utc": "2026-08-12T22:13:58.417157+00:00",
-  "database_migration_head": 236,
+  "deployed_at_utc": "2026-08-13T01:12:33.188411+00:00",
+  "database_migration_head": 238,
   "database_migrations": {
     "232": {
       "name": "workshop_mechanic_bay_assignment_repair",
@@ -41,6 +41,16 @@
       "source_path": "supabase/staging_only/236_complete_authorised_operation_rules.sql",
       "sha256": "1d745084da2593711d65eb60566bf905cf2c760523f54935415f64026a81f1a5",
       "bytes": 3674
+    },
+    "237": {
+      "name": "workshop_snapshot_calendar_performance",
+      "source_path": "supabase/staging_only/237_workshop_snapshot_calendar_performance.sql"
+    },
+    "238": {
+      "name": "workshop_admin_tile_move_receipts_and_undo",
+      "source_path": "supabase/staging_only/238_workshop_admin_tile_move_receipts_and_undo.sql",
+      "sha256": "aefb774972b221c8a335f5653530b7fa2184bbaedac5c11def72c6e9436bb211",
+      "bytes": 14543
     }
   },
   "files": {
@@ -181,8 +191,8 @@
     },
     "workshop-data-service.js": {
       "source_path": "workshop-data-service.js",
-      "sha256": "480cb424662e06e354f05d7ea8190234756cb220aa26f1bf5ff1877d7b591c1b",
-      "bytes": 23076
+      "sha256": "28389450519d951c8297f6869e7fb54b38dcbbeb43396d7de85c18e1525ce1d2",
+      "bytes": 23966
     },
     "workshop-eligibility.js": {
       "source_path": "workshop-eligibility.js",
@@ -201,8 +211,8 @@
     },
     "workshop-planner.js": {
       "source_path": "workshop-planner.js",
-      "sha256": "3429776763898e7fab40d4a474b4a4c767f1f61eca41018ae72e59439098cc63",
-      "bytes": 347345
+      "sha256": "8a99a8171ce4bb9bcfbfff5c4a88988f5ffe865802e448778c82fef03d2d5fe6",
+      "bytes": 355439
     },
     "workshop-realtime.js": {
       "source_path": "workshop-realtime.js",
@@ -216,8 +226,8 @@
     },
     "workshop-shared-actions.js": {
       "source_path": "workshop-shared-actions.js",
-      "sha256": "8a5a18064cb2bf63a64f4a708a08e9ddad1a398d687e1704c482e6732bfd52c7",
-      "bytes": 9497
+      "sha256": "7215b427ac6089e5976c82026bc64ad85366f33f0e950c58875cd5a5330a68ec",
+      "bytes": 10683
     },
     "index.html": {
       "source_path": "staging.html",

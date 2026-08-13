@@ -235,6 +235,29 @@ function buildWorkshopSharedActions(dataService) {
       });
     },
 
+    administratorMoveBooking({ bookingId, expectedVersion, stageCode, bayNumber, scheduledStartAt, durationMinutes, overrideReason = null, metadata = {}, requestId, cascade = false }) {
+      return mutate('administrator_move_workshop_booking', {
+        p_booking_id: bookingId,
+        p_expected_version: expectedVersion,
+        p_stage_code: stageCode,
+        p_bay_number: bayNumber,
+        p_scheduled_start_at: scheduledStartAt,
+        p_duration_minutes: durationMinutes,
+        p_override_reason: overrideReason,
+        p_metadata: metadata,
+        p_request_id: requestId,
+        p_cascade: cascade,
+      });
+    },
+
+    undoAdministratorBookingMove({ receiptId, expectedVersion, requestId }) {
+      return mutate('undo_administrator_workshop_booking_move', {
+        p_receipt_id: receiptId,
+        p_expected_version: expectedVersion,
+        p_request_id: requestId,
+      });
+    },
+
     deleteAdminBlock({ blockId, expectedVersion, reason, metadata }) {
       return mutate('delete_workshop_admin_block', {
         p_block_id: blockId,
