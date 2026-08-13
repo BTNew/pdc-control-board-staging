@@ -198,8 +198,30 @@ create function public.pdc_auditor_verify_envelope_253(p_purpose text,p_envelope
 declare k public.pdc_auditor_gateway_keys_253%rowtype;actor jsonb;signing bytea;reqhash text;d public.pdc_auditor_signed_deliveries_253%rowtype;result jsonb;telegram jsonb;issued timestamptz;expires timestamptz;delivery uuid;
 begin
  if jsonb_typeof(p_envelope)<>'object' or (select array_agg(x order by x) from jsonb_object_keys(p_envelope)x) is distinct from array['delivery_uuid','expires_at','gateway_instance_id','instruction_sha256','issued_at','key_id','nonce','selected_scope','signature','telegram_evidence']::text[] then raise exception 'PDC_253_INVALID_ENVELOPE_FIELDS' using errcode='22023';end if;
+ if jsonb_typeof(p_envelope->'gateway_instance_id')<>'string'
+    or jsonb_typeof(p_envelope->'delivery_uuid')<>'string'
+    or jsonb_typeof(p_envelope->'key_id')<>'string'
+    or jsonb_typeof(p_envelope->'nonce')<>'string'
+    or jsonb_typeof(p_envelope->'instruction_sha256')<>'string'
+    or jsonb_typeof(p_envelope->'signature')<>'string' then raise exception 'PDC_253_INVALID_ENVELOPE_VALUE' using errcode='22023';end if;
  telegram:=p_envelope->'telegram_evidence';
  if jsonb_typeof(telegram)<>'object' or (select array_agg(x order by x) from jsonb_object_keys(telegram)x) is distinct from array['bot_identity','instruction_sha256','original_instruction','telegram_chat_id','telegram_message_id','telegram_sender_id','telegram_update_id']::text[] then raise exception 'PDC_253_INVALID_TELEGRAM_EVIDENCE' using errcode='22023';end if;
+ if jsonb_typeof(telegram->'bot_identity')<>'string'
+    or jsonb_typeof(telegram->'instruction_sha256')<>'string'
+    or jsonb_typeof(telegram->'original_instruction')<>'string'
+    or jsonb_typeof(telegram->'telegram_chat_id')<>'number'
+    or jsonb_typeof(telegram->'telegram_message_id')<>'number'
+    or jsonb_typeof(telegram->'telegram_sender_id')<>'number'
+    or jsonb_typeof(telegram->'telegram_update_id')<>'number' then raise exception 'PDC_253_INVALID_TELEGRAM_EVIDENCE' using errcode='22023';end if;
+ if telegram->>'bot_identity'=''
+    or telegram->>'telegram_chat_id' !~ '^[1-9][0-9]{0,18}$'
+    or telegram->>'telegram_message_id' !~ '^[1-9][0-9]{0,18}$'
+    or telegram->>'telegram_sender_id' !~ '^[1-9][0-9]{0,18}$'
+    or telegram->>'telegram_update_id' !~ '^[1-9][0-9]{0,18}$'
+    or (telegram->>'telegram_chat_id')::numeric>9223372036854775807
+    or (telegram->>'telegram_message_id')::numeric>9223372036854775807
+    or (telegram->>'telegram_sender_id')::numeric>9223372036854775807
+    or (telegram->>'telegram_update_id')::numeric>9223372036854775807 then raise exception 'PDC_253_INVALID_TELEGRAM_EVIDENCE' using errcode='22023';end if;
  if jsonb_typeof(p_envelope->'issued_at')<>'string' or jsonb_typeof(p_envelope->'expires_at')<>'string' or p_envelope->>'issued_at' !~ '^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,6})?Z$' or p_envelope->>'expires_at' !~ '^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,6})?Z$' then raise exception 'PDC_253_ENVELOPE_TIME_INVALID' using errcode='22023';end if;
  issued:=(p_envelope->>'issued_at')::timestamptz;expires:=(p_envelope->>'expires_at')::timestamptz;
  if issued>clock_timestamp()+interval '30 seconds' or expires<=clock_timestamp() or expires<=issued or expires-issued>interval '300 seconds' then raise exception 'PDC_253_ENVELOPE_TIME_INVALID' using errcode='22023';end if;

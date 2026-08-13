@@ -4282,6 +4282,14 @@ window.addEventListener?.('pdc-auth-ready', () => {
   initEmailVehicleLocationsIfAvailable();
 });
 
+// Silent refresh and same-principal foreground sign-in retain the proven role
+// monitor, but every signed Auditor receipt is bound to the exact access token.
+// Revoke those controls synchronously when pdc-auth.js rotates that token.
+window.addEventListener?.('pdc-auth-token-changed', () => {
+  resetPdcAuditorAuthorityState();
+  if (app.currentView === 'ai-auditor') loadPdcAuditorSnapshot({ force: true });
+});
+
 // Independent-review remediation, finding #5 / critical blocker #5:
 // pdc-auth.js now subscribes every signed-in browser to its own
 // pdc_user_roles row and fires 'pdc-auth-locked' the instant that row

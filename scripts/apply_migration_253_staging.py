@@ -224,10 +224,10 @@ def main() -> int:
     if resolved != args.expected_commit or not re.fullmatch(r"[0-9a-f]{40}", args.expected_commit):
         raise RuntimeError("expected commit did not resolve to the exact full SHA")
     head = git("rev-parse", "HEAD").decode().strip()
-    tracked_dirty = git("status", "--porcelain=v1", "--untracked-files=no").decode().strip()
+    worktree_residue = git("status", "--porcelain=v1", "--untracked-files=all").decode().strip()
     staged_dirty = git("diff", "--cached", "--name-only").decode().strip()
-    if resolved != args.expected_commit or head != args.expected_commit or tracked_dirty or staged_dirty:
-        raise RuntimeError("exact reviewed commit/clean tracked worktree required")
+    if resolved != args.expected_commit or head != args.expected_commit or worktree_residue or staged_dirty:
+        raise RuntimeError("exact reviewed commit/pristine worktree required")
     runtime = load_repo_helper("pdc_staging_runtime_exact_253", "scripts/pdc_staging_runtime.py")
     assert_staging_target = runtime.assert_staging_target
     load_local_env = runtime.load_local_env

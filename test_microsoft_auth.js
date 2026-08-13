@@ -397,6 +397,7 @@ async function testAuthGenerationOwnership() {
   const refreshAuthGeneration = internals.state.authGeneration;
   const refreshRoleChannel = internals.state.ownRoleChannel;
   const refreshLockCount = lockedObservations.length;
+  const refreshTokenEventCount = events.filter(event => event.type === 'pdc-auth-token-changed').length;
   const refreshedSessionB = { ...sessionB, access_token: 'session-b-refreshed-token' };
   roleResponses.push(Promise.resolve(approvedFor('b@example.com', 'viewer')));
   authStateCallback('TOKEN_REFRESHED', refreshedSessionB);
@@ -407,6 +408,8 @@ async function testAuthGenerationOwnership() {
   assert.strictEqual(internals.state.authGeneration, refreshAuthGeneration, 'same-user token refresh does not revoke/revalidate authority');
   assert.strictEqual(internals.state.ownRoleChannel, refreshRoleChannel, 'same-user token refresh retains the proven own-role monitor');
   assert.strictEqual(lockedObservations.length, refreshLockCount, 'same-user token refresh emits no authority lock event');
+  assert.strictEqual(events.filter(event => event.type === 'pdc-auth-token-changed').length, refreshTokenEventCount + 1, 'same-user token refresh synchronously publishes token-bound authority invalidation');
+  assert.strictEqual(events.filter(event => event.type === 'pdc-auth-token-changed').at(-1)?.detail?.reason, 'token-refreshed', 'token refresh event exposes only a non-secret reason');
   assert.strictEqual(raceContext.window.PDC_AUTH_CONTEXT.userId, 'B', 'same-user token refresh retains approved context');
 
   // Supabase also emits SIGNED_IN for an already-signed-in user when a tab
@@ -421,6 +424,7 @@ async function testAuthGenerationOwnership() {
   const foregroundReadyCount = events.filter(event => event.type === 'pdc-auth-ready').length;
   const foregroundHistoryCount = historyReplacements;
   const foregroundServiceStopCount = serviceStops;
+  const foregroundTokenEventCount = events.filter(event => event.type === 'pdc-auth-token-changed').length;
   const foregroundSessionB = { ...refreshedSessionB, access_token: 'session-b-foreground-token' };
   authStateCallback('SIGNED_IN', foregroundSessionB);
   await new Promise(resolve => setTimeout(resolve, 0));
@@ -436,6 +440,8 @@ async function testAuthGenerationOwnership() {
   assert.strictEqual(events.filter(event => event.type === 'pdc-auth-ready').length, foregroundReadyCount, 'same-user foreground SIGNED_IN emits no duplicate ready event');
   assert.strictEqual(historyReplacements, foregroundHistoryCount, 'same-user foreground SIGNED_IN does not mutate route/history state');
   assert.strictEqual(serviceStops, foregroundServiceStopCount, 'same-user foreground SIGNED_IN does not tear down application services');
+  assert.strictEqual(events.filter(event => event.type === 'pdc-auth-token-changed').length, foregroundTokenEventCount + 1, 'same-user foreground token replacement invalidates token-bound authority');
+  assert.strictEqual(events.filter(event => event.type === 'pdc-auth-token-changed').at(-1)?.detail?.reason, 'session-token-replaced', 'foreground replacement event exposes only a non-secret reason');
   assert.strictEqual(raceContext.window.PDC_AUTH_CONTEXT.userId, 'B', 'same-user foreground SIGNED_IN retains approved context');
 
   // A matching identity is not sufficient without the installed monitor.

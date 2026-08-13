@@ -177,6 +177,29 @@ class TypedIntentTests(unittest.TestCase):
 
 
 class GatewayEnvelopeTests(unittest.TestCase):
+    def test_telegram_evidence_values_are_typed_before_signature_use(self):
+        text = "Review duplicate bullbars"
+        scope = intent({"operation_refs": [SRC1, SRC2]}, "remove_duplicate",
+            duplicate_proof="database_exact", survivor_operation_ref=SRC1)
+        for field in ("original_instruction", "bot_identity", "instruction_sha256"):
+            for wrong in (123, True, None, [], {}):
+                envelope = signed_envelope(text, scope)
+                envelope["telegram_evidence"] = dict(envelope["telegram_evidence"], **{field: wrong})
+                envelope["signature"] = hmac.new(KEY, runtime.gateway_signing_bytes(envelope), hashlib.sha256).hexdigest()
+                with self.subTest(field=field, wrong=wrong), self.assertRaisesRegex(
+                        runtime.AuditorContractError, "telegram evidence value is invalid"):
+                    runtime.validate_gateway_envelope(envelope, instruction=text, selected_scope=scope,
+                        key_resolver=lambda _: KEY, now=NOW)
+        for field in ("telegram_sender_id", "telegram_chat_id", "telegram_message_id", "telegram_update_id"):
+            for wrong in ("123", True, None, [], {}, 0, -1, 1.5, 9223372036854775808):
+                envelope = signed_envelope(text, scope)
+                envelope["telegram_evidence"] = dict(envelope["telegram_evidence"], **{field: wrong})
+                envelope["signature"] = hmac.new(KEY, runtime.gateway_signing_bytes(envelope), hashlib.sha256).hexdigest()
+                with self.subTest(field=field, wrong=wrong), self.assertRaisesRegex(
+                        runtime.AuditorContractError, "telegram evidence value is invalid"):
+                    runtime.validate_gateway_envelope(envelope, instruction=text, selected_scope=scope,
+                        key_resolver=lambda _: KEY, now=NOW)
+
     def test_runtime_rejects_key_shorter_than_database_minimum(self):
         text = "Review duplicate bullbars"
         scope = intent({"operation_refs": [SRC1, SRC2]}, "remove_duplicate",

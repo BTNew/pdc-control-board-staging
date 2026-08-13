@@ -437,6 +437,13 @@ def validate_gateway_envelope(envelope: Any, *, instruction: str,
     nested = value.get("telegram_evidence")
     if not isinstance(nested, dict) or set(nested) != TELEGRAM_EVIDENCE_KEYS:
         raise AuditorContractError("telegram evidence keys are invalid")
+    for key in ("original_instruction", "bot_identity", "instruction_sha256"):
+        if not isinstance(nested[key], str):
+            raise AuditorContractError("telegram evidence value is invalid")
+    for key in ("telegram_sender_id", "telegram_chat_id", "telegram_message_id", "telegram_update_id"):
+        if (isinstance(nested[key], bool) or not isinstance(nested[key], int)
+                or not 1 <= nested[key] <= 9223372036854775807):
+            raise AuditorContractError("telegram evidence value is invalid")
     if telegram_evidence is not None and canonical_json(nested) != canonical_json(dict(telegram_evidence)):
         raise AuditorContractError("gateway telegram evidence does not match")
     if nested["original_instruction"] != instruction or nested["instruction_sha256"].lower() != expected_hash:

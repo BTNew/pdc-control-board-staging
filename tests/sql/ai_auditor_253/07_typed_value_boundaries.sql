@@ -60,4 +60,48 @@ begin
  if accepted->>'code'<>'typed_review_proposal_created' then raise exception 'canonical integral exponent direct add rejected: %',accepted;end if;
 end$$;
 
+-- Signed scalar identifiers must retain the same JSON string types enforced by
+-- the Python gateway boundary. PostgreSQL must not silently coerce numbers,
+-- booleans, arrays, objects, or null through ->> before signature verification.
+do $$
+declare scope jsonb;env jsonb;field text;wrong jsonb;unexpected jsonb;
+begin
+ scope:=jsonb_build_object('contract','pdc-auditor-bounded-intent-253-v1','action','add','apply_unambiguous',true,'selector',jsonb_build_object('vehicle_id','20000000-0000-4000-8000-000000000010'),'desire',jsonb_build_object('new_value',jsonb_build_object('description','typed envelope probe','estimated_hours',1.5,'operation_code','TYPE','work_key','hoist')));
+ foreach field in array array['gateway_instance_id','delivery_uuid','key_id','nonce','instruction_sha256','signature'] loop
+  foreach wrong in array array['1234567890123456'::jsonb,'true'::jsonb,'null'::jsonb,'[]'::jsonb,'{}'::jsonb] loop
+   env:=pg_temp.envelope7('Typed envelope scalar rejection '||field||wrong::text,scope,gen_random_uuid(),'typed-envelope-'||field||'-'||substr(md5(wrong::text),1,12));
+   env:=jsonb_set(env,array[field],wrong);
+   -- Type validation precedes signature verification, so a non-string scalar
+   -- must receive the same rejection regardless of the now-stale signature.
+   begin
+    unexpected:=public.plan_pdc_auditor_typed_instruction_253('add','review',scope,env);
+    raise exception 'direct signed planner accepted non-string % (%): %',field,jsonb_typeof(wrong),unexpected;
+   exception when sqlstate '22023' then if sqlerrm<>'PDC_253_INVALID_ENVELOPE_VALUE' then raise exception 'wrong non-string % rejection: %',field,sqlerrm;end if;
+   end;
+  end loop;
+ end loop;
+end$$;
+
+do $$
+declare scope jsonb;env jsonb;field text;wrong jsonb;unexpected jsonb;
+begin
+ scope:=jsonb_build_object('contract','pdc-auditor-bounded-intent-253-v1','action','add','apply_unambiguous',true,'selector',jsonb_build_object('vehicle_id','20000000-0000-4000-8000-000000000010'),'desire',jsonb_build_object('new_value',jsonb_build_object('description','typed Telegram evidence probe','estimated_hours',1.5,'operation_code','TYPE','work_key','hoist')));
+ foreach field in array array['bot_identity','instruction_sha256','original_instruction'] loop
+  foreach wrong in array array['123'::jsonb,'true'::jsonb,'null'::jsonb,'[]'::jsonb,'{}'::jsonb] loop
+   env:=pg_temp.envelope7('Typed Telegram string rejection '||field||wrong::text,scope,gen_random_uuid(),'typed-telegram-'||field||'-'||substr(md5(wrong::text),1,12));
+   env:=jsonb_set(env,array['telegram_evidence',field],wrong);
+   begin unexpected:=public.plan_pdc_auditor_typed_instruction_253('add','review',scope,env);raise exception 'planner accepted non-string Telegram %: %',field,unexpected;
+   exception when sqlstate '22023' then if sqlerrm<>'PDC_253_INVALID_TELEGRAM_EVIDENCE' then raise exception 'wrong Telegram % rejection: %',field,sqlerrm;end if;end;
+  end loop;
+ end loop;
+ foreach field in array array['telegram_chat_id','telegram_message_id','telegram_sender_id','telegram_update_id'] loop
+  foreach wrong in array array['"123"'::jsonb,'true'::jsonb,'null'::jsonb,'[]'::jsonb,'{}'::jsonb,'0'::jsonb,'-1'::jsonb,'1.5'::jsonb,'9223372036854775808'::jsonb] loop
+   env:=pg_temp.envelope7('Typed Telegram number rejection '||field||wrong::text,scope,gen_random_uuid(),'typed-telegram-'||field||'-'||substr(md5(wrong::text),1,12));
+   env:=jsonb_set(env,array['telegram_evidence',field],wrong);
+   begin unexpected:=public.plan_pdc_auditor_typed_instruction_253('add','review',scope,env);raise exception 'planner accepted non-number Telegram %: %',field,unexpected;
+   exception when sqlstate '22023' then if sqlerrm<>'PDC_253_INVALID_TELEGRAM_EVIDENCE' then raise exception 'wrong Telegram % rejection: %',field,sqlerrm;end if;end;
+  end loop;
+ end loop;
+end$$;
+
 select 'AI_AUDITOR_253_TYPED_VALUE_BOUNDARIES_PASS' result;

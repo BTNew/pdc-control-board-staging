@@ -697,9 +697,20 @@
       // Any different user, absent context/monitor, or blocked session still
       // takes the full fail-closed applySession() path below.
       if (canContinueAuthorizedSession(event, session)) {
+        const previousAccessToken = window.__pdcCachedAccessToken || null;
         state.session = session;
         state.user = session.user;
         window.__pdcCachedAccessToken = session.access_token || null;
+        // Receipts and in-flight browser operations are bound to the exact JWT
+        // that obtained them. Publish a non-secret authority-generation event
+        // synchronously after installing a replacement token so listeners can
+        // discard stale controls before this callback returns. This deliberately
+        // does not tear down the proven own-role monitor or application shell.
+        if (previousAccessToken !== window.__pdcCachedAccessToken) {
+          window.dispatchEvent(new CustomEvent('pdc-auth-token-changed', {
+            detail: { reason: event === 'TOKEN_REFRESHED' ? 'token-refreshed' : 'session-token-replaced' },
+          }));
+        }
         // Keep the hourly provider refresh as a secondary role-authority
         // reconciliation even while the live role monitor remains subscribed.
         // Revalidation runs without tearing down a proven context; any denial,

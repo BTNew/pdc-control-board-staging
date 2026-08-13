@@ -29,6 +29,28 @@ assert.strictEqual(context.app.pdcAuditorOperationOwner,null,'auth reset must re
 assert.strictEqual(rendered,1,'auth reset must immediately rerender disabled operation controls');
 console.log('AI Auditor auth-change operation-state teardown passed');
 
+// The auth module's same-principal continuity path does not emit auth-ready or
+// auth-locked. Its dedicated token-change event must still invoke the exact
+// Auditor teardown synchronously before any optional refresh starts.
+const tokenListenerStart = source.indexOf("window.addEventListener?.('pdc-auth-token-changed'");
+const tokenListenerEnd = source.indexOf('// Independent-review remediation', tokenListenerStart);
+assert.ok(tokenListenerStart >= 0 && tokenListenerEnd > tokenListenerStart, 'token-change Auditor listener must be extractable');
+let tokenChangedHandler = null;
+let tokenResetCount = 0;
+let tokenReloadCount = 0;
+const tokenContext = vm.createContext({
+  app: { currentView:'ai-auditor' },
+  window: { addEventListener(type, handler) { if (type === 'pdc-auth-token-changed') tokenChangedHandler = handler; } },
+  resetPdcAuditorAuthorityState() { tokenResetCount += 1; },
+  loadPdcAuditorSnapshot(options) { assert.strictEqual(options?.force,true); tokenReloadCount += 1; },
+});
+vm.runInContext(source.slice(tokenListenerStart, tokenListenerEnd),tokenContext);
+assert.strictEqual(typeof tokenChangedHandler,'function','token-change listener must register');
+tokenChangedHandler();
+assert.strictEqual(tokenResetCount,1,'token change must synchronously revoke token-bound Auditor operation state');
+assert.strictEqual(tokenReloadCount,1,'visible Auditor view may reload only after synchronous revocation');
+console.log('AI Auditor token-refresh operation-state teardown passed');
+
 (async()=>{
   const asyncSource = fs.readFileSync('app.js','utf8').replace(/\r\n/g,'\n');
   const blockStart = asyncSource.indexOf('function pdcAuditorOperationGatewayConfig()');
