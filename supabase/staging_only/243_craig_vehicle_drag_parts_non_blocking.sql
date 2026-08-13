@@ -183,4 +183,8 @@ grant execute on function public.administrator_schedule_workshop_vehicle(uuid,in
 revoke all on function public.undo_administrator_workshop_booking_move(uuid,integer,uuid) from public,anon,authenticated;
 grant execute on function public.undo_administrator_workshop_booking_move(uuid,integer,uuid) to authenticated;
 
+insert into supabase_migrations.schema_migrations(version,statements,name)
+values('243',array['staging append-only migration 243 applied from exact source candidate'],'craig_vehicle_drag_parts_non_blocking')
+on conflict(version) do nothing;
+
 commit;
