@@ -1953,6 +1953,8 @@ const app = {
   pdcAuditorPage: 0,
   pdcAuditorDecisionInFlight: false,
   pdcAuditorDecisionMessage: '',
+  pdcAuditorPendingOperation: null,
+  pdcAuditorOperationBusy: false,
   pdcAuditorDocumentProposals: [],
   emailVehicleLocationService: null,
   emailVehicleLocationRows: [],
@@ -3022,6 +3024,9 @@ function bindNav() {
   on($('#ai-auditor-severity-filter'), 'change', event => { app.pdcAuditorSeverityFilter = event.target.value || 'all'; renderPdcAuditor(); });
   on($('#ai-auditor-category-filter'), 'change', event => { app.pdcAuditorCategoryFilter = event.target.value || 'all'; renderPdcAuditor(); });
   on($('#ai-auditor-search'), 'input', event => { app.pdcAuditorSearch = String(event.target.value || ''); renderPdcAuditor(); });
+  on($('#ai-auditor-operation-refresh'), 'click', () => loadPdcAuditorPendingOperation());
+  on($('#ai-auditor-operation-apply'), 'click', () => confirmPdcAuditorPendingOperation('apply'));
+  on($('#ai-auditor-operation-undo'), 'click', () => confirmPdcAuditorPendingOperation('undo'));
   $$('[data-ai-auditor-report]').forEach(button => {
     button.addEventListener('click', () => selectPdcAuditorReport(button.dataset.aiAuditorReport));
     button.addEventListener('keydown', event => {
@@ -19101,6 +19106,83 @@ function createPdcAuditorSnapshotService({ config = {}, getAccessToken = () => n
     invalidate,
     destroy,
   };
+}
+
+function pdcAuditorOperationGatewayConfig() {
+  const configured = window.PDC_SUPABASE_CONFIG?.auditorOperationGateway || {};
+  const url = String(configured.url || '').trim().replace(/\/$/, '');
+  const instance = String(configured.instanceId || '').trim();
+  if (!/^https:\/\/[a-z0-9.-]+(?::\d+)?(?:\/[^\s]*)?$/i.test(url) || !/^[A-Za-z0-9._:-]{3,80}$/.test(instance)) return null;
+  return { url, instance };
+}
+
+function pdcAuditorOperationReceipt(value) {
+  if (!value || typeof value !== 'object' || !['none', 'pending_apply', 'undo_available', 'completed'].includes(value.state)) return null;
+  const clean = { state: value.state, instance_id: String(value.instance_id || ''), message: String(value.message || '').slice(0, 300) };
+  if (value.state === 'pending_apply') {
+    const fields = ['proposal_id', 'proposal_hash', 'typed_item_set_hash', 'final_scope_hash', 'expected_row_versions_hash'];
+    if (!/^[0-9a-f-]{36}$/i.test(value.proposal_id) || fields.slice(1).some(field => !/^[0-9a-f]{64}$/.test(String(value[field] || '')))
+        || !Number.isInteger(value.proposal_version) || value.proposal_version < 1) return null;
+    Object.assign(clean, Object.fromEntries(fields.map(field => [field, String(value[field])])), { proposal_version: value.proposal_version });
+  }
+  if (value.state === 'undo_available' && (!/^[0-9a-f-]{36}$/i.test(value.run_id) || !/^[0-9a-f]{64}$/.test(String(value.run_revision_after || '')))) return null;
+  if (value.state === 'undo_available') Object.assign(clean, { run_id: String(value.run_id), run_revision_after: String(value.run_revision_after) });
+  return clean;
+}
+
+function renderPdcAuditorPendingOperation() {
+  const host = $('#ai-auditor-operation-state');
+  const applyButton = $('#ai-auditor-operation-apply');
+  const undoButton = $('#ai-auditor-operation-undo');
+  if (!host || !applyButton || !undoButton) return;
+  const config = pdcAuditorOperationGatewayConfig();
+  const admin = String(window.PDC_AUTH_CONTEXT?.role || '').toLowerCase() === 'administrator';
+  const pending = app.pdcAuditorPendingOperation;
+  const available = Boolean(config && admin && getPdcSupabaseAccessToken() && !app.pdcAuditorOperationBusy);
+  applyButton.disabled = !(available && pending?.state === 'pending_apply');
+  undoButton.disabled = !(available && pending?.state === 'undo_available');
+  if (!config) { host.innerHTML = '<strong>Signed gateway not configured</strong><span>Apply and Undo are disabled. No direct database fallback exists.</span>'; return; }
+  if (!admin) { host.innerHTML = '<strong>Administrator authority required</strong><span>Viewer, Operator, Monitor and scoped bot identities cannot confirm browser operations.</span>'; return; }
+  if (!pending) { host.innerHTML = '<strong>No trusted pending receipt</strong><span>Refresh the separate signed gateway before confirming anything.</span>'; return; }
+  if (pending.state === 'pending_apply') host.innerHTML = `<strong>Pending exact proposal ${escapeHtml(pending.proposal_id)}</strong><span>Version ${pending.proposal_version} · plan ${escapeHtml(pending.proposal_hash)}</span>`;
+  else if (pending.state === 'undo_available') host.innerHTML = `<strong>Undo available for exact run ${escapeHtml(pending.run_id)}</strong><span>After-state ${escapeHtml(pending.run_revision_after)}</span>`;
+  else host.innerHTML = `<strong>No pending operation</strong><span>${escapeHtml(pending.message || 'The signed gateway reported no confirmable operation.')}</span>`;
+}
+
+async function callPdcAuditorOperationGateway(action) {
+  const config = pdcAuditorOperationGatewayConfig();
+  const token = getPdcSupabaseAccessToken();
+  if (!config || !token || String(window.PDC_AUTH_CONTEXT?.role || '').toLowerCase() !== 'administrator') return null;
+  const pending = app.pdcAuditorPendingOperation;
+  const confirmation = action === 'apply' ? 'Apply these corrections' : action === 'undo' ? 'Undo exact last run' : null;
+  const binding = action === 'apply' ? pending?.proposal_id : action === 'undo' ? pending?.run_id : null;
+  const response = await fetch(`${config.url}/v1/auditor-operation/${action}`, { method: action === 'status' ? 'GET' : 'POST',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', 'X-PDC-Auditor-Gateway': config.instance },
+    body: action === 'status' ? undefined : JSON.stringify({ confirmation, binding }) });
+  if (!response.ok) throw new Error(`gateway_${response.status}`);
+  const receipt = pdcAuditorOperationReceipt(await response.json());
+  if (!receipt || receipt.instance_id !== config.instance) throw new Error('invalid_gateway_receipt');
+  return receipt;
+}
+
+async function loadPdcAuditorPendingOperation() {
+  if (app.pdcAuditorOperationBusy) return false;
+  app.pdcAuditorOperationBusy = true; app.pdcAuditorPendingOperation = null; renderPdcAuditorPendingOperation();
+  try { app.pdcAuditorPendingOperation = await callPdcAuditorOperationGateway('status'); return Boolean(app.pdcAuditorPendingOperation); }
+  catch (_error) { return false; }
+  finally { app.pdcAuditorOperationBusy = false; renderPdcAuditorPendingOperation(); }
+}
+
+async function confirmPdcAuditorPendingOperation(action) {
+  if (app.pdcAuditorOperationBusy || !['apply', 'undo'].includes(action)) return false;
+  const pending = app.pdcAuditorPendingOperation;
+  if ((action === 'apply' && pending?.state !== 'pending_apply') || (action === 'undo' && pending?.state !== 'undo_available')) return false;
+  const exact = action === 'apply' ? `${pending.proposal_id} / ${pending.proposal_hash}` : `${pending.run_id} / ${pending.run_revision_after}`;
+  if (!window.confirm(`${action === 'apply' ? 'Apply' : 'Undo'} exact signed operation?\n${exact}`)) return false;
+  app.pdcAuditorOperationBusy = true; renderPdcAuditorPendingOperation();
+  try { app.pdcAuditorPendingOperation = await callPdcAuditorOperationGateway(action); await loadPdcAuditorSnapshot({ force: true }); return true; }
+  catch (_error) { app.pdcAuditorPendingOperation = null; return false; }
+  finally { app.pdcAuditorOperationBusy = false; renderPdcAuditorPendingOperation(); }
 }
 
 function pdcAuditorCategory(value = '') {

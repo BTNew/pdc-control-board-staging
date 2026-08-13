@@ -10,7 +10,7 @@ const css = fs.readFileSync(path.join(root, 'styles.css'), 'utf8');
 const dataService = fs.readFileSync(path.join(root, 'workshop-data-service.js'), 'utf8').replace(/\r\n/g, '\n');
 const auth = fs.readFileSync(path.join(root, 'pdc-auth.js'), 'utf8');
 const start = app.indexOf('function aiBoardNormalizeStockIdentity');
-const end = app.indexOf('function loadAiFileAssistantReviews');
+const end = app.indexOf('function pdcAuditorOperationGatewayConfig');
 assert.ok(start >= 0 && end > start, 'Phase Two advisor adapter/renderer block must exist');
 const advisorBlock = app.slice(start, end);
 

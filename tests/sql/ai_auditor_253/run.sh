@@ -40,6 +40,8 @@ fresh_db() {
 
 fresh_db "${BASE}_individual"
 "$PGBIN/psql.exe" -X -v ON_ERROR_STOP=1 -h 127.0.0.1 -p 55432 -U nwmgr -d "${BASE}_individual" -f tests/sql/ai_auditor_253/02_seed.sql
+python3 tests/sql/ai_auditor_253/generate_signing_boundaries.py > "${BASE}_signing_boundaries.sql"
+"$PGBIN/psql.exe" -X -v ON_ERROR_STOP=1 -h 127.0.0.1 -p 55432 -U nwmgr -d "${BASE}_individual" -f "${BASE}_signing_boundaries.sql"
 "$PGBIN/psql.exe" -X -v ON_ERROR_STOP=1 -h 127.0.0.1 -p 55432 -U nwmgr -d "${BASE}_individual" -f tests/sql/ai_auditor_253/05_individual_paths.sql
 
 fresh_db "${BASE}_mixed"

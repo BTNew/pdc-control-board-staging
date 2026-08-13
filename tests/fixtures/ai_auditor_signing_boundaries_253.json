@@ -1,0 +1,24 @@
+{
+  "contract": "pdc-auditor-signing-boundaries-253-v1",
+  "canonical_json": [
+    {
+      "name": "ascii_nested_min_safe_integer",
+      "value": {"ascii":"ABC xyz 123","nested":{"array":[{"k":"v"},[]]},"n":-9007199254740991},
+      "canonical_utf8": "{\"ascii\":\"ABC xyz 123\",\"n\":-9007199254740991,\"nested\":{\"array\":[{\"k\":\"v\"},[]]}}"
+    },
+    {
+      "name": "max_safe_integer_and_empty_values",
+      "value": {"empty_array":[],"empty_object":{},"empty_string":"","n":9007199254740991},
+      "canonical_utf8": "{\"empty_array\":[],\"empty_object\":{},\"empty_string\":\"\",\"n\":9007199254740991}"
+    }
+  ],
+  "negative_envelopes": [
+    {"name":"issued_at_no_fraction_boundary","mutation":{"issued_at":"2026-08-13T10:11:12Z"},"valid_shape":true},
+    {"name":"issued_at_six_fraction_boundary","mutation":{"issued_at":"2026-08-13T10:11:12.123456Z"},"valid_shape":true},
+    {"name":"issued_at_seven_fraction_rejected","mutation":{"issued_at":"2026-08-13T10:11:12.1234567Z"},"valid_shape":false},
+    {"name":"timestamp_offset_rejected","mutation":{"issued_at":"2026-08-13T10:11:12+00:00"},"valid_shape":false},
+    {"name":"altered_scope_rejected","mutation":{"selected_scope":{"contract":"altered"}},"valid_shape":false},
+    {"name":"missing_field_rejected","remove":"nonce","valid_shape":false},
+    {"name":"extra_field_rejected","mutation":{"unexpected":true},"valid_shape":false}
+  ]
+}

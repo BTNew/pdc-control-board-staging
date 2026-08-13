@@ -338,17 +338,21 @@ def parse_instruction(instruction: str, context: Mapping[str, Any] | None = None
 
 
 def bind_telegram(update: Any, *, expected_chat_id: int, bot_identity: str) -> dict[str, Any]:
-    if not isinstance(update, Mapping) or set(update) != {"update_id", "message"}:
+    if not isinstance(update, Mapping) or not {"update_id", "message"}.issubset(update):
         raise AuditorContractError("Telegram update keys are invalid")
     m = update["message"]
-    if not isinstance(m, Mapping) or set(m) != {"message_id", "from", "chat", "date", "text"}:
+    required_message = {"message_id", "from", "chat", "date", "text"}
+    if not isinstance(m, Mapping) or not required_message.issubset(m):
         raise AuditorContractError("Telegram message keys are invalid")
     sender = m["from"]
-    if (not isinstance(sender, Mapping) or set(sender) != {"id", "is_bot"}
+    if (not isinstance(sender, Mapping) or not {"id", "is_bot", "first_name"}.issubset(sender)
             or sender["is_bot"] is not False or isinstance(sender["id"], bool)
-            or not isinstance(sender["id"], int) or sender["id"] < 1):
+            or not isinstance(sender["id"], int) or sender["id"] < 1
+            or not isinstance(sender["first_name"], str) or not sender["first_name"].strip()):
         raise AuditorContractError("Telegram sender shape is invalid")
-    if m["chat"] != {"id": expected_chat_id, "type": "private"}:
+    chat = m["chat"]
+    if (not isinstance(chat, Mapping) or chat.get("id") != expected_chat_id
+            or chat.get("type") != "private"):
         raise AuditorContractError("Telegram chat is not the configured private chat")
     text = m["text"]
     if not isinstance(text, str) or text != text.strip() or not 3 <= len(text) <= 4000:

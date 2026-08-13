@@ -21,6 +21,8 @@ assert.ok(html.includes('ai-auditor.css?'), 'staging must load the isolated audi
 const auditorSection = html.slice(html.indexOf('<section id="ai-auditor"'), html.indexOf('<section id="sublet"'));
 ['Morning Workshop Briefing', 'Midday Risk Review', 'End-of-Day Carryover', 'Critical Issues'].forEach(label => assert.ok(auditorSection.includes(`>${label}<`), `${label} manual report view must exist`));
 assert.ok(auditorSection.includes('Approval is not execution'), 'the decision safety boundary must be explicit');
+['ai-auditor-operation-state', 'ai-auditor-operation-refresh', 'ai-auditor-operation-apply', 'ai-auditor-operation-undo'].forEach(id => assert.ok(auditorSection.includes(`id="${id}"`), `${id} signed-gateway control must exist`));
+assert.ok(auditorSection.includes('Browser code never receives the scoped bot token or HMAC key'), 'website operation control must disclose the secret boundary');
 assert.ok(!auditorSection.includes('>Snooze<'), 'the requested review workflow must expose only Approve and Deny');
 assert.ok(auditorSection.includes('role="tablist"') && auditorSection.includes('role="tabpanel"'), 'manual report views must use accessible tab semantics');
 assert.ok(auditorSection.includes('aria-live="polite"') && auditorSection.includes('aria-busy="true"'), 'auditor load state must be announced accessibly');
@@ -60,6 +62,14 @@ assert.ok(block.includes("['CHANNEL_ERROR', 'TIMED_OUT', 'CLOSED'].includes(stat
 assert.ok(app.includes('pdcAuditorRealtimePendingGeneration > app.pdcAuditorRealtimeCoveredGeneration'), 'hidden invalidation must refresh when the view is shown');
 assert.ok(block.includes('Realtime is invalidation only'), 'Realtime events must refetch rather than become authority');
 assert.ok(block.includes('pdcAuditorFilteredFindings'), 'display filters must be isolated from authoritative summary totals');
+assert.ok(block.includes('function pdcAuditorOperationGatewayConfig'), 'operation control must use a separate configured gateway boundary');
+assert.ok(block.includes("String(window.PDC_AUTH_CONTEXT?.role || '').toLowerCase() === 'administrator'"), 'browser confirmation must require authenticated Administrator authority');
+assert.ok(block.includes("confirmation = action === 'apply' ? 'Apply these corrections'"), 'Apply must use the exact confirmation instruction');
+assert.ok(block.includes("action === 'undo' ? 'Undo exact last run'"), 'Undo must use the exact run-bound instruction');
+assert.ok(block.includes('proposal_hash') && block.includes('run_revision_after'), 'operation confirmation must display immutable proposal/run bindings');
+assert.ok(block.includes('No direct database fallback exists'), 'missing gateway must fail closed without direct RPC fallback');
+assert.ok(!block.includes('PDC_AUDITOR_GATEWAY_HMAC_KEY_HEX') && !block.includes('PDC_AUDITOR_ACCESS_TOKEN'), 'browser source must contain no scoped bot or HMAC secret');
+assert.ok(!block.includes('/rest/v1/rpc/apply_pdc_auditor_typed_plan_253') && !block.includes('/rest/v1/rpc/undo_last_pdc_auditor_typed_run_253'), 'browser must not bypass the signing gateway with direct typed RPC calls');
 assert.ok(block.includes('Summary cards remain authoritative totals.'), 'filter result copy must preserve total semantics');
 assert.ok(block.includes('View Evidence'), 'evidence disclosure must be plainly labelled');
 assert.ok(block.includes('details class="ai-auditor-evidence"'), 'findings must expose a native keyboard-safe evidence drawer');

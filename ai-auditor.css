@@ -100,6 +100,12 @@
 .ai-auditor-open-vehicle { white-space: nowrap; }
 .ai-auditor-limitations { color: #7c2d12; font-size: .8rem; font-weight: 700; }
 
+.ai-auditor-operation-control { display: grid; gap: 10px; padding: 14px; border: 1px solid #bfdbfe; border-radius: 10px; background: #eff6ff; }
+.ai-auditor-operation-control h3, .ai-auditor-operation-control p { margin: 0; }
+.ai-auditor-operation-state { display: grid; gap: 3px; padding: 10px; border-radius: 8px; background: #fff; }
+.ai-auditor-operation-state span { color: #475569; font-size: .82rem; overflow-wrap: anywhere; }
+.ai-auditor-operation-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.ai-auditor-operation-actions button:disabled { cursor: not-allowed; opacity: .55; }
 .ai-auditor-decisions { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 13px; border: 1px dashed #94a3b8; border-radius: 10px; background: #f8fafc; }
 .ai-auditor-decisions > div:first-child { display: grid; gap: 2px; }
 .ai-auditor-decisions span { color: #64748b; font-size: .8rem; }

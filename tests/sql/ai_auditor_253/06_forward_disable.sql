@@ -22,12 +22,15 @@ do $$declare p record;before_row disable_before254%rowtype;after_row disable_bef
   'public.compose_pdc_auditor_typed_plan_253(uuid[],jsonb)'::regprocedure,
   'public.apply_pdc_auditor_typed_plan_253(uuid,integer,text,text,text,text,jsonb)'::regprocedure,
   'public.undo_last_pdc_auditor_typed_run_253(jsonb)'::regprocedure,
-  'public.query_pdc_auditor_typed_253(text,jsonb,jsonb)'::regprocedure,
-  'public.pdc_auditor_human_admin_revision_read_253(text)'::regprocedure
+  'public.query_pdc_auditor_typed_253(text,jsonb,jsonb)'::regprocedure
  ) loop
   if has_function_privilege('public',p.oid,'execute') or has_function_privilege('anon',p.oid,'execute') or has_function_privilege('authenticated',p.oid,'execute') or has_function_privilege('service_role',p.oid,'execute') then raise exception '254 left RPC authority %',p.proname;end if;
  end loop;
- if exists(select 1 from pg_policies where schemaname='public' and tablename='pdc_auditor_workshop_revisions' and policyname='pdc_auditor_workshop_revisions_admin_read_253') or has_table_privilege('authenticated','public.pdc_auditor_workshop_revisions','SELECT') then raise exception '254 left revision read authority';end if;
+ if exists(select 1 from pg_policies where schemaname='public' and tablename='pdc_auditor_workshop_revisions' and policyname='pdc_auditor_workshop_revisions_admin_read_253')
+    or not exists(select 1 from pg_policies where schemaname='public' and tablename='pdc_auditor_workshop_revisions' and policyname='pdc_auditor_workshop_revisions_legacy_admin_read_254')
+    or not has_column_privilege('authenticated','public.pdc_auditor_workshop_revisions','revision_id','SELECT')
+    or not has_function_privilege('authenticated','public.pdc_auditor_human_admin_revision_read_253(text)','EXECUTE')
+    or not exists(select 1 from pg_publication_tables where pubname='supabase_realtime' and schemaname='public' and tablename='pdc_auditor_workshop_revisions') then raise exception '254 legacy revision transport not preserved';end if;
  select * into before_row from disable_before254;
  select (select count(*) from public.pdc_auditor_gateway_keys_253),(select count(*) from public.pdc_auditor_signed_deliveries_253),(select count(*) from public.pdc_auditor_typed_plans_253),(select count(*) from public.pdc_auditor_typed_runs_253),(select count(*) from public.vehicle_workshop_line_adjustments),(select count(*) from public.pdc_auditor_workshop_revisions) into after_row;
  if to_jsonb(after_row)<>to_jsonb(before_row) then raise exception '254 changed retained evidence or operational rows: % -> %',to_jsonb(before_row),to_jsonb(after_row);end if;

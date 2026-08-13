@@ -75,8 +75,7 @@ begin
     'public.pdc_auditor_recalculate_required_work_253(uuid[])',
     'public.apply_pdc_auditor_typed_plan_253(uuid,integer,text,text,text,text,jsonb)',
     'public.undo_last_pdc_auditor_typed_run_253(jsonb)',
-    'public.query_pdc_auditor_typed_253(text,jsonb,jsonb)',
-    'public.pdc_auditor_human_admin_revision_read_253(text)'
+    'public.query_pdc_auditor_typed_253(text,jsonb,jsonb)'
   ] loop
     if to_regprocedure(v_function) is null then
       raise exception 'PDC_254_253_FUNCTION_MISSING %', v_function using errcode = '55000';
@@ -205,14 +204,21 @@ revoke all on function public.apply_pdc_auditor_typed_plan_253(uuid,integer,text
 revoke all on function public.undo_last_pdc_auditor_typed_run_253(jsonb) from public, anon, authenticated, service_role;
 revoke all on function public.query_pdc_auditor_typed_253(text,jsonb,jsonb) from public, anon, authenticated, service_role;
 revoke all on function public.pdc_auditor_human_admin_revision_read_253(text) from public, anon, authenticated, service_role;
+grant execute on function public.pdc_auditor_human_admin_revision_read_253(text) to authenticated;
 
--- 253's only authenticated table read was the shared revision stream. Containment
--- deliberately removes it and its Realtime membership. Operational overlay Realtime
--- remains untouched because vehicle_workshop_line_adjustments is shared core state.
+-- Preserve migration-229's shared legacy revision transport. Containment removes
+-- typed-253 reads only: legacy 226 apply/rollback revisions remain visible to active
+-- scoped human Administrators and the table stays in Realtime.
 drop policy pdc_auditor_workshop_revisions_admin_read_253 on public.pdc_auditor_workshop_revisions;
 revoke all on table public.pdc_auditor_workshop_revisions from public, anon, authenticated, service_role;
 revoke all on sequence public.pdc_auditor_workshop_revisions_revision_id_seq from public, anon, authenticated, service_role;
-alter publication supabase_realtime drop table public.pdc_auditor_workshop_revisions;
+grant select(revision_id,dealer_code,environment,event_type,run_id,rollback_receipt_id,created_at,typed_run_id_253) on public.pdc_auditor_workshop_revisions to authenticated;
+create policy pdc_auditor_workshop_revisions_legacy_admin_read_254
+on public.pdc_auditor_workshop_revisions for select to authenticated
+using(environment='staging'
+  and event_type in('telegram_plan_applied_226','telegram_run_rolled_back_226')
+  and typed_run_id_253 is null
+  and public.pdc_auditor_human_admin_revision_read_253(dealer_code));
 
 create table public.pdc_auditor_disable_events_254(
   singleton boolean primary key check(singleton),
@@ -226,7 +232,7 @@ create table public.pdc_auditor_disable_events_254(
   retained_overlay_count integer not null check(retained_overlay_count >= 0),
   retained_scope_receipt_count integer not null check(retained_scope_receipt_count >= 0),
   retained_change_receipt_count integer not null check(retained_change_receipt_count >= 0),
-  realtime_revision_membership_removed boolean not null check(realtime_revision_membership_removed),
+  legacy_realtime_revision_membership_preserved boolean not null check(legacy_realtime_revision_membership_preserved),
   recovery_contract text not null check(recovery_contract = 'later_reviewed_forward_migration_only')
 );
 alter table public.pdc_auditor_disable_events_254 enable row level security;
@@ -239,7 +245,7 @@ insert into public.pdc_auditor_disable_events_254(
   singleton, project_ref, disabled_version, disabled_name, disabled_by_version,
   deactivated_key_count, available_run_count, retained_overlay_count,
   retained_scope_receipt_count, retained_change_receipt_count,
-  realtime_revision_membership_removed, recovery_contract
+  legacy_realtime_revision_membership_preserved, recovery_contract
 )
 select true, 'cdsmnqxtyyoeoznmbidd', 253, 'ai_auditor_typed_operation_control', 254,
        (select count(*) from public.pdc_auditor_gateway_key_revocations_254),
@@ -258,7 +264,7 @@ values(
     'drain 253 transactions under a stopped gateway and fail on lock contention',
     'append non-secret key revocation evidence and deactivate every 253 gateway key',
     'replace five public 253 RPC bodies with deterministic disabled stubs and revoke every 253 function from API roles',
-    'revoke authenticated revision reads and remove the shared revision table from Realtime',
+    'replace typed revision reads with legacy-only Administrator policy and preserve migration-229 Realtime publication',
     'retain every 253 table function view trigger receipt run plan delivery and operational overlay row',
     'record immutable disable counts; recovery or re-enable requires a later reviewed forward migration'
   ]
@@ -281,21 +287,22 @@ begin
       'public.pdc_auditor_recalculate_required_work_253(uuid[])',
       'public.apply_pdc_auditor_typed_plan_253(uuid,integer,text,text,text,text,jsonb)',
       'public.undo_last_pdc_auditor_typed_run_253(jsonb)',
-      'public.query_pdc_auditor_typed_253(text,jsonb,jsonb)',
-      'public.pdc_auditor_human_admin_revision_read_253(text)'
+      'public.query_pdc_auditor_typed_253(text,jsonb,jsonb)'
     ] loop
       if has_function_privilege(v_role, v_function, 'EXECUTE') then
         raise exception 'PDC_254_FUNCTION_AUTHORITY_REMAINS role=% function=%', v_role, v_function using errcode = '55000';
       end if;
     end loop;
-    if has_table_privilege(v_role, 'public.pdc_auditor_workshop_revisions', 'SELECT,INSERT,UPDATE,DELETE') then
+    if has_table_privilege(v_role, 'public.pdc_auditor_workshop_revisions', 'INSERT,UPDATE,DELETE')
+       or (v_role <> 'authenticated' and has_table_privilege(v_role, 'public.pdc_auditor_workshop_revisions', 'SELECT')) then
       raise exception 'PDC_254_REVISION_AUTHORITY_REMAINS role=%', v_role using errcode = '55000';
     end if;
   end loop;
 
   if exists(select 1 from public.pdc_auditor_gateway_keys_253 where active or revoked_at is null)
-     or exists(select 1 from pg_policies where schemaname = 'public' and tablename = 'pdc_auditor_workshop_revisions')
-     or exists(select 1 from pg_publication_tables where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'pdc_auditor_workshop_revisions')
+     or (select count(*) from pg_policies where schemaname='public' and tablename='pdc_auditor_workshop_revisions' and policyname='pdc_auditor_workshop_revisions_legacy_admin_read_254') <> 1
+     or not has_function_privilege('authenticated','public.pdc_auditor_human_admin_revision_read_253(text)','EXECUTE')
+     or not exists(select 1 from pg_publication_tables where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'pdc_auditor_workshop_revisions')
      or not exists(select 1 from pg_publication_tables where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'vehicle_workshop_line_adjustments')
      or (select count(*) from supabase_migrations.schema_migrations where version = '254' and name = 'disable_ai_auditor_typed_operation_control') <> 1
      or (select count(*) from public.pdc_auditor_disable_events_254 where singleton) <> 1 then

@@ -27,8 +27,8 @@ HASH = "ab" * 32
 
 def telegram_update(text: str) -> dict:
     return {"update_id": 101, "message": {"message_id": 202,
-        "from": {"id": runtime.CRAIG_TELEGRAM_ID, "is_bot": False},
-        "chat": {"id": CHAT_ID, "type": "private"}, "date": 1_700_000_000, "text": text}}
+        "from": {"id": runtime.CRAIG_TELEGRAM_ID, "is_bot": False, "first_name": "Craig"},
+        "chat": {"id": CHAT_ID, "type": "private", "first_name": "Craig"}, "date": 1_700_000_000, "text": text}}
 
 
 def signed_envelope(text: str, selected_scope: dict, **overrides) -> dict:
@@ -203,6 +203,22 @@ class GatewayEnvelopeTests(unittest.TestCase):
         signature = hmac.new(key, runtime.gateway_signing_bytes(envelope), hashlib.sha256).hexdigest()
         self.assertEqual(runtime.gateway_signing_bytes(envelope).hex(), fixture["envelope"]["signing_bytes_hex"])
         self.assertEqual(signature, fixture["envelope"]["signature_hex"])
+
+    def test_shared_boundary_and_negative_inventory(self):
+        fixture = json.loads((Path(__file__).parent / "fixtures" / "ai_auditor_signing_boundaries_253.json").read_text(encoding="utf-8"))
+        self.assertEqual(fixture["contract"], "pdc-auditor-signing-boundaries-253-v1")
+        for vector in fixture["canonical_json"]:
+            with self.subTest(vector=vector["name"]):
+                self.assertEqual(runtime.canonical_json(vector["value"]), vector["canonical_utf8"].encode("utf-8"))
+        base = json.loads((Path(__file__).parent / "fixtures" / "ai_auditor_signing_vectors_253.json").read_text(encoding="utf-8"))["envelope"]["value"]
+        for vector in fixture["negative_envelopes"]:
+            envelope = json.loads(json.dumps(base))
+            if vector.get("remove"): envelope.pop(vector["remove"])
+            envelope.update(vector.get("mutation", {}))
+            issued = envelope.get("issued_at")
+            shape_valid = set(envelope) == runtime.GATEWAY_ENVELOPE_KEYS and isinstance(issued, str) and bool(__import__('re').fullmatch(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,6})?Z", issued))
+            if vector["name"] == "altered_scope_rejected": shape_valid = False
+            with self.subTest(vector=vector["name"]): self.assertIs(shape_valid, vector["valid_shape"])
 
     def test_signature_hash_scope_uuid_and_time_validation_precede_rpc(self):
         text = "Review duplicate bullbars"

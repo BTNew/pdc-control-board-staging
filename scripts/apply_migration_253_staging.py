@@ -12,9 +12,9 @@ from pathlib import Path
 import psycopg2
 
 ROOT = Path(__file__).resolve().parents[1]
-TOOLS = Path.home() / "pdc-control-board" / "_staging_test_tools"
-sys.path.insert(0, str(TOOLS))
-from staging_env import assert_staging_target, load_local_env  # noqa: E402
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+from scripts.pdc_staging_runtime import assert_staging_target, load_local_env
 
 EXPECTED_REF = "cdsmnqxtyyoeoznmbidd"
 MIGRATION_PATH = "supabase/staging_only/253_ai_auditor_typed_operation_control.sql"
@@ -158,7 +158,12 @@ def main() -> int:
     args = parser.parse_args()
     if not re.fullmatch(r"[a-f0-9]{40}", args.expected_commit):
         raise RuntimeError("exact reviewed 40-character commit is required")
-    resolved = git("rev-parse", f"{args.expected_commit}^{{commit}}").decode().strip()
+    try:
+        resolved = git("rev-parse", f"{args.expected_commit}^{{commit}}").decode().strip()
+    except subprocess.CalledProcessError as exc:
+        raise RuntimeError("expected commit is not a resolvable full Git commit in this repository") from exc
+    if resolved != args.expected_commit or not re.fullmatch(r"[0-9a-f]{40}", args.expected_commit):
+        raise RuntimeError("expected commit did not resolve to the exact full SHA")
     head = git("rev-parse", "HEAD").decode().strip()
     tracked_dirty = git("status", "--porcelain=v1", "--untracked-files=no").decode().strip()
     staged_dirty = git("diff", "--cached", "--name-only").decode().strip()

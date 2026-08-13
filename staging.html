@@ -470,6 +470,11 @@
             <div id="ai-auditor-report" class="ai-auditor-report" role="tabpanel" aria-labelledby="ai-auditor-tab-morning">
               <div class="empty-state"><strong>No trusted auditor snapshot</strong><span>Findings remain hidden until the dedicated service succeeds.</span></div>
             </div>
+            <section class="ai-auditor-operation-control" aria-labelledby="ai-auditor-operation-title">
+              <div><span class="eyebrow">Separate signed operation gateway</span><h3 id="ai-auditor-operation-title">Pending Apply / whole-run Undo</h3><p>Administrator confirmation is sent only to the separately configured Auditor gateway. Browser code never receives the scoped bot token or HMAC key.</p></div>
+              <div id="ai-auditor-operation-state" class="ai-auditor-operation-state" role="status" aria-live="polite"><strong>Gateway not assessed</strong><span>Refresh pending operation to check the configured staging gateway.</span></div>
+              <div class="ai-auditor-operation-actions"><button class="small-button" id="ai-auditor-operation-refresh" type="button">Refresh pending operation</button><button class="primary" id="ai-auditor-operation-apply" type="button" disabled>Apply exact reviewed proposal</button><button class="small-button" id="ai-auditor-operation-undo" type="button" disabled>Undo exact last run</button></div>
+            </section>
             <footer class="ai-auditor-decisions" aria-label="Decision safety boundary">
               <div><strong>Approval is not execution</strong><span>Approve and Deny only record the human review outcome against the exact Auditor evidence. Any operational change requires a separate authorised workflow.</span></div>
             </footer>
