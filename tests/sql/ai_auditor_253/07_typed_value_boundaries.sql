@@ -110,7 +110,7 @@ do $$
 declare scope jsonb;env jsonb;wrong_text text;unexpected jsonb;
 begin
  scope:=jsonb_build_object('contract','pdc-auditor-bounded-intent-253-v1','action','add','apply_unambiguous',true,'selector',jsonb_build_object('vehicle_id','20000000-0000-4000-8000-000000000010'),'desire',jsonb_build_object('new_value',jsonb_build_object('description','instruction text probe','estimated_hours',1.5,'operation_code','TYPE','work_key','hoist')));
- foreach wrong_text in array array['','ab',' leading','trailing ',repeat('x',4001)] loop
+ foreach wrong_text in array array['','ab',' leading','trailing ',U&'\00A0'||'leading','trailing'||U&'\2003',U&'\202F'||'leading','trailing'||U&'\3000',repeat('x',4001)] loop
   env:=pg_temp.envelope7('Temporary valid instruction',scope,gen_random_uuid(),'typed-telegram-text-'||substr(md5(wrong_text),1,12));
   env:=jsonb_set(env,'{telegram_evidence,original_instruction}',to_jsonb(wrong_text));
   env:=jsonb_set(env,'{telegram_evidence,instruction_sha256}',to_jsonb(encode(extensions.digest(convert_to(wrong_text,'UTF8'),'sha256'),'hex')));

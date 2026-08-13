@@ -222,8 +222,10 @@ begin
     or jsonb_typeof(telegram->'telegram_update_id')<>'number' then raise exception 'PDC_253_INVALID_TELEGRAM_EVIDENCE' using errcode='22023';end if;
  if telegram->>'bot_identity'=''
     or char_length(telegram->>'original_instruction') not between 3 and 4000
-    or left(telegram->>'original_instruction',1) ~ '[[:space:]]'
-    or right(telegram->>'original_instruction',1) ~ '[[:space:]]'
+    -- Match Python str.strip() rather than locale-dependent POSIX space.
+    or telegram->>'original_instruction' <> btrim(
+      telegram->>'original_instruction',
+      U&'\0009\000A\000B\000C\000D\001C\001D\001E\001F\0020\0085\00A0\1680\2000\2001\2002\2003\2004\2005\2006\2007\2008\2009\200A\2028\2029\202F\205F\3000')
     or telegram->>'telegram_chat_id' !~ '^[1-9][0-9]{0,18}$'
     or telegram->>'telegram_message_id' !~ '^[1-9][0-9]{0,18}$'
     or telegram->>'telegram_sender_id' !~ '^[1-9][0-9]{0,18}$'
