@@ -292,6 +292,17 @@ class GatewayEnvelopeTests(unittest.TestCase):
                     runtime.validate_gateway_envelope(bad, instruction=text,
                         selected_scope=scope, key_resolver=lambda _: KEY, now=NOW)
 
+    def test_envelope_instruction_text_matches_sql_boundary(self):
+        valid = "Add the reviewed winch operation"
+        scope = intent({"vehicle_id": VEHICLE}, "add", new_value={
+            "description": "Winch", "work_key": "fitting", "estimated_hours": 2})
+        envelope = signed_envelope(valid, scope)
+        for invalid in ("", "ab", " leading", "trailing ", "x" * 4001):
+            with self.subTest(invalid=invalid), self.assertRaisesRegex(
+                    runtime.AuditorContractError, "instruction is invalid"):
+                runtime.validate_gateway_envelope(envelope, instruction=invalid,
+                    selected_scope=scope, key_resolver=lambda _: KEY, now=NOW)
+
 
 class RuntimeContractTests(unittest.TestCase):
     def test_review_and_mutation_both_plan_only_with_exact_payload(self):

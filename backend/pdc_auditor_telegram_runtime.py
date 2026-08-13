@@ -417,6 +417,8 @@ def validate_gateway_envelope(envelope: Any, *, instruction: str,
                               key_resolver: Callable[[str], bytes | None],
                               telegram_evidence: Mapping[str, Any] | None = None,
                               now: int | datetime | None = None) -> dict[str, Any]:
+    if not isinstance(instruction, str) or instruction != instruction.strip() or not 3 <= len(instruction) <= 4000:
+        raise AuditorContractError("instruction is invalid")
     if not isinstance(envelope, Mapping) or set(envelope) != GATEWAY_ENVELOPE_KEYS:
         raise AuditorContractError("gateway envelope keys are invalid")
     value = dict(envelope)
