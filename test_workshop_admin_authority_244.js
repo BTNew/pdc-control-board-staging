@@ -5,6 +5,8 @@ const sql = fs.readFileSync('supabase/staging_only/244_workshop_admin_authority_
 const sql245 = fs.readFileSync('supabase/staging_only/245_workshop_admin_create_undo_audit_order.sql','utf8');
 const sql246 = fs.readFileSync('supabase/staging_only/246_workshop_admin_intent_hash_schema.sql','utf8');
 const sql247 = fs.readFileSync('supabase/staging_only/247_workshop_admin_null_role_fail_closed.sql','utf8');
+const sql248 = fs.readFileSync('supabase/staging_only/248_workshop_admin_create_undo_history_identity.sql','utf8');
+const sql249 = fs.readFileSync('supabase/staging_only/249_workshop_admin_create_undo_history_order.sql','utf8');
 const planner = fs.readFileSync('workshop-planner.js','utf8');
 const service = fs.readFileSync('workshop-data-service.js','utf8');
 const index = fs.readFileSync('index.html','utf8');
@@ -33,6 +35,9 @@ assert.match(sql246,/extensions\.digest/);
 assert.match(sql246,/workshop_admin_intent_hash_schema/);
 assert.match(sql247,/v_role is distinct from 'administrator'/i);
 assert.match(sql247,/workshop_admin_null_role_fail_closed/);
+assert.match(sql248,/values\(r\.booking_id/);
+assert.match(sql249,/workshop_admin_create_undo_history_order/);
+assert.ok(sql249.indexOf('insert into public.workshop_booking_history') < sql249.indexOf('delete from public.workshop_bookings'));
 assert.match(sql,/workshop_parts_ready\(gen_random_uuid\(\)\) is not true/);
 assert.match(sql,/workshop_admin_receipt_immutable_244/);
 assert.match(planner,/setPointerCapture\?\.\(pointerId\)/);
