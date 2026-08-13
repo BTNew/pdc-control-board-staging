@@ -55,17 +55,18 @@ const WORKSHOP_MUTATION_RPCS = Object.freeze([
   'restore_workshop_booking',
   'cascade_workshop_schedule',
   'cascade_workshop_booking_move',
-  'approve_parts_incomplete_override',
+
   'create_workshop_admin_block',
   'move_workshop_admin_block',
   'resize_workshop_admin_block',
   'delete_workshop_admin_block',
   'administrator_move_workshop_booking',
+  'administrator_schedule_workshop_vehicle',
   'undo_administrator_workshop_booking_move'
 ]);
 
 // Every RPC above requires exactly one non-null expected-version parameter.
-// schedule_vehicle_work and approve_parts_incomplete_override key off the
+// schedule_vehicle_work and administrator_schedule_workshop_vehicle key off the
 // vehicle's version instead of a booking version; all others key off the
 // booking version.
 const WORKSHOP_MUTATION_VERSION_PARAM = Object.freeze({
@@ -84,12 +85,13 @@ const WORKSHOP_MUTATION_VERSION_PARAM = Object.freeze({
   restore_workshop_booking: 'p_expected_version',
   cascade_workshop_schedule: 'p_target_expected_version',
   cascade_workshop_booking_move: 'p_expected_version',
-  approve_parts_incomplete_override: 'p_vehicle_expected_version',
+
   create_workshop_admin_block: 'p_expected_revision',
   move_workshop_admin_block: 'p_expected_version',
   resize_workshop_admin_block: 'p_expected_version',
   delete_workshop_admin_block: 'p_expected_version',
   administrator_move_workshop_booking: 'p_expected_version',
+  administrator_schedule_workshop_vehicle: 'p_vehicle_expected_version',
   undo_administrator_workshop_booking_move: 'p_expected_version'
 });
 
@@ -411,7 +413,12 @@ function createWorkshopDataService(options) {
       if (![401, 403].includes(result.status) && !destroyed && getAccessToken()) {
         await loadSnapshot(canonicalError ? 'rejected_canonical_mutation' : 'rejected_http_mutation');
       }
-      return { ok: false, error: canonicalError || 'request_failed', status: result.status, body: result.body };
+      const body = result.body;
+      const serverCode = body && typeof body === 'object' ? (body.code || body.error || body.error_code) : null;
+      const serverMessage = body && typeof body === 'object'
+        ? (body.message || body.error_description || body.details || body.hint)
+        : (typeof body === 'string' ? body : null);
+      return { ok: false, error: canonicalError || serverCode || 'request_failed', code: serverCode || null, message: serverMessage || null, status: result.status, body };
     }
     const body = result.body || {};
     if (body.ok === false && ['version_conflict', 'vehicle_version_conflict'].includes(body.error)) {

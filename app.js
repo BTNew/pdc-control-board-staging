@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.13.39-workshop-tile-authority';
+const APP_VERSION = '2026.08.13.43-craig-vehicle-drag-parts-nonblocking';
 const WORKSHOP_PLANNER_SCRIPT_VERSION = APP_VERSION;
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
@@ -744,7 +744,7 @@ function pdcBooleanFromText(value) {
 }
 
 function pdcQualityControlRequirementDefinitions(vehicle = {}) {
-  return pdcRequirementDefinitions(vehicle);
+  return pdcRequirementDefinitions(vehicle).filter(job => job.key !== 'parts');
 }
 
 function vehicleRftGateIssues(vehicle = {}) {
@@ -5080,7 +5080,7 @@ function vehicleInQualityControlGate(vehicle = {}) {
 async function markVehicleReadyForQualityControl(key = '') {
   const vehicle = selectedVehicle(key);
   if (!vehicle || !vehicleReadyForQualityControl(vehicle)) {
-    window.alert('Ready for QC is available only after every required item is green, Parts is clear, and the vehicle is back in PMB Unallocated.');
+    window.alert('Ready for QC is available only after every required physical workshop item is green and the vehicle is back in PMB Unallocated.');
     return false;
   }
   const label = vehicleIdentityTitle(vehicle) || displayStockNumber(vehicle) || 'this vehicle';
@@ -8145,66 +8145,8 @@ function pmbPhysicalBayEntry(currentStage = '', currentBay = '', nextStage = '',
   return normalizedCurrent !== normalizedNext || !normalizePmbBayNumber(currentBay, normalizedCurrent);
 }
 
-function confirmPartsIncompleteMovement(vehicle = {}, stage = '') {
-  const nextStage = normalizePmbStage(stage);
-  const partsStatus = partsDepartmentStatus(vehicle);
-  if (!partsIncompleteMovementStage(nextStage) || ['issued', 'notrequired'].includes(partsStatus)) return { updates: {}, audit: null };
-  const operator = cleanNavisionText(window.PDC_AUTH_CONTEXT?.displayName || window.PDC_AUTH_CONTEXT?.email || localStorage.getItem(OPERATOR_NAME_KEY) || '');
-  const role = cleanNavisionText(window.PDC_AUTH_CONTEXT?.role || localStorage.getItem(OPERATOR_ROLE_KEY) || '');
-  if (!operator || !role) {
-    window.alert('Your authenticated operator identity and role are unavailable. Sign out and back in before moving a Parts-incomplete vehicle into a physical bay. No vehicle was changed.');
-    return null;
-  }
-  if (!partsMovementOverrideRoleAllowed(role)) {
-    window.alert('Parts are not complete. Only a Manager or Admin can authorise entry into a physical bay. No vehicle was changed.');
-    return null;
-  }
-  const stock = displayStockNumber(vehicle) || 'this vehicle';
-  const destination = pmbStageLabel(nextStage);
-  return new Promise(resolve => {
-    const overlay = document.createElement('div');
-    overlay.className = 'modal-backdrop pmb-resolution-modal';
-    overlay.innerHTML = `
-      <section class="modal-card pmb-resolution-modal-card">
-        <button class="modal-close" type="button" data-parts-override-cancel aria-label="Cancel movement">×</button>
-        <div class="panel-header"><div>
-          <h2>Parts not complete</h2>
-          <p>${escapeHtml(stock)} is ${escapeHtml(partsDepartmentStatusLabel(partsStatus))}. Moving it into ${escapeHtml(destination)} requires an authorised exception and a reason.</p>
-        </div></div>
-        <label class="pmb-resolution-reason">
-          <span>Manager / admin override reason</span>
-          <input type="text" data-parts-override-reason maxlength="180" placeholder="Enter the operational reason" autocomplete="off">
-        </label>
-        <p class="form-error" data-parts-override-error hidden>Enter an override reason before continuing.</p>
-        <div class="edit-actions pmb-resolution-actions">
-          <button class="secondary" type="button" data-parts-override-cancel>Cancel</button>
-          <button class="primary" type="button" data-parts-override-save>Confirm override</button>
-        </div>
-      </section>`;
-    const finish = value => {
-      document.removeEventListener('keydown', onKeydown);
-      overlay.remove();
-      resolve(value);
-    };
-    const onKeydown = event => { if (event.key === 'Escape') finish(null); };
-    overlay.querySelectorAll('[data-parts-override-cancel]').forEach(button => button.addEventListener('click', () => finish(null)));
-    overlay.addEventListener('click', event => { if (event.target === overlay) finish(null); });
-    overlay.querySelector('[data-parts-override-save]').addEventListener('click', () => {
-      const reason = cleanNavisionText(overlay.querySelector('[data-parts-override-reason]')?.value || '');
-      if (!reason) {
-        overlay.querySelector('[data-parts-override-error]').hidden = false;
-        overlay.querySelector('[data-parts-override-reason]')?.focus();
-        return;
-      }
-      finish({
-        updates: { pdcPartsMovementOverrideReason: reason, pdcPartsMovementOverrideAt: nowIsoString(), pdcPartsMovementOverrideBy: operator },
-        audit: { stage: destination, reason, by: operator, role },
-      });
-    });
-    document.body.appendChild(overlay);
-    document.addEventListener('keydown', onKeydown);
-    overlay.querySelector('[data-parts-override-reason]')?.focus();
-  });
+function confirmPartsIncompleteMovement() {
+  return { updates: {}, audit: null };
 }
 
 async function movePmbVehicleToStage(key, stage) {
