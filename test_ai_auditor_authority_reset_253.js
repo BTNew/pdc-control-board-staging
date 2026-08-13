@@ -60,6 +60,7 @@ console.log('AI Auditor auth-change operation-state teardown passed');
   });
   let raceToken = 'OLD_ACCOUNT_JWT';
   vm.runInContext(asyncSource.slice(blockStart, blockEnd), race);
+  assert.strictEqual(race.pdcAuditorBindOperationOrigin,undefined,'receipt provenance binder must not be exported on window/global object');
   const bindCurrentOrigin = () => vm.runInContext(`pdcAuditorBindOperationOrigin(app.pdcAuditorPendingOperation, {
     config: pdcAuditorOperationGatewayConfig(), token: getPdcSupabaseAccessToken(), authority: auditorAuthorityIdentity()
   })`, race);
@@ -217,6 +218,28 @@ console.log('AI Auditor auth-change operation-state teardown passed');
   }
   race.window.PDC_SUPABASE_CONFIG.auditorOperationGateway = { url:'https://gateway.staging.example/auditor', instanceId:'gw-staging-1' };
   console.log('AI Auditor gateway-origin A-to-B Apply/Undo denial passed');
+
+  for (const [action, initial] of [
+    ['apply', { ...originalPending }],
+    ['undo', { ...undoPending }],
+  ]) {
+    raceToken = `IN_PLACE_${action.toUpperCase()}_TOKEN`;
+    raceAuthority = `IN_PLACE_${action.toUpperCase()}_ACCOUNT`;
+    race.window.PDC_AUTH_CONTEXT.role = 'administrator';
+    race.window.PDC_SUPABASE_CONFIG.auditorOperationGateway = { url:'https://gateway.staging.example/auditor', instanceId:'gw-staging-1' };
+    race.app.pdcAuditorPendingOperation = initial;
+    bindCurrentOrigin();
+    race.app.pdcAuditorOperationBusy = false;
+    race.app.pdcAuditorOperationOwner = null;
+    if (action === 'apply') initial.proposal_id = '99999999-8888-4777-8666-555555555555';
+    else initial.run_id = '99999999-8888-4777-8666-555555555555';
+    vm.runInContext('renderPdcAuditorPendingOperation()', race);
+    assert.strictEqual(nodes[`#ai-auditor-operation-${action}`].disabled,true,`${action} control must disable after in-place receipt mutation`);
+    const callsBefore = fetchCalls;
+    assert.strictEqual(await vm.runInContext(`confirmPdcAuditorPendingOperation('${action}')`, race),false,`${action} must reject in-place mutation of a trusted receipt`);
+    assert.strictEqual(fetchCalls,callsBefore,`${action} in-place receipt mutation must dispatch zero requests`);
+  }
+  console.log('AI Auditor exact receipt-content provenance passed');
 
   for (const [action, initial, replacement] of [
     ['apply', originalPending, { ...originalPending, proposal_id:'99999999-8888-4777-8666-555555555555' }],

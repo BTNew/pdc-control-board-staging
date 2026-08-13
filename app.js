@@ -19133,20 +19133,28 @@ function pdcAuditorOperationReceipt(value) {
 
 const pdcAuditorOperationOrigins = new WeakMap();
 
-function pdcAuditorBindOperationOrigin(receipt, captured) {
-  if (!receipt || typeof receipt !== 'object' || !captured?.config || !captured.token || !captured.authority) return null;
+function pdcAuditorOperationReceiptSnapshot(receipt) {
+  const normalized = pdcAuditorOperationReceipt(receipt);
+  return normalized ? JSON.stringify(normalized) : '';
+}
+
+const pdcAuditorBindOperationOrigin = (receipt, captured) => {
+  const receiptSnapshot = pdcAuditorOperationReceiptSnapshot(receipt);
+  if (!receiptSnapshot || !captured?.config || !captured.token || !captured.authority) return null;
   pdcAuditorOperationOrigins.set(receipt, {
     url: captured.config.url,
     instance: captured.config.instance,
     token: captured.token,
     authority: captured.authority,
+    receiptSnapshot,
   });
   return receipt;
-}
+};
 
 function pdcAuditorOperationOriginCurrent(receipt, config, token, authority) {
   const origin = receipt && typeof receipt === 'object' ? pdcAuditorOperationOrigins.get(receipt) : null;
   return Boolean(origin && config && token && authority
+    && origin.receiptSnapshot === pdcAuditorOperationReceiptSnapshot(receipt)
     && receipt.instance_id === origin.instance
     && origin.url === config.url
     && origin.instance === config.instance
