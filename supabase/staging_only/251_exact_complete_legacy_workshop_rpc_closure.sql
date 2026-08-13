@@ -63,8 +63,8 @@ begin
   end loop;
 
   foreach signature in array array[
-    'public.administrator_schedule_workshop_vehicle(uuid,integer,text,integer,timestamptz,integer,uuid,text,jsonb,uuid)',
-    'public.administrator_move_workshop_booking(uuid,integer,text,integer,timestamptz,integer,text,jsonb,uuid)',
+    'public.administrator_schedule_workshop_vehicle(uuid,integer,text,integer,timestamptz,integer,uuid,jsonb,uuid,boolean)',
+    'public.administrator_move_workshop_booking(uuid,integer,text,integer,timestamptz,integer,text,jsonb,uuid,boolean)',
     'public.undo_administrator_workshop_booking_move(uuid,integer,uuid)'
   ] loop
     endpoint:=to_regprocedure(signature);

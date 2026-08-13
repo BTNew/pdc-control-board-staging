@@ -3,6 +3,7 @@ const assert = require('assert');
 const fs = require('fs');
 
 const sql = fs.readFileSync('supabase/staging_only/251_exact_complete_legacy_workshop_rpc_closure.sql', 'utf8').replace(/\r\n/g, '\n').toLowerCase();
+const authority = fs.readFileSync('supabase/staging_only/244_workshop_admin_authority_intent_receipt_undo.sql', 'utf8').replace(/\r\n/g, '\n').toLowerCase();
 const legacy = [
   'schedule_vehicle_work(uuid,integer,text,integer,timestamptz,integer,uuid,text,jsonb)',
   'cascade_workshop_schedule(text,uuid,integer,text,integer,timestamptz,integer,uuid,integer,text,jsonb)',
@@ -12,10 +13,20 @@ const legacy = [
   'resize_workshop_booking(uuid,integer,integer,jsonb)',
   'change_booking_bay(uuid,integer,integer,jsonb)',
 ];
+function declaredSignature(name) {
+  const match = authority.match(new RegExp(`create or replace function public\\.${name}\\(([\\s\\S]*?)\\)\\s*returns`));
+  assert(match, `${name} declaration missing from migration 244`);
+  const types = match[1].split(',').map(parameter => {
+    const type = parameter.trim().match(/^p_[a-z0-9_]+\s+([a-z0-9_]+)(?:\s+default\s+[\s\S]+)?$/);
+    assert(type, `cannot derive ${name} parameter type from ${parameter.trim()}`);
+    return type[1];
+  });
+  return `${name}(${types.join(',')})`;
+}
 const controlled = [
-  'administrator_schedule_workshop_vehicle(uuid,integer,text,integer,timestamptz,integer,uuid,text,jsonb,uuid)',
-  'administrator_move_workshop_booking(uuid,integer,text,integer,timestamptz,integer,text,jsonb,uuid)',
-  'undo_administrator_workshop_booking_move(uuid,integer,uuid)',
+  declaredSignature('administrator_schedule_workshop_vehicle'),
+  declaredSignature('administrator_move_workshop_booking'),
+  declaredSignature('undo_administrator_workshop_booking_move'),
 ];
 
 assert(sql.includes("version='250' and name='revoke_service_role_legacy_workshop_rpc'"));
