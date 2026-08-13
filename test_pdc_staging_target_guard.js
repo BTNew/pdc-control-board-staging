@@ -64,6 +64,7 @@ rejected = [
     ('database', f'postgresql://postgres:{ref}@attacker.example:5432/postgres'),
     ('database', f'postgresql://postgres:prefix{module.PRODUCTION_REF}suffix@db.{ref}.supabase.co:5432/postgres'),
     ('database', f'postgresql://postgres:prefix%{ord(module.PRODUCTION_REF[0]):02x}{module.PRODUCTION_REF[1:]}suffix@db.{ref}.supabase.co:5432/postgres'),
+    ('database', f'postgresql://postgres:prefix%25{ord(module.PRODUCTION_REF[0]):02x}{module.PRODUCTION_REF[1:]}suffix@db.{ref}.supabase.co:5432/postgres'),
 ]
 for kind, value in accepted:
     module.assert_staging_target(**{f'{kind}_url': value})
@@ -93,5 +94,5 @@ print(json.dumps({'accepted': len(accepted), 'rejected': len(rejected), 'connect
 const result = spawnSync('python3', ['-I', '-c', probe], { encoding: 'utf8' });
 assert.strictEqual(result.status, 0, result.stderr || result.stdout);
 const report = JSON.parse(result.stdout.trim());
-assert.deepStrictEqual(report, { accepted: 5, rejected: 38, connector_calls: 3 });
+assert.deepStrictEqual(report, { accepted: 5, rejected: 39, connector_calls: 3 });
 console.log('PDC staging parsed-host endpoint and connector-spy guard passed');
