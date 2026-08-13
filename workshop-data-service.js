@@ -388,10 +388,19 @@ function createWorkshopDataService(options) {
     if (!enabled) {
       throw new Error('workshop-data-service: shared mode is not enabled; no writable operational path exists');
     }
+    const administratorReconnectMutation = (
+      getRole() === 'administrator'
+      && Boolean(getAccessToken())
+      && ['administrator_move_workshop_booking', 'administrator_schedule_workshop_vehicle'].includes(rpcName)
+      && [WORKSHOP_CONNECTION_STATE.CONNECTING, WORKSHOP_CONNECTION_STATE.RECONNECTING].includes(state)
+    );
     // A valid authenticated session may transiently remain in reconnecting
-    // after auth-ready/Realtime startup. Reconcile once from Supabase before
-    // failing the user's action; never fall back to retained/local state.
-    const editable = ensureEditable();
+    // under continuous Realtime revision traffic. The two Administrator-only
+    // receipt RPCs may cross that UI state because PostgreSQL still enforces
+    // role, expected version, lock/protection, overlap, cascade and receipt
+    // idempotency atomically. No local data is accepted as authority and all
+    // other mutations continue to require a trusted connected snapshot.
+    const editable = administratorReconnectMutation ? true : ensureEditable();
     if (!(editable === true || (editable && await editable))) {
       return { ok: false, error: 'not_editable', state };
     }

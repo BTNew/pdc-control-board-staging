@@ -588,6 +588,8 @@ function workshopAnnotateLegacyAmbiguity(rows = []) {
 
 let workshopSharedPlansCache = { snapshot: null, bookings: null, rows: null };
 let workshopLastAdministratorMove = null;
+let workshopActiveQueuePointerDrag = null;
+let workshopSuppressMouseDragUntil = 0;
 
 function workshopAdministratorCanMove(role = (typeof window !== 'undefined' ? window.PDC_AUTH_CONTEXT?.role : '')) {
   return String(role || '').trim().toLowerCase() === 'administrator';
@@ -607,6 +609,7 @@ function workshopRememberAdministratorMove(result = {}) {
     receiptId: String(result.receipt_id),
     bookingId: String(result.booking_id),
     expectedVersion: Number(result.booking_version),
+    undoRequestId: workshopNewRequestId(),
   };
 }
 
@@ -624,7 +627,7 @@ async function workshopUndoLastAdministratorMove() {
   const result = await workshopDispatchSharedAction('undoAdministratorBookingMove', {
     receiptId: receipt.receiptId,
     expectedVersion: receipt.expectedVersion,
-    requestId: workshopNewRequestId(),
+    requestId: receipt.undoRequestId,
   });
   if (!result?.ok) return false;
   workshopLastAdministratorMove = null;
@@ -871,7 +874,10 @@ function workshopDescribeSharedActionError(result) {
   if (error === 'technician_inactive_or_missing') return 'Choose an active Workshop technician.';
   if (error === 'technician_leave_conflict' || error === 'technician_on_leave') return 'That technician is on leave during this booking.';
   if (error === 'action_unavailable' || error === 'no_response' || error === 'runtime_failure') {
-    return 'This action is not currently available in shared mode. No change was made.';
+    const exact = workshopAdministratorCanMove() ? workshopAdministratorErrorDetail(result) : '';
+    return exact
+      ? `This action failed before it could be confirmed. No change was saved. ${exact}`
+      : 'This action is not currently available in shared mode. No change was made.';
   }
   const exact = workshopAdministratorCanMove() ? workshopAdministratorErrorDetail(result) : '';
   return exact ? `The server rejected this change. No update was saved. ${exact}` : 'The server rejected this change. No update was saved, and the planner has reloaded the current shared data.';
@@ -4034,6 +4040,10 @@ function bindWorkshopPlanner(root) {
   root.querySelectorAll('[data-workshop-weekly-stage]').forEach(button => button.addEventListener('click', () => openWorkshopWeeklyView(button.dataset.workshopWeeklyStage, Number(button.dataset.workshopWeeklyBay), workshopState().date)));
   root.querySelectorAll('[data-workshop-vehicle-key]').forEach(card => {
     card.addEventListener('dragstart', event => {
+      if (Date.now() < workshopSuppressMouseDragUntil || workshopActiveQueuePointerDrag) {
+        event.preventDefault();
+        return;
+      }
       event.dataTransfer.effectAllowed = 'copy';
       event.dataTransfer.setData('application/x-workshop-vehicle-key', card.dataset.workshopVehicleKey);
       event.dataTransfer.setData('text/plain', card.dataset.workshopVehicleKey);
@@ -4045,11 +4055,40 @@ function bindWorkshopPlanner(root) {
     });
     card.addEventListener('pointerdown', downEvent => {
       if (downEvent.pointerType === 'mouse' || card.getAttribute('aria-disabled') === 'true' || downEvent.target.closest('button')) return;
+      if (workshopActiveQueuePointerDrag) return;
+      const pointerId = downEvent.pointerId;
       const startX = downEvent.clientX;
       const startY = downEvent.clientY;
+      const vehicle = workshopVehicle(card.dataset.workshopVehicleKey);
       let activeLane = null;
+      let activated = false;
+      const cleanup = () => {
+        window.removeEventListener('pointermove', move);
+        window.removeEventListener('pointerup', finish);
+        window.removeEventListener('pointercancel', cancel);
+        card.removeEventListener('lostpointercapture', cancel);
+        if (card.hasPointerCapture?.(pointerId)) card.releasePointerCapture(pointerId);
+        if (activeLane) activeLane.classList.remove('drag-over');
+        workshopSetDragPreview(null);
+        workshopClearLanePreviews(root);
+        workshopActiveQueuePointerDrag = null;
+        workshopSuppressMouseDragUntil = Date.now() + 750;
+      };
+      const activate = () => {
+        if (activated) return;
+        activated = true;
+        workshopActiveQueuePointerDrag = { pointerId, card };
+        card.setPointerCapture?.(pointerId);
+        card.addEventListener('lostpointercapture', cancel);
+        workshopSetDragPreview({
+          type: 'queue',
+          hours: workshopCalculatedStageHours(vehicle, workshopState().stage) || pmbBayHours(vehicle) || workshopDefaultBookingHours(),
+        });
+      };
       const move = event => {
-        if (Math.hypot(event.clientX - startX, event.clientY - startY) < 8) return;
+        if (event.pointerId !== pointerId) return;
+        if (!activated && Math.hypot(event.clientX - startX, event.clientY - startY) < 8) return;
+        activate();
         event.preventDefault();
         const lane = document.elementFromPoint(event.clientX, event.clientY)?.closest?.('[data-workshop-drop-bay]') || null;
         if (activeLane && activeLane !== lane) {
@@ -4063,28 +4102,23 @@ function bindWorkshopPlanner(root) {
         workshopUpdateLanePreview(lane, workshopClampStartMinutes(((event.clientX - rect.left) / Math.max(1, rect.width)) * WORKSHOP_PLANNER_CONFIG.dayLengthMinutes));
       };
       const finish = event => {
-        window.removeEventListener('pointermove', move);
-        window.removeEventListener('pointerup', finish);
-        window.removeEventListener('pointercancel', cancel);
-        if (!activeLane) return;
-        const stage = activeLane.dataset.workshopDropStage;
-        const bay = Number(activeLane.dataset.workshopDropBay);
+        if (event.pointerId !== pointerId) return;
+        const lane = activeLane;
+        const stage = lane?.dataset.workshopDropStage;
+        const bay = Number(lane?.dataset.workshopDropBay);
         const dateKey = workshopState().date;
-        const startMinutes = Number(activeLane.dataset.workshopRequestedStartMinutes);
-        activeLane.classList.remove('drag-over');
-        workshopClearLanePreviews(activeLane);
-        scheduleWorkshopVehicle({ vehicleKeyValue: card.dataset.workshopVehicleKey, stage, bay, dateKey, startMinutes, preferRequestedTime: true });
+        const startMinutes = Number(lane?.dataset.workshopRequestedStartMinutes);
+        cleanup();
+        if (!activated || !lane || !stage || !Number.isFinite(bay) || !Number.isFinite(startMinutes)) return;
+        void scheduleWorkshopVehicle({ vehicleKeyValue: card.dataset.workshopVehicleKey, stage, bay, dateKey, startMinutes, preferRequestedTime: true });
       };
-      const cancel = () => {
-        window.removeEventListener('pointermove', move);
-        window.removeEventListener('pointerup', finish);
-        window.removeEventListener('pointercancel', cancel);
-        if (activeLane) activeLane.classList.remove('drag-over');
-        workshopClearLanePreviews(root);
+      const cancel = event => {
+        if (event?.pointerId != null && event.pointerId !== pointerId) return;
+        cleanup();
       };
       window.addEventListener('pointermove', move, { passive: false });
-      window.addEventListener('pointerup', finish, { once: true });
-      window.addEventListener('pointercancel', cancel, { once: true });
+      window.addEventListener('pointerup', finish);
+      window.addEventListener('pointercancel', cancel);
     });
   });
   root.querySelectorAll('[data-workshop-vehicle-key]').forEach(card => card.addEventListener('dragend', () => {
@@ -4916,32 +4950,34 @@ async function workshopScheduleSharedNewBooking({
   const dispatch = nextPayload => managedDispatch
     ? dispatchAction('cascadeSchedule', nextPayload, renderWorkshopPlanner, { suppressFailureAlert: true, suppressRender: true })
     : dispatchAction('cascadeSchedule', nextPayload);
-  let result = workshopAdministratorCanMove()
-    ? await workshopDispatchSharedAction('administratorScheduleVehicle', {
-      vehicleId: vehicleRef.vehicleId, vehicleExpectedVersion: vehicleRef.version, stageCode, bayNumber,
-      scheduledStartAt, durationMinutes, technicianId, requestId: workshopNewRequestId(), cascade: true,
-      metadata: { source: 'admin_unallocated_vehicle_pill', reason: 'website_drag_drop' },
-    }, renderWorkshopPlanner, { suppressFailureAlert: true, suppressRender: true })
-    : await dispatch(payload);
+  const administratorRequest = workshopAdministratorCanMove() ? {
+    vehicleId: vehicleRef.vehicleId,
+    vehicleExpectedVersion: vehicleRef.version,
+    stageCode,
+    bayNumber,
+    scheduledStartAt,
+    durationMinutes,
+    technicianId,
+    requestId: workshopNewRequestId(),
+    cascade: true,
+    metadata: { source: 'admin_unallocated_vehicle_pill', reason: 'website_drag_drop' },
+  } : null;
+  let result = administratorRequest
+    ? await workshopDispatchSharedAction('administratorScheduleVehicle', administratorRequest,
+      renderWorkshopPlanner, { suppressFailureAlert: true, suppressRender: true })
+    : { ok: false, error: 'permission_denied' };
+  if (administratorRequest && (!result || ['request_failed', 'no_response', 'runtime_failure'].includes(result.error))) {
+    // Retry only an uncertain transport/runtime outcome and replay the exact
+    // same object and request ID. The server receipt makes a committed first
+    // attempt safe to replay; changed intent always requires a new drag.
+    result = await workshopDispatchSharedAction('administratorScheduleVehicle', administratorRequest,
+      renderWorkshopPlanner, { suppressFailureAlert: true, suppressRender: true });
+  }
   if (result && result.ok === false && result.error === 'vehicle_version_conflict') {
-    // mutate() has synchronously refreshed the authoritative snapshot before
-    // returning this conflict. Retry this unchanged insert intent once with
-    // the newly confirmed vehicle version; the RPC re-validates location,
-    // requirement, bay, overlap, ETA and permissions atomically.
-    const snapshot = window.__workshopDataService?.getTrustedSnapshot?.();
-    const freshMatches = Array.isArray(snapshot?.vehicles)
-      ? snapshot.vehicles.filter(row => String(row?.id || '').trim() === String(vehicleRef.vehicleId || '').trim())
-      : [];
-    const freshVersion = Number(freshMatches[0]?.version);
-    if (freshMatches.length === 1 && Number.isInteger(freshVersion) && freshVersion !== Number(vehicleRef.version)) {
-      result = workshopAdministratorCanMove()
-        ? await workshopDispatchSharedAction('administratorScheduleVehicle', {
-          vehicleId: vehicleRef.vehicleId, vehicleExpectedVersion: freshVersion, stageCode, bayNumber,
-          scheduledStartAt, durationMinutes, technicianId, requestId: workshopNewRequestId(), cascade: true,
-          metadata: { source: 'admin_unallocated_vehicle_pill_retry', reason: 'website_drag_drop' },
-        }, renderWorkshopPlanner, { suppressFailureAlert: true, suppressRender: true })
-        : await dispatch({ ...payload, targetExpectedVersion: freshVersion });
-    }
+    // The idempotency key binds the expected version and every other input.
+    // Never mutate the body under the same intent or issue a second key from
+    // an automatic retry. The refreshed record requires a new deliberate drag.
+    result = { ...result, message: result.message || 'The vehicle changed before this exact drag could be committed. Drag it again from the refreshed Unallocated list.' };
   }
   if (managedDispatch) {
     if (!result || result.ok !== true) window.alert(workshopDescribeSharedActionError(result));

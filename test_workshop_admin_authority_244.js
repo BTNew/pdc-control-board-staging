@@ -1,0 +1,44 @@
+'use strict';
+const assert = require('assert');
+const fs = require('fs');
+const sql = fs.readFileSync('supabase/staging_only/244_workshop_admin_authority_intent_receipt_undo.sql','utf8');
+const sql245 = fs.readFileSync('supabase/staging_only/245_workshop_admin_create_undo_audit_order.sql','utf8');
+const planner = fs.readFileSync('workshop-planner.js','utf8');
+const service = fs.readFileSync('workshop-data-service.js','utf8');
+const index = fs.readFileSync('index.html','utf8');
+
+assert.match(sql,/PDC_244_STAGING_OR_LEDGER_MISMATCH/);
+assert.match(sql,/pdc_staging_environment_sentinel[\s\S]*cdsmnqxtyyoeoznmbidd/);
+assert.match(sql,/pdc_production_environment_sentinel/);
+for (const fn of ['schedule_vehicle_work','cascade_workshop_schedule','move_workshop_booking','cascade_workshop_booking_move','resize_workshop_booking','change_booking_bay']) {
+  assert.match(sql,new RegExp(`revoke (?:all|execute) on function public\\.${fn}`),`legacy ${fn} must lose authenticated execute`);
+}
+assert.match(sql,/request_intent_hash/);
+assert.match(sql,/PDC_244_IDEMPOTENCY_INTENT_MISMATCH/);
+assert.match(sql,/digest\(convert_to\(v_intent::text,'UTF8'\),'sha256'\)/);
+assert.match(sql,/v_booking_id:=nullif\(v_result->'booking'->>'booking_id'/);
+assert.doesNotMatch(sql,/order by created_at desc/);
+for (const state of ["'bookings'","'assignments'","'vehicle'"]) assert.match(sql,new RegExp(state));
+assert.match(sql,/v_current is distinct from r\.after_state/);
+assert.match(sql,/active_workshop_booking_id=\(v_before_vehicle/);
+assert.match(sql,/delete from public\.workshop_bookings where id=r\.booking_id/);
+assert.match(sql,/drop constraint if exists workshop_booking_move_receipts_booking_id_fkey/);
+assert.match(sql245,/version='244' and name='workshop_admin_authority_intent_receipt_undo'/);
+assert.match(sql245,/case when r\.operation_type='create' then null else r\.booking_id end/);
+assert.match(sql245,/'authoritative_booking_id',r\.booking_id/);
+assert.match(sql245,/delete from public\.workshop_bookings where id=r\.booking_id/);
+assert.match(sql,/workshop_parts_ready\(gen_random_uuid\(\)\) is not true/);
+assert.match(sql,/workshop_admin_receipt_immutable_244/);
+assert.match(planner,/setPointerCapture\?\.\(pointerId\)/);
+assert.match(planner,/hasPointerCapture\?\.\(pointerId\)/);
+assert.match(planner,/lostpointercapture/);
+assert.match(planner,/event\.pointerId !== pointerId/);
+assert.match(planner,/workshopSuppressMouseDragUntil/);
+assert.match(planner,/workshopSetDragPreview\(\{[\s\S]*type: 'queue'/);
+assert.match(planner,/undoRequestId: workshopNewRequestId\(\)/);
+assert.match(planner,/requestId: receipt\.undoRequestId/);
+assert.doesNotMatch(planner,/admin_unallocated_vehicle_pill_retry/);
+assert.match(planner,/This action failed before it could be confirmed[\s\S]*workshopAdministratorErrorDetail/);
+assert.match(service,/serverMessage/);
+assert.match(index,/2026\.08\.13\.45-admin-authority-intent-undo-pointer/);
+console.log('PASS migration 244 authority, exact intent/state Undo, pointer parity, stable retry and runtime error contract');
