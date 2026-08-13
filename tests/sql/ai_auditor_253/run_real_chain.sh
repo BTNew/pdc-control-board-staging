@@ -6,8 +6,8 @@ PGBIN="${PGBIN:-C:/Users/nwmgr/HermesWorkspaces/development/local-postgresql-17-
 HOST="127.0.0.1"
 PORT="55432"
 USER="nwmgr"
-DB="pdc_auditor_253_real_lineage_063"
 EXPECTED_SHA="${EXPECTED_SHA:-}"
+DB="${DB:-pdc_auditor_253_lineage_${EXPECTED_SHA:0:12}_$$}"
 
 [[ "$EXPECTED_SHA" =~ ^[0-9a-f]{40}$ ]] || {
   echo "EXPECTED_SHA must be the exact 40-character commit to verify" >&2
