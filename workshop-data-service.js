@@ -362,6 +362,14 @@ function createWorkshopDataService(options) {
     return loadSnapshot('scope_changed');
   }
 
+  function ensureEditable() {
+    if (isEditable() && snapshotTrusted && !pendingReloadTimer && !activeLoadToken && !trailingReloadRequested) return true;
+    if (!enabled || destroyed || !getAccessToken()) return false;
+    return loadSnapshot('mutation_preflight').then(() => (
+      isEditable() && snapshotTrusted && !pendingReloadTimer && !activeLoadToken && !trailingReloadRequested
+    ));
+  }
+
   async function mutate(rpcName, params) {
     if (!WORKSHOP_MUTATION_RPCS.includes(rpcName)) {
       throw new Error(`workshop-data-service: unknown mutation RPC ${rpcName}`);
@@ -372,7 +380,11 @@ function createWorkshopDataService(options) {
     if (!enabled) {
       throw new Error('workshop-data-service: shared mode is not enabled; no writable operational path exists');
     }
-    if (!isEditable() || !snapshotTrusted || pendingReloadTimer || activeLoadToken || trailingReloadRequested) {
+    // A valid authenticated session may transiently remain in reconnecting
+    // after auth-ready/Realtime startup. Reconcile once from Supabase before
+    // failing the user's action; never fall back to retained/local state.
+    const editable = ensureEditable();
+    if (!(editable === true || (editable && await editable))) {
       return { ok: false, error: 'not_editable', state };
     }
     // Every mutation requires exactly one non-null expected-version param.
