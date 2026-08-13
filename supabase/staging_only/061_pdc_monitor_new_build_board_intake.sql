@@ -74,11 +74,18 @@ declare
   v_existing public.pdc_monitor_new_build_intake_approvals%rowtype;
   v_existing_found boolean := false;
   v_id uuid;
+  v_approved_at timestamptz;
+  v_expires_at timestamptz;
 begin
   if not public.pdc_monitor_staging_guard() then
     return public.navision_backend_response(false,'wrong_environment');
   end if;
   if v_admin_id is null or v_role is distinct from 'administrator' then
+    return public.navision_backend_response(false,'unauthorized');
+  end if;
+  perform 1 from auth.users u join public.pdc_user_roles r on lower(r.email)=lower(u.email)
+  where u.id=v_admin_id and r.active and r.role::text='administrator' for share of r;
+  if not found then
     return public.navision_backend_response(false,'unauthorized');
   end if;
   if not exists (
@@ -159,16 +166,21 @@ begin
       'approval_id',v_existing.approval_id,'expires_at',v_existing.expires_at));
   end if;
 
+  v_approved_at:=clock_timestamp();
+  v_expires_at:=least(v_approved_at+interval '2 hours',p_source_received_at+interval '24 hours');
+  if v_expires_at<=v_approved_at then
+    return public.navision_backend_response(false,'email_evidence_expired');
+  end if;
   insert into public.pdc_monitor_new_build_intake_approvals(
     proposal_id,source_hash,evidence_hash,request_hash,monitor_user_id,sender_address,
-    source_received_at,stock_number,backend_record_id,expected_revision,reason,approved_by,expires_at
+    source_received_at,stock_number,backend_record_id,expected_revision,reason,approved_by,approved_at,expires_at
   ) values(
     v_proposal,v_source_hash,v_evidence_hash,v_request_hash,p_monitor_user_id,v_sender,
-    p_source_received_at,v_stock,p_backend_record_id,p_expected_revision,btrim(p_reason),v_admin_id,
-    clock_timestamp()+interval '2 hours'
+    p_source_received_at,v_stock,p_backend_record_id,p_expected_revision,btrim(p_reason),v_admin_id,v_approved_at,
+    v_expires_at
   ) returning approval_id into v_id;
   return public.navision_backend_response(true,'approved',jsonb_build_object(
-    'approval_id',v_id,'expires_at',clock_timestamp()+interval '2 hours'));
+    'approval_id',v_id,'expires_at',v_expires_at));
 end;
 $approve$;
 

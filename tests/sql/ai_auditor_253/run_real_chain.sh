@@ -34,6 +34,11 @@ ROOT="$ARCHIVE_ROOT"
 cd "$ROOT"
 
 echo "EXACT_SHA $EXPECTED_SHA"
+printf '%s  %s\n' \
+  'cd49300335eab0117dddaaada65edce7eadf32fd34c638b617231468331f248e' \
+  'supabase/staging_only/061_pdc_monitor_new_build_board_intake.sql' \
+  '137632a97aa74cafc9e5d61a8616ed835197f9469a38047c2817acb9d49c0c8c' \
+  'supabase/staging_only/062_disable_pdc_monitor_new_build_intake.sql' | sha256sum -c -
 psql_db() { "$PGBIN/psql.exe" -X -v ON_ERROR_STOP=1 -h "$HOST" -p "$PORT" -U "$USER" -d "$1" "${@:2}"; }
 
 "$PGBIN/dropdb.exe" --if-exists -h "$HOST" -p "$PORT" -U "$USER" "$DB"
@@ -41,34 +46,50 @@ psql_db() { "$PGBIN/psql.exe" -X -v ON_ERROR_STOP=1 -h "$HOST" -p "$PORT" -U "$U
 psql_db "$DB" -f tests/sql/ai_auditor_253/00_local_supabase_platform.sql
 
 apply_migration() {
-  local f="$1" base version_text name absolute_path
+  local f="$1" expected_version="${2:-}" expected_name="${3:-}"
+  local base version_text name absolute_path expected_sha
   base="$(basename "$f" .sql)"
   version_text="${base%%_*}"
   name="${base#*_}"
+  [[ -z "$expected_version" || "$version_text" == "$expected_version" ]] || {
+    echo "migration version mismatch: expected $expected_version got $version_text" >&2
+    exit 1
+  }
+  [[ -z "$expected_name" || "$name" == "$expected_name" ]] || {
+    echo "migration name mismatch: expected $expected_name got $name" >&2
+    exit 1
+  }
+  [[ "$version_text" =~ ^[0-9]{3}$ && "$name" =~ ^[a-z0-9_]+$ ]] || {
+    echo "unsafe local ledger identity: $version_text $name" >&2
+    exit 1
+  }
+  [[ "$f" != *.rollback.sql && "$f" != */obsolete_migrations/* && "$f" != *REJECTED* ]] || {
+    echo "non-forward artifact selected: $f" >&2
+    exit 1
+  }
   absolute_path="$(cygpath -m "$(cd "$(dirname "$f")" && pwd)/$(basename "$f")")"
-  echo "REAL_MIGRATION $f"
+  [[ "$absolute_path" != *"'"* ]] || { echo "unsafe migration path" >&2; exit 1; }
+  expected_sha="$(sha256sum "$f")"
+  expected_sha="${expected_sha%% *}"
+  [[ "$expected_sha" =~ ^[0-9a-f]{64}$ ]] || { echo "invalid migration hash" >&2; exit 1; }
+  echo "REAL_MIGRATION $f sha256=$expected_sha"
   psql_db "$DB" -f "$f"
-  if ! grep -q "insert into supabase_migrations.schema_migrations" "$f"; then
-    [[ "$version_text" =~ ^[0-9]{3}$ && "$name" =~ ^[a-z0-9_]+$ ]] || {
-      echo "unsafe local ledger identity: $version_text $name" >&2
-      exit 1
-    }
-    [[ "$absolute_path" != *"'"* ]] || { echo "unsafe migration path" >&2; exit 1; }
-    psql_db "$DB" -c \
-      "insert into supabase_migrations.schema_migrations(version,name,statements)
-         select '$version_text', '$name', array[pg_read_file('$absolute_path')]
-         where not exists(select 1 from supabase_migrations.schema_migrations where version='$version_text');
-       do \$\$
-       begin
-         if not exists(
-           select 1 from supabase_migrations.schema_migrations
-           where version='$version_text' and name='$name'
-         ) then
-           raise exception 'LOCAL_LEDGER_IDENTITY_MISSING';
-         end if;
-       end
-       \$\$;"
-  fi
+  psql_db "$DB" -c \
+    "insert into supabase_migrations.schema_migrations(version,name,statements)
+       values('$version_text','$name',array[pg_read_file('$absolute_path')]);
+     do \$\$
+     begin
+       if not exists(
+         select 1 from supabase_migrations.schema_migrations
+         where version='$version_text'
+           and name='$name'
+           and cardinality(statements)=1
+           and encode(extensions.digest(convert_to(statements[1],'UTF8'),'sha256'),'hex')='$expected_sha'
+       ) then
+         raise exception 'LOCAL_LEDGER_SOURCE_IDENTITY_MISMATCH version=$version_text';
+       end if;
+     end
+     \$\$;"
 }
 
 for raw_n in $(seq 1 53); do
@@ -92,16 +113,16 @@ for raw_n in $(seq 1 53); do
 done
 
 # Canonical migration-063 staging lineage, matching scripts/apply_migration_063_staging.py.
-apply_migration supabase/migrations/054_dedicated_monitor_exact_identity_read.sql
-apply_migration supabase/migrations/055_navision_temporary_holding_fail_safe.sql
-apply_migration supabase/migrations/056_online_only_shared_operational_state.sql
-apply_migration supabase/migrations/057_online_state_realtime_revision_access.sql
-apply_migration supabase/migrations/058_online_vehicle_lifecycle_projection.sql
-apply_migration supabase/migrations/059_atomic_online_state_batch.sql
-apply_migration supabase/staging_only/060_pdc_monitor_approved_stage_activation.sql
-apply_migration supabase/staging_only/061_pdc_monitor_new_build_board_intake.sql
-apply_migration supabase/staging_only/062_disable_pdc_monitor_new_build_intake.sql
-apply_migration supabase/staging_only/063_pdc_ai_intake_inbox_history.sql
+apply_migration supabase/migrations/054_dedicated_monitor_exact_identity_read.sql 054 dedicated_monitor_exact_identity_read
+apply_migration supabase/migrations/055_navision_temporary_holding_fail_safe.sql 055 navision_temporary_holding_fail_safe
+apply_migration supabase/migrations/056_online_only_shared_operational_state.sql 056 online_only_shared_operational_state
+apply_migration supabase/migrations/057_online_state_realtime_revision_access.sql 057 online_state_realtime_revision_access
+apply_migration supabase/migrations/058_online_vehicle_lifecycle_projection.sql 058 online_vehicle_lifecycle_projection
+apply_migration supabase/migrations/059_atomic_online_state_batch.sql 059 atomic_online_state_batch
+apply_migration supabase/staging_only/060_pdc_monitor_approved_stage_activation.sql 060 pdc_monitor_approved_stage_activation
+apply_migration supabase/staging_only/061_pdc_monitor_new_build_board_intake.sql 061 pdc_monitor_new_build_board_intake
+apply_migration supabase/staging_only/062_disable_pdc_monitor_new_build_intake.sql 062 disable_pdc_monitor_new_build_intake
+apply_migration supabase/staging_only/063_pdc_ai_intake_inbox_history.sql 063 pdc_ai_intake_inbox_history
 
 psql_db "$DB" -Atc "
  do \$\$
