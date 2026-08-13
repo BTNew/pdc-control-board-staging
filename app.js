@@ -1955,6 +1955,7 @@ const app = {
   pdcAuditorDecisionMessage: '',
   pdcAuditorPendingOperation: null,
   pdcAuditorOperationBusy: false,
+  pdcAuditorOperationOwner: null,
   pdcAuditorDocumentProposals: [],
   emailVehicleLocationService: null,
   emailVehicleLocationRows: [],
@@ -19149,11 +19150,11 @@ function renderPdcAuditorPendingOperation() {
   else host.innerHTML = `<strong>No pending operation</strong><span>${escapeHtml(pending.message || 'The signed gateway reported no confirmable operation.')}</span>`;
 }
 
-async function callPdcAuditorOperationGateway(action) {
-  const config = pdcAuditorOperationGatewayConfig();
-  const token = getPdcSupabaseAccessToken();
+async function callPdcAuditorOperationGateway(action, captured = null) {
+  const config = captured?.config || pdcAuditorOperationGatewayConfig();
+  const token = captured?.token || getPdcSupabaseAccessToken();
   if (!config || !token || String(window.PDC_AUTH_CONTEXT?.role || '').toLowerCase() !== 'administrator') return null;
-  const pending = app.pdcAuditorPendingOperation;
+  const pending = captured?.pending || app.pdcAuditorPendingOperation;
   const confirmation = action === 'apply' ? 'Apply these corrections' : action === 'undo' ? 'Undo the selected Auditor run' : null;
   const binding = action === 'apply' ? pending?.proposal_id : action === 'undo' ? pending?.run_id : null;
   const response = await fetch(`${config.url}/v1/auditor-operation/${action}`, { method: action === 'status' ? 'GET' : 'POST',
@@ -19189,11 +19190,11 @@ async function loadPdcAuditorPendingOperation() {
 async function confirmPdcAuditorPendingOperation(action) {
   if (app.pdcAuditorOperationBusy || !['apply', 'undo'].includes(action)) return false;
   const pending = app.pdcAuditorPendingOperation;
-  let generation = Number(app.pdcAuditorGeneration || 0);
   const token = getPdcSupabaseAccessToken();
   const role = String(window.PDC_AUTH_CONTEXT?.role || '').toLowerCase();
   const authority = auditorAuthorityIdentity();
-  if (!token || role !== 'administrator' || !authority) return false;
+  const config = pdcAuditorOperationGatewayConfig();
+  if (!token || role !== 'administrator' || !authority || !config) return false;
   if ((action === 'apply' && pending?.state !== 'pending_apply') || (action === 'undo' && pending?.state !== 'undo_available')) return false;
   const operationBinding = value => (action === 'apply'
     ? [value?.state, value?.proposal_id, value?.proposal_version, value?.proposal_hash,
@@ -19201,47 +19202,47 @@ async function confirmPdcAuditorPendingOperation(action) {
     : [value?.state, value?.run_id, value?.run_revision_after])
     .map(part => String(part ?? '')).join('\n');
   const pendingBinding = operationBinding(pending);
-  const authorityCurrent = () => generation === Number(app.pdcAuditorGeneration || 0)
-    && token === getPdcSupabaseAccessToken()
+  const operationCurrent = () => token === getPdcSupabaseAccessToken()
     && role === String(window.PDC_AUTH_CONTEXT?.role || '').toLowerCase()
     && role === 'administrator'
     && authority === auditorAuthorityIdentity()
     && app.pdcAuditorPendingOperation === pending
-    && pendingBinding === operationBinding(app.pdcAuditorPendingOperation);
+    && pendingBinding === operationBinding(app.pdcAuditorPendingOperation)
+    && config.url === pdcAuditorOperationGatewayConfig()?.url
+    && config.instance === pdcAuditorOperationGatewayConfig()?.instance;
+  const operationOwner = {};
+  const ownsBusy = () => app.pdcAuditorOperationOwner === operationOwner;
+  const releaseBusy = () => {
+    if (!ownsBusy()) return;
+    app.pdcAuditorOperationOwner = null;
+    app.pdcAuditorOperationBusy = false;
+    renderPdcAuditorPendingOperation();
+  };
   const exact = action === 'apply' ? `${pending.proposal_id} / ${pending.proposal_hash}` : `${pending.run_id} / ${pending.run_revision_after}`;
   if (!window.confirm(`${action === 'apply' ? 'Apply' : 'Undo'} exact signed operation?\n${exact}`)) return false;
-  app.pdcAuditorOperationBusy = true; renderPdcAuditorPendingOperation();
+  if (!operationCurrent() || app.pdcAuditorOperationBusy) return false;
+  app.pdcAuditorOperationOwner = operationOwner;
+  app.pdcAuditorOperationBusy = true;
+  renderPdcAuditorPendingOperation();
   try {
-    const receipt = await callPdcAuditorOperationGateway(action);
-    if (!receipt || !authorityCurrent()) {
-      if (authorityCurrent()) {
-        app.pdcAuditorOperationBusy = false;
-        renderPdcAuditorPendingOperation();
-      }
+    const receipt = await callPdcAuditorOperationGateway(action, { config, token, pending });
+    if (!receipt || !operationCurrent()) {
+      releaseBusy();
       return false;
     }
     const reload = loadPdcAuditorSnapshot({ force: true });
-    generation = Number(app.pdcAuditorGeneration || 0);
-    if (!authorityCurrent()) return false;
     const loaded = await reload;
-    if (!loaded || !authorityCurrent()) {
-      if (authorityCurrent()) {
-        app.pdcAuditorOperationBusy = false;
-        renderPdcAuditorPendingOperation();
-      }
+    if (!loaded || !operationCurrent()) {
+      releaseBusy();
       return false;
     }
     app.pdcAuditorPendingOperation = receipt;
-    app.pdcAuditorOperationBusy = false;
-    renderPdcAuditorPendingOperation();
+    releaseBusy();
     return true;
   }
   catch (_error) {
-    if (authorityCurrent()) {
-      app.pdcAuditorPendingOperation = null;
-      app.pdcAuditorOperationBusy = false;
-      renderPdcAuditorPendingOperation();
-    }
+    if (operationCurrent()) app.pdcAuditorPendingOperation = null;
+    releaseBusy();
     return false;
   }
 }
@@ -19386,6 +19387,7 @@ function resetPdcAuditorAuthorityState() {
   app.pdcAuditorDecisionMessage = '';
   app.pdcAuditorPendingOperation = null;
   app.pdcAuditorOperationBusy = false;
+  app.pdcAuditorOperationOwner = null;
   app.pdcAuditorDocumentProposals = [];
   app.aiIntakeFiles = [];
   clearAiFileAssistantUploads();
