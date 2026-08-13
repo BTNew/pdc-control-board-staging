@@ -62,6 +62,33 @@ try {
   assert.ok(blocked.stderr.includes('NPM_PACK_INPUTS_BLOCKED'));
 } finally { fs.rmSync(temp,{recursive:true,force:true}); }
 
+// A Windows checkout can be clean while core.autocrlf has transformed package
+// inputs. Exercise the raw-byte gate directly and require it to reject CRLF
+// bytes that differ from the staged Git blob.
+const byteGateTemp = fs.mkdtempSync(path.join(os.tmpdir(),'pdc-npm-pack-byte-gate-'));
+try {
+  fs.mkdirSync(path.join(byteGateTemp,'scripts'),{recursive:true});
+  fs.copyFileSync('scripts/verify_npm_pack_inputs.js',path.join(byteGateTemp,'scripts','verify_npm_pack_inputs.js'));
+  fs.writeFileSync(path.join(byteGateTemp,'package.json'),JSON.stringify({files:['input.js']}));
+  fs.writeFileSync(path.join(byteGateTemp,'README.md'),'readme\n');
+  fs.writeFileSync(path.join(byteGateTemp,'input.js'),'line1\nline2\n');
+  assert.strictEqual(spawnSync('git',['init','-q'],{cwd:byteGateTemp}).status,0);
+  assert.strictEqual(spawnSync('git',['config','user.name','PDC Test'],{cwd:byteGateTemp}).status,0);
+  assert.strictEqual(spawnSync('git',['config','user.email','pdc-test@example.invalid'],{cwd:byteGateTemp}).status,0);
+  assert.strictEqual(spawnSync('git',['add','package.json','README.md','input.js','scripts/verify_npm_pack_inputs.js'],{cwd:byteGateTemp}).status,0);
+  assert.strictEqual(spawnSync('git',['commit','-q','-m','test baseline'],{cwd:byteGateTemp}).status,0);
+  fs.writeFileSync(path.join(byteGateTemp,'input.js'),'line1\r\nline2\r\n');
+  assert.strictEqual(spawnSync('git',['update-index','--assume-unchanged','input.js'],{cwd:byteGateTemp}).status,0);
+  assert.strictEqual(spawnSync('git',['status','--porcelain=v1'],{cwd:byteGateTemp,encoding:'utf8'}).stdout,'','test setup must make status alone appear clean');
+  const byteBlocked = spawnSync(process.execPath,[path.join(byteGateTemp,'scripts','verify_npm_pack_inputs.js')],{
+    cwd:byteGateTemp,
+    encoding:'utf8',
+  });
+  assert.notStrictEqual(byteBlocked.status,0,'prepack byte gate accepted CRLF-transformed package input');
+  assert.match(byteBlocked.stderr,/package worktree bytes differ from committed Git blobs/);
+  assert.match(byteBlocked.stderr,/input\.js/);
+} finally { fs.rmSync(byteGateTemp,{recursive:true,force:true}); }
+
 // Reproduce archive/committed ambient input: even when the sensitive filename
 // physically exists outside Git, the exact files[] allowlist must exclude it.
 const archive = fs.mkdtempSync(path.join(os.tmpdir(),'pdc-npm-pack-archive-poison-'));
@@ -79,4 +106,4 @@ try {
   assert.ok(packedFiles.includes('pdc-supabase-config.staging.js'),'staging-safe config must remain packageable');
   assert.ok(!packedFiles.includes('pdc-supabase-config.js'),'archive/committed ambient browser config leaked into package');
 } finally { fs.rmSync(archive,{recursive:true,force:true}); }
-console.log('NPM package allowlist, residue exclusions and tracked-only prepack gate passed');
+console.log('NPM package allowlist, residue exclusions and exact-Git-byte prepack gate passed');

@@ -1,1 +1,18 @@
-tests/sql/ai_auditor_253/run_real_chain.sh text eol=lf
+# Keep committed/package text bytes deterministic across Windows, macOS and Linux.
+* text=auto eol=lf
+
+# Explicit binary assets must never receive line-ending conversion.
+*.png -text
+*.jpg -text
+*.jpeg -text
+*.gif -text
+*.webp -text
+*.ico -text
+*.woff -text
+*.woff2 -text
+*.ttf -text
+*.eot -text
+*.pdf -text
+*.zip -text
+*.gz -text
+*.tgz -text
