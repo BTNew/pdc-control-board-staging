@@ -279,7 +279,7 @@ console.log('Workshop planner shared-mode integration seam checks passed');
     ['bay_overlap', 'bay is already occupied'],
     ['technician_overlap', 'already assigned to another booking'],
     ['vehicle_overlap', 'back-to-back or non-overlapping'],
-    ['parts_incomplete', 'Parts requirements are incomplete'],
+    ['parts_incomplete', 'Parts must not block workshop work'],
     ['permission_denied', 'do not have permission'],
     ['authority_superseded', 'session changed'],
     ['destroyed', 'session changed'],

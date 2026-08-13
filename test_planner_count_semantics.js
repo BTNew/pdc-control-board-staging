@@ -89,6 +89,6 @@ assert(source.includes('const unscheduled = outstanding.filter'), 'unscheduled m
 assert(source.includes('${selectedDateBookingCount} bookings on selected date'), 'calendar count must use the canonical selected-date measurement');
 assert.strictEqual(planner.workshopSelectedDateBookingCount([{ id: 1 }, { id: 2 }], [{ id: 3 }]), 3, 'completed bookings must remain in local selected-date totals');
 assert.strictEqual(planner.workshopSelectedDateBookingCount([{ id: 1 }], [{ id: 2 }], { counts: { selected_date_bookings: 7 } }, true), 7, 'dedicated planner must use the authoritative snapshot count');
-assert(source.includes('<strong>Outstanding candidates</strong>'), 'left panel must be labelled with canonical semantics');
+assert(source.includes('<strong>Outstanding candidates · Admin / Unallocated vehicle pills</strong>'), 'left panel must retain canonical semantics and identify draggable pills');
 
 console.log('Planner outstanding/unscheduled/selected-date UI semantics passed');

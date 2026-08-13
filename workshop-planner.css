@@ -112,6 +112,14 @@ body[data-current-view="workshop"] .content {
   color: #92400e;
 }
 
+.workshop-unallocated-vehicle-pill {
+  border-radius: 999px;
+  cursor: grab;
+  touch-action: none;
+}
+
+.workshop-unallocated-vehicle-pill:active { cursor: grabbing; }
+
 .workshop-date-controls input {
   min-height: 36px;
   border: 2px solid #2563eb;

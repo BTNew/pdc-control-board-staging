@@ -191,16 +191,6 @@ function buildWorkshopSharedActions(dataService) {
       });
     },
 
-    approvePartsIncompleteOverride({ vehicleId, vehicleExpectedVersion, bookingId, intendedStageCode, reason, metadata }) {
-      return mutate('approve_parts_incomplete_override', {
-        p_vehicle_id: vehicleId,
-        p_vehicle_expected_version: vehicleExpectedVersion,
-        p_booking_id: bookingId ?? null,
-        p_intended_stage_code: intendedStageCode ?? null,
-        p_reason: reason,
-        p_metadata: metadata || {},
-      });
-    },
 
     createAdminBlock({ expectedRevision, stageCode, bayNumber, blockType, label, scheduledStartAt, durationMinutes, metadata }) {
       return mutate('create_workshop_admin_block', {
@@ -244,6 +234,21 @@ function buildWorkshopSharedActions(dataService) {
         p_scheduled_start_at: scheduledStartAt,
         p_duration_minutes: durationMinutes,
         p_override_reason: overrideReason,
+        p_metadata: metadata,
+        p_request_id: requestId,
+        p_cascade: cascade,
+      });
+    },
+
+    administratorScheduleVehicle({ vehicleId, vehicleExpectedVersion, stageCode, bayNumber, scheduledStartAt, durationMinutes, technicianId = null, metadata = {}, requestId, cascade = true }) {
+      return mutate('administrator_schedule_workshop_vehicle', {
+        p_vehicle_id: vehicleId,
+        p_vehicle_expected_version: vehicleExpectedVersion,
+        p_stage_code: stageCode,
+        p_bay_number: bayNumber,
+        p_scheduled_start_at: scheduledStartAt,
+        p_duration_minutes: durationMinutes,
+        p_technician_id: technicianId,
         p_metadata: metadata,
         p_request_id: requestId,
         p_cascade: cascade,

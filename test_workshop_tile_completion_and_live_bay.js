@@ -28,7 +28,7 @@ assert.strictEqual(planner.workshopStartedBayConflict({ id: 'new-fab', stage: 'F
 assert.strictEqual(planner.workshopStartedBayConflict({ id: 'new-tint', stage: 'TINT', bay: 1 }, [conflictRows[0]]), null, 'Bay 1 in different departments must remain independent');
 
 assert.ok(source.includes('const queue = unscheduled;'), 'Booked vehicles must be removed from the Outstanding candidates pile');
-assert.ok(source.includes('<strong>Outstanding candidates</strong><span>${queue.length}</span>'), 'Outstanding pile badge must count only unassigned candidates');
+assert.ok(source.includes('Outstanding candidates · Admin / Unallocated vehicle pills</strong><span>${queue.length}</span>'), 'Admin / Unallocated pill badge must count only unassigned candidates');
 assert.ok(source.includes('customerName: vehicle.customer_name ||'), 'Shared planner vehicle mapping must retain the approved customer name');
 assert.ok(source.includes('class="workshop-plan-customer"'), 'Customer name must have a stable visible tile element');
 assert.ok(!/has-lifecycle-actions[^\{]*[\s\S]{0,160}small:first-of-type/.test(css), 'Lifecycle controls must not hide the customer name');

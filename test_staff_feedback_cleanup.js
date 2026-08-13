@@ -13,15 +13,9 @@ assert(!app.includes('data-ai-intake-reason'), 'AI Intake must not render or rea
 assert(app.includes("decision === 'apply' ? 'Approved through AI Intake' : 'Denied through AI Intake'"), 'AI Intake must retain truthful automatic audit reasons');
 assert(app.includes('service.decide(attempt.proposal, decision, reason, attempt.idempotencyKey)'), 'AI decisions must still use the protected exact proposal/version/idempotency path');
 
-assert(planner.includes("Future workshop booking created before Parts readiness was confirmed"), 'Parts-incomplete future bookings must retain an automatic planning-risk audit reason');
-const planningRetry = planner.slice(
-  planner.indexOf('WORKSHOP_PLANNING_OVERRIDE_CAPABLE_ACTIONS'),
-  planner.indexOf("actionName === 'startWork'"),
-);
-assert(!planningRetry.includes('workshopOverrideReasonModal'), 'Routine future planning must not prompt staff for a Parts override reason');
-assert(planner.includes("actionName === 'startWork'") && planner.includes('const reason = await workshopOverrideReasonModal();'), 'Immediate physical entry may request the required administrator override reason');
-assert(planner.includes("new Set(['moveBooking', 'cascadeMoveBooking', 'scheduleVehicleWork', 'cascadeSchedule'])"), 'Only booking and rescheduling actions may use the automatic planning retry');
-assert(app.includes('function confirmPartsIncompleteMovement('), 'Physical workshop movement Parts gate must remain intact');
+assert(!planner.includes("Future workshop booking created before Parts readiness was confirmed"), 'Parts must not create an automatic booking override reason');
+assert(!planner.includes("actionName === 'startWork'") || !planner.includes('const reason = await workshopOverrideReasonModal();'), 'Immediate physical entry must not prompt for a Parts override');
+assert(app.includes('function confirmPartsIncompleteMovement()') && app.includes('return { updates: {}, audit: null };'), 'Legacy movement compatibility hook must be non-blocking');
 
 for (const removed of ['id="sidebar-toggle"', 'id="browser-assessment-export"', 'id="export-backup-top"', 'id="add-customer-top"', '>Upload Navision / PD Document</button>']) {
   assert(!staging.includes(removed), `Staging top chrome must remove ${removed}`);

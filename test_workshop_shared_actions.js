@@ -150,19 +150,13 @@ async function run() {
     console.log('PASS 7: scheduleVehicleWork correctly uses the vehicle-scoped expected version');
   }
 
-  // 8. approvePartsIncompleteOverride -- also vehicle-keyed version
+  // 8. Parts override bridge is deliberately absent: incomplete Parts is
+  // operational state, never a booking/start/completion authorisation gate.
   {
     const ds = fakeDataService();
     const actions = buildWorkshopSharedActions(ds);
-    await actions.approvePartsIncompleteOverride({
-      vehicleId: 'v1', vehicleExpectedVersion: 3, bookingId: 'b1', intendedStageCode: 'HOIST', reason: 'Parts arriving tomorrow, approved by controller',
-    });
-    assert.strictEqual(ds.calls[0].name, 'approve_parts_incomplete_override');
-    assert.deepStrictEqual(ds.calls[0].params, {
-      p_vehicle_id: 'v1', p_vehicle_expected_version: 3, p_booking_id: 'b1',
-      p_intended_stage_code: 'HOIST', p_reason: 'Parts arriving tomorrow, approved by controller', p_metadata: {},
-    }, '8a exact parameter shape for the override RPC');
-    console.log('PASS 8: approvePartsIncompleteOverride maps correctly with the vehicle-scoped version');
+    assert.strictEqual(actions.approvePartsIncompleteOverride, undefined);
+    console.log('PASS 8: obsolete Parts-gate override action is not exposed');
   }
 
   console.log('Workshop shared actions bridge tests passed');

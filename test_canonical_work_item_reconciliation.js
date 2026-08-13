@@ -82,7 +82,7 @@ assert(!boardNeed.includes('inferredPmbStage') && boardNeed.includes('pdcJobRequ
 const localPlanner = planner.slice(planner.indexOf('function workshopStageVehicles'), planner.indexOf('function workshopSnapshotVehicleToPlannerRow'));
 assert(!localPlanner.includes('inferredPmbStage') && localPlanner.includes('pdcJobRequired'), 'browser-local planner fallback must not use pmb_stage');
 assert(planner.includes('outstanding_candidates') && planner.includes('Outstanding candidates') && planner.includes('bookings on selected date') && planner.includes('unscheduled'), 'planner must expose the three count concepts');
-assert(planner.includes('const queue = unscheduled;') && planner.includes('<strong>Outstanding candidates</strong><span>${queue.length}</span>'), 'already-booked vehicles must be removed from the actionable Outstanding candidates pile');
+assert(planner.includes('const queue = unscheduled;') && planner.includes('Outstanding candidates · Admin / Unallocated vehicle pills</strong><span>${queue.length}</span>'), 'already-booked vehicles must be removed from the actionable Admin / Unallocated pill pile');
 assert(planner.includes('Requirements:') && planner.includes('pdcRequirementDefinitions(vehicle)'), 'left candidate column must show canonical requirements, including Sublet');
 assert(!planner.includes("path: 'workshop/sublet'") && !app.includes("view: 'planner-sublet'"), 'Sublet must remain planner-excluded');
 
