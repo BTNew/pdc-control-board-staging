@@ -186,14 +186,13 @@ def _parse_typed_mutation(text: str, context: Mapping[str, Any]) -> tuple[str, d
     duplicate = "duplicate" in t and (t.startswith("duplicate ") or any(
         v in t for v in ("review", "find", "show", "remove", "delete", "deduplicate")))
     if duplicate:
-        if not selector: return ("", {})
+        if set(selector) != {"operation_refs"}: return ("", {})
         desired: dict[str, Any] = {"duplicate_proof": "database_exact"}
-        if "operation_refs" in selector:
-            survivor = trusted.get("survivor_operation_ref")
-            if survivor is None: return ("", {})
-            desired["survivor_operation_ref"] = _operation_ref(survivor, "survivor_operation_ref")
-            if desired["survivor_operation_ref"] not in selector["operation_refs"]:
-                raise AuditorContractError("duplicate survivor is not selected")
+        survivor = trusted.get("survivor_operation_ref")
+        if survivor is None: return ("", {})
+        desired["survivor_operation_ref"] = _operation_ref(survivor, "survivor_operation_ref")
+        if desired["survivor_operation_ref"] not in selector["operation_refs"]:
+            raise AuditorContractError("duplicate survivor is not selected")
         return "remove_duplicate", _intent(selector, context, **desired)
 
     if "gvm" in t and any(v in t for v in ("adjust", "change", "fix", "update", "correct", "review")):
@@ -213,7 +212,7 @@ def _parse_typed_mutation(text: str, context: Mapping[str, Any]) -> tuple[str, d
 
     edit = re.fullmatch(r"(?:edit|change|set|correct) (?:this operation(?:'s)? |operation )?(description|code|department|hours)(?: to)? (.+)", text, re.I)
     if edit:
-        if not selector: return ("", {})
+        if set(selector) != {"operation_ref"}: return ("", {})
         field, raw = edit.group(1).lower(), edit.group(2).strip()
         departments = {"fitting": "fitting", "tint": "tint", "hoist": "hoist", "hoist/gvm": "hoist",
                        "electrical": "electrical", "fabrication": "fabrication", "tyre": "tyre",

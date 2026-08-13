@@ -32,7 +32,7 @@ has(verify,["jsonb_typeof(p_envelope->'issued_at')<>'string'","(\\.\\d{1,6})?z$"
 assert(!verify.includes("p_envelope-'signature'"),'must not sign compact whole envelope');
 
 // Planner contract: immutable candidates are server-expanded from bounded selector/desire.
-has(plan,["array['action','apply_unambiguous','contract','desire','selector']","pdc-auditor-bounded-intent-253-v1","?| array['items','candidates','old_value','old_effective_value','proof','disposition']",'derived_items',"selector->>'category'='long_range_fuel_tank'","selector->>'category'='gvm_upgrade'","selector->>'category'='tint'",'pdc_253_clarification_required'],'bounded server intent');
+has(plan,["array['action','apply_unambiguous','contract','desire','selector']","pdc-auditor-bounded-intent-253-v1","?| array['items','candidates','old_value','old_effective_value','proof','disposition']",'derived_items',"selector->>'category'='long_range_fuel_tank'","selector->>'category'='gvm_upgrade'",'pdc_253_clarification_required'],'bounded server intent');
 has(plan,['pdc_auditor_normalized_operation_lines_253','pdc_253_exact_namespaced_ref_required'],'namespaced refs');
 has(sql,["'source:'||e.operation_line_id::text","'auditor:'||e.adjustment_id::text"],'normalized namespace projection');
 has(plan,['source_uid','operation_fingerprint','a.source_hash=b.source_hash','kit|left|right|front|rear|stage|qty|quantity|pair','source_uid_fingerprint_distinct_hash_exact_variant_228'],'228 duplicate proof');
