@@ -43,12 +43,12 @@ end $delivery_registry_shape$;
 
 -- Empty after installation. Key provisioning is deliberately outside every API role and RPC.
 create table public.pdc_auditor_gateway_keys_253(
- gateway_instance_id text not null,key_id text not null,hmac_key bytea not null check(octet_length(hmac_key)>=32),
+ gateway_instance_id text not null check(gateway_instance_id~'^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$'),key_id text not null check(key_id~'^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$'),hmac_key bytea not null check(octet_length(hmac_key)>=32),
  active boolean not null default true,valid_from timestamptz not null,valid_until timestamptz not null,
  provisioned_by uuid not null references auth.users(id) on delete restrict,provisioned_at timestamptz not null default clock_timestamp(),revoked_at timestamptz,
  primary key(gateway_instance_id,key_id),check(valid_until>valid_from),check((active and revoked_at is null) or (not active and revoked_at is not null)));
 create table public.pdc_auditor_signed_deliveries_253(
- delivery_uuid uuid primary key,gateway_instance_id text not null,key_id text not null,nonce text not null check(length(nonce) between 16 and 200),
+ delivery_uuid uuid primary key,gateway_instance_id text not null check(gateway_instance_id~'^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$'),key_id text not null check(key_id~'^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$'),nonce text not null check(nonce~'^[A-Za-z0-9][A-Za-z0-9._:-]{15,127}$'),
  issued_at timestamptz not null,expires_at timestamptz not null,instruction_sha256 text not null check(instruction_sha256~'^[a-f0-9]{64}$'),
  selected_scope jsonb not null check(jsonb_typeof(selected_scope)='object'),signature text not null check(signature~'^[a-f0-9]{64}$'),
  telegram_evidence jsonb not null check(jsonb_typeof(telegram_evidence)='object'),purpose text not null check(purpose in('plan','compose','apply','undo','query')),
@@ -204,6 +204,13 @@ begin
     or jsonb_typeof(p_envelope->'nonce')<>'string'
     or jsonb_typeof(p_envelope->'instruction_sha256')<>'string'
     or jsonb_typeof(p_envelope->'signature')<>'string' then raise exception 'PDC_253_INVALID_ENVELOPE_VALUE' using errcode='22023';end if;
+ if p_envelope->>'gateway_instance_id' !~ '^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$'
+    or p_envelope->>'key_id' !~ '^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$'
+    or p_envelope->>'nonce' !~ '^[A-Za-z0-9][A-Za-z0-9._:-]{15,127}$'
+    or p_envelope->>'delivery_uuid' !~ '^[A-Fa-f0-9]{8}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{12}$'
+    or p_envelope->>'instruction_sha256' !~ '^[A-Fa-f0-9]{64}$'
+    or p_envelope->>'signature' !~ '^[A-Fa-f0-9]{64}$'
+    or jsonb_typeof(p_envelope->'selected_scope')<>'object' then raise exception 'PDC_253_INVALID_ENVELOPE_VALUE' using errcode='22023';end if;
  telegram:=p_envelope->'telegram_evidence';
  if jsonb_typeof(telegram)<>'object' or (select array_agg(x order by x) from jsonb_object_keys(telegram)x) is distinct from array['bot_identity','instruction_sha256','original_instruction','telegram_chat_id','telegram_message_id','telegram_sender_id','telegram_update_id']::text[] then raise exception 'PDC_253_INVALID_TELEGRAM_EVIDENCE' using errcode='22023';end if;
  if jsonb_typeof(telegram->'bot_identity')<>'string'
@@ -214,6 +221,9 @@ begin
     or jsonb_typeof(telegram->'telegram_sender_id')<>'number'
     or jsonb_typeof(telegram->'telegram_update_id')<>'number' then raise exception 'PDC_253_INVALID_TELEGRAM_EVIDENCE' using errcode='22023';end if;
  if telegram->>'bot_identity'=''
+    or char_length(telegram->>'original_instruction') not between 3 and 4000
+    or left(telegram->>'original_instruction',1) ~ '[[:space:]]'
+    or right(telegram->>'original_instruction',1) ~ '[[:space:]]'
     or telegram->>'telegram_chat_id' !~ '^[1-9][0-9]{0,18}$'
     or telegram->>'telegram_message_id' !~ '^[1-9][0-9]{0,18}$'
     or telegram->>'telegram_sender_id' !~ '^[1-9][0-9]{0,18}$'

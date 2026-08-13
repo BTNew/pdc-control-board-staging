@@ -104,4 +104,51 @@ begin
  end loop;
 end$$;
 
+-- Telegram instruction text must match the producer's bounded, trimmed text
+-- contract before signature or instruction-hash verification.
+do $$
+declare scope jsonb;env jsonb;wrong_text text;unexpected jsonb;
+begin
+ scope:=jsonb_build_object('contract','pdc-auditor-bounded-intent-253-v1','action','add','apply_unambiguous',true,'selector',jsonb_build_object('vehicle_id','20000000-0000-4000-8000-000000000010'),'desire',jsonb_build_object('new_value',jsonb_build_object('description','instruction text probe','estimated_hours',1.5,'operation_code','TYPE','work_key','hoist')));
+ foreach wrong_text in array array['','ab',' leading','trailing ',repeat('x',4001)] loop
+  env:=pg_temp.envelope7('Temporary valid instruction',scope,gen_random_uuid(),'typed-telegram-text-'||substr(md5(wrong_text),1,12));
+  env:=jsonb_set(env,'{telegram_evidence,original_instruction}',to_jsonb(wrong_text));
+  env:=jsonb_set(env,'{telegram_evidence,instruction_sha256}',to_jsonb(encode(extensions.digest(convert_to(wrong_text,'UTF8'),'sha256'),'hex')));
+  env:=jsonb_set(env,'{instruction_sha256}',env->'telegram_evidence'->'instruction_sha256');
+  begin unexpected:=public.pdc_auditor_verify_envelope_253('plan',env);raise exception 'verifier accepted invalid Telegram instruction text: %',unexpected;
+  exception when sqlstate '22023' then if sqlerrm<>'PDC_253_INVALID_TELEGRAM_EVIDENCE' then raise exception 'wrong instruction-text rejection: %',sqlerrm;end if;end;
+ end loop;
+end$$;
+
+-- String-typed values must also satisfy the exact Python value grammar before
+-- key lookup, signature verification, UUID coercion, or any replay reservation.
+do $$
+declare scope jsonb;env jsonb;field text;wrong text;unexpected jsonb;
+begin
+ scope:=jsonb_build_object('contract','pdc-auditor-bounded-intent-253-v1','action','add','apply_unambiguous',true,'selector',jsonb_build_object('vehicle_id','20000000-0000-4000-8000-000000000010'),'desire',jsonb_build_object('new_value',jsonb_build_object('description','value-shape probe','estimated_hours',1.5,'operation_code','TYPE','work_key','hoist')));
+ foreach field in array array['gateway_instance_id','key_id','nonce'] loop
+  foreach wrong in array case field when 'nonce' then array['short','bad value nonce 123',repeat('x',129)] else array[' bad','-leading',repeat('x',129)] end loop
+   env:=pg_temp.envelope7('Envelope identifier value rejection '||field||md5(wrong),scope,gen_random_uuid(),'value-shape-nonce-'||substr(md5(field||wrong),1,12));
+   env:=jsonb_set(env,array[field],to_jsonb(wrong));
+   begin unexpected:=public.plan_pdc_auditor_typed_instruction_253('add','review',scope,env);raise exception 'planner accepted malformed %: %',field,unexpected;
+   exception when sqlstate '22023' then if sqlerrm<>'PDC_253_INVALID_ENVELOPE_VALUE' then raise exception 'wrong malformed % rejection: %',field,sqlerrm;end if;end;
+  end loop;
+ end loop;
+ foreach wrong in array array['{85000000-0000-4000-8000-000000000001}','85000000000040008000000000000001','not-a-uuid'] loop
+  env:=pg_temp.envelope7('Envelope UUID value rejection '||md5(wrong),scope,gen_random_uuid(),'value-shape-uuid-'||substr(md5(wrong),1,12));env:=jsonb_set(env,'{delivery_uuid}',to_jsonb(wrong));
+  begin unexpected:=public.plan_pdc_auditor_typed_instruction_253('add','review',scope,env);raise exception 'planner accepted malformed delivery UUID: %',unexpected;
+  exception when sqlstate '22023' then if sqlerrm<>'PDC_253_INVALID_ENVELOPE_VALUE' then raise exception 'wrong UUID rejection: %',sqlerrm;end if;end;
+ end loop;
+ foreach field in array array['instruction_sha256','signature'] loop
+  foreach wrong in array array['',repeat('0',63),repeat('g',64),repeat('0',65)] loop
+   env:=pg_temp.envelope7('Envelope hex value rejection '||field||md5(wrong),scope,gen_random_uuid(),'value-shape-hex-'||substr(md5(field||wrong),1,12));env:=jsonb_set(env,array[field],to_jsonb(wrong));
+   begin unexpected:=public.plan_pdc_auditor_typed_instruction_253('add','review',scope,env);raise exception 'planner accepted malformed %: %',field,unexpected;
+   exception when sqlstate '22023' then if sqlerrm<>'PDC_253_INVALID_ENVELOPE_VALUE' then raise exception 'wrong hex rejection: %',sqlerrm;end if;end;
+  end loop;
+ end loop;
+ env:=pg_temp.envelope7('Envelope selected-scope type rejection',scope,gen_random_uuid(),'value-shape-scope-123');env:=jsonb_set(env,'{selected_scope}','[]'::jsonb);
+ begin unexpected:=public.pdc_auditor_verify_envelope_253('plan',env);raise exception 'verifier accepted non-object selected scope: %',unexpected;
+ exception when sqlstate '22023' then if sqlerrm<>'PDC_253_INVALID_ENVELOPE_VALUE' then raise exception 'wrong selected-scope rejection: %',sqlerrm;end if;end;
+end$$;
+
 select 'AI_AUDITOR_253_TYPED_VALUE_BOUNDARIES_PASS' result;

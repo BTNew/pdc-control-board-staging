@@ -422,6 +422,8 @@ def validate_gateway_envelope(envelope: Any, *, instruction: str,
     value = dict(envelope)
     for key in ("gateway_instance_id", "key_id", "nonce"):
         _identifier(value[key], key)
+    if len(value["nonce"]) < 16:
+        raise AuditorContractError("nonce is invalid")
     try:
         if str(uuid.UUID(value["delivery_uuid"])) != value["delivery_uuid"].lower():
             raise ValueError

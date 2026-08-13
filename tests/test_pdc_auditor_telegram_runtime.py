@@ -275,6 +275,23 @@ class GatewayEnvelopeTests(unittest.TestCase):
                 runtime.validate_gateway_envelope(bad, instruction=text, selected_scope=scope,
                     key_resolver=lambda _: KEY, now=NOW)
 
+    def test_envelope_identifier_values_match_sql_boundary(self):
+        text = "Review duplicate bullbars"
+        scope = intent({"operation_refs": [SRC1, SRC2]}, "remove_duplicate",
+            duplicate_proof="database_exact", survivor_operation_ref=SRC1)
+        base = signed_envelope(text, scope)
+        for field, invalid_values in {
+            "gateway_instance_id": [" bad", "-leading", "x" * 129],
+            "key_id": ["bad value", "/leading", "x" * 129],
+            "nonce": ["short", "bad value nonce 123", "x" * 129],
+        }.items():
+            for invalid in invalid_values:
+                bad = dict(base); bad[field] = invalid
+                with self.subTest(field=field, invalid=invalid), self.assertRaisesRegex(
+                        runtime.AuditorContractError, field):
+                    runtime.validate_gateway_envelope(bad, instruction=text,
+                        selected_scope=scope, key_resolver=lambda _: KEY, now=NOW)
+
 
 class RuntimeContractTests(unittest.TestCase):
     def test_review_and_mutation_both_plan_only_with_exact_payload(self):
