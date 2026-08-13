@@ -28,8 +28,8 @@ Any identity change invalidates the acceptance run.
 
 In one explicit transaction that is always rolled back:
 
-1. Verify project/staging sentinels, production-sentinel absence and exact migration head.
-2. Run `scripts/apply_migration_253_staging.py --expected-commit <approved-full-sha>` in its default rollback-only mode; it must materialize immutable Git-object bytes and reject migration 251/252 state.
+1. Verify project/staging sentinels, production-sentinel absence, exact migration head and isolated Python mode; every installer invocation must use `python3 -I`, and a non-isolated invocation is a hard failure.
+2. Run `python3 -I scripts/apply_migration_253_staging.py --expected-commit <approved-full-sha>` in its default rollback-only mode; it must materialize immutable Git-object bytes and reject migration 251/252 state.
 3. Inspect RLS, exact function signatures and grants.
 4. Prove direct table DML denial for Viewer, Monitor, Importer, ordinary authenticated and service-role test principals.
 5. Prove denial for all revoked generic migrations 176/178/189/201 RPCs and Administrator/booking/lifecycle functions.
