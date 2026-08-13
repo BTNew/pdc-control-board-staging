@@ -1,0 +1,52 @@
+-- Direct signed-RPC probes: PostgreSQL must reject every value Python rejects.
+\set ON_ERROR_STOP on
+select set_config('request.jwt.claim.sub','10000000-0000-4000-8000-000000000002',false);
+select set_config('request.jwt.claims','{"sub":"10000000-0000-4000-8000-000000000002","email":"auditor@example.test","role":"authenticated"}',false);
+
+create function pg_temp.envelope7(p_instruction text,p_scope jsonb,p_delivery uuid,p_nonce text) returns jsonb
+language plpgsql as $$declare issued text;expires text;evidence jsonb;env jsonb;digest text;begin
+ issued:=to_char(clock_timestamp() at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"');
+ expires:=to_char((clock_timestamp()+interval '2 minutes') at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"');
+ digest:=encode(extensions.digest(convert_to(p_instruction,'UTF8'),'sha256'),'hex');
+ evidence:=jsonb_build_object('bot_identity','pdc-auditor-staging','instruction_sha256',digest,'original_instruction',p_instruction,'telegram_chat_id',7828138290,'telegram_message_id',abs(hashtextextended(p_delivery::text,0))%2147483646+1,'telegram_sender_id',7828138290,'telegram_update_id',abs(hashtextextended(p_delivery::text,1))%2147483647);
+ env:=jsonb_build_object('gateway_instance_id','fixture-gateway','delivery_uuid',p_delivery,'key_id','fixture-key','nonce',p_nonce,'issued_at',issued,'expires_at',expires,'instruction_sha256',digest,'selected_scope',p_scope,'telegram_evidence',evidence,'signature',repeat('0',64));
+ return jsonb_set(env,'{signature}',to_jsonb(encode(extensions.hmac(public.pdc_auditor_signing_bytes_253(env),decode(repeat('42',32),'hex'),'sha256'),'hex')));
+end$$;
+
+do $$
+declare value jsonb;
+begin
+ foreach value in array array[
+  '{"description":123,"estimated_hours":1.5,"operation_code":"OK","work_key":"hoist"}'::jsonb,
+  '{"description":"ok","estimated_hours":1.5,"operation_code":"BAD CODE!","work_key":"hoist"}'::jsonb,
+  '{"description":"ok","estimated_hours":1.5,"operation_code":"OK","ordered_position":1.0,"work_key":"hoist"}'::jsonb,
+  '{"description":"ok","estimated_hours":1.5,"operation_code":"OK","ordered_position":10001,"work_key":"hoist"}'::jsonb
+ ] loop
+  if public.pdc_auditor_valid_new_value_253(value,true,true,false) then raise exception 'invalid complete value accepted: %',value;end if;
+ end loop;
+ if not public.pdc_auditor_valid_new_value_253('{"description":"ok","estimated_hours":1.5,"operation_code":"OK-1/a.b","ordered_position":10000,"work_key":"hoist"}'::jsonb,true,true,false) then raise exception 'valid complete value rejected';end if;
+ if public.pdc_auditor_valid_new_value_253('{"description":"ok","estimated_hours":1,"work_key":"hoist"}'::jsonb,true,false,true) then raise exception 'required operation code omitted';end if;
+ if public.pdc_auditor_valid_new_value_253('{"description":"ok","estimated_hours":1,"operation_code":"OK","ordered_position":2,"work_key":"hoist"}'::jsonb,true,false,true) then raise exception 'disallowed ordered position accepted';end if;
+ if not public.pdc_auditor_valid_new_value_253('{"description":"edited"}'::jsonb,false,true,false) then raise exception 'valid partial edit rejected';end if;
+end$$;
+
+do $$
+declare actions text[]:=array['add','edit','split','combine'];errors text[]:=array['PDC_253_ADD_SCHEMA_INVALID','PDC_253_EDIT_SCHEMA_INVALID','PDC_253_SPLIT_SCHEMA_INVALID','PDC_253_COMBINE_SCHEMA_INVALID'];scopes jsonb[];i int;env jsonb;unexpected jsonb;
+begin
+ scopes:=array[
+  jsonb_build_object('contract','pdc-auditor-bounded-intent-253-v1','action','add','apply_unambiguous',true,'selector',jsonb_build_object('vehicle_id','20000000-0000-4000-8000-000000000010'),'desire',jsonb_build_object('new_value',jsonb_build_object('description',123,'estimated_hours',1.5,'operation_code','BAD CODE!','work_key','hoist'))),
+  jsonb_build_object('contract','pdc-auditor-bounded-intent-253-v1','action','edit','apply_unambiguous',true,'selector',jsonb_build_object('operation_ref','source:30000000-0000-4000-8000-000000000011'),'desire',jsonb_build_object('new_value',jsonb_build_object('description',123,'operation_code','BAD CODE!'))),
+  jsonb_build_object('contract','pdc-auditor-bounded-intent-253-v1','action','split','apply_unambiguous',true,'selector',jsonb_build_object('operation_ref','source:30000000-0000-4000-8000-000000000012'),'desire',jsonb_build_object('children',jsonb_build_array(jsonb_build_object('description',123,'estimated_hours',0.5,'operation_code','BAD CODE!','work_key','fitting'),jsonb_build_object('description','valid child','estimated_hours',1.5,'operation_code','OK','work_key','hoist')))),
+  jsonb_build_object('contract','pdc-auditor-bounded-intent-253-v1','action','combine','apply_unambiguous',true,'selector',jsonb_build_object('operation_refs',jsonb_build_array('source:30000000-0000-4000-8000-000000000013','source:30000000-0000-4000-8000-000000000014')),'desire',jsonb_build_object('survivor_operation_ref','source:30000000-0000-4000-8000-000000000013','new_value',jsonb_build_object('description',123,'estimated_hours',2,'operation_code','BAD CODE!','work_key','fabrication')))
+ ];
+ for i in 1..4 loop
+  env:=pg_temp.envelope7('Typed boundary rejection '||actions[i],scopes[i],('85000000-0000-4000-8000-'||lpad(i::text,12,'0'))::uuid,'typed-boundary-'||actions[i]);
+  begin
+   unexpected:=public.plan_pdc_auditor_typed_instruction_253(actions[i],'review',scopes[i],env);
+   raise exception 'direct signed planner accepted invalid % value: %',actions[i],unexpected;
+  exception when sqlstate '22023' then if sqlerrm<>errors[i] then raise exception 'wrong % rejection: %',actions[i],sqlerrm;end if;
+  end;
+ end loop;
+end$$;
+
+select 'AI_AUDITOR_253_TYPED_VALUE_BOUNDARIES_PASS' result;

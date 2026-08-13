@@ -19154,7 +19154,7 @@ async function callPdcAuditorOperationGateway(action) {
   const token = getPdcSupabaseAccessToken();
   if (!config || !token || String(window.PDC_AUTH_CONTEXT?.role || '').toLowerCase() !== 'administrator') return null;
   const pending = app.pdcAuditorPendingOperation;
-  const confirmation = action === 'apply' ? 'Apply these corrections' : action === 'undo' ? 'Undo exact last run' : null;
+  const confirmation = action === 'apply' ? 'Apply these corrections' : action === 'undo' ? 'Undo the selected Auditor run' : null;
   const binding = action === 'apply' ? pending?.proposal_id : action === 'undo' ? pending?.run_id : null;
   const response = await fetch(`${config.url}/v1/auditor-operation/${action}`, { method: action === 'status' ? 'GET' : 'POST',
     headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', 'X-PDC-Auditor-Gateway': config.instance },
@@ -19323,6 +19323,8 @@ function resetPdcAuditorAuthorityState() {
   app.pdcAuditorError = '';
   app.pdcAuditorDecisionInFlight = false;
   app.pdcAuditorDecisionMessage = '';
+  app.pdcAuditorPendingOperation = null;
+  app.pdcAuditorOperationBusy = false;
   app.pdcAuditorDocumentProposals = [];
   app.aiIntakeFiles = [];
   clearAiFileAssistantUploads();
@@ -19336,6 +19338,7 @@ function resetPdcAuditorAuthorityState() {
   }
   if (summary) summary.replaceChildren();
   if (report) report.replaceChildren();
+  renderPdcAuditorPendingOperation();
 }
 
 function pdcAuditorService() {

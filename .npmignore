@@ -1,0 +1,21 @@
+# npm is used only for dependency-free regression/package review. The website
+# deployment artifact is built separately by scripts/build_production_artifact.py.
+# Never package local evidence, secrets, generated probes or runtime residue.
+*.log
+*.tmp
+*.bak
+.env
+.env.*
+_build/
+artifacts/
+review-evidence/
+node_modules/
+__pycache__/
+*.pyc
+pdc_auditor_253_test_signing_boundaries.sql
+tests/sql/ai_auditor_253/vector.load.sql
+backend/.generated/
+backend/.imap_attachments/
+backend/.outlook_attachments/
+backend/.imap_bridge_processed.json
+backend/.outlook_bridge_processed.json

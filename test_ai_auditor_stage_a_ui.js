@@ -65,7 +65,7 @@ assert.ok(block.includes('pdcAuditorFilteredFindings'), 'display filters must be
 assert.ok(block.includes('function pdcAuditorOperationGatewayConfig'), 'operation control must use a separate configured gateway boundary');
 assert.ok(block.includes("String(window.PDC_AUTH_CONTEXT?.role || '').toLowerCase() === 'administrator'"), 'browser confirmation must require authenticated Administrator authority');
 assert.ok(block.includes("confirmation = action === 'apply' ? 'Apply these corrections'"), 'Apply must use the exact confirmation instruction');
-assert.ok(block.includes("action === 'undo' ? 'Undo exact last run'"), 'Undo must use the exact run-bound instruction');
+assert.ok(block.includes("action === 'undo' ? 'Undo the selected Auditor run'"), 'Undo must use the exact runtime/SQL instruction');
 assert.ok(block.includes('proposal_hash') && block.includes('run_revision_after'), 'operation confirmation must display immutable proposal/run bindings');
 assert.ok(block.includes('No direct database fallback exists'), 'missing gateway must fail closed without direct RPC fallback');
 assert.ok(!block.includes('PDC_AUDITOR_GATEWAY_HMAC_KEY_HEX') && !block.includes('PDC_AUDITOR_ACCESS_TOKEN'), 'browser source must contain no scoped bot or HMAC secret');

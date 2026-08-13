@@ -8,6 +8,7 @@ function body(name, tag) { const m=sql.match(new RegExp(`create function public\
 function has(h, xs, label) { for (const x of xs) assert(h.includes(x),`${label}: ${x}`); }
 const verify=body('pdc_auditor_verify_envelope_253','verify');
 const bytes=body('pdc_auditor_signing_bytes_253','bytes');
+const validate=body('pdc_auditor_valid_new_value_253','valid');
 const plan=body('plan_pdc_auditor_typed_instruction_253','plan');
 const apply=body('apply_pdc_auditor_typed_plan_253','apply');
 const undo=body('undo_last_pdc_auditor_typed_run_253','undo');
@@ -33,7 +34,10 @@ has(verify,['pdc_auditor_telegram_deliveries_230',"'pdc_auditor_signed_deliverie
 assert(!verify.includes("p_envelope-'signature'"),'must not sign compact whole envelope');
 
 // Planner contract: immutable candidates are server-expanded from bounded selector/desire.
+has(validate,["jsonb_typeof(p_value) is distinct from 'object'","jsonb_typeof(p_value->'description')='string'","^[a-za-z0-9._/-]{1,64}$","between 1 and 10000"],'PostgreSQL typed-value boundary');
+has(sql,['revoke all on function public.pdc_auditor_valid_new_value_253(jsonb,boolean,boolean,boolean) from public,anon,authenticated,service_role'],'private validator ACL');
 has(plan,["array['action','apply_unambiguous','contract','desire','selector']","pdc-auditor-bounded-intent-253-v1","?| array['items','candidates','old_value','old_effective_value','proof','disposition']",'derived_items',"selector->>'category'='long_range_fuel_tank'","selector->>'category'='gvm_upgrade'",'pdc_253_clarification_required'],'bounded server intent');
+has(plan,['pdc_auditor_valid_new_value_253(newv,true,true,false)','pdc_auditor_valid_new_value_253(newv,false,true,false)','pdc_auditor_valid_new_value_253(c,true,false,false)','pdc_auditor_valid_new_value_253(newv,true,false,true)'],'all mutation paths share SQL value validation');
 has(plan,['pdc_auditor_normalized_operation_lines_253','pdc_253_exact_namespaced_ref_required'],'namespaced refs');
 has(sql,["'source:'||e.operation_line_id::text","'auditor:'||e.adjustment_id::text"],'normalized namespace projection');
 has(plan,['source_uid','operation_fingerprint','a.source_hash=b.source_hash','kit|left|right|front|rear|stage|qty|quantity|pair','source_uid_fingerprint_distinct_hash_exact_variant_228'],'228 duplicate proof');

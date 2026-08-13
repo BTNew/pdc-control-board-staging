@@ -4,8 +4,9 @@ ROOT="$(cd "$(dirname "$0")/../../.." && pwd)"
 PGBIN="${PGBIN:-C:/Users/nwmgr/HermesWorkspaces/development/local-postgresql-17-correct/pgsql/bin}"
 BASE="pdc_auditor_253_test"
 VECTOR_LOAD="tests/sql/ai_auditor_253/vector.load.sql"
+SIGNING_BOUNDARIES="${BASE}_signing_boundaries.sql"
 cd "$ROOT"
-trap 'rm -f "$VECTOR_LOAD"' EXIT
+trap 'rm -f "$VECTOR_LOAD" "$SIGNING_BOUNDARIES"' EXIT
 python3 - <<'PY'
 import json
 from pathlib import Path
@@ -40,9 +41,10 @@ fresh_db() {
 
 fresh_db "${BASE}_individual"
 "$PGBIN/psql.exe" -X -v ON_ERROR_STOP=1 -h 127.0.0.1 -p 55432 -U nwmgr -d "${BASE}_individual" -f tests/sql/ai_auditor_253/02_seed.sql
-python3 tests/sql/ai_auditor_253/generate_signing_boundaries.py > "${BASE}_signing_boundaries.sql"
-"$PGBIN/psql.exe" -X -v ON_ERROR_STOP=1 -h 127.0.0.1 -p 55432 -U nwmgr -d "${BASE}_individual" -f "${BASE}_signing_boundaries.sql"
+python3 tests/sql/ai_auditor_253/generate_signing_boundaries.py > "$SIGNING_BOUNDARIES"
+"$PGBIN/psql.exe" -X -v ON_ERROR_STOP=1 -h 127.0.0.1 -p 55432 -U nwmgr -d "${BASE}_individual" -f "$SIGNING_BOUNDARIES"
 "$PGBIN/psql.exe" -X -v ON_ERROR_STOP=1 -h 127.0.0.1 -p 55432 -U nwmgr -d "${BASE}_individual" -f tests/sql/ai_auditor_253/05_individual_paths.sql
+"$PGBIN/psql.exe" -X -v ON_ERROR_STOP=1 -h 127.0.0.1 -p 55432 -U nwmgr -d "${BASE}_individual" -f tests/sql/ai_auditor_253/07_typed_value_boundaries.sql
 
 fresh_db "${BASE}_mixed"
 "$PGBIN/psql.exe" -X -v ON_ERROR_STOP=1 -h 127.0.0.1 -p 55432 -U nwmgr -d "${BASE}_mixed" -f tests/sql/ai_auditor_253/02_seed.sql

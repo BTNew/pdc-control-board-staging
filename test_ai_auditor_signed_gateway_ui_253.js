@@ -37,4 +37,15 @@ context.window.PDC_AUTH_CONTEXT.role='viewer';
 vm.runInContext('renderPdcAuditorPendingOperation()',context);
 assert.strictEqual(nodes['#ai-auditor-operation-apply'].disabled,true);
 assert.ok(nodes['#ai-auditor-operation-state'].innerHTML.includes('Administrator authority required'));
-console.log('AI Auditor signed-gateway browser control contracts passed');
+
+(async()=>{
+  let request=null;
+  context.window.PDC_AUTH_CONTEXT.role='administrator';
+  context.app.pdcAuditorPendingOperation={state:'undo_available',instance_id:'gw-staging-1',run_id:'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee',run_revision_after:'e'.repeat(64)};
+  context.fetch=async(url,options)=>{ request={url,options}; return {ok:true,json:async()=>({state:'completed',instance_id:'gw-staging-1',message:'undone'})}; };
+  const receipt=await vm.runInContext("callPdcAuditorOperationGateway('undo')",context);
+  assert.strictEqual(receipt.state,'completed');
+  assert.ok(request.url.endsWith('/v1/auditor-operation/undo'));
+  assert.deepStrictEqual(JSON.parse(request.options.body),{confirmation:'Undo the selected Auditor run',binding:'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee'});
+  console.log('AI Auditor signed-gateway browser control contracts passed');
+})().catch(error=>{ console.error(error); process.exit(1); });

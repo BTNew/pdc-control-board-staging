@@ -3,8 +3,28 @@
   "version": "1.0.0",
   "private": true,
   "description": "Dependency-free regression checks for the PDC Control Board static application.",
+  "files": [
+    "*.css",
+    "*.csv",
+    "*.html",
+    "*.js",
+    "*.json",
+    "*.md",
+    "*.svg",
+    "_staging_test_tools/",
+    "assets/",
+    "backend/",
+    "config/",
+    "docs/",
+    "handoffs/",
+    "scripts/",
+    "supabase/",
+    "tests/",
+    "vendor/"
+  ],
   "scripts": {
     "test": "node test_all.js",
-    "check": "node --check app.js && node --check test_all.js && node test_all.js"
+    "check": "node --check app.js && node --check test_all.js && node test_all.js",
+    "prepack": "node scripts/verify_npm_pack_inputs.js"
   }
 }

@@ -27,6 +27,11 @@ do $$ declare t text; begin
  if has_table_privilege('authenticated','public.pdc_auditor_workshop_revisions','INSERT,UPDATE,DELETE') then raise exception 'revision DML leak';end if;
  if not has_function_privilege('authenticated','public.plan_pdc_auditor_typed_instruction_253(text,text,jsonb,jsonb)','EXECUTE') then raise exception 'plan grant missing';end if;
  if has_function_privilege('service_role','public.plan_pdc_auditor_typed_instruction_253(text,text,jsonb,jsonb)','EXECUTE') then raise exception 'service role execute leak';end if;
+ if not exists(select 1 from pg_proc p where p.oid='public.pdc_auditor_valid_new_value_253(jsonb,boolean,boolean,boolean)'::regprocedure and not p.prosecdef and p.provolatile='i') then raise exception 'private typed-value validator contract missing';end if;
+ if has_function_privilege('public','public.pdc_auditor_valid_new_value_253(jsonb,boolean,boolean,boolean)','EXECUTE')
+    or has_function_privilege('anon','public.pdc_auditor_valid_new_value_253(jsonb,boolean,boolean,boolean)','EXECUTE')
+    or has_function_privilege('authenticated','public.pdc_auditor_valid_new_value_253(jsonb,boolean,boolean,boolean)','EXECUTE')
+    or has_function_privilege('service_role','public.pdc_auditor_valid_new_value_253(jsonb,boolean,boolean,boolean)','EXECUTE') then raise exception 'private typed-value validator execute leak';end if;
 end $$;
 
 -- Approved active human read, then fail-closed wrong email.
