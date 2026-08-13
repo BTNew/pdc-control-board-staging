@@ -42,5 +42,11 @@ assert(sql.includes("has_function_privilege('service_role',endpoint,'execute')")
 assert(sql.includes("not has_function_privilege('authenticated',endpoint,'execute')"));
 assert(sql.includes('pre-116 cascade move'));
 assert(sql.includes('pre-087 cascade schedule'));
-assert(!/grant\s+execute/.test(sql), 'draft closure must not add grants');
+assert(sql.includes('rename to administrator_schedule_workshop_vehicle_pre_251'));
+assert(sql.includes('if p_cascade is null then'));
+assert(sql.includes("raise exception 'pdc_251_cascade_required'"));
+assert(sql.includes('p_metadata,p_request_id,p_cascade'));
+assert(sql.includes('revoke all on function public.administrator_schedule_workshop_vehicle_pre_251'));
+assert(sql.includes('grant execute on function public.administrator_schedule_workshop_vehicle('));
+assert(!/grant\s+execute\s+on\s+function\s+public\.(?:schedule_vehicle_work|cascade_workshop_schedule|move_workshop_booking|cascade_workshop_booking_move|resize_workshop_booking|change_booking_bay)/.test(sql), 'draft closure must not restore a legacy execution grant');
 console.log('Draft migration 251 contract passed: exact eight-RPC closure and authenticated-only controlled endpoint postconditions');

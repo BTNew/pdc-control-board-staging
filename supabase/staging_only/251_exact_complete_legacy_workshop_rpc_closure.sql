@@ -37,6 +37,45 @@ revoke all on function public.cascade_workshop_booking_move_pre_116(uuid,integer
 revoke all on function public.resize_workshop_booking(uuid,integer,integer,jsonb) from public,anon,authenticated,service_role;
 revoke all on function public.change_booking_bay(uuid,integer,integer,jsonb) from public,anon,authenticated,service_role;
 
+-- Migration 244 canonicalized a null create-cascade value as true in the intent hash,
+-- but PL/pgSQL `if null then` selected the non-cascade execution path and the receipt
+-- retained null. Keep 244 immutable: move its implementation behind a private predecessor
+-- and reject explicit null before any intent, execution or receipt can diverge.
+alter function public.administrator_schedule_workshop_vehicle(
+  uuid,integer,text,integer,timestamptz,integer,uuid,jsonb,uuid,boolean
+) rename to administrator_schedule_workshop_vehicle_pre_251;
+revoke all on function public.administrator_schedule_workshop_vehicle_pre_251(
+  uuid,integer,text,integer,timestamptz,integer,uuid,jsonb,uuid,boolean
+) from public,anon,authenticated,service_role;
+
+create function public.administrator_schedule_workshop_vehicle(
+  p_vehicle_id uuid,p_vehicle_expected_version integer,p_stage_code text,p_bay_number integer,
+  p_scheduled_start_at timestamptz,p_duration_minutes integer,p_technician_id uuid,
+  p_metadata jsonb,p_request_id uuid,p_cascade boolean default true
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path='pg_catalog','public'
+as $schedule_251$
+begin
+  if p_cascade is null then
+    raise exception 'PDC_251_CASCADE_REQUIRED' using errcode='22023';
+  end if;
+  return public.administrator_schedule_workshop_vehicle_pre_251(
+    p_vehicle_id,p_vehicle_expected_version,p_stage_code,p_bay_number,
+    p_scheduled_start_at,p_duration_minutes,p_technician_id,
+    p_metadata,p_request_id,p_cascade
+  );
+end
+$schedule_251$;
+revoke all on function public.administrator_schedule_workshop_vehicle(
+  uuid,integer,text,integer,timestamptz,integer,uuid,jsonb,uuid,boolean
+) from public,anon,authenticated,service_role;
+grant execute on function public.administrator_schedule_workshop_vehicle(
+  uuid,integer,text,integer,timestamptz,integer,uuid,jsonb,uuid,boolean
+) to authenticated;
+
 do $verify$
 declare
   signature text;
@@ -86,6 +125,7 @@ $verify$;
 insert into supabase_migrations.schema_migrations(version,name,statements)
 values('251','exact_complete_legacy_workshop_rpc_closure',array[
   'staging-only exact closure: schedule, cascade schedule, pre-087 cascade schedule, move, cascade move, pre-116 cascade move, resize and bay-change RPCs denied to public, anon, authenticated and service_role',
+  'Administrator create cascade intent is non-null and identical across request hash, execution path and receipt',
   'Administrator controlled endpoints remain authenticated-only and enforce Administrator authority internally',
   'production untouched'
 ]);
