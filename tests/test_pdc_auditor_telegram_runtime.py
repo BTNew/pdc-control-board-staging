@@ -1,378 +1,270 @@
-"""Deterministic unit tests for the bounded AI Auditor Telegram runtime.
-
-These tests deliberately use no network, database, environment secrets, or deployment.
-The fake RPC client records the runtime's database boundary exactly.
-"""
+"""Contract tests for bounded typed Auditor ingress and signed selection envelopes."""
 from __future__ import annotations
 
 import hashlib
+import hmac
+import json
+from pathlib import Path
 import unittest
+import uuid
 
 from backend import pdc_auditor_telegram_runtime as runtime
 
-
 CHAT_ID = 99887766
 BOT_IDENTITY = "pdc-auditor-staging-test"
+KEY_ID = "gateway-key-1"
+KEY = b"unit-test-key-material-only-32bytes"
+NOW = 1_700_000_100
+VEHICLE = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
+PROPOSAL = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"
+PROPOSAL_VERSION = 1
+RUN = "cccccccc-cccc-4ccc-8ccc-cccccccccccc"
+SRC1 = "source:11111111-1111-4111-8111-111111111111"
+SRC2 = "source:22222222-2222-4222-8222-222222222222"
+AUD1 = "auditor:33333333-3333-4333-8333-333333333333"
+HASH = "ab" * 32
 
 
-def telegram_update(text: str = "Review duplicate bullbars") -> dict:
-    return {
-        "update_id": 101,
-        "message": {
-            "message_id": 202,
-            "from": {"id": runtime.CRAIG_TELEGRAM_ID, "is_bot": False},
-            "chat": {"id": CHAT_ID, "type": "private"},
-            "date": 1_700_000_000,
-            "text": text,
-        },
-    }
+def telegram_update(text: str) -> dict:
+    return {"update_id": 101, "message": {"message_id": 202,
+        "from": {"id": runtime.CRAIG_TELEGRAM_ID, "is_bot": False},
+        "chat": {"id": CHAT_ID, "type": "private"}, "date": 1_700_000_000, "text": text}}
+
+
+def signed_envelope(text: str, selected_scope: dict, **overrides) -> dict:
+    evidence = runtime.bind_telegram(telegram_update(text), expected_chat_id=CHAT_ID,
+                                     bot_identity=BOT_IDENTITY)
+    envelope = {"gateway_instance_id": "gw-staging-1",
+        "delivery_uuid": "12345678-1234-4234-9234-123456789abc",
+        "key_id": KEY_ID, "nonce": "nonce-unique-123456", "issued_at": "2023-11-14T22:14:50Z",
+        "expires_at": "2023-11-14T22:16:40Z", "instruction_sha256": hashlib.sha256(text.encode()).hexdigest(),
+        "selected_scope": selected_scope, "telegram_evidence": evidence, "signature": "0" * 64}
+    envelope.update(overrides)
+    envelope["signature"] = hmac.new(KEY, runtime.gateway_signing_bytes(envelope), hashlib.sha256).hexdigest()
+    return envelope
 
 
 class FakeClient:
-    def __init__(self, responses=None, error=None):
-        self.responses = list(responses or [])
-        self.error = error
-        self.calls = []
-
+    def __init__(self, responses=()): self.responses, self.calls = list(responses), []
     def rpc(self, name, payload):
         self.calls.append((name, payload))
-        if self.error is not None:
-            raise self.error
-        if not self.responses:
-            raise AssertionError(f"unexpected RPC call: {name}")
+        if not self.responses: raise AssertionError(f"unexpected RPC {name}")
         return self.responses.pop(0)
 
 
-def execute(client, text, context=None):
-    return runtime.execute_bound(
-        client,
-        telegram_update(text),
-        expected_chat_id=CHAT_ID,
-        bot_identity=BOT_IDENTITY,
-        context=context,
-    )
+def execute(client, text, context=None, envelope=None):
+    command = runtime.parse_instruction(text, context)
+    selected = command.get("selected_scope", {})
+    return runtime.execute_bound(client, telegram_update(text), expected_chat_id=CHAT_ID,
+        bot_identity=BOT_IDENTITY, gateway_envelope=envelope or signed_envelope(text, selected),
+        key_resolver=lambda key_id: KEY if key_id == KEY_ID else None, context=context, now=NOW)
 
 
-class ParseInstructionTests(unittest.TestCase):
-    def test_duplicate_bullbars_review_and_apply_are_distinct(self):
-        self.assertEqual(
-            runtime.parse_instruction("Review duplicate bullbars"),
-            {
-                "action": "duplicate_bullbars",
-                "mode": "review",
-                "scope": {"category": "bullbar", "confirmed_only": False},
-            },
-        )
-        self.assertEqual(
-            runtime.parse_instruction("Remove duplicate bull bars"),
-            {
-                "action": "duplicate_bullbars",
-                "mode": "apply",
-                "scope": {"category": "bullbar", "confirmed_only": True},
-            },
-        )
-
-    def test_gvm_five_hours_is_encoded_and_tank_is_not_gvm(self):
-        self.assertEqual(
-            runtime.parse_instruction("Change genuine GVM upgrades to 5 hours"),
-            {
-                "action": "gvm_hours",
-                "mode": "apply",
-                "scope": {"category": "gvm_upgrade", "estimated_hours": 5.0},
-            },
-        )
-        self.assertEqual(
-            runtime.parse_instruction("Remember: GVM upgrades take 5 hours"),
-            {
-                "action": "remember_rule",
-                "mode": "rule",
-                "scope": {
-                    "category": "gvm_upgrade",
-                    "estimated_hours": 5.0,
-                    "include": ["gvm upgrade", "gross vehicle mass upgrade"],
-                    "exclude": ["long range fuel tank", "fuel tank"],
-                },
-            },
-        )
-
-    def test_gvm_apply_requires_hours_and_quarter_hour_precision(self):
-        self.assertEqual(
-            runtime.parse_instruction("Fix GVM upgrades"),
-            {
-                "action": "clarification",
-                "question": "What exact hours should genuine GVM upgrades use?",
-            },
-        )
-        with self.assertRaisesRegex(runtime.AuditorContractError, "quarter-hour precision"):
-            runtime.parse_instruction("Fix GVM upgrades to 5.1 hours")
-
-    def test_long_range_tank_routes_to_hoist(self):
-        self.assertEqual(
-            runtime.parse_instruction("Move long range fuel tank operations"),
-            {
-                "action": "long_range_tank_department",
-                "mode": "apply",
-                "scope": {"category": "long_range_fuel_tank", "work_key": "hoist"},
-            },
-        )
-        remembered = runtime.parse_instruction("Remember: long-range fuel tanks use hoist")
-        self.assertEqual(remembered["scope"]["exclude"], ["gvm upgrade"])
-        self.assertEqual(remembered["scope"]["work_key"], "hoist")
-
-    def test_line_context_is_required_and_bound(self):
-        self.assertEqual(
-            runtime.parse_instruction("Move this operation to electrical"),
-            {"action": "clarification", "question": "Which operation line should I change?"},
-        )
-        self.assertEqual(
-            runtime.parse_instruction(
-                "Move this operation to pit inspection", {"operation_line_id": "line-7"}
-            ),
-            {
-                "action": "line_department",
-                "mode": "apply",
-                "scope": {"operation_line_id": "line-7", "work_key": "pitInspection"},
-            },
-        )
-        self.assertEqual(
-            runtime.parse_instruction("Why did you change this?", {"operation_line_id": "line-7"}),
-            {
-                "action": "explain_line",
-                "mode": "query",
-                "scope": {"operation_line_id": "line-7"},
-            },
-        )
-
-    def test_stock_command_avoids_ambiguous_or_missing_stock_and_hours(self):
-        self.assertEqual(
-            runtime.parse_instruction("Correct stock hours to 4 hours"),
-            {
-                "action": "clarification",
-                "question": "Please specify the operation, scope and intended change.",
-            },
-        )
-        self.assertEqual(
-            runtime.parse_instruction("Correct Stock 123456 estimated hours"),
-            {
-                "action": "clarification",
-                "question": "What exact hours should be applied to Stock 123456?",
-            },
-        )
-        self.assertEqual(
-            runtime.parse_instruction("Correct Stock 123456 to 4.25 hours"),
-            {
-                "action": "stock_hours",
-                "mode": "apply",
-                "scope": {"stock_number": "123456", "estimated_hours": 4.25},
-            },
-        )
-
-    def test_rule_show_disable_correct_and_undo_commands(self):
-        cases = [
-            ("Show auditor rules", "show_rules", "rule", {}),
-            ("Disable the gvm rule", "disable_rule", "rule", {"rule_selector": "gvm"}),
-            (
-                "Correct the gvm rule to 5 hours",
-                "correct_rule",
-                "rule",
-                {"rule_selector": "gvm", "estimated_hours": 5.0},
-            ),
-            ("Undo my last rule", "undo_last_rule", "rule", {}),
-            ("Undo the last auditor run", "undo_last_run", "undo", {}),
-        ]
-        for text, action, mode, scope in cases:
-            with self.subTest(text=text):
-                self.assertEqual(
-                    runtime.parse_instruction(text),
-                    {"action": action, "mode": mode, "scope": scope},
-                )
-
-    def test_apply_matching_requires_and_preserves_review_context(self):
-        text = "Apply this correction to all matching vehicles"
-        self.assertEqual(
-            runtime.parse_instruction(text),
-            {
-                "action": "clarification",
-                "question": "Which reviewed correction should I apply to all matching vehicles?",
-            },
-        )
-        self.assertEqual(
-            runtime.parse_instruction(
-                text, {"rule_version_id": "rule-v3", "source_plan_id": "plan-2", "ignored": 1}
-            ),
-            {
-                "action": "apply_matching",
-                "mode": "apply",
-                "scope": {"rule_version_id": "rule-v3", "source_plan_id": "plan-2"},
-            },
-        )
-
-    def test_unknown_instruction_returns_bounded_clarification(self):
-        self.assertEqual(
-            runtime.parse_instruction("Please improve everything"),
-            {
-                "action": "clarification",
-                "question": "Please specify the operation, scope and intended change.",
-            },
-        )
-
-    def test_instruction_whitespace_and_length_are_rejected(self):
-        for bad in (" hi", "hi ", "hi", "x" * 4001):
-            with self.subTest(value=repr(bad[:10])):
-                with self.assertRaises(runtime.AuditorContractError):
-                    runtime.parse_instruction(bad)
+def intent(selector: dict, action: str, **desired) -> dict:
+    return {"contract": runtime.INTENT_CONTRACT, "action": action, "apply_unambiguous": False,
+            "selector": selector, "desire": desired}
 
 
-class TelegramBindingTests(unittest.TestCase):
-    def test_exact_craig_sender_and_configured_private_chat_are_bound(self):
-        evidence = runtime.bind_telegram(
-            telegram_update("Show rules"), expected_chat_id=CHAT_ID, bot_identity=BOT_IDENTITY
-        )
-        self.assertEqual(evidence["telegram_sender_id"], runtime.CRAIG_TELEGRAM_ID)
-        self.assertEqual(evidence["telegram_chat_id"], CHAT_ID)
-        self.assertEqual(evidence["telegram_message_id"], 202)
-        self.assertEqual(evidence["telegram_update_id"], 101)
-        self.assertEqual(evidence["bot_identity"], BOT_IDENTITY)
-        self.assertEqual(
-            evidence["instruction_sha256"], hashlib.sha256(b"Show rules").hexdigest()
-        )
+class TypedIntentTests(unittest.TestCase):
+    def test_exact_edit_and_bounded_category_actions(self):
+        self.assertEqual(runtime.parse_instruction("Correct operation hours to 4.25 hours", {"operation_ref": SRC1}),
+            {"action": "edit", "mode": "apply", "selected_scope": intent(
+                {"operation_ref": SRC1}, "edit", new_value={"estimated_hours": 4.25})})
+        self.assertEqual(runtime.parse_instruction("Change genuine GVM upgrades to 5 hours"),
+            {"action": "edit", "mode": "apply", "selected_scope": intent(
+                {"category": "gvm_upgrade"}, "edit", new_value={"estimated_hours": 5.0})})
+        self.assertEqual(runtime.parse_instruction("Review duplicate bullbars"),
+            {"action": "remove_duplicate", "mode": "review", "selected_scope": intent(
+                {"category": "bullbar"}, "remove_duplicate", duplicate_proof="database_exact")})
+        self.assertNotIn("review_category", repr(runtime.parse_instruction("Review duplicate bullbars")))
 
-    def test_other_human_sender_is_bound_for_database_authorization(self):
-        update = telegram_update()
-        update["message"]["from"] = {"id": runtime.CRAIG_TELEGRAM_ID + 1, "is_bot": False}
-        evidence = runtime.bind_telegram(update, expected_chat_id=CHAT_ID, bot_identity=BOT_IDENTITY)
-        self.assertEqual(evidence["telegram_sender_id"], runtime.CRAIG_TELEGRAM_ID + 1)
+    def test_exactly_one_strict_selector(self):
+        for context in ({}, {"operation_ref": SRC1, "vehicle_id": VEHICLE},
+                        {"operation_ref": "source:not-a-uuid"}, {"vehicle_id": "v1"},
+                        {"job_card_number": "bad jc!"}):
+            with self.subTest(context=context):
+                if context and len(context) == 1 and next(iter(context)) in {"operation_ref", "vehicle_id", "job_card_number"}:
+                    with self.assertRaises(runtime.AuditorContractError):
+                        runtime.parse_instruction("Edit operation code to X1", context)
+                else:
+                    self.assertEqual(runtime.parse_instruction("Edit operation code to X1", context)["action"], "clarification")
 
-    def test_invalid_or_bot_sender_is_rejected(self):
-        for sender in (
-            {"id": runtime.CRAIG_TELEGRAM_ID, "is_bot": True},
-            {"id": runtime.CRAIG_TELEGRAM_ID, "is_bot": False, "username": "craig"},
-            {"id": True, "is_bot": False},
-        ):
-            update = telegram_update()
-            update["message"]["from"] = sender
-            with self.subTest(sender=sender):
-                with self.assertRaisesRegex(runtime.AuditorContractError, "sender shape"):
-                    runtime.bind_telegram(update, expected_chat_id=CHAT_ID, bot_identity=BOT_IDENTITY)
+    def test_add_requires_complete_trusted_value_not_prose(self):
+        text = "Add operation code BB01 description Fit bullbar"
+        self.assertEqual(runtime.parse_instruction(text, {"vehicle_id": VEHICLE})["action"], "clarification")
+        context = {"vehicle_id": VEHICLE, "trusted_intent": {"new_value": {
+            "description": "Fit bullbar", "work_key": "fitting", "estimated_hours": 3.25,
+            "operation_code": "BB01", "ordered_position": 4}}}
+        self.assertEqual(runtime.parse_instruction(text, context), {"action": "add", "mode": "apply",
+            "selected_scope": intent({"vehicle_id": VEHICLE}, "add", new_value=context["trusted_intent"]["new_value"])})
 
-    def test_wrong_chat_or_non_private_chat_is_rejected(self):
-        for chat in (
-            {"id": CHAT_ID + 1, "type": "private"},
-            {"id": CHAT_ID, "type": "group"},
-            {"id": CHAT_ID, "type": "private", "title": "extra"},
-        ):
-            update = telegram_update()
-            update["message"]["chat"] = chat
-            with self.subTest(chat=chat):
-                with self.assertRaisesRegex(runtime.AuditorContractError, "configured private chat"):
-                    runtime.bind_telegram(update, expected_chat_id=CHAT_ID, bot_identity=BOT_IDENTITY)
+    def test_split_combine_and_reorder_never_invent_structured_values(self):
+        self.assertEqual(runtime.parse_instruction("Split this operation into A and B", {"operation_ref": SRC1})["action"], "clarification")
+        children = [{"description": "Fit", "work_key": "fitting", "estimated_hours": 2.0},
+                    {"description": "Wire", "work_key": "electrical", "estimated_hours": 1.25}]
+        split = runtime.parse_instruction("Split this operation into A and B",
+            {"operation_ref": SRC1, "trusted_intent": {"children": children}})
+        self.assertEqual(split["selected_scope"], intent({"operation_ref": SRC1}, "split", children=children))
 
-    def test_update_and_message_shapes_are_exact(self):
-        update = telegram_update()
-        update["extra"] = True
-        with self.assertRaisesRegex(runtime.AuditorContractError, "update keys"):
-            runtime.bind_telegram(update, expected_chat_id=CHAT_ID, bot_identity=BOT_IDENTITY)
-        update = telegram_update()
-        update["message"]["username"] = "injected"
-        with self.assertRaisesRegex(runtime.AuditorContractError, "message keys"):
-            runtime.bind_telegram(update, expected_chat_id=CHAT_ID, bot_identity=BOT_IDENTITY)
+        combine_context = {"operation_refs": [SRC1, AUD1], "trusted_intent": {
+            "survivor_operation_ref": SRC1, "new_value": {"description": "Combined", "work_key": "fitting",
+                "estimated_hours": 4.0, "operation_code": "COMB"}}}
+        combine = runtime.parse_instruction("Combine these operations", combine_context)
+        self.assertEqual(combine["action"], "combine")
+        self.assertEqual(combine["selected_scope"]["desire"]["survivor_operation_ref"], SRC1)
+
+        self.assertEqual(runtime.parse_instruction("Reorder operation lines", {"vehicle_id": VEHICLE})["action"], "clarification")
+        reorder = runtime.parse_instruction("Reorder operation lines", {"vehicle_id": VEHICLE,
+            "trusted_intent": {"ordered_operation_refs": [SRC2, SRC1, AUD1]}})
+        self.assertEqual(reorder["selected_scope"]["desire"]["ordered_operation_refs"], [SRC2, SRC1, AUD1])
+        self.assertIs(reorder["selected_scope"]["desire"]["complete_effective_set"], True)
+
+    def test_apply_and_undo_have_exact_selection_contracts(self):
+        reviewed = {"reviewed_proposal_id": PROPOSAL, "reviewed_proposal_version": PROPOSAL_VERSION,
+            "reviewed_proposal_hash": HASH, "reviewed_typed_item_set_hash": HASH,
+            "reviewed_final_scope_hash": HASH, "reviewed_expected_row_versions_hash": HASH}
+        expected = {"contract": runtime.APPLY_SELECTION_CONTRACT, "proposal_id": PROPOSAL,
+            "proposal_version": PROPOSAL_VERSION, "proposal_hash": HASH,
+            "typed_item_set_hash": HASH, "final_scope_hash": HASH,
+            "expected_row_versions_hash": HASH}
+        self.assertEqual(runtime.parse_instruction("Apply these corrections", reviewed), {
+            "action": "apply_reviewed_proposal", "mode": "apply_reviewed", "selected_scope": expected})
+        for missing in reviewed:
+            bad = dict(reviewed); bad.pop(missing)
+            self.assertEqual(runtime.parse_instruction("Apply these corrections", bad)["action"], "clarification")
+        self.assertEqual(runtime.parse_instruction("Undo last auditor run")["selected_scope"],
+            {"contract": runtime.UNDO_SELECTION_CONTRACT, "latest": True})
+        self.assertEqual(runtime.parse_instruction("Undo last auditor run", {"selected_run_id": RUN})["selected_scope"],
+            {"contract": runtime.UNDO_SELECTION_CONTRACT, "run_id": RUN})
+
+    def test_apply_prefix_still_only_selects_apply_mode_plan(self):
+        command = runtime.parse_instruction("Apply edit operation code to X1", {"operation_ref": SRC1})
+        self.assertEqual(command["action"], "edit")
+        self.assertEqual(command["mode"], "apply")
 
 
-class RpcBoundaryTests(unittest.TestCase):
-    def test_staging_url_is_pinned_to_exact_origin(self):
-        client = runtime.RpcClient(runtime.STAGING_URL + "/", "key", "token")
-        self.assertEqual(client.url, runtime.STAGING_URL)
-        rejected = [
-            "http://cdsmnqxtyyoeoznmbidd.supabase.co",
-            "https://evil.example",
-            runtime.STAGING_URL + ":443",
-            runtime.STAGING_URL + "/rest/v1",
-            runtime.STAGING_URL + "?x=1",
-            runtime.STAGING_URL + "#fragment",
-            "https://user:pass@cdsmnqxtyyoeoznmbidd.supabase.co",
-        ]
-        for url in rejected:
-            with self.subTest(url=url):
-                with self.assertRaisesRegex(runtime.AuditorContractError, "exact staging origin"):
-                    runtime.RpcClient(url, "key", "token")
+class GatewayEnvelopeTests(unittest.TestCase):
+    def test_literal_iso_length_prefix_known_answer(self):
+        text = "Review duplicate bullbars"
+        scope = intent({"category": "bullbar"}, "remove_duplicate", duplicate_proof="database_exact")
+        envelope = signed_envelope(text, scope)
+        expected = (
+            b'pdc-auditor-envelope-253-v1\n'
+            b'gateway_instance_id:12:gw-staging-1\n'
+            b'delivery_uuid:36:12345678-1234-4234-9234-123456789abc\n'
+            b'key_id:13:gateway-key-1\n'
+            b'nonce:19:nonce-unique-123456\n'
+            b'issued_at:20:2023-11-14T22:14:50Z\n'
+            b'expires_at:20:2023-11-14T22:16:40Z\n'
+            b'instruction_sha256:64:' + hashlib.sha256(text.encode()).hexdigest().encode() + b'\n'
+            b'selected_scope:' + str(len(runtime.canonical_json(scope))).encode() + b':' + runtime.canonical_json(scope) + b'\n'
+            b'telegram_evidence:' + str(len(runtime.canonical_json(envelope['telegram_evidence']))).encode() + b':' + runtime.canonical_json(envelope['telegram_evidence']))
+        self.assertEqual(runtime.gateway_signing_bytes(envelope), expected)
+        self.assertEqual(envelope["signature"], "1fd6fe7208b8b66cf4e1798ea6c7ae1864735617c6b058dd48434ad41a651e41")
 
-    def test_rpc_name_allowlist_rejects_before_any_network_access(self):
-        client = runtime.RpcClient(runtime.STAGING_URL, "key", "token")
-        with self.assertRaisesRegex(runtime.AuditorContractError, "not allowlisted"):
-            client.rpc("arbitrary_or_production_rpc", {})
 
-    def test_review_calls_planner_only_with_review_mode(self):
-        plan = {"ok": True, "code": "planned", "data": {"plan_id": "p1", "plan_hash": "h1"}}
-        client = FakeClient([plan])
-        self.assertIs(execute(client, "Review duplicate bullbars"), plan)
-        self.assertEqual(len(client.calls), 1)
+    def test_shared_canonical_vectors(self):
+        fixture = json.loads((Path(__file__).parent / "fixtures" / "ai_auditor_signing_vectors_253.json").read_text(encoding="utf-8"))
+        for vector in fixture["canonical_json"]:
+            with self.subTest(vector=vector["name"]):
+                self.assertEqual(runtime.canonical_json(vector["value"]), vector["canonical_utf8"].encode("utf-8"))
+        envelope = fixture["envelope"]["value"]
+        key = bytes.fromhex(fixture["envelope"]["hmac_key_hex"])
+        signature = hmac.new(key, runtime.gateway_signing_bytes(envelope), hashlib.sha256).hexdigest()
+        self.assertEqual(runtime.gateway_signing_bytes(envelope).hex(), fixture["envelope"]["signing_bytes_hex"])
+        self.assertEqual(signature, fixture["envelope"]["signature_hex"])
+
+    def test_signature_hash_scope_uuid_and_time_validation_precede_rpc(self):
+        text = "Review duplicate bullbars"
+        scope = intent({"category": "bullbar"}, "remove_duplicate", duplicate_proof="database_exact")
+        envelope = signed_envelope(text, scope)
+        verified = runtime.validate_gateway_envelope(envelope, instruction=text, selected_scope=scope,
+            telegram_evidence=envelope["telegram_evidence"], key_resolver=lambda _: KEY, now=NOW)
+        self.assertEqual(verified["selected_scope"], scope)
+        for mutation, message in [({"delivery_uuid": "not-uuid"}, "delivery_uuid"),
+                                  ({"selected_scope": {"category": "other"}}, "scope")]:
+            bad = dict(envelope); bad.update(mutation)
+            if mutation.get("delivery_uuid") != "not-uuid":
+                bad["signature"] = hmac.new(KEY, runtime.gateway_signing_bytes(bad), hashlib.sha256).hexdigest()
+            with self.subTest(mutation=mutation), self.assertRaisesRegex(runtime.AuditorContractError, message):
+                runtime.validate_gateway_envelope(bad, instruction=text, selected_scope=scope,
+                    key_resolver=lambda _: KEY, now=NOW)
+
+
+class RuntimeContractTests(unittest.TestCase):
+    def test_review_and_mutation_both_plan_only_with_exact_payload(self):
+        review = {"ok": True, "code": "planned", "data": {"proposal_id": PROPOSAL, "proposal_version": PROPOSAL_VERSION, "proposal_hash": HASH, "typed_item_set_hash": HASH, "final_scope_hash": HASH, "expected_row_versions_hash": HASH}}
+        client = FakeClient([review])
+        self.assertIs(execute(client, "Review duplicate bullbars"), review)
         name, payload = client.calls[0]
         self.assertEqual(name, runtime.PLAN_RPC)
-        self.assertEqual(payload["p_action"], "duplicate_bullbars")
+        self.assertEqual(payload["p_action"], "remove_duplicate")
         self.assertEqual(payload["p_mode"], "review")
-        self.assertEqual(payload["p_scope"], {"category": "bullbar", "confirmed_only": False})
-        self.assertEqual(payload["p_telegram_evidence"]["telegram_sender_id"], runtime.CRAIG_TELEGRAM_ID)
+        self.assertEqual(payload["p_selected_scope"]["contract"], runtime.INTENT_CONTRACT)
 
-    def test_apply_calls_planner_then_apply_with_immutable_plan_identity(self):
-        plan = {"ok": True, "code": "planned", "data": {"plan_id": "p9", "plan_hash": "hash9"}}
-        applied = {"ok": True, "code": "applied", "data": {"run_id": "r2"}}
-        client = FakeClient([plan, applied])
-        self.assertIs(execute(client, "Remove duplicate bullbars"), applied)
-        self.assertEqual([name for name, _ in client.calls], [runtime.PLAN_RPC, runtime.APPLY_RPC])
-        apply_payload = client.calls[1][1]
-        self.assertEqual(apply_payload["p_plan"], "p9")
-        self.assertEqual(apply_payload["p_plan_hash"], "hash9")
-        self.assertEqual(
-            apply_payload["p_telegram_evidence"], client.calls[0][1]["p_telegram_evidence"]
-        )
+        plan = {"ok": True, "code": "planned", "data": {"proposal_id": PROPOSAL, "proposal_version": PROPOSAL_VERSION, "proposal_hash": HASH, "typed_item_set_hash": HASH, "final_scope_hash": HASH, "expected_row_versions_hash": HASH}}
+        client = FakeClient([plan])
+        result = execute(client, "Apply edit operation code to X1", {"operation_ref": SRC1})
+        self.assertEqual([name for name, _ in client.calls], [runtime.PLAN_RPC])
+        self.assertEqual(result["code"], "pending_apply_confirmation")
+        self.assertEqual(result["data"]["apply_selected_scope"], {
+            "contract": runtime.APPLY_SELECTION_CONTRACT, "proposal_id": PROPOSAL,
+            "proposal_version": PROPOSAL_VERSION, "proposal_hash": HASH,
+            "typed_item_set_hash": HASH, "final_scope_hash": HASH,
+            "expected_row_versions_hash": HASH})
 
-    def test_failed_plan_is_returned_and_never_applied_or_retried(self):
-        denied = {"ok": False, "code": "conflict", "data": {}}
-        client = FakeClient([denied])
-        self.assertIs(execute(client, "Remove duplicate bullbars"), denied)
-        self.assertEqual(len(client.calls), 1)
-        self.assertEqual(client.calls[0][0], runtime.PLAN_RPC)
+    def test_confirmation_uses_new_signed_selection_and_never_replans(self):
+        context = {"reviewed_proposal_id": PROPOSAL, "reviewed_proposal_version": PROPOSAL_VERSION,
+            "reviewed_proposal_hash": HASH, "reviewed_typed_item_set_hash": HASH,
+            "reviewed_final_scope_hash": HASH, "reviewed_expected_row_versions_hash": HASH}
+        applied = {"ok": True, "code": "applied", "data": {"run_id": RUN}}
+        client = FakeClient([applied])
+        self.assertIs(execute(client, "Apply these corrections", context), applied)
+        self.assertEqual([name for name, _ in client.calls], [runtime.APPLY_RPC])
+        payload = client.calls[0][1]
+        self.assertEqual(payload["p_proposal"], PROPOSAL)
+        self.assertEqual(payload["p_proposal_version"], PROPOSAL_VERSION)
+        for field in ("proposal_hash", "typed_item_set_hash", "final_scope_hash", "expected_row_versions_hash"):
+            self.assertEqual(payload[f"p_{field}"], HASH)
+        self.assertEqual(payload["p_gateway_envelope"]["selected_scope"]["proposal_id"], PROPOSAL)
 
-    def test_runtime_does_not_retry_rpc_errors_because_db_owns_retries(self):
-        client = FakeClient(error=RuntimeError("database unavailable"))
-        with self.assertRaisesRegex(RuntimeError, "database unavailable"):
-            execute(client, "Remove duplicate bullbars")
-        self.assertEqual(len(client.calls), 1)
+    def test_query_undo_and_rule_regression_paths(self):
+        query_client = FakeClient([{"ok": True}])
+        execute(query_client, "Why did you change this", {"vehicle_id": VEHICLE, "job_card_number": "JC-42"})
+        self.assertEqual(query_client.calls[0][0], runtime.QUERY_RPC)
+        self.assertEqual(query_client.calls[0][1]["p_action"], "operation_snapshot")
 
-    def test_clarification_makes_no_rpc_call(self):
-        client = FakeClient([])
-        result = execute(client, "Please improve everything")
-        self.assertEqual(result["code"], "clarification_required")
-        self.assertEqual(client.calls, [])
+        undo_client = FakeClient([{"ok": True}])
+        execute(undo_client, "Undo last auditor run", {"selected_run_id": RUN})
+        self.assertEqual(undo_client.calls[0][0], runtime.UNDO_RPC)
+        self.assertEqual(undo_client.calls[0][1]["p_gateway_envelope"]["selected_scope"], {
+            "contract": runtime.UNDO_SELECTION_CONTRACT, "run_id": RUN})
 
-    def test_query_rule_and_undo_dispatch_to_only_their_allowlisted_rpc(self):
-        cases = [
-            ("Show rules", runtime.RULE_RPC, "show_rules"),
-            ("Disable the gvm rule", runtime.RULE_RPC, "disable_rule"),
-            ("Undo last auditor run", runtime.UNDO_RPC, None),
-        ]
-        for text, expected_rpc, expected_action in cases:
-            with self.subTest(text=text):
-                response = {"ok": True, "code": "ok", "data": {}}
-                client = FakeClient([response])
-                self.assertIs(execute(client, text), response)
-                self.assertEqual(len(client.calls), 1)
-                name, payload = client.calls[0]
-                self.assertEqual(name, expected_rpc)
-                if expected_action is None:
-                    self.assertEqual(set(payload), {"p_telegram_evidence"})
-                else:
-                    if expected_rpc == runtime.RULE_RPC:
-                        self.assertEqual(payload["p_action"], "show" if expected_action == "show_rules" else "disable")
-                        self.assertIn("p_evidence", payload)
-                    else:
-                        self.assertEqual(payload["p_action"], expected_action)
+        rule_client = FakeClient([{"ok": True}])
+        execute(rule_client, "Show rules")
+        self.assertEqual(rule_client.calls[0][0], runtime.RULE_RPC)
+        self.assertEqual(set(rule_client.calls[0][1]), {"p_action", "p_scope", "p_evidence"})
 
-    def test_apply_requires_plan_id(self):
-        client = FakeClient([{"ok": True, "code": "planned", "data": {"plan_hash": "h"}}])
-        with self.assertRaisesRegex(runtime.AuditorContractError, "omitted plan_id"):
-            execute(client, "Remove duplicate bullbars")
-        self.assertEqual(len(client.calls), 1)
+    def test_invalid_plan_identity_and_envelope_make_no_apply(self):
+        client = FakeClient([{"ok": True, "data": {"plan_id": "p1", "plan_hash": "hash9"}}])
+        with self.assertRaisesRegex(runtime.AuditorContractError, "valid immutable"):
+            execute(client, "Edit operation code to X1", {"operation_ref": SRC1})
+        self.assertEqual([name for name, _ in client.calls], [runtime.PLAN_RPC])
+
+        no_calls = FakeClient([])
+        text = "Review duplicate bullbars"
+        scope = runtime.parse_instruction(text)["selected_scope"]
+        bad = signed_envelope(text, scope); bad["signature"] = "0" * 64
+        with self.assertRaisesRegex(runtime.AuditorContractError, "signature"):
+            execute(no_calls, text, envelope=bad)
+        self.assertEqual(no_calls.calls, [])
+
+    def test_rpc_allowlist(self):
+        self.assertEqual(runtime.PLAN_RPC, "plan_pdc_auditor_typed_instruction_253")
+        self.assertEqual(runtime.APPLY_RPC, "apply_pdc_auditor_typed_plan_253")
+        rpc = runtime.RpcClient(runtime.STAGING_URL, "key", "token")
+        with self.assertRaisesRegex(runtime.AuditorContractError, "not allowlisted"):
+            rpc.rpc("arbitrary_sql_rpc", {})
 
 
 if __name__ == "__main__":

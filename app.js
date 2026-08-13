@@ -1941,6 +1941,15 @@ const app = {
   pdcAuditorSearch: '',
   pdcAuditorGeneration: 0,
   pdcAuditorRealtime: null,
+  pdcAuditorRealtimeDealer: '',
+  pdcAuditorRealtimeGeneration: 0,
+  pdcAuditorRevisionCursor: null,
+  pdcAuditorPendingRevision: null,
+  pdcAuditorRealtimePendingGeneration: 0,
+  pdcAuditorRealtimeCoveredGeneration: 0,
+  pdcAuditorRealtimePendingKeys: new Map(),
+  pdcAuditorRealtimeRefreshInFlight: false,
+  pdcAuditorRealtimeRefreshGeneration: 0,
   pdcAuditorPage: 0,
   pdcAuditorDecisionInFlight: false,
   pdcAuditorDecisionMessage: '',
@@ -4461,6 +4470,14 @@ function renderActiveView() {
     case 'ai-auditor':
       renderPdcAuditor();
       if (app.pdcAuditorState === 'idle') loadPdcAuditorSnapshot();
+      else if (app.pdcAuditorRealtimePendingGeneration > app.pdcAuditorRealtimeCoveredGeneration
+        && app.pdcAuditorRealtimeDealer && auditorAuthorityIdentity()) {
+        void refreshPdcAuditorAfterRealtimeInvalidation(
+          app.pdcAuditorRealtimeGeneration,
+          auditorAuthorityIdentity(),
+          app.pdcAuditorRealtimeDealer,
+        );
+      }
       break;
     case 'sublet':
       renderSubletHome();
@@ -19216,8 +19233,7 @@ function pdcAuditorEvaluateSnapshot(snapshot = {}) {
 function resetPdcAuditorAuthorityState() {
   app.pdcAuditorGeneration += 1;
   try { app.pdcAuditorService?.destroy?.(); } catch (_error) { /* synchronous fail-closed teardown */ }
-  try { if (app.pdcAuditorRealtime) window.PDC_SUPABASE?.removeChannel?.(app.pdcAuditorRealtime); } catch (_error) { /* teardown remains fail closed */ }
-  app.pdcAuditorRealtime = null;
+  resetPdcAuditorRealtimeSubscription();
   app.pdcAuditorService = null;
   app.pdcAuditorSnapshot = null;
   app.pdcAuditorResult = null;
@@ -19250,17 +19266,147 @@ function pdcAuditorService() {
   return app.pdcAuditorService;
 }
 
+function pdcAuditorRealtimeRevisionId(value) {
+  const text = typeof value === 'bigint' ? String(value) : String(value ?? '').trim();
+  if (!/^[1-9]\d*$/.test(text)) return null;
+  try { return BigInt(text); } catch (_error) { return null; }
+}
+
+function pdcAuditorRealtimeUuid(value) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(value || '').trim());
+}
+
+function pdcAuditorRealtimeViewActive() {
+  return document.getElementById('ai-auditor')?.classList.contains('active') === true;
+}
+
+function invalidatePdcAuditorRealtime(realtimeGeneration, authority, dealer, revisionId = null, revisionKey = '') {
+  if (realtimeGeneration !== app.pdcAuditorRealtimeGeneration
+    || authority !== auditorAuthorityIdentity()
+    || dealer !== app.pdcAuditorRealtimeDealer) return false;
+  const revision = pdcAuditorRealtimeRevisionId(revisionId);
+  const cursor = pdcAuditorRealtimeRevisionId(app.pdcAuditorRevisionCursor);
+  const pending = pdcAuditorRealtimeRevisionId(app.pdcAuditorPendingRevision);
+  if (revision !== null) {
+    if (cursor !== null && revision <= cursor) return false;
+    const key = String(revisionKey || revision);
+    if (app.pdcAuditorRealtimePendingKeys.has(key)) return false;
+    if (pending === null || revision > pending) app.pdcAuditorPendingRevision = String(revision);
+    app.pdcAuditorRealtimePendingKeys.set(key, app.pdcAuditorRealtimePendingGeneration + 1);
+  }
+  app.pdcAuditorRealtimePendingGeneration += 1;
+  app.pdcAuditorService?.invalidate?.();
+  if (pdcAuditorRealtimeViewActive()) void refreshPdcAuditorAfterRealtimeInvalidation(realtimeGeneration, authority, dealer);
+  return true;
+}
+
+async function refreshPdcAuditorAfterRealtimeInvalidation(realtimeGeneration, authority, dealer) {
+  if (app.pdcAuditorRealtimeRefreshInFlight) return;
+  app.pdcAuditorRealtimeRefreshInFlight = true;
+  app.pdcAuditorRealtimeRefreshGeneration = realtimeGeneration;
+  try {
+    while (realtimeGeneration === app.pdcAuditorRealtimeGeneration
+      && authority === auditorAuthorityIdentity()
+      && dealer === app.pdcAuditorRealtimeDealer) {
+      const coveredGeneration = app.pdcAuditorRealtimeCoveredGeneration;
+      const pendingGeneration = app.pdcAuditorRealtimePendingGeneration;
+      if (pendingGeneration <= coveredGeneration) break;
+      const pending = pdcAuditorRealtimeRevisionId(app.pdcAuditorPendingRevision);
+      // Realtime is invalidation only. Cursor advancement follows only a
+      // successful authoritative refetch for the generation captured before
+      // the request. Events arriving during it coalesce into one trailing load.
+      const refreshed = await loadPdcAuditorSnapshot({ force: true });
+      if (!refreshed
+        || realtimeGeneration !== app.pdcAuditorRealtimeGeneration
+        || authority !== auditorAuthorityIdentity()
+        || dealer !== app.pdcAuditorRealtimeDealer) break;
+      if (pending !== null) app.pdcAuditorRevisionCursor = String(pending);
+      app.pdcAuditorRealtimeCoveredGeneration = pendingGeneration;
+      for (const [key, generation] of app.pdcAuditorRealtimePendingKeys) {
+        if (generation <= pendingGeneration) app.pdcAuditorRealtimePendingKeys.delete(key);
+      }
+    }
+  } finally {
+    // A stale request must not clear the lock belonging to a replacement subscription.
+    if (app.pdcAuditorRealtimeRefreshGeneration === realtimeGeneration) {
+      app.pdcAuditorRealtimeRefreshInFlight = false;
+      app.pdcAuditorRealtimeRefreshGeneration = 0;
+    }
+  }
+}
+
+function resetPdcAuditorRealtimeSubscription() {
+  app.pdcAuditorRealtimeGeneration += 1;
+  try { if (app.pdcAuditorRealtime) window.PDC_SUPABASE?.removeChannel?.(app.pdcAuditorRealtime); } catch (_error) { /* teardown remains fail closed */ }
+  app.pdcAuditorRealtime = null;
+  app.pdcAuditorRealtimeDealer = '';
+  app.pdcAuditorRevisionCursor = null;
+  app.pdcAuditorPendingRevision = null;
+  app.pdcAuditorRealtimePendingGeneration = 0;
+  app.pdcAuditorRealtimeCoveredGeneration = 0;
+  app.pdcAuditorRealtimePendingKeys = new Map();
+  app.pdcAuditorRealtimeRefreshInFlight = false;
+  app.pdcAuditorRealtimeRefreshGeneration = 0;
+}
+
 function subscribePdcAuditorRealtime(dealerCode = '') {
   const client = window.PDC_SUPABASE;
   const dealer = String(dealerCode || '').trim();
+  if (app.pdcAuditorRealtime && app.pdcAuditorRealtimeDealer !== dealer) resetPdcAuditorRealtimeSubscription();
   if (app.pdcAuditorRealtime || !client || typeof client.channel !== 'function' || !auditorAuthorityIdentity() || !/^\d{5}$/.test(dealer)) return app.pdcAuditorRealtime;
-  app.pdcAuditorRealtime = client.channel('pdc_auditor_revision_read_only')
-    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'pdc_auditor_revision', filter: `dealer_code=eq.${dealer}` }, () => {
+  const authority = auditorAuthorityIdentity();
+  const realtimeGeneration = ++app.pdcAuditorRealtimeGeneration;
+  app.pdcAuditorRealtimeDealer = dealer;
+  let subscribedReconciled = false;
+  const channel = client.channel('pdc_auditor_workshop_revisions_read_only')
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'pdc_auditor_workshop_revisions', filter: `dealer_code=eq.${dealer}` }, payload => {
+      const row = payload?.new;
+      const revisionId = pdcAuditorRealtimeRevisionId(row?.revision_id);
+      const eventType = String(row?.event_type || '');
+      const runIdentityValid = eventType.startsWith('typed_')
+        ? row?.run_id == null && row?.rollback_receipt_id == null && pdcAuditorRealtimeUuid(row?.typed_run_id_253)
+        : row?.typed_run_id_253 == null && pdcAuditorRealtimeUuid(row?.run_id)
+          && (eventType === 'telegram_run_rolled_back_226'
+            ? pdcAuditorRealtimeUuid(row?.rollback_receipt_id)
+            : row?.rollback_receipt_id == null);
+      if (payload?.eventType !== 'INSERT'
+        || realtimeGeneration !== app.pdcAuditorRealtimeGeneration
+        || authority !== auditorAuthorityIdentity()
+        || dealer !== app.pdcAuditorRealtimeDealer
+        || String(row?.dealer_code || '').trim() !== dealer
+        || row?.environment !== 'staging'
+        || !['telegram_plan_applied_226', 'telegram_run_rolled_back_226', 'typed_plan_applied_253', 'typed_run_undone_253'].includes(eventType)
+        || !runIdentityValid
+        || revisionId === null) return;
       // Realtime is invalidation only. Authority always comes from a fresh RPC snapshot.
-      if (document.getElementById('ai-auditor')?.classList.contains('active')) loadPdcAuditorSnapshot({ force: true });
-      else app.pdcAuditorService?.invalidate?.();
-    })
-    .subscribe();
+      const runKey = eventType.startsWith('typed_') ? row.typed_run_id_253 : row.run_id;
+      invalidatePdcAuditorRealtime(realtimeGeneration, authority, dealer, revisionId, `${revisionId}:${eventType}:${runKey}`);
+    });
+  app.pdcAuditorRealtime = channel;
+  channel.subscribe(status => {
+    if (realtimeGeneration !== app.pdcAuditorRealtimeGeneration
+      || authority !== auditorAuthorityIdentity()
+      || dealer !== app.pdcAuditorRealtimeDealer
+      || channel !== app.pdcAuditorRealtime) return;
+    if (status === 'SUBSCRIBED' && !subscribedReconciled) {
+      // Reconcile once after the snapshot/subscription race window closes.
+      subscribedReconciled = true;
+      invalidatePdcAuditorRealtime(realtimeGeneration, authority, dealer);
+    } else if (['CHANNEL_ERROR', 'TIMED_OUT', 'CLOSED'].includes(status)) {
+      // Fail closed without an unbounded retry timer. A successful authoritative
+      // refresh below installs a fresh generation/channel; stale callbacks no-op.
+      const refreshWasInFlight = app.pdcAuditorRealtimeRefreshInFlight;
+      app.pdcAuditorRealtimeGeneration += 1;
+      try { client.removeChannel?.(channel); } catch (_error) { /* cache remains invalid */ }
+      app.pdcAuditorRealtime = null;
+      app.pdcAuditorService?.invalidate?.();
+      app.pdcAuditorRealtimePendingGeneration += 1;
+      // Never overlap an unresolved authoritative request. Its successful load
+      // will subscribe a replacement channel whose SUBSCRIBED reconciliation
+      // covers this invalidation; otherwise the next visible/manual load retries.
+      if (pdcAuditorRealtimeViewActive() && !refreshWasInFlight) void loadPdcAuditorSnapshot({ force: true });
+    }
+  });
   return app.pdcAuditorRealtime;
 }
 
