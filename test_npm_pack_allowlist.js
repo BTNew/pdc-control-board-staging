@@ -14,9 +14,14 @@ const result = spawnSync(process.execPath, [npmCli,'pack','--dry-run','--json','
 assert.strictEqual(result.status,0,result.stderr || result.stdout);
 const report = JSON.parse(result.stdout);
 const files = report.flatMap(item => item.files || []).map(item => item.path);
+const stagingHtml = fs.readFileSync('staging.html','utf8');
+const localStagingRefs = [...stagingHtml.matchAll(/(?:src|href)=["']([^"'#?]+)(?:[?#][^"']*)?["']/g)]
+  .map(([,value]) => value)
+  .filter(value => value && !/^(?:https?:|data:|#)/.test(value));
 assert.ok(files.includes('app.js'),'package allowlist must retain the application source');
 assert.ok(files.includes('ai-auditor.css'),'package allowlist must retain the stylesheet required by staging.html and the packaged Stage-A UI regression');
 assert.ok(files.includes('tests/sql/ai_auditor_253/07_typed_value_boundaries.sql'),'package allowlist must retain migration regression evidence');
+assert.deepStrictEqual(localStagingRefs.filter(ref => !files.includes(ref)).sort(),[],`package must include every local staging.html asset reference`);
 assert.ok(!files.some(file => /(?:^|\/)(?:\.env$|\.env\.(?:local|staging|production)$|.*\.log$|pdc_auditor_253_test_signing_boundaries\.sql$)/.test(file)),'secret/evidence/runtime residue entered npm package');
 assert.ok(!files.includes('pdc-supabase-config.js'),'environment-specific browser config must never be a package input');
 

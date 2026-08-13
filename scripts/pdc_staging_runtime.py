@@ -54,6 +54,8 @@ def _reject_target(value: str, host: str) -> None:
 def _contains_production_marker(value: str) -> bool:
     decoded = value
     while True:
+        if re.search(r'%(?![0-9A-Fa-f]{2})', decoded):
+            raise RuntimeError('Refusing invalid percent-encoding in staging target')
         if PRODUCTION_REF in decoded.lower():
             return True
         next_decoded = unquote(decoded)
