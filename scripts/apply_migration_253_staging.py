@@ -60,12 +60,10 @@ def exact_blob(commit: str, path: str) -> bytes:
 
 
 def ignored_residue() -> list[str]:
-    lines = git("status", "--porcelain=v1", "--untracked-files=all", "--ignored=matching").decode().splitlines()
+    lines = git("ls-files", "--others", "--ignored", "--exclude-standard").decode().splitlines()
     blocked = []
     for line in lines:
-        if not line.startswith("!! "):
-            continue
-        rel = line[3:].replace("\\", "/").rstrip("/")
+        rel = line.replace("\\", "/").rstrip("/")
         if rel not in ALLOWED_IGNORED_PATHS:
             blocked.append(rel)
     return blocked

@@ -9,7 +9,7 @@ const source = fs.readFileSync('scripts/apply_migration_253_staging.py','utf8').
 for (const required of [
   'ALLOWED_IGNORED_PATHS = {"_staging_test_tools/.env"}',
   'def ignored_residue() -> list[str]:',
-  '"--ignored=matching"',
+  '"ls-files", "--others", "--ignored", "--exclude-standard"',
   'ignored_dirty = ignored_residue()',
   'PRIVATE_FUNCTIONS = (',
   'public.pdc_auditor_valid_new_value_253(jsonb,boolean,boolean,boolean)',
