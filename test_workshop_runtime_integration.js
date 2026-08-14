@@ -73,7 +73,7 @@ test('planner runtime executes exported highlight API for stale clear, replaceme
 });
 
 test('changed runtime assets share one cache/provenance candidate', () => {
-  const candidate = '2026.08.14.62-authority-lineage-verification';
+  const candidate = '2026.08.14.63-silent-admin-canonical-actor';
   for (const name of ['index.html', 'staging.html']) {
     const html = read(name);
     assert(html.includes(`styles.css?v=${candidate}`));

@@ -25,6 +25,7 @@ const actorStart = m225.indexOf('create function public.pdc_auditor_telegram_act
 const actorEnd = m225.indexOf('revoke all on function public.pdc_auditor_telegram_actor_scope_225', actorStart);
 assert(actorStart >= 0 && actorEnd > actorStart, 'migration 225 canonical actor function must be extractable');
 const actor225 = m225.slice(actorStart, actorEnd);
+assert(fixture.includes(actor225), 'SQL fixture must execute the verbatim migration-225 actor function');
 const orderedReturn = [
   "'service_identity_id',v_service.service_identity_id",
   "'service_user_id',v_uid",
@@ -46,6 +47,10 @@ const wrapperStart = m230.indexOf('create function public.pdc_auditor_telegram_a
 const wrapperEnd = m230.indexOf('revoke all on function public.pdc_auditor_telegram_actor_scope_225', wrapperStart);
 assert(wrapperStart >= 0 && wrapperEnd > wrapperStart, 'migration 230 actor wrapper must be extractable');
 const actor230 = m230.slice(wrapperStart, wrapperEnd);
+const rename230Start = m230.indexOf('alter function public.pdc_auditor_telegram_actor_scope_225(bigint)');
+assert(rename230Start >= 0 && rename230Start < wrapperStart, 'migration 230 canonical actor rename must precede its wrapper');
+const renameAndWrapper230 = m230.slice(rename230Start, wrapperEnd);
+assert(fixture.includes(renameAndWrapper230), 'SQL fixture must execute the verbatim migration-230 actor rename and wrapper');
 assert(actor230.includes('v_actor:=public.pdc_auditor_telegram_actor_scope_base_225(p_telegram_sender_id);'), 'migration 230 must call the canonical 225 base actor');
 assert(actor230.includes('return v_actor;'), 'migration 230 must preserve and return the canonical actor object unchanged');
 assert(!actor230.includes('jsonb_set(') && !actor230.includes(' - '), 'migration 230 must not rewrite or remove actor keys');

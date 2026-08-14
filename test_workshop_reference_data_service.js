@@ -533,12 +533,22 @@ function createWorkshopReferenceDataService(options = {}) {
 // ---------------------------------------------------------------------
 (async () => {
   const client = makeFakeClient({});
+  let notifications = 0;
   const service = createRawWorkshopReferenceDataService({
     client,
     getAccessToken: () => 'operator-token',
     getAuthorityIdentity: () => 'operator@example.test\noperator',
     getAuthorityRole: () => 'operator',
+    onStateChange: () => { notifications += 1; },
   });
+  const snapshot = () => JSON.stringify([
+    service.getCachedTechnicians(),
+    service.getCachedSalespeople(),
+    service.getCachedSubletProviders(),
+    service.getCachedWorkshopBays(),
+    service.getCachedWorkshopConfiguration(),
+  ]);
+  const cacheBefore = snapshot();
   const calls = [
     ['addTechnician', () => service.addTechnician('Tech')],
     ['editTechnician', () => service.editTechnician('tech-1', 1, { name: 'Tech 2' })],
@@ -558,6 +568,8 @@ function createWorkshopReferenceDataService(options = {}) {
     check(`20 ${name} rejects operator locally`, () => assert.deepStrictEqual(result, { ok: false, error: 'permission_denied' }));
   }
   check('20 all 12 operator mutation attempts issue zero RPCs', () => assert.deepStrictEqual(client.calls, []));
+  check('20 all 12 operator mutation attempts publish zero state notifications', () => assert.strictEqual(notifications, 0));
+  check('20 all 12 operator mutation attempts leave every cache and state unchanged', () => assert.strictEqual(snapshot(), cacheBefore));
 })();
 
 setTimeout(() => {

@@ -26,7 +26,7 @@ create temp table null_actor_replay4(scope jsonb,envelope jsonb);
 insert into null_actor_replay4 values(:'plan_scope'::jsonb,:'plan_env'::jsonb);
 grant select on null_actor_replay4 to authenticated;
 begin;
-create or replace function public.pdc_auditor_telegram_actor_scope_225(bigint)
+create or replace function public.pdc_auditor_telegram_actor_scope_225(p_telegram_sender_id bigint)
 returns jsonb language sql stable as $$select null::jsonb$$;
 set local role authenticated;
 select set_config('request.jwt.claim.sub','',true);
@@ -41,7 +41,7 @@ do $$declare x record;begin
  end;
 end$$;
 reset role;
-create or replace function public.pdc_auditor_telegram_actor_scope_225(bigint)
+create or replace function public.pdc_auditor_telegram_actor_scope_225(p_telegram_sender_id bigint)
 returns jsonb language sql stable as $$select '{}'::jsonb$$;
 set local role authenticated;
 select set_config('request.jwt.claim.sub','',true);

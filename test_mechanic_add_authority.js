@@ -42,7 +42,7 @@ async function scenario({ role, result, rejects = false }) {
   const denied = await scenario({ role: 'operator', result: { ok: true } });
   assert.strictEqual(denied.returned, false);
   assert.deepStrictEqual(denied.calls.add, [], 'operator denial occurs in the visible outer handler before network dispatch');
-  assert.match(denied.calls.alerts[0], /Administrator access is required/);
+  assert.deepStrictEqual(denied.calls.alerts, [], 'operator denial is silent and opens no dialog');
 
   const success = await scenario({ role: 'administrator', result: { ok: true } });
   assert.strictEqual(success.returned, true);

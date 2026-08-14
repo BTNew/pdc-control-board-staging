@@ -37,9 +37,10 @@ create table public.workshop_bookings(id uuid primary key default gen_random_uui
 create table public.workshop_booking_assignments(id uuid primary key default gen_random_uuid(),booking_id uuid not null references public.workshop_bookings(id) on delete cascade,technician_id uuid,assignment_type public.workshop_assignment_type not null default 'primary',assigned_at timestamptz not null default clock_timestamp(),assigned_by uuid,scheduled_start_at timestamptz,scheduled_end_at timestamptz,released_at timestamptz,notes text,updated_at timestamptz not null default clock_timestamp());
 create table public.workshop_booking_history(id uuid primary key default gen_random_uuid(),booking_id uuid references public.workshop_bookings(id),event_type text not null,before_data jsonb,after_data jsonb,metadata jsonb,actor_user_id uuid,actor_email text,created_at timestamptz not null default clock_timestamp());
 create table public.workshop_booking_move_receipts(receipt_id uuid primary key default gen_random_uuid(),request_id uuid not null,actor_user_id uuid not null references auth.users(id),actor_email text not null,booking_id uuid not null references public.workshop_bookings(id),source text not null,reason text,cascade boolean not null,before_rows jsonb not null,after_rows jsonb not null,result jsonb not null,created_at timestamptz not null default clock_timestamp(),undone_at timestamptz,undone_by uuid references auth.users(id),undo_request_id uuid,undo_result jsonb,unique(actor_user_id,request_id));
-create table public.pdc_auditor_executor_identities(auth_user_id uuid,active boolean,disabled_at timestamptz);
-create table public.pdc_auditor_service_identities_225(auth_user_id uuid,active boolean,revoked_at timestamptz);
-create table public.pdc_auditor_worker_identities(auth_user_id uuid,active boolean);
+create table public.pdc_auditor_executor_identities(auth_user_id uuid,normalized_email text,dealer_code text,environment text,active boolean,expires_at timestamptz,disabled_at timestamptz);
+create table public.pdc_auditor_service_identities_225(service_identity_id uuid primary key default gen_random_uuid(),auth_user_id uuid,normalized_email text,dealer_code text,environment text,identity_purpose text,active boolean,approved_by_user_id uuid,approved_at timestamptz default clock_timestamp(),revoked_at timestamptz);
+create table public.pdc_auditor_worker_identities(auth_user_id uuid,normalized_email text,dealer_code text,environment text,active boolean);
+create table public.pdc_supervised_telegram_identities(identity_id uuid primary key default gen_random_uuid(),telegram_sender_id bigint not null unique,auth_user_id uuid not null references auth.users(id),actor_email text not null,authorized_by uuid not null references auth.users(id),active boolean not null default true,created_at timestamptz not null default clock_timestamp());
 create table public.pdc_monitor_stage_activation_writers(user_id uuid,active boolean,revoked_at timestamptz);
 create table public.pdc_monitor_vehicle_identity_readers(user_id uuid,active boolean,revoked_at timestamptz);
 create function public.workshop_require_website_administrator_238() returns void language plpgsql security definer as $$begin null;end$$;
@@ -82,11 +83,109 @@ create function public.pdc_auditor_normalize_identity_225(text) returns text lan
 create function public.workshop_stage_code_for_work_key(text) returns text language sql immutable as $$select case $1 when 'fitting' then 'FITTING' when 'tint' then 'TINT' when 'hoist' then 'HOIST' when 'electrical' then 'ELEC' when 'fabrication' then 'FAB' when 'tyre' then 'TYRE' when 'pitInspection' then 'PIT' end$$;
 create function public.pdc_auditor_vehicle_dealer(uuid) returns text language sql stable as $$select dealer_code from public.fixture_vehicle_dealers where vehicle_id=$1$$;
 create function public.pdc_auditor_operational_revision(text) returns text language sql stable set search_path=pg_catalog,public,extensions as $$select encode(extensions.digest(convert_to(coalesce((select string_agg(id::text||coalesce(stock_number,''),'|' order by id) from public.vehicles),'')||coalesce((select string_agg(adjustment_id::text||version::text||active::text,'|' order by adjustment_id) from public.vehicle_workshop_line_adjustments),''),'UTF8'),'sha256'),'hex')$$;
-create function public.pdc_auditor_telegram_actor_scope_225(bigint) returns jsonb language sql stable as $$select jsonb_build_object('service_identity_id','10000000-0000-4000-8000-000000000001','service_user_id','10000000-0000-4000-8000-000000000002','service_email','auditor@example.test','admin_user_id','10000000-0000-4000-8000-000000000003','admin_email','craig@example.test','dealer_code','14450','environment','staging') where $1=7828138290$$;
+create function public.pdc_auditor_telegram_actor_scope_225(p_telegram_sender_id bigint)
+returns jsonb
+language plpgsql stable security definer set search_path=pg_catalog,public,auth
+as $scope$
+declare
+  v_uid uuid:=auth.uid();
+  v_email text:=lower(btrim(coalesce(auth.jwt()->>'email','')));
+  v_service public.pdc_auditor_service_identities_225%rowtype;
+  v_admin uuid;
+  v_admin_email text;
+  v_count integer;
+begin
+  if v_uid is null or v_email='' or coalesce(auth.jwt()->>'role','')='service_role' then
+    raise exception 'PDC_225_SERVICE_IDENTITY_REQUIRED' using errcode='42501';
+  end if;
+  select count(*) into v_count
+  from public.pdc_auditor_service_identities_225 s
+  join auth.users au on au.id=s.auth_user_id and lower(coalesce(au.email,''))=s.normalized_email
+  join public.pdc_user_roles r on r.auth_user_id=s.auth_user_id
+    and lower(r.email)=s.normalized_email and r.role::text='viewer'
+    and r.active and r.account_status='approved'
+  join public.pdc_user_roles approver on approver.auth_user_id=s.approved_by_user_id
+    and approver.role::text='administrator' and approver.active and approver.account_status='approved'
+  join auth.users approving_user on approving_user.id=s.approved_by_user_id
+    and lower(coalesce(approving_user.email,''))=lower(approver.email)
+  join public.pdc_auditor_worker_identities w on w.auth_user_id=s.auth_user_id
+    and w.normalized_email=s.normalized_email and w.dealer_code=s.dealer_code
+    and w.environment=s.environment and w.active
+  join public.pdc_auditor_user_dealer_scopes d on d.auth_user_id=s.auth_user_id
+    and d.normalized_email=s.normalized_email and d.dealer_code=s.dealer_code
+    and d.environment=s.environment and d.active
+  where s.auth_user_id=v_uid and s.normalized_email=v_email
+    and s.environment='staging' and s.identity_purpose='ai_auditor_telegram_planner'
+    and s.active and s.revoked_at is null;
+  if v_count<>1 then
+    raise exception 'PDC_225_SERVICE_IDENTITY_REQUIRED' using errcode='42501';
+  end if;
+  select * into strict v_service
+  from public.pdc_auditor_service_identities_225 s
+  where s.auth_user_id=v_uid and s.normalized_email=v_email
+    and s.environment='staging' and s.identity_purpose='ai_auditor_telegram_planner'
+    and s.active and s.revoked_at is null;
+
+  select count(*),min(i.auth_user_id::text)::uuid,min(lower(i.actor_email))
+    into v_count,v_admin,v_admin_email
+  from public.pdc_supervised_telegram_identities i
+  join auth.users au on au.id=i.auth_user_id and lower(coalesce(au.email,''))=lower(i.actor_email)
+  join public.pdc_user_roles r on r.auth_user_id=i.auth_user_id
+    and lower(r.email)=lower(i.actor_email) and r.role::text='administrator'
+    and r.active and r.account_status='approved'
+  where i.telegram_sender_id=p_telegram_sender_id and i.active
+    and (p_telegram_sender_id=7828138290 or r.role::text='administrator');
+  if v_count<>1 then
+    raise exception 'PDC_225_TELEGRAM_ADMINISTRATOR_REQUIRED' using errcode='42501';
+  end if;
+  return jsonb_build_object(
+    'service_identity_id',v_service.service_identity_id,
+    'service_user_id',v_uid,'service_email',v_email,
+    'admin_user_id',v_admin,'admin_email',v_admin_email,
+    'dealer_code',v_service.dealer_code,'environment','staging'
+  );
+end
+$scope$;
+revoke all on function public.pdc_auditor_telegram_actor_scope_225(bigint) from public,anon,authenticated,service_role;
+
+alter function public.pdc_auditor_telegram_actor_scope_225(bigint)
+  rename to pdc_auditor_telegram_actor_scope_base_225;
+revoke all on function public.pdc_auditor_telegram_actor_scope_base_225(bigint)
+  from public,anon,authenticated,service_role;
+create function public.pdc_auditor_telegram_actor_scope_225(p_telegram_sender_id bigint)
+returns jsonb language plpgsql stable security definer set search_path=pg_catalog,public,auth
+as $scope$
+declare v_actor jsonb; v_count integer;
+begin
+  v_actor:=public.pdc_auditor_telegram_actor_scope_base_225(p_telegram_sender_id);
+  select count(*) into v_count
+  from public.pdc_supervised_telegram_identities i
+  join auth.users au on au.id=i.auth_user_id and lower(coalesce(au.email,''))=lower(i.actor_email)
+  join public.pdc_user_roles r on r.auth_user_id=i.auth_user_id
+    and lower(r.email)=lower(i.actor_email) and r.role::text='administrator'
+    and r.active and r.account_status='approved'
+  where i.telegram_sender_id=p_telegram_sender_id and i.active
+    and i.auth_user_id=(v_actor->>'admin_user_id')::uuid
+    and lower(i.actor_email)=lower(v_actor->>'admin_email');
+  if v_count<>1 then
+    raise exception 'PDC_230_TELEGRAM_ADMINISTRATOR_REQUIRED' using errcode='42501';
+  end if;
+  return v_actor;
+end
+$scope$;
+revoke all on function public.pdc_auditor_telegram_actor_scope_225(bigint)
+  from public,anon,authenticated,service_role;
 
 insert into auth.users values('10000000-0000-4000-8000-000000000002','auditor@example.test','{}'),('10000000-0000-4000-8000-000000000003','craig@example.test','{}');
-insert into public.pdc_user_roles(email,role,active,auth_user_id,account_status,approved_at,disabled_at) values('craig@example.test','administrator',true,'10000000-0000-4000-8000-000000000003','approved',clock_timestamp(),null);
-insert into public.pdc_auditor_user_dealer_scopes values('10000000-0000-4000-8000-000000000003','craig@example.test','craig@example.test','14450','staging',true);
+insert into public.pdc_user_roles(email,role,active,auth_user_id,account_status,approved_at,disabled_at) values
+('auditor@example.test','viewer',true,'10000000-0000-4000-8000-000000000002','approved',clock_timestamp(),null),
+('craig@example.test','administrator',true,'10000000-0000-4000-8000-000000000003','approved',clock_timestamp(),null);
+insert into public.pdc_auditor_user_dealer_scopes values
+('10000000-0000-4000-8000-000000000002','auditor@example.test','auditor@example.test','14450','staging',true),
+('10000000-0000-4000-8000-000000000003','craig@example.test','craig@example.test','14450','staging',true);
+insert into public.pdc_auditor_worker_identities values('10000000-0000-4000-8000-000000000002','auditor@example.test','14450','staging',true);
+insert into public.pdc_auditor_service_identities_225(service_identity_id,auth_user_id,normalized_email,dealer_code,environment,identity_purpose,active,approved_by_user_id,revoked_at) values('10000000-0000-4000-8000-000000000001','10000000-0000-4000-8000-000000000002','auditor@example.test','14450','staging','ai_auditor_telegram_planner',true,'10000000-0000-4000-8000-000000000003',null);
+insert into public.pdc_supervised_telegram_identities(telegram_sender_id,auth_user_id,actor_email,authorized_by,active) values(7828138290,'10000000-0000-4000-8000-000000000003','craig@example.test','10000000-0000-4000-8000-000000000003',true);
 grant usage on schema auth to authenticated;
 grant select on auth.users,public.pdc_user_roles,public.pdc_auditor_user_dealer_scopes to authenticated;
 insert into public.vehicles(id,permanent_vehicle_id,stock_number,job_card_number,lifecycle_state,current_location,rft_collected_at,deleted_at) values('20000000-0000-4000-8000-000000000001','perm-1','STK1','JC1','active','YH',null,null);

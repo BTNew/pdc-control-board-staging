@@ -349,7 +349,6 @@ function createWorkshopReferenceDataService(options) {
     const expectedAuthority = captureAuthority();
     if (!authorityCurrent(expectedAuthority)) return staleAuthorityResult();
     if (expectedAuthority.role !== 'administrator') {
-      setState(resourceKey, WORKSHOP_REFERENCE_CONNECTION_STATE.PERMISSION_DENIED, { message: 'administrator role required' });
       return { ok: false, error: 'permission_denied' };
     }
     if (!client) return { ok: false, error: 'no_client' };
@@ -632,7 +631,6 @@ function createWorkshopReferenceDataService(options) {
       const expectedAuthority = captureAuthority();
       if (!authorityCurrent(expectedAuthority)) return staleAuthorityResult();
       if (expectedAuthority.role !== 'administrator') {
-        setState(SETTINGS_RESOURCE_KEY, WORKSHOP_REFERENCE_CONNECTION_STATE.PERMISSION_DENIED, { message: 'administrator role required' });
         return { ok: false, error: 'permission_denied' };
       }
       if (!client) return { ok: false, error: 'no_client' };

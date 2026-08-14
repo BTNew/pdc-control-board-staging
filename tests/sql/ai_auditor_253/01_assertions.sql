@@ -34,6 +34,23 @@ do $$ declare t text; begin
     or has_function_privilege('service_role','public.pdc_auditor_valid_new_value_253(jsonb,boolean,boolean,boolean)','EXECUTE') then raise exception 'private typed-value validator execute leak';end if;
 end $$;
 
+-- Verbatim migration-225 base actor plus migration-230 wrapper must resolve the
+-- canonical seven-key staging actor before migration 253 validates it.
+begin;
+select set_config('request.jwt.claim.sub','10000000-0000-4000-8000-000000000002',true);
+select set_config('request.jwt.claims','{"sub":"10000000-0000-4000-8000-000000000002","email":"auditor@example.test","role":"authenticated"}',true);
+do $$ declare actor jsonb; begin
+ actor:=public.pdc_auditor_telegram_actor_scope_225(7828138290);
+ if jsonb_typeof(actor)<>'object'
+    or (select count(*) from jsonb_object_keys(actor))<>7
+    or not (actor ?& array['service_identity_id','service_user_id','service_email','admin_user_id','admin_email','dealer_code','environment'])
+    or actor->>'environment' is distinct from 'staging' then
+   raise exception 'canonical 225-230 actor contract mismatch: %',actor;
+ end if;
+end $$;
+rollback;
+select 'AI_AUDITOR_253_CANONICAL_ACTOR_225_230_KEYS_PASS' result;
+
 -- Approved active human read, then fail-closed wrong email.
 begin;
 set local role authenticated;

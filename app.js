@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.14.62-authority-lineage-verification';
+const APP_VERSION = '2026.08.14.63-silent-admin-canonical-actor';
 const WORKSHOP_PLANNER_SCRIPT_VERSION = APP_VERSION;
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
@@ -3300,10 +3300,7 @@ function workshopReferenceMutationMessage(result, fallback) {
 }
 
 async function addMechanicFromAdminInput() {
-  if (!workshopReferenceAdministratorCanMutate()) {
-    window.alert('Administrator access is required to add mechanics. No request was sent.');
-    return false;
-  }
+  if (!workshopReferenceAdministratorCanMutate()) return false;
   const input = $('#mechanic-name-input');
   const entered = cleanNavisionText(input?.value || '');
   if (!entered) return false;
@@ -3339,10 +3336,7 @@ async function addMechanicFromAdminInput() {
 }
 
 async function removeMechanicFromAdminList(name = '') {
-  if (!workshopReferenceAdministratorCanMutate()) {
-    window.alert('Administrator access is required to remove mechanics. No request was sent.');
-    return false;
-  }
+  if (!workshopReferenceAdministratorCanMutate()) return false;
   const clean = cleanNavisionText(name);
   if (!clean) return false;
   const service = typeof initWorkshopReferenceDataServiceIfAvailable === 'function' ? initWorkshopReferenceDataServiceIfAvailable() : null;
@@ -3371,10 +3365,7 @@ async function removeMechanicFromAdminList(name = '') {
 }
 
 async function addSubletProviderFromAdminInput() {
-  if (!workshopReferenceAdministratorCanMutate()) {
-    window.alert('Administrator access is required to add providers. No request was sent.');
-    return false;
-  }
+  if (!workshopReferenceAdministratorCanMutate()) return false;
   const input = $('#sublet-provider-name-input');
   const entered = cleanNavisionText(input?.value || '');
   if (!entered) return false;
@@ -3402,10 +3393,7 @@ async function addSubletProviderFromAdminInput() {
 }
 
 async function removeSubletProviderFromAdminList(name = '') {
-  if (!workshopReferenceAdministratorCanMutate()) {
-    window.alert('Administrator access is required to remove providers. No request was sent.');
-    return false;
-  }
+  if (!workshopReferenceAdministratorCanMutate()) return false;
   const clean = cleanNavisionText(name);
   if (!clean) return false;
   const service = typeof initWorkshopReferenceDataServiceIfAvailable === 'function' ? initWorkshopReferenceDataServiceIfAvailable() : null;
@@ -3442,10 +3430,7 @@ function renderHostingSecurityWarning() {
 }
 
 async function addSalespersonFromAdminInput() {
-  if (!workshopReferenceAdministratorCanMutate()) {
-    window.alert('Administrator access is required to manage salespersons. No request was sent.');
-    return false;
-  }
+  if (!workshopReferenceAdministratorCanMutate()) return false;
   const initialsInput = $('#salesperson-initials-input');
   const nameInput = $('#salesperson-name-input');
   const emailInput = $('#salesperson-email-input');
@@ -3483,10 +3468,7 @@ async function addSalespersonFromAdminInput() {
 }
 
 async function removeSalespersonFromAdminList(initials = '') {
-  if (!workshopReferenceAdministratorCanMutate()) {
-    window.alert('Administrator access is required to remove salespersons. No request was sent.');
-    return false;
-  }
+  if (!workshopReferenceAdministratorCanMutate()) return false;
   const clean = cleanNavisionText(initials).toUpperCase();
   const service = typeof initWorkshopReferenceDataServiceIfAvailable === 'function' ? initWorkshopReferenceDataServiceIfAvailable() : null;
   const record = service ? loadSalespersonRecords(true).find(row => (row.code || '').toUpperCase() === clean) : null;
@@ -7494,10 +7476,7 @@ function subletProviderOptionsHtml(current = '') {
 }
 
 async function addMechanicFromPrompt() {
-  if (!workshopReferenceAdministratorCanMutate()) {
-    window.alert('Administrator access is required to add mechanics. No request was sent.');
-    return false;
-  }
+  if (!workshopReferenceAdministratorCanMutate()) return false;
   const service = typeof initWorkshopReferenceDataServiceIfAvailable === 'function' ? initWorkshopReferenceDataServiceIfAvailable() : null;
   const owner = captureWorkshopReferenceMutation(service, 'technician:add', { requireAdministrator: true });
   if (!owner) { window.alert('Cannot reach the shared mechanic list right now. Check your connection and try again.'); return false; }
@@ -7525,10 +7504,7 @@ async function addMechanicFromPrompt() {
 }
 
 async function addSubletProviderFromPrompt() {
-  if (!workshopReferenceAdministratorCanMutate()) {
-    window.alert('Administrator access is required to add providers. No request was sent.');
-    return false;
-  }
+  if (!workshopReferenceAdministratorCanMutate()) return false;
   const service = typeof initWorkshopReferenceDataServiceIfAvailable === 'function' ? initWorkshopReferenceDataServiceIfAvailable() : null;
   const owner = captureWorkshopReferenceMutation(service, 'sublet-provider:add', { requireAdministrator: true });
   if (!owner) { window.alert('Cannot reach the shared provider list right now. Check your connection and try again.'); return false; }

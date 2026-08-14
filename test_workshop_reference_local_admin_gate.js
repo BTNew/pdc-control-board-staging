@@ -71,7 +71,7 @@ const mutationFamilies = [
     vm.runInContext(fn, context, { filename: `${name}.js` });
     const result = await vm.runInContext(`${name}(${args})`, context);
     assert.strictEqual(result, false, `${name} rejects operator locally`);
-    assert.deepStrictEqual(calls, { alerts: 1, prompts: 0, confirms: 0, serviceInitializations: 0, rpcs: 0 }, `${name} sends no service/dialog/RPC activity for operator`);
+    assert.deepStrictEqual(calls, { alerts: 0, prompts: 0, confirms: 0, serviceInitializations: 0, rpcs: 0 }, `${name} sends no alert/prompt/confirm/service/RPC activity for operator`);
   }
 
   const renderStart = source.indexOf('function renderAdminLists()');
