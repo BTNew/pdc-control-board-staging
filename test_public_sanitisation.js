@@ -5,6 +5,10 @@ const fs = require('fs');
 const vm = require('vm');
 
 const context = { window: {} };
+assert.strictEqual(fs.existsSync('random-100-vehicles.csv'), false, 'Private vehicle fixture must not exist in the repository');
+for (const html of ['index.html', 'staging.html', 'no-vehicles.html']) {
+  assert.ok(!fs.readFileSync(html, 'utf8').includes('random-100-vehicles.csv'), `${html} must not expose the private vehicle fixture`);
+}
 vm.createContext(context);
 vm.runInContext(fs.readFileSync('data.js', 'utf8'), context, { filename: 'data.js' });
 vm.runInContext(fs.readFileSync('email-board-data.js', 'utf8'), context, { filename: 'email-board-data.js' });

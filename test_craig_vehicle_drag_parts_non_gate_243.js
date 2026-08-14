@@ -33,7 +33,7 @@ assert.match(planner, /workshopRememberAdministratorMove\(result\)/);
 assert.match(service, /administrator_schedule_workshop_vehicle/);
 assert.match(service, /serverMessage/);
 assert.match(css, /workshop-unallocated-vehicle-pill[\s\S]*?touch-action: none/);
-assert.match(index, /2026\.08\.14\.52-retention-der-authority/);
+assert.match(index, /2026\.08\.14\.53-private-fixture-der-authority/);
 
 const calls = [];
 const actions = buildWorkshopSharedActions({ mutate: async (name, params) => { calls.push({ name, params }); return { ok: true }; } });
