@@ -264,7 +264,11 @@ grant execute on function public.pdc_auditor_human_admin_revision_read_253(text)
 -- Preserve migration-229's shared legacy revision transport. Containment removes
 -- typed-253 reads only: legacy 226 apply/rollback revisions remain visible to active
 -- scoped human Administrators and the table stays in Realtime.
-drop policy pdc_auditor_workshop_revisions_admin_read_253 on public.pdc_auditor_workshop_revisions;
+do $drop_revision_policies_254$ declare p text; begin
+ for p in select policyname from pg_policies where schemaname='public' and tablename='pdc_auditor_workshop_revisions' loop
+  execute format('drop policy %I on public.pdc_auditor_workshop_revisions',p);
+ end loop;
+end $drop_revision_policies_254$;
 revoke all on table public.pdc_auditor_workshop_revisions from public, anon, authenticated, service_role;
 revoke all on sequence public.pdc_auditor_workshop_revisions_revision_id_seq from public, anon, authenticated, service_role;
 grant select(revision_id,dealer_code,environment,event_type,run_id,rollback_receipt_id,created_at,typed_run_id_253) on public.pdc_auditor_workshop_revisions to authenticated;
@@ -356,6 +360,11 @@ begin
       raise exception 'PDC_254_REVISION_AUTHORITY_REMAINS role=%', v_role using errcode = '55000';
     end if;
   end loop;
+
+  if (select count(*) from pg_policies where schemaname='public' and tablename='pdc_auditor_workshop_revisions') <> 1
+     or (select count(*) from pg_policies where schemaname='public' and tablename='pdc_auditor_workshop_revisions' and policyname='pdc_auditor_workshop_revisions_legacy_admin_read_254' and cmd='SELECT') <> 1 then
+    raise exception 'PDC_254_REVISION_POLICY_INVENTORY_DRIFT' using errcode='55000';
+  end if;
 
   foreach v_table in array array[
     'pdc_auditor_gateway_keys_253',

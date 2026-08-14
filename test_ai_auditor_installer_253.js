@@ -59,6 +59,7 @@ for (const required of [
   'PDC_254_PRIVATE_TABLE_RLS_OR_POLICY_REMAINS',
   'PDC_254_PRIVATE_TABLE_AUTHORITY_REMAINS',
   'PDC_254_PRIVATE_VIEW_AUTHORITY_REMAINS',
+  'PDC_254_REVISION_POLICY_INVENTORY_DRIFT',
   'create temp table pdc_auditor_retained_counts_254',
   'PDC_254_RETAINED_ROW_COUNT_CHANGED',
 ]) assert.ok(disableSource.includes(required),`migration 254 containment contract missing: ${required}`);

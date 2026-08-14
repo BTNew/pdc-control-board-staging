@@ -28,6 +28,7 @@ do $contaminate$ declare t text; begin
  end loop;
 end $contaminate$;
 grant select on public.pdc_auditor_normalized_operation_lines_253 to public,anon,authenticated,service_role;
+create policy hostile_shared_revision_254_test on public.pdc_auditor_workshop_revisions for select to public using (true);
 
 \i supabase/staging_only/254_disable_ai_auditor_typed_operation_control.sql
 
@@ -58,11 +59,11 @@ do $$declare p record;t text;v_role text;v_rls boolean;v_force boolean;before_ro
  foreach v_role in array array['anon','authenticated','service_role'] loop
   if has_table_privilege(v_role,'public.pdc_auditor_normalized_operation_lines_253','SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER') then raise exception '254 left normalized view authority role=%',v_role;end if;
  end loop;
- if exists(select 1 from pg_policies where schemaname='public' and tablename='pdc_auditor_workshop_revisions' and policyname='pdc_auditor_workshop_revisions_admin_read_253')
-    or not exists(select 1 from pg_policies where schemaname='public' and tablename='pdc_auditor_workshop_revisions' and policyname='pdc_auditor_workshop_revisions_legacy_admin_read_254')
+ if (select count(*) from pg_policies where schemaname='public' and tablename='pdc_auditor_workshop_revisions') <> 1
+    or not exists(select 1 from pg_policies where schemaname='public' and tablename='pdc_auditor_workshop_revisions' and policyname='pdc_auditor_workshop_revisions_legacy_admin_read_254' and cmd='SELECT')
     or not has_column_privilege('authenticated','public.pdc_auditor_workshop_revisions','revision_id','SELECT')
     or not has_function_privilege('authenticated','public.pdc_auditor_human_admin_revision_read_253(text)','EXECUTE')
-    or not exists(select 1 from pg_publication_tables where pubname='supabase_realtime' and schemaname='public' and tablename='pdc_auditor_workshop_revisions') then raise exception '254 legacy revision transport not preserved';end if;
+    or not exists(select 1 from pg_publication_tables where pubname='supabase_realtime' and schemaname='public' and tablename='pdc_auditor_workshop_revisions') then raise exception '254 legacy revision transport/policy inventory not preserved';end if;
  select * into before_row from disable_before254;
  select (select count(*) from public.pdc_auditor_gateway_keys_253),(select count(*) from public.pdc_auditor_signed_deliveries_253),(select count(*) from public.pdc_auditor_typed_plans_253),(select count(*) from public.pdc_auditor_typed_runs_253),(select count(*) from public.vehicle_workshop_line_adjustments),(select count(*) from public.pdc_auditor_workshop_revisions) into after_row;
  if to_jsonb(after_row)<>to_jsonb(before_row) then raise exception '254 changed retained evidence or operational rows: % -> %',to_jsonb(before_row),to_jsonb(after_row);end if;

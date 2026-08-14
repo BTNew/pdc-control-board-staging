@@ -86,6 +86,7 @@ assert.match(deletedAdminSource, /actions\[method\]\([\s\S]*?,\s*lifecycleOwner\
 assert.ok((deletedAdminSource.match(/vehicleLifecycleOperationCurrent\(lifecycleOwner\)/g) || []).length >= 7, 'restore/recreation revalidates after every blocking dialog and before dispatch');
 
 for (const [fnName, actionName] of [
+  ['transferVehiclesToRft', 'rftTransferVehicle'],
   ['markVehicleReadyForQualityControl', 'markReadyForQc'],
   ['completeVehicleQualityControl', 'qcSignoffToRft'],
   ['moveVehiclePitLocation', 'pitTransferVehicle'],
@@ -111,4 +112,50 @@ for (const [fnName, actionName] of [
   assert.match(between, /window\.confirm\([\s\S]*?vehicleLifecycleOperationCurrent\(lifecycleOwner\)/, `${fnName} revalidates lifecycle owner immediately after confirm`);
 }
 
-console.log(`PASS: lifecycle UI authority owner covers ${mutationAwaits.length} mutation await sites`);
+const transferFnStart = appSource.indexOf('async function transferVehiclesToRft(');
+const transferFnEnd = appSource.indexOf('\nfunction salespersonEmail(', transferFnStart);
+const transferFnSource = appSource.slice(transferFnStart, transferFnEnd);
+const dialogCalls = { a: 0, b: 0 };
+let dialogToken = 'token-a';
+const dialogActionsA = { rftTransferVehicle: async () => { dialogCalls.a += 1; return { ok: true }; } };
+const dialogActionsB = { rftTransferVehicle: async () => { dialogCalls.b += 1; return { ok: true }; } };
+const dialogContext = {
+  window: {
+    PDC_AUTH_CONTEXT: { userId: 'Operator-A', role: 'Administrator' },
+    PDC_SUPABASE_CONFIG: {},
+    __vehicleLifecycleActions: dialogActionsA,
+    __workshopDataService: null,
+    confirm() {
+      dialogToken = 'token-b';
+      this.PDC_AUTH_CONTEXT = { userId: 'Operator-B', role: 'Administrator' };
+      this.__vehicleLifecycleActions = dialogActionsB;
+      return true;
+    },
+    alert() {},
+  },
+  getPdcSupabaseAccessToken: () => dialogToken,
+  vehicleLifecycleSharedModeActive: () => true,
+  vehicleLifecycleSharedModeEnabled: () => true,
+  vehicleLocationActionAllowed: () => true,
+  statusCategory: () => 'pmb',
+  confirmRftGateOverride: () => ({ allowed: true }),
+  vehicleIdentityTitle: () => 'TEST-1',
+  vehicleCustomerName: () => 'Test Customer',
+  pmbStageLabel: () => 'Unallocated',
+  inferredPmbStage: () => '',
+  vehicleLifecycleSharedRef: async () => ({ outcome: 'resolved', vehicleId: 'vehicle-1', version: 1, qcCompletedAt: '2026-08-14T00:00:00Z' }),
+  describeVehicleLifecycleResolutionOutcome: () => 'not resolved',
+  describeVehicleLifecycleActionError: () => 'failed',
+  app: { selectedRows: new Set(), quickFilter: '', pmbSubFilter: '' },
+  renderAll() {},
+  offerSalespersonChangeEmail() {},
+  console,
+};
+vm.createContext(dialogContext);
+vm.runInContext(`${helperSource}\n${transferFnSource}`, dialogContext, { filename: 'app-rft-dialog-authority.js' });
+
+(async () => {
+  await vm.runInContext("transferVehiclesToRft([{ stock: 'TEST-1' }])", dialogContext);
+  assert.deepStrictEqual(dialogCalls, { a: 0, b: 0 }, 're-entrant confirm cannot dispatch principal-A intent through principal-B lifecycle authority');
+  console.log(`PASS: lifecycle UI authority owner covers ${mutationAwaits.length} mutation await sites`);
+})().catch(error => { console.error(error); process.exitCode = 1; });

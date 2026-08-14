@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.14.53-private-fixture-der-authority';
+const APP_VERSION = '2026.08.14.54-dialog-policy-authority';
 const WORKSHOP_PLANNER_SCRIPT_VERSION = APP_VERSION;
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
@@ -9927,10 +9927,11 @@ async function transferVehiclesToRft(vehicles = [], options = {}) {
   if (!gate.allowed) return;
   const preview = selected.slice(0, 10).map(vehicle => `• ${vehicleIdentityTitle(vehicle) || 'No stock'} - ${vehicleCustomerName(vehicle) || 'Unknown customer'} - ${pmbStageLabel(inferredPmbStage(vehicle)) || 'Unallocated'}`).join('\n');
   const more = selected.length > 10 ? `\n• plus ${selected.length - 10} more` : '';
+  const lifecycleOwner = vehicleLifecycleSharedModeActive() ? beginVehicleLifecycleOperation() : null;
   if (!window.confirm(`Transfer ${selected.length} PMB vehicle${selected.length === 1 ? '' : 's'} to Vehicles RFT?\n\n${preview}${more}\n\nThis marks the vehicle as Ready for Transport and keeps it protected from Navision location changes.`)) return;
+  if (lifecycleOwner && !vehicleLifecycleOperationCurrent(lifecycleOwner)) return;
 
-  if (vehicleLifecycleSharedModeActive()) {
-    const lifecycleOwner = beginVehicleLifecycleOperation();
+  if (lifecycleOwner) {
     const failures = [];
     for (const vehicle of selected) {
       if (!vehicleLocationActionAllowed(vehicle, 'transfer to RFT')) {
