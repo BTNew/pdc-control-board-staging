@@ -161,6 +161,25 @@ except ValueError:
     pass
 else:
     raise AssertionError('DER guard accepted non-minimal Basic Constraints INTEGER')
+def synthetic_ca_key_usage(bit_string_value):
+    basic_constraints = der_tlv(0x30, der_tlv(0x01, bytes([0xff])))
+    basic_extension = der_tlv(0x30,
+        der_tlv(0x06, bytes.fromhex('551d13')) +
+        der_tlv(0x01, bytes([0xff])) +
+        der_tlv(0x04, basic_constraints))
+    key_usage_extension = der_tlv(0x30,
+        der_tlv(0x06, bytes.fromhex('551d0f')) +
+        der_tlv(0x01, bytes([0xff])) +
+        der_tlv(0x04, der_tlv(0x03, bit_string_value)))
+    return der_tlv(0x30,
+        der_tlv(0x30, der_tlv(0xA3, der_tlv(0x30, basic_extension + key_usage_extension))))
+module._assert_ca_certificate(synthetic_ca_key_usage(bytes([2, 4])))
+try:
+    module._assert_ca_certificate(synthetic_ca_key_usage(bytes([0, 4])))
+except ValueError:
+    pass
+else:
+    raise AssertionError('DER guard accepted non-minimal Key Usage named-bit encoding')
 canonical_unknown_oid = bytes.fromhex('0603551d0e')
 assert canonical_der.count(canonical_unknown_oid) == 1
 malformed_unknown_oid_der = canonical_der.replace(canonical_unknown_oid, bytes.fromhex('0603551d8e'), 1)

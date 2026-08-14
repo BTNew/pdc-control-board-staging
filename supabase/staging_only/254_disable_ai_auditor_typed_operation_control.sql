@@ -122,6 +122,34 @@ lock table
   public.vehicle_work_items
 in access exclusive mode;
 
+-- Snapshot owner-visible row counts before containment changes. The same
+-- non-BYPASS table owner can still see these rows until FORCE RLS is applied;
+-- compare immediately before FORCE so zero-row reads after FORCE cannot be
+-- mistaken for deletion and any real row loss aborts the transaction.
+create temp table pdc_auditor_retained_counts_254(
+  table_name text primary key,
+  row_count bigint not null
+) on commit drop;
+do $snapshot_retained_counts_254$ declare t text; n bigint; begin
+ foreach t in array array[
+  'pdc_auditor_gateway_keys_253',
+  'pdc_auditor_signed_deliveries_253',
+  'pdc_auditor_signed_delivery_results_253',
+  'pdc_auditor_typed_plans_253',
+  'pdc_auditor_typed_plan_items_253',
+  'pdc_auditor_typed_runs_253',
+  'pdc_auditor_typed_scope_receipts_253',
+  'pdc_auditor_typed_change_receipts_253',
+  'pdc_auditor_typed_undo_receipts_253',
+  'pdc_auditor_workshop_revisions',
+  'vehicle_workshop_line_adjustments',
+  'vehicle_work_items'
+ ] loop
+  execute format('select count(*) from public.%I',t) into n;
+  insert into pdc_auditor_retained_counts_254(table_name,row_count) values(t,n);
+ end loop;
+end $snapshot_retained_counts_254$;
+
 -- Re-establish the exact private-object boundary even if ACL/RLS/policy drift
 -- occurred after 253. These retained tables have no legitimate API policy;
 -- containment removes every policy before enabling RLS and revoking all API ACLs.
@@ -368,6 +396,15 @@ begin
     raise exception 'PDC_254_POSTCONDITION_FAILED' using errcode = '55000';
   end if;
 end $postconditions$;
+
+do $attest_retained_counts_254$ declare t text; before_count bigint; after_count bigint; begin
+ for t,before_count in select table_name,row_count from pdc_auditor_retained_counts_254 loop
+  execute format('select count(*) from public.%I',t) into after_count;
+  if after_count is distinct from before_count then
+   raise exception 'PDC_254_RETAINED_ROW_COUNT_CHANGED table=% before=% after=%',t,before_count,after_count using errcode='55000';
+  end if;
+ end loop;
+end $attest_retained_counts_254$;
 
 -- Apply FORCE only after all retained-row postconditions so this migration does
 -- not depend on the executing owner having BYPASSRLS.

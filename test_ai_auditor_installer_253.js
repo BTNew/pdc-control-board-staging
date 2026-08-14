@@ -59,6 +59,8 @@ for (const required of [
   'PDC_254_PRIVATE_TABLE_RLS_OR_POLICY_REMAINS',
   'PDC_254_PRIVATE_TABLE_AUTHORITY_REMAINS',
   'PDC_254_PRIVATE_VIEW_AUTHORITY_REMAINS',
+  'create temp table pdc_auditor_retained_counts_254',
+  'PDC_254_RETAINED_ROW_COUNT_CHANGED',
 ]) assert.ok(disableSource.includes(required),`migration 254 containment contract missing: ${required}`);
 assert.strictEqual((disableSource.match(/'pdc_auditor_gateway_keys_253'/g) || []).length >= 3, true, 'migration 254 must guard, reharden and postcheck all private tables');
 

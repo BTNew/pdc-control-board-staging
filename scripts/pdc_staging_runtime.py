@@ -122,11 +122,19 @@ def _assert_ca_certificate(der: bytes) -> None:
     key_usage = extensions.get(b"\x55\x1d\x0f")
     if key_usage is not None:
         tag, bits, end = _der_tlv(key_usage)
+        expected_unused_bits = 0
+        if len(bits) >= 2 and bits[-1]:
+            last_octet = bits[-1]
+            while not last_octet & 1:
+                expected_unused_bits += 1
+                last_octet >>= 1
         if (
             tag != 0x03
             or end != len(key_usage)
             or len(bits) < 2
             or bits[0] > 7
+            or bits[-1] == 0
+            or bits[0] != expected_unused_bits
             or bits[-1] & ((1 << bits[0]) - 1)
             or not bits[1] & 0x04
         ):
