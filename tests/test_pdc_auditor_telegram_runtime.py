@@ -336,7 +336,8 @@ class GatewayEnvelopeTests(unittest.TestCase):
             raw = json.dumps(envelope, separators=(",", ":"))
             raw = raw.replace('"telegram_message_id":202',
                               f'"telegram_message_id":{literal}')
-            parsed = runtime.exact_json_loads(raw)
+            parsed = runtime._load_json_with_exact_telegram_ids(
+                raw, runtime.GATEWAY_TELEGRAM_ID_PATHS)
             self.assertIsInstance(parsed["telegram_evidence"]["telegram_message_id"], int)
             parsed["signature"] = hmac.new(
                 KEY, runtime.gateway_signing_bytes(parsed), hashlib.sha256).hexdigest()
@@ -351,10 +352,36 @@ class GatewayEnvelopeTests(unittest.TestCase):
             raw = json.dumps(envelope, separators=(",", ":")).replace(
                 '"telegram_message_id":202', f'"telegram_message_id":{literal}')
             with self.subTest(literal=literal), self.assertRaises(runtime.AuditorContractError):
-                parsed = runtime.exact_json_loads(raw)
+                parsed = runtime._load_json_with_exact_telegram_ids(
+                    raw, runtime.GATEWAY_TELEGRAM_ID_PATHS)
                 runtime.gateway_signing_bytes(parsed)
         with self.assertRaises(runtime.AuditorContractError):
             runtime._telegram_id(float(9007199254740993), "telegram evidence value")
+
+    def test_exact_id_parser_preserves_non_id_numeric_canonical_bytes(self):
+        text = "Review duplicate bullbars"
+        scope = intent({"operation_refs": [SRC1, SRC2]}, "remove_duplicate",
+            duplicate_proof="database_exact", survivor_operation_ref=SRC1)
+        envelope = signed_envelope(text, scope)
+        envelope["selected_scope"]["numeric_transport_probe"] = 5.0
+        raw = json.dumps(envelope, separators=(",", ":"))
+        baseline = json.loads(raw)
+        parsed = runtime._load_json_with_exact_telegram_ids(
+            raw, runtime.GATEWAY_TELEGRAM_ID_PATHS)
+        self.assertIsInstance(parsed["selected_scope"]["numeric_transport_probe"], float)
+        self.assertEqual(parsed["selected_scope"]["numeric_transport_probe"], 5.0)
+        self.assertEqual(runtime.gateway_signing_bytes(parsed),
+                         runtime.gateway_signing_bytes(baseline))
+
+    def test_telegram_update_exponent_ids_are_normalized_exactly(self):
+        update = telegram_update("Review duplicate bullbars")
+        raw = json.dumps(update, separators=(",", ":")).replace(
+            '"message_id":202', '"message_id":9007199254740993e0')
+        parsed = runtime._load_json_with_exact_telegram_ids(
+            raw, runtime.UPDATE_TELEGRAM_ID_PATHS)
+        evidence = runtime.bind_telegram(parsed, expected_chat_id=CHAT_ID,
+                                         bot_identity=BOT_IDENTITY)
+        self.assertEqual(evidence["telegram_message_id"], 9007199254740993)
 
 
 class RuntimeContractTests(unittest.TestCase):

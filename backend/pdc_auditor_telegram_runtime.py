@@ -34,6 +34,18 @@ UNDO_RPC = "undo_last_pdc_auditor_typed_run_253"
 QUERY_RPC = "query_pdc_auditor_typed_253"
 MAX_GATEWAY_TTL_SECONDS = 300
 MAX_ISSUED_AT_SKEW_SECONDS = 30
+MAX_TELEGRAM_ID = 9223372036854775807
+MAX_EXACT_BINARY_FLOAT_INTEGER = 2**53
+TELEGRAM_ID_KEYS = (
+    "telegram_sender_id", "telegram_chat_id", "telegram_message_id", "telegram_update_id",
+)
+GATEWAY_TELEGRAM_ID_PATHS = frozenset(
+    {("telegram_evidence", key) for key in TELEGRAM_ID_KEYS}
+)
+UPDATE_TELEGRAM_ID_PATHS = frozenset({
+    ("update_id",), ("message", "message_id"),
+    ("message", "from", "id"), ("message", "chat", "id"),
+})
 GATEWAY_ENVELOPE_KEYS = frozenset({
     "gateway_instance_id", "delivery_uuid", "key_id", "nonce", "issued_at",
     "expires_at", "instruction_sha256", "selected_scope", "telegram_evidence", "signature",
@@ -122,22 +134,27 @@ def _identifier(value: Any, label: str) -> str:
 
 def _telegram_id(value: Any, label: str) -> int:
     """Normalize finite positive integral JSON numbers like PostgreSQL jsonb."""
-    if isinstance(value, bool) or not isinstance(value, (int, float, Decimal)):
+    if isinstance(value, bool):
         raise AuditorContractError(f"{label} is invalid")
-    if isinstance(value, float):
-        # External JSON is parsed as Decimal below.  A binary float above 2^53
-        # may already have lost its source integer, so fail closed rather than
-        # sign a rounded Telegram identifier.
-        if not math.isfinite(value) or not value.is_integer() or abs(value) >= 2**53:
-            raise AuditorContractError(f"{label} is invalid")
-        value = int(value)
+    if isinstance(value, int):
+        normalized = value
     elif isinstance(value, Decimal):
-        if not value.is_finite() or value != value.to_integral_value():
+        # Check bounds before int conversion so 1e999999 cannot allocate a huge int.
+        if (not value.is_finite() or not Decimal(1) <= value <= Decimal(MAX_TELEGRAM_ID)
+                or value != value.to_integral_value()):
             raise AuditorContractError(f"{label} is invalid")
-        value = int(value)
-    if not 1 <= value <= 9223372036854775807:
+        normalized = int(value)
+    elif isinstance(value, float):
+        # A float at or above 2^53 might already be a rounded adjacent integer.
+        if (not math.isfinite(value) or not value.is_integer()
+                or not 1 <= value < MAX_EXACT_BINARY_FLOAT_INTEGER):
+            raise AuditorContractError(f"{label} is invalid")
+        normalized = int(value)
+    else:
         raise AuditorContractError(f"{label} is invalid")
-    return value
+    if not 1 <= normalized <= MAX_TELEGRAM_ID:
+        raise AuditorContractError(f"{label} is invalid")
+    return normalized
 
 
 def _selector(context: Mapping[str, Any]) -> dict[str, Any]:
@@ -374,27 +391,28 @@ def bind_telegram(update: Any, *, expected_chat_id: int, bot_identity: str) -> d
         raise AuditorContractError("Telegram message keys are invalid")
     sender = m["from"]
     if (not isinstance(sender, Mapping) or not {"id", "is_bot", "first_name"}.issubset(sender)
-            or sender["is_bot"] is not False or isinstance(sender["id"], bool)
-            or not isinstance(sender["id"], int) or sender["id"] < 1
+            or sender["is_bot"] is not False
             or not isinstance(sender["first_name"], str) or not sender["first_name"].strip()):
         raise AuditorContractError("Telegram sender shape is invalid")
+    sender_id = _telegram_id(sender["id"], "Telegram sender ID")
     chat = m["chat"]
-    if (not isinstance(chat, Mapping) or chat.get("id") != expected_chat_id
-            or chat.get("type") != "private"):
+    if not isinstance(chat, Mapping) or chat.get("type") != "private":
+        raise AuditorContractError("Telegram chat is not the configured private chat")
+    chat_id = _telegram_id(chat.get("id"), "Telegram chat ID")
+    if chat_id != expected_chat_id:
         raise AuditorContractError("Telegram chat is not the configured private chat")
     text = m["text"]
     if not isinstance(text, str) or text != text.strip() or not 3 <= len(text) <= 4000:
         raise AuditorContractError("Telegram text is invalid")
-    for key in ("message_id", "date"):
-        if not isinstance(m[key], int) or isinstance(m[key], bool) or m[key] < 1:
-            raise AuditorContractError(f"Telegram {key} is invalid")
-    if not isinstance(update["update_id"], int) or isinstance(update["update_id"], bool) or update["update_id"] < 1:
-        raise AuditorContractError("Telegram update ID is invalid")
+    if not isinstance(m["date"], int) or isinstance(m["date"], bool) or m["date"] < 1:
+        raise AuditorContractError("Telegram date is invalid")
+    message_id = _telegram_id(m["message_id"], "Telegram message ID")
+    update_id = _telegram_id(update["update_id"], "Telegram update ID")
     if not isinstance(bot_identity, str) or not bot_identity:
         raise AuditorContractError("bot identity is invalid")
-    return {"original_instruction": text, "telegram_sender_id": sender["id"],
-            "telegram_chat_id": expected_chat_id, "telegram_message_id": m["message_id"],
-            "telegram_update_id": update["update_id"],
+    return {"original_instruction": text, "telegram_sender_id": sender_id,
+            "telegram_chat_id": chat_id, "telegram_message_id": message_id,
+            "telegram_update_id": update_id,
             "bot_identity": bot_identity,
             "instruction_sha256": hashlib.sha256(text.encode("utf-8")).hexdigest()}
 
@@ -408,28 +426,32 @@ def canonical_json(value: Any) -> bytes:
         raise AuditorContractError("value is not canonical JSON") from exc
 
 
-def exact_json_loads(payload: str | bytes | bytearray) -> Any:
-    """Parse external JSON numbers without binary-float precision loss."""
-    def exact_number(value: str) -> int | float:
-        if len(value) > 128:
-            raise ValueError("JSON number is too long")
-        parsed = Decimal(value)
-        if not parsed.is_finite():
-            raise ValueError("JSON number is not finite")
-        if parsed == parsed.to_integral_value():
-            if parsed and parsed.adjusted() > 127:
-                raise ValueError("JSON integer is too large")
-            return int(parsed)
-        result = float(parsed)
-        if not math.isfinite(result) or Decimal(str(result)) != parsed:
-            raise ValueError("JSON number cannot be represented exactly")
-        return result
+def _load_json_with_exact_telegram_ids(
+        payload: str | bytes | bytearray,
+        exact_paths: frozenset[tuple[str, ...]]) -> Any:
+    """Preserve Telegram IDs exactly while retaining prior float behavior elsewhere."""
     def reject_constant(value: str) -> None:
         raise ValueError(f"invalid JSON numeric constant {value}")
+
+    def normalize(value: Any, path: tuple[str, ...] = ()) -> Any:
+        if path in exact_paths:
+            return _telegram_id(value, "Telegram ID")
+        if isinstance(value, Decimal):
+            result = float(value)
+            if not math.isfinite(result):
+                raise ValueError("JSON number is out of range")
+            return result
+        if isinstance(value, list):
+            return [normalize(item, path + (str(index),))
+                    for index, item in enumerate(value)]
+        if isinstance(value, dict):
+            return {key: normalize(item, path + (key,)) for key, item in value.items()}
+        return value
+
     try:
-        return json.loads(payload, parse_float=exact_number, parse_int=exact_number,
-                          parse_constant=reject_constant)
-    except (TypeError, ValueError, json.JSONDecodeError) as exc:
+        parsed = json.loads(payload, parse_float=Decimal, parse_constant=reject_constant)
+        return normalize(parsed)
+    except (ArithmeticError, TypeError, UnicodeDecodeError, ValueError) as exc:
         raise AuditorContractError("input is not valid JSON") from exc
 
 
@@ -637,11 +659,13 @@ def main(argv=None) -> int:
         configured_key_id = os.environ["PDC_AUDITOR_GATEWAY_KEY_ID"]
         configured_key = bytes.fromhex(os.environ["PDC_AUDITOR_GATEWAY_HMAC_KEY_HEX"])
         resolver = lambda key_id: configured_key if key_id == configured_key_id else None
-        result = execute_bound(client_from_environment(), exact_json_loads(args.telegram_update_json),
+        result = execute_bound(client_from_environment(), _load_json_with_exact_telegram_ids(
+                args.telegram_update_json, UPDATE_TELEGRAM_ID_PATHS),
             expected_chat_id=int(os.environ["PDC_AUDITOR_TELEGRAM_CHAT_ID"]),
             bot_identity=os.environ["PDC_AUDITOR_BOT_IDENTITY"],
-            gateway_envelope=exact_json_loads(args.gateway_envelope_json), key_resolver=resolver,
-            context=exact_json_loads(args.context_json))
+            gateway_envelope=_load_json_with_exact_telegram_ids(
+                args.gateway_envelope_json, GATEWAY_TELEGRAM_ID_PATHS),
+            key_resolver=resolver, context=json.loads(args.context_json))
         print(json.dumps(result, separators=(",", ":"), sort_keys=True))
         return 0 if result.get("ok") else 1
     except Exception as exc:
