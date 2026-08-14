@@ -69,6 +69,25 @@ def _assert_ca_certificate(der: bytes) -> None:
     if len(wrapper_fields) != 1 or wrapper_fields[0][0] != 0x30:
         raise ValueError("certificate extensions are malformed")
     extensions: dict[bytes, bytes] = {}
+
+    def _assert_der_oid(oid: bytes) -> None:
+        if not oid:
+            raise ValueError("certificate extension OID is malformed")
+        if oid[0] >= 0x80:
+            raise ValueError("certificate extension OID is malformed")
+        index = 1
+        while index < len(oid):
+            arc_start = index
+            while True:
+                byte = oid[index]
+                index += 1
+                if byte < 0x80:
+                    break
+                if index >= len(oid):
+                    raise ValueError("certificate extension OID is malformed")
+            if index - arc_start > 1 and oid[arc_start] == 0x80:
+                raise ValueError("certificate extension OID is malformed")
+
     for tag, extension in _der_children(wrapper_fields[0][1]):
         if tag != 0x30:
             raise ValueError("certificate extension is malformed")
@@ -80,6 +99,7 @@ def _assert_ca_certificate(der: bytes) -> None:
         if len(fields) == 3 and fields[1] != (0x01, b"\xff"):
             raise ValueError("certificate extension critical flag is malformed")
         oid = fields[0][1]
+        _assert_der_oid(oid)
         if oid in extensions:
             raise ValueError("duplicate certificate extension")
         extensions[oid] = fields[-1][1]

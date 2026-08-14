@@ -161,6 +161,15 @@ except ValueError:
     pass
 else:
     raise AssertionError('DER guard accepted non-minimal Basic Constraints INTEGER')
+canonical_unknown_oid = bytes.fromhex('0603551d0e')
+assert canonical_der.count(canonical_unknown_oid) == 1
+malformed_unknown_oid_der = canonical_der.replace(canonical_unknown_oid, bytes.fromhex('0603551d8e'), 1)
+try:
+    module._assert_ca_certificate(malformed_unknown_oid_der)
+except ValueError:
+    pass
+else:
+    raise AssertionError('DER guard accepted malformed extension OID base-128 encoding')
 noncanonical_key_usage = Path(ca_dir.name) / 'noncanonical-key-usage.pem'
 encoded = base64.b64encode(noncanonical_der)
 noncanonical_key_usage.write_bytes(

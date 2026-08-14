@@ -85,4 +85,30 @@ assert.ok(deletedAdminSource.indexOf('beginVehicleLifecycleOperation()') < delet
 assert.match(deletedAdminSource, /actions\[method\]\([\s\S]*?,\s*lifecycleOwner\)/, 'restore/recreation dispatch is bound to the pre-dialog owner');
 assert.ok((deletedAdminSource.match(/vehicleLifecycleOperationCurrent\(lifecycleOwner\)/g) || []).length >= 7, 'restore/recreation revalidates after every blocking dialog and before dispatch');
 
+for (const [fnName, actionName] of [
+  ['markVehicleReadyForQualityControl', 'markReadyForQc'],
+  ['completeVehicleQualityControl', 'qcSignoffToRft'],
+  ['moveVehiclePitLocation', 'pitTransferVehicle'],
+  ['markRftVehicleCollected', 'rftCollectVehicle'],
+]) {
+  const fnStart = appSource.indexOf(`async function ${fnName}(`);
+  assert.ok(fnStart >= 0, `${fnName} exists`);
+  const nextAsync = appSource.indexOf('\nasync function ', fnStart + 1);
+  const nextPlain = appSource.indexOf('\nfunction ', fnStart + 1);
+  const candidates = [nextAsync, nextPlain].filter(index => index > fnStart);
+  const fnEnd = candidates.length ? Math.min(...candidates) : appSource.length;
+  const fnSource = appSource.slice(fnStart, fnEnd);
+  const lifecycleCapturePattern = /(?:const lifecycleOwner = beginVehicleLifecycleOperation\(\);|const lifecycleOwner = vehicleLifecycleSharedModeActive\(\) \? beginVehicleLifecycleOperation\(\) : null;|let lifecycleOwner = null;[\s\S]*?lifecycleOwner = beginVehicleLifecycleOperation\(\);)/;
+  const beginMatch = fnSource.match(lifecycleCapturePattern);
+  const beginIndex = beginMatch ? beginMatch.index : -1;
+  const confirmIndex = fnSource.indexOf('window.confirm(');
+  const dispatchIndex = fnSource.indexOf(`lifecycleOwner.actions.${actionName}(`);
+  assert.ok(confirmIndex >= 0, `${fnName} has confirm dialog`);
+  assert.ok(beginIndex >= 0, `${fnName} captures lifecycle owner`);
+  assert.ok(beginIndex < confirmIndex, `${fnName} captures lifecycle owner before confirm`);
+  assert.ok(dispatchIndex > confirmIndex, `${fnName} dispatch stays after confirm`);
+  const between = fnSource.slice(beginIndex, dispatchIndex);
+  assert.match(between, /window\.confirm\([\s\S]*?vehicleLifecycleOperationCurrent\(lifecycleOwner\)/, `${fnName} revalidates lifecycle owner immediately after confirm`);
+}
+
 console.log(`PASS: lifecycle UI authority owner covers ${mutationAwaits.length} mutation await sites`);

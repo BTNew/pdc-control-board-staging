@@ -3454,6 +3454,15 @@ function discardRevokedBackupStatusRequest(authority, requestGeneration, panel, 
   return false;
 }
 
+function resetBackupStatusAuthorityState() {
+  BACKUP_STATUS_REQUEST_GENERATION += 1;
+  const panel = $('#backup-status-panel');
+  const host = $('#backup-status-content');
+  if (panel) panel.hidden = true;
+  if (host?.replaceChildren) host.replaceChildren();
+  else if (host) host.innerHTML = '';
+}
+
 async function renderBackupStatusPanel() {
   const panel = $('#backup-status-panel');
   const host = $('#backup-status-content');
@@ -4442,6 +4451,7 @@ function initEmailVehicleLocationsIfAvailable() {
 // data service without needing to navigate away and back.
 window.addEventListener?.('pdc-auth-ready', () => {
   invalidateVehicleLifecycleOperations();
+  resetBackupStatusAuthorityState();
   // Auth-ready also represents live token/role changes. Existing planner
   // services must discard their prior authority generation before reuse;
   // init alone intentionally reuses the instance and is not sufficient.
@@ -4480,6 +4490,7 @@ window.addEventListener?.('pdc-auth-ready', () => {
 // Revoke those controls synchronously when pdc-auth.js rotates that token.
 window.addEventListener?.('pdc-auth-token-changed', () => {
   invalidateVehicleLifecycleOperations();
+  resetBackupStatusAuthorityState();
   resetUserManagementAuthorityState({ clearHost: !userManagementSharedModeReady() });
   syncAdminNavigationVisibility();
   if (!userManagementSharedModeReady()
@@ -4503,6 +4514,7 @@ window.addEventListener?.('pdc-auth-token-changed', () => {
 // (or silently re-deriving UI from) previously-loaded operational data.
 window.addEventListener?.('pdc-auth-locked', () => {
   invalidateVehicleLifecycleOperations();
+  resetBackupStatusAuthorityState();
   resetEmailVehicleLocations();
   resetDeletedVehicleAuthorityState();
   resetUserManagementAuthorityState({ clearHost: true });
@@ -5312,10 +5324,11 @@ async function markVehicleReadyForQualityControl(key = '') {
     return false;
   }
   const label = vehicleIdentityTitle(vehicle) || displayStockNumber(vehicle) || 'this vehicle';
+  const lifecycleOwner = vehicleLifecycleSharedModeActive() ? beginVehicleLifecycleOperation() : null;
   if (!window.confirm(`All required work is complete for ${label}.\n\nMark this vehicle Ready for QC and move it to the QC Gate in Vehicle Locations?`)) return false;
 
   if (vehicleLifecycleSharedModeActive()) {
-    const lifecycleOwner = beginVehicleLifecycleOperation();
+    if (!vehicleLifecycleOperationCurrent(lifecycleOwner)) return false;
     const ref = await vehicleLifecycleSharedRef(vehicle);
     if (!vehicleLifecycleOperationCurrent(lifecycleOwner)) return false;
     if (!ref || ref.outcome !== 'resolved') {
@@ -5402,10 +5415,11 @@ async function completeVehicleQualityControl(key = '') {
     return false;
   }
   const label = vehicleIdentityTitle(vehicle) || displayStockNumber(vehicle) || 'this vehicle';
+  const lifecycleOwner = vehicleLifecycleSharedModeActive() ? beginVehicleLifecycleOperation() : null;
   if (!window.confirm(`Sign off QC for ${label}?\n\nThis records your named QC sign-off, marks the vehicle RFT, and prints the windscreen sign-off label.`)) return false;
 
   if (vehicleLifecycleSharedModeActive()) {
-    const lifecycleOwner = beginVehicleLifecycleOperation();
+    if (!vehicleLifecycleOperationCurrent(lifecycleOwner)) return false;
     const ref = await vehicleLifecycleSharedRef(vehicle);
     if (!vehicleLifecycleOperationCurrent(lifecycleOwner)) return false;
     if (!ref || ref.outcome !== 'resolved') {
@@ -5497,10 +5511,11 @@ async function moveVehiclePitLocation(key = '', direction = 'to_pit') {
   }
   const label = vehicleIdentityTitle(vehicle) || displayStockNumber(vehicle) || 'this vehicle';
   const target = toPit ? 'PIT for Department of Transport inspection' : 'PMB Unallocated';
+  const lifecycleOwner = vehicleLifecycleSharedModeActive() ? beginVehicleLifecycleOperation() : null;
   if (!window.confirm(`Move ${label} to ${target}?`)) return false;
 
   if (vehicleLifecycleSharedModeActive()) {
-    const lifecycleOwner = beginVehicleLifecycleOperation();
+    if (!vehicleLifecycleOperationCurrent(lifecycleOwner)) return false;
     const ref = await vehicleLifecycleSharedRef(vehicle);
     if (!vehicleLifecycleOperationCurrent(lifecycleOwner)) return false;
     if (!ref || ref.outcome !== 'resolved') {
@@ -13736,6 +13751,7 @@ async function markRftVehicleCollected(key, collected = true) {
   }
   if (!collected) return;
   const label = vehicleIdentityTitle(vehicle) || displayStockNumber(vehicle) || 'this vehicle';
+  const lifecycleOwner = vehicleLifecycleSharedModeActive() ? beginVehicleLifecycleOperation() : null;
   if (!window.confirm(`Confirm ${label} has been collected?\n\nThis will move it out of RFT into Completed Vehicles and cannot be undone here.`)) {
     renderAll();
     return;
@@ -13743,7 +13759,7 @@ async function markRftVehicleCollected(key, collected = true) {
   const operator = getCurrentOperatorName();
 
   if (vehicleLifecycleSharedModeActive()) {
-    const lifecycleOwner = beginVehicleLifecycleOperation();
+    if (!vehicleLifecycleOperationCurrent(lifecycleOwner)) return;
     const ref = await vehicleLifecycleSharedRef(vehicle);
     if (!vehicleLifecycleOperationCurrent(lifecycleOwner)) return;
     if (!ref || ref.outcome !== 'resolved') {

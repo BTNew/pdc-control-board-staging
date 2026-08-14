@@ -78,6 +78,11 @@ function queryFor(promise) {
   });
   vm.runInContext(block, context);
 
+  assert.match(source, /function resetBackupStatusAuthorityState\(\)[\s\S]*?BACKUP_STATUS_REQUEST_GENERATION \+= 1;[\s\S]*?panel\.hidden = true;[\s\S]*?host\.replaceChildren\(\)/, 'backup status authority reset helper must revoke generation and clear rendered DOM');
+  assert.match(source, /window\.addEventListener\?\.\('pdc-auth-ready',[\s\S]*?resetBackupStatusAuthorityState\(\)/, 'auth-ready must synchronously revoke rendered backup status');
+  assert.match(source, /window\.addEventListener\?\.\('pdc-auth-token-changed',[\s\S]*?resetBackupStatusAuthorityState\(\)/, 'token changes must synchronously revoke rendered backup status');
+  assert.match(source, /window\.addEventListener\?\.\('pdc-auth-locked',[\s\S]*?resetBackupStatusAuthorityState\(\)/, 'lockout must synchronously revoke rendered backup status');
+
   // Demotion while the first query is pending must suppress both success and
   // any later administrator-only detail publication.
   currentClient = makeClient('A');
