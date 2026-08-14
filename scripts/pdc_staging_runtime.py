@@ -88,8 +88,17 @@ def _assert_ca_certificate(der: bytes) -> None:
         raise ValueError("Basic Constraints is missing")
     tag, constraints, end = _der_tlv(basic_constraints)
     fields = _der_children(constraints) if tag == 0x30 and end == len(basic_constraints) else []
-    if not fields or fields[0] != (0x01, b"\xff"):
+    if len(fields) not in (1, 2) or fields[0] != (0x01, b"\xff"):
         raise ValueError("Basic Constraints does not authorize a CA")
+    if len(fields) == 2:
+        integer_tag, integer_value = fields[1]
+        if (
+            integer_tag != 0x02
+            or not integer_value
+            or integer_value[0] & 0x80
+            or (len(integer_value) > 1 and integer_value[0] == 0 and integer_value[1] < 0x80)
+        ):
+            raise ValueError("Basic Constraints path length is not a canonical non-negative INTEGER")
     key_usage = extensions.get(b"\x55\x1d\x0f")
     if key_usage is not None:
         tag, bits, end = _der_tlv(key_usage)

@@ -140,6 +140,27 @@ except ValueError:
     pass
 else:
     raise AssertionError('DER guard accepted non-zero unused Key Usage bits')
+
+def der_tlv(tag, value):
+    assert len(value) < 128
+    return bytes([tag, len(value)]) + value
+def synthetic_ca_path_length(integer_value):
+    basic_constraints = der_tlv(0x30,
+        der_tlv(0x01, bytes([0xff])) + der_tlv(0x02, integer_value))
+    extension = der_tlv(0x30,
+        der_tlv(0x06, bytes.fromhex('551d13')) +
+        der_tlv(0x01, bytes([0xff])) +
+        der_tlv(0x04, basic_constraints))
+    return der_tlv(0x30,
+        der_tlv(0x30, der_tlv(0xA3, der_tlv(0x30, extension))))
+module._assert_ca_certificate(synthetic_ca_path_length(bytes([0])))
+nonminimal_path_length = synthetic_ca_path_length(bytes([0, 0]))
+try:
+    module._assert_ca_certificate(nonminimal_path_length)
+except ValueError:
+    pass
+else:
+    raise AssertionError('DER guard accepted non-minimal Basic Constraints INTEGER')
 noncanonical_key_usage = Path(ca_dir.name) / 'noncanonical-key-usage.pem'
 encoded = base64.b64encode(noncanonical_der)
 noncanonical_key_usage.write_bytes(

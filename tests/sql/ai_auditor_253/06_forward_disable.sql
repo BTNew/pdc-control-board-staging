@@ -13,12 +13,25 @@ create temp table disable_before254 as select
  (select count(*) from public.vehicle_workshop_line_adjustments) adjustments,
  (select count(*) from public.pdc_auditor_workshop_revisions) revisions;
 
--- A contaminated helper ACL must be removed by forward containment.
+-- A contaminated helper ACL plus hostile retained-object ACL/RLS/policy state must
+-- be removed by forward containment.
 grant execute on function public.pdc_auditor_valid_new_value_253(jsonb,boolean,boolean,boolean) to authenticated;
+do $contaminate$ declare t text; begin
+ foreach t in array array[
+  'pdc_auditor_gateway_keys_253','pdc_auditor_signed_deliveries_253','pdc_auditor_signed_delivery_results_253',
+  'pdc_auditor_typed_plans_253','pdc_auditor_typed_plan_items_253','pdc_auditor_typed_runs_253',
+  'pdc_auditor_typed_scope_receipts_253','pdc_auditor_typed_change_receipts_253','pdc_auditor_typed_undo_receipts_253'
+ ] loop
+  execute format('alter table public.%I disable row level security',t);
+  execute format('grant select,insert,update,delete on table public.%I to public,anon,authenticated,service_role',t);
+  execute format('create policy hostile_all_254_test on public.%I for all to public using (true) with check (true)',t);
+ end loop;
+end $contaminate$;
+grant select on public.pdc_auditor_normalized_operation_lines_253 to public,anon,authenticated,service_role;
 
 \i supabase/staging_only/254_disable_ai_auditor_typed_operation_control.sql
 
-do $$declare p record;before_row disable_before254%rowtype;after_row disable_before254%rowtype;begin
+do $$declare p record;t text;v_role text;v_rls boolean;v_force boolean;before_row disable_before254%rowtype;after_row disable_before254%rowtype;begin
  if not exists(select 1 from supabase_migrations.schema_migrations where version='254' and name='disable_ai_auditor_typed_operation_control') then raise exception 'migration 254 ledger missing';end if;
  for p in select oid,proname from pg_proc where oid in(
   'public.plan_pdc_auditor_typed_instruction_253(text,text,jsonb,jsonb)'::regprocedure,
@@ -29,6 +42,21 @@ do $$declare p record;before_row disable_before254%rowtype;after_row disable_bef
   'public.pdc_auditor_valid_new_value_253(jsonb,boolean,boolean,boolean)'::regprocedure
  ) loop
   if has_function_privilege('public',p.oid,'execute') or has_function_privilege('anon',p.oid,'execute') or has_function_privilege('authenticated',p.oid,'execute') or has_function_privilege('service_role',p.oid,'execute') then raise exception '254 left RPC authority %',p.proname;end if;
+ end loop;
+ foreach t in array array[
+  'pdc_auditor_gateway_keys_253','pdc_auditor_signed_deliveries_253','pdc_auditor_signed_delivery_results_253',
+  'pdc_auditor_typed_plans_253','pdc_auditor_typed_plan_items_253','pdc_auditor_typed_runs_253',
+  'pdc_auditor_typed_scope_receipts_253','pdc_auditor_typed_change_receipts_253','pdc_auditor_typed_undo_receipts_253'
+ ] loop
+  select relrowsecurity,relforcerowsecurity into v_rls,v_force from pg_class where oid=format('public.%I',t)::regclass;
+  if not v_rls or not v_force then raise exception '254 did not restore forced RLS for %',t;end if;
+  if exists(select 1 from pg_policy where polrelid=format('public.%I',t)::regclass) then raise exception '254 left policy on private table %',t;end if;
+  foreach v_role in array array['anon','authenticated','service_role'] loop
+   if has_table_privilege(v_role,format('public.%I',t),'SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER') then raise exception '254 left table authority role=% table=%',v_role,t;end if;
+  end loop;
+ end loop;
+ foreach v_role in array array['anon','authenticated','service_role'] loop
+  if has_table_privilege(v_role,'public.pdc_auditor_normalized_operation_lines_253','SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER') then raise exception '254 left normalized view authority role=%',v_role;end if;
  end loop;
  if exists(select 1 from pg_policies where schemaname='public' and tablename='pdc_auditor_workshop_revisions' and policyname='pdc_auditor_workshop_revisions_admin_read_253')
     or not exists(select 1 from pg_policies where schemaname='public' and tablename='pdc_auditor_workshop_revisions' and policyname='pdc_auditor_workshop_revisions_legacy_admin_read_254')

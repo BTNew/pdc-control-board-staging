@@ -122,6 +122,31 @@ lock table
   public.vehicle_work_items
 in access exclusive mode;
 
+-- Re-establish the exact private-object boundary even if ACL/RLS/policy drift
+-- occurred after 253. These retained tables have no legitimate API policy;
+-- containment removes every policy before enabling RLS and revoking all API ACLs.
+-- FORCE RLS is applied after the audited owner-only key revocation below.
+do $reharden_private_253$ declare t text; p record; begin
+ foreach t in array array[
+  'pdc_auditor_gateway_keys_253',
+  'pdc_auditor_signed_deliveries_253',
+  'pdc_auditor_signed_delivery_results_253',
+  'pdc_auditor_typed_plans_253',
+  'pdc_auditor_typed_plan_items_253',
+  'pdc_auditor_typed_runs_253',
+  'pdc_auditor_typed_scope_receipts_253',
+  'pdc_auditor_typed_change_receipts_253',
+  'pdc_auditor_typed_undo_receipts_253'
+ ] loop
+  for p in select polname from pg_policy where polrelid=format('public.%I',t)::regclass loop
+   execute format('drop policy %I on public.%I',p.polname,t);
+  end loop;
+  execute format('alter table public.%I enable row level security',t);
+  execute format('revoke all on table public.%I from public,anon,authenticated,service_role',t);
+ end loop;
+end $reharden_private_253$;
+revoke all on public.pdc_auditor_normalized_operation_lines_253 from public,anon,authenticated,service_role;
+
 -- Append-only, non-secret record of every operational key transition.
 create table public.pdc_auditor_gateway_key_revocations_254(
   gateway_instance_id text not null,
@@ -267,7 +292,7 @@ values(
     'append non-secret key revocation evidence and deactivate every 253 gateway key',
     'replace five public 253 RPC bodies with deterministic disabled stubs and revoke every 253 function from API roles',
     'replace typed revision reads with legacy-only Administrator policy and preserve migration-229 Realtime publication',
-    'retain every 253 table function view trigger receipt run plan delivery and operational overlay row',
+    'reharden and retain every 253 private table and normalized view with forced RLS, no policies, no API ACL, and unchanged evidence rows',
     'record immutable disable counts; recovery or re-enable requires a later reviewed forward migration'
   ]
 );
@@ -276,6 +301,8 @@ do $postconditions$
 declare
   v_role text;
   v_function text;
+  v_table text;
+  v_rls boolean;
 begin
   foreach v_role in array array['anon','authenticated','service_role'] loop
     foreach v_function in array array[
@@ -302,6 +329,35 @@ begin
     end if;
   end loop;
 
+  foreach v_table in array array[
+    'pdc_auditor_gateway_keys_253',
+    'pdc_auditor_signed_deliveries_253',
+    'pdc_auditor_signed_delivery_results_253',
+    'pdc_auditor_typed_plans_253',
+    'pdc_auditor_typed_plan_items_253',
+    'pdc_auditor_typed_runs_253',
+    'pdc_auditor_typed_scope_receipts_253',
+    'pdc_auditor_typed_change_receipts_253',
+    'pdc_auditor_typed_undo_receipts_253'
+  ] loop
+    select relrowsecurity into v_rls
+    from pg_class where oid=format('public.%I',v_table)::regclass;
+    if not v_rls
+       or exists(select 1 from pg_policy where polrelid=format('public.%I',v_table)::regclass) then
+      raise exception 'PDC_254_PRIVATE_TABLE_RLS_OR_POLICY_REMAINS table=%', v_table using errcode = '55000';
+    end if;
+    foreach v_role in array array['anon','authenticated','service_role'] loop
+      if has_table_privilege(v_role, format('public.%I',v_table), 'SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER') then
+        raise exception 'PDC_254_PRIVATE_TABLE_AUTHORITY_REMAINS role=% table=%', v_role, v_table using errcode = '55000';
+      end if;
+    end loop;
+  end loop;
+  foreach v_role in array array['anon','authenticated','service_role'] loop
+    if has_table_privilege(v_role, 'public.pdc_auditor_normalized_operation_lines_253', 'SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER') then
+      raise exception 'PDC_254_PRIVATE_VIEW_AUTHORITY_REMAINS role=%', v_role using errcode = '55000';
+    end if;
+  end loop;
+
   if exists(select 1 from public.pdc_auditor_gateway_keys_253 where active or revoked_at is null)
      or (select count(*) from pg_policies where schemaname='public' and tablename='pdc_auditor_workshop_revisions' and policyname='pdc_auditor_workshop_revisions_legacy_admin_read_254') <> 1
      or not has_function_privilege('authenticated','public.pdc_auditor_human_admin_revision_read_253(text)','EXECUTE')
@@ -312,6 +368,28 @@ begin
     raise exception 'PDC_254_POSTCONDITION_FAILED' using errcode = '55000';
   end if;
 end $postconditions$;
+
+-- Apply FORCE only after all retained-row postconditions so this migration does
+-- not depend on the executing owner having BYPASSRLS.
+do $force_private_253$ declare t text; v_force boolean; begin
+ foreach t in array array[
+  'pdc_auditor_gateway_keys_253',
+  'pdc_auditor_signed_deliveries_253',
+  'pdc_auditor_signed_delivery_results_253',
+  'pdc_auditor_typed_plans_253',
+  'pdc_auditor_typed_plan_items_253',
+  'pdc_auditor_typed_runs_253',
+  'pdc_auditor_typed_scope_receipts_253',
+  'pdc_auditor_typed_change_receipts_253',
+  'pdc_auditor_typed_undo_receipts_253'
+ ] loop
+  execute format('alter table public.%I force row level security',t);
+  select relforcerowsecurity into v_force from pg_class where oid=format('public.%I',t)::regclass;
+  if not v_force then
+   raise exception 'PDC_254_PRIVATE_TABLE_FORCE_RLS_FAILED table=%',t using errcode = '55000';
+  end if;
+ end loop;
+end $force_private_253$;
 
 notify pgrst, 'reload schema';
 commit;

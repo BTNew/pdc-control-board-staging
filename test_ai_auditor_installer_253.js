@@ -48,6 +48,20 @@ for (const required of [
 assert.ok(source.includes("version='253'"),'rollback readback must check the exact migration ledger');
 assert.ok(source.includes("to_regclass('public.pdc_auditor_gateway_keys_253') is not null"),'rollback readback must check private object residue');
 
+const disableSource = fs.readFileSync('supabase/staging_only/254_disable_ai_auditor_typed_operation_control.sql','utf8').replace(/\r\n/g,'\n');
+for (const required of [
+  'do $reharden_private_253$',
+  "drop policy %I on public.%I",
+  "alter table public.%I enable row level security",
+  "alter table public.%I force row level security",
+  "revoke all on table public.%I from public,anon,authenticated,service_role",
+  'revoke all on public.pdc_auditor_normalized_operation_lines_253 from public,anon,authenticated,service_role',
+  'PDC_254_PRIVATE_TABLE_RLS_OR_POLICY_REMAINS',
+  'PDC_254_PRIVATE_TABLE_AUTHORITY_REMAINS',
+  'PDC_254_PRIVATE_VIEW_AUTHORITY_REMAINS',
+]) assert.ok(disableSource.includes(required),`migration 254 containment contract missing: ${required}`);
+assert.strictEqual((disableSource.match(/'pdc_auditor_gateway_keys_253'/g) || []).length >= 3, true, 'migration 254 must guard, reharden and postcheck all private tables');
+
 const poison = fs.mkdtempSync(path.join(os.tmpdir(),'pdc-installer-pythonpath-poison-'));
 try {
   fs.writeFileSync(path.join(poison,'psycopg2.py'),"raise SystemExit('POISONED_IMPORT_EXECUTED')\n",'utf8');

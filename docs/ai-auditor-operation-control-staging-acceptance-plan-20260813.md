@@ -62,7 +62,7 @@ Before commit, rollback means aborting the installer transaction; its default re
 1. Stop the owning gateway and prevent queued retries; name operator, observer and stop authority.
 2. Verify exact staging project, exact migration-253 head/name/statements/catalog and no 251/252/254/later row.
 3. Rehearse migration 254 on a faithful clone or always-rolled-back staging transaction.
-4. Apply 254 from an approved immutable SHA. It drains 253 work under bounded locks, records and deactivates every key, replaces public RPC bodies with fail-closed stubs, revokes all 253 API execution, removes revision Realtime access, and retains every delivery, plan, run, receipt, revision and operational overlay.
+4. Apply 254 from an approved immutable SHA. It drains 253 work under bounded locks, records and deactivates every key, replaces public RPC bodies with fail-closed stubs, revokes all 253 API execution, removes every policy and API ACL from the nine retained private tables, restores and forces their RLS boundary, revokes the normalized-view ACL, removes typed-253 revision reads while preserving migration-229 legacy-only Administrator Realtime, and retains every delivery, plan, run, receipt, revision and operational overlay.
 5. Reactivation or controlled recovery requires a later separately reviewed forward migration; never reset the ledger or silently restore old RPC bodies.
 
 ## Immediate stop conditions
