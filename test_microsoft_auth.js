@@ -9,7 +9,10 @@ const root = __dirname;
 const authSource = fs.readFileSync(path.join(root, 'pdc-auth.js'), 'utf8');
 const registrationSource = fs.readFileSync(path.join(root, 'pdc-auth-registration.js'), 'utf8');
 const index = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
-const productionConfig = fs.readFileSync(path.join(root, 'pdc-supabase-config.production.js'), 'utf8');
+const productionConfigSource = fs.readFileSync(path.join(root, 'pdc-supabase-config.production.js'), 'utf8');
+const productionConfigMatch = productionConfigSource.match(/^window\.PDC_SUPABASE_CONFIG = (\{[^]*\});\n?$/);
+assert.ok(productionConfigMatch, 'Production browser config must be one canonical JSON assignment');
+const productionConfig = JSON.parse(productionConfigMatch[1]);
 const vendor = fs.readFileSync(path.join(root, 'vendor', 'supabase', 'supabase-2.110.5.js'), 'utf8');
 
 assert.ok(index.includes('<body class="auth-pending"'), 'Production shell must start locked');
@@ -22,8 +25,7 @@ assert.ok(index.indexOf('vendor/supabase/supabase-2.110.5.js') < index.indexOf('
 assert.ok(index.indexOf('pdc-supabase-config.production.js') < index.indexOf('pdc-auth.js'), 'Tracked production browser config must load before the auth gate');
 assert.ok(index.indexOf('pdc-auth.js') < index.indexOf('app.js'), 'Auth gate must initialize before application code');
 assert.ok(vendor.includes('supabase') && vendor.length > 150000, 'Pinned Supabase browser bundle is missing or incomplete');
-assert.ok(productionConfig.includes("provider: 'azure'"), 'Microsoft/Azure must be the configured provider');
-assert.ok(productionConfig.includes("mode: 'password'"), 'Temporary production login mode should be individual email/password');
+assert.deepStrictEqual(productionConfig.auth, { mode: 'password', provider: 'azure' }, 'Production auth must use temporary individual password mode with Microsoft/Azure as the configured provider');
 assert.ok(!authSource.includes('URLSearchParams') && !authSource.includes('AUTH_BYPASS'), 'Production auth must not support a query-string bypass');
 assert.ok(authSource.includes('signInWithPassword({ email, password })'), 'Email/password sign-in handler is missing');
 assert.ok(authSource.includes('updateUser({ password })'), 'Invite and recovery flows must let staff establish a private password');

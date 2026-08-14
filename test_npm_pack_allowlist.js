@@ -3,7 +3,6 @@ const assert = require('assert');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const vm = require('vm');
 const { spawnSync } = require('child_process');
 
 const sentinel = 'UNTRACKED_PACKAGE_SENTINEL.js';
@@ -26,9 +25,9 @@ const localStagingRefs = [...stagingHtml.matchAll(/(?:src|href)=["']([^"'#?]+)(?
   .filter(value => value && !/^(?:https?:|data:|#)/.test(value));
 const productionConfigName = 'pdc-supabase-config.production.js';
 const productionConfigSource = fs.readFileSync(productionConfigName,'utf8');
-const configContext = { window: { location: { origin:'https://btnew.github.io', pathname:'/pdc-control-board-login/' } } };
-vm.runInNewContext(productionConfigSource,configContext,{filename:productionConfigName});
-const productionConfig = configContext.window.PDC_SUPABASE_CONFIG;
+const canonicalConfigMatch = productionConfigSource.match(/^window\.PDC_SUPABASE_CONFIG = (\{[^]*\});\n?$/);
+assert.ok(canonicalConfigMatch,'production browser config must be one canonical JSON assignment with no expressions or trailing code');
+const productionConfig = JSON.parse(canonicalConfigMatch[1]);
 assert.ok(files.includes('app.js'),'package allowlist must retain the application source');
 assert.ok(files.includes('ai-auditor.css'),'package allowlist must retain the stylesheet required by staging.html and the packaged Stage-A UI regression');
 assert.ok(files.includes('tests/sql/ai_auditor_253/07_typed_value_boundaries.sql'),'package allowlist must retain migration regression evidence');
@@ -44,11 +43,27 @@ assert.ok(productionConfig && typeof productionConfig === 'object','production b
 assert.strictEqual(productionConfig.projectRef,'vjdtsswhroyguxyfjdkt','production browser config has the wrong project');
 assert.strictEqual(productionConfig.url,'https://vjdtsswhroyguxyfjdkt.supabase.co','production browser config has the wrong endpoint');
 assert.match(productionConfig.publishableKey,/^sb_publishable_[A-Za-z0-9_-]+$/,'production browser config must contain only a Supabase publishable browser key');
-assert.ok(!/sb_secret_|service_role\s*[:=]|client[_-]?secret|password\s*[:=]|-----BEGIN [A-Z ]*PRIVATE KEY-----/i.test(productionConfigSource),'production browser config contains a forbidden secret/private marker');
+assert.ok(!/sb_secret_|service[_-]?role|client[_-]?secret|password\s*["']?\s*:|-----BEGIN [A-Z ]*PRIVATE KEY-----|postgres(?:ql)?:\/\/|eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+|bearer\s+|access[_-]?token|refresh[_-]?token/i.test(productionConfigSource),'production browser config contains a forbidden secret/private marker');
 assert.ok(!productionConfigSource.includes('cdsmnqxtyyoeoznmbidd'),'production browser config contains the staging project');
 const allowedConfigFields = new Set(['environment','projectRef','url','publishableKey','auth','workshop','vehicleLifecycle']);
 assert.strictEqual(productionConfig.environment,'production','production browser config must declare its environment explicitly');
-assert.deepStrictEqual(Object.keys(productionConfig).filter(key => !allowedConfigFields.has(key)),[],'production browser config contains an unreviewed top-level field');
+assert.deepStrictEqual(Object.keys(productionConfig).sort(),[...allowedConfigFields].sort(),'production browser config must contain exactly the approved top-level fields');
+assert.deepStrictEqual(productionConfig.auth,{mode:'password',provider:'azure'},'production auth config must contain only approved public fields');
+assert.deepStrictEqual(productionConfig.workshop,{sharedData:true},'production workshop config must contain only sharedData=true');
+assert.deepStrictEqual(productionConfig.vehicleLifecycle,{sharedData:true},'production lifecycle config must contain only sharedData=true');
+
+const runtimeJsSources = ['app.js','pdc-auth.js','workshop-planner.js','workshop-data-service.js','vehicle-lifecycle-actions.js'];
+for (const sourceName of runtimeJsSources) {
+  const source = fs.readFileSync(sourceName,'utf8');
+  const refs = [...source.matchAll(/["'`]([A-Za-z0-9_./-]+\.js)(?:\?[^"'`]*)?["'`]/g)].map(match => match[1]);
+  for (const rawRef of new Set(refs)) {
+    const ref = rawRef.replace(/^\.\//,'');
+    assert.ok(files.includes(ref),`${sourceName} runtime JavaScript dependency must be packaged: ${rawRef}`);
+  }
+}
+const staticWebConfig = JSON.parse(fs.readFileSync('staticwebapp.config.json','utf8'));
+const fallbackExclusions = staticWebConfig.navigationFallback && staticWebConfig.navigationFallback.exclude;
+assert.ok(Array.isArray(fallbackExclusions) && fallbackExclusions.some(entry => entry.includes('csv')),'navigation fallback must exclude CSV requests');
 
 // Materialize exactly the reported package members and exercise the packaged
 // regression suite. The child marker prevents this test from recursively

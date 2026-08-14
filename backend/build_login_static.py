@@ -3,11 +3,14 @@
 from pathlib import Path
 import re
 import shutil
+import subprocess
+import sys
 
 ROOT = Path(__file__).resolve().parents[1]
 TARGET = ROOT / "backend" / ".generated" / "pdc-control-board-login"
 FILES = (
     "index.html",
+    "staticwebapp.config.json",
     "favicon.svg",
     "styles.css",
     "desktop-operations.css",
@@ -24,6 +27,7 @@ FILES = (
     "email-board-data.js",
     "arb-labor-catalog.js",
     "workshop-planner.js",
+    "workshop-reference-data-service.js",
     "ai-board-advisor.js",
     "workshop-eligibility.js",
     "workshop-navigation.js",
@@ -33,12 +37,17 @@ FILES = (
 
 
 def main() -> None:
-    config = (ROOT / "pdc-supabase-config.production.js").read_text(encoding="utf-8")
-    executable_config = "\n".join(line for line in config.splitlines() if not line.lstrip().startswith("//"))
-    forbidden = ("service_role", "service-role", "client_secret", "password=")
-    found = [item for item in forbidden if item in executable_config.lower()]
-    if found:
-        raise SystemExit(f"Refusing browser bundle: forbidden configuration markers: {', '.join(found)}")
+    config_path = ROOT / "pdc-supabase-config.production.js"
+    validator = ROOT / "scripts" / "validate_public_browser_config.py"
+    validation = subprocess.run(
+        [sys.executable, "-I", str(validator), str(config_path)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if validation.returncode != 0:
+        detail = validation.stderr.strip() or validation.stdout.strip() or "unknown validation failure"
+        raise SystemExit(f"Refusing browser bundle: {detail}")
 
     if TARGET.exists():
         for child in TARGET.iterdir():
@@ -56,8 +65,6 @@ def main() -> None:
         destination.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(source, destination)
 
-    # Comments document local secret-handling rules but are unnecessary in the public browser config.
-    (TARGET / "pdc-supabase-config.production.js").write_text(executable_config.strip() + "\n", encoding="utf-8", newline="\n")
 
     (TARGET / "robots.txt").write_text("User-agent: *\nDisallow: /\n", encoding="utf-8", newline="\n")
     (TARGET / ".nojekyll").write_text("", encoding="utf-8")

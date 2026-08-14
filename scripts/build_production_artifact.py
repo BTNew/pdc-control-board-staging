@@ -40,6 +40,7 @@ INDEPENDENT-REVIEW-REMEDIATION-HANDOVER.md for current status.
 import hashlib
 import re
 import shutil
+import subprocess
 import sys
 from pathlib import Path
 
@@ -54,6 +55,7 @@ PRODUCTION_PROJECT_REF = "vjdtsswhroyguxyfjdkt"
 # administrator-only User Management already implemented in app.js.
 PRODUCTION_FILES = [
     "index.html",
+    "staticwebapp.config.json",
     "app.js",
     "pdc-auth.js",
     "pdc-supabase-config.production.js",
@@ -65,6 +67,7 @@ PRODUCTION_FILES = [
     "workshop-planner.css",
     "workshop-planner.js",
     "workshop-data-service.js",
+    "workshop-reference-data-service.js",
     "workshop-realtime.js",
     "workshop-shared-actions.js",
     "ai-board-advisor.js",
@@ -73,6 +76,9 @@ PRODUCTION_FILES = [
     "vehicle-lifecycle-actions.js",
     "vehicle-location-lifecycle.js",
     "vendor/supabase/supabase-2.110.5.js",
+    "vendor/qz/qz-tray.js",
+    "vendor/pdfjs/pdf.min.js",
+    "vendor/pdfjs/pdf.worker.min.js",
     "assets/pmb-logo.png",
     "favicon.svg",
 ]
@@ -119,10 +125,13 @@ SECRET_PATTERNS = [
     (re.compile(r"SMTP_PASSWORD|smtp_password"), "SMTP password reference"),
 ]
 
-# Files allowed to mention 'localhost' without failing the build (the
-# vendor Supabase SDK's own dev-mode warning text is not a leaked
-# production/staging config value).
-LOCALHOST_ALLOWED_FILES = {"vendor/supabase/supabase-2.110.5.js"}
+# Exact vendored files allowed to mention localhost without failing the build:
+# the Supabase SDK contains dev-mode warning text and QZ Tray intentionally
+# connects the browser to its desktop print service on the local machine.
+LOCALHOST_ALLOWED_FILES = {
+    "vendor/supabase/supabase-2.110.5.js",
+    "vendor/qz/qz-tray.js",
+}
 
 def build_artifact():
     if ARTIFACT_DIR.exists():
@@ -247,9 +256,9 @@ def confirm_shared_data_flags_enabled():
         return ["pdc-supabase-config.production.js missing -- cannot verify shared-data flags"]
     text = config_path.read_text(encoding="utf-8", errors="ignore")
     problems = []
-    if not re.search(r"workshop\s*:\s*\{[^}]*sharedData\s*:\s*true", text, re.DOTALL):
+    if not re.search(r'["\']?workshop["\']?\s*:\s*\{[^}]*["\']?sharedData["\']?\s*:\s*true', text, re.DOTALL):
         problems.append("pdc-supabase-config.production.js does not set workshop.sharedData = true")
-    if not re.search(r"vehicleLifecycle\s*:\s*(?:Object\.freeze\()?\{[^}]*sharedData\s*:\s*true", text, re.DOTALL):
+    if not re.search(r'["\']?vehicleLifecycle["\']?\s*:\s*(?:Object\.freeze\()?\{[^}]*["\']?sharedData["\']?\s*:\s*true', text, re.DOTALL):
         problems.append("pdc-supabase-config.production.js does not set vehicleLifecycle.sharedData = true")
     return problems
 
@@ -270,6 +279,13 @@ def confirm_all_referenced_assets_exist():
         asset_path = ARTIFACT_DIR / ref
         if not asset_path.exists():
             problems.append(f"index.html references '{ref}' but it is not present in the artifact")
+    app_path = ARTIFACT_DIR / "app.js"
+    if app_path.exists():
+        app_text = app_path.read_text(encoding="utf-8", errors="ignore")
+        for match in re.finditer(r"[`'\"]([A-Za-z0-9_./-]+\.js)(?:\?[^`'\"]*)?[`'\"]", app_text):
+            ref = match.group(1)
+            if not (ARTIFACT_DIR / ref).is_file():
+                problems.append(f"app.js lazy-loads '{ref}' but it is not present in the artifact")
     return problems
 
 
@@ -282,6 +298,19 @@ def sha256_manifest():
 
 
 def main():
+    config_path = REPO_ROOT / "pdc-supabase-config.production.js"
+    validator_path = REPO_ROOT / "scripts" / "validate_public_browser_config.py"
+    validation = subprocess.run(
+        [sys.executable, "-I", str(validator_path), str(config_path)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if validation.returncode != 0:
+        detail = validation.stderr.strip() or validation.stdout.strip() or "unknown validation failure"
+        print(f"FAIL: production browser configuration validation failed: {detail}")
+        sys.exit(1)
+
     copied, missing = build_artifact()
     print(f"Copied {len(copied)} files into {ARTIFACT_DIR}")
 

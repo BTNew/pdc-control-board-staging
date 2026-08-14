@@ -114,6 +114,15 @@ class BuildProductionArtifactValidatorTests(unittest.TestCase):
         fatal, _ = artifact_builder.scan_artifact()
         self.assertEqual(fatal, [])
 
+    def test_localhost_in_qz_desktop_service_vendor_file_is_not_fatal(self):
+        vendor_dir = self.temp_dir / "vendor" / "qz"
+        vendor_dir.mkdir(parents=True, exist_ok=True)
+        (vendor_dir / "qz-tray.js").write_text(
+            "const qzDesktopSocket = 'wss://localhost:8181';", encoding="utf-8"
+        )
+        fatal, _ = artifact_builder.scan_artifact()
+        self.assertEqual(fatal, [])
+
     def test_missing_referenced_asset_is_a_hard_failure(self):
         (self.temp_dir / "index.html").write_text(
             '<html><body><script src="does-not-exist.js"></script></body></html>', encoding="utf-8"
@@ -127,6 +136,14 @@ class BuildProductionArtifactValidatorTests(unittest.TestCase):
         )
         problems = artifact_builder.confirm_all_referenced_assets_exist()
         self.assertTrue(any("random-100-vehicles.csv" in p for p in problems))
+
+    def test_missing_lazy_loaded_javascript_is_a_hard_failure(self):
+        (self.temp_dir / "index.html").write_text("<html><body></body></html>", encoding="utf-8")
+        (self.temp_dir / "app.js").write_text(
+            "loadExternalScript(`missing-runtime-service.js?v=1`, 'runtime-service')", encoding="utf-8"
+        )
+        problems = artifact_builder.confirm_all_referenced_assets_exist()
+        self.assertTrue(any("missing-runtime-service.js" in p for p in problems))
 
     def test_real_repo_build_has_complete_required_source_set(self):
         artifact_builder.ARTIFACT_DIR = self._original_artifact_dir

@@ -15,7 +15,7 @@
     "rewrite": "/index.html",
     "exclude": [
       "/images/*.{png,jpg,gif,webp,svg}",
-      "/*.{css,js,json,ico,png,jpg,gif,webp,svg,txt}"
+      "/*.{css,js,json,ico,png,jpg,gif,webp,svg,txt,csv}"
     ]
   },
   "globalHeaders": {
