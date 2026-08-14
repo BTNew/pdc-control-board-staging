@@ -5,7 +5,7 @@ const vm = require('vm');
 
 const source = fs.readFileSync('app.js', 'utf8');
 const slice = source.slice(
-  source.indexOf('function workshopTechnicianAdminCanMutate('),
+  source.indexOf('function workshopReferenceAdministratorCanMutate('),
   source.indexOf('async function removeMechanicFromAdminList('),
 );
 assert(slice.includes('async function addMechanicFromAdminInput()'), 'outer add handler is present');

@@ -51,7 +51,7 @@ for (const requestPath of [
   const response = resolveRequest(requestPath, true);
   assert.strictEqual(response.status, 404, `${requestPath} must fail closed for authenticated users`);
   assert(!response.body.includes('<!DOCTYPE html'), `${requestPath} must never receive SPA HTML`);
-  assert(!response.body.includes('2026.08.14.61-authority-lineage-closure'), `${requestPath} must never receive app HTML`);
+  assert(!response.body.includes('2026.08.14.62-authority-lineage-verification'), `${requestPath} must never receive app HTML`);
 }
 
 for (const requestPath of ['/', '/private', '/private/missing', '/dashboard', '/missing.js']) {
