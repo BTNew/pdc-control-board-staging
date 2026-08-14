@@ -14,8 +14,14 @@
   "navigationFallback": {
     "rewrite": "/index.html",
     "exclude": [
+      "/*.html",
+      "/private/*",
+      "/supabase/*",
+      "/tests/*",
+      "/scripts/*",
+      "/backend/*",
       "/images/*.{png,jpg,gif,webp,svg}",
-      "/*.{css,js,json,ico,png,jpg,gif,webp,svg,txt,csv}"
+      "/*.{css,js,json,ico,png,jpg,gif,webp,svg,txt,csv,env,local,development,test,staging,production}"
     ]
   },
   "globalHeaders": {

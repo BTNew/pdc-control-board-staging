@@ -6,7 +6,7 @@ const vm = require('vm');
 const source = fs.readFileSync('app.js', 'utf8');
 const slice = source.slice(
   source.indexOf('function workshopTechnicianAdminCanMutate('),
-  source.indexOf('function removeMechanicFromAdminList('),
+  source.indexOf('async function removeMechanicFromAdminList('),
 );
 assert(slice.includes('async function addMechanicFromAdminInput()'), 'outer add handler is present');
 
@@ -22,10 +22,14 @@ async function scenario({ role, result, rejects = false }) {
     listTechnicians: async force => { assert.strictEqual(force, true); calls.list += 1; },
   };
   const context = {
-    window: { PDC_AUTH_CONTEXT: { role }, alert: message => calls.alerts.push(message) },
+    window: { PDC_AUTH_CONTEXT: { role }, __workshopReferenceDataService: service, alert: message => calls.alerts.push(message) },
     cleanNavisionText: value => String(value || '').trim(),
     $: selector => selector === '#mechanic-name-input' ? input : null,
     initWorkshopReferenceDataServiceIfAvailable: () => service,
+    captureWorkshopReferenceMutation: captured => ({ service: captured }),
+    workshopReferenceMutationCurrent: () => true,
+    finishWorkshopReferenceMutation: () => {},
+    workshopReferenceMutationMessage: (_result, fallback) => fallback,
     renderAdminLists: () => { calls.admin += 1; },
     renderKpis: () => { calls.kpis += 1; },
   };

@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.14.56-retained-content-owner-proof';
+const APP_VERSION = '2026.08.14.57-reference-owner-fallback-proof';
 const WORKSHOP_PLANNER_SCRIPT_VERSION = APP_VERSION;
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
@@ -1553,9 +1553,7 @@ function workshopReferenceDataRoleCanRead(role = window.PDC_AUTH_CONTEXT?.role) 
 
 function refreshWorkshopReferenceData() {
   if (!workshopReferenceDataRoleCanRead()) {
-    stopWorkshopReferenceDataReconciliationTimer();
-    window.__workshopReferenceDataService?.unsubscribeAll?.();
-    window.__workshopReferenceDataService = null;
+    resetWorkshopReferenceDataAuthorityState();
     return;
   }
   const service = typeof initWorkshopReferenceDataServiceIfAvailable === 'function' ? initWorkshopReferenceDataServiceIfAvailable() : null;
@@ -3200,6 +3198,82 @@ function bindNav() {
 }
 
 
+let WORKSHOP_REFERENCE_AUTHORITY_GENERATION = 0;
+let WORKSHOP_REFERENCE_OPERATION_SEQUENCE = 0;
+const WORKSHOP_REFERENCE_OPERATION_OWNERS = new Map();
+
+function workshopReferenceBrowserAuthorityIdentity() {
+  const context = window.PDC_AUTH_CONTEXT || {};
+  const principal = String(context.userId || context.email || '').trim().toLowerCase();
+  const role = String(context.role || '').trim().toLowerCase();
+  return principal && role ? `${principal}\n${role}` : '';
+}
+
+function captureWorkshopReferenceServiceAuthority() {
+  const token = typeof getPdcSupabaseAccessToken === 'function' ? getPdcSupabaseAccessToken() : null;
+  const identity = workshopReferenceBrowserAuthorityIdentity();
+  if (!token || !identity) return null;
+  return { authorityGeneration: WORKSHOP_REFERENCE_AUTHORITY_GENERATION, token, identity };
+}
+
+function workshopReferenceServiceAuthorityCurrent(service, authority) {
+  return Boolean(
+    service
+    && authority
+    && service === window.__workshopReferenceDataService
+    && authority.authorityGeneration === WORKSHOP_REFERENCE_AUTHORITY_GENERATION
+    && authority.token === (typeof getPdcSupabaseAccessToken === 'function' ? getPdcSupabaseAccessToken() : null)
+    && authority.identity === workshopReferenceBrowserAuthorityIdentity()
+  );
+}
+
+function captureWorkshopReferenceMutation(service, operationKey, options = {}) {
+  const authority = captureWorkshopReferenceServiceAuthority();
+  const key = String(operationKey || '').trim();
+  if (!service || !authority || !key || service !== window.__workshopReferenceDataService) return null;
+  const owner = {
+    ...authority,
+    service,
+    operationKey: key,
+    operationSequence: ++WORKSHOP_REFERENCE_OPERATION_SEQUENCE,
+    requireAdministrator: options.requireAdministrator === true,
+  };
+  WORKSHOP_REFERENCE_OPERATION_OWNERS.set(key, owner);
+  return owner;
+}
+
+function workshopReferenceMutationCurrent(owner) {
+  const role = String(window.PDC_AUTH_CONTEXT?.role || '').trim().toLowerCase();
+  return Boolean(
+    owner
+    && WORKSHOP_REFERENCE_OPERATION_OWNERS.get(owner.operationKey) === owner
+    && workshopReferenceServiceAuthorityCurrent(owner.service, owner)
+    && (!owner.requireAdministrator || role === 'administrator')
+  );
+}
+
+function finishWorkshopReferenceMutation(owner) {
+  if (owner && WORKSHOP_REFERENCE_OPERATION_OWNERS.get(owner.operationKey) === owner) {
+    WORKSHOP_REFERENCE_OPERATION_OWNERS.delete(owner.operationKey);
+  }
+}
+
+function invalidateWorkshopReferenceAuthority() {
+  WORKSHOP_REFERENCE_AUTHORITY_GENERATION += 1;
+  WORKSHOP_REFERENCE_OPERATION_OWNERS.clear();
+}
+
+function resetWorkshopReferenceDataAuthorityState() {
+  invalidateWorkshopReferenceAuthority();
+  const service = window.__workshopReferenceDataService;
+  window.__workshopReferenceDataService = null;
+  if (window.__workshopReferenceDataReconcileTimer) {
+    window.clearInterval(window.__workshopReferenceDataReconcileTimer);
+    window.__workshopReferenceDataReconcileTimer = null;
+  }
+  try { service?.unsubscribeAll?.(); } catch (_error) { /* best-effort exact-service teardown */ }
+}
+
 function workshopTechnicianAdminCanMutate(role = window.PDC_AUTH_CONTEXT?.role) {
   return String(role || '').trim().toLowerCase() === 'administrator';
 }
@@ -3222,20 +3296,20 @@ async function addMechanicFromAdminInput() {
   const input = $('#mechanic-name-input');
   const entered = cleanNavisionText(input?.value || '');
   if (!entered) return false;
-  // add_technician remains administrator-only at the RPC/RLS boundary. The UI
-  // mirrors that existing authority instead of inviting an operator to submit
-  // a request that the server must reject.
   if (!workshopTechnicianAdminCanMutate()) {
     window.alert('Administrator access is required to add mechanics. No request was sent.');
     return false;
   }
   const service = typeof initWorkshopReferenceDataServiceIfAvailable === 'function' ? initWorkshopReferenceDataServiceIfAvailable() : null;
-  if (!service) {
+  const owner = captureWorkshopReferenceMutation(service, 'technician:add', { requireAdministrator: true });
+  if (!owner) {
     window.alert('Cannot reach the shared mechanic list right now. Check your connection and try again.');
     return false;
   }
   try {
-    const result = await service.addTechnician(entered);
+    if (!workshopReferenceMutationCurrent(owner)) return false;
+    const result = await owner.service.addTechnician(entered);
+    if (!workshopReferenceMutationCurrent(owner)) return false;
     if (!result || result.ok !== true) {
       const fallback = 'Could not add mechanic. Check your connection and try again.';
       window.alert(result?.error === 'duplicate_name'
@@ -3243,71 +3317,105 @@ async function addMechanicFromAdminInput() {
         : workshopReferenceMutationMessage(result, fallback));
       return false;
     }
-    if (input) input.value = '';
-    // mutate() already performs an authoritative reload; explicitly await a
-    // final list refresh so this outer handler renders only confirmed rows.
-    await service.listTechnicians(true);
+    await owner.service.listTechnicians(true);
+    if (!workshopReferenceMutationCurrent(owner)) return false;
+    if (input && cleanNavisionText(input.value || '') === entered) input.value = '';
     renderAdminLists();
     renderKpis();
     return true;
   } catch (_error) {
-    window.alert('Could not add mechanic. Check your connection and try again.');
+    if (workshopReferenceMutationCurrent(owner)) window.alert('Could not add mechanic. Check your connection and try again.');
     return false;
+  } finally {
+    finishWorkshopReferenceMutation(owner);
   }
 }
 
-function removeMechanicFromAdminList(name = '') {
+async function removeMechanicFromAdminList(name = '') {
   const clean = cleanNavisionText(name);
-  if (!clean) return;
+  if (!clean) return false;
   if (!workshopTechnicianAdminCanMutate()) {
     window.alert('Administrator access is required to remove mechanics. No request was sent.');
-    return;
+    return false;
   }
-  if (!window.confirm(`Remove mechanic "${clean}" from the dropdown list? Existing vehicle history will stay on the vehicle.`)) return;
   const service = typeof initWorkshopReferenceDataServiceIfAvailable === 'function' ? initWorkshopReferenceDataServiceIfAvailable() : null;
-  if (!service) { window.alert('Cannot reach the shared mechanic list right now. Check your connection and try again.'); return; }
-  const record = loadMechanicRecords(true).find(row => row.name === clean);
-  if (!record) { window.alert(`"${clean}" was not found.`); return; }
-  // Deactivate rather than delete -- preserves every historical
-  // workshop_booking_assignments row that already points at this
-  // technician_id, exactly as the Stage 2A requirement specifies.
-  service.setTechnicianActive(record.id, record.version, false).then(result => {
-    if (!result.ok) { window.alert(result.error || 'Could not remove mechanic.'); return; }
+  const record = service ? loadMechanicRecords(true).find(row => row.name === clean) : null;
+  const owner = captureWorkshopReferenceMutation(service, `technician:remove:${record?.id || clean}`, { requireAdministrator: true });
+  if (!owner) { window.alert('Cannot reach the shared mechanic list right now. Check your connection and try again.'); return false; }
+  if (!record) { finishWorkshopReferenceMutation(owner); window.alert(`"${clean}" was not found.`); return false; }
+  if (!window.confirm(`Remove mechanic "${clean}" from the dropdown list? Existing vehicle history will stay on the vehicle.`)) {
+    finishWorkshopReferenceMutation(owner);
+    return false;
+  }
+  if (!workshopReferenceMutationCurrent(owner)) { finishWorkshopReferenceMutation(owner); return false; }
+  try {
+    const result = await owner.service.setTechnicianActive(record.id, record.version, false);
+    if (!workshopReferenceMutationCurrent(owner)) return false;
+    if (!result.ok) { window.alert(result.error || 'Could not remove mechanic.'); return false; }
     renderAdminLists();
     renderKpis();
-  });
+    return true;
+  } catch (_error) {
+    if (workshopReferenceMutationCurrent(owner)) window.alert('Could not remove mechanic.');
+    return false;
+  } finally {
+    finishWorkshopReferenceMutation(owner);
+  }
 }
 
-function addSubletProviderFromAdminInput() {
+async function addSubletProviderFromAdminInput() {
   const input = $('#sublet-provider-name-input');
   const entered = cleanNavisionText(input?.value || '');
-  if (!entered) return;
+  if (!entered) return false;
   const service = typeof initWorkshopReferenceDataServiceIfAvailable === 'function' ? initWorkshopReferenceDataServiceIfAvailable() : null;
-  if (!service) { window.alert('Cannot reach the shared provider list right now. Check your connection and try again.'); return; }
-  service.addSubletProvider(entered).then(result => {
+  const owner = captureWorkshopReferenceMutation(service, 'sublet-provider:add');
+  if (!owner) { window.alert('Cannot reach the shared provider list right now. Check your connection and try again.'); return false; }
+  try {
+    if (!workshopReferenceMutationCurrent(owner)) return false;
+    const result = await owner.service.addSubletProvider(entered);
+    if (!workshopReferenceMutationCurrent(owner)) return false;
     if (!result.ok) {
       window.alert(result.error === 'duplicate_name' ? `"${entered}" is already on the provider list.` : (result.error || 'Could not add provider.'));
-      return;
+      return false;
     }
-    if (input) input.value = '';
+    if (input && cleanNavisionText(input.value || '') === entered) input.value = '';
     renderAdminLists();
     renderKpis();
-  });
+    return true;
+  } catch (_error) {
+    if (workshopReferenceMutationCurrent(owner)) window.alert('Could not add provider.');
+    return false;
+  } finally {
+    finishWorkshopReferenceMutation(owner);
+  }
 }
 
-function removeSubletProviderFromAdminList(name = '') {
+async function removeSubletProviderFromAdminList(name = '') {
   const clean = cleanNavisionText(name);
-  if (!clean) return;
-  if (!window.confirm(`Remove provider "${clean}" from the dropdown list? Existing vehicle history will stay on the vehicle.`)) return;
+  if (!clean) return false;
   const service = typeof initWorkshopReferenceDataServiceIfAvailable === 'function' ? initWorkshopReferenceDataServiceIfAvailable() : null;
-  if (!service) { window.alert('Cannot reach the shared provider list right now. Check your connection and try again.'); return; }
-  const record = loadSubletProviderRecords(true).find(row => row.name === clean);
-  if (!record) { window.alert(`"${clean}" was not found.`); return; }
-  service.setSubletProviderActive(record.id, record.version, false).then(result => {
-    if (!result.ok) { window.alert(result.error || 'Could not remove provider.'); return; }
+  const record = service ? loadSubletProviderRecords(true).find(row => row.name === clean) : null;
+  const owner = captureWorkshopReferenceMutation(service, `sublet-provider:remove:${record?.id || clean}`);
+  if (!owner) { window.alert('Cannot reach the shared provider list right now. Check your connection and try again.'); return false; }
+  if (!record) { finishWorkshopReferenceMutation(owner); window.alert(`"${clean}" was not found.`); return false; }
+  if (!window.confirm(`Remove provider "${clean}" from the dropdown list? Existing vehicle history will stay on the vehicle.`)) {
+    finishWorkshopReferenceMutation(owner);
+    return false;
+  }
+  if (!workshopReferenceMutationCurrent(owner)) { finishWorkshopReferenceMutation(owner); return false; }
+  try {
+    const result = await owner.service.setSubletProviderActive(record.id, record.version, false);
+    if (!workshopReferenceMutationCurrent(owner)) return false;
+    if (!result.ok) { window.alert(result.error || 'Could not remove provider.'); return false; }
     renderAdminLists();
     renderKpis();
-  });
+    return true;
+  } catch (_error) {
+    if (workshopReferenceMutationCurrent(owner)) window.alert('Could not remove provider.');
+    return false;
+  } finally {
+    finishWorkshopReferenceMutation(owner);
+  }
 }
 
 function renderHostingSecurityWarning() {
@@ -3318,48 +3426,67 @@ function renderHostingSecurityWarning() {
   host.hidden = !(publicStaticHost && bundledVehicleCount > 0);
 }
 
-function addSalespersonFromAdminInput() {
+async function addSalespersonFromAdminInput() {
   const initialsInput = $('#salesperson-initials-input');
   const nameInput = $('#salesperson-name-input');
   const emailInput = $('#salesperson-email-input');
   const record = normalizeSalespersonRecord({ initials: initialsInput?.value, name: nameInput?.value, email: emailInput?.value });
   if (!record) {
     window.alert('Enter salesperson initials, name and a valid email address.');
-    return;
+    return false;
   }
   const service = typeof initWorkshopReferenceDataServiceIfAvailable === 'function' ? initWorkshopReferenceDataServiceIfAvailable() : null;
-  if (!service) { window.alert('Cannot reach the shared salesperson list right now. Check your connection and try again.'); return; }
-  const finish = () => {
-    if (initialsInput) initialsInput.value = '';
-    if (nameInput) nameInput.value = '';
-    if (emailInput) emailInput.value = '';
-    renderAdminLists();
-    renderDetail();
-  };
-  const existing = loadSalespersonRecords(true).find(row => (row.code || '').toUpperCase() === record.initials);
-  const request = existing
-    ? service.editSalesperson(existing.id, existing.version, { name: record.name, email: record.email, code: record.initials })
-    : service.addSalesperson(record.name, record.email, record.initials);
-  request.then(result => {
+  const existing = service ? loadSalespersonRecords(true).find(row => (row.code || '').toUpperCase() === record.initials) : null;
+  const owner = captureWorkshopReferenceMutation(service, `salesperson:save:${existing?.id || record.initials}`);
+  if (!owner) { window.alert('Cannot reach the shared salesperson list right now. Check your connection and try again.'); return false; }
+  try {
+    if (!workshopReferenceMutationCurrent(owner)) return false;
+    const result = existing
+      ? await owner.service.editSalesperson(existing.id, existing.version, { name: record.name, email: record.email, code: record.initials })
+      : await owner.service.addSalesperson(record.name, record.email, record.initials);
+    if (!workshopReferenceMutationCurrent(owner)) return false;
     if (!result.ok) {
       window.alert(result.error === 'duplicate_code' ? `Salesperson code "${record.initials}" is already in use.` : (result.error || 'Could not save salesperson.'));
-      return;
+      return false;
     }
-    finish();
-  });
+    if (initialsInput && cleanNavisionText(initialsInput.value || '').toUpperCase() === record.initials) initialsInput.value = '';
+    if (nameInput && cleanNavisionText(nameInput.value || '') === record.name) nameInput.value = '';
+    if (emailInput && cleanNavisionText(emailInput.value || '').toLowerCase() === record.email.toLowerCase()) emailInput.value = '';
+    renderAdminLists();
+    renderDetail();
+    return true;
+  } catch (_error) {
+    if (workshopReferenceMutationCurrent(owner)) window.alert('Could not save salesperson.');
+    return false;
+  } finally {
+    finishWorkshopReferenceMutation(owner);
+  }
 }
 
-function removeSalespersonFromAdminList(initials = '') {
+async function removeSalespersonFromAdminList(initials = '') {
   const clean = cleanNavisionText(initials).toUpperCase();
-  const record = loadSalespersonRecords(true).find(row => (row.code || '').toUpperCase() === clean);
-  if (!record) return;
-  if (!window.confirm(`Remove ${record.code} - ${record.name} from the salesperson dropdown? Existing vehicles keep their saved initials.`)) return;
   const service = typeof initWorkshopReferenceDataServiceIfAvailable === 'function' ? initWorkshopReferenceDataServiceIfAvailable() : null;
-  if (!service) { window.alert('Cannot reach the shared salesperson list right now. Check your connection and try again.'); return; }
-  service.setSalespersonActive(record.id, record.version, false).then(result => {
-    if (!result.ok) { window.alert(result.error || 'Could not remove salesperson.'); return; }
+  const record = service ? loadSalespersonRecords(true).find(row => (row.code || '').toUpperCase() === clean) : null;
+  if (!record) return false;
+  const owner = captureWorkshopReferenceMutation(service, `salesperson:remove:${record.id}`);
+  if (!owner) { window.alert('Cannot reach the shared salesperson list right now. Check your connection and try again.'); return false; }
+  if (!window.confirm(`Remove ${record.code} - ${record.name} from the salesperson dropdown? Existing vehicles keep their saved initials.`)) {
+    finishWorkshopReferenceMutation(owner);
+    return false;
+  }
+  if (!workshopReferenceMutationCurrent(owner)) { finishWorkshopReferenceMutation(owner); return false; }
+  try {
+    const result = await owner.service.setSalespersonActive(record.id, record.version, false);
+    if (!workshopReferenceMutationCurrent(owner)) return false;
+    if (!result.ok) { window.alert(result.error || 'Could not remove salesperson.'); return false; }
     renderAdminLists();
-  });
+    return true;
+  } catch (_error) {
+    if (workshopReferenceMutationCurrent(owner)) window.alert('Could not remove salesperson.');
+    return false;
+  } finally {
+    finishWorkshopReferenceMutation(owner);
+  }
 }
 
 function renderAdminList(host, items, removeAttr, emptyText, options = {}) {
@@ -4141,19 +4268,17 @@ function initWorkshopReferenceDataServiceIfAvailable() {
   if (window.__workshopReferenceDataService) return window.__workshopReferenceDataService;
   if (!window.PDC_SUPABASE_CONFIG || typeof createWorkshopReferenceDataService !== 'function' || typeof createWorkshopReferenceSupabaseClient !== 'function') return null;
 
+  const serviceAuthority = captureWorkshopReferenceServiceAuthority();
+  if (!serviceAuthority) return null;
   const client = createWorkshopReferenceSupabaseClient(window.PDC_SUPABASE_CONFIG);
-  const service = createWorkshopReferenceDataService({
+  let service = null;
+  service = createWorkshopReferenceDataService({
     config: window.PDC_SUPABASE_CONFIG,
     client,
     getAccessToken: () => (typeof getPdcSupabaseAccessToken === 'function' ? getPdcSupabaseAccessToken() : null),
     subscribeRealtime: (tableName, handlers) => createPdcSupabaseTableRealtimeSubscription(tableName, handlers),
     onStateChange: () => {
-      // Independent-review remediation (finding 1): pull the latest
-      // validated workshop configuration into the planner's live
-      // scheduling constants BEFORE re-rendering, so a settings change
-      // made in another browser (or the periodic reconciliation
-      // backstop) actually changes planner behaviour here, not only
-      // the raw cached JSON.
+      if (!workshopReferenceServiceAuthorityCurrent(service, serviceAuthority)) return;
       if (typeof workshopSyncConfigFromSharedSettings === 'function') {
         try { workshopSyncConfigFromSharedSettings(); } catch (_err) { /* keep last-known-good config */ }
       }
@@ -4451,6 +4576,7 @@ function initEmailVehicleLocationsIfAvailable() {
 // data service without needing to navigate away and back.
 window.addEventListener?.('pdc-auth-ready', () => {
   invalidateVehicleLifecycleOperations();
+  resetWorkshopReferenceDataAuthorityState();
   resetBackupStatusAuthorityState();
   // Auth-ready also represents live token/role changes. Existing planner
   // services must discard their prior authority generation before reuse;
@@ -4490,6 +4616,8 @@ window.addEventListener?.('pdc-auth-ready', () => {
 // Revoke those controls synchronously when pdc-auth.js rotates that token.
 window.addEventListener?.('pdc-auth-token-changed', () => {
   invalidateVehicleLifecycleOperations();
+  resetWorkshopReferenceDataAuthorityState();
+  if (typeof refreshWorkshopReferenceData === 'function') refreshWorkshopReferenceData();
   resetBackupStatusAuthorityState();
   resetUserManagementAuthorityState({ clearHost: !userManagementSharedModeReady() });
   syncAdminNavigationVisibility();
@@ -4514,6 +4642,7 @@ window.addEventListener?.('pdc-auth-token-changed', () => {
 // (or silently re-deriving UI from) previously-loaded operational data.
 window.addEventListener?.('pdc-auth-locked', () => {
   invalidateVehicleLifecycleOperations();
+  resetWorkshopReferenceDataAuthorityState();
   resetBackupStatusAuthorityState();
   resetEmailVehicleLocations();
   resetDeletedVehicleAuthorityState();
@@ -7327,36 +7456,52 @@ async function addMechanicFromPrompt() {
     window.alert('Administrator access is required to add mechanics. No request was sent.');
     return false;
   }
-  const entered = cleanNavisionText(window.prompt('Enter mechanic / technician name:', '') || '');
-  if (!entered) return false;
   const service = typeof initWorkshopReferenceDataServiceIfAvailable === 'function' ? initWorkshopReferenceDataServiceIfAvailable() : null;
-  if (!service) { window.alert('Cannot reach the shared mechanic list right now. Check your connection and try again.'); return false; }
+  const owner = captureWorkshopReferenceMutation(service, 'technician:add', { requireAdministrator: true });
+  if (!owner) { window.alert('Cannot reach the shared mechanic list right now. Check your connection and try again.'); return false; }
+  const entered = cleanNavisionText(window.prompt('Enter mechanic / technician name:', '') || '');
+  if (!workshopReferenceMutationCurrent(owner)) { finishWorkshopReferenceMutation(owner); return false; }
+  if (!entered) { finishWorkshopReferenceMutation(owner); return false; }
   try {
-    const result = await service.addTechnician(entered);
+    const result = await owner.service.addTechnician(entered);
+    if (!workshopReferenceMutationCurrent(owner)) return false;
     if (!result || result.ok !== true) {
       window.alert(result?.error === 'duplicate_name' ? `"${entered}" is already on the mechanic list.` : 'Could not add mechanic.');
       return false;
     }
-    await service.listTechnicians(true);
+    await owner.service.listTechnicians(true);
+    if (!workshopReferenceMutationCurrent(owner)) return false;
     renderKpis();
     renderAdminLists();
     return true;
   } catch (_error) {
-    window.alert('Could not add mechanic. Check your connection and try again.');
+    if (workshopReferenceMutationCurrent(owner)) window.alert('Could not add mechanic. Check your connection and try again.');
     return false;
+  } finally {
+    finishWorkshopReferenceMutation(owner);
   }
 }
 
-function addSubletProviderFromPrompt() {
-  const entered = cleanNavisionText(window.prompt('Enter external provider name:', '') || '');
-  if (!entered) return;
+async function addSubletProviderFromPrompt() {
   const service = typeof initWorkshopReferenceDataServiceIfAvailable === 'function' ? initWorkshopReferenceDataServiceIfAvailable() : null;
-  if (!service) { window.alert('Cannot reach the shared provider list right now. Check your connection and try again.'); return; }
-  service.addSubletProvider(entered).then(result => {
-    if (!result.ok && result.error !== 'duplicate_name') { window.alert(result.error || 'Could not add provider.'); return; }
+  const owner = captureWorkshopReferenceMutation(service, 'sublet-provider:add');
+  if (!owner) { window.alert('Cannot reach the shared provider list right now. Check your connection and try again.'); return false; }
+  const entered = cleanNavisionText(window.prompt('Enter external provider name:', '') || '');
+  if (!workshopReferenceMutationCurrent(owner)) { finishWorkshopReferenceMutation(owner); return false; }
+  if (!entered) { finishWorkshopReferenceMutation(owner); return false; }
+  try {
+    const result = await owner.service.addSubletProvider(entered);
+    if (!workshopReferenceMutationCurrent(owner)) return false;
+    if (!result.ok && result.error !== 'duplicate_name') { window.alert(result.error || 'Could not add provider.'); return false; }
     renderKpis();
     renderAdminLists();
-  });
+    return true;
+  } catch (_error) {
+    if (workshopReferenceMutationCurrent(owner)) window.alert('Could not add provider.');
+    return false;
+  } finally {
+    finishWorkshopReferenceMutation(owner);
+  }
 }
 
 function pmbBaySummary(vehicle = {}) {

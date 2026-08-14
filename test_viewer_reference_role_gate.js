@@ -19,7 +19,7 @@ const context = {
     context.initCalls += 1;
     return { listTechnicians() { throw new Error('viewer requested technicians'); } };
   },
-  stopWorkshopReferenceDataReconciliationTimer() { context.stopCalls += 1; },
+  resetWorkshopReferenceDataAuthorityState() { context.stopCalls += 1; },
 };
 vm.createContext(context);
 vm.runInContext(
