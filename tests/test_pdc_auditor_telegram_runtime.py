@@ -301,20 +301,16 @@ class GatewayEnvelopeTests(unittest.TestCase):
                 runtime.validate_gateway_envelope(envelope, instruction=invalid,
                     selected_scope=scope, key_resolver=lambda _: KEY, now=NOW)
 
-    def test_telegram_integral_json_numbers_match_postgresql_jsonb(self):
+    def test_telegram_numeric_values_match_postgresql_jsonb(self):
         text = "Review duplicate bullbars"
         scope = intent({"operation_refs": [SRC1, SRC2]}, "remove_duplicate",
             duplicate_proof="database_exact", survivor_operation_ref=SRC1)
         envelope = signed_envelope(text, scope)
-        integer_bytes = runtime.gateway_signing_bytes(envelope)
         for field in ("telegram_sender_id", "telegram_chat_id", "telegram_message_id", "telegram_update_id"):
-            equivalent = json.loads(json.dumps(envelope))
-            equivalent["telegram_evidence"][field] = float(equivalent["telegram_evidence"][field])
-            equivalent["signature"] = hmac.new(KEY, runtime.gateway_signing_bytes(equivalent), hashlib.sha256).hexdigest()
-            self.assertEqual(runtime.gateway_signing_bytes(equivalent), integer_bytes)
-            verified = runtime.validate_gateway_envelope(equivalent, instruction=text,
-                selected_scope=scope, key_resolver=lambda _: KEY, now=NOW)
-            self.assertIsInstance(verified["telegram_evidence"][field], int)
+            bad = json.loads(json.dumps(envelope))
+            bad["telegram_evidence"][field] = float(bad["telegram_evidence"][field])
+            with self.subTest(field=field), self.assertRaises(runtime.AuditorContractError):
+                runtime.gateway_signing_bytes(bad)
         for invalid in (1.5, 0.0, -1.0, float("nan"), float("inf"), True, "1"):
             bad = json.loads(json.dumps(envelope)); bad["telegram_evidence"]["telegram_message_id"] = invalid
             with self.subTest(invalid=invalid), self.assertRaises(runtime.AuditorContractError):
@@ -327,6 +323,9 @@ class GatewayEnvelopeTests(unittest.TestCase):
             duplicate_proof="database_exact", survivor_operation_ref=SRC1)
         envelope = signed_envelope(text, scope)
         for literal, expected in (
+            ("1e0", 1),
+            ("1e+" + "0" * 130, 1),
+            ("1.00e+2", 100),
             ("9007199254740991e0", 9007199254740991),
             ("9007199254740992e0", 9007199254740992),
             ("9007199254740993e0", 9007199254740993),
@@ -347,8 +346,10 @@ class GatewayEnvelopeTests(unittest.TestCase):
                 self.assertEqual(verified["telegram_evidence"]["telegram_message_id"], expected)
                 self.assertIn(f'"telegram_message_id":{expected}'.encode(),
                               runtime.gateway_signing_bytes(parsed))
-        for literal in ("9223372036854775808e0", "1.5e0", "NaN", "Infinity",
-                        "1e100000000", "0.10000000000000001"):
+        for literal in ("1.0", "1.00", "1.00e+0", "1.00e+1",
+                        "9223372036854775807.0", "9223372036854775808e0",
+                        "1.5e0", "NaN", "Infinity", "1e100000000",
+                        "0.10000000000000001"):
             raw = json.dumps(envelope, separators=(",", ":")).replace(
                 '"telegram_message_id":202', f'"telegram_message_id":{literal}')
             with self.subTest(literal=literal), self.assertRaises(runtime.AuditorContractError):

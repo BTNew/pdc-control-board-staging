@@ -35,7 +35,6 @@ QUERY_RPC = "query_pdc_auditor_typed_253"
 MAX_GATEWAY_TTL_SECONDS = 300
 MAX_ISSUED_AT_SKEW_SECONDS = 30
 MAX_TELEGRAM_ID = 9223372036854775807
-MAX_EXACT_BINARY_FLOAT_INTEGER = 2**53
 TELEGRAM_ID_KEYS = (
     "telegram_sender_id", "telegram_chat_id", "telegram_message_id", "telegram_update_id",
 )
@@ -141,15 +140,14 @@ def _telegram_id(value: Any, label: str) -> int:
     elif isinstance(value, Decimal):
         # Check bounds before int conversion so 1e999999 cannot allocate a huge int.
         if (not value.is_finite() or not Decimal(1) <= value <= Decimal(MAX_TELEGRAM_ID)
-                or value != value.to_integral_value()):
+                or value != value.to_integral_value()
+                or value.as_tuple().exponent < 0):
             raise AuditorContractError(f"{label} is invalid")
         normalized = int(value)
     elif isinstance(value, float):
-        # A float at or above 2^53 might already be a rounded adjacent integer.
-        if (not math.isfinite(value) or not value.is_integer()
-                or not 1 <= value < MAX_EXACT_BINARY_FLOAT_INTEGER):
-            raise AuditorContractError(f"{label} is invalid")
-        normalized = int(value)
+        # PostgreSQL's verifier rejects decimal-scale JSONB values.  A float has
+        # already lost that lexical scale (and may also have rounded), so reject it.
+        raise AuditorContractError(f"{label} is invalid")
     else:
         raise AuditorContractError(f"{label} is invalid")
     if not 1 <= normalized <= MAX_TELEGRAM_ID:
