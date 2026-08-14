@@ -126,6 +126,26 @@ explicit_false.write_bytes(
     b'-----BEGIN CERTIFICATE-----\\n' +
     b'\\n'.join(encoded[i:i + 64] for i in range(0, len(encoded), 64)) +
     b'\\n-----END CERTIFICATE-----\\n')
+noncanonical_source = Path('tests/fixtures/pdc_test_ca_without_keycertsign.pem').resolve()
+noncanonical_der = base64.b64decode(b''.join(
+    line.strip() for line in noncanonical_source.read_bytes().splitlines()
+    if not line.startswith(b'-----')))
+canonical_key_usage = bytes.fromhex('0603551d0f0101ff040403020780')
+assert noncanonical_der.count(canonical_key_usage) == 1
+noncanonical_der = noncanonical_der.replace(
+    canonical_key_usage, bytes.fromhex('0603551d0f0101ff040403020784'), 1)
+try:
+    module._assert_ca_certificate(noncanonical_der)
+except ValueError:
+    pass
+else:
+    raise AssertionError('DER guard accepted non-zero unused Key Usage bits')
+noncanonical_key_usage = Path(ca_dir.name) / 'noncanonical-key-usage.pem'
+encoded = base64.b64encode(noncanonical_der)
+noncanonical_key_usage.write_bytes(
+    b'-----BEGIN CERTIFICATE-----\\n' +
+    b'\\n'.join(encoded[i:i + 64] for i in range(0, len(encoded), 64)) +
+    b'\\n-----END CERTIFICATE-----\\n')
 semantic_non_ca = Path('tests/fixtures/pdc_test_non_ca.pem').resolve()
 semantic_bad_key_usage = Path('tests/fixtures/pdc_test_ca_without_keycertsign.pem').resolve()
 os.environ[module.SSLROOTCERT_ENV] = str(malformed_pem.resolve())
@@ -135,7 +155,7 @@ os.environ.pop(module.SSLROOTCERT_SHA256_ENV, None)
 tls_rejected.append('missing-sha256')
 os.environ[module.SSLROOTCERT_SHA256_ENV] = '0' * 64
 tls_rejected.append('wrong-sha256')
-tls_rejected.extend(['semantic-non-ca', 'semantic-bad-key-usage', 'explicit-false-critical'])
+tls_rejected.extend(['semantic-non-ca', 'semantic-bad-key-usage', 'explicit-false-critical', 'noncanonical-key-usage'])
 for label in tls_rejected:
     if label == 'missing':
         os.environ.pop(module.SSLROOTCERT_ENV, None)
@@ -153,13 +173,15 @@ for label in tls_rejected:
         os.environ[module.SSLROOTCERT_ENV] = str(semantic_bad_key_usage)
     elif label == 'explicit-false-critical':
         os.environ[module.SSLROOTCERT_ENV] = str(explicit_false.resolve())
+    elif label == 'noncanonical-key-usage':
+        os.environ[module.SSLROOTCERT_ENV] = str(noncanonical_key_usage.resolve())
     else:
         os.environ[module.SSLROOTCERT_ENV] = str(ca_path.resolve())
     if label == 'missing-sha256':
         os.environ.pop(module.SSLROOTCERT_SHA256_ENV, None)
     elif label == 'wrong-sha256':
         os.environ[module.SSLROOTCERT_SHA256_ENV] = '0' * 64
-    elif label not in ('semantic-non-ca', 'semantic-bad-key-usage', 'explicit-false-critical'):
+    elif label not in ('semantic-non-ca', 'semantic-bad-key-usage', 'explicit-false-critical', 'noncanonical-key-usage'):
         os.environ[module.SSLROOTCERT_SHA256_ENV] = ca_sha256
     else:
         os.environ[module.SSLROOTCERT_SHA256_ENV] = hashlib.sha256(
@@ -186,5 +208,5 @@ print(json.dumps({'accepted': len(accepted), 'rejected': len(rejected), 'tls_rej
 const result = spawnSync('python3', ['-I', '-c', probe], { encoding: 'utf8' });
 assert.strictEqual(result.status, 0, result.stderr || result.stdout);
 const report = JSON.parse(result.stdout.trim());
-assert.deepStrictEqual(report, { accepted: 5, rejected: 43, tls_rejected: 10, connector_calls: 3 });
+assert.deepStrictEqual(report, { accepted: 5, rejected: 43, tls_rejected: 11, connector_calls: 3 });
 console.log('PDC staging parsed-host endpoint and connector-spy guard passed');

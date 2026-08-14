@@ -186,6 +186,25 @@ function fakeClient(responder) {
   });
 }
 
+// 6c. A destructive dialog may bind dispatch to the authority owner that
+// rendered the intent. Replacement authority must be rejected before transport.
+{
+  let token = 'token-a';
+  let authority = { userId: 'admin-a', role: 'administrator' };
+  const client = fakeClient(() => ({ status: 200, ok: true, body: { ok: true } }));
+  const bridge = buildVehicleLifecycleSharedActions(client, () => token, () => authority);
+  const owner = { token: 'token-a', identity: JSON.stringify(['admin-a', 'administrator']) };
+  token = 'token-b';
+  authority = { userId: 'admin-b', role: 'administrator' };
+  bridge.adminArchiveVehicle({
+    vehicleId: 'v-owner', expectedVersion: 1, stockConfirmation: 'S1', reason: 'stale intent',
+  }, owner).then(result => {
+    assert.strictEqual(result.error, 'stale_authority');
+    assert.strictEqual(client.calls.length, 0, 'owner mismatch is rejected before transport');
+    console.log('PASS 6c: destructive lifecycle dispatch is bound to its pre-dialog authority owner');
+  });
+}
+
 // 7. describeVehicleLifecycleActionError: every documented backend error
 // code maps to a clear, non-technical message; unknown codes get a safe
 // generic fallback rather than leaking a raw code to staff.

@@ -176,6 +176,47 @@ function deferred() {
   assert.strictEqual(realtimeNodes['#user-management-content'].innerHTML, 'replacement-private-row', 'stale A callback must preserve B DOM');
   assert.ok(!removedBy.includes('B:B'), 'stale A callback must not remove B channel');
 
+  // Controls are bound to the exact authority/request that rendered them.
+  // A principal swap re-entered from a blocking prompt must not dispatch the
+  // old row intent through principal B's client.
+  const dialogCalls = [];
+  let rejectHandler = null;
+  const dialogButton = {
+    dataset: { umReject: 'target-a@example.test' },
+    addEventListener(_event, handler) { rejectHandler = handler; },
+  };
+  function dialogClient(label) {
+    return {
+      rpc(name, params) { dialogCalls.push({ label, name, params }); return Promise.resolve({ error: null }); },
+    };
+  }
+  const dialogClientA = dialogClient('A');
+  const dialogClientB = dialogClient('B');
+  const dialogContext = vm.createContext({
+    window: {
+      PDC_SUPABASE: dialogClientA,
+      PDC_AUTH_CONTEXT: { userId: 'admin-a', email: 'admin-a@example.test', role: 'administrator' },
+      prompt() {
+        this.PDC_SUPABASE = dialogClientB;
+        this.PDC_AUTH_CONTEXT = { userId: 'admin-b', email: 'admin-b@example.test', role: 'administrator' };
+        return 'stale A reason';
+      },
+      confirm: () => true,
+    },
+    document: { getElementById: () => null },
+    $: () => null,
+    $$: selector => selector === '[data-um-reject]' ? [dialogButton] : [],
+    backupStatusSharedModeReady: () => true,
+    escapeHtml: value => String(value),
+    cleanNavisionText: value => String(value || ''),
+    alert: () => { throw new Error('stale dialog continuation must not alert'); },
+  });
+  vm.runInContext(block, dialogContext);
+  vm.runInContext('wireUserManagementActions(captureUserManagementAuthority(), USER_MANAGEMENT_STATE.requestGeneration)', dialogContext);
+  assert.strictEqual(typeof rejectHandler, 'function', 'reject control is wired');
+  await rejectHandler();
+  assert.deepStrictEqual(dialogCalls, [], 'principal-A prompt continuation must not dispatch through principal B');
+
   const navBlock = extract('function syncAdminNavigationVisibility()', 'function resetDeletedVehicleAuthorityState()');
   const navNodes = {
     '#nav-admin-group': { hidden: true },

@@ -9,6 +9,7 @@ import unittest
 from pathlib import Path
 
 from backend import build_login_static as builder
+from scripts import build_production_artifact as production_builder
 
 
 class BuildLoginStaticClosureTests(unittest.TestCase):
@@ -56,6 +57,27 @@ class BuildLoginStaticClosureTests(unittest.TestCase):
         builder.FILES = tuple(path for path in builder.FILES if path != "vehicle-lifecycle-actions.js")
         with self.assertRaisesRegex(SystemExit, "lazy-loads.*vehicle-lifecycle-actions\\.js"):
             builder.main()
+
+    def test_dual_builders_emit_byte_identical_runtime_members(self) -> None:
+        original_artifact_dir = production_builder.ARTIFACT_DIR
+        try:
+            production_builder.ARTIFACT_DIR = self.temp_dir / "production"
+            copied, missing = production_builder.build_artifact()
+            self.assertEqual(missing, [])
+            builder.main()
+            production_members = {
+                path.relative_to(production_builder.ARTIFACT_DIR).as_posix(): path.read_bytes()
+                for path in production_builder.ARTIFACT_DIR.rglob("*") if path.is_file()
+            }
+            login_members = {
+                path.relative_to(builder.TARGET).as_posix(): path.read_bytes()
+                for path in builder.TARGET.rglob("*") if path.is_file()
+            }
+            self.assertEqual(set(production_members), set(login_members))
+            self.assertEqual(production_members, login_members)
+            self.assertEqual(sorted(copied), sorted(production_members))
+        finally:
+            production_builder.ARTIFACT_DIR = original_artifact_dir
 
 
 if __name__ == "__main__":

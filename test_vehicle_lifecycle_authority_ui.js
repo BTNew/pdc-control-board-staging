@@ -72,4 +72,17 @@ for (const match of mutationAwaits) {
 }
 assert.doesNotMatch(appSource, /await window\.__vehicleLifecycleActions(?:\.|\[)/, 'no lifecycle RPC awaits read the replaceable global action bridge');
 
+const removeVehicleSource = appSource.slice(
+  appSource.indexOf('async function removeVehicle('),
+  appSource.indexOf('function renderDetail()', appSource.indexOf('async function removeVehicle(')),
+);
+assert.match(removeVehicleSource, /window\.confirm\([\s\S]*?vehicleLifecycleOperationCurrent\(lifecycleOwner\)[\s\S]*?window\.prompt\([\s\S]*?vehicleLifecycleOperationCurrent\(lifecycleOwner\)[\s\S]*?window\.prompt\([\s\S]*?vehicleLifecycleOperationCurrent\(lifecycleOwner\)[\s\S]*?adminArchiveVehicle\([\s\S]*?,\s*lifecycleOwner\)/, 'delete dialogs revalidate and bind the pre-dialog owner');
+const deletedAdminSource = appSource.slice(
+  appSource.indexOf('async function runDeletedVehicleAdminAction('),
+  appSource.indexOf('function renderDeletedVehicles()', appSource.indexOf('async function runDeletedVehicleAdminAction(')),
+);
+assert.ok(deletedAdminSource.indexOf('beginVehicleLifecycleOperation()') < deletedAdminSource.indexOf('window.confirm('), 'deleted-vehicle owner is captured before dialogs');
+assert.match(deletedAdminSource, /actions\[method\]\([\s\S]*?,\s*lifecycleOwner\)/, 'restore/recreation dispatch is bound to the pre-dialog owner');
+assert.ok((deletedAdminSource.match(/vehicleLifecycleOperationCurrent\(lifecycleOwner\)/g) || []).length >= 7, 'restore/recreation revalidates after every blocking dialog and before dispatch');
+
 console.log(`PASS: lifecycle UI authority owner covers ${mutationAwaits.length} mutation await sites`);

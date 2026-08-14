@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.14.49-own-role-channel-authority';
+const APP_VERSION = '2026.08.14.50-dialog-der-builder-authority';
 const WORKSHOP_PLANNER_SCRIPT_VERSION = APP_VERSION;
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
@@ -3730,7 +3730,7 @@ async function renderUserManagementScreen() {
     <tbody>${filtered.map(userManagementRowHtml).join('')}</tbody>
   </table></div>`;
 
-  wireUserManagementActions();
+  wireUserManagementActions(authority, requestGeneration);
   return true;
 }
 
@@ -3771,11 +3771,10 @@ function subscribeUserManagementRealtime(authority = captureUserManagementAuthor
   return channel;
 }
 
-async function userManagementCallRpc(rpcName, params, successMessage) {
-  const authority = captureUserManagementAuthority();
-  if (!authority) return false;
+async function userManagementCallRpc(rpcName, params, successMessage, authority = captureUserManagementAuthority(), requestGeneration = USER_MANAGEMENT_STATE.requestGeneration) {
+  if (!userManagementRequestCurrent(authority, requestGeneration)) return false;
   const { error } = await authority.client.rpc(rpcName, params);
-  if (!userManagementAuthorityCurrent(authority)) return false;
+  if (!userManagementRequestCurrent(authority, requestGeneration)) return false;
   if (error) {
     alert(`Action failed: ${error.message || error}`);
     return false;
@@ -3787,34 +3786,44 @@ async function userManagementCallRpc(rpcName, params, successMessage) {
   return renderUserManagementScreen();
 }
 
-function wireUserManagementActions() {
+function wireUserManagementActions(authority = captureUserManagementAuthority(), requestGeneration = USER_MANAGEMENT_STATE.requestGeneration) {
+  const actionCurrent = () => userManagementRequestCurrent(authority, requestGeneration);
   $$('[data-um-approve]').forEach(button => button.addEventListener('click', async () => {
+    if (!actionCurrent()) return false;
     const email = button.dataset.umApprove;
     const select = $(`[data-um-role-for="${email}"]`);
     const role = select ? select.value : 'viewer';
-    await userManagementCallRpc('admin_approve_user', { p_target_email: email, p_role: role }, 'Approved');
+    if (!actionCurrent()) return false;
+    return userManagementCallRpc('admin_approve_user', { p_target_email: email, p_role: role }, 'Approved', authority, requestGeneration);
   }));
   $$('[data-um-reject]').forEach(button => button.addEventListener('click', async () => {
+    if (!actionCurrent()) return false;
     const email = button.dataset.umReject;
     const reason = window.prompt(`Reason for rejecting ${email} (optional):`, '') || null;
-    await userManagementCallRpc('admin_reject_registration', { p_target_email: email, p_reason: reason }, 'Rejected');
+    if (!actionCurrent()) return false;
+    return userManagementCallRpc('admin_reject_registration', { p_target_email: email, p_reason: reason }, 'Rejected', authority, requestGeneration);
   }));
   $$('[data-um-change-role]').forEach(button => button.addEventListener('click', async () => {
+    if (!actionCurrent()) return false;
     const email = button.dataset.umChangeRole;
     const select = $(`[data-um-role-for="${email}"]`);
     const role = select ? select.value : null;
-    if (!role) return;
-    await userManagementCallRpc('admin_change_role', { p_target_email: email, p_role: role }, 'Role changed');
+    if (!role || !actionCurrent()) return false;
+    return userManagementCallRpc('admin_change_role', { p_target_email: email, p_role: role }, 'Role changed', authority, requestGeneration);
   }));
   $$('[data-um-disable]').forEach(button => button.addEventListener('click', async () => {
+    if (!actionCurrent()) return false;
     const email = button.dataset.umDisable;
     const reason = window.prompt(`Reason for disabling ${email} (optional):`, '') || null;
-    if (!window.confirm(`Disable access for ${email}? They will immediately lose all operational access.`)) return;
-    await userManagementCallRpc('admin_disable_user', { p_target_email: email, p_reason: reason }, 'Disabled');
+    if (!actionCurrent()) return false;
+    const confirmed = window.confirm(`Disable access for ${email}? They will immediately lose all operational access.`);
+    if (!actionCurrent() || !confirmed) return false;
+    return userManagementCallRpc('admin_disable_user', { p_target_email: email, p_reason: reason }, 'Disabled', authority, requestGeneration);
   }));
   $$('[data-um-restore]').forEach(button => button.addEventListener('click', async () => {
+    if (!actionCurrent()) return false;
     const email = button.dataset.umRestore;
-    await userManagementCallRpc('admin_restore_user', { p_target_email: email, p_reason: 'Restored via User Management screen' }, 'Restored');
+    return userManagementCallRpc('admin_restore_user', { p_target_email: email, p_reason: 'Restored via User Management screen' }, 'Restored', authority, requestGeneration);
   }));
 }
 
@@ -11937,24 +11946,28 @@ async function removeVehicle(stock, { resetTest = false } = {}) {
     return false;
   }
   const actionLabel = resetTest ? 'Reset Staging Test Vehicle' : 'Delete Vehicle';
-  if (!window.confirm(`${actionLabel}\n\nStock Number: ${stockNumber}\nCustomer: ${customer}\nVehicle UUID: ${vehicleUuid}\n\nThis archives the vehicle from active Board screens while retaining its tombstone and audit evidence.`)) return false;
+  const confirmed = window.confirm(`${actionLabel}\n\nStock Number: ${stockNumber}\nCustomer: ${customer}\nVehicle UUID: ${vehicleUuid}\n\nThis archives the vehicle from active Board screens while retaining its tombstone and audit evidence.`);
+  if (!vehicleLifecycleOperationCurrent(lifecycleOwner) || !confirmed) return false;
   const stockConfirmation = window.prompt(`Type the exact Stock Number (${stockNumber}) to confirm:`, '') ?? '';
+  if (!vehicleLifecycleOperationCurrent(lifecycleOwner)) return false;
   if (stockConfirmation !== stockNumber) {
     window.alert('Stock Number confirmation did not match exactly. No vehicle was changed.');
     return false;
   }
   const reason = cleanNavisionText(window.prompt(`Reason for ${resetTest ? 'resetting this staging test vehicle' : 'deleting this vehicle'} (required):`, '') || '');
+  if (!vehicleLifecycleOperationCurrent(lifecycleOwner)) return false;
   if (!reason) {
     window.alert('A reason is required. No vehicle was changed.');
     return false;
   }
+  if (!vehicleLifecycleOperationCurrent(lifecycleOwner)) return false;
   const result = await lifecycleOwner.actions.adminArchiveVehicle({
     vehicleId: ref.vehicleId,
     expectedVersion: ref.version,
     stockConfirmation,
     reason,
     resetTest,
-  });
+  }, lifecycleOwner);
   if (vehicleLifecycleCompletionStale(lifecycleOwner, result)) return false;
   if (!result || result.ok !== true) {
     if (!await refreshVehicleLifecycleLocationsAndRender(lifecycleOwner)) return false;
@@ -13935,17 +13948,22 @@ async function loadDeletedVehicleSnapshot({ force = false, owner = null } = {}) 
 
 async function runDeletedVehicleAdminAction(tombstoneId, action) {
   if (!vehicleLifecycleAdministratorActive()) return false;
+  const lifecycleOwner = beginVehicleLifecycleOperation();
+  if (!vehicleLifecycleOperationCurrent(lifecycleOwner)) return false;
   const row = app.deletedVehicleSnapshotRows.find(item => String(item.tombstoneId) === String(tombstoneId));
   if (!row || row.restored) return false;
   const label = action === 'restore' ? 'Restore Vehicle' : 'Allow one controlled recreation';
   if (action !== 'restore' && (!row.resetEligible || row.recreationAllowed || row.recreationConsumed)) return false;
-  if (!window.confirm(`${label}\n\nStock Number: ${row.stockNumber}\nCustomer: ${row.customerName || 'Unknown customer'}\nVehicle UUID: ${row.id}\nTombstone type: ${row.resetEligible ? 'Staging reset' : 'Manual delete'}\n\nContinue to exact Stock Number confirmation?`)) return false;
+  const confirmed = window.confirm(`${label}\n\nStock Number: ${row.stockNumber}\nCustomer: ${row.customerName || 'Unknown customer'}\nVehicle UUID: ${row.id}\nTombstone type: ${row.resetEligible ? 'Staging reset' : 'Manual delete'}\n\nContinue to exact Stock Number confirmation?`);
+  if (!vehicleLifecycleOperationCurrent(lifecycleOwner) || !confirmed) return false;
   const stockConfirmation = window.prompt(`Type the exact Stock Number (${row.stockNumber}) to confirm:`, '') ?? '';
+  if (!vehicleLifecycleOperationCurrent(lifecycleOwner)) return false;
   if (stockConfirmation !== row.stockNumber) {
     window.alert('Stock Number confirmation did not match exactly. No vehicle was changed.');
     return false;
   }
   const reason = cleanNavisionText(window.prompt(`Reason for ${label.toLowerCase()} (required):`, '') || '');
+  if (!vehicleLifecycleOperationCurrent(lifecycleOwner)) return false;
   if (!reason) {
     window.alert('A reason is required. No vehicle was changed.');
     return false;
@@ -13953,8 +13971,11 @@ async function runDeletedVehicleAdminAction(tombstoneId, action) {
   let evidenceBinding = {};
   if (action !== 'restore') {
     const sourceHash = window.prompt('Authenticated email source SHA-256 (64 lowercase hex characters):', '') ?? '';
+    if (!vehicleLifecycleOperationCurrent(lifecycleOwner)) return false;
     const evidenceHash = window.prompt('Authenticated email evidence SHA-256 (64 lowercase hex characters):', '') ?? '';
+    if (!vehicleLifecycleOperationCurrent(lifecycleOwner)) return false;
     const sourceUid = window.prompt('Exact authenticated email source UID:', '') ?? '';
+    if (!vehicleLifecycleOperationCurrent(lifecycleOwner)) return false;
     if (!/^[a-f0-9]{64}$/.test(sourceHash) || !/^[a-f0-9]{64}$/.test(evidenceHash) || sourceUid.length < 1 || sourceUid.length > 100) {
       window.alert('Exact authenticated email evidence is required. No recreation was authorized.');
       return false;
@@ -13962,8 +13983,8 @@ async function runDeletedVehicleAdminAction(tombstoneId, action) {
     evidenceBinding = { sourceHash, evidenceHash, sourceUid };
   }
   const method = action === 'restore' ? 'adminRestoreVehicle' : 'adminAllowOneVehicleRecreation';
-  const lifecycleOwner = beginVehicleLifecycleOperation();
-  const result = await lifecycleOwner.actions[method]({ tombstoneId, stockConfirmation, reason, ...evidenceBinding });
+  if (!vehicleLifecycleOperationCurrent(lifecycleOwner)) return false;
+  const result = await lifecycleOwner.actions[method]({ tombstoneId, stockConfirmation, reason, ...evidenceBinding }, lifecycleOwner);
   if (vehicleLifecycleCompletionStale(lifecycleOwner, result)) return false;
   if (!result || result.ok !== true) {
     if (!await loadDeletedVehicleSnapshot({ force: true, owner: lifecycleOwner })) return false;

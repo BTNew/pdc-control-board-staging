@@ -55,7 +55,7 @@ def _der_children(payload: bytes) -> list[tuple[int, bytes]]:
 
 
 def _assert_ca_certificate(der: bytes) -> None:
-    """Require CA:TRUE and keyCertSign whenever Key Usage is present."""
+    """Require canonical DER plus CA:TRUE and keyCertSign when Key Usage is present."""
     tag, certificate, end = _der_tlv(der)
     if tag != 0x30 or end != len(der):
         raise ValueError("certificate is not one DER sequence")
@@ -93,8 +93,15 @@ def _assert_ca_certificate(der: bytes) -> None:
     key_usage = extensions.get(b"\x55\x1d\x0f")
     if key_usage is not None:
         tag, bits, end = _der_tlv(key_usage)
-        if tag != 0x03 or end != len(key_usage) or len(bits) < 2 or bits[0] > 7 or not bits[1] & 0x04:
-            raise ValueError("Key Usage does not authorize certificate signing")
+        if (
+            tag != 0x03
+            or end != len(key_usage)
+            or len(bits) < 2
+            or bits[0] > 7
+            or bits[-1] & ((1 << bits[0]) - 1)
+            or not bits[1] & 0x04
+        ):
+            raise ValueError("Key Usage is non-canonical or does not authorize certificate signing")
 
 
 def _assert_semantic_ca_bundle(payload: bytes) -> None:

@@ -157,7 +157,7 @@ def build_artifact():
     for rel_path, content in SYNTHESIZED_FILES.items():
         dest = ARTIFACT_DIR / rel_path
         dest.parent.mkdir(parents=True, exist_ok=True)
-        dest.write_text(content, encoding="utf-8")
+        dest.write_text(content, encoding="utf-8", newline="\n")
         copied.append(rel_path)
 
     return copied, missing
@@ -372,7 +372,7 @@ def main():
     manifest = sha256_manifest()
     manifest_path = ARTIFACT_DIR.parent / "production-artifact-manifest.sha256.txt"
     manifest_path.write_text(
-        "\n".join(f"{h}  {p}" for p, h in sorted(manifest.items())) + "\n", encoding="utf-8"
+        "\n".join(f"{h}  {p}" for p, h in sorted(manifest.items())) + "\n", encoding="utf-8", newline="\n"
     )
     print(f"\nWrote manifest: {manifest_path} ({len(manifest)} files)")
 

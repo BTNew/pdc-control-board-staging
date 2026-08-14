@@ -348,10 +348,14 @@ function buildVehicleLifecycleSharedActions(client, getAccessToken, getAuthority
     return currentToken === token && (!authorityRequired || currentAuthority === authority);
   }
 
-  async function rpc(name, params) {
+  async function rpc(name, params, expectedOwner = null) {
     const token = typeof getAccessToken === 'function' ? getAccessToken() : null;
     const authority = authorityRequired ? vehicleLifecycleAuthorityFingerprint(getAuthorityContext()) : null;
-    if (authorityRequired && (!token || !authority)) return staleAuthorityResult();
+    const expectedOwnerMismatch = expectedOwner && (
+      expectedOwner.token !== token
+      || (authorityRequired && expectedOwner.identity !== authority)
+    );
+    if (expectedOwnerMismatch || (authorityRequired && (!token || !authority))) return staleAuthorityResult();
     let result;
     try {
       result = await client.rpc(token, name, params);
@@ -382,24 +386,24 @@ function buildVehicleLifecycleSharedActions(client, getAccessToken, getAuthority
   }
 
   return {
-    adminArchiveVehicle({ vehicleId, expectedVersion, stockConfirmation, reason, resetTest = false }) {
+    adminArchiveVehicle({ vehicleId, expectedVersion, stockConfirmation, reason, resetTest = false }, expectedOwner = null) {
       return rpc(resetTest ? 'pdc_admin_reset_staging_test_vehicle' : 'pdc_admin_archive_vehicle', {
         p_vehicle_id: vehicleId,
         p_expected_version: expectedVersion,
         p_confirmation_stock: stockConfirmation,
         p_reason: reason ?? null,
-      });
+      }, expectedOwner);
     },
 
-    adminRestoreVehicle({ tombstoneId, stockConfirmation, reason }) {
+    adminRestoreVehicle({ tombstoneId, stockConfirmation, reason }, expectedOwner = null) {
       return rpc('pdc_admin_restore_vehicle', {
         p_tombstone_id: tombstoneId,
         p_confirmation_stock: stockConfirmation,
         p_reason: reason ?? null,
-      });
+      }, expectedOwner);
     },
 
-    adminAllowOneVehicleRecreation({ tombstoneId, stockConfirmation, reason, sourceHash, evidenceHash, sourceUid }) {
+    adminAllowOneVehicleRecreation({ tombstoneId, stockConfirmation, reason, sourceHash, evidenceHash, sourceUid }, expectedOwner = null) {
       return rpc('pdc_admin_allow_vehicle_recreation_once', {
         p_tombstone_id: tombstoneId,
         p_confirmation_stock: stockConfirmation,
@@ -408,7 +412,7 @@ function buildVehicleLifecycleSharedActions(client, getAccessToken, getAuthority
         p_evidence_hash: evidenceHash,
         p_source_uid: sourceUid,
         p_ttl_minutes: 30,
-      });
+      }, expectedOwner);
     },
 
     adminDeletedVehicleSnapshot() {
