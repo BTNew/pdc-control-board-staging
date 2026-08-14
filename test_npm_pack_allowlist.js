@@ -62,8 +62,7 @@ for (const sourceName of runtimeJsSources) {
   }
 }
 const staticWebConfig = JSON.parse(fs.readFileSync('staticwebapp.config.json','utf8'));
-const fallbackExclusions = staticWebConfig.navigationFallback && staticWebConfig.navigationFallback.exclude;
-assert.ok(Array.isArray(fallbackExclusions) && fallbackExclusions.some(entry => entry.includes('csv')),'navigation fallback must exclude CSV requests');
+assert.strictEqual(staticWebConfig.navigationFallback,undefined,'navigation fallback must be absent so package deployments fail closed for every missing authenticated path');
 
 // Materialize exactly the reported package members and exercise the packaged
 // regression suite. The child marker prevents this test from recursively

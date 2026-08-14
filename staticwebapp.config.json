@@ -11,39 +11,6 @@
       "statusCode": 302
     }
   },
-  "navigationFallback": {
-    "rewrite": "/index.html",
-    "exclude": [
-      "/*.html",
-      "/.git",
-      "/.git/*",
-      "/.github",
-      "/.github/*",
-      "/.env*",
-      "/_staging_test_tools",
-      "/_staging_test_tools/*",
-      "/node_modules",
-      "/node_modules/*",
-      "/coverage",
-      "/coverage/*",
-      "/dist",
-      "/dist/*",
-      "/build",
-      "/build/*",
-      "/private",
-      "/private/*",
-      "/supabase",
-      "/supabase/*",
-      "/tests",
-      "/tests/*",
-      "/scripts",
-      "/scripts/*",
-      "/backend",
-      "/backend/*",
-      "/images/*.{png,jpg,gif,webp,svg}",
-      "/*.{css,js,mjs,cjs,json,map,html,htm,ico,png,jpg,jpeg,gif,webp,svg,txt,csv,tsv,xml,md,pdf,sql,env,local,development,test,staging,production,yaml,yml,toml,log,bak,zip,tgz,gz,pem,crt,key,p12,pfx,py,sh,bash,ps1,bat,cmd}"
-    ]
-  },
   "globalHeaders": {
     "X-Content-Type-Options": "nosniff",
     "Referrer-Policy": "strict-origin-when-cross-origin"

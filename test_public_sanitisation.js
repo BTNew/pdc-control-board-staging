@@ -19,37 +19,6 @@ assert.deepStrictEqual(Array.from(context.window.PDC_EMAIL_BOARD_DATA.reviews ||
 assert.match(String(context.window.VEHICLE_TRACKING_DATA.report?.source || ''), /sanitised public fallback/i, 'Sanitised data source marker is required');
 
 const swa = JSON.parse(fs.readFileSync('staticwebapp.config.json', 'utf8'));
-const fallbackExcludes = new Set(swa.navigationFallback?.exclude || []);
-for (const required of [
-  '/*.html',
-  '/.git',
-  '/.git/*',
-  '/.github',
-  '/.github/*',
-  '/.env*',
-  '/_staging_test_tools',
-  '/_staging_test_tools/*',
-  '/node_modules',
-  '/node_modules/*',
-  '/coverage',
-  '/coverage/*',
-  '/dist',
-  '/dist/*',
-  '/build',
-  '/build/*',
-  '/private',
-  '/private/*',
-  '/supabase',
-  '/supabase/*',
-  '/tests',
-  '/tests/*',
-  '/scripts',
-  '/scripts/*',
-  '/backend',
-  '/backend/*',
-  '/*.{css,js,mjs,cjs,json,map,html,htm,ico,png,jpg,jpeg,gif,webp,svg,txt,csv,tsv,xml,md,pdf,sql,env,local,development,test,staging,production,yaml,yml,toml,log,bak,zip,tgz,gz,pem,crt,key,p12,pfx,py,sh,bash,ps1,bat,cmd}',
-]) {
-  assert.ok(fallbackExcludes.has(required), `SWA navigation fallback must exclude private/missing path pattern ${required}`);
-}
+assert.strictEqual(swa.navigationFallback, undefined, 'SWA navigationFallback must be absent so every missing authenticated path returns 404');
 
 console.log('Public sanitisation checks passed');

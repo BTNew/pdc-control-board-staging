@@ -2,72 +2,61 @@
 
 const assert = require('assert');
 const fs = require('fs');
-const path = require('path');
 
+const deployedFiles = new Set(['index.html', 'app.js', 'staticwebapp.config.json']);
 const config = JSON.parse(fs.readFileSync('staticwebapp.config.json', 'utf8'));
-const catchAll = (config.routes || []).find(route => route.route === '/*');
-assert.deepStrictEqual(catchAll?.allowedRoles, ['authenticated'], 'SWA catch-all route must require authenticated users');
-assert.deepStrictEqual(config.responseOverrides?.['401'], {
-  redirect: '/.auth/login/aad',
-  statusCode: 302,
-}, 'anonymous requests must redirect to Microsoft login');
-assert.strictEqual(config.navigationFallback?.rewrite, '/index.html', 'extensionless authenticated SPA routes must retain index fallback');
+const catchAll = config.routes.find(route => route.route === '/*');
+assert(catchAll, 'catch-all authentication route is required');
+assert.deepStrictEqual(catchAll.allowedRoles, ['authenticated']);
+assert.strictEqual(catchAll.rewrite, undefined, 'catch-all authentication route must never rewrite missing requests');
+assert.strictEqual(config.navigationFallback, undefined, 'navigationFallback must be absent so every missing request fails closed');
+assert.strictEqual(config.responseOverrides?.['401']?.statusCode, 302);
+assert.strictEqual(config.responseOverrides?.['401']?.redirect, '/.auth/login/aad');
 
-const exclusions = config.navigationFallback?.exclude || [];
-const exclusionSet = new Set(exclusions);
-const protectedRoots = ['/.git', '/.github', '/_staging_test_tools', '/node_modules', '/coverage', '/dist', '/build', '/private', '/supabase', '/tests', '/scripts', '/backend'];
-const extensionPattern = exclusions.find(pattern => pattern.startsWith('/*.{'));
-assert.ok(extensionPattern, 'non-SPA extension exclusion must exist');
-const extensions = new Set(extensionPattern.slice(4, -1).split(','));
-
-function excludedFromFallback(requestPath) {
-  const cleanPath = String(requestPath || '').split(/[?#]/, 1)[0];
-  if (exclusionSet.has(cleanPath)) return true;
-  if (cleanPath.startsWith('/.env')) return true;
-  if (protectedRoots.some(root => cleanPath.startsWith(`${root}/`))) return true;
-  const basename = cleanPath.slice(cleanPath.lastIndexOf('/') + 1);
-  const extension = basename.includes('.') ? basename.slice(basename.lastIndexOf('.') + 1).toLowerCase() : '';
-  return extensions.has(extension);
-}
-
-function emulateRequest(requestPath, { authenticated = true, exists = false } = {}) {
+function resolveRequest(requestPath, authenticated) {
   if (!authenticated) return { status: 302, location: '/.auth/login/aad', body: '' };
-  if (exists) return { status: 200, location: '', body: 'static-file' };
-  if (excludedFromFallback(requestPath)) return { status: 404, location: '', body: 'not-found' };
-  return { status: 200, location: '', body: 'index.html' };
+  const target = requestPath === '/' ? 'index.html' : requestPath.replace(/^\//, '');
+  if (deployedFiles.has(target)) {
+    return { status: 200, location: '', body: fs.readFileSync(target, 'utf8') };
+  }
+  return { status: 404, location: '', body: 'Not Found' };
 }
 
-for (const requestPath of ['/', '/dashboard', '/vehicles/STK-1']) {
-  assert.deepStrictEqual(emulateRequest(requestPath), { status: 200, location: '', body: 'index.html' }, `${requestPath}: authenticated extensionless SPA route must retain fallback`);
+for (const requestPath of ['/', '/app.js', '/staticwebapp.config.json']) {
+  const response = resolveRequest(requestPath, true);
+  assert.strictEqual(response.status, 200, `${requestPath} must resolve only because the exact file exists`);
 }
 
 for (const requestPath of [
-  '/private', '/private/missing',
-  '/supabase', '/supabase/staging_only/secret.sql',
-  '/tests', '/tests/fixtures/test.pem',
-  '/scripts', '/scripts/build.py',
-  '/backend', '/backend/runtime.py',
-  '/.git', '/.git/config', '/.github/workflows/deploy.yml', '/.env.production',
-  '/_staging_test_tools/run.sh', '/node_modules/package/index.js', '/coverage/index.html', '/dist/app.js', '/build/report.json',
-  '/definitely-missing.js', '/missing.html', '/missing.css', '/missing.json', '/missing.md', '/missing.sql', '/missing.pem', '/missing.zip',
+  '/dashboard',
+  '/vehicles/STK1',
+  '/private',
+  '/private/missing',
+  '/supabase',
+  '/supabase/staging_only/254_disable_ai_auditor_typed_operation_control.sql',
+  '/tests/fixtures/client.key.pem',
+  '/scripts/build.py',
+  '/backend/runtime.py',
+  '/.git/config',
+  '/.github/workflows/deploy.yml',
+  '/.env',
+  '/missing.js',
+  '/missing.html',
+  '/missing.sql',
+  '/missing.md',
+  '/missing.pem',
+  '/missing.zip'
 ]) {
-  const result = emulateRequest(requestPath);
-  assert.strictEqual(result.status, 404, `${requestPath}: authenticated private/missing request must return 404`);
-  assert.notStrictEqual(result.body, 'index.html', `${requestPath}: authenticated private/missing request must never receive SPA HTML`);
+  const response = resolveRequest(requestPath, true);
+  assert.strictEqual(response.status, 404, `${requestPath} must fail closed for authenticated users`);
+  assert(!response.body.includes('<!DOCTYPE html'), `${requestPath} must never receive SPA HTML`);
+  assert(!response.body.includes('2026.08.14.59-no-navigation-fallback-proof'), `${requestPath} must never receive app HTML`);
 }
 
-for (const requestPath of ['/', '/dashboard', '/private/missing', '/definitely-missing.js']) {
-  assert.deepStrictEqual(emulateRequest(requestPath, { authenticated: false }), {
-    status: 302,
-    location: '/.auth/login/aad',
-    body: '',
-  }, `${requestPath}: anonymous request must redirect before fallback evaluation`);
-}
-
-for (const requestPath of ['/app.js', '/styles.css', '/assets/pmb-logo.png']) {
-  const diskPath = path.join(__dirname, requestPath.slice(1));
-  assert.ok(fs.existsSync(diskPath), `${requestPath}: static fixture must exist`);
-  assert.strictEqual(emulateRequest(requestPath, { exists: true }).status, 200, `${requestPath}: existing authenticated static file remains available`);
+for (const requestPath of ['/', '/private', '/private/missing', '/dashboard', '/missing.js']) {
+  const response = resolveRequest(requestPath, false);
+  assert.strictEqual(response.status, 302, `${requestPath} must redirect anonymous requests to AAD`);
+  assert.strictEqual(response.location, '/.auth/login/aad');
 }
 
 console.log('PASS Azure SWA fail-closed routing and authentication semantics');

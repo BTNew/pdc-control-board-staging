@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.14.58-reference-service-owner-proof';
+const APP_VERSION = '2026.08.14.59-no-navigation-fallback-proof';
 const WORKSHOP_PLANNER_SCRIPT_VERSION = APP_VERSION;
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
