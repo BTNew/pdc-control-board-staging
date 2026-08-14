@@ -87,6 +87,7 @@ assert.ok((deletedAdminSource.match(/vehicleLifecycleOperationCurrent\(lifecycle
 
 for (const [fnName, actionName] of [
   ['transferVehiclesToRft', 'rftTransferVehicle'],
+  ['transferYhVehicleToPmb', 'pmbTransferVehicle'],
   ['markVehicleReadyForQualityControl', 'markReadyForQc'],
   ['completeVehicleQualityControl', 'qcSignoffToRft'],
   ['moveVehiclePitLocation', 'pitTransferVehicle'],
@@ -99,7 +100,7 @@ for (const [fnName, actionName] of [
   const candidates = [nextAsync, nextPlain].filter(index => index > fnStart);
   const fnEnd = candidates.length ? Math.min(...candidates) : appSource.length;
   const fnSource = appSource.slice(fnStart, fnEnd);
-  const lifecycleCapturePattern = /(?:const lifecycleOwner = beginVehicleLifecycleOperation\(\);|const lifecycleOwner = vehicleLifecycleSharedModeActive\(\) \? beginVehicleLifecycleOperation\(\) : null;|let lifecycleOwner = null;[\s\S]*?lifecycleOwner = beginVehicleLifecycleOperation\(\);)/;
+  const lifecycleCapturePattern = /(?:const lifecycleOwner = beginVehicleLifecycleOperation\(\);|const lifecycleOwner = [\s\S]*?beginVehicleLifecycleOperation\(\)[\s\S]*?: null;|let lifecycleOwner = null;[\s\S]*?lifecycleOwner = beginVehicleLifecycleOperation\(\);)/;
   const beginMatch = fnSource.match(lifecycleCapturePattern);
   const beginIndex = beginMatch ? beginMatch.index : -1;
   const confirmIndex = fnSource.indexOf('window.confirm(');
@@ -154,8 +155,58 @@ const dialogContext = {
 vm.createContext(dialogContext);
 vm.runInContext(`${helperSource}\n${transferFnSource}`, dialogContext, { filename: 'app-rft-dialog-authority.js' });
 
+const yhFnStart = appSource.indexOf('async function transferYhVehicleToPmb(');
+const yhFnEnd = appSource.indexOf('\nfunction transferSelectedPmbVehiclesToRft()', yhFnStart);
+const yhFnSource = appSource.slice(yhFnStart, yhFnEnd);
+const yhCalls = { resolver: 0, a: 0, b: 0, modal: 0, refresh: 0, render: 0 };
+let yhToken = 'token-a';
+const yhActionsA = { pmbTransferVehicle: async () => { yhCalls.a += 1; return { ok: true }; } };
+const yhActionsB = { pmbTransferVehicle: async () => { yhCalls.b += 1; return { ok: true }; } };
+const yhVehicle = {
+  __emailVehicleServerAuthoritative: true,
+  __emailVehicleId: '11111111-1111-4111-8111-111111111111',
+  __emailVehicleVersion: 7,
+  stock: 'YH-1',
+};
+const yhContext = {
+  window: {
+    PDC_AUTH_CONTEXT: { userId: 'Operator-A', role: 'Administrator' },
+    PDC_SUPABASE_CONFIG: {},
+    __vehicleLifecycleActions: yhActionsA,
+    confirm() {
+      yhToken = 'token-b';
+      this.PDC_AUTH_CONTEXT = { userId: 'Operator-B', role: 'Administrator' };
+      this.__vehicleLifecycleActions = yhActionsB;
+      return true;
+    },
+    alert() {},
+  },
+  getPdcSupabaseAccessToken: () => yhToken,
+  vehicleLifecycleSharedModeActive: () => true,
+  vehicleLifecycleSharedModeEnabled: () => true,
+  selectedVehicle: () => yhVehicle,
+  vehicleLocationActionAllowed: () => true,
+  canTransferVehicleToPmb: () => true,
+  displayStockNumber: () => 'YH-1',
+  vehicleCustomerName: () => 'Customer YH',
+  pmbRequirementChecklistModal: async () => { yhCalls.modal += 1; return new Map([['YH-1', {}]]); },
+  vehicleLifecycleSharedRef: async () => { yhCalls.resolver += 1; return { outcome: 'resolved', vehicleId: '22222222-2222-4222-8222-222222222222', version: 8, isArchived: false }; },
+  describeVehicleLifecycleResolutionOutcome: () => 'not resolved',
+  describeVehicleLifecycleActionError: () => 'failed',
+  reconcileVehicleLifecycleServerResult() {},
+  refreshEmailVehicleLocations: async () => { yhCalls.refresh += 1; },
+  loadWorkshopEligibilitySnapshot: async () => {},
+  app: { quickFilter: '', pmbSubFilter: '', activePmbBayStage: '', currentView: 'dashboard' },
+  renderAll() { yhCalls.render += 1; },
+  console,
+};
+vm.createContext(yhContext);
+vm.runInContext(`${helperSource}\n${yhFnSource}`, yhContext, { filename: 'app-yh-dialog-authority.js' });
+
 (async () => {
   await vm.runInContext("transferVehiclesToRft([{ stock: 'TEST-1' }])", dialogContext);
   assert.deepStrictEqual(dialogCalls, { a: 0, b: 0 }, 're-entrant confirm cannot dispatch principal-A intent through principal-B lifecycle authority');
+  await vm.runInContext("transferYhVehicleToPmb('YH-1')", yhContext);
+  assert.deepStrictEqual(yhCalls, { resolver: 0, a: 0, b: 0, modal: 0, refresh: 0, render: 0 }, 're-entrant confirm cannot dispatch YH->PMB intent through replacement lifecycle authority');
   console.log(`PASS: lifecycle UI authority owner covers ${mutationAwaits.length} mutation await sites`);
 })().catch(error => { console.error(error); process.exitCode = 1; });

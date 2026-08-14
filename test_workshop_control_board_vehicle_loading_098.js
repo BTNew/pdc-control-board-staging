@@ -18,7 +18,7 @@ assert.match(sql,/'pipeline',\(select/,'Control Board pipeline metrics are resto
 assert.match(sql,/v\.eta_to_kewdale is not null/,'IT still requires Kewdale ETA');
 assert.match(sql,/grant execute on function public\.pmb_transfer_vehicle\(uuid,integer\) to authenticated,service_role/,'RPC remains authenticated');
 
-assert.match(actions,/pmbTransferVehicle\(\{ vehicleId, expectedVersion \}\)/,'lifecycle bridge exposes PMB transfer');
+assert.match(actions,/pmbTransferVehicle\(\{ vehicleId, expectedVersion \}, expectedOwner = null\)/,'lifecycle bridge exposes PMB transfer');
 assert.match(actions,/rpc\('pmb_transfer_vehicle'/,'bridge uses exact RPC name');
 assert.match(app,/workflowBucketsCollapsed: false/,'Control Board vehicle rows open on first load');
 assert.match(app,/async function transferYhVehicleToPmb\(key = ''\) \{\s*const vehicle = selectedVehicle\(key\);/,'PMB transfer resolves canonical/shared aliases instead of silently missing server-authoritative rows');

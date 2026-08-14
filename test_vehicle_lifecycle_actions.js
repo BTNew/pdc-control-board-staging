@@ -205,6 +205,28 @@ function fakeClient(responder) {
   });
 }
 
+// 6d. Shared transport mutation RPCs must reject stale expectedOwner before transport.
+{
+  let token = 'token-a';
+  let authority = { userId: 'admin-a', role: 'administrator' };
+  const client = fakeClient(() => ({ status: 200, ok: true, body: { ok: true } }));
+  const bridge = buildVehicleLifecycleSharedActions(client, () => token, () => authority);
+  const owner = { token: 'token-a', identity: JSON.stringify(['admin-a', 'administrator']) };
+  token = 'token-b';
+  authority = { userId: 'admin-b', role: 'administrator' };
+  Promise.all([
+    bridge.rftTransferVehicle({ vehicleId: 'v-owner-rft', expectedVersion: 2 }, owner),
+    bridge.pmbTransferVehicle({ vehicleId: 'v-owner-pmb', expectedVersion: 3 }, owner),
+  ]).then(results => {
+    assert.deepStrictEqual(results, [
+      { ok: false, error: 'stale_authority' },
+      { ok: false, error: 'stale_authority' },
+    ]);
+    assert.strictEqual(client.calls.length, 0, 'stale owner for shared transport mutations is rejected before RPC dispatch');
+    console.log('PASS 6d: shared transport mutation dispatch is bound to the pre-dialog authority owner');
+  });
+}
+
 // 7. describeVehicleLifecycleActionError: every documented backend error
 // code maps to a clear, non-technical message; unknown codes get a safe
 // generic fallback rather than leaking a raw code to staff.

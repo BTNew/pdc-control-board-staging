@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.14.54-dialog-policy-authority';
+const APP_VERSION = '2026.08.14.55-dialog-owner-transport-authority';
 const WORKSHOP_PLANNER_SCRIPT_VERSION = APP_VERSION;
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
@@ -9793,13 +9793,17 @@ async function transferYhVehicleToPmb(key = '') {
   }
   const stock = displayStockNumber(vehicle) || 'No stock';
   const customer = vehicleCustomerName(vehicle) || 'Unknown customer';
+  const lifecycleOwner = (vehicle.__emailVehicleServerAuthoritative === true && vehicleLifecycleSharedModeActive())
+    ? beginVehicleLifecycleOperation()
+    : null;
   if (!window.confirm(`Transfer ${stock} - ${customer} to PMB?\n\nThis is a manual PDC location change. Future Navision uploads will not move it back.`)) return;
+  if (lifecycleOwner && !vehicleLifecycleOperationCurrent(lifecycleOwner)) return false;
 
   const requirementSelections = await pmbRequirementChecklistModal([vehicle]);
+  if (lifecycleOwner && !vehicleLifecycleOperationCurrent(lifecycleOwner)) return false;
   if (!requirementSelections || !vehicleLocationActionAllowed(vehicle, 'transfer to PMB')) return false;
 
-  if (vehicle.__emailVehicleServerAuthoritative === true && vehicleLifecycleSharedModeActive()) {
-    const lifecycleOwner = beginVehicleLifecycleOperation();
+  if (lifecycleOwner) {
     const emailVehicleId = String(vehicle.__emailVehicleId || '').trim();
     const emailVersion = Number(vehicle.__emailVehicleVersion);
     const hasExactEmailRef = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(emailVehicleId)
@@ -9819,7 +9823,7 @@ async function transferYhVehicleToPmb(key = '') {
     const result = await lifecycleOwner.actions.pmbTransferVehicle({
       vehicleId: ref.vehicleId,
       expectedVersion: ref.version,
-    });
+    }, lifecycleOwner);
     if (vehicleLifecycleCompletionStale(lifecycleOwner, result)) return false;
     if (!result || result.ok !== true) {
       window.alert(typeof describeVehicleLifecycleActionError === 'function'

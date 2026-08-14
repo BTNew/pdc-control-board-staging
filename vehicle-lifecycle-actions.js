@@ -420,11 +420,11 @@ function buildVehicleLifecycleSharedActions(client, getAccessToken, getAuthority
     },
 
 
-    pmbTransferVehicle({ vehicleId, expectedVersion }) {
+    pmbTransferVehicle({ vehicleId, expectedVersion }, expectedOwner = null) {
       return rpc('pmb_transfer_vehicle', {
         p_vehicle_id: vehicleId,
         p_expected_version: expectedVersion,
-      });
+      }, expectedOwner);
     },
 
     markReadyForQc({ vehicleId, expectedVersion }) {
@@ -452,11 +452,11 @@ function buildVehicleLifecycleSharedActions(client, getAccessToken, getAuthority
       });
     },
 
-    rftTransferVehicle({ vehicleId, expectedVersion }) {
+    rftTransferVehicle({ vehicleId, expectedVersion }, expectedOwner = null) {
       return rpc('rft_transfer_vehicle', {
         p_vehicle_id: vehicleId,
         p_expected_version: expectedVersion,
-      });
+      }, expectedOwner);
     },
 
     pitTransferVehicle({ vehicleId, expectedVersion, direction }) {
