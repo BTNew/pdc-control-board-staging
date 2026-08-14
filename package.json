@@ -82,6 +82,8 @@
     "test_pdc_staging_target_guard.js",
     "test_vehicle_lifecycle_actions.js",
     "test_vehicle_lifecycle_authority_ui.js",
+    "test_workshop_reference_data_service.js",
+    "test_workshop_reference_local_admin_gate.js",
     "test_workshop_reference_authority_ui.js",
     "test_workshop_reference_authority_service.js",
     "test_workshop_bay_reference_authority.js",

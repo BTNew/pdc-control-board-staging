@@ -32,7 +32,7 @@ begin
      or v_name is distinct from 'ai_auditor_typed_operation_control'
      or (select statements from supabase_migrations.schema_migrations where version = '253') is distinct from array[
        'exact migration-250 name and statement predecessor with migrations 251/252 unused',
-       'global migration-230 Telegram message/update reservation plus exact 253 delivery UUID and gateway nonce replay control',
+       'canonical seven-field migration-225 actor contract preserved by migration-230 plus global Telegram message/update reservation and exact 253 delivery UUID and gateway nonce replay control',
        'exact ISO-UTC ten-field runtime envelope with length-prefixed ordered signing bytes and top-level Telegram evidence',
        'bounded contract/action/selector/desire intent expanded server-side; caller candidates, old values, disposition and proof forbidden',
        'separate signed Apply binds exact plan_id and plan_hash plus exact Craig confirmation instruction',

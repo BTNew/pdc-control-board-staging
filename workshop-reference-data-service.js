@@ -135,6 +135,8 @@ function createWorkshopReferenceSupabaseClient(config, fetchImpl) {
  *   getAuthorityIdentity () => string -- current normalized principal/role
  *                     fingerprint. The service captures this and the token
  *                     at construction and never adopts replacement authority.
+ *   getAuthorityRole () => string -- current normalized PDC role. Mutations
+ *                     fail closed unless the frozen role is administrator.
  *   subscribeRealtime(tableName, handlers) -> { unsubscribe() } -- injected
  *                     so this module never touches window.PDC_SUPABASE
  *                     directly (mirrors workshop-data-service.js's
@@ -147,6 +149,9 @@ function createWorkshopReferenceDataService(options) {
   const getAccessToken = typeof options.getAccessToken === 'function' ? options.getAccessToken : () => null;
   const getAuthorityIdentity = typeof options.getAuthorityIdentity === 'function'
     ? options.getAuthorityIdentity
+    : () => '';
+  const getAuthorityRole = typeof options.getAuthorityRole === 'function'
+    ? options.getAuthorityRole
     : () => '';
   const subscribeRealtime = typeof options.subscribeRealtime === 'function' ? options.subscribeRealtime : null;
   const onStateChange = typeof options.onStateChange === 'function' ? options.onStateChange : null;
@@ -167,6 +172,7 @@ function createWorkshopReferenceDataService(options) {
   const loadGeneration = {};
   const authorityToken = getAccessToken() || null;
   const authorityIdentity = String(getAuthorityIdentity() || '');
+  const authorityRole = String(getAuthorityRole() || '').trim().toLowerCase();
   let authorityGeneration = 0;
   let destroyed = false;
 
@@ -174,6 +180,7 @@ function createWorkshopReferenceDataService(options) {
     return {
       token: authorityToken,
       identity: authorityIdentity,
+      role: authorityRole,
       generation: authorityGeneration,
     };
   }
@@ -185,8 +192,10 @@ function createWorkshopReferenceDataService(options) {
       && authority.generation === authorityGeneration
       && authority.token === authorityToken
       && authority.identity === authorityIdentity
+      && authority.role === authorityRole
       && (getAccessToken() || null) === authorityToken
       && String(getAuthorityIdentity() || '') === authorityIdentity
+      && String(getAuthorityRole() || '').trim().toLowerCase() === authorityRole
     );
   }
 
@@ -339,6 +348,10 @@ function createWorkshopReferenceDataService(options) {
     if (!resource) throw new Error(`workshop-reference-data-service: unknown resource '${resourceKey}'`);
     const expectedAuthority = captureAuthority();
     if (!authorityCurrent(expectedAuthority)) return staleAuthorityResult();
+    if (expectedAuthority.role !== 'administrator') {
+      setState(resourceKey, WORKSHOP_REFERENCE_CONNECTION_STATE.PERMISSION_DENIED, { message: 'administrator role required' });
+      return { ok: false, error: 'permission_denied' };
+    }
     if (!client) return { ok: false, error: 'no_client' };
 
     const token = expectedAuthority.token;
@@ -618,6 +631,10 @@ function createWorkshopReferenceDataService(options) {
     updateWorkshopConfiguration: async (key, expectedVersion, value) => {
       const expectedAuthority = captureAuthority();
       if (!authorityCurrent(expectedAuthority)) return staleAuthorityResult();
+      if (expectedAuthority.role !== 'administrator') {
+        setState(SETTINGS_RESOURCE_KEY, WORKSHOP_REFERENCE_CONNECTION_STATE.PERMISSION_DENIED, { message: 'administrator role required' });
+        return { ok: false, error: 'permission_denied' };
+      }
       if (!client) return { ok: false, error: 'no_client' };
       const token = expectedAuthority.token;
       if (!token) return { ok: false, error: 'not_authenticated' };

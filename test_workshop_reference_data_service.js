@@ -10,7 +10,7 @@
 const assert = require('assert');
 const {
   WORKSHOP_REFERENCE_CONNECTION_STATE,
-  createWorkshopReferenceDataService
+  createWorkshopReferenceDataService: createRawWorkshopReferenceDataService
 } = require('./workshop-reference-data-service.js');
 
 let passed = 0;
@@ -39,6 +39,13 @@ function makeFakeClient(responses) {
       return { status: 404, ok: false, body: { message: 'no fake response configured' } };
     }
   };
+}
+
+function createWorkshopReferenceDataService(options = {}) {
+  return createRawWorkshopReferenceDataService({
+    ...options,
+    getAuthorityRole: options.getAuthorityRole || (() => 'administrator'),
+  });
 }
 
 // ---------------------------------------------------------------------
@@ -517,6 +524,40 @@ function makeFakeClient(responses) {
   const failResult = await failingService.getWorkshopConfiguration();
   check('19f getWorkshopConfiguration reports ok:false when the underlying load actually failed, instead of always claiming ok:true', () =>
     assert.strictEqual(failResult.ok, false));
+})();
+
+// ---------------------------------------------------------------------
+// 20. Every privileged method rejects an operator locally before RPC.
+// This covers active UI methods and dormant edit/activation/configuration
+// surfaces so a later caller cannot bypass the app-side handler gate.
+// ---------------------------------------------------------------------
+(async () => {
+  const client = makeFakeClient({});
+  const service = createRawWorkshopReferenceDataService({
+    client,
+    getAccessToken: () => 'operator-token',
+    getAuthorityIdentity: () => 'operator@example.test\noperator',
+    getAuthorityRole: () => 'operator',
+  });
+  const calls = [
+    ['addTechnician', () => service.addTechnician('Tech')],
+    ['editTechnician', () => service.editTechnician('tech-1', 1, { name: 'Tech 2' })],
+    ['setTechnicianActive', () => service.setTechnicianActive('tech-1', 1, false)],
+    ['addSalesperson', () => service.addSalesperson('Sales', 'sales@example.test', 'SL')],
+    ['editSalesperson', () => service.editSalesperson('sales-1', 1, { name: 'Sales 2' })],
+    ['setSalespersonActive', () => service.setSalespersonActive('sales-1', 1, false)],
+    ['addSubletProvider', () => service.addSubletProvider('Provider')],
+    ['editSubletProvider', () => service.editSubletProvider('provider-1', 1, { name: 'Provider 2' })],
+    ['setSubletProviderActive', () => service.setSubletProviderActive('provider-1', 1, false)],
+    ['setWorkshopBayActive', () => service.setWorkshopBayActive('bay-1', 1, false)],
+    ['setBayDefaultTechnician', () => service.setBayDefaultTechnician('bay-1', 1, 'tech-1')],
+    ['updateWorkshopConfiguration', () => service.updateWorkshopConfiguration('day_start_time', 1, '07:30')],
+  ];
+  for (const [name, invoke] of calls) {
+    const result = await invoke();
+    check(`20 ${name} rejects operator locally`, () => assert.deepStrictEqual(result, { ok: false, error: 'permission_denied' }));
+  }
+  check('20 all 12 operator mutation attempts issue zero RPCs', () => assert.deepStrictEqual(client.calls, []));
 })();
 
 setTimeout(() => {

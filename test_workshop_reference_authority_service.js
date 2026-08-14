@@ -1,7 +1,15 @@
 'use strict';
 
 const assert = require('assert');
-const { createWorkshopReferenceDataService } = require('./workshop-reference-data-service.js');
+const { createWorkshopReferenceDataService: createRawWorkshopReferenceDataService } = require('./workshop-reference-data-service.js');
+
+function createWorkshopReferenceDataService(options = {}) {
+  const getIdentity = typeof options.getAuthorityIdentity === 'function' ? options.getAuthorityIdentity : () => '';
+  return createRawWorkshopReferenceDataService({
+    ...options,
+    getAuthorityRole: options.getAuthorityRole || (() => String(getIdentity() || '').split('\n').pop()),
+  });
+}
 
 function deferred() {
   let resolve;
