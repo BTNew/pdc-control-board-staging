@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.13.45-admin-authority-intent-undo-pointer';
+const APP_VERSION = '2026.08.14.46-user-management-authority';
 const WORKSHOP_PLANNER_SCRIPT_VERSION = APP_VERSION;
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
@@ -2978,6 +2978,8 @@ function syncAdminNavigationVisibility() {
   // gated; hiding this disclosure is not an authority boundary.
   const allowed = Boolean(window.PDC_AUTH_CONTEXT?.userId || window.PDC_AUTH_CONTEXT?.email);
   if (group) group.hidden = !allowed;
+  const userManagementNav = $('#nav-user-management');
+  if (userManagementNav) userManagementNav.hidden = !userManagementSharedModeReady();
   const deletedNav = document.querySelector('.nav-item[data-view="deleted"]');
   if (deletedNav) deletedNav.hidden = !vehicleLifecycleAdministratorActive();
   if (!allowed) setAdminNavigationExpanded(false);
@@ -3516,14 +3518,81 @@ async function renderBackupStatusPanel() {
 // re-verifies the caller is an active administrator server-side. This
 // frontend code is a convenience UI, not the security boundary.
 // ---------------------------------------------------------------------
-const USER_MANAGEMENT_STATE = { tab: 'all', rows: [], realtimeChannel: null };
+const USER_MANAGEMENT_STATE = {
+  tab: 'all',
+  rows: [],
+  realtimeChannel: null,
+  realtimeClient: null,
+  authorityGeneration: 0,
+  requestGeneration: 0,
+};
 
 function userManagementSharedModeReady() {
   return backupStatusSharedModeReady(); // same gating: shared mode + signed-in administrator
 }
 
-async function loadUserManagementRows() {
+function userManagementAuthorityIdentity() {
+  if (!userManagementSharedModeReady()) return '';
+  const context = window.PDC_AUTH_CONTEXT || {};
+  const principal = String(context.userId || context.email || '').trim().toLowerCase();
+  const role = String(context.role || '').trim().toLowerCase();
+  return principal && role === 'administrator' ? `${principal}\n${role}` : '';
+}
+
+function captureUserManagementAuthority() {
   const client = window.PDC_SUPABASE;
+  const identity = userManagementAuthorityIdentity();
+  if (!client || !identity) return null;
+  return {
+    client,
+    identity,
+    authorityGeneration: USER_MANAGEMENT_STATE.authorityGeneration,
+  };
+}
+
+function userManagementAuthorityCurrent(authority) {
+  return Boolean(
+    authority
+    && authority.client === window.PDC_SUPABASE
+    && authority.identity === userManagementAuthorityIdentity()
+    && authority.authorityGeneration === USER_MANAGEMENT_STATE.authorityGeneration
+  );
+}
+
+function userManagementRequestCurrent(authority, requestGeneration) {
+  return userManagementAuthorityCurrent(authority)
+    && requestGeneration === USER_MANAGEMENT_STATE.requestGeneration;
+}
+
+function discardRevokedUserManagementRequest(authority, requestGeneration) {
+  const requestStillOwnsUi = requestGeneration === USER_MANAGEMENT_STATE.requestGeneration;
+  const authorityGenerationStillCurrent = authority?.authorityGeneration === USER_MANAGEMENT_STATE.authorityGeneration;
+  if (requestStillOwnsUi && authorityGenerationStillCurrent && !userManagementAuthorityCurrent(authority)) {
+    resetUserManagementAuthorityState({ clearHost: true });
+  }
+}
+
+function resetUserManagementAuthorityState(options = {}) {
+  USER_MANAGEMENT_STATE.authorityGeneration += 1;
+  USER_MANAGEMENT_STATE.requestGeneration += 1;
+  USER_MANAGEMENT_STATE.rows = [];
+  const channel = USER_MANAGEMENT_STATE.realtimeChannel;
+  const client = USER_MANAGEMENT_STATE.realtimeClient;
+  USER_MANAGEMENT_STATE.realtimeChannel = null;
+  USER_MANAGEMENT_STATE.realtimeClient = null;
+  try {
+    if (channel && client && typeof client.removeChannel === 'function') client.removeChannel(channel);
+  } catch (_error) { /* best-effort authority teardown */ }
+  const navItem = $('#nav-user-management');
+  if (navItem) navItem.hidden = true;
+  if (options.clearHost) {
+    const host = $('#user-management-content');
+    if (host?.replaceChildren) host.replaceChildren();
+    else if (host) host.innerHTML = '';
+  }
+}
+
+async function loadUserManagementRows(client = window.PDC_SUPABASE) {
   const { data, error } = await client
     .from('pdc_user_roles')
     .select('id,email,full_name,display_name,role,active,account_status,registered_at,approved_by,approved_at,rejected_at,rejection_reason,disabled_at,disabled_reason,restored_at,last_sign_in_at,created_at')
@@ -3580,31 +3649,46 @@ function userManagementRowHtml(row) {
 async function renderUserManagementScreen() {
   const navItem = $('#nav-user-management');
   const host = $('#user-management-content');
-  if (!host) return;
+  if (!host) return false;
 
   if (!userManagementSharedModeReady()) {
-    if (navItem) navItem.hidden = false;
+    resetUserManagementAuthorityState();
+    if (navItem) navItem.hidden = true;
     host.innerHTML = '<div class="empty-state compact-empty"><strong>Administrator access required</strong></div>';
-    return;
+    return false;
   }
   if (navItem) navItem.hidden = false;
   host.innerHTML = '<div class="empty-state compact-empty"><strong>Loading…</strong></div>';
 
-  subscribeUserManagementRealtime();
+  const authority = captureUserManagementAuthority();
+  const requestGeneration = ++USER_MANAGEMENT_STATE.requestGeneration;
+  if (!authority) return false;
 
+  let rows;
   try {
-    USER_MANAGEMENT_STATE.rows = await loadUserManagementRows();
+    rows = await loadUserManagementRows(authority.client);
   } catch (error) {
+    if (!userManagementRequestCurrent(authority, requestGeneration)) {
+      discardRevokedUserManagementRequest(authority, requestGeneration);
+      return false;
+    }
     host.innerHTML = `<div class="empty-state compact-empty"><strong>Could not load users</strong><span>${escapeHtml(error && error.message ? error.message : String(error))}</span></div>`;
-    return;
+    return false;
   }
+
+  if (!userManagementRequestCurrent(authority, requestGeneration)) {
+    discardRevokedUserManagementRequest(authority, requestGeneration);
+    return false;
+  }
+  USER_MANAGEMENT_STATE.rows = rows;
+  subscribeUserManagementRealtime(authority);
 
   const filtered = USER_MANAGEMENT_STATE.tab === 'all'
     ? USER_MANAGEMENT_STATE.rows
     : USER_MANAGEMENT_STATE.rows.filter(row => row.account_status === USER_MANAGEMENT_STATE.tab);
   if (!filtered.length) {
     host.innerHTML = `<div class="empty-state compact-empty"><strong>No ${escapeHtml(USER_MANAGEMENT_STATE.tab)} accounts</strong></div>`;
-    return;
+    return true;
   }
 
   host.innerHTML = `<div class="admin-reference-table-wrap"><table class="admin-reference-table user-admin-table">
@@ -3613,31 +3697,41 @@ async function renderUserManagementScreen() {
   </table></div>`;
 
   wireUserManagementActions();
+  return true;
 }
 
-function subscribeUserManagementRealtime() {
-  const client = window.PDC_SUPABASE;
-  if (!client || typeof client.channel !== 'function') return;
-  if (USER_MANAGEMENT_STATE.realtimeChannel) return; // already subscribed for this session
+function subscribeUserManagementRealtime(authority = captureUserManagementAuthority()) {
+  if (!userManagementAuthorityCurrent(authority) || typeof authority.client.channel !== 'function') return null;
+  if (USER_MANAGEMENT_STATE.realtimeChannel) return USER_MANAGEMENT_STATE.realtimeChannel;
+  const client = authority.client;
   const channel = client
     .channel('pdc_user_roles_admin_view')
     .on('postgres_changes', { event: '*', schema: 'public', table: 'pdc_user_roles' }, () => {
       // Any account-status/role change (approve/reject/change-role/
       // disable/restore) re-renders the currently active tab live,
-      // without requiring a manual "Refresh" click -- proven via a real
-      // two-browser test: one browser makes the change, a second,
-      // already-open browser on this screen picks it up automatically.
+      // without requiring a manual "Refresh" click.
+      if (!userManagementAuthorityCurrent(authority)) {
+        resetUserManagementAuthorityState({ clearHost: true });
+        if (app.currentView === 'user-management' || app.currentRequestedView === 'user-management') {
+          showView('dashboard', { historyMode: 'replace' });
+        }
+        return;
+      }
       if (document.getElementById('user-management')?.classList.contains('active')) {
         renderUserManagementScreen();
       }
     })
     .subscribe();
   USER_MANAGEMENT_STATE.realtimeChannel = channel;
+  USER_MANAGEMENT_STATE.realtimeClient = client;
+  return channel;
 }
 
 async function userManagementCallRpc(rpcName, params, successMessage) {
-  const client = window.PDC_SUPABASE;
-  const { error } = await client.rpc(rpcName, params);
+  const authority = captureUserManagementAuthority();
+  if (!authority) return false;
+  const { error } = await authority.client.rpc(rpcName, params);
+  if (!userManagementAuthorityCurrent(authority)) return false;
   if (error) {
     alert(`Action failed: ${error.message || error}`);
     return false;
@@ -3646,8 +3740,7 @@ async function userManagementCallRpc(rpcName, params, successMessage) {
     // Non-blocking confirmation; the row list below refreshes immediately
     // afterward regardless, so this is just an audible/visible cue.
   }
-  await renderUserManagementScreen();
-  return true;
+  return renderUserManagementScreen();
 }
 
 function wireUserManagementActions() {
@@ -3748,6 +3841,10 @@ function showView(view, options) {
   // routing before changing state, history, active classes or menu expansion.
   if (requestedView === 'deleted' && !vehicleLifecycleAdministratorActive()) {
     resetDeletedVehicleAuthorityState();
+    requestedView = 'dashboard';
+  }
+  if (requestedView === 'user-management' && !userManagementSharedModeReady()) {
+    resetUserManagementAuthorityState({ clearHost: true });
     requestedView = 'dashboard';
   }
   if (requestedView === 'pipeline') requestedView = 'workflow';
@@ -4261,12 +4358,17 @@ window.addEventListener?.('pdc-auth-ready', () => {
   if (typeof initVehicleLifecycleSharedActionsIfEnabled === 'function') initVehicleLifecycleSharedActionsIfEnabled();
   if (typeof refreshWorkshopReferenceData === 'function') refreshWorkshopReferenceData();
   resetDeletedVehicleAuthorityState();
+  resetUserManagementAuthorityState({ clearHost: !userManagementSharedModeReady() });
   syncAdminNavigationVisibility();
   if (!vehicleLifecycleAdministratorActive() && (app.currentView === 'deleted' || app.currentRequestedView === 'deleted')) {
     showView('dashboard', { historyMode: 'replace' });
   }
-  const navItem = document.getElementById('nav-user-management');
-  if (navItem) navItem.hidden = false;
+  if (!userManagementSharedModeReady()
+      && (app.currentView === 'user-management' || app.currentRequestedView === 'user-management')) {
+    showView('dashboard', { historyMode: 'replace' });
+  } else if (app.currentView === 'user-management') {
+    renderUserManagementScreen();
+  }
   if (app.currentView === 'emailreview' && typeof renderAiBoardAdvisor === 'function') renderAiBoardAdvisor();
   resetPdcAuditorAuthorityState();
   if (app.currentView === 'ai-auditor') loadPdcAuditorSnapshot({ force: true });
@@ -4281,6 +4383,14 @@ window.addEventListener?.('pdc-auth-ready', () => {
 // monitor, but every signed Auditor receipt is bound to the exact access token.
 // Revoke those controls synchronously when pdc-auth.js rotates that token.
 window.addEventListener?.('pdc-auth-token-changed', () => {
+  resetUserManagementAuthorityState({ clearHost: !userManagementSharedModeReady() });
+  syncAdminNavigationVisibility();
+  if (!userManagementSharedModeReady()
+      && (app.currentView === 'user-management' || app.currentRequestedView === 'user-management')) {
+    showView('dashboard', { historyMode: 'replace' });
+  } else if (app.currentView === 'user-management') {
+    renderUserManagementScreen();
+  }
   resetPdcAuditorAuthorityState();
   if (app.currentView === 'ai-auditor') loadPdcAuditorSnapshot({ force: true });
 });
@@ -4297,6 +4407,7 @@ window.addEventListener?.('pdc-auth-token-changed', () => {
 window.addEventListener?.('pdc-auth-locked', () => {
   resetEmailVehicleLocations();
   resetDeletedVehicleAuthorityState();
+  resetUserManagementAuthorityState({ clearHost: true });
   resetPdcAuditorAuthorityState();
   const advisorHost = document.getElementById('ai-board-advisor-content');
   if (advisorHost) advisorHost.replaceChildren();
@@ -4319,13 +4430,6 @@ window.addEventListener?.('pdc-auth-locked', () => {
     }
     if (window.__vehicleLifecycleRealtimeManager && typeof window.__vehicleLifecycleRealtimeManager.stop === 'function') {
       window.__vehicleLifecycleRealtimeManager.stop();
-    }
-  } catch (_err) { /* best-effort teardown */ }
-  try {
-    if (USER_MANAGEMENT_STATE && USER_MANAGEMENT_STATE.realtimeChannel && window.PDC_SUPABASE && typeof window.PDC_SUPABASE.removeChannel === 'function') {
-      window.PDC_SUPABASE.removeChannel(USER_MANAGEMENT_STATE.realtimeChannel);
-      USER_MANAGEMENT_STATE.realtimeChannel = null;
-      USER_MANAGEMENT_STATE.rows = [];
     }
   } catch (_err) { /* best-effort teardown */ }
   try {

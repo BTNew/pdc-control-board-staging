@@ -73,7 +73,7 @@ test('planner runtime executes exported highlight API for stale clear, replaceme
 });
 
 test('changed runtime assets share one cache/provenance candidate', () => {
-  const candidate = '2026.08.13.45-admin-authority-intent-undo-pointer';
+  const candidate = '2026.08.14.46-user-management-authority';
   for (const name of ['index.html', 'staging.html']) {
     const html = read(name);
     assert(html.includes(`styles.css?v=${candidate}`));

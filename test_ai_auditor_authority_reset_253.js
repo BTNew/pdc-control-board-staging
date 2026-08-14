@@ -38,15 +38,20 @@ assert.ok(tokenListenerStart >= 0 && tokenListenerEnd > tokenListenerStart, 'tok
 let tokenChangedHandler = null;
 let tokenResetCount = 0;
 let tokenReloadCount = 0;
+let tokenUserManagementResetCount = 0;
 const tokenContext = vm.createContext({
   app: { currentView:'ai-auditor' },
   window: { addEventListener(type, handler) { if (type === 'pdc-auth-token-changed') tokenChangedHandler = handler; } },
+  resetUserManagementAuthorityState() { tokenUserManagementResetCount += 1; },
+  userManagementSharedModeReady() { return false; },
+  syncAdminNavigationVisibility() {},
   resetPdcAuditorAuthorityState() { tokenResetCount += 1; },
   loadPdcAuditorSnapshot(options) { assert.strictEqual(options?.force,true); tokenReloadCount += 1; },
 });
 vm.runInContext(source.slice(tokenListenerStart, tokenListenerEnd),tokenContext);
 assert.strictEqual(typeof tokenChangedHandler,'function','token-change listener must register');
 tokenChangedHandler();
+assert.strictEqual(tokenUserManagementResetCount,1,'token change must synchronously revoke token-bound User Management state');
 assert.strictEqual(tokenResetCount,1,'token change must synchronously revoke token-bound Auditor operation state');
 assert.strictEqual(tokenReloadCount,1,'visible Auditor view may reload only after synchronous revocation');
 console.log('AI Auditor token-refresh operation-state teardown passed');
