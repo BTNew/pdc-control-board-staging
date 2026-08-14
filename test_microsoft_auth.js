@@ -338,6 +338,11 @@ async function testAuthGenerationOwnership() {
   assert.strictEqual(internals.state.session, null, 'stale provider login cannot restore old session');
 
   // Overlapping provider logins are last-started-wins across different users.
+  // Retain A's own-role callback so it can be invoked after B replaces A.
+  roleResponses.push(Promise.resolve(approved('operator')));
+  await internals.applySession(session);
+  const staleOwnRoleChannelA = internals.state.ownRoleChannel;
+  assert.strictEqual(typeof staleOwnRoleChannelA?.change, 'function', 'principal A own-role callback captured');
   const loginA = deferred();
   const loginB = deferred();
   const loginResponses = [loginA.promise, loginB.promise];
@@ -359,6 +364,14 @@ async function testAuthGenerationOwnership() {
   assert.strictEqual(raceContext.window.PDC_AUTH_CONTEXT.userId, 'B', 'newer provider login owns final user authority');
   assert.strictEqual(raceContext.window.PDC_AUTH_CONTEXT.role, 'viewer', 'newer provider login owns final role authority');
   assert.strictEqual(internals.state.session, sessionB, 'older provider completion cannot replace newer session');
+  const replacementOwnRoleChannelB = internals.state.ownRoleChannel;
+  const queriesBeforeStaleOwnRoleCallback = roleQueryCount;
+  staleOwnRoleChannelA.change();
+  await new Promise(resolve => setImmediate(resolve));
+  assert.strictEqual(roleQueryCount, queriesBeforeStaleOwnRoleCallback, 'stale A own-role callback must not query using B authority');
+  assert.strictEqual(raceContext.window.PDC_AUTH_CONTEXT.userId, 'B', 'stale A own-role callback must preserve B context');
+  assert.strictEqual(internals.state.session, sessionB, 'stale A own-role callback must preserve B session');
+  assert.strictEqual(internals.state.ownRoleChannel, replacementOwnRoleChannelB, 'stale A own-role callback must preserve B channel');
 
   // Initial saved-session discovery is subordinate to provider events that
   // occur while getSession() is unresolved.

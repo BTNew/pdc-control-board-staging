@@ -194,13 +194,31 @@
       };
       state.ownRoleSubscriptionAttempt = { finish };
       try {
-        const channel = state.client
+        const channelClient = state.client;
+        let channel = null;
+        const ownsChannel = () => Boolean(
+          channel
+          && state.client === channelClient
+          && channelGeneration === state.ownRoleChannelGeneration
+          && state.ownRoleChannel === channel
+        );
+        channel = channelClient
           .channel(`pdc_user_roles_own_row:${email}`)
           .on(
             'postgres_changes',
             { event: '*', schema: 'public', table: 'pdc_user_roles', filter: `email=eq.${email}` },
             () => {
-              handleOwnRoleRowChanged().catch(() => lockOwnRoleAuthority('role_check_failed'));
+              if (!ownsChannel()) {
+                try {
+                  channelClient.removeChannel?.(channel);
+                } catch (_err) {
+                  // best-effort cleanup of only the stale captured channel
+                }
+                return;
+              }
+              handleOwnRoleRowChanged(ownsChannel).catch(() => {
+                if (ownsChannel()) lockOwnRoleAuthority('role_check_failed');
+              });
             }
           );
         state.ownRoleChannel = channel;
@@ -233,7 +251,8 @@
     });
   }
 
-  async function handleOwnRoleRowChanged() {
+  async function handleOwnRoleRowChanged(ownsChannel = null) {
+    if (ownsChannel && !ownsChannel()) return;
     const session = state.session || state.validatingSession;
     if (!session) return;
     const principalKey = authPrincipalKey(session);
@@ -250,7 +269,8 @@
       state.roleLookupInFlight = Math.max(0, state.roleLookupInFlight - 1);
     }
     if (
-      authGeneration !== state.authGeneration
+      (ownsChannel && !ownsChannel())
+      || authGeneration !== state.authGeneration
       || roleLookupGeneration !== state.roleLookupGeneration
       || !principalKey
       || ![state.session, state.validatingSession].some(current => authPrincipalKey(current) === principalKey)
