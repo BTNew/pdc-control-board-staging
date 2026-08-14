@@ -4,6 +4,7 @@ const { spawnSync } = require('child_process');
 
 const probe = String.raw`
 import importlib.util
+import base64
 import hashlib
 import json
 import os
@@ -112,6 +113,19 @@ malformed_pem.write_text(
     '-----BEGIN CERTIFICATE-----\\nNOT-A-CERTIFICATE\\n-----END CERTIFICATE-----\\n',
     encoding='ascii',
 )
+canonical_der = base64.b64decode(b''.join(
+    line.strip() for line in ca_path.read_bytes().splitlines()
+    if not line.startswith(b'-----')))
+critical_true = bytes.fromhex('0603551d130101ff')
+assert canonical_der.count(critical_true) == 1
+explicit_false_der = canonical_der.replace(
+    critical_true, bytes.fromhex('0603551d13010100'), 1)
+explicit_false = Path(ca_dir.name) / 'explicit-false-critical.pem'
+encoded = base64.b64encode(explicit_false_der)
+explicit_false.write_bytes(
+    b'-----BEGIN CERTIFICATE-----\\n' +
+    b'\\n'.join(encoded[i:i + 64] for i in range(0, len(encoded), 64)) +
+    b'\\n-----END CERTIFICATE-----\\n')
 semantic_non_ca = Path('tests/fixtures/pdc_test_non_ca.pem').resolve()
 semantic_bad_key_usage = Path('tests/fixtures/pdc_test_ca_without_keycertsign.pem').resolve()
 os.environ[module.SSLROOTCERT_ENV] = str(malformed_pem.resolve())
@@ -121,7 +135,7 @@ os.environ.pop(module.SSLROOTCERT_SHA256_ENV, None)
 tls_rejected.append('missing-sha256')
 os.environ[module.SSLROOTCERT_SHA256_ENV] = '0' * 64
 tls_rejected.append('wrong-sha256')
-tls_rejected.extend(['semantic-non-ca', 'semantic-bad-key-usage'])
+tls_rejected.extend(['semantic-non-ca', 'semantic-bad-key-usage', 'explicit-false-critical'])
 for label in tls_rejected:
     if label == 'missing':
         os.environ.pop(module.SSLROOTCERT_ENV, None)
@@ -137,13 +151,15 @@ for label in tls_rejected:
         os.environ[module.SSLROOTCERT_ENV] = str(semantic_non_ca)
     elif label == 'semantic-bad-key-usage':
         os.environ[module.SSLROOTCERT_ENV] = str(semantic_bad_key_usage)
+    elif label == 'explicit-false-critical':
+        os.environ[module.SSLROOTCERT_ENV] = str(explicit_false.resolve())
     else:
         os.environ[module.SSLROOTCERT_ENV] = str(ca_path.resolve())
     if label == 'missing-sha256':
         os.environ.pop(module.SSLROOTCERT_SHA256_ENV, None)
     elif label == 'wrong-sha256':
         os.environ[module.SSLROOTCERT_SHA256_ENV] = '0' * 64
-    elif label not in ('semantic-non-ca', 'semantic-bad-key-usage'):
+    elif label not in ('semantic-non-ca', 'semantic-bad-key-usage', 'explicit-false-critical'):
         os.environ[module.SSLROOTCERT_SHA256_ENV] = ca_sha256
     else:
         os.environ[module.SSLROOTCERT_SHA256_ENV] = hashlib.sha256(
@@ -170,5 +186,5 @@ print(json.dumps({'accepted': len(accepted), 'rejected': len(rejected), 'tls_rej
 const result = spawnSync('python3', ['-I', '-c', probe], { encoding: 'utf8' });
 assert.strictEqual(result.status, 0, result.stderr || result.stdout);
 const report = JSON.parse(result.stdout.trim());
-assert.deepStrictEqual(report, { accepted: 5, rejected: 43, tls_rejected: 9, connector_calls: 3 });
+assert.deepStrictEqual(report, { accepted: 5, rejected: 43, tls_rejected: 10, connector_calls: 3 });
 console.log('PDC staging parsed-host endpoint and connector-spy guard passed');

@@ -75,7 +75,9 @@ def _assert_ca_certificate(der: bytes) -> None:
         fields = _der_children(extension)
         if len(fields) not in (2, 3) or fields[0][0] != 0x06 or fields[-1][0] != 0x04:
             raise ValueError("certificate extension fields are malformed")
-        if len(fields) == 3 and fields[1][0] != 0x01:
+        # Extension.critical is BOOLEAN DEFAULT FALSE.  Canonical DER omits
+        # FALSE, so a present value must be the exact TRUE encoding 01 01 FF.
+        if len(fields) == 3 and fields[1] != (0x01, b"\xff"):
             raise ValueError("certificate extension critical flag is malformed")
         oid = fields[0][1]
         if oid in extensions:

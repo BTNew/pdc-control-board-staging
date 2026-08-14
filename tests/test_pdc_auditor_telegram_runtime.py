@@ -321,6 +321,41 @@ class GatewayEnvelopeTests(unittest.TestCase):
                 runtime.validate_gateway_envelope(bad, instruction=text,
                     selected_scope=scope, key_resolver=lambda _: KEY, now=NOW)
 
+    def test_external_json_preserves_large_exponent_telegram_ids_exactly(self):
+        text = "Review duplicate bullbars"
+        scope = intent({"operation_refs": [SRC1, SRC2]}, "remove_duplicate",
+            duplicate_proof="database_exact", survivor_operation_ref=SRC1)
+        envelope = signed_envelope(text, scope)
+        for literal, expected in (
+            ("9007199254740991e0", 9007199254740991),
+            ("9007199254740992e0", 9007199254740992),
+            ("9007199254740993e0", 9007199254740993),
+            ("9223372036854775806e0", 9223372036854775806),
+            ("9223372036854775807e0", 9223372036854775807),
+        ):
+            raw = json.dumps(envelope, separators=(",", ":"))
+            raw = raw.replace('"telegram_message_id":202',
+                              f'"telegram_message_id":{literal}')
+            parsed = runtime.exact_json_loads(raw)
+            self.assertIsInstance(parsed["telegram_evidence"]["telegram_message_id"], int)
+            parsed["signature"] = hmac.new(
+                KEY, runtime.gateway_signing_bytes(parsed), hashlib.sha256).hexdigest()
+            verified = runtime.validate_gateway_envelope(parsed, instruction=text,
+                selected_scope=scope, key_resolver=lambda _: KEY, now=NOW)
+            with self.subTest(literal=literal):
+                self.assertEqual(verified["telegram_evidence"]["telegram_message_id"], expected)
+                self.assertIn(f'"telegram_message_id":{expected}'.encode(),
+                              runtime.gateway_signing_bytes(parsed))
+        for literal in ("9223372036854775808e0", "1.5e0", "NaN", "Infinity",
+                        "1e100000000", "0.10000000000000001"):
+            raw = json.dumps(envelope, separators=(",", ":")).replace(
+                '"telegram_message_id":202', f'"telegram_message_id":{literal}')
+            with self.subTest(literal=literal), self.assertRaises(runtime.AuditorContractError):
+                parsed = runtime.exact_json_loads(raw)
+                runtime.gateway_signing_bytes(parsed)
+        with self.assertRaises(runtime.AuditorContractError):
+            runtime._telegram_id(float(9007199254740993), "telegram evidence value")
+
 
 class RuntimeContractTests(unittest.TestCase):
     def test_review_and_mutation_both_plan_only_with_exact_payload(self):

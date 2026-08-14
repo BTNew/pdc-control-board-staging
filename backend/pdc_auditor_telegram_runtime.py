@@ -17,6 +17,7 @@ import os
 import re
 import sys
 import uuid
+from decimal import Decimal
 from datetime import datetime, timedelta, timezone
 from typing import Any, Callable, Mapping
 from urllib.parse import urlsplit
@@ -121,10 +122,17 @@ def _identifier(value: Any, label: str) -> str:
 
 def _telegram_id(value: Any, label: str) -> int:
     """Normalize finite positive integral JSON numbers like PostgreSQL jsonb."""
-    if isinstance(value, bool) or not isinstance(value, (int, float)):
+    if isinstance(value, bool) or not isinstance(value, (int, float, Decimal)):
         raise AuditorContractError(f"{label} is invalid")
     if isinstance(value, float):
-        if not math.isfinite(value) or not value.is_integer():
+        # External JSON is parsed as Decimal below.  A binary float above 2^53
+        # may already have lost its source integer, so fail closed rather than
+        # sign a rounded Telegram identifier.
+        if not math.isfinite(value) or not value.is_integer() or abs(value) >= 2**53:
+            raise AuditorContractError(f"{label} is invalid")
+        value = int(value)
+    elif isinstance(value, Decimal):
+        if not value.is_finite() or value != value.to_integral_value():
             raise AuditorContractError(f"{label} is invalid")
         value = int(value)
     if not 1 <= value <= 9223372036854775807:
@@ -147,7 +155,7 @@ def _selector(context: Mapping[str, Any]) -> dict[str, Any]:
 
 
 def _hours(value: Any) -> float:
-    if isinstance(value, bool) or not isinstance(value, (int, float)):
+    if isinstance(value, bool) or not isinstance(value, (int, float, Decimal)):
         raise AuditorContractError("estimated_hours is invalid")
     result = float(value)
     if result < .25 or result > 999.75 or round(result * 4) != result * 4:
@@ -171,7 +179,7 @@ def _new_value(value: Any, *, complete: bool) -> dict[str, Any]:
         raise AuditorContractError("operation_code is invalid")
     if "ordered_position" in result:
         ordered = result["ordered_position"]
-        if isinstance(ordered, bool) or not isinstance(ordered, (int, float)):
+        if isinstance(ordered, bool) or not isinstance(ordered, (int, float, Decimal)):
             raise AuditorContractError("ordered_position is invalid")
         ordered_num = float(ordered)
         if not ordered_num.is_integer() or not 1 <= ordered_num <= 10000:
@@ -400,6 +408,31 @@ def canonical_json(value: Any) -> bytes:
         raise AuditorContractError("value is not canonical JSON") from exc
 
 
+def exact_json_loads(payload: str | bytes | bytearray) -> Any:
+    """Parse external JSON numbers without binary-float precision loss."""
+    def exact_number(value: str) -> int | float:
+        if len(value) > 128:
+            raise ValueError("JSON number is too long")
+        parsed = Decimal(value)
+        if not parsed.is_finite():
+            raise ValueError("JSON number is not finite")
+        if parsed == parsed.to_integral_value():
+            if parsed and parsed.adjusted() > 127:
+                raise ValueError("JSON integer is too large")
+            return int(parsed)
+        result = float(parsed)
+        if not math.isfinite(result) or Decimal(str(result)) != parsed:
+            raise ValueError("JSON number cannot be represented exactly")
+        return result
+    def reject_constant(value: str) -> None:
+        raise ValueError(f"invalid JSON numeric constant {value}")
+    try:
+        return json.loads(payload, parse_float=exact_number, parse_int=exact_number,
+                          parse_constant=reject_constant)
+    except (TypeError, ValueError, json.JSONDecodeError) as exc:
+        raise AuditorContractError("input is not valid JSON") from exc
+
+
 def gateway_signing_bytes(envelope: Mapping[str, Any]) -> bytes:
     if not isinstance(envelope, Mapping) or set(envelope) != GATEWAY_ENVELOPE_KEYS:
         raise AuditorContractError("gateway envelope keys are invalid")
@@ -604,11 +637,11 @@ def main(argv=None) -> int:
         configured_key_id = os.environ["PDC_AUDITOR_GATEWAY_KEY_ID"]
         configured_key = bytes.fromhex(os.environ["PDC_AUDITOR_GATEWAY_HMAC_KEY_HEX"])
         resolver = lambda key_id: configured_key if key_id == configured_key_id else None
-        result = execute_bound(client_from_environment(), json.loads(args.telegram_update_json),
+        result = execute_bound(client_from_environment(), exact_json_loads(args.telegram_update_json),
             expected_chat_id=int(os.environ["PDC_AUDITOR_TELEGRAM_CHAT_ID"]),
             bot_identity=os.environ["PDC_AUDITOR_BOT_IDENTITY"],
-            gateway_envelope=json.loads(args.gateway_envelope_json), key_resolver=resolver,
-            context=json.loads(args.context_json))
+            gateway_envelope=exact_json_loads(args.gateway_envelope_json), key_resolver=resolver,
+            context=exact_json_loads(args.context_json))
         print(json.dumps(result, separators=(",", ":"), sort_keys=True))
         return 0 if result.get("ok") else 1
     except Exception as exc:
