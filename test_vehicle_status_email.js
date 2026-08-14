@@ -17,6 +17,7 @@ code += String.raw`
     id: 'fake-salesperson-' + index, name: record.name, email: record.email, code: record.initials, active: true, version: 1, sort_order: index,
   }));
   window.__workshopReferenceDataService = {
+    isAuthorityCurrent: () => true,
     getCachedSalespeople: () => ({ rows: fakeSalespersonRows, state: 'connected_editable', error: null }),
   };
   const vehicle = {

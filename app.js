@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.14.57-reference-owner-fallback-proof';
+const APP_VERSION = '2026.08.14.58-reference-service-owner-proof';
 const WORKSHOP_PLANNER_SCRIPT_VERSION = APP_VERSION;
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
@@ -3271,7 +3271,10 @@ function resetWorkshopReferenceDataAuthorityState() {
     window.clearInterval(window.__workshopReferenceDataReconcileTimer);
     window.__workshopReferenceDataReconcileTimer = null;
   }
-  try { service?.unsubscribeAll?.(); } catch (_error) { /* best-effort exact-service teardown */ }
+  try {
+    if (typeof service?.destroy === 'function') service.destroy();
+    else service?.unsubscribeAll?.();
+  } catch (_error) { /* best-effort exact-service teardown */ }
 }
 
 function workshopTechnicianAdminCanMutate(role = window.PDC_AUTH_CONTEXT?.role) {
@@ -4265,7 +4268,13 @@ function createPdcSupabaseTableRealtimeSubscription(tableName, handlers) {
 // path back to localStorage.
 function initWorkshopReferenceDataServiceIfAvailable() {
   if (!workshopReferenceDataRoleCanRead()) return null;
-  if (window.__workshopReferenceDataService) return window.__workshopReferenceDataService;
+  if (window.__workshopReferenceDataService) {
+    if (typeof window.__workshopReferenceDataService.isAuthorityCurrent === 'function'
+      && window.__workshopReferenceDataService.isAuthorityCurrent()) {
+      return window.__workshopReferenceDataService;
+    }
+    resetWorkshopReferenceDataAuthorityState();
+  }
   if (!window.PDC_SUPABASE_CONFIG || typeof createWorkshopReferenceDataService !== 'function' || typeof createWorkshopReferenceSupabaseClient !== 'function') return null;
 
   const serviceAuthority = captureWorkshopReferenceServiceAuthority();
@@ -4276,6 +4285,7 @@ function initWorkshopReferenceDataServiceIfAvailable() {
     config: window.PDC_SUPABASE_CONFIG,
     client,
     getAccessToken: () => (typeof getPdcSupabaseAccessToken === 'function' ? getPdcSupabaseAccessToken() : null),
+    getAuthorityIdentity: () => workshopReferenceBrowserAuthorityIdentity(),
     subscribeRealtime: (tableName, handlers) => createPdcSupabaseTableRealtimeSubscription(tableName, handlers),
     onStateChange: () => {
       if (!workshopReferenceServiceAuthorityCurrent(service, serviceAuthority)) return;

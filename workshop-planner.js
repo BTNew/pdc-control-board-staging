@@ -4346,37 +4346,70 @@ async function saveWorkshopBayMechanic(stage = '', bay = 0, value = '') {
       window.alert('The shared reference-data service is not available, so the bay default could not be saved.');
       return;
     }
-    const result = await service.setBayDefaultTechnician(bayRef.id, bayRef.version, technicianId);
-    if (!result || !result.ok) {
-      window.alert(`The bay default technician could not be saved (${(result && result.error) || 'unknown error'}). The shared data will refresh to show the current authoritative value.`);
-      renderWorkshopPlanner();
+    const captureAuthority = window.captureWorkshopReferenceMutation;
+    const authorityCurrent = window.workshopReferenceMutationCurrent;
+    const finishAuthority = window.finishWorkshopReferenceMutation;
+    const actionService = window.__workshopSharedActions;
+    if (typeof captureAuthority !== 'function' || typeof authorityCurrent !== 'function' || typeof finishAuthority !== 'function') {
+      window.alert('The shared Workshop authority could not be verified, so the bay default was not changed. Reload the page and try again.');
       return;
     }
-
-    // Backfilling the new default onto currently-unassigned planned
-    // bookings in this bay remains a separate, per-booking operational
-    // change through the protected assign_booking_technician RPC (one
-    // booking at a time, with each booking's own expected version) --
-    // unrelated to the bay-default write itself, which is now
-    // complete and authoritative above.
-    if (assignee && technicianId) {
-      const currentPlans = workshopLoadPlans();
-      const targets = currentPlans.filter(entry => entry.stage === normalizePmbStage(stage) && Number(entry.bay) === Number(bay) && entry.status === 'planned' && !entry.assignee);
-      let skipped = 0;
-      for (const entry of targets) {
-        const assignResult = await window.__workshopSharedActions.assignBookingTechnician({
-          bookingId: entry.sharedBookingId || entry.id,
-          expectedVersion: entry.sharedVersion,
-          technicianId,
-        });
-        if (!assignResult || !assignResult.ok) skipped += 1;
+    if (assignee && (!actionService || typeof actionService.assignBookingTechnician !== 'function')) {
+      window.alert('The shared Workshop action service is not available, so the bay default was not changed.');
+      return;
+    }
+    const owner = captureAuthority(service, `bay-default:${bayRef.id}`, { requireAdministrator: true });
+    if (!owner || !authorityCurrent(owner)) {
+      finishAuthority(owner);
+      window.alert('Administrator access with a current Workshop session is required. The bay default was not changed.');
+      return;
+    }
+    const operationCurrent = () => Boolean(
+      authorityCurrent(owner)
+      && (!assignee || window.__workshopSharedActions === actionService)
+    );
+    try {
+      const result = await owner.service.setBayDefaultTechnician(bayRef.id, bayRef.version, technicianId);
+      if (!operationCurrent()) return;
+      if (!result || !result.ok) {
+        window.alert(`The bay default technician could not be saved (${(result && result.error) || 'unknown error'}). The shared data will refresh to show the current authoritative value.`);
+        renderWorkshopPlanner();
+        return;
       }
-      renderWorkshopPlanner();
-      if (skipped) window.alert(`${assignee} was saved as the bay default, but ${skipped} overlapping booking${skipped === 1 ? ' was' : 's were'} left unassigned because that mechanic is already booked elsewhere.`);
+
+      // Backfilling the new default onto currently-unassigned planned
+      // bookings in this bay remains a separate, per-booking operational
+      // change through the protected assign_booking_technician RPC (one
+      // booking at a time, with each booking's own expected version). The
+      // exact reference service, action service, token, principal, role and
+      // authority generation must remain current for the complete chain.
+      if (assignee && technicianId) {
+        const currentPlans = workshopLoadPlans();
+        const targets = currentPlans.filter(entry => entry.stage === normalizePmbStage(stage) && Number(entry.bay) === Number(bay) && entry.status === 'planned' && !entry.assignee);
+        let skipped = 0;
+        for (const entry of targets) {
+          if (!operationCurrent()) return;
+          const assignResult = await actionService.assignBookingTechnician({
+            bookingId: entry.sharedBookingId || entry.id,
+            expectedVersion: entry.sharedVersion,
+            technicianId,
+          });
+          if (!operationCurrent()) return;
+          if (!assignResult || !assignResult.ok) skipped += 1;
+        }
+        if (!operationCurrent()) return;
+        renderWorkshopPlanner();
+        if (skipped && operationCurrent()) window.alert(`${assignee} was saved as the bay default, but ${skipped} overlapping booking${skipped === 1 ? ' was' : 's were'} left unassigned because that mechanic is already booked elsewhere.`);
+        return;
+      }
+      if (operationCurrent()) renderWorkshopPlanner();
       return;
+    } catch (_error) {
+      if (operationCurrent()) window.alert('The bay default technician could not be saved. Check your connection and try again.');
+      return;
+    } finally {
+      finishAuthority(owner);
     }
-    renderWorkshopPlanner();
-    return;
   }
 
   // Legacy local (non-shared) planner mode only, below this point:

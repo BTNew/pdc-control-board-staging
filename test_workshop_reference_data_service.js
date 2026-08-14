@@ -438,34 +438,37 @@ function makeFakeClient(responses) {
     assert.strictEqual(service.getState('technicians'), WORKSHOP_REFERENCE_CONNECTION_STATE.PERMISSION_DENIED));
 })();
 
-// 18. Independent-review remediation (finding 6, no-token path):
-// losing the access token entirely (e.g. sign-out) between one
-// successful load and the next must also clear cached rows to empty
-// atomically with the state change, not leave the old rows visible.
+// ---------------------------------------------------------------------
+// 18. Authority loss:
+// a replacement state. The auth lifecycle destroys that exact service,
+// which clears its disposable authority-bound cache without notification.
+// ---------------------------------------------------------------------
 (async () => {
   let hasToken = true;
   const client = {
     rpc: async () => ({ status: 200, ok: true, body: [{ id: 't1', name: 'Real Tech', active: true }] })
   };
-  let observedDuringCallback = null;
+  let callbackCount = 0;
   const service = createWorkshopReferenceDataService({
     client,
     getAccessToken: () => (hasToken ? 'tok' : null),
-    onStateChange: (resourceKey) => {
-      if (resourceKey === 'technicians') observedDuringCallback = service.getCachedTechnicians().rows;
-    }
+    onStateChange: () => { callbackCount += 1; }
   });
 
   await service.listTechnicians();
   check('18a first load with a real token succeeds and populates rows', () =>
     assert.strictEqual(service.getCachedTechnicians().rows.length, 1));
 
+  const callbacksBeforeLoss = callbackCount;
   hasToken = false;
-  await service.listTechnicians();
-  check('18b losing the token clears cached rows to empty atomically with the permission_denied state, observed inside onStateChange itself', () =>
-    assert.deepStrictEqual(observedDuringCallback, []));
-  check('18c the state reflects permission_denied after token loss', () =>
-    assert.strictEqual(service.getState('technicians'), WORKSHOP_REFERENCE_CONNECTION_STATE.PERMISSION_DENIED));
+  const staleRows = await service.listTechnicians();
+  check('18b an authority-lost service returns no rows and publishes no replacement state', () => {
+    assert.deepStrictEqual(staleRows, []);
+    assert.strictEqual(callbackCount, callbacksBeforeLoss);
+  });
+  service.destroy();
+  check('18c auth teardown destroys the old service and clears its disposable cache', () =>
+    assert.deepStrictEqual(service.getCachedTechnicians().rows, []));
 })();
 
 // 19. Independent-review remediation (finding 7): updateWorkshopConfiguration()

@@ -27,6 +27,7 @@ code += String.raw`
     id: 'fake-provider-' + index, name, active: true, version: 1, sort_order: index,
   }));
   window.__workshopReferenceDataService = {
+    isAuthorityCurrent: () => true,
     getCachedSubletProviders: () => ({ rows: fakeProviderRows, state: 'connected_editable', error: null }),
     addSubletProvider: (name) => {
       const cleaned = normalizeSubletProviderName(name);

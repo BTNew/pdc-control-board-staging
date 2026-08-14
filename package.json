@@ -83,6 +83,9 @@
     "test_vehicle_lifecycle_actions.js",
     "test_vehicle_lifecycle_authority_ui.js",
     "test_workshop_reference_authority_ui.js",
+    "test_workshop_reference_authority_service.js",
+    "test_workshop_bay_reference_authority.js",
+    "test_staticwebapp_fail_closed_routes.js",
     "test_public_sanitisation.js",
     "test_user_management_authority.js",
     "test_backup_status_authority.js"

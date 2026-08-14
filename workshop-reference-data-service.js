@@ -132,6 +132,9 @@ function createWorkshopReferenceSupabaseClient(config, fetchImpl) {
  *                     (tests inject a fake one; production omits this and a
  *                     real one is built from `config`)
  *   getAccessToken   () => string|null -- current Supabase access token
+ *   getAuthorityIdentity () => string -- current normalized principal/role
+ *                     fingerprint. The service captures this and the token
+ *                     at construction and never adopts replacement authority.
  *   subscribeRealtime(tableName, handlers) -> { unsubscribe() } -- injected
  *                     so this module never touches window.PDC_SUPABASE
  *                     directly (mirrors workshop-data-service.js's
@@ -142,6 +145,9 @@ function createWorkshopReferenceDataService(options) {
   const config = options.config || null;
   const client = options.client || (config ? createWorkshopReferenceSupabaseClient(config) : null);
   const getAccessToken = typeof options.getAccessToken === 'function' ? options.getAccessToken : () => null;
+  const getAuthorityIdentity = typeof options.getAuthorityIdentity === 'function'
+    ? options.getAuthorityIdentity
+    : () => '';
   const subscribeRealtime = typeof options.subscribeRealtime === 'function' ? options.subscribeRealtime : null;
   const onStateChange = typeof options.onStateChange === 'function' ? options.onStateChange : null;
 
@@ -159,12 +165,42 @@ function createWorkshopReferenceDataService(options) {
   // fixes. Only the response matching the most recently STARTED request
   // for a resource is ever allowed to write the cache.
   const loadGeneration = {};
+  const authorityToken = getAccessToken() || null;
+  const authorityIdentity = String(getAuthorityIdentity() || '');
+  let authorityGeneration = 0;
+  let destroyed = false;
+
+  function captureAuthority() {
+    return {
+      token: authorityToken,
+      identity: authorityIdentity,
+      generation: authorityGeneration,
+    };
+  }
+
+  function authorityCurrent(authority) {
+    return Boolean(
+      authority
+      && !destroyed
+      && authority.generation === authorityGeneration
+      && authority.token === authorityToken
+      && authority.identity === authorityIdentity
+      && (getAccessToken() || null) === authorityToken
+      && String(getAuthorityIdentity() || '') === authorityIdentity
+    );
+  }
+
+  function staleAuthorityResult() {
+    return { ok: false, error: 'stale_authority' };
+  }
 
   function setState(resourceKey, state, error) {
+    if (!authorityCurrent(captureAuthority())) return false;
     cache[resourceKey] = cache[resourceKey] || { rows: [], state: WORKSHOP_REFERENCE_CONNECTION_STATE.CONNECTING, error: null };
     cache[resourceKey].state = state;
     cache[resourceKey].error = error || null;
     if (onStateChange) onStateChange(resourceKey, state, error || null);
+    return true;
   }
 
   // Independent-review remediation (finding 6): loadResource()'s
@@ -182,8 +218,10 @@ function createWorkshopReferenceDataService(options) {
   // invariant lives in one place instead of being repeated (and
   // potentially forgotten) at each call site.
   function commitResourceState(resourceKey, rows, state, error) {
+    if (!authorityCurrent(captureAuthority())) return false;
     cache[resourceKey] = { rows, state, error: error || null };
     if (onStateChange) onStateChange(resourceKey, state, error || null);
+    return true;
   }
 
   function classifyRpcFailure(resourceKey, status, body) {
@@ -201,9 +239,10 @@ function createWorkshopReferenceDataService(options) {
     return fallback;
   }
 
-  async function loadResource(resourceKey, includeInactive) {
+  async function loadResource(resourceKey, includeInactive, expectedAuthority = captureAuthority()) {
     const resource = WORKSHOP_REFERENCE_RESOURCES[resourceKey];
     if (!resource) throw new Error(`workshop-reference-data-service: unknown resource '${resourceKey}'`);
+    if (!authorityCurrent(expectedAuthority)) return [];
     if (!client) {
       commitResourceState(resourceKey, [], WORKSHOP_REFERENCE_CONNECTION_STATE.OFFLINE_ERROR, { message: 'no Supabase client configured' });
       return [];
@@ -223,7 +262,7 @@ function createWorkshopReferenceDataService(options) {
     const myGeneration = loadGeneration[resourceKey];
 
     setState(resourceKey, WORKSHOP_REFERENCE_CONNECTION_STATE.CONNECTING);
-    const token = getAccessToken();
+    const token = expectedAuthority.token;
     if (!token) {
       // Never silently fall back to a stale cached list when there is no
       // authenticated session -- report the real state instead. Uses
@@ -236,7 +275,15 @@ function createWorkshopReferenceDataService(options) {
       return [];
     }
 
-    const { status, ok, body } = await client.rpc(token, resource.listRpc, { p_include_inactive: !!includeInactive });
+    let response;
+    try {
+      response = await client.rpc(token, resource.listRpc, { p_include_inactive: !!includeInactive });
+    } catch (error) {
+      if (!authorityCurrent(expectedAuthority)) return [];
+      throw error;
+    }
+    if (!authorityCurrent(expectedAuthority)) return [];
+    const { status, ok, body } = response;
 
     // A newer loadResource() call for this same resource started while
     // this one was in flight -- discard this now-stale response rather
@@ -290,12 +337,22 @@ function createWorkshopReferenceDataService(options) {
   async function mutate(resourceKey, rpcName, params) {
     const resource = WORKSHOP_REFERENCE_RESOURCES[resourceKey];
     if (!resource) throw new Error(`workshop-reference-data-service: unknown resource '${resourceKey}'`);
+    const expectedAuthority = captureAuthority();
+    if (!authorityCurrent(expectedAuthority)) return staleAuthorityResult();
     if (!client) return { ok: false, error: 'no_client' };
 
-    const token = getAccessToken();
+    const token = expectedAuthority.token;
     if (!token) return { ok: false, error: 'not_authenticated' };
 
-    const { status, ok, body } = await client.rpc(token, rpcName, params);
+    let response;
+    try {
+      response = await client.rpc(token, rpcName, params);
+    } catch (error) {
+      if (!authorityCurrent(expectedAuthority)) return staleAuthorityResult();
+      throw error;
+    }
+    if (!authorityCurrent(expectedAuthority)) return staleAuthorityResult();
+    const { status, ok, body } = response;
     if (status === 401 || status === 403 || (body && body.code === '42501')) {
       setState(resourceKey, WORKSHOP_REFERENCE_CONNECTION_STATE.PERMISSION_DENIED, body);
       return { ok: false, error: 'permission_denied', detail: body };
@@ -311,7 +368,8 @@ function createWorkshopReferenceDataService(options) {
     // database state (including the new version number) rather than the
     // caller guessing what changed -- consistent with
     // workshop-data-service.js's resync-after-mutation behaviour.
-    await loadResource(resourceKey, true);
+    await loadResource(resourceKey, true, expectedAuthority);
+    if (!authorityCurrent(expectedAuthority)) return staleAuthorityResult();
     return body || { ok: false, error: 'empty_response' };
   }
 
@@ -322,6 +380,8 @@ function createWorkshopReferenceDataService(options) {
   function subscribeToResource(resourceKey) {
     const resource = WORKSHOP_REFERENCE_RESOURCES[resourceKey];
     if (!resource || !subscribeRealtime) return { unsubscribe: () => {} };
+    const subscriptionAuthority = captureAuthority();
+    if (!authorityCurrent(subscriptionAuthority)) return { unsubscribe: () => {} };
     // Prevent duplicate subscriptions to the same resource -- calling this
     // twice for the same resourceKey reuses the existing subscription
     // rather than opening a second realtime channel.
@@ -334,9 +394,11 @@ function createWorkshopReferenceDataService(options) {
         // rather than trying to patch the cache from the realtime payload
         // alone (the payload does not carry role-filtered visibility, the
         // full re-read via the RPC does).
-        loadResource(resourceKey, true).catch(() => {});
+        if (!authorityCurrent(subscriptionAuthority)) return;
+        loadResource(resourceKey, true, subscriptionAuthority).catch(() => {});
       },
       onStatus: (status) => {
+        if (!authorityCurrent(subscriptionAuthority)) return;
         if (status === 'SUBSCRIBED') {
           // Reconcile immediately after a reconnect: any change made by
           // another session while THIS socket was disconnected produced
@@ -347,7 +409,7 @@ function createWorkshopReferenceDataService(options) {
           // not the very first subscribe, which already gets its initial
           // load from the explicit listX() call made alongside
           // subscribeX() at boot.
-          if (reconnectAttempt > 0) loadResource(resourceKey, true).catch(() => {});
+          if (reconnectAttempt > 0) loadResource(resourceKey, true, subscriptionAuthority).catch(() => {});
           reconnectAttempt = 0;
           return;
         }
@@ -368,6 +430,15 @@ function createWorkshopReferenceDataService(options) {
     });
   }
 
+  function destroy() {
+    if (destroyed) return;
+    destroyed = true;
+    authorityGeneration += 1;
+    unsubscribeAll();
+    Object.keys(loadGeneration).forEach(key => { loadGeneration[key] = (loadGeneration[key] || 0) + 1; });
+    Object.keys(cache).forEach(key => { delete cache[key]; });
+  }
+
   // workshop_settings is not a list/add/edit resource like the four
   // above -- it is a fixed set of named settings read/written as a
   // whole object via get/update RPCs (see getWorkshopConfiguration /
@@ -378,20 +449,29 @@ function createWorkshopReferenceDataService(options) {
   // as the four list-shaped resources, just keyed under
   // 'workshopSettings' with a plain object payload instead of rows.
   const SETTINGS_RESOURCE_KEY = 'workshopSettings';
-  async function loadWorkshopConfiguration() {
+  async function loadWorkshopConfiguration(expectedAuthority = captureAuthority()) {
+    if (!authorityCurrent(expectedAuthority)) return {};
     if (!client) {
       commitResourceState(SETTINGS_RESOURCE_KEY, {}, WORKSHOP_REFERENCE_CONNECTION_STATE.OFFLINE_ERROR, { message: 'no Supabase client configured' });
       return {};
     }
     loadGeneration[SETTINGS_RESOURCE_KEY] = (loadGeneration[SETTINGS_RESOURCE_KEY] || 0) + 1;
     const myGeneration = loadGeneration[SETTINGS_RESOURCE_KEY];
-    const token = getAccessToken();
+    const token = expectedAuthority.token;
     if (!token) {
       if (loadGeneration[SETTINGS_RESOURCE_KEY] !== myGeneration) return cache[SETTINGS_RESOURCE_KEY]?.rows || {};
       commitResourceState(SETTINGS_RESOURCE_KEY, {}, WORKSHOP_REFERENCE_CONNECTION_STATE.PERMISSION_DENIED, { message: 'not authenticated' });
       return {};
     }
-    const { status, ok, body } = await client.rpc(token, 'get_workshop_configuration', {});
+    let response;
+    try {
+      response = await client.rpc(token, 'get_workshop_configuration', {});
+    } catch (error) {
+      if (!authorityCurrent(expectedAuthority)) return {};
+      throw error;
+    }
+    if (!authorityCurrent(expectedAuthority)) return {};
+    const { status, ok, body } = response;
     if (loadGeneration[SETTINGS_RESOURCE_KEY] !== myGeneration) return cache[SETTINGS_RESOURCE_KEY]?.rows || {};
     if (!ok || typeof body !== 'object' || body === null) {
       // Finding 6: commit the (empty) configuration and the failure
@@ -413,13 +493,19 @@ function createWorkshopReferenceDataService(options) {
 
   function subscribeWorkshopSettings() {
     if (!subscribeRealtime) return { unsubscribe: () => {} };
+    const subscriptionAuthority = captureAuthority();
+    if (!authorityCurrent(subscriptionAuthority)) return { unsubscribe: () => {} };
     if (realtimeSubscriptions[SETTINGS_RESOURCE_KEY]) return realtimeSubscriptions[SETTINGS_RESOURCE_KEY];
     let reconnectAttempt = 0;
     const subscription = subscribeRealtime('workshop_settings', {
-      onChange: () => { loadWorkshopConfiguration().catch(() => {}); },
+      onChange: () => {
+        if (!authorityCurrent(subscriptionAuthority)) return;
+        loadWorkshopConfiguration(subscriptionAuthority).catch(() => {});
+      },
       onStatus: (status) => {
+        if (!authorityCurrent(subscriptionAuthority)) return;
         if (status === 'SUBSCRIBED') {
-          if (reconnectAttempt > 0) loadWorkshopConfiguration().catch(() => {});
+          if (reconnectAttempt > 0) loadWorkshopConfiguration(subscriptionAuthority).catch(() => {});
           reconnectAttempt = 0;
           return;
         }
@@ -509,13 +595,16 @@ function createWorkshopReferenceDataService(options) {
     // shape as the four above -- it is a fixed set of named settings, read
     // and written as a whole object via get/update RPCs).
     getWorkshopConfiguration: async () => {
+      const expectedAuthority = captureAuthority();
+      if (!authorityCurrent(expectedAuthority)) return { ...staleAuthorityResult(), configuration: {} };
       // Independent-review remediation (finding 7): must report
       // failure honestly. Previously this always returned
       // { ok: true, configuration } even when loadWorkshopConfiguration()
       // failed internally (offline/permission_denied) and returned {}
       // -- callers had no way to distinguish "empty because there are
       // genuinely no settings" from "empty because the load failed".
-      const configuration = await loadWorkshopConfiguration();
+      const configuration = await loadWorkshopConfiguration(expectedAuthority);
+      if (!authorityCurrent(expectedAuthority)) return { ...staleAuthorityResult(), configuration: {} };
       const stateAfter = getCached(SETTINGS_RESOURCE_KEY).state;
       const failed = stateAfter === WORKSHOP_REFERENCE_CONNECTION_STATE.OFFLINE_ERROR
         || stateAfter === WORKSHOP_REFERENCE_CONNECTION_STATE.PERMISSION_DENIED;
@@ -527,12 +616,22 @@ function createWorkshopReferenceDataService(options) {
     getCachedWorkshopConfiguration: () => getCached(SETTINGS_RESOURCE_KEY),
     subscribeWorkshopSettings,
     updateWorkshopConfiguration: async (key, expectedVersion, value) => {
+      const expectedAuthority = captureAuthority();
+      if (!authorityCurrent(expectedAuthority)) return staleAuthorityResult();
       if (!client) return { ok: false, error: 'no_client' };
-      const token = getAccessToken();
+      const token = expectedAuthority.token;
       if (!token) return { ok: false, error: 'not_authenticated' };
-      const { status, ok, body } = await client.rpc(token, 'update_workshop_configuration', {
-        p_key: key, p_expected_version: expectedVersion, p_value: value
-      });
+      let response;
+      try {
+        response = await client.rpc(token, 'update_workshop_configuration', {
+          p_key: key, p_expected_version: expectedVersion, p_value: value
+        });
+      } catch (error) {
+        if (!authorityCurrent(expectedAuthority)) return staleAuthorityResult();
+        throw error;
+      }
+      if (!authorityCurrent(expectedAuthority)) return staleAuthorityResult();
+      const { status, ok, body } = response;
       if (status === 401 || status === 403 || (body && body.code === '42501')) return { ok: false, error: 'permission_denied', detail: body };
       if (!ok) return { ok: false, error: rpcFailureCode(body), detail: body };
       // Independent-review remediation (finding 7): every OTHER
@@ -548,13 +647,16 @@ function createWorkshopReferenceDataService(options) {
       // Reload immediately after a successful write, same as every
       // other resource.
       if (body && body.ok === true) {
-        await loadWorkshopConfiguration();
+        await loadWorkshopConfiguration(expectedAuthority);
+        if (!authorityCurrent(expectedAuthority)) return staleAuthorityResult();
       }
       return body || { ok: false, error: 'empty_response' };
     },
 
     // Lifecycle
     unsubscribeAll,
+    destroy,
+    isAuthorityCurrent: () => authorityCurrent(captureAuthority()),
     getState: (resourceKey) => getCached(resourceKey).state,
     getError: (resourceKey) => getCached(resourceKey).error
   };
