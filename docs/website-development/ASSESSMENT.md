@@ -139,3 +139,17 @@ Gaps:
 - No live two-user acceptance was run.
 - No application behavior was changed.
 - Chrome fixture evidence does not prove WebKit/Safari or Firefox compatibility.
+
+## QC mobile reliability reassessment — 2026-08-15
+
+Fresh source and isolated Chrome review confirmed that the final CSS cascade still forced the 1,486px desktop production grid through 1024px. It also confirmed that QC/Ready-for-QC controls had no browser-side busy latch, station groups were not named per vehicle, QC-save/label-print failure copy did not distinguish the committed lifecycle result, and the Vehicle Details dialog lacked focus containment, background inertness and focus return.
+
+Implemented frontend-only corrections preserve the existing lifecycle functions, payloads, role checks and action labels:
+
+- Vehicle Locations renders contained task cards through 1100px; Key/Stock/JC/Customer, vehicle, all station states, age/status and actions remain in the existing DOM order. Station names are visible without hover and primary controls are at least 44px high.
+- Desktop rows retain the aligned matrix; the action track is sticky so QC remains reachable without horizontal panning.
+- Ready for QC and QC sign-off buttons disable synchronously, expose `aria-busy`, and use a stable vehicle-plus-action in-flight key so a board/Realtime rerender cannot dispatch the same action twice.
+- A failed post-save QC label now says explicitly that QC was saved and the vehicle is RFT. Retry-label policy remains blocked by CD-004.
+- Vehicle Details now traps Tab/Shift+Tab, closes with Escape, makes `#app-shell` inert and returns focus to the exact opener during ordinary frontend operation. A protected auth-refresh path can remove modal-owned inertness while the dialog remains open; BCR-001 records the required Hermes-owned coordination and this tranche does not claim that race is closed.
+
+Remaining product-dependent findings were not guessed: identifier source truncation still requires CD-002/CD-007; native sign-off confirmation requires CD-003; label retry/acknowledgement requires CD-004; quick-action policy requires CD-010. Loading/error/offline/freshness copy and live two-user convergence were reviewed but not altered because the required shared-state semantics remain outside this frontend-only tranche.

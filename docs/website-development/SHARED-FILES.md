@@ -7,7 +7,18 @@
 | `AGENTS.md` | Repository instruction | Added Website Development Lead and Hermes security boundary because no repository-local AGENTS.md existed. | Do not broaden into release/security instructions without Hermes. |
 | `docs/website-development/*` | Website management | Added durable assessment/control record. | Website Development Lead owned. |
 
-No application, authentication, Supabase, migration, Realtime authority, workflow, artifact, header, production or deployment file was modified.
+During the initial assessment, no application, authentication, Supabase, migration, Realtime authority, workflow, artifact, header, production or deployment file was modified. The later QC reliability tranche modifies only the application/frontend files registered below.
+
+## QC reliability tranche
+
+| File | Backlog / stream | Exact surface | Tests / coordination |
+|---|---|---|---|
+| `app.js` | WD-001/003/005, QC mobile + general dialog | `incomingWorkChecklistHtml`, Vehicle Locations QC event bindings, `runVehicleLifecycleButtonAction`, `printQualityControlSignoffLabel`, `printRawZpl`, Vehicle Details modal open/close/focus helpers | Existing lifecycle functions, role gates and payloads unchanged. Covered by QC contracts, modal contracts and isolated browser runner. |
+| `styles.css` | WD-001/005, QC mobile | Final `QC mobile reliability` cascade for `#incoming-main-board`; desktop sticky action track | Scoped away from workshop planner/workflow. Six Chrome widths. |
+| `test_qc_mobile_frontend_reliability.js` | WD-001/005 | Deterministic source/CSS regression | Auto-discovered by `test_all.js`; no package change. |
+| `test_vehicle_modal_accessibility.js` | WD-003 | Deterministic dialog lifecycle regression | Auto-discovered by `test_all.js`; no package change. |
+| `browser_qc_mobile_reliability.js` | WD-004 | Local synthetic Chrome viewport/keyboard/rerender/print/resource runner | Manual safe runner; portable Playwright/Chrome discovery, binds 127.0.0.1 and installs the same fail-closed non-local blocker on every page before navigation. |
+| `docs/website-development/*` | Management | Assessment, backlog, status, test matrix, risks, integration, shared files and Craig decisions | Website Lead owned. |
 
 ## High-contention files inspected but not modified
 

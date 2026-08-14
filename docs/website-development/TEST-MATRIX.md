@@ -15,7 +15,21 @@
 
 No staging/performance/deployed scripts requiring credentials, database mutation or live access were run.
 
-Tests added in this assessment: none. This was a documentation-only baseline; WD-004 records the required browser-harness work before behavior implementation.
+## QC reliability results — 2026-08-15
+
+| Command / check | Result | Evidence |
+|---|---|---|
+| `node test_qc_mobile_frontend_reliability.js` | PASS | Responsive cascade, action latch, accessible station naming and print-result contracts. RED was observed before implementation. |
+| `node test_vehicle_modal_accessibility.js` | PASS | Focus trap, inert background, hidden-close guard and focus return contracts. RED was observed before implementation. |
+| `node test_vehicle_locations_pit_qc_flow.js` | PASS | Existing PIT/QC lifecycle interface unchanged. |
+| `node test_control_board_qc_parts_refinement.js` | PASS | Existing Ready-for-QC/QC label/source contracts unchanged. |
+| `node browser_qc_mobile_reliability.js` | PASS | Local Chrome at 360x800, 390x844, 768x1024, 820x1180, 1024x768 and 1440x900. Every page installs the fail-closed non-local blocker before navigation. Zero body overflow, console/page/resource errors and external requests. Mobile/tablet card/list overflow 0; action 44px; keyboard disclosure/dialog flow, direct Auditor opener, rerender-during-action and truthful print failure passed; rapid calls 1. |
+| `npm test` | PASS | 219 passed, 0 failed, 1 intentionally skipped. |
+| `npm run check` | PASS | Syntax gate plus the same 219 passed, 0 failed, 1 intentionally skipped. |
+
+The browser runner uses a local synthetic QC vehicle, blocks every non-local request and does not initialize credentials or a shared mutation service. It proves ordinary local rendering and frontend interaction guards, not live operator/admin/viewer authority or database outcomes. Portrait was covered at 360/390/768/820; landscape at 1024; desktop at 1440. Firefox, WebKit/Safari, Edge-specific behavior, offline/reconnect/stale ordering and two isolated users remain unproven in this tranche.
+
+Tests added in the initial assessment: none; that baseline was documentation-only. The later QC reliability tranche adds `test_qc_mobile_frontend_reliability.js`, `test_vehicle_modal_accessibility.js` and the manual `browser_qc_mobile_reliability.js` runner described above.
 
 ## Required matrix for every website behavior change
 

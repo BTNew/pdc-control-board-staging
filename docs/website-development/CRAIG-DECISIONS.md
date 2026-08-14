@@ -16,3 +16,16 @@ Record the chosen option and date in this file before implementation. These ques
 | CD-010 | Quick actions vs detail-first safety | Identify which QC/workshop actions may appear directly on cards and which must open a review/detail step. | Balances speed, accidental taps and audit context. | Required |
 
 No decision in this file authorizes backend, staging, production or release changes. Those still require Hermes review and separate Craig authorization where applicable.
+
+## Numbered options and recommendations
+
+1. **CD-001 — QC phone entry:** (A) dedicated QC queue; (B) filtered Vehicle Locations QC bucket; (C) scan/search-first. **Recommendation: B** now, because it preserves the authorised route and the corrected responsive card; consider C only with a confirmed scanning workflow.
+2. **CD-002 — identifier priority:** (A) Key → Stock → JC → Customer; (B) Stock → Key → JC → Customer; (C) role-selectable. Confirm which values may truncate and where VIN/rego/model belong. **Recommendation: A**, matching the current operational order, with no truncation of Key/Stock/JC.
+3. **CD-003 — QC confirmation:** (A) keep native confirm; (B) in-app review showing identity/operator/result; (C) in-app checklist/reason. **Recommendation: B** unless policy requires a checklist/reason.
+4. **CD-004 — print failure after saved QC:** (A) leave RFT and show Retry label; (B) leave RFT and require acknowledgement; (C) another controlled process. **Recommendation: A**; never imply QC rollback. Current UI only reports the saved/RFT result accurately.
+5. **CD-005 — workshop phone default:** (A) list-first; (B) timeline-first; (C) remember user choice. **Recommendation: A**, with timeline as a secondary view.
+6. **CD-006 — completed history:** (A) collapsible in planner; (B) separate history view; (C) always inline. **Recommendation: A** for discoverability without permanent density.
+7. **CD-007 — pill density:** (A) comfortable; (B) compact; (C) user toggle. Confirm abbreviations and inline work states. **Recommendation: A** on phones and B on desktop only after collision tests.
+8. **CD-008 — support matrix:** (A) current Chrome/Edge only; (B) add current iOS Safari; (C) add Firefox and WebKit desktop/mobile. **Recommendation: C**, with a confirmed 360px minimum and the named 768/820/1024 tablet targets.
+9. **CD-009 — freshness wording:** (A) “Last confirmed [time] — read only”; (B) revision plus time; (C) simple Offline/Reconnecting. **Recommendation: A**, plus one approved instruction for staff while stale.
+10. **CD-010 — action placement:** (A) QC sign-off directly on card; (B) all lifecycle actions detail-first; (C) Ready for QC direct, sign-off detail-first. **Recommendation: C** to balance speed and accountability.

@@ -3185,6 +3185,9 @@ function bindNav() {
   on($('#approve-all'), 'click', approveCleanMatches);
   on($('#modal-close'), 'click', closeVehicleModal);
   on($('#vehicle-modal'), 'click', (e) => { if (e.target.id === 'vehicle-modal') closeVehicleModal(); });
+  on($('#vehicle-modal'), 'focusin', syncVehicleModalFocusLifecycle);
+  on($('#vehicle-modal'), 'dragstart', suspendVehicleModalBackgroundForDrag);
+  on($('#vehicle-modal'), 'dragend', restoreVehicleModalBackgroundAfterDrag);
   on($('#add-customer-open'), 'click', openCustomerModal);
   on($('#add-customer-top'), 'click', openCustomerModal);
   on($('#add-customer-customers'), 'click', openCustomerModal);
@@ -3193,6 +3196,7 @@ function bindNav() {
   on($('#customer-modal'), 'click', (e) => { if (e.target.id === 'customer-modal') closeCustomerModal(); });
   on($('#new-customer-form'), 'submit', addCustomerFromForm);
   document.addEventListener('keydown', (e) => {
+    trapVehicleModalFocus(e);
     if (e.key === 'Escape') { closeVehicleModal(); closeCustomerModal(); }
   });
 }
@@ -5539,7 +5543,11 @@ function qualityControlSignoffLabelZpl(vehicle = {}, operator = '', signedAt = '
 }
 
 async function printQualityControlSignoffLabel(vehicle = {}, operator = '', signedAt = '') {
-  return printRawZpl(qualityControlSignoffLabelZpl(vehicle, operator, signedAt), 'QC sign-off label');
+  return printRawZpl(
+    qualityControlSignoffLabelZpl(vehicle, operator, signedAt),
+    'QC sign-off label',
+    'QC was saved and the vehicle is RFT, but the windscreen label did not print.',
+  );
 }
 
 function qualityControlVehicleHtml(vehicle = {}) {
@@ -6477,13 +6485,14 @@ function vehicleWorkshopBookingProjection(vehicle = {}, options = {}) {
 
 function incomingWorkChecklistHtml(vehicle = {}, options = {}) {
   const key = vehicleKey(vehicle);
+  const stock = displayStockNumber(vehicle) || key || 'vehicle';
   const currentStage = normalizePmbStage(inferredPmbStage(vehicle));
   const bookingProjection = options.bookingProjection || vehicleWorkshopBookingProjection(vehicle);
   const bookingWarning = bookingProjection.bookingRequired;
   const stoppedBookings = new Map((bookingProjection.activeBookings || [])
     .filter(entry => String(entry?.status || '').toLowerCase() === 'stoppage')
     .map(entry => [normalizePmbStage(entry.stage), entry]));
-  return `<div class="incoming-work-checks pdc-station-strip" data-workshop-booking-required="${bookingWarning ? 'true' : 'false'}" aria-label="Required work stations${bookingWarning ? '; workshop booking incomplete' : ''}"${bookingWarning ? ' title="One or more required PMB workshop departments are not booked"' : ''}>${pdcJobDefsPartsFirst().map(def => {
+  return `<div class="incoming-work-checks pdc-station-strip" data-workshop-booking-required="${bookingWarning ? 'true' : 'false'}" aria-label="Required work stations for ${escapeHtml(stock)}${bookingWarning ? '; workshop booking incomplete' : ''}"${bookingWarning ? ' title="One or more required PMB workshop departments are not booked"' : ''}>${pdcJobDefsPartsFirst().map(def => {
     const required = pdcJobRequired(vehicle, def);
     const complete = pdcJobComplete(vehicle, def);
     const stage = pmbStageForPdcJob(def);
@@ -6665,11 +6674,11 @@ function renderIncomingDashboardBoard() {
   }));
   $$('[data-ready-for-qc]', host).forEach(button => button.addEventListener('click', event => {
     event.stopPropagation();
-    markVehicleReadyForQualityControl(button.dataset.readyForQc);
+    void runVehicleLifecycleButtonAction(button, () => markVehicleReadyForQualityControl(button.dataset.readyForQc));
   }));
   $$('[data-qc-signoff-rft]', host).forEach(button => button.addEventListener('click', event => {
     event.stopPropagation();
-    completeVehicleQualityControl(button.dataset.qcSignoffRft);
+    void runVehicleLifecycleButtonAction(button, () => completeVehicleQualityControl(button.dataset.qcSignoffRft));
   }));
   $$('[data-transfer-rft-stock]', host).forEach(button => button.addEventListener('click', event => {
     event.stopPropagation();
@@ -6689,6 +6698,32 @@ function renderIncomingDashboardBoard() {
   revealSingleVehicleSearchResult(host, filteredRows, filters.search, 'incoming');
   updateInlineSelectionBars(filteredRows);
   updateCollapseToggleButtons();
+}
+
+const vehicleLifecycleActionsInFlight = new Set();
+
+function vehicleLifecycleButtonActionKey(button) {
+  const readyForQc = String(button?.dataset?.readyForQc || '').trim();
+  if (readyForQc) return `ready-for-qc:${readyForQc}`;
+  const qcSignoffRft = String(button?.dataset?.qcSignoffRft || '').trim();
+  return qcSignoffRft ? `qc-signoff-rft:${qcSignoffRft}` : '';
+}
+
+async function runVehicleLifecycleButtonAction(button, action) {
+  const actionKey = vehicleLifecycleButtonActionKey(button);
+  if (!button || typeof action !== 'function' || button.disabled || !actionKey || vehicleLifecycleActionsInFlight.has(actionKey)) return false;
+  vehicleLifecycleActionsInFlight.add(actionKey);
+  button.disabled = true;
+  button.setAttribute('aria-busy', 'true');
+  try {
+    return await action();
+  } finally {
+    vehicleLifecycleActionsInFlight.delete(actionKey);
+    if (button.isConnected) {
+      button.disabled = false;
+      button.removeAttribute('aria-busy');
+    }
+  }
 }
 
 function bindIncomingCardSelection(host = document) {
@@ -10535,11 +10570,11 @@ async function findZebraPrinterName() {
   throw new Error(`Zebra printer not found. Expected BT-Zebra-EricComp, dc-01\\BT-Zebra-EricComp or 192.168.0.164. Available printers: ${list.join(', ') || 'none'}`);
 }
 
-async function printRawZpl(zpl, sourceLabel = 'labels') {
+async function printRawZpl(zpl, sourceLabel = 'labels', failureContext = '') {
   const clean = String(zpl || '').trim();
   if (!clean) {
     window.alert('No ZPL labels to print. Generate labels first.');
-    return;
+    return { ok: false, error: 'No ZPL labels to print.' };
   }
   const printButtons = $$('[data-print-selected-zpl]').concat([$('#zpl-print')].filter(Boolean));
   printButtons.forEach(button => { button.disabled = true; });
@@ -10555,9 +10590,12 @@ async function printRawZpl(zpl, sourceLabel = 'labels') {
     const summary = $('#zpl-summary');
     if (summary) summary.insertAdjacentHTML('afterbegin', `<div class="zpl-selected-notice qz-print-ok"><strong>Printed</strong><span>${escapeHtml(message)}</span></div>`);
     else window.alert(message);
+    return { ok: true, printerName, message };
   } catch (error) {
     const message = error?.message || String(error || 'QZ Tray print failed.');
-    window.alert(`Could not print to Zebra via QZ Tray.\n\n${message}\n\nQZ Tray must be running, and you may need to approve this website in QZ Tray.`);
+    const prefix = String(failureContext || 'Could not print to Zebra via QZ Tray.').trim();
+    window.alert(`${prefix}\n\n${message}\n\nQZ Tray must be running, and you may need to approve this website in QZ Tray.`);
+    return { ok: false, error: message };
   } finally {
     updateBulkSelectionPanel(sortRows(filteredVehicles()));
     const output = $('#zpl-output');
@@ -12008,12 +12046,76 @@ async function openVehicleWorkBookingsFromTile(tile) {
   return true;
 }
 
+let vehicleModalReturnFocus = null;
+let vehicleModalAppShellWasInert = null;
+
+function vehicleModalFocusableElements(modal = $('#vehicle-modal')) {
+  if (!modal || modal.hidden) return [];
+  return $$('button:not([disabled]), a[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])', modal)
+    .filter(element => !element.hidden && element.getAttribute('aria-hidden') !== 'true' && element.getClientRects().length > 0);
+}
+
+function trapVehicleModalFocus(event) {
+  if (!event || event.key !== 'Tab') return;
+  const modal = $('#vehicle-modal');
+  if (!modal || modal.hidden) return;
+  const focusable = vehicleModalFocusableElements(modal);
+  if (!focusable.length) {
+    event.preventDefault();
+    return;
+  }
+  const first = focusable[0];
+  const last = focusable[focusable.length - 1];
+  if (event.shiftKey && (document.activeElement === first || !modal.contains(document.activeElement))) {
+    event.preventDefault();
+    last.focus();
+  } else if (!event.shiftKey && (document.activeElement === last || !modal.contains(document.activeElement))) {
+    event.preventDefault();
+    first.focus();
+  }
+}
+
+function syncVehicleModalFocusLifecycle(event) {
+  const modal = $('#vehicle-modal');
+  if (!modal || modal.hidden || vehicleModalReturnFocus) return;
+  const trigger = event?.relatedTarget;
+  vehicleModalReturnFocus = trigger && typeof trigger.focus === 'function' ? trigger : document.body;
+  const shell = $('#app-shell');
+  vehicleModalAppShellWasInert = Boolean(shell?.hasAttribute('inert'));
+  shell?.setAttribute('inert', '');
+  document.body.classList.add('modal-open');
+}
+
+function suspendVehicleModalBackgroundForDrag() {
+  const modal = $('#vehicle-modal');
+  const shell = $('#app-shell');
+  if (!modal?.classList.contains('vehicle-workshop-drag-handoff')) return;
+  if (vehicleModalAppShellWasInert === false && shell?.getAttribute('aria-hidden') !== 'true') shell?.removeAttribute('inert');
+}
+
+function restoreVehicleModalBackgroundAfterDrag() {
+  const modal = $('#vehicle-modal');
+  if (modal && !modal.hidden) $('#app-shell')?.setAttribute('inert', '');
+}
+
+function activateVehicleModal(modal, trigger = null) {
+  const shell = $('#app-shell');
+  if (modal.hidden) {
+    vehicleModalReturnFocus = trigger && typeof trigger.focus === 'function' ? trigger : document.activeElement;
+    vehicleModalAppShellWasInert = Boolean(shell?.hasAttribute('inert'));
+  }
+  modal.hidden = false;
+  shell?.setAttribute('inert', '');
+  document.body.classList.add('modal-open');
+  $('#modal-close')?.focus();
+}
+
 async function openVehicleCardFromVisibleBoard(stock, trigger = null) {
   const key = String(stock || '').trim();
   if (!key) return false;
   const vehicle = selectedVehicle(key);
   if (vehicle && vehicleLocationActionAllowed(vehicle, 'open')) {
-    openVehicleModal(key);
+    openVehicleModal(key, trigger);
     return true;
   }
   if (!sharedNavisionVisibilityConfigured()) return false;
@@ -12029,7 +12131,7 @@ async function openVehicleCardFromVisibleBoard(stock, trigger = null) {
       window.alert('Vehicle details are still syncing. Please click the stock number again in a moment.');
       return false;
     }
-    openVehicleModal(key);
+    openVehicleModal(key, trigger);
     return true;
   } finally {
     trigger?.classList.remove('is-loading');
@@ -12037,7 +12139,7 @@ async function openVehicleCardFromVisibleBoard(stock, trigger = null) {
   }
 }
 
-function openVehicleModal(stock) {
+function openVehicleModal(stock, trigger = document.activeElement) {
   const vehicle = selectedVehicle(stock);
   if (!vehicle) {
     window.alert('That vehicle could not be found. Refresh the list and try again. No vehicle was changed.');
@@ -12052,9 +12154,7 @@ function openVehicleModal(stock) {
   renderDetail();
   const modal = $('#vehicle-modal');
   if (!modal) return;
-  modal.hidden = false;
-  document.body.classList.add('modal-open');
-  $('#modal-close')?.focus();
+  activateVehicleModal(modal, trigger);
   return true;
 }
 
@@ -12081,20 +12181,23 @@ function openAuthenticatedOperationWorkshop(stock) {
   renderDetail();
   const modal = $('#vehicle-modal');
   if (!modal) return false;
-  modal.hidden = false;
-  document.body.classList.add('modal-open');
+  activateVehicleModal(modal, document.activeElement);
   loadVehicleWorkshopDetail(vehicle, { force: true });
-  $('#modal-close')?.focus();
   return true;
 }
 
 function closeVehicleModal() {
   const modal = $('#vehicle-modal');
+  if (!modal || modal.hidden) return;
   app.vehicleWorkshopDetailRequestGeneration += 1;
   app.vehicleDetailPage = 'details';
-  if (!modal) return;
   modal.hidden = true;
+  const shell = $('#app-shell');
+  if (vehicleModalAppShellWasInert === false && shell?.getAttribute('aria-hidden') !== 'true') shell?.removeAttribute('inert');
   document.body.classList.remove('modal-open');
+  if (vehicleModalReturnFocus?.isConnected && typeof vehicleModalReturnFocus.focus === 'function') vehicleModalReturnFocus?.focus();
+  vehicleModalReturnFocus = null;
+  vehicleModalAppShellWasInert = null;
 }
 
 async function removeVehicle(stock, { resetTest = false } = {}) {

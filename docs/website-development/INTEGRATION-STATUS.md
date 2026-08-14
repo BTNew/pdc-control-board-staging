@@ -18,12 +18,20 @@
 
 | Area | State | Notes |
 |---|---|---|
-| QC mobile | Assessed; implementation not started | Product decisions required. Existing lifecycle interface inspected only. |
+| QC mobile | Frontend reliability implemented locally | Parent `015aa0a`; existing lifecycle functions/payloads unchanged. Final IA/copy decisions remain blocked. |
 | Workshop schedule | Assessed; implementation not started | Existing shared service/Realtime contracts inspected only. |
 | Work & Bookings | Assessed; implementation not started | Existing narrow detail/mutation interfaces inspected only. |
 | Vehicle identifiers | Assessed; implementation not started | Frontend projection identified. |
-| General responsive/accessibility | Assessed; implementation not started | Frontend-only candidates recorded. |
-| Test harness | Current suite run; expanded matrix not implemented | Local fixture design remains frontend-owned. |
+| General responsive/accessibility | Vehicle Details ordinary lifecycle implemented | Focus trap/inert/return while auth state is unchanged; BCR-001 blocks the protected auth-refresh inert-ownership race. Remaining overlays not changed. |
+| Test harness | QC fixture runner implemented | Six Chrome viewports, keyboard, rerender-safe rapid action, print failure, resource/console/no-external checks; full matrix remains. |
+
+## Current boundary verification
+
+- Website work is based on assessment parent `015aa0a0ef3c5d26ee4310959a749d5c24957f78`, whose approved security ancestor is `2f89fa5e93425ec22babf01065889d0611c6d817` / tree `17cc47a4edbcc7bc7ceb422ce170e5ca070508a3`.
+- No later Hermes security SHA or backend contract was integrated.
+- Modified application surfaces are limited to `app.js` rendering/interaction/print presentation and the final `styles.css` responsive cascade, plus frontend tests/docs.
+- No Supabase/config/auth, migrations/SQL, backend, Realtime authority, workflow, package inventory, artifact, release, deployment, staging or production file was edited.
+- BCR-001 is pending Hermes review because `pdc-auth.js` can remove `#app-shell` inertness during auth refresh while Vehicle Details remains open. The protected file was not edited and no universal auth-transition isolation claim is made.
 
 ## Gate before future integration
 
