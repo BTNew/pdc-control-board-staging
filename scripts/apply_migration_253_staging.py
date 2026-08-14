@@ -9,14 +9,15 @@ if not sys.flags.isolated:
 
 import argparse
 import hashlib
-import importlib.util
 import json
 import os
 import re
 import subprocess
+import types
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+ALLOWED_IGNORED_PATHS = {"_staging_test_tools/.env"}
 
 EXPECTED_REF = "cdsmnqxtyyoeoznmbidd"
 MIGRATION_PATH = "supabase/staging_only/253_ai_auditor_typed_operation_control.sql"
@@ -58,13 +59,30 @@ def exact_blob(commit: str, path: str) -> bytes:
     return git("show", f"{commit}:{path}")
 
 
-def load_repo_helper(module_name: str, relative_path: str):
+def ignored_residue() -> list[str]:
+    lines = git("status", "--porcelain=v1", "--untracked-files=all", "--ignored=matching").decode().splitlines()
+    blocked = []
+    for line in lines:
+        if not line.startswith("!! "):
+            continue
+        rel = line[3:].replace("\\", "/").rstrip("/")
+        if rel not in ALLOWED_IGNORED_PATHS:
+            blocked.append(rel)
+    return blocked
+
+
+def load_exact_repo_helper(commit: str, module_name: str, relative_path: str):
     target = ROOT / relative_path
-    spec = importlib.util.spec_from_file_location(module_name, target)
-    if not spec or not spec.loader:
-        raise RuntimeError(f"unable to load repository helper: {relative_path}")
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
+    if target.is_symlink() or not target.is_file():
+        raise RuntimeError(f"repository helper must be a regular non-symlink file: {relative_path}")
+    expected = exact_blob(commit, relative_path)
+    actual = target.read_bytes()
+    if actual != expected:
+        raise RuntimeError(f"repository helper bytes do not match exact reviewed commit: {relative_path}")
+    module = types.ModuleType(module_name)
+    module.__file__ = str(target)
+    module.__package__ = ""
+    exec(compile(expected, str(target), "exec"), module.__dict__)
     return module
 
 
@@ -226,9 +244,10 @@ def main() -> int:
     head = git("rev-parse", "HEAD").decode().strip()
     worktree_residue = git("status", "--porcelain=v1", "--untracked-files=all").decode().strip()
     staged_dirty = git("diff", "--cached", "--name-only").decode().strip()
-    if resolved != args.expected_commit or head != args.expected_commit or worktree_residue or staged_dirty:
+    ignored_dirty = ignored_residue()
+    if resolved != args.expected_commit or head != args.expected_commit or worktree_residue or staged_dirty or ignored_dirty:
         raise RuntimeError("exact reviewed commit/pristine worktree required")
-    runtime = load_repo_helper("pdc_staging_runtime_exact_253", "scripts/pdc_staging_runtime.py")
+    runtime = load_exact_repo_helper(args.expected_commit, "pdc_staging_runtime_exact_253", "scripts/pdc_staging_runtime.py")
     assert_staging_target = runtime.assert_staging_target
     load_local_env = runtime.load_local_env
     staging_tls_kwargs = runtime.staging_tls_kwargs
