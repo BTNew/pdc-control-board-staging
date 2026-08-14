@@ -206,3 +206,70 @@ function fakeClient(responder) {
   assert.ok(fallback && fallback.length > 10, '7d unknown codes get a safe generic fallback message');
   console.log('PASS 7: every documented error code and the unmapped fallback produce clear, non-technical messages');
 }
+
+// 8. Delayed RPC completions are bound to the exact access token and
+// principal/role authority that dispatched them. A server success after
+// sign-out, token replacement, principal replacement, or role demotion must
+// be returned as a stale-authority failure rather than published as success.
+(async () => {
+  function deferred() {
+    let resolve;
+    let reject;
+    const promise = new Promise((done, fail) => { resolve = done; reject = fail; });
+    return { promise, resolve, reject };
+  }
+
+  let token = 'tok-a';
+  let authority = { userId: 'operator-a', role: 'Technician' };
+  let response = deferred();
+  const calls = [];
+  const client = {
+    async rpc(capturedToken, name, params) {
+      calls.push({ capturedToken, name, params });
+      return response.promise;
+    },
+  };
+  const bridge = buildVehicleLifecycleSharedActions(client, () => token, () => authority);
+
+  const signedOut = bridge.markReadyForQc({ vehicleId: 'v-auth-1', expectedVersion: 1 });
+  token = null;
+  authority = null;
+  response.resolve({ status: 200, ok: true, body: { ok: true, vehicle: { id: 'v-auth-1' } } });
+  assert.deepStrictEqual(await signedOut, { ok: false, error: 'stale_authority' }, '8a sign-out suppresses delayed success');
+
+  token = 'tok-b';
+  authority = { userId: 'operator-a', role: 'Technician' };
+  response = deferred();
+  const tokenReplacement = bridge.markReadyForQc({ vehicleId: 'v-auth-2', expectedVersion: 2 });
+  token = 'tok-c';
+  response.resolve({ status: 200, ok: true, body: { ok: true } });
+  assert.deepStrictEqual(await tokenReplacement, { ok: false, error: 'stale_authority' }, '8b same-principal token replacement suppresses delayed success');
+
+  response = deferred();
+  const principalReplacement = bridge.markReadyForQc({ vehicleId: 'v-auth-3', expectedVersion: 3 });
+  authority = { userId: 'operator-b', role: 'Technician' };
+  response.resolve({ status: 200, ok: true, body: { ok: true } });
+  assert.deepStrictEqual(await principalReplacement, { ok: false, error: 'stale_authority' }, '8c principal replacement suppresses delayed success');
+
+  authority = { userId: 'operator-b', role: 'Administrator' };
+  response = deferred();
+  const roleDemotion = bridge.adminDeletedVehicleSnapshot();
+  authority = { userId: 'operator-b', role: 'Technician' };
+  response.resolve({ status: 200, ok: true, body: { ok: true, rows: [] } });
+  assert.deepStrictEqual(await roleDemotion, { ok: false, error: 'stale_authority' }, '8d role demotion suppresses delayed administrator success');
+
+  token = 'tok-d';
+  authority = { userId: 'operator-b', role: 'Administrator' };
+  response = deferred();
+  const staleRejection = bridge.adminDeletedVehicleSnapshot();
+  token = null;
+  authority = null;
+  response.reject(new Error('obsolete network failure'));
+  assert.deepStrictEqual(await staleRejection, { ok: false, error: 'stale_authority' }, '8e authority loss suppresses delayed transport rejection');
+
+  assert.strictEqual(calls.length, 5, '8f each pre-authorized action dispatches exactly once');
+  console.log('PASS 8: delayed lifecycle RPC completion is token/principal/role authority-bound');
+})().catch(error => {
+  console.error(error);
+  process.exitCode = 1;
+});

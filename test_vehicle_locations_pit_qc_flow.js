@@ -26,7 +26,7 @@ assert(app.includes("{ value: 'PIT', label: 'PIT - Department of Transport inspe
 assert(app.includes("if (manualPdcLocation === 'PIT') return 'pit';"), 'PIT location must map to the PIT board bucket');
 assert(app.includes("if (manualPdcLocation === 'QC') return 'qc';"), 'Only an explicit QC Gate location must map a vehicle into the QC bucket');
 assert(app.includes('data-ready-for-qc=') && qcGateMigration.includes('mark_vehicle_ready_for_qc'), 'All-green PMB vehicles must use the explicit protected Ready for QC transition');
-assert(app.includes("window.__vehicleLifecycleActions.qcSignoffToRft"), 'QC sign-off must use the atomic server transition to RFT');
+assert(app.includes("lifecycleOwner.actions.qcSignoffToRft"), 'QC sign-off must use the atomic server transition to RFT through the current authority owner');
 assert(app.includes("data-qc-signoff-rft"), 'QC bucket rows must provide an explicit sign-off action');
 assert(app.includes("data-pit-transfer") && app.includes("data-pit-return-pmb"), 'PMB/PIT rows must provide auditable PIT movement controls');
 

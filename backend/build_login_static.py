@@ -32,8 +32,30 @@ FILES = (
     "workshop-eligibility.js",
     "workshop-navigation.js",
     "vehicle-location-lifecycle.js",
+    "vehicle-lifecycle-actions.js",
+    "workshop-data-service.js",
+    "workshop-realtime.js",
+    "workshop-shared-actions.js",
     "app.js",
 )
+
+
+def runtime_closure_problems(target: Path = TARGET) -> list[str]:
+    problems: list[str] = []
+    index_text = (target / "index.html").read_text(encoding="utf-8")
+    for match in re.finditer(r'(?:src|href)="([^"?]+)(?:\?[^\"]*)?"', index_text):
+        reference = match.group(1)
+        if reference.startswith(("http://", "https://", "#", "data:")):
+            continue
+        if not (target / reference).is_file():
+            problems.append(f"index.html references missing asset '{reference}'")
+
+    app_text = (target / "app.js").read_text(encoding="utf-8")
+    for match in re.finditer(r"[`'\"]([A-Za-z0-9_./-]+\.js)(?:\?[^`'\"]*)?[`'\"]", app_text):
+        reference = match.group(1)
+        if not (target / reference).is_file():
+            problems.append(f"app.js lazy-loads missing asset '{reference}'")
+    return sorted(set(problems))
 
 
 def main() -> None:
@@ -74,16 +96,9 @@ def main() -> None:
         if '"vehicles":[]' not in payload and "vehicles:[]" not in payload:
             raise SystemExit(f"Refusing browser bundle: {name} is not a zero-vehicle payload")
 
-    index_text = (TARGET / "index.html").read_text(encoding="utf-8")
-    missing_assets = []
-    for match in re.finditer(r'(?:src|href)="([^"?]+)(?:\?[^"]*)?"', index_text):
-        reference = match.group(1)
-        if reference.startswith(("http://", "https://", "#", "data:")):
-            continue
-        if not (TARGET / reference).is_file():
-            missing_assets.append(reference)
-    if missing_assets:
-        raise SystemExit(f"Refusing browser bundle: index.html references missing assets: {sorted(set(missing_assets))}")
+    closure_problems = runtime_closure_problems(TARGET)
+    if closure_problems:
+        raise SystemExit(f"Refusing browser bundle: {'; '.join(closure_problems)}")
 
     total = sum(path.stat().st_size for path in TARGET.rglob("*") if path.is_file() and ".git" not in path.parts)
     print(f"Built {len(FILES) + 2} sanitised browser assets ({total} bytes) at {TARGET}")

@@ -18,10 +18,10 @@ assert(remove.includes('Customer: ${customer}'), 'Confirmation must display cust
 assert(remove.includes('Vehicle UUID: ${vehicleUuid}'), 'Confirmation must display vehicle UUID');
 assert(remove.includes('Type the exact Stock Number (${stockNumber}) to confirm:'), 'Delete must require typed Stock Number');
 assert(remove.includes('stockConfirmation !== stockNumber'), 'Typed Stock Number must match exactly');
-assert(remove.includes('window.__vehicleLifecycleActions.adminArchiveVehicle({'), 'Delete must use migration 205 archive RPC bridge');
+assert(remove.includes('lifecycleOwner.actions.adminArchiveVehicle({'), 'Delete must use migration 205 archive RPC bridge through the current authority owner');
 assert(remove.includes('expectedVersion: ref.version'), 'Delete must send fresh expected version');
 assert(remove.includes('resetTest'), 'Delete bridge must carry reset-test flag');
-assert(remove.includes('await refreshVehicleLifecycleLocationsAndRender()'), 'Lifecycle action must refresh shared Email Vehicle locations and render');
+assert(remove.includes('await refreshVehicleLifecycleLocationsAndRender(lifecycleOwner)'), 'Lifecycle action must refresh shared Email Vehicle locations and render through the same authority owner');
 assert(!remove.includes('removeVehiclesFromTracker'), 'Shared lifecycle delete must not fall back to browser-local destruction');
 assert(!remove.toLowerCase().includes('permanently remove'), 'UI must not describe archive as permanent deletion');
 assert(detail.includes('vehicleLifecycleAdministratorActive() && vehicleLifecycleSharedModeActive()'), 'Lifecycle controls must be hidden from non-admin users');

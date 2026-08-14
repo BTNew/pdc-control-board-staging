@@ -83,7 +83,7 @@ if (process.env.PDC_PACKAGE_MATERIALIZED_CHILD !== '1') {
       env:{...process.env,PDC_PACKAGE_MATERIALIZED_CHILD:'1'},
     });
     assert.strictEqual(packagedRegression.status,0,packagedRegression.stderr || packagedRegression.stdout);
-    assert.match(packagedRegression.stdout,/Test summary: 10 passed, 0 failed, 0 skipped/,'materialized npm package regression summary mismatch');
+    assert.match(packagedRegression.stdout, /Test summary: 12 passed, 0 failed, 0 skipped/, 'materialized npm package regression summary mismatch');
   } finally { fs.rmSync(materialized,{recursive:true,force:true}); }
 }
 

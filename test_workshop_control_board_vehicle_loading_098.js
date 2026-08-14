@@ -23,7 +23,7 @@ assert.match(actions,/rpc\('pmb_transfer_vehicle'/,'bridge uses exact RPC name')
 assert.match(app,/workflowBucketsCollapsed: false/,'Control Board vehicle rows open on first load');
 assert.match(app,/async function transferYhVehicleToPmb\(key = ''\) \{\s*const vehicle = selectedVehicle\(key\);/,'PMB transfer resolves canonical/shared aliases instead of silently missing server-authoritative rows');
 assert.match(app,/operation === 'transfer to PMB'[\s\S]*?__emailVehicleServerAuthoritative === true/,'email vehicles allow only the protected PMB action');
-assert.match(app,/__vehicleLifecycleActions\.pmbTransferVehicle/,'UI calls shared PMB transfer');
+assert.match(app,/lifecycleOwner\.actions\.pmbTransferVehicle/,'UI calls shared PMB transfer through the exact captured authority owner');
 assert.match(app,/const emailVehicleId = String\(vehicle\.__emailVehicleId \|\| ''\)\.trim\(\);[\s\S]*?const emailVersion = Number\(vehicle\.__emailVehicleVersion\);/,'PMB transfer uses the exact authenticated snapshot UUID/version before any typed-identity fallback');
 assert.match(app,/await refreshEmailVehicleLocations\(\)/,'UI reloads authoritative email vehicle state');
 assert.match(app,/Required work is retained from the authenticated email import/,'imported work remains server-authoritative during transfer');

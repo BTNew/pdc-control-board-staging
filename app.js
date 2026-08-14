@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.14.46-user-management-authority';
+const APP_VERSION = '2026.08.14.47-lifecycle-authority-runtime';
 const WORKSHOP_PLANNER_SCRIPT_VERSION = APP_VERSION;
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
@@ -4216,6 +4216,7 @@ function initVehicleLifecycleSharedActionsIfEnabled() {
     window.__vehicleLifecycleActions = buildVehicleLifecycleSharedActions(
       client,
       () => (typeof getPdcSupabaseAccessToken === 'function' ? getPdcSupabaseAccessToken() : null),
+      () => window.PDC_AUTH_CONTEXT || null,
     );
   }
   window.__vehicleLifecycleResolverDiagnostics = window.__vehicleLifecycleResolverDiagnostics || [];
@@ -4265,6 +4266,45 @@ function vehicleLifecycleSharedModeActive() {
     && vehicleLifecycleSharedModeEnabled(window.PDC_SUPABASE_CONFIG);
 }
 
+let VEHICLE_LIFECYCLE_OPERATION_GENERATION = 0;
+
+function vehicleLifecycleBrowserAuthorityIdentity() {
+  const context = window.PDC_AUTH_CONTEXT;
+  const principal = String(context?.userId || context?.email || '').trim().toLowerCase();
+  const role = String(context?.role || '').trim();
+  return principal && role ? JSON.stringify([principal, role]) : '';
+}
+
+function beginVehicleLifecycleOperation() {
+  return {
+    generation: ++VEHICLE_LIFECYCLE_OPERATION_GENERATION,
+    token: typeof getPdcSupabaseAccessToken === 'function' ? getPdcSupabaseAccessToken() : null,
+    identity: vehicleLifecycleBrowserAuthorityIdentity(),
+    actions: window.__vehicleLifecycleActions,
+  };
+}
+
+function vehicleLifecycleOperationCurrent(owner) {
+  return Boolean(
+    owner
+    && owner.generation === VEHICLE_LIFECYCLE_OPERATION_GENERATION
+    && owner.token
+    && owner.token === (typeof getPdcSupabaseAccessToken === 'function' ? getPdcSupabaseAccessToken() : null)
+    && owner.identity
+    && owner.identity === vehicleLifecycleBrowserAuthorityIdentity()
+    && owner.actions === window.__vehicleLifecycleActions
+    && vehicleLifecycleSharedModeActive()
+  );
+}
+
+function invalidateVehicleLifecycleOperations() {
+  VEHICLE_LIFECYCLE_OPERATION_GENERATION += 1;
+}
+
+function vehicleLifecycleCompletionStale(owner, result) {
+  return result?.error === 'stale_authority' || !vehicleLifecycleOperationCurrent(owner);
+}
+
 function vehicleLifecycleAdministratorActive() {
   return window.PDC_AUTH_CONTEXT?.role === 'administrator';
 }
@@ -4283,9 +4323,11 @@ function vehicleLifecycleActionErrorMessage(result = {}) {
     : (result?.message || result?.body?.message || result?.error || 'The vehicle lifecycle action failed.');
 }
 
-async function refreshVehicleLifecycleLocationsAndRender() {
+async function refreshVehicleLifecycleLocationsAndRender(owner = null) {
   await refreshEmailVehicleLocations();
+  if (owner && !vehicleLifecycleOperationCurrent(owner)) return false;
   renderAll();
+  return true;
 }
 
 function resetEmailVehicleLocations() {
@@ -4346,6 +4388,7 @@ function initEmailVehicleLocationsIfAvailable() {
 // the Workshop Planner view (or returns after a session refresh) gets the
 // data service without needing to navigate away and back.
 window.addEventListener?.('pdc-auth-ready', () => {
+  invalidateVehicleLifecycleOperations();
   // Auth-ready also represents live token/role changes. Existing planner
   // services must discard their prior authority generation before reuse;
   // init alone intentionally reuses the instance and is not sufficient.
@@ -4383,6 +4426,7 @@ window.addEventListener?.('pdc-auth-ready', () => {
 // monitor, but every signed Auditor receipt is bound to the exact access token.
 // Revoke those controls synchronously when pdc-auth.js rotates that token.
 window.addEventListener?.('pdc-auth-token-changed', () => {
+  invalidateVehicleLifecycleOperations();
   resetUserManagementAuthorityState({ clearHost: !userManagementSharedModeReady() });
   syncAdminNavigationVisibility();
   if (!userManagementSharedModeReady()
@@ -4405,6 +4449,7 @@ window.addEventListener?.('pdc-auth-token-changed', () => {
 // state so a disabled user's already-open tab cannot continue showing
 // (or silently re-deriving UI from) previously-loaded operational data.
 window.addEventListener?.('pdc-auth-locked', () => {
+  invalidateVehicleLifecycleOperations();
   resetEmailVehicleLocations();
   resetDeletedVehicleAuthorityState();
   resetUserManagementAuthorityState({ clearHost: true });
@@ -5217,7 +5262,9 @@ async function markVehicleReadyForQualityControl(key = '') {
   if (!window.confirm(`All required work is complete for ${label}.\n\nMark this vehicle Ready for QC and move it to the QC Gate in Vehicle Locations?`)) return false;
 
   if (vehicleLifecycleSharedModeActive()) {
+    const lifecycleOwner = beginVehicleLifecycleOperation();
     const ref = await vehicleLifecycleSharedRef(vehicle);
+    if (!vehicleLifecycleOperationCurrent(lifecycleOwner)) return false;
     if (!ref || ref.outcome !== 'resolved') {
       window.alert(describeVehicleLifecycleResolutionOutcome(ref));
       return false;
@@ -5226,7 +5273,8 @@ async function markVehicleReadyForQualityControl(key = '') {
       window.alert('This vehicle has been archived and cannot be moved to the QC Gate.');
       return false;
     }
-    const result = await window.__vehicleLifecycleActions.markReadyForQc({ vehicleId: ref.vehicleId, expectedVersion: ref.version });
+    const result = await lifecycleOwner.actions.markReadyForQc({ vehicleId: ref.vehicleId, expectedVersion: ref.version });
+    if (vehicleLifecycleCompletionStale(lifecycleOwner, result)) return false;
     if (!result || result.ok !== true) {
       window.alert(typeof describeVehicleLifecycleActionError === 'function'
         ? describeVehicleLifecycleActionError(result && result.error)
@@ -5236,6 +5284,7 @@ async function markVehicleReadyForQualityControl(key = '') {
     reconcileVehicleLifecycleServerResult(vehicle, result);
     if (window.__workshopDataService && typeof window.__workshopDataService.loadSnapshot === 'function') {
       await window.__workshopDataService.loadSnapshot('ready_for_qc');
+      if (!vehicleLifecycleOperationCurrent(lifecycleOwner)) return false;
     }
     renderAll();
     return true;
@@ -5303,7 +5352,9 @@ async function completeVehicleQualityControl(key = '') {
   if (!window.confirm(`Sign off QC for ${label}?\n\nThis records your named QC sign-off, marks the vehicle RFT, and prints the windscreen sign-off label.`)) return false;
 
   if (vehicleLifecycleSharedModeActive()) {
+    const lifecycleOwner = beginVehicleLifecycleOperation();
     const ref = await vehicleLifecycleSharedRef(vehicle);
+    if (!vehicleLifecycleOperationCurrent(lifecycleOwner)) return false;
     if (!ref || ref.outcome !== 'resolved') {
       window.alert(describeVehicleLifecycleResolutionOutcome(ref));
       return false;
@@ -5317,12 +5368,13 @@ async function completeVehicleQualityControl(key = '') {
       renderAll();
       return false;
     }
-    const result = await window.__vehicleLifecycleActions.qcSignoffToRft({
+    const result = await lifecycleOwner.actions.qcSignoffToRft({
       vehicleId: ref.vehicleId,
       expectedVersion: ref.version,
       workItemKey: 'QC',
       completedSummary: pdcCompletedJobsText(vehicle) || null,
     });
+    if (vehicleLifecycleCompletionStale(lifecycleOwner, result)) return false;
     if (!result || result.ok !== true) {
       const message = typeof describeVehicleLifecycleActionError === 'function'
         ? describeVehicleLifecycleActionError(result && result.error)
@@ -5334,11 +5386,13 @@ async function completeVehicleQualityControl(key = '') {
     }
     reconcileVehicleLifecycleServerResult(vehicle, result);
     await printQualityControlSignoffLabel(vehicle, operator, result.vehicle?.qc_completed_at || nowIsoString());
+    if (!vehicleLifecycleOperationCurrent(lifecycleOwner)) return false;
     if (result.notification_has_recipient === false) {
       window.alert('QC complete was saved, but no salesperson email is on file for this vehicle. The "ready for transport" notification could not be queued for sending. Please set the correct salesperson and use Retry from the notification outbox.');
     }
     if (window.__workshopDataService && typeof window.__workshopDataService.loadSnapshot === 'function') {
       await window.__workshopDataService.loadSnapshot('qc_signoff_to_rft');
+      if (!vehicleLifecycleOperationCurrent(lifecycleOwner)) return false;
     }
     renderAll();
     return true;
@@ -5393,7 +5447,9 @@ async function moveVehiclePitLocation(key = '', direction = 'to_pit') {
   if (!window.confirm(`Move ${label} to ${target}?`)) return false;
 
   if (vehicleLifecycleSharedModeActive()) {
+    const lifecycleOwner = beginVehicleLifecycleOperation();
     const ref = await vehicleLifecycleSharedRef(vehicle);
+    if (!vehicleLifecycleOperationCurrent(lifecycleOwner)) return false;
     if (!ref || ref.outcome !== 'resolved') {
       window.alert(describeVehicleLifecycleResolutionOutcome(ref));
       return false;
@@ -5402,11 +5458,12 @@ async function moveVehiclePitLocation(key = '', direction = 'to_pit') {
       window.alert('This vehicle is archived in shared data, so its PIT location was not changed. No change was made.');
       return false;
     }
-    const result = await window.__vehicleLifecycleActions.pitTransferVehicle({
+    const result = await lifecycleOwner.actions.pitTransferVehicle({
       vehicleId: ref.vehicleId,
       expectedVersion: ref.version,
       direction,
     });
+    if (vehicleLifecycleCompletionStale(lifecycleOwner, result)) return false;
     if (!result || result.ok !== true) {
       const message = typeof describeVehicleLifecycleActionError === 'function'
         ? describeVehicleLifecycleActionError(result && result.error)
@@ -5417,6 +5474,7 @@ async function moveVehiclePitLocation(key = '', direction = 'to_pit') {
     reconcileVehicleLifecycleServerResult(vehicle, result);
     if (window.__workshopDataService && typeof window.__workshopDataService.loadSnapshot === 'function') {
       await window.__workshopDataService.loadSnapshot(`pit_${direction}`);
+      if (!vehicleLifecycleOperationCurrent(lifecycleOwner)) return false;
     }
     renderAll();
     return true;
@@ -9673,6 +9731,7 @@ async function transferYhVehicleToPmb(key = '') {
   if (!requirementSelections || !vehicleLocationActionAllowed(vehicle, 'transfer to PMB')) return false;
 
   if (vehicle.__emailVehicleServerAuthoritative === true && vehicleLifecycleSharedModeActive()) {
+    const lifecycleOwner = beginVehicleLifecycleOperation();
     const emailVehicleId = String(vehicle.__emailVehicleId || '').trim();
     const emailVersion = Number(vehicle.__emailVehicleVersion);
     const hasExactEmailRef = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(emailVehicleId)
@@ -9680,6 +9739,7 @@ async function transferYhVehicleToPmb(key = '') {
     const ref = hasExactEmailRef
       ? { outcome: 'resolved', vehicleId: emailVehicleId, version: emailVersion, isArchived: false }
       : await vehicleLifecycleSharedRef(vehicle);
+    if (!vehicleLifecycleOperationCurrent(lifecycleOwner)) return false;
     if (!ref || ref.outcome !== 'resolved') {
       window.alert(describeVehicleLifecycleResolutionOutcome(ref));
       return false;
@@ -9688,15 +9748,17 @@ async function transferYhVehicleToPmb(key = '') {
       window.alert('This vehicle is archived and cannot be moved into PMB. No change was made.');
       return false;
     }
-    const result = await window.__vehicleLifecycleActions.pmbTransferVehicle({
+    const result = await lifecycleOwner.actions.pmbTransferVehicle({
       vehicleId: ref.vehicleId,
       expectedVersion: ref.version,
     });
+    if (vehicleLifecycleCompletionStale(lifecycleOwner, result)) return false;
     if (!result || result.ok !== true) {
       window.alert(typeof describeVehicleLifecycleActionError === 'function'
         ? describeVehicleLifecycleActionError(result && result.error)
         : 'The vehicle could not be moved into PMB.');
       await refreshEmailVehicleLocations();
+      if (!vehicleLifecycleOperationCurrent(lifecycleOwner)) return false;
       return false;
     }
     reconcileVehicleLifecycleServerResult(vehicle, result);
@@ -9704,7 +9766,11 @@ async function transferYhVehicleToPmb(key = '') {
     app.pmbSubFilter = '';
     app.activePmbBayStage = '';
     await refreshEmailVehicleLocations();
-    if (app.currentView === 'workflow') await loadWorkshopEligibilitySnapshot('pmb_transfer');
+    if (!vehicleLifecycleOperationCurrent(lifecycleOwner)) return false;
+    if (app.currentView === 'workflow') {
+      await loadWorkshopEligibilitySnapshot('pmb_transfer');
+      if (!vehicleLifecycleOperationCurrent(lifecycleOwner)) return false;
+    }
     renderAll();
     return true;
   }
@@ -9796,6 +9862,7 @@ async function transferVehiclesToRft(vehicles = [], options = {}) {
   if (!window.confirm(`Transfer ${selected.length} PMB vehicle${selected.length === 1 ? '' : 's'} to Vehicles RFT?\n\n${preview}${more}\n\nThis marks the vehicle as Ready for Transport and keeps it protected from Navision location changes.`)) return;
 
   if (vehicleLifecycleSharedModeActive()) {
+    const lifecycleOwner = beginVehicleLifecycleOperation();
     const failures = [];
     for (const vehicle of selected) {
       if (!vehicleLocationActionAllowed(vehicle, 'transfer to RFT')) {
@@ -9803,6 +9870,7 @@ async function transferVehiclesToRft(vehicles = [], options = {}) {
         continue;
       }
       const ref = await vehicleLifecycleSharedRef(vehicle);
+      if (!vehicleLifecycleOperationCurrent(lifecycleOwner)) return;
       if (!ref || ref.outcome !== 'resolved') {
         failures.push(`${vehicleIdentityTitle(vehicle) || 'No stock'} - ${describeVehicleLifecycleResolutionOutcome(ref)}`);
         continue;
@@ -9819,7 +9887,8 @@ async function transferVehiclesToRft(vehicles = [], options = {}) {
         failures.push(`${vehicleIdentityTitle(vehicle) || 'No stock'} - shared Navision identity changed before transfer`);
         continue;
       }
-      const result = await window.__vehicleLifecycleActions.rftTransferVehicle({ vehicleId: ref.vehicleId, expectedVersion: ref.version });
+      const result = await lifecycleOwner.actions.rftTransferVehicle({ vehicleId: ref.vehicleId, expectedVersion: ref.version });
+      if (vehicleLifecycleCompletionStale(lifecycleOwner, result)) return;
       if (!result || result.ok !== true) {
         const message = typeof describeVehicleLifecycleActionError === 'function' ? describeVehicleLifecycleActionError(result && result.error) : 'The transfer could not be saved.';
         failures.push(`${vehicleIdentityTitle(vehicle) || 'No stock'} - ${message}`);
@@ -9832,7 +9901,10 @@ async function transferVehiclesToRft(vehicles = [], options = {}) {
     if (options.clearSelection) app.selectedRows.clear();
     app.quickFilter = 'rft';
     app.pmbSubFilter = '';
-    if (typeof window.__workshopDataService !== 'undefined' && window.__workshopDataService) window.__workshopDataService.loadSnapshot('rft_transfer');
+    if (typeof window.__workshopDataService !== 'undefined' && window.__workshopDataService) {
+      await window.__workshopDataService.loadSnapshot('rft_transfer');
+      if (!vehicleLifecycleOperationCurrent(lifecycleOwner)) return;
+    }
     renderAll();
     if (selected.length === 1 && !failures.length) {
       offerSalespersonChangeEmail(selected[0], {
@@ -11801,14 +11873,16 @@ async function removeVehicle(stock, { resetTest = false } = {}) {
     return false;
   }
 
+  const lifecycleOwner = beginVehicleLifecycleOperation();
   const ref = await vehicleLifecycleSharedRef(vehicle);
+  if (!vehicleLifecycleOperationCurrent(lifecycleOwner)) return false;
   if (!ref || ref.outcome !== 'resolved') {
     window.alert(describeVehicleLifecycleResolutionOutcome(ref));
     return false;
   }
   if (ref.isArchived) {
     window.alert('This vehicle is already in Deleted or Completed vehicles.');
-    await refreshVehicleLifecycleLocationsAndRender();
+    await refreshVehicleLifecycleLocationsAndRender(lifecycleOwner);
     return false;
   }
   const stockNumber = cleanNavisionText(displayStockNumber(vehicle) || '');
@@ -11830,19 +11904,20 @@ async function removeVehicle(stock, { resetTest = false } = {}) {
     window.alert('A reason is required. No vehicle was changed.');
     return false;
   }
-  const result = await window.__vehicleLifecycleActions.adminArchiveVehicle({
+  const result = await lifecycleOwner.actions.adminArchiveVehicle({
     vehicleId: ref.vehicleId,
     expectedVersion: ref.version,
     stockConfirmation,
     reason,
     resetTest,
   });
+  if (vehicleLifecycleCompletionStale(lifecycleOwner, result)) return false;
   if (!result || result.ok !== true) {
-    await refreshVehicleLifecycleLocationsAndRender();
+    if (!await refreshVehicleLifecycleLocationsAndRender(lifecycleOwner)) return false;
     window.alert(vehicleLifecycleActionErrorMessage(result));
     return false;
   }
-  await refreshVehicleLifecycleLocationsAndRender();
+  if (!await refreshVehicleLifecycleLocationsAndRender(lifecycleOwner)) return false;
   closeVehicleModal();
   return true;
 }
@@ -13611,7 +13686,9 @@ async function markRftVehicleCollected(key, collected = true) {
   const operator = getCurrentOperatorName();
 
   if (vehicleLifecycleSharedModeActive()) {
+    const lifecycleOwner = beginVehicleLifecycleOperation();
     const ref = await vehicleLifecycleSharedRef(vehicle);
+    if (!vehicleLifecycleOperationCurrent(lifecycleOwner)) return;
     if (!ref || ref.outcome !== 'resolved') {
       window.alert(describeVehicleLifecycleResolutionOutcome(ref));
       renderAll();
@@ -13627,7 +13704,8 @@ async function markRftVehicleCollected(key, collected = true) {
       renderAll();
       return;
     }
-    const result = await window.__vehicleLifecycleActions.rftCollectVehicle({ vehicleId: ref.vehicleId, expectedVersion: ref.version });
+    const result = await lifecycleOwner.actions.rftCollectVehicle({ vehicleId: ref.vehicleId, expectedVersion: ref.version });
+    if (vehicleLifecycleCompletionStale(lifecycleOwner, result)) return;
     if (!result || result.ok !== true) {
       const message = typeof describeVehicleLifecycleActionError === 'function' ? describeVehicleLifecycleActionError(result && result.error) : 'This vehicle could not be marked collected.';
       window.alert(message);
@@ -13635,13 +13713,16 @@ async function markRftVehicleCollected(key, collected = true) {
       renderAll();
       return;
     }
+    if (typeof window.__workshopDataService !== 'undefined' && window.__workshopDataService) {
+      await window.__workshopDataService.loadSnapshot('rft_collect');
+      if (!vehicleLifecycleOperationCurrent(lifecycleOwner)) return;
+    }
     offerSalespersonChangeEmail(vehicle, {
       title: 'Vehicle completed and collected',
       subject: 'Vehicle collection complete',
       shared: true,
       details: [`Collected from RFT by ${operator || 'Unknown operator'}.`],
     });
-    if (typeof window.__workshopDataService !== 'undefined' && window.__workshopDataService) window.__workshopDataService.loadSnapshot('rft_collect');
     renderAll();
     return;
   }
@@ -13783,14 +13864,17 @@ function deletedVehicleSnapshotRecord(row = {}) {
   };
 }
 
-async function loadDeletedVehicleSnapshot({ force = false } = {}) {
+async function loadDeletedVehicleSnapshot({ force = false, owner = null } = {}) {
   if (!vehicleLifecycleAdministratorActive() || !vehicleLifecycleSharedModeActive()
       || typeof window.__vehicleLifecycleActions?.adminDeletedVehicleSnapshot !== 'function') return false;
   if (!force && ['loading', 'ready'].includes(app.deletedVehicleSnapshotState)) return true;
+  const lifecycleOwner = owner || beginVehicleLifecycleOperation();
+  if (!vehicleLifecycleOperationCurrent(lifecycleOwner)) return false;
   const generation = ++app.deletedVehicleSnapshotGeneration;
   app.deletedVehicleSnapshotState = 'loading';
   app.deletedVehicleSnapshotError = '';
-  const result = await window.__vehicleLifecycleActions.adminDeletedVehicleSnapshot();
+  const result = await lifecycleOwner.actions.adminDeletedVehicleSnapshot();
+  if (vehicleLifecycleCompletionStale(lifecycleOwner, result)) return false;
   if (generation !== app.deletedVehicleSnapshotGeneration) return false;
   if (!result || result.ok === false || result.error) {
     app.deletedVehicleSnapshotState = 'error';
@@ -13834,15 +13918,17 @@ async function runDeletedVehicleAdminAction(tombstoneId, action) {
     evidenceBinding = { sourceHash, evidenceHash, sourceUid };
   }
   const method = action === 'restore' ? 'adminRestoreVehicle' : 'adminAllowOneVehicleRecreation';
-  const result = await window.__vehicleLifecycleActions[method]({ tombstoneId, stockConfirmation, reason, ...evidenceBinding });
+  const lifecycleOwner = beginVehicleLifecycleOperation();
+  const result = await lifecycleOwner.actions[method]({ tombstoneId, stockConfirmation, reason, ...evidenceBinding });
+  if (vehicleLifecycleCompletionStale(lifecycleOwner, result)) return false;
   if (!result || result.ok !== true) {
+    if (!await loadDeletedVehicleSnapshot({ force: true, owner: lifecycleOwner })) return false;
+    if (!await refreshVehicleLifecycleLocationsAndRender(lifecycleOwner)) return false;
     window.alert(vehicleLifecycleActionErrorMessage(result));
-    await loadDeletedVehicleSnapshot({ force: true });
-    await refreshVehicleLifecycleLocationsAndRender();
     return false;
   }
-  await loadDeletedVehicleSnapshot({ force: true });
-  await refreshVehicleLifecycleLocationsAndRender();
+  if (!await loadDeletedVehicleSnapshot({ force: true, owner: lifecycleOwner })) return false;
+  if (!await refreshVehicleLifecycleLocationsAndRender(lifecycleOwner)) return false;
   return true;
 }
 

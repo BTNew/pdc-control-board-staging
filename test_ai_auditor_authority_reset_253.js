@@ -42,6 +42,7 @@ let tokenUserManagementResetCount = 0;
 const tokenContext = vm.createContext({
   app: { currentView:'ai-auditor' },
   window: { addEventListener(type, handler) { if (type === 'pdc-auth-token-changed') tokenChangedHandler = handler; } },
+  invalidateVehicleLifecycleOperations() {},
   resetUserManagementAuthorityState() { tokenUserManagementResetCount += 1; },
   userManagementSharedModeReady() { return false; },
   syncAdminNavigationVisibility() {},

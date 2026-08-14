@@ -328,10 +328,38 @@ function createVehicleLifecycleIdentityResolver(options = {}) {
   };
 }
 
-function buildVehicleLifecycleSharedActions(client, getAccessToken) {
+function vehicleLifecycleAuthorityFingerprint(context) {
+  if (!context || typeof context !== 'object') return '';
+  const principal = String(context.userId || context.email || '').trim().toLowerCase();
+  const role = String(context.role || '').trim();
+  return principal && role ? JSON.stringify([principal, role]) : '';
+}
+
+function buildVehicleLifecycleSharedActions(client, getAccessToken, getAuthorityContext) {
+  const authorityRequired = typeof getAuthorityContext === 'function';
+
+  function staleAuthorityResult() {
+    return { ok: false, error: 'stale_authority' };
+  }
+
+  function authorityIsCurrent(token, authority) {
+    const currentToken = typeof getAccessToken === 'function' ? getAccessToken() : null;
+    const currentAuthority = authorityRequired ? vehicleLifecycleAuthorityFingerprint(getAuthorityContext()) : null;
+    return currentToken === token && (!authorityRequired || currentAuthority === authority);
+  }
+
   async function rpc(name, params) {
     const token = typeof getAccessToken === 'function' ? getAccessToken() : null;
-    const result = await client.rpc(token, name, params);
+    const authority = authorityRequired ? vehicleLifecycleAuthorityFingerprint(getAuthorityContext()) : null;
+    if (authorityRequired && (!token || !authority)) return staleAuthorityResult();
+    let result;
+    try {
+      result = await client.rpc(token, name, params);
+    } catch (error) {
+      if (!authorityIsCurrent(token, authority)) return staleAuthorityResult();
+      throw error;
+    }
+    if (!authorityIsCurrent(token, authority)) return staleAuthorityResult();
     if (!result.ok) {
       const body = result.body;
       const serverCode = body && typeof body === 'object'

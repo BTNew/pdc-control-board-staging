@@ -18,7 +18,7 @@ assert(deleted.includes('Reason</b>'), 'Tombstone must show reason');
 assert(deleted.includes('>Restore Vehicle</button>'), 'Deleted list must offer Restore Vehicle');
 assert(deleted.includes('>Allow one controlled recreation</button>'), 'Deleted list must offer one controlled recreation');
 assert(deleted.includes("action === 'restore' ? 'adminRestoreVehicle' : 'adminAllowOneVehicleRecreation'"), 'Buttons must dispatch exact bridge methods');
-assert(deleted.includes('await refreshVehicleLifecycleLocationsAndRender()'), 'Successful deleted-list actions must refresh shared locations and render');
+assert(deleted.includes('await refreshVehicleLifecycleLocationsAndRender(lifecycleOwner)'), 'Successful deleted-list actions must refresh shared locations and render through the current authority owner');
 assert(!app.includes('cdsmnqxtyyoeoznmbidd'), 'Production-shipped app.js must not contain the staging project ref');
 assert(app.includes('vehicleLifecycleResolverRollbackEnabled(config, location)'), 'Reset guard must delegate to the staging-config identity contract');
 assert(app.includes("app.emailVehicleLocationService.subscribe(() => {"), 'Existing vehicle/revision subscription must refresh lifecycle state for two-user updates');
