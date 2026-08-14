@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.14.47-lifecycle-authority-runtime';
+const APP_VERSION = '2026.08.14.48-admin-async-authority';
 const WORKSHOP_PLANNER_SCRIPT_VERSION = APP_VERSION;
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
@@ -3435,20 +3435,43 @@ function formatBackupStatusDate(value) {
   });
 }
 
+let BACKUP_STATUS_REQUEST_GENERATION = 0;
+
+function backupStatusRequestCurrent(authority, requestGeneration) {
+  return requestGeneration === BACKUP_STATUS_REQUEST_GENERATION
+    && userManagementAuthorityCurrent(authority);
+}
+
+function discardRevokedBackupStatusRequest(authority, requestGeneration, panel, host) {
+  // Only the latest request may clear its own revoked UI. An older principal's
+  // completion must not hide or overwrite a replacement principal's panel.
+  if (requestGeneration === BACKUP_STATUS_REQUEST_GENERATION
+      && !userManagementAuthorityCurrent(authority)) {
+    panel.hidden = true;
+    if (host?.replaceChildren) host.replaceChildren();
+    else if (host) host.innerHTML = '';
+  }
+  return false;
+}
+
 async function renderBackupStatusPanel() {
   const panel = $('#backup-status-panel');
   const host = $('#backup-status-content');
-  if (!panel || !host) return;
+  if (!panel || !host) return false;
 
-  if (!backupStatusSharedModeReady()) {
+  const requestGeneration = ++BACKUP_STATUS_REQUEST_GENERATION;
+  const authority = captureUserManagementAuthority();
+  if (!authority) {
     panel.hidden = true;
-    return;
+    if (host?.replaceChildren) host.replaceChildren();
+    else host.innerHTML = '';
+    return false;
   }
   panel.hidden = false;
   host.innerHTML = '<div class="empty-state compact-empty"><strong>Loading backup status…</strong></div>';
 
   try {
-    const client = window.PDC_SUPABASE;
+    const client = authority.client;
     if (!client || typeof client.from !== 'function') {
       throw new Error('Supabase client is not ready yet');
     }
@@ -3460,6 +3483,9 @@ async function renderBackupStatusPanel() {
       .eq('environment', environment)
       .order('started_at', { ascending: false })
       .limit(20);
+    if (!backupStatusRequestCurrent(authority, requestGeneration)) {
+      return discardRevokedBackupStatusRequest(authority, requestGeneration, panel, host);
+    }
     if (runsError) throw runsError;
 
     const { data: restoreTests, error: restoreError } = await client
@@ -3468,6 +3494,9 @@ async function renderBackupStatusPanel() {
       .eq('environment', environment)
       .order('started_at', { ascending: false })
       .limit(1);
+    if (!backupStatusRequestCurrent(authority, requestGeneration)) {
+      return discardRevokedBackupStatusRequest(authority, requestGeneration, panel, host);
+    }
     if (restoreError) throw restoreError;
 
     const lastSuccess = (runs || []).find(run => run.status === 'success');
@@ -3503,8 +3532,13 @@ async function renderBackupStatusPanel() {
       </div>
       ${recentFailures.length ? `<div class="parts-help-strip"><strong>Recent failure detail:</strong><span>${recentFailures.map(run => `${escapeHtml(new Date(run.started_at).toLocaleString())} — ${escapeHtml(run.error_message || 'unknown error')}`).join(' · ')}</span></div>` : ''}
     `;
+    return true;
   } catch (error) {
+    if (!backupStatusRequestCurrent(authority, requestGeneration)) {
+      return discardRevokedBackupStatusRequest(authority, requestGeneration, panel, host);
+    }
     host.innerHTML = `<div class="empty-state compact-empty"><strong>Could not load backup status</strong><span>${escapeHtml(error && error.message ? error.message : String(error))}</span></div>`;
+    return false;
   }
 }
 
@@ -3711,6 +3745,16 @@ function subscribeUserManagementRealtime(authority = captureUserManagementAuthor
       // disable/restore) re-renders the currently active tab live,
       // without requiring a manual "Refresh" click.
       if (!userManagementAuthorityCurrent(authority)) {
+        const callbackStillOwnsAuthoritySlot = USER_MANAGEMENT_STATE.realtimeChannel === channel
+          && USER_MANAGEMENT_STATE.realtimeClient === client;
+        if (!callbackStillOwnsAuthoritySlot) {
+          // A queued callback from a superseded principal may release only its
+          // own channel; it must never reset the replacement principal's UI.
+          try {
+            if (typeof client.removeChannel === 'function') client.removeChannel(channel);
+          } catch (_error) { /* best-effort stale-channel teardown */ }
+          return;
+        }
         resetUserManagementAuthorityState({ clearHost: true });
         if (app.currentView === 'user-management' || app.currentRequestedView === 'user-management') {
           showView('dashboard', { historyMode: 'replace' });

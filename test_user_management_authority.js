@@ -122,6 +122,60 @@ function deferred() {
   assert.strictEqual(await mutation, false, 'post-await RPC result must be discarded after demotion');
   assert.strictEqual(postRpcRenders, 0, 'stale mutation completion must not re-render User Management');
 
+  // A callback already queued by principal A must never reset principal B's
+  // replacement channel, rows, route, or DOM after the authority handover.
+  let replacementRole = 'administrator';
+  const removedBy = [];
+  const handlers = new Map();
+  function realtimeClient(label) {
+    const ownedChannel = {
+      label,
+      on(_event, _filter, handler) { handlers.set(label, handler); return this; },
+      subscribe() { return this; },
+    };
+    return {
+      ownedChannel,
+      channel() { return ownedChannel; },
+      removeChannel(value) { removedBy.push(`${label}:${value.label}`); },
+      from() { throw new Error('not used by the focused Realtime ownership test'); },
+    };
+  }
+  const clientA = realtimeClient('A');
+  const clientB = realtimeClient('B');
+  const realtimeNodes = {
+    '#nav-user-management': { hidden: false },
+    '#user-management-content': { innerHTML: 'replacement-private-row', replaceChildren() { this.innerHTML = ''; } },
+  };
+  const realtimeContext = vm.createContext({
+    window: {
+      PDC_SUPABASE: clientA,
+      PDC_AUTH_CONTEXT: { userId: 'admin-a', email: 'admin-a@example.test', role: replacementRole },
+    },
+    document: { getElementById: () => null },
+    $: selector => realtimeNodes[selector] || null,
+    $$: () => [],
+    backupStatusSharedModeReady: () => replacementRole === 'administrator',
+    escapeHtml: value => String(value),
+    cleanNavisionText: value => String(value || ''),
+    app: { currentView: 'user-management', currentRequestedView: 'user-management' },
+    showView: () => { throw new Error('stale principal A callback must not redirect principal B'); },
+  });
+  vm.runInContext(block, realtimeContext);
+  vm.runInContext('subscribeUserManagementRealtime()', realtimeContext);
+  const staleHandlerA = handlers.get('A');
+  assert.strictEqual(typeof staleHandlerA, 'function', 'principal A callback captured');
+  vm.runInContext('resetUserManagementAuthorityState({ clearHost: true })', realtimeContext);
+  realtimeContext.window.PDC_SUPABASE = clientB;
+  realtimeContext.window.PDC_AUTH_CONTEXT = { userId: 'admin-b', email: 'admin-b@example.test', role: replacementRole };
+  realtimeNodes['#user-management-content'].innerHTML = 'replacement-private-row';
+  vm.runInContext("USER_MANAGEMENT_STATE.rows = [{ email: 'b@example.test' }]; subscribeUserManagementRealtime()", realtimeContext);
+  assert.strictEqual(vm.runInContext('USER_MANAGEMENT_STATE.realtimeChannel.label', realtimeContext), 'B', 'principal B owns the replacement channel');
+  staleHandlerA();
+  assert.strictEqual(vm.runInContext('USER_MANAGEMENT_STATE.realtimeChannel.label', realtimeContext), 'B', 'stale A callback must preserve B channel ownership');
+  assert.strictEqual(vm.runInContext('USER_MANAGEMENT_STATE.rows.length', realtimeContext), 1, 'stale A callback must preserve B rows');
+  assert.strictEqual(realtimeNodes['#user-management-content'].innerHTML, 'replacement-private-row', 'stale A callback must preserve B DOM');
+  assert.ok(!removedBy.includes('B:B'), 'stale A callback must not remove B channel');
+
   const navBlock = extract('function syncAdminNavigationVisibility()', 'function resetDeletedVehicleAuthorityState()');
   const navNodes = {
     '#nav-admin-group': { hidden: true },
