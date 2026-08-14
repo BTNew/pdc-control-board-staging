@@ -247,12 +247,30 @@ begin
  if found then
   if d.request_content_hash<>reqhash or d.purpose<>p_purpose then raise exception 'PDC_253_CONFLICTING_DELIVERY_REPLAY' using errcode='23505';end if;
   actor:=public.pdc_auditor_telegram_actor_scope_225((telegram->>'telegram_sender_id')::bigint);
+  if jsonb_typeof(actor) is distinct from 'object' then raise exception 'PDC_253_AUTHENTICATED_AUDITOR_SESSION_REQUIRED' using errcode='42501';end if;
+  if (select count(*) from jsonb_object_keys(actor))<>6
+   or not (actor ?& array['service_identity_id','service_user_id','service_email','admin_user_id','admin_email','dealer_code'])
+   or exists(select 1 from unnest(array['service_identity_id','service_user_id','service_email','admin_user_id','admin_email','dealer_code']) actor_key where jsonb_typeof(actor->actor_key) is distinct from 'string')
+   or not (actor->>'service_identity_id' ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$')
+   or not (actor->>'service_user_id' ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$')
+   or not (actor->>'admin_user_id' ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$')
+   or btrim(actor->>'service_email')='' or btrim(actor->>'admin_email')='' or btrim(actor->>'dealer_code')=''
+  then raise exception 'PDC_253_AUTHENTICATED_AUDITOR_SESSION_REQUIRED' using errcode='42501';end if;
   if auth.uid() is distinct from (actor->>'service_user_id')::uuid or lower(btrim(coalesce(auth.jwt()->>'email','')))<>lower(actor->>'service_email') then raise exception 'PDC_253_AUTHENTICATED_AUDITOR_SESSION_REQUIRED' using errcode='42501';end if;
   if (actor->>'service_identity_id')::uuid<>d.service_identity_id or (actor->>'service_user_id')::uuid<>d.service_auth_user_id or actor->>'service_email'<>d.service_email or (actor->>'admin_user_id')::uuid<>d.authorizing_admin_user_id or actor->>'admin_email'<>d.authorizing_admin_email or actor->>'dealer_code'<>d.dealer_code then raise exception 'PDC_253_REPLAY_ACTOR_NO_LONGER_AUTHORIZED' using errcode='42501';end if;
   select stored_result into result from public.pdc_auditor_signed_delivery_results_253 where delivery_uuid=d.delivery_uuid;return jsonb_build_object('delivery_uuid',d.delivery_uuid,'actor',actor,'request_content_hash',reqhash,'stored_result',result,'replay',true);
  end if;
  if exists(select 1 from public.pdc_auditor_signed_deliveries_253 where (gateway_instance_id,key_id,nonce)=(p_envelope->>'gateway_instance_id',p_envelope->>'key_id',p_envelope->>'nonce')) then raise exception 'PDC_253_NONCE_REPLAY' using errcode='23505';end if;
  actor:=public.pdc_auditor_telegram_actor_scope_225((telegram->>'telegram_sender_id')::bigint);
+ if jsonb_typeof(actor) is distinct from 'object' then raise exception 'PDC_253_AUTHENTICATED_AUDITOR_SESSION_REQUIRED' using errcode='42501';end if;
+ if (select count(*) from jsonb_object_keys(actor))<>6
+  or not (actor ?& array['service_identity_id','service_user_id','service_email','admin_user_id','admin_email','dealer_code'])
+  or exists(select 1 from unnest(array['service_identity_id','service_user_id','service_email','admin_user_id','admin_email','dealer_code']) actor_key where jsonb_typeof(actor->actor_key) is distinct from 'string')
+  or not (actor->>'service_identity_id' ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$')
+  or not (actor->>'service_user_id' ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$')
+  or not (actor->>'admin_user_id' ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$')
+  or btrim(actor->>'service_email')='' or btrim(actor->>'admin_email')='' or btrim(actor->>'dealer_code')=''
+ then raise exception 'PDC_253_AUTHENTICATED_AUDITOR_SESSION_REQUIRED' using errcode='42501';end if;
  if auth.uid() is distinct from (actor->>'service_user_id')::uuid or lower(btrim(coalesce(auth.jwt()->>'email','')))<>lower(actor->>'service_email') then raise exception 'PDC_253_AUTHENTICATED_AUDITOR_SESSION_REQUIRED' using errcode='42501';end if;
  perform pg_advisory_xact_lock(hashtextextended('pdc-230-message:'||(telegram->>'telegram_chat_id')||':'||(telegram->>'telegram_message_id'),0));
  perform pg_advisory_xact_lock(hashtextextended('pdc-230-update:'||(telegram->>'bot_identity')||':'||(telegram->>'telegram_update_id'),0));

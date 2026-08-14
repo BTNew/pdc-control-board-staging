@@ -112,6 +112,8 @@ malformed_pem.write_text(
     '-----BEGIN CERTIFICATE-----\\nNOT-A-CERTIFICATE\\n-----END CERTIFICATE-----\\n',
     encoding='ascii',
 )
+semantic_non_ca = Path('tests/fixtures/pdc_test_non_ca.pem').resolve()
+semantic_bad_key_usage = Path('tests/fixtures/pdc_test_ca_without_keycertsign.pem').resolve()
 os.environ[module.SSLROOTCERT_ENV] = str(malformed_pem.resolve())
 tls_rejected.append('malformed-pem')
 os.environ[module.SSLROOTCERT_ENV] = str(ca_path.resolve())
@@ -119,6 +121,7 @@ os.environ.pop(module.SSLROOTCERT_SHA256_ENV, None)
 tls_rejected.append('missing-sha256')
 os.environ[module.SSLROOTCERT_SHA256_ENV] = '0' * 64
 tls_rejected.append('wrong-sha256')
+tls_rejected.extend(['semantic-non-ca', 'semantic-bad-key-usage'])
 for label in tls_rejected:
     if label == 'missing':
         os.environ.pop(module.SSLROOTCERT_ENV, None)
@@ -130,14 +133,21 @@ for label in tls_rejected:
         os.environ[module.SSLROOTCERT_ENV] = str(non_pem.resolve())
     elif label == 'malformed-pem':
         os.environ[module.SSLROOTCERT_ENV] = str(malformed_pem.resolve())
+    elif label == 'semantic-non-ca':
+        os.environ[module.SSLROOTCERT_ENV] = str(semantic_non_ca)
+    elif label == 'semantic-bad-key-usage':
+        os.environ[module.SSLROOTCERT_ENV] = str(semantic_bad_key_usage)
     else:
         os.environ[module.SSLROOTCERT_ENV] = str(ca_path.resolve())
     if label == 'missing-sha256':
         os.environ.pop(module.SSLROOTCERT_SHA256_ENV, None)
     elif label == 'wrong-sha256':
         os.environ[module.SSLROOTCERT_SHA256_ENV] = '0' * 64
-    else:
+    elif label not in ('semantic-non-ca', 'semantic-bad-key-usage'):
         os.environ[module.SSLROOTCERT_SHA256_ENV] = ca_sha256
+    else:
+        os.environ[module.SSLROOTCERT_SHA256_ENV] = hashlib.sha256(
+            Path(os.environ[module.SSLROOTCERT_ENV]).read_bytes()).hexdigest()
     before = len(connector_calls)
     os.environ['PDC_STAGING_DATABASE_URL'] = valid_database
     try:
@@ -160,5 +170,5 @@ print(json.dumps({'accepted': len(accepted), 'rejected': len(rejected), 'tls_rej
 const result = spawnSync('python3', ['-I', '-c', probe], { encoding: 'utf8' });
 assert.strictEqual(result.status, 0, result.stderr || result.stdout);
 const report = JSON.parse(result.stdout.trim());
-assert.deepStrictEqual(report, { accepted: 5, rejected: 43, tls_rejected: 7, connector_calls: 3 });
+assert.deepStrictEqual(report, { accepted: 5, rejected: 43, tls_rejected: 9, connector_calls: 3 });
 console.log('PDC staging parsed-host endpoint and connector-spy guard passed');

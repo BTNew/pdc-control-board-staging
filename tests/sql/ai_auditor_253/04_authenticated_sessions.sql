@@ -19,6 +19,43 @@ select set_config('request.jwt.claim.sub','10000000-0000-4000-8000-000000000002'
 select set_config('request.jwt.claims','{"sub":"10000000-0000-4000-8000-000000000002","email":"auditor@example.test","role":"authenticated"}',false);
 select public.plan_pdc_auditor_typed_instruction_253('add','apply',:'plan_scope'::jsonb,:'plan_env'::jsonb)::text plan_result \gset
 reset role;
+
+-- Exact replay must reauthorize structurally. SQL NULL/JSON null actor scope
+-- cannot disclose the stored result through three-valued comparisons.
+create temp table null_actor_replay4(scope jsonb,envelope jsonb);
+insert into null_actor_replay4 values(:'plan_scope'::jsonb,:'plan_env'::jsonb);
+grant select on null_actor_replay4 to authenticated;
+begin;
+create or replace function public.pdc_auditor_telegram_actor_scope_225(bigint)
+returns jsonb language sql stable as $$select null::jsonb$$;
+set local role authenticated;
+select set_config('request.jwt.claim.sub','',true);
+select set_config('request.jwt.claims','{}',true);
+do $$declare x record;begin
+ select * into x from null_actor_replay4;
+ begin
+  perform public.plan_pdc_auditor_typed_instruction_253('add','apply',x.scope,x.envelope);
+  raise exception 'NULL actor exact replay disclosed stored result';
+ exception when insufficient_privilege then
+  if sqlerrm<>'PDC_253_AUTHENTICATED_AUDITOR_SESSION_REQUIRED' then raise;end if;
+ end;
+end$$;
+reset role;
+create or replace function public.pdc_auditor_telegram_actor_scope_225(bigint)
+returns jsonb language sql stable as $$select '{}'::jsonb$$;
+set local role authenticated;
+select set_config('request.jwt.claim.sub','',true);
+select set_config('request.jwt.claims','{}',true);
+do $$declare x record;begin
+ select * into x from null_actor_replay4;
+ begin
+  perform public.plan_pdc_auditor_typed_instruction_253('add','apply',x.scope,x.envelope);
+  raise exception 'empty-object actor exact replay disclosed stored result';
+ exception when insufficient_privilege then
+  if sqlerrm<>'PDC_253_AUTHENTICATED_AUDITOR_SESSION_REQUIRED' then raise;end if;
+ end;
+end$$;
+rollback;
 select (:'plan_result'::jsonb->'data'->>'proposal_id') proposal_id,(:'plan_result'::jsonb->'data'->>'proposal_version') proposal_version,:'plan_result'::jsonb->'data'->>'proposal_hash' proposal_hash,:'plan_result'::jsonb->'data'->>'typed_item_set_hash' typed_hash,:'plan_result'::jsonb->'data'->>'final_scope_hash' scope_hash,:'plan_result'::jsonb->'data'->>'expected_row_versions_hash' versions_hash \gset
 select jsonb_build_object('contract','pdc-auditor-apply-selection-253-v1','proposal_id',:'proposal_id','proposal_version',:'proposal_version'::int,'proposal_hash',:'proposal_hash','typed_item_set_hash',:'typed_hash','final_scope_hash',:'scope_hash','expected_row_versions_hash',:'versions_hash')::text apply_scope \gset
 select pg_temp.auth_env4('Apply these corrections',:'apply_scope'::jsonb,'62000000-0000-4000-8000-000000000001','authenticated-auditor-apply')::text apply_env \gset

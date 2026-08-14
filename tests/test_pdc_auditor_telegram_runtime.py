@@ -194,11 +194,9 @@ class GatewayEnvelopeTests(unittest.TestCase):
             for wrong in ("123", True, None, [], {}, 0, -1, 1.5, 9223372036854775808):
                 envelope = signed_envelope(text, scope)
                 envelope["telegram_evidence"] = dict(envelope["telegram_evidence"], **{field: wrong})
-                envelope["signature"] = hmac.new(KEY, runtime.gateway_signing_bytes(envelope), hashlib.sha256).hexdigest()
                 with self.subTest(field=field, wrong=wrong), self.assertRaisesRegex(
                         runtime.AuditorContractError, "telegram evidence value is invalid"):
-                    runtime.validate_gateway_envelope(envelope, instruction=text, selected_scope=scope,
-                        key_resolver=lambda _: KEY, now=NOW)
+                    runtime.gateway_signing_bytes(envelope)
 
     def test_runtime_rejects_key_shorter_than_database_minimum(self):
         text = "Review duplicate bullbars"
@@ -301,6 +299,26 @@ class GatewayEnvelopeTests(unittest.TestCase):
             with self.subTest(invalid=invalid), self.assertRaisesRegex(
                     runtime.AuditorContractError, "instruction is invalid"):
                 runtime.validate_gateway_envelope(envelope, instruction=invalid,
+                    selected_scope=scope, key_resolver=lambda _: KEY, now=NOW)
+
+    def test_telegram_integral_json_numbers_match_postgresql_jsonb(self):
+        text = "Review duplicate bullbars"
+        scope = intent({"operation_refs": [SRC1, SRC2]}, "remove_duplicate",
+            duplicate_proof="database_exact", survivor_operation_ref=SRC1)
+        envelope = signed_envelope(text, scope)
+        integer_bytes = runtime.gateway_signing_bytes(envelope)
+        for field in ("telegram_sender_id", "telegram_chat_id", "telegram_message_id", "telegram_update_id"):
+            equivalent = json.loads(json.dumps(envelope))
+            equivalent["telegram_evidence"][field] = float(equivalent["telegram_evidence"][field])
+            equivalent["signature"] = hmac.new(KEY, runtime.gateway_signing_bytes(equivalent), hashlib.sha256).hexdigest()
+            self.assertEqual(runtime.gateway_signing_bytes(equivalent), integer_bytes)
+            verified = runtime.validate_gateway_envelope(equivalent, instruction=text,
+                selected_scope=scope, key_resolver=lambda _: KEY, now=NOW)
+            self.assertIsInstance(verified["telegram_evidence"][field], int)
+        for invalid in (1.5, 0.0, -1.0, float("nan"), float("inf"), True, "1"):
+            bad = json.loads(json.dumps(envelope)); bad["telegram_evidence"]["telegram_message_id"] = invalid
+            with self.subTest(invalid=invalid), self.assertRaises(runtime.AuditorContractError):
+                runtime.validate_gateway_envelope(bad, instruction=text,
                     selected_scope=scope, key_resolver=lambda _: KEY, now=NOW)
 
 

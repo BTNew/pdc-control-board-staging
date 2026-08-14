@@ -40,6 +40,8 @@
     "tests/fixtures/ai_auditor_signing_boundaries_253.json",
     "tests/fixtures/ai_auditor_signing_vectors_253.json",
     "tests/fixtures/pdc_test_root_ca.pem",
+    "tests/fixtures/pdc_test_non_ca.pem",
+    "tests/fixtures/pdc_test_ca_without_keycertsign.pem",
     "tests/sql/ai_auditor_253/00_fixture.sql",
     "tests/sql/ai_auditor_253/00_local_supabase_platform.sql",
     "tests/sql/ai_auditor_253/01_assertions.sql",

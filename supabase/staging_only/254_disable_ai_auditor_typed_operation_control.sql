@@ -70,6 +70,7 @@ begin
     'public.pdc_auditor_canonical_json_253(jsonb)',
     'public.pdc_auditor_signing_bytes_253(jsonb)',
     'public.pdc_auditor_verify_envelope_253(text,jsonb)',
+    'public.pdc_auditor_valid_new_value_253(jsonb,boolean,boolean,boolean)',
     'public.plan_pdc_auditor_typed_instruction_253(text,text,jsonb,jsonb)',
     'public.compose_pdc_auditor_typed_plan_253(uuid[],jsonb)',
     'public.pdc_auditor_recalculate_required_work_253(uuid[])',
@@ -197,6 +198,7 @@ revoke all on function public.pdc_auditor_typed_snapshot_253(uuid,text) from pub
 revoke all on function public.pdc_auditor_canonical_json_253(jsonb) from public, anon, authenticated, service_role;
 revoke all on function public.pdc_auditor_signing_bytes_253(jsonb) from public, anon, authenticated, service_role;
 revoke all on function public.pdc_auditor_verify_envelope_253(text,jsonb) from public, anon, authenticated, service_role;
+revoke all on function public.pdc_auditor_valid_new_value_253(jsonb,boolean,boolean,boolean) from public, anon, authenticated, service_role;
 revoke all on function public.plan_pdc_auditor_typed_instruction_253(text,text,jsonb,jsonb) from public, anon, authenticated, service_role;
 revoke all on function public.compose_pdc_auditor_typed_plan_253(uuid[],jsonb) from public, anon, authenticated, service_role;
 revoke all on function public.pdc_auditor_recalculate_required_work_253(uuid[]) from public, anon, authenticated, service_role;
@@ -282,6 +284,7 @@ begin
       'public.pdc_auditor_canonical_json_253(jsonb)',
       'public.pdc_auditor_signing_bytes_253(jsonb)',
       'public.pdc_auditor_verify_envelope_253(text,jsonb)',
+      'public.pdc_auditor_valid_new_value_253(jsonb,boolean,boolean,boolean)',
       'public.plan_pdc_auditor_typed_instruction_253(text,text,jsonb,jsonb)',
       'public.compose_pdc_auditor_typed_plan_253(uuid[],jsonb)',
       'public.pdc_auditor_recalculate_required_work_253(uuid[])',

@@ -12,6 +12,7 @@ import argparse
 import hashlib
 import hmac
 import json
+import math
 import os
 import re
 import sys
@@ -114,6 +115,19 @@ def _category(value: Any) -> str:
 def _identifier(value: Any, label: str) -> str:
     """Bounded non-secret gateway identifier (not an operation reference)."""
     if not isinstance(value, str) or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._:-]{0,127}", value):
+        raise AuditorContractError(f"{label} is invalid")
+    return value
+
+
+def _telegram_id(value: Any, label: str) -> int:
+    """Normalize finite positive integral JSON numbers like PostgreSQL jsonb."""
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise AuditorContractError(f"{label} is invalid")
+    if isinstance(value, float):
+        if not math.isfinite(value) or not value.is_integer():
+            raise AuditorContractError(f"{label} is invalid")
+        value = int(value)
+    if not 1 <= value <= 9223372036854775807:
         raise AuditorContractError(f"{label} is invalid")
     return value
 
@@ -391,10 +405,18 @@ def gateway_signing_bytes(envelope: Mapping[str, Any]) -> bytes:
         raise AuditorContractError("gateway envelope keys are invalid")
     # Length-prefixing makes delimiters unambiguous.  The SQL verifier uses the
     # same exact field order and compact canonical JSON for the two JSON fields.
+    normalized = dict(envelope)
+    evidence = normalized.get("telegram_evidence")
+    if isinstance(evidence, Mapping):
+        evidence = dict(evidence)
+        for key in ("telegram_sender_id", "telegram_chat_id", "telegram_message_id", "telegram_update_id"):
+            if key in evidence:
+                evidence[key] = _telegram_id(evidence[key], "telegram evidence value")
+        normalized["telegram_evidence"] = evidence
     values = []
     for field in GATEWAY_SIGNING_FIELD_ORDER:
-        raw = canonical_json(envelope[field]) if field in {"selected_scope", "telegram_evidence"} \
-            else str(envelope[field]).encode("utf-8")
+        raw = canonical_json(normalized[field]) if field in {"selected_scope", "telegram_evidence"} \
+            else str(normalized[field]).encode("utf-8")
         name = field.encode("ascii")
         values.append(name + b":" + str(len(raw)).encode("ascii") + b":" + raw)
     return b"pdc-auditor-envelope-253-v1\n" + b"\n".join(values)
@@ -444,11 +466,15 @@ def validate_gateway_envelope(envelope: Any, *, instruction: str,
     for key in ("original_instruction", "bot_identity", "instruction_sha256"):
         if not isinstance(nested[key], str):
             raise AuditorContractError("telegram evidence value is invalid")
+    nested = dict(nested)
     for key in ("telegram_sender_id", "telegram_chat_id", "telegram_message_id", "telegram_update_id"):
-        if (isinstance(nested[key], bool) or not isinstance(nested[key], int)
-                or not 1 <= nested[key] <= 9223372036854775807):
-            raise AuditorContractError("telegram evidence value is invalid")
-    if telegram_evidence is not None and canonical_json(nested) != canonical_json(dict(telegram_evidence)):
+        nested[key] = _telegram_id(nested[key], "telegram evidence value")
+    value["telegram_evidence"] = nested
+    if telegram_evidence is not None:
+        expected_evidence = dict(telegram_evidence)
+        for key in ("telegram_sender_id", "telegram_chat_id", "telegram_message_id", "telegram_update_id"):
+            expected_evidence[key] = _telegram_id(expected_evidence[key], "telegram evidence value")
+    if telegram_evidence is not None and canonical_json(nested) != canonical_json(expected_evidence):
         raise AuditorContractError("gateway telegram evidence does not match")
     if nested["original_instruction"] != instruction or nested["instruction_sha256"].lower() != expected_hash:
         raise AuditorContractError("gateway telegram evidence does not match")

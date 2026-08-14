@@ -13,6 +13,9 @@ create temp table disable_before254 as select
  (select count(*) from public.vehicle_workshop_line_adjustments) adjustments,
  (select count(*) from public.pdc_auditor_workshop_revisions) revisions;
 
+-- A contaminated helper ACL must be removed by forward containment.
+grant execute on function public.pdc_auditor_valid_new_value_253(jsonb,boolean,boolean,boolean) to authenticated;
+
 \i supabase/staging_only/254_disable_ai_auditor_typed_operation_control.sql
 
 do $$declare p record;before_row disable_before254%rowtype;after_row disable_before254%rowtype;begin
@@ -22,7 +25,8 @@ do $$declare p record;before_row disable_before254%rowtype;after_row disable_bef
   'public.compose_pdc_auditor_typed_plan_253(uuid[],jsonb)'::regprocedure,
   'public.apply_pdc_auditor_typed_plan_253(uuid,integer,text,text,text,text,jsonb)'::regprocedure,
   'public.undo_last_pdc_auditor_typed_run_253(jsonb)'::regprocedure,
-  'public.query_pdc_auditor_typed_253(text,jsonb,jsonb)'::regprocedure
+  'public.query_pdc_auditor_typed_253(text,jsonb,jsonb)'::regprocedure,
+  'public.pdc_auditor_valid_new_value_253(jsonb,boolean,boolean,boolean)'::regprocedure
  ) loop
   if has_function_privilege('public',p.oid,'execute') or has_function_privilege('anon',p.oid,'execute') or has_function_privilege('authenticated',p.oid,'execute') or has_function_privilege('service_role',p.oid,'execute') then raise exception '254 left RPC authority %',p.proname;end if;
  end loop;
