@@ -51,5 +51,5 @@ assert.match(planner,/requestId: receipt\.undoRequestId/);
 assert.doesNotMatch(planner,/admin_unallocated_vehicle_pill_retry/);
 assert.match(planner,/This action failed before it could be confirmed[\s\S]*workshopAdministratorErrorDetail/);
 assert.match(service,/serverMessage/);
-assert.match(index,/2026\.08\.14\.59-no-navigation-fallback-proof/);
+assert.match(index,/2026\.08\.14\.60-swa-control-file-proof/);
 console.log('PASS migration 244 authority, exact intent/state Undo, pointer parity, stable retry and runtime error contract');

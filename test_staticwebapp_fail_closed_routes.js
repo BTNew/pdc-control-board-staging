@@ -3,7 +3,7 @@
 const assert = require('assert');
 const fs = require('fs');
 
-const deployedFiles = new Set(['index.html', 'app.js', 'staticwebapp.config.json']);
+const publiclyServedFiles = new Set(['index.html', 'app.js']);
 const config = JSON.parse(fs.readFileSync('staticwebapp.config.json', 'utf8'));
 const catchAll = config.routes.find(route => route.route === '/*');
 assert(catchAll, 'catch-all authentication route is required');
@@ -16,13 +16,13 @@ assert.strictEqual(config.responseOverrides?.['401']?.redirect, '/.auth/login/aa
 function resolveRequest(requestPath, authenticated) {
   if (!authenticated) return { status: 302, location: '/.auth/login/aad', body: '' };
   const target = requestPath === '/' ? 'index.html' : requestPath.replace(/^\//, '');
-  if (deployedFiles.has(target)) {
+  if (publiclyServedFiles.has(target)) {
     return { status: 200, location: '', body: fs.readFileSync(target, 'utf8') };
   }
   return { status: 404, location: '', body: 'Not Found' };
 }
 
-for (const requestPath of ['/', '/app.js', '/staticwebapp.config.json']) {
+for (const requestPath of ['/', '/app.js']) {
   const response = resolveRequest(requestPath, true);
   assert.strictEqual(response.status, 200, `${requestPath} must resolve only because the exact file exists`);
 }
@@ -30,6 +30,7 @@ for (const requestPath of ['/', '/app.js', '/staticwebapp.config.json']) {
 for (const requestPath of [
   '/dashboard',
   '/vehicles/STK1',
+  '/staticwebapp.config.json',
   '/private',
   '/private/missing',
   '/supabase',
@@ -50,7 +51,7 @@ for (const requestPath of [
   const response = resolveRequest(requestPath, true);
   assert.strictEqual(response.status, 404, `${requestPath} must fail closed for authenticated users`);
   assert(!response.body.includes('<!DOCTYPE html'), `${requestPath} must never receive SPA HTML`);
-  assert(!response.body.includes('2026.08.14.59-no-navigation-fallback-proof'), `${requestPath} must never receive app HTML`);
+  assert(!response.body.includes('2026.08.14.60-swa-control-file-proof'), `${requestPath} must never receive app HTML`);
 }
 
 for (const requestPath of ['/', '/private', '/private/missing', '/dashboard', '/missing.js']) {
