@@ -41,6 +41,6 @@ window.PDC_SUPABASE_CONFIG = {
       origin: 'https://btnew.github.io',
       paths: Object.freeze(['/pdc-control-board-staging/', '/pdc-control-board-staging/index.html'])
     }),
-    resolverAssetVersion: '2026.08.14.55-dialog-owner-transport-authority'
+    resolverAssetVersion: '2026.08.14.56-retained-content-owner-proof'
   })
 };

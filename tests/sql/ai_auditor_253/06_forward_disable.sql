@@ -60,6 +60,59 @@ select case when :typed_revision_count_before254::bigint > 0 then 1 else 1/0 end
 
 \i supabase/staging_only/254_disable_ai_auditor_typed_operation_control.sql
 
+-- The local fixture is installed by a privileged harness owner. Re-owner only
+-- the already-contained private tables to a real non-BYPASS role for the
+-- post-migration FORCE RLS visibility probe, then restore immediately.
+do $probe_owner$ declare t text; begin
+ if (select rolbypassrls from pg_roles where rolname='authenticated') then
+  raise exception 'authenticated test owner unexpectedly has BYPASSRLS';
+ end if;
+ foreach t in array array[
+  'pdc_auditor_gateway_keys_253','pdc_auditor_signed_deliveries_253','pdc_auditor_signed_delivery_results_253',
+  'pdc_auditor_typed_plans_253','pdc_auditor_typed_plan_items_253','pdc_auditor_typed_runs_253',
+  'pdc_auditor_typed_scope_receipts_253','pdc_auditor_typed_change_receipts_253','pdc_auditor_typed_undo_receipts_253'
+ ] loop
+  execute format('alter table public.%I owner to authenticated',t);
+ end loop;
+end $probe_owner$;
+
+-- Prove FORCE RLS against the actual table owner, not the BYPASS-capable harness
+-- session. The retained rows still exist physically but no private-table policy
+-- remains, so the non-BYPASS owner must see zero rows.
+do $assert_owner_non_bypass$ begin
+ if exists(
+  select 1 from pg_class c join pg_roles r on r.oid=c.relowner
+  where c.oid='public.pdc_auditor_gateway_keys_253'::regclass and r.rolbypassrls
+ ) then raise exception 'private table owner unexpectedly has BYPASSRLS'; end if;
+end $assert_owner_non_bypass$;
+select format('set role %I',c.relowner::regrole)
+from pg_class c where c.oid='public.pdc_auditor_gateway_keys_253'::regclass
+\gexec
+set row_security=on;
+do $assert_owner_zero_visibility$ begin
+ if (
+  (select count(*) from public.pdc_auditor_gateway_keys_253) +
+  (select count(*) from public.pdc_auditor_signed_deliveries_253) +
+  (select count(*) from public.pdc_auditor_signed_delivery_results_253) +
+  (select count(*) from public.pdc_auditor_typed_plans_253) +
+  (select count(*) from public.pdc_auditor_typed_plan_items_253) +
+  (select count(*) from public.pdc_auditor_typed_runs_253) +
+  (select count(*) from public.pdc_auditor_typed_scope_receipts_253) +
+  (select count(*) from public.pdc_auditor_typed_change_receipts_253) +
+  (select count(*) from public.pdc_auditor_typed_undo_receipts_253)
+ ) <> 0 then raise exception 'non-BYPASS owner retained private-row visibility after FORCE RLS'; end if;
+end $assert_owner_zero_visibility$;
+reset role;
+do $restore_probe_owner$ declare t text; begin
+ foreach t in array array[
+  'pdc_auditor_gateway_keys_253','pdc_auditor_signed_deliveries_253','pdc_auditor_signed_delivery_results_253',
+  'pdc_auditor_typed_plans_253','pdc_auditor_typed_plan_items_253','pdc_auditor_typed_runs_253',
+  'pdc_auditor_typed_scope_receipts_253','pdc_auditor_typed_change_receipts_253','pdc_auditor_typed_undo_receipts_253'
+ ] loop
+  execute format('alter table public.%I owner to %I',t,current_user);
+ end loop;
+end $restore_probe_owner$;
+
 do $$declare p record;t text;v_role text;v_rls boolean;v_force boolean;v_visible_legacy_count bigint;before_row disable_before254%rowtype;after_row disable_before254%rowtype;begin
  select visible_legacy_count_before254 into v_visible_legacy_count from disable_revision_visibility_before254;
  if not exists(select 1 from supabase_migrations.schema_migrations where version='254' and name='disable_ai_auditor_typed_operation_control') then raise exception 'migration 254 ledger missing';end if;

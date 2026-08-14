@@ -122,15 +122,16 @@ lock table
   public.vehicle_work_items
 in access exclusive mode;
 
--- Snapshot owner-visible row counts before containment changes. The same
--- non-BYPASS table owner can still see these rows until FORCE RLS is applied;
--- compare immediately before FORCE so zero-row reads after FORCE cannot be
--- mistaken for deletion and any real row loss aborts the transaction.
+-- Snapshot owner-visible row counts and canonical row-content SHA-256 fingerprints
+-- before containment changes. Gateway-key revocation intentionally changes only
+-- active/revoked_at; its fingerprint excludes those two lifecycle fields while
+-- retaining every key byte and all other evidence columns.
 create temp table pdc_auditor_retained_counts_254(
   table_name text primary key,
-  row_count bigint not null
+  row_count bigint not null,
+  content_sha256 text not null check(content_sha256 ~ '^[0-9a-f]{64}$')
 ) on commit drop;
-do $snapshot_retained_counts_254$ declare t text; n bigint; begin
+do $snapshot_retained_counts_254$ declare t text; n bigint; h text; row_expr text; begin
  foreach t in array array[
   'pdc_auditor_gateway_keys_253',
   'pdc_auditor_signed_deliveries_253',
@@ -145,8 +146,14 @@ do $snapshot_retained_counts_254$ declare t text; n bigint; begin
   'vehicle_workshop_line_adjustments',
   'vehicle_work_items'
  ] loop
-  execute format('select count(*) from public.%I',t) into n;
-  insert into pdc_auditor_retained_counts_254(table_name,row_count) values(t,n);
+  row_expr := case when t='pdc_auditor_gateway_keys_253'
+    then '(to_jsonb(r)-''active''-''revoked_at'')::text'
+    else 'to_jsonb(r)::text' end;
+  execute format(
+    'select count(*), encode(extensions.digest(convert_to(coalesce(string_agg(row_data,E''\n'' order by row_data),''''),''UTF8''),''sha256''),''hex'') from (select %s row_data from public.%I r) q',
+    row_expr,t
+  ) into n,h;
+  insert into pdc_auditor_retained_counts_254(table_name,row_count,content_sha256) values(t,n,h);
  end loop;
 end $snapshot_retained_counts_254$;
 
@@ -406,11 +413,17 @@ begin
   end if;
 end $postconditions$;
 
-do $attest_retained_counts_254$ declare t text; before_count bigint; after_count bigint; begin
- for t,before_count in select table_name,row_count from pdc_auditor_retained_counts_254 loop
-  execute format('select count(*) from public.%I',t) into after_count;
-  if after_count is distinct from before_count then
-   raise exception 'PDC_254_RETAINED_ROW_COUNT_CHANGED table=% before=% after=%',t,before_count,after_count using errcode='55000';
+do $attest_retained_counts_254$ declare t text; before_count bigint; after_count bigint; before_hash text; after_hash text; row_expr text; begin
+ for t,before_count,before_hash in select table_name,row_count,content_sha256 from pdc_auditor_retained_counts_254 loop
+  row_expr := case when t='pdc_auditor_gateway_keys_253'
+    then '(to_jsonb(r)-''active''-''revoked_at'')::text'
+    else 'to_jsonb(r)::text' end;
+  execute format(
+    'select count(*), encode(extensions.digest(convert_to(coalesce(string_agg(row_data,E''\n'' order by row_data),''''),''UTF8''),''sha256''),''hex'') from (select %s row_data from public.%I r) q',
+    row_expr,t
+  ) into after_count,after_hash;
+  if after_count is distinct from before_count or after_hash is distinct from before_hash then
+   raise exception 'PDC_254_RETAINED_ROW_CONTENT_CHANGED table=% before_count=% after_count=% before_sha256=% after_sha256=%',t,before_count,after_count,before_hash,after_hash using errcode='55000';
   end if;
  end loop;
 end $attest_retained_counts_254$;
