@@ -66,12 +66,18 @@
         <button type="button" class="nav-item" data-view="emailreview" data-short="AI">AI Intake Review</button>
         <button type="button" class="nav-item" data-view="sublet" data-short="SUB">Sublet</button>
         <button type="button" class="nav-item" data-view="rft" data-short="RFT">RFT</button>
-        <button type="button" class="nav-item" data-view="completed" data-short="DONE">Completed vehicles</button>
-        <button type="button" class="nav-item" data-view="deleted" data-short="DEL">Deleted vehicles</button>
-        <button type="button" class="nav-item" data-view="backend" data-short="DATA">Back End Data</button>
-        <button type="button" class="nav-item" data-view="lists" data-short="SET">Setup</button>
-        <button type="button" class="nav-item" data-view="import" data-short="NAV">Navision Uploads</button>
-        <button type="button" class="nav-item" data-view="backup" data-short="BAK">Backup / Restore</button>
+        <div class="nav-admin-group" id="nav-admin-group" hidden>
+          <button type="button" class="nav-item nav-admin-toggle" id="nav-admin-toggle" data-short="ADM" aria-expanded="false" aria-controls="nav-admin-menu"><span>Admin</span><span class="nav-admin-chevron" aria-hidden="true">⌄</span></button>
+          <div class="nav-admin-menu" id="nav-admin-menu" hidden>
+            <button type="button" class="nav-item nav-admin-item" id="nav-user-management" data-view="user-management" data-short="USR">User Management</button>
+            <button type="button" class="nav-item nav-admin-item" data-view="lists" data-short="SET">Setup</button>
+            <button type="button" class="nav-item nav-admin-item" data-view="import" data-short="NAV">Navision Uploads</button>
+            <button type="button" class="nav-item nav-admin-item" data-view="backup" data-short="BAK">Backup / Restore</button>
+            <button type="button" class="nav-item nav-admin-item" data-view="deleted" data-short="DEL">Deleted Vehicles</button>
+            <button type="button" class="nav-item nav-admin-item" data-view="completed" data-short="DONE">Completed Vehicles</button>
+            <button type="button" class="nav-item nav-admin-item" data-view="backend" data-short="DATA">Back End Data</button>
+          </div>
+        </div>
       </nav>
 
     </aside>
@@ -680,6 +686,28 @@
         </div>
       </section>
 
+      <section id="user-management" class="view">
+        <div class="pdc-lists-layout">
+          <section class="panel pdc-list-panel" id="user-management-panel">
+            <div class="panel-header">
+              <div>
+                <h2>User Administration</h2>
+                <p>Manage system access and roles.</p>
+              </div>
+              <button class="small-button" id="user-management-refresh" type="button">Refresh</button>
+            </div>
+            <div class="user-management-tabs" id="user-management-tabs">
+              <button type="button" class="user-management-tab active" data-um-tab="all">All</button>
+              <button type="button" class="user-management-tab" data-um-tab="pending">Pending</button>
+              <button type="button" class="user-management-tab" data-um-tab="approved">Approved</button>
+              <button type="button" class="user-management-tab" data-um-tab="disabled">Disabled</button>
+              <button type="button" class="user-management-tab" data-um-tab="rejected">Rejected</button>
+            </div>
+            <div id="user-management-content"><div class="empty-state compact-empty"><strong>Loading…</strong></div></div>
+          </section>
+        </div>
+      </section>
+
       <section id="backup" class="view">
         <div class="import-layout backup-layout">
           <section class="panel import-card" id="backup-card">
@@ -722,9 +750,7 @@
                 <h2>Daily Navision import</h2>
                 <p>Paste rows copied from Navision, or upload .txt / .tsv / .csv / .xlsx. A normal daily Navision upload stores every vehicle in Back End Data without placing new vehicles on the PDC Sheet.</p>
               </div>
-              <div class="panel-actions">
-                <a class="small-button" href="random-100-vehicles.csv" download>Download random 100-vehicle CSV</a>
-              </div>
+
             </div>
             <label class="drop-zone navision-drop-zone" for="navision-upload">
               <input id="navision-upload" type="file" accept=".txt,.tsv,.csv,.xlsx,text/plain,text/tab-separated-values,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" />
@@ -861,7 +887,7 @@
 
 
   <script src="vendor/supabase/supabase-2.110.5.js"></script>
-  <script src="pdc-supabase-config.js"></script>
+  <script src="pdc-supabase-config.production.js"></script>
   <script src="pdc-auth.js?v=2026.08.11.27-auth-foreground"></script>
   <script src="data.js?v=2026.08.13.45-admin-authority-intent-undo-pointer"></script>
   <script src="email-board-data.js?v=2026.08.13.45-admin-authority-intent-undo-pointer"></script>

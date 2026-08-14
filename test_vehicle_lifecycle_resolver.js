@@ -44,20 +44,33 @@ function resolvedBody(version = 3, extras = {}) {
   // guarded staging project. A production-shaped config cannot enable it.
   assert.strictEqual(vehicleLifecycleResolverRollbackEnabled(null), false);
   assert.strictEqual(vehicleLifecycleResolverRollbackEnabled({ vehicleLifecycle: {} }), false);
-  assert.strictEqual(vehicleLifecycleResolverRollbackEnabled({
+  const stagingRollbackConfig = {
+    environment: 'staging',
     projectRef: 'cdsmnqxtyyoeoznmbidd',
     url: 'https://cdsmnqxtyyoeoznmbidd.supabase.co',
-    vehicleLifecycle: { resolverRollbackDirectRead: true },
-  }, { origin: 'https://btnew.github.io', pathname: '/pdc-control-board-staging/' }), true);
+    vehicleLifecycle: {
+      resolverRollbackDirectRead: true,
+      resolverRollbackGuard: {
+        projectRef: 'cdsmnqxtyyoeoznmbidd',
+        url: 'https://cdsmnqxtyyoeoznmbidd.supabase.co',
+        origin: 'https://btnew.github.io',
+        paths: ['/pdc-control-board-staging/', '/pdc-control-board-staging/index.html'],
+      },
+    },
+  };
+  assert.strictEqual(vehicleLifecycleResolverRollbackEnabled(
+    stagingRollbackConfig,
+    { origin: 'https://btnew.github.io', pathname: '/pdc-control-board-staging/' },
+  ), true);
+  assert.strictEqual(vehicleLifecycleResolverRollbackEnabled(
+    stagingRollbackConfig,
+    { origin: 'https://example.com', pathname: '/pdc-control-board-staging/' },
+  ), false);
   assert.strictEqual(vehicleLifecycleResolverRollbackEnabled({
-    projectRef: 'cdsmnqxtyyoeoznmbidd',
-    url: 'https://cdsmnqxtyyoeoznmbidd.supabase.co',
-    vehicleLifecycle: { resolverRollbackDirectRead: true },
-  }, { origin: 'https://example.com', pathname: '/pdc-control-board-staging/' }), false);
-  assert.strictEqual(vehicleLifecycleResolverRollbackEnabled({
+    ...stagingRollbackConfig,
+    environment: 'production',
     projectRef: 'vjdtsswhroyguxyfjdkt',
     url: 'https://vjdtsswhroyguxyfjdkt.supabase.co',
-    vehicleLifecycle: { resolverRollbackDirectRead: true },
   }, { origin: 'https://btnew.github.io', pathname: '/pdc-control-board-staging/' }), false);
   console.log('PASS 1: rollback direct-read mode is explicit and staging-only');
 

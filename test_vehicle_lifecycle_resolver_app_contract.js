@@ -7,9 +7,7 @@ const path = require('path');
 const root = __dirname;
 const app = fs.readFileSync(path.join(root, 'app.js'), 'utf8').replace(/\r\n/g, '\n');
 const stagingConfig = fs.readFileSync(path.join(root, 'pdc-supabase-config.staging.js'), 'utf8');
-const productionConfigPath = fs.existsSync(path.join(root, 'pdc-supabase-config.js'))
-  ? path.join(root, 'pdc-supabase-config.js')
-  : path.join(root, 'pdc-supabase-config.example.js');
+const productionConfigPath = path.join(root, 'pdc-supabase-config.production.js');
 const productionConfig = fs.readFileSync(productionConfigPath, 'utf8');
 const stagingHtml = fs.readFileSync(path.join(root, 'staging.html'), 'utf8');
 const lifecycleModule = fs.readFileSync(path.join(root, 'vehicle-lifecycle-actions.js'), 'utf8');
@@ -20,13 +18,16 @@ assert(app.includes('rows.length > 1'), 'rollback direct-read path must return a
 console.log('PASS 1: first-match lookup is gone and rollback direct-read detects ambiguity');
 
 assert(stagingConfig.includes("projectRef: 'cdsmnqxtyyoeoznmbidd'"));
+assert(stagingConfig.includes("environment: 'staging'"));
+assert(stagingConfig.includes('resolverRollbackGuard: Object.freeze({'));
 assert(stagingConfig.includes('resolverRollbackDirectRead: false'));
 assert(!productionConfig.includes('resolverRollbackDirectRead'));
 assert(app.includes('vehicleLifecycleResolverRollbackEnabled(window.PDC_SUPABASE_CONFIG)'));
 assert(app.includes("mode: 'staging_direct_read'"));
-assert(lifecycleModule.includes("STAGE2B_STAGING_SUPABASE_URL = 'https://cdsmnqxtyyoeoznmbidd.supabase.co'"));
-assert(lifecycleModule.includes("STAGE2B_STAGING_SITE_ORIGIN = 'https://btnew.github.io'"));
-assert(lifecycleModule.includes("'/pdc-control-board-staging/'"));
+assert(!lifecycleModule.includes('cdsmnqxtyyoeoznmbidd'));
+assert(!lifecycleModule.includes('pdc-control-board-staging'));
+assert(lifecycleModule.includes("config.environment === 'staging'"));
+assert(lifecycleModule.includes('resolverRollbackGuard'));
 console.log('PASS 2: rollback is observable, disabled by default, and absent from production config');
 
 assert(app.includes("createPdcSupabaseTableRealtimeSubscription('vehicle_lifecycle_resolver_revision'"));

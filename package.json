@@ -28,6 +28,7 @@
     "pdc-email-vehicle-location-service.js",
     "staging-browser-assessment.js",
     "pdc-auth.js",
+    "pdc-supabase-config.production.js",
     "pdc-supabase-config.staging.js",
     "data.js",
     "data-staging-empty.js",

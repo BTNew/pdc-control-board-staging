@@ -3,6 +3,7 @@ const assert = require('assert');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
+const vm = require('vm');
 const { spawnSync } = require('child_process');
 
 const sentinel = 'UNTRACKED_PACKAGE_SENTINEL.js';
@@ -14,16 +15,40 @@ const result = spawnSync(process.execPath, [npmCli,'pack','--dry-run','--json','
 assert.strictEqual(result.status,0,result.stderr || result.stdout);
 const report = JSON.parse(result.stdout);
 const files = report.flatMap(item => item.files || []).map(item => item.path);
+const indexHtml = fs.readFileSync('index.html','utf8');
 const stagingHtml = fs.readFileSync('staging.html','utf8');
+const localRefs = html => [...html.matchAll(/(?:src|href)=["']([^"'#?]+)(?:[?#][^"']*)?["']/g)]
+  .map(([,value]) => value)
+  .filter(value => value && !/^(?:https?:|data:|#)/.test(value));
+const localIndexRefs = localRefs(indexHtml);
 const localStagingRefs = [...stagingHtml.matchAll(/(?:src|href)=["']([^"'#?]+)(?:[?#][^"']*)?["']/g)]
   .map(([,value]) => value)
   .filter(value => value && !/^(?:https?:|data:|#)/.test(value));
+const productionConfigName = 'pdc-supabase-config.production.js';
+const productionConfigSource = fs.readFileSync(productionConfigName,'utf8');
+const configContext = { window: { location: { origin:'https://btnew.github.io', pathname:'/pdc-control-board-login/' } } };
+vm.runInNewContext(productionConfigSource,configContext,{filename:productionConfigName});
+const productionConfig = configContext.window.PDC_SUPABASE_CONFIG;
 assert.ok(files.includes('app.js'),'package allowlist must retain the application source');
 assert.ok(files.includes('ai-auditor.css'),'package allowlist must retain the stylesheet required by staging.html and the packaged Stage-A UI regression');
 assert.ok(files.includes('tests/sql/ai_auditor_253/07_typed_value_boundaries.sql'),'package allowlist must retain migration regression evidence');
+assert.ok(files.includes(productionConfigName),'tracked production-safe browser config must be a package input');
+assert.ok(!files.includes('random-100-vehicles.csv'),'private/synthetic vehicle fixture must not enter the package');
+assert.ok(!indexHtml.includes('random-100-vehicles.csv'),'production index must not expose the vehicle fixture');
+assert.ok(indexHtml.indexOf(productionConfigName) < indexHtml.indexOf('pdc-auth.js'),'production config must load before auth');
+assert.deepStrictEqual(localIndexRefs.filter(ref => !files.includes(ref)).sort(),[],`package must include every local index.html asset reference`);
 assert.deepStrictEqual(localStagingRefs.filter(ref => !files.includes(ref)).sort(),[],`package must include every local staging.html asset reference`);
 assert.ok(!files.some(file => /(?:^|\/)(?:\.env$|\.env\.(?:local|staging|production)$|.*\.log$|pdc_auditor_253_test_signing_boundaries\.sql$)/.test(file)),'secret/evidence/runtime residue entered npm package');
 assert.ok(!files.includes('pdc-supabase-config.js'),'environment-specific browser config must never be a package input');
+assert.ok(productionConfig && typeof productionConfig === 'object','production browser config did not initialize');
+assert.strictEqual(productionConfig.projectRef,'vjdtsswhroyguxyfjdkt','production browser config has the wrong project');
+assert.strictEqual(productionConfig.url,'https://vjdtsswhroyguxyfjdkt.supabase.co','production browser config has the wrong endpoint');
+assert.match(productionConfig.publishableKey,/^sb_publishable_[A-Za-z0-9_-]+$/,'production browser config must contain only a Supabase publishable browser key');
+assert.ok(!/sb_secret_|service_role\s*[:=]|client[_-]?secret|password\s*[:=]|-----BEGIN [A-Z ]*PRIVATE KEY-----/i.test(productionConfigSource),'production browser config contains a forbidden secret/private marker');
+assert.ok(!productionConfigSource.includes('cdsmnqxtyyoeoznmbidd'),'production browser config contains the staging project');
+const allowedConfigFields = new Set(['environment','projectRef','url','publishableKey','auth','workshop','vehicleLifecycle']);
+assert.strictEqual(productionConfig.environment,'production','production browser config must declare its environment explicitly');
+assert.deepStrictEqual(Object.keys(productionConfig).filter(key => !allowedConfigFields.has(key)),[],'production browser config contains an unreviewed top-level field');
 
 // Materialize exactly the reported package members and exercise the packaged
 // regression suite. The child marker prevents this test from recursively
@@ -100,6 +125,7 @@ try {
   fs.mkdirSync(path.join(archive,'scripts'),{recursive:true});
   fs.copyFileSync('scripts/verify_npm_pack_inputs.js',path.join(archive,'scripts','verify_npm_pack_inputs.js'));
   fs.writeFileSync(path.join(archive,'pdc-supabase-config.staging.js'),'window.STAGING=true;\n');
+  fs.copyFileSync(productionConfigName,path.join(archive,productionConfigName));
   fs.writeFileSync(path.join(archive,'pdc-supabase-config.js'),'window.POISON_SECRET=true;\n');
   const packed = spawnSync(process.execPath,[npmCli,'pack','--dry-run','--json'],{cwd:archive,encoding:'utf8'});
   assert.strictEqual(packed.status,0,packed.stderr || packed.stdout);
@@ -107,6 +133,7 @@ try {
   assert.ok(jsonStart >= 0,packed.stdout);
   const packedFiles = JSON.parse(packed.stdout.slice(jsonStart)).flatMap(item=>item.files||[]).map(item=>item.path);
   assert.ok(packedFiles.includes('pdc-supabase-config.staging.js'),'staging-safe config must remain packageable');
+  assert.ok(packedFiles.includes(productionConfigName),'tracked production-safe config must remain packageable');
   assert.ok(!packedFiles.includes('pdc-supabase-config.js'),'archive/committed ambient browser config leaked into package');
 } finally { fs.rmSync(archive,{recursive:true,force:true}); }
 console.log('NPM package allowlist, residue exclusions and exact-Git-byte prepack gate passed');

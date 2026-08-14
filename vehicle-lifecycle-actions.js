@@ -22,13 +22,6 @@ function vehicleLifecycleSharedModeEnabled(config) {
   return !!(config && config.vehicleLifecycle && config.vehicleLifecycle.sharedData === true);
 }
 
-const STAGE2B_STAGING_PROJECT_REF = 'cdsmnqxtyyoeoznmbidd';
-const STAGE2B_STAGING_SUPABASE_URL = 'https://cdsmnqxtyyoeoznmbidd.supabase.co';
-const STAGE2B_STAGING_SITE_ORIGIN = 'https://btnew.github.io';
-const STAGE2B_STAGING_SITE_PATHS = new Set([
-  '/pdc-control-board-staging/',
-  '/pdc-control-board-staging/index.html',
-]);
 const LIFECYCLE_RESOLUTION_OUTCOMES = Object.freeze([
   'resolved',
   'not_found',
@@ -44,12 +37,16 @@ function vehicleLifecycleResolverRollbackEnabled(config, runtimeLocation) {
   const location = runtimeLocation || (typeof window !== 'undefined' ? window.location : null);
   const origin = String(location && location.origin || '').replace(/\/$/, '');
   const pathname = String(location && location.pathname || '');
+  const guard = config?.vehicleLifecycle?.resolverRollbackGuard;
+  const approvedPaths = Array.isArray(guard?.paths) ? guard.paths.map(String) : [];
   return !!(
     config
-    && config.projectRef === STAGE2B_STAGING_PROJECT_REF
-    && String(config.url || '').replace(/\/$/, '') === STAGE2B_STAGING_SUPABASE_URL
-    && origin === STAGE2B_STAGING_SITE_ORIGIN
-    && STAGE2B_STAGING_SITE_PATHS.has(pathname)
+    && config.environment === 'staging'
+    && guard
+    && config.projectRef === guard.projectRef
+    && String(config.url || '').replace(/\/$/, '') === String(guard.url || '').replace(/\/$/, '')
+    && origin === String(guard.origin || '').replace(/\/$/, '')
+    && approvedPaths.includes(pathname)
     && config.vehicleLifecycle
     && config.vehicleLifecycle.resolverRollbackDirectRead === true
   );

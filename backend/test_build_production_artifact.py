@@ -31,30 +31,52 @@ class BuildProductionArtifactValidatorTests(unittest.TestCase):
         if self.temp_dir.exists():
             shutil.rmtree(self.temp_dir)
 
-    def test_missing_registration_module_is_a_hard_failure(self):
-        (self.temp_dir / "index.html").write_text("<html><body>no registration here</body></html>", encoding="utf-8")
+    def test_missing_administrator_user_management_is_a_hard_failure(self):
+        (self.temp_dir / "index.html").write_text("<html><body>no user management here</body></html>", encoding="utf-8")
+        (self.temp_dir / "app.js").write_text("", encoding="utf-8")
+        (self.temp_dir / "pdc-auth.js").write_text("", encoding="utf-8")
         problems = artifact_builder.confirm_registration_and_user_management_present()
-        self.assertTrue(problems, "expected missing registration module to be reported as a real problem, not silently passed")
+        self.assertTrue(problems, "expected missing administrator User Management to fail closed")
 
-    def test_registration_module_present_and_wired_passes(self):
-        (self.temp_dir / "pdc-auth-registration-production.js").write_text("// stub", encoding="utf-8")
+    def test_administrator_user_management_present_and_public_registration_absent_passes(self):
         (self.temp_dir / "index.html").write_text(
-            '<html><body><script src="pdc-auth-registration-production.js"></script>'
-            '<div id="user-management">User Management</div></body></html>',
+            '<html><body><small>Public account registration is disabled.</small>'
+            '<button id="nav-user-management" data-view="user-management">User Management</button>'
+            '<section id="user-management"><div id="user-management-content"></div></section></body></html>',
+            encoding="utf-8",
+        )
+        (self.temp_dir / "pdc-auth.js").write_text("// no public registration", encoding="utf-8")
+        (self.temp_dir / "app.js").write_text(
+            "vehicleLifecycleAdministratorActive(); const USER_MANAGEMENT_STATE = {}; "
+            "admin_approve_user admin_reject_registration admin_change_role admin_disable_user admin_restore_user",
             encoding="utf-8",
         )
         problems = artifact_builder.confirm_registration_and_user_management_present()
         self.assertEqual(problems, [])
 
+    def test_public_registration_is_a_hard_failure(self):
+        (self.temp_dir / "index.html").write_text(
+            '<html><body><button id="pdc-show-create-account">Create account</button>'
+            '<button id="nav-user-management">User Management</button>'
+            '<section id="user-management"></section></body></html>', encoding="utf-8")
+        (self.temp_dir / "pdc-auth.js").write_text("client.auth.signUp({})", encoding="utf-8")
+        (self.temp_dir / "app.js").write_text(
+            "vehicleLifecycleAdministratorActive(); const USER_MANAGEMENT_STATE = {}; "
+            "admin_approve_user admin_reject_registration admin_change_role admin_disable_user admin_restore_user",
+            encoding="utf-8",
+        )
+        problems = artifact_builder.confirm_registration_and_user_management_present()
+        self.assertTrue(any("public registration" in problem.lower() for problem in problems))
+
     def test_missing_shared_data_flags_is_a_hard_failure(self):
-        (self.temp_dir / "pdc-supabase-config.js").write_text(
+        (self.temp_dir / "pdc-supabase-config.production.js").write_text(
             "window.PDC_SUPABASE_CONFIG = { projectRef: 'x' };", encoding="utf-8"
         )
         problems = artifact_builder.confirm_shared_data_flags_enabled()
         self.assertEqual(len(problems), 2, f"expected both flags to be reported missing, got: {problems}")
 
     def test_shared_data_flags_present_passes(self):
-        (self.temp_dir / "pdc-supabase-config.js").write_text(
+        (self.temp_dir / "pdc-supabase-config.production.js").write_text(
             "window.PDC_SUPABASE_CONFIG = { workshop: { sharedData: true }, "
             "vehicleLifecycle: { sharedData: true } };",
             encoding="utf-8",
@@ -99,28 +121,21 @@ class BuildProductionArtifactValidatorTests(unittest.TestCase):
         problems = artifact_builder.confirm_all_referenced_assets_exist()
         self.assertTrue(any("does-not-exist.js" in p for p in problems))
 
-    def test_named_asset_exception_is_not_a_hard_failure(self):
+    def test_random_vehicle_fixture_reference_is_a_hard_failure(self):
         (self.temp_dir / "index.html").write_text(
             '<html><body><a href="random-100-vehicles.csv" download>x</a></body></html>', encoding="utf-8"
         )
         problems = artifact_builder.confirm_all_referenced_assets_exist()
-        self.assertEqual(problems, [])
+        self.assertTrue(any("random-100-vehicles.csv" in p for p in problems))
 
-    def test_real_repo_build_currently_fails_because_stage_3_4_are_incomplete(self):
-        # This is intentional and documents the honest current state:
-        # the validator must fail today, because a production-safe
-        # registration module and the shared-data feature flags do not
-        # exist yet. If this test ever starts failing because the real
-        # build passes, that is real progress -- update this test at
-        # that point to assert PASS instead, alongside the actual
-        # Stage 3/4 completion commit.
+    def test_real_repo_build_has_complete_required_source_set(self):
         artifact_builder.ARTIFACT_DIR = self._original_artifact_dir
         copied, missing = artifact_builder.build_artifact()
-        self.assertIn("pdc-auth-registration-production.js", missing)
+        self.assertEqual(missing, [])
         registration_problems = artifact_builder.confirm_registration_and_user_management_present()
         flag_problems = artifact_builder.confirm_shared_data_flags_enabled()
-        self.assertTrue(registration_problems)
-        self.assertTrue(flag_problems)
+        self.assertEqual(registration_problems, [])
+        self.assertEqual(flag_problems, [])
 
 
 if __name__ == "__main__":

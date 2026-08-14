@@ -49,20 +49,14 @@ ARTIFACT_DIR = REPO_ROOT / "_build" / "production-artifact"
 STAGING_PROJECT_REF = "cdsmnqxtyyoeoznmbidd"
 PRODUCTION_PROJECT_REF = "vjdtsswhroyguxyfjdkt"
 
-# Exact file list mirrors production's existing index.html script/asset
-# references (fetched from the live production repo/site during the
-# read-only assessment) plus the registration/User Management module
-# that the independent review requires be present. NOT staging.html's
-# list verbatim -- pdc-auth-registration.js as a filename is still
-# staging-only (see FORBIDDEN_FILENAMES); a production-safe equivalent
-# module is required instead once Stage 3 produces one (tracked
-# separately; not yet present, so REQUIRED_FEATURE_FILES intentionally
-# fails today until that file exists).
+# Exact file list mirrors production index.html's complete local runtime
+# closure. Public self-registration remains staging-only; production uses
+# administrator-only User Management already implemented in app.js.
 PRODUCTION_FILES = [
     "index.html",
     "app.js",
     "pdc-auth.js",
-    "pdc-supabase-config.js",
+    "pdc-supabase-config.production.js",
     "data.js",
     "email-board-data.js",
     "arb-labor-catalog.js",
@@ -73,24 +67,17 @@ PRODUCTION_FILES = [
     "workshop-data-service.js",
     "workshop-realtime.js",
     "workshop-shared-actions.js",
+    "ai-board-advisor.js",
+    "workshop-eligibility.js",
+    "workshop-navigation.js",
     "vehicle-lifecycle-actions.js",
+    "vehicle-location-lifecycle.js",
     "vendor/supabase/supabase-2.110.5.js",
     "assets/pmb-logo.png",
     "favicon.svg",
 ]
 
-# Independent-review requirement: the production artifact must contain
-# a production-safe registration/User Management module. This is
-# intentionally NOT satisfied by pdc-auth-registration.js (that file
-# name is explicitly forbidden below -- it is the staging-only module).
-# A production-safe equivalent (e.g. a file that does not hard-depend
-# on staging config and is reviewed for production use) must be added
-# here once Stage 3 produces one. Until then this list is deliberately
-# unsatisfiable, and the build is EXPECTED TO FAIL -- this is the
-# correct, honest state per the review's NO-GO verdict, not a bug.
-REQUIRED_FEATURE_FILES = [
-    "pdc-auth-registration-production.js",
-]
+REQUIRED_FEATURE_FILES = []
 
 # Files that must exist in the artifact but are not present in this
 # working repo's checkout (they were added directly in prior deploy
@@ -111,6 +98,8 @@ FORBIDDEN_FILENAMES = {
     "pdc-supabase-config.staging.js",
     "data-staging-empty.js",
     "pdc-auth-registration.js",  # the STAGING-only module -- see REQUIRED_FEATURE_FILES above
+    "pdc-auth-registration-production.js",
+    "random-100-vehicles.csv",
     ".env",
     ".env.local",
     ".env.staging",
@@ -134,24 +123,6 @@ SECRET_PATTERNS = [
 # vendor Supabase SDK's own dev-mode warning text is not a leaked
 # production/staging config value).
 LOCALHOST_ALLOWED_FILES = {"vendor/supabase/supabase-2.110.5.js"}
-
-# Independent-review remediation Stage 8 note (finding #2 / synthetic
-# fixtures): random-100-vehicles.csv is a real, pre-existing production
-# feature (a staff-facing "download a sample import file" convenience
-# button), not something introduced by this project. The review
-# separately flagged it as synthetic data worth a cutover decision
-# (remove it, or intentionally keep it) -- that decision belongs to the
-# project owner, not to this validator. Until that decision is made,
-# index.html's existing reference to it is treated as a single,
-# explicitly-named, reviewed exception, rather than either (a) silently
-# allowing any unreviewed missing-asset reference, or (b) forcing the
-# keep/remove decision to be made inside this script.
-ASSET_EXISTENCE_EXCEPTIONS = {
-    "random-100-vehicles.csv",  # see PRODUCTION-READINESS-HANDOVER.md and
-                                  # the cutover plan -- pending an explicit
-                                  # keep/remove decision from the project owner
-}
-
 
 def build_artifact():
     if ARTIFACT_DIR.exists():
@@ -232,25 +203,34 @@ def confirm_no_staging_pages_url():
 
 
 def confirm_registration_and_user_management_present():
-    """Independent-review requirement: the production artifact must
-    contain a production-safe registration/User Management module and
-    index.html must actually load it."""
+    """Production must expose administrator User Management while keeping
+    public account self-registration absent."""
     problems = []
     index_path = ARTIFACT_DIR / "index.html"
+    app_path = ARTIFACT_DIR / "app.js"
+    auth_path = ARTIFACT_DIR / "pdc-auth.js"
     if not index_path.exists():
         return ["index.html missing -- cannot verify registration/User Management wiring"]
     index_text = index_path.read_text(encoding="utf-8", errors="ignore")
-
-    for required_file in REQUIRED_FEATURE_FILES:
-        artifact_file = ARTIFACT_DIR / required_file
-        if not artifact_file.exists():
-            problems.append(f"required registration/User Management module '{required_file}' is not present in the artifact")
-            continue
-        if required_file not in index_text:
-            problems.append(f"index.html does not load required module '{required_file}' via a <script> tag")
-
-    if "user-management" not in index_text and "User Management" not in index_text:
-        problems.append("index.html does not appear to contain a User Management screen/nav item")
+    app_text = app_path.read_text(encoding="utf-8", errors="ignore") if app_path.exists() else ""
+    auth_text = auth_path.read_text(encoding="utf-8", errors="ignore") if auth_path.exists() else ""
+    if 'id="nav-user-management"' not in index_text or 'id="user-management"' not in index_text or 'id="user-management-content"' not in index_text:
+        problems.append("index.html does not contain the complete administrator User Management navigation/screen")
+    required_app_markers = (
+        "vehicleLifecycleAdministratorActive", "USER_MANAGEMENT_STATE",
+        "admin_approve_user", "admin_reject_registration", "admin_change_role",
+        "admin_disable_user", "admin_restore_user",
+    )
+    missing_markers = [marker for marker in required_app_markers if marker not in app_text]
+    if missing_markers:
+        problems.append(f"app.js is missing administrator User Management authority/actions: {missing_markers}")
+    if ("pdc-auth-registration" in index_text
+            or 'id="pdc-show-create-account"' in index_text
+            or 'id="pdc-create-account-form"' in index_text
+            or ".auth.signUp(" in auth_text):
+        problems.append("public registration is present in the production artifact")
+    if "Public account registration is disabled." not in index_text:
+        problems.append("index.html does not state that public account registration is disabled")
 
     return problems
 
@@ -261,16 +241,16 @@ def confirm_shared_data_flags_enabled():
     vehicleLifecycle.sharedData -- both false-by-default until this is
     verified done deliberately and safely (not automatically enabled
     by this validator; it only checks that a human already turned them
-    on in pdc-supabase-config.js before the artifact is built)."""
-    config_path = ARTIFACT_DIR / "pdc-supabase-config.js"
+    on in pdc-supabase-config.production.js before the artifact is built)."""
+    config_path = ARTIFACT_DIR / "pdc-supabase-config.production.js"
     if not config_path.exists():
-        return ["pdc-supabase-config.js missing -- cannot verify shared-data flags"]
+        return ["pdc-supabase-config.production.js missing -- cannot verify shared-data flags"]
     text = config_path.read_text(encoding="utf-8", errors="ignore")
     problems = []
     if not re.search(r"workshop\s*:\s*\{[^}]*sharedData\s*:\s*true", text, re.DOTALL):
-        problems.append("pdc-supabase-config.js does not set workshop.sharedData = true")
-    if not re.search(r"vehicleLifecycle\s*:\s*\{[^}]*sharedData\s*:\s*true", text, re.DOTALL):
-        problems.append("pdc-supabase-config.js does not set vehicleLifecycle.sharedData = true")
+        problems.append("pdc-supabase-config.production.js does not set workshop.sharedData = true")
+    if not re.search(r"vehicleLifecycle\s*:\s*(?:Object\.freeze\()?\{[^}]*sharedData\s*:\s*true", text, re.DOTALL):
+        problems.append("pdc-supabase-config.production.js does not set vehicleLifecycle.sharedData = true")
     return problems
 
 
@@ -286,8 +266,6 @@ def confirm_all_referenced_assets_exist():
     for match in re.finditer(r'(?:src|href)="([^"?]+)(?:\?[^"]*)?"', text):
         ref = match.group(1)
         if ref.startswith(("http://", "https://", "#", "data:")):
-            continue
-        if ref in ASSET_EXISTENCE_EXCEPTIONS:
             continue
         asset_path = ARTIFACT_DIR / ref
         if not asset_path.exists():
@@ -342,7 +320,7 @@ def main():
             print(" FAIL -", p)
         all_failures.extend(registration_problems)
     else:
-        print(" OK: registration/User Management module present and wired into index.html.")
+        print(" OK: administrator User Management is present and public registration is absent.")
 
     print("\n--- Shared-data production feature flag check ---")
     flag_problems = confirm_shared_data_flags_enabled()

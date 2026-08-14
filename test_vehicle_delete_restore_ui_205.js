@@ -19,7 +19,7 @@ assert(deleted.includes('>Restore Vehicle</button>'), 'Deleted list must offer R
 assert(deleted.includes('>Allow one controlled recreation</button>'), 'Deleted list must offer one controlled recreation');
 assert(deleted.includes("action === 'restore' ? 'adminRestoreVehicle' : 'adminAllowOneVehicleRecreation'"), 'Buttons must dispatch exact bridge methods');
 assert(deleted.includes('await refreshVehicleLifecycleLocationsAndRender()'), 'Successful deleted-list actions must refresh shared locations and render');
-assert(app.includes("config.projectRef === 'cdsmnqxtyyoeoznmbidd'"), 'Reset guard must pin the staging project ref');
-assert(app.includes("'https://cdsmnqxtyyoeoznmbidd.supabase.co'"), 'Reset guard must pin the staging URL');
+assert(!app.includes('cdsmnqxtyyoeoznmbidd'), 'Production-shipped app.js must not contain the staging project ref');
+assert(app.includes('vehicleLifecycleResolverRollbackEnabled(config, location)'), 'Reset guard must delegate to the staging-config identity contract');
 assert(app.includes("app.emailVehicleLocationService.subscribe(() => {"), 'Existing vehicle/revision subscription must refresh lifecycle state for two-user updates');
 console.log('Administrator Delete/Restore/Reset UI contracts passed');

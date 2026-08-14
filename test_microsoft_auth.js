@@ -9,7 +9,7 @@ const root = __dirname;
 const authSource = fs.readFileSync(path.join(root, 'pdc-auth.js'), 'utf8');
 const registrationSource = fs.readFileSync(path.join(root, 'pdc-auth-registration.js'), 'utf8');
 const index = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
-const configExample = fs.readFileSync(path.join(root, 'pdc-supabase-config.example.js'), 'utf8');
+const productionConfig = fs.readFileSync(path.join(root, 'pdc-supabase-config.production.js'), 'utf8');
 const vendor = fs.readFileSync(path.join(root, 'vendor', 'supabase', 'supabase-2.110.5.js'), 'utf8');
 
 assert.ok(index.includes('<body class="auth-pending"'), 'Production shell must start locked');
@@ -19,11 +19,11 @@ assert.ok(index.includes('id="pdc-new-password-form"'), 'Invite and recovery pas
 assert.ok(index.includes('autocomplete="username"') && index.includes('autocomplete="current-password"'), 'Login fields need password-manager-compatible autocomplete values');
 assert.ok(index.includes('id="pdc-auth-signout"'), 'Sign-out action is missing');
 assert.ok(index.indexOf('vendor/supabase/supabase-2.110.5.js') < index.indexOf('pdc-auth.js'), 'Supabase client must load before the auth gate');
-assert.ok(index.indexOf('pdc-supabase-config.js') < index.indexOf('pdc-auth.js'), 'Browser config must load before the auth gate');
+assert.ok(index.indexOf('pdc-supabase-config.production.js') < index.indexOf('pdc-auth.js'), 'Tracked production browser config must load before the auth gate');
 assert.ok(index.indexOf('pdc-auth.js') < index.indexOf('app.js'), 'Auth gate must initialize before application code');
 assert.ok(vendor.includes('supabase') && vendor.length > 150000, 'Pinned Supabase browser bundle is missing or incomplete');
-assert.ok(configExample.includes("provider: 'azure'"), 'Microsoft/Azure must be the configured provider');
-assert.ok(configExample.includes("mode: 'password'"), 'Temporary production login mode should be individual email/password');
+assert.ok(productionConfig.includes("provider: 'azure'"), 'Microsoft/Azure must be the configured provider');
+assert.ok(productionConfig.includes("mode: 'password'"), 'Temporary production login mode should be individual email/password');
 assert.ok(!authSource.includes('URLSearchParams') && !authSource.includes('AUTH_BYPASS'), 'Production auth must not support a query-string bypass');
 assert.ok(authSource.includes('signInWithPassword({ email, password })'), 'Email/password sign-in handler is missing');
 assert.ok(authSource.includes('updateUser({ password })'), 'Invite and recovery flows must let staff establish a private password');

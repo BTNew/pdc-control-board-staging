@@ -17,6 +17,7 @@
 window.PDC_ALLOW_LOCAL_RESET = true;
 
 window.PDC_SUPABASE_CONFIG = {
+  environment: 'staging',
   projectRef: 'cdsmnqxtyyoeoznmbidd',
   url: 'https://cdsmnqxtyyoeoznmbidd.supabase.co',
   publishableKey: 'sb_publishable_hJiXYk7aDCGcijf946MX2g_WVDXnQfk',
@@ -34,6 +35,12 @@ window.PDC_SUPABASE_CONFIG = {
   vehicleLifecycle: Object.freeze({
     sharedData: true,
     resolverRollbackDirectRead: false,
+    resolverRollbackGuard: Object.freeze({
+      projectRef: 'cdsmnqxtyyoeoznmbidd',
+      url: 'https://cdsmnqxtyyoeoznmbidd.supabase.co',
+      origin: 'https://btnew.github.io',
+      paths: Object.freeze(['/pdc-control-board-staging/', '/pdc-control-board-staging/index.html'])
+    }),
     resolverAssetVersion: '2026.08.13.45-admin-authority-intent-undo-pointer'
   })
 };
