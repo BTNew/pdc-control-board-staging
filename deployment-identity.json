@@ -1,16 +1,16 @@
 {
   "environment": "staging",
-  "application_version": "2026.08.13.45-admin-authority-intent-undo-pointer",
+  "application_version": "2026.08.16.46-staging-root-recovery",
   "source_commit": "6132e8571a054af7f66d691b3af26ae773ca9517",
   "frontend_source_commit": "43a321a55aff41247302cea5ea544cbed30064b4",
-  "parent_staging_commit": "408d77fd9b6157c1f8c6bfa3fbe7c4e2dc84cb52",
+  "parent_staging_commit": "3a9c44bdc2d4429e9d2bf959f2194d969778db1a",
   "staging_project_ref": "cdsmnqxtyyoeoznmbidd",
   "production_unchanged": true,
   "main_unchanged": true,
   "dns_unchanged": true,
   "pilot_activation_changed": false,
   "mailbox_runtime_changed": false,
-  "deployed_at_utc": "2026-08-13T04:02:47.012800+00:00",
+  "deployed_at_utc": "2026-08-16T13:11:10Z",
   "database_migration_head": 250,
   "database_migrations": {
     "243": {
@@ -65,38 +65,38 @@
   "files": {
     "app.js": {
       "source_path": "app.js",
-      "sha256": "cc144a18f425b8037923ed8f343b04f396d0d18281d17bda2ca67fabc0c2db87",
-      "bytes": 1143058
+      "sha256": "47782c2ce9d42a03f181df5421cd2ec8beadd0f0207b1479f387204d6b9f61c0",
+      "bytes": 1121561
     },
     "index.html": {
-      "source_path": "index.html",
-      "sha256": "e7f80e5da31481535e4b7871ab9bef3eb8d074023042c6c9f5f324c9c8b66d37",
-      "bytes": 57336
+      "source_path": "staging.html",
+      "sha256": "ebf46f669d24fc8c06a195fe1def7c5c0bb894f6c2bc5441cfba83e349f4339a",
+      "bytes": 66890
     },
     "no-vehicles.html": {
       "source_path": "no-vehicles.html",
-      "sha256": "0d98577a49fac47c25a1f70b081245cc48d551bab60cc009444b5871c602ee32",
-      "bytes": 47754
+      "sha256": "157d1ac1dc5c47987119cc14a06321b8928d3891eda93651e733eb414fb7bf31",
+      "bytes": 46970
     },
     "pdc-supabase-config.staging.js": {
       "source_path": "pdc-supabase-config.staging.js",
-      "sha256": "d9fc4df655ec30a2c0e73ebd83b33cf8650d2ae67d2c6af5c03ecc6b32af5e93",
-      "bytes": 1758
+      "sha256": "f4ec6e07a6d9cd19ea401cd4ba7844663f412a62a9943b28cf3ab34b2ecaa823",
+      "bytes": 1719
     },
     "staging.html": {
       "source_path": "staging.html",
-      "sha256": "3c8482bb31d4a85452241d2d5c6660ceb67e6a5abebcdde91d0588c8c2d88262",
-      "bytes": 67853
+      "sha256": "ebf46f669d24fc8c06a195fe1def7c5c0bb894f6c2bc5441cfba83e349f4339a",
+      "bytes": 66890
     },
     "workshop-data-service.js": {
       "source_path": "workshop-data-service.js",
-      "sha256": "99a97764a74576f1ef02aaefbfa9e7590ecc1db5f5df89a4a67c767768f3f3c6",
-      "bytes": 25991
+      "sha256": "2d71c8aba8880e10910a75c39e50bd212bdccc798e28da01e8bd7a4ebf10ec54",
+      "bytes": 25399
     },
     "workshop-planner.js": {
       "source_path": "workshop-planner.js",
-      "sha256": "938951946cf37643c12587dbbb4df9d5763393abc719a552bd1ec613d898c770",
-      "bytes": 360772
+      "sha256": "3e17c1128f23febaf31c22f394ecd901ca851024339bf498f54b44fefca40486",
+      "bytes": 354561
     },
     "workshop-shared-actions.js": {
       "source_path": "workshop-shared-actions.js",
