@@ -5267,7 +5267,7 @@ async function refreshSharedVehicleWorkState(vehicle = {}) {
     Authorization: `Bearer ${token}`,
   };
   const workUrl = `${window.PDC_SUPABASE_CONFIG.url}/rest/v1/vehicle_work_items?select=work_key,required,completed,completed_at,completed_by&vehicle_id=eq.${encodeURIComponent(ref.vehicleId)}&order=work_key`;
-  const partsUrl = `${window.PDC_SUPABASE_CONFIG.url}/rest/v1/vehicle_parts_updates?select=parts_required,parts_ordered,parts_received,worst_eta,previous_worst_eta,updated_at&vehicle_id=eq.${encodeURIComponent(ref.vehicleId)}&order=updated_at.desc,id.desc&limit=1`;
+  const partsUrl = `${window.PDC_SUPABASE_CONFIG.url}/rest/v1/vehicle_parts_updates?select=parts_required,parts_ordered,parts_received,worst_eta,updated_at&vehicle_id=eq.${encodeURIComponent(ref.vehicleId)}&order=updated_at.desc,id.desc&limit=1`;
   try {
     const [workResponse, partsResponse] = await Promise.all([
       fetch(workUrl, { headers }),
