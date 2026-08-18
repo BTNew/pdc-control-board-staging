@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.18.17-admin-global-revision';
+const APP_VERSION = '2026.08.18.18-parts-queue-readback';
 const WORKSHOP_PLANNER_SCRIPT_VERSION = APP_VERSION;
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
@@ -13618,6 +13618,8 @@ async function markVehiclePartsOrdered(key = '') {
           : 'Parts could not be marked ordered on the shared vehicle record. No change was made.';
       window.alert(message);
       await refreshEmailVehicleLocations();
+      await refreshSharedVehicleWorkState(sharedVehicle);
+      renderPartsHome();
       return;
     }
     sharedVehicle.pdcRequiresParts = true;
@@ -13663,6 +13665,8 @@ async function markVehiclePartsComplete(key = '') {
           : 'Parts could not be marked received on the shared vehicle record. No change was made.';
     window.alert(message);
     await refreshEmailVehicleLocations();
+    await refreshSharedVehicleWorkState(sharedVehicle);
+    renderPartsHome();
     return;
   }
   // Reconcile from the canonical vehicle UUID readback. The completion
@@ -13722,6 +13726,8 @@ async function updateVehiclePartsWorstEta(key = '', value = '') {
         : 'The Parts ETA could not be saved to the shared vehicle record. No change was made.';
       window.alert(message);
       await refreshEmailVehicleLocations();
+      await refreshSharedVehicleWorkState(sharedVehicle);
+      renderPartsHome();
       return;
     }
     sharedVehicle.pdcPartsWorstEta = eta;
