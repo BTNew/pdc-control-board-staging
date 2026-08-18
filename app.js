@@ -4203,7 +4203,7 @@ async function refreshEmailVehicleLocations() {
   const response = await service.snapshot();
   if (generation !== app.emailVehicleLocationGeneration || service !== app.emailVehicleLocationService || authority !== String(window.PDC_AUTH_CONTEXT?.userId || '')) return false;
   if (!response.ok) return false;
-  app.emailVehicleLocationRows = Array.isArray(response.data?.vehicles) ? response.data.vehicles : [];
+  app.emailVehicleLocationRows = applyPendingSharedWorkStateOverlays(Array.isArray(response.data?.vehicles) ? response.data.vehicles : []);
   app.emailVehicleLocationRevision = response.data?.revision ?? null;
   renderAll();
   return true;
@@ -5229,6 +5229,50 @@ function reconcileSharedWorkStatesInMemory(vehicle = {}, vehicleId = '', workSta
   });
 }
 
+function pendingSharedWorkStateMap() {
+  if (!(app.pendingSharedWorkStates instanceof Map)) app.pendingSharedWorkStates = new Map();
+  return app.pendingSharedWorkStates;
+}
+
+function sharedWorkStatesMatchVehicle(vehicle = {}, workStates = {}) {
+  return PDC_JOB_DEFS.every(def => {
+    const state = String(workStates[def.key] || 'none').toLowerCase();
+    return Boolean(vehicle[def.requireKey]) === (state !== 'none')
+      && Boolean(vehicle[def.completeKey]) === (state === 'complete');
+  });
+}
+
+function applyPendingSharedWorkStateOverlays(rows = []) {
+  const pending = pendingSharedWorkStateMap();
+  const now = Date.now();
+  rows.filter(Boolean).forEach(row => {
+    for (const [vehicleId, item] of pending) {
+      if (now - item.savedAt > 30000) {
+        pending.delete(vehicleId);
+        continue;
+      }
+      const rowId = String(row.__emailVehicleId || row.sharedVehicleId || row.id || '').trim();
+      const rowStock = String(row.stock || row.stockNumber || '').trim();
+      if (rowId !== vehicleId && rowStock !== item.stock) continue;
+      const incomingVersion = Number(row.__emailVehicleVersion || row.sharedVehicleLinkVehicleVersion || row.version || 0);
+      if (incomingVersion >= item.vehicleVersion && sharedWorkStatesMatchVehicle(row, item.workStates)) {
+        pending.delete(vehicleId);
+        continue;
+      }
+      PDC_JOB_DEFS.forEach(def => {
+        const state = String(item.workStates[def.key] || 'none').toLowerCase();
+        row[def.requireKey] = state !== 'none';
+        row[def.completeKey] = state === 'complete';
+      });
+      row.__emailVehicleServerAuthoritative = true;
+      row.__emailVehicleId = vehicleId;
+      row.sharedVehicleId = vehicleId;
+      row.__emailVehicleVersion = Math.max(incomingVersion, item.vehicleVersion);
+    }
+  });
+  return rows;
+}
+
 async function saveSharedVehicleWorkStates(vehicle = {}, workStates = {}) {
   const ref = await vehicleLifecycleSharedRef(vehicle);
   if (!ref || ref.outcome !== 'resolved') {
@@ -5260,12 +5304,18 @@ async function saveSharedVehicleWorkStates(vehicle = {}, workStates = {}) {
     vehicle.sharedVehicleId = ref.vehicleId;
     vehicle.sharedVehicleLinkVehicleVersion = body.vehicle_version;
     reconcileSharedWorkStatesInMemory(vehicle, ref.vehicleId, workStates, body.vehicle_version);
-    // Do not immediately replace the just-saved vehicle with a snapshot that
-    // can still be behind the committed RPC. The caller reconciles the form
-    // state before rendering; the normal Realtime/route refresh remains the
-    // authoritative follow-up read.
-    if (typeof loadWorkshopEligibilitySnapshot === 'function') await loadWorkshopEligibilitySnapshot('vehicle_work_states_saved');
-    if (window.__workshopDataService?.loadSnapshot) await window.__workshopDataService.loadSnapshot('vehicle_work_states_saved');
+    pendingSharedWorkStateMap().set(ref.vehicleId, {
+      stock: String(displayStockNumber(vehicle) || vehicle.stock || '').trim(),
+      workStates: { ...workStates },
+      vehicleVersion: Number(body.vehicle_version) || 0,
+      savedAt: Date.now(),
+    });
+    // Do not block the Save button on unrelated Workshop snapshot services.
+    // Their refresh is best-effort; the email vehicle snapshot is reconciled
+    // through the bounded pending overlay above until it confirms this version.
+    void Promise.resolve().then(() => loadWorkshopEligibilitySnapshot('vehicle_work_states_saved')).catch(() => {});
+    void Promise.resolve().then(() => window.__workshopDataService?.loadSnapshot?.('vehicle_work_states_saved')).catch(() => {});
+    void refreshEmailVehicleLocations();
     return body;
   } catch (_error) {
     return { ok: false, error: 'service_unavailable' };
