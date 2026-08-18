@@ -13370,17 +13370,34 @@ function renderPartsHome() {
   $$('[data-parts-worst-eta]', host).forEach(input => input.addEventListener('change', () => updateVehiclePartsWorstEta(input.dataset.partsWorstEta, input.value)));
 }
 
+function authenticatedEmailPartsTarget(key = '', selected = null) {
+  const service = app.emailVehicleLocationService || initEmailVehicleLocationsIfAvailable();
+  if (!service) return null;
+  const requested = String(key || '').trim();
+  const selectedKeys = selected ? [vehicleKey(selected), selected.stock, selected.batch, selected.id, selected.__emailVehicleId] : [];
+  const keys = new Set([requested, ...selectedKeys].map(value => String(value || '').trim()).filter(Boolean));
+  const candidates = [selected, ...(Array.isArray(app.emailVehicleLocationRows) ? app.emailVehicleLocationRows : [])].filter(Boolean);
+  const row = candidates.find(candidate => {
+    if (candidate.__emailVehicleServerAuthoritative !== true) return false;
+    return [vehicleKey(candidate), candidate.stock, candidate.batch, candidate.id, candidate.__emailVehicleId]
+      .map(value => String(value || '').trim()).some(value => keys.has(value));
+  });
+  if (!row || !row.__emailVehicleId) return null;
+  return { service, vehicle: row, vehicleId: row.__emailVehicleId, expectedVersion: row.__emailVehicleVersion };
+}
+
 async function markVehiclePartsOrdered(key = '') {
   const vehicle = selectedVehicle(key);
   if (!vehicle) return;
-  if (vehicle.__emailVehicleServerAuthoritative === true) {
-    const service = app.emailVehicleLocationService;
-    if (!service || typeof service.markPartsOrdered !== 'function') {
+  const sharedTarget = authenticatedEmailPartsTarget(key, vehicle);
+  if (sharedTarget) {
+    const { service, vehicle: sharedVehicle, vehicleId, expectedVersion } = sharedTarget;
+    if (typeof service.markPartsOrdered !== 'function') {
       window.alert('The shared Parts service is unavailable. No change was made.');
       renderPartsHome();
       return;
     }
-    const result = await service.markPartsOrdered(vehicle.__emailVehicleId, vehicle.__emailVehicleVersion);
+    const result = await service.markPartsOrdered(vehicleId, expectedVersion);
     if (!result?.ok) {
       const message = result?.code === 'vehicle_version_conflict'
         ? 'This vehicle changed since the Parts row loaded. The latest information will be reloaded; check it and try again.'
@@ -13391,6 +13408,8 @@ async function markVehiclePartsOrdered(key = '') {
       await refreshEmailVehicleLocations();
       return;
     }
+    sharedVehicle.pdcRequiresParts = true;
+    sharedVehicle.pdcPartsOrdered = true;
     await refreshEmailVehicleLocations();
     return;
   }
@@ -13407,20 +13426,19 @@ async function markVehiclePartsOrdered(key = '') {
 async function markVehiclePartsComplete(key = '') {
   const vehicle = selectedVehicle(key);
   if (!vehicle) return;
-  // Parts completion is authoritative shared state. Never create a plausible
-  // local tick when the canonical vehicle/receipt mutation is unavailable.
-  if (vehicle.__emailVehicleServerAuthoritative !== true) {
+  const sharedTarget = authenticatedEmailPartsTarget(key, vehicle);
+  if (!sharedTarget) {
     window.alert('Parts completion requires the authenticated shared vehicle record. No change was made.');
     renderPartsHome();
     return;
   }
-  const service = app.emailVehicleLocationService;
-  if (!service || typeof service.markPartsComplete !== 'function') {
+  const { service, vehicle: sharedVehicle, vehicleId, expectedVersion } = sharedTarget;
+  if (typeof service.markPartsComplete !== 'function') {
     window.alert('The shared Parts completion service is unavailable. No change was made.');
     renderPartsHome();
     return;
   }
-  const result = await service.markPartsComplete(vehicle.__emailVehicleId, vehicle.__emailVehicleVersion);
+  const result = await service.markPartsComplete(vehicleId, expectedVersion);
   if (!result?.ok) {
     const message = result?.code === 'vehicle_version_conflict'
       ? 'This vehicle changed since the Parts row loaded. The latest information will be reloaded; check it and try again.'
@@ -13473,14 +13491,15 @@ async function updateVehiclePartsWorstEta(key = '', value = '') {
   const eta = cleanNavisionText(value || '');
   const previousEta = partsWorstEtaValue(vehicle);
   const operator = getCurrentOperatorName();
-  if (vehicle.__emailVehicleServerAuthoritative === true) {
-    const service = app.emailVehicleLocationService;
-    if (!service || typeof service.updatePartsEta !== 'function') {
+  const sharedTarget = authenticatedEmailPartsTarget(key, vehicle);
+  if (sharedTarget) {
+    const { service, vehicle: sharedVehicle, vehicleId, expectedVersion } = sharedTarget;
+    if (typeof service.updatePartsEta !== 'function') {
       window.alert('The shared Parts ETA service is unavailable. No change was made.');
       renderPartsHome();
       return;
     }
-    const result = await service.updatePartsEta(vehicle.__emailVehicleId, vehicle.__emailVehicleVersion, eta);
+    const result = await service.updatePartsEta(vehicleId, expectedVersion, eta);
     if (!result?.ok) {
       const message = result?.code === 'vehicle_version_conflict'
         ? 'This vehicle changed since the Parts row loaded. The latest information will be reloaded; check it and try again.'
@@ -13489,6 +13508,7 @@ async function updateVehiclePartsWorstEta(key = '', value = '') {
       await refreshEmailVehicleLocations();
       return;
     }
+    sharedVehicle.pdcPartsWorstEta = eta;
     await refreshEmailVehicleLocations();
     return;
   }
