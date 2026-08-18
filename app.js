@@ -1878,6 +1878,7 @@ const app = {
   report: window.VEHICLE_TRACKING_DATA?.report || {},
   currentView: 'dashboard',
   selectedStock: null,
+  activeVehicleDetail: null,
   vehicleDetailPage: 'details',
   vehicleWorkshopDetailCache: new Map(),
   vehicleWorkshopDetailRequestGeneration: 0,
@@ -10360,9 +10361,14 @@ function vehicleStatusUpdateEmailBody(vehicle = {}) {
 
 function draftSelectedVehicleStatusEmail(key = '') {
   const cleanKey = String(key || '').trim();
-  const selected = cleanKey
-    ? app.data.filter(vehicle => [vehicleKey(vehicle), vehicle.stock, vehicle.id].map(String).includes(cleanKey))
-    : selectedVehiclesForBulkEmail();
+  const activeDetail = app.activeVehicleDetail;
+  const modalVehicle = cleanKey
+    && activeDetail
+    && String(vehicleKey(activeDetail) || '').trim() === cleanKey
+    ? activeDetail
+    : null;
+  const resolvedVehicle = modalVehicle || (cleanKey ? selectedVehicle(cleanKey) : null);
+  const selected = resolvedVehicle ? [resolvedVehicle] : selectedVehiclesForBulkEmail();
   if (selected.length !== 1) {
     window.alert('Select exactly one vehicle before using EMAIL UPDATE.');
     return;
@@ -12091,6 +12097,7 @@ function closeVehicleModal() {
   const modal = $('#vehicle-modal');
   app.vehicleWorkshopDetailRequestGeneration += 1;
   app.vehicleDetailPage = 'details';
+  app.activeVehicleDetail = null;
   if (!modal) return;
   modal.hidden = true;
   document.body.classList.remove('modal-open');
@@ -12162,6 +12169,7 @@ function renderDetail() {
   const v = selectedVehicle();
   const panel = $('#vehicle-detail');
   if (!v || !panel) return;
+  app.activeVehicleDetail = v;
   const key = vehicleKey(v);
   const notes = getNotes(key);
   const customerWarning = !isCustomerMatch(v);
