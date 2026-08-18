@@ -5229,6 +5229,33 @@ function reconcileSharedWorkStatesInMemory(vehicle = {}, vehicleId = '', workSta
   });
 }
 
+function pdcWorkStateFromForm(form, vehicle = {}, def = {}, locked = false) {
+  if (locked) return pdcJobTriState(vehicle, def);
+  const button = form?.querySelector?.(`[data-pdc-work-state="${def.key}"]`);
+  const buttonState = String(button?.dataset?.state || '').toLowerCase();
+  if (['none', 'required', 'complete'].includes(buttonState)) return buttonState;
+  const named = form?.elements?.namedItem?.(def.requireKey) || form?.[def.requireKey];
+  const completed = form?.elements?.namedItem?.(def.completeKey) || form?.[def.completeKey];
+  if (completed?.value === '1') return 'complete';
+  if (named?.value === '1') return 'required';
+  return 'none';
+}
+
+function pdcWorkStateMapFromForm(form, vehicle = {}, locked = false) {
+  return Object.fromEntries(PDC_JOB_DEFS.map(def => [def.key, pdcWorkStateFromForm(form, vehicle, def, locked)]));
+}
+
+function pdcWorkStateUpdatesFromMap(workStates = {}) {
+  const requirementUpdates = {};
+  const completionUpdates = {};
+  PDC_JOB_DEFS.forEach(def => {
+    const state = String(workStates[def.key] || 'none').toLowerCase();
+    requirementUpdates[def.requireKey] = state !== 'none';
+    completionUpdates[def.completeKey] = state === 'complete';
+  });
+  return { requirementUpdates, completionUpdates };
+}
+
 function pendingSharedWorkStateMap() {
   if (!(app.pendingSharedWorkStates instanceof Map)) app.pendingSharedWorkStates = new Map();
   return app.pendingSharedWorkStates;
@@ -12227,12 +12254,8 @@ function renderDetail() {
     const pdcJobcard = cleanNavisionText(form.pdcJobcard?.value || '');
     const pdcBlocked = Boolean(form.pdcBlocked?.checked);
     const pdcBlockReasonValue = cleanNavisionText(form.pdcBlockReason?.value || '');
-    const requirementUpdates = {};
-    const completionUpdates = {};
-    PDC_JOB_DEFS.forEach(def => {
-      requirementUpdates[def.requireKey] = isCompletedVehicle ? pdcJobRequired(v, def) : form[def.requireKey]?.value === '1';
-      completionUpdates[def.completeKey] = isCompletedVehicle ? pdcJobComplete(v, def) : form[def.completeKey]?.value === '1';
-    });
+    const workStateMap = pdcWorkStateMapFromForm(form, v, isCompletedVehicle);
+    const { requirementUpdates, completionUpdates } = pdcWorkStateUpdatesFromMap(workStateMap);
     const duplicateKeyVehicle = pdcLocation === 'PMB' ? activePmbVehicleWithKeyNumber(keyNumber, key) : null;
     if (duplicateKeyVehicle) {
       window.alert(`Key tag ${keyNumber} is already assigned to ${displayStockNumber(duplicateKeyVehicle) || 'another PMB vehicle'}. Only one active PMB vehicle can use a key tag number at a time.`);
