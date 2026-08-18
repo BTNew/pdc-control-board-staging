@@ -5256,6 +5256,48 @@ function pdcWorkStateUpdatesFromMap(workStates = {}) {
   return { requirementUpdates, completionUpdates };
 }
 
+async function refreshSharedVehicleWorkState(vehicle = {}) {
+  if (!vehicle || !vehicleLifecycleSharedModeActive()) return false;
+  const token = typeof getPdcSupabaseAccessToken === 'function' ? getPdcSupabaseAccessToken() : null;
+  if (!token || !window.PDC_SUPABASE_CONFIG?.url) return false;
+  const ref = await vehicleLifecycleSharedRef(vehicle);
+  if (!ref || ref.outcome !== 'resolved') return false;
+  const headers = {
+    apikey: window.PDC_SUPABASE_CONFIG.publishableKey,
+    Authorization: `Bearer ${token}`,
+  };
+  const workUrl = `${window.PDC_SUPABASE_CONFIG.url}/rest/v1/vehicle_work_items?select=work_key,required,completed,completed_at,completed_by&vehicle_id=eq.${encodeURIComponent(ref.vehicleId)}&order=work_key`;
+  const partsUrl = `${window.PDC_SUPABASE_CONFIG.url}/rest/v1/vehicle_parts_updates?select=parts_required,parts_ordered,parts_received,worst_eta,previous_worst_eta,updated_at&vehicle_id=eq.${encodeURIComponent(ref.vehicleId)}&order=updated_at.desc,id.desc&limit=1`;
+  try {
+    const [workResponse, partsResponse] = await Promise.all([
+      fetch(workUrl, { headers }),
+      fetch(partsUrl, { headers }),
+    ]);
+    if (!workResponse.ok || !partsResponse.ok) return false;
+    const workRows = await workResponse.json();
+    const partsRows = await partsResponse.json();
+    const workStates = Object.fromEntries(PDC_JOB_DEFS.map(def => [def.key, 'none']));
+    (Array.isArray(workRows) ? workRows : []).forEach(row => {
+      const def = pdcJobDefinitionForKey(row.work_key);
+      if (!def) return;
+      workStates[def.key] = row.completed === true ? 'complete' : row.required === true ? 'required' : 'none';
+    });
+    const parts = Array.isArray(partsRows) ? partsRows[0] : null;
+    if (parts) {
+      workStates.parts = parts.parts_received === true ? 'complete' : parts.parts_required === true ? 'required' : 'none';
+      vehicle.pdcPartsOrdered = parts.parts_ordered === true;
+      vehicle.pdcPartsWorstEta = parts.worst_eta || '';
+      vehicle.pdcPartsPreviousWorstEta = parts.previous_worst_eta || '';
+      vehicle.pdcPartsWorstEtaUpdatedAt = parts.updated_at || '';
+    }
+    reconcileSharedWorkStatesInMemory(vehicle, ref.vehicleId, workStates, ref.version);
+    pendingSharedWorkStateMap().delete(ref.vehicleId);
+    return true;
+  } catch (_error) {
+    return false;
+  }
+}
+
 function pendingSharedWorkStateMap() {
   if (!(app.pendingSharedWorkStates instanceof Map)) app.pendingSharedWorkStates = new Map();
   return app.pendingSharedWorkStates;
@@ -5343,6 +5385,9 @@ async function saveSharedVehicleWorkStates(vehicle = {}, workStates = {}) {
     void Promise.resolve().then(() => loadWorkshopEligibilitySnapshot('vehicle_work_states_saved')).catch(() => {});
     void Promise.resolve().then(() => window.__workshopDataService?.loadSnapshot?.('vehicle_work_states_saved')).catch(() => {});
     void refreshEmailVehicleLocations();
+    void refreshSharedVehicleWorkState(vehicle).then(ok => {
+      if (ok && app.selectedStock === vehicleKey(vehicle)) renderDetail();
+    });
     return body;
   } catch (_error) {
     return { ok: false, error: 'service_unavailable' };
@@ -11965,6 +12010,9 @@ function openVehicleModal(stock) {
   modal.hidden = false;
   document.body.classList.add('modal-open');
   $('#modal-close')?.focus();
+  void refreshSharedVehicleWorkState(vehicle).then(ok => {
+    if (ok && app.selectedStock === vehicleKey(vehicle) && !modal.hidden) renderDetail();
+  });
   return true;
 }
 
