@@ -5,6 +5,9 @@ const fs = require('fs');
 const planner = fs.readFileSync('workshop-planner.js', 'utf8');
 const css = fs.readFileSync('workshop-planner.css', 'utf8');
 
+assert.ok(planner.includes('async function workshopCurrentGlobalRevision(fallback = null)'), 'Admin mutations have a global revision reader');
+assert.ok(planner.includes('/rest/v1/workshop_revision?select=revision&id=eq.1'), 'Admin mutations read the global Workshop revision');
+assert.ok(planner.includes('expectedRevision: Number(expectedRevision)'), 'Admin creation sends the global revision to the RPC');
 assert.ok(planner.includes('data-workshop-admin-palette-tile'), 'Admin palette tile exists');
 assert.ok(planner.includes('application/x-workshop-admin-palette'), 'Admin palette drag type exists');
 assert.ok(planner.includes('workshopAdminPaletteDurationMinutes = 30'), 'Admin palette defaults to 30 minutes');

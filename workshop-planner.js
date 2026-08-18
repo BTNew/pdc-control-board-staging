@@ -3742,6 +3742,23 @@ async function workshopDeleteAdminBlock(block = {}) {
   return result?.ok === true;
 }
 
+async function workshopCurrentGlobalRevision(fallback = null) {
+  const token = typeof getPdcSupabaseAccessToken === 'function' ? getPdcSupabaseAccessToken() : null;
+  const config = window.PDC_SUPABASE_CONFIG || {};
+  if (!token || !config.url) return Number.isFinite(Number(fallback)) ? Number(fallback) : null;
+  try {
+    const response = await fetch(`${String(config.url).replace(/\/$/, '')}/rest/v1/workshop_revision?select=revision&id=eq.1&limit=1`, {
+      headers: { apikey: config.publishableKey, Authorization: `Bearer ${token}` },
+    });
+    if (!response.ok) return Number.isFinite(Number(fallback)) ? Number(fallback) : null;
+    const rows = await response.json();
+    const revision = Number(Array.isArray(rows) ? rows[0]?.revision : null);
+    return Number.isFinite(revision) ? revision : (Number.isFinite(Number(fallback)) ? Number(fallback) : null);
+  } catch (_error) {
+    return Number.isFinite(Number(fallback)) ? Number(fallback) : null;
+  }
+}
+
 async function workshopCreatePaletteAdminBlock(stage = '', bay = 0, dateKey = '', startMinutes = 0, durationMinutes = 30) {
   if (!workshopSharedModeActive() || !workshopAdminBlockCanMutate()) return false;
   const snapshot = window.__workshopDataService?.getTrustedSnapshot?.();
@@ -3749,9 +3766,14 @@ async function workshopCreatePaletteAdminBlock(stage = '', bay = 0, dateKey = ''
     window.alert('The current shared workshop schedule is still loading. Try again in a moment.');
     return false;
   }
+  const expectedRevision = await workshopCurrentGlobalRevision(snapshot.revision);
+  if (!Number.isFinite(Number(expectedRevision))) {
+    window.alert('The shared Workshop revision could not be read. No Admin block was created.');
+    return false;
+  }
   const start = workshopDateAtOffset(dateKey, startMinutes);
   const result = await workshopDispatchSharedAction('createAdminBlock', {
-    expectedRevision: Number(snapshot.revision),
+    expectedRevision: Number(expectedRevision),
     stageCode: stage,
     bayNumber: Number(bay),
     blockType: 'admin',
@@ -3822,9 +3844,14 @@ function openWorkshopAdminBlockModal() {
   overlay.querySelector('[data-admin-block-form]').addEventListener('submit', async event => {
     event.preventDefault();
     const form = event.currentTarget;
+    const expectedRevision = await workshopCurrentGlobalRevision(snapshot.revision);
+    if (!Number.isFinite(Number(expectedRevision))) {
+      window.alert('The shared Workshop revision could not be read. No Admin block was created.');
+      return;
+    }
     const start = workshopDateAtOffset(form.elements.date.value, Number(form.elements.startMinutes.value));
     const result = await workshopDispatchSharedAction('createAdminBlock', {
-      expectedRevision: Number(snapshot.revision), stageCode: stage,
+      expectedRevision: Number(expectedRevision), stageCode: stage,
       bayNumber: Number(form.elements.bay.value), blockType: form.elements.blockType.value,
       label: cleanNavisionText(form.elements.label.value), scheduledStartAt: start.toISOString(),
       durationMinutes: workshopSnapMinutes(Number(form.elements.hours.value) || 30),
