@@ -5291,7 +5291,12 @@ async function refreshSharedVehicleWorkState(vehicle = {}) {
       vehicle.pdcPartsWorstEtaUpdatedAt = parts.updated_at || '';
     }
     reconcileSharedWorkStatesInMemory(vehicle, ref.vehicleId, workStates, ref.version);
-    pendingSharedWorkStateMap().delete(ref.vehicleId);
+    pendingSharedWorkStateMap().set(ref.vehicleId, {
+      stock: String(displayStockNumber(vehicle) || vehicle.stock || '').trim(),
+      workStates: { ...workStates },
+      vehicleVersion: Number(ref.version) || 0,
+      savedAt: Date.now(),
+    });
     return true;
   } catch (_error) {
     return false;
@@ -14553,7 +14558,8 @@ function activeSharedNavisionRows(rows = app.sharedNavisionVisibleRows) {
 function vehicleLocationBoardRows(localRows = pdcSheetVehicles(), sharedRows = app.sharedNavisionVisibleRows) {
   const emailModule = window.PDC_EMAIL_VEHICLE_LOCATION_SERVICE;
   if (typeof emailModule?.reconcileVehicleRows === 'function') {
-    localRows = emailModule.reconcileVehicleRows(localRows, app.emailVehicleLocationRows).rows;
+    const reconciled = emailModule.reconcileVehicleRows(localRows, app.emailVehicleLocationRows).rows;
+    localRows = applyPendingSharedWorkStateOverlays(reconciled);
   }
   const currentShared = activeSharedNavisionRows(sharedRows);
   const localVehicles = deduplicateLocalLocationRows(localRows);
