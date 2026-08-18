@@ -1779,12 +1779,17 @@ function loadSalespersonRecords(includeInactive = false) {
   return includeInactive ? rows : rows.filter(row => row.active);
 }
 
+function salespersonDirectoryRecords() {
+  const records = loadSalespersons();
+  return records.length ? records : DEFAULT_SALESPERSONS;
+}
+
 function salespersonRecord(value = '') {
   const clean = cleanNavisionText(value);
   const lower = clean.toLowerCase();
   const isInitialsCode = /^[a-z0-9]{1,6}$/i.test(clean);
   const lookupCode = isInitialsCode ? (SALESPERSON_CODE_ALIASES.get(clean.toUpperCase()) || clean.toUpperCase()) : '';
-  return loadSalespersons().find(record =>
+  return salespersonDirectoryRecords().find(record =>
     (isInitialsCode && record.initials === lookupCode) ||
     record.name.toLowerCase() === lower || record.email.toLowerCase() === lower
   ) || null;
@@ -1793,12 +1798,12 @@ function salespersonRecord(value = '') {
 function salespersonForVehicle(vehicle = {}) {
   const directEmail = cleanNavisionText(vehicle.salespersonEmail || vehicle.salesPersonEmail || vehicle.consultantEmail || vehicle.ownerEmail || vehicle.salesEmail || '');
   const consultant = consultantName(vehicle);
-  if (directEmail) {
-    const directRecord = loadSalespersons().find(record => record.email.toLowerCase() === directEmail.toLowerCase());
-    return { initials: directRecord?.initials || salesPersonInitials(consultant), name: directRecord?.name || (consultant === 'Unassigned' ? 'Sales' : consultant), email: directEmail };
-  }
   const record = salespersonRecord(consultant);
   if (record) return record;
+  if (directEmail) {
+    const directRecord = salespersonDirectoryRecords().find(item => item.email.toLowerCase() === directEmail.toLowerCase());
+    return { initials: directRecord?.initials || salesPersonInitials(consultant), name: directRecord?.name || (consultant === 'Unassigned' ? 'Sales' : consultant), email: directEmail };
+  }
   return null;
 }
 
@@ -10278,9 +10283,9 @@ function offerSalespersonChangeEmail(vehicle = {}, change = {}) {
       </div>
       <div class="sales-change-email-fields">
         <label><span>Salesperson</span><input value="${escapeHtml(salesperson)}" readonly /></label>
-        <label><span>Email address</span><input type="email" value="${escapeHtml(defaultEmail)}" data-sales-email-recipient autocomplete="email" /></label>
+        <label><span>Email address</span><input type="email" value="${escapeHtml(defaultEmail)}" data-sales-email-recipient autocomplete="email" readonly /></label>
       </div>
-      <div class="subtle">The website opens an email draft for review. Check the recipient before sending, especially when the imported file contains only salesperson initials.</div>
+      <div class="subtle">The email address is linked to the selected salesperson directory record. The website opens the draft for review before sending.</div>
       <div class="edit-actions sales-change-email-actions">
         <button class="secondary" type="button" data-sales-email-cancel>Not now</button>
         <button class="primary" type="button" data-sales-email-open>Open email draft</button>
