@@ -52,5 +52,8 @@ context.app.pendingSharedWorkStates.set(vehicleId, {
 const repaired = context.applyPendingSharedWorkStateOverlays(mapped);
 assert.strictEqual(repaired[0].pdcRequiresHoist, true);
 assert.strictEqual(repaired[0].pdcRequiresFitting, true);
-assert.ok(source.includes('localRows = applyPendingSharedWorkStateOverlays(reconciled);'), 'board reapplies overlay after DTO mapping');
+assert.ok(source.includes('function sharedWorkStateCache()'), 'shared work-state cache exists for the current authenticated page');
+assert.ok(source.includes('function applySharedWorkStateCache(rows = [])'), 'final board rows apply canonical shared cache');
+assert.ok(source.includes('cacheSharedWorkState(vehicle, ref.vehicleId, workStates, body.vehicle_version);'), 'successful work-state RPC populates the canonical cache');
+assert.ok(source.includes('localRows = applySharedWorkStateCache(localRows);'), 'selectedVehicle source applies cache after all projection mapping');
 console.log('Raw snapshot to DTO mapper stale-state regression passed.');

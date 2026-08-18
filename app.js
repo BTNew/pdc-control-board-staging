@@ -5291,6 +5291,7 @@ async function refreshSharedVehicleWorkState(vehicle = {}) {
       vehicle.pdcPartsWorstEtaUpdatedAt = parts.updated_at || '';
     }
     reconcileSharedWorkStatesInMemory(vehicle, ref.vehicleId, workStates, ref.version);
+    cacheSharedWorkState(vehicle, ref.vehicleId, workStates, ref.version);
     pendingSharedWorkStateMap().set(ref.vehicleId, {
       stock: String(displayStockNumber(vehicle) || vehicle.stock || '').trim(),
       workStates: { ...workStates },
@@ -5301,6 +5302,40 @@ async function refreshSharedVehicleWorkState(vehicle = {}) {
   } catch (_error) {
     return false;
   }
+}
+
+function sharedWorkStateCache() {
+  if (!(app.sharedVehicleWorkStateCache instanceof Map)) app.sharedVehicleWorkStateCache = new Map();
+  return app.sharedVehicleWorkStateCache;
+}
+
+function cacheSharedWorkState(vehicle, vehicleId, workStates, vehicleVersion) {
+  sharedWorkStateCache().set(String(vehicleId || '').trim(), {
+    stock: String(displayStockNumber(vehicle) || vehicle.stock || '').trim(),
+    workStates: { ...workStates },
+    vehicleVersion: Number(vehicleVersion) || 0,
+  });
+}
+
+function applySharedWorkStateCache(rows = []) {
+  const cache = sharedWorkStateCache();
+  rows.filter(Boolean).forEach(row => {
+    for (const [vehicleId, item] of cache) {
+      const rowId = String(row.__emailVehicleId || row.sharedVehicleId || row.id || '').trim();
+      const rowStock = String(row.stock || row.stockNumber || '').trim();
+      if (rowId !== vehicleId && rowStock !== item.stock) continue;
+      PDC_JOB_DEFS.forEach(def => {
+        const state = String(item.workStates[def.key] || 'none').toLowerCase();
+        row[def.requireKey] = state !== 'none';
+        row[def.completeKey] = state === 'complete';
+      });
+      row.__emailVehicleServerAuthoritative = true;
+      row.__emailVehicleId = vehicleId;
+      row.sharedVehicleId = vehicleId;
+      row.__emailVehicleVersion = Math.max(Number(row.__emailVehicleVersion || 0), item.vehicleVersion);
+    }
+  });
+  return rows;
 }
 
 function pendingSharedWorkStateMap() {
@@ -5378,6 +5413,7 @@ async function saveSharedVehicleWorkStates(vehicle = {}, workStates = {}) {
     vehicle.sharedVehicleId = ref.vehicleId;
     vehicle.sharedVehicleLinkVehicleVersion = body.vehicle_version;
     reconcileSharedWorkStatesInMemory(vehicle, ref.vehicleId, workStates, body.vehicle_version);
+    cacheSharedWorkState(vehicle, ref.vehicleId, workStates, body.vehicle_version);
     pendingSharedWorkStateMap().set(ref.vehicleId, {
       stock: String(displayStockNumber(vehicle) || vehicle.stock || '').trim(),
       workStates: { ...workStates },
@@ -14561,6 +14597,7 @@ function vehicleLocationBoardRows(localRows = pdcSheetVehicles(), sharedRows = a
     const reconciled = emailModule.reconcileVehicleRows(localRows, app.emailVehicleLocationRows).rows;
     localRows = applyPendingSharedWorkStateOverlays(reconciled);
   }
+  localRows = applySharedWorkStateCache(localRows);
   const currentShared = activeSharedNavisionRows(sharedRows);
   const localVehicles = deduplicateLocalLocationRows(localRows);
   const sharedByStock = new Map();
