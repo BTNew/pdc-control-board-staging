@@ -24,7 +24,7 @@ function ok(value, message) {
   ok(appSource.includes('function vehicleLocationsScreenRows') && appSource.includes('return vehicleLocationsScreenRows().filter(partsQueueVisibleVehicle)'), 'Parts source is derived from the Vehicle Locations row set');
   ok(appSource.includes('function partsStateComplete') && appSource.includes('.filter(partsQueueVisibleVehicle)'), 'completed Parts state is excluded from the Parts queue');
   ok(appSource.includes('service.markPartsComplete') && appSource.includes('await service.markPartsComplete('), 'authoritative UI routes Mark Complete through the shared service');
-  ok(/async function markVehiclePartsComplete[\s\S]*?authenticatedEmailPartsTarget\(key, vehicle\)[\s\S]*?markPartsComplete[\s\S]*?receipt-backed/.test(appSource), 'manual Mark Complete resolves the shared target and reconciles receipt-backed state');
+  ok(/async function markVehiclePartsComplete[\s\S]*?authenticatedPartsTarget\(key, vehicle\)[\s\S]*?markPartsComplete[\s\S]*?receipt-backed/.test(appSource), 'manual Mark Complete resolves the canonical shared target and reconciles receipt-backed state');
   const manualCompleteSource = appSource.slice(appSource.indexOf('async function markVehiclePartsComplete'), appSource.indexOf('function markVehiclePartsStoppage'));
   ok(manualCompleteSource.includes('await refreshEmailVehicleLocations()') && !manualCompleteSource.includes('saveVehicleEdits('), 'manual completion removes/ticks only after authoritative snapshot reconciliation, never by a local guess');
 

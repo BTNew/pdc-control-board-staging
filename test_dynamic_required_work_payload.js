@@ -60,5 +60,7 @@ assert.strictEqual(updates.requirementUpdates.pdcRequiresParts, false);
 assert.ok(source.includes('async function refreshSharedVehicleWorkState(vehicle = {})'), 'shared vehicle cards have canonical UUID work-state readback');
 assert.ok(source.includes('/rest/v1/vehicle_work_items?select=work_key,required,completed'), 'readback fetches authoritative required-work rows');
 assert.ok(source.includes('/rest/v1/vehicle_parts_updates?select=parts_required,parts_ordered,parts_received'), 'readback fetches authoritative Parts rows');
-assert.ok(source.includes('void refreshSharedVehicleWorkState(vehicle).then'), 'vehicle modal refreshes from canonical shared work state');
+assert.ok(source.includes('async function authenticatedPartsTarget(key = \'\', selected = null)'), 'Parts actions have canonical shared target fallback');
+assert.strictEqual((source.match(/const sharedTarget = await authenticatedPartsTarget\(key, vehicle\);/g) || []).length, 3, 'Ordered, Complete and ETA all resolve canonical shared targets');
+assert.ok(source.includes('await refreshSharedVehicleWorkState(sharedVehicle);'), 'Parts actions read back the canonical UUID state');
 console.log('Dynamic required-work payload and canonical readback contract passed.');

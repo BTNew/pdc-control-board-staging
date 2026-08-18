@@ -13534,10 +13534,20 @@ function authenticatedEmailPartsTarget(key = '', selected = null) {
   return { service, vehicle: row, vehicleId: row.__emailVehicleId, expectedVersion: row.__emailVehicleVersion };
 }
 
+async function authenticatedPartsTarget(key = '', selected = null) {
+  const emailTarget = authenticatedEmailPartsTarget(key, selected);
+  if (emailTarget) return emailTarget;
+  const service = app.emailVehicleLocationService || initEmailVehicleLocationsIfAvailable();
+  if (!service || !selected || !vehicleLifecycleSharedModeActive()) return null;
+  const ref = await vehicleLifecycleSharedRef(selected);
+  if (!ref || ref.outcome !== 'resolved') return null;
+  return { service, vehicle: selected, vehicleId: ref.vehicleId, expectedVersion: ref.version };
+}
+
 async function markVehiclePartsOrdered(key = '') {
   const vehicle = selectedVehicle(key);
   if (!vehicle) return;
-  const sharedTarget = authenticatedEmailPartsTarget(key, vehicle);
+  const sharedTarget = await authenticatedPartsTarget(key, vehicle);
   if (sharedTarget) {
     const { service, vehicle: sharedVehicle, vehicleId, expectedVersion } = sharedTarget;
     if (typeof service.markPartsOrdered !== 'function') {
@@ -13559,6 +13569,8 @@ async function markVehiclePartsOrdered(key = '') {
     sharedVehicle.pdcRequiresParts = true;
     sharedVehicle.pdcPartsOrdered = true;
     await refreshEmailVehicleLocations();
+    await refreshSharedVehicleWorkState(sharedVehicle);
+    renderPartsHome();
     return;
   }
   const operator = getCurrentOperatorName();
@@ -13574,7 +13586,7 @@ async function markVehiclePartsOrdered(key = '') {
 async function markVehiclePartsComplete(key = '') {
   const vehicle = selectedVehicle(key);
   if (!vehicle) return;
-  const sharedTarget = authenticatedEmailPartsTarget(key, vehicle);
+  const sharedTarget = await authenticatedPartsTarget(key, vehicle);
   if (!sharedTarget) {
     window.alert('Parts completion requires the authenticated shared vehicle record. No change was made.');
     renderPartsHome();
@@ -13599,9 +13611,11 @@ async function markVehiclePartsComplete(key = '') {
     await refreshEmailVehicleLocations();
     return;
   }
-  // Reconcile from the post-mutation snapshot. The canonical response is
-  // receipt-backed; the row is not locally ticked or removed optimistically.
+  // Reconcile from the canonical vehicle UUID readback. The completion
+  // response is receipt-backed; the row is never ticked by a local guess.
   await refreshEmailVehicleLocations();
+  await refreshSharedVehicleWorkState(sharedVehicle);
+  renderPartsHome();
   if (result.code === 'parts_completed' && result.data?.changed === true) {
     offerSalespersonChangeEmail(vehicle, {
       title: 'Parts completed',
@@ -13639,7 +13653,7 @@ async function updateVehiclePartsWorstEta(key = '', value = '') {
   const eta = cleanNavisionText(value || '');
   const previousEta = partsWorstEtaValue(vehicle);
   const operator = getCurrentOperatorName();
-  const sharedTarget = authenticatedEmailPartsTarget(key, vehicle);
+  const sharedTarget = await authenticatedPartsTarget(key, vehicle);
   if (sharedTarget) {
     const { service, vehicle: sharedVehicle, vehicleId, expectedVersion } = sharedTarget;
     if (typeof service.updatePartsEta !== 'function') {
@@ -13658,6 +13672,8 @@ async function updateVehiclePartsWorstEta(key = '', value = '') {
     }
     sharedVehicle.pdcPartsWorstEta = eta;
     await refreshEmailVehicleLocations();
+    await refreshSharedVehicleWorkState(sharedVehicle);
+    renderPartsHome();
     return;
   }
   recordVehicleAudit(vehicle, eta ? 'Parts worst ETA updated' : 'Parts worst ETA cleared', { eta, previousEta, by: operator });
