@@ -5198,6 +5198,37 @@ function describeSharedVehicleWorkStateError(result = {}) {
   return backendMessage ? `${base}${status} — ${String(backendMessage).slice(0, 240)}` : `${base}${status}`;
 }
 
+function reconcileSharedWorkStatesInMemory(vehicle = {}, vehicleId = '', workStates = {}, vehicleVersion = null) {
+  const requestedId = String(vehicleId || '').trim();
+  const requestedKeys = new Set([
+    vehicleKey(vehicle), vehicle?.stock, vehicle?.batch, vehicle?.id, vehicle?.__emailVehicleId,
+  ].map(value => String(value || '').trim()).filter(Boolean));
+  const rows = [
+    vehicle,
+    ...(Array.isArray(app.data) ? app.data : []),
+    ...(Array.isArray(app.emailVehicleLocationRows) ? app.emailVehicleLocationRows : []),
+  ].filter(Boolean);
+  const seen = new Set();
+  rows.forEach(row => {
+    const rowId = String(row.__emailVehicleId || row.sharedVehicleId || '').trim();
+    const rowKeys = [vehicleKey(row), row.stock, row.batch, row.id].map(value => String(value || '').trim());
+    if (row !== vehicle && rowId !== requestedId && !rowKeys.some(value => value && requestedKeys.has(value))) return;
+    if (seen.has(row)) return;
+    seen.add(row);
+    PDC_JOB_DEFS.forEach(def => {
+      const state = String(workStates[def.key] || 'none').toLowerCase();
+      row[def.requireKey] = state !== 'none';
+      row[def.completeKey] = state === 'complete';
+    });
+    if (requestedId) {
+      row.__emailVehicleServerAuthoritative = true;
+      row.__emailVehicleId = requestedId;
+      row.sharedVehicleId = requestedId;
+    }
+    if (Number.isInteger(Number(vehicleVersion)) && Number(vehicleVersion) > 0) row.__emailVehicleVersion = Number(vehicleVersion);
+  });
+}
+
 async function saveSharedVehicleWorkStates(vehicle = {}, workStates = {}) {
   const ref = await vehicleLifecycleSharedRef(vehicle);
   if (!ref || ref.outcome !== 'resolved') {
@@ -5228,11 +5259,7 @@ async function saveSharedVehicleWorkStates(vehicle = {}, workStates = {}) {
     if (!body || body.ok !== true) return { ok: false, ...(body || {}) };
     vehicle.sharedVehicleId = ref.vehicleId;
     vehicle.sharedVehicleLinkVehicleVersion = body.vehicle_version;
-    const savedPartsState = String(workStates.parts || '').toLowerCase();
-    if (savedPartsState) {
-      vehicle.pdcRequiresParts = savedPartsState !== 'none';
-      vehicle.pdcCompleteParts = savedPartsState === 'complete';
-    }
+    reconcileSharedWorkStatesInMemory(vehicle, ref.vehicleId, workStates, body.vehicle_version);
     // Do not immediately replace the just-saved vehicle with a snapshot that
     // can still be behind the committed RPC. The caller reconciles the form
     // state before rendering; the normal Realtime/route refresh remains the
