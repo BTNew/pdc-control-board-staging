@@ -3779,6 +3779,7 @@ function showView(view, options) {
   const departmentDef = departmentStage ? PRODUCTION_FLOW_DEFS.find(def => def.key === departmentStage) : null;
   const titleMap = {
     dashboard: 'Vehicle Locations',
+    qc: 'QC Sign-off',
     workflow: 'Control Board',
     workshop: 'Workshop Planner',
     visibility: 'Operational Visibility',
@@ -3815,6 +3816,7 @@ function showView(view, options) {
 
 const HEAVY_VIEW_HOSTS = Object.freeze({
   dashboard: ['incoming-main-board', 'kpi-grid', 'vehicle-table'],
+  qc: ['qc-page-host'],
   workflow: ['workflow-board'],
   workshop: ['workshop-planner-root'],
   parts: ['parts-home-content', 'parts-summary-grid'],
@@ -4435,6 +4437,185 @@ function ensureDashboardWorkshopProjectionReady() {
   return false;
 }
 
+const qcPhotoDrafts = new Map();
+const qcPageSignoffInFlight = new Set();
+let qcSelectedVehicleKey = '';
+
+function qcPageVehicles() {
+  const rows = typeof pdcSheetVehicles === 'function' ? pdcSheetVehicles() : [];
+  return rows.filter(vehicle => typeof vehicleInQualityControlGate === 'function' && vehicleInQualityControlGate(vehicle));
+}
+
+function qcPageVehicleKey(vehicle = {}) {
+  return String(vehicleKey(vehicle) || vehicle.id || '').trim();
+}
+
+function qcPageWorkStateMap(vehicle = {}) {
+  return Object.fromEntries(PDC_JOB_DEFS.map(def => [
+    def.key,
+    pdcJobComplete(vehicle, def) ? 'complete' : pdcJobRequired(vehicle, def) ? 'required' : 'none',
+  ]));
+}
+
+function qcPageWorkItemsHtml(vehicle = {}) {
+  const key = qcPageVehicleKey(vehicle);
+  return pdcQualityControlRequirementDefinitions(vehicle).map(def => {
+    const complete = pdcJobComplete(vehicle, def);
+    const state = complete ? 'complete' : pdcJobRequired(vehicle, def) ? 'required' : 'not-required';
+    return `<label class="qc-work-item ${complete ? 'is-complete' : ''} ${state === 'required' ? 'is-required' : ''}" data-qc-work-item="${escapeHtml(def.key)}">
+      <input type="checkbox" data-qc-work-check="${escapeHtml(key)}" data-qc-work-key="${escapeHtml(def.key)}" ${complete ? 'checked' : ''} aria-label="${escapeHtml(`${def.label} ${complete ? 'completed' : 'not completed'}`)}" />
+      <span class="qc-work-marker" aria-hidden="true">${complete ? '✓' : '○'}</span>
+      <span class="qc-work-copy"><strong>${escapeHtml(def.label)}</strong><small>${complete ? `Completed${vehicle[def.completeByKey] ? ` by ${escapeHtml(vehicle[def.completeByKey])}` : ''}` : pdcJobRequired(vehicle, def) ? 'Required' : 'Not required'}</small></span>
+    </label>`;
+  }).join('');
+}
+
+function qcPageVehicleCardHtml(vehicle = {}, selected = false) {
+  const key = qcPageVehicleKey(vehicle);
+  const stock = displayStockNumber(vehicle) || key || 'No stock';
+  const unit = displayVehicle(vehicle) || 'Vehicle not listed';
+  const consultant = consultantName(vehicle) || vehicle.salesperson || vehicle.salesPerson || 'No salesperson';
+  const allComplete = pdcQualityControlRequirementDefinitions(vehicle).every(def => pdcJobComplete(vehicle, def));
+  return `<button class="qc-vehicle-card ${selected ? 'is-selected' : ''} ${allComplete ? 'is-ready' : 'needs-work'}" type="button" data-qc-open-vehicle="${escapeHtml(key)}" data-qc-vehicle-key="${escapeHtml(key)}" aria-pressed="${selected ? 'true' : 'false'}">
+    <span class="qc-vehicle-card-top"><strong>${escapeHtml(stock)}</strong><span class="qc-status-pill ${allComplete ? 'is-green' : 'is-warning'}">${allComplete ? 'Ready to sign off' : 'Work incomplete'}</span></span>
+    <span class="qc-vehicle-card-unit">${escapeHtml(unit)}</span>
+    <span class="qc-vehicle-card-meta"><span>${escapeHtml(vehicleKeyNumber(vehicle) || 'No key')}</span><span>${escapeHtml(consultant)}</span></span>
+  </button>`;
+}
+
+function qcPageDetailHtml(vehicle = {}) {
+  const key = qcPageVehicleKey(vehicle);
+  const stock = displayStockNumber(vehicle) || key || 'No stock';
+  const photo = qcPhotoDrafts.get(key);
+  const allComplete = pdcQualityControlRequirementDefinitions(vehicle).every(def => pdcJobComplete(vehicle, def));
+  const signoffReady = allComplete && Boolean(photo);
+  return `<section class="qc-detail-card" aria-labelledby="qc-detail-title">
+    <header class="qc-detail-header">
+      <div><span class="eyebrow">Selected vehicle</span><h3 id="qc-detail-title">${escapeHtml(stock)}</h3><p>${escapeHtml(displayVehicle(vehicle) || 'Vehicle not listed')} · ${escapeHtml(consultantName(vehicle) || vehicle.salesperson || vehicle.salesPerson || 'No salesperson')}</p></div>
+      <span class="qc-detail-state ${allComplete ? 'is-green' : 'is-warning'}">${allComplete ? 'All work green' : 'Complete outstanding work'}</span>
+    </header>
+    <div class="qc-detail-identifiers">${vehicleIdentityStackHtml(vehicle, { className: 'qc-identity', button: false })}</div>
+    <fieldset class="qc-work-checklist" aria-label="Completed work for selected vehicle"><legend>Completed work</legend><div class="qc-work-list">${qcPageWorkItemsHtml(vehicle)}</div></fieldset>
+    <div class="qc-photo-panel">
+      <div><strong>Completion photo</strong><p>Use the phone camera or choose an image. The photo is held for this sign-off session until the approved evidence-storage interface is available.</p></div>
+      <label class="qc-photo-picker"><span>${photo ? 'Replace photo' : 'Take or choose photo'}</span><input type="file" accept="image/*" capture="environment" data-qc-photo="${escapeHtml(key)}" /></label>
+      ${photo ? `<div class="qc-photo-preview"><img src="${escapeHtml(photo.url)}" alt="QC completion photo for ${escapeHtml(stock)}" /><span>${escapeHtml(photo.name)}</span></div>` : '<div class="qc-photo-empty">No completion photo attached</div>'}
+    </div>
+    <div class="qc-signoff-bar"><span class="qc-signoff-note" role="status">${signoffReady ? 'Photo attached. Ready to sign off, move to RFT and notify the salesperson.' : allComplete ? 'Attach a completion photo before sign-off.' : 'Every required work item must be green before sign-off.'}</span><button class="primary qc-signoff-button" type="button" data-qc-signoff="${escapeHtml(key)}" ${signoffReady ? '' : 'disabled'}>Sign off complete → RFT</button></div>
+  </section>`;
+}
+
+async function qcPageSetWorkState(key = '', workKey = '', checked = false, input = null) {
+  const vehicle = qcPageVehicles().find(row => qcPageVehicleKey(row) === String(key || '').trim());
+  const def = pdcJobDefinitionForKey(workKey);
+  if (!vehicle || !def) return false;
+  if (input) input.disabled = true;
+  try {
+    const workStates = qcPageWorkStateMap(vehicle);
+    workStates[def.key] = checked ? 'complete' : (pdcJobRequired(vehicle, def) ? 'required' : 'none');
+    if (vehicleLifecycleSharedModeActive()) {
+      const result = await saveSharedVehicleWorkStates(vehicle, workStates);
+      if (!result || result.ok !== true) {
+        window.alert(describeSharedVehicleWorkStateError(result || {}));
+        renderQualityControlPage();
+        return false;
+      }
+      vehicle[def.completeKey] = checked;
+      vehicle[def.completeAtKey] = checked ? nowIsoString() : '';
+      vehicle[def.completeByKey] = checked ? getCurrentOperatorName() : '';
+    } else {
+      const now = nowIsoString();
+      const operator = getCurrentOperatorName();
+      const updates = {
+        [def.requireKey]: checked ? true : Boolean(vehicle[def.requireKey]),
+        [def.completeKey]: checked,
+        [def.completeAtKey]: checked ? now : '',
+        [def.completeByKey]: checked ? operator : '',
+        pdcQcComplete: false,
+        pdcQcCompleteAt: '',
+        pdcQcCompleteBy: '',
+      };
+      if (!saveVehicleEdits(qcPageVehicleKey(vehicle), updates)) {
+        window.alert('The QC work update could not be saved. No change was made.');
+        return false;
+      }
+      Object.assign(vehicle, updates);
+      recordVehicleAudit(vehicle, checked ? 'QC work confirmed' : 'QC work confirmation removed', { job: def.label, by: operator });
+    }
+    renderQualityControlPage();
+    return true;
+  } finally {
+    if (input && input.isConnected) input.disabled = false;
+  }
+}
+
+async function qcPageSignoff(key = '') {
+  const cleanKey = String(key || '').trim();
+  if (!cleanKey || qcPageSignoffInFlight.has(cleanKey)) return false;
+  const vehicle = qcPageVehicles().find(row => qcPageVehicleKey(row) === cleanKey);
+  const photo = qcPhotoDrafts.get(cleanKey);
+  if (!vehicle || !photo) return false;
+  if (!pdcQualityControlRequirementDefinitions(vehicle).every(def => pdcJobComplete(vehicle, def))) {
+    window.alert('Every required work item must be green before QC sign-off.');
+    return false;
+  }
+  qcPageSignoffInFlight.add(cleanKey);
+  try {
+    const result = await completeVehicleQualityControl(cleanKey);
+    if (result) {
+      qcPhotoDrafts.delete(cleanKey);
+      qcSelectedVehicleKey = '';
+      renderQualityControlPage();
+    }
+    return result;
+  } finally {
+    qcPageSignoffInFlight.delete(cleanKey);
+  }
+}
+
+function renderQualityControlPage() {
+  const host = $('#qc-page-host');
+  if (!host) return;
+  const vehicles = qcPageVehicles();
+  if (!vehicles.some(vehicle => qcPageVehicleKey(vehicle) === qcSelectedVehicleKey)) qcSelectedVehicleKey = qcPageVehicleKey(vehicles[0] || {});
+  const selected = vehicles.find(vehicle => qcPageVehicleKey(vehicle) === qcSelectedVehicleKey) || null;
+  host.innerHTML = `<div class="qc-page-layout">
+    <section class="qc-queue" aria-labelledby="qc-queue-title"><div class="qc-queue-header"><div><h3 id="qc-queue-title">Vehicles requiring QC</h3><p>${vehicles.length} awaiting QC sign-off</p></div><span class="qc-queue-count">${vehicles.length}</span></div><div class="qc-vehicle-list">${vehicles.length ? vehicles.map(vehicle => qcPageVehicleCardHtml(vehicle, qcPageVehicleKey(vehicle) === qcSelectedVehicleKey)).join('') : '<div class="qc-empty-state"><strong>No vehicles require QC</strong><span>Vehicles appear here after all required workshop work is complete.</span></div>'}</div></section>
+    <section class="qc-detail-host">${selected ? qcPageDetailHtml(selected) : '<div class="qc-empty-state qc-detail-empty"><strong>Select a vehicle</strong><span>Choose a QC vehicle to review its completed work and capture the completion photo.</span></div>'}</section>
+  </div>`;
+  $$('[data-qc-open-vehicle]', host).forEach(button => button.addEventListener('click', () => {
+    qcSelectedVehicleKey = button.dataset.qcOpenVehicle || '';
+    renderQualityControlPage();
+  }));
+  $$('[data-qc-work-check]', host).forEach(input => input.addEventListener('change', () => {
+    void qcPageSetWorkState(input.dataset.qcWorkCheck, input.dataset.qcWorkKey, input.checked, input);
+  }));
+  $$('[data-qc-photo]', host).forEach(input => input.addEventListener('change', () => {
+    const file = input.files?.[0];
+    const key = input.dataset.qcPhoto || '';
+    const maxPhotoBytes = 10 * 1024 * 1024;
+    if (!file || !key || !file.type.startsWith('image/')) return;
+    if (file.size > maxPhotoBytes) {
+      input.value = '';
+      window.alert('Choose an image smaller than 10 MB. No photo was attached.');
+      return;
+    }
+    const reader = new FileReader();
+    reader.addEventListener('load', () => {
+      const dataUrl = String(reader.result || '');
+      if (!dataUrl.startsWith('data:image/')) {
+        window.alert('The selected image could not be read. No photo was attached.');
+        return;
+      }
+      qcPhotoDrafts.set(key, { name: file.name, type: file.type, size: file.size, url: dataUrl });
+      renderQualityControlPage();
+    }, { once: true });
+    reader.addEventListener('error', () => window.alert('The selected image could not be read. No photo was attached.'), { once: true });
+    reader.readAsDataURL(file);
+  }));
+  $$('[data-qc-signoff]', host).forEach(button => button.addEventListener('click', () => { void qcPageSignoff(button.dataset.qcSignoff); }));
+}
+
 function renderActiveView() {
   ensureAppDataAvailable();
   const view = app.currentView || 'dashboard';
@@ -4445,6 +4626,9 @@ function renderActiveView() {
     case 'dashboard':
       renderKpis();
       renderIncomingDashboardBoard();
+      break;
+    case 'qc':
+      renderQualityControlPage();
       break;
     case 'workflow':
       renderWorkflowBoard();

@@ -1,16 +1,16 @@
 {
   "environment": "staging",
-  "application_version": "2026.08.16.46-staging-root-recovery",
-  "source_commit": "6132e8571a054af7f66d691b3af26ae773ca9517",
-  "frontend_source_commit": "43a321a55aff41247302cea5ea544cbed30064b4",
-  "parent_staging_commit": "3a9c44bdc2d4429e9d2bf959f2194d969778db1a",
+  "application_version": "2026.08.18.01-qc-signoff",
+  "source_commit": "f5421c4cb5fd40006d5eaaba94dc9ef574755aad",
+  "frontend_source_commit": "f5421c4cb5fd40006d5eaaba94dc9ef574755aad",
+  "parent_staging_commit": "b37f6b5c0fa6e35b2c2e981af62ed62d7f5ef55d",
   "staging_project_ref": "cdsmnqxtyyoeoznmbidd",
   "production_unchanged": true,
   "main_unchanged": true,
   "dns_unchanged": true,
   "pilot_activation_changed": false,
   "mailbox_runtime_changed": false,
-  "deployed_at_utc": "2026-08-16T13:11:10Z",
+  "deployed_at_utc": "2026-08-18T00:24:38Z",
   "database_migration_head": 250,
   "database_migrations": {
     "243": {
@@ -65,13 +65,23 @@
   "files": {
     "app.js": {
       "source_path": "app.js",
-      "sha256": "47782c2ce9d42a03f181df5421cd2ec8beadd0f0207b1479f387204d6b9f61c0",
-      "bytes": 1121561
+      "sha256": "9d1ccb28d8dcd34522eae6348cba524279eadd9cb4e2d7e23d79a55b222bc1a0",
+      "bytes": 1154387
     },
     "index.html": {
-      "source_path": "staging.html",
-      "sha256": "ebf46f669d24fc8c06a195fe1def7c5c0bb894f6c2bc5441cfba83e349f4339a",
-      "bytes": 66890
+      "source_path": "index.html",
+      "sha256": "f8e194530dffd065687319b70b2f4a52cbdcfbd1eb063c374d95997d15f5ea73",
+      "bytes": 68656
+    },
+    "styles.css": {
+      "source_path": "styles.css",
+      "sha256": "8ae52772ca7bf4bfe40a7a18fe478a8f8abd6f645078738ddd34425a8fd763da",
+      "bytes": 393639
+    },
+    "test_qc_page.js": {
+      "source_path": "test_qc_page.js",
+      "sha256": "642e63dd74125564668b81526aa0876024547172fa817e5d5aea8c540a41a78f",
+      "bytes": 2200
     },
     "no-vehicles.html": {
       "source_path": "no-vehicles.html",
