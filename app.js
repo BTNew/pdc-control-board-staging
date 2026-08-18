@@ -5228,7 +5228,15 @@ async function saveSharedVehicleWorkStates(vehicle = {}, workStates = {}) {
     if (!body || body.ok !== true) return { ok: false, ...(body || {}) };
     vehicle.sharedVehicleId = ref.vehicleId;
     vehicle.sharedVehicleLinkVehicleVersion = body.vehicle_version;
-    if (typeof refreshEmailVehicleLocations === 'function') await refreshEmailVehicleLocations();
+    const savedPartsState = String(workStates.parts || '').toLowerCase();
+    if (savedPartsState) {
+      vehicle.pdcRequiresParts = savedPartsState !== 'none';
+      vehicle.pdcCompleteParts = savedPartsState === 'complete';
+    }
+    // Do not immediately replace the just-saved vehicle with a snapshot that
+    // can still be behind the committed RPC. The caller reconciles the form
+    // state before rendering; the normal Realtime/route refresh remains the
+    // authoritative follow-up read.
     if (typeof loadWorkshopEligibilitySnapshot === 'function') await loadWorkshopEligibilitySnapshot('vehicle_work_states_saved');
     if (window.__workshopDataService?.loadSnapshot) await window.__workshopDataService.loadSnapshot('vehicle_work_states_saved');
     return body;
