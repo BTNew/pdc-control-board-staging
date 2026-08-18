@@ -1315,6 +1315,37 @@ button.workshop-search-result:hover, button.workshop-search-result:focus-visible
 .workshop-status-legend .admin { border-color: #9a6a00; background: #ffd84d; color: #3c2a00; }
 .workshop-admin-block-add { border-color: #9a6a00 !important; background: #ffd84d !important; color: #3c2a00 !important; }
 .workshop-admin-block-modal { max-width: 680px; }
+.workshop-admin-palette {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 5px;
+  border: 1px solid #d4a72c;
+  border-radius: 999px;
+  background: #fff8d7;
+  color: #3c2a00;
+}
+.workshop-admin-palette-hint { font-size: .66rem; font-weight: 800; white-space: nowrap; }
+.workshop-admin-palette-tile {
+  min-height: 32px;
+  padding: 5px 10px;
+  border: 2px solid #9a6a00;
+  border-radius: 999px;
+  background: #ffd84d;
+  color: #3c2a00;
+  cursor: grab;
+  font-weight: 900;
+}
+.workshop-admin-palette-tile:active { cursor: grabbing; }
+.workshop-admin-palette-duration { display: inline-flex; align-items: center; gap: 3px; font-size: .62rem; font-weight: 800; white-space: nowrap; }
+.workshop-admin-palette-duration input { width: 52px; min-height: 28px; padding: 3px 5px; border: 1px solid #b88b13; border-radius: 5px; background: white; color: #3c2a00; }
+@media (max-width: 900px) {
+  .workshop-admin-palette { width: 100%; justify-content: space-between; border-radius: 8px; }
+  .workshop-admin-palette-hint { display: none; }
+}
+@media (pointer: coarse) {
+  .workshop-admin-palette-tile { min-height: 44px; }
+}
 @media (pointer: coarse) {
   .workshop-admin-block-controls { display: flex; }
   .workshop-admin-block { min-height: 64px; }

@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.13.45-admin-authority-intent-undo-pointer';
+const APP_VERSION = '2026.08.18.16-admin-palette-30m';
 const WORKSHOP_PLANNER_SCRIPT_VERSION = APP_VERSION;
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this

@@ -588,6 +588,7 @@ function workshopAnnotateLegacyAmbiguity(rows = []) {
 
 let workshopSharedPlansCache = { snapshot: null, bookings: null, rows: null };
 let workshopLastAdministratorMove = null;
+let workshopAdminPaletteDurationMinutes = 30;
 let workshopActiveQueuePointerDrag = null;
 let workshopSuppressMouseDragUntil = 0;
 
@@ -3741,6 +3742,56 @@ async function workshopDeleteAdminBlock(block = {}) {
   return result?.ok === true;
 }
 
+async function workshopCreatePaletteAdminBlock(stage = '', bay = 0, dateKey = '', startMinutes = 0, durationMinutes = 30) {
+  if (!workshopSharedModeActive() || !workshopAdminBlockCanMutate()) return false;
+  const snapshot = window.__workshopDataService?.getTrustedSnapshot?.();
+  if (!snapshot || !Number.isFinite(Number(snapshot.revision))) {
+    window.alert('The current shared workshop schedule is still loading. Try again in a moment.');
+    return false;
+  }
+  const start = workshopDateAtOffset(dateKey, startMinutes);
+  const result = await workshopDispatchSharedAction('createAdminBlock', {
+    expectedRevision: Number(snapshot.revision),
+    stageCode: stage,
+    bayNumber: Number(bay),
+    blockType: 'admin',
+    label: 'Admin downtime',
+    scheduledStartAt: start.toISOString(),
+    durationMinutes: workshopSnapMinutes(Number(durationMinutes) || 30),
+    metadata: { source: 'planner_admin_palette' },
+  });
+  return result?.ok === true;
+}
+
+function bindWorkshopAdminPalette(root) {
+  const palette = root.querySelector('[data-workshop-admin-palette]');
+  if (!palette) return;
+  const durationInput = palette.querySelector('[data-workshop-admin-palette-duration]');
+  const tile = palette.querySelector('[data-workshop-admin-palette-tile]');
+  const label = palette.querySelector('[data-workshop-admin-palette-label]');
+  const updateDuration = () => {
+    const value = Math.max(15, Math.min(480, Number(durationInput?.value) || 30));
+    workshopAdminPaletteDurationMinutes = workshopSnapMinutes(value);
+    if (durationInput) durationInput.value = String(workshopAdminPaletteDurationMinutes);
+    if (label) label.textContent = `Admin · ${workshopAdminPaletteDurationMinutes} min`;
+    if (tile) tile.dataset.adminPaletteDuration = String(workshopAdminPaletteDurationMinutes);
+  };
+  durationInput?.addEventListener('change', updateDuration);
+  durationInput?.addEventListener('input', updateDuration);
+  tile?.addEventListener('dragstart', event => {
+    updateDuration();
+    event.dataTransfer.effectAllowed = 'copy';
+    event.dataTransfer.setData('application/x-workshop-admin-palette', 'admin');
+    event.dataTransfer.setData('application/x-workshop-admin-duration-minutes', String(workshopAdminPaletteDurationMinutes));
+    workshopSetDragPreview({ type: 'admin-block', hours: workshopAdminPaletteDurationMinutes / 60 });
+  });
+  tile?.addEventListener('keydown', event => {
+    if (event.key !== 'Enter' && event.key !== ' ') return;
+    event.preventDefault();
+    openWorkshopAdminBlockModal();
+  });
+}
+
 function openWorkshopAdminBlockModal() {
   if (!workshopSharedModeActive() || !workshopAdminBlockCanMutate()) return;
   const snapshot = window.__workshopDataService?.getTrustedSnapshot?.();
@@ -3763,7 +3814,7 @@ function openWorkshopAdminBlockModal() {
       <label><span>Physical bay</span><select name="bay">${bayOptions}</select></label>
       <label><span>Date</span><input name="date" type="date" value="${escapeHtml(dateKey)}" required /></label>
       <label><span>Start time</span><select name="startMinutes">${workshopScheduleTimeOptions(0)}</select></label>
-      <label><span>Operational hours</span><input name="hours" type="number" min="0.25" step="0.25" value="1" required /></label>
+      <label><span>Operational minutes</span><input name="hours" type="number" min="15" step="15" value="30" required /></label>
     </div><p class="workshop-schedule-note">Breaks, closures, working days and configured overtime use the same operational-minute rules as vehicle bookings.</p>
     <div class="edit-actions"><button class="secondary" type="button" data-admin-block-cancel>Cancel</button><button class="primary" type="submit">Create Admin block</button></div></form></section>`;
   const close = () => { overlay.remove(); if (!document.querySelector('.modal-overlay')) document.body.classList.remove('modal-open'); };
@@ -3776,7 +3827,7 @@ function openWorkshopAdminBlockModal() {
       expectedRevision: Number(snapshot.revision), stageCode: stage,
       bayNumber: Number(form.elements.bay.value), blockType: form.elements.blockType.value,
       label: cleanNavisionText(form.elements.label.value), scheduledStartAt: start.toISOString(),
-      durationMinutes: workshopSnapMinutes(Number(form.elements.hours.value) * 60),
+      durationMinutes: workshopSnapMinutes(Number(form.elements.hours.value) || 30),
       metadata: { source: 'planner_admin_block_create' },
     });
     if (result?.ok) close();
@@ -3885,7 +3936,7 @@ function renderWorkshopPlanner(options = {}) {
         <button class="small-button" type="button" data-workshop-today>Today</button>
         <button class="small-button" type="button" data-workshop-weekly-view>Weekly view</button>
         ${sharedModeActive && workshopLastAdministratorMove && workshopAdministratorCanMove() ? '<button class="small-button" type="button" data-workshop-undo-admin-move>Undo last move</button>' : ''}
-        ${sharedModeActive && workshopAdminBlockCanMutate() ? '<button class="small-button workshop-admin-block-add" type="button" data-workshop-add-admin-block>+ Admin block</button>' : ''}
+        ${sharedModeActive && workshopAdminBlockCanMutate() ? '<button class="small-button workshop-admin-block-add" type="button" data-workshop-add-admin-block>+ Admin block</button><div class="workshop-admin-palette" data-workshop-admin-palette><span class="workshop-admin-palette-hint">Drag to a bay</span><button class="workshop-admin-palette-tile" type="button" draggable="true" data-workshop-admin-palette-tile data-admin-palette-duration="30"><span data-workshop-admin-palette-label>Admin · 30 min</span></button><label class="workshop-admin-palette-duration"><span>Duration</span><input type="number" min="15" max="480" step="15" value="30" data-workshop-admin-palette-duration aria-label="Admin block duration in minutes" /></label></div>' : ''}
         ${sharedModeActive && workshopVehicleLinkCanPersist() ? '<button class="small-button" type="button" data-workshop-link-readiness>Review shared links</button>' : ''}
         <button class="small-button warning-button" type="button" data-workshop-parts-warning>Draft next-day parts warning</button>
       </div>
@@ -4196,6 +4247,7 @@ function bindWorkshopPlanner(root) {
     openWorkshopVehicleJob(card.dataset.workshopJobVehicle, plan?.stage || workshopState().stage, plan?.id || '');
   }));
   root.querySelectorAll('[data-workshop-drop-bay]').forEach(lane => bindWorkshopLane(lane));
+  bindWorkshopAdminPalette(root);
   bindWorkshopUnallocatedDrop(root.querySelector('[data-workshop-unallocated-drop]'));
   root.querySelectorAll('[data-workshop-select-plan]').forEach(button => button.addEventListener('click', event => {
     event.preventDefault();
@@ -4293,14 +4345,20 @@ function bindWorkshopLane(lane) {
         ? previewMinutes
         : fallbackStartMinutes;
     const adminBlockId = event.dataTransfer.getData('application/x-workshop-admin-block-id');
+    const adminPalette = event.dataTransfer.getData('application/x-workshop-admin-palette');
+    const adminDurationMinutes = Number(event.dataTransfer.getData('application/x-workshop-admin-duration-minutes')) || 30;
     const planId = event.dataTransfer.getData('application/x-workshop-plan-id');
     const vehicleKeyValue = event.dataTransfer.getData('application/x-workshop-vehicle-key') || event.dataTransfer.getData('text/plain');
     const dragHours = Number(event.dataTransfer.getData('application/x-workshop-duration-hours'));
-    event.dataTransfer.dropEffect = adminBlockId || planId ? 'move' : 'copy';
+    event.dataTransfer.dropEffect = adminPalette || adminBlockId || planId ? 'move' : 'copy';
     const stage = targetStage;
     const bay = targetBay;
     const dateKey = targetDate;
     const startMinutes = requestedStartMinutes;
+    if (adminPalette) {
+      void workshopCreatePaletteAdminBlock(stage, bay, dateKey, startMinutes, adminDurationMinutes);
+      return;
+    }
     if (adminBlockId) {
       const block = workshopLoadAdminBlocks().find(row => row.id === adminBlockId);
       if (block) void workshopMoveAdminBlock(block, stage, bay, workshopDateAtOffset(dateKey, startMinutes).toISOString());
