@@ -63,8 +63,8 @@ function mapServerVehicle(row = {}) {
   })).filter(item => /^(?:OP(?:[1-9]|[1-9][0-9]{1,2})|PD[0-9]{3}-[A-F0-9]{8})$/.test(item.operation_no)
     && allowedOperationKeys.has(item.work_key) && item.description.length > 0);
   if (row.parts_required != null) mapped.pdcRequiresParts = row.parts_required === true;
-  if (row.parts_completed != null) mapped.pdcCompleteParts = row.parts_completed === true;
   const partsUpdate = row.parts_update && typeof row.parts_update === 'object' ? row.parts_update : {};
+  if (row.parts_completed != null) mapped.pdcCompleteParts = row.parts_completed === true || partsUpdate.parts_received === true;
 
 
   mapped.pdcPartsOrdered = partsUpdate.parts_ordered === true;
