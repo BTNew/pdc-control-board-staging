@@ -9167,6 +9167,38 @@ function resetVehicleTableColumnOrder() {
   renderVehicleTable();
 }
 
+function buildInlineSharedVehicleWorkStates(vehicle = {}, def = {}, checked = false, isCompletionFlag = false) {
+  const workStates = Object.fromEntries(PDC_JOB_DEFS.map(job => {
+    let required = pdcJobRequired(vehicle, job);
+    let complete = pdcJobComplete(vehicle, job);
+    if (job.key === def.key) {
+      if (isCompletionFlag) { required = true; complete = checked; }
+      else { required = checked; complete = false; }
+    }
+    return [job.key, complete ? 'complete' : required ? 'required' : 'none'];
+  }));
+  return workStates;
+}
+
+async function saveInlineSharedVehicleWorkState(input, vehicle, def, checked, isCompletionFlag) {
+  if (!input || !vehicle || !def || !vehicleLifecycleSharedModeActive()) return null;
+  input.disabled = true;
+  const workStates = buildInlineSharedVehicleWorkStates(vehicle, def, checked, isCompletionFlag);
+  const result = await saveSharedVehicleWorkStates(vehicle, workStates);
+  if (!result || result.ok !== true) {
+    input.checked = !checked;
+    input.disabled = false;
+    window.alert(result?.message || describeSharedVehicleWorkStateError(result || {}));
+    renderVehicleTable();
+    return false;
+  }
+  vehicle[def.requireKey] = workStates[def.key] !== 'none';
+  vehicle[def.completeKey] = workStates[def.key] === 'complete';
+  input.disabled = false;
+  renderVehicleTable();
+  return true;
+}
+
 function renderVehicleTable() {
   const rows = sortRows(filteredVehicles());
   renderQuickFilterBanner(rows.length);
@@ -9280,10 +9312,23 @@ function renderVehicleTable() {
   });
   $$('[data-flag-stock]', table).forEach(input => {
     input.addEventListener('click', (e) => e.stopPropagation());
-    input.addEventListener('change', () => {
+    input.addEventListener('change', async () => {
       const vehicle = selectedVehicle(input.dataset.flagStock);
       const def = pdcJobDefinitionForKey(input.dataset.flagKey);
       const isCompletionFlag = PDC_JOB_BY_COMPLETE_KEY.has(input.dataset.flagKey);
+      if (vehicle?.__emailVehicleServerAuthoritative === true && def && vehicleLifecycleSharedModeActive()) {
+        const saved = await saveInlineSharedVehicleWorkState(input, vehicle, def, input.checked, isCompletionFlag);
+        if (saved !== true) return;
+        recordVehicleAudit(vehicle, isCompletionFlag ? (input.checked ? 'Job signed off from shared vehicle table' : 'Job sign-off removed from shared vehicle table') : (input.checked ? 'Requirement added from shared vehicle table' : 'Requirement removed from shared vehicle table'), { job: def.label });
+        if (isCompletionFlag && input.checked) {
+          offerSalespersonChangeEmail(vehicle, {
+            title: `${def.label} completed`,
+            subject: 'PDC work completed',
+            details: [`${def.label} was signed off by ${getCurrentOperatorName()}.`],
+          });
+        }
+        return;
+      }
       const updates = { [input.dataset.flagKey]: input.checked };
       if (isCompletionFlag && def) {
         updates[def.requireKey] = true;
