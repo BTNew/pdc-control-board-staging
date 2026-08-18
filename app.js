@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.18.18-parts-queue-readback';
+const APP_VERSION = '2026.08.18.19-started-chip-overtime';
 const WORKSHOP_PLANNER_SCRIPT_VERSION = APP_VERSION;
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this

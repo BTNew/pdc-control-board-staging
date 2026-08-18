@@ -447,6 +447,14 @@ function workshopEntryEffectiveEnd(entry = {}, now = new Date()) {
     const actualEnd = parseIsoTimestamp(entry.actualEndAt || '');
     return actualEnd && actualEnd > plannedEnd ? actualEnd : plannedEnd;
   }
+  if (entry.status === 'started') {
+    // A live job occupies the bay until the operator explicitly completes it
+    // or places it on STOPPAGE. Once the estimate is exceeded, extend the
+    // visible chip through the current operational moment rather than ending
+    // it at estimate + one scheduling increment.
+    const liveMoment = workshopLatestWorkMoment(now);
+    return liveMoment > plannedEnd ? liveMoment : plannedEnd;
+  }
   if (!workshopEntryIsOvertime(entry, now)) return plannedEnd;
   const liveMoment = entry.status === 'stoppage' ? parseIsoTimestamp(entry.stoppageAt || '') : now;
   const latest = workshopLatestWorkMoment(liveMoment || plannedEnd);
@@ -3312,7 +3320,7 @@ function workshopPlanChipHtml(entry = {}, dateKey = '', rows = workshopLoadPlans
       <strong>JC ${escapeHtml(vehicleJobcardNumber(vehicle) || 'TBA')} · ${escapeHtml(displayStockNumber(vehicle) || 'No stock')}</strong>
       <span>${escapeHtml(vehicle.vehicle || vehicle.toyotaVehicle || 'Vehicle')}</span>
       <small class="workshop-plan-customer">${escapeHtml(vehicleCustomerName(vehicle) || 'Unknown customer')}</small>
-      <small>${escapeHtml(`${statusLabel}${assignee ? ` · ${assignee}` : ''}${segment.usesConfiguredOvertime ? ' · CONFIGURED OVERTIME' : ''}${segment.historicalOnClosure ? ' · HISTORICAL CLOSURE' : ''}`)}</small>
+      <small>${escapeHtml(`${statusLabel}${assignee ? ` · ${assignee}` : ''}${overtime ? ' · OVERTIME' : ''}${segment.usesConfiguredOvertime ? ' · CONFIGURED OVERTIME' : ''}${segment.historicalOnClosure ? ' · HISTORICAL CLOSURE' : ''}`)}</small>
       ${entry.legacyAmbiguityReason ? `<small class="workshop-legacy-ambiguity">${escapeHtml(entry.legacyAmbiguityReason)}</small>` : ''}
       <small>${escapeHtml(`${entry.hours}h · Parts ${parts.label}${parts.eta && !['issued', 'notrequired'].includes(parts.status) ? ` · ETA ${parts.eta}` : ''}`)}</small>
       ${etaRiskLabel ? `<small class="workshop-eta-risk-label">${escapeHtml(etaRiskLabel)}</small>` : ''}
