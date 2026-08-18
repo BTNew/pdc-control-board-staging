@@ -5191,7 +5191,11 @@ function describeSharedVehicleWorkStateError(result = {}) {
     invalid_work_state: 'One required-work selection was invalid.',
     permission_denied: 'Your account is not permitted to change required work.',
   };
-  return messages[result.error] || 'Required work could not be saved to the shared database. No required-work change was made.';
+  const backendBody = Array.isArray(result.body) ? result.body[0] : result.body;
+  const backendMessage = backendBody?.message || backendBody?.error || backendBody?.details || backendBody?.hint || result.message || '';
+  const base = messages[result.error] || 'Required work could not be saved to the shared database. No required-work change was made.';
+  const status = result.status ? ` HTTP ${result.status}` : '';
+  return backendMessage ? `${base}${status} — ${String(backendMessage).slice(0, 240)}` : `${base}${status}`;
 }
 
 async function saveSharedVehicleWorkStates(vehicle = {}, workStates = {}) {

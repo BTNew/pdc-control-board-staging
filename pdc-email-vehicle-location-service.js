@@ -64,7 +64,7 @@ function mapServerVehicle(row = {}) {
     && allowedOperationKeys.has(item.work_key) && item.description.length > 0);
   if (row.parts_required != null) mapped.pdcRequiresParts = row.parts_required === true;
   const partsUpdate = row.parts_update && typeof row.parts_update === 'object' ? row.parts_update : {};
-  if (row.parts_completed != null) mapped.pdcCompleteParts = row.parts_completed === true || partsUpdate.parts_received === true;
+  mapped.pdcCompleteParts = row.parts_completed === true || row.parts_received === true || partsUpdate.parts_received === true;
 
 
   mapped.pdcPartsOrdered = partsUpdate.parts_ordered === true;
