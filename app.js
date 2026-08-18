@@ -5659,6 +5659,13 @@ function incomingBucketForVehicle(vehicle = {}) {
   return 'overseas';
 }
 
+// Keep every consumer of Vehicle Locations on the same authoritative row set.
+// Parts must not grow its own universe from the legacy PDC sheet/back-end data.
+function vehicleLocationsScreenRows(rows = vehicleLocationBoardRows()) {
+  return (Array.isArray(rows) ? rows : [])
+    .filter(vehicle => incomingBucketForVehicle(vehicle) && !vehicleCollectedFromRft(vehicle));
+}
+
 function incomingBucketLabel(bucketKey = '') {
   if (bucketKey === 'completed') return 'Completed vehicles';
   return VEHICLE_LOCATION_BUCKET_DEFS.find(def => def.key === bucketKey)?.label || bucketKey || 'OTHER';
@@ -6383,7 +6390,7 @@ function renderIncomingDashboardBoard() {
   if (!host) return;
   const workshopProjectionAvailable = ensureDashboardWorkshopProjectionReady();
   const workshopPlans = workshopProjectionAvailable && typeof workshopLoadPlans === 'function' ? workshopLoadPlans() : null;
-  const rows = vehicleLocationBoardRows().filter(vehicle => incomingBucketForVehicle(vehicle) && !vehicleCollectedFromRft(vehicle));
+  const rows = vehicleLocationsScreenRows();
   if (!sharedNavisionLocationAuthorityReady()) app.selectedRows.clear();
   else [...app.selectedRows].forEach(key => {
     if (app.sharedNavisionLocationReadOnlyKeys?.has(key)) app.selectedRows.delete(key);
@@ -13139,10 +13146,27 @@ function partsMatchesOperationalFilter(vehicle = {}, filter = 'notordered') {
   return ['notordered', 'miscacc'].includes(status);
 }
 
+function partsStateComplete(vehicle = {}) {
+  const def = partsJobDef();
+  return Boolean(
+    pdcJobComplete(vehicle, def)
+      || vehicle.pdcPartsReceived === true
+      || vehicle.parts_received === true
+      || vehicle.parts_completed === true
+      || vehicle.pdcCompleteParts === true
+  );
+}
+
+function partsQueueVisibleVehicle(vehicle = {}) {
+  // An active STOPPAGE remains actionable even when the prior Parts delivery
+  // was marked complete; the canonical completion mutation clears this state.
+  return !partsStateComplete(vehicle) || partsDepartmentStatus(vehicle) === 'stoppage';
+}
+
 function partsDepartmentSourceRows() {
   // Shared authenticated vehicle/work-item authority must feed Parts. The
   // browser-backed local layer is intentionally empty on zero-data staging.
-  return vehicleLocationBoardRows();
+  return vehicleLocationsScreenRows().filter(partsQueueVisibleVehicle);
 }
 
 function partsDepartmentRows(sourceRows = partsDepartmentSourceRows()) {
@@ -13151,6 +13175,7 @@ function partsDepartmentRows(sourceRows = partsDepartmentSourceRows()) {
   const departmentFilter = $('#parts-department-filter')?.value || '';
   return sourceRows
     .filter(vehicleHasBatchNumber)
+    .filter(partsQueueVisibleVehicle)
     .filter(vehicle => partsMatchesOperationalFilter(vehicle, operationalFilter))
     .filter(vehicle => !departmentFilter || vehicleDepartmentCode(vehicle) === departmentFilter)
     .filter(vehicle => {
@@ -13167,7 +13192,7 @@ function partsDepartmentRows(sourceRows = partsDepartmentSourceRows()) {
     });
 }
 function renderPartsSummary(sourceRows = partsDepartmentSourceRows()) {
-  const all = sourceRows.filter(vehicleHasBatchNumber);
+  const all = sourceRows.filter(vehicleHasBatchNumber).filter(partsQueueVisibleVehicle);
   const filters = [
     ['notordered', 'Parts Not Ordered'],
     ['ordered', 'Parts Ordered'],
@@ -13235,7 +13260,13 @@ function partsQueueRowHtml(vehicle = {}) {
   </tr>`;
 }
 function partsIssuedStoppagePickerHtml(sourceRows = partsDepartmentSourceRows()) {
-  const issued = sourceRows
+  // Completed rows are excluded from the queue, but an issued row can still
+  // be selected for a new explicit STOPPAGE. Read that picker-only candidate
+  // from Vehicle Locations without widening the Parts queue itself.
+  const pickerRows = [...new Map(
+    [...sourceRows, ...vehicleLocationsScreenRows()].map(vehicle => [vehicleKey(vehicle), vehicle])
+  ).values()];
+  const issued = pickerRows
     .filter(vehicleHasBatchNumber)
     .filter(vehicle => partsDepartmentStatus(vehicle) === 'issued')
     .sort((a, b) => String(displayStockNumber(a) || '').localeCompare(String(displayStockNumber(b) || ''), undefined, { numeric: true }));
@@ -13316,37 +13347,45 @@ async function markVehiclePartsOrdered(key = '') {
   });
 }
 
-function markVehiclePartsComplete(key = '') {
+async function markVehiclePartsComplete(key = '') {
   const vehicle = selectedVehicle(key);
   if (!vehicle) return;
-  const def = partsJobDef();
-  const operator = getCurrentOperatorName();
-  const updates = {
-    pdcRequiresParts: true,
-    pdcPartsOrdered: true,
-    pdcPartsOrderedAt: vehicle.pdcPartsOrderedAt || nowIsoString(),
-    pdcPartsOrderedBy: vehicle.pdcPartsOrderedBy || operator,
-    pdcPartsStoppage: false,
-    pdcPartsStoppageReason: '',
-    pdcPartsWorstEta: '',
-    pdcPartsStoppageClearedAt: nowIsoString(),
-    pdcPartsStoppageClearedBy: operator,
-    pdcQcComplete: false,
-    pdcQcCompleteAt: '',
-    pdcQcCompleteBy: '',
-  };
-  if (def) {
-    updates[def.completeKey] = true;
-    updates[def.completeAtKey] = nowIsoString();
-    updates[def.completeByKey] = operator;
+  // Parts completion is authoritative shared state. Never create a plausible
+  // local tick when the canonical vehicle/receipt mutation is unavailable.
+  if (vehicle.__emailVehicleServerAuthoritative !== true) {
+    window.alert('Parts completion requires the authenticated shared vehicle record. No change was made.');
+    renderPartsHome();
+    return;
   }
-  recordVehicleAudit(vehicle, 'Parts signed off complete', { by: operator });
-  saveVehicleEdits(key, updates);
-  offerSalespersonChangeEmail(vehicle, {
-    title: 'Parts completed',
-    subject: 'PDC work completed',
-    details: [`Parts were signed off by ${operator}.`],
-  });
+  const service = app.emailVehicleLocationService;
+  if (!service || typeof service.markPartsComplete !== 'function') {
+    window.alert('The shared Parts completion service is unavailable. No change was made.');
+    renderPartsHome();
+    return;
+  }
+  const result = await service.markPartsComplete(vehicle.__emailVehicleId, vehicle.__emailVehicleVersion);
+  if (!result?.ok) {
+    const message = result?.code === 'vehicle_version_conflict'
+      ? 'This vehicle changed since the Parts row loaded. The latest information will be reloaded; check it and try again.'
+      : result?.code === 'parts_already_complete' || result?.code === 'parts_already_received' || result?.code === 'replayed'
+        ? 'Parts are already marked received. The current shared row will be reloaded.'
+        : result?.code === 'parts_completion_receipt_invalid'
+          ? 'The shared completion did not return a valid receipt. No change was made.'
+          : 'Parts could not be marked received on the shared vehicle record. No change was made.';
+    window.alert(message);
+    await refreshEmailVehicleLocations();
+    return;
+  }
+  // Reconcile from the post-mutation snapshot. The canonical response is
+  // receipt-backed; the row is not locally ticked or removed optimistically.
+  await refreshEmailVehicleLocations();
+  if (result.code === 'parts_completed' && result.data?.changed === true) {
+    offerSalespersonChangeEmail(vehicle, {
+      title: 'Parts completed',
+      subject: 'PDC work completed',
+      details: ['Parts were signed off through the authenticated canonical completion receipt.'],
+    });
+  }
 }
 
 function markVehiclePartsStoppage(key = '') {

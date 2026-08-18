@@ -1,17 +1,17 @@
 {
   "environment": "staging",
-  "application_version": "2026.08.18.01-qc-signoff",
-  "source_commit": "f5421c4cb5fd40006d5eaaba94dc9ef574755aad",
-  "frontend_source_commit": "f5421c4cb5fd40006d5eaaba94dc9ef574755aad",
-  "parent_staging_commit": "b37f6b5c0fa6e35b2c2e981af62ed62d7f5ef55d",
+  "application_version": "2026.08.18.02-parts-vehicle-locations",
+  "source_commit": "11cc417d4f80a2644ea49e09e2d2360d94b1598d",
+  "frontend_source_commit": "11cc417d4f80a2644ea49e09e2d2360d94b1598d",
+  "parent_staging_commit": "aee3e487938cdd2e1cc6115b5603dc8c67dffb30",
   "staging_project_ref": "cdsmnqxtyyoeoznmbidd",
   "production_unchanged": true,
   "main_unchanged": true,
   "dns_unchanged": true,
   "pilot_activation_changed": false,
   "mailbox_runtime_changed": false,
-  "deployed_at_utc": "2026-08-18T00:24:38Z",
-  "database_migration_head": 250,
+  "deployed_at_utc": "2026-08-18T01:19:48Z",
+  "database_migration_head": 260,
   "database_migrations": {
     "243": {
       "name": "craig_vehicle_drag_parts_non_blocking.rollback",
@@ -65,8 +65,8 @@
   "files": {
     "app.js": {
       "source_path": "app.js",
-      "sha256": "9d1ccb28d8dcd34522eae6348cba524279eadd9cb4e2d7e23d79a55b222bc1a0",
-      "bytes": 1154387
+      "sha256": "e18bbdf965285ea5d16a5e26da3620d88bb7e800e8e8ace9050ecbc85ea192ff",
+      "bytes": 1156804
     },
     "index.html": {
       "source_path": "index.html",
@@ -75,43 +75,53 @@
     },
     "styles.css": {
       "source_path": "styles.css",
-      "sha256": "8ae52772ca7bf4bfe40a7a18fe478a8f8abd6f645078738ddd34425a8fd763da",
-      "bytes": 393639
+      "sha256": "eb5ad51aa452d00812943b9a8aba7d88ee547b384172a01dd4ae13343a129f72",
+      "bytes": 406553
     },
     "test_qc_page.js": {
       "source_path": "test_qc_page.js",
-      "sha256": "642e63dd74125564668b81526aa0876024547172fa817e5d5aea8c540a41a78f",
-      "bytes": 2200
+      "sha256": "6523ee05a23d7d8568bb874520a5f9bfda09f9931210f5a84a0d8e4c8d324f96",
+      "bytes": 2232
     },
     "no-vehicles.html": {
       "source_path": "no-vehicles.html",
-      "sha256": "157d1ac1dc5c47987119cc14a06321b8928d3891eda93651e733eb414fb7bf31",
-      "bytes": 46970
+      "sha256": "0d98577a49fac47c25a1f70b081245cc48d551bab60cc009444b5871c602ee32",
+      "bytes": 47754
     },
     "pdc-supabase-config.staging.js": {
       "source_path": "pdc-supabase-config.staging.js",
-      "sha256": "f4ec6e07a6d9cd19ea401cd4ba7844663f412a62a9943b28cf3ab34b2ecaa823",
-      "bytes": 1719
+      "sha256": "d9fc4df655ec30a2c0e73ebd83b33cf8650d2ae67d2c6af5c03ecc6b32af5e93",
+      "bytes": 1758
     },
     "staging.html": {
       "source_path": "staging.html",
-      "sha256": "ebf46f669d24fc8c06a195fe1def7c5c0bb894f6c2bc5441cfba83e349f4339a",
-      "bytes": 66890
+      "sha256": "3c8482bb31d4a85452241d2d5c6660ceb67e6a5abebcdde91d0588c8c2d88262",
+      "bytes": 67853
     },
     "workshop-data-service.js": {
       "source_path": "workshop-data-service.js",
-      "sha256": "2d71c8aba8880e10910a75c39e50bd212bdccc798e28da01e8bd7a4ebf10ec54",
-      "bytes": 25399
+      "sha256": "99a97764a74576f1ef02aaefbfa9e7590ecc1db5f5df89a4a67c767768f3f3c6",
+      "bytes": 25991
     },
     "workshop-planner.js": {
       "source_path": "workshop-planner.js",
-      "sha256": "3e17c1128f23febaf31c22f394ecd901ca851024339bf498f54b44fefca40486",
-      "bytes": 354561
+      "sha256": "938951946cf37643c12587dbbb4df9d5763393abc719a552bd1ec613d898c770",
+      "bytes": 360772
     },
     "workshop-shared-actions.js": {
       "source_path": "workshop-shared-actions.js",
-      "sha256": "c4ff42286a5da5c7f049702f8d38d2563ea636427dca8dcea1b3a455411c0897",
-      "bytes": 10611
+      "sha256": "dfb6ab9495b8d113a9de112c81b809c293796a518fa1469aedc7bf37dbb5f008",
+      "bytes": 10893
+    },
+    "pdc-email-vehicle-location-service.js": {
+      "source_path": "pdc-email-vehicle-location-service.js",
+      "sha256": "da908ab5cce6e9b10eaa117bf9cf34a71ef2aab2a122105a552bbf20704a2371",
+      "bytes": 20870
+    },
+    "test_parts_shared_actions.js": {
+      "source_path": "test_parts_shared_actions.js",
+      "sha256": "2a13f327719b023d9a5316dfc5c561068c6fb7fb93209da2a92577c49e3c9ad2",
+      "bytes": 4870
     }
   }
 }
