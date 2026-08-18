@@ -9,5 +9,5 @@ assert.ok(app.includes('const backendBody = Array.isArray(result.body) ? result.
 assert.ok(app.includes('HTTP ${result.status}'), 'RPC status is surfaced');
 assert.ok(app.includes('String(backendMessage).slice(0, 240)'), 'backend diagnostic is bounded');
 assert.ok(service.includes('row.parts_received === true'), 'top-level Parts received projection is accepted');
-assert.ok(service.includes('partsUpdate.parts_received === true'), 'nested Parts received projection is accepted');
+assert.ok(service.includes("projectedPartsValue('parts_received', false) === true"), 'nested/root Parts received projection is accepted through the shared projection helper');
 console.log('Shared Parts save diagnostics contract passed.');

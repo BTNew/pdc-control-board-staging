@@ -62,17 +62,26 @@ function mapServerVehicle(row = {}) {
     source_uid: String(item?.source_uid || '').trim().slice(0, 100),
   })).filter(item => /^(?:OP(?:[1-9]|[1-9][0-9]{1,2})|PD[0-9]{3}-[A-F0-9]{8})$/.test(item.operation_no)
     && allowedOperationKeys.has(item.work_key) && item.description.length > 0);
-  if (row.parts_required != null) mapped.pdcRequiresParts = row.parts_required === true;
   const partsUpdate = row.parts_update && typeof row.parts_update === 'object' ? row.parts_update : {};
-  mapped.pdcCompleteParts = row.parts_completed === true || row.parts_received === true || partsUpdate.parts_received === true;
-
-
-  mapped.pdcPartsOrdered = partsUpdate.parts_ordered === true;
-  mapped.pdcPartsStoppage = partsUpdate.parts_stoppage === true;
-  mapped.pdcPartsStoppageReason = String(partsUpdate.parts_stoppage_reason || '');
-  mapped.pdcPartsWorstEta = partsUpdate.worst_eta || '';
-  mapped.pdcPartsPreviousWorstEta = partsUpdate.previous_worst_eta || '';
-  mapped.pdcPartsWorstEtaUpdatedAt = partsUpdate.updated_at || '';
+  // Staging snapshot revisions have emitted Parts fields both inside the
+  // parts_update projection and, for some retained rows, at the row root.
+  // Prefer the nested authoritative projection when present, while accepting
+  // the root aliases so a valid ETA/order state is not silently discarded.
+  const projectedPartsValue = (field, fallback = null) => Object.prototype.hasOwnProperty.call(partsUpdate, field)
+    ? partsUpdate[field]
+    : (Object.prototype.hasOwnProperty.call(row, field) ? row[field] : fallback);
+  if (row.parts_required != null || projectedPartsValue('parts_required') != null) {
+    mapped.pdcRequiresParts = projectedPartsValue('parts_required', row.parts_required) === true;
+  }
+  mapped.pdcCompleteParts = row.parts_completed === true
+    || row.parts_received === true
+    || projectedPartsValue('parts_received', false) === true;
+  mapped.pdcPartsOrdered = projectedPartsValue('parts_ordered', false) === true;
+  mapped.pdcPartsStoppage = projectedPartsValue('parts_stoppage', false) === true;
+  mapped.pdcPartsStoppageReason = String(projectedPartsValue('parts_stoppage_reason', '') || '');
+  mapped.pdcPartsWorstEta = projectedPartsValue('worst_eta', '') || '';
+  mapped.pdcPartsPreviousWorstEta = projectedPartsValue('previous_worst_eta', '') || '';
+  mapped.pdcPartsWorstEtaUpdatedAt = projectedPartsValue('updated_at', '') || '';
 
   const canonicalBookings = (Array.isArray(row.sublet_bookings) ? row.sublet_bookings : []).map(booking => ({
     bookingId: String(booking?.booking_id || ''), vehicleId: String(booking?.vehicle_id || row.id || ''),

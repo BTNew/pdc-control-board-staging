@@ -14329,7 +14329,14 @@ function vehicleLocationBoardRows(localRows = pdcSheetVehicles(), sharedRows = a
   const currentShared = activeSharedNavisionRows(sharedRows);
   const localVehicles = deduplicateLocalLocationRows(localRows);
   const sharedByStock = new Map();
+  const sharedByCanonicalVehicleId = new Map();
   currentShared.forEach(item => {
+    const canonicalId = String(item.canonical_vehicle_id || '').trim();
+    if (canonicalId) {
+      const canonicalBucket = sharedByCanonicalVehicleId.get(canonicalId) || [];
+      canonicalBucket.push(item);
+      sharedByCanonicalVehicleId.set(canonicalId, canonicalBucket);
+    }
     const stock = sharedNavisionIdentityPartsFromItem(item).stock;
     if (!stock) return;
     const bucket = sharedByStock.get(stock) || [];
@@ -14342,7 +14349,14 @@ function vehicleLocationBoardRows(localRows = pdcSheetVehicles(), sharedRows = a
 
   localVehicles.forEach(vehicle => {
     const localIdentity = sharedNavisionIdentityPartsFromVehicle(vehicle);
-    const candidates = localIdentity.stock ? (sharedByStock.get(localIdentity.stock) || []) : [];
+    // Authenticated email rows carry the canonical vehicles.id used by Parts
+    // RPCs. Prefer the shared Navision projection's canonical_vehicle_id when
+    // present; stock is only the legacy fallback. This prevents a projection
+    // with a changed/display-only stock from becoming a second ambiguous row.
+    const canonicalId = String(vehicle.__emailVehicleId || '').trim();
+    const canonicalCandidates = canonicalId ? (sharedByCanonicalVehicleId.get(canonicalId) || []) : [];
+    const stockCandidates = localIdentity.stock ? (sharedByStock.get(localIdentity.stock) || []) : [];
+    const candidates = canonicalCandidates.length ? canonicalCandidates : stockCandidates;
     const matches = candidates.filter(item => {
       const sharedIdentity = sharedNavisionIdentityPartsFromItem(item);
       return !(localIdentity.dealer && sharedIdentity.dealer && localIdentity.dealer !== sharedIdentity.dealer);
