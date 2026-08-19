@@ -42,7 +42,7 @@ assert.ok(migration.includes("version='306'") && migration.includes("set_config(
 assert.ok(migration.includes("'parts_completed'") && migration.includes("'replayed'") && migration.includes('update public.pdc_email_vehicle_revision'), 'migration must retain receipt and single revision semantics');
 
 assert.ok(index.includes('pdc-release-compatibility.js'), 'runtime must load release compatibility guard');
-assert.ok(workflow.includes('build-staging-deployment-identity.py') && workflow.includes('verify-staging-deployment.py') && workflow.includes('actions/deploy-pages'), 'staging Pages workflow must generate and verify identity');
+assert.ok(workflow.includes('build-staging-deployment-identity.py') && workflow.includes('verify-staging-deployment.py') && workflow.includes('actions/deploy-pages') && workflow.includes("if: github.ref == 'refs/heads/main'"), 'staging Pages workflow must generate/verify identity and refuse unmerged branch deployment');
 assert.ok(buildIdentity.includes('GITHUB_SHA') && buildIdentity.includes('staging_project_ref'), 'identity must derive from deployed build SHA');
 assert.ok(verifyDeployment.includes('cdsmnqxtyyoeoznmbidd') && verifyDeployment.includes('release compatibility'), 'deployment verifier must pin staging project and require server compatibility');
 
