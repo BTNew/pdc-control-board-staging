@@ -5130,6 +5130,39 @@ body.resizing-column .col-drag-handle {
   color: #64748b;
   font-weight: 700;
 }
+/* Parts dashboard cells use a real status glyph instead of a generic checkbox. */
+.parts-visual-input {
+  position: absolute;
+  width: 1px !important;
+  height: 1px !important;
+  margin: -1px !important;
+  opacity: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+}
+.parts-visual-input:focus-visible + .parts-status-glyph {
+  outline: 2px solid #1d4ed8;
+  outline-offset: 2px;
+}
+.parts-status-glyph {
+  display: inline-grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border: 1px solid currentColor;
+  border-radius: 5px;
+  line-height: 1;
+  background: #fff;
+}
+.parts-status-glyph svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
+.parts-status-glyph-ordered { color: #1d4ed8; background: #dbeafe; border-color: #60a5fa; }
+.parts-status-glyph-issued { color: #166534; background: #dcfce7; border-color: #4ade80; }
+.parts-status-glyph-notordered { color: #64748b; background: #f1f5f9; border-color: #cbd5e1; }
+.parts-visual-copy { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; }
+.parts-visual-onorder, .parts-visual-issued, .parts-visual-notordered { position: relative; }
+.parts-visual-onorder .parts-status-glyph { box-shadow: 0 0 0 2px rgba(96, 165, 250, .16); }
+
 .parts-summary-card.parts-status-stoppage {
   border-color: rgba(220, 38, 38, .42);
   background: linear-gradient(180deg, #fff 0%, #fef2f2 100%);

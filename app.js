@@ -2131,6 +2131,17 @@ function pdcJobPartsVisualStatus(vehicle = {}, def = {}) {
   return 'notordered';
 }
 
+function pdcPartsStatusGlyphHtml(status = '') {
+  const glyphs = {
+    notordered: '<path d="M4 4h10v12H4z"/><path d="M6.5 7h5M6.5 10h5M6.5 13h3"/>',
+    ordered: '<path d="M4 4h10v12H4z"/><path d="M6.5 7h5M6.5 10h5"/><path d="m9 13 1.5 1.5L14 11"/>',
+    issued: '<path d="m4 9 4 4 8-8"/>',
+  };
+  const labels = { notordered: 'Parts not ordered', ordered: 'Parts ordered', issued: 'Parts received' };
+  const key = status === 'onorder' ? 'ordered' : (Object.prototype.hasOwnProperty.call(glyphs, status) ? status : 'notordered');
+  return `<span class="parts-status-glyph parts-status-glyph-${key}" role="img" aria-label="${escapeHtml(labels[key])}" title="${escapeHtml(labels[key])}"><svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">${glyphs[key]}</svg></span>`;
+}
+
 function pdcJobTableCell(vehicle, def) {
   if (!def) return '';
   if (statusCategory(vehicle) === 'rft') {
@@ -2146,7 +2157,7 @@ function pdcJobTableCell(vehicle, def) {
   if (partsVisualStatus) {
     const checked = vehicleFlag(vehicle, def.requireKey) ? ' checked' : '';
     const statusLabel = partsVisualStatus === 'issued' ? 'Parts received/there' : partsVisualStatus === 'onorder' ? 'Parts confirmed/ordered' : 'Parts required - not ordered';
-    return `<label class="mini-check pdc-mini-${escapeHtml(def.key)} parts-visual-${escapeHtml(partsVisualStatus)}" title="${escapeHtml(`${def.label} required · ${statusLabel}`)}"><input type="checkbox" data-flag-stock="${escapeHtml(vehicleKey(vehicle))}" data-flag-key="${escapeHtml(def.requireKey)}"${checked} /><span>${escapeHtml(def.short)}</span></label>`;
+    return `<label class="mini-check pdc-mini-${escapeHtml(def.key)} parts-visual-${escapeHtml(partsVisualStatus)}" title="${escapeHtml(`${def.label} required · ${statusLabel}`)}"><input class="parts-visual-input" type="checkbox" data-flag-stock="${escapeHtml(vehicleKey(vehicle))}" data-flag-key="${escapeHtml(def.requireKey)}"${checked} aria-label="${escapeHtml(`${def.label} required`)}" />${pdcPartsStatusGlyphHtml(partsVisualStatus)}<span class="parts-visual-copy">${escapeHtml(def.short)}</span></label>`;
   }
   return checkboxCell(vehicle, def.requireKey, `${def.label} required`, def.short);
 }
