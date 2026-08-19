@@ -1,127 +1,21 @@
 {
   "environment": "staging",
-  "application_version": "2026.08.18.02-parts-vehicle-locations",
-  "source_commit": "11cc417d4f80a2644ea49e09e2d2360d94b1598d",
-  "frontend_source_commit": "11cc417d4f80a2644ea49e09e2d2360d94b1598d",
-  "parent_staging_commit": "aee3e487938cdd2e1cc6115b5603dc8c67dffb30",
+  "application_version": "2026.08.20.01-security-provenance",
+  "frontend_source_commit": "50385e754230d7babb5041c2c3992086b0c3e3cf",
+  "provenance_update_commit": "14deb61157b1819dc1cd0e4fdf73d2d0fea29325",
   "staging_project_ref": "cdsmnqxtyyoeoznmbidd",
   "production_unchanged": true,
   "main_unchanged": true,
-  "dns_unchanged": true,
-  "pilot_activation_changed": false,
   "mailbox_runtime_changed": false,
-  "deployed_at_utc": "2026-08-18T01:19:48Z",
-  "database_migration_head": 260,
-  "database_migrations": {
-    "243": {
-      "name": "craig_vehicle_drag_parts_non_blocking.rollback",
-      "source_path": "supabase/staging_only/243_craig_vehicle_drag_parts_non_blocking.rollback.sql",
-      "sha256": "09616c0f565670ae94f7c67009500934d4f52b8259891bfebd3fce89d77a829d",
-      "bytes": 7180
-    },
-    "244": {
-      "name": "workshop_admin_authority_intent_receipt_undo",
-      "source_path": "supabase/staging_only/244_workshop_admin_authority_intent_receipt_undo.sql",
-      "sha256": "40fa67f1270b76eb56524356fcbe908eb2718095a72dfc8e13868b7bfd1c1d81",
-      "bytes": 28659
-    },
-    "245": {
-      "name": "workshop_admin_create_undo_audit_order",
-      "source_path": "supabase/staging_only/245_workshop_admin_create_undo_audit_order.sql",
-      "sha256": "de97d4bdf7b8210b24d817a2834ff9435117dd3cf8d3cd66019c032113a3bcc2",
-      "bytes": 10087
-    },
-    "246": {
-      "name": "workshop_admin_intent_hash_schema",
-      "source_path": "supabase/staging_only/246_workshop_admin_intent_hash_schema.sql",
-      "sha256": "fe376c422eabb79d87d8a19e04aca5a2f20bfa2c10eea9948ec6e6f55967c3cf",
-      "bytes": 3522
-    },
-    "247": {
-      "name": "workshop_admin_null_role_fail_closed",
-      "source_path": "supabase/staging_only/247_workshop_admin_null_role_fail_closed.sql",
-      "sha256": "e4ca2367b2b7f3828c15c747d9a7f73677eb4051806c851b0625548beda3cd1f",
-      "bytes": 3668
-    },
-    "248": {
-      "name": "workshop_admin_create_undo_history_identity",
-      "source_path": "supabase/staging_only/248_workshop_admin_create_undo_history_identity.sql",
-      "sha256": "524592ba1426c5c5d93856c8dcc66197d77c99c085ed631dac6f9ed87967be65",
-      "bytes": 9829
-    },
-    "249": {
-      "name": "workshop_admin_create_undo_history_order",
-      "source_path": "supabase/staging_only/249_workshop_admin_create_undo_history_order.sql",
-      "sha256": "5abb436ac59ea826421d5da4e823c9c47e5018ffd1a20d0fabb109c4ecf326af",
-      "bytes": 10043
-    },
-    "250": {
-      "name": "revoke_service_role_legacy_workshop_rpc",
-      "source_path": "supabase/staging_only/250_revoke_service_role_legacy_workshop_rpc.sql",
-      "sha256": "be5342474b6277ed38cc71d5da113dc110eec39f532497da2e175143d1ffb60e",
-      "bytes": 2885
-    }
-  },
-  "files": {
-    "app.js": {
-      "source_path": "app.js",
-      "sha256": "e18bbdf965285ea5d16a5e26da3620d88bb7e800e8e8ace9050ecbc85ea192ff",
-      "bytes": 1156804
-    },
-    "index.html": {
-      "source_path": "index.html",
-      "sha256": "4f8a2026fbdf289cecc7dd4f29bfc4279576035ed3d587dd8e8a1cb915d0d0fe",
-      "bytes": 68682
-    },
-    "styles.css": {
-      "source_path": "styles.css",
-      "sha256": "eb5ad51aa452d00812943b9a8aba7d88ee547b384172a01dd4ae13343a129f72",
-      "bytes": 406553
-    },
-    "test_qc_page.js": {
-      "source_path": "test_qc_page.js",
-      "sha256": "6523ee05a23d7d8568bb874520a5f9bfda09f9931210f5a84a0d8e4c8d324f96",
-      "bytes": 2232
-    },
-    "no-vehicles.html": {
-      "source_path": "no-vehicles.html",
-      "sha256": "0d98577a49fac47c25a1f70b081245cc48d551bab60cc009444b5871c602ee32",
-      "bytes": 47754
-    },
-    "pdc-supabase-config.staging.js": {
-      "source_path": "pdc-supabase-config.staging.js",
-      "sha256": "d9fc4df655ec30a2c0e73ebd83b33cf8650d2ae67d2c6af5c03ecc6b32af5e93",
-      "bytes": 1758
-    },
-    "staging.html": {
-      "source_path": "staging.html",
-      "sha256": "3c8482bb31d4a85452241d2d5c6660ceb67e6a5abebcdde91d0588c8c2d88262",
-      "bytes": 67853
-    },
-    "workshop-data-service.js": {
-      "source_path": "workshop-data-service.js",
-      "sha256": "99a97764a74576f1ef02aaefbfa9e7590ecc1db5f5df89a4a67c767768f3f3c6",
-      "bytes": 25991
-    },
-    "workshop-planner.js": {
-      "source_path": "workshop-planner.js",
-      "sha256": "938951946cf37643c12587dbbb4df9d5763393abc719a552bd1ec613d898c770",
-      "bytes": 360772
-    },
-    "workshop-shared-actions.js": {
-      "source_path": "workshop-shared-actions.js",
-      "sha256": "dfb6ab9495b8d113a9de112c81b809c293796a518fa1469aedc7bf37dbb5f008",
-      "bytes": 10893
-    },
-    "pdc-email-vehicle-location-service.js": {
-      "source_path": "pdc-email-vehicle-location-service.js",
-      "sha256": "da908ab5cce6e9b10eaa117bf9cf34a71ef2aab2a122105a552bbf20704a2371",
-      "bytes": 20870
-    },
-    "test_parts_shared_actions.js": {
-      "source_path": "test_parts_shared_actions.js",
-      "sha256": "2a13f327719b023d9a5316dfc5c561068c6fb7fb93209da2a92577c49e3c9ad2",
-      "bytes": 4870
-    }
-  }
+  "database_migration_head": "20260819235603",
+  "database_migration_head_name": "staging_security_definer_anon_and_search_path_hardening",
+  "database_migration_file": "supabase/staging_only/20260819235603_staging_security_definer_anon_and_search_path_hardening.sql",
+  "database_migration_sha256": "33b78f7cc1d53a64b1690e82de728b76afe88ff3fb6fbd0a7535b9682072313e",
+  "provenance_refreshed_at_utc": "2026-08-19T23:57:00Z",
+  "notes": [
+    "This manifest supersedes the stale legacy manifest that reported migration head 260.",
+    "Frontend source commit identifies the currently published staging frontend before this provenance-only branch.",
+    "Database migration head is read from live staging Supabase migration history.",
+    "Local Windows mailbox runtime is not represented as activated by this manifest."
+  ]
 }
