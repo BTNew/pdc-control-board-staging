@@ -1,0 +1,61 @@
+name: staging-pages-release
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: staging-pages
+  cancel-in-progress: false
+
+jobs:
+  build-and-preflight:
+    runs-on: ubuntu-latest
+    environment: staging
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Run static staging contracts
+        run: |
+          node test_staging_hardening_phase1.js
+          for test in test_*.js; do node "$test"; done
+      - name: Build Pages artifact with exact identity
+        run: |
+          mkdir -p _site
+          tar --exclude-vcs --exclude='_site' --exclude='.github' -cf - . | tar -C _site -xf -
+          python scripts/build-staging-deployment-identity.py --output _site/deployment-identity.json
+      - name: Verify generated identity and live staging compatibility
+        env:
+          STAGING_DEPLOYMENT_VERIFY_TOKEN: ${{ secrets.STAGING_DEPLOYMENT_VERIFY_TOKEN }}
+          PDC_STAGING_PUBLISHABLE_KEY: ${{ secrets.PDC_STAGING_PUBLISHABLE_KEY }}
+        run: python scripts/verify-staging-deployment.py --identity _site/deployment-identity.json --expected-commit "$GITHUB_SHA"
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy-and-verify:
+    needs: build-and-preflight
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Verify served identity and live staging compatibility
+        env:
+          STAGING_DEPLOYMENT_VERIFY_TOKEN: ${{ secrets.STAGING_DEPLOYMENT_VERIFY_TOKEN }}
+          PDC_STAGING_PUBLISHABLE_KEY: ${{ secrets.PDC_STAGING_PUBLISHABLE_KEY }}
+        run: python scripts/verify-staging-deployment.py --identity "${{ steps.deployment.outputs.page_url }}deployment-identity.json" --expected-commit "$GITHUB_SHA"

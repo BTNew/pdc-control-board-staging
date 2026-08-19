@@ -1631,75 +1631,11 @@ function workshopVehicleLinkCanPersist() {
   return role === 'operator' || role === 'administrator';
 }
 
-function workshopPersistVerifiedCanonicalLink(vehicle = {}, diagnostic = {}, saveFn = null, storage = null, receiptOut = null) {
-  if (!workshopVehicleLinkCanPersist()) return false;
-  if (!vehicle || diagnostic.outcome !== 'resolved' || diagnostic.linkState !== 'ready_to_save'
-      || typeof diagnostic.sharedUuid !== 'string' || !WORKSHOP_UUID_PATTERN.test(diagnostic.sharedUuid)
-      || !Number.isInteger(diagnostic.version) || diagnostic.version < 1
-      || !Number.isInteger(diagnostic.resolverRevision) || diagnostic.resolverRevision < 1
-      || !Array.isArray(diagnostic.matchedBy) || !diagnostic.matchedBy.length
-      || new Set(diagnostic.matchedBy).size !== diagnostic.matchedBy.length
-      || diagnostic.matchedBy.some(field => typeof field !== 'string' || !WORKSHOP_LINK_MATCH_FIELDS.has(field))) return false;
-  const persist = saveFn || (typeof saveVehicleEdits === 'function' ? saveVehicleEdits : null);
-  const target = workshopVehicleLinkStorage(storage);
-  if (typeof persist !== 'function' || !target) return false;
-  const key = typeof vehicleKey === 'function'
-    ? vehicleKey(vehicle)
-    : String(vehicle.stock || vehicle.id || '').trim();
-  if (!key) return false;
-  const updates = {
-    sharedVehicleId: diagnostic.sharedUuid,
-    sharedVehicleLinkSource: diagnostic.browserLocalIdentity?.sourceSystem || WORKSHOP_BROWSER_LINK_SOURCE_SYSTEM,
-    sharedVehicleLinkVehicleVersion: diagnostic.version,
-    sharedVehicleLinkResolverRevision: diagnostic.resolverRevision,
-    sharedVehicleLinkMatchedBy: [...(diagnostic.matchedBy || [])],
-    sharedVehicleLinkVerifiedAt: typeof nowIsoString === 'function' ? nowIsoString() : new Date().toISOString(),
-  };
-  const previousVehicleValues = Object.fromEntries(Object.keys(updates).map(field => [field, {
-    exists: Object.prototype.hasOwnProperty.call(vehicle, field),
-    value: vehicle[field],
-  }]));
-  let previousStore;
-  let previousEdits;
-  try {
-    previousStore = target.getItem(WORKSHOP_BROWSER_LINKS_KEY);
-    previousEdits = target.getItem(WORKSHOP_BROWSER_EDITS_KEY);
-  } catch (_) {
-    return false;
-  }
-  if (!workshopSaveStoredVehicleLink(vehicle, updates, target)) return false;
-  try {
-    if (persist(key, updates, { render: false }) === true) {
-      if (receiptOut && typeof receiptOut === 'object') {
-        Object.assign(receiptOut, {
-          storage: target,
-          vehicle,
-          previousStore,
-          persistedStore: target.getItem(WORKSHOP_BROWSER_LINKS_KEY),
-          previousEdits,
-          persistedEdits: target.getItem(WORKSHOP_BROWSER_EDITS_KEY),
-          previousVehicleValues,
-          updates,
-        });
-      }
-      return true;
-    }
-  } catch (_) {
-    // Roll back the stable link overlay below.
-  }
-  try {
-    if (previousStore == null) target.removeItem(WORKSHOP_BROWSER_LINKS_KEY);
-    else target.setItem(WORKSHOP_BROWSER_LINKS_KEY, previousStore);
-    if (previousEdits == null) target.removeItem(WORKSHOP_BROWSER_EDITS_KEY);
-    else target.setItem(WORKSHOP_BROWSER_EDITS_KEY, previousEdits);
-  } catch (_) {
-    // Persistence still reports failure and scheduling remains blocked.
-  }
-  Object.entries(previousVehicleValues).forEach(([field, previous]) => {
-    if (!workshopVehicleLinkValuesEqual(vehicle[field], updates[field])) return;
-    if (previous.exists) vehicle[field] = previous.value;
-    else delete vehicle[field];
-  });
+function workshopPersistVerifiedCanonicalLink(_vehicle = {}, _diagnostic = {}, _saveFn = null, _storage = null, _receiptOut = null) {
+  // A browser-local UUID link is not operational evidence. Scheduling and
+  // allocation may proceed only when the shared server snapshot contains the
+  // canonical vehicle identity and version.
+  console.warn('Browser-local canonical-link persistence is disabled in staging hardening phase 1.');
   return false;
 }
 
@@ -1895,48 +1831,17 @@ function workshopVehicleLinkDiagnosticModal(diagnostic = {}, options = {}) {
   });
 }
 
-async function workshopVerifiedCanonicalVehicleRef(vehicle = {}, options = {}) {
+async function workshopVerifiedCanonicalVehicleRef(vehicle = {}, _options = {}) {
   const authoritativeRef = workshopSharedVehicleRef(vehicle);
   const authoritativeVersion = Number(authoritativeRef?.version);
   if (authoritativeRef && !authoritativeRef.error && authoritativeRef.vehicleId && Number.isInteger(authoritativeVersion)) {
     return { ok: true, vehicleId: authoritativeRef.vehicleId, version: authoritativeVersion, source: 'scoped_snapshot' };
   }
-  if (authoritativeRef?.error && vehicle.sharedVehicleId) {
-    return { ok: false, error: authoritativeRef.error, diagnostic: authoritativeRef };
-  }
-  const resolveDiagnostic = () => workshopResolveVehicleLinkDiagnostic(vehicle, options.resolver || null, options.storage || null);
-  const openDiagnostic = options.modalFn || workshopVehicleLinkDiagnosticModal;
-  const persistLink = options.persistFn || ((targetVehicle, diagnostic, receipt) => workshopPersistVerifiedCanonicalLink(
-    targetVehicle, diagnostic, options.saveFn || null, options.storage || null, receipt,
-  ));
-  const diagnostic = await resolveDiagnostic();
-  if (diagnostic.linkState === 'verified' && diagnostic.sharedUuid) {
-    return { ok: true, vehicleId: diagnostic.sharedUuid, version: diagnostic.version, diagnostic };
-  }
-  const decision = await openDiagnostic(diagnostic);
-  if (decision !== 'save' || diagnostic.linkState !== 'ready_to_save') return { ok: false, error: 'vehicle_identity_not_found', diagnostic };
-  const receipt = {};
-  if (!persistLink(vehicle, diagnostic, receipt)) {
-    const failed = { ...diagnostic, outcome: 'service_unavailable', linkState: 'rejected', rejectedReason: 'browser_local_link_persist_failed', exactRemediation: 'Resolve browser-local storage persistence, then run deterministic link verification again.' };
-    await openDiagnostic(failed, { title: 'Shared vehicle link was not saved' });
-    return { ok: false, error: 'vehicle_link_persist_failed', diagnostic: failed };
-  }
-  const verified = await resolveDiagnostic();
-  if (verified.linkState !== 'verified' || verified.sharedUuid !== diagnostic.sharedUuid) {
-    const rolledBack = workshopRollbackPersistedCanonicalLink(receipt);
-    const failed = {
-      ...verified,
-      linkState: 'rejected',
-      rejectedReason: `${verified.rejectedReason || 'post_save_verification_failed'}:${rolledBack ? 'new_link_rolled_back' : 'rollback_conflict'}`,
-      exactRemediation: rolledBack
-        ? 'The newly saved browser-local link was rolled back. Resolve the reported identity condition, then run deterministic link verification again.'
-        : 'Browser-local link rollback could not safely overwrite a concurrent change. Reload and complete manual identity review before scheduling.',
-    };
-    await openDiagnostic(failed, { title: rolledBack ? 'Shared vehicle link was rolled back' : 'Shared vehicle link rollback needs review' });
-    return { ok: false, error: rolledBack ? 'conflicting_vehicle_identity_rolled_back' : 'vehicle_link_rollback_conflict', diagnostic: failed };
-  }
-  await openDiagnostic(verified, { title: 'Shared UUID link saved and verified' });
-  return { ok: false, error: 'vehicle_link_saved_retry', diagnostic: verified };
+  return {
+    ok: false,
+    error: 'canonical_server_identity_required',
+    diagnostic: authoritativeRef || { outcome: 'not_found', linkState: 'rejected', exactRemediation: 'Reload the shared server snapshot and resolve canonical vehicle identity before scheduling or allocation.' },
+  };
 }
 
 function workshopVehicleLinkReadinessStatus(diagnostic = {}) {

@@ -155,6 +155,11 @@ function createPdcEmailVehicleLocationService(options = {}) {
   const request = options.fetchImpl || (typeof fetch !== 'undefined' ? fetch : null);
   const url = String(config.url || '').replace(/\/$/, ''); const key = String(config.publishableKey || '');
   if (!request || !key) throw new Error('Authenticated email vehicle locations require the staging browser client.');
+  function mutationReleaseReady() {
+    if (typeof window === 'undefined') return true; // Node contract tests inject their own transport.
+    return window.PDC_STAGING_RELEASE_COMPATIBILITY?.canMutate?.() === true;
+  }
+  function releaseBlocked() { return { ok: false, code: 'release_incompatible', data: null }; }
   async function snapshot() {
     const token = getAccessToken(); if (!token) return { ok: false, code: 'not_authenticated', data: null };
     try {
@@ -165,6 +170,7 @@ function createPdcEmailVehicleLocationService(options = {}) {
     } catch (_error) { return { ok: false, code: 'snapshot_unavailable', data: null }; }
   }
   async function updateSublet(vehicleId = '', expectedVersion = 0, field = '', value = '') {
+    if (!mutationReleaseReady()) return releaseBlocked();
     const token = getAccessToken(); if (!token) return { ok: false, code: 'not_authenticated', data: null };
     try {
       const response = await request(`${url}/rest/v1/rpc/${PDC_SUBLET_UPDATE_RPC}`, { method: 'POST', headers: { apikey: key, Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ p_vehicle_id: vehicleId, p_expected_version: Number(expectedVersion) || 0, p_field: field, p_value: String(value ?? '') }) });
@@ -174,6 +180,7 @@ function createPdcEmailVehicleLocationService(options = {}) {
     } catch (_error) { return { ok: false, code: 'sublet_update_unavailable', data: null }; }
   }
   async function subletRpc(name, payload, unavailableCode) {
+    if (!mutationReleaseReady()) return releaseBlocked();
     const token = getAccessToken(); if (!token) return { ok: false, code: 'not_authenticated', data: null };
     try {
       const response = await request(`${url}/rest/v1/rpc/${name}`, { method: 'POST', headers: { apikey: key, Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
@@ -192,6 +199,7 @@ function createPdcEmailVehicleLocationService(options = {}) {
     return subletRpc(PDC_SUBLET_RETURN_RPC, { p_booking_id: bookingId, p_expected_version: Number(expectedVersion) || 0, p_returned_at: returnedAt }, 'sublet_return_unavailable');
   }
   async function updatePartsEta(vehicleId = '', expectedVersion = 0, value = '') {
+    if (!mutationReleaseReady()) return releaseBlocked();
     const token = getAccessToken(); if (!token) return { ok: false, code: 'not_authenticated', data: null };
     try {
       const response = await request(`${url}/rest/v1/rpc/${PDC_PARTS_ETA_UPDATE_RPC}`, { method: 'POST', headers: { apikey: key, Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ p_vehicle_id: vehicleId, p_expected_version: Number(expectedVersion) || 0, p_worst_eta: String(value || '') || null }) });
@@ -201,6 +209,7 @@ function createPdcEmailVehicleLocationService(options = {}) {
     } catch (_error) { return { ok: false, code: 'parts_eta_update_unavailable', data: null }; }
   }
   async function markPartsOrdered(vehicleId = '', expectedVersion = 0) {
+    if (!mutationReleaseReady()) return releaseBlocked();
     const token = getAccessToken(); if (!token) return { ok: false, code: 'not_authenticated', data: null };
     try {
       const response = await request(`${url}/rest/v1/rpc/${PDC_PARTS_ORDERED_RPC}`, { method: 'POST', headers: { apikey: key, Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ p_vehicle_id: vehicleId, p_expected_version: Number(expectedVersion) || 0 }) });
@@ -210,6 +219,7 @@ function createPdcEmailVehicleLocationService(options = {}) {
     } catch (_error) { return { ok: false, code: 'parts_ordered_update_unavailable', data: null }; }
   }
   async function markPartsComplete(vehicleId = '', expectedVersion = 0) {
+    if (!mutationReleaseReady()) return releaseBlocked();
     const token = getAccessToken(); if (!token) return { ok: false, code: 'not_authenticated', data: null };
     try {
       const response = await request(`${url}/rest/v1/rpc/${PDC_PARTS_COMPLETE_RPC}`, { method: 'POST', headers: { apikey: key, Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ p_vehicle_id: vehicleId, p_expected_version: Number(expectedVersion) || 0 }) });

@@ -11966,49 +11966,16 @@ function selectedVehicle(key = app.selectedStock) {
   return null;
 }
 
-function saveVehicleEdits(key, updates, options = {}) {
+function saveVehicleEdits(key, _updates, options = {}) {
+  // Phase 1 hardening: this former browser-local operational authority is now
+  // an explicit fail-closed compatibility boundary. Operational writers must
+  // call their own authorised RPC, receive a receipt, then reload a snapshot.
   const vehicle = selectedVehicle(key);
   if (!vehicle) return false;
-  const editKey = vehicleKey(vehicle);
-  if (!vehicleLocationActionAllowed(vehicle, 'edit')) return false;
-  const nextUpdates = { ...updates };
-  const protectedNavisionAuthorityFields = [
-    'jitQty',
-    'navisionJitaNumber',
-    'navisionJitaNumberAuthority',
-    'jitaPartsOrdered',
-    '_navisionJitaNumberColumnPresent',
-  ];
-  const rejectedAuthorityFields = protectedNavisionAuthorityFields.filter(field => Object.prototype.hasOwnProperty.call(nextUpdates, field));
-  rejectedAuthorityFields.forEach(field => { delete nextUpdates[field]; });
-  if (rejectedAuthorityFields.length) {
-    console.warn('Ignored operator edit to imported Navision JITA authority fields.', { fields: rejectedAuthorityFields });
-  }
-  if (!Object.keys(nextUpdates).length) return false;
-  if ('etaAtDealer' in nextUpdates) nextUpdates.etaAtDealer = navisionEtaForVehicle({ ...vehicle, ...nextUpdates });
-  const wasNestedTransaction = storageTransactionDepth > 0;
-  const previousValues = Object.fromEntries(Object.keys(nextUpdates).map(field => [field, {
-    exists: Object.prototype.hasOwnProperty.call(vehicle, field),
-    value: vehicle[field],
-  }]));
-  try {
-    runStorageTransaction('Vehicle update', [EDITS_KEY], () => {
-      Object.assign(vehicle, nextUpdates);
-      const edits = loadVehicleEdits();
-      edits[editKey] = { ...(edits[editKey] || {}), ...nextUpdates };
-      saveJson(EDITS_KEY, edits);
-    });
-  } catch (error) {
-    Object.entries(previousValues).forEach(([field, previous]) => {
-      if (previous.exists) vehicle[field] = previous.value;
-      else delete vehicle[field];
-    });
-    if (wasNestedTransaction) throw error;
-    window.alert(error.message || String(error));
-    return false;
-  }
+  console.warn('Local operational writes are disabled in staging hardening phase 1.', { key: vehicleKey(vehicle) });
   if (options.render !== false) renderAll();
-  return true;
+  window.alert('Local operational writes are disabled in staging hardening phase 1. This control is read-only until its authorised server operation is available. No change was made.');
+  return false;
 }
 
 async function openVehicleWorkBookingsFromTile(tile) {
@@ -13640,14 +13607,9 @@ async function markVehiclePartsOrdered(key = '') {
     renderPartsHome();
     return;
   }
-  const operator = getCurrentOperatorName();
-  recordVehicleAudit(vehicle, 'Parts marked ordered', { by: operator });
-  saveVehicleEdits(key, {
-    pdcRequiresParts: true,
-    pdcPartsOrdered: true,
-    pdcPartsOrderedAt: nowIsoString(),
-    pdcPartsOrderedBy: operator,
-  });
+  window.alert('Parts Ordered is read-only until a canonical shared vehicle identity is available. No local fallback was attempted.');
+  renderPartsHome();
+  return false;
 }
 
 async function markVehiclePartsComplete(key = '') {
@@ -13694,26 +13656,10 @@ async function markVehiclePartsComplete(key = '') {
   }
 }
 
-function markVehiclePartsStoppage(key = '') {
-  const vehicle = selectedVehicle(key);
-  if (!vehicle) return;
-  const reason = cleanNavisionText(window.prompt('Enter Parts STOPPAGE reason:', partsStoppageReason(vehicle) === 'Parts STOPPAGE recorded' ? '' : partsStoppageReason(vehicle)) || '');
-  if (!reason) return;
-  const operator = getCurrentOperatorName();
-  const updates = {
-    pdcRequiresParts: true,
-    pdcPartsStoppage: true,
-    pdcPartsStoppageReason: reason,
-    pdcPartsStoppageAt: nowIsoString(),
-    pdcPartsStoppageBy: operator,
-  };
-  recordVehicleAudit(vehicle, 'Parts STOPPAGE recorded', { reason, by: operator });
-  saveVehicleEdits(key, updates);
-  offerSalespersonChangeEmail(vehicle, {
-    title: 'Parts STOPPAGE recorded',
-    subject: 'PDC STOPPAGE update',
-    details: [`Reason: ${reason}`, `Recorded by ${operator}.`],
-  });
+function markVehiclePartsStoppage(_key = '') {
+  window.alert('Parts STOPPAGE is read-only in staging hardening phase 1 because no proven operation-specific server RPC is available. No local fallback was attempted.');
+  renderPartsHome();
+  return false;
 }
 
 async function updateVehiclePartsWorstEta(key = '', value = '') {
@@ -13747,22 +13693,9 @@ async function updateVehiclePartsWorstEta(key = '', value = '') {
     renderPartsHome();
     return;
   }
-  recordVehicleAudit(vehicle, eta ? 'Parts worst ETA updated' : 'Parts worst ETA cleared', { eta, previousEta, by: operator });
-  saveVehicleEdits(key, {
-    pdcPartsPreviousWorstEta: previousEta,
-    pdcPartsWorstEta: eta,
-    pdcPartsWorstEtaUpdatedAt: nowIsoString(),
-    pdcPartsWorstEtaUpdatedBy: operator,
-  });
-  if (eta !== previousEta) {
-    const previousLabel = previousEta ? partsWorstEtaLabel({ pdcPartsWorstEta: previousEta }) : 'Not previously recorded';
-    const newLabel = eta ? partsWorstEtaLabel({ pdcPartsWorstEta: eta }) : 'Cleared';
-    offerSalespersonChangeEmail(vehicle, {
-      title: eta ? 'Parts ETA updated' : 'Parts ETA cleared',
-      subject: 'Parts ETA update',
-      details: [`Previous Parts ETA: ${previousLabel}`, `New Parts ETA: ${newLabel}`, eta ? `Revised countdown: ${partsWorstEtaCountdownLabel(vehicle) || 'Not available'}` : ''],
-    });
-  }
+  window.alert('Parts ETA is read-only until a canonical shared vehicle identity is available. No local fallback was attempted.');
+  renderPartsHome();
+  return false;
 }
 
 function draftPartsEtaSalesEmail(key = '') {
@@ -13802,17 +13735,10 @@ function draftPartsEtaSalesEmail(key = '') {
   window.location.href = `mailto:${salespersonEmail(vehicle)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
 }
 
-function clearVehiclePartsStoppage(key = '') {
-  const vehicle = selectedVehicle(key);
-  if (!vehicle) return;
-  const operator = getCurrentOperatorName();
-  recordVehicleAudit(vehicle, 'Parts STOPPAGE cleared', { reason: partsStoppageReason(vehicle), by: operator });
-  saveVehicleEdits(key, {
-    pdcPartsStoppage: false,
-    pdcPartsStoppageReason: '',
-    pdcPartsStoppageClearedAt: nowIsoString(),
-    pdcPartsStoppageClearedBy: operator,
-  });
+function clearVehiclePartsStoppage(_key = '') {
+  window.alert('Parts STOPPAGE is read-only in staging hardening phase 1 because no proven operation-specific server RPC is available. No local fallback was attempted.');
+  renderPartsHome();
+  return false;
 }
 
 function exportPartsCsv() {
@@ -18036,7 +17962,10 @@ function renderSharedNavisionPreview(state = {}, applied = false) {
 async function importNavisionVehicles() {
   const input = $('#navision-paste');
   const text = input?.value || '';
-  if (!$('#navision-dealer-code')) return importNavisionVehiclesLocal(text);
+  if (!$('#navision-dealer-code')) {
+    window.alert('Local Navision import is disabled in staging hardening phase 1. Use the authenticated shared Navision import screen. No change was made.');
+    return false;
+  }
   if (!navisionSharedImportRoleAllowed()) {
     updateNavisionImportAccessStatus(true);
     window.alert('Importer or administrator access is required for shared Navision imports. Ask an administrator to assign the importer role. Nothing changed.');
@@ -18110,24 +18039,9 @@ async function importNavisionVehicles() {
   updateNavisionImportButton();
 }
 
-function importNavisionVehiclesLocal(text = '') {
-  const options = navisionImportOptionsFromDom();
-  const parsed = parseNavisionInput(text, options);
-  if (!parsed.vehicles.length) {
-    app.pendingNavisionImport = null;
-    renderNavisionSummary({ parsed, added: [], updated: [], unchanged: [], stockNumberUpdates: [], restored: [], skipped: parsed.warnings });
-    return;
-  }
-  const result = buildNavisionImportPlan(parsed);
-  result.sourceFingerprint = navisionPayloadFingerprint(text, options);
-  if (result.requiresConfirmation) {
-    app.pendingNavisionImport = result;
-    renderNavisionPendingReview(result);
-    updateNavisionControlStats(result);
-    updateNavisionImportButton();
-    return;
-  }
-  applyNavisionImportPlan(result);
+function importNavisionVehiclesLocal(_text = '') {
+  window.alert('Local Navision import is disabled in staging hardening phase 1. No browser-local authority was changed.');
+  return false;
 }
 
 async function applySharedNavisionImport() {
@@ -18883,10 +18797,8 @@ function exportCrmBackup() {
 function handleCrmBackupFileSelect(event) {
   const file = event.target.files?.[0];
   if (!file) return;
-  const reader = new FileReader();
-  reader.onload = () => restoreCrmBackup(String(reader.result || ''), file.name);
-  reader.onerror = () => renderBackupStatus({ type: 'error', message: `Could not read ${file.name}.` });
-  reader.readAsText(file);
+  renderBackupStatus({ type: 'error', message: `CRM backup restore is disabled in staging hardening phase 1. ${file.name} was not imported.` });
+  event.target.value = '';
 }
 
 function normalizeIncomingBackupKey(key) {
@@ -18943,63 +18855,11 @@ function normalizedBackupStorage(backup) {
     }));
 }
 
-function restoreCrmBackup(text, fileName = 'backup file') {
-  let backup;
-  try { backup = JSON.parse(text); }
-  catch {
-    renderBackupStatus({ type: 'error', message: 'That file is not valid JSON. Use a CRM backup JSON, not a CSV export.' });
-    return;
-  }
-
-  const storage = normalizedBackupStorage(backup);
-  const entries = Object.entries(storage);
-  if (!entries.length) {
-    renderBackupStatus({ type: 'error', message: 'No restorable CRM data was found in that file. CSV exports cannot restore the full tracker state.' });
-    return;
-  }
-
-  const stats = crmBackupStats({ ...backup, storage });
-  const confirmed = window.confirm(
-    `Restore ${stats.vehicles} vehicle${stats.vehicles === 1 ? '' : 's'} from ${fileName}?\n\n` +
-    'This replaces the saved tracker data in this browser with the backup contents.'
-  );
-  if (!confirmed) {
-    renderBackupStatus({ type: 'cancelled', message: 'Backup restore cancelled.' });
-    return;
-  }
-
-  try {
-    runStorageTransaction('CRM backup restore', [...new Set(crmManagedStorageKeys().concat(entries.map(([key]) => key)))], () => {
-      const incomingKeys = new Set(entries.map(([key]) => key));
-      entries.forEach(([key, value]) => localStorage.setItem(key, value));
-      crmManagedStorageKeys().filter(key => !incomingKeys.has(key)).forEach(key => localStorage.removeItem(key));
-    });
-  } catch (error) {
-    renderBackupStatus({ type: 'error', message: error.message || String(error) });
-    return;
-  }
-
-  app.data = buildVehicleData();
-  app.autocareFiles = [];
-  app.autocareScan = loadJson(AUTOCARE_RESULTS_KEY, null);
-  app.navisionImport = loadJson(NAVISION_IMPORT_RESULTS_KEY, null);
-  app.navisionFileName = '';
-  app.pendingNavisionImport = null;
-  app.quickFilter = 'incoming';
-  app.pmbSubFilter = '';
-  app.sort = { key: '', dir: 'asc' };
-  app.selectedRows.clear();
-  app.columnFilters = { sales: '', production: '', status: '', jita: '' };
-  updateOperationalHealth({ lastRestoreAt: nowIsoString() });
-  ['search', 'source-filter'].forEach(id => { const el = $('#' + id); if (el) el.value = ''; });
-  populateFilters();
-  renderAll();
-  if (app.navisionImport) renderNavisionSummary(app.navisionImport);
-  updateNavisionSidebarMeta();
-  renderBackupStatus({ type: 'restored', backup: { ...backup, storage }, fileName });
-
+function restoreCrmBackup(_text, _fileName = 'backup file') {
+  renderBackupStatus({ type: 'error', message: 'CRM backup restore is disabled in staging hardening phase 1. Uploaded JSON cannot change operational localStorage or rebuild the dashboard.' });
   const upload = $('#backup-upload');
   if (upload) upload.value = '';
+  return false;
 }
 
 function renderBackupStatus({ type, backup = null, fileName = '', message = '' } = {}) {
@@ -21760,9 +21620,9 @@ async function updateSubletField(key = '', field = '', value = '') {
       return true;
     });
   }
-  recordVehicleAudit(vehicle, 'Sublet booking updated', { field, value: cleanValue, by: getCurrentOperatorName() });
-  saveVehicleEdits(key, { [field]: cleanValue, pmbSubletUpdatedAt: nowIsoString(), pmbSubletUpdatedBy: getCurrentOperatorName() });
-  return true;
+  window.alert('This Sublet row has no canonical server identity and is read-only. No local fallback was attempted.');
+  renderSubletHome();
+  return false;
 }
 
 async function setSubletReturned(key = '', returned = false, referenceDate = new Date()) {
@@ -21813,8 +21673,9 @@ async function setSubletEmailSent(key = '', sent = false) {
   if (vehicle.__emailVehicleServerAuthoritative === true) {
     return updateSubletField(key, 'pmbSubletEmailSent', sent ? 'true' : 'false');
   }
-  recordVehicleAudit(vehicle, sent ? 'Sublet email marked sent' : 'Sublet email marked not sent', { by: getCurrentOperatorName() });
-  saveVehicleEdits(key, { pmbSubletEmailSent: Boolean(sent), pmbSubletEmailSentAt: sent ? nowIsoString() : '', pmbSubletEmailSentBy: sent ? getCurrentOperatorName() : '' });
+  window.alert('This Sublet row has no canonical server identity and is read-only. No local fallback was attempted.');
+  renderSubletHome();
+  return false;
 }
 
 function draftSubletProviderEmail(key = '') {
@@ -21825,8 +21686,8 @@ function draftSubletProviderEmail(key = '') {
   const subject = `Sublet booking - ${stock}`;
   const body = [`Hello ${pmbBaySubletProvider(vehicle) || 'Sublet provider'},`, '', 'Please confirm the following booking:', '', ...vehicleEmailLines(vehicle), `Job Card: ${vehicleJobcardNumber(vehicle) || 'TBA'}`, `Booking date: ${plainDateValue(vehicle.pmbSubletBookingDate) || 'TBA'}`, `Notes: ${cleanNavisionText(vehicle.pmbSubletNotes || 'None')}`, '', 'Kind Regards,'].join('\n');
   if (vehicle.__emailVehicleServerAuthoritative !== true) {
-    recordVehicleAudit(vehicle, 'Sublet provider email drafted', { provider: pmbBaySubletProvider(vehicle), recipient, by: getCurrentOperatorName() });
-    saveVehicleEdits(key, { pmbSubletEmailDraftedAt: nowIsoString(), pmbSubletEmailDraftedBy: getCurrentOperatorName() });
+    window.alert('This Sublet row has no canonical server identity and is read-only. No draft state was recorded.');
+    return false;
   }
   window.location.href = `mailto:${encodeURIComponent(recipient)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
 }
@@ -21942,6 +21803,10 @@ function bindSubletCreateDialog() {
   on(dialog, 'cancel', event => { event.preventDefault(); closeSubletCreateDialog(); });
 }
 
+function subletRowIsServerWritable(vehicle = {}) {
+  return vehicle?.__emailVehicleServerAuthoritative === true && Boolean(vehicle.__emailVehicleId);
+}
+
 function renderSubletHome() {
   const host = $('#sublet-home-content');
   if (!host) return;
@@ -21993,6 +21858,8 @@ function renderSubletHome() {
     const expanded = app.subletExpandedRows.has(key);
     const state = subletBookingState(vehicle);
     const returned = state === 'returned';
+    const serverWritable = subletRowIsServerWritable(vehicle);
+    const readOnlyAttr = serverWritable ? '' : 'disabled title="Read-only: canonical server vehicle identity is required"';
     const overdue = subletIsOverdue(vehicle);
     const statusLabel = returned ? 'Returned' : (subletAwayOnDate(vehicle, subletTodayDateKey()) ? 'Away on Sublet' : (state === 'booked' ? 'Sublet Booked' : 'Sublet To Book'));
     return `<tr class="sublet-row sublet-summary-row ${overdue ? 'is-overdue' : ''} ${expanded ? 'is-expanded' : ''}">
@@ -22000,20 +21867,20 @@ function renderSubletHome() {
       <td><strong>${escapeHtml(vehicleKeyNumber(vehicle) || '—')}</strong></td>
       <td><button class="sublet-stock-link" type="button" data-open-stock="${escapeHtml(vehicleOpenKey)}"><strong>${escapeHtml(stock === 'vehicle' ? '—' : stock)}</strong></button></td>
       <td><strong>${escapeHtml(vehicleJobcardNumber(vehicle) || '—')}</strong></td>
-      <td><label class="sublet-returned-check"><input type="checkbox" aria-label="Mark stock ${accessibleStock}, ${escapeHtml(pmbBaySubletProvider(vehicle) || 'provider unassigned')}, returned from Sublet" data-sublet-returned="${escapeHtml(key)}" ${returned ? 'checked disabled' : ''}><span>Back</span></label></td>
+      <td><label class="sublet-returned-check"><input type="checkbox" aria-label="Mark stock ${accessibleStock}, ${escapeHtml(pmbBaySubletProvider(vehicle) || 'provider unassigned')}, returned from Sublet" data-sublet-returned="${escapeHtml(key)}" ${returned ? 'checked disabled' : readOnlyAttr}><span>Back</span></label></td>
       <td><strong title="${escapeHtml(vehicleCustomerName(vehicle) || 'Dealer Order')}">${escapeHtml(vehicleCustomerName(vehicle) || 'Dealer Order')}</strong></td>
       <td><span title="${escapeHtml(displayVehicle(vehicle) || '')}">${escapeHtml(displayVehicle(vehicle) || '—')}</span></td>
-      <td><select aria-label="Sublet provider for ${accessibleStock}" data-sublet-field="pmbSubletProvider" data-sublet-key="${escapeHtml(key)}" ${vehicle.__subletBookingId ? 'disabled title="Provider identity is immutable; create another booking"' : ''}>${subletProviderOptionsHtml(pmbBaySubletProvider(vehicle))}</select></td>
-      <td><input type="date" aria-label="Sublet booking date for ${accessibleStock}" value="${escapeHtml(plainDateValue(vehicle.pmbSubletBookingDate))}" data-sublet-field="pmbSubletBookingDate" data-sublet-key="${escapeHtml(key)}" ${returned ? 'disabled' : ''}></td>
-      <td><input type="date" aria-label="Expected Sublet return date for ${accessibleStock}" value="${escapeHtml(plainDateValue(vehicle.pmbSubletExpectedReturnDate))}" data-sublet-field="pmbSubletExpectedReturnDate" data-sublet-key="${escapeHtml(key)}" ${returned ? 'disabled' : ''}></td>
+      <td><select aria-label="Sublet provider for ${accessibleStock}" data-sublet-field="pmbSubletProvider" data-sublet-key="${escapeHtml(key)}" ${vehicle.__subletBookingId ? 'disabled title="Provider identity is immutable; create another booking"' : readOnlyAttr}>${subletProviderOptionsHtml(pmbBaySubletProvider(vehicle))}</select></td>
+      <td><input type="date" aria-label="Sublet booking date for ${accessibleStock}" value="${escapeHtml(plainDateValue(vehicle.pmbSubletBookingDate))}" data-sublet-field="pmbSubletBookingDate" data-sublet-key="${escapeHtml(key)}" ${returned ? 'disabled' : readOnlyAttr}></td>
+      <td><input type="date" aria-label="Expected Sublet return date for ${accessibleStock}" value="${escapeHtml(plainDateValue(vehicle.pmbSubletExpectedReturnDate))}" data-sublet-field="pmbSubletExpectedReturnDate" data-sublet-key="${escapeHtml(key)}" ${returned ? 'disabled' : readOnlyAttr}></td>
       <td><span class="sublet-status-pill is-${escapeHtml(state)} ${overdue ? 'is-overdue' : ''}">${escapeHtml(overdue ? 'OVERDUE' : statusLabel)}</span></td>
       <td><button class="small-button" type="button" data-open-stock="${escapeHtml(vehicleOpenKey)}">Open vehicle</button></td>
     </tr>${expanded ? `<tr class="sublet-detail-row"><td colspan="12"><div class="sublet-detail-grid">
-      <label><span>Provider email</span><input type="email" aria-label="Sublet provider email for ${accessibleStock}" placeholder="Provider email" value="${escapeHtml(vehicle.pmbSubletProviderEmail || '')}" data-sublet-field="pmbSubletProviderEmail" data-sublet-key="${escapeHtml(key)}"></label>
-      <label><span>Actual return</span><input type="date" aria-label="Actual Sublet return date for ${accessibleStock}" value="${escapeHtml(plainDateValue(vehicle.pmbSubletActualReturnDate))}" data-sublet-field="pmbSubletActualReturnDate" data-sublet-key="${escapeHtml(key)}"></label>
-      <label class="sublet-notes-field"><span>Notes</span><textarea rows="2" aria-label="Sublet notes for ${accessibleStock}" data-sublet-field="pmbSubletNotes" data-sublet-key="${escapeHtml(key)}">${escapeHtml(vehicle.pmbSubletNotes || '')}</textarea></label>
-      <label class="sublet-email-check"><input type="checkbox" data-sublet-email-sent="${escapeHtml(key)}" ${vehicle.pmbSubletEmailSent ? 'checked' : ''}> Provider email sent</label>
-      <div class="sublet-detail-actions"><button class="small-button" type="button" data-sublet-provider-email="${escapeHtml(key)}">Draft provider email</button><button class="small-button" type="button" data-sublet-sales-email="${escapeHtml(key)}">Draft sales update</button></div>
+      <label><span>Provider email</span><input type="email" aria-label="Sublet provider email for ${accessibleStock}" placeholder="Provider email" value="${escapeHtml(vehicle.pmbSubletProviderEmail || '')}" data-sublet-field="pmbSubletProviderEmail" data-sublet-key="${escapeHtml(key)}" ${readOnlyAttr}></label>
+      <label><span>Actual return</span><input type="date" aria-label="Actual Sublet return date for ${accessibleStock}" value="${escapeHtml(plainDateValue(vehicle.pmbSubletActualReturnDate))}" data-sublet-field="pmbSubletActualReturnDate" data-sublet-key="${escapeHtml(key)}" ${readOnlyAttr}></label>
+      <label class="sublet-notes-field"><span>Notes</span><textarea rows="2" aria-label="Sublet notes for ${accessibleStock}" data-sublet-field="pmbSubletNotes" data-sublet-key="${escapeHtml(key)}" ${readOnlyAttr}>${escapeHtml(vehicle.pmbSubletNotes || '')}</textarea></label>
+      <label class="sublet-email-check"><input type="checkbox" data-sublet-email-sent="${escapeHtml(key)}" ${vehicle.pmbSubletEmailSent ? 'checked' : ''} ${readOnlyAttr}> Provider email sent</label>
+      <div class="sublet-detail-actions"><button class="small-button" type="button" data-sublet-provider-email="${escapeHtml(key)}" ${readOnlyAttr}>Draft provider email</button><button class="small-button" type="button" data-sublet-sales-email="${escapeHtml(key)}" ${readOnlyAttr}>Draft sales update</button></div>
     </div></td></tr>` : ''}`;
   }).join('')}</tbody></table></div>`;
   $$('[data-sublet-field]', host).forEach(input => input.addEventListener('change', () => updateSubletField(input.dataset.subletKey, input.dataset.subletField, input.value)));
