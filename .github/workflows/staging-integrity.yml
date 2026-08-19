@@ -1,0 +1,46 @@
+name: Staging integrity
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify deployment provenance
+        run: |
+          node <<'NODE'
+          const fs = require('fs');
+          const p = JSON.parse(fs.readFileSync('deployment-identity.json', 'utf8'));
+          if (p.environment !== 'staging') throw new Error('deployment identity must be staging');
+          if (p.staging_project_ref !== 'cdsmnqxtyyoeoznmbidd') throw new Error('unexpected staging project ref');
+          if (!p.database_migration_head || !p.database_migration_file) throw new Error('missing database migration provenance');
+          if (!fs.existsSync(p.database_migration_file)) throw new Error(`missing migration file: ${p.database_migration_file}`);
+          const m = p.database_migration_file.match(/(?:^|\/)(\d+)_/);
+          if (!m || m[1] !== String(p.database_migration_head)) throw new Error('migration head does not match migration filename');
+          NODE
+      - name: Verify index local assets
+        run: |
+          node <<'NODE'
+          const fs = require('fs');
+          const html = fs.readFileSync('index.html', 'utf8');
+          const refs = [...html.matchAll(/(?:src|href)=["']([^"']+)["']/g)].map(m => m[1].split('?')[0]);
+          const local = refs.filter(x => x && !/^(?:https?:|data:|mailto:|tel:|#)/i.test(x) && !x.startsWith('/'));
+          const missing = [...new Set(local.filter(x => !fs.existsSync(x)))];
+          if (missing.length) throw new Error(`missing local assets: ${missing.join(', ')}`);
+          NODE
+      - name: Reject obvious privileged frontend secrets
+        run: |
+          if grep -Eini --include='*.js' --include='*.html' --exclude='deployment-identity.json' '(service_role|sb_secret_)' .; then
+            echo 'Privileged Supabase secret marker found in frontend files.'
+            exit 1
+          fi
