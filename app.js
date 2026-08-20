@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.18.19-started-chip-overtime';
+const APP_VERSION = '2026.08.20.02-unified-sales-dashboard';
 const WORKSHOP_PLANNER_SCRIPT_VERSION = APP_VERSION;
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
@@ -1892,6 +1892,7 @@ const app = {
   pendingWorkshopBookingLink: null,
   reviewed: false,
   quickFilter: 'incoming',
+  dashboardView: 'operations',
   pmbSubFilter: '',
   activePmbBayStage: '',
   pmbDraggingKey: '',
@@ -3013,6 +3014,11 @@ function bindNav() {
   on($('#tv-set-operator-top'), 'click', setOperatorProfile);
   $$('[data-view-target]').forEach(btn => btn.addEventListener('click', () => showView(btn.dataset.viewTarget)));
   on($('#search'), 'input', () => { renderKpis(); renderVehicleTable(); });
+  on($('#dashboard-view-select'), 'change', event => {
+    app.dashboardView = String(event.currentTarget.value || 'operations');
+    app.selectedRows.clear();
+    renderIncomingDashboardBoard();
+  });
   on($('#status-filter'), 'change', () => { renderKpis(); renderVehicleTable(); });
   on($('#sales-filter'), 'change', () => { renderKpis(); renderVehicleTable(); });
   on($('#production-filter'), 'change', () => { renderKpis(); renderVehicleTable(); });
@@ -6604,9 +6610,125 @@ function incomingVehicleDetailRow(vehicle = {}, bucketKey = '', options = {}) {
     </details>`;
 }
 
+const SALES_PREPARATION_FIELDS = Object.freeze([
+  { field: 'tint_raised', key: 'tintRaised', label: 'Tint raised' },
+  { field: 'build_po_raised', key: 'buildPoRaised', label: 'Build PO raised' },
+  { field: 'build_complete', key: 'buildComplete', label: 'Build complete' },
+  { field: 'tray_ordered', key: 'trayOrdered', label: 'Tray ordered' },
+  { field: 'tray_complete', key: 'trayComplete', label: 'Tray complete' },
+]);
+
+function dashboardSalespersonCode(vehicle = {}) {
+  return cleanNavisionText(vehicle.salespersonCode || salesPersonInitials(consultantName(vehicle)) || vehicle.salesperson || '').toUpperCase();
+}
+
+function dashboardViewSalesCode() {
+  const value = String(app.dashboardView || 'operations');
+  return value.startsWith('sales:') ? value.slice(6).toUpperCase() : '';
+}
+
+function populateDashboardViewSelect() {
+  const select = $('#dashboard-view-select');
+  if (!select) return;
+  const current = String(app.dashboardView || 'operations');
+  const records = loadSalespersonRecords().filter(record => record.active !== false && record.code);
+  const options = [
+    { value: 'operations', label: 'PMB Operations' },
+    { value: 'sales-all', label: 'All Sales Vehicles' },
+    ...records.map(record => ({ value: `sales:${String(record.code).toUpperCase()}`, label: `${String(record.code).toUpperCase()} — ${record.name}` })),
+  ];
+  select.innerHTML = options.map(option => `<option value="${escapeHtml(option.value)}"${option.value === current ? ' selected' : ''}>${escapeHtml(option.label)}</option>`).join('');
+  if (!options.some(option => option.value === current)) {
+    app.dashboardView = 'operations';
+    select.value = 'operations';
+  }
+}
+
+function salesBookingStatus(vehicle = {}) {
+  const bookings = Array.isArray(vehicle.salesWorkshopBookings) ? vehicle.salesWorkshopBookings : [];
+  const active = bookings.filter(booking => !['completed', 'cancelled'].includes(String(booking.status || '').toLowerCase()));
+  const stopped = active.find(booking => String(booking.status || '').toLowerCase() === 'stoppage');
+  if (stopped) return { tone: 'stoppage', label: 'STOPPAGE', detail: `${stopped.stageName || stopped.stageCode}${stopped.stoppageReason ? ` · ${stopped.stoppageReason}` : ''}` };
+  const started = active.find(booking => String(booking.status || '').toLowerCase() === 'started');
+  if (started) return { tone: 'started', label: 'Started', detail: `${started.stageName || started.stageCode}${started.bayName ? ` · ${started.bayName}` : ''}` };
+  const scheduled = active.filter(booking => booking.scheduledStartAt).sort((a, b) => String(a.scheduledStartAt).localeCompare(String(b.scheduledStartAt)))[0];
+  if (scheduled) {
+    const date = new Date(scheduled.scheduledStartAt);
+    const when = Number.isNaN(date.getTime()) ? '' : date.toLocaleString('en-AU', { dateStyle: 'medium', timeStyle: 'short' });
+    return { tone: 'scheduled', label: 'Scheduled', detail: `${scheduled.stageName || scheduled.stageCode}${when ? ` · ${when}` : ''}` };
+  }
+  if (bookings.length && bookings.every(booking => String(booking.status || '').toLowerCase() === 'completed')) return { tone: 'complete', label: 'Workshop complete', detail: 'All scheduled work is complete' };
+  return { tone: 'unscheduled', label: 'Not scheduled', detail: 'No active workshop booking' };
+}
+
+function salesPreparationControlsHtml(vehicle = {}) {
+  const preparation = vehicle.salesPreparation || {};
+  return SALES_PREPARATION_FIELDS.map(def => `<label class="sales-prep-check"><input type="checkbox" data-sales-prep-vehicle="${escapeHtml(String(vehicle.__emailVehicleId || ''))}" data-sales-prep-field="${escapeHtml(def.field)}" ${preparation[def.key] === true ? 'checked' : ''} /><span>${escapeHtml(def.label)}</span></label>`).join('');
+}
+
+function salesDashboardVehicleHtml(vehicle = {}) {
+  const status = salesBookingStatus(vehicle);
+  const stock = displayStockNumber(vehicle) || 'No stock';
+  const rep = dashboardSalespersonCode(vehicle) || 'Unassigned';
+  const eta = scotEtaOnly(vehicle.etaAtDealer) || 'No ETA';
+  return `<article class="sales-dashboard-card" data-sales-vehicle="${escapeHtml(String(vehicle.__emailVehicleId || ''))}">
+    <div class="sales-dashboard-identity">
+      <span class="sales-dashboard-code">${escapeHtml(rep)}</span>
+      <div><strong>${escapeHtml(stock)}</strong><span>${escapeHtml(vehicle.client || 'Dealer order')} · ${escapeHtml(displayVehicle(vehicle) || 'Vehicle')}</span></div>
+      <div class="sales-dashboard-eta"><b>ETA</b><span>${escapeHtml(eta)}</span></div>
+    </div>
+    <div class="sales-dashboard-work">${incomingWorkChecklistHtml(vehicle, { stationTransfer: false })}</div>
+    <div class="sales-booking-status is-${escapeHtml(status.tone)}"><strong>${escapeHtml(status.label)}</strong><span>${escapeHtml(status.detail)}</span></div>
+    <fieldset class="sales-preparation-controls"><legend>Sales preparation</legend>${salesPreparationControlsHtml(vehicle)}</fieldset>
+  </article>`;
+}
+
+async function updateSalesPreparationControl(input) {
+  const vehicleId = String(input.dataset.salesPrepVehicle || '');
+  const field = String(input.dataset.salesPrepField || '');
+  const vehicle = vehicleLocationsScreenRows().find(row => String(row.__emailVehicleId || '') === vehicleId);
+  const service = app.emailVehicleLocationService || initEmailVehicleLocationsIfAvailable();
+  if (!vehicle || !service?.updateSalesPreparation) {
+    input.checked = !input.checked;
+    window.alert('The shared salesperson preparation record is unavailable. Refresh and try again.');
+    return;
+  }
+  input.disabled = true;
+  const result = await service.updateSalesPreparation(vehicleId, Number(vehicle.__emailVehicleVersion || 0), field, input.checked);
+  if (!result?.ok) {
+    input.checked = !input.checked;
+    await refreshEmailVehicleLocations();
+    renderIncomingDashboardBoard();
+    window.alert(result?.code === 'version_conflict' ? 'This vehicle changed elsewhere. The latest shared record has been loaded; please try again.' : 'The preparation update was not saved.');
+    return;
+  }
+  await refreshEmailVehicleLocations();
+  renderIncomingDashboardBoard();
+}
+
+function renderSalesDashboardBoard() {
+  const host = $('#incoming-main-board');
+  if (!host) return;
+  const allRows = vehicleLocationsScreenRows().filter(vehicle => vehicle.__emailVehicleServerAuthoritative === true);
+  const filters = incomingDashboardFilterValues();
+  const selectedCode = dashboardViewSalesCode();
+  const rows = allRows.filter(vehicle => (!selectedCode || dashboardSalespersonCode(vehicle) === selectedCode) && incomingVehicleMatchesFilters(vehicle, filters));
+  const summary = $('#incoming-filter-summary');
+  if (summary) summary.textContent = `${rows.length} of ${allRows.length} shared sales vehicles shown${selectedCode ? ` · ${selectedCode}` : ''}`;
+  const selectionBar = $('#incoming-selection-bar');
+  if (selectionBar) selectionBar.classList.remove('active');
+  host.innerHTML = `<section class="sales-dashboard-intro"><div><strong>${selectedCode ? `${escapeHtml(selectedCode)} sales vehicles` : 'All Sales Vehicles'}</strong><span>PMB scheduling and work progress are live and read-only. Sales preparation checks save to the same shared vehicle record.</span></div><span class="badge neutral">${rows.length} vehicle${rows.length === 1 ? '' : 's'}</span></section><div class="sales-dashboard-list">${rows.map(salesDashboardVehicleHtml).join('') || '<div class="empty-state"><strong>No vehicles match this view</strong><span>Choose another salesperson or clear the search filters.</span></div>'}</div>`;
+  $$('[data-sales-prep-field]', host).forEach(input => input.addEventListener('change', () => { void updateSalesPreparationControl(input); }));
+}
+
 function renderIncomingDashboardBoard() {
   const host = $('#incoming-main-board');
   if (!host) return;
+  populateDashboardViewSelect();
+  if (String(app.dashboardView || 'operations') !== 'operations') {
+    renderSalesDashboardBoard();
+    return;
+  }
   const workshopProjectionAvailable = ensureDashboardWorkshopProjectionReady();
   const workshopPlans = workshopProjectionAvailable && typeof workshopLoadPlans === 'function' ? workshopLoadPlans() : null;
   const rows = vehicleLocationsScreenRows();

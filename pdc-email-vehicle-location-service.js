@@ -12,6 +12,7 @@ const PDC_PARTS_ETA_UPDATE_RPC = 'update_pdc_parts_eta';
 const PDC_PARTS_ORDERED_RPC = 'mark_pdc_parts_ordered';
 const PDC_PARTS_COMPLETE_RPC = 'mark_pdc_parts_complete';
 const PDC_VEHICLE_HISTORY_RPC = 'get_pdc_vehicle_provenance_history';
+const PDC_SALES_PREPARATION_UPDATE_RPC = 'update_pdc_vehicle_sales_preparation';
 const PDC_PARTS_COMPLETE_SUCCESS_CODES = new Set(['parts_completed', 'replayed']);
 const PDC_SUBLET_CANONICAL_ERRORS = new Set(['version_conflict', 'workshop_booking_conflict', 'sublet_away']);
 const WORK_FIELDS = Object.freeze({
@@ -39,6 +40,32 @@ function mapServerVehicle(row = {}) {
   const mapped = {
     id: String(row.permanent_vehicle_id || row.id || ''), permanentVehicleId: String(row.permanent_vehicle_id || ''), stock: String(row.stock_number || '').trim(), vin: String(row.vin || '').trim(), keyNumber: String(row.key_number || '').trim(), jobCardNumber: String(row.job_card_number || '').trim(), jobcard: String(row.job_card_number || '').trim(), client: String(row.customer_name || '').trim(), vehicle: String(row.vehicle_description || '').trim(), salesperson: String(row.salesperson_reference || '').trim(), registration: String(row.registration || '').trim(), rego: String(row.registration || '').trim(), navisionKewdaleEta: row.eta_to_kewdale || '', etaAtDealer: row.eta_to_kewdale || '', pdcLocation: String(row.current_location || 'Other').trim() || 'Other', dateToPmb: row.date_to_pmb || '', dateToRft: row.date_to_rft || '', deliveredToDealerDate: row.delivered_to_dealer_date || '', pdcSheetVisible: row.visible_on_board !== false, source: String(row.source_system || 'Authenticated email auto-import'), sourceRecordId: String(row.source_record_id || ''), updatedAt: row.updated_at || '', __emailVehicleServerAuthoritative: true, __emailVehicleReadOnly: true, __emailVehicleId: String(row.id || ''), __emailVehicleVersion: Number(row.version || 0), __subletBookingVersion: Number(row.sublet_booking?.version || 0),
   };
+  const salesPreparation = row.sales_preparation && typeof row.sales_preparation === 'object' ? row.sales_preparation : {};
+  mapped.salespersonCode = String(row.salesperson_code || row.salesperson_reference || '').trim().toUpperCase();
+  mapped.salespersonName = String(row.salesperson_name || row.salesperson_reference || '').trim();
+  mapped.consultant = mapped.salespersonCode || mapped.salespersonName || mapped.salesperson;
+  mapped.salesPreparation = {
+    tintRaised: salesPreparation.tint_raised === true,
+    buildPoRaised: salesPreparation.build_po_raised === true,
+    buildComplete: salesPreparation.build_complete === true,
+    trayOrdered: salesPreparation.tray_ordered === true,
+    trayComplete: salesPreparation.tray_complete === true,
+    updatedAt: salesPreparation.updated_at || '',
+    updatedBy: String(salesPreparation.updated_by || ''),
+  };
+  mapped.salesWorkshopBookings = (Array.isArray(row.workshop_bookings) ? row.workshop_bookings : []).map(booking => ({
+    bookingId: String(booking?.booking_id || ''),
+    stageCode: String(booking?.stage_code || ''),
+    stageName: String(booking?.stage_name || booking?.stage_code || ''),
+    bayName: String(booking?.bay_name || ''),
+    status: String(booking?.status || ''),
+    scheduledStartAt: booking?.scheduled_start_at || '',
+    scheduledEndAt: booking?.scheduled_end_at || '',
+    actualStartAt: booking?.actual_start_at || '',
+    actualEndAt: booking?.actual_end_at || '',
+    stoppageReason: String(booking?.stoppage_reason || ''),
+    updatedAt: booking?.updated_at || '',
+  })).filter(booking => booking.bookingId);
   for (const [requiredKey, completeKey] of Object.values(WORK_FIELDS)) { mapped[requiredKey] = false; mapped[completeKey] = false; }
   for (const item of Array.isArray(row.work_items) ? row.work_items : []) {
     const fields = WORK_FIELDS[canonicalWorkKey(item?.work_key)]; if (!fields) continue;
@@ -235,12 +262,21 @@ function createPdcEmailVehicleLocationService(options = {}) {
       return { ok: true, code: body.code || 'ok', data: body.data || body };
     } catch (_error) { return { ok: false, code: 'vehicle_history_unavailable', data: null }; }
   }
+  async function updateSalesPreparation(vehicleId = '', expectedVersion = 0, field = '', value = false) {
+    const token = getAccessToken(); if (!token) return { ok: false, code: 'not_authenticated', data: null };
+    try {
+      const response = await request(`${url}/rest/v1/rpc/${PDC_SALES_PREPARATION_UPDATE_RPC}`, { method: 'POST', headers: { apikey: key, Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ p_vehicle_id: vehicleId, p_expected_version: Number(expectedVersion) || 0, p_field: String(field || ''), p_value: value === true }) });
+      const body = await response.json();
+      if (!response.ok || !body || body.ok === false) return { ok: false, code: body?.code || body?.error || `HTTP ${response.status}`, data: body?.data || null };
+      return { ok: true, code: body.code || 'sales_preparation_updated', data: body.data || body };
+    } catch (_error) { return { ok: false, code: 'sales_preparation_update_unavailable', data: null }; }
+  }
   function subscribe(onRevision) {
     if (!subscribeRealtime) return { unsubscribe() {} };
     return subscribeRealtime(PDC_EMAIL_VEHICLE_REVISION_TABLE, event => { if (typeof onRevision === 'function') onRevision(event?.new?.revision ?? null, event); });
   }
-  return { authority: 'supabase_staging_authenticated_email_vehicle', snapshot, updateSublet, createSubletBooking, updateSubletBooking, returnSubletBooking, updatePartsEta, markPartsOrdered, markPartsComplete, vehicleHistory, subscribe };
+  return { authority: 'supabase_staging_authenticated_email_vehicle', snapshot, updateSublet, createSubletBooking, updateSubletBooking, returnSubletBooking, updatePartsEta, markPartsOrdered, markPartsComplete, vehicleHistory, updateSalesPreparation, subscribe };
 }
-const exported = { PDC_EMAIL_VEHICLE_STAGING_PROJECT_REF, PDC_EMAIL_VEHICLE_REVISION_TABLE, PDC_EMAIL_VEHICLE_SNAPSHOT_RPC, PDC_SUBLET_UPDATE_RPC, PDC_SUBLET_CREATE_RPC, PDC_SUBLET_BOOKING_UPDATE_RPC, PDC_SUBLET_RETURN_RPC, PDC_PARTS_ETA_UPDATE_RPC, PDC_PARTS_ORDERED_RPC, PDC_PARTS_COMPLETE_RPC, PDC_PARTS_COMPLETE_SUCCESS_CODES, PDC_VEHICLE_HISTORY_RPC, canonicalWorkKey, mapServerVehicle, reconcileVehicleRows, createPdcEmailVehicleLocationService };
+const exported = { PDC_EMAIL_VEHICLE_STAGING_PROJECT_REF, PDC_EMAIL_VEHICLE_REVISION_TABLE, PDC_EMAIL_VEHICLE_SNAPSHOT_RPC, PDC_SUBLET_UPDATE_RPC, PDC_SUBLET_CREATE_RPC, PDC_SUBLET_BOOKING_UPDATE_RPC, PDC_SUBLET_RETURN_RPC, PDC_PARTS_ETA_UPDATE_RPC, PDC_PARTS_ORDERED_RPC, PDC_PARTS_COMPLETE_RPC, PDC_PARTS_COMPLETE_SUCCESS_CODES, PDC_VEHICLE_HISTORY_RPC, PDC_SALES_PREPARATION_UPDATE_RPC, canonicalWorkKey, mapServerVehicle, reconcileVehicleRows, createPdcEmailVehicleLocationService };
 if (typeof module !== 'undefined' && module.exports) module.exports = exported;
 if (typeof window !== 'undefined') window.PDC_EMAIL_VEHICLE_LOCATION_SERVICE = exported;
