@@ -3246,6 +3246,7 @@ function workshopOutstandingDisabledReasonLabel(reason = '') {
     it_eta_missing: 'ETA to Kewdale is required before this in-transit vehicle can be scheduled',
     it_before_eta: 'This in-transit vehicle cannot be scheduled before its ETA to Kewdale',
     active_booking_exists: 'An active booking already represents this requirement',
+    estimated_duration_missing: 'Estimated hours are required before this vehicle can be scheduled into a bay',
     vehicle_not_eligible_for_station: 'This vehicle no longer has an outstanding requirement for this department',
   };
   return messages[String(reason || '').trim()] || 'Current shared Workshop authority does not permit this booking';
