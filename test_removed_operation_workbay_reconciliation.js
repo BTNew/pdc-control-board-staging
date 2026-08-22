@@ -1,0 +1,10 @@
+'use strict';
+const assert=require('assert');
+const fs=require('fs');
+const path=require('path');
+const sql=fs.readFileSync(path.join(__dirname,'supabase','staging_only','20260822140000_322_reconcile_removed_operation_workbay_requirements.sql'),'utf8');
+for(const marker of ['PDC_322_PRODUCTION_SENTINEL_PRESENT','pdc_monitor_staging_guard()','cdsmnqxtyyoeoznmbidd','pdc_reconcile_required_work_after_adjustment_322','pdc_adjustment_required_work_reconciliation_322','pdc_auditor_recalculate_required_work_226','PDC_322_STALE_REQUIREMENTS_REMAIN','13047224','J139125358',"work_key='tint'",'No active effective Tint operation remains']) assert(sql.includes(marker),marker);
+assert(sql.includes("after insert or update of vehicle_id,stage_code,active or delete"));
+assert(sql.includes("A Workshop bay is not required when all jobs in that section are removed"));
+assert(sql.trim().endsWith('commit;'));
+console.log('removed_operation_workbay_reconciliation: PASS');
