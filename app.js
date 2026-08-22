@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.20.02-unified-sales-dashboard';
+const APP_VERSION = '2026.08.22.01-email-authority';
 const WORKSHOP_PLANNER_SCRIPT_VERSION = APP_VERSION;
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
@@ -4226,7 +4226,21 @@ async function refreshEmailVehicleLocations() {
   const response = await service.snapshot();
   if (generation !== app.emailVehicleLocationGeneration || service !== app.emailVehicleLocationService || authority !== String(window.PDC_AUTH_CONTEXT?.userId || '')) return false;
   if (!response.ok) return false;
-  app.emailVehicleLocationRows = applyPendingSharedWorkStateOverlays(Array.isArray(response.data?.vehicles) ? response.data.vehicles : []);
+  const serverRows = Array.isArray(response.data?.vehicles) ? response.data.vehicles : [];
+  app.emailVehicleLocationRows = applyPendingSharedWorkStateOverlays(serverRows);
+  const module = window.PDC_EMAIL_VEHICLE_LOCATION_SERVICE;
+  if (typeof module?.reconcileVehicleRows === 'function') {
+    const reconciled = module.reconcileVehicleRows(app.data, serverRows, { authoritative: true });
+    runStorageTransaction('Reconcile authoritative email vehicles', [ADDED_KEY, DELETED_KEY], () => {
+      saveAddedVehicles([]);
+      saveJson(DELETED_KEY, []);
+    });
+    app.data = applyPendingSharedWorkStateOverlays(reconciled.rows);
+    app.selectedRows.clear();
+    const visibleRows = pdcSheetVehicles();
+    app.selectedStock = vehicleKey(visibleRows.find(vehicle => vehicle.toyotaStatus) || visibleRows[0] || app.data[0]);
+    app.emailVehicleIdentityConflictCount = reconciled.conflictCount;
+  }
   app.emailVehicleLocationRevision = response.data?.revision ?? null;
   renderAll();
   return true;

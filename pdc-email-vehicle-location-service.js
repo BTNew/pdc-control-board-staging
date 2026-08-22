@@ -141,8 +141,9 @@ function mapServerVehicle(row = {}) {
   return mapped;
 }
 function rowIdentities(row = {}) { return { stock: identity(row.stock_number ?? row.stock), vin: identity(row.vin ?? row.VIN ?? row.chassis ?? row.chassisNo) }; }
-function reconcileVehicleRows(localRows = [], serverRows = []) {
+function reconcileVehicleRows(localRows = [], serverRows = [], options = {}) {
   const local = Array.isArray(localRows) ? localRows : [];
+  const authoritative = options && options.authoritative === true;
   const visibleServer = (Array.isArray(serverRows) ? serverRows : []).filter(row => row && row.visible_on_board !== false);
   const localStockIndexes = new Map();
   const localVinIndexes = new Map();
@@ -171,7 +172,12 @@ function reconcileVehicleRows(localRows = [], serverRows = []) {
     const index = stockIndex >= 0 ? stockIndex : vinIndex; const mapped = mapServerVehicle(serverRow);
     if (index >= 0) { additions.push({ ...local[index], ...mapped }); replaced.add(index); } else additions.push(mapped);
   }
-  const retained = local.filter((_row, index) => !replaced.has(index)).map((row, index) => conflicts.has(index) ? { ...row, __locationIdentityReadOnly: true, __emailVehicleIdentityConflict: true } : row);
+  const retained = local.flatMap((row, index) => {
+    if (replaced.has(index) || (authoritative && !conflicts.has(index))) return [];
+    return [conflicts.has(index)
+      ? { ...row, __locationIdentityReadOnly: true, __emailVehicleIdentityConflict: true }
+      : row];
+  });
   return { rows: retained.concat(additions), conflictCount: conflicts.size };
 }
 function createPdcEmailVehicleLocationService(options = {}) {

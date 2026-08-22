@@ -20,7 +20,8 @@ assert.ok(board.includes('const candidates = canonicalCandidates.length ? canoni
 const actionStart = app.indexOf('async function markVehiclePartsOrdered');
 const actionEnd = app.indexOf('async function markVehiclePartsComplete', actionStart);
 const action = app.slice(actionStart, actionEnd);
-assert.ok(action.includes('service.markPartsOrdered(vehicle.__emailVehicleId, vehicle.__emailVehicleVersion)'), 'Mark Ordered uses the projected canonical id/version');
+assert.ok(action.includes('const sharedTarget = await authenticatedPartsTarget(key, vehicle);'), 'Mark Ordered resolves an authenticated canonical target before mutation');
+assert.ok(action.includes('service.markPartsOrdered(vehicleId, expectedVersion)'), 'Mark Ordered uses the resolved canonical id/version');
 assert.ok(action.includes('await refreshEmailVehicleLocations()'), 'Mark Ordered reconciles from a fresh authoritative snapshot');
 
 const counterStart = app.indexOf('function refreshPartsEtaCounters');
