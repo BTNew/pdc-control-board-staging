@@ -6440,7 +6440,7 @@ function authenticatedEmailOperationLinesHtml(vehicle = {}) {
   let canMoveJobs = false;
   try { canMoveJobs = typeof vehicleWorkshopCanEditLines === 'function' && vehicleWorkshopCanEditLines(); } catch (_) { canMoveJobs = false; }
   return `<div class="wide authenticated-email-operations">
-    <div class="authenticated-email-operations-heading"><b>Operations from authenticated PD documents and job cards</b>${canMoveJobs && vehicleIdentity ? `<button type="button" class="small-button" data-auth-operation-work="${escapeHtml(vehicleIdentity)}">Move jobs</button>` : ''}</div>
+    <div class="authenticated-email-operations-heading"><b>Operations from authenticated PD documents and job cards</b>${canMoveJobs && vehicleIdentity ? `<button type="button" class="small-button" data-auth-operation-work="${escapeHtml(vehicleIdentity)}">Edit jobs &amp; hours</button>` : ''}</div>
     <div class="authenticated-operation-station-grid">${stationColumns.map(station => {
       const statedHours = station.operations.map(operation => {
         if (operation?.estimatedHours === null || operation?.estimatedHours === undefined || operation?.estimatedHours === '') return null;
@@ -11339,7 +11339,6 @@ function vehicleWorkshopRoleCanEditLines() {
 }
 
 function vehicleWorkshopCanEditLines() {
-  if (document.getElementById('ai-auditor')?.classList.contains('active')) return false;
   return vehicleWorkshopRoleCanEditLines();
 }
 
@@ -11558,8 +11557,7 @@ function vehicleWorkshopJobCardBookedActual(line = {}, bookings = []) {
 }
 
 function vehicleWorkshopOperationAdministratorActive() {
-  return String(window.PDC_AUTH_CONTEXT?.role || '').trim().toLowerCase() === 'administrator'
-    && document.getElementById('ai-auditor')?.classList.contains('active') !== true;
+  return vehicleWorkshopRoleCanEditLines();
 }
 
 function vehicleWorkshopOperationRemovalService() {
@@ -11683,7 +11681,7 @@ function vehicleWorkshopCompactLinesHtml(group = {}, bookingFallback = 'Not book
     const operationLineId = cleanNavisionText(line.operation_line_id || line.source_operation_line_id || '').trim();
     const mutationData = `data-stage="${escapeHtml(group.stage)}" data-line-key="${escapeHtml(lineKey)}" data-adjustment-id="${escapeHtml(line.adjustmentId || '')}" data-adjustment-version="${escapeHtml(String(line.adjustmentVersion || 0))}" data-description="${escapeHtml(description)}" data-hours="${escapeHtml(estimate ?? '')}"`;
     const hoursHtml = canEdit
-      ? `<div class="vehicle-workshop-hours-control"><label class="vehicle-workshop-quick-hours" aria-label="Estimated hours for ${escapeHtml(description)}"><input type="number" min="0.25" max="999.75" step="0.25" value="${escapeHtml(estimate ?? '')}" placeholder="Hours" data-vehicle-workshop-hours-input><span>h</span><button type="button" data-vehicle-workshop-hours-save ${mutationData}>Save</button></label>${hoursEvidence}</div>`
+      ? `<div class="vehicle-workshop-hours-control"><label class="vehicle-workshop-quick-hours" aria-label="Estimated hours for ${escapeHtml(description)}"><input type="number" min="0" max="999.99" step="0.01" value="${escapeHtml(estimate ?? '')}" placeholder="Hours" data-vehicle-workshop-hours-input><span>h</span><button type="button" data-vehicle-workshop-hours-save ${mutationData}>Save</button></label>${hoursEvidence}</div>`
       : `<span class="vehicle-workshop-hours-readonly"><strong>${escapeHtml(hoursClass.value === null ? hoursClass.label : `${hoursClass.label}: ${vehicleWorkshopHoursLabel(hoursClass.value)}`)}</strong>${hoursEvidence}</span>`;
     const scheduleButton = canEdit && hasSchedulableHours && canonicalVehicleId && WORKSHOP_PLANNER_ROUTE_BY_STAGE[group.stage] && !activeBooking
       ? `<button type="button" class="vehicle-workshop-schedule-next" data-vehicle-workshop-schedule-next ${mutationData} data-vehicle-id="${escapeHtml(canonicalVehicleId)}" data-vehicle-key="${escapeHtml(vehicleIdentity)}" title="Choose the earliest available time across all active bays">Best slot</button>` : '';
@@ -11795,11 +11793,11 @@ async function saveVehicleWorkshopLine({ stage = '', lineKey = '', adjustmentId 
     window.alert('Enter a Workshop line description between 1 and 180 characters.');
     return false;
   }
-  const nextHours = hoursOnly ? hours : window.prompt('Estimated hours (quarter-hour increments)', hours || '1');
+  const nextHours = hoursOnly ? hours : window.prompt('Estimated hours (up to two decimal places)', hours || '1');
   if (nextHours === null) return false;
   const numericHours = Number(nextHours);
-  if (!Number.isFinite(numericHours) || numericHours < 0.25 || numericHours > 999.75 || Math.round(numericHours * 4) !== numericHours * 4) {
-    window.alert('Estimated hours must be between 0.25 and 999.75 in quarter-hour increments.');
+  if (!Number.isFinite(numericHours) || numericHours < 0 || numericHours > 999.99 || Math.round(numericHours * 100) !== numericHours * 100) {
+    window.alert('Estimated hours must be between 0 and 999.99 with no more than two decimal places.');
     return false;
   }
   const config = window.PDC_SUPABASE_CONFIG || {};
@@ -11842,8 +11840,8 @@ async function saveVehicleWorkshopLineHours(button) {
     return false;
   }
   const value = Number(rawValue);
-  if (!Number.isFinite(value) || value < 0.25 || value > 999.75 || Math.round(value * 4) !== value * 4) {
-    window.alert('Estimated hours must be between 0.25 and 999.75 in quarter-hour increments.');
+  if (!Number.isFinite(value) || value < 0 || value > 999.99 || Math.round(value * 100) !== value * 100) {
+    window.alert('Estimated hours must be between 0 and 999.99 with no more than two decimal places.');
     input.focus();
     return false;
   }
