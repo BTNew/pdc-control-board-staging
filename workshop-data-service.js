@@ -517,7 +517,7 @@ function createWorkshopOperationRemovalService(options = {}) {
   let generation = 0;
 
   function administratorReady() {
-    return String(getRole() || '').trim().toLowerCase() === 'administrator'
+    return ['operator', 'administrator'].includes(String(getRole() || '').trim().toLowerCase())
       && Boolean(getAccessToken()) && client && typeof client.rpc === 'function';
   }
 

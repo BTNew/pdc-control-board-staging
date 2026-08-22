@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.22.02-estimated-hours';
+const APP_VERSION = '2026.08.22.04-operator-delete-precise-hours';
 const WORKSHOP_PLANNER_SCRIPT_VERSION = APP_VERSION;
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
@@ -11796,7 +11796,7 @@ async function saveVehicleWorkshopLine({ stage = '', lineKey = '', adjustmentId 
   const nextHours = hoursOnly ? hours : window.prompt('Estimated hours (up to two decimal places)', hours || '1');
   if (nextHours === null) return false;
   const numericHours = Number(nextHours);
-  if (!Number.isFinite(numericHours) || numericHours < 0 || numericHours > 999.99 || Math.round(numericHours * 100) !== numericHours * 100) {
+  if (!Number.isFinite(numericHours) || numericHours < 0 || numericHours > 999.99 || Math.abs(Math.round(numericHours * 100) - numericHours * 100) > 1e-9) {
     window.alert('Estimated hours must be between 0 and 999.99 with no more than two decimal places.');
     return false;
   }
@@ -11840,7 +11840,7 @@ async function saveVehicleWorkshopLineHours(button) {
     return false;
   }
   const value = Number(rawValue);
-  if (!Number.isFinite(value) || value < 0 || value > 999.99 || Math.round(value * 100) !== value * 100) {
+  if (!Number.isFinite(value) || value < 0 || value > 999.99 || Math.abs(Math.round(value * 100) - value * 100) > 1e-9) {
     window.alert('Estimated hours must be between 0 and 999.99 with no more than two decimal places.');
     input.focus();
     return false;
