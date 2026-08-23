@@ -1,0 +1,22 @@
+{
+  "applied": true,
+  "ledger_readback": [
+    {
+      "name": "349_retire_staging_cleanse_authority",
+      "version": "20260824120000"
+    }
+  ],
+  "management_response": [
+    {
+      "pg_advisory_xact_lock": ""
+    }
+  ],
+  "migration_file": "20260824120000_349_retire_staging_cleanse_authority.sql",
+  "migration_name": "349_retire_staging_cleanse_authority",
+  "migration_sha256": "f13e3e5642cd86aa1663b7a9fe3730e050a1a0972b507b49e6824ff42caa3ef6",
+  "migration_version": "20260824120000",
+  "production_ref_rejected": "vjdtsswhroyguxyfjdkt",
+  "recorded_at_utc": "2026-08-23T22:56:56.830161+00:00",
+  "schema": "pdc-staging-management-migration-receipt-v1",
+  "target_ref": "cdsmnqxtyyoeoznmbidd"
+}

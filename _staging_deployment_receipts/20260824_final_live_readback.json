@@ -1,0 +1,97 @@
+{
+  "schema": "pdc-staging-cleanse-live-readback-v1",
+  "recorded_at": "2026-08-24T06:58:32+08:00",
+  "target_ref": "cdsmnqxtyyoeoznmbidd",
+  "production_ref": "vjdtsswhroyguxyfjdkt",
+  "cleanse_receipt_id": "bae5f4d5-c488-45ed-b220-b099cc3c2fc0",
+  "containment": {
+    "pilot_enabled": false,
+    "outbound_email_enabled": false,
+    "automatic_rule_application": false,
+    "automatic_authenticated_jobcards": false,
+    "running_status": "stopped",
+    "gateway_instance_id": null,
+    "active_mailboxes": 0,
+    "active_monitor_writers": 0,
+    "database_status_code": "staging_contained_no_mailbox",
+    "hermes_import_cron_jobs_active": 0,
+    "windows_monitor_tasks_enabled": 0
+  },
+  "cleanse": {
+    "vehicles_total_preserved": 1730,
+    "operational_vehicles": 0,
+    "visible_operational_vehicles": 0,
+    "workshop_bookings": 0,
+    "vehicle_work_items": 0,
+    "active_navision_board_activations": 0,
+    "vehicles_processed": 1000,
+    "stale_predecessor_bookings_removed": 239,
+    "stale_predecessor_work_items_removed": 1027,
+    "stale_predecessor_parts_updates_removed": 23,
+    "navision_activations_deactivated": 367
+  },
+  "idempotency": {
+    "second_call_code": "replayed",
+    "second_call_changed": false,
+    "second_call_receipt_id": "bae5f4d5-c488-45ed-b220-b099cc3c2fc0"
+  },
+  "recovery": {
+    "backup_manifest_sha256": "73196732f8f0ebe25fa5853a7557d1bbf9c9dd64202ce3ae352865bc80f9f552",
+    "backup_gzip_sha256": "548f20c7489266055db67ea15310ebce00ff836f026c4275fbb48c15c1909407",
+    "encrypted_backup_sha256": "47372294375d9c6787fb8bd01521a763969a2b4d298acb9d1c1a71e72bd912e3",
+    "encrypted_backup_bytes": 1238779,
+    "raw_bytes": 19382148,
+    "encryption": "AES-256-GCM",
+    "round_trip_verify": true,
+    "replay_evidence_preserved": true,
+    "latest_platform_physical_backup_id": 1458747929,
+    "latest_platform_physical_backup_status": "COMPLETED",
+    "latest_platform_physical_backup_at": "2026-08-23T16:14:37.090Z"
+  },
+  "fixture_containment": {
+    "qa_guard_installed": true,
+    "qa_website_500_probe_rejected": true,
+    "probe_rows_after": 0
+  },
+  "authority_retirement": {
+    "cleanse_execute_authenticated": false,
+    "legacy_bulk_purge_execute_authenticated": false,
+    "legacy_vehicle_purge_execute_authenticated": false,
+    "retired_rpc_http_status": 403,
+    "retired_rpc_sqlstate": "42501"
+  },
+  "production_read_only_proof": {
+    "database_role": "supabase_read_only_user",
+    "cleanse_migrations_present": false,
+    "cleanse_receipt_table_present": false,
+    "cleanse_rpc_present": false,
+    "controller_exact_production_guard": "PDC_PRODUCTION_TARGET_FORBIDDEN"
+  },
+  "migrations": [
+    {
+      "version": "20260824100000",
+      "name": "347_staging_board_containment",
+      "sha256": "00857aefe089d15b75ebbde45e0d375b218035469a7907cc1a1aeccb2d075efe"
+    },
+    {
+      "version": "20260824110000",
+      "name": "348_one_shot_staging_board_cleanse",
+      "sha256": "471e8a3b500a6604a047e4438f9e4cbcb321738a3b022738d0cefdb6eb4ba647"
+    },
+    {
+      "version": "20260824113000",
+      "name": "350_cleanse_stale_predecessor_projections",
+      "sha256": "855cf495b5f4c8f52a7b771a6595e5ab061c692442a3c46104bf9eac6b0551ee"
+    },
+    {
+      "version": "20260824114000",
+      "name": "351_cleanse_orphan_navision_activations",
+      "sha256": "2422e10c82ca15ee63c9626652fe90c04519c43e5da386877e5afce81a9f99f7"
+    },
+    {
+      "version": "20260824120000",
+      "name": "349_retire_staging_cleanse_authority",
+      "sha256": "f13e3e5642cd86aa1663b7a9fe3730e050a1a0972b507b49e6824ff42caa3ef6"
+    }
+  ]
+}

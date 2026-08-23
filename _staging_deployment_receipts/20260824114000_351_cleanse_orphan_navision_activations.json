@@ -1,0 +1,22 @@
+{
+  "applied": true,
+  "ledger_readback": [
+    {
+      "name": "351_cleanse_orphan_navision_activations",
+      "version": "20260824114000"
+    }
+  ],
+  "management_response": [
+    {
+      "pg_advisory_xact_lock": ""
+    }
+  ],
+  "migration_file": "20260824114000_351_cleanse_orphan_navision_activations.sql",
+  "migration_name": "351_cleanse_orphan_navision_activations",
+  "migration_sha256": "2422e10c82ca15ee63c9626652fe90c04519c43e5da386877e5afce81a9f99f7",
+  "migration_version": "20260824114000",
+  "production_ref_rejected": "vjdtsswhroyguxyfjdkt",
+  "recorded_at_utc": "2026-08-23T22:55:46.364812+00:00",
+  "schema": "pdc-staging-management-migration-receipt-v1",
+  "target_ref": "cdsmnqxtyyoeoznmbidd"
+}
