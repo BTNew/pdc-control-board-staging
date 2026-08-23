@@ -98,6 +98,40 @@ class StagingManagementMigrationTests(unittest.TestCase):
         self.assertIn("cleanse_execute_authenticated", text)
         self.assertNotIn(deploy.PRODUCTION_REF, text)
 
+    def test_future_only_monitor_successor_is_narrow_and_replay_safe(self):
+        path = Path("supabase/staging_only/20260824130000_352_activate_future_only_pdc_monitor.sql")
+        text = path.read_text(encoding="utf-8")
+        for token in [
+            "20260824120000' and name='349_retire_staging_cleanse_authority",
+            "pdc_reject_shared_board_qa_fixture_347",
+            "pdc-monitor-staging-pmbcontroller-hourly-v1",
+            "pdc-monitor-staging-m279-2026.08.39",
+            "69846ef4-a74c-4569-9e35-376cf0837888",
+            "inbox_activation_high_water_uid bigint not null check(inbox_activation_high_water_uid=589)",
+            "inbox_future_minimum_uid bigint not null check(inbox_future_minimum_uid=590)",
+            "spam_historical_baseline_uid bigint not null check(spam_historical_baseline_uid=5)",
+            "poll_interval_minutes integer not null check(poll_interval_minutes=30)",
+            "outbound_email_enabled=false",
+            "automatic_rule_application=true",
+            "automatic_authenticated_jobcards=true",
+            "v_replay_before is distinct from v_replay_after",
+            "active_monitor_writers')::integer<>1",
+            "get_pdc_staging_monitor_activation_status_352()",
+            "monitor_tables_generic_dml_denied",
+            "PDC_352_ACTIVATION_POSTCONDITION_FAILED",
+        ]:
+            self.assertIn(token, text)
+        for signature in [
+            "pdc_admin_run_staging_cleanse_348()",
+            "purge_all_staging_board_vehicles(text,text)",
+            "purge_vehicle_from_board(uuid,integer,text)",
+        ]:
+            self.assertIn("revoke all on function public." + signature, text)
+        self.assertNotIn(deploy.PRODUCTION_REF, text)
+        self.assertNotIn("grant insert", text.lower())
+        self.assertNotIn("grant update", text.lower())
+        self.assertNotIn("grant delete", text.lower())
+
     def test_validate_migration_binds_exact_bytes_and_ledger(self):
         path = Path("supabase/staging_only/20260824100000_347_staging_board_containment.sql")
         digest = hashlib.sha256(path.read_bytes()).hexdigest()
