@@ -253,6 +253,17 @@ function workshopClampDurationHours(value = workshopDefaultBookingHours()) {
   return Math.max(1, workshopClampLineHours(value || workshopDefaultBookingHours()));
 }
 
+// Canonical operation-line estimates are stored in decimal hours but the
+// server enforces their exact whole-minute total. Do not snap those estimates
+// to the planner's 15-minute start-time grid (for example 15.3h is 918
+// minutes, not 915 or 930). Start times remain grid-aligned; duration is exact.
+function workshopExactDurationHours(value = 0) {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric) || numeric <= 0) return 0;
+  const minutes = Math.round(numeric * 60);
+  return minutes >= 60 ? minutes / 60 : 0;
+}
+
 function workshopIntervalsOverlap(startA, endA, startB, endB) {
   return Number(startA) < Number(endB) && Number(startB) < Number(endA);
 }
@@ -413,7 +424,7 @@ function workshopEntryStart(entry = {}) {
 
 function workshopEntryEnd(entry = {}) {
   const start = workshopEntryStart(entry);
-  const durationMinutes = workshopClampDurationHours(entry.hours) * 60;
+  const durationMinutes = (workshopExactDurationHours(entry.hours) || workshopClampDurationHours(entry.hours)) * 60;
   // Historical rows on a date that later became closed remain renderable at
   // their recorded wall-clock position; closure/leave only block new writes.
   if (!workshopIsWorkday(start)) return new Date(start.getTime() + durationMinutes * 60000);
@@ -706,7 +717,7 @@ function workshopLoadPlans() {
       const rows = workshopAnnotateLegacyAmbiguity(bookings
         .map(booking => workshopMapSnapshotBookingToLegacyRow(booking, vehicleById))
         .filter(row => row && row.id && row.vehicleKey && WORKSHOP_STAGE_SEQUENCE.includes(row.stage))
-        .map(row => row.status === 'completed' ? row : { ...row, hours: workshopClampDurationHours(row.hours) }));
+        .map(row => row.status === 'completed' ? row : { ...row, hours: workshopExactDurationHours(row.hours) || workshopClampDurationHours(row.hours) }));
       workshopSharedPlansCache = { snapshot, bookings, rows };
       return rows;
     }
@@ -1002,7 +1013,7 @@ function workshopEstimatedHoursMap(vehicle = {}) {
 
 function workshopEstimatedHours(vehicle = {}, stage = '') {
   const saved = Number(workshopEstimatedHoursMap(vehicle)[normalizePmbStage(stage)]);
-  return Number.isFinite(saved) && saved > 0 ? workshopClampDurationHours(saved) : '';
+  return Number.isFinite(saved) && saved > 0 ? workshopExactDurationHours(saved) : '';
 }
 
 function workshopAdditionalHoursMap(vehicle = {}) {
@@ -1091,11 +1102,13 @@ function workshopStageJobLines(vehicle = {}, stage = '') {
 
 function workshopCalculatedStageHours(vehicle = {}, stage = '') {
   const normalizedStage = normalizePmbStage(stage);
+  const authoritativeHours = workshopEstimatedHours(vehicle, normalizedStage);
+  if (authoritativeHours) return authoritativeHours;
   const importedHours = workshopStageJobLines(vehicle, normalizedStage).reduce((sum, line) => sum + Number(line.hours || 0), 0);
   const additionalHours = Number(workshopAdditionalHoursMap(vehicle)[normalizedStage] || 0);
   const total = importedHours + (Number.isFinite(additionalHours) ? Math.max(0, additionalHours) : 0);
   if (total > 0) return workshopClampDurationHours(total);
-  return workshopEstimatedHours(vehicle, normalizedStage) || workshopDefaultBookingHours();
+  return workshopDefaultBookingHours();
 }
 
 function workshopManualDurationAllocation(requestedHours = 0, importedHours = 0) {
@@ -2254,7 +2267,7 @@ function workshopEntryDate(entry = {}) {
 
 function workshopEntryInterval(entry = {}) {
   const startDate = workshopEntryStart(entry);
-  const hours = workshopClampDurationHours(entry.hours);
+  const hours = workshopExactDurationHours(entry.hours) || workshopClampDurationHours(entry.hours);
   const endDate = workshopAddWorkMinutes(startDate, hours * 60);
   return { startDate, endDate, start: workshopMinuteOffset(startDate), hours };
 }
@@ -2509,7 +2522,13 @@ function workshopEntryIsLive(entry = {}) {
 }
 
 function workshopCascadePlans(rows = workshopLoadPlans(), now = new Date()) {
-  let nextRows = rows.map(entry => ({ ...entry, hours: entry.status === 'completed' ? entry.hours : workshopClampDurationHours(entry.hours) }));
+  const shared = workshopSharedModeActive();
+  let nextRows = rows.map(entry => ({
+    ...entry,
+    hours: entry.status === 'completed'
+      ? entry.hours
+      : shared ? (workshopExactDurationHours(entry.hours) || workshopClampDurationHours(entry.hours)) : workshopClampDurationHours(entry.hours),
+  }));
   let changed = nextRows.some((entry, index) => entry.hours !== rows[index].hours);
   const scheduleAnchors = nextRows
     .filter(entry => {
@@ -4666,7 +4685,7 @@ function workshopNotBeforeMinutesForDate(dateKey = '', referenceNow = new Date()
 
 function workshopFirstAvailableStartMinutes(stage = '', bay = 1, dateKey = '', hours = workshopDefaultBookingHours(), rows = workshopLoadPlans(), notBeforeMinutes = 0) {
   const normalizedStage = normalizePmbStage(stage);
-  const duration = workshopClampDurationHours(hours);
+  const duration = workshopExactDurationHours(hours) || workshopClampDurationHours(hours);
   const increment = WORKSHOP_PLANNER_CONFIG.schedulingIncrementMinutes;
   const rawNotBefore = Math.max(0, Number(notBeforeMinutes) || 0);
   if (rawNotBefore >= WORKSHOP_PLANNER_CONFIG.dayLengthMinutes) return null;
@@ -4836,6 +4855,8 @@ function openWorkshopScheduleModal(vehicleKeyValue = '', stage = '', dateKey = '
     return;
   }
   const hours = workshopCalculatedStageHours(vehicle, normalizedStage) || pmbBayHours(vehicle) || workshopDefaultBookingHours();
+  const authoritativeHours = workshopSharedModeActive() ? workshopEstimatedHours(vehicle, normalizedStage) : '';
+  const plannedHours = authoritativeHours || workshopClampDurationHours(hours);
   const bay = 1;
   const selectedDate = workshopDateKeyNotBefore(workshopDateKey(workshopCoerceWorkDate(workshopDateFromKey(dateKey) || new Date(), 1)), etaConstraint.earliestDateKey);
   const firstSlot = workshopFirstAvailableStartSlot(normalizedStage, bay, selectedDate, hours);
@@ -4854,7 +4875,7 @@ function openWorkshopScheduleModal(vehicleKeyValue = '', stage = '', dateKey = '
         <label><span>Bay</span><select name="bay">${bayOptions}</select></label>
         <label><span>Date</span><input name="date" type="date" value="${escapeHtml(scheduledDate)}" ${etaConstraint.earliestDateKey ? `min="${escapeHtml(etaConstraint.earliestDateKey)}"` : ''} required></label>
         <label><span>Start time</span><select name="startMinutes">${workshopScheduleTimeOptions(startMinutes)}</select></label>
-        <label><span>Planned hours</span><input name="hours" type="number" min="1" step="0.25" value="${escapeHtml(workshopClampDurationHours(hours))}" required></label>
+        <label><span>Planned hours</span><input name="hours" type="number" min="1" step="0.0166666667" value="${escapeHtml(plannedHours)}" ${authoritativeHours ? 'readonly title="Uses the canonical operation-line estimate"' : ''} required></label>
         <label><span>Technician</span><select name="assignee">${workshopAssigneeOptions(normalizedStage, workshopBayMechanic(normalizedStage, bay) || pmbBayMechanic(vehicle))}</select></label>
       </div>
       <p class="workshop-schedule-note">Later bookings in this bay move automatically, preserving their order and duration and skipping non-working days.${etaConstraint.required ? ` ${escapeHtml(etaConstraint.location)} earliest permitted booking date: ${escapeHtml(etaConstraint.earliestDateKey)}.` : ''}</p>
@@ -5104,7 +5125,10 @@ async function workshopScheduleVehicleNextAvailable({ vehicleId = '', vehicleKey
     renderWorkshopPlanner();
     return false;
   }
-  const estimate = workshopClampDurationHours(Number(hours) > 0 ? Number(hours) : workshopCalculatedStageHours(vehicle, normalizedStage) || pmbBayHours(vehicle) || workshopDefaultBookingHours());
+  const rawEstimate = Number(hours) > 0 ? Number(hours) : workshopCalculatedStageHours(vehicle, normalizedStage) || pmbBayHours(vehicle) || workshopDefaultBookingHours();
+  const estimate = workshopSharedModeActive()
+    ? (workshopExactDurationHours(rawEstimate) || workshopClampDurationHours(rawEstimate))
+    : workshopClampDurationHours(rawEstimate);
   const etaConstraint = workshopVehicleEtaConstraint(vehicle);
   if (etaConstraint.required && !etaConstraint.ok) {
     workshopRequireEtaSchedule(vehicle, new Date(0));
@@ -5203,7 +5227,10 @@ async function scheduleWorkshopVehicle({ planId = '', vehicleKeyValue = '', stag
   const defaultHours = Number.isFinite(requestedHours) && requestedHours > 0
     ? requestedHours
     : existing?.hours || workshopCalculatedStageHours(vehicle, normalizedStage) || pmbBayHours(vehicle) || workshopDefaultBookingHours();
-  const hours = workshopClampDurationHours(defaultHours);
+  const canonicalSharedHours = workshopSharedModeActive()
+    ? (workshopEstimatedHours(vehicle, normalizedStage) || workshopExactDurationHours(existing?.hours))
+    : 0;
+  const hours = canonicalSharedHours || workshopClampDurationHours(defaultHours);
   const requestedCandidate = {
     ...(existing || {}),
     id: existing?.id || '__new_workshop_booking__',
@@ -6188,6 +6215,7 @@ if (typeof module !== 'undefined' && module.exports) {
     workshopClampLineHours,
     workshopClampStartMinutes,
     workshopClampDurationHours,
+    workshopExactDurationHours,
     workshopManualDurationAllocation,
     workshopManualDurationSharedPayload,
     workshopIntervalsOverlap,

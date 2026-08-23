@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.23.01-operations-only-dashboard';
+const APP_VERSION = '2026.08.23.02-exact-operation-minutes';
 const WORKSHOP_PLANNER_SCRIPT_VERSION = APP_VERSION;
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
