@@ -1,0 +1,22 @@
+{
+  "applied": true,
+  "ledger_readback": [
+    {
+      "name": "352_activate_future_only_pdc_monitor",
+      "version": "20260824130000"
+    }
+  ],
+  "management_response": [
+    {
+      "pg_advisory_xact_lock": ""
+    }
+  ],
+  "migration_file": "20260824130000_352_activate_future_only_pdc_monitor.sql",
+  "migration_name": "352_activate_future_only_pdc_monitor",
+  "migration_sha256": "38b88e8552a7d83d3d66070d85b741c0d41b8ea25caecf482350c7f680cba71f",
+  "migration_version": "20260824130000",
+  "production_ref_rejected": "vjdtsswhroyguxyfjdkt",
+  "recorded_at_utc": "2026-08-23T23:21:16.989382+00:00",
+  "schema": "pdc-staging-management-migration-receipt-v1",
+  "target_ref": "cdsmnqxtyyoeoznmbidd"
+}

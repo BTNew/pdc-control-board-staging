@@ -1,0 +1,113 @@
+{
+  "schema": "pdc-staging-future-monitor-activation-live-readback-v1",
+  "recorded_at": "2026-08-24T07:24:00+08:00",
+  "target_ref": "cdsmnqxtyyoeoznmbidd",
+  "production_contacted": false,
+  "migration": {
+    "version": "20260824130000",
+    "name": "352_activate_future_only_pdc_monitor",
+    "sha256": "38b88e8552a7d83d3d66070d85b741c0d41b8ea25caecf482350c7f680cba71f",
+    "source_commit": "1109e53d35ca1dbd17ecb0e08db7baaf8cefed66",
+    "source_tree": "757d9411909a64ee642ea4d6dbcd12da1f8f8d28",
+    "management_receipt": "20260824130000_352_activate_future_only_pdc_monitor.json",
+    "applied": true,
+    "ledger_readback_rows": 1
+  },
+  "predecessor_ledger": [
+    {"version": "20260824100000", "name": "347_staging_board_containment"},
+    {"version": "20260824110000", "name": "348_one_shot_staging_board_cleanse"},
+    {"version": "20260824113000", "name": "350_cleanse_stale_predecessor_projections"},
+    {"version": "20260824114000", "name": "351_cleanse_orphan_navision_activations"},
+    {"version": "20260824120000", "name": "349_retire_staging_cleanse_authority"},
+    {"version": "20260824130000", "name": "352_activate_future_only_pdc_monitor"}
+  ],
+  "activation_receipt": {
+    "receipt_id": "58a0bc13-00a1-4a37-b712-476d04de4e39",
+    "applied_at": "2026-08-23T23:21:15.357097+00:00",
+    "replay_state_sha256": "ee6cabdc64feeac75f888ae595b7dfed5a121da96a019c4f19b91fe041e6bac4"
+  },
+  "runtime_binding": {
+    "actor_id": "69846ef4-a74c-4569-9e35-376cf0837888",
+    "actor_email": "pmbcontroller@gmail.com",
+    "fresh_authenticated_role": "importer",
+    "authenticated_actor_is_bound": true,
+    "active_dedicated_writers": 1,
+    "gateway_instance_id": "pdc-monitor-staging-pmbcontroller-hourly-v1",
+    "release_name": "pdc-monitor-staging-m279-2026.08.39",
+    "source_sha": "7782ca5d875b27be7db63e1aa5380216c70c8d2e",
+    "manifest_sha256": "951e85db7d1a833d0d132b7a4a8063c579bf1f1e72df945e2a3862df61ec892e"
+  },
+  "mailbox_and_replay_fences": {
+    "mailbox_key": "pdc_pmb_email",
+    "mailbox_address": "pmbcontroller@gmail.com",
+    "active": true,
+    "test_mode": true,
+    "inbox_uidvalidity": 1,
+    "inbox_activation_high_water_uid": 589,
+    "inbox_future_minimum_uid": 590,
+    "spam_historical_baseline_uid": 5,
+    "spam_reviewer_job_remains_paused": true,
+    "post_activation_historical_uid_count": 0,
+    "outbound_email_enabled": false
+  },
+  "first_authenticated_cycle": {
+    "ok": true,
+    "mailbox_read_only": true,
+    "production_contacted": false,
+    "posted_uids": [593],
+    "processed_intakes": 1,
+    "review_intakes": 1,
+    "canonical_imports": 0,
+    "intake_status": "needs_review",
+    "attachment_count": 11,
+    "result": "fresh multi-jobcard message failed closed to attachment review; no Board mutation"
+  },
+  "exact_replay": {
+    "ok": true,
+    "posted_uids": [],
+    "processed": 0,
+    "seen": 0,
+    "skipped_processed": 4,
+    "imap_processed_sha256_before": "2683083fd415318cb4079d984b5225d268f375855c0efde1677dd19c22134f61",
+    "imap_processed_sha256_after": "2683083fd415318cb4079d984b5225d268f375855c0efde1677dd19c22134f61",
+    "shared_reviewer_sqlite_sha256_before": "1c025f5917da90a7f3757a18cdedf3e7cf204140c2c711d1f227088ee6493751",
+    "shared_reviewer_sqlite_sha256_after": "1c025f5917da90a7f3757a18cdedf3e7cf204140c2c711d1f227088ee6493751"
+  },
+  "scheduler": {
+    "profile": "pdc-emails",
+    "job_id": "f0181e2a684e",
+    "name": "PDC Email Monitor staging importer",
+    "kind": "interval",
+    "minutes": 30,
+    "enabled": true,
+    "state": "scheduled",
+    "manual_scheduler_execution_id": "0ca70deff08549909f98bfbcc06f988c",
+    "manual_scheduler_execution_status": "completed_ok",
+    "last_run_at": "2026-08-24T07:23:42.976069+08:00",
+    "next_run_at": "2026-08-24T07:53:42.976069+08:00"
+  },
+  "safety_readback": {
+    "pilot_enabled": true,
+    "automatic_rule_application": true,
+    "automatic_authenticated_jobcards": true,
+    "outbound_email_enabled": false,
+    "qa_fixture_guard": true,
+    "operational_vehicles": 0,
+    "visible_operational_vehicles": 0,
+    "workshop_bookings": 0,
+    "vehicle_work_items": 0,
+    "monitor_running_status": "idle",
+    "monitor_tables_generic_dml_denied": true,
+    "direct_generic_dml_http_status": 403,
+    "direct_generic_dml_sqlstate": "42501",
+    "cleanse_execute_authenticated": false,
+    "legacy_bulk_purge_execute_authenticated": false,
+    "legacy_vehicle_purge_execute_authenticated": false
+  },
+  "local_verification": {
+    "migration_contract_tests": {"passed": 11, "failed": 0},
+    "sql_parse_statements": 18,
+    "python_compile": "passed",
+    "git_diff_check": "passed"
+  }
+}
