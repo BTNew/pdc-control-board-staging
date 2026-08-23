@@ -21,7 +21,7 @@ begin
 end
 $guard$;
 
-create function public.pdc_admin_run_staging_cleanse_348()
+create or replace function public.pdc_admin_run_staging_cleanse_348()
 returns jsonb language plpgsql volatile security definer
 set search_path=pg_catalog,public,extensions as $$
 declare
