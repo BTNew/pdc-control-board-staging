@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.23.04-hide-uncommissioned-delete';
+const APP_VERSION = '2026.08.23.05-fix-chip-shortening';
 const WORKSHOP_PLANNER_SCRIPT_VERSION = APP_VERSION;
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this

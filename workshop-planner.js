@@ -5738,7 +5738,25 @@ function startWorkshopResize(handle, event) {
     }
     if (workshopSharedModeActive()) {
       const nextHours = workshopClampDurationHours(hours);
-      const deltaMinutes = Math.max(0, Math.round((nextHours - workshopClampDurationHours(entry.hours)) * 60));
+      const currentDurationMinutes = Math.round(workshopClampDurationHours(entry.hours) * 60);
+      const nextDurationMinutes = Math.round(nextHours * 60);
+      if (nextDurationMinutes === currentDurationMinutes) {
+        renderWorkshopPlanner();
+        return;
+      }
+      if (nextDurationMinutes < currentDurationMinutes) {
+        // Shortening a chip is a normal resize: it must not enter the
+        // extend-cascade contract, whose shift is only defined for a
+        // positive duration increase. The old path sent operation=extend
+        // with shift=0 and the server correctly rejected the mismatch.
+        await workshopDispatchSharedAction('resizeBooking', {
+          bookingId: entry.sharedBookingId || entry.id,
+          expectedVersion: entry.sharedVersion,
+          durationMinutes: nextDurationMinutes,
+          metadata: { source: 'workshop_chip_resize' },
+        });
+        return;
+      }
       await workshopDispatchSharedAction('cascadeSchedule', {
         operation: 'extend',
         targetId: entry.sharedBookingId || entry.id,
@@ -5746,8 +5764,8 @@ function startWorkshopResize(handle, event) {
         stageCode: entry.stage,
         bayNumber: Number(entry.bay),
         scheduledStartAt: entry.startAt,
-        durationMinutes: Math.round(nextHours * 60),
-        shiftMinutes: deltaMinutes,
+        durationMinutes: nextDurationMinutes,
+        shiftMinutes: nextDurationMinutes - currentDurationMinutes,
       });
       return;
     }
