@@ -76,6 +76,15 @@ class StagingManagementMigrationTests(unittest.TestCase):
         self.assertNotIn("cascade", text.lower())
         self.assertNotIn("disable trigger", text.lower())
 
+    def test_orphan_activation_successor_covers_complete_backup_table(self):
+        path = Path("supabase/staging_only/20260824114000_351_cleanse_orphan_navision_activations.sql")
+        text = path.read_text(encoding="utf-8")
+        self.assertIn("update public.navision_board_activations x", text)
+        self.assertIn("where x.active", text)
+        self.assertIn("complete 448-row activation table", text)
+        self.assertIn("v_replay_before is distinct from v_replay_after", text)
+        self.assertNotIn(deploy.PRODUCTION_REF, text)
+
     def test_retirement_migration_revokes_all_mutation_entrypoints(self):
         path = Path("supabase/staging_only/20260824120000_349_retire_staging_cleanse_authority.sql")
         text = path.read_text(encoding="utf-8")

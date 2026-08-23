@@ -1,0 +1,22 @@
+{
+  "applied": true,
+  "ledger_readback": [
+    {
+      "name": "350_cleanse_stale_predecessor_projections",
+      "version": "20260824113000"
+    }
+  ],
+  "management_response": [
+    {
+      "pg_advisory_xact_lock": ""
+    }
+  ],
+  "migration_file": "20260824113000_350_cleanse_stale_predecessor_projections.sql",
+  "migration_name": "350_cleanse_stale_predecessor_projections",
+  "migration_sha256": "855cf495b5f4c8f52a7b771a6595e5ab061c692442a3c46104bf9eac6b0551ee",
+  "migration_version": "20260824113000",
+  "production_ref_rejected": "vjdtsswhroyguxyfjdkt",
+  "recorded_at_utc": "2026-08-23T22:53:46.703893+00:00",
+  "schema": "pdc-staging-management-migration-receipt-v1",
+  "target_ref": "cdsmnqxtyyoeoznmbidd"
+}

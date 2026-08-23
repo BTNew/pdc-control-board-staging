@@ -12,7 +12,7 @@ begin
          where singleton and project_ref='cdsmnqxtyyoeoznmbidd')<>1
      or to_regclass('public.pdc_production_environment_sentinel') is not null
      or not exists(select 1 from supabase_migrations.schema_migrations
-                   where version='20260824113000' and name='350_cleanse_stale_predecessor_projections')
+                   where version='20260824114000' and name='351_cleanse_orphan_navision_activations')
      or (select count(*) from public.pdc_staging_cleanse_receipts_348
          where action_key='craig-staging-board-cleanse-20260824')<>1
      or exists(select 1 from public.vehicles
