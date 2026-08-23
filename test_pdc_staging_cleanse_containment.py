@@ -38,6 +38,40 @@ class StagingManagementMigrationTests(unittest.TestCase):
             self.assertIn(token, text)
         self.assertNotIn(deploy.PRODUCTION_REF, text)
 
+    def test_cleanse_migration_is_exact_backup_bound_and_least_privilege(self):
+        path = Path("supabase/staging_only/20260824110000_348_one_shot_staging_board_cleanse.sql")
+        text = path.read_text(encoding="utf-8")
+        required = [
+            "73196732f8f0ebe25fa5853a7557d1bbf9c9dd64202ce3ae352865bc80f9f552",
+            "548f20c7489266055db67ea15310ebce00ff836f026c4275fbb48c15c1909407",
+            "47372294375d9c6787fb8bd01521a763969a2b4d298acb9d1c1a71e72bd912e3",
+            "v_raw_bytes constant bigint:=19382148",
+            "pdc_admin_run_staging_cleanse_348()",
+            "pdc_staging_cleanse_receipts_348",
+            "v_replay_before is distinct from v_replay_after",
+            "revoke execute on function public.purge_all_staging_board_vehicles(text,text)",
+            "PDC_348_CLEANSE_POSTCONDITION_FAILED",
+        ]
+        for token in required:
+            self.assertIn(token, text)
+        self.assertNotIn(deploy.PRODUCTION_REF, text)
+        self.assertNotIn("grant insert", text.lower())
+        self.assertNotIn("grant update", text.lower())
+        self.assertNotIn("grant delete", text.lower())
+
+    def test_retirement_migration_revokes_all_mutation_entrypoints(self):
+        path = Path("supabase/staging_only/20260824120000_349_retire_staging_cleanse_authority.sql")
+        text = path.read_text(encoding="utf-8")
+        for signature in [
+            "pdc_admin_run_staging_cleanse_348()",
+            "purge_all_staging_board_vehicles(text,text)",
+            "purge_vehicle_from_board(uuid,integer,text)",
+        ]:
+            self.assertIn("revoke all on function public." + signature, text)
+        self.assertIn("get_pdc_staging_cleanse_status_349()", text)
+        self.assertIn("cleanse_execute_authenticated", text)
+        self.assertNotIn(deploy.PRODUCTION_REF, text)
+
     def test_validate_migration_binds_exact_bytes_and_ledger(self):
         path = Path("supabase/staging_only/20260824100000_347_staging_board_containment.sql")
         digest = hashlib.sha256(path.read_bytes()).hexdigest()

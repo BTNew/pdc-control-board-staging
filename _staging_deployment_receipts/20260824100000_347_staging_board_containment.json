@@ -1,0 +1,22 @@
+{
+  "applied": true,
+  "ledger_readback": [
+    {
+      "name": "347_staging_board_containment",
+      "version": "20260824100000"
+    }
+  ],
+  "management_response": [
+    {
+      "pg_advisory_xact_lock": ""
+    }
+  ],
+  "migration_file": "20260824100000_347_staging_board_containment.sql",
+  "migration_name": "347_staging_board_containment",
+  "migration_sha256": "00857aefe089d15b75ebbde45e0d375b218035469a7907cc1a1aeccb2d075efe",
+  "migration_version": "20260824100000",
+  "production_ref_rejected": "vjdtsswhroyguxyfjdkt",
+  "recorded_at_utc": "2026-08-23T22:41:49.551856+00:00",
+  "schema": "pdc-staging-management-migration-receipt-v1",
+  "target_ref": "cdsmnqxtyyoeoznmbidd"
+}
