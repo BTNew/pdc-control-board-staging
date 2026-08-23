@@ -365,6 +365,16 @@ function buildVehicleLifecycleSharedActions(client, getAccessToken) {
       });
     },
 
+    adminCompleteVehicleDelete({ vehicleId, expectedVersion, stockConfirmation, reason, idempotencyKey }) {
+      return rpc('pdc_admin_complete_vehicle_delete', {
+        p_vehicle_id: vehicleId,
+        p_expected_version: expectedVersion,
+        p_confirmation_stock: stockConfirmation,
+        p_reason: reason ?? null,
+        p_idempotency_key: idempotencyKey ?? null,
+      });
+    },
+
     adminRestoreVehicle({ tombstoneId, stockConfirmation, reason }) {
       return rpc('pdc_admin_restore_vehicle', {
         p_tombstone_id: tombstoneId,
@@ -487,6 +497,14 @@ function describeVehicleLifecycleActionError(error = '') {
     missing_expected_version: 'This action is missing required version information and was not applied.',
     vehicle_not_found: 'This vehicle is no longer available in the shared database.',
     administrator_required: 'Only an administrator can permanently remove a vehicle from every Board screen.',
+    confirmation_stock_mismatch: 'The exact Stock Number did not match the selected vehicle. Nothing was deleted.',
+    monitor_mutation_in_flight: 'This vehicle is currently being changed by the email Monitor. Wait for that change to finish; nothing was deleted.',
+    vehicle_mutation_in_flight: 'This vehicle is currently being changed in Workshop or another Board action. Wait for that change to finish; nothing was deleted.',
+    unknown_vehicle_dependency: 'The staging database has an unreviewed vehicle dependency. Nothing was deleted; the request was rolled back safely.',
+    unknown_fk_dependency: 'The staging database has an unreviewed vehicle dependency. Nothing was deleted; the request was rolled back safely.',
+    protected_receipt_compaction_required: 'A protected receipt needs its reviewed compaction contract before this vehicle can be deleted. Nothing was changed.',
+    idempotency_conflict: 'This request key was already used for a different delete request. Nothing was changed.',
+    vehicle_complete_deleted: 'The vehicle was completely removed from staging and its old email source remains fenced from replay.',
     pmb_transfer_requires_yh_or_it: 'Only a vehicle currently at Yard Hold or In Transit can be moved into PMB from this action.',
     invalid_vehicle: 'The vehicle could not be identified, so no change was made.',
   };

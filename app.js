@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.23.02-exact-operation-minutes';
+const APP_VERSION = '2026.08.23.03-complete-vehicle-delete';
 const WORKSHOP_PLANNER_SCRIPT_VERSION = APP_VERSION;
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
@@ -12305,6 +12305,84 @@ async function removeVehicle(stock, { resetTest = false } = {}) {
   return true;
 }
 
+function completeVehicleDeleteIdempotencyKey(vehicleId = '') {
+  const suffix = typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+    ? crypto.randomUUID()
+    : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  return `complete-delete-${String(vehicleId || '').replace(/[^a-zA-Z0-9-]/g, '').slice(0, 48)}-${suffix}`.slice(0, 160);
+}
+
+async function completeVehicleDelete(stock) {
+  const vehicle = selectedVehicle(stock);
+  if (!vehicle || !vehicleLocationActionAllowed(vehicle, 'delete')) return false;
+  if (!vehicleLifecycleAdministratorActive() || !vehicleLifecycleStagingResetAllowed()) {
+    window.alert('Administrator access to the staging site is required. No vehicle was changed.');
+    return false;
+  }
+  if (!vehicleLifecycleSharedModeActive() || typeof window.__vehicleLifecycleActions?.adminCompleteVehicleDelete !== 'function') {
+    window.alert('The staging complete-delete service is unavailable. No vehicle was changed.');
+    return false;
+  }
+  const ref = await vehicleLifecycleSharedRef(vehicle);
+  if (!ref || ref.outcome !== 'resolved') {
+    window.alert(describeVehicleLifecycleResolutionOutcome(ref));
+    return false;
+  }
+  const stockNumber = cleanNavisionText(displayStockNumber(vehicle) || '');
+  const vehicleUuid = cleanNavisionText(ref.vehicleId || '');
+  if (!stockNumber || !vehicleUuid) {
+    window.alert('The exact Stock Number or vehicle UUID is unavailable. No vehicle was changed.');
+    return false;
+  }
+  const confirmation = window.confirm(
+    `COMPLETE VEHICLE DELETE — STAGING ONLY\n\nStock Number: ${stockNumber}\nVehicle UUID: ${vehicleUuid}\n\nThis permanently removes the vehicle and its visible/operational/archive staging state.\nHistorical email and source messages will NOT replay. A new source is required to recreate this Stock/VIN.\nThis cannot be undone. Continue?`,
+  );
+  if (!confirmation) return false;
+  const stockConfirmation = window.prompt(`Type the exact Stock Number (${stockNumber}) to confirm:`, '') ?? '';
+  if (stockConfirmation !== stockNumber) {
+    window.alert('Stock Number confirmation did not match exactly. No vehicle was changed.');
+    return false;
+  }
+  const reason = cleanNavisionText(window.prompt('Reason for the staging complete delete (required):', '') || '');
+  if (!reason) {
+    window.alert('A reason is required. No vehicle was changed.');
+    return false;
+  }
+  const button = $('#vehicle-detail')?.querySelector('[data-complete-vehicle-delete]');
+  if (button) {
+    button.disabled = true;
+    button.setAttribute('aria-busy', 'true');
+    button.textContent = 'Deleting…';
+  }
+  try {
+    const result = await window.__vehicleLifecycleActions.adminCompleteVehicleDelete({
+      vehicleId: ref.vehicleId,
+      expectedVersion: ref.version,
+      stockConfirmation,
+      reason,
+      idempotencyKey: completeVehicleDeleteIdempotencyKey(ref.vehicleId),
+    });
+    if (!result || result.ok !== true) {
+      await refreshVehicleLifecycleLocationsAndRender();
+      window.alert(vehicleLifecycleActionErrorMessage(result));
+      return false;
+    }
+    await refreshVehicleLifecycleLocationsAndRender();
+    const stillPresent = app.emailVehicleLocationRows.some(row => cleanNavisionText(displayStockNumber(row) || '') === stockNumber);
+    if (stillPresent) {
+      window.alert('The server accepted the delete, but authoritative staging readback still shows this Stock Number. The modal remains open so the state can be checked safely.');
+      return false;
+    }
+    closeVehicleModal();
+    return true;
+  } finally {
+    if (button) {
+      button.disabled = false;
+      button.removeAttribute('aria-busy');
+    }
+  }
+}
+
 function renderDetail() {
   const v = selectedVehicle();
   const panel = $('#vehicle-detail');
@@ -12435,6 +12513,10 @@ function renderDetail() {
       ${vehicleLifecycleStagingResetAllowed() ? `<div class="detail-danger-zone">
         <div><strong>Reset Staging Test Vehicle</strong><span>Staging-only reset for an Administrator-controlled test vehicle.</span></div>
         <button class="danger ghost" type="button" data-reset-test-vehicle="${escapeHtml(key)}">Reset Staging Test Vehicle</button>
+      </div>
+      <div class="detail-danger-zone complete-vehicle-delete-zone">
+        <div><strong>Complete Vehicle Delete</strong><span>Permanently removes this vehicle's visible, operational and archive staging footprint. Historical email will not replay; the old source stays fenced and a genuinely new source is required to recreate the Stock/VIN.</span></div>
+        <button class="danger" type="button" data-complete-vehicle-delete="${escapeHtml(key)}">Complete Vehicle Delete</button>
       </div>` : ''}` : ''}
     </div>`}
   `;
@@ -12445,6 +12527,7 @@ function renderDetail() {
   bindVehicleLabelButtons(panel);
   on($('[data-remove-vehicle]', panel), 'click', () => removeVehicle(key));
   on($('[data-reset-test-vehicle]', panel), 'click', () => removeVehicle(key, { resetTest: true }));
+  on($('[data-complete-vehicle-delete]', panel), 'click', () => completeVehicleDelete(key));
   on($('[data-modal-cancel]', panel), 'click', closeVehicleModal);
 
   $$('[data-confirm-pdc-job-line]', panel).forEach(button => {
