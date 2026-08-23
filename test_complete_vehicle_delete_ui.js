@@ -6,17 +6,21 @@ const actionsSource = fs.readFileSync(path.join(__dirname, 'vehicle-lifecycle-ac
 const appSource = fs.readFileSync(path.join(__dirname, 'app.js'), 'utf8');
 const stagingSource = fs.readFileSync(path.join(__dirname, 'index.html'), 'utf8');
 const legacyShell = fs.readFileSync(path.join(__dirname, 'staging.html'), 'utf8');
+const stagingConfig = fs.readFileSync(path.join(__dirname, 'pdc-supabase-config.staging.js'), 'utf8');
 
 assert.ok(actionsSource.includes('adminCompleteVehicleDelete'), 'bridge exposes complete delete action');
 assert.ok(actionsSource.includes("pdc_admin_complete_vehicle_delete"), 'bridge calls complete-delete RPC');
 assert.ok(actionsSource.includes('p_idempotency_key'), 'bridge sends idempotency key');
 assert.ok(appSource.includes('Complete Vehicle Delete'), 'vehicle UI labels complete delete');
 assert.ok(appSource.toLowerCase().includes('historical email will not replay'), 'vehicle UI explains historical email replay fence');
-assert.ok(appSource.includes('data-complete-vehicle-delete'), 'vehicle UI renders complete delete control');
+assert.ok(appSource.includes('data-complete-vehicle-delete'), 'vehicle UI retains reviewed complete-delete control source');
+assert.ok(appSource.includes('completeVehicleDeleteCommissioned()'), 'vehicle UI is gated by commissioned capability');
+assert.ok(appSource.includes('completeVehicleDeleteCommissioned === true'), 'commissioning gate requires exact true');
+assert.ok(stagingConfig.includes('completeVehicleDeleteCommissioned: false'), 'uncommissioned staging source hides destructive control');
 assert.ok(appSource.includes('disabled = true') || appSource.includes('.disabled = true'), 'request path disables the destructive control');
 assert.ok(appSource.includes('refreshVehicleLifecycleLocationsAndRender'), 'success path performs authoritative readback');
 assert.ok(stagingSource.includes('pdc-supabase-config.staging.js'), 'staging shell loads staging config');
-assert.ok(stagingSource.includes('app.js?v=2026.08.23.03-complete-vehicle-delete'), 'staging shell points at released app marker');
+assert.ok(stagingSource.includes('app.js?v=2026.08.23.04-hide-uncommissioned-delete'), 'staging shell points at hidden-control release marker');
 assert.ok(legacyShell.includes('url=./'), 'retired staging shell redirects to current entry');
 
 const { buildVehicleLifecycleSharedActions } = require('./vehicle-lifecycle-actions.js');

@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.23.03-complete-vehicle-delete';
+const APP_VERSION = '2026.08.23.04-hide-uncommissioned-delete';
 const WORKSHOP_PLANNER_SCRIPT_VERSION = APP_VERSION;
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
@@ -12312,6 +12312,11 @@ function completeVehicleDeleteIdempotencyKey(vehicleId = '') {
   return `complete-delete-${String(vehicleId || '').replace(/[^a-zA-Z0-9-]/g, '').slice(0, 48)}-${suffix}`.slice(0, 160);
 }
 
+function completeVehicleDeleteCommissioned() {
+  return vehicleLifecycleStagingResetAllowed()
+    && window.PDC_SUPABASE_CONFIG?.vehicleLifecycle?.completeVehicleDeleteCommissioned === true;
+}
+
 async function completeVehicleDelete(stock) {
   const vehicle = selectedVehicle(stock);
   if (!vehicle || !vehicleLocationActionAllowed(vehicle, 'delete')) return false;
@@ -12514,10 +12519,10 @@ function renderDetail() {
         <div><strong>Reset Staging Test Vehicle</strong><span>Staging-only reset for an Administrator-controlled test vehicle.</span></div>
         <button class="danger ghost" type="button" data-reset-test-vehicle="${escapeHtml(key)}">Reset Staging Test Vehicle</button>
       </div>
-      <div class="detail-danger-zone complete-vehicle-delete-zone">
+      ${completeVehicleDeleteCommissioned() ? `<div class="detail-danger-zone complete-vehicle-delete-zone">
         <div><strong>Complete Vehicle Delete</strong><span>Permanently removes this vehicle's visible, operational and archive staging footprint. Historical email will not replay; the old source stays fenced and a genuinely new source is required to recreate the Stock/VIN.</span></div>
         <button class="danger" type="button" data-complete-vehicle-delete="${escapeHtml(key)}">Complete Vehicle Delete</button>
-      </div>` : ''}` : ''}
+      </div>` : ''}` : ''}` : ''}
     </div>`}
   `;
   bindVehicleDetailTabs(panel);
