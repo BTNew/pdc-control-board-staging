@@ -29,11 +29,16 @@ assert.strictEqual(mapped.salesWorkshopBookings[0].status, 'planned');
 
 const app = fs.readFileSync('app.js', 'utf8');
 const html = fs.readFileSync('index.html', 'utf8');
+const stagingHtml = fs.readFileSync('staging.html', 'utf8');
 const migration = fs.readFileSync('supabase/staging_only/20260820074007_unified_sales_dashboard.sql', 'utf8');
 
-assert.ok(html.includes('id="dashboard-view-select"'));
-assert.ok(html.includes('PMB Operations'));
-assert.ok(html.includes('All Sales Vehicles'));
+assert.ok(!html.includes('id="dashboard-view-select"'));
+assert.ok(!stagingHtml.includes('id="dashboard-view-select"'));
+assert.ok(!app.includes("on($('#dashboard-view-select'), 'change'"));
+assert.ok(!app.includes('populateDashboardViewSelect();'));
+assert.ok(!app.includes("if (String(app.dashboardView || 'operations') !== 'operations')"));
+// Keep the underlying shared model dormant so it can be restored later
+// without exposing the salesperson dashboard Craig removed.
 assert.ok(app.includes("value: `sales:${String(record.code).toUpperCase()}`"));
 assert.ok(app.includes('renderSalesDashboardBoard()'));
 assert.ok(app.includes('service.updateSalesPreparation'));

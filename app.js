@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.22.04-operator-delete-precise-hours';
+const APP_VERSION = '2026.08.23.01-operations-only-dashboard';
 const WORKSHOP_PLANNER_SCRIPT_VERSION = APP_VERSION;
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
@@ -3014,11 +3014,7 @@ function bindNav() {
   on($('#tv-set-operator-top'), 'click', setOperatorProfile);
   $$('[data-view-target]').forEach(btn => btn.addEventListener('click', () => showView(btn.dataset.viewTarget)));
   on($('#search'), 'input', () => { renderKpis(); renderVehicleTable(); });
-  on($('#dashboard-view-select'), 'change', event => {
-    app.dashboardView = String(event.currentTarget.value || 'operations');
-    app.selectedRows.clear();
-    renderIncomingDashboardBoard();
-  });
+
   on($('#status-filter'), 'change', () => { renderKpis(); renderVehicleTable(); });
   on($('#sales-filter'), 'change', () => { renderKpis(); renderVehicleTable(); });
   on($('#production-filter'), 'change', () => { renderKpis(); renderVehicleTable(); });
@@ -6738,11 +6734,6 @@ function renderSalesDashboardBoard() {
 function renderIncomingDashboardBoard() {
   const host = $('#incoming-main-board');
   if (!host) return;
-  populateDashboardViewSelect();
-  if (String(app.dashboardView || 'operations') !== 'operations') {
-    renderSalesDashboardBoard();
-    return;
-  }
   const workshopProjectionAvailable = ensureDashboardWorkshopProjectionReady();
   const workshopPlans = workshopProjectionAvailable && typeof workshopLoadPlans === 'function' ? workshopLoadPlans() : null;
   const rows = vehicleLocationsScreenRows();

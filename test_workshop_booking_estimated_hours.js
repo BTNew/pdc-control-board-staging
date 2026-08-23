@@ -24,8 +24,9 @@ assert.ok(migration.includes("v.stock_number='13033243'"), 'Stale Other-location
 assert.ok(migration.includes('PDC_317_BAY_DURATION_POSTCONDITION'), 'Every occupied bay must match its estimate after repair');
 assert.ok(migration.trim().endsWith('commit;'), 'Migration must commit only after all postconditions');
 assert.ok(planner.includes("estimated_duration_missing: 'Estimated hours are required before this vehicle can be scheduled into a bay'"), 'UI must explain the fail-closed reason');
-assert.ok(app.includes("const APP_VERSION = '2026.08.22.02-estimated-hours';"), 'Lazy planner asset must be cache-busted');
-assert.ok(index.includes('app.js?v=2026.08.22.02-estimated-hours'), 'Index must load the repaired app asset');
-assert.ok(staging.includes('app.js?v=2026.08.22.02-estimated-hours'), 'Staging page must load the repaired app asset');
+const appVersion = app.match(/const APP_VERSION = '([^']+)'/)?.[1];
+assert.ok(appVersion, 'App version must be declared');
+assert.ok(index.includes(`app.js?v=${appVersion}`), 'Index must load the current app asset');
+assert.ok(staging.includes(`app.js?v=${appVersion}`), 'Staging page must load the current app asset');
 
 console.log('workshop_booking_estimated_hours: PASS');

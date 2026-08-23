@@ -12038,9 +12038,7 @@ html[data-row-width="xl"] {
   .pdc-auth-user { max-width: 160px; }
 }
 
-/* Staging unified dashboard: sales uses the same vehicle board and shared data. */
-.dashboard-view-picker { min-width: 220px; }
-.dashboard-view-picker select { min-height: 42px; font-weight: 700; }
+/* Dormant sales-dashboard presentation retained for a later authorised rollout. */
 .sales-dashboard-intro { display: flex; justify-content: space-between; gap: 16px; align-items: center; padding: 14px 16px; margin-bottom: 12px; border: 1px solid #cbd5e1; border-radius: 14px; background: linear-gradient(135deg, #f8fafc, #eef6ff); }
 .sales-dashboard-intro > div { display: grid; gap: 4px; }
 .sales-dashboard-intro strong { font-size: 1rem; color: #0f172a; }
