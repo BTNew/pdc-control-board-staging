@@ -1,22 +1,29 @@
 {
   "environment": "staging",
-  "application_version": "2026.08.23.03-complete-vehicle-delete",
-  "frontend_source_commit": "a679913",
-  "provenance_update_commit": "a679913",
+  "application_version": "2026.08.23.04-hide-uncommissioned-delete",
+  "frontend_source_commit": "2c88587b6188568edfb2329b0e5a4c0a0eb564e3",
   "staging_project_ref": "cdsmnqxtyyoeoznmbidd",
   "production_unchanged": true,
-  "main_unchanged": false,
   "mailbox_runtime_changed": false,
-  "database_migration_head": "20260823170000",
-  "database_migration_head_name": "323_admin_complete_vehicle_delete",
-  "database_migration_file": "supabase/staging_only/20260823170000_323_admin_complete_vehicle_delete.sql",
-  "database_migration_sha256": "d880f6f40b2a837c8fafc87f29ffe8f68ca602cf45ca00c0aadbc99380b1ae9f",
-  "provenance_refreshed_at_utc": "2026-08-23T17:00:00Z",
+  "complete_vehicle_delete_commissioned": false,
+  "candidate_database_migration": {
+    "version": "20260823170000",
+    "name": "323_admin_complete_vehicle_delete",
+    "file": "supabase/staging_only/20260823170000_323_admin_complete_vehicle_delete.sql",
+    "sha256": "d880f6f40b2a837c8fafc87f29ffe8f68ca602cf45ca00c0aadbc99380b1ae9f",
+    "commissioned": false,
+    "review_status": "changes_required"
+  },
+  "observed_applied_database_migration": {
+    "version": null,
+    "name": null,
+    "source": "Not claimed: migration 323 is absent and the live RPC probe returned PGRST202."
+  },
   "notes": [
-    "Frontend source commit adds the staging-only Administrator Complete Vehicle Delete control.",
-    "The complete-delete RPC is guarded by the staging sentinel, exact Administrator role, explicit Stock/version confirmation, idempotency and fail-closed dependency drift checks.",
-    "The reset receipt stores identifiers, hashes and counts only; historical email/source and Telegram replay fences remain preserved.",
-    "Database migration head is read from live staging Supabase migration history.",
-    "Local Windows mailbox runtime is not represented as activated by this manifest."
+    "Complete Vehicle Delete source remains a candidate and is not authorised for database application.",
+    "The staging UI is fail-closed behind completeVehicleDeleteCommissioned=false.",
+    "Only an independently approved, applied and authenticated-live-probed successor may enable the control.",
+    "Historical email/source and Telegram replay fences must remain preserved.",
+    "Production and the local mailbox runtime were not changed by this release."
   ]
 }

@@ -20,13 +20,20 @@ jobs:
         run: |
           node <<'NODE'
           const fs = require('fs');
+          const crypto = require('crypto');
           const p = JSON.parse(fs.readFileSync('deployment-identity.json', 'utf8'));
           if (p.environment !== 'staging') throw new Error('deployment identity must be staging');
           if (p.staging_project_ref !== 'cdsmnqxtyyoeoznmbidd') throw new Error('unexpected staging project ref');
-          if (!p.database_migration_head || !p.database_migration_file) throw new Error('missing database migration provenance');
-          if (!fs.existsSync(p.database_migration_file)) throw new Error(`missing migration file: ${p.database_migration_file}`);
-          const m = p.database_migration_file.match(/(?:^|\/)(\d+)_/);
-          if (!m || m[1] !== String(p.database_migration_head)) throw new Error('migration head does not match migration filename');
+          if (p.complete_vehicle_delete_commissioned !== false) throw new Error('unreviewed complete delete must remain uncommissioned');
+          const c = p.candidate_database_migration;
+          if (!c || !c.version || !c.file || !c.sha256) throw new Error('missing candidate migration provenance');
+          if (c.commissioned !== false || c.review_status !== 'changes_required') throw new Error('candidate migration status must remain fail closed');
+          if (!fs.existsSync(c.file)) throw new Error(`missing candidate migration file: ${c.file}`);
+          const m = c.file.match(/(?:^|\/)(\d+)_/);
+          if (!m || m[1] !== String(c.version)) throw new Error('candidate migration version does not match filename');
+          const digest = crypto.createHash('sha256').update(fs.readFileSync(c.file)).digest('hex');
+          if (digest !== c.sha256) throw new Error('candidate migration digest mismatch');
+          if (p.observed_applied_database_migration?.version === c.version) throw new Error('uncommissioned candidate cannot be recorded as applied');
           NODE
       - name: Verify index local assets
         run: |
