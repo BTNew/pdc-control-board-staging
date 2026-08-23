@@ -27,6 +27,6 @@ assert.ok(planner.includes("estimated_duration_missing: 'Estimated hours are req
 const appVersion = app.match(/const APP_VERSION = '([^']+)'/)?.[1];
 assert.ok(appVersion, 'App version must be declared');
 assert.ok(index.includes(`app.js?v=${appVersion}`), 'Index must load the current app asset');
-assert.ok(staging.includes(`app.js?v=${appVersion}`), 'Staging page must load the current app asset');
+assert.match(staging, /http-equiv=["']refresh["'][^>]+content=["']0;\s*url=\.\/["']/i, 'Legacy staging entry must redirect to the canonical root');
 
 console.log('workshop_booking_estimated_hours: PASS');

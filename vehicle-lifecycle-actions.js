@@ -27,7 +27,6 @@ const STAGE2B_STAGING_SUPABASE_URL = 'https://cdsmnqxtyyoeoznmbidd.supabase.co';
 const STAGE2B_STAGING_SITE_ORIGIN = 'https://btnew.github.io';
 const STAGE2B_STAGING_SITE_PATHS = new Set([
   '/pdc-control-board-staging/',
-  '/pdc-control-board-staging/index.html',
 ]);
 const LIFECYCLE_RESOLUTION_OUTCOMES = Object.freeze([
   'resolved',

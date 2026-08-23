@@ -1418,7 +1418,7 @@ function clearLocalDataFromUrl() {
     : /[?&](clearLocalData|resetLocalData|freshData)(=|&|$)/.test(search);
   if (!resetRequested) return;
   const path = String(window.location?.pathname || '');
-  const resetAllowed = /(?:test-\d+|no-vehicles)\.html$/i.test(path) || window.PDC_ALLOW_LOCAL_RESET === true;
+  const resetAllowed = window.PDC_ALLOW_LOCAL_RESET === true;
   if (!resetAllowed) {
     console.warn('Local data reset was ignored on the live board. Use the Back End Data reset controls instead.');
     return;
@@ -4182,8 +4182,7 @@ function vehicleLifecycleStagingResetAllowed() {
   const location = window.location || {};
   const origin = String(location.origin || '').replace(/\/$/, '');
   const pathname = String(location.pathname || '');
-  const approvedPath = pathname === '/pdc-control-board-staging/'
-    || pathname === '/pdc-control-board-staging/index.html';
+  const approvedPath = pathname === '/pdc-control-board-staging/';
   return vehicleLifecycleSharedModeActive()
     && config.projectRef === 'cdsmnqxtyyoeoznmbidd'
     && String(config.url || '').replace(/\/$/, '') === 'https://cdsmnqxtyyoeoznmbidd.supabase.co'

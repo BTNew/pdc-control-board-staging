@@ -38,6 +38,8 @@ jobs:
           const missing = [...new Set(local.filter(x => !fs.existsSync(x)))];
           if (missing.length) throw new Error(`missing local assets: ${missing.join(', ')}`);
           NODE
+      - name: Verify canonical website links and retired entry points
+        run: node test_legacy_website_links.js
       - name: Reject obvious privileged frontend secrets
         run: |
           if grep -Eini --include='*.js' --include='*.html' --exclude='deployment-identity.json' '(service_role|sb_secret_)' .; then

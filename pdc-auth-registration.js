@@ -1,14 +1,14 @@
 // PDC Control Board — staging-only individual account self-registration.
 //
 // This file must NEVER be loaded by the production entry point
-// (index.html). It is only referenced from staging.html. Production's
+// (index.html). It is only referenced from the staging deployment's
 // test_microsoft_auth.js explicitly asserts pdc-auth.js contains no
 // `.signUp(` call; this separate, optional module is where that
 // capability lives instead, so production never gains public
 // registration by way of a shared-file change.
 //
 // Depends on pdc-auth.js already having run (window.PDC_AUTH_SHARED) --
-// loaded after pdc-auth.js in staging.html's script order.
+// loaded after pdc-auth.js in index.html's script order.
 (() => {
   'use strict';
 

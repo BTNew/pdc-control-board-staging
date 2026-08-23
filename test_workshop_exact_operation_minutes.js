@@ -33,6 +33,6 @@ const staging = fs.readFileSync('staging.html', 'utf8');
 const version = app.match(/const APP_VERSION = '([^']+)'/)?.[1];
 assert.strictEqual(version, '2026.08.23.02-exact-operation-minutes');
 assert.ok(index.includes(`app.js?v=${version}`));
-assert.ok(staging.includes(`app.js?v=${version}`));
+assert.match(staging, /http-equiv=["']refresh["'][^>]+content=["']0;\s*url=\.\/["']/i);
 
 console.log('workshop_exact_operation_minutes: PASS');
