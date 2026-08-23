@@ -59,6 +59,23 @@ class StagingManagementMigrationTests(unittest.TestCase):
         self.assertNotIn("grant update", text.lower())
         self.assertNotIn("grant delete", text.lower())
 
+    def test_stale_predecessor_successor_is_fixed_and_backup_bound(self):
+        path = Path("supabase/staging_only/20260824113000_350_cleanse_stale_predecessor_projections.sql")
+        text = path.read_text(encoding="utf-8")
+        for token in [
+            "73196732f8f0ebe25fa5853a7557d1bbf9c9dd64202ce3ae352865bc80f9f552",
+            "delete from public.workshop_bookings b using public.vehicles v",
+            "delete from public.vehicle_work_items x using public.vehicles v",
+            "v.board_purged_at is not null and v.deleted_at is not null",
+            "line_adjustments_deactivated",
+            "navision_activations_deactivated",
+            "v_replay_before is distinct from v_replay_after",
+        ]:
+            self.assertIn(token, text)
+        self.assertNotIn(deploy.PRODUCTION_REF, text)
+        self.assertNotIn("cascade", text.lower())
+        self.assertNotIn("disable trigger", text.lower())
+
     def test_retirement_migration_revokes_all_mutation_entrypoints(self):
         path = Path("supabase/staging_only/20260824120000_349_retire_staging_cleanse_authority.sql")
         text = path.read_text(encoding="utf-8")
