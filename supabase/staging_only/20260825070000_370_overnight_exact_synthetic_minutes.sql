@@ -97,7 +97,13 @@ BEGIN
          OR (t.tgname IN('pdc_overnight_synthetic_estimates_append_only_369','pdc_overnight_synthetic_estimate_receipts_append_only_369')
              AND t.tgtype=27 AND t.tgfoid='public.pdc_overnight_synthetic_estimate_append_only_369()'::regprocedure)) AND t.tgenabled='O')<>4
    OR (SELECT count(*) FROM pg_trigger t JOIN pg_class c ON c.oid=t.tgrelid JOIN pg_namespace n ON n.oid=c.relnamespace
-       WHERE n.nspname='public' AND c.relname IN('pdc_overnight_synthetic_estimates_369','pdc_overnight_synthetic_estimate_receipts_369') AND NOT t.tgisinternal)<>4 THEN
+       WHERE n.nspname='public' AND c.relname IN('pdc_overnight_synthetic_estimates_369','pdc_overnight_synthetic_estimate_receipts_369') AND NOT t.tgisinternal)<>4
+   OR NOT EXISTS(SELECT 1 FROM pg_trigger t WHERE t.tgrelid='public.pdc_overnight_synthetic_estimates_369'::regclass
+       AND t.tgname='pdc_overnight_synthetic_estimates_append_only_369' AND t.tgenabled='O' AND t.tgqual IS NULL
+       AND encode(extensions.digest(convert_to(pg_get_triggerdef(t.oid,true),'UTF8'),'sha256'),'hex')='303fe6cf3cca09b8ad6b4e94bed680e5aa824ec14c7496c9d0f9fb1e0a0c2f51')
+   OR NOT EXISTS(SELECT 1 FROM pg_trigger t WHERE t.tgrelid='public.pdc_overnight_synthetic_estimate_receipts_369'::regclass
+       AND t.tgname='pdc_overnight_synthetic_estimate_receipts_append_only_369' AND t.tgenabled='O' AND t.tgqual IS NULL
+       AND encode(extensions.digest(convert_to(pg_get_triggerdef(t.oid,true),'UTF8'),'sha256'),'hex')='a11bfda9c1b4be1c6e44c478b75313c0fc0965b95a0084a25fee7d888c19d8c3') THEN
   RAISE EXCEPTION 'PDC_370_MIGRATION_369_CATALOG_OR_SYNC_AUTHORITY_MISMATCH' USING errcode='55000';
  END IF;
 END $guard$;
@@ -259,7 +265,8 @@ BEGIN
    OR (SELECT count(*) FROM public.vehicle_notifications)<>0
    OR NOT EXISTS(SELECT 1 FROM pg_trigger t WHERE t.tgrelid='public.workshop_bookings'::regclass
       AND t.tgname='workshop_booking_045_estimated_duration_required_317' AND t.tgenabled='O' AND t.tgtype=23 AND t.tgqual IS NULL AND NOT t.tgisinternal
-      AND t.tgfoid='public.workshop_require_positive_estimate_for_planned_booking_317()'::regprocedure) THEN
+      AND t.tgfoid='public.workshop_require_positive_estimate_for_planned_booking_317()'::regprocedure
+      AND encode(extensions.digest(convert_to(pg_get_triggerdef(t.oid,true),'UTF8'),'sha256'),'hex')='f8f85ab7cfd7e560a2d36aa57182d0547ec8bfd1b80091b790398a27525e9d63') THEN
   RAISE EXCEPTION 'PDC_370_FUNCTION_CONTAINMENT_OR_ESTABLISHED_BEHAVIOR_POSTCONDITION' USING errcode='55000';
  END IF;
  SELECT array_agg(coalesce(r.rolname,'public')||':'||x.privilege_type ORDER BY coalesce(r.rolname,'public'),x.privilege_type)

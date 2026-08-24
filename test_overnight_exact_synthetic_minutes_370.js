@@ -13,6 +13,7 @@ need("pdc_overnight_synthetic_estimates_append_only_369",'append-only trigger');
 need("n.nspname='public'",'public schema trigger custody');
 need('t.tgtype=23 AND t.tgqual IS NULL','positive-estimate trigger shape');
 need('t.tgqual IS NULL','unconditional trigger custody');
+for(const h of ['303fe6cf3cca09b8ad6b4e94bed680e5aa824ec14c7496c9d0f9fb1e0a0c2f51','a11bfda9c1b4be1c6e44c478b75313c0fc0965b95a0084a25fee7d888c19d8c3','f8f85ab7cfd7e560a2d36aa57182d0547ec8bfd1b80091b790398a27525e9d63'])need(h,'exact trigger definition');
 need('e.estimated_minutes BETWEEN 1 AND 59','sub-hour bound');
 need("e.run_id='HERMES-TEST-RUN-20260824'",'exact run');
 need("v.source_system='hermes_overnight_synthetic'",'identity gate');
