@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.24.03-job-summary-sync';
+const APP_VERSION = '2026.08.25.01-modal-keyboard-focus';
 const WORKSHOP_PLANNER_SCRIPT_VERSION = APP_VERSION;
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
