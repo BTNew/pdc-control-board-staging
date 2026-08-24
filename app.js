@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.23.05-fix-chip-shortening';
+const APP_VERSION = '2026.08.24.01-planner-hours-label';
 const WORKSHOP_PLANNER_SCRIPT_VERSION = APP_VERSION;
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
