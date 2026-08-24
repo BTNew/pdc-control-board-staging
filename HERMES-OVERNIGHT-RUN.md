@@ -28,9 +28,12 @@
 - Environment proof: `_overnight_evidence/environment-proof.json`.
 
 ## Synthetic records created
-None yet.
+- Run `HERMES-TEST-RUN-20260824` was authenticated as the isolated staging Administrator and created exactly `HERMES-TEST-001` through `HERMES-TEST-020` at 2026-08-24T12:32:15Z.
+- Authoritative results: 20 registry rows, 20 immutable bootstrap events, one receipt, 20 synthetic vehicles and 26 incomplete synthetic work items; no bookings, Parts receipts, Sublet bookings, completion/QC/RFT evidence or notifications were created.
+- Exact replay returned the same receipt with `replay:true`; changed-payload replay was rejected.
+- The 153 protected vehicle rows retain exact digest `3d5ec39d15408cc7443312a5d0974ba1ed8250a5484228bc932bb491f8666875` before and after bootstrap.
 
-## Authorised synthetic fleet (not created yet)
+## Authorised synthetic fleet (created and registry-bound)
 Run ID: `HERMES-TEST-RUN-20260824`. Only these exact stock identities may be created by migration 363; every customer, Job Card, scenario name and description must also begin `HERMES-TEST`.
 
 | No. | Stock | Intended scenario |
@@ -57,7 +60,7 @@ Run ID: `HERMES-TEST-RUN-20260824`. Only these exact stock identities may be cre
 | 20 | `HERMES-TEST-020` | full final regression journey |
 
 ## Quantitative counters
-- Synthetic vehicles: 0 / approximately 20
+- Synthetic vehicles: 20 / 20
 - Full Intake/Inception-to-RFT journeys: 0 / 5
 - Consecutive final clean journeys: 0 / 3
 - Board/chip movements: 0 / 100
@@ -75,10 +78,10 @@ Run ID: `HERMES-TEST-RUN-20260824`. Only these exact stock identities may be cre
 None yet.
 
 ### Fixed
-None yet.
+- Migration 363 was hardened through two independent review rounds: fail-closed singleton containment, conflicting locks/revalidation, exact catalog/identity collision closure, same-set protected digest, canonical readback drift rejection, truthful durable replay, two set-based authoritative inserts and receipt-bound shared revision delta `+2`.
 
 ### Open
-- Migration 363 currently bootstraps 20 vehicles and 26 work items as 46 individual INSERT statements. Existing statement-level triggers necessarily bump the shared `pdc_email_vehicle_revision` singleton and publish Realtime invalidations once per statement. This expected cache-coherency side effect is not external communication or reference-data mutation, but it is unnecessarily noisy and is not yet receipt-bound. Live deployment/bootstrap remains blocked until the inserts are set-based (two bounded revision bumps), the singleton is locked and exact before/after revision evidence is asserted and returned.
+- Authenticated Vehicle Locations loaded successfully after bootstrap but displayed `156 of 156` rather than the authoritative `173` active vehicles. The pre-bootstrap Board displayed 153, so only 3 of 20 registry-bound synthetic vehicles projected through the normal Board snapshot. This is a reproducible staging projection defect; do not treat the synthetic fleet as fully UI-testable until all 20 appear through the authenticated Board contract.
 
 ## Checkpoints
 ### Checkpoint 000 — 2026-08-24T10:54:31Z (elapsed 00:00)
@@ -138,6 +141,18 @@ None yet.
 - Blockers: migration 363 must be refactored to set-based vehicle/work-item inserts and receipt-bind the exact two expected revision bumps before deployment. Generic lifecycle RPCs still require synthetic-registry wrappers before they may be used.
 - Quantitative counters: synthetic 0/20; journeys 0/5; board movements 0/100; booking movements 0/50; invalid attempts 0/20; duplicates 0/20; Parts 0/25; Sublet 0/20; QC/RFT out-of-order 0/10; two-session 0/10; field/validation 0/30.
 - Exact next action: refactor the bootstrap into one set-based vehicle INSERT and one set-based work-item INSERT, lock/read/assert the Realtime revision singleton at exact +2, include its before/after values in the immutable receipt, rerun rollback execution and independent review, then deploy only if approved.
+
+### Checkpoint 005 — 2026-08-24T12:35:27Z (elapsed 01:40)
+- Git commit at bootstrap: `09c22953720e3c6135231e9d216d31f5fbec0477`; migration SHA-256 `9b61557dc511bc762ee954ac211fd5bcb00618fa136ae381f244366da8cc6560`.
+- Areas tested: final exact-SHA specification and quality/security approvals; guarded staging migration apply and ledger readback; Administrator-authenticated exact-20 bootstrap, canonical readback, exact replay, mismatched replay rejection, protected-row digest, revision delta, notification/evidence isolation and authenticated Vehicle Locations capture.
+- Synthetic records created: exact registry-bound `HERMES-TEST-001` through `HERMES-TEST-020`; 26 incomplete work items.
+- Bugs discovered: normal authenticated Board projection shows only 156 total vehicles, although authoritative staging has 173 (153 protected + 20 synthetic), so 17 synthetic vehicles are absent from the normal Board snapshot/projection.
+- Bugs fixed: all migration-363 review findings, including time-durable replay after ETA expiry.
+- Tests passing: 34/34 Node, 30/30 Python, all JavaScript syntax, 35-statement SQL parse, migration ledger readback, authenticated bootstrap/readback/replay, protected digest unchanged, synthetic bookings/Parts/Sublet/notifications all zero.
+- Authoritative post-state: vehicles 173; synthetic 20; protected 153; work items 380 (26 synthetic); registry 20; events 20; receipts 1; shared revision 90389→90391; notifications 0; Monitor stopped; active mailboxes/writers 0.
+- Blockers: lifecycle stress mutation remains blocked until the Board projection includes all 20 registry-bound synthetic vehicles and synthetic-only wrappers prevent generic lifecycle RPCs from touching protected UUIDs.
+- Quantitative counters: synthetic 20/20; journeys 0/5; board movements 0/100; booking movements 0/50; invalid attempts 0/20; duplicates 1/20; Parts 0/25; Sublet 0/20; QC/RFT out-of-order 0/10; two-session 0/10; field/validation 0/30.
+- Exact next action: repair and regression-test the staging Board snapshot/projection for registry-bound synthetic rows, add synthetic-only mutation wrappers, then resume lifecycle/workshop/Parts/Sublet/QC/RFT stress testing.
 
 ## Final report
 Pending until the ten-hour end time.

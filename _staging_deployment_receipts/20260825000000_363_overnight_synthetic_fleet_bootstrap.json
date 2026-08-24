@@ -1,0 +1,22 @@
+{
+  "applied": true,
+  "ledger_readback": [
+    {
+      "name": "363_overnight_synthetic_fleet_bootstrap",
+      "version": "20260825000000"
+    }
+  ],
+  "management_response": [
+    {
+      "pg_advisory_xact_lock": ""
+    }
+  ],
+  "migration_file": "20260825000000_363_overnight_synthetic_fleet_bootstrap.sql",
+  "migration_name": "363_overnight_synthetic_fleet_bootstrap",
+  "migration_sha256": "9b61557dc511bc762ee954ac211fd5bcb00618fa136ae381f244366da8cc6560",
+  "migration_version": "20260825000000",
+  "production_ref_rejected": "vjdtsswhroyguxyfjdkt",
+  "recorded_at_utc": "2026-08-24T12:30:07.822434+00:00",
+  "schema": "pdc-staging-management-migration-receipt-v1",
+  "target_ref": "cdsmnqxtyyoeoznmbidd"
+}

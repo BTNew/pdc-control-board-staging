@@ -1,0 +1,19 @@
+{
+  "active_mailboxes": 0,
+  "active_writers": 0,
+  "event_count": 0,
+  "migration_head": {
+    "name": "363_overnight_synthetic_fleet_bootstrap",
+    "version": "20260825000000"
+  },
+  "monitor": "stopped",
+  "notification_count": 0,
+  "project_ref": "cdsmnqxtyyoeoznmbidd",
+  "protected_digest": "3d5ec39d15408cc7443312a5d0974ba1ed8250a5484228bc932bb491f8666875",
+  "receipt_count": 0,
+  "registry_count": 0,
+  "shared_revision": 90389,
+  "synthetic_count": 0,
+  "vehicle_count": 153,
+  "work_count": 354
+}
