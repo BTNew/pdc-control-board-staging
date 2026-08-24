@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.24.02-hours-overlay';
+const APP_VERSION = '2026.08.24.03-job-summary-sync';
 const WORKSHOP_PLANNER_SCRIPT_VERSION = APP_VERSION;
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
@@ -6412,9 +6412,34 @@ const AUTHENTICATED_OPERATION_STATION_ORDER = Object.freeze([
   { key: 'parts', stage: 'PARTS', label: 'Parts', colour: '#dc2626', tint: '#fef2f2' },
 ]);
 
+function authenticatedOperationSummaryLines(vehicle = {}) {
+  const raw = (Array.isArray(vehicle.pdcEmailOperationLines) ? vehicle.pdcEmailOperationLines : []).slice(0, 50);
+  const canonicalId = typeof vehicleWorkshopDetailCanonicalId === 'function' ? vehicleWorkshopDetailCanonicalId(vehicle) : '';
+  const detailState = canonicalId ? app.vehicleWorkshopDetailCache?.get(canonicalId) : null;
+  const adjustments = detailState?.status === 'ready' && Array.isArray(detailState.detail?.line_adjustments) ? detailState.detail.line_adjustments : [];
+  const adjustmentByKey = new Map(adjustments.filter(item => item?.source_kind !== 'manual' && item?.line_key).map(item => [String(item.line_key), item]));
+  return raw.flatMap(operation => {
+    const sourceStation = AUTHENTICATED_OPERATION_STATION_ORDER.find(station => station.key === String(operation?.work_key || '').trim().toLowerCase());
+    const lineKey = typeof vehicleWorkshopLineIdentity === 'function' ? vehicleWorkshopLineIdentity(sourceStation?.stage || '', operation || {}) : '';
+    const adjustment = adjustmentByKey.get(lineKey);
+    if (adjustment?.active === false) return [];
+    const targetStation = adjustment ? AUTHENTICATED_OPERATION_STATION_ORDER.find(station => station.stage === vehicleWorkshopStageCode(adjustment.stage_code)) : sourceStation;
+    const adjustedHours = adjustment && adjustment.estimated_hours !== null && adjustment.estimated_hours !== undefined && String(adjustment.estimated_hours).trim() !== ''
+      ? Number(adjustment.estimated_hours)
+      : operation?.estimatedHours;
+    return [{
+      ...operation,
+      work_key: targetStation?.key || operation?.work_key,
+      description: cleanNavisionText(adjustment?.description || operation?.description || ''),
+      estimatedHours: Number.isFinite(Number(adjustedHours)) && adjustedHours !== '' && adjustedHours !== null ? Number(adjustedHours) : null,
+      estimatedHoursSource: adjustment ? (adjustment.correction_origin === 'manual_operator' ? 'manual_override' : 'protected_adjustment') : operation?.estimatedHoursSource,
+      workshopLineKey: lineKey,
+    }];
+  });
+}
+
 function authenticatedEmailOperationLinesHtml(vehicle = {}) {
-  const operations = (Array.isArray(vehicle.pdcEmailOperationLines) ? vehicle.pdcEmailOperationLines : [])
-    .slice(0, 50)
+  const operations = authenticatedOperationSummaryLines(vehicle)
     .filter(operation => operation
       && authenticatedOperationLineValid(operation.operation_no)
       && operation.description
@@ -6434,7 +6459,7 @@ function authenticatedEmailOperationLinesHtml(vehicle = {}) {
     : String(vehicle?.stock || vehicle?.stockNumber || vehicle?.stock_number || '').trim();
   let canMoveJobs = false;
   try { canMoveJobs = typeof vehicleWorkshopCanEditLines === 'function' && vehicleWorkshopCanEditLines(); } catch (_) { canMoveJobs = false; }
-  return `<div class="wide authenticated-email-operations">
+  return `<div class="wide authenticated-email-operations" data-auth-operation-summary="${escapeHtml(vehicleIdentity)}">
     <div class="authenticated-email-operations-heading"><b>Operations from authenticated PD documents and job cards</b>${canMoveJobs && vehicleIdentity ? `<button type="button" class="small-button" data-auth-operation-work="${escapeHtml(vehicleIdentity)}">Edit jobs &amp; hours</button>` : ''}</div>
     <div class="authenticated-operation-station-grid">${stationColumns.map(station => {
       const statedHours = station.operations.map(operation => {
@@ -6456,6 +6481,62 @@ function authenticatedEmailOperationLinesHtml(vehicle = {}) {
     </section>`;
     }).join('')}</div>
   </div>`;
+}
+
+function refreshAuthenticatedOperationSummaryRow(row, vehicle = null) {
+  if (!row?.isConnected) return false;
+  const targetVehicle = vehicle || selectedVehicle(row.dataset.incomingRow);
+  if (!targetVehicle) return false;
+  const current = row.querySelector('[data-auth-operation-summary]');
+  const html = authenticatedEmailOperationLinesHtml(targetVehicle);
+  if (!current || !html) return false;
+  const template = document.createElement('template');
+  template.innerHTML = html.trim();
+  const replacement = template.content.firstElementChild;
+  if (!replacement) return false;
+  current.replaceWith(replacement);
+  replacement.querySelector('[data-auth-operation-work]')?.addEventListener('click', event => {
+    event.stopPropagation();
+    openAuthenticatedOperationWorkshop(event.currentTarget.dataset.authOperationWork);
+  });
+  return true;
+}
+
+async function loadAuthenticatedOperationSummary(row) {
+  const vehicle = selectedVehicle(row?.dataset?.incomingRow);
+  const canonicalId = vehicle ? vehicleWorkshopDetailCanonicalId(vehicle) : '';
+  if (!row || !vehicle || !canonicalId) return false;
+  const ready = app.vehicleWorkshopDetailCache?.get(canonicalId);
+  if (ready?.status === 'ready') return refreshAuthenticatedOperationSummaryRow(row, vehicle);
+  if (!app.authenticatedOperationSummaryRequests) app.authenticatedOperationSummaryRequests = new Map();
+  let request = app.authenticatedOperationSummaryRequests.get(canonicalId);
+  if (!request) {
+    request = (async () => {
+      const token = typeof getPdcSupabaseAccessToken === 'function' ? getPdcSupabaseAccessToken() : null;
+      const config = window.PDC_SUPABASE_CONFIG || {};
+      if (!token || !config.url || !config.publishableKey) return null;
+      const response = await fetch(`${config.url}/rest/v1/rpc/get_vehicle_workshop_detail`, { method: 'POST', headers: { apikey: config.publishableKey, Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ p_vehicle_id: canonicalId }) });
+      if (!response.ok) return null;
+      const detail = await response.json().catch(() => null);
+      if (!detail || String(detail.vehicle_id || '') !== canonicalId || !Array.isArray(detail.line_adjustments)) return null;
+      app.vehicleWorkshopDetailCache.set(canonicalId, { status: 'ready', detail });
+      return detail;
+    })().finally(() => app.authenticatedOperationSummaryRequests.delete(canonicalId));
+    app.authenticatedOperationSummaryRequests.set(canonicalId, request);
+  }
+  const detail = await request;
+  return detail ? refreshAuthenticatedOperationSummaryRow(row, vehicle) : false;
+}
+
+function bindAuthenticatedOperationSummaries(host = document) {
+  $$('[data-incoming-row]', host).forEach(row => {
+    row.addEventListener('toggle', () => { if (row.open) void loadAuthenticatedOperationSummary(row); });
+    if (row.open) void loadAuthenticatedOperationSummary(row);
+  });
+}
+
+function refreshOpenAuthenticatedOperationSummaries(host = document) {
+  $$('[data-incoming-row][open]', host).forEach(row => { void loadAuthenticatedOperationSummary(row); });
 }
 
 function vehicleWorkshopBookingProjection(vehicle = {}, options = {}) {
@@ -6810,6 +6891,7 @@ function renderIncomingDashboardBoard() {
     event.stopPropagation();
     openAuthenticatedOperationWorkshop(button.dataset.authOperationWork);
   }));
+  bindAuthenticatedOperationSummaries(host);
   bindFixFirstRows(host);
   bindRftCollectedInputs(host);
   bindIncomingCardSelection(host);
@@ -12243,6 +12325,7 @@ function closeVehicleModal() {
   if (!modal) return;
   modal.hidden = true;
   document.body.classList.remove('modal-open');
+  refreshOpenAuthenticatedOperationSummaries($('#incoming-main-board') || document);
 }
 
 async function removeVehicle(stock, { resetTest = false } = {}) {
