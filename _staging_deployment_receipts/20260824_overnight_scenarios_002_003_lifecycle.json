@@ -1,0 +1,184 @@
+{
+  "actor_id": "557dba7f-fd70-4b9e-aa7b-b83b717682a7",
+  "final_environment": {
+    "banner_markers": {
+      "production_url_absent_from_config": true,
+      "service_role_absent_from_config": true,
+      "staging_ref_in_config": true,
+      "staging_title": true
+    },
+    "branch": "hermes/overnight-pdc-hardening-20260824",
+    "credential_files_in_worktree": [],
+    "database": {
+      "active_activation_writers": 0,
+      "active_mailboxes": 0,
+      "migration_head": {
+        "name": "368_overnight_registry_row_assignment",
+        "version": "20260825050000"
+      },
+      "monitor_status": "stopped",
+      "outbound_notification_rows": 0,
+      "pending_outbound_notifications": 0,
+      "production_sentinel_absent": true,
+      "project_ref": "cdsmnqxtyyoeoznmbidd",
+      "staging_sentinel_rows": 1,
+      "synthetic_vehicle_total": 20,
+      "vehicle_total": 173
+    },
+    "outbound_policy": "mailboxes and activation writers disabled; no external sends permitted",
+    "pages_build": "c95e0dec3064eebfb88d8f8367a326ca77fcc6b7 built",
+    "production_access_guard": true,
+    "schema": "pdc-overnight-environment-proof-v1",
+    "source_start_commit": "ac06394736b55220e7425322fc53e9b9dadc3fdd",
+    "website_hostname": "btnew.github.io",
+    "website_path": "/pdc-control-board-staging/",
+    "website_title": "PDC Control Board \u2014 STAGING"
+  },
+  "initial_environment": {
+    "banner_markers": {
+      "production_url_absent_from_config": true,
+      "service_role_absent_from_config": true,
+      "staging_ref_in_config": true,
+      "staging_title": true
+    },
+    "branch": "hermes/overnight-pdc-hardening-20260824",
+    "credential_files_in_worktree": [],
+    "database": {
+      "active_activation_writers": 0,
+      "active_mailboxes": 0,
+      "migration_head": {
+        "name": "368_overnight_registry_row_assignment",
+        "version": "20260825050000"
+      },
+      "monitor_status": "stopped",
+      "outbound_notification_rows": 0,
+      "pending_outbound_notifications": 0,
+      "production_sentinel_absent": true,
+      "project_ref": "cdsmnqxtyyoeoznmbidd",
+      "staging_sentinel_rows": 1,
+      "synthetic_vehicle_total": 20,
+      "vehicle_total": 173
+    },
+    "outbound_policy": "mailboxes and activation writers disabled; no external sends permitted",
+    "pages_build": "c95e0dec3064eebfb88d8f8367a326ca77fcc6b7 built",
+    "production_access_guard": true,
+    "schema": "pdc-overnight-environment-proof-v1",
+    "source_start_commit": "ac06394736b55220e7425322fc53e9b9dadc3fdd",
+    "website_hostname": "btnew.github.io",
+    "website_path": "/pdc-control-board-staging/",
+    "website_title": "PDC Control Board \u2014 STAGING"
+  },
+  "notification_count": 0,
+  "project_ref": "cdsmnqxtyyoeoznmbidd",
+  "protected_state": {
+    "rows": 716,
+    "sha256": "5e55bba95f78eb99878fca9098e15277747d22d064d76617c857d8ab3ccf6a5f"
+  },
+  "recorded_at_utc": "2026-08-24T14:44:18.936055+00:00",
+  "run_id": "HERMES-TEST-RUN-20260824",
+  "scenarios": [
+    {
+      "apply_idempotency_key": "f976143e-0bb2-51d6-be1b-3507bc011cec",
+      "apply_receipt_id": "8cc4bb9d-47b6-57a3-9857-1a63b0c837eb",
+      "changed_payload_rejected": true,
+      "exact_replay_verified": true,
+      "final_location": "PMB",
+      "initial_location": "IT",
+      "manual_location_authority": "PMB",
+      "movement_count_after": 1,
+      "movement_count_before": 0,
+      "pre_apply_migration_head": {
+        "name": "368_overnight_registry_row_assignment",
+        "version": "20260825050000"
+      },
+      "pre_stale_migration_head": {
+        "name": "368_overnight_registry_row_assignment",
+        "version": "20260825050000"
+      },
+      "protected_state": {
+        "rows": 716,
+        "sha256": "5e55bba95f78eb99878fca9098e15277747d22d064d76617c857d8ab3ccf6a5f"
+      },
+      "revisions": {
+        "navision": {
+          "after": 3561,
+          "before": 3560,
+          "delta": 1
+        },
+        "pdc_email": {
+          "after": 90394,
+          "before": 90392,
+          "delta": 2
+        },
+        "workshop": {
+          "after": 6325,
+          "before": 6325,
+          "delta": 0
+        }
+      },
+      "scenario_no": 2,
+      "sibling_state": {
+        "rows": 45,
+        "sha256": "daf0139eabd3481595c69a0c65ed8053348db35c61c821d5207a618b0dddc9bb"
+      },
+      "stale_receipt_id": "df598996-a163-53fc-800d-315eb7ad9935",
+      "stale_version_rejected_without_target_change": true,
+      "stock": "HERMES-TEST-002",
+      "vehicle_id": "dd583faf-28e2-5049-9048-212cc0a5643b",
+      "vehicle_version_after": 2,
+      "vehicle_version_before": 1
+    },
+    {
+      "apply_idempotency_key": "7a0bad24-f327-5f18-ae81-f323e5019262",
+      "apply_receipt_id": "0b4bf63f-91ea-5db1-8acd-e7b15bfc5af1",
+      "changed_payload_rejected": true,
+      "exact_replay_verified": true,
+      "final_location": "PMB",
+      "initial_location": "YH",
+      "manual_location_authority": "PMB",
+      "movement_count_after": 1,
+      "movement_count_before": 0,
+      "pre_apply_migration_head": {
+        "name": "368_overnight_registry_row_assignment",
+        "version": "20260825050000"
+      },
+      "pre_stale_migration_head": {
+        "name": "368_overnight_registry_row_assignment",
+        "version": "20260825050000"
+      },
+      "protected_state": {
+        "rows": 716,
+        "sha256": "5e55bba95f78eb99878fca9098e15277747d22d064d76617c857d8ab3ccf6a5f"
+      },
+      "revisions": {
+        "navision": {
+          "after": 3562,
+          "before": 3561,
+          "delta": 1
+        },
+        "pdc_email": {
+          "after": 90396,
+          "before": 90394,
+          "delta": 2
+        },
+        "workshop": {
+          "after": 6325,
+          "before": 6325,
+          "delta": 0
+        }
+      },
+      "scenario_no": 3,
+      "sibling_state": {
+        "rows": 47,
+        "sha256": "e072de33ed3266edc300b5fb7a917660c1202e37743cec43e9ccf75737c37092"
+      },
+      "stale_receipt_id": "92781666-3e87-5484-8413-b22fe876712b",
+      "stale_version_rejected_without_target_change": true,
+      "stock": "HERMES-TEST-003",
+      "vehicle_id": "00ff6a16-dc0f-5910-9321-c505447b12fc",
+      "vehicle_version_after": 2,
+      "vehicle_version_before": 1
+    }
+  ],
+  "schema": "pdc-overnight-scenarios-002-003-lifecycle-v1"
+}
