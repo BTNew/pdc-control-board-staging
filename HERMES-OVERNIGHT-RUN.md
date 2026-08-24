@@ -78,7 +78,7 @@ None yet.
 None yet.
 
 ### Open
-None yet.
+- Migration 363 currently bootstraps 20 vehicles and 26 work items as 46 individual INSERT statements. Existing statement-level triggers necessarily bump the shared `pdc_email_vehicle_revision` singleton and publish Realtime invalidations once per statement. This expected cache-coherency side effect is not external communication or reference-data mutation, but it is unnecessarily noisy and is not yet receipt-bound. Live deployment/bootstrap remains blocked until the inserts are set-based (two bounded revision bumps), the singleton is locked and exact before/after revision evidence is asserted and returned.
 
 ## Checkpoints
 ### Checkpoint 000 — 2026-08-24T10:54:31Z (elapsed 00:00)
@@ -126,6 +126,18 @@ None yet.
 - Blockers: none for local repair. Live mutation remains blocked until the exact catalog, Administrator-only authority, race locks, full pilot containment and protected-row digest are enforced and retested.
 - Quantitative counters: synthetic 0/20; journeys 0/5; board movements 0/100; booking movements 0/50; invalid attempts 0/20; duplicates 0/20; Parts 0/25; Sublet 0/20; QC/RFT out-of-order 0/10; two-session 0/10; field/validation 0/30.
 - Exact next action: harden migration 363 and its regression contract around the exact catalog and race/digest gates, independently review the exact diff, then deploy through the guarded staging migration controller and perform Administrator-authenticated bootstrap/readback only if every proof remains green.
+
+### Checkpoint 004 — 2026-08-24T11:37:35Z (elapsed 00:43)
+- Git commit at review: `4233bd8676e06c350159b8fca3ce48702e04c258` (pushed); truthful replay correction is the current local diff pending this checkpoint commit.
+- Areas tested: exact 20-spec catalog binding, Administrator-only bootstrap authority, locked Monitor/pilot/mailbox/writer/notification containment, full protected-vehicle digest, collision closure, immutable RLS registry/receipts/events, idempotency, live SQL parse/execution in an explicit rollback transaction, and independent final source review.
+- Synthetic records created: none. Migration head remains 362; rollback validation was followed by a fresh environment proof showing 153 protected vehicles, 0 synthetic vehicles and 0 notifications.
+- Bugs discovered: the second independent review found that existing statement-level vehicle/work-item triggers would update the shared Realtime revision singleton 46 times for the current row-by-row bootstrap. That non-synthetic bookkeeping side effect was not explicitly locked, bounded or receipt-verified. The review also found replay responses incorrectly retained `replay:false`.
+- Bugs fixed: exact catalog SHA-256 `0bc2791f0b79bf03018f5d3ec444441253c0aa8a994dd8a31f7bd49f20738d16` is enforced; bootstrap is Administrator-only; all containment surfaces are locked and all four pilot flags checked; protected rows receive full before/after byte-digest proof; replay now returns `replay:true`; source tests forbid any direct pre-existing vehicle UPDATE.
+- Tests passing: 34/34 Node contracts; 30/30 Python regressions; targeted migration test after replay fix; exact migration SQL executed successfully inside an explicit staging rollback; post-rollback environment proof unchanged.
+- Tests failing: independent final review is `BLOCK` solely on the unbounded/unreceipted shared revision side effect. No migration or synthetic data was committed live.
+- Blockers: migration 363 must be refactored to set-based vehicle/work-item inserts and receipt-bind the exact two expected revision bumps before deployment. Generic lifecycle RPCs still require synthetic-registry wrappers before they may be used.
+- Quantitative counters: synthetic 0/20; journeys 0/5; board movements 0/100; booking movements 0/50; invalid attempts 0/20; duplicates 0/20; Parts 0/25; Sublet 0/20; QC/RFT out-of-order 0/10; two-session 0/10; field/validation 0/30.
+- Exact next action: refactor the bootstrap into one set-based vehicle INSERT and one set-based work-item INSERT, lock/read/assert the Realtime revision singleton at exact +2, include its before/after values in the immutable receipt, rerun rollback execution and independent review, then deploy only if approved.
 
 ## Final report
 Pending until the ten-hour end time.

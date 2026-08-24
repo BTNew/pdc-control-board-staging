@@ -123,7 +123,7 @@ for (const fragment of [
   'WHERE actor_id=v_actor AND idempotency_key=p_idempotency_key',
   'v_receipt.request_sha256<>v_request_sha256',
   'PDC_363_IDEMPOTENCY_PAYLOAD_MISMATCH',
-  'RETURN v_receipt.response',
+  "RETURN jsonb_set(v_receipt.response,'{replay}','true'::jsonb,false)",
   "'replay',false",
   "'vehicle_delta',20",
   "'registry_delta',20",
@@ -171,6 +171,7 @@ assert(sql.trim().toUpperCase().endsWith('COMMIT;'), 'migration must commit tran
 for (const [re, label] of [
   [/^\s*TRUNCATE\b/im, 'TRUNCATE'], [/\bCASCADE\b/i, 'CASCADE'],
   [/ALTER\s+TABLE[\s\S]{0,100}DISABLE\s+TRIGGER/i, 'trigger disable'],
+  [/UPDATE\s+public\.vehicles\b/i, 'pre-existing vehicle UPDATE'],
   [/^\s*DELETE\s+FROM\b/im, 'hard DELETE'], [/^\s*UPDATE\s+public\.(?!vehicles\b)/im, 'unrelated UPDATE'],
   [/GRANT\s+(?:ALL|INSERT|UPDATE|DELETE|TRUNCATE|REFERENCES|TRIGGER)\s+ON\s+TABLE/i, 'table DML grant'],
   [/GRANT\s+EXECUTE[\s\S]{0,100}\bservice_role\b/i, 'service-role function grant'],

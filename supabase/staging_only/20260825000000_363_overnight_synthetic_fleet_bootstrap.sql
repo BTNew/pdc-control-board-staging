@@ -273,7 +273,7 @@ BEGIN
   IF v_receipt.request_sha256<>v_request_sha256 THEN
    RAISE EXCEPTION 'PDC_363_IDEMPOTENCY_PAYLOAD_MISMATCH' USING errcode='22023';
   END IF;
-  RETURN v_receipt.response;
+  RETURN jsonb_set(v_receipt.response,'{replay}','true'::jsonb,false);
  END IF;
 
  LOCK TABLE public.vehicles IN SHARE ROW EXCLUSIVE MODE;
