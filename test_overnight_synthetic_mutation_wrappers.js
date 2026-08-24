@@ -26,6 +26,8 @@ assert.match(sql,/pdc_hermes_test_protected_digest_365/);
 assert.match(sql,/synthetic_action_rejected/);
 assert.match(sql,/pdc_hermes_test_actor_route_guard_365/);
 assert.match(sql,/PDC_365_OVERNIGHT_ACTOR_MUST_USE_EXACT_SYNTHETIC_WRAPPER/);
+assert.match(sql,/2c8d6e6e908c56d01b5845da6e32272b5604da6dca7e8f3a19402d0cb0e5eaf5/);
+assert.match(sql,/t\.tgtype=31/);
 assert.match(sql,/v_pdc_revision_after IS DISTINCT FROM v_pdc_revision_before/);
 assert.match(sql,/61f071efc4218cbf0e07b3699c010e0a79ea43909757f22c9e10f7151d66ded2/);
 assert.match(sql,/v_target_state_after IS DISTINCT FROM v_target_state_before/);

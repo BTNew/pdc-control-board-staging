@@ -137,17 +137,18 @@ BEGIN
    RETURN false;
   END IF;
  END LOOP;
- IF (SELECT array_agg(c.relname::text ORDER BY c.relname::text) FROM pg_trigger t JOIN pg_class c ON c.oid=t.tgrelid
-      WHERE t.tgname='pdc_hermes_test_actor_route_guard_365' AND t.tgfoid='public.pdc_hermes_test_actor_route_guard_365()'::regprocedure
-        AND t.tgenabled='O' AND NOT t.tgisinternal)
+ IF (SELECT array_agg(c.relname::text ORDER BY c.relname::text) FROM pg_trigger t
+      JOIN pg_class c ON c.oid=t.tgrelid JOIN pg_namespace n ON n.oid=c.relnamespace
+      WHERE n.nspname='public' AND t.tgname='pdc_hermes_test_actor_route_guard_365'
+        AND t.tgfoid='public.pdc_hermes_test_actor_route_guard_365()'::regprocedure
+        AND t.tgtype=31 AND t.tgenabled='O' AND NOT t.tgisinternal)
     IS DISTINCT FROM ARRAY['audit_events','pdc_sublet_booking_instance_history','pdc_sublet_booking_instances','vehicle_movements',
       'vehicle_parts_updates','vehicle_work_items','vehicles','workshop_booking_assignments','workshop_booking_history','workshop_bookings','workshop_parts_overrides']::text[]
    OR NOT EXISTS(SELECT 1 FROM pg_proc p WHERE p.oid='public.pdc_hermes_test_actor_route_guard_365()'::regprocedure
       AND p.prosecdef AND pg_get_userbyid(p.proowner)='postgres'
       AND NOT has_function_privilege('public',p.oid,'EXECUTE') AND NOT has_function_privilege('anon',p.oid,'EXECUTE')
       AND NOT has_function_privilege('authenticated',p.oid,'EXECUTE') AND NOT has_function_privilege('service_role',p.oid,'EXECUTE')
-      AND pg_get_functiondef(p.oid) LIKE '%pdc.hermes_test_wrapper_vehicle_365%'
-      AND pg_get_functiondef(p.oid) LIKE '%PDC_365_OVERNIGHT_ACTOR_MUST_USE_EXACT_SYNTHETIC_WRAPPER%') THEN RETURN false; END IF;
+      AND encode(extensions.digest(convert_to(pg_get_functiondef(p.oid),'UTF8'),'sha256'),'hex')='2c8d6e6e908c56d01b5845da6e32272b5604da6dca7e8f3a19402d0cb0e5eaf5') THEN RETURN false; END IF;
  RETURN true;
 END $guard$;
 REVOKE ALL ON FUNCTION public.pdc_hermes_test_dependency_guard_365() FROM public,anon,authenticated,service_role;
