@@ -91,13 +91,13 @@ BEGIN
        AND encode(extensions.digest(convert_to(pg_get_functiondef(p.oid),'UTF8'),'sha256'),'hex')='d379737a7c17cb5c66018ba60a20d2890bd4ae0cc2d0130e001666656d52db77'
        AND (SELECT array_agg(coalesce(r.rolname,'public')||':'||x.privilege_type ORDER BY coalesce(r.rolname,'public'),x.privilege_type)
             FROM aclexplode(coalesce(p.proacl,acldefault('f',p.proowner))) x LEFT JOIN pg_roles r ON r.oid=x.grantee)=ARRAY['authenticated:EXECUTE','postgres:EXECUTE']::text[])
-   OR (SELECT count(*) FROM pg_trigger t JOIN pg_class c ON c.oid=t.tgrelid
-       WHERE c.relname IN('pdc_overnight_synthetic_estimates_369','pdc_overnight_synthetic_estimate_receipts_369') AND NOT t.tgisinternal
+   OR (SELECT count(*) FROM pg_trigger t JOIN pg_class c ON c.oid=t.tgrelid JOIN pg_namespace n ON n.oid=c.relnamespace
+       WHERE n.nspname='public' AND c.relname IN('pdc_overnight_synthetic_estimates_369','pdc_overnight_synthetic_estimate_receipts_369') AND NOT t.tgisinternal AND t.tgqual IS NULL
        AND ((t.tgname='pdc_hermes_test_actor_route_guard_365' AND t.tgtype=31 AND t.tgfoid='public.pdc_hermes_test_actor_route_guard_365()'::regprocedure)
          OR (t.tgname IN('pdc_overnight_synthetic_estimates_append_only_369','pdc_overnight_synthetic_estimate_receipts_append_only_369')
              AND t.tgtype=27 AND t.tgfoid='public.pdc_overnight_synthetic_estimate_append_only_369()'::regprocedure)) AND t.tgenabled='O')<>4
-   OR (SELECT count(*) FROM pg_trigger t JOIN pg_class c ON c.oid=t.tgrelid
-       WHERE c.relname IN('pdc_overnight_synthetic_estimates_369','pdc_overnight_synthetic_estimate_receipts_369') AND NOT t.tgisinternal)<>4 THEN
+   OR (SELECT count(*) FROM pg_trigger t JOIN pg_class c ON c.oid=t.tgrelid JOIN pg_namespace n ON n.oid=c.relnamespace
+       WHERE n.nspname='public' AND c.relname IN('pdc_overnight_synthetic_estimates_369','pdc_overnight_synthetic_estimate_receipts_369') AND NOT t.tgisinternal)<>4 THEN
   RAISE EXCEPTION 'PDC_370_MIGRATION_369_CATALOG_OR_SYNC_AUTHORITY_MISMATCH' USING errcode='55000';
  END IF;
 END $guard$;
@@ -258,7 +258,7 @@ BEGIN
        (SELECT id FROM public.workshop_stages WHERE code='ELECTRICAL'))<>61
    OR (SELECT count(*) FROM public.vehicle_notifications)<>0
    OR NOT EXISTS(SELECT 1 FROM pg_trigger t WHERE t.tgrelid='public.workshop_bookings'::regclass
-      AND t.tgname='workshop_booking_045_estimated_duration_required_317' AND t.tgenabled='O' AND NOT t.tgisinternal
+      AND t.tgname='workshop_booking_045_estimated_duration_required_317' AND t.tgenabled='O' AND t.tgtype=23 AND t.tgqual IS NULL AND NOT t.tgisinternal
       AND t.tgfoid='public.workshop_require_positive_estimate_for_planned_booking_317()'::regprocedure) THEN
   RAISE EXCEPTION 'PDC_370_FUNCTION_CONTAINMENT_OR_ESTABLISHED_BEHAVIOR_POSTCONDITION' USING errcode='55000';
  END IF;

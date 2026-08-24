@@ -10,6 +10,9 @@ for(const h of ['c66f13a1859410449b2664236e1462e61bb3c09017962f7753865316bb58bd1
 need("v_sync_acl IS DISTINCT FROM ARRAY['postgres:EXECUTE']",'sync complete ACL');
 need("c.relrowsecurity AND NOT c.relforcerowsecurity AND pg_get_userbyid(c.relowner)='postgres'",'migration 369 table custody');
 need("pdc_overnight_synthetic_estimates_append_only_369",'append-only trigger');
+need("n.nspname='public'",'public schema trigger custody');
+need('t.tgtype=23 AND t.tgqual IS NULL','positive-estimate trigger shape');
+need('t.tgqual IS NULL','unconditional trigger custody');
 need('e.estimated_minutes BETWEEN 1 AND 59','sub-hour bound');
 need("e.run_id='HERMES-TEST-RUN-20260824'",'exact run');
 need("v.source_system='hermes_overnight_synthetic'",'identity gate');
