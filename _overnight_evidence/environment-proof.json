@@ -24,7 +24,7 @@
     "vehicle_total": 173
   },
   "outbound_policy": "mailboxes and activation writers disabled; no external sends permitted",
-  "pages_build": "c95e0dec3064eebfb88d8f8367a326ca77fcc6b7 built",
+  "pages_build": "12f6b00c5f8f6194d968b56a00525bcd84cfa58e built",
   "production_access_guard": true,
   "schema": "pdc-overnight-environment-proof-v1",
   "source_start_commit": "ac06394736b55220e7425322fc53e9b9dadc3fdd",

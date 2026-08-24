@@ -1,6 +1,6 @@
 {
   "blocked_external_hosts": [],
-  "completed_utc": "2026-08-24T19:01:06Z",
+  "completed_utc": "2026-08-24T19:09:58Z",
   "console": [],
   "credential_identity": "sha256:2db2d3e971ba772a3d7c0e30784ed08141f3f32d3749a3fe6c678df405e8f874",
   "desktop_accessibility": {
@@ -900,7 +900,7 @@
       "vehicle_total": 173
     },
     "outbound_policy": "mailboxes and activation writers disabled; no external sends permitted",
-    "pages_build": "c95e0dec3064eebfb88d8f8367a326ca77fcc6b7 built",
+    "pages_build": "12f6b00c5f8f6194d968b56a00525bcd84cfa58e built",
     "production_access_guard": true,
     "schema": "pdc-overnight-environment-proof-v1",
     "source_start_commit": "ac06394736b55220e7425322fc53e9b9dadc3fdd",
@@ -1378,11 +1378,11 @@
   "modal": {
     "escapeClosed": true,
     "focusAfterClose": {
-      "cls": "auth-approved",
+      "cls": "stock-link stock-button vehicle-identity-value vehicle-identity-primary",
       "id": "",
-      "stock": ""
+      "stock": "HERMES-TEST-019"
     },
-    "focusEscapedDialog": true,
+    "focusEscapedDialog": false,
     "initialFocus": "modal-close",
     "sample": [
       {
@@ -1446,7 +1446,7 @@
         "tag": "INPUT"
       }
     ],
-    "stepsUntilEscape": 30,
+    "stepsUntilEscape": 80,
     "trigger": "stock-link stock-button vehicle-identity-value vehicle-identity-primary"
   },
   "page_errors": [],
@@ -1534,6 +1534,6 @@
       "synthetic019": true
     }
   ],
-  "started_utc": "2026-08-24T19:00:24Z",
+  "started_utc": "2026-08-24T19:09:02Z",
   "target": "https://btnew.github.io/pdc-control-board-staging/"
 }

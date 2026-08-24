@@ -70,8 +70,8 @@ Run ID: `HERMES-TEST-RUN-20260824`. Only these exact stock identities may be cre
 - Parts changes: 18 / 25
 - Sublet changes: 21 / 20
 - QC/RFT out-of-order attempts: 12 / 10
-- Two-session scenarios: 7 / 10
-- Field/validation scenarios: 47 / 30
+- Two-session scenarios: 8 / 10
+- Field/validation scenarios: 59 / 30
 
 ## Bugs
 ### Discovered
@@ -296,6 +296,20 @@ None at this checkpoint. Registry-bound synthetic stress mutation is now commiss
 - Quantitative counters: synthetic 20/20; journeys 0/5; board movements 8/100; booking movements/adjustments 6/50; invalid movement attempts 17/20; duplicate submits 23/20; Parts 18/25; Sublet 21/20; QC/RFT out-of-order 12/10; two-session scenarios 7/10; field/validation 47/30.
 - Blockers: no blocker to browser/mobile/accessibility work. Viewer-role execution is credential-bound; this run did not create, rotate, copy or broaden credentials.
 - Exact next action: commit/push this evidence checkpoint, then exercise live staging hash-route navigation, refresh/second-session behavior, mobile layouts, keyboard/focus order and accessibility on `HERMES-TEST-019`, capturing screenshots plus console/network evidence without mutating protected rows.
+
+### Checkpoint 017 — 2026-08-24T19:10:40Z (elapsed 08:16)
+- Source commits: `50542c5` (browser evidence, modal repair and regression) and `a5ea341` (release marker alignment), both pushed to the overnight branch. Isolated staging Pages deploy commit: `12f6b00c5f8f6194d968b56a00525bcd84cfa58e` on `main`.
+- Areas tested: Administrator-authenticated hash routes and reload/deep links for Vehicle Locations, Control Board, Fitting planner, Parts, Sublet, QC and RFT; two independently authenticated browser contexts; 1440×1000 desktop and 390×844 touch/mobile viewports; 30-step keyboard order sample; HERMES-TEST-019 vehicle dialog initial focus, forward-tab containment, Escape close and focus return; labels/duplicate IDs/basic touch sizes/horizontal overflow; console, page exceptions, failed requests and HTTP errors.
+- Synthetic records mutated: none. Browser reads and dialog opening targeted only `HERMES-TEST-019`; both contexts loaded the exact synthetic record. Protected/pre-existing rows were not mutated and no physical work was claimed.
+- Bug discovered: the vehicle dialog allowed keyboard focus to escape after 30 Tabs and Escape left focus on `body` instead of returning to the HERMES-TEST-019 stock control. Source inspection showed the same missing focus containment/return in the add-vehicle dialog.
+- Bug fixed: vehicle and add-vehicle dialogs now remember the invoking control, wrap forward/reverse Tab within the active dialog, close only the active dialog on Escape and restore focus after close. The asset version was advanced to `2026.08.25.01-modal-keyboard-focus`; a focused source contract prevents regression.
+- Live acceptance after deploy: all seven route/deep-link pairs survived reload with the correct active navigation item; both isolated sessions were approved and loaded 019; the vehicle dialog kept focus inside for 80 Tabs, Escape closed it and focus returned to the exact `data-open-stock="HERMES-TEST-019"` control. Desktop and mobile had zero document-level horizontal overflow and no duplicate IDs or visibly unlabeled form controls. Touch controls were at least 32px high in the sampled mobile workflow, exceeding the WCAG 2.5.8 24px minimum, though several remain below the older 44px enhanced target.
+- Tests passing: `49/49` source Node tests; `33/33` isolated deploy Node tests; JavaScript/Python syntax; staging-integrity CI; Pages build/report/deploy CI; exact live-byte equality for `index.html`, `app.js` and `deployment-identity.json`; authenticated post-deploy browser acceptance with `0` console errors, `0` page exceptions, `0` failed requests and `0` HTTP errors.
+- Secret-free evidence: `_overnight_evidence/browser-019/evidence.json`, `desktop-dashboard.png` and `mobile-workflow.png`. Screenshots were filtered to HERMES-TEST-019 and the signed-in label was locally redacted to `HERMES STAGING ADMIN`; visual inspection confirmed no real customer/stock/email/credential/secret was captured.
+- Authoritative containment: live Pages/build/main all resolve to `12f6b00c...`; migration head remains 374; 173 vehicles / 20 synthetic / 153 protected; Monitor stopped; active mailboxes/writers `0`; notifications `0`; Production remained structurally blocked and untouched.
+- Quantitative counters: synthetic 20/20; journeys 0/5; board movements 8/100; booking movements/adjustments 6/50; invalid movement attempts 17/20; duplicate submits 23/20; Parts 18/25; Sublet 21/20; QC/RFT out-of-order 12/10; two-session scenarios 8/10; field/validation 59/30.
+- Blockers: none. The prior authenticated Viewer-role credential limitation remains unchanged and was not repaired by credential or role changes.
+- Exact next action: extend the browser evidence with authoritative accessibility-tree names and a focused contrast sample, then begin the read-only/full final regression journey on `HERMES-TEST-020` and the aggregate source/browser suite while time remains.
 
 ## Final report
 Pending until the ten-hour end time.
