@@ -11,8 +11,8 @@
     "active_activation_writers": 0,
     "active_mailboxes": 0,
     "migration_head": {
-      "name": "362_align_anderson_plugs_and_job_counts",
-      "version": "20260824230000"
+      "name": "363_overnight_synthetic_fleet_bootstrap",
+      "version": "20260825000000"
     },
     "monitor_status": "stopped",
     "outbound_notification_rows": 0,
@@ -20,8 +20,8 @@
     "production_sentinel_absent": true,
     "project_ref": "cdsmnqxtyyoeoznmbidd",
     "staging_sentinel_rows": 1,
-    "synthetic_vehicle_total": 0,
-    "vehicle_total": 153
+    "synthetic_vehicle_total": 20,
+    "vehicle_total": 173
   },
   "outbound_policy": "mailboxes and activation writers disabled; no external sends permitted",
   "pages_build": "c95e0dec3064eebfb88d8f8367a326ca77fcc6b7 built",
