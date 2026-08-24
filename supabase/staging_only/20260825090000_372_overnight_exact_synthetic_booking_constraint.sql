@@ -18,7 +18,13 @@ BEGIN
  IF NOT public.pdc_monitor_staging_guard()
    OR (SELECT count(*) FROM public.pdc_staging_environment_sentinel WHERE singleton AND project_ref='cdsmnqxtyyoeoznmbidd')<>1
    OR to_regclass('public.pdc_production_environment_sentinel') IS NOT NULL
-   OR NOT EXISTS(SELECT 1 FROM supabase_migrations.schema_migrations WHERE version='20260825080000' AND name='371_overnight_exact_synthetic_booking_validation')
+   OR (SELECT count(*) FROM supabase_migrations.schema_migrations WHERE version='20260825080000' AND name='371_overnight_exact_synthetic_booking_validation'
+       AND statements=ARRAY[
+        'Exact migration-370 staging head, validator predecessor hash, owner, ACL and containment',
+        'Replace one exact minimum-duration fragment while preserving every established validator branch',
+        'Sub-hour duration admitted only for exact registry-bound migration-369 estimate identity and canonical minutes',
+        'Protected booking validation snapshot parity and 47-minute positive/46-minute negative executable checks',
+        'No generic DML grants, notifications, mailbox, writer, Production or non-test authority']::text[])<>1
    OR EXISTS(SELECT 1 FROM supabase_migrations.schema_migrations WHERE version>'20260825080000' AND version~'^[0-9]{14}$')
    OR NOT public.pdc_hermes_test_dependency_guard_365() OR NOT public.pdc_hermes_test_registry_guard_365()
    OR (SELECT count(*) FROM public.pdc_email_monitor_pilot WHERE singleton AND NOT enabled AND NOT outbound_email_enabled
@@ -64,20 +70,23 @@ CREATE TRIGGER workshop_booking_044_minimum_duration_372 BEFORE INSERT OR UPDATE
 ON public.workshop_bookings FOR EACH ROW EXECUTE FUNCTION public.workshop_booking_minimum_duration_guard_372();
 
 DO $post$
-DECLARE v_def text;v_trigger text;
+DECLARE v_def text;v_trigger text;v_acl text[];
 BEGIN
  v_def:=pg_get_functiondef('public.workshop_booking_minimum_duration_guard_372()'::regprocedure);
  SELECT pg_get_triggerdef(t.oid,true) INTO v_trigger FROM pg_trigger t WHERE t.tgrelid='public.workshop_bookings'::regclass
   AND t.tgname='workshop_booking_044_minimum_duration_372' AND t.tgenabled='O' AND t.tgqual IS NULL AND NOT t.tgisinternal;
+ SELECT array_agg(coalesce(r.rolname,'public')||':'||x.privilege_type ORDER BY coalesce(r.rolname,'public'),x.privilege_type)
+ INTO v_acl FROM pg_proc p CROSS JOIN LATERAL aclexplode(coalesce(p.proacl,acldefault('f',p.proowner))) x LEFT JOIN pg_roles r ON r.oid=x.grantee
+ WHERE p.oid='public.workshop_booking_minimum_duration_guard_372()'::regprocedure;
  IF (SELECT count(*) FROM pg_constraint c WHERE c.conrelid='public.workshop_bookings'::regclass AND c.conname='workshop_bookings_minimum_duration_60')<>0
    OR (SELECT count(*) FROM pg_constraint c WHERE c.conrelid='public.workshop_bookings'::regclass AND c.conname='workshop_bookings_positive_duration_372'
        AND c.convalidated AND pg_get_constraintdef(c.oid,true)='CHECK (default_duration_minutes > 0)')<>1
    OR position('e.estimated_minutes BETWEEN 1 AND 59' in v_def)=0
    OR position('BEFORE INSERT OR UPDATE OF vehicle_id, stage_id, default_duration_minutes ON workshop_bookings' in v_trigger)=0
+   OR v_acl IS DISTINCT FROM ARRAY['postgres:EXECUTE']::text[]
    OR NOT EXISTS(SELECT 1 FROM pg_proc p WHERE p.oid='public.workshop_booking_minimum_duration_guard_372()'::regprocedure
-       AND p.prosecdef AND pg_get_userbyid(p.proowner)='postgres'
-       AND NOT has_function_privilege('public',p.oid,'EXECUTE') AND NOT has_function_privilege('anon',p.oid,'EXECUTE')
-       AND NOT has_function_privilege('authenticated',p.oid,'EXECUTE') AND NOT has_function_privilege('service_role',p.oid,'EXECUTE'))
+       AND p.prosecdef AND p.provolatile='v' AND pg_get_userbyid(p.proowner)='postgres'
+       AND p.proconfig=ARRAY['search_path=pg_catalog, public']::text[])
    OR NOT public.pdc_hermes_test_dependency_guard_365() OR NOT public.pdc_hermes_test_registry_guard_365()
    OR (SELECT count(*) FROM public.vehicle_notifications)<>0 THEN
   RAISE EXCEPTION 'PDC_372_CONSTRAINT_TRIGGER_OR_CONTAINMENT_POSTCONDITION' USING errcode='55000'; END IF;
