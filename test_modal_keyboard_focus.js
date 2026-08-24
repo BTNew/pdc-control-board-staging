@@ -9,6 +9,8 @@ assert.ok(app.includes("if (e.key === 'Tab' && activeModal)"), 'open vehicle/cus
 assert.ok(app.includes('trapModalFocus(activeModal, e);'), 'Tab is routed through the modal focus trap');
 assert.ok(app.includes("if (event.shiftKey && (document.activeElement === first || !modal.contains(document.activeElement)))"), 'reverse Tab wraps to the final control');
 assert.ok(app.includes("else if (!event.shiftKey && (document.activeElement === last || !modal.contains(document.activeElement)))"), 'forward Tab wraps to the first control');
+assert.ok(app.includes('if (modal.hidden || modal.contains(document.activeElement)) return;'), 'async dialog rerenders cannot drop focus outside the open modal');
+assert.ok(app.includes('(refreshed[0] || modal).focus();'), 'post-render focus containment returns to the first available control');
 assert.ok(app.includes('rememberModalReturnFocus(modal);'), 'dialog open remembers the invoking control');
 assert.ok(app.includes('restoreModalReturnFocus(modal);'), 'dialog close restores the invoking control');
 assert.ok(app.includes("if (customerModal?.hidden === false) closeCustomerModal();"), 'Escape closes the active customer dialog first');

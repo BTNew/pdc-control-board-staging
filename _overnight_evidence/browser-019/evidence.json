@@ -1,7 +1,258 @@
 {
+  "authoritative_accessibility_tree": {
+    "exposedCount": 21,
+    "requiredNames": {
+      "Control Board": true,
+      "Parts": true,
+      "QC Sign-off": true,
+      "RFT": true,
+      "Sublet": true,
+      "Vehicle Locations": true
+    },
+    "roleCounts": {
+      "button": 17,
+      "combobox": 0,
+      "dialog": 0,
+      "heading": 1,
+      "link": 0,
+      "main": 1,
+      "navigation": 1,
+      "searchbox": 1,
+      "textbox": 0
+    },
+    "sample": [
+      {
+        "backendDOMNodeId": 1513,
+        "name": "",
+        "role": "main"
+      },
+      {
+        "backendDOMNodeId": 1606,
+        "name": "",
+        "role": "navigation"
+      },
+      {
+        "backendDOMNodeId": 1607,
+        "name": "Vehicle Locations",
+        "role": "button"
+      },
+      {
+        "backendDOMNodeId": 1608,
+        "name": "QC Sign-off",
+        "role": "button"
+      },
+      {
+        "backendDOMNodeId": 1609,
+        "name": "Control Board",
+        "role": "button"
+      },
+      {
+        "backendDOMNodeId": 1611,
+        "name": "\u25a6 Bus 4\u00d74",
+        "role": "button"
+      },
+      {
+        "backendDOMNodeId": 1612,
+        "name": "\u25a6 Tint",
+        "role": "button"
+      },
+      {
+        "backendDOMNodeId": 1613,
+        "name": "\u25a6 Hoist",
+        "role": "button"
+      },
+      {
+        "backendDOMNodeId": 1614,
+        "name": "\u25a6 Fitting",
+        "role": "button"
+      },
+      {
+        "backendDOMNodeId": 1615,
+        "name": "\u25a6 Fabrication",
+        "role": "button"
+      },
+      {
+        "backendDOMNodeId": 1616,
+        "name": "\u25a6 Electrical",
+        "role": "button"
+      },
+      {
+        "backendDOMNodeId": 1617,
+        "name": "\u25a6 Tyre",
+        "role": "button"
+      },
+      {
+        "backendDOMNodeId": 1618,
+        "name": "Parts",
+        "role": "button"
+      },
+      {
+        "backendDOMNodeId": 1619,
+        "name": "AI Intake",
+        "role": "button"
+      },
+      {
+        "backendDOMNodeId": 1620,
+        "name": "AI Auditor",
+        "role": "button"
+      },
+      {
+        "backendDOMNodeId": 1621,
+        "name": "Sublet",
+        "role": "button"
+      },
+      {
+        "backendDOMNodeId": 1622,
+        "name": "RFT",
+        "role": "button"
+      },
+      {
+        "backendDOMNodeId": 1638,
+        "name": "Vehicle Locations",
+        "role": "heading"
+      },
+      {
+        "backendDOMNodeId": 1640,
+        "name": "Sign out",
+        "role": "button"
+      },
+      {
+        "backendDOMNodeId": 1624,
+        "name": "Admin",
+        "role": "button"
+      },
+      {
+        "backendDOMNodeId": 1444,
+        "name": "SEARCH VEHICLES",
+        "role": "searchbox"
+      }
+    ],
+    "source": "Chromium Accessibility.getFullAXTree",
+    "unnamedInteractive": []
+  },
   "blocked_external_hosts": [],
-  "completed_utc": "2026-08-24T19:09:58Z",
+  "completed_utc": "2026-08-24T19:20:33Z",
   "console": [],
+  "contrast_sample": {
+    "allPass": true,
+    "method": "WCAG 2.x computed sRGB relative luminance",
+    "samples": [
+      {
+        "background": [
+          254,
+          254,
+          255
+        ],
+        "fontPx": 34,
+        "fontWeight": "700",
+        "foreground": [
+          23,
+          32,
+          51
+        ],
+        "pass": true,
+        "ratio": 16.19,
+        "required": 3,
+        "selector": "h1",
+        "text": "Vehicle Locations"
+      },
+      {
+        "background": [
+          42,
+          47,
+          55
+        ],
+        "fontPx": 14,
+        "fontWeight": "400",
+        "foreground": [
+          255,
+          255,
+          255
+        ],
+        "pass": true,
+        "ratio": 13.45,
+        "required": 4.5,
+        "selector": ".nav-item.active",
+        "text": "Vehicle Locations"
+      },
+      {
+        "background": [
+          42,
+          47,
+          55
+        ],
+        "fontPx": 14,
+        "fontWeight": "400",
+        "foreground": [
+          255,
+          255,
+          255
+        ],
+        "pass": true,
+        "ratio": 13.45,
+        "required": 4.5,
+        "selector": ".nav-item",
+        "text": "Vehicle Locations"
+      },
+      {
+        "background": [
+          255,
+          255,
+          255
+        ],
+        "fontPx": 14,
+        "fontWeight": "400",
+        "foreground": [
+          23,
+          33,
+          43
+        ],
+        "pass": true,
+        "ratio": 16.29,
+        "required": 4.5,
+        "selector": "#incoming-search",
+        "text": "HERMES-TEST-019"
+      },
+      {
+        "background": [
+          255,
+          255,
+          255
+        ],
+        "fontPx": 12.48,
+        "fontWeight": "700",
+        "foreground": [
+          23,
+          33,
+          43
+        ],
+        "pass": true,
+        "ratio": 16.29,
+        "required": 4.5,
+        "selector": "#pdc-auth-signout",
+        "text": "Sign out"
+      },
+      {
+        "background": [
+          224,
+          242,
+          254
+        ],
+        "fontPx": 12.5,
+        "fontWeight": "780",
+        "foreground": [
+          23,
+          33,
+          43
+        ],
+        "pass": true,
+        "ratio": 14.2,
+        "required": 4.5,
+        "selector": "[data-open-stock=\"HERMES-TEST-019\"]",
+        "text": "HERMES-TEST-019"
+      }
+    ]
+  },
   "credential_identity": "sha256:2db2d3e971ba772a3d7c0e30784ed08141f3f32d3749a3fe6c678df405e8f874",
   "desktop_accessibility": {
     "duplicateIds": [],
@@ -9,7 +260,7 @@
       "Vehicle Locations"
     ],
     "horizontalOverflow": false,
-    "interactiveCount": 145,
+    "interactiveCount": 18,
     "lang": "en",
     "smallTargets": [
       {
@@ -110,766 +361,17 @@
       },
       {
         "h": 43,
-        "name": "",
+        "name": "HERMES-TEST-019",
         "tag": "INPUT",
-        "w": 986
-      },
-      {
-        "h": 28,
-        "name": "",
-        "tag": "BUTTON",
-        "w": 390
-      },
-      {
-        "h": 28,
-        "name": "",
-        "tag": "BUTTON",
-        "w": 390
-      },
-      {
-        "h": 28,
-        "name": "",
-        "tag": "BUTTON",
-        "w": 390
-      },
-      {
-        "h": 28,
-        "name": "",
-        "tag": "BUTTON",
-        "w": 390
-      },
-      {
-        "h": 28,
-        "name": "",
-        "tag": "BUTTON",
-        "w": 390
-      },
-      {
-        "h": 28,
-        "name": "",
-        "tag": "BUTTON",
-        "w": 390
-      },
-      {
-        "h": 28,
-        "name": "",
-        "tag": "BUTTON",
-        "w": 390
-      },
-      {
-        "h": 28,
-        "name": "",
-        "tag": "BUTTON",
-        "w": 390
-      },
-      {
-        "h": 28,
-        "name": "",
-        "tag": "BUTTON",
-        "w": 390
-      },
-      {
-        "h": 28,
-        "name": "",
-        "tag": "BUTTON",
-        "w": 390
-      },
-      {
-        "h": 28,
-        "name": "",
-        "tag": "BUTTON",
-        "w": 390
-      },
-      {
-        "h": 28,
-        "name": "",
-        "tag": "BUTTON",
-        "w": 390
-      },
-      {
-        "h": 28,
-        "name": "",
-        "tag": "BUTTON",
-        "w": 390
-      },
-      {
-        "h": 28,
-        "name": "",
-        "tag": "BUTTON",
-        "w": 390
-      },
-      {
-        "h": 28,
-        "name": "",
-        "tag": "BUTTON",
-        "w": 390
-      },
-      {
-        "h": 28,
-        "name": "",
-        "tag": "BUTTON",
-        "w": 390
-      },
-      {
-        "h": 28,
-        "name": "",
-        "tag": "BUTTON",
-        "w": 390
-      },
-      {
-        "h": 28,
-        "name": "",
-        "tag": "BUTTON",
-        "w": 390
-      },
-      {
-        "h": 28,
-        "name": "",
-        "tag": "BUTTON",
-        "w": 390
-      },
-      {
-        "h": 28,
-        "name": "",
-        "tag": "BUTTON",
-        "w": 390
-      },
-      {
-        "h": 28,
-        "name": "",
-        "tag": "BUTTON",
-        "w": 390
-      },
-      {
-        "h": 28,
-        "name": "",
-        "tag": "BUTTON",
-        "w": 390
-      },
-      {
-        "h": 28,
-        "name": "",
-        "tag": "BUTTON",
-        "w": 390
-      },
-      {
-        "h": 28,
-        "name": "",
-        "tag": "BUTTON",
-        "w": 390
-      },
-      {
-        "h": 28,
-        "name": "",
-        "tag": "BUTTON",
-        "w": 390
-      },
-      {
-        "h": 28,
-        "name": "",
-        "tag": "BUTTON",
-        "w": 390
-      },
-      {
-        "h": 28,
-        "name": "",
-        "tag": "BUTTON",
-        "w": 390
-      },
-      {
-        "h": 28,
-        "name": "",
-        "tag": "BUTTON",
-        "w": 390
-      },
-      {
-        "h": 28,
-        "name": "",
-        "tag": "BUTTON",
-        "w": 390
-      },
-      {
-        "h": 28,
-        "name": "",
-        "tag": "BUTTON",
-        "w": 390
-      },
-      {
-        "h": 28,
-        "name": "",
-        "tag": "BUTTON",
-        "w": 390
-      },
-      {
-        "h": 28,
-        "name": "",
-        "tag": "BUTTON",
-        "w": 390
-      },
-      {
-        "h": 28,
-        "name": "",
-        "tag": "BUTTON",
-        "w": 390
-      },
-      {
-        "h": 28,
-        "name": "",
-        "tag": "BUTTON",
-        "w": 390
-      },
-      {
-        "h": 28,
-        "name": "",
-        "tag": "BUTTON",
-        "w": 390
-      },
-      {
-        "h": 28,
-        "name": "",
-        "tag": "BUTTON",
-        "w": 390
-      },
-      {
-        "h": 28,
-        "name": "",
-        "tag": "BUTTON",
-        "w": 390
-      },
-      {
-        "h": 28,
-        "name": "",
-        "tag": "BUTTON",
-        "w": 390
-      },
-      {
-        "h": 28,
-        "name": "",
-        "tag": "BUTTON",
-        "w": 390
-      },
-      {
-        "h": 28,
-        "name": "",
-        "tag": "BUTTON",
-        "w": 390
-      },
-      {
-        "h": 28,
-        "name": "",
-        "tag": "BUTTON",
-        "w": 390
-      },
-      {
-        "h": 28,
-        "name": "",
-        "tag": "BUTTON",
-        "w": 390
-      },
-      {
-        "h": 28,
-        "name": "",
-        "tag": "BUTTON",
-        "w": 390
-      },
-      {
-        "h": 28,
-        "name": "",
-        "tag": "BUTTON",
-        "w": 390
-      },
-      {
-        "h": 28,
-        "name": "",
-        "tag": "BUTTON",
-        "w": 390
-      },
-      {
-        "h": 28,
-        "name": "",
-        "tag": "BUTTON",
-        "w": 390
-      },
-      {
-        "h": 28,
-        "name": "",
-        "tag": "BUTTON",
-        "w": 390
-      },
-      {
-        "h": 28,
-        "name": "",
-        "tag": "BUTTON",
-        "w": 390
-      },
-      {
-        "h": 28,
-        "name": "",
-        "tag": "BUTTON",
-        "w": 390
-      },
-      {
-        "h": 28,
-        "name": "",
-        "tag": "BUTTON",
-        "w": 390
-      },
-      {
-        "h": 28,
-        "name": "",
-        "tag": "BUTTON",
-        "w": 390
-      },
-      {
-        "h": 28,
-        "name": "",
-        "tag": "BUTTON",
-        "w": 390
-      },
-      {
-        "h": 28,
-        "name": "",
-        "tag": "BUTTON",
-        "w": 390
-      },
-      {
-        "h": 28,
-        "name": "",
-        "tag": "BUTTON",
-        "w": 390
-      },
-      {
-        "h": 28,
-        "name": "",
-        "tag": "BUTTON",
-        "w": 390
-      },
-      {
-        "h": 28,
-        "name": "",
-        "tag": "BUTTON",
-        "w": 390
-      },
-      {
-        "h": 28,
-        "name": "",
-        "tag": "BUTTON",
-        "w": 390
-      },
-      {
-        "h": 28,
-        "name": "",
-        "tag": "BUTTON",
-        "w": 390
-      },
-      {
-        "h": 28,
-        "name": "",
-        "tag": "BUTTON",
-        "w": 390
-      },
-      {
-        "h": 28,
-        "name": "",
-        "tag": "BUTTON",
-        "w": 390
-      },
-      {
-        "h": 28,
-        "name": "",
-        "tag": "BUTTON",
-        "w": 390
-      },
-      {
-        "h": 28,
-        "name": "",
-        "tag": "BUTTON",
-        "w": 390
-      },
-      {
-        "h": 28,
-        "name": "",
-        "tag": "BUTTON",
-        "w": 390
-      },
-      {
-        "h": 28,
-        "name": "",
-        "tag": "BUTTON",
-        "w": 390
-      },
-      {
-        "h": 28,
-        "name": "",
-        "tag": "BUTTON",
-        "w": 390
-      },
-      {
-        "h": 28,
-        "name": "",
-        "tag": "BUTTON",
-        "w": 390
-      },
-      {
-        "h": 28,
-        "name": "",
-        "tag": "BUTTON",
-        "w": 390
-      },
-      {
-        "h": 28,
-        "name": "",
-        "tag": "BUTTON",
-        "w": 390
-      },
-      {
-        "h": 28,
-        "name": "",
-        "tag": "BUTTON",
-        "w": 390
-      },
-      {
-        "h": 28,
-        "name": "",
-        "tag": "BUTTON",
-        "w": 390
-      },
-      {
-        "h": 28,
-        "name": "",
-        "tag": "BUTTON",
-        "w": 390
-      },
-      {
-        "h": 28,
-        "name": "",
-        "tag": "BUTTON",
-        "w": 390
-      },
-      {
-        "h": 28,
-        "name": "",
-        "tag": "BUTTON",
-        "w": 390
-      },
-      {
-        "h": 28,
-        "name": "",
-        "tag": "BUTTON",
-        "w": 390
-      },
-      {
-        "h": 28,
-        "name": "",
-        "tag": "BUTTON",
-        "w": 390
-      },
-      {
-        "h": 28,
-        "name": "",
-        "tag": "BUTTON",
-        "w": 390
-      },
-      {
-        "h": 28,
-        "name": "",
-        "tag": "BUTTON",
-        "w": 390
-      },
-      {
-        "h": 28,
-        "name": "",
-        "tag": "BUTTON",
-        "w": 390
-      },
-      {
-        "h": 28,
-        "name": "",
-        "tag": "BUTTON",
-        "w": 390
-      },
-      {
-        "h": 28,
-        "name": "",
-        "tag": "BUTTON",
-        "w": 390
-      },
-      {
-        "h": 28,
-        "name": "",
-        "tag": "BUTTON",
-        "w": 390
-      },
-      {
-        "h": 28,
-        "name": "",
-        "tag": "BUTTON",
-        "w": 390
-      },
-      {
-        "h": 28,
-        "name": "",
-        "tag": "BUTTON",
-        "w": 390
+        "w": 845
       }
     ],
     "title": "PDC Control Board \u2014 STAGING",
     "unlabeled": [],
-    "unnamed": [
-      {
-        "cls": "",
-        "id": "incoming-search",
-        "tag": "INPUT"
-      },
-      {
-        "cls": "small-button",
-        "id": "",
-        "tag": "BUTTON"
-      },
-      {
-        "cls": "small-button",
-        "id": "",
-        "tag": "BUTTON"
-      },
-      {
-        "cls": "small-button",
-        "id": "",
-        "tag": "BUTTON"
-      },
-      {
-        "cls": "small-button",
-        "id": "",
-        "tag": "BUTTON"
-      },
-      {
-        "cls": "small-button",
-        "id": "",
-        "tag": "BUTTON"
-      },
-      {
-        "cls": "small-button",
-        "id": "",
-        "tag": "BUTTON"
-      },
-      {
-        "cls": "small-button",
-        "id": "",
-        "tag": "BUTTON"
-      },
-      {
-        "cls": "small-button",
-        "id": "",
-        "tag": "BUTTON"
-      },
-      {
-        "cls": "small-button",
-        "id": "",
-        "tag": "BUTTON"
-      },
-      {
-        "cls": "small-button",
-        "id": "",
-        "tag": "BUTTON"
-      },
-      {
-        "cls": "small-button",
-        "id": "",
-        "tag": "BUTTON"
-      },
-      {
-        "cls": "small-button",
-        "id": "",
-        "tag": "BUTTON"
-      },
-      {
-        "cls": "small-button",
-        "id": "",
-        "tag": "BUTTON"
-      },
-      {
-        "cls": "small-button",
-        "id": "",
-        "tag": "BUTTON"
-      },
-      {
-        "cls": "small-button",
-        "id": "",
-        "tag": "BUTTON"
-      },
-      {
-        "cls": "small-button",
-        "id": "",
-        "tag": "BUTTON"
-      },
-      {
-        "cls": "small-button",
-        "id": "",
-        "tag": "BUTTON"
-      },
-      {
-        "cls": "small-button",
-        "id": "",
-        "tag": "BUTTON"
-      },
-      {
-        "cls": "small-button",
-        "id": "",
-        "tag": "BUTTON"
-      },
-      {
-        "cls": "small-button",
-        "id": "",
-        "tag": "BUTTON"
-      },
-      {
-        "cls": "small-button",
-        "id": "",
-        "tag": "BUTTON"
-      },
-      {
-        "cls": "small-button",
-        "id": "",
-        "tag": "BUTTON"
-      },
-      {
-        "cls": "small-button",
-        "id": "",
-        "tag": "BUTTON"
-      },
-      {
-        "cls": "small-button",
-        "id": "",
-        "tag": "BUTTON"
-      },
-      {
-        "cls": "small-button",
-        "id": "",
-        "tag": "BUTTON"
-      },
-      {
-        "cls": "small-button",
-        "id": "",
-        "tag": "BUTTON"
-      },
-      {
-        "cls": "small-button",
-        "id": "",
-        "tag": "BUTTON"
-      },
-      {
-        "cls": "small-button",
-        "id": "",
-        "tag": "BUTTON"
-      },
-      {
-        "cls": "small-button",
-        "id": "",
-        "tag": "BUTTON"
-      },
-      {
-        "cls": "small-button",
-        "id": "",
-        "tag": "BUTTON"
-      },
-      {
-        "cls": "small-button",
-        "id": "",
-        "tag": "BUTTON"
-      },
-      {
-        "cls": "small-button",
-        "id": "",
-        "tag": "BUTTON"
-      },
-      {
-        "cls": "small-button",
-        "id": "",
-        "tag": "BUTTON"
-      },
-      {
-        "cls": "small-button",
-        "id": "",
-        "tag": "BUTTON"
-      },
-      {
-        "cls": "small-button",
-        "id": "",
-        "tag": "BUTTON"
-      },
-      {
-        "cls": "small-button",
-        "id": "",
-        "tag": "BUTTON"
-      },
-      {
-        "cls": "small-button",
-        "id": "",
-        "tag": "BUTTON"
-      },
-      {
-        "cls": "small-button",
-        "id": "",
-        "tag": "BUTTON"
-      },
-      {
-        "cls": "small-button",
-        "id": "",
-        "tag": "BUTTON"
-      },
-      {
-        "cls": "small-button",
-        "id": "",
-        "tag": "BUTTON"
-      },
-      {
-        "cls": "small-button",
-        "id": "",
-        "tag": "BUTTON"
-      },
-      {
-        "cls": "small-button",
-        "id": "",
-        "tag": "BUTTON"
-      },
-      {
-        "cls": "small-button",
-        "id": "",
-        "tag": "BUTTON"
-      },
-      {
-        "cls": "small-button",
-        "id": "",
-        "tag": "BUTTON"
-      },
-      {
-        "cls": "small-button",
-        "id": "",
-        "tag": "BUTTON"
-      },
-      {
-        "cls": "small-button",
-        "id": "",
-        "tag": "BUTTON"
-      },
-      {
-        "cls": "small-button",
-        "id": "",
-        "tag": "BUTTON"
-      },
-      {
-        "cls": "small-button",
-        "id": "",
-        "tag": "BUTTON"
-      },
-      {
-        "cls": "small-button",
-        "id": "",
-        "tag": "BUTTON"
-      }
-    ],
+    "unnamed": [],
     "viewport": {
       "h": 1000,
-      "scrollHeight": 1000,
+      "scrollHeight": 1119,
       "scrollWidth": 1440,
       "w": 1440
     }
@@ -1117,11 +619,11 @@
     },
     {
       "id": "incoming-search",
-      "name": "",
+      "name": "HERMES-TEST-019",
       "outline": "none",
       "rect": {
         "h": 43,
-        "w": 986,
+        "w": 845,
         "x": 256,
         "y": 145
       },
@@ -1133,8 +635,8 @@
       "outline": "auto",
       "rect": {
         "h": 44,
-        "w": 1154,
-        "x": 247,
+        "w": 1524,
+        "x": 245,
         "y": 381
       },
       "tag": "SUMMARY"
@@ -1145,20 +647,20 @@
       "outline": "auto",
       "rect": {
         "h": 42,
-        "w": 1157,
-        "x": 244,
+        "w": 1527,
+        "x": 242,
         "y": 437
       },
       "tag": "SUMMARY"
     },
     {
       "id": "",
-      "name": "QC\n1",
+      "name": "QC\n0",
       "outline": "auto",
       "rect": {
         "h": 42,
-        "w": 1157,
-        "x": 244,
+        "w": 1527,
+        "x": 242,
         "y": 501
       },
       "tag": "SUMMARY"
@@ -1169,32 +671,32 @@
       "outline": "auto",
       "rect": {
         "h": 42,
-        "w": 1157,
-        "x": 244,
+        "w": 1527,
+        "x": 242,
         "y": 565
       },
       "tag": "SUMMARY"
     },
     {
       "id": "",
-      "name": "PMB\n96",
+      "name": "PMB\n0",
       "outline": "auto",
       "rect": {
         "h": 42,
-        "w": 1157,
-        "x": 244,
+        "w": 1527,
+        "x": 242,
         "y": 629
       },
       "tag": "SUMMARY"
     },
     {
       "id": "",
-      "name": "YARD HOLD\n1",
+      "name": "YARD HOLD\n0",
       "outline": "auto",
       "rect": {
         "h": 42,
-        "w": 1157,
-        "x": 244,
+        "w": 1527,
+        "x": 242,
         "y": 693
       },
       "tag": "SUMMARY"
@@ -1205,33 +707,57 @@
       "outline": "auto",
       "rect": {
         "h": 42,
-        "w": 1157,
-        "x": 244,
+        "w": 1527,
+        "x": 242,
         "y": 757
       },
       "tag": "SUMMARY"
     },
     {
       "id": "",
-      "name": "OTHER\n73",
+      "name": "OTHER\n1\nAll other active vehicles",
       "outline": "auto",
       "rect": {
-        "h": 42,
-        "w": 1157,
-        "x": 244,
+        "h": 54,
+        "w": 1527,
+        "x": 242,
         "y": 821
       },
       "tag": "SUMMARY"
     },
     {
       "id": "",
+      "name": "\u2014\nHERMES-TEST-019\nHERMES-TEST-JC-019\nHERMES-TEST CUSTOMER 019\nHermes-test Vehicl",
+      "outline": "auto",
+      "rect": {
+        "h": 66,
+        "w": 1510,
+        "x": 243,
+        "y": 934
+      },
+      "tag": "SUMMARY"
+    },
+    {
+      "id": "",
+      "name": "SN HERMES-TEST-019",
+      "outline": "auto",
+      "rect": {
+        "h": 15,
+        "w": 82,
+        "x": 357,
+        "y": 960
+      },
+      "tag": "BUTTON"
+    },
+    {
+      "id": "",
       "name": "VT\nPerth Motor Bodies\nPDC Control Board\nVehicle Locations\nQC Sign-off\nControl Bo",
       "outline": "none",
       "rect": {
-        "h": 1000,
+        "h": 1119,
         "w": 1440,
         "x": 0,
-        "y": 0
+        "y": -24
       },
       "tag": "BODY"
     },
@@ -1244,30 +770,6 @@
         "w": 156,
         "x": 24,
         "y": 170
-      },
-      "tag": "BUTTON"
-    },
-    {
-      "id": "",
-      "name": "QC Sign-off",
-      "outline": "auto",
-      "rect": {
-        "h": 40,
-        "w": 156,
-        "x": 24,
-        "y": 219
-      },
-      "tag": "BUTTON"
-    },
-    {
-      "id": "",
-      "name": "Control Board",
-      "outline": "auto",
-      "rect": {
-        "h": 40,
-        "w": 156,
-        "x": 24,
-        "y": 268
       },
       "tag": "BUTTON"
     }
@@ -1382,7 +884,7 @@
       "id": "",
       "stock": "HERMES-TEST-019"
     },
-    "focusEscapedDialog": false,
+    "focusEscapedDialog": true,
     "initialFocus": "modal-close",
     "sample": [
       {
@@ -1446,7 +948,7 @@
         "tag": "INPUT"
       }
     ],
-    "stepsUntilEscape": 80,
+    "stepsUntilEscape": 68,
     "trigger": "stock-link stock-button vehicle-identity-value vehicle-identity-primary"
   },
   "page_errors": [],
@@ -1509,7 +1011,7 @@
       "reloaded": "rft"
     }
   ],
-  "schema": "pdc-overnight-browser-019-v1",
+  "schema": "pdc-overnight-browser-019-v2",
   "sessions": [
     {
       "label": "desktop-a",
@@ -1534,6 +1036,6 @@
       "synthetic019": true
     }
   ],
-  "started_utc": "2026-08-24T19:09:02Z",
+  "started_utc": "2026-08-24T19:19:50Z",
   "target": "https://btnew.github.io/pdc-control-board-staging/"
 }

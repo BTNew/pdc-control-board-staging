@@ -127,6 +127,54 @@ def accessibility_snapshot(page) -> dict:
     }""")
 
 
+def authoritative_accessibility_tree(context, page) -> dict:
+    """Capture Chromium's computed AX names rather than DOM-name guesses."""
+    session = context.new_cdp_session(page)
+    nodes = session.send("Accessibility.getFullAXTree").get("nodes", [])
+    roles = {"button", "link", "textbox", "searchbox", "combobox", "heading", "dialog", "main", "navigation"}
+    exposed = []
+    unnamed_interactive = []
+    for node in nodes:
+        if node.get("ignored"):
+            continue
+        role = (node.get("role") or {}).get("value", "")
+        if role not in roles:
+            continue
+        item = {
+            "role": role,
+            "name": (node.get("name") or {}).get("value", ""),
+            "backendDOMNodeId": node.get("backendDOMNodeId"),
+        }
+        exposed.append(item)
+        if role in {"button", "link", "textbox", "searchbox", "combobox"} and not item["name"].strip():
+            unnamed_interactive.append(item)
+    names = {item["name"] for item in exposed if item["name"]}
+    required = ["Vehicle Locations", "Control Board", "Parts", "Sublet", "QC Sign-off", "RFT"]
+    return {
+        "source": "Chromium Accessibility.getFullAXTree",
+        "exposedCount": len(exposed),
+        "roleCounts": {role: sum(1 for item in exposed if item["role"] == role) for role in sorted(roles)},
+        "requiredNames": {name: name in names for name in required},
+        "unnamedInteractive": unnamed_interactive[:50],
+        "sample": exposed[:120],
+    }
+
+
+def contrast_sample(page) -> dict:
+    """Sample visible primary text/control pairs using computed foreground/background."""
+    return page.evaluate("""() => {
+      const visible = el => { const s=getComputedStyle(el), r=el.getBoundingClientRect(); return !el.hidden && s.display!=='none' && s.visibility!=='hidden' && r.width>0 && r.height>0; };
+      const rgba = value => { const m=String(value).match(/[\\d.]+/g); return m ? [Number(m[0]),Number(m[1]),Number(m[2]),m[3]===undefined?1:Number(m[3])] : [0,0,0,1]; };
+      const composite = (fg,bg) => { const a=fg[3]+bg[3]*(1-fg[3]); return [(fg[0]*fg[3]+bg[0]*bg[3]*(1-fg[3]))/a,(fg[1]*fg[3]+bg[1]*bg[3]*(1-fg[3]))/a,(fg[2]*fg[3]+bg[2]*bg[3]*(1-fg[3]))/a,a]; };
+      const background = el => { let out=[255,255,255,1], chain=[]; for(let n=el;n;n=n.parentElement) chain.push(n); for(const n of chain.reverse()){ const c=rgba(getComputedStyle(n).backgroundColor); if(c[3]>0) out=composite(c,out); } return out; };
+      const lum = c => { const v=c.slice(0,3).map(x=>{x/=255;return x<=.03928?x/12.92:Math.pow((x+.055)/1.055,2.4)}); return .2126*v[0]+.7152*v[1]+.0722*v[2]; };
+      const selectors=['h1','.nav-item.active','.nav-item','#incoming-search','#pdc-auth-signout','[data-open-stock="HERMES-TEST-019"]'];
+      const samples=[];
+      for(const selector of selectors){ const el=Array.from(document.querySelectorAll(selector)).find(visible); if(!el) continue; const s=getComputedStyle(el), fg=composite(rgba(s.color),background(el)), bg=background(el), l1=lum(fg), l2=lum(bg), ratio=(Math.max(l1,l2)+.05)/(Math.min(l1,l2)+.05), px=parseFloat(s.fontSize), bold=parseInt(s.fontWeight)>=700, large=px>=24 || (px>=18.66&&bold), required=large?3:4.5; samples.push({selector,text:(el.innerText||el.value||el.getAttribute('aria-label')||'').trim().slice(0,80),foreground:fg.slice(0,3).map(Math.round),background:bg.slice(0,3).map(Math.round),fontPx:px,fontWeight:s.fontWeight,ratio:Number(ratio.toFixed(2)),required,pass:ratio+0.005>=required}); }
+      return {method:'WCAG 2.x computed sRGB relative luminance',samples,allPass:samples.length===selectors.length&&samples.every(x=>x.pass)};
+    }""")
+
+
 def keyboard_order(page, count: int = 30) -> list[dict]:
     page.locator("body").click(position={"x": 2, "y": 2})
     page.evaluate("document.activeElement && document.activeElement.blur()")
@@ -176,7 +224,7 @@ def run() -> None:
     if proof["database"]["synthetic_vehicle_total"] != 20 or proof["database"]["vehicle_total"] != 173:
         raise RuntimeError("staging sentinel/fleet drift")
     evidence = {
-        "schema": "pdc-overnight-browser-019-v1",
+        "schema": "pdc-overnight-browser-019-v2",
         "started_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         "target": BASE,
         "project_ref": REF,
@@ -195,10 +243,17 @@ def run() -> None:
         page1.goto(BASE + "?hermes019=desktop-a11y#/dashboard", wait_until="domcontentloaded", timeout=60000)
         wait_eval(page1, "!document.querySelector('#app-shell').hasAttribute('inert')"); page1.wait_for_timeout(1000)
         page1.evaluate("""() => { const u=document.querySelector('#pdc-auth-user'); if(u) u.textContent='HERMES STAGING ADMIN'; }""")
-        evidence["desktop_accessibility"] = accessibility_snapshot(page1)
-        evidence["keyboard_order"] = keyboard_order(page1)
         page1.locator("#incoming-search").fill("HERMES-TEST-019")
         page1.wait_for_timeout(500)
+        evidence["desktop_accessibility"] = accessibility_snapshot(page1)
+        evidence["authoritative_accessibility_tree"] = authoritative_accessibility_tree(context1, page1)
+        evidence["contrast_sample"] = contrast_sample(page1)
+        if (evidence["authoritative_accessibility_tree"]["unnamedInteractive"]
+                or not all(evidence["authoritative_accessibility_tree"]["requiredNames"].values())):
+            raise RuntimeError("authoritative accessibility-tree name acceptance failed")
+        if not evidence["contrast_sample"]["allPass"]:
+            raise RuntimeError("focused WCAG contrast sample failed: " + json.dumps(evidence["contrast_sample"]))
+        evidence["keyboard_order"] = keyboard_order(page1)
         page1.screenshot(path=str(OUT / "desktop-dashboard.png"), full_page=False)
         evidence["modal"] = modal_test(page1)
 
@@ -221,6 +276,7 @@ def run() -> None:
     print(json.dumps({
         "routes": evidence["routes"], "sessions": evidence["sessions"], "modal": evidence["modal"],
         "desktop": evidence["desktop_accessibility"], "mobile": evidence["mobile_accessibility"],
+        "authoritative_accessibility_tree": evidence["authoritative_accessibility_tree"], "contrast_sample": evidence["contrast_sample"],
         "console_errors": len([x for x in evidence["console"] if x["type"] == "error"]), "page_errors": len(evidence["page_errors"]),
         "failed_requests": len(evidence["failed_requests"]), "http_errors": len(evidence["http_errors"]), "blocked_external_hosts": evidence["blocked_external_hosts"]
     }, indent=2))
