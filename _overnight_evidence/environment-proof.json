@@ -11,8 +11,8 @@
     "active_activation_writers": 0,
     "active_mailboxes": 0,
     "migration_head": {
-      "name": "371_overnight_exact_synthetic_booking_validation",
-      "version": "20260825080000"
+      "name": "372_overnight_exact_synthetic_booking_constraint",
+      "version": "20260825090000"
     },
     "monitor_status": "stopped",
     "outbound_notification_rows": 0,

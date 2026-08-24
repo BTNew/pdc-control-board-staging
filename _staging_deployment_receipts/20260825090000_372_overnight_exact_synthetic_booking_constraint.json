@@ -1,0 +1,22 @@
+{
+  "applied": true,
+  "ledger_readback": [
+    {
+      "name": "372_overnight_exact_synthetic_booking_constraint",
+      "version": "20260825090000"
+    }
+  ],
+  "management_response": [
+    {
+      "pg_advisory_xact_lock": ""
+    }
+  ],
+  "migration_file": "20260825090000_372_overnight_exact_synthetic_booking_constraint.sql",
+  "migration_name": "372_overnight_exact_synthetic_booking_constraint",
+  "migration_sha256": "c0576d832f018ad05cca3d1c38722052f80254e4b95a90b1f3b193e9a7dd29ec",
+  "migration_version": "20260825090000",
+  "production_ref_rejected": "vjdtsswhroyguxyfjdkt",
+  "recorded_at_utc": "2026-08-24T16:31:58.738247+00:00",
+  "schema": "pdc-staging-management-migration-receipt-v1",
+  "target_ref": "cdsmnqxtyyoeoznmbidd"
+}

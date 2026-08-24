@@ -1,0 +1,1021 @@
+{
+  "actions": [
+    {
+      "bay_number": 5,
+      "booking_id": "e5077613-374e-4039-9e4c-8f97daf38be8",
+      "conflict_kind": null,
+      "duration_minutes": 73,
+      "expected_success": true,
+      "http_status": 200,
+      "initial_call_replay": true,
+      "label": "scenario-005-fitting-0907",
+      "pre_action_migration_head": {
+        "name": "372_overnight_exact_synthetic_booking_constraint",
+        "version": "20260825090000"
+      },
+      "protected_state": {
+        "rows": 1413,
+        "sha256": "28476c8fac93aa03707b20a84b4b836b4268c96fa6710bf1238f0f6ebb265f11"
+      },
+      "receipt_id": "23cec83f-437f-5e85-aa26-ba7f332faa0a",
+      "replay_verified": true,
+      "result": {
+        "booking": {
+          "actual_duration_minutes": null,
+          "actual_end_at": null,
+          "actual_start_at": null,
+          "assignment": null,
+          "bay": {
+            "bay_number": 5,
+            "code": "FITTING-BAY-05",
+            "display_name": "Fitting Bay 05",
+            "id": "ff080124-3632-4a07-944c-e0fb0f45fa1b",
+            "is_sublet_row": false
+          },
+          "booking_id": "e5077613-374e-4039-9e4c-8f97daf38be8",
+          "created_at": "2026-08-24T16:08:09.82666+00:00",
+          "default_duration_minutes": 73,
+          "deleted_at": null,
+          "deleted_reason": null,
+          "returned_to_queue_at": null,
+          "scheduled_end_at": "2026-08-26T02:20:00+00:00",
+          "scheduled_start_at": "2026-08-26T01:07:00+00:00",
+          "stage": {
+            "code": "FITTING",
+            "display_name": "Fitting",
+            "id": "d49e9302-6fa0-478a-8cbf-8169f63c0516",
+            "sort_order": 4
+          },
+          "status": "planned",
+          "stoppage_accumulated_minutes": 0,
+          "stoppage_reason": null,
+          "stoppage_started_at": null,
+          "updated_at": "2026-08-24T16:08:09.82666+00:00",
+          "vehicle": {
+            "customer_name": "HERMES-TEST CUSTOMER 005",
+            "job_card_number": "HERMES-TEST-JC-005",
+            "model": "HERMES-TEST VEHICLE 005 EXACT MINUTE FITTING BOOKING",
+            "permanent_vehicle_id": "HERMES-TEST-PERM-005",
+            "stock_number": "HERMES-TEST-005"
+          },
+          "vehicle_id": "7c8717e8-8ac6-550d-80a4-b6e40cc7dccb",
+          "version": 1
+        },
+        "history_id": "4d0c48e4-e11f-4e8e-95be-17d3072f9e36",
+        "ok": true,
+        "override_id": null,
+        "parts_reserved": false,
+        "revision": 6326
+      },
+      "revisions": {
+        "navision": {
+          "after": 3562,
+          "before": 3562,
+          "delta": 0
+        },
+        "pdc_email": {
+          "after": 90396,
+          "before": 90396,
+          "delta": 0
+        },
+        "workshop": {
+          "after": 6326,
+          "before": 6325,
+          "delta": 1
+        }
+      },
+      "scenario_no": 5,
+      "scheduled_start_at": "2026-08-26T01:07:00+00:00",
+      "sibling_state": {
+        "rows": 55,
+        "sha256": "5cb6fefc7c40a55aa57f6861ea1ed9d4fae9511b38d599fb5d64aa527ba4d2cd"
+      },
+      "stage_code": "FITTING",
+      "stock": "HERMES-TEST-005",
+      "transport_rejection": null,
+      "vehicle_version_after": 1,
+      "vehicle_version_before": 1
+    },
+    {
+      "bay_number": 10,
+      "booking_id": "6e900218-613a-4c94-b0f9-32fdaa1ce6a8",
+      "conflict_kind": null,
+      "duration_minutes": 61,
+      "expected_success": true,
+      "http_status": 200,
+      "initial_call_replay": true,
+      "label": "scenario-006-electrical-0911",
+      "pre_action_migration_head": {
+        "name": "372_overnight_exact_synthetic_booking_constraint",
+        "version": "20260825090000"
+      },
+      "protected_state": {
+        "rows": 1413,
+        "sha256": "28476c8fac93aa03707b20a84b4b836b4268c96fa6710bf1238f0f6ebb265f11"
+      },
+      "receipt_id": "fd3d76ad-7959-578f-ac76-3528d99ea9c4",
+      "replay_verified": true,
+      "result": {
+        "booking": {
+          "actual_duration_minutes": null,
+          "actual_end_at": null,
+          "actual_start_at": null,
+          "assignment": null,
+          "bay": {
+            "bay_number": 10,
+            "code": "ELECTRICAL-BAY-10",
+            "display_name": "Elec Bay 10",
+            "id": "3dd68646-b4a7-4c32-98fa-39e068b0b1e9",
+            "is_sublet_row": false
+          },
+          "booking_id": "6e900218-613a-4c94-b0f9-32fdaa1ce6a8",
+          "created_at": "2026-08-24T16:11:33.945081+00:00",
+          "default_duration_minutes": 61,
+          "deleted_at": null,
+          "deleted_reason": null,
+          "returned_to_queue_at": null,
+          "scheduled_end_at": "2026-08-26T02:12:00+00:00",
+          "scheduled_start_at": "2026-08-26T01:11:00+00:00",
+          "stage": {
+            "code": "ELECTRICAL",
+            "display_name": "Elec",
+            "id": "93b1c12f-875c-4873-ad7f-8c8e0eb3b6c0",
+            "sort_order": 6
+          },
+          "status": "planned",
+          "stoppage_accumulated_minutes": 0,
+          "stoppage_reason": null,
+          "stoppage_started_at": null,
+          "updated_at": "2026-08-24T16:11:33.945081+00:00",
+          "vehicle": {
+            "customer_name": "HERMES-TEST CUSTOMER 006",
+            "job_card_number": "HERMES-TEST-JC-006",
+            "model": "HERMES-TEST VEHICLE 006 EXACT MINUTE ELECTRICAL BOOKING",
+            "permanent_vehicle_id": "HERMES-TEST-PERM-006",
+            "stock_number": "HERMES-TEST-006"
+          },
+          "vehicle_id": "e3f8de09-ca7b-5acf-893a-97768775db32",
+          "version": 1
+        },
+        "history_id": "d0465deb-067f-425c-ae43-61ed56620dbf",
+        "ok": true,
+        "override_id": null,
+        "parts_reserved": false,
+        "revision": 6327
+      },
+      "revisions": {
+        "navision": {
+          "after": 3562,
+          "before": 3562,
+          "delta": 0
+        },
+        "pdc_email": {
+          "after": 90396,
+          "before": 90396,
+          "delta": 0
+        },
+        "workshop": {
+          "after": 6327,
+          "before": 6326,
+          "delta": 1
+        }
+      },
+      "scenario_no": 6,
+      "scheduled_start_at": "2026-08-26T01:11:00+00:00",
+      "sibling_state": {
+        "rows": 58,
+        "sha256": "a8b2020333ed216a25d0917256f69478db89cc77dc1bf303557a35b0df24f15f"
+      },
+      "stage_code": "ELECTRICAL",
+      "stock": "HERMES-TEST-006",
+      "transport_rejection": null,
+      "vehicle_version_after": 1,
+      "vehicle_version_before": 1
+    },
+    {
+      "bay_number": 5,
+      "booking_id": null,
+      "conflict_kind": "bay",
+      "duration_minutes": 30,
+      "expected_success": false,
+      "http_status": 200,
+      "initial_call_replay": true,
+      "label": "scenario-007-fitting-bay-conflict",
+      "pre_action_migration_head": {
+        "name": "372_overnight_exact_synthetic_booking_constraint",
+        "version": "20260825090000"
+      },
+      "protected_state": {
+        "rows": 1413,
+        "sha256": "28476c8fac93aa03707b20a84b4b836b4268c96fa6710bf1238f0f6ebb265f11"
+      },
+      "receipt_id": "6dc751ad-25ac-50c9-a21a-402ffb342e76",
+      "replay_verified": true,
+      "result": {
+        "conflict": {
+          "conflict_type": "bay_overlap",
+          "existing_booking": {
+            "actual_duration_minutes": null,
+            "actual_end_at": null,
+            "actual_start_at": null,
+            "assignment": null,
+            "bay": {
+              "bay_number": 5,
+              "code": "FITTING-BAY-05",
+              "display_name": "Fitting Bay 05",
+              "id": "ff080124-3632-4a07-944c-e0fb0f45fa1b",
+              "is_sublet_row": false
+            },
+            "booking_id": "e5077613-374e-4039-9e4c-8f97daf38be8",
+            "created_at": "2026-08-24T16:08:09.82666+00:00",
+            "default_duration_minutes": 73,
+            "deleted_at": null,
+            "deleted_reason": null,
+            "returned_to_queue_at": null,
+            "scheduled_end_at": "2026-08-26T02:20:00+00:00",
+            "scheduled_start_at": "2026-08-26T01:07:00+00:00",
+            "stage": {
+              "code": "FITTING",
+              "display_name": "Fitting",
+              "id": "d49e9302-6fa0-478a-8cbf-8169f63c0516",
+              "sort_order": 4
+            },
+            "status": "planned",
+            "stoppage_accumulated_minutes": 0,
+            "stoppage_reason": null,
+            "stoppage_started_at": null,
+            "updated_at": "2026-08-24T16:08:09.82666+00:00",
+            "vehicle": {
+              "customer_name": "HERMES-TEST CUSTOMER 005",
+              "job_card_number": "HERMES-TEST-JC-005",
+              "model": "HERMES-TEST VEHICLE 005 EXACT MINUTE FITTING BOOKING",
+              "permanent_vehicle_id": "HERMES-TEST-PERM-005",
+              "stock_number": "HERMES-TEST-005"
+            },
+            "vehicle_id": "7c8717e8-8ac6-550d-80a4-b6e40cc7dccb",
+            "version": 1
+          }
+        },
+        "error": "bay_overlap",
+        "ok": false
+      },
+      "revisions": {
+        "navision": {
+          "after": 3562,
+          "before": 3562,
+          "delta": 0
+        },
+        "pdc_email": {
+          "after": 90396,
+          "before": 90396,
+          "delta": 0
+        },
+        "workshop": {
+          "after": 6327,
+          "before": 6327,
+          "delta": 0
+        }
+      },
+      "scenario_no": 7,
+      "scheduled_start_at": "2026-08-26T01:30:00+00:00",
+      "sibling_state": {
+        "rows": 58,
+        "sha256": "a855a0324957558dacf5b93cf0498968c4ded7d96a2ae822a6a322b1663540c5"
+      },
+      "stage_code": "FITTING",
+      "stock": "HERMES-TEST-007",
+      "transport_rejection": null,
+      "vehicle_version_after": 1,
+      "vehicle_version_before": 1
+    },
+    {
+      "bay_number": 4,
+      "booking_id": "fbb9e980-01b4-4b65-8998-3d491c5f40d0",
+      "conflict_kind": null,
+      "duration_minutes": 47,
+      "expected_success": true,
+      "http_status": 200,
+      "initial_call_replay": true,
+      "label": "scenario-007-fitting-1023",
+      "pre_action_migration_head": {
+        "name": "372_overnight_exact_synthetic_booking_constraint",
+        "version": "20260825090000"
+      },
+      "protected_state": {
+        "rows": 1413,
+        "sha256": "28476c8fac93aa03707b20a84b4b836b4268c96fa6710bf1238f0f6ebb265f11"
+      },
+      "receipt_id": "46d59358-f265-5c24-9281-0ddc4f0191ae",
+      "replay_verified": true,
+      "result": {
+        "booking": {
+          "actual_duration_minutes": null,
+          "actual_end_at": null,
+          "actual_start_at": null,
+          "assignment": null,
+          "bay": {
+            "bay_number": 4,
+            "code": "FITTING-BAY-04",
+            "display_name": "Fitting Bay 04",
+            "id": "c8514c1a-9e22-4c7d-a579-43a7bbf13906",
+            "is_sublet_row": false
+          },
+          "booking_id": "fbb9e980-01b4-4b65-8998-3d491c5f40d0",
+          "created_at": "2026-08-24T16:32:33.57933+00:00",
+          "default_duration_minutes": 47,
+          "deleted_at": null,
+          "deleted_reason": null,
+          "returned_to_queue_at": null,
+          "scheduled_end_at": "2026-08-26T03:10:00+00:00",
+          "scheduled_start_at": "2026-08-26T02:23:00+00:00",
+          "stage": {
+            "code": "FITTING",
+            "display_name": "Fitting",
+            "id": "d49e9302-6fa0-478a-8cbf-8169f63c0516",
+            "sort_order": 4
+          },
+          "status": "planned",
+          "stoppage_accumulated_minutes": 0,
+          "stoppage_reason": null,
+          "stoppage_started_at": null,
+          "updated_at": "2026-08-24T16:32:33.57933+00:00",
+          "vehicle": {
+            "customer_name": "HERMES-TEST CUSTOMER 007",
+            "job_card_number": "HERMES-TEST-JC-007",
+            "model": "HERMES-TEST VEHICLE 007 MULTI STAGE BOOKING CONFLICT",
+            "permanent_vehicle_id": "HERMES-TEST-PERM-007",
+            "stock_number": "HERMES-TEST-007"
+          },
+          "vehicle_id": "f0e61ef1-8329-533b-a8eb-703a53bf2d1e",
+          "version": 1
+        },
+        "history_id": "0d046886-af7b-4127-b876-21c0c70f3e22",
+        "ok": true,
+        "override_id": null,
+        "parts_reserved": false,
+        "revision": 6328
+      },
+      "revisions": {
+        "navision": {
+          "after": 3562,
+          "before": 3562,
+          "delta": 0
+        },
+        "pdc_email": {
+          "after": 90396,
+          "before": 90396,
+          "delta": 0
+        },
+        "workshop": {
+          "after": 6328,
+          "before": 6327,
+          "delta": 1
+        }
+      },
+      "scenario_no": 7,
+      "scheduled_start_at": "2026-08-26T02:23:00+00:00",
+      "sibling_state": {
+        "rows": 58,
+        "sha256": "a855a0324957558dacf5b93cf0498968c4ded7d96a2ae822a6a322b1663540c5"
+      },
+      "stage_code": "FITTING",
+      "stock": "HERMES-TEST-007",
+      "transport_rejection": null,
+      "vehicle_version_after": 1,
+      "vehicle_version_before": 1
+    },
+    {
+      "bay_number": 10,
+      "booking_id": null,
+      "conflict_kind": "vehicle",
+      "duration_minutes": 59,
+      "expected_success": false,
+      "http_status": 400,
+      "initial_call_replay": false,
+      "label": "scenario-007-vehicle-conflict-exact59",
+      "pre_action_migration_head": {
+        "name": "372_overnight_exact_synthetic_booking_constraint",
+        "version": "20260825090000"
+      },
+      "protected_state": null,
+      "receipt_id": null,
+      "replay_verified": false,
+      "result": null,
+      "revisions": null,
+      "scenario_no": 7,
+      "scheduled_start_at": "2026-08-26T02:30:00+00:00",
+      "sibling_state": null,
+      "stage_code": "ELECTRICAL",
+      "stock": "HERMES-TEST-007",
+      "transport_rejection": {
+        "code": "22023",
+        "details": null,
+        "hint": null,
+        "message": "Workshop Planner validation rejected booking: {\"ok\": false, \"error\": \"vehicle_overlap\", \"conflict_booking_id\": \"fbb9e980-01b4-4b65-8998-3d491c5f40d0\"}"
+      },
+      "vehicle_version_after": 1,
+      "vehicle_version_before": 1
+    },
+    {
+      "bay_number": 10,
+      "booking_id": "50f93fed-41ce-4fef-963b-42444c425e0b",
+      "conflict_kind": null,
+      "duration_minutes": 59,
+      "expected_success": true,
+      "http_status": 200,
+      "initial_call_replay": false,
+      "label": "scenario-007-electrical-adjacent-1110",
+      "pre_action_migration_head": {
+        "name": "372_overnight_exact_synthetic_booking_constraint",
+        "version": "20260825090000"
+      },
+      "protected_state": {
+        "rows": 1413,
+        "sha256": "28476c8fac93aa03707b20a84b4b836b4268c96fa6710bf1238f0f6ebb265f11"
+      },
+      "receipt_id": "aca84a26-7dab-5e07-9c15-df80c4d8e6b7",
+      "replay_verified": true,
+      "result": {
+        "booking": {
+          "actual_duration_minutes": null,
+          "actual_end_at": null,
+          "actual_start_at": null,
+          "assignment": null,
+          "bay": {
+            "bay_number": 10,
+            "code": "ELECTRICAL-BAY-10",
+            "display_name": "Elec Bay 10",
+            "id": "3dd68646-b4a7-4c32-98fa-39e068b0b1e9",
+            "is_sublet_row": false
+          },
+          "booking_id": "50f93fed-41ce-4fef-963b-42444c425e0b",
+          "created_at": "2026-08-24T16:37:01.321724+00:00",
+          "default_duration_minutes": 59,
+          "deleted_at": null,
+          "deleted_reason": null,
+          "returned_to_queue_at": null,
+          "scheduled_end_at": "2026-08-26T04:09:00+00:00",
+          "scheduled_start_at": "2026-08-26T03:10:00+00:00",
+          "stage": {
+            "code": "ELECTRICAL",
+            "display_name": "Elec",
+            "id": "93b1c12f-875c-4873-ad7f-8c8e0eb3b6c0",
+            "sort_order": 6
+          },
+          "status": "planned",
+          "stoppage_accumulated_minutes": 0,
+          "stoppage_reason": null,
+          "stoppage_started_at": null,
+          "updated_at": "2026-08-24T16:37:01.321724+00:00",
+          "vehicle": {
+            "customer_name": "HERMES-TEST CUSTOMER 007",
+            "job_card_number": "HERMES-TEST-JC-007",
+            "model": "HERMES-TEST VEHICLE 007 MULTI STAGE BOOKING CONFLICT",
+            "permanent_vehicle_id": "HERMES-TEST-PERM-007",
+            "stock_number": "HERMES-TEST-007"
+          },
+          "vehicle_id": "f0e61ef1-8329-533b-a8eb-703a53bf2d1e",
+          "version": 1
+        },
+        "history_id": "0d589f2b-62ff-4f1f-9bc4-25ebfedc4611",
+        "ok": true,
+        "override_id": null,
+        "parts_reserved": false,
+        "revision": 6329
+      },
+      "revisions": {
+        "navision": {
+          "after": 3562,
+          "before": 3562,
+          "delta": 0
+        },
+        "pdc_email": {
+          "after": 90396,
+          "before": 90396,
+          "delta": 0
+        },
+        "workshop": {
+          "after": 6329,
+          "before": 6328,
+          "delta": 1
+        }
+      },
+      "scenario_no": 7,
+      "scheduled_start_at": "2026-08-26T03:10:00+00:00",
+      "sibling_state": {
+        "rows": 58,
+        "sha256": "a855a0324957558dacf5b93cf0498968c4ded7d96a2ae822a6a322b1663540c5"
+      },
+      "stage_code": "ELECTRICAL",
+      "stock": "HERMES-TEST-007",
+      "transport_rejection": null,
+      "vehicle_version_after": 1,
+      "vehicle_version_before": 1
+    }
+  ],
+  "actor_id": "557dba7f-fd70-4b9e-aa7b-b83b717682a7",
+  "authoritative_conflicts": 2,
+  "estimate_readback": {
+    "estimates": [
+      {
+        "canonical_hours": 1.22,
+        "canonical_minutes": 73,
+        "estimate": {
+          "created_at": "2026-08-24T15:26:08.539845+00:00",
+          "created_by": "557dba7f-fd70-4b9e-aa7b-b83b717682a7",
+          "created_by_email": "administrator2@staging.pdc-workshop.example.com",
+          "estimate_id": "21d865dd-0fc9-5cbf-bd80-d76271e7f4d3",
+          "estimated_hours": 1.22,
+          "estimated_minutes": 73,
+          "run_id": "HERMES-TEST-RUN-20260824",
+          "scenario_no": 5,
+          "stage_code": "FITTING",
+          "vehicle_id": "7c8717e8-8ac6-550d-80a4-b6e40cc7dccb",
+          "version": 1
+        },
+        "receipts": [
+          {
+            "actor_email": "administrator2@staging.pdc-workshop.example.com",
+            "actor_id": "557dba7f-fd70-4b9e-aa7b-b83b717682a7",
+            "created_at": "2026-08-24T15:26:08.712581+00:00",
+            "idempotency_key": "c159e953-5e42-5611-a0ae-403df2c845e5",
+            "receipt_id": "70697068-b1f2-5176-a024-b7e068d9b578",
+            "request_payload": {
+              "contract": "pdc-overnight-synthetic-estimate-369",
+              "estimated_hours": 1.22,
+              "expected_estimate_version": 0,
+              "expected_vehicle_version": 1,
+              "idempotency_key": "c159e953-5e42-5611-a0ae-403df2c845e5",
+              "run_id": "HERMES-TEST-RUN-20260824",
+              "stage_code": "FITTING",
+              "vehicle_id": "7c8717e8-8ac6-550d-80a4-b6e40cc7dccb"
+            },
+            "request_sha256": "fb6e2963d23bfeea4ac916e36ca7e4c5909be8d2084d609a0c040cdda1a05fd1",
+            "response": {
+              "code": "synthetic_estimate_bound",
+              "estimate_id": "21d865dd-0fc9-5cbf-bd80-d76271e7f4d3",
+              "estimate_version": 1,
+              "estimated_hours": 1.22,
+              "estimated_minutes": 73,
+              "notification_delta": 0,
+              "ok": true,
+              "protected_state": {
+                "rows": 1413,
+                "sha256": "28476c8fac93aa03707b20a84b4b836b4268c96fa6710bf1238f0f6ebb265f11"
+              },
+              "receipt_id": "70697068-b1f2-5176-a024-b7e068d9b578",
+              "replay": false,
+              "request_sha256": "fb6e2963d23bfeea4ac916e36ca7e4c5909be8d2084d609a0c040cdda1a05fd1",
+              "run_id": "HERMES-TEST-RUN-20260824",
+              "scenario_no": 5,
+              "sibling_state": {
+                "rows": 49,
+                "sha256": "00bb7c725d61eae7ced24415e6da3f2b0e7c230dc784cf3c3bc31ca359f33aeb"
+              },
+              "stage_code": "FITTING",
+              "synthetic_wrapper": true,
+              "vehicle_id": "7c8717e8-8ac6-550d-80a4-b6e40cc7dccb",
+              "vehicle_version": 1
+            },
+            "run_id": "HERMES-TEST-RUN-20260824",
+            "vehicle_id": "7c8717e8-8ac6-550d-80a4-b6e40cc7dccb"
+          }
+        ]
+      },
+      {
+        "canonical_hours": 1.02,
+        "canonical_minutes": 61,
+        "estimate": {
+          "created_at": "2026-08-24T15:26:11.780203+00:00",
+          "created_by": "557dba7f-fd70-4b9e-aa7b-b83b717682a7",
+          "created_by_email": "administrator2@staging.pdc-workshop.example.com",
+          "estimate_id": "84a3a16b-ad8d-51b7-88a6-aaddb7b4c162",
+          "estimated_hours": 1.02,
+          "estimated_minutes": 61,
+          "run_id": "HERMES-TEST-RUN-20260824",
+          "scenario_no": 6,
+          "stage_code": "ELECTRICAL",
+          "vehicle_id": "e3f8de09-ca7b-5acf-893a-97768775db32",
+          "version": 1
+        },
+        "receipts": [
+          {
+            "actor_email": "administrator2@staging.pdc-workshop.example.com",
+            "actor_id": "557dba7f-fd70-4b9e-aa7b-b83b717682a7",
+            "created_at": "2026-08-24T15:26:11.924971+00:00",
+            "idempotency_key": "e4268f8d-06eb-524a-b9bd-5421a4f01b5f",
+            "receipt_id": "fea22d42-bb57-50bb-908a-a50bf02c4b27",
+            "request_payload": {
+              "contract": "pdc-overnight-synthetic-estimate-369",
+              "estimated_hours": 1.02,
+              "expected_estimate_version": 0,
+              "expected_vehicle_version": 1,
+              "idempotency_key": "e4268f8d-06eb-524a-b9bd-5421a4f01b5f",
+              "run_id": "HERMES-TEST-RUN-20260824",
+              "stage_code": "ELECTRICAL",
+              "vehicle_id": "e3f8de09-ca7b-5acf-893a-97768775db32"
+            },
+            "request_sha256": "4db86443aa2f57d80346ab4507f37eed1b76dc3cc594832a2f899fc35fd783e1",
+            "response": {
+              "code": "synthetic_estimate_bound",
+              "estimate_id": "84a3a16b-ad8d-51b7-88a6-aaddb7b4c162",
+              "estimate_version": 1,
+              "estimated_hours": 1.02,
+              "estimated_minutes": 61,
+              "notification_delta": 0,
+              "ok": true,
+              "protected_state": {
+                "rows": 1413,
+                "sha256": "28476c8fac93aa03707b20a84b4b836b4268c96fa6710bf1238f0f6ebb265f11"
+              },
+              "receipt_id": "fea22d42-bb57-50bb-908a-a50bf02c4b27",
+              "replay": false,
+              "request_sha256": "4db86443aa2f57d80346ab4507f37eed1b76dc3cc594832a2f899fc35fd783e1",
+              "run_id": "HERMES-TEST-RUN-20260824",
+              "scenario_no": 6,
+              "sibling_state": {
+                "rows": 51,
+                "sha256": "12e625d114fb8406d0644e60876a7d4e0f28991dbbd352008096fcbeceb57a43"
+              },
+              "stage_code": "ELECTRICAL",
+              "synthetic_wrapper": true,
+              "vehicle_id": "e3f8de09-ca7b-5acf-893a-97768775db32",
+              "vehicle_version": 1
+            },
+            "run_id": "HERMES-TEST-RUN-20260824",
+            "vehicle_id": "e3f8de09-ca7b-5acf-893a-97768775db32"
+          }
+        ]
+      },
+      {
+        "canonical_hours": 0.98,
+        "canonical_minutes": 59,
+        "estimate": {
+          "created_at": "2026-08-24T16:08:06.100265+00:00",
+          "created_by": "557dba7f-fd70-4b9e-aa7b-b83b717682a7",
+          "created_by_email": "administrator2@staging.pdc-workshop.example.com",
+          "estimate_id": "19318cdb-daa5-5f41-afc9-d7b96faf8a49",
+          "estimated_hours": 0.98,
+          "estimated_minutes": 59,
+          "run_id": "HERMES-TEST-RUN-20260824",
+          "scenario_no": 7,
+          "stage_code": "ELECTRICAL",
+          "vehicle_id": "f0e61ef1-8329-533b-a8eb-703a53bf2d1e",
+          "version": 1
+        },
+        "receipts": [
+          {
+            "actor_email": "administrator2@staging.pdc-workshop.example.com",
+            "actor_id": "557dba7f-fd70-4b9e-aa7b-b83b717682a7",
+            "created_at": "2026-08-24T16:08:03.171618+00:00",
+            "idempotency_key": "b3b4e748-1a95-5d2e-ab63-6009414547ca",
+            "receipt_id": "f0de15f9-c17d-537c-bfc0-9f6e66182bf1",
+            "request_payload": {
+              "contract": "pdc-overnight-synthetic-estimate-369",
+              "estimated_hours": 0.78,
+              "expected_estimate_version": 0,
+              "expected_vehicle_version": 1,
+              "idempotency_key": "b3b4e748-1a95-5d2e-ab63-6009414547ca",
+              "run_id": "HERMES-TEST-RUN-20260824",
+              "stage_code": "FITTING",
+              "vehicle_id": "f0e61ef1-8329-533b-a8eb-703a53bf2d1e"
+            },
+            "request_sha256": "a4ac806fb6eefa6f77d5e7c35e9b0a9a0892805421c76bcf5c80b848d751ae38",
+            "response": {
+              "code": "synthetic_estimate_bound",
+              "estimate_id": "d2fc8406-36ed-5d23-ae49-c9a67a7ee152",
+              "estimate_version": 1,
+              "estimated_hours": 0.78,
+              "estimated_minutes": 47,
+              "notification_delta": 0,
+              "ok": true,
+              "protected_state": {
+                "rows": 1413,
+                "sha256": "28476c8fac93aa03707b20a84b4b836b4268c96fa6710bf1238f0f6ebb265f11"
+              },
+              "receipt_id": "f0de15f9-c17d-537c-bfc0-9f6e66182bf1",
+              "replay": false,
+              "request_sha256": "a4ac806fb6eefa6f77d5e7c35e9b0a9a0892805421c76bcf5c80b848d751ae38",
+              "run_id": "HERMES-TEST-RUN-20260824",
+              "scenario_no": 7,
+              "sibling_state": {
+                "rows": 52,
+                "sha256": "881ef3c35431ad0f973d77aeebdebb9f1266752691ab691b69f5feec2a86b31a"
+              },
+              "stage_code": "FITTING",
+              "synthetic_wrapper": true,
+              "vehicle_id": "f0e61ef1-8329-533b-a8eb-703a53bf2d1e",
+              "vehicle_version": 1
+            },
+            "run_id": "HERMES-TEST-RUN-20260824",
+            "vehicle_id": "f0e61ef1-8329-533b-a8eb-703a53bf2d1e"
+          },
+          {
+            "actor_email": "administrator2@staging.pdc-workshop.example.com",
+            "actor_id": "557dba7f-fd70-4b9e-aa7b-b83b717682a7",
+            "created_at": "2026-08-24T16:08:06.25231+00:00",
+            "idempotency_key": "63f813f7-613d-5801-a6bf-6b3d0e821602",
+            "receipt_id": "8d5f3997-125d-5593-b7e4-4d1f30f9d962",
+            "request_payload": {
+              "contract": "pdc-overnight-synthetic-estimate-369",
+              "estimated_hours": 0.98,
+              "expected_estimate_version": 0,
+              "expected_vehicle_version": 1,
+              "idempotency_key": "63f813f7-613d-5801-a6bf-6b3d0e821602",
+              "run_id": "HERMES-TEST-RUN-20260824",
+              "stage_code": "ELECTRICAL",
+              "vehicle_id": "f0e61ef1-8329-533b-a8eb-703a53bf2d1e"
+            },
+            "request_sha256": "b2a83d2bf0784a98f2971a4caaaf22a74b49c169abc2d5a15296c09fa0e7a00d",
+            "response": {
+              "code": "synthetic_estimate_bound",
+              "estimate_id": "19318cdb-daa5-5f41-afc9-d7b96faf8a49",
+              "estimate_version": 1,
+              "estimated_hours": 0.98,
+              "estimated_minutes": 59,
+              "notification_delta": 0,
+              "ok": true,
+              "protected_state": {
+                "rows": 1413,
+                "sha256": "28476c8fac93aa03707b20a84b4b836b4268c96fa6710bf1238f0f6ebb265f11"
+              },
+              "receipt_id": "8d5f3997-125d-5593-b7e4-4d1f30f9d962",
+              "replay": false,
+              "request_sha256": "b2a83d2bf0784a98f2971a4caaaf22a74b49c169abc2d5a15296c09fa0e7a00d",
+              "run_id": "HERMES-TEST-RUN-20260824",
+              "scenario_no": 7,
+              "sibling_state": {
+                "rows": 52,
+                "sha256": "881ef3c35431ad0f973d77aeebdebb9f1266752691ab691b69f5feec2a86b31a"
+              },
+              "stage_code": "ELECTRICAL",
+              "synthetic_wrapper": true,
+              "vehicle_id": "f0e61ef1-8329-533b-a8eb-703a53bf2d1e",
+              "vehicle_version": 1
+            },
+            "run_id": "HERMES-TEST-RUN-20260824",
+            "vehicle_id": "f0e61ef1-8329-533b-a8eb-703a53bf2d1e"
+          }
+        ]
+      },
+      {
+        "canonical_hours": 0.78,
+        "canonical_minutes": 47,
+        "estimate": {
+          "created_at": "2026-08-24T16:08:03.021321+00:00",
+          "created_by": "557dba7f-fd70-4b9e-aa7b-b83b717682a7",
+          "created_by_email": "administrator2@staging.pdc-workshop.example.com",
+          "estimate_id": "d2fc8406-36ed-5d23-ae49-c9a67a7ee152",
+          "estimated_hours": 0.78,
+          "estimated_minutes": 47,
+          "run_id": "HERMES-TEST-RUN-20260824",
+          "scenario_no": 7,
+          "stage_code": "FITTING",
+          "vehicle_id": "f0e61ef1-8329-533b-a8eb-703a53bf2d1e",
+          "version": 1
+        },
+        "receipts": [
+          {
+            "actor_email": "administrator2@staging.pdc-workshop.example.com",
+            "actor_id": "557dba7f-fd70-4b9e-aa7b-b83b717682a7",
+            "created_at": "2026-08-24T16:08:03.171618+00:00",
+            "idempotency_key": "b3b4e748-1a95-5d2e-ab63-6009414547ca",
+            "receipt_id": "f0de15f9-c17d-537c-bfc0-9f6e66182bf1",
+            "request_payload": {
+              "contract": "pdc-overnight-synthetic-estimate-369",
+              "estimated_hours": 0.78,
+              "expected_estimate_version": 0,
+              "expected_vehicle_version": 1,
+              "idempotency_key": "b3b4e748-1a95-5d2e-ab63-6009414547ca",
+              "run_id": "HERMES-TEST-RUN-20260824",
+              "stage_code": "FITTING",
+              "vehicle_id": "f0e61ef1-8329-533b-a8eb-703a53bf2d1e"
+            },
+            "request_sha256": "a4ac806fb6eefa6f77d5e7c35e9b0a9a0892805421c76bcf5c80b848d751ae38",
+            "response": {
+              "code": "synthetic_estimate_bound",
+              "estimate_id": "d2fc8406-36ed-5d23-ae49-c9a67a7ee152",
+              "estimate_version": 1,
+              "estimated_hours": 0.78,
+              "estimated_minutes": 47,
+              "notification_delta": 0,
+              "ok": true,
+              "protected_state": {
+                "rows": 1413,
+                "sha256": "28476c8fac93aa03707b20a84b4b836b4268c96fa6710bf1238f0f6ebb265f11"
+              },
+              "receipt_id": "f0de15f9-c17d-537c-bfc0-9f6e66182bf1",
+              "replay": false,
+              "request_sha256": "a4ac806fb6eefa6f77d5e7c35e9b0a9a0892805421c76bcf5c80b848d751ae38",
+              "run_id": "HERMES-TEST-RUN-20260824",
+              "scenario_no": 7,
+              "sibling_state": {
+                "rows": 52,
+                "sha256": "881ef3c35431ad0f973d77aeebdebb9f1266752691ab691b69f5feec2a86b31a"
+              },
+              "stage_code": "FITTING",
+              "synthetic_wrapper": true,
+              "vehicle_id": "f0e61ef1-8329-533b-a8eb-703a53bf2d1e",
+              "vehicle_version": 1
+            },
+            "run_id": "HERMES-TEST-RUN-20260824",
+            "vehicle_id": "f0e61ef1-8329-533b-a8eb-703a53bf2d1e"
+          },
+          {
+            "actor_email": "administrator2@staging.pdc-workshop.example.com",
+            "actor_id": "557dba7f-fd70-4b9e-aa7b-b83b717682a7",
+            "created_at": "2026-08-24T16:08:06.25231+00:00",
+            "idempotency_key": "63f813f7-613d-5801-a6bf-6b3d0e821602",
+            "receipt_id": "8d5f3997-125d-5593-b7e4-4d1f30f9d962",
+            "request_payload": {
+              "contract": "pdc-overnight-synthetic-estimate-369",
+              "estimated_hours": 0.98,
+              "expected_estimate_version": 0,
+              "expected_vehicle_version": 1,
+              "idempotency_key": "63f813f7-613d-5801-a6bf-6b3d0e821602",
+              "run_id": "HERMES-TEST-RUN-20260824",
+              "stage_code": "ELECTRICAL",
+              "vehicle_id": "f0e61ef1-8329-533b-a8eb-703a53bf2d1e"
+            },
+            "request_sha256": "b2a83d2bf0784a98f2971a4caaaf22a74b49c169abc2d5a15296c09fa0e7a00d",
+            "response": {
+              "code": "synthetic_estimate_bound",
+              "estimate_id": "19318cdb-daa5-5f41-afc9-d7b96faf8a49",
+              "estimate_version": 1,
+              "estimated_hours": 0.98,
+              "estimated_minutes": 59,
+              "notification_delta": 0,
+              "ok": true,
+              "protected_state": {
+                "rows": 1413,
+                "sha256": "28476c8fac93aa03707b20a84b4b836b4268c96fa6710bf1238f0f6ebb265f11"
+              },
+              "receipt_id": "8d5f3997-125d-5593-b7e4-4d1f30f9d962",
+              "replay": false,
+              "request_sha256": "b2a83d2bf0784a98f2971a4caaaf22a74b49c169abc2d5a15296c09fa0e7a00d",
+              "run_id": "HERMES-TEST-RUN-20260824",
+              "scenario_no": 7,
+              "sibling_state": {
+                "rows": 52,
+                "sha256": "881ef3c35431ad0f973d77aeebdebb9f1266752691ab691b69f5feec2a86b31a"
+              },
+              "stage_code": "ELECTRICAL",
+              "synthetic_wrapper": true,
+              "vehicle_id": "f0e61ef1-8329-533b-a8eb-703a53bf2d1e",
+              "vehicle_version": 1
+            },
+            "run_id": "HERMES-TEST-RUN-20260824",
+            "vehicle_id": "f0e61ef1-8329-533b-a8eb-703a53bf2d1e"
+          }
+        ]
+      }
+    ],
+    "notification_count": 0,
+    "ok": true,
+    "protected_state": {
+      "rows": 1413,
+      "sha256": "28476c8fac93aa03707b20a84b4b836b4268c96fa6710bf1238f0f6ebb265f11"
+    },
+    "run_id": "HERMES-TEST-RUN-20260824",
+    "vehicle_id": null
+  },
+  "estimates": [
+    {
+      "changed_payload_rejected": true,
+      "estimated_hours": 1.22,
+      "estimated_minutes": 73,
+      "exact_replay_verified": true,
+      "first_call_replay": true,
+      "pre_action_migration_head": {
+        "name": "372_overnight_exact_synthetic_booking_constraint",
+        "version": "20260825090000"
+      },
+      "receipt_id": "70697068-b1f2-5176-a024-b7e068d9b578",
+      "scenario_no": 5,
+      "stage_code": "FITTING",
+      "stock": "HERMES-TEST-005"
+    },
+    {
+      "changed_payload_rejected": true,
+      "estimated_hours": 1.02,
+      "estimated_minutes": 61,
+      "exact_replay_verified": true,
+      "first_call_replay": true,
+      "pre_action_migration_head": {
+        "name": "372_overnight_exact_synthetic_booking_constraint",
+        "version": "20260825090000"
+      },
+      "receipt_id": "fea22d42-bb57-50bb-908a-a50bf02c4b27",
+      "scenario_no": 6,
+      "stage_code": "ELECTRICAL",
+      "stock": "HERMES-TEST-006"
+    },
+    {
+      "changed_payload_rejected": true,
+      "estimated_hours": 0.78,
+      "estimated_minutes": 47,
+      "exact_replay_verified": true,
+      "first_call_replay": true,
+      "pre_action_migration_head": {
+        "name": "372_overnight_exact_synthetic_booking_constraint",
+        "version": "20260825090000"
+      },
+      "receipt_id": "f0de15f9-c17d-537c-bfc0-9f6e66182bf1",
+      "scenario_no": 7,
+      "stage_code": "FITTING",
+      "stock": "HERMES-TEST-007"
+    },
+    {
+      "changed_payload_rejected": true,
+      "estimated_hours": 0.98,
+      "estimated_minutes": 59,
+      "exact_replay_verified": true,
+      "first_call_replay": true,
+      "pre_action_migration_head": {
+        "name": "372_overnight_exact_synthetic_booking_constraint",
+        "version": "20260825090000"
+      },
+      "receipt_id": "8d5f3997-125d-5593-b7e4-4d1f30f9d962",
+      "scenario_no": 7,
+      "stage_code": "ELECTRICAL",
+      "stock": "HERMES-TEST-007"
+    }
+  ],
+  "final_environment": {
+    "banner_markers": {
+      "production_url_absent_from_config": true,
+      "service_role_absent_from_config": true,
+      "staging_ref_in_config": true,
+      "staging_title": true
+    },
+    "branch": "hermes/overnight-pdc-hardening-20260824",
+    "credential_files_in_worktree": [],
+    "database": {
+      "active_activation_writers": 0,
+      "active_mailboxes": 0,
+      "migration_head": {
+        "name": "372_overnight_exact_synthetic_booking_constraint",
+        "version": "20260825090000"
+      },
+      "monitor_status": "stopped",
+      "outbound_notification_rows": 0,
+      "pending_outbound_notifications": 0,
+      "production_sentinel_absent": true,
+      "project_ref": "cdsmnqxtyyoeoznmbidd",
+      "staging_sentinel_rows": 1,
+      "synthetic_vehicle_total": 20,
+      "vehicle_total": 173
+    },
+    "outbound_policy": "mailboxes and activation writers disabled; no external sends permitted",
+    "pages_build": "c95e0dec3064eebfb88d8f8367a326ca77fcc6b7 built",
+    "production_access_guard": true,
+    "schema": "pdc-overnight-environment-proof-v1",
+    "source_start_commit": "ac06394736b55220e7425322fc53e9b9dadc3fdd",
+    "website_hostname": "btnew.github.io",
+    "website_path": "/pdc-control-board-staging/",
+    "website_title": "PDC Control Board \u2014 STAGING"
+  },
+  "initial_environment": {
+    "banner_markers": {
+      "production_url_absent_from_config": true,
+      "service_role_absent_from_config": true,
+      "staging_ref_in_config": true,
+      "staging_title": true
+    },
+    "branch": "hermes/overnight-pdc-hardening-20260824",
+    "credential_files_in_worktree": [],
+    "database": {
+      "active_activation_writers": 0,
+      "active_mailboxes": 0,
+      "migration_head": {
+        "name": "372_overnight_exact_synthetic_booking_constraint",
+        "version": "20260825090000"
+      },
+      "monitor_status": "stopped",
+      "outbound_notification_rows": 0,
+      "pending_outbound_notifications": 0,
+      "production_sentinel_absent": true,
+      "project_ref": "cdsmnqxtyyoeoznmbidd",
+      "staging_sentinel_rows": 1,
+      "synthetic_vehicle_total": 20,
+      "vehicle_total": 173
+    },
+    "outbound_policy": "mailboxes and activation writers disabled; no external sends permitted",
+    "pages_build": "c95e0dec3064eebfb88d8f8367a326ca77fcc6b7 built",
+    "production_access_guard": true,
+    "schema": "pdc-overnight-environment-proof-v1",
+    "source_start_commit": "ac06394736b55220e7425322fc53e9b9dadc3fdd",
+    "website_hostname": "btnew.github.io",
+    "website_path": "/pdc-control-board-staging/",
+    "website_title": "PDC Control Board \u2014 STAGING"
+  },
+  "project_ref": "cdsmnqxtyyoeoznmbidd",
+  "protected_state": {
+    "rows": 1413,
+    "sha256": "28476c8fac93aa03707b20a84b4b836b4268c96fa6710bf1238f0f6ebb265f11"
+  },
+  "recorded_at_utc": "2026-08-24T16:37:06.868293+00:00",
+  "run_id": "HERMES-TEST-RUN-20260824",
+  "schema": "pdc-overnight-workshop-005-007-v2",
+  "successful_bookings": 4
+}

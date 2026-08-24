@@ -64,14 +64,14 @@ Run ID: `HERMES-TEST-RUN-20260824`. Only these exact stock identities may be cre
 - Full Intake/Inception-to-RFT journeys: 0 / 5
 - Consecutive final clean journeys: 0 / 3
 - Board/chip movements: 0 / 100
-- Booking movements/adjustments: 0 / 50
-- Invalid movement attempts: 2 / 20
-- Duplicate-submit tests: 2 / 20
+- Booking movements/adjustments: 6 / 50
+- Invalid movement attempts: 11 / 20
+- Duplicate-submit tests: 15 / 20
 - Parts changes: 0 / 25
 - Sublet changes: 0 / 20
 - QC/RFT out-of-order attempts: 0 / 10
 - Two-session scenarios: 0 / 10
-- Field/validation scenarios: 4 / 30
+- Field/validation scenarios: 14 / 30
 
 ## Bugs
 ### Discovered
@@ -81,6 +81,8 @@ Run ID: `HERMES-TEST-RUN-20260824`. Only these exact stock identities may be cre
 - Migration 363 was hardened through two independent review rounds: fail-closed singleton containment, conflicting locks/revalidation, exact catalog/identity collision closure, same-set protected digest, canonical readback drift rejection, truthful durable replay, two set-based authoritative inserts and receipt-bound shared revision delta `+2`.
 - Migration 364 repaired the authenticated Vehicle Locations projection without changing vehicle data or privileges: the established snapshot now also admits only exact migration-363 registry-bound rows whose static identities and synthetic source contract still match. Authenticated UI readback is now `173 of 173`, including all 20 synthetic vehicles, while the 153 protected-row digest remains unchanged.
 - Migrations 365-368 installed exact registry-bound mutation façades, actor/idempotency/version receipts, exact-target route guards, cross-relation protected/sibling digests, zero-notification QC/RFT handling, PostgREST argument names, canonical Sublet-history ordering and correct registry rowtype assignment. Scenario 001 Apply/replay/negative probes then passed live.
+- Migrations 369-372 commissioned exact synthetic estimate authority and closed three independent established 60-minute floors (canonical estimate projection, validator and booking constraint) only for exact registry-bound migration-369 rows. All protected/non-test canonical and validation behavior remains unchanged; exact 47/59-minute bookings now pass while ordinary sub-hour bookings remain fail-closed.
+- The Workshop 005-007 harness was repaired to model the authoritative contract correctly: scheduling does not increment vehicle version; restarts consume immutable receipts idempotently; database-trigger conflict rejection is accepted only with exact HTTP 400 conflict evidence and authoritative no-change readback.
 
 ### Open
 None at this checkpoint. Registry-bound synthetic stress mutation is now commissioned; protected/pre-existing records remain outside scope.
@@ -218,6 +220,18 @@ None at this checkpoint. Registry-bound synthetic stress mutation is now commiss
 - Blockers: no human blocker. A staging-only successor must preserve the 60-minute rule for all protected/non-test vehicles while returning exact positive rounded minutes only for registry-bound migration-369 synthetic estimates, then rebind the exact dependency guard.
 - Quantitative counters: synthetic 20/20; journeys 0/5; board movements 2/100; booking movements/adjustments 0/50; invalid attempts 9/20; duplicate submits 6/20; Parts 0/25; Sublet 0/20; QC/RFT out-of-order 0/10; two-session 0/10; field/validation 10/30.
 - Exact next action: implement independently reviewed migration 370 with an exact registry-only canonical-minute exception (protected/non-test behavior byte-for-byte preserved), update dependency hashes, rollback-test/apply it, then resume scenario-007 estimates and the six-action exact-minute booking/conflict harness.
+
+### Checkpoint 011 — 2026-08-24T16:37:23Z (elapsed 05:43)
+- Git commits: migration-370 final approval `7ff9012ee388a18e63a4bd500128a4ff3120d5d6`; migration-371 approval `1b988c0e17b1175c65eee11e390a2926ae6bad3a`; migration-372 final approval `2beaae552af7bc828d9e598072e885410dd34c5a` (all pushed before apply). Live staging migration head is 372.
+- Areas tested: exact canonical 73/61/47/59-minute estimates; protected canonical-minute parity; booking validator parity; ordinary 60-minute floor preservation; exact-minute booking creation at arbitrary minute starts; bay overlap; same-vehicle cross-station overlap; exact end/start adjacency; idempotent replay; changed-payload rejection; receipt/readback and zero-notification containment.
+- Synthetic records mutated: only registered `HERMES-TEST-005` through `007`. Four exact estimates now exist. Planned bookings: 005 Fitting 73m, 006 Electrical 61m, 007 Fitting 47m and Electrical 59m. No physical work or completion was recorded.
+- Bugs discovered and fixed: canonical duration clamped sub-hour estimates; validator independently rejected sub-hour requests; table constraint independently required 60 minutes; harness incorrectly expected vehicle-version increments and could not resume from committed receipts or model trigger-aborted conflict rejection. Migrations 370-372 and the restart-safe harness closed each defect without broadening non-test behavior.
+- Tests passing: migrations 370-372 focused static/model contracts; Python compile; repeated explicit live rollback execution; four independent exact-commit approvals after hostile review repairs; guarded migration apply/ledger readback; final six-action Workshop harness (`4` successful bookings, `2` authoritative conflicts); exact replay for five receipted actions; changed-payload estimate rejection; protected digest unchanged at `28476c8fac93aa03707b20a84b4b836b4268c96fa6710bf1238f0f6ebb265f11` across `1413` protected relation rows; notifications 0.
+- Conflict evidence: bay overlap is receipt `6dc751ad-25ac-50c9-a21a-402ffb342e76`; vehicle overlap is authoritative HTTP 400 with exact `vehicle_overlap`/conflict-booking evidence and no target/receipt change because PostgreSQL aborts the rejected transaction.
+- Authoritative receipts: estimates `70697068-b1f2-5176-a024-b7e068d9b578`, `fea22d42-bb57-50bb-908a-a50bf02c4b27`, `f0de15f9-c17d-537c-bfc0-9f6e66182bf1`, `8d5f3997-125d-5593-b7e4-4d1f30f9d962`; successful bookings `23cec83f-437f-5e85-aa26-ba7f332faa0a`, `fd3d76ad-7959-578f-ac76-3528d99ea9c4`, `46d59358-f265-5c24-9281-0ddc4f0191ae`, `aca84a26-7dab-5e07-9c15-df80c4d8e6b7`.
+- Blockers: none. Monitor stopped; active mailboxes/writers 0; notifications 0; Production was structurally blocked and untouched.
+- Quantitative counters: synthetic 20/20; journeys 0/5; board movements 2/100; booking movements/adjustments 6/50; invalid attempts 11/20; duplicate submits 15/20; Parts 0/25; Sublet 0/20; QC/RFT out-of-order 0/10; two-session 0/10; field/validation 14/30.
+- Exact next action: execute guarded Parts lifecycle/stoppage/recovery stress on `HERMES-TEST-008` and `009`, preserving receipt/readback, protected digest and zero-notification evidence after every action.
 
 ## Final report
 Pending until the ten-hour end time.
