@@ -70,8 +70,8 @@ Run ID: `HERMES-TEST-RUN-20260824`. Only these exact stock identities may be cre
 - Parts changes: 18 / 25
 - Sublet changes: 21 / 20
 - QC/RFT out-of-order attempts: 12 / 10
-- Two-session scenarios: 0 / 10
-- Field/validation scenarios: 37 / 30
+- Two-session scenarios: 7 / 10
+- Field/validation scenarios: 47 / 30
 
 ## Bugs
 ### Discovered
@@ -283,6 +283,19 @@ None at this checkpoint. Registry-bound synthetic stress mutation is now commiss
 - Quantitative counters: synthetic 20/20; journeys 0/5; board movements 8/100; booking movements/adjustments 6/50; invalid movement attempts 17/20; duplicate-submit tests 21/20; Parts 18/25; Sublet 21/20; QC/RFT out-of-order 12/10; two-session scenarios 5/10; field/validation 39/30.
 - Blockers: none. Production was structurally blocked and untouched.
 - Exact next action: execute role/permission scenario `HERMES-TEST-018` across Administrator, Operator, authenticated-unapproved and fail-closed Viewer boundaries, including cross-role idempotency/actor isolation, then continue browser navigation/mobile/accessibility on `019`.
+
+### Checkpoint 016 — 2026-08-24T18:44:26Z (elapsed 07:50)
+- Git commit at verified execution: `4064f3f` (the evidence and this checkpoint follow in the next commit).
+- Areas tested: authoritative Administrator and Operator role/read/write boundaries; authenticated Auth-user with no PDC role; actor-scoped idempotency isolation under the same UUID across two roles; exact replay; same-actor changed payload; actual protected-row rejection; cross-vehicle booking-subject rejection; configured historical Viewer credential state.
+- Synthetic records mutated: only registry-bound `HERMES-TEST-018`. Administrator changed its synthetic key tag at vehicle version `1→2`; Operator reused the same idempotency UUID under its distinct actor and changed the tag at version `2→3`. The interrupted first run stopped after those two committed receipts because the harness used an incorrect registry table name in a read-only protected-row inventory query; the repaired harness recovered and replayed both exact receipts without another write.
+- Authoritative role evidence: Administrator=`administrator/active/approved`; Operator=`operator/active/approved`; the separately authenticated unapproved identity has no PDC role row and was denied both read and write. Two distinct `(actor,idempotency)` receipts exist for the shared UUID, with no duplicate semantic key and final authoritative tag matching the Operator action.
+- Negative evidence: unapproved read/write rejected; two same-actor changed-payload probes rejected; two actual protected-row write probes rejected; one scenario-005 booking presented against scenario 018 rejected as a cross-vehicle subject. Every probe had full target/sibling/protected no-change readback; protected digest remains `28476c8fac93aa03707b20a84b4b836b4268c96fa6710bf1238f0f6ebb265f11` across `1413` rows; notifications remain `0`.
+- Viewer limitation discovered: the credential configured under the historical Viewer environment keys fails authentication, but its authoritative current role row is `importer/active/approved`, not Viewer. The harness now reports this truthfully as credential fail-closed and does **not** claim an authenticated Viewer-role test. No credential or role was changed.
+- Tests passing: live interruption-safe role harness; exact committed-harness SHA binding at `4064f3f`; exact live edit/read/booking function hashes; `15/15` overnight Node contracts; Python compile; final environment proof.
+- Tests failing: none in the proven Administrator, Operator, unapproved, idempotency, protected-row or cross-vehicle scope. An authenticated Viewer-role boundary remains unproven because no valid Viewer session is available within this profile's existing credentials.
+- Quantitative counters: synthetic 20/20; journeys 0/5; board movements 8/100; booking movements/adjustments 6/50; invalid movement attempts 17/20; duplicate submits 23/20; Parts 18/25; Sublet 21/20; QC/RFT out-of-order 12/10; two-session scenarios 7/10; field/validation 47/30.
+- Blockers: no blocker to browser/mobile/accessibility work. Viewer-role execution is credential-bound; this run did not create, rotate, copy or broaden credentials.
+- Exact next action: commit/push this evidence checkpoint, then exercise live staging hash-route navigation, refresh/second-session behavior, mobile layouts, keyboard/focus order and accessibility on `HERMES-TEST-019`, capturing screenshots plus console/network evidence without mutating protected rows.
 
 ## Final report
 Pending until the ten-hour end time.

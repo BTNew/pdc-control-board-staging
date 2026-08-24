@@ -1,0 +1,208 @@
+{
+  "actor_scoped_actions": [
+    {
+      "actor_id": "557dba7f-fd70-4b9e-aa7b-b83b717682a7",
+      "changed_payload_rejected": true,
+      "exact_replay": true,
+      "idempotency_key": "fcc923b2-9b9a-5ccf-a24b-5bdf65a395d9",
+      "receipt_id": "a0c52a9e-2ed4-5b87-8aef-86c6ff950bb8",
+      "recovered_from_prior_receipt": true,
+      "request_sha256": "337c3e6ec761ba65fa3fb6766cf480e597ae565b5c65aee2ab7c4692778478e8",
+      "role": "administrator",
+      "tag": "HERMES-TEST-018-ADMIN",
+      "version_after": 2,
+      "version_before": 1
+    },
+    {
+      "actor_id": "6c2c4e7d-c530-495d-8b6a-0850631d8086",
+      "changed_payload_rejected": true,
+      "exact_replay": true,
+      "idempotency_key": "fcc923b2-9b9a-5ccf-a24b-5bdf65a395d9",
+      "receipt_id": "6d36ce2d-bc0c-5246-9b35-0d5e60f740a2",
+      "recovered_from_prior_receipt": true,
+      "request_sha256": "31938a4372b916d683eda5bec2197b71c6d7b6b8aad6f9ff06ec0a71ee4647e7",
+      "role": "operator",
+      "tag": "HERMES-TEST-018-OPERATOR",
+      "version_after": 3,
+      "version_before": 2
+    }
+  ],
+  "cross_vehicle_booking_id_sha256": "cc19a32127c42ec68d21521351cef97e79a410189637058be3021779a2abcffd",
+  "distinct_authenticated_actor_ids": 3,
+  "distinct_token_digests": 3,
+  "final_environment": {
+    "banner_markers": {
+      "production_url_absent_from_config": true,
+      "service_role_absent_from_config": true,
+      "staging_ref_in_config": true,
+      "staging_title": true
+    },
+    "branch": "hermes/overnight-pdc-hardening-20260824",
+    "credential_files_in_worktree": [],
+    "database": {
+      "active_activation_writers": 0,
+      "active_mailboxes": 0,
+      "migration_head": {
+        "name": "374_overnight_qc_fixture_registry_assignment",
+        "version": "20260825110000"
+      },
+      "monitor_status": "stopped",
+      "outbound_notification_rows": 0,
+      "pending_outbound_notifications": 0,
+      "production_sentinel_absent": true,
+      "project_ref": "cdsmnqxtyyoeoznmbidd",
+      "staging_sentinel_rows": 1,
+      "synthetic_vehicle_total": 20,
+      "vehicle_total": 173
+    },
+    "outbound_policy": "mailboxes and activation writers disabled; no external sends permitted",
+    "pages_build": "c95e0dec3064eebfb88d8f8367a326ca77fcc6b7 built",
+    "production_access_guard": true,
+    "schema": "pdc-overnight-environment-proof-v1",
+    "source_start_commit": "ac06394736b55220e7425322fc53e9b9dadc3fdd",
+    "website_hostname": "btnew.github.io",
+    "website_path": "/pdc-control-board-staging/",
+    "website_title": "PDC Control Board \u2014 STAGING"
+  },
+  "final_tag": "HERMES-TEST-018-OPERATOR",
+  "final_version": 3,
+  "git_head": "4064f3ff5284c6841cae463b081cf8231d50ac3c",
+  "harness_sha256": "aeee67a4f84c6280e981237ef246de6386df00bcd3c85964017b80adb12744b8",
+  "initial_environment": {
+    "banner_markers": {
+      "production_url_absent_from_config": true,
+      "service_role_absent_from_config": true,
+      "staging_ref_in_config": true,
+      "staging_title": true
+    },
+    "branch": "hermes/overnight-pdc-hardening-20260824",
+    "credential_files_in_worktree": [],
+    "database": {
+      "active_activation_writers": 0,
+      "active_mailboxes": 0,
+      "migration_head": {
+        "name": "374_overnight_qc_fixture_registry_assignment",
+        "version": "20260825110000"
+      },
+      "monitor_status": "stopped",
+      "outbound_notification_rows": 0,
+      "pending_outbound_notifications": 0,
+      "production_sentinel_absent": true,
+      "project_ref": "cdsmnqxtyyoeoznmbidd",
+      "staging_sentinel_rows": 1,
+      "synthetic_vehicle_total": 20,
+      "vehicle_total": 173
+    },
+    "outbound_policy": "mailboxes and activation writers disabled; no external sends permitted",
+    "pages_build": "c95e0dec3064eebfb88d8f8367a326ca77fcc6b7 built",
+    "production_access_guard": true,
+    "schema": "pdc-overnight-environment-proof-v1",
+    "source_start_commit": "ac06394736b55220e7425322fc53e9b9dadc3fdd",
+    "website_hostname": "btnew.github.io",
+    "website_path": "/pdc-control-board-staging/",
+    "website_title": "PDC Control Board \u2014 STAGING"
+  },
+  "live_contract": {
+    "booking_365_sha256": "a66f017c85c2ba89840ec96b23a7f2c6a7ae9108eef137af2c4b26f229569867",
+    "edit_365_sha256": "c6f99e6c01196524a7ccf5c43d79cd26faab07920cf2b4901cff294bb50187ab",
+    "read_365_sha256": "07692fd55be5a0a4b4cee0f69386c8aeed76e4217dfab8d55dc8bc33dc00d177"
+  },
+  "notifications": 0,
+  "project_ref": "cdsmnqxtyyoeoznmbidd",
+  "protected_state": {
+    "rows": 1413,
+    "sha256": "28476c8fac93aa03707b20a84b4b836b4268c96fa6710bf1238f0f6ebb265f11"
+  },
+  "protected_state_unchanged": true,
+  "protected_vehicle_id_sha256": "e3779dc65655dc1ca0fc5746522b44219398f131f7db050ec4e1585f675a7b14",
+  "receipt_count": 2,
+  "recorded_at_utc": "2026-08-24T18:44:08.660607+00:00",
+  "role_checks": [
+    {
+      "authenticated": true,
+      "authoritative_role": {
+        "account_status": "approved",
+        "active": true,
+        "identity_binding": "auth_user_id",
+        "role": "administrator"
+      },
+      "read_allowed": true,
+      "role": "administrator"
+    },
+    {
+      "authenticated": true,
+      "authoritative_role": {
+        "account_status": "approved",
+        "active": true,
+        "identity_binding": "auth_user_id",
+        "role": "operator"
+      },
+      "read_allowed": true,
+      "role": "operator"
+    },
+    {
+      "authenticated": true,
+      "authoritative_role": {
+        "account_status": "unapproved_no_pdc_role",
+        "active": false,
+        "identity_binding": "auth_user_without_pdc_role",
+        "role": null
+      },
+      "http_status": 403,
+      "read_allowed": false,
+      "role": "authenticated-unapproved"
+    },
+    {
+      "authenticated": false,
+      "authoritative_role": {
+        "account_status": "approved",
+        "active": true,
+        "role": "importer"
+      },
+      "credential_fail_closed": true,
+      "error": "invalid_credentials",
+      "http_status": 400,
+      "read_attempted": false,
+      "role": "configured-historical-viewer-credential",
+      "viewer_role_boundary_proven": false
+    },
+    {
+      "authoritative_no_change": true,
+      "error": "PDC_365_UNAUTHORIZED",
+      "http_status": 403,
+      "role": "authenticated-unapproved",
+      "write_allowed": false
+    },
+    {
+      "authoritative_no_change": true,
+      "http_status": 403,
+      "protected_row_write_allowed": false,
+      "role": "administrator"
+    },
+    {
+      "authoritative_no_change": true,
+      "http_status": 403,
+      "protected_row_write_allowed": false,
+      "role": "operator"
+    },
+    {
+      "authoritative_no_change": true,
+      "cross_vehicle_subject_allowed": false,
+      "http_status": 403,
+      "role": "administrator"
+    }
+  ],
+  "run_id": "HERMES-TEST-RUN-20260824",
+  "scenario_no": 18,
+  "schema": "pdc-overnight-roles-018-v1",
+  "shared_idempotency_key": "fcc923b2-9b9a-5ccf-a24b-5bdf65a395d9",
+  "shared_key_receipt_count": 2,
+  "sibling_state_unchanged": true,
+  "stock": "HERMES-TEST-018",
+  "unique_actor_idempotency_pairs": 2,
+  "unique_receipt_ids": 2,
+  "unique_shared_key_actors": 2,
+  "vehicle_id": "28b40010-bc44-5aee-81d5-fee2891b576d",
+  "viewer_limitation": "Configured historical Viewer identity is authoritatively an approved importer and its credential fails closed; no valid Viewer session was available.",
+  "viewer_role_boundary_proven": false
+}
