@@ -1,0 +1,19 @@
+{
+  "schema": "pdc-staging-authenticated-ui-proof-v1",
+  "project_ref": "cdsmnqxtyyoeoznmbidd",
+  "captured_at_utc": "2026-08-24T09:24:27.609Z",
+  "title": "PDC Control Board — STAGING",
+  "vehicle_card_count": 4,
+  "shown_vehicle_count": 1,
+  "total_vehicle_count": 153,
+  "empty_markers": [],
+  "op7": {
+    "found": true,
+    "text": "1\nOP7 · ADDITIONAL SPARE TYRE - USE MATCHING TAKE OFF SALES S\nh\nSave\nManual override · scheduling authority\nNot booked\nStation\nFitting\nTyre\nBest slot\nEdit line\nRemove operation",
+    "value": "1",
+    "adjustmentId": "8b06105d-b7f1-4a09-a972-4e032d53b6cb",
+    "adjustmentVersion": "2",
+    "buttonDisabled": false
+  },
+  "screenshot": "20260824_staging_ui_authenticated_stock_13017953_hours_fixed.png"
+}

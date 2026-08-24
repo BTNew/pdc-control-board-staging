@@ -1,0 +1,22 @@
+{
+  "applied": true,
+  "ledger_readback": [
+    {
+      "name": "361_persist_manual_estimated_hours_authority",
+      "version": "20260824220000"
+    }
+  ],
+  "management_response": [
+    {
+      "pg_advisory_xact_lock": ""
+    }
+  ],
+  "migration_file": "20260824220000_361_persist_manual_estimated_hours_authority.sql",
+  "migration_name": "361_persist_manual_estimated_hours_authority",
+  "migration_sha256": "1874aad96bce397c20af502b147dcdd767dd8097be328552707f64e36d901c1f",
+  "migration_version": "20260824220000",
+  "production_ref_rejected": "vjdtsswhroyguxyfjdkt",
+  "recorded_at_utc": "2026-08-24T09:22:28.162269+00:00",
+  "schema": "pdc-staging-management-migration-receipt-v1",
+  "target_ref": "cdsmnqxtyyoeoznmbidd"
+}
