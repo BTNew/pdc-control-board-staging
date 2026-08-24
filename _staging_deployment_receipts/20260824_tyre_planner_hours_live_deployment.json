@@ -1,0 +1,21 @@
+{
+  "schema": "pdc-staging-planner-hours-live-deployment-v1",
+  "status": "VERIFIED",
+  "pages_source_branch": "main",
+  "deployed_commit": "b277ee68cebfa8945e15ae9a9e278bcc32c1e0a0",
+  "pages_build_status": "built",
+  "production_touched": false,
+  "live_byte_parity": {
+    "index.html": "5d82c9e74805036322a1f3640987828d19b99e6c4d571020989000f3defb1596",
+    "app.js": "98046ac7ae2f68194251bbbe5f0937070757371b9be0139e5b59d6bb0bc2cdc1",
+    "workshop-planner.js": "34e75afa6b94a2e40537976b558961c910d96ff136595285ed4cb441aeca5051"
+  },
+  "authenticated_ui": {
+    "screenshot": "20260824_staging_ui_authenticated_tyre_bay1_current.png",
+    "selected_date": "2026-08-25",
+    "configured_hours_label": "Configured hours 7:00 am–5:00 pm",
+    "selected_date_bookings": 6,
+    "visible_raw_booking_overlap": false,
+    "note": "A later administrator Admin block is visible and the planned Bay 01 queue has been repacked around it."
+  }
+}

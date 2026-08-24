@@ -1,0 +1,11 @@
+{
+  "schema": "pdc-staging-authenticated-ui-proof-v1",
+  "project_ref": "cdsmnqxtyyoeoznmbidd",
+  "captured_at_utc": "2026-08-24T09:05:48.334Z",
+  "title": "PDC Control Board — STAGING",
+  "vehicle_card_count": 0,
+  "shown_vehicle_count": null,
+  "total_vehicle_count": null,
+  "empty_markers": [],
+  "screenshot": "20260824_staging_ui_authenticated_tyre_bay1_current.png"
+}
