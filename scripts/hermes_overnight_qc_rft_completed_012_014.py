@@ -33,9 +33,21 @@ def main():
  protected=fleet["protected_state"]
  rows={r["scenario_no"]:r for r in fleet["vehicles"] if r["scenario_no"] in (12,13,14)}
  if set(rows)!={12,13,14}: raise RuntimeError("scenario inventory")
+ expected_interrupted={
+  str(uuid.uuid5(NS,f"{RUN}:012-qc-to-rft-before-qc")):(12,"lifecycle_qc_to_rft"),
+  str(uuid.uuid5(NS,f"{RUN}:012-collect-before-rft")):(12,"lifecycle_collect"),
+  str(uuid.uuid5(NS,f"{RUN}:012-ready-qc-incomplete")):(12,"lifecycle_ready_qc"),
+ }
+ observed_interrupted={}
  for no,row in rows.items():
   v=row["vehicle"]
   if v["stock_number"]!=f"HERMES-TEST-{no:03d}" or v["version"]!=1 or v["current_location"]!="PMB" or v["lifecycle_state"]!="active": raise RuntimeError(f"scenario {no} initial state drift")
+  for receipt in row["receipts"]:
+   idem=receipt.get("idempotency_key"); expected=expected_interrupted.get(idem)
+   stored=receipt.get("response") or {}
+   if not expected or expected[0]!=no or receipt.get("vehicle_id")!=v["id"] or receipt.get("actor_id")!=admin["user"]["id"] or receipt.get("action")!=expected[1] or stored.get("ok") is not False or stored.get("action")!=expected[1] or stored.get("vehicle_id")!=v["id"] or stored.get("vehicle_version_before")!=1 or stored.get("vehicle_version_after")!=1 or stored.get("receipt_id")!=receipt.get("receipt_id") or stored.get("request_sha256")!=receipt.get("request_sha256") or receipt.get("request_payload")!={}: raise RuntimeError(f"scenario {no} unrelated or unbound preexisting receipt")
+   observed_interrupted[idem]=expected
+ if observed_interrupted!=expected_interrupted: raise RuntimeError("exact interrupted rejection receipt inventory mismatch")
  # Role contract: operator can inspect exact registry scope; viewer and unapproved identities cannot.
  os,ox=read(operator)
  if os!=200 or ox.get("ok") is not True: raise RuntimeError("operator read role denied")
@@ -56,6 +68,8 @@ def main():
   if s!=200 or x.get("ok") is not True or x.get("notification_count")!=0: raise RuntimeError(f"read {no}")
   if x["protected_state"]!=protected: raise RuntimeError(f"protected digest {no}")
   return x["vehicles"][0]
+ def state_digest(row):
+  return digest({k:row[k] for k in ("vehicle","work_items","bookings","booking_assignments","booking_history","parts_overrides","parts","sublets","movements","audit_events","sublet_history")})
  def lifecycle(label,no,action,expect_ok,*,changed_probe=False,stale_version=None):
   before=current(no); v=before["vehicle"]; version=int(v["version"] if stale_version is None else stale_version)
   idem=str(uuid.uuid5(NS,f"{RUN}:{label}")); p={"p_run_id":RUN,"p_vehicle_id":v["id"],"p_expected_version":version,"p_idempotency_key":idem,"p_action":action}
@@ -63,14 +77,15 @@ def main():
   pre=prove_environment(); status,response=rpc(admin,"pdc_hermes_test_lifecycle_365",p); after=current(no)
   if status!=200 or response.get("ok") is not expect_ok or response.get("notification_delta")!=0 or response.get("replay") is not bool(existing): raise RuntimeError(f"{label} result {status} {json.dumps(response)[:1000]}")
   if len(after["receipts"])!=len(before["receipts"])+(0 if existing else 1): raise RuntimeError(f"{label} receipt")
-  if not expect_ok and digest({k:after[k] for k in ("vehicle","work_items","movements","bookings","parts","sublets")})!=digest({k:before[k] for k in ("vehicle","work_items","movements","bookings","parts","sublets")}): raise RuntimeError(f"{label} rejection changed state")
+  if not expect_ok and state_digest(after)!=state_digest(before): raise RuntimeError(f"{label} rejection changed authoritative target state")
+  if existing and (existing.get("vehicle_id")!=v["id"] or existing.get("action")!="lifecycle_"+action or existing.get("request_sha256")!=response.get("request_sha256") or existing.get("receipt_id")!=response.get("receipt_id") or state_digest(after)!=state_digest(before)): raise RuntimeError(f"{label} recovered receipt binding")
   prove_environment(); rstatus,replay=rpc(admin,"pdc_hermes_test_lifecycle_365",p); replay_row=current(no)
-  if rstatus!=200 or replay.get("replay") is not True or replay.get("replay_containment_verified") is not True or len(replay_row["receipts"])!=len(after["receipts"]) or digest(replay_row["vehicle"])!=digest(after["vehicle"]): raise RuntimeError(f"{label} replay")
+  if rstatus!=200 or replay.get("replay") is not True or replay.get("replay_containment_verified") is not True or len(replay_row["receipts"])!=len(after["receipts"]) or state_digest(replay_row)!=state_digest(after): raise RuntimeError(f"{label} replay")
   changed_rejected=False
   if changed_probe:
    cp=dict(p); cp["p_action"]="collect" if action!="collect" else "ready_qc"; prove_environment(); cs,cx=rpc(admin,"pdc_hermes_test_lifecycle_365",cp)
    if cs<400 or "PDC_365_IDEMPOTENCY_PAYLOAD_OR_ACTOR_MISMATCH" not in json.dumps(cx): raise RuntimeError(f"{label} changed payload")
-   if digest(current(no)["vehicle"])!=digest(after["vehicle"]): raise RuntimeError(f"{label} changed payload changed state")
+   if state_digest(current(no))!=state_digest(after): raise RuntimeError(f"{label} changed payload changed state")
    changed_rejected=True
   actions.append({"label":label,"scenario_no":no,"kind":"lifecycle","action":action,"expected_ok":expect_ok,"http_status":status,"receipt_id":response.get("receipt_id"),"error":(response.get("result") or {}).get("error"),"version_before":before["vehicle"]["version"],"version_after":after["vehicle"]["version"],"location_before":before["vehicle"]["current_location"],"location_after":after["vehicle"]["current_location"],"replay_verified":True,"recovered_from_prior_receipt":bool(existing),"changed_payload_rejected":changed_rejected,"pre_action_migration_head":pre["database"]["migration_head"]})
   return after
