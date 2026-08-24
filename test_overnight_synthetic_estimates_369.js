@@ -1,0 +1,50 @@
+'use strict';
+const assert=require('assert');
+const fs=require('fs');
+const sql=fs.readFileSync('supabase/staging_only/20260825060000_369_overnight_synthetic_estimates.sql','utf8');
+assert.match(sql,/STAGING ONLY 369/);
+assert.match(sql,/project_ref='cdsmnqxtyyoeoznmbidd'/);
+assert.match(sql,/368_overnight_registry_row_assignment/);
+assert.match(sql,/rollback review must bind pg_get_functiondef hashes/i);
+assert.match(sql,/EXACT_INSTALLED_ESTIMATE_DEFINITION_MISMATCH/);
+for(const [scenario,stage,hours,minutes] of [[5,'FITTING','1.22',73],[6,'ELECTRICAL','1.02',61],[7,'FITTING','0.78',47],[7,'ELECTRICAL','0.98',59]]){
+ assert.match(sql,new RegExp(`scenario_no=${scenario} AND stage_code='${stage}' AND estimated_hours=${hours} AND estimated_minutes=${minutes}`));
+}
+assert.match(sql,/estimated_hours numeric\(4,2\) NOT NULL CHECK\(estimated_hours>0\)/);
+assert.match(sql,/workshop_require_positive_estimate_for_planned_booking_317/);
+assert.match(sql,/PDC_317_ESTIMATED_DURATION_REQUIRED/);
+assert.doesNotMatch(sql,/DROP TRIGGER[^;]*workshop_booking_045_estimated_duration_required_317/i);
+const route=sql.match(/CREATE OR REPLACE FUNCTION public\.pdc_hermes_test_actor_route_guard_365\(\)[\s\S]*?END \$route\$;/)[0];
+assert.match(route,/WHERE r\.vehicle_id=v_vehicle_id/);
+assert.doesNotMatch(route,/r\.actor_id=auth\.uid\(\)/);
+assert.match(sql,/pdc\.hermes_test_estimate_wrapper_vehicle_369/);
+assert.match(sql,/set_config\('pdc\.hermes_test_estimate_wrapper_vehicle_369',p_vehicle_id::text,true\)/);
+for(const relation of ['vehicle_workshop_line_adjustments','pdc_authenticated_email_operation_lines','pdc_overnight_synthetic_estimates_369']){
+ const hits=(sql.match(new RegExp(`'${relation}'`,'g'))||[]).length;
+ assert.ok(hits>=3,`${relation} must be route- and protected/sibling-digest-bound`);
+}
+assert.match(sql,/LOCK TABLE public\.vehicle_workshop_line_adjustments IN SHARE ROW EXCLUSIVE MODE/);
+assert.match(sql,/LOCK TABLE public\.pdc_authenticated_email_operation_lines IN SHARE ROW EXCLUSIVE MODE/);
+assert.match(sql,/LOCK TABLE public\.pdc_overnight_synthetic_estimates_369 IN SHARE ROW EXCLUSIVE MODE/);
+assert.match(sql,/v_protected_after IS DISTINCT FROM v_protected_before/);
+assert.match(sql,/v_sibling_after IS DISTINCT FROM v_sibling_before/);
+assert.match(sql,/PDC_369_ADMINISTRATOR_REQUIRED/);
+assert.match(sql,/PDC_369_VEHICLE_IDENTITY_OR_VERSION_MISMATCH/);
+assert.match(sql,/PDC_369_ESTIMATE_VERSION_OR_IMMUTABLE_VALUE_MISMATCH/);
+assert.match(sql,/PDC_369_IDEMPOTENCY_PAYLOAD_OR_ACTOR_MISMATCH/);
+assert.match(sql,/PDC_369_REPLAY_READBACK_OR_CONTAINMENT_MISMATCH/);
+assert.match(sql,/current_protected_state/);
+assert.match(sql,/pdc_overnight_synthetic_estimate_receipts_append_only_369/);
+assert.match(sql,/read_pdc_hermes_test_estimates_369/);
+const readback=sql.match(/CREATE FUNCTION public\.read_pdc_hermes_test_estimates_369[\s\S]*?END \$read\$;/)[0];
+assert.match(readback,/pdc_hermes_test_dependency_guard_365\(\)/);
+assert.match(readback,/pdc_hermes_test_registry_guard_365\(\)/);
+assert.match(sql,/notification_delta',0/);
+assert.doesNotMatch(sql,/queue_vehicle_notification\s*\(/i);
+assert.doesNotMatch(sql,/\bNOTIFY\b/i);
+assert.doesNotMatch(sql,/(?:^|;)\s*(?:DELETE\s+FROM|TRUNCATE|ALTER\s+TABLE[^;]*DISABLE\s+TRIGGER)/im);
+assert.doesNotMatch(sql,/GRANT\s+(?:INSERT|UPDATE|DELETE|ALL)\s+ON\s+(?:TABLE\s+)?public\./i);
+assert.match(sql,/CREATE OR REPLACE FUNCTION public\.pdc_hermes_test_dependency_guard_365/);
+assert.match(sql,/synthetic_lines AS/);
+assert.match(sql,/q\.estimated_hours>0/);
+console.log('Migration 369 static contract passed.');
