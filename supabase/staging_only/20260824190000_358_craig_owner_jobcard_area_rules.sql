@@ -24,11 +24,11 @@ BEGIN
  WHERE lower(email)='craig.watson@broometoyota.com.au' AND role='administrator' AND active AND account_status='approved' LIMIT 1;
  IF a IS NULL THEN RAISE EXCEPTION 'PDC_358_CRAIG_AUTHORIZER_MISSING'; END IF;
  FOR r IN SELECT * FROM (VALUES
-  ('towbars_fitting','Towbars to Fitting','All Towbars need to be allocated to Fitting.','tow bar','fitting',9950,'Tow Bar [For 2550mm/2100mm/1800mm Tray Body] with Smart Pin'),
-  ('fire_extinguishers_fitting','Fire extinguishers to Fitting','Fire Extinguishers, including cargo barrier and tray headboard mounting descriptions, go to Fitting.','fire extinguisher','fitting',9960,'1.5 KG FIRE EXT TO CARGO BARRIER or L/H Tray Head Boa'),
-  ('12v_socket_plug_electrical','12V sockets and plugs to Electrical','12V ACC SOCKET and plugs go to Electrical.','12v acc socket','electrical',9970,'SUPPLY AND FIT DUAL 12V ACC SOCKET IN MODULE'),
-  ('battery_box_bcdc_electrical','Battery box and BCDC to Electrical','ARB Battery Box Mounted in Tray - BCDC1225D - 100Ah goes to Electrical.','battery box','electrical',9970,'ARB Battery Box Mounted in Tray - BCDC1225D - 100Ah'),
-  ('xrs370c_electrical','XRS 370c to Electrical','FIT XRS 370c -Select Aerial additional Job Line goes to Electrical.','xrs 370c','electrical',9970,'FIT XRS 370c -Select Aerial additional Job Line'),
+  ('towbars_fitting','Towbars to Fitting','All Towbars need to be allocated to Fitting.','tow_bar','fitting',9950,'Tow Bar [For 2550mm/2100mm/1800mm Tray Body] with Smart Pin'),
+  ('fire_extinguishers_fitting','Fire extinguishers to Fitting','Fire Extinguishers, including cargo barrier and tray headboard mounting descriptions, go to Fitting.','fire_extinguisher','fitting',9960,'1.5 KG FIRE EXT TO CARGO BARRIER or L/H Tray Head Boa'),
+  ('12v_socket_plug_electrical','12V sockets and plugs to Electrical','12V ACC SOCKET and plugs go to Electrical.','acc_12v_socket','electrical',9970,'SUPPLY AND FIT DUAL 12V ACC SOCKET IN MODULE'),
+  ('battery_box_bcdc_electrical','Battery box and BCDC to Electrical','ARB Battery Box Mounted in Tray - BCDC1225D - 100Ah goes to Electrical.','battery_box','electrical',9970,'ARB Battery Box Mounted in Tray - BCDC1225D - 100Ah'),
+  ('xrs370c_electrical','XRS 370c to Electrical','FIT XRS 370c -Select Aerial additional Job Line goes to Electrical.','xrs_370c','electrical',9970,'FIT XRS 370c -Select Aerial additional Job Line'),
   ('navman_cardex_electrical','Navman and Cardex to Electrical','Fit Navman IVMS with Cardex Interface system goes to Electrical.','navman','electrical',9970,'Fit Navman IVMS with Cardex Interface system')
  )x(k,t,instruction,category,wk,priority,example)
  LOOP
