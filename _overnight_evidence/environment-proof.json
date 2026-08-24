@@ -23,6 +23,7 @@
     "synthetic_vehicle_total": 0,
     "vehicle_total": 153
   },
+  "observed_branch_commit": "56cfca9aad6a5aebc578c44dea9c217586ce9dda",
   "outbound_policy": "mailboxes and activation writers disabled; no external sends permitted",
   "pages_build": "c95e0dec3064eebfb88d8f8367a326ca77fcc6b7 built",
   "production_access_guard": true,
