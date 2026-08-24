@@ -76,6 +76,11 @@ def rpc(base,actor,name,body):
  if not isinstance(r,dict) or not r.get("ok"):raise RuntimeError("PDC_RPC_"+name+":"+str(r.get("code") if isinstance(r,dict) else "INVALID"))
  return r
 
+def role_change(base,admin,target_email,role,reason):
+ r=request_json(base+"/rest/v1/rpc/admin_change_role","POST",admin["headers"],{"p_target_email":target_email,"p_role":role,"p_reason":reason})
+ if not isinstance(r,dict) or r.get("role")!=role or not r.get("active") or r.get("account_status")!="approved":raise RuntimeError("PDC_ROLE_CHANGE_READBACK_FAILED")
+ return r
+
 def read_pairs(base,actor,preview_id,count):
  out=[]
  for offset in range(0,count,100):
@@ -125,9 +130,9 @@ def main():
  if any(before[k] for k in ("vehicles","visible_vehicles","operation_lines","pair_reviews","apply_receipts","active_writers","active_mailboxes")) or before["pilot_enabled"] or before["monitor_status"]!="stopped" or before["gateway_instance_id"] is not None:raise RuntimeError("PDC_IMPORT_PRESTATE_NOT_CONTAINED")
  cleanup=[];primary_error=None
  try:
-  rpc(base,admin,"admin_change_role",{"p_target_email":importer["email"],"p_role":"viewer","p_reason":"Craig approved temporary staging workbook importer enrollment"})
+  role_change(base,admin,importer["email"],"viewer","Craig approved temporary staging workbook importer enrollment")
   rpc(base,admin,"admin_set_pdc_monitor_stage_activation_writer",{"p_monitor_user_id":importer["uid"],"p_active":True,"p_reason":"Craig approved temporary staging operation workbook import"})
-  rpc(base,admin,"admin_change_role",{"p_target_email":importer["email"],"p_role":"importer","p_reason":"Craig approved temporary staging operation workbook import"})
+  role_change(base,admin,importer["email"],"importer","Craig approved temporary staging operation workbook import")
   importer=auth(base,anon,ae["PDC_AUDITOR_STAGING_EMAIL"],ae["PDC_AUDITOR_STAGING_PASSWORD"])
   preview=rpc(base,importer,"preview_pdc_pmb_retained_workbook",{"p_workbook_sha256":summary["workbook_sha256"],"p_payload_sha256":summary["payload_sha256"],"p_confirmation":"PREVIEW RETAINED PMB WORKBOOK","p_payload":p})
   d=preview["data"]
@@ -147,7 +152,7 @@ def main():
   primary_error=e;raise
  finally:
   try:
-   rpc(base,admin,"admin_change_role",{"p_target_email":importer["email"],"p_role":"viewer","p_reason":"Restore pmb-auditor staging viewer role after approved import"});cleanup.append("viewer_restored")
+   role_change(base,admin,importer["email"],"viewer","Restore pmb-auditor staging viewer role after approved import");cleanup.append("viewer_restored")
   except Exception as e:cleanup.append("viewer_restore_failed:"+type(e).__name__)
   try:
    rpc(base,admin,"admin_set_pdc_monitor_stage_activation_writer",{"p_monitor_user_id":importer["uid"],"p_active":False,"p_reason":"Revoke temporary staging workbook writer after completed import"});cleanup.append("writer_revoked")
