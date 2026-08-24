@@ -31,7 +31,8 @@ def classify(description:str)->str:
  if re.search(r"\btow\s*bars?\b",d):return "fitting"
  if re.search(r"\b(?:long\s+range(?:r)?\s+(?:fuel\s+)?tanks?|arb\s+frontier\b.{0,80}\b(?:fuel\s+)?tanks?|sub\s+tank\s+replacem\w*)\b",d):return "hoist"
  if re.search(r"\bfire\s+ext(?:inguisher|inuisher|inguishers?|inuishers?)?\b",d):return "fitting"
- if (re.search(r"\b12v\b.{0,60}\b(?:acc(?:essory)?\s+socket|plugs?)\b|\b(?:acc(?:essory)?\s+socket|plugs?)\b.{0,60}\b12v\b",d)
+ if (re.search(r"\banderson\s+plugs?\b",d)
+   or re.search(r"\b12v\b.{0,60}\b(?:acc(?:essory)?\s+socket|plugs?)\b|\b(?:acc(?:essory)?\s+socket|plugs?)\b.{0,60}\b12v\b",d)
    or re.search(r"\b(?:arb\s+)?battery\s+box\b|\bbcdc\d*\b|\bxrs\s*370c\b|\bnavman\b|\bcardex\b",d)):return "electrical"
  key=None
  for pat,value in [
@@ -55,9 +56,9 @@ def payload()->tuple[list[dict],dict]:
   groups.setdefault((jc,stock,reg),[]).append(op)
  p=[{"pair_no":n,"job_card_number":jc,"stock_number":stock,"registration":reg,"operations":ops} for n,((jc,stock,reg),ops) in enumerate(groups.items(),1)]
  counts=collections.Counter(o["work_key"] for x in p for o in x["operations"])
- if len(p)!=166 or rows!=1488 or counts["UNMAPPED"]!=988 or rows-counts["UNMAPPED"]!=500:raise RuntimeError("PDC_WORKBOOK_CLASSIFICATION_COUNT_DRIFT")
+ if len(p)!=166 or rows!=1488 or counts["UNMAPPED"]!=983 or rows-counts["UNMAPPED"]!=505:raise RuntimeError("PDC_WORKBOOK_CLASSIFICATION_COUNT_DRIFT")
  if any(len(x["operations"])>100 for x in p) or any(len(o["description"])>180 for x in p for o in x["operations"]):raise RuntimeError("PDC_WORKBOOK_CONTRACT_LIMIT")
- return p,{"workbook_sha256":sha,"pair_count":len(p),"operation_count":rows,"mapped_operation_count":500,"quarantined_operation_count":988,"work_key_counts":dict(sorted(counts.items())),"unknown_hours":sum(o["estimated_hours"] is None for x in p for o in x["operations"]),"explicit_zero_hours":sum(o["estimated_hours"]==0 for x in p for o in x["operations"])}
+ return p,{"workbook_sha256":sha,"pair_count":len(p),"operation_count":rows,"mapped_operation_count":505,"quarantined_operation_count":983,"work_key_counts":dict(sorted(counts.items())),"unknown_hours":sum(o["estimated_hours"] is None for x in p for o in x["operations"]),"explicit_zero_hours":sum(o["estimated_hours"]==0 for x in p for o in x["operations"])}
 
 def request_json(url:str,method="GET",headers=None,body=None):
  data=None if body is None else json.dumps(body,separators=(",",":")).encode()

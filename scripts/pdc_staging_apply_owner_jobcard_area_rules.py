@@ -18,6 +18,7 @@ def classify(s):
  if re.search(r"\btow\s*bars?\b",d):return "fitting","towbar"
  if re.search(r"\b(long\s+range(?:r)?\s+(?:fuel\s+)?tanks?|arb\s+frontier\b.{0,80}\b(?:fuel\s+)?tanks?|sub\s+tank\s+replacem\w*)\b",d):return "hoist","long_range"
  if re.search(r"\bfire\s+ext(?:inguisher|inuisher|inguishers?|inuishers?)?\b",d):return "fitting","fire"
+ if re.search(r"\banderson\s+plugs?\b",d):return "electrical","socket"
  if re.search(r"\b12v\b.{0,60}\b(?:acc(?:essory)?\s+socket|plugs?)\b|\b(?:acc(?:essory)?\s+socket|plugs?)\b.{0,60}\b12v\b",d):return "electrical","socket"
  if re.search(r"\b(?:arb\s+)?battery\s+box\b|\bbcdc\d*\b",d):return "electrical","battery"
  if re.search(r"\bxrs\s*370c\b",d):return "electrical","xrs"
