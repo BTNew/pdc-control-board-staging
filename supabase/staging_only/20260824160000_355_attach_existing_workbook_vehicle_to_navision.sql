@@ -1,8 +1,18 @@
 -- Staging-only exact Stock bridge: attach one active workbook vehicle to one current Navision backend record.
 -- This expands no generic DML authority and preserves Manager + independent Administrator approval.
+BEGIN;
+SET LOCAL lock_timeout='10s';
+SET LOCAL statement_timeout='180s';
+SELECT pg_advisory_xact_lock(hashtextextended('pdc-staging-355-workbook-navision-bridge',0));
 DO $guard$
 BEGIN
- IF NOT public.pdc_monitor_staging_guard() THEN RAISE EXCEPTION 'PDC_355_WRONG_ENVIRONMENT'; END IF;
+ IF NOT public.pdc_monitor_staging_guard()
+   OR (SELECT count(*) FROM public.pdc_staging_environment_sentinel WHERE singleton AND project_ref='cdsmnqxtyyoeoznmbidd')<>1
+   OR to_regclass('public.pdc_production_environment_sentinel') IS NOT NULL THEN RAISE EXCEPTION 'PDC_355_WRONG_ENVIRONMENT'; END IF;
+ IF NOT EXISTS(SELECT 1 FROM supabase_migrations.schema_migrations WHERE version='20260824150000' AND name='354_full_vehicle_history_reset')
+   OR EXISTS(SELECT 1 FROM supabase_migrations.schema_migrations WHERE version>'20260824150000' AND version~'^[0-9]{14}$') THEN
+  RAISE EXCEPTION 'PDC_355_MIGRATION_HEAD_MISMATCH';
+ END IF;
  IF NOT EXISTS(SELECT 1 FROM public.pdc_staging_full_reset_receipts_354 WHERE action_key='craig-full-vehicle-history-reset-20260824') THEN
   RAISE EXCEPTION 'PDC_355_RESET_PREDECESSOR_MISSING';
  END IF;
@@ -107,3 +117,13 @@ BEGIN
   RAISE EXCEPTION 'PDC_355_CANDIDATE_INSTALL_POSTCONDITION_FAILED';
  END IF;
 END $post$;
+
+INSERT INTO supabase_migrations.schema_migrations(version,name,statements)
+VALUES('20260824160000','355_attach_existing_workbook_vehicle_to_navision',array[
+ 'Require exact staging sentinel, verified pre-reset backup, reset receipt and migration 354 head',
+ 'Permit only one exact active pdc_pmb_workbook Stock owner to attach to one current non-completed Navision backend record',
+ 'Preserve Manager approval, independent Administrator countersignature, canonical Apply receipt and fail-closed identity checks',
+ 'Grant no direct candidate execution, generic DML, Monitor, mailbox, writer or Production authority'
+]);
+NOTIFY pgrst,'reload schema';
+COMMIT;
