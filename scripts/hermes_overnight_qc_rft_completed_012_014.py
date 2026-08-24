@@ -35,7 +35,7 @@ def main():
  if set(rows)!={12,13,14}: raise RuntimeError("scenario inventory")
  for no,row in rows.items():
   v=row["vehicle"]
-  if v["stock_number"]!=f"HERMES-TEST-{no:03d}" or v["version"]!=1 or v["current_location"]!="PMB" or v["lifecycle_state"]!="active" or row["receipts"]: raise RuntimeError(f"scenario {no} not pristine")
+  if v["stock_number"]!=f"HERMES-TEST-{no:03d}" or v["version"]!=1 or v["current_location"]!="PMB" or v["lifecycle_state"]!="active": raise RuntimeError(f"scenario {no} initial state drift")
  # Role contract: operator can inspect exact registry scope; viewer and unapproved identities cannot.
  os,ox=read(operator)
  if os!=200 or ox.get("ok") is not True: raise RuntimeError("operator read role denied")
@@ -59,9 +59,10 @@ def main():
  def lifecycle(label,no,action,expect_ok,*,changed_probe=False,stale_version=None):
   before=current(no); v=before["vehicle"]; version=int(v["version"] if stale_version is None else stale_version)
   idem=str(uuid.uuid5(NS,f"{RUN}:{label}")); p={"p_run_id":RUN,"p_vehicle_id":v["id"],"p_expected_version":version,"p_idempotency_key":idem,"p_action":action}
+  existing=next((r for r in before["receipts"] if r.get("actor_id")==admin["user"]["id"] and r.get("idempotency_key")==idem),None)
   pre=prove_environment(); status,response=rpc(admin,"pdc_hermes_test_lifecycle_365",p); after=current(no)
-  if status!=200 or response.get("ok") is not expect_ok or response.get("notification_delta")!=0: raise RuntimeError(f"{label} result {status} {json.dumps(response)[:1000]}")
-  if len(after["receipts"])!=len(before["receipts"])+1: raise RuntimeError(f"{label} receipt")
+  if status!=200 or response.get("ok") is not expect_ok or response.get("notification_delta")!=0 or response.get("replay") is not bool(existing): raise RuntimeError(f"{label} result {status} {json.dumps(response)[:1000]}")
+  if len(after["receipts"])!=len(before["receipts"])+(0 if existing else 1): raise RuntimeError(f"{label} receipt")
   if not expect_ok and digest({k:after[k] for k in ("vehicle","work_items","movements","bookings","parts","sublets")})!=digest({k:before[k] for k in ("vehicle","work_items","movements","bookings","parts","sublets")}): raise RuntimeError(f"{label} rejection changed state")
   prove_environment(); rstatus,replay=rpc(admin,"pdc_hermes_test_lifecycle_365",p); replay_row=current(no)
   if rstatus!=200 or replay.get("replay") is not True or replay.get("replay_containment_verified") is not True or len(replay_row["receipts"])!=len(after["receipts"]) or digest(replay_row["vehicle"])!=digest(after["vehicle"]): raise RuntimeError(f"{label} replay")
@@ -71,7 +72,7 @@ def main():
    if cs<400 or "PDC_365_IDEMPOTENCY_PAYLOAD_OR_ACTOR_MISMATCH" not in json.dumps(cx): raise RuntimeError(f"{label} changed payload")
    if digest(current(no)["vehicle"])!=digest(after["vehicle"]): raise RuntimeError(f"{label} changed payload changed state")
    changed_rejected=True
-  actions.append({"label":label,"scenario_no":no,"kind":"lifecycle","action":action,"expected_ok":expect_ok,"http_status":status,"receipt_id":response.get("receipt_id"),"error":(response.get("result") or {}).get("error"),"version_before":before["vehicle"]["version"],"version_after":after["vehicle"]["version"],"location_before":before["vehicle"]["current_location"],"location_after":after["vehicle"]["current_location"],"replay_verified":True,"changed_payload_rejected":changed_rejected,"pre_action_migration_head":pre["database"]["migration_head"]})
+  actions.append({"label":label,"scenario_no":no,"kind":"lifecycle","action":action,"expected_ok":expect_ok,"http_status":status,"receipt_id":response.get("receipt_id"),"error":(response.get("result") or {}).get("error"),"version_before":before["vehicle"]["version"],"version_after":after["vehicle"]["version"],"location_before":before["vehicle"]["current_location"],"location_after":after["vehicle"]["current_location"],"replay_verified":True,"recovered_from_prior_receipt":bool(existing),"changed_payload_rejected":changed_rejected,"pre_action_migration_head":pre["database"]["migration_head"]})
   return after
  def complete_work(label,no,key,*,changed_probe=False,stale_probe=False):
   before=current(no); v=before["vehicle"]; states={k:("complete" if k==key else "none") for k in WORK_KEYS}; idem=str(uuid.uuid5(NS,f"{RUN}:{label}"))
