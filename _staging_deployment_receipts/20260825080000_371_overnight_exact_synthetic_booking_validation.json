@@ -1,0 +1,22 @@
+{
+  "applied": true,
+  "ledger_readback": [
+    {
+      "name": "371_overnight_exact_synthetic_booking_validation",
+      "version": "20260825080000"
+    }
+  ],
+  "management_response": [
+    {
+      "pg_advisory_xact_lock": ""
+    }
+  ],
+  "migration_file": "20260825080000_371_overnight_exact_synthetic_booking_validation.sql",
+  "migration_name": "371_overnight_exact_synthetic_booking_validation",
+  "migration_sha256": "9bae4fe89d675642efad39bfdf8e38d4d9cdca02f52cd0f8082d9c1fd3980a0c",
+  "migration_version": "20260825080000",
+  "production_ref_rejected": "vjdtsswhroyguxyfjdkt",
+  "recorded_at_utc": "2026-08-24T16:21:36.348070+00:00",
+  "schema": "pdc-staging-management-migration-receipt-v1",
+  "target_ref": "cdsmnqxtyyoeoznmbidd"
+}
