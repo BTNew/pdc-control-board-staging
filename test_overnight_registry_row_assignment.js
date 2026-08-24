@@ -1,0 +1,10 @@
+'use strict';
+const assert=require('assert'),fs=require('fs');
+const sql=fs.readFileSync('supabase/staging_only/20260825050000_368_overnight_registry_row_assignment.sql','utf8');
+assert.match(sql,/367_overnight_sublet_history_primary_key/);
+assert.match(sql,/SELECT r\.\* INTO v_registry/);
+assert.strictEqual((sql.match(/SELECT r INTO v_registry/g)||[]).length,1,'only rejection postcondition may mention old assignment');
+assert.match(sql,/ORDER BY x\.history_id/);
+assert.match(sql,/CREATE OR REPLACE FUNCTION public\.pdc_hermes_test_apply_365/);
+assert.doesNotMatch(sql,/GRANT\s+(?:INSERT|UPDATE|DELETE|ALL)\s+ON/i);
+console.log('Overnight registry row-assignment repair contract passed.');
