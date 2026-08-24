@@ -50,9 +50,10 @@ def rpc(base,actor,name,body):
 
 def nav_preview(base,admin,b):
  return rpc(base,admin,"preview_navision_backend_import",{"p_rows":b["rows"],"p_source_system":"microsoft_navision","p_dealer_code":b["dealer_code"],"p_source_name":b["source_name"],"p_source_timestamp":b["source_timestamp"]})
+def nav_key(b):return "craig-fix-workbook-navision-match-20260824-"+b["dealer_code"]+"-"+b["frozen_rows_sha256"][:16]
 def nav_apply(base,admin,b,preview):
  d=preview["data"]
- return rpc(base,admin,"apply_navision_backend_import",{"p_idempotency_key":"craig-fix-workbook-navision-match-20260824-"+b["dealer_code"]+"-"+b["frozen_rows_sha256"][:16],"p_rows":b["rows"],"p_source_system":"microsoft_navision","p_dealer_code":b["dealer_code"],"p_source_name":b["source_name"],"p_source_timestamp":b["source_timestamp"],"p_source_hash":d["source_hash"],"p_preview_hash":d["preview_hash"],"p_expected_revision":d["base_revision"]})
+ return rpc(base,admin,"apply_navision_backend_import",{"p_idempotency_key":nav_key(b),"p_rows":b["rows"],"p_source_system":"microsoft_navision","p_dealer_code":b["dealer_code"],"p_source_name":b["source_name"],"p_source_timestamp":b["source_timestamp"],"p_source_hash":d["source_hash"],"p_preview_hash":d["preview_hash"],"p_expected_revision":d["base_revision"]})
 
 def readback():
  sql="""SET TRANSACTION READ ONLY;select jsonb_build_object(
@@ -73,6 +74,12 @@ def readback():
  )evidence;"""
  return _post(f"https://api.supabase.com/v1/projects/{STAGING_REF}/database/query/read-only",sql)[0]["evidence"]
 
+def nav_import_state():
+ sql="""SET TRANSACTION READ ONLY;select jsonb_build_object(
+  'by_dealer',(select coalesce(jsonb_object_agg(dealer_code,n),'{}'::jsonb)from(select dealer_code,count(*)n from public.navision_backend_records where is_current group by dealer_code)q),
+  'batches',(select coalesce(jsonb_object_agg(idempotency_key,jsonb_build_object('status',status,'dealer_code',dealer_code,'total_rows',total_rows)),'{}'::jsonb)from public.navision_import_batches where idempotency_key like 'craig-fix-workbook-navision-match-20260824-%')) evidence;"""
+ return _post(f"https://api.supabase.com/v1/projects/{STAGING_REF}/database/query/read-only",sql)[0]["evidence"]
+
 def main():
  a=argparse.ArgumentParser();a.add_argument("--prepare-only",action="store_true");a.add_argument("--apply",action="store_true");a.add_argument("--confirmation");a.add_argument("--receipt",type=Path);args=a.parse_args()
  tables=decrypt_tables();batches=frozen_batches(tables);we=op.env(op.WEBSITE_ENV);ae=op.env(op.AUDITOR_ENV);base=we["PDC_STAGING_SUPABASE_URL"];anon=we["PDC_STAGING_ANON_KEY"]
@@ -85,11 +92,15 @@ def main():
  if args.prepare_only:
   print(json.dumps({"status":"PREPARED","backup_manifest_sha256":EXPECTED_MANIFEST,"batches":previews,"current":readback()},sort_keys=True));return 0
  if not args.apply or args.confirmation!="CRAIG DIRECTED STAGING NAVISION STOCK MATCH REPAIR":raise RuntimeError("PDC_NAV_REPAIR_CONFIRMATION_REQUIRED")
- before=readback()
- if before["vehicles"]!=153 or before["navision_records"]!=0 or before["active_activations"]!=0 or before["operation_lines"]!=494 or before["work_items"]!=294 or before["active_writers"]!=0 or before["active_mailboxes"]!=0 or before["pilot_enabled"] or before["monitor_status"]!="stopped" or before["gateway_instance_id"] is not None:raise RuntimeError("PDC_NAV_REPAIR_PRESTATE_FAILED:"+json.dumps(before,sort_keys=True))
+ before=readback();resume=nav_import_state();allowed_resume=resume["by_dealer"] in ({},{"14450":736})
+ if before["vehicles"]!=153 or not allowed_resume or before["navision_records"] not in (0,736) or before["active_activations"]!=0 or before["operation_lines"]!=494 or before["work_items"]!=294 or before["active_writers"]!=0 or before["active_mailboxes"]!=0 or before["pilot_enabled"] or before["monitor_status"]!="stopped" or before["gateway_instance_id"] is not None:raise RuntimeError("PDC_NAV_REPAIR_PRESTATE_FAILED:"+json.dumps({"before":before,"resume":resume},sort_keys=True))
  nav_receipts=[];cleanup=[];primary=None
  try:
   for b in batches:
+   state=nav_import_state();prior=state["batches"].get(nav_key(b));dealer_count=state["by_dealer"].get(b["dealer_code"],0)
+   if prior is not None:
+    if prior!={"status":"applied","dealer_code":b["dealer_code"],"total_rows":b["row_count"]} or dealer_count!=b["row_count"]:raise RuntimeError("PDC_NAV_REPAIR_PARTIAL_RECEIPT_CONFLICT:"+b["dealer_code"])
+    nav_receipts.append({"dealer_code":b["dealer_code"],"row_count":b["row_count"],"frozen_rows_sha256":b["frozen_rows_sha256"],"status":"already_applied_verified","idempotency_key":nav_key(b)});continue
    pr=nav_preview(base,admin,b);d=pr["data"]
    if d.get("blocking") or (d.get("safety") or {}).get("blocking"):
     reason=(d.get("safety") or {}).get("reason")
@@ -97,8 +108,8 @@ def main():
     rpc(base,admin,"approve_navision_initial_scope",{"p_rows":b["rows"],"p_source_system":"microsoft_navision","p_dealer_code":b["dealer_code"]});pr=nav_preview(base,admin,b);d=pr["data"]
    counts=d.get("counts") or {}
    if d.get("blocking") or (d.get("safety") or {}).get("blocking") or counts.get("invalid") or counts.get("conflict") or ((d.get("sublet_provider_preview") or {}).get("unknown_count") or 0):raise RuntimeError("PDC_NAV_REPAIR_PREVIEW_NOT_SAFE:"+b["dealer_code"]+":"+json.dumps({"counts":counts,"safety":d.get("safety")},sort_keys=True))
-   applied=nav_apply(base,admin,b,pr);replay=nav_apply(base,admin,b,pr)
-   nav_receipts.append({"dealer_code":b["dealer_code"],"row_count":b["row_count"],"frozen_rows_sha256":b["frozen_rows_sha256"],"preview_hash":d["preview_hash"],"source_hash":d["source_hash"],"apply_code":applied["code"],"apply":applied["data"],"replay_code":replay["code"],"replay":replay["data"]})
+   applied=nav_apply(base,admin,b,pr)
+   nav_receipts.append({"dealer_code":b["dealer_code"],"row_count":b["row_count"],"frozen_rows_sha256":b["frozen_rows_sha256"],"preview_hash":d["preview_hash"],"source_hash":d["source_hash"],"apply_code":applied["code"],"apply":applied["data"],"status":"applied_and_readback_required","idempotency_key":nav_key(b)})
   mid=readback()
   if mid["navision_records"]!=970 or mid["current_navision_records"]!=970 or mid["current_navision_unique_stocks"]!=970 or mid["vehicles"]!=153:raise RuntimeError("PDC_NAV_REPAIR_IMPORT_READBACK_FAILED:"+json.dumps(mid,sort_keys=True))
   op.role_change(base,admin,importer["email"],"viewer","Craig directed exact staging Navision stock-match repair")

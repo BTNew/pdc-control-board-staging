@@ -16,5 +16,7 @@ class NavisionWorkbookReconcileTests(unittest.TestCase):
   for x in ['0cba8a1feb4a01ef55de4de93b29fd6e950949ccd34bf6ef5ecf82bf3031b2c0','7e1ba89c675c7afb3fafdd072f20aa0145096ad03672b2de7b283b9f551c9d16','EXPECTED_BATCH_COUNTS={"14450":736,"37047":234}','PRODUCTION_REF in base','microsoft_navision']:self.assertIn(x,self.py)
  def test_controller_preserves_unmatched_and_revokes_access(self):
   for x in ['eligible_pair_count":127','eligible_unique_stock_count":116','ineligible_pair_count":39','ineligible_unique_stock_count":37','viewer_restored','writer_revoked','zero_add_replay']:self.assertIn(x,self.py)
+ def test_controller_supports_verified_partial_resume(self):
+  for x in ['already_applied_verified','PDC_NAV_REPAIR_PARTIAL_RECEIPT_CONFLICT','allowed_resume','nav_import_state()']:self.assertIn(x,self.py)
  def test_controller_requires_owner_confirmation(self):self.assertIn('CRAIG DIRECTED STAGING NAVISION STOCK MATCH REPAIR',self.py)
 if __name__=='__main__':unittest.main()
