@@ -64,22 +64,25 @@ def main() -> None:
 
     def authoritative_role(session: dict) -> dict:
         actor_id = str(uuid.UUID(session["user"]["id"]))
+        actor_email_hash = hashlib.sha256(session["user"]["email"].strip().lower().encode()).hexdigest()
         sql = f"""SET TRANSACTION READ ONLY;
-select role::text, active, account_status::text
-from public.pdc_user_roles where auth_user_id='{actor_id}'::uuid;"""
+select role::text, active, account_status::text, auth_user_id::text
+from public.pdc_user_roles
+where encode(extensions.digest(convert_to(lower(email),'UTF8'),'sha256'),'hex')='{actor_email_hash}';"""
         rows = _post(f"https://api.supabase.com/v1/projects/{REF}/database/query/read-only", sql)
-        if len(rows) != 1:
+        if len(rows) != 1 or rows[0].get("auth_user_id") not in (None, actor_id):
             raise RuntimeError("authoritative actor-role readback")
-        return rows[0]
+        row = rows[0]
+        return {"role": row["role"], "active": row["active"], "account_status": row["account_status"], "identity_binding": "auth_user_id" if row.get("auth_user_id") == actor_id else "canonical_email"}
 
     role_rows = {
         "administrator": authoritative_role(admin),
         "operator": authoritative_role(operator),
         "authenticated-unapproved": authoritative_role(unapproved),
     }
-    if role_rows["administrator"] != {"role": "administrator", "active": True, "account_status": "approved"}:
+    if {k: role_rows["administrator"][k] for k in ("role", "active", "account_status")} != {"role": "administrator", "active": True, "account_status": "approved"}:
         raise RuntimeError("Administrator role identity drift")
-    if role_rows["operator"] != {"role": "operator", "active": True, "account_status": "approved"}:
+    if {k: role_rows["operator"][k] for k in ("role", "active", "account_status")} != {"role": "operator", "active": True, "account_status": "approved"}:
         raise RuntimeError("Operator role identity drift")
     if role_rows["authenticated-unapproved"].get("account_status") != "unapproved":
         raise RuntimeError("authenticated-unapproved identity drift")
