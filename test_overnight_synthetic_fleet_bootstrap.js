@@ -7,6 +7,7 @@ const path = require('path');
 const root = __dirname;
 const migrationRel = 'supabase/staging_only/20260825000000_363_overnight_synthetic_fleet_bootstrap.sql';
 const sql = fs.readFileSync(path.join(root, migrationRel), 'utf8');
+const revisionSchema = fs.readFileSync(path.join(root, 'supabase/staging_only/096_navision_stock_number_authority.sql'), 'utf8');
 
 const specs = JSON.parse(fs.readFileSync(path.join(root, '_overnight_evidence/synthetic-fleet-specs.json'), 'utf8'));
 
@@ -121,7 +122,7 @@ for (const fragment of [
   "UNION SELECT 'PARTS'",
   'required,completed,completed_by,completed_at,notes',
   'true,false,NULL,NULL',
-  "p_run_id||':work:'||v_stock||':'||v_work_key",
+  "p_run_id||':work:'||btrim(spec->>'stock')||':'||wk.value",
 ]) has(fragment);
 
 // Exact actor/idempotency replay and transactional count/postcondition proof.
@@ -135,6 +136,11 @@ for (const fragment of [
   "'vehicle_delta',20",
   "'registry_delta',20",
   "'notification_delta',0",
+  "'table','public.pdc_email_vehicle_revision'",
+  "'expected_delta',2",
+  'PDC_363_UNEXPECTED_SHARED_REVISION_DELTA',
+  'PDC_363_REPLAY_SHARED_REVISION_CHANGED',
+  'PDC_363_SHARED_REVISION_DRIFT_BEFORE_RETURN',
   'v_after_vehicle_count-v_before_vehicle_count<>20',
   'v_after_registry_count-v_before_registry_count<>20',
   'v_after_notification_count<>v_before_notification_count',
@@ -156,6 +162,38 @@ for (const fragment of [
   'rft_collected_at IS NOT NULL',
   'completed_at IS NOT NULL',
   'deleted_at IS NOT NULL',
+]) has(fragment);
+
+// Schema-grounded statement trigger proof and executable SQL-shape regression.
+// Migration 096 is authoritative: each target table has one statement trigger
+// calling the same singleton +1 updater.
+for (const table of ['vehicles','vehicle_work_items']) {
+  assert(new RegExp(`create trigger pdc_email_vehicle_revision_(?:work_items|vehicles)\\s+after insert or update or delete on public\\.${table}\\s+for each statement execute function public\\.bump_pdc_email_vehicle_revision\\(\\)`, 'i').test(revisionSchema),
+    `${table} must retain its statement-level shared revision trigger`);
+}
+assert(/update public\.pdc_email_vehicle_revision\s+set revision=revision\+1[\s\S]*?where singleton/i.test(revisionSchema),
+  'shared revision trigger must increment the singleton by one');
+assert.strictEqual((revisionSchema.match(/create trigger pdc_email_vehicle_revision_(?:vehicles|work_items)\b/gi) || []).length, 2,
+  'schema evidence must expose exactly the two relevant statement triggers');
+
+const bootstrapBody = sql.slice(sql.indexOf('CREATE FUNCTION public.bootstrap_pdc_hermes_test_fleet'),
+  sql.indexOf('END $bootstrap$;'));
+assert.strictEqual((bootstrapBody.match(/INSERT INTO public\.vehicles\b/gi) || []).length, 1,
+  'all 20 vehicles must use exactly one set-based insert');
+assert.strictEqual((bootstrapBody.match(/INSERT INTO public\.vehicle_work_items\b/gi) || []).length, 1,
+  'all requested work keys must use exactly one set-based insert');
+const authoritativeDml = bootstrapBody.slice(bootstrapBody.indexOf('-- Authoritative statement 1/2:'),
+  bootstrapBody.indexOf('v_after_vehicle_count:='));
+assert(authoritativeDml.includes('WITH input AS MATERIALIZED') && authoritativeDml.includes('inserted_vehicles AS')
+  && authoritativeDml.includes('inserted_registry AS'), 'vehicle/registry statement must share one authoritative set input');
+assert(!/\bFOR\b[\s\S]*?\bLOOP\b/i.test(authoritativeDml), 'authoritative inserts must contain no row-by-row loop');
+assert.strictEqual((authoritativeDml.match(/-- Authoritative statement [12]\/2:/g) || []).length, 2,
+  'exactly two shared-revision-authoritative DML statements must be declared');
+for (const fragment of [
+  'FROM public.pdc_email_vehicle_revision WHERE singleton FOR UPDATE',
+  'v_shared_revision_after-v_shared_revision_before<>2',
+  'PERFORM public.read_pdc_hermes_test_fleet(p_run_id)',
+  "'replay_revision'",
 ]) has(fragment);
 
 // Readback is role/run scoped and returns canonical registered state/work only.
@@ -317,33 +355,70 @@ for (const mutate of [
 ]) { const hostile=structuredClone(canonical); mutate(hostile); assert(!readbackValid(hostile), 'readback drift must raise, never filter'); }
 for (const fragment of ['PDC_363_READBACK_DRIFT','jsonb_array_length(v_rows)<>20', 'r.spec', "r.role IN('operator','administrator')"]) has(fragment);
 
+function restoreArray(target, snapshot) { target.splice(0, target.length, ...snapshot); }
 function bootstrapModel(state, key, payloadHash) {
   if (!containmentClosed(state.containment)) throw new Error('containment');
+  const replayRevisionBefore=state.revision;
   const old=state.receipts.get(key);
-  if (old) { if (old.hash!==payloadHash) throw new Error('payload mismatch'); return old.response; }
+  if (old) {
+    if (old.hash!==payloadHash) throw new Error('payload mismatch');
+    if (!readbackValid(state.registry)) throw new Error('canonical drift');
+    if (state.revision!==replayRevisionBefore) throw new Error('replay revision changed');
+    return {...old.response,replay:true,replay_revision:{before:replayRevisionBefore,after:state.revision,delta:0}};
+  }
   if (state.collisions.some(sourceCollision)) throw new Error('collision');
+  const rollback={vehicles:structuredClone(state.vehicles),registry:structuredClone(state.registry),work:structuredClone(state.work),
+    bookings:structuredClone(state.bookings),parts:structuredClone(state.parts),sublets:structuredClone(state.sublets),
+    providers:structuredClone(state.providers),email:structuredClone(state.email),revision:state.revision,receipts:new Map(state.receipts)};
   const before={vehicles:state.vehicles.length, registry:state.registry.length, work:state.work.length,
     notifications:state.containment.notifications.length, bookings:state.bookings.length, parts:state.parts.length,
     sublets:state.sublets.length, providers:state.providers.length, email:state.email.length};
-  state.vehicles.push(...canonical.map(x=>x.vehicle)); state.registry.push(...canonical); state.work.push(...canonical.flatMap(x=>x.work_items));
-  if (state.injectForbidden) state.bookings.push({vehicle_id:canonical[0].vehicle.id});
-  const after={vehicles:state.vehicles.length, registry:state.registry.length, work:state.work.length,
-    notifications:state.containment.notifications.length, bookings:state.bookings.length, parts:state.parts.length,
-    sublets:state.sublets.length, providers:state.providers.length, email:state.email.length};
-  if (after.vehicles-before.vehicles!==20 || after.registry-before.registry!==20
-      || after.work-before.work!==canonical.flatMap(x=>x.work_items).length || after.notifications!==before.notifications
-      || ['bookings','parts','sublets','providers','email'].some(k=>after[k]!==before[k])) throw new Error('delta or forbidden side effect');
-  const response={vehicle_delta:20,registry_delta:20,notification_delta:0}; state.receipts.set(key,{hash:payloadHash,response}); return response;
+  try {
+    // Each append models one set INSERT statement, independent of row count.
+    state.vehicles.push(...canonical.map(x=>x.vehicle)); state.revision++;
+    state.registry.push(...canonical);
+    state.work.push(...canonical.flatMap(x=>x.work_items)); state.revision++;
+    if (state.injectUnexpectedRevision) state.revision++;
+    if (state.revision-rollback.revision!==2) throw new Error('unexpected shared revision delta');
+    if (state.injectForbidden) state.bookings.push({vehicle_id:canonical[0].vehicle.id});
+    const after={vehicles:state.vehicles.length, registry:state.registry.length, work:state.work.length,
+      notifications:state.containment.notifications.length, bookings:state.bookings.length, parts:state.parts.length,
+      sublets:state.sublets.length, providers:state.providers.length, email:state.email.length};
+    if (after.vehicles-before.vehicles!==20 || after.registry-before.registry!==20
+        || after.work-before.work!==canonical.flatMap(x=>x.work_items).length || after.notifications!==before.notifications
+        || ['bookings','parts','sublets','providers','email'].some(k=>after[k]!==before[k])) throw new Error('delta or forbidden side effect');
+    const response={vehicle_delta:20,registry_delta:20,notification_delta:0,replay:false,
+      shared_revision:{before:rollback.revision,after:state.revision,delta:2}};
+    state.receipts.set(key,{hash:payloadHash,response}); return response;
+  } catch (error) {
+    for (const name of ['vehicles','registry','work','bookings','parts','sublets','providers','email']) restoreArray(state[name],rollback[name]);
+    state.revision=rollback.revision; state.receipts=rollback.receipts;
+    throw error;
+  }
 }
 function emptyModel(extra={}) { return {containment:structuredClone(contained),collisions:[],vehicles:[],registry:[],work:[],
-  bookings:[],parts:[],sublets:[],providers:[],email:[],receipts:new Map(),...extra}; }
+  bookings:[],parts:[],sublets:[],providers:[],email:[],receipts:new Map(),revision:41,...extra}; }
 const model=emptyModel();
 const first=bootstrapModel(model,'key','same'); const replay=bootstrapModel(model,'key','same');
-assert.strictEqual(replay,first); assert.strictEqual(model.vehicles.length,20);
+assert.strictEqual(first.shared_revision.delta,2); assert.strictEqual(model.revision,43);
+assert.strictEqual(replay.replay,true); assert.strictEqual(replay.replay_revision.delta,0);
+assert.strictEqual(model.revision,43); assert.strictEqual(model.vehicles.length,20);
 assert.throws(()=>bootstrapModel(model,'key','changed'),/payload mismatch/);
 const collisionModel=emptyModel({collisions:[{source_batch_id:runId}]});
 assert.throws(()=>bootstrapModel(collisionModel,'other','same'),/collision/);
-assert.throws(()=>bootstrapModel(emptyModel({injectForbidden:true}),'side-effect','same'),/forbidden side effect/);
+const forbiddenModel=emptyModel({injectForbidden:true});
+assert.throws(()=>bootstrapModel(forbiddenModel,'side-effect','same'),/forbidden side effect/);
+assert.deepStrictEqual({revision:forbiddenModel.revision,vehicles:forbiddenModel.vehicles.length,work:forbiddenModel.work.length,receipts:forbiddenModel.receipts.size},
+  {revision:41,vehicles:0,work:0,receipts:0}, 'forbidden side effect must roll back the transaction model');
+const revisionDriftModel=emptyModel({injectUnexpectedRevision:true});
+assert.throws(()=>bootstrapModel(revisionDriftModel,'revision-drift','same'),/unexpected shared revision delta/);
+assert.deepStrictEqual({revision:revisionDriftModel.revision,vehicles:revisionDriftModel.vehicles.length,registry:revisionDriftModel.registry.length,
+  work:revisionDriftModel.work.length,receipts:revisionDriftModel.receipts.size},
+  {revision:41,vehicles:0,registry:0,work:0,receipts:0}, 'unexpected revision delta must roll back every inserted row and receipt');
+const replayDriftModel=structuredClone(model); replayDriftModel.receipts=new Map(model.receipts);
+replayDriftModel.registry[0].vehicle.visible_on_board=false;
+assert.throws(()=>bootstrapModel(replayDriftModel,'key','same'),/canonical drift/);
+assert.strictEqual(replayDriftModel.revision,43, 'failed replay validation must cause zero revision change');
 
 // Protected digests must compare the identical pre-existing set, excluding the
 // deterministic target IDs on both sides (including hostile pre-existing registry rows).

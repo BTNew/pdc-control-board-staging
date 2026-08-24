@@ -204,11 +204,10 @@ DECLARE
  v_eta date;
  v_notes text;
  v_work_keys jsonb;
- v_work_key text;
- v_vehicle_id uuid;
- v_registry_id uuid;
- v_vehicle public.vehicles%rowtype;
  v_ids jsonb:='[]'::jsonb;
+ v_shared_revision_before bigint;
+ v_shared_revision_after bigint;
+ v_shared_revision_recheck bigint;
  v_before_vehicle_count bigint;
  v_after_vehicle_count bigint;
  v_before_registry_count bigint;
@@ -342,6 +341,11 @@ BEGIN
   IF v_receipt.request_sha256<>v_request_sha256 THEN
    RAISE EXCEPTION 'PDC_363_IDEMPOTENCY_PAYLOAD_MISMATCH' USING errcode='22023';
   END IF;
+  SELECT revision INTO v_shared_revision_before
+  FROM public.pdc_email_vehicle_revision WHERE singleton FOR UPDATE;
+  IF NOT FOUND OR (SELECT count(*) FROM public.pdc_email_vehicle_revision WHERE singleton)<>1 THEN
+   RAISE EXCEPTION 'PDC_363_SHARED_REVISION_SINGLETON_MISMATCH' USING errcode='55000';
+  END IF;
   IF NOT public.pdc_monitor_staging_guard()
     OR (SELECT count(*) FROM public.pdc_email_monitor_pilot)<>1
     OR (SELECT count(*) FROM public.pdc_email_monitor_pilot WHERE singleton AND NOT enabled AND NOT outbound_email_enabled
@@ -353,7 +357,18 @@ BEGIN
     OR (SELECT count(*) FROM public.vehicle_notifications)<>0 THEN
    RAISE EXCEPTION 'PDC_363_RUNTIME_CONTAINMENT_MISMATCH' USING errcode='55000';
   END IF;
-  RETURN jsonb_set(v_receipt.response,'{replay}','true'::jsonb,false);
+  -- Replay is read-only: fail closed on any canonical drift and receipt its
+  -- observed zero revision delta in the returned (not persisted) replay envelope.
+  PERFORM public.read_pdc_hermes_test_fleet(p_run_id);
+  SELECT revision INTO v_shared_revision_after
+  FROM public.pdc_email_vehicle_revision WHERE singleton;
+  IF v_shared_revision_after IS DISTINCT FROM v_shared_revision_before THEN
+   RAISE EXCEPTION 'PDC_363_REPLAY_SHARED_REVISION_CHANGED' USING errcode='55000';
+  END IF;
+  RETURN jsonb_set(v_receipt.response,'{replay}','true'::jsonb,false)
+    || jsonb_build_object('replay_revision',jsonb_build_object(
+      'table','public.pdc_email_vehicle_revision','before',v_shared_revision_before,
+      'after',v_shared_revision_after,'delta',v_shared_revision_after-v_shared_revision_before));
  END IF;
 
  LOCK TABLE public.vehicles IN SHARE ROW EXCLUSIVE MODE;
@@ -370,6 +385,17 @@ BEGIN
  LOCK TABLE public.pdc_sublet_bookings IN SHARE MODE;
  LOCK TABLE public.vehicle_sublet_providers IN SHARE MODE;
  LOCK TABLE public.pdc_authenticated_email_import_receipts IN SHARE MODE;
+
+ -- Migration 096 installs one AFTER ... FOR EACH STATEMENT trigger on each of
+ -- vehicles and vehicle_work_items. Both call bump_pdc_email_vehicle_revision(),
+ -- whose only authoritative side effect is +1 on this realtime-published singleton.
+ -- Target tables are locked first to preserve trigger lock order; then this row lock
+ -- serializes the receipt boundary without disabling triggers or writing revision.
+ SELECT revision INTO v_shared_revision_before
+ FROM public.pdc_email_vehicle_revision WHERE singleton FOR UPDATE;
+ IF NOT FOUND OR (SELECT count(*) FROM public.pdc_email_vehicle_revision WHERE singleton)<>1 THEN
+  RAISE EXCEPTION 'PDC_363_SHARED_REVISION_SINGLETON_MISMATCH' USING errcode='55000';
+ END IF;
 
  SELECT array_agg(extensions.uuid_generate_v5('36300000-0000-5000-8000-000000000363'::uuid,
    p_run_id||':vehicle:'||(spec->>'stock')) ORDER BY (spec->>'scenario_no')::integer)
@@ -444,33 +470,62 @@ BEGIN
   RAISE EXCEPTION 'PDC_363_existing_registry_mismatch' USING errcode='55000';
  END IF;
 
- FOR v_spec IN SELECT value FROM jsonb_array_elements(p_specs) ORDER BY (value->>'scenario_no')::integer LOOP
-  v_no:=(v_spec->>'scenario_no')::integer;
-  v_name:=btrim(v_spec->>'scenario_name');v_stock:=btrim(v_spec->>'stock');v_customer:=btrim(v_spec->>'customer');
-  v_job:=btrim(v_spec->>'job_card');v_description:=btrim(v_spec->>'description');
-  v_location:=coalesce(nullif(btrim(v_spec->>'initial_location'),''),'Other');v_eta:=nullif(v_spec->>'eta','')::date;
-  v_notes:=coalesce(nullif(btrim(v_spec->>'notes'),''),'HERMES-TEST render-only incomplete synthetic requirement');
-  v_work_keys:=coalesce(v_spec->'work_keys','[]'::jsonb);
-  v_vehicle_id:=extensions.uuid_generate_v5('36300000-0000-5000-8000-000000000363'::uuid,p_run_id||':vehicle:'||v_stock);
-  v_registry_id:=extensions.uuid_generate_v5('36300000-0000-5000-8000-000000000363'::uuid,p_run_id||':registry:'||v_no::text);
+ -- Authoritative statement 1/2: all 20 vehicles are inserted in one set. The
+ -- registry consumes the same materialized input and INSERT ... RETURNING rows,
+ -- preserving exact generated versions/scenarios without row-by-row DML.
+ WITH input AS MATERIALIZED (
+  SELECT spec,(spec->>'scenario_no')::integer scenario_no,btrim(spec->>'scenario_name') scenario_name,
+    btrim(spec->>'stock') stock_number,btrim(spec->>'customer') customer_name,
+    btrim(spec->>'job_card') job_card_number,btrim(spec->>'description') vehicle_description,
+    coalesce(nullif(btrim(spec->>'initial_location'),''),'Other') current_location,
+    nullif(spec->>'eta','')::date eta_to_kewdale,
+    extensions.uuid_generate_v5('36300000-0000-5000-8000-000000000363'::uuid,
+      p_run_id||':vehicle:'||btrim(spec->>'stock')) vehicle_id,
+    extensions.uuid_generate_v5('36300000-0000-5000-8000-000000000363'::uuid,
+      p_run_id||':registry:'||(spec->>'scenario_no')) registry_id
+  FROM jsonb_array_elements(p_specs) spec
+ ), inserted_vehicles AS (
   INSERT INTO public.vehicles(id,permanent_vehicle_id,stock_number,job_card_number,customer_name,vehicle_description,model,
     lifecycle_state,visible_on_board,current_location,eta_to_kewdale,source_system,source_batch_id,source_record_id,source_payload,created_by,updated_by)
-  VALUES(v_vehicle_id,'HERMES-TEST-PERM-'||lpad(v_no::text,3,'0'),v_stock,v_job,v_customer,v_description,v_description,
-    'active',true,v_location,v_eta,'hermes_overnight_synthetic',p_run_id,v_stock,
-    jsonb_build_object('contract','pdc-overnight-synthetic-fleet-363/render_only','run_id',p_run_id,'scenario_no',v_no,
-      'scenario_name',v_name,'request_sha256',v_request_sha256,'completion_evidence',false),v_actor,v_actor)
-  RETURNING * INTO v_vehicle;
+  SELECT i.vehicle_id,'HERMES-TEST-PERM-'||lpad(i.scenario_no::text,3,'0'),i.stock_number,i.job_card_number,
+    i.customer_name,i.vehicle_description,i.vehicle_description,'active',true,i.current_location,i.eta_to_kewdale,
+    'hermes_overnight_synthetic',p_run_id,i.stock_number,
+    jsonb_build_object('contract','pdc-overnight-synthetic-fleet-363/render_only','run_id',p_run_id,
+      'scenario_no',i.scenario_no,'scenario_name',i.scenario_name,'request_sha256',v_request_sha256,
+      'completion_evidence',false),v_actor,v_actor
+  FROM input i ORDER BY i.scenario_no
+  RETURNING id,version,stock_number
+ ), inserted_registry AS (
   INSERT INTO public.pdc_overnight_synthetic_fleet_registry_363(registry_id,run_id,scenario_no,scenario_name,vehicle_id,
     stock_number,customer_name,job_card_number,vehicle_description,spec,request_sha256,actor_id,actor_email)
-  VALUES(v_registry_id,p_run_id,v_no,v_name,v_vehicle.id,v_stock,v_customer,v_job,v_description,v_spec,v_request_sha256,v_actor,v_email);
-  FOR v_work_key IN SELECT value FROM jsonb_array_elements_text(v_work_keys) ORDER BY value LOOP
-   INSERT INTO public.vehicle_work_items(id,vehicle_id,work_key,required,completed,completed_by,completed_at,notes,updated_at)
-   VALUES(extensions.uuid_generate_v5('36300000-0000-5000-8000-000000000363'::uuid,
-     p_run_id||':work:'||v_stock||':'||v_work_key),v_vehicle.id,v_work_key,true,false,NULL,NULL,v_notes,clock_timestamp());
-  END LOOP;
-  v_ids:=v_ids||jsonb_build_array(jsonb_build_object('scenario_no',v_no,'scenario_name',v_name,'registry_id',v_registry_id,
-    'vehicle_id',v_vehicle.id,'vehicle_version',v_vehicle.version,'stock_number',v_stock));
- END LOOP;
+  SELECT i.registry_id,p_run_id,i.scenario_no,i.scenario_name,v.id,i.stock_number,i.customer_name,
+    i.job_card_number,i.vehicle_description,i.spec,v_request_sha256,v_actor,v_email
+  FROM input i JOIN inserted_vehicles v ON v.id=i.vehicle_id ORDER BY i.scenario_no
+  RETURNING registry_id,scenario_no,scenario_name,vehicle_id,stock_number
+ )
+ SELECT coalesce(jsonb_agg(jsonb_build_object('scenario_no',r.scenario_no,'scenario_name',r.scenario_name,
+   'registry_id',r.registry_id,'vehicle_id',r.vehicle_id,'vehicle_version',v.version,'stock_number',r.stock_number)
+   ORDER BY r.scenario_no),'[]'::jsonb)
+ INTO v_ids FROM inserted_registry r JOIN inserted_vehicles v ON v.id=r.vehicle_id;
+
+ -- Authoritative statement 2/2: every requested canonical work key in one set.
+ INSERT INTO public.vehicle_work_items(id,vehicle_id,work_key,required,completed,completed_by,completed_at,notes,updated_at)
+ SELECT extensions.uuid_generate_v5('36300000-0000-5000-8000-000000000363'::uuid,
+     p_run_id||':work:'||btrim(spec->>'stock')||':'||wk.value),
+   extensions.uuid_generate_v5('36300000-0000-5000-8000-000000000363'::uuid,
+     p_run_id||':vehicle:'||btrim(spec->>'stock')),
+   wk.value,true,false,NULL,NULL,
+   coalesce(nullif(btrim(spec->>'notes'),''),'HERMES-TEST render-only incomplete synthetic requirement'),clock_timestamp()
+ FROM jsonb_array_elements(p_specs) spec
+ CROSS JOIN LATERAL jsonb_array_elements_text(coalesce(spec->'work_keys','[]'::jsonb)) wk
+ ORDER BY (spec->>'scenario_no')::integer,wk.value;
+
+ SELECT revision INTO v_shared_revision_after
+ FROM public.pdc_email_vehicle_revision WHERE singleton;
+ IF v_shared_revision_after-v_shared_revision_before<>2 THEN
+  RAISE EXCEPTION 'PDC_363_UNEXPECTED_SHARED_REVISION_DELTA before=% after=% expected=2',
+    v_shared_revision_before,v_shared_revision_after USING errcode='55000';
+ END IF;
 
  v_after_vehicle_count:=(SELECT count(*) FROM public.vehicles);
  v_after_registry_count:=(SELECT count(*) FROM public.pdc_overnight_synthetic_fleet_registry_363);
@@ -527,6 +582,10 @@ BEGIN
  v_response:=jsonb_build_object('ok',true,'code','synthetic_fleet_bootstrapped','run_id',p_run_id,
    'receipt_id',v_receipt_id,'request_hash',v_request_sha256,'specs_sha256',v_specs_sha256,'replay',false,
    'vehicle_delta',20,'registry_delta',20,'notification_delta',0,
+   'shared_revision',jsonb_build_object('table','public.pdc_email_vehicle_revision',
+      'before',v_shared_revision_before,'after',v_shared_revision_after,
+      'delta',v_shared_revision_after-v_shared_revision_before,'expected_delta',2,
+      'authoritative_statements',jsonb_build_array('vehicles_set_insert','vehicle_work_items_set_insert')),
    'protected_vehicle_count_before',v_protected_vehicle_count_before,'protected_vehicle_count_after',v_protected_vehicle_count_after,
    'protected_vehicle_digest_before',v_protected_digest_before,'protected_vehicle_digest_after',v_protected_digest_after,
    'before_counts',jsonb_build_object('vehicles',v_before_vehicle_count,'registry',v_before_registry_count,
@@ -568,6 +627,12 @@ BEGIN
    OR EXISTS(SELECT 1 FROM public.pdc_monitor_stage_activation_writers WHERE active AND revoked_at IS NULL)
    OR (SELECT count(*) FROM public.vehicle_notifications)<>0 THEN
   RAISE EXCEPTION 'PDC_363_RUNTIME_CONTAINMENT_MISMATCH' USING errcode='55000';
+ END IF;
+ SELECT revision INTO v_shared_revision_recheck
+ FROM public.pdc_email_vehicle_revision WHERE singleton;
+ IF v_shared_revision_recheck IS DISTINCT FROM v_shared_revision_after
+   OR v_shared_revision_recheck-v_shared_revision_before<>2 THEN
+  RAISE EXCEPTION 'PDC_363_SHARED_REVISION_DRIFT_BEFORE_RETURN' USING errcode='55000';
  END IF;
  RETURN v_response;
 END $bootstrap$;
