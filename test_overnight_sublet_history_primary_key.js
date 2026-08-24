@@ -1,0 +1,11 @@
+'use strict';
+const assert=require('assert'),fs=require('fs');
+const sql=fs.readFileSync('supabase/staging_only/20260825040000_367_overnight_sublet_history_primary_key.sql','utf8');
+assert.match(sql,/366_overnight_wrapper_postgrest_argument_names/);
+assert.ok((sql.match(/ORDER BY x\.history_id/g)||[]).length>=2);
+assert.ok((sql.match(/ORDER BY h\.history_id/g)||[]).length>=1);
+assert.strictEqual((sql.match(/jsonb_agg\(to_jsonb\([xh]\) ORDER BY [xh]\.id\) FROM public\.pdc_sublet_booking_instance_history/g)||[]).length,1,'only the postcondition rejection literal may mention the stale key');
+assert.match(sql,/CREATE OR REPLACE FUNCTION public\.pdc_hermes_test_apply_365/);
+assert.match(sql,/CREATE OR REPLACE FUNCTION public\.read_pdc_hermes_test_mutation_state_365/);
+assert.doesNotMatch(sql,/GRANT\s+(?:INSERT|UPDATE|DELETE|ALL)\s+ON/i);
+console.log('Overnight Sublet-history primary-key repair contract passed.');
