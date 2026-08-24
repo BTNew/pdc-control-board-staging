@@ -65,24 +65,25 @@ Run ID: `HERMES-TEST-RUN-20260824`. Only these exact stock identities may be cre
 - Consecutive final clean journeys: 0 / 3
 - Board/chip movements: 0 / 100
 - Booking movements/adjustments: 0 / 50
-- Invalid movement attempts: 0 / 20
-- Duplicate-submit tests: 0 / 20
+- Invalid movement attempts: 2 / 20
+- Duplicate-submit tests: 2 / 20
 - Parts changes: 0 / 25
 - Sublet changes: 0 / 20
 - QC/RFT out-of-order attempts: 0 / 10
 - Two-session scenarios: 0 / 10
-- Field/validation scenarios: 0 / 30
+- Field/validation scenarios: 4 / 30
 
 ## Bugs
 ### Discovered
-None yet.
+- The first wrapper candidate exposed three runtime contract defects before any synthetic write committed: PostgREST could not invoke unnamed façade parameters; Sublet history was ordered by nonexistent `id` instead of `history_id`; and `SELECT r INTO` attempted to cast the composite registry row into its first UUID field.
 
 ### Fixed
 - Migration 363 was hardened through two independent review rounds: fail-closed singleton containment, conflicting locks/revalidation, exact catalog/identity collision closure, same-set protected digest, canonical readback drift rejection, truthful durable replay, two set-based authoritative inserts and receipt-bound shared revision delta `+2`.
 - Migration 364 repaired the authenticated Vehicle Locations projection without changing vehicle data or privileges: the established snapshot now also admits only exact migration-363 registry-bound rows whose static identities and synthetic source contract still match. Authenticated UI readback is now `173 of 173`, including all 20 synthetic vehicles, while the 153 protected-row digest remains unchanged.
+- Migrations 365-368 installed exact registry-bound mutation façades, actor/idempotency/version receipts, exact-target route guards, cross-relation protected/sibling digests, zero-notification QC/RFT handling, PostgREST argument names, canonical Sublet-history ordering and correct registry rowtype assignment. Scenario 001 Apply/replay/negative probes then passed live.
 
 ### Open
-None at this checkpoint. Synthetic stress mutation remains deliberately blocked until narrow registry-guarded mutation wrappers are designed, reviewed and installed.
+None at this checkpoint. Registry-bound synthetic stress mutation is now commissioned; protected/pre-existing records remain outside scope.
 
 ## Checkpoints
 ### Checkpoint 000 — 2026-08-24T10:54:31Z (elapsed 00:00)
@@ -166,6 +167,18 @@ None at this checkpoint. Synthetic stress mutation remains deliberately blocked 
 - Blockers: no projection blocker remains. Mutation stress is intentionally blocked until server-side synthetic-only wrappers prevent generic contracts from accepting protected UUIDs.
 - Quantitative counters: synthetic 20/20; journeys 0/5; board movements 0/100; booking movements 0/50; invalid attempts 0/20; duplicates 1/20; Parts 0/25; Sublet 0/20; QC/RFT out-of-order 0/10; two-session 0/10; field/validation 0/30.
 - Exact next action: inventory the smallest lifecycle/work-state/booking/Parts/Sublet RPC set needed for the logged scenarios, implement one fail-closed registry guard plus typed synthetic-only wrappers with containment/idempotency/version receipts, independently review and rollback-test them, then begin scenario 001 lifecycle/editing stress.
+
+### Checkpoint 007 — 2026-08-24T14:32:10Z (elapsed 03:37)
+- Git commit at final wrapper approval: `bca5f10006b85eea63cd51a84a053d31ab72f0a3`; successor runtime repairs: `e508232a5765b2f82071e48260887a5e49d65360`, `b52163c65068b365d83aa8367697176a8467a695`, `d64a8460bcd63eef42c04b3f0470fdcc9f615312`.
+- Areas tested: lifecycle/editing wrapper inventory; exact dependency and registry binding; route-trigger bypass closure; cross-relation protected/sibling digests; success/failure receipts; replay and changed-payload rejection; PostgREST invocation; authenticated readback; direct legacy-core rejection; live UI projection.
+- Synthetic records mutated: only registered `HERMES-TEST-001`. `pmb_key_tag` changed from empty to `HERMES-TEST-KEY-001-A`; vehicle version `1→2` under receipt `d7498b62-9e22-50b0-bc2c-2667b39bbb72`.
+- Bugs discovered and fixed before successful mutation: unnamed PostgREST façade parameters; nonexistent Sublet-history `id` ordering; composite registry-row assignment. Failed attempts committed no synthetic write.
+- Tests passing: 40/40 Node regression files; JavaScript syntax 66/66; migrations 365-368 each executed successfully in staging rollback before independent exact-SHA approval; all four migrations applied with ledger readback; live Apply/readback/replay; changed-payload replay rejection; direct legacy-core bypass rejection; authenticated UI `173 of 173`.
+- Authoritative post-state: migration head 368; 173 vehicles / 20 synthetic / 153 protected; mutation receipts 1; notifications 0; Monitor stopped; active mailboxes/writers 0; protected digest unchanged at `3d5ec39d15408cc7443312a5d0974ba1ed8250a5484228bc932bb491f8666875`; 11 exact route triggers enabled.
+- Tests failing: none in this wrapper commissioning and scenario-001 slice.
+- Blockers: none. Production was not contacted or changed.
+- Quantitative counters: synthetic 20/20; journeys 0/5; board movements 0/100; booking movements 0/50; invalid attempts 2/20; duplicate submits 2/20; Parts 0/25; Sublet 0/20; QC/RFT out-of-order 0/10; two-session 0/10; field/validation 4/30.
+- Exact next action: use `HERMES-TEST-002` and `003` for guarded IT→PMB and YH-latch lifecycle transitions, then begin exact-minute Workshop booking/conflict tests on `005`-`007`, preserving authoritative receipts/readback after every action.
 
 ## Final report
 Pending until the ten-hour end time.

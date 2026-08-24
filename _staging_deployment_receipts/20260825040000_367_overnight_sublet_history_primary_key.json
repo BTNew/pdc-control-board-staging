@@ -1,0 +1,22 @@
+{
+  "applied": true,
+  "ledger_readback": [
+    {
+      "name": "367_overnight_sublet_history_primary_key",
+      "version": "20260825040000"
+    }
+  ],
+  "management_response": [
+    {
+      "pg_advisory_xact_lock": ""
+    }
+  ],
+  "migration_file": "20260825040000_367_overnight_sublet_history_primary_key.sql",
+  "migration_name": "367_overnight_sublet_history_primary_key",
+  "migration_sha256": "922c43e87466d7abc35f5a5656481d11463590928cbebbc9af8df08275913c54",
+  "migration_version": "20260825040000",
+  "production_ref_rejected": "vjdtsswhroyguxyfjdkt",
+  "recorded_at_utc": "2026-08-24T14:25:55.309331+00:00",
+  "schema": "pdc-staging-management-migration-receipt-v1",
+  "target_ref": "cdsmnqxtyyoeoznmbidd"
+}

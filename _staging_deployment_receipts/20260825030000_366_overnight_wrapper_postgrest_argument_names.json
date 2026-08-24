@@ -1,0 +1,22 @@
+{
+  "applied": true,
+  "ledger_readback": [
+    {
+      "name": "366_overnight_wrapper_postgrest_argument_names",
+      "version": "20260825030000"
+    }
+  ],
+  "management_response": [
+    {
+      "pg_advisory_xact_lock": ""
+    }
+  ],
+  "migration_file": "20260825030000_366_overnight_wrapper_postgrest_argument_names.sql",
+  "migration_name": "366_overnight_wrapper_postgrest_argument_names",
+  "migration_sha256": "c3d744c655b5467d45a5bdaa0fabf11d52104dbf16f5cee23b4349de5f651dc7",
+  "migration_version": "20260825030000",
+  "production_ref_rejected": "vjdtsswhroyguxyfjdkt",
+  "recorded_at_utc": "2026-08-24T14:15:31.121223+00:00",
+  "schema": "pdc-staging-management-migration-receipt-v1",
+  "target_ref": "cdsmnqxtyyoeoznmbidd"
+}

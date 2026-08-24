@@ -1,0 +1,22 @@
+{
+  "applied": true,
+  "ledger_readback": [
+    {
+      "name": "368_overnight_registry_row_assignment",
+      "version": "20260825050000"
+    }
+  ],
+  "management_response": [
+    {
+      "pg_advisory_xact_lock": ""
+    }
+  ],
+  "migration_file": "20260825050000_368_overnight_registry_row_assignment.sql",
+  "migration_name": "368_overnight_registry_row_assignment",
+  "migration_sha256": "b5d76ddc3b1b6bf15096ec8865c523aadd47534012eec57ed2b4098ad1189ce4",
+  "migration_version": "20260825050000",
+  "production_ref_rejected": "vjdtsswhroyguxyfjdkt",
+  "recorded_at_utc": "2026-08-24T14:30:53.309586+00:00",
+  "schema": "pdc-staging-management-migration-receipt-v1",
+  "target_ref": "cdsmnqxtyyoeoznmbidd"
+}

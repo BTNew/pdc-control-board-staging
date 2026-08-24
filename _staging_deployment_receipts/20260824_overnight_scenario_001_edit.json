@@ -1,0 +1,46 @@
+{
+  "actor_id": "557dba7f-fd70-4b9e-aa7b-b83b717682a7",
+  "apply_ok": true,
+  "changed_replay_rejected": true,
+  "idempotency_key": "4786a757-b16c-5deb-a82c-b12591fb944c",
+  "legacy_direct_core_rejected": true,
+  "notification_count": 0,
+  "pmb_key_tag": "HERMES-TEST-KEY-001-A",
+  "project_ref": "cdsmnqxtyyoeoznmbidd",
+  "protected_state": {
+    "rows": 716,
+    "sha256": "5e55bba95f78eb99878fca9098e15277747d22d064d76617c857d8ab3ccf6a5f"
+  },
+  "receipt_id": "d7498b62-9e22-50b0-bc2c-2667b39bbb72",
+  "recorded_at_utc": "2026-08-24T14:31:07.610537+00:00",
+  "replay_ok": true,
+  "request_sha256": "9d52576255c466da9555ed5e0975ca011889b326e44ecb621a73708038d5c4ea",
+  "revisions": {
+    "navision": {
+      "after": 3560,
+      "before": 3560,
+      "delta": 0
+    },
+    "pdc_email": {
+      "after": 90392,
+      "before": 90391,
+      "delta": 1
+    },
+    "workshop": {
+      "after": 6325,
+      "before": 6325,
+      "delta": 0
+    }
+  },
+  "run_id": "HERMES-TEST-RUN-20260824",
+  "scenario_no": 1,
+  "schema": "pdc-overnight-scenario-001-edit-v1",
+  "sibling_state": {
+    "rows": 44,
+    "sha256": "3f441d53f3a23a12dc1e2ed8fd686493e74287d1eecd06679d1409ecf49aae51"
+  },
+  "stock": "HERMES-TEST-001",
+  "vehicle_id": "f9b49340-4b3e-5634-9824-b6f634e61a48",
+  "vehicle_version_after": 2,
+  "vehicle_version_before": 1
+}
