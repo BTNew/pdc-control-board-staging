@@ -5095,6 +5095,28 @@ body.resizing-column .col-drag-handle {
 .parts-home-panel {
   min-height: 68vh;
 }
+.parts-ordered-button[data-parts-ordered] {
+  background: #dcfce7;
+  color: #14532d;
+  border: 1px solid #86efac;
+  box-shadow: none;
+}
+.parts-ordered-button[data-parts-ordered]:hover:not(:disabled) {
+  background: #bbf7d0;
+  color: #14532d;
+  border-color: #4ade80;
+}
+.parts-ordered-button[data-parts-ordered]:focus-visible {
+  outline: 3px solid #166534;
+  outline-offset: 2px;
+}
+.parts-ordered-button[data-parts-ordered]:disabled {
+  background: #f0fdf4;
+  color: #64748b;
+  border-color: #bbf7d0;
+  opacity: .72;
+  cursor: not-allowed;
+}
 .parts-summary-grid {
   display: grid;
   grid-template-columns: repeat(5, minmax(150px, 1fr));

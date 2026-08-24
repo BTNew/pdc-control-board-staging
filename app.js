@@ -13838,7 +13838,7 @@ function partsQueueActionsHtml(vehicle = {}, status = partsDepartmentStatus(vehi
   const received = ['issued', 'notrequired'].includes(status);
   const stopped = status === 'stoppage';
   return `<div class="parts-action-group parts-visible-actions">
-    ${status === 'notordered' ? `<button class="small-button primary" type="button" data-parts-ordered="${escapeHtml(key)}">Mark ordered</button>` : ''}
+    ${status === 'notordered' ? `<button class="small-button parts-ordered-button" type="button" data-parts-ordered="${escapeHtml(key)}">Mark ordered</button>` : ''}
     ${received ? '' : `<button class="small-button" type="button" data-parts-complete="${escapeHtml(key)}">Mark received</button>`}
     ${stopped
       ? `<button class="small-button" type="button" data-parts-clear-stoppage="${escapeHtml(key)}">Remove Parts STOPPAGE</button>`
