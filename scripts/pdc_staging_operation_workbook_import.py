@@ -93,7 +93,7 @@ def live_readback():
  sql="""SET TRANSACTION READ ONLY;select jsonb_build_object(
  'production_sentinel_absent',to_regclass('public.pdc_production_environment_sentinel') is null,
  'vehicles',(select count(*) from public.vehicles),
- 'unique_stocks',(select count(distinct public.normalize_vehicle_stock_number(stock_number)) from public.vehicles),
+ 'unique_stocks',(select count(distinct upper(btrim(stock_number))) from public.vehicles),
  'visible_vehicles',(select count(*) from public.vehicles where visible_on_board and deleted_at is null and lifecycle_state='active'),
  'operation_lines',(select count(*) from public.pdc_authenticated_email_operation_lines),
  'mapped_review_lines',(select count(*) from public.pdc_pmb_workbook_operation_reviews where disposition='accepted'),
