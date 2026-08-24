@@ -234,7 +234,7 @@ None at this checkpoint. Registry-bound synthetic stress mutation is now commiss
 - Exact next action: execute guarded Parts lifecycle/stoppage/recovery stress on `HERMES-TEST-008` and `009`, preserving receipt/readback, protected digest and zero-notification evidence after every action.
 
 ### Checkpoint 012 — 2026-08-24T16:50:24Z (elapsed 05:55)
-- Git commit: pending this checkpoint commit; parent `5f2b738`.
+- Git commit: `2d63933` (pushed to the overnight branch).
 - Areas tested: registry-bound Parts ETA, ordered and received lifecycle; direct authenticated receipt semantics; invalid post-receipt ordering; Parts stoppage and recovery; exact replay; changed-payload rejection; stale vehicle-version rejection; authoritative receipt/readback after every action.
 - Synthetic records mutated: only registered `HERMES-TEST-008` and `009`. Scenario 008 now has the planned ETA→ordered→received history. Scenario 009 proved the canonical direct-receipt path, then a synthetic stoppage/recovery cycle; final authoritative state is received with stoppage cleared. No physical work was claimed.
 - Interrupted-run recovery: the first harness intentionally stopped when its expectation that completion required a prior order proved false. Source inspection confirmed migration 259 deliberately supports direct authenticated Parts receipt, so the harness resumed only after matching the exact committed rows and deterministic receipts; it did not undo, overwrite or reinterpret them.
