@@ -1,0 +1,29 @@
+'use strict';
+const assert = require('assert');
+const fs = require('fs');
+const sql = fs.readFileSync('supabase/staging_only/20260825020000_365_overnight_synthetic_mutation_wrappers.sql','utf8');
+assert.match(sql,/project_ref='cdsmnqxtyyoeoznmbidd'/);
+assert.match(sql,/364_overnight_synthetic_snapshot_projection/);
+assert.match(sql,/to_regclass\('public\.pdc_production_environment_sentinel'\) IS NOT NULL/);
+assert.match(sql,/pdc_overnight_synthetic_fleet_registry_363/);
+assert.match(sql,/pdc_overnight_synthetic_mutation_receipts_365/);
+assert.match(sql,/UNIQUE\(actor_id,idempotency_key\)/);
+assert.match(sql,/PDC_365_IDEMPOTENCY_PAYLOAD_MISMATCH/);
+assert.match(sql,/FOR SHARE;/);
+assert.match(sql,/v_protected_digest_after IS DISTINCT FROM v_protected_digest_before/);
+assert.match(sql,/v_notifications_before<>0 OR v_notifications_after<>0/);
+assert.match(sql,/notification_enqueued',false/);
+assert.doesNotMatch(sql,/queue_vehicle_notification\s*\(/i);
+assert.match(sql,/REVOKE ALL ON FUNCTION public\.pdc_hermes_test_apply_365[^;]+authenticated,service_role/);
+for (const name of ['set_work_states','lifecycle','parts','schedule','booking','sublet']) {
+  assert.match(sql,new RegExp(`CREATE FUNCTION public\\.pdc_hermes_test_${name}_365`));
+  assert.match(sql,new RegExp(`GRANT EXECUTE ON FUNCTION public\\.pdc_hermes_test_${name}_365`));
+}
+assert.match(sql,/read_pdc_hermes_test_mutation_state_365/);
+assert.match(sql,/source_system IS DISTINCT FROM 'hermes_overnight_synthetic'/);
+assert.match(sql,/source_batch_id IS DISTINCT FROM p_run_id/);
+assert.match(sql,/PDC_365_SUBJECT_OUTSIDE_REGISTRY_VEHICLE/);
+assert.match(sql,/HERMES-TEST QC sign-off to RFT without external notification/);
+assert.doesNotMatch(sql,/(?:^|;)\s*(?:DELETE\s+FROM|TRUNCATE|DROP\s+TABLE|ALTER\s+TABLE[^;]*DISABLE\s+TRIGGER)/im);
+assert.doesNotMatch(sql,/GRANT\s+(?:INSERT|UPDATE|DELETE|ALL)\s+ON\s+(?:TABLE\s+)?public\.(?:vehicles|vehicle_work_items|workshop_bookings|vehicle_parts_updates)/i);
+console.log('Overnight synthetic mutation wrapper contract passed.');
