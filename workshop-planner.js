@@ -3983,7 +3983,7 @@ function renderWorkshopPlanner(options = {}) {
   renderHost.innerHTML = `<div class="${dedicatedStage ? 'workshop-planner workshop-station-board' : 'workshop-planner'}" data-planner-stage="${escapeHtml(stage)}">
     ${sharedBanner}
     <header class="workshop-planner-header">
-      <div><h2>${escapeHtml(dedicatedStage ? 'Selected station schedule' : 'Workshop bay planner')}</h2><p>Monday–Friday, 8:00am–4:00pm. Long jobs carry into the next workday; overlapping bay bookings are blocked.</p></div>
+      <div><h2>${escapeHtml(dedicatedStage ? 'Selected station schedule' : 'Workshop bay planner')}</h2><p>Configured hours ${escapeHtml(workshopTimeLabelFromMinutes(0))}–${escapeHtml(workshopTimeLabelFromMinutes(WORKSHOP_PLANNER_CONFIG.dayLengthMinutes))}. Long jobs carry into the next configured workday; overlapping bay bookings are blocked.</p></div>
       <div class="workshop-date-controls">
         <button class="small-button" type="button" data-workshop-date-shift="-1">‹ Previous</button>
         <input type="date" data-workshop-date aria-label="Workshop planner date" value="${escapeHtml(dateKey)}" />

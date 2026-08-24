@@ -1,0 +1,31 @@
+{
+  "schema": "pdc-tyre-bay1-diagnosis-supersession-v1",
+  "project_ref": "cdsmnqxtyyoeoznmbidd",
+  "status": "CURRENT_STATE_VERIFIED",
+  "production_touched": false,
+  "configured_hours": {
+    "start": "07:00",
+    "end": "17:00",
+    "working_week": "live workshop_settings"
+  },
+  "initial_finding": {
+    "stock_13000549": "Booked 24 Aug 15:15-16:15 WAST; it ended before the 17:00 configured close and correctly did not carry to 25 Aug.",
+    "stock_13000608": "Started 24 Aug 16:27 WAST and carried to 25 Aug 07:39 WAST; authenticated next-day snapshot and UI included it.",
+    "overlap": false,
+    "gap_minutes": 12,
+    "ui_defect": "Planner help text incorrectly said Monday-Friday 08:00-16:00 while authoritative settings and time axis were 07:00-17:00."
+  },
+  "superseded_diagnostic_action": {
+    "receipt": "20260824_tyre_bay1_overlap_repair.json",
+    "reason": "A temporary re-sequencing was based on the stale 08:00-16:00 label before live settings were read.",
+    "subsequent_state": "A newer administrator Admin-block resize/repack occurred at 2026-08-24T08:53:50Z and 2026-08-24T08:53:58Z. Its higher booking versions were preserved; a rollback attempt failed closed with version_conflict and made no mutation."
+  },
+  "current_authority": {
+    "readback": "20260824_tyre_bay1_current_authoritative_readback.json",
+    "raw_interval_overlaps": 0,
+    "monitor_status": "stopped",
+    "active_mailboxes": 0,
+    "active_writers": 0
+  },
+  "frontend_repair": "Planner hours label now renders from authoritative shared settings instead of hard-coded 08:00-16:00 text."
+}

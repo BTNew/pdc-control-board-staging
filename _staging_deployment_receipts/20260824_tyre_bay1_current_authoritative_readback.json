@@ -1,0 +1,172 @@
+{
+  "active_mailboxes": 0,
+  "active_writers": 0,
+  "admin_blocks": [
+    {
+      "deleted_at": null,
+      "end": "2026-08-25T07:00:00+00:00",
+      "id": "a5e5389f-9c3a-480d-9ff6-51a5d541c71b",
+      "label": "Admin downtime",
+      "start": "2026-08-24T23:45:00+00:00",
+      "type": "admin",
+      "version": 3
+    }
+  ],
+  "monitor_status": "stopped",
+  "raw_interval_overlaps": 0,
+  "recent_history": [
+    {
+      "at": "2026-08-24T08:50:06.764607+00:00",
+      "event": "moved",
+      "metadata": {
+        "production_touched": false,
+        "reason": "Craig reported 13000549 overlapping started 13000608 and missing from next day",
+        "source": "owner_directed_overlap_repair"
+      },
+      "stock": "13001466"
+    },
+    {
+      "at": "2026-08-24T08:50:07.994901+00:00",
+      "event": "moved",
+      "metadata": {
+        "production_touched": false,
+        "reason": "Craig reported 13000549 overlapping started 13000608 and missing from next day",
+        "source": "owner_directed_overlap_repair"
+      },
+      "stock": "13008471"
+    },
+    {
+      "at": "2026-08-24T08:50:09.332338+00:00",
+      "event": "moved",
+      "metadata": {
+        "production_touched": false,
+        "reason": "Craig reported 13000549 overlapping started 13000608 and missing from next day",
+        "source": "owner_directed_overlap_repair"
+      },
+      "stock": "13000549"
+    },
+    {
+      "at": "2026-08-24T08:53:50.16654+00:00",
+      "event": "admin_block_repacked",
+      "metadata": {
+        "admin_block_id": "a5e5389f-9c3a-480d-9ff6-51a5d541c71b",
+        "admin_block_repack": true,
+        "source": "planner_admin_block_resize"
+      },
+      "stock": "13001466"
+    },
+    {
+      "at": "2026-08-24T08:53:50.16654+00:00",
+      "event": "admin_block_repacked",
+      "metadata": {
+        "admin_block_id": "a5e5389f-9c3a-480d-9ff6-51a5d541c71b",
+        "admin_block_repack": true,
+        "source": "planner_admin_block_resize"
+      },
+      "stock": "13008471"
+    },
+    {
+      "at": "2026-08-24T08:53:50.16654+00:00",
+      "event": "admin_block_repacked",
+      "metadata": {
+        "admin_block_id": "a5e5389f-9c3a-480d-9ff6-51a5d541c71b",
+        "admin_block_repack": true,
+        "source": "planner_admin_block_resize"
+      },
+      "stock": "13000549"
+    },
+    {
+      "at": "2026-08-24T08:53:58.826828+00:00",
+      "event": "admin_block_repacked",
+      "metadata": {
+        "admin_block_id": "a5e5389f-9c3a-480d-9ff6-51a5d541c71b",
+        "admin_block_repack": true,
+        "source": "planner_admin_block_resize"
+      },
+      "stock": "13001466"
+    },
+    {
+      "at": "2026-08-24T08:53:58.826828+00:00",
+      "event": "admin_block_repacked",
+      "metadata": {
+        "admin_block_id": "a5e5389f-9c3a-480d-9ff6-51a5d541c71b",
+        "admin_block_repack": true,
+        "source": "planner_admin_block_resize"
+      },
+      "stock": "13008471"
+    },
+    {
+      "at": "2026-08-24T08:53:58.826828+00:00",
+      "event": "admin_block_repacked",
+      "metadata": {
+        "admin_block_id": "a5e5389f-9c3a-480d-9ff6-51a5d541c71b",
+        "admin_block_repack": true,
+        "source": "planner_admin_block_resize"
+      },
+      "stock": "13000549"
+    }
+  ],
+  "rows": [
+    {
+      "bay": 1,
+      "duration": 72,
+      "end": "2026-08-24T23:39:00+00:00",
+      "id": "a0f477e2-6338-43af-b964-521117e69ec4",
+      "stage": "TYRE",
+      "start": "2026-08-24T08:27:00+00:00",
+      "status": "started",
+      "stock": "13000608",
+      "version": 3
+    },
+    {
+      "bay": 1,
+      "duration": 60,
+      "end": "2026-08-25T08:00:00+00:00",
+      "id": "a7cf5d9e-59c7-4ed7-8836-985be3659ebb",
+      "stage": "TYRE",
+      "start": "2026-08-25T07:00:00+00:00",
+      "status": "planned",
+      "stock": "13000549",
+      "version": 6
+    },
+    {
+      "bay": 1,
+      "duration": 72,
+      "end": "2026-08-25T23:12:00+00:00",
+      "id": "65182d9d-c96b-4b07-ab54-bddb01bf28d3",
+      "stage": "TYRE",
+      "start": "2026-08-25T08:00:00+00:00",
+      "status": "planned",
+      "stock": "13008471",
+      "version": 5
+    },
+    {
+      "bay": 1,
+      "duration": 72,
+      "end": "2026-08-26T00:24:00+00:00",
+      "id": "627b6eb2-c89a-4733-ba67-e66bb083815a",
+      "stage": "TYRE",
+      "start": "2026-08-25T23:12:00+00:00",
+      "status": "planned",
+      "stock": "13001466",
+      "version": 6
+    }
+  ],
+  "settings": {
+    "day_end_time": "17:00",
+    "day_start_time": "07:00",
+    "working_week": [
+      "sunday",
+      "monday",
+      "tuesday",
+      "wednesday",
+      "thursday",
+      "friday",
+      "saturday"
+    ]
+  },
+  "target_summary": {
+    "13000549": "15:15\u201316:15 WAST on 24 Aug before later administrator repack",
+    "13000608": "started 16:27 WAST on 24 Aug; carries to 07:39 WAST on 25 Aug under configured 07:00\u201317:00 hours"
+  }
+}

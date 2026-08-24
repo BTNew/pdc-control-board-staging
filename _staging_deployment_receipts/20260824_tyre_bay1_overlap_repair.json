@@ -1,0 +1,425 @@
+{
+  "after": {
+    "active_mailboxes": 0,
+    "active_writers": 0,
+    "effective_overlaps": 0,
+    "monitor_status": "stopped",
+    "rows": [
+      {
+        "bay": 1,
+        "duration": 72,
+        "effective_end": "2026-08-25T01:12:00+00:00",
+        "end": "2026-08-24T23:39:00+00:00",
+        "id": "a0f477e2-6338-43af-b964-521117e69ec4",
+        "stage": "TYRE",
+        "start": "2026-08-24T08:27:00+00:00",
+        "status": "started",
+        "stock": "13000608",
+        "version": 3
+      },
+      {
+        "bay": 1,
+        "duration": 60,
+        "effective_end": "2026-08-25T02:15:00+00:00",
+        "end": "2026-08-25T02:15:00+00:00",
+        "id": "a7cf5d9e-59c7-4ed7-8836-985be3659ebb",
+        "stage": "TYRE",
+        "start": "2026-08-25T01:15:00+00:00",
+        "status": "planned",
+        "stock": "13000549",
+        "version": 4
+      },
+      {
+        "bay": 1,
+        "duration": 72,
+        "effective_end": "2026-08-25T03:27:00+00:00",
+        "end": "2026-08-25T03:27:00+00:00",
+        "id": "65182d9d-c96b-4b07-ab54-bddb01bf28d3",
+        "stage": "TYRE",
+        "start": "2026-08-25T02:15:00+00:00",
+        "status": "planned",
+        "stock": "13008471",
+        "version": 3
+      },
+      {
+        "bay": 1,
+        "duration": 72,
+        "effective_end": "2026-08-25T04:39:00+00:00",
+        "end": "2026-08-25T04:39:00+00:00",
+        "id": "627b6eb2-c89a-4733-ba67-e66bb083815a",
+        "stage": "TYRE",
+        "start": "2026-08-25T03:27:00+00:00",
+        "status": "planned",
+        "stock": "13001466",
+        "version": 4
+      }
+    ]
+  },
+  "applied": [
+    {
+      "result": {
+        "booking": {
+          "actual_duration_minutes": null,
+          "actual_end_at": null,
+          "actual_start_at": null,
+          "assignment": null,
+          "bay": {
+            "bay_number": 1,
+            "code": "TYRE-BAY-01",
+            "display_name": "Tyre Bay 01",
+            "id": "255d2c09-c7cb-4fc6-8426-838cf7226677",
+            "is_sublet_row": false
+          },
+          "booking_id": "627b6eb2-c89a-4733-ba67-e66bb083815a",
+          "created_at": "2026-08-24T05:53:56.709796+00:00",
+          "default_duration_minutes": 72,
+          "deleted_at": null,
+          "deleted_reason": null,
+          "returned_to_queue_at": null,
+          "scheduled_end_at": "2026-08-25T04:39:00+00:00",
+          "scheduled_start_at": "2026-08-25T03:27:00+00:00",
+          "stage": {
+            "code": "TYRE",
+            "display_name": "Tyre",
+            "id": "1e653c10-088f-4331-be2a-e322ce9ae12f",
+            "sort_order": 7
+          },
+          "status": "planned",
+          "stoppage_accumulated_minutes": 0,
+          "stoppage_reason": null,
+          "stoppage_started_at": null,
+          "updated_at": "2026-08-24T08:50:06.764607+00:00",
+          "vehicle": {
+            "customer_name": "GENERATORS AND OFF-GRID ENERGY PTY",
+            "job_card_number": "J139125226",
+            "model": "HiLux 4x4 2.8L Dsl D/C/C 6AT",
+            "permanent_vehicle_id": "PDC-PMB-E2B11A0F2C1AAAF6724E135C",
+            "stock_number": "13001466"
+          },
+          "vehicle_id": "a6b6266e-b501-5e2d-9a88-c7e2f8dcf016",
+          "version": 4
+        },
+        "history_id": "c29c3106-a6e8-4e0b-a3a4-c38b46a50aaf",
+        "ok": true,
+        "override_id": "eb8b813f-feb9-4b79-9293-7abf7bf7a26d",
+        "revision": 6320
+      },
+      "stock": "13001466"
+    },
+    {
+      "result": {
+        "booking": {
+          "actual_duration_minutes": null,
+          "actual_end_at": null,
+          "actual_start_at": null,
+          "assignment": null,
+          "bay": {
+            "bay_number": 1,
+            "code": "TYRE-BAY-01",
+            "display_name": "Tyre Bay 01",
+            "id": "255d2c09-c7cb-4fc6-8426-838cf7226677",
+            "is_sublet_row": false
+          },
+          "booking_id": "65182d9d-c96b-4b07-ab54-bddb01bf28d3",
+          "created_at": "2026-08-24T05:54:01.048704+00:00",
+          "default_duration_minutes": 72,
+          "deleted_at": null,
+          "deleted_reason": null,
+          "returned_to_queue_at": null,
+          "scheduled_end_at": "2026-08-25T03:27:00+00:00",
+          "scheduled_start_at": "2026-08-25T02:15:00+00:00",
+          "stage": {
+            "code": "TYRE",
+            "display_name": "Tyre",
+            "id": "1e653c10-088f-4331-be2a-e322ce9ae12f",
+            "sort_order": 7
+          },
+          "status": "planned",
+          "stoppage_accumulated_minutes": 0,
+          "stoppage_reason": null,
+          "stoppage_started_at": null,
+          "updated_at": "2026-08-24T08:50:07.994901+00:00",
+          "vehicle": {
+            "customer_name": "DEPARTMENT OF EDUCATION",
+            "job_card_number": "J139124662",
+            "model": "LC300 3.3L Dsl Wgn 10AT",
+            "permanent_vehicle_id": "PDC-PMB-5C9E86D56DDD6638072C762F",
+            "stock_number": "13008471"
+          },
+          "vehicle_id": "ec0fe108-1d86-5540-b0c8-c55574dac894",
+          "version": 3
+        },
+        "history_id": "3c855644-aee5-4531-8052-18e77b2f1546",
+        "ok": true,
+        "override_id": "ad51e4e9-2f0b-4301-b775-2a3157c9e12e",
+        "revision": 6321
+      },
+      "stock": "13008471"
+    },
+    {
+      "result": {
+        "booking": {
+          "actual_duration_minutes": null,
+          "actual_end_at": null,
+          "actual_start_at": null,
+          "assignment": null,
+          "bay": {
+            "bay_number": 1,
+            "code": "TYRE-BAY-01",
+            "display_name": "Tyre Bay 01",
+            "id": "255d2c09-c7cb-4fc6-8426-838cf7226677",
+            "is_sublet_row": false
+          },
+          "booking_id": "a7cf5d9e-59c7-4ed7-8836-985be3659ebb",
+          "created_at": "2026-08-24T05:53:05.383474+00:00",
+          "default_duration_minutes": 60,
+          "deleted_at": null,
+          "deleted_reason": null,
+          "returned_to_queue_at": null,
+          "scheduled_end_at": "2026-08-25T02:15:00+00:00",
+          "scheduled_start_at": "2026-08-25T01:15:00+00:00",
+          "stage": {
+            "code": "TYRE",
+            "display_name": "Tyre",
+            "id": "1e653c10-088f-4331-be2a-e322ce9ae12f",
+            "sort_order": 7
+          },
+          "status": "planned",
+          "stoppage_accumulated_minutes": 0,
+          "stoppage_reason": null,
+          "stoppage_started_at": null,
+          "updated_at": "2026-08-24T08:50:09.332338+00:00",
+          "vehicle": {
+            "customer_name": "NORTH REGIONAL TAFE",
+            "job_card_number": "J139124962",
+            "model": "HiLux 4x4 2.8L Dsl D/C/C 6MT",
+            "permanent_vehicle_id": "PDC-PMB-F5BFBCB37D1B5F2A58B4A94D",
+            "stock_number": "13000549"
+          },
+          "vehicle_id": "de7398eb-9862-5b08-bc02-bc282d4a243e",
+          "version": 4
+        },
+        "history_id": "7bfc085d-5862-4112-9b9e-367f4193eba0",
+        "ok": true,
+        "override_id": "0b47bed4-66b9-43ef-a09e-d2fdfd5cc9e9",
+        "revision": 6322
+      },
+      "stock": "13000549"
+    }
+  ],
+  "before": {
+    "active_mailboxes": 0,
+    "active_writers": 0,
+    "effective_overlaps": 5,
+    "monitor_status": "stopped",
+    "rows": [
+      {
+        "bay": 1,
+        "duration": 60,
+        "effective_end": "2026-08-25T00:15:00+00:00",
+        "end": "2026-08-24T08:15:00+00:00",
+        "id": "a7cf5d9e-59c7-4ed7-8836-985be3659ebb",
+        "stage": "TYRE",
+        "start": "2026-08-24T07:15:00+00:00",
+        "status": "planned",
+        "stock": "13000549",
+        "version": 3
+      },
+      {
+        "bay": 1,
+        "duration": 72,
+        "effective_end": "2026-08-25T01:12:00+00:00",
+        "end": "2026-08-24T23:39:00+00:00",
+        "id": "a0f477e2-6338-43af-b964-521117e69ec4",
+        "stage": "TYRE",
+        "start": "2026-08-24T08:27:00+00:00",
+        "status": "started",
+        "stock": "13000608",
+        "version": 3
+      },
+      {
+        "bay": 1,
+        "duration": 72,
+        "effective_end": "2026-08-25T01:12:00+00:00",
+        "end": "2026-08-25T00:54:00+00:00",
+        "id": "65182d9d-c96b-4b07-ab54-bddb01bf28d3",
+        "stage": "TYRE",
+        "start": "2026-08-24T23:42:00+00:00",
+        "status": "planned",
+        "stock": "13008471",
+        "version": 2
+      },
+      {
+        "bay": 1,
+        "duration": 72,
+        "effective_end": "2026-08-25T02:06:00+00:00",
+        "end": "2026-08-25T02:06:00+00:00",
+        "id": "627b6eb2-c89a-4733-ba67-e66bb083815a",
+        "stage": "TYRE",
+        "start": "2026-08-25T00:54:00+00:00",
+        "status": "planned",
+        "stock": "13001466",
+        "version": 3
+      }
+    ]
+  },
+  "production_touched": false,
+  "project_ref": "cdsmnqxtyyoeoznmbidd",
+  "replay": [
+    {
+      "result": {
+        "conflict": {
+          "conflict_type": "version_conflict",
+          "existing_booking": {
+            "actual_duration_minutes": null,
+            "actual_end_at": null,
+            "actual_start_at": null,
+            "assignment": null,
+            "bay": {
+              "bay_number": 1,
+              "code": "TYRE-BAY-01",
+              "display_name": "Tyre Bay 01",
+              "id": "255d2c09-c7cb-4fc6-8426-838cf7226677",
+              "is_sublet_row": false
+            },
+            "booking_id": "627b6eb2-c89a-4733-ba67-e66bb083815a",
+            "created_at": "2026-08-24T05:53:56.709796+00:00",
+            "default_duration_minutes": 72,
+            "deleted_at": null,
+            "deleted_reason": null,
+            "returned_to_queue_at": null,
+            "scheduled_end_at": "2026-08-25T04:39:00+00:00",
+            "scheduled_start_at": "2026-08-25T03:27:00+00:00",
+            "stage": {
+              "code": "TYRE",
+              "display_name": "Tyre",
+              "id": "1e653c10-088f-4331-be2a-e322ce9ae12f",
+              "sort_order": 7
+            },
+            "status": "planned",
+            "stoppage_accumulated_minutes": 0,
+            "stoppage_reason": null,
+            "stoppage_started_at": null,
+            "updated_at": "2026-08-24T08:50:06.764607+00:00",
+            "vehicle": {
+              "customer_name": "GENERATORS AND OFF-GRID ENERGY PTY",
+              "job_card_number": "J139125226",
+              "model": "HiLux 4x4 2.8L Dsl D/C/C 6AT",
+              "permanent_vehicle_id": "PDC-PMB-E2B11A0F2C1AAAF6724E135C",
+              "stock_number": "13001466"
+            },
+            "vehicle_id": "a6b6266e-b501-5e2d-9a88-c7e2f8dcf016",
+            "version": 4
+          }
+        },
+        "error": "version_conflict",
+        "ok": false
+      },
+      "stock": "13001466"
+    },
+    {
+      "result": {
+        "conflict": {
+          "conflict_type": "version_conflict",
+          "existing_booking": {
+            "actual_duration_minutes": null,
+            "actual_end_at": null,
+            "actual_start_at": null,
+            "assignment": null,
+            "bay": {
+              "bay_number": 1,
+              "code": "TYRE-BAY-01",
+              "display_name": "Tyre Bay 01",
+              "id": "255d2c09-c7cb-4fc6-8426-838cf7226677",
+              "is_sublet_row": false
+            },
+            "booking_id": "65182d9d-c96b-4b07-ab54-bddb01bf28d3",
+            "created_at": "2026-08-24T05:54:01.048704+00:00",
+            "default_duration_minutes": 72,
+            "deleted_at": null,
+            "deleted_reason": null,
+            "returned_to_queue_at": null,
+            "scheduled_end_at": "2026-08-25T03:27:00+00:00",
+            "scheduled_start_at": "2026-08-25T02:15:00+00:00",
+            "stage": {
+              "code": "TYRE",
+              "display_name": "Tyre",
+              "id": "1e653c10-088f-4331-be2a-e322ce9ae12f",
+              "sort_order": 7
+            },
+            "status": "planned",
+            "stoppage_accumulated_minutes": 0,
+            "stoppage_reason": null,
+            "stoppage_started_at": null,
+            "updated_at": "2026-08-24T08:50:07.994901+00:00",
+            "vehicle": {
+              "customer_name": "DEPARTMENT OF EDUCATION",
+              "job_card_number": "J139124662",
+              "model": "LC300 3.3L Dsl Wgn 10AT",
+              "permanent_vehicle_id": "PDC-PMB-5C9E86D56DDD6638072C762F",
+              "stock_number": "13008471"
+            },
+            "vehicle_id": "ec0fe108-1d86-5540-b0c8-c55574dac894",
+            "version": 3
+          }
+        },
+        "error": "version_conflict",
+        "ok": false
+      },
+      "stock": "13008471"
+    },
+    {
+      "result": {
+        "conflict": {
+          "conflict_type": "version_conflict",
+          "existing_booking": {
+            "actual_duration_minutes": null,
+            "actual_end_at": null,
+            "actual_start_at": null,
+            "assignment": null,
+            "bay": {
+              "bay_number": 1,
+              "code": "TYRE-BAY-01",
+              "display_name": "Tyre Bay 01",
+              "id": "255d2c09-c7cb-4fc6-8426-838cf7226677",
+              "is_sublet_row": false
+            },
+            "booking_id": "a7cf5d9e-59c7-4ed7-8836-985be3659ebb",
+            "created_at": "2026-08-24T05:53:05.383474+00:00",
+            "default_duration_minutes": 60,
+            "deleted_at": null,
+            "deleted_reason": null,
+            "returned_to_queue_at": null,
+            "scheduled_end_at": "2026-08-25T02:15:00+00:00",
+            "scheduled_start_at": "2026-08-25T01:15:00+00:00",
+            "stage": {
+              "code": "TYRE",
+              "display_name": "Tyre",
+              "id": "1e653c10-088f-4331-be2a-e322ce9ae12f",
+              "sort_order": 7
+            },
+            "status": "planned",
+            "stoppage_accumulated_minutes": 0,
+            "stoppage_reason": null,
+            "stoppage_started_at": null,
+            "updated_at": "2026-08-24T08:50:09.332338+00:00",
+            "vehicle": {
+              "customer_name": "NORTH REGIONAL TAFE",
+              "job_card_number": "J139124962",
+              "model": "HiLux 4x4 2.8L Dsl D/C/C 6MT",
+              "permanent_vehicle_id": "PDC-PMB-F5BFBCB37D1B5F2A58B4A94D",
+              "stock_number": "13000549"
+            },
+            "vehicle_id": "de7398eb-9862-5b08-bc02-bc282d4a243e",
+            "version": 4
+          }
+        },
+        "error": "version_conflict",
+        "ok": false
+      },
+      "stock": "13000549"
+    }
+  ],
+  "schema": "pdc-tyre-bay1-overlap-repair-v1",
+  "status": "APPLIED"
+}

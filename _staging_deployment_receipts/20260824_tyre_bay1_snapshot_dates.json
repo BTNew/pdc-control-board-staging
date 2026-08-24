@@ -1,0 +1,49 @@
+{
+  "2026-08-24": {
+    "count": 6,
+    "scope": {
+      "date_from": "2026-08-24",
+      "date_to": "2026-08-24",
+      "stage_code": "TYRE"
+    },
+    "target_bookings": [
+      {
+        "bay": null,
+        "booking_id": "a7cf5d9e-59c7-4ed7-8836-985be3659ebb",
+        "duration": 60,
+        "end": "2026-08-24T08:15:00+00:00",
+        "start": "2026-08-24T07:15:00+00:00",
+        "status": "planned",
+        "stock": "13000549"
+      },
+      {
+        "bay": null,
+        "booking_id": "a0f477e2-6338-43af-b964-521117e69ec4",
+        "duration": 72,
+        "end": "2026-08-24T23:39:00+00:00",
+        "start": "2026-08-24T08:27:00+00:00",
+        "status": "started",
+        "stock": "13000608"
+      }
+    ]
+  },
+  "2026-08-25": {
+    "count": 6,
+    "scope": {
+      "date_from": "2026-08-25",
+      "date_to": "2026-08-25",
+      "stage_code": "TYRE"
+    },
+    "target_bookings": [
+      {
+        "bay": null,
+        "booking_id": "a0f477e2-6338-43af-b964-521117e69ec4",
+        "duration": 72,
+        "end": "2026-08-24T23:39:00+00:00",
+        "start": "2026-08-24T08:27:00+00:00",
+        "status": "started",
+        "stock": "13000608"
+      }
+    ]
+  }
+}

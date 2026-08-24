@@ -1,0 +1,197 @@
+{
+  "catalog": [
+    {
+      "estimated_rows": -1,
+      "nspname": "public",
+      "owner": "postgres",
+      "relforcerowsecurity": false,
+      "relkind": "r",
+      "relname": "ai_email_attachments",
+      "relrowsecurity": true
+    },
+    {
+      "estimated_rows": 52,
+      "nspname": "public",
+      "owner": "postgres",
+      "relforcerowsecurity": false,
+      "relkind": "r",
+      "relname": "ai_email_intake",
+      "relrowsecurity": true
+    },
+    {
+      "estimated_rows": -1,
+      "nspname": "public",
+      "owner": "postgres",
+      "relforcerowsecurity": false,
+      "relkind": "r",
+      "relname": "ai_extracted_fields",
+      "relrowsecurity": true
+    },
+    {
+      "estimated_rows": -1,
+      "nspname": "public",
+      "owner": "postgres",
+      "relforcerowsecurity": false,
+      "relkind": "r",
+      "relname": "ai_intake_config",
+      "relrowsecurity": true
+    },
+    {
+      "estimated_rows": -1,
+      "nspname": "public",
+      "owner": "postgres",
+      "relforcerowsecurity": false,
+      "relkind": "r",
+      "relname": "ai_mapping_rules",
+      "relrowsecurity": true
+    },
+    {
+      "estimated_rows": -1,
+      "nspname": "public",
+      "owner": "postgres",
+      "relforcerowsecurity": false,
+      "relkind": "r",
+      "relname": "ai_proposed_actions",
+      "relrowsecurity": true
+    },
+    {
+      "estimated_rows": -1,
+      "nspname": "public",
+      "owner": "postgres",
+      "relforcerowsecurity": false,
+      "relkind": "r",
+      "relname": "ai_trusted_senders",
+      "relrowsecurity": true
+    },
+    {
+      "estimated_rows": -1,
+      "nspname": "public",
+      "owner": "postgres",
+      "relforcerowsecurity": false,
+      "relkind": "r",
+      "relname": "ai_undo_actions",
+      "relrowsecurity": true
+    },
+    {
+      "estimated_rows": -1,
+      "nspname": "public",
+      "owner": "postgres",
+      "relforcerowsecurity": false,
+      "relkind": "r",
+      "relname": "ai_workshop_commands",
+      "relrowsecurity": true
+    },
+    {
+      "estimated_rows": -1,
+      "nspname": "public",
+      "owner": "postgres",
+      "relforcerowsecurity": false,
+      "relkind": "r",
+      "relname": "audit_events",
+      "relrowsecurity": true
+    },
+    {
+      "estimated_rows": -1,
+      "nspname": "public",
+      "owner": "postgres",
+      "relforcerowsecurity": false,
+      "relkind": "r",
+      "relname": "deleted_completed_vehicles",
+      "relrowsecurity": true
+    },
+    {
+      "estimated_rows": -1,
+      "nspname": "public",
+      "owner": "postgres",
+      "relforcerowsecurity": false,
+      "relkind": "r",
+      "relname": "import_runs",
+      "relrowsecurity": true
+    },
+    {
+      "estimated_rows": -1,
+      "nspname": "public",
+      "owner": "postgres",
+      "relforcerowsecurity": false,
+      "relkind": "r",
+      "relname": "label_print_events",
+      "relrowsecurity": true
+    },
+    {
+      "estimated_rows": -1,
+      "nspname": "public",
+      "owner": "postgres",
+      "relforcerowsecurity": false,
+      "relkind": "r",
+      "relname": "pdc_user_roles",
+      "relrowsecurity": true
+    },
+    {
+      "estimated_rows": -1,
+      "nspname": "public",
+      "owner": "postgres",
+      "relforcerowsecurity": false,
+      "relkind": "r",
+      "relname": "salespeople",
+      "relrowsecurity": true
+    },
+    {
+      "estimated_rows": -1,
+      "nspname": "public",
+      "owner": "postgres",
+      "relforcerowsecurity": false,
+      "relkind": "r",
+      "relname": "sublet_providers",
+      "relrowsecurity": true
+    },
+    {
+      "estimated_rows": -1,
+      "nspname": "public",
+      "owner": "postgres",
+      "relforcerowsecurity": false,
+      "relkind": "r",
+      "relname": "vehicle_aliases",
+      "relrowsecurity": true
+    },
+    {
+      "estimated_rows": -1,
+      "nspname": "public",
+      "owner": "postgres",
+      "relforcerowsecurity": false,
+      "relkind": "r",
+      "relname": "vehicle_movements",
+      "relrowsecurity": true
+    },
+    {
+      "estimated_rows": -1,
+      "nspname": "public",
+      "owner": "postgres",
+      "relforcerowsecurity": false,
+      "relkind": "r",
+      "relname": "vehicle_parts_updates",
+      "relrowsecurity": true
+    },
+    {
+      "estimated_rows": -1,
+      "nspname": "public",
+      "owner": "postgres",
+      "relforcerowsecurity": false,
+      "relkind": "r",
+      "relname": "vehicle_work_items",
+      "relrowsecurity": true
+    },
+    {
+      "estimated_rows": -1,
+      "nspname": "public",
+      "owner": "postgres",
+      "relforcerowsecurity": false,
+      "relkind": "r",
+      "relname": "vehicles",
+      "relrowsecurity": true
+    }
+  ],
+  "fingerprint_sha256": "266aa8e70382a0fdb2006196b16ba210d399efaee8bf424c890e151a869f4625",
+  "migration_head": null,
+  "project_ref": "vjdtsswhroyguxyfjdkt",
+  "staging_sentinel_absent": true
+}

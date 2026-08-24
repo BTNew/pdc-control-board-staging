@@ -26,12 +26,14 @@ assert.ok(source.includes('const canonicalSharedHours = workshopSharedModeActive
 assert.ok(source.includes('workshopEstimatedHours(vehicle, normalizedStage) || workshopExactDurationHours(existing?.hours)'));
 assert.ok(source.includes('const duration = workshopExactDurationHours(hours) || workshopClampDurationHours(hours);'));
 assert.ok(source.includes('readonly title="Uses the canonical operation-line estimate"'));
+assert.ok(source.includes('Configured hours ${escapeHtml(workshopTimeLabelFromMinutes(0))}–${escapeHtml(workshopTimeLabelFromMinutes(WORKSHOP_PLANNER_CONFIG.dayLengthMinutes))}'), 'planner header renders authoritative configured hours');
+assert.ok(!source.includes('Monday–Friday, 8:00am–4:00pm.'), 'planner must not display stale hard-coded hours');
 
 const app = fs.readFileSync('app.js', 'utf8');
 const index = fs.readFileSync('index.html', 'utf8');
 const staging = fs.readFileSync('staging.html', 'utf8');
 const version = app.match(/const APP_VERSION = '([^']+)'/)?.[1];
-assert.strictEqual(version, '2026.08.23.05-fix-chip-shortening');
+assert.strictEqual(version, '2026.08.24.01-planner-hours-label');
 assert.ok(index.includes(`app.js?v=${version}`));
 assert.match(staging, /http-equiv=["']refresh["'][^>]+content=["']0;\s*url=\.\/["']/i);
 

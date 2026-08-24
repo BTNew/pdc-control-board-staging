@@ -1,0 +1,474 @@
+[
+  {
+    "after_data": {
+      "actual_duration_minutes": null,
+      "actual_end_at": null,
+      "actual_start_at": null,
+      "assignment": null,
+      "bay": {
+        "bay_number": 1,
+        "code": "TYRE-BAY-01",
+        "display_name": "Tyre Bay 01",
+        "id": "255d2c09-c7cb-4fc6-8426-838cf7226677",
+        "is_sublet_row": false
+      },
+      "booking_id": "a7cf5d9e-59c7-4ed7-8836-985be3659ebb",
+      "created_at": "2026-08-24T05:53:05.383474+00:00",
+      "default_duration_minutes": 60,
+      "deleted_at": null,
+      "deleted_reason": null,
+      "returned_to_queue_at": null,
+      "scheduled_end_at": "2026-08-24T08:30:00+00:00",
+      "scheduled_start_at": "2026-08-24T07:30:00+00:00",
+      "stage": {
+        "code": "TYRE",
+        "display_name": "Tyre",
+        "id": "1e653c10-088f-4331-be2a-e322ce9ae12f",
+        "sort_order": 7
+      },
+      "status": "planned",
+      "stoppage_accumulated_minutes": 0,
+      "stoppage_reason": null,
+      "stoppage_started_at": null,
+      "updated_at": "2026-08-24T05:53:05.383474+00:00",
+      "vehicle": {
+        "customer_name": "NORTH REGIONAL TAFE",
+        "job_card_number": "J139124962",
+        "model": "HiLux 4x4 2.8L Dsl D/C/C 6MT",
+        "permanent_vehicle_id": "PDC-PMB-F5BFBCB37D1B5F2A58B4A94D",
+        "stock_number": "13000549"
+      },
+      "vehicle_id": "de7398eb-9862-5b08-bc02-bc282d4a243e",
+      "version": 1
+    },
+    "before_data": null,
+    "created_at": "2026-08-24 05:53:05.383474+00",
+    "event_type": "created",
+    "metadata": {
+      "authority": "website_administrator",
+      "parts_planning_only": false,
+      "reason": "website_drag_drop",
+      "request_id": "ad29bfac-50c7-47b6-8e1e-80542ae35020",
+      "source": "admin_unallocated_vehicle_pill"
+    },
+    "stock_number": "13000549"
+  },
+  {
+    "after_data": {
+      "actual_duration_minutes": null,
+      "actual_end_at": null,
+      "actual_start_at": null,
+      "assignment": null,
+      "bay": {
+        "bay_number": 1,
+        "code": "TYRE-BAY-01",
+        "display_name": "Tyre Bay 01",
+        "id": "255d2c09-c7cb-4fc6-8426-838cf7226677",
+        "is_sublet_row": false
+      },
+      "booking_id": "a7cf5d9e-59c7-4ed7-8836-985be3659ebb",
+      "created_at": "2026-08-24T05:53:05.383474+00:00",
+      "default_duration_minutes": 60,
+      "deleted_at": null,
+      "deleted_reason": null,
+      "returned_to_queue_at": null,
+      "scheduled_end_at": "2026-08-24T08:23:00+00:00",
+      "scheduled_start_at": "2026-08-24T07:23:00+00:00",
+      "stage": {
+        "code": "TYRE",
+        "display_name": "Tyre",
+        "id": "1e653c10-088f-4331-be2a-e322ce9ae12f",
+        "sort_order": 7
+      },
+      "status": "planned",
+      "stoppage_accumulated_minutes": 0,
+      "stoppage_reason": null,
+      "stoppage_started_at": null,
+      "updated_at": "2026-08-24T05:53:09.599286+00:00",
+      "vehicle": {
+        "customer_name": "NORTH REGIONAL TAFE",
+        "job_card_number": "J139124962",
+        "model": "HiLux 4x4 2.8L Dsl D/C/C 6MT",
+        "permanent_vehicle_id": "PDC-PMB-F5BFBCB37D1B5F2A58B4A94D",
+        "stock_number": "13000549"
+      },
+      "vehicle_id": "de7398eb-9862-5b08-bc02-bc282d4a243e",
+      "version": 2
+    },
+    "before_data": {
+      "actual_duration_minutes": null,
+      "actual_end_at": null,
+      "actual_start_at": null,
+      "assignment": null,
+      "bay": {
+        "bay_number": 1,
+        "code": "TYRE-BAY-01",
+        "display_name": "Tyre Bay 01",
+        "id": "255d2c09-c7cb-4fc6-8426-838cf7226677",
+        "is_sublet_row": false
+      },
+      "booking_id": "a7cf5d9e-59c7-4ed7-8836-985be3659ebb",
+      "created_at": "2026-08-24T05:53:05.383474+00:00",
+      "default_duration_minutes": 60,
+      "deleted_at": null,
+      "deleted_reason": null,
+      "returned_to_queue_at": null,
+      "scheduled_end_at": "2026-08-24T08:30:00+00:00",
+      "scheduled_start_at": "2026-08-24T07:30:00+00:00",
+      "stage": {
+        "code": "TYRE",
+        "display_name": "Tyre",
+        "id": "1e653c10-088f-4331-be2a-e322ce9ae12f",
+        "sort_order": 7
+      },
+      "status": "planned",
+      "stoppage_accumulated_minutes": 0,
+      "stoppage_reason": null,
+      "stoppage_started_at": null,
+      "updated_at": "2026-08-24T05:53:05.383474+00:00",
+      "vehicle": {
+        "customer_name": "NORTH REGIONAL TAFE",
+        "job_card_number": "J139124962",
+        "model": "HiLux 4x4 2.8L Dsl D/C/C 6MT",
+        "permanent_vehicle_id": "PDC-PMB-F5BFBCB37D1B5F2A58B4A94D",
+        "stock_number": "13000549"
+      },
+      "vehicle_id": "de7398eb-9862-5b08-bc02-bc282d4a243e",
+      "version": 1
+    },
+    "created_at": "2026-08-24 05:53:09.599286+00",
+    "event_type": "start_cascade_shifted",
+    "metadata": {
+      "signed_shift_minutes": -7,
+      "start_target_id": "5045a022-cd6e-4f6e-a122-aa83e9aae5d5"
+    },
+    "stock_number": "13000549"
+  },
+  {
+    "after_data": {
+      "actual_duration_minutes": null,
+      "actual_end_at": null,
+      "actual_start_at": null,
+      "assignment": null,
+      "bay": {
+        "bay_number": 1,
+        "code": "TYRE-BAY-01",
+        "display_name": "Tyre Bay 01",
+        "id": "255d2c09-c7cb-4fc6-8426-838cf7226677",
+        "is_sublet_row": false
+      },
+      "booking_id": "a7cf5d9e-59c7-4ed7-8836-985be3659ebb",
+      "created_at": "2026-08-24T05:53:05.383474+00:00",
+      "default_duration_minutes": 60,
+      "deleted_at": null,
+      "deleted_reason": null,
+      "returned_to_queue_at": null,
+      "scheduled_end_at": "2026-08-24T08:15:00+00:00",
+      "scheduled_start_at": "2026-08-24T07:15:00+00:00",
+      "stage": {
+        "code": "TYRE",
+        "display_name": "Tyre",
+        "id": "1e653c10-088f-4331-be2a-e322ce9ae12f",
+        "sort_order": 7
+      },
+      "status": "planned",
+      "stoppage_accumulated_minutes": 0,
+      "stoppage_reason": null,
+      "stoppage_started_at": null,
+      "updated_at": "2026-08-24T05:53:17.654006+00:00",
+      "vehicle": {
+        "customer_name": "NORTH REGIONAL TAFE",
+        "job_card_number": "J139124962",
+        "model": "HiLux 4x4 2.8L Dsl D/C/C 6MT",
+        "permanent_vehicle_id": "PDC-PMB-F5BFBCB37D1B5F2A58B4A94D",
+        "stock_number": "13000549"
+      },
+      "vehicle_id": "de7398eb-9862-5b08-bc02-bc282d4a243e",
+      "version": 3
+    },
+    "before_data": {
+      "actual_duration_minutes": null,
+      "actual_end_at": null,
+      "actual_start_at": null,
+      "assignment": null,
+      "bay": {
+        "bay_number": 1,
+        "code": "TYRE-BAY-01",
+        "display_name": "Tyre Bay 01",
+        "id": "255d2c09-c7cb-4fc6-8426-838cf7226677",
+        "is_sublet_row": false
+      },
+      "booking_id": "a7cf5d9e-59c7-4ed7-8836-985be3659ebb",
+      "created_at": "2026-08-24T05:53:05.383474+00:00",
+      "default_duration_minutes": 60,
+      "deleted_at": null,
+      "deleted_reason": null,
+      "returned_to_queue_at": null,
+      "scheduled_end_at": "2026-08-24T08:23:00+00:00",
+      "scheduled_start_at": "2026-08-24T07:23:00+00:00",
+      "stage": {
+        "code": "TYRE",
+        "display_name": "Tyre",
+        "id": "1e653c10-088f-4331-be2a-e322ce9ae12f",
+        "sort_order": 7
+      },
+      "status": "planned",
+      "stoppage_accumulated_minutes": 0,
+      "stoppage_reason": null,
+      "stoppage_started_at": null,
+      "updated_at": "2026-08-24T05:53:09.599286+00:00",
+      "vehicle": {
+        "customer_name": "NORTH REGIONAL TAFE",
+        "job_card_number": "J139124962",
+        "model": "HiLux 4x4 2.8L Dsl D/C/C 6MT",
+        "permanent_vehicle_id": "PDC-PMB-F5BFBCB37D1B5F2A58B4A94D",
+        "stock_number": "13000549"
+      },
+      "vehicle_id": "de7398eb-9862-5b08-bc02-bc282d4a243e",
+      "version": 2
+    },
+    "created_at": "2026-08-24 05:53:17.654006+00",
+    "event_type": "moved",
+    "metadata": {
+      "authority": "website_administrator",
+      "reason": "website_drag_drop",
+      "request_id": "ffafd379-55c7-41d4-ac7e-17e6e880ba8e",
+      "source": "planner_chip_drop"
+    },
+    "stock_number": "13000549"
+  },
+  {
+    "after_data": {
+      "actual_duration_minutes": null,
+      "actual_end_at": null,
+      "actual_start_at": null,
+      "assignment": null,
+      "bay": {
+        "bay_number": 1,
+        "code": "TYRE-BAY-01",
+        "display_name": "Tyre Bay 01",
+        "id": "255d2c09-c7cb-4fc6-8426-838cf7226677",
+        "is_sublet_row": false
+      },
+      "booking_id": "a0f477e2-6338-43af-b964-521117e69ec4",
+      "created_at": "2026-08-24T05:53:22.204114+00:00",
+      "default_duration_minutes": 72,
+      "deleted_at": null,
+      "deleted_reason": null,
+      "returned_to_queue_at": null,
+      "scheduled_end_at": "2026-08-24T23:27:00+00:00",
+      "scheduled_start_at": "2026-08-24T08:15:00+00:00",
+      "stage": {
+        "code": "TYRE",
+        "display_name": "Tyre",
+        "id": "1e653c10-088f-4331-be2a-e322ce9ae12f",
+        "sort_order": 7
+      },
+      "status": "planned",
+      "stoppage_accumulated_minutes": 0,
+      "stoppage_reason": null,
+      "stoppage_started_at": null,
+      "updated_at": "2026-08-24T05:53:22.204114+00:00",
+      "vehicle": {
+        "customer_name": "Environmental Regulation",
+        "job_card_number": "J139125361",
+        "model": "HiLux 4x4 2.8L Dsl D/C 6AT",
+        "permanent_vehicle_id": "PDC-PMB-44B833A53F5D9DAB104EDEF6",
+        "stock_number": "13000608"
+      },
+      "vehicle_id": "8a092de2-8d02-5d08-9710-e183bc75a507",
+      "version": 1
+    },
+    "before_data": null,
+    "created_at": "2026-08-24 05:53:22.204114+00",
+    "event_type": "created",
+    "metadata": {
+      "authority": "website_administrator",
+      "parts_planning_only": false,
+      "reason": "website_drag_drop",
+      "request_id": "62e2bfcb-1654-4d4d-bc50-a7c373f1e340",
+      "source": "admin_unallocated_vehicle_pill"
+    },
+    "stock_number": "13000608"
+  },
+  {
+    "after_data": {
+      "actual_duration_minutes": null,
+      "actual_end_at": null,
+      "actual_start_at": null,
+      "assignment": null,
+      "bay": {
+        "bay_number": 1,
+        "code": "TYRE-BAY-01",
+        "display_name": "Tyre Bay 01",
+        "id": "255d2c09-c7cb-4fc6-8426-838cf7226677",
+        "is_sublet_row": false
+      },
+      "booking_id": "a0f477e2-6338-43af-b964-521117e69ec4",
+      "created_at": "2026-08-24T05:53:22.204114+00:00",
+      "default_duration_minutes": 72,
+      "deleted_at": null,
+      "deleted_reason": null,
+      "returned_to_queue_at": null,
+      "scheduled_end_at": "2026-08-24T23:39:00+00:00",
+      "scheduled_start_at": "2026-08-24T08:27:00+00:00",
+      "stage": {
+        "code": "TYRE",
+        "display_name": "Tyre",
+        "id": "1e653c10-088f-4331-be2a-e322ce9ae12f",
+        "sort_order": 7
+      },
+      "status": "planned",
+      "stoppage_accumulated_minutes": 0,
+      "stoppage_reason": null,
+      "stoppage_started_at": null,
+      "updated_at": "2026-08-24T08:27:34.181715+00:00",
+      "vehicle": {
+        "customer_name": "Environmental Regulation",
+        "job_card_number": "J139125361",
+        "model": "HiLux 4x4 2.8L Dsl D/C 6AT",
+        "permanent_vehicle_id": "PDC-PMB-44B833A53F5D9DAB104EDEF6",
+        "stock_number": "13000608"
+      },
+      "vehicle_id": "8a092de2-8d02-5d08-9710-e183bc75a507",
+      "version": 2
+    },
+    "before_data": {
+      "actual_duration_minutes": null,
+      "actual_end_at": null,
+      "actual_start_at": null,
+      "assignment": null,
+      "bay": {
+        "bay_number": 1,
+        "code": "TYRE-BAY-01",
+        "display_name": "Tyre Bay 01",
+        "id": "255d2c09-c7cb-4fc6-8426-838cf7226677",
+        "is_sublet_row": false
+      },
+      "booking_id": "a0f477e2-6338-43af-b964-521117e69ec4",
+      "created_at": "2026-08-24T05:53:22.204114+00:00",
+      "default_duration_minutes": 72,
+      "deleted_at": null,
+      "deleted_reason": null,
+      "returned_to_queue_at": null,
+      "scheduled_end_at": "2026-08-24T23:27:00+00:00",
+      "scheduled_start_at": "2026-08-24T08:15:00+00:00",
+      "stage": {
+        "code": "TYRE",
+        "display_name": "Tyre",
+        "id": "1e653c10-088f-4331-be2a-e322ce9ae12f",
+        "sort_order": 7
+      },
+      "status": "planned",
+      "stoppage_accumulated_minutes": 0,
+      "stoppage_reason": null,
+      "stoppage_started_at": null,
+      "updated_at": "2026-08-24T05:53:22.204114+00:00",
+      "vehicle": {
+        "customer_name": "Environmental Regulation",
+        "job_card_number": "J139125361",
+        "model": "HiLux 4x4 2.8L Dsl D/C 6AT",
+        "permanent_vehicle_id": "PDC-PMB-44B833A53F5D9DAB104EDEF6",
+        "stock_number": "13000608"
+      },
+      "vehicle_id": "8a092de2-8d02-5d08-9710-e183bc75a507",
+      "version": 1
+    },
+    "created_at": "2026-08-24 08:27:34.181715+00",
+    "event_type": "start_snapped_to_now",
+    "metadata": {
+      "signed_shift_minutes": 12
+    },
+    "stock_number": "13000608"
+  },
+  {
+    "after_data": {
+      "actual_duration_minutes": null,
+      "actual_end_at": null,
+      "actual_start_at": "2026-08-24T08:27:00+00:00",
+      "assignment": null,
+      "bay": {
+        "bay_number": 1,
+        "code": "TYRE-BAY-01",
+        "display_name": "Tyre Bay 01",
+        "id": "255d2c09-c7cb-4fc6-8426-838cf7226677",
+        "is_sublet_row": false
+      },
+      "booking_id": "a0f477e2-6338-43af-b964-521117e69ec4",
+      "created_at": "2026-08-24T05:53:22.204114+00:00",
+      "default_duration_minutes": 72,
+      "deleted_at": null,
+      "deleted_reason": null,
+      "returned_to_queue_at": null,
+      "scheduled_end_at": "2026-08-24T23:39:00+00:00",
+      "scheduled_start_at": "2026-08-24T08:27:00+00:00",
+      "stage": {
+        "code": "TYRE",
+        "display_name": "Tyre",
+        "id": "1e653c10-088f-4331-be2a-e322ce9ae12f",
+        "sort_order": 7
+      },
+      "status": "started",
+      "stoppage_accumulated_minutes": 0,
+      "stoppage_reason": null,
+      "stoppage_started_at": null,
+      "updated_at": "2026-08-24T08:27:34.181715+00:00",
+      "vehicle": {
+        "customer_name": "Environmental Regulation",
+        "job_card_number": "J139125361",
+        "model": "HiLux 4x4 2.8L Dsl D/C 6AT",
+        "permanent_vehicle_id": "PDC-PMB-44B833A53F5D9DAB104EDEF6",
+        "stock_number": "13000608"
+      },
+      "vehicle_id": "8a092de2-8d02-5d08-9710-e183bc75a507",
+      "version": 3
+    },
+    "before_data": {
+      "actual_duration_minutes": null,
+      "actual_end_at": null,
+      "actual_start_at": null,
+      "assignment": null,
+      "bay": {
+        "bay_number": 1,
+        "code": "TYRE-BAY-01",
+        "display_name": "Tyre Bay 01",
+        "id": "255d2c09-c7cb-4fc6-8426-838cf7226677",
+        "is_sublet_row": false
+      },
+      "booking_id": "a0f477e2-6338-43af-b964-521117e69ec4",
+      "created_at": "2026-08-24T05:53:22.204114+00:00",
+      "default_duration_minutes": 72,
+      "deleted_at": null,
+      "deleted_reason": null,
+      "returned_to_queue_at": null,
+      "scheduled_end_at": "2026-08-24T23:39:00+00:00",
+      "scheduled_start_at": "2026-08-24T08:27:00+00:00",
+      "stage": {
+        "code": "TYRE",
+        "display_name": "Tyre",
+        "id": "1e653c10-088f-4331-be2a-e322ce9ae12f",
+        "sort_order": 7
+      },
+      "status": "planned",
+      "stoppage_accumulated_minutes": 0,
+      "stoppage_reason": null,
+      "stoppage_started_at": null,
+      "updated_at": "2026-08-24T08:27:34.181715+00:00",
+      "vehicle": {
+        "customer_name": "Environmental Regulation",
+        "job_card_number": "J139125361",
+        "model": "HiLux 4x4 2.8L Dsl D/C 6AT",
+        "permanent_vehicle_id": "PDC-PMB-44B833A53F5D9DAB104EDEF6",
+        "stock_number": "13000608"
+      },
+      "vehicle_id": "8a092de2-8d02-5d08-9710-e183bc75a507",
+      "version": 2
+    },
+    "created_at": "2026-08-24 08:27:34.181715+00",
+    "event_type": "started",
+    "metadata": {
+      "database_clock_start": true
+    },
+    "stock_number": "13000608"
+  }
+]
