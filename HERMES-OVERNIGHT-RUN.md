@@ -1,7 +1,7 @@
 # HERMES OVERNIGHT PDC HARDENING RUN
 
 ## Run identity
-- Status: RUNNING
+- Status: READY_FOR_FINAL_REPORT
 - Start UTC: 2026-08-24T10:54:31Z
 - End UTC: 2026-08-24T20:54:31Z
 - Start Perth: 2026-08-24T18:54:31+08:00
@@ -366,5 +366,33 @@ None at this checkpoint. Registry-bound synthetic stress mutation is now commiss
 - Quantitative counters unchanged: synthetic 20/20; full physical Intake/Inception-to-RFT journeys 0/5 (not fabricated); consecutive final clean read-only journeys 6/3; board movements 8/100; booking movements 6/50; invalid attempts 17/20; duplicate submits 23/20; Parts 18/25; Sublet 21/20; QC/RFT out-of-order 12/10; two-session scenarios 14/10; field/validation 59/30.
 - Exact next action: at or after `2026-08-24T20:54:31Z`, run the final read-only environment/inventory/route proof, mark `READY_FOR_FINAL_REPORT`, stop the recurring worker, verify a clean pushed worktree and issue the final staging recommendation.
 
+### Checkpoint 022 — 2026-08-24T20:56:26Z (elapsed 10:01, final gate)
+- Git commit at final-gate start: `1a05620e6fe7748fe4511b8853b4b140838df41d`; the remote overnight branch matched exactly. This final evidence and report are committed/pushed immediately below.
+- Mode: end-time read-only final proof. The gate opened only after `2026-08-24T20:54:31Z`; no new application, schema, synthetic-record or reference-data mutation was attempted.
+- Final environment proof: exact staging project `cdsmnqxtyyoeoznmbidd`; Pages build `a2f76381c85c91cc155b705ae91e46f727663be8`=`built`; migration head `374`; `173` vehicles = `153` protected + `20` registry-bound synthetic; Monitor stopped; active mailboxes/writers `0`; outbound/pending notifications `0`; Production access remained structurally blocked.
+- Final inventory: protected state remains exactly `1413` rows / SHA-256 `28476c8fac93aa03707b20a84b4b836b4268c96fa6710bf1238f0f6ebb265f11`; synthetic state remains SHA-256 `20758379d26f7ffb4480d2ecb239fade5c7f10410fa23d6138682128256dbe20`. Relation counts remain 26 work items, 4 bookings, 4 booking-history rows, 6 Parts rows, 3 Sublet bookings, 6 Sublet-history rows, 8 movements, 34 audit events and 66 receipts. Duplicate stocks, receipt IDs and `(actor,idempotency)` keys remain zero.
+- Final authenticated journey: `2` isolated sessions × `8` routes/reloads = `16` checks; exact Workshop minutes `[47,59,61,73]`; 012=`QC`, 013=`RFT`, 014=`Completed`; 020 remains pristine at IT/version 1 with no fabricated completion evidence. Authoritative before/after digests are equal; browser console, page, request, HTTP and blocked-host errors are all zero.
+- Final evidence SHA-256: environment proof `d80674b02e6b1303cc1a7c65cdf8a806065c056457246b65348c62e8cffc0f7d`; inventory `5aaba11d0013c736f13c9f8c6bcba1854101cd38a1a708771ea8bf2854dc6738`; authenticated 020 journey `b534f1961f3717e7b88f68e968bf10d3b16e6caf4524f17e5e157cade58f155f`.
+- Defects/blockers: no new defect or staging drift. Authenticated Viewer-role execution remains unproven because the retained historical credential is invalid and its current role is Importer; no credentials or roles were created, changed or broadened. Full physical Intake/Inception-to-RFT journeys remain `0/5` because the run did not fabricate real-world work evidence.
+- Quantitative counters unchanged except final read-only repetitions: synthetic 20/20; physical journeys 0/5; consecutive clean read-only journeys 7/3; board movements 8/100; booking movements 6/50; invalid attempts 17/20; duplicate submits 23/20; Parts 18/25; Sublet 21/20; QC/RFT out-of-order 12/10; two-session scenarios 15/10; field/validation 59/30.
+- Durable worker: recurring job `eb093eca975c` was paused after the final gate and read back as paused. The separately scheduled one-shot final-report job remains available to deliver the committed outcome.
+- Exact next action: no further overnight work. Preserve the disabled Monitor/mailbox/writer/notification state and use this branch plus its immutable evidence for review. Any Production deployment or write requires separate explicit approval.
+
 ## Final report
-Pending until the ten-hour end time.
+### Outcome
+- **READY_FOR_FINAL_REPORT.** The isolated staging Board completed the ten-hour hardening run with no unresolved application defect found in the final regression.
+- The run repaired and verified the staging-only synthetic projection, registry-bound mutation façades, exact-minute Workshop timing and conflict enforcement, modal keyboard/focus behavior, and interruption-safe evidence harnesses.
+- Guarded synthetic acceptance covered lifecycle/editing, board movement, exact-minute bookings, Parts, Sublet, QC/RFT/Completed separation, duplicate/idempotency behavior, authenticated role boundaries, concurrent-session races, route/reload behavior, desktop/mobile layout and accessibility checks.
+
+### Final verified state
+- Staging contains `153` unchanged protected vehicles and exactly `20` registry-bound `HERMES-TEST` vehicles. Protected cross-relation state retained the same `1413`-row digest throughout final verification.
+- Monitor, monitored mailboxes, activation writers and outbound notifications remain disabled/zero.
+- Final two-session browser regression completed with zero console, page, network or HTTP errors and authoritative no-change readback.
+- Source aggregate at the last complete run passed `49/49` Node contracts, `30/30` Python regressions and `81/81` JavaScript syntax checks; final live environment, inventory and authenticated-browser proofs also passed.
+- Production was not accessed, queried, fingerprinted, deployed to or changed.
+
+### Recommendation and limits
+- The hardened staging candidate is suitable for owner/stakeholder review and any separately authorised Production release process.
+- Do not treat this report as Production approval. Production deployment/writes remain blocked pending Craig's fresh explicit confirmation.
+- Authenticated Viewer-role execution remains the only credential-bound coverage gap; the existing credential is invalid and maps historically to Importer, so the run correctly did not change credentials or broaden roles.
+- No physical completion was invented: scenario 020 stayed pristine, and the run records `0/5` physical Intake/Inception-to-RFT journeys while separately proving seven consecutive clean read-only regression journeys.
