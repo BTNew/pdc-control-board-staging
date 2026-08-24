@@ -30,6 +30,32 @@
 ## Synthetic records created
 None yet.
 
+## Authorised synthetic fleet (not created yet)
+Run ID: `HERMES-TEST-RUN-20260824`. Only these exact stock identities may be created by migration 363; every customer, Job Card, scenario name and description must also begin `HERMES-TEST`.
+
+| No. | Stock | Intended scenario |
+|---:|---|---|
+| 1 | `HERMES-TEST-001` | baseline intake/editing |
+| 2 | `HERMES-TEST-002` | IT ETA/location transition |
+| 3 | `HERMES-TEST-003` | YH latch and movement |
+| 4 | `HERMES-TEST-004` | PMB bay/chip movement |
+| 5 | `HERMES-TEST-005` | exact-minute Fitting booking |
+| 6 | `HERMES-TEST-006` | exact-minute Electrical booking |
+| 7 | `HERMES-TEST-007` | multi-stage booking/conflict |
+| 8 | `HERMES-TEST-008` | Parts lifecycle |
+| 9 | `HERMES-TEST-009` | Parts stoppage/recovery |
+| 10 | `HERMES-TEST-010` | Sublet queued/booked/returned |
+| 11 | `HERMES-TEST-011` | multi-provider Sublet |
+| 12 | `HERMES-TEST-012` | QC ordering negative case |
+| 13 | `HERMES-TEST-013` | RFT separation |
+| 14 | `HERMES-TEST-014` | Completed separation |
+| 15 | `HERMES-TEST-015` | duplicate-submit/idempotency |
+| 16 | `HERMES-TEST-016` | stale-version conflict |
+| 17 | `HERMES-TEST-017` | two-session same-record race |
+| 18 | `HERMES-TEST-018` | role/permission negative cases |
+| 19 | `HERMES-TEST-019` | navigation/mobile/accessibility |
+| 20 | `HERMES-TEST-020` | full final regression journey |
+
 ## Quantitative counters
 - Synthetic vehicles: 0 / approximately 20
 - Full Intake/Inception-to-RFT journeys: 0 / 5
@@ -88,6 +114,18 @@ None yet.
 - Baseline limitations: static GitHub Pages app with no package manifest, bundler, lint configuration, type checker or production-build command. Current tests are mostly source/SQL contract checks; there is no browser E2E, two-session race harness or accessibility runner. Dedicated Sublet and RFT runtime coverage is absent.
 - Blockers: safe mutation requires a guarded append-only staging migration that registers this run's synthetic identities, creates only prefix-validated test vehicles, suppresses external notifications, and exposes synthetic-only wrappers/readback before any lifecycle testing.
 - Exact next action: implement and independently review the smallest guarded bootstrap/registry migration, then authenticate through a staging operator/admin account, create the 20 named synthetic scenarios idempotently, and verify that pre-existing vehicle/history/notification counts are unchanged except for the exact registered synthetic scope.
+
+### Checkpoint 003 — 2026-08-24T11:26:09Z (elapsed 00:31)
+- Git commit: `114901f7d0e35ae62068ff719e6df13cf7875796` (already pushed to the overnight branch).
+- Areas tested: environment proof re-passed against exact staging; source contract and independent least-authority review of migration 363; live read-only schema confirmation for vehicle, Monitor and Workshop stage columns; canonical active work keys inventoried.
+- Synthetic records created: none. The exact 20-stock allowlist is now recorded above before any mutation.
+- Bugs discovered: migration 363 accepts caller-supplied prefixed scenario details instead of binding the exact logged catalog; bootstrap authority includes Operator rather than Administrator only; runtime containment checks are not locked against mailbox/writer/notification races and omit the four disabled pilot flags; protected pre-existing rows are count-checked but not byte-digest checked. Generic lifecycle RPCs remain unsafe for this run because they accept arbitrary vehicle UUIDs.
+- Bugs fixed: no live fix yet; unsafe deployment/bootstrap was stopped. The independent review and exact live schema read prevented commissioning an under-scoped controller.
+- Tests passing: environment proof; 34 existing Node source contracts including the new migration contract; 30/30 Python regressions from the last complete baseline; read-only active Workshop key inventory (`PARTS`, `bus4x4`, `tint`, `hoist`, `fitting`, `fabrication`, `electrical`, `tyre`, `pitInspection`, `sublet`).
+- Tests failing: no executed test failure; migration 363 is source-only and deliberately not deployed because the review found four containment/authority gaps.
+- Blockers: none for local repair. Live mutation remains blocked until the exact catalog, Administrator-only authority, race locks, full pilot containment and protected-row digest are enforced and retested.
+- Quantitative counters: synthetic 0/20; journeys 0/5; board movements 0/100; booking movements 0/50; invalid attempts 0/20; duplicates 0/20; Parts 0/25; Sublet 0/20; QC/RFT out-of-order 0/10; two-session 0/10; field/validation 0/30.
+- Exact next action: harden migration 363 and its regression contract around the exact catalog and race/digest gates, independently review the exact diff, then deploy through the guarded staging migration controller and perform Administrator-authenticated bootstrap/readback only if every proof remains green.
 
 ## Final report
 Pending until the ten-hour end time.

@@ -10,6 +10,7 @@ const migrationRel = 'supabase/staging_only/20260825000000_363_overnight_synthet
 const testRel = 'test_overnight_synthetic_fleet_bootstrap.js';
 const sql = fs.readFileSync(path.join(root, migrationRel), 'utf8');
 const lower = sql.toLowerCase();
+const specs = JSON.parse(fs.readFileSync(path.join(root, '_overnight_evidence/synthetic-fleet-specs.json'), 'utf8'));
 
 function has(fragment, message = `missing contract fragment: ${fragment}`) {
   assert(sql.includes(fragment), message);
@@ -55,7 +56,7 @@ for (const fragment of [
   'public.bootstrap_pdc_hermes_test_fleet(p_run_id text,p_idempotency_key uuid,p_specs jsonb)',
   'public.read_pdc_hermes_test_fleet(p_run_id text)',
   'SECURITY DEFINER',
-  "r.role IN('operator','administrator') AND r.active AND r.account_status='approved'",
+  "r.role='administrator' AND r.active AND r.account_status='approved'",
   'GRANT EXECUTE ON FUNCTION public.bootstrap_pdc_hermes_test_fleet(text,uuid,jsonb) TO authenticated',
   'GRANT EXECUTE ON FUNCTION public.read_pdc_hermes_test_fleet(text) TO authenticated',
 ]) has(fragment);
@@ -83,10 +84,19 @@ for (const fragment of [
   "k<>ALL(ARRAY['scenario_no','scenario_name','stock','customer','job_card','description','initial_location','eta','work_keys','notes'])",
   "jsonb_typeof(spec->'scenario_no') IS DISTINCT FROM 'number'",
   "jsonb_typeof(spec->'work_keys') IS DISTINCT FROM 'array'",
+  "v_specs_sha256<>'0bc2791f0b79bf03018f5d3ec444441253c0aa8a994dd8a31f7bd49f20738d16'",
+  'PDC_363_EXACT_LOGGED_CATALOG_REQUIRED',
   "v_name~'[[:cntrl:]]'",
   'render_only',
 ]) has(fragment);
 for (const bound of ['length(v_name) NOT BETWEEN 12 AND 120','length(v_customer) NOT BETWEEN 12 AND 120','length(v_job) NOT BETWEEN 12 AND 80','length(v_description) NOT BETWEEN 12 AND 180','length(v_notes) NOT BETWEEN 12 AND 240']) has(bound);
+assert.strictEqual(specs.length, 20, 'exact logged fleet catalog must contain 20 specs');
+assert.deepStrictEqual(specs.map(s => s.stock), Array.from({length: 20}, (_, i) => `HERMES-TEST-${String(i + 1).padStart(3, '0')}`));
+for (const spec of specs) {
+  for (const field of ['scenario_name','stock','customer','job_card','description','notes']) {
+    assert(String(spec[field]).startsWith('HERMES-TEST'), `${field} must be HERMES-TEST-prefixed`);
+  }
+}
 
 // Deterministic identities, collision closure, canonical incomplete work only.
 for (const fragment of [
@@ -123,6 +133,15 @@ for (const fragment of [
   'v_after_notification_count<>v_before_notification_count',
   'v_before_notification_count<>0',
   'v_before_work_count+v_expected_work_count',
+  'LOCK TABLE public.pdc_email_monitor_pilot IN SHARE MODE',
+  'LOCK TABLE public.pdc_email_monitor_status IN SHARE MODE',
+  'LOCK TABLE public.monitored_mailboxes IN SHARE MODE',
+  'LOCK TABLE public.pdc_monitor_stage_activation_writers IN SHARE MODE',
+  'LOCK TABLE public.vehicle_notifications IN SHARE MODE',
+  'enabled OR outbound_email_enabled OR automatic_rule_application OR automatic_authenticated_jobcards',
+  'v_protected_digest_after IS DISTINCT FROM v_protected_digest_before',
+  "'protected_vehicle_digest_before',v_protected_digest_before",
+  "'protected_vehicle_digest_after',v_protected_digest_after",
   '(spec->\'work_keys\')?wi.work_key',
   'EXISTS(SELECT 1 FROM public.workshop_bookings',
   'EXISTS(SELECT 1 FROM public.vehicle_parts_updates',
@@ -164,9 +183,9 @@ const base = '7d5211fa57bab61edddb1dd5e409419d7f4ba282';
 const committed = cp.execFileSync('git', ['diff', '--name-only', base, 'HEAD'], { cwd: root, encoding: 'utf8' })
   .trim().split(/\r?\n/).filter(Boolean).map(p => p.replace(/\\/g, '/'));
 const status = cp.execFileSync('git', ['status', '--porcelain=v1', '--untracked-files=all'], { cwd: root, encoding: 'utf8' })
-  .trim().split(/\r?\n/).filter(Boolean);
+  .trimEnd().split('\n').map(line => line.endsWith(String.fromCharCode(13)) ? line.slice(0, -1) : line).filter(Boolean);
 const working = status.map(line => line.slice(3).replace(/\\/g, '/'));
 const changed = [...new Set([...committed, ...working])].sort();
-assert.deepStrictEqual(changed, [migrationRel, testRel].sort(), `unexpected changed paths since ${base}: ${changed.join(', ')}`);
+assert.deepStrictEqual(changed, [migrationRel, testRel, 'HERMES-OVERNIGHT-RUN.md', '_overnight_evidence/synthetic-fleet-specs.json'].sort(), `unexpected changed paths since ${base}: ${changed.join(', ')}`);
 
 console.log('overnight_synthetic_fleet_bootstrap source contract: PASS');

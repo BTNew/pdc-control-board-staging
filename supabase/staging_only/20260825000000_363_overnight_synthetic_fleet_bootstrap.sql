@@ -11,6 +11,7 @@ BEGIN
    OR to_regclass('public.pdc_production_environment_sentinel') IS NOT NULL
    OR NOT EXISTS(SELECT 1 FROM supabase_migrations.schema_migrations WHERE version='20260824230000' AND name='362_align_anderson_plugs_and_job_counts')
    OR EXISTS(SELECT 1 FROM supabase_migrations.schema_migrations WHERE version>'20260824230000' AND version~'^[0-9]{14}$')
+   OR EXISTS(SELECT 1 FROM public.pdc_email_monitor_pilot WHERE enabled OR outbound_email_enabled OR automatic_rule_application OR automatic_authenticated_jobcards)
    OR EXISTS(SELECT 1 FROM public.pdc_email_monitor_status WHERE running_status<>'stopped' OR gateway_instance_id IS NOT NULL)
    OR EXISTS(SELECT 1 FROM public.monitored_mailboxes WHERE active)
    OR EXISTS(SELECT 1 FROM public.pdc_monitor_stage_activation_writers WHERE active AND revoked_at IS NULL)
@@ -126,6 +127,7 @@ RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,publi
 DECLARE
  v_actor uuid:=auth.uid();
  v_email text:=lower(btrim(coalesce(auth.jwt()->>'email','')));
+ v_specs_sha256 text;
  v_request_sha256 text;
  v_receipt public.pdc_overnight_synthetic_fleet_receipts_363%rowtype;
  v_receipt_id uuid;
@@ -160,6 +162,8 @@ DECLARE
  v_before_provider_count bigint;
  v_before_email_count bigint;
  v_expected_work_count bigint;
+ v_protected_digest_before text;
+ v_protected_digest_after text;
  v_response jsonb;
 BEGIN
  IF p_run_id IS DISTINCT FROM 'HERMES-TEST-RUN-20260824' OR p_idempotency_key IS NULL
@@ -169,12 +173,19 @@ BEGIN
  IF v_actor IS NULL OR v_email='' OR NOT EXISTS(
   SELECT 1 FROM public.pdc_user_roles r
   WHERE r.auth_user_id=v_actor AND lower(r.email)=v_email
-    AND r.role IN('operator','administrator') AND r.active AND r.account_status='approved'
+    AND r.role='administrator' AND r.active AND r.account_status='approved'
   FOR SHARE
  ) THEN RAISE EXCEPTION 'PDC_363_UNAUTHORIZED' USING errcode='42501'; END IF;
+
+ LOCK TABLE public.pdc_email_monitor_pilot IN SHARE MODE;
+ LOCK TABLE public.pdc_email_monitor_status IN SHARE MODE;
+ LOCK TABLE public.monitored_mailboxes IN SHARE MODE;
+ LOCK TABLE public.pdc_monitor_stage_activation_writers IN SHARE MODE;
+ LOCK TABLE public.vehicle_notifications IN SHARE MODE;
  IF NOT public.pdc_monitor_staging_guard()
    OR (SELECT count(*) FROM public.pdc_staging_environment_sentinel WHERE singleton AND project_ref='cdsmnqxtyyoeoznmbidd')<>1
    OR to_regclass('public.pdc_production_environment_sentinel') IS NOT NULL
+   OR EXISTS(SELECT 1 FROM public.pdc_email_monitor_pilot WHERE enabled OR outbound_email_enabled OR automatic_rule_application OR automatic_authenticated_jobcards)
    OR EXISTS(SELECT 1 FROM public.pdc_email_monitor_status WHERE running_status<>'stopped' OR gateway_instance_id IS NOT NULL)
    OR EXISTS(SELECT 1 FROM public.monitored_mailboxes WHERE active)
    OR EXISTS(SELECT 1 FROM public.pdc_monitor_stage_activation_writers WHERE active AND revoked_at IS NULL)
@@ -198,6 +209,10 @@ BEGIN
     OR (spec?'notes' AND jsonb_typeof(spec->'notes') IS DISTINCT FROM 'string')
     OR (spec?'work_keys' AND jsonb_typeof(spec->'work_keys') IS DISTINCT FROM 'array')
  ) THEN RAISE EXCEPTION 'PDC_363_INVALID_SPEC_SHAPE' USING errcode='22023'; END IF;
+ v_specs_sha256:=encode(extensions.digest(convert_to(p_specs::text,'UTF8'),'sha256'),'hex');
+ IF v_specs_sha256<>'0bc2791f0b79bf03018f5d3ec444441253c0aa8a994dd8a31f7bd49f20738d16' THEN
+  RAISE EXCEPTION 'PDC_363_EXACT_LOGGED_CATALOG_REQUIRED' USING errcode='22023';
+ END IF;
  IF (SELECT count(DISTINCT (spec->>'scenario_no')::integer) FROM jsonb_array_elements(p_specs) spec
      WHERE (spec->>'scenario_no')~'^([1-9]|1[0-9]|20)$')<>20
    OR EXISTS(SELECT 1 FROM generate_series(1,20) n WHERE NOT EXISTS(
@@ -278,6 +293,8 @@ BEGIN
  v_before_sublet_count:=(SELECT count(*) FROM public.pdc_sublet_bookings);
  v_before_provider_count:=(SELECT count(*) FROM public.vehicle_sublet_providers);
  v_before_email_count:=(SELECT count(*) FROM public.pdc_authenticated_email_import_receipts);
+ SELECT encode(extensions.digest(convert_to(coalesce(jsonb_agg(to_jsonb(v) ORDER BY v.id),'[]'::jsonb)::text,'UTF8'),'sha256'),'hex')
+   INTO v_protected_digest_before FROM public.vehicles v;
  v_expected_work_count:=(SELECT coalesce(sum(jsonb_array_length(coalesce(spec->'work_keys','[]'::jsonb))),0)
    FROM jsonb_array_elements(p_specs) spec);
  IF v_before_notification_count<>0 THEN RAISE EXCEPTION 'PDC_363_NOTIFICATIONS_NOT_EMPTY' USING errcode='55000'; END IF;
@@ -330,8 +347,12 @@ BEGIN
  v_after_vehicle_count:=(SELECT count(*) FROM public.vehicles);
  v_after_registry_count:=(SELECT count(*) FROM public.pdc_overnight_synthetic_fleet_registry_363);
  v_after_notification_count:=(SELECT count(*) FROM public.vehicle_notifications);
+ SELECT encode(extensions.digest(convert_to(coalesce(jsonb_agg(to_jsonb(v) ORDER BY v.id),'[]'::jsonb)::text,'UTF8'),'sha256'),'hex')
+   INTO v_protected_digest_after FROM public.vehicles v
+   WHERE NOT EXISTS(SELECT 1 FROM public.pdc_overnight_synthetic_fleet_registry_363 r WHERE r.vehicle_id=v.id AND r.run_id=p_run_id);
  IF v_after_vehicle_count-v_before_vehicle_count<>20 OR v_after_registry_count-v_before_registry_count<>20
-   OR v_after_notification_count<>v_before_notification_count THEN
+   OR v_after_notification_count<>v_before_notification_count
+   OR v_protected_digest_after IS DISTINCT FROM v_protected_digest_before THEN
   RAISE EXCEPTION 'PDC_363_EXACT_DELTA_POSTCONDITION' USING errcode='55000';
  END IF;
  IF (SELECT count(*) FROM public.workshop_bookings)<>v_before_booking_count
@@ -362,8 +383,9 @@ BEGIN
  v_receipt_id:=extensions.uuid_generate_v5('36300000-0000-5000-8000-000000000363'::uuid,
    p_run_id||':receipt:'||v_actor::text||':'||p_idempotency_key::text);
  v_response:=jsonb_build_object('ok',true,'code','synthetic_fleet_bootstrapped','run_id',p_run_id,
-   'receipt_id',v_receipt_id,'request_hash',v_request_sha256,'replay',false,
+   'receipt_id',v_receipt_id,'request_hash',v_request_sha256,'specs_sha256',v_specs_sha256,'replay',false,
    'vehicle_delta',20,'registry_delta',20,'notification_delta',0,
+   'protected_vehicle_digest_before',v_protected_digest_before,'protected_vehicle_digest_after',v_protected_digest_after,
    'before_counts',jsonb_build_object('vehicles',v_before_vehicle_count,'registry',v_before_registry_count,
       'notifications',v_before_notification_count,'receipts',v_before_receipt_count,'events',v_before_event_count,
       'bookings',v_before_booking_count,'work_items',v_before_work_count,'parts_receipts',v_before_parts_count,
@@ -408,7 +430,7 @@ INSERT INTO supabase_migrations.schema_migrations(version,name,statements)
 VALUES('20260825000000','363_overnight_synthetic_fleet_bootstrap',array[
  'Exact staging sentinel and exact migration 362 head; Monitor, mailboxes, activation writers and notifications contained',
  'Append-only RLS registry, actor-idempotent receipt and event history for HERMES-TEST-RUN-20260824',
- 'Authenticated approved Operator/Administrator exact-20 bootstrap with deterministic UUIDv5 identities and collision closure',
+ 'Authenticated approved Administrator-only exact-20 bootstrap with deterministic UUIDv5 identities and collision closure',
  'Active visible synthetic vehicles plus canonical required=true completed=false work only; no operational evidence side effects',
  'Authoritative registered-fleet readback, exact deltas, immutable responses and least-authority ACL proof'
 ]);

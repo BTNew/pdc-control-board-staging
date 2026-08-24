@@ -1,0 +1,270 @@
+[
+  {
+    "scenario_no": 1,
+    "scenario_name": "HERMES-TEST-BASELINE-INTAKE-EDITING",
+    "stock": "HERMES-TEST-001",
+    "customer": "HERMES-TEST CUSTOMER 001",
+    "job_card": "HERMES-TEST-JC-001",
+    "description": "HERMES-TEST VEHICLE 001 BASELINE INTAKE EDITING",
+    "initial_location": "Other",
+    "work_keys": [
+      "fitting"
+    ],
+    "notes": "HERMES-TEST incomplete synthetic requirements for scenario 001"
+  },
+  {
+    "scenario_no": 2,
+    "scenario_name": "HERMES-TEST-IT-ETA-LOCATION-TRANSITION",
+    "stock": "HERMES-TEST-002",
+    "customer": "HERMES-TEST CUSTOMER 002",
+    "job_card": "HERMES-TEST-JC-002",
+    "description": "HERMES-TEST VEHICLE 002 IT ETA LOCATION TRANSITION",
+    "initial_location": "IT",
+    "work_keys": [
+      "electrical"
+    ],
+    "notes": "HERMES-TEST incomplete synthetic requirements for scenario 002",
+    "eta": "2026-08-30"
+  },
+  {
+    "scenario_no": 3,
+    "scenario_name": "HERMES-TEST-YH-LATCH-MOVEMENT",
+    "stock": "HERMES-TEST-003",
+    "customer": "HERMES-TEST CUSTOMER 003",
+    "job_card": "HERMES-TEST-JC-003",
+    "description": "HERMES-TEST VEHICLE 003 YH LATCH MOVEMENT",
+    "initial_location": "YH",
+    "work_keys": [
+      "fitting"
+    ],
+    "notes": "HERMES-TEST incomplete synthetic requirements for scenario 003"
+  },
+  {
+    "scenario_no": 4,
+    "scenario_name": "HERMES-TEST-PMB-BAY-CHIP-MOVEMENT",
+    "stock": "HERMES-TEST-004",
+    "customer": "HERMES-TEST CUSTOMER 004",
+    "job_card": "HERMES-TEST-JC-004",
+    "description": "HERMES-TEST VEHICLE 004 PMB BAY CHIP MOVEMENT",
+    "initial_location": "PMB",
+    "work_keys": [
+      "fabrication"
+    ],
+    "notes": "HERMES-TEST incomplete synthetic requirements for scenario 004"
+  },
+  {
+    "scenario_no": 5,
+    "scenario_name": "HERMES-TEST-EXACT-MINUTE-FITTING-BOOKING",
+    "stock": "HERMES-TEST-005",
+    "customer": "HERMES-TEST CUSTOMER 005",
+    "job_card": "HERMES-TEST-JC-005",
+    "description": "HERMES-TEST VEHICLE 005 EXACT MINUTE FITTING BOOKING",
+    "initial_location": "PMB",
+    "work_keys": [
+      "fitting"
+    ],
+    "notes": "HERMES-TEST incomplete synthetic requirements for scenario 005"
+  },
+  {
+    "scenario_no": 6,
+    "scenario_name": "HERMES-TEST-EXACT-MINUTE-ELECTRICAL-BOOKING",
+    "stock": "HERMES-TEST-006",
+    "customer": "HERMES-TEST CUSTOMER 006",
+    "job_card": "HERMES-TEST-JC-006",
+    "description": "HERMES-TEST VEHICLE 006 EXACT MINUTE ELECTRICAL BOOKING",
+    "initial_location": "PMB",
+    "work_keys": [
+      "electrical"
+    ],
+    "notes": "HERMES-TEST incomplete synthetic requirements for scenario 006"
+  },
+  {
+    "scenario_no": 7,
+    "scenario_name": "HERMES-TEST-MULTI-STAGE-BOOKING-CONFLICT",
+    "stock": "HERMES-TEST-007",
+    "customer": "HERMES-TEST CUSTOMER 007",
+    "job_card": "HERMES-TEST-JC-007",
+    "description": "HERMES-TEST VEHICLE 007 MULTI STAGE BOOKING CONFLICT",
+    "initial_location": "PMB",
+    "work_keys": [
+      "fitting",
+      "electrical"
+    ],
+    "notes": "HERMES-TEST incomplete synthetic requirements for scenario 007"
+  },
+  {
+    "scenario_no": 8,
+    "scenario_name": "HERMES-TEST-PARTS-LIFECYCLE",
+    "stock": "HERMES-TEST-008",
+    "customer": "HERMES-TEST CUSTOMER 008",
+    "job_card": "HERMES-TEST-JC-008",
+    "description": "HERMES-TEST VEHICLE 008 PARTS LIFECYCLE",
+    "initial_location": "Other",
+    "work_keys": [
+      "PARTS",
+      "fitting"
+    ],
+    "notes": "HERMES-TEST incomplete synthetic requirements for scenario 008"
+  },
+  {
+    "scenario_no": 9,
+    "scenario_name": "HERMES-TEST-PARTS-STOPPAGE-RECOVERY",
+    "stock": "HERMES-TEST-009",
+    "customer": "HERMES-TEST CUSTOMER 009",
+    "job_card": "HERMES-TEST-JC-009",
+    "description": "HERMES-TEST VEHICLE 009 PARTS STOPPAGE RECOVERY",
+    "initial_location": "PMB",
+    "work_keys": [
+      "PARTS",
+      "fabrication"
+    ],
+    "notes": "HERMES-TEST incomplete synthetic requirements for scenario 009"
+  },
+  {
+    "scenario_no": 10,
+    "scenario_name": "HERMES-TEST-SUBLET-QUEUED-BOOKED-RETURNED",
+    "stock": "HERMES-TEST-010",
+    "customer": "HERMES-TEST CUSTOMER 010",
+    "job_card": "HERMES-TEST-JC-010",
+    "description": "HERMES-TEST VEHICLE 010 SUBLET QUEUED BOOKED RETURNED",
+    "initial_location": "Other",
+    "work_keys": [
+      "sublet"
+    ],
+    "notes": "HERMES-TEST incomplete synthetic requirements for scenario 010"
+  },
+  {
+    "scenario_no": 11,
+    "scenario_name": "HERMES-TEST-MULTI-PROVIDER-SUBLET",
+    "stock": "HERMES-TEST-011",
+    "customer": "HERMES-TEST CUSTOMER 011",
+    "job_card": "HERMES-TEST-JC-011",
+    "description": "HERMES-TEST VEHICLE 011 MULTI PROVIDER SUBLET",
+    "initial_location": "Other",
+    "work_keys": [
+      "sublet"
+    ],
+    "notes": "HERMES-TEST incomplete synthetic requirements for scenario 011"
+  },
+  {
+    "scenario_no": 12,
+    "scenario_name": "HERMES-TEST-QC-ORDERING-NEGATIVE",
+    "stock": "HERMES-TEST-012",
+    "customer": "HERMES-TEST CUSTOMER 012",
+    "job_card": "HERMES-TEST-JC-012",
+    "description": "HERMES-TEST VEHICLE 012 QC ORDERING NEGATIVE",
+    "initial_location": "PMB",
+    "work_keys": [
+      "fitting"
+    ],
+    "notes": "HERMES-TEST incomplete synthetic requirements for scenario 012"
+  },
+  {
+    "scenario_no": 13,
+    "scenario_name": "HERMES-TEST-RFT-SEPARATION",
+    "stock": "HERMES-TEST-013",
+    "customer": "HERMES-TEST CUSTOMER 013",
+    "job_card": "HERMES-TEST-JC-013",
+    "description": "HERMES-TEST VEHICLE 013 RFT SEPARATION",
+    "initial_location": "PMB",
+    "work_keys": [
+      "electrical"
+    ],
+    "notes": "HERMES-TEST incomplete synthetic requirements for scenario 013"
+  },
+  {
+    "scenario_no": 14,
+    "scenario_name": "HERMES-TEST-COMPLETED-SEPARATION",
+    "stock": "HERMES-TEST-014",
+    "customer": "HERMES-TEST CUSTOMER 014",
+    "job_card": "HERMES-TEST-JC-014",
+    "description": "HERMES-TEST VEHICLE 014 COMPLETED SEPARATION",
+    "initial_location": "PMB",
+    "work_keys": [
+      "fitting"
+    ],
+    "notes": "HERMES-TEST incomplete synthetic requirements for scenario 014"
+  },
+  {
+    "scenario_no": 15,
+    "scenario_name": "HERMES-TEST-DUPLICATE-SUBMIT-IDEMPOTENCY",
+    "stock": "HERMES-TEST-015",
+    "customer": "HERMES-TEST CUSTOMER 015",
+    "job_card": "HERMES-TEST-JC-015",
+    "description": "HERMES-TEST VEHICLE 015 DUPLICATE SUBMIT IDEMPOTENCY",
+    "initial_location": "Other",
+    "work_keys": [
+      "fitting"
+    ],
+    "notes": "HERMES-TEST incomplete synthetic requirements for scenario 015"
+  },
+  {
+    "scenario_no": 16,
+    "scenario_name": "HERMES-TEST-STALE-VERSION-CONFLICT",
+    "stock": "HERMES-TEST-016",
+    "customer": "HERMES-TEST CUSTOMER 016",
+    "job_card": "HERMES-TEST-JC-016",
+    "description": "HERMES-TEST VEHICLE 016 STALE VERSION CONFLICT",
+    "initial_location": "PMB",
+    "work_keys": [
+      "electrical"
+    ],
+    "notes": "HERMES-TEST incomplete synthetic requirements for scenario 016"
+  },
+  {
+    "scenario_no": 17,
+    "scenario_name": "HERMES-TEST-TWO-SESSION-SAME-RECORD-RACE",
+    "stock": "HERMES-TEST-017",
+    "customer": "HERMES-TEST CUSTOMER 017",
+    "job_card": "HERMES-TEST-JC-017",
+    "description": "HERMES-TEST VEHICLE 017 TWO SESSION SAME RECORD RACE",
+    "initial_location": "PMB",
+    "work_keys": [
+      "fabrication"
+    ],
+    "notes": "HERMES-TEST incomplete synthetic requirements for scenario 017"
+  },
+  {
+    "scenario_no": 18,
+    "scenario_name": "HERMES-TEST-ROLE-PERMISSION-NEGATIVE",
+    "stock": "HERMES-TEST-018",
+    "customer": "HERMES-TEST CUSTOMER 018",
+    "job_card": "HERMES-TEST-JC-018",
+    "description": "HERMES-TEST VEHICLE 018 ROLE PERMISSION NEGATIVE",
+    "initial_location": "Other",
+    "work_keys": [
+      "fitting"
+    ],
+    "notes": "HERMES-TEST incomplete synthetic requirements for scenario 018"
+  },
+  {
+    "scenario_no": 19,
+    "scenario_name": "HERMES-TEST-NAV-MOBILE-ACCESSIBILITY",
+    "stock": "HERMES-TEST-019",
+    "customer": "HERMES-TEST CUSTOMER 019",
+    "job_card": "HERMES-TEST-JC-019",
+    "description": "HERMES-TEST VEHICLE 019 NAV MOBILE ACCESSIBILITY",
+    "initial_location": "Other",
+    "work_keys": [
+      "tint"
+    ],
+    "notes": "HERMES-TEST incomplete synthetic requirements for scenario 019"
+  },
+  {
+    "scenario_no": 20,
+    "scenario_name": "HERMES-TEST-FULL-FINAL-REGRESSION-JOURNEY",
+    "stock": "HERMES-TEST-020",
+    "customer": "HERMES-TEST CUSTOMER 020",
+    "job_card": "HERMES-TEST-JC-020",
+    "description": "HERMES-TEST VEHICLE 020 FULL FINAL REGRESSION JOURNEY",
+    "initial_location": "IT",
+    "work_keys": [
+      "PARTS",
+      "fitting",
+      "electrical",
+      "sublet"
+    ],
+    "notes": "HERMES-TEST incomplete synthetic requirements for scenario 020",
+    "eta": "2026-08-31"
+  }
+]
