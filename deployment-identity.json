@@ -1,7 +1,7 @@
 {
   "environment": "staging",
-  "application_version": "2026.08.25.01-modal-keyboard-focus",
-  "frontend_source_commit": "a5ea341ad300150e1e00ff4f066d5ca23eccd92e",
+  "application_version": "2026.08.25.02-async-modal-focus-containment",
+  "frontend_source_commit": "70ad1b4c2d321e9645277ef6d2b0a5256df03716",
   "staging_project_ref": "cdsmnqxtyyoeoznmbidd",
   "production_unchanged": true,
   "mailbox_runtime_changed": false,
@@ -25,6 +25,6 @@
     "Only an independently approved, applied and authenticated-live-probed successor may enable the control.",
     "Historical email/source and Telegram replay fences must remain preserved.",
     "Production and the local mailbox runtime were not changed by this release.",
-    "Vehicle and customer dialogs now trap keyboard focus and return it to the invoking control on close."
+    "Vehicle and customer dialogs trap keyboard focus, recover containment after asynchronous rerenders, and return focus to the invoking control on close."
   ]
 }

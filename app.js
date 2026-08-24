@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.25.01-modal-keyboard-focus';
+const APP_VERSION = '2026.08.25.02-async-modal-focus-containment';
 const WORKSHOP_PLANNER_SCRIPT_VERSION = APP_VERSION;
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
@@ -12300,6 +12300,13 @@ function trapModalFocus(modal, event) {
     event.preventDefault();
     first.focus();
   }
+  // Async detail refreshes can replace the focused control after keydown. Re-check
+  // after promise/render work so focus cannot briefly fall back to body/outside.
+  setTimeout(() => {
+    if (modal.hidden || modal.contains(document.activeElement)) return;
+    const refreshed = modalFocusableElements(modal);
+    (refreshed[0] || modal).focus();
+  }, 0);
 }
 
 function restoreModalReturnFocus(modal) {
