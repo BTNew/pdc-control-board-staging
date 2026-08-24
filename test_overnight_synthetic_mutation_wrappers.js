@@ -8,18 +8,23 @@ assert.match(sql,/to_regclass\('public\.pdc_production_environment_sentinel'\) I
 assert.match(sql,/pdc_overnight_synthetic_fleet_registry_363/);
 assert.match(sql,/pdc_overnight_synthetic_mutation_receipts_365/);
 assert.match(sql,/UNIQUE\(actor_id,idempotency_key\)/);
-assert.match(sql,/PDC_365_IDEMPOTENCY_PAYLOAD_MISMATCH/);
+assert.match(sql,/PDC_365_IDEMPOTENCY_PAYLOAD_OR_ACTOR_MISMATCH/);
 assert.match(sql,/FOR SHARE;/);
-assert.match(sql,/v_protected_digest_after IS DISTINCT FROM v_protected_digest_before/);
+assert.match(sql,/v_protected_after IS DISTINCT FROM v_protected_before/);
 assert.match(sql,/v_notifications_before<>0 OR v_notifications_after<>0/);
 assert.match(sql,/notification_enqueued',false/);
 assert.doesNotMatch(sql,/queue_vehicle_notification\s*\(/i);
 assert.match(sql,/REVOKE ALL ON FUNCTION public\.pdc_hermes_test_apply_365[^;]+authenticated,service_role/);
-for (const name of ['set_work_states','lifecycle','parts','schedule','booking','sublet']) {
+for (const name of ['vehicle_edit','set_work_states','lifecycle','parts','parts_stoppage','schedule','booking','sublet']) {
   assert.match(sql,new RegExp(`CREATE FUNCTION public\\.pdc_hermes_test_${name}_365`));
   assert.match(sql,new RegExp(`GRANT EXECUTE ON FUNCTION public\\.pdc_hermes_test_${name}_365`));
 }
 assert.match(sql,/read_pdc_hermes_test_mutation_state_365/);
+assert.match(sql,/pdc_hermes_test_dependency_guard_365/);
+assert.match(sql,/pdc_hermes_test_registry_guard_365/);
+assert.match(sql,/pdc_hermes_test_protected_digest_365/);
+assert.match(sql,/synthetic_action_rejected/);
+assert.match(sql,/v_target_state_after IS DISTINCT FROM v_target_state_before/);
 assert.match(sql,/source_system IS DISTINCT FROM 'hermes_overnight_synthetic'/);
 assert.match(sql,/source_batch_id IS DISTINCT FROM p_run_id/);
 assert.match(sql,/PDC_365_SUBJECT_OUTSIDE_REGISTRY_VEHICLE/);
