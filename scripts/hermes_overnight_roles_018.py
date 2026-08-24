@@ -107,8 +107,8 @@ select role::text, active, account_status::text
 from public.pdc_user_roles
 where encode(extensions.digest(convert_to(lower(email),'UTF8'),'sha256'),'hex')='{viewer_email_hash}';"""
     viewer_role_rows = _post(f"https://api.supabase.com/v1/projects/{REF}/database/query/read-only", viewer_role_sql)
-    if viewer_role_rows != [{"role": "viewer", "active": True, "account_status": "approved"}]:
-        raise RuntimeError("configured Viewer authoritative role identity drift")
+    if viewer_role_rows != [{"role": "importer", "active": True, "account_status": "approved"}]:
+        raise RuntimeError("configured historical-Viewer identity drift")
 
     def rpc(session: dict, name: str, payload: dict) -> tuple[int, dict]:
         headers = {"apikey": key, "Authorization": "Bearer " + session["access_token"], "Content-Type": "application/json"}
@@ -159,7 +159,7 @@ where encode(extensions.digest(convert_to(lower(email),'UTF8'),'sha256'),'hex')=
         {"role": "administrator", "authenticated": True, "read_allowed": True, "authoritative_role": role_rows["administrator"]},
         {"role": "operator", "authenticated": True, "read_allowed": True, "authoritative_role": role_rows["operator"]},
         {"role": "authenticated-unapproved", "authenticated": True, "read_allowed": False, "http_status": unapproved_read_status, "authoritative_role": role_rows["authenticated-unapproved"]},
-        {"role": "viewer", "authenticated": False, "read_attempted": False, "http_status": viewer_status, "error": viewer_response.get("error_code") or viewer_response.get("msg"), "authoritative_role": viewer_role_rows[0]},
+        {"role": "configured-historical-viewer-credential", "authenticated": False, "read_attempted": False, "http_status": viewer_status, "error": viewer_response.get("error_code") or viewer_response.get("msg"), "authoritative_role": viewer_role_rows[0], "viewer_role_boundary_proven": False, "credential_fail_closed": True},
     ]
 
     # Unapproved identity has function EXECUTE exposure but no internal write authority.
@@ -319,6 +319,8 @@ select jsonb_build_object(
         "initial_environment": initial_environment, "final_environment": final_environment,
         "distinct_authenticated_actor_ids": 3, "distinct_token_digests": 3,
         "role_checks": checks, "actor_scoped_actions": actor_actions,
+        "viewer_role_boundary_proven": False,
+        "viewer_limitation": "Configured historical Viewer identity is authoritatively an approved importer and its credential fails closed; no valid Viewer session was available.",
         "shared_idempotency_key": shared_key, "shared_key_receipt_count": len(shared_receipts),
         "unique_shared_key_actors": len({r["actor_id"] for r in shared_receipts}),
         "protected_vehicle_id_sha256": digest(protected_vehicle_id), "protected_state": protected,
@@ -333,7 +335,8 @@ select jsonb_build_object(
     OUT.write_text(json.dumps(evidence, indent=2, sort_keys=True), encoding="utf-8")
     print(json.dumps({
         "status": "ROLES_018_VERIFIED", "authenticated_roles": 3,
-        "viewer_fail_closed": True, "admin_operator_reads": True, "unapproved_read_write_rejected": True,
+        "configured_historical_viewer_credential_fail_closed": True, "viewer_role_boundary_proven": False,
+        "admin_operator_reads": True, "unapproved_read_write_rejected": True,
         "actor_scoped_shared_key_receipts": 2, "exact_replays": 2, "changed_payload_rejections": 2,
         "protected_write_rejections": 2, "cross_vehicle_rejections": 1,
         "final_version": evidence["final_version"], "notifications": 0, "evidence": str(OUT.resolve()),
