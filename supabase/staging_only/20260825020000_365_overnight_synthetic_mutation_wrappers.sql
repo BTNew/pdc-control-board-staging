@@ -77,10 +77,17 @@ FOR EACH ROW EXECUTE FUNCTION public.pdc_overnight_synthetic_mutation_append_onl
 
 CREATE FUNCTION public.pdc_hermes_test_actor_route_guard_365()
 RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,public AS $route$
+DECLARE v_row jsonb:=CASE WHEN TG_OP='DELETE' THEN to_jsonb(OLD) ELSE to_jsonb(NEW) END; v_vehicle_id uuid; v_allowed text;
 BEGIN
+ IF TG_TABLE_NAME='vehicles' THEN v_vehicle_id:=nullif(v_row->>'id','')::uuid;
+ ELSIF TG_TABLE_NAME IN('workshop_booking_assignments','workshop_booking_history') THEN
+  SELECT b.vehicle_id INTO v_vehicle_id FROM public.workshop_bookings b WHERE b.id=nullif(v_row->>'booking_id','')::uuid;
+ ELSE v_vehicle_id:=nullif(v_row->>'vehicle_id','')::uuid;
+ END IF;
+ v_allowed:=current_setting('pdc.hermes_test_wrapper_vehicle_365',true);
  IF auth.uid() IS NOT NULL AND EXISTS(SELECT 1 FROM public.pdc_overnight_synthetic_fleet_registry_363 r WHERE r.actor_id=auth.uid())
-   AND current_setting('pdc.hermes_test_wrapper_365',true) IS DISTINCT FROM 'on' THEN
-  RAISE EXCEPTION 'PDC_365_OVERNIGHT_ACTOR_MUST_USE_SYNTHETIC_WRAPPER' USING errcode='42501';
+   AND (v_allowed IS NULL OR v_vehicle_id IS NULL OR v_allowed<>v_vehicle_id::text) THEN
+  RAISE EXCEPTION 'PDC_365_OVERNIGHT_ACTOR_MUST_USE_EXACT_SYNTHETIC_WRAPPER' USING errcode='42501';
  END IF;
  RETURN CASE WHEN TG_OP='DELETE' THEN OLD ELSE NEW END;
 END $route$;
@@ -130,6 +137,17 @@ BEGIN
    RETURN false;
   END IF;
  END LOOP;
+ IF (SELECT array_agg(c.relname::text ORDER BY c.relname::text) FROM pg_trigger t JOIN pg_class c ON c.oid=t.tgrelid
+      WHERE t.tgname='pdc_hermes_test_actor_route_guard_365' AND t.tgfoid='public.pdc_hermes_test_actor_route_guard_365()'::regprocedure
+        AND t.tgenabled='O' AND NOT t.tgisinternal)
+    IS DISTINCT FROM ARRAY['audit_events','pdc_sublet_booking_instance_history','pdc_sublet_booking_instances','vehicle_movements',
+      'vehicle_parts_updates','vehicle_work_items','vehicles','workshop_booking_assignments','workshop_booking_history','workshop_bookings','workshop_parts_overrides']::text[]
+   OR NOT EXISTS(SELECT 1 FROM pg_proc p WHERE p.oid='public.pdc_hermes_test_actor_route_guard_365()'::regprocedure
+      AND p.prosecdef AND pg_get_userbyid(p.proowner)='postgres'
+      AND NOT has_function_privilege('public',p.oid,'EXECUTE') AND NOT has_function_privilege('anon',p.oid,'EXECUTE')
+      AND NOT has_function_privilege('authenticated',p.oid,'EXECUTE') AND NOT has_function_privilege('service_role',p.oid,'EXECUTE')
+      AND pg_get_functiondef(p.oid) LIKE '%pdc.hermes_test_wrapper_vehicle_365%'
+      AND pg_get_functiondef(p.oid) LIKE '%PDC_365_OVERNIGHT_ACTOR_MUST_USE_EXACT_SYNTHETIC_WRAPPER%') THEN RETURN false; END IF;
  RETURN true;
 END $guard$;
 REVOKE ALL ON FUNCTION public.pdc_hermes_test_dependency_guard_365() FROM public,anon,authenticated,service_role;
@@ -190,6 +208,25 @@ RETURNS jsonb LANGUAGE sql STABLE SECURITY DEFINER SET search_path=pg_catalog,pu
 $digest$;
 REVOKE ALL ON FUNCTION public.pdc_hermes_test_protected_digest_365() FROM public,anon,authenticated,service_role;
 
+CREATE FUNCTION public.pdc_hermes_test_sibling_digest_365(p_vehicle_id uuid)
+RETURNS jsonb LANGUAGE sql STABLE SECURITY DEFINER SET search_path=pg_catalog,public,extensions AS $digest$
+ WITH siblings AS MATERIALIZED(SELECT r.vehicle_id id FROM public.pdc_overnight_synthetic_fleet_registry_363 r WHERE r.vehicle_id<>p_vehicle_id), material AS(
+  SELECT 'vehicles' relation,to_jsonb(v) row_data FROM public.vehicles v JOIN siblings p ON p.id=v.id
+  UNION ALL SELECT 'vehicle_work_items',to_jsonb(x) FROM public.vehicle_work_items x JOIN siblings p ON p.id=x.vehicle_id
+  UNION ALL SELECT 'workshop_bookings',to_jsonb(x) FROM public.workshop_bookings x JOIN siblings p ON p.id=x.vehicle_id
+  UNION ALL SELECT 'workshop_booking_assignments',to_jsonb(a) FROM public.workshop_booking_assignments a JOIN public.workshop_bookings b ON b.id=a.booking_id JOIN siblings p ON p.id=b.vehicle_id
+  UNION ALL SELECT 'workshop_booking_history',to_jsonb(h) FROM public.workshop_booking_history h JOIN public.workshop_bookings b ON b.id=h.booking_id JOIN siblings p ON p.id=b.vehicle_id
+  UNION ALL SELECT 'workshop_parts_overrides',to_jsonb(x) FROM public.workshop_parts_overrides x JOIN siblings p ON p.id=x.vehicle_id
+  UNION ALL SELECT 'vehicle_parts_updates',to_jsonb(x) FROM public.vehicle_parts_updates x JOIN siblings p ON p.id=x.vehicle_id
+  UNION ALL SELECT 'pdc_sublet_booking_instances',to_jsonb(x) FROM public.pdc_sublet_booking_instances x JOIN siblings p ON p.id=x.vehicle_id
+  UNION ALL SELECT 'pdc_sublet_booking_instance_history',to_jsonb(x) FROM public.pdc_sublet_booking_instance_history x JOIN siblings p ON p.id=x.vehicle_id
+  UNION ALL SELECT 'vehicle_movements',to_jsonb(x) FROM public.vehicle_movements x JOIN siblings p ON p.id=x.vehicle_id
+  UNION ALL SELECT 'audit_events',to_jsonb(x) FROM public.audit_events x JOIN siblings p ON p.id=x.vehicle_id
+ ) SELECT jsonb_build_object('rows',count(*),'sha256',encode(extensions.digest(convert_to(
+  coalesce(jsonb_agg(jsonb_build_object('relation',relation,'row',row_data) ORDER BY relation,row_data::text),'[]'::jsonb)::text,'UTF8'),'sha256'),'hex')) FROM material
+$digest$;
+REVOKE ALL ON FUNCTION public.pdc_hermes_test_sibling_digest_365(uuid) FROM public,anon,authenticated,service_role;
+
 DO $helper_post$
 BEGIN
  IF NOT public.pdc_hermes_test_dependency_guard_365() OR NOT public.pdc_hermes_test_registry_guard_365()
@@ -216,6 +253,7 @@ DECLARE
  v_result jsonb;
  v_payload jsonb:=coalesce(p_payload,'{}'::jsonb);
  v_protected_before jsonb; v_protected_after jsonb;
+ v_sibling_before jsonb; v_sibling_after jsonb;
  v_target_state_before text; v_target_state_after text;
  v_notifications_before bigint; v_notifications_after bigint;
  v_pdc_revision_before bigint; v_pdc_revision_after bigint;
@@ -298,7 +336,7 @@ BEGIN
    OR v_vehicle_before.source_payload->>'contract' IS DISTINCT FROM 'pdc-overnight-synthetic-fleet-363/render_only' THEN
   RAISE EXCEPTION 'PDC_365_REGISTRY_SCOPE_OR_VERSION_MISMATCH' USING errcode='40001';
  END IF;
- PERFORM set_config('pdc.hermes_test_wrapper_365','on',true);
+ PERFORM set_config('pdc.hermes_test_wrapper_vehicle_365',p_vehicle_id::text,true);
 
  -- Share-lock every protected vehicle row so the cross-relation digest describes one stable set
  -- while different synthetic vehicles remain independently mutable for two-session tests.
@@ -306,6 +344,7 @@ BEGIN
   SELECT 1 FROM public.pdc_overnight_synthetic_fleet_registry_363 r WHERE r.vehicle_id=v.id
  ) ORDER BY v.id FOR SHARE;
  v_protected_before:=public.pdc_hermes_test_protected_digest_365();
+ v_sibling_before:=public.pdc_hermes_test_sibling_digest_365(p_vehicle_id);
  SELECT revision INTO v_pdc_revision_before FROM public.pdc_email_vehicle_revision WHERE singleton;
  SELECT revision INTO v_workshop_revision_before FROM public.workshop_revision WHERE id=1;
  SELECT revision INTO v_navision_revision_before FROM public.navision_backend_revision WHERE singleton;
@@ -480,6 +519,7 @@ BEGIN
   RAISE EXCEPTION 'PDC_365_SYNTHETIC_IDENTITY_POSTCONDITION' USING errcode='55000';
  END IF;
  v_protected_after:=public.pdc_hermes_test_protected_digest_365();
+ v_sibling_after:=public.pdc_hermes_test_sibling_digest_365(p_vehicle_id);
  v_notifications_after:=(SELECT count(*) FROM public.vehicle_notifications);
  SELECT revision INTO v_pdc_revision_after FROM public.pdc_email_vehicle_revision WHERE singleton;
  SELECT revision INTO v_workshop_revision_after FROM public.workshop_revision WHERE id=1;
@@ -495,7 +535,8 @@ BEGIN
   'sublet_history',coalesce((SELECT jsonb_agg(to_jsonb(x) ORDER BY x.id) FROM public.pdc_sublet_booking_instance_history x WHERE x.vehicle_id=p_vehicle_id),'[]'::jsonb),
   'movements',coalesce((SELECT jsonb_agg(to_jsonb(x) ORDER BY x.id) FROM public.vehicle_movements x WHERE x.vehicle_id=p_vehicle_id),'[]'::jsonb),
   'audit',coalesce((SELECT jsonb_agg(to_jsonb(x) ORDER BY x.id) FROM public.audit_events x WHERE x.vehicle_id=p_vehicle_id),'[]'::jsonb))::text,'UTF8'),'sha256'),'hex') INTO v_target_state_after;
- IF v_protected_after IS DISTINCT FROM v_protected_before OR v_notifications_before<>0 OR v_notifications_after<>0
+ IF v_protected_after IS DISTINCT FROM v_protected_before OR v_sibling_after IS DISTINCT FROM v_sibling_before
+   OR v_notifications_before<>0 OR v_notifications_after<>0
    OR v_pdc_revision_after<v_pdc_revision_before OR v_pdc_revision_after-v_pdc_revision_before>10
    OR v_workshop_revision_after<v_workshop_revision_before OR v_workshop_revision_after-v_workshop_revision_before>10
    OR v_navision_revision_after<v_navision_revision_before OR v_navision_revision_after-v_navision_revision_before>10
@@ -517,7 +558,7 @@ BEGIN
   'synthetic_wrapper',true,'replay',false,'receipt_id',v_receipt_id,'request_sha256',v_request_sha,'run_id',p_run_id,'action',p_action,
   'vehicle_id',p_vehicle_id,'vehicle_version_before',v_vehicle_before.version,'vehicle_version_after',v_vehicle_after.version,
   'subject_id',p_subject_id,'subject_version_before',p_expected_subject_version,'subject_version_after',v_subject_version_after,
-  'protected_state',v_protected_after,'notification_delta',v_notifications_after-v_notifications_before,
+  'protected_state',v_protected_after,'sibling_state',v_sibling_after,'notification_delta',v_notifications_after-v_notifications_before,
   'revisions',jsonb_build_object('pdc_email',jsonb_build_object('before',v_pdc_revision_before,'after',v_pdc_revision_after,'delta',v_pdc_revision_after-v_pdc_revision_before),
    'workshop',jsonb_build_object('before',v_workshop_revision_before,'after',v_workshop_revision_after,'delta',v_workshop_revision_after-v_workshop_revision_before),
    'navision',jsonb_build_object('before',v_navision_revision_before,'after',v_navision_revision_after,'delta',v_navision_revision_after-v_navision_revision_before)),
@@ -613,6 +654,9 @@ BEGIN
   'vehicles',coalesce(jsonb_agg(jsonb_build_object('scenario_no',r.scenario_no,'scenario_name',r.scenario_name,
    'vehicle',to_jsonb(v),'work_items',coalesce((SELECT jsonb_agg(to_jsonb(w) ORDER BY w.work_key) FROM public.vehicle_work_items w WHERE w.vehicle_id=v.id),'[]'::jsonb),
    'bookings',coalesce((SELECT jsonb_agg(to_jsonb(b) ORDER BY b.created_at,b.id) FROM public.workshop_bookings b WHERE b.vehicle_id=v.id),'[]'::jsonb),
+   'booking_assignments',coalesce((SELECT jsonb_agg(to_jsonb(a) ORDER BY a.id) FROM public.workshop_booking_assignments a JOIN public.workshop_bookings b ON b.id=a.booking_id WHERE b.vehicle_id=v.id),'[]'::jsonb),
+   'booking_history',coalesce((SELECT jsonb_agg(to_jsonb(h) ORDER BY h.id) FROM public.workshop_booking_history h JOIN public.workshop_bookings b ON b.id=h.booking_id WHERE b.vehicle_id=v.id),'[]'::jsonb),
+   'parts_overrides',coalesce((SELECT jsonb_agg(to_jsonb(o) ORDER BY o.id) FROM public.workshop_parts_overrides o WHERE o.vehicle_id=v.id),'[]'::jsonb),
    'parts',coalesce((SELECT jsonb_agg(to_jsonb(p) ORDER BY p.updated_at,p.id) FROM public.vehicle_parts_updates p WHERE p.vehicle_id=v.id),'[]'::jsonb),
    'sublets',coalesce((SELECT jsonb_agg(to_jsonb(s) ORDER BY s.created_at,s.booking_id) FROM public.pdc_sublet_booking_instances s WHERE s.vehicle_id=v.id),'[]'::jsonb),
    'movements',coalesce((SELECT jsonb_agg(to_jsonb(m) ORDER BY m.id) FROM public.vehicle_movements m WHERE m.vehicle_id=v.id),'[]'::jsonb),
