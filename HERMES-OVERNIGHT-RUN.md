@@ -206,5 +206,18 @@ None at this checkpoint. Registry-bound synthetic stress mutation is now commiss
 - Quantitative counters: synthetic 20/20; journeys 0/5; board movements 2/100; booking movements/adjustments 0/50; invalid attempts 6/20; duplicate submits 4/20; Parts 0/25; Sublet 0/20; QC/RFT out-of-order 0/10; two-session 0/10; field/validation 8/30.
 - Exact next action: re-prove staging, apply exact reviewed migration 369 through the guarded staging controller with ledger readback, perform Administrator-authenticated four-estimate Apply/replay/negative acceptance, then rerun exact-minute schedules and bay/vehicle conflict tests on 005-007 with authoritative receipts/readback.
 
+### Checkpoint 010 — 2026-08-24T15:29:08Z (elapsed 04:34)
+- Git commit at apply: `3698fe4d4fd667e19af20de94d1c22ac1de8ac39`; exact migration 369 applied to staging with ledger readback and secret-free deployment receipt.
+- Areas tested: live migration commissioning; exact 005/006 estimate Apply; exact replay; changed-payload rejection; scenario-007 sub-hour canonical-duration negative case.
+- Synthetic records mutated: only registered `HERMES-TEST-005` and `HERMES-TEST-006`. Dedicated explicit estimates are now 1.22h/73m Fitting and 1.02h/61m Electrical, each with one immutable receipt. No booking was created. Scenario 007/Fitting failed atomically and committed no estimate or receipt.
+- Bug discovered: the established canonical duration function applies `greatest(60, round(hours*60))`. It correctly returns 73 and 61 minutes for scenarios 005/006 but clamps explicit scenario-007 values 0.78h and 0.98h to 60 minutes instead of 47 and 59. Migration 369 therefore rejected scenario 007 at its authoritative exact-minute postcondition rather than weakening or bypassing the existing rule.
+- Bugs fixed: migration 369 itself commissioned successfully; generic migration-361 writes to registry targets are now route-guarded and all new estimate/receipt state remains isolated.
+- Tests passing: live 369 ledger readback; 005/006 Apply/readback; two exact replays; two changed-payload rejections; post-failure environment proof; notifications/mailboxes/writers remain zero/stopped.
+- Tests failing: scenario 007/Fitting at `PDC_369_DIGEST_NOTIFICATION_OR_READBACK_POSTCONDITION`, narrowed by rollback probe to canonical `0.78h → 60m` clamping. Workshop bookings remain unstarted.
+- Authoritative post-state: migration head 369; estimates 2; estimate receipts 2; synthetic bookings 0; 173 vehicles / 20 synthetic / 153 protected; notifications 0; Monitor stopped; active mailboxes/writers 0.
+- Blockers: no human blocker. A staging-only successor must preserve the 60-minute rule for all protected/non-test vehicles while returning exact positive rounded minutes only for registry-bound migration-369 synthetic estimates, then rebind the exact dependency guard.
+- Quantitative counters: synthetic 20/20; journeys 0/5; board movements 2/100; booking movements/adjustments 0/50; invalid attempts 9/20; duplicate submits 6/20; Parts 0/25; Sublet 0/20; QC/RFT out-of-order 0/10; two-session 0/10; field/validation 10/30.
+- Exact next action: implement independently reviewed migration 370 with an exact registry-only canonical-minute exception (protected/non-test behavior byte-for-byte preserved), update dependency hashes, rollback-test/apply it, then resume scenario-007 estimates and the six-action exact-minute booking/conflict harness.
+
 ## Final report
 Pending until the ten-hour end time.

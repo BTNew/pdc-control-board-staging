@@ -1,0 +1,22 @@
+{
+  "applied": true,
+  "ledger_readback": [
+    {
+      "name": "369_overnight_synthetic_estimates",
+      "version": "20260825060000"
+    }
+  ],
+  "management_response": [
+    {
+      "pg_advisory_xact_lock": ""
+    }
+  ],
+  "migration_file": "20260825060000_369_overnight_synthetic_estimates.sql",
+  "migration_name": "369_overnight_synthetic_estimates",
+  "migration_sha256": "152f101c80f8eec420f7d9c06de1570a81ede41620d8e5fc0ed8e479143c7f5c",
+  "migration_version": "20260825060000",
+  "production_ref_rejected": "vjdtsswhroyguxyfjdkt",
+  "recorded_at_utc": "2026-08-24T15:25:07.172774+00:00",
+  "schema": "pdc-staging-management-migration-receipt-v1",
+  "target_ref": "cdsmnqxtyyoeoznmbidd"
+}

@@ -7,6 +7,7 @@ ROOT=pathlib.Path(__file__).resolve().parents[1]
 REF="cdsmnqxtyyoeoznmbidd"; RUN="HERMES-TEST-RUN-20260824"
 OUT=ROOT/"_staging_deployment_receipts"/"20260824_overnight_workshop_005_007.json"
 NAMESPACE=uuid.UUID("36500000-0000-5000-8000-000000000365")
+ESTIMATE_NAMESPACE=uuid.UUID("36900000-0000-5000-8000-000000000369")
 
 def main():
  e=env_values();base=e["PDC_STAGING_SUPABASE_URL"].rstrip("/");key=e["PDC_STAGING_ANON_KEY"]
@@ -25,6 +26,27 @@ def main():
  if set(rows)!={5,6,7}:raise RuntimeError("scenario inventory mismatch")
  for no,row in rows.items():
   if row["vehicle"]["stock_number"]!=f"HERMES-TEST-{no:03d}" or row["vehicle"]["current_location"]!="PMB" or row["bookings"]:raise RuntimeError(f"scenario {no} precondition mismatch")
+ estimate_results=[]
+ for no,stage,hours,minutes in ((5,"FITTING",1.22,73),(6,"ELECTRICAL",1.02,61),(7,"FITTING",0.78,47),(7,"ELECTRICAL",0.98,59)):
+  vehicle=rows[no]["vehicle"];idem=str(uuid.uuid5(ESTIMATE_NAMESPACE,f"{RUN}:scenario-{no:03d}:{stage}"))
+  payload={"p_run_id":RUN,"p_vehicle_id":vehicle["id"],"p_expected_vehicle_version":int(vehicle["version"]),
+   "p_expected_estimate_version":0,"p_idempotency_key":idem,"p_stage_code":stage,"p_estimated_hours":hours}
+  pre=prove_environment();status,response=rpc("pdc_hermes_test_set_estimate_369",payload)
+  if status!=200 or response.get("ok") is not True or response.get("estimated_minutes")!=minutes or response.get("notification_delta")!=0:
+   raise RuntimeError(f"estimate {no}/{stage} apply failed {status} {json.dumps(response)[:1200]}")
+  replay_status,replay=rpc("pdc_hermes_test_set_estimate_369",payload)
+  if replay_status!=200 or replay.get("replay") is not True or replay.get("replay_current_state_readback") is not True:
+   raise RuntimeError(f"estimate {no}/{stage} replay failed {replay_status} {json.dumps(replay)[:1200]}")
+  changed=dict(payload);changed["p_estimated_hours"]=round(hours+0.01,2)
+  changed_status,changed_response=rpc("pdc_hermes_test_set_estimate_369",changed)
+  if changed_status==200 or "PDC_369_IDEMPOTENCY_PAYLOAD_OR_ACTOR_MISMATCH" not in json.dumps(changed_response):
+   raise RuntimeError(f"estimate {no}/{stage} changed replay not rejected {changed_status} {json.dumps(changed_response)[:1200]}")
+  estimate_results.append({"scenario_no":no,"stock":vehicle["stock_number"],"stage_code":stage,"estimated_hours":hours,
+   "estimated_minutes":minutes,"receipt_id":response.get("receipt_id"),"first_call_replay":response.get("replay"),
+   "exact_replay_verified":True,"changed_payload_rejected":True,"pre_action_migration_head":pre["database"]["migration_head"]})
+ estimate_status,estimate_state=rpc("read_pdc_hermes_test_estimates_369",{"p_run_id":RUN,"p_vehicle_id":None})
+ if estimate_status!=200 or estimate_state.get("ok") is not True or estimate_state.get("notification_count")!=0 or len(estimate_state.get("estimates") or [])!=4:
+  raise RuntimeError(f"estimate authoritative readback failed {estimate_status} {json.dumps(estimate_state)[:1200]}")
  results=[]
  def schedule(label,scenario_no,stage,bay,start,duration,expect_success,conflict_kind=None):
   state=read(rows[scenario_no]["vehicle"]["id"]);row=state["vehicles"][0];vehicle=row["vehicle"]
@@ -67,7 +89,7 @@ def main():
  schedule("scenario-007-electrical-adjacent-1110",7,"ELECTRICAL",10,"2026-08-26T03:10:00+00:00",59,True)
  final=read();final_proof=prove_environment()
  if final["protected_state"]!=protected or final["notification_count"]!=0:raise RuntimeError("final containment mismatch")
- evidence={"schema":"pdc-overnight-workshop-005-007-v1","project_ref":REF,"run_id":RUN,"actor_id":session["user"]["id"],"initial_environment":initial_proof,"final_environment":final_proof,"protected_state":protected,"actions":results,"successful_bookings":sum(1 for r in results if r["expected_success"]),"authoritative_conflicts":sum(1 for r in results if not r["expected_success"]),"recorded_at_utc":dt.datetime.now(dt.timezone.utc).isoformat()}
+ evidence={"schema":"pdc-overnight-workshop-005-007-v2","project_ref":REF,"run_id":RUN,"actor_id":session["user"]["id"],"initial_environment":initial_proof,"final_environment":final_proof,"protected_state":protected,"estimates":estimate_results,"estimate_readback":estimate_state,"actions":results,"successful_bookings":sum(1 for r in results if r["expected_success"]),"authoritative_conflicts":sum(1 for r in results if not r["expected_success"]),"recorded_at_utc":dt.datetime.now(dt.timezone.utc).isoformat()}
  OUT.write_text(json.dumps(evidence,indent=2,sort_keys=True),encoding="utf-8")
- print(json.dumps({"status":"WORKSHOP_005_007_VERIFIED","successful_bookings":evidence["successful_bookings"],"authoritative_conflicts":evidence["authoritative_conflicts"],"receipts":[r["receipt_id"] for r in results],"notifications":final["notification_count"],"evidence":str(OUT.resolve())},sort_keys=True))
+ print(json.dumps({"status":"WORKSHOP_005_007_VERIFIED","synthetic_estimates":len(estimate_results),"successful_bookings":evidence["successful_bookings"],"authoritative_conflicts":evidence["authoritative_conflicts"],"estimate_receipts":[r["receipt_id"] for r in estimate_results],"booking_receipts":[r["receipt_id"] for r in results],"notifications":final["notification_count"],"evidence":str(OUT.resolve())},sort_keys=True))
 if __name__=="__main__":main()

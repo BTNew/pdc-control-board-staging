@@ -11,8 +11,8 @@
     "active_activation_writers": 0,
     "active_mailboxes": 0,
     "migration_head": {
-      "name": "368_overnight_registry_row_assignment",
-      "version": "20260825050000"
+      "name": "369_overnight_synthetic_estimates",
+      "version": "20260825060000"
     },
     "monitor_status": "stopped",
     "outbound_notification_rows": 0,
