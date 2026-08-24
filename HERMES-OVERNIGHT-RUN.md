@@ -246,5 +246,19 @@ None at this checkpoint. Registry-bound synthetic stress mutation is now commiss
 - Blockers: none. Production was structurally blocked and untouched.
 - Exact next action: run guarded Sublet queued/booked/update/returned and multi-provider isolation stress on `HERMES-TEST-010` and `011`, including provider inventory readback, invalid date/order, idempotent replay, changed payload, stale version and final returned-state verification.
 
+### Checkpoint 013 — 2026-08-24T17:14:34Z (elapsed 06:20)
+- Git commit before checkpoint: `31371daa1b09bcd7e3ec7f2213faa30b40fa0ced`; this checkpoint, harness and evidence are committed together immediately below.
+- Areas tested: authenticated provider inventory; queued Sublet work evidence; create/date ordering; update; explicit synthetic return; multi-provider non-overlap; overlap rejection; provider-row isolation; stale subject version; changed-payload idempotency; wrong/cross-vehicle subject isolation; exact replay; history/work-item separation.
+- Synthetic records mutated: only registered `HERMES-TEST-010` and `011`. Scenario 010 has one returned synthetic booking after explicit create/update/return actions. Scenario 011 has two distinct, non-overlapping provider bookings; provider A was updated without changing provider B. No physical fitting or real-world return was inferred or claimed.
+- Authoritative evidence: nine actor/idempotency/request-hash-bound receipts; nine exact replays each with full-fleet before/after equality; two changed-payload rejections with full-fleet no-change; one cross-vehicle subject rejection with both source and presented vehicles plus the full fleet unchanged; exact history action/actor/booking/provider binding; provider inventory digest unchanged.
+- Invalid cases: reversed create dates returned `invalid_input`; overlapping second-provider booking returned `sublet_booking_overlap`; stale update returned `version_conflict`; cross-vehicle subject failed before receipt; changed payloads failed closed under the original idempotency keys.
+- Tests passing: Sublet harness; strengthened readback/replay verifier; Python compile; synthetic wrapper Node contract; Sublet-history primary-key Node contract; final environment proof; final independent review `APPROVE` after three review-driven evidence-strengthening rounds.
+- Review-driven fixes: the first evidence candidate proved the business states but under-specified cross-target readback, per-replay state stability, receipt identity/hash binding, provider inventory stability and history/provider binding. The verifier now recomputes PostgreSQL-jsonb request hashes, proves full-state no-change around every replay/hostile probe, and binds each history row to its exact booking/provider.
+- Authoritative containment: protected digest unchanged at `28476c8fac93aa03707b20a84b4b836b4268c96fa6710bf1238f0f6ebb265f11` across `1413` protected relation rows; Monitor stopped; active mailboxes/writers 0; notifications 0; migration head 372.
+- Quantitative counters: synthetic 20/20; journeys 0/5; board movements 2/100; booking movements/adjustments 6/50; invalid movement attempts 17/20; duplicate submits 20/20; Parts changes/attempts 18/25; Sublet changes/attempts 21/20; QC/RFT out-of-order 0/10; two-session 0/10; field/validation 26/30.
+- Bugs discovered/fixed: no application defect. Evidence-harness weaknesses found by independent review were repaired and rerun; no business control was weakened.
+- Blockers: none. Production was structurally blocked and untouched.
+- Exact next action: execute guarded QC/RFT/Completed ordering and separation scenarios on `HERMES-TEST-012` through `014`, including out-of-order negatives, zero-notification proof, exact replay/stale/changed-payload checks and authoritative final-state separation.
+
 ## Final report
 Pending until the ten-hour end time.

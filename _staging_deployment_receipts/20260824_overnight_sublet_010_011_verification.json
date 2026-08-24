@@ -1,0 +1,234 @@
+{
+  "actor_id": "557dba7f-fd70-4b9e-aa7b-b83b717682a7",
+  "changed_payload_full_state_rejections": 2,
+  "cross_vehicle_full_fleet_rejection": true,
+  "exact_replays": 9,
+  "final_environment": {
+    "banner_markers": {
+      "production_url_absent_from_config": true,
+      "service_role_absent_from_config": true,
+      "staging_ref_in_config": true,
+      "staging_title": true
+    },
+    "branch": "hermes/overnight-pdc-hardening-20260824",
+    "credential_files_in_worktree": [],
+    "database": {
+      "active_activation_writers": 0,
+      "active_mailboxes": 0,
+      "migration_head": {
+        "name": "372_overnight_exact_synthetic_booking_constraint",
+        "version": "20260825090000"
+      },
+      "monitor_status": "stopped",
+      "outbound_notification_rows": 0,
+      "pending_outbound_notifications": 0,
+      "production_sentinel_absent": true,
+      "project_ref": "cdsmnqxtyyoeoznmbidd",
+      "staging_sentinel_rows": 1,
+      "synthetic_vehicle_total": 20,
+      "vehicle_total": 173
+    },
+    "outbound_policy": "mailboxes and activation writers disabled; no external sends permitted",
+    "pages_build": "c95e0dec3064eebfb88d8f8367a326ca77fcc6b7 built",
+    "production_access_guard": true,
+    "schema": "pdc-overnight-environment-proof-v1",
+    "source_start_commit": "ac06394736b55220e7425322fc53e9b9dadc3fdd",
+    "website_hostname": "btnew.github.io",
+    "website_path": "/pdc-control-board-staging/",
+    "website_title": "PDC Control Board \u2014 STAGING"
+  },
+  "full_fleet_state": {
+    "sha256_after": "61230172bbeb56b333cb1c1ac33fb6509444e3969bf80173a2951721b6b6e178",
+    "sha256_before": "61230172bbeb56b333cb1c1ac33fb6509444e3969bf80173a2951721b6b6e178",
+    "unchanged_across_replays_and_hostile_probes": true
+  },
+  "initial_environment": {
+    "banner_markers": {
+      "production_url_absent_from_config": true,
+      "service_role_absent_from_config": true,
+      "staging_ref_in_config": true,
+      "staging_title": true
+    },
+    "branch": "hermes/overnight-pdc-hardening-20260824",
+    "credential_files_in_worktree": [],
+    "database": {
+      "active_activation_writers": 0,
+      "active_mailboxes": 0,
+      "migration_head": {
+        "name": "372_overnight_exact_synthetic_booking_constraint",
+        "version": "20260825090000"
+      },
+      "monitor_status": "stopped",
+      "outbound_notification_rows": 0,
+      "pending_outbound_notifications": 0,
+      "production_sentinel_absent": true,
+      "project_ref": "cdsmnqxtyyoeoznmbidd",
+      "staging_sentinel_rows": 1,
+      "synthetic_vehicle_total": 20,
+      "vehicle_total": 173
+    },
+    "outbound_policy": "mailboxes and activation writers disabled; no external sends permitted",
+    "pages_build": "c95e0dec3064eebfb88d8f8367a326ca77fcc6b7 built",
+    "production_access_guard": true,
+    "schema": "pdc-overnight-environment-proof-v1",
+    "source_start_commit": "ac06394736b55220e7425322fc53e9b9dadc3fdd",
+    "website_hostname": "btnew.github.io",
+    "website_path": "/pdc-control-board-staging/",
+    "website_title": "PDC Control Board \u2014 STAGING"
+  },
+  "physical_work_claimed": false,
+  "project_ref": "cdsmnqxtyyoeoznmbidd",
+  "protected_state": {
+    "rows": 1413,
+    "sha256": "28476c8fac93aa03707b20a84b4b836b4268c96fa6710bf1238f0f6ebb265f11"
+  },
+  "provider_inventory": {
+    "count": 44,
+    "sha256_after": "d3060937c412e5fcf905f771fc1356722643d8dd6e5ecfe869055dec9459b64c",
+    "sha256_before": "d3060937c412e5fcf905f771fc1356722643d8dd6e5ecfe869055dec9459b64c",
+    "unchanged": true
+  },
+  "receipts": [
+    {
+      "action": "sublet_create",
+      "exact_replay": true,
+      "idempotency_key": "7178a0ec-ccca-5069-9dcd-1d8e170d5152",
+      "label": "scenario-010-invalid-date-order",
+      "ok": false,
+      "receipt_id": "4a37e3df-6887-533f-bdae-99bc04f6ef65",
+      "request_sha256": "611bfaff73a47a32e1e29429d6aaa991cef21dfca536622207290d662aba4578",
+      "scenario_no": 10,
+      "sibling_state": {
+        "rows": 83,
+        "sha256": "0d8252d821ba8075e69b2a59e211579ec8340033fb7c2c724481b2df915759bc"
+      }
+    },
+    {
+      "action": "sublet_create",
+      "exact_replay": true,
+      "idempotency_key": "51064de7-6a0c-5001-a7d2-09cba60023c7",
+      "label": "scenario-010-create",
+      "ok": true,
+      "receipt_id": "1834e60d-0c6f-566d-8785-7f1896890c93",
+      "request_sha256": "e23a148766642396ef9f40998fd06a549955299594c9fe7b07b1fd389570b699",
+      "scenario_no": 10,
+      "sibling_state": {
+        "rows": 83,
+        "sha256": "0d8252d821ba8075e69b2a59e211579ec8340033fb7c2c724481b2df915759bc"
+      }
+    },
+    {
+      "action": "sublet_update",
+      "exact_replay": true,
+      "idempotency_key": "0e4e8397-c4a2-57d8-9a3f-27a54ace2461",
+      "label": "scenario-010-update",
+      "ok": true,
+      "receipt_id": "f0002c10-00a1-56ee-9996-cf90b4a6b4fc",
+      "request_sha256": "844a5344cba44bec4cdfc5bc366d01e43f4f07f43e33c20745ead8e2ffc99c42",
+      "scenario_no": 10,
+      "sibling_state": {
+        "rows": 83,
+        "sha256": "0d8252d821ba8075e69b2a59e211579ec8340033fb7c2c724481b2df915759bc"
+      }
+    },
+    {
+      "action": "sublet_update",
+      "exact_replay": true,
+      "idempotency_key": "e27a4e68-863d-5248-8a7b-b7efa45cec41",
+      "label": "scenario-010-stale-update",
+      "ok": false,
+      "receipt_id": "a199c112-325c-535c-8f15-abf2e140b92c",
+      "request_sha256": "1a48052ae0d85233a65320cec2b4def2346440662512ebb02b4ffb60989081a4",
+      "scenario_no": 10,
+      "sibling_state": {
+        "rows": 83,
+        "sha256": "0d8252d821ba8075e69b2a59e211579ec8340033fb7c2c724481b2df915759bc"
+      }
+    },
+    {
+      "action": "sublet_return",
+      "exact_replay": true,
+      "idempotency_key": "cddf8fa4-c1aa-56bb-a5b7-c90c1546f0db",
+      "label": "scenario-010-return",
+      "ok": true,
+      "receipt_id": "928a001d-3e9c-5fc6-a07b-709094beb170",
+      "request_sha256": "f8ee03c0500fe66256d2cd8c44e4a98addb8f45e367ad190498a04e1949af356",
+      "scenario_no": 10,
+      "sibling_state": {
+        "rows": 83,
+        "sha256": "0d8252d821ba8075e69b2a59e211579ec8340033fb7c2c724481b2df915759bc"
+      }
+    },
+    {
+      "action": "sublet_create",
+      "exact_replay": true,
+      "idempotency_key": "9c72f12e-f915-52cc-b03b-be85fbb92270",
+      "label": "scenario-011-create-provider-a",
+      "ok": true,
+      "receipt_id": "c27c5e89-a39b-5374-802a-e3d331314e3c",
+      "request_sha256": "281254a53a85129db809ca66a4b3d673939572bd14c26f815d041ef2ec6b5d1b",
+      "scenario_no": 11,
+      "sibling_state": {
+        "rows": 88,
+        "sha256": "dd3ed56fcaa7819f9104a2fbd0e6fb70474b89d0d065e08e4111660fd4333dc3"
+      }
+    },
+    {
+      "action": "sublet_create",
+      "exact_replay": true,
+      "idempotency_key": "58d228d9-a7a9-5955-93ad-cc2bb5fefa96",
+      "label": "scenario-011-overlap-provider-b",
+      "ok": false,
+      "receipt_id": "2f3c3814-4dd8-5cc7-aaf2-8018760b7199",
+      "request_sha256": "2d1553a7d7f380855a3fbd33f355b4605ccb8cab7221fd3c1d8e384969f62c0f",
+      "scenario_no": 11,
+      "sibling_state": {
+        "rows": 88,
+        "sha256": "dd3ed56fcaa7819f9104a2fbd0e6fb70474b89d0d065e08e4111660fd4333dc3"
+      }
+    },
+    {
+      "action": "sublet_create",
+      "exact_replay": true,
+      "idempotency_key": "f9ae3a08-4b89-5b93-aebd-aa82d56811de",
+      "label": "scenario-011-create-provider-b",
+      "ok": true,
+      "receipt_id": "2ffa5f22-e14b-5283-980d-bf7454c8b79b",
+      "request_sha256": "1004035f50d318c239d501f860afcc9394f608d0fce1925495f599fd341b8d4a",
+      "scenario_no": 11,
+      "sibling_state": {
+        "rows": 88,
+        "sha256": "dd3ed56fcaa7819f9104a2fbd0e6fb70474b89d0d065e08e4111660fd4333dc3"
+      }
+    },
+    {
+      "action": "sublet_update",
+      "exact_replay": true,
+      "idempotency_key": "42e5ee7c-4bee-5c60-99b1-2625ede41fc9",
+      "label": "scenario-011-update-provider-a",
+      "ok": true,
+      "receipt_id": "0450cbdd-e260-5f15-806d-d7a243d90ad0",
+      "request_sha256": "e3785d16b82b3238d8a60c5978f605cae18a6d2320cd4e28cc5c525a6d170462",
+      "scenario_no": 11,
+      "sibling_state": {
+        "rows": 88,
+        "sha256": "dd3ed56fcaa7819f9104a2fbd0e6fb70474b89d0d065e08e4111660fd4333dc3"
+      }
+    }
+  ],
+  "recorded_at_utc": "2026-08-24T17:13:19.530154+00:00",
+  "run_id": "HERMES-TEST-RUN-20260824",
+  "scenario_010": {
+    "booking_count": 1,
+    "explicit_synthetic_return_projection": true,
+    "history_count": 3,
+    "status": "returned"
+  },
+  "scenario_011": {
+    "booking_count": 2,
+    "completion_not_claimed": true,
+    "history_count": 3,
+    "provider_isolation": true
+  },
+  "schema": "pdc-overnight-sublet-010-011-verification-v1"
+}

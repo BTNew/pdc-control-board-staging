@@ -1,0 +1,529 @@
+{
+  "actions": [
+    {
+      "action": "create",
+      "booking_id": null,
+      "changed_payload_rejected": false,
+      "expected_error": "invalid_input",
+      "expected_ok": false,
+      "history_after": 0,
+      "history_before": 0,
+      "http_status": 200,
+      "label": "scenario-010-invalid-date-order",
+      "pre_action_migration_head": {
+        "name": "372_overnight_exact_synthetic_booking_constraint",
+        "version": "20260825090000"
+      },
+      "receipt_id": "4a37e3df-6887-533f-bdae-99bc04f6ef65",
+      "replay_verified": true,
+      "result": {
+        "code": "invalid_input",
+        "data": {},
+        "ok": false
+      },
+      "scenario_no": 10,
+      "sublets_after": 0,
+      "sublets_before": 0
+    },
+    {
+      "action": "create",
+      "booking_id": "7e45aa84-dae0-4446-8bab-6311dcad23ec",
+      "changed_payload_rejected": true,
+      "expected_error": null,
+      "expected_ok": true,
+      "history_after": 1,
+      "history_before": 0,
+      "http_status": 200,
+      "label": "scenario-010-create",
+      "pre_action_migration_head": {
+        "name": "372_overnight_exact_synthetic_booking_constraint",
+        "version": "20260825090000"
+      },
+      "receipt_id": "1834e60d-0c6f-566d-8785-7f1896890c93",
+      "replay_verified": true,
+      "result": {
+        "code": "created",
+        "data": {
+          "booking": {
+            "booking_id": "7e45aa84-dae0-4446-8bab-6311dcad23ec",
+            "cancelled_at": null,
+            "cancelled_by": null,
+            "created_at": "2026-08-24T16:57:20.880239+00:00",
+            "created_by": "557dba7f-fd70-4b9e-aa7b-b83b717682a7",
+            "expected_return_date": "2026-09-12",
+            "notes": "HERMES-TEST SUBLET BOOKED 010",
+            "out_date": "2026-09-10",
+            "provider_email": "",
+            "provider_id": "bdc1635d-38ec-47bf-857d-5c7b7afd14e9",
+            "provider_name": "Post-Fix Provider Edit",
+            "returned_at": null,
+            "returned_by": null,
+            "source_evidence": {},
+            "source_kind": "manual",
+            "source_ref": "",
+            "status": "active",
+            "updated_at": "2026-08-24T16:57:20.880239+00:00",
+            "updated_by": "557dba7f-fd70-4b9e-aa7b-b83b717682a7",
+            "vehicle_id": "068c21bf-5f27-5a3b-88c9-ffb36b61abb7",
+            "vehicle_version": 1,
+            "version": 1
+          },
+          "revision": 90407
+        },
+        "ok": true
+      },
+      "scenario_no": 10,
+      "sublets_after": 1,
+      "sublets_before": 0
+    },
+    {
+      "action": "update",
+      "booking_id": "7e45aa84-dae0-4446-8bab-6311dcad23ec",
+      "changed_payload_rejected": true,
+      "expected_error": null,
+      "expected_ok": true,
+      "history_after": 2,
+      "history_before": 1,
+      "http_status": 200,
+      "label": "scenario-010-update",
+      "pre_action_migration_head": {
+        "name": "372_overnight_exact_synthetic_booking_constraint",
+        "version": "20260825090000"
+      },
+      "receipt_id": "f0002c10-00a1-56ee-9996-cf90b4a6b4fc",
+      "replay_verified": true,
+      "result": {
+        "code": "updated",
+        "data": {
+          "booking": {
+            "booking_id": "7e45aa84-dae0-4446-8bab-6311dcad23ec",
+            "cancelled_at": null,
+            "cancelled_by": null,
+            "created_at": "2026-08-24T16:57:20.880239+00:00",
+            "created_by": "557dba7f-fd70-4b9e-aa7b-b83b717682a7",
+            "expected_return_date": "2026-09-13",
+            "notes": "HERMES-TEST SUBLET UPDATED 010",
+            "out_date": "2026-09-10",
+            "provider_email": "",
+            "provider_id": "bdc1635d-38ec-47bf-857d-5c7b7afd14e9",
+            "provider_name": "Post-Fix Provider Edit",
+            "returned_at": null,
+            "returned_by": null,
+            "source_evidence": {},
+            "source_kind": "manual",
+            "source_ref": "",
+            "status": "active",
+            "updated_at": "2026-08-24T16:57:30.207136+00:00",
+            "updated_by": "557dba7f-fd70-4b9e-aa7b-b83b717682a7",
+            "vehicle_id": "068c21bf-5f27-5a3b-88c9-ffb36b61abb7",
+            "vehicle_version": 1,
+            "version": 2
+          },
+          "revision": 90408
+        },
+        "ok": true
+      },
+      "scenario_no": 10,
+      "sublets_after": 1,
+      "sublets_before": 1
+    },
+    {
+      "action": "update",
+      "booking_id": null,
+      "changed_payload_rejected": false,
+      "expected_error": "version_conflict",
+      "expected_ok": false,
+      "history_after": 2,
+      "history_before": 2,
+      "http_status": 200,
+      "label": "scenario-010-stale-update",
+      "pre_action_migration_head": {
+        "name": "372_overnight_exact_synthetic_booking_constraint",
+        "version": "20260825090000"
+      },
+      "receipt_id": "a199c112-325c-535c-8f15-abf2e140b92c",
+      "replay_verified": true,
+      "result": {
+        "code": "version_conflict",
+        "data": {
+          "current_version": 2
+        },
+        "ok": false
+      },
+      "scenario_no": 10,
+      "sublets_after": 1,
+      "sublets_before": 1
+    },
+    {
+      "action": "return",
+      "booking_id": "7e45aa84-dae0-4446-8bab-6311dcad23ec",
+      "changed_payload_rejected": false,
+      "expected_error": null,
+      "expected_ok": true,
+      "history_after": 3,
+      "history_before": 2,
+      "http_status": 200,
+      "label": "scenario-010-return",
+      "pre_action_migration_head": {
+        "name": "372_overnight_exact_synthetic_booking_constraint",
+        "version": "20260825090000"
+      },
+      "receipt_id": "928a001d-3e9c-5fc6-a07b-709094beb170",
+      "replay_verified": true,
+      "result": {
+        "code": "returned",
+        "data": {
+          "booking": {
+            "booking_id": "7e45aa84-dae0-4446-8bab-6311dcad23ec",
+            "cancelled_at": null,
+            "cancelled_by": null,
+            "created_at": "2026-08-24T16:57:20.880239+00:00",
+            "created_by": "557dba7f-fd70-4b9e-aa7b-b83b717682a7",
+            "expected_return_date": "2026-09-13",
+            "notes": "HERMES-TEST SUBLET UPDATED 010",
+            "out_date": "2026-09-10",
+            "provider_email": "",
+            "provider_id": "bdc1635d-38ec-47bf-857d-5c7b7afd14e9",
+            "provider_name": "Post-Fix Provider Edit",
+            "returned_at": "2026-09-13T08:00:00+00:00",
+            "returned_by": "557dba7f-fd70-4b9e-aa7b-b83b717682a7",
+            "source_evidence": {},
+            "source_kind": "manual",
+            "source_ref": "",
+            "status": "returned",
+            "updated_at": "2026-08-24T16:57:46.516254+00:00",
+            "updated_by": "557dba7f-fd70-4b9e-aa7b-b83b717682a7",
+            "vehicle_id": "068c21bf-5f27-5a3b-88c9-ffb36b61abb7",
+            "vehicle_version": 1,
+            "version": 3
+          },
+          "remaining_active_sublets": 0,
+          "revision": 90409,
+          "station_work_items_completed": 1,
+          "sublet_station_completed": true,
+          "sublet_station_required": true,
+          "workshop_revision": 6330
+        },
+        "ok": true
+      },
+      "scenario_no": 10,
+      "sublets_after": 1,
+      "sublets_before": 1
+    },
+    {
+      "action": "create",
+      "booking_id": "3bfeeb64-059b-4666-9fee-364e5405414b",
+      "changed_payload_rejected": false,
+      "expected_error": null,
+      "expected_ok": true,
+      "history_after": 1,
+      "history_before": 0,
+      "http_status": 200,
+      "label": "scenario-011-create-provider-a",
+      "pre_action_migration_head": {
+        "name": "372_overnight_exact_synthetic_booking_constraint",
+        "version": "20260825090000"
+      },
+      "receipt_id": "c27c5e89-a39b-5374-802a-e3d331314e3c",
+      "replay_verified": true,
+      "result": {
+        "code": "created",
+        "data": {
+          "booking": {
+            "booking_id": "3bfeeb64-059b-4666-9fee-364e5405414b",
+            "cancelled_at": null,
+            "cancelled_by": null,
+            "created_at": "2026-08-24T16:57:55.673564+00:00",
+            "created_by": "557dba7f-fd70-4b9e-aa7b-b83b717682a7",
+            "expected_return_date": "2026-09-16",
+            "notes": "HERMES-TEST SUBLET PROVIDER A 011",
+            "out_date": "2026-09-15",
+            "provider_email": "",
+            "provider_id": "bdc1635d-38ec-47bf-857d-5c7b7afd14e9",
+            "provider_name": "Post-Fix Provider Edit",
+            "returned_at": null,
+            "returned_by": null,
+            "source_evidence": {},
+            "source_kind": "manual",
+            "source_ref": "",
+            "status": "active",
+            "updated_at": "2026-08-24T16:57:55.673564+00:00",
+            "updated_by": "557dba7f-fd70-4b9e-aa7b-b83b717682a7",
+            "vehicle_id": "fac5d609-c75c-55e2-acc8-fcc202c95964",
+            "vehicle_version": 1,
+            "version": 1
+          },
+          "revision": 90411
+        },
+        "ok": true
+      },
+      "scenario_no": 11,
+      "sublets_after": 1,
+      "sublets_before": 0
+    },
+    {
+      "action": "create",
+      "booking_id": null,
+      "changed_payload_rejected": false,
+      "expected_error": "sublet_booking_overlap",
+      "expected_ok": false,
+      "history_after": 1,
+      "history_before": 1,
+      "http_status": 200,
+      "label": "scenario-011-overlap-provider-b",
+      "pre_action_migration_head": {
+        "name": "372_overnight_exact_synthetic_booking_constraint",
+        "version": "20260825090000"
+      },
+      "receipt_id": "2f3c3814-4dd8-5cc7-aaf2-8018760b7199",
+      "replay_verified": true,
+      "result": {
+        "code": "sublet_booking_overlap",
+        "data": {},
+        "ok": false
+      },
+      "scenario_no": 11,
+      "sublets_after": 1,
+      "sublets_before": 1
+    },
+    {
+      "action": "create",
+      "booking_id": "4c6031cf-c61b-4886-be8d-a0a6cb6de2d5",
+      "changed_payload_rejected": false,
+      "expected_error": null,
+      "expected_ok": true,
+      "history_after": 2,
+      "history_before": 1,
+      "http_status": 200,
+      "label": "scenario-011-create-provider-b",
+      "pre_action_migration_head": {
+        "name": "372_overnight_exact_synthetic_booking_constraint",
+        "version": "20260825090000"
+      },
+      "receipt_id": "2ffa5f22-e14b-5283-980d-bf7454c8b79b",
+      "replay_verified": true,
+      "result": {
+        "code": "created",
+        "data": {
+          "booking": {
+            "booking_id": "4c6031cf-c61b-4886-be8d-a0a6cb6de2d5",
+            "cancelled_at": null,
+            "cancelled_by": null,
+            "created_at": "2026-08-24T16:58:08.339016+00:00",
+            "created_by": "557dba7f-fd70-4b9e-aa7b-b83b717682a7",
+            "expected_return_date": "2026-09-19",
+            "notes": "HERMES-TEST SUBLET PROVIDER B 011",
+            "out_date": "2026-09-18",
+            "provider_email": "",
+            "provider_id": "5244ffe5-e199-49fc-b5ec-3a794719ed6c",
+            "provider_name": "4x4 Mechanic - Ascot",
+            "returned_at": null,
+            "returned_by": null,
+            "source_evidence": {},
+            "source_kind": "manual",
+            "source_ref": "",
+            "status": "active",
+            "updated_at": "2026-08-24T16:58:08.339016+00:00",
+            "updated_by": "557dba7f-fd70-4b9e-aa7b-b83b717682a7",
+            "vehicle_id": "fac5d609-c75c-55e2-acc8-fcc202c95964",
+            "vehicle_version": 1,
+            "version": 1
+          },
+          "revision": 90412
+        },
+        "ok": true
+      },
+      "scenario_no": 11,
+      "sublets_after": 2,
+      "sublets_before": 1
+    },
+    {
+      "action": "update",
+      "booking_id": "3bfeeb64-059b-4666-9fee-364e5405414b",
+      "changed_payload_rejected": false,
+      "expected_error": null,
+      "expected_ok": true,
+      "history_after": 3,
+      "history_before": 2,
+      "http_status": 200,
+      "label": "scenario-011-update-provider-a",
+      "pre_action_migration_head": {
+        "name": "372_overnight_exact_synthetic_booking_constraint",
+        "version": "20260825090000"
+      },
+      "receipt_id": "0450cbdd-e260-5f15-806d-d7a243d90ad0",
+      "replay_verified": true,
+      "result": {
+        "code": "updated",
+        "data": {
+          "booking": {
+            "booking_id": "3bfeeb64-059b-4666-9fee-364e5405414b",
+            "cancelled_at": null,
+            "cancelled_by": null,
+            "created_at": "2026-08-24T16:57:55.673564+00:00",
+            "created_by": "557dba7f-fd70-4b9e-aa7b-b83b717682a7",
+            "expected_return_date": "2026-09-17",
+            "notes": "HERMES-TEST SUBLET PROVIDER A UPDATED 011",
+            "out_date": "2026-09-15",
+            "provider_email": "",
+            "provider_id": "bdc1635d-38ec-47bf-857d-5c7b7afd14e9",
+            "provider_name": "Post-Fix Provider Edit",
+            "returned_at": null,
+            "returned_by": null,
+            "source_evidence": {},
+            "source_kind": "manual",
+            "source_ref": "",
+            "status": "active",
+            "updated_at": "2026-08-24T16:58:16.985308+00:00",
+            "updated_by": "557dba7f-fd70-4b9e-aa7b-b83b717682a7",
+            "vehicle_id": "fac5d609-c75c-55e2-acc8-fcc202c95964",
+            "vehicle_version": 1,
+            "version": 2
+          },
+          "revision": 90413
+        },
+        "ok": true
+      },
+      "scenario_no": 11,
+      "sublets_after": 2,
+      "sublets_before": 2
+    },
+    {
+      "action": "update",
+      "error": "PDC_365_SUBJECT_OUTSIDE_REGISTRY_VEHICLE",
+      "expected_transport_rejection": true,
+      "http_status": 403,
+      "label": "scenario-011-cross-vehicle-subject",
+      "no_receipt_or_target_change": true,
+      "scenario_no": 11
+    }
+  ],
+  "actor_id": "557dba7f-fd70-4b9e-aa7b-b83b717682a7",
+  "final_environment": {
+    "banner_markers": {
+      "production_url_absent_from_config": true,
+      "service_role_absent_from_config": true,
+      "staging_ref_in_config": true,
+      "staging_title": true
+    },
+    "branch": "hermes/overnight-pdc-hardening-20260824",
+    "credential_files_in_worktree": [],
+    "database": {
+      "active_activation_writers": 0,
+      "active_mailboxes": 0,
+      "migration_head": {
+        "name": "372_overnight_exact_synthetic_booking_constraint",
+        "version": "20260825090000"
+      },
+      "monitor_status": "stopped",
+      "outbound_notification_rows": 0,
+      "pending_outbound_notifications": 0,
+      "production_sentinel_absent": true,
+      "project_ref": "cdsmnqxtyyoeoznmbidd",
+      "staging_sentinel_rows": 1,
+      "synthetic_vehicle_total": 20,
+      "vehicle_total": 173
+    },
+    "outbound_policy": "mailboxes and activation writers disabled; no external sends permitted",
+    "pages_build": "c95e0dec3064eebfb88d8f8367a326ca77fcc6b7 built",
+    "production_access_guard": true,
+    "schema": "pdc-overnight-environment-proof-v1",
+    "source_start_commit": "ac06394736b55220e7425322fc53e9b9dadc3fdd",
+    "website_hostname": "btnew.github.io",
+    "website_path": "/pdc-control-board-staging/",
+    "website_title": "PDC Control Board \u2014 STAGING"
+  },
+  "initial_environment": {
+    "banner_markers": {
+      "production_url_absent_from_config": true,
+      "service_role_absent_from_config": true,
+      "staging_ref_in_config": true,
+      "staging_title": true
+    },
+    "branch": "hermes/overnight-pdc-hardening-20260824",
+    "credential_files_in_worktree": [],
+    "database": {
+      "active_activation_writers": 0,
+      "active_mailboxes": 0,
+      "migration_head": {
+        "name": "372_overnight_exact_synthetic_booking_constraint",
+        "version": "20260825090000"
+      },
+      "monitor_status": "stopped",
+      "outbound_notification_rows": 0,
+      "pending_outbound_notifications": 0,
+      "production_sentinel_absent": true,
+      "project_ref": "cdsmnqxtyyoeoznmbidd",
+      "staging_sentinel_rows": 1,
+      "synthetic_vehicle_total": 20,
+      "vehicle_total": 173
+    },
+    "outbound_policy": "mailboxes and activation writers disabled; no external sends permitted",
+    "pages_build": "c95e0dec3064eebfb88d8f8367a326ca77fcc6b7 built",
+    "production_access_guard": true,
+    "schema": "pdc-overnight-environment-proof-v1",
+    "source_start_commit": "ac06394736b55220e7425322fc53e9b9dadc3fdd",
+    "website_hostname": "btnew.github.io",
+    "website_path": "/pdc-control-board-staging/",
+    "website_title": "PDC Control Board \u2014 STAGING"
+  },
+  "physical_work_claimed": false,
+  "project_ref": "cdsmnqxtyyoeoznmbidd",
+  "protected_state": {
+    "rows": 1413,
+    "sha256": "28476c8fac93aa03707b20a84b4b836b4268c96fa6710bf1238f0f6ebb265f11"
+  },
+  "provider_inventory": {
+    "active_count": 44,
+    "count": 44,
+    "selected": [
+      {
+        "active": true,
+        "created_at": "2026-07-17T11:25:40.814295+00:00",
+        "created_by": "7f1b48bf-295c-42aa-88e7-3116f646160b",
+        "email": null,
+        "id": "bdc1635d-38ec-47bf-857d-5c7b7afd14e9",
+        "name": "Post-Fix Provider Edit",
+        "phone": null,
+        "sort_order": 1,
+        "updated_at": "2026-07-17T11:27:57.568738+00:00",
+        "updated_by": "7f1b48bf-295c-42aa-88e7-3116f646160b",
+        "version": 3
+      },
+      {
+        "active": true,
+        "created_at": "2026-07-28T03:48:46.865449+00:00",
+        "created_by": null,
+        "email": null,
+        "id": "5244ffe5-e199-49fc-b5ec-3a794719ed6c",
+        "name": "4x4 Mechanic - Ascot",
+        "phone": null,
+        "sort_order": 3,
+        "updated_at": "2026-07-28T03:48:46.865449+00:00",
+        "updated_by": null,
+        "version": 1
+      }
+    ]
+  },
+  "queued_evidence": {
+    "010": "required incomplete sublet work item",
+    "011": "required incomplete sublet work item"
+  },
+  "recorded_at_utc": "2026-08-24T16:58:29.223394+00:00",
+  "run_id": "HERMES-TEST-RUN-20260824",
+  "scenario_010": {
+    "booking_count": 1,
+    "final_status": "returned",
+    "history_count": 3
+  },
+  "scenario_011": {
+    "booking_count": 2,
+    "history_count": 3,
+    "provider_b_unchanged_during_a_update": true,
+    "provider_ids": [
+      "bdc1635d-38ec-47bf-857d-5c7b7afd14e9",
+      "5244ffe5-e199-49fc-b5ec-3a794719ed6c"
+    ]
+  },
+  "schema": "pdc-overnight-sublet-010-011-v1"
+}
