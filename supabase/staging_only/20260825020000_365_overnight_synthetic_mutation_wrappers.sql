@@ -141,7 +141,8 @@ BEGIN
       JOIN pg_class c ON c.oid=t.tgrelid JOIN pg_namespace n ON n.oid=c.relnamespace
       WHERE n.nspname='public' AND t.tgname='pdc_hermes_test_actor_route_guard_365'
         AND t.tgfoid='public.pdc_hermes_test_actor_route_guard_365()'::regprocedure
-        AND t.tgtype=31 AND t.tgenabled='O' AND NOT t.tgisinternal)
+        AND t.tgtype=31 AND t.tgenabled='O' AND t.tgqual IS NULL AND NOT t.tgisinternal
+        AND pg_get_triggerdef(t.oid)=format('CREATE TRIGGER pdc_hermes_test_actor_route_guard_365 BEFORE INSERT OR DELETE OR UPDATE ON public.%I FOR EACH ROW EXECUTE FUNCTION pdc_hermes_test_actor_route_guard_365()',c.relname))
     IS DISTINCT FROM ARRAY['audit_events','pdc_sublet_booking_instance_history','pdc_sublet_booking_instances','vehicle_movements',
       'vehicle_parts_updates','vehicle_work_items','vehicles','workshop_booking_assignments','workshop_booking_history','workshop_bookings','workshop_parts_overrides']::text[]
    OR NOT EXISTS(SELECT 1 FROM pg_proc p WHERE p.oid='public.pdc_hermes_test_actor_route_guard_365()'::regprocedure
