@@ -30,9 +30,10 @@ function apply({actor='admin',email='admin@example.test',run=RUN,vehicleId,expec
     assert.strictEqual(protectedDigest,'protected-153-immutable'); assert.strictEqual(notifications,0);
     return {...receipt.response,replay:true,replayContainmentVerified:true,currentVehicleVersion:vehicle.version};
   }
-  assert.strictEqual(vehicle.version,expectedVersion,'stale vehicle version rejects');
+  const staleVehicle=vehicle.version!==expectedVersion;
   const before=JSON.stringify(stable(vehicle)); let ok=true,error='';
   try{
+    if(staleVehicle) throw new Error('stale vehicle version');
     switch(action){
       case 'vehicle_edit': exactKeys(payload,['pmb_key_tag']); assert.match(payload.pmb_key_tag,/^HERMES-TEST/); vehicle.keyTag=payload.pmb_key_tag; vehicle.version++; break;
       case 'parts_stoppage': exactKeys(payload,['reason']); assert.match(payload.reason,/^HERMES-TEST/); vehicle.parts.stoppage=true; vehicle.parts.reason=payload.reason; vehicle.version++; break;
@@ -59,6 +60,7 @@ assert.ok(r.ok);assert.strictEqual(r.vehicleVersionAfter,2);
 let replay=apply({vehicleId:'vehicle-001',expectedVersion:1,key:'00000000-0000-4000-8000-000000000001',action:'vehicle_edit',payload:{pmb_key_tag:'HERMES-TEST-KEY-001'}});
 assert.ok(replay.replay);assert.strictEqual(replay.currentVehicleVersion,2);
 assert.throws(()=>apply({vehicleId:'vehicle-001',expectedVersion:1,key:'00000000-0000-4000-8000-000000000001',action:'vehicle_edit',payload:{pmb_key_tag:'HERMES-TEST-CHANGED'}}),/changed replay rejects/);
+r=apply({vehicleId:'vehicle-001',expectedVersion:1,key:'00000000-0000-4000-8000-000000000101',action:'vehicle_edit',payload:{pmb_key_tag:'HERMES-TEST-KEY-STALE'}});assert.ok(!r.ok);assert.match(r.error,/stale vehicle/);
 assert.throws(()=>apply({vehicleId:'protected-001',expectedVersion:1,key:'x',action:'vehicle_edit',payload:{pmb_key_tag:'HERMES-TEST-X'}}),/outside registry/);
 
 r=apply({vehicleId:'vehicle-009',expectedVersion:1,key:'00000000-0000-4000-8000-000000000009',action:'parts_stoppage',payload:{reason:'HERMES-TEST supplier delay'}});assert.ok(r.ok);assert.ok(registry.get('vehicle-009').parts.stoppage);
@@ -74,7 +76,7 @@ const race=registry.get('vehicle-017');race.bookings.set('booking-017',{vehicleI
 r=apply({vehicleId:'vehicle-017',expectedVersion:1,subjectId:'booking-017',subjectVersion:1,key:'00000000-0000-4000-8000-000000000017',action:'workshop_move',payload:{start:'2026-08-25T08:01:00+08:00'}});assert.ok(r.ok);
 r=apply({vehicleId:'vehicle-017',expectedVersion:1,subjectId:'booking-017',subjectVersion:1,key:'00000000-0000-4000-8000-000000000027',action:'workshop_move',payload:{start:'2026-08-25T08:02:00+08:00'}});assert.ok(!r.ok);assert.match(r.error,/stale subject/);
 
-assert.strictEqual(receipts.size,7,'successful and rejected outcomes are durably idempotent');
+assert.strictEqual(receipts.size,8,'successful and rejected outcomes are durably idempotent');
 assert.strictEqual(protectedDigest,'protected-153-immutable');
 assert.strictEqual(notifications,0);
 console.log('Overnight synthetic mutation executable model passed: registry, replay, failure receipt, Parts stoppage, QC no-notification, and stale race.');

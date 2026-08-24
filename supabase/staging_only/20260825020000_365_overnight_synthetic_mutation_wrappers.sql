@@ -75,6 +75,26 @@ CREATE TRIGGER pdc_overnight_synthetic_mutation_receipts_append_only_365
 BEFORE UPDATE OR DELETE ON public.pdc_overnight_synthetic_mutation_receipts_365
 FOR EACH ROW EXECUTE FUNCTION public.pdc_overnight_synthetic_mutation_append_only_365();
 
+CREATE FUNCTION public.pdc_hermes_test_actor_route_guard_365()
+RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,public AS $route$
+BEGIN
+ IF auth.uid() IS NOT NULL AND EXISTS(SELECT 1 FROM public.pdc_overnight_synthetic_fleet_registry_363 r WHERE r.actor_id=auth.uid())
+   AND current_setting('pdc.hermes_test_wrapper_365',true) IS DISTINCT FROM 'on' THEN
+  RAISE EXCEPTION 'PDC_365_OVERNIGHT_ACTOR_MUST_USE_SYNTHETIC_WRAPPER' USING errcode='42501';
+ END IF;
+ RETURN CASE WHEN TG_OP='DELETE' THEN OLD ELSE NEW END;
+END $route$;
+REVOKE ALL ON FUNCTION public.pdc_hermes_test_actor_route_guard_365() FROM public,anon,authenticated,service_role;
+DO $route_triggers$
+DECLARE v_table text;
+BEGIN
+ FOREACH v_table IN ARRAY ARRAY['vehicles','vehicle_work_items','workshop_bookings','workshop_booking_assignments',
+  'workshop_booking_history','workshop_parts_overrides','vehicle_parts_updates','pdc_sublet_booking_instances',
+  'pdc_sublet_booking_instance_history','vehicle_movements','audit_events'] LOOP
+  EXECUTE format('CREATE TRIGGER pdc_hermes_test_actor_route_guard_365 BEFORE INSERT OR UPDATE OR DELETE ON public.%I FOR EACH ROW EXECUTE FUNCTION public.pdc_hermes_test_actor_route_guard_365()',v_table);
+ END LOOP;
+END $route_triggers$;
+
 CREATE FUNCTION public.pdc_hermes_test_dependency_guard_365()
 RETURNS boolean LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path=pg_catalog,public,extensions AS $guard$
 DECLARE v record;
@@ -117,6 +137,8 @@ REVOKE ALL ON FUNCTION public.pdc_hermes_test_dependency_guard_365() FROM public
 CREATE FUNCTION public.pdc_hermes_test_registry_guard_365()
 RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path=pg_catalog,public,extensions AS $guard$
  SELECT (SELECT count(*) FROM public.pdc_overnight_synthetic_fleet_registry_363)=20
+  AND (SELECT encode(extensions.digest(convert_to(coalesce(jsonb_agg(to_jsonb(r) ORDER BY r.scenario_no),'[]'::jsonb)::text,'UTF8'),'sha256'),'hex')
+       FROM public.pdc_overnight_synthetic_fleet_registry_363 r)='61f071efc4218cbf0e07b3699c010e0a79ea43909757f22c9e10f7151d66ded2'
   AND (SELECT encode(extensions.digest(convert_to(coalesce(jsonb_agg(r.spec ORDER BY r.scenario_no),'[]'::jsonb)::text,'UTF8'),'sha256'),'hex')
        FROM public.pdc_overnight_synthetic_fleet_registry_363 r)='0bc2791f0b79bf03018f5d3ec444441253c0aa8a994dd8a31f7bd49f20738d16'
   AND NOT EXISTS(SELECT 1 FROM public.pdc_overnight_synthetic_fleet_registry_363 r JOIN public.vehicles v ON v.id=r.vehicle_id WHERE
@@ -133,10 +155,18 @@ RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path=pg_catalog,
    OR v.source_record_id IS DISTINCT FROM r.stock_number OR v.source_payload->>'contract' IS DISTINCT FROM 'pdc-overnight-synthetic-fleet-363/render_only'
    OR v.source_payload->>'run_id' IS DISTINCT FROM r.run_id OR (v.source_payload->>'scenario_no')::integer IS DISTINCT FROM r.scenario_no
    OR v.source_payload->>'scenario_name' IS DISTINCT FROM r.scenario_name OR v.source_payload->>'request_sha256' IS DISTINCT FROM r.request_sha256)
+  AND NOT has_table_privilege('anon','public.pdc_overnight_synthetic_fleet_registry_363','SELECT,INSERT,UPDATE,DELETE')
   AND NOT has_table_privilege('authenticated','public.pdc_overnight_synthetic_fleet_registry_363','SELECT,INSERT,UPDATE,DELETE')
   AND NOT has_table_privilege('service_role','public.pdc_overnight_synthetic_fleet_registry_363','SELECT,INSERT,UPDATE,DELETE')
-  AND EXISTS(SELECT 1 FROM pg_trigger WHERE tgrelid='public.pdc_overnight_synthetic_fleet_registry_363'::regclass
-   AND tgname='pdc_overnight_synthetic_fleet_registry_append_only_363' AND tgenabled='O' AND NOT tgisinternal)
+  AND EXISTS(SELECT 1 FROM pg_trigger t WHERE t.tgrelid='public.pdc_overnight_synthetic_fleet_registry_363'::regclass
+   AND t.tgname='pdc_overnight_synthetic_fleet_registry_append_only_363' AND t.tgenabled='O' AND NOT t.tgisinternal
+   AND t.tgfoid='public.pdc_overnight_synthetic_fleet_append_only_363()'::regprocedure
+   AND pg_get_triggerdef(t.oid)='CREATE TRIGGER pdc_overnight_synthetic_fleet_registry_append_only_363 BEFORE DELETE OR UPDATE ON public.pdc_overnight_synthetic_fleet_registry_363 FOR EACH ROW EXECUTE FUNCTION pdc_overnight_synthetic_fleet_append_only_363()')
+  AND EXISTS(SELECT 1 FROM pg_proc p WHERE p.oid='public.pdc_overnight_synthetic_fleet_append_only_363()'::regprocedure
+   AND p.prosecdef AND pg_get_userbyid(p.proowner)='postgres'
+   AND encode(extensions.digest(convert_to(pg_get_functiondef(p.oid),'UTF8'),'sha256'),'hex')='9317c5ca289b92f10d9085e7a0dabeb08a4b5d0e04147b6fcfc922af1be4e5b9'
+   AND NOT has_function_privilege('public',p.oid,'EXECUTE') AND NOT has_function_privilege('anon',p.oid,'EXECUTE')
+   AND NOT has_function_privilege('authenticated',p.oid,'EXECUTE') AND NOT has_function_privilege('service_role',p.oid,'EXECUTE'))
 $guard$;
 REVOKE ALL ON FUNCTION public.pdc_hermes_test_registry_guard_365() FROM public,anon,authenticated,service_role;
 
@@ -163,7 +193,9 @@ REVOKE ALL ON FUNCTION public.pdc_hermes_test_protected_digest_365() FROM public
 DO $helper_post$
 BEGIN
  IF NOT public.pdc_hermes_test_dependency_guard_365() OR NOT public.pdc_hermes_test_registry_guard_365()
-   OR public.pdc_hermes_test_protected_digest_365() IS NULL THEN
+   OR public.pdc_hermes_test_protected_digest_365() IS NULL
+   OR (SELECT count(*) FROM pg_trigger t WHERE t.tgname='pdc_hermes_test_actor_route_guard_365'
+       AND t.tgfoid='public.pdc_hermes_test_actor_route_guard_365()'::regprocedure AND t.tgenabled='O' AND NOT t.tgisinternal)<>11 THEN
   RAISE EXCEPTION 'PDC_365_HELPER_POSTCONDITION' USING errcode='55000'; END IF;
 END $helper_post$;
 
@@ -197,7 +229,7 @@ DECLARE
 BEGIN
  IF p_run_id IS DISTINCT FROM 'HERMES-TEST-RUN-20260824' OR p_vehicle_id IS NULL
    OR p_expected_vehicle_version IS NULL OR p_expected_vehicle_version<1 OR p_idempotency_key IS NULL
-   OR p_action IS NULL OR jsonb_typeof(v_payload)<>'object' THEN
+   OR p_action IS NULL OR p_payload IS NULL OR jsonb_typeof(v_payload)<>'object' THEN
   RAISE EXCEPTION 'PDC_365_INVALID_INPUT' USING errcode='22023';
  END IF;
  IF p_action NOT IN('vehicle_edit','work_states','lifecycle_to_pmb','lifecycle_ready_qc','lifecycle_qc_to_rft','lifecycle_collect',
@@ -205,6 +237,9 @@ BEGIN
   'workshop_resume','workshop_complete','sublet_create','sublet_update','sublet_return') THEN
   RAISE EXCEPTION 'PDC_365_ACTION_NOT_ALLOWED' USING errcode='22023';
  END IF;
+ IF p_action NOT IN('workshop_move','workshop_start','workshop_stop','workshop_resume','workshop_complete','sublet_update','sublet_return')
+   AND (p_subject_id IS NOT NULL OR p_expected_subject_version IS NOT NULL) THEN
+  RAISE EXCEPTION 'PDC_365_SUBJECT_FORBIDDEN_FOR_ACTION' USING errcode='22023'; END IF;
  IF v_actor IS NULL OR v_email='' OR NOT EXISTS(
   SELECT 1 FROM public.pdc_user_roles r WHERE r.auth_user_id=v_actor AND lower(r.email)=v_email
    AND r.role IN('operator','administrator') AND r.active AND r.account_status='approved' FOR SHARE
@@ -263,6 +298,7 @@ BEGIN
    OR v_vehicle_before.source_payload->>'contract' IS DISTINCT FROM 'pdc-overnight-synthetic-fleet-363/render_only' THEN
   RAISE EXCEPTION 'PDC_365_REGISTRY_SCOPE_OR_VERSION_MISMATCH' USING errcode='40001';
  END IF;
+ PERFORM set_config('pdc.hermes_test_wrapper_365','on',true);
 
  -- Share-lock every protected vehicle row so the cross-relation digest describes one stable set
  -- while different synthetic vehicles remain independently mutable for two-session tests.
@@ -273,12 +309,18 @@ BEGIN
  SELECT revision INTO v_pdc_revision_before FROM public.pdc_email_vehicle_revision WHERE singleton;
  SELECT revision INTO v_workshop_revision_before FROM public.workshop_revision WHERE id=1;
  SELECT revision INTO v_navision_revision_before FROM public.navision_backend_revision WHERE singleton;
+ IF v_pdc_revision_before IS NULL OR v_workshop_revision_before IS NULL OR v_navision_revision_before IS NULL THEN
+  RAISE EXCEPTION 'PDC_365_REVISION_SINGLETON_MISMATCH' USING errcode='55000'; END IF;
  v_notifications_before:=(SELECT count(*) FROM public.vehicle_notifications);
  SELECT encode(extensions.digest(convert_to(jsonb_build_object('vehicle',to_jsonb(v_vehicle_before),
   'work',coalesce((SELECT jsonb_agg(to_jsonb(x) ORDER BY x.id) FROM public.vehicle_work_items x WHERE x.vehicle_id=p_vehicle_id),'[]'::jsonb),
   'bookings',coalesce((SELECT jsonb_agg(to_jsonb(x) ORDER BY x.id) FROM public.workshop_bookings x WHERE x.vehicle_id=p_vehicle_id),'[]'::jsonb),
   'parts',coalesce((SELECT jsonb_agg(to_jsonb(x) ORDER BY x.id) FROM public.vehicle_parts_updates x WHERE x.vehicle_id=p_vehicle_id),'[]'::jsonb),
   'sublets',coalesce((SELECT jsonb_agg(to_jsonb(x) ORDER BY x.booking_id) FROM public.pdc_sublet_booking_instances x WHERE x.vehicle_id=p_vehicle_id),'[]'::jsonb),
+  'booking_assignments',coalesce((SELECT jsonb_agg(to_jsonb(a) ORDER BY a.id) FROM public.workshop_booking_assignments a JOIN public.workshop_bookings b ON b.id=a.booking_id WHERE b.vehicle_id=p_vehicle_id),'[]'::jsonb),
+  'booking_history',coalesce((SELECT jsonb_agg(to_jsonb(h) ORDER BY h.id) FROM public.workshop_booking_history h JOIN public.workshop_bookings b ON b.id=h.booking_id WHERE b.vehicle_id=p_vehicle_id),'[]'::jsonb),
+  'parts_overrides',coalesce((SELECT jsonb_agg(to_jsonb(x) ORDER BY x.id) FROM public.workshop_parts_overrides x WHERE x.vehicle_id=p_vehicle_id),'[]'::jsonb),
+  'sublet_history',coalesce((SELECT jsonb_agg(to_jsonb(x) ORDER BY x.id) FROM public.pdc_sublet_booking_instance_history x WHERE x.vehicle_id=p_vehicle_id),'[]'::jsonb),
   'movements',coalesce((SELECT jsonb_agg(to_jsonb(x) ORDER BY x.id) FROM public.vehicle_movements x WHERE x.vehicle_id=p_vehicle_id),'[]'::jsonb),
   'audit',coalesce((SELECT jsonb_agg(to_jsonb(x) ORDER BY x.id) FROM public.audit_events x WHERE x.vehicle_id=p_vehicle_id),'[]'::jsonb))::text,'UTF8'),'sha256'),'hex') INTO v_target_state_before;
  IF v_replay THEN
@@ -374,7 +416,8 @@ BEGIN
    (v_payload->>'scheduled_start_at')::timestamptz,(v_payload->>'duration_minutes')::integer,
    nullif(v_payload->>'technician_id','')::uuid,v_reason,jsonb_build_object('source','HERMES-TEST-RUN-20260824'));
  ELSIF p_action='sublet_create' THEN
-  IF p_subject_id IS NOT NULL OR p_expected_subject_version IS NOT NULL
+  IF v_payload<>jsonb_build_object('provider_id',v_payload->'provider_id','out_date',v_payload->'out_date',
+     'expected_return_date',v_payload->'expected_return_date','notes',v_payload->'notes')
     OR coalesce(v_payload->>'notes','')!~'^HERMES-TEST' OR length(v_payload->>'notes')>240 THEN
    RAISE EXCEPTION 'PDC_365_SUBLET_CREATE_PAYLOAD_INVALID' USING errcode='22023'; END IF;
   v_result:=public.create_pdc_sublet_booking(p_vehicle_id,p_expected_vehicle_version,(v_payload->>'provider_id')::uuid,
@@ -446,13 +489,21 @@ BEGIN
   'bookings',coalesce((SELECT jsonb_agg(to_jsonb(x) ORDER BY x.id) FROM public.workshop_bookings x WHERE x.vehicle_id=p_vehicle_id),'[]'::jsonb),
   'parts',coalesce((SELECT jsonb_agg(to_jsonb(x) ORDER BY x.id) FROM public.vehicle_parts_updates x WHERE x.vehicle_id=p_vehicle_id),'[]'::jsonb),
   'sublets',coalesce((SELECT jsonb_agg(to_jsonb(x) ORDER BY x.booking_id) FROM public.pdc_sublet_booking_instances x WHERE x.vehicle_id=p_vehicle_id),'[]'::jsonb),
+  'booking_assignments',coalesce((SELECT jsonb_agg(to_jsonb(a) ORDER BY a.id) FROM public.workshop_booking_assignments a JOIN public.workshop_bookings b ON b.id=a.booking_id WHERE b.vehicle_id=p_vehicle_id),'[]'::jsonb),
+  'booking_history',coalesce((SELECT jsonb_agg(to_jsonb(h) ORDER BY h.id) FROM public.workshop_booking_history h JOIN public.workshop_bookings b ON b.id=h.booking_id WHERE b.vehicle_id=p_vehicle_id),'[]'::jsonb),
+  'parts_overrides',coalesce((SELECT jsonb_agg(to_jsonb(x) ORDER BY x.id) FROM public.workshop_parts_overrides x WHERE x.vehicle_id=p_vehicle_id),'[]'::jsonb),
+  'sublet_history',coalesce((SELECT jsonb_agg(to_jsonb(x) ORDER BY x.id) FROM public.pdc_sublet_booking_instance_history x WHERE x.vehicle_id=p_vehicle_id),'[]'::jsonb),
   'movements',coalesce((SELECT jsonb_agg(to_jsonb(x) ORDER BY x.id) FROM public.vehicle_movements x WHERE x.vehicle_id=p_vehicle_id),'[]'::jsonb),
   'audit',coalesce((SELECT jsonb_agg(to_jsonb(x) ORDER BY x.id) FROM public.audit_events x WHERE x.vehicle_id=p_vehicle_id),'[]'::jsonb))::text,'UTF8'),'sha256'),'hex') INTO v_target_state_after;
  IF v_protected_after IS DISTINCT FROM v_protected_before OR v_notifications_before<>0 OR v_notifications_after<>0
    OR v_pdc_revision_after<v_pdc_revision_before OR v_pdc_revision_after-v_pdc_revision_before>10
    OR v_workshop_revision_after<v_workshop_revision_before OR v_workshop_revision_after-v_workshop_revision_before>10
    OR v_navision_revision_after<v_navision_revision_before OR v_navision_revision_after-v_navision_revision_before>10
-   OR (NOT coalesce((v_result->>'ok')::boolean,false) AND v_target_state_after IS DISTINCT FROM v_target_state_before) THEN
+   OR (NOT coalesce((v_result->>'ok')::boolean,false) AND (
+      v_target_state_after IS DISTINCT FROM v_target_state_before
+      OR v_pdc_revision_after IS DISTINCT FROM v_pdc_revision_before
+      OR v_workshop_revision_after IS DISTINCT FROM v_workshop_revision_before
+      OR v_navision_revision_after IS DISTINCT FROM v_navision_revision_before)) THEN
   RAISE EXCEPTION 'PDC_365_PROTECTED_NOTIFICATION_REVISION_OR_FAILED_ACTION_POSTCONDITION' USING errcode='55000';
  END IF;
  IF p_subject_id IS NOT NULL THEN
@@ -497,14 +548,14 @@ END $$;
 CREATE FUNCTION public.pdc_hermes_test_parts_365(text,uuid,integer,uuid,text,date)
 RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,public AS $$
 BEGIN
- IF lower(btrim($5)) NOT IN('eta','ordered','complete') THEN RAISE EXCEPTION 'PDC_365_PARTS_FACADE_ACTION_INVALID' USING errcode='22023'; END IF;
+ IF lower(btrim($5)) NOT IN('eta','ordered','complete') OR (lower(btrim($5))<>'eta' AND $6 IS NOT NULL) THEN RAISE EXCEPTION 'PDC_365_PARTS_FACADE_ACTION_INVALID' USING errcode='22023'; END IF;
  RETURN public.pdc_hermes_test_apply_365($1,$2,$3,NULL,NULL,$4,'parts_'||lower(btrim($5)),
   CASE WHEN lower(btrim($5))='eta' THEN jsonb_build_object('worst_eta',$6) ELSE '{}'::jsonb END);
 END $$;
 CREATE FUNCTION public.pdc_hermes_test_parts_stoppage_365(text,uuid,integer,uuid,text,text)
 RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,public AS $$
 BEGIN
- IF lower(btrim($5)) NOT IN('stoppage','recover') THEN RAISE EXCEPTION 'PDC_365_PARTS_STOPPAGE_FACADE_ACTION_INVALID' USING errcode='22023'; END IF;
+ IF lower(btrim($5)) NOT IN('stoppage','recover') OR (lower(btrim($5))='recover' AND $6 IS NOT NULL) THEN RAISE EXCEPTION 'PDC_365_PARTS_STOPPAGE_FACADE_ACTION_INVALID' USING errcode='22023'; END IF;
  RETURN public.pdc_hermes_test_apply_365($1,$2,$3,NULL,NULL,$4,'parts_'||lower(btrim($5)),
   CASE WHEN lower(btrim($5))='stoppage' THEN jsonb_build_object('reason',$6) ELSE '{}'::jsonb END);
 END $$;
@@ -551,6 +602,11 @@ BEGIN
   SELECT 1 FROM public.pdc_user_roles r WHERE r.auth_user_id=v_actor AND lower(r.email)=v_email
    AND r.role IN('operator','administrator') AND r.active AND r.account_status='approved') THEN
   RAISE EXCEPTION 'PDC_365_READ_UNAUTHORIZED_OR_RUN_INVALID' USING errcode='42501'; END IF;
+ IF NOT public.pdc_monitor_staging_guard() OR NOT public.pdc_hermes_test_dependency_guard_365()
+   OR NOT public.pdc_hermes_test_registry_guard_365() OR (SELECT count(*) FROM public.vehicle_notifications)<>0
+   OR EXISTS(SELECT 1 FROM public.monitored_mailboxes WHERE active)
+   OR EXISTS(SELECT 1 FROM public.pdc_monitor_stage_activation_writers WHERE active AND revoked_at IS NULL) THEN
+  RAISE EXCEPTION 'PDC_365_READ_CONTAINMENT_DRIFT' USING errcode='55000'; END IF;
  IF p_vehicle_id IS NOT NULL AND NOT EXISTS(SELECT 1 FROM public.pdc_overnight_synthetic_fleet_registry_363 r
   WHERE r.run_id=p_run_id AND r.vehicle_id=p_vehicle_id) THEN RAISE EXCEPTION 'PDC_365_READ_OUTSIDE_REGISTRY' USING errcode='42501'; END IF;
  SELECT jsonb_build_object('ok',true,'run_id',p_run_id,'vehicle_id',p_vehicle_id,
@@ -559,8 +615,16 @@ BEGIN
    'bookings',coalesce((SELECT jsonb_agg(to_jsonb(b) ORDER BY b.created_at,b.id) FROM public.workshop_bookings b WHERE b.vehicle_id=v.id),'[]'::jsonb),
    'parts',coalesce((SELECT jsonb_agg(to_jsonb(p) ORDER BY p.updated_at,p.id) FROM public.vehicle_parts_updates p WHERE p.vehicle_id=v.id),'[]'::jsonb),
    'sublets',coalesce((SELECT jsonb_agg(to_jsonb(s) ORDER BY s.created_at,s.booking_id) FROM public.pdc_sublet_booking_instances s WHERE s.vehicle_id=v.id),'[]'::jsonb),
+   'movements',coalesce((SELECT jsonb_agg(to_jsonb(m) ORDER BY m.id) FROM public.vehicle_movements m WHERE m.vehicle_id=v.id),'[]'::jsonb),
+   'audit_events',coalesce((SELECT jsonb_agg(to_jsonb(a) ORDER BY a.id) FROM public.audit_events a WHERE a.vehicle_id=v.id),'[]'::jsonb),
+   'sublet_history',coalesce((SELECT jsonb_agg(to_jsonb(h) ORDER BY h.id) FROM public.pdc_sublet_booking_instance_history h WHERE h.vehicle_id=v.id),'[]'::jsonb),
    'receipts',coalesce((SELECT jsonb_agg(to_jsonb(x) ORDER BY x.created_at,x.receipt_id) FROM public.pdc_overnight_synthetic_mutation_receipts_365 x WHERE x.vehicle_id=v.id),'[]'::jsonb)
-  ) ORDER BY r.scenario_no),'[]'::jsonb),'notification_count',(SELECT count(*) FROM public.vehicle_notifications)) INTO v_result
+  ) ORDER BY r.scenario_no),'[]'::jsonb),
+  'protected_state',public.pdc_hermes_test_protected_digest_365(),
+  'revisions',jsonb_build_object('pdc_email',(SELECT revision FROM public.pdc_email_vehicle_revision WHERE singleton),
+    'workshop',(SELECT revision FROM public.workshop_revision WHERE id=1),
+    'navision',(SELECT revision FROM public.navision_backend_revision WHERE singleton)),
+  'notification_count',(SELECT count(*) FROM public.vehicle_notifications)) INTO v_result
  FROM public.pdc_overnight_synthetic_fleet_registry_363 r JOIN public.vehicles v ON v.id=r.vehicle_id
  WHERE r.run_id=p_run_id AND (p_vehicle_id IS NULL OR r.vehicle_id=p_vehicle_id);
  RETURN v_result;
