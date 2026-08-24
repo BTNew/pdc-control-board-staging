@@ -1,0 +1,17 @@
+'use strict';
+const fs = require('fs');
+const assert = require('assert');
+const sql = fs.readFileSync('supabase/staging_only/20260825010000_364_overnight_synthetic_snapshot_projection.sql','utf8');
+assert.match(sql,/project_ref='cdsmnqxtyyoeoznmbidd'/);
+assert.doesNotMatch(sql,/vjdtsswhroyguxyfjdkt/);
+assert.match(sql,/363_overnight_synthetic_fleet_bootstrap/);
+assert.match(sql,/0fc5dadf39c25c2779a61e19552b606de35327c524f7111461b13c54436b9d48/);
+assert.match(sql,/pdc_overnight_synthetic_fleet_registry_363 r/);
+assert.match(sql,/r\.run_id='HERMES-TEST-RUN-20260824'/);
+assert.match(sql,/r\.vehicle_id=v\.id/);
+for (const binding of ['r.stock_number=v.stock_number','r.customer_name=v.customer_name','r.job_card_number=v.job_card_number','r.vehicle_description=v.vehicle_description',"v.source_system='hermes_overnight_synthetic'",'v.source_batch_id=r.run_id','v.source_record_id=r.stock_number',"v.source_payload->>'contract'='pdc-overnight-synthetic-fleet-363/render_only'"]) assert.ok(sql.includes(binding), binding);
+for (const boundary of ['LOCK TABLE public.pdc_email_monitor_pilot IN SHARE MODE','LOCK TABLE public.pdc_email_monitor_status IN SHARE MODE','LOCK TABLE public.monitored_mailboxes IN SHARE MODE','LOCK TABLE public.pdc_monitor_stage_activation_writers IN SHARE MODE','LOCK TABLE public.vehicle_notifications IN SHARE MODE','pdc_production_environment_sentinel','NOT enabled AND NOT outbound_email_enabled','NOT automatic_rule_application AND NOT automatic_authenticated_jobcards']) assert.ok(sql.includes(boundary), boundary);
+assert.doesNotMatch(sql,/(?:GRANT|REVOKE)\s+[^;]*get_pdc_email_vehicle_location_snapshot_pre168/i);
+assert.doesNotMatch(sql,/\b(?:UPDATE|DELETE FROM|TRUNCATE|DROP TABLE|CASCADE|DISABLE TRIGGER|GRANT (?:INSERT|UPDATE|DELETE|ALL) ON TABLE)\b/i);
+assert.match(sql,/VALUES\('20260825010000','364_overnight_synthetic_snapshot_projection'/);
+console.log('overnight synthetic snapshot projection contract passed');
