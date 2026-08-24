@@ -1,0 +1,10 @@
+'use strict';
+const assert=require('assert'),fs=require('fs'),path=require('path');
+const root=__dirname,app=fs.readFileSync(path.join(root,'app.js'),'utf8'),migration=fs.readFileSync(path.join(root,'supabase','staging_only','20260824220000_361_persist_manual_estimated_hours_authority.sql'),'utf8');
+assert.ok(app.includes("manualOverrideHours: adjustment.manual_assignment_locked && adjustment.correction_origin !== 'manual_operator'"),'unprotected adjustment hours become scheduling authority');
+assert.ok(app.includes(': vehicleWorkshopAdjustedSourceHours(adjustment.estimated_hours),'),'saved adjustment estimate is projected after authoritative refresh');
+assert.ok(migration.includes("correction_origin='manual_operator'"),'future updates record manual operator provenance');
+assert.ok(migration.includes("p_estimated_hours,'manual_operator'"),'future inserts record manual operator provenance');
+assert.ok(migration.includes('a5f90f3e216be024890ee02a01e1d0e7f7547f56f585dc66d3002c24b750e327'),'migration binds exact predecessor');
+for(const bad of ['TRUNCATE ','DISABLE TRIGGER','GRANT ALL',' ON DELETE CASCADE'])assert.ok(!migration.toUpperCase().includes(bad),`forbidden shortcut ${bad}`);
+console.log('vehicle_workshop_hours_overlay: PASS');
