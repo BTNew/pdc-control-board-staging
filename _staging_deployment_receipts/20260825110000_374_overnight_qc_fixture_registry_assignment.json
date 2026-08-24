@@ -1,0 +1,18 @@
+{
+  "applied": true,
+  "ledger_readback": [
+    {
+      "name": "374_overnight_qc_fixture_registry_assignment",
+      "version": "20260825110000"
+    }
+  ],
+  "management_response": [],
+  "migration_file": "20260825110000_374_overnight_qc_fixture_registry_assignment.sql",
+  "migration_name": "374_overnight_qc_fixture_registry_assignment",
+  "migration_sha256": "d20c2bf0693343d84aac31c07c7e730856521b35d49409b691c0215d9f3881ec",
+  "migration_version": "20260825110000",
+  "production_ref_rejected": "vjdtsswhroyguxyfjdkt",
+  "recorded_at_utc": "2026-08-24T17:52:25.490962+00:00",
+  "schema": "pdc-staging-management-migration-receipt-v1",
+  "target_ref": "cdsmnqxtyyoeoznmbidd"
+}

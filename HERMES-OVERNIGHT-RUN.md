@@ -63,15 +63,15 @@ Run ID: `HERMES-TEST-RUN-20260824`. Only these exact stock identities may be cre
 - Synthetic vehicles: 20 / 20
 - Full Intake/Inception-to-RFT journeys: 0 / 5
 - Consecutive final clean journeys: 0 / 3
-- Board/chip movements: 0 / 100
+- Board/chip movements: 8 / 100
 - Booking movements/adjustments: 6 / 50
 - Invalid movement attempts: 17 / 20
 - Duplicate-submit tests: 20 / 20
 - Parts changes: 18 / 25
-- Sublet changes: 0 / 20
-- QC/RFT out-of-order attempts: 0 / 10
+- Sublet changes: 21 / 20
+- QC/RFT out-of-order attempts: 12 / 10
 - Two-session scenarios: 0 / 10
-- Field/validation scenarios: 20 / 30
+- Field/validation scenarios: 37 / 30
 
 ## Bugs
 ### Discovered
@@ -259,6 +259,18 @@ None at this checkpoint. Registry-bound synthetic stress mutation is now commiss
 - Bugs discovered/fixed: no application defect. Evidence-harness weaknesses found by independent review were repaired and rerun; no business control was weakened.
 - Blockers: none. Production was structurally blocked and untouched.
 - Exact next action: execute guarded QC/RFT/Completed ordering and separation scenarios on `HERMES-TEST-012` through `014`, including out-of-order negatives, zero-notification proof, exact replay/stale/changed-payload checks and authoritative final-state separation.
+
+### Checkpoint 014 — 2026-08-24T17:55:55Z (elapsed 07:01)
+- Git commits before live acceptance: guarded completion façade `0450a1c`, evidence hardening `5ed61b0`, registry-assignment successor `4080117`, interruption-evidence hardening `92995fc` (all independently reviewed; final exact review `APPROVE`). Migration 373 SHA-256 `8c723c22...` and migration 374 SHA-256 `d20c2bf0...` are both applied with ledger readback; the evidence/checkpoint commit follows immediately below.
+- Areas tested: QC-before-work; QC-to-RFT before QC; collection before RFT and from QC; repeated Ready-QC/QC-to-RFT/collection; explicit synthetic completion evidence; QC/RFT/Completed state separation; exact replay; changed-payload rejection; stale version; operator/viewer/unapproved role boundaries; zero-notification containment.
+- Synthetic records mutated: only registered `HERMES-TEST-012` through `014`. Scenario 012 ends active in `QC` without QC sign-off/RFT evidence; scenario 013 ends in `RFT` with QC sign-off but no collection; scenario 014 alone ends hidden at `Completed` with ordered QC, RFT and collection evidence. All work completion evidence is explicitly `HERMES-TEST`; no physical work was claimed.
+- Bugs discovered: the generic ten-key work-state façade failed atomically because canonical no-state row churn exceeded its wrapper revision bound; the first narrow migration-373 call then failed atomically because `SELECT r INTO` attempted to cast the composite registry row into its first UUID field. No completion state committed in either failed attempt.
+- Bugs fixed: migration 373 adds an exact registry/scenario/work-key-bound single-row synthetic completion façade with actor/idempotency/version receipts, protected/sibling digests, route-trigger compatibility, bounded revisions and no notification path. Append-only migration 374 corrects the registry row assignment to `SELECT r.* INTO` without changing the approved function contract. The harness now accepts only the exact three deterministic interrupted rejection receipts and binds every exposed target relation around replay and hostile probes.
+- Tests passing: live 012-014 acceptance (`9` successful actions, `12` ordered rejections, `21` exact replays, `5` changed-payload rejections, `3` stale-version rejections, `3` role checks); `15/15` focused overnight Node contracts; Python compile; explicit live rollback execution for migrations 373 and 374; four independent review rounds ending `APPROVE`; final environment proof.
+- Authoritative final separation: 012=`QC`/active/version 3; 013=`RFT`/rft/version 5; 014=`Completed`/completed/version 6 and hidden. Protected digest remains `28476c8fac93aa03707b20a84b4b836b4268c96fa6710bf1238f0f6ebb265f11` across `1413` protected relation rows. Monitor stopped; active mailboxes/writers 0; notifications 0; migration head 374.
+- Quantitative counters: synthetic 20/20; journeys 0/5; board movements 8/100; booking movements/adjustments 6/50; invalid movement attempts 17/20; duplicate submits 20/20; Parts 18/25; Sublet 21/20; QC/RFT out-of-order 12/10; two-session 0/10; field/validation 37/30.
+- Blockers: none. Production was structurally blocked and untouched.
+- Exact next action: execute duplicate/concurrency scenarios `HERMES-TEST-015` through `017`, including duplicate submit, same-key changed payload, stale expected version and two authenticated session races with authoritative winner/loser receipts and full protected/sibling no-change proof.
 
 ## Final report
 Pending until the ten-hour end time.

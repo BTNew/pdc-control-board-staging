@@ -11,8 +11,8 @@
     "active_activation_writers": 0,
     "active_mailboxes": 0,
     "migration_head": {
-      "name": "373_overnight_qc_fixture_completion",
-      "version": "20260825100000"
+      "name": "374_overnight_qc_fixture_registry_assignment",
+      "version": "20260825110000"
     },
     "monitor_status": "stopped",
     "outbound_notification_rows": 0,

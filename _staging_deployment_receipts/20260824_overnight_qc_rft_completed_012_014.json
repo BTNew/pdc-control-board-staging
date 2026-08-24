@@ -1,0 +1,600 @@
+{
+  "actions": [
+    {
+      "action": "qc_to_rft",
+      "changed_payload_rejected": false,
+      "error": "qc_gate_blocked",
+      "expected_ok": false,
+      "http_status": 200,
+      "kind": "lifecycle",
+      "label": "012-qc-to-rft-before-qc",
+      "location_after": "PMB",
+      "location_before": "PMB",
+      "pre_action_migration_head": {
+        "name": "374_overnight_qc_fixture_registry_assignment",
+        "version": "20260825110000"
+      },
+      "receipt_id": "d05b46cc-b380-5a9c-8aef-ceca59de9155",
+      "recovered_from_prior_receipt": true,
+      "replay_verified": true,
+      "scenario_no": 12,
+      "version_after": 1,
+      "version_before": 1
+    },
+    {
+      "action": "collect",
+      "changed_payload_rejected": false,
+      "error": "not_in_rft",
+      "expected_ok": false,
+      "http_status": 200,
+      "kind": "lifecycle",
+      "label": "012-collect-before-rft",
+      "location_after": "PMB",
+      "location_before": "PMB",
+      "pre_action_migration_head": {
+        "name": "374_overnight_qc_fixture_registry_assignment",
+        "version": "20260825110000"
+      },
+      "receipt_id": "3dd6f267-076b-59f0-b40c-526a8c91f21c",
+      "recovered_from_prior_receipt": true,
+      "replay_verified": true,
+      "scenario_no": 12,
+      "version_after": 1,
+      "version_before": 1
+    },
+    {
+      "action": "ready_qc",
+      "changed_payload_rejected": false,
+      "error": "qc_gate_blocked",
+      "expected_ok": false,
+      "http_status": 200,
+      "kind": "lifecycle",
+      "label": "012-ready-qc-incomplete",
+      "location_after": "PMB",
+      "location_before": "PMB",
+      "pre_action_migration_head": {
+        "name": "374_overnight_qc_fixture_registry_assignment",
+        "version": "20260825110000"
+      },
+      "receipt_id": "40dc730e-5f42-543c-b4bb-6a5c0591965e",
+      "recovered_from_prior_receipt": true,
+      "replay_verified": true,
+      "scenario_no": 12,
+      "version_after": 1,
+      "version_before": 1
+    },
+    {
+      "action": "explicit_synthetic_completion",
+      "changed_payload_rejected": true,
+      "completion_audit_id": "e4acd4f2-0e58-4cc2-bd0a-2df349ba2b20",
+      "completion_audit_metadata": {
+        "action": "pdc_hermes_test_complete_qc_fixture_373",
+        "evidence": "HERMES-TEST explicit synthetic completion",
+        "physical_work_claimed": false
+      },
+      "expected_ok": true,
+      "http_status": 200,
+      "kind": "work_states",
+      "label": "012-complete-fittings-synthetic",
+      "physical_work_claimed": false,
+      "pre_action_migration_head": {
+        "name": "374_overnight_qc_fixture_registry_assignment",
+        "version": "20260825110000"
+      },
+      "receipt_id": "5ff99d08-c6a8-5aee-8f3a-64196137499e",
+      "replay_verified": true,
+      "scenario_no": 12,
+      "stale_version_rejected": true,
+      "version_after": 2,
+      "version_before": 1,
+      "work_key": "fitting"
+    },
+    {
+      "action": "qc_to_rft",
+      "changed_payload_rejected": false,
+      "error": "qc_gate_blocked",
+      "expected_ok": false,
+      "http_status": 200,
+      "kind": "lifecycle",
+      "label": "012-qc-to-rft-still-pmb",
+      "location_after": "PMB",
+      "location_before": "PMB",
+      "pre_action_migration_head": {
+        "name": "374_overnight_qc_fixture_registry_assignment",
+        "version": "20260825110000"
+      },
+      "receipt_id": "21542ad9-d60b-52f1-9b00-2dc2999cd437",
+      "recovered_from_prior_receipt": false,
+      "replay_verified": true,
+      "scenario_no": 12,
+      "version_after": 2,
+      "version_before": 2
+    },
+    {
+      "action": "ready_qc",
+      "changed_payload_rejected": true,
+      "error": null,
+      "expected_ok": true,
+      "http_status": 200,
+      "kind": "lifecycle",
+      "label": "012-ready-qc",
+      "location_after": "QC",
+      "location_before": "PMB",
+      "pre_action_migration_head": {
+        "name": "374_overnight_qc_fixture_registry_assignment",
+        "version": "20260825110000"
+      },
+      "receipt_id": "cad990f9-ae29-5bbc-b61c-5dd0ce090620",
+      "recovered_from_prior_receipt": false,
+      "replay_verified": true,
+      "scenario_no": 12,
+      "version_after": 3,
+      "version_before": 2
+    },
+    {
+      "action": "ready_qc",
+      "changed_payload_rejected": false,
+      "error": "already_ready_for_qc",
+      "expected_ok": false,
+      "http_status": 200,
+      "kind": "lifecycle",
+      "label": "012-ready-qc-again",
+      "location_after": "QC",
+      "location_before": "QC",
+      "pre_action_migration_head": {
+        "name": "374_overnight_qc_fixture_registry_assignment",
+        "version": "20260825110000"
+      },
+      "receipt_id": "50951568-b86b-523c-a3fe-f353a31666a0",
+      "recovered_from_prior_receipt": false,
+      "replay_verified": true,
+      "scenario_no": 12,
+      "version_after": 3,
+      "version_before": 3
+    },
+    {
+      "action": "collect",
+      "changed_payload_rejected": false,
+      "error": "not_in_rft",
+      "expected_ok": false,
+      "http_status": 200,
+      "kind": "lifecycle",
+      "label": "013-collect-before-rft",
+      "location_after": "PMB",
+      "location_before": "PMB",
+      "pre_action_migration_head": {
+        "name": "374_overnight_qc_fixture_registry_assignment",
+        "version": "20260825110000"
+      },
+      "receipt_id": "0b74f132-c711-594c-98c9-21c31358bb2d",
+      "recovered_from_prior_receipt": false,
+      "replay_verified": true,
+      "scenario_no": 13,
+      "version_after": 1,
+      "version_before": 1
+    },
+    {
+      "action": "qc_to_rft",
+      "changed_payload_rejected": false,
+      "error": "qc_gate_blocked",
+      "expected_ok": false,
+      "http_status": 200,
+      "kind": "lifecycle",
+      "label": "013-qc-to-rft-before-qc",
+      "location_after": "PMB",
+      "location_before": "PMB",
+      "pre_action_migration_head": {
+        "name": "374_overnight_qc_fixture_registry_assignment",
+        "version": "20260825110000"
+      },
+      "receipt_id": "2e9993cc-ca38-5f4b-a0dd-8e09f4641ea8",
+      "recovered_from_prior_receipt": false,
+      "replay_verified": true,
+      "scenario_no": 13,
+      "version_after": 1,
+      "version_before": 1
+    },
+    {
+      "action": "explicit_synthetic_completion",
+      "changed_payload_rejected": false,
+      "completion_audit_id": "6d5d5135-3afa-4955-a72e-36295d80a0d4",
+      "completion_audit_metadata": {
+        "action": "pdc_hermes_test_complete_qc_fixture_373",
+        "evidence": "HERMES-TEST explicit synthetic completion",
+        "physical_work_claimed": false
+      },
+      "expected_ok": true,
+      "http_status": 200,
+      "kind": "work_states",
+      "label": "013-complete-electrical-synthetic",
+      "physical_work_claimed": false,
+      "pre_action_migration_head": {
+        "name": "374_overnight_qc_fixture_registry_assignment",
+        "version": "20260825110000"
+      },
+      "receipt_id": "c3a2e091-13ff-51fe-afc6-cb04386e540f",
+      "replay_verified": true,
+      "scenario_no": 13,
+      "stale_version_rejected": true,
+      "version_after": 2,
+      "version_before": 1,
+      "work_key": "electrical"
+    },
+    {
+      "action": "ready_qc",
+      "changed_payload_rejected": false,
+      "error": null,
+      "expected_ok": true,
+      "http_status": 200,
+      "kind": "lifecycle",
+      "label": "013-ready-qc",
+      "location_after": "QC",
+      "location_before": "PMB",
+      "pre_action_migration_head": {
+        "name": "374_overnight_qc_fixture_registry_assignment",
+        "version": "20260825110000"
+      },
+      "receipt_id": "16b94b9b-727c-542d-a3e1-7ce491bd720f",
+      "recovered_from_prior_receipt": false,
+      "replay_verified": true,
+      "scenario_no": 13,
+      "version_after": 3,
+      "version_before": 2
+    },
+    {
+      "action": "collect",
+      "changed_payload_rejected": false,
+      "error": "not_in_rft",
+      "expected_ok": false,
+      "http_status": 200,
+      "kind": "lifecycle",
+      "label": "013-collect-from-qc",
+      "location_after": "QC",
+      "location_before": "QC",
+      "pre_action_migration_head": {
+        "name": "374_overnight_qc_fixture_registry_assignment",
+        "version": "20260825110000"
+      },
+      "receipt_id": "686157db-d715-54f6-a4c3-22a4e5aaba2f",
+      "recovered_from_prior_receipt": false,
+      "replay_verified": true,
+      "scenario_no": 13,
+      "version_after": 3,
+      "version_before": 3
+    },
+    {
+      "action": "qc_to_rft",
+      "changed_payload_rejected": true,
+      "error": null,
+      "expected_ok": true,
+      "http_status": 200,
+      "kind": "lifecycle",
+      "label": "013-qc-to-rft",
+      "location_after": "RFT",
+      "location_before": "QC",
+      "pre_action_migration_head": {
+        "name": "374_overnight_qc_fixture_registry_assignment",
+        "version": "20260825110000"
+      },
+      "receipt_id": "14d6c951-35dd-58e0-8cdd-1d420f2df401",
+      "recovered_from_prior_receipt": false,
+      "replay_verified": true,
+      "scenario_no": 13,
+      "version_after": 5,
+      "version_before": 3
+    },
+    {
+      "action": "ready_qc",
+      "changed_payload_rejected": false,
+      "error": "not_in_active_lifecycle",
+      "expected_ok": false,
+      "http_status": 200,
+      "kind": "lifecycle",
+      "label": "013-ready-qc-from-rft",
+      "location_after": "RFT",
+      "location_before": "RFT",
+      "pre_action_migration_head": {
+        "name": "374_overnight_qc_fixture_registry_assignment",
+        "version": "20260825110000"
+      },
+      "receipt_id": "23e37bea-438b-52d6-b441-31e31d1889d1",
+      "recovered_from_prior_receipt": false,
+      "replay_verified": true,
+      "scenario_no": 13,
+      "version_after": 5,
+      "version_before": 5
+    },
+    {
+      "action": "qc_to_rft",
+      "changed_payload_rejected": false,
+      "error": "qc_gate_blocked",
+      "expected_ok": false,
+      "http_status": 200,
+      "kind": "lifecycle",
+      "label": "014-qc-to-rft-before-qc",
+      "location_after": "PMB",
+      "location_before": "PMB",
+      "pre_action_migration_head": {
+        "name": "374_overnight_qc_fixture_registry_assignment",
+        "version": "20260825110000"
+      },
+      "receipt_id": "b779441a-cebf-526c-8984-4fa68c77e976",
+      "recovered_from_prior_receipt": false,
+      "replay_verified": true,
+      "scenario_no": 14,
+      "version_after": 1,
+      "version_before": 1
+    },
+    {
+      "action": "explicit_synthetic_completion",
+      "changed_payload_rejected": true,
+      "completion_audit_id": "823d6137-a8c8-439b-bd89-80ecdf129e33",
+      "completion_audit_metadata": {
+        "action": "pdc_hermes_test_complete_qc_fixture_373",
+        "evidence": "HERMES-TEST explicit synthetic completion",
+        "physical_work_claimed": false
+      },
+      "expected_ok": true,
+      "http_status": 200,
+      "kind": "work_states",
+      "label": "014-complete-fittings-synthetic",
+      "physical_work_claimed": false,
+      "pre_action_migration_head": {
+        "name": "374_overnight_qc_fixture_registry_assignment",
+        "version": "20260825110000"
+      },
+      "receipt_id": "9b990213-82bc-50f8-baef-77fd2dd4b61d",
+      "replay_verified": true,
+      "scenario_no": 14,
+      "stale_version_rejected": true,
+      "version_after": 2,
+      "version_before": 1,
+      "work_key": "fitting"
+    },
+    {
+      "action": "ready_qc",
+      "changed_payload_rejected": false,
+      "error": null,
+      "expected_ok": true,
+      "http_status": 200,
+      "kind": "lifecycle",
+      "label": "014-ready-qc",
+      "location_after": "QC",
+      "location_before": "PMB",
+      "pre_action_migration_head": {
+        "name": "374_overnight_qc_fixture_registry_assignment",
+        "version": "20260825110000"
+      },
+      "receipt_id": "b00be817-a402-50ee-a1c6-3ed2e11d8342",
+      "recovered_from_prior_receipt": false,
+      "replay_verified": true,
+      "scenario_no": 14,
+      "version_after": 3,
+      "version_before": 2
+    },
+    {
+      "action": "qc_to_rft",
+      "changed_payload_rejected": false,
+      "error": null,
+      "expected_ok": true,
+      "http_status": 200,
+      "kind": "lifecycle",
+      "label": "014-qc-to-rft",
+      "location_after": "RFT",
+      "location_before": "QC",
+      "pre_action_migration_head": {
+        "name": "374_overnight_qc_fixture_registry_assignment",
+        "version": "20260825110000"
+      },
+      "receipt_id": "ee39e148-77be-5bd3-a92e-892d9a9b5d26",
+      "recovered_from_prior_receipt": false,
+      "replay_verified": true,
+      "scenario_no": 14,
+      "version_after": 5,
+      "version_before": 3
+    },
+    {
+      "action": "qc_to_rft",
+      "changed_payload_rejected": false,
+      "error": "qc_gate_blocked",
+      "expected_ok": false,
+      "http_status": 200,
+      "kind": "lifecycle",
+      "label": "014-qc-to-rft-again",
+      "location_after": "RFT",
+      "location_before": "RFT",
+      "pre_action_migration_head": {
+        "name": "374_overnight_qc_fixture_registry_assignment",
+        "version": "20260825110000"
+      },
+      "receipt_id": "04afbdbd-7bda-5994-9ef5-03e14e2c52c3",
+      "recovered_from_prior_receipt": false,
+      "replay_verified": true,
+      "scenario_no": 14,
+      "version_after": 5,
+      "version_before": 5
+    },
+    {
+      "action": "collect",
+      "changed_payload_rejected": true,
+      "error": null,
+      "expected_ok": true,
+      "http_status": 200,
+      "kind": "lifecycle",
+      "label": "014-collect",
+      "location_after": "Completed",
+      "location_before": "RFT",
+      "pre_action_migration_head": {
+        "name": "374_overnight_qc_fixture_registry_assignment",
+        "version": "20260825110000"
+      },
+      "receipt_id": "c767cc50-84ad-591e-90ba-af3cd7c5ae53",
+      "recovered_from_prior_receipt": false,
+      "replay_verified": true,
+      "scenario_no": 14,
+      "version_after": 6,
+      "version_before": 5
+    },
+    {
+      "action": "collect",
+      "changed_payload_rejected": false,
+      "error": "already_collected",
+      "expected_ok": false,
+      "http_status": 200,
+      "kind": "lifecycle",
+      "label": "014-collect-again",
+      "location_after": "Completed",
+      "location_before": "Completed",
+      "pre_action_migration_head": {
+        "name": "374_overnight_qc_fixture_registry_assignment",
+        "version": "20260825110000"
+      },
+      "receipt_id": "22503709-3c9a-5980-be01-0d938ee86a41",
+      "recovered_from_prior_receipt": false,
+      "replay_verified": true,
+      "scenario_no": 14,
+      "version_after": 6,
+      "version_before": 6
+    }
+  ],
+  "actor_id": "557dba7f-fd70-4b9e-aa7b-b83b717682a7",
+  "changed_payload_rejections": 5,
+  "exact_replays": 21,
+  "final_environment": {
+    "banner_markers": {
+      "production_url_absent_from_config": true,
+      "service_role_absent_from_config": true,
+      "staging_ref_in_config": true,
+      "staging_title": true
+    },
+    "branch": "hermes/overnight-pdc-hardening-20260824",
+    "credential_files_in_worktree": [],
+    "database": {
+      "active_activation_writers": 0,
+      "active_mailboxes": 0,
+      "migration_head": {
+        "name": "374_overnight_qc_fixture_registry_assignment",
+        "version": "20260825110000"
+      },
+      "monitor_status": "stopped",
+      "outbound_notification_rows": 0,
+      "pending_outbound_notifications": 0,
+      "production_sentinel_absent": true,
+      "project_ref": "cdsmnqxtyyoeoznmbidd",
+      "staging_sentinel_rows": 1,
+      "synthetic_vehicle_total": 20,
+      "vehicle_total": 173
+    },
+    "outbound_policy": "mailboxes and activation writers disabled; no external sends permitted",
+    "pages_build": "c95e0dec3064eebfb88d8f8367a326ca77fcc6b7 built",
+    "production_access_guard": true,
+    "schema": "pdc-overnight-environment-proof-v1",
+    "source_start_commit": "ac06394736b55220e7425322fc53e9b9dadc3fdd",
+    "website_hostname": "btnew.github.io",
+    "website_path": "/pdc-control-board-staging/",
+    "website_title": "PDC Control Board \u2014 STAGING"
+  },
+  "final_separation": {
+    "12": {
+      "current_location": "QC",
+      "lifecycle_state": "active",
+      "qc_completed_at": null,
+      "qc_completed_by": null,
+      "rft_collected_at": null,
+      "rft_collected_by": null,
+      "rft_transferred_at": null,
+      "stock_number": "HERMES-TEST-012",
+      "version": 3,
+      "visible_on_board": true
+    },
+    "13": {
+      "current_location": "RFT",
+      "lifecycle_state": "rft",
+      "qc_completed_at": "2026-08-24T17:54:15.768829+00:00",
+      "qc_completed_by": "557dba7f-fd70-4b9e-aa7b-b83b717682a7",
+      "rft_collected_at": null,
+      "rft_collected_by": null,
+      "rft_transferred_at": "2026-08-24T17:54:15.793368+00:00",
+      "stock_number": "HERMES-TEST-013",
+      "version": 5,
+      "visible_on_board": true
+    },
+    "14": {
+      "current_location": "Completed",
+      "lifecycle_state": "completed",
+      "qc_completed_at": "2026-08-24T17:54:59.329984+00:00",
+      "qc_completed_by": "557dba7f-fd70-4b9e-aa7b-b83b717682a7",
+      "rft_collected_at": "2026-08-24T17:55:16.168318+00:00",
+      "rft_collected_by": "557dba7f-fd70-4b9e-aa7b-b83b717682a7",
+      "rft_transferred_at": "2026-08-24T17:54:59.35634+00:00",
+      "stock_number": "HERMES-TEST-014",
+      "version": 6,
+      "visible_on_board": false
+    }
+  },
+  "initial_environment": {
+    "banner_markers": {
+      "production_url_absent_from_config": true,
+      "service_role_absent_from_config": true,
+      "staging_ref_in_config": true,
+      "staging_title": true
+    },
+    "branch": "hermes/overnight-pdc-hardening-20260824",
+    "credential_files_in_worktree": [],
+    "database": {
+      "active_activation_writers": 0,
+      "active_mailboxes": 0,
+      "migration_head": {
+        "name": "374_overnight_qc_fixture_registry_assignment",
+        "version": "20260825110000"
+      },
+      "monitor_status": "stopped",
+      "outbound_notification_rows": 0,
+      "pending_outbound_notifications": 0,
+      "production_sentinel_absent": true,
+      "project_ref": "cdsmnqxtyyoeoznmbidd",
+      "staging_sentinel_rows": 1,
+      "synthetic_vehicle_total": 20,
+      "vehicle_total": 173
+    },
+    "outbound_policy": "mailboxes and activation writers disabled; no external sends permitted",
+    "pages_build": "c95e0dec3064eebfb88d8f8367a326ca77fcc6b7 built",
+    "production_access_guard": true,
+    "schema": "pdc-overnight-environment-proof-v1",
+    "source_start_commit": "ac06394736b55220e7425322fc53e9b9dadc3fdd",
+    "website_hostname": "btnew.github.io",
+    "website_path": "/pdc-control-board-staging/",
+    "website_title": "PDC Control Board \u2014 STAGING"
+  },
+  "notifications": 0,
+  "out_of_order_rejections": 12,
+  "physical_work_claimed": false,
+  "project_ref": "cdsmnqxtyyoeoznmbidd",
+  "protected_state": {
+    "rows": 1413,
+    "sha256": "28476c8fac93aa03707b20a84b4b836b4268c96fa6710bf1238f0f6ebb265f11"
+  },
+  "recorded_at_utc": "2026-08-24T17:55:35.414680+00:00",
+  "role_checks": [
+    {
+      "http_status": 200,
+      "read_allowed": true,
+      "role": "operator"
+    },
+    {
+      "auth_allowed": false,
+      "error": "invalid_credentials",
+      "http_status": 400,
+      "role": "viewer"
+    },
+    {
+      "error": "PDC_365_READ_UNAUTHORIZED_OR_RUN_INVALID",
+      "http_status": 403,
+      "read_allowed": false,
+      "role": "unapproved"
+    }
+  ],
+  "run_id": "HERMES-TEST-RUN-20260824",
+  "schema": "pdc-overnight-qc-rft-completed-012-014-v1",
+  "stale_version_rejections": 3
+}
