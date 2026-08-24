@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.24.01-planner-hours-label';
+const APP_VERSION = '2026.08.24.02-hours-overlay';
 const WORKSHOP_PLANNER_SCRIPT_VERSION = APP_VERSION;
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
@@ -11485,7 +11485,9 @@ function vehicleWorkshopGroups(vehicle = {}, detail = null) {
         sourceEstimatedHours: /\bai\b|model/.test(sourceKind) ? null : sourceHours,
         aiEstimatedHours: /\bai\b|model/.test(sourceKind) ? sourceHours : vehicleWorkshopAdjustedSourceHours(line.ai_estimated_hours),
         protectedHours: adjustment.manual_assignment_locked && adjustment.correction_origin !== 'manual_operator' ? adjustment.estimated_hours : line.protected_hours,
-        manualOverrideHours: adjustment.correction_origin === 'manual_operator' ? adjustment.estimated_hours : line.manual_override_hours,
+        manualOverrideHours: adjustment.manual_assignment_locked && adjustment.correction_origin !== 'manual_operator'
+          ? line.manual_override_hours
+          : vehicleWorkshopAdjustedSourceHours(adjustment.estimated_hours),
         adjustmentId: adjustment.adjustment_id,
         adjustmentVersion: Number(adjustment.version || 0),
         adjustmentProtected: adjustment.manual_assignment_locked === true,

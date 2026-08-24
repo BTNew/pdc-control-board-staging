@@ -20,7 +20,7 @@ assert.ok(stagingConfig.includes('completeVehicleDeleteCommissioned: false'), 'u
 assert.ok(appSource.includes('disabled = true') || appSource.includes('.disabled = true'), 'request path disables the destructive control');
 assert.ok(appSource.includes('refreshVehicleLifecycleLocationsAndRender'), 'success path performs authoritative readback');
 assert.ok(stagingSource.includes('pdc-supabase-config.staging.js'), 'staging shell loads staging config');
-assert.ok(stagingSource.includes('app.js?v=2026.08.24.01-planner-hours-label'), 'staging shell points at hidden-control release marker');
+assert.ok(stagingSource.includes('app.js?v=2026.08.24.02-hours-overlay'), 'staging shell points at hidden-control release marker');
 assert.ok(legacyShell.includes('url=./'), 'retired staging shell redirects to current entry');
 
 const { buildVehicleLifecycleSharedActions } = require('./vehicle-lifecycle-actions.js');
