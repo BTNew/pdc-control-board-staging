@@ -19,7 +19,7 @@ LOCK TABLE public.workshop_booking_assignments IN SHARE ROW EXCLUSIVE MODE;
 LOCK TABLE public.workshop_booking_history IN SHARE ROW EXCLUSIVE MODE;
 
 DO $guard$
-DECLARE v_minutes_sha text;v_sync_sha text;v_dependency_sha text;v_acl text[];
+DECLARE v_minutes_sha text;v_sync_sha text;v_dependency_sha text;v_acl text[];v_sync_acl text[];
 BEGIN
  IF NOT public.pdc_monitor_staging_guard()
    OR (SELECT count(*) FROM public.pdc_staging_environment_sentinel WHERE singleton AND project_ref='cdsmnqxtyyoeoznmbidd')<>1
@@ -62,6 +62,43 @@ BEGIN
    OR has_function_privilege('authenticated','public.workshop_vehicle_stage_estimated_duration_minutes(uuid,uuid)','EXECUTE')
    OR has_function_privilege('service_role','public.workshop_vehicle_stage_estimated_duration_minutes(uuid,uuid)','EXECUTE') THEN
   RAISE EXCEPTION 'PDC_370_PREDECESSOR_OWNER_ACL_MISMATCH' USING errcode='55000';
+ END IF;
+ SELECT array_agg(coalesce(r.rolname,'public')||':'||x.privilege_type ORDER BY coalesce(r.rolname,'public'),x.privilege_type)
+ INTO v_sync_acl FROM pg_proc p CROSS JOIN LATERAL aclexplode(coalesce(p.proacl,acldefault('f',p.proowner))) x LEFT JOIN pg_roles r ON r.oid=x.grantee
+ WHERE p.oid='public.workshop_sync_vehicle_stage_booking_duration(uuid,text,text)'::regprocedure;
+ IF v_sync_acl IS DISTINCT FROM ARRAY['postgres:EXECUTE']::text[]
+   OR NOT EXISTS(SELECT 1 FROM pg_proc p WHERE p.oid='public.workshop_sync_vehicle_stage_booking_duration(uuid,text,text)'::regprocedure
+      AND p.prosecdef AND p.provolatile='v' AND pg_get_userbyid(p.proowner)='postgres'
+      AND p.proconfig=ARRAY['search_path=pg_catalog, public, extensions']::text[])
+   OR (SELECT count(*) FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname='public'
+       AND c.relname IN('pdc_overnight_synthetic_estimates_369','pdc_overnight_synthetic_estimate_receipts_369')
+       AND c.relkind='r' AND c.relrowsecurity AND NOT c.relforcerowsecurity AND pg_get_userbyid(c.relowner)='postgres'
+       AND (SELECT array_agg(coalesce(r.rolname,'public')||':'||x.privilege_type ORDER BY coalesce(r.rolname,'public'),x.privilege_type)
+            FROM aclexplode(coalesce(c.relacl,acldefault('r',c.relowner))) x LEFT JOIN pg_roles r ON r.oid=x.grantee)
+          =ARRAY['postgres:DELETE','postgres:INSERT','postgres:MAINTAIN','postgres:REFERENCES','postgres:SELECT','postgres:TRIGGER','postgres:TRUNCATE','postgres:UPDATE']::text[])<>2
+   OR NOT EXISTS(SELECT 1 FROM pg_proc p WHERE p.oid='public.pdc_overnight_synthetic_estimate_append_only_369()'::regprocedure
+       AND p.prosecdef AND pg_get_userbyid(p.proowner)='postgres'
+       AND encode(extensions.digest(convert_to(pg_get_functiondef(p.oid),'UTF8'),'sha256'),'hex')='c7881b2331e94744f7c5b8c7308b2744e5c5808ec1b2ed7711d7fee2ba0a5ba7'
+       AND (SELECT array_agg(coalesce(r.rolname,'public')||':'||x.privilege_type ORDER BY coalesce(r.rolname,'public'),x.privilege_type)
+            FROM aclexplode(coalesce(p.proacl,acldefault('f',p.proowner))) x LEFT JOIN pg_roles r ON r.oid=x.grantee)=ARRAY['postgres:EXECUTE']::text[])
+   OR NOT EXISTS(SELECT 1 FROM pg_proc p WHERE p.oid='public.pdc_hermes_test_set_estimate_369(text,uuid,integer,bigint,uuid,text,numeric)'::regprocedure
+       AND p.prosecdef AND pg_get_userbyid(p.proowner)='postgres'
+       AND encode(extensions.digest(convert_to(pg_get_functiondef(p.oid),'UTF8'),'sha256'),'hex')='bdff67bb2b7d42a68c059e7c23dada6ac98acf23aef22c385b495c761004a91b'
+       AND (SELECT array_agg(coalesce(r.rolname,'public')||':'||x.privilege_type ORDER BY coalesce(r.rolname,'public'),x.privilege_type)
+            FROM aclexplode(coalesce(p.proacl,acldefault('f',p.proowner))) x LEFT JOIN pg_roles r ON r.oid=x.grantee)=ARRAY['authenticated:EXECUTE','postgres:EXECUTE']::text[])
+   OR NOT EXISTS(SELECT 1 FROM pg_proc p WHERE p.oid='public.read_pdc_hermes_test_estimates_369(text,uuid)'::regprocedure
+       AND p.prosecdef AND p.provolatile='s' AND pg_get_userbyid(p.proowner)='postgres'
+       AND encode(extensions.digest(convert_to(pg_get_functiondef(p.oid),'UTF8'),'sha256'),'hex')='d379737a7c17cb5c66018ba60a20d2890bd4ae0cc2d0130e001666656d52db77'
+       AND (SELECT array_agg(coalesce(r.rolname,'public')||':'||x.privilege_type ORDER BY coalesce(r.rolname,'public'),x.privilege_type)
+            FROM aclexplode(coalesce(p.proacl,acldefault('f',p.proowner))) x LEFT JOIN pg_roles r ON r.oid=x.grantee)=ARRAY['authenticated:EXECUTE','postgres:EXECUTE']::text[])
+   OR (SELECT count(*) FROM pg_trigger t JOIN pg_class c ON c.oid=t.tgrelid
+       WHERE c.relname IN('pdc_overnight_synthetic_estimates_369','pdc_overnight_synthetic_estimate_receipts_369') AND NOT t.tgisinternal
+       AND ((t.tgname='pdc_hermes_test_actor_route_guard_365' AND t.tgtype=31 AND t.tgfoid='public.pdc_hermes_test_actor_route_guard_365()'::regprocedure)
+         OR (t.tgname IN('pdc_overnight_synthetic_estimates_append_only_369','pdc_overnight_synthetic_estimate_receipts_append_only_369')
+             AND t.tgtype=27 AND t.tgfoid='public.pdc_overnight_synthetic_estimate_append_only_369()'::regprocedure)) AND t.tgenabled='O')<>4
+   OR (SELECT count(*) FROM pg_trigger t JOIN pg_class c ON c.oid=t.tgrelid
+       WHERE c.relname IN('pdc_overnight_synthetic_estimates_369','pdc_overnight_synthetic_estimate_receipts_369') AND NOT t.tgisinternal)<>4 THEN
+  RAISE EXCEPTION 'PDC_370_MIGRATION_369_CATALOG_OR_SYNC_AUTHORITY_MISMATCH' USING errcode='55000';
  END IF;
 END $guard$;
 
@@ -205,7 +242,7 @@ REVOKE ALL ON FUNCTION public.pdc_hermes_test_dependency_guard_365() FROM public
 
 
 DO $post$
-DECLARE v_route_tables text[];v_acl text[];
+DECLARE v_route_tables text[];v_acl text[];v_sync_acl text[];
 BEGIN
  IF encode(extensions.digest(convert_to(pg_get_functiondef('public.workshop_vehicle_stage_estimated_duration_minutes(uuid,uuid)'::regprocedure),'UTF8'),'sha256'),'hex')<>'6cf33245713fe9481976f4fa47fe5f8a4b1cf8e47d5d8568eb4cb8a602e5ceee'
    OR encode(extensions.digest(convert_to(pg_get_functiondef('public.workshop_sync_vehicle_stage_booking_duration(uuid,text,text)'::regprocedure),'UTF8'),'sha256'),'hex')<>'d69480f37eb6924a6c0cdfc1de2ca9e044841ce702cb6b6c3713840cb8c9e577'
@@ -228,10 +265,17 @@ BEGIN
  SELECT array_agg(coalesce(r.rolname,'public')||':'||x.privilege_type ORDER BY coalesce(r.rolname,'public'),x.privilege_type)
  INTO v_acl FROM pg_proc p CROSS JOIN LATERAL aclexplode(coalesce(p.proacl,acldefault('f',p.proowner))) x LEFT JOIN pg_roles r ON r.oid=x.grantee
  WHERE p.oid='public.workshop_vehicle_stage_estimated_duration_minutes(uuid,uuid)'::regprocedure;
+ SELECT array_agg(coalesce(r.rolname,'public')||':'||x.privilege_type ORDER BY coalesce(r.rolname,'public'),x.privilege_type)
+ INTO v_sync_acl FROM pg_proc p CROSS JOIN LATERAL aclexplode(coalesce(p.proacl,acldefault('f',p.proowner))) x LEFT JOIN pg_roles r ON r.oid=x.grantee
+ WHERE p.oid='public.workshop_sync_vehicle_stage_booking_duration(uuid,text,text)'::regprocedure;
  SELECT array_agg(c.relname::text ORDER BY c.relname::text) INTO v_route_tables FROM pg_trigger t JOIN pg_class c ON c.oid=t.tgrelid JOIN pg_namespace n ON n.oid=c.relnamespace
  WHERE n.nspname='public' AND t.tgname='pdc_hermes_test_actor_route_guard_365' AND t.tgfoid='public.pdc_hermes_test_actor_route_guard_365()'::regprocedure
    AND t.tgtype=31 AND t.tgenabled='O' AND t.tgqual IS NULL AND NOT t.tgisinternal;
  IF v_acl IS DISTINCT FROM ARRAY['postgres:EXECUTE']::text[]
+   OR v_sync_acl IS DISTINCT FROM ARRAY['postgres:EXECUTE']::text[]
+   OR NOT EXISTS(SELECT 1 FROM pg_proc p WHERE p.oid='public.workshop_sync_vehicle_stage_booking_duration(uuid,text,text)'::regprocedure
+       AND p.prosecdef AND p.provolatile='v' AND pg_get_userbyid(p.proowner)='postgres'
+       AND p.proconfig=ARRAY['search_path=pg_catalog, public, extensions']::text[])
    OR v_route_tables IS DISTINCT FROM ARRAY['audit_events','pdc_authenticated_email_operation_lines','pdc_overnight_synthetic_estimate_receipts_369','pdc_overnight_synthetic_estimates_369','pdc_sublet_booking_instance_history','pdc_sublet_booking_instances','vehicle_movements','vehicle_parts_updates','vehicle_work_items','vehicle_workshop_line_adjustments','vehicles','workshop_booking_assignments','workshop_booking_history','workshop_bookings','workshop_parts_overrides']::text[]
    OR EXISTS(SELECT 1 FROM public.monitored_mailboxes WHERE active)
    OR EXISTS(SELECT 1 FROM public.pdc_monitor_stage_activation_writers WHERE active AND revoked_at IS NULL) THEN
