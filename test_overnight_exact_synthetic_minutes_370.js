@@ -1,0 +1,23 @@
+const fs=require('fs');
+const p='supabase/staging_only/20260825070000_370_overnight_exact_synthetic_minutes.sql';
+const sql=fs.readFileSync(p,'utf8');
+function need(x,msg){if(!sql.includes(x))throw new Error(msg||`missing ${x}`)}
+need("project_ref='cdsmnqxtyyoeoznmbidd'",'staging sentinel');
+need("to_regclass('public.pdc_production_environment_sentinel') IS NOT NULL",'production sentinel guard');
+need("version='20260825060000' AND name='369_overnight_synthetic_estimates'",'exact predecessor');
+need('152f101c80f8eec420f7d9c06de1570a81ede41620d8e5fc0ed8e479143c7f5c','migration 369 source binding');
+for(const h of ['c66f13a1859410449b2664236e1462e61bb3c09017962f7753865316bb58bd1b','36bc98f16010d4cc99d3d2d83f56688d3fa7860de2491c0bc7ca085564c544bc','ecc6e83ca01dbc98ab682890b416234b18362d6ebd8716183ce5dc85f7e8eaaa','6cf33245713fe9481976f4fa47fe5f8a4b1cf8e47d5d8568eb4cb8a602e5ceee','d69480f37eb6924a6c0cdfc1de2ca9e044841ce702cb6b6c3713840cb8c9e577'])need(h,'function hash');
+need('e.estimated_minutes BETWEEN 1 AND 59','sub-hour bound');
+need("e.run_id='HERMES-TEST-RUN-20260824'",'exact run');
+need("v.source_system='hermes_overnight_synthetic'",'identity gate');
+need("v.source_payload->>'contract'='pdc-overnight-synthetic-fleet-363/render_only'",'source contract');
+need('WHEN h.hours IS NULL THEN NULL ELSE greatest(60,round(h.hours*60)::integer)','established fallback');
+need('workshop_vehicle_stage_estimated_duration_minutes(p_vehicle_id,v_booking.stage_id)','sync delegation');
+need('pdc_370_protected_minutes','protected behavior snapshot');
+need("workshop_booking_045_estimated_duration_required_317",'positive estimate trigger');
+need("(SELECT count(*) FROM public.vehicle_notifications)<>0",'notification containment');
+need("VALUES('20260825070000','370_overnight_exact_synthetic_minutes'",'ledger');
+for(const forbidden of [/\bTRUNCATE\b/i,/\bDELETE\s+FROM\b/i,/DISABLE\s+TRIGGER/i,/GRANT\s+(?:INSERT|UPDATE|DELETE|ALL)\s+ON\s+(?:TABLE\s+)?public\./i])if(forbidden.test(sql))throw new Error(`forbidden ${forbidden}`);
+const routes=['audit_events','pdc_authenticated_email_operation_lines','pdc_overnight_synthetic_estimate_receipts_369','pdc_overnight_synthetic_estimates_369','pdc_sublet_booking_instance_history','pdc_sublet_booking_instances','vehicle_movements','vehicle_parts_updates','vehicle_work_items','vehicle_workshop_line_adjustments','vehicles','workshop_booking_assignments','workshop_booking_history','workshop_bookings','workshop_parts_overrides'];
+for(const route of routes)need(`'${route}'`,'route inventory');
+console.log('migration 370 static contract passed');
