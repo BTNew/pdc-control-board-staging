@@ -1,0 +1,18 @@
+{
+  "schema": "pdc-owner-rule-profile-sync-v1",
+  "status": "VERIFIED",
+  "rule_family": "accessory_12v_socket_plug_electrical",
+  "added_explicit_match": "anderson plug",
+  "profile": "pdc-emails",
+  "files": {
+    "scripts/pdc_email_reviewer.py": "2cfe98e527f64fcd0df97264d50000f6c5bce9d4445fc3d4bba626b8eb7cf6ed",
+    "tests/test_pdc_email_reviewer.py": "fa1e8a8e51fc81a167ac3c7e4be7388f4e08ec592491ff77e221de06091567c3"
+  },
+  "focused_tests": {
+    "command": "python -m unittest tests.test_pdc_email_reviewer",
+    "passed": 82,
+    "failed": 0
+  },
+  "monitor_started": false,
+  "production_touched": false
+}

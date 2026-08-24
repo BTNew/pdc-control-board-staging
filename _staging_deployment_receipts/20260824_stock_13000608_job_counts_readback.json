@@ -1,0 +1,46 @@
+{
+  "active_mailboxes": 0,
+  "active_writers": 0,
+  "anderson": [
+    {
+      "hours": null,
+      "operation_no": "OP8",
+      "stage": "ELECTRICAL",
+      "stock": "13018165",
+      "version": 1
+    },
+    {
+      "hours": 2,
+      "operation_no": "OP9",
+      "stage": "ELECTRICAL",
+      "stock": "13000608",
+      "version": 3
+    }
+  ],
+  "counts": {
+    "ELECTRICAL": 3,
+    "FABRICATION": 1,
+    "FITTING": 3,
+    "HOIST": 1,
+    "TYRE": 1
+  },
+  "hours": {
+    "ELECTRICAL": 5,
+    "FABRICATION": 4,
+    "FITTING": 4.5,
+    "HOIST": 2,
+    "TYRE": 1.2
+  },
+  "migration": "362_align_anderson_plugs_and_job_counts",
+  "monitor_status": "stopped",
+  "op9": {
+    "correction_origin": "manual_operator",
+    "description": "50A ANDERSON PLUG IN HIDRIVE CANOPY NEXT TO ACC SOCKE",
+    "hours": 2,
+    "operation_no": "OP9",
+    "stage": "ELECTRICAL",
+    "stock_number": "13000608",
+    "version": 3
+  },
+  "recent_booking_history": 0
+}

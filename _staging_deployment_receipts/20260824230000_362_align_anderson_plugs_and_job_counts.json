@@ -1,0 +1,22 @@
+{
+  "applied": true,
+  "ledger_readback": [
+    {
+      "name": "362_align_anderson_plugs_and_job_counts",
+      "version": "20260824230000"
+    }
+  ],
+  "management_response": [
+    {
+      "pg_advisory_xact_lock": ""
+    }
+  ],
+  "migration_file": "20260824230000_362_align_anderson_plugs_and_job_counts.sql",
+  "migration_name": "362_align_anderson_plugs_and_job_counts",
+  "migration_sha256": "dc158d1142a56829e524a7e76428b0797b5f7f72cab74624961a95b0469520bb",
+  "migration_version": "20260824230000",
+  "production_ref_rejected": "vjdtsswhroyguxyfjdkt",
+  "recorded_at_utc": "2026-08-24T09:52:46.897567+00:00",
+  "schema": "pdc-staging-management-migration-receipt-v1",
+  "target_ref": "cdsmnqxtyyoeoznmbidd"
+}
