@@ -65,13 +65,13 @@ Run ID: `HERMES-TEST-RUN-20260824`. Only these exact stock identities may be cre
 - Consecutive final clean journeys: 0 / 3
 - Board/chip movements: 0 / 100
 - Booking movements/adjustments: 6 / 50
-- Invalid movement attempts: 11 / 20
-- Duplicate-submit tests: 15 / 20
-- Parts changes: 0 / 25
+- Invalid movement attempts: 17 / 20
+- Duplicate-submit tests: 20 / 20
+- Parts changes: 18 / 25
 - Sublet changes: 0 / 20
 - QC/RFT out-of-order attempts: 0 / 10
 - Two-session scenarios: 0 / 10
-- Field/validation scenarios: 14 / 30
+- Field/validation scenarios: 20 / 30
 
 ## Bugs
 ### Discovered
@@ -232,6 +232,19 @@ None at this checkpoint. Registry-bound synthetic stress mutation is now commiss
 - Blockers: none. Monitor stopped; active mailboxes/writers 0; notifications 0; Production was structurally blocked and untouched.
 - Quantitative counters: synthetic 20/20; journeys 0/5; board movements 2/100; booking movements/adjustments 6/50; invalid attempts 11/20; duplicate submits 15/20; Parts 0/25; Sublet 0/20; QC/RFT out-of-order 0/10; two-session 0/10; field/validation 14/30.
 - Exact next action: execute guarded Parts lifecycle/stoppage/recovery stress on `HERMES-TEST-008` and `009`, preserving receipt/readback, protected digest and zero-notification evidence after every action.
+
+### Checkpoint 012 — 2026-08-24T16:50:24Z (elapsed 05:55)
+- Git commit: pending this checkpoint commit; parent `5f2b738`.
+- Areas tested: registry-bound Parts ETA, ordered and received lifecycle; direct authenticated receipt semantics; invalid post-receipt ordering; Parts stoppage and recovery; exact replay; changed-payload rejection; stale vehicle-version rejection; authoritative receipt/readback after every action.
+- Synthetic records mutated: only registered `HERMES-TEST-008` and `009`. Scenario 008 now has the planned ETA→ordered→received history. Scenario 009 proved the canonical direct-receipt path, then a synthetic stoppage/recovery cycle; final authoritative state is received with stoppage cleared. No physical work was claimed.
+- Interrupted-run recovery: the first harness intentionally stopped when its expectation that completion required a prior order proved false. Source inspection confirmed migration 259 deliberately supports direct authenticated Parts receipt, so the harness resumed only after matching the exact committed rows and deterministic receipts; it did not undo, overwrite or reinterpret them.
+- Invalid ordering evidence: ordering after direct receipt was rejected as `parts_already_ordered`; completion while the synthetic received/stoppage state was active was rejected as `parts_already_received`. Both produced immutable rejection receipts and no target change.
+- Tests passing: live authenticated Parts harness; six exact replays across the complete sequence; two changed-payload rejections; two stale-version rejections; nine focused Parts JavaScript contracts; Python compile; final environment proof.
+- Authoritative containment: protected digest unchanged at `28476c8fac93aa03707b20a84b4b836b4268c96fa6710bf1238f0f6ebb265f11` across `1413` protected relation rows; notifications 0; Monitor stopped; active mailboxes/writers 0; migration head 372.
+- Bugs discovered/fixed: no application defect. The harness's ordering assumption was corrected to the documented receipt-driven Parts contract and made interruption-aware. Direct receipt is valid evidence; unknown or invented receipt evidence remains forbidden.
+- Quantitative counters: synthetic 20/20; journeys 0/5; board movements 2/100; booking movements/adjustments 6/50; invalid attempts 17/20; duplicate submits 20/20; Parts changes/attempts 18/25; Sublet 0/20; QC/RFT out-of-order 0/10; two-session 0/10; field/validation 20/30.
+- Blockers: none. Production was structurally blocked and untouched.
+- Exact next action: run guarded Sublet queued/booked/update/returned and multi-provider isolation stress on `HERMES-TEST-010` and `011`, including provider inventory readback, invalid date/order, idempotent replay, changed payload, stale version and final returned-state verification.
 
 ## Final report
 Pending until the ten-hour end time.
