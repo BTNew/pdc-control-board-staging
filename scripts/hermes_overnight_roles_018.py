@@ -63,13 +63,12 @@ def main() -> None:
         raise RuntimeError("isolated role-session identity contract")
 
     def authoritative_role(session: dict) -> dict:
-        actor_id = session["user"]["id"]
-        headers = {"apikey": key, "Authorization": "Bearer " + session["access_token"]}
-        status, rows = request_json(
-            base + f"/rest/v1/pdc_user_roles?auth_user_id=eq.{actor_id}&select=role,active,account_status",
-            "GET", headers, None,
-        )
-        if status != 200 or not isinstance(rows, list) or len(rows) != 1:
+        actor_id = str(uuid.UUID(session["user"]["id"]))
+        sql = f"""SET TRANSACTION READ ONLY;
+select role::text, active, account_status::text
+from public.pdc_user_roles where auth_user_id='{actor_id}'::uuid;"""
+        rows = _post(f"https://api.supabase.com/v1/projects/{REF}/database/query/read-only", sql)
+        if len(rows) != 1:
             raise RuntimeError("authoritative actor-role readback")
         return rows[0]
 
