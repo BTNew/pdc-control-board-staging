@@ -20,7 +20,7 @@ class OwnerJobcardAreaRuleTests(unittest.TestCase):
   self.assertEqual(200,m.EXPECTED_WRONG);self.assertEqual({'electrical':25,'fitting':146,'hoist':29},m.TARGET_COUNTS)
  def test_migration_is_versioned_and_alias_complete(self):
   s=MIG.read_text(encoding='utf-8')
-  for x in ['towbars_fitting','fire_extinguishers_fitting','12v_socket_plug_electrical','battery_box_bcdc_electrical','xrs370c_electrical','navman_cardex_electrical','long_range_tanks_hoist','fire extinuisher','bcdc1225d','sub tank replacem','original_telegram_instruction','pdc_supervised_rule_events'] :self.assertIn(x,s)
+  for x in ['towbars_fitting','fire_extinguishers_fitting','accessory_12v_socket_plug_electrical','battery_box_bcdc_electrical','xrs370c_electrical','navman_cardex_electrical','long_range_tanks_hoist','fire extinuisher','bcdc1225d','sub tank replacem','original_telegram_instruction','pdc_supervised_rule_events'] :self.assertIn(x,s)
  def test_staging_guards_and_no_broad_authority(self):
   s=MIG.read_text(encoding='utf-8');u=s.upper()
   for x in ['cdsmnqxtyyoeoznmbidd','PDC_PRODUCTION_ENVIRONMENT_SENTINEL','20260824180000','MONITORED_MAILBOXES','PDC_MONITOR_STAGE_ACTIVATION_WRITERS']:self.assertIn(x,u if x.isupper() else s)
