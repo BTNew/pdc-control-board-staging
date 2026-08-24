@@ -1,0 +1,18 @@
+{
+  "schema": "pdc-overnight-baseline-rerun-v1",
+  "status": "PASSED",
+  "node_regressions": {
+    "total": 33,
+    "passed": 33,
+    "failed": 0,
+    "evidence": "baseline-tests.json"
+  },
+  "python_regressions": {
+    "command": "python -m unittest discover -p 'test_*.py'",
+    "tests_run": 30,
+    "passed": 30,
+    "failed": 0,
+    "duration_seconds": 0.544
+  },
+  "baseline_runner_issue": "The background launcher selected Hermes' bundled CPython without openpyxl. The foreground project interpreter already had openpyxl 3.1.5. Re-running with the project interpreter passed all 30 tests; no application test was weakened or skipped."
+}

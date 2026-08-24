@@ -1,0 +1,213 @@
+{
+  "node": [
+    {
+      "test": "test_all_parts_shared_target.js",
+      "exit_code": 0,
+      "stdout": "All Parts actions shared target contract passed.\n",
+      "stderr": ""
+    },
+    {
+      "test": "test_authenticated_operation_summary_adjustments.js",
+      "exit_code": 0,
+      "stdout": "authenticated_operation_summary_adjustments: PASS\n",
+      "stderr": ""
+    },
+    {
+      "test": "test_complete_vehicle_delete_contract.js",
+      "exit_code": 0,
+      "stdout": "Complete vehicle delete SQL contract passed.\n",
+      "stderr": ""
+    },
+    {
+      "test": "test_complete_vehicle_delete_negative_matrix.js",
+      "exit_code": 0,
+      "stdout": "Complete vehicle delete negative matrix contract passed.\n",
+      "stderr": ""
+    },
+    {
+      "test": "test_complete_vehicle_delete_ui.js",
+      "exit_code": 0,
+      "stdout": "Complete vehicle delete UI/service contract passed.\n",
+      "stderr": ""
+    },
+    {
+      "test": "test_dynamic_required_work_payload.js",
+      "exit_code": 0,
+      "stdout": "Dynamic required-work payload and canonical readback contract passed.\n",
+      "stderr": ""
+    },
+    {
+      "test": "test_email_authoritative_board.js",
+      "exit_code": 0,
+      "stdout": "email_authoritative_board: PASS\n",
+      "stderr": ""
+    },
+    {
+      "test": "test_inline_vehicle_card_parts_save.js",
+      "exit_code": 0,
+      "stdout": "Inline vehicle-card Parts shared save contract passed.\n",
+      "stderr": ""
+    },
+    {
+      "test": "test_legacy_website_links.js",
+      "exit_code": 0,
+      "stdout": "legacy_website_links: PASS\n",
+      "stderr": ""
+    },
+    {
+      "test": "test_linked_salesperson_email.js",
+      "exit_code": 0,
+      "stdout": "Linked salesperson email recipient contract passed.\n",
+      "stderr": ""
+    },
+    {
+      "test": "test_modal_email_update_selection.js",
+      "exit_code": 0,
+      "stdout": "Modal EMAIL UPDATE selection contract passed.\n",
+      "stderr": ""
+    },
+    {
+      "test": "test_movable_admin_palette.js",
+      "exit_code": 0,
+      "stdout": "Movable 30-minute Admin palette contract passed.\n",
+      "stderr": ""
+    },
+    {
+      "test": "test_navision_stock_authority_096.js",
+      "exit_code": 0,
+      "stdout": "Migration 096 unique Stock/Navision authority contract passed\n",
+      "stderr": ""
+    },
+    {
+      "test": "test_orphan_workshop_booking_repair.js",
+      "exit_code": 0,
+      "stdout": "orphan_workshop_booking_repair: PASS\n",
+      "stderr": ""
+    },
+    {
+      "test": "test_parts_projection_identity.js",
+      "exit_code": 0,
+      "stdout": "Parts projection identity regression contract passed.\n",
+      "stderr": ""
+    },
+    {
+      "test": "test_parts_queue_canonical_readback.js",
+      "exit_code": 0,
+      "stdout": "Parts queue canonical readback contract passed.\n",
+      "stderr": ""
+    },
+    {
+      "test": "test_parts_shared_actions.js",
+      "exit_code": 0,
+      "stdout": "Shared Parts ordered/complete contract passed.\n",
+      "stderr": ""
+    },
+    {
+      "test": "test_parts_snapshot_completion_projection.js",
+      "exit_code": 0,
+      "stdout": "Parts snapshot completion/projection passed.\n",
+      "stderr": ""
+    },
+    {
+      "test": "test_qc_page.js",
+      "exit_code": 0,
+      "stdout": "QC page contract: 15 assertions passed.\n",
+      "stderr": ""
+    },
+    {
+      "test": "test_raw_snapshot_mapper_work_state.js",
+      "exit_code": 0,
+      "stdout": "Raw snapshot to DTO mapper stale-state regression passed.\n",
+      "stderr": ""
+    },
+    {
+      "test": "test_removed_operation_workbay_reconciliation.js",
+      "exit_code": 0,
+      "stdout": "removed_operation_workbay_reconciliation: PASS\n",
+      "stderr": ""
+    },
+    {
+      "test": "test_shared_parts_post_save_reconciliation.js",
+      "exit_code": 0,
+      "stdout": "Shared Parts post-save reconciliation contract passed.\n",
+      "stderr": ""
+    },
+    {
+      "test": "test_shared_parts_save_diagnostics.js",
+      "exit_code": 0,
+      "stdout": "Shared Parts save diagnostics contract passed.\n",
+      "stderr": ""
+    },
+    {
+      "test": "test_shared_work_state_overlay.js",
+      "exit_code": 0,
+      "stdout": "Shared work-state stale projection and Save hang contract passed.\n",
+      "stderr": ""
+    },
+    {
+      "test": "test_staging_parts_completion_259.js",
+      "exit_code": 0,
+      "stdout": "Staging Parts completion migration contract passed.\n",
+      "stderr": ""
+    },
+    {
+      "test": "test_started_indefinite_overtime_chip.js",
+      "exit_code": 0,
+      "stdout": "Started indefinite-duration and overtime chip contract passed.\n",
+      "stderr": ""
+    },
+    {
+      "test": "test_uid590_591_exact_reinstatement.js",
+      "exit_code": 0,
+      "stdout": "uid590_591_exact_reinstatement: PASS\n",
+      "stderr": ""
+    },
+    {
+      "test": "test_uid590_591_runtime_repair.js",
+      "exit_code": 0,
+      "stdout": "uid590_591_runtime_repair: PASS\n",
+      "stderr": ""
+    },
+    {
+      "test": "test_unified_sales_dashboard.js",
+      "exit_code": 0,
+      "stdout": "Unified sales dashboard staging contract passed.\n",
+      "stderr": ""
+    },
+    {
+      "test": "test_vehicle_workshop_hours_overlay.js",
+      "exit_code": 0,
+      "stdout": "vehicle_workshop_hours_overlay: PASS\n",
+      "stderr": ""
+    },
+    {
+      "test": "test_workshop_booking_estimated_hours.js",
+      "exit_code": 0,
+      "stdout": "workshop_booking_estimated_hours: PASS\n",
+      "stderr": ""
+    },
+    {
+      "test": "test_workshop_chip_resize_routing.js",
+      "exit_code": 0,
+      "stdout": "workshop_chip_resize_routing: PASS\n",
+      "stderr": ""
+    },
+    {
+      "test": "test_workshop_exact_operation_minutes.js",
+      "exit_code": 0,
+      "stdout": "workshop_exact_operation_minutes: PASS\n",
+      "stderr": ""
+    }
+  ],
+  "python": {
+    "exit_code": 1,
+    "stdout": "",
+    "stderr": ".....................E\n======================================================================\nERROR: test_pdc_staging_owner_jobcard_area_rules (unittest.loader._FailedTest.test_pdc_staging_owner_jobcard_area_rules)\n----------------------------------------------------------------------\nImportError: Failed to import test module: test_pdc_staging_owner_jobcard_area_rules\nTraceback (most recent call last):\n  File \"C:\\Users\\nwmgr\\AppData\\Local\\hermes\\hermes-agent\\.hermes-runtime\\python\\generation-1786927015-28864-de41221c\\cpython-3.11-windows-x86_64-none\\Lib\\unittest\\loader.py\", line 419, in _find_test_path\n    module = self._get_module_from_name(name)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\nwmgr\\AppData\\Local\\hermes\\hermes-agent\\.hermes-runtime\\python\\generation-1786927015-28864-de41221c\\cpython-3.11-windows-x86_64-none\\Lib\\unittest\\loader.py\", line 362, in _get_module_from_name\n    __import__(name)\n  File \"C:\\tmp\\pdc-overnight-hardening-20260824\\test_pdc_staging_owner_jobcard_area_rules.py\", line 11, in <module>\n    import pdc_staging_operation_workbook_import as workbook_import\n  File \"C:\\tmp\\pdc-overnight-hardening-20260824\\scripts\\pdc_staging_operation_workbook_import.py\", line 11, in <module>\n    from openpyxl import load_workbook\nModuleNotFoundError: No module named 'openpyxl'\n\n\n----------------------------------------------------------------------\nRan 22 tests in 0.007s\n\nFAILED (errors=1)\n"
+  },
+  "summary": {
+    "node_total": 33,
+    "node_passed": 33,
+    "node_failed": [],
+    "python_passed": false
+  }
+}

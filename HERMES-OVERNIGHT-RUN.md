@@ -66,5 +66,17 @@ None yet.
 - Blockers: the staging database contains 153 pre-existing protected records, so all mutation testing must use a narrowly isolated `HERMES-TEST` fleet and guarded synthetic-only contracts.
 - Exact next action: commit safety harness, run baseline static/automated checks, inventory synthetic-safe RPCs and create a guarded synthetic fleet controller only after its exact scope and rollback/archive path are proven.
 
+### Checkpoint 001 — 2026-08-24T10:59:59Z (elapsed 00:05)
+- Git commit: `bfb2047e3c85bfa8b5045e3eb1e3b9ef48f764c2`
+- Areas tested: re-proved live staging hostname/banner/Pages commit/project sentinel; verified Production fingerprint execution is structurally blocked before network access; scheduled durable 20-minute worker checkpoints and the end-of-run report.
+- Synthetic records created: none.
+- Bugs discovered: none yet.
+- Bugs fixed: none yet.
+- Tests passing: environment proof, non-staging endpoint guard, JavaScript syntax check, all 33 Node regression scripts, and all 30 Python regressions on the project interpreter.
+- Baseline runner issue: the background launcher selected Hermes' bundled CPython without `openpyxl`; the project interpreter already had `openpyxl 3.1.5`, and its immediate rerun passed 30/30. No test was weakened or skipped.
+- Independent read-only inventories running: synthetic-safe contracts and baseline coverage.
+- Blockers: no mutation is permitted until the synthetic bootstrap path is isolated from the 153 protected pre-existing staging vehicles and exact authorised RPCs are established.
+- Exact next action: finish baseline aggregation, record failures honestly, inventory authenticated contracts, then design and test a guarded append-only HERMES-TEST fleet bootstrap without touching existing rows.
+
 ## Final report
 Pending until the ten-hour end time.
