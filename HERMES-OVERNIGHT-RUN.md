@@ -79,9 +79,10 @@ None yet.
 
 ### Fixed
 - Migration 363 was hardened through two independent review rounds: fail-closed singleton containment, conflicting locks/revalidation, exact catalog/identity collision closure, same-set protected digest, canonical readback drift rejection, truthful durable replay, two set-based authoritative inserts and receipt-bound shared revision delta `+2`.
+- Migration 364 repaired the authenticated Vehicle Locations projection without changing vehicle data or privileges: the established snapshot now also admits only exact migration-363 registry-bound rows whose static identities and synthetic source contract still match. Authenticated UI readback is now `173 of 173`, including all 20 synthetic vehicles, while the 153 protected-row digest remains unchanged.
 
 ### Open
-- Authenticated Vehicle Locations loaded successfully after bootstrap but displayed `156 of 156` rather than the authoritative `173` active vehicles. The pre-bootstrap Board displayed 153, so only 3 of 20 registry-bound synthetic vehicles projected through the normal Board snapshot. This is a reproducible staging projection defect; do not treat the synthetic fleet as fully UI-testable until all 20 appear through the authenticated Board contract.
+None at this checkpoint. Synthetic stress mutation remains deliberately blocked until narrow registry-guarded mutation wrappers are designed, reviewed and installed.
 
 ## Checkpoints
 ### Checkpoint 000 — 2026-08-24T10:54:31Z (elapsed 00:00)
@@ -153,6 +154,18 @@ None yet.
 - Blockers: lifecycle stress mutation remains blocked until the Board projection includes all 20 registry-bound synthetic vehicles and synthetic-only wrappers prevent generic lifecycle RPCs from touching protected UUIDs.
 - Quantitative counters: synthetic 20/20; journeys 0/5; board movements 0/100; booking movements 0/50; invalid attempts 0/20; duplicates 1/20; Parts 0/25; Sublet 0/20; QC/RFT out-of-order 0/10; two-session 0/10; field/validation 0/30.
 - Exact next action: repair and regression-test the staging Board snapshot/projection for registry-bound synthetic rows, add synthetic-only mutation wrappers, then resume lifecycle/workshop/Parts/Sublet/QC/RFT stress testing.
+
+### Checkpoint 006 — 2026-08-24T12:50:04Z (elapsed 01:55)
+- Git commit: `9fc1919fe0cfa549071bec93506bdc250e44d4e4`; migration 364 SHA-256 `99b20e7704000789d5597657cf89accb3b533e34321d8cf30881938938ade27d`.
+- Areas tested: exact predecessor-function drift binding; staging/Monitor/mailbox/writer/notification containment; rollback SQL execution; independent exact-commit projection/security review; guarded migration apply and ledger readback; authenticated live Vehicle Locations projection; authoritative protected-row digest and post-migration environment proof.
+- Synthetic records created: none this checkpoint; exact existing `HERMES-TEST-001` through `HERMES-TEST-020` fleet only.
+- Bugs discovered: no new defect. Root cause of the open projection defect was the established pre-168 snapshot predicate, which admitted only email-receipt, required-Sublet or retained-Sublet rows; only three synthetic scenarios met that predicate.
+- Bugs fixed: migration 364 adds one exact registry/source-contract-bound read projection branch. It performs no application-data DML and preserves the predecessor function owner/ACL. A first independent review blocked an unnecessary `service_role` revoke; that privilege change was removed before commit, and the exact-commit re-review approved.
+- Tests passing: focused Node projection contract; JavaScript syntax for snapshot consumer and app; 17-statement live rollback execution; exact-commit independent `APPROVE`; migration apply/ledger readback; authenticated UI `173 of 173`; authoritative totals 173 vehicles / 20 synthetic; protected digest unchanged at `3d5ec39d15408cc7443312a5d0974ba1ed8250a5484228bc932bb491f8666875`; notifications 0; Monitor stopped; active mailboxes/writers 0.
+- Tests failing: none in this focused projection repair. Full aggregate regression was not rerun in this checkpoint.
+- Blockers: no projection blocker remains. Mutation stress is intentionally blocked until server-side synthetic-only wrappers prevent generic contracts from accepting protected UUIDs.
+- Quantitative counters: synthetic 20/20; journeys 0/5; board movements 0/100; booking movements 0/50; invalid attempts 0/20; duplicates 1/20; Parts 0/25; Sublet 0/20; QC/RFT out-of-order 0/10; two-session 0/10; field/validation 0/30.
+- Exact next action: inventory the smallest lifecycle/work-state/booking/Parts/Sublet RPC set needed for the logged scenarios, implement one fail-closed registry guard plus typed synthetic-only wrappers with containment/idempotency/version receipts, independently review and rollback-test them, then begin scenario 001 lifecycle/editing stress.
 
 ## Final report
 Pending until the ten-hour end time.

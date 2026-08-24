@@ -1,0 +1,22 @@
+{
+  "applied": true,
+  "ledger_readback": [
+    {
+      "name": "364_overnight_synthetic_snapshot_projection",
+      "version": "20260825010000"
+    }
+  ],
+  "management_response": [
+    {
+      "pg_advisory_xact_lock": ""
+    }
+  ],
+  "migration_file": "20260825010000_364_overnight_synthetic_snapshot_projection.sql",
+  "migration_name": "364_overnight_synthetic_snapshot_projection",
+  "migration_sha256": "99b20e7704000789d5597657cf89accb3b533e34321d8cf30881938938ade27d",
+  "migration_version": "20260825010000",
+  "production_ref_rejected": "vjdtsswhroyguxyfjdkt",
+  "recorded_at_utc": "2026-08-24T12:49:08.395151+00:00",
+  "schema": "pdc-staging-management-migration-receipt-v1",
+  "target_ref": "cdsmnqxtyyoeoznmbidd"
+}

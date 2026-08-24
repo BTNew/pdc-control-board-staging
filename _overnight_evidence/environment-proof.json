@@ -11,8 +11,8 @@
     "active_activation_writers": 0,
     "active_mailboxes": 0,
     "migration_head": {
-      "name": "363_overnight_synthetic_fleet_bootstrap",
-      "version": "20260825000000"
+      "name": "364_overnight_synthetic_snapshot_projection",
+      "version": "20260825010000"
     },
     "monitor_status": "stopped",
     "outbound_notification_rows": 0,
