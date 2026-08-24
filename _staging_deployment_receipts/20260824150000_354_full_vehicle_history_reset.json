@@ -1,0 +1,22 @@
+{
+  "applied": true,
+  "ledger_readback": [
+    {
+      "name": "354_full_vehicle_history_reset",
+      "version": "20260824150000"
+    }
+  ],
+  "management_response": [
+    {
+      "set_config": "inactive"
+    }
+  ],
+  "migration_file": "20260824150000_354_full_vehicle_history_reset.sql",
+  "migration_name": "354_full_vehicle_history_reset",
+  "migration_sha256": "126567452e18173167d0d139264c76a20fe2b0bf8d0d43b5bf79270a8be2d022",
+  "migration_version": "20260824150000",
+  "production_ref_rejected": "vjdtsswhroyguxyfjdkt",
+  "recorded_at_utc": "2026-08-24T02:20:06.190987+00:00",
+  "schema": "pdc-staging-management-migration-receipt-v1",
+  "target_ref": "cdsmnqxtyyoeoznmbidd"
+}

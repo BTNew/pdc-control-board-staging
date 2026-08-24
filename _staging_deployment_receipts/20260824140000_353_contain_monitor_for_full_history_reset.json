@@ -1,0 +1,22 @@
+{
+  "applied": true,
+  "ledger_readback": [
+    {
+      "name": "353_contain_monitor_for_full_history_reset",
+      "version": "20260824140000"
+    }
+  ],
+  "management_response": [
+    {
+      "pg_advisory_xact_lock": ""
+    }
+  ],
+  "migration_file": "20260824140000_353_contain_monitor_for_full_history_reset.sql",
+  "migration_name": "353_contain_monitor_for_full_history_reset",
+  "migration_sha256": "dcd62d0559c33ab6714a7d29286e0b64c1e63e5b7b4c396b41149105f0808444",
+  "migration_version": "20260824140000",
+  "production_ref_rejected": "vjdtsswhroyguxyfjdkt",
+  "recorded_at_utc": "2026-08-24T01:21:04.198136+00:00",
+  "schema": "pdc-staging-management-migration-receipt-v1",
+  "target_ref": "cdsmnqxtyyoeoznmbidd"
+}
