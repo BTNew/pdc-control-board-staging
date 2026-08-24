@@ -1,6 +1,6 @@
 {
   "authoritative_accessibility_tree": {
-    "exposedCount": 21,
+    "exposedCount": 22,
     "requiredNames": {
       "Control Board": true,
       "Parts": true,
@@ -10,7 +10,7 @@
       "Vehicle Locations": true
     },
     "roleCounts": {
-      "button": 17,
+      "button": 18,
       "combobox": 0,
       "dialog": 0,
       "heading": 1,
@@ -22,116 +22,121 @@
     },
     "sample": [
       {
-        "backendDOMNodeId": 1513,
+        "backendDOMNodeId": 1516,
         "name": "",
         "role": "main"
       },
       {
-        "backendDOMNodeId": 1606,
+        "backendDOMNodeId": 1610,
         "name": "",
         "role": "navigation"
       },
       {
-        "backendDOMNodeId": 1607,
-        "name": "Vehicle Locations",
-        "role": "button"
-      },
-      {
-        "backendDOMNodeId": 1608,
-        "name": "QC Sign-off",
-        "role": "button"
-      },
-      {
-        "backendDOMNodeId": 1609,
-        "name": "Control Board",
-        "role": "button"
-      },
-      {
         "backendDOMNodeId": 1611,
-        "name": "\u25a6 Bus 4\u00d74",
+        "name": "Vehicle Locations",
         "role": "button"
       },
       {
         "backendDOMNodeId": 1612,
-        "name": "\u25a6 Tint",
+        "name": "QC Sign-off",
         "role": "button"
       },
       {
         "backendDOMNodeId": 1613,
-        "name": "\u25a6 Hoist",
-        "role": "button"
-      },
-      {
-        "backendDOMNodeId": 1614,
-        "name": "\u25a6 Fitting",
+        "name": "Control Board",
         "role": "button"
       },
       {
         "backendDOMNodeId": 1615,
-        "name": "\u25a6 Fabrication",
+        "name": "\u25a6 Bus 4\u00d74",
         "role": "button"
       },
       {
         "backendDOMNodeId": 1616,
-        "name": "\u25a6 Electrical",
+        "name": "\u25a6 Tint",
         "role": "button"
       },
       {
         "backendDOMNodeId": 1617,
-        "name": "\u25a6 Tyre",
+        "name": "\u25a6 Hoist",
         "role": "button"
       },
       {
         "backendDOMNodeId": 1618,
-        "name": "Parts",
+        "name": "\u25a6 Fitting",
         "role": "button"
       },
       {
         "backendDOMNodeId": 1619,
-        "name": "AI Intake",
+        "name": "\u25a6 Fabrication",
         "role": "button"
       },
       {
         "backendDOMNodeId": 1620,
-        "name": "AI Auditor",
+        "name": "\u25a6 Electrical",
         "role": "button"
       },
       {
         "backendDOMNodeId": 1621,
-        "name": "Sublet",
+        "name": "\u25a6 Tyre",
         "role": "button"
       },
       {
         "backendDOMNodeId": 1622,
-        "name": "RFT",
+        "name": "Parts",
         "role": "button"
       },
       {
-        "backendDOMNodeId": 1638,
-        "name": "Vehicle Locations",
-        "role": "heading"
-      },
-      {
-        "backendDOMNodeId": 1640,
-        "name": "Sign out",
+        "backendDOMNodeId": 1623,
+        "name": "AI Intake",
         "role": "button"
       },
       {
         "backendDOMNodeId": 1624,
+        "name": "AI Auditor",
+        "role": "button"
+      },
+      {
+        "backendDOMNodeId": 1625,
+        "name": "Sublet",
+        "role": "button"
+      },
+      {
+        "backendDOMNodeId": 1626,
+        "name": "RFT",
+        "role": "button"
+      },
+      {
+        "backendDOMNodeId": 1642,
+        "name": "Vehicle Locations",
+        "role": "heading"
+      },
+      {
+        "backendDOMNodeId": 1644,
+        "name": "Sign out",
+        "role": "button"
+      },
+      {
+        "backendDOMNodeId": 1628,
         "name": "Admin",
         "role": "button"
       },
       {
-        "backendDOMNodeId": 1444,
+        "backendDOMNodeId": 1447,
         "name": "SEARCH VEHICLES",
         "role": "searchbox"
+      },
+      {
+        "backendDOMNodeId": 1520,
+        "name": "SN HERMES-TEST-019",
+        "role": "button"
       }
     ],
     "source": "Chromium Accessibility.getFullAXTree",
     "unnamedInteractive": []
   },
   "blocked_external_hosts": [],
-  "completed_utc": "2026-08-24T19:20:33Z",
+  "completed_utc": "2026-08-24T19:27:03Z",
   "console": [],
   "contrast_sample": {
     "allPass": true,
@@ -260,7 +265,7 @@
       "Vehicle Locations"
     ],
     "horizontalOverflow": false,
-    "interactiveCount": 18,
+    "interactiveCount": 19,
     "lang": "en",
     "smallTargets": [
       {
@@ -364,6 +369,12 @@
         "name": "HERMES-TEST-019",
         "tag": "INPUT",
         "w": 845
+      },
+      {
+        "h": 15,
+        "name": "SN HERMES-TEST-019",
+        "tag": "BUTTON",
+        "w": 82
       }
     ],
     "title": "PDC Control Board \u2014 STAGING",
@@ -402,7 +413,7 @@
       "vehicle_total": 173
     },
     "outbound_policy": "mailboxes and activation writers disabled; no external sends permitted",
-    "pages_build": "12f6b00c5f8f6194d968b56a00525bcd84cfa58e built",
+    "pages_build": "a2f76381c85c91cc155b705ae91e46f727663be8 built",
     "production_access_guard": true,
     "schema": "pdc-overnight-environment-proof-v1",
     "source_start_commit": "ac06394736b55220e7425322fc53e9b9dadc3fdd",
@@ -884,7 +895,7 @@
       "id": "",
       "stock": "HERMES-TEST-019"
     },
-    "focusEscapedDialog": true,
+    "focusEscapedDialog": false,
     "initialFocus": "modal-close",
     "sample": [
       {
@@ -948,7 +959,7 @@
         "tag": "INPUT"
       }
     ],
-    "stepsUntilEscape": 68,
+    "stepsUntilEscape": 80,
     "trigger": "stock-link stock-button vehicle-identity-value vehicle-identity-primary"
   },
   "page_errors": [],
@@ -1036,6 +1047,6 @@
       "synthetic019": true
     }
   ],
-  "started_utc": "2026-08-24T19:19:50Z",
+  "started_utc": "2026-08-24T19:26:20Z",
   "target": "https://btnew.github.io/pdc-control-board-staging/"
 }

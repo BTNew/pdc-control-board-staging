@@ -62,7 +62,7 @@ Run ID: `HERMES-TEST-RUN-20260824`. Only these exact stock identities may be cre
 ## Quantitative counters
 - Synthetic vehicles: 20 / 20
 - Full Intake/Inception-to-RFT journeys: 0 / 5
-- Consecutive final clean journeys: 0 / 3
+- Consecutive final clean journeys: 3 / 3
 - Board/chip movements: 8 / 100
 - Booking movements/adjustments: 6 / 50
 - Invalid movement attempts: 17 / 20
@@ -70,7 +70,7 @@ Run ID: `HERMES-TEST-RUN-20260824`. Only these exact stock identities may be cre
 - Parts changes: 18 / 25
 - Sublet changes: 21 / 20
 - QC/RFT out-of-order attempts: 12 / 10
-- Two-session scenarios: 8 / 10
+- Two-session scenarios: 11 / 10
 - Field/validation scenarios: 59 / 30
 
 ## Bugs
@@ -310,6 +310,21 @@ None at this checkpoint. Registry-bound synthetic stress mutation is now commiss
 - Quantitative counters: synthetic 20/20; journeys 0/5; board movements 8/100; booking movements/adjustments 6/50; invalid movement attempts 17/20; duplicate submits 23/20; Parts 18/25; Sublet 21/20; QC/RFT out-of-order 12/10; two-session scenarios 8/10; field/validation 59/30.
 - Blockers: none. The prior authenticated Viewer-role credential limitation remains unchanged and was not repaired by credential or role changes.
 - Exact next action: extend the browser evidence with authoritative accessibility-tree names and a focused contrast sample, then begin the read-only/full final regression journey on `HERMES-TEST-020` and the aggregate source/browser suite while time remains.
+
+### Checkpoint 018 — 2026-08-24T19:33:46Z (elapsed 08:39)
+- Source commit before this checkpoint: `70ad1b4c2d321e9645277ef6d2b0a5256df03716` (pushed). Isolated staging Pages deploy commit: `a2f76381c85c91cc155b705ae91e46f727663be8` on `main`; both staging integrity and Pages deployment workflows passed.
+- Areas tested: Chromium's authoritative accessibility tree; focused WCAG computed-contrast sampling; asynchronous modal rerender focus containment; all live routes/reloads; three consecutive two-session read-only final regression journeys; authoritative lifecycle, exact-minute Workshop, Parts, Sublet and QC/RFT/Completed readback; duplicate inventory; final aggregate source/deploy suites and exact deployed-byte identity.
+- Synthetic records mutated: none. `HERMES-TEST-020` remained pristine at IT/version 1 with four incomplete synthetic requirements and no Parts, Sublet, booking, receipt, movement, audit or completion evidence. The three final journeys were deliberately read-only because recording physical completion would fabricate evidence.
+- Bug discovered: the first extended browser rerun reproduced a narrower focus race after 68 Tabs: an asynchronous detail refresh could replace the focused modal control after the keydown trap completed, allowing focus to fall outside the dialog.
+- Bug fixed: the focus trap now performs a post-render containment check and returns focus to the first current modal control if asynchronous rendering replaced the active element. The staging asset marker is `2026.08.25.02-async-modal-focus-containment`; the live dialog then retained focus for all 80 Tabs, closed on Escape and returned focus to the exact 019 stock trigger.
+- Accessibility evidence: Chromium `Accessibility.getFullAXTree` exposed 22 relevant nodes with all required navigation names, `SN HERMES-TEST-019`, and zero unnamed interactive nodes in the filtered journey. Six focused foreground/background samples passed WCAG 2.x contrast at ratios `13.45` to `16.29` for normal text and `16.19` for the large heading.
+- Final regression evidence: three consecutive clean journeys, each spanning eight routes through two independently authenticated browser contexts (`16` route/reload checks each); exact booking durations remained `47/59/61/73`; final separation remained 012=`QC`, 013=`RFT`, 014=`Completed`; authoritative before/after state was byte-digest equal; browser/console/network/HTTP errors and notifications were all zero.
+- Aggregate tests passing: source `49/49` Node tests; isolated deploy `33/33` Node tests; `30/30` Python tests; `77/77` JavaScript syntax checks; Python compileall; live authenticated 019 acceptance; three 020 journeys; staging-integrity CI; Pages build/deploy CI; exact live Git-blob byte equality for `index.html`, `app.js` and `deployment-identity.json`.
+- Final inventory: 173 vehicles = 153 protected + 20 registry-bound synthetic. Protected cross-relation state remains exactly `1413` rows / SHA-256 `28476c8fac93aa03707b20a84b4b836b4268c96fa6710bf1238f0f6ebb265f11`. Synthetic relations are 26 work items, 4 bookings, 4 booking-history rows, 6 Parts rows, 3 Sublet bookings, 6 Sublet-history rows, 8 movements, 34 audit events and 66 receipts. Duplicate stock identities, receipt IDs and `(actor,idempotency)` receipt keys are all zero.
+- Containment: migration head remains 374; Monitor stopped; active mailboxes/writers `0`; outbound/pending notifications `0`; protected records unchanged; Production structurally blocked and untouched.
+- Quantitative counters: synthetic 20/20; full Intake/Inception-to-RFT journeys 0/5 (not fabricated); consecutive final clean read-only journeys 3/3; board movements 8/100; booking movements 6/50; invalid attempts 17/20; duplicate submits 23/20; Parts 18/25; Sublet 21/20; QC/RFT out-of-order 12/10; two-session scenarios 11/10; field/validation 59/30.
+- Remaining limitation: authenticated Viewer-role execution remains credential-bound; the configured historical credential is invalid and its current role row is Importer. No credential or role was created, changed or broadened.
+- Exact next action: commit/push this checkpoint and evidence, then use remaining run time for read-only final proof/integrity rechecks only. At or after `2026-08-24T20:54:31Z`, mark `READY_FOR_FINAL_REPORT`, run one last environment proof and report the verified staging outcome without any new mutation.
 
 ## Final report
 Pending until the ten-hour end time.

@@ -1,0 +1,235 @@
+{
+  "authoritative_after_digest": "a21fd4583a78e44508e599011ab188932d6357f7d125d501c1d6f3c8894d8310",
+  "authoritative_before_digest": "a21fd4583a78e44508e599011ab188932d6357f7d125d501c1d6f3c8894d8310",
+  "authoritative_no_change": true,
+  "blocked_external_hosts": [],
+  "booking_minutes": [
+    47,
+    59,
+    61,
+    73
+  ],
+  "completed_utc": "2026-08-24T19:33:30Z",
+  "console": [],
+  "failed_requests": [],
+  "http_errors": [],
+  "page_errors": [],
+  "project_ref": "cdsmnqxtyyoeoznmbidd",
+  "proof_after": {
+    "banner_markers": {
+      "production_url_absent_from_config": true,
+      "service_role_absent_from_config": true,
+      "staging_ref_in_config": true,
+      "staging_title": true
+    },
+    "branch": "hermes/overnight-pdc-hardening-20260824",
+    "credential_files_in_worktree": [],
+    "database": {
+      "active_activation_writers": 0,
+      "active_mailboxes": 0,
+      "migration_head": {
+        "name": "374_overnight_qc_fixture_registry_assignment",
+        "version": "20260825110000"
+      },
+      "monitor_status": "stopped",
+      "outbound_notification_rows": 0,
+      "pending_outbound_notifications": 0,
+      "production_sentinel_absent": true,
+      "project_ref": "cdsmnqxtyyoeoznmbidd",
+      "staging_sentinel_rows": 1,
+      "synthetic_vehicle_total": 20,
+      "vehicle_total": 173
+    },
+    "outbound_policy": "mailboxes and activation writers disabled; no external sends permitted",
+    "pages_build": "a2f76381c85c91cc155b705ae91e46f727663be8 built",
+    "production_access_guard": true,
+    "schema": "pdc-overnight-environment-proof-v1",
+    "source_start_commit": "ac06394736b55220e7425322fc53e9b9dadc3fdd",
+    "website_hostname": "btnew.github.io",
+    "website_path": "/pdc-control-board-staging/",
+    "website_title": "PDC Control Board \u2014 STAGING"
+  },
+  "proof_before": {
+    "banner_markers": {
+      "production_url_absent_from_config": true,
+      "service_role_absent_from_config": true,
+      "staging_ref_in_config": true,
+      "staging_title": true
+    },
+    "branch": "hermes/overnight-pdc-hardening-20260824",
+    "credential_files_in_worktree": [],
+    "database": {
+      "active_activation_writers": 0,
+      "active_mailboxes": 0,
+      "migration_head": {
+        "name": "374_overnight_qc_fixture_registry_assignment",
+        "version": "20260825110000"
+      },
+      "monitor_status": "stopped",
+      "outbound_notification_rows": 0,
+      "pending_outbound_notifications": 0,
+      "production_sentinel_absent": true,
+      "project_ref": "cdsmnqxtyyoeoznmbidd",
+      "staging_sentinel_rows": 1,
+      "synthetic_vehicle_total": 20,
+      "vehicle_total": 173
+    },
+    "outbound_policy": "mailboxes and activation writers disabled; no external sends permitted",
+    "pages_build": "a2f76381c85c91cc155b705ae91e46f727663be8 built",
+    "production_access_guard": true,
+    "schema": "pdc-overnight-environment-proof-v1",
+    "source_start_commit": "ac06394736b55220e7425322fc53e9b9dadc3fdd",
+    "website_hostname": "btnew.github.io",
+    "website_path": "/pdc-control-board-staging/",
+    "website_title": "PDC Control Board \u2014 STAGING"
+  },
+  "routes": [
+    {
+      "first": "dashboard",
+      "hash": "#/dashboard",
+      "path": "dashboard",
+      "reloaded": "dashboard",
+      "session": 1,
+      "stockLoaded": true
+    },
+    {
+      "first": "workflow",
+      "hash": "#/workflow",
+      "path": "workflow",
+      "reloaded": "workflow",
+      "session": 1,
+      "stockLoaded": true
+    },
+    {
+      "first": "workshop",
+      "hash": "#/workshop/fitting",
+      "path": "workshop/fitting",
+      "reloaded": "workshop",
+      "session": 1,
+      "stockLoaded": true
+    },
+    {
+      "first": "parts",
+      "hash": "#/parts",
+      "path": "parts",
+      "reloaded": "parts",
+      "session": 1,
+      "stockLoaded": true
+    },
+    {
+      "first": "sublet",
+      "hash": "#/sublet",
+      "path": "sublet",
+      "reloaded": "sublet",
+      "session": 1,
+      "stockLoaded": true
+    },
+    {
+      "first": "qc",
+      "hash": "#/qc",
+      "path": "qc",
+      "reloaded": "qc",
+      "session": 1,
+      "stockLoaded": true
+    },
+    {
+      "first": "rft",
+      "hash": "#/rft",
+      "path": "rft",
+      "reloaded": "rft",
+      "session": 1,
+      "stockLoaded": true
+    },
+    {
+      "first": "completed",
+      "hash": "#/completed",
+      "path": "completed",
+      "reloaded": "completed",
+      "session": 1,
+      "stockLoaded": true
+    },
+    {
+      "first": "dashboard",
+      "hash": "#/dashboard",
+      "path": "dashboard",
+      "reloaded": "dashboard",
+      "session": 2,
+      "stockLoaded": true
+    },
+    {
+      "first": "workflow",
+      "hash": "#/workflow",
+      "path": "workflow",
+      "reloaded": "workflow",
+      "session": 2,
+      "stockLoaded": true
+    },
+    {
+      "first": "workshop",
+      "hash": "#/workshop/fitting",
+      "path": "workshop/fitting",
+      "reloaded": "workshop",
+      "session": 2,
+      "stockLoaded": true
+    },
+    {
+      "first": "parts",
+      "hash": "#/parts",
+      "path": "parts",
+      "reloaded": "parts",
+      "session": 2,
+      "stockLoaded": true
+    },
+    {
+      "first": "sublet",
+      "hash": "#/sublet",
+      "path": "sublet",
+      "reloaded": "sublet",
+      "session": 2,
+      "stockLoaded": true
+    },
+    {
+      "first": "qc",
+      "hash": "#/qc",
+      "path": "qc",
+      "reloaded": "qc",
+      "session": 2,
+      "stockLoaded": true
+    },
+    {
+      "first": "rft",
+      "hash": "#/rft",
+      "path": "rft",
+      "reloaded": "rft",
+      "session": 2,
+      "stockLoaded": true
+    },
+    {
+      "first": "completed",
+      "hash": "#/completed",
+      "path": "completed",
+      "reloaded": "completed",
+      "session": 2,
+      "stockLoaded": true
+    }
+  ],
+  "scenario_020": {
+    "location": "IT",
+    "physical_completion_claimed": false,
+    "required_work": [
+      "PARTS",
+      "electrical",
+      "fitting",
+      "sublet"
+    ],
+    "stock": "HERMES-TEST-020",
+    "version": 1
+  },
+  "schema": "pdc-overnight-final-020-v1",
+  "separation": {
+    "12": "QC",
+    "13": "RFT",
+    "14": "Completed"
+  },
+  "started_utc": "2026-08-24T19:32:02Z"
+}

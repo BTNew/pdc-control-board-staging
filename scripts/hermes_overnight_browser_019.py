@@ -244,7 +244,7 @@ def run() -> None:
         wait_eval(page1, "!document.querySelector('#app-shell').hasAttribute('inert')"); page1.wait_for_timeout(1000)
         page1.evaluate("""() => { const u=document.querySelector('#pdc-auth-user'); if(u) u.textContent='HERMES STAGING ADMIN'; }""")
         page1.locator("#incoming-search").fill("HERMES-TEST-019")
-        page1.wait_for_timeout(500)
+        wait_eval(page1, "!!document.querySelector('[data-open-stock=\"HERMES-TEST-019\"]')", 10000)
         evidence["desktop_accessibility"] = accessibility_snapshot(page1)
         evidence["authoritative_accessibility_tree"] = authoritative_accessibility_tree(context1, page1)
         evidence["contrast_sample"] = contrast_sample(page1)
@@ -256,6 +256,9 @@ def run() -> None:
         evidence["keyboard_order"] = keyboard_order(page1)
         page1.screenshot(path=str(OUT / "desktop-dashboard.png"), full_page=False)
         evidence["modal"] = modal_test(page1)
+        if (evidence["modal"]["focusEscapedDialog"] or not evidence["modal"]["escapeClosed"]
+                or evidence["modal"]["focusAfterClose"].get("stock") != "HERMES-TEST-019"):
+            raise RuntimeError("live modal focus containment/return acceptance failed")
 
         context2 = browser.new_context(viewport={"width": 390, "height": 844}, device_scale_factor=1, is_mobile=True, has_touch=True)
         install_network_guard(context2, evidence)
