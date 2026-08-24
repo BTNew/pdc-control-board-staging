@@ -178,6 +178,35 @@ assert.strictEqual((revisionSchema.match(/create trigger pdc_email_vehicle_revis
 
 const bootstrapBody = sql.slice(sql.indexOf('CREATE FUNCTION public.bootstrap_pdc_hermes_test_fleet'),
   sql.indexOf('END $bootstrap$;'));
+const requestHashAt = bootstrapBody.indexOf('v_request_sha256:=encode');
+const runShapeAt = bootstrapBody.indexOf('PDC_363_INVALID_RUN_OR_EXACT_20_SPECS');
+const authorizationAt = bootstrapBody.indexOf('PDC_363_UNAUTHORIZED');
+const initialContainmentAt = bootstrapBody.indexOf('PDC_363_RUNTIME_CONTAINMENT_MISMATCH');
+const receiptLookupAt = bootstrapBody.indexOf('SELECT * INTO v_receipt');
+const receiptMismatchAt = bootstrapBody.indexOf('PDC_363_IDEMPOTENCY_PAYLOAD_MISMATCH');
+const replayReadbackAt = bootstrapBody.indexOf('PERFORM public.read_pdc_hermes_test_fleet(p_run_id)');
+const replayReturnAt = bootstrapBody.indexOf("RETURN jsonb_set(v_receipt.response,'{replay}'");
+const firstWriteMarkerAt = bootstrapBody.indexOf('-- No immutable receipt exists: all remaining checks are first-write validation.');
+const futureEtaAt = bootstrapBody.indexOf('v_eta<=CURRENT_DATE');
+assert(runShapeAt < authorizationAt && authorizationAt < initialContainmentAt && initialContainmentAt < requestHashAt,
+  'run shape, caller authorization and locked containment must precede receipt handling');
+assert(requestHashAt > bootstrapBody.indexOf('PDC_363_EXACT_LOGGED_CATALOG_REQUIRED'),
+  'exact catalog hash must be proved before receipt lookup');
+assert(requestHashAt < receiptLookupAt && receiptLookupAt < receiptMismatchAt,
+  'stable request hash and receipt lookup must precede fail-closed mismatch handling');
+assert(receiptMismatchAt < replayReadbackAt && replayReadbackAt < replayReturnAt,
+  'matching receipt must prove canonical readback before returning');
+assert(replayReturnAt < firstWriteMarkerAt && firstWriteMarkerAt < futureEtaAt,
+  'durable replay must return before time-relative first-write ETA validation');
+for (const table of ['vehicles','vehicle_aliases','pdc_vehicle_tombstones','navision_backend_records',
+  'navision_board_activations','pdc_overnight_synthetic_fleet_registry_363',
+  'pdc_overnight_synthetic_fleet_receipts_363','pdc_overnight_synthetic_fleet_events_363',
+  'vehicle_work_items','workshop_bookings','vehicle_parts_updates','pdc_sublet_bookings',
+  'vehicle_sublet_providers','pdc_authenticated_email_import_receipts']) {
+  const replayPrefix = bootstrapBody.slice(receiptMismatchAt, replayReadbackAt);
+  assert(replayPrefix.includes(`LOCK TABLE public.${table} IN SHARE MODE`),
+    `replay must lock ${table} against canonical/evidence drift`);
+}
 assert.strictEqual((bootstrapBody.match(/INSERT INTO public\.vehicles\b/gi) || []).length, 1,
   'all 20 vehicles must use exactly one set-based insert');
 assert.strictEqual((bootstrapBody.match(/INSERT INTO public\.vehicle_work_items\b/gi) || []).length, 1,
@@ -419,6 +448,84 @@ const replayDriftModel=structuredClone(model); replayDriftModel.receipts=new Map
 replayDriftModel.registry[0].vehicle.visible_on_board=false;
 assert.throws(()=>bootstrapModel(replayDriftModel,'key','same'),/canonical drift/);
 assert.strictEqual(replayDriftModel.revision,43, 'failed replay validation must cause zero revision change');
+
+// Durable receipt regression mirrors the SQL branch order above rather than
+// assuming replay bypasses validation: authorization/containment/catalog/hash
+// run first, receipt mismatch fails closed, and only a missing receipt reaches ETA.
+function requestHash(key, requestSpecs) {
+  return require('crypto').createHash('sha256').update(pgJsonbText({
+    contract:'pdc-overnight-synthetic-fleet-363/render_only', run_id:runId,
+    actor_id:'36300000-0000-5000-8000-000000000001', idempotency_key:key, specs:requestSpecs,
+  })).digest('hex');
+}
+function durableSnapshot(state) {
+  return {
+    vehicles:state.vehicles.length, registry:state.registry.length, work:state.work.length,
+    receipts:state.receipts.size, events:state.events.length, revision:state.revision,
+    bookings:state.bookings.length, parts:state.parts.length, sublets:state.sublets.length,
+    providers:state.providers.length, email:state.email.length,
+  };
+}
+function durableBootstrap(state, key, requestSpecs, executionDate) {
+  if (!state.authorized) throw new Error('unauthorized');
+  if (!containmentClosed(state.containment)) throw new Error('containment');
+  if (!Array.isArray(requestSpecs) || requestSpecs.length !== 20) throw new Error('run or array shape');
+  const exactCatalogHash = require('crypto').createHash('sha256').update(pgJsonbText(requestSpecs)).digest('hex');
+  if (exactCatalogHash !== catalogPgHash) throw new Error('exact catalog required');
+  const hash = requestHash(key, requestSpecs);
+  const receipt = state.receipts.get(key);
+  if (receipt) {
+    if (receipt.hash !== hash) throw new Error('payload mismatch');
+    state.replayLocks = new Set(['vehicles','vehicle_aliases','pdc_vehicle_tombstones','navision_backend_records',
+      'navision_board_activations','registry','receipts','events','work','bookings','parts','sublets','providers','email']);
+    const revisionBefore = state.revision;
+    if (!containmentClosed(state.containment)) throw new Error('containment');
+    if (!readbackValid(state.registry)) throw new Error('canonical drift');
+    if (state.revision !== revisionBefore) throw new Error('replay revision changed');
+    return {...receipt.response,replay:true,replay_revision:{before:revisionBefore,after:state.revision,delta:0}};
+  }
+  for (const spec of requestSpecs) {
+    if (spec.eta && spec.eta <= executionDate) throw new Error('ETA only future IT');
+  }
+  state.vehicles.push(...canonical.map(x=>structuredClone(x.vehicle))); state.revision++;
+  state.registry.push(...structuredClone(canonical));
+  state.work.push(...canonical.flatMap(x=>structuredClone(x.work_items))); state.revision++;
+  state.events.push(...canonical.map(x=>({registry_id:x.registry_id,kind:'bootstrapped'})));
+  const response={replay:false,shared_revision:{delta:2}};
+  state.receipts.set(key,{hash,response});
+  return response;
+}
+function emptyDurableState() {
+  return {...emptyModel(),authorized:true,events:[],replayLocks:new Set()};
+}
+const durable=emptyDurableState();
+const durableFirst=durableBootstrap(durable,'durable-key',specs,'2026-08-24');
+assert.strictEqual(durableFirst.replay,false);
+const durableBeforeReplay=durableSnapshot(durable);
+const durableReplay=durableBootstrap(durable,'durable-key',specs,'2026-09-01');
+assert.strictEqual(durableReplay.replay,true);
+assert.strictEqual(durableReplay.replay_revision.delta,0);
+assert.deepStrictEqual(durableSnapshot(durable),durableBeforeReplay,
+  'exact replay after 2026-08-31 must change zero vehicle/work/revision/evidence rows');
+assert.strictEqual(durable.replayLocks.size,14, 'replay must acquire every canonical/evidence lock in the SQL path');
+const corruptReceipt=emptyDurableState();
+corruptReceipt.vehicles=structuredClone(durable.vehicles); corruptReceipt.registry=structuredClone(durable.registry);
+corruptReceipt.work=structuredClone(durable.work); corruptReceipt.events=structuredClone(durable.events);
+corruptReceipt.revision=durable.revision;
+corruptReceipt.receipts.set('durable-key',{hash:'0'.repeat(64),response:{replay:false}});
+const corruptBefore=durableSnapshot(corruptReceipt);
+assert.throws(()=>durableBootstrap(corruptReceipt,'durable-key',specs,'2026-09-01'),/payload mismatch/,
+  'mismatched immutable receipt must reject even after ETA expiry');
+assert.deepStrictEqual(durableSnapshot(corruptReceipt),corruptBefore);
+const changedAfterExpiry=structuredClone(specs); changedAfterExpiry[0].notes += ' changed';
+assert.throws(()=>durableBootstrap(durable,'durable-key',changedAfterExpiry,'2026-09-01'),/exact catalog required/,
+  'changed payload must fail closed before replay');
+const expiredFirst=emptyDurableState();
+const expiredBefore=durableSnapshot(expiredFirst);
+assert.throws(()=>durableBootstrap(expiredFirst,'new-key',specs,'2026-09-01'),/ETA only future IT/,
+  'first execution after catalog ETA expiry must retain time-relative validation');
+assert.deepStrictEqual(durableSnapshot(expiredFirst),expiredBefore,
+  'expired first write must happen before any durable mutation');
 
 // Protected digests must compare the identical pre-existing set, excluding the
 // deterministic target IDs on both sides (including hostile pre-existing registry rows).

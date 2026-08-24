@@ -281,6 +281,64 @@ BEGIN
  IF v_specs_sha256<>'0bc2791f0b79bf03018f5d3ec444441253c0aa8a994dd8a31f7bd49f20738d16' THEN
   RAISE EXCEPTION 'PDC_363_EXACT_LOGGED_CATALOG_REQUIRED' USING errcode='22023';
  END IF;
+
+ -- The request identity is independent of execution time. Lock and inspect its
+ -- immutable receipt before first-write-only validation such as future ETA.
+ v_request_sha256:=encode(extensions.digest(convert_to(jsonb_build_object(
+   'contract','pdc-overnight-synthetic-fleet-363/render_only','run_id',p_run_id,
+   'actor_id',v_actor,'idempotency_key',p_idempotency_key,'specs',p_specs)::text,'UTF8'),'sha256'),'hex');
+ PERFORM pg_advisory_xact_lock(hashtextextended('pdc-363-receipt:'||v_actor::text||':'||p_idempotency_key::text,0));
+ SELECT * INTO v_receipt FROM public.pdc_overnight_synthetic_fleet_receipts_363
+ WHERE actor_id=v_actor AND idempotency_key=p_idempotency_key;
+ IF FOUND THEN
+  IF v_receipt.request_sha256<>v_request_sha256 THEN
+   RAISE EXCEPTION 'PDC_363_IDEMPOTENCY_PAYLOAD_MISMATCH' USING errcode='22023';
+  END IF;
+  LOCK TABLE public.vehicles IN SHARE MODE;
+  LOCK TABLE public.vehicle_aliases IN SHARE MODE;
+  LOCK TABLE public.pdc_vehicle_tombstones IN SHARE MODE;
+  LOCK TABLE public.navision_backend_records IN SHARE MODE;
+  LOCK TABLE public.navision_board_activations IN SHARE MODE;
+  LOCK TABLE public.pdc_overnight_synthetic_fleet_registry_363 IN SHARE MODE;
+  LOCK TABLE public.pdc_overnight_synthetic_fleet_receipts_363 IN SHARE MODE;
+  LOCK TABLE public.pdc_overnight_synthetic_fleet_events_363 IN SHARE MODE;
+  LOCK TABLE public.vehicle_work_items IN SHARE MODE;
+  LOCK TABLE public.workshop_bookings IN SHARE MODE;
+  LOCK TABLE public.vehicle_parts_updates IN SHARE MODE;
+  LOCK TABLE public.pdc_sublet_bookings IN SHARE MODE;
+  LOCK TABLE public.vehicle_sublet_providers IN SHARE MODE;
+  LOCK TABLE public.pdc_authenticated_email_import_receipts IN SHARE MODE;
+  SELECT revision INTO v_shared_revision_before
+  FROM public.pdc_email_vehicle_revision WHERE singleton FOR UPDATE;
+  IF NOT FOUND OR (SELECT count(*) FROM public.pdc_email_vehicle_revision WHERE singleton)<>1 THEN
+   RAISE EXCEPTION 'PDC_363_SHARED_REVISION_SINGLETON_MISMATCH' USING errcode='55000';
+  END IF;
+  IF NOT public.pdc_monitor_staging_guard()
+    OR (SELECT count(*) FROM public.pdc_staging_environment_sentinel WHERE singleton AND project_ref='cdsmnqxtyyoeoznmbidd')<>1
+    OR to_regclass('public.pdc_production_environment_sentinel') IS NOT NULL
+    OR (SELECT count(*) FROM public.pdc_email_monitor_pilot)<>1
+    OR (SELECT count(*) FROM public.pdc_email_monitor_pilot WHERE singleton AND NOT enabled AND NOT outbound_email_enabled
+         AND NOT automatic_rule_application AND NOT automatic_authenticated_jobcards)<>1
+    OR (SELECT count(*) FROM public.pdc_email_monitor_status)<>1
+    OR (SELECT count(*) FROM public.pdc_email_monitor_status WHERE singleton AND running_status='stopped' AND gateway_instance_id IS NULL)<>1
+    OR EXISTS(SELECT 1 FROM public.monitored_mailboxes WHERE active)
+    OR EXISTS(SELECT 1 FROM public.pdc_monitor_stage_activation_writers WHERE active AND revoked_at IS NULL)
+    OR (SELECT count(*) FROM public.vehicle_notifications)<>0 THEN
+   RAISE EXCEPTION 'PDC_363_RUNTIME_CONTAINMENT_MISMATCH' USING errcode='55000';
+  END IF;
+  PERFORM public.read_pdc_hermes_test_fleet(p_run_id);
+  SELECT revision INTO v_shared_revision_after
+  FROM public.pdc_email_vehicle_revision WHERE singleton;
+  IF v_shared_revision_after IS DISTINCT FROM v_shared_revision_before THEN
+   RAISE EXCEPTION 'PDC_363_REPLAY_SHARED_REVISION_CHANGED' USING errcode='55000';
+  END IF;
+  RETURN jsonb_set(v_receipt.response,'{replay}','true'::jsonb,false)
+    || jsonb_build_object('replay_revision',jsonb_build_object(
+      'table','public.pdc_email_vehicle_revision','before',v_shared_revision_before,
+      'after',v_shared_revision_after,'delta',v_shared_revision_after-v_shared_revision_before));
+ END IF;
+
+ -- No immutable receipt exists: all remaining checks are first-write validation.
  IF (SELECT count(DISTINCT (spec->>'scenario_no')::integer) FROM jsonb_array_elements(p_specs) spec
      WHERE (spec->>'scenario_no')~'^([1-9]|1[0-9]|20)$')<>20
    OR EXISTS(SELECT 1 FROM generate_series(1,20) n WHERE NOT EXISTS(
@@ -330,46 +388,6 @@ BEGIN
    RAISE EXCEPTION 'PDC_363_WORK_KEYS_NOT_UNIQUE_CANONICAL_SUBSET:%',v_no USING errcode='22023';
   END IF;
  END LOOP;
-
- v_request_sha256:=encode(extensions.digest(convert_to(jsonb_build_object(
-   'contract','pdc-overnight-synthetic-fleet-363/render_only','run_id',p_run_id,
-   'actor_id',v_actor,'idempotency_key',p_idempotency_key,'specs',p_specs)::text,'UTF8'),'sha256'),'hex');
- PERFORM pg_advisory_xact_lock(hashtextextended('pdc-363-receipt:'||v_actor::text||':'||p_idempotency_key::text,0));
- SELECT * INTO v_receipt FROM public.pdc_overnight_synthetic_fleet_receipts_363
- WHERE actor_id=v_actor AND idempotency_key=p_idempotency_key;
- IF FOUND THEN
-  IF v_receipt.request_sha256<>v_request_sha256 THEN
-   RAISE EXCEPTION 'PDC_363_IDEMPOTENCY_PAYLOAD_MISMATCH' USING errcode='22023';
-  END IF;
-  SELECT revision INTO v_shared_revision_before
-  FROM public.pdc_email_vehicle_revision WHERE singleton FOR UPDATE;
-  IF NOT FOUND OR (SELECT count(*) FROM public.pdc_email_vehicle_revision WHERE singleton)<>1 THEN
-   RAISE EXCEPTION 'PDC_363_SHARED_REVISION_SINGLETON_MISMATCH' USING errcode='55000';
-  END IF;
-  IF NOT public.pdc_monitor_staging_guard()
-    OR (SELECT count(*) FROM public.pdc_email_monitor_pilot)<>1
-    OR (SELECT count(*) FROM public.pdc_email_monitor_pilot WHERE singleton AND NOT enabled AND NOT outbound_email_enabled
-         AND NOT automatic_rule_application AND NOT automatic_authenticated_jobcards)<>1
-    OR (SELECT count(*) FROM public.pdc_email_monitor_status)<>1
-    OR (SELECT count(*) FROM public.pdc_email_monitor_status WHERE singleton AND running_status='stopped' AND gateway_instance_id IS NULL)<>1
-    OR EXISTS(SELECT 1 FROM public.monitored_mailboxes WHERE active)
-    OR EXISTS(SELECT 1 FROM public.pdc_monitor_stage_activation_writers WHERE active AND revoked_at IS NULL)
-    OR (SELECT count(*) FROM public.vehicle_notifications)<>0 THEN
-   RAISE EXCEPTION 'PDC_363_RUNTIME_CONTAINMENT_MISMATCH' USING errcode='55000';
-  END IF;
-  -- Replay is read-only: fail closed on any canonical drift and receipt its
-  -- observed zero revision delta in the returned (not persisted) replay envelope.
-  PERFORM public.read_pdc_hermes_test_fleet(p_run_id);
-  SELECT revision INTO v_shared_revision_after
-  FROM public.pdc_email_vehicle_revision WHERE singleton;
-  IF v_shared_revision_after IS DISTINCT FROM v_shared_revision_before THEN
-   RAISE EXCEPTION 'PDC_363_REPLAY_SHARED_REVISION_CHANGED' USING errcode='55000';
-  END IF;
-  RETURN jsonb_set(v_receipt.response,'{replay}','true'::jsonb,false)
-    || jsonb_build_object('replay_revision',jsonb_build_object(
-      'table','public.pdc_email_vehicle_revision','before',v_shared_revision_before,
-      'after',v_shared_revision_after,'delta',v_shared_revision_after-v_shared_revision_before));
- END IF;
 
  LOCK TABLE public.vehicles IN SHARE ROW EXCLUSIVE MODE;
  LOCK TABLE public.vehicle_aliases IN SHARE MODE;
