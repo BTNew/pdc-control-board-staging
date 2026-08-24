@@ -7,6 +7,7 @@ import hashlib
 import json
 import pathlib
 import threading
+import urllib.parse
 import uuid
 
 from hermes_overnight_scenarios_002_003_lifecycle import env_values, prove_environment, request_json
@@ -30,7 +31,15 @@ def main() -> None:
     environment = env_values()
     base = environment["PDC_STAGING_SUPABASE_URL"].rstrip("/")
     key = environment["PDC_STAGING_ANON_KEY"]
-    if environment.get("PDC_STAGING_PROJECT_REF") != REF or REF not in base:
+    parsed = urllib.parse.urlsplit(base)
+    if (
+        environment.get("PDC_STAGING_PROJECT_REF") != REF
+        or parsed.scheme != "https"
+        or parsed.hostname != f"{REF}.supabase.co"
+        or parsed.username is not None or parsed.password is not None
+        or parsed.port is not None or parsed.path not in ("", "/")
+        or parsed.query or parsed.fragment
+    ):
         raise RuntimeError("target guard")
     initial_environment = prove_environment()
 
@@ -154,7 +163,7 @@ def main() -> None:
     if stale_status != 200 or stale_response.get("ok") is not False or "vehicle_version_conflict" not in json.dumps(stale_response):
         raise RuntimeError(f"016 stale result {stale_status} {json.dumps(stale_response)[:800]}")
     stale_receipts = [receipt for receipt in after16["receipts"] if receipt["idempotency_key"] == stale16["p_idempotency_key"]]
-    if len(stale_receipts) != 1 or digest(after16["vehicle"]) != digest(before16["vehicle"]):
+    if len(stale_receipts) != 1 or state_digest(after16) != state_digest(before16):
         raise RuntimeError("016 stale authoritative no-change/receipt postcondition")
     if fleet_digest_excluding(read(), 16) != fleet_digest_excluding(fleet_before16, 16):
         raise RuntimeError("016 changed a sibling")
@@ -214,8 +223,11 @@ def main() -> None:
         ] for no in (15, 16, 17)
     }
     all_receipt_ids = [receipt["receipt_id"] for receipts in receipt_inventory.values() for receipt in receipts]
+    semantic_receipt_keys = [(receipt["actor_id"], receipt["idempotency_key"]) for receipts in receipt_inventory.values() for receipt in receipts]
     if len(all_receipt_ids) != len(set(all_receipt_ids)):
         raise RuntimeError("duplicate receipt rows")
+    if len(semantic_receipt_keys) != len(set(semantic_receipt_keys)):
+        raise RuntimeError("duplicate actor/idempotency receipt rows")
 
     evidence = {
         "schema": "pdc-overnight-concurrency-015-017-v1", "project_ref": REF, "run_id": RUN,

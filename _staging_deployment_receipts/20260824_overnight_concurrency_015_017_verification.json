@@ -1,0 +1,145 @@
+{
+  "acceptance_commit": "eceade4ff64b8b53ef77aca829fb863c2bdf9ea6",
+  "active_source_sha256": "b5d76ddc3b1b6bf15096ec8865c523aadd47534012eec57ed2b4098ad1189ce4",
+  "actor_id": "557dba7f-fd70-4b9e-aa7b-b83b717682a7",
+  "authoritative_winner_state_bound": true,
+  "duplicate_semantic_receipts": 0,
+  "duplicate_submit_apply_replay_bound": true,
+  "executed_harness_sha256": "6b2b5d9120b967d28012e7f8f82d90c9030bbb39c0b18c7fd08444193bfb4572",
+  "final_environment": {
+    "banner_markers": {
+      "production_url_absent_from_config": true,
+      "service_role_absent_from_config": true,
+      "staging_ref_in_config": true,
+      "staging_title": true
+    },
+    "branch": "hermes/overnight-pdc-hardening-20260824",
+    "credential_files_in_worktree": [],
+    "database": {
+      "active_activation_writers": 0,
+      "active_mailboxes": 0,
+      "migration_head": {
+        "name": "374_overnight_qc_fixture_registry_assignment",
+        "version": "20260825110000"
+      },
+      "monitor_status": "stopped",
+      "outbound_notification_rows": 0,
+      "pending_outbound_notifications": 0,
+      "production_sentinel_absent": true,
+      "project_ref": "cdsmnqxtyyoeoznmbidd",
+      "staging_sentinel_rows": 1,
+      "synthetic_vehicle_total": 20,
+      "vehicle_total": 173
+    },
+    "outbound_policy": "mailboxes and activation writers disabled; no external sends permitted",
+    "pages_build": "c95e0dec3064eebfb88d8f8367a326ca77fcc6b7 built",
+    "production_access_guard": true,
+    "schema": "pdc-overnight-environment-proof-v1",
+    "source_start_commit": "ac06394736b55220e7425322fc53e9b9dadc3fdd",
+    "website_hostname": "btnew.github.io",
+    "website_path": "/pdc-control-board-staging/",
+    "website_title": "PDC Control Board \u2014 STAGING"
+  },
+  "initial_environment": {
+    "banner_markers": {
+      "production_url_absent_from_config": true,
+      "service_role_absent_from_config": true,
+      "staging_ref_in_config": true,
+      "staging_title": true
+    },
+    "branch": "hermes/overnight-pdc-hardening-20260824",
+    "credential_files_in_worktree": [],
+    "database": {
+      "active_activation_writers": 0,
+      "active_mailboxes": 0,
+      "migration_head": {
+        "name": "374_overnight_qc_fixture_registry_assignment",
+        "version": "20260825110000"
+      },
+      "monitor_status": "stopped",
+      "outbound_notification_rows": 0,
+      "pending_outbound_notifications": 0,
+      "production_sentinel_absent": true,
+      "project_ref": "cdsmnqxtyyoeoznmbidd",
+      "staging_sentinel_rows": 1,
+      "synthetic_vehicle_total": 20,
+      "vehicle_total": 173
+    },
+    "outbound_policy": "mailboxes and activation writers disabled; no external sends permitted",
+    "pages_build": "c95e0dec3064eebfb88d8f8367a326ca77fcc6b7 built",
+    "production_access_guard": true,
+    "schema": "pdc-overnight-environment-proof-v1",
+    "source_start_commit": "ac06394736b55220e7425322fc53e9b9dadc3fdd",
+    "website_hostname": "btnew.github.io",
+    "website_path": "/pdc-control-board-staging/",
+    "website_title": "PDC Control Board \u2014 STAGING"
+  },
+  "isolated_authenticated_sessions": 2,
+  "live_contract": {
+    "apply_365_sha256": "bc627c01b4a7f7c812799018894a4f9e52e512a531cea22b40cb658d2e9f3e93",
+    "edit_365_sha256": "c6f99e6c01196524a7ccf5c43d79cd26faab07920cf2b4901cff294bb50187ab",
+    "migration_head": {
+      "name": "374_overnight_qc_fixture_registry_assignment",
+      "version": "20260825110000"
+    },
+    "project_ref": "cdsmnqxtyyoeoznmbidd"
+  },
+  "lost_updates": 0,
+  "notifications": 0,
+  "project_ref": "cdsmnqxtyyoeoznmbidd",
+  "protected_state": {
+    "rows": 1413,
+    "sha256": "28476c8fac93aa03707b20a84b4b836b4268c96fa6710bf1238f0f6ebb265f11"
+  },
+  "race_timing": [
+    {
+      "client_request_windows_overlap_ns": 466799400,
+      "race_no": 1,
+      "requests": [
+        {
+          "end_ns": 539632381366500,
+          "receipt_id": "8bafa7b3-c108-5878-9f92-e260bda4f409",
+          "side": 0,
+          "start_ns": 539631914567100
+        },
+        {
+          "end_ns": 539632564317600,
+          "receipt_id": "388976e0-d1ab-5a2d-a367-ac27a14fefda",
+          "side": 1,
+          "start_ns": 539631914427200
+        }
+      ]
+    },
+    {
+      "client_request_windows_overlap_ns": 425216200,
+      "race_no": 2,
+      "requests": [
+        {
+          "end_ns": 539635450583300,
+          "receipt_id": "6ce9c312-252a-547b-a5d4-dab5a360d205",
+          "side": 0,
+          "start_ns": 539635025367100
+        },
+        {
+          "end_ns": 539635641054500,
+          "receipt_id": "a6c7a851-a1f5-5cf4-9c32-5092b724d12e",
+          "side": 1,
+          "start_ns": 539635025252100
+        }
+      ]
+    }
+  ],
+  "receipt_count": 10,
+  "recorded_at_utc": "2026-08-24T18:17:11.120580+00:00",
+  "run_id": "HERMES-TEST-RUN-20260824",
+  "same_key_changed_payload_rejected": true,
+  "same_record_races": 2,
+  "schema": "pdc-overnight-concurrency-015-017-verification-v1",
+  "source_evidence_sha256": "366a6a75f52d270a946b0e0b86c557005b58a9fefb51cdc3adbc809818c2cd67",
+  "stale_rejection_full_target_replay_stable": true,
+  "stored_winner_loser_receipts_bound": true,
+  "synthetic_siblings_unchanged": true,
+  "unique_actor_idempotency_pairs": 10,
+  "unique_receipt_ids": 10,
+  "verifier_sha256": "3d39ce17c5c0048b7fdb8df24ea5a8e47783126b08fdcf40d254b69b8536c04b"
+}
