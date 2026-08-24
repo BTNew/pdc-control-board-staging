@@ -1,0 +1,32 @@
+{
+  "active_mailboxes": 0,
+  "active_writers": 0,
+  "adjustments": 200,
+  "function_sha256": "299721a575227fe7d1a2da5b704e662d565a4c180abaafa33a50eca9be98fc73",
+  "migration": {
+    "name": "360_craig_owner_jobcard_work_key_precedence",
+    "version": "20260824210000"
+  },
+  "monitor_status": "stopped",
+  "operation_lines": 494,
+  "owner_marker": true,
+  "workbook_summary": {
+    "explicit_zero_hours": 43,
+    "mapped_operation_count": 500,
+    "operation_count": 1488,
+    "pair_count": 166,
+    "quarantined_operation_count": 988,
+    "unknown_hours": 155,
+    "work_key_counts": {
+      "UNMAPPED": 988,
+      "electrical": 63,
+      "fabrication": 28,
+      "fitting": 331,
+      "hoist": 31,
+      "sublet": 2,
+      "tint": 1,
+      "tyre": 44
+    },
+    "workbook_sha256": "56e04ce63beb40cb539db28df1262f1cdc4166e4f08b117025162e9228719ad2"
+  }
+}
