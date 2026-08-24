@@ -78,5 +78,16 @@ None yet.
 - Blockers: no mutation is permitted until the synthetic bootstrap path is isolated from the 153 protected pre-existing staging vehicles and exact authorised RPCs are established.
 - Exact next action: finish baseline aggregation, record failures honestly, inventory authenticated contracts, then design and test a guarded append-only HERMES-TEST fleet bootstrap without touching existing rows.
 
+### Checkpoint 002 — 2026-08-24T11:07:38Z (elapsed 00:13)
+- Git commit: `742e1c6a6c4344fe1ac2d6c5c90e405e3c951d74`
+- Areas tested: complete route/test/build inventory; source-level audit of authenticated creation, work-state, booking, Parts, Sublet, lifecycle, QC/RFT and archive/restore contracts; read-only deployed schema/constraint/trigger inventory for `vehicles` and `vehicle_work_items`.
+- Synthetic records created: none.
+- Bugs discovered: direct synthetic bootstrap is safely blocked—both existing creation paths require retained provider/email evidence and an active stage writer, while this run deliberately has zero active writers. Existing generic mutation RPCs also lack a server-side `HERMES-TEST` registry gate, and QC sign-off may enqueue notifications.
+- Bugs fixed: none yet; unsafe reuse of production-like intake contracts was rejected rather than bypassed.
+- Tests passing: all first-party JavaScript parses; 33/33 Node tests; 30/30 Python tests on the project interpreter.
+- Baseline limitations: static GitHub Pages app with no package manifest, bundler, lint configuration, type checker or production-build command. Current tests are mostly source/SQL contract checks; there is no browser E2E, two-session race harness or accessibility runner. Dedicated Sublet and RFT runtime coverage is absent.
+- Blockers: safe mutation requires a guarded append-only staging migration that registers this run's synthetic identities, creates only prefix-validated test vehicles, suppresses external notifications, and exposes synthetic-only wrappers/readback before any lifecycle testing.
+- Exact next action: implement and independently review the smallest guarded bootstrap/registry migration, then authenticate through a staging operator/admin account, create the 20 named synthetic scenarios idempotently, and verify that pre-existing vehicle/history/notification counts are unchanged except for the exact registered synthetic scope.
+
 ## Final report
 Pending until the ten-hour end time.

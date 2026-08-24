@@ -1,0 +1,707 @@
+{
+  "constraints": [
+    {
+      "definition": "FOREIGN KEY (active_workshop_booking_id) REFERENCES workshop_bookings(id) ON DELETE SET NULL",
+      "name": "vehicles_active_workshop_booking_id_fkey"
+    },
+    {
+      "definition": "FOREIGN KEY (board_purged_by) REFERENCES auth.users(id) ON DELETE RESTRICT",
+      "name": "vehicles_board_purged_by_fkey"
+    },
+    {
+      "definition": "FOREIGN KEY (created_by) REFERENCES auth.users(id)",
+      "name": "vehicles_created_by_fkey"
+    },
+    {
+      "definition": "CHECK ((((source_system_normalized IS NULL) AND (source_record_id_normalized IS NULL)) OR ((source_system_normalized IS NOT NULL) AND (source_record_id_normalized IS NOT NULL)))) NOT VALID",
+      "name": "vehicles_master_source_pair"
+    },
+    {
+      "definition": "CHECK ((version > 0)) NOT VALID",
+      "name": "vehicles_master_version_positive"
+    },
+    {
+      "definition": "UNIQUE (permanent_vehicle_id)",
+      "name": "vehicles_permanent_vehicle_id_key"
+    },
+    {
+      "definition": "PRIMARY KEY (id)",
+      "name": "vehicles_pkey"
+    },
+    {
+      "definition": "FOREIGN KEY (qc_completed_by) REFERENCES auth.users(id)",
+      "name": "vehicles_qc_completed_by_fkey"
+    },
+    {
+      "definition": "FOREIGN KEY (rft_collected_by) REFERENCES auth.users(id)",
+      "name": "vehicles_rft_collected_by_fkey"
+    },
+    {
+      "definition": "FOREIGN KEY (sales_preparation_updated_by) REFERENCES auth.users(id)",
+      "name": "vehicles_sales_preparation_updated_by_fkey"
+    },
+    {
+      "definition": "FOREIGN KEY (salesperson_id) REFERENCES salespeople(id)",
+      "name": "vehicles_salesperson_fk"
+    },
+    {
+      "definition": "FOREIGN KEY (updated_by) REFERENCES auth.users(id)",
+      "name": "vehicles_updated_by_fkey"
+    },
+    {
+      "definition": "CHECK ((workshop_status = ANY (ARRAY['queued'::text, 'scheduled'::text, 'in_progress'::text, 'stoppage'::text, 'completed'::text])))",
+      "name": "vehicles_workshop_status_check"
+    },
+    {
+      "definition": "FOREIGN KEY (workshop_status_updated_by) REFERENCES auth.users(id)",
+      "name": "vehicles_workshop_status_updated_by_fkey"
+    }
+  ],
+  "locations": [
+    {
+      "count": 28,
+      "lifecycle": "active",
+      "location": "IT",
+      "pmb_stage": null
+    },
+    {
+      "count": 37,
+      "lifecycle": "active",
+      "location": "Other",
+      "pmb_stage": null
+    },
+    {
+      "count": 87,
+      "lifecycle": "active",
+      "location": "PMB",
+      "pmb_stage": null
+    },
+    {
+      "count": 1,
+      "lifecycle": "active",
+      "location": "YH",
+      "pmb_stage": null
+    }
+  ],
+  "triggers": [
+    {
+      "definition": "CREATE TRIGGER pdc_default_vehicle_salesperson_trigger BEFORE INSERT OR UPDATE OF salesperson_reference, salesperson_id ON public.vehicles FOR EACH ROW EXECUTE FUNCTION pdc_default_vehicle_salesperson()",
+      "name": "pdc_default_vehicle_salesperson_trigger"
+    },
+    {
+      "definition": "CREATE TRIGGER pdc_email_vehicle_revision_vehicles AFTER INSERT OR DELETE OR UPDATE ON public.vehicles FOR EACH STATEMENT EXECUTE FUNCTION bump_pdc_email_vehicle_revision()",
+      "name": "pdc_email_vehicle_revision_vehicles"
+    },
+    {
+      "definition": "CREATE TRIGGER pdc_reject_shared_board_qa_fixture_347 BEFORE INSERT OR UPDATE OF source_system, deleted_at, board_purged_at ON public.vehicles FOR EACH ROW EXECUTE FUNCTION pdc_reject_shared_board_qa_fixture_347()",
+      "name": "pdc_reject_shared_board_qa_fixture_347"
+    },
+    {
+      "definition": "CREATE TRIGGER pdc_vehicle_archive_recreation_gate BEFORE INSERT OR UPDATE OF stock_number, stock_number_normalized, source_system, lifecycle_state, deleted_at, visible_on_board ON public.vehicles FOR EACH ROW EXECUTE FUNCTION pdc_vehicle_archive_recreation_gate()",
+      "name": "pdc_vehicle_archive_recreation_gate"
+    },
+    {
+      "definition": "CREATE TRIGGER trg_pdc_online_vehicle_change_revision AFTER UPDATE OF current_location, pmb_stage, pmb_bay_stage, pmb_bay_number, lifecycle_state, visible_on_board, version, active_workshop_booking_id, workshop_status, qc_completed_at, rft_transferred_at, rft_collected_at ON public.vehicles FOR EACH STATEMENT EXECUTE FUNCTION pdc_online_vehicle_change_bump_revision()",
+      "name": "trg_pdc_online_vehicle_change_revision"
+    },
+    {
+      "definition": "CREATE TRIGGER vehicles_alias_prelock_for_soft_delete BEFORE UPDATE OF deleted_at ON public.vehicles FOR EACH ROW WHEN (((old.deleted_at IS NULL) AND (new.deleted_at IS NOT NULL))) EXECUTE FUNCTION prelock_vehicle_aliases_for_soft_delete()",
+      "name": "vehicles_alias_prelock_for_soft_delete"
+    },
+    {
+      "definition": "CREATE TRIGGER vehicles_bump_lifecycle_resolver_revision AFTER INSERT OR DELETE OR UPDATE ON public.vehicles FOR EACH ROW EXECUTE FUNCTION bump_vehicle_lifecycle_resolver_revision()",
+      "name": "vehicles_bump_lifecycle_resolver_revision"
+    },
+    {
+      "definition": "CREATE TRIGGER vehicles_bump_master_revision AFTER INSERT OR DELETE OR UPDATE ON public.vehicles FOR EACH ROW EXECUTE FUNCTION bump_vehicle_master_revision()",
+      "name": "vehicles_bump_master_revision"
+    },
+    {
+      "definition": "CREATE TRIGGER vehicles_cancel_active_sublets_on_delete BEFORE UPDATE OF deleted_at ON public.vehicles FOR EACH ROW WHEN (((old.deleted_at IS NULL) AND (new.deleted_at IS NOT NULL))) EXECUTE FUNCTION cancel_active_sublets_on_vehicle_delete()",
+      "name": "vehicles_cancel_active_sublets_on_delete"
+    },
+    {
+      "definition": "CREATE TRIGGER vehicles_deactivate_aliases_on_soft_delete AFTER UPDATE OF deleted_at ON public.vehicles FOR EACH ROW WHEN (((old.deleted_at IS NULL) AND (new.deleted_at IS NOT NULL))) EXECUTE FUNCTION deactivate_vehicle_aliases_on_soft_delete()",
+      "name": "vehicles_deactivate_aliases_on_soft_delete"
+    },
+    {
+      "definition": "CREATE TRIGGER vehicles_enforce_master_identity_uniqueness BEFORE INSERT OR UPDATE OF stock_number, vin, source_system, source_record_id ON public.vehicles FOR EACH ROW EXECUTE FUNCTION enforce_vehicle_master_identity_uniqueness()",
+      "name": "vehicles_enforce_master_identity_uniqueness"
+    },
+    {
+      "definition": "CREATE TRIGGER vehicles_enforce_qc_then_rft BEFORE UPDATE OF qc_completed_at, current_location, lifecycle_state ON public.vehicles FOR EACH ROW EXECUTE FUNCTION pdc_enforce_qc_then_rft()",
+      "name": "vehicles_enforce_qc_then_rft"
+    },
+    {
+      "definition": "CREATE TRIGGER vehicles_enforce_reactivation_identity_uniqueness BEFORE UPDATE OF deleted_at ON public.vehicles FOR EACH ROW WHEN (((old.deleted_at IS NOT NULL) AND (new.deleted_at IS NULL))) EXECUTE FUNCTION enforce_vehicle_reactivation_identity_uniqueness()",
+      "name": "vehicles_enforce_reactivation_identity_uniqueness"
+    },
+    {
+      "definition": "CREATE TRIGGER vehicles_first_milestones BEFORE INSERT OR UPDATE ON public.vehicles FOR EACH ROW EXECUTE FUNCTION pdc_vehicle_first_milestones()",
+      "name": "vehicles_first_milestones"
+    },
+    {
+      "definition": "CREATE TRIGGER vehicles_pdc_bulk_stock_only_privacy_guard BEFORE INSERT OR UPDATE OF customer_name, key_number, source_payload ON public.vehicles FOR EACH ROW EXECUTE FUNCTION enforce_pdc_bulk_stock_only_vehicle_privacy()",
+      "name": "vehicles_pdc_bulk_stock_only_privacy_guard"
+    },
+    {
+      "definition": "CREATE TRIGGER vehicles_record_master_history AFTER INSERT OR DELETE OR UPDATE ON public.vehicles FOR EACH ROW EXECUTE FUNCTION record_vehicle_master_history()",
+      "name": "vehicles_record_master_history"
+    },
+    {
+      "definition": "CREATE TRIGGER vehicles_refresh_workshop_eta_risk AFTER UPDATE OF eta_to_kewdale ON public.vehicles FOR EACH ROW EXECUTE FUNCTION workshop_refresh_eta_risk()",
+      "name": "vehicles_refresh_workshop_eta_risk"
+    },
+    {
+      "definition": "CREATE TRIGGER vehicles_set_updated_at BEFORE UPDATE ON public.vehicles FOR EACH ROW EXECUTE FUNCTION set_updated_at()",
+      "name": "vehicles_set_updated_at"
+    },
+    {
+      "definition": "CREATE TRIGGER vehicles_station_revision AFTER INSERT OR DELETE OR UPDATE ON public.vehicles FOR EACH ROW EXECUTE FUNCTION workshop_station_revision_from_vehicle()",
+      "name": "vehicles_station_revision"
+    },
+    {
+      "definition": "CREATE TRIGGER vehicles_toyota_navision_it_eta_gate BEFORE INSERT OR UPDATE OF current_location, eta_to_kewdale, source_system, source_record_id ON public.vehicles FOR EACH ROW EXECUTE FUNCTION enforce_toyota_navision_it_eta()",
+      "name": "vehicles_toyota_navision_it_eta_gate"
+    }
+  ],
+  "vehicle_columns": [
+    {
+      "default": "gen_random_uuid()",
+      "name": "id",
+      "nullable": "NO",
+      "type": "uuid",
+      "udt": "uuid"
+    },
+    {
+      "default": null,
+      "name": "permanent_vehicle_id",
+      "nullable": "NO",
+      "type": "text",
+      "udt": "text"
+    },
+    {
+      "default": null,
+      "name": "stock_number",
+      "nullable": "YES",
+      "type": "text",
+      "udt": "text"
+    },
+    {
+      "default": null,
+      "name": "vin",
+      "nullable": "YES",
+      "type": "text",
+      "udt": "text"
+    },
+    {
+      "default": null,
+      "name": "toyota_order_number",
+      "nullable": "YES",
+      "type": "text",
+      "udt": "text"
+    },
+    {
+      "default": null,
+      "name": "job_card_number",
+      "nullable": "YES",
+      "type": "text",
+      "udt": "text"
+    },
+    {
+      "default": null,
+      "name": "customer_name",
+      "nullable": "YES",
+      "type": "text",
+      "udt": "text"
+    },
+    {
+      "default": null,
+      "name": "salesperson_id",
+      "nullable": "YES",
+      "type": "uuid",
+      "udt": "uuid"
+    },
+    {
+      "default": null,
+      "name": "make",
+      "nullable": "YES",
+      "type": "text",
+      "udt": "text"
+    },
+    {
+      "default": null,
+      "name": "model",
+      "nullable": "YES",
+      "type": "text",
+      "udt": "text"
+    },
+    {
+      "default": null,
+      "name": "registration",
+      "nullable": "YES",
+      "type": "text",
+      "udt": "text"
+    },
+    {
+      "default": "'active'::vehicle_lifecycle_state",
+      "name": "lifecycle_state",
+      "nullable": "NO",
+      "type": "USER-DEFINED",
+      "udt": "vehicle_lifecycle_state"
+    },
+    {
+      "default": "false",
+      "name": "visible_on_board",
+      "nullable": "NO",
+      "type": "boolean",
+      "udt": "bool"
+    },
+    {
+      "default": null,
+      "name": "current_location",
+      "nullable": "YES",
+      "type": "text",
+      "udt": "text"
+    },
+    {
+      "default": null,
+      "name": "pmb_stage",
+      "nullable": "YES",
+      "type": "text",
+      "udt": "text"
+    },
+    {
+      "default": null,
+      "name": "pmb_bay_stage",
+      "nullable": "YES",
+      "type": "text",
+      "udt": "text"
+    },
+    {
+      "default": null,
+      "name": "pmb_bay_number",
+      "nullable": "YES",
+      "type": "text",
+      "udt": "text"
+    },
+    {
+      "default": null,
+      "name": "pmb_key_tag",
+      "nullable": "YES",
+      "type": "text",
+      "udt": "text"
+    },
+    {
+      "default": null,
+      "name": "eta_to_kewdale",
+      "nullable": "YES",
+      "type": "date",
+      "udt": "date"
+    },
+    {
+      "default": null,
+      "name": "rft_transferred_at",
+      "nullable": "YES",
+      "type": "timestamp with time zone",
+      "udt": "timestamptz"
+    },
+    {
+      "default": null,
+      "name": "rft_collected_at",
+      "nullable": "YES",
+      "type": "timestamp with time zone",
+      "udt": "timestamptz"
+    },
+    {
+      "default": null,
+      "name": "deleted_at",
+      "nullable": "YES",
+      "type": "timestamp with time zone",
+      "udt": "timestamptz"
+    },
+    {
+      "default": null,
+      "name": "deleted_reason",
+      "nullable": "YES",
+      "type": "text",
+      "udt": "text"
+    },
+    {
+      "default": "'{}'::jsonb",
+      "name": "source_payload",
+      "nullable": "NO",
+      "type": "jsonb",
+      "udt": "jsonb"
+    },
+    {
+      "default": "1",
+      "name": "version",
+      "nullable": "NO",
+      "type": "integer",
+      "udt": "int4"
+    },
+    {
+      "default": null,
+      "name": "created_by",
+      "nullable": "YES",
+      "type": "uuid",
+      "udt": "uuid"
+    },
+    {
+      "default": null,
+      "name": "updated_by",
+      "nullable": "YES",
+      "type": "uuid",
+      "udt": "uuid"
+    },
+    {
+      "default": "now()",
+      "name": "created_at",
+      "nullable": "NO",
+      "type": "timestamp with time zone",
+      "udt": "timestamptz"
+    },
+    {
+      "default": "now()",
+      "name": "updated_at",
+      "nullable": "NO",
+      "type": "timestamp with time zone",
+      "udt": "timestamptz"
+    },
+    {
+      "default": null,
+      "name": "active_workshop_booking_id",
+      "nullable": "YES",
+      "type": "uuid",
+      "udt": "uuid"
+    },
+    {
+      "default": "'queued'::text",
+      "name": "workshop_status",
+      "nullable": "NO",
+      "type": "text",
+      "udt": "text"
+    },
+    {
+      "default": null,
+      "name": "workshop_status_updated_at",
+      "nullable": "YES",
+      "type": "timestamp with time zone",
+      "udt": "timestamptz"
+    },
+    {
+      "default": null,
+      "name": "workshop_status_updated_by",
+      "nullable": "YES",
+      "type": "uuid",
+      "udt": "uuid"
+    },
+    {
+      "default": null,
+      "name": "qc_completed_at",
+      "nullable": "YES",
+      "type": "timestamp with time zone",
+      "udt": "timestamptz"
+    },
+    {
+      "default": null,
+      "name": "qc_completed_by",
+      "nullable": "YES",
+      "type": "uuid",
+      "udt": "uuid"
+    },
+    {
+      "default": null,
+      "name": "rft_collected_by",
+      "nullable": "YES",
+      "type": "uuid",
+      "udt": "uuid"
+    },
+    {
+      "default": null,
+      "name": "key_number",
+      "nullable": "YES",
+      "type": "text",
+      "udt": "text"
+    },
+    {
+      "default": null,
+      "name": "vehicle_description",
+      "nullable": "YES",
+      "type": "text",
+      "udt": "text"
+    },
+    {
+      "default": null,
+      "name": "salesperson_reference",
+      "nullable": "YES",
+      "type": "text",
+      "udt": "text"
+    },
+    {
+      "default": null,
+      "name": "arrival_reference_date",
+      "nullable": "YES",
+      "type": "date",
+      "udt": "date"
+    },
+    {
+      "default": null,
+      "name": "source_system",
+      "nullable": "YES",
+      "type": "text",
+      "udt": "text"
+    },
+    {
+      "default": null,
+      "name": "source_batch_id",
+      "nullable": "YES",
+      "type": "text",
+      "udt": "text"
+    },
+    {
+      "default": null,
+      "name": "source_record_id",
+      "nullable": "YES",
+      "type": "text",
+      "udt": "text"
+    },
+    {
+      "default": null,
+      "name": "stock_number_normalized",
+      "nullable": "YES",
+      "type": "text",
+      "udt": "text"
+    },
+    {
+      "default": null,
+      "name": "vin_normalized",
+      "nullable": "YES",
+      "type": "text",
+      "udt": "text"
+    },
+    {
+      "default": null,
+      "name": "source_system_normalized",
+      "nullable": "YES",
+      "type": "text",
+      "udt": "text"
+    },
+    {
+      "default": null,
+      "name": "source_record_id_normalized",
+      "nullable": "YES",
+      "type": "text",
+      "udt": "text"
+    },
+    {
+      "default": null,
+      "name": "board_purged_at",
+      "nullable": "YES",
+      "type": "timestamp with time zone",
+      "udt": "timestamptz"
+    },
+    {
+      "default": null,
+      "name": "board_purge_reason",
+      "nullable": "YES",
+      "type": "text",
+      "udt": "text"
+    },
+    {
+      "default": null,
+      "name": "board_purged_by",
+      "nullable": "YES",
+      "type": "uuid",
+      "udt": "uuid"
+    },
+    {
+      "default": null,
+      "name": "date_to_pmb",
+      "nullable": "YES",
+      "type": "date",
+      "udt": "date"
+    },
+    {
+      "default": null,
+      "name": "date_to_rft",
+      "nullable": "YES",
+      "type": "date",
+      "udt": "date"
+    },
+    {
+      "default": null,
+      "name": "delivered_to_dealer_date",
+      "nullable": "YES",
+      "type": "date",
+      "udt": "date"
+    },
+    {
+      "default": "false",
+      "name": "sales_tint_raised",
+      "nullable": "NO",
+      "type": "boolean",
+      "udt": "bool"
+    },
+    {
+      "default": "false",
+      "name": "sales_build_po_raised",
+      "nullable": "NO",
+      "type": "boolean",
+      "udt": "bool"
+    },
+    {
+      "default": "false",
+      "name": "sales_build_complete",
+      "nullable": "NO",
+      "type": "boolean",
+      "udt": "bool"
+    },
+    {
+      "default": "false",
+      "name": "sales_tray_ordered",
+      "nullable": "NO",
+      "type": "boolean",
+      "udt": "bool"
+    },
+    {
+      "default": "false",
+      "name": "sales_tray_complete",
+      "nullable": "NO",
+      "type": "boolean",
+      "udt": "bool"
+    },
+    {
+      "default": null,
+      "name": "sales_preparation_updated_at",
+      "nullable": "YES",
+      "type": "timestamp with time zone",
+      "udt": "timestamptz"
+    },
+    {
+      "default": null,
+      "name": "sales_preparation_updated_by",
+      "nullable": "YES",
+      "type": "uuid",
+      "udt": "uuid"
+    }
+  ],
+  "work_constraints": [
+    {
+      "definition": "FOREIGN KEY (completed_by) REFERENCES auth.users(id)",
+      "name": "vehicle_work_items_completed_by_fkey"
+    },
+    {
+      "definition": "PRIMARY KEY (id)",
+      "name": "vehicle_work_items_pkey"
+    },
+    {
+      "definition": "FOREIGN KEY (vehicle_id) REFERENCES vehicles(id) ON DELETE CASCADE",
+      "name": "vehicle_work_items_vehicle_id_fkey"
+    },
+    {
+      "definition": "UNIQUE (vehicle_id, work_key)",
+      "name": "vehicle_work_items_vehicle_id_work_key_key"
+    }
+  ],
+  "work_item_columns": [
+    {
+      "default": "gen_random_uuid()",
+      "name": "id",
+      "nullable": "NO",
+      "type": "uuid",
+      "udt": "uuid"
+    },
+    {
+      "default": null,
+      "name": "vehicle_id",
+      "nullable": "NO",
+      "type": "uuid",
+      "udt": "uuid"
+    },
+    {
+      "default": null,
+      "name": "work_key",
+      "nullable": "NO",
+      "type": "text",
+      "udt": "text"
+    },
+    {
+      "default": "false",
+      "name": "required",
+      "nullable": "NO",
+      "type": "boolean",
+      "udt": "bool"
+    },
+    {
+      "default": "false",
+      "name": "completed",
+      "nullable": "NO",
+      "type": "boolean",
+      "udt": "bool"
+    },
+    {
+      "default": null,
+      "name": "completed_by",
+      "nullable": "YES",
+      "type": "uuid",
+      "udt": "uuid"
+    },
+    {
+      "default": null,
+      "name": "completed_at",
+      "nullable": "YES",
+      "type": "timestamp with time zone",
+      "udt": "timestamptz"
+    },
+    {
+      "default": null,
+      "name": "notes",
+      "nullable": "YES",
+      "type": "text",
+      "udt": "text"
+    },
+    {
+      "default": "now()",
+      "name": "updated_at",
+      "nullable": "NO",
+      "type": "timestamp with time zone",
+      "udt": "timestamptz"
+    }
+  ],
+  "work_keys": [
+    {
+      "count": 50,
+      "work_key": "electrical"
+    },
+    {
+      "count": 105,
+      "work_key": "fabrication"
+    },
+    {
+      "count": 125,
+      "work_key": "fitting"
+    },
+    {
+      "count": 29,
+      "work_key": "hoist"
+    },
+    {
+      "count": 1,
+      "work_key": "PARTS"
+    },
+    {
+      "count": 2,
+      "work_key": "sublet"
+    },
+    {
+      "count": 1,
+      "work_key": "tint"
+    },
+    {
+      "count": 41,
+      "work_key": "tyre"
+    }
+  ]
+}
