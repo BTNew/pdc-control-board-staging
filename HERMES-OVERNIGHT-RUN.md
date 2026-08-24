@@ -193,5 +193,18 @@ None at this checkpoint. Registry-bound synthetic stress mutation is now commiss
 - Quantitative counters: synthetic 20/20; journeys 0/5; board movements 2/100; booking movements/adjustments 0/50; invalid attempts 6/20; duplicate submits 4/20; Parts 0/25; Sublet 0/20; QC/RFT out-of-order 0/10; two-session 0/10; field/validation 8/30.
 - Exact next action: implement and independently review migration 369 for synthetic-only estimated-hour setup with expanded cross-relation digests/route guards and immutable receipts, rollback-test/apply it, then rerun the exact-minute schedules and bay/vehicle conflict sequence on 005-007.
 
+### Checkpoint 009 — 2026-08-24T15:24:11Z (elapsed 04:29)
+- Git commit: `2375dada71a5bc5b4dbe57e340a198d73454e847`; migration 369 SHA-256 `152f101c80f8eec420f7d9c06de1570a81ede41620d8e5fc0ed8e479143c7f5c` (pushed).
+- Areas tested: exact migration-368 predecessor and installed-function hashes; synthetic estimate provenance; target-based generic-RPC bypass closure; route/ACL/owner/dependency drift; protected/sibling and receipt-relation containment; runtime race locks; replay/readback truthfulness; migration-317 positive-estimate preservation.
+- Synthetic records mutated: none. Migration 369 was executed only inside explicit staging rollback transactions; live migration head remains 368 and scenarios 005-007 still have no estimates or bookings.
+- Bugs discovered: the first candidate had incomplete runtime containment, raceable cross-relation digests, a bootstrap-actor rather than registry-target route boundary, receipts outside route/digest containment, a misleading replay-containment label and readback without dependency/registry drift gates.
+- Bugs fixed locally: migration 369 now admits only the four explicit test values (005 Fitting 1.22h/73m; 006 Electrical 1.02h/61m; 007 Fitting 0.78h/47m and Electrical 0.98h/59m), stores them as a dedicated synthetic authority rather than counterfeit source evidence, preserves migration 317, closes the generic migration-361 path for every registry target, exact-hash binds the route/canonical/predecessor functions, serializes every protected/sibling digest relation, and uses private append-only receipts plus truthful replay/readback.
+- Tests passing: focused static contract; executable model; Node syntax; repeated exact live staging rollback execution; post-rollback environment proof unchanged; final independent exact-source `APPROVE` on SHA `152f101c...`.
+- Tests failing: none in the approved source/rollback slice. Migration 369 has deliberately not yet been committed live and the exact-minute schedule sequence has not yet rerun.
+- Authoritative post-state: migration head 368; 173 vehicles / 20 synthetic / 153 protected; notifications 0; Monitor stopped; active mailboxes/writers 0; no synthetic estimate or booking mutation this checkpoint.
+- Blockers: none. Production was not contacted or changed.
+- Quantitative counters: synthetic 20/20; journeys 0/5; board movements 2/100; booking movements/adjustments 0/50; invalid attempts 6/20; duplicate submits 4/20; Parts 0/25; Sublet 0/20; QC/RFT out-of-order 0/10; two-session 0/10; field/validation 8/30.
+- Exact next action: re-prove staging, apply exact reviewed migration 369 through the guarded staging controller with ledger readback, perform Administrator-authenticated four-estimate Apply/replay/negative acceptance, then rerun exact-minute schedules and bay/vehicle conflict tests on 005-007 with authoritative receipts/readback.
+
 ## Final report
 Pending until the ten-hour end time.
