@@ -1,0 +1,1682 @@
+{
+  "authoritative_work_key_classification": {
+    "classified_operations": 494,
+    "conflicting_override_descriptions": [
+      {
+        "authoritative": "fabrication",
+        "baseline": "UNKNOWN",
+        "description": "1.5 Kg Fire Extinuisher to LHF floor",
+        "mapping": "fire_extinguisher_variants_fabrication",
+        "occurrences": 45
+      },
+      {
+        "authoritative": "fitting",
+        "baseline": "UNKNOWN",
+        "description": "Steel Bull Bar - Commercial",
+        "mapping": "bullbar_fitting",
+        "occurrences": 42
+      },
+      {
+        "authoritative": "fitting",
+        "baseline": "UNKNOWN",
+        "description": "Front Recovery Points - For Bull Bar (w/o Winch)",
+        "mapping": "bullbar_fitting",
+        "occurrences": 14
+      },
+      {
+        "authoritative": "fitting",
+        "baseline": "UNKNOWN",
+        "description": "Steel Bull Bar - Premium",
+        "mapping": "bullbar_fitting",
+        "occurrences": 10
+      },
+      {
+        "authoritative": "fitting",
+        "baseline": "UNKNOWN",
+        "description": "LED Lightbar - For Bull Bar",
+        "mapping": "bullbar_fitting",
+        "occurrences": 8
+      },
+      {
+        "authoritative": "fitting",
+        "baseline": "UNKNOWN",
+        "description": "STEEL BULL BAR - COMMERCIAL - BROOME TO SUPPLY",
+        "mapping": "bullbar_fitting",
+        "occurrences": 8
+      },
+      {
+        "authoritative": "fabrication",
+        "baseline": "UNKNOWN",
+        "description": "4.5KG Dry Powder Fire Extinuisher Mounted on L/H side",
+        "mapping": "fire_extinguisher_variants_fabrication",
+        "occurrences": 7
+      },
+      {
+        "authoritative": "fabrication",
+        "baseline": "UNKNOWN",
+        "description": "1.0 KG FIRE EXTINGUISHER",
+        "mapping": "fire_extinguisher_variants_fabrication",
+        "occurrences": 5
+      },
+      {
+        "authoritative": "fitting",
+        "baseline": "UNKNOWN",
+        "description": "ARB SUMMIT MKII STEEL BULL BAR",
+        "mapping": "bullbar_fitting",
+        "occurrences": 5
+      },
+      {
+        "authoritative": "fitting",
+        "baseline": "UNKNOWN",
+        "description": "STEEL BULL BAR - BROOME TO SUPPLY",
+        "mapping": "bullbar_fitting",
+        "occurrences": 4
+      },
+      {
+        "authoritative": "fitting",
+        "baseline": "UNKNOWN",
+        "description": "STEEL BULL BAR - PREMIUM - BROOME TO SUPPLY",
+        "mapping": "bullbar_fitting",
+        "occurrences": 4
+      },
+      {
+        "authoritative": "fitting",
+        "baseline": "UNKNOWN",
+        "description": "ARB SUMMIT MKII Bull Bar Matt Black",
+        "mapping": "bullbar_fitting",
+        "occurrences": 3
+      },
+      {
+        "authoritative": "fitting",
+        "baseline": "UNKNOWN",
+        "description": "LED LIGHTBAR - FOR BULL BAR - BROOME TO SUPPLY",
+        "mapping": "bullbar_fitting",
+        "occurrences": 3
+      },
+      {
+        "authoritative": "fabrication",
+        "baseline": "UNKNOWN",
+        "description": "1.5KG FIRE EXTINGUISHER TO LHF PASSENGER FLOOR",
+        "mapping": "fire_extinguisher_variants_fabrication",
+        "occurrences": 2
+      },
+      {
+        "authoritative": "fitting",
+        "baseline": "UNKNOWN",
+        "description": "ALLOY BULL BAR - BROOME TO SUPPLY",
+        "mapping": "bullbar_fitting",
+        "occurrences": 2
+      },
+      {
+        "authoritative": "fitting",
+        "baseline": "UNKNOWN",
+        "description": "ARB STEEL BULL BAR - COMMERCIAL",
+        "mapping": "bullbar_fitting",
+        "occurrences": 2
+      },
+      {
+        "authoritative": "fitting",
+        "baseline": "UNKNOWN",
+        "description": "ARB SUMMIT STEEL BULL BAR",
+        "mapping": "bullbar_fitting",
+        "occurrences": 2
+      },
+      {
+        "authoritative": "fitting",
+        "baseline": "UNKNOWN",
+        "description": "FRONT RECOVERY POINTS - FOR BULL BAR (W/O WINCH) - BR",
+        "mapping": "bullbar_fitting",
+        "occurrences": 2
+      },
+      {
+        "authoritative": "fitting",
+        "baseline": "UNKNOWN",
+        "description": "SIDE STEP & SIDE RAIL KIT - FOR STEEL BULL BAR - MATT",
+        "mapping": "bullbar_fitting",
+        "occurrences": 2
+      },
+      {
+        "authoritative": "fitting",
+        "baseline": "UNKNOWN",
+        "description": "Side Step & Side Rail Kit - For Steel Bull Bar - Matt",
+        "mapping": "bullbar_fitting",
+        "occurrences": 2
+      },
+      {
+        "authoritative": "fabrication",
+        "baseline": "UNKNOWN",
+        "description": "1.0 KG FIRE EXTINGUISHER TO LHF PASSENGER FLOOR",
+        "mapping": "fire_extinguisher_variants_fabrication",
+        "occurrences": 1
+      },
+      {
+        "authoritative": "fabrication",
+        "baseline": "UNKNOWN",
+        "description": "1.5 KG FIRE EXTINUISHER TO LHF FLOOR",
+        "mapping": "fire_extinguisher_variants_fabrication",
+        "occurrences": 1
+      },
+      {
+        "authoritative": "fabrication",
+        "baseline": "UNKNOWN",
+        "description": "1.5KG FIRE EXTINGUISHER MOUNTED TO LHF PASSENGER FLOO",
+        "mapping": "fire_extinguisher_variants_fabrication",
+        "occurrences": 1
+      },
+      {
+        "authoritative": "fabrication",
+        "baseline": "UNKNOWN",
+        "description": "1.5KG FIRE EXTINGUISHER TO L/H FRONT FLOOR",
+        "mapping": "fire_extinguisher_variants_fabrication",
+        "occurrences": 1
+      },
+      {
+        "authoritative": "fabrication",
+        "baseline": "UNKNOWN",
+        "description": "1.5KG FIRE EXTINGUISHER TO LHS PASSENGER FLOOR",
+        "mapping": "fire_extinguisher_variants_fabrication",
+        "occurrences": 1
+      },
+      {
+        "authoritative": "fitting",
+        "baseline": "UNKNOWN",
+        "description": "ARB SUMMIT MKII BULL BAR",
+        "mapping": "bullbar_fitting",
+        "occurrences": 1
+      },
+      {
+        "authoritative": "fitting",
+        "baseline": "UNKNOWN",
+        "description": "ARB SUMMIT MKII BULL BARE",
+        "mapping": "bullbar_fitting",
+        "occurrences": 1
+      },
+      {
+        "authoritative": "fitting",
+        "baseline": "UNKNOWN",
+        "description": "ARB SUMMIT STEEL BULLBAR",
+        "mapping": "bullbar_fitting",
+        "occurrences": 1
+      },
+      {
+        "authoritative": "fitting",
+        "baseline": "UNKNOWN",
+        "description": "ARB SUMMIT WINCH BULL BAR",
+        "mapping": "bullbar_fitting",
+        "occurrences": 1
+      },
+      {
+        "authoritative": "fitting",
+        "baseline": "UNKNOWN",
+        "description": "FITTING KIT FOR BUSHRANGER WINCH - FOR BULL BAR - BRO",
+        "mapping": "bullbar_fitting",
+        "occurrences": 1
+      },
+      {
+        "authoritative": "fitting",
+        "baseline": "UNKNOWN",
+        "description": "FRONT RECOVERY POINTS - FOR BULL BAR (WITH WINCH) - B",
+        "mapping": "bullbar_fitting",
+        "occurrences": 1
+      },
+      {
+        "authoritative": "fitting",
+        "baseline": "UNKNOWN",
+        "description": "HILUX SUMMIT BULL BAR SR MY24",
+        "mapping": "bullbar_fitting",
+        "occurrences": 1
+      },
+      {
+        "authoritative": "fitting",
+        "baseline": "UNKNOWN",
+        "description": "LED Lightbar - for non-premium Steel Bullbar (w/ OR w",
+        "mapping": "bullbar_fitting",
+        "occurrences": 1
+      },
+      {
+        "authoritative": "sublet",
+        "baseline": "UNKNOWN",
+        "description": "REFLECTIVE STRIPES WHITE",
+        "mapping": "reflective_stripes_sublet",
+        "occurrences": 1
+      },
+      {
+        "authoritative": "sublet",
+        "baseline": "UNKNOWN",
+        "description": "Reflective Stripes - Yellow",
+        "mapping": "reflective_stripes_sublet",
+        "occurrences": 1
+      },
+      {
+        "authoritative": "fitting",
+        "baseline": "UNKNOWN",
+        "description": "STEEL BULL BAR",
+        "mapping": "bullbar_fitting",
+        "occurrences": 1
+      },
+      {
+        "authoritative": "fitting",
+        "baseline": "UNKNOWN",
+        "description": "STEEL BULL BAR - COMMERCIAL 05G3A",
+        "mapping": "bullbar_fitting",
+        "occurrences": 1
+      },
+      {
+        "authoritative": "fitting",
+        "baseline": "UNKNOWN",
+        "description": "Steel Bull Bar - Commercial - Semi-hooped",
+        "mapping": "bullbar_fitting",
+        "occurrences": 1
+      }
+    ],
+    "deployed_function": "public.pdc_email_jobcard_work_key(text)",
+    "deployed_function_baseline_counts": {
+      "PARTS": 1,
+      "UNKNOWN": 1184,
+      "electrical": 34,
+      "fabrication": 117,
+      "fitting": 107,
+      "tint": 1,
+      "tyre": 44
+    },
+    "durable_owner_override_precedence": [
+      {
+        "pattern": "Reflective Stripes variants",
+        "work_key": "sublet"
+      },
+      {
+        "pattern": "Bullbar/Bull Bar/Bulbar variants",
+        "work_key": "fitting"
+      },
+      {
+        "pattern": "fire extinguisher variants (including EXTINUISHER/Extinuisher source typos)",
+        "work_key": "fabrication"
+      }
+    ],
+    "final_counts": {
+      "PARTS": 1,
+      "UNKNOWN": 994,
+      "electrical": 34,
+      "fabrication": 181,
+      "fitting": 231,
+      "sublet": 2,
+      "tint": 1,
+      "tyre": 44
+    },
+    "owner_override_transition_counts": [
+      {
+        "authoritative": "fabrication",
+        "baseline": "UNKNOWN",
+        "mapping": "fire_extinguisher_variants_fabrication",
+        "operations": 64
+      },
+      {
+        "authoritative": "fitting",
+        "baseline": "UNKNOWN",
+        "mapping": "bullbar_fitting",
+        "operations": 124
+      },
+      {
+        "authoritative": "sublet",
+        "baseline": "UNKNOWN",
+        "mapping": "reflective_stripes_sublet",
+        "operations": 2
+      },
+      {
+        "authoritative": "fabrication",
+        "baseline": "fabrication",
+        "mapping": "fire_extinguisher_variants_fabrication",
+        "operations": 1
+      },
+      {
+        "authoritative": "fitting",
+        "baseline": "fitting",
+        "mapping": "bullbar_fitting",
+        "operations": 4
+      }
+    ],
+    "unknown_descriptions": [
+      {
+        "description": "Headlamps Auto On & Hand Brake OFF Alarm Combo - DYNA",
+        "occurrences": 53
+      },
+      {
+        "description": "MINE BAR WITH FORWARD FACING INDICATORS, DUAL SOUND R",
+        "occurrences": 45
+      },
+      {
+        "description": "Battery Isolator with Locksafe Cover mounted Under Bo",
+        "occurrences": 40
+      },
+      {
+        "description": "Complete Pre-Delivery Inspection",
+        "occurrences": 34
+      },
+      {
+        "description": "Hilux Additional Spare 7.5x17 Steel Rim 265/65R17 Fac",
+        "occurrences": 32
+      },
+      {
+        "description": "Wheel Nut Indicator Set",
+        "occurrences": 32
+      },
+      {
+        "description": "Wheel Chock Mount only to L/H Headboard or Cargo area",
+        "occurrences": 27
+      },
+      {
+        "description": "Mount Safety Triangles & Holder to L/H side of Headbo",
+        "occurrences": 21
+      },
+      {
+        "description": "No operation available",
+        "occurrences": 21
+      },
+      {
+        "description": "Safety Triangle Kit left Loose in Vehicle",
+        "occurrences": 18
+      },
+      {
+        "description": "FRONT CANVAS SEAT COVERS - BROOME TO SUPPLY",
+        "occurrences": 17
+      },
+      {
+        "description": "First Aid Kit - Personal Kit",
+        "occurrences": 17
+      },
+      {
+        "description": "Battery Isolator, mounted under Bonnet with Red Lever",
+        "occurrences": 16
+      },
+      {
+        "description": "MY 26 HILUX BONNET STRUT GAS",
+        "occurrences": 16
+      },
+      {
+        "description": "1.2m Whip Flag with Light to Suit PMB/Narva Minebars",
+        "occurrences": 13
+      },
+      {
+        "description": "REAR CANVAS SEAT COVER - BROOME TO SUPPLY",
+        "occurrences": 13
+      },
+      {
+        "description": "Wheel Chock's & Holder Mounted to L/H Headboard or Ca",
+        "occurrences": 12
+      },
+      {
+        "description": "GME TX-3100 with PMB standard Aerial",
+        "occurrences": 11
+      },
+      {
+        "description": "GME XRS-370c with PMB Standard Aerial",
+        "occurrences": 11
+      },
+      {
+        "description": "Safety triangle holder mounted (No triangles required",
+        "occurrences": 11
+      },
+      {
+        "description": "DASH MAT GREY HILUX",
+        "occurrences": 9
+      },
+      {
+        "description": "Reverse Buzzer with switch on dash - Medium Toyota Sw",
+        "occurrences": 9
+      },
+      {
+        "description": "Snorkel - Ram Head",
+        "occurrences": 9
+      },
+      {
+        "description": "Towing Kit - On Road - 7 Pin Flat",
+        "occurrences": 9
+      },
+      {
+        "description": "Wheel Chock's & Holder Mounted",
+        "occurrences": 9
+      },
+      {
+        "description": "Cargo Barrier",
+        "occurrences": 8
+      },
+      {
+        "description": "Dual Battery Overide System",
+        "occurrences": 8
+      },
+      {
+        "description": "Front Canvas Seat Covers",
+        "occurrences": 8
+      },
+      {
+        "description": "RECOVERY POINTS - REAR - PAIR - BROOME TO SUPPLY",
+        "occurrences": 8
+      },
+      {
+        "description": "TOWING KIT - OFF ROAD - 7 PIN FLAT - BROOME TO SUPPLY",
+        "occurrences": 8
+      },
+      {
+        "description": "1.2m Whip Flag with LED Light and Spring Base",
+        "occurrences": 7
+      },
+      {
+        "description": "Cel-Fi Go Telstra Booster with mobile antenna",
+        "occurrences": 7
+      },
+      {
+        "description": "Central Locking To Doors Applicable To Vehicles With",
+        "occurrences": 7
+      },
+      {
+        "description": "GME XRS-330C with PMB Standard Aerial",
+        "occurrences": 7
+      },
+      {
+        "description": "Rear Canvas Seat Cover",
+        "occurrences": 7
+      },
+      {
+        "description": "Wheel Nut Indicators - 19mm",
+        "occurrences": 7
+      },
+      {
+        "description": "Disable 240v Power socket in car",
+        "occurrences": 6
+      },
+      {
+        "description": "Door Open Alarm With LED Strip Lights To Doors LED L",
+        "occurrences": 6
+      },
+      {
+        "description": "PRA MINE BAR WITH FORWARD FACING INDICATORS, DUAL SOU",
+        "occurrences": 6
+      },
+      {
+        "description": "Recovery Points - Rear - Pair",
+        "occurrences": 6
+      },
+      {
+        "description": "SNORKEL - RAM HEAD - BROOME TO SUPPLY",
+        "occurrences": 6
+      },
+      {
+        "description": "Battery Isolator with locksafe cover mounted under bo",
+        "occurrences": 5
+      },
+      {
+        "description": "CARGO BARRIER - REAR POSITION - BROOME TO SUPPLY",
+        "occurrences": 5
+      },
+      {
+        "description": "Electronic Brake Controller Kit",
+        "occurrences": 5
+      },
+      {
+        "description": "KAYMAR DUAL WHEEL CARRIER - MOUNT BOTH SPARE WHEELS T",
+        "occurrences": 5
+      },
+      {
+        "description": "MUSCA",
+        "occurrences": 5
+      },
+      {
+        "description": "PRE-DELIVERY (COMMERCIAL)",
+        "occurrences": 5
+      },
+      {
+        "description": "QVWL10WF REVERSE LAMP",
+        "occurrences": 5
+      },
+      {
+        "description": "Trailer Wire Harness Adaptor - 7 Pin Flat to Small Ro",
+        "occurrences": 5
+      },
+      {
+        "description": "donaldson pre cleaner",
+        "occurrences": 5
+      },
+      {
+        "description": "1.8m Whip Flag with Spring to suit prewired Minebars",
+        "occurrences": 4
+      },
+      {
+        "description": "ARB SIDE PROTECTION STEPS",
+        "occurrences": 4
+      },
+      {
+        "description": "ARB SOLIS 21 WITH VARIABLE SWITCH",
+        "occurrences": 4
+      },
+      {
+        "description": "ARB WINCH KIT - WARN EVO 10000LBS WITH SYNTHETIC ROPE",
+        "occurrences": 4
+      },
+      {
+        "description": "DASH MAT",
+        "occurrences": 4
+      },
+      {
+        "description": "Disable 220V system and blank cover",
+        "occurrences": 4
+      },
+      {
+        "description": "Engel 32 Litre Fridge/Freezer",
+        "occurrences": 4
+      },
+      {
+        "description": "Engel Fridge Slide suit 32-40L Fridge Freezer",
+        "occurrences": 4
+      },
+      {
+        "description": "GME TX-3500S with AE4005 Aerial",
+        "occurrences": 4
+      },
+      {
+        "description": "GME XRS-330C -Select Aerial additional Job Line",
+        "occurrences": 4
+      },
+      {
+        "description": "GME XRS-330C Outback Pack - AE4707B Aerial",
+        "occurrences": 4
+      },
+      {
+        "description": "Hand Brake OFF Warning Alarm",
+        "occurrences": 4
+      },
+      {
+        "description": "LED Autolamp 282 Stop/Tail/Ind/Reverse LED Tail Lamp",
+        "occurrences": 4
+      },
+      {
+        "description": "MINE BAR - 85246A AMBER BEACON WITH 72449 WORKLIGHTS",
+        "occurrences": 4
+      },
+      {
+        "description": "Minebar Narva 85096B - Medium Switches",
+        "occurrences": 4
+      },
+      {
+        "description": "Narva 72449 LED work Lights on Both Sides - Mine bar",
+        "occurrences": 4
+      },
+      {
+        "description": "OME 3550Kg Nitro+ GVM Premium Includes Wheel Alignmen",
+        "occurrences": 4
+      },
+      {
+        "description": "OME 3550Kg Nitro+ GVM W/ Control Arm Upgrade Includes",
+        "occurrences": 4
+      },
+      {
+        "description": "PMBA71 - Loco Tool Box",
+        "occurrences": 4
+      },
+      {
+        "description": "Side Steps - Heavy Duty - Matte",
+        "occurrences": 4
+      },
+      {
+        "description": "led licence plate led 2559",
+        "occurrences": 4
+      },
+      {
+        "description": "1.2m Whip Flag with Spring Base to Suit Minebars - N",
+        "occurrences": 3
+      },
+      {
+        "description": "Bonnet Protector - Clear",
+        "occurrences": 3
+      },
+      {
+        "description": "Cargo Mat - Grey/Black",
+        "occurrences": 3
+      },
+      {
+        "description": "FITTING KIT FOR DRIVING LIGHTS - FOR HOOPED STEEL BUL",
+        "occurrences": 3
+      },
+      {
+        "description": "Headlamps Auto ON Kit",
+        "occurrences": 3
+      },
+      {
+        "description": "RADIATOR INSECT SCREEN",
+        "occurrences": 3
+      },
+      {
+        "description": "Rear Park Assist - 4 Head",
+        "occurrences": 3
+      },
+      {
+        "description": "SAFARI SNORKEL",
+        "occurrences": 3
+      },
+      {
+        "description": "SAFARI V-SPEC SNORKEL",
+        "occurrences": 3
+      },
+      {
+        "description": "1.8m Whip Flag with light to suit prewired PMB/Narva",
+        "occurrences": 2
+      },
+      {
+        "description": "91362BL LED NUMBER PLATE LAMP",
+        "occurrences": 2
+      },
+      {
+        "description": "ARB FRONT RECOVERY POINTS - BOTH SIDES",
+        "occurrences": 2
+      },
+      {
+        "description": "ARB Frontier Diesel Fuel Tank 133L",
+        "occurrences": 2
+      },
+      {
+        "description": "ARB Rear Recovery Hitch",
+        "occurrences": 2
+      },
+      {
+        "description": "ARB SIDE STEP & SIDE RAIL KIT",
+        "occurrences": 2
+      },
+      {
+        "description": "ARB SLIMLINE LITHIUM DUAL BATTERY SYSTEM",
+        "occurrences": 2
+      },
+      {
+        "description": "ARB SOLIS 36 WITH TOYOTA MEDIUM SWITCH ON DASH",
+        "occurrences": 2
+      },
+      {
+        "description": "ARB SUMMIT SIDE RAILS AND STEPS",
+        "occurrences": 2
+      },
+      {
+        "description": "Aero Rack Roof Rack - 2 bar set",
+        "occurrences": 2
+      },
+      {
+        "description": "BLACK DUCK SEAT COVERS 2 ROWS",
+        "occurrences": 2
+      },
+      {
+        "description": "COMPLETE PRE-DELIVERY INSPECTION",
+        "occurrences": 2
+      },
+      {
+        "description": "DASH MAT - BLACK",
+        "occurrences": 2
+      },
+      {
+        "description": "DRIVING LIGHTS - ALTIQ ROGUE 85 MK3 LED",
+        "occurrences": 2
+      },
+      {
+        "description": "ELECTRONIC BRAKE CONTROLLER KIT - BROOME TO SUPPLY",
+        "occurrences": 2
+      },
+      {
+        "description": "FIRST AID KIT - FAMILY MOTORIST KIT - BROOME TO SUPPL",
+        "occurrences": 2
+      },
+      {
+        "description": "Fill with Fuel",
+        "occurrences": 2
+      },
+      {
+        "description": "First Aid Kit - Family Motorist Kit",
+        "occurrences": 2
+      },
+      {
+        "description": "H Bar - Rear - Slimline Taillights Mounted",
+        "occurrences": 2
+      },
+      {
+        "description": "KAYMAR DUAL WHEEL CARRIER - BOTH SPARE MOUNTED ON THE",
+        "occurrences": 2
+      },
+      {
+        "description": "Kingsley Side Step - Suit Dual cab",
+        "occurrences": 2
+      },
+      {
+        "description": "LHF AND RHF RECOVERY POINTS",
+        "occurrences": 2
+      },
+      {
+        "description": "Lightforce Viper 20\" dual row lightbar - medium switc",
+        "occurrences": 2
+      },
+      {
+        "description": "MINE BAR - NARVA 85246A AMBER BEACON with Medium Swit",
+        "occurrences": 2
+      },
+      {
+        "description": "OME 3650KG GVM SUSPENSION UPGRADE - INLCUDING WHEEL A",
+        "occurrences": 2
+      },
+      {
+        "description": "OME 3920KG GVM SUSPENSION UPGRADE WITH 400KG REAR SPR",
+        "occurrences": 2
+      },
+      {
+        "description": "OME 3920KG GVM UPGARDE WITH 400KG REAR SPRINGS - INCL",
+        "occurrences": 2
+      },
+      {
+        "description": "Pre-Delivery (Commercial)",
+        "occurrences": 2
+      },
+      {
+        "description": "REAR PARK ASSIST - 4 HEAD - BROOME TO SUPPLY",
+        "occurrences": 2
+      },
+      {
+        "description": "Snorkel Kit",
+        "occurrences": 2
+      },
+      {
+        "description": "TOWING KIT - ON ROAD - 7 PIN FLAT - BROOME TO SUPPLY",
+        "occurrences": 2
+      },
+      {
+        "description": "TRACKLANDER ROOF RACK - OPEN ENDED TRADIE RACK 1400 X",
+        "occurrences": 2
+      },
+      {
+        "description": "Window Protector - Industry Spec Steel Mesh - GPA HDA",
+        "occurrences": 2
+      },
+      {
+        "description": "reverse buzzer",
+        "occurrences": 2
+      },
+      {
+        "description": "1.2 M WHIP FLAG WITH SPRING BASE",
+        "occurrences": 1
+      },
+      {
+        "description": "1.8m Whip Flag with light & Spring to suit prewired M",
+        "occurrences": 1
+      },
+      {
+        "description": "175A ANDERSON PLUG TO REAR",
+        "occurrences": 1
+      },
+      {
+        "description": "3 ROW SEAT COVERS - BLACK DUCK CANVAS",
+        "occurrences": 1
+      },
+      {
+        "description": "3 ROWS SEAT COVERS - BLACK DUCK CANVAS",
+        "occurrences": 1
+      },
+      {
+        "description": "5 MICKEY THOMPSON BAJA BOSS AT 265/60/R18 119/116Q",
+        "occurrences": 1
+      },
+      {
+        "description": "50 AMP ANDERSON PLUG TO REAR CONSTANT POWER",
+        "occurrences": 1
+      },
+      {
+        "description": "50A ANDERSON PLUG MOUNTED NEXT TO TRAILER PLUG - CONS",
+        "occurrences": 1
+      },
+      {
+        "description": "50A ANDERSON PLUG TO REAR NEXT TO TRAILER PLUG",
+        "occurrences": 1
+      },
+      {
+        "description": "70S BONNET GAS ASSIST STRUTS",
+        "occurrences": 1
+      },
+      {
+        "description": "AERO RACK ROOF RACK - 2 BAR SET - BROOME TO SUPPLY",
+        "occurrences": 1
+      },
+      {
+        "description": "ALTIQ ROGUE 85 MK3 LED DRIVING LIGHTS",
+        "occurrences": 1
+      },
+      {
+        "description": "ARB DELUXE ROOF RACK - INCLUDING WIND DEFLECTOR",
+        "occurrences": 1
+      },
+      {
+        "description": "ARB DUAL BATTERY KIT - UNDER BONNET LITHIUM",
+        "occurrences": 1
+      },
+      {
+        "description": "ARB DUAL BATTERY SYSTEM - UNDER BONNET LITHIUM",
+        "occurrences": 1
+      },
+      {
+        "description": "ARB FLOOR MATS - AUTO TRANSMISSION",
+        "occurrences": 1
+      },
+      {
+        "description": "ARB FRONT AIR DIFF LOCKER",
+        "occurrences": 1
+      },
+      {
+        "description": "ARB FRONT AND REAR DIFF BREATHER KIT",
+        "occurrences": 1
+      },
+      {
+        "description": "ARB FRONT LH AND RH RECOVERY POINTS",
+        "occurrences": 1
+      },
+      {
+        "description": "ARB FRONT RECOVERY POINTS LHS AND RHS",
+        "occurrences": 1
+      },
+      {
+        "description": "ARB FRONTEER 108LT TANK",
+        "occurrences": 1
+      },
+      {
+        "description": "ARB HILUX SUMMIT PROTECTION STEPS TO 05/2020",
+        "occurrences": 1
+      },
+      {
+        "description": "ARB HILUX SUMMIT SIDE RAILS AND STEPS TO 05/2020",
+        "occurrences": 1
+      },
+      {
+        "description": "ARB REVERSE CAMERA KIT",
+        "occurrences": 1
+      },
+      {
+        "description": "ARB SLIMLINE 100AH LITHIUM BATTERY KIT - HILUX",
+        "occurrences": 1
+      },
+      {
+        "description": "ARB UNDER BONNET DUAL BATTERY SYSTEM",
+        "occurrences": 1
+      },
+      {
+        "description": "ARB WINCH KIT - BUSHRANGER REVO MKII 10000LBS WITH SY",
+        "occurrences": 1
+      },
+      {
+        "description": "ARB WINCH KIT - WARN EVO 1000LBS WITH SYNTHETIC ROPE",
+        "occurrences": 1
+      },
+      {
+        "description": "BATTERY AND STARTER ISOLATOR WITH LOCKOUT UNDER BONNE",
+        "occurrences": 1
+      },
+      {
+        "description": "BATTERY ISOLATOR WITH LOCKSAFE COVER",
+        "occurrences": 1
+      },
+      {
+        "description": "BEACON MOUNTED TO DRIVERS SIDE HEADBOARD",
+        "occurrences": 1
+      },
+      {
+        "description": "BLACK DUCK CANVAS SEAT COVERS X 3",
+        "occurrences": 1
+      },
+      {
+        "description": "BP-51 LIFT - MEDIUM Rear Springs -PREMIUM Includes Wh",
+        "occurrences": 1
+      },
+      {
+        "description": "Black Duck Seat Covers - Fronts for Dual Cab & Extra",
+        "occurrences": 1
+      },
+      {
+        "description": "Black Duck Seat Covers - Rear for Dual Cab - Colour G",
+        "occurrences": 1
+      },
+      {
+        "description": "CARGO MAT - RUBBER - BROOME TO SUPPLY",
+        "occurrences": 1
+      },
+      {
+        "description": "CARRY OUT 30 MONTHS/50,000KM SERVICE, TOYOTA SERVICE 1.2HOrsB",
+        "occurrences": 1
+      },
+      {
+        "description": "CEL-FI GO ROAM R41",
+        "occurrences": 1
+      },
+      {
+        "description": "CLEARVIEW COMPACT MIRRORS BLACK POWER FOLD HEATED",
+        "occurrences": 1
+      },
+      {
+        "description": "COMPLEMENTARY FULL TANK OF FUEL",
+        "occurrences": 1
+      },
+      {
+        "description": "Complementary Full Tank of Fuel",
+        "occurrences": 1
+      },
+      {
+        "description": "DASH MAT BLACK - HILUX",
+        "occurrences": 1
+      },
+      {
+        "description": "DONALDSON PRE CLEANER",
+        "occurrences": 1
+      },
+      {
+        "description": "DRIVING LIGHTS - BUSHRANGER NIGHT HAWK LED KIT",
+        "occurrences": 1
+      },
+      {
+        "description": "DRIVING LIGHTS - LIGHTFORCE VENOM LED KIT",
+        "occurrences": 1
+      },
+      {
+        "description": "DRIVING LIGHTS - STEDI TYPE X PRO LED LIGHTS",
+        "occurrences": 1
+      },
+      {
+        "description": "DUAL BATTERY - BCDC1225 WITH SOLAR INPUT SYSTEM WITH",
+        "occurrences": 1
+      },
+      {
+        "description": "DUAL BATTERY - BCDC1225 WITH SOLAR INPUT SYSTEM with",
+        "occurrences": 1
+      },
+      {
+        "description": "DUAL BATTERY BCDC 1240 SYSTEM",
+        "occurrences": 1
+      },
+      {
+        "description": "DUAL BATTERY SYSTEM - ARB SLIMLINE LITHIUM BATTERY -- 3.0HrOsB",
+        "occurrences": 1
+      },
+      {
+        "description": "EPG HOLDER AND TORCH",
+        "occurrences": 1
+      },
+      {
+        "description": "FIRST AID KIT - FAMILY MOTORIST KIT 05L4D",
+        "occurrences": 1
+      },
+      {
+        "description": "FITTING KIT FOR DRIVING LIGHTS - BROOME TO SUPPLY",
+        "occurrences": 1
+      },
+      {
+        "description": "FLOOR MATS - FRONT AND REAR - ALL WEATHER RUBBER - BR",
+        "occurrences": 1
+      },
+      {
+        "description": "FRONT SEAT COVERS - FULL FABRIC - BLACK/CHARCOAL - BR",
+        "occurrences": 1
+      },
+      {
+        "description": "Floor Mats - Front and Rear - All Weather Rubber",
+        "occurrences": 1
+      },
+      {
+        "description": "Freight to MKW Engineering 446 O'brien Rd, Gidgegann",
+        "occurrences": 1
+      },
+      {
+        "description": "Front Seat Covers - Full Fabric - Black/Charcoal",
+        "occurrences": 1
+      },
+      {
+        "description": "Front Soft Canvas Seat Covers",
+        "occurrences": 1
+      },
+      {
+        "description": "GME TX-3350 -Select Aerial additional Job Line",
+        "occurrences": 1
+      },
+      {
+        "description": "GME TX-3350 with PMB Standard",
+        "occurrences": 1
+      },
+      {
+        "description": "GME XRS-370C WITH PMB STANDARD AERIAL",
+        "occurrences": 1
+      },
+      {
+        "description": "HARNESS MASTER BATTERY AND STARTER ISOLATOR KIT",
+        "occurrences": 1
+      },
+      {
+        "description": "HEADLAMP COVERS - BROOME TO SUPPLY",
+        "occurrences": 1
+      },
+      {
+        "description": "HEADLIGHTS ON KIT COMBO - DYNAMCO",
+        "occurrences": 1
+      },
+      {
+        "description": "HIGH LEVEL TAIL LIGHTS",
+        "occurrences": 1
+      },
+      {
+        "description": "Headlamp Covers",
+        "occurrences": 1
+      },
+      {
+        "description": "Hilux Additional Spare 6x17 Steel Rim 225/70R17 Facto",
+        "occurrences": 1
+      },
+      {
+        "description": "Hilux Mirror Extensions",
+        "occurrences": 1
+      },
+      {
+        "description": "INSECT RADIATOR SCREEN",
+        "occurrences": 1
+      },
+      {
+        "description": "KAYMAR DUAL WHEEL CARRIER",
+        "occurrences": 1
+      },
+      {
+        "description": "KINGSLEY SIDE STEPS",
+        "occurrences": 1
+      },
+      {
+        "description": "L Shaped Partition & Adjustable Shelf",
+        "occurrences": 1
+      },
+      {
+        "description": "LED AUTOLAMP 282 STOP/TAIL/IND/REVERSE LED TAIL LAMP",
+        "occurrences": 1
+      },
+      {
+        "description": "LED MINI LIGHBAR BEACON WITH SWITCH ON DASH",
+        "occurrences": 1
+      },
+      {
+        "description": "LOT READY",
+        "occurrences": 1
+      },
+      {
+        "description": "MINEBAR-85246A Beacon with 72449 Wklights wired to sm",
+        "occurrences": 1
+      },
+      {
+        "description": "MMT 2 ROWS SEAT COVERS CANVAS",
+        "occurrences": 1
+      },
+      {
+        "description": "MSA Drop Slide 60",
+        "occurrences": 1
+      },
+      {
+        "description": "Maxtrax Mk2 - Pair with Mounting pins",
+        "occurrences": 1
+      },
+      {
+        "description": "NARVA 72449 LED WORK LIGHTS ON BOTH SIDES - MINE BAR",
+        "occurrences": 1
+      },
+      {
+        "description": "NARVA REVERSE LAMP 72706",
+        "occurrences": 1
+      },
+      {
+        "description": "NEW WIPER BLADES",
+        "occurrences": 1
+      },
+      {
+        "description": "Nudge Bar - Black",
+        "occurrences": 1
+      },
+      {
+        "description": "OME 3500Kg Nitro+ Premium GVM includes wheel alignmen",
+        "occurrences": 1
+      },
+      {
+        "description": "OME 3550Kg Nitro+ GVM Basic Includes Wheel Alignment",
+        "occurrences": 1
+      },
+      {
+        "description": "OME 3650KG GVM SUPSENSION UPGRADE WITH 600KG REAR SPR",
+        "occurrences": 1
+      },
+      {
+        "description": "OME 3650KG GVM SUSPENSION UPGRADE WITH 600KG REAR LEA",
+        "occurrences": 1
+      },
+      {
+        "description": "OME 3650KG GVM SUSPENSION UPGRADE WITH 600KG REAR SPR",
+        "occurrences": 1
+      },
+      {
+        "description": "OME 3650KG GVM UPGRADE - INCLUDING WHEEL ALIGNMENT",
+        "occurrences": 1
+      },
+      {
+        "description": "OME 3650KG GVM UPGRADE WITH 600KG REAR LEAF SPRING -",
+        "occurrences": 1
+      },
+      {
+        "description": "OME 3650KG NITRO+ GVM BASIC INCLUDES WHEEL ALIGNMENT",
+        "occurrences": 1
+      },
+      {
+        "description": "OME 3650KG NITRO+ GVM W/ CONTROL ARM UPGRADE INCLUDES",
+        "occurrences": 1
+      },
+      {
+        "description": "OME BP-51 3920KG GVM SUSPENSION UPGRADE 400KG REAR SP",
+        "occurrences": 1
+      },
+      {
+        "description": "OME GVM 3650KG NITRO BASIC",
+        "occurrences": 1
+      },
+      {
+        "description": "On Board Air Compressor - Hilux",
+        "occurrences": 1
+      },
+      {
+        "description": "PAINT PROTECTION",
+        "occurrences": 1
+      },
+      {
+        "description": "PANEL AND PAINT",
+        "occurrences": 1
+      },
+      {
+        "description": "PDR",
+        "occurrences": 1
+      },
+      {
+        "description": "PIT AND WEIGH",
+        "occurrences": 1
+      },
+      {
+        "description": "PMBA- PMG LADDER RACK 1200MM W (UASBLE) X 3000MM L (R",
+        "occurrences": 1
+      },
+      {
+        "description": "PMBM1 - Trade Module with 2 Doors",
+        "occurrences": 1
+      },
+      {
+        "description": "PRADO 250 BLACK DASH MAT GX,GXL,VX",
+        "occurrences": 1
+      },
+      {
+        "description": "PRE-DELIVERY (FLEET)",
+        "occurrences": 1
+      },
+      {
+        "description": "Pedderrs 3620kg GVM upgrade - 300kg rear",
+        "occurrences": 1
+      },
+      {
+        "description": "RATCHET STRAP TO SECURE SPARE WHEEL IN CARGO AREA",
+        "occurrences": 1
+      },
+      {
+        "description": "REAR RACK \"QUICK LOCK\" - FOR TUBE H/BOARD W/EARS - HD",
+        "occurrences": 1
+      },
+      {
+        "description": "REAR SEAT COVERS - FULL FABRIC - BLACK/CHARCOAL - BRO",
+        "occurrences": 1
+      },
+      {
+        "description": "RED 50A ANDERSON PLUG AND COVER - SOLAR CONNECTION TO",
+        "occurrences": 1
+      },
+      {
+        "description": "RED ARC TOW PRO V3 EBRH BRAKE CONTROLLER",
+        "occurrences": 1
+      },
+      {
+        "description": "RED DIRT DETAIL",
+        "occurrences": 1
+      },
+      {
+        "description": "REMOVE AND REPLACE ETV BOX",
+        "occurrences": 1
+      },
+      {
+        "description": "REPALCE ETV SIREN SYSTEM",
+        "occurrences": 1
+      },
+      {
+        "description": "REPLACE BRAKE FLUID",
+        "occurrences": 1
+      },
+      {
+        "description": "REPLACE CABIN AIR FILTER",
+        "occurrences": 1
+      },
+      {
+        "description": "REPLACE DAMAGED EXPLOSIVE SIGNS",
+        "occurrences": 1
+      },
+      {
+        "description": "REPLACE DRIVE BELT",
+        "occurrences": 1
+      },
+      {
+        "description": "REPLACE DRIVER MIRROR",
+        "occurrences": 1
+      },
+      {
+        "description": "REPLACE ENGINE AIR CLEANER",
+        "occurrences": 1
+      },
+      {
+        "description": "REPLACE FRONT BRAKE PADS AND ROTORS",
+        "occurrences": 1
+      },
+      {
+        "description": "REPLACE FRONT PROP SHAFT",
+        "occurrences": 1
+      },
+      {
+        "description": "REPLACE FRONT STABILISER BAR MOUNTING BUSHES",
+        "occurrences": 1
+      },
+      {
+        "description": "REPLACE FUEL FILTER",
+        "occurrences": 1
+      },
+      {
+        "description": "REPLACE INTERIOR LIGHT",
+        "occurrences": 1
+      },
+      {
+        "description": "REPLACE LHS INNER GRAB HANDLE",
+        "occurrences": 1
+      },
+      {
+        "description": "REPLACE PEDAL RUBBER PADS",
+        "occurrences": 1
+      },
+      {
+        "description": "REPLACE REAR SPRINGS AND SHOCKS - USE TAKE OFF STOCK",
+        "occurrences": 1
+      },
+      {
+        "description": "REPLACE RH FRONT MUD FLAP",
+        "occurrences": 1
+      },
+      {
+        "description": "REPLACE SPARE WHEEL RETAINING ARMS",
+        "occurrences": 1
+      },
+      {
+        "description": "RESEAL FRONT SWIVEL HUBS",
+        "occurrences": 1
+      },
+      {
+        "description": "REVERS BUZZER WITH SWITCH ON DASH",
+        "occurrences": 1
+      },
+      {
+        "description": "REVERSING BUZZER ACX5004 - SWITCH THROUGH BEACON",
+        "occurrences": 1
+      },
+      {
+        "description": "REWIRE ETV TO COMPLY WITH ISOLATOR",
+        "occurrences": 1
+      },
+      {
+        "description": "Rear Seat Covers - Full Fabric - Black/Charcoal",
+        "occurrences": 1
+      },
+      {
+        "description": "Rear Soft Canvas Seat Covers",
+        "occurrences": 1
+      },
+      {
+        "description": "Recover Points - Front - Pair",
+        "occurrences": 1
+      },
+      {
+        "description": "Reverse Buzzer with switch on dash - Small Toyota Swi",
+        "occurrences": 1
+      },
+      {
+        "description": "Reverse Parking Sensor - 2 head",
+        "occurrences": 1
+      },
+      {
+        "description": "SAFARI ARMAX SNORKEL",
+        "occurrences": 1
+      },
+      {
+        "description": "SIDE STEPS - HEAVY DUTY - BROOME TO SUPPLY",
+        "occurrences": 1
+      },
+      {
+        "description": "SINGLE AMBER LED FLASHING BEACON - MOUNTED TO CAB RAC",
+        "occurrences": 1
+      },
+      {
+        "description": "SINGLE ROOF BAR FOR LED BEACON",
+        "occurrences": 1
+      },
+      {
+        "description": "SUPPLY, CUT & PROGGRAME ADDITIONAL SPARE KEY TO VEHIC",
+        "occurrences": 1
+      },
+      {
+        "description": "TOWING KIT - OFF ROAD - 7 PIN FLAT - TBC",
+        "occurrences": 1
+      },
+      {
+        "description": "TUB LINER (UNDER RAIL) - BROOME TO SUPPLY",
+        "occurrences": 1
+      },
+      {
+        "description": "Third Door To Rear Additional Rear Door",
+        "occurrences": 1
+      },
+      {
+        "description": "Towing Kit - Off Road - 7 Pin Flat",
+        "occurrences": 1
+      },
+      {
+        "description": "Twin 12v AUX Power Plug Mounted Inside Module ON/OFF",
+        "occurrences": 1
+      },
+      {
+        "description": "VF2054 CABIN AIR FILTER HILUX",
+        "occurrences": 1
+      },
+      {
+        "description": "VINYL FLOORCOVERING ALL INTERNAL FLOORING",
+        "occurrences": 1
+      },
+      {
+        "description": "WHEEL NUT INDICATORS",
+        "occurrences": 1
+      },
+      {
+        "description": "Wheel Chocks Left Loose in Car",
+        "occurrences": 1
+      },
+      {
+        "description": "Winch - BUSHRANGER Revo 10 Synthetic Rope",
+        "occurrences": 1
+      }
+    ],
+    "unknown_operations": 994,
+    "unknown_unique_descriptions": 267,
+    "unsupported_non_null_work_keys": 0
+  },
+  "exact_counts_and_reconciliation": {
+    "all_operation_rows": 3565,
+    "all_operations_unique_job_cards": 453,
+    "hermes_import_operations": 1488,
+    "hermes_import_pairs": 166,
+    "import_is_exact_all_operations_matched_projection": true,
+    "job_card_operation_count_sum": 3565,
+    "job_cards": 453,
+    "matched_job_cards": 166,
+    "max_operations_per_pair": 39,
+    "needs_hat_match_is_exact_unmatched_job_card_set": true,
+    "needs_hat_match_rows": 287,
+    "pair_operation_number_sequence_issue_count": 0,
+    "unique_job_card_numbers": 453,
+    "unmatched_job_cards": 287
+  },
+  "identity_completeness_import_pairs": {
+    "pairs_missing_both_stock_and_registration": 0,
+    "pairs_missing_registration": 114,
+    "pairs_missing_stock": 0,
+    "unique_hat_keys": 153
+  },
+  "operation_data_integrity": {
+    "contract_structural_issue_counts": {},
+    "descriptions_with_multiple_recorded_hour_values": 19,
+    "distinct_descriptions": 405,
+    "exact_duplicate_operation_row_excess": 0,
+    "explicit_zero_hours": 43,
+    "missing_hours": 155,
+    "multiple_hour_value_descriptions": [
+      {
+        "description": "ARB SIDE PROTECTION STEPS",
+        "occurrences": 4,
+        "values": [
+          1.5,
+          2.0
+        ]
+      },
+      {
+        "description": "ARB SUMMIT MKII STEEL BULL BAR",
+        "occurrences": 5,
+        "values": [
+          4.0,
+          5.0
+        ]
+      },
+      {
+        "description": "CARGO BARRIER - REAR POSITION - BROOME TO SUPPLY",
+        "occurrences": 5,
+        "values": [
+          1.0,
+          1.5
+        ]
+      },
+      {
+        "description": "DASH MAT",
+        "occurrences": 4,
+        "values": [
+          0.1,
+          0.2
+        ]
+      },
+      {
+        "description": "DASH MAT - BLACK",
+        "occurrences": 2,
+        "values": [
+          0.1,
+          0.2
+        ]
+      },
+      {
+        "description": "ELECTRONIC BRAKE CONTROLLER KIT - BROOME TO SUPPLY",
+        "occurrences": 2,
+        "values": [
+          1.5,
+          2.0
+        ]
+      },
+      {
+        "description": "FRONT CANVAS SEAT COVERS - BROOME TO SUPPLY",
+        "occurrences": 17,
+        "values": [
+          0.3,
+          0.5
+        ]
+      },
+      {
+        "description": "LED LIGHTBAR - FOR BULL BAR - BROOME TO SUPPLY",
+        "occurrences": 3,
+        "values": [
+          1.3,
+          1.5
+        ]
+      },
+      {
+        "description": "PRE-DELIVERY (COMMERCIAL)",
+        "occurrences": 5,
+        "values": [
+          0.7,
+          null
+        ]
+      },
+      {
+        "description": "RADIATOR INSECT SCREEN",
+        "occurrences": 3,
+        "values": [
+          0.8,
+          1.0
+        ]
+      },
+      {
+        "description": "REAR CANVAS SEAT COVER - BROOME TO SUPPLY",
+        "occurrences": 13,
+        "values": [
+          0.3,
+          0.5
+        ]
+      },
+      {
+        "description": "SAFARI SNORKEL",
+        "occurrences": 3,
+        "values": [
+          1.5,
+          3.0
+        ]
+      },
+      {
+        "description": "STEEL BULL BAR - COMMERCIAL - BROOME TO SUPPLY",
+        "occurrences": 8,
+        "values": [
+          5.2,
+          6.5
+        ]
+      },
+      {
+        "description": "STEEL BULL BAR - PREMIUM - BROOME TO SUPPLY",
+        "occurrences": 4,
+        "values": [
+          5.2,
+          6.5
+        ]
+      },
+      {
+        "description": "Side Step & Side Rail Kit - For Steel Bull Bar - Matt",
+        "occurrences": 2,
+        "values": [
+          1.1,
+          1.3
+        ]
+      },
+      {
+        "description": "Steel Bull Bar - Commercial",
+        "occurrences": 42,
+        "values": [
+          5.2,
+          6.5,
+          6.6
+        ]
+      },
+      {
+        "description": "Steel Bull Bar - Premium",
+        "occurrences": 10,
+        "values": [
+          5.8,
+          6.5
+        ]
+      },
+      {
+        "description": "Supply and Fit GME XRS 370c UHF & AE4702b Antenna",
+        "occurrences": 9,
+        "values": [
+          1.0,
+          1.5
+        ]
+      },
+      {
+        "description": "Towing Kit - On Road - 7 Pin Flat",
+        "occurrences": 9,
+        "values": [
+          0.5,
+          0.6
+        ]
+      }
+    ]
+  },
+  "preview_payload_assessment": {
+    "confirmation_literal": "PREVIEW RETAINED PMB WORKBOOK",
+    "deterministic_field_mapping": {
+      "description": "Operation Description trimmed (already valid)",
+      "estimated_hours": "Hours numeric or null",
+      "estimated_hours_source": "job_card when Hours is numeric; null when Hours is null",
+      "job_card_number": "Job Card",
+      "operation_no": "numeric source N -> exact contract string OPN",
+      "pair_no": "stable 1..166 in first-seen Hermes Import pair order",
+      "registration": "Rego or null; server normalizes to uppercase alphanumeric",
+      "stock_number": "Stock Number or null",
+      "work_key": "deployed classifier plus stated durable owner overrides"
+    },
+    "full_payload_without_guessing": false,
+    "live_identity_classification": {
+      "reason": "Direct EXECUTE on pdc_pmb_workbook_classify_identity is revoked for the read-only management role. The only authenticated wrapper available is preview_pdc_pmb_retained_workbook, which persists preview/review rows; it was intentionally not invoked under the no-staging-mutation constraint.",
+      "status": "not_computed"
+    },
+    "operations_deterministically_classified": 494,
+    "operations_requiring_guess_or_new_authoritative_mapping": 994,
+    "pairs_fully_classified": 6,
+    "pairs_partially_classified": 123,
+    "pairs_with_zero_classified_operations": 37,
+    "preview_not_invoked": true,
+    "reason": "The workbook contains no work_key column and the authoritative classifier plus durable owner mappings leaves operations unclassified. Assigning supported keys to those rows would be guessing; omitting them would not be an exact retained-workbook transformation.",
+    "staging_mutation_performed": false,
+    "structural_contract_other_than_work_key": "PASS",
+    "target_function": "public.preview_pdc_pmb_retained_workbook(text,text,text,jsonb)"
+  },
+  "privacy": {
+    "credentials_or_tokens_in_report": false,
+    "operational_descriptions_included": true,
+    "pair_identifiers_in_report": false,
+    "raw_owner_names_in_report": false
+  },
+  "report_schema": "hermes-operation-lines-139-secret-free-structural-import-v1",
+  "source": {
+    "byte_count": 570988,
+    "filename": "Hermes_Operation_Lines_139.xlsx",
+    "sha256": "56e04ce63beb40cb539db28df1262f1cdc4166e4f08b117025162e9228719ad2",
+    "sheet_inventory": {
+      "All Operations": {
+        "columns": 23,
+        "data_rows_excluding_header": 3565,
+        "dimension": "A1:W3566",
+        "formula_count": 0,
+        "hidden_state": "visible"
+      },
+      "Hermes Import": {
+        "columns": 18,
+        "data_rows_excluding_header": 1488,
+        "dimension": "A1:R1489",
+        "formula_count": 0,
+        "hidden_state": "visible"
+      },
+      "Job Cards": {
+        "columns": 23,
+        "data_rows_excluding_header": 453,
+        "dimension": "A1:W454",
+        "formula_count": 0,
+        "hidden_state": "visible"
+      },
+      "Needs HAT Match": {
+        "columns": 23,
+        "data_rows_excluding_header": 287,
+        "dimension": "A1:W288",
+        "formula_count": 0,
+        "hidden_state": "visible"
+      },
+      "Sources": {
+        "columns": 4,
+        "data_rows_excluding_header": 3,
+        "dimension": "A1:D4",
+        "formula_count": 0,
+        "hidden_state": "visible"
+      },
+      "Summary": {
+        "columns": 4,
+        "data_rows_excluding_header": 11,
+        "dimension": "A1:D12",
+        "formula_count": 7,
+        "hidden_state": "visible"
+      }
+    }
+  }
+}
