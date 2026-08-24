@@ -4,6 +4,14 @@ SET LOCAL lock_timeout='10s';
 SET LOCAL statement_timeout='180s';
 SELECT pg_advisory_xact_lock(hashtextextended('pdc-staging-363-overnight-synthetic-fleet',0));
 
+-- SHARE conflicts with the ROW EXCLUSIVE lock taken by INSERT/UPDATE/DELETE.
+-- These transaction-scoped locks close the check-to-commit containment race.
+LOCK TABLE public.pdc_email_monitor_pilot IN SHARE MODE;
+LOCK TABLE public.pdc_email_monitor_status IN SHARE MODE;
+LOCK TABLE public.monitored_mailboxes IN SHARE MODE;
+LOCK TABLE public.pdc_monitor_stage_activation_writers IN SHARE MODE;
+LOCK TABLE public.vehicle_notifications IN SHARE MODE;
+
 DO $guard$
 BEGIN
  IF NOT public.pdc_monitor_staging_guard()
@@ -11,8 +19,11 @@ BEGIN
    OR to_regclass('public.pdc_production_environment_sentinel') IS NOT NULL
    OR NOT EXISTS(SELECT 1 FROM supabase_migrations.schema_migrations WHERE version='20260824230000' AND name='362_align_anderson_plugs_and_job_counts')
    OR EXISTS(SELECT 1 FROM supabase_migrations.schema_migrations WHERE version>'20260824230000' AND version~'^[0-9]{14}$')
-   OR EXISTS(SELECT 1 FROM public.pdc_email_monitor_pilot WHERE enabled OR outbound_email_enabled OR automatic_rule_application OR automatic_authenticated_jobcards)
-   OR EXISTS(SELECT 1 FROM public.pdc_email_monitor_status WHERE running_status<>'stopped' OR gateway_instance_id IS NOT NULL)
+   OR (SELECT count(*) FROM public.pdc_email_monitor_pilot)<>1
+   OR (SELECT count(*) FROM public.pdc_email_monitor_pilot WHERE singleton AND NOT enabled AND NOT outbound_email_enabled
+        AND NOT automatic_rule_application AND NOT automatic_authenticated_jobcards)<>1
+   OR (SELECT count(*) FROM public.pdc_email_monitor_status)<>1
+   OR (SELECT count(*) FROM public.pdc_email_monitor_status WHERE singleton AND running_status='stopped' AND gateway_instance_id IS NULL)<>1
    OR EXISTS(SELECT 1 FROM public.monitored_mailboxes WHERE active)
    OR EXISTS(SELECT 1 FROM public.pdc_monitor_stage_activation_writers WHERE active AND revoked_at IS NULL)
    OR (SELECT count(*) FROM public.vehicle_notifications)<>0 THEN
@@ -30,6 +41,7 @@ CREATE TABLE public.pdc_overnight_synthetic_fleet_registry_363(
  customer_name text NOT NULL CHECK(length(customer_name) BETWEEN 12 AND 120 AND customer_name~'^HERMES-TEST'),
  job_card_number text NOT NULL CHECK(length(job_card_number) BETWEEN 12 AND 80 AND job_card_number~'^HERMES-TEST'),
  vehicle_description text NOT NULL CHECK(length(vehicle_description) BETWEEN 12 AND 180 AND vehicle_description~'^HERMES-TEST'),
+ spec jsonb NOT NULL CHECK(jsonb_typeof(spec)='object'),
  request_sha256 text NOT NULL CHECK(request_sha256~'^[a-f0-9]{64}$'),
  actor_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE RESTRICT,
  actor_email text NOT NULL,
@@ -89,6 +101,7 @@ DECLARE
  v_actor uuid:=auth.uid();
  v_email text:=lower(btrim(coalesce(auth.jwt()->>'email','')));
  v_rows jsonb;
+ v_catalog_sha256 text;
 BEGIN
  IF p_run_id IS DISTINCT FROM 'HERMES-TEST-RUN-20260824' THEN
   RAISE EXCEPTION 'PDC_363_RUN_NOT_ALLOWED' USING errcode='22023';
@@ -99,12 +112,60 @@ BEGIN
     AND r.role IN('operator','administrator') AND r.active AND r.account_status='approved'
  ) THEN RAISE EXCEPTION 'PDC_363_UNAUTHORIZED' USING errcode='42501'; END IF;
  IF NOT public.pdc_monitor_staging_guard()
-   OR to_regclass('public.pdc_production_environment_sentinel') IS NOT NULL THEN
+   OR (SELECT count(*) FROM public.pdc_staging_environment_sentinel WHERE singleton AND project_ref='cdsmnqxtyyoeoznmbidd')<>1
+   OR to_regclass('public.pdc_production_environment_sentinel') IS NOT NULL
+   OR (SELECT count(*) FROM public.pdc_email_monitor_pilot)<>1
+   OR (SELECT count(*) FROM public.pdc_email_monitor_pilot WHERE singleton AND NOT enabled AND NOT outbound_email_enabled
+        AND NOT automatic_rule_application AND NOT automatic_authenticated_jobcards)<>1
+   OR (SELECT count(*) FROM public.pdc_email_monitor_status)<>1
+   OR (SELECT count(*) FROM public.pdc_email_monitor_status WHERE singleton AND running_status='stopped' AND gateway_instance_id IS NULL)<>1
+   OR EXISTS(SELECT 1 FROM public.monitored_mailboxes WHERE active)
+   OR EXISTS(SELECT 1 FROM public.pdc_monitor_stage_activation_writers WHERE active AND revoked_at IS NULL)
+   OR (SELECT count(*) FROM public.vehicle_notifications)<>0 THEN
   RAISE EXCEPTION 'PDC_363_WRONG_ENVIRONMENT' USING errcode='55000';
  END IF;
+ SELECT encode(extensions.digest(convert_to(coalesce(jsonb_agg(r.spec ORDER BY r.scenario_no),'[]'::jsonb)::text,'UTF8'),'sha256'),'hex')
+ INTO v_catalog_sha256 FROM public.pdc_overnight_synthetic_fleet_registry_363 r WHERE r.run_id=p_run_id;
+ IF (SELECT count(*) FROM public.pdc_overnight_synthetic_fleet_registry_363 r WHERE r.run_id=p_run_id)<>20
+   OR v_catalog_sha256<>'0bc2791f0b79bf03018f5d3ec444441253c0aa8a994dd8a31f7bd49f20738d16' THEN
+  RAISE EXCEPTION 'PDC_363_READBACK_DRIFT' USING errcode='55000';
+ END IF;
+ IF EXISTS(
+  SELECT 1 FROM public.pdc_overnight_synthetic_fleet_registry_363 r
+  LEFT JOIN public.vehicles v ON v.id=r.vehicle_id
+  WHERE r.run_id=p_run_id AND (
+    r.scenario_no IS DISTINCT FROM (r.spec->>'scenario_no')::integer OR r.scenario_name IS DISTINCT FROM r.spec->>'scenario_name'
+    OR r.stock_number IS DISTINCT FROM r.spec->>'stock' OR r.customer_name IS DISTINCT FROM r.spec->>'customer'
+    OR r.job_card_number IS DISTINCT FROM r.spec->>'job_card' OR r.vehicle_description IS DISTINCT FROM r.spec->>'description'
+    OR r.registry_id IS DISTINCT FROM extensions.uuid_generate_v5('36300000-0000-5000-8000-000000000363'::uuid,p_run_id||':registry:'||r.scenario_no::text)
+    OR r.vehicle_id IS DISTINCT FROM extensions.uuid_generate_v5('36300000-0000-5000-8000-000000000363'::uuid,p_run_id||':vehicle:'||r.stock_number)
+    OR v.id IS NULL OR v.permanent_vehicle_id IS DISTINCT FROM 'HERMES-TEST-PERM-'||lpad(r.scenario_no::text,3,'0')
+    OR v.stock_number IS DISTINCT FROM r.stock_number OR v.customer_name IS DISTINCT FROM r.customer_name OR v.job_card_number IS DISTINCT FROM r.job_card_number
+    OR v.vehicle_description IS DISTINCT FROM r.vehicle_description OR v.current_location IS DISTINCT FROM coalesce(nullif(r.spec->>'initial_location',''),'Other')
+    OR v.eta_to_kewdale IS DISTINCT FROM nullif(r.spec->>'eta','')::date
+    OR v.lifecycle_state IS DISTINCT FROM 'active' OR v.visible_on_board IS DISTINCT FROM true OR v.deleted_at IS NOT NULL OR v.board_purged_at IS NOT NULL
+    OR v.rft_collected_at IS NOT NULL OR upper(coalesce(v.current_location,''))='COMPLETED'
+    OR v.source_system IS DISTINCT FROM 'hermes_overnight_synthetic' OR v.source_batch_id IS DISTINCT FROM p_run_id OR v.source_record_id IS DISTINCT FROM r.stock_number
+    OR v.source_payload->>'contract' IS DISTINCT FROM 'pdc-overnight-synthetic-fleet-363/render_only'
+    OR v.source_payload->>'run_id' IS DISTINCT FROM p_run_id OR (v.source_payload->>'scenario_no')::integer IS DISTINCT FROM r.scenario_no
+    OR v.source_payload->>'scenario_name' IS DISTINCT FROM r.scenario_name OR v.source_payload->>'request_sha256' IS DISTINCT FROM r.request_sha256
+    OR (v.source_payload->>'completion_evidence')::boolean IS DISTINCT FROM false
+    OR (SELECT count(*) FROM public.vehicle_work_items wi WHERE wi.vehicle_id=v.id)<>jsonb_array_length(coalesce(r.spec->'work_keys','[]'::jsonb))
+    OR EXISTS(SELECT 1 FROM public.vehicle_work_items wi WHERE wi.vehicle_id=v.id AND (
+      wi.work_key IS NULL OR NOT (coalesce(r.spec->'work_keys','[]'::jsonb)?wi.work_key)
+      OR wi.id IS DISTINCT FROM extensions.uuid_generate_v5('36300000-0000-5000-8000-000000000363'::uuid,p_run_id||':work:'||r.stock_number||':'||wi.work_key)
+      OR wi.required IS DISTINCT FROM true OR wi.completed IS DISTINCT FROM false OR wi.completed_by IS NOT NULL OR wi.completed_at IS NOT NULL
+      OR wi.notes IS DISTINCT FROM coalesce(nullif(btrim(r.spec->>'notes'),''),'HERMES-TEST render-only incomplete synthetic requirement')))
+    OR EXISTS(SELECT 1 FROM public.workshop_bookings b WHERE b.vehicle_id=v.id)
+    OR EXISTS(SELECT 1 FROM public.vehicle_parts_updates p WHERE p.vehicle_id=v.id)
+    OR EXISTS(SELECT 1 FROM public.pdc_sublet_bookings s WHERE s.vehicle_id=v.id)
+    OR EXISTS(SELECT 1 FROM public.vehicle_sublet_providers s WHERE s.vehicle_id=v.id)
+    OR EXISTS(SELECT 1 FROM public.pdc_authenticated_email_import_receipts e WHERE e.vehicle_id=v.id)
+    OR coalesce(to_jsonb(v)->>'qc_completed_at','')<>'' OR coalesce(to_jsonb(v)->>'rft_at','')<>''
+  )) THEN RAISE EXCEPTION 'PDC_363_READBACK_DRIFT' USING errcode='55000'; END IF;
  SELECT coalesce(jsonb_agg(jsonb_build_object(
    'registry_id',r.registry_id,'run_id',r.run_id,'scenario_no',r.scenario_no,'scenario_name',r.scenario_name,
-   'request_sha256',r.request_sha256,'created_at',r.created_at,
+   'request_sha256',r.request_sha256,'spec',r.spec,'created_at',r.created_at,
    'vehicle',jsonb_build_object('id',v.id,'version',v.version,'permanent_vehicle_id',v.permanent_vehicle_id,
     'stock_number',v.stock_number,'customer_name',v.customer_name,'job_card_number',v.job_card_number,
     'vehicle_description',v.vehicle_description,'current_location',v.current_location,'eta_to_kewdale',v.eta_to_kewdale,
@@ -117,6 +178,7 @@ BEGIN
  FROM public.vehicles v
  JOIN public.pdc_overnight_synthetic_fleet_registry_363 r ON r.vehicle_id=v.id
  WHERE r.run_id=p_run_id;
+ IF jsonb_array_length(v_rows)<>20 THEN RAISE EXCEPTION 'PDC_363_READBACK_DRIFT' USING errcode='55000'; END IF;
  RETURN jsonb_build_object('ok',true,'run_id',p_run_id,'vehicles',v_rows,'count',jsonb_array_length(v_rows));
 END $read$;
 REVOKE ALL ON FUNCTION public.read_pdc_hermes_test_fleet(text) FROM public,anon,authenticated,service_role;
@@ -162,6 +224,9 @@ DECLARE
  v_before_provider_count bigint;
  v_before_email_count bigint;
  v_expected_work_count bigint;
+ v_target_vehicle_ids uuid[];
+ v_protected_vehicle_count_before bigint;
+ v_protected_vehicle_count_after bigint;
  v_protected_digest_before text;
  v_protected_digest_after text;
  v_response jsonb;
@@ -177,6 +242,7 @@ BEGIN
   FOR SHARE
  ) THEN RAISE EXCEPTION 'PDC_363_UNAUTHORIZED' USING errcode='42501'; END IF;
 
+ PERFORM pg_advisory_xact_lock(hashtextextended('pdc-staging-363-overnight-synthetic-fleet',0));
  LOCK TABLE public.pdc_email_monitor_pilot IN SHARE MODE;
  LOCK TABLE public.pdc_email_monitor_status IN SHARE MODE;
  LOCK TABLE public.monitored_mailboxes IN SHARE MODE;
@@ -185,8 +251,11 @@ BEGIN
  IF NOT public.pdc_monitor_staging_guard()
    OR (SELECT count(*) FROM public.pdc_staging_environment_sentinel WHERE singleton AND project_ref='cdsmnqxtyyoeoznmbidd')<>1
    OR to_regclass('public.pdc_production_environment_sentinel') IS NOT NULL
-   OR EXISTS(SELECT 1 FROM public.pdc_email_monitor_pilot WHERE enabled OR outbound_email_enabled OR automatic_rule_application OR automatic_authenticated_jobcards)
-   OR EXISTS(SELECT 1 FROM public.pdc_email_monitor_status WHERE running_status<>'stopped' OR gateway_instance_id IS NOT NULL)
+   OR (SELECT count(*) FROM public.pdc_email_monitor_pilot)<>1
+   OR (SELECT count(*) FROM public.pdc_email_monitor_pilot WHERE singleton AND NOT enabled AND NOT outbound_email_enabled
+        AND NOT automatic_rule_application AND NOT automatic_authenticated_jobcards)<>1
+   OR (SELECT count(*) FROM public.pdc_email_monitor_status)<>1
+   OR (SELECT count(*) FROM public.pdc_email_monitor_status WHERE singleton AND running_status='stopped' AND gateway_instance_id IS NULL)<>1
    OR EXISTS(SELECT 1 FROM public.monitored_mailboxes WHERE active)
    OR EXISTS(SELECT 1 FROM public.pdc_monitor_stage_activation_writers WHERE active AND revoked_at IS NULL)
    OR (SELECT count(*) FROM public.vehicle_notifications)<>0 THEN
@@ -273,6 +342,17 @@ BEGIN
   IF v_receipt.request_sha256<>v_request_sha256 THEN
    RAISE EXCEPTION 'PDC_363_IDEMPOTENCY_PAYLOAD_MISMATCH' USING errcode='22023';
   END IF;
+  IF NOT public.pdc_monitor_staging_guard()
+    OR (SELECT count(*) FROM public.pdc_email_monitor_pilot)<>1
+    OR (SELECT count(*) FROM public.pdc_email_monitor_pilot WHERE singleton AND NOT enabled AND NOT outbound_email_enabled
+         AND NOT automatic_rule_application AND NOT automatic_authenticated_jobcards)<>1
+    OR (SELECT count(*) FROM public.pdc_email_monitor_status)<>1
+    OR (SELECT count(*) FROM public.pdc_email_monitor_status WHERE singleton AND running_status='stopped' AND gateway_instance_id IS NULL)<>1
+    OR EXISTS(SELECT 1 FROM public.monitored_mailboxes WHERE active)
+    OR EXISTS(SELECT 1 FROM public.pdc_monitor_stage_activation_writers WHERE active AND revoked_at IS NULL)
+    OR (SELECT count(*) FROM public.vehicle_notifications)<>0 THEN
+   RAISE EXCEPTION 'PDC_363_RUNTIME_CONTAINMENT_MISMATCH' USING errcode='55000';
+  END IF;
   RETURN jsonb_set(v_receipt.response,'{replay}','true'::jsonb,false);
  END IF;
 
@@ -281,6 +361,19 @@ BEGIN
  LOCK TABLE public.pdc_vehicle_tombstones IN SHARE MODE;
  LOCK TABLE public.navision_backend_records IN SHARE MODE;
  LOCK TABLE public.navision_board_activations IN SHARE MODE;
+ LOCK TABLE public.pdc_overnight_synthetic_fleet_registry_363 IN SHARE ROW EXCLUSIVE MODE;
+ LOCK TABLE public.pdc_overnight_synthetic_fleet_receipts_363 IN SHARE ROW EXCLUSIVE MODE;
+ LOCK TABLE public.pdc_overnight_synthetic_fleet_events_363 IN SHARE ROW EXCLUSIVE MODE;
+ LOCK TABLE public.vehicle_work_items IN SHARE ROW EXCLUSIVE MODE;
+ LOCK TABLE public.workshop_bookings IN SHARE MODE;
+ LOCK TABLE public.vehicle_parts_updates IN SHARE MODE;
+ LOCK TABLE public.pdc_sublet_bookings IN SHARE MODE;
+ LOCK TABLE public.vehicle_sublet_providers IN SHARE MODE;
+ LOCK TABLE public.pdc_authenticated_email_import_receipts IN SHARE MODE;
+
+ SELECT array_agg(extensions.uuid_generate_v5('36300000-0000-5000-8000-000000000363'::uuid,
+   p_run_id||':vehicle:'||(spec->>'stock')) ORDER BY (spec->>'scenario_no')::integer)
+ INTO v_target_vehicle_ids FROM jsonb_array_elements(p_specs) spec;
 
  v_before_vehicle_count:=(SELECT count(*) FROM public.vehicles);
  v_before_registry_count:=(SELECT count(*) FROM public.pdc_overnight_synthetic_fleet_registry_363);
@@ -293,26 +386,61 @@ BEGIN
  v_before_sublet_count:=(SELECT count(*) FROM public.pdc_sublet_bookings);
  v_before_provider_count:=(SELECT count(*) FROM public.vehicle_sublet_providers);
  v_before_email_count:=(SELECT count(*) FROM public.pdc_authenticated_email_import_receipts);
- SELECT encode(extensions.digest(convert_to(coalesce(jsonb_agg(to_jsonb(v) ORDER BY v.id),'[]'::jsonb)::text,'UTF8'),'sha256'),'hex')
-   INTO v_protected_digest_before FROM public.vehicles v;
+ SELECT count(*),encode(extensions.digest(convert_to(coalesce(jsonb_agg(to_jsonb(v) ORDER BY v.id),'[]'::jsonb)::text,'UTF8'),'sha256'),'hex')
+   INTO v_protected_vehicle_count_before,v_protected_digest_before FROM public.vehicles v
+   WHERE NOT (v.id=ANY(v_target_vehicle_ids));
  v_expected_work_count:=(SELECT coalesce(sum(jsonb_array_length(coalesce(spec->'work_keys','[]'::jsonb))),0)
    FROM jsonb_array_elements(p_specs) spec);
  IF v_before_notification_count<>0 THEN RAISE EXCEPTION 'PDC_363_NOTIFICATIONS_NOT_EMPTY' USING errcode='55000'; END IF;
 
  IF EXISTS(
-  SELECT 1 FROM jsonb_array_elements(p_specs) spec
-  CROSS JOIN LATERAL (SELECT spec->>'stock' stock_number) i
-  WHERE EXISTS(SELECT 1 FROM public.vehicles v WHERE v.stock_number_normalized=public.normalize_vehicle_stock_number(i.stock_number)
-     OR v.stock_number=i.stock_number OR v.source_record_id_normalized=public.normalize_vehicle_source_identifier(i.stock_number))
-    OR EXISTS(SELECT 1 FROM public.vehicle_aliases a WHERE a.normalized_alias_value=public.normalize_vehicle_stock_number(i.stock_number))
-    OR EXISTS(SELECT 1 FROM public.pdc_vehicle_tombstones t WHERE to_jsonb(t)::text ILIKE '%'||i.stock_number||'%')
-    OR EXISTS(SELECT 1 FROM public.navision_backend_records n WHERE to_jsonb(n)::text ILIKE '%'||i.stock_number||'%')
-    OR EXISTS(SELECT 1 FROM public.navision_board_activations a WHERE public.normalize_vehicle_stock_number(a.activated_stock_number)=public.normalize_vehicle_stock_number(i.stock_number))
- ) THEN RAISE EXCEPTION 'PDC_363_STOCK_NORMALIZED_SOURCE_ARCHIVE_OR_TOMBSTONE_COLLISION' USING errcode='23505'; END IF;
- IF EXISTS(SELECT 1 FROM public.pdc_overnight_synthetic_fleet_registry_363 r WHERE r.run_id=p_run_id)
-   OR EXISTS(SELECT 1 FROM public.pdc_overnight_synthetic_fleet_registry_363 r JOIN jsonb_array_elements(p_specs) s
-      ON r.scenario_no=(s->>'scenario_no')::integer
-      WHERE r.run_id<>p_run_id OR r.stock_number<>s->>'stock' OR r.scenario_name<>s->>'scenario_name') THEN
+  SELECT 1 FROM public.vehicles v
+  WHERE v.source_system_normalized='hermes_overnight_synthetic'
+    OR v.source_batch_id='HERMES-TEST-RUN-20260824'
+    OR v.source_record_id ILIKE 'HERMES-TEST-%'
+    OR coalesce(v.source_record_id_normalized,'') LIKE 'HERMESTEST%'
+    OR EXISTS(SELECT 1 FROM jsonb_array_elements(p_specs) spec
+      CROSS JOIN LATERAL (SELECT
+        extensions.uuid_generate_v5('36300000-0000-5000-8000-000000000363'::uuid,p_run_id||':vehicle:'||(spec->>'stock')) vehicle_id,
+        'HERMES-TEST-PERM-'||lpad(spec->>'scenario_no',3,'0') permanent_vehicle_id,
+        public.normalize_vehicle_stock_number(spec->>'stock') normalized_stock) i
+      WHERE v.id=i.vehicle_id OR v.permanent_vehicle_id=i.permanent_vehicle_id
+        OR v.stock_number_normalized=i.normalized_stock
+        OR v.stock_number=spec->>'stock' OR v.source_record_id_normalized=public.normalize_vehicle_source_identifier(spec->>'stock'))
+ ) OR EXISTS(
+  SELECT 1 FROM public.vehicle_aliases a
+  WHERE a.source_system_normalized='hermes_overnight_synthetic'
+    OR a.vehicle_id=ANY(v_target_vehicle_ids)
+    OR a.normalized_alias_value LIKE 'HERMESTEST%'
+    OR to_jsonb(a)::text ILIKE '%HERMES-TEST-RUN-20260824%'
+    OR EXISTS(SELECT 1 FROM jsonb_array_elements(p_specs) spec
+      WHERE a.normalized_alias_value IN(public.normalize_vehicle_stock_number(spec->>'stock'),
+        public.normalize_vehicle_source_identifier(spec->>'stock'),
+        public.normalize_vehicle_source_identifier('HERMES-TEST-PERM-'||lpad(spec->>'scenario_no',3,'0'))))
+ ) OR EXISTS(
+  SELECT 1 FROM public.pdc_vehicle_tombstones t
+  WHERE t.vehicle_id=ANY(v_target_vehicle_ids)
+    OR t.normalized_stock LIKE 'HERMESTEST%' OR t.stock_number ILIKE 'HERMES-TEST-%'
+    OR to_jsonb(t)::text ILIKE '%HERMES-TEST-RUN-20260824%'
+ ) OR EXISTS(
+  SELECT 1 FROM public.navision_backend_records n
+  WHERE n.canonical_vehicle_id=ANY(v_target_vehicle_ids)
+    OR to_jsonb(n)::text ILIKE '%HERMES-TEST-%'
+    OR to_jsonb(n)::text ILIKE '%HERMES-TEST-RUN-20260824%'
+    OR EXISTS(SELECT 1 FROM jsonb_array_elements(p_specs) spec WHERE to_jsonb(n)::text ILIKE '%'||(spec->>'stock')||'%')
+ ) OR EXISTS(
+  SELECT 1 FROM public.navision_board_activations a
+  WHERE a.activated_stock_number ILIKE 'HERMES-TEST-%'
+    OR public.normalize_vehicle_stock_number(a.activated_stock_number) LIKE 'HERMESTEST%'
+    OR a.canonical_vehicle_id=ANY(v_target_vehicle_ids)
+ ) OR EXISTS(
+  SELECT 1 FROM public.vehicle_work_items wi
+  JOIN jsonb_array_elements(p_specs) spec ON true
+  JOIN LATERAL jsonb_array_elements_text(coalesce(spec->'work_keys','[]'::jsonb)) wk ON true
+  WHERE wi.id=extensions.uuid_generate_v5('36300000-0000-5000-8000-000000000363'::uuid,
+    p_run_id||':work:'||(spec->>'stock')||':'||wk.value)
+ ) THEN RAISE EXCEPTION 'PDC_363_SOURCE_NAMESPACE_IDENTITY_ARCHIVE_OR_TOMBSTONE_COLLISION' USING errcode='23505'; END IF;
+ IF EXISTS(SELECT 1 FROM public.pdc_overnight_synthetic_fleet_registry_363) THEN
   RAISE EXCEPTION 'PDC_363_existing_registry_mismatch' USING errcode='55000';
  END IF;
 
@@ -333,8 +461,8 @@ BEGIN
       'scenario_name',v_name,'request_sha256',v_request_sha256,'completion_evidence',false),v_actor,v_actor)
   RETURNING * INTO v_vehicle;
   INSERT INTO public.pdc_overnight_synthetic_fleet_registry_363(registry_id,run_id,scenario_no,scenario_name,vehicle_id,
-    stock_number,customer_name,job_card_number,vehicle_description,request_sha256,actor_id,actor_email)
-  VALUES(v_registry_id,p_run_id,v_no,v_name,v_vehicle.id,v_stock,v_customer,v_job,v_description,v_request_sha256,v_actor,v_email);
+    stock_number,customer_name,job_card_number,vehicle_description,spec,request_sha256,actor_id,actor_email)
+  VALUES(v_registry_id,p_run_id,v_no,v_name,v_vehicle.id,v_stock,v_customer,v_job,v_description,v_spec,v_request_sha256,v_actor,v_email);
   FOR v_work_key IN SELECT value FROM jsonb_array_elements_text(v_work_keys) ORDER BY value LOOP
    INSERT INTO public.vehicle_work_items(id,vehicle_id,work_key,required,completed,completed_by,completed_at,notes,updated_at)
    VALUES(extensions.uuid_generate_v5('36300000-0000-5000-8000-000000000363'::uuid,
@@ -347,11 +475,12 @@ BEGIN
  v_after_vehicle_count:=(SELECT count(*) FROM public.vehicles);
  v_after_registry_count:=(SELECT count(*) FROM public.pdc_overnight_synthetic_fleet_registry_363);
  v_after_notification_count:=(SELECT count(*) FROM public.vehicle_notifications);
- SELECT encode(extensions.digest(convert_to(coalesce(jsonb_agg(to_jsonb(v) ORDER BY v.id),'[]'::jsonb)::text,'UTF8'),'sha256'),'hex')
-   INTO v_protected_digest_after FROM public.vehicles v
-   WHERE NOT EXISTS(SELECT 1 FROM public.pdc_overnight_synthetic_fleet_registry_363 r WHERE r.vehicle_id=v.id AND r.run_id=p_run_id);
+ SELECT count(*),encode(extensions.digest(convert_to(coalesce(jsonb_agg(to_jsonb(v) ORDER BY v.id),'[]'::jsonb)::text,'UTF8'),'sha256'),'hex')
+   INTO v_protected_vehicle_count_after,v_protected_digest_after FROM public.vehicles v
+   WHERE NOT (v.id=ANY(v_target_vehicle_ids));
  IF v_after_vehicle_count-v_before_vehicle_count<>20 OR v_after_registry_count-v_before_registry_count<>20
    OR v_after_notification_count<>v_before_notification_count
+   OR v_protected_vehicle_count_after<>v_protected_vehicle_count_before
    OR v_protected_digest_after IS DISTINCT FROM v_protected_digest_before THEN
   RAISE EXCEPTION 'PDC_363_EXACT_DELTA_POSTCONDITION' USING errcode='55000';
  END IF;
@@ -367,17 +496,30 @@ BEGIN
    OR EXISTS(SELECT 1 FROM public.vehicle_sublet_providers s JOIN public.pdc_overnight_synthetic_fleet_registry_363 r ON r.vehicle_id=s.vehicle_id WHERE r.run_id=p_run_id)
    OR EXISTS(SELECT 1 FROM public.pdc_authenticated_email_import_receipts e JOIN public.pdc_overnight_synthetic_fleet_registry_363 r ON r.vehicle_id=e.vehicle_id WHERE r.run_id=p_run_id)
    OR EXISTS(SELECT 1 FROM public.vehicles v JOIN public.pdc_overnight_synthetic_fleet_registry_363 r ON r.vehicle_id=v.id WHERE r.run_id=p_run_id
-      AND (v.lifecycle_state<>'active' OR NOT v.visible_on_board OR v.deleted_at IS NOT NULL OR v.board_purged_at IS NOT NULL
+      AND (v.lifecycle_state IS DISTINCT FROM 'active' OR v.visible_on_board IS DISTINCT FROM true OR v.deleted_at IS NOT NULL OR v.board_purged_at IS NOT NULL
        OR v.rft_collected_at IS NOT NULL OR upper(coalesce(v.current_location,''))='COMPLETED'
-       OR v.stock_number<>r.stock_number OR v.customer_name<>r.customer_name OR v.job_card_number<>r.job_card_number
-       OR v.vehicle_description<>r.vehicle_description OR v.source_system<>'hermes_overnight_synthetic'
-       OR v.source_batch_id<>p_run_id OR v.source_record_id<>r.stock_number
+       OR r.registry_id IS DISTINCT FROM extensions.uuid_generate_v5('36300000-0000-5000-8000-000000000363'::uuid,p_run_id||':registry:'||r.scenario_no::text)
+       OR v.id IS DISTINCT FROM extensions.uuid_generate_v5('36300000-0000-5000-8000-000000000363'::uuid,p_run_id||':vehicle:'||r.stock_number)
+       OR v.permanent_vehicle_id IS DISTINCT FROM 'HERMES-TEST-PERM-'||lpad(r.scenario_no::text,3,'0')
+       OR v.stock_number IS DISTINCT FROM r.stock_number OR v.customer_name IS DISTINCT FROM r.customer_name OR v.job_card_number IS DISTINCT FROM r.job_card_number
+       OR v.vehicle_description IS DISTINCT FROM r.vehicle_description OR v.source_system IS DISTINCT FROM 'hermes_overnight_synthetic'
+       OR v.source_batch_id IS DISTINCT FROM p_run_id OR v.source_record_id IS DISTINCT FROM r.stock_number
+       OR v.current_location IS DISTINCT FROM coalesce(nullif(r.spec->>'initial_location',''),'Other')
+       OR v.eta_to_kewdale IS DISTINCT FROM nullif(r.spec->>'eta','')::date
+       OR v.source_payload->>'request_sha256' IS DISTINCT FROM r.request_sha256
+       OR (v.source_payload->>'completion_evidence')::boolean IS DISTINCT FROM false
        OR coalesce(to_jsonb(v)->>'qc_completed_at','')<>'' OR coalesce(to_jsonb(v)->>'rft_at','')<>''))
    OR EXISTS(SELECT 1 FROM public.vehicle_work_items wi JOIN public.pdc_overnight_synthetic_fleet_registry_363 r ON r.vehicle_id=wi.vehicle_id
-      WHERE r.run_id=p_run_id AND (NOT wi.required OR wi.completed OR wi.completed_by IS NOT NULL OR wi.completed_at IS NOT NULL
-       OR wi.notes !~ '^HERMES-TEST' OR NOT EXISTS(SELECT 1 FROM jsonb_array_elements(p_specs) spec
+      WHERE r.run_id=p_run_id AND (wi.required IS DISTINCT FROM true OR wi.completed IS DISTINCT FROM false OR wi.completed_by IS NOT NULL OR wi.completed_at IS NOT NULL
+       OR wi.id IS DISTINCT FROM extensions.uuid_generate_v5('36300000-0000-5000-8000-000000000363'::uuid,p_run_id||':work:'||r.stock_number||':'||wi.work_key)
+       OR wi.notes IS NULL OR wi.notes !~ '^HERMES-TEST' OR NOT EXISTS(SELECT 1 FROM jsonb_array_elements(p_specs) spec
           WHERE (spec->>'scenario_no')::integer=r.scenario_no AND (spec->'work_keys')?wi.work_key))) THEN
   RAISE EXCEPTION 'PDC_363_NO_BOOKING_COMPLETION_QC_RFT_DELETED_EVIDENCE_POSTCONDITION' USING errcode='55000';
+ END IF;
+ IF EXISTS(SELECT 1 FROM public.pdc_overnight_synthetic_fleet_registry_363 r
+   WHERE r.run_id=p_run_id AND (SELECT count(*) FROM public.vehicle_work_items wi WHERE wi.vehicle_id=r.vehicle_id)
+     <>jsonb_array_length(coalesce(r.spec->'work_keys','[]'::jsonb))) THEN
+  RAISE EXCEPTION 'PDC_363_CANONICAL_WORK_SET_POSTCONDITION' USING errcode='55000';
  END IF;
 
  v_receipt_id:=extensions.uuid_generate_v5('36300000-0000-5000-8000-000000000363'::uuid,
@@ -385,12 +527,24 @@ BEGIN
  v_response:=jsonb_build_object('ok',true,'code','synthetic_fleet_bootstrapped','run_id',p_run_id,
    'receipt_id',v_receipt_id,'request_hash',v_request_sha256,'specs_sha256',v_specs_sha256,'replay',false,
    'vehicle_delta',20,'registry_delta',20,'notification_delta',0,
+   'protected_vehicle_count_before',v_protected_vehicle_count_before,'protected_vehicle_count_after',v_protected_vehicle_count_after,
    'protected_vehicle_digest_before',v_protected_digest_before,'protected_vehicle_digest_after',v_protected_digest_after,
    'before_counts',jsonb_build_object('vehicles',v_before_vehicle_count,'registry',v_before_registry_count,
       'notifications',v_before_notification_count,'receipts',v_before_receipt_count,'events',v_before_event_count,
       'bookings',v_before_booking_count,'work_items',v_before_work_count,'parts_receipts',v_before_parts_count,
       'sublet_bookings',v_before_sublet_count,'providers',v_before_provider_count,'email_receipts',v_before_email_count),
    'ids_versions_scenarios',v_ids);
+ IF NOT public.pdc_monitor_staging_guard()
+   OR (SELECT count(*) FROM public.pdc_email_monitor_pilot)<>1
+   OR (SELECT count(*) FROM public.pdc_email_monitor_pilot WHERE singleton AND NOT enabled AND NOT outbound_email_enabled
+        AND NOT automatic_rule_application AND NOT automatic_authenticated_jobcards)<>1
+   OR (SELECT count(*) FROM public.pdc_email_monitor_status)<>1
+   OR (SELECT count(*) FROM public.pdc_email_monitor_status WHERE singleton AND running_status='stopped' AND gateway_instance_id IS NULL)<>1
+   OR EXISTS(SELECT 1 FROM public.monitored_mailboxes WHERE active)
+   OR EXISTS(SELECT 1 FROM public.pdc_monitor_stage_activation_writers WHERE active AND revoked_at IS NULL)
+   OR (SELECT count(*) FROM public.vehicle_notifications)<>0 THEN
+  RAISE EXCEPTION 'PDC_363_RUNTIME_CONTAINMENT_MISMATCH' USING errcode='55000';
+ END IF;
  INSERT INTO public.pdc_overnight_synthetic_fleet_receipts_363(receipt_id,run_id,actor_id,actor_email,idempotency_key,request_sha256,response)
  VALUES(v_receipt_id,p_run_id,v_actor,v_email,p_idempotency_key,v_request_sha256,v_response);
  INSERT INTO public.pdc_overnight_synthetic_fleet_events_363(event_id,run_id,registry_id,vehicle_id,actor_id,idempotency_key,event_kind,event_payload)
@@ -403,6 +557,17 @@ BEGIN
    OR (SELECT count(*) FROM public.pdc_overnight_synthetic_fleet_events_363)<>v_before_event_count+20
    OR (SELECT count(*) FROM public.vehicle_notifications)<>0 THEN
   RAISE EXCEPTION 'PDC_363_RECEIPT_EVENT_NOTIFICATION_POSTCONDITION' USING errcode='55000';
+ END IF;
+ IF NOT public.pdc_monitor_staging_guard()
+   OR (SELECT count(*) FROM public.pdc_email_monitor_pilot)<>1
+   OR (SELECT count(*) FROM public.pdc_email_monitor_pilot WHERE singleton AND NOT enabled AND NOT outbound_email_enabled
+        AND NOT automatic_rule_application AND NOT automatic_authenticated_jobcards)<>1
+   OR (SELECT count(*) FROM public.pdc_email_monitor_status)<>1
+   OR (SELECT count(*) FROM public.pdc_email_monitor_status WHERE singleton AND running_status='stopped' AND gateway_instance_id IS NULL)<>1
+   OR EXISTS(SELECT 1 FROM public.monitored_mailboxes WHERE active)
+   OR EXISTS(SELECT 1 FROM public.pdc_monitor_stage_activation_writers WHERE active AND revoked_at IS NULL)
+   OR (SELECT count(*) FROM public.vehicle_notifications)<>0 THEN
+  RAISE EXCEPTION 'PDC_363_RUNTIME_CONTAINMENT_MISMATCH' USING errcode='55000';
  END IF;
  RETURN v_response;
 END $bootstrap$;
@@ -435,4 +600,23 @@ VALUES('20260825000000','363_overnight_synthetic_fleet_bootstrap',array[
  'Authoritative registered-fleet readback, exact deltas, immutable responses and least-authority ACL proof'
 ]);
 NOTIFY pgrst,'reload schema';
+
+-- The migration-time SHARE locks are still held here, so this is both an
+-- immediate pre-commit revalidation and a guarantee that row DML could not race it.
+DO $final_containment$
+BEGIN
+ IF NOT public.pdc_monitor_staging_guard()
+   OR (SELECT count(*) FROM public.pdc_staging_environment_sentinel WHERE singleton AND project_ref='cdsmnqxtyyoeoznmbidd')<>1
+   OR to_regclass('public.pdc_production_environment_sentinel') IS NOT NULL
+   OR (SELECT count(*) FROM public.pdc_email_monitor_pilot)<>1
+   OR (SELECT count(*) FROM public.pdc_email_monitor_pilot WHERE singleton AND NOT enabled AND NOT outbound_email_enabled
+        AND NOT automatic_rule_application AND NOT automatic_authenticated_jobcards)<>1
+   OR (SELECT count(*) FROM public.pdc_email_monitor_status)<>1
+   OR (SELECT count(*) FROM public.pdc_email_monitor_status WHERE singleton AND running_status='stopped' AND gateway_instance_id IS NULL)<>1
+   OR EXISTS(SELECT 1 FROM public.monitored_mailboxes WHERE active)
+   OR EXISTS(SELECT 1 FROM public.pdc_monitor_stage_activation_writers WHERE active AND revoked_at IS NULL)
+   OR (SELECT count(*) FROM public.vehicle_notifications)<>0 THEN
+  RAISE EXCEPTION 'PDC_363_FINAL_CONTAINMENT_MISMATCH' USING errcode='55000';
+ END IF;
+END $final_containment$;
 COMMIT;
