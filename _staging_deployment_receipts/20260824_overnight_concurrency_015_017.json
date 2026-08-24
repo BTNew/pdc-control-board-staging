@@ -1,0 +1,994 @@
+{
+  "actions": [
+    {
+      "exactly_one_apply_one_replay": true,
+      "idempotency_key": "a8f17c66-3048-58d0-9420-7d02282cbf2c",
+      "kind": "duplicate_submit",
+      "receipt_id": "4d4203ae-2d0b-5f9f-8230-7d59de887cf1",
+      "responses": [
+        [
+          200,
+          {
+            "action": "vehicle_edit",
+            "code": "synthetic_action_applied",
+            "notification_delta": 0,
+            "ok": true,
+            "protected_state": {
+              "rows": 1413,
+              "sha256": "28476c8fac93aa03707b20a84b4b836b4268c96fa6710bf1238f0f6ebb265f11"
+            },
+            "receipt_id": "4d4203ae-2d0b-5f9f-8230-7d59de887cf1",
+            "replay": false,
+            "request_sha256": "d99fc94df478a3c512674cff6a55b675245acd1f0a81fdd01be6606c4ee19176",
+            "result": {
+              "code": "synthetic_vehicle_edited",
+              "ok": true,
+              "vehicle": {
+                "active_workshop_booking_id": null,
+                "arrival_reference_date": null,
+                "board_purge_reason": null,
+                "board_purged_at": null,
+                "board_purged_by": null,
+                "created_at": "2026-08-24T12:32:05.28129+00:00",
+                "created_by": "557dba7f-fd70-4b9e-aa7b-b83b717682a7",
+                "current_location": "Other",
+                "customer_name": "HERMES-TEST CUSTOMER 015",
+                "date_to_pmb": null,
+                "date_to_rft": null,
+                "deleted_at": null,
+                "deleted_reason": null,
+                "delivered_to_dealer_date": null,
+                "eta_to_kewdale": null,
+                "id": "20a1b463-b7b6-5b1a-98ff-28a9c9defbbf",
+                "job_card_number": "HERMES-TEST-JC-015",
+                "key_number": null,
+                "lifecycle_state": "active",
+                "make": null,
+                "model": "HERMES-TEST VEHICLE 015 DUPLICATE SUBMIT IDEMPOTENCY",
+                "permanent_vehicle_id": "HERMES-TEST-PERM-015",
+                "pmb_bay_number": null,
+                "pmb_bay_stage": null,
+                "pmb_key_tag": "HERMES-TEST-015-DUPLICATE",
+                "pmb_stage": null,
+                "qc_completed_at": null,
+                "qc_completed_by": null,
+                "registration": null,
+                "rft_collected_at": null,
+                "rft_collected_by": null,
+                "rft_transferred_at": null,
+                "sales_build_complete": false,
+                "sales_build_po_raised": false,
+                "sales_preparation_updated_at": null,
+                "sales_preparation_updated_by": null,
+                "sales_tint_raised": false,
+                "sales_tray_complete": false,
+                "sales_tray_ordered": false,
+                "salesperson_id": null,
+                "salesperson_reference": null,
+                "source_batch_id": "HERMES-TEST-RUN-20260824",
+                "source_payload": {
+                  "completion_evidence": false,
+                  "contract": "pdc-overnight-synthetic-fleet-363/render_only",
+                  "request_sha256": "d0727781d04216fe6d752a9d4f95b2a87364c118c2fcec97616cc25d9ee3f25c",
+                  "run_id": "HERMES-TEST-RUN-20260824",
+                  "scenario_name": "HERMES-TEST-DUPLICATE-SUBMIT-IDEMPOTENCY",
+                  "scenario_no": 15
+                },
+                "source_record_id": "HERMES-TEST-015",
+                "source_record_id_normalized": "HERMES-TEST-015",
+                "source_system": "hermes_overnight_synthetic",
+                "source_system_normalized": "hermes_overnight_synthetic",
+                "stock_number": "HERMES-TEST-015",
+                "stock_number_normalized": "HERMESTEST015",
+                "toyota_order_number": null,
+                "updated_at": "2026-08-24T18:02:44.699017+00:00",
+                "updated_by": "557dba7f-fd70-4b9e-aa7b-b83b717682a7",
+                "vehicle_description": "HERMES-TEST VEHICLE 015 DUPLICATE SUBMIT IDEMPOTENCY",
+                "version": 2,
+                "vin": null,
+                "vin_normalized": null,
+                "visible_on_board": true,
+                "workshop_status": "queued",
+                "workshop_status_updated_at": null,
+                "workshop_status_updated_by": null
+              }
+            },
+            "revisions": {
+              "navision": {
+                "after": 3562,
+                "before": 3562,
+                "delta": 0
+              },
+              "pdc_email": {
+                "after": 90428,
+                "before": 90427,
+                "delta": 1
+              },
+              "workshop": {
+                "after": 6330,
+                "before": 6330,
+                "delta": 0
+              }
+            },
+            "run_id": "HERMES-TEST-RUN-20260824",
+            "sibling_state": {
+              "rows": 110,
+              "sha256": "ef3f34e7e4cabf94cad87131ded9aa4371b2eb00010673d3808fff6261cb3d22"
+            },
+            "subject_id": null,
+            "subject_version_after": null,
+            "subject_version_before": null,
+            "synthetic_wrapper": true,
+            "vehicle_id": "20a1b463-b7b6-5b1a-98ff-28a9c9defbbf",
+            "vehicle_version_after": 2,
+            "vehicle_version_before": 1
+          }
+        ],
+        [
+          200,
+          {
+            "action": "vehicle_edit",
+            "code": "synthetic_action_applied",
+            "current_notification_count": 0,
+            "current_protected_digest": {
+              "rows": 1413,
+              "sha256": "28476c8fac93aa03707b20a84b4b836b4268c96fa6710bf1238f0f6ebb265f11"
+            },
+            "current_vehicle_version": 2,
+            "notification_delta": 0,
+            "ok": true,
+            "protected_state": {
+              "rows": 1413,
+              "sha256": "28476c8fac93aa03707b20a84b4b836b4268c96fa6710bf1238f0f6ebb265f11"
+            },
+            "receipt_id": "4d4203ae-2d0b-5f9f-8230-7d59de887cf1",
+            "replay": true,
+            "replay_containment_verified": true,
+            "request_sha256": "d99fc94df478a3c512674cff6a55b675245acd1f0a81fdd01be6606c4ee19176",
+            "result": {
+              "code": "synthetic_vehicle_edited",
+              "ok": true,
+              "vehicle": {
+                "active_workshop_booking_id": null,
+                "arrival_reference_date": null,
+                "board_purge_reason": null,
+                "board_purged_at": null,
+                "board_purged_by": null,
+                "created_at": "2026-08-24T12:32:05.28129+00:00",
+                "created_by": "557dba7f-fd70-4b9e-aa7b-b83b717682a7",
+                "current_location": "Other",
+                "customer_name": "HERMES-TEST CUSTOMER 015",
+                "date_to_pmb": null,
+                "date_to_rft": null,
+                "deleted_at": null,
+                "deleted_reason": null,
+                "delivered_to_dealer_date": null,
+                "eta_to_kewdale": null,
+                "id": "20a1b463-b7b6-5b1a-98ff-28a9c9defbbf",
+                "job_card_number": "HERMES-TEST-JC-015",
+                "key_number": null,
+                "lifecycle_state": "active",
+                "make": null,
+                "model": "HERMES-TEST VEHICLE 015 DUPLICATE SUBMIT IDEMPOTENCY",
+                "permanent_vehicle_id": "HERMES-TEST-PERM-015",
+                "pmb_bay_number": null,
+                "pmb_bay_stage": null,
+                "pmb_key_tag": "HERMES-TEST-015-DUPLICATE",
+                "pmb_stage": null,
+                "qc_completed_at": null,
+                "qc_completed_by": null,
+                "registration": null,
+                "rft_collected_at": null,
+                "rft_collected_by": null,
+                "rft_transferred_at": null,
+                "sales_build_complete": false,
+                "sales_build_po_raised": false,
+                "sales_preparation_updated_at": null,
+                "sales_preparation_updated_by": null,
+                "sales_tint_raised": false,
+                "sales_tray_complete": false,
+                "sales_tray_ordered": false,
+                "salesperson_id": null,
+                "salesperson_reference": null,
+                "source_batch_id": "HERMES-TEST-RUN-20260824",
+                "source_payload": {
+                  "completion_evidence": false,
+                  "contract": "pdc-overnight-synthetic-fleet-363/render_only",
+                  "request_sha256": "d0727781d04216fe6d752a9d4f95b2a87364c118c2fcec97616cc25d9ee3f25c",
+                  "run_id": "HERMES-TEST-RUN-20260824",
+                  "scenario_name": "HERMES-TEST-DUPLICATE-SUBMIT-IDEMPOTENCY",
+                  "scenario_no": 15
+                },
+                "source_record_id": "HERMES-TEST-015",
+                "source_record_id_normalized": "HERMES-TEST-015",
+                "source_system": "hermes_overnight_synthetic",
+                "source_system_normalized": "hermes_overnight_synthetic",
+                "stock_number": "HERMES-TEST-015",
+                "stock_number_normalized": "HERMESTEST015",
+                "toyota_order_number": null,
+                "updated_at": "2026-08-24T18:02:44.699017+00:00",
+                "updated_by": "557dba7f-fd70-4b9e-aa7b-b83b717682a7",
+                "vehicle_description": "HERMES-TEST VEHICLE 015 DUPLICATE SUBMIT IDEMPOTENCY",
+                "version": 2,
+                "vin": null,
+                "vin_normalized": null,
+                "visible_on_board": true,
+                "workshop_status": "queued",
+                "workshop_status_updated_at": null,
+                "workshop_status_updated_by": null
+              }
+            },
+            "revisions": {
+              "navision": {
+                "after": 3562,
+                "before": 3562,
+                "delta": 0
+              },
+              "pdc_email": {
+                "after": 90428,
+                "before": 90427,
+                "delta": 1
+              },
+              "workshop": {
+                "after": 6330,
+                "before": 6330,
+                "delta": 0
+              }
+            },
+            "run_id": "HERMES-TEST-RUN-20260824",
+            "sibling_state": {
+              "rows": 110,
+              "sha256": "ef3f34e7e4cabf94cad87131ded9aa4371b2eb00010673d3808fff6261cb3d22"
+            },
+            "subject_id": null,
+            "subject_version_after": null,
+            "subject_version_before": null,
+            "synthetic_wrapper": true,
+            "vehicle_id": "20a1b463-b7b6-5b1a-98ff-28a9c9defbbf",
+            "vehicle_version_after": 2,
+            "vehicle_version_before": 1
+          }
+        ]
+      ],
+      "same_key_changed_payload_rejected": true,
+      "scenario_no": 15,
+      "version_after": 2,
+      "version_before": 1
+    },
+    {
+      "idempotency_key": "6abb42eb-1be0-5c45-893b-4bdb8c082264",
+      "kind": "stale_expected_version",
+      "receipt_id": "f03f7530-3af6-5eeb-bb1d-893f7b640a9e",
+      "rejection_receipt_count": 1,
+      "response": {
+        "action": "vehicle_edit",
+        "code": "synthetic_action_rejected",
+        "notification_delta": 0,
+        "ok": false,
+        "protected_state": {
+          "rows": 1413,
+          "sha256": "28476c8fac93aa03707b20a84b4b836b4268c96fa6710bf1238f0f6ebb265f11"
+        },
+        "receipt_id": "f03f7530-3af6-5eeb-bb1d-893f7b640a9e",
+        "replay": false,
+        "request_sha256": "549e4332d01bcb831ebd01a52eb8e92c8771101ce6f8c0a8998ac575527f4416",
+        "result": {
+          "current_version": 1,
+          "error": "vehicle_version_conflict",
+          "ok": false
+        },
+        "revisions": {
+          "navision": {
+            "after": 3562,
+            "before": 3562,
+            "delta": 0
+          },
+          "pdc_email": {
+            "after": 90428,
+            "before": 90428,
+            "delta": 0
+          },
+          "workshop": {
+            "after": 6330,
+            "before": 6330,
+            "delta": 0
+          }
+        },
+        "run_id": "HERMES-TEST-RUN-20260824",
+        "sibling_state": {
+          "rows": 111,
+          "sha256": "71ade2c5367fddd92c3349ec08c3d87b3196ff6e32d3fbe654f3c5bff536f8b2"
+        },
+        "subject_id": null,
+        "subject_version_after": null,
+        "subject_version_before": null,
+        "synthetic_wrapper": true,
+        "vehicle_id": "a3a1e041-c703-548f-8eb8-cb7f6c10fa5a",
+        "vehicle_version_after": 1,
+        "vehicle_version_before": 1
+      },
+      "scenario_no": 16,
+      "vehicle_unchanged": true
+    },
+    {
+      "expected_version": 1,
+      "kind": "same_record_race",
+      "loser": {
+        "error": "vehicle_version_conflict",
+        "idempotency_key": "92cb0d4c-6801-53a2-a697-2e8f039b8398",
+        "receipt_id": "388976e0-d1ab-5a2d-a367-ac27a14fefda"
+      },
+      "no_lost_update": true,
+      "race_no": 1,
+      "receipt_count": 2,
+      "scenario_no": 17,
+      "sibling_unchanged": true,
+      "version_after": 2,
+      "winner": {
+        "idempotency_key": "7dec180d-52e6-5dac-9e6f-bebb10d208a9",
+        "receipt_id": "8bafa7b3-c108-5878-9f92-e260bda4f409",
+        "tag": "HERMES-TEST-017-RACE-1-A"
+      }
+    },
+    {
+      "expected_version": 2,
+      "kind": "same_record_race",
+      "loser": {
+        "error": "vehicle_version_conflict",
+        "idempotency_key": "4420ba23-2d3b-5ad3-bde2-935d2735aa5e",
+        "receipt_id": "a6c7a851-a1f5-5cf4-9c32-5092b724d12e"
+      },
+      "no_lost_update": true,
+      "race_no": 2,
+      "receipt_count": 2,
+      "scenario_no": 17,
+      "sibling_unchanged": true,
+      "version_after": 3,
+      "winner": {
+        "idempotency_key": "faf91136-c52d-582d-961d-8346d0ea9718",
+        "receipt_id": "6ce9c312-252a-547b-a5d4-dab5a360d205",
+        "tag": "HERMES-TEST-017-RACE-2-A"
+      }
+    }
+  ],
+  "actor_id": "557dba7f-fd70-4b9e-aa7b-b83b717682a7",
+  "distinct_token_digests": 3,
+  "duplicate_receipt_rows": 0,
+  "duplicate_submit_races": 1,
+  "final_environment": {
+    "banner_markers": {
+      "production_url_absent_from_config": true,
+      "service_role_absent_from_config": true,
+      "staging_ref_in_config": true,
+      "staging_title": true
+    },
+    "branch": "hermes/overnight-pdc-hardening-20260824",
+    "credential_files_in_worktree": [],
+    "database": {
+      "active_activation_writers": 0,
+      "active_mailboxes": 0,
+      "migration_head": {
+        "name": "374_overnight_qc_fixture_registry_assignment",
+        "version": "20260825110000"
+      },
+      "monitor_status": "stopped",
+      "outbound_notification_rows": 0,
+      "pending_outbound_notifications": 0,
+      "production_sentinel_absent": true,
+      "project_ref": "cdsmnqxtyyoeoznmbidd",
+      "staging_sentinel_rows": 1,
+      "synthetic_vehicle_total": 20,
+      "vehicle_total": 173
+    },
+    "outbound_policy": "mailboxes and activation writers disabled; no external sends permitted",
+    "pages_build": "c95e0dec3064eebfb88d8f8367a326ca77fcc6b7 built",
+    "production_access_guard": true,
+    "schema": "pdc-overnight-environment-proof-v1",
+    "source_start_commit": "ac06394736b55220e7425322fc53e9b9dadc3fdd",
+    "website_hostname": "btnew.github.io",
+    "website_path": "/pdc-control-board-staging/",
+    "website_title": "PDC Control Board \u2014 STAGING"
+  },
+  "final_state": {
+    "15": {
+      "pmb_key_tag": "HERMES-TEST-015-DUPLICATE",
+      "receipt_count": 1,
+      "stock": "HERMES-TEST-015",
+      "version": 2
+    },
+    "16": {
+      "pmb_key_tag": null,
+      "receipt_count": 1,
+      "stock": "HERMES-TEST-016",
+      "version": 1
+    },
+    "17": {
+      "pmb_key_tag": "HERMES-TEST-017-RACE-2-A",
+      "receipt_count": 4,
+      "stock": "HERMES-TEST-017",
+      "version": 3
+    }
+  },
+  "initial_environment": {
+    "banner_markers": {
+      "production_url_absent_from_config": true,
+      "service_role_absent_from_config": true,
+      "staging_ref_in_config": true,
+      "staging_title": true
+    },
+    "branch": "hermes/overnight-pdc-hardening-20260824",
+    "credential_files_in_worktree": [],
+    "database": {
+      "active_activation_writers": 0,
+      "active_mailboxes": 0,
+      "migration_head": {
+        "name": "374_overnight_qc_fixture_registry_assignment",
+        "version": "20260825110000"
+      },
+      "monitor_status": "stopped",
+      "outbound_notification_rows": 0,
+      "pending_outbound_notifications": 0,
+      "production_sentinel_absent": true,
+      "project_ref": "cdsmnqxtyyoeoznmbidd",
+      "staging_sentinel_rows": 1,
+      "synthetic_vehicle_total": 20,
+      "vehicle_total": 173
+    },
+    "outbound_policy": "mailboxes and activation writers disabled; no external sends permitted",
+    "pages_build": "c95e0dec3064eebfb88d8f8367a326ca77fcc6b7 built",
+    "production_access_guard": true,
+    "schema": "pdc-overnight-environment-proof-v1",
+    "source_start_commit": "ac06394736b55220e7425322fc53e9b9dadc3fdd",
+    "website_hostname": "btnew.github.io",
+    "website_path": "/pdc-control-board-staging/",
+    "website_title": "PDC Control Board \u2014 STAGING"
+  },
+  "isolated_authenticated_sessions": 3,
+  "lost_updates": 0,
+  "notifications": 0,
+  "project_ref": "cdsmnqxtyyoeoznmbidd",
+  "protected_state": {
+    "rows": 1413,
+    "sha256": "28476c8fac93aa03707b20a84b4b836b4268c96fa6710bf1238f0f6ebb265f11"
+  },
+  "receipt_inventory": {
+    "15": [
+      {
+        "action": "vehicle_edit",
+        "actor_id": "557dba7f-fd70-4b9e-aa7b-b83b717682a7",
+        "idempotency_key": "a8f17c66-3048-58d0-9420-7d02282cbf2c",
+        "receipt_id": "4d4203ae-2d0b-5f9f-8230-7d59de887cf1",
+        "request_sha256": "d99fc94df478a3c512674cff6a55b675245acd1f0a81fdd01be6606c4ee19176",
+        "response": {
+          "action": "vehicle_edit",
+          "code": "synthetic_action_applied",
+          "notification_delta": 0,
+          "ok": true,
+          "protected_state": {
+            "rows": 1413,
+            "sha256": "28476c8fac93aa03707b20a84b4b836b4268c96fa6710bf1238f0f6ebb265f11"
+          },
+          "receipt_id": "4d4203ae-2d0b-5f9f-8230-7d59de887cf1",
+          "replay": false,
+          "request_sha256": "d99fc94df478a3c512674cff6a55b675245acd1f0a81fdd01be6606c4ee19176",
+          "result": {
+            "code": "synthetic_vehicle_edited",
+            "ok": true,
+            "vehicle": {
+              "active_workshop_booking_id": null,
+              "arrival_reference_date": null,
+              "board_purge_reason": null,
+              "board_purged_at": null,
+              "board_purged_by": null,
+              "created_at": "2026-08-24T12:32:05.28129+00:00",
+              "created_by": "557dba7f-fd70-4b9e-aa7b-b83b717682a7",
+              "current_location": "Other",
+              "customer_name": "HERMES-TEST CUSTOMER 015",
+              "date_to_pmb": null,
+              "date_to_rft": null,
+              "deleted_at": null,
+              "deleted_reason": null,
+              "delivered_to_dealer_date": null,
+              "eta_to_kewdale": null,
+              "id": "20a1b463-b7b6-5b1a-98ff-28a9c9defbbf",
+              "job_card_number": "HERMES-TEST-JC-015",
+              "key_number": null,
+              "lifecycle_state": "active",
+              "make": null,
+              "model": "HERMES-TEST VEHICLE 015 DUPLICATE SUBMIT IDEMPOTENCY",
+              "permanent_vehicle_id": "HERMES-TEST-PERM-015",
+              "pmb_bay_number": null,
+              "pmb_bay_stage": null,
+              "pmb_key_tag": "HERMES-TEST-015-DUPLICATE",
+              "pmb_stage": null,
+              "qc_completed_at": null,
+              "qc_completed_by": null,
+              "registration": null,
+              "rft_collected_at": null,
+              "rft_collected_by": null,
+              "rft_transferred_at": null,
+              "sales_build_complete": false,
+              "sales_build_po_raised": false,
+              "sales_preparation_updated_at": null,
+              "sales_preparation_updated_by": null,
+              "sales_tint_raised": false,
+              "sales_tray_complete": false,
+              "sales_tray_ordered": false,
+              "salesperson_id": null,
+              "salesperson_reference": null,
+              "source_batch_id": "HERMES-TEST-RUN-20260824",
+              "source_payload": {
+                "completion_evidence": false,
+                "contract": "pdc-overnight-synthetic-fleet-363/render_only",
+                "request_sha256": "d0727781d04216fe6d752a9d4f95b2a87364c118c2fcec97616cc25d9ee3f25c",
+                "run_id": "HERMES-TEST-RUN-20260824",
+                "scenario_name": "HERMES-TEST-DUPLICATE-SUBMIT-IDEMPOTENCY",
+                "scenario_no": 15
+              },
+              "source_record_id": "HERMES-TEST-015",
+              "source_record_id_normalized": "HERMES-TEST-015",
+              "source_system": "hermes_overnight_synthetic",
+              "source_system_normalized": "hermes_overnight_synthetic",
+              "stock_number": "HERMES-TEST-015",
+              "stock_number_normalized": "HERMESTEST015",
+              "toyota_order_number": null,
+              "updated_at": "2026-08-24T18:02:44.699017+00:00",
+              "updated_by": "557dba7f-fd70-4b9e-aa7b-b83b717682a7",
+              "vehicle_description": "HERMES-TEST VEHICLE 015 DUPLICATE SUBMIT IDEMPOTENCY",
+              "version": 2,
+              "vin": null,
+              "vin_normalized": null,
+              "visible_on_board": true,
+              "workshop_status": "queued",
+              "workshop_status_updated_at": null,
+              "workshop_status_updated_by": null
+            }
+          },
+          "revisions": {
+            "navision": {
+              "after": 3562,
+              "before": 3562,
+              "delta": 0
+            },
+            "pdc_email": {
+              "after": 90428,
+              "before": 90427,
+              "delta": 1
+            },
+            "workshop": {
+              "after": 6330,
+              "before": 6330,
+              "delta": 0
+            }
+          },
+          "run_id": "HERMES-TEST-RUN-20260824",
+          "sibling_state": {
+            "rows": 110,
+            "sha256": "ef3f34e7e4cabf94cad87131ded9aa4371b2eb00010673d3808fff6261cb3d22"
+          },
+          "subject_id": null,
+          "subject_version_after": null,
+          "subject_version_before": null,
+          "synthetic_wrapper": true,
+          "vehicle_id": "20a1b463-b7b6-5b1a-98ff-28a9c9defbbf",
+          "vehicle_version_after": 2,
+          "vehicle_version_before": 1
+        }
+      }
+    ],
+    "16": [
+      {
+        "action": "vehicle_edit",
+        "actor_id": "557dba7f-fd70-4b9e-aa7b-b83b717682a7",
+        "idempotency_key": "6abb42eb-1be0-5c45-893b-4bdb8c082264",
+        "receipt_id": "f03f7530-3af6-5eeb-bb1d-893f7b640a9e",
+        "request_sha256": "549e4332d01bcb831ebd01a52eb8e92c8771101ce6f8c0a8998ac575527f4416",
+        "response": {
+          "action": "vehicle_edit",
+          "code": "synthetic_action_rejected",
+          "notification_delta": 0,
+          "ok": false,
+          "protected_state": {
+            "rows": 1413,
+            "sha256": "28476c8fac93aa03707b20a84b4b836b4268c96fa6710bf1238f0f6ebb265f11"
+          },
+          "receipt_id": "f03f7530-3af6-5eeb-bb1d-893f7b640a9e",
+          "replay": false,
+          "request_sha256": "549e4332d01bcb831ebd01a52eb8e92c8771101ce6f8c0a8998ac575527f4416",
+          "result": {
+            "current_version": 1,
+            "error": "vehicle_version_conflict",
+            "ok": false
+          },
+          "revisions": {
+            "navision": {
+              "after": 3562,
+              "before": 3562,
+              "delta": 0
+            },
+            "pdc_email": {
+              "after": 90428,
+              "before": 90428,
+              "delta": 0
+            },
+            "workshop": {
+              "after": 6330,
+              "before": 6330,
+              "delta": 0
+            }
+          },
+          "run_id": "HERMES-TEST-RUN-20260824",
+          "sibling_state": {
+            "rows": 111,
+            "sha256": "71ade2c5367fddd92c3349ec08c3d87b3196ff6e32d3fbe654f3c5bff536f8b2"
+          },
+          "subject_id": null,
+          "subject_version_after": null,
+          "subject_version_before": null,
+          "synthetic_wrapper": true,
+          "vehicle_id": "a3a1e041-c703-548f-8eb8-cb7f6c10fa5a",
+          "vehicle_version_after": 1,
+          "vehicle_version_before": 1
+        }
+      }
+    ],
+    "17": [
+      {
+        "action": "vehicle_edit",
+        "actor_id": "557dba7f-fd70-4b9e-aa7b-b83b717682a7",
+        "idempotency_key": "7dec180d-52e6-5dac-9e6f-bebb10d208a9",
+        "receipt_id": "8bafa7b3-c108-5878-9f92-e260bda4f409",
+        "request_sha256": "bc0d1bfb0e3a325ed62021ee10de2c8620656dec404e861700e3e7414c039ba4",
+        "response": {
+          "action": "vehicle_edit",
+          "code": "synthetic_action_applied",
+          "notification_delta": 0,
+          "ok": true,
+          "protected_state": {
+            "rows": 1413,
+            "sha256": "28476c8fac93aa03707b20a84b4b836b4268c96fa6710bf1238f0f6ebb265f11"
+          },
+          "receipt_id": "8bafa7b3-c108-5878-9f92-e260bda4f409",
+          "replay": false,
+          "request_sha256": "bc0d1bfb0e3a325ed62021ee10de2c8620656dec404e861700e3e7414c039ba4",
+          "result": {
+            "code": "synthetic_vehicle_edited",
+            "ok": true,
+            "vehicle": {
+              "active_workshop_booking_id": null,
+              "arrival_reference_date": null,
+              "board_purge_reason": null,
+              "board_purged_at": null,
+              "board_purged_by": null,
+              "created_at": "2026-08-24T12:32:05.28129+00:00",
+              "created_by": "557dba7f-fd70-4b9e-aa7b-b83b717682a7",
+              "current_location": "PMB",
+              "customer_name": "HERMES-TEST CUSTOMER 017",
+              "date_to_pmb": "2026-08-24",
+              "date_to_rft": null,
+              "deleted_at": null,
+              "deleted_reason": null,
+              "delivered_to_dealer_date": null,
+              "eta_to_kewdale": null,
+              "id": "34fe87a0-e632-58ff-b558-b593eb39985c",
+              "job_card_number": "HERMES-TEST-JC-017",
+              "key_number": null,
+              "lifecycle_state": "active",
+              "make": null,
+              "model": "HERMES-TEST VEHICLE 017 TWO SESSION SAME RECORD RACE",
+              "permanent_vehicle_id": "HERMES-TEST-PERM-017",
+              "pmb_bay_number": null,
+              "pmb_bay_stage": null,
+              "pmb_key_tag": "HERMES-TEST-017-RACE-1-A",
+              "pmb_stage": null,
+              "qc_completed_at": null,
+              "qc_completed_by": null,
+              "registration": null,
+              "rft_collected_at": null,
+              "rft_collected_by": null,
+              "rft_transferred_at": null,
+              "sales_build_complete": false,
+              "sales_build_po_raised": false,
+              "sales_preparation_updated_at": null,
+              "sales_preparation_updated_by": null,
+              "sales_tint_raised": false,
+              "sales_tray_complete": false,
+              "sales_tray_ordered": false,
+              "salesperson_id": null,
+              "salesperson_reference": null,
+              "source_batch_id": "HERMES-TEST-RUN-20260824",
+              "source_payload": {
+                "completion_evidence": false,
+                "contract": "pdc-overnight-synthetic-fleet-363/render_only",
+                "request_sha256": "d0727781d04216fe6d752a9d4f95b2a87364c118c2fcec97616cc25d9ee3f25c",
+                "run_id": "HERMES-TEST-RUN-20260824",
+                "scenario_name": "HERMES-TEST-TWO-SESSION-SAME-RECORD-RACE",
+                "scenario_no": 17
+              },
+              "source_record_id": "HERMES-TEST-017",
+              "source_record_id_normalized": "HERMES-TEST-017",
+              "source_system": "hermes_overnight_synthetic",
+              "source_system_normalized": "hermes_overnight_synthetic",
+              "stock_number": "HERMES-TEST-017",
+              "stock_number_normalized": "HERMESTEST017",
+              "toyota_order_number": null,
+              "updated_at": "2026-08-24T18:02:59.574996+00:00",
+              "updated_by": "557dba7f-fd70-4b9e-aa7b-b83b717682a7",
+              "vehicle_description": "HERMES-TEST VEHICLE 017 TWO SESSION SAME RECORD RACE",
+              "version": 2,
+              "vin": null,
+              "vin_normalized": null,
+              "visible_on_board": true,
+              "workshop_status": "queued",
+              "workshop_status_updated_at": null,
+              "workshop_status_updated_by": null
+            }
+          },
+          "revisions": {
+            "navision": {
+              "after": 3562,
+              "before": 3562,
+              "delta": 0
+            },
+            "pdc_email": {
+              "after": 90429,
+              "before": 90428,
+              "delta": 1
+            },
+            "workshop": {
+              "after": 6330,
+              "before": 6330,
+              "delta": 0
+            }
+          },
+          "run_id": "HERMES-TEST-RUN-20260824",
+          "sibling_state": {
+            "rows": 111,
+            "sha256": "34d9436aaf82526728b45926dbc2cdc45a1d9a69f310f2f62b09996d185986f0"
+          },
+          "subject_id": null,
+          "subject_version_after": null,
+          "subject_version_before": null,
+          "synthetic_wrapper": true,
+          "vehicle_id": "34fe87a0-e632-58ff-b558-b593eb39985c",
+          "vehicle_version_after": 2,
+          "vehicle_version_before": 1
+        }
+      },
+      {
+        "action": "vehicle_edit",
+        "actor_id": "557dba7f-fd70-4b9e-aa7b-b83b717682a7",
+        "idempotency_key": "92cb0d4c-6801-53a2-a697-2e8f039b8398",
+        "receipt_id": "388976e0-d1ab-5a2d-a367-ac27a14fefda",
+        "request_sha256": "85bf9e4f1d93e327d7838fdb6092a36e0a3f24c5c627f71f3d481cf712718cc6",
+        "response": {
+          "action": "vehicle_edit",
+          "code": "synthetic_action_rejected",
+          "notification_delta": 0,
+          "ok": false,
+          "protected_state": {
+            "rows": 1413,
+            "sha256": "28476c8fac93aa03707b20a84b4b836b4268c96fa6710bf1238f0f6ebb265f11"
+          },
+          "receipt_id": "388976e0-d1ab-5a2d-a367-ac27a14fefda",
+          "replay": false,
+          "request_sha256": "85bf9e4f1d93e327d7838fdb6092a36e0a3f24c5c627f71f3d481cf712718cc6",
+          "result": {
+            "current_version": 2,
+            "error": "vehicle_version_conflict",
+            "ok": false
+          },
+          "revisions": {
+            "navision": {
+              "after": 3562,
+              "before": 3562,
+              "delta": 0
+            },
+            "pdc_email": {
+              "after": 90429,
+              "before": 90429,
+              "delta": 0
+            },
+            "workshop": {
+              "after": 6330,
+              "before": 6330,
+              "delta": 0
+            }
+          },
+          "run_id": "HERMES-TEST-RUN-20260824",
+          "sibling_state": {
+            "rows": 111,
+            "sha256": "34d9436aaf82526728b45926dbc2cdc45a1d9a69f310f2f62b09996d185986f0"
+          },
+          "subject_id": null,
+          "subject_version_after": null,
+          "subject_version_before": null,
+          "synthetic_wrapper": true,
+          "vehicle_id": "34fe87a0-e632-58ff-b558-b593eb39985c",
+          "vehicle_version_after": 2,
+          "vehicle_version_before": 2
+        }
+      },
+      {
+        "action": "vehicle_edit",
+        "actor_id": "557dba7f-fd70-4b9e-aa7b-b83b717682a7",
+        "idempotency_key": "faf91136-c52d-582d-961d-8346d0ea9718",
+        "receipt_id": "6ce9c312-252a-547b-a5d4-dab5a360d205",
+        "request_sha256": "e597ff5f9eb17ecfc9b4627afb95a5cee3eed04a16b4726977a53dcffc973fb9",
+        "response": {
+          "action": "vehicle_edit",
+          "code": "synthetic_action_applied",
+          "notification_delta": 0,
+          "ok": true,
+          "protected_state": {
+            "rows": 1413,
+            "sha256": "28476c8fac93aa03707b20a84b4b836b4268c96fa6710bf1238f0f6ebb265f11"
+          },
+          "receipt_id": "6ce9c312-252a-547b-a5d4-dab5a360d205",
+          "replay": false,
+          "request_sha256": "e597ff5f9eb17ecfc9b4627afb95a5cee3eed04a16b4726977a53dcffc973fb9",
+          "result": {
+            "code": "synthetic_vehicle_edited",
+            "ok": true,
+            "vehicle": {
+              "active_workshop_booking_id": null,
+              "arrival_reference_date": null,
+              "board_purge_reason": null,
+              "board_purged_at": null,
+              "board_purged_by": null,
+              "created_at": "2026-08-24T12:32:05.28129+00:00",
+              "created_by": "557dba7f-fd70-4b9e-aa7b-b83b717682a7",
+              "current_location": "PMB",
+              "customer_name": "HERMES-TEST CUSTOMER 017",
+              "date_to_pmb": "2026-08-24",
+              "date_to_rft": null,
+              "deleted_at": null,
+              "deleted_reason": null,
+              "delivered_to_dealer_date": null,
+              "eta_to_kewdale": null,
+              "id": "34fe87a0-e632-58ff-b558-b593eb39985c",
+              "job_card_number": "HERMES-TEST-JC-017",
+              "key_number": null,
+              "lifecycle_state": "active",
+              "make": null,
+              "model": "HERMES-TEST VEHICLE 017 TWO SESSION SAME RECORD RACE",
+              "permanent_vehicle_id": "HERMES-TEST-PERM-017",
+              "pmb_bay_number": null,
+              "pmb_bay_stage": null,
+              "pmb_key_tag": "HERMES-TEST-017-RACE-2-A",
+              "pmb_stage": null,
+              "qc_completed_at": null,
+              "qc_completed_by": null,
+              "registration": null,
+              "rft_collected_at": null,
+              "rft_collected_by": null,
+              "rft_transferred_at": null,
+              "sales_build_complete": false,
+              "sales_build_po_raised": false,
+              "sales_preparation_updated_at": null,
+              "sales_preparation_updated_by": null,
+              "sales_tint_raised": false,
+              "sales_tray_complete": false,
+              "sales_tray_ordered": false,
+              "salesperson_id": null,
+              "salesperson_reference": null,
+              "source_batch_id": "HERMES-TEST-RUN-20260824",
+              "source_payload": {
+                "completion_evidence": false,
+                "contract": "pdc-overnight-synthetic-fleet-363/render_only",
+                "request_sha256": "d0727781d04216fe6d752a9d4f95b2a87364c118c2fcec97616cc25d9ee3f25c",
+                "run_id": "HERMES-TEST-RUN-20260824",
+                "scenario_name": "HERMES-TEST-TWO-SESSION-SAME-RECORD-RACE",
+                "scenario_no": 17
+              },
+              "source_record_id": "HERMES-TEST-017",
+              "source_record_id_normalized": "HERMES-TEST-017",
+              "source_system": "hermes_overnight_synthetic",
+              "source_system_normalized": "hermes_overnight_synthetic",
+              "stock_number": "HERMES-TEST-017",
+              "stock_number_normalized": "HERMESTEST017",
+              "toyota_order_number": null,
+              "updated_at": "2026-08-24T18:03:05.795777+00:00",
+              "updated_by": "557dba7f-fd70-4b9e-aa7b-b83b717682a7",
+              "vehicle_description": "HERMES-TEST VEHICLE 017 TWO SESSION SAME RECORD RACE",
+              "version": 3,
+              "vin": null,
+              "vin_normalized": null,
+              "visible_on_board": true,
+              "workshop_status": "queued",
+              "workshop_status_updated_at": null,
+              "workshop_status_updated_by": null
+            }
+          },
+          "revisions": {
+            "navision": {
+              "after": 3562,
+              "before": 3562,
+              "delta": 0
+            },
+            "pdc_email": {
+              "after": 90430,
+              "before": 90429,
+              "delta": 1
+            },
+            "workshop": {
+              "after": 6330,
+              "before": 6330,
+              "delta": 0
+            }
+          },
+          "run_id": "HERMES-TEST-RUN-20260824",
+          "sibling_state": {
+            "rows": 111,
+            "sha256": "34d9436aaf82526728b45926dbc2cdc45a1d9a69f310f2f62b09996d185986f0"
+          },
+          "subject_id": null,
+          "subject_version_after": null,
+          "subject_version_before": null,
+          "synthetic_wrapper": true,
+          "vehicle_id": "34fe87a0-e632-58ff-b558-b593eb39985c",
+          "vehicle_version_after": 3,
+          "vehicle_version_before": 2
+        }
+      },
+      {
+        "action": "vehicle_edit",
+        "actor_id": "557dba7f-fd70-4b9e-aa7b-b83b717682a7",
+        "idempotency_key": "4420ba23-2d3b-5ad3-bde2-935d2735aa5e",
+        "receipt_id": "a6c7a851-a1f5-5cf4-9c32-5092b724d12e",
+        "request_sha256": "8ddf13b1ad7564ffa9cb70a1cad526303675c32a4d28917d12efbb5ff3b306f0",
+        "response": {
+          "action": "vehicle_edit",
+          "code": "synthetic_action_rejected",
+          "notification_delta": 0,
+          "ok": false,
+          "protected_state": {
+            "rows": 1413,
+            "sha256": "28476c8fac93aa03707b20a84b4b836b4268c96fa6710bf1238f0f6ebb265f11"
+          },
+          "receipt_id": "a6c7a851-a1f5-5cf4-9c32-5092b724d12e",
+          "replay": false,
+          "request_sha256": "8ddf13b1ad7564ffa9cb70a1cad526303675c32a4d28917d12efbb5ff3b306f0",
+          "result": {
+            "current_version": 3,
+            "error": "vehicle_version_conflict",
+            "ok": false
+          },
+          "revisions": {
+            "navision": {
+              "after": 3562,
+              "before": 3562,
+              "delta": 0
+            },
+            "pdc_email": {
+              "after": 90430,
+              "before": 90430,
+              "delta": 0
+            },
+            "workshop": {
+              "after": 6330,
+              "before": 6330,
+              "delta": 0
+            }
+          },
+          "run_id": "HERMES-TEST-RUN-20260824",
+          "sibling_state": {
+            "rows": 111,
+            "sha256": "34d9436aaf82526728b45926dbc2cdc45a1d9a69f310f2f62b09996d185986f0"
+          },
+          "subject_id": null,
+          "subject_version_after": null,
+          "subject_version_before": null,
+          "synthetic_wrapper": true,
+          "vehicle_id": "34fe87a0-e632-58ff-b558-b593eb39985c",
+          "vehicle_version_after": 3,
+          "vehicle_version_before": 3
+        }
+      }
+    ]
+  },
+  "recorded_at_utc": "2026-08-24T18:03:12.539671+00:00",
+  "run_id": "HERMES-TEST-RUN-20260824",
+  "schema": "pdc-overnight-concurrency-015-017-v1",
+  "simultaneous_same_record_races": 2
+}
