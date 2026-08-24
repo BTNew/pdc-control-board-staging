@@ -92,8 +92,8 @@ def main():
  if args.prepare_only:
   print(json.dumps({"status":"PREPARED","backup_manifest_sha256":EXPECTED_MANIFEST,"batches":previews,"current":readback()},sort_keys=True));return 0
  if not args.apply or args.confirmation!="CRAIG DIRECTED STAGING NAVISION STOCK MATCH REPAIR":raise RuntimeError("PDC_NAV_REPAIR_CONFIRMATION_REQUIRED")
- before=readback();resume=nav_import_state();allowed_resume=resume["by_dealer"] in ({},{"14450":736})
- if before["vehicles"]!=153 or not allowed_resume or before["navision_records"] not in (0,736) or before["active_activations"]!=0 or before["operation_lines"]!=494 or before["work_items"]!=294 or before["active_writers"]!=0 or before["active_mailboxes"]!=0 or before["pilot_enabled"] or before["monitor_status"]!="stopped" or before["gateway_instance_id"] is not None:raise RuntimeError("PDC_NAV_REPAIR_PRESTATE_FAILED:"+json.dumps({"before":before,"resume":resume},sort_keys=True))
+ before=readback();resume=nav_import_state();allowed_resume=resume["by_dealer"] in ({},{"14450":736},{"14450":736,"37047":234})
+ if before["vehicles"]!=153 or not allowed_resume or before["navision_records"] not in (0,736,970) or before["active_activations"]!=0 or before["operation_lines"]!=494 or before["work_items"]!=294 or before["active_writers"]!=0 or before["active_mailboxes"]!=0 or before["pilot_enabled"] or before["monitor_status"]!="stopped" or before["gateway_instance_id"] is not None:raise RuntimeError("PDC_NAV_REPAIR_PRESTATE_FAILED:"+json.dumps({"before":before,"resume":resume},sort_keys=True))
  nav_receipts=[];cleanup=[];primary=None
  try:
   for b in batches:
@@ -124,7 +124,7 @@ def main():
    c=pre.get("data") if isinstance(pre,dict) else None
    if not isinstance(c,dict) or not c.get("eligible"):
     ineligible.append({"pair_no":pair["pair_no"],"classification":pair["classification"],"reason":(c or {}).get("reason") if isinstance(c,dict) else pre.get("code")});continue
-   if pre.get("code")!="manager_exact_candidate_mismatch" or c.get("action") not in ("attach_exact_existing_workbook_vehicle",):raise RuntimeError("PDC_NAV_REPAIR_CANDIDATE_ACTION_FAILED:"+json.dumps({"code":pre.get("code"),"candidate":c},sort_keys=True))
+   if pre.get("code")!="manager_exact_candidate_mismatch" or c.get("action") not in ("attach_exact_existing_workbook_vehicle","activate_exact_prelinked_workbook_vehicle"):raise RuntimeError("PDC_NAV_REPAIR_CANDIDATE_ACTION_FAILED:"+json.dumps({"code":pre.get("code"),"candidate":c},sort_keys=True))
    exact={"p_preview_id":pd["preview_id"],"p_pair_id":pair["pair_id"],"p_workbook_sha256":ps["workbook_sha256"],"p_payload_sha256":ps["payload_sha256"],"p_expected_action":c["action"],"p_expected_backend_record_id":c.get("backend_record_id"),"p_expected_backend_record_version":c.get("backend_record_version"),"p_expected_vehicle_id":c.get("target_vehicle_id"),"p_expected_vehicle_version":c.get("target_vehicle_version"),"p_reason":"Exact current Navision Stock matched to existing staging workbook vehicle","p_confirmation":"MANAGER APPROVE CANONICAL BOARD ACTIVATION"}
    ma=rpc(base,manager,"manager_approve_pdc_pmb_canonical_activation",exact);cs=rpc(base,admin,"administrator_countersign_pdc_pmb_canonical_activation",{"p_manager_approval_id":ma["data"]["approval_id"],"p_manager_approval_hash":ma["data"]["approval_hash"],"p_reason":"Independent countersignature for exact current Navision Stock match","p_confirmation":"ADMINISTRATOR COUNTERSIGN CANONICAL BOARD ACTIVATION"});approvals.append({"pair_no":pair["pair_no"],"action":c["action"],"manager_approval_id":ma["data"]["approval_id"],"countersignature_id":cs["data"]["countersignature_id"]})
   if len(approvals)!=127 or len(ineligible)!=39:raise RuntimeError("PDC_NAV_REPAIR_CANDIDATE_COUNTS_FAILED:"+json.dumps({"eligible":len(approvals),"ineligible":len(ineligible)}))
