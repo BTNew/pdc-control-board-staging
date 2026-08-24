@@ -3,6 +3,10 @@ from __future__ import annotations
 import argparse, hashlib, json
 from pathlib import Path
 from pdc_staging_management_migration import _post, PRODUCTION_REF, STAGING_REF
+
+OVERNIGHT_GUARD = Path(__file__).resolve().parents[1] / ".hermes-overnight-staging-only"
+if OVERNIGHT_GUARD.exists():
+    raise SystemExit("PDC_OVERNIGHT_PRODUCTION_ACCESS_STRUCTURALLY_BLOCKED")
 SQL=r"""SET TRANSACTION READ ONLY;
 select jsonb_build_object(
  'project_ref','vjdtsswhroyguxyfjdkt',

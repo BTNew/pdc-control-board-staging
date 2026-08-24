@@ -1,0 +1,34 @@
+{
+  "banner_markers": {
+    "production_url_absent_from_config": true,
+    "service_role_absent_from_config": true,
+    "staging_ref_in_config": true,
+    "staging_title": true
+  },
+  "branch": "hermes/overnight-pdc-hardening-20260824",
+  "credential_files_in_worktree": [],
+  "database": {
+    "active_activation_writers": 0,
+    "active_mailboxes": 0,
+    "migration_head": {
+      "name": "362_align_anderson_plugs_and_job_counts",
+      "version": "20260824230000"
+    },
+    "monitor_status": "stopped",
+    "outbound_notification_rows": 0,
+    "pending_outbound_notifications": 0,
+    "production_sentinel_absent": true,
+    "project_ref": "cdsmnqxtyyoeoznmbidd",
+    "staging_sentinel_rows": 1,
+    "synthetic_vehicle_total": 0,
+    "vehicle_total": 153
+  },
+  "outbound_policy": "mailboxes and activation writers disabled; no external sends permitted",
+  "pages_build": "c95e0dec3064eebfb88d8f8367a326ca77fcc6b7 built",
+  "production_access_guard": true,
+  "schema": "pdc-overnight-environment-proof-v1",
+  "source_start_commit": "ac06394736b55220e7425322fc53e9b9dadc3fdd",
+  "website_hostname": "btnew.github.io",
+  "website_path": "/pdc-control-board-staging/",
+  "website_title": "PDC Control Board \u2014 STAGING"
+}

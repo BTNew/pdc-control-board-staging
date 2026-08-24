@@ -73,6 +73,9 @@ def _token() -> str:
 
 
 def _post(endpoint: str, query: str) -> object:
+    overnight_guard = Path(__file__).resolve().parents[1] / ".hermes-overnight-staging-only"
+    if overnight_guard.exists() and STAGING_REF not in endpoint:
+        raise RuntimeError("PDC_OVERNIGHT_NON_STAGING_ENDPOINT_BLOCKED")
     request = urllib.request.Request(
         endpoint,
         data=json.dumps({"query": query}).encode("utf-8"),
