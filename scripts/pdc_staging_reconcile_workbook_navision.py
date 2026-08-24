@@ -59,7 +59,7 @@ def readback():
  sql="""SET TRANSACTION READ ONLY;select jsonb_build_object(
  'vehicles',(select count(*) from public.vehicles),'unique_vehicle_stocks',(select count(distinct upper(btrim(stock_number))) from public.vehicles),
  'workbook_source_vehicles',(select count(*) from public.vehicles where source_system='pdc_pmb_workbook'),
- 'navision_source_vehicles',(select count(*) from public.vehicles where source_system='navision'),
+ 'navision_source_vehicles',(select count(*) from public.vehicles where source_system='microsoft_navision'),
  'navision_records',(select count(*) from public.navision_backend_records),'current_navision_records',(select count(*) from public.navision_backend_records where is_current),
  'current_navision_unique_stocks',(select count(distinct upper(btrim(normalized_data->>'stock'))) from public.navision_backend_records where is_current),
  'canonical_linked_records',(select count(*) from public.navision_backend_records where is_current and canonical_vehicle_id is not null),
@@ -80,12 +80,21 @@ def nav_import_state():
   'batches',(select coalesce(jsonb_object_agg(idempotency_key,jsonb_build_object('status',status,'dealer_code',dealer_code,'total_rows',total_rows)),'{}'::jsonb)from public.navision_import_batches where idempotency_key like 'craig-fix-workbook-navision-match-20260824-%')) evidence;"""
  return _post(f"https://api.supabase.com/v1/projects/{STAGING_REF}/database/query/read-only",sql)[0]["evidence"]
 
+def post_expected():return {"vehicles":153,"unique_vehicle_stocks":153,"navision_source_vehicles":116,"workbook_source_vehicles":37,"navision_records":970,"current_navision_records":970,"current_navision_unique_stocks":970,"canonical_linked_records":116,"active_activations":116,"operation_lines":494,"work_items":294,"bookings":0,"parts_updates":0,"completed_rows":0,"active_writers":0,"active_mailboxes":0,"pilot_enabled":False,"monitor_status":"stopped","gateway_instance_id":None}
+def assert_post(after):
+ expected=post_expected();bad={k:after.get(k) for k,v in expected.items() if after.get(k)!=v}
+ if bad:raise RuntimeError("PDC_NAV_REPAIR_POSTCONDITION_FAILED:"+json.dumps(bad,sort_keys=True))
+
 def main():
- a=argparse.ArgumentParser();a.add_argument("--prepare-only",action="store_true");a.add_argument("--apply",action="store_true");a.add_argument("--confirmation");a.add_argument("--receipt",type=Path);args=a.parse_args()
+ a=argparse.ArgumentParser();a.add_argument("--prepare-only",action="store_true");a.add_argument("--verify-only",action="store_true");a.add_argument("--apply",action="store_true");a.add_argument("--confirmation");a.add_argument("--receipt",type=Path);args=a.parse_args()
  tables=decrypt_tables();batches=frozen_batches(tables);we=op.env(op.WEBSITE_ENV);ae=op.env(op.AUDITOR_ENV);base=we["PDC_STAGING_SUPABASE_URL"];anon=we["PDC_STAGING_ANON_KEY"]
  if we.get("PDC_STAGING_PROJECT_REF")!=STAGING_REF or PRODUCTION_REF in base:raise RuntimeError("PDC_NAV_REPAIR_TARGET_GUARD")
  admin=op.auth(base,anon,we["PDC_STAGING_ADMIN_EMAIL"],we["PDC_STAGING_ADMIN_PASSWORD"]);manager=op.auth(base,anon,we["PDC_STAGING_CONTROLLER_B_EMAIL"],we["PDC_STAGING_CONTROLLER_B_PASSWORD"]);importer=op.auth(base,anon,ae["PDC_AUDITOR_STAGING_EMAIL"],ae["PDC_AUDITOR_STAGING_PASSWORD"])
  if (admin["role"],manager["role"],importer["role"])!=("administrator","operator","viewer"):raise RuntimeError("PDC_NAV_REPAIR_ACTOR_ROLE_MISMATCH")
+ if args.verify_only:
+  after=readback();assert_post(after);result={"schema":"pdc-staging-workbook-navision-stock-repair-verification-v1","status":"VERIFIED","project_ref":STAGING_REF,"backup_manifest_sha256":EXPECTED_MANIFEST,"matched_unique_stocks":116,"matched_pairs":127,"unmatched_unique_stocks":37,"readback":after}
+  if args.receipt:args.receipt.parent.mkdir(parents=True,exist_ok=True);args.receipt.write_text(json.dumps(result,indent=2,sort_keys=True),encoding="utf-8")
+  print(json.dumps({"status":"VERIFIED","matched_unique_stocks":116,"matched_pairs":127,"unmatched_unique_stocks":37,"readback":after,"receipt":str(args.receipt.resolve()) if args.receipt else None},sort_keys=True));return 0
  previews=[]
  for b in batches:
   pr=nav_preview(base,admin,b);d=pr["data"];previews.append({"dealer_code":b["dealer_code"],"row_count":b["row_count"],"frozen_rows_sha256":b["frozen_rows_sha256"],"preview_hash":d.get("preview_hash"),"source_hash":d.get("source_hash"),"base_revision":d.get("base_revision"),"blocking":d.get("blocking") or (d.get("safety") or {}).get("blocking"),"safety_reason":(d.get("safety") or {}).get("reason"),"invalid_count":(d.get("counts") or {}).get("invalid"),"conflict_count":(d.get("counts") or {}).get("conflict"),"sublet_unknown_count":((d.get("sublet_provider_preview") or {}).get("unknown_count"))})
@@ -141,9 +150,7 @@ def main():
   try:rpc(base,admin,"admin_set_pdc_monitor_stage_activation_writer",{"p_monitor_user_id":importer["uid"],"p_active":False,"p_reason":"Revoke temporary writer after Navision stock-match repair"});cleanup.append("writer_revoked")
   except Exception as e:cleanup.append("writer_revoke_failed:"+type(e).__name__)
   if primary is None and cleanup!=["viewer_restored","writer_revoked"]:raise RuntimeError("PDC_NAV_REPAIR_CLEANUP_FAILED:"+json.dumps(cleanup))
- after=readback();result["cleanup"]=cleanup;result["readback"]=after
- expected={"vehicles":153,"unique_vehicle_stocks":153,"navision_records":970,"current_navision_records":970,"current_navision_unique_stocks":970,"canonical_linked_records":116,"active_activations":116,"operation_lines":494,"work_items":294,"bookings":0,"parts_updates":0,"completed_rows":0,"active_writers":0,"active_mailboxes":0,"pilot_enabled":False,"monitor_status":"stopped","gateway_instance_id":None}
- if any(after.get(k)!=v for k,v in expected.items()):raise RuntimeError("PDC_NAV_REPAIR_POSTCONDITION_FAILED:"+json.dumps({k:after.get(k) for k in expected},sort_keys=True))
+ after=readback();result["cleanup"]=cleanup;result["readback"]=after;assert_post(after)
  if args.receipt:args.receipt.parent.mkdir(parents=True,exist_ok=True);args.receipt.write_text(json.dumps(result,indent=2,sort_keys=True),encoding="utf-8")
  print(json.dumps({"status":"MATCHED","vehicles":153,"navision_records":970,"matched_unique_stocks":116,"matched_pairs":127,"unmatched_unique_stocks":37,"operation_lines":494,"work_items":294,"cleanup":cleanup,"receipt":str(args.receipt.resolve()) if args.receipt else None},sort_keys=True));return 0
 if __name__=="__main__":raise SystemExit(main())

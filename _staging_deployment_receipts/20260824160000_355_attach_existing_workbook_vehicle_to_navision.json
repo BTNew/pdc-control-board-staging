@@ -1,0 +1,22 @@
+{
+  "applied": true,
+  "ledger_readback": [
+    {
+      "name": "355_attach_existing_workbook_vehicle_to_navision",
+      "version": "20260824160000"
+    }
+  ],
+  "management_response": [
+    {
+      "pg_advisory_xact_lock": ""
+    }
+  ],
+  "migration_file": "20260824160000_355_attach_existing_workbook_vehicle_to_navision.sql",
+  "migration_name": "355_attach_existing_workbook_vehicle_to_navision",
+  "migration_sha256": "e25f4fcc081b62ac4b88a7c261a4961abb83385c8168d464ea79581ec2d5f55e",
+  "migration_version": "20260824160000",
+  "production_ref_rejected": "vjdtsswhroyguxyfjdkt",
+  "recorded_at_utc": "2026-08-24T05:14:54.367072+00:00",
+  "schema": "pdc-staging-management-migration-receipt-v1",
+  "target_ref": "cdsmnqxtyyoeoznmbidd"
+}

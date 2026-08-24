@@ -1,0 +1,90 @@
+{
+  "backup_manifest_sha256": "0cba8a1feb4a01ef55de4de93b29fd6e950949ccd34bf6ef5ecf82bf3031b2c0",
+  "canonical_apply": {
+    "activated_pair_count": 127,
+    "backend_revision": 3560,
+    "booking_mutated": false,
+    "completion_mutated": false,
+    "migration157_apply_not_bypassed": true,
+    "pair_aggregate_sha256": "2a89cb5ee79e846857f3b66ce58d2d90da0b01eade129e164bcec4c884cf2ff0",
+    "parts_mutated": false,
+    "receipt_hash": "6584adec48dfbdeb0dc40d3b18f4eb993ae7a4791fb92315de7d0d14bf297c79",
+    "receipt_id": "d6c16789-9eae-4751-bb86-806f1cc6a908",
+    "repreview_required": true,
+    "vehicles_created": 116,
+    "vehicles_reactivated": 0,
+    "work_mutated": false,
+    "zero_add_replay": false
+  },
+  "canonical_preview_id": "e1fb1dd5-1bfc-43b7-8a3d-140e08135035",
+  "canonical_replay": {
+    "activated_pair_count": 127,
+    "receipt_hash": "6584adec48dfbdeb0dc40d3b18f4eb993ae7a4791fb92315de7d0d14bf297c79",
+    "receipt_id": "d6c16789-9eae-4751-bb86-806f1cc6a908",
+    "repreview_required": true,
+    "vehicles_created": 116,
+    "vehicles_reactivated": 0,
+    "zero_add_replay": true
+  },
+  "cleanup": [
+    "viewer_restored",
+    "writer_revoked"
+  ],
+  "eligible_pair_count": 127,
+  "eligible_unique_stock_count": 116,
+  "encrypted_backup_sha256": "7e1ba89c675c7afb3fafdd072f20aa0145096ad03672b2de7b283b9f551c9d16",
+  "fresh_pair_classifications": {
+    "no_current_stock_manager_override_required": 166
+  },
+  "fresh_preview_id": "e1fb1dd5-1bfc-43b7-8a3d-140e08135035",
+  "ineligible_pair_count": 39,
+  "ineligible_unique_stock_count": 37,
+  "navision_imports": [
+    {
+      "dealer_code": "14450",
+      "frozen_rows_sha256": "4f9b2c6bb6e48712f159cbe541a96a4794c8081ea1f1cac0223d8b7733746567",
+      "idempotency_key": "craig-fix-workbook-navision-match-20260824-14450-4f9b2c6bb6e48712",
+      "row_count": 736,
+      "status": "already_applied_verified"
+    },
+    {
+      "dealer_code": "37047",
+      "frozen_rows_sha256": "86053df538ccfd272c2086e8c2c5a23fc3e8d468b8ef3616ab3d2c10f71540ba",
+      "idempotency_key": "craig-fix-workbook-navision-match-20260824-37047-86053df538ccfd27",
+      "row_count": 234,
+      "status": "already_applied_verified"
+    }
+  ],
+  "payload_sha256": "d88739908320da393bbb86f5cbd8c736e31fd33eb9f48aab2a0b682c76c40aa0",
+  "project_ref": "cdsmnqxtyyoeoznmbidd",
+  "readback": {
+    "active_activations": 116,
+    "active_mailboxes": 0,
+    "active_writers": 0,
+    "bookings": 0,
+    "canonical_apply_receipts": 1,
+    "canonical_linked_records": 116,
+    "canonical_manager_authority": 1,
+    "canonical_pair_receipts": 127,
+    "completed_rows": 0,
+    "current_navision_records": 970,
+    "current_navision_unique_stocks": 970,
+    "gateway_instance_id": null,
+    "latest_pair_classifications": {
+      "no_current_stock_manager_override_required": 166
+    },
+    "monitor_status": "stopped",
+    "navision_records": 970,
+    "navision_source_vehicles": 0,
+    "operation_lines": 494,
+    "parts_updates": 0,
+    "pilot_enabled": false,
+    "unique_vehicle_stocks": 153,
+    "vehicles": 153,
+    "work_items": 294,
+    "workbook_source_vehicles": 37
+  },
+  "schema": "pdc-staging-workbook-navision-stock-repair-v1",
+  "status": "MATCHED",
+  "workbook_sha256": "56e04ce63beb40cb539db28df1262f1cdc4166e4f08b117025162e9228719ad2"
+}

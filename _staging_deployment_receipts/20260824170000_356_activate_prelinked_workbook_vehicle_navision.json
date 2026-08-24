@@ -1,0 +1,22 @@
+{
+  "applied": true,
+  "ledger_readback": [
+    {
+      "name": "356_activate_prelinked_workbook_vehicle_navision",
+      "version": "20260824170000"
+    }
+  ],
+  "management_response": [
+    {
+      "pg_advisory_xact_lock": ""
+    }
+  ],
+  "migration_file": "20260824170000_356_activate_prelinked_workbook_vehicle_navision.sql",
+  "migration_name": "356_activate_prelinked_workbook_vehicle_navision",
+  "migration_sha256": "c7a62fc1704f08148f96afa19c9bd44b8fb89e4fe80ff178f92609fce6ddf61e",
+  "migration_version": "20260824170000",
+  "production_ref_rejected": "vjdtsswhroyguxyfjdkt",
+  "recorded_at_utc": "2026-08-24T05:25:54.660892+00:00",
+  "schema": "pdc-staging-management-migration-receipt-v1",
+  "target_ref": "cdsmnqxtyyoeoznmbidd"
+}
