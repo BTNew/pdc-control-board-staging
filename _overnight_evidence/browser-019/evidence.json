@@ -1,0 +1,1539 @@
+{
+  "blocked_external_hosts": [],
+  "completed_utc": "2026-08-24T19:01:06Z",
+  "console": [],
+  "credential_identity": "sha256:2db2d3e971ba772a3d7c0e30784ed08141f3f32d3749a3fe6c678df405e8f874",
+  "desktop_accessibility": {
+    "duplicateIds": [],
+    "h1": [
+      "Vehicle Locations"
+    ],
+    "horizontalOverflow": false,
+    "interactiveCount": 145,
+    "lang": "en",
+    "smallTargets": [
+      {
+        "h": 40,
+        "name": "Vehicle Locations",
+        "tag": "BUTTON",
+        "w": 156
+      },
+      {
+        "h": 40,
+        "name": "QC Sign-off",
+        "tag": "BUTTON",
+        "w": 156
+      },
+      {
+        "h": 40,
+        "name": "Control Board",
+        "tag": "BUTTON",
+        "w": 156
+      },
+      {
+        "h": 40,
+        "name": "Bus 4\u00d74",
+        "tag": "BUTTON",
+        "w": 156
+      },
+      {
+        "h": 40,
+        "name": "Tint",
+        "tag": "BUTTON",
+        "w": 156
+      },
+      {
+        "h": 40,
+        "name": "Hoist",
+        "tag": "BUTTON",
+        "w": 156
+      },
+      {
+        "h": 40,
+        "name": "Fitting",
+        "tag": "BUTTON",
+        "w": 156
+      },
+      {
+        "h": 40,
+        "name": "Fabrication",
+        "tag": "BUTTON",
+        "w": 156
+      },
+      {
+        "h": 40,
+        "name": "Electrical",
+        "tag": "BUTTON",
+        "w": 156
+      },
+      {
+        "h": 40,
+        "name": "Tyre",
+        "tag": "BUTTON",
+        "w": 156
+      },
+      {
+        "h": 40,
+        "name": "Parts",
+        "tag": "BUTTON",
+        "w": 156
+      },
+      {
+        "h": 40,
+        "name": "AI Intake",
+        "tag": "BUTTON",
+        "w": 156
+      },
+      {
+        "h": 40,
+        "name": "AI Auditor",
+        "tag": "BUTTON",
+        "w": 156
+      },
+      {
+        "h": 40,
+        "name": "Sublet",
+        "tag": "BUTTON",
+        "w": 156
+      },
+      {
+        "h": 40,
+        "name": "RFT",
+        "tag": "BUTTON",
+        "w": 156
+      },
+      {
+        "h": 34,
+        "name": "Sign out",
+        "tag": "BUTTON",
+        "w": 71
+      },
+      {
+        "h": 43,
+        "name": "",
+        "tag": "INPUT",
+        "w": 986
+      },
+      {
+        "h": 28,
+        "name": "",
+        "tag": "BUTTON",
+        "w": 390
+      },
+      {
+        "h": 28,
+        "name": "",
+        "tag": "BUTTON",
+        "w": 390
+      },
+      {
+        "h": 28,
+        "name": "",
+        "tag": "BUTTON",
+        "w": 390
+      },
+      {
+        "h": 28,
+        "name": "",
+        "tag": "BUTTON",
+        "w": 390
+      },
+      {
+        "h": 28,
+        "name": "",
+        "tag": "BUTTON",
+        "w": 390
+      },
+      {
+        "h": 28,
+        "name": "",
+        "tag": "BUTTON",
+        "w": 390
+      },
+      {
+        "h": 28,
+        "name": "",
+        "tag": "BUTTON",
+        "w": 390
+      },
+      {
+        "h": 28,
+        "name": "",
+        "tag": "BUTTON",
+        "w": 390
+      },
+      {
+        "h": 28,
+        "name": "",
+        "tag": "BUTTON",
+        "w": 390
+      },
+      {
+        "h": 28,
+        "name": "",
+        "tag": "BUTTON",
+        "w": 390
+      },
+      {
+        "h": 28,
+        "name": "",
+        "tag": "BUTTON",
+        "w": 390
+      },
+      {
+        "h": 28,
+        "name": "",
+        "tag": "BUTTON",
+        "w": 390
+      },
+      {
+        "h": 28,
+        "name": "",
+        "tag": "BUTTON",
+        "w": 390
+      },
+      {
+        "h": 28,
+        "name": "",
+        "tag": "BUTTON",
+        "w": 390
+      },
+      {
+        "h": 28,
+        "name": "",
+        "tag": "BUTTON",
+        "w": 390
+      },
+      {
+        "h": 28,
+        "name": "",
+        "tag": "BUTTON",
+        "w": 390
+      },
+      {
+        "h": 28,
+        "name": "",
+        "tag": "BUTTON",
+        "w": 390
+      },
+      {
+        "h": 28,
+        "name": "",
+        "tag": "BUTTON",
+        "w": 390
+      },
+      {
+        "h": 28,
+        "name": "",
+        "tag": "BUTTON",
+        "w": 390
+      },
+      {
+        "h": 28,
+        "name": "",
+        "tag": "BUTTON",
+        "w": 390
+      },
+      {
+        "h": 28,
+        "name": "",
+        "tag": "BUTTON",
+        "w": 390
+      },
+      {
+        "h": 28,
+        "name": "",
+        "tag": "BUTTON",
+        "w": 390
+      },
+      {
+        "h": 28,
+        "name": "",
+        "tag": "BUTTON",
+        "w": 390
+      },
+      {
+        "h": 28,
+        "name": "",
+        "tag": "BUTTON",
+        "w": 390
+      },
+      {
+        "h": 28,
+        "name": "",
+        "tag": "BUTTON",
+        "w": 390
+      },
+      {
+        "h": 28,
+        "name": "",
+        "tag": "BUTTON",
+        "w": 390
+      },
+      {
+        "h": 28,
+        "name": "",
+        "tag": "BUTTON",
+        "w": 390
+      },
+      {
+        "h": 28,
+        "name": "",
+        "tag": "BUTTON",
+        "w": 390
+      },
+      {
+        "h": 28,
+        "name": "",
+        "tag": "BUTTON",
+        "w": 390
+      },
+      {
+        "h": 28,
+        "name": "",
+        "tag": "BUTTON",
+        "w": 390
+      },
+      {
+        "h": 28,
+        "name": "",
+        "tag": "BUTTON",
+        "w": 390
+      },
+      {
+        "h": 28,
+        "name": "",
+        "tag": "BUTTON",
+        "w": 390
+      },
+      {
+        "h": 28,
+        "name": "",
+        "tag": "BUTTON",
+        "w": 390
+      },
+      {
+        "h": 28,
+        "name": "",
+        "tag": "BUTTON",
+        "w": 390
+      },
+      {
+        "h": 28,
+        "name": "",
+        "tag": "BUTTON",
+        "w": 390
+      },
+      {
+        "h": 28,
+        "name": "",
+        "tag": "BUTTON",
+        "w": 390
+      },
+      {
+        "h": 28,
+        "name": "",
+        "tag": "BUTTON",
+        "w": 390
+      },
+      {
+        "h": 28,
+        "name": "",
+        "tag": "BUTTON",
+        "w": 390
+      },
+      {
+        "h": 28,
+        "name": "",
+        "tag": "BUTTON",
+        "w": 390
+      },
+      {
+        "h": 28,
+        "name": "",
+        "tag": "BUTTON",
+        "w": 390
+      },
+      {
+        "h": 28,
+        "name": "",
+        "tag": "BUTTON",
+        "w": 390
+      },
+      {
+        "h": 28,
+        "name": "",
+        "tag": "BUTTON",
+        "w": 390
+      },
+      {
+        "h": 28,
+        "name": "",
+        "tag": "BUTTON",
+        "w": 390
+      },
+      {
+        "h": 28,
+        "name": "",
+        "tag": "BUTTON",
+        "w": 390
+      },
+      {
+        "h": 28,
+        "name": "",
+        "tag": "BUTTON",
+        "w": 390
+      },
+      {
+        "h": 28,
+        "name": "",
+        "tag": "BUTTON",
+        "w": 390
+      },
+      {
+        "h": 28,
+        "name": "",
+        "tag": "BUTTON",
+        "w": 390
+      },
+      {
+        "h": 28,
+        "name": "",
+        "tag": "BUTTON",
+        "w": 390
+      },
+      {
+        "h": 28,
+        "name": "",
+        "tag": "BUTTON",
+        "w": 390
+      },
+      {
+        "h": 28,
+        "name": "",
+        "tag": "BUTTON",
+        "w": 390
+      },
+      {
+        "h": 28,
+        "name": "",
+        "tag": "BUTTON",
+        "w": 390
+      },
+      {
+        "h": 28,
+        "name": "",
+        "tag": "BUTTON",
+        "w": 390
+      },
+      {
+        "h": 28,
+        "name": "",
+        "tag": "BUTTON",
+        "w": 390
+      },
+      {
+        "h": 28,
+        "name": "",
+        "tag": "BUTTON",
+        "w": 390
+      },
+      {
+        "h": 28,
+        "name": "",
+        "tag": "BUTTON",
+        "w": 390
+      },
+      {
+        "h": 28,
+        "name": "",
+        "tag": "BUTTON",
+        "w": 390
+      },
+      {
+        "h": 28,
+        "name": "",
+        "tag": "BUTTON",
+        "w": 390
+      },
+      {
+        "h": 28,
+        "name": "",
+        "tag": "BUTTON",
+        "w": 390
+      },
+      {
+        "h": 28,
+        "name": "",
+        "tag": "BUTTON",
+        "w": 390
+      },
+      {
+        "h": 28,
+        "name": "",
+        "tag": "BUTTON",
+        "w": 390
+      },
+      {
+        "h": 28,
+        "name": "",
+        "tag": "BUTTON",
+        "w": 390
+      },
+      {
+        "h": 28,
+        "name": "",
+        "tag": "BUTTON",
+        "w": 390
+      },
+      {
+        "h": 28,
+        "name": "",
+        "tag": "BUTTON",
+        "w": 390
+      },
+      {
+        "h": 28,
+        "name": "",
+        "tag": "BUTTON",
+        "w": 390
+      },
+      {
+        "h": 28,
+        "name": "",
+        "tag": "BUTTON",
+        "w": 390
+      },
+      {
+        "h": 28,
+        "name": "",
+        "tag": "BUTTON",
+        "w": 390
+      },
+      {
+        "h": 28,
+        "name": "",
+        "tag": "BUTTON",
+        "w": 390
+      },
+      {
+        "h": 28,
+        "name": "",
+        "tag": "BUTTON",
+        "w": 390
+      },
+      {
+        "h": 28,
+        "name": "",
+        "tag": "BUTTON",
+        "w": 390
+      },
+      {
+        "h": 28,
+        "name": "",
+        "tag": "BUTTON",
+        "w": 390
+      },
+      {
+        "h": 28,
+        "name": "",
+        "tag": "BUTTON",
+        "w": 390
+      },
+      {
+        "h": 28,
+        "name": "",
+        "tag": "BUTTON",
+        "w": 390
+      },
+      {
+        "h": 28,
+        "name": "",
+        "tag": "BUTTON",
+        "w": 390
+      },
+      {
+        "h": 28,
+        "name": "",
+        "tag": "BUTTON",
+        "w": 390
+      },
+      {
+        "h": 28,
+        "name": "",
+        "tag": "BUTTON",
+        "w": 390
+      },
+      {
+        "h": 28,
+        "name": "",
+        "tag": "BUTTON",
+        "w": 390
+      },
+      {
+        "h": 28,
+        "name": "",
+        "tag": "BUTTON",
+        "w": 390
+      },
+      {
+        "h": 28,
+        "name": "",
+        "tag": "BUTTON",
+        "w": 390
+      },
+      {
+        "h": 28,
+        "name": "",
+        "tag": "BUTTON",
+        "w": 390
+      },
+      {
+        "h": 28,
+        "name": "",
+        "tag": "BUTTON",
+        "w": 390
+      },
+      {
+        "h": 28,
+        "name": "",
+        "tag": "BUTTON",
+        "w": 390
+      },
+      {
+        "h": 28,
+        "name": "",
+        "tag": "BUTTON",
+        "w": 390
+      },
+      {
+        "h": 28,
+        "name": "",
+        "tag": "BUTTON",
+        "w": 390
+      }
+    ],
+    "title": "PDC Control Board \u2014 STAGING",
+    "unlabeled": [],
+    "unnamed": [
+      {
+        "cls": "",
+        "id": "incoming-search",
+        "tag": "INPUT"
+      },
+      {
+        "cls": "small-button",
+        "id": "",
+        "tag": "BUTTON"
+      },
+      {
+        "cls": "small-button",
+        "id": "",
+        "tag": "BUTTON"
+      },
+      {
+        "cls": "small-button",
+        "id": "",
+        "tag": "BUTTON"
+      },
+      {
+        "cls": "small-button",
+        "id": "",
+        "tag": "BUTTON"
+      },
+      {
+        "cls": "small-button",
+        "id": "",
+        "tag": "BUTTON"
+      },
+      {
+        "cls": "small-button",
+        "id": "",
+        "tag": "BUTTON"
+      },
+      {
+        "cls": "small-button",
+        "id": "",
+        "tag": "BUTTON"
+      },
+      {
+        "cls": "small-button",
+        "id": "",
+        "tag": "BUTTON"
+      },
+      {
+        "cls": "small-button",
+        "id": "",
+        "tag": "BUTTON"
+      },
+      {
+        "cls": "small-button",
+        "id": "",
+        "tag": "BUTTON"
+      },
+      {
+        "cls": "small-button",
+        "id": "",
+        "tag": "BUTTON"
+      },
+      {
+        "cls": "small-button",
+        "id": "",
+        "tag": "BUTTON"
+      },
+      {
+        "cls": "small-button",
+        "id": "",
+        "tag": "BUTTON"
+      },
+      {
+        "cls": "small-button",
+        "id": "",
+        "tag": "BUTTON"
+      },
+      {
+        "cls": "small-button",
+        "id": "",
+        "tag": "BUTTON"
+      },
+      {
+        "cls": "small-button",
+        "id": "",
+        "tag": "BUTTON"
+      },
+      {
+        "cls": "small-button",
+        "id": "",
+        "tag": "BUTTON"
+      },
+      {
+        "cls": "small-button",
+        "id": "",
+        "tag": "BUTTON"
+      },
+      {
+        "cls": "small-button",
+        "id": "",
+        "tag": "BUTTON"
+      },
+      {
+        "cls": "small-button",
+        "id": "",
+        "tag": "BUTTON"
+      },
+      {
+        "cls": "small-button",
+        "id": "",
+        "tag": "BUTTON"
+      },
+      {
+        "cls": "small-button",
+        "id": "",
+        "tag": "BUTTON"
+      },
+      {
+        "cls": "small-button",
+        "id": "",
+        "tag": "BUTTON"
+      },
+      {
+        "cls": "small-button",
+        "id": "",
+        "tag": "BUTTON"
+      },
+      {
+        "cls": "small-button",
+        "id": "",
+        "tag": "BUTTON"
+      },
+      {
+        "cls": "small-button",
+        "id": "",
+        "tag": "BUTTON"
+      },
+      {
+        "cls": "small-button",
+        "id": "",
+        "tag": "BUTTON"
+      },
+      {
+        "cls": "small-button",
+        "id": "",
+        "tag": "BUTTON"
+      },
+      {
+        "cls": "small-button",
+        "id": "",
+        "tag": "BUTTON"
+      },
+      {
+        "cls": "small-button",
+        "id": "",
+        "tag": "BUTTON"
+      },
+      {
+        "cls": "small-button",
+        "id": "",
+        "tag": "BUTTON"
+      },
+      {
+        "cls": "small-button",
+        "id": "",
+        "tag": "BUTTON"
+      },
+      {
+        "cls": "small-button",
+        "id": "",
+        "tag": "BUTTON"
+      },
+      {
+        "cls": "small-button",
+        "id": "",
+        "tag": "BUTTON"
+      },
+      {
+        "cls": "small-button",
+        "id": "",
+        "tag": "BUTTON"
+      },
+      {
+        "cls": "small-button",
+        "id": "",
+        "tag": "BUTTON"
+      },
+      {
+        "cls": "small-button",
+        "id": "",
+        "tag": "BUTTON"
+      },
+      {
+        "cls": "small-button",
+        "id": "",
+        "tag": "BUTTON"
+      },
+      {
+        "cls": "small-button",
+        "id": "",
+        "tag": "BUTTON"
+      },
+      {
+        "cls": "small-button",
+        "id": "",
+        "tag": "BUTTON"
+      },
+      {
+        "cls": "small-button",
+        "id": "",
+        "tag": "BUTTON"
+      },
+      {
+        "cls": "small-button",
+        "id": "",
+        "tag": "BUTTON"
+      },
+      {
+        "cls": "small-button",
+        "id": "",
+        "tag": "BUTTON"
+      },
+      {
+        "cls": "small-button",
+        "id": "",
+        "tag": "BUTTON"
+      },
+      {
+        "cls": "small-button",
+        "id": "",
+        "tag": "BUTTON"
+      },
+      {
+        "cls": "small-button",
+        "id": "",
+        "tag": "BUTTON"
+      },
+      {
+        "cls": "small-button",
+        "id": "",
+        "tag": "BUTTON"
+      },
+      {
+        "cls": "small-button",
+        "id": "",
+        "tag": "BUTTON"
+      },
+      {
+        "cls": "small-button",
+        "id": "",
+        "tag": "BUTTON"
+      }
+    ],
+    "viewport": {
+      "h": 1000,
+      "scrollHeight": 1000,
+      "scrollWidth": 1440,
+      "w": 1440
+    }
+  },
+  "environment": {
+    "banner_markers": {
+      "production_url_absent_from_config": true,
+      "service_role_absent_from_config": true,
+      "staging_ref_in_config": true,
+      "staging_title": true
+    },
+    "branch": "hermes/overnight-pdc-hardening-20260824",
+    "credential_files_in_worktree": [],
+    "database": {
+      "active_activation_writers": 0,
+      "active_mailboxes": 0,
+      "migration_head": {
+        "name": "374_overnight_qc_fixture_registry_assignment",
+        "version": "20260825110000"
+      },
+      "monitor_status": "stopped",
+      "outbound_notification_rows": 0,
+      "pending_outbound_notifications": 0,
+      "production_sentinel_absent": true,
+      "project_ref": "cdsmnqxtyyoeoznmbidd",
+      "staging_sentinel_rows": 1,
+      "synthetic_vehicle_total": 20,
+      "vehicle_total": 173
+    },
+    "outbound_policy": "mailboxes and activation writers disabled; no external sends permitted",
+    "pages_build": "c95e0dec3064eebfb88d8f8367a326ca77fcc6b7 built",
+    "production_access_guard": true,
+    "schema": "pdc-overnight-environment-proof-v1",
+    "source_start_commit": "ac06394736b55220e7425322fc53e9b9dadc3fdd",
+    "website_hostname": "btnew.github.io",
+    "website_path": "/pdc-control-board-staging/",
+    "website_title": "PDC Control Board \u2014 STAGING"
+  },
+  "failed_requests": [],
+  "http_errors": [],
+  "keyboard_order": [
+    {
+      "id": "",
+      "name": "Vehicle Locations",
+      "outline": "auto",
+      "rect": {
+        "h": 40,
+        "w": 156,
+        "x": 24,
+        "y": 171
+      },
+      "tag": "BUTTON"
+    },
+    {
+      "id": "",
+      "name": "QC Sign-off",
+      "outline": "auto",
+      "rect": {
+        "h": 40,
+        "w": 156,
+        "x": 24,
+        "y": 220
+      },
+      "tag": "BUTTON"
+    },
+    {
+      "id": "",
+      "name": "Control Board",
+      "outline": "auto",
+      "rect": {
+        "h": 40,
+        "w": 156,
+        "x": 24,
+        "y": 269
+      },
+      "tag": "BUTTON"
+    },
+    {
+      "id": "",
+      "name": "Bus 4\u00d74",
+      "outline": "auto",
+      "rect": {
+        "h": 40,
+        "w": 156,
+        "x": 24,
+        "y": 369
+      },
+      "tag": "BUTTON"
+    },
+    {
+      "id": "",
+      "name": "Tint",
+      "outline": "auto",
+      "rect": {
+        "h": 40,
+        "w": 156,
+        "x": 24,
+        "y": 418
+      },
+      "tag": "BUTTON"
+    },
+    {
+      "id": "",
+      "name": "Hoist",
+      "outline": "auto",
+      "rect": {
+        "h": 40,
+        "w": 156,
+        "x": 24,
+        "y": 467
+      },
+      "tag": "BUTTON"
+    },
+    {
+      "id": "",
+      "name": "Fitting",
+      "outline": "auto",
+      "rect": {
+        "h": 40,
+        "w": 156,
+        "x": 24,
+        "y": 516
+      },
+      "tag": "BUTTON"
+    },
+    {
+      "id": "",
+      "name": "Fabrication",
+      "outline": "auto",
+      "rect": {
+        "h": 40,
+        "w": 156,
+        "x": 24,
+        "y": 565
+      },
+      "tag": "BUTTON"
+    },
+    {
+      "id": "",
+      "name": "Electrical",
+      "outline": "auto",
+      "rect": {
+        "h": 40,
+        "w": 156,
+        "x": 24,
+        "y": 614
+      },
+      "tag": "BUTTON"
+    },
+    {
+      "id": "",
+      "name": "Tyre",
+      "outline": "auto",
+      "rect": {
+        "h": 40,
+        "w": 156,
+        "x": 24,
+        "y": 663
+      },
+      "tag": "BUTTON"
+    },
+    {
+      "id": "",
+      "name": "Parts",
+      "outline": "auto",
+      "rect": {
+        "h": 40,
+        "w": 156,
+        "x": 24,
+        "y": 712
+      },
+      "tag": "BUTTON"
+    },
+    {
+      "id": "",
+      "name": "AI Intake",
+      "outline": "auto",
+      "rect": {
+        "h": 40,
+        "w": 156,
+        "x": 24,
+        "y": 761
+      },
+      "tag": "BUTTON"
+    },
+    {
+      "id": "",
+      "name": "AI Auditor",
+      "outline": "auto",
+      "rect": {
+        "h": 40,
+        "w": 156,
+        "x": 24,
+        "y": 810
+      },
+      "tag": "BUTTON"
+    },
+    {
+      "id": "",
+      "name": "Sublet",
+      "outline": "auto",
+      "rect": {
+        "h": 40,
+        "w": 156,
+        "x": 24,
+        "y": 859
+      },
+      "tag": "BUTTON"
+    },
+    {
+      "id": "",
+      "name": "RFT",
+      "outline": "auto",
+      "rect": {
+        "h": 40,
+        "w": 156,
+        "x": 24,
+        "y": 908
+      },
+      "tag": "BUTTON"
+    },
+    {
+      "id": "nav-admin-toggle",
+      "name": "Admin\n\u2304",
+      "outline": "auto",
+      "rect": {
+        "h": 44,
+        "w": 156,
+        "x": 24,
+        "y": 956
+      },
+      "tag": "BUTTON"
+    },
+    {
+      "id": "pdc-auth-signout",
+      "name": "Sign out",
+      "outline": "auto",
+      "rect": {
+        "h": 34,
+        "w": 71,
+        "x": 1347,
+        "y": 42
+      },
+      "tag": "BUTTON"
+    },
+    {
+      "id": "incoming-search",
+      "name": "",
+      "outline": "none",
+      "rect": {
+        "h": 43,
+        "w": 986,
+        "x": 256,
+        "y": 145
+      },
+      "tag": "INPUT"
+    },
+    {
+      "id": "",
+      "name": "Show STOPPAGES",
+      "outline": "auto",
+      "rect": {
+        "h": 44,
+        "w": 1154,
+        "x": 247,
+        "y": 381
+      },
+      "tag": "SUMMARY"
+    },
+    {
+      "id": "",
+      "name": "RFT\n0",
+      "outline": "auto",
+      "rect": {
+        "h": 42,
+        "w": 1157,
+        "x": 244,
+        "y": 437
+      },
+      "tag": "SUMMARY"
+    },
+    {
+      "id": "",
+      "name": "QC\n1",
+      "outline": "auto",
+      "rect": {
+        "h": 42,
+        "w": 1157,
+        "x": 244,
+        "y": 501
+      },
+      "tag": "SUMMARY"
+    },
+    {
+      "id": "",
+      "name": "PIT\n0",
+      "outline": "auto",
+      "rect": {
+        "h": 42,
+        "w": 1157,
+        "x": 244,
+        "y": 565
+      },
+      "tag": "SUMMARY"
+    },
+    {
+      "id": "",
+      "name": "PMB\n96",
+      "outline": "auto",
+      "rect": {
+        "h": 42,
+        "w": 1157,
+        "x": 244,
+        "y": 629
+      },
+      "tag": "SUMMARY"
+    },
+    {
+      "id": "",
+      "name": "YARD HOLD\n1",
+      "outline": "auto",
+      "rect": {
+        "h": 42,
+        "w": 1157,
+        "x": 244,
+        "y": 693
+      },
+      "tag": "SUMMARY"
+    },
+    {
+      "id": "",
+      "name": "IT\n0",
+      "outline": "auto",
+      "rect": {
+        "h": 42,
+        "w": 1157,
+        "x": 244,
+        "y": 757
+      },
+      "tag": "SUMMARY"
+    },
+    {
+      "id": "",
+      "name": "OTHER\n73",
+      "outline": "auto",
+      "rect": {
+        "h": 42,
+        "w": 1157,
+        "x": 244,
+        "y": 821
+      },
+      "tag": "SUMMARY"
+    },
+    {
+      "id": "",
+      "name": "VT\nPerth Motor Bodies\nPDC Control Board\nVehicle Locations\nQC Sign-off\nControl Bo",
+      "outline": "none",
+      "rect": {
+        "h": 1000,
+        "w": 1440,
+        "x": 0,
+        "y": 0
+      },
+      "tag": "BODY"
+    },
+    {
+      "id": "",
+      "name": "Vehicle Locations",
+      "outline": "auto",
+      "rect": {
+        "h": 40,
+        "w": 156,
+        "x": 24,
+        "y": 170
+      },
+      "tag": "BUTTON"
+    },
+    {
+      "id": "",
+      "name": "QC Sign-off",
+      "outline": "auto",
+      "rect": {
+        "h": 40,
+        "w": 156,
+        "x": 24,
+        "y": 219
+      },
+      "tag": "BUTTON"
+    },
+    {
+      "id": "",
+      "name": "Control Board",
+      "outline": "auto",
+      "rect": {
+        "h": 40,
+        "w": 156,
+        "x": 24,
+        "y": 268
+      },
+      "tag": "BUTTON"
+    }
+  ],
+  "mobile_accessibility": {
+    "duplicateIds": [],
+    "h1": [
+      "Control Board"
+    ],
+    "horizontalOverflow": false,
+    "interactiveCount": 28,
+    "lang": "en",
+    "smallTargets": [
+      {
+        "h": 34,
+        "name": "Sign out",
+        "tag": "BUTTON",
+        "w": 71
+      },
+      {
+        "h": 34,
+        "name": "Collapse all rows",
+        "tag": "BUTTON",
+        "w": 118
+      },
+      {
+        "h": 34,
+        "name": "",
+        "tag": "INPUT",
+        "w": 346
+      },
+      {
+        "h": 32,
+        "name": "Find",
+        "tag": "BUTTON",
+        "w": 346
+      },
+      {
+        "h": 32,
+        "name": "Clear",
+        "tag": "BUTTON",
+        "w": 346
+      },
+      {
+        "h": 37,
+        "name": "Open Bus 4x4 Planner",
+        "tag": "BUTTON",
+        "w": 189
+      },
+      {
+        "h": 37,
+        "name": "Open Tint Planner",
+        "tag": "BUTTON",
+        "w": 160
+      },
+      {
+        "h": 37,
+        "name": "Open Hoist Planner",
+        "tag": "BUTTON",
+        "w": 170
+      },
+      {
+        "h": 37,
+        "name": "Open Fitting Planner",
+        "tag": "BUTTON",
+        "w": 180
+      },
+      {
+        "h": 37,
+        "name": "Open Fab Planner",
+        "tag": "BUTTON",
+        "w": 157
+      },
+      {
+        "h": 37,
+        "name": "Open Elec Planner",
+        "tag": "BUTTON",
+        "w": 160
+      },
+      {
+        "h": 37,
+        "name": "Open Tyre Planner",
+        "tag": "BUTTON",
+        "w": 163
+      }
+    ],
+    "title": "PDC Control Board \u2014 STAGING",
+    "unlabeled": [],
+    "unnamed": [
+      {
+        "cls": "nav-item nav-admin-toggle",
+        "id": "nav-admin-toggle",
+        "tag": "BUTTON"
+      },
+      {
+        "cls": "",
+        "id": "workflow-search",
+        "tag": "INPUT"
+      }
+    ],
+    "viewport": {
+      "h": 844,
+      "scrollHeight": 1725,
+      "scrollWidth": 390,
+      "w": 390
+    }
+  },
+  "modal": {
+    "escapeClosed": true,
+    "focusAfterClose": {
+      "cls": "auth-approved",
+      "id": "",
+      "stock": ""
+    },
+    "focusEscapedDialog": true,
+    "initialFocus": "modal-close",
+    "sample": [
+      {
+        "id": "vehicle-detail-tab-details",
+        "inside": true,
+        "tag": "BUTTON"
+      },
+      {
+        "id": "",
+        "inside": true,
+        "tag": "BUTTON"
+      },
+      {
+        "id": "",
+        "inside": true,
+        "tag": "BUTTON"
+      },
+      {
+        "id": "",
+        "inside": true,
+        "tag": "SELECT"
+      },
+      {
+        "id": "",
+        "inside": true,
+        "tag": "INPUT"
+      },
+      {
+        "id": "",
+        "inside": true,
+        "tag": "INPUT"
+      },
+      {
+        "id": "",
+        "inside": true,
+        "tag": "INPUT"
+      },
+      {
+        "id": "",
+        "inside": true,
+        "tag": "INPUT"
+      },
+      {
+        "id": "",
+        "inside": true,
+        "tag": "SELECT"
+      },
+      {
+        "id": "",
+        "inside": true,
+        "tag": "INPUT"
+      },
+      {
+        "id": "",
+        "inside": true,
+        "tag": "INPUT"
+      },
+      {
+        "id": "",
+        "inside": true,
+        "tag": "INPUT"
+      }
+    ],
+    "stepsUntilEscape": 30,
+    "trigger": "stock-link stock-button vehicle-identity-value vehicle-identity-primary"
+  },
+  "page_errors": [],
+  "project_ref": "cdsmnqxtyyoeoznmbidd",
+  "routes": [
+    {
+      "expected": "dashboard",
+      "first": "dashboard",
+      "hash": "#/dashboard",
+      "nav_active": true,
+      "path": "dashboard",
+      "reloaded": "dashboard"
+    },
+    {
+      "expected": "workflow",
+      "first": "workflow",
+      "hash": "#/workflow",
+      "nav_active": true,
+      "path": "workflow",
+      "reloaded": "workflow"
+    },
+    {
+      "expected": "planner-fitting",
+      "first": "workshop",
+      "hash": "#/workshop/fitting",
+      "nav_active": true,
+      "path": "workshop/fitting",
+      "reloaded": "workshop"
+    },
+    {
+      "expected": "parts",
+      "first": "parts",
+      "hash": "#/parts",
+      "nav_active": true,
+      "path": "parts",
+      "reloaded": "parts"
+    },
+    {
+      "expected": "sublet",
+      "first": "sublet",
+      "hash": "#/sublet",
+      "nav_active": true,
+      "path": "sublet",
+      "reloaded": "sublet"
+    },
+    {
+      "expected": "qc",
+      "first": "qc",
+      "hash": "#/qc",
+      "nav_active": true,
+      "path": "qc",
+      "reloaded": "qc"
+    },
+    {
+      "expected": "rft",
+      "first": "rft",
+      "hash": "#/rft",
+      "nav_active": true,
+      "path": "rft",
+      "reloaded": "rft"
+    }
+  ],
+  "schema": "pdc-overnight-browser-019-v1",
+  "sessions": [
+    {
+      "label": "desktop-a",
+      "login": {
+        "shellAriaHidden": null,
+        "shellInert": false,
+        "synthetic019Loaded": true,
+        "title": "PDC Control Board \u2014 STAGING",
+        "totalLabel": ""
+      }
+    },
+    {
+      "activeView": "workflow",
+      "label": "mobile-b",
+      "login": {
+        "shellAriaHidden": null,
+        "shellInert": false,
+        "synthetic019Loaded": true,
+        "title": "PDC Control Board \u2014 STAGING",
+        "totalLabel": ""
+      },
+      "synthetic019": true
+    }
+  ],
+  "started_utc": "2026-08-24T19:00:24Z",
+  "target": "https://btnew.github.io/pdc-control-board-staging/"
+}

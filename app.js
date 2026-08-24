@@ -3197,7 +3197,16 @@ function bindNav() {
   on($('#customer-modal'), 'click', (e) => { if (e.target.id === 'customer-modal') closeCustomerModal(); });
   on($('#new-customer-form'), 'submit', addCustomerFromForm);
   document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') { closeVehicleModal(); closeCustomerModal(); }
+    const customerModal = $('#customer-modal');
+    const vehicleModal = $('#vehicle-modal');
+    const activeModal = customerModal?.hidden === false ? customerModal : vehicleModal?.hidden === false ? vehicleModal : null;
+    if (e.key === 'Tab' && activeModal) {
+      trapModalFocus(activeModal, e);
+      return;
+    }
+    if (e.key !== 'Escape') return;
+    if (customerModal?.hidden === false) closeCustomerModal();
+    else if (vehicleModal?.hidden === false) closeVehicleModal();
   });
 }
 
@@ -12263,6 +12272,42 @@ async function openVehicleCardFromVisibleBoard(stock, trigger = null) {
   }
 }
 
+const modalReturnFocus = new WeakMap();
+
+function rememberModalReturnFocus(modal) {
+  const active = document.activeElement;
+  modalReturnFocus.set(modal, active instanceof HTMLElement && active !== document.body ? active : null);
+}
+
+function modalFocusableElements(modal) {
+  return Array.from(modal.querySelectorAll('button:not([disabled]), a[href], input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'))
+    .filter(element => !element.hidden && element.getClientRects().length > 0);
+}
+
+function trapModalFocus(modal, event) {
+  const focusable = modalFocusableElements(modal);
+  if (!focusable.length) {
+    event.preventDefault();
+    modal.focus();
+    return;
+  }
+  const first = focusable[0];
+  const last = focusable[focusable.length - 1];
+  if (event.shiftKey && (document.activeElement === first || !modal.contains(document.activeElement))) {
+    event.preventDefault();
+    last.focus();
+  } else if (!event.shiftKey && (document.activeElement === last || !modal.contains(document.activeElement))) {
+    event.preventDefault();
+    first.focus();
+  }
+}
+
+function restoreModalReturnFocus(modal) {
+  const target = modalReturnFocus.get(modal);
+  modalReturnFocus.delete(modal);
+  if (target?.isConnected && typeof target.focus === 'function') target.focus();
+}
+
 function openVehicleModal(stock) {
   const vehicle = selectedVehicle(stock);
   if (!vehicle) {
@@ -12270,14 +12315,15 @@ function openVehicleModal(stock) {
     return false;
   }
   if (!vehicleLocationActionAllowed(vehicle, 'open')) return false;
+  const modal = $('#vehicle-modal');
+  if (!modal) return false;
+  rememberModalReturnFocus(modal);
   app.selectedStock = vehicleKey(vehicle);
   app.vehicleDetailPage = 'details';
   app.vehicleWorkshopDetailRequestGeneration += 1;
   const canonicalId = vehicleWorkshopDetailCanonicalId(vehicle);
   if (canonicalId) app.vehicleWorkshopDetailCache.delete(canonicalId);
   renderDetail();
-  const modal = $('#vehicle-modal');
-  if (!modal) return;
   modal.hidden = false;
   document.body.classList.add('modal-open');
   $('#modal-close')?.focus();
@@ -12301,15 +12347,16 @@ function openAuthenticatedOperationWorkshop(stock) {
     window.alert('Workshop jobs are not available for editing. Refresh the list and try again. No work was changed.');
     return false;
   }
-  // This is intentionally separate from the location/lifecycle editor. It opens only the
+  const modal = $('#vehicle-modal');
+  if (!modal) return false;
+  rememberModalReturnFocus(modal);
+  // This is intentionally separate from the location/lifecycle editor.
   // canonical Workshop overlay; every write still goes through the operator-only audited RPC.
   app.selectedStock = vehicleKey(vehicle);
   app.vehicleDetailPage = 'work';
   app.vehicleWorkshopDetailRequestGeneration += 1;
   app.vehicleWorkshopDetailCache.delete(canonicalId);
   renderDetail();
-  const modal = $('#vehicle-modal');
-  if (!modal) return false;
   modal.hidden = false;
   document.body.classList.add('modal-open');
   loadVehicleWorkshopDetail(vehicle, { force: true });
@@ -12322,10 +12369,11 @@ function closeVehicleModal() {
   app.vehicleWorkshopDetailRequestGeneration += 1;
   app.vehicleDetailPage = 'details';
   app.activeVehicleDetail = null;
-  if (!modal) return;
+  if (!modal || modal.hidden) return;
   modal.hidden = true;
   document.body.classList.remove('modal-open');
   refreshOpenAuthenticatedOperationSummaries($('#incoming-main-board') || document);
+  restoreModalReturnFocus(modal);
 }
 
 async function removeVehicle(stock, { resetTest = false } = {}) {
@@ -15512,6 +15560,7 @@ function renderCustomers() {
 function openCustomerModal() {
   const modal = $('#customer-modal');
   if (!modal) return;
+  rememberModalReturnFocus(modal);
   $('#new-customer-form')?.reset();
   const salespersonSelect = $('[data-new-customer-salesperson]');
   if (salespersonSelect) salespersonSelect.innerHTML = salespersonOptionsHtml('');
@@ -15523,9 +15572,10 @@ function openCustomerModal() {
 
 function closeCustomerModal() {
   const modal = $('#customer-modal');
-  if (!modal) return;
+  if (!modal || modal.hidden) return;
   modal.hidden = true;
   if ($('#vehicle-modal')?.hidden !== false) document.body.classList.remove('modal-open');
+  restoreModalReturnFocus(modal);
 }
 
 function addCustomerFromForm(e) {
