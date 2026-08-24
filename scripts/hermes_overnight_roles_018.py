@@ -66,14 +66,18 @@ def main() -> None:
         actor_id = str(uuid.UUID(session["user"]["id"]))
         actor_email_hash = hashlib.sha256(session["user"]["email"].strip().lower().encode()).hexdigest()
         sql = f"""SET TRANSACTION READ ONLY;
-select role::text, active, account_status::text, auth_user_id::text
-from public.pdc_user_roles
-where encode(extensions.digest(convert_to(lower(email),'UTF8'),'sha256'),'hex')='{actor_email_hash}';"""
+select r.role::text, coalesce(r.active,false) active, r.account_status::text,
+       case when r.auth_user_id='{actor_id}'::uuid then 'auth_user_id'
+            when r.email is not null then 'canonical_email' else 'auth_user_without_pdc_role' end identity_binding
+from auth.users u
+left join public.pdc_user_roles r on lower(r.email)=lower(u.email)
+where u.id='{actor_id}'::uuid
+  and encode(extensions.digest(convert_to(lower(u.email),'UTF8'),'sha256'),'hex')='{actor_email_hash}';"""
         rows = _post(f"https://api.supabase.com/v1/projects/{REF}/database/query/read-only", sql)
-        if len(rows) != 1 or rows[0].get("auth_user_id") not in (None, actor_id):
+        if len(rows) != 1:
             raise RuntimeError("authoritative actor-role readback")
         row = rows[0]
-        return {"role": row["role"], "active": row["active"], "account_status": row["account_status"], "identity_binding": "auth_user_id" if row.get("auth_user_id") == actor_id else "canonical_email"}
+        return {"role": row.get("role"), "active": row["active"], "account_status": row.get("account_status") or "unapproved_no_pdc_role", "identity_binding": row["identity_binding"]}
 
     role_rows = {
         "administrator": authoritative_role(admin),
@@ -84,7 +88,10 @@ where encode(extensions.digest(convert_to(lower(email),'UTF8'),'sha256'),'hex')=
         raise RuntimeError("Administrator role identity drift")
     if {k: role_rows["operator"][k] for k in ("role", "active", "account_status")} != {"role": "operator", "active": True, "account_status": "approved"}:
         raise RuntimeError("Operator role identity drift")
-    if role_rows["authenticated-unapproved"].get("account_status") != "unapproved":
+    if role_rows["authenticated-unapproved"] not in (
+        {"role": None, "active": False, "account_status": "unapproved_no_pdc_role", "identity_binding": "auth_user_without_pdc_role"},
+        {"role": "viewer", "active": False, "account_status": "unapproved", "identity_binding": "auth_user_id"},
+    ):
         raise RuntimeError("authenticated-unapproved identity drift")
 
     viewer_status, viewer_response = request_json(
