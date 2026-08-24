@@ -48,9 +48,9 @@ END $function$;
 REVOKE ALL ON FUNCTION public.pdc_email_jobcard_work_key(text)FROM public,anon,authenticated,service_role;
 
 DO $apply$
-DECLARE actor uuid;email text;fam uuid;ver uuid;before_row public.vehicle_workshop_line_adjustments%rowtype;after_row public.vehicle_workshop_line_adjustments%rowtype;vehicle2 uuid;
+DECLARE actor uuid;actor_email text;fam uuid;ver uuid;before_row public.vehicle_workshop_line_adjustments%rowtype;after_row public.vehicle_workshop_line_adjustments%rowtype;vehicle2 uuid;
 BEGIN
- SELECT auth_user_id,lower(email)INTO actor,email FROM public.pdc_user_roles WHERE lower(email)='craig.watson@broometoyota.com.au'AND role='administrator'AND active AND account_status='approved'LIMIT 1;
+ SELECT auth_user_id,lower(r.email)INTO actor,actor_email FROM public.pdc_user_roles r WHERE lower(r.email)='craig.watson@broometoyota.com.au'AND role='administrator'AND active AND account_status='approved'LIMIT 1;
  IF actor IS NULL THEN RAISE EXCEPTION 'PDC_362_CRAIG_AUTHORIZER_MISSING';END IF;
  SELECT family_id INTO fam FROM public.pdc_supervised_rule_families WHERE family_key='accessory_12v_socket_plug_electrical';
  SELECT version_id INTO ver FROM public.pdc_supervised_rule_versions WHERE family_id=fam AND EXISTS(SELECT 1 FROM public.pdc_supervised_rule_events e WHERE e.version_id=pdc_supervised_rule_versions.version_id AND e.event_kind='activated')AND NOT EXISTS(SELECT 1 FROM public.pdc_supervised_rule_events e WHERE e.version_id=pdc_supervised_rule_versions.version_id AND e.event_kind IN('superseded','disabled','undo'))ORDER BY version_no DESC LIMIT 1;
@@ -62,12 +62,12 @@ BEGIN
 
  SELECT * INTO before_row FROM public.vehicle_workshop_line_adjustments WHERE adjustment_id='589342a7-8d42-48d5-8d3b-fde6ea878034'FOR UPDATE;
  UPDATE public.vehicle_workshop_line_adjustments SET stage_code='ELECTRICAL',version=version+1,updated_by=actor,updated_at=clock_timestamp()WHERE adjustment_id=before_row.adjustment_id RETURNING * INTO after_row;
- INSERT INTO public.audit_events(action,table_name,row_id,vehicle_id,actor_id,actor_email,before_data,after_data,metadata)VALUES('update','vehicle_workshop_line_adjustments',after_row.adjustment_id,after_row.vehicle_id,actor,email,to_jsonb(before_row),to_jsonb(after_row),jsonb_build_object('source','craig_owner_rule_362','family','accessory_12v_socket_plug_electrical','hours_preserved',true,'bookings_changed',false,'parts_changed',false,'completion_changed',false));
+ INSERT INTO public.audit_events(action,table_name,row_id,vehicle_id,actor_id,actor_email,before_data,after_data,metadata)VALUES('update','vehicle_workshop_line_adjustments',after_row.adjustment_id,after_row.vehicle_id,actor,actor_email,to_jsonb(before_row),to_jsonb(after_row),jsonb_build_object('source','craig_owner_rule_362','family','accessory_12v_socket_plug_electrical','hours_preserved',true,'bookings_changed',false,'parts_changed',false,'completion_changed',false));
 
  SELECT vehicle_id INTO vehicle2 FROM public.pdc_authenticated_email_operation_lines WHERE operation_line_id='fd3dad66-9b29-4708-97a0-cdca3631210b';
  INSERT INTO public.vehicle_workshop_line_adjustments(vehicle_id,line_key,source_kind,stage_code,description,estimated_hours,created_by,updated_by)
  SELECT vehicle2,'source:'||operation_line_id::text,'source','ELECTRICAL',description,estimated_hours,actor,actor FROM public.pdc_authenticated_email_operation_lines WHERE operation_line_id='fd3dad66-9b29-4708-97a0-cdca3631210b'RETURNING * INTO after_row;
- INSERT INTO public.audit_events(action,table_name,row_id,vehicle_id,actor_id,actor_email,before_data,after_data,metadata)VALUES('insert','vehicle_workshop_line_adjustments',after_row.adjustment_id,after_row.vehicle_id,actor,email,null,to_jsonb(after_row),jsonb_build_object('source','craig_owner_rule_362','family','accessory_12v_socket_plug_electrical','bookings_changed',false,'parts_changed',false,'completion_changed',false));
+ INSERT INTO public.audit_events(action,table_name,row_id,vehicle_id,actor_id,actor_email,before_data,after_data,metadata)VALUES('insert','vehicle_workshop_line_adjustments',after_row.adjustment_id,after_row.vehicle_id,actor,actor_email,null,to_jsonb(after_row),jsonb_build_object('source','craig_owner_rule_362','family','accessory_12v_socket_plug_electrical','bookings_changed',false,'parts_changed',false,'completion_changed',false));
 END $apply$;
 
 DO $post$
