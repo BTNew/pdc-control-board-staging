@@ -1,0 +1,22 @@
+{
+  "applied": true,
+  "ledger_readback": [
+    {
+      "name": "359_defer_past_planned_booking_duration_sync",
+      "version": "20260824200000"
+    }
+  ],
+  "management_response": [
+    {
+      "pg_advisory_xact_lock": ""
+    }
+  ],
+  "migration_file": "20260824200000_359_defer_past_planned_booking_duration_sync.sql",
+  "migration_name": "359_defer_past_planned_booking_duration_sync",
+  "migration_sha256": "574bd3065794028e45b97f399dfbd4979e1216502130eb885eeffa8abbb779d5",
+  "migration_version": "20260824200000",
+  "production_ref_rejected": "vjdtsswhroyguxyfjdkt",
+  "recorded_at_utc": "2026-08-24T06:16:33.979800+00:00",
+  "schema": "pdc-staging-management-migration-receipt-v1",
+  "target_ref": "cdsmnqxtyyoeoznmbidd"
+}

@@ -1,0 +1,15 @@
+{
+  "family_key": "long_range_tanks_hoist",
+  "production_touched": false,
+  "project_ref": "cdsmnqxtyyoeoznmbidd",
+  "response": {
+    "code": "version_activated",
+    "data": {
+      "superseded_version_id": null,
+      "version_id": "a74915fa-ce08-43dd-876f-97ad44fa488e"
+    },
+    "ok": true
+  },
+  "schema": "pdc-owner-rule-activation-v1",
+  "version_id": "a74915fa-ce08-43dd-876f-97ad44fa488e"
+}

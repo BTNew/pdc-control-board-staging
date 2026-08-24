@@ -1,0 +1,27 @@
+{
+  "schema": "pdc-owner-jobcard-area-rule-profile-sync-v1",
+  "staging_project_ref": "cdsmnqxtyyoeoznmbidd",
+  "production_touched": false,
+  "pdc_emails": {
+    "parser_path": "C:/Users/nwmgr/AppData/Local/hermes/profiles/pdc-emails/scripts/pdc_email_reviewer.py",
+    "parser_sha256": "4a7fbab25abbdfbee5bedb87e6c0272909151a4772dc1cf988dfdbc24fb499a4",
+    "test_path": "C:/Users/nwmgr/AppData/Local/hermes/profiles/pdc-emails/tests/test_pdc_email_reviewer.py",
+    "test_sha256": "febc162034a9608a13abdcaa671058e12adb1da577db2d8e1a0aaa0655d31cd0",
+    "soul_sha256": "065299c9b53fca174f677b20a8242dbcf036e0387d1016337e53356ad6fedc18",
+    "backup_directory": "C:/Users/nwmgr/AppData/Local/hermes/profiles/pdc-emails/data/runtime-backups/20260824-owner-jobcard-area-rules"
+  },
+  "pmb_auditor": {
+    "soul_path": "C:/Users/nwmgr/AppData/Local/hermes/profiles/pmb-auditor/SOUL.md",
+    "soul_sha256": "c2854ce24c53220acbad7c446f96fdeb4eb7b612beab4f646b1835767b0f402e"
+  },
+  "focused_parser_tests_passed": 3,
+  "owner_rules": {
+    "towbars": "fitting",
+    "long_range_tanks": "hoist",
+    "fire_extinguishers": "fitting",
+    "12v_sockets_and_plugs": "electrical",
+    "battery_box_and_bcdc": "electrical",
+    "xrs_370c": "electrical",
+    "navman_and_cardex": "electrical"
+  }
+}

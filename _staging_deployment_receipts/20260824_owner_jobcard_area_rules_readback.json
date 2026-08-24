@@ -1,0 +1,844 @@
+{
+  "booking_12657478": [
+    {
+      "bay": 1,
+      "duration": 390,
+      "end": "2026-08-25T02:30:00+00:00",
+      "id": "536f617e-e2f1-4403-ae66-de7d79b8b001",
+      "stage": "FITTING",
+      "start": "2026-08-24T06:00:00+00:00",
+      "status": "planned",
+      "version": 1
+    }
+  ],
+  "deferred_history": 2,
+  "examples": [
+    {
+      "description": "Tow Bar [For 2550mm/2100mm/1800mm Tray Body] with Sma",
+      "effective_stage": "FITTING",
+      "operation_line_id": "a07dd088-f2fb-4218-b97f-83ead5d8906c",
+      "source_work_key": "fabrication",
+      "stock_number": "12657478"
+    },
+    {
+      "description": "SUPPLY AND FIT DUAL 12V ACC SOCKET IN MODULE",
+      "effective_stage": "ELECTRICAL",
+      "operation_line_id": "a3a067ed-4b3e-42c8-8462-c3796dc13e1f",
+      "source_work_key": "fitting",
+      "stock_number": "12657522"
+    },
+    {
+      "description": "TOW BAR [FOR 2550MM/2100MM/1800MM TRAY BODY] WITH SMA",
+      "effective_stage": "FITTING",
+      "operation_line_id": "9740d2a4-267f-407a-a53b-7043ec6b70f8",
+      "source_work_key": "fabrication",
+      "stock_number": "12664962"
+    },
+    {
+      "description": "Tow Bar Tongue Kit (Long) with Flat Plug",
+      "effective_stage": "FITTING",
+      "operation_line_id": "1604a62f-6bad-428a-a870-9a7528b57603",
+      "source_work_key": "fitting",
+      "stock_number": "12666911"
+    },
+    {
+      "description": "1.5 KG FIRE EXT TO CARGO BARRIER or L/H Tray Head Boa",
+      "effective_stage": "FITTING",
+      "operation_line_id": "000569ea-d945-4280-be80-5a60d98615e1",
+      "source_work_key": "fabrication",
+      "stock_number": "12667939"
+    },
+    {
+      "description": "1.5 KG FIRE EXT TO CARGO BARRIER or L/H Tray Head Boa",
+      "effective_stage": "FITTING",
+      "operation_line_id": "83cd5afe-0f1e-4207-8c0d-d53dd98356c1",
+      "source_work_key": "fabrication",
+      "stock_number": "12667941"
+    },
+    {
+      "description": "Tow Bar [For 2550mm/2100mm/1800mm Tray Body] with Sma",
+      "effective_stage": "FITTING",
+      "operation_line_id": "1978965b-fb4a-417b-b309-51549984a444",
+      "source_work_key": "fabrication",
+      "stock_number": "12704245"
+    },
+    {
+      "description": "TOW BAR [FOR 2550MM/2100MM/1800MM TRAY BODY] WITH SMA",
+      "effective_stage": "FITTING",
+      "operation_line_id": "1e2d3c09-e9be-44ce-906a-b77b5fdc5630",
+      "source_work_key": "fabrication",
+      "stock_number": "12704377"
+    },
+    {
+      "description": "TOW BAR [FOR 2550MM/2100MM/1800MM TRAY BODY] WITH SMA",
+      "effective_stage": "FITTING",
+      "operation_line_id": "a0edff40-1350-4532-892d-57e5d90db339",
+      "source_work_key": "fabrication",
+      "stock_number": "12705576"
+    },
+    {
+      "description": "Supply and Fit 12v PLUG To Rear",
+      "effective_stage": "ELECTRICAL",
+      "operation_line_id": "e485c3c9-948f-4aca-83c8-81170f4d3641",
+      "source_work_key": "fitting",
+      "stock_number": "12708288"
+    },
+    {
+      "description": "Tow Bar [For 2550mm/2100mm/1800mm Tray Body] with Sma",
+      "effective_stage": "FITTING",
+      "operation_line_id": "47395122-537e-4a2e-81e9-21353b472c54",
+      "source_work_key": "fabrication",
+      "stock_number": "12708288"
+    },
+    {
+      "description": "FIT XRS 370c -Select Aerial additional Job Line",
+      "effective_stage": "ELECTRICAL",
+      "operation_line_id": "cfbc54e8-44bc-4fa5-a2b5-b83e0c717a89",
+      "source_work_key": "fitting",
+      "stock_number": "12710872"
+    },
+    {
+      "description": "Fit Navman IVMS with Cardex Interface system",
+      "effective_stage": "ELECTRICAL",
+      "operation_line_id": "1fe68bbd-fb88-4d4d-9240-f275114d883d",
+      "source_work_key": "fitting",
+      "stock_number": "12759196"
+    },
+    {
+      "description": "TOW BAR [FOR 2550MM/2100MM/1800MM TRAY BODY] WITH SMA",
+      "effective_stage": "FITTING",
+      "operation_line_id": "d4247e34-34c6-4035-9b61-51887a645d38",
+      "source_work_key": "fabrication",
+      "stock_number": "13000423"
+    },
+    {
+      "description": "SUPPLY AND FIT 12V ACC SOCKET LHS TRAY HEADBOARD",
+      "effective_stage": "ELECTRICAL",
+      "operation_line_id": "10a52c29-5816-4e40-8ac5-6b00c0b83e6c",
+      "source_work_key": "fabrication",
+      "stock_number": "13000549"
+    },
+    {
+      "description": "TOW BAR [FOR 2550MM/2100MM/1800MM TRAY BODY] WITH SMA",
+      "effective_stage": "FITTING",
+      "operation_line_id": "e925c4f4-ae1d-4fd8-a3ea-3a0f658c30ff",
+      "source_work_key": "fabrication",
+      "stock_number": "13000549"
+    },
+    {
+      "description": "SUPPLY AND FIT 12V ACC SOCKET IN HIDRIVE CANOPY - LOC",
+      "effective_stage": "ELECTRICAL",
+      "operation_line_id": "a92a0618-0065-4fd7-832f-378227970f36",
+      "source_work_key": "fabrication",
+      "stock_number": "13000608"
+    },
+    {
+      "description": "TOW BAR [FOR PICK-UP AND 2400MM TRAY BODY] WITH SMALL",
+      "effective_stage": "FITTING",
+      "operation_line_id": "b784fd00-2969-4a62-a0c6-2d75c338f240",
+      "source_work_key": "fabrication",
+      "stock_number": "13000608"
+    },
+    {
+      "description": "Tow Bar Tongue Kit (Long) with Small Round Plug",
+      "effective_stage": "FITTING",
+      "operation_line_id": "d318db62-8acf-4392-b100-5c31d367c6e2",
+      "source_work_key": "fitting",
+      "stock_number": "13001059"
+    },
+    {
+      "description": "TOW BAR [FOR 2550MM/2100MM/1800MM TRAY BODY] WITH SMA",
+      "effective_stage": "FITTING",
+      "operation_line_id": "46c4223b-c208-4eb3-b69a-9ce26d944bae",
+      "source_work_key": "fabrication",
+      "stock_number": "13001466"
+    },
+    {
+      "description": "Supply and Fit 12v PLUG To Rear",
+      "effective_stage": "ELECTRICAL",
+      "operation_line_id": "5aaa2931-a4f9-45bd-a335-f6cfbc174ba7",
+      "source_work_key": "fitting",
+      "stock_number": "13001485"
+    },
+    {
+      "description": "Tow Bar [For 2550mm/2100mm/1800mm Tray Body] with Sma",
+      "effective_stage": "FITTING",
+      "operation_line_id": "8f3535d9-8ef6-4aca-a67a-6727f830c946",
+      "source_work_key": "fabrication",
+      "stock_number": "13001485"
+    },
+    {
+      "description": "Fit Navman IVMS with Cardex Interface system",
+      "effective_stage": "ELECTRICAL",
+      "operation_line_id": "2f1dd615-e9c1-458e-a5fb-3960c16bc250",
+      "source_work_key": "fitting",
+      "stock_number": "13001553"
+    },
+    {
+      "description": "Tow Bar [For 2550mm/2100mm/1800mm Tray Body] with Sma",
+      "effective_stage": "FITTING",
+      "operation_line_id": "17ef8cf2-9d54-4ca9-b81c-732a40510525",
+      "source_work_key": "fabrication",
+      "stock_number": "13001553"
+    },
+    {
+      "description": "Fit Navman IVMS with Cardex Interface system",
+      "effective_stage": "ELECTRICAL",
+      "operation_line_id": "a01fc1a7-c7aa-4945-a0ef-bebef293f098",
+      "source_work_key": "fitting",
+      "stock_number": "13001554"
+    },
+    {
+      "description": "Tow Bar [For 2550mm/2100mm/1800mm Tray Body] with Sma",
+      "effective_stage": "FITTING",
+      "operation_line_id": "dee03254-aa48-4d75-bfe8-9043990b2878",
+      "source_work_key": "fabrication",
+      "stock_number": "13001554"
+    },
+    {
+      "description": "Fit Navman IVMS with Cardex Interface system",
+      "effective_stage": "ELECTRICAL",
+      "operation_line_id": "f0760976-6ae9-4b7d-9e17-42dc9b4c1867",
+      "source_work_key": "fitting",
+      "stock_number": "13001555"
+    },
+    {
+      "description": "Tow Bar [For 2550mm/2100mm/1800mm Tray Body] with Sma",
+      "effective_stage": "FITTING",
+      "operation_line_id": "1e04a248-3ac8-453e-bf12-2feee6507c37",
+      "source_work_key": "fabrication",
+      "stock_number": "13001555"
+    },
+    {
+      "description": "Fit Navman IVMS with Cardex Interface system",
+      "effective_stage": "ELECTRICAL",
+      "operation_line_id": "42573401-896e-417a-9bb2-10077aedb349",
+      "source_work_key": "fitting",
+      "stock_number": "13001556"
+    },
+    {
+      "description": "Tow Bar [For 2550mm/2100mm/1800mm Tray Body] with Sma",
+      "effective_stage": "FITTING",
+      "operation_line_id": "2d268e04-06d2-4714-b276-e3ade30ae3fb",
+      "source_work_key": "fabrication",
+      "stock_number": "13001556"
+    },
+    {
+      "description": "Tow Bar [For 2550mm/2100mm/1800mm Tray Body] with Fla",
+      "effective_stage": "FITTING",
+      "operation_line_id": "174b3acc-c0da-4fd1-a50d-4e4e9a7d7e68",
+      "source_work_key": "fabrication",
+      "stock_number": "13001561"
+    },
+    {
+      "description": "Supply and Fit 12v PLUG To Rear",
+      "effective_stage": "ELECTRICAL",
+      "operation_line_id": "14a88e12-51ea-4c4b-99d1-5fa7ca8f77e5",
+      "source_work_key": "fitting",
+      "stock_number": "13001563"
+    },
+    {
+      "description": "Tow Bar [For 2550mm/2100mm/1800mm Tray Body] with Sma",
+      "effective_stage": "FITTING",
+      "operation_line_id": "96edd481-d254-4a7e-b391-459d77659a15",
+      "source_work_key": "fabrication",
+      "stock_number": "13001563"
+    },
+    {
+      "description": "Tow Bar [For 2550mm/2100mm/1800mm Tray Body] with Sma",
+      "effective_stage": "FITTING",
+      "operation_line_id": "e4cab384-b888-47bc-bf9e-f6073d1dd68d",
+      "source_work_key": "fabrication",
+      "stock_number": "13001568"
+    },
+    {
+      "description": "FIT XRS 370c -Select Aerial additional Job Line",
+      "effective_stage": "ELECTRICAL",
+      "operation_line_id": "f69668ea-ccce-4d5b-829d-0a63835d8ba4",
+      "source_work_key": "fitting",
+      "stock_number": "13003329"
+    },
+    {
+      "description": "FIT XRS 370c -Select Aerial additional Job Line",
+      "effective_stage": "ELECTRICAL",
+      "operation_line_id": "f7acd51a-7963-4617-9c20-c6927b37272d",
+      "source_work_key": "fitting",
+      "stock_number": "13003330"
+    },
+    {
+      "description": "ARB FRONTIER LONG RANGE FUEL TANK - SUB TANK REPLACEM",
+      "effective_stage": "HOIST",
+      "operation_line_id": "52702e39-6e4e-4865-891e-d18c5f21abf6",
+      "source_work_key": "fitting",
+      "stock_number": "13008242"
+    },
+    {
+      "description": "TOW BAR [FOR 2550MM/2100MM/1800MM TRAY BODY] WITH SMA",
+      "effective_stage": "FITTING",
+      "operation_line_id": "306c1ccb-d5fd-4eeb-9258-c73ed10fb8d8",
+      "source_work_key": "fabrication",
+      "stock_number": "13016923"
+    },
+    {
+      "description": "TOW BAR [FOR 2550MM/2100MM/1800MM TRAY BODY] WITH SMA",
+      "effective_stage": "FITTING",
+      "operation_line_id": "d4d120e5-efc9-4838-a9cf-31245c9f5c7c",
+      "source_work_key": "fabrication",
+      "stock_number": "13016924"
+    },
+    {
+      "description": "TOW BAR [FOR 2550MM/2100MM/1800MM TRAY BODY] WITH SMA",
+      "effective_stage": "FITTING",
+      "operation_line_id": "63163cfb-a3c6-4146-9809-f14a6acb021c",
+      "source_work_key": "fabrication",
+      "stock_number": "13016925"
+    },
+    {
+      "description": "SUPPLY AND FIT 2 X 12V ACC PLUG LHF CORNER OF MODULE",
+      "effective_stage": "ELECTRICAL",
+      "operation_line_id": "4972f198-c866-455e-9014-6d76cf11e2c8",
+      "source_work_key": "fitting",
+      "stock_number": "13016926"
+    },
+    {
+      "description": "TOW BAR [FOR 2550MM/2100MM/1800MM TRAY BODY] WITH SMA",
+      "effective_stage": "FITTING",
+      "operation_line_id": "828ed4d2-2323-4e36-924d-ab4329f7daab",
+      "source_work_key": "fabrication",
+      "stock_number": "13016926"
+    },
+    {
+      "description": "Tow Bar [For 2550mm/2100mm/1800mm Tray Body] with Sma",
+      "effective_stage": "FITTING",
+      "operation_line_id": "7f95aabb-5d0e-4de7-8404-8dfc004223cb",
+      "source_work_key": "fabrication",
+      "stock_number": "13016931"
+    },
+    {
+      "description": "Tow Bar [For 2550mm/2100mm/1800mm Tray Body] with Sma",
+      "effective_stage": "FITTING",
+      "operation_line_id": "0aec99ef-0bb1-4b29-a606-1bedc3655be8",
+      "source_work_key": "fabrication",
+      "stock_number": "13016932"
+    },
+    {
+      "description": "Tow Bar [For 2550mm/2100mm/1800mm Tray Body] with Sma",
+      "effective_stage": "FITTING",
+      "operation_line_id": "f357121c-735c-43f1-86e2-aa858c378399",
+      "source_work_key": "fabrication",
+      "stock_number": "13017852"
+    },
+    {
+      "description": "Tow Bar [For 2550mm/2100mm/1800mm Tray Body] with Sma",
+      "effective_stage": "FITTING",
+      "operation_line_id": "f53ad4ef-0150-43db-a2d5-1c5920551f92",
+      "source_work_key": "fabrication",
+      "stock_number": "13017853"
+    },
+    {
+      "description": "Tow Bar [For 2550mm/2100mm/1800mm Tray Body] with Sma",
+      "effective_stage": "FITTING",
+      "operation_line_id": "53c42be9-4034-4b44-9caf-22790297dcce",
+      "source_work_key": "fabrication",
+      "stock_number": "13017918"
+    },
+    {
+      "description": "Tow Bar [For 2550mm/2100mm/1800mm Tray Body] with Sma",
+      "effective_stage": "FITTING",
+      "operation_line_id": "51de267b-2941-40cd-9040-f9189fab24f1",
+      "source_work_key": "fabrication",
+      "stock_number": "13017919"
+    },
+    {
+      "description": "Supply and Fit 12v PLUG To Rear",
+      "effective_stage": "ELECTRICAL",
+      "operation_line_id": "435d0308-2b5e-45fc-b791-eccefec6b262",
+      "source_work_key": "fitting",
+      "stock_number": "13017928"
+    },
+    {
+      "description": "Tow Bar [For 2550mm/2100mm/1800mm Tray Body] with Sma",
+      "effective_stage": "FITTING",
+      "operation_line_id": "64cee0b4-258e-4372-b17d-cca2ab38e2fd",
+      "source_work_key": "fabrication",
+      "stock_number": "13017928"
+    },
+    {
+      "description": "TOW BAR [FOR 2550MM/2100MM/1800MM TRAY BODY] WITH SMA",
+      "effective_stage": "FITTING",
+      "operation_line_id": "2fe2ca0b-005d-4087-b755-817915542fbd",
+      "source_work_key": "fabrication",
+      "stock_number": "13017953"
+    },
+    {
+      "description": "SUPPLY AND FIT 12V ACC SOCKET TO LHS TRAY HEADBOARD",
+      "effective_stage": "ELECTRICAL",
+      "operation_line_id": "f36b8eb0-2f90-4d79-991b-ce126f521812",
+      "source_work_key": "fabrication",
+      "stock_number": "13017978"
+    },
+    {
+      "description": "TOW BAR [FOR 2550MM/2100MM/1800MM TRAY BODY] WITH SMA",
+      "effective_stage": "FITTING",
+      "operation_line_id": "fcd64da1-8655-478b-b1a8-9404908f53a8",
+      "source_work_key": "fabrication",
+      "stock_number": "13017978"
+    },
+    {
+      "description": "Tow Bar [For 2550mm/2100mm/1800mm Tray Body] with Sma",
+      "effective_stage": "FITTING",
+      "operation_line_id": "86ab82f8-b79c-478b-8431-ba228ac2cea3",
+      "source_work_key": "fabrication",
+      "stock_number": "13018017"
+    },
+    {
+      "description": "Tow Bar [For 2550mm/2100mm/1800mm Tray Body] with Sma",
+      "effective_stage": "FITTING",
+      "operation_line_id": "cb5c52f2-2f8d-4b4f-a69a-2ad89439404a",
+      "source_work_key": "fabrication",
+      "stock_number": "13018018"
+    },
+    {
+      "description": "Tow Bar [For 2550mm/2100mm/1800mm Tray Body] with Sma",
+      "effective_stage": "FITTING",
+      "operation_line_id": "21eebb1a-1a88-4539-bdec-97f3ab2b4c0d",
+      "source_work_key": "fabrication",
+      "stock_number": "13018019"
+    },
+    {
+      "description": "Tow Bar [For 2550mm/2100mm/1800mm Tray Body] with Sma",
+      "effective_stage": "FITTING",
+      "operation_line_id": "9204e301-6d7a-4e0d-9983-bbae48041586",
+      "source_work_key": "fabrication",
+      "stock_number": "13018020"
+    },
+    {
+      "description": "Tow Bar [For 2550mm/2100mm/1800mm Tray Body] with Sma",
+      "effective_stage": "FITTING",
+      "operation_line_id": "538beb75-295b-4c3d-b7ed-393731c89458",
+      "source_work_key": "fabrication",
+      "stock_number": "13018021"
+    },
+    {
+      "description": "Tow Bar [For 2550mm/2100mm/1800mm Tray Body] with Sma",
+      "effective_stage": "FITTING",
+      "operation_line_id": "f62a7833-3132-4e82-a086-a54e5c8acf90",
+      "source_work_key": "fabrication",
+      "stock_number": "13018022"
+    },
+    {
+      "description": "Tow Bar [For 2550mm/2100mm/1800mm Tray Body] with Sma",
+      "effective_stage": "FITTING",
+      "operation_line_id": "6e1915d4-6d85-4629-b7a7-08acf933d4b7",
+      "source_work_key": "fabrication",
+      "stock_number": "13018023"
+    },
+    {
+      "description": "Tow Bar [For 2550mm/2100mm/1800mm Tray Body] with Sma",
+      "effective_stage": "FITTING",
+      "operation_line_id": "088d2620-8c7b-48aa-bff9-eb1842a9009a",
+      "source_work_key": "fabrication",
+      "stock_number": "13018024"
+    },
+    {
+      "description": "Tow Bar [For 2550mm/2100mm/1800mm Tray Body] with Sma",
+      "effective_stage": "FITTING",
+      "operation_line_id": "101abff1-3b51-47c0-8a3c-a0a253cc2844",
+      "source_work_key": "fabrication",
+      "stock_number": "13018025"
+    },
+    {
+      "description": "50A ANDERSON PLUG MOUNTED NEXT TO TOWBAR TRAILER PLUG",
+      "effective_stage": "FITTING",
+      "operation_line_id": "fd3dad66-9b29-4708-97a0-cdca3631210b",
+      "source_work_key": "fitting",
+      "stock_number": "13018165"
+    },
+    {
+      "description": "SUPPLY AND FIT 12V DUAL ACC SOCKET TO MODULE - LHF",
+      "effective_stage": "ELECTRICAL",
+      "operation_line_id": "28536df6-3e18-4793-98ee-693e6c28cb32",
+      "source_work_key": "fitting",
+      "stock_number": "13018165"
+    },
+    {
+      "description": "TOW BAR [FOR 2550MM/2100MM/1800MM TRAY BODY] WITH SMA",
+      "effective_stage": "FITTING",
+      "operation_line_id": "6873ca55-99fc-4b8c-a6f6-7e659f722418",
+      "source_work_key": "fabrication",
+      "stock_number": "13018165"
+    },
+    {
+      "description": "Tow Bar [For 2550mm/2100mm/1800mm Tray Body] with Sma",
+      "effective_stage": "FITTING",
+      "operation_line_id": "8b55819f-9f91-4ab4-8b74-17d2ef7872a4",
+      "source_work_key": "fabrication",
+      "stock_number": "13018221"
+    },
+    {
+      "description": "Tow Bar [For 2550mm/2100mm/1800mm Tray Body] with Sma",
+      "effective_stage": "FITTING",
+      "operation_line_id": "3511c624-3d97-4582-a889-869285241036",
+      "source_work_key": "fabrication",
+      "stock_number": "13018223"
+    },
+    {
+      "description": "Tow Bar [For 2550mm/2100mm/1800mm Tray Body] with Sma",
+      "effective_stage": "FITTING",
+      "operation_line_id": "bcc5f7f3-221b-4e2c-bab8-18e4587fa2b6",
+      "source_work_key": "fabrication",
+      "stock_number": "13018224"
+    },
+    {
+      "description": "Tow Bar [For 2550mm/2100mm/1800mm Tray Body] with Sma",
+      "effective_stage": "FITTING",
+      "operation_line_id": "5f3f01de-337e-49c7-926c-8107093e8889",
+      "source_work_key": "fabrication",
+      "stock_number": "13018225"
+    },
+    {
+      "description": "Tow Bar [For 2550mm/2100mm/1800mm Tray Body] with Sma",
+      "effective_stage": "FITTING",
+      "operation_line_id": "618a6ce9-57fb-4536-ba97-418bb3d573f0",
+      "source_work_key": "fabrication",
+      "stock_number": "13018226"
+    },
+    {
+      "description": "SUPPLY AND FIT 12V ACC SOCKET TO TRAY HEADBOARDS LHS",
+      "effective_stage": "ELECTRICAL",
+      "operation_line_id": "7800e71b-4408-4c1e-abce-2f04050dd060",
+      "source_work_key": "fabrication",
+      "stock_number": "13018275"
+    },
+    {
+      "description": "TOW BAR [FOR 2550MM/2100MM/1800MM TRAY BODY] WITH SMA",
+      "effective_stage": "FITTING",
+      "operation_line_id": "30e87337-df9e-4446-b90a-602cdb62e2d1",
+      "source_work_key": "fabrication",
+      "stock_number": "13018275"
+    },
+    {
+      "description": "Tow Bar [For 2550mm/2100mm/1800mm Tray Body] with Sma",
+      "effective_stage": "FITTING",
+      "operation_line_id": "d669d229-8e47-4d74-b15c-b05cfbec1e04",
+      "source_work_key": "fabrication",
+      "stock_number": "13018280"
+    },
+    {
+      "description": "TOW BAR TONGUE KIT (LONG) WITH SMALL ROUND PLUG - BRO",
+      "effective_stage": "FITTING",
+      "operation_line_id": "f0fc27c2-e9fa-4759-97fc-91db578d6ca0",
+      "source_work_key": "fitting",
+      "stock_number": "13019626"
+    },
+    {
+      "description": "Tow Bar [For Pick-Up and 2400mm Tray Body] with Small",
+      "effective_stage": "FITTING",
+      "operation_line_id": "587b7a7c-2bce-48d0-9b5f-9a4423879b9f",
+      "source_work_key": "fabrication",
+      "stock_number": "13019956"
+    },
+    {
+      "description": "Tow Bar [For Pick-Up and 2400mm Tray Body] with Small",
+      "effective_stage": "FITTING",
+      "operation_line_id": "eea53bb4-def4-400a-8df2-837c3bfcbdbc",
+      "source_work_key": "fabrication",
+      "stock_number": "13019957"
+    },
+    {
+      "description": "SUPPLY AND FIT 12V DOUBLE ENGEL/ACC SOCKET TO LHS TRA",
+      "effective_stage": "ELECTRICAL",
+      "operation_line_id": "ff819d97-1046-4249-bade-4d3a5d406d3d",
+      "source_work_key": "fitting",
+      "stock_number": "13021035"
+    },
+    {
+      "description": "TOW BAR [FOR 2550MM/2100MM/1800MM TRAY BODY] WITH SMA",
+      "effective_stage": "FITTING",
+      "operation_line_id": "efe2918a-58be-49db-9755-2ca6b5ba73cc",
+      "source_work_key": "fabrication",
+      "stock_number": "13021035"
+    },
+    {
+      "description": "Tow Bar SAFE T STEP",
+      "effective_stage": "FITTING",
+      "operation_line_id": "7acf3c1d-3d64-41e6-96f2-9bfd26787ef1",
+      "source_work_key": "fitting",
+      "stock_number": "13021035"
+    },
+    {
+      "description": "TOW BAR [FOR 2550MM/2100MM/1800MM TRAY BODY] WITH SMA",
+      "effective_stage": "FITTING",
+      "operation_line_id": "14301a90-85f9-4581-9133-22da52fe35f6",
+      "source_work_key": "fabrication",
+      "stock_number": "13021037"
+    },
+    {
+      "description": "TOW BAR [FOR 2550MM/2100MM/1800MM TRAY BODY] WITH SMA",
+      "effective_stage": "FITTING",
+      "operation_line_id": "6120eec8-d344-46dd-9b7a-837ec0c4db0d",
+      "source_work_key": "fabrication",
+      "stock_number": "13021038"
+    },
+    {
+      "description": "Tow Bar SAFE T STEP",
+      "effective_stage": "FITTING",
+      "operation_line_id": "0247d45b-5882-462a-b9bb-1eec42b67bdb",
+      "source_work_key": "fitting",
+      "stock_number": "13021038"
+    },
+    {
+      "description": "Tow Bar [For 2550mm/2100mm/1800mm Tray Body] with Sma",
+      "effective_stage": "FITTING",
+      "operation_line_id": "6bcc57ef-dbd7-4e2c-a865-532525d9a25a",
+      "source_work_key": "fabrication",
+      "stock_number": "13021070"
+    },
+    {
+      "description": "Tow Bar [For 2550mm/2100mm/1800mm Tray Body] with Sma",
+      "effective_stage": "FITTING",
+      "operation_line_id": "9ebf2546-5336-46b6-aac8-ba15549dcd1e",
+      "source_work_key": "fabrication",
+      "stock_number": "13021071"
+    },
+    {
+      "description": "Tow Bar [For 2550mm/2100mm/1800mm Tray Body] with Sma",
+      "effective_stage": "FITTING",
+      "operation_line_id": "9fa78f66-d7a1-4c1e-bf64-5da677b5db4a",
+      "source_work_key": "fabrication",
+      "stock_number": "13021072"
+    },
+    {
+      "description": "Tow Bar [For 2550mm/2100mm/1800mm Tray Body] with Sma",
+      "effective_stage": "FITTING",
+      "operation_line_id": "8fe782f6-35a8-421a-b996-9483acb1aec2",
+      "source_work_key": "fabrication",
+      "stock_number": "13021073"
+    },
+    {
+      "description": "Tow Bar [For 2550mm/2100mm/1800mm Tray Body] with Sma",
+      "effective_stage": "FITTING",
+      "operation_line_id": "a20413c7-1bae-4bab-ab15-7ea5206cf1e3",
+      "source_work_key": "fabrication",
+      "stock_number": "13021074"
+    },
+    {
+      "description": "Tow Bar [For 2550mm/2100mm/1800mm Tray Body] with Sma",
+      "effective_stage": "FITTING",
+      "operation_line_id": "d46f863f-6dfa-4b4d-9193-7e967f1d677d",
+      "source_work_key": "fabrication",
+      "stock_number": "13021075"
+    },
+    {
+      "description": "Tow Bar [For 2550mm/2100mm/1800mm Tray Body] with Sma",
+      "effective_stage": "FITTING",
+      "operation_line_id": "7f638dfb-c999-4dae-8250-b8280e0239e2",
+      "source_work_key": "fabrication",
+      "stock_number": "13021076"
+    },
+    {
+      "description": "Tow Bar [For 2550mm/2100mm/1800mm Tray Body] with Sma",
+      "effective_stage": "FITTING",
+      "operation_line_id": "9c97aae1-3b69-4e87-8474-4302e49b62f8",
+      "source_work_key": "fabrication",
+      "stock_number": "13021077"
+    },
+    {
+      "description": "Tow Bar [For 2550mm/2100mm/1800mm Tray Body] with Sma",
+      "effective_stage": "FITTING",
+      "operation_line_id": "13c02bbd-f700-4635-9911-e7a8a7f0890d",
+      "source_work_key": "fabrication",
+      "stock_number": "13021078"
+    },
+    {
+      "description": "Tow Bar [For 2550mm/2100mm/1800mm Tray Body] with Sma",
+      "effective_stage": "FITTING",
+      "operation_line_id": "704b0a83-a1f6-4624-9e68-539c3950e310",
+      "source_work_key": "fabrication",
+      "stock_number": "13021079"
+    },
+    {
+      "description": "Tow Bar [For 2550mm/2100mm/1800mm Tray Body] with Sma",
+      "effective_stage": "FITTING",
+      "operation_line_id": "5127432a-9a4e-4c1d-ba03-f18af70cce00",
+      "source_work_key": "fabrication",
+      "stock_number": "13021110"
+    },
+    {
+      "description": "Tow Bar [For 2550mm/2100mm/1800mm Tray Body] with Sma",
+      "effective_stage": "FITTING",
+      "operation_line_id": "0e5926f6-d317-4d59-80e7-07fa19ba1659",
+      "source_work_key": "fabrication",
+      "stock_number": "13021111"
+    },
+    {
+      "description": "Tow Bar [For 2550mm/2100mm/1800mm Tray Body] with Sma",
+      "effective_stage": "FITTING",
+      "operation_line_id": "1cfaaf9b-cc02-4e89-91da-42ab7f8b5670",
+      "source_work_key": "fabrication",
+      "stock_number": "13021113"
+    },
+    {
+      "description": "Tow Bar [For 2550mm/2100mm/1800mm Tray Body] with Sma",
+      "effective_stage": "FITTING",
+      "operation_line_id": "4842acd3-7be0-46d6-bc19-30d70af56c81",
+      "source_work_key": "fabrication",
+      "stock_number": "13021136"
+    },
+    {
+      "description": "Tow Bar [For 2550mm/2100mm/1800mm Tray Body] with Sma",
+      "effective_stage": "FITTING",
+      "operation_line_id": "2c9d31be-a7f9-4965-a8e0-1219f7937816",
+      "source_work_key": "fabrication",
+      "stock_number": "13021137"
+    },
+    {
+      "description": "Tow Bar [For 2550mm/2100mm/1800mm Tray Body] with Sma",
+      "effective_stage": "FITTING",
+      "operation_line_id": "a30d9f02-fa79-4907-ae7e-2658781b3710",
+      "source_work_key": "fabrication",
+      "stock_number": "13021138"
+    },
+    {
+      "description": "Tow Bar [For 2550mm/2100mm/1800mm Tray Body] with Sma",
+      "effective_stage": "FITTING",
+      "operation_line_id": "4a040b73-f7cd-44d3-8be6-d2dbeaab6295",
+      "source_work_key": "fabrication",
+      "stock_number": "13021140"
+    },
+    {
+      "description": "Tow Bar [For 2550mm/2100mm/1800mm Tray Body] with Sma",
+      "effective_stage": "FITTING",
+      "operation_line_id": "b1476391-805c-499b-a131-3004ed3f91aa",
+      "source_work_key": "fabrication",
+      "stock_number": "13021141"
+    },
+    {
+      "description": "Tow Bar [For 2550mm/2100mm/1800mm Tray Body] with Sma",
+      "effective_stage": "FITTING",
+      "operation_line_id": "b9f76477-75a6-470d-ab60-b900edfaf9d2",
+      "source_work_key": "fabrication",
+      "stock_number": "13021142"
+    },
+    {
+      "description": "Tow Bar [For 2550mm/2100mm/1800mm Tray Body] with Sma",
+      "effective_stage": "FITTING",
+      "operation_line_id": "e817c753-1c22-4352-a711-816416663320",
+      "source_work_key": "fabrication",
+      "stock_number": "13021143"
+    },
+    {
+      "description": "Tow Bar [For 2550mm/2100mm/1800mm Tray Body] with Sma",
+      "effective_stage": "FITTING",
+      "operation_line_id": "60e198e6-bce7-48fc-a291-a9f2a3250d36",
+      "source_work_key": "fabrication",
+      "stock_number": "13021146"
+    },
+    {
+      "description": "Tow Bar [For 2550mm/2100mm/1800mm Tray Body] with Sma",
+      "effective_stage": "FITTING",
+      "operation_line_id": "0eca0587-f067-44f1-8fe4-659ebfbc59df",
+      "source_work_key": "fabrication",
+      "stock_number": "13021147"
+    },
+    {
+      "description": "Tow Bar [For 2550mm/2100mm/1800mm Tray Body] with Sma",
+      "effective_stage": "FITTING",
+      "operation_line_id": "7619f0b5-4650-4ea9-b68b-deaf93112839",
+      "source_work_key": "fabrication",
+      "stock_number": "13021290"
+    },
+    {
+      "description": "1.5 KG FIRE EXT TO CARGO BARRIER or L/H Tray Head Boa",
+      "effective_stage": "FITTING",
+      "operation_line_id": "c07315ec-b1fd-4b8f-9307-7effa46daf06",
+      "source_work_key": "fabrication",
+      "stock_number": "13029372"
+    },
+    {
+      "description": "Tow Bar [For 2550mm/2100mm/1800mm Tray Body] with Sma",
+      "effective_stage": "FITTING",
+      "operation_line_id": "e7da3263-d1e5-42e0-9404-ea02573bf057",
+      "source_work_key": "fabrication",
+      "stock_number": "13042993"
+    },
+    {
+      "description": "TOW BAR WITH SMALL ROUND PLUG",
+      "effective_stage": "FITTING",
+      "operation_line_id": "a9b7a8c1-c8ee-4d15-a646-9fe0397b4e80",
+      "source_work_key": "fitting",
+      "stock_number": "1IWQ935"
+    },
+    {
+      "description": "SUPPLY AND FIT TOW BAR",
+      "effective_stage": "FITTING",
+      "operation_line_id": "ae6f9856-6875-4bd9-b4bc-27bea3247db6",
+      "source_work_key": "fitting",
+      "stock_number": "IS60067936"
+    },
+    {
+      "description": "Supply and Fit Tow Bar",
+      "effective_stage": "FITTING",
+      "operation_line_id": "3fe4a57f-4c19-4bd9-a040-1f4473869ff8",
+      "source_work_key": "fitting",
+      "stock_number": "IS60139374"
+    },
+    {
+      "description": "Supply and Fit Towbar Tongue Kit",
+      "effective_stage": "FITTING",
+      "operation_line_id": "7267eedd-3509-4b16-93b7-15880f50311d",
+      "source_work_key": "fitting",
+      "stock_number": "IS60140472"
+    },
+    {
+      "description": "Supply Towbar Wiring Harness (OPT)With 12 Pin Harness",
+      "effective_stage": "FITTING",
+      "operation_line_id": "10e25305-02d1-4672-a8dd-e5fe00685832",
+      "source_work_key": "fitting",
+      "stock_number": "IS60140472"
+    },
+    {
+      "description": "Supply and Fit Tow Bar",
+      "effective_stage": "FITTING",
+      "operation_line_id": "6dcae97c-41f2-4e39-85c0-cccda3a0b9f8",
+      "source_work_key": "fitting",
+      "stock_number": "IS60252097"
+    },
+    {
+      "description": "Supply and Fit Tow Bar",
+      "effective_stage": "FITTING",
+      "operation_line_id": "a0d07d9b-f1ee-401f-b005-b91aca06dd59",
+      "source_work_key": "fitting",
+      "stock_number": "IS60252133"
+    },
+    {
+      "description": "Supply and Fit Tow Bar",
+      "effective_stage": "FITTING",
+      "operation_line_id": "fec24855-1aa0-45ca-a81c-f361ffca5f27",
+      "source_work_key": "fitting",
+      "stock_number": "IS60252174"
+    },
+    {
+      "description": "Supply and Fit Tow Bar",
+      "effective_stage": "FITTING",
+      "operation_line_id": "f1622252-84f1-4182-a2a1-8b4ea493964b",
+      "source_work_key": "fitting",
+      "stock_number": "IS60252273"
+    },
+    {
+      "description": "FIT NAVMAN IVMS WITH CARDEX INTERFACE SYSTEM",
+      "effective_stage": "ELECTRICAL",
+      "operation_line_id": "f5d5f2df-5025-46d8-967a-d206d9dbbc76",
+      "source_work_key": "fitting",
+      "stock_number": "LV0202"
+    },
+    {
+      "description": "TOWBAR TONGUE AND TOW BALL - PARTS TO SUPPLY RETAININ",
+      "effective_stage": "FITTING",
+      "operation_line_id": "491063c3-4552-4cda-ad66-4c7f7c6a1ddb",
+      "source_work_key": "PARTS",
+      "stock_number": "LV0202"
+    }
+  ],
+  "work_item_mismatches": 0
+}

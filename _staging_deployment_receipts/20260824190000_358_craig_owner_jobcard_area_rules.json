@@ -1,0 +1,22 @@
+{
+  "applied": true,
+  "ledger_readback": [
+    {
+      "name": "358_craig_owner_jobcard_area_rules",
+      "version": "20260824190000"
+    }
+  ],
+  "management_response": [
+    {
+      "pg_advisory_xact_lock": ""
+    }
+  ],
+  "migration_file": "20260824190000_358_craig_owner_jobcard_area_rules.sql",
+  "migration_name": "358_craig_owner_jobcard_area_rules",
+  "migration_sha256": "8f02a9f7b1e6e53b68aa372cf9477013739b24b8eb862003b4472219e1772ff3",
+  "migration_version": "20260824190000",
+  "production_ref_rejected": "vjdtsswhroyguxyfjdkt",
+  "recorded_at_utc": "2026-08-24T06:06:41.984340+00:00",
+  "schema": "pdc-staging-management-migration-receipt-v1",
+  "target_ref": "cdsmnqxtyyoeoznmbidd"
+}

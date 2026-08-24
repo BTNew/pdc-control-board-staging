@@ -2,8 +2,11 @@
 import argparse,hashlib,json,re,sys
 from pathlib import Path
 sys.path.insert(0,str(Path(__file__).resolve().parent))
-import pdc_staging_operation_workbook_import as op
 from pdc_staging_management_migration import _post,STAGING_REF,PRODUCTION_REF
+
+def opmod():
+ import pdc_staging_operation_workbook_import
+ return pdc_staging_operation_workbook_import
 
 EXPECTED_WRONG=200
 TARGET_COUNTS={"electrical":25,"fitting":146,"hoist":29}
@@ -23,7 +26,7 @@ def classify(s):
 
 def read(sql):return _post(f"https://api.supabase.com/v1/projects/{STAGING_REF}/database/query/read-only","SET TRANSACTION READ ONLY;"+sql)
 def rpc(base,actor,name,body):
- r=op.request_json(base+"/rest/v1/rpc/"+name,"POST",actor["headers"],body)
+ r=opmod().request_json(base+"/rest/v1/rpc/"+name,"POST",actor["headers"],body)
  if r.get("ok") is not True:raise RuntimeError(f"PDC_RULE_RPC_FAILED:{name}:{r.get('code')}")
  return r
 
@@ -51,7 +54,7 @@ def verify():
  return e
 
 def main():
- a=argparse.ArgumentParser();a.add_argument("--apply",action="store_true");a.add_argument("--confirmation");a.add_argument("--receipt",type=Path);args=a.parse_args()
+ a=argparse.ArgumentParser();a.add_argument("--apply",action="store_true");a.add_argument("--confirmation");a.add_argument("--receipt",type=Path);args=a.parse_args();op=opmod()
  env=op.env(op.WEBSITE_ENV);base=env["PDC_STAGING_SUPABASE_URL"]
  if env.get("PDC_STAGING_PROJECT_REF")!=STAGING_REF or PRODUCTION_REF in base:raise RuntimeError("PDC_RULE_TARGET_GUARD")
  admin=op.auth(base,env["PDC_STAGING_ANON_KEY"],env["PDC_STAGING_ADMIN_EMAIL"],env["PDC_STAGING_ADMIN_PASSWORD"])

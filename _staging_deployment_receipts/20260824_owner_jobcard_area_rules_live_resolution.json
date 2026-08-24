@@ -1,0 +1,80 @@
+{
+  "cases": [
+    {
+      "description": "Tow Bar [For 2550mm/2100mm/1800mm Tray Body] with Smart Pin",
+      "expected_work_key": "fitting",
+      "precedence": "phrase",
+      "result_code": "deterministic_match",
+      "version_id": "f0ac7bbb-7b4b-4c4d-8b62-f62d33511f35",
+      "version_no": 1,
+      "work_key": "fitting"
+    },
+    {
+      "description": "ARB FRONTIER LONG RANGE FUEL TANK - SUB TANK REPLACEM",
+      "expected_work_key": "hoist",
+      "precedence": "phrase",
+      "result_code": "deterministic_match",
+      "version_id": "a74915fa-ce08-43dd-876f-97ad44fa488e",
+      "version_no": 1,
+      "work_key": "hoist"
+    },
+    {
+      "description": "1.5 KG FIRE EXT TO CARGO BARRIER or L/H Tray Head Boa",
+      "expected_work_key": "fitting",
+      "precedence": "phrase",
+      "result_code": "deterministic_match",
+      "version_id": "16ef7951-30b4-4f14-8230-3d3e9e59db44",
+      "version_no": 1,
+      "work_key": "fitting"
+    },
+    {
+      "description": "SUPPLY AND FIT DUAL 12V ACC SOCKET IN MODULE",
+      "expected_work_key": "electrical",
+      "precedence": "phrase",
+      "result_code": "deterministic_match",
+      "version_id": "1d8e549a-b167-4e63-93d9-c96726d58e0b",
+      "version_no": 1,
+      "work_key": "electrical"
+    },
+    {
+      "description": "Supply and Fit 12v PLUG To Rear",
+      "expected_work_key": "electrical",
+      "precedence": "phrase",
+      "result_code": "deterministic_match",
+      "version_id": "1d8e549a-b167-4e63-93d9-c96726d58e0b",
+      "version_no": 1,
+      "work_key": "electrical"
+    },
+    {
+      "description": "ARB Battery Box Mounted in Tray - BCDC1225D - 100Ah",
+      "expected_work_key": "electrical",
+      "precedence": "phrase",
+      "result_code": "deterministic_match",
+      "version_id": "d318d418-d74c-473e-a7a2-091c5bbf9196",
+      "version_no": 1,
+      "work_key": "electrical"
+    },
+    {
+      "description": "FIT XRS 370c -Select Aerial additional Job Line",
+      "expected_work_key": "electrical",
+      "precedence": "phrase",
+      "result_code": "deterministic_match",
+      "version_id": "ec35623d-09de-4008-bb36-78b5614600c7",
+      "version_no": 1,
+      "work_key": "electrical"
+    },
+    {
+      "description": "Fit Navman IVMS with Cardex Interface system",
+      "expected_work_key": "electrical",
+      "precedence": "phrase",
+      "result_code": "deterministic_match",
+      "version_id": "e0977814-f6ff-4fc4-a6fd-8f888c3285fc",
+      "version_no": 1,
+      "work_key": "electrical"
+    }
+  ],
+  "production_touched": false,
+  "project_ref": "cdsmnqxtyyoeoznmbidd",
+  "schema": "pdc-owner-jobcard-area-rule-live-resolution-v1",
+  "status": "VERIFIED"
+}

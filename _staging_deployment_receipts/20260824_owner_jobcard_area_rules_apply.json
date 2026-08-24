@@ -1,0 +1,86 @@
+{
+  "batches": [
+    {
+      "apply": {
+        "code": "correction_batch_applied",
+        "data": {
+          "applied": 0,
+          "batch_id": "3176d587-884e-472b-ab2d-7a7b88610471",
+          "booking_changed": false,
+          "location_changed": false,
+          "skipped": 100,
+          "status_changed": false
+        },
+        "ok": true
+      },
+      "batch_id": "3176d587-884e-472b-ab2d-7a7b88610471",
+      "idempotency_key": "craig-owner-jobcard-area-rules-20260824-1-4d2f64aad0b5ef9f",
+      "item_count": 100,
+      "replay": {
+        "code": "correction_batch_applied",
+        "data": {
+          "applied": 0,
+          "batch_id": "3176d587-884e-472b-ab2d-7a7b88610471",
+          "booking_changed": false,
+          "location_changed": false,
+          "skipped": 100,
+          "status_changed": false
+        },
+        "ok": true
+      }
+    },
+    {
+      "apply": {
+        "code": "correction_batch_applied",
+        "data": {
+          "applied": 2,
+          "batch_id": "80a35023-e3ca-4f74-9fb4-fbc71b963b6e",
+          "booking_changed": false,
+          "location_changed": false,
+          "skipped": 98,
+          "status_changed": false
+        },
+        "ok": true
+      },
+      "batch_id": "80a35023-e3ca-4f74-9fb4-fbc71b963b6e",
+      "idempotency_key": "craig-owner-jobcard-area-rules-20260824-2-4fb2fc43ef05f101",
+      "item_count": 100,
+      "replay": {
+        "code": "correction_batch_applied",
+        "data": {
+          "applied": 0,
+          "batch_id": "80a35023-e3ca-4f74-9fb4-fbc71b963b6e",
+          "booking_changed": false,
+          "location_changed": false,
+          "skipped": 100,
+          "status_changed": false
+        },
+        "ok": true
+      }
+    }
+  ],
+  "production_touched": false,
+  "project_ref": "cdsmnqxtyyoeoznmbidd",
+  "readback": {
+    "active_mailboxes": 0,
+    "active_rules": 7,
+    "active_writers": 0,
+    "adjustments": 200,
+    "by_stage": {
+      "ELECTRICAL": 44,
+      "FITTING": 161,
+      "HOIST": 29
+    },
+    "matched_lines": 234,
+    "monitor_status": "stopped",
+    "wrong_effective": 0
+  },
+  "schema": "pdc-owner-jobcard-area-rules-v1",
+  "scope_count": 200,
+  "status": "APPLIED",
+  "target_counts": {
+    "electrical": 25,
+    "fitting": 146,
+    "hoist": 29
+  }
+}
