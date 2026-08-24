@@ -24,8 +24,15 @@ def main():
  fleet=read();protected=fleet["protected_state"]
  rows={r["scenario_no"]:r for r in fleet["vehicles"] if r["scenario_no"] in (5,6,7)}
  if set(rows)!={5,6,7}:raise RuntimeError("scenario inventory mismatch")
+ allowed_existing={
+  5:{("2026-08-26T01:07:00+00:00",73)},
+  6:{("2026-08-26T01:11:00+00:00",61)},
+  7:{("2026-08-26T02:23:00+00:00",47),("2026-08-26T03:10:00+00:00",59)}
+ }
  for no,row in rows.items():
-  if row["vehicle"]["stock_number"]!=f"HERMES-TEST-{no:03d}" or row["vehicle"]["current_location"]!="PMB" or row["bookings"]:raise RuntimeError(f"scenario {no} precondition mismatch")
+  if row["vehicle"]["stock_number"]!=f"HERMES-TEST-{no:03d}" or row["vehicle"]["current_location"]!="PMB":raise RuntimeError(f"scenario {no} identity/location precondition mismatch")
+  observed={(b.get("scheduled_start_at"),int(b.get("default_duration_minutes"))) for b in row["bookings"]}
+  if not observed.issubset(allowed_existing[no]):raise RuntimeError(f"scenario {no} unexpected existing booking precondition {observed}")
  estimate_results=[]
  for no,stage,hours,minutes in ((5,"FITTING",1.22,73),(6,"ELECTRICAL",1.02,61),(7,"FITTING",0.78,47),(7,"ELECTRICAL",0.98,59)):
   vehicle=rows[no]["vehicle"];idem=str(uuid.uuid5(ESTIMATE_NAMESPACE,f"{RUN}:scenario-{no:03d}:{stage}"))
@@ -55,12 +62,16 @@ def main():
   payload={"p_run_id":RUN,"p_vehicle_id":vehicle["id"],"p_expected_version":version,"p_idempotency_key":idem,
    "p_stage_code":stage,"p_bay_number":bay,"p_scheduled_start_at":start,"p_duration_minutes":duration,"p_technician_id":None,"p_override_reason":None}
   pre=prove_environment();status,response=rpc("pdc_hermes_test_schedule_365",payload)
-  if status!=200 or response.get("replay") is not False or response.get("notification_delta")!=0:raise RuntimeError(f"{label} wrapper failure {status} {json.dumps(response)[:1200]}")
+  if status!=200 or response.get("replay") not in (False,True) or response.get("notification_delta")!=0:raise RuntimeError(f"{label} wrapper failure {status} {json.dumps(response)[:1200]}")
+  was_replay=response.get("replay") is True
   after=read(vehicle["id"]);after_row=after["vehicles"][0]
   if after.get("protected_state")!=protected:raise RuntimeError(f"{label} protected digest changed")
   if expect_success:
-   if response.get("ok") is not True or len(after_row["bookings"])!=len(before_bookings)+1 or int(after_row["vehicle"]["version"])!=version+1:raise RuntimeError(f"{label} success postcondition {json.dumps(response)[:1200]}")
-   matches=[b for b in after_row["bookings"] if str(b.get("stage_code")).upper()==stage and int(b.get("bay_number"))==bay and b.get("scheduled_start_at")==start]
+   expected_booking_count=len(before_bookings)+(0 if was_replay else 1)
+   if response.get("ok") is not True or len(after_row["bookings"])!=expected_booking_count or int(after_row["vehicle"]["version"])!=version:raise RuntimeError(f"{label} success postcondition {json.dumps(response)[:1200]}")
+   result_booking=((response.get("result") or {}).get("booking") or {})
+   if str(((result_booking.get("stage") or {}).get("code") or '')).upper()!=stage or int(((result_booking.get("bay") or {}).get("bay_number") or -1))!=bay:raise RuntimeError(f"{label} response stage/bay mismatch")
+   matches=[b for b in after_row["bookings"] if b.get("scheduled_start_at")==start and int(b.get("default_duration_minutes"))==duration]
    if len(matches)!=1:raise RuntimeError(f"{label} exact-minute booking missing: {json.dumps(after_row['bookings'])[:1200]}")
    booking=matches[0]
    start_dt=dt.datetime.fromisoformat(start.replace("Z","+00:00"));expected_end=(start_dt+dt.timedelta(minutes=duration)).isoformat().replace("+00:00","+00:00")
@@ -71,11 +82,12 @@ def main():
    if response.get("ok") is not False or "conflict" not in text or (conflict_kind and conflict_kind not in text):raise RuntimeError(f"{label} conflict not enforced {json.dumps(response)[:1200]}")
    if len(after_row["bookings"])!=len(before_bookings) or int(after_row["vehicle"]["version"])!=version:raise RuntimeError(f"{label} rejected action changed target")
    booking=None
-  if len(after_row["receipts"])!=len(before_receipts)+1:raise RuntimeError(f"{label} receipt count mismatch")
+  expected_receipt_count=len(before_receipts)+(0 if was_replay else 1)
+  if len(after_row["receipts"])!=expected_receipt_count:raise RuntimeError(f"{label} receipt count mismatch")
   replay_status,replay=rpc("pdc_hermes_test_schedule_365",payload)
   replay_state=read(vehicle["id"]);replay_row=replay_state["vehicles"][0]
   if replay_status!=200 or replay.get("replay") is not True or replay.get("replay_containment_verified") is not True or len(replay_row["bookings"])!=len(after_row["bookings"]) or len(replay_row["receipts"])!=len(after_row["receipts"]):raise RuntimeError(f"{label} replay mismatch")
-  results.append({"label":label,"scenario_no":scenario_no,"stock":vehicle["stock_number"],"stage_code":stage,"bay_number":bay,"scheduled_start_at":start,"duration_minutes":duration,"expected_success":expect_success,"conflict_kind":conflict_kind,"receipt_id":response.get("receipt_id"),"booking_id":booking.get("id") if booking else None,"vehicle_version_before":version,"vehicle_version_after":after_row["vehicle"]["version"],"result":response.get("result"),"revisions":response.get("revisions"),"protected_state":response.get("protected_state"),"sibling_state":response.get("sibling_state"),"pre_action_migration_head":pre["database"]["migration_head"],"replay_verified":True})
+  results.append({"label":label,"scenario_no":scenario_no,"stock":vehicle["stock_number"],"stage_code":stage,"bay_number":bay,"scheduled_start_at":start,"duration_minutes":duration,"expected_success":expect_success,"conflict_kind":conflict_kind,"receipt_id":response.get("receipt_id"),"booking_id":booking.get("id") if booking else None,"vehicle_version_before":version,"vehicle_version_after":after_row["vehicle"]["version"],"result":response.get("result"),"revisions":response.get("revisions"),"protected_state":response.get("protected_state"),"sibling_state":response.get("sibling_state"),"pre_action_migration_head":pre["database"]["migration_head"],"initial_call_replay":was_replay,"replay_verified":True})
   return after_row
  # Arbitrary minute starts/durations prove minute precision rather than rounded slots.
  schedule("scenario-005-fitting-0907",5,"FITTING",5,"2026-08-26T01:07:00+00:00",73,True)

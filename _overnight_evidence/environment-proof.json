@@ -11,8 +11,8 @@
     "active_activation_writers": 0,
     "active_mailboxes": 0,
     "migration_head": {
-      "name": "369_overnight_synthetic_estimates",
-      "version": "20260825060000"
+      "name": "370_overnight_exact_synthetic_minutes",
+      "version": "20260825070000"
     },
     "monitor_status": "stopped",
     "outbound_notification_rows": 0,

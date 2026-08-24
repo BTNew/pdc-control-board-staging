@@ -1,0 +1,22 @@
+{
+  "applied": true,
+  "ledger_readback": [
+    {
+      "name": "370_overnight_exact_synthetic_minutes",
+      "version": "20260825070000"
+    }
+  ],
+  "management_response": [
+    {
+      "pg_advisory_xact_lock": ""
+    }
+  ],
+  "migration_file": "20260825070000_370_overnight_exact_synthetic_minutes.sql",
+  "migration_name": "370_overnight_exact_synthetic_minutes",
+  "migration_sha256": "fe7fbc342eae31918043ee549bf49ef18ee076b63c8260b0d6b7bfbcc12743ce",
+  "migration_version": "20260825070000",
+  "production_ref_rejected": "vjdtsswhroyguxyfjdkt",
+  "recorded_at_utc": "2026-08-24T16:07:40.659945+00:00",
+  "schema": "pdc-staging-management-migration-receipt-v1",
+  "target_ref": "cdsmnqxtyyoeoznmbidd"
+}
