@@ -6,6 +6,7 @@
 - Preserved the immutable 432 baseline as evidence while rebinding read containment to the current staging/registry/mailbox/Monitor/outbound-delivery guards, so ordinary mutable Workshop state cannot make read-only synthetic inventory unavailable.
 - Rebound the acceptance create/lifecycle effective function definitions to compare exact protected, notification and outbound state before versus after; retained authenticated-only ACLs, replay/stale protections, synthetic identity and absent-Production-sentinel guards. Production, real vehicles/bookings/users, mailbox runtime, sent/delivered delivery and production data remain untouched.
 - Added append-only migration `supabase/staging_only/20260826220000_437_registered_replay_containment_repair.sql` so registered synthetic replays remain safe after ordinary mutable staging changes instead of comparing current state with an obsolete receipt snapshot. The replay remains identity-, registry-, ACL- and containment-bound; no write or delivery path was relaxed.
+- Added append-only migration `supabase/staging_only/20260826221000_438_acceptance_stale_fast_path.sql` after the live stale-version probe showed the lifecycle path could spend its full timeout in containment locking before rejecting an already-stale registered synthetic request. The early check is only an additional fast rejection; the locked path remains authoritative and all normal writes retain exact protected/notification/outbound before-vs-after checks.
 
 ## 2026-08-26 — Receipt-backed QC photo finalization and canonical Sublet provider writes
 
