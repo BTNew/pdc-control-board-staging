@@ -2023,6 +2023,7 @@ const app = {
   emailVehicleLocationRevision: null,
   emailVehicleLocationGeneration: 0,
   emailVehicleLocationRealtime: null,
+  emailVehicleReceiptOverlays: new Map(),
   deletedVehicleSnapshotRows: [],
   deletedVehicleSnapshotState: 'idle',
   deletedVehicleSnapshotError: '',
@@ -4285,6 +4286,133 @@ function salespersonAssignmentIdempotencyKey() {
   if (typeof crypto?.randomUUID === 'function') return crypto.randomUUID();
   return '00000000-0000-4000-8000-' + Array.from({ length: 12 }, () => Math.floor(Math.random() * 16).toString(16)).join('');
 }
+function authoritativeReceiptData(result = {}) {
+  const data = result?.data && typeof result.data === 'object' ? result.data : null;
+  const vehicleId = String(data?.vehicle_id || '').trim();
+  const receiptId = String(data?.receipt_id || '').trim();
+  const vehicleVersionAfter = Number(data?.vehicle_version_after ?? data?.vehicle_version ?? 0);
+  if (result?.ok !== true || !vehicleId || !receiptId || !Number.isInteger(vehicleVersionAfter) || vehicleVersionAfter < 1) return null;
+  const effective = data?.effective_salesperson && typeof data.effective_salesperson === 'object' ? data.effective_salesperson : {};
+  return {
+    receiptId, vehicleId, vehicleVersionAfter,
+    salespersonCode: String(effective.salesperson_code || '').trim().toUpperCase(),
+    salespersonName: String(effective.salesperson_name || '').trim(),
+    salespersonEmail: String(effective.salesperson_email || '').trim().toLowerCase(),
+    salespersonManualOverride: effective.salesperson_manual_override === true,
+    hasSalespersonProjection: Object.prototype.hasOwnProperty.call(data || {}, 'effective_salesperson'),
+  };
+}
+function applyAuthoritativeVehicleReceipt(vehicle = {}, result = {}, requestedCode = '', detailChanges = {}) {
+  const receipt = authoritativeReceiptData(result);
+  if (!receipt || String(vehicle.__emailVehicleId || '').trim() !== receipt.vehicleId) return null;
+  const requestedSalesperson = String(requestedCode || '').trim().toUpperCase();
+  const salespersonCode = receipt.salespersonCode || requestedSalesperson || authoritativeSalespersonCode(vehicle);
+  const next = { ...vehicle, __emailVehicleId: receipt.vehicleId, __emailVehicleVersion: receipt.vehicleVersionAfter };
+  if (receipt.salespersonCode || requestedSalesperson || Object.prototype.hasOwnProperty.call(result?.data || {}, 'effective_salesperson')) {
+    next.salespersonCode = salespersonCode;
+    next.salespersonName = receipt.salespersonName || (salespersonCode ? String(vehicle.salespersonName || salespersonCode) : '');
+    next.salespersonEmail = receipt.salespersonEmail || (salespersonCode ? String(vehicle.salespersonEmail || '').trim().toLowerCase() : '');
+    next.salespersonManualOverride = receipt.salespersonManualOverride;
+    next.consultant = salespersonCode || next.salespersonName || 'Unassigned';
+  }
+  if (Object.prototype.hasOwnProperty.call(detailChanges || {}, 'client_name')) next.client = String(detailChanges.client_name ?? '').trim();
+  if (Object.prototype.hasOwnProperty.call(detailChanges || {}, 'key_number')) next.keyNumber = String(detailChanges.key_number ?? '').trim();
+  if (Object.prototype.hasOwnProperty.call(detailChanges || {}, 'job_card_number')) {
+    const jobcard = String(detailChanges.job_card_number ?? '').trim();
+    next.pdcJobcard = jobcard; next.jobcard = jobcard; next.jobCardNumber = jobcard;
+  }
+  return next;
+}
+function authoritativeVehicleReadbackStatus(row = {}, expected = {}) {
+  const rowId = String(row.id || row.permanent_vehicle_id || row.__emailVehicleId || '').trim();
+  if (!rowId || rowId !== String(expected.vehicleId || '').trim()) return 'pending';
+  const rowVersion = Number(row.version || row.__emailVehicleVersion || 0);
+  const expectedVersion = Number(expected.vehicleVersionAfter || 0);
+  if (rowVersion < expectedVersion) return 'pending';
+  const rowSalespersonCode = String(row.salesperson_code || row.salesperson_reference || row.__salespersonCode || '').trim().toUpperCase();
+  if (expected.hasSalespersonProjection && rowSalespersonCode !== String(expected.salespersonCode || '').trim().toUpperCase()) return 'contradictory';
+  const changes = expected.detailChanges && typeof expected.detailChanges === 'object' ? expected.detailChanges : {};
+  if (Object.prototype.hasOwnProperty.call(changes, 'client_name') && String(row.customer_name ?? row.client ?? '').trim() !== String(changes.client_name ?? '').trim()) return 'contradictory';
+  if (Object.prototype.hasOwnProperty.call(changes, 'key_number') && String(row.key_number ?? row.keyNumber ?? '').trim() !== String(changes.key_number ?? '').trim()) return 'contradictory';
+  if (Object.prototype.hasOwnProperty.call(changes, 'job_card_number') && String(row.job_card_number ?? row.jobcard ?? '').trim() !== String(changes.job_card_number ?? '').trim()) return 'contradictory';
+  return 'matching';
+}
+function authoritativeVehicleReceiptExpectation(result = {}, requestedCode = '', detailChanges = {}) {
+  const receipt = authoritativeReceiptData(result);
+  if (!receipt) return null;
+  return { ...receipt, salespersonCode: receipt.salespersonCode || String(requestedCode || '').trim().toUpperCase(), hasSalespersonProjection: receipt.hasSalespersonProjection || Boolean(String(requestedCode || '').trim()), detailChanges: { ...(detailChanges || {}) } };
+}
+function authoritativeVehicleRawOverlay(vehicle = {}, expected = {}) {
+  const overlay = { id: expected.vehicleId, version: expected.vehicleVersionAfter };
+  if (expected.hasSalespersonProjection) {
+    overlay.salesperson_code = expected.salespersonCode;
+    overlay.salesperson_name = String(vehicle.salespersonName || expected.salespersonCode || '');
+    overlay.salesperson_email = String(vehicle.salespersonEmail || '').trim().toLowerCase();
+    overlay.salesperson_manual_override = vehicle.salespersonManualOverride === true;
+  }
+  const changes = expected.detailChanges || {};
+  if (Object.prototype.hasOwnProperty.call(changes, 'client_name')) overlay.customer_name = String(changes.client_name ?? '').trim();
+  if (Object.prototype.hasOwnProperty.call(changes, 'key_number')) overlay.key_number = String(changes.key_number ?? '').trim();
+  if (Object.prototype.hasOwnProperty.call(changes, 'job_card_number')) overlay.job_card_number = String(changes.job_card_number ?? '').trim();
+  return overlay;
+}
+function applyAuthoritativeVehicleReceiptToState(vehicle = {}, result = {}, requestedCode = '', detailChanges = {}) {
+  const expected = authoritativeVehicleReceiptExpectation(result, requestedCode, detailChanges);
+  const patched = applyAuthoritativeVehicleReceipt(vehicle, result, requestedCode, detailChanges);
+  if (!expected || !patched) return null;
+  const canonicalId = expected.vehicleId;
+  const merge = row => String(row?.__emailVehicleId || row?.id || '').trim() === canonicalId ? { ...row, ...patched } : row;
+  app.data = (Array.isArray(app.data) ? app.data : []).map(merge);
+  app.emailVehicleLocationRows = (Array.isArray(app.emailVehicleLocationRows) ? app.emailVehicleLocationRows : []).map(merge);
+  if (!(app.emailVehicleReceiptOverlays instanceof Map)) app.emailVehicleReceiptOverlays = new Map();
+  app.emailVehicleReceiptOverlays.set(canonicalId, { expected, patchedVehicle: patched, rawOverlay: authoritativeVehicleRawOverlay(patched, expected) });
+  return { expected, patched };
+}
+function applyPendingAuthoritativeVehicleReceiptOverlays(serverRows = []) {
+  const overlays = app.emailVehicleReceiptOverlays instanceof Map ? app.emailVehicleReceiptOverlays : new Map();
+  const rows = Array.isArray(serverRows) ? serverRows : [];
+  overlays.forEach((overlay, canonicalId) => {
+    const row = rows.find(item => String(item?.id || item?.permanent_vehicle_id || '').trim() === canonicalId);
+    const status = row ? authoritativeVehicleReadbackStatus(row, overlay.expected) : 'pending';
+    if (status === 'matching' || status === 'contradictory') overlays.delete(canonicalId);
+  });
+  return rows.map(row => {
+    const canonicalId = String(row?.id || row?.permanent_vehicle_id || '').trim();
+    const overlay = overlays.get(canonicalId);
+    return overlay ? { ...row, ...overlay.rawOverlay } : row;
+  });
+}
+function applyAuthoritativeVehicleReadbackRow(row = {}) {
+  const module = window.PDC_EMAIL_VEHICLE_LOCATION_SERVICE;
+  if (!row || typeof module?.mapServerVehicle !== 'function') return null;
+  const mapped = module.mapServerVehicle(row);
+  const canonicalId = String(mapped.__emailVehicleId || row.id || '').trim();
+  const merge = item => String(item?.__emailVehicleId || item?.id || '').trim() === canonicalId ? { ...item, ...mapped } : item;
+  app.data = (Array.isArray(app.data) ? app.data : []).map(merge);
+  app.emailVehicleLocationRows = (Array.isArray(app.emailVehicleLocationRows) ? app.emailVehicleLocationRows : []).map(merge);
+  return mapped;
+}
+async function reconcileAuthoritativeVehicleReceipt(result = {}, vehicle = {}, requestedCode = '', detailChanges = {}, attempts = 3) {
+  const expected = authoritativeVehicleReceiptExpectation(result, requestedCode, detailChanges);
+  const service = app.emailVehicleLocationService;
+  if (!expected || !service?.snapshot) return { status: 'pending', vehicle };
+  for (let attempt = 0; attempt < Math.max(1, Number(attempts) || 1); attempt += 1) {
+    let response = null;
+    try { response = await service.snapshot(); } catch (_error) { response = null; }
+    const rows = Array.isArray(response?.data?.vehicles) ? response.data.vehicles : [];
+    const row = response?.ok === true ? rows.find(item => String(item?.id || '').trim() === expected.vehicleId) : null;
+    if (row) {
+      const status = authoritativeVehicleReadbackStatus(row, expected);
+      if (status === 'matching' || status === 'contradictory') {
+        app.emailVehicleReceiptOverlays?.delete?.(expected.vehicleId);
+        const mapped = applyAuthoritativeVehicleReadbackRow(row) || vehicle;
+        return { status, vehicle: mapped };
+      }
+    }
+    if (attempt + 1 < Math.max(1, Number(attempts) || 1)) await new Promise(resolve => window.setTimeout(resolve, 80 * (attempt + 1)));
+  }
+  return { status: 'pending', vehicle };
+}
 function discardLegacyAuthoritativeSalespersonEdits(rows = []) {
   const edits = loadVehicleEdits(); let changed = false;
   const fields = ['consultant', 'salesperson', 'salesPerson', 'salespersonCode', 'salespersonName', 'salespersonEmail'];
@@ -4304,10 +4432,12 @@ async function saveAuthoritativeVehicleSalesperson(vehicle = {}, requestedCode =
     ? await service.updateSalespersonAssignment(canonicalId, Number(vehicle.__emailVehicleVersion || 0), String(requestedCode || '').trim().toUpperCase(), salespersonAssignmentIdempotencyKey())
     : { ok: false, code: 'salesperson_assignment_unavailable', data: null };
   if (!result || result.ok !== true) return result || { ok: false, code: 'salesperson_assignment_unavailable', data: null };
-  if (!await refreshEmailVehicleLocations()) return { ok: false, code: 'salesperson_assignment_readback_failed', data: result.data || null };
-  const authoritative = selectedVehicle(vehicleKey(vehicle));
-  if (!authoritative || String(authoritative.__emailVehicleId || '') !== canonicalId || authoritativeSalespersonCode(authoritative) !== String(requestedCode || '').trim().toUpperCase()) return { ok: false, code: 'salesperson_assignment_readback_failed', data: result.data || null };
-  return { ...result, data: { ...(result.data || {}), authoritativeVehicle: authoritative } };
+  const applied = applyAuthoritativeVehicleReceiptToState(vehicle, result, requestedCode);
+  if (!applied) return { ok: false, code: 'salesperson_assignment_receipt_invalid', data: result.data || null };
+  void refreshEmailVehicleLocations();
+  const readback = await reconcileAuthoritativeVehicleReceipt(result, applied.patched, requestedCode);
+  if (readback.status === 'contradictory') return { ok: false, code: 'salesperson_assignment_readback_contradictory', data: result.data || null };
+  return { ...result, data: { ...(result.data || {}), authoritativeVehicle: readback.vehicle || applied.patched }, readbackPending: readback.status === 'pending' };
 }
 async function saveAuthoritativeVehicleChanges(vehicle = {}, requestedCode = '', detailChanges = {}) {
   let current = vehicle; let last = { ok: true, data: {} };
@@ -4321,13 +4451,12 @@ async function saveAuthoritativeVehicleChanges(vehicle = {}, requestedCode = '',
     ? await app.emailVehicleLocationService.updateVehicleDetailFields(current.__emailVehicleId, Number(current.__emailVehicleVersion || 0), detailChanges, salespersonAssignmentIdempotencyKey())
     : { ok: false, code: 'vehicle_detail_update_unavailable', data: null };
   if (!result || result.ok !== true) return result || { ok: false, code: 'vehicle_detail_update_unavailable', data: null };
-  if (!await refreshEmailVehicleLocations()) return { ok: false, code: 'vehicle_detail_readback_failed', data: result.data || null };
-  const authoritative = selectedVehicle(vehicleKey(current));
-  if (!authoritative || String(authoritative.__emailVehicleId || '') !== String(current.__emailVehicleId || '')
-      || ('client_name' in detailChanges && String(authoritative.client || '') !== String(detailChanges.client_name || '').trim())
-      || ('key_number' in detailChanges && String(vehicleKeyNumber(authoritative) || '') !== String(detailChanges.key_number || '').trim())
-      || ('job_card_number' in detailChanges && String(vehicleJobcardNumber(authoritative) || '') !== String(detailChanges.job_card_number || '').trim())) return { ok: false, code: 'vehicle_detail_readback_failed', data: result.data || null };
-  return { ...result, data: { ...(result.data || {}), authoritativeVehicle: authoritative } };
+  const applied = applyAuthoritativeVehicleReceiptToState(current, result, '', detailChanges);
+  if (!applied) return { ok: false, code: 'vehicle_detail_receipt_invalid', data: result.data || null };
+  void refreshEmailVehicleLocations();
+  const readback = await reconcileAuthoritativeVehicleReceipt(result, applied.patched, '', detailChanges);
+  if (readback.status === 'contradictory') return { ok: false, code: 'vehicle_detail_readback_contradictory', data: result.data || null };
+  return { ...result, data: { ...(result.data || {}), authoritativeVehicle: readback.vehicle || applied.patched }, readbackPending: readback.status === 'pending' };
 }
 
 function resetEmailVehicleLocations() {
@@ -4337,6 +4466,7 @@ function resetEmailVehicleLocations() {
   app.emailVehicleLocationService = null;
   app.emailVehicleLocationRows = [];
   app.emailVehicleLocationRevision = null;
+  app.emailVehicleReceiptOverlays = new Map();
   app.vehicleHistoryCache = new Map();
   app.vehicleHistoryRequestGeneration += 1;
   if (app.currentView === 'dashboard') renderIncomingDashboardBoard();
@@ -4350,7 +4480,7 @@ async function refreshEmailVehicleLocations() {
   const response = await service.snapshot();
   if (generation !== app.emailVehicleLocationGeneration || service !== app.emailVehicleLocationService || authority !== String(window.PDC_AUTH_CONTEXT?.userId || '')) return false;
   if (!response.ok) return false;
-  const serverRows = Array.isArray(response.data?.vehicles) ? response.data.vehicles : [];
+  const serverRows = applyPendingAuthoritativeVehicleReceiptOverlays(Array.isArray(response.data?.vehicles) ? response.data.vehicles : []);
   app.emailVehicleLocationRows = applyPendingSharedWorkStateOverlays(serverRows);
   const module = window.PDC_EMAIL_VEHICLE_LOCATION_SERVICE;
   if (typeof module?.reconcileVehicleRows === 'function') {
@@ -12981,10 +13111,11 @@ function renderDetail() {
       if (saveMessage) saveMessage.textContent = 'Error: lifecycle or stoppage fields use their dedicated shared action';
       return;
     }
+    let authoritativeResult = null;
     if (serverAuthoritative && (salespersonChanged || Object.keys(detailChanges).length)) {
       if (saveButton) { saveButton.disabled = true; saveButton.setAttribute('aria-busy', 'true'); }
       if (saveMessage) saveMessage.textContent = 'Saving…';
-      const authoritativeResult = await saveAuthoritativeVehicleChanges(v, consultant, detailChanges);
+      authoritativeResult = await saveAuthoritativeVehicleChanges(v, consultant, detailChanges);
       if (!authoritativeResult || authoritativeResult.ok !== true) {
         if (saveButton) { saveButton.disabled = false; saveButton.removeAttribute('aria-busy'); }
         if (saveMessage) saveMessage.textContent = `Error: ${authoritativeResult?.code || 'authoritative_vehicle_save_failed'}`;
@@ -13097,7 +13228,7 @@ function renderDetail() {
     }
     renderDetail();
     const msg = document.querySelector('[data-save-message]');
-    if (msg) msg.textContent = 'Saved';
+    if (msg) msg.textContent = authoritativeResult?.readbackPending ? 'Saved online; refreshing…' : 'Saved';
     if (saveButton) { saveButton.disabled = false; saveButton.removeAttribute('aria-busy'); }
   });
   $('[data-pmb-bay-detail-form]', panel)?.addEventListener('submit', (e) => {

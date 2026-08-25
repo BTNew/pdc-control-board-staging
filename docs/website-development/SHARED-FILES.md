@@ -1,5 +1,10 @@
 # Shared Files
 
+## Receipt-first salesperson readback race repair — 2026-08-25
+
+- `app.js` — receipt-first canonical UUID/version application, in-memory pending receipt overlay, bounded targeted authoritative readback, contradiction handling, and delayed-save status.
+- `test_salesperson_readback_race.js` — focused receipt/readback race, stale/eventual/immediate/contradictory snapshot, poisoned-state, replay and combined-save regression coverage.
+
 ## Focused booking and future-only Workshop corrections — 2026-08-25
 
 - `app.js` — focused vehicle-card booking entry, canonical Parts projection/focus, and raw-baseline lifecycle guard for shared detail saves.

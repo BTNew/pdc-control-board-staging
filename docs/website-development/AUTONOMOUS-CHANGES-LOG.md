@@ -1,5 +1,11 @@
 # Autonomous Website Changes
 
+## 2026-08-25 — Receipt-first salesperson readback race repair
+
+- Updated `app.js` so accepted salesperson/detail receipts apply immediately to the one canonical stable UUID/version in memory, while a bounded targeted snapshot readback reconciles stale, delayed and contradictory projections independently of broad-refresh generation races.
+- Broad refresh supersession no longer converts a validated write into `salesperson_assignment_readback_failed`; delayed readback is shown as `Saved online; refreshing…`, exact contradictory readback fails closed, and subsequent detail saves use the salesperson receipt's `vehicle_version_after`.
+- Added `test_salesperson_readback_race.js` covering stale/eventual/immediate/contradictory snapshots, poisoned local state, replay-shaped receipts, combined detail save versioning, and broad-refresh generation race behavior. No browser-local persistence was added.
+
 ## 2026-08-25 — Focused booking and future-only Workshop corrections
 
 - Vehicle-card booking links now enter a focused, scoped canonical booking mode. Exact booking ID resolution fails closed on missing/ambiguous rows, displays authoritative operation lines and exact whole-minute totals, removes legacy duration buttons, supports receipt/version-safe Save plan edits, hides candidate noise, and provides Back to Workshop planner.
