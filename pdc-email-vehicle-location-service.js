@@ -71,6 +71,7 @@ function mapServerVehicle(row = {}) {
   mapped.rftTransportBookedBy = String(row.rft_transport_booked_by || '');
   mapped.rftCollectedAt = row.rft_collected_at || '';
   mapped.rftCollectedBy = String(row.rft_collected_by || '');
+  mapped.lifecycleState = String(row.lifecycle_state || '');
   mapped.rftTransportOutbox = row.rft_transport_outbox && typeof row.rft_transport_outbox === 'object' ? row.rft_transport_outbox : {};
   mapped.pdcBlocked = Boolean(row.pmb_stoppage_started_at);
   mapped.pdcBlockReason = String(row.pmb_stoppage_reason || '');
@@ -198,7 +199,8 @@ function rowIdentities(row = {}) { return { stock: identity(row.stock_number ?? 
 function reconcileVehicleRows(localRows = [], serverRows = [], options = {}) {
   const local = Array.isArray(localRows) ? localRows : [];
   const authoritative = options && options.authoritative === true;
-  const visibleServer = (Array.isArray(serverRows) ? serverRows : []).filter(row => row && row.visible_on_board !== false);
+  const visibleServer = (Array.isArray(serverRows) ? serverRows : []).filter(row => row && (row.visible_on_board !== false
+    || (String(row.lifecycle_state || '').toLowerCase() === 'completed' && Boolean(row.rft_collected_at))));
   const localStockIndexes = new Map();
   const localVinIndexes = new Map();
   local.forEach((row, index) => {

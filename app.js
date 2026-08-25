@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.26.10-targeted-stoppage-paths';
+const APP_VERSION = '2026.08.26.11-collected-email-intercept';
 const WORKSHOP_PLANNER_SCRIPT_VERSION = APP_VERSION;
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
@@ -650,7 +650,7 @@ function completedPmbStatisticDaysLabel(value) {
 function renderCompletedPmbStatistics() {
   const host = $('#completed-pmb-statistics');
   if (!host) return;
-  const stats = completedPmbStatistics(app.data.filter(vehicleCollectedFromRft));
+  const stats = completedPmbStatistics(app.data.filter(vehicle => vehicleCollectedFromRft(vehicle) && !isHermesSyntheticVehicle(vehicle)));
   host.innerHTML = `<div class="completed-statistics-heading">
       <div><span>PMB turnaround statistics</span><strong>Collected vehicle history</strong></div>
       <small>${stats.known} of ${stats.total} vehicle${stats.total === 1 ? '' : 's'} have usable PMB and RFT dates${stats.unknown ? ` · ${stats.unknown} excluded as unknown` : ''}</small>
@@ -2284,6 +2284,10 @@ function vehicleRftTransportBooked(vehicle = {}) {
 
 function vehicleCollectedFromRft(vehicle = {}) {
   return Boolean(vehicle.rftCollected || vehicle.rftCollectedAt || vehicle.completedVehicle);
+}
+
+function isHermesSyntheticVehicle(vehicle = {}) {
+  return /^HERMES-TEST-/.test(displayStockNumber(vehicle));
 }
 
 function navisionImportedToyotaTransitCategory(vehicle = {}) {
@@ -15182,6 +15186,7 @@ function completedVehicleRows() {
   const deduplicated = new Map();
   app.data.concat(sharedCompleted).forEach(vehicle => {
     if (!vehicleCollectedFromRft(vehicle)) return;
+    if (isHermesSyntheticVehicle(vehicle)) return;
     const identity = sharedNavisionIdentityToken(displayStockNumber(vehicle) || vehicleKey(vehicle));
     const retained = deduplicated.get(identity);
     if (!retained || vehicle.__sharedNavisionCanonicalVehicleId) deduplicated.set(identity, vehicle);
