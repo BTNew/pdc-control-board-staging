@@ -3927,6 +3927,7 @@ function showView(view, options) {
     app.frozenHeaderCleanup = null;
   }
   renderActiveView();
+  if (requestedView === 'backup') configureCrmBackupAuthorityUi();
   if (enteringWorkflowBoard && workshopEligibilitySharedAuthorityEnabled()
       && !['idle', 'loading'].includes(app.workshopEligibilityState)) {
     loadWorkshopEligibilitySnapshot('route_entry_refresh');

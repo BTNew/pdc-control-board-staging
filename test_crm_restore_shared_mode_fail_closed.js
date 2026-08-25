@@ -54,5 +54,6 @@ assert.ok(sideEffects.filter(item => item.startsWith('status:error:')).length >=
 assert.ok(!sideEffects.includes('file-reader'), 'guard must run before file parsing');
 assert.ok(!sideEffects.includes('confirm'), 'guard must run before confirmation');
 assert.ok(!sideEffects.includes('set') && !sideEffects.includes('remove'), 'guard must run before browser authority writes');
+assert.match(source, /if \(requestedView === 'backup'\) configureCrmBackupAuthorityUi\(\);/, 'Backup route must refresh the guard after authenticated config becomes available');
 
 console.log('PASS: shared lifecycle mode disables and rejects CRM browser-local restore before parsing, confirmation, or storage');
