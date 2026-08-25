@@ -23,7 +23,8 @@ assert.strictEqual(exactEnd.getMinutes(), 18, 'The final three minutes must not 
 
 const source = fs.readFileSync('workshop-planner.js', 'utf8');
 assert.ok(source.includes('const canonicalSharedHours = workshopSharedModeActive()'));
-assert.ok(source.includes('workshopEstimatedHours(vehicle, normalizedStage) || workshopExactDurationHours(existing?.hours)'));
+assert.ok(source.includes('workshopExactDurationHours(workshopCalculatedStageHours(vehicle, normalizedStage)) || workshopExactDurationHours(existing?.hours)'),
+  'shared scheduling derives exact duration from the complete authenticated operation-line projection');
 assert.ok(source.includes('const duration = workshopExactDurationHours(hours) || workshopClampDurationHours(hours);'));
 assert.ok(source.includes('readonly title="Uses the canonical operation-line estimate"'));
 assert.ok(source.includes('Configured hours ${escapeHtml(workshopTimeLabelFromMinutes(0))}–${escapeHtml(workshopTimeLabelFromMinutes(WORKSHOP_PLANNER_CONFIG.dayLengthMinutes))}'), 'planner header renders authoritative configured hours');
@@ -33,7 +34,7 @@ const app = fs.readFileSync('app.js', 'utf8');
 const index = fs.readFileSync('index.html', 'utf8');
 const staging = fs.readFileSync('staging.html', 'utf8');
 const version = app.match(/const APP_VERSION = '([^']+)'/)?.[1];
-assert.strictEqual(version, '2026.08.25.03-qc-operation-lines');
+assert.strictEqual(version, '2026.08.25.06-exact-operation-totals');
 assert.ok(index.includes(`app.js?v=${version}`));
 assert.match(staging, /http-equiv=["']refresh["'][^>]+content=["']0;\s*url=\.\/["']/i);
 

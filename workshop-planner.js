@@ -1044,14 +1044,24 @@ function workshopJobLineId(text = '', index = 0) {
 function workshopImportedJobLines(vehicle = {}) {
   const directOperationLines = [vehicle.pdcEmailOperationLines, vehicle.operation_lines, vehicle.operationLines]
     .find(value => Array.isArray(value) && value.length) || [];
-  let authoritativeOperationLines = directOperationLines;
-  if (!authoritativeOperationLines.length && workshopSharedModeActive() && typeof pdcSheetVehicles === 'function') {
+  let boardOperationLines = [];
+  if (workshopSharedModeActive() && typeof pdcSheetVehicles === 'function') {
     const canonicalId = String(vehicle.id || vehicle.vehicle_id || '').trim().toLowerCase();
     const exactBoardMatches = pdcSheetVehicles().filter(row => row?.__emailVehicleServerAuthoritative === true
       && row?.__emailVehicleIdentityConflict !== true
       && String(row.__emailVehicleId || '').trim().toLowerCase() === canonicalId);
-    if (canonicalId && exactBoardMatches.length === 1) authoritativeOperationLines = exactBoardMatches[0].pdcEmailOperationLines || [];
+    if (canonicalId && exactBoardMatches.length === 1) boardOperationLines = exactBoardMatches[0].pdcEmailOperationLines || [];
   }
+  const operationLineKey = (line = {}, index = 0) => cleanNavisionText(line.operation_line_id || line.operationLineId || '')
+    || [cleanNavisionText(line.operation_no || line.operationNo || '').toUpperCase(), cleanNavisionText(line.description || '').toLowerCase(), cleanNavisionText(line.job_card_number || line.jobCardNumber || '')].join('\0')
+    || `row:${index}`;
+  const authoritativeLineMap = new Map();
+  boardOperationLines.forEach((line, index) => authoritativeLineMap.set(operationLineKey(line, index), line));
+  directOperationLines.forEach((line, index) => {
+    const key = operationLineKey(line, index);
+    authoritativeLineMap.set(key, { ...(authoritativeLineMap.get(key) || {}), ...line });
+  });
+  const authoritativeOperationLines = [...authoritativeLineMap.values()];
   const authenticated = authoritativeOperationLines.slice(0, 50).flatMap((line, index) => {
     const operationNo = cleanNavisionText(line.operation_no || line.operationNo || '').toUpperCase();
     const text = cleanNavisionText(line.description || '');
@@ -1123,10 +1133,14 @@ function workshopResolvedJobLines(vehicle = {}) {
         : workshopDetectedStageForLine(line.text, vehicle);
     const savedHours = Number(saved.hours);
     const importedHours = Number(line.hours);
+    const hasExactAuthenticatedHours = line.source === 'authenticated-operation-line' && Number.isFinite(importedHours) && importedHours >= 0;
+    const exactAuthenticatedHours = hasExactAuthenticatedHours ? workshopExactDurationHours(importedHours) : 0;
     return {
       ...line,
       stage,
-      hours: Number.isFinite(savedHours) && savedHours > 0
+      hours: hasExactAuthenticatedHours
+        ? exactAuthenticatedHours
+        : Number.isFinite(savedHours) && savedHours > 0
         ? workshopClampLineHours(savedHours)
         : Number.isFinite(importedHours) && importedHours > 0
           ? workshopClampLineHours(importedHours)
@@ -1142,10 +1156,16 @@ function workshopStageJobLines(vehicle = {}, stage = '') {
 
 function workshopCalculatedStageHours(vehicle = {}, stage = '') {
   const normalizedStage = normalizePmbStage(stage);
+  const stageLines = workshopStageJobLines(vehicle, normalizedStage);
+  const authenticatedLines = stageLines.filter(line => line.source === 'authenticated-operation-line' && Number(line.hours) > 0);
+  const additionalHours = Number(workshopAdditionalHoursMap(vehicle)[normalizedStage] || 0);
+  if (workshopSharedModeActive() && authenticatedLines.length) {
+    const exactLineHours = authenticatedLines.reduce((sum, line) => sum + Number(line.hours || 0), 0);
+    return workshopExactDurationHours(exactLineHours + (Number.isFinite(additionalHours) ? Math.max(0, additionalHours) : 0));
+  }
   const authoritativeHours = workshopEstimatedHours(vehicle, normalizedStage);
   if (authoritativeHours) return authoritativeHours;
-  const importedHours = workshopStageJobLines(vehicle, normalizedStage).reduce((sum, line) => sum + Number(line.hours || 0), 0);
-  const additionalHours = Number(workshopAdditionalHoursMap(vehicle)[normalizedStage] || 0);
+  const importedHours = stageLines.reduce((sum, line) => sum + Number(line.hours || 0), 0);
   const total = importedHours + (Number.isFinite(additionalHours) ? Math.max(0, additionalHours) : 0);
   if (total > 0) return workshopClampDurationHours(total);
   return workshopDefaultBookingHours();
@@ -1165,16 +1185,17 @@ function workshopManualDurationAllocation(requestedHours = 0, importedHours = 0)
 }
 
 function workshopManualDurationSharedPayload(plan = {}, requestedHours = 0) {
-  const nextHours = workshopClampDurationHours(requestedHours);
+  const nextHours = workshopExactDurationHours(requestedHours);
+  const previousHours = workshopExactDurationHours(plan.hours);
   return {
-    operation: 'extend',
+    operation: nextHours > previousHours ? 'extend' : 'resize',
     targetId: plan.sharedBookingId || plan.id,
     targetExpectedVersion: plan.sharedVersion,
     stageCode: plan.stage,
     bayNumber: Number(plan.bay),
     scheduledStartAt: plan.startAt,
     durationMinutes: Math.round(nextHours * 60),
-    shiftMinutes: Math.max(0, Math.round((nextHours - workshopClampDurationHours(plan.hours)) * 60)),
+    shiftMinutes: Math.max(0, Math.round((nextHours - previousHours) * 60)),
     metadata: { source: 'manual_estimated_time' },
   };
 }
@@ -5225,7 +5246,7 @@ async function scheduleWorkshopVehicle({ planId = '', vehicleKeyValue = '', stag
     ? requestedHours
     : existing?.hours || workshopCalculatedStageHours(vehicle, normalizedStage) || pmbBayHours(vehicle) || workshopDefaultBookingHours();
   const canonicalSharedHours = workshopSharedModeActive()
-    ? (workshopEstimatedHours(vehicle, normalizedStage) || workshopExactDurationHours(existing?.hours))
+    ? (workshopExactDurationHours(workshopCalculatedStageHours(vehicle, normalizedStage)) || workshopExactDurationHours(existing?.hours))
     : 0;
   const hours = canonicalSharedHours || workshopClampDurationHours(defaultHours);
   const requestedCandidate = {
@@ -6048,7 +6069,10 @@ function openWorkshopVehicleJob(key = '', requestedStage = '', requestedPlanId =
     && !['completed', 'deleted', 'cancelled'].includes(entry.status));
   const currentPlan = matchingPlans.find(entry => entry.id === requestedPlanId)
     || (matchingPlans.length === 1 ? matchingPlans[0] : null);
-  const calculatedHours = currentPlan ? workshopClampDurationHours(currentPlan.hours) : workshopCalculatedStageHours(vehicle, stage);
+  const operationLineHours = workshopCalculatedStageHours(vehicle, stage);
+  const currentPlanHours = currentPlan ? workshopExactDurationHours(currentPlan.hours) : 0;
+  const calculatedHours = operationLineHours || currentPlanHours || workshopDefaultBookingHours();
+  const planMismatch = currentPlanHours > 0 && Math.round(currentPlanHours * 60) !== Math.round(calculatedHours * 60);
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay workshop-job-overlay';
   overlay.dataset.workshopJobOverlay = 'true';
@@ -6065,8 +6089,8 @@ function openWorkshopVehicleJob(key = '', requestedStage = '', requestedPlanId =
     </div>
     <form data-workshop-job-form data-workshop-job-key="${escapeHtml(vehicleKey(vehicle))}" data-workshop-job-stage="${escapeHtml(stage)}">
       <section class="workshop-current-stage-time">
-        <div><strong>${escapeHtml(pmbStageLabel(stage))} planned time</strong><span><strong data-workshop-estimated-hours-total>${escapeHtml(calculatedHours)}</strong> hours total · ${stageLines.length} imported line${stageLines.length === 1 ? '' : 's'} allocated here</span></div>
-        <label><span>Estimated hours for this bay</span><input type="number" name="estimated_hours" min="1" step="0.25" value="${escapeHtml(calculatedHours)}"></label>
+        <div><strong>${escapeHtml(pmbStageLabel(stage))} planned time</strong><span><strong data-workshop-estimated-hours-total>${escapeHtml(calculatedHours)}</strong> exact operation hours · ${stageLines.length} authenticated line${stageLines.length === 1 ? '' : 's'}${planMismatch ? ` · Existing booking ${escapeHtml(currentPlanHours)} h; save to align` : ''}</span></div>
+        <label><span>Estimated hours for this bay</span><input type="number" name="estimated_hours" min="1" step="0.0166666667" value="${escapeHtml(calculatedHours)}"></label>
       </section>
       <section class="workshop-required-jobs"><header><strong>Required jobs for ${escapeHtml(pmbStageLabel(stage))}</strong><span>Canonical requirement plus imported lines allocated to this station.</span></header>${workshopRequiredJobsForStageHtml(vehicle, stage, stageLines)}</section>
       ${workshopSharedModeActive() ? '' : `<section class="workshop-job-lines"><header><strong>Imported job lines</strong><span>Change the work area to allocate a line elsewhere.</span></header>${workshopJobLineRowsHtml(vehicle)}</section>`}
@@ -6102,7 +6126,7 @@ function openWorkshopVehicleJob(key = '', requestedStage = '', requestedPlanId =
       window.alert('Estimated time must be at least 1 hour. No workshop time was changed.');
       return;
     }
-    const nextHours = workshopClampDurationHours(requestedHours);
+    const nextHours = workshopSharedModeActive() ? workshopExactDurationHours(requestedHours) : workshopClampDurationHours(requestedHours);
     if (workshopSharedModeActive()) {
       if (!currentPlan) {
         window.alert('This booking could not be identified uniquely, so its estimated time was not changed. Reload the planner and open the job again.');
@@ -6243,6 +6267,10 @@ if (typeof module !== 'undefined' && module.exports) {
     workshopClampStartMinutes,
     workshopClampDurationHours,
     workshopExactDurationHours,
+    workshopImportedJobLines,
+    workshopResolvedJobLines,
+    workshopStageJobLines,
+    workshopCalculatedStageHours,
     workshopManualDurationAllocation,
     workshopManualDurationSharedPayload,
     workshopIntervalsOverlap,
