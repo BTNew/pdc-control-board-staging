@@ -2522,12 +2522,17 @@ function workshopEntryIsLive(entry = {}) {
 }
 
 function workshopCascadePlans(rows = workshopLoadPlans(), now = new Date()) {
+  // Shared Workshop rows are already authoritative. Never apply a reversible
+  // browser-only overrun cascade: it makes later chips appear shifted and then
+  // snap backwards when the live/STOPPAGE anchor leaves the current page.
+  // Persisted server cascade receipts are the only source of shared positions.
   const shared = workshopSharedModeActive();
+  if (shared) return { rows: rows.map(entry => ({ ...entry })), changed: false };
   let nextRows = rows.map(entry => ({
     ...entry,
     hours: entry.status === 'completed'
       ? entry.hours
-      : shared ? (workshopExactDurationHours(entry.hours) || workshopClampDurationHours(entry.hours)) : workshopClampDurationHours(entry.hours),
+      : workshopClampDurationHours(entry.hours),
   }));
   let changed = nextRows.some((entry, index) => entry.hours !== rows[index].hours);
   const scheduleAnchors = nextRows

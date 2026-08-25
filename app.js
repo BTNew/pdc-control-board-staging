@@ -4847,9 +4847,31 @@ function workflowVehiclesForStep(step = '') {
   }
 }
 
+function vehicleWorkshopStoppageBookings(vehicle = {}) {
+  return (Array.isArray(vehicle.salesWorkshopBookings) ? vehicle.salesWorkshopBookings : [])
+    .filter(booking => String(booking?.status || '').trim().toLowerCase() === 'stoppage')
+    .filter(booking => booking?.bookingId || booking?.id)
+    .sort((a, b) => String(a.scheduledStartAt || '').localeCompare(String(b.scheduledStartAt || ''))
+      || String(a.bookingId || a.id).localeCompare(String(b.bookingId || b.id)));
+}
+
 function workflowPriorityRows() {
   const pmbRows = workflowVehiclesForStep('pmb');
   const issueRows = [];
+  pdcSheetVehicles().filter(vehicleHasBatchNumber).forEach(vehicle => {
+    vehicleWorkshopStoppageBookings(vehicle).forEach(booking => {
+      const station = cleanNavisionText(booking.stageName || booking.stageCode || 'Workshop');
+      const bay = cleanNavisionText(booking.bayName || '');
+      const reason = cleanNavisionText(booking.stoppageReason || 'Workshop job stopped');
+      issueRows.push({
+        vehicle,
+        label: `${station} STOPPAGE`,
+        severity: 'danger',
+        detail: `${reason}${bay ? ` · ${bay}` : ''}`,
+        bookingId: String(booking.bookingId || booking.id),
+      });
+    });
+  });
   workflowVehiclesForStep('parts')
     .filter(vehicle => partsDepartmentStatus(vehicle) === 'stoppage')
     .forEach(vehicle => {
@@ -4876,7 +4898,7 @@ function workflowPriorityRows() {
       if (etaDiff) return etaDiff;
     }
     return 0;
-  }).slice(0, 8);
+  });
 }
 
 function fixFirstRowsHtml(rows = [], emptyText = 'No urgent production exceptions right now.') {
