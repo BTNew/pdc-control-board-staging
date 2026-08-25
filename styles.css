@@ -11309,6 +11309,9 @@ textarea {
   }
   .nav-item {
     flex: 0 0 auto;
+    width: 72px !important;
+    max-width: 72px !important;
+    flex-basis: 72px !important;
     min-width: 72px;
     min-height: 44px;
     padding: 8px 7px !important;
