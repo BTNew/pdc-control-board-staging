@@ -12282,9 +12282,20 @@ function renderVehicleWorkshopWorkPage(vehicle = {}) {
   return `<div class="vehicle-workshop-page" data-vehicle-workshop-page><div class="vehicle-workshop-intro"><h3>Required work</h3></div>${warning}${vehicleWorkshopRemovalReceiptHtml()}<div class="vehicle-workshop-stations">${content}</div></div>`;
 }
 
+function vehicleWorkshopDetailSupportsVehicle(vehicle = {}) {
+  const lifecycle = String(vehicle.lifecycleState || vehicle.lifecycle_state || '').trim().toLowerCase();
+  if (lifecycle) return lifecycle === 'active';
+  return String(vehicle.pdcLocation || vehicle.current_location || '').trim().toUpperCase() !== 'RFT';
+}
+
 async function loadVehicleWorkshopDetail(vehicle = {}, { force = false } = {}) {
   const canonicalId = vehicleWorkshopDetailCanonicalId(vehicle);
   if (!canonicalId) return null;
+  if (!vehicleWorkshopDetailSupportsVehicle(vehicle)) {
+    app.vehicleWorkshopDetailCache.set(canonicalId, { status: 'error', message: 'Work and booking details are unavailable after this vehicle leaves the active PMB lifecycle.' });
+    if (app.vehicleDetailPage === 'work' && vehicleKey(selectedVehicle() || {}) === vehicleKey(vehicle)) renderDetail();
+    return null;
+  }
   const existing = app.vehicleWorkshopDetailCache.get(canonicalId);
   if (!force && existing && ['loading', 'ready'].includes(existing.status)) return existing.detail || null;
   const token = typeof getPdcSupabaseAccessToken === 'function' ? getPdcSupabaseAccessToken() : null;
