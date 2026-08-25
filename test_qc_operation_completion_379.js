@@ -18,12 +18,19 @@ assert.strictEqual(row.pdcQcOperationLines[1].estimatedHours, null, 'unknown hou
 
 const app = fs.readFileSync('app.js', 'utf8');
 const index = fs.readFileSync('index.html', 'utf8');
-assert.match(app, /const APP_VERSION = '2026\.08\.25\.03-qc-operation-lines'/);
-assert.match(index, /pdc-email-vehicle-location-service\.js\?v=2026\.08\.25\.03-qc-operation-lines/);
-assert.match(index, /app\.js\?v=2026\.08\.25\.03-qc-operation-lines/);
+assert.match(app, /const APP_VERSION = '2026\.08\.25\.04-qc-mobile-queue'/);
+assert.match(index, /pdc-email-vehicle-location-service\.js\?v=2026\.08\.25\.04-qc-mobile-queue/);
+assert.match(index, /app\.js\?v=2026\.08\.25\.04-qc-mobile-queue/);
 const start = app.indexOf('function qcPageOperationLines');
 const end = app.indexOf('\nfunction qcPageVehicleCardHtml', start);
-const context = { groupBy: (items, fn) => items.reduce((o, x) => ((o[fn(x)] ||= []).push(x), o), {}), escapeHtml: String, pmbStageLabel: value => value, qcPageVehicleKey: () => 'HERMES-TEST-QC-379' };
+const context = {
+  groupBy: (items, fn) => items.reduce((o, x) => ((o[fn(x)] ||= []).push(x), o), {}),
+  escapeHtml: String,
+  pmbStageLabel: value => value,
+  qcPageVehicleKey: () => 'HERMES-TEST-QC-379',
+  qcPageOperationPending: new Map(),
+  qcPagePendingKey: (key, lineIdentity) => `${key}::${lineIdentity}`,
+};
 vm.createContext(context); vm.runInContext(app.slice(start, end), context);
 assert.strictEqual(context.qcPageAllOperationLinesComplete(row), false);
 const html = context.qcPageWorkItemsHtml(row);

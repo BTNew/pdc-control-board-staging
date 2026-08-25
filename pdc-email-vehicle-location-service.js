@@ -327,7 +327,9 @@ function createPdcEmailVehicleLocationService(options = {}) {
         body: JSON.stringify({ p_vehicle_id: String(vehicleId || ''), p_expected_vehicle_version: Number(vehicleVersion) || 0, p_line_identity: String(lineIdentity || ''),
           p_expected_line_version: Number(lineVersion) || 0, p_idempotency_key: String(idempotencyKey || ''), p_completed: completed === true }) });
       const body = await response.json(); const data = body?.data || body;
-      if (!response.ok || body?.ok !== true || !data?.receipt_id || String(data.vehicle_id || '') !== String(vehicleId || '') || String(data.line?.line_identity || '') !== String(lineIdentity || ''))
+      if (!response.ok || body?.ok !== true || !data?.receipt_id || String(data.vehicle_id || '') !== String(vehicleId || '')
+          || String(data.line?.line_identity || '') !== String(lineIdentity || '') || data.line?.completed !== (completed === true)
+          || Number(data.line?.version || 0) < 1 || Number(data.vehicle_version_after || 0) < 1 || !/^[a-f0-9]{64}$/.test(String(data.request_sha256 || '')))
         return { ok: false, code: body?.code || body?.error || 'qc_operation_receipt_invalid', data: null };
       return { ok: true, code: body.code || 'qc_operation_completion_saved', data };
     } catch (_error) { return { ok: false, code: 'qc_operation_completion_unavailable', data: null }; }

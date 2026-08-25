@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.25.03-qc-operation-lines';
+const APP_VERSION = '2026.08.25.04-qc-mobile-queue';
 const WORKSHOP_PLANNER_SCRIPT_VERSION = APP_VERSION;
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
@@ -4482,7 +4482,18 @@ function ensureDashboardWorkshopProjectionReady() {
 
 const qcPhotoDrafts = new Map();
 const qcPageSignoffInFlight = new Set();
+const qcPageOperationPending = new Map();
+const qcPageFeedback = new Map();
+let qcPageOperationMutationChain = Promise.resolve();
 let qcSelectedVehicleKey = '';
+
+function qcPageIsMobile() {
+  return Boolean(window.matchMedia?.('(max-width: 900px)').matches);
+}
+
+function qcPagePendingKey(key = '', lineIdentity = '') {
+  return `${String(key || '').trim()}::${String(lineIdentity || '').trim()}`;
+}
 
 function qcPageVehicles() {
   const rows = typeof pdcSheetVehicles === 'function' ? pdcSheetVehicles() : [];
@@ -4517,9 +4528,10 @@ function qcPageWorkItemsHtml(vehicle = {}) {
     <h4 id="qc-operation-${escapeHtml(stage)}">${escapeHtml(pmbStageLabel(stage) || stage)}</h4>
     ${lines.map(line => {
     const hoursUnknown = line.estimatedHours === null || line.estimatedHours === undefined || line.estimatedHours === '' || !Number.isFinite(Number(line.estimatedHours));
-    return `<label class="qc-work-item qc-operation-line ${line.completed ? 'is-complete' : 'is-required'}" data-qc-line-identity="${escapeHtml(line.lineIdentity)}">
-      <input type="checkbox" data-qc-operation-check="${escapeHtml(key)}" data-qc-line-identity="${escapeHtml(line.lineIdentity)}" data-qc-line-version="${Number(line.lineVersion || 0)}" ${line.completed ? 'checked' : ''} ${hoursUnknown ? 'disabled title="Unknown operation hours require review before QC completion"' : ''} aria-label="${escapeHtml(`${line.operationNo || 'Manual'} ${line.description} ${hoursUnknown ? 'requires hours review' : line.completed ? 'completed' : 'not completed'}`)}" />
-      <span class="qc-work-marker" aria-hidden="true">${line.completed ? '✓' : '○'}</span>
+    const pending = qcPageOperationPending.get(qcPagePendingKey(key, line.lineIdentity));
+    return `<label class="qc-work-item qc-operation-line ${line.completed ? 'is-complete' : 'is-required'} ${pending ? 'is-saving' : ''}" data-qc-line-identity="${escapeHtml(line.lineIdentity)}" ${pending ? 'aria-busy="true"' : ''}>
+      <input type="checkbox" data-qc-operation-check="${escapeHtml(key)}" data-qc-line-identity="${escapeHtml(line.lineIdentity)}" data-qc-line-version="${Number(line.lineVersion || 0)}" ${line.completed ? 'checked' : ''} ${(hoursUnknown || pending) ? `disabled title="${pending ? 'Saving this operation' : 'Unknown operation hours require review before QC completion'}"` : ''} aria-label="${escapeHtml(`${line.operationNo || 'Manual'} ${line.description} ${pending ? 'saving' : hoursUnknown ? 'requires hours review' : line.completed ? 'completed' : 'not completed'}`)}" />
+      <span class="qc-work-marker" aria-hidden="true">${pending ? '…' : line.completed ? '✓' : '○'}</span>
       <span class="qc-work-copy"><strong>${escapeHtml(`${line.operationNo || 'Manual'} · ${line.description}`)}</strong><small>${escapeHtml(`${pmbStageLabel(stage) || stage} · ${qcPageOperationHoursLabel(line)} · ${line.jobCardNumber ? `JC ${line.jobCardNumber}` : line.sourceKind === 'manual' ? 'Audited manual line' : 'Source JC unavailable'}`)}</small></span>
     </label>`;
   }).join('')}
@@ -4546,11 +4558,13 @@ function qcPageDetailHtml(vehicle = {}) {
   const photo = qcPhotoDrafts.get(key);
   const allComplete = qcPageAllOperationLinesComplete(vehicle);
   const signoffReady = allComplete && Boolean(photo);
+  const feedback = qcPageFeedback.get(key);
   return `<section class="qc-detail-card" aria-labelledby="qc-detail-title">
     <header class="qc-detail-header">
-      <div><span class="eyebrow">Selected vehicle</span><h3 id="qc-detail-title">${escapeHtml(stock)}</h3><p>${escapeHtml(displayVehicle(vehicle) || 'Vehicle not listed')} · ${escapeHtml(consultantName(vehicle) || vehicle.salesperson || vehicle.salesPerson || 'No salesperson')}</p></div>
+      <div><button class="small-button qc-mobile-back" type="button" data-qc-back-to-list>← QC vehicles</button><span class="eyebrow">Selected vehicle</span><h3 id="qc-detail-title">${escapeHtml(stock)}</h3><p>${escapeHtml(displayVehicle(vehicle) || 'Vehicle not listed')} · ${escapeHtml(consultantName(vehicle) || vehicle.salesperson || vehicle.salesPerson || 'No salesperson')}</p></div>
       <span class="qc-detail-state ${allComplete ? 'is-green' : 'is-warning'}">${allComplete ? 'All work green' : 'Complete outstanding work'}</span>
     </header>
+    <div class="qc-save-feedback ${feedback?.kind === 'error' ? 'is-error' : feedback?.kind === 'saved' ? 'is-saved' : ''}" role="status" aria-live="polite">${escapeHtml(feedback?.message || '')}</div>
     <div class="qc-detail-identifiers">${vehicleIdentityStackHtml(vehicle, { className: 'qc-identity', button: false })}</div>
     <fieldset class="qc-work-checklist" aria-label="Completed work for selected vehicle"><legend>Completed work</legend><div class="qc-work-list">${qcPageWorkItemsHtml(vehicle)}</div></fieldset>
     <div class="qc-photo-panel">
@@ -4562,38 +4576,77 @@ function qcPageDetailHtml(vehicle = {}) {
   </section>`;
 }
 
-async function qcPageSetOperationState(key = '', lineIdentity = '', lineVersion = 0, checked = false, input = null) {
+function qcPageReceiptLineApply(vehicle = {}, lineIdentity = '', result = {}) {
+  const line = qcPageOperationLines(vehicle).find(item => item.lineIdentity === String(lineIdentity || ''));
+  const receiptLine = result?.data?.line;
+  if (!line || !receiptLine || String(receiptLine.line_identity || '') !== String(lineIdentity || '')) return false;
+  line.completed = receiptLine.completed === true;
+  line.completedBy = receiptLine.completed_by || null;
+  line.completedAt = receiptLine.completed_at || null;
+  line.lineVersion = Number(receiptLine.version || line.lineVersion || 0);
+  vehicle.__emailVehicleVersion = Number(result.data?.vehicle_version_after || vehicle.__emailVehicleVersion || 0);
+  return true;
+}
+
+async function qcPageAwaitOperationSnapshot(key = '', lineIdentity = '', completed = false, attempts = 3) {
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    await refreshEmailVehicleLocations();
+    const current = qcPageVehicles().find(row => qcPageVehicleKey(row) === String(key || '').trim());
+    const currentLine = qcPageOperationLines(current || {}).find(item => item.lineIdentity === String(lineIdentity || ''));
+    if (currentLine && currentLine.completed === completed) return true;
+    await new Promise(resolve => window.setTimeout(resolve, 120 * (attempt + 1)));
+  }
+  return false;
+}
+
+async function qcPageSetOperationState(key = '', lineIdentity = '', checked = false) {
   const vehicle = qcPageVehicles().find(row => qcPageVehicleKey(row) === String(key || '').trim());
   const line = qcPageOperationLines(vehicle || {}).find(item => item.lineIdentity === String(lineIdentity || ''));
   const service = app.emailVehicleLocationService;
   if (!vehicle || !line || !service || typeof service.setQcOperationCompletion !== 'function'
       || vehicle.__emailVehicleServerAuthoritative !== true || !vehicle.__emailVehicleId || Number(vehicle.__emailVehicleVersion || 0) < 1) {
-    window.alert('This operation line is not bound to stable shared QC authority. No completion was recorded.');
+    qcPageFeedback.set(key, { kind: 'error', message: 'This operation is not bound to stable QC authority. Nothing was changed.' });
     renderQualityControlPage();
     return false;
   }
-  if (input) input.disabled = true;
-  try {
-    const result = await service.setQcOperationCompletion(vehicle.__emailVehicleId, vehicle.__emailVehicleVersion,
-      line.lineIdentity, Number(lineVersion || 0), checked, crypto.randomUUID());
-    const refreshed = await refreshEmailVehicleLocations();
-    if (!result?.ok || !refreshed) {
-      window.alert(result?.code?.includes('version') ? 'This operation changed in another session. The authoritative QC lines were reloaded.' : 'The operation completion was not confirmed by authoritative readback. No local completion is shown.');
-      renderQualityControlPage();
-      return false;
-    }
-    const current = qcPageVehicles().find(row => qcPageVehicleKey(row) === String(key || '').trim());
-    const currentLine = qcPageOperationLines(current || {}).find(item => item.lineIdentity === line.lineIdentity);
-    if (!currentLine || currentLine.completed !== checked) {
-      window.alert('The operation receipt returned but the refreshed QC line did not converge. Refresh before continuing.');
-      renderQualityControlPage();
-      return false;
-    }
+  const result = await service.setQcOperationCompletion(vehicle.__emailVehicleId, vehicle.__emailVehicleVersion,
+    line.lineIdentity, Number(line.lineVersion || 0), checked, crypto.randomUUID());
+  if (!result?.ok || result.data?.line?.completed !== checked || !qcPageReceiptLineApply(vehicle, line.lineIdentity, result)) {
+    await qcPageAwaitOperationSnapshot(key, lineIdentity, checked, 1);
+    qcPageFeedback.set(key, { kind: 'error', message: result?.code?.includes('version')
+      ? 'This operation changed in another session. The latest QC state has been reloaded.'
+      : 'This operation was not saved. Tap it again after the latest state loads.' });
     renderQualityControlPage();
-    return true;
-  } finally {
-    if (input && input.isConnected) input.disabled = false;
+    return false;
   }
+  qcPageFeedback.set(key, { kind: 'saved', message: `${line.operationNo || 'Operation'} saved. You can continue ticking other jobs.` });
+  renderQualityControlPage();
+  void qcPageAwaitOperationSnapshot(key, lineIdentity, checked).then(converged => {
+    if (!converged) qcPageFeedback.set(key, { kind: 'error', message: 'Saved by receipt; the shared QC list is still syncing.' });
+    renderQualityControlPage();
+  });
+  return true;
+}
+
+function qcPageQueueOperationState(key = '', lineIdentity = '', checked = false, input = null) {
+  const pendingKey = qcPagePendingKey(key, lineIdentity);
+  if (qcPageOperationPending.has(pendingKey)) return;
+  const vehicle = qcPageVehicles().find(row => qcPageVehicleKey(row) === String(key || '').trim());
+  const line = qcPageOperationLines(vehicle || {}).find(item => item.lineIdentity === String(lineIdentity || ''));
+  if (input && line) input.checked = line.completed === true;
+  qcPageOperationPending.set(pendingKey, { checked });
+  qcPageFeedback.set(key, { kind: 'saving', message: `${line?.operationNo || 'Operation'} queued for saving…` });
+  renderQualityControlPage();
+  qcPageOperationMutationChain = qcPageOperationMutationChain
+    .then(() => qcPageSetOperationState(key, lineIdentity, checked))
+    .catch(() => {
+      qcPageFeedback.set(key, { kind: 'error', message: 'The operation could not be saved. The authoritative state was retained.' });
+      return false;
+    })
+    .finally(() => {
+      qcPageOperationPending.delete(pendingKey);
+      renderQualityControlPage();
+    });
 }
 
 async function qcPageSignoff(key = '') {
@@ -4624,9 +4677,10 @@ function renderQualityControlPage() {
   const host = $('#qc-page-host');
   if (!host) return;
   const vehicles = qcPageVehicles();
-  if (!vehicles.some(vehicle => qcPageVehicleKey(vehicle) === qcSelectedVehicleKey)) qcSelectedVehicleKey = qcPageVehicleKey(vehicles[0] || {});
+  const mobile = qcPageIsMobile();
+  if (!vehicles.some(vehicle => qcPageVehicleKey(vehicle) === qcSelectedVehicleKey)) qcSelectedVehicleKey = mobile ? '' : qcPageVehicleKey(vehicles[0] || {});
   const selected = vehicles.find(vehicle => qcPageVehicleKey(vehicle) === qcSelectedVehicleKey) || null;
-  host.innerHTML = `<div class="qc-page-layout">
+  host.innerHTML = `<div class="qc-page-layout ${mobile ? selected ? 'is-mobile-detail' : 'is-mobile-list' : ''}">
     <section class="qc-queue" aria-labelledby="qc-queue-title"><div class="qc-queue-header"><div><h3 id="qc-queue-title">Vehicles requiring QC</h3><p>${vehicles.length} awaiting QC sign-off</p></div><span class="qc-queue-count">${vehicles.length}</span></div><div class="qc-vehicle-list">${vehicles.length ? vehicles.map(vehicle => qcPageVehicleCardHtml(vehicle, qcPageVehicleKey(vehicle) === qcSelectedVehicleKey)).join('') : '<div class="qc-empty-state"><strong>No vehicles require QC</strong><span>Vehicles appear here after all required workshop work is complete.</span></div>'}</div></section>
     <section class="qc-detail-host">${selected ? qcPageDetailHtml(selected) : '<div class="qc-empty-state qc-detail-empty"><strong>Select a vehicle</strong><span>Choose a QC vehicle to review its completed work and capture the completion photo.</span></div>'}</section>
   </div>`;
@@ -4634,8 +4688,12 @@ function renderQualityControlPage() {
     qcSelectedVehicleKey = button.dataset.qcOpenVehicle || '';
     renderQualityControlPage();
   }));
+  $$('[data-qc-back-to-list]', host).forEach(button => button.addEventListener('click', () => {
+    qcSelectedVehicleKey = '';
+    renderQualityControlPage();
+  }));
   $$('[data-qc-operation-check]', host).forEach(input => input.addEventListener('change', () => {
-    void qcPageSetOperationState(input.dataset.qcOperationCheck, input.dataset.qcLineIdentity, Number(input.dataset.qcLineVersion || 0), input.checked, input);
+    qcPageQueueOperationState(input.dataset.qcOperationCheck, input.dataset.qcLineIdentity, input.checked, input);
   }));
   $$('[data-qc-photo]', host).forEach(input => input.addEventListener('change', () => {
     const file = input.files?.[0];
