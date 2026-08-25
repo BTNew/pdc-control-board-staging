@@ -1,5 +1,11 @@
 # Shared Files
 
+## Synthetic containment drift repair — 2026-08-26
+
+- `supabase/staging_only/20260826215000_436_current_containment_read_repair.sql` — append-only staging contract repair for current read containment and exact protected/notification/outbound synthetic write postconditions.
+- `test_staging_containment_drift_repair_436.js` — migration, effective-function repair and protected-boundary regression coverage.
+- `deployment-identity.json` — exact 436 staging migration provenance.
+
 ## Receipt-backed QC photo finalization and canonical Sublet provider writes — 2026-08-26
 
 - `app.js` — QC receipt-backed photo upload/finalization flow, already-QC-completed-at-QC support, legacy QC action replacement, canonical Sublet booking identity routing, and modal open/close interaction hooks.

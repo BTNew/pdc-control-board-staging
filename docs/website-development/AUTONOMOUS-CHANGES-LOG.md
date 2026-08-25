@@ -1,5 +1,11 @@
 # Autonomous Website Changes
 
+## 2026-08-26 — Repair recurring synthetic containment drift after ordinary Workshop reads
+
+- Added staging-only migration `supabase/staging_only/20260826215000_436_current_containment_read_repair.sql` and regression `test_staging_containment_drift_repair_436.js`.
+- Preserved the immutable 432 baseline as evidence while rebinding read containment to the current staging/registry/mailbox/Monitor/outbound-delivery guards, so ordinary mutable Workshop state cannot make read-only synthetic inventory unavailable.
+- Rebound the acceptance create/lifecycle effective function definitions to compare exact protected, notification and outbound state before versus after; retained authenticated-only ACLs, replay/stale protections, synthetic identity and absent-Production-sentinel guards. Production, real vehicles/bookings/users, mailbox runtime, sent/delivered delivery and production data remain untouched.
+
 ## 2026-08-26 — Receipt-backed QC photo finalization and canonical Sublet provider writes
 
 - Added candidate staging-only migration `supabase/staging_only/20260826140000_399_qc_finalization_photo_rft_salesperson_outbox.sql`. It adds private compressed photo evidence receipts, authenticated storage ownership checks, exact active QC-line snapshots, named QC sign-off, atomic QC-to-RFT movement/date milestone, immutable exact salesperson outbox payload, no-dispatch/sent/delivered containment, replay/version conflict handling, readback, and an exact booking UUID/version provider-reassignment RPC with idempotent receipts.
