@@ -15,6 +15,7 @@ const repairs = [
   '20260826183000_418_hidden_stoppage_acceptance_fallback.sql',
   '20260826184000_419_hidden_stoppage_deleted_status.sql',
   '20260826185000_420_hidden_stoppage_visible_bridge.sql',
+  '20260826190000_421_rft_shared_vehicle_snapshot.sql',
 ].map(file => fs.readFileSync(`supabase/staging_only/${file}`, 'utf8')).join('\n');
 
 assert.match(sql, /clear_vehicle_stoppage_412/);
@@ -39,6 +40,7 @@ assert.match(repairs, /registry\.actor_email=v_actor_email/);
 assert.match(repairs, /public\.stop_workshop_work/);
 assert.match(repairs, /public\.workshop_write_history/);
 assert.match(repairs, /HERMES-TEST-420-visible-bridge/);
+assert.match(repairs, /v\.lifecycle_state IN\(''active'',''rft''\)/);
 assert.match(sql, /REVOKE ALL ON TABLE public\.pdc_rft_transport_salesperson_outbox_412 FROM public,anon,authenticated,service_role/);
 
 assert.match(service, /PDC_STOPPAGE_CLEAR_RPC = 'clear_vehicle_stoppage_412'/);
