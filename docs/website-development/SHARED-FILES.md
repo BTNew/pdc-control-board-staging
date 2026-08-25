@@ -1,5 +1,10 @@
 # Shared Files
 
+## Owner-supplied Job Card intake authority — 2026-08-25
+
+- `supabase/staging_only/20260826120000_396_owner_supplied_document_jobcard_intake.sql` — additive staging-only exact-owner/Task/Stock/Job Card contract, immutable document and operation evidence, unknown-hour review rows, idempotency, audit and undo RPCs; no provider-email or mailbox dependency.
+- `test_owner_supplied_document_jobcard_396.js` — exact provenance, identity, 18-row 14-explicit/4-unknown hour model, zero-vs-null, ACL, forged-email rejection, side-effect and undo contract coverage.
+
 ## Receipt-first salesperson readback race repair — 2026-08-25
 
 - `app.js` — receipt-first canonical UUID/version application, in-memory pending receipt overlay, bounded targeted authoritative readback, contradiction handling, and delayed-save status.

@@ -1,5 +1,11 @@
 # Autonomous Website Changes
 
+## 2026-08-25 — Owner-supplied Job Card intake authority
+
+- Added staging-only migration `supabase/staging_only/20260826120000_396_owner_supplied_document_jobcard_intake.sql` and regression `test_owner_supplied_document_jobcard_396.js`.
+- The additive contract accepts only Craig's exact owner instruction/task reference and Stock 13080553 / JC J139125519, labels provenance `owner_supplied_document`, binds immutable PDF hash/byte metadata to one current Navision identity, and writes receipt-backed canonical operation evidence without provider-email, mailbox, booking, movement, completion or notification authority.
+- Explicit zero hours remain numeric `0`; unknown hours remain `NULL` with durable review rows. Immutable receipts, source-row fingerprints, audit, idempotency/conflict handling and owner-scoped undo are included. Production and mailbox runtime remain untouched; live staging application still requires the approved temporary Importer writer activation.
+
 ## 2026-08-25 — Receipt-first salesperson readback race repair
 
 - Updated `app.js` so accepted salesperson/detail receipts apply immediately to the one canonical stable UUID/version in memory, while a bounded targeted snapshot readback reconciles stale, delayed and contradictory projections independently of broad-refresh generation races.
