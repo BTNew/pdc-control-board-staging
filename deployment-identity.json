@@ -1,32 +1,33 @@
 {
   "environment": "staging",
-  "application_version": "2026.08.25.10-qc-operation-projection",
+  "application_version": "2026.08.26.01-qc-finalization-399",
   "frontend_source_commit": "2efb13ca8db47dc69edc0832807b144a5631d3e6",
   "staging_project_ref": "cdsmnqxtyyoeoznmbidd",
   "production_unchanged": true,
   "mailbox_runtime_changed": false,
   "complete_vehicle_delete_commissioned": false,
   "candidate_database_migration": {
-    "version": "20260823170000",
-    "name": "323_admin_complete_vehicle_delete",
-    "file": "supabase/staging_only/20260823170000_323_admin_complete_vehicle_delete.sql",
-    "sha256": "d880f6f40b2a837c8fafc87f29ffe8f68ca602cf45ca00c0aadbc99380b1ae9f",
+    "version": "20260826140000",
+    "name": "399_qc_finalization_photo_rft_salesperson_outbox",
+    "file": "supabase/staging_only/20260826140000_399_qc_finalization_photo_rft_salesperson_outbox.sql",
+    "sha256": "acaccd84be1a94facdf3857fbeb3f31dac5e94624bc696673958afcc1d017bc3",
     "commissioned": false,
     "review_status": "changes_required"
   },
   "observed_applied_database_migration": {
-    "version": "20260825160000",
-    "name": "379_qc_per_operation_completion",
-    "source": "Supabase Management API apply receipt and exact staging migration-ledger readback."
+    "version": "20260826131500",
+    "name": "398_owner_document_operation_routing_13080553",
+    "source": "Main supplied exact staging head/read-only Management API and authenticated snapshot probe evidence."
   },
   "notes": [
-    "Complete Vehicle Delete source remains a candidate and is not authorised for database application.",
-    "The staging UI is fail-closed behind completeVehicleDeleteCommissioned=false.",
-    "Only an independently approved, applied and authenticated-live-probed successor may enable the control.",
+    "QC finalization 399 remains an additive candidate until the authorised staging database connector applies it; frontend remains fail-closed without the new RPCs.",
+    "Complete Vehicle Delete remains uncommissioned and the staging UI is fail-closed behind completeVehicleDeleteCommissioned=false.",
     "Historical email/source and Telegram replay fences must remain preserved.",
     "Production and the local mailbox runtime were not changed by this release.",
     "Vehicle and customer dialogs trap keyboard focus, recover containment after asynchronous rerenders, and return focus to the invoking control on close.",
     "QC now renders and records stable authenticated operation lines individually; department labels are non-interactive group headings and unknown-hour lines fail closed.",
-    "The QC projection release distinguishes a missing server qc_operation_lines field from a valid empty array; source operation evidence is never implied absent."
+    "The QC projection release distinguishes a missing server qc_operation_lines field from a valid empty array; source operation evidence is never implied absent.",
+    "QC finalization requires a durable compressed private photo receipt, supports already-QC-completed vehicles still at QC, and queues an unsent exact salesperson payload; no protected vehicle was mutated.",
+    "Canonical Sublet provider changes require exact booking UUID/version and active provider reference; zero/multiple booking summaries fail closed instead of calling the legacy vehicle-scoped writer."
   ]
 }

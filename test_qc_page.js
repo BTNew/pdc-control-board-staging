@@ -26,8 +26,8 @@ ok(app.includes('setQcOperationCompletion') && !app.includes('async function qcP
 ok(app.includes('Unknown hours') && app.includes('Audited manual line') && app.includes('Source JC unavailable'), 'QC lines expose exact/unknown hours and source identity');
 ok(app.includes('accept="image/*"') && app.includes('capture="environment"'), 'QC page offers mobile camera capture');
 ok(app.includes('FileReader') && app.includes('readAsDataURL') && !app.includes('URL.createObjectURL(file)'), 'QC photo preview uses CSP-compatible data URLs');
-ok(app.includes('const qcPhotoDrafts = new Map()'), 'QC photo drafts remain session-memory only until backend evidence is available');
-ok(app.includes('data-qc-signoff=') && app.includes('completeVehicleQualityControl('), 'QC sign-off uses the authoritative QC-only action after per-line gate');
+ok(app.includes('const qcPhotoEvidence = new Map()') && app.includes('uploadQcPhotoEvidence'), 'QC photo is receipt-backed in private staging storage');
+ok(app.includes('data-qc-signoff=') && app.includes('finalizeQcToRft'), 'QC finalization uses the authoritative atomic QC-to-RFT action');
 ok(styles.includes('.qc-page') && styles.includes('.qc-work-item.is-complete'), 'QC page has dedicated responsive and green-complete styles');
 ok(!/qcPhotoDrafts[\s\S]{0,500}localStorage/.test(app), 'QC photo draft does not fall back to browser localStorage');
 

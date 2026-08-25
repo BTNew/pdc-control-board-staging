@@ -1,5 +1,11 @@
 # Autonomous Website Changes
 
+## 2026-08-26 — Receipt-backed QC photo finalization and canonical Sublet provider writes
+
+- Added candidate staging-only migration `supabase/staging_only/20260826140000_399_qc_finalization_photo_rft_salesperson_outbox.sql`. It adds private compressed photo evidence receipts, authenticated storage ownership checks, exact active QC-line snapshots, named QC sign-off, atomic QC-to-RFT movement/date milestone, immutable exact salesperson outbox payload, no-dispatch/sent/delivered containment, replay/version conflict handling, readback, and an exact booking UUID/version provider-reassignment RPC with idempotent receipts.
+- Updated `app.js`, `pdc-email-vehicle-location-service.js`, `styles.css` and `index.html`: QC uploads only a canvas-compressed auto-oriented image (1600px max, target <=750KB, hard <=1MB), records the receipt before finalization, supports vehicles already QC-completed but still at QC, reports `Signed off and moved to RFT`, routes canonical Sublet provider changes by booking UUID/version, fails closed for zero/multiple canonical rows, and prevents background Sublet native selects painting through the vehicle modal.
+- Added/updated focused contract tests for QC finalization/photo compression, QC page behaviour, canonical Sublet provider mutations, modal stacking, and the changed cache-busted release metadata. All local `node test_*.js` tests pass. Staging database application is pending the authorised Main Supabase connector; no protected vehicles, production, mailbox runtime or real notification was changed.
+
 ## 2026-08-25 — Canonical Workshop booking snapshot authority
 
 - Added staging-only migration `supabase/staging_only/20260826130000_397_canonical_workshop_booking_snapshot_authority.sql`, guarded after the exact live 20260826124500 final owner-document constraint-correction head (preserving both prior 396 corrections). Both station and full Workshop snapshots now overlay scheduling, status, version, actual and stoppage fields from `workshop_bookings` by stable booking UUID, without rewriting canonical rows or moving active bookings.

@@ -420,12 +420,25 @@ input:focus, select:focus, textarea:focus { border-color: #94a3b8; box-shadow: 0
 .modal-overlay {
   position: fixed;
   inset: 0;
-  z-index: 50;
+  z-index: 2000;
+  isolation: isolate;
+  contain: paint;
+  transform: translateZ(0);
   display: grid;
   place-items: center;
   padding: 28px;
   background: rgba(15, 23, 42, .58);
   backdrop-filter: blur(3px);
+}
+/* Native select popups can escape ordinary stacking contexts. While the
+   vehicle detail dialog is open, suppress only background Sublet selects;
+   controls inside #vehicle-modal remain visible and interactive. */
+body.modal-open #sublet select {
+  visibility: hidden;
+  pointer-events: none;
+}
+#vehicle-modal {
+  z-index: 2100;
 }
 .modal-overlay[hidden] { display: none; }
 .modal-card {

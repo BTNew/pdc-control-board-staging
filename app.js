@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.25.10-qc-operation-projection';
+const APP_VERSION = '2026.08.26.01-qc-finalization-399';
 const WORKSHOP_PLANNER_SCRIPT_VERSION = APP_VERSION;
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
@@ -4729,11 +4729,13 @@ function ensureDashboardWorkshopProjectionReady() {
   return false;
 }
 
-const qcPhotoDrafts = new Map();
+const qcPhotoEvidence = new Map();
 const qcPageSignoffInFlight = new Set();
+const qcPagePhotoUploadInFlight = new Set();
 const qcPageOperationPending = new Map();
 const qcPageFeedback = new Map();
 let qcPageOperationMutationChain = Promise.resolve();
+let qcPageNotice = '';
 let qcSelectedVehicleKey = '';
 
 function qcPageIsMobile() {
@@ -4807,9 +4809,9 @@ function qcPageVehicleCardHtml(vehicle = {}, selected = false) {
 function qcPageDetailHtml(vehicle = {}) {
   const key = qcPageVehicleKey(vehicle);
   const stock = displayStockNumber(vehicle) || key || 'No stock';
-  const photo = qcPhotoDrafts.get(key);
+  const photo = qcPhotoEvidence.get(key);
   const allComplete = qcPageAllOperationLinesComplete(vehicle);
-  const signoffReady = allComplete && Boolean(photo);
+  const signoffReady = allComplete && Boolean(photo?.photoReceiptId);
   const feedback = qcPageFeedback.get(key);
   return `<section class="qc-detail-card" aria-labelledby="qc-detail-title">
     <header class="qc-detail-header">
@@ -4820,11 +4822,11 @@ function qcPageDetailHtml(vehicle = {}) {
     <div class="qc-detail-identifiers">${vehicleIdentityStackHtml(vehicle, { className: 'qc-identity', button: false })}</div>
     <fieldset class="qc-work-checklist" aria-label="Completed work for selected vehicle"><legend>Completed work</legend><div class="qc-work-list">${qcPageWorkItemsHtml(vehicle)}</div></fieldset>
     <div class="qc-photo-panel">
-      <div><strong>Completion photo</strong><p>Use the phone camera or choose an image. The photo is held for this sign-off session until the approved evidence-storage interface is available.</p></div>
-      <label class="qc-photo-picker"><span>${photo ? 'Replace photo' : 'Take or choose photo'}</span><input type="file" accept="image/*" capture="environment" data-qc-photo="${escapeHtml(key)}" /></label>
-      ${photo ? `<div class="qc-photo-preview"><img src="${escapeHtml(photo.url)}" alt="QC completion photo for ${escapeHtml(stock)}" /><span>${escapeHtml(photo.name)}</span></div>` : '<div class="qc-photo-empty">No completion photo attached</div>'}
+      <div><strong>Completion photo</strong><p>Store one image in private staging evidence storage before final sign-off. The stored receipt, not browser state, is the authority.</p></div>
+      <label class="qc-photo-picker"><span>${photo ? 'Photo stored · choose another only after this receipt is cleared' : 'Take or choose photo'}</span><input type="file" accept="image/*" capture="environment" data-qc-photo="${escapeHtml(key)}" ${qcPagePhotoUploadInFlight.has(key) ? 'disabled' : ''} /></label>
+      ${photo ? `<div class="qc-photo-preview"><img src="${escapeHtml(photo.url || '')}" alt="QC completion photo for ${escapeHtml(stock)}" /><span>${escapeHtml(photo.originalFilename || 'Stored image')} · ${escapeHtml(String(photo.originalByteLength || 0))} → ${escapeHtml(String(photo.byteLength || 0))} bytes · ${escapeHtml(String(photo.imageWidth || 0))}×${escapeHtml(String(photo.imageHeight || 0))} · SHA-256 ${escapeHtml(photo.sha256 || '')}</span></div>` : '<div class="qc-photo-empty">No stored completion photo attached</div>'}
     </div>
-    <div class="qc-signoff-bar"><span class="qc-signoff-note" role="status">${signoffReady ? 'Photo attached. Ready for named QC sign-off; the vehicle remains in QC until a separate RFT transfer.' : allComplete ? 'Attach a completion photo before sign-off.' : 'Every active operation line must be complete before sign-off.'}</span><button class="primary qc-signoff-button" type="button" data-qc-signoff="${escapeHtml(key)}" ${signoffReady ? '' : 'disabled'}>Record named QC sign-off</button></div>
+    <div class="qc-signoff-bar"><span class="qc-signoff-note" role="status">${signoffReady ? 'Photo stored. Final sign-off will send the exact completed-item snapshot to the unsent staging outbox and move the vehicle to RFT.' : allComplete ? 'Store a completion photo before final sign-off.' : 'Every active operation line must be complete before final sign-off.'}</span><button class="primary qc-signoff-button" type="button" data-qc-signoff="${escapeHtml(key)}" ${signoffReady ? '' : 'disabled'}>Sign off and move to RFT</button></div>
   </section>`;
 }
 
@@ -4901,22 +4903,65 @@ function qcPageQueueOperationState(key = '', lineIdentity = '', checked = false,
     });
 }
 
+async function qcPageAttachPhoto(key = '', input) {
+  const cleanKey = String(key || '').trim();
+  if (!cleanKey || qcPagePhotoUploadInFlight.has(cleanKey)) return false;
+  const vehicle = qcPageVehicles().find(row => qcPageVehicleKey(row) === cleanKey);
+  const file = input?.files?.[0];
+  const service = app.emailVehicleLocationService;
+  if (!vehicle || !file || !service || typeof service.uploadQcPhotoEvidence !== 'function' || vehicle.__emailVehicleServerAuthoritative !== true || !vehicle.__emailVehicleId || Number(vehicle.__emailVehicleVersion || 0) < 1) {
+    qcPageFeedback.set(cleanKey, { kind: 'error', message: 'This photo is not bound to stable QC authority. Nothing was stored.' });
+    renderQualityControlPage();
+    return false;
+  }
+  if (!String(file.type || '').toLowerCase().startsWith('image/') || Number(file.size || 0) < 1 || Number(file.size || 0) > 10 * 1024 * 1024) {
+    qcPageFeedback.set(cleanKey, { kind: 'error', message: 'Choose an image no larger than 10 MB. Nothing was stored.' });
+    renderQualityControlPage();
+    return false;
+  }
+  qcPagePhotoUploadInFlight.add(cleanKey);
+  qcPageFeedback.set(cleanKey, { kind: 'saving', message: 'Uploading the private completion photo and recording its evidence receipt…' });
+  renderQualityControlPage();
+  try {
+    const result = await service.uploadQcPhotoEvidence(vehicle.__emailVehicleId, vehicle.__emailVehicleVersion, file);
+    if (!result?.ok || !result.data?.photo_receipt_id) {
+      qcPageFeedback.set(cleanKey, { kind: 'error', message: result?.code === 'vehicle_version_conflict' ? 'This vehicle changed in another session. The latest QC state has been reloaded.' : 'The photo was not stored. No QC sign-off is available.' });
+      renderQualityControlPage();
+      return false;
+    }
+    const reader = new FileReader();
+    const preview = await new Promise(resolve => {
+      reader.addEventListener('load', () => resolve(String(reader.result || '')), { once: true });
+      reader.addEventListener('error', () => resolve(''), { once: true });
+      reader.readAsDataURL(file);
+    });
+    qcPhotoEvidence.set(cleanKey, { ...result.data, originalFilename: result.data.original_filename || file.name, byteLength: Number(result.data.byte_length || 0), originalByteLength: Number(result.data.original_byte_length || file.size), imageWidth: Number(result.data.image_width || 0), imageHeight: Number(result.data.image_height || 0), sha256: result.data.sha256, url: preview });
+    qcPageFeedback.set(cleanKey, { kind: 'saved', message: `Photo compressed and stored (${Math.round(Number(result.data.original_byte_length || file.size) / 1024)} KB → ${Math.round(Number(result.data.byte_length || 0) / 1024)} KB). All active operation lines must be complete before sign-off.` });
+    renderQualityControlPage();
+    return true;
+  } finally {
+    qcPagePhotoUploadInFlight.delete(cleanKey);
+    renderQualityControlPage();
+  }
+}
+
 async function qcPageSignoff(key = '') {
   const cleanKey = String(key || '').trim();
   if (!cleanKey || qcPageSignoffInFlight.has(cleanKey)) return false;
   const vehicle = qcPageVehicles().find(row => qcPageVehicleKey(row) === cleanKey);
-  const photo = qcPhotoDrafts.get(cleanKey);
-  if (!vehicle || !photo) return false;
+  const photo = qcPhotoEvidence.get(cleanKey);
+  if (!vehicle || !photo?.photoReceiptId) return false;
   if (!qcPageAllOperationLinesComplete(vehicle)) {
-    window.alert('Every active authenticated or audited manual operation line must be complete before QC sign-off.');
+    window.alert('Every active authenticated or audited manual operation line must be complete before QC finalization.');
     return false;
   }
   qcPageSignoffInFlight.add(cleanKey);
   try {
-    const result = await completeVehicleQualityControl(cleanKey);
+    const result = await completeVehicleQualityControl(cleanKey, photo);
     if (result) {
-      qcPhotoDrafts.delete(cleanKey);
+      qcPhotoEvidence.delete(cleanKey);
       qcSelectedVehicleKey = '';
+      qcPageNotice = 'Signed off and moved to RFT. The exact completed-item salesperson update is queued in the staging outbox and remains unsent.';
       renderQualityControlPage();
     }
     return result;
@@ -4932,12 +4977,13 @@ function renderQualityControlPage() {
   const mobile = qcPageIsMobile();
   if (!vehicles.some(vehicle => qcPageVehicleKey(vehicle) === qcSelectedVehicleKey)) qcSelectedVehicleKey = mobile ? '' : qcPageVehicleKey(vehicles[0] || {});
   const selected = vehicles.find(vehicle => qcPageVehicleKey(vehicle) === qcSelectedVehicleKey) || null;
-  host.innerHTML = `<div class="qc-page-layout ${mobile ? selected ? 'is-mobile-detail' : 'is-mobile-list' : ''}">
+  host.innerHTML = `<div class="qc-page-layout ${mobile ? selected ? 'is-mobile-detail' : 'is-mobile-list' : ''}">${qcPageNotice ? `<div class="qc-finalization-notice" role="status" aria-live="polite">${escapeHtml(qcPageNotice)}</div>` : ''}
     <section class="qc-queue" aria-labelledby="qc-queue-title"><div class="qc-queue-header"><div><h3 id="qc-queue-title">Vehicles requiring QC</h3><p>${vehicles.length} awaiting QC sign-off</p></div><span class="qc-queue-count">${vehicles.length}</span></div><div class="qc-vehicle-list">${vehicles.length ? vehicles.map(vehicle => qcPageVehicleCardHtml(vehicle, qcPageVehicleKey(vehicle) === qcSelectedVehicleKey)).join('') : '<div class="qc-empty-state"><strong>No vehicles require QC</strong><span>Vehicles appear here after all required workshop work is complete.</span></div>'}</div></section>
-    <section class="qc-detail-host">${selected ? qcPageDetailHtml(selected) : '<div class="qc-empty-state qc-detail-empty"><strong>Select a vehicle</strong><span>Choose a QC vehicle to review its completed work and capture the completion photo.</span></div>'}</section>
+    <section class="qc-detail-host">${selected ? qcPageDetailHtml(selected) : '<div class="qc-empty-state qc-detail-empty"><strong>Select a vehicle</strong><span>Choose a QC vehicle to review its completed work and store the completion photo.</span></div>'}</section>
   </div>`;
   $$('[data-qc-open-vehicle]', host).forEach(button => button.addEventListener('click', () => {
     qcSelectedVehicleKey = button.dataset.qcOpenVehicle || '';
+    qcPageNotice = '';
     renderQualityControlPage();
   }));
   $$('[data-qc-back-to-list]', host).forEach(button => button.addEventListener('click', () => {
@@ -4947,29 +4993,7 @@ function renderQualityControlPage() {
   $$('[data-qc-operation-check]', host).forEach(input => input.addEventListener('change', () => {
     qcPageQueueOperationState(input.dataset.qcOperationCheck, input.dataset.qcLineIdentity, input.checked, input);
   }));
-  $$('[data-qc-photo]', host).forEach(input => input.addEventListener('change', () => {
-    const file = input.files?.[0];
-    const key = input.dataset.qcPhoto || '';
-    const maxPhotoBytes = 10 * 1024 * 1024;
-    if (!file || !key || !file.type.startsWith('image/')) return;
-    if (file.size > maxPhotoBytes) {
-      input.value = '';
-      window.alert('Choose an image smaller than 10 MB. No photo was attached.');
-      return;
-    }
-    const reader = new FileReader();
-    reader.addEventListener('load', () => {
-      const dataUrl = String(reader.result || '');
-      if (!dataUrl.startsWith('data:image/')) {
-        window.alert('The selected image could not be read. No photo was attached.');
-        return;
-      }
-      qcPhotoDrafts.set(key, { name: file.name, type: file.type, size: file.size, url: dataUrl });
-      renderQualityControlPage();
-    }, { once: true });
-    reader.addEventListener('error', () => window.alert('The selected image could not be read. No photo was attached.'), { once: true });
-    reader.readAsDataURL(file);
-  }));
+  $$('[data-qc-photo]', host).forEach(input => input.addEventListener('change', () => { void qcPageAttachPhoto(input.dataset.qcPhoto, input); }));
   $$('[data-qc-signoff]', host).forEach(button => button.addEventListener('click', () => { void qcPageSignoff(button.dataset.qcSignoff); }));
 }
 
@@ -5904,24 +5928,26 @@ async function markVehicleReadyForQualityControl(key = '') {
 function qualityControlVehicleHtml(vehicle = {}) {
   const key = vehicleKey(vehicle);
   const stock = displayStockNumber(vehicle) || key || 'No stock';
-  const action = vehicle.pdcQcComplete === true
-    ? `<button class="small-button" type="button" data-transfer-rft-stock="${escapeHtml(key)}">Transfer signed-off vehicle to RFT</button>`
-    : `<button class="small-button" type="button" data-qc-signoff-rft="${escapeHtml(key)}">Record named QC sign-off</button>`;
+  const action = `<button class="small-button" type="button" data-open-qc-vehicle="${escapeHtml(key)}">Open QC finalization</button>`;
   return `<article class="control-board-work-vehicle control-board-qc-vehicle" aria-label="${escapeHtml(stock)} in QC">
     <span class="control-board-work-identity">${vehicleIdentityStackHtml(vehicle)}</span>
     <span class="control-board-work-main"><strong>${escapeHtml(displayVehicle(vehicle) || 'Vehicle not listed')}</strong></span>
     <span class="control-board-work-location"><b>Now</b><span>QC</span></span>
     <span class="control-board-work-age"><b>PMB</b><span>${escapeHtml(pmbAgeLabel(vehicle))}</span></span>
-    <span class="badge ${vehicle.pdcQcComplete === true ? 'success' : 'warning'}">${vehicle.pdcQcComplete === true ? 'QC signed off' : 'Awaiting sign-off'}</span>
+    <span class="badge warning">Awaiting receipt-backed sign-off</span>
     ${action}
   </article>`;
 }
 
-async function completeVehicleQualityControl(key = '') {
+async function completeVehicleQualityControl(key = '', photoEvidence = null) {
   const vehicle = selectedVehicle(key);
   if (!vehicle) return false;
-  if (!vehicleInQualityControlGate(vehicle) || vehicle.pdcQcComplete === true) {
-    window.alert('QC sign-off is available only for vehicles currently in the QC Gate.');
+  if (!vehicleInQualityControlGate(vehicle)) {
+    window.alert('QC finalization is available only for vehicles currently in the QC Gate.');
+    return false;
+  }
+  if (vehicleLifecycleSharedModeActive() && (!photoEvidence?.photoReceiptId || typeof app.emailVehicleLocationService?.finalizeQcToRft !== 'function')) {
+    window.alert('Store the private completion photo first. No QC or RFT state was changed.');
     return false;
   }
   const operator = cleanNavisionText(window.PDC_AUTH_CONTEXT?.displayName || window.PDC_AUTH_CONTEXT?.email || localStorage.getItem(OPERATOR_NAME_KEY) || '');
@@ -5931,7 +5957,7 @@ async function completeVehicleQualityControl(key = '') {
     return false;
   }
   const label = vehicleIdentityTitle(vehicle) || displayStockNumber(vehicle) || 'this vehicle';
-  if (!window.confirm(`Sign off QC for ${label}?\n\nThis records your named QC sign-off while the vehicle remains in QC.`)) return false;
+  if (!window.confirm(`Sign off QC and move ${label} to RFT?\n\nThis stores the named QC sign-off, exact completed-item snapshot and salesperson update in one atomic staging transaction. The salesperson update remains unsent.`)) return false;
 
   if (vehicleLifecycleSharedModeActive()) {
     const ref = await vehicleLifecycleSharedRef(vehicle);
@@ -5940,42 +5966,21 @@ async function completeVehicleQualityControl(key = '') {
       return false;
     }
     if (ref.isArchived) {
-      window.alert('This vehicle is archived in shared data, so QC was not completed. No change was made.');
+      window.alert('This vehicle is archived in shared data, so QC finalization was not applied. No change was made.');
       return false;
     }
-    if (ref.qcCompletedAt) {
-      window.alert('QC has already been completed for this vehicle.');
-      renderAll();
-      return false;
-    }
-    const result = isAcceptanceClosureVehicle(vehicle)
-      ? await window.__vehicleLifecycleActions.acceptanceQcComplete({
-        vehicleId: ref.vehicleId,
-        expectedVersion: ref.version,
-        idempotencyKey: crypto.randomUUID(),
-      })
-      : await window.__vehicleLifecycleActions.qcCompleteVehicle({
-        vehicleId: ref.vehicleId,
-        expectedVersion: ref.version,
-        workItemKey: 'QC',
-        completedSummary: pdcCompletedJobsText(vehicle) || null,
-      });
+    const result = await app.emailVehicleLocationService.finalizeQcToRft(ref.vehicleId, ref.version, photoEvidence.photoReceiptId, crypto.randomUUID());
     if (!result || result.ok !== true) {
       const message = typeof describeVehicleLifecycleActionError === 'function'
-        ? describeVehicleLifecycleActionError(result && result.error)
-        : 'The QC sign-off could not be saved.';
+        ? describeVehicleLifecycleActionError(result && (result.code || result.error))
+        : 'The QC finalization could not be saved.';
       window.alert(message);
-      if (typeof window.__workshopDataService !== 'undefined' && window.__workshopDataService) window.__workshopDataService.loadSnapshot('qc_complete_rejected');
+      if (window.__workshopDataService && typeof window.__workshopDataService.loadSnapshot === 'function') await window.__workshopDataService.loadSnapshot('qc_finalization_rejected');
       renderAll();
       return false;
     }
-    reconcileVehicleLifecycleServerResult(vehicle, result);
-    if (!isAcceptanceClosureVehicle(vehicle) && result.notification_has_recipient === false) {
-      window.alert('QC complete was saved, but no salesperson email is on file for this vehicle. The "ready for transport" notification could not be queued for sending. Please set the correct salesperson and use Retry from the notification outbox.');
-    }
-    if (window.__workshopDataService && typeof window.__workshopDataService.loadSnapshot === 'function') {
-      await window.__workshopDataService.loadSnapshot('qc_complete');
-    }
+    if (window.__workshopDataService && typeof window.__workshopDataService.loadSnapshot === 'function') await window.__workshopDataService.loadSnapshot('qc_finalization');
+    if (typeof refreshEmailVehicleLocations === 'function') await refreshEmailVehicleLocations();
     renderAll();
     return true;
   }
@@ -7004,7 +7009,7 @@ function incomingVehicleDetailRow(vehicle = {}, bucketKey = '', options = {}) {
         ? `<button class="primary" type="button" data-ready-for-qc="${escapeHtml(key)}" title="Move this all-green vehicle to the QC Gate">Ready for QC</button>`
         : `<button class="primary" type="button" data-pit-transfer="${escapeHtml(key)}" ${vehicleCanEnterPit(vehicle) ? '' : 'disabled'} title="${escapeHtml(vehicleCanEnterPit(vehicle) ? 'Move PMB Unallocated vehicle to PIT' : 'PIT movement requires PMB Unallocated with no active station')}">To PIT</button>`}<button class="small-button incoming-open-button" type="button" data-open-stock="${escapeHtml(key)}">Open</button>`
       : bucketKey === 'qc'
-        ? `${vehicle.pdcQcComplete === true ? `<button class="primary" type="button" data-transfer-rft-stock="${escapeHtml(key)}">Complete RFT transfer</button>` : `<button class="primary" type="button" data-qc-signoff-rft="${escapeHtml(key)}">Sign off QC</button>`}<button class="small-button incoming-open-button" type="button" data-open-stock="${escapeHtml(key)}">Open</button>`
+        ? `<button class="primary" type="button" data-open-qc-vehicle="${escapeHtml(key)}">Open QC finalization</button><button class="small-button incoming-open-button" type="button" data-open-stock="${escapeHtml(key)}">Open</button>`
         : bucketKey === 'pit'
           ? `<button class="primary" type="button" data-pit-return-pmb="${escapeHtml(key)}">Return to PMB</button><button class="small-button incoming-open-button" type="button" data-open-stock="${escapeHtml(key)}">Open</button>`
           : bucketKey === 'rft'
@@ -7223,13 +7228,11 @@ function renderIncomingDashboardBoard() {
     event.stopPropagation();
     markVehicleReadyForQualityControl(button.dataset.readyForQc);
   }));
-  $$('[data-qc-signoff-rft]', host).forEach(button => button.addEventListener('click', event => {
+  $$('[data-open-qc-vehicle]', host).forEach(button => button.addEventListener('click', event => {
     event.stopPropagation();
-    completeVehicleQualityControl(button.dataset.qcSignoffRft);
-  }));
-  $$('[data-transfer-rft-stock]', host).forEach(button => button.addEventListener('click', event => {
-    event.stopPropagation();
-    transferVehicleToRftFromCard(button.dataset.transferRftStock);
+    qcSelectedVehicleKey = button.dataset.openQcVehicle || '';
+    showView('qc');
+    renderQualityControlPage();
   }));
   $$('[data-pmb-bay-provider-key]', host).forEach(select => {
     select.addEventListener('click', event => event.stopPropagation());
@@ -9469,17 +9472,24 @@ function updatePmbBayMechanic(key, stage, value) {
   saveVehicleEdits(vehicleKey(vehicle), { pmbBayMechanic: mechanic });
 }
 
-function updatePmbBaySubletProvider(key, stage, value) {
+async function updatePmbBaySubletProvider(key, stage, value) {
   const cleanKey = String(key || '').trim();
   const vehicle = app.data.find(v => vehicleKey(v) === cleanKey || v.stock === cleanKey || v.id === cleanKey);
   const normalizedStage = normalizePmbStage(stage || inferredPmbStage(vehicle));
   if (!vehicle || !normalizedStage) return;
   const provider = cleanNavisionText(value || '');
-  // No roster-add call here: `value` comes from a <select> populated
-  // exclusively from loadSubletProviders() (Supabase-backed as of Stage
-  // 2A), so it can only ever be a name that already exists.
+  if (vehicle.__emailVehicleServerAuthoritative === true) {
+    const bookings = subletRows().filter(row => vehicleKey(row) === cleanKey && row.__subletBookingId && row.__subletBookingStatus === 'active');
+    if (bookings.length !== 1) {
+      window.alert(bookings.length === 0 ? 'No active canonical Sublet booking exists. Use Create booking first; no legacy placeholder update was sent.' : 'Multiple active Sublet bookings exist. Open Sublet and select the exact booking before changing provider. No change was made.');
+      return false;
+    }
+    return updateSubletField(bookings[0].__subletBookingId, 'pmbSubletProvider', provider);
+  }
+  // Local fixtures retain their existing presentation-only behavior.
   recordVehicleAudit(vehicle, 'External provider assigned', { stage: pmbStageLabel(normalizedStage), provider: provider || 'Unassigned' });
   saveVehicleEdits(vehicleKey(vehicle), { pmbSubletProvider: provider });
+  return true;
 }
 
 function completePmbBayWork(key, stage, transactionOptions = {}) {
@@ -22585,6 +22595,14 @@ async function refreshSubletMutationAuthority(key = '', vehicleId = '', minimumV
   return null;
 }
 
+function subletProviderRecordByName(name = '') {
+  const service = typeof initWorkshopReferenceDataServiceIfAvailable === 'function' ? initWorkshopReferenceDataServiceIfAvailable() : null;
+  const rows = service?.getCachedSubletProviders?.()?.rows || [];
+  const requested = cleanNavisionText(name).toLowerCase();
+  const matches = rows.filter(row => row?.active && cleanNavisionText(row.name).toLowerCase() === requested);
+  return matches.length === 1 ? matches[0] : null;
+}
+
 async function updateSubletField(key = '', field = '', value = '') {
   const allowed = new Set(['pmbSubletProvider', 'pmbSubletProviderEmail', 'pmbSubletPoSentDate', 'pmbSubletBookingDate', 'pmbSubletExpectedReturnDate', 'pmbSubletActualReturnDate', 'pmbSubletNotes', 'pmbSubletEmailSent']);
   if (!allowed.has(field)) return false;
@@ -22599,7 +22617,8 @@ async function updateSubletField(key = '', field = '', value = '') {
   }
   if (vehicle.__subletBookingId && vehicle.__emailVehicleServerAuthoritative === true) {
     const service = app.emailVehicleLocationService;
-    if (!service?.updateSubletBooking || !['pmbSubletBookingDate', 'pmbSubletExpectedReturnDate', 'pmbSubletNotes'].includes(field)) {
+    const providerFields = ['pmbSubletProvider', 'pmbSubletProviderEmail'];
+    if (!service?.updateSubletBooking || (providerFields.includes(field) && !service.updateSubletBookingProvider) || (!providerFields.includes(field) && !['pmbSubletBookingDate', 'pmbSubletExpectedReturnDate', 'pmbSubletNotes'].includes(field))) {
       window.alert('This canonical booking field is read-only or the shared booking service is unavailable. No change was made.');
       renderSubletHome();
       return false;
@@ -22608,17 +22627,28 @@ async function updateSubletField(key = '', field = '', value = '') {
     return queueSubletVehicleMutation(bookingId, async () => {
       const current = subletVehicleByKey(bookingId);
       if (!current || current.__subletBookingStatus !== 'active') return false;
-      const outDate = field === 'pmbSubletBookingDate' ? cleanValue : plainDateValue(current.pmbSubletBookingDate);
-      const expectedReturnDate = field === 'pmbSubletExpectedReturnDate' ? cleanValue : plainDateValue(current.pmbSubletExpectedReturnDate);
-      const notes = field === 'pmbSubletNotes' ? cleanValue : null;
-      const response = await service.updateSubletBooking(bookingId, current.__subletBookingVersion, outDate, expectedReturnDate, notes);
+      let response;
+      if (providerFields.includes(field)) {
+        const provider = field === 'pmbSubletProvider' ? subletProviderRecordByName(cleanValue) : { id: current.__subletProviderId, name: current.pmbSubletProvider };
+        if (!provider?.id) {
+          window.alert('Choose an active canonical provider. No change was made.');
+          return false;
+        }
+        const providerEmail = field === 'pmbSubletProviderEmail' ? cleanValue : cleanNavisionText(current.pmbSubletProviderEmail || '');
+        response = await service.updateSubletBookingProvider(bookingId, current.__subletBookingVersion, provider.id, providerEmail, crypto.randomUUID());
+      } else {
+        const outDate = field === 'pmbSubletBookingDate' ? cleanValue : plainDateValue(current.pmbSubletBookingDate);
+        const expectedReturnDate = field === 'pmbSubletExpectedReturnDate' ? cleanValue : plainDateValue(current.pmbSubletExpectedReturnDate);
+        const notes = field === 'pmbSubletNotes' ? cleanValue : null;
+        response = await service.updateSubletBooking(bookingId, current.__subletBookingVersion, outDate, expectedReturnDate, notes);
+      }
       if (!response?.ok) {
         await refreshEmailVehicleLocations();
         const message = response?.code === 'version_conflict'
-          ? 'This booking changed concurrently. The latest dates were loaded; review and reapply your change.'
+          ? 'This booking changed concurrently. The latest values were loaded; review and reapply your change.'
           : response?.code === 'sublet_booking_overlap'
             ? 'Those dates overlap another Sublet booking for this vehicle. No change was made.'
-            : `Shared Sublet booking update failed: ${response?.code || 'unknown_error'}. No change was made.`;
+            : `Shared canonical Sublet update failed: ${response?.code || 'unknown_error'}. No change was made.`;
         window.alert(message);
         renderSubletHome();
         return false;
@@ -22628,57 +22658,10 @@ async function updateSubletField(key = '', field = '', value = '') {
       return true;
     });
   }
-  if (vehicle.__emailVehicleServerAuthoritative === true) {
-    const service = app.emailVehicleLocationService;
-    if (!service?.updateSublet || !vehicle.__emailVehicleId) {
-      window.alert('Shared Sublet booking service is unavailable. No change was made.');
-      return false;
-    }
-    const vehicleId = vehicle.__emailVehicleId;
-    const originallyObservedValue = field === 'pmbSubletEmailSent'
-      ? String(vehicle[field] === true)
-      : cleanNavisionText(vehicle[field] || '');
-    return queueSubletVehicleMutation(vehicleId, async () => {
-      let current = subletVehicleByKey(key);
-      if (!current || current.__emailVehicleId !== vehicleId) return false;
-      const rejectInvalidCurrentDateOrder = currentVehicle => {
-        const currentDateError = subletDateChangeError(currentVehicle, field, cleanValue);
-        if (!currentDateError) return false;
-        window.alert(currentDateError);
-        renderSubletHome();
-        return true;
-      };
-      if (rejectInvalidCurrentDateOrder(current)) return false;
-      let response = await service.updateSublet(vehicleId, current.__subletBookingVersion, SUBLET_SERVER_FIELD_MAP[field], cleanValue);
-      if (response?.code === 'version_conflict') {
-        current = await refreshSubletMutationAuthority(key, vehicleId, Number(response?.data?.current_version || 0));
-        if (!current || current.__emailVehicleId !== vehicleId) return false;
-        if (!subletMutationFieldMatches(current, field, originallyObservedValue)) {
-          window.alert('This Sublet field was changed by another user. The latest value has been loaded; please review it and reapply your change if still required.');
-          renderSubletHome();
-          return false;
-        }
-        if (rejectInvalidCurrentDateOrder(current)) return false;
-        response = await service.updateSublet(vehicleId, current.__subletBookingVersion, SUBLET_SERVER_FIELD_MAP[field], cleanValue);
-      }
-      if (!response?.ok) {
-        await refreshEmailVehicleLocations();
-        const message = response?.code === 'version_conflict'
-          ? 'This Sublet booking changed again while your update was being saved. It has been refreshed; please retry your change.'
-          : response?.code === 'workshop_booking_conflict'
-            ? 'That Sublet date would overlap an existing Workshop booking for this vehicle. Move the Workshop booking first; no Sublet change was made.'
-            : `Shared Sublet update failed: ${response?.code || 'unknown_error'}. No change was made.`;
-        window.alert(message);
-        return false;
-      }
-      const nextVersion = Number(response?.data?.version);
-      const reconciled = await refreshSubletMutationAuthority(key, vehicleId, nextVersion, field, cleanValue);
-      if (!reconciled) {
-        window.alert('Your Sublet change was saved, but the latest shared row is still loading. Refresh the page before making another change.');
-        return false;
-      }
-      return true;
-    });
+  if (vehicle.__emailVehicleServerAuthoritative === true && !vehicle.__subletBookingId) {
+    window.alert('No active canonical Sublet booking exists for this vehicle. Use Create booking first; no legacy placeholder update was sent.');
+    renderSubletHome();
+    return false;
   }
   recordVehicleAudit(vehicle, 'Sublet booking updated', { field, value: cleanValue, by: getCurrentOperatorName() });
   saveVehicleEdits(key, { [field]: cleanValue, pmbSubletUpdatedAt: nowIsoString(), pmbSubletUpdatedBy: getCurrentOperatorName() });

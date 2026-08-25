@@ -13,12 +13,12 @@ assert.ok(qcCompleteStart >= 0 && qcCompleteEnd > qcCompleteStart);
 assert.doesNotMatch(app.slice(qcCompleteStart, qcCompleteEnd), /printQualityControlSignoffLabel|printRawZpl|QZ Tray/,
   'named QC sign-off never invokes a printer');
 assert.doesNotMatch(app, /Sign off & print label/);
-assert.match(app, />Sign off QC<\/button>/);
+assert.match(app, />Open QC finalization<\/button>/);
 assert.match(app, /const labelAction = locationReadOnly \|\| bucketKey === 'qc' \? ''/,
   'Vehicle Locations suppresses Label action in QC');
 assert.match(app, /vehiclePdcLocation\(v\) === 'QC' \? '' : `<button class="small-button vehicle-label-button"/,
   'Vehicle detail suppresses Label action for QC vehicles');
-assert.match(app, /const APP_VERSION = '2026\.08\.25\.10-qc-operation-projection'/);
-assert.match(index, /app\.js\?v=2026\.08\.25\.10-qc-operation-projection/);
+assert.match(app, /const APP_VERSION = '2026\.08\.26\.01-qc-finalization-399'/);
+assert.match(index, /app\.js\?v=2026\.08\.26\.01-qc-finalization-399/);
 
 console.log('Mobile QC sign-off has no label printing: PASS');

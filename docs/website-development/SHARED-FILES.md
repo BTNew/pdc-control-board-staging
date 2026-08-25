@@ -1,5 +1,14 @@
 # Shared Files
 
+## Receipt-backed QC photo finalization and canonical Sublet provider writes — 2026-08-26
+
+- `app.js` — QC receipt-backed photo upload/finalization flow, already-QC-completed-at-QC support, legacy QC action replacement, canonical Sublet booking identity routing, and modal open/close interaction hooks.
+- `pdc-email-vehicle-location-service.js` — compressed photo upload/storage receipt client, atomic finalization client, QC finalization projection mapper, and exact booking UUID/version provider-reassignment client.
+- `styles.css` — top vehicle-modal stacking context and temporary background Sublet native-select suppression while the modal is open.
+- `index.html`, `deployment-identity.json` — cache-busted staging asset release identity and uncommissioned 399 migration provenance.
+- `supabase/staging_only/20260826140000_399_qc_finalization_photo_rft_salesperson_outbox.sql` — additive staging candidate migration for private photo evidence, atomic QC/RFT/outbox receipts and canonical Sublet provider updates.
+- `test_qc_finalization_399.js`, `test_sublet_canonical_provider_mutation_399.js`, `test_sublet_modal_layering.js`, plus updated QC contract tests — focused regression coverage.
+
 ## Canonical Workshop booking snapshot authority — 2026-08-25
 
 - `supabase/staging_only/20260826130000_397_canonical_workshop_booking_snapshot_authority.sql` — exact-head-guarded staging-only projection wrapper overlaying canonical booking scheduling/live fields by stable UUID while preserving snapshot shape and mutation authority.

@@ -53,11 +53,12 @@ const migration = fs.readFileSync(migrationPath, 'utf8');
 const qcStart = app.indexOf('async function completeVehicleQualityControl');
 const qcEnd = app.indexOf('\nfunction vehicleCanEnterPit', qcStart);
 const qcBody = app.slice(qcStart, qcEnd);
-assert.ok(qcBody.includes('.qcCompleteVehicle({'), 'named QC sign-off must use the QC-only RPC');
-assert.ok(!qcBody.includes('.qcSignoffToRft({'), 'named QC sign-off must not transfer to RFT');
-assert.ok(qcBody.includes('.acceptanceQcComplete({'), 'synthetic QC must use zero-notification guarded lifecycle RPC');
-assert.ok(app.includes('Transfer signed-off vehicle to RFT'), 'QC UI must expose a separate RFT transfer control after sign-off');
-assert.ok(app.includes('This records your named QC sign-off while the vehicle remains in QC.'), 'confirmation copy must describe separated QC semantics');
+assert.ok(qcBody.includes('.finalizeQcToRft('), 'named QC sign-off must use the receipt-backed atomic finalization RPC');
+assert.ok(!qcBody.includes('.qcSignoffToRft({'), 'named QC sign-off must not use the legacy lifecycle RPC');
+assert.ok(qcBody.includes('photoEvidence.photoReceiptId'), 'finalization must require the stored photo receipt');
+assert.ok(app.includes('Open QC finalization'), 'QC UI must expose the combined finalization control');
+assert.ok(!app.includes('Transfer signed-off vehicle to RFT'), 'successful QC finalization must not expose a separate manual RFT step');
+assert.ok(app.includes('The salesperson update remains unsent.'), 'confirmation copy must describe the staging outbox containment');
 
 const addStart = app.indexOf('async function addCustomerFromForm');
 assert.ok(addStart >= 0, 'Add vehicle submit handler must await authoritative acceptance creation');
