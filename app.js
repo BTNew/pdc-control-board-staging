@@ -281,9 +281,11 @@ function pdcJobTriState(vehicle = {}, def = {}) {
 
 function pdcJobTriStateControl(vehicle = {}, def = {}, locked = false) {
   const state = pdcJobTriState(vehicle, def);
-  const stateLabel = state === 'complete' ? 'Completed' : state === 'required' ? 'To be completed' : 'Not required';
+  const ordered = def.key === 'parts' && state === 'required' && partsOrdered(vehicle) && !isActivePartsStoppage(vehicle);
+  const displayState = ordered ? 'ordered' : state;
+  const stateLabel = state === 'complete' ? 'Completed' : ordered ? 'Ordered' : state === 'required' ? 'To be completed' : 'Not required';
   const disabled = locked ? ' disabled' : '';
-  return `<button class="pdc-work-state pdc-work-state-${escapeHtml(state)} pdc-toggle-${escapeHtml(def.key)}" type="button" data-pdc-work-state="${escapeHtml(def.key)}" data-state="${escapeHtml(state)}" aria-label="${escapeHtml(def.label)} - ${stateLabel}" title="${escapeHtml(def.label)} - ${stateLabel}. Click to cycle: grey not required, red to complete, green completed."${disabled}>
+  return `<button class="pdc-work-state pdc-work-state-${escapeHtml(displayState)} pdc-toggle-${escapeHtml(def.key)}" type="button" data-pdc-work-state="${escapeHtml(def.key)}" data-state="${escapeHtml(state)}" aria-label="${escapeHtml(def.label)} - ${stateLabel}" title="${escapeHtml(def.label)} - ${stateLabel}. Grey not required, red to complete, orange ordered, green completed."${disabled}>
     <span class="pdc-work-state-code">${escapeHtml(def.short)}</span>
     <span class="pdc-work-state-label">${escapeHtml(def.label)}</span>
     <span class="pdc-work-state-status">${escapeHtml(stateLabel)}</span>
@@ -6613,17 +6615,19 @@ function incomingWorkChecklistHtml(vehicle = {}, options = {}) {
     const blocked = def.key === 'parts'
       ? isActivePartsStoppage(vehicle)
       : Boolean(stoppedBooking || (isPdcBlocked(vehicle) && stageJobKey === def.key));
+    const ordered = def.key === 'parts' && required && !complete && !blocked && partsOrdered(vehicle);
     const classes = ['incoming-work-check', `pdc-station-${def.key}`];
     if (!required && !complete) classes.push('is-not-required');
     if (required) classes.push('is-required');
+    if (ordered) classes.push('is-ordered');
     if (complete) classes.push('is-complete');
     if (blocked) classes.push('is-blocked');
     if (stage && currentStage === stage) classes.push('is-current-stage');
-    const state = complete ? 'complete' : blocked ? 'blocked' : required ? 'required' : 'not required';
-    const marker = complete ? '✓' : blocked ? '!' : required ? '•' : '–';
+    const state = complete ? 'complete' : blocked ? 'blocked' : ordered ? 'ordered' : required ? 'required' : 'not required';
+    const marker = complete ? '✓' : blocked ? '!' : ordered ? '●' : required ? '•' : '–';
     const title = stoppedBooking
       ? `${pdcGridJobLabel(def)} STOPPAGE${stoppedBooking.stoppageReason ? `: ${stoppedBooking.stoppageReason}` : ''}`
-      : required || complete ? pdcJobCompletionTitle(vehicle, def) : `${pdcGridJobLabel(def)} not required`;
+      : ordered ? `${pdcGridJobLabel(def)} ordered` : required || complete ? pdcJobCompletionTitle(vehicle, def) : `${pdcGridJobLabel(def)} not required`;
     return `<span class="${classes.join(' ')}" title="${escapeHtml(title)}" aria-label="${escapeHtml(`${pdcGridJobLabel(def)} ${state}`)}">
       <span class="incoming-work-box" aria-hidden="true">${marker}</span>
       <span class="incoming-work-label">${escapeHtml(pdcGridJobLabel(def))}</span>
@@ -6636,6 +6640,7 @@ function workStatusLegendHtml() {
     <strong>Work status</strong>
     <span class="work-status-key status-none"><b>—</b> Not required</span>
     <span class="work-status-key status-required"><b>●</b> Required</span>
+    <span class="work-status-key status-ordered"><b>●</b> Parts ordered</span>
     <span class="work-status-key status-complete"><b>✓</b> Complete</span>
     <span class="work-status-key status-blocked"><b>!</b> STOPPAGE</span>
   </div>`;
@@ -12638,7 +12643,7 @@ function renderDetail() {
         <div class="pdc-work-state-grid" data-pdc-work-state-grid>
           ${PDC_JOB_DEFS.map(def => pdcJobTriStateControl(v, def, isCompletedVehicle)).join('')}
         </div>
-        <div class="field-help pdc-work-state-help">Click each work item to cycle: grey = not required, red = to be completed, green = completed.</div>
+        <div class="field-help pdc-work-state-help">Click each work item to cycle: grey = not required, red = to be completed, orange = Parts ordered, green = completed.</div>
         <div class="edit-actions">
           <button class="primary" type="submit">Save changes</button>
           <button class="ghost" type="button" data-modal-cancel>Cancel</button>
@@ -13871,7 +13876,7 @@ function partsQueueActionsHtml(vehicle = {}, status = partsDepartmentStatus(vehi
   const canMarkOrdered = partsHasValidAuthoritativeEta(vehicle);
   const markOrderedHint = canMarkOrdered ? 'Mark Parts ordered' : 'Set Parts ETA before marking ordered';
   return `<div class="parts-action-group parts-visible-actions">
-    ${status === 'notordered' ? `<button class="small-button parts-ordered-button" type="button" data-parts-ordered="${escapeHtml(key)}" title="${escapeHtml(markOrderedHint)}" aria-label="${escapeHtml(markOrderedHint)}"${canMarkOrdered ? '' : ' disabled'}>Mark ordered</button>` : ''}
+    ${status === 'notordered' ? `<button class="small-button parts-ordered-button" type="button" data-parts-ordered="${escapeHtml(key)}" title="${escapeHtml(markOrderedHint)}" aria-label="${escapeHtml(markOrderedHint)}"${canMarkOrdered ? '' : ' disabled aria-disabled="true"'}>Mark ordered</button>` : ''}
     ${received ? '' : `<button class="small-button" type="button" data-parts-complete="${escapeHtml(key)}">Mark received</button>`}
     ${stopped
       ? `<button class="small-button" type="button" data-parts-clear-stoppage="${escapeHtml(key)}">Remove Parts STOPPAGE</button>`

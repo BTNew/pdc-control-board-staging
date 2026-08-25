@@ -1,7 +1,7 @@
 {
   "environment": "staging",
-  "application_version": "2026.08.23.04-hide-uncommissioned-delete",
-  "frontend_source_commit": "2c88587b6188568edfb2329b0e5a4c0a0eb564e3",
+  "application_version": "2026.08.25.02-async-modal-focus-containment",
+  "frontend_source_commit": "70ad1b4c2d321e9645277ef6d2b0a5256df03716",
   "staging_project_ref": "cdsmnqxtyyoeoznmbidd",
   "production_unchanged": true,
   "mailbox_runtime_changed": false,
@@ -24,6 +24,7 @@
     "The staging UI is fail-closed behind completeVehicleDeleteCommissioned=false.",
     "Only an independently approved, applied and authenticated-live-probed successor may enable the control.",
     "Historical email/source and Telegram replay fences must remain preserved.",
-    "Production and the local mailbox runtime were not changed by this release."
+    "Production and the local mailbox runtime were not changed by this release.",
+    "Vehicle and customer dialogs trap keyboard focus, recover containment after asynchronous rerenders, and return focus to the invoking control on close."
   ]
 }
