@@ -1,5 +1,11 @@
 # Autonomous Website Changes
 
+## 2026-08-25 — Fail-closed Vehicle identity and Workshop line projection
+
+- Bound open Vehicle modals to the exact canonical UUID plus displayed Stock baseline across delayed refresh/realtime reorder; conflicting, missing or unresolved identities now render read-only and cannot invoke a mutation RPC. `app.js` no longer resets the active modal to the first refreshed row.
+- Updated `vehicleWorkshopGroups` to retain every authoritative Job Card/operation line, including explicit `0.00` hours, preserve OP17 evidence and represent Parts/Pit lines, while moving adjusted lines into their authoritative station without generic fallback replacement.
+- Workshop shared booking duration now ignores stale/user-derived hours and uses the exact whole-minute adjusted operation projection (including the 516-minute Fitting case). Added `test_identity_zero_hours_booking_duration.js`; production remains untouched.
+
 ## 2026-08-25 — Canonical Workshop booking snapshot authority
 
 - Added staging-only migration `supabase/staging_only/20260826130000_397_canonical_workshop_booking_snapshot_authority.sql`, guarded after the exact live 20260826124500 final owner-document constraint-correction head (preserving both prior 396 corrections). Both station and full Workshop snapshots now overlay scheduling, status, version, actual and stoppage fields from `workshop_bookings` by stable booking UUID, without rewriting canonical rows or moving active bookings.

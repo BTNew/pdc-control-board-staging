@@ -5344,7 +5344,13 @@ async function workshopScheduleVehicleNextAvailable({ vehicleId = '', vehicleKey
     renderWorkshopPlanner();
     return false;
   }
-  const rawEstimate = Number(hours) > 0 ? Number(hours) : workshopCalculatedStageHours(vehicle, normalizedStage) || pmbBayHours(vehicle) || workshopDefaultBookingHours();
+  // In shared mode the operation projection is the booking authority. The
+  // caller's hours may be stale (or may have been derived from editable DOM
+  // inputs), so it must never override adjusted server lines.
+  const authoritativeStageHours = workshopCalculatedStageHours(vehicle, normalizedStage);
+  const rawEstimate = workshopSharedModeActive()
+    ? (authoritativeStageHours || pmbBayHours(vehicle) || workshopDefaultBookingHours())
+    : (Number(hours) > 0 ? Number(hours) : authoritativeStageHours || pmbBayHours(vehicle) || workshopDefaultBookingHours());
   const estimate = workshopSharedModeActive()
     ? (workshopExactDurationHours(rawEstimate) || workshopClampDurationHours(rawEstimate))
     : workshopClampDurationHours(rawEstimate);
