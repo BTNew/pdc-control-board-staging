@@ -13023,3 +13023,31 @@ button.vehicle-workshop-line-number:focus-visible { position: relative; z-index:
   .qc-signoff-button { width: 100%; min-height: 50px; }
   .qc-signoff-note { text-align: center; }
 }
+
+/* Compact desktop sidebar; retain accessible coarse-pointer targets. */
+@media (min-width: 821px) {
+  .sidebar .nav {
+    gap: 2px;
+    margin-top: 6px;
+  }
+  .sidebar .nav .nav-item {
+    min-height: 34px;
+    padding: 7px 12px;
+    border-radius: 10px;
+    line-height: 1.15;
+  }
+  .sidebar .nav .nav-workshop-item {
+    gap: 7px;
+    padding-block: 6px;
+  }
+  .sidebar .nav .nav-section-label {
+    margin: 5px 8px 1px;
+  }
+}
+
+@media (min-width: 821px) and (pointer: coarse) {
+  .sidebar .nav .nav-item {
+    min-height: 44px;
+    padding-block: 10px;
+  }
+}
