@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.26.09-stoppage-rft-transport';
+const APP_VERSION = '2026.08.26.10-targeted-stoppage-paths';
 const WORKSHOP_PLANNER_SCRIPT_VERSION = APP_VERSION;
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
@@ -5224,7 +5224,9 @@ function workflowPriorityRows() {
         label: `${station} STOPPAGE`,
         severity: 'danger',
         detail: `${reason}${bay ? ` · ${bay}` : ''}`,
+        stoppageKind: 'booking',
         bookingId: String(booking.bookingId || booking.id),
+        bookingVersion: Number(booking.version || 0),
       });
     });
   });
@@ -5236,12 +5238,13 @@ function workflowPriorityRows() {
         vehicle,
         label: 'Parts STOPPAGE',
         severity: 'danger',
+        stoppageKind: 'parts',
         detail: `${partsStoppageReason(vehicle)} · ${eta ? `Parts ETA ${eta}` : 'Parts ETA pending'}`,
       });
     });
   pmbRows
     .filter(isPdcBlocked)
-    .forEach(vehicle => issueRows.push({ vehicle, label: 'PMB STOPPAGE', severity: 'danger', detail: pdcBlockReason(vehicle) }));
+    .forEach(vehicle => issueRows.push({ vehicle, label: 'PMB STOPPAGE', severity: 'danger', stoppageKind: 'pmb', detail: pdcBlockReason(vehicle) }));
   const seen = new Set();
   return issueRows.filter(row => {
     const key = `${vehicleKey(row.vehicle)}:${row.label}`;
@@ -5267,8 +5270,8 @@ function fixFirstRowsHtml(rows = [], emptyText = 'No urgent production exception
     const unit = displayVehicle(vehicle) || 'Vehicle not listed';
     const stage = pmbStageLabel(inferredPmbStage(vehicle)) || pdcLocationLabel(vehiclePdcLocation(vehicle)) || incomingBucketLabel(incomingBucketForVehicle(vehicle));
     const severity = row.severity || 'warning';
-    const clearAction = row.bookingId || row.label === 'Parts STOPPAGE' || row.label === 'PMB STOPPAGE'
-      ? `<button class="small-button fix-first-clear" type="button" data-clear-priority-stoppage="${escapeHtml(key)}">Clear stoppage</button>` : '';
+    const clearAction = row.stoppageKind
+      ? `<button class="small-button fix-first-clear" type="button" data-clear-priority-stoppage="${escapeHtml(key)}" data-stoppage-kind="${escapeHtml(row.stoppageKind)}" data-booking-id="${escapeHtml(row.bookingId || '')}" data-booking-version="${Number(row.bookingVersion || 0)}">Clear stoppage</button>` : '';
     return `<div class="fix-first-row-wrap">
       <button class="fix-first-row fix-first-${escapeHtml(severity)}" type="button" data-open-stock="${escapeHtml(key)}">
         <span class="fix-first-label">${escapeHtml(row.label || 'Action needed')}</span>
@@ -5281,7 +5284,7 @@ function fixFirstRowsHtml(rows = [], emptyText = 'No urgent production exception
   return `${vehicleIdentityHeaderHtml('fix-first-identity-header')}${rowHtml}`;
 }
 
-async function clearPriorityStoppage(key = '') {
+async function clearPriorityStoppage(key = '', stoppageKind = '', bookingId = '', bookingVersion = 0) {
   const vehicle = selectedVehicle(key);
   const service = app.emailVehicleLocationService;
   if (!vehicle || vehicle.__emailVehicleServerAuthoritative !== true || !vehicle.__emailVehicleId || Number(vehicle.__emailVehicleVersion || 0) < 1 || typeof service?.clearVehicleStoppage !== 'function') {
@@ -5289,9 +5292,9 @@ async function clearPriorityStoppage(key = '') {
   }
   const note = cleanNavisionText(window.prompt('Why is this stoppage being cleared? This note is kept in the vehicle history.', 'Issue resolved') || '');
   if (!note) return;
-  const result = await service.clearVehicleStoppage(vehicle.__emailVehicleId, Number(vehicle.__emailVehicleVersion), note, salespersonAssignmentIdempotencyKey());
+  const result = await service.clearVehicleStoppage(vehicle.__emailVehicleId, Number(vehicle.__emailVehicleVersion), stoppageKind, bookingId, Number(bookingVersion || 0), note, salespersonAssignmentIdempotencyKey());
   if (!result?.ok) {
-    const messages = { no_active_stoppage: 'This vehicle no longer has an active stoppage.', vehicle_version_conflict: 'This vehicle changed in another session. The latest state has been reloaded.', vehicle_not_active: 'This vehicle is no longer active.' };
+    const messages = { no_active_stoppage: 'This vehicle no longer has an active stoppage.', no_active_parts_stoppage: 'This Parts stoppage is no longer active.', no_active_pmb_stoppage: 'This PMB stoppage is no longer active.', booking_not_in_stoppage: 'This Workshop booking is no longer stopped.', booking_version_conflict: 'This Workshop booking changed in another session. The latest state has been reloaded.', vehicle_version_conflict: 'This vehicle changed in another session. The latest state has been reloaded.', vehicle_not_active: 'This vehicle is no longer active.' };
     await Promise.allSettled([refreshEmailVehicleLocations(), window.__workshopDataService?.loadSnapshot?.('clear_stoppage_rejected')]);
     window.alert(messages[result?.code] || 'The stoppage was not cleared. No history was removed.'); renderAll(); return;
   }
@@ -5308,7 +5311,7 @@ function bindFixFirstRows(root = document) {
   $$('[data-clear-priority-stoppage]', root).forEach(button => {
     if (button.dataset.clearStoppageBound === 'true') return;
     button.dataset.clearStoppageBound = 'true';
-    button.addEventListener('click', event => { event.stopPropagation(); void clearPriorityStoppage(button.dataset.clearPriorityStoppage); });
+    button.addEventListener('click', event => { event.stopPropagation(); void clearPriorityStoppage(button.dataset.clearPriorityStoppage, button.dataset.stoppageKind, button.dataset.bookingId, Number(button.dataset.bookingVersion || 0)); });
   });
 }
 

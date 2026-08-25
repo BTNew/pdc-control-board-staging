@@ -43,10 +43,10 @@ assert.match(repairs, /HERMES-TEST-420-visible-bridge/);
 assert.match(repairs, /v\.lifecycle_state IN\(''active'',''rft''\)/);
 assert.match(sql, /REVOKE ALL ON TABLE public\.pdc_rft_transport_salesperson_outbox_412 FROM public,anon,authenticated,service_role/);
 
-assert.match(service, /PDC_STOPPAGE_CLEAR_RPC = 'clear_vehicle_stoppage_412'/);
+assert.match(service, /PDC_STOPPAGE_CLEAR_RPC = 'clear_vehicle_stoppage_422'/);
 assert.match(service, /PDC_RFT_TRANSPORT_BOOK_RPC = 'book_rft_transport_412'/);
 assert.match(service, /PDC_RFT_TRANSPORT_COLLECT_RPC = 'collect_rft_transport_412'/);
-assert.match(service, /clearVehicleStoppage, bookRftTransport, collectRftTransport/);
+assert.match(service, /clearVehicleStoppage, setPmbStoppage, bookRftTransport, collectRftTransport/);
 assert.match(service, /mapped\.rftTransportBookedAt = row\.rft_transport_booked_at/);
 
 assert.match(app, /data-clear-priority-stoppage/);
