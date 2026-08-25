@@ -55,6 +55,7 @@ const WORKSHOP_MUTATION_RPCS = Object.freeze([
   'restore_workshop_booking',
   'cascade_workshop_schedule',
   'cascade_workshop_booking_move',
+  'set_workshop_stage_estimated_minutes_407',
 
   'create_workshop_admin_block',
   'move_workshop_admin_block',
@@ -85,6 +86,7 @@ const WORKSHOP_MUTATION_VERSION_PARAM = Object.freeze({
   restore_workshop_booking: 'p_expected_version',
   cascade_workshop_schedule: 'p_target_expected_version',
   cascade_workshop_booking_move: 'p_expected_version',
+  set_workshop_stage_estimated_minutes_407: 'p_expected_booking_version',
 
   create_workshop_admin_block: 'p_expected_revision',
   move_workshop_admin_block: 'p_expected_version',

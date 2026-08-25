@@ -87,6 +87,18 @@ function buildWorkshopSharedActions(dataService) {
       });
     },
 
+    setStageEstimatedMinutes({ vehicleId, vehicleExpectedVersion, bookingId, bookingExpectedVersion, stageCode, totalMinutes, idempotencyKey }) {
+      return mutate('set_workshop_stage_estimated_minutes_407', {
+        p_vehicle_id: vehicleId,
+        p_expected_vehicle_version: vehicleExpectedVersion,
+        p_booking_id: bookingId,
+        p_expected_booking_version: bookingExpectedVersion,
+        p_stage_code: stageCode,
+        p_total_minutes: totalMinutes,
+        p_idempotency_key: idempotencyKey,
+      });
+    },
+
     cascadeMoveBooking({ bookingId, expectedVersion, stageCode, bayNumber, scheduledStartAt, durationMinutes, overrideReason = null, metadata = {} }) {
       return mutate('cascade_workshop_booking_move', {
         p_booking_id: bookingId,
