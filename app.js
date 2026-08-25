@@ -5501,8 +5501,12 @@ async function saveSharedVehicleWorkStates(vehicle = {}, workStates = {}) {
 }
 
 function reconcileVehicleLifecycleServerResult(vehicle = {}, result = {}) {
-  const authoritative = result && typeof result.vehicle === 'object' ? result.vehicle : null;
-  if (!authoritative) return;
+  const authoritative = result && typeof result.vehicle === 'object'
+    ? result.vehicle
+    : result?.data && typeof result.data.vehicle === 'object'
+      ? result.data.vehicle
+      : null;
+  if (!authoritative) return false;
   const location = normalizePdcLocation(authoritative.current_location || '');
   if (location) {
     vehicle.pdcLocation = location;
@@ -5515,6 +5519,7 @@ function reconcileVehicleLifecycleServerResult(vehicle = {}, result = {}) {
   vehicle.dateToPmb = authoritative.date_to_pmb || vehicle.dateToPmb || '';
   vehicle.dateToRft = authoritative.date_to_rft || vehicle.dateToRft || '';
   vehicle.deliveredToDealerDate = authoritative.delivered_to_dealer_date || vehicle.deliveredToDealerDate || '';
+  return true;
 }
 
 function vehicleReadyForQualityControl(vehicle = {}) {
@@ -5555,10 +5560,16 @@ async function markVehicleReadyForQualityControl(key = '') {
       return false;
     }
     reconcileVehicleLifecycleServerResult(vehicle, result);
-    if (window.__workshopDataService && typeof window.__workshopDataService.loadSnapshot === 'function') {
-      await window.__workshopDataService.loadSnapshot('ready_for_qc');
-    }
-    renderAll();
+    const [locationsRefreshed] = await Promise.all([
+      refreshEmailVehicleLocations(),
+      window.__workshopDataService && typeof window.__workshopDataService.loadSnapshot === 'function'
+        ? window.__workshopDataService.loadSnapshot('ready_for_qc').then(() => true).catch(() => false)
+        : Promise.resolve(false),
+    ]);
+    // The direct lifecycle response has already been reconciled in memory. If
+    // the broader authoritative snapshot is temporarily unavailable, render
+    // that committed QC state immediately rather than requiring Ctrl+F5.
+    if (!locationsRefreshed) renderAll();
     return true;
   }
 
