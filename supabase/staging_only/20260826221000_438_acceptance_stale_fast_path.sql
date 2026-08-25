@@ -30,7 +30,7 @@ BEGIN
  insertion:=replace(insertion,chr(13),'');
  repaired:=replace(d,needle,insertion);
  IF repaired=d
-   OR position(insertion IN repaired)=0
+   OR position('v.version IS DISTINCT FROM p_expected_version' IN repaired)=0
    OR position('v_before.version<>p_expected_version' IN repaired)=0
    OR position('v_notification_state_after<>v_notification_state_before' IN repaired)=0
    OR position('v_outbound_after<>v_outbound_before' IN repaired)=0
