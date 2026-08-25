@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.26.03-workshop-minute-estimate';
+const APP_VERSION = '2026.08.26.04-operational-closure';
 const WORKSHOP_PLANNER_SCRIPT_VERSION = APP_VERSION;
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
@@ -4941,7 +4941,7 @@ async function qcPageAttachPhoto(key = '', input) {
       reader.addEventListener('error', () => resolve(''), { once: true });
       reader.readAsDataURL(file);
     });
-    qcPhotoEvidence.set(cleanKey, { ...result.data, originalFilename: result.data.original_filename || file.name, byteLength: Number(result.data.byte_length || 0), originalByteLength: Number(result.data.original_byte_length || file.size), imageWidth: Number(result.data.image_width || 0), imageHeight: Number(result.data.image_height || 0), sha256: result.data.sha256, url: preview });
+    qcPhotoEvidence.set(cleanKey, { ...result.data, photoReceiptId: result.data.photo_receipt_id, originalFilename: result.data.original_filename || file.name, byteLength: Number(result.data.byte_length || 0), originalByteLength: Number(result.data.original_byte_length || file.size), imageWidth: Number(result.data.image_width || 0), imageHeight: Number(result.data.image_height || 0), sha256: result.data.sha256, url: preview });
     qcPageFeedback.set(cleanKey, { kind: 'saved', message: `Photo compressed and stored (${Math.round(Number(result.data.original_byte_length || file.size) / 1024)} KB → ${Math.round(Number(result.data.byte_length || 0) / 1024)} KB). All active operation lines must be complete before sign-off.` });
     renderQualityControlPage();
     return true;
@@ -10805,6 +10805,7 @@ function salespersonChangeBannerLines(vehicle = {}, change = {}) {
 function salespersonChangeEmailBody(vehicle = {}, change = {}) {
   const salesperson = salespersonDisplayName(vehicle);
   const details = (Array.isArray(change.details) ? change.details : [change.details]).map(cleanNavisionText).filter(Boolean);
+  const outstanding = vehicleOutstandingWorkEmailLines(vehicle);
   return [
     `Hi ${salesperson},`,
     '',
@@ -10818,6 +10819,9 @@ function salespersonChangeEmailBody(vehicle = {}, change = {}) {
     ...details.map(detail => `- ${detail}`),
     `Current status: ${statusCategoryLabel(vehicle)}${inferredPmbStage(vehicle) ? ` / ${pmbStageLabel(inferredPmbStage(vehicle))}` : ''}`,
     '',
+    'Current outstanding work and booking times:',
+    ...(outstanding.length ? outstanding : ['- None']),
+    '',
     'Please update the customer or delivery expectation if required.',
     '',
     'Kind Regards,',
@@ -10825,12 +10829,17 @@ function salespersonChangeEmailBody(vehicle = {}, change = {}) {
 }
 
 function draftSalespersonChangeEmail(vehicle = {}, change = {}, recipient = '') {
+  const stockIdentity = displayStockNumber(vehicle);
+  if (!stockIdentity || vehicle.__emailVehicleServerAuthoritative !== true || vehicle.__emailVehicleIdentityConflict === true || !vehicleWorkshopDetailCanonicalId(vehicle)) {
+    window.alert('The authoritative vehicle card is still loading. No blank or TBA email draft was opened. Close and reopen the Stock after the refresh completes.');
+    return false;
+  }
   const email = cleanNavisionText(recipient || salespersonEmail(vehicle));
   if (!email) {
     window.alert('Enter a salesperson email address before opening the email draft.');
     return false;
   }
-  const stock = displayStockNumber(vehicle) || 'TBA';
+  const stock = stockIdentity;
   const subject = `${cleanNavisionText(change.subject || change.title || 'PDC vehicle update')} - ${stock}`;
   const body = String(change.body || '').trim() || salespersonChangeEmailBody(vehicle, change);
   if (change.shared !== true) {
@@ -10891,6 +10900,29 @@ function offerSalespersonChangeEmail(vehicle = {}, change = {}) {
   overlay.querySelector('[data-sales-email-open]')?.focus();
 }
 
+function vehicleOutstandingWorkEmailLines(vehicle = {}) {
+  const activeStatuses = new Set(['queued', 'planned', 'started', 'stoppage']);
+  const bookings = (Array.isArray(vehicle.salesWorkshopBookings) ? vehicle.salesWorkshopBookings : [])
+    .filter(booking => activeStatuses.has(String(booking.status || '').toLowerCase()));
+  const dateTime = value => {
+    const parsed = parseIsoTimestamp(value);
+    return parsed ? parsed.toLocaleString('en-AU', { timeZone: 'Australia/Perth', dateStyle: 'short', timeStyle: 'short' }) : '';
+  };
+  return pdcRequirementDefinitions(vehicle).filter(job => !pdcJobComplete(vehicle, job)).map(job => {
+    const stage = normalizePmbStage(job.key);
+    const priority = status => ({ started: 0, stoppage: 1, planned: 2, queued: 3 }[String(status || '').toLowerCase()] ?? 9);
+    const matches = bookings.filter(booking => normalizePmbStage(booking.stageCode) === stage)
+      .sort((a, b) => priority(a.status) - priority(b.status) || String(a.scheduledStartAt).localeCompare(String(b.scheduledStartAt)));
+    const booking = matches[0];
+    if (!booking) return `- ${job.label} · Not booked`;
+    const status = String(booking.status || 'planned').toUpperCase();
+    const start = dateTime(booking.actualStartAt || booking.scheduledStartAt);
+    const end = dateTime(booking.actualEndAt || booking.scheduledEndAt);
+    const range = [start, end].filter(Boolean).join(' to ');
+    return `- ${job.label} · ${status}${range ? ` · ${range}` : ''}${booking.bayName ? ` · ${booking.bayName}` : ''}`;
+  });
+}
+
 function vehicleStatusUpdateEmailBody(vehicle = {}) {
   const salesperson = salespersonDisplayName(vehicle);
   const location = pdcLocationLabel(vehiclePdcLocation(vehicle)) || statusCategoryLabel(vehicle) || 'Follow Navision';
@@ -10910,9 +10942,7 @@ function vehicleStatusUpdateEmailBody(vehicle = {}) {
     const hours = pdcJobHours(vehicle, job);
     return `- ${job.label}${when}${by ? ` by ${by}` : ''}${mechanic ? ` · Mechanic: ${mechanic}` : ''}${completedBay ? ` · Bay: ${completedBay}` : ''}${hours ? ` · ${hours}h` : ''}`;
   });
-  const outstanding = pdcRequirementDefinitions(vehicle)
-    .filter(job => !pdcJobComplete(vehicle, job))
-    .map(job => `- ${job.label}`);
+  const outstanding = vehicleOutstandingWorkEmailLines(vehicle);
   const workshopHistory = vehicleWorkshopHistoryLines(vehicle);
   const blocker = isPdcBlocked(vehicle) ? pdcBlockReason(vehicle) : '';
   return [
@@ -10964,6 +10994,11 @@ function draftSelectedVehicleStatusEmail(key = '') {
     return;
   }
   const vehicle = selected[0];
+  if (!displayStockNumber(vehicle) || vehicle.__emailVehicleServerAuthoritative !== true || vehicle.__emailVehicleIdentityConflict === true || !vehicleWorkshopDetailCanonicalId(vehicle)
+      || (app.vehicleModalIdentity && !vehicleModalIdentityMatches(vehicle))) {
+    window.alert('The authoritative vehicle card is still loading. No blank or TBA email draft was opened.');
+    return;
+  }
   offerSalespersonChangeEmail(vehicle, {
     title: 'Vehicle status update',
     subject: 'Vehicle update',
@@ -10997,7 +11032,7 @@ function draftRftSalespersonNotificationEmail(vehicles = []) {
         const hours = pdcJobHours(vehicle, job) ? ` · ${pdcJobHours(vehicle, job)}h` : '';
         return `- ${job.label}${by}${atText}${mechanic}${bay}${hours}`;
       });
-      const outstanding = pdcRequirementDefinitions(vehicle).filter(job => !pdcJobComplete(vehicle, job)).map(job => `- ${job.label}`);
+      const outstanding = vehicleOutstandingWorkEmailLines(vehicle);
       return [
         `Stock number: ${displayStockNumber(vehicle) || 'TBA'}`,
         `Customer Name: ${vehicleCustomerName(vehicle) || 'TBA'}`,
@@ -12786,19 +12821,27 @@ function openVehicleModal(stock) {
     return false;
   }
   app.vehicleDetailPage = 'details';
+  app.vehicleModalLoadingIdentity = true;
   app.vehicleWorkshopDetailRequestGeneration += 1;
   const canonicalId = vehicleWorkshopDetailCanonicalId(vehicle);
   if (canonicalId) app.vehicleWorkshopDetailCache.delete(canonicalId);
-  renderDetail();
+  const panel = $('#vehicle-detail');
+  if (panel) panel.innerHTML = '<div class="empty-state vehicle-detail-loading" role="status"><strong>Loading authoritative vehicle details…</strong><span>The card will open only after the exact Stock and vehicle UUID are refreshed from staging.</span></div>';
   modal.hidden = false;
   document.body.classList.add('modal-open');
   $('#modal-close')?.focus();
-  void refreshSharedVehicleWorkState(vehicle).then(ok => {
-    if (ok && app.selectedStock === vehicleKey(vehicle) && !modal.hidden) renderDetail();
-  });
-  void loadVehicleWorkshopDetail(vehicle, { force: true }).then(() => {
-    if (app.selectedStock === vehicleKey(vehicle) && app.vehicleDetailPage === 'details' && !modal.hidden) renderDetail();
-  });
+  void (async () => {
+    try {
+      await refreshEmailVehicleLocations();
+      const refreshed = vehicleModalBoundVehicle();
+      if (!refreshed || !vehicleModalIdentityMatches(refreshed)) return;
+      await refreshSharedVehicleWorkState(refreshed);
+      await loadVehicleWorkshopDetail(refreshed, { force: true });
+    } finally {
+      app.vehicleModalLoadingIdentity = false;
+      if (!modal.hidden) renderDetail();
+    }
+  })();
   return true;
 }
 
@@ -12837,6 +12880,7 @@ function closeVehicleModal() {
   const modal = $('#vehicle-modal');
   app.vehicleWorkshopDetailRequestGeneration += 1;
   app.vehicleDetailPage = 'details';
+  app.vehicleModalLoadingIdentity = false;
   app.activeVehicleDetail = null;
   app.vehicleModalIdentity = null;
   if (!modal || modal.hidden) return;
@@ -12995,6 +13039,11 @@ function renderDetail() {
   const v = selectedVehicle();
   const panel = $('#vehicle-detail');
   if (!panel) return;
+  if (app.vehicleModalLoadingIdentity === true) {
+    app.activeVehicleDetail = null;
+    panel.innerHTML = '<div class="empty-state vehicle-detail-loading" role="status"><strong>Loading authoritative vehicle details…</strong><span>The exact Stock and vehicle UUID are being refreshed from staging before this card becomes editable.</span></div>';
+    return;
+  }
   if (!v && app.vehicleModalIdentity) {
     const stock = escapeHtml(app.vehicleModalIdentity.stockBaseline || 'the selected Stock');
     app.activeVehicleDetail = null;

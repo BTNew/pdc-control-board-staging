@@ -4218,6 +4218,7 @@ function renderWorkshopPlanner(options = {}) {
   const stageVehicleList = workshopPlannerVehiclesForStage(stage);
   const outstanding = focusedBookingMode ? [] : stageVehicleList;
   const unscheduled = focusedBookingMode ? [] : outstanding.filter(vehicle => vehicle.__workshopOutstanding?.existingBooking !== true);
+  const alreadyBookedOutstanding = focusedBookingMode ? 0 : Math.max(0, outstanding.length - unscheduled.length);
   // Once a vehicle is assigned to this station's physical bay it is no longer
   // actionable in the Outstanding candidates pile. The authoritative total is
   // still retained separately for reporting and reconciliation.
@@ -4262,7 +4263,7 @@ function renderWorkshopPlanner(options = {}) {
     ${focusedBookingMode && state.focusedBookingError ? `<section class="workshop-focused-booking-error" role="alert"><strong>Focused booking unavailable</strong><span>${escapeHtml(state.focusedBookingError)}</span><button type="button" class="small-button" data-workshop-focused-back>Back to Workshop planner</button></section>` : workshopDetailPanelHtml(selected, focusedPlans, { focused: focusedBookingMode })}
     <div class="workshop-board-shell">
       ${focusedBookingMode ? '' : `<aside class="workshop-side-panel workshop-waiting-panel">
-        <div class="workshop-side-heading"><strong>Outstanding candidates · Admin / Unallocated vehicle pills</strong><span>${queue.length}</span></div>
+        <div class="workshop-side-heading"><strong>Unallocated vehicles</strong><span>${queue.length} unallocated · ${alreadyBookedOutstanding} already booked in bays</span></div>
         <div class="workshop-unallocated-drop" data-workshop-unallocated-drop><strong>Return to Unallocated</strong><span>Planned or live: choose Just move or STOPPAGE</span></div>
         <div class="workshop-side-list">${queueBatch.visible.map(vehicle => workshopQueueCardHtml(vehicle, stage, dateKey, plans)).join('') || '<div class="workshop-empty">No outstanding requirements in this department.</div>'}${workshopIncrementalLoadMoreHtml('queue', queueBatch)}</div>
       </aside>`}
