@@ -700,8 +700,8 @@ function workshopAdminBlockHtml(block = {}, dateKey = '') {
   const width = ((segment.end - segment.start) / WORKSHOP_PLANNER_CONFIG.dayLengthMinutes) * 100;
   const label = block.label || ({ training: 'Training', sick: 'Sick leave', admin: 'Admin downtime' }[block.type] || 'Admin downtime');
   const editable = workshopAdminBlockCanMutate();
-  return `<article class="workshop-admin-block type-${escapeHtml(block.type)}" draggable="${editable}" tabindex="0" role="group" aria-label="${escapeHtml(`${label}, ${workshopTimeLabelFromMinutes(segment.start)}, ${block.durationMinutes} minutes.${editable ? ' Arrow keys move; Shift plus Arrow keys resize.' : ' Read only.'}`)}" data-workshop-admin-block-id="${escapeHtml(block.id)}" style="--plan-left:${left}%;--plan-width:${width}%;">
-    <strong>ADMIN · ${escapeHtml(label)}</strong><small>${escapeHtml(`${workshopTimeLabelFromMinutes(segment.start)} · ${block.durationMinutes / 60}h`)}</small>
+  return `<article class="workshop-admin-block type-${escapeHtml(block.type)}" draggable="${editable}" tabindex="0" role="group" aria-label="${escapeHtml(`${label}, ${workshopTimeLabelFromMinutes(segment.start)}, ${workshopAdminDurationHoursValue(block.durationMinutes)} hours.${editable ? ' Arrow keys move; Shift plus Arrow keys resize.' : ' Read only.'}`)}" data-workshop-admin-block-id="${escapeHtml(block.id)}" style="--plan-left:${left}%;--plan-width:${width}%;">
+    <strong>ADMIN · ${escapeHtml(label)}</strong><small>${escapeHtml(`${workshopTimeLabelFromMinutes(segment.start)} · ${workshopAdminDurationHoursValue(block.durationMinutes)} h`)}</small>
     ${editable ? '<span class="workshop-admin-block-controls"><button type="button" data-admin-block-nudge="-15" aria-label="Move 15 minutes earlier">−15m</button><button type="button" data-admin-block-nudge="15" aria-label="Move 15 minutes later">+15m</button><button type="button" data-admin-block-resize="15" aria-label="Extend 15 minutes">+ length</button><button type="button" data-admin-block-delete aria-label="Delete admin block">×</button></span><span class="workshop-admin-block-resize" data-admin-block-pointer-resize title="Drag to resize" aria-hidden="true"></span>' : ''}
   </article>`;
 }
@@ -2527,12 +2527,17 @@ function workshopEntryIsLive(entry = {}) {
 }
 
 function workshopCascadePlans(rows = workshopLoadPlans(), now = new Date()) {
+  // Shared Workshop rows are already authoritative. Never apply a reversible
+  // browser-only overrun cascade: it makes later chips appear shifted and then
+  // snap backwards when the live/STOPPAGE anchor leaves the current page.
+  // Persisted server cascade receipts are the only source of shared positions.
   const shared = workshopSharedModeActive();
+  if (shared) return { rows: rows.map(entry => ({ ...entry })), changed: false };
   let nextRows = rows.map(entry => ({
     ...entry,
     hours: entry.status === 'completed'
       ? entry.hours
-      : shared ? (workshopExactDurationHours(entry.hours) || workshopClampDurationHours(entry.hours)) : workshopClampDurationHours(entry.hours),
+      : workshopClampDurationHours(entry.hours),
   }));
   let changed = nextRows.some((entry, index) => entry.hours !== rows[index].hours);
   const scheduleAnchors = nextRows
@@ -3818,6 +3823,11 @@ async function workshopCreatePaletteAdminBlock(stage = '', bay = 0, dateKey = ''
   return result?.ok === true;
 }
 
+function workshopAdminDurationHoursValue(minutes = 30) {
+  const hours = workshopSnapMinutes(Number(minutes) || 30) / 60;
+  return String(Number(hours.toFixed(2)));
+}
+
 function bindWorkshopAdminPalette(root) {
   const palette = root.querySelector('[data-workshop-admin-palette]');
   if (!palette) return;
@@ -3825,10 +3835,10 @@ function bindWorkshopAdminPalette(root) {
   const tile = palette.querySelector('[data-workshop-admin-palette-tile]');
   const label = palette.querySelector('[data-workshop-admin-palette-label]');
   const updateDuration = () => {
-    const value = Math.max(15, Math.min(480, Number(durationInput?.value) || 30));
-    workshopAdminPaletteDurationMinutes = workshopSnapMinutes(value);
-    if (durationInput) durationInput.value = String(workshopAdminPaletteDurationMinutes);
-    if (label) label.textContent = `Admin · ${workshopAdminPaletteDurationMinutes} min`;
+    const hours = Math.max(0.25, Math.min(8, Number(durationInput?.value) || 0.5));
+    workshopAdminPaletteDurationMinutes = workshopSnapMinutes(hours * 60);
+    if (durationInput) durationInput.value = workshopAdminDurationHoursValue(workshopAdminPaletteDurationMinutes);
+    if (label) label.textContent = `Admin · ${workshopAdminDurationHoursValue(workshopAdminPaletteDurationMinutes)} h`;
     if (tile) tile.dataset.adminPaletteDuration = String(workshopAdminPaletteDurationMinutes);
   };
   durationInput?.addEventListener('change', updateDuration);
@@ -3869,8 +3879,8 @@ function openWorkshopAdminBlockModal() {
       <label><span>Physical bay</span><select name="bay">${bayOptions}</select></label>
       <label><span>Date</span><input name="date" type="date" value="${escapeHtml(dateKey)}" required /></label>
       <label><span>Start time</span><select name="startMinutes">${workshopScheduleTimeOptions(0)}</select></label>
-      <label><span>Operational minutes</span><input name="hours" type="number" min="15" step="15" value="30" required /></label>
-    </div><p class="workshop-schedule-note">Breaks, closures, working days and configured overtime use the same operational-minute rules as vehicle bookings.</p>
+      <label><span>Duration (hours)</span><input name="hours" type="number" min="0.25" step="0.25" value="0.5" required aria-label="Admin block duration in hours" /></label>
+    </div><p class="workshop-schedule-note">Enter hours; they are saved as exact operational minutes. Breaks, closures, working days and configured overtime use the same scheduling rules as vehicle bookings.</p>
     <div class="edit-actions"><button class="secondary" type="button" data-admin-block-cancel>Cancel</button><button class="primary" type="submit">Create Admin block</button></div></form></section>`;
   const close = () => { overlay.remove(); if (!document.querySelector('.modal-overlay')) document.body.classList.remove('modal-open'); };
   overlay.querySelectorAll('[data-admin-block-cancel]').forEach(button => button.addEventListener('click', close));
@@ -3887,7 +3897,7 @@ function openWorkshopAdminBlockModal() {
       expectedRevision: Number(expectedRevision), stageCode: stage,
       bayNumber: Number(form.elements.bay.value), blockType: form.elements.blockType.value,
       label: cleanNavisionText(form.elements.label.value), scheduledStartAt: start.toISOString(),
-      durationMinutes: workshopSnapMinutes(Number(form.elements.hours.value) || 30),
+      durationMinutes: workshopSnapMinutes((Number(form.elements.hours.value) || 0.5) * 60),
       metadata: { source: 'planner_admin_block_create' },
     });
     if (result?.ok) close();
@@ -3990,14 +4000,17 @@ function renderWorkshopPlanner(options = {}) {
     <header class="workshop-planner-header">
       <div><h2>${escapeHtml(dedicatedStage ? 'Selected station schedule' : 'Workshop bay planner')}</h2><p>Configured hours ${escapeHtml(workshopTimeLabelFromMinutes(0))}–${escapeHtml(workshopTimeLabelFromMinutes(WORKSHOP_PLANNER_CONFIG.dayLengthMinutes))}. Long jobs carry into the next configured workday; overlapping bay bookings are blocked.</p></div>
       <div class="workshop-date-controls">
-        <button class="small-button" type="button" data-workshop-date-shift="-1">‹ Previous</button>
-        <input type="date" data-workshop-date aria-label="Workshop planner date" value="${escapeHtml(dateKey)}" />
-        <button class="small-button" type="button" data-workshop-date-shift="1">Next ›</button>
+        <div class="workshop-date-nav">
+          <input type="date" data-workshop-date aria-label="Workshop planner date" value="${escapeHtml(dateKey)}" />
+          <span class="workshop-date-shift-group" aria-label="Change workshop date">
+            <button class="small-button" type="button" data-workshop-date-shift="-1">‹ Previous</button>
+            <button class="small-button" type="button" data-workshop-date-shift="1">Next ›</button>
+          </span>
+        </div>
         <button class="small-button" type="button" data-workshop-today>Today</button>
         <button class="small-button" type="button" data-workshop-weekly-view>Weekly view</button>
         ${sharedModeActive && workshopLastAdministratorMove && workshopAdministratorCanMove() ? '<button class="small-button" type="button" data-workshop-undo-admin-move>Undo last move</button>' : ''}
-        ${sharedModeActive && workshopAdminBlockCanMutate() ? '<button class="small-button workshop-admin-block-add" type="button" data-workshop-add-admin-block>+ Admin block</button><div class="workshop-admin-palette" data-workshop-admin-palette><span class="workshop-admin-palette-hint">Drag to a bay</span><button class="workshop-admin-palette-tile" type="button" draggable="true" data-workshop-admin-palette-tile data-admin-palette-duration="30"><span data-workshop-admin-palette-label>Admin · 30 min</span></button><label class="workshop-admin-palette-duration"><span>Duration</span><input type="number" min="15" max="480" step="15" value="30" data-workshop-admin-palette-duration aria-label="Admin block duration in minutes" /></label></div>' : ''}
-        ${sharedModeActive && workshopVehicleLinkCanPersist() ? '<button class="small-button" type="button" data-workshop-link-readiness>Review shared links</button>' : ''}
+        ${sharedModeActive && workshopAdminBlockCanMutate() ? `<button class="small-button workshop-admin-block-add" type="button" data-workshop-add-admin-block>+ Admin block</button><div class="workshop-admin-palette" data-workshop-admin-palette><span class="workshop-admin-palette-hint">Drag to a bay</span><button class="workshop-admin-palette-tile" type="button" draggable="true" data-workshop-admin-palette-tile data-admin-palette-duration="${workshopAdminPaletteDurationMinutes}"><span data-workshop-admin-palette-label>Admin · ${workshopAdminDurationHoursValue(workshopAdminPaletteDurationMinutes)} h</span></button><label class="workshop-admin-palette-duration"><span>Hours</span><input type="number" min="0.25" max="8" step="0.25" value="${workshopAdminDurationHoursValue(workshopAdminPaletteDurationMinutes)}" data-workshop-admin-palette-duration aria-label="Admin block duration in hours" /></label></div>` : ''}
         <button class="small-button warning-button" type="button" data-workshop-parts-warning>Draft next-day parts warning</button>
       </div>
     </header>
@@ -4241,17 +4254,24 @@ function bindWorkshopPlanner(root) {
     event.stopPropagation();
     openWorkshopScheduleModal(button.dataset.workshopScheduleVehicle, workshopState().stage, workshopState().date);
   }));
-  root.querySelectorAll('[data-workshop-best-slot-vehicle]').forEach(button => button.addEventListener('click', event => {
+  root.querySelectorAll('[data-workshop-best-slot-vehicle]').forEach(button => button.addEventListener('click', async event => {
     event.preventDefault();
     event.stopPropagation();
-    scheduleWorkshopVehicle({
-      vehicleKeyValue: button.dataset.workshopBestSlotVehicle,
-      stage: button.dataset.workshopBestSlotStage,
-      bay: Number(button.dataset.workshopBestSlotBay),
-      dateKey: button.dataset.workshopBestSlotDate,
-      startMinutes: Number(button.dataset.workshopBestSlotStart),
-      hoursValue: Number(button.dataset.workshopBestSlotHours),
-    });
+    if (button.disabled) return;
+    button.disabled = true;
+    button.setAttribute('aria-busy', 'true');
+    try {
+      await workshopScheduleVehicleNextAvailable({
+        vehicleKeyValue: button.dataset.workshopBestSlotVehicle,
+        stage: button.dataset.workshopBestSlotStage,
+        hours: Number(button.dataset.workshopBestSlotHours),
+      });
+    } finally {
+      if (button.isConnected) {
+        button.disabled = false;
+        button.removeAttribute('aria-busy');
+      }
+    }
   }));
   root.querySelectorAll('[data-workshop-admin-block-id]').forEach(chip => {
     const block = workshopLoadAdminBlocks().find(row => row.id === chip.dataset.workshopAdminBlockId);
