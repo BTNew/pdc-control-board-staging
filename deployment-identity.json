@@ -1,33 +1,26 @@
 {
   "environment": "staging",
-  "application_version": "2026.08.26.01-qc-finalization-399",
-  "frontend_source_commit": "2efb13ca8db47dc69edc0832807b144a5631d3e6",
+  "application_version": "2026.08.26.12-collected-projection",
+  "frontend_source_commit": "resolved-from-github-actions-head",
   "staging_project_ref": "cdsmnqxtyyoeoznmbidd",
   "production_unchanged": true,
   "mailbox_runtime_changed": false,
   "complete_vehicle_delete_commissioned": false,
-  "candidate_database_migration": {
-    "version": "20260826140000",
-    "name": "399_qc_finalization_photo_rft_salesperson_outbox",
-    "file": "supabase/staging_only/20260826140000_399_qc_finalization_photo_rft_salesperson_outbox.sql",
-    "sha256": "acaccd84be1a94facdf3857fbeb3f31dac5e94624bc696673958afcc1d017bc3",
-    "commissioned": false,
-    "review_status": "changes_required"
-  },
+  "candidate_database_migration": null,
   "observed_applied_database_migration": {
-    "version": "20260826131500",
-    "name": "398_owner_document_operation_routing_13080553",
-    "source": "Main supplied exact staging head/read-only Management API and authenticated snapshot probe evidence."
+    "version": "20260826210000",
+    "name": "431_intercept_storage_security_definer_predicate",
+    "file": "supabase/staging_only/20260826210000_431_intercept_storage_security_definer_predicate.sql",
+    "sha256": "76193882c4816e6a0d22d6741ff3494ace92365e4f25a5f20e800eece7a6ff06",
+    "commissioned": true,
+    "review_status": "staging_applied",
+    "source": "Verified staging-only migration runner receipt and authoritative migration-ledger readback."
   },
   "notes": [
-    "QC finalization 399 remains an additive candidate until the authorised staging database connector applies it; frontend remains fail-closed without the new RPCs.",
-    "Complete Vehicle Delete remains uncommissioned and the staging UI is fail-closed behind completeVehicleDeleteCommissioned=false.",
-    "Historical email/source and Telegram replay fences must remain preserved.",
-    "Production and the local mailbox runtime were not changed by this release.",
-    "Vehicle and customer dialogs trap keyboard focus, recover containment after asynchronous rerenders, and return focus to the invoking control on close.",
-    "QC now renders and records stable authenticated operation lines individually; department labels are non-interactive group headings and unknown-hour lines fail closed.",
-    "The QC projection release distinguishes a missing server qc_operation_lines field from a valid empty array; source operation evidence is never implied absent.",
-    "QC finalization requires a durable compressed private photo receipt, supports already-QC-completed vehicles still at QC, and queues an unsent exact salesperson payload; no protected vehicle was mutated.",
-    "Canonical Sublet provider changes require exact booking UUID/version and active provider reference; zero/multiple booking summaries fail closed instead of calling the legacy vehicle-scoped writer."
+    "Targeted Workshop, Parts and PMB stoppage clearing is receipt-backed and exact-version protected.",
+    "RFT transport booking creates the mandatory pending salesperson payload with completed work, dates, build times, stoppages and the private QC photo reference.",
+    "Collected vehicles move to Completed, release active bay authority and remain in authoritative Completed history after refresh.",
+    "The staging-only email interceptor verifies deterministic MIME and QC attachment hashes in a private sink without external delivery.",
+    "Production and real outbound email delivery remain disabled and untouched."
   ]
 }
