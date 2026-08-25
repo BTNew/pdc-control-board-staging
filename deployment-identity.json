@@ -8,13 +8,13 @@
   "complete_vehicle_delete_commissioned": false,
   "candidate_database_migration": null,
   "observed_applied_database_migration": {
-    "version": "20260827006000",
-    "name": "456_final_inbox_monitor_runtime",
-    "file": "supabase/staging_only/20260827006000_456_final_inbox_monitor_runtime.sql",
-    "sha256": "2aad35f72a3e4ae5c799edfff08bd063532c99e0eb8431b004d094103aef6c31",
+    "version": "20260827007000",
+    "name": "457_owner_monitor_summary_runtime",
+    "file": "supabase/staging_only/20260827007000_457_owner_monitor_summary_runtime.sql",
+    "sha256": "341a7fe0ec99633bdc81ad67a4d013de1a9b400e105dae8735c7327427e59fb7",
     "commissioned": true,
     "review_status": "staging_applied",
-    "source": "Verified append-only staging-only migration chain through 456 using the protected migration controller and authoritative migration-ledger readback."
+    "source": "Verified append-only staging-only migration chain through 457 using the protected migration controller and authoritative migration-ledger readback."
   },
   "notes": [
     "Targeted Workshop, Parts and PMB stoppage clearing is receipt-backed and exact-version protected.",
