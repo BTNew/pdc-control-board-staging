@@ -106,6 +106,23 @@ body[data-current-view="workshop"] .content {
   flex: 0 0 auto;
 }
 
+.workshop-date-nav,
+.workshop-date-shift-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.workshop-date-controls input[data-workshop-date] {
+  width: 160px;
+  min-width: 160px;
+  flex: 0 0 160px;
+}
+
+.workshop-date-shift-group .small-button {
+  white-space: nowrap;
+}
+
 .workshop-date-controls .warning-button {
   border-color: #f59e0b;
   background: #fef3c7;
@@ -1199,10 +1216,17 @@ button.workshop-search-result:hover, button.workshop-search-result:focus-visible
     gap: 7px;
   }
 
-  .workshop-date-controls input {
-    order: -1;
+  .workshop-date-nav {
     grid-column: 1 / -1;
     width: 100%;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+  }
+
+  .workshop-date-controls input[data-workshop-date] {
+    width: 160px;
+    min-width: 0;
+    flex: 0 1 160px;
   }
 
   .workshop-date-controls button {
@@ -1210,6 +1234,15 @@ button.workshop-search-result:hover, button.workshop-search-result:focus-visible
     min-width: 0;
     min-height: 40px;
     white-space: normal;
+  }
+
+  .workshop-date-shift-group {
+    flex: 0 1 auto;
+  }
+
+  .workshop-date-shift-group button {
+    width: auto;
+    min-width: 92px;
   }
 
   .workshop-date-controls [data-workshop-parts-warning],
